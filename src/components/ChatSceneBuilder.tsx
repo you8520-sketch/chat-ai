@@ -162,7 +162,7 @@ function ComicPanelCompactDialoguePreview({
           ))}
           {preview.hiddenCount > 0 ? (
             <li className="text-[11px] font-semibold text-zinc-500">
-              +{preview.hiddenCount}개 더 보기
+              +{preview.hiddenCount}개 더 있음
             </li>
           ) : null}
         </ul>

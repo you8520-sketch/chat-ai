@@ -374,6 +374,134 @@ describe("chatImageScenePreviewProjection trustworthy UX", () => {
     assert.match(beat, /끌어당긴다/);
   });
 
+  it("B5a: short normal Korean sentence stays intact", () => {
+    const sentence = "태현이 렌의 손을 잡고 문 앞에 선다.";
+    const beat = projectCompleteVisualBeat(sentence);
+    assert.equal(beat, sentence);
+    assert.ok(beat.length <= COMPACT_PREVIEW_SITUATION_MAX + 1);
+  });
+
+  it("B5b: long unpunctuated Korean narration projects a complete clause, not full input", () => {
+    const longNarration =
+      "태현이 복도 끝에서 렌의 손목을 붙잡고 멈춰 서서 숨을 고르며 " +
+      "이현이 뒤에서 화살통을 여며 장비를 확인하고 " +
+      "태현이 작게 속삭이며 렌의 눈을 바라보고 " +
+      "렌은 시선을 피하며 창문 너머 비 내리는 거리를 응시하고 " +
+      "태현은 한 걸음 더 다가가 손을 더 세게 쥐며 " +
+      "렌은 마침내 고개를 돌려 태현을 바라보고 " +
+      "이현은 복도 입구에서 화살을 뽑아 들고 경계하며 " +
+      "태현은 렌의 손등에 열이 오른 것을 느끼고 더 단단히 쥐며 " +
+      "렌은 떨리는 숨을 몰아쉬고 눈가를 붉히며 " +
+      "이현은 멀리서 복도 끝 센서 불빛이 깜빡이는 것을 확인하고 " +
+      "태현은 렌의 어깨에 코트를 걸치며 " +
+      "렌은 작은 목소리로 돌아가자고 말하고 " +
+      "태현은 고개를 끄덕이며 손을 놓지 않고 " +
+      "렌은 마침내 몸을 기대며 태현의 품 안에 기댄다";
+    assert.ok(longNarration.length >= 300);
+    assert.doesNotMatch(longNarration, /[.!?…]/);
+
+    const beat = projectCompleteVisualBeat(longNarration);
+    assert.notEqual(beat, longNarration);
+    assert.ok(beat.length < longNarration.length);
+    assert.ok(beat.length <= COMPACT_PREVIEW_SITUATION_MAX + 24);
+    assert.doesNotMatch(beat, /…$/);
+    assert.match(beat, /^(태현|렌|이현)/);
+    assert.doesNotMatch(beat, /기댄다$/);
+  });
+
+  it("B5c: long single sentence with multiple clauses yields bounded visual beat", () => {
+    const longSentence =
+      "태현이 렌의 손목을 붙잡고 멈춰 서서 숨을 고르며, " +
+      "이현이 뒤에서 화살통을 여며 장비를 확인하고, " +
+      "태현이 작게 속삭이며 렌의 눈을 바라보고, " +
+      "렌은 시선을 피하며 창문 너머 비 내리는 거리를 응시하고, " +
+      "태현은 한 걸음 더 다가가 손을 더 세게 쥐며, " +
+      "렌은 마침내 고개를 돌려 태현을 바라보고, " +
+      "이현은 복도 입구에서 화살을 뽑아 들고 경계하며, " +
+      "태현은 렌의 손등에 열이 오른 것을 느끼고 더 단단히 쥐며, " +
+      "렌은 떨리는 숨을 몰아쉬고 눈가를 붉히며, " +
+      "이현은 멀리서 복도 끝 센서 불빛이 깜빡이는 것을 확인하고, " +
+      "태현은 렌의 어깨에 코트를 걸치며, " +
+      "렌은 작은 목소리로 돌아가자고 말하고, " +
+      "태현은 고개를 끄덕이며 손을 놓지 않고, " +
+      "렌은 마침내 몸을 기대며 태현의 품 안에 기댄다.";
+    assert.ok(longSentence.length >= 250);
+
+    const beat = projectCompleteVisualBeat(longSentence);
+    assert.ok(beat.length <= COMPACT_PREVIEW_SITUATION_MAX + 24);
+    assert.notEqual(beat, longSentence);
+    assert.doesNotMatch(beat, /…$/);
+    assert.match(beat, /태현|손목|붙잡/);
+  });
+
+  it("B5d: user-edited long panel.situation uses edit projection without touching generation data", () => {
+    const plan = basicTwoPanelPlan();
+    const panel = plan.panels[0];
+    assert.ok(panel);
+    const editedSituation =
+      "태현이 렌의 손목을 붙잡고 멈춰 서서 숨을 고르며 " +
+      "이현이 뒤에서 화살통을 여며 장비를 확인하고 " +
+      "태현이 작게 속삭이며 렌의 눈을 바라본다";
+    const edited = applyUserPanelEdits(plan, 1, { situation: editedSituation });
+    const editedPanel = edited.panels[0];
+    assert.ok(editedPanel);
+
+    const genBeat = projectComicPanelBeat(edited, editedPanel, { personaVisible: true }).situation;
+    assert.equal(genBeat, editedSituation);
+
+    const compact = projectComicPanelCompactSituation(edited, editedPanel);
+    assert.notEqual(compact, editedSituation);
+    assert.ok(compact.length <= COMPACT_PREVIEW_SITUATION_MAX + 24);
+    assert.doesNotMatch(compact, /…$/);
+
+    const snapshot = structuredClone(edited);
+    projectComicPanelCompactSituation(edited, editedPanel);
+    assert.deepEqual(edited, snapshot);
+  });
+
+  it("B5e: four-panel long-single-sentence overview stays storyboard-bounded", () => {
+    const longClause =
+      "태현이 렌의 손목을 붙잡고 멈춰 서서 숨을 고르며 " +
+      "이현이 뒤에서 화살통을 여며 장비를 확인하고 " +
+      "태현이 작게 속삭이며 렌의 눈을 바라보고 " +
+      "렌은 시선을 피하며 창문 너머 비 내리는 거리를 응시하고 " +
+      "태현은 한 걸음 더 다가가 손을 더 세게 쥐며 " +
+      "렌은 마침내 고개를 돌려 태현을 바라보고 " +
+      "이현은 복도 입구에서 화살을 뽑아 들고 경계하며 " +
+      "태현은 렌의 손등에 열이 오른 것을 느끼고 더 단단히 쥐며 " +
+      "렌은 떨리는 숨을 몰아쉬고 눈가를 붉히며 " +
+      "이현은 멀리서 복도 끝 센서 불빛이 깜빡이는 것을 확인하고 " +
+      "태현은 렌의 어깨에 코트를 걸치며 " +
+      "렌은 작은 목소리로 돌아가자고 말하고 " +
+      "태현은 고개를 끄덕이며 손을 놓지 않고 " +
+      "렌은 마침내 몸을 기대며 태현의 품 안에 기댄다";
+    assert.ok(longClause.length >= 250);
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: '*손목을 붙잡는다*\n"가지 마."' },
+      { id: 2, role: "assistant", content: longClause },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 4);
+    for (const panel of plan.panels) {
+      panel.situation = longClause;
+    }
+
+    let totalCompactChars = 0;
+    for (const panel of plan.panels) {
+      const compact = projectComicPanelCompactSituation(plan, panel);
+      assert.ok(compact.length <= COMPACT_PREVIEW_SITUATION_MAX + 24);
+      assert.notEqual(compact, longClause);
+      assert.doesNotMatch(compact, /…$/);
+      totalCompactChars += compact.length;
+    }
+    assert.ok(totalCompactChars < longClause.length * 2);
+  });
+
+  it("B5: dialogue more label is non-actionable wording", () => {
+    const source = fs.readFileSync("src/components/ChatSceneBuilder.tsx", "utf8");
+    assert.match(source, /\+{preview\.hiddenCount}개 더 있음/);
+    assert.doesNotMatch(source, /\+{preview\.hiddenCount}개 더 보기/);
+  });
+
   it("B8: dialogue preview shows exact canonical text for visible rows", () => {
     const plan = planWithManyDialogues();
     const panel = plan.panels.find((entry) => entry.index === 1);

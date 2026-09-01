@@ -226,22 +226,67 @@ function splitKoreanClauses(text: string): string[] {
     .filter(Boolean);
 }
 
-/** First complete visual beat for storyboard preview — clause/sentence safe, no mid-word ellipsis. */
-export function projectCompleteVisualBeat(text: string): string {
-  const normalized = text.replace(/\s+/g, " ").trim();
-  if (!normalized) return "";
+function normalizePreviewSegmentText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
 
-  const sentenceParts = normalized
+/** Preview-only clause split — whitespace normalize first, no cleanLine char slice. */
+function splitPreviewKoreanClauses(text: string): string[] {
+  return normalizePreviewSegmentText(text)
+    .split(/(?<=다|자|고|며|서|음|함|것|점)\s+|[.!?。…]\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function splitPreviewSentences(text: string): string[] {
+  return normalizePreviewSegmentText(text)
     .split(/(?<=[.!?…])\s+/)
     .map((part) => part.trim())
     .filter(Boolean);
-  if (sentenceParts.length >= 1 && sentenceParts[0]) {
-    return sentenceParts[0];
+}
+
+function combinePreviewClausesWithinBudget(
+  clauses: readonly string[],
+  softMaxChars: number
+): string {
+  if (!clauses.length) return "";
+  let beat = clauses[0]!;
+  for (let index = 1; index < clauses.length; index += 1) {
+    const candidate = `${beat} ${clauses[index]!}`;
+    if (candidate.length <= softMaxChars) {
+      beat = candidate;
+      continue;
+    }
+    break;
+  }
+  return beat;
+}
+
+/** First complete visual beat for storyboard preview — clause/sentence safe, no mid-word ellipsis. */
+export function projectCompleteVisualBeat(
+  text: string,
+  softMaxChars: number = COMPACT_PREVIEW_SITUATION_MAX
+): string {
+  const normalized = normalizePreviewSegmentText(text);
+  if (!normalized) return "";
+
+  const hasSentencePunctuation = /[.!?…]/.test(normalized);
+  const sentences = splitPreviewSentences(normalized);
+  const firstSentence = sentences[0] ?? normalized;
+
+  if (hasSentencePunctuation && firstSentence.length <= softMaxChars) {
+    return firstSentence;
   }
 
-  const clauses = splitKoreanClauses(normalized);
-  if (clauses.length === 1) return clauses[0]!;
-  return clauses[0] ?? normalized;
+  const clauseSource = hasSentencePunctuation ? firstSentence : normalized;
+  const clauses = splitPreviewKoreanClauses(clauseSource);
+  if (!clauses.length) {
+    return firstSentence;
+  }
+  if (clauses.length === 1) {
+    return clauses[0]!;
+  }
+  return combinePreviewClausesWithinBudget(clauses, softMaxChars);
 }
 
 export type SceneSourceSegment = {
@@ -1701,19 +1746,19 @@ export function truncateCompactPreviewText(text: string, maxChars: number): stri
 function compactVisualBeatFromEvents(
   events: readonly SceneEvent[],
   fallback: string,
-  _maxChars: number
+  maxChars: number
 ): string {
   const ordered = events.filter((event) => event.kind !== "assistant_echo");
   const action = ordered.find((event) => event.kind === "action" || event.kind === "reaction");
   if (action?.text.trim()) {
-    return projectCompleteVisualBeat(action.text);
+    return projectCompleteVisualBeat(action.text, maxChars);
   }
   const environment = ordered.find((event) => event.kind === "environment");
   if (environment?.text.trim()) {
-    return projectCompleteVisualBeat(environment.text);
+    return projectCompleteVisualBeat(environment.text, maxChars);
   }
   const joined = buildUserFacingVisualDescription(ordered, fallback);
-  return projectCompleteVisualBeat(joined || fallback);
+  return projectCompleteVisualBeat(joined || fallback, maxChars);
 }
 
 function normalizeScenePreviewCompareText(text: string): string {
@@ -1792,7 +1837,8 @@ export function projectComicPanelCompactSituation(
 ): string {
   if (!panelSituationMatchesCanonicalDerived(plan, panel)) {
     return projectCompleteVisualBeat(
-      projectComicPanelBeat(plan, panel, visibility).situation
+      projectComicPanelBeat(plan, panel, visibility).situation,
+      COMPACT_PREVIEW_SITUATION_MAX
     );
   }
 
@@ -1809,7 +1855,8 @@ export function projectComicPanelCompactSituation(
   if (fromEvents) return fromEvents;
 
   return projectCompleteVisualBeat(
-    projectComicPanelBeat(plan, panel, visibility).situation
+    projectComicPanelBeat(plan, panel, visibility).situation,
+    COMPACT_PREVIEW_SITUATION_MAX
   );
 }
 
