@@ -6,11 +6,13 @@ import {
   buildDeterministicScenePlan,
   buildScenePlanPrompt,
   buildSceneSourceMessages,
+  buildUserFacingVisualDescription,
   extractDeterministicEvents,
   extractOrderedSceneSegments,
   formatApprovedScenePlanForComic,
   formatApprovedScenePlanForIllustration,
   formatSceneSourcePreview,
+  projectUserFacingHeroScene,
   reflowScenePlanPanels,
   sanitizeSceneSourceText,
   scenePlanHasRawChatLeak,
@@ -352,6 +354,7 @@ describe("chatImageScenePlan source grounding", () => {
         kind: "action",
         actor: "persona",
         text: "칼을 꺼낸다",
+        segmentKind: "action",
       },
     ]);
     const validated = validateScenePlan(forged, messages);
@@ -374,6 +377,7 @@ describe("chatImageScenePlan source grounding", () => {
         kind: "reaction",
         actor: "character",
         text: "태형이 렌을 끌어안는다.",
+        segmentKind: "narration",
       },
     ]);
     const validated = validateScenePlan(forged, messages);
@@ -691,5 +695,191 @@ describe("chatImageScenePlan validator", () => {
       ["태형", "렌"]
     );
     assert.deepEqual(mentions, []);
+  });
+});
+
+describe("chatImageScenePlan user-facing scene description", () => {
+  const ATTRIBUTION_FIXTURE =
+    '태현이 렌의 손목을 붙잡고 "가지 마."라고 말했다.';
+
+  function assertSceneDescriptionInvariants(opts: {
+    messages: ReturnType<typeof buildSceneSourceMessages>;
+    forbiddenInDescription: RegExp[];
+    requiredInDescription?: RegExp;
+    requiredDialogue?: string[];
+    heroMustIncludeDialogue?: boolean;
+  }) {
+    const plan = buildDeterministicScenePlan(opts.messages, 2);
+    const illustration = formatApprovedScenePlanForIllustration(plan);
+    for (const pattern of opts.forbiddenInDescription) {
+      assert.doesNotMatch(plan.heroScene, pattern);
+      assert.doesNotMatch(plan.heroScene, /라고 말했다/);
+    }
+    if (opts.requiredInDescription) {
+      assert.match(plan.heroScene, opts.requiredInDescription);
+    }
+    if (opts.requiredDialogue?.length) {
+      for (const line of opts.requiredDialogue) {
+        assert.ok(
+          plan.events.some((event) => event.kind === "dialogue" && event.text.includes(line)),
+          `canonical dialogue missing: ${line}`
+        );
+        assert.ok(
+          illustration.includes(line) || plan.panels.some((panel) =>
+            panel.dialogue.some((row) => row.text.includes(line))
+          ),
+          `downstream dialogue missing: ${line}`
+        );
+      }
+    }
+    if (opts.heroMustIncludeDialogue) {
+      const heroDialogue = plan.heroEventIds
+        .map((id) => plan.events.find((event) => event.id === id))
+        .filter((event) => event?.kind === "dialogue");
+      assert.ok(heroDialogue.length > 0, "heroEventIds should preserve dialogue events");
+    }
+    assert.match(illustration, /Hero scene:/);
+    assert.doesNotMatch(illustration, /SOURCE PROSE/);
+  }
+
+  it("CASE A narration + dialogue — natural visual, no dangling attribution", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "assistant", content: ATTRIBUTION_FIXTURE },
+    ]);
+    assertSceneDescriptionInvariants({
+      messages,
+      forbiddenInDescription: [/가지 마/, /라고 말했다/],
+      requiredInDescription: /손목|붙잡/,
+      requiredDialogue: ["가지 마"],
+    });
+    const events = extractDeterministicEvents(messages);
+    assert.ok(events.some((event) => event.text.includes("붙잡")));
+    assert.ok(events.some((event) => event.kind === "dialogue" && event.text.includes("가지 마")));
+    assert.equal(
+      events.some((event) => /라고 말했다/.test(event.text)),
+      false,
+      "NO_DANGLING_SPEECH_ATTRIBUTION"
+    );
+  });
+
+  it("CASE B split-line dialogue after narration cue", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "assistant", content: '태현은 렌을 바라보며 말했다.\n"가지 마."' },
+    ]);
+    assertSceneDescriptionInvariants({
+      messages,
+      forbiddenInDescription: [/가지 마/],
+      requiredInDescription: /바라/,
+      requiredDialogue: ["가지 마"],
+    });
+  });
+
+  it("CASE C dialogue before action", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "assistant", content: '"가지 마."\n태현이 렌의 손목을 붙잡았다.' },
+    ]);
+    assertSceneDescriptionInvariants({
+      messages,
+      forbiddenInDescription: [/가지 마/],
+      requiredInDescription: /손목|붙잡/,
+      requiredDialogue: ["가지 마"],
+    });
+  });
+
+  it("CASE D dialogue-only turn still produces plan", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: '"여기서 기다릴게."' },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2);
+    assert.ok(plan.heroEventIds.length > 0);
+    const illustration = formatApprovedScenePlanForIllustration(plan);
+    assert.match(illustration, /Key dialogue/);
+    assert.match(illustration, /여기서 기다릴게/);
+  });
+
+  it("CASE E action + dialogue + reaction + follow-up action", () => {
+    assertSceneDescriptionInvariants({
+      messages: sampleMessages(),
+      forbiddenInDescription: [/같이 갈래/, /그래/],
+      requiredDialogue: ["같이 갈래", "그래"],
+      heroMustIncludeDialogue: true,
+    });
+  });
+
+  it("CASE F dialogue-heavy long assistant turn", () => {
+    const messages = buildSceneSourceMessages([
+      {
+        id: 1,
+        role: "assistant",
+        content: '"안녕?" "뭐 해?" "같이 갈래?" "지금?" "좋아."',
+      },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 3);
+    assert.equal(plan.heroScene, "");
+    assert.ok(plan.events.filter((event) => event.kind === "dialogue").length >= 3);
+  });
+
+  it("CASE G status / HTML markup mixed source", () => {
+    const messages = buildSceneSourceMessages([
+      {
+        id: 1,
+        role: "assistant",
+        content: '<<<STATUS_VALUES{"mood":"tense"}>>> *고개를 든다* "괜찮아?"',
+      },
+    ]);
+    assertSceneDescriptionInvariants({
+      messages,
+      forbiddenInDescription: [/STATUS_VALUES/, /괜찮아/],
+      requiredInDescription: /고개/,
+      requiredDialogue: ["괜찮아"],
+    });
+  });
+
+  it("CASE H heroEventIds preserve dialogue for Key dialogue downstream", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: '"여기서 기다릴게."' },
+      { id: 2, role: "assistant", content: "*미소 지으며 고개를 끄덕인다.*" },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2);
+    assert.ok(
+      plan.heroEventIds.some(
+        (id) => plan.events.find((event) => event.id === id)?.kind === "dialogue"
+      )
+    );
+    assert.match(plan.heroScene, /미소|고개/);
+    assert.doesNotMatch(plan.heroScene, /여기서 기다릴게/);
+    const illustration = formatApprovedScenePlanForIllustration(plan);
+    assert.match(illustration, /Key dialogue/);
+    assert.match(illustration, /여기서 기다릴게/);
+  });
+
+  it("planner validation derives visual heroScene without regex stripping", () => {
+    const messages = sampleMessages();
+    const forged = {
+      ...buildDeterministicScenePlan(messages, 2),
+      heroScene: '후드 귀를 만진다 "같이 갈래?" 그래.',
+    };
+    const validated = validateScenePlan(forged, messages);
+    assert.equal(validated.ok, true);
+    if (validated.ok) {
+      assert.doesNotMatch(validated.plan.heroScene, /같이 갈래/);
+      assert.match(validated.plan.heroScene, /후드|고개/);
+      assert.ok(
+        validated.plan.heroEventIds.some(
+          (id) =>
+            validated.plan.events.find((event) => event.id === id)?.kind === "dialogue"
+        )
+      );
+    }
+  });
+
+  it("projectUserFacingHeroScene matches buildUserFacingVisualDescription from hero ids", () => {
+    const plan = buildDeterministicScenePlan(
+      buildSceneSourceMessages([
+        { id: 1, role: "assistant", content: ATTRIBUTION_FIXTURE },
+      ]),
+      2
+    );
+    assert.equal(projectUserFacingHeroScene(plan), plan.heroScene);
   });
 });

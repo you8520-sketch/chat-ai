@@ -71,7 +71,11 @@ describe("chatComicGeneration", () => {
       mood: "lovely",
       plan: SAMPLE_PLAN,
     });
-    assert.match(prompt, /APPROVED SCENE PLAN/);
+    assert.match(prompt, /COMIC PANEL SPEC/);
+    assert.match(prompt, /\[Panel 1/);
+    assert.match(prompt, /Hero focus:/);
+    assert.match(prompt, /Speech bubble/);
+    assert.match(prompt, /Continuity rules:/);
     assert.match(prompt, /STRICT CLOSED TEXT WHITELIST/);
     assert.match(prompt, /IDENTITY OWNERSHIP IS STRICT/);
     assert.match(prompt, /Silent panels with no speech are valid/);

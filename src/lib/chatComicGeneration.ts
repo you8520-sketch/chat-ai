@@ -12,9 +12,9 @@ import {
 import type { ScenePanelCount, ScenePlan } from "@/lib/chatImageScenePlan";
 import {
   collectApprovedComicText,
-  formatApprovedScenePlanForComic,
   resolveScenePresentationVisibility,
 } from "@/lib/chatImageScenePlan";
+import { buildChatComicPanelSpecPromptSection, compileChatComicPanelSpec } from "@/lib/chatComicPanelSpec";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
   bindChatImageReferencePack,
@@ -169,7 +169,7 @@ export function buildChatComicImagePrompt(opts: {
       : "";
   return [
     `Create one polished Korean manhwa-style page with exactly ${opts.plan.panels.length} wide horizontal panels stacked vertically.`,
-    "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and romantic-comedy timing, but do not copy its exact poses.",
+    "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and panel polish, but do not copy its exact poses.",
     "Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.",
     castBlock,
     renderChatImageVisualIdentity({
@@ -195,8 +195,15 @@ export function buildChatComicImagePrompt(opts: {
       ? `Exactly ${opts.castSelected!.length} recurring human ${opts.castSelected!.length === 1 ? "identity" : "identities"}. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.`
       : "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
     "Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.",
-    "APPROVED SCENE PLAN",
-    formatApprovedScenePlanForComic(opts.plan, sceneVisibility),
+    buildChatComicPanelSpecPromptSection({
+      plan: opts.plan,
+      personaName: opts.personaName,
+      characterName: opts.characterName,
+      visibility: sceneVisibility,
+      castSelected: castAware ? opts.castSelected : undefined,
+      subjects,
+      eventSubjectBindings: opts.castManifest?.eventSubjectBindings,
+    }),
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -274,4 +281,74 @@ export function buildChatComicGenerationPlan(opts: {
       contentKind: opts.contentKind,
     }),
   };
+}
+
+export function auditComicDialogueWhitelist(opts: {
+  plan: ScenePlan;
+  personaName: string;
+  characterName: string;
+  contentKind?: ContentKind;
+  castManifest?: ChatImageCastGroundedManifest | null;
+}): {
+  panelTextWhitelistMismatchCount: number;
+  userEditDialogueMismatchCount: number;
+} {
+  const visibility = resolveScenePresentationVisibility({
+    contentKind: opts.contentKind,
+    castManifest: opts.castManifest,
+  });
+  const whitelist = collectApprovedComicText(opts.plan, visibility);
+  const whitelistSet = new Set(whitelist);
+  const spec = compileChatComicPanelSpec({
+    plan: opts.plan,
+    personaName: opts.personaName,
+    characterName: opts.characterName,
+    visibility,
+    subjects: bindChatImageReferencePack({
+      subjectsInImageOrder: buildChatDuoVisualSubjects({
+        characterName: opts.characterName,
+        characterGender: "male",
+        characterImageUrl: "/character-ref",
+        characterSavedAppearance: "",
+        characterAppearanceMode: "image_only",
+        personaName: opts.personaName,
+        personaGender: "female",
+        personaImageUrl: "/persona-ref",
+        personaSavedAppearance: "",
+        personaAppearanceMode: "image_only",
+      }),
+    }).subjects,
+  });
+  const bubbleTexts = spec.panels.flatMap((panel) =>
+    panel.speechBubbles.map((bubble) => bubble.text).filter(Boolean)
+  );
+  const bubbleSet = new Set(bubbleTexts);
+  let panelTextWhitelistMismatchCount = 0;
+  for (const text of bubbleSet) {
+    if (!whitelistSet.has(text)) panelTextWhitelistMismatchCount += 1;
+  }
+  for (const text of whitelistSet) {
+    if (!bubbleSet.has(text)) panelTextWhitelistMismatchCount += 1;
+  }
+  const userEditDialogueMismatchCount = countUserEditDialogueMismatch(
+    opts.plan,
+    bubbleTexts
+  );
+  return { panelTextWhitelistMismatchCount, userEditDialogueMismatchCount };
+}
+
+/** Counts user-edited dialogue lines whose text is missing from final visible bubbles. */
+export function countUserEditDialogueMismatch(
+  plan: ScenePlan,
+  finalBubbleTexts: Iterable<string>
+): number {
+  const bubbleSet = new Set(finalBubbleTexts);
+  let count = 0;
+  for (const panel of plan.panels) {
+    for (const line of panel.dialogue) {
+      if (line.provenance !== "user_edit" || !line.text.trim()) continue;
+      if (!bubbleSet.has(line.text)) count += 1;
+    }
+  }
+  return count;
 }

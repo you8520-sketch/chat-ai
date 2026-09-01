@@ -234,7 +234,7 @@ describe("chatImageSceneManualFirst AI cast non-destructive", () => {
     });
     assert.deepEqual(afterCancel, beforeApply);
 
-    const appliedPlan = applyApprovedAiScenePlan(aiSuggestedPlan, "ai");
+    const appliedPlan = applyApprovedAiScenePlan(aiSuggestedPlan, 3);
     const afterApply = mergeCastIntentDraft(
       manual,
       draftCastIntentFromCandidatePool({
@@ -272,8 +272,8 @@ describe("chatImageSceneManualFirst explicit panel count", () => {
     assert.equal(applied.panels.length, 3);
   });
 
-  it("keeps auto mode at AI recommended count", () => {
-    const applied = applyApprovedAiScenePlan(aiTwo, "ai");
+  it("reflows to the requested panel count", () => {
+    const applied = applyApprovedAiScenePlan(aiTwo, 2);
     assert.equal(applied.panels.length, 2);
   });
 });

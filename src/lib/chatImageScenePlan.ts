@@ -33,6 +33,8 @@ export type SceneEventKind =
   | "environment"
   | "assistant_echo";
 
+export type SceneSourceSegmentKind = "dialogue" | "action" | "narration";
+
 export type SceneEventActor = "persona" | "character" | "other" | "environment";
 
 export type SceneEvent = {
@@ -43,6 +45,8 @@ export type SceneEvent = {
   kind: SceneEventKind;
   actor: SceneEventActor;
   text: string;
+  /** Original source segment kind — used for grounded panel action ownership. */
+  segmentKind: SceneSourceSegmentKind;
 };
 
 export type SceneDialogueSpeaker = "persona" | "character" | "other";
@@ -85,6 +89,27 @@ export type ScenePlan = {
 
 function cleanLine(raw: unknown, max = 400): string {
   return normalizeSceneBriefWhitespace(String(raw ?? "")).slice(0, max);
+}
+
+/** Preserve typing-safe raw dialogue while editing — no trim or whitespace collapse. */
+export function preserveDialogueEditText(raw: unknown, max = 160): string {
+  return String(raw ?? "").slice(0, max);
+}
+
+/** Canonical final dialogue text for bubbles, whitelist, and audits. */
+export function normalizeDialogueTextForOutput(raw: unknown, max = 160): string {
+  return normalizeSceneBriefWhitespace(String(raw ?? "")).slice(0, max);
+}
+
+const QUOTE_ATTRIBUTION_LINKER =
+  /^(?:이라고|라고|이라며|라며|이라면서|라면서)\s*/u;
+
+function hasQuoteAttributionLinker(text: string): boolean {
+  return QUOTE_ATTRIBUTION_LINKER.test(text.trim());
+}
+
+function isConcurrentReactionLinker(text: string): boolean {
+  return /^(?:이라며|라며|이라면서|라면서)/u.test(text.trim());
 }
 
 function actorForRole(role: SceneSourceRole): SceneEventActor {
@@ -201,8 +226,6 @@ function splitKoreanClauses(text: string): string[] {
     .filter(Boolean);
 }
 
-export type SceneSourceSegmentKind = "dialogue" | "action" | "narration";
-
 export type SceneSourceSegment = {
   start: number;
   end: number;
@@ -253,21 +276,126 @@ function gapSegments(
   text: string,
   start: number,
   end: number,
-  role: SceneSourceRole
+  role: SceneSourceRole,
+  afterDialogue: boolean
 ): SceneSourceSegment[] {
   const gap = text.slice(start, end);
   const trimmed = gap.trim();
   if (!trimmed) return [];
   const gapStart = start + gap.indexOf(trimmed);
   const gapEnd = gapStart + trimmed.length;
+  if (afterDialogue && hasQuoteAttributionLinker(trimmed)) {
+    return classifyPostDialogueGap(text, gapStart, gapEnd);
+  }
   if (role === "user") {
     const spoken = cleanLine(trimmed);
     if (!spoken || isSceneActionText(spoken)) return [];
     return [{ start: gapStart, end: gapEnd, kind: "dialogue", text: spoken }];
   }
+  if (afterDialogue) {
+    return classifyPostDialogueGap(text, gapStart, gapEnd);
+  }
   const narration = cleanLine(trimmed);
   if (!narration) return [];
   return [{ start: gapStart, end: gapEnd, kind: "narration", text: narration }];
+}
+
+function hasVisualActionCue(text: string): boolean {
+  const trimmed = cleanLine(text);
+  if (!trimmed) return false;
+  if (/\*[^*]+\*/.test(trimmed)) return true;
+  if (/[을를]\s/.test(trimmed)) return true;
+  if (/^(?:그|그녀|그들|[가-힣]{1,8}(?:이|가))\s/.test(trimmed)) return true;
+  if (/(?:다가|했다|한다|며|고)(?:[\s.!?。…]|$)/u.test(trimmed)) return true;
+  return trimmed.length >= 8;
+}
+
+/** Extract visual narration from a post-quote gap; drop pure speech-attribution tails. */
+function extractVisualFromPostQuoteGap(trimmed: string): string | null {
+  const linkMatch = trimmed.match(
+    /^(?:이라고|라고|이라며|라며|이라면서|라면서)\s*([\s\S]+)$/
+  );
+  if (!linkMatch) {
+    return hasVisualActionCue(trimmed) ? cleanLine(trimmed) : null;
+  }
+  const linkerPrefix = trimmed.match(/^(?:이라고|라고|이라며|라며|이라면서|라면서)/u)?.[0] ?? "";
+  const tail = cleanLine(linkMatch[1] ?? "");
+  if (!tail) return null;
+
+  const connectiveMatch = tail.match(/^[\p{L}]+(?:하고|하며|며)\s+([\s\S]+)$/u);
+  if (connectiveMatch) {
+    const action = cleanLine(connectiveMatch[1] ?? "");
+    if (action && (hasVisualActionCue(action) || /[을를]/.test(action))) return action;
+  }
+
+  const concurrentMatch = tail.match(/^[\s\S]+?며\s+([\s\S]+)$/);
+  if (concurrentMatch) {
+    const action = cleanLine(concurrentMatch[1] ?? "");
+    if (action && (hasVisualActionCue(action) || /[을를]/.test(action))) return action;
+  }
+
+  const sentenceMatch = tail.match(/^[^.!?。…]+[.!?。…]\s*([\s\S]+)$/);
+  if (sentenceMatch) {
+    const next = cleanLine(sentenceMatch[1] ?? "");
+    if (next && hasVisualActionCue(next)) return next;
+  }
+
+  if (isConcurrentReactionLinker(linkerPrefix)) {
+    if (isMalformedAttributionText(tail) && !/[을를]/.test(tail)) return null;
+    return tail;
+  }
+
+  if (/[을를]/.test(tail) && tail.length >= 4) return tail;
+  return null;
+}
+
+function classifyPostDialogueGap(
+  text: string,
+  gapStart: number,
+  gapEnd: number
+): SceneSourceSegment[] {
+  const trimmed = text.slice(gapStart, gapEnd).trim();
+  if (!trimmed) return [];
+  if (QUOTE_ATTRIBUTION_LINKER.test(trimmed)) {
+    const visual = extractVisualFromPostQuoteGap(trimmed);
+    if (!visual) return [];
+    const localStart = text.indexOf(visual, gapStart);
+    const start = localStart >= gapStart ? localStart : gapStart;
+    return [
+      {
+        start,
+        end: start + visual.length,
+        kind: "narration",
+        text: visual,
+      },
+    ];
+  }
+  const narration = cleanLine(trimmed);
+  if (!narration) return [];
+  const localStart = text.indexOf(narration, gapStart);
+  const start = localStart >= gapStart ? localStart : gapStart;
+  return [
+    {
+      start,
+      end: start + narration.length,
+      kind: "narration",
+      text: narration,
+    },
+  ];
+}
+
+/** Detect user-facing fields polluted by post-quote speech-attribution residue. */
+export function isMalformedAttributionText(text: string): boolean {
+  const trimmed = cleanLine(text);
+  if (!trimmed) return false;
+  if (/^(?:이라고|라고|이라며|라며|이라면서|라면서)(?:\s|$)/u.test(trimmed)) return true;
+  if (
+    /^(?:이라고|라고|이라며|라며|이라면서|라면서)[\p{L}\s]{0,48}[.!?。…]*$/u.test(trimmed) &&
+    !hasVisualActionCue(trimmed)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 /** Canonical intra-message segmenter — events follow source span order, not bucket order. */
@@ -299,9 +427,12 @@ export function extractOrderedSceneSegments(
 
   const segments: SceneSourceSegment[] = [];
   let cursor = 0;
+  let previousSpanKind: MarkedSpan["kind"] | null = null;
   for (const span of marked) {
     if (span.start > cursor) {
-      segments.push(...gapSegments(text, cursor, span.start, role));
+      segments.push(
+        ...gapSegments(text, cursor, span.start, role, previousSpanKind === "dialogue")
+      );
     }
     segments.push({
       start: span.start,
@@ -309,12 +440,23 @@ export function extractOrderedSceneSegments(
       kind: span.kind,
       text: span.text,
     });
+    previousSpanKind = span.kind;
     cursor = span.end;
   }
   if (cursor < text.length) {
-    segments.push(...gapSegments(text, cursor, text.length, role));
+    segments.push(
+      ...gapSegments(text, cursor, text.length, role, previousSpanKind === "dialogue")
+    );
   }
   return segments;
+}
+
+function isAssistantEchoOfUserAction(userActionText: string, segmentText: string): boolean {
+  if (!textsOverlap(userActionText, segmentText)) return false;
+  const userTokens = significantTokens(userActionText);
+  const segmentTokens = significantTokens(segmentText);
+  if (segmentTokens.length > Math.max(3, userTokens.length * 2)) return false;
+  return true;
 }
 
 function segmentToEvent(
@@ -329,6 +471,7 @@ function segmentToEvent(
       kind: message.role === "assistant" ? "reaction" : "action",
       actor: actorForRole(message.role),
       text: segment.text,
+      segmentKind: "action",
     };
   }
   if (segment.kind === "dialogue") {
@@ -338,12 +481,13 @@ function segmentToEvent(
       kind: "dialogue",
       actor: actorForRole(message.role),
       text: segment.text,
+      segmentKind: "dialogue",
     };
   }
   const isEcho =
     message.role === "assistant" &&
     previousUserAction != null &&
-    textsOverlap(previousUserAction.text, segment.text);
+    isAssistantEchoOfUserAction(previousUserAction.text, segment.text);
   return {
     sourceMessageId: message.id,
     sourceRole: message.role,
@@ -354,6 +498,7 @@ function segmentToEvent(
         : "environment",
     actor: message.role === "assistant" ? "character" : "environment",
     text: segment.text,
+    segmentKind: "narration",
   };
 }
 
@@ -390,13 +535,38 @@ export function markAssistantEchoes(events: readonly SceneEvent[]): SceneEvent[]
       .reverse()
       .find((candidate) => candidate.sourceRole === "user" && candidate.kind === "action");
     if (!previous) return event;
-    if (!textsOverlap(previous.text, event.text)) return event;
+    if (!isAssistantEchoOfUserAction(previous.text, event.text)) return event;
     return { ...event, kind: "assistant_echo" };
   });
 }
 
 export function visualEvents(events: readonly SceneEvent[]): SceneEvent[] {
   return events.filter((event) => event.kind !== "assistant_echo");
+}
+
+/** Non-dialogue visual beats only — canonical user-facing scene description owner. */
+export function buildUserFacingVisualDescription(
+  events: readonly SceneEvent[],
+  fallback = ""
+): string {
+  const description = events
+    .filter((event) => event.kind !== "dialogue")
+    .map((event) => event.text)
+    .join(" ")
+    .trim();
+  return description || fallback;
+}
+
+/** User-facing hero scene projection — visual beats only; heroEventIds may include dialogue. */
+export function projectUserFacingHeroScene(
+  plan: ScenePlan,
+  heroEventIds: readonly string[] = plan.heroEventIds
+): string {
+  const eventsById = new Map(plan.events.map((event) => [event.id, event]));
+  const heroEvents = heroEventIds
+    .map((id) => eventsById.get(id))
+    .filter((event): event is SceneEvent => event !== undefined);
+  return buildUserFacingVisualDescription(heroEvents, plan.sceneBackground);
 }
 
 /** Environment-only background from canonical events — no dialogue/narration fallback. */
@@ -440,9 +610,11 @@ function panelFromEvents(
   events: readonly SceneEvent[],
   sceneBackground: string
 ): ScenePanel {
-  const persona = events.find((event) => event.actor === "persona" && event.kind !== "dialogue");
+  const persona = events.find(
+    (event) => event.segmentKind === "action" && event.actor === "persona"
+  );
   const character = events.find(
-    (event) => event.actor === "character" && event.kind !== "dialogue"
+    (event) => event.segmentKind === "action" && event.actor === "character"
   );
   const dialogue: SceneDialogue[] = events
     .filter((event) => event.kind === "dialogue")
@@ -458,7 +630,8 @@ function panelFromEvents(
   return {
     index,
     sourceEventIds: events.map((event) => event.id),
-    situation: events.map((event) => event.text).join(" ").trim() || sceneBackground,
+    situation:
+      buildUserFacingVisualDescription(events, sceneBackground) || sceneBackground,
     personaAction: persona?.text,
     characterAction: character?.text,
     dialogue,
@@ -476,7 +649,7 @@ export function buildDeterministicScenePlan(
   const background = resolveDeterministicSceneBackground(events);
   const groups = groupEventsContiguously(events, resolvedCount);
   const heroEvents = usable.slice(0, Math.min(3, usable.length));
-  const heroScene = heroEvents.map((event) => event.text).join(" ").trim();
+  const heroScene = buildUserFacingVisualDescription(heroEvents, background);
   return {
     sceneBackground: background,
     atmosphere: undefined,
@@ -492,10 +665,9 @@ export function buildDeterministicScenePlan(
 
 export function applyApprovedAiScenePlan(
   aiPlan: ScenePlan,
-  panelCountMode: "ai" | ScenePanelCount
+  panelCount: ScenePanelCount
 ): ScenePlan {
-  if (panelCountMode === "ai") return aiPlan;
-  return reflowScenePlanPanels(aiPlan, panelCountMode);
+  return reflowScenePlanPanels(aiPlan, panelCount);
 }
 
 export function reflowScenePlanPanels(
@@ -509,6 +681,109 @@ export function reflowScenePlanPanels(
       panelFromEvents(index + 1, group, plan.sceneBackground)
     ),
   };
+}
+
+/** Canonical dialogue provenance owner for panel presentation edits. */
+export function normalizePanelDialogueEdits(
+  previous: readonly SceneDialogue[],
+  next: readonly SceneDialogue[]
+): SceneDialogue[] {
+  const result: SceneDialogue[] = [];
+  for (const line of next) {
+    const speaker = line.speaker;
+    if (speaker !== "persona" && speaker !== "character" && speaker !== "other") {
+      continue;
+    }
+    const editText = preserveDialogueEditText(line.text, 160);
+    const outputText = normalizeDialogueTextForOutput(line.text, 160);
+    if (!outputText && !editText.trim()) {
+      if (line.provenance === "user_edit") {
+        result.push({ speaker, text: "", provenance: "user_edit" });
+      }
+      continue;
+    }
+    if (line.provenance === "user_edit") {
+      result.push({ speaker, text: editText, provenance: "user_edit" });
+      continue;
+    }
+    const sourceEventId = cleanLine(line.sourceEventId, 24) || undefined;
+    if (sourceEventId) {
+      const prior = previous.find((item) => item.sourceEventId === sourceEventId);
+      if (
+        prior &&
+        prior.provenance === "source" &&
+        normalizeDialogueTextForOutput(prior.text) === outputText &&
+        prior.speaker === speaker
+      ) {
+        result.push(prior);
+        continue;
+      }
+      result.push({ speaker, text: editText, provenance: "user_edit" });
+      continue;
+    }
+    result.push({ speaker, text: editText, provenance: "user_edit" });
+  }
+  return result;
+}
+
+export function updatePanelDialogueAtIndex(
+  plan: ScenePlan,
+  panelIndex: number,
+  lineIndex: number,
+  patch: Partial<Pick<SceneDialogue, "speaker" | "text">>
+): ScenePlan {
+  const panel = plan.panels.find((item) => item.index === panelIndex);
+  if (!panel || lineIndex < 0 || lineIndex >= panel.dialogue.length) return plan;
+  const dialogue = panel.dialogue.map((line, index) =>
+    index === lineIndex ? { ...line, ...patch } : line
+  );
+  return applyUserPanelEdits(plan, panelIndex, { dialogue });
+}
+
+export function movePanelDialogueLine(
+  plan: ScenePlan,
+  panelIndex: number,
+  lineIndex: number,
+  direction: "up" | "down"
+): ScenePlan {
+  const panel = plan.panels.find((item) => item.index === panelIndex);
+  if (!panel) return plan;
+  const target = direction === "up" ? lineIndex - 1 : lineIndex + 1;
+  if (target < 0 || target >= panel.dialogue.length) return plan;
+  const dialogue = [...panel.dialogue];
+  const [item] = dialogue.splice(lineIndex, 1);
+  if (!item) return plan;
+  dialogue.splice(target, 0, item);
+  return applyUserPanelEdits(plan, panelIndex, { dialogue });
+}
+
+export function addPanelDialogueLine(
+  plan: ScenePlan,
+  panelIndex: number,
+  speaker: SceneDialogueSpeaker = "persona"
+): ScenePlan {
+  const panel = plan.panels.find((item) => item.index === panelIndex);
+  if (!panel) return plan;
+  return applyUserPanelEdits(plan, panelIndex, {
+    dialogue: [
+      ...panel.dialogue,
+      { speaker, text: "", provenance: "user_edit" as const },
+    ],
+  });
+}
+
+export function removePanelDialogueLine(
+  plan: ScenePlan,
+  panelIndex: number,
+  lineIndex: number
+): ScenePlan {
+  const panel = plan.panels.find((item) => item.index === panelIndex);
+  if (!panel) return plan;
+  return applyUserPanelEdits(
+    plan,
+    panelIndex,
+    { dialogue: panel.dialogue.filter((_, index) => index !== lineIndex) }
+  );
 }
 
 export function applyUserPanelEdits(
@@ -525,15 +800,9 @@ export function applyUserPanelEdits(
     ...plan,
     panels: plan.panels.map((panel) => {
       if (panel.index !== panelIndex) return panel;
-      const dialogue = (patch.dialogue ?? panel.dialogue).map((line) => {
-        const previous = panel.dialogue.find(
-          (item) => item.speaker === line.speaker && item.text === line.text
-        );
-        if (previous && previous.text === line.text && previous.speaker === line.speaker) {
-          return previous;
-        }
-        return { ...line, provenance: "user_edit" as const };
-      });
+      const dialogue = patch.dialogue
+        ? normalizePanelDialogueEdits(panel.dialogue, patch.dialogue)
+        : panel.dialogue;
       return {
         ...panel,
         ...patch,
@@ -568,7 +837,8 @@ type ParsedSubmittedEvents =
   | { ok: true; events: SceneEvent[] };
 
 function parseSubmittedEvents(
-  eventsRaw: readonly unknown[]
+  eventsRaw: readonly unknown[],
+  eventsById?: ReadonlyMap<string, SceneEvent>
 ): ParsedSubmittedEvents {
   const events: SceneEvent[] = [];
   const seenIds = new Set<string>();
@@ -608,6 +878,19 @@ function parseSubmittedEvents(
     const text = cleanLine(item.text, 400);
     if (!text) return { ok: false, reason: "event text empty" };
     const order = Number(item.order);
+    const canonical = eventsById?.get(id);
+    const segmentKindRaw = item.segmentKind;
+    const segmentKind: SceneSourceSegmentKind =
+      segmentKindRaw === "action" ||
+      segmentKindRaw === "dialogue" ||
+      segmentKindRaw === "narration"
+        ? segmentKindRaw
+        : canonical?.segmentKind ??
+          (kind === "dialogue"
+            ? "dialogue"
+            : kind === "action"
+              ? "action"
+              : "narration");
     events.push({
       id,
       order: Number.isFinite(order) ? order : index + 1,
@@ -616,6 +899,7 @@ function parseSubmittedEvents(
       kind,
       actor,
       text,
+      segmentKind,
     });
   }
   return { ok: true, events };
@@ -735,7 +1019,7 @@ export function validateScenePlan(
 
   const eventsRaw = Array.isArray(source.events) ? source.events : null;
   if (eventsRaw?.length) {
-    const parsed = parseSubmittedEvents(eventsRaw);
+    const parsed = parseSubmittedEvents(eventsRaw, eventsById);
     if (!parsed.ok) return parsed;
     if (!eventsMatchCanonical(parsed.events, canonicalEvents)) {
       if (parsed.events.length !== canonicalEvents.length) {
@@ -825,12 +1109,18 @@ export function validateScenePlan(
     panels.push({
       index: index + 1,
       sourceEventIds,
-      situation:
-        cleanLine(item.situation, 240) ||
-        sourceEventIds
-          .map((id) => eventsById.get(id)?.text ?? "")
-          .filter(Boolean)
-          .join(" "),
+      situation: (() => {
+        const panelEvents = sourceEventIds
+          .map((id) => eventsById.get(id))
+          .filter((event): event is SceneEvent => event !== undefined);
+        const derived = buildUserFacingVisualDescription(
+          panelEvents,
+          cleanLine(source.sceneBackground, 200)
+        );
+        const raw = cleanLine(item.situation, 240);
+        if (allowUserEdits && raw) return raw;
+        return derived;
+      })(),
       backgroundOverride: cleanLine(item.backgroundOverride, 160) || undefined,
       personaAction: cleanLine(item.personaAction, 160) || undefined,
       characterAction: cleanLine(item.characterAction, 160) || undefined,
@@ -857,6 +1147,11 @@ export function validateScenePlan(
 
   const usableVisual = visualEvents(canonicalEvents);
   const defaultHero = usableVisual.slice(0, Math.min(3, usableVisual.length)).map((event) => event.id);
+
+  const resolvedHeroIds = heroEventIds.length ? heroEventIds : defaultHero;
+  const heroEventsForDescription = resolvedHeroIds
+    .map((id) => eventsById.get(id))
+    .filter((event): event is SceneEvent => event !== undefined);
 
   const castMentionsRaw = Array.isArray(source.castMentions) ? source.castMentions : [];
   const castMentionsParsed = castMentionsRaw
@@ -891,13 +1186,16 @@ export function validateScenePlan(
       sceneBackground: cleanLine(source.sceneBackground, 200),
       atmosphere: cleanLine(source.atmosphere, 120) || undefined,
       events: canonicalEvents,
-      heroEventIds: heroEventIds.length ? heroEventIds : defaultHero,
-      heroScene:
-        cleanLine(source.heroScene, 320) ||
-        usableVisual
-          .slice(0, 3)
-          .map((event) => event.text)
-          .join(" "),
+      heroEventIds: resolvedHeroIds,
+      heroScene: (() => {
+        const derived = buildUserFacingVisualDescription(
+          heroEventsForDescription,
+          cleanLine(source.sceneBackground, 200)
+        );
+        const raw = cleanLine(source.heroScene, 320);
+        if (allowUserEdits && raw) return raw;
+        return derived;
+      })(),
       recommendedPanelCount: recommended,
       panels,
       castMentions,
@@ -968,9 +1266,10 @@ export function buildScenePlanPrompt(opts: {
     "8. personaAction / characterAction are presentation-only. They must not rewrite canonical event text.",
     "9. Do not describe hair color, hair part, bangs, iris, pupil, outfit identity, or relative height. Those belong to other owners.",
     "10. heroEventIds may select a subset of canonical visual events for a single illustration. assistant_echo is forbidden in heroEventIds.",
-    "11. provenance=source dialogue must reference the exact matching dialogue canonical event via sourceEventId.",
-    "12. castMentions is optional supporting-name suggestions only. Each name must appear verbatim in at least one linked sourceEventId event text. Never force inclusion.",
-    "13. CAST MENTIONS — separate presence evidence from actor attribution:",
+    "11. heroScene and panel situation are visual-only summaries. Never include verbatim spoken dialogue — dialogue belongs only in panel dialogue arrays.",
+    "12. provenance=source dialogue must reference the exact matching dialogue canonical event via sourceEventId.",
+    "13. castMentions is optional supporting-name suggestions only. Each name must appear verbatim in at least one linked sourceEventId event text. Never force inclusion.",
+    "14. CAST MENTIONS — separate presence evidence from actor attribution:",
     "   sourceEventIds: events where the supporting character is present, named, addressed, targeted, or otherwise scene-relevant (candidate detection evidence).",
     "   actorEventIds: ONLY events where that supporting character is the actual acting or speaking subject (final event-subject binding input).",
     "   actorEventIds must be a subset of sourceEventIds. Omit actorEventIds or use [] when the character is only looked at, touched, spoken to, mentioned, observed, or the object of another person's action.",
@@ -1016,20 +1315,15 @@ function stripPersonaOwnedTexts(raw: string, plan: ScenePlan): string {
 
 function visiblePanelCanonicalEvents(panel: ScenePanel, plan: ScenePlan): string {
   const eventsById = new Map(plan.events.map((event) => [event.id, event]));
-  return panel.sourceEventIds
+  const events = panel.sourceEventIds
     .map((id) => eventsById.get(id))
-    .filter((event): event is SceneEvent => event !== undefined && !isPersonaOwnedEvent(event))
-    .map((event) => event.text)
-    .join(" ")
-    .trim();
+    .filter((event): event is SceneEvent => event !== undefined && !isPersonaOwnedEvent(event));
+  return buildUserFacingVisualDescription(events);
 }
 
 function visiblePlanCanonicalEvents(plan: ScenePlan): string {
-  return visualEvents(plan.events)
-    .filter((event) => !isPersonaOwnedEvent(event))
-    .map((event) => event.text)
-    .join(" ")
-    .trim();
+  const events = visualEvents(plan.events).filter((event) => !isPersonaOwnedEvent(event));
+  return buildUserFacingVisualDescription(events);
 }
 
 function projectVisibleBackground(
@@ -1069,7 +1363,7 @@ function projectHeroScene(
   if (visibility.personaVisible) return plan.heroScene;
   const projectedRaw = stripPersonaOwnedTexts(plan.heroScene, plan);
   if (projectedRaw) return projectedRaw;
-  const fromEvents = visibleHeroEvents.map((event) => event.text).join(" ").trim();
+  const fromEvents = buildUserFacingVisualDescription(visibleHeroEvents);
   if (fromEvents) return fromEvents;
   return projectedBackground;
 }
@@ -1145,34 +1439,74 @@ function visiblePanelSituation(
   return projectVisibleBackground(plan, visibility);
 }
 
+export type ProjectedComicPanelBeat = {
+  situation: string;
+  background: string;
+  personaAction?: string;
+  characterAction?: string;
+  dialogue: SceneDialogue[];
+};
+
+/** Shared comic projection owner — used by legacy formatter and panel-spec compiler. */
+export function projectComicPanelBeat(
+  plan: ScenePlan,
+  panel: ScenePanel,
+  visibility: ScenePresentationVisibility
+): ProjectedComicPanelBeat {
+  return {
+    situation: visiblePanelSituation(panel, plan, visibility),
+    background: projectScenePresentationField(
+      panel.backgroundOverride || plan.sceneBackground,
+      plan,
+      panel,
+      visibility
+    ),
+    personaAction:
+      visibility.personaVisible && panel.personaAction ? panel.personaAction : undefined,
+    characterAction: panel.characterAction || undefined,
+    dialogue: panel.dialogue
+      .filter((line) => visibility.personaVisible || line.speaker !== "persona")
+      .map((line) => ({
+        ...line,
+        text: normalizeDialogueTextForOutput(line.text),
+      }))
+      .filter((line) => line.text),
+  };
+}
+
+export function projectComicSharedContext(
+  plan: ScenePlan,
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+): {
+  sharedBackground: string;
+  offCameraEvents: SceneEvent[];
+} {
+  return {
+    sharedBackground: projectVisibleBackground(plan, visibility),
+    offCameraEvents: visibility.personaVisible
+      ? []
+      : plan.events.filter((event) => event.sourceRole === "user"),
+  };
+}
+
 export function formatApprovedScenePlanForComic(
   plan: ScenePlan,
   visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
 ): string {
-  const projectedSharedBackground = projectVisibleBackground(plan, visibility);
-  const offCameraEvents = visibility.personaVisible
-    ? []
-    : plan.events.filter((event) => event.sourceRole === "user");
+  const { sharedBackground: projectedSharedBackground, offCameraEvents } =
+    projectComicSharedContext(plan, visibility);
   const panels = plan.panels
     .map((panel) => {
-      const dialogue = panel.dialogue
-        .filter((line) => visibility.personaVisible || line.speaker !== "persona")
+      const beat = projectComicPanelBeat(plan, panel, visibility);
+      const dialogue = beat.dialogue
         .map((line) => `${line.speaker}: “${line.text}”`)
         .join(" | ");
-      const panelBackground = projectScenePresentationField(
-        panel.backgroundOverride || plan.sceneBackground,
-        plan,
-        panel,
-        visibility
-      );
       return [
         `PANEL ${panel.index}`,
-        `Situation: ${visiblePanelSituation(panel, plan, visibility)}`,
-        `Background: ${panelBackground}`,
-        visibility.personaVisible && panel.personaAction
-          ? `Persona action: ${panel.personaAction}`
-          : "",
-        panel.characterAction ? `Character action: ${panel.characterAction}` : "",
+        `Situation: ${beat.situation}`,
+        `Background: ${beat.background}`,
+        beat.personaAction ? `Persona action: ${beat.personaAction}` : "",
+        beat.characterAction ? `Character action: ${beat.characterAction}` : "",
         `Exact Korean text: ${dialogue || "No speech bubble"}`,
       ]
         .filter(Boolean)
@@ -1206,7 +1540,7 @@ export function collectApprovedComicText(
       plan.panels.flatMap((panel) =>
         panel.dialogue
           .filter((line) => visibility.personaVisible || line.speaker !== "persona")
-          .map((line) => line.text)
+          .map((line) => normalizeDialogueTextForOutput(line.text))
           .filter(Boolean)
       )
     )

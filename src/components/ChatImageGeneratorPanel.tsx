@@ -19,10 +19,15 @@ import {
   type ScenePlan,
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
+import {
+  resolveComicAiApplyPanelCount,
+  shouldApplyComicAiPlanUpgrade,
+  commitScenePanelCount,
+} from "@/lib/chatImageScenePlanLifecycle";
 import ChatSceneBuilder, {
   type SceneOutputMode,
-  type ScenePanelCountMode,
 } from "@/components/ChatSceneBuilder";
+import type { ScenePanelCount } from "@/lib/chatImageScenePlan";
 import TrpgImageSceneDiagnosticsPanel from "@/components/TrpgImageSceneDiagnosticsPanel";
 import {
   draftCastIntentFromCandidatePool,
@@ -398,13 +403,18 @@ export default function ChatImageGeneratorPanel({
   const [sdProduct, setSdProduct] = useState<SdProduct>("gift");
   const [ldProduct, setLdProduct] = useState<LdProduct>("scene");
   const [sceneOutputMode, setSceneOutputMode] = useState<SceneOutputMode>("illustration");
-  const [scenePanelCountMode, setScenePanelCountMode] =
-    useState<ScenePanelCountMode>("ai");
+  const [scenePanelCount, setScenePanelCount] = useState<ScenePanelCount>(3);
+  const scenePanelCountRef = useRef<ScenePanelCount>(3);
+  const commitPanelCount = useCallback((count: ScenePanelCount) => {
+    commitScenePanelCount(scenePanelCountRef, count, setScenePanelCount);
+  }, []);
   const [sceneMessages, setSceneMessages] = useState<SceneSourceMessage[]>([]);
   const [scenePlan, setScenePlan] = useState<ScenePlan | null>(null);
   const deterministicPlanCacheRef = useRef<Map<string, ScenePlan>>(new Map());
   const aiPlanCacheRef = useRef<Map<string, ScenePlan>>(new Map());
   const sceneSourceEpochRef = useRef(0);
+  const scenePlanUserEditedRef = useRef(false);
+  const comicDefaultAiPlanAppliedRef = useRef<string | null>(null);
   const sceneBriefAbortRef = useRef<AbortController | null>(null);
   const aiSuggestionAbortRef = useRef<AbortController | null>(null);
   const [aiSuggestedPlan, setAiSuggestedPlan] = useState<ScenePlan | null>(null);
@@ -1154,8 +1164,10 @@ export default function ChatImageGeneratorPanel({
     setAiSuggestedPlan(null);
     setAiSuggestionError("");
     setHasAiSuggestionSession(false);
-    setScenePanelCountMode("ai");
+    commitPanelCount(3);
     setAiSuggestionLoading(false);
+    scenePlanUserEditedRef.current = false;
+    comicDefaultAiPlanAppliedRef.current = null;
   }
 
   function beginSceneSourceChange(): number {
@@ -1186,7 +1198,7 @@ export default function ChatImageGeneratorPanel({
     const plan = cached ?? buildDeterministicScenePlan(messages);
     if (!cached) deterministicPlanCacheRef.current.set(key, plan);
     setScenePlan(plan);
-    setScenePanelCountMode("ai");
+    commitPanelCount(plan.recommendedPanelCount);
     setAiSuggestedPlan(null);
     setAiSuggestionError("");
   }
@@ -1199,6 +1211,96 @@ export default function ChatImageGeneratorPanel({
     setSceneMessages(messages);
     setConfiguredCastNames([]);
     applyDeterministicScenePlan(null, trimmed, messages, epoch);
+    if (sceneOutputMode === "comic") {
+      void applyComicDefaultAiPlan({
+        messageId: null,
+        summary: trimmed,
+        messages,
+        epoch,
+      });
+    }
+  }
+
+  function applyComicAiPlanUpgrade(aiPlan: ScenePlan, epoch: number) {
+    if (
+      !shouldApplyComicAiPlanUpgrade({
+        responseEpoch: epoch,
+        currentEpoch: sceneSourceEpochRef.current,
+        userEdited: scenePlanUserEditedRef.current,
+      })
+    ) {
+      return;
+    }
+    const panelCount = resolveComicAiApplyPanelCount(scenePanelCountRef.current);
+    const nextPlan = applyApprovedAiScenePlan(aiPlan, panelCount);
+    setScenePlan(nextPlan);
+    if (!info) return;
+    const draft = draftCastIntentFromCandidatePool({
+      contentKind,
+      personaName: info.persona?.name ?? "persona",
+      mainCharacterName: info.character.name,
+      configuredCharacterSetNames: configuredCastNames,
+      castMentions: nextPlan.castMentions,
+      events: nextPlan.events,
+    });
+    setCastIntent((current) => mergeCastIntentDraft(current, draft, contentKind));
+  }
+
+  async function applyComicDefaultAiPlan(opts: {
+    messageId: number | null;
+    summary: string;
+    messages?: SceneSourceMessage[];
+    epoch: number;
+    force?: boolean;
+  }) {
+    if (trpgCampaignMode || !isCurrentSceneSourceEpoch(opts.epoch)) return;
+    const key = sceneCacheKey(opts.messageId, opts.summary);
+    if (!opts.force && comicDefaultAiPlanAppliedRef.current === key) return;
+    comicDefaultAiPlanAppliedRef.current = key;
+
+    const cached = !opts.force ? aiPlanCacheRef.current.get(key) : undefined;
+    if (cached) {
+      applyComicAiPlanUpgrade(cached, opts.epoch);
+      return;
+    }
+
+    setAiSuggestionLoading(true);
+    setAiSuggestionError("");
+    aiSuggestionAbortRef.current?.abort();
+    const controller = new AbortController();
+    aiSuggestionAbortRef.current = controller;
+    try {
+      const ids = currentRouteIds();
+      const response = await fetch("/api/chat/comic-generation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          ...ids,
+          mode: "scene_plan",
+          messageId: opts.messageId ?? undefined,
+          sourceText: opts.messageId ? undefined : opts.summary,
+          panelCount: scenePanelCountRef.current,
+        }),
+      });
+      if (!isCurrentSceneSourceEpoch(opts.epoch)) return;
+      const data = (await response.json().catch(() => null)) as
+        | { ok?: boolean; plan?: ScenePlan; error?: string }
+        | null;
+      if (!response.ok || !data?.plan) {
+        return;
+      }
+      if (!isCurrentSceneSourceEpoch(opts.epoch)) return;
+      aiPlanCacheRef.current.set(key, data.plan);
+      applyComicAiPlanUpgrade(data.plan, opts.epoch);
+    } catch (caught) {
+      if (!isCurrentSceneSourceEpoch(opts.epoch)) return;
+      if (caught instanceof DOMException && caught.name === "AbortError") return;
+    } finally {
+      if (isCurrentSceneSourceEpoch(opts.epoch)) {
+        setAiSuggestionLoading(false);
+      }
+    }
   }
 
   async function requestAiSceneSuggestion(opts: {
@@ -1234,7 +1336,7 @@ export default function ChatImageGeneratorPanel({
           mode: "scene_plan",
           messageId: opts.messageId ?? undefined,
           sourceText: opts.messageId ? undefined : opts.summary,
-          panelCount: scenePanelCountMode === "ai" ? undefined : scenePanelCountMode,
+          panelCount: scenePanelCountRef.current,
         }),
       });
       if (!isCurrentSceneSourceEpoch(opts.epoch)) return;
@@ -1268,7 +1370,11 @@ export default function ChatImageGeneratorPanel({
 
   function applyAiSceneSuggestion() {
     if (!aiSuggestedPlan || !info) return;
-    const nextPlan = applyApprovedAiScenePlan(aiSuggestedPlan, scenePanelCountMode);
+    const nextPlan = applyApprovedAiScenePlan(
+      aiSuggestedPlan,
+      resolveComicAiApplyPanelCount(scenePanelCountRef.current)
+    );
+    scenePlanUserEditedRef.current = false;
     setScenePlan(nextPlan);
     const draft = draftCastIntentFromCandidatePool({
       contentKind,
@@ -1344,6 +1450,14 @@ export default function ChatImageGeneratorPanel({
         );
       }
       applyDeterministicScenePlan(messageId, data.summary, messages, epoch);
+      if (sceneOutputMode === "comic") {
+        void applyComicDefaultAiPlan({
+          messageId,
+          summary: data.summary,
+          messages,
+          epoch,
+        });
+      }
     } catch (caught) {
       if (!isCurrentSceneSourceEpoch(epoch)) return;
       if (caught instanceof DOMException && caught.name === "AbortError") return;
@@ -1414,9 +1528,7 @@ export default function ChatImageGeneratorPanel({
             !campaignId && castIntent ? castIntent : undefined,
           panelCount:
             !isIllustration && scenePlan
-              ? scenePanelCountMode === "ai"
-                ? scenePlan.recommendedPanelCount
-                : scenePanelCountMode
+              ? scenePanelCount
               : undefined,
           campaignId: isIllustration && campaignId ? campaignId : undefined,
           roundNumber:
@@ -2288,16 +2400,37 @@ export default function ChatImageGeneratorPanel({
                             visualSubjects={activeVisualSubjects}
                             reservedReferenceUrls={reservedCastReferenceUrls}
                             contentKind={contentKind}
+                            personaName={info?.persona?.name ?? "유저"}
+                            characterName={info?.character.name ?? "캐릭터"}
                             outputMode={sceneOutputMode}
-                            panelCountMode={scenePanelCountMode}
+                            panelCount={scenePanelCount}
                             disabled={generating}
-                            onOutputModeChange={setSceneOutputMode}
-                            onPanelCountModeChange={(mode) => {
-                              setScenePanelCountMode(mode);
-                              if (!scenePlan || mode === "ai") return;
-                              setScenePlan(reflowScenePlanPanels(scenePlan, mode));
+                            onOutputModeChange={(mode) => {
+                              setSceneOutputMode(mode);
+                              if (!scenePlan) return;
+                              if (mode === "comic") {
+                                scenePlanUserEditedRef.current = false;
+                                setScenePlan(
+                                  reflowScenePlanPanels(scenePlan, scenePanelCount)
+                                );
+                                void applyComicDefaultAiPlan({
+                                  messageId: sourceMessageId,
+                                  summary: comicSummary || sourceTurnPreview,
+                                  messages: sceneMessages,
+                                  epoch: sceneSourceEpochRef.current,
+                                });
+                              }
                             }}
-                            onPlanChange={setScenePlan}
+                            onPanelCountChange={(count) => {
+                              commitPanelCount(count);
+                              if (!scenePlan) return;
+                              scenePlanUserEditedRef.current = false;
+                              setScenePlan(reflowScenePlanPanels(scenePlan, count));
+                            }}
+                            onPlanChange={(nextPlan) => {
+                              scenePlanUserEditedRef.current = true;
+                              setScenePlan(nextPlan);
+                            }}
                             onCastChange={setCastIntent}
                             onRequestAiSuggestion={() => {
                               void requestAiSceneSuggestion({

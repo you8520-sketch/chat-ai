@@ -17,6 +17,9 @@ on:
       - "src/lib/chatImageGeneration.test.ts"
       - "src/lib/chatComicGeneration.ts"
       - "src/lib/chatComicGeneration.test.ts"
+      - "src/lib/chatComicPanelSpec.ts"
+      - "src/lib/chatComicPanelSpec.test.ts"
+      - "src/lib/chatComicPanelSpec.fixtures.ts"
       - "src/lib/chatCoupleStampGeneration.ts"
       - "src/lib/chatCoupleStampGeneration.test.ts"
       - "src/lib/chatLdIllustrationGeneration.ts"
@@ -34,6 +37,14 @@ on:
       - "src/lib/chatImageSceneBrief.test.ts"
       - "src/lib/chatImageScenePlan.ts"
       - "src/lib/chatImageScenePlan.test.ts"
+      - "src/lib/chatImageAttributionAudit.ts"
+      - "src/lib/chatImageAttributionBoundary.test.ts"
+      - "src/lib/chatImageDialogueKeystroke.test.ts"
+      - "src/lib/chatImageScenePlanLifecycle.ts"
+      - "src/lib/chatImageScenePlanLifecycle.test.ts"
+      - "src/lib/chatComicPanelSpecSemantics.test.ts"
+      - "src/lib/chatImagePromptIdentityBinding.test.ts"
+      - "src/lib/chatImagePromptSubjectMap.ts"
       - "src/lib/chatImageSceneSourceLifecycle.test.ts"
       - "src/lib/chatImageScenePlanRateLimit.ts"
       - "src/lib/chatImageSceneManualFirst.test.ts"
@@ -113,6 +124,7 @@ jobs:
       - run: npm run typecheck:app
       - run: node --import tsx --test src/lib/chatImageGeneration.test.ts
       - run: node --import tsx --test src/lib/chatComicGeneration.test.ts
+      - run: node --import tsx --test src/lib/chatComicPanelSpec.test.ts
       - run: node --import tsx --test src/lib/chatCoupleStampGeneration.test.ts
       - run: node --import tsx --test src/lib/chatLdIllustrationGeneration.test.ts
       - run: node --import tsx --test src/lib/chatEmoticonGeneration.test.ts
@@ -121,6 +133,12 @@ jobs:
       - run: node --import tsx --test src/lib/chatImageEyeTraits.test.ts
       - run: node --import tsx --test src/lib/chatImageSceneBrief.test.ts
       - run: node --import tsx --test src/lib/chatImageScenePlan.test.ts
+      - run: node --import tsx --test src/lib/chatImageSceneDialogueEditor.test.ts
+      - run: node --import tsx --test src/lib/chatImageDialogueKeystroke.test.ts
+      - run: node --import tsx --test src/lib/chatImageAttributionBoundary.test.ts
+      - run: node --import tsx --test src/lib/chatImageScenePlanLifecycle.test.ts
+      - run: node --import tsx --test src/lib/chatComicPanelSpecSemantics.test.ts
+      - run: node --import tsx --test src/lib/chatImagePromptIdentityBinding.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageSceneSourceLifecycle.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageSceneManualFirst.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageSimulationCast.test.ts
