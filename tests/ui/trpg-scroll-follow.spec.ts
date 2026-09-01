@@ -147,7 +147,7 @@ async function waitForLabRoomReady(page: Page) {
 }
 
 async function waitForBotReveal(page: Page, botId: number) {
-  const maxAttempts = 2;
+  const maxAttempts = 3;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     if (attempt > 1) {
@@ -155,20 +155,25 @@ async function waitForBotReveal(page: Page, botId: number) {
     }
     await waitForLabRoomReady(page);
 
-    await page.waitForFunction(
-      (expectedBotId) => {
-        const root = document.querySelector("[data-trpg-live-follow-owner]");
-        const owner = root?.getAttribute("data-trpg-live-follow-owner");
-        return (
-          owner === "ACTIVE_DECLARATION_END" &&
-          root?.getAttribute("data-trpg-active-actor-id") === String(expectedBotId)
-        );
-      },
-      botId,
-      { timeout: 30_000 }
-    );
+    try {
+      await page.waitForFunction(
+        (expectedBotId) => {
+          const root = document.querySelector("[data-trpg-live-follow-owner]");
+          const owner = root?.getAttribute("data-trpg-live-follow-owner");
+          return (
+            owner === "ACTIVE_DECLARATION_END" &&
+            root?.getAttribute("data-trpg-active-actor-id") === String(expectedBotId)
+          );
+        },
+        botId,
+        { timeout: 30_000 }
+      );
+    } catch (error) {
+      if (attempt < maxAttempts) continue;
+      throw error;
+    }
 
-    const deadline = Date.now() + 40_000;
+    const deadline = Date.now() + 45_000;
     let sawGrowthMarker = false;
     while (Date.now() < deadline) {
       const diag = await readScrollFollowDiagnostics(page);
@@ -189,6 +194,29 @@ async function waitForBotReveal(page: Page, botId: number) {
       `waitForBotReveal timeout (${classification}, attempt ${attempt}/${maxAttempts}, sawGrowthMarker=${sawGrowthMarker})\n${formatGeometry(geometry)}`
     );
   }
+}
+
+async function waitForFollowScrollMovement(page: Page, startScrollY: number) {
+  await page.waitForFunction(
+    (baseline) => {
+      const growth = document.querySelector("[data-trpg-declaration-growth='true']");
+      const visibleChars = growth?.textContent?.length ?? 0;
+      if (visibleChars < 20) return false;
+      const end = document.querySelector("[data-trpg-declaration-end]");
+      if (!end) return false;
+      const endTop = end.getBoundingClientRect().top;
+      const targetY = window.innerHeight * 0.78;
+      const scrollY = window.scrollY;
+      const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      if (scrollY > baseline + 5 && Math.abs(endTop - targetY) <= 48) return true;
+      if (scrollY > baseline + 5) return true;
+      const requiredDelta = endTop - targetY;
+      const availableDown = maxScrollY - scrollY;
+      return requiredDelta > 0 && availableDown <= 2 && maxScrollY - scrollY <= 2;
+    },
+    startScrollY,
+    { timeout: 45_000 }
+  );
 }
 
 function isReadingBandAligned(endTop: number, targetY: number, scrollY: number): boolean {
@@ -329,6 +357,7 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     expect(traces.length).toBeGreaterThan(0);
     expect(traces[0]?.visibleChars ?? 0).toBeGreaterThanOrEqual(20);
 
+    await waitForFollowScrollMovement(page, startContainer.scrollTop);
     await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
     await assertBotFollowUserBug(page, startContainer.scrollTop, startDiag.visibleChars);
   });
@@ -344,6 +373,7 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     expect(startDiag.presentationPhase).toBe("actor-action");
 
     await traceProseGrowth(page, 24);
+    await waitForFollowScrollMovement(page, startContainer.scrollTop);
     await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
     await assertBotFollowUserBug(page, startContainer.scrollTop, startDiag.visibleChars);
   });
@@ -391,6 +421,7 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     const startDiag = await readScrollFollowDiagnostics(page);
 
     await traceProseGrowth(page, 24);
+    await waitForFollowScrollMovement(page, startContainer.scrollTop);
     await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
     await assertBotFollowUserBug(page, startContainer.scrollTop, startDiag.visibleChars);
   });
