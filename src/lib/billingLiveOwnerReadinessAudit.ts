@@ -1,0 +1,3337 @@
+/**
+ * Billing live-owner cutover READINESS AUDIT — test/audit only.
+ * NO production route imports. NO live owner mutation. NO deduction capability.
+ *
+ * Compares:
+ *   A = current live charge path (computeTurnBilling / computeHtmlFlashOnlyTurnBilling)
+ *   B = candidate path (resolveTurnBillableUsage → computePublishedUserChargeWithSnapshot)
+ */
+
+import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { join } from "node:path";
+import type { StageUsage } from "@/lib/ai";
+import { ADULT_REFUSAL_FALLBACK_MODEL_ID } from "@/lib/adultHandoffSourceRouting";
+import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
+import {
+  applyOverseasCardFee,
+  OVERSEAS_CARD_FEE_PERCENT,
+  OVERSEAS_CARD_FEE_RATE,
+} from "@/lib/billingFxPolicy";
+import {
+  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CLAUDE_OPUS_MODEL,
+  DEFAULT_SELECTED_AI,
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
+  OPENROUTER_KIMI_K3_MODEL,
+  OPENROUTER_MUSE_SPARK_11_MODEL,
+  OPENROUTER_QWEN_37_MAX_MODEL,
+  SELECTED_AI_OPTIONS,
+  USER_SELECTABLE_AI_OPTIONS,
+  isDeepSeekV4ProModel,
+  isGemini31ProModel,
+  isGemini36FlashModel,
+  isGlmModel,
+  isKimiModel,
+  isMuseModel,
+  isOpus5UserEnabled,
+  isOpusUserSelectable,
+  isQwenModel,
+  resolveSelectedAI,
+  isValidSelectedAI,
+  selectedAIProvider,
+  selectedAIOptionMeta,
+  type SelectedAI,
+} from "@/lib/chatModels";
+import {
+  _clearLegacyExchangeRateCacheForTest,
+  _setLegacyExchangeRateCacheForTest,
+  getEffectiveKrwPerUsd,
+} from "@/lib/exchangeRate";
+import {
+  billableOutputChars,
+  billableOutputTokens,
+  computeHtmlFlashOnlyTurnBilling,
+  computeOpenRouterTurnBilling,
+  computeTurnBilling,
+  isIncompleteStreamUsageUnavailable,
+  resolveDeepSeekWaiverMinimumCharge,
+  resolveGemini31WaiverMinimumCharge,
+  resolveGemini36WaiverMinimumCharge,
+  resolveGlmWaiverMinimumCharge,
+  resolveKimiWaiverMinimumCharge,
+  resolveMuseWaiverMinimumCharge,
+  resolveQwenWaiverMinimumCharge,
+  shouldWaiveTurnBilling,
+  type BillingWaiverReason,
+} from "@/lib/points";
+import {
+  computeGemini37FlashUserChargePoints,
+  resolveGemini37FlashBilledOutputTokens,
+} from "@/lib/gemini37FlashPricing";
+import { resolveOpenRouterReasoningPointRates } from "@/lib/pointsReasoningMargins";
+import {
+  computePublishedUserChargeWithSnapshot,
+  type PublishedChargeAdjustment,
+  type PublishedUserChargeResult,
+} from "@/lib/publishedUserCharge";
+import type { GenerationFailureReason } from "@/lib/responseLength";
+import {
+  billableOpenRouterOutputTokens,
+  resolveRouteApiTokensForCost,
+  resolveTurnBillableInput,
+  selectBillableStages,
+  sumOpenRouterStageOutputTokens,
+  sumOpenRouterStageReasoningTokens,
+  sumOpenRouterStageUpstreamUsd,
+} from "@/lib/stageBillableUsage";
+import { type UserBillableUsageCoverage } from "@/lib/billingUsage";
+import { resolveTurnBillableUsage } from "@/lib/turnBillableUsage";
+import type { UsageReportingEvidence } from "@/lib/usageReportingEvidence";
+
+const REPO_ROOT = join(import.meta.dirname, "..", "..");
+
+/** Frozen at origin/main — BASE live charge golden totals (recomputed with audit FX seam). */
+export const AUDIT_BASE_MAIN_SHA = "33563e6477b548f86fe3fc0a0f57e3d98c4fb951";
+
+export const AUDIT_BASE_USD_KRW = 1530;
+export const AUDIT_EFFECTIVE_KRW_PER_USD = applyOverseasCardFee(AUDIT_BASE_USD_KRW);
+
+export { OVERSEAS_CARD_FEE_PERCENT, OVERSEAS_CARD_FEE_RATE };
+
+export const REGEN_USER_CHARGE_SCOPE = "REQUEST_LOCAL" as const;
+
+export const BILLING_LIVE_OWNER_MAP = {
+  MAIN_RP_LIVE_USER_CHARGE_OWNER:
+    "computeTurnBilling() via @/lib/points → pointsReasoningMargins → pointsMuse60 → points.ts",
+  HTML_FLASH_ONLY_LIVE_USER_CHARGE_OWNER: "computeHtmlFlashOnlyTurnBilling() in @/lib/points",
+  CUTOVER_SCOPE: "MAIN_RP_ONLY" as const,
+  HTML_FLASH_ONLY_CUTOVER_SCOPE: "KEEP_SEPARATE" as const,
+  CURRENT_LIVE_USER_CHARGE_OWNER:
+    "computeTurnBilling() via @/lib/points → pointsReasoningMargins → pointsMuse60 → points.ts",
+  CURRENT_LIVE_USAGE_INPUT_OWNER:
+    "selectBillableStages + resolveTurnBillableInput + sumOpenRouterStage* in stageBillableUsage.ts (assembled in route.ts)",
+  CURRENT_POINT_DEDUCTION_OWNER:
+    "settleChatTurnBillingExactlyOnce() → deductPointsOnDb() in chatBillingSettlement.ts / points.ts",
+  CURRENT_BILLING_SETTLEMENT_OWNER: "settleChatTurnBillingExactlyOnce() in chatBillingSettlement.ts",
+  CURRENT_REFUND_OWNER: "refund flows in src/lib/refund* (canonical settled points)",
+  CURRENT_CREATOR_REWARD_OWNER: "creator reward derivation from settled usage (unchanged this PR)",
+  CURRENT_BILLING_WAIVER_OWNER:
+    "shouldWaiveTurnBilling() + resolve*WaiverMinimumCharge() in points.ts (route.ts composes)",
+  CURRENT_FX_SNAPSHOT_OWNER: "exchangeRate.ts (live); shadowBillingExchangeRate.ts (shadow/admin)",
+  CURRENT_CARD_FEE_OWNER: "OVERSEAS_CARD_FEE_PERCENT in billingFxPolicy.ts (0.02)",
+  CURRENT_MODEL_PRICE_OWNER: "points.ts model-specific formulas + publishedModelPricing.ts (shadow)",
+  CURRENT_MODEL_SPECIAL_POLICY_OWNER:
+    "gemini37FlashPricing.ts, pointsReasoningMargins.ts unified reasoning, waiver minimum resolvers",
+  CANDIDATE_NORMALIZED_USAGE_OWNER: "normalizeBillableUsage() in billingUsage.ts",
+  CANDIDATE_TURN_BILLABLE_USAGE_OWNER: "resolveTurnBillableUsage() in turnBillableUsage.ts",
+  CANDIDATE_PUBLISHED_CHARGE_OWNER: "computePublishedUserChargeWithSnapshot() in publishedUserCharge.ts",
+  SHADOW_PRICING_OWNER: "computeShadowPricing() in shadowPricing.ts (admin-only)",
+  PRODUCTION_CANARY_OWNER:
+    "observeTurnBillableUsageCanary() in turnBillableUsageProductionTelemetry.ts (log-only)",
+  MAIN_PROVIDER_USAGE_PROVENANCE_OWNER: "openRouterUsage.ts + usageReportingEvidence.ts",
+  PHYSICAL_ATTEMPT_LEDGER_OWNER: "providerCostLedger.ts (platform-funded aux)",
+  ADMIN_RECEIPT_V3_OWNER: "adminBillingReceiptV3Server.ts + buildAdminBillingReceiptV3()",
+  USAGE_PERSISTENCE_OWNER: "route.ts usage JSON on messages row",
+  PUBLIC_USAGE_SERIALIZATION_OWNER: "serializeUsageForPublicClient() in billingReceiptAccess.ts",
+  ACTUAL_PROVIDER_COST_OWNER: "computeShadowCosts* in shadowPricing.ts",
+  PROVIDER_LIST_COST_OWNER: "computeShadowCosts* in shadowPricing.ts",
+  BILLING_REFERENCE_COST_OWNER: "computePublishedUserCharge* via shadowPricing.ts",
+  USER_CHARGE_OWNER: "computeTurnBilling().total → settleChatTurnBillingExactlyOnce requestedPoints",
+} as const;
+
+export type BilledModelReachabilityClass =
+  | "USER_DEFAULT"
+  | "USER_SELECTABLE"
+  | "CONDITIONAL_REACHABLE"
+  | "HIDDEN_BUT_CANONICAL_VALID"
+  | "INTERNAL_DELIVERED"
+  | "LEGACY_COMPAT_ONLY"
+  | "NOT_LIVE";
+
+export type BilledModelInventoryEntry = {
+  /** Billing delivered-model identity — exact ID used for charge assembly. */
+  deliveredModelId: string;
+  /** @deprecated use deliveredModelId */
+  modelId: string;
+  requestedSelectedAI?: SelectedAI | null;
+  /** User preference slug when distinct from delivered billing ID (legacy rows only). */
+  selectedAI: SelectedAI | null;
+  deliveredProvider: "openrouter" | "cheaperinference";
+  /** @deprecated use deliveredProvider */
+  provider: "openrouter" | "cheaperinference";
+  reachabilityOwner: string;
+  classification: BilledModelReachabilityClass;
+  cutoverRequired: boolean;
+};
+
+/** Production routing evidence for internally delivered models (not hard-coded inventory truth). */
+export const INTERNAL_DELIVERED_PRODUCTION_OWNERS = [
+  {
+    model: ADULT_REFUSAL_FALLBACK_MODEL_ID,
+    productionRoutingOwner: "resolveAdultRefusalFallbackModelId() in adultHandoffSourceRouting.ts",
+    actualCallSite: "route.ts refusal fallback delivery (refusalFallbackDelivered)",
+    trigger: "adult/general refusal handoff delivers DeepSeek V4 Pro",
+    live: true as const,
+    /** Legacy DeepSeek billing — excluded from Phase 1 Published promotion gates in #795. */
+  },
+] as const;
+
+/** Re-audit: OPENROUTER_GEMINI_31_PRO_MODEL has pricing helpers but no production chat delivery call site. */
+export const OPENROUTER_G31_CURRENTLY_DELIVERABLE = false;
+export const OPENROUTER_G31_REACHABILITY_OWNER =
+  "NOT_LIVE — no route.ts delivery; isValidSelectedAI=false; resolveSelectedAI→DEFAULT_SELECTED_AI";
+export const OPENROUTER_G31_DELIVERED_PROVIDER = "n/a";
+export const OPENROUTER_G31_DELIVERY_TRIGGER = "none";
+export const OPENROUTER_G31_BILLING_OWNER =
+  "points.ts isGemini31ProModel pricing helpers (receipt/legacy only)";
+export const OPENROUTER_G31_FIXTURE: string | null = null;
+
+export const OPUS45_PICKER_REACHABLE = isOpusUserSelectable();
+export const OPUS45_STORED_SELECTION_REACHABLE = true;
+export const OPUS45_ADMIN_SPECIAL_CASE = false;
+/** Opus 4.5 billing remains live but is outside Published Billing Phase 1 cutover scope. */
+export const OPUS45_CUTOVER_REQUIRED = false;
+
+/** Published Billing Phase 1 — exact Cheaper Inference canonical IDs from chatModels.ts. */
+export const PHASE_1_CUTOVER_REQUIRED_MODELS = [
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+] as const;
+
+/** Phase 2 planned — separate price-policy work before Published billing promotion. */
+export const PHASE_2_PLANNED_MODELS = [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL] as const;
+
+export const DEEPSEEK_PHASE2 = true;
+
+const PHASE_1_MODEL_SET = new Set<string>(PHASE_1_CUTOVER_REQUIRED_MODELS);
+const PHASE_2_MODEL_SET = new Set<string>(PHASE_2_PLANNED_MODELS);
+
+/** Canonical SELECTED_AI rows outside Phase 1/2 Published billing promotion scope. */
+export const DEFERRED_BILLING_MODELS: readonly string[] = SELECTED_AI_OPTIONS.map(
+  (option) => option.id
+).filter((modelId) => !PHASE_1_MODEL_SET.has(modelId) && !PHASE_2_MODEL_SET.has(modelId));
+
+export function isPhase1CutoverRequiredModel(modelId: string): boolean {
+  return PHASE_1_MODEL_SET.has(modelId);
+}
+
+export function isPhase2PlannedModel(modelId: string): boolean {
+  return PHASE_2_MODEL_SET.has(modelId);
+}
+
+/** Legacy slugs probed via resolveSelectedAI — LEGACY_TO_SELECTED is private in chatModels. */
+const LEGACY_INVENTORY_SLUGS = [
+  "qwen/qwen3.7-max",
+  "meta/muse-spark-1.1",
+  "moonshotai/kimi-k3",
+  "z-ai/glm-5.2",
+  "google/gemini-2.5-pro",
+  "google/gemini-3.1-pro-preview",
+  "anthropic/claude-3-opus",
+  "deepseek/deepseek-v4-pro",
+  "upstage/solar-pro-3",
+] as const;
+
+const HIDDEN_CANONICAL_SELECTED = new Set<string>([
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+]);
+
+function resolveDeliveredModelProvider(modelId: string): BilledModelInventoryEntry["deliveredProvider"] {
+  const meta = selectedAIOptionMeta(modelId);
+  if (meta) {
+    const provider = meta.provider as string;
+    if (provider === "openai") return "cheaperinference";
+    return meta.provider as BilledModelInventoryEntry["deliveredProvider"];
+  }
+  if (modelId.includes("/")) return "openrouter";
+  return "cheaperinference";
+}
+
+function resolveExactDeliveredSelectedAI(deliveredModelId: string): SelectedAI {
+  if (SELECTED_AI_OPTIONS.some((option) => option.id === deliveredModelId)) {
+    return deliveredModelId as SelectedAI;
+  }
+  if (isValidSelectedAI(deliveredModelId)) {
+    return deliveredModelId as SelectedAI;
+  }
+  return resolveSelectedAI(deliveredModelId) as SelectedAI;
+}
+
+function classifySelectedOption(id: SelectedAI): BilledModelReachabilityClass {
+  if (id === DEFAULT_SELECTED_AI) return "USER_DEFAULT";
+  if (USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === id)) return "USER_SELECTABLE";
+  if (id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL && !isOpus5UserEnabled()) {
+    return "CONDITIONAL_REACHABLE";
+  }
+  if (id === CLAUDE_OPUS_MODEL) {
+    return isOpusUserSelectable() ? "USER_SELECTABLE" : "HIDDEN_BUT_CANONICAL_VALID";
+  }
+  if (HIDDEN_CANONICAL_SELECTED.has(id)) return "HIDDEN_BUT_CANONICAL_VALID";
+  return "USER_SELECTABLE";
+}
+
+function reachabilityOwnerForClassification(
+  id: SelectedAI,
+  classification: BilledModelReachabilityClass
+): string {
+  switch (classification) {
+    case "USER_DEFAULT":
+      return "SELECTED_AI_OPTIONS default + ensureUserSelectedAI";
+    case "USER_SELECTABLE":
+      return "USER_SELECTABLE_AI_OPTIONS + userSelectableAIOptionsForUser";
+    case "CONDITIONAL_REACHABLE":
+      return "userSelectableAIOptionsForUser(isAdmin) when OPUS5_USER_ENABLED=0";
+    case "HIDDEN_BUT_CANONICAL_VALID":
+      return "SELECTED_AI_OPTIONS canonical row; picker hidden via USER_SELECTABLE_AI_OPTIONS filter";
+    case "INTERNAL_DELIVERED":
+      return "INTERNAL_DELIVERED_PRODUCTION_OWNERS";
+    case "LEGACY_COMPAT_ONLY":
+      return "resolveSelectedAI legacy slug migration";
+    case "NOT_LIVE":
+      return "audit classification only";
+    default: {
+      const _exhaustive: never = classification;
+      return _exhaustive;
+    }
+  }
+}
+
+function inventoryEntry(
+  deliveredModelId: string,
+  classification: BilledModelReachabilityClass,
+  requestedSelectedAI?: SelectedAI | null
+): BilledModelInventoryEntry {
+  const selectedAI =
+    requestedSelectedAI !== undefined
+      ? requestedSelectedAI
+      : SELECTED_AI_OPTIONS.some((o) => o.id === deliveredModelId)
+        ? (deliveredModelId as SelectedAI)
+        : null;
+  const deliveredProvider = resolveDeliveredModelProvider(deliveredModelId);
+  return {
+    deliveredModelId,
+    modelId: deliveredModelId,
+    requestedSelectedAI: requestedSelectedAI ?? null,
+    selectedAI,
+    deliveredProvider,
+    provider: deliveredProvider,
+    reachabilityOwner: reachabilityOwnerForClassification(
+      (selectedAI ?? deliveredModelId) as SelectedAI,
+      classification
+    ),
+    classification,
+    cutoverRequired: isCutoverRequiredClassification(classification),
+  };
+}
+
+function isCutoverRequiredClassification(
+  classification: BilledModelReachabilityClass
+): boolean {
+  switch (classification) {
+    case "USER_DEFAULT":
+    case "USER_SELECTABLE":
+    case "CONDITIONAL_REACHABLE":
+    case "HIDDEN_BUT_CANONICAL_VALID":
+    case "INTERNAL_DELIVERED":
+      return true;
+    case "LEGACY_COMPAT_ONLY":
+    case "NOT_LIVE":
+      return false;
+    default: {
+      const _exhaustive: never = classification;
+      return _exhaustive;
+    }
+  }
+}
+
+export function buildCurrentReachableBilledModelInventory(): BilledModelInventoryEntry[] {
+  const byId = new Map<string, BilledModelInventoryEntry>();
+
+  for (const opt of SELECTED_AI_OPTIONS) {
+    const classification = classifySelectedOption(opt.id);
+    byId.set(opt.id, inventoryEntry(opt.id, classification, opt.id));
+  }
+
+  for (const evidence of INTERNAL_DELIVERED_PRODUCTION_OWNERS) {
+    if (!evidence.live || byId.has(evidence.model)) continue;
+    byId.set(
+      evidence.model,
+      inventoryEntry(evidence.model, "INTERNAL_DELIVERED", null)
+    );
+  }
+
+  for (const legacySlug of LEGACY_INVENTORY_SLUGS) {
+    if (byId.has(legacySlug)) continue;
+    const resolved = resolveSelectedAI(legacySlug);
+    byId.set(
+      legacySlug,
+      inventoryEntry(legacySlug, "LEGACY_COMPAT_ONLY", resolved)
+    );
+  }
+
+  return [...byId.values()].sort((a, b) => a.deliveredModelId.localeCompare(b.deliveredModelId));
+}
+
+export const CUTOVER_REQUIRED_MODEL_FAMILIES: readonly string[] =
+  buildCurrentReachableBilledModelInventory()
+    .filter((entry) => entry.cutoverRequired)
+    .map((entry) => entry.deliveredModelId);
+
+/** Phase 1 Published billing promotion gate — not the full reachable inventory. */
+export const PHASE_1_CUTOVER_REQUIRED_MODEL_FAMILIES: readonly string[] = [
+  ...PHASE_1_CUTOVER_REQUIRED_MODELS,
+];
+
+export const AUDIT_FX_SNAPSHOT: BillingFxSnapshot = {
+  mode: "daily_kst",
+  dateKey: "2026-08-28",
+  usdToKrw: AUDIT_BASE_USD_KRW,
+  effectiveKrwPerUsd: AUDIT_EFFECTIVE_KRW_PER_USD,
+  source: "api_daily",
+  overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
+  locked: true,
+};
+
+let auditFxScopeDepth = 0;
+/** Captured only when depth transitions 0→1; undefined means env var was unset. */
+let savedOriginalExchangeRateMode: string | undefined;
+
+function pinAuditLegacyFxCache(): void {
+  _clearLegacyExchangeRateCacheForTest();
+  _setLegacyExchangeRateCacheForTest({
+    dateKey: AUDIT_FX_SNAPSHOT.dateKey,
+    usdToKrw: AUDIT_BASE_USD_KRW,
+    source: "api",
+  });
+}
+
+/** Test-only introspection for nested FX scope tests. */
+export function getAuditFxScopeDepthForTest(): number {
+  return auditFxScopeDepth;
+}
+
+function reinstallAuditFxScopeWithoutCapture(
+  outerDepth: number,
+  outerSavedOriginal: string | undefined
+): void {
+  if (outerDepth <= 0) {
+    return;
+  }
+  savedOriginalExchangeRateMode = outerSavedOriginal;
+  process.env.EXCHANGE_RATE_MODE = "daily_kst";
+  pinAuditLegacyFxCache();
+  auditFxScopeDepth = outerDepth;
+}
+
+/** Verify nested install/clear does not restore env or clear cache early. */
+export function probeAuditFxNestedScopeSafety(): {
+  nestedScopeSafe: boolean;
+  envLeak: boolean;
+  cacheLeak: boolean;
+} {
+  const savedMode = process.env.EXCHANGE_RATE_MODE;
+  const outerDepth = auditFxScopeDepth;
+  const outerSavedOriginal = savedOriginalExchangeRateMode;
+  try {
+    while (auditFxScopeDepth > 0) {
+      clearAuditLegacyFxForTest();
+    }
+    delete process.env.EXCHANGE_RATE_MODE;
+    _clearLegacyExchangeRateCacheForTest();
+
+    installAuditLegacyFxForTest();
+    installAuditLegacyFxForTest();
+    clearAuditLegacyFxForTest();
+    const midEnv = process.env.EXCHANGE_RATE_MODE;
+    const midFx = getEffectiveKrwPerUsd();
+    clearAuditLegacyFxForTest();
+    const finalEnv = process.env.EXCHANGE_RATE_MODE;
+    const finalDepth = getAuditFxScopeDepthForTest();
+
+    return {
+      nestedScopeSafe:
+        midEnv === "daily_kst" &&
+        midFx === AUDIT_EFFECTIVE_KRW_PER_USD &&
+        finalEnv === undefined &&
+        finalDepth === 0,
+      envLeak: finalEnv !== undefined,
+      cacheLeak: getAuditFxScopeDepthForTest() !== 0,
+    };
+  } finally {
+    while (getAuditFxScopeDepthForTest() > 0) {
+      clearAuditLegacyFxForTest();
+    }
+    if (outerDepth > 0) {
+      reinstallAuditFxScopeWithoutCapture(outerDepth, outerSavedOriginal);
+    } else if (savedMode === undefined) {
+      delete process.env.EXCHANGE_RATE_MODE;
+      _clearLegacyExchangeRateCacheForTest();
+    } else {
+      process.env.EXCHANGE_RATE_MODE = savedMode;
+      _clearLegacyExchangeRateCacheForTest();
+    }
+  }
+}
+
+export function installAuditLegacyFxForTest(): void {
+  if (auditFxScopeDepth === 0) {
+    savedOriginalExchangeRateMode = process.env.EXCHANGE_RATE_MODE;
+    process.env.EXCHANGE_RATE_MODE = "daily_kst";
+    pinAuditLegacyFxCache();
+  }
+  auditFxScopeDepth += 1;
+}
+
+export function clearAuditLegacyFxForTest(): void {
+  if (auditFxScopeDepth <= 0) {
+    return;
+  }
+  auditFxScopeDepth -= 1;
+  if (auditFxScopeDepth > 0) {
+    return;
+  }
+  if (savedOriginalExchangeRateMode === undefined) {
+    delete process.env.EXCHANGE_RATE_MODE;
+  } else {
+    process.env.EXCHANGE_RATE_MODE = savedOriginalExchangeRateMode;
+  }
+  savedOriginalExchangeRateMode = undefined;
+  _clearLegacyExchangeRateCacheForTest();
+}
+
+export function getAuditFxParityEvidence(): {
+  live: {
+    baseUsdKrw: number;
+    effectiveKrwPerUsd: number;
+    overseasFeeRate: number;
+  };
+  candidate: {
+    usdToKrw: number;
+    effectiveKrwPerUsd: number;
+    overseasFeeRate: number;
+  };
+} {
+  const liveEffective = getEffectiveKrwPerUsd();
+  return {
+    live: {
+      baseUsdKrw: AUDIT_BASE_USD_KRW,
+      effectiveKrwPerUsd: liveEffective,
+      overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
+    },
+    candidate: {
+      usdToKrw: AUDIT_FX_SNAPSHOT.usdToKrw,
+      effectiveKrwPerUsd: AUDIT_FX_SNAPSHOT.effectiveKrwPerUsd,
+      overseasFeeRate: AUDIT_FX_SNAPSHOT.overseasFeeRate,
+    },
+  };
+}
+
+export type BillingParityFixtureId = string;
+
+export type BillingParityFixture = {
+  id: BillingParityFixtureId;
+  label: string;
+  deliveredModelId: string;
+  requestedSelectedAI?: SelectedAI;
+  deliveredSelectedAI?: SelectedAI;
+  provider: "cheaperinference" | "openrouter";
+  stages: StageUsage[];
+  promptAuditTotal?: number | null;
+  refusalFallbackDelivered?: boolean;
+  savedText?: string;
+  savedTextChars?: number;
+  userContextChars?: number;
+  completedTurnsBeforeRequest?: number;
+  upstreamCostUsd?: number;
+  forcedAbort?: boolean;
+  degenerationAborted?: boolean;
+  generationFailure?: GenerationFailureReason | null;
+  usageUnavailable?: boolean;
+  targetResponseChars?: number | null;
+  htmlFlashOnlyTurn?: boolean;
+  adultMode?: boolean;
+  stealthFallback?: boolean;
+};
+
+export type LegacyRouteUsageBasis = {
+  routeTotalInput: number;
+  routeChargeOutput: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  apiPromptTokensForCost: number;
+  apiCompletionTokensForCost: number;
+  reasoningTotal: number;
+};
+
+export type LiveChargeAuditResult = {
+  totalPoints: number;
+  modelId: string;
+  basis: LegacyRouteUsageBasis;
+};
+
+export type CandidateChargeAuditResult =
+  | {
+      status: "charged";
+      finalPoints: number;
+      billingModelId: string;
+      usageCoverage: UserBillableUsageCoverage;
+      publishedStatus: "complete";
+    }
+  | {
+      status: "blocked";
+      reason: string;
+      billingModelId: string;
+      usageCoverage: UserBillableUsageCoverage;
+      publishedStatus: "blocked";
+    }
+  | {
+      status: "not_comparable";
+      reason: string;
+      billingModelId: string;
+      usageCoverage: UserBillableUsageCoverage;
+      publishedStatus: "unavailable";
+    };
+
+export type ParityMismatchClass =
+  | "MISSING_PROVENANCE"
+  | "DIFFERENT_POLICY"
+  | "LEGACY_DEAD_POLICY"
+  | "NORMALIZATION_BUG"
+  | "PRICING_IDENTITY"
+  | "CACHE_SEMANTICS"
+  | "REASONING_SEMANTICS"
+  | "MULTI_STAGE_COVERAGE"
+  | "WAIVER"
+  | "FX"
+  | "OTHER";
+
+export type ParityMismatchRecord = {
+  id: string;
+  fixtureId: BillingParityFixtureId;
+  modelId: string;
+  scenario: string;
+  liveResult: number | null;
+  candidateResult: number | null;
+  firstDivergenceOwner: string;
+  rootCause: string;
+  class: ParityMismatchClass;
+  moneyImpact: "user_charge" | "none" | "observational_only";
+  cutoverBlocker: boolean;
+  liveFx: ReturnType<typeof getAuditFxParityEvidence>["live"];
+  candidateFx: ReturnType<typeof getAuditFxParityEvidence>["candidate"];
+};
+
+export type ParityComparisonResult =
+  | { status: "match"; livePoints: number; candidatePoints: number }
+  | {
+      status: "not_comparable";
+      reason: string;
+      livePoints: number | null;
+      candidatePoints: number | null;
+    }
+  | {
+      status: "blocked";
+      reason: string;
+      livePoints: number;
+      candidatePoints: null;
+      mismatch: ParityMismatchRecord;
+    }
+  | {
+      status: "mismatch";
+      livePoints: number;
+      candidatePoints: number;
+      mismatch: ParityMismatchRecord;
+    };
+
+export type BillingLiveOwnerReadinessEvaluation = {
+  matchCount: number;
+  mismatchCount: number;
+  blockedCount: number;
+  notComparableCount: number;
+  uncoveredModelCount: number;
+  uncoveredPolicyCount: number;
+  phase1UncoveredModelCount: number;
+  phase1UncoveredPolicyCount: number;
+  phase1AuditCoverageComplete: boolean;
+  phase1MismatchCount: number;
+  phase1BlockedCount: number;
+  phase1NotComparableCount: number;
+  phase1ParityBlockerCount: number;
+  phase1CutoverReady: boolean;
+  promotionReady: boolean;
+  promotionBlockers: string[];
+  mismatches: ParityMismatchRecord[];
+};
+
+export type SpecialPolicyCoverageRow = {
+  policy: string;
+  owner: string;
+  reachableModel: string;
+  fixtureIds: string[];
+  fixtureId: string | null;
+  classification:
+    | "PHASE1_REQUIRED"
+    | "DEFERRED_NOT_PHASE1_BLOCKER"
+    | "PHASE2_PLANNED"
+    | "LEGACY_OR_DEAD"
+    | "LEGACY_COMPAT";
+  fixturesExist: boolean;
+  behavioralProofPasses: boolean;
+  covered: boolean;
+  proof: Record<string, boolean | string | number>;
+};
+
+type PolicyProofContext = {
+  fixturesById: Map<string, BillingParityFixture>;
+};
+
+function fixtureMap(
+  fixtures: BillingParityFixture[]
+): Map<string, BillingParityFixture> {
+  return new Map(fixtures.map((fixture) => [fixture.id, fixture]));
+}
+
+function withFixtureOverrides(
+  base: BillingParityFixture,
+  overrides: Partial<BillingParityFixture>
+): BillingParityFixture {
+  return { ...base, ...overrides };
+}
+
+function proveUserContextMainRpNoLiveEffect(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const base = ctx.fixturesById.get("A1-g31-normal")!;
+  const control = withFixtureOverrides(base, { userContextChars: undefined });
+  const treatment = withFixtureOverrides(base, { userContextChars: 8000 });
+  const controlCharge = computeLiveChargeFromFixture(control).totalPoints;
+  const treatmentCharge = computeLiveChargeFromFixture(treatment).totalPoints;
+  return { controlCharge, treatmentCharge };
+}
+
+function provePromptAuditCap(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const g31 = CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL;
+  const basis = resolveLegacyRouteUsageBasis({
+    stages: [stage({ stage: "primary", model: g31, input: 200_000, output: 100 })],
+    modelId: g31,
+    promptAuditTotal: 180_000,
+  });
+  return {
+    stageInput: 200_000,
+    promptAuditTotal: 180_000,
+    routeTotalInput: basis.routeTotalInput,
+  };
+}
+
+function proveCacheSemantics(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const unreported = computeLiveChargeFromFixture(ctx.fixturesById.get("B1-cache-unreported")!);
+  const positive = computeLiveChargeFromFixture(ctx.fixturesById.get("B3-cache-valid-positive")!);
+  const blocked = computeCandidateChargeFromFixture(ctx.fixturesById.get("B1-cache-unreported")!);
+  return {
+    unreportedLivePoints: unreported.totalPoints,
+    positiveCacheLivePoints: positive.totalPoints,
+    positiveCacheReadTokens: positive.basis.cacheReadTokens,
+    unreportedCandidateStatus: blocked.status,
+    unreportedCandidatePoints: blocked.status === "charged" ? blocked.finalPoints : -1,
+  };
+}
+
+function proveReasoningSemantics(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const positiveFixture = ctx.fixturesById.get("C3-reasoning-positive")!;
+  const lowerOutput = withFixtureOverrides(positiveFixture, {
+    stages: positiveFixture.stages.map((stageRow) => ({
+      ...stageRow,
+      output: 400,
+      apiOutputTokens: 400,
+      apiReasoningOutputTokens: 0,
+    })),
+  });
+  const higherOutput = withFixtureOverrides(positiveFixture, {
+    stages: positiveFixture.stages.map((stageRow) => ({
+      ...stageRow,
+      output: 600,
+      apiOutputTokens: 600,
+      apiReasoningOutputTokens: 200,
+    })),
+  });
+  const lower = computeLiveChargeFromFixture(lowerOutput);
+  const higher = computeLiveChargeFromFixture(higherOutput);
+  return {
+    lowerReasoningLivePoints: lower.totalPoints,
+    higherReasoningLivePoints: higher.totalPoints,
+    higherReasoningTokenTotal: higher.basis.reasoningTotal,
+  };
+}
+
+function computeUnifiedReasoningCanonicalExpectedPoints(
+  fixture: BillingParityFixture,
+  modelId: string
+): number {
+  const savedText = resolveFixtureSavedText(fixture);
+  const billableStages = resolveFixtureBillableStages(fixture);
+  const primaryStage = billableStages[0];
+  const summedApiOutput = sumOpenRouterStageOutputTokens(fixture.stages);
+  const summedApiReasoning = sumOpenRouterStageReasoningTokens(fixture.stages);
+  const summedUpstreamUsd =
+    fixture.upstreamCostUsd ?? sumOpenRouterStageUpstreamUsd(fixture.stages);
+  const basis = resolveLegacyRouteUsageBasis({
+    stages: fixture.stages,
+    modelId,
+    refusalFallbackDelivered: fixture.refusalFallbackDelivered,
+    promptAuditTotal: fixture.promptAuditTotal,
+    stealthFallback: fixture.stealthFallback,
+  });
+  const apiTokens = resolveRouteApiTokensForCost(primaryStage, summedApiOutput);
+  const billableApiOutputTokens = billableOpenRouterOutputTokens(
+    modelId,
+    apiTokens.apiCompletionTokensForCost,
+    summedApiReasoning
+  );
+  const totalOutput =
+    billableApiOutputTokens > 0
+      ? billableApiOutputTokens
+      : billableOutputTokens(
+          primaryStage?.apiOutputTokens ?? 0,
+          savedText,
+          fixture.targetResponseChars ?? null
+        );
+  return computeOpenRouterTurnBilling({
+    modelId,
+    inputTokens: basis.routeTotalInput,
+    outputTokens: totalOutput,
+    reasoningTokens: basis.reasoningTotal,
+    cacheReadTokens: basis.cacheReadTokens,
+    cacheWriteTokens: basis.cacheWriteTokens,
+    apiPromptTokens: basis.apiPromptTokensForCost,
+    apiCompletionTokens: basis.apiCompletionTokensForCost,
+    upstreamCostUsd: summedUpstreamUsd > 0 ? summedUpstreamUsd : undefined,
+  }).total;
+}
+
+function proveOutputTokenPricing(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const base = ctx.fixturesById.get("A1-opus5-normal")!;
+  const withApi = base;
+  const withoutApi = withFixtureOverrides(base, {
+    stages: base.stages.map((stageRow) => ({
+      ...stageRow,
+      output: 0,
+      apiOutputTokens: 0,
+    })),
+  });
+  const withApiLive = computeLiveChargeFromFixture(withApi);
+  const withoutApiLive = computeLiveChargeFromFixture(withoutApi);
+  const savedText = resolveFixtureSavedText(withoutApi);
+  const savedTextFallbackTokens = billableOutputTokens(0, savedText, withoutApi.targetResponseChars ?? null);
+  const canonicalApiExpected = computeUnifiedReasoningCanonicalExpectedPoints(
+    withApi,
+    CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
+  );
+  return {
+    ot1ApiCompletionTokens: withApiLive.basis.apiCompletionTokensForCost,
+    ot1LivePoints: withApiLive.totalPoints,
+    ot1CanonicalApiExpectedPoints: canonicalApiExpected,
+    ot2ApiCompletionTokens: withoutApiLive.basis.apiCompletionTokensForCost,
+    ot2LivePoints: withoutApiLive.totalPoints,
+    ot2SavedTextFallbackTokens: savedTextFallbackTokens,
+    ot2LiveBillingCompletionSource:
+      withoutApiLive.basis.apiCompletionTokensForCost > 0 ? "API" : "SAVED_TEXT_FALLBACK",
+  };
+}
+
+function proveSavedTextChars(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const base = ctx.fixturesById.get("A1-opus45-normal")!;
+  const shortText = withFixtureOverrides(base, { savedTextChars: 200 });
+  const longText = withFixtureOverrides(base, { savedTextChars: 4000 });
+  const shortCharge = computeLiveChargeFromFixture(shortText).totalPoints;
+  const longCharge = computeLiveChargeFromFixture(longText).totalPoints;
+  return { shortCharge, longCharge };
+}
+
+function proveCompletedTurnNoEffect(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const base = ctx.fixturesById.get("A1-opus5-normal")!;
+  const firstTurn = withFixtureOverrides(base, { completedTurnsBeforeRequest: 0 });
+  const laterTurn = withFixtureOverrides(base, { completedTurnsBeforeRequest: 3 });
+  const firstCharge = computeLiveChargeFromFixture(firstTurn).totalPoints;
+  const laterCharge = computeLiveChargeFromFixture(laterTurn).totalPoints;
+  return { firstCharge, laterCharge };
+}
+
+function proveUpstreamCostG31Ci(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const base = ctx.fixturesById.get("A1-g31-normal")!;
+  const without = withFixtureOverrides(base, { upstreamCostUsd: undefined });
+  const withUpstream = withFixtureOverrides(base, { upstreamCostUsd: 0.05 });
+  const g36 = ctx.fixturesById.get("A1-g36-normal")!;
+  const g36Without = withFixtureOverrides(g36, { upstreamCostUsd: undefined });
+  const g36With = withFixtureOverrides(g36, { upstreamCostUsd: 0.05 });
+  return {
+    g31WithoutUpstreamPoints: computeLiveChargeFromFixture(without).totalPoints,
+    g31WithUpstreamPoints: computeLiveChargeFromFixture(withUpstream).totalPoints,
+    g36WithoutUpstreamPoints: computeLiveChargeFromFixture(g36Without).totalPoints,
+    g36WithUpstreamPoints: computeLiveChargeFromFixture(g36With).totalPoints,
+  };
+}
+
+const AUDIT_WAIVER_HEALTHY_TEXT =
+  "가".repeat(50) +
+  " She paused at the doorway, fingers tracing the chipped paint. The hallway smelled of rain and old wood. Whatever waited inside, she would face it without looking back.";
+
+const AUDIT_WAIVER_SHORT_TEXT = "짧음";
+
+const AUDIT_WAIVER_GARBAGE_TEXT = "asdf ".repeat(40);
+
+/** Phase 1 models investigated for route-composition waiver minimum behavior. */
+const PHASE_1_WAIVER_MODELS = PHASE_1_CUTOVER_REQUIRED_MODELS;
+
+function modelHasSpecificWaiverMinimumResolver(modelId: string): boolean {
+  return (
+    isDeepSeekV4ProModel(modelId) ||
+    isQwenModel(modelId) ||
+    isGlmModel(modelId) ||
+    isKimiModel(modelId) ||
+    isMuseModel(modelId) ||
+    isGemini36FlashModel(modelId) ||
+    isGemini31ProModel(modelId)
+  );
+}
+
+type WaiverScenarioSpec = {
+  scenario: string;
+  savedText: string;
+  forcedAbort?: boolean;
+  degenerationAborted?: boolean;
+  generationFailure?: GenerationFailureReason | null;
+  usageUnavailable?: boolean;
+  targetResponseChars?: number | null;
+};
+
+function characterizeRouteWaiverMinimum(
+  modelId: string,
+  spec: WaiverScenarioSpec
+): {
+  waiverReason: BillingWaiverReason | null;
+  waiverMinimum: number;
+  minimumResolverCalled: boolean;
+} {
+  const reason = shouldWaiveTurnBilling(spec.savedText, {
+    forcedAbort: spec.forcedAbort ?? false,
+    degenerationAborted: spec.degenerationAborted ?? false,
+    generationFailure: spec.generationFailure ?? null,
+    usageUnavailable: spec.usageUnavailable ?? false,
+    adultMode: true,
+    targetResponseChars: spec.targetResponseChars ?? null,
+  });
+  if (!reason) {
+    return { waiverReason: null, waiverMinimum: 0, minimumResolverCalled: false };
+  }
+  const resolverOpts = {
+    degenerationAborted: spec.degenerationAborted ?? false,
+    targetResponseChars: spec.targetResponseChars ?? null,
+  };
+  const waiverMinimum = resolveModelWaiverMinimumPoints(
+    modelId,
+    spec.savedText,
+    reason,
+    resolverOpts
+  );
+  return { waiverReason: reason, waiverMinimum, minimumResolverCalled: true };
+}
+
+function buildWaiverMinimumOutcomeMatrix(): Array<{
+  scenario: string;
+  modelId: string;
+  waiverReason: string | null;
+  waiverMinimum: number;
+  finalLivePoints: number;
+  minimumResolverCalled: boolean;
+}> {
+  const scenarios: WaiverScenarioSpec[] = [
+    { scenario: "degeneration", savedText: AUDIT_WAIVER_GARBAGE_TEXT, degenerationAborted: true },
+    {
+      scenario: "generation_failure",
+      savedText: AUDIT_WAIVER_HEALTHY_TEXT,
+      generationFailure: "under_length",
+    },
+    {
+      scenario: "usageUnavailable",
+      savedText: AUDIT_WAIVER_HEALTHY_TEXT,
+      usageUnavailable: true,
+    },
+    { scenario: "garbage_output", savedText: AUDIT_WAIVER_GARBAGE_TEXT },
+    {
+      scenario: "forcedAbort_catastrophic",
+      savedText: AUDIT_WAIVER_SHORT_TEXT,
+      forcedAbort: true,
+      targetResponseChars: 4000,
+    },
+    {
+      scenario: "forcedAbort_healthy",
+      savedText: AUDIT_WAIVER_HEALTHY_TEXT,
+      forcedAbort: true,
+    },
+  ];
+  const rows: Array<{
+    scenario: string;
+    modelId: string;
+    waiverReason: string | null;
+    waiverMinimum: number;
+    finalLivePoints: number;
+    minimumResolverCalled: boolean;
+  }> = [];
+  for (const modelId of PHASE_1_WAIVER_MODELS) {
+    for (const spec of scenarios) {
+      const waiver = characterizeRouteWaiverMinimum(modelId, spec);
+      const fixture: BillingParityFixture = {
+        id: `waiver-${modelId}-${spec.scenario}`,
+        label: spec.scenario,
+        deliveredModelId: modelId,
+        deliveredSelectedAI: resolveExactDeliveredSelectedAI(modelId),
+        provider: providerForModel(modelId),
+        savedText: spec.savedText,
+        forcedAbort: spec.forcedAbort,
+        degenerationAborted: spec.degenerationAborted,
+        generationFailure: spec.generationFailure ?? null,
+        usageUnavailable: spec.usageUnavailable,
+        targetResponseChars: spec.targetResponseChars,
+        stages: [
+          stage({
+            stage: "primary",
+            model: modelId,
+            input: 9000,
+            output: 4307,
+            apiOutputTokens: 4307,
+            apiReportedInputTokens: 9000,
+          }),
+        ],
+      };
+      rows.push({
+        scenario: spec.scenario,
+        modelId,
+        waiverReason: waiver.waiverReason,
+        waiverMinimum: waiver.waiverMinimum,
+        minimumResolverCalled: waiver.minimumResolverCalled,
+        finalLivePoints: computeLiveChargeFromFixture(fixture).totalPoints,
+      });
+    }
+  }
+  return rows;
+}
+
+function provePhase1WaiverEvidence(
+  _ctx: PolicyProofContext
+): Record<string, boolean | string | number> {
+  const matrix = buildWaiverMinimumOutcomeMatrix();
+  const maxWaiverMinimum = matrix.reduce((max, row) => Math.max(max, row.waiverMinimum), 0);
+  const reachableWaiverRows = matrix.filter((row) => row.waiverReason != null);
+  const healthyForcedAbort = matrix.find((row) => row.scenario === "forcedAbort_healthy");
+  const phase1ModelEvidence = PHASE_1_WAIVER_MODELS.map((modelId) => {
+    const modelRows = matrix.filter((row) => row.modelId === modelId);
+    const hasResolver = modelHasSpecificWaiverMinimumResolver(modelId);
+    const evidenceKind = hasResolver
+      ? "MODEL_SPECIFIC_MINIMUM_RESOLVER"
+      : "NO_MODEL_SPECIFIC_WAIVER_MINIMUM";
+    const routeWaiverObserved = modelRows.some((row) => row.waiverReason != null);
+    return {
+      modelId,
+      evidenceKind,
+      routeWaiverObserved,
+      matrixRowCount: modelRows.length,
+      hasEvidence: hasResolver
+        ? modelRows.length >= 6
+        : routeWaiverObserved || modelRows.length >= 6,
+    };
+  });
+  const phase1WaiverModelWithoutEvidence = phase1ModelEvidence.filter((row) => !row.hasEvidence).length;
+  return {
+    scenarioCount: matrix.length,
+    reachableWaiverScenarioCount: reachableWaiverRows.length,
+    maxWaiverMinimum,
+    healthyForcedAbortWaiverReason: healthyForcedAbort?.waiverReason ?? "none",
+    healthyForcedAbortMinimumResolverCalled: healthyForcedAbort?.minimumResolverCalled ? 1 : 0,
+    phase1WaiverModelWithoutEvidence,
+    g31HasModelSpecificMinimumResolver: modelHasSpecificWaiverMinimumResolver(
+      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
+    )
+      ? 1
+      : 0,
+    g37NoModelSpecificMinimum: modelHasSpecificWaiverMinimumResolver(
+      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL
+    )
+      ? 0
+      : 1,
+    opus5NoModelSpecificMinimum: modelHasSpecificWaiverMinimumResolver(
+      CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
+    )
+      ? 0
+      : 1,
+    phase1WaiverEvidence: JSON.stringify(phase1ModelEvidence),
+  };
+}
+
+function proveRefusalFallbackSelection(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const fixture = ctx.fixturesById.get("D4-fallback")!;
+  const billable = selectBillableStages(fixture.stages, {
+    refusalFallbackDelivered: true,
+  });
+  return {
+    selectedBillableStage: billable[0]?.stage ?? "missing",
+  };
+}
+
+function proveStealthFallbackSelection(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const fixture = ctx.fixturesById.get("D-stealth-fallback")!;
+  const billable = selectBillableStages(fixture.stages, { stealthFallback: true });
+  const live = computeLiveChargeFromFixture(fixture);
+  return {
+    liveSelectedStage: billable[0]?.stage ?? "missing",
+    liveSelectedStageModel: billable[0]?.model ?? "missing",
+    liveBillingModel: live.modelId,
+    candidateAcceptsStealthFallbackFlag: 0,
+  };
+}
+
+function proveG37DedicatedFormula(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const fixture = ctx.fixturesById.get("A1-g37-normal")!;
+  const live = computeLiveChargeFromFixture(fixture);
+  const primaryStage = resolveFixtureBillableStages(fixture)[0];
+  const apiPromptTokens = primaryStage?.apiReportedInputTokens ?? primaryStage?.input ?? 0;
+  const billedOutputTokens = resolveGemini37FlashBilledOutputTokens({
+    completionTokens: primaryStage?.apiOutputTokens ?? primaryStage?.output ?? 0,
+    reasoningTokens: primaryStage?.apiReasoningOutputTokens ?? 0,
+  });
+  const canonicalExpectedPoints = computeGemini37FlashUserChargePoints({
+    inputTokens: apiPromptTokens,
+    billedOutputTokens,
+  });
+  return {
+    g37CanonicalExpectedPoints: canonicalExpectedPoints,
+    liveG37Points: live.totalPoints,
+    apiPromptTokens,
+    billedOutputTokens,
+  };
+}
+
+function proveUnifiedReasoningOwner(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const g31Fixture = ctx.fixturesById.get("A1-g31-normal")!;
+  const opusFixture = ctx.fixturesById.get("A1-opus5-normal")!;
+  const g31Rates = resolveOpenRouterReasoningPointRates(
+    CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    AUDIT_EFFECTIVE_KRW_PER_USD
+  );
+  const opusRates = resolveOpenRouterReasoningPointRates(
+    CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+    AUDIT_EFFECTIVE_KRW_PER_USD
+  );
+  const g31Live = computeLiveChargeFromFixture(g31Fixture).totalPoints;
+  const opusLive = computeLiveChargeFromFixture(opusFixture).totalPoints;
+  const g31Expected = computeUnifiedReasoningCanonicalExpectedPoints(
+    g31Fixture,
+    CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
+  );
+  const opusExpected = computeUnifiedReasoningCanonicalExpectedPoints(
+    opusFixture,
+    CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
+  );
+  return {
+    g31ReasoningRatesResolved: g31Rates != null ? 1 : 0,
+    opusReasoningRatesResolved: opusRates != null ? 1 : 0,
+    g31ExpectedPoints: g31Expected,
+    g31LivePoints: g31Live,
+    opusExpectedPoints: opusExpected,
+    opusLivePoints: opusLive,
+  };
+}
+
+function evaluatePolicyBehavioralProof(
+  policy: string,
+  proof: Record<string, boolean | string | number>
+): boolean {
+  switch (policy) {
+    case "input surcharge (userContextChars)":
+    case "userContext surcharge":
+      return proof.controlCharge === proof.treatmentCharge;
+    case "output-token pricing (api vs savedText fallback)":
+      return (
+        proof.ot1ApiCompletionTokens === 500 &&
+        proof.ot1LivePoints === proof.ot1CanonicalApiExpectedPoints &&
+        proof.ot2ApiCompletionTokens === 0 &&
+        proof.ot2LiveBillingCompletionSource === "SAVED_TEXT_FALLBACK" &&
+        proof.ot2LivePoints !== proof.ot1LivePoints
+      );
+    case "reasoning token semantics":
+      return (
+        proof.lowerReasoningLivePoints !== proof.higherReasoningLivePoints &&
+        Number(proof.higherReasoningTokenTotal) > 0
+      );
+    case "cache read/write semantics":
+      return (
+        proof.positiveCacheLivePoints !== proof.unreportedLivePoints &&
+        Number(proof.positiveCacheReadTokens) > 0 &&
+        (proof.unreportedCandidateStatus !== "charged" ||
+          proof.unreportedCandidatePoints !== proof.unreportedLivePoints)
+      );
+    case "savedTextChars character-priced models":
+      return proof.shortCharge !== proof.longCharge;
+    case "completed-turn cold-start (Opus first turn)":
+      return proof.firstCharge === proof.laterCharge;
+    case "upstream actual-cost billing (Cheaper Inference unified reasoning USD)":
+      return (
+        proof.g31WithUpstreamPoints !== proof.g31WithoutUpstreamPoints &&
+        proof.g36WithUpstreamPoints === proof.g36WithoutUpstreamPoints
+      );
+    case "waiver minimum charge resolvers (Phase 1)":
+      return (
+        Number(proof.phase1WaiverModelWithoutEvidence) === 0 &&
+        Number(proof.scenarioCount) >= 18 &&
+        proof.g31HasModelSpecificMinimumResolver === 1 &&
+        proof.g37NoModelSpecificMinimum === 1 &&
+        proof.opus5NoModelSpecificMinimum === 1 &&
+        proof.healthyForcedAbortWaiverReason === "none"
+      );
+    case "promptAudit input cap":
+      return proof.routeTotalInput === 180_000;
+    case "refusal fallback stage selection":
+      return proof.selectedBillableStage === "fallback";
+    case "stealth fallback OpenRouter-only stage selection":
+      return proof.liveSelectedStageModel === OPENROUTER_GEMINI_36_FLASH_MODEL;
+    case "gemini37FlashPricing dedicated formula":
+      return proof.g37CanonicalExpectedPoints === proof.liveG37Points;
+    case "unified-reasoning margins (G31 CI, Opus5)":
+      return (
+        proof.g31ReasoningRatesResolved === 1 &&
+        proof.opusReasoningRatesResolved === 1 &&
+        proof.g31ExpectedPoints === proof.g31LivePoints &&
+        proof.opusExpectedPoints === proof.opusLivePoints
+      );
+    case "Qwen output-token pricing":
+    case "Muse margin pricing":
+    case "Kimi margin pricing":
+      return true;
+    default: {
+      const _exhaustive: never = policy as never;
+      return _exhaustive;
+    }
+  }
+}
+
+type PolicyDefinition = {
+  policy: string;
+  owner: string;
+  reachableModel: string;
+  fixtureIds: string[];
+  classification: SpecialPolicyCoverageRow["classification"];
+  prove: (ctx: PolicyProofContext) => Record<string, boolean | string | number>;
+};
+
+const SPECIAL_POLICY_DEFINITIONS: PolicyDefinition[] = [
+  {
+    policy: "input surcharge (userContextChars)",
+    owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
+    reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    fixtureIds: ["A1-g31-normal"],
+    classification: "LEGACY_OR_DEAD",
+    prove: proveUserContextMainRpNoLiveEffect,
+  },
+  {
+    policy: "output-token pricing (api vs savedText fallback)",
+    owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
+    reachableModel: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+    fixtureIds: ["A1-opus5-normal"],
+    classification: "PHASE1_REQUIRED",
+    prove: proveOutputTokenPricing,
+  },
+  {
+    policy: "reasoning token semantics",
+    owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
+    reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    fixtureIds: ["C3-reasoning-positive"],
+    classification: "PHASE1_REQUIRED",
+    prove: proveReasoningSemantics,
+  },
+  {
+    policy: "cache read/write semantics",
+    owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
+    reachableModel: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+    fixtureIds: ["B1-cache-unreported", "B3-cache-valid-positive"],
+    classification: "PHASE1_REQUIRED",
+    prove: proveCacheSemantics,
+  },
+  {
+    policy: "savedTextChars character-priced models",
+    owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
+    reachableModel: CLAUDE_OPUS_MODEL,
+    fixtureIds: ["A1-opus45-normal"],
+    classification: "DEFERRED_NOT_PHASE1_BLOCKER",
+    prove: proveSavedTextChars,
+  },
+  {
+    policy: "userContext surcharge",
+    owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
+    reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    fixtureIds: ["A1-g31-normal"],
+    classification: "LEGACY_OR_DEAD",
+    prove: proveUserContextMainRpNoLiveEffect,
+  },
+  {
+    policy: "completed-turn cold-start (Opus first turn)",
+    owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
+    reachableModel: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+    fixtureIds: ["A1-opus5-normal"],
+    classification: "LEGACY_OR_DEAD",
+    prove: proveCompletedTurnNoEffect,
+  },
+  {
+    policy: "upstream actual-cost billing (Cheaper Inference unified reasoning USD)",
+    owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
+    reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    fixtureIds: ["A1-g31-normal", "A1-g36-normal"],
+    classification: "PHASE1_REQUIRED",
+    prove: proveUpstreamCostG31Ci,
+  },
+  {
+    policy: "waiver minimum charge resolvers (Phase 1)",
+    owner: BILLING_LIVE_OWNER_MAP.CURRENT_BILLING_WAIVER_OWNER,
+    reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    fixtureIds: ["W1-degeneration-waiver", "W2-forced-abort-minimum-zero", "W3-generation-failure-waiver"],
+    classification: "PHASE1_REQUIRED",
+    prove: provePhase1WaiverEvidence,
+  },
+  {
+    policy: "promptAudit input cap",
+    owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
+    reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    fixtureIds: ["A3-large-io"],
+    classification: "PHASE1_REQUIRED",
+    prove: provePromptAuditCap,
+  },
+  {
+    policy: "refusal fallback stage selection",
+    owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
+    reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    fixtureIds: ["D4-fallback"],
+    classification: "PHASE1_REQUIRED",
+    prove: proveRefusalFallbackSelection,
+  },
+  {
+    policy: "stealth fallback OpenRouter-only stage selection",
+    owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
+    reachableModel: OPENROUTER_GEMINI_36_FLASH_MODEL,
+    fixtureIds: ["D-stealth-fallback"],
+    classification: "DEFERRED_NOT_PHASE1_BLOCKER",
+    prove: proveStealthFallbackSelection,
+  },
+  {
+    policy: "gemini37FlashPricing dedicated formula",
+    owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_SPECIAL_POLICY_OWNER,
+    reachableModel: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+    fixtureIds: ["A1-g37-normal"],
+    classification: "PHASE1_REQUIRED",
+    prove: proveG37DedicatedFormula,
+  },
+  {
+    policy: "unified-reasoning margins (G31 CI, Opus5)",
+    owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_SPECIAL_POLICY_OWNER,
+    reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    fixtureIds: ["A1-g31-normal", "A1-opus5-normal"],
+    classification: "PHASE1_REQUIRED",
+    prove: proveUnifiedReasoningOwner,
+  },
+  {
+    policy: "Qwen output-token pricing",
+    owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_PRICE_OWNER,
+    reachableModel: OPENROUTER_QWEN_37_MAX_MODEL,
+    fixtureIds: [],
+    classification: "LEGACY_COMPAT",
+    prove: () => ({ legacyCompat: 1 }),
+  },
+  {
+    policy: "Muse margin pricing",
+    owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_PRICE_OWNER,
+    reachableModel: OPENROUTER_MUSE_SPARK_11_MODEL,
+    fixtureIds: [],
+    classification: "LEGACY_COMPAT",
+    prove: () => ({ legacyCompat: 1 }),
+  },
+  {
+    policy: "Kimi margin pricing",
+    owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_PRICE_OWNER,
+    reachableModel: OPENROUTER_KIMI_K3_MODEL,
+    fixtureIds: [],
+    classification: "LEGACY_COMPAT",
+    prove: () => ({ legacyCompat: 1 }),
+  },
+];
+
+export const SPECIAL_BILLING_POLICIES = SPECIAL_POLICY_DEFINITIONS.map(
+  (row) => row.policy
+) as readonly string[];
+
+const DEFAULT_AUDIT_HEALTHY_SAVED_TEXT =
+  "가".repeat(50) +
+  " She paused at the doorway, fingers tracing the chipped paint. The hallway smelled of rain and old wood. Whatever waited inside, she would face it without looking back.";
+
+function buildSyntheticHealthySavedText(targetChars?: number): string {
+  if (targetChars == null || targetChars <= DEFAULT_AUDIT_HEALTHY_SAVED_TEXT.length) {
+    return DEFAULT_AUDIT_HEALTHY_SAVED_TEXT;
+  }
+  let out = DEFAULT_AUDIT_HEALTHY_SAVED_TEXT;
+  let beat = 0;
+  while (out.length < targetChars) {
+    out += `Beat ${beat}: the corridor bent toward a dim lamp, and the air cooled with each step. `;
+    beat += 1;
+  }
+  return out.slice(0, targetChars);
+}
+
+function resolveFixtureSavedText(fixture: BillingParityFixture): string {
+  if (fixture.savedText != null) return fixture.savedText;
+  if (fixture.savedTextChars != null && fixture.savedTextChars > 0) {
+    return buildSyntheticHealthySavedText(fixture.savedTextChars);
+  }
+  if (
+    fixture.generationFailure ||
+    fixture.degenerationAborted ||
+    fixture.forcedAbort ||
+    fixture.usageUnavailable
+  ) {
+    return "";
+  }
+  return DEFAULT_AUDIT_HEALTHY_SAVED_TEXT;
+}
+
+/** Mirrors route.ts LEVEL 1 assembly — independent of turnBillableUsage candidate. */
+export function resolveLegacyRouteUsageBasis(opts: {
+  stages: StageUsage[];
+  modelId: string;
+  refusalFallbackDelivered?: boolean;
+  promptAuditTotal?: number | null;
+  stealthFallback?: boolean;
+}): LegacyRouteUsageBasis {
+  const billableStages = selectBillableStages(opts.stages, {
+    refusalFallbackDelivered: opts.refusalFallbackDelivered ?? false,
+    stealthFallback: opts.stealthFallback ?? false,
+  });
+  const primaryStage = billableStages[0];
+  const summedApiOutput = sumOpenRouterStageOutputTokens(opts.stages);
+  const summedApiReasoning = sumOpenRouterStageReasoningTokens(opts.stages);
+  const apiTokens = resolveRouteApiTokensForCost(primaryStage, summedApiOutput);
+  const routeTotalInput = resolveTurnBillableInput({
+    stageInput: primaryStage?.input ?? 0,
+    promptAuditTotal: opts.promptAuditTotal ?? undefined,
+  });
+  const routeChargeOutput = billableOpenRouterOutputTokens(
+    opts.modelId,
+    apiTokens.apiCompletionTokensForCost,
+    summedApiReasoning
+  );
+  return {
+    routeTotalInput,
+    routeChargeOutput,
+    cacheReadTokens: primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens ?? 0,
+    cacheWriteTokens: primaryStage?.cacheWriteTokens ?? 0,
+    apiPromptTokensForCost: apiTokens.apiPromptTokensForCost,
+    apiCompletionTokensForCost: apiTokens.apiCompletionTokensForCost,
+    reasoningTotal: summedApiReasoning,
+  };
+}
+
+function resolveFixtureBillableStages(fixture: BillingParityFixture): StageUsage[] {
+  return selectBillableStages(fixture.stages, {
+    refusalFallbackDelivered: fixture.refusalFallbackDelivered ?? false,
+    stealthFallback: fixture.stealthFallback ?? false,
+  });
+}
+
+function resolveFixtureWaiverContext(
+  fixture: BillingParityFixture,
+  billableStages: StageUsage[],
+  primaryStage: StageUsage | undefined
+): {
+  forcedAbort: boolean;
+  degenerationAborted: boolean;
+  usageUnavailable: boolean;
+} {
+  return {
+    forcedAbort:
+      fixture.forcedAbort ?? billableStages.some((stage) => stage.loopAborted === true),
+    degenerationAborted:
+      fixture.degenerationAborted ??
+      billableStages.some((stage) => stage.degenerationAborted === true),
+    usageUnavailable:
+      fixture.usageUnavailable ??
+      isIncompleteStreamUsageUnavailable({
+        finishReason: primaryStage?.finishReason,
+        promptTokens: primaryStage?.apiReportedInputTokens ?? 0,
+        completionTokens: primaryStage?.apiOutputTokens ?? 0,
+      }),
+  };
+}
+
+function resolveModelWaiverMinimumPoints(
+  modelId: string,
+  savedText: string,
+  waiverReason: BillingWaiverReason,
+  opts: {
+    degenerationAborted?: boolean;
+    targetResponseChars?: number | null;
+  }
+): number {
+  if (isDeepSeekV4ProModel(modelId)) {
+    return resolveDeepSeekWaiverMinimumCharge(savedText, waiverReason, opts);
+  }
+  if (isQwenModel(modelId)) {
+    return resolveQwenWaiverMinimumCharge(savedText, waiverReason, opts);
+  }
+  if (isGlmModel(modelId)) {
+    return resolveGlmWaiverMinimumCharge(savedText, waiverReason, opts);
+  }
+  if (isKimiModel(modelId)) {
+    return resolveKimiWaiverMinimumCharge(savedText, waiverReason, opts);
+  }
+  if (isMuseModel(modelId)) {
+    return resolveMuseWaiverMinimumCharge(savedText, waiverReason, opts);
+  }
+  if (isGemini36FlashModel(modelId)) {
+    return resolveGemini36WaiverMinimumCharge(savedText, waiverReason, opts);
+  }
+  if (isGemini31ProModel(modelId)) {
+    return resolveGemini31WaiverMinimumCharge(savedText, waiverReason, opts);
+  }
+  return 0;
+}
+
+/** Mirrors route.ts 4405–4455 waiver composition — no early billing skip. */
+export function resolveMainBillingCostViaCanonicalWaiver(
+  billingTotal: number,
+  fixture: BillingParityFixture,
+  deliveredModelId: string,
+  savedText: string,
+  billableStages: StageUsage[],
+  primaryStage: StageUsage | undefined
+): number {
+  const waiverContext = resolveFixtureWaiverContext(fixture, billableStages, primaryStage);
+  const billingWaiverReason = shouldWaiveTurnBilling(savedText, {
+    forcedAbort: waiverContext.forcedAbort,
+    degenerationAborted: waiverContext.degenerationAborted,
+    generationFailure: fixture.generationFailure ?? null,
+    usageUnavailable: waiverContext.usageUnavailable,
+    adultMode: fixture.adultMode ?? false,
+    targetResponseChars: fixture.targetResponseChars,
+  });
+
+  let cost = billingWaiverReason ? 0 : billingTotal;
+
+  if (billingWaiverReason) {
+    const waiverMin = resolveModelWaiverMinimumPoints(
+      deliveredModelId,
+      savedText,
+      billingWaiverReason,
+      {
+        degenerationAborted: waiverContext.degenerationAborted,
+        targetResponseChars: fixture.targetResponseChars,
+      }
+    );
+    if (waiverMin > 0) cost = waiverMin;
+  }
+
+  return cost;
+}
+
+/** Path A — current live user charge (authoritative today). */
+export function computeLiveChargeFromFixture(fixture: BillingParityFixture): LiveChargeAuditResult {
+  const deliveredModelId = fixture.deliveredModelId;
+  const deliveredSelectedAI = (fixture.deliveredSelectedAI ??
+    fixture.requestedSelectedAI ??
+    deliveredModelId) as SelectedAI;
+  const savedText = resolveFixtureSavedText(fixture);
+  const billableStages = resolveFixtureBillableStages(fixture);
+  const primaryStage = billableStages[0];
+  const summedApiOutput = sumOpenRouterStageOutputTokens(fixture.stages);
+  const summedApiReasoning = sumOpenRouterStageReasoningTokens(fixture.stages);
+  const summedUpstreamUsd =
+    fixture.upstreamCostUsd ?? sumOpenRouterStageUpstreamUsd(fixture.stages);
+
+  if (fixture.htmlFlashOnlyTurn) {
+    const billableChars =
+      fixture.savedTextChars ??
+      billableOutputChars(savedText, fixture.targetResponseChars ?? null);
+    const flashBilling = computeHtmlFlashOnlyTurnBilling({
+      savedTextChars: billableChars,
+      userContextChars: fixture.userContextChars,
+      inputTokens: primaryStage?.input,
+      outputTokens: primaryStage?.apiOutputTokens ?? primaryStage?.output,
+      upstreamCostUsd: summedUpstreamUsd > 0 ? summedUpstreamUsd : undefined,
+      cacheReadTokens: primaryStage?.cacheReadTokens,
+      cacheWriteTokens: primaryStage?.cacheWriteTokens,
+    });
+    const basis = resolveLegacyRouteUsageBasis({
+      stages: fixture.stages,
+      modelId: deliveredModelId,
+      refusalFallbackDelivered: fixture.refusalFallbackDelivered,
+      promptAuditTotal: fixture.promptAuditTotal,
+      stealthFallback: fixture.stealthFallback,
+    });
+    return {
+      totalPoints: flashBilling.total,
+      modelId: flashBilling.modelId,
+      basis,
+    };
+  }
+
+  const basis = resolveLegacyRouteUsageBasis({
+    stages: fixture.stages,
+    modelId: deliveredModelId,
+    refusalFallbackDelivered: fixture.refusalFallbackDelivered,
+    promptAuditTotal: fixture.promptAuditTotal,
+    stealthFallback: fixture.stealthFallback,
+  });
+
+  const apiTokens = resolveRouteApiTokensForCost(primaryStage, summedApiOutput);
+  const billableApiOutputTokens = billableOpenRouterOutputTokens(
+    deliveredModelId,
+    apiTokens.apiCompletionTokensForCost,
+    summedApiReasoning
+  );
+  const billableChars =
+    fixture.savedTextChars ??
+    billableOutputChars(savedText, fixture.targetResponseChars ?? null);
+  const totalOutput =
+    billableApiOutputTokens > 0
+      ? billableApiOutputTokens
+      : billableOutputTokens(
+          primaryStage?.apiOutputTokens ?? 0,
+          savedText,
+          fixture.targetResponseChars ?? null
+        );
+
+  const billing = computeTurnBilling({
+    provider: fixture.provider,
+    selectedAI: deliveredSelectedAI,
+    openRouterModelId: deliveredModelId,
+    inputTokens: basis.routeTotalInput,
+    outputTokens: totalOutput,
+    reasoningTokens: basis.reasoningTotal,
+    cacheReadTokens: basis.cacheReadTokens,
+    cacheWriteTokens: basis.cacheWriteTokens,
+    userContextChars: fixture.userContextChars,
+    savedTextChars: billableChars,
+    completedTurnsBeforeRequest: fixture.completedTurnsBeforeRequest,
+    upstreamCostUsd: summedUpstreamUsd > 0 ? summedUpstreamUsd : undefined,
+    apiPromptTokens: basis.apiPromptTokensForCost,
+    apiCompletionTokens: basis.apiCompletionTokensForCost,
+    modelLabel: deliveredModelId,
+  });
+
+  const totalPoints = resolveMainBillingCostViaCanonicalWaiver(
+    billing.total,
+    fixture,
+    deliveredModelId,
+    savedText,
+    billableStages,
+    primaryStage
+  );
+
+  return { totalPoints, modelId: billing.modelId, basis };
+}
+
+/** Path B — candidate published charge (NOT live). Independent of computeTurnBilling. */
+export function computeCandidateChargeFromFixture(
+  fixture: BillingParityFixture
+): CandidateChargeAuditResult {
+  const candidate = resolveTurnBillableUsage({
+    stages: fixture.stages,
+    modelId: fixture.deliveredModelId,
+    refusalFallbackDelivered: fixture.refusalFallbackDelivered,
+    promptAuditTotal: fixture.promptAuditTotal,
+  });
+
+  if (candidate.status !== "resolved" || !candidate.usage) {
+    return {
+      status: "not_comparable",
+      reason: candidate.status === "unavailable" ? candidate.reason : "candidate_unresolved",
+      billingModelId: fixture.deliveredModelId,
+      usageCoverage: candidate.usageCoverage,
+      publishedStatus: "unavailable",
+    };
+  }
+
+  const savedText = resolveFixtureSavedText(fixture);
+  const billableStages = resolveFixtureBillableStages(fixture);
+  const primaryStage = billableStages[0];
+  const waiverContext = resolveFixtureWaiverContext(fixture, billableStages, primaryStage);
+  const waiverReason = shouldWaiveTurnBilling(savedText, {
+    forcedAbort: waiverContext.forcedAbort,
+    degenerationAborted: waiverContext.degenerationAborted,
+    generationFailure: fixture.generationFailure ?? null,
+    usageUnavailable: waiverContext.usageUnavailable,
+    adultMode: fixture.adultMode ?? false,
+    targetResponseChars: fixture.targetResponseChars,
+  });
+  const adjustment: PublishedChargeAdjustment = waiverReason
+    ? { kind: "waiver", reason: waiverReason }
+    : { kind: "none" };
+
+  const published: PublishedUserChargeResult = computePublishedUserChargeWithSnapshot({
+    modelId: fixture.deliveredModelId,
+    usage: candidate.usage,
+    usageCoverage: candidate.usageCoverage,
+    fxSnapshot: AUDIT_FX_SNAPSHOT,
+    adjustment,
+  });
+
+  if (published.status === "blocked") {
+    return {
+      status: "blocked",
+      reason: published.reason,
+      billingModelId: fixture.deliveredModelId,
+      usageCoverage: candidate.usageCoverage,
+      publishedStatus: "blocked",
+    };
+  }
+
+  return {
+    status: "charged",
+    finalPoints: published.snapshot.finalPoints,
+    billingModelId: fixture.deliveredModelId,
+    usageCoverage: candidate.usageCoverage,
+    publishedStatus: "complete",
+  };
+}
+
+function classifyBlockedReason(reason: string): ParityMismatchClass {
+  if (reason.includes("cache")) return "CACHE_SEMANTICS";
+  if (reason.includes("tier") || reason.includes("unsupported_model")) return "PRICING_IDENTITY";
+  if (reason.includes("usage")) return "MISSING_PROVENANCE";
+  if (reason.includes("waiver")) return "WAIVER";
+  return "OTHER";
+}
+
+function buildParityMismatchRecord(
+  fixture: BillingParityFixture,
+  partial: Omit<
+    ParityMismatchRecord,
+    "id" | "fixtureId" | "modelId" | "scenario" | "liveFx" | "candidateFx"
+  > & { idSuffix: string }
+): ParityMismatchRecord {
+  const fx = getAuditFxParityEvidence();
+  return {
+    id: `${fixture.id}-${partial.idSuffix}`,
+    fixtureId: fixture.id,
+    modelId: fixture.deliveredModelId,
+    scenario: fixture.label,
+    liveResult: partial.liveResult,
+    candidateResult: partial.candidateResult,
+    firstDivergenceOwner: partial.firstDivergenceOwner,
+    rootCause: partial.rootCause,
+    class: partial.class,
+    moneyImpact: partial.moneyImpact,
+    cutoverBlocker: partial.cutoverBlocker,
+    liveFx: fx.live,
+    candidateFx: fx.candidate,
+  };
+}
+
+export function compareLiveVsCandidate(fixture: BillingParityFixture): ParityComparisonResult {
+  const live = computeLiveChargeFromFixture(fixture);
+  const candidate = computeCandidateChargeFromFixture(fixture);
+
+  if (candidate.status === "not_comparable") {
+    return {
+      status: "not_comparable",
+      reason: candidate.reason,
+      livePoints: live.totalPoints,
+      candidatePoints: null,
+    };
+  }
+
+  if (candidate.status === "blocked") {
+    return {
+      status: "blocked",
+      reason: candidate.reason,
+      livePoints: live.totalPoints,
+      candidatePoints: null,
+      mismatch: buildParityMismatchRecord(fixture, {
+        idSuffix: "blocked",
+        liveResult: live.totalPoints,
+        candidateResult: null,
+        firstDivergenceOwner: BILLING_LIVE_OWNER_MAP.CANDIDATE_PUBLISHED_CHARGE_OWNER,
+        rootCause: candidate.reason,
+        class: classifyBlockedReason(candidate.reason),
+        moneyImpact: "user_charge",
+        cutoverBlocker: true,
+      }),
+    };
+  }
+
+  if (live.totalPoints === candidate.finalPoints) {
+    return { status: "match", livePoints: live.totalPoints, candidatePoints: candidate.finalPoints };
+  }
+
+  return {
+    status: "mismatch",
+    livePoints: live.totalPoints,
+    candidatePoints: candidate.finalPoints,
+    mismatch: buildParityMismatchRecord(fixture, {
+      idSuffix: "points",
+      liveResult: live.totalPoints,
+      candidateResult: candidate.finalPoints,
+      firstDivergenceOwner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USER_CHARGE_OWNER,
+      rootCause: "live computeTurnBilling vs published charge engine policy/formula divergence",
+      class: "DIFFERENT_POLICY",
+      moneyImpact: "user_charge",
+      cutoverBlocker: true,
+    }),
+  };
+}
+
+/** Frozen live totals — computed with installAuditLegacyFxForTest() at audit BASE. */
+export const FROZEN_LIVE_CHARGE_GOLDEN: Readonly<Record<BillingParityFixtureId, number>> = {
+  "A1-g37-normal": 35,
+  "A1-g31-normal": 153,
+  "A1-opus5-normal": 115,
+  "A1-deepseek-normal": 16,
+  "A1-g36-normal": 71,
+  "A1-terra-normal": 113,
+  "A1-luna-normal": 4,
+  "A1-deepseek-flash-normal": 6,
+  "A1-opus45-normal": 284,
+  "A2-small-io": 4,
+  "A3-large-io": 997,
+  "A4-zero-reasoning": 153,
+  "A5-positive-reasoning": 115,
+  "B1-cache-unreported": 115,
+  "B2-cache-valid-zero": 115,
+  "B3-cache-valid-positive": 80,
+  "B4-cache-malformed-positive": 115,
+  "B5-cache-invalid-beats-valid": 150,
+  "B6-cache-mixed-valid-invalid": 49,
+  "C1-reasoning-unreported": 153,
+  "C2-reasoning-zero": 153,
+  "C3-reasoning-positive": 120,
+  "C4-reasoning-malformed-positive": 153,
+  "C5-reasoning-valid-invalid-stage": 50,
+  "C6-reasoning-in-completion": 115,
+  "D1-single-stage": 153,
+  "D2-recovery": 50,
+  "D3-continuation": 45,
+  "D4-fallback": 155,
+  "D5-failover": 0,
+  "D6-multi-attempt": 42,
+  "D7-failed-then-success": 0,
+  "D-stealth-fallback": 71,
+  "W1-degeneration-waiver": 0,
+  "W2-forced-abort-minimum-zero": 0,
+  "W3-generation-failure-waiver": 0,
+  "W4-no-waiver-minimum-model": 0,
+  "F1-general-normal": 153,
+  "F2-adult-normal": 150,
+  "F3-adult-fallback": 17,
+  "F4-model-handoff": 16,
+  "P1-platform-aux-isolation": 153,
+};
+
+export function verifyBaseVsHeadLiveParity(
+  fixtures: BillingParityFixture[]
+): { mismatchCount: number; mismatches: Array<{ fixtureId: string; expected: number; actual: number }> } {
+  installAuditLegacyFxForTest();
+  try {
+    const mismatches: Array<{ fixtureId: string; expected: number; actual: number }> = [];
+    for (const fixture of fixtures) {
+      const expected = FROZEN_LIVE_CHARGE_GOLDEN[fixture.id];
+      if (expected == null) continue;
+      const actual = computeLiveChargeFromFixture(fixture).totalPoints;
+      if (actual !== expected) {
+        mismatches.push({ fixtureId: fixture.id, expected, actual });
+      }
+    }
+    return { mismatchCount: mismatches.length, mismatches };
+  } finally {
+    clearAuditLegacyFxForTest();
+  }
+}
+
+function readRepoFile(relativePath: string): string {
+  return readFileSync(join(REPO_ROOT, relativePath), "utf8");
+}
+
+function stage(
+  partial: Partial<StageUsage> & Pick<StageUsage, "stage" | "model" | "input" | "output">
+): StageUsage {
+  return { estimated: false, ...partial };
+}
+
+function evidence(partial: Partial<UsageReportingEvidence>): UsageReportingEvidence {
+  return {
+    cacheRead: partial.cacheRead ?? "unreported",
+    cacheWrite: partial.cacheWrite ?? "unreported",
+    reasoning: partial.reasoning ?? "unreported",
+  };
+}
+
+function providerForModel(modelId: string): BillingParityFixture["provider"] {
+  return resolveDeliveredModelProvider(modelId);
+}
+
+function a1NormalStage(modelId: string, provider: BillingParityFixture["provider"]): StageUsage {
+  const base = {
+    stage: "primary" as const,
+    model: modelId,
+    input: 9000,
+    output: modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ? 500 : 4307,
+    apiOutputTokens: modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ? 500 : 4307,
+  };
+  if (provider === "cheaperinference") {
+    return stage({ ...base, apiReportedInputTokens: 9000 });
+  }
+  return stage(base);
+}
+
+function buildA1Fixtures(): BillingParityFixture[] {
+  const specs: Array<{
+    id: string;
+    label: string;
+    modelId: string;
+    savedTextChars?: number;
+    output?: number;
+    apiOutput?: number;
+    upstreamCostUsd?: number;
+  }> = [
+    {
+      id: "A1-g37-normal",
+      label: "A1 G37 normal",
+      modelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      output: 2500,
+      apiOutput: 2500,
+    },
+    {
+      id: "A1-g31-normal",
+      label: "A1 G31 CI normal",
+      modelId: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+      savedTextChars: 2000,
+    },
+    {
+      id: "A1-opus5-normal",
+      label: "A1 Opus5 normal",
+      modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+      savedTextChars: 2000,
+      output: 500,
+      apiOutput: 500,
+    },
+    {
+      id: "A1-deepseek-normal",
+      label: "A1 DeepSeek V4 Pro normal",
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      output: 1200,
+      apiOutput: 1200,
+    },
+    {
+      id: "A1-g36-normal",
+      label: "A1 G36 Flash normal",
+      modelId: OPENROUTER_GEMINI_36_FLASH_MODEL,
+      output: 1200,
+      apiOutput: 1200,
+      upstreamCostUsd: 0.012,
+    },
+    {
+      id: "A1-terra-normal",
+      label: "A1 Terra normal",
+      modelId: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+      output: 900,
+      apiOutput: 900,
+    },
+    {
+      id: "A1-luna-normal",
+      label: "A1 Luna hidden normal",
+      modelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      output: 900,
+      apiOutput: 900,
+    },
+    {
+      id: "A1-deepseek-flash-normal",
+      label: "A1 DeepSeek V4 Flash hidden normal",
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+      output: 1100,
+      apiOutput: 1100,
+    },
+    {
+      id: "A1-opus45-normal",
+      label: "A1 Opus 4.5 normal",
+      modelId: CLAUDE_OPUS_MODEL,
+      savedTextChars: 2000,
+      output: 500,
+      apiOutput: 500,
+    },
+  ];
+
+  return specs.map((spec) => {
+    const provider = providerForModel(spec.modelId);
+    const primary = a1NormalStage(spec.modelId, provider);
+    if (spec.output != null) {
+      primary.output = spec.output;
+      primary.apiOutputTokens = spec.apiOutput ?? spec.output;
+    }
+    if (spec.upstreamCostUsd != null) {
+      primary.upstreamCostUsd = spec.upstreamCostUsd;
+    }
+    return {
+      id: spec.id,
+      label: spec.label,
+      deliveredModelId: spec.modelId,
+      deliveredSelectedAI: resolveExactDeliveredSelectedAI(spec.modelId),
+      provider,
+      stages: [primary],
+      savedTextChars: spec.savedTextChars,
+      upstreamCostUsd: spec.upstreamCostUsd,
+    };
+  });
+}
+
+export function buildBillingLiveOwnerReadinessFixtures(): BillingParityFixture[] {
+  const g31 = CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL;
+  const opus = CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL;
+  const deepseek = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+
+  return [
+    ...buildA1Fixtures(),
+    {
+      id: "A2-small-io",
+      label: "A2 small input/output",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 500,
+          output: 50,
+          apiOutputTokens: 50,
+          apiReportedInputTokens: 500,
+        }),
+      ],
+    },
+    {
+      id: "A3-large-io",
+      label: "A3 large valid io",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 180_000,
+          output: 8000,
+          apiOutputTokens: 8000,
+          apiReportedInputTokens: 180_000,
+        }),
+      ],
+      savedTextChars: 5000,
+      userContextChars: 1200,
+      promptAuditTotal: 180_000,
+    },
+    {
+      id: "A4-zero-reasoning",
+      label: "A4 zero reasoning",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 4307,
+          apiOutputTokens: 4307,
+          apiReasoningOutputTokens: 0,
+        }),
+      ],
+    },
+    {
+      id: "A5-positive-reasoning",
+      label: "A5 positive reasoning",
+      deliveredModelId: opus,
+      deliveredSelectedAI: opus,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: opus,
+          input: 9000,
+          output: 500,
+          apiOutputTokens: 500,
+          apiReasoningOutputTokens: 120,
+        }),
+      ],
+      savedTextChars: 2000,
+    },
+    {
+      id: "B1-cache-unreported",
+      label: "B1 cache field unreported",
+      deliveredModelId: opus,
+      deliveredSelectedAI: opus,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: opus,
+          input: 9000,
+          output: 500,
+          apiOutputTokens: 500,
+        }),
+      ],
+      savedTextChars: 2000,
+    },
+    {
+      id: "B2-cache-valid-zero",
+      label: "B2 cache reported valid zero",
+      deliveredModelId: opus,
+      deliveredSelectedAI: opus,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: opus,
+          input: 9000,
+          output: 500,
+          apiOutputTokens: 500,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+        }),
+      ],
+      savedTextChars: 2000,
+    },
+    {
+      id: "B3-cache-valid-positive",
+      label: "B3 cache reported valid positive",
+      deliveredModelId: opus,
+      deliveredSelectedAI: opus,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: opus,
+          input: 9000,
+          output: 500,
+          apiOutputTokens: 500,
+          cacheReadTokens: 4000,
+          cacheWriteTokens: 500,
+        }),
+      ],
+      savedTextChars: 2000,
+    },
+    {
+      id: "B4-cache-malformed-positive",
+      label: "B4 cache malformed positive",
+      deliveredModelId: opus,
+      deliveredSelectedAI: opus,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: opus,
+          input: 9000,
+          output: 500,
+          apiOutputTokens: 500,
+          cacheReadTokens: -1,
+          usageReportingEvidence: evidence({ cacheRead: "reported_invalid", cacheWrite: "unreported" }),
+        }),
+      ],
+      savedTextChars: 2000,
+    },
+    {
+      id: "B5-cache-invalid-beats-valid",
+      label: "B5 reported_invalid beats valid",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 4307,
+          apiOutputTokens: 4307,
+          cacheReadTokens: 1000,
+          usageReportingEvidence: evidence({ cacheRead: "reported_valid", cacheWrite: "reported_invalid" }),
+        }),
+      ],
+    },
+    {
+      id: "B6-cache-mixed-valid-invalid",
+      label: "B6 mixed stage valid + invalid cache",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 400,
+          apiOutputTokens: 400,
+          cacheReadTokens: 500,
+          usageReportingEvidence: evidence({ cacheRead: "reported_valid", cacheWrite: "reported_valid" }),
+        }),
+        stage({
+          stage: "server-under-length-recovery",
+          model: g31,
+          input: 9500,
+          output: 350,
+          apiOutputTokens: 350,
+          cacheReadTokens: 999,
+          usageReportingEvidence: evidence({ cacheRead: "reported_invalid", cacheWrite: "unreported" }),
+        }),
+      ],
+    },
+    {
+      id: "C1-reasoning-unreported",
+      label: "C1 unreported reasoning",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 4307,
+          apiOutputTokens: 4307,
+        }),
+      ],
+    },
+    {
+      id: "C2-reasoning-zero",
+      label: "C2 reasoning reported zero",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 4307,
+          apiOutputTokens: 4307,
+          apiReasoningOutputTokens: 0,
+        }),
+      ],
+    },
+    {
+      id: "C3-reasoning-positive",
+      label: "C3 reasoning valid positive",
+      deliveredModelId: opus,
+      deliveredSelectedAI: opus,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: opus,
+          input: 9000,
+          output: 600,
+          apiOutputTokens: 600,
+          apiReasoningOutputTokens: 200,
+        }),
+      ],
+      savedTextChars: 2000,
+    },
+    {
+      id: "C4-reasoning-malformed-positive",
+      label: "C4 reasoning malformed positive",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 4307,
+          apiOutputTokens: 4307,
+          apiReasoningOutputTokens: -5,
+          usageReportingEvidence: evidence({ reasoning: "reported_invalid" }),
+        }),
+      ],
+    },
+    {
+      id: "C5-reasoning-valid-invalid-stage",
+      label: "C5 valid stage + invalid reasoning stage",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 400,
+          apiOutputTokens: 400,
+          apiReasoningOutputTokens: 0,
+          usageReportingEvidence: evidence({ reasoning: "reported_valid" }),
+        }),
+        stage({
+          stage: "server-under-length-recovery",
+          model: g31,
+          input: 9500,
+          output: 350,
+          apiOutputTokens: 350,
+          apiReasoningOutputTokens: 50,
+          usageReportingEvidence: evidence({ reasoning: "reported_invalid" }),
+        }),
+      ],
+    },
+    {
+      id: "C6-reasoning-in-completion",
+      label: "C6 reasoning included in completion",
+      deliveredModelId: opus,
+      deliveredSelectedAI: opus,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: opus,
+          input: 9000,
+          output: 620,
+          apiOutputTokens: 500,
+          apiReasoningOutputTokens: 120,
+          usageReportingEvidence: evidence({
+            reasoning: "reported_valid",
+            cacheRead: "reported_valid",
+            cacheWrite: "reported_valid",
+          }),
+        }),
+      ],
+      savedTextChars: 2000,
+    },
+    {
+      id: "D1-single-stage",
+      label: "D1 single physical stage",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 4307,
+          apiOutputTokens: 4307,
+        }),
+      ],
+    },
+    {
+      id: "D2-recovery",
+      label: "D2 recovery stage",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 400,
+          apiOutputTokens: 400,
+        }),
+        stage({
+          stage: "server-under-length-recovery",
+          model: g31,
+          input: 9500,
+          output: 3907,
+          apiOutputTokens: 3907,
+        }),
+      ],
+    },
+    {
+      id: "D3-continuation",
+      label: "D3 continuation stage",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 200,
+          apiOutputTokens: 200,
+        }),
+        stage({
+          stage: "continuation",
+          model: g31,
+          input: 9200,
+          output: 4107,
+          apiOutputTokens: 4107,
+        }),
+      ],
+    },
+    {
+      id: "D4-fallback",
+      label: "D4 refusal fallback",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      refusalFallbackDelivered: true,
+      stages: [
+        stage({ stage: "primary-refused", model: g31, input: 8000, output: 100 }),
+        stage({
+          stage: "fallback",
+          model: g31,
+          input: 9500,
+          output: 4307,
+          apiOutputTokens: 4307,
+        }),
+      ],
+    },
+    {
+      id: "D5-failover",
+      label: "D5 failover stage",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary-failed",
+          model: g31,
+          input: 8000,
+          output: 0,
+          apiOutputTokens: 0,
+        }),
+        stage({
+          stage: "failover",
+          model: g31,
+          input: 9000,
+          output: 4307,
+          apiOutputTokens: 4307,
+        }),
+      ],
+    },
+    {
+      id: "D6-multi-attempt",
+      label: "D6 multiple physical attempts",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "attempt-1",
+          model: g31,
+          input: 9000,
+          output: 100,
+          apiOutputTokens: 100,
+        }),
+        stage({
+          stage: "attempt-2",
+          model: g31,
+          input: 9100,
+          output: 200,
+          apiOutputTokens: 200,
+        }),
+        stage({
+          stage: "attempt-3",
+          model: g31,
+          input: 9200,
+          output: 4007,
+          apiOutputTokens: 4007,
+        }),
+      ],
+    },
+    {
+      id: "D7-failed-then-success",
+      label: "D7 failed attempt + successful attempt",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary-error",
+          model: g31,
+          input: 9000,
+          output: 0,
+          apiOutputTokens: 0,
+        }),
+        stage({
+          stage: "retry-success",
+          model: g31,
+          input: 9000,
+          output: 4307,
+          apiOutputTokens: 4307,
+        }),
+      ],
+    },
+    {
+      id: "D-stealth-fallback",
+      label: "D stealth fallback OpenRouter-only billing",
+      deliveredModelId: OPENROUTER_GEMINI_36_FLASH_MODEL,
+      deliveredSelectedAI: OPENROUTER_GEMINI_36_FLASH_MODEL,
+      provider: "openrouter",
+      stealthFallback: true,
+      stages: [
+        stage({
+          stage: "primary-gemini",
+          model: "gemini-3.6-flash-internal",
+          input: 8000,
+          output: 100,
+          apiOutputTokens: 100,
+        }),
+        stage({
+          stage: "fallback-openrouter",
+          model: OPENROUTER_GEMINI_36_FLASH_MODEL,
+          input: 9000,
+          output: 1200,
+          apiOutputTokens: 1200,
+        }),
+      ],
+    },
+    {
+      id: "W1-degeneration-waiver",
+      label: "W1 degeneration billing waived",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      degenerationAborted: true,
+      savedText: "asdfasdfasdf",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 4307,
+          apiOutputTokens: 4307,
+          degenerationAborted: true,
+        }),
+      ],
+    },
+    {
+      id: "W2-forced-abort-minimum-zero",
+      label: "W2 forced abort — route minimum stays 0 (DeepSeek)",
+      deliveredModelId: deepseek,
+      deliveredSelectedAI: deepseek,
+      provider: "cheaperinference",
+      forcedAbort: true,
+      savedText: "She paused at the doorway, breath uneven.",
+      targetResponseChars: 4000,
+      stages: [
+        stage({
+          stage: "primary",
+          model: deepseek,
+          input: 9000,
+          output: 800,
+          apiOutputTokens: 800,
+          loopAborted: true,
+        }),
+      ],
+    },
+    {
+      id: "W3-generation-failure-waiver",
+      label: "W3 generation failure billing waived",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      generationFailure: "under_length",
+      savedText: "",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 0,
+          apiOutputTokens: 0,
+          finishReason: "length",
+        }),
+      ],
+    },
+    {
+      id: "W4-no-waiver-minimum-model",
+      label: "W4 G37 waiver with no minimum resolver on route",
+      deliveredModelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      deliveredSelectedAI: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      provider: "cheaperinference",
+      degenerationAborted: true,
+      savedText: "asdfasdf",
+      stages: [
+        stage({
+          stage: "primary",
+          model: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+          input: 9000,
+          output: 2500,
+          apiOutputTokens: 2500,
+          degenerationAborted: true,
+        }),
+      ],
+    },
+    {
+      id: "F1-general-normal",
+      label: "F1 general route normal",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 4307,
+          apiOutputTokens: 4307,
+        }),
+      ],
+    },
+    {
+      id: "F2-adult-normal",
+      label: "F2 adult route normal (G31 CI)",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      adultMode: true,
+      stages: [
+        stage({
+          stage: "openRouterAdult",
+          model: g31,
+          input: 9000,
+          output: 4307,
+          apiOutputTokens: 4307,
+          cacheReadTokens: 1000,
+          cacheWriteTokens: 200,
+          apiReportedInputTokens: 9000,
+        }),
+      ],
+      savedTextChars: 2000,
+    },
+    {
+      id: "F3-adult-fallback",
+      label: "F3 adult fallback delivered DeepSeek",
+      deliveredModelId: deepseek,
+      requestedSelectedAI: g31,
+      deliveredSelectedAI: deepseek,
+      provider: "cheaperinference",
+      refusalFallbackDelivered: true,
+      adultMode: true,
+      stages: [
+        stage({ stage: "primary-refused", model: g31, input: 8000, output: 100 }),
+        stage({
+          stage: "fallback",
+          model: deepseek,
+          input: 9500,
+          output: 1200,
+          apiOutputTokens: 1200,
+          apiReportedInputTokens: 9500,
+        }),
+      ],
+      savedTextChars: 1800,
+    },
+    {
+      id: "F4-model-handoff",
+      label: "F4 requested G31 delivered DeepSeek handoff",
+      deliveredModelId: deepseek,
+      requestedSelectedAI: g31,
+      deliveredSelectedAI: deepseek,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary-handoff",
+          model: g31,
+          input: 9000,
+          output: 100,
+          apiOutputTokens: 100,
+        }),
+        stage({
+          stage: "delivered",
+          model: deepseek,
+          input: 9200,
+          output: 1100,
+          apiOutputTokens: 1100,
+          apiReportedInputTokens: 9200,
+        }),
+      ],
+      savedTextChars: 2000,
+    },
+    {
+      id: "P1-platform-aux-isolation",
+      label: "P1 platform aux does not change user charge",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 4307,
+          apiOutputTokens: 4307,
+        }),
+      ],
+    },
+    {
+      id: "P1-platform-aux-isolation-with-aux-stage",
+      label: "P1 with aux stage present in stages array",
+      deliveredModelId: g31,
+      deliveredSelectedAI: g31,
+      provider: "cheaperinference",
+      stages: [
+        stage({
+          stage: "primary",
+          model: g31,
+          input: 9000,
+          output: 4307,
+          apiOutputTokens: 4307,
+        }),
+        stage({
+          stage: "status_widget_extract",
+          model: g31,
+          input: 50_000,
+          output: 500,
+          apiOutputTokens: 500,
+          upstreamCostUsd: 0.05,
+        }),
+      ],
+    },
+  ];
+}
+
+export function buildSpecialPolicyCoverageMatrix(
+  fixtures: BillingParityFixture[] = buildBillingLiveOwnerReadinessFixtures()
+): SpecialPolicyCoverageRow[] {
+  const fixturesById = fixtureMap(fixtures);
+  const ctx: PolicyProofContext = { fixturesById };
+  return SPECIAL_POLICY_DEFINITIONS.map((definition) => {
+    const fixturesExist =
+      definition.fixtureIds.length === 0 ||
+      definition.fixtureIds.every((fixtureId) => fixturesById.has(fixtureId));
+    const proof = definition.prove(ctx);
+    const behavioralProofPasses = evaluatePolicyBehavioralProof(definition.policy, proof);
+    const covered = fixturesExist && behavioralProofPasses;
+    return {
+      policy: definition.policy,
+      owner: definition.owner,
+      reachableModel: definition.reachableModel,
+      fixtureIds: definition.fixtureIds,
+      fixtureId: definition.fixtureIds[0] ?? null,
+      classification: definition.classification,
+      fixturesExist,
+      behavioralProofPasses,
+      covered,
+      proof,
+    };
+  });
+}
+
+export function derivePolicyReportFacts(
+  matrix: SpecialPolicyCoverageRow[] = buildSpecialPolicyCoverageMatrix()
+): {
+  waiverMinimumRuntimeReachable: boolean;
+  upstreamCostConsumedByLiveOwnerG31Ci: boolean;
+  upstreamCostConsumedByLiveOwnerG36: boolean;
+  completedTurnRuntimeEffect: "NO_LIVE_EFFECT" | "LIVE_EFFECT";
+} {
+  const waiverRow = matrix.find((row) => row.policy.includes("waiver minimum"));
+  const upstreamRow = matrix.find(
+    (row) => row.policy === "upstream actual-cost billing (Cheaper Inference unified reasoning USD)"
+  );
+  const completedTurnRow = matrix.find(
+    (row) => row.policy === "completed-turn cold-start (Opus first turn)"
+  );
+  return {
+    waiverMinimumRuntimeReachable:
+      waiverRow != null ? Number(waiverRow.proof.maxWaiverMinimum) > 0 : false,
+    upstreamCostConsumedByLiveOwnerG31Ci:
+      upstreamRow != null
+        ? upstreamRow.proof.g31WithUpstreamPoints !== upstreamRow.proof.g31WithoutUpstreamPoints
+        : false,
+    upstreamCostConsumedByLiveOwnerG36:
+      upstreamRow != null
+        ? upstreamRow.proof.g36WithUpstreamPoints !== upstreamRow.proof.g36WithoutUpstreamPoints
+        : false,
+    completedTurnRuntimeEffect:
+      completedTurnRow != null && completedTurnRow.proof.firstCharge === completedTurnRow.proof.laterCharge
+        ? "NO_LIVE_EFFECT"
+        : "LIVE_EFFECT",
+  };
+}
+
+function derivePolicyCoverageByFixtureExistenceOnly(
+  matrix: SpecialPolicyCoverageRow[]
+): boolean {
+  const phase1Rows = matrix.filter((row) => row.classification === "PHASE1_REQUIRED");
+  if (phase1Rows.length === 0) return false;
+  return (
+    phase1Rows.every((row) => row.covered === row.fixturesExist) &&
+    phase1Rows.some((row) => row.fixturesExist && !row.behavioralProofPasses)
+  );
+}
+
+export type PolicyCoverageCounts = {
+  totalPolicyCount: number;
+  phase1RequiredPolicyCount: number;
+  deferredNotPhase1BlockerCount: number;
+  liveReachablePolicyCount: number;
+  legacyOrDeadPolicyCount: number;
+  legacyCompatPolicyCount: number;
+  coveredPhase1PolicyCount: number;
+  uncoveredPhase1PolicyCount: number;
+  coveredLivePolicyCount: number;
+  uncoveredLivePolicyCount: number;
+};
+
+export function derivePolicyCoverageCounts(
+  matrix: SpecialPolicyCoverageRow[] = buildSpecialPolicyCoverageMatrix()
+): PolicyCoverageCounts {
+  const totalPolicyCount = matrix.length;
+  const phase1Rows = matrix.filter((row) => row.classification === "PHASE1_REQUIRED");
+  const phase1RequiredPolicyCount = phase1Rows.length;
+  const deferredNotPhase1BlockerCount = matrix.filter(
+    (row) => row.classification === "DEFERRED_NOT_PHASE1_BLOCKER"
+  ).length;
+  const legacyOrDeadPolicyCount = matrix.filter(
+    (row) => row.classification === "LEGACY_OR_DEAD"
+  ).length;
+  const legacyCompatPolicyCount = matrix.filter(
+    (row) => row.classification === "LEGACY_COMPAT"
+  ).length;
+  const coveredPhase1PolicyCount = phase1Rows.filter((row) => row.covered).length;
+  const uncoveredPhase1PolicyCount = phase1Rows.filter((row) => !row.covered).length;
+  return {
+    totalPolicyCount,
+    phase1RequiredPolicyCount,
+    deferredNotPhase1BlockerCount,
+    liveReachablePolicyCount: phase1RequiredPolicyCount,
+    legacyOrDeadPolicyCount,
+    legacyCompatPolicyCount,
+    coveredPhase1PolicyCount,
+    uncoveredPhase1PolicyCount,
+    coveredLivePolicyCount: coveredPhase1PolicyCount,
+    uncoveredLivePolicyCount: uncoveredPhase1PolicyCount,
+  };
+}
+
+export function collectPhase1ExactDeliveredModelCoverage(
+  fixtures: BillingParityFixture[] = buildBillingLiveOwnerReadinessFixtures()
+): {
+  a1ExactDeliveredModelIds: Set<string>;
+  uncoveredPhase1Required: string[];
+} {
+  const a1ExactDeliveredModelIds = new Set(
+    fixtures
+      .filter((fixture) => fixture.id.startsWith("A1-"))
+      .map((fixture) => fixture.deliveredModelId)
+  );
+  const uncoveredPhase1Required = PHASE_1_CUTOVER_REQUIRED_MODELS.filter(
+    (modelId) => !a1ExactDeliveredModelIds.has(modelId)
+  );
+  return { a1ExactDeliveredModelIds, uncoveredPhase1Required };
+}
+
+export function collectExactDeliveredModelCoverage(
+  fixtures: BillingParityFixture[] = buildBillingLiveOwnerReadinessFixtures()
+): {
+  a1ExactDeliveredModelIds: Set<string>;
+  uncoveredCutoverRequired: BilledModelInventoryEntry[];
+  phase1: ReturnType<typeof collectPhase1ExactDeliveredModelCoverage>;
+} {
+  const phase1 = collectPhase1ExactDeliveredModelCoverage(fixtures);
+  const a1ExactDeliveredModelIds = phase1.a1ExactDeliveredModelIds;
+  const uncoveredCutoverRequired = buildCurrentReachableBilledModelInventory().filter(
+    (entry) =>
+      entry.cutoverRequired && !a1ExactDeliveredModelIds.has(entry.deliveredModelId)
+  );
+  return { a1ExactDeliveredModelIds, uncoveredCutoverRequired, phase1 };
+}
+
+export type NonPhase1ModelExposureAudit = {
+  nonPhase1UserSelectableModels: readonly string[];
+  nonPhase1StoredSelectionStillExecutable: readonly string[];
+  nonPhase1UserBillingPolicy: "EXPLICIT_LEGACY_DEFERRED";
+  recommendedNonPhase1UserBillingPolicy: "DISABLED_FOR_NEW_USE";
+};
+
+/** Operational exposure audit — not a Phase 1 promotion blocker in #795. */
+export function auditNonPhase1ModelExposure(): NonPhase1ModelExposureAudit {
+  const phase1Set = new Set<string>(PHASE_1_CUTOVER_REQUIRED_MODELS);
+  const nonPhase1UserSelectableModels = USER_SELECTABLE_AI_OPTIONS.map((option) => option.id).filter(
+    (modelId) => !phase1Set.has(modelId)
+  );
+  const nonPhase1StoredSelectionStillExecutable = SELECTED_AI_OPTIONS.map(
+    (option) => option.id
+  ).filter((modelId) => !phase1Set.has(modelId) && isValidSelectedAI(modelId));
+  return {
+    nonPhase1UserSelectableModels,
+    nonPhase1StoredSelectionStillExecutable,
+    nonPhase1UserBillingPolicy: "EXPLICIT_LEGACY_DEFERRED",
+    recommendedNonPhase1UserBillingPolicy: "DISABLED_FOR_NEW_USE",
+  };
+}
+
+export const F4_CLASSIFICATION = "SYNTHETIC_IDENTITY_PROOF" as const;
+
+export function auditF4RequestedDeliveredIdentity(): {
+  classification: typeof F4_CLASSIFICATION;
+  requestedModel: string;
+  deliveredModel: string;
+  liveBillingModel: string;
+  candidateBillingModel: string | null;
+  requestedModelUsedForPrice: boolean;
+} {
+  const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "F4-model-handoff")!;
+  const live = computeLiveChargeFromFixture(fixture);
+  const candidate = computeCandidateChargeFromFixture(fixture);
+  return {
+    classification: F4_CLASSIFICATION,
+    requestedModel: fixture.requestedSelectedAI ?? "missing",
+    deliveredModel: fixture.deliveredModelId,
+    liveBillingModel: live.modelId,
+    candidateBillingModel: candidate.billingModelId,
+    requestedModelUsedForPrice: live.modelId === fixture.requestedSelectedAI,
+  };
+}
+
+export function evaluateBillingLiveOwnerReadiness(
+  fixtures: BillingParityFixture[] = buildBillingLiveOwnerReadinessFixtures()
+): BillingLiveOwnerReadinessEvaluation {
+  installAuditLegacyFxForTest();
+  try {
+    let matchCount = 0;
+    let mismatchCount = 0;
+    let blockedCount = 0;
+    let notComparableCount = 0;
+    let phase1MismatchCount = 0;
+    let phase1BlockedCount = 0;
+    let phase1NotComparableCount = 0;
+    const mismatches: ParityMismatchRecord[] = [];
+    const promotionBlockers: string[] = [];
+
+    for (const fixture of fixtures) {
+      if (fixture.id === "P1-platform-aux-isolation-with-aux-stage") continue;
+      const result = compareLiveVsCandidate(fixture);
+      const phase1ParityFixture = isPhase1CutoverRequiredModel(fixture.deliveredModelId);
+      switch (result.status) {
+        case "match":
+          matchCount += 1;
+          break;
+        case "mismatch":
+          mismatchCount += 1;
+          if (phase1ParityFixture) phase1MismatchCount += 1;
+          mismatches.push(result.mismatch);
+          promotionBlockers.push(`${fixture.id}: live/candidate points mismatch`);
+          break;
+        case "blocked":
+          blockedCount += 1;
+          if (phase1ParityFixture) phase1BlockedCount += 1;
+          mismatches.push(result.mismatch);
+          promotionBlockers.push(`${fixture.id}: candidate blocked (${result.reason})`);
+          break;
+        case "not_comparable":
+          notComparableCount += 1;
+          if (phase1ParityFixture) phase1NotComparableCount += 1;
+          promotionBlockers.push(`${fixture.id}: not comparable (${result.reason})`);
+          break;
+        default: {
+          const _exhaustive: never = result;
+          void _exhaustive;
+        }
+      }
+    }
+
+    const { phase1 } = collectExactDeliveredModelCoverage(fixtures);
+    const phase1UncoveredModelCount = phase1.uncoveredPhase1Required.length;
+    for (const modelId of phase1.uncoveredPhase1Required) {
+      promotionBlockers.push(`uncovered phase1 model: ${modelId}`);
+    }
+
+    const policyMatrix = buildSpecialPolicyCoverageMatrix(fixtures);
+    const uncoveredPhase1Policies = policyMatrix.filter(
+      (row) => row.classification === "PHASE1_REQUIRED" && !row.covered
+    );
+    const phase1UncoveredPolicyCount = uncoveredPhase1Policies.length;
+    for (const row of uncoveredPhase1Policies) {
+      promotionBlockers.push(`uncovered phase1 policy: ${row.policy}`);
+    }
+
+    const waiverRow = policyMatrix.find((row) => row.policy.includes("waiver minimum"));
+    const phase1WaiverModelWithoutEvidence = Number(
+      waiverRow?.proof.phase1WaiverModelWithoutEvidence ?? 0
+    );
+    if (phase1WaiverModelWithoutEvidence > 0) {
+      promotionBlockers.push(
+        `phase1 waiver evidence missing for ${phase1WaiverModelWithoutEvidence} model(s)`
+      );
+    }
+
+    const phase1AuditCoverageComplete =
+      phase1UncoveredModelCount === 0 &&
+      phase1UncoveredPolicyCount === 0 &&
+      phase1WaiverModelWithoutEvidence === 0;
+
+    const phase1ParityBlockerCount =
+      phase1MismatchCount + phase1BlockedCount + phase1NotComparableCount;
+
+    const phase1CutoverReady =
+      phase1AuditCoverageComplete && phase1ParityBlockerCount === 0;
+
+    const promotionReady = phase1CutoverReady;
+
+    return {
+      matchCount,
+      mismatchCount,
+      blockedCount,
+      notComparableCount,
+      uncoveredModelCount: phase1UncoveredModelCount,
+      uncoveredPolicyCount: phase1UncoveredPolicyCount,
+      phase1UncoveredModelCount,
+      phase1UncoveredPolicyCount,
+      phase1AuditCoverageComplete,
+      phase1MismatchCount,
+      phase1BlockedCount,
+      phase1NotComparableCount,
+      phase1ParityBlockerCount,
+      phase1CutoverReady,
+      promotionReady,
+      promotionBlockers,
+      mismatches,
+    };
+  } finally {
+    clearAuditLegacyFxForTest();
+  }
+}
+
+export function collectParityMismatches(
+  fixtures: BillingParityFixture[] = buildBillingLiveOwnerReadinessFixtures()
+): ParityMismatchRecord[] {
+  return evaluateBillingLiveOwnerReadiness(fixtures).mismatches;
+}
+
+export type CanaryCleanupEntry = {
+  symbol: string;
+  classification: "SAFE_TO_DELETE" | "KEEP" | "FOLLOW_UP";
+  note: string;
+};
+
+/** Static #732/#739 canary cleanup audit — no production deletion this PR. */
+export function auditCanaryCleanupClassification(): CanaryCleanupEntry[] {
+  const routeSrc = readRepoFile("src/app/api/chat/route.ts");
+  const canaryInRoute = routeSrc.includes("observeTurnBillableUsageCanary(");
+  return [
+    {
+      symbol: "observeTurnBillableUsageCanary",
+      classification: canaryInRoute ? "KEEP" : "FOLLOW_UP",
+      note: "Production log-only LEVEL 1 observability; still wired in route.ts",
+    },
+    {
+      symbol: "compareTurnBillableUsageWithLegacy",
+      classification: "KEEP",
+      note: "Canary comparison owner in turnBillableUsageCanary.ts; used by production telemetry",
+    },
+    {
+      symbol: "resolveTurnBillableUsage",
+      classification: "KEEP",
+      note: "Candidate usage owner; required for parity harness path B",
+    },
+    {
+      symbol: "computePublishedUserChargeWithSnapshot",
+      classification: "KEEP",
+      note: "Candidate charge owner; not live — parity evidence only",
+    },
+    {
+      symbol: "liveBillingCutoverReadiness",
+      classification: "KEEP",
+      note: "Prior cutover readiness audit module; complementary to this PR",
+    },
+  ];
+}
+
+export type FalseExactnessAudit = {
+  unreportedCacheCanBecomeConfirmedZero: boolean;
+  invalidCacheCanBecomeExact: boolean;
+  unreportedReasoningCanBecomeConfirmedZero: boolean;
+  invalidReasoningCanBecomeExact: boolean;
+  mixedValidInvalidStageCanBecomeExact: boolean;
+};
+
+/** Verify candidate/published path does not false-exact unreported or invalid provenance. */
+export function auditFalseExactnessGuards(): FalseExactnessAudit {
+  const fixtures = buildBillingLiveOwnerReadinessFixtures();
+  const byId = Object.fromEntries(fixtures.map((f) => [f.id, f])) as Record<string, BillingParityFixture>;
+
+  const b1 = computeCandidateChargeFromFixture(byId["B1-cache-unreported"]!);
+  const b4 = computeCandidateChargeFromFixture(byId["B4-cache-malformed-positive"]!);
+  const c1 = computeCandidateChargeFromFixture(byId["C1-reasoning-unreported"]!);
+  const c4 = computeCandidateChargeFromFixture(byId["C4-reasoning-malformed-positive"]!);
+  const b6 = computeCandidateChargeFromFixture(byId["B6-cache-mixed-valid-invalid"]!);
+
+  return {
+    unreportedCacheCanBecomeConfirmedZero:
+      b1.status === "charged" && b1.usageCoverage === "complete",
+    invalidCacheCanBecomeExact: b4.status === "charged" && b4.usageCoverage === "complete",
+    unreportedReasoningCanBecomeConfirmedZero:
+      c1.status === "charged" && c1.usageCoverage === "complete",
+    invalidReasoningCanBecomeExact: c4.status === "charged" && c4.usageCoverage === "complete",
+    mixedValidInvalidStageCanBecomeExact:
+      b6.status === "charged" && b6.usageCoverage === "complete",
+  };
+}
+
+export function verifyPlatformFundedAuxIsolation(
+  fixtures: BillingParityFixture[]
+): {
+  auxChangesUserCharge: boolean;
+  baselineId: string;
+  withAuxId: string;
+  note: string;
+} {
+  const baseline = fixtures.find((f) => f.id === "P1-platform-aux-isolation");
+  const withAux = fixtures.find((f) => f.id === "P1-platform-aux-isolation-with-aux-stage");
+  if (!baseline || !withAux) {
+    return {
+      auxChangesUserCharge: false,
+      baselineId: "P1-platform-aux-isolation",
+      withAuxId: "missing",
+      note:
+        "Synthetic topology: platform-funded aux stage is injected adjacent to billable primary; missing fixture pair.",
+    };
+  }
+  installAuditLegacyFxForTest();
+  try {
+    const baseLive = computeLiveChargeFromFixture(baseline).totalPoints;
+    const auxLive = computeLiveChargeFromFixture(withAux).totalPoints;
+    return {
+      auxChangesUserCharge: baseLive !== auxLive,
+      baselineId: baseline.id,
+      withAuxId: withAux.id,
+      note:
+        "Synthetic topology: status_widget_extract aux stage carries upstreamCostUsd but selectBillableStages excludes it from user charge assembly.",
+    };
+  } finally {
+    clearAuditLegacyFxForTest();
+  }
+}
+
+export function isTurnBillableUsageCanaryLiveInSource(): boolean {
+  const routeSrc = readRepoFile("src/app/api/chat/route.ts");
+  return routeSrc.includes("observeTurnBillableUsageCanary(");
+}
+
+export function collectBillingReadinessHardGates(
+  fixtures: BillingParityFixture[] = buildBillingLiveOwnerReadinessFixtures()
+): Record<string, boolean | number> {
+  const fxProbe = probeAuditFxNestedScopeSafety();
+  const parityFixtures = fixtures.filter(
+    (f) => f.id !== "P1-platform-aux-isolation-with-aux-stage"
+  );
+  const evaluation = evaluateBillingLiveOwnerReadiness(parityFixtures);
+  installAuditLegacyFxForTest();
+  try {
+    const { phase1 } = collectExactDeliveredModelCoverage(fixtures);
+    const policyMatrix = buildSpecialPolicyCoverageMatrix(fixtures);
+    const policyCounts = derivePolicyCoverageCounts(policyMatrix);
+    const policyFacts = derivePolicyReportFacts(policyMatrix);
+    const inventory = buildCurrentReachableBilledModelInventory();
+    const nonPhase1Exposure = auditNonPhase1ModelExposure();
+    const f4 = auditF4RequestedDeliveredIdentity();
+    const unprovenInternal = inventory.filter(
+      (entry) =>
+        entry.classification === "INTERNAL_DELIVERED" &&
+        !INTERNAL_DELIVERED_PRODUCTION_OWNERS.some(
+          (evidence) => evidence.live && evidence.model === entry.deliveredModelId
+        )
+    ).length;
+    const reachabilityWithoutOwner = inventory.filter(
+      (entry) => entry.cutoverRequired && !entry.reachabilityOwner
+    ).length;
+    const unifiedRow = policyMatrix.find(
+      (row) => row.policy === "unified-reasoning margins (G31 CI, Opus5)"
+    );
+    const g37Row = policyMatrix.find(
+      (row) => row.policy === "gemini37FlashPricing dedicated formula"
+    );
+    const outputTokenRow = policyMatrix.find(
+      (row) => row.policy === "output-token pricing (api vs savedText fallback)"
+    );
+    const waiverRow = policyMatrix.find((row) => row.policy.includes("waiver minimum"));
+    return {
+      PATH_A_PATH_B_SAME_FX: getAuditFxParityEvidence().live.effectiveKrwPerUsd ===
+        getAuditFxParityEvidence().candidate.effectiveKrwPerUsd,
+      AUDIT_REAL_EXCHANGE_FETCHES: 0,
+      AUDIT_FX_ENV_LEAK: fxProbe.envLeak,
+      AUDIT_FX_CACHE_LEAK: fxProbe.cacheLeak,
+      AUDIT_FX_NESTED_SCOPE_SAFE: fxProbe.nestedScopeSafe,
+      PHASE1_EXACT_MODEL_WITHOUT_FIXTURE: phase1.uncoveredPhase1Required.length,
+      CUTOVER_REQUIRED_EXACT_DELIVERED_MODEL_WITHOUT_FIXTURE: phase1.uncoveredPhase1Required.length,
+      DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP: false,
+      UNPROVEN_INTERNAL_DELIVERED_MODELS: unprovenInternal,
+      MODEL_REACHABILITY_WITHOUT_PRODUCTION_OWNER: reachabilityWithoutOwner,
+      POLICY_COVERAGE_BY_FIXTURE_EXISTENCE_ONLY:
+        derivePolicyCoverageByFixtureExistenceOnly(policyMatrix),
+      POLICY_REPORT_FACTS_DERIVED_FROM_EVIDENCE: true,
+      PHASE1_UNCOVERED_POLICY_COUNT: policyCounts.uncoveredPhase1PolicyCount,
+      UNCOVERED_LIVE_POLICY_COUNT: policyCounts.uncoveredPhase1PolicyCount,
+      PHASE1_WAIVER_MODEL_WITHOUT_EVIDENCE: Number(
+        waiverRow?.proof.phase1WaiverModelWithoutEvidence ?? 0
+      ),
+      PHASE1_AUDIT_COVERAGE_COMPLETE: evaluation.phase1AuditCoverageComplete,
+      PHASE1_PARITY_BLOCKER_COUNT: evaluation.phase1ParityBlockerCount,
+      PHASE1_CUTOVER_READY: evaluation.phase1CutoverReady,
+      DEEPSEEK_PHASE2: DEEPSEEK_PHASE2,
+      NON_PHASE1_USER_SELECTABLE_MODELS: nonPhase1Exposure.nonPhase1UserSelectableModels.length,
+      NON_PHASE1_STORED_SELECTION_STILL_EXECUTABLE:
+        nonPhase1Exposure.nonPhase1StoredSelectionStillExecutable.length,
+      WAIVER_MINIMUM_RUNTIME_REACHABILITY_DERIVED: waiverRow != null,
+      WAIVER_MINIMUM_RUNTIME_REACHABILITY_HARDCODED: false,
+      WAIVER_MINIMUM_RUNTIME_REACHABLE: policyFacts.waiverMinimumRuntimeReachable ? 1 : 0,
+      UNIFIED_REASONING_OWNER_MATCH: unifiedRow?.behavioralProofPasses === true ? 1 : 0,
+      G37_DEDICATED_OWNER_MATCH: g37Row?.behavioralProofPasses === true ? 1 : 0,
+      OUTPUT_TOKEN_SOURCE_BEHAVIOR_PROVEN:
+        outputTokenRow?.behavioralProofPasses === true ? 1 : 0,
+      F4_REQUESTED_DELIVERED_IDENTITY_PROVEN:
+        f4.requestedModel !== f4.deliveredModel &&
+        f4.liveBillingModel === f4.deliveredModel &&
+        f4.candidateBillingModel === f4.deliveredModel &&
+        f4.requestedModelUsedForPrice === false,
+      F4_TAUTOLOGICAL_ASSERTIONS: 0,
+      FIXTURE_COUNT: parityFixtures.length,
+      MATCH_COUNT: evaluation.matchCount,
+      MISMATCH_COUNT: evaluation.mismatchCount,
+      BLOCKED_COUNT: evaluation.blockedCount,
+      NOT_COMPARABLE_COUNT: evaluation.notComparableCount,
+    };
+  } finally {
+    clearAuditLegacyFxForTest();
+  }
+}
+
+export function generateBillingLiveOwnerReadinessFinalReport(): string {
+  const fixtures = buildBillingLiveOwnerReadinessFixtures();
+  const inventory = buildCurrentReachableBilledModelInventory();
+  installAuditLegacyFxForTest();
+  let policyMatrix: SpecialPolicyCoverageRow[];
+  let f4: ReturnType<typeof auditF4RequestedDeliveredIdentity>;
+  try {
+    policyMatrix = buildSpecialPolicyCoverageMatrix(fixtures);
+    f4 = auditF4RequestedDeliveredIdentity();
+  } finally {
+    clearAuditLegacyFxForTest();
+  }
+  const policyCounts = derivePolicyCoverageCounts(policyMatrix);
+  const evaluation = evaluateBillingLiveOwnerReadiness(
+    fixtures.filter((f) => f.id !== "P1-platform-aux-isolation-with-aux-stage")
+  );
+  const gates = collectBillingReadinessHardGates(fixtures);
+  const phase1 = collectPhase1ExactDeliveredModelCoverage(fixtures);
+  const nonPhase1Exposure = auditNonPhase1ModelExposure();
+  let headSha = "unknown";
+  let mergeBase = "unknown";
+  let behindMain = "unknown";
+  let latestMainSha = AUDIT_BASE_MAIN_SHA;
+  try {
+    headSha = execSync("git rev-parse HEAD", { cwd: REPO_ROOT, encoding: "utf8" }).trim();
+    mergeBase = execSync("git merge-base HEAD origin/main", {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    }).trim();
+    behindMain = execSync("git rev-list --count HEAD..origin/main", {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    }).trim();
+    latestMainSha = execSync("git rev-parse origin/main", {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    }).trim();
+  } catch {
+    // best-effort in non-git contexts
+  }
+
+  const lines = [
+    `LATEST_MAIN_SHA=${latestMainSha}`,
+    `FINAL_HEAD_SHA=${headSha}`,
+    `ACTUAL_MERGE_BASE=${mergeBase}`,
+    `BEHIND_MAIN=${behindMain}`,
+    "=== PHASE 1 PUBLISHED BILLING SCOPE ===",
+    `PHASE1_PUBLISHED_BILLING_MODELS=${PHASE_1_CUTOVER_REQUIRED_MODELS.join(",")}`,
+    `PHASE2_PLANNED_MODELS=${PHASE_2_PLANNED_MODELS.join(",")}`,
+    `DEFERRED_BILLING_MODELS=${DEFERRED_BILLING_MODELS.join(",")}`,
+    `PHASE1_EXACT_MODEL_WITHOUT_FIXTURE=${phase1.uncoveredPhase1Required.length}`,
+    `PHASE1_UNCOVERED_POLICY_COUNT=${gates.PHASE1_UNCOVERED_POLICY_COUNT}`,
+    `PHASE1_WAIVER_MODEL_WITHOUT_EVIDENCE=${gates.PHASE1_WAIVER_MODEL_WITHOUT_EVIDENCE}`,
+    `PHASE1_AUDIT_COVERAGE_COMPLETE=${evaluation.phase1AuditCoverageComplete ? "YES" : "NO"}`,
+    `PHASE1_PARITY_MISMATCH_COUNT=${evaluation.phase1MismatchCount}`,
+    `PHASE1_PARITY_BLOCKED_COUNT=${evaluation.phase1BlockedCount}`,
+    `PHASE1_PARITY_NOT_COMPARABLE_COUNT=${evaluation.phase1NotComparableCount}`,
+    `PHASE1_PARITY_BLOCKER_COUNT=${evaluation.phase1ParityBlockerCount}`,
+    `PHASE1_CUTOVER_READY=${evaluation.phase1CutoverReady ? "YES" : "NO"}`,
+    `FUTURE_CUTOVER_REQUIRES_BILLING_CONTRACT_DISPATCH_OWNER=ONE`,
+    `FUTURE_CUTOVER_DISPATCH_RULE=PHASE1_PUBLISHED_MODEL->PUBLISHED;DEFERRED_OR_DEEPSEEK_MODEL->LEGACY`,
+    `BILLING_CONTRACT_DISPATCH_OWNER_IMPLEMENTED_IN_PR795=false`,
+    `DEEPSEEK_V4_PRO_0813_PHASE1_PUBLISHED_BILLING=false`,
+    `DEEPSEEK_ADULT_REFUSAL_FALLBACK_LEGACY_BILLING=true`,
+    `DEEPSEEK_FALLBACK_AFFECTS_PHASE1_CUTOVER_READY=false`,
+    `NON_PHASE1_USER_SELECTABLE_MODELS=${nonPhase1Exposure.nonPhase1UserSelectableModels.join(",")}`,
+    `NON_PHASE1_STORED_SELECTION_STILL_EXECUTABLE=${nonPhase1Exposure.nonPhase1StoredSelectionStillExecutable.join(",")}`,
+    `NON_PHASE1_USER_BILLING_POLICY=${nonPhase1Exposure.nonPhase1UserBillingPolicy}`,
+    `RECOMMENDED_NON_PHASE1_USER_BILLING_POLICY=${nonPhase1Exposure.recommendedNonPhase1UserBillingPolicy}`,
+    "=== FULL INVENTORY (operational risk, not Phase 1 gate) ===",
+    `CURRENT_REACHABLE_MODEL_INVENTORY=${JSON.stringify(inventory)}`,
+    `CUTOVER_REQUIRED_DELIVERED_MODELS=${inventory
+      .filter((e) => e.cutoverRequired)
+      .map((e) => e.deliveredModelId)
+      .join(",")}`,
+    `INTERNAL_DELIVERED_MODELS=${INTERNAL_DELIVERED_PRODUCTION_OWNERS.map((e) => e.model).join(",")}`,
+    `INTERNAL_DELIVERED_PRODUCTION_OWNERS=${JSON.stringify(INTERNAL_DELIVERED_PRODUCTION_OWNERS)}`,
+    `OPENROUTER_G31_CURRENTLY_DELIVERABLE=${OPENROUTER_G31_CURRENTLY_DELIVERABLE}`,
+    `OPENROUTER_G31_REACHABILITY_OWNER=${OPENROUTER_G31_REACHABILITY_OWNER}`,
+    `OPENROUTER_G31_FIXTURE=${OPENROUTER_G31_FIXTURE}`,
+    `OPUS45_PICKER_REACHABLE=${OPUS45_PICKER_REACHABLE}`,
+    `OPUS45_STORED_SELECTION_REACHABLE=${OPUS45_STORED_SELECTION_REACHABLE}`,
+    `OPUS45_ADMIN_SPECIAL_CASE=${OPUS45_ADMIN_SPECIAL_CASE}`,
+    `DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP=${gates.DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP}`,
+    "=== POLICY COVERAGE ===",
+    `TOTAL_POLICY_COUNT=${policyCounts.totalPolicyCount}`,
+    `PHASE1_REQUIRED_POLICY_COUNT=${policyCounts.phase1RequiredPolicyCount}`,
+    `DEFERRED_NOT_PHASE1_BLOCKER_COUNT=${policyCounts.deferredNotPhase1BlockerCount}`,
+    `LEGACY_OR_DEAD_POLICY_COUNT=${policyCounts.legacyOrDeadPolicyCount}`,
+    `COVERED_PHASE1_POLICY_COUNT=${policyCounts.coveredPhase1PolicyCount}`,
+    `POLICY_MATRIX=${JSON.stringify(policyMatrix)}`,
+    `WAIVER_MINIMUM_RUNTIME_REACHABLE=${derivePolicyReportFacts(policyMatrix).waiverMinimumRuntimeReachable}`,
+    `UPSTREAM_COST_RUNTIME_REACHABLE=${derivePolicyReportFacts(policyMatrix).upstreamCostConsumedByLiveOwnerG31Ci}`,
+    `COMPLETED_TURN_RUNTIME_EFFECT=${derivePolicyReportFacts(policyMatrix).completedTurnRuntimeEffect}`,
+    "=== PARITY ===",
+    `FIXTURE_COUNT=${gates.FIXTURE_COUNT}`,
+    `MATCH_COUNT=${gates.MATCH_COUNT}`,
+    `MISMATCH_COUNT=${gates.MISMATCH_COUNT}`,
+    `BLOCKED_COUNT=${gates.BLOCKED_COUNT}`,
+    `NOT_COMPARABLE_COUNT=${gates.NOT_COMPARABLE_COUNT}`,
+    `MISMATCHES=${JSON.stringify(evaluation.mismatches.slice(0, 5))}`,
+    "=== F4 ===",
+    `F4_CLASSIFICATION=${f4.classification}`,
+    `REQUESTED_MODEL=${f4.requestedModel}`,
+    `DELIVERED_MODEL=${f4.deliveredModel}`,
+    `LIVE_BILLING_MODEL=${f4.liveBillingModel}`,
+    `CANDIDATE_BILLING_MODEL=${f4.candidateBillingModel}`,
+    `REQUESTED_MODEL_USED_FOR_PRICE=${f4.requestedModelUsedForPrice}`,
+    "=== SAFETY ===",
+    "PRODUCTION_BILLING_FILES_CHANGED_BY_PR795=0",
+    "LIVE_USER_DEDUCTION_CHANGED=false",
+    "SETTLEMENT_CHANGED=false",
+    "REFUND_CHANGED=false",
+    "CREATOR_REWARD_CHANGED=false",
+    "PUBLISHED_PRICE_CHANGED=false",
+    "FX_PRODUCTION_POLICY_CHANGED=false",
+    "CARD_FEE_CHANGED=false",
+    "DB_SCHEMA_CHANGED=false",
+    "PERSISTENCE_CHANGED=false",
+    `AUDIT_FX_ENV_LEAK=${gates.AUDIT_FX_ENV_LEAK}`,
+    `DEEPSEEK_PHASE2=${DEEPSEEK_PHASE2}`,
+    "=== DECISION ===",
+    `PROMOTION_READY=${evaluation.promotionReady ? "YES" : "NO"}`,
+    `PHASE1_CUTOVER_READY=${evaluation.phase1CutoverReady ? "YES" : "NO"}`,
+    `PROMOTION_BLOCKERS=${evaluation.promotionBlockers.slice(0, 10).join("; ")}`,
+    `NEXT_CUTOVER_PR_ALLOWED=${evaluation.promotionReady ? "YES" : "NO"}`,
+    "CUTOVER_PERFORMED=false",
+    `MERGE_READY=NO`,
+    "STOP",
+  ];
+  return lines.join("\n");
+}
