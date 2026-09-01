@@ -68,6 +68,18 @@ describe("shouldShowStatusWidgetOnMessage", () => {
     );
   });
 
+  it("hides during visual reveal pending (proseStreamActive / isStreaming)", () => {
+    assert.equal(
+      shouldShowStatusWidgetOnMessage({
+        model: "gemini-3.7-flash",
+        statusWidgetTurnActive: true,
+        statusWidgetValues: { character: { time: "14:30" } },
+        isStreaming: true,
+      }),
+      false
+    );
+  });
+
   it("hides UI when displayHidden even if turn is active", () => {
     assert.equal(
       shouldShowStatusWidgetOnMessage({

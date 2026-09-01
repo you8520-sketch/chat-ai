@@ -1,0 +1,40 @@
+name: Validate G37 success stream reveal
+
+on:
+  pull_request:
+    paths:
+      - "src/app/chat/[id]/ChatClient.tsx"
+      - "src/lib/streamSuccessDoneReconcile.ts"
+      - "src/lib/streamSuccessDoneReconcile.test.ts"
+      - "src/lib/streamReveal*.ts"
+      - "src/lib/streamClickReveal.ts"
+      - "src/lib/visualRevealPendingOwner.ts"
+      - "src/lib/streamRouterRefreshGate.ts"
+      - "src/lib/turnPhaseLatencyAudit*.ts"
+      - "src/lib/statusWidget/displayPolicy.ts"
+      - ".github/workflows/validate-g37-success-stream.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck:app
+      - run: node --conditions=react-server --import tsx --test src/lib/streamSuccessDoneReconcile.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/streamReveal.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/streamRevealLifecycle.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/streamRevealDisplayIdentity.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/streamClickReveal.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/visualRevealPendingOwner.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/streamRouterRefreshGate.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/turnPhaseLatencyAudit.wiring.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/statusWidget/displayPolicy.test.ts
