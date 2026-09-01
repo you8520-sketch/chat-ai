@@ -21,6 +21,8 @@ import {
 } from "@/lib/chatModels";
 import {
   CHAT_BILLING_CONTRACT_DISPATCH_OWNER,
+  G37_P0_PUBLISHED_RESULT_UNDEFINED,
+  G37_P0_USAGE_RESOLUTION_UNDEFINED,
   PHASE1_PUBLISHED_MODELS,
   isPhase1PublishedBillingEnabled,
   resolveChatBillingContract,
@@ -398,5 +400,68 @@ describe("chatBillingContractDispatch — non-phase1 published unreachable", () 
     const decision = dispatchFromFixture(fixture);
     assert.equal(decision.contract, "legacy");
     assert.notEqual(decision.telemetry.billingContract, "published_phase1");
+  });
+});
+
+describe("chatBillingContractDispatch — G37 P0 fail-loud producer invariants", () => {
+  beforeEach(() => installAuditLegacyFxForTest());
+  afterEach(() => clearAuditLegacyFxForTest());
+
+  function g37DispatchInput(): ResolveChatBillingContractInput {
+    const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "A1-g37-normal")!;
+    const waiver = fixtureWaiverContext(fixture);
+    return {
+      deliveredModelId: fixture.deliveredModelId,
+      stages: fixture.stages,
+      refusalFallbackDelivered: fixture.refusalFallbackDelivered,
+      promptAuditTotal: fixture.promptAuditTotal,
+      legacyFinalPoints: fixtureLegacyFinalPoints(fixture),
+      billingWaiverReason: waiver.billingWaiverReason,
+      legacyWaiverMinimum: waiver.legacyWaiverMinimum,
+      fxSnapshot: AUDIT_FX_SNAPSHOT,
+      phase1PublishedBillingEnabled: true,
+      diagnosticContext: {
+        requestId: "req-g37-p0-test",
+        chatId: 707,
+        messageId: 9001,
+      },
+    };
+  }
+
+  it("R1 PRE_FIX — undefined usage producer throws G37_P0_USAGE_RESOLUTION_UNDEFINED (not legacy)", () => {
+    assert.throws(
+      () =>
+        resolveChatBillingContract(g37DispatchInput(), {
+          resolveTurnBillableUsage: () => undefined as never,
+        }),
+      (err: Error) => err.message === G37_P0_USAGE_RESOLUTION_UNDEFINED
+    );
+  });
+
+  it("R5 — undefined published producer throws G37_P0_PUBLISHED_RESULT_UNDEFINED (not legacy)", () => {
+    const input: ResolveChatBillingContractInput = {
+      deliveredModelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      stages: [completePrimaryStage(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, 2500)],
+      legacyFinalPoints: 999,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: AUDIT_FX_SNAPSHOT,
+      phase1PublishedBillingEnabled: true,
+      diagnosticContext: { requestId: "req-g37-p0-published", chatId: 707, messageId: 9002 },
+    };
+    assert.throws(
+      () =>
+        resolveChatBillingContract(input, {
+          computePublishedUserChargeWithSnapshot: () => undefined as never,
+        }),
+      (err: Error) => err.message === G37_P0_PUBLISHED_RESULT_UNDEFINED
+    );
+  });
+
+  it("R2 — A1-g37-normal complete shape still resolves without throw", () => {
+    const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "A1-g37-normal")!;
+    const decision = dispatchFromFixture(fixture);
+    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.reason, "usage_coverage_incomplete");
   });
 });

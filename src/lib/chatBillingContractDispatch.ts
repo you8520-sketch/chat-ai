@@ -71,6 +71,12 @@ export type ChatBillingContractDecision =
       telemetry: ChatBillingContractTelemetry;
     };
 
+export type ChatBillingContractDispatchDiagnosticContext = {
+  requestId?: string | null;
+  chatId?: number | null;
+  messageId?: number | null;
+};
+
 export type ResolveChatBillingContractInput = {
   deliveredModelId: string;
   stages: StageUsage[];
@@ -85,7 +91,46 @@ export type ResolveChatBillingContractInput = {
   fxSnapshot?: BillingFxSnapshot;
   /** Test-only override — production uses isPhase1PublishedBillingEnabled(). */
   phase1PublishedBillingEnabled?: boolean;
+  /** Optional structural metadata for fail-loud producer invariant logs — no RP prose. */
+  diagnosticContext?: ChatBillingContractDispatchDiagnosticContext;
 };
+
+export const G37_P0_USAGE_RESOLUTION_UNDEFINED = "G37_P0_USAGE_RESOLUTION_UNDEFINED";
+export const G37_P0_PUBLISHED_RESULT_UNDEFINED = "G37_P0_PUBLISHED_RESULT_UNDEFINED";
+
+function safeStageDiagnostics(stages: StageUsage[]): Array<{
+  stage: string | null;
+  estimated: boolean;
+  input: number | null;
+  output: number | null;
+  hasUsageReportingEvidence: boolean;
+}> {
+  return stages.map((stage) => ({
+    stage: stage.stage ?? null,
+    estimated: stage.estimated === true,
+    input: typeof stage.input === "number" && Number.isFinite(stage.input) ? stage.input : null,
+    output: typeof stage.output === "number" && Number.isFinite(stage.output) ? stage.output : null,
+    hasUsageReportingEvidence: stage.usageReportingEvidence != null,
+  }));
+}
+
+function failBillingDispatchProducerInvariant(
+  code: typeof G37_P0_USAGE_RESOLUTION_UNDEFINED | typeof G37_P0_PUBLISHED_RESULT_UNDEFINED,
+  input: ResolveChatBillingContractInput,
+  extra: Record<string, unknown> = {}
+): never {
+  console.error("[G37-P0-BILLING-DISPATCH]", {
+    code,
+    requestId: input.diagnosticContext?.requestId ?? null,
+    chatId: input.diagnosticContext?.chatId ?? null,
+    messageId: input.diagnosticContext?.messageId ?? null,
+    deliveredModelId: input.deliveredModelId,
+    stageCount: input.stages.length,
+    stageShapes: safeStageDiagnostics(input.stages),
+    ...extra,
+  });
+  throw new Error(code);
+}
 
 export function isPhase1PublishedBillingEnabled(): boolean {
   const raw = process.env.PHASE1_PUBLISHED_BILLING_ENABLED;
@@ -146,9 +191,19 @@ function waiverAdjustment(
 }
 
 /** Single owner: published Phase 1 vs legacy fallback for main RP turn billing. */
+export type ResolveChatBillingContractDeps = {
+  resolveTurnBillableUsage?: typeof resolveTurnBillableUsage;
+  computePublishedUserChargeWithSnapshot?: typeof computePublishedUserChargeWithSnapshot;
+};
+
 export function resolveChatBillingContract(
-  input: ResolveChatBillingContractInput
+  input: ResolveChatBillingContractInput,
+  deps?: ResolveChatBillingContractDeps
 ): ChatBillingContractDecision {
+  const resolveUsage = deps?.resolveTurnBillableUsage ?? resolveTurnBillableUsage;
+  const computePublished =
+    deps?.computePublishedUserChargeWithSnapshot ?? computePublishedUserChargeWithSnapshot;
+
   const phase1Enabled = input.phase1PublishedBillingEnabled ?? isPhase1PublishedBillingEnabled();
 
   if (!phase1Enabled) {
@@ -163,12 +218,18 @@ export function resolveChatBillingContract(
     return legacyDecision(input, "legacy_waiver_minimum_nonzero");
   }
 
-  const usageResolution = resolveTurnBillableUsage({
+  const usageResolution = resolveUsage({
     stages: input.stages,
     modelId: input.deliveredModelId,
     refusalFallbackDelivered: input.refusalFallbackDelivered,
     promptAuditTotal: input.promptAuditTotal,
   });
+
+  if (usageResolution == null) {
+    failBillingDispatchProducerInvariant(G37_P0_USAGE_RESOLUTION_UNDEFINED, input, {
+      producer: "resolveTurnBillableUsage()",
+    });
+  }
 
   if (usageResolution.status !== "resolved" || !usageResolution.usage) {
     return legacyDecision(input, "usage_unresolved", {
@@ -190,13 +251,21 @@ export function resolveChatBillingContract(
     });
   }
 
-  const published = computePublishedUserChargeWithSnapshot({
+  const published = computePublished({
     modelId: input.deliveredModelId,
     usage: usageResolution.usage,
     usageCoverage: usageResolution.usageCoverage,
     fxSnapshot: input.fxSnapshot,
     adjustment: waiverAdjustment(input.billingWaiverReason),
   });
+
+  if (published == null) {
+    failBillingDispatchProducerInvariant(G37_P0_PUBLISHED_RESULT_UNDEFINED, input, {
+      producer: "computePublishedUserChargeWithSnapshot()",
+      usageResolutionStatus: usageResolution.status,
+      usageCoverage: usageResolution.usageCoverage,
+    });
+  }
 
   if (published.status === "blocked") {
     return legacyDecision(input, published.reason, {
