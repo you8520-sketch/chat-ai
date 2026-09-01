@@ -42,6 +42,18 @@ import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputS
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
+import {
+  isPhase1PublishedBillingEnabled,
+  resolveChatBillingContract,
+  type ChatBillingContractDecision,
+} from "@/lib/chatBillingContractDispatch";
+import {
+  applyFinalUserChargeToUsage,
+  buildUsageBillingContractAdmin,
+  persistAssistantMessageFinalCharge,
+} from "@/lib/chatBillingFinalCharge";
+import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
+import { resolveShadowBillingExchangeRateSnapshot } from "@/lib/shadowBillingExchangeRate";
 import { observeTurnBillableUsageCanary } from "@/lib/turnBillableUsageProductionTelemetry";
 import { stripUsageReportingEvidenceFromStage } from "@/lib/usageReportingEvidence";
 import { computeShadowPricing, resolveActualTurnCostCoverage } from "@/lib/shadowPricing";
@@ -4412,6 +4424,7 @@ export async function POST(req: Request) {
           });
         let cost = billingWaiverReason ? 0 : billing.total;
 
+        let legacyWaiverMinimum = 0;
         if (billingWaiverReason && !isMockApiMode()) {
           const modelId = deliveredModelId ?? "";
           let waiverMin = 0;
@@ -4451,7 +4464,44 @@ export async function POST(req: Request) {
               targetResponseChars: targetResponseCharsRef,
             });
           }
+          legacyWaiverMinimum = waiverMin;
           if (waiverMin > 0) cost = waiverMin;
+        }
+
+        let legacyFinalPointsBeforeDispatch = cost;
+        let billingContractDecision: ChatBillingContractDecision | null = null;
+
+        if (!htmlFlashOnlyTurn) {
+          const shadowFx = isPhase1PublishedBillingEnabled()
+            ? resolveShadowBillingExchangeRateSnapshot()
+            : null;
+          const billingFxSnapshot: BillingFxSnapshot | undefined = shadowFx
+            ? {
+                mode: shadowFx.mode,
+                dateKey: shadowFx.dateKey,
+                usdToKrw: shadowFx.usdToKrw,
+                effectiveKrwPerUsd: shadowFx.effectiveKrwPerUsd,
+                source: shadowFx.source,
+                overseasFeeRate: shadowFx.overseasFeeRate,
+                locked: shadowFx.locked,
+              }
+            : undefined;
+          billingContractDecision = resolveChatBillingContract({
+            deliveredModelId: deliveredModelId ?? "",
+            stages,
+            refusalFallbackDelivered: adultFallbackSucceeded,
+            promptAuditTotal: promptAuditRef?.totalAssembledTokens,
+            legacyFinalPoints: legacyFinalPointsBeforeDispatch,
+            billingWaiverReason,
+            legacyWaiverMinimum,
+            fxSnapshot: billingFxSnapshot,
+          });
+          if (isPhase1PublishedBillingEnabled()) {
+            cost = billingContractDecision.points;
+          }
+          if (process.env.NODE_ENV !== "production") {
+            console.info("[/api/chat] billing contract dispatch", billingContractDecision.telemetry);
+          }
         }
 
         const mainBillingCost = cost;
@@ -5096,7 +5146,7 @@ export async function POST(req: Request) {
           logMuseAcceptanceTelemetry(museTelemetry);
         }
         // Even for full billing receipt admins — never send museAcceptance to clients.
-        const clientUsageRecord = serializeUsageForPublicClient(dbUsageRecord, {
+        let clientUsageRecord = serializeUsageForPublicClient(dbUsageRecord, {
           keepInternal: showFullBillingReceipt,
         });
         if (oocSceneRenderTurn) {
@@ -5713,6 +5763,34 @@ export async function POST(req: Request) {
           });
         }
         const canonicalBillingCost = settlement.settledPoints;
+        const billingContractAdmin =
+          billingContractDecision != null
+            ? buildUsageBillingContractAdmin(
+                billingContractDecision,
+                canonicalBillingCost,
+                legacyFinalPointsBeforeDispatch
+              )
+            : null;
+        usageRecord = applyFinalUserChargeToUsage(
+          usageRecord,
+          canonicalBillingCost,
+          billingContractAdmin
+        );
+        dbUsageRecord = usageRecord;
+        clientUsageRecord = serializeUsageForPublicClient(usageRecord, {
+          keepInternal: showFullBillingReceipt,
+        });
+        const chargeConsistency = persistAssistantMessageFinalCharge(db, {
+          assistantMessageId: aiMessageId,
+          chatId: chatRef.id,
+          requestId: clientRequestId,
+          settledPoints: canonicalBillingCost,
+          slices: deductSlices,
+          billingContractDispatch: billingContractAdmin,
+        });
+        if (process.env.NODE_ENV !== "production" && !chargeConsistency.consistent) {
+          console.warn("[/api/chat] final charge consistency patched", chargeConsistency);
+        }
 
         if (adultHandoffCanaryAccess && userMessageId != null) {
           try {
