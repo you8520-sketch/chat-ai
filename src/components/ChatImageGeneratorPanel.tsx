@@ -21,8 +21,8 @@ import {
 } from "@/lib/chatImageScenePlan";
 import ChatSceneBuilder, {
   type SceneOutputMode,
-  type ScenePanelCountMode,
 } from "@/components/ChatSceneBuilder";
+import type { ScenePanelCount } from "@/lib/chatImageScenePlan";
 import TrpgImageSceneDiagnosticsPanel from "@/components/TrpgImageSceneDiagnosticsPanel";
 import {
   draftCastIntentFromCandidatePool,
@@ -398,8 +398,7 @@ export default function ChatImageGeneratorPanel({
   const [sdProduct, setSdProduct] = useState<SdProduct>("gift");
   const [ldProduct, setLdProduct] = useState<LdProduct>("scene");
   const [sceneOutputMode, setSceneOutputMode] = useState<SceneOutputMode>("illustration");
-  const [scenePanelCountMode, setScenePanelCountMode] =
-    useState<ScenePanelCountMode>("ai");
+  const [scenePanelCount, setScenePanelCount] = useState<ScenePanelCount>(3);
   const [sceneMessages, setSceneMessages] = useState<SceneSourceMessage[]>([]);
   const [scenePlan, setScenePlan] = useState<ScenePlan | null>(null);
   const deterministicPlanCacheRef = useRef<Map<string, ScenePlan>>(new Map());
@@ -1154,7 +1153,7 @@ export default function ChatImageGeneratorPanel({
     setAiSuggestedPlan(null);
     setAiSuggestionError("");
     setHasAiSuggestionSession(false);
-    setScenePanelCountMode("ai");
+    setScenePanelCount(3);
     setAiSuggestionLoading(false);
   }
 
@@ -1186,7 +1185,7 @@ export default function ChatImageGeneratorPanel({
     const plan = cached ?? buildDeterministicScenePlan(messages);
     if (!cached) deterministicPlanCacheRef.current.set(key, plan);
     setScenePlan(plan);
-    setScenePanelCountMode("ai");
+    setScenePanelCount(plan.recommendedPanelCount);
     setAiSuggestedPlan(null);
     setAiSuggestionError("");
   }
@@ -1234,7 +1233,7 @@ export default function ChatImageGeneratorPanel({
           mode: "scene_plan",
           messageId: opts.messageId ?? undefined,
           sourceText: opts.messageId ? undefined : opts.summary,
-          panelCount: scenePanelCountMode === "ai" ? undefined : scenePanelCountMode,
+          panelCount: scenePanelCount,
         }),
       });
       if (!isCurrentSceneSourceEpoch(opts.epoch)) return;
@@ -1268,7 +1267,7 @@ export default function ChatImageGeneratorPanel({
 
   function applyAiSceneSuggestion() {
     if (!aiSuggestedPlan || !info) return;
-    const nextPlan = applyApprovedAiScenePlan(aiSuggestedPlan, scenePanelCountMode);
+    const nextPlan = applyApprovedAiScenePlan(aiSuggestedPlan, scenePanelCount);
     setScenePlan(nextPlan);
     const draft = draftCastIntentFromCandidatePool({
       contentKind,
@@ -1414,9 +1413,7 @@ export default function ChatImageGeneratorPanel({
             !campaignId && castIntent ? castIntent : undefined,
           panelCount:
             !isIllustration && scenePlan
-              ? scenePanelCountMode === "ai"
-                ? scenePlan.recommendedPanelCount
-                : scenePanelCountMode
+              ? scenePanelCount
               : undefined,
           campaignId: isIllustration && campaignId ? campaignId : undefined,
           roundNumber:
@@ -2289,13 +2286,21 @@ export default function ChatImageGeneratorPanel({
                             reservedReferenceUrls={reservedCastReferenceUrls}
                             contentKind={contentKind}
                             outputMode={sceneOutputMode}
-                            panelCountMode={scenePanelCountMode}
+                            panelCount={scenePanelCount}
                             disabled={generating}
-                            onOutputModeChange={setSceneOutputMode}
-                            onPanelCountModeChange={(mode) => {
-                              setScenePanelCountMode(mode);
-                              if (!scenePlan || mode === "ai") return;
-                              setScenePlan(reflowScenePlanPanels(scenePlan, mode));
+                            onOutputModeChange={(mode) => {
+                              setSceneOutputMode(mode);
+                              if (!scenePlan) return;
+                              if (mode === "comic") {
+                                setScenePlan(
+                                  reflowScenePlanPanels(scenePlan, scenePanelCount)
+                                );
+                              }
+                            }}
+                            onPanelCountChange={(count) => {
+                              setScenePanelCount(count);
+                              if (!scenePlan) return;
+                              setScenePlan(reflowScenePlanPanels(scenePlan, count));
                             }}
                             onPlanChange={setScenePlan}
                             onCastChange={setCastIntent}

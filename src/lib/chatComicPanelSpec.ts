@@ -4,6 +4,7 @@ import {
   DEFAULT_SCENE_PRESENTATION_VISIBILITY,
   projectComicPanelBeat,
   projectComicSharedContext,
+  type ProjectedComicPanelBeat,
 } from "@/lib/chatImageScenePlan";
 
 export type ComicPanelFormatId = "2panel" | "3koma" | "4panel";
@@ -73,23 +74,31 @@ function resolveBeatRole(format: ComicPanelFormatId, index: number, total: numbe
   return "Resolution";
 }
 
-function resolveCamera(format: ComicPanelFormatId, index: number, total: number): string {
-  if (format === "2panel") {
-    return index === 1 ? "medium-wide establishing" : "medium close-up reaction";
+function resolveCameraFromBeat(
+  beat: ProjectedComicPanelBeat,
+  index: number,
+  total: number
+): string {
+  const cue = `${beat.situation} ${beat.characterAction ?? ""} ${beat.personaAction ?? ""}`;
+  if (/손|잡|포옹|밀|당기|안/.test(cue)) {
+    return "medium two-shot emphasizing physical interaction";
   }
-  if (format === "3koma") {
-    if (index === 1) return "wide establishing";
-    if (index === 2) return "medium two-shot";
-    return "close-up emotional beat";
+  if (/표정|눈|고개|시선|미소|울/.test(cue)) {
+    return "medium close-up on faces and upper body";
   }
-  if (index === 1) return "wide establishing";
-  if (index === total) return "close-up payoff";
-  return index === 2 ? "medium two-shot" : "medium-close acting beat";
+  if (/멀리|풍경|배경|하늘|거리|전경/.test(cue)) {
+    return "wide shot establishing place and staging";
+  }
+  if (index === total) return "frame the decisive story beat clearly";
+  if (index === 1) return "establish characters and setting in one readable frame";
+  return "advance the scripted beat with clear character staging";
 }
 
-function resolveFraming(format: ComicPanelFormatId, index: number, total: number): string {
-  if (index === total) return "tight on the acting faces and upper body";
-  if (format === "3koma" && index === 3) return "close on the decisive reaction";
+function resolveFramingFromBeat(beat: ProjectedComicPanelBeat, index: number, total: number): string {
+  const cue = `${beat.situation} ${beat.characterAction ?? ""}`;
+  if (/클로즈|눈|표정|속삭|속으로/.test(cue) || index === total) {
+    return "tight on the acting faces and upper body";
+  }
   return "both recurring characters readable in frame";
 }
 
@@ -99,26 +108,19 @@ function castLabelsFromCount(count: number): Array<"A" | "B" | "C" | "D"> {
 
 function resolveLayout(
   personaVisible: boolean,
-  index: number,
-  total: number,
   castCount: number
 ): string {
   if (castCount >= 3) {
     return "stable group layout — left / center / right readable; follow cast manifest composition goal";
   }
   if (!personaVisible) return "character B centered; persona A off-camera only";
-  if (index === total) return "A left, B right — preserve established orientation";
-  return index % 2 === 1 ? "A left, B right" : "B right, A left — same characters, mirrored staging OK";
+  return "A left, B right — maintain stable orientation across panels";
 }
 
-function resolveExpressions(beatRole: string): string {
-  if (beatRole.includes("Setup") || beatRole.includes("Establish")) {
-    return "natural baseline expressions matching the opening beat";
-  }
-  if (beatRole.includes("Climax") || beatRole.includes("Payoff") || beatRole.includes("Resolution")) {
-    return "clear peak emotion — blush, surprise, tension, or comedy exaggeration as scripted";
-  }
-  return "progressive emotional shift from the previous panel";
+function resolveExpressionsFromBeat(beat: ProjectedComicPanelBeat): string {
+  const acting = [beat.personaAction, beat.characterAction].filter(Boolean).join("; ");
+  if (acting) return acting;
+  return `body language and expressions matching: ${beat.situation}`;
 }
 
 function resolveContinuityRules(format: ComicPanelFormatId, castCount: number): string[] {
@@ -186,14 +188,14 @@ export function compileChatComicPanelSpec(opts: {
     return {
       index: panel.index,
       beatRole,
-      camera: resolveCamera(format, panel.index, panelCount),
-      framing: resolveFraming(format, panel.index, panelCount),
-      layout: resolveLayout(visibility.personaVisible, panel.index, panelCount, castCount),
+      camera: resolveCameraFromBeat(beat, panel.index, panelCount),
+      framing: resolveFramingFromBeat(beat, panel.index, panelCount),
+      layout: resolveLayout(visibility.personaVisible, castCount),
       situation: beat.situation,
       background: beat.background,
       personaAction: beat.personaAction,
       characterAction: beat.characterAction,
-      expressions: resolveExpressions(beatRole),
+      expressions: resolveExpressionsFromBeat(beat),
       speechBubbles: beat.dialogue.map((line) => ({
         speakerLabel: speakerLabel(line.speaker),
         speaker: line.speaker,

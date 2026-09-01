@@ -35,8 +35,8 @@ describe("chatComicPanelSpec compiler", () => {
     assert.match(rendered, /Hero event ids:/);
     assert.match(rendered, /Cast:/);
     assert.match(rendered, /\[Panel 1 — Setup\]/);
-    assert.match(rendered, /Camera: medium-wide establishing/);
-    assert.match(rendered, /Layout: A left, B right/);
+    assert.match(rendered, /Camera:/);
+    assert.match(rendered, /Layout: A left, B right — maintain stable orientation across panels/);
     assert.match(rendered, /Speech bubble \(A \/ persona\):/);
     assert.match(rendered, /SFX: \(none — do not render sound-effect text\)/);
     assert.match(rendered, /Continuity rules:/);

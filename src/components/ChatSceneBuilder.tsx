@@ -9,14 +9,12 @@ import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
 import {
   applyUserIllustrationEdits,
   applyUserPanelEdits,
-  visualEvents,
   type ScenePanel,
   type ScenePanelCount,
   type ScenePlan,
 } from "@/lib/chatImageScenePlan";
 
 export type SceneOutputMode = "illustration" | "comic";
-export type ScenePanelCountMode = "ai" | ScenePanelCount;
 
 type ChatSceneBuilderProps = {
   sourcePreview: string;
@@ -33,10 +31,10 @@ type ChatSceneBuilderProps = {
   reservedReferenceUrls?: readonly string[];
   contentKind?: ContentKind;
   outputMode: SceneOutputMode;
-  panelCountMode: ScenePanelCountMode;
+  panelCount: ScenePanelCount;
   disabled?: boolean;
   onOutputModeChange: (mode: SceneOutputMode) => void;
-  onPanelCountModeChange: (mode: ScenePanelCountMode) => void;
+  onPanelCountChange: (count: ScenePanelCount) => void;
   onPlanChange: (plan: ScenePlan) => void;
   onCastChange: (manifest: ChatImageCastIntentManifest) => void;
   onRequestAiSuggestion: () => void;
@@ -64,42 +62,13 @@ function PanelEditor({
   return (
     <div className="space-y-2 rounded-lg border border-white/10 bg-black/20 p-2">
       <label className="block space-y-1">
-        <span className="text-[10px] font-semibold text-zinc-500">상황</span>
+        <span className="text-[10px] font-semibold text-zinc-500">장면</span>
         <textarea
           value={panel.situation}
           disabled={disabled}
           rows={2}
           onChange={(event) => onChange({ situation: event.target.value })}
           className="w-full resize-y rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-        />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-[10px] font-semibold text-zinc-500">배경 override</span>
-        <input
-          value={panel.backgroundOverride ?? ""}
-          disabled={disabled}
-          onChange={(event) => onChange({ backgroundOverride: event.target.value })}
-          className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-        />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-[10px] font-semibold text-zinc-500">
-          {contentKind === "simulation" ? "AI 인물 행동 / 표정" : "캐릭터 행동 / 표정"}
-        </span>
-        <input
-          value={panel.characterAction ?? ""}
-          disabled={disabled}
-          onChange={(event) => onChange({ characterAction: event.target.value })}
-          className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-        />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-[10px] font-semibold text-zinc-500">유저캐 행동 / 표정</span>
-        <input
-          value={panel.personaAction ?? ""}
-          disabled={disabled}
-          onChange={(event) => onChange({ personaAction: event.target.value })}
-          className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
         />
       </label>
       <label className="block space-y-1">
@@ -148,81 +117,23 @@ function IllustrationEditor({
   disabled?: boolean;
   onChange: (plan: ScenePlan) => void;
 }) {
-  const heroEvents = visualEvents(plan.events);
-  const selectedHeroIds = new Set(plan.heroEventIds);
   return (
-    <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-      <label className="block space-y-1">
-        <span className="text-[10px] font-semibold text-zinc-500">장면 설명</span>
-        <textarea
-          value={plan.heroScene}
-          disabled={disabled}
-          rows={3}
-          onChange={(event) =>
-            onChange(applyUserIllustrationEdits(plan, { heroScene: event.target.value }))
-          }
-          className="w-full resize-y rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-        />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-[10px] font-semibold text-zinc-500">배경</span>
-        <input
-          value={plan.sceneBackground}
-          disabled={disabled}
-          onChange={(event) =>
-            onChange(applyUserIllustrationEdits(plan, { sceneBackground: event.target.value }))
-          }
-          className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-        />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-[10px] font-semibold text-zinc-500">분위기</span>
-        <input
-          value={plan.atmosphere ?? ""}
-          disabled={disabled}
-          onChange={(event) =>
-            onChange(applyUserIllustrationEdits(plan, { atmosphere: event.target.value }))
-          }
-          className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-        />
-      </label>
-      {heroEvents.length ? (
-        <div className="space-y-1">
-          <span className="text-[10px] font-semibold text-zinc-500">핵심 장면</span>
-          <div className="max-h-36 space-y-1 overflow-y-auto">
-            {heroEvents.map((sceneEvent) => (
-              <label
-                key={sceneEvent.id}
-                className="flex items-start gap-2 rounded-lg border border-white/10 bg-black/20 px-2 py-1.5 text-[11px] text-zinc-300"
-              >
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={selectedHeroIds.has(sceneEvent.id)}
-                  disabled={disabled}
-                  onChange={(changeEvent) => {
-                    const next = new Set(plan.heroEventIds);
-                    if (changeEvent.target.checked) next.add(sceneEvent.id);
-                    else next.delete(sceneEvent.id);
-                    onChange(
-                      applyUserIllustrationEdits(plan, {
-                        heroEventIds: [...next],
-                      })
-                    );
-                  }}
-                />
-                <span>{sceneEvent.text}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </div>
+    <label className="block space-y-1 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+      <span className="text-[10px] font-semibold text-zinc-500">장면 설명</span>
+      <textarea
+        value={plan.heroScene}
+        disabled={disabled}
+        rows={3}
+        onChange={(event) =>
+          onChange(applyUserIllustrationEdits(plan, { heroScene: event.target.value }))
+        }
+        className="w-full resize-y rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+      />
+    </label>
   );
 }
 
 export default function ChatSceneBuilder({
-  sourcePreview,
   sourceLoading,
   plan,
   planLoading,
@@ -236,38 +147,75 @@ export default function ChatSceneBuilder({
   reservedReferenceUrls,
   contentKind = "character",
   outputMode,
-  panelCountMode,
+  panelCount,
   disabled,
   onOutputModeChange,
-  onPanelCountModeChange,
+  onPanelCountChange,
   onPlanChange,
   onCastChange,
   onRequestAiSuggestion,
   onApplyAiSuggestion,
   onCancelAiSuggestion,
 }: ChatSceneBuilderProps) {
-  const [expandedPanel, setExpandedPanel] = useState<number | null>(null);
+  const [sceneEditOpen, setSceneEditOpen] = useState(false);
   const [showAiPreview, setShowAiPreview] = useState(false);
+  const loading = sourceLoading || planLoading;
 
   return (
     <div className="space-y-3">
       <section className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-[11px] font-semibold text-zinc-400">
-            {outputMode === "illustration" ? "한 장 장면" : "컷 구성"}
-          </h3>
-          <button
-            type="button"
-            disabled={disabled || aiSuggestionLoading || planLoading || !plan}
-            onClick={onRequestAiSuggestion}
-            className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
-          >
-            {hasAiSuggestionSession ? "✨ 새 AI 제안" : "✨ AI 장면 제안"}
-          </button>
+        <h3 className="text-[11px] font-semibold text-zinc-400">형식</h3>
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
+          {(
+            [
+              ["illustration", "한 장 일러스트"],
+              ["comic", "컷만화"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              disabled={disabled}
+              onClick={() => onOutputModeChange(id)}
+              className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${
+                outputMode === id
+                  ? "bg-violet-600 text-white"
+                  : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        {sourceLoading ? (
+      </section>
+
+      {outputMode === "comic" ? (
+        <section className="space-y-2">
+          <h3 className="text-[11px] font-semibold text-zinc-400">컷 수</h3>
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-1">
+            {([2, 3, 4] as const).map((count) => (
+              <button
+                key={count}
+                type="button"
+                disabled={disabled || !plan}
+                onClick={() => onPanelCountChange(count)}
+                className={`rounded-lg px-2 py-2 text-[11px] font-semibold transition ${
+                  panelCount === count
+                    ? "bg-violet-600 text-white"
+                    : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
+                }`}
+              >
+                {count}컷
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="space-y-2">
+        {loading ? (
           <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
-            선택 턴을 불러오는 중…
+            선택 턴 장면을 정리하는 중…
           </p>
         ) : null}
         {aiSuggestionLoading ? (
@@ -280,52 +228,87 @@ export default function ChatSceneBuilder({
             {aiSuggestionError}
           </p>
         ) : null}
-        {plan && outputMode === "illustration" ? (
-          <IllustrationEditor plan={plan} disabled={disabled} onChange={onPlanChange} />
+
+        {plan && !sceneEditOpen ? (
+          <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <h3 className="text-[11px] font-semibold text-zinc-400">
+              {outputMode === "illustration" ? "장면 미리보기" : "컷 미리보기"}
+            </h3>
+            {outputMode === "illustration" ? (
+              <p className="text-xs leading-relaxed text-zinc-200">
+                {plan.heroScene || "장면을 정리했습니다."}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {plan.panels.map((panel) => {
+                  const firstDialogue = panel.dialogue[0];
+                  return (
+                    <div key={panel.index} className="rounded-lg border border-white/10 bg-black/20 p-2">
+                      <p className="text-[11px] font-semibold text-violet-200">{panel.index}컷</p>
+                      <p className="mt-1 text-xs leading-relaxed text-zinc-200">{panel.situation}</p>
+                      {firstDialogue ? (
+                        <p className="mt-1 text-xs text-zinc-400">
+                          {speakerLabel(firstDialogue.speaker)} · “{firstDialogue.text}”
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs text-zinc-500">대사 없음</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setSceneEditOpen(true)}
+              className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
+            >
+              장면 수정
+            </button>
+          </div>
         ) : null}
-        {plan && outputMode === "comic"
-          ? plan.panels.map((panel) => {
-              const firstDialogue = panel.dialogue[0];
-              return (
-                <article
-                  key={panel.index}
-                  className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3"
-                >
+
+        {plan && sceneEditOpen ? (
+          <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-[11px] font-semibold text-zinc-400">장면 수정</h3>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => setSceneEditOpen(false)}
+                className="text-[11px] font-semibold text-zinc-400 hover:text-white"
+              >
+                닫기
+              </button>
+            </div>
+            {outputMode === "illustration" ? (
+              <IllustrationEditor plan={plan} disabled={disabled} onChange={onPlanChange} />
+            ) : (
+              plan.panels.map((panel) => (
+                <div key={panel.index} className="space-y-1">
                   <p className="text-[11px] font-semibold text-violet-200">{panel.index}컷</p>
-                  <p className="text-xs leading-relaxed text-zinc-200">{panel.situation}</p>
-                  {firstDialogue ? (
-                    <p className="text-xs text-zinc-400">
-                      {speakerLabel(firstDialogue.speaker)} · “{firstDialogue.text}”
-                    </p>
-                  ) : (
-                    <p className="text-xs text-zinc-500">대사 없음</p>
-                  )}
-                  <button
-                    type="button"
+                  <PanelEditor
+                    panel={panel}
                     disabled={disabled}
-                    onClick={() =>
-                      setExpandedPanel((current) =>
-                        current === panel.index ? null : panel.index
-                      )
-                    }
-                    className="text-[11px] font-semibold text-zinc-400 hover:text-white"
-                  >
-                    수정
-                  </button>
-                  {expandedPanel === panel.index ? (
-                    <PanelEditor
-                      panel={panel}
-                      disabled={disabled}
-                      contentKind={contentKind}
-                      onChange={(patch) => {
-                        onPlanChange(applyUserPanelEdits(plan, panel.index, patch));
-                      }}
-                    />
-                  ) : null}
-                </article>
-              );
-            })
-          : null}
+                    contentKind={contentKind}
+                    onChange={(patch) => {
+                      onPlanChange(applyUserPanelEdits(plan, panel.index, patch));
+                    }}
+                  />
+                </div>
+              ))
+            )}
+            <button
+              type="button"
+              disabled={disabled || aiSuggestionLoading || planLoading || !plan}
+              onClick={onRequestAiSuggestion}
+              className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
+            >
+              {hasAiSuggestionSession ? "✨ AI 장면 다시 제안" : "✨ AI 장면 제안 (선택)"}
+            </button>
+          </div>
+        ) : null}
       </section>
 
       {aiSuggestedPlan ? (
@@ -379,62 +362,6 @@ export default function ChatSceneBuilder({
           disabled={disabled || aiSuggestionLoading}
           onChange={onCastChange}
         />
-      ) : null}
-
-      <section className="space-y-2">
-        <h3 className="text-[11px] font-semibold text-zinc-400">형식</h3>
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
-          {(
-            [
-              ["illustration", "한 장 일러스트"],
-              ["comic", "컷만화"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              disabled={disabled}
-              onClick={() => onOutputModeChange(id)}
-              className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${
-                outputMode === id
-                  ? "bg-violet-600 text-white"
-                  : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {outputMode === "comic" ? (
-        <section className="space-y-2">
-          <h3 className="text-[11px] font-semibold text-zinc-400">컷 수</h3>
-          <div className="grid grid-cols-4 gap-1 rounded-xl bg-black/25 p-1">
-            {(
-              [
-                ["ai", "자동"],
-                [2, "2컷"],
-                [3, "3컷"],
-                [4, "4컷"],
-              ] as const
-            ).map(([id, label]) => (
-              <button
-                key={String(id)}
-                type="button"
-                disabled={disabled || !plan}
-                onClick={() => onPanelCountModeChange(id)}
-                className={`rounded-lg px-2 py-2 text-[11px] font-semibold transition ${
-                  panelCountMode === id
-                    ? "bg-violet-600 text-white"
-                    : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </section>
       ) : null}
     </div>
   );
