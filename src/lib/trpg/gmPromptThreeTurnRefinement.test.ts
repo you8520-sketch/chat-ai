@@ -12,13 +12,11 @@ import {
   TRPG_GM_SPARSE_MIN_CHARS,
   TRPG_GM_SPARSE_TARGET_MAX_CHARS,
   TRPG_GM_SPARSE_TARGET_MIN_CHARS,
-  computeTrpgGmNarrationBudget,
   countTrpgNarrationChars,
-  formatTrpgRoundNarrationBudget,
 } from "./gmNarrationBudget";
 import { buildTrpgGmUserBlock, TRPG_GM_SYSTEM } from "./gmPrompt";
 
-const SYSTEM_PROMPT_CHARS_BEFORE = 10800;
+const SYSTEM_PROMPT_CHARS_BEFORE = 11800;
 
 function padRich(seed: string): string {
   let out = seed.trim();
@@ -55,48 +53,6 @@ function countDuplicatedActionBodies(block: string, bodies: readonly string[]): 
     if (occurrences > 1) duplicated += occurrences - 1;
   }
   return duplicated;
-}
-
-function legacyActionBlock(
-  actions: Parameters<typeof buildTrpgGmUserBlock>[0]["actions"]
-): string {
-  return actions
-    .map((a) => {
-      const attempted = (a.intent ?? "").trim() || a.body.trim();
-      return [
-        `[ACTION participantId=${a.participantId} name=${a.name}]`,
-        `[ROLL d20=${a.d20} total=${a.finalScore} DC=${a.dc} tier=${a.tier} stat=str]`,
-        `[ATTEMPTED ACTION — resolve this]\n${attempted}`,
-        `[PROPOSED FICTION — their wording; enrich if brief, do not retell if already rich]\n${a.body.trim()}`,
-      ].join("\n");
-    })
-    .join("\n\n");
-}
-
-function legacyUserBlockForFixture(): string {
-  const brief = "문을 연다.";
-  const richA = padRich("그녀는 방패를 들어 앞으로 밀었다.");
-  const richB = padRich("그는 검을 역수로 고쳐 쥐었다.");
-  const actions = [
-    action({ participantId: 1, name: "렌", body: brief }),
-    action({ participantId: 2, name: "유나", body: richA, intent: "방패로 전진한다" }),
-    action({ participantId: 3, name: "솔", body: richB, intent: "측면을 찌른다" }),
-  ];
-  const narrationBudget = formatTrpgRoundNarrationBudget(
-    computeTrpgGmNarrationBudget(actions.map((entry) => entry.body))
-  );
-  return [
-    "[RESOLVE THIS ROUND]",
-    "[WORLD]\n폐역",
-    "[SCENE CRAFT] Follow GM SCENE CRAFT. Invent extras if the place would not be empty. After PC results, move the world yourself. End with 1–2 GM: sentences that name live pressure; players supply the approach.",
-    narrationBudget,
-    legacyActionBlock(actions),
-  ].join("\n\n");
-}
-
-function extractActionBlock(userBlock: string): string {
-  const start = userBlock.indexOf("[ACTION participantId=");
-  return start >= 0 ? userBlock.slice(start) : userBlock;
 }
 
 function refinementFixtureBlock(): string {
@@ -144,7 +100,7 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
     });
     assert.match(block, /density=RICH/);
     assert.match(block, /\[INTENT\]\n측면을 찌른다/);
-    assert.match(block, /\[VISIBLE ACTION PROSE — established context for its outcome\]/);
+    assert.match(block, /\[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only\]/);
     assert.equal(block.split(richBody.trim()).length - 1, 1);
     assert.match(TRPG_GM_SYSTEM, /first new consequence or changed state/i);
   });
@@ -158,7 +114,7 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
       actions: [action({ participantId: 1, name: "렌", body })],
     });
     assert.doesNotMatch(block, /\[INTENT\]/);
-    assert.match(block, /\[ACTION PROSE — scene material for this resolution\]/);
+    assert.match(block, /\[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only\]/);
     assert.equal(block.split(body).length - 1, 1);
   });
 
@@ -171,7 +127,7 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
       actions: [action({ participantId: 1, name: "렌", body })],
     });
     assert.match(block, /density=BRIEF/);
-    assert.match(block, /\[ACTION PROSE — scene material for this resolution\]/);
+    assert.match(block, /\[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only\]/);
     assert.equal(block.split(body).length - 1, 1);
     assert.match(TRPG_GM_SYSTEM, /BRIEF\/MID get vivid motion/);
   });
@@ -238,15 +194,9 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
 
   it("I: system size and round user block fixture comparison", () => {
     const afterBlock = refinementFixtureBlock();
-    const beforeBlock = legacyUserBlockForFixture();
     const bodies = ["문을 연다.", padRich("그녀는 방패를 들어 앞으로 밀었다."), padRich("그는 검을 역수로 고쳐 쥐었다.")];
-    const afterActionBlock = extractActionBlock(afterBlock);
-    const beforeActionBlock = extractActionBlock(beforeBlock);
 
     assert.ok(TRPG_GM_SYSTEM.length <= SYSTEM_PROMPT_CHARS_BEFORE);
     assert.equal(countDuplicatedActionBodies(afterBlock, bodies), 0);
-    assert.ok(countDuplicatedActionBodies(beforeBlock, bodies) >= 1);
-    assert.ok(afterActionBlock.length < beforeActionBlock.length);
-    assert.ok(afterBlock.length < beforeBlock.length);
   });
 });

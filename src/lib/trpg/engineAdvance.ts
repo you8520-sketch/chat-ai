@@ -1887,7 +1887,7 @@ function loadActionsForGm(
   return (
     db
       .prepare(
-        `SELECT s.participant_id, p.display_name AS name, s.body, s.action_type, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
+        `SELECT s.participant_id, p.display_name AS name, p.kind, s.body, s.action_type, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
                 (
                   SELECT st.value FROM trpg_character_stats st
                   JOIN trpg_character_sheets sh ON sh.id = st.sheet_id
@@ -1902,6 +1902,7 @@ function loadActionsForGm(
       .all(roundId) as Array<{
       participant_id: number;
       name: string;
+      kind: string;
       body: string;
       action_type: string | null;
       stat_key: string | null;
@@ -1924,6 +1925,7 @@ function loadActionsForGm(
     return {
       participantId: a.participant_id,
       name: a.name,
+      participantKind: (a.kind === "ai_character" ? "ai_character" : "human") as "human" | "ai_character",
       body: parsed.prose || a.body,
       intent: parsed.intent,
       needsCheck,

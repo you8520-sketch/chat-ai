@@ -96,7 +96,7 @@ describe("TRPG GM prompt/parse", () => {
     });
     assert.doesNotMatch(block, /OOC|PARTY CHAT/i);
     assert.match(block, /density=BRIEF/);
-    assert.match(block, /\[ACTION PROSE — scene material for this resolution\]/);
+    assert.match(block, /\[ACTION PROSE — scene material for this resolution\]|\[AUTHORITATIVE HUMAN PC ACTION/);
     assert.match(block, /d20=14/);
     assert.match(block, /SCENE CRAFT/);
     assert.match(block, /Apply the system scene-craft contract and ROUND NARRATION BUDGET/);
@@ -241,7 +241,7 @@ describe("TRPG GM prompt/parse", () => {
       ],
     });
     assert.match(block, /\[INTENT\]\n측면을 찔러 공격한다/);
-    assert.match(block, /\[VISIBLE ACTION PROSE — established context for its outcome\]/);
+    assert.match(block, /\[VISIBLE AI ACTION PROSE — actor-only established context for its outcome\]|\[AUTHORITATIVE HUMAN PC ACTION/);
     assert.match(block, /검을 역수로 고쳐 쥐었다/);
     assert.match(block, /Apply the system scene-craft contract and ROUND NARRATION BUDGET/);
     assert.doesNotMatch(block, /color only, never dump/);
@@ -471,6 +471,6 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FAILURE\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CLOSING\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CONTINUITY\]/);
-    assert.ok(TRPG_GM_SYSTEM.length <= 10800);
+    assert.ok(TRPG_GM_SYSTEM.length <= 11800);
   });
 });

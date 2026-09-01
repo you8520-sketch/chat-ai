@@ -13,6 +13,14 @@ export const TRPG_GM_DELTA_OPEN = "<<<DELTA>>>";
 const NARRATION_OPEN = TRPG_GM_NARRATION_OPEN;
 const DELTA_OPEN = TRPG_GM_DELTA_OPEN;
 
+/** GM user-block labels — actor authority boundaries for round resolution. */
+export const TRPG_GM_LABEL_HUMAN_ACTION =
+  "[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only]";
+export const TRPG_GM_LABEL_AI_VISIBLE_PROSE =
+  "[VISIBLE AI ACTION PROSE — actor-only established context for its outcome]";
+export const TRPG_GM_LABEL_AI_SCENE_PROSE =
+  "[AI ACTION PROSE — actor-only scene material for this resolution]";
+
 export type ParsedTrpgGmOutput = {
   narration: string;
   delta: TrpgStateDelta;
@@ -211,7 +219,7 @@ Therefore never rely on implied/contextual speakers.
 Continue timeline from submitted actions into outcomes and the world's next move.
 ROLL and AUTHORITATIVE MECHANICS determine outcomes; participant input fixes intent and attempted action.
 Latest established scene state is the starting point — [LOCAL SCENE STATE] when supplied is current local scene canon; adapt stale wording into that timeline. Resolved obstacles and open routes/opportunities there remain established unless this accepted result explicitly reverses them; do not recreate a functionally equivalent resolved obstacle merely to keep the scene stationary.
-Match density: BRIEF/MID get vivid motion; submitted PC action prose and spoken lines are already visible — treat them as established in-round history. Do not replay, re-quote, closely paraphrase, or re-stage those lines, and do not spend the scene narrating how each participant performed them. If an action is labeled [VISIBLE ACTION PROSE — established context for its outcome], its prose is already on screen — narrate only the adjudicated outcome in combined form, never the performance. Resolve only the fictionally necessary consequences of submitted actions; combine simultaneous or related results into one coherent changed scene state. When multiple PCs acted this round, never dedicate a separate long paragraph to each actor's performance or outcome — merge adjudicated results into one combined changed-scene paragraph (two short paragraphs only if tiers or locations truly cannot merge), then pivot immediately to NEW material. Resolution is a compact bridge, not the main destination of the response — do not produce isolated actor-by-actor recap paragraphs. After that bridge, spend the substantial remainder on meaningful NEW material whenever the scene can naturally advance: world/NPC initiative, new pressure or opportunity, discovery, changed objective, enemy reaction, environmental development, consequence becoming actionable, route opening, or plot-thread progress. The world may move without waiting passively for another player line; do not force a major twist or manufacture arbitrary danger merely to create motion — advance what is already causally available, and a quiet beat is enough when the fiction genuinely calls for it. Begin narration at the first new consequence or changed state, not at restaging submitted action. When an earlier PC line matters, refer to its meaning indirectly; never invent new PC dialogue. Allowed speaker lines: NPC, world voice where appropriate, GM closing aside.
+Match density: BRIEF/MID get vivid motion; submitted PC action prose and spoken lines are already visible — treat them as established in-round history for the named actor only. Do not replay, re-quote, closely paraphrase, or re-stage those lines, and do not spend the scene narrating how each participant performed them. ${TRPG_GM_LABEL_HUMAN_ACTION} is the sole canon for that human's voluntary action, movement, route choice, dialogue, decision, and inner state — no bot or AI prose overrides it. AI action prose labeled ${TRPG_GM_LABEL_AI_VISIBLE_PROSE} or ${TRPG_GM_LABEL_AI_SCENE_PROSE} is authoritative only for the named AI PC's own attempted action, speech, and directly observable self-state — never for another PC's voluntary action, movement, route choice, dialogue, decision, or inner state unless that other PC's own authoritative action independently establishes it. When bot prose conflicts with a human's authoritative action, the human action wins; adjudicate bot outcomes around what the human actually did. If AI action prose is labeled ${TRPG_GM_LABEL_AI_VISIBLE_PROSE}, its prose is already on screen for that actor — narrate only the adjudicated outcome for that actor in combined form, never replay the performance. Do not treat cross-actor claims inside bot prose as established fact. Resolve only the fictionally necessary consequences of submitted actions; combine simultaneous or related results into one coherent changed scene state. When multiple PCs acted this round, never dedicate a separate long paragraph to each actor's performance or outcome — merge adjudicated results into one combined changed-scene paragraph (two short paragraphs only if tiers or locations truly cannot merge), then pivot immediately to NEW material. Resolution is a compact bridge, not the main destination of the response — do not produce isolated actor-by-actor recap paragraphs. After that bridge, spend the substantial remainder on meaningful NEW material whenever the scene can naturally advance: world/NPC initiative, new pressure or opportunity, discovery, changed objective, enemy reaction, environmental development, consequence becoming actionable, route opening, or plot-thread progress. The world may move without waiting passively for another player line; do not force a major twist or manufacture arbitrary danger merely to create motion — advance what is already causally available, and a quiet beat is enough when the fiction genuinely calls for it. Begin narration at the first new consequence or changed state, not at restaging submitted action. When an earlier PC line matters, refer to its meaning indirectly; never invent new PC dialogue. Allowed speaker lines: NPC, world voice where appropriate, GM closing aside.
 Success creates intended leverage; partial success yields meaningful progress with bounded cost or limit.
 Failure: intended result does not fully land, but established competence stays credible — prefer opposition, environment, timing, incomplete effect, exposure, or lost opportunity; avoid slapstick self-own, dropped weapons, wild misses on obvious targets, or acting stupid by default.
 Critical failure: self-inflicted blunder or severe miscalculation; cascading complication only when fiction supports it.
@@ -299,6 +307,7 @@ export function buildTrpgGmUserBlock(opts: {
     name: string;
     body: string;
     intent?: string;
+    participantKind?: "human" | "ai_character";
     needsCheck?: boolean;
     statKey: string;
     statLabel?: string;
@@ -326,12 +335,15 @@ export function buildTrpgGmUserBlock(opts: {
             const body = a.body.trim();
             const intent = (a.intent ?? "").trim();
             const intentDistinct = intent.length > 0 && intent !== body;
+            const actorKind = a.participantKind ?? "human";
             const proseLabel =
-              density === "RICH"
-                ? "[VISIBLE ACTION PROSE — established context for its outcome]"
-                : "[ACTION PROSE — scene material for this resolution]";
+              actorKind === "human"
+                ? TRPG_GM_LABEL_HUMAN_ACTION
+                : density === "RICH"
+                  ? TRPG_GM_LABEL_AI_VISIBLE_PROSE
+                  : TRPG_GM_LABEL_AI_SCENE_PROSE;
             const lines = [
-              `[ACTION participantId=${a.participantId} name=${a.name} density=${density}]`,
+              `[ACTION participantId=${a.participantId} name=${a.name} actorKind=${actorKind} density=${density}]`,
               `[ROLL ${roll}]`,
             ];
             if (intentDistinct) {
@@ -351,7 +363,7 @@ export function buildTrpgGmUserBlock(opts: {
     opts.regenerate
       ? "[REGENERATE — same locked actions and dice. Write a different scene. Keep CHARACTER SHEETS canon. Use 이름: \"대사\" for speech.]"
       : opts.opening
-        ? "[OPENING SCENE — describe the start and ask what they do]"
+        ? "[OPENING SCENE — describe the start and ask what they do. You may portray AI companions with brief in-character action and dialogue per character canon. Do not invent the human PC's voluntary movement, route choice, dialogue, decision, or inner commitment.]"
         : "[RESOLVE THIS ROUND]",
     opts.worldBrief.trim() ? `[WORLD]\n${opts.worldBrief.trim()}` : "",
     opts.scenarioPlanBlock?.trim() ?? "",
