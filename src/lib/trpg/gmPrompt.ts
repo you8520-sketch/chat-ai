@@ -3,6 +3,7 @@ import {
   computeTrpgGmNarrationBudget,
   formatTrpgRoundNarrationBudget,
 } from "./gmNarrationBudget";
+import type { TrpgActionCheckReason } from "./actionCheck";
 import { statModifier } from "./stats";
 import { parseLocalSceneProgressDelta } from "./localSceneProgress";
 import type { TrpgStateDelta, TrpgStatDefinition } from "./types";
@@ -225,7 +226,9 @@ Earlier SUCCESS in [RESOLUTION ORDER] stays canon; later support FAILURE may fai
 When several ordinary FAILURES land in the same round, respect each tier but fold them into one coherent setback rather than stacking separate scene-level catastrophes; additional failures add bounded costs (no progress, position loss, exposure, time loss, reduced information) unless CRITICAL_FAILURE or a distinct threat warrants more.
 As encounter purpose is spent — or local scene state is transition_ready — open fiction outward via reachable space, destination, route, objective, or consequence; transition_ready means the local dramatic purpose is sufficiently resolved for the world to open outward, not permission to choose PC movement. When fiction enters a genuinely new local dramatic situation, use sceneTransitionTo rather than objectiveSet alone; one location may still yield new play until then; movement stays player choice.
 Let NPCs and environment act back; each PC's next meaningful decision remains with that player — do not choose their next actions, dialogue, allegiance, movement, or decisions for them.
-For talk/ask, spoken words are in-scene; resolve through listener and world.
+For talk/ask (CHECK no_check reason=talk), spoken words are in-scene; resolve through listener and world.
+For routine_traversal no-check actions, the submitted traversal succeeds — do not retroactively fail movement or recreate resolved blockers.
+For routine_competence / no_meaningful_uncertainty no-check actions, realize the submitted ordinary action normally without a failure roll.
 
 [LENGTH — SCENE RESPONSIVE]
 Use the supplied ROUND NARRATION BUDGET.
@@ -281,6 +284,44 @@ export function formatTrpgGenreToneLine(genres: readonly string[] = []): string 
   return `[TONE CONTEXT] WORLD GENRES: ${list.join(", ")}. Data only — follow the system TONE owner.`;
 }
 
+export function formatTrpgActionCheckWire(opts: {
+  needsCheck?: boolean;
+  checkReason?: TrpgActionCheckReason;
+  d20: number | null;
+  finalScore: number | null;
+  dc: number | null;
+  tier: string | null;
+  statLabel?: string;
+  statKey: string;
+  statValue?: number | null;
+}): string {
+  if (opts.needsCheck === false) {
+    const reason = opts.checkReason ?? "talk";
+    if (reason === "talk") {
+      return "no_check reason=talk — spoken words occur; listener/world response is still GM-owned";
+    }
+    if (reason === "routine_traversal") {
+      return "no_check reason=routine_traversal — established open unblocked route; submitted traversal is not a failure gate";
+    }
+    if (reason === "routine_competence" || reason === "no_meaningful_uncertainty") {
+      return `no_check reason=${reason} — no failure roll required; realize the submitted ordinary action normally`;
+    }
+    if (reason === "safe_rest") {
+      return "no_check reason=safe_rest — rest proceeds without a roll";
+    }
+    if (reason === "flavor" || reason === "ordinary_free" || reason === "support_setup" || reason === "ordinary_item_use") {
+      return `no_check reason=${reason} — realize the submitted action normally without a failure roll`;
+    }
+    return `no_check reason=${reason}`;
+  }
+  const label = opts.statLabel ? `${opts.statLabel}(${opts.statKey})` : opts.statKey;
+  const valueBit = opts.statValue != null ? ` value=${opts.statValue} modifier=${statModifier(opts.statValue)}` : "";
+  if (opts.d20 == null) {
+    return "check_required — roll pending or unavailable";
+  }
+  return `check_required d20=${opts.d20} total=${opts.finalScore} DC=${opts.dc} tier=${opts.tier} stat=${label}${valueBit}`;
+}
+
 export function buildTrpgGmUserBlock(opts: {
   worldBrief: string;
   gmSecret?: string;
@@ -306,6 +347,7 @@ export function buildTrpgGmUserBlock(opts: {
     body: string;
     participantKind?: "human" | "ai_character";
     needsCheck?: boolean;
+    checkReason?: TrpgActionCheckReason;
     statKey: string;
     statLabel?: string;
     statValue?: number | null;
@@ -320,14 +362,17 @@ export function buildTrpgGmUserBlock(opts: {
       ? "(no player actions — opening scene only)"
       : opts.actions
           .map((a) => {
-            const label = a.statLabel ? `${a.statLabel}(${a.statKey})` : a.statKey;
-            const valueBit = a.statValue != null ? ` value=${a.statValue} modifier=${statModifier(a.statValue)}` : "";
-            const talkOnly = a.needsCheck === false;
-            const roll = talkOnly
-              ? "no check — talk/ask only; they speak; do not fail the conversation"
-              : a.d20 == null
-                ? "no roll"
-                : `d20=${a.d20} total=${a.finalScore} DC=${a.dc} tier=${a.tier} stat=${label}${valueBit}`;
+            const checkWire = formatTrpgActionCheckWire({
+              needsCheck: a.needsCheck,
+              checkReason: a.checkReason,
+              d20: a.d20,
+              finalScore: a.finalScore,
+              dc: a.dc,
+              tier: a.tier,
+              statLabel: a.statLabel,
+              statKey: a.statKey,
+              statValue: a.statValue,
+            });
             const density = classifyTrpgActionInputDensity(a.body);
             const canonical = a.body.trim();
             const actorKind = a.participantKind ?? "human";
@@ -335,7 +380,7 @@ export function buildTrpgGmUserBlock(opts: {
               actorKind === "human" ? TRPG_GM_LABEL_HUMAN_ACTION : TRPG_GM_LABEL_AI_ATTEMPT;
             const lines = [
               `[ACTION participantId=${a.participantId} name=${a.name} actorKind=${actorKind} density=${density}]`,
-              `[ROLL ${roll}]`,
+              `[CHECK ${checkWire}]`,
               `${actionLabel}\n${canonical}`,
             ];
             return lines.join("\n");

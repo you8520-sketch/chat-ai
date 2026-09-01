@@ -13,7 +13,6 @@ import {
 } from "./economics";
 import { logTrpgRoundEconomics, observeTrpgRoundEconomics } from "./roundEconomics";
 import { isTrpgActionType, pickStatForAction } from "./actionTypes";
-import { resolveTrpgActionCheckDecision } from "./actionCheck";
 import { logTrpgMechanicsCheckTelemetry } from "./mechanicsObservability";
 import {
   computeTrpgRoundPoints,
@@ -177,6 +176,7 @@ import {
   adjudicateSubmissionForParticipant,
   ensureRoundAdjudicationContext,
   finalizeRoundAdjudication,
+  loadFrozenAdjudicationDecision,
 } from "./roundAdjudication";
 import { parseTrpgInputOrigin, type TrpgInputOrigin } from "./replySuggestions";
 import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
@@ -1221,6 +1221,7 @@ async function runGmForRound(
   const campaign = loadCampaign(db, opts.campaignId);
   if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
   const scenario = loadScenario(db, opts.campaignId);
+  const campaignContext = loadCampaignContext(db, opts.campaignId);
   const storedSnapshot = parseJson(
     (db.prepare(`SELECT input_snapshot_json FROM trpg_rounds WHERE id=?`).get(opts.roundId) as
       | { input_snapshot_json: string | null }
@@ -1228,7 +1229,10 @@ async function runGmForRound(
     {} as { resolutionOrder?: unknown }
   );
   const resolutionOrder = parseResolutionOrder(storedSnapshot);
-  const actions = sortByResolutionOrder(loadActionsForGm(db, opts.roundId, scenario.statDefs), resolutionOrder);
+  const actions = sortByResolutionOrder(
+    loadActionsForGm(db, opts.roundId, scenario.statDefs),
+    resolutionOrder
+  );
   const latestScene = previousNarration(db, opts.campaignId);
   const mechanics = opts.opening
     ? null
@@ -1271,7 +1275,6 @@ async function runGmForRound(
       tags: uniqueCharacterAssetTags(row.assets),
     }))
   );
-  const campaignContext = loadCampaignContext(db, opts.campaignId);
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
   const scenarioPlanBlock = serializeTrpgScenarioPlanForGm(resolvedPlan, { npcs: scenarioNpcs });
   const completedRounds = (
@@ -1888,7 +1891,7 @@ function loadActionsForGm(
   return (
     db
       .prepare(
-        `SELECT s.participant_id, p.display_name AS name, p.kind, s.body, s.action_type, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
+        `SELECT s.id AS submission_id, s.participant_id, p.display_name AS name, p.kind, s.body, s.action_type, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
                 (
                   SELECT st.value FROM trpg_character_stats st
                   JOIN trpg_character_sheets sh ON sh.id = st.sheet_id
@@ -1901,6 +1904,7 @@ function loadActionsForGm(
          ORDER BY s.id ASC`
       )
       .all(roundId) as Array<{
+      submission_id: number;
       participant_id: number;
       name: string;
       kind: string;
@@ -1920,11 +1924,10 @@ function loadActionsForGm(
       submissionBody: a.body,
       actionType: a.action_type,
     });
-    const needsCheck = resolveTrpgActionCheckDecision({
-      body: resolved.canonicalAttempt,
-      actionType: resolved.actionType,
-      intent: resolved.participantKind === "ai_character" ? resolved.canonicalAttempt : "",
-    }).needsCheck;
+    const frozen = loadFrozenAdjudicationDecision(db, roundId, a.submission_id);
+    if (!frozen) {
+      throw new Error(`Missing frozen adjudication decision for submission ${a.submission_id}`);
+    }
     const statKey = a.stat_key ?? "dex";
     const def = defs.find((d) => d.key === statKey);
     return {
@@ -1932,7 +1935,8 @@ function loadActionsForGm(
       name: a.name,
       participantKind,
       body: resolved.canonicalAttempt,
-      needsCheck,
+      needsCheck: frozen.needsCheck,
+      checkReason: frozen.reason,
       statKey,
       statLabel: def?.label,
       statValue: a.stat_value,

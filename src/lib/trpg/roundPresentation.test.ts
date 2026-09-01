@@ -395,7 +395,7 @@ describe("TRPG round presentation queue", () => {
     assert.match(overlay, /trpgPredeterminedD20Notation/);
     assert.doesNotMatch(advance, /presentationIndex/);
     assert.doesNotMatch(advance, /RoundPresentationPhase/);
-    assert.match(advance, /resolveTrpgActionCheckDecision/);
+    assert.match(advance, /loadFrozenAdjudicationDecision/);
   });
 
   it("budgets the sequential presentation watchdog above 1-4 actor queues", () => {
