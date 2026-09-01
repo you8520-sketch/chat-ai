@@ -17,6 +17,7 @@ import {
   buildChatComicImagePrompt,
 } from "../src/lib/chatComicGeneration";
 import { renderChatComicPanelSpecSection, compileChatComicPanelSpec } from "../src/lib/chatComicPanelSpec";
+import { duoVisualSubjectsForCast } from "../src/lib/chatComicPanelSpec.fixtures";
 import {
   CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL,
   CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL,
@@ -57,11 +58,17 @@ const messages = buildSceneSourceMessages([
 const plan = buildDeterministicScenePlan(messages, 2);
 const events = extractDeterministicEvents(messages);
 const illustration = formatApprovedScenePlanForIllustration(plan);
+const duoSubjects = duoVisualSubjectsForCast({
+  characterName: CHARACTER,
+  personaName: PERSONA,
+});
+
 const comicSpec = renderChatComicPanelSpecSection(
   compileChatComicPanelSpec({
     plan,
     personaName: PERSONA,
     characterName: CHARACTER,
+    subjects: duoSubjects,
   })
 );
 const comicPrompt = buildChatComicImagePrompt({
@@ -70,6 +77,7 @@ const comicPrompt = buildChatComicImagePrompt({
   personaName: PERSONA,
   personaGender: "female",
   plan,
+  subjects: duoSubjects,
 });
 const armA = formatApprovedScenePlanForComic(plan);
 
@@ -115,6 +123,7 @@ function dialogueEditorSection(
     plan: active,
     personaName: PERSONA,
     characterName: CHARACTER,
+    subjects: duoSubjects,
   });
   const rows: string[] = [`### ${label}`, ""];
   for (const panel of active.panels) {

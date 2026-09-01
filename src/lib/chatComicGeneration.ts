@@ -201,6 +201,8 @@ export function buildChatComicImagePrompt(opts: {
       characterName: opts.characterName,
       visibility: sceneVisibility,
       castSelected: castAware ? opts.castSelected : undefined,
+      subjects,
+      eventSubjectBindings: opts.castManifest?.eventSubjectBindings,
     }),
   ]
     .filter(Boolean)
@@ -302,6 +304,20 @@ export function auditComicDialogueWhitelist(opts: {
     personaName: opts.personaName,
     characterName: opts.characterName,
     visibility,
+    subjects: bindChatImageReferencePack({
+      subjectsInImageOrder: buildChatDuoVisualSubjects({
+        characterName: opts.characterName,
+        characterGender: "male",
+        characterImageUrl: "/character-ref",
+        characterSavedAppearance: "",
+        characterAppearanceMode: "image_only",
+        personaName: opts.personaName,
+        personaGender: "female",
+        personaImageUrl: "/persona-ref",
+        personaSavedAppearance: "",
+        personaAppearanceMode: "image_only",
+      }),
+    }).subjects,
   });
   const bubbleTexts = spec.panels.flatMap((panel) =>
     panel.speechBubbles.map((bubble) => bubble.text).filter(Boolean)

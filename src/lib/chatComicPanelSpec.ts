@@ -1,5 +1,5 @@
+import type { SceneEventSubjectBinding } from "@/lib/chatImageCast";
 import type { ChatImageCastGroundedSubject } from "@/lib/chatImageCastManifest";
-import type { ChatImageCastImportance } from "@/lib/chatImageCast";
 import type { ScenePanelCount, ScenePlan, ScenePresentationVisibility } from "@/lib/chatImageScenePlan";
 import {
   DEFAULT_SCENE_PRESENTATION_VISIBILITY,
@@ -7,11 +7,20 @@ import {
   projectComicSharedContext,
   type ProjectedComicPanelBeat,
 } from "@/lib/chatImageScenePlan";
+import {
+  buildCastFromPromptSubjects,
+  buildPromptSubjectMap,
+  resolveLayoutFromSubjectMap,
+  resolveSpeakerSubject,
+  type PromptSubjectLabel,
+  type PromptSubjectMap,
+} from "@/lib/chatImagePromptSubjectMap";
+import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
 
 export type ComicPanelFormatId = "2panel" | "3koma" | "4panel";
 
 export type ComicCastRoleLabel = {
-  label: "A" | "B" | "C" | "D";
+  label: PromptSubjectLabel;
   role: string;
   name: string;
 };
@@ -24,9 +33,9 @@ export type ComicPanelSpecBeat = {
   layout: string;
   situation: string;
   background: string;
-  personaAction?: string;
-  characterAction?: string;
-  speechBubbles: Array<{ speakerLabel: "A" | "B" | "other"; speaker: string; text: string }>;
+  subjectActions: Array<{ label: PromptSubjectLabel; name: string; text: string }>;
+  sceneAction?: string;
+  speechBubbles: Array<{ speakerLabel: PromptSubjectLabel | "other"; speaker: string; text: string }>;
   sfx: readonly string[];
   mustAvoid: readonly string[];
 };
@@ -43,9 +52,10 @@ export type ChatComicPanelSpec = {
   continuityRules: readonly string[];
   globalMustAvoid: readonly string[];
   panels: readonly ComicPanelSpecBeat[];
+  subjectMap: PromptSubjectMap;
 };
 
-const IMPORTANCE_RANK: Record<ChatImageCastImportance, number> = {
+const IMPORTANCE_RANK: Record<string, number> = {
   primary: 0,
   secondary: 1,
   background: 2,
@@ -112,21 +122,21 @@ function resolveFramingFromBeat(_beat: ProjectedComicPanelBeat): string {
   return "recurring characters readable in frame";
 }
 
-function resolveLayout(personaVisible: boolean, castCount: number): string {
-  if (castCount >= 3) {
-    return "stable group layout — left / center / right readable; follow cast manifest composition goal";
-  }
-  if (!personaVisible) return "character B centered; persona A off-camera only";
-  return "A left, B right — maintain stable orientation across panels";
-}
-
-function resolveContinuityRules(format: ComicPanelFormatId, castCount: number): string[] {
+function resolveContinuityRules(
+  format: ComicPanelFormatId,
+  castCount: number,
+  subjectMap: PromptSubjectMap,
+  personaVisible: boolean
+): string[] {
+  const visibleLabels = buildCastFromPromptSubjects(subjectMap, personaVisible)
+    .map((entry) => entry.label)
+    .join(", ");
   const identityRule =
     castCount >= 3
-      ? `Keep all ${castCount} recurring identities distinct — hair, outfit, and face must not swap.`
+      ? `Keep all ${castCount} recurring identities distinct (${visibleLabels}) — hair, outfit, and face must not swap.`
       : castCount === 1
         ? "Keep the visible recurring identity consistent throughout."
-        : "Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.";
+        : `Keep ${visibleLabels} as the same identities throughout — hair, outfit, and face must not swap.`;
   const shared = [
     identityRule,
     "Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.",
@@ -147,33 +157,91 @@ function resolveContinuityRules(format: ComicPanelFormatId, castCount: number): 
   return [...shared, "2-panel rhythm: opening beat in panel 1, closing beat in panel 2."];
 }
 
-function speakerLabel(speaker: string): "A" | "B" | "other" {
-  if (speaker === "persona") return "A";
-  if (speaker === "character") return "B";
+function resolveSpeakerLabel(
+  subjectMap: PromptSubjectMap,
+  speaker: string
+): PromptSubjectLabel | "other" {
+  if (speaker === "persona" || speaker === "character") {
+    return resolveSpeakerSubject(subjectMap, speaker)?.label ?? "other";
+  }
   return "other";
 }
 
+function resolveGroundedSubjectActions(
+  beat: ProjectedComicPanelBeat,
+  subjectMap: PromptSubjectMap
+): Array<{ label: PromptSubjectLabel; name: string; text: string }> {
+  const actions: Array<{ label: PromptSubjectLabel; name: string; text: string }> = [];
+  if (beat.personaAction) {
+    const subject = resolveSpeakerSubject(subjectMap, "persona");
+    if (subject) {
+      actions.push({ label: subject.label, name: subject.name, text: beat.personaAction });
+    }
+  }
+  if (beat.characterAction) {
+    const subject = resolveSpeakerSubject(subjectMap, "character");
+    if (subject) {
+      actions.push({ label: subject.label, name: subject.name, text: beat.characterAction });
+    }
+  }
+  return actions;
+}
+
+function resolveSceneActionFallback(
+  beat: ProjectedComicPanelBeat,
+  subjectActions: Array<{ label: PromptSubjectLabel; name: string; text: string }>
+): string | undefined {
+  if (subjectActions.length > 0) return undefined;
+  const situation = beat.situation.trim();
+  if (!situation) return undefined;
+  return situation;
+}
+
+function subjectKeyForBinding(binding: SceneEventSubjectBinding): string {
+  return binding.subjectKey;
+}
+
+function resolveBindingGroundedActions(
+  panelSourceEventIds: readonly string[],
+  plan: ScenePlan,
+  subjectMap: PromptSubjectMap,
+  eventSubjectBindings?: readonly SceneEventSubjectBinding[]
+): Array<{ label: PromptSubjectLabel; name: string; text: string }> {
+  if (!eventSubjectBindings?.length) return [];
+  const eventsById = new Map(plan.events.map((event) => [event.id, event]));
+  const bindingByEvent = new Map(
+    eventSubjectBindings.map((binding) => [binding.eventId, binding])
+  );
+  const actions: Array<{ label: PromptSubjectLabel; name: string; text: string }> = [];
+  for (const eventId of panelSourceEventIds) {
+    const binding = bindingByEvent.get(eventId);
+    const event = eventsById.get(eventId);
+    if (!binding || !event || event.kind === "dialogue" || event.segmentKind !== "action") {
+      continue;
+    }
+    const subject = subjectMap.byKey.get(subjectKeyForBinding(binding));
+    if (!subject) continue;
+    actions.push({ label: subject.label, name: subject.name, text: event.text });
+  }
+  return actions;
+}
+
+/** @deprecated Use buildCastFromPromptSubjects with visual subject order instead. */
 export function buildStableCastLabels(opts: {
   selectedCast: readonly ChatImageCastGroundedSubject[];
   visibility: ScenePresentationVisibility;
   personaName: string;
   characterName: string;
 }): ComicCastRoleLabel[] {
-  if (!opts.selectedCast.length) {
-    return opts.visibility.personaVisible
-      ? [
-          { label: "A", role: "persona", name: opts.personaName },
-          { label: "B", role: "character", name: opts.characterName },
-        ]
-      : [{ label: "B", role: "character", name: opts.characterName }];
-  }
-
   const included = opts.selectedCast.filter((subject) => subject.included && subject.name);
   const persona = included.find((subject) => subject.role === "persona");
   const main = included.find((subject) => subject.role === "main_character");
   const supporting = included
     .filter((subject) => subject.role === "supporting_character")
-    .sort((left, right) => IMPORTANCE_RANK[left.importance] - IMPORTANCE_RANK[right.importance]);
+    .sort(
+      (left, right) =>
+        (IMPORTANCE_RANK[left.importance] ?? 2) - (IMPORTANCE_RANK[right.importance] ?? 2)
+    );
 
   const cast: ComicCastRoleLabel[] = [];
   if (opts.visibility.personaVisible && persona) {
@@ -189,7 +257,13 @@ export function buildStableCastLabels(opts: {
       name: subject.name,
     });
   });
-  return cast;
+  if (cast.length) return cast;
+  return opts.visibility.personaVisible
+    ? [
+        { label: "A", role: "persona", name: opts.personaName },
+        { label: "B", role: "character", name: opts.characterName },
+      ]
+    : [{ label: "B", role: "character", name: opts.characterName }];
 }
 
 /** Canonical panel-spec compiler — downstream of ScenePlan / hero selection. */
@@ -199,35 +273,43 @@ export function compileChatComicPanelSpec(opts: {
   characterName: string;
   visibility?: ScenePresentationVisibility;
   castSelected?: readonly ChatImageCastGroundedSubject[];
+  subjects: readonly ChatImageVisualSubject[];
+  eventSubjectBindings?: readonly SceneEventSubjectBinding[];
 }): ChatComicPanelSpec {
   const visibility = opts.visibility ?? DEFAULT_SCENE_PRESENTATION_VISIBILITY;
   const panelCount = opts.plan.panels.length as ScenePanelCount;
   const format = resolveComicPanelFormat(panelCount);
   const { sharedBackground } = projectComicSharedContext(opts.plan, visibility);
-  const selectedCast = opts.castSelected?.filter((subject) => subject.included) ?? [];
-  const cast = buildStableCastLabels({
-    selectedCast,
-    visibility,
-    personaName: opts.personaName,
-    characterName: opts.characterName,
-  });
+  const subjectMap = buildPromptSubjectMap(opts.subjects);
+  const cast = buildCastFromPromptSubjects(subjectMap, visibility.personaVisible);
   const castCount = cast.length;
 
   const panels: ComicPanelSpecBeat[] = opts.plan.panels.map((panel) => {
     const beat = projectComicPanelBeat(opts.plan, panel, visibility);
     const beatRole = resolveBeatRole(format, panel.index, panelCount);
+    const bindingActions = resolveBindingGroundedActions(
+      panel.sourceEventIds,
+      opts.plan,
+      subjectMap,
+      opts.eventSubjectBindings
+    );
+    const subjectActions =
+      bindingActions.length > 0
+        ? bindingActions
+        : resolveGroundedSubjectActions(beat, subjectMap);
+    const sceneAction = resolveSceneActionFallback(beat, subjectActions);
     return {
       index: panel.index,
       beatRole,
       camera: resolveCameraFromBeat(beat, panel.index, panelCount),
       framing: resolveFramingFromBeat(beat),
-      layout: resolveLayout(visibility.personaVisible, castCount),
+      layout: resolveLayoutFromSubjectMap(subjectMap, visibility.personaVisible, castCount),
       situation: beat.situation,
       background: beat.background,
-      personaAction: beat.personaAction,
-      characterAction: beat.characterAction,
+      subjectActions,
+      sceneAction,
       speechBubbles: beat.dialogue.map((line) => ({
-        speakerLabel: speakerLabel(line.speaker),
+        speakerLabel: resolveSpeakerLabel(subjectMap, line.speaker),
         speaker: line.speaker,
         text: line.text,
       })),
@@ -245,9 +327,10 @@ export function compileChatComicPanelSpec(opts: {
     sharedBackground,
     atmosphere: opts.plan.atmosphere,
     cast,
-    continuityRules: resolveContinuityRules(format, castCount),
+    continuityRules: resolveContinuityRules(format, castCount, subjectMap, visibility.personaVisible),
     globalMustAvoid: resolveGlobalMustAvoid(castCount),
     panels,
+    subjectMap,
   };
 }
 
@@ -258,8 +341,10 @@ export function renderChatComicPanelSpecSection(spec: ChatComicPanelSpec): strin
   const panelBlocks = spec.panels
     .map((panel) => {
       const actions = [
-        panel.personaAction ? `A action: ${panel.personaAction}` : "",
-        panel.characterAction ? `B action: ${panel.characterAction}` : "",
+        ...panel.subjectActions.map(
+          (action) => `${action.label} action (${action.name}): ${action.text}`
+        ),
+        panel.sceneAction ? `Scene action: ${panel.sceneAction}` : "",
       ]
         .filter(Boolean)
         .join("\n");
@@ -277,6 +362,7 @@ export function renderChatComicPanelSpecSection(spec: ChatComicPanelSpec): strin
         `Camera: ${panel.camera}`,
         `Framing: ${panel.framing}`,
         `Layout: ${panel.layout}`,
+        panel.situation ? `Situation: ${panel.situation}` : "",
         `Background: ${panel.background}`,
         actions,
         bubbles,
@@ -314,6 +400,8 @@ export function buildChatComicPanelSpecPromptSection(opts: {
   characterName: string;
   visibility?: ScenePresentationVisibility;
   castSelected?: readonly ChatImageCastGroundedSubject[];
+  subjects: readonly ChatImageVisualSubject[];
+  eventSubjectBindings?: readonly SceneEventSubjectBinding[];
 }): string {
   const spec = compileChatComicPanelSpec(opts);
   return renderChatComicPanelSpecSection(spec);
@@ -336,7 +424,7 @@ export function countActionDirectiveDuplicates(spec: ChatComicPanelSpec): number
   const rendered = renderChatComicPanelSpecSection(spec);
   let count = 0;
   for (const line of rendered.split("\n")) {
-    const actionMatch = line.match(/^(A action|B action):\s*(.+)$/);
+    const actionMatch = line.match(/^([A-D]) action \([^)]+\):\s*(.+)$/);
     if (!actionMatch) continue;
     const actionText = actionMatch[2]?.trim() ?? "";
     if (!actionText) continue;

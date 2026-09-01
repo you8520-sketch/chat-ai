@@ -11,6 +11,27 @@ import {
   scenePlanForFixture,
 } from "@/lib/chatComicPanelSpec.fixtures";
 import { formatApprovedScenePlanForComic } from "@/lib/chatImageScenePlan";
+import {
+  bindChatImageReferencePack,
+  buildChatDuoVisualSubjects,
+} from "@/lib/chatImageVisualIdentity";
+
+function duoSubjects(characterName: string, personaName: string) {
+  return bindChatImageReferencePack({
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName,
+      characterGender: "male",
+      characterImageUrl: `/ref/${characterName}`,
+      characterSavedAppearance: "",
+      characterAppearanceMode: "image_only",
+      personaName,
+      personaGender: "female",
+      personaImageUrl: `/ref/${personaName}`,
+      personaSavedAppearance: "",
+      personaAppearanceMode: "image_only",
+    }),
+  }).subjects;
+}
 
 describe("chatComicPanelSpec compiler", () => {
   it("maps panel counts to format ids", () => {
@@ -26,6 +47,7 @@ describe("chatComicPanelSpec compiler", () => {
       plan,
       personaName: fixture.expectedCast.persona,
       characterName: fixture.expectedCast.character,
+      subjects: duoSubjects(fixture.expectedCast.character, fixture.expectedCast.persona),
     });
     const rendered = renderChatComicPanelSpecSection(spec);
 
@@ -37,7 +59,7 @@ describe("chatComicPanelSpec compiler", () => {
     assert.match(rendered, /\[Panel 1 — Opening beat\]/);
     assert.match(rendered, /Camera:/);
     assert.match(rendered, /Layout: A left, B right — maintain stable orientation across panels/);
-    assert.match(rendered, /Speech bubble \(A \/ persona\):/);
+    assert.match(rendered, /Speech bubble \(B \/ persona\):/);
     assert.match(rendered, /SFX: \(none — do not render sound-effect text\)/);
     assert.match(rendered, /Continuity rules:/);
     assert.match(rendered, /Global must avoid:/);
@@ -49,6 +71,7 @@ describe("chatComicPanelSpec compiler", () => {
       plan: scenePlanForFixture(COMIC_PANEL_BENCHMARK_FIXTURES[3]!),
       personaName: "서연",
       characterName: "도윤",
+      subjects: duoSubjects("도윤", "서연"),
     });
     assert.equal(three.panels[2]?.beatRole, "Closing beat");
     assert.match(
@@ -60,6 +83,7 @@ describe("chatComicPanelSpec compiler", () => {
       plan: scenePlanForFixture(COMIC_PANEL_BENCHMARK_FIXTURES[7]!),
       personaName: "한별",
       characterName: "시우",
+      subjects: duoSubjects("시우", "한별"),
     });
     assert.equal(four.panels[3]?.beatRole, "Closing beat");
     assert.match(
@@ -95,6 +119,7 @@ describe("chatComicPanelSpec frozen benchmark A/B", () => {
           plan,
           personaName: fixture.expectedCast.persona,
           characterName: fixture.expectedCast.character,
+          subjects: duoSubjects(fixture.expectedCast.character, fixture.expectedCast.persona),
         })
       );
 

@@ -12,6 +12,7 @@ import {
   isMalformedAttributionText,
 } from "./chatImageScenePlan";
 import { compileChatComicPanelSpec, renderChatComicPanelSpecSection } from "./chatComicPanelSpec";
+import { duoVisualSubjectsForCast } from "./chatComicPanelSpec.fixtures";
 
 const ATTRIBUTION_FIXTURES = [
   {
@@ -160,6 +161,10 @@ function runAttributionFixture(fixture: {
       plan,
       personaName: "렌",
       characterName: "태현",
+      subjects: duoVisualSubjectsForCast({
+        characterName: "태현",
+        personaName: "렌",
+      }),
     })
   );
   const corpus = [
@@ -207,6 +212,10 @@ describe("chatImageAttributionBoundary fixtures", () => {
       plan,
       personaName: "렌",
       characterName: "태현",
+      subjects: duoVisualSubjectsForCast({
+        characterName: "태현",
+        personaName: "렌",
+      }),
     });
     const rendered = renderChatComicPanelSpecSection(spec);
     assert.doesNotMatch(rendered, /^Acting:\s*$/m);

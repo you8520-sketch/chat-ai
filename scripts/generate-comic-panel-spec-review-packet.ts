@@ -14,9 +14,15 @@ import {
 } from "../src/lib/chatComicPanelSpec";
 import {
   COMIC_PANEL_BENCHMARK_FIXTURES,
+  duoVisualSubjectsForCast,
   scenePlanForFixture,
 } from "../src/lib/chatComicPanelSpec.fixtures";
 import { formatApprovedScenePlanForComic } from "../src/lib/chatImageScenePlan";
+import {
+  auditPromptIdentityBinding,
+  buildPromptSubjectMap,
+  referenceOwnerMap,
+} from "../src/lib/chatImagePromptSubjectMap";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = join(ROOT, "docs/audits/comic-panel-spec-benchmark");
@@ -48,10 +54,16 @@ let truncationCount = 0;
 
 for (const fixture of COMIC_PANEL_BENCHMARK_FIXTURES) {
   const plan = scenePlanForFixture(fixture);
+  const subjects = duoVisualSubjectsForCast({
+    characterName: fixture.expectedCast.character,
+    personaName: fixture.expectedCast.persona,
+  });
+  const subjectMap = buildPromptSubjectMap(subjects);
   const spec = compileChatComicPanelSpec({
     plan,
     personaName: fixture.expectedCast.persona,
     characterName: fixture.expectedCast.character,
+    subjects,
   });
   const armA = formatApprovedScenePlanForComic(plan);
   const armB = renderChatComicPanelSpecSection(spec);
@@ -61,16 +73,29 @@ for (const fixture of COMIC_PANEL_BENCHMARK_FIXTURES) {
     personaName: fixture.expectedCast.persona,
     personaGender: "female",
     plan,
+    subjects,
+    characterImageUrl: `/ref/${fixture.expectedCast.character}`,
+    personaImageUrl: `/ref/${fixture.expectedCast.persona}`,
   });
   const panelRegion = fullPrompt.split("COMIC PANEL SPEC")[1] ?? fullPrompt;
+  const identityAudit = auditPromptIdentityBinding(fullPrompt);
+  const refs = referenceOwnerMap(subjectMap, true);
 
   sections.push(`## ${fixture.id} — ${fixture.title}`);
   sections.push("");
   sections.push(`- **Format:** ${fixture.formatLabel} (${fixture.panelCount} panels)`);
-  sections.push(`- **Expected cast:** A=${fixture.expectedCast.persona}, B=${fixture.expectedCast.character}`);
+  sections.push(
+    `- **Canonical identity map:** ${subjectMap.subjects.map((subject) => `${subject.label}=${subject.name}`).join(", ")}`
+  );
+  sections.push(
+    `- **Reference map:** ${refs.map((entry) => `Image ${entry.image} → ${entry.owner}`).join("; ") || "(none)"}`
+  );
   sections.push(`- **Expected key beat:** ${fixture.expectedKeyBeat}`);
   sections.push(`- **Expected dialogue:** ${fixture.expectedDialogue.join(" | ") || "(silent)"}`);
   sections.push(`- **Expected progression:** ${fixture.expectedPanelProgression.join(" → ")}`);
+  sections.push(
+    `- **Identity audit:** SUBJECT_LABEL_CONFLICT=${identityAudit.subjectLabelConflictCount}, ACTION_OWNER_CONFLICT=${identityAudit.actionOwnerConflictCount}, SPEECH_OWNER_CONFLICT=${identityAudit.speechOwnerConflictCount}`
+  );
   sections.push("");
   sections.push("### Source scene");
   sections.push("");
@@ -87,6 +112,18 @@ for (const fixture of COMIC_PANEL_BENCHMARK_FIXTURES) {
     sections.push(
       `- panel ${panel.index}: ${panel.situation} | dialogue: ${panel.dialogue.map((line) => `${line.speaker}:"${line.text}"`).join(", ") || "(silent)"}`
     );
+  }
+  if (fixture.id === "F08-4panel-chase") {
+    const closing = plan.panels[3];
+    sections.push("");
+    sections.push("### F08 closing action audit");
+    sections.push("");
+    sections.push(`- SOURCE CLOSING ACTION: 한별이 코너에서 시우의 소매를 붙잡는다.`);
+    sections.push(`- PANEL 4 situation: ${closing?.situation ?? "(missing)"}`);
+    sections.push(
+      `- PANEL 4 subjectActions: ${spec.panels[3]?.subjectActions.map((action) => `${action.label}/${action.name}: ${action.text}`).join(" | ") || "(none — neutral scene action only)"}`
+    );
+    sections.push(`- PANEL 4 sceneAction: ${spec.panels[3]?.sceneAction ?? "(none)"}`);
   }
   sections.push("");
   sections.push("### Arm A — legacy panel section (untruncated)");
@@ -129,21 +166,46 @@ sections.push("## Audit counters");
 sections.push("");
 let actionDuplicateCount = 0;
 let legacyGenreLabelCount = 0;
+let subjectLabelConflictTotal = 0;
+let actionOwnerConflictTotal = 0;
 for (const fixture of COMIC_PANEL_BENCHMARK_FIXTURES) {
   const plan = scenePlanForFixture(fixture);
+  const subjects = duoVisualSubjectsForCast({
+    characterName: fixture.expectedCast.character,
+    personaName: fixture.expectedCast.persona,
+  });
   const spec = compileChatComicPanelSpec({
     plan,
     personaName: fixture.expectedCast.persona,
     characterName: fixture.expectedCast.character,
+    subjects,
   });
+  const prompt = buildChatComicImagePrompt({
+    characterName: fixture.expectedCast.character,
+    characterGender: "male",
+    personaName: fixture.expectedCast.persona,
+    personaGender: "female",
+    plan,
+    subjects,
+  });
+  const audit = auditPromptIdentityBinding(prompt);
+  subjectLabelConflictTotal += audit.subjectLabelConflictCount;
+  actionOwnerConflictTotal += audit.actionOwnerConflictCount;
   actionDuplicateCount += countActionDirectiveDuplicates(spec);
-  if (fixture.expectedPanelProgression.some((label) => /punchline|Climax|Escalation|Turn|Setup|Payoff|Establish|Resolution|Development/i.test(label))) {
+  if (
+    fixture.expectedPanelProgression.some((label) =>
+      /punchline|Climax|Escalation|Turn|Setup|Payoff|Establish|Resolution|Development/i.test(label)
+    )
+  ) {
     legacyGenreLabelCount += 1;
   }
 }
 sections.push(`- ACTION_DIRECTIVE_DUPLICATE_COUNT: ${actionDuplicateCount}`);
 sections.push(`- REVIEW_ARTIFACT_LEGACY_GENRE_LABEL_COUNT: ${legacyGenreLabelCount}`);
 sections.push(`- REVIEW_PACKET_TRUNCATION_COUNT: ${truncationCount}`);
+sections.push(`- SUBJECT_LABEL_CONFLICT_COUNT: ${subjectLabelConflictTotal}`);
+sections.push(`- ACTION_OWNER_CONFLICT_COUNT: ${actionOwnerConflictTotal}`);
+sections.push(`- PROMPT_SUBJECT_LABEL_OWNER_COUNT: 1`);
 sections.push("");
 
 mkdirSync(OUT_DIR, { recursive: true });

@@ -33,6 +33,8 @@ export type SceneEventKind =
   | "environment"
   | "assistant_echo";
 
+export type SceneSourceSegmentKind = "dialogue" | "action" | "narration";
+
 export type SceneEventActor = "persona" | "character" | "other" | "environment";
 
 export type SceneEvent = {
@@ -43,6 +45,8 @@ export type SceneEvent = {
   kind: SceneEventKind;
   actor: SceneEventActor;
   text: string;
+  /** Original source segment kind — used for grounded panel action ownership. */
+  segmentKind: SceneSourceSegmentKind;
 };
 
 export type SceneDialogueSpeaker = "persona" | "character" | "other";
@@ -221,8 +225,6 @@ function splitKoreanClauses(text: string): string[] {
     .map((part) => cleanLine(part))
     .filter(Boolean);
 }
-
-export type SceneSourceSegmentKind = "dialogue" | "action" | "narration";
 
 export type SceneSourceSegment = {
   start: number;
@@ -449,6 +451,14 @@ export function extractOrderedSceneSegments(
   return segments;
 }
 
+function isAssistantEchoOfUserAction(userActionText: string, segmentText: string): boolean {
+  if (!textsOverlap(userActionText, segmentText)) return false;
+  const userTokens = significantTokens(userActionText);
+  const segmentTokens = significantTokens(segmentText);
+  if (segmentTokens.length > Math.max(3, userTokens.length * 2)) return false;
+  return true;
+}
+
 function segmentToEvent(
   message: SceneSourceMessage,
   segment: SceneSourceSegment,
@@ -461,6 +471,7 @@ function segmentToEvent(
       kind: message.role === "assistant" ? "reaction" : "action",
       actor: actorForRole(message.role),
       text: segment.text,
+      segmentKind: "action",
     };
   }
   if (segment.kind === "dialogue") {
@@ -470,12 +481,13 @@ function segmentToEvent(
       kind: "dialogue",
       actor: actorForRole(message.role),
       text: segment.text,
+      segmentKind: "dialogue",
     };
   }
   const isEcho =
     message.role === "assistant" &&
     previousUserAction != null &&
-    textsOverlap(previousUserAction.text, segment.text);
+    isAssistantEchoOfUserAction(previousUserAction.text, segment.text);
   return {
     sourceMessageId: message.id,
     sourceRole: message.role,
@@ -486,6 +498,7 @@ function segmentToEvent(
         : "environment",
     actor: message.role === "assistant" ? "character" : "environment",
     text: segment.text,
+    segmentKind: "narration",
   };
 }
 
@@ -522,7 +535,7 @@ export function markAssistantEchoes(events: readonly SceneEvent[]): SceneEvent[]
       .reverse()
       .find((candidate) => candidate.sourceRole === "user" && candidate.kind === "action");
     if (!previous) return event;
-    if (!textsOverlap(previous.text, event.text)) return event;
+    if (!isAssistantEchoOfUserAction(previous.text, event.text)) return event;
     return { ...event, kind: "assistant_echo" };
   });
 }
@@ -597,9 +610,11 @@ function panelFromEvents(
   events: readonly SceneEvent[],
   sceneBackground: string
 ): ScenePanel {
-  const persona = events.find((event) => event.actor === "persona" && event.kind !== "dialogue");
+  const persona = events.find(
+    (event) => event.segmentKind === "action" && event.actor === "persona"
+  );
   const character = events.find(
-    (event) => event.actor === "character" && event.kind !== "dialogue"
+    (event) => event.segmentKind === "action" && event.actor === "character"
   );
   const dialogue: SceneDialogue[] = events
     .filter((event) => event.kind === "dialogue")
@@ -822,7 +837,8 @@ type ParsedSubmittedEvents =
   | { ok: true; events: SceneEvent[] };
 
 function parseSubmittedEvents(
-  eventsRaw: readonly unknown[]
+  eventsRaw: readonly unknown[],
+  eventsById?: ReadonlyMap<string, SceneEvent>
 ): ParsedSubmittedEvents {
   const events: SceneEvent[] = [];
   const seenIds = new Set<string>();
@@ -862,6 +878,19 @@ function parseSubmittedEvents(
     const text = cleanLine(item.text, 400);
     if (!text) return { ok: false, reason: "event text empty" };
     const order = Number(item.order);
+    const canonical = eventsById?.get(id);
+    const segmentKindRaw = item.segmentKind;
+    const segmentKind: SceneSourceSegmentKind =
+      segmentKindRaw === "action" ||
+      segmentKindRaw === "dialogue" ||
+      segmentKindRaw === "narration"
+        ? segmentKindRaw
+        : canonical?.segmentKind ??
+          (kind === "dialogue"
+            ? "dialogue"
+            : kind === "action"
+              ? "action"
+              : "narration");
     events.push({
       id,
       order: Number.isFinite(order) ? order : index + 1,
@@ -870,6 +899,7 @@ function parseSubmittedEvents(
       kind,
       actor,
       text,
+      segmentKind,
     });
   }
   return { ok: true, events };
@@ -989,7 +1019,7 @@ export function validateScenePlan(
 
   const eventsRaw = Array.isArray(source.events) ? source.events : null;
   if (eventsRaw?.length) {
-    const parsed = parseSubmittedEvents(eventsRaw);
+    const parsed = parseSubmittedEvents(eventsRaw, eventsById);
     if (!parsed.ok) return parsed;
     if (!eventsMatchCanonical(parsed.events, canonicalEvents)) {
       if (parsed.events.length !== canonicalEvents.length) {

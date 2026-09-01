@@ -1,9 +1,37 @@
+import type { ImagePromptGender } from "@/lib/chatImageGeneration";
 import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
   type ScenePlan,
 } from "@/lib/chatImageScenePlan";
 import { resolveExpectedPanelProgression } from "@/lib/chatComicPanelSpec";
+import {
+  bindChatImageReferencePack,
+  buildChatDuoVisualSubjects,
+  type ChatImageVisualSubject,
+} from "@/lib/chatImageVisualIdentity";
+
+export function duoVisualSubjectsForCast(opts: {
+  characterName: string;
+  personaName: string;
+  characterGender?: ImagePromptGender;
+  personaGender?: ImagePromptGender;
+}): ChatImageVisualSubject[] {
+  return bindChatImageReferencePack({
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender ?? "male",
+      characterImageUrl: `/ref/${opts.characterName}`,
+      characterSavedAppearance: "",
+      characterAppearanceMode: "image_only",
+      personaName: opts.personaName,
+      personaGender: opts.personaGender ?? "female",
+      personaImageUrl: `/ref/${opts.personaName}`,
+      personaSavedAppearance: "",
+      personaAppearanceMode: "image_only",
+    }),
+  }).subjects;
+}
 
 export type ComicPanelBenchmarkFixture = {
   id: string;

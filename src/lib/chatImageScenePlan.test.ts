@@ -354,6 +354,7 @@ describe("chatImageScenePlan source grounding", () => {
         kind: "action",
         actor: "persona",
         text: "칼을 꺼낸다",
+        segmentKind: "action",
       },
     ]);
     const validated = validateScenePlan(forged, messages);
@@ -376,6 +377,7 @@ describe("chatImageScenePlan source grounding", () => {
         kind: "reaction",
         actor: "character",
         text: "태형이 렌을 끌어안는다.",
+        segmentKind: "narration",
       },
     ]);
     const validated = validateScenePlan(forged, messages);

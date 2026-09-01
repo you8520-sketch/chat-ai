@@ -14,10 +14,12 @@ Scores are **PENDING** — for GPT/human review only.
 ## F01-2panel-invite — 후드 귀 초대
 
 - **Format:** 2panel (2 panels)
-- **Expected cast:** A=렌, B=태형
+- **Canonical identity map:** A=태형, B=렌
+- **Reference map:** Image 1 → 태형; Image 2 → 렌
 - **Expected key beat:** 후드를 만지며 같이 가자고 묻는다
 - **Expected dialogue:** 같이 갈래? | 그래.
 - **Expected progression:** Opening beat → Closing beat
+- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
 
 ### Source scene
 
@@ -51,7 +53,6 @@ Exact Korean text: persona: “같이 갈래?”
 PANEL 2
 Situation: 렌이 후드를 만지자 태형이 고개를 돌렸다.
 Background:
-Character action: 렌이 후드를 만지자 태형이 고개를 돌렸다.
 Exact Korean text: character: “그래.”
 ```
 
@@ -72,16 +73,17 @@ Shared background:
 
 Cast:
 
-A = persona (렌)
-B = character (태형)
+A = chat character (태형)
+B = user persona (렌)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 후드 귀를 만진다
 Background:
-A action: 후드 귀를 만진다
-Speech bubble (A / persona): “같이 갈래?”
+B action (렌): 후드 귀를 만진다
+Speech bubble (B / persona): “같이 갈래?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -89,15 +91,16 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 렌이 후드를 만지자 태형이 고개를 돌렸다.
 Background:
-B action: 렌이 후드를 만지자 태형이 고개를 돌렸다.
-Speech bubble (B / character): “그래.”
+Scene action: 렌이 후드를 만지자 태형이 고개를 돌렸다.
+Speech bubble (A / character): “그래.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -130,7 +133,7 @@ Ignore the sample people drawn on reference image 1. Do not copy their gender pr
 SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 
 [SUBJECT A — CHAT CHARACTER: 태형]
-Reference: Image 2 belongs ONLY to 태형.
+Reference: Image 1 belongs ONLY to 태형.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -138,7 +141,7 @@ Identity ownership: every trait in this block belongs only to 태형.
 Never infer SUBJECT A's identity from any other subject.
 
 [SUBJECT B — USER PERSONA: 렌]
-Reference: Image 3 belongs ONLY to 렌.
+Reference: Image 2 belongs ONLY to 렌.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -195,16 +198,17 @@ Shared background:
 
 Cast:
 
-A = persona (렌)
-B = character (태형)
+A = chat character (태형)
+B = user persona (렌)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 후드 귀를 만진다
 Background:
-A action: 후드 귀를 만진다
-Speech bubble (A / persona): “같이 갈래?”
+B action (렌): 후드 귀를 만진다
+Speech bubble (B / persona): “같이 갈래?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -212,15 +216,16 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 렌이 후드를 만지자 태형이 고개를 돌렸다.
 Background:
-B action: 렌이 후드를 만지자 태형이 고개를 돌렸다.
-Speech bubble (B / character): “그래.”
+Scene action: 렌이 후드를 만지자 태형이 고개를 돌렸다.
+Speech bubble (A / character): “그래.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -252,10 +257,12 @@ Global must avoid:
 ## F02-2panel-door — 문 열기
 
 - **Format:** 2panel (2 panels)
-- **Expected cast:** A=유저, B=민수
+- **Canonical identity map:** A=민수, B=유저
+- **Reference map:** Image 1 → 민수; Image 2 → 유저
 - **Expected key beat:** 조용히 문을 연다
 - **Expected dialogue:** (silent)
 - **Expected progression:** Opening beat → Closing beat
+- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
 
 ### Source scene
 
@@ -288,7 +295,6 @@ Exact Korean text: No speech bubble
 PANEL 2
 Situation: 민수가 조용히 따라 나선다.
 Background:
-Character action: 민수가 조용히 따라 나선다.
 Exact Korean text: No speech bubble
 ```
 
@@ -309,15 +315,16 @@ Shared background:
 
 Cast:
 
-A = persona (유저)
-B = character (민수)
+A = chat character (민수)
+B = user persona (유저)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 문을 연다
 Background:
-A action: 문을 연다
+B action (유저): 문을 연다
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -326,15 +333,16 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 민수가 조용히 따라 나선다.
 Background:
-B action: 민수가 조용히 따라 나선다.
+Scene action: 민수가 조용히 따라 나선다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -372,15 +380,16 @@ Shared background:
 
 Cast:
 
-A = persona (유저)
-B = character (민수)
+A = chat character (민수)
+B = user persona (유저)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 문을 연다
 Background:
-A action: 문을 연다
+B action (유저): 문을 연다
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -389,15 +398,16 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 민수가 조용히 따라 나선다.
 Background:
-B action: 민수가 조용히 따라 나선다.
+Scene action: 민수가 조용히 따라 나선다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -429,10 +439,12 @@ Global must avoid:
 ## F03-2panel-surprise — 깜짝 선물
 
 - **Format:** 2panel (2 panels)
-- **Expected cast:** A=하린, B=지훈
+- **Canonical identity map:** A=지훈, B=하린
+- **Reference map:** Image 1 → 지훈; Image 2 → 하린
 - **Expected key beat:** 상자를 내밀며 깜짝 선물
 - **Expected dialogue:** 선물이야! | 진짜?
 - **Expected progression:** Opening beat → Closing beat
+- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
 
 ### Source scene
 
@@ -466,7 +478,6 @@ Exact Korean text: persona: “선물이야!”
 PANEL 2
 Situation: 지훈이 눈을 크게 뜨며
 Background:
-Character action: 지훈이 눈을 크게 뜨며
 Exact Korean text: character: “진짜?”
 ```
 
@@ -487,16 +498,17 @@ Shared background:
 
 Cast:
 
-A = persona (하린)
-B = character (지훈)
+A = chat character (지훈)
+B = user persona (하린)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 작은 상자를 내민다
 Background:
-A action: 작은 상자를 내민다
-Speech bubble (A / persona): “선물이야!”
+B action (하린): 작은 상자를 내민다
+Speech bubble (B / persona): “선물이야!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -504,15 +516,16 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 지훈이 눈을 크게 뜨며
 Background:
-B action: 지훈이 눈을 크게 뜨며
-Speech bubble (B / character): “진짜?”
+Scene action: 지훈이 눈을 크게 뜨며
+Speech bubble (A / character): “진짜?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -550,16 +563,17 @@ Shared background:
 
 Cast:
 
-A = persona (하린)
-B = character (지훈)
+A = chat character (지훈)
+B = user persona (하린)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 작은 상자를 내민다
 Background:
-A action: 작은 상자를 내민다
-Speech bubble (A / persona): “선물이야!”
+B action (하린): 작은 상자를 내민다
+Speech bubble (B / persona): “선물이야!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -567,15 +581,16 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 지훈이 눈을 크게 뜨며
 Background:
-B action: 지훈이 눈을 크게 뜨며
-Speech bubble (B / character): “진짜?”
+Scene action: 지훈이 눈을 크게 뜨며
+Speech bubble (A / character): “진짜?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -607,10 +622,12 @@ Global must avoid:
 ## F04-3koma-rain — 비 오는 날 우산
 
 - **Format:** 3koma (3 panels)
-- **Expected cast:** A=서연, B=도윤
+- **Canonical identity map:** A=도윤, B=서연
+- **Reference map:** Image 1 → 도윤; Image 2 → 서연
 - **Expected key beat:** 우산을 건네며 함께 걷자
 - **Expected dialogue:** 같이 갈래? | …고마워.
 - **Expected progression:** Opening beat → Middle beat → Closing beat
+- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
 
 ### Source scene
 
@@ -628,7 +645,7 @@ Global must avoid:
 - panelCount: 3
 - panel 1: 우산을 든다 | dialogue: persona:"같이 갈래?"
 - panel 2: 도윤이 잠시 망설이며 시선을 피한다. | dialogue: (silent)
-- panel 3:  | dialogue: character:"…고마워."
+- panel 3: 서연이 우산을 더 가까이 건넨다. 도윤이 작게 | dialogue: character:"…고마워."
 
 ### Arm A — legacy panel section (untruncated)
 
@@ -646,11 +663,10 @@ Exact Korean text: persona: “같이 갈래?”
 PANEL 2
 Situation: 도윤이 잠시 망설이며 시선을 피한다.
 Background:
-Character action: 도윤이 잠시 망설이며
 Exact Korean text: No speech bubble
 
 PANEL 3
-Situation:
+Situation: 서연이 우산을 더 가까이 건넨다. 도윤이 작게
 Background:
 Exact Korean text: character: “…고마워.”
 ```
@@ -672,16 +688,17 @@ Shared background:
 
 Cast:
 
-A = persona (서연)
-B = character (도윤)
+A = chat character (도윤)
+B = user persona (서연)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 우산을 든다
 Background:
-A action: 우산을 든다
-Speech bubble (A / persona): “같이 갈래?”
+B action (서연): 우산을 든다
+Speech bubble (B / persona): “같이 갈래?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -689,8 +706,9 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 도윤이 잠시 망설이며 시선을 피한다.
 Background:
-B action: 도윤이 잠시 망설이며
+Scene action: 도윤이 잠시 망설이며 시선을 피한다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -699,14 +717,16 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 서연이 우산을 더 가까이 건넨다. 도윤이 작게
 Background:
-Speech bubble (B / character): “…고마워.”
+Scene action: 서연이 우산을 더 가까이 건넨다. 도윤이 작게
+Speech bubble (A / character): “…고마워.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -739,7 +759,7 @@ Ignore the sample people drawn on reference image 1. Do not copy their gender pr
 SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 
 [SUBJECT A — CHAT CHARACTER: 도윤]
-Reference: Image 2 belongs ONLY to 도윤.
+Reference: Image 1 belongs ONLY to 도윤.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -747,7 +767,7 @@ Identity ownership: every trait in this block belongs only to 도윤.
 Never infer SUBJECT A's identity from any other subject.
 
 [SUBJECT B — USER PERSONA: 서연]
-Reference: Image 3 belongs ONLY to 서연.
+Reference: Image 2 belongs ONLY to 서연.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -804,16 +824,17 @@ Shared background:
 
 Cast:
 
-A = persona (서연)
-B = character (도윤)
+A = chat character (도윤)
+B = user persona (서연)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 우산을 든다
 Background:
-A action: 우산을 든다
-Speech bubble (A / persona): “같이 갈래?”
+B action (서연): 우산을 든다
+Speech bubble (B / persona): “같이 갈래?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -821,8 +842,9 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 도윤이 잠시 망설이며 시선을 피한다.
 Background:
-B action: 도윤이 잠시 망설이며
+Scene action: 도윤이 잠시 망설이며 시선을 피한다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -831,14 +853,16 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 서연이 우산을 더 가까이 건넨다. 도윤이 작게
 Background:
-Speech bubble (B / character): “…고마워.”
+Scene action: 서연이 우산을 더 가까이 건넨다. 도윤이 작게
+Speech bubble (A / character): “…고마워.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -870,10 +894,12 @@ Global must avoid:
 ## F05-3koma-cafe — 카페 주문 실수
 
 - **Format:** 3koma (3 panels)
-- **Expected cast:** A=민지, B=현우
+- **Canonical identity map:** A=현우, B=민지
+- **Reference map:** Image 1 → 현우; Image 2 → 민지
 - **Expected key beat:** 음료를 잘못 받아 당황
 - **Expected dialogue:** 이거 내 주문 아닌데? | 아, 미안!
 - **Expected progression:** Opening beat → Middle beat → Closing beat
+- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
 
 ### Source scene
 
@@ -908,7 +934,6 @@ Exact Korean text: persona: “이거 내 주문 아닌데?”
 PANEL 2
 Situation: 현우가 황급히 돌아서며
 Background:
-Character action: 현우가 황급히 돌아서며
 Exact Korean text: No speech bubble
 
 PANEL 3
@@ -934,16 +959,17 @@ Shared background:
 
 Cast:
 
-A = persona (민지)
-B = character (현우)
+A = chat character (현우)
+B = user persona (민지)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 카운터에서 음료를 받는다
 Background:
-A action: 카운터에서 음료를 받는다
-Speech bubble (A / persona): “이거 내 주문 아닌데?”
+B action (민지): 카운터에서 음료를 받는다
+Speech bubble (B / persona): “이거 내 주문 아닌데?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -951,8 +977,9 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 현우가 황급히 돌아서며
 Background:
-B action: 현우가 황급히 돌아서며
+Scene action: 현우가 황급히 돌아서며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -962,13 +989,13 @@ Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (B / character): “아, 미안!”
+Speech bubble (A / character): “아, 미안!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -1006,16 +1033,17 @@ Shared background:
 
 Cast:
 
-A = persona (민지)
-B = character (현우)
+A = chat character (현우)
+B = user persona (민지)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 카운터에서 음료를 받는다
 Background:
-A action: 카운터에서 음료를 받는다
-Speech bubble (A / persona): “이거 내 주문 아닌데?”
+B action (민지): 카운터에서 음료를 받는다
+Speech bubble (B / persona): “이거 내 주문 아닌데?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -1023,8 +1051,9 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 현우가 황급히 돌아서며
 Background:
-B action: 현우가 황급히 돌아서며
+Scene action: 현우가 황급히 돌아서며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1034,13 +1063,13 @@ Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (B / character): “아, 미안!”
+Speech bubble (A / character): “아, 미안!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -1072,10 +1101,12 @@ Global must avoid:
 ## F06-3koma-study — 공부 격려
 
 - **Format:** 3koma (3 panels)
-- **Expected cast:** A=예린, B=준호
+- **Canonical identity map:** A=준호, B=예린
+- **Reference map:** Image 1 → 준호; Image 2 → 예린
 - **Expected key beat:** 졸린 준호를 붙잡고 격려
 - **Expected dialogue:** 조금만 더! | 알겠어…
 - **Expected progression:** Opening beat → Middle beat → Closing beat
+- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
 
 ### Source scene
 
@@ -1106,13 +1137,11 @@ PANEL 1
 Situation: 준호가 책상에 엎드려 눈을 감는다. 어깨를 흔든다
 Background:
 Persona action: 어깨를 흔든다
-Character action: 준호가 책상에 엎드려 눈을 감는다.
 Exact Korean text: No speech bubble
 
 PANEL 2
 Situation: 준호가 고개를 들고
 Background:
-Character action: 준호가 고개를 들고
 Exact Korean text: persona: “조금만 더!”
 
 PANEL 3
@@ -1138,16 +1167,16 @@ Shared background:
 
 Cast:
 
-A = persona (예린)
-B = character (준호)
+A = chat character (준호)
+B = user persona (예린)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 준호가 책상에 엎드려 눈을 감는다. 어깨를 흔든다
 Background:
-A action: 어깨를 흔든다
-B action: 준호가 책상에 엎드려 눈을 감는다.
+B action (예린): 어깨를 흔든다
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1156,9 +1185,10 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 준호가 고개를 들고
 Background:
-B action: 준호가 고개를 들고
-Speech bubble (A / persona): “조금만 더!”
+Scene action: 준호가 고개를 들고
+Speech bubble (B / persona): “조금만 더!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -1167,13 +1197,13 @@ Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (B / character): “알겠어…”
+Speech bubble (A / character): “알겠어…”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -1211,16 +1241,16 @@ Shared background:
 
 Cast:
 
-A = persona (예린)
-B = character (준호)
+A = chat character (준호)
+B = user persona (예린)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 준호가 책상에 엎드려 눈을 감는다. 어깨를 흔든다
 Background:
-A action: 어깨를 흔든다
-B action: 준호가 책상에 엎드려 눈을 감는다.
+B action (예린): 어깨를 흔든다
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1229,9 +1259,10 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 준호가 고개를 들고
 Background:
-B action: 준호가 고개를 들고
-Speech bubble (A / persona): “조금만 더!”
+Scene action: 준호가 고개를 들고
+Speech bubble (B / persona): “조금만 더!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -1240,13 +1271,13 @@ Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (B / character): “알겠어…”
+Speech bubble (A / character): “알겠어…”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -1278,10 +1309,12 @@ Global must avoid:
 ## F07-3koma-lost — 길 잃음
 
 - **Format:** 3koma (3 panels)
-- **Expected cast:** A=지아, B=태민
+- **Canonical identity map:** A=태민, B=지아
+- **Reference map:** Image 1 → 태민; Image 2 → 지아
 - **Expected key beat:** 지도를 펼치며 길을 찾는다
 - **Expected dialogue:** 여기 맞아? | …아마도.
 - **Expected progression:** Opening beat → Middle beat → Closing beat
+- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
 
 ### Source scene
 
@@ -1316,7 +1349,6 @@ Exact Korean text: persona: “여기 맞아?”
 PANEL 2
 Situation: 태민이 지도를 보며
 Background:
-Character action: 태민이 지도를 보며
 Exact Korean text: No speech bubble
 
 PANEL 3
@@ -1342,16 +1374,17 @@ Shared background:
 
 Cast:
 
-A = persona (지아)
-B = character (태민)
+A = chat character (태민)
+B = user persona (지아)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 지도를 펼친다
 Background:
-A action: 지도를 펼친다
-Speech bubble (A / persona): “여기 맞아?”
+B action (지아): 지도를 펼친다
+Speech bubble (B / persona): “여기 맞아?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -1359,8 +1392,9 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 태민이 지도를 보며
 Background:
-B action: 태민이 지도를 보며
+Scene action: 태민이 지도를 보며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1370,13 +1404,13 @@ Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (B / character): “…아마도.”
+Speech bubble (A / character): “…아마도.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -1414,16 +1448,17 @@ Shared background:
 
 Cast:
 
-A = persona (지아)
-B = character (태민)
+A = chat character (태민)
+B = user persona (지아)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 지도를 펼친다
 Background:
-A action: 지도를 펼친다
-Speech bubble (A / persona): “여기 맞아?”
+B action (지아): 지도를 펼친다
+Speech bubble (B / persona): “여기 맞아?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -1431,8 +1466,9 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 태민이 지도를 보며
 Background:
-B action: 태민이 지도를 보며
+Scene action: 태민이 지도를 보며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1442,13 +1478,13 @@ Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (B / character): “…아마도.”
+Speech bubble (A / character): “…아마도.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -1480,10 +1516,12 @@ Global must avoid:
 ## F08-4panel-chase — 복도 추격
 
 - **Format:** 4panel (4 panels)
-- **Expected cast:** A=한별, B=시우
+- **Canonical identity map:** A=시우, B=한별
+- **Reference map:** Image 1 → 시우; Image 2 → 한별
 - **Expected key beat:** 복도에서 뛰어가며 붙잡기
 - **Expected dialogue:** 잠깐! | 안 잡혀!
 - **Expected progression:** Opening beat → Beat 2 → Beat 3 → Closing beat
+- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
 
 ### Source scene
 
@@ -1505,6 +1543,13 @@ Global must avoid:
 - panel 3: 시우가 돌아보며 | dialogue: character:"안 잡혀!"
 - panel 4: 한별이 코너에서 시우의 소매를 붙잡는다. | dialogue: (silent)
 
+### F08 closing action audit
+
+- SOURCE CLOSING ACTION: 한별이 코너에서 시우의 소매를 붙잡는다.
+- PANEL 4 situation: 한별이 코너에서 시우의 소매를 붙잡는다.
+- PANEL 4 subjectActions: (none — neutral scene action only)
+- PANEL 4 sceneAction: 한별이 코너에서 시우의 소매를 붙잡는다.
+
 ### Arm A — legacy panel section (untruncated)
 
 ```text
@@ -1515,7 +1560,6 @@ Panel count: 4
 PANEL 1
 Situation: 시우가 복도 끝에서 갑자기 뛰기 시작한다.
 Background:
-Character action: 시우가 복도 끝에서
 Exact Korean text: No speech bubble
 
 PANEL 2
@@ -1527,13 +1571,11 @@ Exact Korean text: persona: “잠깐!”
 PANEL 3
 Situation: 시우가 돌아보며
 Background:
-Character action: 시우가 돌아보며
 Exact Korean text: character: “안 잡혀!”
 
 PANEL 4
 Situation: 한별이 코너에서 시우의 소매를 붙잡는다.
 Background:
-Character action: 한별이 코너에서
 Exact Korean text: No speech bubble
 ```
 
@@ -1554,15 +1596,16 @@ Shared background:
 
 Cast:
 
-A = persona (한별)
-B = character (시우)
+A = chat character (시우)
+B = user persona (한별)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 시우가 복도 끝에서 갑자기 뛰기 시작한다.
 Background:
-B action: 시우가 복도 끝에서
+Scene action: 시우가 복도 끝에서 갑자기 뛰기 시작한다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1571,9 +1614,10 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 뒤쫓으며 외친다
 Background:
-A action: 뒤쫓으며 외친다
-Speech bubble (A / persona): “잠깐!”
+B action (한별): 뒤쫓으며 외친다
+Speech bubble (B / persona): “잠깐!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -1581,9 +1625,10 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 시우가 돌아보며
 Background:
-B action: 시우가 돌아보며
-Speech bubble (B / character): “안 잡혀!”
+Scene action: 시우가 돌아보며
+Speech bubble (A / character): “안 잡혀!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -1591,15 +1636,16 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 한별이 코너에서 시우의 소매를 붙잡는다.
 Background:
-B action: 한별이 코너에서
+Scene action: 한별이 코너에서 시우의 소매를 붙잡는다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -1632,7 +1678,7 @@ Ignore the sample people drawn on reference image 1. Do not copy their gender pr
 SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 
 [SUBJECT A — CHAT CHARACTER: 시우]
-Reference: Image 2 belongs ONLY to 시우.
+Reference: Image 1 belongs ONLY to 시우.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -1640,7 +1686,7 @@ Identity ownership: every trait in this block belongs only to 시우.
 Never infer SUBJECT A's identity from any other subject.
 
 [SUBJECT B — USER PERSONA: 한별]
-Reference: Image 3 belongs ONLY to 한별.
+Reference: Image 2 belongs ONLY to 한별.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -1697,15 +1743,16 @@ Shared background:
 
 Cast:
 
-A = persona (한별)
-B = character (시우)
+A = chat character (시우)
+B = user persona (한별)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 시우가 복도 끝에서 갑자기 뛰기 시작한다.
 Background:
-B action: 시우가 복도 끝에서
+Scene action: 시우가 복도 끝에서 갑자기 뛰기 시작한다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1714,9 +1761,10 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 뒤쫓으며 외친다
 Background:
-A action: 뒤쫓으며 외친다
-Speech bubble (A / persona): “잠깐!”
+B action (한별): 뒤쫓으며 외친다
+Speech bubble (B / persona): “잠깐!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -1724,9 +1772,10 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 시우가 돌아보며
 Background:
-B action: 시우가 돌아보며
-Speech bubble (B / character): “안 잡혀!”
+Scene action: 시우가 돌아보며
+Speech bubble (A / character): “안 잡혀!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -1734,15 +1783,16 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 한별이 코너에서 시우의 소매를 붙잡는다.
 Background:
-B action: 한별이 코너에서
+Scene action: 한별이 코너에서 시우의 소매를 붙잡는다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -1774,10 +1824,12 @@ Global must avoid:
 ## F09-4panel-cooking — 요리 실패
 
 - **Format:** 4panel (4 panels)
-- **Expected cast:** A=수아, B=건
+- **Canonical identity map:** A=건, B=수아
+- **Reference map:** Image 1 → 건; Image 2 → 수아
 - **Expected key beat:** 타버린 요리를 발견
 - **Expected dialogue:** 이게 뭐야… | 내 탓이야.
 - **Expected progression:** Opening beat → Beat 2 → Beat 3 → Closing beat
+- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
 
 ### Source scene
 
@@ -1808,7 +1860,6 @@ Panel count: 4
 PANEL 1
 Situation: 건이 냄비 뚜껑을 연다. 검은 연기가 피어오른다.
 Background:
-Character action: 건이 냄비 뚜껑을 연다.
 Exact Korean text: No speech bubble
 
 PANEL 2
@@ -1819,7 +1870,6 @@ Exact Korean text: persona: “이게 뭐야…”
 PANEL 3
 Situation: 건이 고개를 숙이며
 Background:
-Character action: 건이 고개를 숙이며
 Exact Korean text: No speech bubble
 
 PANEL 4
@@ -1845,15 +1895,16 @@ Shared background:
 
 Cast:
 
-A = persona (수아)
-B = character (건)
+A = chat character (건)
+B = user persona (수아)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 건이 냄비 뚜껑을 연다. 검은 연기가 피어오른다.
 Background:
-B action: 건이 냄비 뚜껑을 연다.
+Scene action: 건이 냄비 뚜껑을 연다. 검은 연기가 피어오른다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1863,7 +1914,7 @@ Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (A / persona): “이게 뭐야…”
+Speech bubble (B / persona): “이게 뭐야…”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -1871,8 +1922,9 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 건이 고개를 숙이며
 Background:
-B action: 건이 고개를 숙이며
+Scene action: 건이 고개를 숙이며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1882,13 +1934,13 @@ Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (B / character): “내 탓이야.”
+Speech bubble (A / character): “내 탓이야.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -1926,15 +1978,16 @@ Shared background:
 
 Cast:
 
-A = persona (수아)
-B = character (건)
+A = chat character (건)
+B = user persona (수아)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 건이 냄비 뚜껑을 연다. 검은 연기가 피어오른다.
 Background:
-B action: 건이 냄비 뚜껑을 연다.
+Scene action: 건이 냄비 뚜껑을 연다. 검은 연기가 피어오른다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1944,7 +1997,7 @@ Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (A / persona): “이게 뭐야…”
+Speech bubble (B / persona): “이게 뭐야…”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -1952,8 +2005,9 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 건이 고개를 숙이며
 Background:
-B action: 건이 고개를 숙이며
+Scene action: 건이 고개를 숙이며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1963,13 +2017,13 @@ Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (B / character): “내 탓이야.”
+Speech bubble (A / character): “내 탓이야.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -2001,10 +2055,12 @@ Global must avoid:
 ## F10-4panel-confession — 고백 직전
 
 - **Format:** 4panel (4 panels)
-- **Expected cast:** A=유나, B=재혁
+- **Canonical identity map:** A=재혁, B=유나
+- **Reference map:** Image 1 → 재혁; Image 2 → 유나
 - **Expected key beat:** 손을 잡고 고백
 - **Expected dialogue:** 할 말이 있어. | …들을게.
 - **Expected progression:** Opening beat → Beat 2 → Beat 3 → Closing beat
+- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
 
 ### Source scene
 
@@ -2036,7 +2092,6 @@ PANEL 1
 Situation: 재혁이 노을진 다리 위에 선다. 손을 잡는다
 Background:
 Persona action: 손을 잡는다
-Character action: 재혁이 노을진 다리 위에 선다.
 Exact Korean text: No speech bubble
 
 PANEL 2
@@ -2047,7 +2102,6 @@ Exact Korean text: persona: “할 말이 있어.”
 PANEL 3
 Situation: 재혁이 숨을 고르며
 Background:
-Character action: 재혁이 숨을 고르며
 Exact Korean text: No speech bubble
 
 PANEL 4
@@ -2073,16 +2127,16 @@ Shared background:
 
 Cast:
 
-A = persona (유나)
-B = character (재혁)
+A = chat character (재혁)
+B = user persona (유나)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 재혁이 노을진 다리 위에 선다. 손을 잡는다
 Background:
-A action: 손을 잡는다
-B action: 재혁이 노을진 다리 위에 선다.
+B action (유나): 손을 잡는다
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -2092,7 +2146,7 @@ Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (A / persona): “할 말이 있어.”
+Speech bubble (B / persona): “할 말이 있어.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -2100,8 +2154,9 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 재혁이 숨을 고르며
 Background:
-B action: 재혁이 숨을 고르며
+Scene action: 재혁이 숨을 고르며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -2111,13 +2166,13 @@ Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (B / character): “…들을게.”
+Speech bubble (A / character): “…들을게.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -2155,16 +2210,16 @@ Shared background:
 
 Cast:
 
-A = persona (유나)
-B = character (재혁)
+A = chat character (재혁)
+B = user persona (유나)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 재혁이 노을진 다리 위에 선다. 손을 잡는다
 Background:
-A action: 손을 잡는다
-B action: 재혁이 노을진 다리 위에 선다.
+B action (유나): 손을 잡는다
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -2174,7 +2229,7 @@ Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (A / persona): “할 말이 있어.”
+Speech bubble (B / persona): “할 말이 있어.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
@@ -2182,8 +2237,9 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 재혁이 숨을 고르며
 Background:
-B action: 재혁이 숨을 고르며
+Scene action: 재혁이 숨을 고르며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -2193,13 +2249,13 @@ Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (B / character): “…들을게.”
+Speech bubble (A / character): “…들을게.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -2233,3 +2289,6 @@ Global must avoid:
 - ACTION_DIRECTIVE_DUPLICATE_COUNT: 0
 - REVIEW_ARTIFACT_LEGACY_GENRE_LABEL_COUNT: 0
 - REVIEW_PACKET_TRUNCATION_COUNT: 0
+- SUBJECT_LABEL_CONFLICT_COUNT: 0
+- ACTION_OWNER_CONFLICT_COUNT: 0
+- PROMPT_SUBJECT_LABEL_OWNER_COUNT: 1

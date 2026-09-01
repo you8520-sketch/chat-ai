@@ -2,7 +2,7 @@ import {
   compileChatComicPanelSpec,
   renderChatComicPanelSpecSection,
 } from "@/lib/chatComicPanelSpec";
-import { COMIC_PANEL_BENCHMARK_FIXTURES, scenePlanForFixture } from "@/lib/chatComicPanelSpec.fixtures";
+import { COMIC_PANEL_BENCHMARK_FIXTURES, duoVisualSubjectsForCast, scenePlanForFixture } from "@/lib/chatComicPanelSpec.fixtures";
 import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
@@ -47,6 +47,10 @@ export function collectMalformedAttributionFields(
     plan,
     personaName: opts.personaName,
     characterName: opts.characterName,
+    subjects: duoVisualSubjectsForCast({
+      characterName: opts.characterName,
+      personaName: opts.personaName,
+    }),
   });
   for (const panel of spec.panels) {
     for (const bubble of panel.speechBubbles) {
@@ -55,12 +59,12 @@ export function collectMalformedAttributionFields(
   }
   const rendered = renderChatComicPanelSpecSection(spec);
   for (const line of rendered.split("\n")) {
-    const actionMatch = line.match(/^A action:\s*(.+)$/);
-    const bActionMatch = line.match(/^B action:\s*(.+)$/);
+    const actionMatch = line.match(/^[A-D] action \([^)]+\):\s*(.+)$/);
+    const sceneActionMatch = line.match(/^Scene action:\s*(.+)$/);
     const actingMatch = line.match(/^Acting:\s*(.+)$/);
     const expressionsMatch = line.match(/^Expressions:\s*(.+)$/);
-    if (actionMatch) pushIfMalformed("compiler.AAction", actionMatch[1]);
-    if (bActionMatch) pushIfMalformed("compiler.BAction", bActionMatch[1]);
+    if (actionMatch) pushIfMalformed("compiler.subjectAction", actionMatch[1]);
+    if (sceneActionMatch) pushIfMalformed("compiler.sceneAction", sceneActionMatch[1]);
     if (actingMatch) pushIfMalformed("compiler.Acting", actingMatch[1]);
     if (expressionsMatch) pushIfMalformed("compiler.Expressions", expressionsMatch[1]);
   }
@@ -77,6 +81,10 @@ export function countFakeAttributionBubbles(plan: ScenePlan, opts: {
     plan,
     personaName: opts.personaName,
     characterName: opts.characterName,
+    subjects: duoVisualSubjectsForCast({
+      characterName: opts.characterName,
+      personaName: opts.personaName,
+    }),
   });
   let count = 0;
   for (const panel of spec.panels) {

@@ -1,7 +1,7 @@
 # LD Image Normalization — REVIEW PACKET
 
-**CURRENT_MAIN_SHA:** `80140cf8afc59de38d849eb9323e7ccdf32ea3fb`
-**GENERATED_FROM_SOURCE_SHA:** `5434fcf32511dd6494b99bb04eb4b047fc1f2b52`
+**CURRENT_MAIN_SHA:** `a950e47ca5b456247bc35be195dd0cf7eef763ab`
+**GENERATED_FROM_SOURCE_SHA:** `9f8b0bf07d495e2558fb24e828ac99146f77c1cd`
 **PR_NUMBER:** 808
 
 ## Flagship fixture
@@ -20,6 +20,7 @@
     "kind": "reaction",
     "actor": "character",
     "text": "태현이 렌의 손목을 붙잡고",
+    "segmentKind": "narration",
     "id": "E1",
     "order": 1
   },
@@ -29,6 +30,7 @@
     "kind": "dialogue",
     "actor": "character",
     "text": "가지 마.",
+    "segmentKind": "dialogue",
     "id": "E2",
     "order": 2
   }
@@ -76,15 +78,16 @@ Shared background:
 
 Cast:
 
-A = persona (렌)
-B = character (태형)
+A = chat character (태형)
+B = user persona (렌)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 태현이 렌의 손목을 붙잡고
 Background:
-B action: 태현이 렌의 손목을 붙잡고
+Scene action: 태현이 렌의 손목을 붙잡고
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -94,13 +97,13 @@ Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (B / character): “가지 마.”
+Speech bubble (A / character): “가지 마.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
@@ -130,7 +133,6 @@ Panel count: 2
 PANEL 1
 Situation: 태현이 렌의 손목을 붙잡고
 Background:
-Character action: 태현이 렌의 손목을 붙잡고
 Exact Korean text: No speech bubble
 
 PANEL 2
@@ -150,7 +152,7 @@ Ignore the sample people drawn on reference image 1. Do not copy their gender pr
 SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 
 [SUBJECT A — CHAT CHARACTER: 태형]
-Reference: Image 2 belongs ONLY to 태형.
+Reference: Image 1 belongs ONLY to 태형.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -158,7 +160,7 @@ Identity ownership: every trait in this block belongs only to 태형.
 Never infer SUBJECT A's identity from any other subject.
 
 [SUBJECT B — USER PERSONA: 렌]
-Reference: Image 3 belongs ONLY to 렌.
+Reference: Image 2 belongs ONLY to 렌.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -214,15 +216,16 @@ Shared background:
 
 Cast:
 
-A = persona (렌)
-B = character (태형)
+A = chat character (태형)
+B = user persona (렌)
 
 [Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
+Situation: 태현이 렌의 손목을 붙잡고
 Background:
-B action: 태현이 렌의 손목을 붙잡고
+Scene action: 태현이 렌의 손목을 붙잡고
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -232,13 +235,13 @@ Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Speech bubble (B / character): “가지 마.”
+Speech bubble (A / character): “가지 마.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+- Keep A, B as the same identities throughout — hair, outfit, and face must not swap.
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 

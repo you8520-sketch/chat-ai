@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { auditComicDialogueWhitelist, buildChatComicImagePrompt } from "./chatComicGeneration";
 import { compileChatComicPanelSpec } from "./chatComicPanelSpec";
+import { duoVisualSubjectsForCast } from "./chatComicPanelSpec.fixtures";
 import {
   addPanelDialogueLine,
   buildDeterministicScenePlan,
@@ -22,6 +23,10 @@ function bubbleTexts(plan: ScenePlan): string[] {
     plan,
     personaName: PERSONA,
     characterName: CHARACTER,
+    subjects: duoVisualSubjectsForCast({
+      characterName: CHARACTER,
+      personaName: PERSONA,
+    }),
   }).panels.flatMap((panel) => panel.speechBubbles.map((bubble) => bubble.text));
 }
 

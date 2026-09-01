@@ -7,6 +7,7 @@ import {
   countUserEditDialogueMismatch,
 } from "./chatComicGeneration";
 import { compileChatComicPanelSpec } from "./chatComicPanelSpec";
+import { duoVisualSubjectsForCast } from "./chatComicPanelSpec.fixtures";
 import {
   addPanelDialogueLine,
   applyUserPanelEdits,
@@ -33,6 +34,13 @@ function duoPlan(panelCount: 2 | 3 | 4 = 2): ScenePlan {
   return buildDeterministicScenePlan(DUO_MESSAGES, panelCount);
 }
 
+function duoSubjects() {
+  return duoVisualSubjectsForCast({
+    characterName: CHARACTER,
+    personaName: PERSONA,
+  });
+}
+
 function bubbleTexts(plan: ScenePlan, personaVisible = true): string[] {
   const visibility = { personaVisible };
   return compileChatComicPanelSpec({
@@ -40,6 +48,7 @@ function bubbleTexts(plan: ScenePlan, personaVisible = true): string[] {
     personaName: PERSONA,
     characterName: CHARACTER,
     visibility,
+    subjects: duoSubjects(),
   }).panels.flatMap((panel) => panel.speechBubbles.map((bubble) => bubble.text));
 }
 
@@ -150,6 +159,7 @@ describe("chatImageSceneDialogueEditor regressions", () => {
       plan: reordered,
       personaName: PERSONA,
       characterName: CHARACTER,
+      subjects: duoSubjects(),
     })
       .panels.find((panel) => panel.index === 1)
       ?.speechBubbles.map((bubble) => bubble.text);
@@ -211,6 +221,7 @@ describe("chatImageSceneDialogueEditor regressions", () => {
       plan,
       personaName: PERSONA,
       characterName: CHARACTER,
+      subjects: duoSubjects(),
     });
     const labels = spec.panels.flatMap((panel) =>
       panel.speechBubbles.map((bubble) => bubble.speakerLabel)

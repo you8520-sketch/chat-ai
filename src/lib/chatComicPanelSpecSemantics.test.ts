@@ -11,6 +11,10 @@ import {
   renderChatComicPanelSpecSection,
 } from "./chatComicPanelSpec";
 import { buildDeterministicScenePlan, buildSceneSourceMessages } from "./chatImageScenePlan";
+import {
+  bindChatImageReferencePack,
+  buildChatDuoVisualSubjects,
+} from "./chatImageVisualIdentity";
 
 function groundedSubject(
   partial: Pick<ChatImageCastGroundedSubject, "role" | "name" | "included"> &
@@ -35,18 +39,29 @@ function groundedSubject(
   };
 }
 
+function duoSubjects(characterName: string, personaName: string) {
+  return bindChatImageReferencePack({
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName,
+      characterGender: "male",
+      characterImageUrl: `/ref/${characterName}`,
+      characterSavedAppearance: "",
+      characterAppearanceMode: "image_only",
+      personaName,
+      personaGender: "female",
+      personaImageUrl: `/ref/${personaName}`,
+      personaSavedAppearance: "",
+      personaAppearanceMode: "image_only",
+    }),
+  }).subjects;
+}
+
 describe("chatComicPanelSpec cast label stability", () => {
-  it("persona hidden keeps main character on label B regardless of array order", () => {
+  it("persona hidden uses visual subject A for main character", () => {
     const shuffled = [
       groundedSubject({ role: "main_character", name: "태현", included: true }),
     ];
-    const cast = buildStableCastLabels({
-      selectedCast: shuffled,
-      visibility: { personaVisible: false },
-      personaName: "렌",
-      characterName: "태현",
-    });
-    assert.deepEqual(cast, [{ label: "B", role: "main_character", name: "태현" }]);
+    const subjects = duoSubjects("태현", "렌");
 
     const plan = buildDeterministicScenePlan(
       buildSceneSourceMessages([
@@ -60,14 +75,16 @@ describe("chatComicPanelSpec cast label stability", () => {
       characterName: "태현",
       visibility: { personaVisible: false },
       castSelected: shuffled,
+      subjects,
     });
     const rendered = renderChatComicPanelSpecSection(spec);
-    assert.match(rendered, /B = main_character \(태현\)/);
-    assert.match(rendered, /Speech bubble \(B \/ character\)/);
-    assert.doesNotMatch(rendered, /A = main_character/);
+    assert.match(rendered, /A = chat character \(태현\)/);
+    assert.match(rendered, /Speech bubble \(A \/ character\)/);
+    assert.doesNotMatch(rendered, /B = chat character \(태현\)/);
+    assert.match(rendered, /SUBJECT A \(태현\) centered; persona off-camera only/);
   });
 
-  it("role-stable labels ignore selectedCast array order shuffle", () => {
+  it("legacy buildStableCastLabels remains role-stable for cast-only helpers", () => {
     const ordered = buildStableCastLabels({
       selectedCast: [
         groundedSubject({ role: "persona", name: "렌", included: true }),
@@ -88,6 +105,39 @@ describe("chatComicPanelSpec cast label stability", () => {
     });
     assert.deepEqual(shuffled, ordered);
   });
+
+  it("visual-order compile ignores selectedCast array order shuffle", () => {
+    const plan = buildDeterministicScenePlan(
+      buildSceneSourceMessages([{ id: 1, role: "user", content: '"안녕."' }]),
+      2
+    );
+    const subjects = duoSubjects("태현", "렌");
+    const ordered = compileChatComicPanelSpec({
+      plan,
+      personaName: "렌",
+      characterName: "태현",
+      castSelected: [
+        groundedSubject({ role: "persona", name: "렌", included: true }),
+        groundedSubject({ role: "main_character", name: "태현", included: true }),
+      ],
+      subjects,
+    }).cast;
+    const shuffled = compileChatComicPanelSpec({
+      plan,
+      personaName: "렌",
+      characterName: "태현",
+      castSelected: [
+        groundedSubject({ role: "main_character", name: "태현", included: true }),
+        groundedSubject({ role: "persona", name: "렌", included: true }),
+      ],
+      subjects,
+    }).cast;
+    assert.deepEqual(shuffled, ordered);
+    assert.deepEqual(ordered, [
+      { label: "A", role: "chat character", name: "태현" },
+      { label: "B", role: "user persona", name: "렌" },
+    ]);
+  });
 });
 
 describe("chatComicPanelSpec neutral semantics", () => {
@@ -103,6 +153,7 @@ describe("chatComicPanelSpec neutral semantics", () => {
       plan,
       personaName: "렌",
       characterName: "태현",
+      subjects: duoSubjects("태현", "렌"),
     });
     assert.equal(countForcedGenreDirectives(spec), 0);
     assert.match(renderChatComicPanelSpecSection(spec), /Closing beat/);
@@ -120,6 +171,7 @@ describe("chatComicPanelSpec neutral semantics", () => {
       plan,
       personaName: "렌",
       characterName: "태현",
+      subjects: duoSubjects("태현", "렌"),
     });
     assert.equal(countEmptyActingDirectives(spec), 0);
     assert.equal(countActionDirectiveDuplicates(spec), 0);
