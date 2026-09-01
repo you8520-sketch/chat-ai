@@ -322,6 +322,83 @@ describe("quote selection semantics", () => {
     assert.doesNotMatch(resolved.text, /GM 판정용|hidden intent/);
   });
 
+  it("T6 user message selection is not eligible", () => {
+    const doc = createDocument();
+    const userText = txt(doc, "user wrote this");
+    const container = el(doc, "div", {}, el(doc, "p", {}, userText)) as unknown as HTMLElement;
+    assert.equal(
+      isSelectionInContainer(
+        container,
+        asRange(userText, 0, userText, userText.textContent.length, userText)
+      ),
+      false
+    );
+  });
+
+  it("T14 missing assistant marker yields false", () => {
+    const doc = createDocument();
+    const prose = txt(doc, "No marker prose");
+    const container = el(doc, "div", {}, el(doc, "p", {}, prose)) as unknown as HTMLElement;
+    assert.equal(
+      isSelectionInContainer(
+        container,
+        asRange(prose, 0, prose, prose.textContent.length, prose)
+      ),
+      false
+    );
+  });
+
+  it("T5 reverse drag preserves same-message partial selection text", () => {
+    const doc = createDocument();
+    const prose = txt(doc, "abcdef");
+    const { container } = quoteAssistantFixture(doc, prose);
+    const forward = resolveQuoteSelection(container, asRange(prose, 1, prose, 4, prose));
+    const reverse = resolveQuoteSelection(container, asRange(prose, 4, prose, 1, prose));
+    assert.equal(forward.eligible, true);
+    assert.equal(reverse.eligible, true);
+    assert.equal(forward.text, reverse.text);
+    assert.equal(forward.text, "bcd");
+  });
+
+  it("falls back when intersectsNode returns false but range boundaries include text", () => {
+    const doc = createDocument();
+    const prose = txt(doc, "어서오세요~ 아, 또 오셨네요.");
+    const { container } = quoteAssistantFixture(doc, prose);
+    const selection = asRange(prose, 2, prose, 14, prose) as unknown as MockRange & Range;
+    selection.intersectsNode = () => false;
+    const resolved = resolveQuoteSelection(container, selection);
+    assert.equal(resolved.eligible, true);
+    assert.match(resolved.text, /오세요~ 아, 또/);
+  });
+
+  it("T2 full greeting span selection with element common ancestor extracts text", () => {
+    const doc = createDocument();
+    const prose = txt(doc, "어서오세요~ 아, 또 오셨네요. 오늘도 삼각김밥이에요?");
+    const span = el(doc, "span", { class: "font-semibold" }, prose);
+    const paragraph = el(doc, "p", { class: "m-0" }, span);
+    const novel = el(doc, "div", { class: "chat-novel-prose" }, paragraph);
+    const assistant = el(doc, "div", { "data-quote-assistant": true }, novel);
+    const container = el(doc, "div", { class: "min-w-0 space-y-1" }, assistant) as unknown as HTMLElement;
+    const selection = asRange(prose, 0, prose, prose.textContent.length, span);
+    const resolved = resolveQuoteSelection(container, selection);
+    assert.equal(resolved.eligible, true);
+    assert.match(resolved.text, /어서오세요/);
+  });
+
+  it("T1 general chat greeting nested prose partial selection extracts text", () => {
+    const doc = createDocument();
+    const prose = txt(doc, "어서오세요~ 아, 또 오셨네요. 오늘도 삼각김밥이에요?");
+    const span = el(doc, "span", { class: "font-semibold" }, prose);
+    const paragraph = el(doc, "p", { class: "m-0" }, span);
+    const novel = el(doc, "div", { class: "chat-novel-prose" }, paragraph);
+    const assistant = el(doc, "div", { "data-quote-assistant": true }, novel);
+    const container = el(doc, "div", { class: "min-w-0 space-y-1" }, assistant) as unknown as HTMLElement;
+    const selection = asRange(prose, 2, prose, 14, prose);
+    const resolved = resolveQuoteSelection(container, selection);
+    assert.equal(resolved.eligible, true);
+    assert.match(resolved.text, /오세요~ 아, 또/);
+  });
+
   it("1. SAME_TEXT_NODE_PARTIAL uses Text commonAncestor and captures offset slice", () => {
     const doc = createDocument();
     const prose = txt(doc, "abcdef");

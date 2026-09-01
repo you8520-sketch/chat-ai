@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   canShareQuoteCardPng,
   clampQuoteCardAvatarFocus,
@@ -142,6 +142,11 @@ export default function ChatSelectionQuoteToolbar({
   const toolbarPointerActiveRef = useRef(false);
   const toolbarPointerSafetyTimerRef = useRef<number | null>(null);
   const fontRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [containerReady, setContainerReady] = useState(false);
+
+  useLayoutEffect(() => {
+    setContainerReady(Boolean(containerRef.current));
+  });
 
   const resetToolbarPointerActive = useCallback(() => {
     toolbarPointerActiveRef.current = false;
@@ -695,6 +700,9 @@ export default function ChatSelectionQuoteToolbar({
     const syncFromSelection = (cursorX?: number, cursorY?: number) => {
       if (modalOpen) return;
 
+      const liveContainer = containerRef.current;
+      if (!liveContainer || disabled) return;
+
       const sel = window.getSelection();
       if (toolbarPointerActiveRef.current) return;
       if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
@@ -706,7 +714,7 @@ export default function ChatSelectionQuoteToolbar({
       }
 
       const range = sel.getRangeAt(0);
-      if (!isSelectionInContainer(container, range)) {
+      if (!isSelectionInContainer(liveContainer, range)) {
         if (!lastSelectionSignatureRef.current) return;
         lastSelectionSignatureRef.current = "";
         stickyToolbarPosRef.current = null;
@@ -714,7 +722,7 @@ export default function ChatSelectionQuoteToolbar({
         return;
       }
 
-      const text = extractQuoteSelectionText(container, range);
+      const text = extractQuoteSelectionText(liveContainer, range);
       if (!text) {
         if (!lastSelectionSignatureRef.current) return;
         lastSelectionSignatureRef.current = "";
@@ -822,7 +830,7 @@ export default function ChatSelectionQuoteToolbar({
       selectionSchedulerRef.current?.cancel();
       resetToolbarPointerActive();
     };
-  }, [containerRef, disabled, modalOpen, clearAll, resetToolbarPointerActive]);
+  }, [containerRef, containerReady, disabled, modalOpen, clearAll, resetToolbarPointerActive]);
 
   useEffect(() => {
     if (!pending && !modalOpen) return;
