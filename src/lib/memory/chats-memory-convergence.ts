@@ -24,12 +24,6 @@ function tableExists(db: Database.Database, name: string): boolean {
   );
 }
 
-function chatMemoriesRowExists(db: Database.Database, chatId: number): boolean {
-  return Boolean(
-    db.prepare(`SELECT 1 AS ok FROM chat_memories WHERE chat_id=?`).get(chatId)
-  );
-}
-
 function selectLegacyText(row: OrphanLegacyChatRow, hasMemoryCol: boolean): string {
   const currentSummary = row.current_summary?.trim() ?? "";
   if (currentSummary) return currentSummary;
