@@ -4,9 +4,10 @@ on:
   pull_request:
     paths:
       - "src/app/chat/[id]/ChatClient.tsx"
+      - "src/lib/streamSuccessDoneReconcile.ts"
+      - "src/lib/streamSuccessDoneReconcile.test.ts"
       - "src/lib/streamTurnModeClassification.ts"
       - "src/lib/streamTurnModeClassification.test.ts"
-      - "src/lib/streamSuccessDoneReconcile.test.ts"
       - "src/lib/streamReveal*.ts"
       - "src/lib/streamClickReveal.ts"
       - "src/lib/visualRevealPendingOwner.ts"

@@ -132,10 +132,11 @@ import {
   resolveCanonicalContentAtRevealIdle,
 } from "@/lib/streamSuccessDoneReconcile";
 import {
+  applyStatusSseToStreamTurnMode,
   applyExplicitHtmlFlashTurnFlag,
   applyInstantReplaceDuringPostStreamLock,
-  applyStatusSseToStreamTurnMode,
   resolveInstantRevealAtStreamDone,
+  type StreamTurnModeState,
 } from "@/lib/streamTurnModeClassification";
 import { createStreamDraftWriteGate, createSessionRecoveryDraftScope, adoptSessionRecoveryDraftChatId, clearRecoveryDraftScopes, type RecoveryDraftScopeOps } from "@/lib/streamDraftLifecycle";
 import {
@@ -3113,21 +3114,25 @@ export default function ChatClient({
           }
 
           if (data.type === "status") {
+            let nextTurnMode: StreamTurnModeState = {
+              htmlFlashStreamTurn,
+              postStreamLocked,
+            };
             if (data.message) {
               setStreamPhase(data.message);
               applyStatusMessageEvidence(postProcessEvidence, data.message);
-              const nextTurnMode = applyStatusSseToStreamTurnMode(
+              nextTurnMode = applyStatusSseToStreamTurnMode(
                 { htmlFlashStreamTurn, postStreamLocked },
                 data.message
               );
               postStreamLocked = nextTurnMode.postStreamLocked;
-              if (nextTurnMode.postStreamLocked) {
-                setGenerationPrepUi(null);
-              }
             }
             const prep = sanitizeGenerationPreparationUi(data.generationUi);
             if (prep) {
               setGenerationPrepUi(prep);
+            }
+            if (nextTurnMode.postStreamLocked) {
+              setGenerationPrepUi(null);
             }
             continue;
           }

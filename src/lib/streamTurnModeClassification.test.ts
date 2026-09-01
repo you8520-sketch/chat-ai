@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { sanitizeGenerationPreparationUi } from "@/lib/generationPreparationUi";
 import { createStreamReveal } from "@/lib/streamReveal";
 import { planSuccessDoneFinalContentReveal } from "@/lib/streamSuccessDoneReconcile";
 import { streamRevealOptionsFromInterval } from "@/lib/streamRevealTiming";
@@ -9,28 +10,78 @@ import {
   applyInstantReplaceDuringPostStreamLock,
   applyStatusSseToStreamTurnMode,
   createInitialStreamTurnModeState,
-  HTML_FLASH_GENERATION_MESSAGE,
-  NORMAL_STATUS_WIDGET_GENERATION_MESSAGE,
   planStreamDoneRevealDecision,
   resolveInstantRevealAtStreamDone,
   shouldLockPostStreamFromStatusMessage,
-  shouldSetHtmlFlashFromStatusMessage,
 } from "@/lib/streamTurnModeClassification";
 
 const TICK = streamRevealOptionsFromInterval(1);
 const STREAM_INTERVAL_MS = 35;
 
+/** Fixture strings — route.ts remains the producer owner. */
+const NORMAL_STATUS_WIDGET_GENERATION_MESSAGE = "상태창 생성 중…";
+const HTML_FLASH_GENERATION_MESSAGE = "HTML 생성 중…";
+const PRE_STREAM_STATUS_MESSAGE = "생성 중…";
+
+const PREP_FIXTURE = sanitizeGenerationPreparationUi({
+  phase: "preparing",
+  badges: ["relationship"],
+});
+
+/** Mirrors ChatClient status SSE prep UI ordering (apply prep, then clear if post-stream). */
+function finalGenerationPrepUiAfterStatusEvent(
+  postStreamLocked: boolean,
+  sanitizedPrep: ReturnType<typeof sanitizeGenerationPreparationUi>
+): ReturnType<typeof sanitizeGenerationPreparationUi> {
+  let finalPrep = null as ReturnType<typeof sanitizeGenerationPreparationUi>;
+  if (sanitizedPrep) finalPrep = sanitizedPrep;
+  if (postStreamLocked) finalPrep = null;
+  return finalPrep;
+}
+
+function assertRouteProducesStatusMessage(message: string) {
+  const routeSrc = readFileSync("src/app/api/chat/route.ts", "utf8");
+  assert.ok(
+    routeSrc.includes(`message: "${message}"`),
+    `expected route.ts to send status message: ${message}`
+  );
+}
+
 describe("G37 status widget vs HTML flash — producer inventory strings", () => {
   it("normal widget path uses canonical status message from route.ts", () => {
-    assert.equal(NORMAL_STATUS_WIDGET_GENERATION_MESSAGE, "상태창 생성 중…");
-    assert.equal(shouldLockPostStreamFromStatusMessage(NORMAL_STATUS_WIDGET_GENERATION_MESSAGE), true);
-    assert.equal(shouldSetHtmlFlashFromStatusMessage(NORMAL_STATUS_WIDGET_GENERATION_MESSAGE), false);
+    assertRouteProducesStatusMessage(NORMAL_STATUS_WIDGET_GENERATION_MESSAGE);
+    assert.equal(
+      shouldLockPostStreamFromStatusMessage(NORMAL_STATUS_WIDGET_GENERATION_MESSAGE),
+      true
+    );
   });
 
   it("HTML flash path uses HTML generation status (post-stream lock only)", () => {
-    assert.equal(HTML_FLASH_GENERATION_MESSAGE, "HTML 생성 중…");
+    assertRouteProducesStatusMessage(HTML_FLASH_GENERATION_MESSAGE);
     assert.equal(shouldLockPostStreamFromStatusMessage(HTML_FLASH_GENERATION_MESSAGE), true);
-    assert.equal(shouldSetHtmlFlashFromStatusMessage(HTML_FLASH_GENERATION_MESSAGE), false);
+  });
+});
+
+describe("G37 status SSE — generation prep UI ordering", () => {
+  it("post-stream status clears prep UI last even when generationUi is present", () => {
+    let state = createInitialStreamTurnModeState();
+    state = applyStatusSseToStreamTurnMode(state, NORMAL_STATUS_WIDGET_GENERATION_MESSAGE);
+    assert.equal(state.postStreamLocked, true);
+    assert.equal(state.htmlFlashStreamTurn, false);
+    assert.equal(
+      finalGenerationPrepUiAfterStatusEvent(state.postStreamLocked, PREP_FIXTURE),
+      null
+    );
+  });
+
+  it("pre-stream status preserves prep UI when generationUi is present", () => {
+    let state = createInitialStreamTurnModeState();
+    state = applyStatusSseToStreamTurnMode(state, PRE_STREAM_STATUS_MESSAGE);
+    assert.equal(state.postStreamLocked, false);
+    assert.deepEqual(
+      finalGenerationPrepUiAfterStatusEvent(state.postStreamLocked, PREP_FIXTURE),
+      PREP_FIXTURE
+    );
   });
 });
 
@@ -57,7 +108,11 @@ describe("G37 P0-2 — pre-fix reproduction (deterministic lifecycle)", () => {
   it("legacy regex would have misclassified normal widget status as HTML flash", () => {
     const legacyMisclass = /HTML|상태창 생성/i.test(NORMAL_STATUS_WIDGET_GENERATION_MESSAGE);
     assert.equal(legacyMisclass, true);
-    assert.equal(shouldSetHtmlFlashFromStatusMessage(NORMAL_STATUS_WIDGET_GENERATION_MESSAGE), false);
+    assert.equal(
+      applyStatusSseToStreamTurnMode(createInitialStreamTurnModeState(), NORMAL_STATUS_WIDGET_GENERATION_MESSAGE)
+        .htmlFlashStreamTurn,
+      false
+    );
   });
 });
 
@@ -189,6 +244,16 @@ describe("G37 ChatClient wiring — no status-string HTML flash heuristic", () =
     assert.equal(/HTML\|상태창 생성/i.test(src), false);
     assert.match(src, /applyStatusSseToStreamTurnMode/);
     assert.match(src, /resolveInstantRevealAtStreamDone/);
+  });
+
+  it("ChatClient clears generation prep UI after post-stream lock for status events", () => {
+    const src = readFileSync("src/app/chat/[id]/ChatClient.tsx", "utf8");
+    const statusBlock = src.slice(
+      src.indexOf('if (data.type === "status")'),
+      src.indexOf('if (data.type === "stream_heartbeat")')
+    );
+    assert.match(statusBlock, /if \(prep\) \{\s*setGenerationPrepUi\(prep\);\s*\}/);
+    assert.match(statusBlock, /if \(nextTurnMode\.postStreamLocked\) \{\s*setGenerationPrepUi\(null\);\s*\}/);
   });
 });
 
