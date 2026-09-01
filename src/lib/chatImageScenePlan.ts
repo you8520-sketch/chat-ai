@@ -1368,6 +1368,23 @@ function projectHeroScene(
   return projectedBackground;
 }
 
+/** Illustration generation hero scene with visibility projection — preview parity owner. */
+function projectGenerationAuthoritativeHeroScene(
+  plan: ScenePlan,
+  visibility: ScenePresentationVisibility
+): string {
+  const heroEvents = plan.events.filter((event) => plan.heroEventIds.includes(event.id));
+  const visibleHeroEvents = visibility.personaVisible
+    ? heroEvents
+    : heroEvents.filter((event) => !isPersonaOwnedEvent(event));
+  return projectHeroScene(
+    plan,
+    visibleHeroEvents,
+    projectVisibleBackground(plan, visibility),
+    visibility
+  );
+}
+
 export function resolveScenePresentationVisibility(opts: {
   contentKind?: ContentKind;
   castManifest?: {
@@ -1529,6 +1546,173 @@ export function formatApprovedScenePlanForComic(
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/** User-facing compact preview limits — display only; generation canonical fields unchanged. */
+export const COMPACT_PREVIEW_SITUATION_MAX = 72;
+export const COMPACT_PREVIEW_KEY_ACTION_MAX = 96;
+export const COMPACT_PREVIEW_BACKGROUND_MAX = 48;
+export const COMPACT_PREVIEW_DIALOGUE_VISIBLE_LINES = 2;
+export const COMPACT_PREVIEW_DIALOGUE_LINE_MAX = 56;
+
+export function truncateCompactPreviewText(text: string, maxChars: number): string {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  if (!trimmed) return "";
+  if (trimmed.length <= maxChars) return trimmed;
+  const slice = trimmed.slice(0, maxChars);
+  const lastSpace = slice.lastIndexOf(" ");
+  const clipped = lastSpace > Math.floor(maxChars * 0.55) ? slice.slice(0, lastSpace) : slice;
+  return `${clipped.trimEnd()}…`;
+}
+
+function compactVisualBeatFromEvents(
+  events: readonly SceneEvent[],
+  fallback: string,
+  maxChars: number
+): string {
+  const ordered = events.filter((event) => event.kind !== "assistant_echo");
+  const action = ordered.find((event) => event.kind === "action" || event.kind === "reaction");
+  if (action?.text.trim()) {
+    return truncateCompactPreviewText(action.text, maxChars);
+  }
+  const environment = ordered.find((event) => event.kind === "environment");
+  if (environment?.text.trim()) {
+    return truncateCompactPreviewText(environment.text, maxChars);
+  }
+  const joined = buildUserFacingVisualDescription(ordered, fallback);
+  return truncateCompactPreviewText(joined, maxChars);
+}
+
+function normalizeScenePreviewCompareText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function panelEventsInOrder(plan: ScenePlan, panel: ScenePanel): SceneEvent[] {
+  const eventsById = new Map(plan.events.map((event) => [event.id, event]));
+  return panel.sourceEventIds
+    .map((id) => eventsById.get(id))
+    .filter((event): event is SceneEvent => event !== undefined);
+}
+
+function canonicalDerivedPanelSituation(plan: ScenePlan, panel: ScenePanel): string {
+  return normalizeScenePreviewCompareText(
+    buildUserFacingVisualDescription(panelEventsInOrder(plan, panel), plan.sceneBackground)
+  );
+}
+
+function heroSceneMatchesCanonicalDerived(plan: ScenePlan): boolean {
+  return (
+    normalizeScenePreviewCompareText(plan.heroScene) ===
+    normalizeScenePreviewCompareText(projectUserFacingHeroScene(plan))
+  );
+}
+
+function panelSituationMatchesCanonicalDerived(plan: ScenePlan, panel: ScenePanel): boolean {
+  return (
+    normalizeScenePreviewCompareText(panel.situation) ===
+    canonicalDerivedPanelSituation(plan, panel)
+  );
+}
+
+export type LdCompactPreviewSummary = {
+  background: string;
+  keyAction: string;
+  atmosphere?: string;
+};
+
+/** LD compact storyboard preview — separate from generation `heroScene` owner. */
+export function projectLdCompactPreviewSummary(
+  plan: ScenePlan,
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+): LdCompactPreviewSummary {
+  const heroEvents = plan.events.filter((event) => plan.heroEventIds.includes(event.id));
+  const visibleHeroEvents = visibility.personaVisible
+    ? heroEvents
+    : heroEvents.filter((event) => !isPersonaOwnedEvent(event));
+
+  const background = truncateCompactPreviewText(
+    projectVisibleBackground(plan, visibility),
+    COMPACT_PREVIEW_BACKGROUND_MAX
+  );
+  const keyAction = heroSceneMatchesCanonicalDerived(plan)
+    ? compactVisualBeatFromEvents(
+        visibleHeroEvents,
+        plan.heroScene,
+        COMPACT_PREVIEW_KEY_ACTION_MAX
+      )
+    : truncateCompactPreviewText(
+        projectGenerationAuthoritativeHeroScene(plan, visibility),
+        COMPACT_PREVIEW_KEY_ACTION_MAX
+      );
+  const atmosphere = plan.atmosphere?.trim()
+    ? truncateCompactPreviewText(plan.atmosphere, COMPACT_PREVIEW_SITUATION_MAX)
+    : undefined;
+
+  return { background, keyAction, atmosphere };
+}
+
+/** Comic panel compact storyboard line — separate from generation `panel.situation` owner. */
+export function projectComicPanelCompactSituation(
+  plan: ScenePlan,
+  panel: ScenePanel,
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+): string {
+  if (!panelSituationMatchesCanonicalDerived(plan, panel)) {
+    return truncateCompactPreviewText(
+      projectComicPanelBeat(plan, panel, visibility).situation,
+      COMPACT_PREVIEW_SITUATION_MAX
+    );
+  }
+
+  const panelEvents = panelEventsInOrder(plan, panel);
+  const visibleEvents = visibility.personaVisible
+    ? panelEvents
+    : panelEvents.filter((event) => !isPersonaOwnedEvent(event));
+
+  const fromEvents = compactVisualBeatFromEvents(
+    visibleEvents,
+    panel.situation,
+    COMPACT_PREVIEW_SITUATION_MAX
+  );
+  if (fromEvents) return fromEvents;
+
+  return truncateCompactPreviewText(
+    projectComicPanelBeat(plan, panel, visibility).situation,
+    COMPACT_PREVIEW_SITUATION_MAX
+  );
+}
+
+export type ComicPanelCompactDialogueLine = {
+  speaker: SceneDialogueSpeaker;
+  text: string;
+};
+
+export type ComicPanelCompactDialoguePreview = {
+  previewLines: ComicPanelCompactDialogueLine[];
+  hiddenCount: number;
+  totalVisible: number;
+};
+
+/** Comic panel compact dialogue preview — read-only; canonical `panel.dialogue` unchanged. */
+export function projectComicPanelCompactDialoguePreview(
+  panel: ScenePanel,
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY,
+  maxLines: number = COMPACT_PREVIEW_DIALOGUE_VISIBLE_LINES
+): ComicPanelCompactDialoguePreview {
+  const visible = panel.dialogue.filter(
+    (line) =>
+      line.text.trim() &&
+      (visibility.personaVisible || line.speaker !== "persona")
+  );
+  const previewLines = visible.slice(0, maxLines).map((line) => ({
+    speaker: line.speaker,
+    text: truncateCompactPreviewText(line.text, COMPACT_PREVIEW_DIALOGUE_LINE_MAX),
+  }));
+  return {
+    previewLines,
+    hiddenCount: Math.max(0, visible.length - maxLines),
+    totalVisible: visible.length,
+  };
 }
 
 export function collectApprovedComicText(
