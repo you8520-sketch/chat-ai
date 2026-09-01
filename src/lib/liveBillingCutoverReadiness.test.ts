@@ -160,6 +160,21 @@ describe("liveBillingCutoverReadiness — production boundary", () => {
   });
 
   it("idempotency audit separates source, remote upgrade, and concurrent test evidence", () => {
+    const remoteBootstrapSrc = readFileSync(
+      join(REPO_ROOT, "src/lib/remoteSchemaBootstrap.ts"),
+      "utf8"
+    );
+    const remoteTestSrc = readFileSync(
+      join(REPO_ROOT, "src/lib/remoteSchemaBootstrap.test.ts"),
+      "utf8"
+    );
+    assert.match(remoteBootstrapSrc, /REMOTE_SCHEMA_VERSION = "turso-v8-current-summary-retired"/);
+    assert.match(
+      remoteBootstrapSrc,
+      /REMOTE_SCHEMA_VERSION_PREVIOUS = "turso-v7-chats-memory-retired"/
+    );
+    assert.ok(remoteTestSrc.includes("OLD_REMOTE_V1_DB_UPGRADE_PASS"));
+
     const audit = auditIdempotencyFromSource();
     assert.equal(audit.dbEnforcedRequestIdempotency, "verified");
     assert.equal(audit.dbUniquenessGuardPresent, true);
