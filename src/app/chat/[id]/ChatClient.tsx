@@ -139,6 +139,7 @@ import {
   type PendingRevealSession,
   type RevealSessionIdentity,
 } from "@/lib/streamRevealIdentity";
+import { handleStreamRevealClick } from "@/lib/streamClickReveal";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
 import {
@@ -2504,6 +2505,13 @@ export default function ChatClient({
       controller: reveal,
       requestId: sessionRequestId,
       aiIndex: sessionAiIndex,
+      catchUpToReceived: () => {
+        if (sessionAbandoned || displayPrefsRef.current.streamIntervalMs <= 0) return;
+        reveal.flush();
+        if (sessionTargetText.length > sessionDisplayedText.length) {
+          setAssistantContentInstant(sessionTargetText);
+        }
+      },
     });
     activeStreamRevealRef.current = reveal;
     if (displayPrefsRef.current.streamIntervalMs > 0) {
@@ -2682,6 +2690,15 @@ export default function ChatClient({
       closeSessionRecoveryDraft();
       setGenerationStartedAt(null);
       setChatId(data.chatId ?? chatId);
+      const scheduleRouterRefresh = () => {
+        const deferForReveal =
+          displayPrefsRef.current.streamIntervalMs > 0 && !reveal.isIdle();
+        if (deferForReveal) {
+          void reveal.waitUntilIdle().then(() => router.refresh());
+        } else {
+          router.refresh();
+        }
+      };
       if (data.chatId) {
         migrateChatMessageDraft(character.id, data.chatId);
         syncChatUrl(data.chatId);
@@ -2793,7 +2810,7 @@ export default function ChatClient({
             statusWidgetActive
           )
         ) {
-          router.refresh();
+          scheduleRouterRefresh();
         } else {
         startStatusMetaPoll(
           data.messageId,
@@ -2801,7 +2818,7 @@ export default function ChatClient({
           setMessages,
           userNote,
           markdownStatusWindowActive,
-          () => router.refresh(),
+          () => scheduleRouterRefresh(),
           {
             statusWidgetActive,
             userMessage: userMsg,
@@ -2810,7 +2827,7 @@ export default function ChatClient({
         );
         }
       } else {
-        router.refresh();
+        scheduleRouterRefresh();
       }
       if (
         data.suggestedRepliesPending &&
@@ -2873,8 +2890,13 @@ export default function ChatClient({
           fallbackInstant: htmlFlashStreamTurn || data.htmlFlashTurn === true,
         });
       }
+      const finalContentLen = data.finalContent?.length ?? sessionTargetText.length;
+      const preserveStreamingContent =
+        !instantReveal &&
+        displayPrefsRef.current.streamIntervalMs > 0 &&
+        (!reveal.isIdle() || sessionDisplayedText.length < finalContentLen);
       applyStreamDone(data, {
-        preserveStreamingContent: !instantReveal && !reveal.isIdle(),
+        preserveStreamingContent,
       });
     };
 
@@ -4826,6 +4848,7 @@ export default function ChatClient({
                         m.requestId,
                         visualRevealPendingIds
                       );
+                      const proseStreamActive = isGenerationStreaming || isVisualRevealPending;
                       const useLiveDisplayedContent = shouldUseLiveDisplayedContent(
                         isGenerationStreaming,
                         isVisualRevealPending
@@ -4888,7 +4911,7 @@ export default function ChatClient({
                         model: m.model,
                         statusWidgetTurnActive: m.statusWidgetTurnActive,
                         statusWidgetValues: m.statusWidgetValues,
-                        isStreaming: isGenerationStreaming,
+                        isStreaming: proseStreamActive,
                         displayHidden: statusWidgetTurn.displayMode === "hidden",
                       });
                       if (
@@ -4952,6 +4975,14 @@ export default function ChatClient({
                             data-quote-assistant
                             className="select-text [touch-action:pan-y] [-webkit-user-select:text]"
                             style={{ userSelect: "text", WebkitUserSelect: "text", touchAction: "pan-y", WebkitTouchCallout: "default" }}
+                            onClick={(event) => {
+                              if (!isVisualRevealPending || !m.requestId) return;
+                              handleStreamRevealClick(
+                                event,
+                                m.requestId,
+                                pendingRevealSessionsRef.current
+                              );
+                            }}
                           >
                             <ChatRichBlocks
                               key={`${m.id ?? i}-${m.activeVariant ?? 0}`}

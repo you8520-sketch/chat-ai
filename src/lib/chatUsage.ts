@@ -143,6 +143,8 @@ export type Usage = {
       httpStatus: number | null;
       finishReason: string | null;
       errorCode: string | null;
+      reasonCode?: string;
+      succeeded?: boolean;
     }>;
   };
   /**

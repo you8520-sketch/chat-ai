@@ -95,6 +95,8 @@ export type StatusWidgetExtractAttemptDiagnostic = {
   httpStatus: number | null;
   finishReason: string | null;
   errorCode: string | null;
+  reasonCode: StatusWidgetReasonCode;
+  succeeded: boolean;
 };
 
 export type StatusWidgetTurnExtractMeta = {
@@ -207,6 +209,8 @@ function toAttemptDiagnostic(outcome: AttemptOutcome): StatusWidgetExtractAttemp
     httpStatus: outcome.httpStatus,
     finishReason: outcome.finishReason ?? outcome.usage?.finishReason ?? null,
     errorCode: outcome.errorCode,
+    reasonCode: outcome.reasonCode,
+    succeeded: outcome.ok,
   };
 }
 
@@ -1123,6 +1127,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         httpStatus: shared.httpStatus,
         finishReason: shared.finishReason ?? shared.usage?.finishReason ?? null,
         errorCode: shared.errorCode,
+        reasonCode: shared.transportOk && shared.parsed ? "OK" : "V3_INITIAL_EMPTY",
+        succeeded: Boolean(shared.transportOk && shared.parsed),
       });
       if (shared.transportOk && shared.parsed) {
         sharedInitialParsed = shared.parsed;
@@ -1186,14 +1192,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       }
       actualCallCount += 1;
       if (combinedUsage) turnUsages.push(combinedUsage);
-      turnAttemptDiagnostics.push({
-        stage: "initial",
-        modelId: primaryModelId,
-        httpStatus: combinedFailure?.httpStatus ?? (combinedUsage ? 200 : null),
-        finishReason:
-          combinedFailure?.finishReason ?? combinedUsage?.finishReason ?? null,
-        errorCode: combinedFailure?.errorCode ?? null,
-      });
       parsed = parseCombinedDualWidgetExtractResponse(
         isLengthFinishReason(combinedUsage?.finishReason) ? "" : combinedText,
         {
@@ -1202,6 +1200,21 @@ export async function extractStatusWidgetValuesForTurn(opts: {
           applyEchoFilter: true,
         }
       );
+      turnAttemptDiagnostics.push({
+        stage: "initial",
+        modelId: primaryModelId,
+        httpStatus: combinedFailure?.httpStatus ?? (combinedUsage ? 200 : null),
+        finishReason:
+          combinedFailure?.finishReason ?? combinedUsage?.finishReason ?? null,
+        errorCode: combinedFailure?.errorCode ?? null,
+        reasonCode:
+          parsed.characterOk && parsed.userOk
+            ? "OK"
+            : combinedFailure
+              ? "V3_INITIAL_EMPTY"
+              : "V3_PARSE_FAILED",
+        succeeded: parsed.characterOk && parsed.userOk,
+      });
     }
 
     const latencyMs = Date.now() - started;

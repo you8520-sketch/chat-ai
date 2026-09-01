@@ -10,6 +10,10 @@ import {
   wholeTurnCoverageLabel,
   type AdminBillingReceiptV3,
 } from "@/lib/adminBillingReceiptV3Shared";
+import {
+  buildAdminReceiptTurnSummary,
+  formatAdminReceiptTurnSummaryLines,
+} from "@/lib/adminBillingReceiptTurnSummary";
 import { formatPoints } from "@/lib/billingDisplay";
 
 function SectionTitle({ children }: { children: ReactNode }) {
@@ -62,6 +66,7 @@ export function AdminBillingReceiptV3Panel({
   copied?: boolean;
 }) {
   const sync = receipt.syncReceipt;
+  const turnSummary = buildAdminReceiptTurnSummary(receipt);
 
   return (
     <div className="space-y-0.5 text-[11px] leading-relaxed text-zinc-300">
@@ -88,15 +93,18 @@ export function AdminBillingReceiptV3Panel({
         <p className="text-[10px] text-amber-400/90">{receipt.historicalNote}</p>
       )}
 
+      <SectionTitle>턴 요약</SectionTitle>
+      {formatAdminReceiptTurnSummaryLines(turnSummary, { locale: "ko" }).map((line) => (
+        <p key={line} className="whitespace-pre-wrap font-mono text-[10px] leading-snug">
+          {line}
+        </p>
+      ))}
+
       {sync.userCharge.billingContract && (
         <>
           <SectionTitle>User charge contract (admin)</SectionTitle>
           <ReceiptRow label="contract" value={sync.userCharge.billingContract} />
           <ReceiptRow label="reason" value={sync.userCharge.billingContractReason ?? "—"} />
-          <ReceiptRow
-            label="settled deducted"
-            value={`${formatPoints(sync.userCharge.settledDeductedPoints ?? sync.userCharge.deductedPoints)} P`}
-          />
           {sync.userCharge.publishedFinalPoints != null && (
             <ReceiptRow
               label="published final"
@@ -202,16 +210,11 @@ export function AdminBillingReceiptV3Panel({
         <ReceiptRow label="status" value={sync.syncPlatformSpend.status} />
       )}
 
-      {sync.mainRp.marginPercent != null && (
-        <ReceiptRow
-          label="Main RP margin"
-          value={`${sync.mainRp.marginPercent}%`}
-          hint={`(${sync.mainRp.marginScopeLabel})`}
-        />
-      )}
-
       <SectionTitle>범위 제외</SectionTitle>
       <p className="text-[10px] text-zinc-500">{receipt.excludedCostScopes.join(", ")}</p>
     </div>
   );
 }
+
+// Re-export for copy handler consumers
+export { formatAdminBillingReceiptV3Text };

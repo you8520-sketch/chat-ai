@@ -131,6 +131,21 @@ describe("display source + reveal identity — V1–V8", () => {
     assert.equal(atDone, PARTIAL);
   });
 
+  it("V3b preserve while displayed shorter than final even if reveal queue idle", () => {
+    const preserved = resolveApplyStreamDoneDisplayContent({
+      streamingContent: PARTIAL,
+      canonicalDoneContent: FULL,
+      preserveStreamingContent: true,
+    });
+    assert.equal(preserved, PARTIAL);
+    const snapped = resolveApplyStreamDoneDisplayContent({
+      streamingContent: PARTIAL,
+      canonicalDoneContent: FULL,
+      preserveStreamingContent: false,
+    });
+    assert.equal(snapped, FULL);
+  });
+
   it("V4 SAME-ROW REGENERATE: req-A pending reveal cannot mutate req-B row", async () => {
     const row: Row = {
       role: "assistant",
