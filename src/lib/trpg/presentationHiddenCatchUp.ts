@@ -29,6 +29,17 @@ export function isHiddenPresentationCatchUpActive(opts: {
   return opts.session?.sessionKey === opts.sessionKey;
 }
 
+/** Foreground must never fast-forward unseen bot prose/dice via a stale hidden session. */
+export function shouldRunHiddenRoundGmCatchUp(opts: {
+  documentHidden: boolean;
+  hiddenRoundSessionActive: boolean;
+  gmTextReady: boolean;
+  phase: string;
+}): boolean {
+  if (!opts.documentHidden || !opts.hiddenRoundSessionActive || !opts.gmTextReady) return false;
+  return opts.phase === "gm-narration" || opts.phase === "complete";
+}
+
 /** Decorative reveal stays consumed for the rest of the round after hidden fast-forward. */
 export function shouldSkipDecorativeReveal(opts: {
   consumedSessionKey: string | null;
