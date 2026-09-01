@@ -87,6 +87,27 @@ function cleanLine(raw: unknown, max = 400): string {
   return normalizeSceneBriefWhitespace(String(raw ?? "")).slice(0, max);
 }
 
+/** Preserve typing-safe raw dialogue while editing — no trim or whitespace collapse. */
+export function preserveDialogueEditText(raw: unknown, max = 160): string {
+  return String(raw ?? "").slice(0, max);
+}
+
+/** Canonical final dialogue text for bubbles, whitelist, and audits. */
+export function normalizeDialogueTextForOutput(raw: unknown, max = 160): string {
+  return normalizeSceneBriefWhitespace(String(raw ?? "")).slice(0, max);
+}
+
+const QUOTE_ATTRIBUTION_LINKER =
+  /^(?:이라고|라고|이라며|라며|이라면서|라면서)\s*/u;
+
+function hasQuoteAttributionLinker(text: string): boolean {
+  return QUOTE_ATTRIBUTION_LINKER.test(text.trim());
+}
+
+function isConcurrentReactionLinker(text: string): boolean {
+  return /^(?:이라며|라며|이라면서|라면서)/u.test(text.trim());
+}
+
 function actorForRole(role: SceneSourceRole): SceneEventActor {
   return role === "user" ? "persona" : "character";
 }
@@ -261,6 +282,9 @@ function gapSegments(
   if (!trimmed) return [];
   const gapStart = start + gap.indexOf(trimmed);
   const gapEnd = gapStart + trimmed.length;
+  if (afterDialogue && hasQuoteAttributionLinker(trimmed)) {
+    return classifyPostDialogueGap(text, gapStart, gapEnd);
+  }
   if (role === "user") {
     const spoken = cleanLine(trimmed);
     if (!spoken || isSceneActionText(spoken)) return [];
@@ -286,23 +310,26 @@ function hasVisualActionCue(text: string): boolean {
 
 /** Extract visual narration from a post-quote gap; drop pure speech-attribution tails. */
 function extractVisualFromPostQuoteGap(trimmed: string): string | null {
-  const linkMatch = trimmed.match(/^(?:이라고|라고)\s*([\s\S]+)$/);
+  const linkMatch = trimmed.match(
+    /^(?:이라고|라고|이라며|라며|이라면서|라면서)\s*([\s\S]+)$/
+  );
   if (!linkMatch) {
     return hasVisualActionCue(trimmed) ? cleanLine(trimmed) : null;
   }
+  const linkerPrefix = trimmed.match(/^(?:이라고|라고|이라며|라며|이라면서|라면서)/u)?.[0] ?? "";
   const tail = cleanLine(linkMatch[1] ?? "");
   if (!tail) return null;
 
-  const connectiveMatch = tail.match(/^[\p{L}]+(?:하고|며)\s+([\s\S]+)$/u);
+  const connectiveMatch = tail.match(/^[\p{L}]+(?:하고|하며|며)\s+([\s\S]+)$/u);
   if (connectiveMatch) {
     const action = cleanLine(connectiveMatch[1] ?? "");
-    if (action && hasVisualActionCue(action)) return action;
+    if (action && (hasVisualActionCue(action) || /[을를]/.test(action))) return action;
   }
 
   const concurrentMatch = tail.match(/^[\s\S]+?며\s+([\s\S]+)$/);
   if (concurrentMatch) {
     const action = cleanLine(concurrentMatch[1] ?? "");
-    if (action && hasVisualActionCue(action)) return action;
+    if (action && (hasVisualActionCue(action) || /[을를]/.test(action))) return action;
   }
 
   const sentenceMatch = tail.match(/^[^.!?。…]+[.!?。…]\s*([\s\S]+)$/);
@@ -311,6 +338,12 @@ function extractVisualFromPostQuoteGap(trimmed: string): string | null {
     if (next && hasVisualActionCue(next)) return next;
   }
 
+  if (isConcurrentReactionLinker(linkerPrefix)) {
+    if (isMalformedAttributionText(tail) && !/[을를]/.test(tail)) return null;
+    return tail;
+  }
+
+  if (/[을를]/.test(tail) && tail.length >= 4) return tail;
   return null;
 }
 
@@ -321,7 +354,7 @@ function classifyPostDialogueGap(
 ): SceneSourceSegment[] {
   const trimmed = text.slice(gapStart, gapEnd).trim();
   if (!trimmed) return [];
-  if (/^(?:이라고|라고)\s*/u.test(trimmed)) {
+  if (QUOTE_ATTRIBUTION_LINKER.test(trimmed)) {
     const visual = extractVisualFromPostQuoteGap(trimmed);
     if (!visual) return [];
     const localStart = text.indexOf(visual, gapStart);
@@ -353,9 +386,9 @@ function classifyPostDialogueGap(
 export function isMalformedAttributionText(text: string): boolean {
   const trimmed = cleanLine(text);
   if (!trimmed) return false;
-  if (/^(?:이라고|라고|이라며|라며)(?:\s|$)/u.test(trimmed)) return true;
+  if (/^(?:이라고|라고|이라며|라며|이라면서|라면서)(?:\s|$)/u.test(trimmed)) return true;
   if (
-    /^(?:이라고|라고|이라며|라며)[\p{L}\s]{0,48}[.!?。…]*$/u.test(trimmed) &&
+    /^(?:이라고|라고|이라며|라며|이라면서|라면서)[\p{L}\s]{0,48}[.!?。…]*$/u.test(trimmed) &&
     !hasVisualActionCue(trimmed)
   ) {
     return true;
@@ -646,15 +679,16 @@ export function normalizePanelDialogueEdits(
     if (speaker !== "persona" && speaker !== "character" && speaker !== "other") {
       continue;
     }
-    const text = cleanLine(line.text, 160);
-    if (!text) {
+    const editText = preserveDialogueEditText(line.text, 160);
+    const outputText = normalizeDialogueTextForOutput(line.text, 160);
+    if (!outputText && !editText.trim()) {
       if (line.provenance === "user_edit") {
         result.push({ speaker, text: "", provenance: "user_edit" });
       }
       continue;
     }
     if (line.provenance === "user_edit") {
-      result.push({ speaker, text, provenance: "user_edit" });
+      result.push({ speaker, text: editText, provenance: "user_edit" });
       continue;
     }
     const sourceEventId = cleanLine(line.sourceEventId, 24) || undefined;
@@ -663,16 +697,16 @@ export function normalizePanelDialogueEdits(
       if (
         prior &&
         prior.provenance === "source" &&
-        prior.text === text &&
+        normalizeDialogueTextForOutput(prior.text) === outputText &&
         prior.speaker === speaker
       ) {
         result.push(prior);
         continue;
       }
-      result.push({ speaker, text, provenance: "user_edit" });
+      result.push({ speaker, text: editText, provenance: "user_edit" });
       continue;
     }
-    result.push({ speaker, text, provenance: "user_edit" });
+    result.push({ speaker, text: editText, provenance: "user_edit" });
   }
   return result;
 }
@@ -1400,11 +1434,13 @@ export function projectComicPanelBeat(
     personaAction:
       visibility.personaVisible && panel.personaAction ? panel.personaAction : undefined,
     characterAction: panel.characterAction || undefined,
-    dialogue: panel.dialogue.filter(
-      (line) =>
-        line.text.trim() &&
-        (visibility.personaVisible || line.speaker !== "persona")
-    ),
+    dialogue: panel.dialogue
+      .filter((line) => visibility.personaVisible || line.speaker !== "persona")
+      .map((line) => ({
+        ...line,
+        text: normalizeDialogueTextForOutput(line.text),
+      }))
+      .filter((line) => line.text),
   };
 }
 
@@ -1474,7 +1510,7 @@ export function collectApprovedComicText(
       plan.panels.flatMap((panel) =>
         panel.dialogue
           .filter((line) => visibility.personaVisible || line.speaker !== "persona")
-          .map((line) => line.text)
+          .map((line) => normalizeDialogueTextForOutput(line.text))
           .filter(Boolean)
       )
     )

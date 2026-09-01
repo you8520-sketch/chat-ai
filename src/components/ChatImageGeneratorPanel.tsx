@@ -22,6 +22,7 @@ import {
 import {
   resolveComicAiApplyPanelCount,
   shouldApplyComicAiPlanUpgrade,
+  commitScenePanelCount,
 } from "@/lib/chatImageScenePlanLifecycle";
 import ChatSceneBuilder, {
   type SceneOutputMode,
@@ -404,9 +405,9 @@ export default function ChatImageGeneratorPanel({
   const [sceneOutputMode, setSceneOutputMode] = useState<SceneOutputMode>("illustration");
   const [scenePanelCount, setScenePanelCount] = useState<ScenePanelCount>(3);
   const scenePanelCountRef = useRef<ScenePanelCount>(3);
-  useEffect(() => {
-    scenePanelCountRef.current = scenePanelCount;
-  }, [scenePanelCount]);
+  const commitPanelCount = useCallback((count: ScenePanelCount) => {
+    commitScenePanelCount(scenePanelCountRef, count, setScenePanelCount);
+  }, []);
   const [sceneMessages, setSceneMessages] = useState<SceneSourceMessage[]>([]);
   const [scenePlan, setScenePlan] = useState<ScenePlan | null>(null);
   const deterministicPlanCacheRef = useRef<Map<string, ScenePlan>>(new Map());
@@ -1163,7 +1164,7 @@ export default function ChatImageGeneratorPanel({
     setAiSuggestedPlan(null);
     setAiSuggestionError("");
     setHasAiSuggestionSession(false);
-    setScenePanelCount(3);
+    commitPanelCount(3);
     setAiSuggestionLoading(false);
     scenePlanUserEditedRef.current = false;
     comicDefaultAiPlanAppliedRef.current = null;
@@ -1197,7 +1198,7 @@ export default function ChatImageGeneratorPanel({
     const plan = cached ?? buildDeterministicScenePlan(messages);
     if (!cached) deterministicPlanCacheRef.current.set(key, plan);
     setScenePlan(plan);
-    setScenePanelCount(plan.recommendedPanelCount);
+    commitPanelCount(plan.recommendedPanelCount);
     setAiSuggestedPlan(null);
     setAiSuggestionError("");
   }
@@ -2421,7 +2422,7 @@ export default function ChatImageGeneratorPanel({
                               }
                             }}
                             onPanelCountChange={(count) => {
-                              setScenePanelCount(count);
+                              commitPanelCount(count);
                               if (!scenePlan) return;
                               scenePlanUserEditedRef.current = false;
                               setScenePlan(reflowScenePlanPanels(scenePlan, count));

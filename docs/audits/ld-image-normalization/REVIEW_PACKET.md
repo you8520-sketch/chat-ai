@@ -1,7 +1,7 @@
 # LD Image Normalization — REVIEW PACKET
 
 **CURRENT_MAIN_SHA:** `80140cf8afc59de38d849eb9323e7ccdf32ea3fb`
-**GENERATED_FROM_SOURCE_SHA:** `fb127fed30c472e0b37877724d1b27a7455543cf`
+**GENERATED_FROM_SOURCE_SHA:** `5434fcf32511dd6494b99bb04eb4b047fc1f2b52`
 **PR_NUMBER:** 808
 
 ## Flagship fixture
@@ -85,7 +85,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 태현이 렌의 손목을 붙잡고
-Acting cue: 태현이 렌의 손목을 붙잡고
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -224,7 +223,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 태현이 렌의 손목을 붙잡고
-Acting cue: 태현이 렌의 손목을 붙잡고
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -334,6 +332,43 @@ Global must avoid:
 - FINAL WHITELIST: "같이 갈래?", "그래."
 
 
+## KEYSTROKE_EDIT_REVIEW
+
+### 2-panel keystroke (같이 → 같이 가자.)
+
+#### Panel 1
+- VISIBLE SCENE DESCRIPTION:
+- LINE 1
+  - VISIBLE SPEAKER NAME: 태형
+  - VISIBLE DIALOGUE TEXT: 같이 가자.
+  - PROVENANCE: user_edit
+  - SOURCE EVENT ID: (none)
+  - FINAL BUBBLE: 같이 가자.
+- LINE 2
+  - VISIBLE SPEAKER NAME: 렌
+  - VISIBLE DIALOGUE TEXT: (empty)
+  - PROVENANCE: user_edit
+  - SOURCE EVENT ID: (none)
+  - FINAL BUBBLE: (silent)
+
+#### Panel 2
+- VISIBLE SCENE DESCRIPTION:
+- VISIBLE DIALOGUE: (silent)
+
+- FINAL WHITELIST: "같이 가자."
+
+
+## USER_ATTRIBUTION_REVIEW
+
+### Source
+```text
+"좋아."라고 말했다.
+```
+
+- CANONICAL DIALOGUE: 좋아.
+- FAKE ATTRIBUTION IN EVENTS: false
+
+
 ## Invariant checks (computed)
 
 - USER_VISIBLE_NO_VERBATIM_DIALOGUE: true
@@ -341,8 +376,15 @@ Global must avoid:
 - HERO_IDS_INCLUDE_DIALOGUE: true
 - DOWNSTREAM_KEY_DIALOGUE: true
 - MALFORMED_ATTRIBUTION_COUNT: 0
+- FAKE_ATTRIBUTION_BUBBLE_COUNT: 0
 - PANEL_TEXT_WHITELIST_MISMATCH_COUNT: 0
 - USER_EDIT_DIALOGUE_MISMATCH_COUNT: 0
+
+## Provenance semantics
+
+- UNCHANGED SOURCE LINE: provenance=source, sourceEventId preserved
+- TEXT OR SPEAKER EDIT: provenance=user_edit, sourceEventId removed
+- REORDER ONLY (unchanged text/speaker): source provenance + sourceEventId preserved; presentation order is user-controlled
 
 ## AI auto panel planning
 

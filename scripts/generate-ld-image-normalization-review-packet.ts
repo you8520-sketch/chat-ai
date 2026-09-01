@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import {
   countMalformedAttributionBenchmarkCorpus,
   countMalformedAttributionLdFixtures,
+  countFakeAttributionBubbleCorpus,
 } from "../src/lib/chatImageAttributionAudit";
 import {
   auditComicDialogueWhitelist,
@@ -25,6 +26,7 @@ import { isCheaperInferenceModel } from "../src/lib/chatModels";
 import { SCENE_PLAN_MAX_PROVIDER_ATTEMPTS } from "../src/lib/chatImageScenePlan";
 import {
   applyUserPanelEdits,
+  addPanelDialogueLine,
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
   collectApprovedComicText,
@@ -143,6 +145,20 @@ function dialogueEditorSection(
 
 const malformedCount =
   countMalformedAttributionLdFixtures() + countMalformedAttributionBenchmarkCorpus();
+const fakeBubbleCount = countFakeAttributionBubbleCorpus();
+
+const keystrokePlan = (() => {
+  const base = buildDeterministicScenePlan(
+    buildSceneSourceMessages([{ id: 1, role: "assistant", content: '"안녕."' }]),
+    2
+  );
+  const withLine = addPanelDialogueLine(base, 1, "persona");
+  let edited = withLine;
+  for (const step of ["같이", "같이 ", "같이 가", "같이 가자", "같이 가자."]) {
+    edited = updatePanelDialogueAtIndex(edited, 1, 0, { text: step });
+  }
+  return edited;
+})();
 
 const lines = [
   "# LD Image Normalization — REVIEW PACKET",
@@ -203,6 +219,29 @@ const lines = [
   dialogueEditorSection("2-panel duo (user text edit: 그래. → 좋아.)", duoPlan, duoEdited),
   dialogueEditorSection("3-panel duo", buildDeterministicScenePlan(duoMessages, 3)),
   "",
+  "## KEYSTROKE_EDIT_REVIEW",
+  "",
+  dialogueEditorSection("2-panel keystroke (같이 → 같이 가자.)", keystrokePlan),
+  "",
+  "## USER_ATTRIBUTION_REVIEW",
+  "",
+  (() => {
+    const userAttr = buildDeterministicScenePlan(
+      buildSceneSourceMessages([{ id: 1, role: "user", content: '"좋아."라고 말했다.' }]),
+      2
+    );
+    return [
+      "### Source",
+      "```text",
+      '"좋아."라고 말했다.',
+      "```",
+      "",
+      `- CANONICAL DIALOGUE: ${userAttr.events.filter((e) => e.kind === "dialogue").map((e) => e.text).join(" | ")}`,
+      `- FAKE ATTRIBUTION IN EVENTS: ${userAttr.events.some((e) => e.kind === "dialogue" && /라고/.test(e.text))}`,
+      "",
+    ].join("\n");
+  })(),
+  "",
   "## Invariant checks (computed)",
   "",
   `- USER_VISIBLE_NO_VERBATIM_DIALOGUE: ${!/가지 마/.test(plan.heroScene)}`,
@@ -210,8 +249,15 @@ const lines = [
   `- HERO_IDS_INCLUDE_DIALOGUE: ${plan.heroEventIds.some((id) => plan.events.find((e) => e.id === id)?.kind === "dialogue")}`,
   `- DOWNSTREAM_KEY_DIALOGUE: ${illustration.includes("가지 마")}`,
   `- MALFORMED_ATTRIBUTION_COUNT: ${malformedCount}`,
+  `- FAKE_ATTRIBUTION_BUBBLE_COUNT: ${fakeBubbleCount}`,
   `- PANEL_TEXT_WHITELIST_MISMATCH_COUNT: ${audit.panelTextWhitelistMismatchCount}`,
   `- USER_EDIT_DIALOGUE_MISMATCH_COUNT: ${audit.userEditDialogueMismatchCount}`,
+  "",
+  "## Provenance semantics",
+  "",
+  "- UNCHANGED SOURCE LINE: provenance=source, sourceEventId preserved",
+  "- TEXT OR SPEAKER EDIT: provenance=user_edit, sourceEventId removed",
+  "- REORDER ONLY (unchanged text/speaker): source provenance + sourceEventId preserved; presentation order is user-controlled",
   "",
   "## AI auto panel planning",
   "",

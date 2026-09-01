@@ -1,5 +1,14 @@
 import type { ScenePanelCount } from "@/lib/chatImageScenePlan";
 
+export function commitScenePanelCount(
+  ref: { current: ScenePanelCount },
+  count: ScenePanelCount,
+  setState: (count: ScenePanelCount) => void
+): void {
+  ref.current = count;
+  setState(count);
+}
+
 export function shouldApplyComicAiPlanUpgrade(opts: {
   responseEpoch: number;
   currentEpoch: number;

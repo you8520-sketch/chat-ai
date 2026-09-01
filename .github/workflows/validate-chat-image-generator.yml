@@ -39,6 +39,7 @@ on:
       - "src/lib/chatImageScenePlan.test.ts"
       - "src/lib/chatImageAttributionAudit.ts"
       - "src/lib/chatImageAttributionBoundary.test.ts"
+      - "src/lib/chatImageDialogueKeystroke.test.ts"
       - "src/lib/chatImageScenePlanLifecycle.ts"
       - "src/lib/chatImageScenePlanLifecycle.test.ts"
       - "src/lib/chatComicPanelSpecSemantics.test.ts"
@@ -131,6 +132,7 @@ jobs:
       - run: node --import tsx --test src/lib/chatImageSceneBrief.test.ts
       - run: node --import tsx --test src/lib/chatImageScenePlan.test.ts
       - run: node --import tsx --test src/lib/chatImageSceneDialogueEditor.test.ts
+      - run: node --import tsx --test src/lib/chatImageDialogueKeystroke.test.ts
       - run: node --import tsx --test src/lib/chatImageAttributionBoundary.test.ts
       - run: node --import tsx --test src/lib/chatImageScenePlanLifecycle.test.ts
       - run: node --import tsx --test src/lib/chatComicPanelSpecSemantics.test.ts

@@ -17,7 +17,7 @@ Scores are **PENDING** — for GPT/human review only.
 - **Expected cast:** A=렌, B=태형
 - **Expected key beat:** 후드를 만지며 같이 가자고 묻는다
 - **Expected dialogue:** 같이 갈래? | 그래.
-- **Expected progression:** Setup → Payoff
+- **Expected progression:** Opening beat → Closing beat
 
 ### Source scene
 
@@ -81,7 +81,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 후드 귀를 만진다
-Acting cue: 후드 귀를 만진다
 Speech bubble (A / persona): “같이 갈래?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -92,7 +91,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 렌이 후드를 만지자 태형이 고개를 돌렸다.
-Acting cue: 렌이 후드를 만지자 태형이 고개를 돌렸다.
 Speech bubble (B / character): “그래.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -206,7 +204,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 후드 귀를 만진다
-Acting cue: 후드 귀를 만진다
 Speech bubble (A / persona): “같이 갈래?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -217,7 +214,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 렌이 후드를 만지자 태형이 고개를 돌렸다.
-Acting cue: 렌이 후드를 만지자 태형이 고개를 돌렸다.
 Speech bubble (B / character): “그래.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -259,7 +255,7 @@ Global must avoid:
 - **Expected cast:** A=유저, B=민수
 - **Expected key beat:** 조용히 문을 연다
 - **Expected dialogue:** (silent)
-- **Expected progression:** Setup → Payoff
+- **Expected progression:** Opening beat → Closing beat
 
 ### Source scene
 
@@ -322,7 +318,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 문을 연다
-Acting cue: 문을 연다
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -333,7 +328,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 민수가 조용히 따라 나선다.
-Acting cue: 민수가 조용히 따라 나선다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -387,7 +381,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 문을 연다
-Acting cue: 문을 연다
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -398,7 +391,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 민수가 조용히 따라 나선다.
-Acting cue: 민수가 조용히 따라 나선다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -440,7 +432,7 @@ Global must avoid:
 - **Expected cast:** A=하린, B=지훈
 - **Expected key beat:** 상자를 내밀며 깜짝 선물
 - **Expected dialogue:** 선물이야! | 진짜?
-- **Expected progression:** Setup → Payoff
+- **Expected progression:** Opening beat → Closing beat
 
 ### Source scene
 
@@ -504,7 +496,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 작은 상자를 내민다
-Acting cue: 작은 상자를 내민다
 Speech bubble (A / persona): “선물이야!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -515,7 +506,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 지훈이 눈을 크게 뜨며
-Acting cue: 지훈이 눈을 크게 뜨며
 Speech bubble (B / character): “진짜?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -569,7 +559,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 작은 상자를 내민다
-Acting cue: 작은 상자를 내민다
 Speech bubble (A / persona): “선물이야!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -580,7 +569,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 지훈이 눈을 크게 뜨며
-Acting cue: 지훈이 눈을 크게 뜨며
 Speech bubble (B / character): “진짜?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -622,7 +610,7 @@ Global must avoid:
 - **Expected cast:** A=서연, B=도윤
 - **Expected key beat:** 우산을 건네며 함께 걷자
 - **Expected dialogue:** 같이 갈래? | …고마워.
-- **Expected progression:** Setup → Development → Climax / punchline
+- **Expected progression:** Opening beat → Middle beat → Closing beat
 
 ### Source scene
 
@@ -693,7 +681,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 우산을 든다
-Acting cue: 우산을 든다
 Speech bubble (A / persona): “같이 갈래?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -704,7 +691,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 도윤이 잠시 망설이며
-Acting cue: 도윤이 잠시 망설이며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -827,7 +813,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 우산을 든다
-Acting cue: 우산을 든다
 Speech bubble (A / persona): “같이 갈래?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -838,7 +823,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 도윤이 잠시 망설이며
-Acting cue: 도윤이 잠시 망설이며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -889,7 +873,7 @@ Global must avoid:
 - **Expected cast:** A=민지, B=현우
 - **Expected key beat:** 음료를 잘못 받아 당황
 - **Expected dialogue:** 이거 내 주문 아닌데? | 아, 미안!
-- **Expected progression:** Setup → Development → Climax / punchline
+- **Expected progression:** Opening beat → Middle beat → Closing beat
 
 ### Source scene
 
@@ -959,7 +943,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 카운터에서 음료를 받는다
-Acting cue: 카운터에서 음료를 받는다
 Speech bubble (A / persona): “이거 내 주문 아닌데?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -970,7 +953,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 현우가 황급히 돌아서며
-Acting cue: 현우가 황급히 돌아서며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1033,7 +1015,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 카운터에서 음료를 받는다
-Acting cue: 카운터에서 음료를 받는다
 Speech bubble (A / persona): “이거 내 주문 아닌데?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1044,7 +1025,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 현우가 황급히 돌아서며
-Acting cue: 현우가 황급히 돌아서며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1095,7 +1075,7 @@ Global must avoid:
 - **Expected cast:** A=예린, B=준호
 - **Expected key beat:** 졸린 준호를 붙잡고 격려
 - **Expected dialogue:** 조금만 더! | 알겠어…
-- **Expected progression:** Setup → Development → Climax / punchline
+- **Expected progression:** Opening beat → Middle beat → Closing beat
 
 ### Source scene
 
@@ -1168,7 +1148,6 @@ Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 어깨를 흔든다
 B action: 준호가 책상에 엎드려 눈을 감는다.
-Acting cue: 어깨를 흔든다; 준호가 책상에 엎드려 눈을 감는다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1179,7 +1158,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 준호가 고개를 들고
-Acting cue: 준호가 고개를 들고
 Speech bubble (A / persona): “조금만 더!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1243,7 +1221,6 @@ Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 어깨를 흔든다
 B action: 준호가 책상에 엎드려 눈을 감는다.
-Acting cue: 어깨를 흔든다; 준호가 책상에 엎드려 눈을 감는다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1254,7 +1231,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 준호가 고개를 들고
-Acting cue: 준호가 고개를 들고
 Speech bubble (A / persona): “조금만 더!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1305,7 +1281,7 @@ Global must avoid:
 - **Expected cast:** A=지아, B=태민
 - **Expected key beat:** 지도를 펼치며 길을 찾는다
 - **Expected dialogue:** 여기 맞아? | …아마도.
-- **Expected progression:** Setup → Development → Climax / punchline
+- **Expected progression:** Opening beat → Middle beat → Closing beat
 
 ### Source scene
 
@@ -1375,7 +1351,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 지도를 펼친다
-Acting cue: 지도를 펼친다
 Speech bubble (A / persona): “여기 맞아?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1386,7 +1361,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 태민이 지도를 보며
-Acting cue: 태민이 지도를 보며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1449,7 +1423,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 지도를 펼친다
-Acting cue: 지도를 펼친다
 Speech bubble (A / persona): “여기 맞아?”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1460,7 +1433,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 태민이 지도를 보며
-Acting cue: 태민이 지도를 보며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1511,7 +1483,7 @@ Global must avoid:
 - **Expected cast:** A=한별, B=시우
 - **Expected key beat:** 복도에서 뛰어가며 붙잡기
 - **Expected dialogue:** 잠깐! | 안 잡혀!
-- **Expected progression:** Establish → Escalation → Turn → Resolution
+- **Expected progression:** Opening beat → Beat 2 → Beat 3 → Closing beat
 
 ### Source scene
 
@@ -1591,7 +1563,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 시우가 복도 끝에서
-Acting cue: 시우가 복도 끝에서
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1602,7 +1573,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 뒤쫓으며 외친다
-Acting cue: 뒤쫓으며 외친다
 Speech bubble (A / persona): “잠깐!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1613,7 +1583,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 시우가 돌아보며
-Acting cue: 시우가 돌아보며
 Speech bubble (B / character): “안 잡혀!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1624,7 +1593,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 한별이 코너에서
-Acting cue: 한별이 코너에서
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1738,7 +1706,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 시우가 복도 끝에서
-Acting cue: 시우가 복도 끝에서
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1749,7 +1716,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 뒤쫓으며 외친다
-Acting cue: 뒤쫓으며 외친다
 Speech bubble (A / persona): “잠깐!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1760,7 +1726,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 시우가 돌아보며
-Acting cue: 시우가 돌아보며
 Speech bubble (B / character): “안 잡혀!”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1771,7 +1736,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 한별이 코너에서
-Acting cue: 한별이 코너에서
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1813,7 +1777,7 @@ Global must avoid:
 - **Expected cast:** A=수아, B=건
 - **Expected key beat:** 타버린 요리를 발견
 - **Expected dialogue:** 이게 뭐야… | 내 탓이야.
-- **Expected progression:** Establish → Escalation → Turn → Resolution
+- **Expected progression:** Opening beat → Beat 2 → Beat 3 → Closing beat
 
 ### Source scene
 
@@ -1890,7 +1854,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 건이 냄비 뚜껑을 연다.
-Acting cue: 건이 냄비 뚜껑을 연다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1910,7 +1873,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 건이 고개를 숙이며
-Acting cue: 건이 고개를 숙이며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1973,7 +1935,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 건이 냄비 뚜껑을 연다.
-Acting cue: 건이 냄비 뚜껑을 연다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -1993,7 +1954,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 건이 고개를 숙이며
-Acting cue: 건이 고개를 숙이며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -2044,7 +2004,7 @@ Global must avoid:
 - **Expected cast:** A=유나, B=재혁
 - **Expected key beat:** 손을 잡고 고백
 - **Expected dialogue:** 할 말이 있어. | …들을게.
-- **Expected progression:** Establish → Escalation → Turn → Resolution
+- **Expected progression:** Opening beat → Beat 2 → Beat 3 → Closing beat
 
 ### Source scene
 
@@ -2123,7 +2083,6 @@ Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 손을 잡는다
 B action: 재혁이 노을진 다리 위에 선다.
-Acting cue: 손을 잡는다; 재혁이 노을진 다리 위에 선다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -2143,7 +2102,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 재혁이 숨을 고르며
-Acting cue: 재혁이 숨을 고르며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -2207,7 +2165,6 @@ Layout: A left, B right — maintain stable orientation across panels
 Background:
 A action: 손을 잡는다
 B action: 재혁이 노을진 다리 위에 선다.
-Acting cue: 손을 잡는다; 재혁이 노을진 다리 위에 선다.
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -2227,7 +2184,6 @@ Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 재혁이 숨을 고르며
-Acting cue: 재혁이 숨을 고르며
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -2274,4 +2230,6 @@ Global must avoid:
 
 ## Audit counters
 
+- ACTION_DIRECTIVE_DUPLICATE_COUNT: 0
+- REVIEW_ARTIFACT_LEGACY_GENRE_LABEL_COUNT: 0
 - REVIEW_PACKET_TRUNCATION_COUNT: 0

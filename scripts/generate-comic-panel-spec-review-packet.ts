@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { buildChatComicImagePrompt } from "../src/lib/chatComicGeneration";
 import {
   compileChatComicPanelSpec,
+  countActionDirectiveDuplicates,
   renderChatComicPanelSpecSection,
 } from "../src/lib/chatComicPanelSpec";
 import {
@@ -126,6 +127,22 @@ for (const fixture of COMIC_PANEL_BENCHMARK_FIXTURES) {
 
 sections.push("## Audit counters");
 sections.push("");
+let actionDuplicateCount = 0;
+let legacyGenreLabelCount = 0;
+for (const fixture of COMIC_PANEL_BENCHMARK_FIXTURES) {
+  const plan = scenePlanForFixture(fixture);
+  const spec = compileChatComicPanelSpec({
+    plan,
+    personaName: fixture.expectedCast.persona,
+    characterName: fixture.expectedCast.character,
+  });
+  actionDuplicateCount += countActionDirectiveDuplicates(spec);
+  if (fixture.expectedPanelProgression.some((label) => /punchline|Climax|Escalation|Turn|Setup|Payoff|Establish|Resolution|Development/i.test(label))) {
+    legacyGenreLabelCount += 1;
+  }
+}
+sections.push(`- ACTION_DIRECTIVE_DUPLICATE_COUNT: ${actionDuplicateCount}`);
+sections.push(`- REVIEW_ARTIFACT_LEGACY_GENRE_LABEL_COUNT: ${legacyGenreLabelCount}`);
 sections.push(`- REVIEW_PACKET_TRUNCATION_COUNT: ${truncationCount}`);
 sections.push("");
 

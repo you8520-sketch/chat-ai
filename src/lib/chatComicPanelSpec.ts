@@ -26,7 +26,6 @@ export type ComicPanelSpecBeat = {
   background: string;
   personaAction?: string;
   characterAction?: string;
-  actingCue?: string;
   speechBubbles: Array<{ speakerLabel: "A" | "B" | "other"; speaker: string; text: string }>;
   sfx: readonly string[];
   mustAvoid: readonly string[];
@@ -74,6 +73,13 @@ export function resolveComicPanelFormat(panelCount: ScenePanelCount): ComicPanel
   return "4panel";
 }
 
+export function resolveExpectedPanelProgression(panelCount: ScenePanelCount): string[] {
+  const format = resolveComicPanelFormat(panelCount);
+  return Array.from({ length: panelCount }, (_, index) =>
+    resolveBeatRole(format, index + 1, panelCount)
+  );
+}
+
 function resolveBeatRole(_format: ComicPanelFormatId, index: number, total: number): string {
   if (total === 2) {
     return index === 1 ? "Opening beat" : "Closing beat";
@@ -112,11 +118,6 @@ function resolveLayout(personaVisible: boolean, castCount: number): string {
   }
   if (!personaVisible) return "character B centered; persona A off-camera only";
   return "A left, B right — maintain stable orientation across panels";
-}
-
-function resolveActingCueFromBeat(beat: ProjectedComicPanelBeat): string | undefined {
-  const acting = [beat.personaAction, beat.characterAction].filter(Boolean).join("; ");
-  return acting || undefined;
 }
 
 function resolveContinuityRules(format: ComicPanelFormatId, castCount: number): string[] {
@@ -215,7 +216,6 @@ export function compileChatComicPanelSpec(opts: {
   const panels: ComicPanelSpecBeat[] = opts.plan.panels.map((panel) => {
     const beat = projectComicPanelBeat(opts.plan, panel, visibility);
     const beatRole = resolveBeatRole(format, panel.index, panelCount);
-    const actingCue = resolveActingCueFromBeat(beat);
     return {
       index: panel.index,
       beatRole,
@@ -226,7 +226,6 @@ export function compileChatComicPanelSpec(opts: {
       background: beat.background,
       personaAction: beat.personaAction,
       characterAction: beat.characterAction,
-      actingCue,
       speechBubbles: beat.dialogue.map((line) => ({
         speakerLabel: speakerLabel(line.speaker),
         speaker: line.speaker,
@@ -280,7 +279,6 @@ export function renderChatComicPanelSpecSection(spec: ChatComicPanelSpec): strin
         `Layout: ${panel.layout}`,
         `Background: ${panel.background}`,
         actions,
-        panel.actingCue ? `Acting cue: ${panel.actingCue}` : "",
         bubbles,
         "SFX: (none — do not render sound-effect text)",
         `Must avoid: ${panel.mustAvoid.join("; ")}`,
@@ -332,6 +330,20 @@ export function countForcedGenreDirectives(spec: ChatComicPanelSpec): number {
     (count, pattern) => count + (pattern.test(haystack) ? 1 : 0),
     0
   );
+}
+
+export function countActionDirectiveDuplicates(spec: ChatComicPanelSpec): number {
+  const rendered = renderChatComicPanelSpecSection(spec);
+  let count = 0;
+  for (const line of rendered.split("\n")) {
+    const actionMatch = line.match(/^(A action|B action):\s*(.+)$/);
+    if (!actionMatch) continue;
+    const actionText = actionMatch[2]?.trim() ?? "";
+    if (!actionText) continue;
+    const duplicateCue = rendered.includes(`Acting cue: ${actionText}`);
+    if (duplicateCue) count += 1;
+  }
+  return count;
 }
 
 export function countEmptyActingDirectives(spec: ChatComicPanelSpec): number {

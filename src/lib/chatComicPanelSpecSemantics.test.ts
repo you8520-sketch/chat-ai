@@ -5,6 +5,7 @@ import type { ChatImageCastGroundedSubject } from "./chatImageCastManifest";
 import {
   buildStableCastLabels,
   compileChatComicPanelSpec,
+  countActionDirectiveDuplicates,
   countEmptyActingDirectives,
   countForcedGenreDirectives,
   renderChatComicPanelSpecSection,
@@ -121,6 +122,7 @@ describe("chatComicPanelSpec neutral semantics", () => {
       characterName: "태현",
     });
     assert.equal(countEmptyActingDirectives(spec), 0);
+    assert.equal(countActionDirectiveDuplicates(spec), 0);
     const rendered = renderChatComicPanelSpecSection(spec);
     assert.doesNotMatch(rendered, /^Expressions:/m);
     assert.doesNotMatch(rendered, /^Acting:\s*$/m);

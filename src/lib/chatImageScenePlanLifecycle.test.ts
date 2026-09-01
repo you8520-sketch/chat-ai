@@ -8,6 +8,7 @@ import {
   reflowScenePlanPanels,
 } from "./chatImageScenePlan";
 import {
+  commitScenePanelCount,
   resolveComicAiApplyPanelCount,
   shouldApplyComicAiPlanUpgrade,
 } from "./chatImageScenePlanLifecycle";
@@ -18,6 +19,18 @@ const MESSAGES = buildSceneSourceMessages([
 ]);
 
 describe("chatImageScenePlanLifecycle async panel-count race", () => {
+  it("R0 sync write updates ref before async apply (no effect mirror required)", () => {
+    const ref = { current: 3 as const };
+    let state = 3 as const;
+    const setState = (count: typeof state) => {
+      state = count;
+    };
+    commitScenePanelCount(ref, 4, setState);
+    assert.equal(ref.current, 4);
+    assert.equal(state, 4);
+    assert.equal(resolveComicAiApplyPanelCount(ref.current), 4);
+  });
+
   it("R1 applies AI plan at latest panel count after 3→4 switch", () => {
     const aiPlan = buildDeterministicScenePlan(MESSAGES, 3);
     const applied = applyApprovedAiScenePlan(aiPlan, resolveComicAiApplyPanelCount(4));
