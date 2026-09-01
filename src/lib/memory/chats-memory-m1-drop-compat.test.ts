@@ -31,7 +31,7 @@ import {
 } from "@/lib/memory/chats-memory-column-compat";
 import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
 import { getOrCreateChatMemory } from "@/lib/memory/memory-db";
-import { executeAtomicMemoryResetCore } from "@/lib/memory/memory-source-boundary";
+import { invalidateDerivedMemoryGenerationCore } from "@/lib/memory/memory-source-boundary";
 import { reconcileMemoryAfterVariantSwitch } from "@/lib/memory/memory-variant-switch-reconcile";
 import {
   installIsolatedTestDatabase,
@@ -311,27 +311,23 @@ describe("chats.memory M2 → M1 rollback matrix (live DB column dropped)", () =
     assert.equal(row.recent_summary, "");
   });
 
-  it("C3 RESET: canonical cleared without current_summary guard dependency", () => {
+  it("C3 INVALIDATION: epoch bump does not depend on current_summary column", () => {
     const db = getDb();
     seedLiveUserCharacterChat(db);
-    db.prepare(`UPDATE chats SET current_summary=? WHERE id=?`).run("before reset", CHAT_ID);
+    db.prepare(`UPDATE chats SET current_summary=? WHERE id=?`).run("before invalidation", CHAT_ID);
     db.prepare(
       `INSERT OR REPLACE INTO chat_memories
         (chat_id, user_id, character_id, recent_summary, archive_summary, membership_tier, used_chars, summarized_turn_count)
        VALUES (?,?,?,?,?,?,?,0)`
-    ).run(CHAT_ID, USER_ID, CHARACTER_ID, "before reset", "", "free", 12);
-    assert.doesNotThrow(() =>
-      executeAtomicMemoryResetCore(db, {
-        chatId: CHAT_ID,
-        userId: USER_ID,
-        characterId: CHARACTER_ID,
-        tier: "free",
-      })
-    );
-    const mem = db
-      .prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=?`)
-      .get(CHAT_ID) as { recent_summary: string };
-    assert.equal(mem.recent_summary, "");
+    ).run(CHAT_ID, USER_ID, CHARACTER_ID, "before invalidation", "", "free", 12);
+    assert.doesNotThrow(() => invalidateDerivedMemoryGenerationCore(db, CHAT_ID));
+    const boundary = db
+      .prepare(
+        `SELECT memory_epoch, recent_summary FROM chat_memories WHERE chat_id=?`
+      )
+      .get(CHAT_ID) as { memory_epoch: number; recent_summary: string };
+    assert.equal(boundary.memory_epoch, 1);
+    assert.equal(boundary.recent_summary, "before invalidation");
   });
 
   it("C4 VARIANT_SWITCH: canonical-only reconcile (no current_summary mirror)", () => {

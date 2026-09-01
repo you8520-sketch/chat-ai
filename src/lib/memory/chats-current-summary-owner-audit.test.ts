@@ -22,8 +22,8 @@ import { insertForkChatRow } from "@/lib/chatForkCreate";
 import { buildMemoryContext } from "@/lib/memory/memory-injector";
 import {
   getOrCreateChatMemory,
+  updateChatMemory,
 } from "@/lib/memory/memory-db";
-import { executeAtomicMemoryResetCore } from "@/lib/memory/memory-source-boundary";
 import { updateLorebookForChat } from "@/lib/memory/memory-manager";
 import { ROLLING_SUMMARY_INTERVAL, RAW_HISTORY_COMPLETE_EXCHANGES } from "./memory-constants";
 import {
@@ -108,14 +108,13 @@ describe("chats.current_summary owner audit — post-C1 behavior", () => {
     assert.equal(readCurrentSummary(), "");
   });
 
-  it("CS-A3 reset + bootstrap does not resurrect stale current_summary", () => {
+  it("CS-A3 cleared canonical bootstrap does not resurrect stale current_summary", () => {
     seedChat("OLD");
     seedCanonical("NEW");
-    executeAtomicMemoryResetCore(getDb(), {
-      chatId: CHAT_ID,
-      userId: USER_ID,
-      characterId: CHARACTER_ID,
-      tier: TIER,
+    updateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, {
+      recent_summary: "",
+      archive_summary: "",
+      membership_tier: TIER,
     });
     getDb().prepare("DELETE FROM chat_memories WHERE chat_id=?").run(CHAT_ID);
     const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);

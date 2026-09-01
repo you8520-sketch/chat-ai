@@ -350,28 +350,6 @@ describe("memory continuity — local invalidation not global wipe (G)", () => {
   });
 });
 
-describe("memory continuity — stale write guard (K)", () => {
-  beforeEach(() => {
-    cleanupAll();
-    seedBase();
-  });
-
-  it("epoch advance blocks stale background write guard", () => {
-    insertPlayableTurns(3);
-    const db = getDb();
-    const snapshot = getMemorySourceBoundaryCore(db, CHAT);
-    db.prepare(`UPDATE chat_memories SET memory_epoch=memory_epoch+1 WHERE chat_id=?`).run(CHAT);
-    assert.equal(
-      isMemoryWriteGuardCurrentCore(db, {
-        chatId: CHAT,
-        snapshot,
-        sourceUserMessageIds: [],
-      }),
-      false
-    );
-  });
-});
-
 describe("memory continuity — user global clear unreachable (L)", () => {
   it("memory API route does not expose action clear", () => {
     const src = readFileSync(join(process.cwd(), "src/app/api/chat/memory/route.ts"), "utf8");

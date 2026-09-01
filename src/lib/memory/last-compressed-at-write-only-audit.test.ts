@@ -22,7 +22,10 @@ import {
   getOrCreateChatMemory,
   updateChatMemory,
 } from "./memory-db";
-import { executeAtomicMemoryReset } from "./memory-source-boundary";
+import {
+  getMemorySourceBoundaryCore,
+  invalidateDerivedMemoryGenerationCore,
+} from "./memory-source-boundary";
 import {
   installIsolatedTestDatabase,
   uninstallIsolatedTestDatabase,
@@ -119,7 +122,7 @@ describe("last_compressed_at write-only audit", () => {
     assert.equal(snapA.lorebook, snapB.lorebook);
   });
 
-  it("L4 reset clears canonical fields regardless of stale last_compressed_at carrier", () => {
+  it("L4 global memory reset runtime removed; invalidation preserves canonical text", () => {
     const db = getDb();
     db.exec(`
       CREATE TABLE IF NOT EXISTS chats (
@@ -136,15 +139,13 @@ describe("last_compressed_at write-only audit", () => {
       CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY, chat_id INTEGER NOT NULL);
     `);
     seedChatMemoryRow(db, 88005, "stale timestamp");
-    db.prepare(`UPDATE chat_memories SET recent_summary='before reset' WHERE chat_id=88005`).run();
+    db.prepare(`UPDATE chat_memories SET recent_summary='before invalidation' WHERE chat_id=88005`).run();
 
-    executeAtomicMemoryReset({ chatId: 88005, userId: 1, characterId: 2, tier: "free" });
+    invalidateDerivedMemoryGenerationCore(db, 88005);
 
     const row = getOrCreateChatMemory(88005, 1, 2, "free");
-    assert.equal(row.recent_summary, "");
-    assert.equal(row.archive_summary, "");
-    assert.equal(row.message_count, 0);
-    assert.equal(row.summarized_turn_count, 0);
+    assert.equal(row.recent_summary, "before invalidation");
+    assert.equal(getMemorySourceBoundaryCore(db, 88005).epoch, 1);
   });
 
   it("L6 no runtime ChatMemoryRow field after lorebook update path", async () => {

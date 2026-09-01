@@ -27,10 +27,7 @@ import {
 import {
   convergeLegacyChatsMemoryIntoCanonical as convergeDirect,
 } from "@/lib/memory/chats-memory-convergence";
-import {
-  getOrCreateChatMemory,
-} from "@/lib/memory/memory-db";
-import { executeAtomicMemoryResetCore } from "@/lib/memory/memory-source-boundary";
+import { getOrCreateChatMemory } from "@/lib/memory/memory-db";
 import { ROLLING_SUMMARY_INTERVAL, RAW_HISTORY_COMPLETE_EXCHANGES } from "./memory-constants";
 import {
   installIsolatedTestDatabase,
@@ -228,8 +225,8 @@ describe("chats.memory M1 lazy bootstrap retirement (C1)", () => {
   });
 });
 
-describe("chats.memory M1 reset resurrection safety", () => {
-  it("reset then row delete does not resurrect old memory", () => {
+describe("chats.memory M1 cleared canonical resurrection safety", () => {
+  it("cleared canonical then row delete does not resurrect old memory", () => {
     const db = getDb();
     ensureMemoryColumnForHistoricalFixture(db);
     ensureChatRow(db);
@@ -240,12 +237,10 @@ describe("chats.memory M1 reset resurrection safety", () => {
        VALUES (?,?,?,?,?,?,?,0)`
     ).run(CHAT_ID, USER_ID, CHARACTER_ID, "", "", TIER, 0);
 
-    executeAtomicMemoryResetCore(db, {
-      chatId: CHAT_ID,
-      userId: USER_ID,
-      characterId: CHARACTER_ID,
-      tier: TIER,
-    });
+    db.prepare(`UPDATE chat_memories SET recent_summary='', archive_summary='' WHERE chat_id=?`).run(
+      CHAT_ID
+    );
+    db.prepare(`DELETE FROM chat_turn_summaries WHERE chat_id=?`).run(CHAT_ID);
 
     db.prepare(`DELETE FROM chat_memories WHERE chat_id=?`).run(CHAT_ID);
     const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
