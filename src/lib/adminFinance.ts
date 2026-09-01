@@ -21,6 +21,7 @@ import {
   type FinanceTurnCostCoverage,
 } from "@/lib/adminFinanceTurnCost";
 import { ensureProviderCostLedgerSchema, type ProviderCostLedgerRow } from "@/lib/providerCostLedger";
+import { imageHasAccountingActivity } from "@/lib/adminFinanceMarginDisplay";
 
 export type FinanceMonthlyAdjustments = {
   monthKey: string;
@@ -579,6 +580,17 @@ export function buildAdminFinanceSummary(
     .get(start, end) as { paid_fee: number };
   const giftFeeRevenueKrw = finiteNonNegative(giftFees.paid_fee);
 
+  const imageApiCostBeforeTax = imageApiCost;
+  const imageHasActivity = imageHasAccountingActivity(
+    imagePaid,
+    imageFree,
+    imageApiCostBeforeTax
+  );
+  const imageMarginCoverage: FinanceMarginCoverage = imageHasActivity
+    ? "estimated"
+    : "complete";
+  const imageRealizedMarginExact = !imageHasActivity;
+
   const chat = category(
     chatPaid,
     chatFree,
@@ -592,8 +604,8 @@ export function buildAdminFinanceSummary(
     imageFree,
     imageApiCost * (1 + adjustments.providerTaxRate),
     0,
-    "estimated",
-    false
+    imageMarginCoverage,
+    imageRealizedMarginExact
   );
   const railwayCostKrw = adjustments.railwayUsageKrw + adjustments.railwayTaxKrw;
   const operatingCostsKrw =

@@ -99,13 +99,12 @@ function mergeFinanceCoverage(
   current: FinanceTurnCostCoverage,
   next: FinanceTurnCostCoverage
 ): FinanceTurnCostCoverage {
-  const rank: Record<FinanceTurnCostCoverage, number> = {
-    unavailable: 0,
-    complete: 1,
-    estimated: 2,
-    partial: 3,
-  };
-  return rank[next] > rank[current] ? next : current;
+  if (current === next) return current;
+  const set = new Set([current, next]);
+  if (set.has("partial")) return "partial";
+  if (set.has("unavailable")) return "unavailable";
+  if (set.has("estimated")) return "estimated";
+  return "complete";
 }
 
 function coverageFromComponents(

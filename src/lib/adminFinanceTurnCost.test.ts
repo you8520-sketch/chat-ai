@@ -8,7 +8,12 @@ import {
 import {
   resolveMessageTurnProviderCostKrw,
   resolveReceiptV3ExactProviderSpendKrw,
+  mergeFinanceTurnCostCoverage,
 } from "@/lib/adminFinanceTurnCost";
+import {
+  formatFinanceMarginRate,
+  imageHasAccountingActivity,
+} from "@/lib/adminFinanceMarginDisplay";
 import {
   auditAdminFinanceCostScope,
   adminFinanceRealizedMarginReady,
@@ -150,6 +155,13 @@ function createFinanceDb(): Database.Database {
       amount REAL NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'pending',
       paid_at TEXT
+    );
+    CREATE TABLE chat_image_generations (
+      id INTEGER PRIMARY KEY,
+      upstream_cost_usd REAL,
+      deduction_slices TEXT,
+      exchange_rate_krw_per_usd REAL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
   ensureAdminFinanceTables(db);
@@ -482,5 +494,78 @@ describe("adminFinanceCostScopeAudit — computed gates", () => {
     const audit = auditAdminFinanceCostScope();
     assert.equal(audit.ADMIN_FINANCE_REALIZED_MARGIN_READY, "YES");
     assert.match(audit.ADMIN_FINANCE_COST_OWNER, /knownApiCostKrw \+ coverage/);
+  });
+});
+
+describe("adminFinance aggregate semantics (F12–F14)", () => {
+  beforeEach(() => installAuditLegacyFxForTest());
+  afterEach(() => clearAuditLegacyFxForTest());
+
+  it("F12 — no image activity is neutral for overall exact margin", () => {
+    const db = createFinanceDb();
+    insertAssistant(db, 12, mainUsage(), [{ pointType: "PAID", amount: 100 }]);
+    const summary = buildAdminFinanceSummary(db);
+    assert.equal(imageHasAccountingActivity(0, 0, 0), false);
+    assert.equal(summary.image.realizedMarginExact, true);
+    assert.equal(summary.image.marginCoverage, "complete");
+    assert.equal(summary.chat.realizedMarginExact, true);
+    assert.equal(summary.realizedMarginExact, true);
+    assert.equal(summary.netProfitKrw, 60);
+    assert.equal(summary.marginRate, 0.6);
+  });
+
+  it("F13 — image activity with estimated cost blocks overall exact margin", () => {
+    const db = createFinanceDb();
+    insertAssistant(db, 13, mainUsage(), [{ pointType: "PAID", amount: 100 }]);
+    db.prepare(
+      `INSERT INTO chat_image_generations
+         (upstream_cost_usd, deduction_slices, exchange_rate_krw_per_usd, created_at)
+       VALUES (?, ?, ?, datetime('now'))`
+    ).run(
+      0.01,
+      JSON.stringify([{ pointType: "PAID", amount: 20 }]),
+      FX.effectiveKrwPerUsd
+    );
+    const summary = buildAdminFinanceSummary(db);
+    assert.equal(summary.image.realizedMarginExact, false);
+    assert.equal(summary.image.marginCoverage, "estimated");
+    assert.equal(summary.realizedMarginExact, false);
+    assert.equal(summary.netProfitKrw, null);
+    assert.equal(summary.marginRate, null);
+    assert.notEqual(summary.marginCoverage, "complete");
+  });
+
+  it("F14 — unavailable turn aggregate with paid revenue never shows 매출 없음", () => {
+    const db = createFinanceDb();
+    insertAssistant(db, 14, mainUsage(), [{ pointType: "PAID", amount: 100 }]);
+    const unavailableUsage: Usage = {
+      input: 10,
+      output: 5,
+      model: "unknown-model",
+      route: "safe",
+      cost: 50,
+      breakdown: [],
+    };
+    insertAssistant(db, 15, unavailableUsage, [{ pointType: "PAID", amount: 80 }]);
+    const summary = buildAdminFinanceSummary(db);
+    assert.equal(summary.chat.paidRevenueKrw, 180);
+    assert.equal(summary.chat.realizedMarginExact, false);
+    assert.notEqual(summary.chat.marginCoverage, "complete");
+    assert.equal(summary.chat.marginRate, null);
+    assert.equal(summary.chat.netProfitKrw, null);
+    const marginLabel = formatFinanceMarginRate(
+      summary.chat.marginRate,
+      summary.chat.marginCoverage,
+      summary.chat.paidRevenueKrw
+    );
+    assert.notEqual(marginLabel, "매출 없음");
+    assert.match(marginLabel, /미확정/);
+  });
+
+  it("coverage merge — unavailable cannot be masked by complete", () => {
+    assert.equal(mergeFinanceTurnCostCoverage("complete", "unavailable"), "unavailable");
+    assert.equal(mergeFinanceTurnCostCoverage("unavailable", "complete"), "unavailable");
+    assert.notEqual(mergeFinanceTurnCostCoverage("complete", "unavailable"), "complete");
+    assert.equal(mergeFinanceTurnCostCoverage("complete", "complete"), "complete");
   });
 });
