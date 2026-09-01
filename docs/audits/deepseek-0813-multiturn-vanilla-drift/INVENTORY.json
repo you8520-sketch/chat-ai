@@ -1,0 +1,87 @@
+{
+  "TRACK": "MULTI-TURN VANILLA TRUE-OFF DRIFT",
+  "FIXTURE_AVAILABLE": false,
+  "LIVE_CALLS": 0,
+  "MODEL_CALLS": 0,
+  "REASON": "complete_real_multiturn_chain_unavailable",
+  "PREFERRED_SOURCE": "gemini-3.7-flash",
+  "TARGET": "deepseek-v4-pro-0813",
+  "SOURCE_MIRROR": 0,
+  "COMPLETION": 0,
+  "CURRENT_STAGE_BOUNDARY": 0,
+  "FINGERPRINT": 0,
+  "MODEL_SPECIFIC_STYLE_ADAPTER": 0,
+  "ORIGIN_POINTER": 0,
+  "TURN_OWNERSHIP": 0,
+  "PRODUCTION_CHANGED": false,
+  "MAIN_MERGED": false,
+  "RAILWAY_DEPLOYED": false,
+  "QUALITY_SCORING_BY_CURSOR": false,
+  "candidates": [
+    {
+      "id": "gemini37-baseline-t1-t2",
+      "sourceModelId": "gemini-3.7-flash",
+      "preferred": true,
+      "isNativeDeepSeek": false,
+      "matchingHumanUsersAfterOrigin": 1,
+      "deepSeekHandoffAssistantTurns": 0,
+      "missingHumanUsersAfterHandoff": [
+        "handoff_turn2_user",
+        "handoff_turn3_user"
+      ],
+      "notes": "Committed Gemini 3.7 Flash T1 RAW + matching T2 user only. T2 RAW is Gemini, not DeepSeek. No three-turn DeepSeek handoff chain."
+    },
+    {
+      "id": "gemini37-pricing-30",
+      "sourceModelId": "gemini-3.7-flash",
+      "preferred": false,
+      "isNativeDeepSeek": false,
+      "matchingHumanUsersAfterOrigin": 0,
+      "deepSeekHandoffAssistantTurns": 0,
+      "missingHumanUsersAfterHandoff": [
+        "handoff_turn1_user",
+        "handoff_turn2_user",
+        "handoff_turn3_user"
+      ],
+      "notes": "Gemini-only growing history. Do not relabel as a DeepSeek adult-handoff chain."
+    },
+    {
+      "id": "native-deepseek-boundary-resmoke",
+      "sourceModelId": "deepseek-v4-pro-0813",
+      "preferred": false,
+      "isNativeDeepSeek": true,
+      "matchingHumanUsersAfterOrigin": 0,
+      "deepSeekHandoffAssistantTurns": 0,
+      "missingHumanUsersAfterHandoff": [
+        "handoff_turn1_user",
+        "handoff_turn2_user",
+        "handoff_turn3_user"
+      ],
+      "notes": "User selected DeepSeek. Native turn, adult handoff=false. Not a source→0813 handoff chain."
+    }
+  ],
+  "gemini37_baseline": {
+    "t1_raw_path": "docs/audits/gemini-37-flash-baseline/t1-raw.txt",
+    "t1_raw_sha256": "4b6adc16eee5f577484bcb556ba5b9efc6157567907b2fd58ff596607735e124",
+    "t2_raw_path": "docs/audits/gemini-37-flash-baseline/t2-raw.txt",
+    "t2_raw_sha256": "165a66774b65c4883075d5bf6128f8218645ead6a856f82af3188651c1e76207",
+    "matching_next_user": "같이 갈래? *두리번*",
+    "matching_next_user_sha256": "92db37849afd163b8cf86c47d744d717799e9b37a7902286f517b6c5438e8c1b",
+    "deepseek_handoff_assistant_turns": 0
+  },
+  "partial_chain_readiness": {
+    "complete": false,
+    "humansComplete": false,
+    "liveCallsAllowed": false,
+    "requiredLiveCalls": 0,
+    "missing": [
+      "origin_canonical_non_deepseek_assistant",
+      "turn1_deepseek_assistant_raw",
+      "turn2_matching_human_user",
+      "turn2_deepseek_assistant_raw",
+      "turn3_matching_human_user",
+      "turn3_deepseek_assistant_raw"
+    ],
+    "blockers": []
+  }
+}
