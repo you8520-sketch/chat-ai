@@ -1,0 +1,135 @@
+{
+  "blocks": [
+    {
+      "paragraph_index": 2,
+      "paragraph_preview": "\"박아. 끝까지.\"",
+      "quoted_text": "박아. 끝까지.",
+      "attribution": "SOURCE_USER_QUOTED_DIALOGUE"
+    },
+    {
+      "paragraph_index": 7,
+      "paragraph_preview": "\"이거 원, 신입 가이드님이 보기보다 대담하네.\"",
+      "quoted_text": "이거 원, 신입 가이드님이 보기보다 대담하네.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 9,
+      "paragraph_preview": "\"하아...\"",
+      "quoted_text": "하아...",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 11,
+      "paragraph_preview": "\"끝까지 하라며. 지금부터 거칠게 갈 거니까, 죽어도 뒤로 못 빼는 거다.\"",
+      "quoted_text": "끝까지 하라며. 지금부터 거칠게 갈 거니까, 죽어도 뒤로 못 빼는 거다.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 13,
+      "paragraph_preview": "\"좋아, 죽이네. 안에서 계속 조이잖아.\"",
+      "quoted_text": "좋아, 죽이네. 안에서 계속 조이잖아.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 15,
+      "paragraph_preview": "\"여기지. 몸이 정직하네. 아까부터 여기 닿을 때마다 다리 벌리는 거.\"",
+      "quoted_text": "여기지. 몸이 정직하네. 아까부터 여기 닿을 때마다 다리 벌리는 거.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 18,
+      "paragraph_preview": "\"이대로 싸버려도, 상관없지?\"",
+      "quoted_text": "이대로 싸버려도, 상관없지?",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 20,
+      "paragraph_preview": "\"아, 씨...\"",
+      "quoted_text": "아, 씨...",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 23,
+      "paragraph_preview": "\"죽어도 못 잊겠는데. 나.\"",
+      "quoted_text": "죽어도 못 잊겠는데. 나.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 25,
+      "paragraph_preview": "\"배고픈 건 어쩌지. 나 지금 더 배고파졌어.\"",
+      "quoted_text": "배고픈 건 어쩌지. 나 지금 더 배고파졌어.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    }
+  ],
+  "SOURCE_USER_QUOTED_DIALOGUE_COUNT": 1,
+  "NEW_USER_PERSONA_DIALOGUE_CANDIDATE_COUNT": 0,
+  "NEW_USER_DIALOGUE_HUMAN_REVIEW_REQUIRED": false,
+  "by_attribution": {
+    "SOURCE_USER_QUOTED_DIALOGUE": [
+      {
+        "paragraph_index": 2,
+        "paragraph_preview": "\"박아. 끝까지.\"",
+        "quoted_text": "박아. 끝까지.",
+        "attribution": "SOURCE_USER_QUOTED_DIALOGUE"
+      }
+    ],
+    "AI_CHARACTER_DIALOGUE_CANDIDATE": [
+      {
+        "paragraph_index": 7,
+        "paragraph_preview": "\"이거 원, 신입 가이드님이 보기보다 대담하네.\"",
+        "quoted_text": "이거 원, 신입 가이드님이 보기보다 대담하네.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 9,
+        "paragraph_preview": "\"하아...\"",
+        "quoted_text": "하아...",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 11,
+        "paragraph_preview": "\"끝까지 하라며. 지금부터 거칠게 갈 거니까, 죽어도 뒤로 못 빼는 거다.\"",
+        "quoted_text": "끝까지 하라며. 지금부터 거칠게 갈 거니까, 죽어도 뒤로 못 빼는 거다.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 13,
+        "paragraph_preview": "\"좋아, 죽이네. 안에서 계속 조이잖아.\"",
+        "quoted_text": "좋아, 죽이네. 안에서 계속 조이잖아.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 15,
+        "paragraph_preview": "\"여기지. 몸이 정직하네. 아까부터 여기 닿을 때마다 다리 벌리는 거.\"",
+        "quoted_text": "여기지. 몸이 정직하네. 아까부터 여기 닿을 때마다 다리 벌리는 거.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 18,
+        "paragraph_preview": "\"이대로 싸버려도, 상관없지?\"",
+        "quoted_text": "이대로 싸버려도, 상관없지?",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 20,
+        "paragraph_preview": "\"아, 씨...\"",
+        "quoted_text": "아, 씨...",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 23,
+        "paragraph_preview": "\"죽어도 못 잊겠는데. 나.\"",
+        "quoted_text": "죽어도 못 잊겠는데. 나.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 25,
+        "paragraph_preview": "\"배고픈 건 어쩌지. 나 지금 더 배고파졌어.\"",
+        "quoted_text": "배고픈 건 어쩌지. 나 지금 더 배고파졌어.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      }
+    ],
+    "NEW_USER_PERSONA_DIALOGUE_CANDIDATE": [],
+    "UNATTRIBUTED_DIALOGUE": []
+  }
+}
