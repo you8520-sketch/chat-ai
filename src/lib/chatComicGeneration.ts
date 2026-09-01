@@ -12,9 +12,9 @@ import {
 import type { ScenePanelCount, ScenePlan } from "@/lib/chatImageScenePlan";
 import {
   collectApprovedComicText,
-  formatApprovedScenePlanForComic,
   resolveScenePresentationVisibility,
 } from "@/lib/chatImageScenePlan";
+import { buildChatComicPanelSpecPromptSection } from "@/lib/chatComicPanelSpec";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
   bindChatImageReferencePack,
@@ -195,8 +195,13 @@ export function buildChatComicImagePrompt(opts: {
       ? `Exactly ${opts.castSelected!.length} recurring human ${opts.castSelected!.length === 1 ? "identity" : "identities"}. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.`
       : "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
     "Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.",
-    "APPROVED SCENE PLAN",
-    formatApprovedScenePlanForComic(opts.plan, sceneVisibility),
+    buildChatComicPanelSpecPromptSection({
+      plan: opts.plan,
+      personaName: opts.personaName,
+      characterName: opts.characterName,
+      visibility: sceneVisibility,
+      castSelected: castAware ? opts.castSelected : undefined,
+    }),
   ]
     .filter(Boolean)
     .join("\n\n");
