@@ -297,9 +297,6 @@ export function reconcileMemoryAfterVariantSwitchCore(
      WHERE chat_id=?`
   ).run(lorebook, used, contiguous, opts.tier, opts.chatId);
 
-  // Mirror into chats.current_summary (M1: memory carrier retired).
-  db.prepare(`UPDATE chats SET current_summary=? WHERE id=?`).run(lorebook.trim(), opts.chatId);
-
   console.info(
     `[memory] reconcile after variant switch chat=${opts.chatId} sourceTurn=${memorySourceTurn} inactivated=${inactivatedRecordIds.length} summarized=${contiguous}`
   );

@@ -626,17 +626,9 @@ describe("persist branch-control atomicity (5-turn batches)", () => {
       recent_summary: "[1~5턴] " + branchText.slice(0, 40),
       membership_tier: "free",
     });
-    getDb()
-      .prepare("UPDATE chats SET current_summary=? WHERE id=?")
-      .run("[1~5턴] " + branchText.slice(0, 40), CHAT_ID);
     const memBefore = getDb()
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT_ID) as { recent_summary: string; summarized_turn_count: number };
-    const currentBefore = (
-      getDb()
-        .prepare("SELECT current_summary FROM chats WHERE id=?")
-        .get(CHAT_ID) as { current_summary: string }
-    ).current_summary;
     const activeBefore = countDistinctActiveBranchIds(CHAT_ID);
 
     const pendingOps: PersistPendingBranchControlOp[] = [
@@ -678,12 +670,6 @@ describe("persist branch-control atomicity (5-turn batches)", () => {
       .get(CHAT_ID) as { recent_summary: string; summarized_turn_count: number };
     assert.equal(memAfter.recent_summary, memBefore.recent_summary);
     assert.equal(memAfter.summarized_turn_count, memBefore.summarized_turn_count);
-    const currentAfter = (
-      getDb()
-        .prepare("SELECT current_summary FROM chats WHERE id=?")
-        .get(CHAT_ID) as { current_summary: string }
-    ).current_summary;
-    assert.equal(currentAfter, currentBefore);
     assert.equal(countDistinctActiveBranchIds(CHAT_ID), activeBefore);
 
     const ok = persistValidatedSummaryBatch({
@@ -707,12 +693,7 @@ describe("persist branch-control atomicity (5-turn batches)", () => {
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT_ID) as { recent_summary: string; summarized_turn_count: number };
     assert.equal(memOk.summarized_turn_count, 10);
-    const currentOk = (
-      getDb()
-        .prepare("SELECT current_summary FROM chats WHERE id=?")
-        .get(CHAT_ID) as { current_summary: string }
-    ).current_summary;
-    assert.equal(currentOk, memOk.recent_summary);
+    assert.ok(memOk.recent_summary.length > 0);
   });
 
   it("rollback after close-active branch ops leaves active branch unchanged", () => {

@@ -233,7 +233,7 @@ describe("chats.memory M2 DROP helper", () => {
       .prepare(`SELECT current_summary FROM chats WHERE id=?`)
       .get(CHAT_ID) as { current_summary: string };
     assert.equal(canonical.recent_summary, "ONLY SURVIVING LEGACY");
-    assert.equal(chat.current_summary, "ONLY SURVIVING LEGACY");
+    assert.equal(chat.current_summary, "");
     db.close();
   });
 
@@ -291,7 +291,7 @@ describe("chats.memory M2 convergence data-loss gates", () => {
       .prepare(`SELECT current_summary FROM chats WHERE id=?`)
       .get(CHAT_ID) as { current_summary: string };
     assert.equal(canonical.recent_summary, "ONLY SURVIVING LEGACY");
-    assert.equal(chat.current_summary, "ONLY SURVIVING LEGACY");
+    assert.equal(chat.current_summary, "");
     db.close();
   });
 
@@ -333,7 +333,7 @@ describe("chats.memory M2 convergence data-loss gates", () => {
       .prepare(`SELECT current_summary FROM chats WHERE id=?`)
       .get(CHAT_ID) as { current_summary: string };
     assert.equal(canonical.recent_summary, "CURRENT MIRROR");
-    assert.equal(chat.current_summary, "CURRENT MIRROR");
+    assert.equal(chat.current_summary, "");
     assert.equal(hasMemoryColumn(db), false);
     db.close();
   });
@@ -369,7 +369,6 @@ describe("chats.memory M2 fresh schema", () => {
       memoryPending: "[]",
       memoryMeta: "{}",
       memoryArchivedTurns: 0,
-      currentSummary: "",
       geminiModel: "",
       userNote: "",
       selectedPersonaId: null,

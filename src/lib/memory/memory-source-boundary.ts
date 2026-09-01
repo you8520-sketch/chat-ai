@@ -182,7 +182,7 @@ export function executeAtomicMemoryResetCore(
   db.prepare(`DELETE FROM memory_summary_migrations WHERE chat_id=?`).run(opts.chatId);
   db.prepare(
     `UPDATE chats SET
-       current_summary='', memory_meta=?,
+       memory_meta=?,
        memory_pending='[]', memory_archived_turns=0
      WHERE id=? AND user_id=?`
   ).run(JSON.stringify(EMPTY_MEMORY_META), opts.chatId, opts.userId);

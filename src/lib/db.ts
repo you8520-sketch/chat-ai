@@ -93,9 +93,11 @@ function normalizeLibsqlRows(db: Database.Database): void {
 function initializeDatabase(db: Database.Database): void {
   if (remoteDatabase) {
     initializeRemoteSchema(db, () => initializeDatabaseWithRetries(db));
-    return;
+  } else {
+    init(db);
   }
-  init(db);
+  // Idempotent — runs on already-current V7 remote DBs that skip migrate().
+  convergeLegacyChatsMemoryIntoCanonical(db);
 }
 
 function initializeDatabaseWithRetries(db: Database.Database): void {

@@ -20,6 +20,8 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { insertForkChatRow } from "@/lib/chatForkCreate";
@@ -29,7 +31,6 @@ import {
   updateChatMemory,
 } from "@/lib/memory/memory-db";
 import { executeAtomicMemoryResetCore } from "@/lib/memory/memory-source-boundary";
-import { syncChatLongTermMemory } from "@/lib/memory/memory-rolling-summary";
 import { ROLLING_SUMMARY_INTERVAL, RAW_HISTORY_COMPLETE_EXCHANGES } from "./memory-constants";
 import {
   installIsolatedTestDatabase,
@@ -104,14 +105,14 @@ function readLegacyFields(): { current_summary: string; memory: string } {
 before(() => installIsolatedTestDatabase());
 after(() => uninstallIsolatedTestDatabase());
 
-describe("chats legacy memory fallback audit — lazy bootstrap precedence", () => {
-  it("A1 current_summary wins over memory when chat_memories row missing", () => {
+describe("chats legacy memory fallback audit — lazy bootstrap precedence (C1 retired)", () => {
+  it("A1 getOrCreate no longer reads current_summary without global convergence", () => {
     getDb();
     deleteChatMemoriesRow();
     seedChatLegacyFields({ current_summary: "CURRENT", memory: "OLD" });
 
     const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
-    assert.equal(row.recent_summary, "CURRENT");
+    assert.equal(row.recent_summary, "");
   });
 
   it("A2 memory-only legacy is not lazy-read after M1 — global convergence required", () => {
@@ -175,7 +176,7 @@ describe("chats legacy memory fallback audit — reset resurrection safety", () 
     });
 
     const legacyAfterReset = readLegacyFields();
-    assert.equal(legacyAfterReset.current_summary, "");
+    void legacyAfterReset;
 
     deleteChatMemoriesRow();
     const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
@@ -183,7 +184,7 @@ describe("chats legacy memory fallback audit — reset resurrection safety", () 
     assert.equal(row.recent_summary.includes("OLD LEGACY"), false);
   });
 
-  it("reset clears both chats.memory and chats.current_summary", () => {
+  it("reset clears canonical memory; current_summary mirror write retired (C1)", () => {
     const db = getDb();
     ensureMemoryColumnForHistoricalFixture();
     ensureChatRow();
@@ -197,23 +198,20 @@ describe("chats legacy memory fallback audit — reset resurrection safety", () 
       tier: TIER,
     });
 
-    const legacy = readLegacyFields();
-    assert.equal(legacy.current_summary, "");
+    const mem = db
+      .prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=?`)
+      .get(CHAT_ID) as { recent_summary: string };
+    assert.equal(mem.recent_summary, "");
   });
 });
 
-describe("chats legacy memory fallback audit — mirror sync owner", () => {
-  it("A7 syncChatLongTermMemory mirrors canonical into chats.current_summary only", () => {
-    getDb();
-    ensureChatRow();
-    updateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, { recent_summary: "CANONICAL LORE" });
-    seedChatLegacyFields({ current_summary: "stale", memory: "stale-memory-carrier" });
-
-    syncChatLongTermMemory(CHAT_ID, "CANONICAL LORE");
-
-    const legacy = readLegacyFields();
-    assert.equal(legacy.current_summary, "CANONICAL LORE");
-    assert.equal(legacy.memory, "stale-memory-carrier");
+describe("chats legacy memory fallback audit — mirror sync retired (C1)", () => {
+  it("A7 syncChatLongTermMemory removed from production", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src/lib/memory/memory-rolling-summary.ts"),
+      "utf8"
+    );
+    assert.ok(!src.includes("export { syncChatLongTermMemory"));
   });
 });
 
@@ -243,7 +241,6 @@ describe("chats legacy memory fallback audit — fork bootstrap", () => {
       memoryPending: "[]",
       memoryMeta: "{}",
       memoryArchivedTurns: 0,
-      currentSummary: "",
       geminiModel: "",
       userNote: "",
       selectedPersonaId: null,

@@ -513,12 +513,6 @@ export function appendCurrentMemory(existing: string, block: string): string {
   return `${existing.trim()}\n\n${trimmed}`;
 }
 
-function syncChatLongTermMemory(chatId: number, summary: string): void {
-  getDb().prepare("UPDATE chats SET current_summary=? WHERE id=?").run(summary.trim(), chatId);
-}
-
-export { syncChatLongTermMemory };
-
 export function resolveBatchStartTurnForTurnNumber(
   turnNumber: number,
   records?: Array<{ turnStart: number; turnEnd: number; inactive?: boolean }>
@@ -1116,7 +1110,6 @@ async function persistComposedBatchScopes(opts: {
             recent_summary: compactedText,
             membership_tier: opts.tier,
           });
-          syncChatLongTermMemory(opts.chatId, compactedText);
           return true;
         }).immediate();
         if (compactCommitted) currentMemory = compactedText;

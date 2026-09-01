@@ -121,7 +121,6 @@ describe("Phase B1-D2 — LTM reconcile after variant switch", () => {
     db.prepare(
       `UPDATE chat_memories SET recent_summary=?, updated_at=datetime('now') WHERE chat_id=?`
     ).run(SUMMARY_WITH_D, CHAT);
-    db.prepare(`UPDATE chats SET current_summary=? WHERE id=?`).run(SUMMARY_WITH_D, CHAT);
     if (hasChatsMemoryColumn(db)) {
       db.prepare(`UPDATE chats SET memory=? WHERE id=?`).run(SUMMARY_WITH_D, CHAT);
     }
@@ -156,11 +155,6 @@ describe("Phase B1-D2 — LTM reconcile after variant switch", () => {
       !lorebook.includes("분노_D_골목"),
       "rejected D must not remain in rebuilt lorebook"
     );
-
-    const chatMem = db
-      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
-      .get(CHAT) as { current_summary: string };
-    assert.ok(!String(chatMem.current_summary ?? "").includes("분노_D_골목"));
 
     const recent = db
       .prepare(`SELECT recent_summary AS r FROM chat_memories WHERE chat_id=?`)

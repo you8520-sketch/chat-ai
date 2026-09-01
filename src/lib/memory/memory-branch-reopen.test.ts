@@ -553,14 +553,9 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       recent_summary: "[1~5턴] " + TEXT_A,
       membership_tier: "free",
     });
-    getDb()
-      .prepare("UPDATE chats SET current_summary=? WHERE id=?")
-      .run("[1~5턴] " + TEXT_A, CHAT);
-    const loreBefore = (
-      getDb()
-        .prepare("SELECT current_summary FROM chats WHERE id=?")
-        .get(CHAT) as { current_summary: string }
-    ).current_summary;
+    const memBefore = getDb()
+      .prepare("SELECT recent_summary FROM chat_memories WHERE chat_id=?")
+      .get(CHAT) as { recent_summary: string };
 
     seedPlayableTurns(10, (t) =>
       t === 10
@@ -585,12 +580,10 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       listMemoryRecordsForChat(CHAT).some((r) => r.turnStart === GREENFIELD_BATCH2_START),
       false
     );
-    const loreAfter = (
-      getDb()
-        .prepare("SELECT current_summary FROM chats WHERE id=?")
-        .get(CHAT) as { current_summary: string }
-    ).current_summary;
-    assert.equal(loreAfter, loreBefore);
+    const memAfter = getDb()
+      .prepare("SELECT recent_summary FROM chat_memories WHERE chat_id=?")
+      .get(CHAT) as { recent_summary: string };
+    assert.equal(memAfter.recent_summary, memBefore.recent_summary);
     assert.equal(countDistinctActiveBranchIds(CHAT), 0);
   });
 
@@ -606,17 +599,9 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       recent_summary: "[1~5턴] " + TEXT_A,
       membership_tier: "free",
     });
-    getDb()
-      .prepare("UPDATE chats SET current_summary=? WHERE id=?")
-      .run("[1~5턴] " + TEXT_A, CHAT);
     const memBefore = getDb()
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT) as { recent_summary: string; summarized_turn_count: number };
-    const currentBefore = (
-      getDb()
-        .prepare("SELECT current_summary FROM chats WHERE id=?")
-        .get(CHAT) as { current_summary: string }
-    ).current_summary;
 
     seedPlayableTurns(10, (t) =>
       t === 10
@@ -643,14 +628,6 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       .get(CHAT) as { recent_summary: string; summarized_turn_count: number };
     assert.equal(memAfterFail.recent_summary, memBefore.recent_summary);
     assert.equal(memAfterFail.summarized_turn_count, memBefore.summarized_turn_count);
-    assert.equal(
-      (
-        getDb()
-          .prepare("SELECT current_summary FROM chats WHERE id=?")
-          .get(CHAT) as { current_summary: string }
-      ).current_summary,
-      currentBefore
-    );
     assert.equal(countDistinctActiveBranchIds(CHAT), 0);
 
     __setPersistForceFailAfterBranchOpsForTests(false);
@@ -670,14 +647,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT) as { recent_summary: string; summarized_turn_count: number };
     assert.equal(memOk.summarized_turn_count, greenfieldBatchEnd(GREENFIELD_BATCH2_START));
-    assert.equal(
-      (
-        getDb()
-          .prepare("SELECT current_summary FROM chats WHERE id=?")
-          .get(CHAT) as { current_summary: string }
-      ).current_summary,
-      memOk.recent_summary
-    );
+    assert.ok(memOk.recent_summary.includes(MAIN_TEXT.slice(0, 20)));
   });
 
   it("mixed-A: turn6~10 main + turn11 explicit IF resume keeps both scopes", async () => {

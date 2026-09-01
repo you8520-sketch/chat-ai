@@ -38,7 +38,6 @@ import {
   updateMemoryRecordById,
 } from "@/lib/memory/memory-turn-summary";
 import { updateChatMemory, getOrCreateChatMemory } from "@/lib/memory/memory-db";
-import { syncChatLongTermMemory } from "@/lib/memory/memory-rolling-summary";
 import { reconcileMemoryAfterRecordDelete } from "@/lib/memory/memory-reconcile";
 import { countMemoryEligibleCompletedTurns } from "@/lib/memory/memory-turn-loader";
 import {
@@ -395,7 +394,6 @@ export async function PATCH(req: Request) {
     closeActiveBranchesExcept(chatId, branchId);
     const lorebook = rebuildLorebookFromRecords(chatId);
     updateChatMemory(chatId, user.id, chat.character_id, { recent_summary: lorebook, membership_tier: tier });
-    syncChatLongTermMemory(chatId, lorebook);
     const refreshed = listMemoryRecordsForChat(chatId).find((r) => r.id === recordId);
     return Response.json({ ok: true, memoryRecord: refreshed, lorebook });
   }
@@ -432,7 +430,6 @@ export async function PATCH(req: Request) {
       recent_summary: lorebook,
       membership_tier: tier,
     });
-    syncChatLongTermMemory(chatId, lorebook);
     const refreshed = recordId
       ? listMemoryRecordsForChat(chatId).find((r) => r.id === recordId)
       : listMemoryRecordsForChat(chatId).find((r) => r.branchId === result.branchId);

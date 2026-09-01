@@ -14,6 +14,12 @@ export function hasChatsMemoryColumn(db: Database.Database): boolean {
   return rows.some((row) => row.name === "memory");
 }
 
+export function hasChatsCurrentSummaryColumn(db: Database.Database): boolean {
+  if (!tableExists(db, "chats")) return false;
+  const rows = db.prepare(`PRAGMA table_info(chats)`).all() as Array<{ name: string }>;
+  return rows.some((row) => row.name === "current_summary");
+}
+
 /** M1/M2 rollback-safe: clear legacy carrier only when column still exists. */
 export function clearChatsMemoryColumnIfPresent(
   db: Database.Database,
