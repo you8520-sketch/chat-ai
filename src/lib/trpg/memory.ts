@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { parseTrpgBotAction } from "./botActionParse";
+import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { clipTrpgChars, loadCampaignLedger, type TrpgCampaignLedger } from "./campaignLedger";
 import { loadSheetSnapshots } from "./engineSheets";
 import {
@@ -11,7 +11,6 @@ import {
   type TrpgMemoryQuery,
 } from "./memoryHorizon";
 import {
-  TRPG_BOT_CONTINUITY_ACTION_CHARS,
   TRPG_BOT_CONTINUITY_MAX_CHARS,
   TRPG_BOT_CONTINUITY_SCENE_CHARS,
   TRPG_BOT_RECENT_ROUNDS,
@@ -165,9 +164,7 @@ function clipKeepLines(text: string, max: number): string {
 }
 
 function compactActionLine(actorName: string, text: string): string {
-  const parsed = parseTrpgBotAction(text);
-  const attempt = parsed.intent.trim() || clipTrpgChars(parsed.prose || text, TRPG_BOT_CONTINUITY_ACTION_CHARS);
-  return `- ${actorName}: ${attempt}`;
+  return `- ${actorName}: ${text}`;
 }
 
 function compactSceneResult(narration: string): string {
@@ -233,16 +230,22 @@ export function loadCompletedMemoryRounds(db: Database.Database, campaignId: num
   return roundRows.map((row) => {
     const actions = db
       .prepare(
-        `SELECT p.display_name AS name, s.body
+        `SELECT p.display_name AS name, p.kind, s.body
          FROM trpg_action_submissions s
          JOIN trpg_participants p ON p.id = s.participant_id
          WHERE s.round_id=? AND s.locked=1
          ORDER BY s.id ASC`
       )
-      .all(row.id) as Array<{ name: string; body: string }>;
+      .all(row.id) as Array<{ name: string; kind: string; body: string }>;
     return {
       roundNumber: row.round_number,
-      actions: actions.map((a) => ({ actorName: a.name, text: a.body })),
+      actions: actions.map((a) => ({
+        actorName: a.name,
+        text: resolveTrpgCanonicalAttempt({
+          participantKind: a.kind === "ai_character" ? "ai_character" : "human",
+          submissionBody: a.body,
+        }).canonicalAttempt,
+      })),
       gmNarration: row.narration,
     };
   });

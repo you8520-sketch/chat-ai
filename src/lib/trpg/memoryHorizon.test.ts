@@ -309,7 +309,7 @@ describe("TRPG long-horizon memory invariants", () => {
           actions: [
             {
               actorName: "유진",
-              text: `${"긴 산문 ".repeat(40)}\n${TRPG_BOT_INTENT_OPEN}\n문을 어깨로 민다.`,
+              text: "문을 어깨로 민다.",
             },
           ],
           gmNarration: "문이 삐걱였다.",

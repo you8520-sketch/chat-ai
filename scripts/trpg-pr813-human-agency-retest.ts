@@ -20,8 +20,7 @@ import {
 import { callTrpgBot, callTrpgGm } from "@/lib/trpg/gmCall";
 import { parseTrpgBotAction } from "@/lib/trpg/botActionParse";
 import {
-  TRPG_GM_LABEL_AI_SCENE_PROSE,
-  TRPG_GM_LABEL_AI_VISIBLE_PROSE,
+  TRPG_GM_LABEL_AI_ATTEMPT,
   TRPG_GM_LABEL_HUMAN_ACTION,
   parseTrpgGmOutput,
 } from "@/lib/trpg/gmPrompt";
@@ -260,19 +259,25 @@ function botProseOnly(raw: string): string {
   return parsed.prose.trim();
 }
 
-function verifyGmUserBlock(user: string): Record<string, boolean | number> {
+function verifyGmUserBlock(user: string, bot1Prose: string, bot2Prose: string): Record<string, boolean | number> {
   const humanBlocks = (user.match(new RegExp(TRPG_GM_LABEL_HUMAN_ACTION.replace(/[[\]]/g, "\\$&"), "g")) ?? []).length;
-  const aiVisible = (user.match(new RegExp(TRPG_GM_LABEL_AI_VISIBLE_PROSE.replace(/[[\]]/g, "\\$&"), "g")) ?? []).length;
-  const aiScene = (user.match(new RegExp(TRPG_GM_LABEL_AI_SCENE_PROSE.replace(/[[\]]/g, "\\$&"), "g")) ?? []).length;
+  const aiAttempt = (user.match(new RegExp(TRPG_GM_LABEL_AI_ATTEMPT.replace(/[[\]]/g, "\\$&"), "g")) ?? []).length;
   const humanActorKind = (user.match(/actorKind=human/g) ?? []).length;
   const aiActorKind = (user.match(/actorKind=ai_character/g) ?? []).length;
+  const bot1ProseInGm = bot1Prose.trim().length > 12 && user.includes(bot1Prose.trim().slice(0, 24));
+  const bot2ProseInGm = bot2Prose.trim().length > 12 && user.includes(bot2Prose.trim().slice(0, 24));
+  const gmInputCrossPc = scanPatterns(user, BOT_CROSS_PC_PATTERNS);
   return {
     humanAuthoritativeLabelCount: humanBlocks,
-    aiVisibleProseLabelCount: aiVisible,
-    aiSceneProseLabelCount: aiScene,
+    aiAttemptLabelCount: aiAttempt,
+    obsoleteVisibleProseLabelCount: (user.match(/VISIBLE AI ACTION PROSE/g) ?? []).length,
+    obsoleteSceneProseLabelCount: (user.match(/AI ACTION PROSE — actor-only scene material/g) ?? []).length,
     humanActorKindCount: humanActorKind,
     aiActorKindCount: aiActorKind,
     humanActionPresent: user.includes(HUMAN_ACTION),
+    botPresentationProsePresentInGmInput: bot1ProseInGm || bot2ProseInGm,
+    botCrossPcContaminationPresentInGmInput: gmInputCrossPc.length > 0,
+    botCrossPcContaminationPresentInGmInputCount: gmInputCrossPc.length,
   };
 }
 
@@ -481,7 +486,7 @@ async function main(): Promise<void> {
   const gmDialogueHits = scanPatterns(gmNarration, GM_HUMAN_DIALOGUE_PATTERNS);
   const gmDecisionHits = scanPatterns(gmNarration, GM_HUMAN_DECISION_PATTERNS);
 
-  const gmUserVerify = verifyGmUserBlock(gmNormalUser);
+  const gmUserVerify = verifyGmUserBlock(gmNormalUser, bot1Prose, bot2Prose);
 
   const bot1Name = botSubmissions[0]?.display_name ?? "강이현";
   const bot2Name = botSubmissions[1]?.display_name ?? "권태현";
@@ -561,8 +566,9 @@ async function main(): Promise<void> {
     "",
     "## GM user block authority verify",
     `- humanAuthoritativeLabelCount = ${gmUserVerify.humanAuthoritativeLabelCount}`,
-    `- aiVisibleProseLabelCount = ${gmUserVerify.aiVisibleProseLabelCount}`,
-    `- aiSceneProseLabelCount = ${gmUserVerify.aiSceneProseLabelCount}`,
+    `- aiAttemptLabelCount = ${gmUserVerify.aiAttemptLabelCount}`,
+    `- obsoleteVisibleProseLabelCount = ${gmUserVerify.obsoleteVisibleProseLabelCount}`,
+    `- obsoleteSceneProseLabelCount = ${gmUserVerify.obsoleteSceneProseLabelCount}`,
     `- humanActorKindCount = ${gmUserVerify.humanActorKindCount}`,
     `- aiActorKindCount = ${gmUserVerify.aiActorKindCount}`,
     "",
@@ -640,7 +646,7 @@ function analyzeCapturedArtifacts(): void {
   const gmMovementHits = scanPatterns(gmNarration, GM_HUMAN_MOVEMENT_PATTERNS);
   const gmDialogueHits = scanPatterns(gmNarration, GM_HUMAN_DIALOGUE_PATTERNS);
   const gmDecisionHits = scanPatterns(gmNarration, GM_HUMAN_DECISION_PATTERNS);
-  const gmUserVerify = verifyGmUserBlock(gmNormalUser);
+  const gmUserVerify = verifyGmUserBlock(gmNormalUser, bot1Prose, bot2Prose);
   const narratorFormal = scanPatterns(stripQuotedRegions(gmNarration), [{ id: "formal", re: FORMAL_POLITE_RE }]);
   const gmParsed = parseTrpgGmOutput(gmNormalRaw);
 
@@ -711,7 +717,9 @@ function analyzeCapturedArtifacts(): void {
     `- humanAuthoritativeLabelCount = ${gmUserVerify.humanAuthoritativeLabelCount}`,
     `- humanActorKindCount = ${gmUserVerify.humanActorKindCount}`,
     `- aiActorKindCount = ${gmUserVerify.aiActorKindCount}`,
-    `- aiVisibleProseLabelCount = ${gmUserVerify.aiVisibleProseLabelCount}`,
+    `- aiAttemptLabelCount = ${gmUserVerify.aiAttemptLabelCount}`,
+    `- BOT_PRESENTATION_PROSE_PRESENT_IN_GM_INPUT = ${gmUserVerify.botPresentationProsePresentInGmInput}`,
+    `- BOT_CROSS_PC_CONTAMINATION_PRESENT_IN_GM_INPUT = ${gmUserVerify.botCrossPcContaminationPresentInGmInput}`,
     "",
     "## Bot cross-PC claims (RAW prose)",
     `BOT1_CROSS_PC_CONTAMINATION_PRESENT = ${meta.bot1.crossPcContaminationPresent}`,

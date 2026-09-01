@@ -36,6 +36,7 @@ import {
   prepareTrpgBotActionBody,
   TRPG_BOT_SYSTEM,
 } from "./botActions";
+import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { applyCampaignLedger, clipTrpgChars, loadCampaignLedger, persistCampaignLedger } from "./campaignLedger";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
@@ -1913,21 +1914,24 @@ function loadActionsForGm(
       tier: string | null;
     }>
   ).map((a) => {
-    const actionType = a.action_type && isTrpgActionType(a.action_type) ? a.action_type : "free";
-    const parsed = parseTrpgBotAction(a.body);
+    const participantKind = (a.kind === "ai_character" ? "ai_character" : "human") as "human" | "ai_character";
+    const resolved = resolveTrpgCanonicalAttempt({
+      participantKind,
+      submissionBody: a.body,
+      actionType: a.action_type,
+    });
     const needsCheck = resolveTrpgActionCheckDecision({
-      body: parsed.prose || a.body,
-      actionType,
-      intent: parsed.intent,
+      body: resolved.canonicalAttempt,
+      actionType: resolved.actionType,
+      intent: resolved.participantKind === "ai_character" ? resolved.canonicalAttempt : "",
     }).needsCheck;
     const statKey = a.stat_key ?? "dex";
     const def = defs.find((d) => d.key === statKey);
     return {
       participantId: a.participant_id,
       name: a.name,
-      participantKind: (a.kind === "ai_character" ? "ai_character" : "human") as "human" | "ai_character",
-      body: parsed.prose || a.body,
-      intent: parsed.intent,
+      participantKind,
+      body: resolved.canonicalAttempt,
       needsCheck,
       statKey,
       statLabel: def?.label,
