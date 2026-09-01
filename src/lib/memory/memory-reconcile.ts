@@ -11,12 +11,14 @@ import {
 } from "./memory-turn-summary";
 import { countMemoryEligibleCompletedTurns } from "./memory-turn-loader";
 import {
+  refreshRollingSummaryForRegeneratedAssistant,
   scheduleCharacterRollingSummary,
   shouldTriggerRollingSummary,
 } from "./memory-rolling-summary";
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import { reconcileSummarizedTurnCountFromTable } from "./memory-summary-persist";
 import { invalidateDerivedMemoryGenerationCore } from "./memory-source-boundary";
+import { reconcileMemoryAfterVariantSwitchCore } from "./memory-variant-switch-reconcile";
 import type { MemoryTier } from "./memory-types";
 
 /** memory-eligible 완료 턴 수로 message_count를 맞춘다 (재생성·패널 조회·드리프트 복구). */
@@ -98,6 +100,8 @@ export function reconcileMemoryAfterRecordDelete(opts: {
     membership_tier: opts.tier,
   });
 
+  invalidateDerivedMemoryGenerationCore(getDb(), opts.chatId);
+
   if (shouldTriggerRollingSummary(actualTurnCount, newSummarized)) {
     scheduleCharacterRollingSummary({
       chatId: opts.chatId,
@@ -112,7 +116,6 @@ export function reconcileMemoryAfterRecordDelete(opts: {
   console.info(
     `[memory] reconcile after record delete chat=${opts.chatId} turns=${actualTurnCount} summarized=${newSummarized}`
   );
-  invalidateDerivedMemoryGenerationCore(getDb(), opts.chatId);
   return true;
 }
 
@@ -175,7 +178,8 @@ export function reconcileMemoryAfterTurnDelete(opts: {
     membership_tier: opts.tier,
   });
 
-  // 6) Existing seal trigger
+  invalidateDerivedMemoryGenerationCore(getDb(), opts.chatId);
+
   if (shouldTriggerRollingSummary(actualTurnCount, newSummarized)) {
     scheduleCharacterRollingSummary({
       chatId: opts.chatId,
@@ -191,6 +195,69 @@ export function reconcileMemoryAfterTurnDelete(opts: {
     `[memory] reconcile after turn delete chat=${opts.chatId} turns=${actualTurnCount} summarized=${newSummarized}` +
       (opts.deletedPlayableTurn != null ? ` deletedTurn=${opts.deletedPlayableTurn}` : "")
   );
-  invalidateDerivedMemoryGenerationCore(getDb(), opts.chatId);
+  return true;
+}
+
+/**
+ * Source message edit (user or assistant material prose) — reuses variant-switch
+ * sealed-summary invalidation owner, then starts a post-invalidation reseal job.
+ */
+export function reconcileMemoryAfterSourceMessageEdit(opts: {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  charName: string;
+  tier: MemoryTier;
+  memoryCapacity: number;
+  sourceTurn: number;
+  sourceUserMessageId?: number | null;
+  assistantMessageId?: number | null;
+}): boolean {
+  if (!isMemoryFeatureEnabled()) return false;
+
+  const db = getDb();
+  const result = reconcileMemoryAfterVariantSwitchCore(db, {
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    tier: opts.tier,
+    memoryCapacity: opts.memoryCapacity,
+    sourceTurn: opts.sourceTurn,
+    sourceUserMessageId: opts.sourceUserMessageId ?? null,
+  });
+  if (!result.attempted) return false;
+
+  const actualTurnCount = countMemoryEligibleCompletedTurns(opts.chatId);
+  const summarized = result.summarizedTurnCount ?? 0;
+
+  if (opts.assistantMessageId != null) {
+    void refreshRollingSummaryForRegeneratedAssistant({
+      chatId: opts.chatId,
+      userId: opts.userId,
+      characterId: opts.characterId,
+      charName: opts.charName,
+      tier: opts.tier,
+      memoryCapacity: opts.memoryCapacity,
+      assistantMessageId: opts.assistantMessageId,
+    }).catch((e) => {
+      console.warn(
+        "[memory] source edit assistant batch refresh failed:",
+        (e as Error).message
+      );
+    });
+  } else if (shouldTriggerRollingSummary(actualTurnCount, summarized)) {
+    scheduleCharacterRollingSummary({
+      chatId: opts.chatId,
+      userId: opts.userId,
+      characterId: opts.characterId,
+      charName: opts.charName,
+      tier: opts.tier,
+      memoryCapacity: opts.memoryCapacity,
+    });
+  }
+
+  console.info(
+    `[memory] reconcile after source message edit chat=${opts.chatId} sourceTurn=${opts.sourceTurn} inactivated=${result.inactivatedRecordIds.length} summarized=${summarized}`
+  );
   return true;
 }

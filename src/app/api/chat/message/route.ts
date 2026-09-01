@@ -37,6 +37,13 @@ import {
   getAssistantSourceTurn,
   isLatestCanonicalAssistantMessage,
 } from "@/lib/rpDerivedStateLifecycle";
+import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
+import { reconcileMemoryAfterSourceMessageEdit } from "@/lib/memory/memory-reconcile";
+import {
+  resolveCanonicalSourceUserMessageIdCore,
+} from "@/lib/memory/memory-source-boundary";
+import { resolveMemoryEligibleTurnNumberCore } from "@/lib/memory/memory-turn-loader";
+import { getSubscriptionTier } from "@/lib/userPersonas";
 import {
   listCanonicalEligibleNumericFields,
   numericCanonicalFieldsChanged,
@@ -318,6 +325,29 @@ export async function PATCH(req: Request) {
       );
     }
 
+    if (materialProseChange) {
+      const sourceTurn = getAssistantSourceTurn(db, msg.chat_id, id);
+      if (sourceTurn != null) {
+        const charRow = db
+          .prepare("SELECT name FROM characters WHERE id=?")
+          .get(msg.character_id) as { name: string } | undefined;
+        reconcileMemoryAfterSourceMessageEdit({
+          chatId: msg.chat_id,
+          userId: user.id,
+          characterId: msg.character_id,
+          charName: charRow?.name ?? "캐릭터",
+          tier: getSubscriptionTier(user),
+          memoryCapacity: getChatMemoryCapacity(msg.chat_id),
+          sourceTurn,
+          sourceUserMessageId: resolveCanonicalSourceUserMessageIdCore(db, {
+            chatId: msg.chat_id,
+            assistantMessageId: id,
+          }),
+          assistantMessageId: id,
+        });
+      }
+    }
+
     // Phase B0.2: AFTER the canonical core committed, best-effort trigger
     // re-evaluation on the saved sanitized payload. materialProseChange is
     // NOT a gate — material+widget and status-only both re-evaluate.
@@ -356,10 +386,29 @@ export async function PATCH(req: Request) {
     });
   }
 
+  const oldUserContent = msg.content;
   db.prepare("UPDATE messages SET content=? WHERE id=?").run(text, id);
   if (msg.role === "user") {
     markUserMessageCoauthorSemanticsVersion(db, id);
     recomputeAndPersistUserCoauthorMode(db, msg.chat_id);
+    if (isMaterialProseEdit(oldUserContent, text)) {
+      const sourceTurn = resolveMemoryEligibleTurnNumberCore(db, msg.chat_id, id);
+      if (sourceTurn != null) {
+        const charRow = db
+          .prepare("SELECT name FROM characters WHERE id=?")
+          .get(msg.character_id) as { name: string } | undefined;
+        reconcileMemoryAfterSourceMessageEdit({
+          chatId: msg.chat_id,
+          userId: user.id,
+          characterId: msg.character_id,
+          charName: charRow?.name ?? "캐릭터",
+          tier: getSubscriptionTier(user),
+          memoryCapacity: getChatMemoryCapacity(msg.chat_id),
+          sourceTurn,
+          sourceUserMessageId: id,
+        });
+      }
+    }
   }
   return NextResponse.json({ ok: true, content: text });
 }
