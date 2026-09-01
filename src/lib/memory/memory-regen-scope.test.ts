@@ -68,9 +68,15 @@ function seedChat() {
     "x"
   );
   db.prepare(`INSERT INTO characters (id, name) VALUES (?,?)`).run(CHAR, "RegenChar");
-  db.prepare(
-    `INSERT INTO chats (id, user_id, character_id, mode, current_summary) VALUES (?,?,?,'safe','')`
-  ).run(CHAT, USER, CHAR);
+  if (hasChatsCurrentSummaryColumn(db)) {
+    db.prepare(
+      `INSERT INTO chats (id, user_id, character_id, mode, current_summary) VALUES (?,?,?,'safe','')`
+    ).run(CHAT, USER, CHAR);
+  } else {
+    db.prepare(
+      `INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`
+    ).run(CHAT, USER, CHAR);
+  }
   getOrCreateChatMemory(CHAT, USER, CHAR, "free");
 }
 

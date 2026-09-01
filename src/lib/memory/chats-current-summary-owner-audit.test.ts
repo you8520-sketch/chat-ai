@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
+import { hasChatsCurrentSummaryColumn } from "@/lib/memory/chats-memory-column-compat";
 import { getDb, convergeLegacyChatsMemoryIntoCanonical } from "@/lib/db";
 import { insertForkChatRow } from "@/lib/chatForkCreate";
 import { buildMemoryContext } from "@/lib/memory/memory-injector";
@@ -46,6 +47,9 @@ function cleanup(): void {
 function seedChat(currentSummary: string): void {
   const db = getDb();
   cleanup();
+  if (!hasChatsCurrentSummaryColumn(db)) {
+    db.exec(`ALTER TABLE chats ADD COLUMN current_summary TEXT NOT NULL DEFAULT ''`);
+  }
   db.prepare(
     `INSERT INTO chats (id, user_id, character_id, mode, current_summary, memory_meta, memory_pending, memory_archived_turns)
      VALUES (?,?,?,'safe',?,'{}','[]',0)`
@@ -61,11 +65,13 @@ function seedCanonical(recentSummary: string): void {
 }
 
 function readCurrentSummary(): string {
+  const db = getDb();
+  if (!hasChatsCurrentSummaryColumn(db)) return "";
   return (
-    getDb()
-      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
-      .get(CHAT_ID) as { current_summary: string }
-  ).current_summary;
+    db.prepare(`SELECT current_summary FROM chats WHERE id=?`).get(CHAT_ID) as
+      | { current_summary: string }
+      | undefined
+  )?.current_summary ?? "";
 }
 
 function readRecentSummary(): string {
@@ -142,10 +148,14 @@ describe("chats.current_summary owner audit — post-C1 behavior", () => {
       narrativePov: "third",
       povCharacterName: "",
     });
-    const row = getDb()
-      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
-      .get(forkId) as { current_summary: string };
-    assert.equal(row.current_summary, "");
+    assert.ok(forkId > 0);
+    const db = getDb();
+    if (hasChatsCurrentSummaryColumn(db)) {
+      const row = db
+        .prepare(`SELECT current_summary FROM chats WHERE id=?`)
+        .get(forkId) as { current_summary: string };
+      assert.equal(row.current_summary, "");
+    }
   });
 
   it("CS-A7 prompt injection uses canonical recent_summary when current_summary stale", () => {

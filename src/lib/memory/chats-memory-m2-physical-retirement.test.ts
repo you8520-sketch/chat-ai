@@ -89,7 +89,6 @@ function seedProductionRemoteCore(db: Database.Database): void {
       user_id INTEGER NOT NULL,
       character_id INTEGER NOT NULL,
       mode TEXT NOT NULL DEFAULT 'safe',
-      current_summary TEXT NOT NULL DEFAULT '',
       memory_meta TEXT NOT NULL DEFAULT '{}',
       memory_pending TEXT NOT NULL DEFAULT '[]',
       memory_archived_turns INTEGER NOT NULL DEFAULT 0,
@@ -120,7 +119,6 @@ function ensureChatsWithMemoryColumn(db: Database.Database): void {
         user_id INTEGER NOT NULL,
         character_id INTEGER NOT NULL,
         mode TEXT NOT NULL DEFAULT 'safe',
-        current_summary TEXT NOT NULL DEFAULT '',
         memory_meta TEXT NOT NULL DEFAULT '{}',
         memory_pending TEXT NOT NULL DEFAULT '[]',
         memory_archived_turns INTEGER NOT NULL DEFAULT 0,
@@ -130,6 +128,9 @@ function ensureChatsWithMemoryColumn(db: Database.Database): void {
   }
   if (!hasChatsMemoryColumn(db)) {
     db.exec(`ALTER TABLE chats ADD COLUMN memory TEXT NOT NULL DEFAULT ''`);
+  }
+  if (!hasChatsCurrentSummaryColumn(db)) {
+    db.exec(`ALTER TABLE chats ADD COLUMN current_summary TEXT NOT NULL DEFAULT ''`);
   }
 }
 
@@ -428,7 +429,6 @@ describe("chats.memory M2 remote V7 lifecycle", () => {
   it("CM-V7-5 V6 absent carrier → V8 adopt", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
-    db.exec(`ALTER TABLE chats DROP COLUMN current_summary`);
     ensureChatBillingSettlementSchema(db);
     seedHistoricalMarker(db, HISTORICAL_REMOTE_SCHEMA_V6);
 
@@ -457,6 +457,7 @@ describe("chats.memory M2 remote V7 lifecycle", () => {
     initializeRemoteSchema(db, () => {
       migrations += 1;
       convergeLegacyChatsMemoryIntoCanonical(db);
+      dropChatsCurrentSummaryColumnOnce(db);
       dropChatsMemoryColumnOnce(db);
     });
 

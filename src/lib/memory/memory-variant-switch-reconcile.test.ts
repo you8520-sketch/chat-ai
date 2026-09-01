@@ -30,7 +30,7 @@ import {
   rebuildLorebookFromRecords,
 } from "./memory-turn-summary";
 import { reconcileMemoryAfterVariantSwitch } from "./memory-variant-switch-reconcile";
-import { hasChatsMemoryColumn } from "./chats-memory-column-compat";
+import { hasChatsCurrentSummaryColumn, hasChatsMemoryColumn } from "./chats-memory-column-compat";
 
 const CHAT = 910921;
 const USER = 910922;
@@ -68,9 +68,13 @@ function seedChat() {
     db.prepare(
       `INSERT INTO chats (id, user_id, character_id, mode, current_summary, memory) VALUES (?,?,?,'safe','','')`
     ).run(CHAT, USER, CHAR);
-  } else {
+  } else if (hasChatsCurrentSummaryColumn(db)) {
     db.prepare(
       `INSERT INTO chats (id, user_id, character_id, mode, current_summary) VALUES (?,?,?,'safe','')`
+    ).run(CHAT, USER, CHAR);
+  } else {
+    db.prepare(
+      `INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`
     ).run(CHAT, USER, CHAR);
   }
   getOrCreateChatMemory(CHAT, USER, CHAR, "free");

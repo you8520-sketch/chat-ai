@@ -240,24 +240,31 @@ before(() => installIsolatedTestDatabase());
 after(() => uninstallIsolatedTestDatabase());
 
 describe("chats.current_summary C1 — deploy convergence reachability", () => {
-  it("C1-R1 already-current V7 remote DB reaches convergence without migrate callback", () => {
+  it("C1-R1 already-current V8 remote DB reaches convergence without migrate callback", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCoreV7(db);
+    db.exec(`ALTER TABLE chats DROP COLUMN current_summary`);
     db.prepare(
-      `INSERT INTO chats (id, user_id, character_id, current_summary) VALUES (1, 1, 2, 'LEGACY MIRROR')`
+      `INSERT INTO chats (id, user_id, character_id) VALUES (1, 1, 2)`
     ).run();
     db.prepare(
       `INSERT INTO chat_memories (chat_id, user_id, character_id, recent_summary, archive_summary, used_chars)
        VALUES (1, 1, 2, 'CANONICAL', '', 0)`
     ).run();
     assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
-    assert.equal(countNonemptyCurrentSummary(db), 1);
+    assert.equal(countNonemptyCurrentSummary(db), 0);
 
     let migrateCalls = 0;
     initializeRemoteSchema(db, () => {
       migrateCalls += 1;
     });
     assert.equal(migrateCalls, 0);
+
+    if (!hasChatsCurrentSummaryColumn(db)) {
+      db.exec(`ALTER TABLE chats ADD COLUMN current_summary TEXT NOT NULL DEFAULT ''`);
+    }
+    db.prepare(`UPDATE chats SET current_summary=? WHERE id=1`).run("LEGACY MIRROR");
+    assert.equal(countNonemptyCurrentSummary(db), 1);
 
     convergeLegacyChatsMemoryIntoCanonical(db);
     assert.equal(
@@ -375,7 +382,27 @@ describe("chats.current_summary C1 — runtime owner retirement", () => {
   });
 });
 
+function ensureProductionDbCurrentSummaryAbsent(): void {
+  const db = getDb();
+  if (!hasChatsCurrentSummaryColumn(db)) return;
+  const indexes = db
+    .prepare(`SELECT name, sql FROM sqlite_master WHERE type='index' AND tbl_name='chats'`)
+    .all() as { name: string; sql: string | null }[];
+  for (const idx of indexes) {
+    assert.ok(
+      !String(idx.sql ?? "").includes("current_summary"),
+      `C2 blocker: index ${idx.name} references current_summary`
+    );
+  }
+  db.exec(`ALTER TABLE chats DROP COLUMN current_summary`);
+  assert.equal(hasChatsCurrentSummaryColumn(db), false);
+}
+
 describe("C2-like — physical current_summary absent runtime matrix", () => {
+  before(() => {
+    ensureProductionDbCurrentSummaryAbsent();
+  });
+
   beforeEach(() => {
     cleanupColumnAbsentFixture();
   });

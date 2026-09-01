@@ -35,7 +35,6 @@ function seedProductionRemoteCore(db: Database.Database): void {
       user_id INTEGER NOT NULL,
       character_id INTEGER NOT NULL,
       mode TEXT NOT NULL DEFAULT 'safe',
-      current_summary TEXT NOT NULL DEFAULT '',
       memory_meta TEXT NOT NULL DEFAULT '{}',
       memory_pending TEXT NOT NULL DEFAULT '[]',
       memory_archived_turns INTEGER NOT NULL DEFAULT 0,
