@@ -1,4 +1,5 @@
 import {
+  buildDeterministicTrpgFocusHeroScene,
   buildSceneSourceMessages,
   type ScenePlan,
   type SceneSourceMessage,
@@ -80,6 +81,7 @@ export async function resolveTrpgAiFocusHeroScene(opts: {
       characterName: "TRPG GM",
       personaName: "Party",
       messages,
+      scenePlanIntent: "trpg_illustration",
       complete: opts.complete,
     });
   } catch {
@@ -133,6 +135,29 @@ export async function resolveTrpgAiFocusHeroScene(opts: {
   }
 
   if (overSelectionRejected) {
+    const focused = buildDeterministicTrpgFocusHeroScene(result.plan);
+    const focusedPlan: ScenePlan = {
+      ...result.plan,
+      heroEventIds: focused.heroEventIds,
+      heroScene: focused.heroScene,
+    };
+    if (
+      focused.heroScene.trim() &&
+      !detectTrpgAiFocusOverSelection(focusedPlan)
+    ) {
+      return {
+        modeApplied: "AI_FOCUS",
+        heroScene: focused.heroScene,
+        diagnostics: {
+          ...diagnostics,
+          modeApplied: "AI_FOCUS",
+          selectedHeroScene: focused.heroScene,
+          heroEventIds: [...focused.heroEventIds],
+          aiDeterministicFallback: true,
+          fallbackReason: "over-selection-deterministic-focus",
+        },
+      };
+    }
     return {
       modeApplied: "RAW",
       diagnostics: {

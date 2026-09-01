@@ -663,6 +663,67 @@ export function buildDeterministicScenePlan(
   };
 }
 
+/** GM route-choice / next-decision beats should not pollute default TRPG hero focus. */
+export function isTrpgNextDecisionEvent(event: SceneEvent): boolean {
+  const text = event.text;
+  if (event.kind === "dialogue" && event.sourceRole === "assistant") {
+    return /선택/.test(text) && /(통로|어디|어느|방향|갈)/.test(text);
+  }
+  if (event.kind === "environment") {
+    return /(통로|갈림)/.test(text) && /(선택|좌|우)/.test(text);
+  }
+  return false;
+}
+
+function scoreTrpgFocusWindow(events: readonly SceneEvent[]): number {
+  let score = 0;
+  for (const event of events) {
+    if (event.kind === "action" || event.kind === "reaction") score += 3;
+    else if (event.kind === "dialogue") score += 1;
+    else score += 0.5;
+    if (/숨을 고르|장비를 정리|다음.*이동|선택해/.test(event.text)) score -= 2;
+  }
+  return score;
+}
+
+/** Deterministic one-drawable-moment subset for TRPG illustration focus recovery. */
+export function selectDeterministicTrpgFocusEventIds(events: readonly SceneEvent[]): string[] {
+  const visual = visualEvents(events).filter((event) => !isTrpgNextDecisionEvent(event));
+  const pool = visual.length ? visual : visualEvents(events);
+  if (!pool.length) return [];
+
+  const maxWindow = TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS;
+  let bestIds: string[] = [];
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  for (let start = 0; start < pool.length; start += 1) {
+    for (let len = 1; len <= Math.min(maxWindow, pool.length - start); len += 1) {
+      const window = pool.slice(start, start + len);
+      const score = scoreTrpgFocusWindow(window);
+      if (score > bestScore) {
+        bestScore = score;
+        bestIds = window.map((event) => event.id);
+      }
+    }
+  }
+
+  if (bestIds.length) return bestIds;
+  return pool.slice(0, Math.min(maxWindow, pool.length)).map((event) => event.id);
+}
+
+export function buildDeterministicTrpgFocusHeroScene(plan: ScenePlan): {
+  heroEventIds: string[];
+  heroScene: string;
+} {
+  const heroEventIds = selectDeterministicTrpgFocusEventIds(plan.events);
+  const heroEvents = heroEventIds
+    .map((id) => plan.events.find((event) => event.id === id))
+    .filter((event): event is SceneEvent => event !== undefined);
+  const heroScene =
+    buildUserFacingVisualDescription(heroEvents, plan.sceneBackground) || plan.sceneBackground;
+  return { heroEventIds, heroScene };
+}
+
 export function applyApprovedAiScenePlan(
   aiPlan: ScenePlan,
   panelCount: ScenePanelCount
@@ -992,6 +1053,10 @@ function dialogueOwnershipMatches(
   return true;
 }
 
+export type ScenePlanIntent = "general" | "trpg_illustration";
+
+export const TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS = 4;
+
 export type ScenePlanValidation =
   | { ok: true; plan: ScenePlan }
   | { ok: false; reason: string };
@@ -1002,6 +1067,7 @@ export type ValidateScenePlanOptions = {
   personaName?: string;
   characterName?: string;
   contentKind?: ContentKind;
+  scenePlanIntent?: ScenePlanIntent;
 };
 
 export function validateScenePlan(
@@ -1149,6 +1215,12 @@ export function validateScenePlan(
   const defaultHero = usableVisual.slice(0, Math.min(3, usableVisual.length)).map((event) => event.id);
 
   const resolvedHeroIds = heroEventIds.length ? heroEventIds : defaultHero;
+  if (
+    opts.scenePlanIntent === "trpg_illustration" &&
+    resolvedHeroIds.length > TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS
+  ) {
+    return { ok: false, reason: "heroEventIds over limit" };
+  }
   const heroEventsForDescription = resolvedHeroIds
     .map((id) => eventsById.get(id))
     .filter((event): event is SceneEvent => event !== undefined);
@@ -1205,11 +1277,13 @@ export function validateScenePlan(
 
 export function buildScenePlanPrompt(opts: {
   contentKind?: ContentKind;
+  scenePlanIntent?: ScenePlanIntent;
   characterName: string;
   personaName: string;
   messages: readonly SceneSourceMessage[];
 }): string {
   const contentKind = opts.contentKind ?? "character";
+  const scenePlanIntent = opts.scenePlanIntent ?? "general";
   const canonicalEvents = extractDeterministicEvents(opts.messages);
   const visual = visualEvents(canonicalEvents);
   const identityLines =
@@ -1265,7 +1339,7 @@ export function buildScenePlanPrompt(opts: {
     "7. sceneBackground is the shared default location. Add backgroundOverride only when place/time actually changes.",
     "8. personaAction / characterAction are presentation-only. They must not rewrite canonical event text.",
     "9. Do not describe hair color, hair part, bangs, iris, pupil, outfit identity, or relative height. Those belong to other owners.",
-    "10. heroEventIds may select a subset of canonical visual events for a single illustration. assistant_echo is forbidden in heroEventIds.",
+    "10. heroEventIds may select a subset of canonical visual events for a single illustration. assistant_echo is forbidden in heroEventIds. heroEventIds must NOT copy every panel sourceEventId — pick only the beats needed for one still image.",
     "11. heroScene and panel situation are visual-only summaries. Never include verbatim spoken dialogue — dialogue belongs only in panel dialogue arrays.",
     "12. provenance=source dialogue must reference the exact matching dialogue canonical event via sourceEventId.",
     "13. castMentions is optional supporting-name suggestions only. Each name must appear verbatim in at least one linked sourceEventId event text. Never force inclusion.",
@@ -1277,6 +1351,14 @@ export function buildScenePlanPrompt(opts: {
     '   Example — "이현이 손을 흔들었다." for 이현: sourceEventIds=[that event id], actorEventIds=[that event id].',
     "   Example — pronoun continuation: when coreference to the same supporting character is unambiguous across two canonical events, both ids may appear in sourceEventIds and actorEventIds.",
     "   Do NOT put an event in actorEventIds merely because the character is looked at, touched, spoken to, mentioned, observed, or acted upon by someone else.",
+    ...(scenePlanIntent === "trpg_illustration"
+      ? [
+          "TRPG ILLUSTRATION MODE (single still image):",
+          `heroEventIds MUST contain 1–${TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS} visual events forming ONE drawable moment in the same immediate action/reaction cluster.`,
+          "Do NOT select the whole turn, every panel beat, post-action rest, corridor survey, or GM next-choice prompt unless that choice moment is explicitly the focus.",
+          "Panel coverage rules still apply to panels only. Choosing a hero subset is NOT omitting canonical events from the server timeline.",
+        ]
+      : []),
     "SOURCE MESSAGES:",
     JSON.stringify(opts.messages, null, 2),
   ].join("\n\n");
