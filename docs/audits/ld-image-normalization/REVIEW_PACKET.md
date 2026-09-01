@@ -1,7 +1,7 @@
 # LD Image Normalization — REVIEW PACKET
 
-**CURRENT_MAIN_SHA:** `a950e47ca5b456247bc35be195dd0cf7eef763ab`
-**GENERATED_FROM_SOURCE_SHA:** `9f8b0bf07d495e2558fb24e828ac99146f77c1cd`
+**CURRENT_MAIN_SHA:** `ae42507987fb9e8ccdf742a8610dbd8165983016`
+**GENERATED_FROM_SOURCE_SHA:** `a2bbcb9b6f9718eb716c6a6cba1d00c65d238497`
 **PR_NUMBER:** 808
 
 ## Flagship fixture
@@ -62,7 +62,7 @@ Key dialogue (acting/emotion only — do not render as readable text):
 character: “가지 마.”
 ```
 
-### COMIC PANEL SPEC
+### COMIC PANEL SPEC (production subjects)
 ```text
 COMIC PANEL SPEC
 
@@ -124,6 +124,15 @@ Global must avoid:
 - cropped panel borders or speech bubbles
 ```
 
+### PRODUCTION REFERENCE MAP
+- Image 1 → template / composition only
+- Image 2 → chat character: 태형
+- Image 3 → user persona: 렌
+
+### CANONICAL SUBJECT MAP
+- A → 태형 (chat character)
+- B → 렌 (user persona)
+
 ### Arm A — legacy panel section (untruncated)
 ```text
 Shared background:
@@ -141,7 +150,7 @@ Background:
 Exact Korean text: character: “가지 마.”
 ```
 
-### FINAL COMIC PROMPT (full, untruncated)
+### FINAL COMIC PROMPT — production `buildChatComicGenerationPlan()` (full, untruncated)
 ```text
 Create one polished Korean manhwa-style page with exactly 2 wide horizontal panels stacked vertically.
 
@@ -152,7 +161,7 @@ Ignore the sample people drawn on reference image 1. Do not copy their gender pr
 SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 
 [SUBJECT A — CHAT CHARACTER: 태형]
-Reference: Image 1 belongs ONLY to 태형.
+Reference: Image 2 belongs ONLY to 태형.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -160,7 +169,7 @@ Identity ownership: every trait in this block belongs only to 태형.
 Never infer SUBJECT A's identity from any other subject.
 
 [SUBJECT B — USER PERSONA: 렌]
-Reference: Image 2 belongs ONLY to 렌.
+Reference: Image 3 belongs ONLY to 렌.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -382,6 +391,9 @@ Global must avoid:
 - FAKE_ATTRIBUTION_BUBBLE_COUNT: 0
 - PANEL_TEXT_WHITELIST_MISMATCH_COUNT: 0
 - USER_EDIT_DIALOGUE_MISMATCH_COUNT: 0
+- SUBJECT_LABEL_CONFLICT_COUNT: 0
+- TEMPLATE_REFERENCE_OWNER_CONFLICT_COUNT: 0
+- REFERENCE_SLOT_CONFLICT_COUNT: 0
 
 ## Provenance semantics
 

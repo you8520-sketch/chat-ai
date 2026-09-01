@@ -3,9 +3,13 @@
 `QUALITY_SCORING_BY_CURSOR=false`
 `PROVIDER_IMAGE_CALLS=0`
 
+- **CURRENT_MAIN_SHA:** `ae42507987fb9e8ccdf742a8610dbd8165983016`
+- **GENERATED_FROM_SOURCE_SHA:** `a2bbcb9b6f9718eb716c6a6cba1d00c65d238497`
+
 Compare arms:
 - **A (legacy):** `formatApprovedScenePlanForComic` prose block
-- **B (new):** `compileChatComicPanelSpec` + `renderChatComicPanelSpecSection`
+- **B (new):** `compileChatComicPanelSpec` + `renderChatComicPanelSpecSection` (compiler-only subjects)
+- **FULL PROMPT:** `buildChatComicGenerationPlan()` production path
 
 Scores are **PENDING** — for GPT/human review only.
 
@@ -14,12 +18,17 @@ Scores are **PENDING** — for GPT/human review only.
 ## F01-2panel-invite — 후드 귀 초대
 
 - **Format:** 2panel (2 panels)
-- **Canonical identity map:** A=태형, B=렌
-- **Reference map:** Image 1 → 태형; Image 2 → 렌
+- **PRODUCTION REFERENCE MAP:**
+  - Image 1 → template / composition only
+  - Image 2 → chat character: 태형
+  - Image 3 → user persona: 렌
+- **CANONICAL SUBJECT MAP:**
+  - A → 태형 (chat character)
+  - B → 렌 (user persona)
 - **Expected key beat:** 후드를 만지며 같이 가자고 묻는다
 - **Expected dialogue:** 같이 갈래? | 그래.
 - **Expected progression:** Opening beat → Closing beat
-- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
+- **Identity audit:** SUBJECT_LABEL=0, TEMPLATE_SLOT=0, REF_SLOT=0, ACTION=0, SPEECH=0
 
 ### Source scene
 
@@ -56,7 +65,7 @@ Background:
 Exact Korean text: character: “그래.”
 ```
 
-### Arm B — structured panel spec section (untruncated)
+### Arm B — structured panel spec section (compiler-only subjects, untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -121,7 +130,7 @@ Global must avoid:
 - cropped panel borders or speech bubbles
 ```
 
-### FULL FINAL ASSEMBLED PROMPT (untruncated)
+### FULL FINAL ASSEMBLED PROMPT — production `buildChatComicGenerationPlan()` (untruncated)
 
 ```text
 Create one polished Korean manhwa-style page with exactly 2 wide horizontal panels stacked vertically.
@@ -133,7 +142,7 @@ Ignore the sample people drawn on reference image 1. Do not copy their gender pr
 SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 
 [SUBJECT A — CHAT CHARACTER: 태형]
-Reference: Image 1 belongs ONLY to 태형.
+Reference: Image 2 belongs ONLY to 태형.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -141,7 +150,7 @@ Identity ownership: every trait in this block belongs only to 태형.
 Never infer SUBJECT A's identity from any other subject.
 
 [SUBJECT B — USER PERSONA: 렌]
-Reference: Image 2 belongs ONLY to 렌.
+Reference: Image 3 belongs ONLY to 렌.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -257,12 +266,11 @@ Global must avoid:
 ## F02-2panel-door — 문 열기
 
 - **Format:** 2panel (2 panels)
-- **Canonical identity map:** A=민수, B=유저
-- **Reference map:** Image 1 → 민수; Image 2 → 유저
+- **Compiler-only subject map:** A=민수, B=유저
 - **Expected key beat:** 조용히 문을 연다
 - **Expected dialogue:** (silent)
 - **Expected progression:** Opening beat → Closing beat
-- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
+- **Identity audit:** SUBJECT_LABEL=0, TEMPLATE_SLOT=0, REF_SLOT=0, ACTION=0, SPEECH=0
 
 ### Source scene
 
@@ -298,7 +306,7 @@ Background:
 Exact Korean text: No speech bubble
 ```
 
-### Arm B — structured panel spec section (untruncated)
+### Arm B — structured panel spec section (compiler-only subjects, untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -363,7 +371,7 @@ Global must avoid:
 - cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated, untruncated)
+### Full prompt panel region (production path, untruncated)
 
 ```text
 
@@ -439,12 +447,11 @@ Global must avoid:
 ## F03-2panel-surprise — 깜짝 선물
 
 - **Format:** 2panel (2 panels)
-- **Canonical identity map:** A=지훈, B=하린
-- **Reference map:** Image 1 → 지훈; Image 2 → 하린
+- **Compiler-only subject map:** A=지훈, B=하린
 - **Expected key beat:** 상자를 내밀며 깜짝 선물
 - **Expected dialogue:** 선물이야! | 진짜?
 - **Expected progression:** Opening beat → Closing beat
-- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
+- **Identity audit:** SUBJECT_LABEL=0, TEMPLATE_SLOT=0, REF_SLOT=0, ACTION=0, SPEECH=0
 
 ### Source scene
 
@@ -481,7 +488,7 @@ Background:
 Exact Korean text: character: “진짜?”
 ```
 
-### Arm B — structured panel spec section (untruncated)
+### Arm B — structured panel spec section (compiler-only subjects, untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -546,7 +553,7 @@ Global must avoid:
 - cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated, untruncated)
+### Full prompt panel region (production path, untruncated)
 
 ```text
 
@@ -622,12 +629,17 @@ Global must avoid:
 ## F04-3koma-rain — 비 오는 날 우산
 
 - **Format:** 3koma (3 panels)
-- **Canonical identity map:** A=도윤, B=서연
-- **Reference map:** Image 1 → 도윤; Image 2 → 서연
+- **PRODUCTION REFERENCE MAP:**
+  - Image 1 → template / composition only
+  - Image 2 → chat character: 도윤
+  - Image 3 → user persona: 서연
+- **CANONICAL SUBJECT MAP:**
+  - A → 도윤 (chat character)
+  - B → 서연 (user persona)
 - **Expected key beat:** 우산을 건네며 함께 걷자
 - **Expected dialogue:** 같이 갈래? | …고마워.
 - **Expected progression:** Opening beat → Middle beat → Closing beat
-- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
+- **Identity audit:** SUBJECT_LABEL=0, TEMPLATE_SLOT=0, REF_SLOT=0, ACTION=0, SPEECH=0
 
 ### Source scene
 
@@ -646,6 +658,12 @@ Global must avoid:
 - panel 1: 우산을 든다 | dialogue: persona:"같이 갈래?"
 - panel 2: 도윤이 잠시 망설이며 시선을 피한다. | dialogue: (silent)
 - panel 3: 서연이 우산을 더 가까이 건넨다. 도윤이 작게 | dialogue: character:"…고마워."
+
+### F04 umbrella action audit
+
+- F04_SOURCE_ACTION_PRESENT_IN_EVENTS: true
+- F04_SOURCE_ACTION_PRESENT_IN_PLAN: true
+- F04_SOURCE_ACTION_PRESENT_IN_FINAL_PANEL_SPEC: true
 
 ### Arm A — legacy panel section (untruncated)
 
@@ -671,7 +689,7 @@ Background:
 Exact Korean text: character: “…고마워.”
 ```
 
-### Arm B — structured panel spec section (untruncated)
+### Arm B — structured panel spec section (compiler-only subjects, untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -747,7 +765,7 @@ Global must avoid:
 - cropped panel borders or speech bubbles
 ```
 
-### FULL FINAL ASSEMBLED PROMPT (untruncated)
+### FULL FINAL ASSEMBLED PROMPT — production `buildChatComicGenerationPlan()` (untruncated)
 
 ```text
 Create one polished Korean manhwa-style page with exactly 3 wide horizontal panels stacked vertically.
@@ -759,7 +777,7 @@ Ignore the sample people drawn on reference image 1. Do not copy their gender pr
 SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 
 [SUBJECT A — CHAT CHARACTER: 도윤]
-Reference: Image 1 belongs ONLY to 도윤.
+Reference: Image 2 belongs ONLY to 도윤.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -767,7 +785,7 @@ Identity ownership: every trait in this block belongs only to 도윤.
 Never infer SUBJECT A's identity from any other subject.
 
 [SUBJECT B — USER PERSONA: 서연]
-Reference: Image 2 belongs ONLY to 서연.
+Reference: Image 3 belongs ONLY to 서연.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -894,12 +912,11 @@ Global must avoid:
 ## F05-3koma-cafe — 카페 주문 실수
 
 - **Format:** 3koma (3 panels)
-- **Canonical identity map:** A=현우, B=민지
-- **Reference map:** Image 1 → 현우; Image 2 → 민지
+- **Compiler-only subject map:** A=현우, B=민지
 - **Expected key beat:** 음료를 잘못 받아 당황
 - **Expected dialogue:** 이거 내 주문 아닌데? | 아, 미안!
 - **Expected progression:** Opening beat → Middle beat → Closing beat
-- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
+- **Identity audit:** SUBJECT_LABEL=0, TEMPLATE_SLOT=0, REF_SLOT=0, ACTION=0, SPEECH=0
 
 ### Source scene
 
@@ -942,7 +959,7 @@ Background:
 Exact Korean text: character: “아, 미안!”
 ```
 
-### Arm B — structured panel spec section (untruncated)
+### Arm B — structured panel spec section (compiler-only subjects, untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -1016,7 +1033,7 @@ Global must avoid:
 - cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated, untruncated)
+### Full prompt panel region (production path, untruncated)
 
 ```text
 
@@ -1101,12 +1118,11 @@ Global must avoid:
 ## F06-3koma-study — 공부 격려
 
 - **Format:** 3koma (3 panels)
-- **Canonical identity map:** A=준호, B=예린
-- **Reference map:** Image 1 → 준호; Image 2 → 예린
+- **Compiler-only subject map:** A=준호, B=예린
 - **Expected key beat:** 졸린 준호를 붙잡고 격려
 - **Expected dialogue:** 조금만 더! | 알겠어…
 - **Expected progression:** Opening beat → Middle beat → Closing beat
-- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
+- **Identity audit:** SUBJECT_LABEL=0, TEMPLATE_SLOT=0, REF_SLOT=0, ACTION=0, SPEECH=0
 
 ### Source scene
 
@@ -1150,7 +1166,7 @@ Background:
 Exact Korean text: character: “알겠어…”
 ```
 
-### Arm B — structured panel spec section (untruncated)
+### Arm B — structured panel spec section (compiler-only subjects, untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -1224,7 +1240,7 @@ Global must avoid:
 - cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated, untruncated)
+### Full prompt panel region (production path, untruncated)
 
 ```text
 
@@ -1309,12 +1325,11 @@ Global must avoid:
 ## F07-3koma-lost — 길 잃음
 
 - **Format:** 3koma (3 panels)
-- **Canonical identity map:** A=태민, B=지아
-- **Reference map:** Image 1 → 태민; Image 2 → 지아
+- **Compiler-only subject map:** A=태민, B=지아
 - **Expected key beat:** 지도를 펼치며 길을 찾는다
 - **Expected dialogue:** 여기 맞아? | …아마도.
 - **Expected progression:** Opening beat → Middle beat → Closing beat
-- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
+- **Identity audit:** SUBJECT_LABEL=0, TEMPLATE_SLOT=0, REF_SLOT=0, ACTION=0, SPEECH=0
 
 ### Source scene
 
@@ -1357,7 +1372,7 @@ Background:
 Exact Korean text: character: “…아마도.”
 ```
 
-### Arm B — structured panel spec section (untruncated)
+### Arm B — structured panel spec section (compiler-only subjects, untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -1431,7 +1446,7 @@ Global must avoid:
 - cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated, untruncated)
+### Full prompt panel region (production path, untruncated)
 
 ```text
 
@@ -1516,12 +1531,17 @@ Global must avoid:
 ## F08-4panel-chase — 복도 추격
 
 - **Format:** 4panel (4 panels)
-- **Canonical identity map:** A=시우, B=한별
-- **Reference map:** Image 1 → 시우; Image 2 → 한별
+- **PRODUCTION REFERENCE MAP:**
+  - Image 1 → template / composition only
+  - Image 2 → chat character: 시우
+  - Image 3 → user persona: 한별
+- **CANONICAL SUBJECT MAP:**
+  - A → 시우 (chat character)
+  - B → 한별 (user persona)
 - **Expected key beat:** 복도에서 뛰어가며 붙잡기
 - **Expected dialogue:** 잠깐! | 안 잡혀!
 - **Expected progression:** Opening beat → Beat 2 → Beat 3 → Closing beat
-- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
+- **Identity audit:** SUBJECT_LABEL=0, TEMPLATE_SLOT=0, REF_SLOT=0, ACTION=0, SPEECH=0
 
 ### Source scene
 
@@ -1547,7 +1567,7 @@ Global must avoid:
 
 - SOURCE CLOSING ACTION: 한별이 코너에서 시우의 소매를 붙잡는다.
 - PANEL 4 situation: 한별이 코너에서 시우의 소매를 붙잡는다.
-- PANEL 4 subjectActions: (none — neutral scene action only)
+- PANEL 4 subjectActions: (none)
 - PANEL 4 sceneAction: 한별이 코너에서 시우의 소매를 붙잡는다.
 
 ### Arm A — legacy panel section (untruncated)
@@ -1579,7 +1599,7 @@ Background:
 Exact Korean text: No speech bubble
 ```
 
-### Arm B — structured panel spec section (untruncated)
+### Arm B — structured panel spec section (compiler-only subjects, untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -1666,7 +1686,7 @@ Global must avoid:
 - cropped panel borders or speech bubbles
 ```
 
-### FULL FINAL ASSEMBLED PROMPT (untruncated)
+### FULL FINAL ASSEMBLED PROMPT — production `buildChatComicGenerationPlan()` (untruncated)
 
 ```text
 Create one polished Korean manhwa-style page with exactly 4 wide horizontal panels stacked vertically.
@@ -1678,7 +1698,7 @@ Ignore the sample people drawn on reference image 1. Do not copy their gender pr
 SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 
 [SUBJECT A — CHAT CHARACTER: 시우]
-Reference: Image 1 belongs ONLY to 시우.
+Reference: Image 2 belongs ONLY to 시우.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -1686,7 +1706,7 @@ Identity ownership: every trait in this block belongs only to 시우.
 Never infer SUBJECT A's identity from any other subject.
 
 [SUBJECT B — USER PERSONA: 한별]
-Reference: Image 2 belongs ONLY to 한별.
+Reference: Image 3 belongs ONLY to 한별.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
@@ -1824,12 +1844,11 @@ Global must avoid:
 ## F09-4panel-cooking — 요리 실패
 
 - **Format:** 4panel (4 panels)
-- **Canonical identity map:** A=건, B=수아
-- **Reference map:** Image 1 → 건; Image 2 → 수아
+- **Compiler-only subject map:** A=건, B=수아
 - **Expected key beat:** 타버린 요리를 발견
 - **Expected dialogue:** 이게 뭐야… | 내 탓이야.
 - **Expected progression:** Opening beat → Beat 2 → Beat 3 → Closing beat
-- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
+- **Identity audit:** SUBJECT_LABEL=0, TEMPLATE_SLOT=0, REF_SLOT=0, ACTION=0, SPEECH=0
 
 ### Source scene
 
@@ -1878,7 +1897,7 @@ Background:
 Exact Korean text: character: “내 탓이야.”
 ```
 
-### Arm B — structured panel spec section (untruncated)
+### Arm B — structured panel spec section (compiler-only subjects, untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -1961,7 +1980,7 @@ Global must avoid:
 - cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated, untruncated)
+### Full prompt panel region (production path, untruncated)
 
 ```text
 
@@ -2055,12 +2074,11 @@ Global must avoid:
 ## F10-4panel-confession — 고백 직전
 
 - **Format:** 4panel (4 panels)
-- **Canonical identity map:** A=재혁, B=유나
-- **Reference map:** Image 1 → 재혁; Image 2 → 유나
+- **Compiler-only subject map:** A=재혁, B=유나
 - **Expected key beat:** 손을 잡고 고백
 - **Expected dialogue:** 할 말이 있어. | …들을게.
 - **Expected progression:** Opening beat → Beat 2 → Beat 3 → Closing beat
-- **Identity audit:** SUBJECT_LABEL_CONFLICT=0, ACTION_OWNER_CONFLICT=0, SPEECH_OWNER_CONFLICT=0
+- **Identity audit:** SUBJECT_LABEL=0, TEMPLATE_SLOT=0, REF_SLOT=0, ACTION=0, SPEECH=0
 
 ### Source scene
 
@@ -2110,7 +2128,7 @@ Background:
 Exact Korean text: character: “…들을게.”
 ```
 
-### Arm B — structured panel spec section (untruncated)
+### Arm B — structured panel spec section (compiler-only subjects, untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -2193,7 +2211,7 @@ Global must avoid:
 - cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated, untruncated)
+### Full prompt panel region (production path, untruncated)
 
 ```text
 
@@ -2290,5 +2308,8 @@ Global must avoid:
 - REVIEW_ARTIFACT_LEGACY_GENRE_LABEL_COUNT: 0
 - REVIEW_PACKET_TRUNCATION_COUNT: 0
 - SUBJECT_LABEL_CONFLICT_COUNT: 0
+- REFERENCE_OWNER_CONFLICT_COUNT: 0
+- TEMPLATE_REFERENCE_OWNER_CONFLICT_COUNT: 0
+- REFERENCE_SLOT_CONFLICT_COUNT: 0
 - ACTION_OWNER_CONFLICT_COUNT: 0
-- PROMPT_SUBJECT_LABEL_OWNER_COUNT: 1
+- SPEECH_OWNER_CONFLICT_COUNT: 0
