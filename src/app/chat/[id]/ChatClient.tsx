@@ -140,6 +140,7 @@ import {
   type RevealSessionIdentity,
 } from "@/lib/streamRevealIdentity";
 import { handleStreamRevealClick } from "@/lib/streamClickReveal";
+import { createDeferredRouterRefreshGate } from "@/lib/streamRouterRefreshGate";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
 import {
@@ -2690,15 +2691,13 @@ export default function ChatClient({
       closeSessionRecoveryDraft();
       setGenerationStartedAt(null);
       setChatId(data.chatId ?? chatId);
-      const scheduleRouterRefresh = () => {
-        const deferForReveal =
-          displayPrefsRef.current.streamIntervalMs > 0 && !reveal.isIdle();
-        if (deferForReveal) {
-          void reveal.waitUntilIdle().then(() => router.refresh());
-        } else {
-          router.refresh();
-        }
-      };
+      const assistantRefreshGate = createDeferredRouterRefreshGate({
+        refresh: () => router.refresh(),
+        isRevealIdle: () => reveal.isIdle(),
+        streamIntervalMs: () => displayPrefsRef.current.streamIntervalMs,
+        waitUntilRevealIdle: () => reveal.waitUntilIdle(),
+      });
+      const scheduleRouterRefresh = () => assistantRefreshGate.schedule();
       if (data.chatId) {
         migrateChatMessageDraft(character.id, data.chatId);
         syncChatUrl(data.chatId);
@@ -2838,7 +2837,7 @@ export default function ChatClient({
           data.messageId,
           suggestedRepliesPollStartedRef,
           setMessages,
-          () => router.refresh()
+          () => scheduleRouterRefresh()
         );
       }
     };
