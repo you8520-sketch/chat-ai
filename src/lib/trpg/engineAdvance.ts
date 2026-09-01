@@ -24,6 +24,7 @@ import {
 } from "./billing";
 import {
   aiParticipantIdSet,
+  buildAiPartyCharacterContextBlock,
   characterTagsByParticipant,
   loadTrpgAiCharacterContexts,
   readCharacterRowFields,
@@ -41,7 +42,6 @@ import { assertCanStart } from "./engineCreate";
 import { callTrpgBot, callTrpgGm, type TrpgGmStreamCallbacks } from "./gmCall";
 import {
   buildAiCharacterImageTagCatalog,
-  buildAiPartyIdentityBlock,
   enforceGmSceneAssetMarkers,
   uniqueCharacterAssetTags,
 } from "./gmSceneAssets";
@@ -1262,7 +1262,7 @@ async function runGmForRound(
   const scenarioAssets = loadCampaignScenarioAssets(db, campaign.template_id);
   const scenarioNpcs = loadCampaignScenarioNpcs(db, campaign.template_id);
   const aiContexts = loadTrpgAiCharacterContexts(db, participants);
-  const aiPartyIdentities = buildAiPartyIdentityBlock(aiContexts);
+  const aiPartyCharacterContext = buildAiPartyCharacterContextBlock(aiContexts);
   const characterAssetCatalog = buildAiCharacterImageTagCatalog(
     aiContexts.map((row) => ({
       participantId: row.participantId,
@@ -1306,7 +1306,7 @@ async function runGmForRound(
     sheetCanon,
     genres: loadCampaignGenres(db, campaign),
     relationshipBrief: campaign.relationship_brief ?? "",
-    aiPartyIdentities,
+    aiPartyCharacterContext,
     characterAssetCatalog,
     scenarioAssetPrompt: buildGmSceneAssetPrompt({
       scenarioAssetPrompt: buildScenarioAssetTagPrompt(scenarioAssets),

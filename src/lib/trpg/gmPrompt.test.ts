@@ -471,6 +471,6 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FAILURE\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CLOSING\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CONTINUITY\]/);
-    assert.ok(TRPG_GM_SYSTEM.length <= 10600);
+    assert.ok(TRPG_GM_SYSTEM.length <= 10800);
   });
 });

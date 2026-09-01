@@ -9,11 +9,8 @@ import { readCharacterRowFields } from "./aiCharacterContext";
 import { buildTrpgBotActionUserBlock, prepareTrpgBotActionBody, TRPG_BOT_SYSTEM } from "./botActions";
 import { applyScenarioAssetTagsToTurnText } from "./scenarioAssets";
 import { buildTrpgGmUserBlock, TRPG_GM_SYSTEM } from "./gmPrompt";
-import {
-  buildAiCharacterImageTagCatalog,
-  buildAiPartyIdentityBlock,
-  uniqueCharacterAssetTags,
-} from "./gmSceneAssets";
+import { buildAiCharacterImageTagCatalog, uniqueCharacterAssetTags } from "./gmSceneAssets";
+import { buildAiPartyCharacterContextBlock } from "./aiCharacterContext";
 
 function botCtx(extra: Partial<Parameters<typeof buildTrpgBotActionUserBlock>[0]> = {}) {
   return buildTrpgBotActionUserBlock({
@@ -119,16 +116,38 @@ describe("TRPG character context + GM asset integration", () => {
     assert.match(catalog, /tags=분노 \| 무표정 \| 전투/);
     assert.doesNotMatch(catalog, /https?:\/\//);
     assert.doesNotMatch(catalog, /\.webp|\.png|\.jpg/);
-    const identities = buildAiPartyIdentityBlock([
-      { participantId: 12, name: "권태현", gender: "male" },
-      { participantId: 13, name: "강이현", gender: "male" },
+    const characterContext = buildAiPartyCharacterContextBlock([
+      {
+        participantId: 12,
+        characterId: 15,
+        creatorUserId: null,
+        name: "권태현",
+        gender: "male",
+        assets: fields.assets,
+        description: "과묵한 동료",
+        greeting: "",
+        exampleDialog: "",
+        systemPrompt: "짧게 말한다.",
+      },
+      {
+        participantId: 13,
+        characterId: 16,
+        creatorUserId: null,
+        name: "강이현",
+        gender: "male",
+        assets: [],
+        description: "냉정한 분석가",
+        greeting: "",
+        exampleDialog: "",
+        systemPrompt: "",
+      },
     ]);
     const gm = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
       memoryBlock: "[TRPG STRUCTURED STATE]",
       opening: false,
       relationshipBrief: "렌과 태현은 전우",
-      aiPartyIdentities: identities,
+      aiPartyCharacterContext: characterContext,
       characterAssetCatalog: catalog,
       actions: [
         {
@@ -143,8 +162,11 @@ describe("TRPG character context + GM asset integration", () => {
         },
       ],
     });
-    assert.match(gm, /AI PARTY IDENTITIES/);
-    assert.match(gm, /participantId=12 \| 권태현 \| 남성/);
+    assert.match(gm, /AI PARTY CHARACTERS — CHARACTER CANON/);
+    assert.match(gm, /participantId=12/);
+    assert.match(gm, /Name: 권태현/);
+    assert.match(gm, /Gender: 남성/);
+    assert.match(gm, /과묵한 동료/);
     assert.match(gm, /AI CHARACTER IMAGE TAGS/);
     assert.match(gm, /PARTY RELATIONSHIPS/);
     assert.doesNotMatch(gm, /\/uploads\/|https?:\/\//);
