@@ -3,15 +3,19 @@ import { describe, it } from "node:test";
 
 import {
   addPanelDialogueLine,
+  applyUserIllustrationEdits,
+  applyUserPanelEdits,
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
   COMPACT_PREVIEW_DIALOGUE_VISIBLE_LINES,
   COMPACT_PREVIEW_KEY_ACTION_MAX,
   COMPACT_PREVIEW_SITUATION_MAX,
   formatApprovedScenePlanForIllustration,
+  projectComicPanelBeat,
   projectComicPanelCompactDialoguePreview,
   projectComicPanelCompactSituation,
   projectLdCompactPreviewSummary,
+  reflowScenePlanPanels,
   truncateCompactPreviewText,
   updatePanelDialogueAtIndex,
   type ScenePlan,
@@ -151,6 +155,144 @@ describe("chatImageScenePreviewProjection comic dialogue compact", () => {
     assert.match(compact, /손을 잡는다/);
     assert.doesNotMatch(compact, /캐릭터 우선/);
     assert.doesNotMatch(compact, /페르소나 우선/);
+  });
+});
+
+const SCENE_A_LD = "태현이 렌의 손을 잡고 문 앞에 서 있다.";
+const SCENE_B_LD = "렌과 태현이 창가에 나란히 서서 비 내리는 거리를 바라본다.";
+const SCENE_A_COMIC = "태현이 렌의 손을 잡는다.";
+const SCENE_B_COMIC = "태현이 렌에게 우산을 건네며 현관 앞에 서 있다.";
+
+function basicTwoPanelPlan(): ScenePlan {
+  return buildDeterministicScenePlan(
+    buildSceneSourceMessages([
+      { id: 1, role: "user", content: '*손목을 붙잡는다*\n"가지 마."' },
+      { id: 2, role: "assistant", content: SCENE_A_LD },
+    ]),
+    2
+  );
+}
+
+function generationHeroScene(plan: ScenePlan): string {
+  const match = formatApprovedScenePlanForIllustration(plan).match(/Hero scene: (.+)/);
+  return match?.[1]?.trim() ?? "";
+}
+
+describe("chatImageScenePreviewProjection user-edit parity", () => {
+  it("T7: LD detailed edit parity — compact preview follows generation scene B", () => {
+    const plan = basicTwoPanelPlan();
+    const beforeEdit = projectLdCompactPreviewSummary(plan);
+    assert.match(beforeEdit.keyAction, /손/);
+
+    const edited = applyUserIllustrationEdits(plan, { heroScene: SCENE_B_LD });
+    const genScene = generationHeroScene(edited);
+    assert.equal(genScene, SCENE_B_LD);
+
+    const afterEdit = projectLdCompactPreviewSummary(edited);
+    assert.match(afterEdit.keyAction, /창가|비/);
+    assert.doesNotMatch(afterEdit.keyAction, /^손목을 붙잡는다$/);
+
+    const snapshot = structuredClone(edited);
+    projectLdCompactPreviewSummary(edited);
+    assert.deepEqual(edited, snapshot);
+  });
+
+  it("T8: Comic detailed edit parity — compact panel preview follows generation scene B", () => {
+    const plan = basicTwoPanelPlan();
+    const panel = plan.panels[0];
+    assert.ok(panel);
+    assert.match(panel.situation, /손/);
+
+    const edited = applyUserPanelEdits(plan, 1, { situation: SCENE_B_COMIC });
+    const editedPanel = edited.panels[0];
+    assert.ok(editedPanel);
+    const beat = projectComicPanelBeat(edited, editedPanel, { personaVisible: true });
+    assert.equal(beat.situation, SCENE_B_COMIC);
+
+    const compact = projectComicPanelCompactSituation(edited, editedPanel);
+    assert.match(compact, /우산|현관/);
+    assert.doesNotMatch(compact, /^태현이 렌의 손을 잡는다$/);
+  });
+
+  it("T9: dialogue collapse parity reflects edited text in compact preview", () => {
+    const plan = planWithManyDialogues();
+    const edited = updatePanelDialogueAtIndex(plan, 1, 0, { text: "같이 가자." });
+    const panel = edited.panels.find((entry) => entry.index === 1);
+    assert.ok(panel);
+
+    const preview = projectComicPanelCompactDialoguePreview(panel);
+    assert.match(preview.previewLines[0]?.text ?? "", /같이 가자/);
+    assert.doesNotMatch(preview.previewLines[0]?.text ?? "", /첫 번째/);
+  });
+
+  it("T10: persona hidden parity between generation projection and compact preview", () => {
+    const plan = basicTwoPanelPlan();
+    const hidden = { personaVisible: false as const };
+    const rawEdited = "손목을 붙잡는다 태현과 함께 현관문을 바라본다.";
+    const edited = applyUserIllustrationEdits(plan, { heroScene: rawEdited });
+
+    const genScene = formatApprovedScenePlanForIllustration(edited, hidden).match(
+      /Hero scene: (.+)/
+    )?.[1];
+    const compact = projectLdCompactPreviewSummary(edited, hidden);
+
+    assert.ok(genScene);
+    assert.doesNotMatch(genScene, /손목을 붙잡는다/);
+    assert.doesNotMatch(compact.keyAction, /손목을 붙잡는다/);
+  });
+
+  it("T11: untouched long narration keeps chronology-based compactness", () => {
+    const plan = buildDeterministicScenePlan(longNarrationMessages(), 3);
+    const summary = projectLdCompactPreviewSummary(plan);
+    assert.ok(summary.keyAction.length <= COMPACT_PREVIEW_KEY_ACTION_MAX + 1);
+    assert.match(summary.keyAction, /손목|붙잡/);
+    assert.doesNotMatch(summary.keyAction, /복도 불빛/);
+
+    for (const panel of plan.panels) {
+      const compact = projectComicPanelCompactSituation(plan, panel);
+      assert.ok(compact.length <= COMPACT_PREVIEW_SITUATION_MAX + 1);
+      if (panel.situation.length > COMPACT_PREVIEW_SITUATION_MAX) {
+        assert.ok(compact.length < panel.situation.length);
+      }
+    }
+  });
+
+  it("T12: panel reflow preserves compact preview data for 2/3/4 panels", () => {
+    for (const count of [2, 3, 4] as const) {
+      const plan = reflowScenePlanPanels(buildDeterministicScenePlan(longNarrationMessages(), 2), count);
+      assert.equal(plan.panels.length, count);
+      const promptBefore = buildChatComicGenerationPlan({
+        characterName: "태현",
+        characterGender: "male",
+        personaName: "렌",
+        personaGender: "female",
+        characterImageUrl: "/ref/character",
+        characterSavedAppearance: "",
+        characterAppearanceMode: "image_only",
+        personaImageUrl: "/ref/persona",
+        personaSavedAppearance: "",
+        personaAppearanceMode: "image_only",
+        plan,
+      }).prompt;
+      for (const panel of plan.panels) {
+        projectComicPanelCompactSituation(plan, panel);
+        projectComicPanelCompactDialoguePreview(panel);
+      }
+      const promptAfter = buildChatComicGenerationPlan({
+        characterName: "태현",
+        characterGender: "male",
+        personaName: "렌",
+        personaGender: "female",
+        characterImageUrl: "/ref/character",
+        characterSavedAppearance: "",
+        characterAppearanceMode: "image_only",
+        personaImageUrl: "/ref/persona",
+        personaSavedAppearance: "",
+        personaAppearanceMode: "image_only",
+        plan,
+      }).prompt;
+      assert.equal(promptAfter, promptBefore);
+    }
   });
 });
 

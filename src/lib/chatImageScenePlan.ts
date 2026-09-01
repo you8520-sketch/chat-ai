@@ -1368,6 +1368,23 @@ function projectHeroScene(
   return projectedBackground;
 }
 
+/** Illustration generation hero scene with visibility projection — preview parity owner. */
+function projectGenerationAuthoritativeHeroScene(
+  plan: ScenePlan,
+  visibility: ScenePresentationVisibility
+): string {
+  const heroEvents = plan.events.filter((event) => plan.heroEventIds.includes(event.id));
+  const visibleHeroEvents = visibility.personaVisible
+    ? heroEvents
+    : heroEvents.filter((event) => !isPersonaOwnedEvent(event));
+  return projectHeroScene(
+    plan,
+    visibleHeroEvents,
+    projectVisibleBackground(plan, visibility),
+    visibility
+  );
+}
+
 export function resolveScenePresentationVisibility(opts: {
   contentKind?: ContentKind;
   castManifest?: {
@@ -1566,6 +1583,37 @@ function compactVisualBeatFromEvents(
   return truncateCompactPreviewText(joined, maxChars);
 }
 
+function normalizeScenePreviewCompareText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function panelEventsInOrder(plan: ScenePlan, panel: ScenePanel): SceneEvent[] {
+  const eventsById = new Map(plan.events.map((event) => [event.id, event]));
+  return panel.sourceEventIds
+    .map((id) => eventsById.get(id))
+    .filter((event): event is SceneEvent => event !== undefined);
+}
+
+function canonicalDerivedPanelSituation(plan: ScenePlan, panel: ScenePanel): string {
+  return normalizeScenePreviewCompareText(
+    buildUserFacingVisualDescription(panelEventsInOrder(plan, panel), plan.sceneBackground)
+  );
+}
+
+function heroSceneMatchesCanonicalDerived(plan: ScenePlan): boolean {
+  return (
+    normalizeScenePreviewCompareText(plan.heroScene) ===
+    normalizeScenePreviewCompareText(projectUserFacingHeroScene(plan))
+  );
+}
+
+function panelSituationMatchesCanonicalDerived(plan: ScenePlan, panel: ScenePanel): boolean {
+  return (
+    normalizeScenePreviewCompareText(panel.situation) ===
+    canonicalDerivedPanelSituation(plan, panel)
+  );
+}
+
 export type LdCompactPreviewSummary = {
   background: string;
   keyAction: string;
@@ -1586,11 +1634,16 @@ export function projectLdCompactPreviewSummary(
     projectVisibleBackground(plan, visibility),
     COMPACT_PREVIEW_BACKGROUND_MAX
   );
-  const keyAction = compactVisualBeatFromEvents(
-    visibleHeroEvents,
-    plan.heroScene,
-    COMPACT_PREVIEW_KEY_ACTION_MAX
-  );
+  const keyAction = heroSceneMatchesCanonicalDerived(plan)
+    ? compactVisualBeatFromEvents(
+        visibleHeroEvents,
+        plan.heroScene,
+        COMPACT_PREVIEW_KEY_ACTION_MAX
+      )
+    : truncateCompactPreviewText(
+        projectGenerationAuthoritativeHeroScene(plan, visibility),
+        COMPACT_PREVIEW_KEY_ACTION_MAX
+      );
   const atmosphere = plan.atmosphere?.trim()
     ? truncateCompactPreviewText(plan.atmosphere, COMPACT_PREVIEW_SITUATION_MAX)
     : undefined;
@@ -1604,10 +1657,14 @@ export function projectComicPanelCompactSituation(
   panel: ScenePanel,
   visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
 ): string {
-  const eventsById = new Map(plan.events.map((event) => [event.id, event]));
-  const panelEvents = panel.sourceEventIds
-    .map((id) => eventsById.get(id))
-    .filter((event): event is SceneEvent => event !== undefined);
+  if (!panelSituationMatchesCanonicalDerived(plan, panel)) {
+    return truncateCompactPreviewText(
+      projectComicPanelBeat(plan, panel, visibility).situation,
+      COMPACT_PREVIEW_SITUATION_MAX
+    );
+  }
+
+  const panelEvents = panelEventsInOrder(plan, panel);
   const visibleEvents = visibility.personaVisible
     ? panelEvents
     : panelEvents.filter((event) => !isPersonaOwnedEvent(event));
