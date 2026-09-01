@@ -266,8 +266,17 @@ function gapSegments(
     return [{ start: gapStart, end: gapEnd, kind: "dialogue", text: spoken }];
   }
   const narration = cleanLine(trimmed);
-  if (!narration) return [];
+  if (!narration || isDialogueAttributionResidue(narration)) return [];
   return [{ start: gapStart, end: gapEnd, kind: "narration", text: narration }];
+}
+
+/** Residual speech-attribution tail left after quoted dialogue extraction — not a visual beat. */
+function isDialogueAttributionResidue(text: string): boolean {
+  const trimmed = cleanLine(text);
+  if (!trimmed) return true;
+  return /^(?:[이라]?라고\s*)?(?:말(?:했다|하며|하고)|외쳤(?:다|으며)|속삭(?:였다|이며)|대답(?:했다|하며)|물(?:었다|으며)|(?:이)?라며)[.!?。…]*$/u.test(
+    trimmed
+  );
 }
 
 /** Canonical intra-message segmenter — events follow source span order, not bucket order. */
@@ -412,31 +421,16 @@ export function buildUserFacingVisualDescription(
   return description || fallback;
 }
 
-function stripDialogueTextsFromSceneText(
-  raw: string,
-  events: readonly SceneEvent[]
+/** User-facing hero scene projection — visual beats only; heroEventIds may include dialogue. */
+export function projectUserFacingHeroScene(
+  plan: ScenePlan,
+  heroEventIds: readonly string[] = plan.heroEventIds
 ): string {
-  let text = normalizeSceneBriefWhitespace(raw);
-  for (const event of events) {
-    if (event.kind !== "dialogue" || !event.text) continue;
-    text = text.split(event.text).join(" ");
-    text = text.replace(
-      new RegExp(`[“"'‘]${event.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[”"'’]`, "g"),
-      " "
-    );
-  }
-  return normalizeSceneBriefWhitespace(text);
-}
-
-/** Normalize planner/user scene text to visual-only when dialogue leaked in. */
-export function normalizeUserFacingSceneDescription(
-  raw: string,
-  events: readonly SceneEvent[],
-  fallback = ""
-): string {
-  const stripped = stripDialogueTextsFromSceneText(raw, events);
-  if (stripped) return stripped;
-  return buildUserFacingVisualDescription(events, fallback);
+  const eventsById = new Map(plan.events.map((event) => [event.id, event]));
+  const heroEvents = heroEventIds
+    .map((id) => eventsById.get(id))
+    .filter((event): event is SceneEvent => event !== undefined);
+  return buildUserFacingVisualDescription(heroEvents, plan.sceneBackground);
 }
 
 /** Environment-only background from canonical events — no dialogue/narration fallback. */
@@ -516,11 +510,7 @@ export function buildDeterministicScenePlan(
   const resolvedCount = panelCount ?? recommendedPanelCount;
   const background = resolveDeterministicSceneBackground(events);
   const groups = groupEventsContiguously(events, resolvedCount);
-  const nonDialogueUsable = usable.filter((event) => event.kind !== "dialogue");
-  const heroEvents = (nonDialogueUsable.length ? nonDialogueUsable : usable).slice(
-    0,
-    Math.min(3, nonDialogueUsable.length || usable.length)
-  );
+  const heroEvents = usable.slice(0, Math.min(3, usable.length));
   const heroScene = buildUserFacingVisualDescription(heroEvents, background);
   return {
     sceneBackground: background,
@@ -879,8 +869,7 @@ export function validateScenePlan(
         );
         const raw = cleanLine(item.situation, 240);
         if (allowUserEdits && raw) return raw;
-        if (derived) return derived;
-        return normalizeUserFacingSceneDescription(raw, panelEvents, derived);
+        return derived;
       })(),
       backgroundOverride: cleanLine(item.backgroundOverride, 160) || undefined,
       personaAction: cleanLine(item.personaAction, 160) || undefined,
@@ -907,15 +896,7 @@ export function validateScenePlan(
     panelCount === 2 || panelCount === 3 || panelCount === 4 ? panelCount : count;
 
   const usableVisual = visualEvents(canonicalEvents);
-  const defaultHero = usableVisual
-    .filter((event) => event.kind !== "dialogue")
-    .slice(0, Math.min(3, usableVisual.length))
-    .map((event) => event.id);
-  if (!defaultHero.length) {
-    defaultHero.push(
-      ...usableVisual.slice(0, Math.min(3, usableVisual.length)).map((event) => event.id)
-    );
-  }
+  const defaultHero = usableVisual.slice(0, Math.min(3, usableVisual.length)).map((event) => event.id);
 
   const resolvedHeroIds = heroEventIds.length ? heroEventIds : defaultHero;
   const heroEventsForDescription = resolvedHeroIds
@@ -963,12 +944,7 @@ export function validateScenePlan(
         );
         const raw = cleanLine(source.heroScene, 320);
         if (allowUserEdits && raw) return raw;
-        if (derived) return derived;
-        return normalizeUserFacingSceneDescription(
-          raw,
-          heroEventsForDescription,
-          derived
-        );
+        return derived;
       })(),
       recommendedPanelCount: recommended,
       panels,
@@ -1089,20 +1065,15 @@ function stripPersonaOwnedTexts(raw: string, plan: ScenePlan): string {
 
 function visiblePanelCanonicalEvents(panel: ScenePanel, plan: ScenePlan): string {
   const eventsById = new Map(plan.events.map((event) => [event.id, event]));
-  return panel.sourceEventIds
+  const events = panel.sourceEventIds
     .map((id) => eventsById.get(id))
-    .filter((event): event is SceneEvent => event !== undefined && !isPersonaOwnedEvent(event))
-    .map((event) => event.text)
-    .join(" ")
-    .trim();
+    .filter((event): event is SceneEvent => event !== undefined && !isPersonaOwnedEvent(event));
+  return buildUserFacingVisualDescription(events);
 }
 
 function visiblePlanCanonicalEvents(plan: ScenePlan): string {
-  return visualEvents(plan.events)
-    .filter((event) => !isPersonaOwnedEvent(event))
-    .map((event) => event.text)
-    .join(" ")
-    .trim();
+  const events = visualEvents(plan.events).filter((event) => !isPersonaOwnedEvent(event));
+  return buildUserFacingVisualDescription(events);
 }
 
 function projectVisibleBackground(
@@ -1142,7 +1113,7 @@ function projectHeroScene(
   if (visibility.personaVisible) return plan.heroScene;
   const projectedRaw = stripPersonaOwnedTexts(plan.heroScene, plan);
   if (projectedRaw) return projectedRaw;
-  const fromEvents = visibleHeroEvents.map((event) => event.text).join(" ").trim();
+  const fromEvents = buildUserFacingVisualDescription(visibleHeroEvents);
   if (fromEvents) return fromEvents;
   return projectedBackground;
 }
