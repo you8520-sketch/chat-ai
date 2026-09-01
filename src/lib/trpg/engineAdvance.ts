@@ -68,7 +68,6 @@ import {
   hasLocalSceneProgressDelta,
   serializeLocalSceneDeltaContract,
   serializeLocalSceneStateForGm,
-  type TrpgLocalSceneProgressV1,
 } from "./localSceneProgress";
 import { assertGmCompletionCanCommit, assessGmCompletionIntegrity, completionIntegrityStatusLabel } from "./gmCompletionIntegrity";
 import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM, type ParsedTrpgGmOutput } from "./gmPrompt";
