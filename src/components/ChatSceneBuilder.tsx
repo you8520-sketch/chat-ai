@@ -11,6 +11,8 @@ import {
   applyUserIllustrationEdits,
   applyUserPanelEdits,
   movePanelDialogueLine,
+  projectComicPanelCompactSituation,
+  projectLdCompactPreviewSummary,
   removePanelDialogueLine,
   resolveScenePresentationVisibility,
   updatePanelDialogueAtIndex,
@@ -92,6 +94,78 @@ function speakerOptions(opts: {
     });
   }
   return options;
+}
+
+function LdCompactPreview({
+  plan,
+  personaVisible,
+}: {
+  plan: ScenePlan;
+  personaVisible: boolean;
+}) {
+  const summary = projectLdCompactPreviewSummary(plan, { personaVisible });
+  const rows = [
+    summary.background ? { label: "배경", value: summary.background } : null,
+    summary.keyAction ? { label: "핵심 행동", value: summary.keyAction } : null,
+    summary.atmosphere ? { label: "분위기", value: summary.atmosphere } : null,
+  ].filter((row): row is { label: string; value: string } => row !== null);
+
+  if (!rows.length) {
+    return <p className="text-xs text-zinc-500">장면을 정리했습니다.</p>;
+  }
+
+  return (
+    <dl className="space-y-1.5">
+      {rows.map((row) => (
+        <div key={row.label} className="flex gap-2 text-xs leading-snug">
+          <dt className="shrink-0 font-semibold text-zinc-500">{row.label}</dt>
+          <dd className="min-w-0 text-zinc-200">{row.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function ComicPanelStoryboardCard({
+  panel,
+  plan,
+  personaName,
+  characterName,
+  personaVisible,
+  disabled,
+  onPlanChange,
+}: {
+  panel: ScenePanel;
+  plan: ScenePlan;
+  personaName: string;
+  characterName: string;
+  personaVisible: boolean;
+  disabled?: boolean;
+  onPlanChange: (plan: ScenePlan) => void;
+}) {
+  const compactSituation = projectComicPanelCompactSituation(plan, panel, { personaVisible });
+
+  return (
+    <div className="rounded-lg border border-white/10 bg-black/20 p-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-[11px] font-semibold text-violet-200">{panel.index}컷</p>
+      </div>
+      {compactSituation ? (
+        <p className="mt-1 line-clamp-2 text-xs leading-snug text-zinc-200">{compactSituation}</p>
+      ) : (
+        <p className="mt-1 text-xs text-zinc-500">장면 없음</p>
+      )}
+      <ComicPanelDialogueEditor
+        panel={panel}
+        plan={plan}
+        personaName={personaName}
+        characterName={characterName}
+        personaVisible={personaVisible}
+        disabled={disabled}
+        onPlanChange={onPlanChange}
+      />
+    </div>
+  );
 }
 
 function PanelVisualEditor({
@@ -411,9 +485,7 @@ export default function ChatSceneBuilder({
         {plan && outputMode === "illustration" && !sceneEditOpen ? (
           <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
             <h3 className="text-[11px] font-semibold text-zinc-400">장면 미리보기</h3>
-            <p className="text-xs leading-relaxed text-zinc-200">
-              {plan.heroScene || "장면을 정리했습니다."}
-            </p>
+            <LdCompactPreview plan={plan} personaVisible={personaVisible} />
             <button
               type="button"
               disabled={disabled}
@@ -428,21 +500,18 @@ export default function ChatSceneBuilder({
         {plan && outputMode === "comic" ? (
           <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
             <h3 className="text-[11px] font-semibold text-zinc-400">컷 미리보기</h3>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {plan.panels.map((panel) => (
-                <div key={panel.index} className="rounded-lg border border-white/10 bg-black/20 p-2">
-                  <p className="text-[11px] font-semibold text-violet-200">{panel.index}컷</p>
-                  <p className="mt-1 text-xs leading-relaxed text-zinc-200">{panel.situation}</p>
-                  <ComicPanelDialogueEditor
-                    panel={panel}
-                    plan={plan}
-                    personaName={personaName}
-                    characterName={characterName}
-                    personaVisible={personaVisible}
-                    disabled={disabled}
-                    onPlanChange={onPlanChange}
-                  />
-                </div>
+                <ComicPanelStoryboardCard
+                  key={panel.index}
+                  panel={panel}
+                  plan={plan}
+                  personaName={personaName}
+                  characterName={characterName}
+                  personaVisible={personaVisible}
+                  disabled={disabled}
+                  onPlanChange={onPlanChange}
+                />
               ))}
             </div>
             <button
@@ -510,10 +579,8 @@ export default function ChatSceneBuilder({
               {showAiPreview ? "미리보기 닫기" : "미리보기"}
             </button>
           </div>
-          {showAiPreview ? (
-            <p className="whitespace-pre-wrap text-xs leading-relaxed text-zinc-200">
-              {aiSuggestedPlan.heroScene || aiSuggestedPlan.sceneBackground}
-            </p>
+          {showAiPreview && aiSuggestedPlan ? (
+            <LdCompactPreview plan={aiSuggestedPlan} personaVisible={personaVisible} />
           ) : null}
           <div className="flex flex-wrap gap-2">
             <button

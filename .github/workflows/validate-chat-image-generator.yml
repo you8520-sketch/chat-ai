@@ -37,6 +37,7 @@ on:
       - "src/lib/chatImageSceneBrief.test.ts"
       - "src/lib/chatImageScenePlan.ts"
       - "src/lib/chatImageScenePlan.test.ts"
+      - "src/lib/chatImageScenePreviewProjection.test.ts"
       - "src/lib/chatImageAttributionAudit.ts"
       - "src/lib/chatImageAttributionBoundary.test.ts"
       - "src/lib/chatImageDialogueKeystroke.test.ts"
@@ -133,6 +134,7 @@ jobs:
       - run: node --import tsx --test src/lib/chatImageEyeTraits.test.ts
       - run: node --import tsx --test src/lib/chatImageSceneBrief.test.ts
       - run: node --import tsx --test src/lib/chatImageScenePlan.test.ts
+      - run: node --import tsx --test src/lib/chatImageScenePreviewProjection.test.ts
       - run: node --import tsx --test src/lib/chatImageSceneDialogueEditor.test.ts
       - run: node --import tsx --test src/lib/chatImageDialogueKeystroke.test.ts
       - run: node --import tsx --test src/lib/chatImageAttributionBoundary.test.ts
