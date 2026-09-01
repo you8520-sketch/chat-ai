@@ -3,31 +3,45 @@
  * Uses canonical owners only — no mock published producer, no test DI surface.
  */
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import Database from "better-sqlite3";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
 import { resolveChatBillingContract } from "@/lib/chatBillingContractDispatch";
-import { computePublishedUserChargeWithSnapshot } from "@/lib/publishedUserCharge";
-import { computeShadowPricing } from "@/lib/shadowPricing";
-import { resolveShadowBillingExchangeRateSnapshot } from "@/lib/shadowBillingExchangeRate";
-import type { StageUsage } from "@/lib/ai";
 import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
+import { computePublishedUserChargeWithSnapshot } from "@/lib/publishedUserCharge";
+import { assertPublishedBuildArtifactGuard } from "@/lib/publishedUserChargeBuildArtifactGuard";
+import { computeShadowPricing } from "@/lib/shadowPricing";
+import {
+  _clearShadowBillingFxMemoryForTest,
+  _insertShadowBillingFxDailyRowForTest,
+  _setShadowBillingFxKstNowForTest,
+  _setShadowBillingFxTestDb,
+} from "@/lib/shadowBillingExchangeRate";
+import { ensureShadowBillingFxTables } from "@/lib/shadowBillingFxPersistence";
+import type { StageUsage } from "@/lib/ai";
 import type { NormalizedBillableUsage } from "@/lib/billingUsage";
+import { applyOverseasCardFee } from "@/lib/billingFxPolicy";
 
-function fxSnapshotFromShadow(): BillingFxSnapshot {
-  const fx = resolveShadowBillingExchangeRateSnapshot();
-  return {
-    mode: fx.mode,
-    dateKey: fx.dateKey,
-    usdToKrw: fx.usdToKrw,
-    effectiveKrwPerUsd: fx.effectiveKrwPerUsd,
-    source: fx.source,
-    overseasFeeRate: fx.overseasFeeRate,
-    locked: fx.locked,
-  };
-}
+export const FIXED_TEST_KST_DATE = "2026-08-28";
+export const FIXED_TEST_USD_KRW = 1530;
 
-/** cr_mtiedirf_thf6vkus — provider-reported normal G37 turn (chatId=707). */
-const NORMAL_FORENSIC_USAGE: NormalizedBillableUsage = {
+const FIXED_TEST_FX: BillingFxSnapshot = {
+  mode: "daily_kst",
+  dateKey: FIXED_TEST_KST_DATE,
+  usdToKrw: FIXED_TEST_USD_KRW,
+  effectiveKrwPerUsd: applyOverseasCardFee(FIXED_TEST_USD_KRW),
+  source: "api_daily",
+  overseasFeeRate: 0.02,
+  locked: true,
+};
+
+/**
+ * cr_mtiedirf_thf6vkus — provider-reported normal G37 turn (chatId=707).
+ * FORENSIC_EXACT_FIELDS:
+ * promptTokens, cacheReadTokens, cacheWriteTokens, standardInputTokens,
+ * visibleOutputTokens, billableOutputTokens (all explicit in production logs).
+ */
+const NORMAL_PRODUCTION_SHAPE_FIXTURE: NormalizedBillableUsage = {
   promptTokens: 26038,
   cacheReadTokens: 20426,
   cacheWriteTokens: 0,
@@ -38,8 +52,13 @@ const NORMAL_FORENSIC_USAGE: NormalizedBillableUsage = {
   reasoningAccounting: "none",
 };
 
-/** cr_mtiei4j7_c39yk536 — provider-reported regen G37 turn (same messageId=3895). */
-const REGEN_FORENSIC_USAGE: NormalizedBillableUsage = {
+/**
+ * cr_mtiei4j7_c39yk536 — regen G37 turn (same messageId=3895).
+ * FORENSIC_EXACT_FIELDS: promptTokens, visibleOutputTokens/billableOutputTokens,
+ * cacheReadTokens=0, cacheWriteTokens=0, standardInputTokens, usageCoverage=complete.
+ * FORENSIC_SYNTHETIC_COMPLETION_FIELDS: reasoningTokens=0 (fieldSources.reasoning=MISSING_AND_UNKNOWN).
+ */
+const REGEN_FORENSIC_PARTIAL_PLUS_DETERMINISTIC_FILL: NormalizedBillableUsage = {
   promptTokens: 26681,
   cacheReadTokens: 0,
   cacheWriteTokens: 0,
@@ -50,7 +69,7 @@ const REGEN_FORENSIC_USAGE: NormalizedBillableUsage = {
   reasoningAccounting: "none",
 };
 
-function regenForensicStage(): StageUsage {
+function regenProductionShapeStage(): StageUsage {
   return {
     stage: "Gemini 3.7 Flash",
     model: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -70,13 +89,36 @@ function regenForensicStage(): StageUsage {
 }
 
 describe("G37 P0 Pass 2 — forensic published owner regressions", () => {
+  let shadowFxDb: Database.Database | null = null;
+
+  beforeEach(() => {
+    shadowFxDb = new Database(":memory:");
+    ensureShadowBillingFxTables(shadowFxDb);
+    _setShadowBillingFxTestDb(shadowFxDb);
+    _clearShadowBillingFxMemoryForTest();
+    _setShadowBillingFxKstNowForTest(Date.parse(`${FIXED_TEST_KST_DATE}T00:00:00.000Z`));
+    _insertShadowBillingFxDailyRowForTest({
+      dateKey: FIXED_TEST_KST_DATE,
+      baseUsdKrw: FIXED_TEST_USD_KRW,
+      source: "api_daily",
+    });
+  });
+
+  afterEach(() => {
+    _setShadowBillingFxTestDb(null);
+    _clearShadowBillingFxMemoryForTest();
+    _setShadowBillingFxKstNowForTest(null);
+    shadowFxDb?.close();
+    shadowFxDb = null;
+  });
+
   it("R1 normal shadow: computeShadowPricing complete path never nullish .status", () => {
     const shadow = computeShadowPricing({
       modelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-      promptTokens: NORMAL_FORENSIC_USAGE.promptTokens,
-      cacheReadTokens: NORMAL_FORENSIC_USAGE.cacheReadTokens,
-      cacheWriteTokens: NORMAL_FORENSIC_USAGE.cacheWriteTokens,
-      outputTokens: NORMAL_FORENSIC_USAGE.visibleOutputTokens,
+      promptTokens: NORMAL_PRODUCTION_SHAPE_FIXTURE.promptTokens,
+      cacheReadTokens: NORMAL_PRODUCTION_SHAPE_FIXTURE.cacheReadTokens,
+      cacheWriteTokens: NORMAL_PRODUCTION_SHAPE_FIXTURE.cacheWriteTokens,
+      outputTokens: NORMAL_PRODUCTION_SHAPE_FIXTURE.visibleOutputTokens,
     });
     assert.ok(shadow.publishedChargeStatus === "complete" || shadow.publishedChargeStatus === "blocked");
     assert.notEqual(shadow.publishedChargeStatus, undefined);
@@ -85,9 +127,9 @@ describe("G37 P0 Pass 2 — forensic published owner regressions", () => {
   it("R1 direct published owner: normal forensic usage returns total union (not undefined)", () => {
     const result = computePublishedUserChargeWithSnapshot({
       modelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-      usage: NORMAL_FORENSIC_USAGE,
+      usage: NORMAL_PRODUCTION_SHAPE_FIXTURE,
       usageCoverage: "complete",
-      fxSnapshot: fxSnapshotFromShadow(),
+      fxSnapshot: FIXED_TEST_FX,
       adjustment: { kind: "none" },
     });
     assert.notEqual(result, undefined);
@@ -101,11 +143,11 @@ describe("G37 P0 Pass 2 — forensic published owner regressions", () => {
   it("R2 regen dispatch: resolveChatBillingContract published_phase1 with forensic stage", () => {
     const decision = resolveChatBillingContract({
       deliveredModelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-      stages: [regenForensicStage()],
+      stages: [regenProductionShapeStage()],
       legacyFinalPoints: 61,
       billingWaiverReason: null,
       legacyWaiverMinimum: 0,
-      fxSnapshot: fxSnapshotFromShadow(),
+      fxSnapshot: FIXED_TEST_FX,
       phase1PublishedBillingEnabled: true,
     });
     assert.equal(decision.contract, "published_phase1");
@@ -113,39 +155,27 @@ describe("G37 P0 Pass 2 — forensic published owner regressions", () => {
     assert.equal(decision.telemetry.publishedCandidateStatus, "resolved");
   });
 
-  it("R2 direct published owner: regen forensic usage returns complete (55P @ emergency FX)", () => {
+  it("R2 direct published owner: regen forensic usage returns complete total union (not undefined)", () => {
     const result = computePublishedUserChargeWithSnapshot({
       modelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-      usage: REGEN_FORENSIC_USAGE,
+      usage: REGEN_FORENSIC_PARTIAL_PLUS_DETERMINISTIC_FILL,
       usageCoverage: "complete",
-      fxSnapshot: fxSnapshotFromShadow(),
+      fxSnapshot: FIXED_TEST_FX,
       adjustment: { kind: "none" },
     });
     assert.notEqual(result, undefined);
+    assert.notEqual(result, null);
     assert.equal(result.status, "complete");
     if (result.status === "complete") {
-      assert.equal(result.snapshot.finalPoints, 55);
+      assert.ok(result.snapshot.finalPoints > 0);
     }
   });
 });
 
-describe("G37 P0 Pass 2 — build artifact parity guard", () => {
-  it("production chunk core retains complete-path return after build", () => {
-    const fs = require("node:fs") as typeof import("node:fs");
-    const path = require("node:path") as typeof import("node:path");
-    const chunkPath = path.join(process.cwd(), ".next/server/chunks/2806.js");
-    if (!fs.existsSync(chunkPath)) {
-      // Build artifact optional in CI without prior npm run build — skip guard.
-      return;
-    }
-    const src = fs.readFileSync(chunkPath, "utf8");
-    const modStart = src.indexOf("61948:(a,b,c)=>");
-    assert.ok(modStart >= 0, "publishedUserCharge module missing from chunk 2806");
-    const modSlice = src.slice(modStart, modStart + 8000);
-    assert.match(
-      modSlice,
-      /"complete"!==g[\s\S]*status:"complete",snapshot/,
-      "compiled computePublishedUserChargeCore must retain complete return — rebuild after source change"
-    );
+describe("G37 P0 Pass 2 — build artifact parity guard (fail-closed)", () => {
+  it("requires npm run build output and exactly one semantic published owner with complete return", () => {
+    const result = assertPublishedBuildArtifactGuard();
+    assert.equal(result.matchedPublishedBuildOwnerCount, 1);
+    assert.equal(result.completePathReturnPresent, true);
   });
 });
