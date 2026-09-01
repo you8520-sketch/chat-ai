@@ -126,6 +126,11 @@ import {
   planStreamRevealTermination,
   runStreamRevealTermination,
 } from "@/lib/streamRevealLifecycle";
+import {
+  buildSuccessDoneRevealDiagnostics,
+  planSuccessDoneFinalContentReveal,
+  resolveCanonicalContentAtRevealIdle,
+} from "@/lib/streamSuccessDoneReconcile";
 import { createStreamDraftWriteGate, createSessionRecoveryDraftScope, adoptSessionRecoveryDraftChatId, clearRecoveryDraftScopes, type RecoveryDraftScopeOps } from "@/lib/streamDraftLifecycle";
 import {
   isGenerationStreamingMessage,
@@ -2427,6 +2432,8 @@ export default function ChatClient({
 
     let sessionDisplayedText = "";
     let sessionTargetText = "";
+    /** Canonical finalContent from server done — reconciled only after visual reveal idle. */
+    let deferredFinalCanonicalContent: string | null = null;
     let revealLifetimeEnded = false;
     const recoveryDraftLifetime = createStreamDraftWriteGate();
     const sessionRecoveryDraftScope = createSessionRecoveryDraftScope(chatId);
@@ -2486,6 +2493,18 @@ export default function ChatClient({
       }
     };
 
+    const reconcileDeferredCanonicalAtRevealIdle = () => {
+      if (!deferredFinalCanonicalContent || sessionAbandoned) return;
+      const canonical = resolveCanonicalContentAtRevealIdle(
+        sessionDisplayedText,
+        deferredFinalCanonicalContent
+      );
+      deferredFinalCanonicalContent = null;
+      if (canonical !== sessionDisplayedText) {
+        setAssistantContentInstant(canonical);
+      }
+    };
+
     const endRevealLifetime = (
       plan: ReturnType<typeof planStreamRevealTermination>
     ) => {
@@ -2502,7 +2521,10 @@ export default function ChatClient({
           },
           flush: plan.action === "end_sync" ? plan.flush : undefined,
         },
-        unregisterRevealSession
+        () => {
+          reconcileDeferredCanonicalAtRevealIdle();
+          unregisterRevealSession();
+        }
       );
     };
 
@@ -2729,6 +2751,45 @@ export default function ChatClient({
       syncStreamToText(target, false);
     }
 
+    /** Success server done while visual reveal pending — enqueue tail only; never instant full snap. */
+    function applySuccessDoneFinalContent(finalContent: string) {
+      const revealPending =
+        displayPrefsRef.current.streamIntervalMs > 0 && !reveal.isIdle();
+      if (!revealPending) {
+        applyStreamReplaceTarget(finalContent, { instant: false });
+        return;
+      }
+
+      const plan = planSuccessDoneFinalContentReveal({
+        displayed: sessionDisplayedText,
+        streamTarget: sessionTargetText,
+        finalContent,
+        priorTarget: sessionTargetText,
+        revealIdle: reveal.isIdle(),
+        instantRevealMode: false,
+      });
+
+      if (process.env.NODE_ENV !== "production") {
+        console.info(
+          "[SuccessDoneReveal]",
+          buildSuccessDoneRevealDiagnostics({
+            displayed: sessionDisplayedText,
+            streamTarget: sessionTargetText,
+            finalContent,
+            revealIdle: reveal.isIdle(),
+            visualRevealPending: true,
+            plan,
+          })
+        );
+      }
+
+      deferredFinalCanonicalContent = finalContent;
+
+      if (plan.action === "enqueue") {
+        reveal.enqueue(plan.enqueue);
+      }
+    }
+
     const applyStreamDone = (
       data: NonNullable<typeof pendingDone>,
       opts?: { preserveStreamingContent?: boolean }
@@ -2923,10 +2984,14 @@ export default function ChatClient({
       }
       if (data.finalContent?.trim()) {
         postStreamLocked = true;
-        applyStreamReplaceTarget(data.finalContent, {
-          instant: instantReveal,
-          fallbackInstant: htmlFlashStreamTurn || data.htmlFlashTurn === true,
-        });
+        if (instantReveal) {
+          applyStreamReplaceTarget(data.finalContent, {
+            instant: true,
+            fallbackInstant: htmlFlashStreamTurn || data.htmlFlashTurn === true,
+          });
+        } else {
+          applySuccessDoneFinalContent(data.finalContent);
+        }
       }
       const finalContentLen = data.finalContent?.length ?? sessionTargetText.length;
       const preserveStreamingContent =
@@ -3158,9 +3223,13 @@ export default function ChatClient({
         displayPrefsRef.current.streamIntervalMs <= 0 || htmlFlashStreamTurn;
       if (!streamDoneApplied && pendingDone?.finalContent) {
         postStreamLocked = true;
-        applyStreamReplaceTarget(pendingDone.finalContent, {
-          instant: htmlFlashStreamTurn || pendingDone.htmlFlashTurn === true,
-        });
+        if (instantReveal) {
+          applyStreamReplaceTarget(pendingDone.finalContent, {
+            instant: htmlFlashStreamTurn || pendingDone.htmlFlashTurn === true,
+          });
+        } else {
+          applySuccessDoneFinalContent(pendingDone.finalContent);
+        }
       }
       if (pendingDone && !trafficOverload && !streamDoneApplied) {
         applyStreamDone(pendingDone);
