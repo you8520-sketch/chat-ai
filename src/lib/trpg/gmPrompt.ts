@@ -285,7 +285,7 @@ export function buildTrpgGmUserBlock(opts: {
   sheetCanon?: string;
   genres?: readonly string[];
     relationshipBrief?: string;
-  aiPartyIdentities?: string;
+  aiPartyCharacterContext?: string;
   characterAssetCatalog?: string;
   scenarioAssetPrompt?: string;
   scenarioPlanBlock?: string;
@@ -369,7 +369,7 @@ export function buildTrpgGmUserBlock(opts: {
     opts.relationshipBrief?.trim()
       ? `[PARTY RELATIONSHIPS — table canon for how PCs know each other. Do not invent a conflicting history.]\n${opts.relationshipBrief.trim()}`
       : "",
-    opts.aiPartyIdentities?.trim() ?? "",
+    opts.aiPartyCharacterContext?.trim() ?? "",
     opts.memoryBlock,
     opts.resolutionOrderBlock?.trim() ?? "",
     actionBlock,

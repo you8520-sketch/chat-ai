@@ -31,6 +31,8 @@ export const TRPG_BOT_MAX_TOKENS = 2048;
 /** Character card fields on a bot-seat call — personality lives here. */
 export const TRPG_BOT_CARD_PROMPT_MAX_CHARS = 3500;
 export const TRPG_BOT_CARD_FIELD_MAX_CHARS = 800;
+/** GM AI party character-card context — one total cap per character; not bot-seat field caps. */
+export const TRPG_GM_AI_CHARACTER_CONTEXT_MAX_CHARS = 5000;
 export const TRPG_LEDGER_QUEST_MAX = 12;
 export const TRPG_LEDGER_NPC_MAX = 16;
 export const TRPG_LEDGER_FLAG_MAX = 24;
