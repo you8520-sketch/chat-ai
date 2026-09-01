@@ -1,0 +1,256 @@
+{
+  "status": "DEEPSEEK0813_STYLE_TRACK_S1_CAPTURE_COMPLETE",
+  "target": "deepseek-v4-pro-0813",
+  "provider": "cheaperinference",
+  "completion_owner": false,
+  "current_stage_boundary": false,
+  "source_mirror_baseline": false,
+  "source_mirror_challenger": true,
+  "opus_fixture_proven": false,
+  "gemini31_fixture_proven": false,
+  "gemini37_fixture_proven": true,
+  "notes": [
+    "OPUS_FIXTURE_UNAVAILABLE: frozen last-assistant RAW missing at /opt/cursor/artifacts/opus-instruction-boundary/live/s5_relationship_hand/arm-E/run1/turn2-provider-raw.txt and no committed Opus RAW + matching next user. Skipped. Not relabeled.",
+    "GEMINI31_FIXTURE_UNAVAILABLE: frozen last-assistant RAW missing at /opt/cursor/artifacts/gemini31-opus5-minimal-screen/gemini31/relationship/run1/turn2-provider-raw.txt and no committed Gemini 3.1 RAW + matching next user. Skipped. Not relabeled."
+  ],
+  "opus_baseline": 0,
+  "opus_mirror": 0,
+  "gemini31_baseline": 0,
+  "gemini31_mirror": 0,
+  "gemini37_baseline": 2,
+  "gemini37_mirror": 2,
+  "total_new_calls": 4,
+  "quality_scoring_by_cursor": false,
+  "completion_v2_created": false,
+  "production_changed": false,
+  "calls": [
+    {
+      "source_id": "gemini37",
+      "source_label": "Gemini 3.7 Flash source",
+      "selected_source_model": "gemini-3.7-flash",
+      "resolved_target": "deepseek-v4-pro-0813",
+      "response_model": "deepseek-v4-pro-0813",
+      "provider": "cheaperinference",
+      "arm": "baseline",
+      "run": 1,
+      "blind_label": "SOURCE_G37_SAMPLE_A1",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "stream_done": true,
+      "incomplete": false,
+      "visible_chars": 4069,
+      "korean_chars": 2838,
+      "ttft_ms": 43738,
+      "latency_ms": 117117,
+      "input_tokens": 7466,
+      "cache_read": null,
+      "completion_tokens": 5000,
+      "reasoning_stream_events": 1765,
+      "reasoning_chars": 2716,
+      "reasoning_tokens": 0,
+      "usage_cost": 0.005345,
+      "terminal_usage": {
+        "prompt_tokens": 7466,
+        "completion_tokens": 5000,
+        "total_tokens": 12466,
+        "cost": 0.005345,
+        "cost_details": {
+          "upstream_inference_cost": 0.005345
+        }
+      },
+      "TRUE_OFF_REQUESTED": true,
+      "REASONING_ACTUALLY_ZERO": false,
+      "request_wire": {
+        "model": "deepseek-v4-pro-0813",
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null,
+        "reasoning": null,
+        "include_reasoning": null,
+        "temperature": 0.92
+      },
+      "prompt_audit": {
+        "style_mirror": 0,
+        "scene_completion": 0,
+        "system_style_mirror": 0,
+        "system_scene_completion": 0
+      },
+      "last_assistant_sha256": "4b6adc16eee5f577484bcb556ba5b9efc6157567907b2fd58ff596607735e124",
+      "last_assistant_provenance": "committed:docs/audits/gemini-37-flash-baseline/t1-raw.txt",
+      "raw_sha256": "b09d6844682f4771e99c54971ae0b9a5caacd71720c0cacb3228ac9711825151",
+      "error": null
+    },
+    {
+      "source_id": "gemini37",
+      "source_label": "Gemini 3.7 Flash source",
+      "selected_source_model": "gemini-3.7-flash",
+      "resolved_target": "deepseek-v4-pro-0813",
+      "response_model": "deepseek-v4-pro-0813",
+      "provider": "cheaperinference",
+      "arm": "baseline",
+      "run": 2,
+      "blind_label": "SOURCE_G37_SAMPLE_A2",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "stream_done": true,
+      "incomplete": false,
+      "visible_chars": 3674,
+      "korean_chars": 2562,
+      "ttft_ms": 1912,
+      "latency_ms": 70766,
+      "input_tokens": 7466,
+      "cache_read": null,
+      "completion_tokens": 2819,
+      "reasoning_stream_events": 0,
+      "reasoning_chars": 0,
+      "reasoning_tokens": 0,
+      "usage_cost": 0.001884,
+      "terminal_usage": {
+        "prompt_tokens": 7466,
+        "completion_tokens": 2819,
+        "total_tokens": 10285,
+        "cost": 0.001884,
+        "cost_details": {
+          "upstream_inference_cost": 0.001884
+        }
+      },
+      "TRUE_OFF_REQUESTED": true,
+      "REASONING_ACTUALLY_ZERO": true,
+      "request_wire": {
+        "model": "deepseek-v4-pro-0813",
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null,
+        "reasoning": null,
+        "include_reasoning": null,
+        "temperature": 0.92
+      },
+      "prompt_audit": {
+        "style_mirror": 0,
+        "scene_completion": 0,
+        "system_style_mirror": 0,
+        "system_scene_completion": 0
+      },
+      "last_assistant_sha256": "4b6adc16eee5f577484bcb556ba5b9efc6157567907b2fd58ff596607735e124",
+      "last_assistant_provenance": "committed:docs/audits/gemini-37-flash-baseline/t1-raw.txt",
+      "raw_sha256": "f67ca7ee90ea999e68ba519c4b123348471ff9fd62673b0c2596def4fcdad0c7",
+      "error": null
+    },
+    {
+      "source_id": "gemini37",
+      "source_label": "Gemini 3.7 Flash source",
+      "selected_source_model": "gemini-3.7-flash",
+      "resolved_target": "deepseek-v4-pro-0813",
+      "response_model": "deepseek-v4-pro-0813",
+      "provider": "cheaperinference",
+      "arm": "challenger",
+      "run": 1,
+      "blind_label": "SOURCE_G37_SAMPLE_B1",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "stream_done": true,
+      "incomplete": false,
+      "visible_chars": 3937,
+      "korean_chars": 2742,
+      "ttft_ms": 29652,
+      "latency_ms": 102995,
+      "input_tokens": 7780,
+      "cache_read": null,
+      "completion_tokens": 4446,
+      "reasoning_stream_events": 1391,
+      "reasoning_chars": 5943,
+      "reasoning_tokens": 0,
+      "usage_cost": 0.004737,
+      "terminal_usage": {
+        "prompt_tokens": 7780,
+        "completion_tokens": 4446,
+        "total_tokens": 12226,
+        "cost": 0.004737,
+        "cost_details": {
+          "upstream_inference_cost": 0.004737
+        }
+      },
+      "TRUE_OFF_REQUESTED": true,
+      "REASONING_ACTUALLY_ZERO": false,
+      "request_wire": {
+        "model": "deepseek-v4-pro-0813",
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null,
+        "reasoning": null,
+        "include_reasoning": null,
+        "temperature": 0.92
+      },
+      "prompt_audit": {
+        "style_mirror": 1,
+        "scene_completion": 0,
+        "system_style_mirror": 0,
+        "system_scene_completion": 0
+      },
+      "last_assistant_sha256": "4b6adc16eee5f577484bcb556ba5b9efc6157567907b2fd58ff596607735e124",
+      "last_assistant_provenance": "committed:docs/audits/gemini-37-flash-baseline/t1-raw.txt",
+      "raw_sha256": "1f4fbbf8e057a3136deb194c9e6cc74819c6bd8f70dbde4ea5ccb8ae8aac610a",
+      "error": null
+    },
+    {
+      "source_id": "gemini37",
+      "source_label": "Gemini 3.7 Flash source",
+      "selected_source_model": "gemini-3.7-flash",
+      "resolved_target": "deepseek-v4-pro-0813",
+      "response_model": "deepseek-v4-pro-0813",
+      "provider": "cheaperinference",
+      "arm": "challenger",
+      "run": 2,
+      "blind_label": "SOURCE_G37_SAMPLE_B2",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "stream_done": true,
+      "incomplete": false,
+      "visible_chars": 2141,
+      "korean_chars": 1508,
+      "ttft_ms": 125853,
+      "latency_ms": 142243,
+      "input_tokens": 7780,
+      "cache_read": null,
+      "completion_tokens": 7318,
+      "reasoning_stream_events": 5205,
+      "reasoning_chars": 14282,
+      "reasoning_tokens": 0,
+      "usage_cost": 0.004647,
+      "terminal_usage": {
+        "prompt_tokens": 7780,
+        "completion_tokens": 7318,
+        "total_tokens": 15098,
+        "cost": 0.004647,
+        "cost_details": {
+          "upstream_inference_cost": 0.004647
+        }
+      },
+      "TRUE_OFF_REQUESTED": true,
+      "REASONING_ACTUALLY_ZERO": false,
+      "request_wire": {
+        "model": "deepseek-v4-pro-0813",
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null,
+        "reasoning": null,
+        "include_reasoning": null,
+        "temperature": 0.92
+      },
+      "prompt_audit": {
+        "style_mirror": 1,
+        "scene_completion": 0,
+        "system_style_mirror": 0,
+        "system_scene_completion": 0
+      },
+      "last_assistant_sha256": "4b6adc16eee5f577484bcb556ba5b9efc6157567907b2fd58ff596607735e124",
+      "last_assistant_provenance": "committed:docs/audits/gemini-37-flash-baseline/t1-raw.txt",
+      "raw_sha256": "623ac60c0943ebcac91e22c3d6c2c93dc2c9a47585466f8f1639a3a91aec20ce",
+      "error": null
+    }
+  ]
+}

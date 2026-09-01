@@ -1,0 +1,32 @@
+[
+  {
+    "source_id": "gemini37",
+    "hashes": {
+      "SOURCE_ASSISTANT_RAW": "4b6adc16eee5f577484bcb556ba5b9efc6157567907b2fd58ff596607735e124",
+      "SYSTEM_BASELINE": "1ed7b8d952b03af182e1fa088586d51048e9050d9bb4a6cbac60f084c3ea4549",
+      "SYSTEM_CHALLENGER": "1ed7b8d952b03af182e1fa088586d51048e9050d9bb4a6cbac60f084c3ea4549",
+      "HISTORY_BASELINE": "ff34a36081f90abde2acec8f9c6c3b4addecc40b535ce353ebd5041d83d03bed",
+      "HISTORY_CHALLENGER": "ff34a36081f90abde2acec8f9c6c3b4addecc40b535ce353ebd5041d83d03bed",
+      "CURRENT_USER_BASELINE": "d1d00992309b9af7d625be20ce20cc016fbfb816f3b35751a56383b9bf111df2",
+      "CURRENT_USER_CHALLENGER": "08c77d0e63147cf7ec9ce18161c5589eabc8772a1d69ce216451e75abdee90eb",
+      "FULL_PROMPT_BASELINE": "ac0e0f0dc9cb9fa2bf6a43ed4de0cf2ab00a235a2ec409809bc72fbe4717f790",
+      "FULL_PROMPT_CHALLENGER": "71246fed51316b6f11171009d56a1ab6df8fddbaa152aad60bb6398c6e129d67"
+    },
+    "prompt_audit": {
+      "baseline": {
+        "style_mirror": 0,
+        "scene_completion": 0,
+        "system_style_mirror": 0,
+        "system_scene_completion": 0
+      },
+      "challenger": {
+        "style_mirror": 1,
+        "scene_completion": 0,
+        "system_style_mirror": 0,
+        "system_scene_completion": 0
+      }
+    },
+    "speech_lock_in_system": true,
+    "current_user_semantic": "같이 갈래? *두리번*"
+  }
+]

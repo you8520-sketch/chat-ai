@@ -1,0 +1,73 @@
+{
+  "note": "QA telemetry only. Never injected into the model prompt.",
+  "samples": [
+    {
+      "source_id": "gemini37",
+      "arm": "baseline",
+      "run": 1,
+      "blind_label": "SOURCE_G37_SAMPLE_A1",
+      "visible_chars": 4069,
+      "sentence_median": 46,
+      "sentence_p75": 62,
+      "paragraph_median": 105,
+      "paragraph_p75": 180,
+      "paragraphs_per_1000_chars": 7.373,
+      "one_sentence_paragraph_share": 0.067,
+      "dialogue_share": 0.367,
+      "dialogue_blocks_per_1000_chars": 2.703,
+      "paragraph_count": 30,
+      "sentence_count": 90
+    },
+    {
+      "source_id": "gemini37",
+      "arm": "baseline",
+      "run": 2,
+      "blind_label": "SOURCE_G37_SAMPLE_A2",
+      "visible_chars": 3674,
+      "sentence_median": 37,
+      "sentence_p75": 50,
+      "paragraph_median": 123,
+      "paragraph_p75": 212,
+      "paragraphs_per_1000_chars": 7.349,
+      "one_sentence_paragraph_share": 0.111,
+      "dialogue_share": 0.444,
+      "dialogue_blocks_per_1000_chars": 3.266,
+      "paragraph_count": 27,
+      "sentence_count": 90
+    },
+    {
+      "source_id": "gemini37",
+      "arm": "challenger",
+      "run": 1,
+      "blind_label": "SOURCE_G37_SAMPLE_B1",
+      "visible_chars": 3937,
+      "sentence_median": 40,
+      "sentence_p75": 56,
+      "paragraph_median": 117,
+      "paragraph_p75": 217,
+      "paragraphs_per_1000_chars": 7.366,
+      "one_sentence_paragraph_share": 0.069,
+      "dialogue_share": 0.483,
+      "dialogue_blocks_per_1000_chars": 3.556,
+      "paragraph_count": 29,
+      "sentence_count": 90
+    },
+    {
+      "source_id": "gemini37",
+      "arm": "challenger",
+      "run": 2,
+      "blind_label": "SOURCE_G37_SAMPLE_B2",
+      "visible_chars": 2141,
+      "sentence_median": 45,
+      "sentence_p75": 58,
+      "paragraph_median": 140,
+      "paragraph_p75": 198,
+      "paragraphs_per_1000_chars": 7.006,
+      "one_sentence_paragraph_share": 0.067,
+      "dialogue_share": 0.467,
+      "dialogue_blocks_per_1000_chars": 3.27,
+      "paragraph_count": 15,
+      "sentence_count": 48
+    }
+  ]
+}
