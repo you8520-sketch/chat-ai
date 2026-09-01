@@ -88,6 +88,27 @@ export function AdminBillingReceiptV3Panel({
         <p className="text-[10px] text-amber-400/90">{receipt.historicalNote}</p>
       )}
 
+      {sync.userCharge.billingContract && (
+        <>
+          <SectionTitle>User charge contract (admin)</SectionTitle>
+          <ReceiptRow label="contract" value={sync.userCharge.billingContract} />
+          <ReceiptRow label="reason" value={sync.userCharge.billingContractReason ?? "—"} />
+          <ReceiptRow
+            label="settled deducted"
+            value={`${formatPoints(sync.userCharge.settledDeductedPoints ?? sync.userCharge.deductedPoints)} P`}
+          />
+          {sync.userCharge.publishedFinalPoints != null && (
+            <ReceiptRow
+              label="published final"
+              value={`${formatPoints(sync.userCharge.publishedFinalPoints)} P`}
+            />
+          )}
+          {sync.userCharge.pricingVersion != null && (
+            <ReceiptRow label="pricingVersion" value={sync.userCharge.pricingVersion} />
+          )}
+        </>
+      )}
+
       <SectionTitle>턴 귀속 Provider 총원가</SectionTitle>
       <ReceiptRow
         label="현재 확인된 Provider 비용"
