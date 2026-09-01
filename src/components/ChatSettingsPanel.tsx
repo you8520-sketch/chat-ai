@@ -22,7 +22,6 @@ import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
 import UserNoteSplitEditor from "@/components/UserNoteSplitEditor";
 import UserNotePresetPicker from "@/components/UserNotePresetPicker";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
-import type { StatusWidgetPresetItem } from "@/lib/statusWidgetPresetTypes";
 import type { NarrativePov } from "@/lib/narrativePov";
 import {
   parseUserNoteCombined,
@@ -115,7 +114,6 @@ type Props = {
   onSaveUserNote?: (note: string) => Promise<boolean | void>;
   notePresets?: UserNotePresetItem[];
   onNotePresetsChange?: (presets: UserNotePresetItem[]) => void;
-  statusWidgetPresets?: StatusWidgetPresetItem[];
   defaultUserNote: string;
   /** 유저 노트 저장 PATCH 진행 중 */
   settingsSaving?: boolean;
@@ -141,9 +139,7 @@ type Props = {
   userWidgetJson?: string;
   characterWidgetAllowUserOverride?: boolean;
   onStatusWidgetChange?: (saved: {
-    mode: StatusWidgetSourceMode;
     displayMode: StatusWidgetDisplayMode;
-    userWidgetJson: string;
   }) => void;
   layout?: "rail" | "drawer" | "inline";
   onClose?: () => void;
@@ -165,7 +161,6 @@ export default function ChatSettingsPanel({
   onSaveUserNote,
   notePresets = [],
   onNotePresetsChange,
-  statusWidgetPresets = [],
   defaultUserNote,
   settingsSaving = false,
   selectedPersona,
@@ -195,11 +190,9 @@ export default function ChatSettingsPanel({
   personaSecretSettings = { canEdit: false, discoveryActive: false },
 }: Props) {
   const [active, setActive] = useState<SettingsTab | null>(null);
-  const [liveWidgetMode, setLiveWidgetMode] = useState(statusWidgetMode);
   const [liveDisplayMode, setLiveDisplayMode] = useState<StatusWidgetDisplayMode | null>(
     statusWidgetDisplayMode
   );
-  const [liveUserWidgetJson, setLiveUserWidgetJson] = useState(userWidgetJson);
   const [memoryData, setMemoryData] = useState<MemoryData | null>(null);
   const [memoryError, setMemoryError] = useState("");
   const [memoryLoading, setMemoryLoading] = useState(false);
@@ -210,24 +203,22 @@ export default function ChatSettingsPanel({
   const memoryLoadedChatIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    setLiveWidgetMode(statusWidgetMode);
     setLiveDisplayMode(statusWidgetDisplayMode);
-    setLiveUserWidgetJson(userWidgetJson);
   }, [statusWidgetMode, statusWidgetDisplayMode, userWidgetJson, chatId]);
 
   const widgetReservedChars = useMemo(
     () =>
       resolveStatusWidgetReservedChars({
         characterWidgetJson,
-        chatMode: liveWidgetMode,
-        userWidgetJson: liveUserWidgetJson,
+        chatMode: statusWidgetMode,
+        userWidgetJson,
         characterAllowUserOverride: characterWidgetAllowUserOverride,
         displayMode: liveDisplayMode,
       }),
     [
       characterWidgetJson,
-      liveWidgetMode,
-      liveUserWidgetJson,
+      statusWidgetMode,
+      userWidgetJson,
       characterWidgetAllowUserOverride,
       liveDisplayMode,
     ]
@@ -367,17 +358,9 @@ export default function ChatSettingsPanel({
         statusWidgetDisplayMode={statusWidgetDisplayMode}
         userWidgetJson={userWidgetJson}
         characterWidgetAllowUserOverride={characterWidgetAllowUserOverride}
-        statusWidgetPresets={statusWidgetPresets}
         onStatusWidgetSaved={(saved) => {
-          setLiveWidgetMode(saved.mode);
           setLiveDisplayMode(saved.displayMode);
-          setLiveUserWidgetJson(saved.userWidgetJson);
           onStatusWidgetChange?.(saved);
-        }}
-        onStatusWidgetDraftChange={({ mode, displayMode, userWidgetJson: draftJson }) => {
-          setLiveWidgetMode(mode);
-          setLiveDisplayMode(displayMode);
-          setLiveUserWidgetJson(draftJson);
         }}
         displayPrefs={displayPrefs}
         onDisplayPrefsChange={onDisplayPrefsChange}
@@ -901,9 +884,7 @@ function DisplaySection({
   statusWidgetDisplayMode = null,
   userWidgetJson,
   characterWidgetAllowUserOverride,
-  statusWidgetPresets,
   onStatusWidgetSaved,
-  onStatusWidgetDraftChange,
   displayPrefs,
   onDisplayPrefsChange,
   onSaveDisplaySettings,
@@ -918,17 +899,7 @@ function DisplaySection({
   statusWidgetDisplayMode?: StatusWidgetDisplayMode | null;
   userWidgetJson: string;
   characterWidgetAllowUserOverride: boolean;
-  statusWidgetPresets: StatusWidgetPresetItem[];
-  onStatusWidgetSaved: (saved: {
-    mode: StatusWidgetSourceMode;
-    displayMode: StatusWidgetDisplayMode;
-    userWidgetJson: string;
-  }) => void;
-  onStatusWidgetDraftChange: (draft: {
-    mode: StatusWidgetSourceMode;
-    displayMode: StatusWidgetDisplayMode;
-    userWidgetJson: string;
-  }) => void;
+  onStatusWidgetSaved: (saved: { displayMode: StatusWidgetDisplayMode }) => void;
   displayPrefs: ChatDisplayPrefs;
   onDisplayPrefsChange: (prefs: ChatDisplayPrefs) => void;
   onSaveDisplaySettings?: () => Promise<boolean | void>;
@@ -946,13 +917,10 @@ function DisplaySection({
         <StatusWidgetChatSettings
           chatId={chatId}
           characterWidgetJson={characterWidgetJson}
-          initialMode={statusWidgetMode}
+          personaWidgetJson={userWidgetJson}
           initialDisplayMode={statusWidgetDisplayMode}
-          initialUserWidgetJson={userWidgetJson}
           allowUserOverride={characterWidgetAllowUserOverride}
-          statusWidgetPresets={statusWidgetPresets}
           onSaved={onStatusWidgetSaved}
-          onDraftChange={onStatusWidgetDraftChange}
         />
         <div className="border-t border-white/10 pt-1">
           <DisplaySettingsSection
@@ -1030,31 +998,6 @@ function DisplaySettingsSection({
         displayPrefs={displayPrefs}
         onDisplayPrefsChange={onDisplayPrefsChange}
       />
-
-      <section>
-        <p className="mb-2 font-bold text-violet-300">추천 메시지</p>
-        <p className="mb-2 text-[10px] text-zinc-600">
-          AI 답변과 첫 인사말 뒤에 페르소나 말투로 갈등 고조·달래기·국면 전환 세 갈래를 제안합니다. 누르면 전송되지 않고 입력창에만 복사됩니다.
-        </p>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={displayPrefs.showSuggestedReplies}
-          onClick={() =>
-            onDisplayPrefsChange({
-              ...displayPrefs,
-              showSuggestedReplies: !displayPrefs.showSuggestedReplies,
-            })
-          }
-          className={`w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition ${
-            displayPrefs.showSuggestedReplies
-              ? "border-violet-400/60 bg-violet-500/15 text-violet-200"
-              : "border-white/10 bg-[#1a1a1a] text-zinc-400 hover:border-white/20 hover:text-zinc-200"
-          }`}
-        >
-          {displayPrefs.showSuggestedReplies ? "켜짐" : "꺼짐"}
-        </button>
-      </section>
 
       <ChatStreamSpeedSettings
         streamIntervalMs={displayPrefs.streamIntervalMs}

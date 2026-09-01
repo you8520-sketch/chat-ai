@@ -4,6 +4,7 @@ import { parseMessageVariants } from "@/lib/messageAlternates";
 import {
   parseStoredStatusWidgetValuesJson,
   resolveStatusWidgetTurn,
+  statusWidgetModeForDefinitions,
   stripExtractedFactsForClient,
 } from "@/lib/statusWidget";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget";
@@ -27,8 +28,7 @@ type DiagnosticMessageRow = {
   request_id: string | null;
   generation_status: string | null;
   usage: string | null;
-  chat_status_widget_mode: string | null;
-  user_status_widget_json: string | null;
+  persona_status_widget_json: string;
   status_widget_stack_order: string | null;
   status_widget_display_mode: string | null;
   character_status_widget_json: string | null;
@@ -110,12 +110,20 @@ export async function GET(req: Request) {
         m.id, m.chat_id, m.role, m.content, m.model, m.alternates, m.active_variant,
         m.status_widget_values_json, m.status_widget_turn_active, m.request_id, m.generation_status,
         m.usage,
-        ch.status_widget_mode AS chat_status_widget_mode,
-        ch.user_status_widget_json,
         ch.status_widget_stack_order,
         ch.status_widget_display_mode,
         c.status_widget_json AS character_status_widget_json,
-        c.status_widget_allow_user_override
+        c.status_widget_allow_user_override,
+        COALESCE((
+          SELECT p.widget_json
+          FROM user_personas up
+          JOIN user_status_widget_presets p
+            ON p.id = up.active_status_widget_preset_id
+           AND p.user_id = up.user_id
+          WHERE up.id = ch.selected_persona_id
+            AND up.user_id = ch.user_id
+          LIMIT 1
+        ), '') AS persona_status_widget_json
       FROM messages m
       JOIN chats ch ON ch.id = m.chat_id
       JOIN characters c ON c.id = ch.character_id
@@ -127,10 +135,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "message not found" }, { status: 404 });
   }
 
+  const engineMode = statusWidgetModeForDefinitions({
+    characterWidgetJson: row.character_status_widget_json,
+    personaWidgetJson: row.persona_status_widget_json,
+    characterAllowUserOverride: row.status_widget_allow_user_override !== 0,
+  });
   const resolved = resolveStatusWidgetTurn({
     characterWidgetJson: row.character_status_widget_json,
-    chatMode: row.chat_status_widget_mode,
-    userWidgetJson: row.user_status_widget_json,
+    chatMode: engineMode,
+    userWidgetJson: row.persona_status_widget_json,
     stackOrder: row.status_widget_stack_order,
     displayMode: row.status_widget_display_mode,
     characterAllowUserOverride: row.status_widget_allow_user_override !== 0,

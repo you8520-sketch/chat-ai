@@ -54,11 +54,29 @@ export function getSubscriptionTier(user: User): SubscriptionTier {
 
 /** Public runtime projection — never includes secret_description. */
 export const PERSONA_PUBLIC_SELECT =
-  "SELECT id, user_id, name, memo, gender, description, speech_examples, image_url, image_focus_x, image_focus_y, created_at FROM user_personas";
+  `SELECT id, user_id, name, memo, gender, description, speech_examples, image_url,
+          image_focus_x, image_focus_y, active_status_widget_preset_id,
+          COALESCE((
+            SELECT preset.widget_json
+            FROM user_status_widget_presets preset
+            WHERE preset.id=user_personas.active_status_widget_preset_id
+              AND preset.user_id=user_personas.user_id
+          ), '') AS active_status_widget_json,
+          created_at
+   FROM user_personas`;
 
 /** Owner editor projection — includes secret_description. */
 export const PERSONA_EDITOR_SELECT =
-  "SELECT id, user_id, name, memo, gender, description, secret_description, speech_examples, image_url, image_focus_x, image_focus_y, created_at FROM user_personas";
+  `SELECT id, user_id, name, memo, gender, description, secret_description, speech_examples,
+          image_url, image_focus_x, image_focus_y, active_status_widget_preset_id,
+          COALESCE((
+            SELECT preset.widget_json
+            FROM user_status_widget_presets preset
+            WHERE preset.id=user_personas.active_status_widget_preset_id
+              AND preset.user_id=user_personas.user_id
+          ), '') AS active_status_widget_json,
+          created_at
+   FROM user_personas`;
 
 /** Narrow secret hub projection. */
 export const PERSONA_SECRET_SELECT =
@@ -86,6 +104,8 @@ function mapPublicPersonaRow(row: PublicPersonaDbRow): PublicPersonaDbRow {
       row.image_focus_y,
       PERSONA_IMAGE_FOCUS_DEFAULT.y
     ),
+    active_status_widget_preset_id: row.active_status_widget_preset_id ?? null,
+    active_status_widget_json: row.active_status_widget_json ?? "",
   };
 }
 
@@ -107,6 +127,8 @@ function mapPersonaRow(row: DbUserPersona): DbUserPersona {
       row.image_focus_y,
       PERSONA_IMAGE_FOCUS_DEFAULT.y
     ),
+    active_status_widget_preset_id: row.active_status_widget_preset_id ?? null,
+    active_status_widget_json: row.active_status_widget_json ?? "",
   };
 }
 

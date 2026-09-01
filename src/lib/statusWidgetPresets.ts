@@ -90,8 +90,41 @@ export function updateStatusWidgetPreset(
 }
 
 export function deleteStatusWidgetPreset(userId: number, presetId: number): boolean {
-  const info = getDb()
-    .prepare("DELETE FROM user_status_widget_presets WHERE id=? AND user_id=?")
-    .run(presetId, userId);
+  const db = getDb();
+  return db.transaction(() => {
+    const info = db
+      .prepare("DELETE FROM user_status_widget_presets WHERE id=? AND user_id=?")
+      .run(presetId, userId);
+    if (info.changes === 0) return false;
+    db.prepare(
+      `UPDATE user_personas
+       SET active_status_widget_preset_id=NULL
+       WHERE user_id=? AND active_status_widget_preset_id=?`
+    ).run(userId, presetId);
+    return true;
+  })();
+}
+
+export function setPersonaActiveStatusWidgetPreset(
+  userId: number,
+  personaId: number,
+  presetId: number | null
+): boolean {
+  const db = getDb();
+  const persona = db
+    .prepare("SELECT id FROM user_personas WHERE id=? AND user_id=?")
+    .get(personaId, userId) as { id: number } | undefined;
+  if (!persona) return false;
+
+  if (presetId != null) {
+    const preset = getStatusWidgetPresetById(userId, presetId);
+    if (!preset) return false;
+  }
+
+  const info = db
+    .prepare(
+      "UPDATE user_personas SET active_status_widget_preset_id=? WHERE id=? AND user_id=?"
+    )
+    .run(presetId, personaId, userId);
   return info.changes > 0;
 }

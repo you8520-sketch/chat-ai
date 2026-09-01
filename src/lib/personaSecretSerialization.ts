@@ -21,6 +21,8 @@ export function toPublicPersonaClientRow(
     | "image_url"
     | "image_focus_x"
     | "image_focus_y"
+    | "active_status_widget_preset_id"
+    | "active_status_widget_json"
     | "created_at"
   >
 ): PublicPersonaClientRow {
@@ -35,6 +37,8 @@ export function toPublicPersonaClientRow(
     image_url: persona.image_url,
     image_focus_x: persona.image_focus_x,
     image_focus_y: persona.image_focus_y,
+    active_status_widget_preset_id: persona.active_status_widget_preset_id ?? null,
+    active_status_widget_json: persona.active_status_widget_json ?? "",
     created_at: persona.created_at,
   };
 }
@@ -53,6 +57,8 @@ export function toPublicPersonaClientRows(
       | "image_url"
       | "image_focus_x"
       | "image_focus_y"
+      | "active_status_widget_preset_id"
+      | "active_status_widget_json"
       | "created_at"
     >
   >

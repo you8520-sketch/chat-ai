@@ -174,7 +174,6 @@ import {
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
-import type { StatusWidgetPresetItem } from "@/lib/statusWidgetPresetTypes";
 import {
   isGreetingMessage,
   resolveChatMessageEditLimit,
@@ -196,9 +195,9 @@ import {
   shouldShowStatusWidgetOnMessage,
   statusWidgetValuesHasContent,
   stripIncompleteStatusWidgetTail,
+  statusWidgetModeForDefinitions,
   type ParsedStatusWidgetTurnValues,
   type StatusWidgetDisplayMode,
-  type StatusWidgetSourceMode,
   type StatusWidgetStackOrder,
 } from "@/lib/statusWidget";
 import { cacheUserChatPrefsClient } from "@/lib/userChatPrefs";
@@ -832,7 +831,6 @@ export default function ChatClient({
   initialUserNote,
   defaultUserNote,
   initialNotePresets,
-  initialStatusWidgetPresets = [],
   initialPersonas,
   initialSelectedPersonaId,
   nickname,
@@ -847,10 +845,8 @@ export default function ChatClient({
   initialHasMoreOlder = false,
   initialHiddenTurnCount = 0,
   isCharacterCreator = false,
-  initialStatusWidgetMode = "character_only",
   initialStatusWidgetDisplayMode = null,
   initialCharacterWidgetJson = "",
-  initialUserWidgetJson = "",
   initialStatusWidgetStackOrder = "character_first",
   characterWidgetAllowUserOverride = true,
   showFullBillingReceipt = false,
@@ -874,7 +870,6 @@ export default function ChatClient({
   initialUserNote: string;
   defaultUserNote: string;
   initialNotePresets: UserNotePresetItem[];
-  initialStatusWidgetPresets?: StatusWidgetPresetItem[];
   initialPersonas: PublicPersonaListItem[];
   initialSelectedPersonaId: number | null;
   nickname: string;
@@ -888,10 +883,8 @@ export default function ChatClient({
   initialChatTitle?: string;
   initialDisplayPrefs?: ChatDisplayPrefs;
   isCharacterCreator?: boolean;
-  initialStatusWidgetMode?: StatusWidgetSourceMode;
   initialStatusWidgetDisplayMode?: StatusWidgetDisplayMode | null;
   initialCharacterWidgetJson?: string;
-  initialUserWidgetJson?: string;
   initialStatusWidgetStackOrder?: StatusWidgetStackOrder;
   characterWidgetAllowUserOverride?: boolean;
   showFullBillingReceipt?: boolean;
@@ -1080,17 +1073,32 @@ export default function ChatClient({
     [isAdmin]
   );
   const [userNote, setUserNote] = useState(initialUserNote);
-  const [liveStatusWidgetMode, setLiveStatusWidgetMode] =
-    useState<StatusWidgetSourceMode>(initialStatusWidgetMode);
+  const [personas, setPersonas] = useState(initialPersonas);
+  const [selectedPersonaId, setSelectedPersonaId] = useState(initialSelectedPersonaId);
+  const selectedPersona = useMemo(
+    () => personas.find((persona) => persona.id === selectedPersonaId) ?? null,
+    [personas, selectedPersonaId]
+  );
+  const liveUserWidgetJson = selectedPersona?.active_status_widget_json ?? "";
+  const liveStatusWidgetMode = useMemo(
+    () =>
+      statusWidgetModeForDefinitions({
+        characterWidgetJson: initialCharacterWidgetJson,
+        personaWidgetJson: liveUserWidgetJson,
+        characterAllowUserOverride: characterWidgetAllowUserOverride,
+      }),
+    [
+      initialCharacterWidgetJson,
+      liveUserWidgetJson,
+      characterWidgetAllowUserOverride,
+    ]
+  );
   const [liveStatusWidgetDisplayMode, setLiveStatusWidgetDisplayMode] =
     useState<StatusWidgetDisplayMode | null>(initialStatusWidgetDisplayMode);
-  const [liveUserWidgetJson, setLiveUserWidgetJson] = useState(initialUserWidgetJson);
 
   useEffect(() => {
-    setLiveStatusWidgetMode(initialStatusWidgetMode);
     setLiveStatusWidgetDisplayMode(initialStatusWidgetDisplayMode);
-    setLiveUserWidgetJson(initialUserWidgetJson);
-  }, [initialStatusWidgetMode, initialStatusWidgetDisplayMode, initialUserWidgetJson]);
+  }, [initialStatusWidgetDisplayMode]);
 
   const statusWidgetTurn = useMemo(
     () =>
@@ -1146,8 +1154,6 @@ export default function ChatClient({
     [userNote]
   );
   const [notePresets, setNotePresets] = useState(initialNotePresets);
-  const [personas, setPersonas] = useState(initialPersonas);
-  const [selectedPersonaId, setSelectedPersonaId] = useState(initialSelectedPersonaId);
   const [targetResponseChars, setTargetResponseChars] = useState(initialTargetResponseChars);
   const [chatTitle, setChatTitle] = useState(initialChatTitle);
   const [narrativePov, setNarrativePov] = useState<NarrativePov>(initialNarrativePov);
@@ -1759,11 +1765,6 @@ export default function ChatClient({
 
   const activePersonaName = useMemo(
     () => personas.find((p) => p.id === selectedPersonaId)?.name ?? "",
-    [personas, selectedPersonaId]
-  );
-
-  const selectedPersona = useMemo(
-    () => personas.find((p) => p.id === selectedPersonaId) ?? null,
     [personas, selectedPersonaId]
   );
 
@@ -4322,7 +4323,6 @@ export default function ChatClient({
         onSaveUserNote={saveUserNote}
         notePresets={notePresets}
         onNotePresetsChange={setNotePresets}
-        statusWidgetPresets={initialStatusWidgetPresets}
         defaultUserNote={defaultUserNote}
         settingsSaving={settingsSaving}
         selectedPersona={selectedPersona}
@@ -4348,9 +4348,7 @@ export default function ChatClient({
         characterWidgetAllowUserOverride={characterWidgetAllowUserOverride}
         personaSecretSettings={personaSecretSettings}
         onStatusWidgetChange={(saved) => {
-          setLiveStatusWidgetMode(saved.mode);
           setLiveStatusWidgetDisplayMode(saved.displayMode);
-          setLiveUserWidgetJson(saved.userWidgetJson);
         }}
         layout={layout}
         onClose={onClose}
