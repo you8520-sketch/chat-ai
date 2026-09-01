@@ -545,6 +545,108 @@ export function reflowScenePlanPanels(
   };
 }
 
+/** Canonical dialogue provenance owner for panel presentation edits. */
+export function normalizePanelDialogueEdits(
+  previous: readonly SceneDialogue[],
+  next: readonly SceneDialogue[]
+): SceneDialogue[] {
+  const result: SceneDialogue[] = [];
+  for (const line of next) {
+    const speaker = line.speaker;
+    if (speaker !== "persona" && speaker !== "character" && speaker !== "other") {
+      continue;
+    }
+    const text = cleanLine(line.text, 160);
+    if (!text) {
+      if (line.provenance === "user_edit") {
+        result.push({ speaker, text: "", provenance: "user_edit" });
+      }
+      continue;
+    }
+    if (line.provenance === "user_edit") {
+      result.push({ speaker, text, provenance: "user_edit" });
+      continue;
+    }
+    const sourceEventId = cleanLine(line.sourceEventId, 24) || undefined;
+    if (sourceEventId) {
+      const prior = previous.find((item) => item.sourceEventId === sourceEventId);
+      if (
+        prior &&
+        prior.provenance === "source" &&
+        prior.text === text &&
+        prior.speaker === speaker
+      ) {
+        result.push(prior);
+        continue;
+      }
+      result.push({ speaker, text, provenance: "user_edit" });
+      continue;
+    }
+    result.push({ speaker, text, provenance: "user_edit" });
+  }
+  return result;
+}
+
+export function updatePanelDialogueAtIndex(
+  plan: ScenePlan,
+  panelIndex: number,
+  lineIndex: number,
+  patch: Partial<Pick<SceneDialogue, "speaker" | "text">>
+): ScenePlan {
+  const panel = plan.panels.find((item) => item.index === panelIndex);
+  if (!panel || lineIndex < 0 || lineIndex >= panel.dialogue.length) return plan;
+  const dialogue = panel.dialogue.map((line, index) =>
+    index === lineIndex ? { ...line, ...patch } : line
+  );
+  return applyUserPanelEdits(plan, panelIndex, { dialogue });
+}
+
+export function movePanelDialogueLine(
+  plan: ScenePlan,
+  panelIndex: number,
+  lineIndex: number,
+  direction: "up" | "down"
+): ScenePlan {
+  const panel = plan.panels.find((item) => item.index === panelIndex);
+  if (!panel) return plan;
+  const target = direction === "up" ? lineIndex - 1 : lineIndex + 1;
+  if (target < 0 || target >= panel.dialogue.length) return plan;
+  const dialogue = [...panel.dialogue];
+  const [item] = dialogue.splice(lineIndex, 1);
+  if (!item) return plan;
+  dialogue.splice(target, 0, item);
+  return applyUserPanelEdits(plan, panelIndex, { dialogue });
+}
+
+export function addPanelDialogueLine(
+  plan: ScenePlan,
+  panelIndex: number,
+  speaker: SceneDialogueSpeaker = "persona"
+): ScenePlan {
+  const panel = plan.panels.find((item) => item.index === panelIndex);
+  if (!panel) return plan;
+  return applyUserPanelEdits(plan, panelIndex, {
+    dialogue: [
+      ...panel.dialogue,
+      { speaker, text: "", provenance: "user_edit" as const },
+    ],
+  });
+}
+
+export function removePanelDialogueLine(
+  plan: ScenePlan,
+  panelIndex: number,
+  lineIndex: number
+): ScenePlan {
+  const panel = plan.panels.find((item) => item.index === panelIndex);
+  if (!panel) return plan;
+  return applyUserPanelEdits(
+    plan,
+    panelIndex,
+    { dialogue: panel.dialogue.filter((_, index) => index !== lineIndex) }
+  );
+}
+
 export function applyUserPanelEdits(
   plan: ScenePlan,
   panelIndex: number,
@@ -559,15 +661,9 @@ export function applyUserPanelEdits(
     ...plan,
     panels: plan.panels.map((panel) => {
       if (panel.index !== panelIndex) return panel;
-      const dialogue = (patch.dialogue ?? panel.dialogue).map((line) => {
-        const previous = panel.dialogue.find(
-          (item) => item.speaker === line.speaker && item.text === line.text
-        );
-        if (previous && previous.text === line.text && previous.speaker === line.speaker) {
-          return previous;
-        }
-        return { ...line, provenance: "user_edit" as const };
-      });
+      const dialogue = patch.dialogue
+        ? normalizePanelDialogueEdits(panel.dialogue, patch.dialogue)
+        : panel.dialogue;
       return {
         ...panel,
         ...patch,
@@ -1215,7 +1311,9 @@ export function projectComicPanelBeat(
       visibility.personaVisible && panel.personaAction ? panel.personaAction : undefined,
     characterAction: panel.characterAction || undefined,
     dialogue: panel.dialogue.filter(
-      (line) => visibility.personaVisible || line.speaker !== "persona"
+      (line) =>
+        line.text.trim() &&
+        (visibility.personaVisible || line.speaker !== "persona")
     ),
   };
 }

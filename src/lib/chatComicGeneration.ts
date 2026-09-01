@@ -14,7 +14,7 @@ import {
   collectApprovedComicText,
   resolveScenePresentationVisibility,
 } from "@/lib/chatImageScenePlan";
-import { buildChatComicPanelSpecPromptSection } from "@/lib/chatComicPanelSpec";
+import { buildChatComicPanelSpecPromptSection, compileChatComicPanelSpec } from "@/lib/chatComicPanelSpec";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
   bindChatImageReferencePack,
@@ -279,4 +279,47 @@ export function buildChatComicGenerationPlan(opts: {
       contentKind: opts.contentKind,
     }),
   };
+}
+
+export function auditComicDialogueWhitelist(opts: {
+  plan: ScenePlan;
+  personaName: string;
+  characterName: string;
+  contentKind?: ContentKind;
+  castManifest?: ChatImageCastGroundedManifest | null;
+}): {
+  panelTextWhitelistMismatchCount: number;
+  userEditDialogueMismatchCount: number;
+} {
+  const visibility = resolveScenePresentationVisibility({
+    contentKind: opts.contentKind,
+    castManifest: opts.castManifest,
+  });
+  const whitelist = collectApprovedComicText(opts.plan, visibility);
+  const whitelistSet = new Set(whitelist);
+  const spec = compileChatComicPanelSpec({
+    plan: opts.plan,
+    personaName: opts.personaName,
+    characterName: opts.characterName,
+    visibility,
+  });
+  const bubbleTexts = spec.panels.flatMap((panel) =>
+    panel.speechBubbles.map((bubble) => bubble.text).filter(Boolean)
+  );
+  const bubbleSet = new Set(bubbleTexts);
+  let panelTextWhitelistMismatchCount = 0;
+  for (const text of bubbleSet) {
+    if (!whitelistSet.has(text)) panelTextWhitelistMismatchCount += 1;
+  }
+  for (const text of whitelistSet) {
+    if (!bubbleSet.has(text)) panelTextWhitelistMismatchCount += 1;
+  }
+  let userEditDialogueMismatchCount = 0;
+  for (const panel of opts.plan.panels) {
+    for (const line of panel.dialogue) {
+      if (line.provenance !== "user_edit" || !line.text.trim()) continue;
+      if (!whitelistSet.has(line.text)) userEditDialogueMismatchCount += 1;
+    }
+  }
+  return { panelTextWhitelistMismatchCount, userEditDialogueMismatchCount };
 }
