@@ -8,7 +8,8 @@ import {
   measureAiPartyCharacterContextBlock,
 } from "./aiCharacterContext";
 import { buildTrpgGmUserBlock, TRPG_GM_SYSTEM } from "./gmPrompt";
-import { TRPG_GM_AI_CHARACTER_CONTEXT_MAX_CHARS } from "./types";
+import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
+import { GREETING_LIMIT, SPEECH_EXAMPLES_LIMIT } from "@/lib/characterFormLimits";
 
 function seedCharacterDb(opts: {
   id: number;
@@ -234,7 +235,7 @@ describe("TRPG GM AI party character context", () => {
     assert.doesNotMatch(block, /Example Dialogue/);
   });
 
-  it("I: cards within 5000-char budget stay untruncated; oversized legacy card is bounded", () => {
+  it("I: authored character cards reach GM intact without runtime cap", () => {
     const normalDescription = "가".repeat(1200);
     const normalSystem = "나".repeat(1200);
     const normal = buildAiPartyCharacterContextBlock([
@@ -253,10 +254,8 @@ describe("TRPG GM AI party character context", () => {
     ]);
     assert.ok(normal.includes(normalDescription));
     assert.ok(normal.includes(normalSystem));
-    const charSection = normal.slice(normal.indexOf("[AI CHARACTER participantId=12]"));
-    assert.ok(Array.from(charSection).length <= TRPG_GM_AI_CHARACTER_CONTEXT_MAX_CHARS);
 
-    const oversized = buildAiPartyCharacterContextBlock([
+    const fullCard = buildAiPartyCharacterContextBlock([
       {
         participantId: 12,
         characterId: 15,
@@ -264,14 +263,18 @@ describe("TRPG GM AI party character context", () => {
         name: "태현",
         gender: "male",
         assets: [],
-        description: "X".repeat(9000),
-        greeting: "Y".repeat(9000),
-        exampleDialog: "Z".repeat(9000),
-        systemPrompt: "W".repeat(9000),
+        description: "X".repeat(PROFILE_BIOGRAPHY_LIMIT - 10) + "DESC_END",
+        greeting: "Y".repeat(GREETING_LIMIT - 10) + "GREET_END",
+        exampleDialog: "Z".repeat(SPEECH_EXAMPLES_LIMIT - 10) + "EXAMPLE_END",
+        systemPrompt: "W".repeat(4000) + "SYSTEM_END",
       },
     ]);
-    const oversizedSection = oversized.slice(oversized.indexOf("[AI CHARACTER participantId=12]"));
-    assert.ok(Array.from(oversizedSection).length <= TRPG_GM_AI_CHARACTER_CONTEXT_MAX_CHARS);
+    const oversizedSection = fullCard.slice(fullCard.indexOf("[AI CHARACTER participantId=12]"));
+    assert.match(oversizedSection, /DESC_END/);
+    assert.match(oversizedSection, /GREET_END/);
+    assert.match(oversizedSection, /EXAMPLE_END/);
+    assert.match(oversizedSection, /SYSTEM_END/);
+    assert.ok(Array.from(oversizedSection).length > 5000);
   });
 
   it("J: two character voices stay distinguishable without mix-up", () => {
@@ -385,11 +388,11 @@ describe("TRPG GM AI party character context", () => {
     assert.match(block, /GREETING_END/);
     assert.match(block, /EXAMPLE_END/);
     const src = readFileSync("src/lib/trpg/aiCharacterContext.ts", "utf8");
-    assert.match(src, /clipTrpgPreservedLines/);
+    assert.doesNotMatch(src, /clipTrpgPreservedLines/);
     assert.doesNotMatch(src, /clipTrpgChars/);
   });
 
-  it("near-normal ~4000-char mixed card keeps all field sentinels within budget", () => {
+  it("near-normal ~4000-char mixed card keeps all field sentinels intact", () => {
     const description = `${"설".repeat(980)}\nLINE_A\nLINE_B\nDESC_END`;
     const systemPrompt = `${"행".repeat(980)}\nSYSTEM_A\nSYSTEM_B\nSYSTEM_END`;
     const greeting = `${"인".repeat(980)}\nGREETING_A\nGREETING_END`;
@@ -409,7 +412,6 @@ describe("TRPG GM AI party character context", () => {
       },
     ]);
     const charSection = block.slice(block.indexOf("[AI CHARACTER participantId=12]"));
-    assert.ok(Array.from(charSection).length <= TRPG_GM_AI_CHARACTER_CONTEXT_MAX_CHARS);
     assert.ok(Array.from(charSection).length >= 3800);
     for (const sentinel of ["DESC_END", "SYSTEM_END", "GREETING_END", "EXAMPLE_END", "LINE_A", "LINE_B"]) {
       assert.match(charSection, new RegExp(sentinel));

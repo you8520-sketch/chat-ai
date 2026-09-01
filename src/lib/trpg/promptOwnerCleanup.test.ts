@@ -4,7 +4,6 @@ import { describe, it } from "node:test";
 import { buildTrpgBotActionUserBlock, TRPG_BOT_SYSTEM } from "./botActions";
 import { TRPG_BOT_ACTION_TYPE_OPEN, TRPG_BOT_INTENT_OPEN } from "./botActionParse";
 import { buildTrpgGmUserBlock, TRPG_GM_SYSTEM } from "./gmPrompt";
-import { TRPG_BOT_ACTION_MAX_CHARS, TRPG_BOT_AIM_CHARS, TRPG_BOT_MIN_CHARS } from "./types";
 
 const FIXTURE = {
   characterName: "유나",
@@ -108,9 +107,9 @@ describe("TRPG prompt owner cleanup", () => {
     const proseLayout = proseLayoutBlock();
 
     assert.equal(
-      countRegex(combined, new RegExp(`${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS}`)),
+      countRegex(combined, /one coherent finished PC action beat/gi),
       1,
-      "BOT_NUMERIC_LENGTH_RANGE_OCCURRENCE"
+      "BOT_SCOPE_BEAT_CONTRACT_OCCURRENCE"
     );
     assert.equal(
       countRegex(proseLayout, /character contract|Korean characters|\d+–\d+/g),
@@ -122,7 +121,7 @@ describe("TRPG prompt owner cleanup", () => {
     assert.doesNotMatch(user, /finish the last sentence/i);
     assert.doesNotMatch(user, /emit .*INTENT/i);
     assert.equal(
-      countRegex(TRPG_BOT_SYSTEM, /^Length:/m),
+      countRegex(TRPG_BOT_SYSTEM, /do not cut a sentence or clause for a character-count target/gi),
       1,
       "BOT_FINISH_BEHAVIOR_OWNER_COUNT"
     );
@@ -145,15 +144,17 @@ describe("TRPG prompt owner cleanup", () => {
     assert.doesNotMatch(user, new RegExp(TRPG_BOT_INTENT_OPEN));
   });
 
-  it("BOT_LENGTH_BEHAVIOR_OWNER_COUNT = 1 (system owns numbers; user has no length block)", () => {
+  it("BOT_SCOPE_CONTRACT owned by system; user has no length block", () => {
     const user = bot1User();
-    assert.match(TRPG_BOT_SYSTEM, new RegExp(`${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS}`));
-    assert.match(TRPG_BOT_SYSTEM, new RegExp(`aim about ${TRPG_BOT_AIM_CHARS}`));
+    assert.match(TRPG_BOT_SYSTEM, /one coherent finished PC action beat/i);
+    assert.match(TRPG_BOT_SYSTEM, /Do not expand into a full GM scene/i);
+    assert.doesNotMatch(TRPG_BOT_SYSTEM, /300–800/);
+    assert.doesNotMatch(TRPG_BOT_SYSTEM, /aim about 550/);
     assert.doesNotMatch(user, /\[LENGTH\]/);
     assert.doesNotMatch(user, /Follow the system length contract/);
-    assert.doesNotMatch(user, new RegExp(`${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS}`));
+    assert.doesNotMatch(user, /300–800/);
     assert.doesNotMatch(user, /aim ~\d+/);
-    assert.equal(countRegex(TRPG_BOT_SYSTEM, /Korean characters/g), 1);
+    assert.equal(countRegex(TRPG_BOT_SYSTEM, /^Length:/m), 0);
   });
 
   it("BOT_TURN_ORDER_BEHAVIOR_OWNER_COUNT = 1 (user [SPEAK ORDER] only)", () => {
