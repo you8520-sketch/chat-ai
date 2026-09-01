@@ -36,6 +36,22 @@ export function shouldHideProcessTimerForPresentation(opts: {
   return false;
 }
 
+/** Single owner: cinematic actor-action slot waiting for backend bot action materialization. */
+export function resolveCinematicWaitingForBotAction(opts: {
+  cinematicActorAction: boolean;
+  cinematicAiActionActive: boolean;
+  activePresentationActionKind?: string | null;
+  activePresentationActorHasAction: boolean;
+  activePresentationActionAvailable: boolean;
+  botGenerationInFlight?: boolean;
+  workType: string;
+}): boolean {
+  if (!opts.cinematicActorAction || opts.cinematicAiActionActive) return false;
+  if (opts.activePresentationActionKind === "human") return false;
+  if (opts.activePresentationActorHasAction && opts.activePresentationActionAvailable) return false;
+  return opts.botGenerationInFlight === true || opts.workType === "generate_bots";
+}
+
 export function liveTurnProcessStage(opts: {
   waitingOpening: boolean;
   narrationRerolling: boolean;
@@ -50,6 +66,8 @@ export function liveTurnProcessStage(opts: {
   presentationMode?: RoundPresentationMode | string;
   presentationPhase?: RoundPresentationPhase | string;
   cinematicAiActionActive?: boolean;
+  /** Cinematic actor-action slot waiting for backend bot action materialization (not human). */
+  cinematicWaitingForBotAction?: boolean;
   gmProseRevealing?: boolean;
 }): LiveTurnProcessStage {
   if (opts.waitingOpening) return "opening";
@@ -68,7 +86,14 @@ export function liveTurnProcessStage(opts: {
     opts.presentationMode === "cinematic" &&
     opts.presentationPhase === "actor-action"
   ) {
-    return opts.cinematicAiActionActive ? "presenting" : "none";
+    if (opts.cinematicAiActionActive) return "presenting";
+    if (
+      opts.cinematicWaitingForBotAction &&
+      (opts.botGenerationInFlight || opts.workType === "generate_bots")
+    ) {
+      return "bots";
+    }
+    return "none";
   }
   if (opts.presentationMode === "cinematic" && opts.presentationPhase === "gm-narration") {
     return opts.gmTextReady ? "none" : "gm";

@@ -9,6 +9,11 @@ import { CompatibleCompletionError } from "@/lib/openRouterCompletion";
 import {
   buildPlatformSyncTurnLedgerContext,
 } from "@/lib/providerCostLedger";
+import {
+  evaluatePostTurnSharedInitialWidgetExtraction,
+  postTurnSharedInitialSuggestedRepliesOk,
+  shouldPreservePostTurnSharedInitialParsed,
+} from "@/lib/postTurnSharedInitialWidgetOutcome";
 import { POST_TURN_SHARED_INITIAL_REQUEST_KIND } from "@/lib/postTurnSharedInitial/types";
 import { collectWidgetJsonKeys } from "./prompt";
 import {
@@ -95,6 +100,8 @@ export type StatusWidgetExtractAttemptDiagnostic = {
   httpStatus: number | null;
   finishReason: string | null;
   errorCode: string | null;
+  reasonCode: StatusWidgetReasonCode;
+  succeeded: boolean;
 };
 
 export type StatusWidgetTurnExtractMeta = {
@@ -207,6 +214,8 @@ function toAttemptDiagnostic(outcome: AttemptOutcome): StatusWidgetExtractAttemp
     httpStatus: outcome.httpStatus,
     finishReason: outcome.finishReason ?? outcome.usage?.finishReason ?? null,
     errorCode: outcome.errorCode,
+    reasonCode: outcome.reasonCode,
+    succeeded: outcome.ok,
   };
 }
 
@@ -1117,19 +1126,26 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       postTurnSharedInitial = true;
       actualCallCount += 1;
       if (shared.usage) turnUsages.push(shared.usage);
+      const sharedInitialWidgetOutcome = evaluatePostTurnSharedInitialWidgetExtraction({
+        transportOk: shared.transportOk,
+        mode: sharedMode,
+        parsed: shared.parsed,
+      });
       turnAttemptDiagnostics.push({
         stage: "initial",
         modelId: primaryModelId,
         httpStatus: shared.httpStatus,
         finishReason: shared.finishReason ?? shared.usage?.finishReason ?? null,
         errorCode: shared.errorCode,
+        reasonCode: sharedInitialWidgetOutcome.reasonCode,
+        succeeded: sharedInitialWidgetOutcome.succeeded,
       });
-      if (shared.transportOk && shared.parsed) {
+      if (shouldPreservePostTurnSharedInitialParsed({ transportOk: shared.transportOk, parsed: shared.parsed })) {
         sharedInitialParsed = shared.parsed;
         sharedInitialUsage = shared.usage;
-        prefetchedSuggestedReplies = shared.parsed.suggestedRepliesOk
-          ? shared.parsed.suggestedReplies
-          : null;
+      }
+      if (postTurnSharedInitialSuggestedRepliesOk(shared.parsed)) {
+        prefetchedSuggestedReplies = shared.parsed!.suggestedReplies;
         prefetchedSuggestedRepliesAssistantProseHash = hashAssistantProseForSuggestionPrefetch(
           opts.assistantProse
         );
@@ -1186,14 +1202,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       }
       actualCallCount += 1;
       if (combinedUsage) turnUsages.push(combinedUsage);
-      turnAttemptDiagnostics.push({
-        stage: "initial",
-        modelId: primaryModelId,
-        httpStatus: combinedFailure?.httpStatus ?? (combinedUsage ? 200 : null),
-        finishReason:
-          combinedFailure?.finishReason ?? combinedUsage?.finishReason ?? null,
-        errorCode: combinedFailure?.errorCode ?? null,
-      });
       parsed = parseCombinedDualWidgetExtractResponse(
         isLengthFinishReason(combinedUsage?.finishReason) ? "" : combinedText,
         {
@@ -1202,6 +1210,21 @@ export async function extractStatusWidgetValuesForTurn(opts: {
           applyEchoFilter: true,
         }
       );
+      turnAttemptDiagnostics.push({
+        stage: "initial",
+        modelId: primaryModelId,
+        httpStatus: combinedFailure?.httpStatus ?? (combinedUsage ? 200 : null),
+        finishReason:
+          combinedFailure?.finishReason ?? combinedUsage?.finishReason ?? null,
+        errorCode: combinedFailure?.errorCode ?? null,
+        reasonCode:
+          parsed.characterOk && parsed.userOk
+            ? "OK"
+            : combinedFailure
+              ? "V3_INITIAL_EMPTY"
+              : "V3_PARSE_FAILED",
+        succeeded: parsed.characterOk && parsed.userOk,
+      });
     }
 
     const latencyMs = Date.now() - started;

@@ -139,6 +139,16 @@ import {
   type PendingRevealSession,
   type RevealSessionIdentity,
 } from "@/lib/streamRevealIdentity";
+import { handleStreamRevealClick } from "@/lib/streamClickReveal";
+import {
+  createGlobalAssistantPostTurnRefreshCoordinator,
+  shouldDeferResumePostTurnPoll,
+} from "@/lib/streamRouterRefreshGate";
+import {
+  addVisualRevealPendingId,
+  clearVisualRevealPendingIds,
+  removeVisualRevealPendingId,
+} from "@/lib/visualRevealPendingOwner";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
 import {
@@ -1029,26 +1039,57 @@ export default function ChatClient({
   const displayPrefsRef = useRef(displayPrefs);
   const activeStreamRevealRef = useRef<StreamRevealController | null>(null);
   const pendingRevealSessionsRef = useRef<Map<string, PendingRevealSession>>(new Map());
+  const visualRevealPendingIdsRef = useRef<Set<string>>(new Set());
   const [visualRevealPendingIds, setVisualRevealPendingIds] = useState<ReadonlySet<string>>(
     () => new Set()
   );
-  const addVisualRevealPending = useCallback((requestId: string) => {
-    setVisualRevealPendingIds((prev) => {
-      if (prev.has(requestId)) return prev;
-      const next = new Set(prev);
-      next.add(requestId);
-      return next;
-    });
+  const visualRevealPendingCountRef = useRef(0);
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  const assistantPostTurnRefreshCoordinatorRef = useRef(
+    createGlobalAssistantPostTurnRefreshCoordinator({
+      refresh: () => routerRef.current.refresh(),
+      getVisualRevealPendingCount: () => visualRevealPendingCountRef.current,
+    })
+  );
+  const applyVisualRevealPendingCount = useCallback((count: number) => {
+    visualRevealPendingCountRef.current = count;
+    assistantPostTurnRefreshCoordinatorRef.current.onVisualRevealPendingCountChanged(count);
   }, []);
+  const scheduleAssistantPostTurnRefresh = useCallback(() => {
+    assistantPostTurnRefreshCoordinatorRef.current.schedule();
+  }, []);
+  const addVisualRevealPending = useCallback(
+    (requestId: string) => {
+      const nextCount = addVisualRevealPendingId(
+        { ids: visualRevealPendingIdsRef.current },
+        requestId
+      );
+      if (nextCount == null) return;
+      applyVisualRevealPendingCount(nextCount);
+      setVisualRevealPendingIds(new Set(visualRevealPendingIdsRef.current));
+    },
+    [applyVisualRevealPendingCount]
+  );
 
-  const removeVisualRevealPending = useCallback((requestId: string) => {
-    setVisualRevealPendingIds((prev) => {
-      if (!prev.has(requestId)) return prev;
-      const next = new Set(prev);
-      next.delete(requestId);
-      return next;
-    });
-  }, []);
+  const removeVisualRevealPending = useCallback(
+    (requestId: string) => {
+      const nextCount = removeVisualRevealPendingId(
+        { ids: visualRevealPendingIdsRef.current },
+        requestId
+      );
+      if (nextCount == null) return;
+      applyVisualRevealPendingCount(nextCount);
+      setVisualRevealPendingIds(new Set(visualRevealPendingIdsRef.current));
+    },
+    [applyVisualRevealPendingCount]
+  );
+
+  const clearVisualRevealPending = useCallback(() => {
+    clearVisualRevealPendingIds({ ids: visualRevealPendingIdsRef.current });
+    applyVisualRevealPendingCount(0);
+    setVisualRevealPendingIds(new Set());
+  }, [applyVisualRevealPendingCount]);
 
   const cancelPendingRevealForRequestId = useCallback(
     (requestId: string | null | undefined) => {
@@ -1571,9 +1612,9 @@ export default function ChatClient({
       }
       pendingRevealSessionsRef.current.clear();
       activeStreamRevealRef.current = null;
-      setVisualRevealPendingIds(new Set());
+      clearVisualRevealPending();
     };
-  }, []);
+  }, [clearVisualRevealPending]);
 
   const syncChatUrl = useCallback(
     (id: number | null) => {
@@ -2169,6 +2210,9 @@ export default function ChatClient({
 
   useEffect(() => {
     if (loadingRef.current || inFlightRef.current) return;
+    if (shouldDeferResumePostTurnPoll({ visualRevealPendingCount: visualRevealPendingCountRef.current })) {
+      return;
+    }
     for (let i = 0; i < messages.length; i++) {
       const m = messages[i]!;
       if (m.role !== "assistant" || m.id == null) continue;
@@ -2204,7 +2248,7 @@ export default function ChatClient({
         setMessages,
         userNote,
         markdownStatusWindowActive,
-        () => router.refresh(),
+        () => scheduleAssistantPostTurnRefresh(),
         {
           statusWidgetActive,
           userMessage: userMsg,
@@ -2212,11 +2256,14 @@ export default function ChatClient({
         }
       );
     }
-  }, [messages, userNote, markdownStatusWindowActive, router, selectedPersona?.description, statusWidgetActive]);
+  }, [messages, userNote, markdownStatusWindowActive, scheduleAssistantPostTurnRefresh, selectedPersona?.description, statusWidgetActive, visualRevealPendingIds]);
 
   useEffect(() => {
     if (!displayPrefs.showSuggestedReplies) return;
     if (loadingRef.current || inFlightRef.current) return;
+    if (shouldDeferResumePostTurnPoll({ visualRevealPendingCount: visualRevealPendingCountRef.current })) {
+      return;
+    }
     const last = messages[messages.length - 1];
     if (last?.role !== "assistant") return;
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -2234,11 +2281,11 @@ export default function ChatClient({
         m.id,
         suggestedRepliesPollStartedRef,
         setMessages,
-        () => router.refresh()
+        () => scheduleAssistantPostTurnRefresh()
       );
       break;
     }
-  }, [messages, displayPrefs.showSuggestedReplies, router]);
+  }, [messages, displayPrefs.showSuggestedReplies, scheduleAssistantPostTurnRefresh, visualRevealPendingIds]);
 
   const loadOlderMessages = useCallback(async () => {
     if (!chatId || loadingOlder || !hasMoreOlder || loading || inFlightRef.current) return;
@@ -2504,6 +2551,13 @@ export default function ChatClient({
       controller: reveal,
       requestId: sessionRequestId,
       aiIndex: sessionAiIndex,
+      catchUpToReceived: () => {
+        if (sessionAbandoned || displayPrefsRef.current.streamIntervalMs <= 0) return;
+        reveal.flush();
+        if (sessionTargetText.length > sessionDisplayedText.length) {
+          setAssistantContentInstant(sessionTargetText);
+        }
+      },
     });
     activeStreamRevealRef.current = reveal;
     if (displayPrefsRef.current.streamIntervalMs > 0) {
@@ -2682,6 +2736,7 @@ export default function ChatClient({
       closeSessionRecoveryDraft();
       setGenerationStartedAt(null);
       setChatId(data.chatId ?? chatId);
+      const scheduleRouterRefresh = () => scheduleAssistantPostTurnRefresh();
       if (data.chatId) {
         migrateChatMessageDraft(character.id, data.chatId);
         syncChatUrl(data.chatId);
@@ -2793,7 +2848,7 @@ export default function ChatClient({
             statusWidgetActive
           )
         ) {
-          router.refresh();
+          scheduleRouterRefresh();
         } else {
         startStatusMetaPoll(
           data.messageId,
@@ -2801,7 +2856,7 @@ export default function ChatClient({
           setMessages,
           userNote,
           markdownStatusWindowActive,
-          () => router.refresh(),
+          () => scheduleRouterRefresh(),
           {
             statusWidgetActive,
             userMessage: userMsg,
@@ -2810,7 +2865,7 @@ export default function ChatClient({
         );
         }
       } else {
-        router.refresh();
+        scheduleRouterRefresh();
       }
       if (
         data.suggestedRepliesPending &&
@@ -2821,7 +2876,7 @@ export default function ChatClient({
           data.messageId,
           suggestedRepliesPollStartedRef,
           setMessages,
-          () => router.refresh()
+          () => scheduleRouterRefresh()
         );
       }
     };
@@ -2873,8 +2928,13 @@ export default function ChatClient({
           fallbackInstant: htmlFlashStreamTurn || data.htmlFlashTurn === true,
         });
       }
+      const finalContentLen = data.finalContent?.length ?? sessionTargetText.length;
+      const preserveStreamingContent =
+        !instantReveal &&
+        displayPrefsRef.current.streamIntervalMs > 0 &&
+        (!reveal.isIdle() || sessionDisplayedText.length < finalContentLen);
       applyStreamDone(data, {
-        preserveStreamingContent: !instantReveal && !reveal.isIdle(),
+        preserveStreamingContent,
       });
     };
 
@@ -4826,6 +4886,7 @@ export default function ChatClient({
                         m.requestId,
                         visualRevealPendingIds
                       );
+                      const proseStreamActive = isGenerationStreaming || isVisualRevealPending;
                       const useLiveDisplayedContent = shouldUseLiveDisplayedContent(
                         isGenerationStreaming,
                         isVisualRevealPending
@@ -4888,7 +4949,7 @@ export default function ChatClient({
                         model: m.model,
                         statusWidgetTurnActive: m.statusWidgetTurnActive,
                         statusWidgetValues: m.statusWidgetValues,
-                        isStreaming: isGenerationStreaming,
+                        isStreaming: proseStreamActive,
                         displayHidden: statusWidgetTurn.displayMode === "hidden",
                       });
                       if (
@@ -4952,6 +5013,14 @@ export default function ChatClient({
                             data-quote-assistant
                             className="select-text [touch-action:pan-y] [-webkit-user-select:text]"
                             style={{ userSelect: "text", WebkitUserSelect: "text", touchAction: "pan-y", WebkitTouchCallout: "default" }}
+                            onClick={(event) => {
+                              if (!isVisualRevealPending || !m.requestId) return;
+                              handleStreamRevealClick(
+                                event,
+                                m.requestId,
+                                pendingRevealSessionsRef.current
+                              );
+                            }}
                           >
                             <ChatRichBlocks
                               key={`${m.id ?? i}-${m.activeVariant ?? 0}`}

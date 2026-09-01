@@ -184,7 +184,7 @@ describe("TRPG declaration scroll ownership", () => {
     assert.equal(growth.unseenLatest, true);
 
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(room, /decideLiveFollowOnGrowth/);
+    assert.match(room, /handleTrpgLiveSceneResizeGrowth/);
     assert.match(room, /programmaticScrollRef\.current\) return/);
   });
 

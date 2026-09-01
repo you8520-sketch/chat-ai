@@ -154,6 +154,72 @@ export function isNearReadingBandFollowElement(el: Element): boolean {
   return isNearNarrationFollowElement(el);
 }
 
+/** ResizeObserver growth callback owner — matches TrpgCampaignRoom live scene observer. */
+export function handleTrpgLiveSceneResizeGrowth(opts: {
+  following: boolean;
+  manualDetached: boolean;
+  liveFollowOwner: TrpgLiveFollowOwner;
+  followScrollRafRef: { current: number | null };
+  requestAnimationFrame: (fn: FrameRequestCallback) => number;
+  cancelAnimationFrame: (handle: number) => void;
+  scrollToFollowOwner: (owner: TrpgLiveFollowOwner, behavior?: ScrollBehavior) => void;
+  onUnseenLatest: () => void;
+}): void {
+  const growth = decideLiveFollowOnGrowth({ following: opts.following });
+  if (growth.autoFollow) {
+    if (opts.followScrollRafRef.current != null) {
+      opts.cancelAnimationFrame(opts.followScrollRafRef.current);
+    }
+    opts.followScrollRafRef.current = opts.requestAnimationFrame(() => {
+      opts.followScrollRafRef.current = null;
+      if (!opts.following || opts.manualDetached) return;
+      opts.scrollToFollowOwner(opts.liveFollowOwner, "instant");
+    });
+  } else if (growth.unseenLatest) {
+    opts.onUnseenLatest();
+  }
+}
+
+/** Measurement + scrollBy owner for declaration/GM reading-band follow. */
+export function applyTrpgReadingBandEndFollow(opts: {
+  element: Element;
+  scrollBy: (delta: number, behavior?: ScrollBehavior) => void;
+  behavior?: ScrollBehavior;
+}): number {
+  const delta = readingBandFollowDeltaFromElement(opts.element);
+  if (delta !== 0) opts.scrollBy(delta, opts.behavior ?? "instant");
+  return delta;
+}
+
+/** alignReadingBandEnd scheduling owner — instant path uses one RAF before scrollBy. */
+export function scheduleTrpgReadingBandEndFollow(opts: {
+  element: Element;
+  behavior: ScrollBehavior;
+  narrationFollowRafRef: { current: number | null };
+  requestAnimationFrame: (fn: FrameRequestCallback) => number;
+  cancelAnimationFrame: (handle: number) => void;
+  scrollBy: (delta: number, behavior?: ScrollBehavior) => void;
+  runProgrammaticScroll: (fn: () => void, behavior: ScrollBehavior) => void;
+  cancelPendingFollowScroll: () => void;
+}): void {
+  const apply = () => {
+    applyTrpgReadingBandEndFollow({
+      element: opts.element,
+      scrollBy: opts.scrollBy,
+      behavior: opts.behavior,
+    });
+  };
+  if (opts.behavior === "smooth") {
+    opts.runProgrammaticScroll(apply, opts.behavior);
+    return;
+  }
+  opts.cancelPendingFollowScroll();
+  opts.narrationFollowRafRef.current = opts.requestAnimationFrame(() => {
+    opts.narrationFollowRafRef.current = null;
+    opts.runProgrammaticScroll(apply, opts.behavior);
+  });
+}
+
 export const TRPG_SCROLL_INTENT_KEYS = new Set([
   "PageUp",
   "PageDown",

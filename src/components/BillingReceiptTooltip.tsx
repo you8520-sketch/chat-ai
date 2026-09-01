@@ -33,6 +33,10 @@ import {
   isOpenRouterSimplePointModel,
 } from "@/lib/chatModels";
 import { IconInfo } from "./ChatToolbarIcons";
+import {
+  countWidgetExtractAttempts,
+  formatWidgetExtractAttemptLine,
+} from "@/lib/statusWidgetExtractDiagnosticsDisplay";
 
 function AdminFullReceiptBody({
   usage,
@@ -76,23 +80,30 @@ function AdminFullReceiptBody({
       )}
       {usage.statusWidgetExtractDiagnostics && (
         <div className="mt-1 border-t border-zinc-800 pt-1">
-          <p className="text-zinc-500">
-            위젯 진단:{" "}
-            {usage.statusWidgetExtractDiagnostics.usedFallback
-              ? "V3 폴백 사용"
-              : usage.statusWidgetExtractDiagnostics.exhausted
-                ? "추출 실패"
-                : "정상"}
-          </p>
-          {usage.statusWidgetExtractDiagnostics.attempts.map((attempt, index) => (
-            <p key={`${attempt.stage}-${attempt.modelId}-${index}`}>
-              <span className="text-zinc-500">
-                {attempt.stage} · {attempt.modelId}:
-              </span>{" "}
-              HTTP {attempt.httpStatus ?? "없음"} · finish {attempt.finishReason ?? "없음"}
-              {attempt.errorCode ? ` · ${attempt.errorCode}` : ""}
-            </p>
-          ))}
+          {(() => {
+            const diag = usage.statusWidgetExtractDiagnostics;
+            const counts = countWidgetExtractAttempts(diag);
+            return (
+              <>
+                <p className="text-zinc-500">
+                  위젯 진단:{" "}
+                  {diag.usedFallback
+                    ? "V3 폴백 사용"
+                    : diag.exhausted
+                      ? "추출 실패"
+                      : "정상"}
+                  {counts.total > 0
+                    ? ` · API attempts ${counts.total} (initial ${counts.initial}, repair ${counts.repair})`
+                    : ""}
+                </p>
+                {diag.attempts.map((attempt, index) => (
+                  <p key={`${attempt.stage}-${attempt.modelId}-${index}`}>
+                    <span className="text-zinc-500">{formatWidgetExtractAttemptLine(attempt)}</span>
+                  </p>
+                ))}
+              </>
+            );
+          })()}
         </div>
       )}
       {messageId && v3Loading && (

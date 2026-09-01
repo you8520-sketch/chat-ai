@@ -3,6 +3,10 @@ import {
   type AdminBillingReceiptV2,
   type AdminBillingReceiptV2Fx,
 } from "@/lib/adminBillingReceiptV2";
+import {
+  buildAdminReceiptTurnSummary,
+  formatAdminReceiptTurnSummaryLines,
+} from "@/lib/adminBillingReceiptTurnSummary";
 import type {
   AsyncFamilyCoverageState,
   AsyncFamilyExpectationState,
@@ -102,8 +106,10 @@ export function wholeTurnCoverageLabel(
 }
 
 export function formatAdminBillingReceiptV3Text(receipt: AdminBillingReceiptV3): string {
+  const summary = buildAdminReceiptTurnSummary(receipt);
   const lines: string[] = [
     "Admin Receipt v3 · 턴 귀속 Provider 원가",
+    ...formatAdminReceiptTurnSummaryLines(summary, { locale: "en" }),
     `coverage: ${wholeTurnCoverageLabel(receipt.wholeTurn.coverage)}`,
   ];
   if (receipt.historicalNote) lines.push(receipt.historicalNote);

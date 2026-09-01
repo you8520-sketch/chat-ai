@@ -1,3 +1,5 @@
+import type { StreamRevealController } from "@/lib/streamReveal";
+
 /** ONE REVEAL SESSION = ONE REQUEST ID = ONE GENERATION IDENTITY. */
 export type RevealSessionIdentity = {
   requestId: string;
@@ -20,7 +22,9 @@ export function isRevealRowWritable(
 }
 
 export type PendingRevealSession = {
-  controller: { reset: () => void };
+  controller: StreamRevealController;
   requestId: string;
   aiIndex: number;
+  /** Snap visible buffer to already-received server text during stream. */
+  catchUpToReceived?: () => void;
 };
