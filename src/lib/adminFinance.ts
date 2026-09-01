@@ -13,6 +13,12 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   isCheaperInferenceDeepSeekV4FlashModel,
 } from "@/lib/chatModels";
+import type { Usage } from "@/lib/chatUsage";
+import {
+  groupLedgerRowsByAssistantMessageId,
+  resolveMessageTurnProviderCostKrw,
+} from "@/lib/adminFinanceTurnCost";
+import { ensureProviderCostLedgerSchema, type ProviderCostLedgerRow } from "@/lib/providerCostLedger";
 
 export type FinanceMonthlyAdjustments = {
   monthKey: string;
@@ -340,18 +346,37 @@ export function buildAdminFinanceSummary(
   monthKey = currentKstMonthKey()
 ): AdminFinanceSummary {
   ensureAdminFinanceTables(db);
+  ensureProviderCostLedgerSchema(db);
   const { start, end } = monthRange(monthKey);
   const adjustments = getFinanceAdjustments(db, monthKey);
   const exchange = resolveBillingExchangeRateSnapshot();
 
   const messageRows = db
     .prepare(
-      `SELECT usage, deduction_slices
+      `SELECT id, usage, deduction_slices
        FROM messages
        WHERE role='assistant' AND created_at>=? AND created_at<?
          AND COALESCE(is_refunded, 0)=0`
     )
-    .all(start, end) as { usage: string | null; deduction_slices: string | null }[];
+    .all(start, end) as {
+    id: number;
+    usage: string | null;
+    deduction_slices: string | null;
+  }[];
+
+  const assistantIds = messageRows.map((row) => row.id);
+  let ledgerByAssistant = new Map<number, ProviderCostLedgerRow[]>();
+  if (assistantIds.length > 0) {
+    const placeholders = assistantIds.map(() => "?").join(",");
+    const ledgerRows = db
+      .prepare(
+        `SELECT * FROM api_cost_ledger WHERE assistant_message_id IN (${placeholders})`
+      )
+      .all(...assistantIds);
+    ledgerByAssistant = groupLedgerRowsByAssistantMessageId(
+      ledgerRows as ProviderCostLedgerRow[]
+    );
+  }
 
   let chatPaid = 0;
   let chatFree = 0;
@@ -367,18 +392,19 @@ export function buildAdminFinanceSummary(
     let model = "알 수 없음";
     let rowApiCost = 0;
     try {
-      const usage = JSON.parse(row.usage ?? "{}") as {
-        model?: string;
+      const usage = JSON.parse(row.usage ?? "{}") as Usage & {
         modelLabel?: string;
-        apiRawCostKrw?: number;
       };
       model = usage.modelLabel?.trim() || usage.model?.trim() || model;
       const isLedgeredDeepSeekFlash = isCheaperInferenceDeepSeekV4FlashModel(
         usage.model ?? ""
       );
-      rowApiCost = isLedgeredDeepSeekFlash
-        ? 0
-        : finiteNonNegative(usage.apiRawCostKrw);
+      if (isLedgeredDeepSeekFlash) {
+        rowApiCost = 0;
+      } else {
+        const ledgerRows = ledgerByAssistant.get(row.id) ?? [];
+        rowApiCost = resolveMessageTurnProviderCostKrw(usage, ledgerRows).totalEligibleKrw;
+      }
       chatApiCost += rowApiCost;
     } catch {
       // Legacy rows without a valid receipt remain visible as revenue but not guessed as cost.
@@ -429,7 +455,9 @@ export function buildAdminFinanceSummary(
               COALESCE(SUM(cache_read_tokens),0) AS cache_read_tokens,
               COALESCE(SUM(cost_krw),0) AS cost_krw
        FROM api_cost_ledger
-       WHERE created_at>=? AND created_at<? AND lower(model) IN (?, ?)`
+       WHERE created_at>=? AND created_at<?
+         AND lower(model) IN (?, ?)
+         AND (assistant_message_id IS NULL OR assistant_message_id = 0)`
     )
     .get(
       start,
