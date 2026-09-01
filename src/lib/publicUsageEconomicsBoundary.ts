@@ -20,6 +20,7 @@ export const PUBLIC_USAGE_INTERNAL_TOP_LEVEL_KEYS = [
   "shadowPricing",
   "publishedChargeSnapshot",
   "adminBillingReceipt",
+  "billingContractDispatch",
   "apiCallCount",
   "widgetCostPoints",
   "gemini37FlashPricing",

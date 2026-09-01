@@ -26,8 +26,8 @@ import { buildMemoryContext } from "@/lib/memory/memory-injector";
 import { initializeForkChatMemory } from "@/lib/memory/memory-fork-snapshot";
 import {
   getOrCreateChatMemory,
+  updateChatMemory,
 } from "@/lib/memory/memory-db";
-import { executeAtomicMemoryResetCore } from "@/lib/memory/memory-source-boundary";
 import { updateLorebookForChat } from "@/lib/memory/memory-manager";
 import { persistValidatedSummaryBatch } from "@/lib/memory/memory-summary-persist";
 import { reconcileMemoryAfterVariantSwitchCore } from "@/lib/memory/memory-variant-switch-reconcile";
@@ -307,14 +307,13 @@ describe("chats.current_summary C1 — stale resurrection retirement", () => {
     assert.notEqual(row.recent_summary, "OLD");
   });
 
-  it("C1-5 reset then bootstrap does not resurrect stale mirror", () => {
+  it("C1-5 cleared canonical bootstrap does not resurrect stale mirror", () => {
     seedChat("before reset");
     seedCanonical("canonical body");
-    executeAtomicMemoryResetCore(getDb(), {
-      chatId: CHAT_ID,
-      userId: USER_ID,
-      characterId: CHARACTER_ID,
-      tier: TIER,
+    updateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, {
+      recent_summary: "",
+      archive_summary: "",
+      membership_tier: TIER,
     });
     assert.equal(readRecentSummary(), "");
     getDb().prepare("DELETE FROM chat_memories WHERE chat_id=?").run(CHAT_ID);
@@ -398,64 +397,13 @@ describe("C2-like — physical current_summary absent runtime matrix", () => {
     );
   });
 
-  it("RESET: executeAtomicMemoryResetCore clears canonical without current_summary SQL", () => {
-    seedChatColumnAbsent();
-    const db = getDb();
-    db.prepare(
-      `INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`
-    ).run(CHAT_ID, "assistant", "opening", "");
-    const userMsgId = Number(
-      db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
-        CHAT_ID,
-        "user",
-        "before",
-        ""
-      ).lastInsertRowid
+  it("GLOBAL_RESET_REMOVED: executeAtomicMemoryResetCore is not exported", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src/lib/memory/memory-source-boundary.ts"),
+      "utf8"
     );
-    const assistantId = Number(
-      db
-        .prepare(
-          `INSERT INTO messages (chat_id, role, content, model, user_message_id) VALUES (?,?,?,?,?)`
-        )
-        .run(CHAT_ID, "assistant", "before reply", "model", userMsgId).lastInsertRowid
-    );
-    db.prepare(
-      `INSERT INTO chat_memories
-        (chat_id, user_id, character_id, recent_summary, archive_summary, membership_tier, used_chars, message_count, summarized_turn_count)
-       VALUES (?,?,?,?,?,?,?,?,?)`
-    ).run(CHAT_ID, USER_ID, CHARACTER_ID, "recent", "archive", TIER, 6, 1, 5);
-    db.prepare(`INSERT INTO chat_turn_summaries (chat_id, turn_number, summary) VALUES (?,?,?)`).run(
-      CHAT_ID,
-      1,
-      "old"
-    );
-
-    const result = executeAtomicMemoryResetCore(db, {
-      chatId: CHAT_ID,
-      userId: USER_ID,
-      characterId: CHARACTER_ID,
-      tier: TIER,
-    });
-    assert.equal(result.boundaryAfter, assistantId);
-    assert.equal(result.epochAfter, 1);
-    const memory = db
-      .prepare(
-        `SELECT recent_summary, archive_summary, used_chars, message_count, summarized_turn_count
-         FROM chat_memories WHERE chat_id=?`
-      )
-      .get(CHAT_ID) as {
-      recent_summary: string;
-      archive_summary: string;
-      used_chars: number;
-      message_count: number;
-      summarized_turn_count: number;
-    };
-    assert.equal(memory.recent_summary, "");
-    assert.equal(memory.archive_summary, "");
-    assert.equal(memory.used_chars, 0);
-    assert.equal(memory.message_count, 0);
-    assert.equal(memory.summarized_turn_count, 0);
-    assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM chat_turn_summaries WHERE chat_id=?`).get(CHAT_ID).n, 0);
+    assert.ok(!src.includes("export function executeAtomicMemoryResetCore"));
+    assert.ok(!src.includes("export function executeAtomicMemoryReset"));
   });
 
   it("FORK_CREATE: insertForkChatRow on column-absent production DB", () => {

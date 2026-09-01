@@ -17,11 +17,12 @@ function countOwnerMatches(text: string, pattern: RegExp): number {
 describe("TRPG GM resolution quality — prompt owners", () => {
   it("keeps single replay, failure, and forward-motion owners", () => {
     const craft = gmSceneCraftBlock();
-    assert.equal(countOwnerMatches(craft, /Do not replay, re-quote, closely paraphrase, or re-stage/g), 1);
+    assert.equal(countOwnerMatches(craft, /do not replay, re-quote, closely paraphrase, or re-stage/gi), 1);
     assert.equal(countOwnerMatches(craft, /Failure: intended result does not fully land/g), 1);
     assert.equal(countOwnerMatches(craft, /Resolution is a compact bridge, not the main destination/g), 1);
     assert.equal(countOwnerMatches(craft, /never dedicate a separate long paragraph to each actor's performance or outcome/g), 1);
-    assert.equal(countOwnerMatches(craft, /\[VISIBLE ACTION PROSE — established context for its outcome\]/g), 1);
+    assert.equal(countOwnerMatches(craft, /\[AUTHORITATIVE AI PC ATTEMPT — actor-only\]/g), 1);
+    assert.equal(countOwnerMatches(craft, /\[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only\]/g), 1);
     assert.equal(countOwnerMatches(craft, /do not choose their next actions, dialogue, allegiance, movement, or decisions/g), 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FORWARD MOTION\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[STORY PROGRESSION\]/);
@@ -113,7 +114,7 @@ describe("TRPG GM resolution quality — mock provider path (not Gemini quality 
       ],
     });
     assert.equal(block.split(body).length - 1, 1);
-    assert.match(block, /\[ACTION PROSE|\[VISIBLE ACTION PROSE/);
+    assert.match(block, /\[AUTHORITATIVE HUMAN PC ACTION|\[AUTHORITATIVE AI PC ATTEMPT/);
   });
 
   it("MOCK_PATH: canned narration passes automatic scorer gates", () => {

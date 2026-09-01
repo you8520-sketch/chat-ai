@@ -38,7 +38,7 @@ function gmText(narration = "장면이 이어진다."): string {
 const CASE_49_PROSE =
   "이현은 셔터에 어깨를 댄 채 시선을 좁혔다. 천장 돌기는 렌의 머리 위에서 내려올 타이밍을 재고 있었고, 발밑 포자층은 이미 함몰 경계까지 얇게 갈라져 있었다. 「태현, 천천히.」";
 const CASE_49_INTENT =
-  "강이현은 셔터를 버티며 벽면 함몰과 숙주 사이 포자 흐름 위로 내밀어 통로를 유지하려 한다.";
+  "강이현은 셔터를 버티며 태현이 통과할 수 있도록 통로 폭을 유지하려 했다.";
 
 const CASE_48_PROSE =
   "태현은 이미 한 발을 문턱 안쪽으로 들여놓고 있었다. 통로가 넓어졌다는 말은 곧 렌이 등을 비운다는 뜻이었다. 그는 뒤로 빠지지 않았다.";
@@ -46,6 +46,16 @@ const CASE_48_INTENT =
   "권태현은 렌 앞을 가로막으며 출입구 안쪽에서 마체테를 세운 채 사각을 막으려 했다.";
 
 describe("TRPG action-check semantic alignment", () => {
+  it("CASE_49_CANONICAL: setup-only AI attempt skips check without presentation prose", () => {
+    const decision = resolveTrpgActionCheckDecision({
+      body: CASE_49_INTENT,
+      intent: CASE_49_INTENT,
+      actionType: "support",
+    });
+    assert.equal(decision.needsCheck, false);
+    assert.equal(decision.reason, "support_setup");
+  });
+
   it("CASE_49_EQUIVALENT: hazard vocabulary + coordination dialogue skips check", () => {
     const decision = resolveTrpgActionCheckDecision({
       body: CASE_49_PROSE,

@@ -34,9 +34,23 @@ import { readOocSceneClientFlags } from "@/lib/oocSceneRender";
 import { evaluateStatusWidgetTriggersBestEffort } from "@/lib/statusWidgetTriggers";
 import {
   executeAtomicManualEditCore,
+  executeAtomicManualEditMutationCore,
   getAssistantSourceTurn,
   isLatestCanonicalAssistantMessage,
 } from "@/lib/rpDerivedStateLifecycle";
+import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
+import {
+  reconcileMemoryAfterSourceMessageEditSyncCore,
+  scheduleMemoryResealAfterSourceMessageEdit,
+} from "@/lib/memory/memory-reconcile";
+import type { VariantSwitchMemoryReconcileResult } from "@/lib/memory/memory-variant-switch-reconcile";
+import {
+  MemoryCanonicalityEditNotSupportedError,
+  memorySourceEligibilityChanged,
+  resolveMemorySourceTurnIdentityCore,
+} from "@/lib/memory/memory-turn-loader";
+import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
+import { getSubscriptionTier } from "@/lib/userPersonas";
 import {
   listCanonicalEligibleNumericFields,
   numericCanonicalFieldsChanged,
@@ -289,24 +303,42 @@ export async function PATCH(req: Request) {
     // leaves status values unchanged, so triggers stay untouched.
     const supersedeTriggers = hasWidgetPatch && isLatest;
 
-    // Phase B0.1/B0.2: atomic manual-edit core. Message UPDATE + embedded
-    // facts clearing + episodic invalidation + (when supersedeTriggers)
-    // trigger supersession commit together or roll back together. No
-    // "new prose + old memory" or "new status + old trigger" half-state.
+    // Phase B0.1/B0.2: atomic manual-edit + synchronous memory invalidation in one txn.
+    const memorySyncOutcome: {
+      result: VariantSwitchMemoryReconcileResult | null;
+    } = { result: null };
     try {
-      executeAtomicManualEditCore(db, {
-        chatId: msg.chat_id,
-        messageId: id,
-        content: text,
-        alternatesJson: JSON.stringify([variant]),
-        statusWidgetValuesJson,
-        materialProseChange,
-        sourceTurn: getAssistantSourceTurn(db, msg.chat_id, id),
-        supersedeTriggers,
-        triggerSupersessionReason: supersedeTriggers
-          ? "manual_status_edit"
-          : undefined,
-      });
+      db.transaction(() => {
+        const preIdentity =
+          materialProseChange && isMemoryFeatureEnabled()
+            ? resolveMemorySourceTurnIdentityCore(db, msg.chat_id, id)
+            : null;
+        executeAtomicManualEditMutationCore(db, {
+          chatId: msg.chat_id,
+          messageId: id,
+          content: text,
+          alternatesJson: JSON.stringify([variant]),
+          statusWidgetValuesJson,
+          materialProseChange,
+          sourceTurn: getAssistantSourceTurn(db, msg.chat_id, id),
+          supersedeTriggers,
+          triggerSupersessionReason: supersedeTriggers
+            ? "manual_status_edit"
+            : undefined,
+        });
+        if (materialProseChange && isMemoryFeatureEnabled() && preIdentity != null) {
+          memorySyncOutcome.result = reconcileMemoryAfterSourceMessageEditSyncCore(db, {
+            chatId: msg.chat_id,
+            userId: user.id,
+            characterId: msg.character_id,
+            tier: getSubscriptionTier(user),
+            memoryCapacity: getChatMemoryCapacity(msg.chat_id),
+            memoryTurnNumber: preIdentity.memoryTurnNumber,
+            sourceUserMessageId: preIdentity.sourceUserMessageId,
+            sourceAssistantMessageId: preIdentity.sourceAssistantMessageId,
+          });
+        }
+      }).immediate();
     } catch (e) {
       console.error(
         "[DerivedState] atomic manual edit core failed:",
@@ -316,6 +348,22 @@ export async function PATCH(req: Request) {
         { error: "메시지 수정 중 오류가 발생했습니다." },
         { status: 500 }
       );
+    }
+
+    if (materialProseChange && memorySyncOutcome.result?.attempted) {
+      const charRow = db
+        .prepare("SELECT name FROM characters WHERE id=?")
+        .get(msg.character_id) as { name: string } | undefined;
+      scheduleMemoryResealAfterSourceMessageEdit({
+        chatId: msg.chat_id,
+        userId: user.id,
+        characterId: msg.character_id,
+        charName: charRow?.name ?? "캐릭터",
+        tier: getSubscriptionTier(user),
+        memoryCapacity: getChatMemoryCapacity(msg.chat_id),
+        summarizedTurnCount: memorySyncOutcome.result.summarizedTurnCount,
+        assistantMessageId: id,
+      });
     }
 
     // Phase B0.2: AFTER the canonical core committed, best-effort trigger
@@ -356,10 +404,71 @@ export async function PATCH(req: Request) {
     });
   }
 
-  db.prepare("UPDATE messages SET content=? WHERE id=?").run(text, id);
-  if (msg.role === "user") {
-    markUserMessageCoauthorSemanticsVersion(db, id);
-    recomputeAndPersistUserCoauthorMode(db, msg.chat_id);
+  const oldUserContent = msg.content;
+  const materialUserProseChange = isMaterialProseEdit(oldUserContent, text);
+  const userMemorySyncOutcome: {
+    result: VariantSwitchMemoryReconcileResult | null;
+  } = { result: null };
+  try {
+    db.transaction(() => {
+      if (materialUserProseChange && isMemoryFeatureEnabled()) {
+        const preIdentity = resolveMemorySourceTurnIdentityCore(db, msg.chat_id, id);
+        db.prepare("UPDATE messages SET content=? WHERE id=?").run(text, id);
+        markUserMessageCoauthorSemanticsVersion(db, id);
+        recomputeAndPersistUserCoauthorMode(db, msg.chat_id);
+        const postIdentity = resolveMemorySourceTurnIdentityCore(db, msg.chat_id, id);
+        if (memorySourceEligibilityChanged(preIdentity, postIdentity)) {
+          throw new MemoryCanonicalityEditNotSupportedError();
+        }
+        if (preIdentity != null) {
+          userMemorySyncOutcome.result = reconcileMemoryAfterSourceMessageEditSyncCore(db, {
+            chatId: msg.chat_id,
+            userId: user.id,
+            characterId: msg.character_id,
+            tier: getSubscriptionTier(user),
+            memoryCapacity: getChatMemoryCapacity(msg.chat_id),
+            memoryTurnNumber: preIdentity.memoryTurnNumber,
+            sourceUserMessageId: preIdentity.sourceUserMessageId,
+            sourceAssistantMessageId: preIdentity.sourceAssistantMessageId,
+          });
+        }
+        return;
+      }
+      db.prepare("UPDATE messages SET content=? WHERE id=?").run(text, id);
+      markUserMessageCoauthorSemanticsVersion(db, id);
+      recomputeAndPersistUserCoauthorMode(db, msg.chat_id);
+    }).immediate();
+  } catch (e) {
+    if (e instanceof MemoryCanonicalityEditNotSupportedError) {
+      return NextResponse.json(
+        {
+          error:
+            "기억 경계가 바뀌는 과거 메시지 수정은 아직 지원되지 않습니다.",
+          code: e.code,
+        },
+        { status: 409 }
+      );
+    }
+    console.error("[memory] atomic user message edit failed:", (e as Error).message);
+    return NextResponse.json(
+      { error: "메시지 수정 중 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
+
+  if (msg.role === "user" && userMemorySyncOutcome.result?.attempted) {
+    const charRow = db
+      .prepare("SELECT name FROM characters WHERE id=?")
+      .get(msg.character_id) as { name: string } | undefined;
+    scheduleMemoryResealAfterSourceMessageEdit({
+      chatId: msg.chat_id,
+      userId: user.id,
+      characterId: msg.character_id,
+      charName: charRow?.name ?? "캐릭터",
+      tier: getSubscriptionTier(user),
+      memoryCapacity: getChatMemoryCapacity(msg.chat_id),
+      summarizedTurnCount: userMemorySyncOutcome.result.summarizedTurnCount,
+    });
   }
   return NextResponse.json({ ok: true, content: text });
 }

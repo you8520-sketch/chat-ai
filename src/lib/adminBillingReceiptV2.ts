@@ -20,6 +20,12 @@ export type AdminBillingReceiptV2UserCharge = {
   deductedPoints: number;
   billingWaived: boolean;
   waiverReason?: string;
+  /** Admin-only — settled charge contract metadata from dispatcher. */
+  billingContract?: "published_phase1" | "legacy";
+  billingContractReason?: string;
+  pricingVersion?: number | null;
+  publishedFinalPoints?: number | null;
+  settledDeductedPoints?: number;
 };
 
 export type AdminBillingReceiptV2AggregateApiTelemetry = {
@@ -242,6 +248,15 @@ export function buildAdminBillingReceiptV2(usage: Usage): AdminBillingReceiptV2 
     deductedPoints,
     billingWaived,
     waiverReason: usage.billingWaiverReason,
+    ...(usage.billingContractDispatch
+      ? {
+          billingContract: usage.billingContractDispatch.billingContract,
+          billingContractReason: usage.billingContractDispatch.billingContractReason,
+          pricingVersion: usage.billingContractDispatch.pricingVersion,
+          publishedFinalPoints: usage.billingContractDispatch.publishedFinalPoints,
+          settledDeductedPoints: usage.billingContractDispatch.settledDeductedPoints,
+        }
+      : {}),
   };
 
   const aggregateApiTelemetry =

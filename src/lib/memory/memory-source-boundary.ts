@@ -1,8 +1,6 @@
 import type Database from "better-sqlite3";
 
-import { EMPTY_MEMORY_META } from "@/lib/chatMemory";
 import { getDb } from "@/lib/db";
-import { ensureMemorySummaryMigrationsTable } from "./memory-summary-migration-schema";
 import type { MemoryTier } from "./memory-types";
 
 export type MemorySourceBoundary = {
@@ -24,6 +22,12 @@ const DEFAULT_BOUNDARY: MemorySourceBoundary = {
 function positiveInt(value: unknown): number | null {
   const n = Number(value);
   return Number.isSafeInteger(n) && n > 0 ? n : null;
+}
+
+function chatMemoryRowExistsCore(db: Database.Database, chatId: number): boolean {
+  return Boolean(
+    db.prepare(`SELECT 1 AS ok FROM chat_memories WHERE chat_id=?`).get(chatId)
+  );
 }
 
 export function getMemorySourceBoundaryCore(
@@ -69,11 +73,36 @@ export function isMemoryWriteGuardCurrentCore(
   db: Database.Database,
   guard: MemoryWriteGuard
 ): boolean {
+  if (!chatMemoryRowExistsCore(db, guard.chatId)) return false;
   const current = getMemorySourceBoundaryCore(db, guard.chatId);
   if (!memoryBoundariesEqual(current, guard.snapshot)) return false;
   return (guard.sourceUserMessageIds ?? []).every((sourceUserMessageId) =>
     isMemorySourceEligible({ sourceUserMessageId, boundary: current })
   );
+}
+
+/**
+ * Canonical derived-memory generation invalidation — NOT a user memory reset.
+ * Bumps memory_epoch so in-flight background writes with an older snapshot fail closed.
+ * Does not clear summaries, episodic facts, or canonical content.
+ */
+export function invalidateDerivedMemoryGenerationCore(
+  db: Database.Database,
+  chatId: number
+): MemorySourceBoundary {
+  if (!chatMemoryRowExistsCore(db, chatId)) {
+    return DEFAULT_BOUNDARY;
+  }
+  const before = getMemorySourceBoundaryCore(db, chatId);
+  const epochAfter = before.epoch + 1;
+  db.prepare(
+    `UPDATE chat_memories SET memory_epoch=?, updated_at=datetime('now') WHERE chat_id=?`
+  ).run(epochAfter, chatId);
+  return { resetAfterMessageId: before.resetAfterMessageId, epoch: epochAfter };
+}
+
+export function invalidateDerivedMemoryGeneration(chatId: number): MemorySourceBoundary {
+  return invalidateDerivedMemoryGenerationCore(getDb(), chatId);
 }
 
 export function resolveCanonicalSourceUserMessageIdCore(
@@ -139,78 +168,6 @@ export function ensureChatMemoryRowCore(
     opts.tier,
     0
   );
-}
-
-export type AtomicMemoryResetResult = {
-  boundaryBefore: number | null;
-  boundaryAfter: number | null;
-  epochBefore: number;
-  epochAfter: number;
-};
-
-export function executeAtomicMemoryResetCore(
-  db: Database.Database,
-  opts: {
-    chatId: number;
-    userId: number;
-    characterId: number;
-    tier: MemoryTier;
-  }
-): AtomicMemoryResetResult {
-  ensureChatMemoryRowCore(db, opts);
-  const before = getMemorySourceBoundaryCore(db, opts.chatId);
-  const tip = db
-    .prepare(`SELECT MAX(id) AS max_id FROM messages WHERE chat_id=?`)
-    .get(opts.chatId) as { max_id: number | null };
-  const currentMax = positiveInt(tip?.max_id);
-  const boundaryAfter = Math.max(
-    before.resetAfterMessageId ?? 0,
-    currentMax ?? 0
-  ) || null;
-  const epochAfter = before.epoch + 1;
-
-  db.prepare(
-    `UPDATE chat_memories SET
-       recent_summary='', archive_summary='', used_chars=0,
-       message_count=0, summarized_turn_count=0,
-       memory_reset_after_message_id=?, memory_epoch=?, updated_at=datetime('now')
-     WHERE chat_id=?`
-  ).run(boundaryAfter, epochAfter, opts.chatId);
-  db.prepare(`DELETE FROM chat_turn_summaries WHERE chat_id=?`).run(opts.chatId);
-  db.prepare(`DELETE FROM episodic_memory_facts WHERE chat_id=?`).run(opts.chatId);
-  ensureMemorySummaryMigrationsTable(db);
-  db.prepare(`DELETE FROM memory_summary_migrations WHERE chat_id=?`).run(opts.chatId);
-  db.prepare(
-    `UPDATE chats SET
-       memory_meta=?,
-       memory_pending='[]', memory_archived_turns=0
-     WHERE id=? AND user_id=?`
-  ).run(JSON.stringify(EMPTY_MEMORY_META), opts.chatId, opts.userId);
-
-  return {
-    boundaryBefore: before.resetAfterMessageId,
-    boundaryAfter,
-    epochBefore: before.epoch,
-    epochAfter,
-  };
-}
-
-export function executeAtomicMemoryReset(opts: {
-  chatId: number;
-  userId: number;
-  characterId: number;
-  tier: MemoryTier;
-}): AtomicMemoryResetResult {
-  const db = getDb();
-  const result = db.transaction(() => executeAtomicMemoryResetCore(db, opts)).immediate();
-  console.info("MEMORY_RESET_COMMITTED", {
-    chat_id: opts.chatId,
-    epoch_before: result.epochBefore,
-    epoch_after: result.epochAfter,
-    boundary_before: result.boundaryBefore,
-    boundary_after: result.boundaryAfter,
-  });
-  return result;
 }
 
 export function initializeForkMemoryBoundaryCore(

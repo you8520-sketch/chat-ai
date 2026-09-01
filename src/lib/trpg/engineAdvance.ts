@@ -36,6 +36,7 @@ import {
   prepareTrpgBotActionBody,
   TRPG_BOT_SYSTEM,
 } from "./botActions";
+import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { applyCampaignLedger, clipTrpgChars, loadCampaignLedger, persistCampaignLedger } from "./campaignLedger";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
@@ -1887,7 +1888,7 @@ function loadActionsForGm(
   return (
     db
       .prepare(
-        `SELECT s.participant_id, p.display_name AS name, s.body, s.action_type, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
+        `SELECT s.participant_id, p.display_name AS name, p.kind, s.body, s.action_type, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
                 (
                   SELECT st.value FROM trpg_character_stats st
                   JOIN trpg_character_sheets sh ON sh.id = st.sheet_id
@@ -1902,6 +1903,7 @@ function loadActionsForGm(
       .all(roundId) as Array<{
       participant_id: number;
       name: string;
+      kind: string;
       body: string;
       action_type: string | null;
       stat_key: string | null;
@@ -1912,20 +1914,24 @@ function loadActionsForGm(
       tier: string | null;
     }>
   ).map((a) => {
-    const actionType = a.action_type && isTrpgActionType(a.action_type) ? a.action_type : "free";
-    const parsed = parseTrpgBotAction(a.body);
+    const participantKind = (a.kind === "ai_character" ? "ai_character" : "human") as "human" | "ai_character";
+    const resolved = resolveTrpgCanonicalAttempt({
+      participantKind,
+      submissionBody: a.body,
+      actionType: a.action_type,
+    });
     const needsCheck = resolveTrpgActionCheckDecision({
-      body: parsed.prose || a.body,
-      actionType,
-      intent: parsed.intent,
+      body: resolved.canonicalAttempt,
+      actionType: resolved.actionType,
+      intent: resolved.participantKind === "ai_character" ? resolved.canonicalAttempt : "",
     }).needsCheck;
     const statKey = a.stat_key ?? "dex";
     const def = defs.find((d) => d.key === statKey);
     return {
       participantId: a.participant_id,
       name: a.name,
-      body: parsed.prose || a.body,
-      intent: parsed.intent,
+      participantKind,
+      body: resolved.canonicalAttempt,
       needsCheck,
       statKey,
       statLabel: def?.label,

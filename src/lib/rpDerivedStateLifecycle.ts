@@ -411,6 +411,40 @@ export type AtomicManualEditInput = {
 };
 
 /**
+ * Transaction-free manual-edit mutation. Caller owns BEGIN/COMMIT.
+ */
+export function executeAtomicManualEditMutationCore(
+  db: Database.Database,
+  input: AtomicManualEditInput
+): void {
+  db.prepare(
+    "UPDATE messages SET content=?, alternates=?, active_variant=?, status_widget_values_json=? WHERE id=?"
+  ).run(
+    input.content,
+    input.alternatesJson,
+    0,
+    input.statusWidgetValuesJson,
+    input.messageId
+  );
+
+  if (input.materialProseChange) {
+    deleteEpisodicMemoryFactsByAssistantMessageIds(db, input.chatId, [
+      input.messageId,
+    ]);
+  }
+
+  if (input.supersedeTriggers) {
+    const reason = input.triggerSupersessionReason ?? "manual_status_edit";
+    supersedeStatusTriggerEventsForSourceMessage(
+      db,
+      input.chatId,
+      input.messageId,
+      reason
+    );
+  }
+}
+
+/**
  * Execute the atomic manual-edit core. In ONE transaction:
  *
  *   1. message content / alternates / active_variant / status_widget_values_json UPDATE
@@ -429,31 +463,7 @@ export function executeAtomicManualEditCore(
   input: AtomicManualEditInput
 ): void {
   const tx = db.transaction(() => {
-    db.prepare(
-      "UPDATE messages SET content=?, alternates=?, active_variant=?, status_widget_values_json=? WHERE id=?"
-    ).run(
-      input.content,
-      input.alternatesJson,
-      0,
-      input.statusWidgetValuesJson,
-      input.messageId
-    );
-
-    if (input.materialProseChange) {
-      deleteEpisodicMemoryFactsByAssistantMessageIds(db, input.chatId, [
-        input.messageId,
-      ]);
-    }
-
-    if (input.supersedeTriggers) {
-      const reason = input.triggerSupersessionReason ?? "manual_status_edit";
-      supersedeStatusTriggerEventsForSourceMessage(
-        db,
-        input.chatId,
-        input.messageId,
-        reason
-      );
-    }
+    executeAtomicManualEditMutationCore(db, input);
   });
   tx();
 }

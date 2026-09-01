@@ -1,6 +1,4 @@
 import { isTrpgActionType, type TrpgActionType } from "./actionTypes";
-import { clipTrpgChars } from "./clip";
-import { TRPG_BOT_INTENT_MAX_CHARS } from "./types";
 
 export const TRPG_BOT_INTENT_OPEN = "<<<INTENT>>>";
 export const TRPG_BOT_ACTION_TYPE_OPEN = "<<<ACTION_TYPE>>>";
@@ -66,7 +64,7 @@ export function parseTrpgBotAction(raw: string): {
   const proseSource = first < 0 ? text : text.slice(0, first).trim();
   return {
     prose: proseSource.replace(/\r\n/g, "\n").trim(),
-    intent: clipTrpgChars(sliceAfterMarker(text, TRPG_BOT_INTENT_OPEN), TRPG_BOT_INTENT_MAX_CHARS),
+    intent: sliceAfterMarker(text, TRPG_BOT_INTENT_OPEN).trim(),
     actionType: parseActionTypeToken(sliceAfterMarker(text, TRPG_BOT_ACTION_TYPE_OPEN)),
   };
 }

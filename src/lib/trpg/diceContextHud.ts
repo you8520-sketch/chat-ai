@@ -1,5 +1,5 @@
 import { actionTypeLabelKo } from "./actionTypes";
-import { parseTrpgBotAction } from "./botActionParse";
+import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { sanitizeTrpgActionDisplayText } from "./gmSceneAssets";
 import {
   formatTrpgSignedModifier,
@@ -23,8 +23,12 @@ function conciseDiceActionSummary(text: string): string {
 
 export function trpgDiceActionSummary(roll: TrpgPublicRoll): string {
   if (roll.kind === "ai_character") {
-    const parsed = parseTrpgBotAction(roll.actionBody);
-    return conciseDiceActionSummary(parsed.intent || parsed.prose);
+    const resolved = resolveTrpgCanonicalAttempt({
+      participantKind: "ai_character",
+      submissionBody: roll.actionBody,
+      actionType: roll.actionType,
+    });
+    return conciseDiceActionSummary(resolved.canonicalAttempt);
   }
   return conciseDiceActionSummary(roll.actionBody);
 }

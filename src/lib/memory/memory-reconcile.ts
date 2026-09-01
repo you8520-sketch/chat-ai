@@ -1,3 +1,4 @@
+import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
 import { rollbackBranchControlMutationsForDeletedUserMessage } from "./memory-branch-control";
 import { isMemoryFeatureEnabled } from "./memory-feature";
@@ -11,11 +12,17 @@ import {
 } from "./memory-turn-summary";
 import { countMemoryEligibleCompletedTurns } from "./memory-turn-loader";
 import {
+  refreshRollingSummaryForRegeneratedAssistant,
   scheduleCharacterRollingSummary,
   shouldTriggerRollingSummary,
 } from "./memory-rolling-summary";
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import { reconcileSummarizedTurnCountFromTable } from "./memory-summary-persist";
+import { invalidateDerivedMemoryGenerationCore } from "./memory-source-boundary";
+import {
+  reconcileMemoryAfterVariantSwitchCore,
+  type VariantSwitchMemoryReconcileResult,
+} from "./memory-variant-switch-reconcile";
 import type { MemoryTier } from "./memory-types";
 
 /** memory-eligible 완료 턴 수로 message_count를 맞춘다 (재생성·패널 조회·드리프트 복구). */
@@ -97,6 +104,8 @@ export function reconcileMemoryAfterRecordDelete(opts: {
     membership_tier: opts.tier,
   });
 
+  invalidateDerivedMemoryGenerationCore(getDb(), opts.chatId);
+
   if (shouldTriggerRollingSummary(actualTurnCount, newSummarized)) {
     scheduleCharacterRollingSummary({
       chatId: opts.chatId,
@@ -173,7 +182,8 @@ export function reconcileMemoryAfterTurnDelete(opts: {
     membership_tier: opts.tier,
   });
 
-  // 6) Existing seal trigger
+  invalidateDerivedMemoryGenerationCore(getDb(), opts.chatId);
+
   if (shouldTriggerRollingSummary(actualTurnCount, newSummarized)) {
     scheduleCharacterRollingSummary({
       chatId: opts.chatId,
@@ -190,4 +200,89 @@ export function reconcileMemoryAfterTurnDelete(opts: {
       (opts.deletedPlayableTurn != null ? ` deletedTurn=${opts.deletedPlayableTurn}` : "")
   );
   return true;
+}
+
+/**
+ * Synchronous canonical memory invalidation for source message edit.
+ * Transaction-free — caller owns BEGIN/COMMIT with message mutation.
+ */
+export type SourceMessageEditMemoryInput = {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  tier: MemoryTier;
+  memoryCapacity: number;
+  memoryTurnNumber: number;
+  sourceUserMessageId?: number | null;
+  sourceAssistantMessageId?: number | null;
+  /** @internal test-only */
+  __testThrowAfterMemoryInvalidate?: boolean;
+  /** @internal test-only */
+  __testThrowAfterMemoryRebuild?: boolean;
+};
+
+export function reconcileMemoryAfterSourceMessageEditSyncCore(
+  db: Database.Database,
+  opts: SourceMessageEditMemoryInput
+): VariantSwitchMemoryReconcileResult {
+  return reconcileMemoryAfterVariantSwitchCore(db, {
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    tier: opts.tier,
+    memoryCapacity: opts.memoryCapacity,
+    memoryTurnNumber: opts.memoryTurnNumber,
+    sourceTurn: opts.memoryTurnNumber,
+    sourceUserMessageId: opts.sourceUserMessageId ?? null,
+    sourceAssistantMessageId: opts.sourceAssistantMessageId ?? null,
+    __testThrowAfterInvalidate: opts.__testThrowAfterMemoryInvalidate,
+    __testThrowAfterRebuild: opts.__testThrowAfterMemoryRebuild,
+  });
+}
+
+export function scheduleMemoryResealAfterSourceMessageEdit(opts: {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  charName: string;
+  tier: MemoryTier;
+  memoryCapacity: number;
+  summarizedTurnCount: number | null;
+  assistantMessageId?: number | null;
+}): void {
+  try {
+    const actualTurnCount = countMemoryEligibleCompletedTurns(opts.chatId);
+    const summarized = opts.summarizedTurnCount ?? 0;
+
+    if (opts.assistantMessageId != null) {
+      void refreshRollingSummaryForRegeneratedAssistant({
+        chatId: opts.chatId,
+        userId: opts.userId,
+        characterId: opts.characterId,
+        charName: opts.charName,
+        tier: opts.tier,
+        memoryCapacity: opts.memoryCapacity,
+        assistantMessageId: opts.assistantMessageId,
+      }).catch((e) => {
+        console.warn(
+          "[memory] source edit assistant batch refresh failed:",
+          (e as Error).message
+        );
+      });
+    } else if (shouldTriggerRollingSummary(actualTurnCount, summarized)) {
+      scheduleCharacterRollingSummary({
+        chatId: opts.chatId,
+        userId: opts.userId,
+        characterId: opts.characterId,
+        charName: opts.charName,
+        tier: opts.tier,
+        memoryCapacity: opts.memoryCapacity,
+      });
+    }
+  } catch (e) {
+    console.warn(
+      "[memory] source edit post-commit reseal schedule failed:",
+      (e as Error).message
+    );
+  }
 }

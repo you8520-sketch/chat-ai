@@ -1,6 +1,19 @@
 import type { BillingWaiverReason } from "@/lib/points";
 import type { Gemini37FlashPricingBreakdown } from "@/lib/gemini37FlashPricing";
 
+/** Admin-only — canonical billing contract dispatch metadata (never public receipt). */
+export type UsageBillingContractAdmin = {
+  billingContract: "published_phase1" | "legacy";
+  billingContractReason: string;
+  deliveredModelId: string;
+  publishedCandidateStatus: string;
+  publishedBlockReason: string | null;
+  pricingVersion: number | null;
+  publishedFinalPoints: number | null;
+  legacyFinalPoints: number;
+  settledDeductedPoints: number;
+};
+
 export type Usage = {
   input: number;
   output: number;
@@ -191,6 +204,8 @@ export type Usage = {
   canonical?: boolean;
   canonAdopted?: boolean;
   canonAdoptedAt?: string;
+  /** Admin-only billing contract dispatch metadata — stripped from public receipts. */
+  billingContractDispatch?: UsageBillingContractAdmin;
   /** Phase 2 shadow pricing — admin-only, never billed. Stored for diagnostics/aggregate. */
   shadowPricing?: {
     pricingVersion: number;

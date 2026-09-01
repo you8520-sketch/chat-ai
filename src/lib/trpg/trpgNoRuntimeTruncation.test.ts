@@ -21,7 +21,6 @@ import { adaptTrpgBotChatBody, adaptTrpgGmChatBody } from "./gmClient";
 import { buildTrpgGmUserBlock } from "./gmPrompt";
 import {
   TRPG_BOT_MAX_TOKENS,
-  TRPG_BOT_INTENT_MAX_CHARS,
   TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS,
   TRPG_GM_MAX_TOKENS,
   TRPG_GM_MODEL,
@@ -107,12 +106,12 @@ describe("TRPG no redundant runtime truncation", () => {
     assert.doesNotMatch(parsed.prose, /END_OF_BOT_SCEN$/);
   });
 
-  it("G: compact INTENT metadata stays bounded", () => {
+  it("G: full AI intent preserved without 120-char hard cap", () => {
     const longIntent = "의".repeat(500);
     const raw = `짧은 행동.\n\n${TRPG_BOT_INTENT_OPEN}\n${longIntent}`;
     const parsed = parseTrpgBotAction(raw);
-    assert.ok(Array.from(parsed.intent).length <= TRPG_BOT_INTENT_MAX_CHARS);
-    assert.equal(TRPG_BOT_INTENT_MAX_CHARS, 120);
+    assert.equal(parsed.intent, longIntent);
+    assert.ok(Array.from(parsed.intent).length > 120);
   });
 
   it("H: GM AI party block preserves authored character canon without runtime cap", () => {

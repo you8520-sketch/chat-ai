@@ -24,8 +24,6 @@ export const TRPG_NEXT_ROUND_CONTEXT_MAX_CHARS = 400;
 export const TRPG_SEAL_SUMMARY_MAX_CHARS = 500;
 export const TRPG_SEALED_PROMPT_MAX_CHARS = 2500;
 export const TRPG_BOT_SCENE_MAX_CHARS = 2200;
-/** Compact mechanical metadata — not player-facing prose. */
-export const TRPG_BOT_INTENT_MAX_CHARS = 120;
 /** Bot transport ceiling = model capability max; beat length is prompt semantic scope, not max_tokens. */
 export const TRPG_BOT_MAX_TOKENS = TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS;
 export const TRPG_LEDGER_QUEST_MAX = 12;

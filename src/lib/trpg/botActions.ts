@@ -74,7 +74,7 @@ support=help an ally or set them up
 use_item=apply an existing tool/item where the item use is the core action
 free=ordinary movement, posture, conversation, preparation or scene interaction whose result does not itself require a contest
 ${TRPG_BOT_INTENT_OPEN}
-(한 줄: 이 캐릭터가 이번 라운드에 실제로 시도하는 행동. 예: 강이현은 렌의 팔을 잡아 잔해 뒤로 끌어당기려 했다.)
+(one concise concrete attempt — canonical for round adjudication; describe only THIS PC's voluntary action. Include what this actor attempts, relevant target/object/tool, intended effect, and materially important spoken content when dialogue itself affects resolution. Do not assert another PC's voluntary movement, dialogue, decision, emotion, or choice as established fact. If this action depends on another PC doing something not yet established, state the dependency conditionally. Example: 강이현은 경비에게 암호 "새벽"을 말하며 통과를 요청하려 했다.)
 
 Locked actions are committed attempts whose mechanical outcomes remain open until round resolution. Build from facts already visible in the scene; when your move depends on another PC's attempted result, keep that dependency conditional until GM resolution.`;
 
@@ -135,8 +135,8 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
       : companions
           .map((a) => {
             const parsed = parseTrpgBotAction(a.text);
-            const attempt = parsed.intent.trim() || clipTrpgChars(parsed.prose || a.text, 220);
-            return `- ${a.name}: ${attempt}`;
+            const attempt = parsed.intent.trim();
+            return `- ${a.name}: ${attempt || "(canonical attempt unavailable)"}`;
           })
           .join("\n");
   const speakCount = ctx.speakCount ?? 1;

@@ -26,11 +26,7 @@ import { after, before, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { insertForkChatRow } from "@/lib/chatForkCreate";
 import { hasChatsMemoryColumn } from "@/lib/memory/chats-memory-column-compat";
-import {
-  getOrCreateChatMemory,
-  updateChatMemory,
-} from "@/lib/memory/memory-db";
-import { executeAtomicMemoryResetCore } from "@/lib/memory/memory-source-boundary";
+import { getOrCreateChatMemory, updateChatMemory } from "@/lib/memory/memory-db";
 import { ROLLING_SUMMARY_INTERVAL, RAW_HISTORY_COMPLETE_EXCHANGES } from "./memory-constants";
 import {
   installIsolatedTestDatabase,
@@ -156,8 +152,8 @@ describe("chats legacy memory fallback audit — lazy bootstrap precedence (C1 r
   });
 });
 
-describe("chats legacy memory fallback audit — reset resurrection safety", () => {
-  it("A4 reset prevents stale memory resurrection after chat_memories row deleted", () => {
+describe("chats legacy memory fallback audit — cleared canonical resurrection safety", () => {
+  it("A4 cleared canonical prevents stale memory resurrection after chat_memories row deleted", () => {
     const db = getDb();
     ensureMemoryColumnForHistoricalFixture();
     ensureChatRow();
@@ -168,40 +164,17 @@ describe("chats legacy memory fallback audit — reset resurrection safety", () 
     ).run(CHAT_ID, USER_ID, CHARACTER_ID, "", "", TIER, 0);
     seedChatLegacyFields({ current_summary: "", memory: "OLD LEGACY MEMORY" });
 
-    executeAtomicMemoryResetCore(db, {
-      chatId: CHAT_ID,
-      userId: USER_ID,
-      characterId: CHARACTER_ID,
-      tier: TIER,
+    updateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, {
+      recent_summary: "",
+      archive_summary: "",
+      membership_tier: TIER,
     });
-
-    const legacyAfterReset = readLegacyFields();
-    void legacyAfterReset;
+    db.prepare(`DELETE FROM chat_turn_summaries WHERE chat_id=?`).run(CHAT_ID);
 
     deleteChatMemoriesRow();
     const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
     assert.equal(row.recent_summary, "");
     assert.equal(row.recent_summary.includes("OLD LEGACY"), false);
-  });
-
-  it("reset clears canonical memory; current_summary mirror write retired (C1)", () => {
-    const db = getDb();
-    ensureMemoryColumnForHistoricalFixture();
-    ensureChatRow();
-    seedChatLegacyFields({ current_summary: "mirror text", memory: "legacy text" });
-    getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
-
-    executeAtomicMemoryResetCore(db, {
-      chatId: CHAT_ID,
-      userId: USER_ID,
-      characterId: CHARACTER_ID,
-      tier: TIER,
-    });
-
-    const mem = db
-      .prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=?`)
-      .get(CHAT_ID) as { recent_summary: string };
-    assert.equal(mem.recent_summary, "");
   });
 });
 
