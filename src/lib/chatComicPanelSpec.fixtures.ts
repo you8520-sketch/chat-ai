@@ -1,5 +1,9 @@
 import type { ImagePromptGender } from "@/lib/chatImageGeneration";
 import {
+  buildChatComicGenerationPlan,
+  CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+} from "@/lib/chatComicGeneration";
+import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
   type ScenePlan,
@@ -11,7 +15,8 @@ import {
   type ChatImageVisualSubject,
 } from "@/lib/chatImageVisualIdentity";
 
-export function duoVisualSubjectsForCast(opts: {
+/** Compiler-only subjects without layout template — not a production reference map. */
+export function compilerOnlyDuoVisualSubjects(opts: {
   characterName: string;
   personaName: string;
   characterGender?: ImagePromptGender;
@@ -32,6 +37,34 @@ export function duoVisualSubjectsForCast(opts: {
     }),
   }).subjects;
 }
+
+/** @deprecated Use compilerOnlyDuoVisualSubjects — name reflected wrong reference numbering. */
+export const duoVisualSubjectsForCast = compilerOnlyDuoVisualSubjects;
+
+/** Production generation-plan owner for benchmark/review full prompts. */
+export function buildProductionDuoGenerationPlanForFixture(opts: {
+  plan: ScenePlan;
+  characterName: string;
+  personaName: string;
+  characterGender?: ImagePromptGender;
+  personaGender?: ImagePromptGender;
+}) {
+  return buildChatComicGenerationPlan({
+    characterName: opts.characterName,
+    characterGender: opts.characterGender ?? "male",
+    personaName: opts.personaName,
+    personaGender: opts.personaGender ?? "female",
+    characterImageUrl: `/ref/${opts.characterName}`,
+    characterSavedAppearance: "",
+    characterAppearanceMode: "image_only",
+    personaImageUrl: `/ref/${opts.personaName}`,
+    personaSavedAppearance: "",
+    personaAppearanceMode: "image_only",
+    plan: opts.plan,
+  });
+}
+
+export const PRODUCTION_COMIC_TEMPLATE_URL = CHAT_COMIC_TEMPLATE_PREVIEW_URL;
 
 export type ComicPanelBenchmarkFixture = {
   id: string;

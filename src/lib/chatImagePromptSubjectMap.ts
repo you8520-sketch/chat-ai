@@ -1,5 +1,6 @@
 import type { SceneDialogueSpeaker } from "@/lib/chatImageScenePlan";
 import {
+  describeReferenceOrder,
   subjectLetter,
   type ChatImageVisualSubject,
 } from "@/lib/chatImageVisualIdentity";
@@ -17,6 +18,20 @@ export type PromptSubjectIdentity = {
 export type PromptSubjectMap = {
   subjects: readonly PromptSubjectIdentity[];
   byKey: ReadonlyMap<string, PromptSubjectIdentity>;
+};
+
+export type PromptIdentityBindingAudit = {
+  subjectLabelConflictCount: number;
+  referenceOwnerConflictCount: number;
+  templateReferenceOwnerConflictCount: number;
+  referenceSlotConflictCount: number;
+  actionOwnerConflictCount: number;
+  speechOwnerConflictCount: number;
+};
+
+export type ProductionReferenceOwner = {
+  image: number;
+  owner: string;
 };
 
 const PROMPT_SUBJECT_LABELS = new Set<PromptSubjectLabel>(["A", "B", "C", "D"]);
@@ -105,14 +120,6 @@ export function resolveLayoutFromSubjectMap(
   }
   return "recurring characters readable in frame";
 }
-
-export type PromptIdentityBindingAudit = {
-  promptSubjectLabelOwnerCount: number;
-  subjectLabelConflictCount: number;
-  referenceOwnerConflictCount: number;
-  actionOwnerConflictCount: number;
-  speechOwnerConflictCount: number;
-};
 
 type ParsedIdentityManifest = {
   label: PromptSubjectLabel;
@@ -207,6 +214,44 @@ function manifestNameForLabel(
   return manifest.find((entry) => entry.label === label)?.name;
 }
 
+function parseTemplateOnlyImageIndices(prompt: string): Set<number> {
+  const indices = new Set<number>();
+  for (const match of prompt.matchAll(/Reference image (\d+) is LAYOUT/gi)) {
+    indices.add(Number(match[1]));
+  }
+  for (const match of prompt.matchAll(/REFERENCE (\d+) is the layout/gi)) {
+    indices.add(Number(match[1]));
+  }
+  return indices;
+}
+
+function countReferenceSlotConflicts(manifest: readonly ParsedIdentityManifest[]): number {
+  const ownerByImage = new Map<number, string>();
+  let conflicts = 0;
+  for (const entry of manifest) {
+    if (entry.referenceIndex == null) continue;
+    const existing = ownerByImage.get(entry.referenceIndex);
+    if (existing && existing !== entry.name) conflicts += 1;
+    else ownerByImage.set(entry.referenceIndex, entry.name);
+  }
+  return conflicts;
+}
+
+function countTemplateReferenceOwnerConflicts(
+  prompt: string,
+  manifest: readonly ParsedIdentityManifest[]
+): number {
+  const templateImages = parseTemplateOnlyImageIndices(prompt);
+  if (!templateImages.size) return 0;
+  let conflicts = 0;
+  for (const entry of manifest) {
+    if (entry.referenceIndex != null && templateImages.has(entry.referenceIndex)) {
+      conflicts += 1;
+    }
+  }
+  return conflicts;
+}
+
 /** Compare identity manifest vs comic panel spec subject labels using structured parsing. */
 export function auditPromptIdentityBinding(prompt: string): PromptIdentityBindingAudit {
   const manifest = parseIdentityManifest(prompt);
@@ -252,10 +297,14 @@ export function auditPromptIdentityBinding(prompt: string): PromptIdentityBindin
     }
   }
 
+  const templateReferenceOwnerConflictCount = countTemplateReferenceOwnerConflicts(prompt, manifest);
+  const referenceSlotConflictCount = countReferenceSlotConflicts(manifest);
+
   return {
-    promptSubjectLabelOwnerCount: 1,
     subjectLabelConflictCount,
     referenceOwnerConflictCount,
+    templateReferenceOwnerConflictCount,
+    referenceSlotConflictCount,
     actionOwnerConflictCount,
     speechOwnerConflictCount,
   };
@@ -283,16 +332,11 @@ function resolveExpectedBubbleOwner(
   return undefined;
 }
 
-export function referenceOwnerMap(
-  map: PromptSubjectMap,
-  templatePresent: boolean
-): Array<{ image: number; owner: string }> {
-  const offset = templatePresent ? 1 : 0;
-  return map.subjects
-    .filter((subject) => subject.referenceIndex != null)
-    .map((subject) => ({
-      image: subject.referenceIndex!,
-      owner: subject.name,
-    }))
-    .sort((left, right) => left.image - right.image);
+/** Production reference order from bound generation plan (includes template slot when present). */
+export function productionReferenceOwnerMap(opts: {
+  referenceUrls: readonly string[];
+  subjects: readonly ChatImageVisualSubject[];
+  templateUrl?: string | null;
+}): ProductionReferenceOwner[] {
+  return describeReferenceOrder(opts).map(({ image, owner }) => ({ image, owner }));
 }

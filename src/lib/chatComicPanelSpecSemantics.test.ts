@@ -3,7 +3,6 @@ import { describe, it } from "node:test";
 
 import type { ChatImageCastGroundedSubject } from "./chatImageCastManifest";
 import {
-  buildStableCastLabels,
   compileChatComicPanelSpec,
   countActionDirectiveDuplicates,
   countEmptyActingDirectives,
@@ -82,28 +81,6 @@ describe("chatComicPanelSpec cast label stability", () => {
     assert.match(rendered, /Speech bubble \(A \/ character\)/);
     assert.doesNotMatch(rendered, /B = chat character \(태현\)/);
     assert.match(rendered, /SUBJECT A \(태현\) centered; persona off-camera only/);
-  });
-
-  it("legacy buildStableCastLabels remains role-stable for cast-only helpers", () => {
-    const ordered = buildStableCastLabels({
-      selectedCast: [
-        groundedSubject({ role: "persona", name: "렌", included: true }),
-        groundedSubject({ role: "main_character", name: "태현", included: true }),
-      ],
-      visibility: { personaVisible: true },
-      personaName: "렌",
-      characterName: "태현",
-    });
-    const shuffled = buildStableCastLabels({
-      selectedCast: [
-        groundedSubject({ role: "main_character", name: "태현", included: true }),
-        groundedSubject({ role: "persona", name: "렌", included: true }),
-      ],
-      visibility: { personaVisible: true },
-      personaName: "렌",
-      characterName: "태현",
-    });
-    assert.deepEqual(shuffled, ordered);
   });
 
   it("visual-order compile ignores selectedCast array order shuffle", () => {

@@ -55,12 +55,6 @@ export type ChatComicPanelSpec = {
   subjectMap: PromptSubjectMap;
 };
 
-const IMPORTANCE_RANK: Record<string, number> = {
-  primary: 0,
-  secondary: 1,
-  background: 2,
-};
-
 function resolveGlobalMustAvoid(castCount: number): readonly string[] {
   const identityRule =
     castCount >= 3
@@ -224,46 +218,6 @@ function resolveBindingGroundedActions(
     actions.push({ label: subject.label, name: subject.name, text: event.text });
   }
   return actions;
-}
-
-/** @deprecated Use buildCastFromPromptSubjects with visual subject order instead. */
-export function buildStableCastLabels(opts: {
-  selectedCast: readonly ChatImageCastGroundedSubject[];
-  visibility: ScenePresentationVisibility;
-  personaName: string;
-  characterName: string;
-}): ComicCastRoleLabel[] {
-  const included = opts.selectedCast.filter((subject) => subject.included && subject.name);
-  const persona = included.find((subject) => subject.role === "persona");
-  const main = included.find((subject) => subject.role === "main_character");
-  const supporting = included
-    .filter((subject) => subject.role === "supporting_character")
-    .sort(
-      (left, right) =>
-        (IMPORTANCE_RANK[left.importance] ?? 2) - (IMPORTANCE_RANK[right.importance] ?? 2)
-    );
-
-  const cast: ComicCastRoleLabel[] = [];
-  if (opts.visibility.personaVisible && persona) {
-    cast.push({ label: "A", role: persona.role, name: persona.name });
-  }
-  if (main) {
-    cast.push({ label: "B", role: main.role, name: main.name });
-  }
-  supporting.slice(0, 2).forEach((subject, index) => {
-    cast.push({
-      label: index === 0 ? "C" : "D",
-      role: subject.role,
-      name: subject.name,
-    });
-  });
-  if (cast.length) return cast;
-  return opts.visibility.personaVisible
-    ? [
-        { label: "A", role: "persona", name: opts.personaName },
-        { label: "B", role: "character", name: opts.characterName },
-      ]
-    : [{ label: "B", role: "character", name: opts.characterName }];
 }
 
 /** Canonical panel-spec compiler — downstream of ScenePlan / hero selection. */

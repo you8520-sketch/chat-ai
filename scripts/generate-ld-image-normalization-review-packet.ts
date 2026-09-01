@@ -14,10 +14,13 @@ import {
 } from "../src/lib/chatImageAttributionAudit";
 import {
   auditComicDialogueWhitelist,
-  buildChatComicImagePrompt,
 } from "../src/lib/chatComicGeneration";
 import { renderChatComicPanelSpecSection, compileChatComicPanelSpec } from "../src/lib/chatComicPanelSpec";
-import { duoVisualSubjectsForCast } from "../src/lib/chatComicPanelSpec.fixtures";
+import {
+  buildProductionDuoGenerationPlanForFixture,
+  compilerOnlyDuoVisualSubjects,
+  PRODUCTION_COMIC_TEMPLATE_URL,
+} from "../src/lib/chatComicPanelSpec.fixtures";
 import {
   CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL,
   CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL,
@@ -26,7 +29,6 @@ import {
 import { isCheaperInferenceModel } from "../src/lib/chatModels";
 import { SCENE_PLAN_MAX_PROVIDER_ATTEMPTS } from "../src/lib/chatImageScenePlan";
 import {
-  applyUserPanelEdits,
   addPanelDialogueLine,
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
@@ -37,6 +39,11 @@ import {
   projectComicPanelBeat,
   updatePanelDialogueAtIndex,
 } from "../src/lib/chatImageScenePlan";
+import {
+  auditPromptIdentityBinding,
+  buildPromptSubjectMap,
+  productionReferenceOwnerMap,
+} from "../src/lib/chatImagePromptSubjectMap";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = join(ROOT, "docs/audits/ld-image-normalization");
@@ -46,7 +53,7 @@ function gitSha(ref: string): string {
   return execSync(`git rev-parse ${ref}`, { cwd: ROOT, encoding: "utf8" }).trim();
 }
 
-const MAIN_SHA = gitSha("origin/main");
+const CURRENT_MAIN_SHA = gitSha("origin/main");
 const GENERATED_FROM_SOURCE_SHA = gitSha("HEAD");
 const PERSONA = "렌";
 const CHARACTER = "태형";
@@ -58,27 +65,32 @@ const messages = buildSceneSourceMessages([
 const plan = buildDeterministicScenePlan(messages, 2);
 const events = extractDeterministicEvents(messages);
 const illustration = formatApprovedScenePlanForIllustration(plan);
-const duoSubjects = duoVisualSubjectsForCast({
+const production = buildProductionDuoGenerationPlanForFixture({
+  plan,
   characterName: CHARACTER,
   personaName: PERSONA,
 });
+const compilerSubjects = compilerOnlyDuoVisualSubjects({
+  characterName: CHARACTER,
+  personaName: PERSONA,
+});
+const subjectMap = buildPromptSubjectMap(production.subjects);
+const productionRefs = productionReferenceOwnerMap({
+  referenceUrls: production.referenceUrls,
+  subjects: production.subjects,
+  templateUrl: PRODUCTION_COMIC_TEMPLATE_URL,
+});
+const comicIdentityAudit = auditPromptIdentityBinding(production.prompt);
 
 const comicSpec = renderChatComicPanelSpecSection(
   compileChatComicPanelSpec({
     plan,
     personaName: PERSONA,
     characterName: CHARACTER,
-    subjects: duoSubjects,
+    subjects: production.subjects,
   })
 );
-const comicPrompt = buildChatComicImagePrompt({
-  characterName: CHARACTER,
-  characterGender: "male",
-  personaName: PERSONA,
-  personaGender: "female",
-  plan,
-  subjects: duoSubjects,
-});
+const comicPrompt = production.prompt;
 const armA = formatApprovedScenePlanForComic(plan);
 
 const duoMessages = buildSceneSourceMessages([
@@ -123,7 +135,7 @@ function dialogueEditorSection(
     plan: active,
     personaName: PERSONA,
     characterName: CHARACTER,
-    subjects: duoSubjects,
+    subjects: compilerSubjects,
   });
   const rows: string[] = [`### ${label}`, ""];
   for (const panel of active.panels) {
@@ -172,7 +184,7 @@ const keystrokePlan = (() => {
 const lines = [
   "# LD Image Normalization — REVIEW PACKET",
   "",
-  `**CURRENT_MAIN_SHA:** \`${MAIN_SHA}\``,
+  `**CURRENT_MAIN_SHA:** \`${CURRENT_MAIN_SHA}\``,
   `**GENERATED_FROM_SOURCE_SHA:** \`${GENERATED_FROM_SOURCE_SHA}\``,
   `**PR_NUMBER:** 808`,
   "",
@@ -207,17 +219,23 @@ const lines = [
   illustration,
   "```",
   "",
-  "### COMIC PANEL SPEC",
+  "### COMIC PANEL SPEC (production subjects)",
   "```text",
   comicSpec,
   "```",
+  "",
+  "### PRODUCTION REFERENCE MAP",
+  ...productionRefs.map((ref) => `- Image ${ref.image} → ${ref.owner}`),
+  "",
+  "### CANONICAL SUBJECT MAP",
+  ...subjectMap.subjects.map((subject) => `- ${subject.label} → ${subject.name} (${subject.role})`),
   "",
   "### Arm A — legacy panel section (untruncated)",
   "```text",
   armA,
   "```",
   "",
-  "### FINAL COMIC PROMPT (full, untruncated)",
+  "### FINAL COMIC PROMPT — production `buildChatComicGenerationPlan()` (full, untruncated)",
   "```text",
   comicPrompt,
   "```",
@@ -261,6 +279,9 @@ const lines = [
   `- FAKE_ATTRIBUTION_BUBBLE_COUNT: ${fakeBubbleCount}`,
   `- PANEL_TEXT_WHITELIST_MISMATCH_COUNT: ${audit.panelTextWhitelistMismatchCount}`,
   `- USER_EDIT_DIALOGUE_MISMATCH_COUNT: ${audit.userEditDialogueMismatchCount}`,
+  `- SUBJECT_LABEL_CONFLICT_COUNT: ${comicIdentityAudit.subjectLabelConflictCount}`,
+  `- TEMPLATE_REFERENCE_OWNER_CONFLICT_COUNT: ${comicIdentityAudit.templateReferenceOwnerConflictCount}`,
+  `- REFERENCE_SLOT_CONFLICT_COUNT: ${comicIdentityAudit.referenceSlotConflictCount}`,
   "",
   "## Provenance semantics",
   "",
@@ -292,5 +313,6 @@ const lines = [
 ];
 
 mkdirSync(OUT_DIR, { recursive: true });
-writeFileSync(OUT_FILE, lines.join("\n"), "utf8");
+const output = lines.join("\n").split("\n").map((line) => line.replace(/\s+$/, "")).join("\n");
+writeFileSync(OUT_FILE, output, "utf8");
 console.log(`Wrote ${OUT_FILE}`);
