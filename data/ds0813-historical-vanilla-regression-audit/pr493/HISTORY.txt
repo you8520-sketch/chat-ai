@@ -1,0 +1,3 @@
+HISTORY.txt
+HISTORY_SHA: 5ccafaaf4f45907ce9259522edbb14f6c339925af21ad98aa355e3a5fc72c4d5
+Greeting + three Gemini source exchanges. Greeting RAW is not copied here.

@@ -1,0 +1,45 @@
+{
+  "SNAPSHOT_ID": "handoff-17-1-2026-08-18T11-38-17-786Z",
+  "CHARACTER": "플러드",
+  "PERSONA": "렌",
+  "PRODUCTION_RECORD_PROVEN": true,
+  "SOURCE_MODEL": "Gemini 3.7 Flash",
+  "TARGET_MODEL": "deepseek-v4-pro-0813",
+  "USER_TURN_ORIGIN": "CURSOR_SYNTHETIC",
+  "HUMAN_WRITTEN": false,
+  "SOURCE_GEMINI_CALLS": 3,
+  "DEEPSEEK_CALLS": 2,
+  "TOTAL_NEW_CALLS": 5,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "TRUE_OFF_CONFIG": "thinking.disabled + reasoning_effort.none",
+  "REASONING_EVENTS": [
+    0,
+    0
+  ],
+  "REASONING_CHARS": [
+    0,
+    0
+  ],
+  "TRUE_OFF_PARITY": true,
+  "SOURCE_ASSISTANT_SHA": "1895ef56e88ee16d8d67ec38e838ad8956bb967545e1c57aab8f372dbecb2c6c",
+  "CURRENT_USER_SHA": "a1a36509f4f5ec7e5230c48d3c0b8c15d357e401b8ac70f17b5389783c321215",
+  "SYSTEM_SHA": "8ab7541582ca8a831f1de2792468bff9163d9c0fa0d2af0fd2b7d135da4ecc23",
+  "HISTORY_SHA": "5ccafaaf4f45907ce9259522edbb14f6c339925af21ad98aa355e3a5fc72c4d5",
+  "FULL_PROMPT_SHA": "c3d4b4545c5a102bfa263020721ce559f8dda8369584bea0a3e157bccdc2c448",
+  "FULL_ASSEMBLED_MESSAGES_SHA": "3a7e4f90a23f74c05cbfdc450cdcf88ace265bec59521a7ff4dcfeb48293b5ab",
+  "QUALITY_SCORING_BY_CURSOR": false,
+  "SOURCE_MIRROR": false,
+  "COMPLETION": false,
+  "TURN_OWNERSHIP": false,
+  "ORIGIN_POINTER": false,
+  "PRODUCTION_CHANGED": false,
+  "MAIN_MERGED": false,
+  "RAILWAY_DEPLOYED": false,
+  "usage_reasoning_tokens_not_used_as_proof": [
+    null,
+    null
+  ]
+}
