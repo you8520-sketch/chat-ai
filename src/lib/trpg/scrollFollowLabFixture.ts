@@ -71,14 +71,11 @@ function roundLog(roundNumber: number, bot1Body: string, bot2Body: string): Trpg
   };
 }
 
-export type ScrollFollowLabScenario = "bot1" | "bot2" | "round2-bot1" | "gm";
+export type ScrollFollowLabScenario = "bot1" | "bot2" | "round2-bot1";
 
 export function scrollFollowLabPresentationSeed(
   scenario: ScrollFollowLabScenario
 ): RoundPresentationState {
-  if (scenario === "gm") {
-    return { mode: "cinematic", phase: "gm-narration", presentationIndex: 2 };
-  }
   if (scenario === "bot2") {
     return { mode: "cinematic", phase: "actor-action", presentationIndex: 2 };
   }
@@ -99,11 +96,8 @@ export function scrollFollowLabSeenLogKeys(
     if (row.narration?.trim()) keys.push(`n:${row.roundNumber}`);
   }
   keys.push(`a:${roundNumber}:${SCROLL_FOLLOW_LAB_HUMAN_ID}`);
-  if (scenario === "bot2" || scenario === "gm") {
+  if (scenario === "bot2") {
     keys.push(`a:${roundNumber}:${SCROLL_FOLLOW_LAB_BOT1_ID}`);
-  }
-  if (scenario === "gm") {
-    keys.push(`a:${roundNumber}:${SCROLL_FOLLOW_LAB_BOT2_ID}`);
   }
   return keys;
 }
@@ -112,13 +106,10 @@ export function buildScrollFollowLabSnapshot(opts?: {
   roundNumber?: number;
   bot1Body?: string;
   bot2Body?: string;
-  scenario?: ScrollFollowLabScenario;
 }): TrpgCampaignSnapshot {
   const roundNumber = opts?.roundNumber ?? 2;
-  const scenario = opts?.scenario ?? "bot1";
   const bot1Body = opts?.bot1Body ?? SCROLL_FOLLOW_LAB_BOT1_PROSE;
   const bot2Body = opts?.bot2Body ?? SCROLL_FOLLOW_LAB_BOT2_PROSE;
-  const gmDraftText = scenario === "gm" ? scrollFollowLabLongProse(180) : null;
   const round1 = roundLog(1, scrollFollowLabLongProse(180), scrollFollowLabLongProse(180));
   const current = roundLog(roundNumber, bot1Body, bot2Body);
   const resolutionOrder = [
@@ -254,7 +245,7 @@ export function buildScrollFollowLabSnapshot(opts?: {
       [SCROLL_FOLLOW_LAB_BOT2_ID]: "roll",
     },
     currentNarration: null,
-    gmNarrationDraft: gmDraftText ? { text: gmDraftText } : null,
+    gmNarrationDraft: null,
     log: [round1, current],
     workType: "idle",
     shouldKickAdvance: false,

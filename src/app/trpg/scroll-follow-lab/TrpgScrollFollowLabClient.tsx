@@ -14,7 +14,7 @@ import {
 const noop = () => {};
 
 function parseScenario(raw: string | null): ScrollFollowLabScenario {
-  if (raw === "bot2" || raw === "round2-bot1" || raw === "gm") return raw;
+  if (raw === "bot2" || raw === "round2-bot1") return raw;
   return "bot1";
 }
 
@@ -25,7 +25,7 @@ export default function TrpgScrollFollowLabClient() {
     [searchParams]
   );
   const snap = useMemo(
-    () => buildScrollFollowLabSnapshot({ roundNumber: 2, scenario }),
+    () => buildScrollFollowLabSnapshot({ roundNumber: 2 }),
     [scenario]
   );
 
@@ -73,9 +73,13 @@ export default function TrpgScrollFollowLabClient() {
         onTitleSaved={noop}
         labPresentationSeed={scrollFollowLabPresentationSeed(scenario)}
         labSeenLogKeysSeed={scrollFollowLabSeenLogKeys(2, scenario)}
-        labStreamIntervalMs={scenario === "gm" ? 0 : 40}
+        labStreamIntervalMs={40}
         labFreezePresentationAdvance
-        labForceGmReveal={scenario === "gm"}
+      />
+      <div
+        aria-hidden
+        data-trpg-scroll-follow-lab-trailing-space="true"
+        className="pointer-events-none h-[120vh] w-full shrink-0"
       />
     </div>
   );

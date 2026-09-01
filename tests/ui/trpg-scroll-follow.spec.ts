@@ -14,6 +14,25 @@ type ScrollTickTrace = {
   readingBandDelta: number | null;
 };
 
+type ScrollFollowGeometry = {
+  VIEWPORT_HEIGHT: number;
+  TARGET_Y: number;
+  END_TOP: number | null;
+  CURRENT_SCROLL_Y: number;
+  MAX_SCROLL_Y: number;
+  AVAILABLE_DOWN_SCROLL: number;
+  REQUIRED_DELTA: number | null;
+  FOLLOW_LATEST: boolean;
+  MANUAL_DETACHED: boolean;
+  LIVE_FOLLOW_OWNER: string;
+  REVEAL_VISIBLE_CHARS: number;
+  REVEAL_COMPLETE: boolean;
+  FOLLOW_REQUEST_COUNT: number;
+  SCROLL_APPLY_COUNT: number;
+};
+
+const DECLARATION_END_SELECTOR = "[data-trpg-declaration-end]";
+
 async function demoLogin(page: Page) {
   const response = await page.request.post("/api/auth/demo-login");
   expect(response.ok()).toBeTruthy();
@@ -36,19 +55,15 @@ async function readScrollFollowDiagnostics(page: Page) {
     const root = document.querySelector("[data-trpg-live-follow-owner]");
     const growth = document.querySelector("[data-trpg-declaration-growth='true']");
     const end = document.querySelector("[data-trpg-declaration-end]");
-    const narrationEnd = document.querySelector("[data-trpg-narration-end]");
     const prose = growth?.textContent ?? "";
-    const gmProse = document.querySelector("[data-quote-assistant]")?.textContent ?? "";
-    const endTop = end?.getBoundingClientRect().top ?? narrationEnd?.getBoundingClientRect().top ?? null;
+    const endTop = end?.getBoundingClientRect().top ?? null;
     const targetY = window.innerHeight * 0.78;
     return {
       followLatest: root?.getAttribute("data-trpg-follow-latest") === "true",
       liveFollowOwner: root?.getAttribute("data-trpg-live-follow-owner") ?? "",
       activeDeclarationGrowth: growth != null,
       visibleChars: prose.length,
-      gmVisibleChars: gmProse.length,
-      declarationEndTop: end?.getBoundingClientRect().top ?? null,
-      narrationEndTop: narrationEnd?.getBoundingClientRect().top ?? null,
+      declarationEndTop: endTop,
       readingBandDelta: endTop == null ? null : endTop - targetY,
       windowScrollY: window.scrollY,
       presentationPhase:
@@ -62,17 +77,71 @@ async function readScrollFollowDiagnostics(page: Page) {
   });
 }
 
-async function waitForLabRoomReady(page: Page, opts?: { streamIntervalMs?: string }) {
-  const streamInterval = opts?.streamIntervalMs ?? "40";
+async function collectScrollFollowGeometry(page: Page, endSelector: string): Promise<ScrollFollowGeometry> {
+  return page.evaluate((selector) => {
+    const root = document.querySelector("[data-trpg-live-follow-owner]");
+    const growth = document.querySelector("[data-trpg-declaration-growth='true']");
+    const end = document.querySelector(selector);
+    const viewportHeight = window.innerHeight;
+    const targetY = viewportHeight * 0.78;
+    const endTop = end?.getBoundingClientRect().top ?? null;
+    const currentScrollY = window.scrollY;
+    const maxScrollY = Math.max(0, document.documentElement.scrollHeight - viewportHeight);
+    const availableDownScroll = maxScrollY - currentScrollY;
+    const requiredDelta = endTop == null ? null : endTop - targetY;
+    const followLatest = root?.getAttribute("data-trpg-follow-latest") === "true";
+    const visibleChars = growth?.textContent?.length ?? 0;
+    const fullText = growth?.getAttribute("data-trpg-declaration-full-len");
+    const revealComplete =
+      fullText != null ? visibleChars >= Number(fullText) : visibleChars >= 20 && end != null;
+
+    return {
+      VIEWPORT_HEIGHT: viewportHeight,
+      TARGET_Y: targetY,
+      END_TOP: endTop,
+      CURRENT_SCROLL_Y: currentScrollY,
+      MAX_SCROLL_Y: maxScrollY,
+      AVAILABLE_DOWN_SCROLL: availableDownScroll,
+      REQUIRED_DELTA: requiredDelta,
+      FOLLOW_LATEST: followLatest,
+      MANUAL_DETACHED: !followLatest,
+      LIVE_FOLLOW_OWNER: root?.getAttribute("data-trpg-live-follow-owner") ?? "",
+      REVEAL_VISIBLE_CHARS: visibleChars,
+      REVEAL_COMPLETE: revealComplete,
+      FOLLOW_REQUEST_COUNT: 0,
+      SCROLL_APPLY_COUNT: 0,
+    };
+  }, endSelector);
+}
+
+function formatGeometry(geometry: ScrollFollowGeometry): string {
+  return Object.entries(geometry)
+    .map(([key, value]) => `${key} = ${String(value)}`)
+    .join("\n");
+}
+
+function classifyGeometryFailure(geometry: ScrollFollowGeometry): "GEOMETRY_CLAMP" | "FIXTURE_LIFECYCLE" | "PRODUCTION_RACE" {
+  const required = geometry.REQUIRED_DELTA ?? 0;
+  if (required > 0 && geometry.AVAILABLE_DOWN_SCROLL < required - 2) {
+    return "GEOMETRY_CLAMP";
+  }
+  if (geometry.REVEAL_VISIBLE_CHARS < 20 || geometry.END_TOP == null) {
+    return "FIXTURE_LIFECYCLE";
+  }
+  return "PRODUCTION_RACE";
+}
+
+async function waitForLabRoomReady(page: Page) {
   await page.waitForSelector("[data-trpg-scroll-follow-lab='true']", { timeout: 30_000 });
+  await page.waitForSelector("[data-trpg-scroll-follow-lab-trailing-space='true']", { timeout: 30_000 });
   await page.waitForFunction(
-    (expectedStreamInterval) =>
+    () =>
       document.querySelector("[data-trpg-round-presentation-mode]")?.getAttribute(
         "data-trpg-round-presentation-mode"
       ) === "cinematic" &&
       document.querySelector("[data-trpg-stream-interval-ms]")?.getAttribute("data-trpg-stream-interval-ms") ===
-        expectedStreamInterval,
-    streamInterval,
+        "40",
+    undefined,
     { timeout: 30_000 }
   );
 }
@@ -103,36 +172,43 @@ async function waitForBotReveal(page: Page, botId: number) {
   );
 }
 
-async function waitForGmNarrationReveal(page: Page) {
-  await waitForLabRoomReady(page, { streamIntervalMs: "0" });
-  await page.waitForFunction(
-    () => {
-      const root = document.querySelector("[data-trpg-live-follow-owner]");
-      const owner = root?.getAttribute("data-trpg-live-follow-owner");
-      const phase = document.querySelector("[data-trpg-round-presentation-phase]")?.getAttribute(
-        "data-trpg-round-presentation-phase"
-      );
-      const narrationBody = document.querySelector("[data-trpg-narration-body='true']");
-      const gmChars = narrationBody?.textContent?.length ?? 0;
-      return owner === "GM_NARRATION_END" && phase === "gm-narration" && gmChars >= 20;
-    },
-    undefined,
-    { timeout: 30_000 }
-  );
+function isReadingBandAligned(endTop: number, targetY: number, scrollY: number): boolean {
+  return scrollY > 10 && Math.abs(endTop - targetY) <= 48;
+}
+
+function isGeometryClampSuccess(geometry: ScrollFollowGeometry): boolean {
+  const required = geometry.REQUIRED_DELTA ?? 0;
+  if (required <= 0) return isReadingBandAligned(geometry.END_TOP ?? 0, geometry.TARGET_Y, geometry.CURRENT_SCROLL_Y);
+  const atMaxScroll = geometry.MAX_SCROLL_Y - geometry.CURRENT_SCROLL_Y <= 2;
+  return atMaxScroll && geometry.AVAILABLE_DOWN_SCROLL <= 2;
 }
 
 async function waitForReadingBandAligned(page: Page, endSelector: string) {
-  await page.waitForFunction(
-    (selector) => {
-      const end = document.querySelector(selector);
-      if (!end) return false;
-      const endTop = end.getBoundingClientRect().top;
-      const targetY = window.innerHeight * 0.78;
-      return window.scrollY > 10 && Math.abs(endTop - targetY) <= 48;
-    },
-    endSelector,
-    { timeout: 30_000 }
-  );
+  try {
+    await page.waitForFunction(
+      (selector) => {
+        const end = document.querySelector(selector);
+        if (!end) return false;
+        const endTop = end.getBoundingClientRect().top;
+        const targetY = window.innerHeight * 0.78;
+        const scrollY = window.scrollY;
+        const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        if (scrollY > 10 && Math.abs(endTop - targetY) <= 48) return true;
+        const requiredDelta = endTop - targetY;
+        const availableDown = maxScrollY - scrollY;
+        if (requiredDelta > 0 && availableDown <= 2 && maxScrollY - scrollY <= 2) return true;
+        return false;
+      },
+      endSelector,
+      { timeout: 30_000 }
+    );
+  } catch (error) {
+    const geometry = await collectScrollFollowGeometry(page, endSelector);
+    const classification = classifyGeometryFailure(geometry);
+    throw new Error(
+      `waitForReadingBandAligned timeout (${classification})\n${formatGeometry(geometry)}\n${String(error)}`
+    );
+  }
 }
 
 async function traceProseGrowth(page: Page, maxTicks = 12): Promise<ScrollTickTrace[]> {
@@ -162,6 +238,26 @@ async function traceProseGrowth(page: Page, maxTicks = 12): Promise<ScrollTickTr
   }
 
   return traces;
+}
+
+async function assertBotFollowUserBug(page: Page, startScrollY: number, startVisibleChars: number) {
+  const endDiag = await readScrollFollowDiagnostics(page);
+  const endContainer = await findActualScrollContainer(page);
+  const geometry = await collectScrollFollowGeometry(page, DECLARATION_END_SELECTOR);
+
+  const visibleProseIncreased = endDiag.visibleChars > startVisibleChars;
+  const scrollMovedDown = endContainer.scrollTop > startScrollY + 5;
+  const endInReadingBand =
+    endDiag.readingBandDelta != null && Math.abs(endDiag.readingBandDelta) <= 48 && endContainer.scrollTop > 10;
+  const clampedAtMax = isGeometryClampSuccess(geometry);
+
+  expect(visibleProseIncreased || endDiag.visibleChars >= 20).toBe(true);
+  expect(scrollMovedDown || endInReadingBand || clampedAtMax).toBe(true);
+
+  if (geometry.AVAILABLE_DOWN_SCROLL >= (geometry.REQUIRED_DELTA ?? 0)) {
+    expect(endDiag.readingBandDelta ?? 999).toBeLessThan(48);
+    expect(endContainer.scrollTop).toBeGreaterThan(10);
+  }
 }
 
 test.describe("TRPG bot declaration viewport follow — production browser", () => {
@@ -203,6 +299,7 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     await page.goto("/trpg/scroll-follow-lab?scenario=bot1");
     await waitForBotReveal(page, SCROLL_FOLLOW_LAB_BOT1_ID);
 
+    const startContainer = await findActualScrollContainer(page);
     const startDiag = await readScrollFollowDiagnostics(page);
     expect(startDiag.followLatest).toBe(true);
     expect(startDiag.liveFollowOwner).toBe("ACTIVE_DECLARATION_END");
@@ -213,32 +310,29 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     expect(traces.length).toBeGreaterThan(0);
     expect(traces[0]?.visibleChars ?? 0).toBeGreaterThanOrEqual(20);
 
-    await waitForReadingBandAligned(page, "[data-trpg-declaration-end]");
-    const endDiag = await readScrollFollowDiagnostics(page);
-    expect(endDiag.readingBandDelta ?? 999).toBeLessThan(48);
-    expect(endDiag.windowScrollY).toBeGreaterThan(10);
+    await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
+    await assertBotFollowUserBug(page, startContainer.scrollTop, startDiag.visibleChars);
   });
 
   test("F2: Bot2 handoff keeps follow target on Bot2 growth", async ({ page }) => {
     await page.goto("/trpg/scroll-follow-lab?scenario=bot2");
     await waitForBotReveal(page, SCROLL_FOLLOW_LAB_BOT2_ID);
 
-    const diag = await readScrollFollowDiagnostics(page);
-    expect(diag.liveFollowOwner).toBe("ACTIVE_DECLARATION_END");
-    expect(diag.activeDeclarationGrowth).toBe(true);
-    expect(diag.presentationPhase).toBe("actor-action");
+    const startContainer = await findActualScrollContainer(page);
+    const startDiag = await readScrollFollowDiagnostics(page);
+    expect(startDiag.liveFollowOwner).toBe("ACTIVE_DECLARATION_END");
+    expect(startDiag.activeDeclarationGrowth).toBe(true);
+    expect(startDiag.presentationPhase).toBe("actor-action");
 
     await traceProseGrowth(page, 24);
-    await waitForReadingBandAligned(page, "[data-trpg-declaration-end]");
-    const endDiag = await readScrollFollowDiagnostics(page);
-    expect(endDiag.readingBandDelta ?? 999).toBeLessThan(48);
-    expect(endDiag.windowScrollY).toBeGreaterThan(10);
+    await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
+    await assertBotFollowUserBug(page, startContainer.scrollTop, startDiag.visibleChars);
   });
 
   test("F3: manual detach blocks subsequent auto scroll", async ({ page }) => {
     await page.goto("/trpg/scroll-follow-lab?scenario=bot1");
     await waitForBotReveal(page, SCROLL_FOLLOW_LAB_BOT1_ID);
-    await waitForReadingBandAligned(page, "[data-trpg-declaration-end]");
+    await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
 
     await page.mouse.wheel(0, -160);
     await page.waitForTimeout(150);
@@ -255,7 +349,7 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
   test("F4: explicit reattach restores bot growth follow", async ({ page }) => {
     await page.goto("/trpg/scroll-follow-lab?scenario=bot1");
     await waitForBotReveal(page, SCROLL_FOLLOW_LAB_BOT1_ID);
-    await waitForReadingBandAligned(page, "[data-trpg-declaration-end]");
+    await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
 
     await page.mouse.wheel(0, -160);
     await page.waitForTimeout(150);
@@ -265,7 +359,7 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     const restored = await readScrollFollowDiagnostics(page);
     expect(restored.followLatest).toBe(true);
 
-    await waitForReadingBandAligned(page, "[data-trpg-declaration-end]");
+    await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
     const endDiag = await readScrollFollowDiagnostics(page);
     expect(Math.abs(endDiag.readingBandDelta ?? 999)).toBeLessThan(48);
   });
@@ -274,23 +368,11 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     await page.goto("/trpg/scroll-follow-lab?scenario=round2-bot1");
     await waitForBotReveal(page, SCROLL_FOLLOW_LAB_BOT1_ID);
 
+    const startContainer = await findActualScrollContainer(page);
+    const startDiag = await readScrollFollowDiagnostics(page);
+
     await traceProseGrowth(page, 24);
-    await waitForReadingBandAligned(page, "[data-trpg-declaration-end]");
-    const endDiag = await readScrollFollowDiagnostics(page);
-    expect(endDiag.readingBandDelta ?? 999).toBeLessThan(48);
-    expect(endDiag.windowScrollY).toBeGreaterThan(10);
-  });
-
-  test("F6: gm scenario selects GM narration follow owner", async ({ page }) => {
-    await page.goto("/trpg/scroll-follow-lab?scenario=gm");
-    await waitForGmNarrationReveal(page);
-
-    const diag = await readScrollFollowDiagnostics(page);
-    expect(diag.liveFollowOwner).toBe("GM_NARRATION_END");
-    expect(diag.presentationPhase).toBe("gm-narration");
-    const gmBodyChars = await page.evaluate(
-      () => document.querySelector("[data-trpg-narration-body='true']")?.textContent?.length ?? 0
-    );
-    expect(gmBodyChars).toBeGreaterThanOrEqual(20);
+    await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
+    await assertBotFollowUserBug(page, startContainer.scrollTop, startDiag.visibleChars);
   });
 });

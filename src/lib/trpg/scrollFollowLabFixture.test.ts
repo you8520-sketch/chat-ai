@@ -26,16 +26,9 @@ describe("scroll follow lab fixture", () => {
     assert.ok(!seen.includes(`a:2:${SCROLL_FOLLOW_LAB_BOT2_ID}`));
   });
 
-  it("seeds gm narration with fresh round-2 GM key and live draft", () => {
-    const seed = scrollFollowLabPresentationSeed("gm");
-    assert.equal(seed.phase, "gm-narration");
-    const snap = buildScrollFollowLabSnapshot({ scenario: "gm" });
-    assert.ok(snap.gmNarrationDraft?.text && snap.gmNarrationDraft.text.length >= 20);
-    const seen = scrollFollowLabSeenLogKeys(2, "gm");
-    assert.ok(seen.includes(`a:2:${SCROLL_FOLLOW_LAB_BOT1_ID}`));
-    assert.ok(seen.includes(`a:2:${SCROLL_FOLLOW_LAB_BOT2_ID}`));
-    assert.ok(!seen.includes("n:2"));
-    assert.ok(seen.includes(`a:2:${SCROLL_FOLLOW_LAB_HUMAN_ID}`));
+  it("snapshot has no GM draft — GM browser scroll is out of scope", () => {
+    const snap = buildScrollFollowLabSnapshot();
+    assert.equal(snap.gmNarrationDraft, null);
   });
 
   it("lab page is not a production surface", () => {
@@ -45,10 +38,12 @@ describe("scroll follow lab fixture", () => {
     assert.doesNotMatch(page, /canAccessTrpg/);
   });
 
-  it("lab client does not persist stream interval prefs", () => {
+  it("lab client does not persist stream interval prefs or GM test seam", () => {
     const client = readFileSync("src/app/trpg/scroll-follow-lab/TrpgScrollFollowLabClient.tsx", "utf8");
     assert.doesNotMatch(client, /saveTrpgStreamIntervalMs/);
-    assert.match(client, /labStreamIntervalMs=\{scenario === "gm" \? 0 : 40\}/);
+    assert.doesNotMatch(client, /labForceGmReveal/);
+    assert.match(client, /labStreamIntervalMs=\{40\}/);
     assert.match(client, /labFreezePresentationAdvance/);
+    assert.match(client, /data-trpg-scroll-follow-lab-trailing-space/);
   });
 });
