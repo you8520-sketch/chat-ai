@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { describe, it } from "node:test";
 
 import {
@@ -14,6 +15,7 @@ import {
   projectComicPanelBeat,
   projectComicPanelCompactDialoguePreview,
   projectComicPanelCompactSituation,
+  projectCompleteVisualBeat,
   projectLdCompactPreviewSummary,
   reflowScenePlanPanels,
   truncateCompactPreviewText,
@@ -54,27 +56,24 @@ describe("chatImageScenePreviewProjection reproduction", () => {
     assert.doesNotMatch(summary.keyAction, /복도 불빛/);
   });
 
-  it("Comic: panel situation is long but compact preview fits storyboard card budget", () => {
+  it("Comic: panel situation preview uses complete visual beat without mid-sentence ellipsis", () => {
     const plan = buildDeterministicScenePlan(longNarrationMessages(), 3);
-    let compressedAtLeastOnce = false;
     for (const panel of plan.panels) {
       const compact = projectComicPanelCompactSituation(plan, panel);
-      assert.ok(compact.length <= COMPACT_PREVIEW_SITUATION_MAX + 1);
-      if (panel.situation.length > COMPACT_PREVIEW_SITUATION_MAX) {
-        assert.ok(compact.length < panel.situation.length);
-        compressedAtLeastOnce = true;
+      assert.doesNotMatch(compact, /…$/);
+      if (compact) {
+        assert.ok(compact.length > 0);
       }
     }
-    assert.equal(compressedAtLeastOnce, true);
   });
 
-  it("Comic: 2/3/4-cut overview stays compact across panel counts", () => {
+  it("Comic: 2/3/4-cut overview exposes complete beats across panel counts", () => {
     for (const count of [2, 3, 4] as const) {
       const plan = buildDeterministicScenePlan(longNarrationMessages(), count);
       assert.equal(plan.panels.length, count);
       for (const panel of plan.panels) {
         const compact = projectComicPanelCompactSituation(plan, panel);
-        assert.ok(compact.length <= COMPACT_PREVIEW_SITUATION_MAX + 1);
+        assert.doesNotMatch(compact, /…$/);
       }
     }
   });
@@ -126,7 +125,7 @@ describe("chatImageScenePreviewProjection comic dialogue compact", () => {
       for (const panel of plan.panels) {
         const situation = projectComicPanelCompactSituation(plan, panel);
         const dialogue = projectComicPanelCompactDialoguePreview(panel);
-        assert.ok(situation.length <= COMPACT_PREVIEW_SITUATION_MAX + 1);
+        assert.doesNotMatch(situation, /…$/);
         assert.ok(dialogue.previewLines.length <= COMPACT_PREVIEW_DIALOGUE_VISIBLE_LINES);
       }
     }
@@ -241,7 +240,7 @@ describe("chatImageScenePreviewProjection user-edit parity", () => {
     assert.doesNotMatch(compact.keyAction, /손목을 붙잡는다/);
   });
 
-  it("T11: untouched long narration keeps chronology-based compactness", () => {
+  it("T11: untouched long narration keeps chronology-based LD compact helper for AI suggestion path", () => {
     const plan = buildDeterministicScenePlan(longNarrationMessages(), 3);
     const summary = projectLdCompactPreviewSummary(plan);
     assert.ok(summary.keyAction.length <= COMPACT_PREVIEW_KEY_ACTION_MAX + 1);
@@ -250,10 +249,7 @@ describe("chatImageScenePreviewProjection user-edit parity", () => {
 
     for (const panel of plan.panels) {
       const compact = projectComicPanelCompactSituation(plan, panel);
-      assert.ok(compact.length <= COMPACT_PREVIEW_SITUATION_MAX + 1);
-      if (panel.situation.length > COMPACT_PREVIEW_SITUATION_MAX) {
-        assert.ok(compact.length < panel.situation.length);
-      }
+      assert.doesNotMatch(compact, /…$/);
     }
   });
 
@@ -356,5 +352,46 @@ describe("truncateCompactPreviewText", () => {
     const truncated = truncateCompactPreviewText(long, 40);
     assert.ok(truncated.endsWith("…"));
     assert.ok(truncated.length <= 41);
+  });
+});
+
+describe("chatImageScenePreviewProjection trustworthy UX", () => {
+  it("B1: LD default illustration view omits misleading compact one-line summary", () => {
+    const source = fs.readFileSync("src/components/ChatSceneBuilder.tsx", "utf8");
+    assert.match(source, /장면 정리 완료/);
+    assert.match(source, /장면 확인 \/ 수정/);
+    const marker = 'outputMode === "illustration" && !sceneEditOpen';
+    const start = source.indexOf(marker);
+    assert.ok(start >= 0);
+    const defaultBlock = source.slice(start, start + 700);
+    assert.doesNotMatch(defaultBlock, /<LdCompactPreview plan=\{plan\}/);
+  });
+
+  it("B5: comic situation preview returns complete beat without hard char ellipsis", () => {
+    const longBeat = "태형이 송곳니를 드러내며 렌의 손바닥을 입가로 끌어당긴다.";
+    const beat = projectCompleteVisualBeat(longBeat);
+    assert.doesNotMatch(beat, /…$/);
+    assert.match(beat, /끌어당긴다/);
+  });
+
+  it("B8: dialogue preview shows exact canonical text for visible rows", () => {
+    const plan = planWithManyDialogues();
+    const panel = plan.panels.find((entry) => entry.index === 1);
+    assert.ok(panel);
+    const preview = projectComicPanelCompactDialoguePreview(panel);
+    assert.equal(preview.previewLines[0]?.text, panel.dialogue[0]?.text.trim());
+    assert.equal(preview.hiddenCount, panel.dialogue.length - COMPACT_PREVIEW_DIALOGUE_VISIBLE_LINES);
+  });
+
+  it("B9: long dialogue preview keeps full canonical text without silent truncation", () => {
+    const plan = planWithManyDialogues();
+    const longLine =
+      "이것은 fifty-six characters를 훨씬 넘어서는 매우 긴 대사 문장입니다. 끝까지 전부 보여야 합니다.";
+    const edited = updatePanelDialogueAtIndex(plan, 1, 0, { text: longLine });
+    const panel = edited.panels.find((entry) => entry.index === 1);
+    assert.ok(panel);
+    const preview = projectComicPanelCompactDialoguePreview(panel);
+    assert.equal(preview.previewLines[0]?.text, longLine);
+    assert.doesNotMatch(preview.previewLines[0]?.text ?? "", /…$/);
   });
 });

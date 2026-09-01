@@ -226,6 +226,24 @@ function splitKoreanClauses(text: string): string[] {
     .filter(Boolean);
 }
 
+/** First complete visual beat for storyboard preview — clause/sentence safe, no mid-word ellipsis. */
+export function projectCompleteVisualBeat(text: string): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+
+  const sentenceParts = normalized
+    .split(/(?<=[.!?…])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (sentenceParts.length >= 1 && sentenceParts[0]) {
+    return sentenceParts[0];
+  }
+
+  const clauses = splitKoreanClauses(normalized);
+  if (clauses.length === 1) return clauses[0]!;
+  return clauses[0] ?? normalized;
+}
+
 export type SceneSourceSegment = {
   start: number;
   end: number;
@@ -1683,19 +1701,19 @@ export function truncateCompactPreviewText(text: string, maxChars: number): stri
 function compactVisualBeatFromEvents(
   events: readonly SceneEvent[],
   fallback: string,
-  maxChars: number
+  _maxChars: number
 ): string {
   const ordered = events.filter((event) => event.kind !== "assistant_echo");
   const action = ordered.find((event) => event.kind === "action" || event.kind === "reaction");
   if (action?.text.trim()) {
-    return truncateCompactPreviewText(action.text, maxChars);
+    return projectCompleteVisualBeat(action.text);
   }
   const environment = ordered.find((event) => event.kind === "environment");
   if (environment?.text.trim()) {
-    return truncateCompactPreviewText(environment.text, maxChars);
+    return projectCompleteVisualBeat(environment.text);
   }
   const joined = buildUserFacingVisualDescription(ordered, fallback);
-  return truncateCompactPreviewText(joined, maxChars);
+  return projectCompleteVisualBeat(joined || fallback);
 }
 
 function normalizeScenePreviewCompareText(text: string): string {
@@ -1773,9 +1791,8 @@ export function projectComicPanelCompactSituation(
   visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
 ): string {
   if (!panelSituationMatchesCanonicalDerived(plan, panel)) {
-    return truncateCompactPreviewText(
-      projectComicPanelBeat(plan, panel, visibility).situation,
-      COMPACT_PREVIEW_SITUATION_MAX
+    return projectCompleteVisualBeat(
+      projectComicPanelBeat(plan, panel, visibility).situation
     );
   }
 
@@ -1791,9 +1808,8 @@ export function projectComicPanelCompactSituation(
   );
   if (fromEvents) return fromEvents;
 
-  return truncateCompactPreviewText(
-    projectComicPanelBeat(plan, panel, visibility).situation,
-    COMPACT_PREVIEW_SITUATION_MAX
+  return projectCompleteVisualBeat(
+    projectComicPanelBeat(plan, panel, visibility).situation
   );
 }
 
@@ -1821,7 +1837,7 @@ export function projectComicPanelCompactDialoguePreview(
   );
   const previewLines = visible.slice(0, maxLines).map((line) => ({
     speaker: line.speaker,
-    text: truncateCompactPreviewText(line.text, COMPACT_PREVIEW_DIALOGUE_LINE_MAX),
+    text: normalizeDialogueTextForOutput(line.text),
   }));
   return {
     previewLines,
