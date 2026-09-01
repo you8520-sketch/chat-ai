@@ -11,8 +11,24 @@ function won(value: number) {
   return `${Math.round(value).toLocaleString()}원`;
 }
 
-function rate(value: number | null) {
-  return value == null ? "매출 없음" : `${(value * 100).toFixed(1)}%`;
+function rate(value: number | null, coverage?: AdminFinanceSummary["marginCoverage"]) {
+  if (value != null) {
+    return `${(value * 100).toFixed(1)}%`;
+  }
+  if (coverage === "partial") return "부분 집계 · 미확정";
+  if (coverage === "estimated") return "추정 원가 포함 · 미확정";
+  if (coverage === "unavailable") return "원가 미확정";
+  return "매출 없음";
+}
+
+function profit(value: number | null, coverage?: AdminFinanceSummary["marginCoverage"]) {
+  if (value == null) {
+    if (coverage === "partial") return "부분 집계 · 미확정";
+    if (coverage === "estimated") return "추정 원가 포함 · 미확정";
+    if (coverage === "unavailable") return "원가 미확정";
+    return "미확정";
+  }
+  return won(value);
 }
 
 function Metric({
@@ -81,7 +97,7 @@ export default function AdminFinanceClient({
     setMessage("저장했습니다.");
   }
 
-  const positive = summary.netProfitKrw >= 0;
+  const positive = summary.netProfitKrw != null && summary.netProfitKrw >= 0;
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 text-zinc-100">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -103,8 +119,16 @@ export default function AdminFinanceClient({
       </div>
 
       <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Metric label="최종 순이익" value={won(summary.netProfitKrw)} tone={positive ? "good" : "bad"} />
-        <Metric label="전체 순마진율" value={rate(summary.marginRate)} tone={positive ? "good" : "bad"} />
+        <Metric
+          label="최종 순이익"
+          value={profit(summary.netProfitKrw, summary.marginCoverage)}
+          tone={summary.netProfitKrw == null ? "normal" : positive ? "good" : "bad"}
+        />
+        <Metric
+          label="전체 순마진율"
+          value={rate(summary.marginRate, summary.marginCoverage)}
+          tone={summary.marginRate == null ? "normal" : positive ? "good" : "bad"}
+        />
         <Metric label="실제 결제 유입" value={won(summary.paymentsCollectedKrw)} />
         <Metric label="유료 포인트 사용 매출" value={won(summary.paidPointsConsumed)} />
         <Metric label="무료 포인트 사용" value={`${summary.freePointsConsumed.toLocaleString()}P`} />
@@ -126,7 +150,7 @@ export default function AdminFinanceClient({
                 <div><dt className="text-zinc-500">유료 매출</dt><dd className="mt-1 font-bold">{won(value.paidRevenueKrw)}</dd></div>
                 <div><dt className="text-zinc-500">무료 사용</dt><dd className="mt-1 font-bold">{value.freePointSpend.toLocaleString()}P</dd></div>
                 <div><dt className="text-zinc-500">API 원가</dt><dd className="mt-1 font-bold">{won(value.apiCostKrw)}</dd></div>
-                <div><dt className="text-zinc-500">순마진</dt><dd className="mt-1 font-bold">{won(value.netProfitKrw)} · {rate(value.marginRate)}</dd></div>
+                <div><dt className="text-zinc-500">순마진</dt><dd className="mt-1 font-bold">{profit(value.netProfitKrw, value.marginCoverage)} · {rate(value.marginRate, value.marginCoverage)}</dd></div>
               </dl>
             </article>
           );
@@ -160,7 +184,7 @@ export default function AdminFinanceClient({
                   <td className="p-3">{won(row.paidRevenueKrw)}</td>
                   <td className="p-3">{row.freePointSpend.toLocaleString()}P</td>
                   <td className="p-3">{won(row.apiCostKrw)}</td>
-                  <td className="p-3">{won(row.netProfitKrw)} · {rate(row.marginRate)}</td>
+                  <td className="p-3">{profit(row.netProfitKrw, row.marginCoverage)} · {rate(row.marginRate, row.marginCoverage)}</td>
                 </tr>
               )) : (
                 <tr><td colSpan={5} className="p-8 text-center text-zinc-500">아직 집계할 결제 사용 내역이 없습니다.</td></tr>

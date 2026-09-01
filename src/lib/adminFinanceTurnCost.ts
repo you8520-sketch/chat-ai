@@ -1,13 +1,18 @@
 /**
  * Whole-turn provider cost for Admin Finance — mirrors Receipt V3 provenance in KRW.
  * ONE physical provider cost → ONE accounting cost (no usage+ledger double count).
+ * Amount (knownApiCostKrw) and coverage (exactness) are returned together — fail-closed.
  */
 
 import type { Usage } from "@/lib/chatUsage";
-import { buildAdminBillingReceiptV2 } from "@/lib/adminBillingReceiptV2";
+import {
+  buildAdminBillingReceiptV2,
+  type AdminReceiptExactness,
+} from "@/lib/adminBillingReceiptV2";
 import { convertUsdToKrw } from "@/lib/exchangeRate";
 import {
   isLedgerEventCostExact,
+  isLedgerEventCostCoverageIncomplete,
   type ProviderCostLedgerRow,
 } from "@/lib/providerCostLedger";
 
@@ -24,13 +29,24 @@ const SYNC_LEDGER_FAMILIES = new Set([
 
 export type StatusWidgetExtractFinanceSource = "usage" | "ledger" | "none";
 
+/** Whole-turn finance cost coverage — aligned with AdminReceiptExactness aggregation. */
+export type FinanceTurnCostCoverage = "complete" | "partial" | "estimated" | "unavailable";
+
 export type MessageTurnProviderCost = {
+  /** Known reference cost (exact portions + eligible estimate references for display). */
+  knownApiCostKrw: number;
+  /** @deprecated alias for knownApiCostKrw */
+  totalEligibleKrw: number;
+  /** Whole-turn exact settled cost — null unless coverage is complete. */
+  exactApiCostKrw: number | null;
+  coverage: FinanceTurnCostCoverage;
+  realizedMarginExact: boolean;
+  hasIncompleteProviderCost: boolean;
+  hasEstimatedProviderCost: boolean;
   mainGenerationKrw: number;
   syncPostTurnKrw: number;
   asyncPostTurnKrw: number;
-  totalEligibleKrw: number;
   statusWidgetExtractFinanceSource: StatusWidgetExtractFinanceSource;
-  /** Per-family KRW included in Finance (0 when not present / not exact). */
   familyKrw: {
     main_generation: number;
     post_turn_shared_initial: number;
@@ -39,6 +55,13 @@ export type MessageTurnProviderCost = {
     status_meta: number;
     memory_relationship: number;
   };
+};
+
+type CostComponent = {
+  knownKrw: number;
+  exactKrw: number;
+  exactness: AdminReceiptExactness | "none";
+  hasIncomplete: boolean;
 };
 
 function finiteNonNegative(value: unknown): number {
@@ -58,58 +81,201 @@ function ledgerExactCostKrw(row: ProviderCostLedgerRow): number {
   return round1(usd * fx);
 }
 
-function resolveMainGenerationKrw(usage: Usage): number {
+function isRelevantAsyncLedgerRow(row: ProviderCostLedgerRow): boolean {
+  if (row.execution_phase !== "async_post_turn") return false;
+  if (row.funding_class !== "platform_funded") return false;
+  const family = row.family?.trim() ?? "";
+  return ASYNC_TURN_FAMILIES.has(family);
+}
+
+function isRelevantSyncLedgerRow(row: ProviderCostLedgerRow): boolean {
+  if (row.execution_phase !== "sync_post_turn") return false;
+  if (row.funding_class !== "platform_funded") return false;
+  const family = row.family?.trim() ?? "";
+  return SYNC_LEDGER_FAMILIES.has(family);
+}
+
+function mergeFinanceCoverage(
+  current: FinanceTurnCostCoverage,
+  next: FinanceTurnCostCoverage
+): FinanceTurnCostCoverage {
+  const rank: Record<FinanceTurnCostCoverage, number> = {
+    unavailable: 0,
+    complete: 1,
+    estimated: 2,
+    partial: 3,
+  };
+  return rank[next] > rank[current] ? next : current;
+}
+
+function coverageFromComponents(
+  main: CostComponent,
+  sync: CostComponent,
+  asyncCost: CostComponent
+): FinanceTurnCostCoverage {
+  if (main.hasIncomplete || sync.hasIncomplete || asyncCost.hasIncomplete) {
+    return "partial";
+  }
+  const mainEstimated =
+    main.exactness === "estimated" ||
+    main.exactness === "partial" ||
+    (main.knownKrw > 0 && main.exactness !== "settled" && main.exactness !== "none");
+  const syncEstimated =
+    sync.exactness === "estimated" ||
+    sync.exactness === "partial" ||
+    (sync.knownKrw > 0 && sync.exactness !== "settled" && sync.exactness !== "none");
+  if (mainEstimated || syncEstimated) {
+    return "estimated";
+  }
+  if (
+    main.exactness === "unavailable" &&
+    sync.exactness === "none" &&
+    asyncCost.knownKrw === 0 &&
+    !asyncCost.hasIncomplete
+  ) {
+    return "unavailable";
+  }
+  const mainOk = main.exactness === "settled" || main.exactness === "none";
+  const syncOk =
+    sync.exactness === "settled" ||
+    sync.exactness === "none" ||
+    (sync.knownKrw === 0 && sync.exactness === "unavailable");
+  const asyncOk =
+    asyncCost.exactness === "settled" ||
+    (asyncCost.knownKrw === 0 && !asyncCost.hasIncomplete);
+  if (mainOk && syncOk && asyncOk) {
+    return "complete";
+  }
+  return "partial";
+}
+
+function resolveMainGenerationComponent(usage: Usage): CostComponent {
   const receipt = buildAdminBillingReceiptV2(usage);
   const main = receipt.mainRp.actual;
   if (main?.exactness === "settled" && main.actualProviderCostKrw > 0) {
-    return round1(main.actualProviderCostKrw);
+    return {
+      knownKrw: round1(main.actualProviderCostKrw),
+      exactKrw: round1(main.actualProviderCostKrw),
+      exactness: "settled",
+      hasIncomplete: false,
+    };
   }
+
+  let fallbackKrw = 0;
   if (usage.mainApiRawCostKrw != null && usage.mainApiRawCostKrw > 0) {
-    return round1(usage.mainApiRawCostKrw);
+    fallbackKrw = round1(usage.mainApiRawCostKrw);
+  } else {
+    const syncExtract = usage.statusWidgetExtract;
+    const syncLegacyKrw = syncExtract
+      ? finiteNonNegative(syncExtract.apiRawCostKrw)
+      : 0;
+    const aggregate = finiteNonNegative(usage.apiRawCostKrw);
+    if (aggregate > 0 && syncLegacyKrw > 0 && aggregate >= syncLegacyKrw) {
+      fallbackKrw = round1(aggregate - syncLegacyKrw);
+    } else {
+      fallbackKrw = round1(aggregate);
+    }
   }
-  const syncExtract = usage.statusWidgetExtract;
-  const syncLegacyKrw = syncExtract
-    ? finiteNonNegative(syncExtract.apiRawCostKrw)
-    : 0;
-  const aggregate = finiteNonNegative(usage.apiRawCostKrw);
-  if (aggregate > 0 && syncLegacyKrw > 0 && aggregate >= syncLegacyKrw) {
-    return round1(aggregate - syncLegacyKrw);
+
+  if (fallbackKrw <= 0) {
+    return {
+      knownKrw: 0,
+      exactKrw: 0,
+      exactness: main?.exactness ?? "unavailable",
+      hasIncomplete: main?.exactness === "partial" || main?.exactness === "unavailable",
+    };
   }
-  return round1(aggregate);
+
+  const exactness = main?.exactness ?? "estimated";
+  return {
+    knownKrw: fallbackKrw,
+    exactKrw: 0,
+    exactness,
+    hasIncomplete: exactness === "partial" || exactness === "unavailable",
+  };
 }
 
-function resolveSyncPostTurnKrw(
+function resolveSyncPostTurnComponent(
   usage: Usage,
   ledgerRows: ProviderCostLedgerRow[]
-): { krw: number; source: StatusWidgetExtractFinanceSource } {
+): CostComponent & { source: StatusWidgetExtractFinanceSource } {
   const receipt = buildAdminBillingReceiptV2(usage);
   const sync = receipt.syncPlatformSpend;
-  if (
-    sync.status === "available" &&
-    sync.exactness === "settled" &&
-    sync.actualProviderCostKrw != null &&
-    sync.actualProviderCostKrw > 0
-  ) {
-    return { krw: round1(sync.actualProviderCostKrw), source: "usage" };
+  if (sync.status === "available") {
+    if (
+      sync.exactness === "settled" &&
+      sync.actualProviderCostKrw != null &&
+      sync.actualProviderCostKrw > 0
+    ) {
+      return {
+        knownKrw: round1(sync.actualProviderCostKrw),
+        exactKrw: round1(sync.actualProviderCostKrw),
+        exactness: "settled",
+        hasIncomplete: false,
+        source: "usage",
+      };
+    }
+    if (sync.exactness === "partial") {
+      return {
+        knownKrw: finiteNonNegative(sync.legacyApiRawCostKrw ?? sync.legacyStoredActualKrw),
+        exactKrw: 0,
+        exactness: "partial",
+        hasIncomplete: true,
+        source: "usage",
+      };
+    }
+    if (sync.exactness === "estimated") {
+      const estimateKrw = finiteNonNegative(
+        sync.legacyApiRawCostKrw ?? sync.legacyStoredActualKrw ?? sync.actualProviderCostKrw
+      );
+      return {
+        knownKrw: round1(estimateKrw),
+        exactKrw: 0,
+        exactness: "estimated",
+        hasIncomplete: false,
+        source: "usage",
+      };
+    }
+    return {
+      knownKrw: 0,
+      exactKrw: 0,
+      exactness: "unavailable",
+      hasIncomplete: true,
+      source: "usage",
+    };
   }
 
-  const syncLedgerKrw = ledgerRows.reduce((sum, row) => {
-    if (row.execution_phase !== "sync_post_turn") return sum;
-    if (row.funding_class !== "platform_funded") return sum;
-    const family = row.family?.trim() ?? "";
-    if (!SYNC_LEDGER_FAMILIES.has(family)) return sum;
-    return sum + ledgerExactCostKrw(row);
-  }, 0);
-
-  if (syncLedgerKrw > 0) {
-    return { krw: round1(syncLedgerKrw), source: "ledger" };
+  let syncLedgerExactKrw = 0;
+  let syncLedgerHasIncomplete = false;
+  for (const row of ledgerRows) {
+    if (!isRelevantSyncLedgerRow(row)) continue;
+    if (isLedgerEventCostExact(row)) {
+      syncLedgerExactKrw += ledgerExactCostKrw(row);
+    } else if (isLedgerEventCostCoverageIncomplete(row)) {
+      syncLedgerHasIncomplete = true;
+    }
   }
 
-  return { krw: 0, source: "none" };
+  if (syncLedgerExactKrw > 0 || syncLedgerHasIncomplete) {
+    return {
+      knownKrw: round1(syncLedgerExactKrw),
+      exactKrw: round1(syncLedgerExactKrw),
+      exactness: syncLedgerHasIncomplete ? "partial" : "settled",
+      hasIncomplete: syncLedgerHasIncomplete,
+      source: "ledger",
+    };
+  }
+
+  return {
+    knownKrw: 0,
+    exactKrw: 0,
+    exactness: "none",
+    hasIncomplete: false,
+    source: "none",
+  };
 }
 
-function resolveAsyncPostTurnKrw(ledgerRows: ProviderCostLedgerRow[]): {
-  totalKrw: number;
+function resolveAsyncPostTurnComponent(ledgerRows: ProviderCostLedgerRow[]): CostComponent & {
   byFamily: Pick<
     MessageTurnProviderCost["familyKrw"],
     "suggested_replies_repair" | "status_meta" | "memory_relationship"
@@ -120,21 +286,32 @@ function resolveAsyncPostTurnKrw(ledgerRows: ProviderCostLedgerRow[]): {
     status_meta: 0,
     memory_relationship: 0,
   };
+  let exactKrw = 0;
+  let hasIncomplete = false;
+  let hasRelevant = false;
+
   for (const row of ledgerRows) {
-    if (row.execution_phase !== "async_post_turn") continue;
-    if (row.funding_class !== "platform_funded") continue;
+    if (!isRelevantAsyncLedgerRow(row)) continue;
+    hasRelevant = true;
     const family = row.family?.trim() ?? "";
-    if (!ASYNC_TURN_FAMILIES.has(family)) continue;
-    const krw = ledgerExactCostKrw(row);
-    if (krw <= 0) continue;
-    byFamily[family as keyof typeof byFamily] += krw;
+    if (isLedgerEventCostExact(row)) {
+      const krw = ledgerExactCostKrw(row);
+      exactKrw += krw;
+      byFamily[family as keyof typeof byFamily] += krw;
+    } else if (isLedgerEventCostCoverageIncomplete(row)) {
+      hasIncomplete = true;
+    }
   }
+
   return {
-    totalKrw: round1(
-      byFamily.suggested_replies_repair +
-        byFamily.status_meta +
-        byFamily.memory_relationship
-    ),
+    knownKrw: round1(exactKrw),
+    exactKrw: round1(exactKrw),
+    exactness: hasRelevant
+      ? hasIncomplete
+        ? "partial"
+        : "settled"
+      : "none",
+    hasIncomplete,
     byFamily: {
       suggested_replies_repair: round1(byFamily.suggested_replies_repair),
       status_meta: round1(byFamily.status_meta),
@@ -143,16 +320,28 @@ function resolveAsyncPostTurnKrw(ledgerRows: ProviderCostLedgerRow[]): {
   };
 }
 
-/** Canonical whole-turn eligible provider cost for one assistant message (KRW, pre-tax). */
+/** Canonical whole-turn provider cost for one assistant message (KRW, pre-tax). */
 export function resolveMessageTurnProviderCostKrw(
   usage: Usage,
   ledgerRows: ProviderCostLedgerRow[] = []
 ): MessageTurnProviderCost {
-  const mainGenerationKrw = resolveMainGenerationKrw(usage);
-  const sync = resolveSyncPostTurnKrw(usage, ledgerRows);
-  const asyncCost = resolveAsyncPostTurnKrw(ledgerRows);
+  const main = resolveMainGenerationComponent(usage);
+  const sync = resolveSyncPostTurnComponent(usage, ledgerRows);
+  const asyncCost = resolveAsyncPostTurnComponent(ledgerRows);
 
-  const syncKrw = sync.krw;
+  const coverage = coverageFromComponents(main, sync, asyncCost);
+  const hasIncompleteProviderCost =
+    main.hasIncomplete || sync.hasIncomplete || asyncCost.hasIncomplete;
+  const hasEstimatedProviderCost =
+    (main.knownKrw > 0 && main.exactness !== "settled" && main.exactness !== "none") ||
+    sync.exactness === "estimated" ||
+    coverage === "estimated";
+  const realizedMarginExact = coverage === "complete";
+
+  const knownApiCostKrw = round1(main.knownKrw + sync.knownKrw + asyncCost.knownKrw);
+  const exactApiCostKrw = realizedMarginExact ? knownApiCostKrw : null;
+
+  const syncKrw = sync.knownKrw;
   const extract = usage.statusWidgetExtract;
   let postTurnSharedInitialKrw = 0;
   let statusWidgetExtractKrw = 0;
@@ -165,7 +354,7 @@ export function resolveMessageTurnProviderCostKrw(
   }
 
   const familyKrw = {
-    main_generation: mainGenerationKrw,
+    main_generation: main.knownKrw,
     post_turn_shared_initial: round1(postTurnSharedInitialKrw),
     status_widget_extract: round1(statusWidgetExtractKrw),
     suggested_replies_repair: asyncCost.byFamily.suggested_replies_repair,
@@ -174,13 +363,26 @@ export function resolveMessageTurnProviderCostKrw(
   };
 
   return {
-    mainGenerationKrw,
-    syncPostTurnKrw: syncKrw,
-    asyncPostTurnKrw: asyncCost.totalKrw,
-    totalEligibleKrw: round1(mainGenerationKrw + syncKrw + asyncCost.totalKrw),
+    knownApiCostKrw,
+    totalEligibleKrw: knownApiCostKrw,
+    exactApiCostKrw,
+    coverage,
+    realizedMarginExact,
+    hasIncompleteProviderCost,
+    hasEstimatedProviderCost,
+    mainGenerationKrw: main.knownKrw,
+    syncPostTurnKrw: sync.knownKrw,
+    asyncPostTurnKrw: asyncCost.knownKrw,
     statusWidgetExtractFinanceSource: sync.source,
     familyKrw,
   };
+}
+
+export function mergeFinanceTurnCostCoverage(
+  left: FinanceTurnCostCoverage,
+  right: FinanceTurnCostCoverage
+): FinanceTurnCostCoverage {
+  return mergeFinanceCoverage(left, right);
 }
 
 /** Receipt V3 whole-turn exact KRW for scope-alignment fixtures (null when not complete). */
@@ -202,20 +404,16 @@ export function resolveReceiptV3ExactProviderSpendKrw(
   let asyncUsd = 0;
   let asyncExact = true;
   for (const row of ledgerRows) {
-    if (row.execution_phase !== "async_post_turn") continue;
-    if (row.funding_class !== "platform_funded") continue;
-    const family = row.family?.trim() ?? "";
-    if (!ASYNC_TURN_FAMILIES.has(family)) continue;
+    if (!isRelevantAsyncLedgerRow(row)) continue;
     if (isLedgerEventCostExact(row)) {
       asyncUsd += finiteNonNegative(row.actual_cost_usd);
-    } else if (row.event_status !== "started") {
+    } else if (isLedgerEventCostCoverageIncomplete(row) || row.event_status === "started") {
       asyncExact = false;
     }
   }
 
   const fx = receipt.fx;
   if (fx == null) return null;
-  if (mainUsd <= 0 && syncUsd <= 0 && asyncUsd <= 0) return null;
   if (receipt.mainRp.actual?.exactness !== "settled") return null;
   if (
     receipt.syncPlatformSpend.status === "available" &&
@@ -223,10 +421,11 @@ export function resolveReceiptV3ExactProviderSpendKrw(
   ) {
     return null;
   }
-  if (!asyncExact && asyncUsd <= 0) return null;
+  if (!asyncExact) return null;
 
   const totalUsd = mainUsd + syncUsd + asyncUsd;
-  return totalUsd > 0 ? round1(convertUsdToKrw(totalUsd, fx.effectiveKrwPerUsd)) : null;
+  if (totalUsd <= 0) return null;
+  return round1(convertUsdToKrw(totalUsd, fx.effectiveKrwPerUsd));
 }
 
 export function groupLedgerRowsByAssistantMessageId(

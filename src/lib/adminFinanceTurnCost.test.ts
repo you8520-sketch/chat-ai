@@ -221,6 +221,129 @@ function ledgerRow(
   );
 }
 
+function ledgerRowIncomplete(
+  db: Database.Database,
+  assistantMessageId: number,
+  family: "suggested_replies_repair" | "status_meta" | "memory_relationship"
+) {
+  const ctx = {
+    ...buildPlatformAsyncTurnLedgerContext({
+      chatId: 1,
+      assistantMessageId,
+      generationSequence: 0,
+      family,
+      jobAttemptOrdinal: 1,
+    }),
+    persistInTests: true,
+  };
+  const attempt = startProviderCostAttempt(ctx, db);
+  finalizeProviderCostAttempt(
+    attempt,
+    {
+      actualProvider: "cheaperinference",
+      actualModel: "deepseek-v4-flash",
+      upstreamCostUsd: 0.002,
+      usageEstimated: false,
+      outcome: "success",
+    },
+    db
+  );
+}
+
+describe("adminFinanceTurnCost — exactness fail-closed (F8–F11)", () => {
+  beforeEach(() => installAuditLegacyFxForTest());
+  afterEach(() => clearAuditLegacyFxForTest());
+
+  it("F8 — async incomplete only: known 40, coverage partial, margin not exact", () => {
+    const db = createFinanceDb();
+    insertAssistant(db, 8, mainUsage(), [{ pointType: "PAID", amount: 100 }]);
+    ledgerRowIncomplete(db, 8, "status_meta");
+    const summary = buildAdminFinanceSummary(db);
+    const ledgerRows = db
+      .prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=8")
+      .all() as Parameters<typeof resolveMessageTurnProviderCostKrw>[1];
+    const turn = resolveMessageTurnProviderCostKrw(mainUsage(), ledgerRows);
+    assert.equal(turn.knownApiCostKrw, 40);
+    assert.notEqual(turn.coverage, "complete");
+    assert.equal(turn.realizedMarginExact, false);
+    assert.equal(turn.hasIncompleteProviderCost, true);
+    assert.equal(turn.exactApiCostKrw, null);
+    assert.equal(summary.chat.apiCostKrw, 40);
+    assert.equal(summary.chat.realizedMarginExact, false);
+    assert.equal(summary.chat.marginRate, null);
+    assert.equal(summary.chat.netProfitKrw, null);
+  });
+
+  it("F9 — mixed async exact + incomplete: known 43, whole-turn exact null", () => {
+    const db = createFinanceDb();
+    insertAssistant(db, 9, mainUsage(), [{ pointType: "PAID", amount: 100 }]);
+    ledgerRow(db, 9, "suggested_replies_repair", "async_post_turn", 3);
+    ledgerRowIncomplete(db, 9, "status_meta");
+    const ledgerRows = db
+      .prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=9")
+      .all() as Parameters<typeof resolveMessageTurnProviderCostKrw>[1];
+    const turn = resolveMessageTurnProviderCostKrw(mainUsage(), ledgerRows);
+    assert.equal(turn.knownApiCostKrw, 43);
+    assert.equal(turn.exactApiCostKrw, null);
+    assert.equal(turn.realizedMarginExact, false);
+    assert.equal(resolveReceiptV3ExactProviderSpendKrw(mainUsage(), ledgerRows), null);
+    const summary = buildAdminFinanceSummary(db);
+    assert.equal(summary.chat.apiCostKrw, 43);
+    assert.equal(summary.realizedMarginExact, false);
+  });
+
+  it("F10 — main estimated fallback is not exact realized margin", () => {
+    const estimatedUsage = mainUsage({
+      shadowPricing: {
+        ...mainUsage().shadowPricing!,
+        actualCostSource: "live_catalog_estimated",
+        actualTurnCostCoverage: "partial",
+      },
+      mainApiRawCostKrw: 55,
+      apiRawCostKrw: 55,
+    });
+    const turn = resolveMessageTurnProviderCostKrw(estimatedUsage, []);
+    assert.equal(turn.knownApiCostKrw, 55);
+    assert.notEqual(turn.coverage, "complete");
+    assert.equal(turn.realizedMarginExact, false);
+    assert.equal(turn.hasEstimatedProviderCost, true);
+    const db = createFinanceDb();
+    insertAssistant(db, 10, estimatedUsage, [{ pointType: "PAID", amount: 100 }]);
+    const summary = buildAdminFinanceSummary(db);
+    assert.equal(summary.chat.apiCostKrw, 55);
+    assert.equal(summary.chat.realizedMarginExact, false);
+    assert.equal(summary.chat.marginRate, null);
+  });
+
+  it("F11 — all exact like F4: coverage complete, realized margin exact", () => {
+    const db = createFinanceDb();
+    insertAssistant(
+      db,
+      11,
+      mainUsage(syncExtractUsage(5, true)),
+      [{ pointType: "PAID", amount: 100 }]
+    );
+    ledgerRow(db, 11, "suggested_replies_repair", "async_post_turn", 3);
+    ledgerRow(db, 11, "status_meta", "async_post_turn", 2);
+    ledgerRow(db, 11, "memory_relationship", "async_post_turn", 4);
+    const ledgerRows = db
+      .prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=11")
+      .all() as Parameters<typeof resolveMessageTurnProviderCostKrw>[1];
+    const turn = resolveMessageTurnProviderCostKrw(
+      mainUsage(syncExtractUsage(5, true)),
+      ledgerRows
+    );
+    assert.equal(turn.coverage, "complete");
+    assert.equal(turn.realizedMarginExact, true);
+    assert.equal(turn.exactApiCostKrw, 54);
+    assert.equal(turn.knownApiCostKrw, 54);
+    const summary = buildAdminFinanceSummary(db);
+    assert.equal(summary.chat.realizedMarginExact, true);
+    assert.equal(summary.chat.marginRate, 0.46);
+    assert.equal(adminFinanceRealizedMarginReady(), "YES");
+  });
+});
+
 describe("adminFinanceTurnCost — whole-turn provider cost (F1–F7)", () => {
   beforeEach(() => installAuditLegacyFxForTest());
   afterEach(() => clearAuditLegacyFxForTest());
@@ -358,6 +481,6 @@ describe("adminFinanceCostScopeAudit — computed gates", () => {
   it("static audit entry delegates to fixture evaluation", () => {
     const audit = auditAdminFinanceCostScope();
     assert.equal(audit.ADMIN_FINANCE_REALIZED_MARGIN_READY, "YES");
-    assert.match(audit.ADMIN_FINANCE_COST_OWNER, /whole-turn/);
+    assert.match(audit.ADMIN_FINANCE_COST_OWNER, /knownApiCostKrw \+ coverage/);
   });
 });

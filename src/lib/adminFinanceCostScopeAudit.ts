@@ -21,11 +21,20 @@ export type AdminFinanceCostScopeAudit = {
   ADMIN_FINANCE_DOUBLE_COUNTED_COST_FAMILIES: readonly string[];
   ADMIN_FINANCE_REVENUE_OWNER: string;
   ADMIN_FINANCE_COST_OWNER: string;
+  ADMIN_FINANCE_MARGIN_COVERAGE_OWNER: string;
   ADMIN_FINANCE_RECOMPUTES_USER_PRICE: false;
   TARGET_MARGIN_USED_AS_REALIZED_MARGIN: false;
   ADMIN_FINANCE_EXACT_COST_ALIGNMENT_REQUIRED: boolean;
   STATUS_WIDGET_EXTRACT_FINANCE_SOURCE: StatusWidgetExtractFinanceSource;
   STATUS_WIDGET_EXTRACT_DOUBLE_COUNT: boolean;
+  INCOMPLETE_PROVIDER_COST_CAN_BE_EXACT: boolean;
+  ESTIMATED_MAIN_COST_CAN_BE_EXACT: boolean;
+  MIXED_EXACT_INCOMPLETE_ASYNC_EXACT_TOTAL: boolean;
+  ADMIN_FINANCE_INCOMPLETE_COST_FAIL_CLOSED: boolean;
+  F8: "PASS" | "FAIL";
+  F9: "PASS" | "FAIL";
+  F10: "PASS" | "FAIL";
+  F11: "PASS" | "FAIL";
   ADMIN_FINANCE_REALIZED_MARGIN_READY: "YES" | "NO";
 };
 
@@ -33,7 +42,7 @@ const RECEIPT_V3_SCOPE =
   "turn_attributable whole-turn: main RP actual + sync platform spend + async post-turn api_cost_ledger (suggested_replies_repair, status_meta, memory_relationship, post_turn_shared_initial, status_widget_extract)";
 
 const FINANCE_CHAT_API_COST_SCOPE =
-  "resolveMessageTurnProviderCostKrw() per assistant row: main RP settled + sync usage (not sync ledger when usage owns) + async exact ledger";
+  "resolveMessageTurnProviderCostKrw() per assistant row: knownApiCostKrw + coverage/exactness (fail-closed realized margin)";
 
 const ALL_FAMILIES = [
   "main_generation",
@@ -48,8 +57,9 @@ type FixtureScenario = {
   id: string;
   usage: Usage;
   ledgerRows: ProviderCostLedgerRow[];
-  expectFinanceKrw: number;
+  expectKnownKrw: number;
   expectReceiptKrw: number | null;
+  expectCoverageComplete?: boolean;
   expectWidgetSource?: StatusWidgetExtractFinanceSource;
   expectNoDoubleCount?: boolean;
 };
@@ -70,12 +80,14 @@ function ledgerStub(
   family: string,
   phase: "async_post_turn" | "sync_post_turn",
   krw: number,
-  assistantMessageId = 1
+  assistantMessageId = 1,
+  eventStatus: ProviderCostLedgerRow["event_status"] = "settled"
 ): ProviderCostLedgerRow {
   const usd = usdForKrw(krw);
+  const exact = eventStatus === "settled" && krw > 0;
   return {
     id: 1,
-    event_key: `${family}-${phase}`,
+    event_key: `${family}-${phase}-${assistantMessageId}`,
     chat_id: 1,
     assistant_message_id: assistantMessageId,
     family,
@@ -95,14 +107,14 @@ function ledgerStub(
     reasoning_tokens: null,
     cache_read_tokens: 0,
     cache_write_tokens: 0,
-    cheaper_inference_billed_cost_usd: usd,
-    upstream_cost_usd: null,
-    actual_cost_usd: usd,
-    actual_cost_source: "cheaper_inference_billed",
-    event_status: "settled",
+    cheaper_inference_billed_cost_usd: exact ? usd : null,
+    upstream_cost_usd: exact ? null : 0.002,
+    actual_cost_usd: exact ? usd : null,
+    actual_cost_source: exact ? "cheaper_inference_billed" : "unavailable",
+    event_status: eventStatus,
     exchange_rate_krw_per_usd: FX.effectiveKrwPerUsd,
     cost_krw: krw,
-    estimated: 0,
+    estimated: exact ? 0 : 1,
     generation_sequence: 0,
     generation_request_id: null,
     created_at: "2026-08-30",
@@ -190,15 +202,17 @@ function buildFixtureScenarios(): FixtureScenario[] {
       id: "main-only",
       usage: mainUsage(),
       ledgerRows: [],
-      expectFinanceKrw: 40,
+      expectKnownKrw: 40,
       expectReceiptKrw: 40,
+      expectCoverageComplete: true,
     },
     {
       id: "main-sync",
       usage: mainUsage(syncExtract(5)),
       ledgerRows: [],
-      expectFinanceKrw: 45,
+      expectKnownKrw: 45,
       expectReceiptKrw: 45,
+      expectCoverageComplete: true,
       expectWidgetSource: "usage",
     },
     {
@@ -209,8 +223,9 @@ function buildFixtureScenarios(): FixtureScenario[] {
         ledgerStub("status_meta", "async_post_turn", 2),
         ledgerStub("memory_relationship", "async_post_turn", 4),
       ],
-      expectFinanceKrw: 49,
+      expectKnownKrw: 49,
       expectReceiptKrw: 49,
+      expectCoverageComplete: true,
     },
     {
       id: "main-sync-async",
@@ -220,24 +235,101 @@ function buildFixtureScenarios(): FixtureScenario[] {
         ledgerStub("status_meta", "async_post_turn", 2),
         ledgerStub("memory_relationship", "async_post_turn", 4),
       ],
-      expectFinanceKrw: 54,
+      expectKnownKrw: 54,
       expectReceiptKrw: 54,
+      expectCoverageComplete: true,
       expectWidgetSource: "usage",
     },
     {
       id: "widget-no-double-count",
       usage: mainUsage(syncExtract(5)),
       ledgerRows: [ledgerStub("status_widget_extract", "sync_post_turn", 5)],
-      expectFinanceKrw: 45,
+      expectKnownKrw: 45,
       expectReceiptKrw: 45,
+      expectCoverageComplete: true,
       expectWidgetSource: "usage",
       expectNoDoubleCount: true,
     },
   ];
 }
 
+function evaluateExactnessFixtures(): {
+  F8: "PASS" | "FAIL";
+  F9: "PASS" | "FAIL";
+  F10: "PASS" | "FAIL";
+  F11: "PASS" | "FAIL";
+  INCOMPLETE_PROVIDER_COST_CAN_BE_EXACT: boolean;
+  ESTIMATED_MAIN_COST_CAN_BE_EXACT: boolean;
+  MIXED_EXACT_INCOMPLETE_ASYNC_EXACT_TOTAL: boolean;
+  ADMIN_FINANCE_INCOMPLETE_COST_FAIL_CLOSED: boolean;
+} {
+  const f8Rows = [ledgerStub("status_meta", "async_post_turn", 0, 8, "completed_without_exact_cost")];
+  const f8 = resolveMessageTurnProviderCostKrw(mainUsage(), f8Rows);
+  const f8Pass =
+    f8.knownApiCostKrw === 40 &&
+    f8.coverage !== "complete" &&
+    f8.realizedMarginExact === false &&
+    f8.exactApiCostKrw == null;
+
+  const f9Rows = [
+    ledgerStub("suggested_replies_repair", "async_post_turn", 3, 9),
+    ledgerStub("status_meta", "async_post_turn", 0, 9, "completed_without_exact_cost"),
+  ];
+  const f9 = resolveMessageTurnProviderCostKrw(mainUsage(), f9Rows);
+  const f9Pass =
+    f9.knownApiCostKrw === 43 &&
+    f9.exactApiCostKrw == null &&
+    f9.realizedMarginExact === false &&
+    resolveReceiptV3ExactProviderSpendKrw(mainUsage(), f9Rows) == null;
+
+  const estimatedUsage = mainUsage({
+    shadowPricing: {
+      ...mainUsage().shadowPricing!,
+      actualCostSource: "live_catalog_estimated",
+      actualTurnCostCoverage: "partial",
+    },
+    mainApiRawCostKrw: 55,
+    apiRawCostKrw: 55,
+  });
+  const f10 = resolveMessageTurnProviderCostKrw(estimatedUsage, []);
+  const f10Pass =
+    f10.knownApiCostKrw === 55 &&
+    f10.coverage !== "complete" &&
+    f10.realizedMarginExact === false &&
+    f10.hasEstimatedProviderCost === true;
+
+  const f11Rows = [
+    ledgerStub("suggested_replies_repair", "async_post_turn", 3, 11),
+    ledgerStub("status_meta", "async_post_turn", 2, 11),
+    ledgerStub("memory_relationship", "async_post_turn", 4, 11),
+  ];
+  const f11 = resolveMessageTurnProviderCostKrw(mainUsage(syncExtract(5, true)), f11Rows);
+  const f11Pass =
+    f11.coverage === "complete" &&
+    f11.realizedMarginExact === true &&
+    f11.exactApiCostKrw === 54;
+
+  const incompleteCanBeExact = f8.realizedMarginExact || f9.realizedMarginExact;
+  const estimatedCanBeExact = f10.realizedMarginExact;
+  const mixedAsyncBug =
+    resolveReceiptV3ExactProviderSpendKrw(mainUsage(), f9Rows) != null;
+
+  return {
+    F8: f8Pass ? "PASS" : "FAIL",
+    F9: f9Pass ? "PASS" : "FAIL",
+    F10: f10Pass ? "PASS" : "FAIL",
+    F11: f11Pass ? "PASS" : "FAIL",
+    INCOMPLETE_PROVIDER_COST_CAN_BE_EXACT: incompleteCanBeExact,
+    ESTIMATED_MAIN_COST_CAN_BE_EXACT: estimatedCanBeExact,
+    MIXED_EXACT_INCOMPLETE_ASYNC_EXACT_TOTAL: mixedAsyncBug,
+    ADMIN_FINANCE_INCOMPLETE_COST_FAIL_CLOSED:
+      !incompleteCanBeExact && !estimatedCanBeExact && !mixedAsyncBug,
+  };
+}
+
 export function evaluateAdminFinanceCostScopeFromFixtures(): AdminFinanceCostScopeAudit {
   const scenarios = buildFixtureScenarios();
+  const exactness = evaluateExactnessFixtures();
   const missingFamilies = new Set<string>();
   const doubleCountedFamilies = new Set<string>();
   let mainIncluded = true;
@@ -253,9 +345,9 @@ export function evaluateAdminFinanceCostScopeFromFixtures(): AdminFinanceCostSco
       scenario.ledgerRows
     );
 
-    if (cost.totalEligibleKrw !== scenario.expectFinanceKrw) {
+    if (cost.knownApiCostKrw !== scenario.expectKnownKrw) {
       throw new Error(
-        `${scenario.id}: finance ${cost.totalEligibleKrw} != expected ${scenario.expectFinanceKrw}`
+        `${scenario.id}: finance ${cost.knownApiCostKrw} != expected ${scenario.expectKnownKrw}`
       );
     }
     if (receiptKrw !== scenario.expectReceiptKrw) {
@@ -263,8 +355,11 @@ export function evaluateAdminFinanceCostScopeFromFixtures(): AdminFinanceCostSco
         `${scenario.id}: receipt ${receiptKrw} != expected ${scenario.expectReceiptKrw}`
       );
     }
-    if (receiptKrw != null && Math.abs(receiptKrw - cost.totalEligibleKrw) > 0.05) {
-      throw new Error(`${scenario.id}: finance/receipt provenance mismatch`);
+    if (scenario.expectCoverageComplete && cost.coverage !== "complete") {
+      throw new Error(`${scenario.id}: expected complete coverage got ${cost.coverage}`);
+    }
+    if (receiptKrw != null && Math.abs(receiptKrw - cost.exactApiCostKrw!) > 0.05) {
+      throw new Error(`${scenario.id}: finance/receipt exact provenance mismatch`);
     }
 
     if (scenario.id === "main-only" && cost.familyKrw.main_generation <= 0) {
@@ -287,8 +382,8 @@ export function evaluateAdminFinanceCostScopeFromFixtures(): AdminFinanceCostSco
     }
 
     if (scenario.expectNoDoubleCount) {
-      const usageOnly = resolveMessageTurnProviderCostKrw(scenario.usage, []).totalEligibleKrw;
-      const withLedger = cost.totalEligibleKrw;
+      const usageOnly = resolveMessageTurnProviderCostKrw(scenario.usage, []).knownApiCostKrw;
+      const withLedger = cost.knownApiCostKrw;
       if (withLedger > usageOnly) {
         widgetDoubleCount = true;
         doubleCountedFamilies.add("status_widget_extract");
@@ -319,7 +414,12 @@ export function evaluateAdminFinanceCostScopeFromFixtures(): AdminFinanceCostSco
     mainIncluded &&
     syncIncluded &&
     asyncIncluded &&
-    !widgetDoubleCount;
+    !widgetDoubleCount &&
+    exactness.ADMIN_FINANCE_INCOMPLETE_COST_FAIL_CLOSED &&
+    exactness.F8 === "PASS" &&
+    exactness.F9 === "PASS" &&
+    exactness.F10 === "PASS" &&
+    exactness.F11 === "PASS";
 
   return {
     ADMIN_RECEIPT_V3_ACTUAL_COST_SCOPE: RECEIPT_V3_SCOPE,
@@ -332,12 +432,22 @@ export function evaluateAdminFinanceCostScopeFromFixtures(): AdminFinanceCostSco
     ADMIN_FINANCE_REVENUE_OWNER:
       "messages.deduction_slices (paid+free slice totals) in buildAdminFinanceSummary()",
     ADMIN_FINANCE_COST_OWNER:
-      "resolveMessageTurnProviderCostKrw() whole-turn per assistant message (main + sync usage + async exact ledger)",
+      "resolveMessageTurnProviderCostKrw() knownApiCostKrw + coverage per assistant message",
+    ADMIN_FINANCE_MARGIN_COVERAGE_OWNER:
+      "buildAdminFinanceSummary() aggregates turn coverage; marginRate/netProfit null unless realizedMarginExact",
     ADMIN_FINANCE_RECOMPUTES_USER_PRICE: false,
     TARGET_MARGIN_USED_AS_REALIZED_MARGIN: false,
     ADMIN_FINANCE_EXACT_COST_ALIGNMENT_REQUIRED: !ready,
     STATUS_WIDGET_EXTRACT_FINANCE_SOURCE: widgetSource,
     STATUS_WIDGET_EXTRACT_DOUBLE_COUNT: widgetDoubleCount,
+    INCOMPLETE_PROVIDER_COST_CAN_BE_EXACT: exactness.INCOMPLETE_PROVIDER_COST_CAN_BE_EXACT,
+    ESTIMATED_MAIN_COST_CAN_BE_EXACT: exactness.ESTIMATED_MAIN_COST_CAN_BE_EXACT,
+    MIXED_EXACT_INCOMPLETE_ASYNC_EXACT_TOTAL: exactness.MIXED_EXACT_INCOMPLETE_ASYNC_EXACT_TOTAL,
+    ADMIN_FINANCE_INCOMPLETE_COST_FAIL_CLOSED: exactness.ADMIN_FINANCE_INCOMPLETE_COST_FAIL_CLOSED,
+    F8: exactness.F8,
+    F9: exactness.F9,
+    F10: exactness.F10,
+    F11: exactness.F11,
     ADMIN_FINANCE_REALIZED_MARGIN_READY: ready ? "YES" : "NO",
   };
 }
