@@ -8,12 +8,7 @@ import {
 import { clipTrpgChars } from "./clip";
 import { formatTrpgCharacterIdentityBlock, stripTrpgAssetControlMarkers } from "./gmSceneAssets";
 import { TRPG_MEMORY_BOT_CONTINUITY_BUDGET } from "./memoryHorizon";
-import {
-  TRPG_BOT_ACTION_MAX_CHARS,
-  TRPG_BOT_AIM_CHARS,
-  TRPG_BOT_MIN_CHARS,
-  TRPG_BOT_SCENE_MAX_CHARS,
-} from "./types";
+import { TRPG_BOT_SCENE_MAX_CHARS } from "./types";
 
 export {
   parseTrpgBotAction,
@@ -55,7 +50,7 @@ If any character-card background details conflict with CAMPAIGN WORLD, the curre
 Honor [MY LONG-TERM MEMORIES] only as this character already knows them. They are past facts, not current HP or inventory.
 You may describe the world only as THIS character perceives it. Do not decide other PCs' inner lives or actions. Do not resolve the round. Do not write a GM recap. Do not roll dice or declare success/failure. Korean. No JSON.
 
-Length: ${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS} Korean characters (aim about ${TRPG_BOT_AIM_CHARS}). Stop on a finished sentence. Never cut a clause short. If you are near the cap, end the current sentence instead of starting a new one.
+Write one coherent finished PC action beat appropriate to the moment. Keep it focused on this character's perception, reaction, movement, and spoken lines. Do not expand into a full GM scene or resolve the round. Finish naturally; do not cut a sentence or clause for a character-count target.
 
 [PROSE LAYOUT]
 Write Korean web-novel prose.
@@ -195,5 +190,5 @@ export function prepareTrpgBotActionBody(raw: string, fallback: string): string 
   if (parsed.intent || raw.includes(TRPG_BOT_INTENT_OPEN)) {
     parts.push(`${TRPG_BOT_INTENT_OPEN}\n${parsed.intent}`);
   }
-  return sanitizeBotActionText(parts.filter(Boolean).join("\n\n"), TRPG_BOT_ACTION_MAX_CHARS) || fallback;
+  return sanitizeBotActionText(parts.filter(Boolean).join("\n\n")) || fallback;
 }

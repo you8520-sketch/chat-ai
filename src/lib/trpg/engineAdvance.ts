@@ -178,7 +178,7 @@ import {
   finalizeRoundAdjudication,
 } from "./roundAdjudication";
 import { parseTrpgInputOrigin, type TrpgInputOrigin } from "./replySuggestions";
-import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
+import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
 import { isTrpgRoundPhase } from "./types";
 import {
   clearGmNarrationDraft,
@@ -1043,7 +1043,7 @@ async function generateBotActions(
   });
   const allMemoryEvents = loadMemoryEvents(db, opts.campaign.id);
   const recentContinuity = buildTrpgBotRecentContinuity(loadCompletedMemoryRounds(db, opts.campaign.id));
-  const campaignWorld = clipTrpgChars(opts.campaign.world_brief ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
+  const campaignWorld = opts.campaign.world_brief ?? "";
 
   for (const turn of ordered) {
     refreshBotGenerationHeartbeat(db, opts.roundId, opts.requestId);
@@ -1059,22 +1059,22 @@ async function generateBotActions(
         const fields = readCharacterRowFields(
           db.prepare(`SELECT * FROM characters WHERE id=?`).get(bot.character_id)
         );
-        description = clipTrpgChars(fields.description, TRPG_BOT_CARD_FIELD_MAX_CHARS);
-        greeting = clipTrpgChars(fields.greeting, TRPG_BOT_CARD_FIELD_MAX_CHARS);
-        exampleDialog = clipTrpgChars(fields.exampleDialog, TRPG_BOT_CARD_FIELD_MAX_CHARS);
-        systemPrompt = clipTrpgChars(fields.systemPrompt, TRPG_BOT_CARD_PROMPT_MAX_CHARS);
+        description = fields.description;
+        greeting = fields.greeting;
+        exampleDialog = fields.exampleDialog;
+        systemPrompt = fields.systemPrompt;
         gender = fields.gender;
       } catch {
         const persona = parseBotPersona(bot.persona_json);
-        description = clipTrpgChars(persona?.description ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
-        greeting = clipTrpgChars(persona?.greeting ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
-        systemPrompt = clipTrpgChars(persona?.systemPrompt ?? "", TRPG_BOT_CARD_PROMPT_MAX_CHARS);
+        description = persona?.description ?? "";
+        greeting = persona?.greeting ?? "";
+        systemPrompt = persona?.systemPrompt ?? "";
       }
     } else {
       const persona = parseBotPersona(bot.persona_json);
-      description = clipTrpgChars(persona?.description ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
-      greeting = clipTrpgChars(persona?.greeting ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
-      systemPrompt = clipTrpgChars(persona?.systemPrompt ?? "", TRPG_BOT_CARD_PROMPT_MAX_CHARS);
+      description = persona?.description ?? "";
+      greeting = persona?.greeting ?? "";
+      systemPrompt = persona?.systemPrompt ?? "";
     }
     const botHorizon = buildHorizonPromptSections({
       events: allMemoryEvents,

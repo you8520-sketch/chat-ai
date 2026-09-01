@@ -6,7 +6,7 @@ import {
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
 } from "@/lib/chatModels";
-import { buildTrpgBotActionUserBlock, finishAtSentenceBoundary, orderTrpgBotsForRound, sanitizeBotActionText, TRPG_BOT_SYSTEM } from "./botActions";
+import { buildTrpgBotActionUserBlock, orderTrpgBotsForRound, sanitizeBotActionText, TRPG_BOT_SYSTEM } from "./botActions";
 import { computeTrpgRoundPoints, splitTrpgRoundCost } from "./billing";
 import { formatTrpgRollCompact } from "./labels";
 import { buildTrpgBotRecentContinuity, buildTrpgMemoryPromptBlock, roundsDueForSeal } from "./memory";
@@ -46,9 +46,9 @@ describe("TRPG bot actions", () => {
     assert.match(TRPG_BOT_SYSTEM, /Do not declare a finished result/);
     assert.equal((TRPG_BOT_SYSTEM.match(/\[PROSE LAYOUT\]/g) ?? []).length, 1);
     assert.doesNotMatch(block, /\[PROSE LAYOUT\]/);
-    assert.match(TRPG_BOT_SYSTEM, /300/);
-    assert.match(TRPG_BOT_SYSTEM, /550/);
-    assert.match(TRPG_BOT_SYSTEM, /800/);
+    assert.match(TRPG_BOT_SYSTEM, /one coherent finished PC action beat/i);
+    assert.doesNotMatch(TRPG_BOT_SYSTEM, /300–800/);
+    assert.doesNotMatch(TRPG_BOT_SYSTEM, /aim about 550/);
     assert.doesNotMatch(block, /\[LENGTH\]/);
     assert.doesNotMatch(block, /Follow the system length contract/);
     assert.doesNotMatch(block, /aim ~550/);
@@ -119,19 +119,16 @@ describe("TRPG bot actions", () => {
     );
   });
 
-  it("clips empty bot drafts", () => {
+  it("preserves full bot prose without application char clip", () => {
     assert.equal(sanitizeBotActionText("   "), "");
-    assert.ok(sanitizeBotActionText("가".repeat(3000)).length <= 800);
+    const longProse = "가".repeat(1200) + " END_MARKER";
     const withBreaks = sanitizeBotActionText(`첫째 문장.\n\n둘째 문장.\n\n<<<INTENT>>>\n문을 민다.`);
     assert.match(withBreaks, /첫째 문장\.\n\n둘째 문장/);
     assert.match(withBreaks, /<<<INTENT>>>/);
     assert.match(withBreaks, /문을 민다/);
-    const cut = finishAtSentenceBoundary(
-      "그는 낮게 웃었다. 순서는 내가 맨 앞이다. 등 뒤에서 벗어나지 마. 무너진 차량 사이를 향해",
-      800
-    );
-    assert.match(cut, /벗어나지 마\./);
-    assert.doesNotMatch(cut, /향해/);
+    const longParsed = sanitizeBotActionText(`${longProse}\n\n<<<INTENT>>>\n시도`);
+    assert.match(longParsed, /END_MARKER/);
+    assert.ok(Array.from(longParsed).length > 800);
   });
 });
 
