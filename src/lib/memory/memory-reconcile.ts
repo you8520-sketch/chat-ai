@@ -250,80 +250,39 @@ export function scheduleMemoryResealAfterSourceMessageEdit(opts: {
   summarizedTurnCount: number | null;
   assistantMessageId?: number | null;
 }): void {
-  const actualTurnCount = countMemoryEligibleCompletedTurns(opts.chatId);
-  const summarized = opts.summarizedTurnCount ?? 0;
+  try {
+    const actualTurnCount = countMemoryEligibleCompletedTurns(opts.chatId);
+    const summarized = opts.summarizedTurnCount ?? 0;
 
-  if (opts.assistantMessageId != null) {
-    void refreshRollingSummaryForRegeneratedAssistant({
-      chatId: opts.chatId,
-      userId: opts.userId,
-      characterId: opts.characterId,
-      charName: opts.charName,
-      tier: opts.tier,
-      memoryCapacity: opts.memoryCapacity,
-      assistantMessageId: opts.assistantMessageId,
-    }).catch((e) => {
-      console.warn(
-        "[memory] source edit assistant batch refresh failed:",
-        (e as Error).message
-      );
-    });
-  } else if (shouldTriggerRollingSummary(actualTurnCount, summarized)) {
-    scheduleCharacterRollingSummary({
-      chatId: opts.chatId,
-      userId: opts.userId,
-      characterId: opts.characterId,
-      charName: opts.charName,
-      tier: opts.tier,
-      memoryCapacity: opts.memoryCapacity,
-    });
+    if (opts.assistantMessageId != null) {
+      void refreshRollingSummaryForRegeneratedAssistant({
+        chatId: opts.chatId,
+        userId: opts.userId,
+        characterId: opts.characterId,
+        charName: opts.charName,
+        tier: opts.tier,
+        memoryCapacity: opts.memoryCapacity,
+        assistantMessageId: opts.assistantMessageId,
+      }).catch((e) => {
+        console.warn(
+          "[memory] source edit assistant batch refresh failed:",
+          (e as Error).message
+        );
+      });
+    } else if (shouldTriggerRollingSummary(actualTurnCount, summarized)) {
+      scheduleCharacterRollingSummary({
+        chatId: opts.chatId,
+        userId: opts.userId,
+        characterId: opts.characterId,
+        charName: opts.charName,
+        tier: opts.tier,
+        memoryCapacity: opts.memoryCapacity,
+      });
+    }
+  } catch (e) {
+    console.warn(
+      "[memory] source edit post-commit reseal schedule failed:",
+      (e as Error).message
+    );
   }
-}
-
-/**
- * Source message edit (user or assistant material prose) — reuses variant-switch
- * sealed-summary invalidation owner, then starts a post-invalidation reseal job.
- */
-export function reconcileMemoryAfterSourceMessageEdit(opts: {
-  chatId: number;
-  userId: number;
-  characterId: number;
-  charName: string;
-  tier: MemoryTier;
-  memoryCapacity: number;
-  memoryTurnNumber: number;
-  sourceUserMessageId?: number | null;
-  sourceAssistantMessageId?: number | null;
-  assistantMessageId?: number | null;
-}): boolean {
-  if (!isMemoryFeatureEnabled()) return false;
-
-  const db = getDb();
-  const result = reconcileMemoryAfterSourceMessageEditSyncCore(db, {
-    chatId: opts.chatId,
-    userId: opts.userId,
-    characterId: opts.characterId,
-    tier: opts.tier,
-    memoryCapacity: opts.memoryCapacity,
-    memoryTurnNumber: opts.memoryTurnNumber,
-    sourceUserMessageId: opts.sourceUserMessageId ?? null,
-    sourceAssistantMessageId: opts.sourceAssistantMessageId ?? null,
-  });
-  if (!result.attempted) return false;
-
-  scheduleMemoryResealAfterSourceMessageEdit({
-    chatId: opts.chatId,
-    userId: opts.userId,
-    characterId: opts.characterId,
-    charName: opts.charName,
-    tier: opts.tier,
-    memoryCapacity: opts.memoryCapacity,
-    summarizedTurnCount: result.summarizedTurnCount,
-    assistantMessageId: opts.assistantMessageId ?? null,
-  });
-
-  console.info(
-    `[memory] reconcile after source message edit chat=${opts.chatId} memoryTurn=${opts.memoryTurnNumber} inactivated=${result.inactivatedRecordIds.length} summarized=${result.summarizedTurnCount ?? 0}`
-  );
-  return true;
 }

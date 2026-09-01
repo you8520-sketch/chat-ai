@@ -29,7 +29,6 @@ import { buildMemoryContext } from "./memory-injector";
 import { getOrCreateChatMemory } from "./memory-db";
 import {
   reconcileMemoryAfterRecordDelete,
-  reconcileMemoryAfterSourceMessageEdit,
   reconcileMemoryAfterSourceMessageEditSyncCore,
   scheduleMemoryResealAfterSourceMessageEdit,
 } from "./memory-reconcile";
@@ -47,7 +46,10 @@ import {
   markMemoryRecordInactive,
   rebuildLorebookFromRecords,
 } from "./memory-turn-summary";
+import { resolveOocSceneRenderIntent } from "@/lib/oocSceneRender";
 import {
+  MemoryCanonicalityEditNotSupportedError,
+  memorySourceEligibilityChanged,
   resolveMemorySourceTurnIdentityCore,
 } from "./memory-turn-loader";
 
@@ -62,6 +64,8 @@ const SECRET_NEW = "SECRET_NEW_RTY";
 const ASSISTANT_ONLY_OLD = "ASSISTANT_ONLY_OLD";
 const ASSISTANT_ONLY_NEW = "ASSISTANT_ONLY_NEW";
 const EARLY_BATCH_MARKER = "EARLY_BATCH_INTACT";
+const OOC_ISOLATED_RENDER =
+  "OOC: 본편과 별개로 이 상황을 샘플 장면으로 한 번 보여줘.";
 
 function cleanup() {
   const db = getDb();
@@ -141,6 +145,7 @@ function runAtomicAssistantMaterialEdit(opts: {
 }) {
   const db = getDb();
   db.transaction(() => {
+    const preIdentity = resolveMemorySourceTurnIdentityCore(db, CHAT, opts.assistantId)!;
     executeAtomicManualEditMutationCore(db, {
       chatId: CHAT,
       messageId: opts.assistantId,
@@ -148,7 +153,7 @@ function runAtomicAssistantMaterialEdit(opts: {
       alternatesJson: "[]",
       statusWidgetValuesJson: "{}",
       materialProseChange: true,
-      sourceTurn: opts.memoryTurnNumber,
+      sourceTurn: preIdentity.memoryTurnNumber,
     });
     reconcileMemoryAfterSourceMessageEditSyncCore(db, {
       chatId: CHAT,
@@ -156,9 +161,9 @@ function runAtomicAssistantMaterialEdit(opts: {
       characterId: CHAR,
       tier: "free",
       memoryCapacity: 10_000,
-      memoryTurnNumber: opts.memoryTurnNumber,
-      sourceUserMessageId: opts.sourceUserMessageId,
-      sourceAssistantMessageId: opts.sourceAssistantMessageId,
+      memoryTurnNumber: preIdentity.memoryTurnNumber,
+      sourceUserMessageId: preIdentity.sourceUserMessageId,
+      sourceAssistantMessageId: preIdentity.sourceAssistantMessageId,
       __testThrowAfterMemoryInvalidate: opts.__testThrowAfterMemoryInvalidate,
       __testThrowAfterMemoryRebuild: opts.__testThrowAfterMemoryRebuild,
     });
@@ -288,6 +293,7 @@ describe("assistant material prose edit", () => {
 
     const newProse = `assistant 1 ${NEW_FACT} updated narrative`;
     const identity = resolveMemorySourceTurnIdentityCore(db, CHAT, assistant.id)!;
+    const epochBefore = getMemorySourceBoundaryCore(db, CHAT).epoch;
     runAtomicAssistantMaterialEdit({
       assistantId: assistant.id,
       newProse,
@@ -295,6 +301,9 @@ describe("assistant material prose edit", () => {
       sourceUserMessageId: identity.sourceUserMessageId,
       sourceAssistantMessageId: identity.sourceAssistantMessageId,
     });
+
+    const epochAfterSync = getMemorySourceBoundaryCore(db, CHAT).epoch;
+    assert.equal(epochAfterSync, epochBefore + 1);
 
     scheduleMemoryResealAfterSourceMessageEdit({
       chatId: CHAT,
@@ -309,6 +318,8 @@ describe("assistant material prose edit", () => {
 
     releaseLlm!();
     await new Promise((r) => setTimeout(r, 250));
+
+    assert.equal(getMemorySourceBoundaryCore(db, CHAT).epoch, epochAfterSync);
 
     const lore = rebuildLorebookFromRecords(CHAT);
     assert.doesNotMatch(lore, new RegExp(OLD_FACT));
@@ -399,20 +410,28 @@ describe("user message edit", () => {
     const newContent = userMsg.content.replace(SECRET_OLD, SECRET_NEW);
     assert.ok(isMaterialProseEdit(userMsg.content, newContent));
 
-    const identity = resolveMemorySourceTurnIdentityCore(db, CHAT, userMsg.id)!;
+    const epochBefore = getMemorySourceBoundaryCore(db, CHAT).epoch;
+    let syncSummarizedTurnCount: number | null = null;
     db.transaction(() => {
+      const preIdentity = resolveMemorySourceTurnIdentityCore(db, CHAT, userMsg.id)!;
       db.prepare(`UPDATE messages SET content=? WHERE id=?`).run(newContent, userMsg.id);
-      reconcileMemoryAfterSourceMessageEditSyncCore(db, {
+      const postIdentity = resolveMemorySourceTurnIdentityCore(db, CHAT, userMsg.id)!;
+      assert.equal(preIdentity.memoryTurnNumber, postIdentity.memoryTurnNumber);
+      const result = reconcileMemoryAfterSourceMessageEditSyncCore(db, {
         chatId: CHAT,
         userId: USER,
         characterId: CHAR,
         tier: "free",
         memoryCapacity: 10_000,
-        memoryTurnNumber: identity.memoryTurnNumber,
-        sourceUserMessageId: identity.sourceUserMessageId,
-        sourceAssistantMessageId: identity.sourceAssistantMessageId,
+        memoryTurnNumber: preIdentity.memoryTurnNumber,
+        sourceUserMessageId: preIdentity.sourceUserMessageId,
+        sourceAssistantMessageId: preIdentity.sourceAssistantMessageId,
       });
+      syncSummarizedTurnCount = result.summarizedTurnCount;
     }).immediate();
+
+    const epochAfterSync = getMemorySourceBoundaryCore(db, CHAT).epoch;
+    assert.equal(epochAfterSync, epochBefore + 1);
 
     let releaseLlm!: () => void;
     __setSummarizeTurnBatchCallerForTests(async () => {
@@ -427,20 +446,20 @@ describe("user message edit", () => {
       };
     });
 
-    reconcileMemoryAfterSourceMessageEdit({
+    scheduleMemoryResealAfterSourceMessageEdit({
       chatId: CHAT,
       userId: USER,
       characterId: CHAR,
       charName: "EditChar",
       tier: "free",
       memoryCapacity: 10_000,
-      memoryTurnNumber: identity.memoryTurnNumber,
-      sourceUserMessageId: identity.sourceUserMessageId,
-      sourceAssistantMessageId: identity.sourceAssistantMessageId,
+      summarizedTurnCount: syncSummarizedTurnCount,
     });
 
     releaseLlm!();
     await new Promise((r) => setTimeout(r, 250));
+
+    assert.equal(getMemorySourceBoundaryCore(db, CHAT).epoch, epochAfterSync);
 
     const lore = rebuildLorebookFromRecords(CHAT);
     assert.doesNotMatch(lore, new RegExp(SECRET_OLD));
@@ -453,6 +472,77 @@ describe("user message edit", () => {
       memoryCapacity: 10_000,
     });
     assert.doesNotMatch(injection.text, new RegExp(SECRET_OLD));
+  });
+});
+
+describe("canonical to noncanonical user edit", () => {
+  it("fail-before: POST-only identity leaves sealed summary canonical", () => {
+    seedBase(5);
+    sealBatch1To5();
+
+    const db = getDb();
+    const userMsg = db
+      .prepare(
+        `SELECT id, content FROM messages WHERE chat_id=? AND role='user' AND model='user' ORDER BY id LIMIT 1`
+      )
+      .get(CHAT) as { id: number; content: string };
+
+    assert.equal(resolveOocSceneRenderIntent(userMsg.content), false);
+    assert.equal(resolveOocSceneRenderIntent(OOC_ISOLATED_RENDER), true);
+
+    const memoryBefore = getOrCreateChatMemory(CHAT, USER, CHAR, "free");
+    const injectionBefore = buildMemoryContext({
+      memory: memoryBefore,
+      userMessage: "next turn",
+      memoryCapacity: 10_000,
+    });
+    assert.match(injectionBefore.text, new RegExp(OLD_FACT));
+
+    // Correction 3 bug: UPDATE then POST-only resolve; skip reconcile when null
+    db.prepare(`UPDATE messages SET content=? WHERE id=?`).run(OOC_ISOLATED_RENDER, userMsg.id);
+    const postIdentity = resolveMemorySourceTurnIdentityCore(db, CHAT, userMsg.id);
+    assert.equal(postIdentity, null);
+    assert.match(rebuildLorebookFromRecords(CHAT), new RegExp(OLD_FACT));
+  });
+
+  it("eligibility-changing edit is atomically rejected; message and memory unchanged", () => {
+    seedBase(5);
+    sealBatch1To5();
+
+    const db = getDb();
+    const userMsg = db
+      .prepare(
+        `SELECT id, content FROM messages WHERE chat_id=? AND role='user' AND model='user' ORDER BY id LIMIT 1`
+      )
+      .get(CHAT) as { id: number; content: string };
+
+    const beforeContent = userMsg.content;
+    const beforeEpoch = getMemorySourceBoundaryCore(db, CHAT).epoch;
+    const beforeLore = rebuildLorebookFromRecords(CHAT);
+
+    assert.throws(
+      () => {
+        db.transaction(() => {
+          const preIdentity = resolveMemorySourceTurnIdentityCore(db, CHAT, userMsg.id);
+          assert.ok(preIdentity != null);
+          db.prepare(`UPDATE messages SET content=? WHERE id=?`).run(
+            OOC_ISOLATED_RENDER,
+            userMsg.id
+          );
+          const postIdentity = resolveMemorySourceTurnIdentityCore(db, CHAT, userMsg.id);
+          assert.equal(postIdentity, null);
+          if (memorySourceEligibilityChanged(preIdentity, postIdentity)) {
+            throw new MemoryCanonicalityEditNotSupportedError();
+          }
+        }).immediate();
+      },
+      MemoryCanonicalityEditNotSupportedError
+    );
+
+    assert.equal(messageContent(userMsg.id), beforeContent);
+    assert.equal(getMemorySourceBoundaryCore(db, CHAT).epoch, beforeEpoch);
+    assert.equal(rebuildLorebookFromRecords(CHAT), beforeLore);
+    assert.match(rebuildLorebookFromRecords(CHAT), new RegExp(OLD_FACT));
   });
 });
 
@@ -590,6 +680,7 @@ describe("atomic source edit rollback — user", () => {
 
     assert.throws(() => {
       db.transaction(() => {
+        const preIdentity = resolveMemorySourceTurnIdentityCore(db, CHAT, userMsg.id)!;
         db.prepare(`UPDATE messages SET content=? WHERE id=?`).run(newContent, userMsg.id);
         reconcileMemoryAfterSourceMessageEditSyncCore(db, {
           chatId: CHAT,
@@ -597,9 +688,9 @@ describe("atomic source edit rollback — user", () => {
           characterId: CHAR,
           tier: "free",
           memoryCapacity: 10_000,
-          memoryTurnNumber: identity.memoryTurnNumber,
-          sourceUserMessageId: identity.sourceUserMessageId,
-          sourceAssistantMessageId: identity.sourceAssistantMessageId,
+          memoryTurnNumber: preIdentity.memoryTurnNumber,
+          sourceUserMessageId: preIdentity.sourceUserMessageId,
+          sourceAssistantMessageId: preIdentity.sourceAssistantMessageId,
           __testThrowAfterMemoryRebuild: true,
         });
       }).immediate();
@@ -608,6 +699,7 @@ describe("atomic source edit rollback — user", () => {
     assert.equal(messageContent(userMsg.id), userMsg.content);
     assert.match(rebuildLorebookFromRecords(CHAT), new RegExp(OLD_FACT));
     assert.equal(getMemorySourceBoundaryCore(db, CHAT).epoch, beforeEpoch);
+    void identity;
   });
 });
 
