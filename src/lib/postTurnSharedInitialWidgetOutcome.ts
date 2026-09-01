@@ -57,3 +57,14 @@ export function postTurnSharedInitialSuggestedRepliesOk(
 ): boolean {
   return parsed?.suggestedRepliesOk === true;
 }
+
+/** Preserve parsed payload for downstream partial reuse — independent of diagnostic full success. */
+export function shouldPreservePostTurnSharedInitialParsed(input: {
+  transportOk: boolean;
+  parsed: PostTurnSharedInitialParseResult | null;
+}): boolean {
+  return input.transportOk === true && input.parsed != null && input.parsed.jsonParseOk === true;
+}
+
+export const SHARED_PARSED_PAYLOAD_PRESERVATION_OWNER =
+  "postTurnSharedInitialWidgetOutcome.ts";

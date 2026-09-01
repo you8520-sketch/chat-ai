@@ -12,6 +12,7 @@ import {
 import {
   evaluatePostTurnSharedInitialWidgetExtraction,
   postTurnSharedInitialSuggestedRepliesOk,
+  shouldPreservePostTurnSharedInitialParsed,
 } from "@/lib/postTurnSharedInitialWidgetOutcome";
 import { POST_TURN_SHARED_INITIAL_REQUEST_KIND } from "@/lib/postTurnSharedInitial/types";
 import { collectWidgetJsonKeys } from "./prompt";
@@ -1139,7 +1140,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         reasonCode: sharedInitialWidgetOutcome.reasonCode,
         succeeded: sharedInitialWidgetOutcome.succeeded,
       });
-      if (sharedInitialWidgetOutcome.succeeded && shared.parsed) {
+      if (shouldPreservePostTurnSharedInitialParsed({ transportOk: shared.transportOk, parsed: shared.parsed })) {
         sharedInitialParsed = shared.parsed;
         sharedInitialUsage = shared.usage;
       }

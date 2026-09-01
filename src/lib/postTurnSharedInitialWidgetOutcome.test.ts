@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   evaluatePostTurnSharedInitialWidgetExtraction,
   postTurnSharedInitialSuggestedRepliesOk,
+  shouldPreservePostTurnSharedInitialParsed,
 } from "@/lib/postTurnSharedInitialWidgetOutcome";
 import { DEFAULT_STATUS_WIDGET } from "@/lib/statusWidget/defaultTemplate";
 import { parsePostTurnSharedInitialResponse } from "@/lib/postTurnSharedInitial/parse";
@@ -74,6 +75,31 @@ describe("postTurnSharedInitialWidgetOutcome", () => {
     });
     assert.equal(outcome.succeeded, false);
     assert.equal(outcome.reasonCode, "V3_EMPTY_OUTPUT");
+  });
+
+  it("parsed payload preservation is independent of diagnostic full success", () => {
+    const parsed = parsePostTurnSharedInitialResponse(validDualJson(), dualInput());
+    parsed.dual!.userOk = false;
+    assert.equal(
+      evaluatePostTurnSharedInitialWidgetExtraction({
+        transportOk: true,
+        mode: "dual",
+        parsed,
+      }).succeeded,
+      false
+    );
+    assert.equal(
+      shouldPreservePostTurnSharedInitialParsed({ transportOk: true, parsed }),
+      true
+    );
+  });
+
+  it("invalid JSON is not preserved for downstream widget reuse", () => {
+    const parsed = parsePostTurnSharedInitialResponse("not-json{{{", dualInput());
+    assert.equal(
+      shouldPreservePostTurnSharedInitialParsed({ transportOk: true, parsed }),
+      false
+    );
   });
 
   it("dual valid JSON both sources → OK", () => {
