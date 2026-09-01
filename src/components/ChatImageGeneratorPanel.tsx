@@ -19,6 +19,10 @@ import {
   type ScenePlan,
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
+import {
+  resolveComicAiApplyPanelCount,
+  shouldApplyComicAiPlanUpgrade,
+} from "@/lib/chatImageScenePlanLifecycle";
 import ChatSceneBuilder, {
   type SceneOutputMode,
 } from "@/components/ChatSceneBuilder";
@@ -399,6 +403,10 @@ export default function ChatImageGeneratorPanel({
   const [ldProduct, setLdProduct] = useState<LdProduct>("scene");
   const [sceneOutputMode, setSceneOutputMode] = useState<SceneOutputMode>("illustration");
   const [scenePanelCount, setScenePanelCount] = useState<ScenePanelCount>(3);
+  const scenePanelCountRef = useRef<ScenePanelCount>(3);
+  useEffect(() => {
+    scenePanelCountRef.current = scenePanelCount;
+  }, [scenePanelCount]);
   const [sceneMessages, setSceneMessages] = useState<SceneSourceMessage[]>([]);
   const [scenePlan, setScenePlan] = useState<ScenePlan | null>(null);
   const deterministicPlanCacheRef = useRef<Map<string, ScenePlan>>(new Map());
@@ -1213,9 +1221,17 @@ export default function ChatImageGeneratorPanel({
   }
 
   function applyComicAiPlanUpgrade(aiPlan: ScenePlan, epoch: number) {
-    if (!isCurrentSceneSourceEpoch(epoch)) return;
-    if (scenePlanUserEditedRef.current) return;
-    const nextPlan = applyApprovedAiScenePlan(aiPlan, scenePanelCount);
+    if (
+      !shouldApplyComicAiPlanUpgrade({
+        responseEpoch: epoch,
+        currentEpoch: sceneSourceEpochRef.current,
+        userEdited: scenePlanUserEditedRef.current,
+      })
+    ) {
+      return;
+    }
+    const panelCount = resolveComicAiApplyPanelCount(scenePanelCountRef.current);
+    const nextPlan = applyApprovedAiScenePlan(aiPlan, panelCount);
     setScenePlan(nextPlan);
     if (!info) return;
     const draft = draftCastIntentFromCandidatePool({
@@ -1263,7 +1279,7 @@ export default function ChatImageGeneratorPanel({
           mode: "scene_plan",
           messageId: opts.messageId ?? undefined,
           sourceText: opts.messageId ? undefined : opts.summary,
-          panelCount: scenePanelCount,
+          panelCount: scenePanelCountRef.current,
         }),
       });
       if (!isCurrentSceneSourceEpoch(opts.epoch)) return;
@@ -1319,7 +1335,7 @@ export default function ChatImageGeneratorPanel({
           mode: "scene_plan",
           messageId: opts.messageId ?? undefined,
           sourceText: opts.messageId ? undefined : opts.summary,
-          panelCount: scenePanelCount,
+          panelCount: scenePanelCountRef.current,
         }),
       });
       if (!isCurrentSceneSourceEpoch(opts.epoch)) return;
@@ -1353,7 +1369,10 @@ export default function ChatImageGeneratorPanel({
 
   function applyAiSceneSuggestion() {
     if (!aiSuggestedPlan || !info) return;
-    const nextPlan = applyApprovedAiScenePlan(aiSuggestedPlan, scenePanelCount);
+    const nextPlan = applyApprovedAiScenePlan(
+      aiSuggestedPlan,
+      resolveComicAiApplyPanelCount(scenePanelCountRef.current)
+    );
     scenePlanUserEditedRef.current = false;
     setScenePlan(nextPlan);
     const draft = draftCastIntentFromCandidatePool({
