@@ -283,7 +283,7 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(ux, /Math\.min\(TRPG_EMERALD_MULTI_ROLL_CAP_MS, perDieMs \* n\)/);
     assert.equal(TRPG_MAX_SLOTS, 4);
     const advance = fs.readFileSync("src/lib/trpg/engineAdvance.ts", "utf8");
-    assert.match(advance, /resolveTrpgActionCheckDecision/);
+    assert.match(advance, /loadFrozenAdjudicationDecision/);
     assert.doesNotMatch(advance, /subs\.slice\(0,\s*3\)/);
   });
 

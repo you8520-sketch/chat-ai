@@ -1,5 +1,6 @@
 import type { TrpgActionCheckReason } from "./actionCheck";
 import type { TrpgActionType } from "./actionTypes";
+import { TRPG_STRONG_COMPETENCE_STAT_MIN } from "./actionCheckContext";
 import { isBasicFirstAidIntent, isCoverFireSupport } from "./mechanicsIntent";
 
 export type TrpgDifficultyBand = "EASY" | "STANDARD" | "HARD";
@@ -39,26 +40,39 @@ export function classifyTrpgDifficultyBand(opts: {
   actionType: TrpgActionType;
   checkReason: TrpgActionCheckReason;
   intent?: string;
+  statValue?: number | null;
 }): TrpgDifficultyBand {
   const { actionType, checkReason } = opts;
   const intent = opts.intent ?? "";
+  const statValue = opts.statValue ?? null;
 
   if (checkReason === "hazard" || checkReason === "contested") return "HARD";
   if (actionType === "attack" || actionType === "stealth") return "HARD";
 
   if (actionType === "support") {
     if (isStraightforwardSupportChallenge(actionType, checkReason, intent)) return "EASY";
-    if (checkReason === "challenge") return "STANDARD";
+    if (checkReason === "challenge") {
+      if (statValue != null && statValue >= TRPG_STRONG_COMPETENCE_STAT_MIN) return "EASY";
+      return "STANDARD";
+    }
     return "EASY";
   }
 
-  if (actionType === "investigate" || actionType === "defend") return "STANDARD";
+  if (actionType === "investigate" || actionType === "defend") {
+    if (statValue != null && statValue >= TRPG_STRONG_COMPETENCE_STAT_MIN && checkReason === "challenge") {
+      return "EASY";
+    }
+    return "STANDARD";
+  }
 
   if (actionType === "persuade") {
     return checkReason === "explicit_resolution" ? "HARD" : "STANDARD";
   }
 
-  if (checkReason === "challenge") return "STANDARD";
+  if (checkReason === "challenge") {
+    if (statValue != null && statValue >= TRPG_STRONG_COMPETENCE_STAT_MIN) return "EASY";
+    return "STANDARD";
+  }
   return "STANDARD";
 }
 
@@ -68,6 +82,7 @@ export function resolveTrpgAdjudicationDifficulty(opts: {
   actionType: TrpgActionType;
   checkReason: TrpgActionCheckReason;
   intent?: string;
+  statValue?: number | null;
 }): { band: TrpgDifficultyBand; anchorDc: number; effectiveDc: number } {
   const band = classifyTrpgDifficultyBand(opts);
   return {

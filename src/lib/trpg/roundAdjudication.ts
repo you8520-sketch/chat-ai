@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { resolveTrpgActionCheckDecision } from "./actionCheck";
+import { resolveTrpgActionCheckDecision, type TrpgActionCheckReason } from "./actionCheck";
 import { resolveTrpgAdjudicationDifficulty } from "./adjudicationDifficulty";
 import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { pickStatForActionDetailed } from "./actionTypes";
@@ -9,10 +9,16 @@ import { computeResolutionOrder, type TrpgResolutionOrderEntry } from "./initiat
 import { logTrpgMechanicsCheckTelemetry } from "./mechanicsObservability";
 import { ensurePreActionMechanics, type MechanicsRoundDeps } from "./mechanicsRound";
 import type { MechanicsResolution } from "./mechanicsTypes";
+import { loadCampaignContext } from "./campaignContext";
 import { loadParticipants, loadScenario, parseJson, setRoundPhase } from "./store";
 import { statModifier } from "./stats";
 
 export type AdjudicationMark = "no_roll" | "skipped";
+
+export type TrpgFrozenAdjudicationDecision = {
+  needsCheck: boolean;
+  reason: TrpgActionCheckReason;
+};
 
 /** Viewer-safe adjudication outcome per participant (derived from rolls + marks). */
 export type TrpgParticipantAdjudicationOutcome = "roll" | "no_roll" | "skipped";
@@ -21,6 +27,8 @@ export type RoundAdjudicationSnapshot = {
   submissions?: Array<{ id: number; body: string }>;
   resolutionOrder?: TrpgResolutionOrderEntry[];
   adjudicationMarks?: Record<string, AdjudicationMark>;
+  /** Server-frozen action-check decisions keyed by submission id. */
+  adjudicationDecisions?: Record<string, TrpgFrozenAdjudicationDecision>;
   /** Server-frozen current-round presentation roster, ordered by resolution order. */
   expectedPresentationActorIds?: number[];
 };
@@ -69,6 +77,9 @@ function saveRoundAdjudicationSnapshot(
   if (patch.adjudicationMarks) {
     next.adjudicationMarks = { ...current.adjudicationMarks, ...patch.adjudicationMarks };
   }
+  if (patch.adjudicationDecisions) {
+    next.adjudicationDecisions = { ...current.adjudicationDecisions, ...patch.adjudicationDecisions };
+  }
   db.prepare(`UPDATE trpg_rounds SET input_snapshot_json=? WHERE id=?`).run(JSON.stringify(next), roundId);
   return next;
 }
@@ -77,11 +88,25 @@ function markSubmissionAdjudicated(
   db: Database.Database,
   roundId: number,
   submissionId: number,
-  mark: AdjudicationMark
+  mark: AdjudicationMark,
+  decision?: TrpgFrozenAdjudicationDecision
 ): void {
-  saveRoundAdjudicationSnapshot(db, roundId, {
+  const patch: Partial<RoundAdjudicationSnapshot> = {
     adjudicationMarks: { [String(submissionId)]: mark },
-  });
+  };
+  if (decision) {
+    patch.adjudicationDecisions = { [String(submissionId)]: decision };
+  }
+  saveRoundAdjudicationSnapshot(db, roundId, patch);
+}
+
+export function loadFrozenAdjudicationDecision(
+  db: Database.Database,
+  roundId: number,
+  submissionId: number
+): TrpgFrozenAdjudicationDecision | null {
+  const snapshot = loadRoundAdjudicationSnapshot(db, roundId);
+  return snapshot.adjudicationDecisions?.[String(submissionId)] ?? null;
 }
 
 export function isSubmissionAdjudicated(
@@ -195,11 +220,34 @@ export function adjudicateCanonicalSubmission(
   });
   const checkBody = resolved.canonicalAttempt;
   const actionType = resolved.actionType;
+  const statSelection = pickStatForActionDetailed({
+    actionType,
+    selectedStat: sub.selected_stat,
+    body: checkBody,
+    defs: scenario.statDefs,
+  });
+  const statKey = statSelection.statKey;
+  const statRow = db
+    .prepare(
+      `SELECT st.value FROM trpg_character_stats st
+       JOIN trpg_character_sheets sh ON sh.id = st.sheet_id
+       WHERE sh.participant_id=? AND st.stat_key=?`
+    )
+    .get(sub.participant_id, statKey) as { value: number } | undefined;
+  const statValue = statRow?.value ?? null;
+  const localScene = loadCampaignContext(db, opts.campaignId)?.localSceneProgress ?? null;
   const decision = resolveTrpgActionCheckDecision({
     body: checkBody,
     actionType: resolved.actionType,
     intent: participantKind === "ai_character" ? checkBody : "",
+    localScene,
+    statValue,
   });
+
+  const frozenDecision: TrpgFrozenAdjudicationDecision = {
+    needsCheck: decision.needsCheck,
+    reason: decision.reason,
+  };
 
   if (!decision.needsCheck) {
     logTrpgMechanicsCheckTelemetry({
@@ -207,7 +255,7 @@ export function adjudicateCanonicalSubmission(
       check_required: false,
       check_reason: decision.reason,
     });
-    markSubmissionAdjudicated(db, opts.roundId, sub.id, "no_roll");
+    markSubmissionAdjudicated(db, opts.roundId, sub.id, "no_roll", frozenDecision);
     return "no_roll";
   }
 
@@ -216,30 +264,17 @@ export function adjudicateCanonicalSubmission(
     (typeof preHp === "number" && preHp <= 0) ||
     (opts.pre.incapacitated ?? []).some((row) => row.participantId === sub.participant_id);
   if (downed) {
-    markSubmissionAdjudicated(db, opts.roundId, sub.id, "skipped");
+    markSubmissionAdjudicated(db, opts.roundId, sub.id, "skipped", frozenDecision);
     return "skipped";
   }
 
-  const statSelection = pickStatForActionDetailed({
-    actionType,
-    selectedStat: sub.selected_stat,
-    body: checkBody,
-    defs: scenario.statDefs,
-  });
-  const statKey = statSelection.statKey;
   const difficulty = resolveTrpgAdjudicationDifficulty({
     anchorDc: scenario.diceRules.dc,
     actionType,
     checkReason: decision.reason,
     intent: checkBody,
+    statValue,
   });
-  const statRow = db
-    .prepare(
-      `SELECT st.value FROM trpg_character_stats st
-       JOIN trpg_character_sheets sh ON sh.id = st.sheet_id
-       WHERE sh.participant_id=? AND st.stat_key=?`
-    )
-    .get(sub.participant_id, statKey) as { value: number } | undefined;
   const d20 = opts.deps?.rollD20?.() ?? rollServerD20();
   const conditionModifier = opts.pre.actionModifiers[String(sub.participant_id)] ?? 0;
   const result = resolveTrpgRoll({
@@ -278,6 +313,9 @@ export function adjudicateCanonicalSubmission(
     final_score: result.finalScore,
     dc: result.dc,
     tier: result.tier,
+  });
+  saveRoundAdjudicationSnapshot(db, opts.roundId, {
+    adjudicationDecisions: { [String(sub.id)]: frozenDecision },
   });
   return "roll";
 }

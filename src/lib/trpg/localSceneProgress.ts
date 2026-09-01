@@ -38,6 +38,75 @@ function clipItem(raw: string): string {
   return clipTrpgChars(raw, TRPG_LOCAL_SCENE_ITEM_MAX_CHARS);
 }
 
+function normalizeObstacleLabel(raw: string): string {
+  return raw.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function isExactResolvedObstacleResurrection(
+  resolvedObstacles: readonly string[],
+  candidate: string,
+  delta: TrpgLocalSceneProgressDelta
+): boolean {
+  const norm = normalizeObstacleLabel(candidate);
+  if (!norm) return false;
+  const removing = new Set((delta.resolvedObstaclesRemove ?? []).map(normalizeObstacleLabel));
+  if (removing.has(norm)) return false;
+  return resolvedObstacles.some((resolved) => normalizeObstacleLabel(resolved) === norm);
+}
+
+function canonicalBlockerLabel(current: readonly string[], norm: string): string | null {
+  for (const blocker of current) {
+    if (normalizeObstacleLabel(blocker) === norm) return clipItem(blocker);
+  }
+  return null;
+}
+
+/** Same scene: exact normalized label cannot live in resolvedObstacles and remainingBlockers. */
+function enforceResolvedBlockerExclusivity(progress: TrpgLocalSceneProgressV1): TrpgLocalSceneProgressV1 {
+  const resolvedNorms = new Set(progress.resolvedObstacles.map(normalizeObstacleLabel));
+  if (resolvedNorms.size === 0) return progress;
+  const remainingBlockers = progress.remainingBlockers.filter(
+    (blocker) => !resolvedNorms.has(normalizeObstacleLabel(blocker))
+  );
+  if (remainingBlockers.length === progress.remainingBlockers.length) return progress;
+  return { ...progress, remainingBlockers };
+}
+
+/** Reject exact same-label blocker resurrection only — no fuzzy semantic equivalence. */
+export function sanitizeLocalSceneProgressDelta(
+  current: TrpgLocalSceneProgressV1,
+  delta: TrpgLocalSceneProgressDelta
+): TrpgLocalSceneProgressDelta {
+  const next: TrpgLocalSceneProgressDelta = { ...delta };
+  const resolvedPool = delta.sceneTransitionTo != null ? [] : current.resolvedObstacles;
+  if (next.remainingBlockersAdd?.length) {
+    next.remainingBlockersAdd = next.remainingBlockersAdd.filter(
+      (blocker) => !isExactResolvedObstacleResurrection(resolvedPool, blocker, delta)
+    );
+    if (next.remainingBlockersAdd.length === 0) delete next.remainingBlockersAdd;
+  }
+  if (next.resolvedObstaclesAdd?.length && next.remainingBlockersAdd?.length) {
+    const resolvedNorms = new Set(next.resolvedObstaclesAdd.map(normalizeObstacleLabel));
+    next.remainingBlockersAdd = next.remainingBlockersAdd.filter(
+      (blocker) => !resolvedNorms.has(normalizeObstacleLabel(blocker))
+    );
+    if (next.remainingBlockersAdd.length === 0) delete next.remainingBlockersAdd;
+  }
+  if (delta.sceneTransitionTo == null && next.resolvedObstaclesAdd?.length) {
+    const implicitRemoves: string[] = [];
+    for (const resolved of next.resolvedObstaclesAdd) {
+      const norm = normalizeObstacleLabel(resolved);
+      const canonical = canonicalBlockerLabel(current.remainingBlockers, norm);
+      if (canonical) implicitRemoves.push(canonical);
+    }
+    if (implicitRemoves.length > 0) {
+      const merged = new Set([...(next.remainingBlockersRemove ?? []), ...implicitRemoves]);
+      next.remainingBlockersRemove = [...merged];
+    }
+  }
+  return next;
+}
+
 function mergeList(
   current: string[],
   add: string[] | undefined,
@@ -169,7 +238,7 @@ export function applyLocalSceneProgressDelta(
   delta: TrpgLocalSceneProgressDelta | undefined
 ): TrpgLocalSceneProgressV1 {
   if (!hasLocalSceneProgressDelta(delta)) return current;
-  const d = delta!;
+  const d = sanitizeLocalSceneProgressDelta(current, delta!);
   let base: TrpgLocalSceneProgressV1;
   if (d.sceneTransitionTo != null) {
     const nextObjective = clipObjective(d.sceneTransitionTo);
@@ -185,7 +254,7 @@ export function applyLocalSceneProgressDelta(
       if (nextObjective) base.objective = nextObjective;
     }
   }
-  return {
+  const merged: TrpgLocalSceneProgressV1 = {
     version: 1,
     objective: base.objective,
     resolvedObstacles: mergeList(
@@ -203,6 +272,7 @@ export function applyLocalSceneProgressDelta(
     ),
     sceneState: d.sceneTransitionTo == null && d.sceneStateSet ? d.sceneStateSet : base.sceneState,
   };
+  return enforceResolvedBlockerExclusivity(merged);
 }
 
 export function hasLocalSceneProgressContent(progress: TrpgLocalSceneProgressV1): boolean {
