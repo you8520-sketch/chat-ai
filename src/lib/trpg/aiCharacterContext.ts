@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { parseAssets, type CharacterAsset } from "@/lib/characterAssets";
 import { GENDER_LABELS, resolveCharacterGender, type CharacterGender } from "@/lib/characterGender";
-import { clipTrpgChars } from "./clip";
+import { clipTrpgPreservedLines } from "./clip";
 import { eligibleTrpgCharacterAssets, uniqueCharacterAssetTags } from "./gmSceneAssets";
 import { parseBotPersona, type TrpgParticipantRow } from "./store";
 import { TRPG_GM_AI_CHARACTER_CONTEXT_MAX_CHARS } from "./types";
@@ -117,14 +117,16 @@ function serializeAiCharacterContextRow(
   const lines = [`[AI CHARACTER participantId=${row.participantId}]`, `Name: ${row.name.trim()}`];
   lines.push(`Gender: ${GENDER_LABELS[row.gender]}`);
   if (row.description.trim()) lines.push(`Description:\n${row.description.trim()}`);
-  if (row.systemPrompt.trim()) lines.push(`Character Instructions:\n${row.systemPrompt.trim()}`);
+  if (row.systemPrompt.trim()) {
+    lines.push(`Character Behavior / Persona Notes (character data):\n${row.systemPrompt.trim()}`);
+  }
   if (row.greeting.trim()) {
     lines.push(`Greeting / Voice Reference (do not replay verbatim):\n${row.greeting.trim()}`);
   }
   if (row.exampleDialog.trim()) {
     lines.push(`Example Dialogue (voice reference only — do not replay verbatim):\n${row.exampleDialog.trim()}`);
   }
-  return clipTrpgChars(lines.join("\n"), maxChars);
+  return clipTrpgPreservedLines(lines.join("\n"), maxChars);
 }
 
 export function buildAiPartyCharacterContextBlock(
