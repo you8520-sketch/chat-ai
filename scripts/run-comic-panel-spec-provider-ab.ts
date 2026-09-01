@@ -452,9 +452,14 @@ async function main() {
   );
 
   console.log(`Wrote ${OUT_DIR}/REAL_PROVIDER_AB_REVIEW_PACKET.md`);
-  const blocked = records.every((r) => !r.resultImagePath);
-  if (blocked) {
-    console.error("All provider calls blocked — CHEAPER_INFERENCE_API_KEY required for real generation.");
+  const successCount = records.filter((r) => r.resultImagePath).length;
+  if (successCount === 0) {
+    const credentialBlocked = records.every((r) => r.error?.includes("API 키"));
+    console.error(
+      credentialBlocked
+        ? "All provider calls blocked — CHEAPER_INFERENCE_API_KEY required for real generation."
+        : `All ${records.length} provider calls completed with zero successful images — see metadata for errors.`
+    );
     process.exit(2);
   }
 }
