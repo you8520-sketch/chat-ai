@@ -206,9 +206,7 @@ import {
   type LivePresentationSession,
 } from "@/lib/trpg/presentationSession";
 
-function useCampaignDicePreview(
-  snap: TrpgCampaignSnapshot
-): {
+function useCampaignDicePreview(snap: TrpgCampaignSnapshot): {
   phase: string;
   rolls: readonly TrpgPublicRoll[];
   inject: boolean;
@@ -220,7 +218,7 @@ function useCampaignDicePreview(
     queryPreview: string | null;
     queryPreviewD20: string | null;
   } | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setQuery({
       previewEnabled: isTrpgDicePreviewRuntime({
@@ -348,6 +346,7 @@ export default function TrpgCampaignRoom({
   labSeenLogKeysSeed = null,
   labStreamIntervalMs,
   labFreezePresentationAdvance = false,
+  labForceGmReveal = false,
 }: {
   snap: TrpgCampaignSnapshot;
   starting: boolean;
@@ -381,6 +380,8 @@ export default function TrpgCampaignRoom({
   labStreamIntervalMs?: number;
   /** Dev scroll-follow lab only — keep cinematic actor-action for deterministic follow tests. */
   labFreezePresentationAdvance?: boolean;
+  /** Dev scroll-follow lab only — force GM decorative reveal for browser regression. */
+  labForceGmReveal?: boolean;
 }) {
   const [displayPrefs, setDisplayPrefs] = useState<ChatDisplayPrefs>(DEFAULT_CHAT_DISPLAY_PREFS);
   const [streamIntervalMs, setStreamIntervalMs] = useState(
@@ -435,7 +436,7 @@ export default function TrpgCampaignRoom({
   const [roundShow, setRoundShow] = useState<RoundPresentationState>(
     () => labPresentationSeed ?? idlePresentation()
   );
-  const labSeedGuardRef = useRef(labPresentationSeed != null);
+  const labPresentationSeedActive = labPresentationSeed != null;
   const serverRoundNumber = snap.round.number;
   const phase = snap.round.phase;
   const dicePreview = useCampaignDicePreview(snap);
@@ -655,8 +656,7 @@ export default function TrpgCampaignRoom({
       consumeOnMount: mountConsume,
       actorCount: liveReady ? presentationActors.length : 0,
     });
-    if (labSeedGuardRef.current) {
-      labSeedGuardRef.current = false;
+    if (labPresentationSeedActive) {
       queueKeyRef.current = queueSessionKey;
       return;
     }
@@ -708,6 +708,7 @@ export default function TrpgCampaignRoom({
     presentationRoundNumber,
   ]);
   useEffect(() => {
+    if (labPresentationSeedActive) return;
     if (
       !shouldLatchPresentationRound({
         latchRound: presentationRoundNumber,
@@ -1255,6 +1256,7 @@ export default function TrpgCampaignRoom({
     gmRevealComplete: effectiveGmRevealComplete,
   });
   useEffect(() => {
+    if (labPresentationSeedActive) return;
     if (presentationSession == null) return;
     if (isPresentationSessionReleased({ roundShow, gmRevealComplete: effectiveGmRevealComplete })) {
       releasedPresentationRoundRef.current = nextReleasedPresentationRoundWatermark(
@@ -2170,6 +2172,9 @@ export default function TrpgCampaignRoom({
                   ? handleDeclarationRevealChange
                   : undefined
               }
+              labForceGmReveal={
+                row.roundNumber === presentationRoundNumber && gateLiveRound ? labForceGmReveal : false
+              }
             />
             );
           })}
@@ -2561,6 +2566,7 @@ function SceneTurn({
   declarationGrowthRef,
   consumedDeclarationAiIds = [],
   onDeclarationRevealChange,
+  labForceGmReveal = false,
 }: {
   row: TrpgPublicLog;
   knownNames: string[];
@@ -2608,17 +2614,24 @@ function SceneTurn({
   declarationGrowthRef?: Ref<HTMLDivElement | null>;
   consumedDeclarationAiIds?: readonly number[];
   onDeclarationRevealChange?: (report: ActorRevealReport) => void;
+  labForceGmReveal?: boolean;
 }) {
-  const allowGm = showGmNarration !== false && !revealGateHeld;
+  const allowGm =
+    labForceGmReveal === true
+      ? !revealGateHeld
+      : showGmNarration !== false && !revealGateHeld;
   const pacingSource = resolveTrpgGmPacingSource({
     gmStreamDraft,
     canonicalNarration: row.narration,
   });
-  const revealNarration = resolveTrpgGmRevealActive({
-    allowGm,
-    skipDecorativeReveal,
-    isFreshLogKey: isFreshLogKey(`n:${row.roundNumber}`),
-  });
+  const revealNarration =
+    labForceGmReveal === true
+      ? allowGm && !skipDecorativeReveal
+      : resolveTrpgGmRevealActive({
+          allowGm,
+          skipDecorativeReveal,
+          isFreshLogKey: isFreshLogKey(`n:${row.roundNumber}`),
+        });
   const narrationReveal = useRevealedText(pacingSource, revealNarration, "gm", streamIntervalMs);
   const shownNarration = resolveTrpgGmShownNarration({
     allowGm,

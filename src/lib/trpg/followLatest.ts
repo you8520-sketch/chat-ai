@@ -191,7 +191,7 @@ export function applyTrpgReadingBandEndFollow(opts: {
   return delta;
 }
 
-/** alignReadingBandEnd scheduling owner — instant path uses one RAF before scrollBy. */
+/** alignReadingBandEnd scheduling owner — instant path applies synchronously inside programmatic scroll. */
 export function scheduleTrpgReadingBandEndFollow(opts: {
   element: Element;
   behavior: ScrollBehavior;

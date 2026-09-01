@@ -10,12 +10,11 @@ import {
   scrollFollowLabSeenLogKeys,
   type ScrollFollowLabScenario,
 } from "@/lib/trpg/scrollFollowLabFixture";
-import { saveTrpgStreamIntervalMs } from "@/lib/trpg/displayPrefs";
 
 const noop = () => {};
 
 function parseScenario(raw: string | null): ScrollFollowLabScenario {
-  if (raw === "bot2" || raw === "round2-bot1") return raw;
+  if (raw === "bot2" || raw === "round2-bot1" || raw === "gm") return raw;
   return "bot1";
 }
 
@@ -25,10 +24,12 @@ export default function TrpgScrollFollowLabClient() {
     () => parseScenario(searchParams.get("scenario")),
     [searchParams]
   );
-  const snap = useMemo(() => buildScrollFollowLabSnapshot({ roundNumber: 2 }), []);
+  const snap = useMemo(
+    () => buildScrollFollowLabSnapshot({ roundNumber: 2, scenario }),
+    [scenario]
+  );
 
   useEffect(() => {
-    saveTrpgStreamIntervalMs(40);
     document.documentElement.classList.add("scroll-follow-lab-active");
     return () => document.documentElement.classList.remove("scroll-follow-lab-active");
   }, []);
@@ -72,8 +73,9 @@ export default function TrpgScrollFollowLabClient() {
         onTitleSaved={noop}
         labPresentationSeed={scrollFollowLabPresentationSeed(scenario)}
         labSeenLogKeysSeed={scrollFollowLabSeenLogKeys(2, scenario)}
-        labStreamIntervalMs={40}
-        labFreezePresentationAdvance={scenario !== "bot2"}
+        labStreamIntervalMs={scenario === "gm" ? 0 : 40}
+        labFreezePresentationAdvance
+        labForceGmReveal={scenario === "gm"}
       />
     </div>
   );
