@@ -274,6 +274,12 @@ export type ContextBuildInput = {
    * Muse/Gemini see no actual prompt change.
    */
   sceneMomentumInput?: import("@/lib/sceneMomentum/types").SceneMomentumInput | null;
+  /**
+   * Audit-only DeepSeek extras override. Production callers omit this.
+   * `"off"` keeps common contracts and strips DeepSeek-only style adapters
+   * (XML wrapping, style-only reminder, appearance/style extras).
+   */
+  deepSeekExtrasModeOverride?: "full" | "length_stack_only" | "off";
 };
 
 export type BuiltContext = {

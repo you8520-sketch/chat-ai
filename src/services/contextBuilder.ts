@@ -260,14 +260,20 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const dynamicParts: string[] = [];
   const trackedSections: TrackedPromptSection[] = [];
   let usedTokens = 0;
-  const deepSeekExtrasMode = resolveDeepSeekExtrasMode(input.rpDiagnosticCanary?.variant);
+  const deepSeekExtrasMode =
+    input.deepSeekExtrasModeOverride ??
+    resolveDeepSeekExtrasMode(input.rpDiagnosticCanary?.variant);
   const deepSeekXmlMode =
     isDeepSeekV4ProModel(input.modelId ?? "") && deepSeekExtrasMode === "full";
   const deepSeekLengthStackOnly =
     isDeepSeekV4ProModel(input.modelId ?? "") && deepSeekExtrasMode === "length_stack_only";
+  const deepSeekStyleExtrasDisabled = input.deepSeekExtrasModeOverride
+    ? input.deepSeekExtrasModeOverride !== "full"
+    : rpDiagnosticDisablesDeepSeekStyleExtras(
+        input.rpDiagnosticCanary?.variant ?? "baseline"
+      );
   const deepSeekAppearanceRuleMode =
-    isDeepSeekModel(input.modelId ?? "") &&
-    !rpDiagnosticDisablesDeepSeekStyleExtras(input.rpDiagnosticCanary?.variant ?? "baseline");
+    isDeepSeekModel(input.modelId ?? "") && !deepSeekStyleExtrasDisabled;
   const deepSeekXmlBuffers = deepSeekXmlMode ? createDeepSeekXmlBuffers() : null;
   const memoryFeatureOn = isMemoryFeatureEnabled();
 

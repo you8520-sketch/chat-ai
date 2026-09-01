@@ -1,0 +1,521 @@
+{
+  "PR": 427,
+  "GLM_MODEL_REQUESTED": "glm-5.2",
+  "GLM_MODEL_RESOLVED_OPUS": "glm-5.2",
+  "GLM_MODEL_RESOLVED_GEMINI": "glm-5.2",
+  "GLM_REASONING_EFFORT": "none",
+  "thinkingFieldPresent": false,
+  "generationParams": {
+    "temperature": 0.7,
+    "top_p": null,
+    "max_tokens": null
+  },
+  "OPUS_SOURCE_NEW_CALLS": 0,
+  "GEMINI_SOURCE_NEW_CALLS": 0,
+  "GLM_API_CALLS": 2,
+  "TOTAL_NEW_API_CALLS": 2,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "glmSpecificPrompts": "NONE",
+  "qwenFragmentSentenceApplied": false,
+  "OPUS_GLM_VERDICT": "HUMAN_REVIEW_REQUIRED",
+  "GEMINI_GLM_VERDICT": "HUMAN_REVIEW_REQUIRED",
+  "GLM_VS_DEEPSEEK": "HUMAN_REVIEW_REQUIRED",
+  "GLM_VS_QWEN": "HUMAN_REVIEW_REQUIRED",
+  "FINAL_ADULT_MODEL_WINNER": "HUMAN_REVIEW_REQUIRED",
+  "opus": {
+    "label": "CALL G1 existing Opus source → glm-5.2",
+    "requested_model": "glm-5.2",
+    "resolved_model": "glm-5.2",
+    "HTTP_status": 200,
+    "finish_reason": "stop",
+    "visible_chars": 4200,
+    "paragraph_count": 46,
+    "dialogue_paragraph_count": 15,
+    "latency": 26.287,
+    "input_tokens": 16920,
+    "output_tokens": 3815,
+    "reasoning_tokens": null,
+    "cache_read_tokens": null,
+    "usage_cost": 0.022261,
+    "chars_per_output_token": 1.1009,
+    "temperature": 0.7,
+    "top_p": null,
+    "max_tokens": null,
+    "thinking": null,
+    "reasoning_effort": "none",
+    "wire": {
+      "requested_model": "glm-5.2",
+      "temperature": 0.7,
+      "top_p": null,
+      "max_tokens": null,
+      "stream": true,
+      "reasoning_effort": "none",
+      "thinking": null,
+      "hasThinkingField": false,
+      "extra_body": null,
+      "keys": [
+        "messages",
+        "model",
+        "reasoning_effort",
+        "stream",
+        "stream_options",
+        "temperature"
+      ]
+    },
+    "glmSpecificStylePrompt": "NONE",
+    "glmSpecificAdultPrompt": "NONE",
+    "glmSpecificParagraphPrompt": "NONE",
+    "glmSpecificCharacterPrompt": "NONE",
+    "glmSpecificLengthPrompt": "NONE",
+    "qwenFragmentSentenceApplied": false,
+    "adult": {
+      "explicitAdultContinuation": false,
+      "refusal": false,
+      "fadeToBlack": false,
+      "evasiveRewrite": false,
+      "sceneAvoidance": false,
+      "metaPolicyResponse": false
+    },
+    "agency": {
+      "newUserDialogue": false,
+      "consentDecidedForUser": false,
+      "userEmotionFactForced": false,
+      "unpromptedUserActionChain": false,
+      "severeAgencyViolationCount": 0
+    },
+    "continuity": {
+      "previousActionActor": null,
+      "previousActionTarget": null,
+      "contactDirection": null,
+      "actor_target_inverted": false,
+      "contact_direction_inverted": false,
+      "bodyPositionPreserved": true,
+      "locationPreserved": false
+    },
+    "handoff_packet": {
+      "previousSceneMode": "explicit",
+      "sexualContextActive": true,
+      "activeConsentMode": "standard",
+      "location": "복도의 소음이 한 겹씩 벗겨져 나갔다",
+      "charactersPresent": [
+        "라이크",
+        "렌"
+      ],
+      "currentPov": "third_person",
+      "unfinishedAction": "블라인드 줄무늬가 바닥에서 벽으로 기어 올라가기 시작했다.",
+      "currentSpeechState": "오늘은 사람들 없을 때 이렇게 남아 있는 게 더 편하다.…너도 그렇지?"
+    },
+    "promptSize": {
+      "system_chars": 17339,
+      "current_user_chars": 973,
+      "assembled_chars": 22840,
+      "est_input_tokens": 20556,
+      "estimator": "ESTIMATED",
+      "style_reminder_present": false,
+      "xml_persona_present": false,
+      "xml_world_lore_present": false,
+      "xml_ltm_present": false,
+      "xml_chat_history_present": false,
+      "appearance_rule_present": false,
+      "handoff_instruction_present": true
+    },
+    "sha256": "0f6faf07d59d18e35ed1ced15febf26ecf516bd5fb2ec5f86267b821ddf25507",
+    "retry": 0,
+    "continuation": 0,
+    "recovery": 0,
+    "fallback": 0,
+    "error": null
+  },
+  "gemini": {
+    "label": "CALL G2 existing Gemini source → glm-5.2",
+    "requested_model": "glm-5.2",
+    "resolved_model": "glm-5.2",
+    "HTTP_status": 200,
+    "finish_reason": "stop",
+    "visible_chars": 3457,
+    "paragraph_count": 32,
+    "dialogue_paragraph_count": 9,
+    "latency": 32.701,
+    "input_tokens": 15470,
+    "output_tokens": 3190,
+    "reasoning_tokens": null,
+    "cache_read_tokens": null,
+    "usage_cost": 0.010652,
+    "chars_per_output_token": 1.0837,
+    "temperature": 0.7,
+    "top_p": null,
+    "max_tokens": null,
+    "thinking": null,
+    "reasoning_effort": "none",
+    "wire": {
+      "requested_model": "glm-5.2",
+      "temperature": 0.7,
+      "top_p": null,
+      "max_tokens": null,
+      "stream": true,
+      "reasoning_effort": "none",
+      "thinking": null,
+      "hasThinkingField": false,
+      "extra_body": null,
+      "keys": [
+        "messages",
+        "model",
+        "reasoning_effort",
+        "stream",
+        "stream_options",
+        "temperature"
+      ]
+    },
+    "glmSpecificStylePrompt": "NONE",
+    "glmSpecificAdultPrompt": "NONE",
+    "glmSpecificParagraphPrompt": "NONE",
+    "glmSpecificCharacterPrompt": "NONE",
+    "glmSpecificLengthPrompt": "NONE",
+    "qwenFragmentSentenceApplied": false,
+    "adult": {
+      "explicitAdultContinuation": true,
+      "refusal": false,
+      "fadeToBlack": false,
+      "evasiveRewrite": false,
+      "sceneAvoidance": false,
+      "metaPolicyResponse": false
+    },
+    "agency": {
+      "newUserDialogue": false,
+      "consentDecidedForUser": false,
+      "userEmotionFactForced": false,
+      "unpromptedUserActionChain": false,
+      "severeAgencyViolationCount": 0
+    },
+    "continuity": {
+      "previousActionActor": null,
+      "previousActionTarget": null,
+      "contactDirection": null,
+      "actor_target_inverted": false,
+      "contact_direction_inverted": false,
+      "bodyPositionPreserved": true,
+      "locationPreserved": false
+    },
+    "handoff_packet": {
+      "previousSceneMode": "explicit",
+      "sexualContextActive": true,
+      "activeConsentMode": "standard",
+      "location": "복도를 가득 메우고 있던 사람들의 발소리, 무전",
+      "charactersPresent": [
+        "라이크",
+        "렌"
+      ],
+      "currentPov": "third_person",
+      "unfinishedAction": "\"뭐, 정 무서우면 밥 달라고 얌전히 기다리는 대형견 정도로 생각해 주든가.\"",
+      "currentSpeechState": "오늘은 사람들 없을 때 이렇게 남아 있는 게 더 편하다.…너도 그렇지?"
+    },
+    "promptSize": {
+      "system_chars": 17358,
+      "current_user_chars": 973,
+      "assembled_chars": 21032,
+      "est_input_tokens": 18929,
+      "estimator": "ESTIMATED",
+      "style_reminder_present": false,
+      "xml_persona_present": false,
+      "xml_world_lore_present": false,
+      "xml_ltm_present": false,
+      "xml_chat_history_present": false,
+      "appearance_rule_present": false,
+      "handoff_instruction_present": true
+    },
+    "sha256": "7edc3f27c71080b1594ca2c510ffeb44da21a5de49a0e5db878eb1e4383b005a",
+    "retry": 0,
+    "continuation": 0,
+    "recovery": 0,
+    "fallback": 0,
+    "error": null
+  },
+  "existingCandidates": {
+    "DeepSeek 0813 LEGACY": {
+      "note": "기존 PR #427 live DeepSeek 0813 결과. 원문은 재생성하지 않음.",
+      "files": [
+        "docs/audits/real-taehyung-explicit-qwen38-vs-deepseek0813/DIRECT_REVIEW_PACKET.md"
+      ],
+      "opus": {
+        "requested_model": "deepseek-v4-pro-0813",
+        "resolved_model": "deepseek-v4-pro-0813",
+        "HTTP_status": 200,
+        "finish_reason": "stop",
+        "visible_chars": 3728,
+        "paragraph_count": 36,
+        "dialogue_paragraph_count": 13,
+        "latency": 149.361,
+        "input_tokens": 15290,
+        "output_tokens": 7315,
+        "reasoning_tokens": null,
+        "cache_read_tokens": null,
+        "usage_cost": 0.010697,
+        "refusal": false,
+        "fade_to_black": false,
+        "evasive_rewrite": false,
+        "scene_avoidance": false,
+        "meta_policy_response": false,
+        "foreign_language_contamination": false,
+        "explicitAdultContinuation": true,
+        "adult_capability": "OK",
+        "agency": {
+          "newUserDialogue": false,
+          "consentDecidedForUser": false,
+          "userEmotionFactForced": false,
+          "unpromptedUserActionChain": false,
+          "severeAgencyViolationCount": 0
+        },
+        "generation": {
+          "temperature": 0.92,
+          "top_p": 0.92,
+          "max_tokens": null,
+          "thinking": {
+            "type": "disabled"
+          },
+          "reasoning_effort": null
+        },
+        "retry": 0,
+        "continuation": 0,
+        "recovery": 0,
+        "fallback": 0,
+        "error": null
+      },
+      "gemini": {
+        "requested_model": "deepseek-v4-pro-0813",
+        "resolved_model": "deepseek-v4-pro-0813",
+        "HTTP_status": 200,
+        "finish_reason": "stop",
+        "visible_chars": 2768,
+        "paragraph_count": 24,
+        "dialogue_paragraph_count": 8,
+        "latency": 79.4,
+        "input_tokens": 14052,
+        "output_tokens": 3605,
+        "reasoning_tokens": null,
+        "cache_read_tokens": null,
+        "usage_cost": 0.00693,
+        "refusal": false,
+        "fade_to_black": false,
+        "evasive_rewrite": false,
+        "scene_avoidance": false,
+        "meta_policy_response": false,
+        "foreign_language_contamination": false,
+        "explicitAdultContinuation": true,
+        "adult_capability": "OK",
+        "agency": {
+          "newUserDialogue": false,
+          "consentDecidedForUser": false,
+          "userEmotionFactForced": false,
+          "unpromptedUserActionChain": false,
+          "severeAgencyViolationCount": 0
+        },
+        "generation": {
+          "temperature": 0.92,
+          "top_p": 0.92,
+          "max_tokens": null,
+          "thinking": {
+            "type": "disabled"
+          },
+          "reasoning_effort": null
+        },
+        "retry": 0,
+        "continuation": 0,
+        "recovery": 0,
+        "fallback": 0,
+        "error": null
+      }
+    },
+    "DeepSeek 0813 CLEAN": {
+      "note": "기존 PR #427 CLEAN follow-up 결과. 원문은 재생성하지 않음.",
+      "files": [
+        "docs/audits/real-taehyung-explicit-qwen38-vs-deepseek0813/DEEPSEEK_OPUS_CLEAN.txt",
+        "docs/audits/real-taehyung-explicit-qwen38-vs-deepseek0813/DEEPSEEK_GEMINI_CLEAN.txt"
+      ],
+      "opus": {
+        "requested_model": "deepseek-v4-pro-0813",
+        "resolved_model": "deepseek-v4-pro-0813",
+        "HTTP_status": 200,
+        "finish_reason": "stop",
+        "visible_chars": 3283,
+        "paragraph_count": 35,
+        "dialogue_paragraph_count": 16,
+        "latency": 105.42,
+        "input_tokens": 15094,
+        "output_tokens": 5264,
+        "reasoning_tokens": null,
+        "cache_read_tokens": null,
+        "usage_cost": 0.009107,
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "thinking": {
+          "type": "disabled"
+        },
+        "refusal": false,
+        "fade_to_black": false,
+        "evasive_rewrite": false,
+        "scene_avoidance": false,
+        "meta_policy_response": false,
+        "foreign_language_contamination": false,
+        "explicitAdultContinuation": true,
+        "adult_capability": "OK",
+        "agency": {
+          "newUserDialogue": false,
+          "consentDecidedForUser": false,
+          "userEmotionFactForced": false,
+          "unpromptedUserActionChain": false,
+          "severeAgencyViolationCount": 0
+        },
+        "continuity": {
+          "previousActionActor": null,
+          "previousActionTarget": null,
+          "contactDirection": null,
+          "actor_target_inverted": false,
+          "contact_direction_inverted": false
+        },
+        "handoff_packet": {
+          "previousSceneMode": "explicit",
+          "sexualContextActive": true,
+          "activeConsentMode": "standard",
+          "location": "복도의 소음이 한 겹씩 벗겨져 나갔다",
+          "charactersPresent": [
+            "라이크",
+            "렌"
+          ],
+          "currentPov": "third_person",
+          "unfinishedAction": "블라인드 줄무늬가 바닥에서 벽으로 기어 올라가기 시작했다.",
+          "currentSpeechState": "오늘은 사람들 없을 때 이렇게 남아 있는 게 더 편하다.…너도 그렇지?"
+        },
+        "retry": 0,
+        "continuation": 0,
+        "recovery": 0,
+        "fallback": 0,
+        "error": null
+      },
+      "gemini": {
+        "requested_model": "deepseek-v4-pro-0813",
+        "resolved_model": "deepseek-v4-pro-0813",
+        "HTTP_status": 200,
+        "finish_reason": "stop",
+        "visible_chars": 2053,
+        "paragraph_count": 16,
+        "dialogue_paragraph_count": 6,
+        "latency": 112.269,
+        "input_tokens": 13856,
+        "output_tokens": 5731,
+        "reasoning_tokens": null,
+        "cache_read_tokens": null,
+        "usage_cost": 0.008429,
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "thinking": {
+          "type": "disabled"
+        },
+        "refusal": false,
+        "fade_to_black": false,
+        "evasive_rewrite": false,
+        "scene_avoidance": false,
+        "meta_policy_response": false,
+        "foreign_language_contamination": false,
+        "explicitAdultContinuation": true,
+        "adult_capability": "OK",
+        "agency": {
+          "newUserDialogue": false,
+          "consentDecidedForUser": false,
+          "userEmotionFactForced": false,
+          "unpromptedUserActionChain": false,
+          "severeAgencyViolationCount": 0
+        },
+        "continuity": {
+          "previousActionActor": null,
+          "previousActionTarget": null,
+          "contactDirection": null,
+          "actor_target_inverted": false,
+          "contact_direction_inverted": false
+        },
+        "handoff_packet": {
+          "previousSceneMode": "explicit",
+          "sexualContextActive": true,
+          "activeConsentMode": "standard",
+          "location": "복도를 가득 메우고 있던 사람들의 발소리, 무전",
+          "charactersPresent": [
+            "라이크",
+            "렌"
+          ],
+          "currentPov": "third_person",
+          "unfinishedAction": "\"뭐, 정 무서우면 밥 달라고 얌전히 기다리는 대형견 정도로 생각해 주든가.\"",
+          "currentSpeechState": "오늘은 사람들 없을 때 이렇게 남아 있는 게 더 편하다.…너도 그렇지?"
+        },
+        "retry": 0,
+        "continuation": 0,
+        "recovery": 0,
+        "fallback": 0,
+        "error": null
+      }
+    },
+    "Qwen 3.8 Max fragment-minimal": {
+      "note": "기존 PR #427 Qwen fragment-minimal 결과. 원문은 재생성하지 않음.",
+      "files": [
+        "docs/audits/real-taehyung-explicit-qwen38-vs-deepseek0813/QWEN_OPUS_FRAGMENT_MINIMAL.txt",
+        "docs/audits/real-taehyung-explicit-qwen38-vs-deepseek0813/QWEN_GEMINI_FRAGMENT_MINIMAL.txt"
+      ],
+      "opus": {
+        "requested_model": "qwen-3-8-max",
+        "resolved_model": "qwen-3-8-max",
+        "HTTP_status": 200,
+        "finish_reason": "stop",
+        "visible_chars": 5026,
+        "paragraph_count": 64,
+        "dialogue_paragraph_count": 28,
+        "latency": 175.383,
+        "input_tokens": 12166,
+        "output_tokens": 7782,
+        "reasoning_tokens": null,
+        "usage_cost": 0.058988,
+        "temperature": 0.7,
+        "top_p": null,
+        "thinking": null,
+        "reasoning_effort": "none",
+        "fragment_sentence_present": true,
+        "retry": 0,
+        "continuation": 0,
+        "recovery": 0,
+        "fallback": 0,
+        "error": null
+      },
+      "gemini": {
+        "requested_model": "qwen-3-8-max",
+        "resolved_model": "qwen-3-8-max",
+        "HTTP_status": 200,
+        "finish_reason": "stop",
+        "visible_chars": 4224,
+        "paragraph_count": 60,
+        "dialogue_paragraph_count": 28,
+        "latency": 274.397,
+        "input_tokens": 11223,
+        "output_tokens": 14271,
+        "reasoning_tokens": null,
+        "usage_cost": 0.084179,
+        "temperature": 0.7,
+        "top_p": null,
+        "thinking": null,
+        "reasoning_effort": "none",
+        "fragment_sentence_present": true,
+        "retry": 0,
+        "continuation": 0,
+        "recovery": 0,
+        "fallback": 0,
+        "error": null
+      }
+    },
+    "GLM-5.2": {
+      "note": "이번 작업의 신규 2콜 challenger. GLM-specific prompt 없음.",
+      "files": [
+        "docs/audits/real-taehyung-explicit-qwen38-vs-deepseek0813/GLM52_DIRECT_REVIEW.md"
+      ]
+    }
+  },
+  "CAPTURE_COMPLETE": true
+}
