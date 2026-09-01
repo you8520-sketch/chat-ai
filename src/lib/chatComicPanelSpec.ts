@@ -104,7 +104,7 @@ function resolveLayout(
   castCount: number
 ): string {
   if (castCount >= 3) {
-    return "stable group layout — left / center / right readable; follow APPROVED CAST MANIFEST composition";
+    return "stable group layout — left / center / right readable; follow cast manifest composition goal";
   }
   if (!personaVisible) return "character B centered; persona A off-camera only";
   if (index === total) return "A left, B right — preserve established orientation";
