@@ -27,6 +27,7 @@ import {
   type ForkChatInsertParams,
 } from "@/lib/chatForkCreate";
 import {
+  hasChatsCurrentSummaryColumn,
   hasChatsMemoryColumn,
 } from "@/lib/memory/chats-memory-column-compat";
 import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
@@ -175,9 +176,31 @@ function seedLiveUserCharacterChat(db: Database.Database): void {
     `INSERT INTO users (id, email, nickname, pw_hash) VALUES (?,?,?,?)`
   ).run(USER_ID, "dropcompat@test.local", "dropcompat", "x");
   db.prepare(`INSERT INTO characters (id, name) VALUES (?,?)`).run(CHARACTER_ID, "c");
-  db.prepare(
-    `INSERT INTO chats (id, user_id, character_id, mode, current_summary) VALUES (?,?,?,'safe',?)`
-  ).run(CHAT_ID, USER_ID, CHARACTER_ID, "");
+  if (hasChatsCurrentSummaryColumn(db)) {
+    db.prepare(
+      `INSERT INTO chats (id, user_id, character_id, mode, current_summary) VALUES (?,?,?,'safe',?)`
+    ).run(CHAT_ID, USER_ID, CHARACTER_ID, "");
+  } else {
+    db.prepare(
+      `INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`
+    ).run(CHAT_ID, USER_ID, CHARACTER_ID);
+  }
+}
+
+function setLegacyCurrentSummary(db: Database.Database, value: string): void {
+  if (!hasChatsCurrentSummaryColumn(db)) {
+    db.exec(`ALTER TABLE chats ADD COLUMN current_summary TEXT NOT NULL DEFAULT ''`);
+  }
+  db.prepare(`UPDATE chats SET current_summary=? WHERE id=?`).run(value, CHAT_ID);
+}
+
+function readCurrentSummary(db: Database.Database): string {
+  if (!hasChatsCurrentSummaryColumn(db)) return "";
+  return (
+    db.prepare(`SELECT current_summary FROM chats WHERE id=?`).get(CHAT_ID) as
+      | { current_summary: string }
+      | undefined
+  )?.current_summary ?? "";
 }
 
 function collectProductionTsFiles(dir: string, acc: string[] = []): string[] {
@@ -306,7 +329,7 @@ describe("chats.memory M2 → M1 rollback matrix (live DB column dropped)", () =
   it("C2 GET_OR_CREATE: no lazy current_summary fallback (C1)", () => {
     const db = getDb();
     seedLiveUserCharacterChat(db);
-    db.prepare(`UPDATE chats SET current_summary=? WHERE id=?`).run("LAZY MIRROR", CHAT_ID);
+    setLegacyCurrentSummary(db, "LAZY MIRROR");
     const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, "free");
     assert.equal(row.recent_summary, "");
   });
@@ -314,7 +337,7 @@ describe("chats.memory M2 → M1 rollback matrix (live DB column dropped)", () =
   it("C3 INVALIDATION: epoch bump does not depend on current_summary column", () => {
     const db = getDb();
     seedLiveUserCharacterChat(db);
-    db.prepare(`UPDATE chats SET current_summary=? WHERE id=?`).run("before invalidation", CHAT_ID);
+    setLegacyCurrentSummary(db, "before invalidation");
     db.prepare(
       `INSERT OR REPLACE INTO chat_memories
         (chat_id, user_id, character_id, recent_summary, archive_summary, membership_tier, used_chars, summarized_turn_count)
@@ -344,10 +367,7 @@ describe("chats.memory M2 → M1 rollback matrix (live DB column dropped)", () =
       sourceTurn: 1,
     });
     assert.equal(result.attempted, true);
-    const chat = db
-      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
-      .get(CHAT_ID) as { current_summary: string };
-    assert.equal(chat.current_summary, "");
+    assert.equal(readCurrentSummary(db), "");
   });
 
   it("C7 NORMAL_CHAT_CREATE: memory absent → PASS", () => {
@@ -371,10 +391,7 @@ describe("chats.memory M2 → M1 rollback matrix (live DB column dropped)", () =
         (chat_id, user_id, character_id, recent_summary, archive_summary, membership_tier, used_chars, summarized_turn_count)
        VALUES (?,?,?,?,?,?,?,0)`
     ).run(CHAT_ID, USER_ID, CHARACTER_ID, "rolling canonical", "", "free", 17);
-    const row = db
-      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
-      .get(CHAT_ID) as { current_summary: string };
-    assert.equal(row.current_summary, "");
+    assert.equal(readCurrentSummary(db), "");
   });
 });
 

@@ -27,8 +27,11 @@ import {
 import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { insertForkChatRow } from "@/lib/chatForkCreate";
-import { hasChatsMemoryColumn } from "@/lib/memory/chats-memory-column-compat";
+import { hasChatsCurrentSummaryColumn, hasChatsMemoryColumn } from "@/lib/memory/chats-memory-column-compat";
 import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
+import {
+  dropChatsCurrentSummaryColumnOnce,
+} from "@/lib/memory/chats-current-summary-column-retirement";
 import {
   dropChatsMemoryColumnOnce,
   listBlockingChatsMemorySchemaDependencies,
@@ -58,6 +61,7 @@ const HISTORICAL_REMOTE_SCHEMA_V3 = "turso-v3-current-schema";
 const HISTORICAL_REMOTE_SCHEMA_V4 = "turso-v4-pinned-drop-compatible";
 const HISTORICAL_REMOTE_SCHEMA_V5 = "turso-v5-pinned-column-retired";
 const HISTORICAL_REMOTE_SCHEMA_V6 = "turso-v6-last-compressed-at-retired";
+const HISTORICAL_REMOTE_SCHEMA_V7 = "turso-v7-chats-memory-retired";
 
 const CHAT_ID = 42;
 const USER_ID = 7;
@@ -139,12 +143,13 @@ function seedHistoricalMarker(db: Database.Database, version: string): void {
   `);
 }
 
-function runFullV7UpgradeMigrations(db: Database.Database): void {
+function runFullV8UpgradeMigrations(db: Database.Database): void {
   dropLegacyMemoryBufferTableOnce(db);
   dropLegacyCharacterMemoriesTableOnce(db);
   migrateLegacyPinnedFactsIntoRecentSummary(db);
   dropPinnedFactsColumnOnce(db);
   dropLastCompressedAtColumnOnce(db);
+  dropChatsCurrentSummaryColumnOnce(db);
   convergeLegacyChatsMemoryIntoCanonical(db);
   dropChatsMemoryColumnOnce(db);
 }
@@ -174,13 +179,14 @@ describe("chats.memory M2 V7 physical retirement invariant", () => {
   });
 
   it("CM-V7-3 version constants frozen", () => {
-    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v7-chats-memory-retired");
-    assert.equal(REMOTE_SCHEMA_VERSION_PREVIOUS, HISTORICAL_REMOTE_SCHEMA_V6);
+    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v8-current-summary-retired");
+    assert.equal(REMOTE_SCHEMA_VERSION_PREVIOUS, HISTORICAL_REMOTE_SCHEMA_V7);
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V2, "turso-v2-chat-billing-settlement");
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V3, "turso-v3-current-schema");
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V4, "turso-v4-pinned-drop-compatible");
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V5, "turso-v5-pinned-column-retired");
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V6, "turso-v6-last-compressed-at-retired");
+    assert.equal(HISTORICAL_REMOTE_SCHEMA_V7, "turso-v7-chats-memory-retired");
   });
 });
 
@@ -229,9 +235,11 @@ describe("chats.memory M2 DROP helper", () => {
     const canonical = db
       .prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=?`)
       .get(CHAT_ID) as { recent_summary: string };
-    const chat = db
-      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
-      .get(CHAT_ID) as { current_summary: string };
+    const chat = hasChatsCurrentSummaryColumn(db)
+      ? (db
+          .prepare(`SELECT current_summary FROM chats WHERE id=?`)
+          .get(CHAT_ID) as { current_summary: string })
+      : { current_summary: "" };
     assert.equal(canonical.recent_summary, "ONLY SURVIVING LEGACY");
     assert.equal(chat.current_summary, "");
     db.close();
@@ -281,15 +289,17 @@ describe("chats.memory M2 convergence data-loss gates", () => {
       `INSERT INTO chats (id, user_id, character_id, current_summary, memory) VALUES (?,?,?,?,?)`
     ).run(CHAT_ID, USER_ID, CHARACTER_ID, "", "ONLY SURVIVING LEGACY");
 
-    runFullV7UpgradeMigrations(db);
+    runFullV8UpgradeMigrations(db);
 
     assert.equal(hasMemoryColumn(db), false);
     const canonical = db
       .prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=?`)
       .get(CHAT_ID) as { recent_summary: string };
-    const chat = db
-      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
-      .get(CHAT_ID) as { current_summary: string };
+    const chat = hasChatsCurrentSummaryColumn(db)
+      ? (db
+          .prepare(`SELECT current_summary FROM chats WHERE id=?`)
+          .get(CHAT_ID) as { current_summary: string })
+      : { current_summary: "" };
     assert.equal(canonical.recent_summary, "ONLY SURVIVING LEGACY");
     assert.equal(chat.current_summary, "");
     db.close();
@@ -307,7 +317,7 @@ describe("chats.memory M2 convergence data-loss gates", () => {
       `INSERT INTO chats (id, user_id, character_id, current_summary, memory) VALUES (?,?,?,?,?)`
     ).run(CHAT_ID, USER_ID, CHARACTER_ID, "OLD", "OLDER");
 
-    runFullV7UpgradeMigrations(db);
+    runFullV8UpgradeMigrations(db);
 
     const row = db
       .prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=?`)
@@ -324,14 +334,16 @@ describe("chats.memory M2 convergence data-loss gates", () => {
       `INSERT INTO chats (id, user_id, character_id, current_summary, memory) VALUES (?,?,?,?,?)`
     ).run(CHAT_ID, USER_ID, CHARACTER_ID, "CURRENT MIRROR", "OLDER MEMORY");
 
-    runFullV7UpgradeMigrations(db);
+    runFullV8UpgradeMigrations(db);
 
     const canonical = db
       .prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=?`)
       .get(CHAT_ID) as { recent_summary: string };
-    const chat = db
-      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
-      .get(CHAT_ID) as { current_summary: string };
+    const chat = hasChatsCurrentSummaryColumn(db)
+      ? (db
+          .prepare(`SELECT current_summary FROM chats WHERE id=?`)
+          .get(CHAT_ID) as { current_summary: string })
+      : { current_summary: "" };
     assert.equal(canonical.recent_summary, "CURRENT MIRROR");
     assert.equal(chat.current_summary, "");
     assert.equal(hasMemoryColumn(db), false);
@@ -396,7 +408,7 @@ describe("chats.memory M2 remote V7 lifecycle", () => {
     let migrations = 0;
     initializeRemoteSchema(db, () => {
       migrations += 1;
-      runFullV7UpgradeMigrations(db);
+      runFullV8UpgradeMigrations(db);
     });
 
     assert.equal(migrations, 1);
@@ -413,9 +425,10 @@ describe("chats.memory M2 remote V7 lifecycle", () => {
     db.close();
   });
 
-  it("CM-V7-5 V6 absent carrier → V7 adopt", () => {
+  it("CM-V7-5 V6 absent carrier → V8 adopt", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
+    db.exec(`ALTER TABLE chats DROP COLUMN current_summary`);
     ensureChatBillingSettlementSchema(db);
     seedHistoricalMarker(db, HISTORICAL_REMOTE_SCHEMA_V6);
 

@@ -20,6 +20,7 @@ import {
   dropPinnedFactsColumnOnce,
 } from "@/lib/db";
 import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
+import { dropChatsCurrentSummaryColumnOnce } from "@/lib/memory/chats-current-summary-column-retirement";
 import { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-retirement";
 import {
   ensureChatBillingSettlementSchema,
@@ -176,6 +177,7 @@ function ensureMemoryRelationshipTaskColumn(db: Database.Database): void {
 function runV6DirectUpgradeMigrations(db: Database.Database): void {
   runFullMemoryRetirementMigrations(db);
   ensureMemoryRelationshipTaskColumn(db);
+  dropChatsCurrentSummaryColumnOnce(db);
   convergeLegacyChatsMemoryIntoCanonical(db);
   dropChatsMemoryColumnOnce(db);
 }
@@ -748,8 +750,8 @@ function seedProductionRemoteCoreTablesExceptChatMemories(db: Database.Database)
 describe("last_compressed_at V6 rollback contract (documentation)", () => {
   it("LC-V6-15 V6 frozen historical; current schema is V7 chats.memory retired", () => {
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V6, "turso-v6-last-compressed-at-retired");
-    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v7-chats-memory-retired");
-    assert.equal(REMOTE_SCHEMA_VERSION_PREVIOUS, HISTORICAL_REMOTE_SCHEMA_V6);
+    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v8-current-summary-retired");
+    assert.equal(REMOTE_SCHEMA_VERSION_PREVIOUS, "turso-v7-chats-memory-retired");
     const ROLLBACK_FLOOR = "#789";
     assert.equal(ROLLBACK_FLOOR, "#789");
     const db = new Database(":memory:");

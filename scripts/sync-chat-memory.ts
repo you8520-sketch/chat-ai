@@ -45,7 +45,6 @@ async function main() {
     user_id: number;
     character_id: number;
     title: string;
-    current_summary: string;
     char_name: string;
     memory_capacity?: number;
   };
@@ -53,7 +52,7 @@ async function main() {
   if (argChatId) {
     const row = db
       .prepare(
-        `SELECT c.id, c.user_id, c.character_id, c.title, c.current_summary, c.memory_capacity, ch.name AS char_name
+        `SELECT c.id, c.user_id, c.character_id, c.title, c.memory_capacity, ch.name AS char_name
          FROM chats c JOIN characters ch ON ch.id = c.character_id WHERE c.id=?`
       )
       .get(argChatId) as typeof chat | undefined;
@@ -65,7 +64,7 @@ async function main() {
   } else {
     const row = db
       .prepare(
-        `SELECT c.id, c.user_id, c.character_id, c.title, c.current_summary, c.memory_capacity, ch.name AS char_name
+        `SELECT c.id, c.user_id, c.character_id, c.title, c.memory_capacity, ch.name AS char_name
          FROM chats c JOIN characters ch ON ch.id = c.character_id
          ORDER BY c.id DESC LIMIT 1`
       )
@@ -94,7 +93,6 @@ async function main() {
       message_count: turns.length,
       membership_tier: tier,
     });
-    db.prepare("UPDATE chats SET current_summary=? WHERE id=?").run("", chat.id);
     console.log(`[sync] force reset — ${turns.length} turns, pinned facts kept`);
   }
 
@@ -156,12 +154,8 @@ async function main() {
     | { message_count: number; summarized_turn_count: number; len: number; recent_summary: string }
     | undefined;
 
-  const chatSummary = db
-    .prepare("SELECT length(current_summary) AS len, current_summary FROM chats WHERE id=?")
-    .get(chat.id) as { len: number; current_summary: string };
-
   console.log("[sync] after:", after);
-  console.log("[sync] chats.current_summary len:", chatSummary?.len ?? 0);
+  console.log("[sync] chat_memories.recent_summary len:", after?.len ?? 0);
   if (after?.recent_summary) {
     console.log("\n--- recent_summary preview ---\n");
     console.log(after.recent_summary.slice(0, 800));

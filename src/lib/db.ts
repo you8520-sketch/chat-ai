@@ -26,6 +26,7 @@ import { ensureRpNumericStateTables } from "@/lib/rpNumericState/persistence";
 import { ensureTrpgTables } from "@/lib/trpg/schema";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
 import { dropLastCompressedAtColumnOnce } from "@/lib/memory/last-compressed-at-column-retirement";
+import { dropChatsCurrentSummaryColumnOnce } from "@/lib/memory/chats-current-summary-column-retirement";
 import { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-retirement";
 import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
 import { dropPinnedFactsColumnOnce } from "@/lib/memory/pinned-facts-column-retirement";
@@ -611,7 +612,6 @@ function migrate(db: Database.Database) {
   addColumn("chats", "narrative_pov", "TEXT NOT NULL DEFAULT 'third_person'");
   addColumn("chats", "pov_character_name", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "title", "TEXT NOT NULL DEFAULT ''");
-  addColumn("chats", "current_summary", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "model_route_state_json", "TEXT NOT NULL DEFAULT '{}'");
   addColumn("chats", "memory_capacity", "INTEGER NOT NULL DEFAULT 7000");
   addColumn("chats", "status_window_enabled", "INTEGER NOT NULL DEFAULT 0");
@@ -1634,6 +1634,7 @@ function migrate(db: Database.Database) {
   migrateLegacyPinnedFactsIntoRecentSummary(db);
   dropPinnedFactsColumnOnce(db);
   dropLastCompressedAtColumnOnce(db);
+  dropChatsCurrentSummaryColumnOnce(db);
   convergeLegacyChatsMemoryIntoCanonical(db);
   dropChatsMemoryColumnOnce(db);
   seedGlobalLorebookEntries(db);
@@ -1701,6 +1702,7 @@ export function dropLegacyCharacterMemoriesTableOnce(db: Database.Database): voi
 /** Re-export for migration test wiring consistent with other retirement helpers. */
 export { dropPinnedFactsColumnOnce } from "@/lib/memory/pinned-facts-column-retirement";
 export { dropLastCompressedAtColumnOnce } from "@/lib/memory/last-compressed-at-column-retirement";
+export { dropChatsCurrentSummaryColumnOnce } from "@/lib/memory/chats-current-summary-column-retirement";
 export { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-retirement";
 export { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
 

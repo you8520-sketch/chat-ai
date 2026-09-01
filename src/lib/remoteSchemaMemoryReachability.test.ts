@@ -39,6 +39,7 @@ import {
 } from "@/lib/remoteSchemaBootstrap";
 import { migrateLegacyPinnedFactsIntoRecentSummary } from "@/lib/memory/pinned-facts-migration";
 import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
+import { dropChatsCurrentSummaryColumnOnce } from "@/lib/memory/chats-current-summary-column-retirement";
 import { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-retirement";
 
 const HISTORICAL_REMOTE_SCHEMA_V2 = "turso-v2-chat-billing-settlement";
@@ -174,6 +175,7 @@ function runMemoryRetirementMigrations(db: Database.Database): void {
   migrateLegacyPinnedFactsIntoRecentSummary(db);
   dropPinnedFactsColumnOnce(db);
   dropLastCompressedAtColumnOnce(db);
+  dropChatsCurrentSummaryColumnOnce(db);
   convergeLegacyChatsMemoryIntoCanonical(db);
   dropChatsMemoryColumnOnce(db);
 }
@@ -609,7 +611,7 @@ describe("remote schema version chain", () => {
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V4, "turso-v4-pinned-drop-compatible");
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V5, "turso-v5-pinned-column-retired");
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V6, "turso-v6-last-compressed-at-retired");
-    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v7-chats-memory-retired");
+    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v8-current-summary-retired");
   });
 });
 

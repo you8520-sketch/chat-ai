@@ -1,6 +1,6 @@
 /**
  * C1 — chats.current_summary runtime mirror/fallback retirement.
- * Physical column KEPT; V7 unchanged; no mirror parity fixes.
+ * C2 physical column absent; V8 current remote schema.
  */
 import Module from "module";
 
@@ -71,6 +71,9 @@ function cleanup(): void {
 function seedChat(currentSummary: string): void {
   const db = getDb();
   cleanup();
+  if (!hasChatsCurrentSummaryColumn(db)) {
+    db.exec(`ALTER TABLE chats ADD COLUMN current_summary TEXT NOT NULL DEFAULT ''`);
+  }
   db.prepare(
     `INSERT INTO chats (id, user_id, character_id, mode, current_summary, memory_meta, memory_pending, memory_archived_turns)
      VALUES (?,?,?,'safe',?,'{}','[]',0)`
@@ -373,10 +376,6 @@ describe("chats.current_summary C1 — runtime owner retirement", () => {
 });
 
 describe("C2-like — physical current_summary absent runtime matrix", () => {
-  before(() => {
-    dropCurrentSummaryColumnOnProductionDb();
-  });
-
   beforeEach(() => {
     cleanupColumnAbsentFixture();
   });
