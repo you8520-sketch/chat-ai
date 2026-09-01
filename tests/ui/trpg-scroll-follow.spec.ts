@@ -147,29 +147,48 @@ async function waitForLabRoomReady(page: Page) {
 }
 
 async function waitForBotReveal(page: Page, botId: number) {
-  await waitForLabRoomReady(page);
-  await page.waitForFunction(
-    (expectedBotId) => {
-      const root = document.querySelector("[data-trpg-live-follow-owner]");
-      const owner = root?.getAttribute("data-trpg-live-follow-owner");
-      return (
-        owner === "ACTIVE_DECLARATION_END" &&
-        root?.getAttribute("data-trpg-active-actor-id") === String(expectedBotId)
-      );
-    },
-    botId,
-    { timeout: 30_000 }
-  );
-  await page.waitForFunction(
-    () => {
-      const growth = document.querySelector("[data-trpg-declaration-growth='true']");
-      const end = document.querySelector("[data-trpg-declaration-end]");
-      const visibleChars = growth?.textContent?.length ?? 0;
-      return end != null && visibleChars >= 20;
-    },
-    undefined,
-    { timeout: 30_000 }
-  );
+  const maxAttempts = 2;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    if (attempt > 1) {
+      await page.reload({ waitUntil: "domcontentloaded" });
+    }
+    await waitForLabRoomReady(page);
+
+    await page.waitForFunction(
+      (expectedBotId) => {
+        const root = document.querySelector("[data-trpg-live-follow-owner]");
+        const owner = root?.getAttribute("data-trpg-live-follow-owner");
+        return (
+          owner === "ACTIVE_DECLARATION_END" &&
+          root?.getAttribute("data-trpg-active-actor-id") === String(expectedBotId)
+        );
+      },
+      botId,
+      { timeout: 30_000 }
+    );
+
+    const deadline = Date.now() + 40_000;
+    let sawGrowthMarker = false;
+    while (Date.now() < deadline) {
+      const diag = await readScrollFollowDiagnostics(page);
+      if (diag.activeDeclarationGrowth) sawGrowthMarker = true;
+      if (diag.visibleChars >= 20 && diag.activeDeclarationGrowth) {
+        return;
+      }
+      await page.waitForTimeout(120);
+    }
+
+    const geometry = await collectScrollFollowGeometry(page, DECLARATION_END_SELECTOR);
+    const classification = classifyGeometryFailure(geometry);
+    if (classification === "FIXTURE_LIFECYCLE" && attempt < maxAttempts) {
+      continue;
+    }
+
+    throw new Error(
+      `waitForBotReveal timeout (${classification}, attempt ${attempt}/${maxAttempts}, sawGrowthMarker=${sawGrowthMarker})\n${formatGeometry(geometry)}`
+    );
+  }
 }
 
 function isReadingBandAligned(endTop: number, targetY: number, scrollY: number): boolean {
