@@ -130,7 +130,6 @@ import {
   type HiddenPresentationSession,
 } from "@/lib/trpg/presentationHiddenCatchUp";
 import {
-  decideLiveFollowOnGrowth,
   decideLiveFollowUpdate,
   decidePassiveScrollFollowUpdate,
   freezeViewportScrollPosition,
@@ -146,11 +145,12 @@ import {
   isTrpgScrollIntentKey,
   liveFreshGmNarrationRow,
   livePresentationActivityKey,
-  readingBandFollowDeltaFromElement,
   resolveTrpgLiveFollowOwner,
   resolveEffectiveGmRevealComplete,
   resolveEffectiveActorRevealComplete,
   mergeActorRevealReport,
+  handleTrpgLiveSceneResizeGrowth,
+  scheduleTrpgReadingBandEndFollow,
   shouldDetachLiveFollowOnUserIntent,
   shouldShowTrpgReplySuggestions,
   shouldSkipRevealFinishClick,
@@ -165,6 +165,7 @@ import {
   liveTurnBotProgress,
   liveTurnProcessStage,
   nextLiveTurnElapsedSec,
+  resolveCinematicWaitingForBotAction,
 } from "@/lib/trpg/liveTurnStatus";
 import { processElapsedSecFromStartedAt } from "@/lib/trpg/processTimer";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
@@ -980,12 +981,15 @@ export default function TrpgCampaignRoom({
     });
   const cinematicAiActionActive =
     cinematicActorAction && activePresentationAction?.kind === "ai_character";
-  const cinematicWaitingForBotAction =
-    cinematicActorAction &&
-    !cinematicAiActionActive &&
-    activePresentationAction?.kind !== "human" &&
-    (activePresentationActor?.action == null || activePresentationAction == null) &&
-    (snap.botGenerationInFlight || snap.workType === "generate_bots");
+  const cinematicWaitingForBotAction = resolveCinematicWaitingForBotAction({
+    cinematicActorAction,
+    cinematicAiActionActive,
+    activePresentationActionKind: activePresentationAction?.kind ?? null,
+    activePresentationActorHasAction: activePresentationActor?.action != null,
+    activePresentationActionAvailable: activePresentationAction != null,
+    botGenerationInFlight: snap.botGenerationInFlight,
+    workType: snap.workType,
+  });
   useEffect(() => {
     if (typeof document === "undefined") return;
     const syncHidden = () => {
@@ -1377,19 +1381,17 @@ export default function TrpgCampaignRoom({
 
   const alignReadingBandEnd = useCallback(
     (el: Element, behavior: ScrollBehavior) => {
-      const apply = () => {
-        const delta = readingBandFollowDeltaFromElement(el);
-        if (delta === 0) return;
-        window.scrollBy({ top: delta, behavior });
-      };
-      if (behavior === "smooth") {
-        runProgrammaticScroll(apply, behavior);
-        return;
-      }
-      cancelPendingFollowScroll();
-      narrationFollowRafRef.current = window.requestAnimationFrame(() => {
-        narrationFollowRafRef.current = null;
-        runProgrammaticScroll(apply, behavior);
+      scheduleTrpgReadingBandEndFollow({
+        element: el,
+        behavior,
+        narrationFollowRafRef,
+        requestAnimationFrame: window.requestAnimationFrame.bind(window),
+        cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
+        scrollBy: (delta, scrollBehavior) => {
+          window.scrollBy({ top: delta, behavior: scrollBehavior ?? "instant" });
+        },
+        runProgrammaticScroll,
+        cancelPendingFollowScroll,
       });
     },
     [cancelPendingFollowScroll, runProgrammaticScroll]
@@ -1574,19 +1576,16 @@ export default function TrpgCampaignRoom({
       Boolean(currentNarration);
     if (!sceneEl || !liveRevealActive) return;
     const observer = new ResizeObserver(() => {
-      const growth = decideLiveFollowOnGrowth({ following: followLatestRef.current });
-      if (growth.autoFollow) {
-        if (followScrollRafRef.current != null) {
-          window.cancelAnimationFrame(followScrollRafRef.current);
-        }
-        followScrollRafRef.current = window.requestAnimationFrame(() => {
-          followScrollRafRef.current = null;
-          if (!followLatestRef.current || manualScrollDetachedRef.current) return;
-          scrollToFollowOwner(liveFollowOwner, "instant");
-        });
-      } else if (growth.unseenLatest) {
-        setUnseenLatest(true);
-      }
+      handleTrpgLiveSceneResizeGrowth({
+        following: followLatestRef.current,
+        manualDetached: manualScrollDetachedRef.current,
+        liveFollowOwner,
+        followScrollRafRef,
+        requestAnimationFrame: window.requestAnimationFrame.bind(window),
+        cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
+        scrollToFollowOwner,
+        onUnseenLatest: () => setUnseenLatest(true),
+      });
     });
     observer.observe(sceneEl);
     if (declarationGrowthEl) observer.observe(declarationGrowthEl);

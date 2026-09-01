@@ -23,13 +23,11 @@ import {
   shouldRunHiddenRoundGmCatchUp,
   shouldSkipDecorativeReveal,
 } from "./presentationHiddenCatchUp";
-import {
-  decideLiveFollowOnGrowth,
-  resolveTrpgLiveFollowOwner,
-} from "./followLatest";
+import { resolveTrpgLiveFollowOwner } from "./followLatest";
 import {
   formatLiveTurnProcessStatus,
   liveTurnProcessStage,
+  resolveCinematicWaitingForBotAction,
 } from "./liveTurnStatus";
 import {
   createPresentationSession,
@@ -173,12 +171,15 @@ function traceStage(opts: {
     opts.roundShow.mode === "cinematic" && opts.roundShow.phase === "actor-action";
   const cinematicAiActionActive =
     cinematicActorAction && activeAction?.kind === "ai_character";
-  const cinematicWaitingForBotAction =
-    cinematicActorAction &&
-    !cinematicAiActionActive &&
-    activeAction?.kind !== "human" &&
-    (current?.action == null || activeAction == null) &&
-    (opts.botGenerationInFlight || opts.workType === "generate_bots");
+  const cinematicWaitingForBotAction = resolveCinematicWaitingForBotAction({
+    cinematicActorAction,
+    cinematicAiActionActive,
+    activePresentationActionKind: activeAction?.kind ?? null,
+    activePresentationActorHasAction: current?.action != null,
+    activePresentationActionAvailable: activeAction != null,
+    botGenerationInFlight: opts.botGenerationInFlight,
+    workType: opts.workType,
+  });
   const processStage = liveTurnProcessStage({
     waitingOpening: false,
     narrationRerolling: false,
@@ -416,32 +417,13 @@ describe("TRPG second-round presentation integrity", () => {
     assert.equal(caught.phase, "complete");
   });
 
-  it("BOT_REVEAL_AUTO_FOLLOW: declaration growth follows when active", () => {
-    const row2 = roundLog(ROUND_2);
-    const actions = filterRevealedActions(row2.actions);
-    const actors = actorsFromRow(row2);
-    const state: RoundPresentationState = {
-      mode: "cinematic",
-      phase: "actor-action",
-      presentationIndex: 1,
-    };
-    const trace = traceStage({
-      label: "bot1-reveal",
-      serverRoundNumber: ROUND_2,
-      presentationRoundNumber: ROUND_2,
-      workType: "idle",
-      botGenerationInFlight: false,
-      roundShow: state,
-      actors,
-      actions,
-      consumedAiIds: new Set([H]),
-    });
-    assert.equal(trace.followOwner, "ACTIVE_DECLARATION_END", "BOT_REVEAL_AUTO_FOLLOW");
-    assert.equal(trace.activeDeclarationActorId, B1);
-    const growth = decideLiveFollowOnGrowth({ following: true });
-    assert.equal(growth.autoFollow, true);
-    const detached = decideLiveFollowOnGrowth({ following: false });
-    assert.equal(detached.autoFollow, false, "MANUAL_SCROLL_DETACH_PRESERVED");
+  it("BOT_REVEAL_AUTO_FOLLOW: lifecycle proof lives in botDeclarationScrollFollowLifecycle.test.ts", () => {
+    const lifecycle = readFileSync("src/lib/trpg/botDeclarationScrollFollowLifecycle.test.ts", "utf8");
+    assert.match(lifecycle, /handleTrpgLiveSceneResizeGrowth/);
+    assert.match(lifecycle, /scheduleTrpgReadingBandEndFollow/);
+    assert.match(lifecycle, /simulateBotProseGrowth/);
+    assert.match(lifecycle, /manual detach blocks programmatic scroll/);
+    assert.doesNotMatch(lifecycle, /decideLiveFollowOnGrowth\(\{ following: true \}\)/);
   });
 
   it("SECOND_ROUND_PRESENTATION_PARITY: round2 session latches independently from round1", () => {
@@ -473,9 +455,11 @@ describe("TRPG second-round presentation integrity", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     const status = readFileSync("src/lib/trpg/liveTurnStatus.ts", "utf8");
     assert.match(room, /resolveTrpgLiveFollowOwner/);
-    assert.match(room, /cinematicWaitingForBotAction/);
+    assert.match(room, /resolveCinematicWaitingForBotAction/);
     assert.match(room, /shouldRunHiddenRoundGmCatchUp/);
-    assert.match(status, /cinematicWaitingForBotAction/);
+    assert.match(room, /handleTrpgLiveSceneResizeGrowth/);
+    assert.match(room, /scheduleTrpgReadingBandEndFollow/);
+    assert.match(status, /resolveCinematicWaitingForBotAction/);
     assert.equal((room.match(/resolveTrpgLiveFollowOwner\(/g) ?? []).length >= 1, true, "FOLLOW_OWNER=resolveTrpgLiveFollowOwner");
     assert.equal((room.match(/declarationGrowthRef/g) ?? []).length >= 2, true, "GROWTH_SIGNAL_OWNER=declarationGrowthRef");
     assert.equal((room.match(/manualScrollDetachedRef/g) ?? []).length >= 3, true, "MANUAL_DETACH_OWNER=manualScrollDetachedRef");

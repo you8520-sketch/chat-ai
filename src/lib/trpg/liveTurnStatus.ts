@@ -36,6 +36,22 @@ export function shouldHideProcessTimerForPresentation(opts: {
   return false;
 }
 
+/** Single owner: cinematic actor-action slot waiting for backend bot action materialization. */
+export function resolveCinematicWaitingForBotAction(opts: {
+  cinematicActorAction: boolean;
+  cinematicAiActionActive: boolean;
+  activePresentationActionKind?: string | null;
+  activePresentationActorHasAction: boolean;
+  activePresentationActionAvailable: boolean;
+  botGenerationInFlight?: boolean;
+  workType: string;
+}): boolean {
+  if (!opts.cinematicActorAction || opts.cinematicAiActionActive) return false;
+  if (opts.activePresentationActionKind === "human") return false;
+  if (opts.activePresentationActorHasAction && opts.activePresentationActionAvailable) return false;
+  return opts.botGenerationInFlight === true || opts.workType === "generate_bots";
+}
+
 export function liveTurnProcessStage(opts: {
   waitingOpening: boolean;
   narrationRerolling: boolean;
