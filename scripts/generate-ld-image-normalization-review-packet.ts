@@ -7,15 +7,23 @@ import { execSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildChatComicImagePrompt } from "../src/lib/chatComicGeneration";
+import {
+  auditComicDialogueWhitelist,
+  buildChatComicImagePrompt,
+} from "../src/lib/chatComicGeneration";
 import { renderChatComicPanelSpecSection, compileChatComicPanelSpec } from "../src/lib/chatComicPanelSpec";
 import { buildLdSceneGenerationPlan } from "../src/lib/chatLdIllustrationGeneration";
 import {
+  applyUserPanelEdits,
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
+  collectApprovedComicText,
   extractDeterministicEvents,
+  formatApprovedScenePlanForComic,
   formatApprovedScenePlanForIllustration,
+  projectComicPanelBeat,
 } from "../src/lib/chatImageScenePlan";
+import { resolveChatImageSceneBriefModel } from "../src/lib/chatImageSceneBrief";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = join(ROOT, "docs/audits/ld-image-normalization");
@@ -27,6 +35,8 @@ function gitSha(ref: string): string {
 
 const MAIN_SHA = gitSha("origin/main");
 const HEAD_SHA = gitSha("HEAD");
+const PERSONA = "렌";
+const CHARACTER = "태현";
 
 const ATTRIBUTION_SOURCE = '태현이 렌의 손목을 붙잡고 "가지 마."라고 말했다.';
 const messages = buildSceneSourceMessages([
@@ -36,9 +46,9 @@ const plan = buildDeterministicScenePlan(messages, 2);
 const events = extractDeterministicEvents(messages);
 const illustration = formatApprovedScenePlanForIllustration(plan);
 const ld = buildLdSceneGenerationPlan({
-  characterName: "태현",
+  characterName: CHARACTER,
   characterGender: "male",
-  personaName: "렌",
+  personaName: PERSONA,
   personaGender: "female",
   characterImageUrl: "/synthetic/hero.webp",
   characterSavedAppearance: "",
@@ -52,17 +62,75 @@ const ld = buildLdSceneGenerationPlan({
 const comicSpec = renderChatComicPanelSpecSection(
   compileChatComicPanelSpec({
     plan,
-    personaName: "렌",
-    characterName: "태현",
+    personaName: PERSONA,
+    characterName: CHARACTER,
   })
 );
 const comicPrompt = buildChatComicImagePrompt({
-  characterName: "태현",
+  characterName: CHARACTER,
   characterGender: "male",
-  personaName: "렌",
+  personaName: PERSONA,
   personaGender: "female",
   plan,
 });
+const armA = formatApprovedScenePlanForComic(plan);
+
+const duoMessages = buildSceneSourceMessages([
+  { id: 1, role: "user", content: '*후드 귀를 만진다*\n"같이 갈래?"' },
+  { id: 2, role: "assistant", content: '렌이 후드를 만지자 태형이 고개를 돌렸다. "그래."' },
+]);
+const duoPlan = buildDeterministicScenePlan(duoMessages, 2);
+const duoEdited = applyUserPanelEdits(duoPlan, 1, {
+  dialogue: duoPlan.panels[0]!.dialogue.map((line) =>
+    line.text.includes("그래")
+      ? { ...line, text: "좋아.", provenance: "user_edit" as const }
+      : line
+  ),
+});
+const audit = auditComicDialogueWhitelist({
+  plan: duoEdited,
+  personaName: PERSONA,
+  characterName: CHARACTER,
+});
+
+function dialogueEditorSection(
+  label: string,
+  reviewPlan: ReturnType<typeof buildDeterministicScenePlan>,
+  edited?: ReturnType<typeof applyUserPanelEdits>
+) {
+  const active = edited ?? reviewPlan;
+  const whitelist = collectApprovedComicText(active);
+  const spec = compileChatComicPanelSpec({
+    plan: active,
+    personaName: PERSONA,
+    characterName: CHARACTER,
+  });
+  const rows: string[] = [`### ${label}`, ""];
+  for (const panel of active.panels) {
+    const beat = projectComicPanelBeat(active, panel, { personaVisible: true });
+    const bubbles = spec.panels.find((row) => row.index === panel.index)?.speechBubbles ?? [];
+    rows.push(`#### Panel ${panel.index}`);
+    rows.push(`- VISIBLE SCENE DESCRIPTION: ${beat.situation}`);
+    if (!panel.dialogue.length) {
+      rows.push("- VISIBLE DIALOGUE: (silent)");
+    }
+    for (const [index, line] of panel.dialogue.entries()) {
+      const bubble = bubbles[index];
+      rows.push(`- LINE ${index + 1}`);
+      rows.push(
+        `  - VISIBLE SPEAKER NAME: ${line.speaker === "persona" ? PERSONA : line.speaker === "character" ? CHARACTER : "기타"}`
+      );
+      rows.push(`  - VISIBLE DIALOGUE TEXT: ${line.text || "(empty)"}`);
+      rows.push(`  - PROVENANCE: ${line.provenance}`);
+      rows.push(`  - SOURCE EVENT ID: ${line.sourceEventId ?? "(none)"}`);
+      rows.push(`  - FINAL BUBBLE: ${bubble?.text ?? "(silent)"}`);
+    }
+    rows.push("");
+  }
+  rows.push(`- FINAL WHITELIST: ${whitelist.map((text) => `"${text}"`).join(", ") || "(none)"}`);
+  rows.push("");
+  return rows.join("\n");
+}
 
 const lines = [
   "# LD Image Normalization — REVIEW PACKET",
@@ -107,23 +175,41 @@ const lines = [
   comicSpec,
   "```",
   "",
-  "### FINAL COMIC PROMPT (panel region excerpt)",
+  "### Arm A — legacy panel section (untruncated)",
   "```text",
-  comicPrompt.split("COMIC PANEL SPEC")[1]?.slice(0, 2000) ?? comicPrompt.slice(0, 2000),
+  armA,
   "```",
   "",
-  "## Invariant checks (generated)",
+  "### FINAL COMIC PROMPT (full, untruncated)",
+  "```text",
+  comicPrompt,
+  "```",
+  "",
+  "## DIALOGUE_EDITOR_REVIEW",
+  "",
+  dialogueEditorSection("2-panel duo (source)", duoPlan),
+  dialogueEditorSection("2-panel duo (user text edit)", duoPlan, duoEdited),
+  dialogueEditorSection("3-panel duo", buildDeterministicScenePlan(duoMessages, 3)),
+  "",
+  "## Invariant checks (computed)",
   "",
   `- USER_VISIBLE_NO_VERBATIM_DIALOGUE: ${!/가지 마/.test(plan.heroScene)}`,
   `- NO_DANGLING_ATTRIBUTION: ${!/라고 말했다/.test(plan.heroScene)}`,
   `- HERO_IDS_INCLUDE_DIALOGUE: ${plan.heroEventIds.some((id) => plan.events.find((e) => e.id === id)?.kind === "dialogue")}`,
   `- DOWNSTREAM_KEY_DIALOGUE: ${illustration.includes("가지 마")}`,
+  `- PANEL_TEXT_WHITELIST_MISMATCH_COUNT: ${audit.panelTextWhitelistMismatchCount}`,
+  `- USER_EDIT_DIALOGUE_MISMATCH_COUNT: ${audit.userEditDialogueMismatchCount}`,
   "",
   "## AI auto panel planning",
   "",
-  "**AI_AUTO_PANEL_PLANNING:** NOT_IMPLEMENTED_REQUIRES_PRODUCT_DECISION",
+  "**AI_AUTO_PANEL_PLANNING_STATUS:** IMPLEMENTED_COMIC_DEFAULT_ONE_CALL",
   "",
-  "Default modal open uses deterministic ScenePlan (0 provider calls). AI planner runs only when user clicks optional AI 장면 제안.",
+  `- SCENE_PLANNER_MODEL: ${resolveChatImageSceneBriefModel()}`,
+  `- SCENE_PLANNER_PROVIDER: OpenRouter (via planChatImageScene / chatImageScenePlanner)`,
+  `- COMIC_DEFAULT_SCENE_PLANNER_CALLS_BEFORE: 0 (manual opt-in only)`,
+  `- COMIC_DEFAULT_SCENE_PLANNER_CALLS_AFTER: 1 per source session when comic mode active`,
+  `- COMIC_PANEL_SWITCH_EXTRA_CALLS: 0`,
+  `- IMAGE_PROVIDER_CALLS_AFTER: unchanged (1 per generation)`,
   "",
   "## Scores",
   "",

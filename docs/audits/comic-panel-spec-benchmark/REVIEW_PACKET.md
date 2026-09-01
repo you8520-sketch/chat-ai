@@ -27,33 +27,35 @@ Scores are **PENDING** — for GPT/human review only.
 렌이 후드를 만지자 태형이 고개를 돌렸다. "그래."
 ```
 
-### Selected scene (ScenePlan)
+### Selected scene (ScenePlan summary, untruncated)
 
 - heroScene: 후드 귀를 만진다 렌이 후드를 만지자 태형이 고개를 돌렸다.
 - heroEventIds: E1, E2, E3
 - panelCount: 2
+- panel 1: 후드 귀를 만진다 | dialogue: persona:"같이 갈래?"
+- panel 2: 렌이 후드를 만지자 태형이 고개를 돌렸다. | dialogue: character:"그래."
 
-### Arm A — legacy panel section
+### Arm A — legacy panel section (untruncated)
 
 ```text
-Shared background: 
+Shared background:
 
 Panel count: 2
 
 PANEL 1
 Situation: 후드 귀를 만진다
-Background: 
+Background:
 Persona action: 후드 귀를 만진다
 Exact Korean text: persona: “같이 갈래?”
 
 PANEL 2
 Situation: 렌이 후드를 만지자 태형이 고개를 돌렸다.
-Background: 
+Background:
 Character action: 렌이 후드를 만지자 태형이 고개를 돌렸다.
 Exact Korean text: character: “그래.”
 ```
 
-### Arm B — structured panel spec section
+### Arm B — structured panel spec section (untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -66,7 +68,7 @@ Hero focus: 후드 귀를 만진다 렌이 후드를 만지자 태형이 고개�
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -77,7 +79,7 @@ B = character (태형)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 후드 귀를 만진다
 Expressions: 후드 귀를 만진다
 Speech bubble (A / persona): “같이 갈래?”
@@ -88,7 +90,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 렌이 후드를 만지자 태형이 고개를 돌렸다.
 Expressions: 렌이 후드를 만지자 태형이 고개를 돌렸다.
 Speech bubble (B / character): “그래.”
@@ -97,14 +99,92 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit,
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
 
-… (truncated 493 chars)
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 2-panel rhythm: opening beat in panel 1, closing beat in panel 2.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated)
+### FULL FINAL ASSEMBLED PROMPT (untruncated)
 
 ```text
+Create one polished Korean manhwa-style page with exactly 2 wide horizontal panels stacked vertically.
+
+Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and romantic-comedy timing, but do not copy its exact poses.
+
+Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.
+
+SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
+
+[SUBJECT A — CHAT CHARACTER: 태형]
+Reference: Image 2 belongs ONLY to 태형.
+Appearance mode: IMAGE_ONLY
+No supplemental saved appearance.
+Use this selected reference as the authoritative visual identity for this subject only.
+Identity ownership: every trait in this block belongs only to 태형.
+Never infer SUBJECT A's identity from any other subject.
+
+[SUBJECT B — USER PERSONA: 렌]
+Reference: Image 3 belongs ONLY to 렌.
+Appearance mode: IMAGE_ONLY
+No supplemental saved appearance.
+Use this selected reference as the authoritative visual identity for this subject only.
+Identity ownership: every trait in this block belongs only to 렌.
+Never infer SUBJECT B's identity from any other subject.
+
+IDENTITY OWNERSHIP IS STRICT.
+REFERENCE 1 is the layout / composition / decoration template ONLY. It is NEVER a character identity source. Do not copy hair, eyes, iris, pupils, clothes, or face from the template onto any subject.
+Each subject owns only the visual traits from their own identity block and own reference.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+Do not average or homogenize identities even when both subjects look similar.
+Do not assume that a visually striking feature belongs to every person.
+A trait appearing in one subject's reference is NOT a global style property.
+Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
+Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
+STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
+Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
+Template or another person's appearance must never be treated as a style characteristic.
+PRIORITY: 1) explicit generation product option (pose, expression, temporary costume/prop); 2) this subject's stable saved identity only when IMAGE_PLUS_SAVED; 3) this subject's own reference image; 4) template styling/composition.
+Product options may add a temporary prop or costume. They must not rewrite hair color, eye/iris/pupil color, or face identity.
+
+GENDER LOCK — mandatory identity rule.
+chat character 태형: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
+user persona 렌: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
+Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
+
+Overall tone: light romantic-comedy energy, exaggerated reactions and playful timing.
+
+STRICT CLOSED TEXT WHITELIST: the only text allowed anywhere in the image is listed below. Copy each used string exactly, character for character.
+
+- “같이 갈래?”
+- “그래.”
+
+Never invent reaction dialogue, bridge dialogue, narration, captions, labels, titles, signs, or sound effects. Silent panels with no speech are valid. Do not create a speech bubble for a panel marked No speech bubble.
+
+Use proper speech bubbles with tails pointing to the correct speaker. Keep all approved text large, centered, uncropped, and easy to read.
+
+Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.
+
+Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.
+
+COMIC PANEL SPEC
+
 Format: 2panel (2 panels)
 
 Layout: 2 wide horizontal panels stacked vertically (vertical comic strip / 2panel)
@@ -113,7 +193,7 @@ Hero focus: 후드 귀를 만진다 렌이 후드를 만지자 태형이 고개�
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -124,7 +204,7 @@ B = character (태형)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 후드 귀를 만진다
 Expressions: 후드 귀를 만진다
 Speech bubble (A / persona): “같이 갈래?”
@@ -135,7 +215,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 렌이 후드를 만지자 태형이 고개를 돌렸다.
 Expressions: 렌이 후드를 만지자 태형이 고개를 돌렸다.
 Speech bubble (B / character): “그래.”
@@ -144,9 +224,25 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
 
-… (truncated 475 chars)
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 2-panel rhythm: opening beat in panel 1, closing beat in panel 2.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
 ### Results
@@ -172,33 +268,35 @@ Continuity rules:
 민수가 조용히 따라 나선다.
 ```
 
-### Selected scene (ScenePlan)
+### Selected scene (ScenePlan summary, untruncated)
 
 - heroScene: 문을 연다 민수가 조용히 따라 나선다.
 - heroEventIds: E1, E2
 - panelCount: 2
+- panel 1: 문을 연다 | dialogue: (silent)
+- panel 2: 민수가 조용히 따라 나선다. | dialogue: (silent)
 
-### Arm A — legacy panel section
+### Arm A — legacy panel section (untruncated)
 
 ```text
-Shared background: 
+Shared background:
 
 Panel count: 2
 
 PANEL 1
 Situation: 문을 연다
-Background: 
+Background:
 Persona action: 문을 연다
 Exact Korean text: No speech bubble
 
 PANEL 2
 Situation: 민수가 조용히 따라 나선다.
-Background: 
+Background:
 Character action: 민수가 조용히 따라 나선다.
 Exact Korean text: No speech bubble
 ```
 
-### Arm B — structured panel spec section
+### Arm B — structured panel spec section (untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -211,7 +309,7 @@ Hero focus: 문을 연다 민수가 조용히 따라 나선다.
 
 Hero event ids: E1, E2
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -222,7 +320,7 @@ B = character (민수)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 문을 연다
 Expressions: 문을 연다
 Speech bubble: (silent panel — no bubble)
@@ -233,7 +331,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 민수가 조용히 따라 나선다.
 Expressions: 민수가 조용히 따라 나선다.
 Speech bubble: (silent panel — no bubble)
@@ -244,14 +342,30 @@ Continuity rules:
 
 - Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
 
-- Ma
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
-… (truncated 463 chars)
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 2-panel rhythm: opening beat in panel 1, closing beat in panel 2.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated)
+### Full prompt panel region (Arm B integrated, untruncated)
 
 ```text
+
+
 Format: 2panel (2 panels)
 
 Layout: 2 wide horizontal panels stacked vertically (vertical comic strip / 2panel)
@@ -260,7 +374,7 @@ Hero focus: 문을 연다 민수가 조용히 따라 나선다.
 
 Hero event ids: E1, E2
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -271,7 +385,7 @@ B = character (민수)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 문을 연다
 Expressions: 문을 연다
 Speech bubble: (silent panel — no bubble)
@@ -282,7 +396,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 민수가 조용히 따라 나선다.
 Expressions: 민수가 조용히 따라 나선다.
 Speech bubble: (silent panel — no bubble)
@@ -293,9 +407,23 @@ Continuity rules:
 
 - Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
 
-- Maintain consistent 
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
-… (truncated 445 chars)
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 2-panel rhythm: opening beat in panel 1, closing beat in panel 2.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
 ### Results
@@ -322,34 +450,36 @@ Continuity rules:
 지훈이 눈을 크게 뜨며 "진짜?"라고 되물었다.
 ```
 
-### Selected scene (ScenePlan)
+### Selected scene (ScenePlan summary, untruncated)
 
 - heroScene: 작은 상자를 내민다 지훈이 눈을 크게 뜨며
 - heroEventIds: E1, E2, E3
 - panelCount: 2
+- panel 1: 작은 상자를 내민다 지훈이 눈을 크게 뜨며 | dialogue: persona:"선물이야!"
+- panel 2: 라고 되물었다. | dialogue: character:"진짜?"
 
-### Arm A — legacy panel section
+### Arm A — legacy panel section (untruncated)
 
 ```text
-Shared background: 
+Shared background:
 
 Panel count: 2
 
 PANEL 1
 Situation: 작은 상자를 내민다 지훈이 눈을 크게 뜨며
-Background: 
+Background:
 Persona action: 작은 상자를 내민다
 Character action: 지훈이 눈을 크게 뜨며
 Exact Korean text: persona: “선물이야!”
 
 PANEL 2
 Situation: 라고 되물었다.
-Background: 
+Background:
 Character action: 라고 되물었다.
 Exact Korean text: character: “진짜?”
 ```
 
-### Arm B — structured panel spec section
+### Arm B — structured panel spec section (untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -362,7 +492,7 @@ Hero focus: 작은 상자를 내민다 지훈이 눈을 크게 뜨며
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -373,7 +503,7 @@ B = character (지훈)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 작은 상자를 내민다
 B action: 지훈이 눈을 크게 뜨며
 Expressions: 작은 상자를 내민다; 지훈이 눈을 크게 뜨며
@@ -385,7 +515,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 라고 되물었다.
 Expressions: 라고 되물었다.
 Speech bubble (B / character): “진짜?”
@@ -394,14 +524,32 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, 
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
 
-… (truncated 492 chars)
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 2-panel rhythm: opening beat in panel 1, closing beat in panel 2.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated)
+### Full prompt panel region (Arm B integrated, untruncated)
 
 ```text
+
+
 Format: 2panel (2 panels)
 
 Layout: 2 wide horizontal panels stacked vertically (vertical comic strip / 2panel)
@@ -410,7 +558,7 @@ Hero focus: 작은 상자를 내민다 지훈이 눈을 크게 뜨며
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -421,7 +569,7 @@ B = character (지훈)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 작은 상자를 내민다
 B action: 지훈이 눈을 크게 뜨며
 Expressions: 작은 상자를 내민다; 지훈이 눈을 크게 뜨며
@@ -433,7 +581,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 라고 되물었다.
 Expressions: 라고 되물었다.
 Speech bubble (B / character): “진짜?”
@@ -442,9 +590,25 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 
 Continuity rules:
 
-- Keep A and B as the same two identities throughout — hair, outfit, and face must not 
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
 
-… (truncated 474 chars)
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 2-panel rhythm: opening beat in panel 1, closing beat in panel 2.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
 ### Results
@@ -472,39 +636,42 @@ Continuity rules:
 서연이 우산을 더 가까이 건넨다. 도윤이 작게 "…고마워."라고 말한다.
 ```
 
-### Selected scene (ScenePlan)
+### Selected scene (ScenePlan summary, untruncated)
 
 - heroScene: 우산을 든다 도윤이 잠시 망설이며
 - heroEventIds: E1, E2, E3
 - panelCount: 3
+- panel 1: 우산을 든다 | dialogue: persona:"같이 갈래?"
+- panel 2: 도윤이 잠시 망설이며 시선을 피한다. | dialogue: (silent)
+- panel 3: 라고 말한다. | dialogue: character:"…고마워."
 
-### Arm A — legacy panel section
+### Arm A — legacy panel section (untruncated)
 
 ```text
-Shared background: 
+Shared background:
 
 Panel count: 3
 
 PANEL 1
 Situation: 우산을 든다
-Background: 
+Background:
 Persona action: 우산을 든다
 Exact Korean text: persona: “같이 갈래?”
 
 PANEL 2
 Situation: 도윤이 잠시 망설이며 시선을 피한다.
-Background: 
+Background:
 Character action: 도윤이 잠시 망설이며
 Exact Korean text: No speech bubble
 
 PANEL 3
 Situation: 라고 말한다.
-Background: 
+Background:
 Character action: 라고 말한다.
 Exact Korean text: character: “…고마워.”
 ```
 
-### Arm B — structured panel spec section
+### Arm B — structured panel spec section (untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -517,7 +684,7 @@ Hero focus: 우산을 든다 도윤이 잠시 망설이며
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -528,7 +695,7 @@ B = character (도윤)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 우산을 든다
 Expressions: 우산을 든다
 Speech bubble (A / persona): “같이 갈래?”
@@ -539,7 +706,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 도윤이 잠시 망설이며
 Expressions: 도윤이 잠시 망설이며
 Speech bubble: (silent panel — no bubble)
@@ -548,14 +715,103 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 
 [Panel 3 — Climax / punchline]
 Camera: frame the closing scripted beat clearly
-Framing: recurring character
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 라고 말한다.
+Expressions: 라고 말한다.
+Speech bubble (B / character): “…고마워.”
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
-… (truncated 914 chars)
+Continuity rules:
+
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 3-koma rhythm: setup → development → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated)
+### FULL FINAL ASSEMBLED PROMPT (untruncated)
 
 ```text
+Create one polished Korean manhwa-style page with exactly 3 wide horizontal panels stacked vertically.
+
+Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and romantic-comedy timing, but do not copy its exact poses.
+
+Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.
+
+SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
+
+[SUBJECT A — CHAT CHARACTER: 도윤]
+Reference: Image 2 belongs ONLY to 도윤.
+Appearance mode: IMAGE_ONLY
+No supplemental saved appearance.
+Use this selected reference as the authoritative visual identity for this subject only.
+Identity ownership: every trait in this block belongs only to 도윤.
+Never infer SUBJECT A's identity from any other subject.
+
+[SUBJECT B — USER PERSONA: 서연]
+Reference: Image 3 belongs ONLY to 서연.
+Appearance mode: IMAGE_ONLY
+No supplemental saved appearance.
+Use this selected reference as the authoritative visual identity for this subject only.
+Identity ownership: every trait in this block belongs only to 서연.
+Never infer SUBJECT B's identity from any other subject.
+
+IDENTITY OWNERSHIP IS STRICT.
+REFERENCE 1 is the layout / composition / decoration template ONLY. It is NEVER a character identity source. Do not copy hair, eyes, iris, pupils, clothes, or face from the template onto any subject.
+Each subject owns only the visual traits from their own identity block and own reference.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+Do not average or homogenize identities even when both subjects look similar.
+Do not assume that a visually striking feature belongs to every person.
+A trait appearing in one subject's reference is NOT a global style property.
+Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
+Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
+STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
+Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
+Template or another person's appearance must never be treated as a style characteristic.
+PRIORITY: 1) explicit generation product option (pose, expression, temporary costume/prop); 2) this subject's stable saved identity only when IMAGE_PLUS_SAVED; 3) this subject's own reference image; 4) template styling/composition.
+Product options may add a temporary prop or costume. They must not rewrite hair color, eye/iris/pupil color, or face identity.
+
+GENDER LOCK — mandatory identity rule.
+chat character 도윤: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
+user persona 서연: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
+Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
+
+Overall tone: light romantic-comedy energy, exaggerated reactions and playful timing.
+
+STRICT CLOSED TEXT WHITELIST: the only text allowed anywhere in the image is listed below. Copy each used string exactly, character for character.
+
+- “같이 갈래?”
+- “…고마워.”
+
+Never invent reaction dialogue, bridge dialogue, narration, captions, labels, titles, signs, or sound effects. Silent panels with no speech are valid. Do not create a speech bubble for a panel marked No speech bubble.
+
+Use proper speech bubbles with tails pointing to the correct speaker. Keep all approved text large, centered, uncropped, and easy to read.
+
+Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.
+
+Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.
+
+COMIC PANEL SPEC
+
 Format: 3koma (3 panels)
 
 Layout: 3 wide horizontal panels stacked vertically (vertical comic strip / 3koma)
@@ -564,7 +820,7 @@ Hero focus: 우산을 든다 도윤이 잠시 망설이며
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -575,7 +831,7 @@ B = character (도윤)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 우산을 든다
 Expressions: 우산을 든다
 Speech bubble (A / persona): “같이 갈래?”
@@ -586,7 +842,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 도윤이 잠시 망설이며
 Expressions: 도윤이 잠시 망설이며
 Speech bubble: (silent panel — no bubble)
@@ -595,9 +851,36 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 
 [Panel 3 — Climax / punchline]
 Camera: frame the closing scripted beat clearly
-Framing: recurring characters readable in fram
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 라고 말한다.
+Expressions: 라고 말한다.
+Speech bubble (B / character): “…고마워.”
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
-… (truncated 896 chars)
+Continuity rules:
+
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 3-koma rhythm: setup → development → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
 ### Results
@@ -624,39 +907,42 @@ Framing: recurring characters readable in fram
 현우가 황급히 돌아서며 "아, 미안!"이라고 외친다.
 ```
 
-### Selected scene (ScenePlan)
+### Selected scene (ScenePlan summary, untruncated)
 
 - heroScene: 카운터에서 음료를 받는다 현우가 황급히 돌아서며
 - heroEventIds: E1, E2, E3
 - panelCount: 3
+- panel 1: 카운터에서 음료를 받는다 | dialogue: persona:"이거 내 주문 아닌데?"
+- panel 2: 현우가 황급히 돌아서며 | dialogue: character:"아, 미안!"
+- panel 3: 이라고 외친다. | dialogue: (silent)
 
-### Arm A — legacy panel section
+### Arm A — legacy panel section (untruncated)
 
 ```text
-Shared background: 
+Shared background:
 
 Panel count: 3
 
 PANEL 1
 Situation: 카운터에서 음료를 받는다
-Background: 
+Background:
 Persona action: 카운터에서 음료를 받는다
 Exact Korean text: persona: “이거 내 주문 아닌데?”
 
 PANEL 2
 Situation: 현우가 황급히 돌아서며
-Background: 
+Background:
 Character action: 현우가 황급히 돌아서며
 Exact Korean text: character: “아, 미안!”
 
 PANEL 3
 Situation: 이라고 외친다.
-Background: 
+Background:
 Character action: 이라고 외친다.
 Exact Korean text: No speech bubble
 ```
 
-### Arm B — structured panel spec section
+### Arm B — structured panel spec section (untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -669,7 +955,7 @@ Hero focus: 카운터에서 음료를 받는다 현우가 황급히 돌아서며
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -680,7 +966,7 @@ B = character (현우)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 카운터에서 음료를 받는다
 Expressions: 카운터에서 음료를 받는다
 Speech bubble (A / persona): “이거 내 주문 아닌데?”
@@ -691,7 +977,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 현우가 황급히 돌아서며
 Expressions: 현우가 황급히 돌아서며
 Speech bubble (B / character): “아, 미안!”
@@ -700,14 +986,43 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 
 [Panel 3 — Climax / punchline]
 Camera: frame the closing scripted beat clearly
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 이라고 외친다.
+Expressions: 이라고 외친다.
+Speech bubble: (silent panel — no bubble)
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
+Continuity rules:
 
-… (truncated 947 chars)
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 3-koma rhythm: setup → development → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated)
+### Full prompt panel region (Arm B integrated, untruncated)
 
 ```text
+
+
 Format: 3koma (3 panels)
 
 Layout: 3 wide horizontal panels stacked vertically (vertical comic strip / 3koma)
@@ -716,7 +1031,7 @@ Hero focus: 카운터에서 음료를 받는다 현우가 황급히 돌아서며
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -727,7 +1042,7 @@ B = character (현우)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 카운터에서 음료를 받는다
 Expressions: 카운터에서 음료를 받는다
 Speech bubble (A / persona): “이거 내 주문 아닌데?”
@@ -738,7 +1053,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 현우가 황급히 돌아서며
 Expressions: 현우가 황급히 돌아서며
 Speech bubble (B / character): “아, 미안!”
@@ -747,9 +1062,36 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 
 [Panel 3 — Climax / punchline]
 Camera: frame the closing scripted beat clearly
-Framing: recurring
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 이라고 외친다.
+Expressions: 이라고 외친다.
+Speech bubble: (silent panel — no bubble)
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
-… (truncated 929 chars)
+Continuity rules:
+
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 3-koma rhythm: setup → development → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
 ### Results
@@ -777,40 +1119,43 @@ Framing: recurring
 준호가 고개를 들고 "알겠어…"라고 중얼거린다.
 ```
 
-### Selected scene (ScenePlan)
+### Selected scene (ScenePlan summary, untruncated)
 
 - heroScene: 준호가 책상에 엎드려 눈을 감는다. 어깨를 흔든다
 - heroEventIds: E1, E2, E3
 - panelCount: 3
+- panel 1: 준호가 책상에 엎드려 눈을 감는다. 어깨를 흔든다 | dialogue: (silent)
+- panel 2: 준호가 고개를 들고 | dialogue: persona:"조금만 더!"
+- panel 3: 라고 중얼거린다. | dialogue: character:"알겠어…"
 
-### Arm A — legacy panel section
+### Arm A — legacy panel section (untruncated)
 
 ```text
-Shared background: 
+Shared background:
 
 Panel count: 3
 
 PANEL 1
 Situation: 준호가 책상에 엎드려 눈을 감는다. 어깨를 흔든다
-Background: 
+Background:
 Persona action: 어깨를 흔든다
 Character action: 준호가 책상에 엎드려 눈을 감는다.
 Exact Korean text: No speech bubble
 
 PANEL 2
 Situation: 준호가 고개를 들고
-Background: 
+Background:
 Character action: 준호가 고개를 들고
 Exact Korean text: persona: “조금만 더!”
 
 PANEL 3
 Situation: 라고 중얼거린다.
-Background: 
+Background:
 Character action: 라고 중얼거린다.
 Exact Korean text: character: “알겠어…”
 ```
 
-### Arm B — structured panel spec section
+### Arm B — structured panel spec section (untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -823,7 +1168,7 @@ Hero focus: 준호가 책상에 엎드려 눈을 감는다. 어깨를 흔든다
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -834,7 +1179,7 @@ B = character (준호)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 어깨를 흔든다
 B action: 준호가 책상에 엎드려 눈을 감는다.
 Expressions: 어깨를 흔든다; 준호가 책상에 엎드려 눈을 감는다.
@@ -846,7 +1191,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 준호가 고개를 들고
 Expressions: 준호가 고개를 들고
 Speech bubble (A / persona): “조금만 더!”
@@ -854,14 +1199,44 @@ SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 [Panel 3 — Climax / punchline]
-Camera: frame th
+Camera: frame the closing scripted beat clearly
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 라고 중얼거린다.
+Expressions: 라고 중얼거린다.
+Speech bubble (B / character): “알겠어…”
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
-… (truncated 977 chars)
+Continuity rules:
+
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 3-koma rhythm: setup → development → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated)
+### Full prompt panel region (Arm B integrated, untruncated)
 
 ```text
+
+
 Format: 3koma (3 panels)
 
 Layout: 3 wide horizontal panels stacked vertically (vertical comic strip / 3koma)
@@ -870,7 +1245,7 @@ Hero focus: 준호가 책상에 엎드려 눈을 감는다. 어깨를 흔든다
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -881,7 +1256,7 @@ B = character (준호)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 어깨를 흔든다
 B action: 준호가 책상에 엎드려 눈을 감는다.
 Expressions: 어깨를 흔든다; 준호가 책상에 엎드려 눈을 감는다.
@@ -893,7 +1268,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 준호가 고개를 들고
 Expressions: 준호가 고개를 들고
 Speech bubble (A / persona): “조금만 더!”
@@ -901,9 +1276,37 @@ SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 [Panel 3 — Climax / punchline]
-Camera: frame the closing scripted
+Camera: frame the closing scripted beat clearly
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 라고 중얼거린다.
+Expressions: 라고 중얼거린다.
+Speech bubble (B / character): “알겠어…”
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
-… (truncated 959 chars)
+Continuity rules:
+
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 3-koma rhythm: setup → development → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
 ### Results
@@ -930,39 +1333,42 @@ Camera: frame the closing scripted
 태민이 지도를 보며 "…아마도."라고 답한다.
 ```
 
-### Selected scene (ScenePlan)
+### Selected scene (ScenePlan summary, untruncated)
 
 - heroScene: 지도를 펼친다 태민이 지도를 보며
 - heroEventIds: E1, E2, E3
 - panelCount: 3
+- panel 1: 지도를 펼친다 | dialogue: persona:"여기 맞아?"
+- panel 2: 태민이 지도를 보며 | dialogue: character:"…아마도."
+- panel 3: 라고 답한다. | dialogue: (silent)
 
-### Arm A — legacy panel section
+### Arm A — legacy panel section (untruncated)
 
 ```text
-Shared background: 
+Shared background:
 
 Panel count: 3
 
 PANEL 1
 Situation: 지도를 펼친다
-Background: 
+Background:
 Persona action: 지도를 펼친다
 Exact Korean text: persona: “여기 맞아?”
 
 PANEL 2
 Situation: 태민이 지도를 보며
-Background: 
+Background:
 Character action: 태민이 지도를 보며
 Exact Korean text: character: “…아마도.”
 
 PANEL 3
 Situation: 라고 답한다.
-Background: 
+Background:
 Character action: 라고 답한다.
 Exact Korean text: No speech bubble
 ```
 
-### Arm B — structured panel spec section
+### Arm B — structured panel spec section (untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -975,7 +1381,7 @@ Hero focus: 지도를 펼친다 태민이 지도를 보며
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -986,7 +1392,7 @@ B = character (태민)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 지도를 펼친다
 Expressions: 지도를 펼친다
 Speech bubble (A / persona): “여기 맞아?”
@@ -997,7 +1403,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 태민이 지도를 보며
 Expressions: 태민이 지도를 보며
 Speech bubble (B / character): “…아마도.”
@@ -1006,14 +1412,43 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 
 [Panel 3 — Climax / punchline]
 Camera: frame the closing scripted beat clearly
-Framing: recurring characters r
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 라고 답한다.
+Expressions: 라고 답한다.
+Speech bubble: (silent panel — no bubble)
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
-… (truncated 914 chars)
+Continuity rules:
+
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 3-koma rhythm: setup → development → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated)
+### Full prompt panel region (Arm B integrated, untruncated)
 
 ```text
+
+
 Format: 3koma (3 panels)
 
 Layout: 3 wide horizontal panels stacked vertically (vertical comic strip / 3koma)
@@ -1022,7 +1457,7 @@ Hero focus: 지도를 펼친다 태민이 지도를 보며
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -1033,7 +1468,7 @@ B = character (태민)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 지도를 펼친다
 Expressions: 지도를 펼친다
 Speech bubble (A / persona): “여기 맞아?”
@@ -1044,7 +1479,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 태민이 지도를 보며
 Expressions: 태민이 지도를 보며
 Speech bubble (B / character): “…아마도.”
@@ -1054,9 +1489,35 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 [Panel 3 — Climax / punchline]
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
-L
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 라고 답한다.
+Expressions: 라고 답한다.
+Speech bubble: (silent panel — no bubble)
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
-… (truncated 896 chars)
+Continuity rules:
+
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 3-koma rhythm: setup → development → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
 ### Results
@@ -1085,46 +1546,50 @@ L
 한별이 코너에서 시우의 소매를 붙잡는다.
 ```
 
-### Selected scene (ScenePlan)
+### Selected scene (ScenePlan summary, untruncated)
 
 - heroScene: 시우가 복도 끝에서 갑자기 뛰기 시작한다. 뒤쫓으며 외친다
 - heroEventIds: E1, E2, E3
 - panelCount: 4
+- panel 1: 시우가 복도 끝에서 갑자기 뛰기 시작한다. 뒤쫓으며 외친다 | dialogue: (silent)
+- panel 2: 시우가 돌아보며 | dialogue: persona:"잠깐!"
+- panel 3: 라고 외친다. | dialogue: character:"안 잡혀!"
+- panel 4: 한별이 코너에서 시우의 소매를 붙잡는다. | dialogue: (silent)
 
-### Arm A — legacy panel section
+### Arm A — legacy panel section (untruncated)
 
 ```text
-Shared background: 
+Shared background:
 
 Panel count: 4
 
 PANEL 1
 Situation: 시우가 복도 끝에서 갑자기 뛰기 시작한다. 뒤쫓으며 외친다
-Background: 
+Background:
 Persona action: 뒤쫓으며 외친다
 Character action: 시우가 복도 끝에서
 Exact Korean text: No speech bubble
 
 PANEL 2
 Situation: 시우가 돌아보며
-Background: 
+Background:
 Character action: 시우가 돌아보며
 Exact Korean text: persona: “잠깐!”
 
 PANEL 3
 Situation: 라고 외친다.
-Background: 
+Background:
 Character action: 라고 외친다.
 Exact Korean text: character: “안 잡혀!”
 
 PANEL 4
 Situation: 한별이 코너에서 시우의 소매를 붙잡는다.
-Background: 
+Background:
 Character action: 한별이 코너에서
 Exact Korean text: No speech bubble
 ```
 
-### Arm B — structured panel spec section
+### Arm B — structured panel spec section (untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -1137,7 +1602,7 @@ Hero focus: 시우가 복도 끝에서 갑자기 뛰기 시작한다. 뒤쫓으�
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -1148,7 +1613,7 @@ B = character (시우)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 뒤쫓으며 외친다
 B action: 시우가 복도 끝에서
 Expressions: 뒤쫓으며 외친다; 시우가 복도 끝에서
@@ -1160,7 +1625,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 시우가 돌아보며
 Expressions: 시우가 돌아보며
 Speech bubble (A / persona): “잠깐!”
@@ -1168,14 +1633,115 @@ SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 [Panel 3 — Turn]
-Camera: continue the scripted beat with cle
+Camera: continue the scripted beat with clear character staging
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 라고 외친다.
+Expressions: 라고 외친다.
+Speech bubble (B / character): “안 잡혀!”
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
-… (truncated 1378 chars)
+[Panel 4 — Resolution]
+Camera: frame the closing scripted beat clearly
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 한별이 코너에서
+Expressions: 한별이 코너에서
+Speech bubble: (silent panel — no bubble)
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
+
+Continuity rules:
+
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 4-panel rhythm: opening → escalation → turn → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated)
+### FULL FINAL ASSEMBLED PROMPT (untruncated)
 
 ```text
+Create one polished Korean manhwa-style page with exactly 4 wide horizontal panels stacked vertically.
+
+Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and romantic-comedy timing, but do not copy its exact poses.
+
+Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.
+
+SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
+
+[SUBJECT A — CHAT CHARACTER: 시우]
+Reference: Image 2 belongs ONLY to 시우.
+Appearance mode: IMAGE_ONLY
+No supplemental saved appearance.
+Use this selected reference as the authoritative visual identity for this subject only.
+Identity ownership: every trait in this block belongs only to 시우.
+Never infer SUBJECT A's identity from any other subject.
+
+[SUBJECT B — USER PERSONA: 한별]
+Reference: Image 3 belongs ONLY to 한별.
+Appearance mode: IMAGE_ONLY
+No supplemental saved appearance.
+Use this selected reference as the authoritative visual identity for this subject only.
+Identity ownership: every trait in this block belongs only to 한별.
+Never infer SUBJECT B's identity from any other subject.
+
+IDENTITY OWNERSHIP IS STRICT.
+REFERENCE 1 is the layout / composition / decoration template ONLY. It is NEVER a character identity source. Do not copy hair, eyes, iris, pupils, clothes, or face from the template onto any subject.
+Each subject owns only the visual traits from their own identity block and own reference.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+Do not average or homogenize identities even when both subjects look similar.
+Do not assume that a visually striking feature belongs to every person.
+A trait appearing in one subject's reference is NOT a global style property.
+Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
+Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
+STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
+Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
+Template or another person's appearance must never be treated as a style characteristic.
+PRIORITY: 1) explicit generation product option (pose, expression, temporary costume/prop); 2) this subject's stable saved identity only when IMAGE_PLUS_SAVED; 3) this subject's own reference image; 4) template styling/composition.
+Product options may add a temporary prop or costume. They must not rewrite hair color, eye/iris/pupil color, or face identity.
+
+GENDER LOCK — mandatory identity rule.
+chat character 시우: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
+user persona 한별: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
+Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
+
+Overall tone: light romantic-comedy energy, exaggerated reactions and playful timing.
+
+STRICT CLOSED TEXT WHITELIST: the only text allowed anywhere in the image is listed below. Copy each used string exactly, character for character.
+
+- “잠깐!”
+- “안 잡혀!”
+
+Never invent reaction dialogue, bridge dialogue, narration, captions, labels, titles, signs, or sound effects. Silent panels with no speech are valid. Do not create a speech bubble for a panel marked No speech bubble.
+
+Use proper speech bubbles with tails pointing to the correct speaker. Keep all approved text large, centered, uncropped, and easy to read.
+
+Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.
+
+Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.
+
+COMIC PANEL SPEC
+
 Format: 4panel (4 panels)
 
 Layout: 4 wide horizontal panels stacked vertically (vertical comic strip / 4panel)
@@ -1184,7 +1750,7 @@ Hero focus: 시우가 복도 끝에서 갑자기 뛰기 시작한다. 뒤쫓으�
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -1195,7 +1761,7 @@ B = character (시우)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 뒤쫓으며 외친다
 B action: 시우가 복도 끝에서
 Expressions: 뒤쫓으며 외친다; 시우가 복도 끝에서
@@ -1207,7 +1773,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 시우가 돌아보며
 Expressions: 시우가 돌아보며
 Speech bubble (A / persona): “잠깐!”
@@ -1215,9 +1781,48 @@ SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 [Panel 3 — Turn]
-Camera: continue the scripted beat with clear character stagi
+Camera: continue the scripted beat with clear character staging
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 라고 외친다.
+Expressions: 라고 외친다.
+Speech bubble (B / character): “안 잡혀!”
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
-… (truncated 1360 chars)
+[Panel 4 — Resolution]
+Camera: frame the closing scripted beat clearly
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 한별이 코너에서
+Expressions: 한별이 코너에서
+Speech bubble: (silent panel — no bubble)
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
+
+Continuity rules:
+
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 4-panel rhythm: opening → escalation → turn → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
 ### Results
@@ -1245,44 +1850,48 @@ Camera: continue the scripted beat with clear character stagi
 건이 고개를 숙이며 "내 탓이야."라고 말한다.
 ```
 
-### Selected scene (ScenePlan)
+### Selected scene (ScenePlan summary, untruncated)
 
 - heroScene: 건이 냄비 뚜껑을 연다. 검은 연기가 피어오른다.
 - heroEventIds: E1, E2, E3
 - panelCount: 4
+- panel 1: 건이 냄비 뚜껑을 연다. 검은 연기가 피어오른다. | dialogue: (silent)
+- panel 2: 건이 고개를 숙이며 | dialogue: persona:"이게 뭐야…"
+- panel 3:  | dialogue: character:"내 탓이야."
+- panel 4: 라고 말한다. | dialogue: (silent)
 
-### Arm A — legacy panel section
+### Arm A — legacy panel section (untruncated)
 
 ```text
-Shared background: 
+Shared background:
 
 Panel count: 4
 
 PANEL 1
 Situation: 건이 냄비 뚜껑을 연다. 검은 연기가 피어오른다.
-Background: 
+Background:
 Character action: 건이 냄비 뚜껑을 연다.
 Exact Korean text: No speech bubble
 
 PANEL 2
 Situation: 건이 고개를 숙이며
-Background: 
+Background:
 Character action: 건이 고개를 숙이며
 Exact Korean text: persona: “이게 뭐야…”
 
 PANEL 3
-Situation: 
-Background: 
+Situation:
+Background:
 Exact Korean text: character: “내 탓이야.”
 
 PANEL 4
 Situation: 라고 말한다.
-Background: 
+Background:
 Character action: 라고 말한다.
 Exact Korean text: No speech bubble
 ```
 
-### Arm B — structured panel spec section
+### Arm B — structured panel spec section (untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -1295,7 +1904,7 @@ Hero focus: 건이 냄비 뚜껑을 연다. 검은 연기가 피어오른다.
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -1306,7 +1915,7 @@ B = character (건)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 건이 냄비 뚜껑을 연다.
 Expressions: 건이 냄비 뚜껑을 연다.
 Speech bubble: (silent panel — no bubble)
@@ -1317,7 +1926,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 건이 고개를 숙이며
 Expressions: 건이 고개를 숙이며
 Speech bubble (A / persona): “이게 뭐야…”
@@ -1326,14 +1935,54 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 
 [Panel 3 — Turn]
 Camera: continue the scripted beat with clear character staging
-F
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+Acting:
+Expressions: posture and expression matching the scripted beat:
+Speech bubble (B / character): “내 탓이야.”
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
-… (truncated 1390 chars)
+[Panel 4 — Resolution]
+Camera: frame the closing scripted beat clearly
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 라고 말한다.
+Expressions: 라고 말한다.
+Speech bubble: (silent panel — no bubble)
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
+
+Continuity rules:
+
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 4-panel rhythm: opening → escalation → turn → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated)
+### Full prompt panel region (Arm B integrated, untruncated)
 
 ```text
+
+
 Format: 4panel (4 panels)
 
 Layout: 4 wide horizontal panels stacked vertically (vertical comic strip / 4panel)
@@ -1342,7 +1991,7 @@ Hero focus: 건이 냄비 뚜껑을 연다. 검은 연기가 피어오른다.
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -1353,7 +2002,7 @@ B = character (건)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 건이 냄비 뚜껑을 연다.
 Expressions: 건이 냄비 뚜껑을 연다.
 Speech bubble: (silent panel — no bubble)
@@ -1364,7 +2013,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 건이 고개를 숙이며
 Expressions: 건이 고개를 숙이며
 Speech bubble (A / persona): “이게 뭐야…”
@@ -1373,9 +2022,47 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 
 [Panel 3 — Turn]
 Camera: continue the scripted beat with clear character staging
-Framing: recurring 
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+Acting:
+Expressions: posture and expression matching the scripted beat:
+Speech bubble (B / character): “내 탓이야.”
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
-… (truncated 1372 chars)
+[Panel 4 — Resolution]
+Camera: frame the closing scripted beat clearly
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 라고 말한다.
+Expressions: 라고 말한다.
+Speech bubble: (silent panel — no bubble)
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
+
+Continuity rules:
+
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 4-panel rhythm: opening → escalation → turn → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
 ### Results
@@ -1403,45 +2090,49 @@ Framing: recurring
 재혁이 숨을 고르며 "…들을게."라고 답한다.
 ```
 
-### Selected scene (ScenePlan)
+### Selected scene (ScenePlan summary, untruncated)
 
 - heroScene: 재혁이 노을진 다리 위에 선다. 손을 잡는다
 - heroEventIds: E1, E2, E3
 - panelCount: 4
+- panel 1: 재혁이 노을진 다리 위에 선다. 손을 잡는다 | dialogue: (silent)
+- panel 2: 재혁이 숨을 고르며 | dialogue: persona:"할 말이 있어."
+- panel 3:  | dialogue: character:"…들을게."
+- panel 4: 라고 답한다. | dialogue: (silent)
 
-### Arm A — legacy panel section
+### Arm A — legacy panel section (untruncated)
 
 ```text
-Shared background: 
+Shared background:
 
 Panel count: 4
 
 PANEL 1
 Situation: 재혁이 노을진 다리 위에 선다. 손을 잡는다
-Background: 
+Background:
 Persona action: 손을 잡는다
 Character action: 재혁이 노을진 다리 위에 선다.
 Exact Korean text: No speech bubble
 
 PANEL 2
 Situation: 재혁이 숨을 고르며
-Background: 
+Background:
 Character action: 재혁이 숨을 고르며
 Exact Korean text: persona: “할 말이 있어.”
 
 PANEL 3
-Situation: 
-Background: 
+Situation:
+Background:
 Exact Korean text: character: “…들을게.”
 
 PANEL 4
 Situation: 라고 답한다.
-Background: 
+Background:
 Character action: 라고 답한다.
 Exact Korean text: No speech bubble
 ```
 
-### Arm B — structured panel spec section
+### Arm B — structured panel spec section (untruncated)
 
 ```text
 COMIC PANEL SPEC
@@ -1454,7 +2145,7 @@ Hero focus: 재혁이 노을진 다리 위에 선다. 손을 잡는다
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -1465,7 +2156,7 @@ B = character (재혁)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 손을 잡는다
 B action: 재혁이 노을진 다리 위에 선다.
 Expressions: 손을 잡는다; 재혁이 노을진 다리 위에 선다.
@@ -1477,7 +2168,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 재혁이 숨을 고르며
 Expressions: 재혁이 숨을 고르며
 Speech bubble (A / persona): “할 말이 있어.”
@@ -1485,14 +2176,55 @@ SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 [Panel 3 — Turn]
-Camera: continue the scripted be
+Camera: continue the scripted beat with clear character staging
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+Acting:
+Expressions: posture and expression matching the scripted beat:
+Speech bubble (B / character): “…들을게.”
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
-… (truncated 1422 chars)
+[Panel 4 — Resolution]
+Camera: frame the closing scripted beat clearly
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 라고 답한다.
+Expressions: 라고 답한다.
+Speech bubble: (silent panel — no bubble)
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
+
+Continuity rules:
+
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 4-panel rhythm: opening → escalation → turn → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
-### Full prompt panel region (Arm B integrated)
+### Full prompt panel region (Arm B integrated, untruncated)
 
 ```text
+
+
 Format: 4panel (4 panels)
 
 Layout: 4 wide horizontal panels stacked vertically (vertical comic strip / 4panel)
@@ -1501,7 +2233,7 @@ Hero focus: 재혁이 노을진 다리 위에 선다. 손을 잡는다
 
 Hero event ids: E1, E2, E3
 
-Shared background: 
+Shared background:
 
 Cast:
 
@@ -1512,7 +2244,7 @@ B = character (재혁)
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 A action: 손을 잡는다
 B action: 재혁이 노을진 다리 위에 선다.
 Expressions: 손을 잡는다; 재혁이 노을진 다리 위에 선다.
@@ -1524,7 +2256,7 @@ Must avoid: invented SFX text; speech bubble without an approved line below
 Camera: continue the scripted beat with clear character staging
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
-Background: 
+Background:
 B action: 재혁이 숨을 고르며
 Expressions: 재혁이 숨을 고르며
 Speech bubble (A / persona): “할 말이 있어.”
@@ -1532,9 +2264,48 @@ SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
 [Panel 3 — Turn]
-Camera: continue the scripted beat with clear char
+Camera: continue the scripted beat with clear character staging
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+Acting:
+Expressions: posture and expression matching the scripted beat:
+Speech bubble (B / character): “…들을게.”
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
 
-… (truncated 1404 chars)
+[Panel 4 — Resolution]
+Camera: frame the closing scripted beat clearly
+Framing: recurring characters readable in frame
+Layout: A left, B right — maintain stable orientation across panels
+Background:
+B action: 라고 답한다.
+Expressions: 라고 답한다.
+Speech bubble: (silent panel — no bubble)
+SFX: (none — do not render sound-effect text)
+Must avoid: invented SFX text; speech bubble without an approved line below
+
+Continuity rules:
+
+- Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.
+
+- Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
+
+- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+
+- 4-panel rhythm: opening → escalation → turn → closing beat — each panel covers a distinct scripted moment.
+
+Global must avoid:
+
+- invented dialogue or narration
+
+- sound effects or onomatopoeia text
+
+- extra unnamed characters
+
+- identity swaps between A and B
+
+- cropped panel borders or speech bubbles
 ```
 
 ### Results
@@ -1544,3 +2315,7 @@ Camera: continue the scripted beat with clear char
 - **Notes:** Compare panel clarity, cast layout, bubble separation, continuity rules.
 
 ---
+
+## Audit counters
+
+- REVIEW_PACKET_TRUNCATION_COUNT: 0

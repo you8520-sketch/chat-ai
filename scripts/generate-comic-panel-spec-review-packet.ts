@@ -21,11 +21,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = join(ROOT, "docs/audits/comic-panel-spec-benchmark");
 const OUT_FILE = join(OUT_DIR, "REVIEW_PACKET.md");
 
-function summarize(text: string, max = 1200): string {
-  const trimmed = text.trim();
-  if (trimmed.length <= max) return trimmed;
-  return `${trimmed.slice(0, max)}\n\n… (truncated ${trimmed.length - max} chars)`;
-}
+const FULL_PROMPT_FIXTURE_IDS = new Set([
+  "F01-2panel-invite",
+  "F04-3koma-rain",
+  "F08-4panel-chase",
+]);
 
 const sections: string[] = [
   "# Comic Panel Spec Compiler — REVIEW PACKET",
@@ -43,6 +43,8 @@ const sections: string[] = [
   "",
 ];
 
+let truncationCount = 0;
+
 for (const fixture of COMIC_PANEL_BENCHMARK_FIXTURES) {
   const plan = scenePlanForFixture(fixture);
   const spec = compileChatComicPanelSpec({
@@ -52,6 +54,14 @@ for (const fixture of COMIC_PANEL_BENCHMARK_FIXTURES) {
   });
   const armA = formatApprovedScenePlanForComic(plan);
   const armB = renderChatComicPanelSpecSection(spec);
+  const fullPrompt = buildChatComicImagePrompt({
+    characterName: fixture.expectedCast.character,
+    characterGender: "male",
+    personaName: fixture.expectedCast.persona,
+    personaGender: "female",
+    plan,
+  });
+  const panelRegion = fullPrompt.split("COMIC PANEL SPEC")[1] ?? fullPrompt;
 
   sections.push(`## ${fixture.id} — ${fixture.title}`);
   sections.push("");
@@ -67,39 +77,42 @@ for (const fixture of COMIC_PANEL_BENCHMARK_FIXTURES) {
   sections.push(fixture.sourceScene);
   sections.push("```");
   sections.push("");
-  sections.push("### Selected scene (ScenePlan)");
+  sections.push("### Selected scene (ScenePlan summary, untruncated)");
   sections.push("");
   sections.push(`- heroScene: ${plan.heroScene}`);
   sections.push(`- heroEventIds: ${plan.heroEventIds.join(", ")}`);
   sections.push(`- panelCount: ${plan.panels.length}`);
+  for (const panel of plan.panels) {
+    sections.push(
+      `- panel ${panel.index}: ${panel.situation} | dialogue: ${panel.dialogue.map((line) => `${line.speaker}:"${line.text}"`).join(", ") || "(silent)"}`
+    );
+  }
   sections.push("");
-  sections.push("### Arm A — legacy panel section");
-  sections.push("");
-  sections.push("```text");
-  sections.push(summarize(armA));
-  sections.push("```");
-  sections.push("");
-  sections.push("### Arm B — structured panel spec section");
-  sections.push("");
-  sections.push("```text");
-  sections.push(summarize(armB));
-  sections.push("```");
-  sections.push("");
-  sections.push("### Full prompt panel region (Arm B integrated)");
+  sections.push("### Arm A — legacy panel section (untruncated)");
   sections.push("");
   sections.push("```text");
-  sections.push(
-    summarize(
-      buildChatComicImagePrompt({
-        characterName: fixture.expectedCast.character,
-        characterGender: "male",
-        personaName: fixture.expectedCast.persona,
-        personaGender: "female",
-        plan,
-      }).split("COMIC PANEL SPEC")[1] ?? ""
-    )
-  );
+  sections.push(armA);
   sections.push("```");
+  sections.push("");
+  sections.push("### Arm B — structured panel spec section (untruncated)");
+  sections.push("");
+  sections.push("```text");
+  sections.push(armB);
+  sections.push("```");
+  sections.push("");
+  if (FULL_PROMPT_FIXTURE_IDS.has(fixture.id)) {
+    sections.push("### FULL FINAL ASSEMBLED PROMPT (untruncated)");
+    sections.push("");
+    sections.push("```text");
+    sections.push(fullPrompt);
+    sections.push("```");
+  } else {
+    sections.push("### Full prompt panel region (Arm B integrated, untruncated)");
+    sections.push("");
+    sections.push("```text");
+    sections.push(panelRegion);
+    sections.push("```");
+  }
   sections.push("");
   sections.push("### Results");
   sections.push("");
@@ -110,6 +123,11 @@ for (const fixture of COMIC_PANEL_BENCHMARK_FIXTURES) {
   sections.push("---");
   sections.push("");
 }
+
+sections.push("## Audit counters");
+sections.push("");
+sections.push(`- REVIEW_PACKET_TRUNCATION_COUNT: ${truncationCount}`);
+sections.push("");
 
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(OUT_FILE, sections.join("\n"), "utf8");
