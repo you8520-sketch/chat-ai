@@ -1,11 +1,4 @@
-export const STREAM_ROUTER_REFRESH_GATE_OWNER = "streamRouterRefreshGate.ts";
-
-export function shouldDeferAssistantRouterRefresh(input: {
-  streamIntervalMs: number;
-  revealIdle: boolean;
-}): boolean {
-  return input.streamIntervalMs > 0 && !input.revealIdle;
-}
+export const ASSISTANT_POST_TURN_REFRESH_OWNER = "streamRouterRefreshGate.ts";
 
 export function shouldDeferResumePostTurnPoll(input: {
   visualRevealPendingCount: number;
@@ -13,49 +6,55 @@ export function shouldDeferResumePostTurnPoll(input: {
   return input.visualRevealPendingCount > 0;
 }
 
-export type DeferredRouterRefreshGate = {
+export function shouldDeferAssistantPostTurnRefresh(input: {
+  visualRevealPendingCount: number;
+}): boolean {
+  return input.visualRevealPendingCount > 0;
+}
+
+export type GlobalAssistantPostTurnRefreshCoordinator = {
   schedule: () => void;
-  hasPendingDeferredRefresh: () => boolean;
+  onVisualRevealPendingCountChanged: (count: number) => void;
+  hasPendingRefresh: () => boolean;
   refreshCount: () => number;
 };
 
-export function createDeferredRouterRefreshGate(input: {
+/** Chat-global visual reveal gate — checks pending count at refresh execution time. */
+export function createGlobalAssistantPostTurnRefreshCoordinator(input: {
   refresh: () => void;
-  isRevealIdle: () => boolean;
-  streamIntervalMs: () => number;
-  waitUntilRevealIdle: () => Promise<void>;
-}): DeferredRouterRefreshGate {
-  let deferredFlushPending = false;
-  let waitingForIdle = false;
+  getVisualRevealPendingCount: () => number;
+}): GlobalAssistantPostTurnRefreshCoordinator {
+  let pendingRefresh = false;
   let refreshCalls = 0;
 
-  const schedule = () => {
-    if (
-      shouldDeferAssistantRouterRefresh({
-        streamIntervalMs: input.streamIntervalMs(),
-        revealIdle: input.isRevealIdle(),
-      })
-    ) {
-      deferredFlushPending = true;
-      if (waitingForIdle) return;
-      waitingForIdle = true;
-      void input.waitUntilRevealIdle().then(() => {
-        waitingForIdle = false;
-        if (!deferredFlushPending) return;
-        deferredFlushPending = false;
-        refreshCalls += 1;
-        input.refresh();
-      });
+  const tryFlush = () => {
+    if (shouldDeferAssistantPostTurnRefresh({ visualRevealPendingCount: input.getVisualRevealPendingCount() })) {
       return;
     }
-    deferredFlushPending = false;
+    if (!pendingRefresh) return;
+    pendingRefresh = false;
     refreshCalls += 1;
     input.refresh();
   };
 
+  const schedule = () => {
+    if (shouldDeferAssistantPostTurnRefresh({ visualRevealPendingCount: input.getVisualRevealPendingCount() })) {
+      pendingRefresh = true;
+      return;
+    }
+    pendingRefresh = false;
+    refreshCalls += 1;
+    input.refresh();
+  };
+
+  const onVisualRevealPendingCountChanged = (count: number) => {
+    if (count === 0) tryFlush();
+  };
+
   return {
     schedule,
-    hasPendingDeferredRefresh: () => deferredFlushPending || waitingForIdle,
+    onVisualRevealPendingCountChanged,
+    hasPendingRefresh: () => pendingRefresh,
     refreshCount: () => refreshCalls,
   };
 }

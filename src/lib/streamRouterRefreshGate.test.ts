@@ -1,93 +1,102 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
-  createDeferredRouterRefreshGate,
-  shouldDeferAssistantRouterRefresh,
+  createGlobalAssistantPostTurnRefreshCoordinator,
+  shouldDeferAssistantPostTurnRefresh,
   shouldDeferResumePostTurnPoll,
 } from "@/lib/streamRouterRefreshGate";
 
-describe("streamRouterRefreshGate", () => {
-  it("defers refresh while reveal pending and coalesces multiple schedules", async () => {
-    let idle = false;
+describe("global assistant post-turn refresh coordinator", () => {
+  it("R3 — immediate refresh when no visual reveal pending", () => {
+    let pendingCount = 0;
     let refreshed = 0;
-    const gate = createDeferredRouterRefreshGate({
+    const coord = createGlobalAssistantPostTurnRefreshCoordinator({
       refresh: () => {
         refreshed += 1;
       },
-      isRevealIdle: () => idle,
-      streamIntervalMs: () => 30,
-      waitUntilRevealIdle: async () => {
-        await new Promise((r) => setTimeout(r, 5));
-      },
+      getVisualRevealPendingCount: () => pendingCount,
     });
 
-    assert.equal(shouldDeferAssistantRouterRefresh({ streamIntervalMs: 30, revealIdle: false }), true);
-    gate.schedule();
-    gate.schedule();
-    gate.schedule();
+    coord.schedule();
+    assert.equal(refreshed, 1);
+    assert.equal(coord.hasPendingRefresh(), false);
+  });
+
+  it("R4 — multiple completions coalesce to one refresh after reveal idle", () => {
+    let pendingCount = 1;
+    let refreshed = 0;
+    const coord = createGlobalAssistantPostTurnRefreshCoordinator({
+      refresh: () => {
+        refreshed += 1;
+      },
+      getVisualRevealPendingCount: () => pendingCount,
+    });
+
+    coord.schedule();
+    coord.schedule();
+    coord.schedule();
     assert.equal(refreshed, 0);
-    assert.equal(gate.hasPendingDeferredRefresh(), true);
+    assert.equal(coord.hasPendingRefresh(), true);
 
-    idle = true;
-    await new Promise((r) => setTimeout(r, 20));
+    pendingCount = 0;
+    coord.onVisualRevealPendingCountChanged(0);
     assert.equal(refreshed, 1);
-    assert.equal(gate.refreshCount(), 1);
+    assert.equal(coord.refreshCount(), 1);
   });
 
-  it("refreshes immediately when reveal idle", () => {
+  it("R1 — poll completion during next reveal defers until global reveal idle", () => {
+    let pendingCount = 0;
     let refreshed = 0;
-    const gate = createDeferredRouterRefreshGate({
+    const coord = createGlobalAssistantPostTurnRefreshCoordinator({
       refresh: () => {
         refreshed += 1;
       },
-      isRevealIdle: () => true,
-      streamIntervalMs: () => 30,
-      waitUntilRevealIdle: async () => {},
+      getVisualRevealPendingCount: () => pendingCount,
     });
-    gate.schedule();
+
+    assert.equal(shouldDeferResumePostTurnPoll({ visualRevealPendingCount: pendingCount }), false);
+
+    pendingCount = 1;
+    coord.schedule();
+    assert.equal(refreshed, 0);
+    assert.equal(coord.hasPendingRefresh(), true);
+
+    pendingCount = 0;
+    coord.onVisualRevealPendingCountChanged(0);
     assert.equal(refreshed, 1);
   });
 
-  it("done + reveal pending + suggested replies schedule coalesces to one refresh after idle", async () => {
-    let idle = false;
+  it("R2 — turn A deferred refresh does not fire while turn B reveal pending", () => {
+    let pendingCount = 1;
     let refreshed = 0;
-    const gate = createDeferredRouterRefreshGate({
+    const coord = createGlobalAssistantPostTurnRefreshCoordinator({
       refresh: () => {
         refreshed += 1;
       },
-      isRevealIdle: () => idle,
-      streamIntervalMs: () => 30,
-      waitUntilRevealIdle: async () => {
-        await new Promise((r) => setTimeout(r, 5));
-      },
+      getVisualRevealPendingCount: () => pendingCount,
     });
 
-    gate.schedule();
-    gate.schedule();
+    coord.schedule();
+    assert.equal(refreshed, 0);
+    assert.equal(coord.hasPendingRefresh(), true);
+
+    pendingCount = 2;
+    coord.onVisualRevealPendingCountChanged(2);
     assert.equal(refreshed, 0);
 
-    idle = true;
-    await new Promise((r) => setTimeout(r, 20));
+    pendingCount = 1;
+    coord.onVisualRevealPendingCountChanged(1);
+    assert.equal(refreshed, 0);
+    assert.equal(coord.hasPendingRefresh(), true);
+
+    pendingCount = 0;
+    coord.onVisualRevealPendingCountChanged(0);
     assert.equal(refreshed, 1);
+    assert.equal(coord.refreshCount(), 1);
   });
 
-  it("instant stream interval never defers", () => {
-    assert.equal(
-      shouldDeferAssistantRouterRefresh({ streamIntervalMs: 0, revealIdle: false }),
-      false
-    );
-  });
-
-  it("resume post-turn poll blocked while any visual reveal pending", () => {
-    assert.equal(shouldDeferResumePostTurnPoll({ visualRevealPendingCount: 1 }), true);
-    assert.equal(shouldDeferResumePostTurnPoll({ visualRevealPendingCount: 0 }), false);
-  });
-
-  it("ChatClient resume polls defer until visualRevealPendingIds clears", () => {
-    const chatClient = readFileSync("src/app/chat/[id]/ChatClient.tsx", "utf8");
-    assert.match(chatClient, /visualRevealPendingIds\.size > 0\) return;/);
-    assert.match(chatClient, /startStatusMetaPoll\([\s\S]*?scheduleRouterRefresh/);
-    assert.match(chatClient, /visualRevealPendingIds\]/);
+  it("shouldDeferAssistantPostTurnRefresh mirrors global reveal count", () => {
+    assert.equal(shouldDeferAssistantPostTurnRefresh({ visualRevealPendingCount: 0 }), false);
+    assert.equal(shouldDeferAssistantPostTurnRefresh({ visualRevealPendingCount: 2 }), true);
   });
 });

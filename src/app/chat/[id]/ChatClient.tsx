@@ -140,7 +140,10 @@ import {
   type RevealSessionIdentity,
 } from "@/lib/streamRevealIdentity";
 import { handleStreamRevealClick } from "@/lib/streamClickReveal";
-import { createDeferredRouterRefreshGate } from "@/lib/streamRouterRefreshGate";
+import {
+  createGlobalAssistantPostTurnRefreshCoordinator,
+  shouldDeferResumePostTurnPoll,
+} from "@/lib/streamRouterRefreshGate";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
 import {
@@ -1034,23 +1037,41 @@ export default function ChatClient({
   const [visualRevealPendingIds, setVisualRevealPendingIds] = useState<ReadonlySet<string>>(
     () => new Set()
   );
+  const visualRevealPendingCountRef = useRef(0);
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  const assistantPostTurnRefreshCoordinatorRef = useRef(
+    createGlobalAssistantPostTurnRefreshCoordinator({
+      refresh: () => routerRef.current.refresh(),
+      getVisualRevealPendingCount: () => visualRevealPendingCountRef.current,
+    })
+  );
+  const syncVisualRevealPendingCount = useCallback((count: number) => {
+    visualRevealPendingCountRef.current = count;
+    assistantPostTurnRefreshCoordinatorRef.current.onVisualRevealPendingCountChanged(count);
+  }, []);
+  const scheduleAssistantPostTurnRefresh = useCallback(() => {
+    assistantPostTurnRefreshCoordinatorRef.current.schedule();
+  }, []);
   const addVisualRevealPending = useCallback((requestId: string) => {
     setVisualRevealPendingIds((prev) => {
       if (prev.has(requestId)) return prev;
       const next = new Set(prev);
       next.add(requestId);
+      syncVisualRevealPendingCount(next.size);
       return next;
     });
-  }, []);
+  }, [syncVisualRevealPendingCount]);
 
   const removeVisualRevealPending = useCallback((requestId: string) => {
     setVisualRevealPendingIds((prev) => {
       if (!prev.has(requestId)) return prev;
       const next = new Set(prev);
       next.delete(requestId);
+      syncVisualRevealPendingCount(next.size);
       return next;
     });
-  }, []);
+  }, [syncVisualRevealPendingCount]);
 
   const cancelPendingRevealForRequestId = useCallback(
     (requestId: string | null | undefined) => {
@@ -1573,9 +1594,10 @@ export default function ChatClient({
       }
       pendingRevealSessionsRef.current.clear();
       activeStreamRevealRef.current = null;
+      syncVisualRevealPendingCount(0);
       setVisualRevealPendingIds(new Set());
     };
-  }, []);
+  }, [syncVisualRevealPendingCount]);
 
   const syncChatUrl = useCallback(
     (id: number | null) => {
@@ -2171,7 +2193,9 @@ export default function ChatClient({
 
   useEffect(() => {
     if (loadingRef.current || inFlightRef.current) return;
-    if (visualRevealPendingIds.size > 0) return;
+    if (shouldDeferResumePostTurnPoll({ visualRevealPendingCount: visualRevealPendingCountRef.current })) {
+      return;
+    }
     for (let i = 0; i < messages.length; i++) {
       const m = messages[i]!;
       if (m.role !== "assistant" || m.id == null) continue;
@@ -2207,7 +2231,7 @@ export default function ChatClient({
         setMessages,
         userNote,
         markdownStatusWindowActive,
-        () => router.refresh(),
+        () => scheduleAssistantPostTurnRefresh(),
         {
           statusWidgetActive,
           userMessage: userMsg,
@@ -2215,12 +2239,14 @@ export default function ChatClient({
         }
       );
     }
-  }, [messages, userNote, markdownStatusWindowActive, router, selectedPersona?.description, statusWidgetActive, visualRevealPendingIds]);
+  }, [messages, userNote, markdownStatusWindowActive, scheduleAssistantPostTurnRefresh, selectedPersona?.description, statusWidgetActive, visualRevealPendingIds]);
 
   useEffect(() => {
     if (!displayPrefs.showSuggestedReplies) return;
     if (loadingRef.current || inFlightRef.current) return;
-    if (visualRevealPendingIds.size > 0) return;
+    if (shouldDeferResumePostTurnPoll({ visualRevealPendingCount: visualRevealPendingCountRef.current })) {
+      return;
+    }
     const last = messages[messages.length - 1];
     if (last?.role !== "assistant") return;
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -2238,7 +2264,7 @@ export default function ChatClient({
         m.id,
         suggestedRepliesPollStartedRef,
         setMessages,
-        () => router.refresh()
+        () => scheduleAssistantPostTurnRefresh()
       );
       break;
     }
@@ -2693,13 +2719,7 @@ export default function ChatClient({
       closeSessionRecoveryDraft();
       setGenerationStartedAt(null);
       setChatId(data.chatId ?? chatId);
-      const assistantRefreshGate = createDeferredRouterRefreshGate({
-        refresh: () => router.refresh(),
-        isRevealIdle: () => reveal.isIdle(),
-        streamIntervalMs: () => displayPrefsRef.current.streamIntervalMs,
-        waitUntilRevealIdle: () => reveal.waitUntilIdle(),
-      });
-      const scheduleRouterRefresh = () => assistantRefreshGate.schedule();
+      const scheduleRouterRefresh = () => scheduleAssistantPostTurnRefresh();
       if (data.chatId) {
         migrateChatMessageDraft(character.id, data.chatId);
         syncChatUrl(data.chatId);
