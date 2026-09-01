@@ -25,6 +25,7 @@ import {
 import { calcUsedChars } from "@/lib/memory/memory-used-chars";
 import { migrateLegacyPinnedFactsIntoRecentSummary } from "@/lib/memory/pinned-facts-migration";
 import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
+import { dropChatsCurrentSummaryColumnOnce } from "@/lib/memory/chats-current-summary-column-retirement";
 import { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-retirement";
 import {
   countDirtyPinnedRows,
@@ -72,7 +73,6 @@ function seedProductionRemoteCore(db: Database.Database): void {
       user_id INTEGER NOT NULL,
       character_id INTEGER NOT NULL,
       mode TEXT NOT NULL DEFAULT 'safe',
-      current_summary TEXT NOT NULL DEFAULT '',
       memory_meta TEXT NOT NULL DEFAULT '{}',
       memory_pending TEXT NOT NULL DEFAULT '[]',
       memory_archived_turns INTEGER NOT NULL DEFAULT 0,
@@ -174,6 +174,7 @@ function runFullMemoryRetirementMigrations(db: Database.Database): void {
   migrateLegacyPinnedFactsIntoRecentSummary(db);
   dropPinnedFactsColumnOnce(db);
   dropLastCompressedAtColumnOnce(db);
+  dropChatsCurrentSummaryColumnOnce(db);
   convergeLegacyChatsMemoryIntoCanonical(db);
   dropChatsMemoryColumnOnce(db);
 }
@@ -345,7 +346,6 @@ function seedProductionRemoteCoreTablesExceptChatMemories(db: Database.Database)
       user_id INTEGER NOT NULL,
       character_id INTEGER NOT NULL,
       mode TEXT NOT NULL DEFAULT 'safe',
-      current_summary TEXT NOT NULL DEFAULT '',
       memory_meta TEXT NOT NULL DEFAULT '{}',
       memory_pending TEXT NOT NULL DEFAULT '[]',
       memory_archived_turns INTEGER NOT NULL DEFAULT 0,
@@ -683,8 +683,8 @@ describe("pinned_facts Phase 2B remote lifecycle", () => {
 
 describe("pinned_facts Phase 2B rollback contract (documentation)", () => {
   it("P2B-18 V7 current; V6 historical pinned rollback documented", () => {
-    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v7-chats-memory-retired");
-    assert.equal(REMOTE_SCHEMA_VERSION_PREVIOUS, "turso-v6-last-compressed-at-retired");
+    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v8-current-summary-retired");
+    assert.equal(REMOTE_SCHEMA_VERSION_PREVIOUS, "turso-v7-chats-memory-retired");
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     assert.equal(hasPinnedFactsPhysicallyRetired(db), true);

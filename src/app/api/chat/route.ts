@@ -707,7 +707,6 @@ export async function POST(req: Request) {
             selected_persona_id: number | null;
             gemini_model: string;
             memory_archived_turns: number;
-            current_summary?: string;
             user_impersonation?: number;
             target_response_chars?: number;
             status_window_enabled?: number;

@@ -12,6 +12,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
+import { hasChatsCurrentSummaryColumn } from "@/lib/memory/chats-memory-column-compat";
 import { getDb } from "@/lib/db";
 import {
   installIsolatedTestDatabase,
@@ -222,9 +223,11 @@ describe("persistValidatedSummaryBatch integrity (Phase2 ON)", () => {
     assert.equal(result.ok, false);
     assert.equal(listMemoryRecordsForChat(CHAT_ID).length, 0);
     assert.equal(rebuildLorebookFromRecords(CHAT_ID), "");
-    const chat = getDb()
-      .prepare("SELECT current_summary FROM chats WHERE id=?")
-      .get(CHAT_ID) as { current_summary: string | null };
+    const chat = hasChatsCurrentSummaryColumn(getDb())
+      ? (getDb()
+          .prepare("SELECT current_summary FROM chats WHERE id=?")
+          .get(CHAT_ID) as { current_summary: string | null })
+      : { current_summary: "" };
     assert.ok(!chat.current_summary?.includes("6턴 배치"));
   });
 

@@ -12,6 +12,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
+import { hasChatsCurrentSummaryColumn } from "@/lib/memory/chats-memory-column-compat";
 import { getDb } from "@/lib/db";
 import {
   installIsolatedTestDatabase,
@@ -67,9 +68,15 @@ function seedChat() {
     "x"
   );
   db.prepare(`INSERT INTO characters (id, name) VALUES (?,?)`).run(CHAR, "RegenChar");
-  db.prepare(
-    `INSERT INTO chats (id, user_id, character_id, mode, current_summary) VALUES (?,?,?,'safe','')`
-  ).run(CHAT, USER, CHAR);
+  if (hasChatsCurrentSummaryColumn(db)) {
+    db.prepare(
+      `INSERT INTO chats (id, user_id, character_id, mode, current_summary) VALUES (?,?,?,'safe','')`
+    ).run(CHAT, USER, CHAR);
+  } else {
+    db.prepare(
+      `INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`
+    ).run(CHAT, USER, CHAR);
+  }
   getOrCreateChatMemory(CHAT, USER, CHAR, "free");
 }
 
@@ -106,7 +113,9 @@ function updateAssistant(id: number, content: string) {
 }
 
 function chatCurrentSummary(): string {
-  const row = getDb()
+  const db = getDb();
+  if (!hasChatsCurrentSummaryColumn(db)) return "";
+  const row = db
     .prepare(`SELECT current_summary FROM chats WHERE id=?`)
     .get(CHAT) as { current_summary: string | null };
   return row.current_summary ?? "";

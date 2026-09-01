@@ -93,13 +93,23 @@ export function hasChatsMemoryPhysicallyRetired(db: SchemaDatabase): boolean {
   return !hasColumn(db, "chats", "memory");
 }
 
+/**
+ * V8 — chats.current_summary column must be physically absent on current schema.
+ * chats absent → false (outer production invariant fail-closed).
+ */
+export function hasChatsCurrentSummaryPhysicallyRetired(db: SchemaDatabase): boolean {
+  if (!tableExists(db, "chats")) return false;
+  return !hasColumn(db, "chats", "current_summary");
+}
+
 export function hasMemoryRetirementsCurrentSchema(db: SchemaDatabase): boolean {
   return (
     hasMemoryBufferRetired(db) &&
     hasCharacterMemoriesRetired(db) &&
     hasPinnedFactsPhysicallyRetired(db) &&
     hasLastCompressedAtPhysicallyRetired(db) &&
-    hasChatsMemoryPhysicallyRetired(db)
+    hasChatsMemoryPhysicallyRetired(db) &&
+    hasChatsCurrentSummaryPhysicallyRetired(db)
   );
 }
 

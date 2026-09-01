@@ -22,6 +22,7 @@ import { after, before, describe, it } from "node:test";
 import { getDb, convergeLegacyChatsMemoryIntoCanonical } from "@/lib/db";
 import {
   clearChatsMemoryColumnIfPresent,
+  hasChatsCurrentSummaryColumn,
   hasChatsMemoryColumn,
 } from "@/lib/memory/chats-memory-column-compat";
 import {
@@ -45,8 +46,15 @@ function ensureMemoryColumnForHistoricalFixture(db: Database.Database): void {
   }
 }
 
+function ensureCurrentSummaryColumnForHistoricalFixture(db: Database.Database): void {
+  if (!hasChatsCurrentSummaryColumn(db)) {
+    db.exec(`ALTER TABLE chats ADD COLUMN current_summary TEXT NOT NULL DEFAULT ''`);
+  }
+}
+
 function ensureChatRow(db: Database.Database): void {
   ensureMemoryColumnForHistoricalFixture(db);
+  ensureCurrentSummaryColumnForHistoricalFixture(db);
   if (hasChatsMemoryColumn(db)) {
     db.prepare(
       `INSERT OR IGNORE INTO chats (id, user_id, character_id, mode, memory, current_summary, memory_meta, memory_pending, memory_archived_turns)
@@ -143,9 +151,11 @@ describe("chats.memory M1 global convergence precedence", () => {
     const canonical = db
       .prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=?`)
       .get(CHAT_ID) as { recent_summary: string };
-    const chat = db
-      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
-      .get(CHAT_ID) as { current_summary: string };
+    const chat = hasChatsCurrentSummaryColumn(db)
+      ? (db
+          .prepare(`SELECT current_summary FROM chats WHERE id=?`)
+          .get(CHAT_ID) as { current_summary: string })
+      : { current_summary: "" };
     assert.equal(canonical.recent_summary, "ONLY COPY");
     assert.equal(chat.current_summary, "");
     if (hasChatsMemoryColumn(db)) {
