@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { resolveTrpgActionCheckDecision } from "./actionCheck";
+import { resolveTrpgActionCheckDecision, type TrpgActionCheckReason } from "./actionCheck";
 import { resolveTrpgAdjudicationDifficulty } from "./adjudicationDifficulty";
 import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { pickStatForActionDetailed } from "./actionTypes";
@@ -15,6 +15,11 @@ import { statModifier } from "./stats";
 
 export type AdjudicationMark = "no_roll" | "skipped";
 
+export type TrpgFrozenAdjudicationDecision = {
+  needsCheck: boolean;
+  reason: TrpgActionCheckReason;
+};
+
 /** Viewer-safe adjudication outcome per participant (derived from rolls + marks). */
 export type TrpgParticipantAdjudicationOutcome = "roll" | "no_roll" | "skipped";
 
@@ -22,6 +27,8 @@ export type RoundAdjudicationSnapshot = {
   submissions?: Array<{ id: number; body: string }>;
   resolutionOrder?: TrpgResolutionOrderEntry[];
   adjudicationMarks?: Record<string, AdjudicationMark>;
+  /** Server-frozen action-check decisions keyed by submission id. */
+  adjudicationDecisions?: Record<string, TrpgFrozenAdjudicationDecision>;
   /** Server-frozen current-round presentation roster, ordered by resolution order. */
   expectedPresentationActorIds?: number[];
 };
@@ -70,6 +77,9 @@ function saveRoundAdjudicationSnapshot(
   if (patch.adjudicationMarks) {
     next.adjudicationMarks = { ...current.adjudicationMarks, ...patch.adjudicationMarks };
   }
+  if (patch.adjudicationDecisions) {
+    next.adjudicationDecisions = { ...current.adjudicationDecisions, ...patch.adjudicationDecisions };
+  }
   db.prepare(`UPDATE trpg_rounds SET input_snapshot_json=? WHERE id=?`).run(JSON.stringify(next), roundId);
   return next;
 }
@@ -78,11 +88,25 @@ function markSubmissionAdjudicated(
   db: Database.Database,
   roundId: number,
   submissionId: number,
-  mark: AdjudicationMark
+  mark: AdjudicationMark,
+  decision?: TrpgFrozenAdjudicationDecision
 ): void {
-  saveRoundAdjudicationSnapshot(db, roundId, {
+  const patch: Partial<RoundAdjudicationSnapshot> = {
     adjudicationMarks: { [String(submissionId)]: mark },
-  });
+  };
+  if (decision) {
+    patch.adjudicationDecisions = { [String(submissionId)]: decision };
+  }
+  saveRoundAdjudicationSnapshot(db, roundId, patch);
+}
+
+export function loadFrozenAdjudicationDecision(
+  db: Database.Database,
+  roundId: number,
+  submissionId: number
+): TrpgFrozenAdjudicationDecision | null {
+  const snapshot = loadRoundAdjudicationSnapshot(db, roundId);
+  return snapshot.adjudicationDecisions?.[String(submissionId)] ?? null;
 }
 
 export function isSubmissionAdjudicated(
@@ -220,13 +244,18 @@ export function adjudicateCanonicalSubmission(
     statValue,
   });
 
+  const frozenDecision: TrpgFrozenAdjudicationDecision = {
+    needsCheck: decision.needsCheck,
+    reason: decision.reason,
+  };
+
   if (!decision.needsCheck) {
     logTrpgMechanicsCheckTelemetry({
       action_type: actionType,
       check_required: false,
       check_reason: decision.reason,
     });
-    markSubmissionAdjudicated(db, opts.roundId, sub.id, "no_roll");
+    markSubmissionAdjudicated(db, opts.roundId, sub.id, "no_roll", frozenDecision);
     return "no_roll";
   }
 
@@ -235,7 +264,7 @@ export function adjudicateCanonicalSubmission(
     (typeof preHp === "number" && preHp <= 0) ||
     (opts.pre.incapacitated ?? []).some((row) => row.participantId === sub.participant_id);
   if (downed) {
-    markSubmissionAdjudicated(db, opts.roundId, sub.id, "skipped");
+    markSubmissionAdjudicated(db, opts.roundId, sub.id, "skipped", frozenDecision);
     return "skipped";
   }
 
@@ -284,6 +313,9 @@ export function adjudicateCanonicalSubmission(
     final_score: result.finalScore,
     dc: result.dc,
     tier: result.tier,
+  });
+  saveRoundAdjudicationSnapshot(db, opts.roundId, {
+    adjudicationDecisions: { [String(sub.id)]: frozenDecision },
   });
   return "roll";
 }

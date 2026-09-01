@@ -1,8 +1,4 @@
 import { clipTrpgChars } from "./clip";
-import {
-  finalizeLocalSceneProgressState,
-  sanitizeLocalSceneProgressDelta,
-} from "./actionCheckContext";
 
 export const TRPG_LOCAL_SCENE_OBJECTIVE_MAX_CHARS = 120;
 export const TRPG_LOCAL_SCENE_ITEM_MAX_CHARS = 80;
@@ -40,6 +36,38 @@ function clipObjective(raw: string): string {
 
 function clipItem(raw: string): string {
   return clipTrpgChars(raw, TRPG_LOCAL_SCENE_ITEM_MAX_CHARS);
+}
+
+function normalizeObstacleLabel(raw: string): string {
+  return raw.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function isExactResolvedObstacleResurrection(
+  resolvedObstacles: readonly string[],
+  candidate: string,
+  delta: TrpgLocalSceneProgressDelta
+): boolean {
+  const norm = normalizeObstacleLabel(candidate);
+  if (!norm) return false;
+  const removing = new Set((delta.resolvedObstaclesRemove ?? []).map(normalizeObstacleLabel));
+  if (removing.has(norm)) return false;
+  return resolvedObstacles.some((resolved) => normalizeObstacleLabel(resolved) === norm);
+}
+
+/** Reject exact same-label blocker resurrection only — no fuzzy semantic equivalence. */
+export function sanitizeLocalSceneProgressDelta(
+  current: TrpgLocalSceneProgressV1,
+  delta: TrpgLocalSceneProgressDelta
+): TrpgLocalSceneProgressDelta {
+  const next: TrpgLocalSceneProgressDelta = { ...delta };
+  const resolvedPool = delta.sceneTransitionTo != null ? [] : current.resolvedObstacles;
+  if (next.remainingBlockersAdd?.length) {
+    next.remainingBlockersAdd = next.remainingBlockersAdd.filter(
+      (blocker) => !isExactResolvedObstacleResurrection(resolvedPool, blocker, delta)
+    );
+    if (next.remainingBlockersAdd.length === 0) delete next.remainingBlockersAdd;
+  }
+  return next;
 }
 
 function mergeList(
@@ -207,7 +235,7 @@ export function applyLocalSceneProgressDelta(
     ),
     sceneState: d.sceneTransitionTo == null && d.sceneStateSet ? d.sceneStateSet : base.sceneState,
   };
-  return finalizeLocalSceneProgressState(merged, d);
+  return merged;
 }
 
 export function hasLocalSceneProgressContent(progress: TrpgLocalSceneProgressV1): boolean {

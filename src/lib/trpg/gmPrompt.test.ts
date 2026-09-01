@@ -196,6 +196,7 @@ describe("TRPG GM prompt/parse", () => {
           name: "렌",
           body: "어디로 갈까?",
           needsCheck: false,
+          checkReason: "talk",
           statKey: "cha",
           d20: null,
           finalScore: null,
@@ -204,7 +205,7 @@ describe("TRPG GM prompt/parse", () => {
         },
       ],
     });
-    assert.match(talk, /talk\/ask only/);
+    assert.match(talk, /no_check reason=talk/);
     assert.doesNotMatch(talk, /d20=/);
     assert.match(TRPG_GM_SYSTEM, /PARTY RELATIONSHIPS/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /DIRECTOR DELTA CONTRACT/);

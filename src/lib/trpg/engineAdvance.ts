@@ -13,7 +13,6 @@ import {
 } from "./economics";
 import { logTrpgRoundEconomics, observeTrpgRoundEconomics } from "./roundEconomics";
 import { isTrpgActionType, pickStatForAction } from "./actionTypes";
-import { resolveTrpgActionCheckDecision } from "./actionCheck";
 import { logTrpgMechanicsCheckTelemetry } from "./mechanicsObservability";
 import {
   computeTrpgRoundPoints,
@@ -178,6 +177,7 @@ import {
   adjudicateSubmissionForParticipant,
   ensureRoundAdjudicationContext,
   finalizeRoundAdjudication,
+  loadFrozenAdjudicationDecision,
 } from "./roundAdjudication";
 import { parseTrpgInputOrigin, type TrpgInputOrigin } from "./replySuggestions";
 import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
@@ -1231,7 +1231,7 @@ async function runGmForRound(
   );
   const resolutionOrder = parseResolutionOrder(storedSnapshot);
   const actions = sortByResolutionOrder(
-    loadActionsForGm(db, opts.roundId, scenario.statDefs, campaignContext?.localSceneProgress ?? null),
+    loadActionsForGm(db, opts.roundId, scenario.statDefs),
     resolutionOrder
   );
   const latestScene = previousNarration(db, opts.campaignId);
@@ -1887,13 +1887,12 @@ function chargeTrpgCalls(
 function loadActionsForGm(
   db: Database.Database,
   roundId: number,
-  defs: { key: string; label: string }[],
-  localScene: TrpgLocalSceneProgressV1 | null
+  defs: { key: string; label: string }[]
 ) {
   return (
     db
       .prepare(
-        `SELECT s.participant_id, p.display_name AS name, p.kind, s.body, s.action_type, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
+        `SELECT s.id AS submission_id, s.participant_id, p.display_name AS name, p.kind, s.body, s.action_type, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
                 (
                   SELECT st.value FROM trpg_character_stats st
                   JOIN trpg_character_sheets sh ON sh.id = st.sheet_id
@@ -1906,6 +1905,7 @@ function loadActionsForGm(
          ORDER BY s.id ASC`
       )
       .all(roundId) as Array<{
+      submission_id: number;
       participant_id: number;
       name: string;
       kind: string;
@@ -1925,13 +1925,10 @@ function loadActionsForGm(
       submissionBody: a.body,
       actionType: a.action_type,
     });
-    const needsCheck = resolveTrpgActionCheckDecision({
-      body: resolved.canonicalAttempt,
-      actionType: resolved.actionType,
-      intent: resolved.participantKind === "ai_character" ? resolved.canonicalAttempt : "",
-      localScene,
-      statValue: a.stat_value,
-    }).needsCheck;
+    const frozen = loadFrozenAdjudicationDecision(db, roundId, a.submission_id);
+    if (!frozen) {
+      throw new Error(`Missing frozen adjudication decision for submission ${a.submission_id}`);
+    }
     const statKey = a.stat_key ?? "dex";
     const def = defs.find((d) => d.key === statKey);
     return {
@@ -1939,7 +1936,8 @@ function loadActionsForGm(
       name: a.name,
       participantKind,
       body: resolved.canonicalAttempt,
-      needsCheck,
+      needsCheck: frozen.needsCheck,
+      checkReason: frozen.reason,
       statKey,
       statLabel: def?.label,
       statValue: a.stat_value,
