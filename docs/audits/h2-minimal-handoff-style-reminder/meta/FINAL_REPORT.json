@@ -1,0 +1,135 @@
+{
+  "H2_ONLY_DELTA_IS_PARAGRAPH_CLAUSE_REMOVAL": true,
+  "A_REQUEST_SHA": "d155d08328ba7903846799feb6a05f3d239631b4593d72a607d60d6f0ecf26d2",
+  "H2_REQUEST_SHA": "12e44e4ba5c4cbb2f936dce894842b66adae86563c5c1b2ebb41f8e15fcc377b",
+  "H2_RAW_SHA": "3739fb84117c943f32089303a10adcba1f7106a89f747905f90e4d09ab43fa03",
+  "LOGICAL_DEEPSEEK_TURNS": 1,
+  "CI_ATTEMPTED": true,
+  "CI_HTTP_STATUS": 502,
+  "CI_FIRST_VISIBLE_MS": null,
+  "CI_FAILURE_CLASS": "http_502",
+  "FAILOVER_TRIGGER": "error",
+  "OPENROUTER_BACKUP_ATTEMPTED": true,
+  "OPENROUTER_BACKUP_SUCCESS": true,
+  "TOTAL_PROVIDER_ATTEMPTS": 2,
+  "DELIVERED_PROVIDER": "openrouter",
+  "PROVIDER_MATCHED_A_CONTROL": "A_629_OPENROUTER",
+  "PRODUCTION_WOULD_DELIVER_RESPONSE": true,
+  "DELIVERED_FINISH_REASON": "error",
+  "DELIVERED_USAGE_PRESENT": true,
+  "DELIVERED_ENDS_COMPLETE_SENTENCE": false,
+  "H2_VISIBLE_CHARS": 1357,
+  "H2_VS_PRIMARY_LENGTH_RATIO": 0.4084,
+  "H2_VS_GEMINI_GOLD_LENGTH_RATIO": 0.5119,
+  "SOURCE_USER_QUOTED_DIALOGUE_COUNT": 0,
+  "T2_REPLAY_CANDIDATE": true,
+  "T2_REPLAY_TOPIC_IDS": [
+    "FIRST_KISS"
+  ],
+  "NEW_USER_PERSONA_DIALOGUE_CANDIDATE_COUNT": 0,
+  "CONTACT_ACTOR_EXTRACTION_BUG": true,
+  "USER_AGENCY_OWNER_ACTUALLY_ACTIVE": true,
+  "OWNER_SCANNER_FALSE_NEGATIVE": true,
+  "elapsed_ms": 36711,
+  "A_REQUEST_SHA_EXPECTED": "d155d08328ba7903846799feb6a05f3d239631b4593d72a607d60d6f0ecf26d2",
+  "A_SHA_GATE_PASS": true,
+  "REMOVED_CHARS": 92,
+  "NATIVE_DEEPSEEK_FULL_REMINDER_ACTIVE": true,
+  "ADULT_HANDOFF_FULL_REMINDER_ACTIVE": true,
+  "ADULT_HANDOFF_H2_REMINDER_ACTIVE": true,
+  "H2_PARAGRAPH_CONSOLIDATION_CLAUSE_PRESENT": false,
+  "H2_PROGRESSIVE_SCENE_CLAUSE_PRESENT": true,
+  "T1_PRIMARY_STYLE_EXEMPLAR_PRESENT": true,
+  "T1_BYTE_IDENTICAL": true,
+  "T2_PRIMARY_STYLE_EXEMPLAR_PRESENT": true,
+  "T2_BYTE_IDENTICAL": true,
+  "T3_GEMINI_GOLD_PRESENT": false,
+  "owners_A": {
+    "DEEPSEEK_STYLE_REMINDER_ACTIVE": true,
+    "DEEPSEEK_HANDOFF_H2_REMINDER_ACTIVE": true,
+    "HANDOFF_CONTINUATION_OWNER_ACTIVE": true,
+    "INTIMACY_OWNER_ACTIVE": true,
+    "USER_TAIL_3200_ACTIVE": true,
+    "TERMINAL_DIALOGUE_OWNER_ACTIVE": true,
+    "SCENE_PACING_OWNER_ACTIVE": true,
+    "USER_AGENCY_OWNER_ACTIVE": true,
+    "CREATOR_OPENING_REMAP_PRESENT": true
+  },
+  "owners_H2": {
+    "DEEPSEEK_STYLE_REMINDER_ACTIVE": true,
+    "DEEPSEEK_HANDOFF_H2_REMINDER_ACTIVE": true,
+    "HANDOFF_CONTINUATION_OWNER_ACTIVE": true,
+    "INTIMACY_OWNER_ACTIVE": true,
+    "USER_TAIL_3200_ACTIVE": true,
+    "TERMINAL_DIALOGUE_OWNER_ACTIVE": true,
+    "SCENE_PACING_OWNER_ACTIVE": true,
+    "USER_AGENCY_OWNER_ACTIVE": true,
+    "CREATOR_OPENING_REMAP_PRESENT": true
+  },
+  "comparison": {
+    "provider_matched_a_label": "A_629_OPENROUTER",
+    "h2": {
+      "VISIBLE_CHARS": 1357,
+      "PARAGRAPH_COUNT": 13,
+      "DIALOGUE_BLOCKS": 6,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 4.422,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.462,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 137,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 153,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 21
+    },
+    "provider_matched_a": {
+      "VISIBLE_CHARS": 2380,
+      "PARAGRAPH_COUNT": 21,
+      "DIALOGUE_BLOCKS": 10,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 4.202,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.476,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 72,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 207,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 19
+    },
+    "gemini_gold": {
+      "VISIBLE_CHARS": 2651,
+      "PARAGRAPH_COUNT": 23,
+      "DIALOGUE_BLOCKS": 5,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 1.886,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.217,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 108,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 136.5,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 29
+    },
+    "t2_replay_h2": {
+      "T2_REPLAY_CANDIDATE": true,
+      "replay_topic_ids": [
+        "FIRST_KISS"
+      ],
+      "topic_hits": [
+        {
+          "topic_id": "WHY_LOOKING",
+          "topic_label": "why he was looking",
+          "t2_present": true,
+          "response_present": false,
+          "replay_candidate": false
+        },
+        {
+          "topic_id": "FOOD_HUNGER",
+          "topic_label": "food/hunger conversation",
+          "t2_present": true,
+          "response_present": false,
+          "replay_candidate": false
+        },
+        {
+          "topic_id": "FIRST_KISS",
+          "topic_label": "first kiss interpretation",
+          "t2_present": true,
+          "response_present": true,
+          "replay_candidate": true
+        }
+      ]
+    }
+  },
+  "STOP_FOR_HUMAN_REVIEW": true
+}

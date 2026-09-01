@@ -260,6 +260,11 @@ export type ContextBuildInput = {
    * second time.
    */
   preserveAdultHandoffRawHistory?: boolean;
+  /**
+   * Adult handoff only: inject H2 style reminder (full reminder minus
+   * paragraph-consolidation clause). Native / non-handoff DeepSeek unchanged.
+   */
+  useDeepSeekHandoffStyleReminder?: boolean;
   /** Existing bounded adult selector가 실제 보장한 complete exchange floor. */
   adultHandoffRequiredTurnFloor?: number;
   /** Canon injection policy — D1/D2 actual branches gated by this (DeepSeek canary only). */
