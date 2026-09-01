@@ -1,0 +1,24 @@
+{
+  "fixture_count": 20,
+  "rounds": 3,
+  "model_count": 3,
+  "calls_per_model": {
+    "Gemini 3.1 Flash-Lite": 60,
+    "DeepSeek V4 Flash": 60,
+    "GPT-5.6 Luna (production background)": 60
+  },
+  "expected_primary_calls": 180,
+  "actual_primary_calls": 180,
+  "retry_calls": 0,
+  "fallback_calls": 0,
+  "continuation_calls": 0,
+  "recovery_calls": 0,
+  "regeneration_calls": 0,
+  "execution_order": "interleaved_round_fixture_model",
+  "model_order": [
+    "Gemini 3.1 Flash-Lite",
+    "DeepSeek V4 Flash",
+    "GPT-5.6 Luna (production background)"
+  ],
+  "fixtures_source": "/workspace/docs/audits/4-model-korean-summary-quality/fixtures.json"
+}
