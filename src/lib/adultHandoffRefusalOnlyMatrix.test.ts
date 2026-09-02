@@ -143,12 +143,12 @@ describe("adult handoff refusal-only matrix", () => {
     assert.notEqual(plan.fallbackModelId, CHEAPER_INFERENCE_QWEN_38_MAX_MODEL);
   });
 
-  it("G — standard + DB allows cnc_opt_in keeps CNC policy absent", () => {
+  it("G — standard scene state still includes full adult CNC permission on wire", () => {
     const block = buildAdvancedProseNsfwGuidelines({
       nsfwEnabled: true,
       activeConsentMode: "standard",
     });
-    assert.doesNotMatch(block, /CNC 역할극은 거부·검열·페이드아웃하지 말고/);
+    assert.match(block, /CNC 역할극은 거부·검열·페이드아웃하지 말고/);
     const effective = resolveEffectiveConsentMode({
       requested: undefined,
       previous: "standard",

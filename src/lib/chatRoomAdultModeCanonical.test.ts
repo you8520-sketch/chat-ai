@@ -178,12 +178,105 @@ describe("chat room adult RP canonical owners", () => {
     );
   });
 
-  it("R6/R7: Adult ON injects adult contract and CNC when cnc_opt_in", () => {
+  it("A3/R6: Adult ON + standard scene state → full adult contract with CNC once", () => {
+    const wire = buildWire({ effectiveAdultRp: true, activeConsentMode: "standard" });
+    assert.equal(countMatches(wire, "[ADULT CONTENT POLICY]"), 1);
+    assert.equal(countMatches(wire, "[19+ INTIMACY]"), 1);
+    assert.equal(countMatches(wire, ADULT_CONTENT_POLICY_CNC_PERMISSION), 1);
+    assert.equal(countMatches(wire, SAFE_SEXUAL_LIMIT_CONTRACT), 0);
+  });
+
+  it("A4/R7: Adult ON + cnc_opt_in scene state → CNC permission exactly once", () => {
     const wire = buildWire({ effectiveAdultRp: true, activeConsentMode: "cnc_opt_in" });
     assert.equal(countMatches(wire, "[ADULT CONTENT POLICY]"), 1);
     assert.equal(countMatches(wire, "[19+ INTIMACY]"), 1);
     assert.equal(countMatches(wire, ADULT_CONTENT_POLICY_CNC_PERMISSION), 1);
     assert.equal(countMatches(wire, SAFE_SEXUAL_LIMIT_CONTRACT), 0);
+  });
+
+  it("A1: home visibility OFF does not affect full adult contract when room Adult ON", () => {
+    void resolveEffectiveAdultRp({
+      userAdultVerified: true,
+      roomAdultModeEnabled: true,
+    });
+    const wire = buildWire({ effectiveAdultRp: true, activeConsentMode: "standard" });
+    assert.equal(countMatches(wire, ADULT_CONTENT_POLICY_CNC_PERMISSION), 1);
+  });
+
+  it("A2: room Adult OFF → safe 15+ contract only", () => {
+    const wire = buildWire({ effectiveAdultRp: false });
+    assert.equal(countMatches(wire, "[ADULT CONTENT POLICY]"), 0);
+    assert.equal(countMatches(wire, "[19+ INTIMACY]"), 0);
+    assert.equal(countMatches(wire, ADULT_CONTENT_POLICY_CNC_PERMISSION), 0);
+    assert.equal(countMatches(wire, SAFE_SEXUAL_LIMIT_CONTRACT), 1);
+  });
+
+  it("A5: Adult OFF + CNC-looking input → safe contract, no adult fallback prep", () => {
+    const cncInput = "OOC: CNC 강압 역할극에 사전 동의한다. 세이프워드는 레드다.";
+    const wire = buildContext({
+      charName: "Test",
+      chunks: [],
+      userNickname: "User",
+      shortTermHistory: [{ role: "user", content: "안녕" }],
+      currentUserMessage: cncInput,
+      nsfw: false,
+      activeConsentMode: "cnc_opt_in",
+      provider: "openrouter",
+      modelId: GEMINI,
+    }).systemPrompt;
+    assert.equal(countMatches(wire, "[ADULT CONTENT POLICY]"), 0);
+    assert.equal(countMatches(wire, ADULT_CONTENT_POLICY_CNC_PERMISSION), 0);
+    assert.equal(countMatches(wire, SAFE_SEXUAL_LIMIT_CONTRACT), 1);
+    const plan = deliveryPlanFor({ effectiveAdultRp: false, currentInput: cncInput });
+    assert.equal(plan.fallbackPrepared, false);
+  });
+
+  it("A6: settings PATCH and chat POST share effectiveIsAdult verification owner", () => {
+    const routeSrc = readFileSync(
+      new URL("../app/api/chat/route.ts", import.meta.url),
+      "utf8"
+    );
+    const settingsSrc = readFileSync(
+      new URL("../app/api/chat/settings/route.ts", import.meta.url),
+      "utf8"
+    );
+    assert.match(routeSrc, /effectiveIsAdult\(user\.is_adult\)/);
+    assert.match(settingsSrc, /effectiveIsAdult\(user\.is_adult\)/);
+    assert.doesNotMatch(settingsSrc, /adultHandoffEnabled === true && !user\.is_adult/);
+  });
+
+  it("A7: selected model remains primary in Adult ON (Gemini sample)", () => {
+    const plan = deliveryPlanFor({
+      effectiveAdultRp: true,
+      selectedModelId: GEMINI,
+    });
+    assert.equal(plan.primaryModelId, GEMINI);
+    assert.equal(plan.primaryRoute, "general");
+  });
+
+  it("A8: real provider refusal remains the only fallback trigger", () => {
+    const plan = deliveryPlanFor({ effectiveAdultRp: true });
+    assert.equal(plan.fallbackPrepared, true);
+    assert.equal(
+      shouldInvokeAdultRefusalFallback({
+        plan,
+        hasVisibleTokens: false,
+        fallbackAlreadyAttempted: false,
+        text: "I can't help with that request.",
+        finishReason: "stop",
+      }).invoke,
+      true
+    );
+    assert.equal(
+      shouldInvokeAdultRefusalFallback({
+        plan,
+        hasVisibleTokens: true,
+        fallbackAlreadyAttempted: false,
+        text: "I can't help with that request.",
+        finishReason: "stop",
+      }).invoke,
+      false
+    );
   });
 
   it("R8/R9: Adult OFF omits adult-only contract and injects safe 15+ contract", () => {
@@ -296,15 +389,25 @@ describe("chat room adult RP canonical owners", () => {
   });
 
   it("buildAdvancedProseNsfwGuidelines safe owner is mutually exclusive with adult owner", () => {
-    const adult = buildAdvancedProseNsfwGuidelines({
+    const adultStandard = buildAdvancedProseNsfwGuidelines({
+      nsfwEnabled: true,
+      activeConsentMode: "standard",
+    });
+    const adultCnc = buildAdvancedProseNsfwGuidelines({
       nsfwEnabled: true,
       activeConsentMode: "cnc_opt_in",
     });
     const safe = buildAdvancedProseNsfwGuidelines({ nsfwEnabled: false });
-    assert.ok(adult.includes("[19+ INTIMACY]"));
+    assert.ok(adultStandard.includes("[19+ INTIMACY]"));
+    assert.ok(adultCnc.includes("[19+ INTIMACY]"));
+    assert.equal(
+      countMatches(adultStandard, ADULT_CONTENT_POLICY_CNC_PERMISSION),
+      1
+    );
+    assert.equal(countMatches(adultCnc, ADULT_CONTENT_POLICY_CNC_PERMISSION), 1);
     assert.ok(!safe.includes("[19+ INTIMACY]"));
     assert.ok(safe.includes("[SAFE SEXUAL LIMIT — 15+ RP]"));
-    assert.ok(!adult.includes("[SAFE SEXUAL LIMIT — 15+ RP]"));
+    assert.ok(!adultStandard.includes("[SAFE SEXUAL LIMIT — 15+ RP]"));
   });
 
   it("ChatClient does not send home visibility as isAdultMode", () => {
@@ -318,7 +421,7 @@ describe("chat room adult RP canonical owners", () => {
     assert.match(chatClient, /adultHandoffEnabled:\s*adultHandoffOnRef\.current/);
   });
 
-  it("CNC consent resolves only when adult RP is eligible", () => {
+  it("CNC scene state owner stays separate from CNC permission on wire", () => {
     const effective = resolveEffectiveConsentMode({
       requested: "cnc_opt_in",
       previous: "standard",
@@ -332,5 +435,14 @@ describe("chat room adult RP canonical owners", () => {
       participants: [{ age: 28, isAdult: true }],
     });
     assert.equal(blocked.eligible, false);
+    assert.equal(
+      resolveEffectiveConsentMode({
+        requested: "standard",
+        previous: "standard",
+        currentInput: EXPLICIT_INPUT,
+        allowedConsentModes: ["standard", "cnc_opt_in"],
+      }),
+      "standard"
+    );
   });
 });

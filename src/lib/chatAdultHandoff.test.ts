@@ -85,7 +85,7 @@ describe("chat-room adult mode (handoff) preference", () => {
       new URL("../app/api/chat/settings/route.ts", import.meta.url),
       "utf8"
     );
-    assert.match(settings, /adultHandoffEnabled/);
+    assert.match(settings, /effectiveIsAdult/);
     assert.match(settings, /adult_handoff_enabled/);
 
     const chatClient = readFileSync(

@@ -635,7 +635,7 @@ function migrate(db: Database.Database) {
   addColumn("chats", "status_widget_stack_order", "TEXT NOT NULL DEFAULT 'character_first'");
   /** Visual-only: creator | user | both | hidden — never disables canonical creator status */
   addColumn("chats", "status_widget_display_mode", "TEXT NOT NULL DEFAULT ''");
-  /** Chat-room 「성인모드」 — adult model handoff on/off. Not listing visibility. */
+  /** Chat-room 「성인모드」 — RP content level (legacy column: adult_handoff_enabled). */
   addColumn("chats", "adult_handoff_enabled", "INTEGER NOT NULL DEFAULT 0");
   /** Chat-scoped user co-authoring preference: OFF | DIALOGUE | ACTIONS | FULL. */
   addColumn("chats", "user_coauthor_mode", "TEXT NOT NULL DEFAULT 'OFF'");

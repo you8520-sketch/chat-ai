@@ -7,7 +7,7 @@ import { DIALOGUE_NARRATION_STRUCTURE_RULE } from "@/lib/webnovelOutputFormat";
 
 export type AdvancedProseNsfwOpts = {
   nsfwEnabled: boolean;
-  /** Active consent mode — CNC permission wording only when cnc_opt_in. */
+  /** Scene consent state (standard / power_play / cnc_opt_in) — not CNC prompt gate. */
   activeConsentMode?: AdultConsentMode;
   /** OpenRouter 19+ — literary tension add-on (all OR models when NSFW) */
   literaryEnhanced?: boolean;
@@ -75,13 +75,12 @@ export const SAFE_SEXUAL_LIMIT_CONTRACT = `[SAFE SEXUAL LIMIT — 15+ RP]
 export const ADULT_CONTENT_POLICY_BLOCK = `${ADULT_CONTENT_POLICY_BASE}
 ${ADULT_CONTENT_POLICY_CNC_PERMISSION}`;
 
+/** Full adult content policy when effectiveAdultRp=true — base boundaries + CNC permission. */
 export function buildAdultContentPolicyBlock(
-  activeConsentMode?: AdultConsentMode
+  _activeConsentMode?: AdultConsentMode
 ): string {
-  if (activeConsentMode === "cnc_opt_in") {
-    return `${ADULT_CONTENT_POLICY_BASE}\n${ADULT_CONTENT_POLICY_CNC_PERMISSION}`;
-  }
-  return ADULT_CONTENT_POLICY_BASE;
+  void _activeConsentMode;
+  return `${ADULT_CONTENT_POLICY_BASE}\n${ADULT_CONTENT_POLICY_CNC_PERMISSION}`;
 }
 
 const NSFW_INTIMACY_SECTION = `[19+ INTIMACY]
@@ -144,7 +143,7 @@ export function buildAdvancedProseNsfwGuidelines(opts: AdvancedProseNsfwOpts): s
   if (opts.nsfwEnabled) {
     lines.push(
       "",
-      buildAdultContentPolicyBlock(opts.activeConsentMode),
+      buildAdultContentPolicyBlock(),
       "",
       NSFW_INTIMACY_SECTION
     );

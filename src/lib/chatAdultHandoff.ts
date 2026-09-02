@@ -16,7 +16,8 @@ export function parseAdultHandoffEnabled(input: unknown): boolean | undefined {
 }
 
 /**
- * Room adult mode persistence (`chats.adult_handoff_enabled`).
+ * Room adult mode persistence (`chats.adult_handoff_enabled` — legacy column name).
+ * RP content-level owner; refusal fallback is a separate recovery path.
  * Request body wins for the current turn so a just-toggled switch applies
  * before PATCH finishes. Unverified adults cannot enable room adult mode.
  */

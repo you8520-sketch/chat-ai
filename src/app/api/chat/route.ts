@@ -1283,7 +1283,7 @@ export async function POST(req: Request) {
       world: ch.world,
       simulationCast: (ch as { simulation_cast?: string }).simulation_cast,
     });
-  // Chat-room 「성인모드」 is the operational adult-handoff gate.
+  // Chat-room 「성인모드」 is the RP content-level owner (legacy DB: adult_handoff_enabled).
   // Home/header 「성인 캐릭터 표시」(nsfw_on) only controls listing visibility.
   // characters.nsfw is listing/content-rating only — not an adult-RP gate.
   const adultEligibility = resolveAdultEligibility({
