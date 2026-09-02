@@ -143,7 +143,7 @@ jobs:
       - run: node --import tsx --test src/lib/chatImageSceneBrief.test.ts
       - run: node --import tsx --test src/lib/chatImageScenePlan.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageMultiSpeakerDialogue.test.ts
-      - run: node --import tsx --test src/lib/chatImageComicDialogueRegression.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatImageComicDialogueRegression.test.ts
       - run: node --import tsx --test src/lib/chatImageScenePreviewProjection.test.ts
       - run: node --import tsx --test src/lib/chatImageSceneDialogueEditor.test.ts
       - run: node --import tsx --test src/lib/chatImageDialogueKeystroke.test.ts

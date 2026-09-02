@@ -537,28 +537,6 @@ function isAssistantEchoOfUserAction(userActionText: string, segmentText: string
   return true;
 }
 
-function isAssistantEchoOfPrecedingUserDialogue(
-  events: readonly SceneEvent[],
-  index: number,
-  assistantDialogueText: string
-): boolean {
-  const precedingUserMessageId = events
-    .slice(0, index)
-    .reverse()
-    .find((event) => event.sourceRole === "user")?.sourceMessageId;
-  if (precedingUserMessageId == null) return false;
-  const assistantNormalized = normalizeDialogueTextForOutput(assistantDialogueText);
-  return events
-    .slice(0, index)
-    .some(
-      (event) =>
-        event.sourceRole === "user" &&
-        event.sourceMessageId === precedingUserMessageId &&
-        event.kind === "dialogue" &&
-        normalizeDialogueTextForOutput(event.text) === assistantNormalized
-    );
-}
-
 function normalizeSpeakerToken(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -755,12 +733,7 @@ export function extractDeterministicEvents(
 export function markAssistantEchoes(events: readonly SceneEvent[]): SceneEvent[] {
   return events.map((event, index) => {
     if (event.sourceRole !== "assistant") return event;
-    if (event.kind === "dialogue") {
-      if (isAssistantEchoOfPrecedingUserDialogue(events, index, event.text)) {
-        return { ...event, kind: "assistant_echo" };
-      }
-      return event;
-    }
+    if (event.kind === "dialogue") return event;
     const previous = events
       .slice(0, index)
       .reverse()
@@ -1477,7 +1450,7 @@ export function validateScenePlan(
         resolvedSpeakerName = linked.speakerName;
         resolvedSourceEventId = sourceEventId;
         if (usedSourceDialogueEventIds.has(sourceEventId)) {
-          return { ok: false, reason: "dialogue sourceEvent duplicated" };
+          continue;
         }
         usedSourceDialogueEventIds.add(sourceEventId);
       }

@@ -11,14 +11,13 @@ import {
 import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
-  collectApprovedComicText,
   extractDeterministicEvents,
   projectComicPanelCompactDialoguePreview,
   reflowScenePlanPanels,
   validateScenePlan,
-  visualEvents,
   type SceneDialogue,
 } from "@/lib/chatImageScenePlan";
+import { planChatImageScene } from "@/lib/chatImageScenePlanner";
 
 const PERSONA = "렌";
 const CHARACTER = "태형";
@@ -27,6 +26,13 @@ function oneToOneMessages() {
   return buildSceneSourceMessages([
     { id: 1, role: "user", content: '"내가 좋아?"' },
     { id: 2, role: "assistant", content: '"좋냐고……? 하, 미치겠네."' },
+  ]);
+}
+
+function sameTextDistinctEventsMessages() {
+  return buildSceneSourceMessages([
+    { id: 1, role: "user", content: '"가지 마."' },
+    { id: 2, role: "assistant", content: '"가지 마."' },
   ]);
 }
 
@@ -77,6 +83,20 @@ function assertMatchingOption(
   return { selectedKey, choices };
 }
 
+function sourceEventIdCounts(plan: ReturnType<typeof buildDeterministicScenePlan>) {
+  const ids = plan.panels.flatMap((panel) =>
+    panel.dialogue
+      .filter((line) => line.provenance === "source")
+      .map((line) => line.sourceEventId)
+      .filter(Boolean)
+  );
+  const counts = new Map<string, number>();
+  for (const id of ids) {
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return counts;
+}
+
 describe("comic dialogue speaker editor regression", () => {
   it("S2 BEFORE: coarse assistant line selectedKey character: did not match legacy character:태형 option", () => {
     const plan = buildDeterministicScenePlan(oneToOneMessages(), 2);
@@ -85,7 +105,6 @@ describe("comic dialogue speaker editor regression", () => {
       .find((line) => line.speaker === "character");
     assert.ok(assistant);
     const legacySelectedKey = `${assistant!.speaker}:${assistant!.speakerName ?? ""}`;
-    // Pre-fix editor built named primary options (character:태형), not coarse slots (character:).
     const legacyOptions = [
       { value: "persona" as const, label: PERSONA, speakerName: PERSONA },
       { value: "character" as const, label: CHARACTER, speakerName: CHARACTER },
@@ -145,28 +164,7 @@ describe("comic dialogue speaker editor regression", () => {
 });
 
 describe("comic dialogue duplication regression", () => {
-  it("D7/D12: assistant repeating preceding user dialogue is assistant_echo, not panel duplicate", () => {
-    const events = extractDeterministicEvents(screenshotMessages());
-    const echo = events.find(
-      (event) =>
-        event.kind === "assistant_echo" &&
-        event.text.includes("정말? 다 내어준다고? 그렇게 내가 마음에 들어?")
-    );
-    assert.ok(echo);
-    const plan = buildDeterministicScenePlan(screenshotMessages(), 3);
-    for (const panel of plan.panels) {
-      const texts = panel.dialogue.map((line) => line.text);
-      const dupes = texts.filter((text, index) => texts.indexOf(text) !== index);
-      assert.deepEqual(dupes, [], `panel ${panel.index} has duplicate text: ${dupes.join(" | ")}`);
-    }
-    const visualDialogue = visualEvents(plan.events).filter((event) => event.kind === "dialogue");
-    const repeatedText = visualDialogue.filter((event) =>
-      event.text.includes("정말? 다 내어준다고? 그렇게 내가 마음에 들어?")
-    );
-    assert.equal(repeatedText.length, 1);
-  });
-
-  it("D1: duplicate sourceEventId in provider plan is rejected", () => {
+  it("D1: same sourceEventId same panel twice → canonical plan keeps first occurrence only", () => {
     const plan = buildDeterministicScenePlan(oneToOneMessages(), 2);
     const line = plan.panels[0]!.dialogue[0]!;
     const forged = {
@@ -187,11 +185,51 @@ describe("comic dialogue duplication regression", () => {
       personaName: PERSONA,
       characterName: CHARACTER,
     });
-    assert.equal(validated.ok, false);
-    if (!validated.ok) assert.match(validated.reason, /dialogue sourceEvent duplicated/);
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    const sourceId = line.sourceEventId!;
+    assert.equal(validated.plan.panels[0]!.dialogue.filter((row) => row.sourceEventId === sourceId).length, 1);
   });
 
-  it("D5: distinct user and assistant dialogue both retained", () => {
+  it("D2: same sourceEventId across two panels → canonical plan keeps first occurrence only", () => {
+    const plan = buildDeterministicScenePlan(oneToOneMessages(), 2);
+    const line = plan.panels[0]!.dialogue[0]!;
+    const forged = {
+      sceneBackground: plan.sceneBackground,
+      heroEventIds: plan.heroEventIds,
+      heroScene: plan.heroScene,
+      recommendedPanelCount: 2,
+      panels: plan.panels.map((panel, index) =>
+        index === 1
+          ? {
+              ...panel,
+              dialogue: [{ ...line, provenance: "source" as const }, ...panel.dialogue],
+            }
+          : panel
+      ),
+    };
+    const validated = validateScenePlan(forged, oneToOneMessages(), {
+      personaName: PERSONA,
+      characterName: CHARACTER,
+    });
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    const sourceId = line.sourceEventId!;
+    const occurrences = validated.plan.panels.flatMap((panel) =>
+      panel.dialogue.filter((row) => row.sourceEventId === sourceId)
+    );
+    assert.equal(occurrences.length, 1);
+    assert.equal(occurrences[0]!.text, line.text);
+  });
+
+  it("D3: deterministic plan — one source event → one dialogue occurrence", () => {
+    const plan = buildDeterministicScenePlan(oneToOneMessages(), 2);
+    for (const [, count] of sourceEventIdCounts(plan)) {
+      assert.equal(count, 1);
+    }
+  });
+
+  it("D4: different user and assistant text → both retained", () => {
     const plan = buildDeterministicScenePlan(oneToOneMessages(), 2);
     const dialogue = plan.panels.flatMap((panel) => panel.dialogue);
     assert.equal(dialogue.length, 2);
@@ -199,17 +237,51 @@ describe("comic dialogue duplication regression", () => {
     assert.ok(dialogue.some((line) => line.speaker === "character"));
   });
 
-  it("D7: assistant line matching only preceding user message dialogue becomes assistant_echo", () => {
-    const messages = buildSceneSourceMessages([
-      { id: 1, role: "user", content: '"가지 마."' },
-      { id: 2, role: "assistant", content: '"가지 마."' },
-    ]);
+  it("D5: same text + different genuine source events → both retained with distinct speakers", () => {
+    const messages = sameTextDistinctEventsMessages();
     const events = extractDeterministicEvents(messages);
-    assert.equal(events.filter((event) => event.kind === "dialogue").length, 1);
-    assert.ok(events.some((event) => event.kind === "assistant_echo"));
+    const dialogues = events.filter((event) => event.kind === "dialogue");
+    assert.equal(dialogues.length, 2);
+    assert.notEqual(dialogues[0]!.id, dialogues[1]!.id);
+    assert.equal(dialogues[0]!.sourceRole, "user");
+    assert.equal(dialogues[1]!.sourceRole, "assistant");
+
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const lines = plan.panels.flatMap((panel) => panel.dialogue);
+    const matching = lines.filter((line) => line.text.includes("가지 마"));
+    assert.equal(matching.length, 2);
+    assert.ok(matching.some((line) => line.speaker === "persona"));
+    assert.ok(matching.some((line) => line.speaker === "character"));
+    assert.notEqual(matching[0]!.sourceEventId, matching[1]!.sourceEventId);
+
+    for (const line of matching) {
+      assertMatchingOption(line, plan);
+      if (line.speaker === "persona") {
+        assert.equal(resolveDialogueSpeakerOptionKey(line, PERSONA, CHARACTER), "persona:");
+      }
+      if (line.speaker === "character") {
+        assert.equal(resolveDialogueSpeakerOptionKey(line, PERSONA, CHARACTER), "character:");
+      }
+    }
+
+    const spec = compileChatComicPanelSpec({
+      plan,
+      personaName: PERSONA,
+      characterName: CHARACTER,
+      subjects: duoVisualSubjectsForCast({ personaName: PERSONA, characterName: CHARACTER }),
+    });
+    const section = renderChatComicPanelSpecSection(spec);
+    assert.match(section, /Speech bubble \(B \/ persona\).*가지 마\./s);
+    assert.match(section, /Speech bubble \(A \/ character\).*가지 마\./s);
   });
 
-  it("D8: user_edit duplicate text lines are preserved", () => {
+  it("D7: exact text equality alone does not classify assistant dialogue as assistant_echo", () => {
+    const events = extractDeterministicEvents(sameTextDistinctEventsMessages());
+    assert.equal(events.filter((event) => event.kind === "dialogue").length, 2);
+    assert.equal(events.filter((event) => event.kind === "assistant_echo").length, 0);
+  });
+
+  it("D8: two identical user_edit lines → both preserved", () => {
     const plan = buildDeterministicScenePlan(oneToOneMessages(), 2);
     const panel = plan.panels[0];
     assert.ok(panel);
@@ -240,35 +312,119 @@ describe("comic dialogue duplication regression", () => {
     assert.equal(texts.length, 2);
   });
 
-  it("D9: reflow does not duplicate source dialogue", () => {
+  it("D9: reflow does not duplicate same sourceEventId", () => {
     const plan = buildDeterministicScenePlan(screenshotMessages(), 2);
     const reflowed = reflowScenePlanPanels(plan, 3);
-    const sourceIds = reflowed.panels.flatMap((panel) =>
-      panel.dialogue
-        .filter((line) => line.provenance === "source")
-        .map((line) => line.sourceEventId)
-        .filter(Boolean)
-    );
-    assert.equal(sourceIds.length, new Set(sourceIds).size);
+    for (const [, count] of sourceEventIdCounts(reflowed)) {
+      assert.equal(count, 1);
+    }
   });
 
-  it("SCREENSHOT ACCEPTANCE: panel 1 speakers match without duplicate echo text", () => {
-    const plan = buildDeterministicScenePlan(screenshotMessages(), 3);
-    const panel1 = plan.panels[0];
-    assert.ok(panel1);
-    for (const line of panel1.dialogue) {
-      assertMatchingOption(line, plan);
-      if (line.speaker === "persona") {
-        assert.equal(resolveDialogueSpeakerOptionKey(line, PERSONA, CHARACTER), "persona:");
-      }
-      if (line.speaker === "character") {
-        assert.equal(resolveDialogueSpeakerOptionKey(line, PERSONA, CHARACTER), "character:");
-      }
-    }
-    const approved = collectApprovedComicText(plan);
-    const repeated = approved.filter((text) =>
-      text.includes("정말? 다 내어준다고? 그렇게 내가 마음에 들어?")
+  it("D10: AI plan validation repairs duplicate sourceEventId without invalidating plan", () => {
+    const plan = buildDeterministicScenePlan(oneToOneMessages(), 2);
+    const line = plan.panels[0]!.dialogue[0]!;
+    const forged = {
+      sceneBackground: plan.sceneBackground,
+      heroEventIds: plan.heroEventIds,
+      heroScene: plan.heroScene,
+      recommendedPanelCount: 2,
+      panels: plan.panels.map((panel, index) =>
+        index === 0
+          ? {
+              ...panel,
+              dialogue: [line, { ...line, provenance: "source" as const }],
+            }
+          : panel
+      ),
+    };
+    const validated = validateScenePlan(forged, oneToOneMessages(), {
+      personaName: PERSONA,
+      characterName: CHARACTER,
+    });
+    assert.equal(validated.ok, true);
+  });
+
+  it("D1-PRODUCTION: duplicate source dialogue is deterministically repaired without provider fallback", async () => {
+    const messages = oneToOneMessages();
+    const base = buildDeterministicScenePlan(messages, 2);
+    const line = base.panels[0]!.dialogue[0]!;
+    const duplicated = {
+      sceneBackground: base.sceneBackground,
+      heroEventIds: base.heroEventIds,
+      heroScene: base.heroScene,
+      recommendedPanelCount: 2,
+      panels: base.panels.map((panel, index) =>
+        index === 0
+          ? {
+              ...panel,
+              dialogue: [line, { ...line, provenance: "source" as const }],
+            }
+          : panel
+      ),
+    };
+    let calls = 0;
+    const result = await planChatImageScene({
+      characterName: CHARACTER,
+      personaName: PERSONA,
+      messages,
+      complete: async () => {
+        calls += 1;
+        return JSON.stringify(duplicated);
+      },
+    });
+    assert.equal(calls, 1);
+    assert.equal(result.usedFallback, false);
+    assert.ok(result.plan.panels.length >= 1);
+    const sourceId = line.sourceEventId!;
+    const occurrences = result.plan.panels.flatMap((panel) =>
+      panel.dialogue.filter((row) => row.sourceEventId === sourceId)
     );
-    assert.equal(repeated.length, 1);
+    assert.equal(occurrences.length, 1);
+  });
+
+  it("D12: screenshot-style fixture — same-text distinct source events show correct speakers; duplicate sourceEventId repaired", () => {
+    const plan = buildDeterministicScenePlan(screenshotMessages(), 3);
+    for (const line of plan.panels.flatMap((panel) => panel.dialogue)) {
+      assertMatchingOption(line, plan);
+    }
+
+    const repeatedText = "정말? 다 내어준다고? 그렇게 내가 마음에 들어?";
+    const matching = plan.panels.flatMap((panel) =>
+      panel.dialogue.filter((line) => line.text.includes(repeatedText))
+    );
+    if (matching.length >= 2) {
+      assert.notEqual(matching[0]!.sourceEventId, matching[1]!.sourceEventId);
+      assert.notEqual(matching[0]!.speaker, matching[1]!.speaker);
+    }
+
+    for (const [, count] of sourceEventIdCounts(plan)) {
+      assert.equal(count, 1);
+    }
+
+    const forged = {
+      sceneBackground: plan.sceneBackground,
+      heroEventIds: plan.heroEventIds,
+      heroScene: plan.heroScene,
+      recommendedPanelCount: 3,
+      panels: plan.panels.map((panel, index) =>
+        index === 0 && panel.dialogue[0]
+          ? {
+              ...panel,
+              dialogue: [panel.dialogue[0], { ...panel.dialogue[0], provenance: "source" as const }],
+            }
+          : panel
+      ),
+    };
+    const validated = validateScenePlan(forged, screenshotMessages(), {
+      personaName: PERSONA,
+      characterName: CHARACTER,
+    });
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    const firstSourceId = plan.panels[0]!.dialogue[0]!.sourceEventId!;
+    assert.equal(
+      validated.plan.panels[0]!.dialogue.filter((row) => row.sourceEventId === firstSourceId).length,
+      1
+    );
   });
 });
