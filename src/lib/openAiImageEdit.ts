@@ -1,3 +1,8 @@
+import {
+  parseOpenAiImageFailureDiagnostic,
+  type OpenAiImageFailureDiagnostic,
+} from "@/lib/openAiImageFailureDiagnostic";
+
 const OPENAI_IMAGE_EDITS_URL = "https://api.openai.com/v1/images/edits";
 
 /** `/v1/images/edits` requires at least one image. Zero-image requests are not supported. */
@@ -17,7 +22,8 @@ type OpenAiImageUsage = {
 export class OpenAiImageError extends Error {
   constructor(
     message: string,
-    public status = 502
+    public status = 502,
+    public diagnostic?: OpenAiImageFailureDiagnostic
   ) {
     super(message);
     this.name = "OpenAiImageError";
@@ -75,6 +81,8 @@ export async function callOpenAiImageEdit(opts: {
   quality: OpenAiImageQuality;
   outputCompression: number;
   signal?: AbortSignal;
+  templateId?: string;
+  mode?: string;
 }): Promise<{ buffer: Buffer; costUsd: number | null }> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new OpenAiImageError("OpenAI API 키가 설정되지 않았습니다.", 503);
@@ -99,6 +107,7 @@ export async function callOpenAiImageEdit(opts: {
     form.append("image[]", file.blob, file.filename);
   });
 
+  const attemptStartedAt = new Date().toISOString();
   const response = await fetch(OPENAI_IMAGE_EDITS_URL, {
     method: "POST",
     headers: {
@@ -108,6 +117,7 @@ export async function callOpenAiImageEdit(opts: {
     body: form,
     signal: opts.signal,
   });
+  const attemptFinishedAt = new Date().toISOString();
 
   const text = await response.text();
   let data: unknown = null;
@@ -117,7 +127,25 @@ export async function callOpenAiImageEdit(opts: {
     data = null;
   }
   if (!response.ok) {
-    throw new OpenAiImageError(errorMessage(data), response.status >= 500 ? 502 : 400);
+    const diagnostic = parseOpenAiImageFailureDiagnostic({
+      httpStatus: response.status,
+      responseHeaders: response.headers,
+      responseBody: data,
+      attemptStartedAt,
+      attemptFinishedAt,
+      model: opts.model,
+      size: opts.size,
+      quality: opts.quality,
+      referenceCount: opts.references.length,
+      prompt: opts.prompt,
+      templateId: opts.templateId,
+      mode: opts.mode,
+    });
+    throw new OpenAiImageError(
+      diagnostic.errorMessage,
+      response.status >= 500 ? 502 : 400,
+      diagnostic
+    );
   }
 
   const encoded = (data as { data?: Array<{ b64_json?: string }> })?.data?.[0]?.b64_json

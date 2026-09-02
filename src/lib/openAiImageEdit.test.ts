@@ -138,4 +138,120 @@ describe("openAiImageEdit", () => {
       else process.env.OPENAI_API_KEY = originalKey;
     }
   });
+
+  it("R1 safety 400 without usage preserves diagnostic and null cost", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-key";
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          error: {
+            message: "rejected by the safety system",
+            type: "invalid_request_error",
+            code: "content_policy_violation",
+          },
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    try {
+      await assert.rejects(
+        () =>
+          callOpenAiImageEdit({
+            model: "gpt-image-2",
+            prompt: "scene",
+            references: [`data:image/webp;base64,${Buffer.from("x").toString("base64")}`],
+            size: "800x1200",
+            quality: "medium",
+            outputCompression: 86,
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof OpenAiImageError);
+          assert.equal(error.status, 400);
+          assert.ok(error.diagnostic);
+          assert.equal(error.diagnostic!.computedCostUsd, null);
+          assert.equal(error.diagnostic!.providerChargeEvidence, "usage_absent");
+          assert.match(error.message, /safety system/i);
+          return true;
+        }
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalKey == null) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+    }
+  });
+
+  it("R5 HTTP 500 is transport failure not mislabeled as safety-only", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-key";
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          error: {
+            message: "The server had an error processing your request.",
+            type: "server_error",
+            code: "server_error",
+          },
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    try {
+      await assert.rejects(
+        () =>
+          callOpenAiImageEdit({
+            model: "gpt-image-2",
+            prompt: "scene",
+            references: [`data:image/webp;base64,${Buffer.from("x").toString("base64")}`],
+            size: "800x1200",
+            quality: "medium",
+            outputCompression: 86,
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof OpenAiImageError);
+          assert.equal(error.status, 502);
+          assert.equal(error.diagnostic?.httpStatus, 500);
+          assert.equal(error.diagnostic?.errorType, "server_error");
+          return true;
+        }
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalKey == null) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+    }
+  });
+
+  it("R6 successful response cost calculation unchanged", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-key";
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          data: [{ b64_json: Buffer.from("generated").toString("base64") }],
+          usage: {
+            input_tokens_details: { image_tokens: 100, text_tokens: 20 },
+            output_tokens: 200,
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    try {
+      const result = await callOpenAiImageEdit({
+        model: "gpt-image-2",
+        prompt: "scene",
+        references: [`data:image/webp;base64,${Buffer.from("x").toString("base64")}`],
+        size: "800x1200",
+        quality: "medium",
+        outputCompression: 86,
+      });
+      assert.ok(result.costUsd != null && result.costUsd > 0);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalKey == null) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+    }
+  });
 });

@@ -32,6 +32,7 @@ export type ChatImageGenerationJobRow = {
   status: ChatImageGenerationJobStatus;
   result_url: string | null;
   error_message: string | null;
+  failure_diagnostic_json: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -58,6 +59,12 @@ export function ensureChatImageGenerationJobSchema(db: Database.Database = getDb
     CREATE INDEX IF NOT EXISTS idx_chat_image_jobs_scope
       ON chat_image_generation_jobs (user_id, character_id, status, id DESC);
   `);
+  const columns = db.prepare("PRAGMA table_info(chat_image_generation_jobs)").all() as Array<{
+    name: string;
+  }>;
+  if (!columns.some((column) => column.name === "failure_diagnostic_json")) {
+    db.exec("ALTER TABLE chat_image_generation_jobs ADD COLUMN failure_diagnostic_json TEXT");
+  }
   ensured = true;
 }
 
@@ -105,6 +112,7 @@ export function finishChatImageGenerationJob(opts: {
   status: Exclude<ChatImageGenerationJobStatus, "running">;
   resultUrl?: string | null;
   errorMessage?: string | null;
+  failureDiagnosticJson?: string | null;
   db?: Database.Database;
 }): void {
   if (opts.jobId == null) return;
@@ -113,12 +121,13 @@ export function finishChatImageGenerationJob(opts: {
     ensureChatImageGenerationJobSchema(db);
     db.prepare(
       `UPDATE chat_image_generation_jobs
-          SET status=?, result_url=?, error_message=?, updated_at=datetime('now')
+          SET status=?, result_url=?, error_message=?, failure_diagnostic_json=?, updated_at=datetime('now')
         WHERE id=? AND status='running'`
     ).run(
       opts.status,
       opts.resultUrl ?? null,
       opts.errorMessage ?? null,
+      opts.failureDiagnosticJson ?? null,
       opts.jobId
     );
   } catch (error) {
