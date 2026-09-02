@@ -101,16 +101,13 @@ import {
   hasRunningChatImageGenerationJob,
   startChatImageGenerationJob,
 } from "@/lib/chatImageGenerationJobs";
-import { persistChatImageGenerationResult } from "@/lib/chatImageGenerationPersistence";
+import { settleChatImageGenerationResult } from "@/lib/chatImageGenerationPersistence";
 import { getDb } from "@/lib/db";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import {
   InsufficientPointsError,
-  deductPoints,
   getPointBalance,
-  type DeductionSlice,
 } from "@/lib/points";
-import { refundDeductionSlices } from "@/lib/refund";
 import {
   filenameFromUploadUrl,
   resolveExistingUploadPath,
@@ -198,31 +195,38 @@ function nonNegativeInt(raw: unknown): number | null {
   return Number.isInteger(value) && value >= 0 ? value : null;
 }
 
-async function abortGeneratedImageAfterPersistenceFailure(opts: {
+async function abortGeneratedImageAfterSettlementFailure(opts: {
   savedPath: string | null;
   userId: number;
-  deduction: { slices: DeductionSlice[]; total: number };
   jobId: number | null;
   logTag: string;
-  refundReason: string;
   error: unknown;
+  insufficientPoints?: InsufficientPointsError;
 }): Promise<NextResponse> {
   if (opts.savedPath) await fs.unlink(opts.savedPath).catch(() => {});
-  const balance = refundDeductionSlices(
-    opts.userId,
-    opts.deduction.slices,
-    opts.deduction.total,
-    opts.refundReason
-  );
   finishChatImageGenerationJob({
     jobId: opts.jobId,
     status: "failed",
-    errorMessage: "history/album persistence failed",
+    errorMessage: opts.insufficientPoints
+      ? "포인트가 부족합니다."
+      : "image generation settlement failed",
   });
-  console.error(`[${opts.logTag}] history/album insert failed`, opts.error);
+  console.error(`[${opts.logTag}] settlement failed`, opts.error);
+  if (opts.insufficientPoints) {
+    return NextResponse.json(
+      {
+        error: `포인트가 부족합니다. ${opts.insufficientPoints.balance.total.toLocaleString()}P 보유 중입니다.`,
+        remainingPoints: opts.insufficientPoints.balance.total,
+        paidPoints: opts.insufficientPoints.balance.paid,
+        freePoints: opts.insufficientPoints.balance.free,
+      },
+      { status: 402 }
+    );
+  }
+  const balance = getPointBalance(opts.userId);
   return NextResponse.json(
     {
-      error: "이미지 저장을 완료하지 못했습니다. 포인트는 복구되었습니다.",
+      error: "이미지 저장을 완료하지 못했습니다. 포인트는 차감되지 않았습니다.",
       remainingPoints: balance.total,
       paidPoints: balance.paid,
       freePoints: balance.free,
@@ -1010,40 +1014,11 @@ export async function POST(req: Request) {
       await fs.writeFile(savedPath, generated.buffer);
       const resultUrl = uploadPublicUrl(filename);
 
-      let deduction;
-      try {
-        deduction = deductPoints(
-          user.id,
-          pricePoints,
-          "GPT Image 2 · 선택 턴 LD 일러스트",
-          context.chatId ? { chatId: context.chatId } : undefined
-        );
-      } catch (error) {
-        await fs.unlink(savedPath).catch(() => {});
-        savedPath = null;
-        if (error instanceof InsufficientPointsError) {
-          finishChatImageGenerationJob({
-            jobId,
-            status: "failed",
-            errorMessage: "포인트가 부족합니다.",
-          });
-          jobId = null;
-          return NextResponse.json(
-            {
-              error: `포인트가 부족합니다. ${pricePoints.toLocaleString()}P가 필요합니다.`,
-              remainingPoints: error.balance.total,
-              paidPoints: error.balance.paid,
-              freePoints: error.balance.free,
-            },
-            { status: 402 }
-          );
-        }
-        throw error;
-      }
-
       let generationId: number;
+      let deductionTotal: number;
+      let deductionBalance: ReturnType<typeof getPointBalance>;
       try {
-        const persisted = persistChatImageGenerationResult({
+        const settled = settleChatImageGenerationResult({
           userId: user.id,
           chatId: context.chatId,
           characterId: context.character.id,
@@ -1069,8 +1044,9 @@ export async function POST(req: Request) {
           },
           resultUrl,
           upstreamCostUsd: generated.costUsd,
-          chargedPoints: deduction.total,
-          deductionSlices: deduction.slices,
+          chargePoints: pricePoints,
+          chargeReason: "GPT Image 2 · 선택 턴 LD 일러스트",
+          chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
           exchangeRateKrwPerUsd: getEffectiveKrwPerUsd(),
           album: {
             mode: "illustration",
@@ -1078,17 +1054,33 @@ export async function POST(req: Request) {
             campaignTitle: campaignTitle || null,
           },
         });
-        generationId = persisted.generationId;
+        generationId = settled.generationId;
+        deductionTotal = settled.chargedPoints;
+        deductionBalance = settled.balance;
       } catch (error) {
         const failedPath = savedPath;
         savedPath = null;
-        return abortGeneratedImageAfterPersistenceFailure({
+        if (error instanceof InsufficientPointsError) {
+          finishChatImageGenerationJob({
+            jobId,
+            status: "failed",
+            errorMessage: "포인트가 부족합니다.",
+          });
+          jobId = null;
+          return abortGeneratedImageAfterSettlementFailure({
+            savedPath: failedPath,
+            userId: user.id,
+            jobId,
+            logTag: "chat-ld-illustration",
+            error,
+            insufficientPoints: error,
+          });
+        }
+        return abortGeneratedImageAfterSettlementFailure({
           savedPath: failedPath,
           userId: user.id,
-          deduction,
           jobId,
           logTag: "chat-ld-illustration",
-          refundReason: "LD 일러스트 저장 실패 환불",
           error,
         });
       }
@@ -1117,10 +1109,10 @@ export async function POST(req: Request) {
           campaignId,
           payload: trpgImageSceneDiagnosticsPayload,
         }),
-        totalPointsCost: deduction.total,
-        remainingPoints: deduction.balance.total,
-        paidPoints: deduction.balance.paid,
-        freePoints: deduction.balance.free,
+        totalPointsCost: deductionTotal,
+        remainingPoints: deductionBalance.total,
+        paidPoints: deductionBalance.paid,
+        freePoints: deductionBalance.free,
       });
     }
 
@@ -1220,41 +1212,12 @@ export async function POST(req: Request) {
     await fs.writeFile(savedPath, generated.buffer);
     const resultUrl = uploadPublicUrl(filename);
 
-    let deduction;
-    try {
-      deduction = deductPoints(
-        user.id,
-        pricePoints,
-        `GPT Image 2 · ${panelCount}컷 만화`,
-        context.chatId ? { chatId: context.chatId } : undefined
-      );
-    } catch (error) {
-      await fs.unlink(savedPath).catch(() => {});
-      savedPath = null;
-      if (error instanceof InsufficientPointsError) {
-        finishChatImageGenerationJob({
-          jobId,
-          status: "failed",
-          errorMessage: "포인트가 부족합니다.",
-        });
-        jobId = null;
-        return NextResponse.json(
-          {
-            error: `포인트가 부족합니다. ${pricePoints.toLocaleString()}P가 필요합니다.`,
-            remainingPoints: error.balance.total,
-            paidPoints: error.balance.paid,
-            freePoints: error.balance.free,
-          },
-          { status: 402 }
-        );
-      }
-      throw error;
-    }
-
     const totalCostUsd = generated.costUsd == null ? null : generated.costUsd;
     let generationId: number;
+    let deductionTotal: number;
+    let deductionBalance: ReturnType<typeof getPointBalance>;
     try {
-      const persisted = persistChatImageGenerationResult({
+      const settled = settleChatImageGenerationResult({
         userId: user.id,
         chatId: context.chatId,
         characterId: context.character.id,
@@ -1271,22 +1234,39 @@ export async function POST(req: Request) {
         },
         resultUrl,
         upstreamCostUsd: totalCostUsd,
-        chargedPoints: deduction.total,
-        deductionSlices: deduction.slices,
+        chargePoints: pricePoints,
+        chargeReason: `GPT Image 2 · ${panelCount}컷 만화`,
+        chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
         exchangeRateKrwPerUsd: getEffectiveKrwPerUsd(),
         album: { mode: "comic" },
       });
-      generationId = persisted.generationId;
+      generationId = settled.generationId;
+      deductionTotal = settled.chargedPoints;
+      deductionBalance = settled.balance;
     } catch (error) {
       const failedPath = savedPath;
       savedPath = null;
-      return abortGeneratedImageAfterPersistenceFailure({
+      if (error instanceof InsufficientPointsError) {
+        finishChatImageGenerationJob({
+          jobId,
+          status: "failed",
+          errorMessage: "포인트가 부족합니다.",
+        });
+        jobId = null;
+        return abortGeneratedImageAfterSettlementFailure({
+          savedPath: failedPath,
+          userId: user.id,
+          jobId,
+          logTag: "chat-comic-generation",
+          error,
+          insufficientPoints: error,
+        });
+      }
+      return abortGeneratedImageAfterSettlementFailure({
         savedPath: failedPath,
         userId: user.id,
-        deduction,
         jobId,
         logTag: "chat-comic-generation",
-        refundReason: "컷만화 저장 실패 환불",
         error,
       });
     }
@@ -1307,7 +1287,7 @@ export async function POST(req: Request) {
       imageModel: model,
       upstreamCostUsd: totalCostUsd,
       upstreamCostKrw: totalCostKrw,
-      chargedPoints: deduction.total,
+      chargedPoints: deductionTotal,
     });
 
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
@@ -1323,10 +1303,10 @@ export async function POST(req: Request) {
       messageId: source.messageId ?? undefined,
       upstreamCostUsd: canSeeCost ? totalCostUsd : undefined,
       upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
-      totalPointsCost: deduction.total,
-      remainingPoints: deduction.balance.total,
-      paidPoints: deduction.balance.paid,
-      freePoints: deduction.balance.free,
+      totalPointsCost: deductionTotal,
+      remainingPoints: deductionBalance.total,
+      paidPoints: deductionBalance.paid,
+      freePoints: deductionBalance.free,
     });
   } catch (error) {
     if (savedPath) await fs.unlink(savedPath).catch(() => {});

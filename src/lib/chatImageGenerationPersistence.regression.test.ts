@@ -7,12 +7,15 @@ function read(relativePath: string): string {
 }
 
 describe("chat image generation durable success regression", () => {
-  it("comic route does not silently swallow history/album persistence failures", () => {
+  it("comic route uses atomic settlement without silent success branches", () => {
     const route = read("src/app/api/chat/comic-generation/route.ts");
-    assert.match(route, /persistChatImageGenerationResult\(/);
-    assert.match(route, /abortGeneratedImageAfterPersistenceFailure\(/);
-    assert.doesNotMatch(route, /history\/album insert failed/);
+    assert.match(route, /settleChatImageGenerationResult\(/);
+    assert.match(route, /abortGeneratedImageAfterSettlementFailure\(/);
     assert.doesNotMatch(route, /savedToCharacterAlbum = false/);
+    assert.doesNotMatch(
+      route,
+      /catch\s*\([^)]*\)\s*\{[^}]*finishChatImageGenerationJob\(\{[^}]*status:\s*"completed"/s
+    );
   });
 
   it("client treats album persistence as part of comic/illustration success", () => {

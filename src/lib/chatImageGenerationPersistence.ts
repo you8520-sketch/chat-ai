@@ -3,9 +3,14 @@ import {
   ensureCharacterImageAlbumTable,
   type ChatImageAlbumMode,
 } from "@/lib/chatImageAlbum";
-import type { DeductionSlice } from "@/lib/points";
+import {
+  deductPointsOnDb,
+  type DeductionSlice,
+  type PointLogLink,
+  type PointBalance,
+} from "@/lib/points";
 
-export type PersistChatImageGenerationInput = {
+export type SettleChatImageGenerationInput = {
   userId: number;
   chatId: number | null;
   characterId: number;
@@ -15,14 +20,22 @@ export type PersistChatImageGenerationInput = {
   optionsJson: Record<string, unknown>;
   resultUrl: string;
   upstreamCostUsd: number | null;
-  chargedPoints: number;
-  deductionSlices: DeductionSlice[];
   exchangeRateKrwPerUsd: number;
+  chargePoints: number;
+  chargeReason: string;
+  chargeLink?: PointLogLink;
   album: {
     mode: ChatImageAlbumMode;
     campaignId?: number | null;
     campaignTitle?: string | null;
   };
+};
+
+export type SettleChatImageGenerationResult = {
+  generationId: number;
+  chargedPoints: number;
+  deductionSlices: DeductionSlice[];
+  balance: PointBalance;
 };
 
 export function ensureChatImageGenerationsTable() {
@@ -63,15 +76,23 @@ export function ensureChatImageGenerationsTable() {
   }
 }
 
-/** Atomic history + album persistence — throws on any failure (no silent partial success). */
-export function persistChatImageGenerationResult(
-  input: PersistChatImageGenerationInput
-): { generationId: number } {
+/** Single DB settlement: point deduction + history + album in one transaction. */
+export function settleChatImageGenerationResult(
+  input: SettleChatImageGenerationInput
+): SettleChatImageGenerationResult {
   ensureChatImageGenerationsTable();
   ensureCharacterImageAlbumTable();
   const db = getDb();
 
   return db.transaction(() => {
+    const deduction = deductPointsOnDb(
+      db,
+      input.userId,
+      input.chargePoints,
+      input.chargeReason,
+      input.chargeLink
+    );
+
     const insert = db
       .prepare(
         `INSERT INTO chat_image_generations (
@@ -90,8 +111,8 @@ export function persistChatImageGenerationResult(
         JSON.stringify(input.optionsJson),
         input.resultUrl,
         input.upstreamCostUsd,
-        input.chargedPoints,
-        JSON.stringify(input.deductionSlices),
+        deduction.total,
+        JSON.stringify(deduction.slices),
         input.exchangeRateKrwPerUsd
       );
     const generationId = Number(insert.lastInsertRowid);
@@ -123,6 +144,11 @@ export function persistChatImageGenerationResult(
       input.album.campaignTitle ?? null
     );
 
-    return { generationId };
+    return {
+      generationId,
+      chargedPoints: deduction.total,
+      deductionSlices: deduction.slices,
+      balance: deduction.balance,
+    };
   })();
 }
