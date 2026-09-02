@@ -388,7 +388,8 @@ export function buildTrpgGmUserBlock(opts: {
   );
   const roundExecution = [
     "[ROUND EXECUTION — binding]",
-    "Complete the full narration beat, then <<<DELTA>>>. Apply [GM SCENE CRAFT — ADAPTIVE NARRATION] and [ROUND CRAFT] from system.",
+    "Apply [GM SCENE CRAFT — ADAPTIVE NARRATION] and [ROUND CRAFT] from system to the submitted actions above.",
+    "Use the exact output envelope defined in system — both required sections in one response.",
     narrationBudget,
   ].join("\n");
 

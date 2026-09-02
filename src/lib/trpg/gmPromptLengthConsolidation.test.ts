@@ -84,7 +84,9 @@ describe("TRPG GM length prompt consolidation gates", () => {
     const actionIdx = user.indexOf("[ACTION participantId");
     assert.ok(budgetIdx > actionIdx, "budget must trail submitted actions");
     assert.match(user, /\[ROUND EXECUTION — binding\]/);
-    assert.ok(user.trimEnd().endsWith(user.slice(user.lastIndexOf("[ROUND NARRATION BUDGET]"))));
+    assert.match(user, /exact output envelope defined in system/i);
+    assert.doesNotMatch(user, /<<<DELTA>>>/);
+    assert.doesNotMatch(user, /<<<NARRATION>>>/);
   });
 
   it("semantic owner duplicates = 0 for agency, anti-replay, forward motion, speech, length", () => {
@@ -133,6 +135,16 @@ describe("TRPG GM length prompt consolidation gates", () => {
     const assessment = assessGmCompletionIntegrity(raw, { finishReason: "stop" });
     assert.equal(assessment.ok, true);
     assert.equal(assessment.status, "healthy");
+  });
+
+  it("GM_OUTPUT_ENVELOPE_OWNER_COUNT = 1 — system owns markers; user references only", () => {
+    const user = mixedThreePartyUser();
+    assert.match(TRPG_GM_SYSTEM, /Output format exactly:/);
+    assert.match(TRPG_GM_SYSTEM, /<<<NARRATION>>>/);
+    assert.match(TRPG_GM_SYSTEM, /<<<DELTA>>>/);
+    assert.doesNotMatch(user, /<<<DELTA>>>/);
+    assert.doesNotMatch(user, /<<<NARRATION>>>/);
+    assert.match(user, /exact output envelope defined in system/i);
   });
 
   it("budget constants unchanged for 3-action party", () => {
