@@ -31,11 +31,18 @@ describe("scroll follow lab fixture", () => {
     assert.equal(snap.gmNarrationDraft, null);
   });
 
-  it("lab page is not a production surface", () => {
+  it("lab page is not a production surface without harness flag", () => {
     const page = readFileSync("src/app/trpg/scroll-follow-lab/page.tsx", "utf8");
     assert.match(page, /process\.env\.NODE_ENV === "production"/);
+    assert.match(page, /isScrollFollowLabHarnessEnabled/);
     assert.match(page, /notFound\(\)/);
     assert.doesNotMatch(page, /canAccessTrpg/);
+  });
+
+  it("harness gate is env-only and not public production access", () => {
+    const access = readFileSync("src/lib/trpg/scrollFollowLabAccess.ts", "utf8");
+    assert.match(access, /TRPG_SCROLL_FOLLOW_LAB_ENABLED/);
+    assert.doesNotMatch(access, /canAccessTrpg/);
   });
 
   it("lab client does not persist stream interval prefs or GM test seam", () => {
