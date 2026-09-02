@@ -1771,9 +1771,14 @@ export function resolveScenePresentationVisibility(opts: {
 export function formatApprovedScenePlanForIllustration(
   plan: ScenePlan,
   visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY,
-  opts?: { projectText?: (text: string) => string }
+  opts?: {
+    projectText?: (text: string, kind?: "dialogue" | "narration") => string;
+    omitDialogueText?: (text: string) => boolean;
+  }
 ): string {
-  const mapText = opts?.projectText ?? ((text: string) => text);
+  const mapText = (text: string, kind: "dialogue" | "narration" = "narration") =>
+    opts?.projectText ? opts.projectText(text, kind) : text;
+  const omitDialogue = opts?.omitDialogueText ?? (() => false);
   const heroEvents = plan.events.filter((event) => plan.heroEventIds.includes(event.id));
   const visibleHeroEvents = visibility.personaVisible
     ? heroEvents
@@ -1786,13 +1791,23 @@ export function formatApprovedScenePlanForIllustration(
     .filter(
       (event) =>
         event.kind === "dialogue" &&
-        (visibility.personaVisible || event.actor !== "persona")
+        (visibility.personaVisible || event.actor !== "persona") &&
+        !omitDialogue(event.text)
     )
-    .map((event) => `${event.actor}: “${mapText(event.text)}”`);
+    .map((event) => {
+      const projected = mapText(event.text, "dialogue");
+      if (!projected.trim()) return "";
+      return `${event.actor}: “${projected}”`;
+    })
+    .filter(Boolean);
   const heroScene = mapText(
     projectHeroScene(plan, visibleHeroEvents, projectedBackground, visibility)
   );
-  const heroBeatCombined = visibleHeroEvents.map((event) => event.text).join(" ").trim();
+  const heroBeatCombined = visibleHeroEvents
+    .filter((event) => !(event.kind === "dialogue" && omitDialogue(event.text)))
+    .map((event) => event.text)
+    .join(" ")
+    .trim();
   const heroBeatProjected = heroBeatCombined ? mapText(heroBeatCombined) : "";
   const heroBeatsUseCombined =
     Boolean(heroBeatCombined) && heroBeatProjected !== heroBeatCombined;
@@ -1804,7 +1819,11 @@ export function formatApprovedScenePlanForIllustration(
     visibleHeroEvents.length
       ? heroBeatsUseCombined
         ? `Hero beats:\n- scene: ${heroBeatProjected}`
-        : `Hero beats:\n${visibleHeroEvents.map((event) => `- ${event.kind}: ${mapText(event.text)}`).join("\n")}`
+        : `Hero beats:\n${visibleHeroEvents
+            .filter((event) => !(event.kind === "dialogue" && omitDialogue(event.text)))
+            .map((event) => `- ${event.kind}: ${mapText(event.text, event.kind === "dialogue" ? "dialogue" : "narration")}`)
+            .filter((line) => !/- dialogue: “”$/.test(line))
+            .join("\n")}`
       : "",
     offCameraEvents.length
       ? `Off-camera context only (do not render as a visible person):\n${offCameraEvents

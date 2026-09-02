@@ -15,6 +15,7 @@ import {
   collectApprovedComicTextForSafeImageGeneration,
   projectTextForSafeImagePrompt,
   shouldOmitDialogueFromImageProjection,
+  type SafeVisualProjectionContext,
 } from "@/lib/chatImageSafeVisualProjection";
 import { buildChatComicPanelSpecPromptSection, compileChatComicPanelSpec } from "@/lib/chatComicPanelSpec";
 import type { ContentKind } from "@/lib/simulationMode";
@@ -151,7 +152,11 @@ export function buildChatComicImagePrompt(opts: {
   personaSavedAppearance?: string;
   personaAppearanceMode?: ChatImageAppearanceMode;
   contentKind?: ContentKind;
+  adultGrounded?: boolean;
 }): string {
+  const projectionContext: SafeVisualProjectionContext = {
+    adultGrounded: opts.adultGrounded ?? false,
+  };
   const sceneVisibility = resolveScenePresentationVisibility({
     contentKind: opts.contentKind,
     castManifest: opts.castManifest,
@@ -209,7 +214,7 @@ export function buildChatComicImagePrompt(opts: {
       subjects,
       eventSubjectBindings: opts.castManifest?.eventSubjectBindings,
       projection: {
-        projectSceneText: projectTextForSafeImagePrompt,
+        projectSceneText: (text) => projectTextForSafeImagePrompt(text, projectionContext),
         omitDialogueText: shouldOmitDialogueFromImageProjection,
       },
     }),

@@ -20,6 +20,7 @@ import {
   formatApprovedScenePlanForSafeImageGeneration,
   projectSceneBlockForSafeImageGeneration,
   projectSceneTextForSafeImageGeneration,
+  type SafeVisualProjectionContext,
 } from "@/lib/chatImageSafeVisualProjection";
 import {
   ILLUSTRATION_SAFE_DEPICTION,
@@ -144,7 +145,11 @@ export function buildTrpgIllustrationSituation(opts: {
   location?: string;
   actions?: ReadonlyArray<{ name: string; body: string }>;
   narration: string;
+  adultGrounded?: boolean;
 }): string {
+  const projectionContext: SafeVisualProjectionContext = {
+    adultGrounded: opts.adultGrounded ?? false,
+  };
   const lines: string[] = [];
   const location = String(opts.location ?? "").trim();
   if (location) lines.push(`LOCATION: ${location}`);
@@ -153,14 +158,14 @@ export function buildTrpgIllustrationSituation(opts: {
     lines.push("THIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):");
     for (const action of actions) {
       const name = action.name.trim() || "player";
-      const body = projectSceneTextForSafeImageGeneration(action.body).text.slice(0, 400);
+      const body = projectSceneTextForSafeImageGeneration(action.body, projectionContext).text.slice(0, 400);
       if (!body) continue;
       lines.push(`- ${name}: ${body}`);
     }
   }
   lines.push("GM SCENE:");
   lines.push(
-    projectSceneBlockForSafeImageGeneration(opts.narration).text.slice(0, 1_800)
+    projectSceneBlockForSafeImageGeneration(opts.narration, projectionContext).text.slice(0, 1_800)
   );
   return lines.join("\n");
 }
@@ -236,18 +241,23 @@ export function buildChatLdIllustrationPrompt(opts: {
   currentTurn: string;
   /** Approved Scene Plan text. Regular chat Scene Builder uses this instead of raw turn prose. */
   approvedScene?: string;
+  /** When true, explicit adult source may use non-explicit adult intimacy projection. */
+  adultGrounded?: boolean;
   /** When set (TRPG party), every listed person must appear — not just the 1:1 duo. */
   cast?: readonly ChatLdIllustrationCastMember[];
   /** Pre-formatted TRPG situation (location, round actions, GM scene). */
   situation?: string;
   subjects?: readonly ChatImageVisualSubject[];
 }) {
+  const projectionContext: SafeVisualProjectionContext = {
+    adultGrounded: opts.adultGrounded ?? false,
+  };
   if (opts.cast && opts.cast.length > 0) {
     return buildPartyIllustrationPrompt({
       cast: opts.cast,
       situation:
         opts.situation?.trim() ||
-        projectSceneBlockForSafeImageGeneration(opts.currentTurn).text,
+        projectSceneBlockForSafeImageGeneration(opts.currentTurn, projectionContext).text,
       subjects: opts.subjects,
     });
   }
@@ -256,7 +266,7 @@ export function buildChatLdIllustrationPrompt(opts: {
     ? ["APPROVED SCENE PLAN", approved]
     : [
         "SELECTED TURN SCENE BRIEF:",
-        projectSceneBlockForSafeImageGeneration(opts.currentTurn).text,
+        projectSceneBlockForSafeImageGeneration(opts.currentTurn, projectionContext).text,
       ];
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
@@ -295,6 +305,7 @@ export function buildLdDuoGenerationPlan(opts: {
   personaAppearanceMode: ChatImageAppearanceMode;
   currentTurn: string;
   approvedScene?: string;
+  adultGrounded?: boolean;
 }) {
   const pack = bindChatImageReferencePack({
     subjectsInImageOrder: buildChatDuoVisualSubjects({
@@ -320,6 +331,7 @@ export function buildLdDuoGenerationPlan(opts: {
       personaGender: opts.personaGender,
       currentTurn: opts.currentTurn,
       approvedScene: opts.approvedScene,
+      adultGrounded: opts.adultGrounded,
       subjects: pack.subjects,
     }),
   };
@@ -340,7 +352,11 @@ export function buildLdSceneGenerationPlan(opts: {
   approvedScene?: string;
   castManifest?: ChatImageCastGroundedManifest | null;
   contentKind?: ContentKind;
+  adultGrounded?: boolean;
 }) {
+  const projectionContext: SafeVisualProjectionContext = {
+    adultGrounded: opts.adultGrounded ?? false,
+  };
   const approvedScene =
     opts.approvedScene ??
     (opts.approvedScenePlan
@@ -349,7 +365,8 @@ export function buildLdSceneGenerationPlan(opts: {
           resolveScenePresentationVisibility({
             contentKind: opts.contentKind,
             castManifest: opts.castManifest,
-          })
+          }),
+          projectionContext
         ).formatted
       : "");
   const useCast = Boolean(opts.castManifest);
@@ -406,5 +423,6 @@ export function buildLdSceneGenerationPlan(opts: {
     personaAppearanceMode: opts.personaAppearanceMode,
     currentTurn: "",
     approvedScene,
+    adultGrounded: opts.adultGrounded,
   });
 }

@@ -1,15 +1,23 @@
 /**
  * Illustration prompt sanitizer — shared by LD/TRPG prompts and safe visual projection.
+ * Markup cleanup is separate from destructive residual text cleanup.
  */
 
-export function sanitizeChatTurnForIllustrationPrompt(raw: string): string {
-  let text = String(raw ?? "");
-  text = text
+/** Remove status/metadata markup only — does not alter semantic scene text. */
+export function stripPromptMarkupOnly(raw: string): string {
+  return String(raw ?? "")
     .replace(/<<<STATUS_VALUES[\s\S]*?>>>/gi, " ")
     .replace(/<<<STATUS[\s\S]*?>>>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<[^>]+>/g, " ");
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 2_500);
+}
 
+/** Residual text cleanup after risk classification — not used for risk detection. */
+export function sanitizeChatTurnForIllustrationPrompt(raw: string): string {
+  let text = stripPromptMarkupOnly(raw);
   const replacements: Array<[RegExp, string]> = [
     [/자해/g, "괴로움"],
     [/자살/g, "절망"],
@@ -39,7 +47,6 @@ export function sanitizeChatTurnForIllustrationPrompt(raw: string): string {
   for (const [pattern, replacement] of replacements) {
     text = text.replace(pattern, replacement);
   }
-
   return text.replace(/\s+/g, " ").trim().slice(0, 2_500);
 }
 
