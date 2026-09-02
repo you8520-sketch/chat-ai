@@ -1,11 +1,14 @@
 /**
- * Forensic Gemini GM verification — saves raw provider output + envelope markers.
+ * GM envelope/length forensic — one provider call per fixture (retry=0).
  *
  * Usage:
- *   TRPG_PROMPT_ROOT=/path/to/checkout node --conditions=react-server --import tsx \
- *     scripts/trpg-gm-length-forensic.ts --label main-baseline
+ *   TRPG_PROMPT_ROOT=$PWD TRPG_FORENSIC_OUT_DIR=$PWD/tmp/trpg-gm-forensic/my-run \
+ *     node --conditions=react-server --import tsx scripts/trpg-gm-length-forensic.ts --label run-a
  *
- * retry=0 (single callTrpgGm per fixture; no continuation/recovery in script).
+ * - TRPG_PROMPT_ROOT: checkout whose gmPrompt.ts to assemble (defaults to cwd)
+ * - TRPG_FORENSIC_OUT_DIR: artifact directory (defaults to cwd/tmp/trpg-gm-length-forensic/<label>)
+ * - Does not persist API keys or auth headers; raw provider text only
+ * - Not imported by production runtime
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -272,7 +275,7 @@ async function main() {
 
   const promptRoot = resolve(process.env.TRPG_PROMPT_ROOT ?? process.cwd());
   const outDir = resolve(
-    process.env.TRPG_FORENSIC_OUT_DIR ?? `/opt/cursor/artifacts/trpg-gm-length-forensic/${label}`
+    process.env.TRPG_FORENSIC_OUT_DIR ?? join(process.cwd(), "tmp", "trpg-gm-length-forensic", label)
   );
   mkdirSync(outDir, { recursive: true });
 

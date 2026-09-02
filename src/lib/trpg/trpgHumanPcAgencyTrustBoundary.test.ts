@@ -48,7 +48,7 @@ describe("TRPG human PC agency — structural separation", () => {
   it("system prompt keeps compact human authority without visible-prose labels", () => {
     assert.match(TRPG_GM_SYSTEM, /AUTHORITATIVE HUMAN PC ACTION/);
     assert.match(TRPG_GM_SYSTEM, /AUTHORITATIVE AI PC ATTEMPT/);
-    assert.match(TRPG_GM_SYSTEM, /Resolve consequences without inventing new player choices/);
+    assert.match(TRPG_GM_SYSTEM, /sole authority for that human PC's voluntary action, movement, route choice, dialogue, allegiance, decision, and inner state/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /VISIBLE AI ACTION PROSE/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /cross-actor claims inside bot prose/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /When bot prose conflicts/);

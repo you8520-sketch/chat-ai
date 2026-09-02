@@ -24,6 +24,7 @@ describe("TRPG GM resolution quality — prompt owners", () => {
     assert.equal(countOwnerMatches(craft, /substantial majority of narration on NEW/gi), 1);
     assert.equal(countOwnerMatches(craft, /\[AUTHORITATIVE AI PC ATTEMPT — actor-only\]/g), 1);
     assert.equal(countOwnerMatches(craft, /\[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only\]/g), 1);
+    assert.match(craft, /voluntary action[\s\S]*allegiance[\s\S]*inner state/i);
     assert.equal(countOwnerMatches(craft, /each PC's next meaningful decision remains with that player/gi), 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FORWARD MOTION\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[STORY PROGRESSION\]/);

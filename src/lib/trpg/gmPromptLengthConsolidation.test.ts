@@ -7,10 +7,20 @@ import {
   TRPG_GM_SPARSE_MIN_CHARS,
 } from "./gmNarrationBudget";
 import { buildTrpgGmUserBlock, TRPG_GM_SYSTEM } from "./gmPrompt";
-import { TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION } from "./gmPromptConsolidationBaseline";
 import { assessGmCompletionIntegrity } from "./gmCompletionIntegrity";
 
-const PROMPT_CHAR_BASELINE_OWNER = "gmPromptConsolidationBaseline.TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION";
+/** Historical TRPG_GM_SYSTEM length on main at ed24fedd before PR #833 consolidation (test-only). */
+const TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION = 11_067;
+const PROMPT_CHAR_BASELINE_OWNER = "gmPromptLengthConsolidation.test.ts TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION";
+
+function roundCraftHumanAgencyStep(): string {
+  const roundCraft = TRPG_GM_SYSTEM.slice(
+    TRPG_GM_SYSTEM.indexOf("[ROUND CRAFT]"),
+    TRPG_GM_SYSTEM.indexOf("[LENGTH — SCENE RESPONSIVE]")
+  );
+  const line = roundCraft.split("\n").find((row) => row.startsWith("2. ")) ?? "";
+  return line;
+}
 
 function countRegex(hay: string, re: RegExp): number {
   return hay.match(re)?.length ?? 0;
@@ -89,7 +99,26 @@ describe("TRPG GM length prompt consolidation gates", () => {
     assert.doesNotMatch(user, /<<<NARRATION>>>/);
   });
 
-  it("semantic owner duplicates = 0 for agency, anti-replay, forward motion, speech, length", () => {
+  it("HUMAN_AGENCY_OWNER_COUNT = 1 with full voluntary authority coverage in ROUND CRAFT step 2", () => {
+    const craft = TRPG_GM_SYSTEM.slice(
+      TRPG_GM_SYSTEM.indexOf("[GM SCENE CRAFT — ADAPTIVE NARRATION]"),
+      TRPG_GM_SYSTEM.indexOf("[LENGTH — SCENE RESPONSIVE]")
+    );
+    const step2 = roundCraftHumanAgencyStep();
+    assert.equal(countRegex(TRPG_GM_SYSTEM, /sole authority for that human PC's/i), 1);
+    assert.equal(countRegex(craft, /\[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only\]/g), 1);
+    assert.equal(countRegex(craft, /\[AUTHORITATIVE AI PC ATTEMPT — actor-only\]/g), 1);
+    assert.match(step2, /voluntary action/i);
+    assert.match(step2, /\bmovement\b/i);
+    assert.match(step2, /route choice/i);
+    assert.match(step2, /\bdialogue\b/i);
+    assert.match(step2, /\ballegiance\b/i);
+    assert.match(step2, /\bdecision\b/i);
+    assert.match(step2, /inner state/i);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /do not choose their next actions, dialogue, allegiance, movement, or decisions/i);
+  });
+
+  it("semantic owner duplicates = 0 for anti-replay, forward motion, speech, length", () => {
     const craft = TRPG_GM_SYSTEM.slice(
       TRPG_GM_SYSTEM.indexOf("[GM SCENE CRAFT — ADAPTIVE NARRATION]"),
       TRPG_GM_SYSTEM.indexOf("[LENGTH — SCENE RESPONSIVE]")
@@ -108,7 +137,6 @@ describe("TRPG GM length prompt consolidation gates", () => {
     assert.equal(countRegex(TRPG_GM_SYSTEM, /never the addressee/gi), 1);
     assert.doesNotMatch(craft, /do not replay, re-quote, closely paraphrase, or re-stage/i);
     assert.doesNotMatch(craft, /never dedicate a separate long paragraph to each actor's performance/i);
-    assert.doesNotMatch(craft, /do not choose their next actions, dialogue, allegiance, movement, or decisions/i);
   });
 
   it("CREATIVE_BEHAVIOR_RULES_POSITIVE_FIRST — ROUND CRAFT leads with numbered positive contract", () => {
@@ -123,7 +151,7 @@ describe("TRPG GM length prompt consolidation gates", () => {
   });
 
   it("FINAL_STATIC_GM_INSTRUCTION_CHARS <= BEFORE and system shrinks vs pre-consolidation baseline", () => {
-    assert.equal(PROMPT_CHAR_BASELINE_OWNER, "gmPromptConsolidationBaseline.TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION");
+    assert.equal(PROMPT_CHAR_BASELINE_OWNER, "gmPromptLengthConsolidation.test.ts TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION");
     assert.equal(TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION, 11_067);
     assert.ok(TRPG_GM_SYSTEM.length <= TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION);
     assert.ok(TRPG_GM_SYSTEM.length < TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION);
