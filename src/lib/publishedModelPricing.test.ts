@@ -4,6 +4,10 @@ import { getPublishedPricing, listExactPublishedCatalogEntries } from "./publish
 import { evaluateGemini37V2AcceptanceGates } from "./gemini37PricingPolicy";
 import { evaluatePremiumPricingGates } from "./premiumPricingCalibration";
 import { requirePrimaryBenchmark } from "./marketUsageBenchmarks";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "./chatModels";
+import { normalizeBillableUsage } from "./billingUsage";
+import { computePublishedUserChargeWithSnapshot } from "./publishedUserCharge";
+import type { BillingFxSnapshot } from "./billingFxSnapshot";
 
 describe("publishedModelPricing", () => {
   it("billingReference is independent of provider list", () => {
@@ -55,6 +59,43 @@ describe("publishedModelPricing", () => {
     assert.equal(g.billingReferenceOutputUsdPerMillion, 1.875);
     assert.equal(g.targetMargin, 0.55);
     assert.equal(g.minimumMarginFloor, 0.5);
+  });
+
+  it("deepseek v4 pro 0813 published v2 shadow calibration", () => {
+    const d = getPublishedPricing(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(d.pricingVersion, 2);
+    assert.equal(d.billingReferenceInputUsdPerMillion, 0.66);
+    assert.equal(d.billingReferenceOutputUsdPerMillion, 1.98);
+    assert.equal(d.billingReferenceCacheReadUsdPerMillion, 0.022);
+    assert.equal(d.billingReferenceCacheWriteUsdPerMillion, undefined);
+    assert.equal(d.targetMargin, 0.5);
+    assert.equal(d.minimumMarginFloor, 0.4);
+    const alias = getPublishedPricing("deepseek-v4-pro");
+    assert.equal(alias.pricingVersion, d.pricingVersion);
+    assert.equal(alias.modelId, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+
+    const fx: BillingFxSnapshot = {
+      mode: "daily_kst",
+      dateKey: "2026-08-28",
+      usdToKrw: 1530,
+      effectiveKrwPerUsd: 1560.6,
+      source: "api_daily",
+      overseasFeeRate: 0.02,
+      locked: true,
+    };
+    const charge = computePublishedUserChargeWithSnapshot({
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      usage: normalizeBillableUsage({
+        modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+        promptTokens: 33_247,
+        outputTokens: 3_461,
+      }),
+      usageCoverage: "complete",
+      fxSnapshot: fx,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(charge.status, "complete");
+    if (charge.status === "complete") assert.equal(charge.snapshot.finalPoints, 90);
   });
 
   it("PUBLISHED_CATALOG_IDENTITY_INVARIANT — catalog key equals pricing.modelId", () => {

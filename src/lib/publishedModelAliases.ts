@@ -4,6 +4,8 @@
 
 const PUBLISHED_MODEL_ALIASES: Record<string, string> = {
   "google/gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
+  "deepseek-v4-pro": "deepseek-v4-pro-0813",
+  "deepseek/deepseek-v4-pro": "deepseek-v4-pro-0813",
 };
 
 export function normalizePublishedModelId(modelId: string): string {

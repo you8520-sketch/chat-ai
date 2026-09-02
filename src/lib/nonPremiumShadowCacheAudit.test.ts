@@ -15,25 +15,23 @@ const FX: BillingFxSnapshot = {
 };
 
 describe("non-premium cached published charge audit", () => {
-  it("DeepSeek models with cache usage → blocked (live-grade safety)", () => {
-    for (const modelId of ["deepseek-v4-pro-0813", "deepseek-v4-pro"]) {
-      const usage = normalizeBillableUsage({
-        modelId,
-        promptTokens: 10_000,
-        outputTokens: 500,
-        cacheReadTokens: 5_000,
-      });
-      const r = computePublishedUserChargeWithSnapshot({
-        modelId,
-        usage,
-        usageCoverage: "complete",
-        fxSnapshot: FX,
-        adjustment: { kind: "none" },
-      });
-      assert.equal(r.status, "blocked", modelId);
-      if (r.status === "blocked") {
-        assert.equal(r.reason, "unsupported_cache_semantics", modelId);
-      }
+  it("Gemini 3.7 with cache usage → blocked (unknown cache semantics)", () => {
+    const usage = normalizeBillableUsage({
+      modelId: "gemini-3.7-flash",
+      promptTokens: 10_000,
+      outputTokens: 500,
+      cacheReadTokens: 5_000,
+    });
+    const r = computePublishedUserChargeWithSnapshot({
+      modelId: "gemini-3.7-flash",
+      usage,
+      usageCoverage: "complete",
+      fxSnapshot: FX,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(r.status, "blocked");
+    if (r.status === "blocked") {
+      assert.equal(r.reason, "unsupported_cache_semantics");
     }
   });
 });
