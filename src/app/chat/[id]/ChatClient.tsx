@@ -857,7 +857,7 @@ export default function ChatClient({
   initialSelectedPersonaId,
   nickname,
   isAdult,
-  userNsfwOn,
+  userNsfwOn: _homeAdultVisibility,
   initialAdultHandoffEnabled = false,
   initialSelectedAI,
   initialGlobalModelNotice = null,
@@ -1116,7 +1116,6 @@ export default function ChatClient({
     [removeVisualRevealPending]
   );
   const [memoryRefreshKey, setMemoryRefreshKey] = useState(0);
-  const nsfwMode = isAdult && userNsfwOn;
   const [adultHandoffOn, setAdultHandoffOn] = useState(!!initialAdultHandoffEnabled);
   const adultHandoffOnRef = useRef(!!initialAdultHandoffEnabled);
   const [adultHandoffBusy, setAdultHandoffBusy] = useState(false);
@@ -1312,8 +1311,6 @@ export default function ChatClient({
             body: JSON.stringify({
               chatId,
               userNote: userNoteRef.current,
-              isNsfwMode: nsfwMode,
-              isAdultMode: nsfwMode,
               chatTitle: requested.chatTitle,
               narrativePov: requested.narrativePov,
             }),
@@ -1376,7 +1373,7 @@ export default function ChatClient({
         }
       }
     },
-    [chatId, nsfwMode, widgetReservedChars]
+    [chatId, widgetReservedChars]
   );
 
   const flushChatSettings = useCallback(async (): Promise<boolean> => {
@@ -1410,8 +1407,6 @@ export default function ChatClient({
           body: JSON.stringify({
             chatId,
             userNote: note,
-            isNsfwMode: nsfwMode,
-            isAdultMode: nsfwMode,
             chatTitle,
           }),
         });
@@ -1428,7 +1423,7 @@ export default function ChatClient({
         endSettingsSave();
       }
     },
-    [chatId, nsfwMode, chatTitle, widgetReservedChars]
+    [chatId, chatTitle, widgetReservedChars]
   );
 
   const toggleAdultHandoff = useCallback(async () => {
@@ -3517,8 +3512,6 @@ export default function ChatClient({
           isContinue: true,
           clientRequestId,
           selectedAI,
-          isNsfwMode: nsfwMode,
-          isAdultMode: nsfwMode,
           adultHandoffEnabled: adultHandoffOnRef.current,
           userNote,
           selectedPersonaId,
@@ -3643,8 +3636,6 @@ export default function ChatClient({
           message: text,
           clientRequestId,
           selectedAI,
-          isNsfwMode: nsfwMode,
-          isAdultMode: nsfwMode,
           adultHandoffEnabled: adultHandoffOnRef.current,
           userNote,
           selectedPersonaId,
@@ -3887,8 +3878,6 @@ export default function ChatClient({
           targetAssistantMessageId: prevAssistant.id,
           clientRequestId,
           selectedAI,
-          isNsfwMode: nsfwMode,
-          isAdultMode: nsfwMode,
           adultHandoffEnabled: adultHandoffOnRef.current,
           userNote,
           selectedPersonaId,

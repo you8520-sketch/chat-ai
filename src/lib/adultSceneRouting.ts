@@ -631,10 +631,13 @@ export function assessParticipantAdultStatus(
 export function resolveAdultEligibility(input: {
   userAdultVerified: boolean;
   /**
-   * Chat-room 「성인모드」 / adult model handoff on/off.
+   * Chat-room 「성인모드」 / room adult RP on/off.
+   * Prefer `roomAdultModeEnabled`; `adultContentVisibilityEnabled` is legacy alias.
    * Omit/undefined treated as ON only for legacy unit fixtures;
    * production chat must pass the real chat-room preference.
    */
+  roomAdultModeEnabled?: boolean;
+  /** @deprecated use roomAdultModeEnabled */
   adultContentVisibilityEnabled?: boolean;
   /**
    * @deprecated Listing/content-rating (`characters.nsfw`) must not be passed
@@ -653,10 +656,12 @@ export function resolveAdultEligibility(input: {
       blockReason: "user_not_verified",
     };
   }
-  // Chat-room adult mode OFF disables handoff only.
+  // Chat-room adult mode OFF disables adult RP eligibility only.
   // Do not hard-block the turn (allowedByAdultContentPolicy stays true) so
   // the user keeps their selected general RP model instead of a 400.
-  if (input.adultContentVisibilityEnabled === false) {
+  const roomAdultModeEnabled =
+    input.roomAdultModeEnabled ?? input.adultContentVisibilityEnabled;
+  if (roomAdultModeEnabled === false) {
     return {
       eligible: false,
       allowedByAdultContentPolicy: true,

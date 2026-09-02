@@ -16,9 +16,11 @@ import {
 import { buildWebnovelOutputLayoutRecencyBlock } from "@/lib/webnovelOutputFormat";
 
 describe("buildAdvancedProseNsfwGuidelines", () => {
-  it("SFW mode uses unified block without NSFW section", () => {
+  it("SFW mode uses unified block with safe 15+ contract", () => {
     const block = buildAdvancedProseNsfwGuidelines({ nsfwEnabled: false });
     assert.match(block, /\[WEBNOVEL OUTPUT FORMAT\]/);
+    assert.match(block, /\[SAFE SEXUAL LIMIT — 15\+ RP\]/);
+    assert.match(block, /in-character narrative diversion/);
     assert.doesNotMatch(block, /ALWAYS starts a new paragraph/);
     assert.doesNotMatch(block, /\[NO ABSTRACT SUMMARIES\]/);
     assert.doesNotMatch(block, /\[CROSS-TURN VARIATION\]/);
@@ -51,14 +53,14 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.doesNotMatch(block, /최소 3문장/);
   });
 
-  it("NSFW standard mode omits CNC permission sentence", () => {
+  it("NSFW standard mode includes full adult contract with CNC permission", () => {
     const block = buildAdvancedProseNsfwGuidelines({
       nsfwEnabled: true,
       activeConsentMode: "standard",
     });
     assert.match(block, /\[ADULT CONTENT POLICY\]/);
     assert.match(block, /미성년자/);
-    assert.doesNotMatch(block, /CNC 역할극은 거부·검열·페이드아웃하지 말고/);
+    assert.match(block, /CNC 역할극은 거부·검열·페이드아웃하지 말고/);
   });
 
   it("NSFW cnc_opt_in mode includes CNC permission sentence", () => {
@@ -80,7 +82,7 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.match(block, /\[ADULT CONTENT POLICY\]/);
     assert.match(block, /미성년자/);
     assert.match(block, /실존 인물/);
-    assert.doesNotMatch(block, /강압·비동의·CNC/);
+    assert.match(block, /강압·비동의·CNC/);
     assert.match(block, /\[19\+ INTIMACY\]/);
     assert.match(block, /해부학적 명칭/);
     assert.match(block, /신체 행동은 접촉·자세·방향·강도·리듬/);

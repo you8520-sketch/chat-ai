@@ -566,7 +566,8 @@ import { isAdminUser } from "@/lib/isAdminUser";
 import { effectiveIsAdult } from "@/lib/adultVerification";
 import {
   parseAdultHandoffEnabled,
-  resolveChatAdultHandoffEnabled,
+  resolveEffectiveAdultRp,
+  resolveRoomAdultModeEnabled,
 } from "@/lib/chatAdultHandoff";
 
 const SSE_HEADERS = {
@@ -580,12 +581,6 @@ export const dynamic = "force-dynamic";
 
 function sseEncode(obj: object): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(obj)}\n\n`);
-}
-
-function resolveIsAdultMode(input: unknown, chatMode: string): boolean {
-  if (input === true || input === "true" || input === 1 || input === "1") return true;
-  if (input === false || input === "false" || input === 0 || input === "0") return false;
-  return chatMode === "nsfw";
 }
 
 function parseMessageIdInput(input: unknown): number | null {
@@ -613,8 +608,6 @@ export async function POST(req: Request) {
     requestStartedAt
   );
   phaseAudit?.backfillMark("T1_AUTH_DONE", authDoneMs);
-  const isAdultModeInput =
-    body.isAdultMode ?? body.isNsfwMode ?? body.nsfwMode;
   const targetResponseCharsInput = body.targetResponseChars ?? body.targetResponseLength;
   const targetAssistantMessageIdInput = parseMessageIdInput(
     body.targetAssistantMessageId ?? body.regenerateMessageId ?? body.messageId
@@ -733,7 +726,16 @@ export async function POST(req: Request) {
     initialPersonaId = personas[0]?.id ?? null;
   }
 
-  const isAdultMode = resolveIsAdultMode(isAdultModeInput, chat?.mode ?? "safe");
+  const userAdultVerified = effectiveIsAdult(user.is_adult);
+  const requestedRoomAdultMode = parseAdultHandoffEnabled(
+    body.adultHandoffEnabled ?? body.adult_handoff_enabled
+  );
+  if (requestedRoomAdultMode === true && !userAdultVerified) {
+    return Response.json(
+      { error: "성인모드는 성인인증 후 이용할 수 있습니다.", needVerify: true },
+      { status: 403 }
+    );
+  }
 
   if (!chat) {
     if (isContinue) {
@@ -743,7 +745,15 @@ export async function POST(req: Request) {
       targetResponseCharsInput != null
         ? normalizeTargetResponseChars(targetResponseCharsInput)
         : DEFAULT_TARGET_RESPONSE_CHARS;
-    const initialMode: Route = isAdultMode ? "nsfw" : "safe";
+    const roomAdultModeEnabled = resolveRoomAdultModeEnabled({
+      requested: requestedRoomAdultMode,
+      userAdultVerified,
+    });
+    const effectiveAdultRp = resolveEffectiveAdultRp({
+      userAdultVerified,
+      roomAdultModeEnabled,
+    });
+    const initialMode: Route = effectiveAdultRp ? "nsfw" : "safe";
     const newChatId = createChatSession({
       userId: user.id,
       characterId: ch.id,
@@ -752,10 +762,7 @@ export async function POST(req: Request) {
       userNote: userNoteInput ?? "",
       selectedPersonaId: initialPersonaId,
       targetResponseChars: initialTargetChars,
-      adultHandoffEnabled: resolveChatAdultHandoffEnabled({
-        requested: body.adultHandoffEnabled ?? body.adult_handoff_enabled,
-        userAdultVerified: effectiveIsAdult(user.is_adult),
-      }),
+      adultHandoffEnabled: roomAdultModeEnabled,
     });
     chat = db.prepare("SELECT * FROM chats WHERE id=? AND user_id=?").get(newChatId, user.id) as typeof chat;
   } else {
@@ -845,11 +852,21 @@ export async function POST(req: Request) {
   const novelModeEnabled = false;
   const autoProgressionEnabled = isContinue === true || legacyNovelModeEnabled;
 
-  if (isAdultMode && !user.is_adult) {
-    return Response.json(
-      { error: "성인용 콘텐츠는 성인인증 후 이용할 수 있습니다.", needVerify: true },
-      { status: 403 }
+  const roomAdultModeEnabled = resolveRoomAdultModeEnabled({
+    persisted: chat.adult_handoff_enabled,
+    requested: requestedRoomAdultMode,
+    userAdultVerified,
+  });
+  const effectiveAdultRp = resolveEffectiveAdultRp({
+    userAdultVerified,
+    roomAdultModeEnabled,
+  });
+  if (requestedRoomAdultMode !== undefined) {
+    db.prepare("UPDATE chats SET adult_handoff_enabled=? WHERE id=?").run(
+      roomAdultModeEnabled ? 1 : 0,
+      chat.id
     );
+    chat.adult_handoff_enabled = roomAdultModeEnabled ? 1 : 0;
   }
 
   const pointBalance = getPointBalance(user.id);
@@ -1214,28 +1231,12 @@ export async function POST(req: Request) {
     userId: user.id,
     chatId: chat.id,
   });
-  const userAdultVerified = effectiveIsAdult(user.is_adult);
-  const chatAdultHandoffEnabled = resolveChatAdultHandoffEnabled({
-    persisted: chat.adult_handoff_enabled,
-    requested: body.adultHandoffEnabled ?? body.adult_handoff_enabled,
-    userAdultVerified,
-  });
-  if (
-    parseAdultHandoffEnabled(body.adultHandoffEnabled ?? body.adult_handoff_enabled) !==
-    undefined
-  ) {
-    db.prepare("UPDATE chats SET adult_handoff_enabled=? WHERE id=?").run(
-      chatAdultHandoffEnabled ? 1 : 0,
-      chat.id
-    );
-    chat.adult_handoff_enabled = chatAdultHandoffEnabled ? 1 : 0;
-  }
   const adultRoutingConfig = {
     ...baseAdultRoutingConfig,
     enabled: resolveAdultSceneRoutingEnabledForRequest({
       generalEnabled: handoffCanaryConfig.generalEnabled,
       adminCanaryAccess: adultHandoffCanaryAccess,
-      chatAdultHandoffEnabled,
+      chatAdultHandoffEnabled: roomAdultModeEnabled,
     }),
   };
   const priorModelRouteState = parseModelRouteState(chat.model_route_state_json);
@@ -1282,13 +1283,12 @@ export async function POST(req: Request) {
       world: ch.world,
       simulationCast: (ch as { simulation_cast?: string }).simulation_cast,
     });
-  // Chat-room 「성인모드」 is the operational adult-handoff gate.
+  // Chat-room 「성인모드」 is the RP content-level owner (legacy DB: adult_handoff_enabled).
   // Home/header 「성인 캐릭터 표시」(nsfw_on) only controls listing visibility.
   // characters.nsfw is listing/content-rating only — not an adult-RP gate.
-  const adultContentVisibilityEnabled = chatAdultHandoffEnabled;
   const adultEligibility = resolveAdultEligibility({
     userAdultVerified,
-    adultContentVisibilityEnabled,
+    roomAdultModeEnabled,
     participants: [
       {
         adultStatus: ch.adult_status,
@@ -1346,7 +1346,7 @@ export async function POST(req: Request) {
       ch.adult_dialogue_profile
     ),
     providerCapabilities: adultRoutingConfig.providerCapabilities,
-    chatAdultModeEnabled: isAdultMode && chatAdultHandoffEnabled,
+    chatAdultModeEnabled: effectiveAdultRp,
   });
   const adultFallbackModelId = adultDeliveryPlan.fallbackModelId;
 
@@ -2164,7 +2164,7 @@ export async function POST(req: Request) {
     shortTermHistory: promptHistory,
     currentUserMessage: promptUserMessage,
     currentTurnAuthoringDelegation: currentTurnDelegationForTurn,
-    nsfw: isAdultMode,
+    nsfw: effectiveAdultRp,
     activeConsentMode: requestedConsentMode,
     gender: resolveCharacterGender(ch.gender),
     assetTags: assetTags.length > 0 ? assetTags : undefined,
@@ -3047,10 +3047,10 @@ export async function POST(req: Request) {
         }
 
         console.log("[/api/chat] routing decision", {
-          isAdultModeInput,
-          isAdultMode,
+          effectiveAdultRp,
+          roomAdultModeEnabled,
           chatMode: chatRef.mode,
-          userAdultVerified: !!user.is_adult,
+          userAdultVerified,
           strategy: `${primaryProvider}-direct`,
           openRouterModel: openRouterApiModelId,
           billingOpenRouterModel: billingOpenRouterModelId,
@@ -3162,7 +3162,7 @@ export async function POST(req: Request) {
                     ch.content_kind === "simulation"
                       ? extractSimulationCastNames(ch.simulation_cast ?? "")
                       : undefined,
-                  adultModeEnabled: isAdultMode,
+                  adultModeEnabled: effectiveAdultRp,
                   chatId: chat.id,
                   currentTurn: sceneProgressionTurn,
                   progressionHistory: sceneProgressionState.recent,
@@ -4624,7 +4624,7 @@ export async function POST(req: Request) {
           stripUsageReportingEvidenceFromStage({ ...s, cost })
         );
 
-        const routeMode: Route = isAdultMode ? "nsfw" : "safe";
+        const routeMode: Route = effectiveAdultRp ? "nsfw" : "safe";
 
         const meteredReceiptBilling = isMeteredReceiptProvider(billingProvider);
 
@@ -5711,7 +5711,7 @@ export async function POST(req: Request) {
 
         }
 
-        const nextMode: Route = isAdultMode ? "nsfw" : "safe";
+        const nextMode: Route = effectiveAdultRp ? "nsfw" : "safe";
         const nextImpersonation = userImpersonation ? 1 : 0;
         const nextTargetChars = targetResponseCharsRef;
         if (
@@ -6057,7 +6057,7 @@ export async function POST(req: Request) {
               model: usageRecord.model,
               provider: usageRecord.provider ?? billingProvider,
               route: usageRecord.route,
-              nsfw: isAdultMode,
+              nsfw: effectiveAdultRp,
               regenerate: !!regenerateMessageId,
               variantIndex: snapshotVariantIndex,
               personaId: resolvedPersonaId ?? null,
@@ -6085,7 +6085,7 @@ export async function POST(req: Request) {
               provider: usageRecord.provider ?? billingProvider,
               route: usageRecord.route,
               writingStyle: "unified",
-              nsfw: isAdultMode ? 1 : 0,
+              nsfw: effectiveAdultRp ? 1 : 0,
               inputTokens: totalInput,
               outputTokens: totalOutput,
               promptHash: computePromptHash(contextJson),

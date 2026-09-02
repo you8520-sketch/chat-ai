@@ -124,21 +124,17 @@ function deliveryPlanFor(input: {
 }
 
 describe("consent policy routing — frozen provider-wire sections", () => {
-  it("standard and power_play wire base policy only", () => {
-    assert.equal(FROZEN_WIRE_POLICY.standard, ADULT_CONTENT_POLICY_BASE);
-    assert.equal(FROZEN_WIRE_POLICY.power_play, ADULT_CONTENT_POLICY_BASE);
-    assert.doesNotMatch(FROZEN_WIRE_POLICY.standard, /CNC 역할극/);
-    assert.doesNotMatch(FROZEN_WIRE_POLICY.power_play, /CNC 역할극/);
-  });
-
-  it("cnc_opt_in wire adds CNC permission sentence", () => {
-    assert.match(FROZEN_WIRE_POLICY.cnc_opt_in, /CNC 역할극/);
-    assert.ok(FROZEN_WIRE_POLICY.cnc_opt_in.includes(ADULT_CONTENT_POLICY_CNC_PERMISSION));
+  it("Adult ON full contract includes base policy and CNC for all scene consent modes", () => {
+    assert.equal(FROZEN_WIRE_POLICY.standard, FROZEN_WIRE_POLICY.cnc_opt_in);
+    assert.equal(FROZEN_WIRE_POLICY.power_play, FROZEN_WIRE_POLICY.cnc_opt_in);
+    assert.match(FROZEN_WIRE_POLICY.standard, /CNC 역할극/);
+    assert.ok(FROZEN_WIRE_POLICY.standard.includes(ADULT_CONTENT_POLICY_CNC_PERMISSION));
+    assert.ok(FROZEN_WIRE_POLICY.standard.includes(ADULT_CONTENT_POLICY_BASE));
   });
 });
 
 describe("consent policy routing — buildContext provider wire", () => {
-  it("DB cnc capability + standard turn keeps CNC absent on wire", () => {
+  it("DB cnc capability + standard turn keeps scene state standard; wire has full adult contract", () => {
     const effective = resolveEffectiveConsentMode({
       requested: "cnc_opt_in",
       previous: "standard",
@@ -149,10 +145,10 @@ describe("consent policy routing — buildContext provider wire", () => {
 
     const wire = buildNsfwWire(effective);
     assert.equal(wire, FROZEN_WIRE_POLICY.standard);
-    assert.equal(cncPermissionPresent(wire), false);
+    assert.equal(cncPermissionPresent(wire), true);
   });
 
-  it("explicit valid CNC activation includes CNC permission on wire", () => {
+  it("explicit valid CNC activation keeps same wire; scene state becomes cnc_opt_in", () => {
     const effective = resolveEffectiveConsentMode({
       requested: "cnc_opt_in",
       previous: "standard",
@@ -166,7 +162,7 @@ describe("consent policy routing — buildContext provider wire", () => {
     assert.equal(cncPermissionPresent(wire), true);
   });
 
-  it("power_play activeConsentMode keeps CNC absent on wire", () => {
+  it("power_play activeConsentMode keeps full adult wire", () => {
     const effective = resolveEffectiveConsentMode({
       requested: "power_play",
       previous: "standard",
@@ -177,10 +173,10 @@ describe("consent policy routing — buildContext provider wire", () => {
 
     const wire = buildNsfwWire(effective);
     assert.equal(wire, FROZEN_WIRE_POLICY.power_play);
-    assert.equal(cncPermissionPresent(wire), false);
+    assert.equal(cncPermissionPresent(wire), true);
   });
 
-  it("safeword hard stop resets consent; next wire is standard without CNC", () => {
+  it("safeword hard stop resets scene consent; wire still has full adult contract", () => {
     const previous = {
       ...DEFAULT_MODEL_ROUTE_STATE,
       currentSceneMode: "explicit" as const,
@@ -212,7 +208,7 @@ describe("consent policy routing — buildContext provider wire", () => {
     assert.equal(nextState.activeConsentMode, "standard");
 
     const wire = buildNsfwWire(nextState.activeConsentMode);
-    assert.equal(cncPermissionPresent(wire), false);
+    assert.equal(cncPermissionPresent(wire), true);
   });
 
   it("selected model routing unchanged under consent modes", () => {
