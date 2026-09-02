@@ -9,6 +9,7 @@ import {
 } from "@/lib/premiumModelIds";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
+import { getPublishedPricing } from "@/lib/publishedModelPricing";
 
 export type PricingApplicability = "base_tier_only" | "tier_aware";
 
@@ -87,6 +88,22 @@ export function isCacheSemanticVerified(modelId: string): boolean {
   const policy = getModelPublishedPricingPolicy(modelId);
   if (!policy) return false;
   return policy.cacheSemanticStatus === "verified" || policy.cacheSemanticStatus === "verified_5m";
+}
+
+/**
+ * Production-evidenced models where absent cache_write reporting means proven zero
+ * (Class A DeepSeek: cache_write never reported > 0; no published cache-write rate).
+ */
+export function isPublishedCacheWriteAbsentProvenZero(modelId: string): boolean {
+  const canonical = canonicalizePublishedModelId(modelId);
+  const policy = getModelPublishedPricingPolicy(canonical);
+  if (!policy || policy.cacheSemanticStatus !== "verified") return false;
+  try {
+    const pricing = getPublishedPricing(canonical);
+    return pricing.billingReferenceCacheWriteUsdPerMillion == null;
+  } catch {
+    return false;
+  }
 }
 
 export const PUBLISHED_POLICY_SCHEMA_VERSION = 1 as const;

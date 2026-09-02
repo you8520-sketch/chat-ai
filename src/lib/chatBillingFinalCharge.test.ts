@@ -293,6 +293,39 @@ describe("adminFinanceCostScopeAudit", () => {
     assert.equal(adminFinanceRealizedMarginReady(audit), "YES");
   });
 
+  it("published_phase2 admin sets publishedFinalPoints", () => {
+    const decision = resolveChatBillingContract({
+      deliveredModelId: "deepseek-v4-pro-0813",
+      stages: [
+        {
+          stage: "primary",
+          model: "deepseek-v4-pro-0813",
+          input: 33247,
+          output: 3461,
+          apiOutputTokens: 3461,
+          apiReportedInputTokens: 33247,
+          cacheReadTokens: 0,
+          estimated: false,
+          usageReportingEvidence: {
+            cacheRead: "reported_valid",
+            cacheWrite: "unreported",
+            reasoning: "reported_valid",
+          },
+        },
+      ],
+      legacyFinalPoints: 65,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: AUDIT_FX_SNAPSHOT,
+      phase1PublishedBillingEnabled: false,
+      phase2DeepSeekPublishedBillingEnabled: true,
+    });
+    assert.equal(decision.contract, "published_phase2");
+    const admin = buildUsageBillingContractAdmin(decision, decision.points, 65);
+    assert.equal(admin.publishedFinalPoints, decision.points);
+    assert.equal(admin.billingContract, "published_phase2");
+  });
+
   it("paid revenue aggregates deduction slice amounts (Finance owner contract)", () => {
     const slices = [
       { pointType: "PAID" as const, amount: 80 },

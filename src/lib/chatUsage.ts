@@ -3,7 +3,7 @@ import type { Gemini37FlashPricingBreakdown } from "@/lib/gemini37FlashPricing";
 
 /** Admin-only — canonical billing contract dispatch metadata (never public receipt). */
 export type UsageBillingContractAdmin = {
-  billingContract: "published_phase1" | "legacy";
+  billingContract: "published_phase1" | "published_phase2" | "legacy";
   billingContractReason: string;
   deliveredModelId: string;
   publishedCandidateStatus: string;

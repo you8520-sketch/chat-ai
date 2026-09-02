@@ -43,7 +43,7 @@ import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
 import {
-  isPhase1PublishedBillingEnabled,
+  shouldPreparePublishedBillingFxSnapshot,
   resolveChatBillingContract,
   type ChatBillingContractDecision,
 } from "@/lib/chatBillingContractDispatch";
@@ -4478,7 +4478,7 @@ export async function POST(req: Request) {
         let billingContractDecision: ChatBillingContractDecision | null = null;
 
         if (!htmlFlashOnlyTurn) {
-          const shadowFx = isPhase1PublishedBillingEnabled()
+          const shadowFx = shouldPreparePublishedBillingFxSnapshot()
             ? resolveShadowBillingExchangeRateSnapshot()
             : null;
           const billingFxSnapshot: BillingFxSnapshot | undefined = shadowFx
@@ -4502,7 +4502,10 @@ export async function POST(req: Request) {
             legacyWaiverMinimum,
             fxSnapshot: billingFxSnapshot,
           });
-          if (isPhase1PublishedBillingEnabled()) {
+          if (
+            billingContractDecision.contract === "published_phase1" ||
+            billingContractDecision.contract === "published_phase2"
+          ) {
             cost = billingContractDecision.points;
           }
           if (process.env.NODE_ENV !== "production") {

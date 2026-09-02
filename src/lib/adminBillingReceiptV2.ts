@@ -21,7 +21,7 @@ export type AdminBillingReceiptV2UserCharge = {
   billingWaived: boolean;
   waiverReason?: string;
   /** Admin-only — settled charge contract metadata from dispatcher. */
-  billingContract?: "published_phase1" | "legacy";
+  billingContract?: "published_phase1" | "published_phase2" | "legacy";
   billingContractReason?: string;
   pricingVersion?: number | null;
   publishedFinalPoints?: number | null;

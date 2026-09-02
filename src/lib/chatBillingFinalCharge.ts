@@ -55,7 +55,9 @@ export function buildUsageBillingContractAdmin(
   legacyFinalPoints: number
 ): UsageBillingContractAdmin {
   const publishedFinalPoints =
-    decision.contract === "published_phase1" ? decision.points : null;
+    decision.contract === "published_phase1" || decision.contract === "published_phase2"
+      ? decision.points
+      : null;
   return {
     billingContract: decision.contract,
     billingContractReason: decision.telemetry.billingContractReason,
