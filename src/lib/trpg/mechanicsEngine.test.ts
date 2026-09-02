@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
@@ -13,15 +14,12 @@ function gmText(opts?: { hp?: number; participantId?: number; narration?: string
     opts?.participantId != null
       ? [{ participantId: opts.participantId, hp: opts.hp, conditions: opts.conditions ?? [] }]
       : [];
-  return `<<<NARRATION>>>
-${opts?.narration ?? "전장이 흔들린다. 칼날이 스친다."}
-<<<DELTA>>>
-${JSON.stringify({
+  return buildTrpgGmStructuredWireText(opts?.narration ?? "전장이 흔들린다. 칼날이 스친다.", {
   players,
   location: "폐허",
   next_round_context: "계속 싸울지",
   campaign_finished: false,
-})}`;
+});
 }
 
 function memoryDb(): Database.Database {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { buildTrpgBotActionUserBlock } from "./botActions";
@@ -44,14 +45,12 @@ import { shouldConsumeMountRollSession } from "./diceRollUx";
 import { TRPG_RESULT_HOLD_MS } from "./diceRollUx";
 
 function gmText(narration = "장면"): string {
-  return `<<<NARRATION>>>\n${narration}\n<<<DELTA>>>\n${JSON.stringify({
+  return buildTrpgGmStructuredWireText(narration, {
     players: [],
     location: "문턱",
     next_round_context: "다음",
-    questsAdd: [],
-    flagsAdd: [],
     campaign_finished: false,
-  })}`;
+  });
 }
 
 function memoryDb(): Database.Database {

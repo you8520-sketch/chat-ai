@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION, currentBlueprintGenerationValidity } from "./blueprintValidity";
@@ -113,7 +114,12 @@ function mockBlueprintComplete(goal: string) {
 }
 
 function gmText(): string {
-  return `<<<NARRATION>>>\nok\n<<<DELTA>>>\n{"players":[],"location":"x","next_round_context":"y","campaign_finished":false,"storyPhase":"DEVELOPMENT"}`;
+  return buildTrpgGmStructuredWireText(narration, {
+    players: [],
+    location: "문턱",
+    next_round_context: "다음",
+    campaign_finished: false,
+  });
 }
 
 function planWithGoal(goal: string) {

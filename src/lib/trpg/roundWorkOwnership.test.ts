@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { EVEN_STATS, createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
@@ -21,14 +22,12 @@ import { insertParticipant, loadCampaign, loadLatestRound } from "./store";
 import { ensureTrpgTables } from "./schema";
 
 function gmText(narration = "장면"): string {
-  return `<<<NARRATION>>>\n${narration}\n<<<DELTA>>>\n${JSON.stringify({
+  return buildTrpgGmStructuredWireText(narration, {
     players: [],
     location: "문턱",
     next_round_context: "다음",
-    questsAdd: [],
-    flagsAdd: [],
     campaign_finished: false,
-  })}`;
+  });
 }
 
 function memoryDb(): Database.Database {

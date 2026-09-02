@@ -1,18 +1,14 @@
 import { attachTrpgCallFailureMeta } from "./startFailure";
-import {
-  parseTrpgGmEnvelopeJson,
-  TRPG_GM_DELTA_OPEN,
-  TRPG_GM_NARRATION_OPEN,
-} from "./gmPrompt";
+import { isTrpgGmStructuredShape, parseTrpgGmStructuredJson } from "./gmStructuredOutput";
 
 /** Provider terminal reasons that must not commit as a healthy GM round. */
-export const GM_ABNORMAL_PROVIDER_FINISH_REASONS = ["length", "content_filter"] as const;
+export const GM_ABNORMAL_PROVIDER_FINISH_REASONS = ["length", "content_filter", "error"] as const;
 
 export type GmCompletionIntegrityStatus =
   | "healthy"
   | "abnormal_finish_reason"
-  | "missing_delta_envelope"
-  | "malformed_delta_json"
+  | "missing_structured_output"
+  | "malformed_structured_output"
   | "empty_narration"
   | "empty_output";
 
@@ -26,11 +22,6 @@ export type GmCompletionIntegrityAssessment = {
   status: GmCompletionIntegrityStatus;
   error?: string;
 };
-
-function isParseableDeltaJson(raw: string): boolean {
-  const parsed = parseTrpgGmEnvelopeJson(raw);
-  return parsed != null && typeof parsed === "object" && !Array.isArray(parsed);
-}
 
 /** Preserve the last non-null terminal finish_reason from provider SSE payloads. */
 export function finishReasonFromSsePayload(payload: unknown): string | null {
@@ -62,29 +53,26 @@ export function assessGmCompletionIntegrity(
       error: `abnormal provider completion: ${transport!.finishReason}`,
     };
   }
-  const narAt = text.indexOf(TRPG_GM_NARRATION_OPEN);
-  const deltaAt = text.indexOf(TRPG_GM_DELTA_OPEN);
-  if (deltaAt < 0 || narAt < 0 || deltaAt <= narAt) {
+  const parsed = parseTrpgGmStructuredJson(text);
+  if (!isTrpgGmStructuredShape(parsed)) {
     return {
       ok: false,
-      status: "missing_delta_envelope",
-      error: "GM output missing required NARRATION/DELTA envelope",
+      status: "missing_structured_output",
+      error: "GM output missing required structured narration/delta JSON",
     };
   }
-  const narrationBody = text.slice(narAt + TRPG_GM_NARRATION_OPEN.length, deltaAt).trim();
-  if (!narrationBody) {
+  if (!parsed.narration.trim()) {
     return {
       ok: false,
       status: "empty_narration",
-      error: "GM NARRATION section is empty",
+      error: "GM narration is empty",
     };
   }
-  const deltaRaw = text.slice(deltaAt + TRPG_GM_DELTA_OPEN.length);
-  if (!isParseableDeltaJson(deltaRaw)) {
+  if (!parsed.delta || typeof parsed.delta !== "object" || Array.isArray(parsed.delta)) {
     return {
       ok: false,
-      status: "malformed_delta_json",
-      error: "GM DELTA section is not parseable JSON",
+      status: "malformed_structured_output",
+      error: "GM delta is not a structured object",
     };
   }
   return { ok: true, status: "healthy" };
@@ -111,9 +99,9 @@ export function completionIntegrityStatusLabel(
       return "HEALTHY";
     case "abnormal_finish_reason":
       return assessment.error?.includes("length") ? "ABNORMAL_FINISH_LENGTH" : "ABNORMAL_FINISH";
-    case "missing_delta_envelope":
-      return "MALFORMED_ENVELOPE";
-    case "malformed_delta_json":
+    case "missing_structured_output":
+      return "MALFORMED_STRUCTURED_OUTPUT";
+    case "malformed_structured_output":
       return "MALFORMED_DELTA";
     case "empty_narration":
       return "EMPTY_NARRATION";

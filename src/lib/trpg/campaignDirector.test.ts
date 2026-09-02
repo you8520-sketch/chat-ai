@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
@@ -56,10 +57,7 @@ function memoryDb(): Database.Database {
 }
 
 function gmText(narration = "문이 열린다."): string {
-  return `<<<NARRATION>>>
-${narration}
-<<<DELTA>>>
-{"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false,"storyPhase":"DEVELOPMENT","threadsAdd":["실종 탐사대"]}`;
+  return buildTrpgGmStructuredWireText(narration, {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false,"storyPhase":"DEVELOPMENT","threadsAdd":["실종 탐사대"]});
 }
 
 const playablePlan = {
@@ -212,10 +210,7 @@ describe("TRPG sandbox director and plan security", () => {
     const deps: TrpgEngineDeps = {
       skipBilling: true,
       gmCall: async () => ({
-        text: `<<<NARRATION>>>
-문이 열린다.
-<<<DELTA>>>
-{"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false,"storyPhase":"DEVELOPMENT","endingConditionId":"0"}`,
+        text: buildTrpgGmStructuredWireText("문이 열린다.", {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false,"storyPhase":"DEVELOPMENT","endingConditionId":"0"}),
       }),
     };
     const campaignId = createTrpgCampaign(db, {

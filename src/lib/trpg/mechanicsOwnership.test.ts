@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
@@ -168,15 +169,12 @@ function resolve(partial: Partial<Parameters<typeof resolveRoundMechanics>[0]>):
 function gmText(opts?: { hp?: number; participantId?: number; narration?: string }): string {
   const players =
     opts?.participantId != null && opts.hp != null ? [{ participantId: opts.participantId, hp: opts.hp }] : [];
-  return `<<<NARRATION>>>
-${opts?.narration ?? "폐허가 고요하다. 바람만 분다."}
-<<<DELTA>>>
-${JSON.stringify({
+  return buildTrpgGmStructuredWireText(opts?.narration ?? "폐허가 고요하다. 바람만 분다.", {
   players,
   location: "폐허",
   next_round_context: "다음을 고른다",
   campaign_finished: false,
-})}`;
+});
 }
 
 function memoryDb(): Database.Database {

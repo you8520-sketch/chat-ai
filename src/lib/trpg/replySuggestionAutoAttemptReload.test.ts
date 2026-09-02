@@ -1,3 +1,4 @@
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import assert from "node:assert/strict";
 import { describe, it, beforeEach } from "node:test";
 import Database from "better-sqlite3";
@@ -103,7 +104,7 @@ async function startedCampaign(db: Database.Database): Promise<number> {
     deps: {
       skipBilling: true,
       gmCall: async () => ({
-        text: `<<<NARRATION>>>\n폐역\n<<<DELTA>>>\n{"players":[],"location":"폐역","next_round_context":"기다릴지","campaign_finished":false}`,
+        text: buildTrpgGmStructuredWireText("폐역", {"players":[],"location":"폐역","next_round_context":"기다릴지","campaign_finished":false}),
       }),
     },
   });
@@ -293,7 +294,7 @@ describe("TRPG reply suggestion auto-attempt reload + error sanitization", () =>
       deps: {
         skipBilling: true,
         gmCall: async () => ({
-          text: `<<<NARRATION>>>\n항구\n<<<DELTA>>>\n{"players":[],"location":"항구","next_round_context":"출항","campaign_finished":false}`,
+          text: buildTrpgGmStructuredWireText("항구", {"players":[],"location":"항구","next_round_context":"출항","campaign_finished":false}),
         }),
       },
     });

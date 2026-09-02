@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
@@ -29,18 +30,12 @@ function memoryDb(): Database.Database {
 }
 
 function gmText(participantId?: number, conditions?: string[]): string {
-  return `<<<NARRATION>>>
-상태가 장면에 남는다.
-<<<DELTA>>>
-${JSON.stringify({
-  players:
-    participantId == null
-      ? []
-      : [{ participantId, ...(conditions == null ? {} : { conditions }) }],
-  location: "폐허",
-  next_round_context: "",
-  campaign_finished: false,
-})}`;
+  return buildTrpgGmStructuredWireText(participantId?: number, conditions?[], {
+    players: [],
+    location: "문턱",
+    next_round_context: "다음",
+    campaign_finished: false,
+  });
 }
 
 async function setupSolo(

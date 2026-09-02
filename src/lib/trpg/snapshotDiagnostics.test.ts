@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, it } from "node:test";
 import Database from "better-sqlite3";
@@ -21,14 +22,12 @@ import {
 } from "./snapshotDiagnostics";
 
 function gmText(narration = "장면"): string {
-  return `<<<NARRATION>>>\n${narration}\n<<<DELTA>>>\n${JSON.stringify({
+  return buildTrpgGmStructuredWireText(narration, {
     players: [],
     location: "문턱",
     next_round_context: "다음",
-    questsAdd: [],
-    flagsAdd: [],
     campaign_finished: false,
-  })}`;
+  });
 }
 
 function collectDiagLines(fn: () => Promise<void> | void): Promise<Record<string, unknown>[]> {

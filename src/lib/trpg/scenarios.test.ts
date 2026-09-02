@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { canUseWorldForTrpg, loadAccessibleTrpgCharacter, loadTrpgCatalog } from "./catalog";
@@ -239,10 +240,7 @@ describe("TRPG scenarios and catalog", () => {
       gmCall: async ({ user }) => {
         seen.push(`gm:${user}`);
         return {
-          text: `<<<NARRATION>>>
-낡은 역이 흔들린다. 당신은 다음 한 수를 고른다.
-<<<DELTA>>>
-{"players":[],"location":"대합실","next_round_context":"표를 살지","campaign_finished":false}`,
+          text: buildTrpgGmStructuredWireText("낡은 역이 흔들린다. 당신은 다음 한 수를 고른다.", {"players":[],"location":"대합실","next_round_context":"표를 살지","campaign_finished":false}),
         };
       },
       botCall: async (_system, user) => {

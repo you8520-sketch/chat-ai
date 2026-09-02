@@ -1,3 +1,4 @@
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { readFileSync } from "node:fs";
@@ -562,7 +563,7 @@ describe("world Blueprint pregeneration corrections", () => {
       const deps: TrpgEngineDeps = {
         skipBilling: true,
         gmCall: async () => ({
-          text: `<<<NARRATION>>>\nok\n<<<DELTA>>>\n{"players":[],"location":"x","next_round_context":"y","campaign_finished":false,"storyPhase":"DEVELOPMENT"}`,
+          text: buildTrpgGmStructuredWireText("ok", {"players":[],"location":"x","next_round_context":"y","campaign_finished":false,"storyPhase":"DEVELOPMENT"}),
         }),
       };
       const campaignId = createTrpgCampaign(db, {

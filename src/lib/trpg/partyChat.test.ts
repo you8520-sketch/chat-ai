@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet } from "./engineCreate";
@@ -19,10 +20,7 @@ function startDeps(): TrpgEngineDeps {
     skipBilling: true,
     rollD20: () => 12,
     gmCall: async () => ({
-      text: `<<<NARRATION>>>
-문이 열린다. 당신은 다음 한 수를 고른다.
-<<<DELTA>>>
-{"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false}`,
+      text: buildTrpgGmStructuredWireText("문이 열린다. 당신은 다음 한 수를 고른다.", {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false}),
     }),
     botCall: async () => ({ text: "조심스럽게 문틀을 짚는다." }),
   };
@@ -67,10 +65,7 @@ describe("TRPG party chat", () => {
       gmCall: async ({ user }) => {
         seen.push(user);
         return {
-          text: `<<<NARRATION>>>
-문이 열린다. 당신은 다음 한 수를 고른다.
-<<<DELTA>>>
-{"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false}`,
+          text: buildTrpgGmStructuredWireText("문이 열린다. 당신은 다음 한 수를 고른다.", {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false}),
         };
       },
       botCall: async (_system, user) => {

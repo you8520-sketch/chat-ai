@@ -6,6 +6,7 @@ import {
 import type { TrpgActionCheckReason } from "./actionCheck";
 import { statModifier } from "./stats";
 import { parseLocalSceneProgressDelta } from "./localSceneProgress";
+import { isTrpgGmStructuredShape, parseTrpgGmStructuredJson } from "./gmStructuredOutput";
 import type { TrpgStateDelta, TrpgStatDefinition } from "./types";
 
 /** Canonical GM wire-format markers — single owner for envelope primitives. */
@@ -124,6 +125,24 @@ export function parseTrpgGmEnvelopeJson(raw: string): unknown {
 
 export function parseTrpgGmOutput(raw: string): ParsedTrpgGmOutput {
   const text = raw.trim();
+  const structured = parseTrpgGmStructuredJson(text);
+  if (isTrpgGmStructuredShape(structured)) {
+    const delta = asDelta(structured.delta);
+    const deltaRaw = structured.delta as Record<string, unknown>;
+    let location: string | null = null;
+    let campaignFinished = false;
+    let nextRoundContext = "";
+    if (typeof deltaRaw.location === "string") location = deltaRaw.location;
+    if (deltaRaw.campaign_finished === true) campaignFinished = true;
+    if (typeof deltaRaw.next_round_context === "string") nextRoundContext = deltaRaw.next_round_context;
+    if (delta.location) location = delta.location;
+    if (delta.campaignFinished) campaignFinished = true;
+    if (delta.nextRoundContext) nextRoundContext = delta.nextRoundContext;
+    let narration = structured.narration.trim();
+    if (!narration) narration = "장면이 잠시 멈췄다. 다음 행동을 고르라.";
+    return { narration, delta, location, campaignFinished, nextRoundContext };
+  }
+
   let narration = text;
   let deltaJson: unknown = null;
   let location: string | null = null;
@@ -235,11 +254,9 @@ Match tone to WORLD, current stakes, character behavior,
 and roll consequences.
 Let tonal shifts arise from the fiction and character voice.
 
-Output format exactly:
-<<<NARRATION>>>
-(Korean prose following ROUND NARRATION BUDGET; last beat is 1–2 GM: sentences on immediate unresolved pressure)
-<<<DELTA>>>
-{"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"localScene":{}}
+[OUTPUT]
+Respond as JSON with exactly two top-level keys: narration (Korean prose per ROUND NARRATION BUDGET; last beat is 1–2 GM: sentences on immediate unresolved pressure) and delta (state changes object). The API enforces this schema.
+Example delta shape: {"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"localScene":{}}
 `;
 
 export function formatTrpgSheetCanon(opts: {
@@ -389,7 +406,7 @@ export function buildTrpgGmUserBlock(opts: {
   const roundExecution = [
     "[ROUND EXECUTION — binding]",
     "Apply [GM SCENE CRAFT — ADAPTIVE NARRATION] and [ROUND CRAFT] from system to the submitted actions above.",
-    "Use the exact output envelope defined in system — both required sections in one response.",
+    "Return JSON with narration and delta per system OUTPUT contract.",
     narrationBudget,
   ].join("\n");
 

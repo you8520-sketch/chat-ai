@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { afterEach, describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { creditPointsWithIds, getPointBalanceOnDb } from "@/lib/points";
@@ -11,15 +12,9 @@ import { ensureTrpgTables } from "./schema";
 import { extractTrpgHttpStatus, parseTrpgStartFailureJson } from "./startFailure";
 import { isTrpgMechanicsRefereeEnabled } from "./mechanicsTypes";
 
-const OPENING = `<<<NARRATION>>>
-시작 장면. 낡은 등불이 흔들린다.
-<<<DELTA>>>
-{"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false}`;
+const OPENING = buildTrpgGmStructuredWireText("시작 장면. 낡은 등불이 흔들린다.", {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false});
 
-const ROUND = `<<<NARRATION>>>
-렌이 문을 민다. 먼지 냄새가 난다.
-<<<DELTA>>>
-{"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false}`;
+const ROUND = buildTrpgGmStructuredWireText("렌이 문을 민다. 먼지 냄새가 난다.", {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false});
 
 const previousFetch = globalThis.fetch;
 const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;

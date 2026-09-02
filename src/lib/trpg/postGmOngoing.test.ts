@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
@@ -43,15 +44,12 @@ function gmText(opts: {
             ...(opts.conditions == null ? {} : { conditions: opts.conditions }),
           },
         ];
-  return `<<<NARRATION>>>
-${opts.narration ?? "행동의 결과가 장면에 남는다."}
-<<<DELTA>>>
-${JSON.stringify({
+  return buildTrpgGmStructuredWireText(opts.narration ?? "행동의 결과가 장면에 남는다.", {
   players,
   location: "폐허",
   next_round_context: "다음 선택",
   campaign_finished: false,
-})}`;
+});
 }
 
 async function setupSolo(db: Database.Database): Promise<{

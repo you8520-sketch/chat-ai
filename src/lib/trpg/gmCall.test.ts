@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { afterEach, describe, it } from "node:test";
 import { TextEncoder } from "node:util";
 import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
@@ -16,10 +17,7 @@ import { extractTrpgHttpStatus } from "./startFailure";
 import { mockReadableStreamFromText, buildMockOpenRouterStreamChunks } from "@/lib/mockApiMode";
 import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_MODEL, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 
-const GM_OK = `<<<NARRATION>>>
-문이 천천히 열린다.
-<<<DELTA>>>
-{"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false}`;
+const GM_OK = buildTrpgGmStructuredWireText("문이 천천히 열린다.", {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false});
 
 type CapturedRequest = { url: string; body: Record<string, unknown> };
 
@@ -234,7 +232,7 @@ describe("TRPG GM provider SSE stream semantics", () => {
     delete process.env.MOCK_MODE;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-gm-stream";
     const korean = "한글 장면";
-    const fullText = `<<<NARRATION>>>\n${korean}\n<<<DELTA>>>\n{}`;
+    const fullText = buildTrpgGmStructuredWireText(korean, { players: [] });
     const payload = JSON.stringify({ choices: [{ delta: { content: fullText } }] });
     const line = `data: ${payload}\n\n`;
     const usageLine = `data: ${JSON.stringify({
@@ -298,7 +296,7 @@ describe("TRPG GM provider SSE stream semantics", () => {
           setTimeout(() => reject(new Error("hung waiting for EOF")), 2_000);
         }),
       ]);
-      assert.match(result.text, /<<<NARRATION>>>/, "SSE_DONE_TERMINATES_READ=true");
+      assert.match(result.text, /"narration"/, "SSE_DONE_TERMINATES_READ=true");
       assert.equal(result.usage?.outputTokens, 6, "SSE_FINAL_USAGE_PRESERVED=true");
     } finally {
       globalThis.fetch = previousFetch;
@@ -313,10 +311,10 @@ describe("TRPG GM provider SSE stream semantics", () => {
     delete process.env.MOCK_MODE;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-gm-stream";
     const text = GM_OK;
-    const preMarker = "<<<NARR";
-    const rest = "ATION>>>\n문이 천천히 열린다.\n<<<DELTA>>>\n{}";
+    const preKey = '{"narr';
+    const rest = 'ation":"문이 천천히 열린다.","delta":{"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false}}';
     const chunks = [
-      `data: ${JSON.stringify({ choices: [{ delta: { content: preMarker } }] })}\n\n`,
+      `data: ${JSON.stringify({ choices: [{ delta: { content: preKey } }] })}\n\n`,
       `data: ${JSON.stringify({ choices: [{ delta: { content: rest } }] })}\n\n`,
       `data: ${JSON.stringify({
         choices: [{ delta: {}, finish_reason: "stop" }],

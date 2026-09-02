@@ -94,7 +94,7 @@ describe("TRPG GM length prompt consolidation gates", () => {
     const actionIdx = user.indexOf("[ACTION participantId");
     assert.ok(budgetIdx > actionIdx, "budget must trail submitted actions");
     assert.match(user, /\[ROUND EXECUTION — binding\]/);
-    assert.match(user, /exact output envelope defined in system/i);
+    assert.match(user, /Return JSON with narration and delta per system OUTPUT contract/i);
     assert.doesNotMatch(user, /<<<DELTA>>>/);
     assert.doesNotMatch(user, /<<<NARRATION>>>/);
   });
@@ -159,20 +159,24 @@ describe("TRPG GM length prompt consolidation gates", () => {
 
   it("CURRENT_LENGTH_ACCEPTANCE_GAP — integrity accepts short healthy narration", () => {
     const shortNar = "짧은 장면.";
-    const raw = `<<<NARRATION>>>\n${shortNar}\n<<<DELTA>>>\n{"players":[],"location":"","campaign_finished":false}`;
+    const raw = JSON.stringify({
+      narration: shortNar,
+      delta: { players: [], location: "", campaign_finished: false },
+    });
     const assessment = assessGmCompletionIntegrity(raw, { finishReason: "stop" });
     assert.equal(assessment.ok, true);
     assert.equal(assessment.status, "healthy");
   });
 
-  it("GM_OUTPUT_ENVELOPE_OWNER_COUNT = 1 — system owns markers; user references only", () => {
+  it("GM_OUTPUT_STRUCTURE_OWNER_COUNT = 1 — provider schema + system OUTPUT; user references only", () => {
     const user = mixedThreePartyUser();
-    assert.match(TRPG_GM_SYSTEM, /Output format exactly:/);
-    assert.match(TRPG_GM_SYSTEM, /<<<NARRATION>>>/);
-    assert.match(TRPG_GM_SYSTEM, /<<<DELTA>>>/);
+    assert.match(TRPG_GM_SYSTEM, /\[OUTPUT\]/);
+    assert.match(TRPG_GM_SYSTEM, /Respond as JSON/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /<<<NARRATION>>>/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /<<<DELTA>>>/);
     assert.doesNotMatch(user, /<<<DELTA>>>/);
     assert.doesNotMatch(user, /<<<NARRATION>>>/);
-    assert.match(user, /exact output envelope defined in system/i);
+    assert.match(user, /Return JSON with narration and delta per system OUTPUT contract/i);
   });
 
   it("budget constants unchanged for 3-action party", () => {

@@ -8,7 +8,7 @@ import {
   submitTrpgAction,
   type TrpgEngineDeps,
 } from "./engineAdvance";
-import { TRPG_GM_DELTA_OPEN, TRPG_GM_NARRATION_OPEN } from "./gmPrompt";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { loadGmNarrationDraft, saveGmNarrationDraftForGeneration, clearGmNarrationDraftForGeneration } from "./gmNarrationDraft";
 import { hasPendingGmResult, loadPendingGmResult } from "./pendingGmResult";
@@ -18,18 +18,17 @@ import { ensureTrpgTables } from "./schema";
 import type { TrpgModelUsage } from "./billing";
 import { TRPG_GM_MODEL } from "./types";
 
-const VALID_DELTA = JSON.stringify({
+const VALID_DELTA = {
   players: [],
   location: "문턱",
   next_round_context: "다음",
   campaign_finished: false,
-});
+};
 
-const INCIDENT_TRUNCATED = `${TRPG_GM_NARRATION_OPEN}
-GM: 권태현이 ... 태현의 방벽 뒤에서 이현이 찾은 환풍구 발판으로 단숨에 도약해 빠져나갈지, 아니면 태현과`;
+const INCIDENT_TRUNCATED = `{"narration":"GM: 권태현이 ... 태현의 방벽 뒤에서 이현이 찾은 환풍구 발판으로 단숨에 도약해 빠져나갈지, 아니면 태현과`;
 
 function gmText(narration: string): string {
-  return `${TRPG_GM_NARRATION_OPEN}\n${narration}\n${TRPG_GM_DELTA_OPEN}\n${VALID_DELTA}`;
+  return buildTrpgGmStructuredWireText(narration, VALID_DELTA);
 }
 
 function memoryDb(): Database.Database {
@@ -144,22 +143,19 @@ describe("gmCompletionIntegrity engine regressions", () => {
   });
 });
 
-describe("gmCompletionIntegrity envelope owner counts", () => {
-  it("wire-format primitives are defined once in gmPrompt", () => {
+describe("gmCompletionIntegrity structured output owner counts", () => {
+  it("wire-format primitives are defined once in gmStructuredOutput", () => {
     const prompt = fs.readFileSync("src/lib/trpg/gmPrompt.ts", "utf8");
     const integrity = fs.readFileSync("src/lib/trpg/gmCompletionIntegrity.ts", "utf8");
-    const streamParser = fs.readFileSync("src/lib/trpg/gmStreamParser.ts", "utf8");
-    assert.match(prompt, /export const TRPG_GM_NARRATION_OPEN = "<<<NARRATION>>>"/);
-    assert.match(prompt, /export const TRPG_GM_DELTA_OPEN = "<<<DELTA>>>"/);
-    assert.match(prompt, /export function parseTrpgGmEnvelopeJson/);
+    const structured = fs.readFileSync("src/lib/trpg/gmStructuredOutput.ts", "utf8");
+    const streamParser = fs.readFileSync("src/lib/trpg/gmStructuredStreamParser.ts", "utf8");
+    assert.match(structured, /TRPG_GM_STRUCTURED_RESPONSE_FORMAT/);
+    assert.match(structured, /buildTrpgGmResponseFormat/);
+    assert.doesNotMatch(prompt, /Output format exactly:/);
     assert.doesNotMatch(integrity, /<<<NARRATION>>>/);
     assert.doesNotMatch(integrity, /<<<DELTA>>>/);
-    assert.doesNotMatch(integrity, /function stripFences/);
-    assert.doesNotMatch(integrity, /function parseDeltaJson/);
-    assert.match(integrity, /from "\.\/gmPrompt"/);
-    assert.match(streamParser, /from "\.\/gmPrompt"/);
-    assert.equal((prompt.match(/TRPG_GM_NARRATION_OPEN = /g) ?? []).length, 1);
-    assert.equal((prompt.match(/TRPG_GM_DELTA_OPEN = /g) ?? []).length, 1);
-    assert.equal((prompt.match(/function parseTrpgGmEnvelopeJson/g) ?? []).length, 1);
+    assert.match(integrity, /from "\.\/gmStructuredOutput"/);
+    assert.match(streamParser, /"narration"/);
+    assert.equal((structured.match(/buildTrpgGmResponseFormat/g) ?? []).length, 1);
   });
 });
