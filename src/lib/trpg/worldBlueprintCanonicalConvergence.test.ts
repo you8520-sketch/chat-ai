@@ -114,11 +114,12 @@ function mockBlueprintComplete(goal: string) {
 }
 
 function gmText(): string {
-  return buildTrpgGmStructuredWireText(narration, {
+  return buildTrpgGmStructuredWireText("ok", {
     players: [],
-    location: "문턱",
-    next_round_context: "다음",
+    location: "x",
+    next_round_context: "y",
     campaign_finished: false,
+    storyPhase: "DEVELOPMENT",
   });
 }
 

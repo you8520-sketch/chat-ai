@@ -1,18 +1,35 @@
-const NARRATION_KEY = '"narration"';
+/** Top-level JSON object key for GM narration streaming. */
+const TOP_LEVEL_NARRATION_KEY = "narration";
+
+type ObjectFrame = {
+  /** True only for the root `{ ... }` object. */
+  root: boolean;
+  /** After `:` — next token is a property value. */
+  afterColon: boolean;
+  /** Root key name when `afterColon` is false and a key string just closed. */
+  pendingRootKey: string | null;
+};
+
+type StringMode = "key" | "top_level_narration" | "skip";
 
 export type GmStructuredStreamParserState = {
-  /** Raw provider buffer for incremental key/value discovery. */
+  /** Unprocessed tail from the latest provider chunk(s). */
   buffer: string;
   /** Narration text exposed to clients (never includes JSON syntax). */
   narration: string;
-  /** True once narration string value is closed — no further narration is emitted. */
+  /** True once top-level narration string value is closed. */
   narrationClosed: boolean;
-  /** Internal scan phase within the narration string extractor. */
-  phase: "seek_key" | "seek_value_quote" | "in_string" | "done";
-  /** Escape / unicode handling while inside narration string. */
+  /** Container nesting depth (`{`/`[` minus `}`/`]`). */
+  depth: number;
+  /** Active object frames — one per unclosed `{`. */
+  objectStack: ObjectFrame[];
+  /** When set, scanner is inside a JSON string. */
+  stringMode: StringMode | null;
   escape: boolean;
   unicodeRemaining: number;
   unicodeHex: string;
+  /** Accumulates object key names while `stringMode === "key"`. */
+  keyAcc: string;
 };
 
 export function createGmStructuredStreamParser(): GmStructuredStreamParserState {
@@ -20,10 +37,13 @@ export function createGmStructuredStreamParser(): GmStructuredStreamParserState 
     buffer: "",
     narration: "",
     narrationClosed: false,
-    phase: "seek_key",
+    depth: 0,
+    objectStack: [],
+    stringMode: null,
     escape: false,
     unicodeRemaining: 0,
     unicodeHex: "",
+    keyAcc: "",
   };
 }
 
@@ -32,90 +52,184 @@ export function feedGmStructuredStreamParser(state: GmStructuredStreamParserStat
   if (!chunk || state.narrationClosed) return "";
   state.buffer += chunk;
   let emitted = "";
+  while (state.buffer.length > 0) {
+    const prevLen = emitted.length;
+    const prevBufferLen = state.buffer.length;
+    drainOne(state, (text) => {
+      state.narration += text;
+      emitted += text;
+    });
+    if (emitted.length === prevLen && state.buffer.length === prevBufferLen) break;
+  }
+  return emitted;
+}
 
-  while (state.phase !== "done") {
-    if (state.buffer.length === 0) break;
-    if (state.phase === "seek_key") {
-      const idx = state.buffer.indexOf(NARRATION_KEY);
-      if (idx < 0) {
-        state.buffer = holdPartialSuffix(state.buffer, NARRATION_KEY);
-        break;
-      }
-      state.buffer = state.buffer.slice(idx + NARRATION_KEY.length);
-      state.phase = "seek_value_quote";
-      continue;
+function drainOne(state: GmStructuredStreamParserState, emit: (text: string) => void): void {
+  if (state.stringMode) {
+    consumeStringChar(state, emit);
+    return;
+  }
+  const ch = state.buffer[0]!;
+  if (isWhitespace(ch)) {
+    state.buffer = state.buffer.slice(1);
+    return;
+  }
+  if (ch === "{") {
+    state.buffer = state.buffer.slice(1);
+    state.depth += 1;
+    state.objectStack.push({ root: state.objectStack.length === 0, afterColon: false, pendingRootKey: null });
+    return;
+  }
+  if (ch === "[") {
+    state.buffer = state.buffer.slice(1);
+    state.depth += 1;
+    return;
+  }
+  if (ch === "}") {
+    state.buffer = state.buffer.slice(1);
+    state.depth = Math.max(0, state.depth - 1);
+    if (state.objectStack.length > 0) state.objectStack.pop();
+    return;
+  }
+  if (ch === "]") {
+    state.buffer = state.buffer.slice(1);
+    state.depth = Math.max(0, state.depth - 1);
+    return;
+  }
+  if (ch === '"') {
+    state.buffer = state.buffer.slice(1);
+    state.stringMode = resolveStringMode(state);
+    state.keyAcc = "";
+    state.escape = false;
+    state.unicodeRemaining = 0;
+    state.unicodeHex = "";
+    return;
+  }
+  if (ch === ":") {
+    const frame = currentObjectFrame(state);
+    if (frame && !frame.afterColon) {
+      state.buffer = state.buffer.slice(1);
+      frame.afterColon = true;
+      return;
     }
+    // Malformed JSON — hold until more context arrives.
+    return;
+  }
+  if (ch === ",") {
+    const frame = currentObjectFrame(state);
+    if (frame?.afterColon) {
+      state.buffer = state.buffer.slice(1);
+      frame.afterColon = false;
+      frame.pendingRootKey = null;
+      return;
+    }
+    return;
+  }
+  // Unknown structural byte — skip to avoid deadlock on whitespace/noise variants.
+  state.buffer = state.buffer.slice(1);
+}
 
-    if (state.phase === "seek_value_quote") {
-      const quoteIdx = state.buffer.indexOf('"');
-      if (quoteIdx < 0) {
-        state.buffer = "";
-        break;
-      }
-      state.buffer = state.buffer.slice(quoteIdx + 1);
-      state.phase = "in_string";
+function currentObjectFrame(state: GmStructuredStreamParserState): ObjectFrame | null {
+  return state.objectStack.length > 0 ? state.objectStack[state.objectStack.length - 1]! : null;
+}
+
+function resolveStringMode(state: GmStructuredStreamParserState): StringMode {
+  const frame = currentObjectFrame(state);
+  if (!frame) return "skip";
+  if (!frame.afterColon) return "key";
+  if (frame.root && frame.pendingRootKey === TOP_LEVEL_NARRATION_KEY) return "top_level_narration";
+  return "skip";
+}
+
+function consumeStringChar(state: GmStructuredStreamParserState, emit: (text: string) => void): void {
+  if (state.buffer.length === 0) return;
+  const ch = state.buffer[0]!;
+  state.buffer = state.buffer.slice(1);
+
+  if (state.stringMode === "key") {
+    if (state.escape) {
       state.escape = false;
-      state.unicodeRemaining = 0;
-      state.unicodeHex = "";
-      continue;
-    }
-
-    if (state.phase === "in_string") {
-      let i = 0;
-      while (i < state.buffer.length) {
-        const ch = state.buffer[i]!;
-        if (state.unicodeRemaining > 0) {
-          state.unicodeHex += ch;
-          state.unicodeRemaining -= 1;
-          i += 1;
-          if (state.unicodeRemaining === 0) {
-            const code = Number.parseInt(state.unicodeHex, 16);
-            if (Number.isFinite(code)) {
-              const decoded = String.fromCodePoint(code);
-              state.narration += decoded;
-              emitted += decoded;
-            }
-            state.unicodeHex = "";
-          }
-          continue;
-        }
-        if (state.escape) {
-          state.escape = false;
-          if (ch === "u") {
-            state.unicodeRemaining = 4;
-            state.unicodeHex = "";
-            i += 1;
-            continue;
-          }
-          const decoded = decodeEscape(ch);
-          state.narration += decoded;
-          emitted += decoded;
-          i += 1;
-          continue;
-        }
-        if (ch === "\\") {
-          state.escape = true;
-          i += 1;
-          continue;
-        }
-        if (ch === '"') {
-          state.buffer = state.buffer.slice(i + 1);
-          state.phase = "done";
-          state.narrationClosed = true;
-          break;
-        }
-        state.narration += ch;
-        emitted += ch;
-        i += 1;
+      if (ch === "u") {
+        state.unicodeRemaining = 4;
+        state.unicodeHex = "";
+        return;
       }
-      if (state.phase === "in_string") {
-        state.buffer = state.buffer.slice(i);
-      }
-      break;
+      state.keyAcc += decodeEscape(ch);
+      return;
     }
+    if (state.unicodeRemaining > 0) {
+      state.unicodeHex += ch;
+      state.unicodeRemaining -= 1;
+      if (state.unicodeRemaining === 0) {
+        const code = Number.parseInt(state.unicodeHex, 16);
+        if (Number.isFinite(code)) state.keyAcc += String.fromCodePoint(code);
+        state.unicodeHex = "";
+      }
+      return;
+    }
+    if (ch === "\\") {
+      state.escape = true;
+      return;
+    }
+    if (ch === '"') {
+      closeKeyString(state);
+      return;
+    }
+    state.keyAcc += ch;
+    return;
   }
 
-  return emitted;
+  // narration value or skipped string value
+  if (state.escape) {
+    state.escape = false;
+    if (ch === "u") {
+      state.unicodeRemaining = 4;
+      state.unicodeHex = "";
+      return;
+    }
+    const decoded = decodeEscape(ch);
+    if (state.stringMode === "top_level_narration") emit(decoded);
+    return;
+  }
+  if (state.unicodeRemaining > 0) {
+    state.unicodeHex += ch;
+    state.unicodeRemaining -= 1;
+    if (state.unicodeRemaining === 0) {
+      const code = Number.parseInt(state.unicodeHex, 16);
+      if (Number.isFinite(code) && state.stringMode === "top_level_narration") {
+        emit(String.fromCodePoint(code));
+      }
+      state.unicodeHex = "";
+    }
+    return;
+  }
+  if (ch === "\\") {
+    state.escape = true;
+    return;
+  }
+  if (ch === '"') {
+    if (state.stringMode === "top_level_narration") {
+      state.narrationClosed = true;
+    }
+    state.stringMode = null;
+    const frame = currentObjectFrame(state);
+    if (frame) frame.afterColon = true;
+    return;
+  }
+  if (state.stringMode === "top_level_narration") emit(ch);
+}
+
+function closeKeyString(state: GmStructuredStreamParserState): void {
+  const frame = currentObjectFrame(state);
+  if (frame?.root && !frame.afterColon) {
+    frame.pendingRootKey = state.keyAcc;
+  }
+  state.stringMode = null;
+  state.keyAcc = "";
+}
+
+function isWhitespace(ch: string): boolean {
+  return ch === " " || ch === "\n" || ch === "\r" || ch === "\t";
 }
 
 function decodeEscape(ch: string): string {
@@ -141,41 +255,11 @@ function decodeEscape(ch: string): string {
   }
 }
 
-function holdPartialSuffix(text: string, marker: string): string {
-  const max = Math.min(marker.length - 1, text.length);
-  for (let n = max; n > 0; n -= 1) {
-    if (marker.startsWith(text.slice(-n))) return text.slice(-n);
-  }
-  return "";
-}
-
 export function gmStructuredStreamParserComplete(state: GmStructuredStreamParserState): void {
-  if (state.phase === "done" || state.narrationClosed) return;
-  if (state.phase !== "in_string") return;
-  const tail = state.buffer;
-  state.buffer = "";
-  if (!tail) return;
-  let emitted = "";
-  for (const ch of tail) {
-    if (state.escape) {
-      state.escape = false;
-      if (ch === "u") continue;
-      const decoded = decodeEscape(ch);
-      state.narration += decoded;
-      emitted += decoded;
-      continue;
-    }
-    if (ch === "\\") {
-      state.escape = true;
-      continue;
-    }
-    if (ch === '"') {
-      state.narrationClosed = true;
-      state.phase = "done";
-      break;
-    }
-    state.narration += ch;
-    emitted += ch;
+  if (state.narrationClosed || state.stringMode !== "top_level_narration") return;
+  // Provider ended mid-string — expose trailing buffer literally (no closing quote).
+  if (state.buffer) {
+    state.narration += state.buffer;
+    state.buffer = "";
   }
-  void emitted;
 }

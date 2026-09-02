@@ -22,12 +22,8 @@ import {
   countTrpgNarrationChars,
   TRPG_GM_RICH_MIN_CHARS,
 } from "../src/lib/trpg/gmNarrationBudget";
-import {
-  parseTrpgGmEnvelopeJson,
-  parseTrpgGmOutput,
-  TRPG_GM_DELTA_OPEN,
-  TRPG_GM_NARRATION_OPEN,
-} from "../src/lib/trpg/gmPrompt";
+import { parseTrpgGmOutput } from "../src/lib/trpg/gmPrompt";
+import { isTrpgGmStructuredShape, parseTrpgGmStructuredJson } from "../src/lib/trpg/gmStructuredOutput";
 import { reviewGmForwardMotionQuality } from "../src/lib/trpg/gmResolutionProbe";
 import { TRPG_GM_MODEL } from "../src/lib/trpg/types";
 
@@ -80,42 +76,16 @@ function padRich(seed: string): string {
   return out;
 }
 
-function countMarker(text: string, marker: string): number {
-  if (!marker) return 0;
-  let count = 0;
-  let pos = 0;
-  while (true) {
-    const at = text.indexOf(marker, pos);
-    if (at < 0) break;
-    count += 1;
-    pos = at + marker.length;
-  }
-  return count;
-}
-
-export type EnvelopeMalformedKind =
+export type StructuredOutputKind =
   | "HEALTHY"
-  | "MISSING_NARRATION_MARKER"
-  | "MISSING_DELTA_MARKER"
-  | "DELTA_BEFORE_NARRATION"
-  | "MALFORMED_DELTA_JSON"
+  | "MISSING_STRUCTURED_OUTPUT"
+  | "EMPTY_NARRATION"
   | "OTHER";
 
-export function classifyEnvelopeMalformed(raw: string): EnvelopeMalformedKind {
-  const narCount = countMarker(raw, TRPG_GM_NARRATION_OPEN);
-  const deltaCount = countMarker(raw, TRPG_GM_DELTA_OPEN);
-  const narIdx = raw.indexOf(TRPG_GM_NARRATION_OPEN);
-  const deltaIdx = raw.indexOf(TRPG_GM_DELTA_OPEN);
-
-  if (narCount === 0 && deltaCount === 0) return "OTHER";
-  if (narCount === 0) return "MISSING_NARRATION_MARKER";
-  if (deltaCount === 0) return "MISSING_DELTA_MARKER";
-  if (deltaIdx < narIdx) return "DELTA_BEFORE_NARRATION";
-  const deltaRaw = raw.slice(deltaIdx + TRPG_GM_DELTA_OPEN.length);
-  const parsed = parseTrpgGmEnvelopeJson(deltaRaw);
-  if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return "MALFORMED_DELTA_JSON";
-  }
+export function classifyStructuredOutput(raw: string): StructuredOutputKind {
+  const parsed = parseTrpgGmStructuredJson(raw);
+  if (!isTrpgGmStructuredShape(parsed)) return "MISSING_STRUCTURED_OUTPUT";
+  if (!parsed.narration.trim()) return "EMPTY_NARRATION";
   return "HEALTHY";
 }
 
@@ -212,9 +182,11 @@ async function runFixture(opts: {
 
   const raw = result.text;
   const integrity = assessGmCompletionIntegrity(raw, { finishReason: result.finishReason });
-  const envelopeKind = classifyEnvelopeMalformed(raw);
+  const structuredKind = classifyStructuredOutput(raw);
   const parsed = parseTrpgGmOutput(raw);
   const narrationChars = countTrpgNarrationChars(parsed.narration);
+  const structuredParsed = parseTrpgGmStructuredJson(raw);
+  const deltaPresent = isTrpgGmStructuredShape(structuredParsed);
   const quality = reviewGmForwardMotionQuality({
     narration: parsed.narration,
     actions: opts.actions.map((a) => ({
@@ -224,11 +196,6 @@ async function runFixture(opts: {
       tier: a.tier ?? undefined,
     })),
   });
-
-  const narIdx = raw.indexOf(TRPG_GM_NARRATION_OPEN);
-  const deltaIdx = raw.indexOf(TRPG_GM_DELTA_OPEN);
-  const deltaRaw = deltaIdx >= 0 ? raw.slice(deltaIdx + TRPG_GM_DELTA_OPEN.length) : "";
-  const deltaParseable = deltaRaw ? parseTrpgGmEnvelopeJson(deltaRaw) != null : false;
 
   const prefix = `${opts.label}-fixture-${opts.fixtureId}`;
   const rawFile = join(opts.outDir, `${prefix}-raw.txt`);
@@ -243,15 +210,12 @@ async function runFixture(opts: {
     FINISH_REASON: result.finishReason,
     RAW_OUTPUT_CHARS: raw.length,
     RAW_OUTPUT_FILE: rawFile,
-    NARRATION_MARKER_COUNT: countMarker(raw, TRPG_GM_NARRATION_OPEN),
-    DELTA_MARKER_COUNT: countMarker(raw, TRPG_GM_DELTA_OPEN),
-    NARRATION_MARKER_INDEX: narIdx,
-    DELTA_MARKER_INDEX: deltaIdx,
-    DELTA_JSON_PARSEABLE: deltaParseable,
+    STRUCTURED_SHAPE: deltaPresent,
+    DELTA_PRESENT: deltaPresent,
     PARSED_NARRATION_CHARS: narrationChars,
     MINIMUM_MET: narrationChars >= budget.minChars,
     INTEGRITY_STATUS: completionIntegrityStatusLabel(integrity),
-    ENVELOPE_MALFORMED_KIND: envelopeKind,
+    STRUCTURED_OUTPUT_KIND: structuredKind,
     ACTION_REPLAY: quality.ACTION_REPLAY,
     RESOLUTION_BLOAT: quality.RESOLUTION_BLOAT,
     PLAYER_AGENCY_VIOLATION: quality.PLAYER_AGENCY_VIOLATION,

@@ -8,7 +8,6 @@ export type GmCompletionIntegrityStatus =
   | "healthy"
   | "abnormal_finish_reason"
   | "missing_structured_output"
-  | "malformed_structured_output"
   | "empty_narration"
   | "empty_output";
 
@@ -68,13 +67,6 @@ export function assessGmCompletionIntegrity(
       error: "GM narration is empty",
     };
   }
-  if (!parsed.delta || typeof parsed.delta !== "object" || Array.isArray(parsed.delta)) {
-    return {
-      ok: false,
-      status: "malformed_structured_output",
-      error: "GM delta is not a structured object",
-    };
-  }
   return { ok: true, status: "healthy" };
 }
 
@@ -101,8 +93,6 @@ export function completionIntegrityStatusLabel(
       return assessment.error?.includes("length") ? "ABNORMAL_FINISH_LENGTH" : "ABNORMAL_FINISH";
     case "missing_structured_output":
       return "MALFORMED_STRUCTURED_OUTPUT";
-    case "malformed_structured_output":
-      return "MALFORMED_DELTA";
     case "empty_narration":
       return "EMPTY_NARRATION";
     case "empty_output":

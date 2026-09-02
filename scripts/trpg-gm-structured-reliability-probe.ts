@@ -1,9 +1,13 @@
 /**
  * GM structured-output reliability gate — 6 single provider calls (retry=0).
  * 2× SPARSE, 2× MIXED, 2× RICH fixtures via real TRPG_GM_SYSTEM/user blocks.
+ *
+ * Usage:
+ *   TRPG_STRUCTURED_PROBE_OUT_DIR=$PWD/tmp/trpg-gm-structured-reliability \
+ *     node --conditions=react-server --import tsx scripts/trpg-gm-structured-reliability-probe.ts
  */
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { callTrpgGm } from "../src/lib/trpg/gmCall";
 import {
   assessGmCompletionIntegrity,
@@ -87,7 +91,9 @@ async function runFixture(fixture: Fixture, index: number): Promise<Record<strin
 }
 
 async function main(): Promise<void> {
-  const outDir = join(process.cwd(), "tmp/trpg-gm-structured-reliability");
+  const outDir = resolve(
+    process.env.TRPG_STRUCTURED_PROBE_OUT_DIR ?? join(process.cwd(), "tmp/trpg-gm-structured-reliability")
+  );
   mkdirSync(outDir, { recursive: true });
   const results: Record<string, unknown>[] = [];
   for (let i = 0; i < FIXTURES.length; i += 1) {

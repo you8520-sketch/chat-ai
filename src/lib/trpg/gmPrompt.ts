@@ -9,12 +9,6 @@ import { parseLocalSceneProgressDelta } from "./localSceneProgress";
 import { isTrpgGmStructuredShape, parseTrpgGmStructuredJson } from "./gmStructuredOutput";
 import type { TrpgStateDelta, TrpgStatDefinition } from "./types";
 
-/** Canonical GM wire-format markers — single owner for envelope primitives. */
-export const TRPG_GM_NARRATION_OPEN = "<<<NARRATION>>>";
-export const TRPG_GM_DELTA_OPEN = "<<<DELTA>>>";
-const NARRATION_OPEN = TRPG_GM_NARRATION_OPEN;
-const DELTA_OPEN = TRPG_GM_DELTA_OPEN;
-
 /** GM user-block labels — actor authority boundaries for round resolution. */
 export const TRPG_GM_LABEL_HUMAN_ACTION =
   "[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only]";
@@ -101,28 +95,6 @@ function asDelta(raw: unknown): TrpgStateDelta {
   return delta;
 }
 
-export function stripTrpgGmEnvelopeFences(text: string): string {
-  return text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-}
-
-/** Canonical JSON decoder for GM DELTA envelope sections. */
-export function parseTrpgGmEnvelopeJson(raw: string): unknown {
-  const trimmed = stripTrpgGmEnvelopeFences(raw.trim());
-  if (!trimmed) return null;
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    const start = trimmed.indexOf("{");
-    const end = trimmed.lastIndexOf("}");
-    if (start < 0 || end <= start) return null;
-    try {
-      return JSON.parse(trimmed.slice(start, end + 1));
-    } catch {
-      return null;
-    }
-  }
-}
-
 export function parseTrpgGmOutput(raw: string): ParsedTrpgGmOutput {
   const text = raw.trim();
   const structured = parseTrpgGmStructuredJson(text);
@@ -144,52 +116,26 @@ export function parseTrpgGmOutput(raw: string): ParsedTrpgGmOutput {
   }
 
   let narration = text;
-  let deltaJson: unknown = null;
-  let location: string | null = null;
-  let campaignFinished = false;
-  let nextRoundContext = "";
-
-  const deltaAt = text.indexOf(DELTA_OPEN);
-  const narAt = text.indexOf(NARRATION_OPEN);
-  if (narAt >= 0 && deltaAt > narAt) {
-    narration = text.slice(narAt + NARRATION_OPEN.length, deltaAt).trim();
-    deltaJson = parseTrpgGmEnvelopeJson(text.slice(deltaAt + DELTA_OPEN.length));
-  } else if (deltaAt >= 0) {
-    narration = text.slice(0, deltaAt).trim();
-    deltaJson = parseTrpgGmEnvelopeJson(text.slice(deltaAt + DELTA_OPEN.length));
-  } else if (text.startsWith("{")) {
-    const parsed = parseTrpgGmEnvelopeJson(text);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      const obj = parsed as Record<string, unknown>;
-      if (typeof obj.narration === "string") narration = obj.narration.trim();
-      deltaJson = obj.proposed_state_delta ?? obj.delta ?? obj;
-      if (typeof obj.location === "string") location = obj.location;
-      if (obj.campaign_finished === true) campaignFinished = true;
-      if (typeof obj.next_round_context === "string") nextRoundContext = obj.next_round_context;
+  if (text.startsWith('{"narration"')) {
+    const match = text.match(/"narration"\s*:\s*"((?:\\.|[^"\\])*)"/);
+    if (match?.[1] != null) {
+      try {
+        narration = JSON.parse(`"${match[1]}"`);
+      } catch {
+        narration = match[1]!;
+      }
     }
   }
 
-  if (deltaJson && typeof deltaJson === "object" && !Array.isArray(deltaJson)) {
-    const obj = deltaJson as Record<string, unknown>;
-    if (typeof obj.location === "string") location = obj.location;
-    if (obj.campaign_finished === true) campaignFinished = true;
-    if (typeof obj.next_round_context === "string") nextRoundContext = obj.next_round_context;
-  }
-
-  const delta = asDelta(deltaJson);
-  if (delta.location) location = delta.location;
-  if (delta.campaignFinished) campaignFinished = true;
-  if (delta.nextRoundContext) nextRoundContext = delta.nextRoundContext;
-
-  narration = narration.replace(NARRATION_OPEN, "").trim();
+  narration = narration.trim();
   if (!narration) narration = "장면이 잠시 멈췄다. 다음 행동을 고르라.";
 
   return {
     narration,
-    delta,
-    location,
-    campaignFinished,
-    nextRoundContext,
+    delta: emptyDelta(),
+    location: null,
+    campaignFinished: false,
+    nextRoundContext: "",
   };
 }
 

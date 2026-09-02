@@ -123,6 +123,14 @@ describe("gmCompletionIntegrity fixtures", () => {
     );
   });
 
+  it("C3b — finish_reason=error rejects provider-side failures", () => {
+    const text = gmJson("장면.");
+    assert.throws(
+      () => assertGmCompletionCanCommit(text, { finishReason: "error" }),
+      /abnormal provider completion: error/
+    );
+  });
+
   it("C4 — EOF before delta with stop still rejects structured output", () => {
     assert.throws(
       () => assertGmCompletionCanCommit(INCIDENT_TRUNCATED_BEFORE_DELTA, { finishReason: "stop" }),
