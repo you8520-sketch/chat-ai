@@ -64,16 +64,28 @@ export function shouldPreparePublishedBillingFxSnapshot(): boolean {
   return isPhase1PublishedBillingEnabled() || isPhase2DeepSeekPublishedBillingEnabled();
 }
 
+export function isPhase2DeepSeekDirectSelection(input: {
+  selectedModelId?: string;
+  deliveredModelId: string;
+}): boolean {
+  if (!isPhase2DeepSeekPublishedBillingModel(input.deliveredModelId)) {
+    return false;
+  }
+  const selected = input.selectedModelId?.trim();
+  if (!selected) return false;
+  return isPhase2DeepSeekPublishedBillingModel(selected);
+}
+
 export function resolvePublishedBillingPhase(
-  modelId: string,
+  input: { deliveredModelId: string; selectedModelId?: string },
   opts?: { phase1Enabled?: boolean; phase2Enabled?: boolean }
 ): PublishedBillingPhase | null {
   const phase1Enabled = opts?.phase1Enabled ?? isPhase1PublishedBillingEnabled();
   const phase2Enabled = opts?.phase2Enabled ?? isPhase2DeepSeekPublishedBillingEnabled();
-  if (isPhase1PublishedBillingModel(modelId) && phase1Enabled) {
+  if (isPhase1PublishedBillingModel(input.deliveredModelId) && phase1Enabled) {
     return "phase1";
   }
-  if (isPhase2DeepSeekPublishedBillingModel(modelId) && phase2Enabled) {
+  if (phase2Enabled && isPhase2DeepSeekDirectSelection(input)) {
     return "phase2";
   }
   return null;
@@ -82,6 +94,7 @@ export function resolvePublishedBillingPhase(
 export type LegacyFallbackReason =
   | "phase1_billing_disabled"
   | "phase2_deepseek_billing_disabled"
+  | "phase2_deepseek_not_direct_selected"
   | "non_published_model"
   | "phase2_refusal_fallback_legacy"
   | "legacy_waiver_minimum_nonzero"
@@ -96,6 +109,7 @@ export type ChatBillingContractTelemetry = {
   billingContract: PublishedBillingContract | "legacy";
   billingContractReason: string;
   deliveredModelId: string;
+  selectedModelId?: string;
   publishedCandidateStatus: "not_attempted" | "resolved" | "blocked" | "unavailable";
   publishedBlockReason: string | null;
   pricingVersion: number | null;
@@ -125,6 +139,8 @@ export type ChatBillingContractDecision =
 
 export type ResolveChatBillingContractInput = {
   deliveredModelId: string;
+  /** User-selected model at turn start — route passes canonical selectedAI. Required for Phase 2 direct cutover proof. */
+  selectedModelId?: string;
   stages: StageUsage[];
   refusalFallbackDelivered?: boolean;
   promptAuditTotal?: number | null;
@@ -146,6 +162,7 @@ function buildTelemetry(
 ): ChatBillingContractTelemetry {
   return {
     deliveredModelId: input.deliveredModelId,
+    selectedModelId: input.selectedModelId,
     publishedCandidateStatus: partial.publishedCandidateStatus ?? "not_attempted",
     publishedBlockReason: partial.publishedBlockReason ?? null,
     pricingVersion: partial.pricingVersion ?? null,
@@ -201,8 +218,13 @@ function resolveLegacyEligibilityReason(
   if (isPhase1PublishedBillingModel(input.deliveredModelId) && !phase1Enabled) {
     return "phase1_billing_disabled";
   }
-  if (isPhase2DeepSeekPublishedBillingModel(input.deliveredModelId) && !phase2Enabled) {
-    return "phase2_deepseek_billing_disabled";
+  if (isPhase2DeepSeekPublishedBillingModel(input.deliveredModelId)) {
+    if (!phase2Enabled) {
+      return "phase2_deepseek_billing_disabled";
+    }
+    if (!isPhase2DeepSeekDirectSelection(input)) {
+      return "phase2_deepseek_not_direct_selected";
+    }
   }
   return "non_published_model";
 }
@@ -256,10 +278,16 @@ export function resolveChatBillingContract(
     return legacyDecision(input, "phase2_refusal_fallback_legacy");
   }
 
-  const publishedPhase = resolvePublishedBillingPhase(input.deliveredModelId, {
-    phase1Enabled,
-    phase2Enabled,
-  });
+  const publishedPhase = resolvePublishedBillingPhase(
+    {
+      deliveredModelId: input.deliveredModelId,
+      selectedModelId: input.selectedModelId,
+    },
+    {
+      phase1Enabled,
+      phase2Enabled,
+    }
+  );
   if (publishedPhase == null) {
     return legacyDecision(
       input,

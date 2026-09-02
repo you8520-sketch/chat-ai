@@ -53,6 +53,7 @@ function dispatchCompleteModel(modelId: string, output: number) {
   const stages = [completePrimaryStage(modelId, output)];
   return resolveChatBillingContract({
     deliveredModelId: modelId,
+    selectedModelId: modelId,
     stages,
     legacyFinalPoints: 999,
     billingWaiverReason: null,
@@ -118,6 +119,8 @@ function dispatchFromFixture(
   const waiver = fixtureWaiverContext(fixture);
   const input: ResolveChatBillingContractInput = {
     deliveredModelId: fixture.deliveredModelId,
+    selectedModelId:
+      fixture.requestedSelectedAI ?? fixture.deliveredSelectedAI ?? fixture.deliveredModelId,
     stages: fixture.stages,
     refusalFallbackDelivered: fixture.refusalFallbackDelivered,
     promptAuditTotal: fixture.promptAuditTotal,

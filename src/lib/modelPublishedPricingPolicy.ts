@@ -9,7 +9,6 @@ import {
 } from "@/lib/premiumModelIds";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
-import { getPublishedPricing } from "@/lib/publishedModelPricing";
 
 export type PricingApplicability = "base_tier_only" | "tier_aware";
 
@@ -22,6 +21,9 @@ export type CacheSemanticStatus =
 
 export type OpusCacheTtlMode = "5M_ONLY" | "VARIABLE" | "UNKNOWN";
 
+/** Provider usage: absent cache_write field means proven zero vs unknown. Default unknown. */
+export type CacheWriteAbsentSemantics = "proven_zero" | "unknown";
+
 export type ModelPublishedPricingPolicy = {
   modelId: string;
   pricingApplicability: PricingApplicability;
@@ -29,6 +31,8 @@ export type ModelPublishedPricingPolicy = {
   publishedBaseTierMaxPromptTokens?: number;
   cacheSemanticStatus: CacheSemanticStatus;
   opusCacheTtlMode?: OpusCacheTtlMode;
+  /** When unreported, cache_write_tokens is proven zero (DeepSeek 0813 production evidence only). */
+  cacheWriteAbsentSemantics?: CacheWriteAbsentSemantics;
 };
 
 /** Official Gemini 3.1 Pro Preview base-tier prompt threshold (tokens). */
@@ -66,6 +70,7 @@ const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPoli
      * DeepSeek never reports cache_write_tokens > 0 in captured production usage.
      */
     cacheSemanticStatus: "verified",
+    cacheWriteAbsentSemantics: "proven_zero",
   },
 };
 
@@ -90,20 +95,11 @@ export function isCacheSemanticVerified(modelId: string): boolean {
   return policy.cacheSemanticStatus === "verified" || policy.cacheSemanticStatus === "verified_5m";
 }
 
-/**
- * Production-evidenced models where absent cache_write reporting means proven zero
- * (Class A DeepSeek: cache_write never reported > 0; no published cache-write rate).
- */
+/** Reads explicit cacheWriteAbsentSemantics policy only — no inference from catalog rates. */
 export function isPublishedCacheWriteAbsentProvenZero(modelId: string): boolean {
   const canonical = canonicalizePublishedModelId(modelId);
   const policy = getModelPublishedPricingPolicy(canonical);
-  if (!policy || policy.cacheSemanticStatus !== "verified") return false;
-  try {
-    const pricing = getPublishedPricing(canonical);
-    return pricing.billingReferenceCacheWriteUsdPerMillion == null;
-  } catch {
-    return false;
-  }
+  return policy?.cacheWriteAbsentSemantics === "proven_zero";
 }
 
 export const PUBLISHED_POLICY_SCHEMA_VERSION = 1 as const;

@@ -254,6 +254,7 @@ describe("chatBillingFinalCharge — published vs legacy fixture receipt parity"
       const legacyPoints = computeLiveChargeFromFixture(fixture).totalPoints;
       const decision = resolveChatBillingContract({
         deliveredModelId: fixture.deliveredModelId,
+        selectedModelId: fixture.deliveredModelId,
         stages: fixture.stages,
         legacyFinalPoints: legacyPoints,
         billingWaiverReason: null,
@@ -296,6 +297,7 @@ describe("adminFinanceCostScopeAudit", () => {
   it("published_phase2 admin sets publishedFinalPoints", () => {
     const decision = resolveChatBillingContract({
       deliveredModelId: "deepseek-v4-pro-0813",
+      selectedModelId: "deepseek-v4-pro-0813",
       stages: [
         {
           stage: "primary",

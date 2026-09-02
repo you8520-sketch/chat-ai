@@ -4494,6 +4494,7 @@ export async function POST(req: Request) {
             : undefined;
           billingContractDecision = resolveChatBillingContract({
             deliveredModelId: deliveredModelId ?? "",
+            selectedModelId: selectedAIRef,
             stages,
             refusalFallbackDelivered: adultFallbackSucceeded,
             promptAuditTotal: promptAuditRef?.totalAssembledTokens,

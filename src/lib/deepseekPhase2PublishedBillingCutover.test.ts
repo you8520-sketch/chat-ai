@@ -11,6 +11,7 @@ import {
 } from "@/lib/billingLiveOwnerReadinessAudit";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -28,7 +29,7 @@ import {
 } from "@/lib/chatBillingFinalCharge";
 import { buildAdminBillingReceiptV2 } from "@/lib/adminBillingReceiptV2";
 import { resolveTurnBillableUsage } from "@/lib/turnBillableUsage";
-import { isPublishedCacheWriteAbsentProvenZero } from "@/lib/modelPublishedPricingPolicy";
+import { getModelPublishedPricingPolicy, isPublishedCacheWriteAbsentProvenZero } from "@/lib/modelPublishedPricingPolicy";
 
 const FX_DETERMINISTIC: BillingFxSnapshot = {
   mode: "daily_kst",
@@ -79,8 +80,11 @@ function dispatchDeepSeek(
   opts?: Partial<ResolveChatBillingContractInput>
 ): ReturnType<typeof resolveChatBillingContract> {
   const legacyFinalPoints = opts?.legacyFinalPoints ?? 999;
+  const selectedModelId =
+    opts?.selectedModelId ?? CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
   return resolveChatBillingContract({
     deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+    selectedModelId,
     stages,
     legacyFinalPoints,
     billingWaiverReason: null,
@@ -89,6 +93,7 @@ function dispatchDeepSeek(
     phase1PublishedBillingEnabled: false,
     phase2DeepSeekPublishedBillingEnabled: true,
     ...opts,
+    selectedModelId,
   });
 }
 
@@ -118,6 +123,13 @@ describe("deepseekPhase2PublishedBillingCutover — gate + FX owner", () => {
   it("PHASE2_DEEPSEEK_PUBLISHED_MODEL is canonical deepseek-v4-pro-0813 only", () => {
     assert.equal(PHASE2_DEEPSEEK_PUBLISHED_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
     assert.equal(isPublishedCacheWriteAbsentProvenZero(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL), true);
+    const deepseekPolicy = getModelPublishedPricingPolicy(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(deepseekPolicy?.cacheWriteAbsentSemantics, "proven_zero");
+    assert.equal(isPublishedCacheWriteAbsentProvenZero(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), false);
+    assert.notEqual(
+      getModelPublishedPricingPolicy(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL)?.cacheWriteAbsentSemantics,
+      "proven_zero"
+    );
   });
 });
 
@@ -178,6 +190,7 @@ describe("deepseekPhase2PublishedBillingCutover — direct routing matrix D1-D10
     const stages = [completeDeepSeekStage({ stage: "primary" })];
     const decision = resolveChatBillingContract({
       deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       stages,
       legacyFinalPoints: 65,
       billingWaiverReason: null,
@@ -238,6 +251,7 @@ describe("deepseekPhase2PublishedBillingCutover — direct routing matrix D1-D10
     const legacyPoints = computeLiveChargeFromFixture(fixture).totalPoints;
     const decision = resolveChatBillingContract({
       deliveredModelId: fixture.deliveredModelId,
+      selectedModelId: fixture.deliveredModelId,
       stages: fixture.stages,
       legacyFinalPoints: legacyPoints,
       billingWaiverReason: null,
@@ -279,10 +293,12 @@ describe("deepseekPhase2PublishedBillingCutover — refusal fallback matrix F1-F
 
   function dispatchRefusalFallback(
     stages: StageUsage[],
-    legacyFinalPoints: number
+    legacyFinalPoints: number,
+    selectedModelId: string
   ): ReturnType<typeof resolveChatBillingContract> {
     return resolveChatBillingContract({
       deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      selectedModelId,
       stages,
       refusalFallbackDelivered: true,
       legacyFinalPoints,
@@ -296,7 +312,11 @@ describe("deepseekPhase2PublishedBillingCutover — refusal fallback matrix F1-F
   it("F1 Gemini refusal → DeepSeek fallback → legacy phase2_refusal_fallback_legacy", () => {
     const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "F3-adult-fallback")!;
     const legacyPoints = computeLiveChargeFromFixture(fixture).totalPoints;
-    const decision = dispatchRefusalFallback(fixture.stages, legacyPoints);
+    const decision = dispatchRefusalFallback(
+      fixture.stages,
+      legacyPoints,
+      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
+    );
     assert.equal(decision.contract, "legacy");
     assert.equal(decision.reason, "phase2_refusal_fallback_legacy");
     assert.equal(decision.points, legacyPoints);
@@ -323,7 +343,7 @@ describe("deepseekPhase2PublishedBillingCutover — refusal fallback matrix F1-F
         estimated: false,
       },
     ];
-    const decision = dispatchRefusalFallback(stages, 88);
+    const decision = dispatchRefusalFallback(stages, 88, CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL);
     assert.equal(decision.contract, "legacy");
     assert.equal(decision.reason, "phase2_refusal_fallback_legacy");
   });
@@ -375,6 +395,7 @@ describe("deepseekPhase2PublishedBillingCutover — Phase1 regression unchanged"
     const legacyPoints = computeLiveChargeFromFixture(fixture).totalPoints;
     const decision = resolveChatBillingContract({
       deliveredModelId: fixture.deliveredModelId,
+      selectedModelId: fixture.deliveredModelId,
       stages: fixture.stages,
       legacyFinalPoints: legacyPoints,
       billingWaiverReason: null,
@@ -416,4 +437,89 @@ describe("deepseekPhase2PublishedBillingCutover — admin receipt + settlement",
     assert.equal(receipt.userCharge.deductedPoints, GOLDEN_POINTS);
     assert.equal(usage.cost, decision.points);
   });
+});
+
+describe("deepseekPhase2PublishedBillingCutover — direct selection matrix S1-S5", () => {
+  beforeEach(() => installAuditLegacyFxForTest());
+  afterEach(() => clearAuditLegacyFxForTest());
+
+  const completeStage = () => completeDeepSeekStage({ stage: "primary" });
+
+  it("S1 selected=DeepSeek delivered=DeepSeek → published_phase2", () => {
+    const decision = dispatchDeepSeek([completeStage()]);
+    assert.equal(decision.contract, "published_phase2");
+    assert.equal(decision.telemetry.selectedModelId, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+  });
+
+  it("S2 selected=Gemini delivered=DeepSeek → legacy phase2_deepseek_not_direct_selected", () => {
+    const decision = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+      stages: [completeStage()],
+      refusalFallbackDelivered: false,
+      legacyFinalPoints: 65,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: FX_DETERMINISTIC,
+      phase2DeepSeekPublishedBillingEnabled: true,
+    });
+    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.reason, "phase2_deepseek_not_direct_selected");
+  });
+
+  it("S3 selected=Opus delivered=DeepSeek refusalFallback → legacy phase2_refusal_fallback_legacy", () => {
+    const decision = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+      stages: [completeStage()],
+      refusalFallbackDelivered: true,
+      legacyFinalPoints: 88,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: FX_DETERMINISTIC,
+      phase2DeepSeekPublishedBillingEnabled: true,
+    });
+    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.reason, "phase2_refusal_fallback_legacy");
+  });
+
+  it("S4 selected=DeepSeek alias delivered=0813 → published_phase2 eligible", () => {
+    const decision = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      selectedModelId: "deepseek-v4-pro",
+      stages: [completeStage()],
+      refusalFallbackDelivered: false,
+      legacyFinalPoints: 65,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: FX_DETERMINISTIC,
+      phase2DeepSeekPublishedBillingEnabled: true,
+    });
+    assert.equal(decision.contract, "published_phase2");
+    assert.equal(decision.points, GOLDEN_POINTS);
+  });
+
+  it("S5 selected=DeepSeek Flash delivered=0813 → legacy phase2_deepseek_not_direct_selected", () => {
+    const decision = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+      stages: [completeStage()],
+      refusalFallbackDelivered: false,
+      legacyFinalPoints: 65,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: FX_DETERMINISTIC,
+      phase2DeepSeekPublishedBillingEnabled: true,
+    });
+    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.reason, "phase2_deepseek_not_direct_selected");
+  });
+
+  for (const stageName of ["primary", "continuation", "regenerate"] as const) {
+    it(`direct selection uses selectedModelId consistently for ${stageName}`, () => {
+      const decision = dispatchDeepSeek([completeDeepSeekStage({ stage: stageName })]);
+      assert.equal(decision.contract, "published_phase2");
+      assert.equal(decision.telemetry.selectedModelId, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    });
+  }
 });
