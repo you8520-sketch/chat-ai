@@ -206,9 +206,7 @@ import {
   type LivePresentationSession,
 } from "@/lib/trpg/presentationSession";
 
-function useCampaignDicePreview(
-  snap: TrpgCampaignSnapshot
-): {
+function useCampaignDicePreview(snap: TrpgCampaignSnapshot): {
   phase: string;
   rolls: readonly TrpgPublicRoll[];
   inject: boolean;
@@ -344,6 +342,10 @@ export default function TrpgCampaignRoom({
   onReroll,
   onTitleSaved,
   onBillingModeChange,
+  labPresentationSeed = null,
+  labSeenLogKeysSeed = null,
+  labStreamIntervalMs,
+  labFreezePresentationAdvance = false,
 }: {
   snap: TrpgCampaignSnapshot;
   starting: boolean;
@@ -370,9 +372,18 @@ export default function TrpgCampaignRoom({
   onReroll: (roundNumber: number) => void;
   onTitleSaved: (title: string) => void;
   onBillingModeChange?: (mode: TrpgCampaignSnapshot["billingMode"]) => void;
+  /** Dev scroll-follow lab only — seeds cinematic presentation without provider calls. */
+  labPresentationSeed?: RoundPresentationState | null;
+  /** Dev scroll-follow lab only — keeps bot declarations fresh on mount. */
+  labSeenLogKeysSeed?: readonly string[] | null;
+  labStreamIntervalMs?: number;
+  /** Dev scroll-follow lab only — keep cinematic actor-action for deterministic follow tests. */
+  labFreezePresentationAdvance?: boolean;
 }) {
   const [displayPrefs, setDisplayPrefs] = useState<ChatDisplayPrefs>(DEFAULT_CHAT_DISPLAY_PREFS);
-  const [streamIntervalMs, setStreamIntervalMs] = useState(DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs);
+  const [streamIntervalMs, setStreamIntervalMs] = useState(
+    labStreamIntervalMs ?? DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs
+  );
   const [toast, setToast] = useState("");
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -419,7 +430,10 @@ export default function TrpgCampaignRoom({
   const accountPrefsRef = useRef<Pick<UserChatPrefs, "targetResponseChars" | "novelModeEnabled"> | null>(
     null
   );
-  const [roundShow, setRoundShow] = useState<RoundPresentationState>(idlePresentation());
+  const [roundShow, setRoundShow] = useState<RoundPresentationState>(
+    () => labPresentationSeed ?? idlePresentation()
+  );
+  const labPresentationSeedActive = labPresentationSeed != null;
   const serverRoundNumber = snap.round.number;
   const phase = snap.round.phase;
   const dicePreview = useCampaignDicePreview(snap);
@@ -523,11 +537,12 @@ export default function TrpgCampaignRoom({
   const seenLogKeysRef = useRef<Set<string> | null>(null);
   if (seenLogKeysRef.current === null) {
     seenLogKeysRef.current = new Set(
-      resolveTrpgMountSeenKeys({
-        log: snap.log,
-        currentRoundNumber: snap.round.number,
-        liveReady,
-      })
+      labSeenLogKeysSeed ??
+        resolveTrpgMountSeenKeys({
+          log: snap.log,
+          currentRoundNumber: snap.round.number,
+          liveReady,
+        })
     );
   }
   const declarationConsumedIds = useMemo(
@@ -638,6 +653,10 @@ export default function TrpgCampaignRoom({
       consumeOnMount: mountConsume,
       actorCount: liveReady ? presentationActors.length : 0,
     });
+    if (labPresentationSeedActive) {
+      queueKeyRef.current = queueSessionKey;
+      return;
+    }
     if (queueKeyRef.current !== queueSessionKey || (roundShow.mode === "idle" && mode !== "idle")) {
       queueKeyRef.current = queueSessionKey;
       setHiddenPresentationSession(null);
@@ -686,6 +705,7 @@ export default function TrpgCampaignRoom({
     presentationRoundNumber,
   ]);
   useEffect(() => {
+    if (labPresentationSeedActive) return;
     if (
       !shouldLatchPresentationRound({
         latchRound: presentationRoundNumber,
@@ -944,11 +964,14 @@ export default function TrpgCampaignRoom({
     session: hiddenPresentationSession,
     sessionKey: queueSessionKey,
   });
-  const skipDecorativeReveal = shouldSkipDecorativeReveal({
-    consumedSessionKey: consumedDecorativeSessionKey,
-    sessionKey: queueSessionKey,
-    hiddenCatchUpActive,
-  });
+  const skipDecorativeReveal =
+    labPresentationSeed != null
+      ? false
+      : shouldSkipDecorativeReveal({
+          consumedSessionKey: consumedDecorativeSessionKey,
+          sessionKey: queueSessionKey,
+          hiddenCatchUpActive,
+        });
   const cinematicActorAction =
     roundShow.mode === "cinematic" && roundShow.phase === "actor-action";
   const activePresentationActorId =
@@ -1059,6 +1082,7 @@ export default function TrpgCampaignRoom({
     roundShow,
   ]);
   useEffect(() => {
+    if (labFreezePresentationAdvance) return;
     if (hiddenCatchUpActive) return;
     if (roundShow.mode !== "cinematic") return;
     if (roundShow.phase === "actor-action") {
@@ -1145,6 +1169,7 @@ export default function TrpgCampaignRoom({
     roundShow.presentationIndex,
     skipDecorativeReveal,
     snap.round.number,
+    labFreezePresentationAdvance,
   ]);
   const processStage = liveTurnProcessStage({
     waitingOpening,
@@ -1228,6 +1253,7 @@ export default function TrpgCampaignRoom({
     gmRevealComplete: effectiveGmRevealComplete,
   });
   useEffect(() => {
+    if (labPresentationSeedActive) return;
     if (presentationSession == null) return;
     if (isPresentationSessionReleased({ roundShow, gmRevealComplete: effectiveGmRevealComplete })) {
       releasedPresentationRoundRef.current = nextReleasedPresentationRoundWatermark(
@@ -1270,16 +1296,6 @@ export default function TrpgCampaignRoom({
   const handleActiveActorRevealChange = useCallback((report: ActorRevealReport) => {
     setActorRevealReport((prev) => mergeActorRevealReport(prev, report));
   }, []);
-  const handleDeclarationRevealChange = useCallback(
-    (report: ActorRevealReport) => {
-      if (!report.complete || report.participantId == null) return;
-      const key = `a:${report.roundNumber}:${report.participantId}`;
-      if (seenLogKeysRef.current?.has(key)) return;
-      seenLogKeysRef.current?.add(key);
-      setDeclarationRevealEpoch((epoch) => epoch + 1);
-    },
-    []
-  );
   const showInlineWait = Boolean(waitCopy) && !processStatus;
   const followActivityKey = livePresentationActivityKey({
     roundNumber: presentationRoundNumber,
@@ -1295,7 +1311,9 @@ export default function TrpgCampaignRoom({
   useEffect(() => {
     void ensureChatDisplayWebFontsLoaded();
     setDisplayPrefs(loadTrpgDisplayPrefs());
-    setStreamIntervalMs(loadTrpgStreamIntervalMs());
+    if (labStreamIntervalMs == null) {
+      setStreamIntervalMs(loadTrpgStreamIntervalMs());
+    }
     const cached = loadUserChatPrefsClient();
     accountPrefsRef.current = {
       targetResponseChars: cached.targetResponseChars,
@@ -1317,7 +1335,7 @@ export default function TrpgCampaignRoom({
     return () => {
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
     };
-  }, []);
+  }, [labStreamIntervalMs]);
 
   useEffect(() => {
     if (!toast) return;
@@ -1406,6 +1424,11 @@ export default function TrpgCampaignRoom({
     [alignReadingBandEnd]
   );
 
+  const resolveActiveDeclarationEndElement = useCallback((): Element | null => {
+    if (declarationEndRef.current) return declarationEndRef.current;
+    return liveSceneRef.current?.querySelector("[data-trpg-declaration-end]") ?? null;
+  }, []);
+
   const scrollToFollowOwner = useCallback(
     (owner: TrpgLiveFollowOwner, behavior: ScrollBehavior = "instant") => {
       if (!followLatestRef.current || manualScrollDetachedRef.current) return;
@@ -1413,9 +1436,11 @@ export default function TrpgCampaignRoom({
         case "GM_NARRATION_END":
           if (narrationEndRef.current) alignNarrationEnd(behavior);
           break;
-        case "ACTIVE_DECLARATION_END":
-          if (declarationEndRef.current) alignReadingBandEnd(declarationEndRef.current, behavior);
+        case "ACTIVE_DECLARATION_END": {
+          const declarationEnd = resolveActiveDeclarationEndElement();
+          if (declarationEnd) alignReadingBandEnd(declarationEnd, behavior);
           break;
+        }
         case "CURRENT_ACTOR":
           if (activePresentationCardRef.current) {
             runProgrammaticScroll(() => {
@@ -1458,7 +1483,43 @@ export default function TrpgCampaignRoom({
           break;
       }
     },
-    [alignNarrationEnd, alignReadingBandEnd, runProgrammaticScroll]
+    [alignNarrationEnd, alignReadingBandEnd, resolveActiveDeclarationEndElement, runProgrammaticScroll]
+  );
+
+  const requestActiveDeclarationEndFollow = useCallback(() => {
+    handleTrpgLiveSceneResizeGrowth({
+      following: followLatestRef.current,
+      manualDetached: manualScrollDetachedRef.current,
+      liveFollowOwner: "ACTIVE_DECLARATION_END",
+      followScrollRafRef,
+      requestAnimationFrame: window.requestAnimationFrame.bind(window),
+      cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
+      scrollToFollowOwner,
+      onUnseenLatest: () => setUnseenLatest(true),
+    });
+  }, [scrollToFollowOwner]);
+
+  const handleDeclarationRevealChange = useCallback(
+    (report: ActorRevealReport) => {
+      if (report.participantId == null) return;
+      if (report.progressive || report.complete) {
+        requestActiveDeclarationEndFollow();
+      }
+      if (!report.complete) return;
+      const key = `a:${report.roundNumber}:${report.participantId}`;
+      if (seenLogKeysRef.current?.has(key)) return;
+      seenLogKeysRef.current?.add(key);
+      setDeclarationRevealEpoch((epoch) => epoch + 1);
+    },
+    [requestActiveDeclarationEndFollow]
+  );
+
+  const bindDeclarationEndRef = useCallback(
+    (el: HTMLSpanElement | null) => {
+      declarationEndRef.current = el;
+      if (el) requestActiveDeclarationEndFollow();
+    },
+    [requestActiveDeclarationEndFollow]
   );
 
   const isNearFollowOwner = useCallback((owner: TrpgLiveFollowOwner): boolean => {
@@ -1468,10 +1529,10 @@ export default function TrpgCampaignRoom({
         return narrationEndRef.current
           ? isNearReadingBandFollowElement(narrationEndRef.current)
           : false;
-      case "ACTIVE_DECLARATION_END":
-        return declarationEndRef.current
-          ? isNearReadingBandFollowElement(declarationEndRef.current)
-          : false;
+      case "ACTIVE_DECLARATION_END": {
+        const declarationEnd = resolveActiveDeclarationEndElement();
+        return declarationEnd ? isNearReadingBandFollowElement(declarationEnd) : false;
+      }
       case "CURRENT_ACTOR":
         return activePresentationCardRef.current
           ? isNearPresentationCard(activePresentationCardRef.current)
@@ -1485,7 +1546,7 @@ export default function TrpgCampaignRoom({
           clientHeight: root.clientHeight,
         });
     }
-  }, []);
+  }, [resolveActiveDeclarationEndElement]);
 
   const scrollToLatest = useCallback(
     (behavior: ScrollBehavior = "instant") => {
@@ -1603,8 +1664,20 @@ export default function TrpgCampaignRoom({
   useLayoutEffect(() => {
     if (!followLatestRef.current || manualScrollDetachedRef.current) return;
     if (liveDeclaration.activeDeclarationActorId == null) return;
-    scrollToFollowOwner("ACTIVE_DECLARATION_END", "instant");
-  }, [liveDeclaration.activeDeclarationActorId, scrollToFollowOwner]);
+    requestActiveDeclarationEndFollow();
+  }, [liveDeclaration.activeDeclarationActorId, requestActiveDeclarationEndFollow]);
+
+  useLayoutEffect(() => {
+    if (liveFollowOwner !== "ACTIVE_DECLARATION_END") return;
+    if (!followLatestRef.current || manualScrollDetachedRef.current) return;
+    if (liveDeclaration.activeDeclarationActorId == null) return;
+    requestActiveDeclarationEndFollow();
+  }, [
+    declarationRevealEpoch,
+    liveDeclaration.activeDeclarationActorId,
+    liveFollowOwner,
+    requestActiveDeclarationEndFollow,
+  ]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -2078,7 +2151,7 @@ export default function TrpgCampaignRoom({
               }
               declarationEndRef={
                 row.roundNumber === presentationRoundNumber && gateLiveRound
-                  ? declarationEndRef
+                  ? bindDeclarationEndRef
                   : undefined
               }
               declarationGrowthRef={
@@ -2721,7 +2794,13 @@ function SceneTurn({
                     />
                     {isActiveDeclarationCard && decorativeReveal && declarationEndRef ? (
                       <span
-                        ref={declarationEndRef}
+                        ref={(el) => {
+                          if (typeof declarationEndRef === "function") {
+                            declarationEndRef(el);
+                          } else if (declarationEndRef) {
+                            declarationEndRef.current = el;
+                          }
+                        }}
                         data-trpg-declaration-end
                         aria-hidden="true"
                         className="inline-block h-px w-px"
