@@ -8,12 +8,10 @@ import type { ContentKind } from "@/lib/simulationMode";
 import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
 import {
   addPanelDialogueLine,
-  applyUserIllustrationEdits,
   applyUserPanelEdits,
   movePanelDialogueLine,
   projectComicPanelCompactDialoguePreview,
   projectComicPanelCompactSituation,
-  projectLdCompactPreviewSummary,
   removePanelDialogueLine,
   resolveScenePresentationVisibility,
   updatePanelDialogueAtIndex,
@@ -95,36 +93,6 @@ function speakerOptions(opts: {
     });
   }
   return options;
-}
-
-function LdCompactPreview({
-  plan,
-  personaVisible,
-}: {
-  plan: ScenePlan;
-  personaVisible: boolean;
-}) {
-  const summary = projectLdCompactPreviewSummary(plan, { personaVisible });
-  const rows = [
-    summary.background ? { label: "배경", value: summary.background } : null,
-    summary.keyAction ? { label: "핵심 행동", value: summary.keyAction } : null,
-    summary.atmosphere ? { label: "분위기", value: summary.atmosphere } : null,
-  ].filter((row): row is { label: string; value: string } => row !== null);
-
-  if (!rows.length) {
-    return <p className="text-xs text-zinc-500">장면을 정리했습니다.</p>;
-  }
-
-  return (
-    <dl className="space-y-1.5">
-      {rows.map((row) => (
-        <div key={row.label} className="flex gap-2 text-xs leading-snug">
-          <dt className="shrink-0 font-semibold text-zinc-500">{row.label}</dt>
-          <dd className="min-w-0 text-zinc-200">{row.value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
 }
 
 function ComicPanelCompactDialoguePreview({
@@ -421,31 +389,6 @@ function ComicPanelDialogueEditor({
   );
 }
 
-function IllustrationEditor({
-  plan,
-  disabled,
-  onChange,
-}: {
-  plan: ScenePlan;
-  disabled?: boolean;
-  onChange: (plan: ScenePlan) => void;
-}) {
-  return (
-    <label className="block space-y-1 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-      <span className="text-[10px] font-semibold text-zinc-500">장면 설명</span>
-      <textarea
-        value={plan.heroScene}
-        disabled={disabled}
-        rows={3}
-        onChange={(event) =>
-          onChange(applyUserIllustrationEdits(plan, { heroScene: event.target.value }))
-        }
-        className="w-full resize-y rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-      />
-    </label>
-  );
-}
-
 export default function ChatSceneBuilder({
   sourceLoading,
   plan,
@@ -473,7 +416,6 @@ export default function ChatSceneBuilder({
   onCancelAiSuggestion,
 }: ChatSceneBuilderProps) {
   const [sceneEditOpen, setSceneEditOpen] = useState(false);
-  const [showAiPreview, setShowAiPreview] = useState(false);
   const [dialogueEditOpenPanels, setDialogueEditOpenPanels] = useState<Set<number>>(
     () => new Set()
   );
@@ -562,24 +504,6 @@ export default function ChatSceneBuilder({
           </p>
         ) : null}
 
-        {plan && outputMode === "illustration" && !sceneEditOpen ? (
-          <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-            <h3 className="text-[11px] font-semibold text-zinc-400">장면 미리보기</h3>
-            <p className="text-xs text-zinc-300">장면 정리 완료</p>
-            <p className="text-[10px] leading-relaxed text-zinc-500">
-              배경·인물 참조·장면 행동·대사 연기 정보는 생성 시 함께 반영됩니다.
-            </p>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => setSceneEditOpen(true)}
-              className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
-            >
-              장면 확인 / 수정
-            </button>
-          </div>
-        ) : null}
-
         {plan && outputMode === "comic" ? (
           <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
             <h3 className="text-[11px] font-semibold text-zinc-400">컷 미리보기</h3>
@@ -640,40 +564,11 @@ export default function ChatSceneBuilder({
             </button>
           </div>
         ) : null}
-
-        {plan && outputMode === "illustration" && sceneEditOpen ? (
-          <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-[11px] font-semibold text-zinc-400">장면 확인 / 수정</h3>
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => setSceneEditOpen(false)}
-                className="text-[11px] font-semibold text-zinc-400 hover:text-white"
-              >
-                닫기
-              </button>
-            </div>
-            <IllustrationEditor plan={plan} disabled={disabled} onChange={onPlanChange} />
-          </div>
-        ) : null}
       </section>
 
       {aiSuggestedPlan ? (
         <section className="space-y-2 rounded-xl border border-violet-400/25 bg-violet-500/[0.06] p-3">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-[11px] font-semibold text-violet-200">AI 제안</h3>
-            <button
-              type="button"
-              className="text-[10px] font-semibold text-violet-100 hover:text-white"
-              onClick={() => setShowAiPreview((current) => !current)}
-            >
-              {showAiPreview ? "미리보기 닫기" : "미리보기"}
-            </button>
-          </div>
-          {showAiPreview && aiSuggestedPlan ? (
-            <LdCompactPreview plan={aiSuggestedPlan} personaVisible={personaVisible} />
-          ) : null}
+          <h3 className="text-[11px] font-semibold text-violet-200">AI 제안</h3>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -686,10 +581,7 @@ export default function ChatSceneBuilder({
             <button
               type="button"
               disabled={disabled}
-              onClick={() => {
-                setShowAiPreview(false);
-                onCancelAiSuggestion();
-              }}
+              onClick={onCancelAiSuggestion}
               className="rounded-lg border border-white/15 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 hover:bg-white/[0.06] disabled:opacity-40"
             >
               취소

@@ -356,15 +356,19 @@ describe("truncateCompactPreviewText", () => {
 });
 
 describe("chatImageScenePreviewProjection trustworthy UX", () => {
-  it("B1: LD default illustration view omits misleading compact one-line summary", () => {
+  it("B1: LD default illustration view has no scene preview/status card", () => {
     const source = fs.readFileSync("src/components/ChatSceneBuilder.tsx", "utf8");
-    assert.match(source, /장면 정리 완료/);
-    assert.match(source, /장면 확인 \/ 수정/);
-    const marker = 'outputMode === "illustration" && !sceneEditOpen';
-    const start = source.indexOf(marker);
-    assert.ok(start >= 0);
-    const defaultBlock = source.slice(start, start + 700);
-    assert.doesNotMatch(defaultBlock, /<LdCompactPreview plan=\{plan\}/);
+    assert.doesNotMatch(source, /장면 정리 완료/);
+    assert.doesNotMatch(
+      source,
+      /배경·인물 참조·장면 행동·대사 연기 정보는 생성 시 함께 반영됩니다/
+    );
+    assert.doesNotMatch(source, /장면 확인 \/ 수정/);
+    assert.doesNotMatch(source, /<h3[^>]*>장면 미리보기<\/h3>/);
+    assert.doesNotMatch(source, /outputMode === "illustration" && !sceneEditOpen/);
+    assert.doesNotMatch(source, /outputMode === "illustration" && sceneEditOpen/);
+    assert.doesNotMatch(source, /LdCompactPreview/);
+    assert.doesNotMatch(source, /IllustrationEditor/);
   });
 
   it("B5: comic situation preview returns complete beat without hard char ellipsis", () => {
