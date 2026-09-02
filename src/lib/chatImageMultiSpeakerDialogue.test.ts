@@ -6,10 +6,13 @@ import { compilerOnlyDuoVisualSubjects } from "@/lib/chatComicPanelSpec.fixtures
 import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
+  collectCanonicalSpeakerNames,
   extractDeterministicEvents,
   reflowScenePlanPanels,
   updatePanelDialogueAtIndex,
+  validateScenePlan,
 } from "@/lib/chatImageScenePlan";
+import { planChatImageScene } from "@/lib/chatImageScenePlanner";
 import { buildTrpgGmNarrationSceneMessages } from "@/lib/trpg/trpgAiFocusSelection";
 import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 
@@ -26,6 +29,22 @@ const SPEAKER_CONTEXT = {
 
 function multiSpeakerMessages() {
   return buildTrpgGmNarrationSceneMessages(MULTI_SPEAKER_NARRATION);
+}
+
+const ACTION_MIXED_FIXTURE = `권태현이 총구를 들어 복도를 겨눴다.
+권태현: "엎드려."
+강이현이 렌의 팔을 잡아당겼다.
+강이현: "이쪽이야."
+복도 끝의 비상등이 붉게 깜빡였다.`;
+
+function actionMixedMessages() {
+  return buildSceneSourceMessages([{ id: 1, role: "assistant", content: ACTION_MIXED_FIXTURE }]);
+}
+
+function nonDialogueSnapshot(events: ReturnType<typeof extractDeterministicEvents>) {
+  return events
+    .filter((event) => event.kind !== "dialogue")
+    .map((event) => ({ kind: event.kind, actor: event.actor, text: event.text }));
 }
 
 function trioVisualSubjects() {
@@ -144,6 +163,111 @@ describe("chat image multi-speaker dialogue identity", () => {
     assert.deepEqual(
       beats.filter((beat) => beat.speaker).map((beat) => beat.speaker),
       ["렌", "강이현", "권태현", "GM"]
+    );
+  });
+
+  it("A16/A18/A19: named dialogue enriches identity without reclassifying non-dialogue beats", () => {
+    const messages = actionMixedMessages();
+    const baseline = nonDialogueSnapshot(extractDeterministicEvents(messages));
+    const enriched = extractDeterministicEvents(messages, SPEAKER_CONTEXT);
+    assert.deepEqual(nonDialogueSnapshot(enriched), baseline);
+
+    const dialogue = enriched.filter((event) => event.kind === "dialogue");
+    assert.deepEqual(
+      dialogue.map((event) => ({ speakerName: event.speakerName, text: event.text })),
+      [
+        { speakerName: "권태현", text: "엎드려." },
+        { speakerName: "강이현", text: "이쪽이야." },
+      ]
+    );
+    assert.ok(
+      enriched.some(
+        (event) =>
+          event.kind !== "dialogue" &&
+          /비상등/.test(event.text)
+      )
+    );
+    assert.ok(
+      enriched.some(
+        (event) =>
+          event.kind !== "dialogue" &&
+          /총구/.test(event.text)
+      )
+    );
+    assert.ok(
+      enriched.some(
+        (event) =>
+          event.kind !== "dialogue" &&
+          /팔을/.test(event.text)
+      )
+    );
+  });
+
+  it("A17: unknown named NPC speakerName is collected for scene-scoped editor options", () => {
+    const messages = buildSceneSourceMessages([
+      {
+        id: 1,
+        role: "assistant",
+        content: `민수: "잠깐."
+권태현: "알겠어."`,
+      },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2, {
+      personaName: "렌",
+      characterName: "권태현",
+      knownSpeakerNames: ["권태현", "렌"],
+    });
+    const names = collectCanonicalSpeakerNames(plan);
+    assert.ok(names.includes("민수"));
+    assert.ok(names.includes("권태현"));
+  });
+
+  it("A15: provider plan without speakerName inherits canonical identity during validation", async () => {
+    const messages = multiSpeakerMessages();
+    const canonical = buildDeterministicScenePlan(messages, 3, SPEAKER_CONTEXT);
+    const dialogueEvents = canonical.events.filter((event) => event.kind === "dialogue");
+    const providerPlan = {
+      sceneBackground: canonical.sceneBackground,
+      heroEventIds: canonical.heroEventIds,
+      heroScene: canonical.heroScene,
+      recommendedPanelCount: 3,
+      panels: canonical.panels.map((panel) => ({
+        index: panel.index,
+        sourceEventIds: panel.sourceEventIds,
+        situation: panel.situation,
+        dialogue: panel.dialogue.map((line) => ({
+          speaker: line.speaker,
+          text: line.text,
+          sourceEventId: line.sourceEventId,
+          provenance: "source",
+        })),
+      })),
+    };
+    const validated = validateScenePlan(providerPlan, messages, {
+      personaName: SPEAKER_CONTEXT.personaName,
+      characterName: SPEAKER_CONTEXT.characterName,
+      knownSpeakerNames: SPEAKER_CONTEXT.knownSpeakerNames,
+    });
+    assert.equal(validated.ok, true);
+    if (validated.ok) {
+      const validatedDialogue = validated.plan.panels.flatMap((panel) => panel.dialogue);
+      assert.deepEqual(
+        validatedDialogue.map((line) => line.speakerName),
+        dialogueEvents.map((event) => event.speakerName)
+      );
+    }
+
+    const planned = await planChatImageScene({
+      characterName: SPEAKER_CONTEXT.characterName,
+      personaName: SPEAKER_CONTEXT.personaName,
+      messages,
+      speakerContext: SPEAKER_CONTEXT,
+      complete: async () => JSON.stringify(providerPlan),
+    });
+    assert.equal(planned.usedFallback, false);
+    assert.deepEqual(
+      planned.plan.panels.flatMap((panel) => panel.dialogue.map((line) => line.speakerName)),
+      ["렌", "강이현", "권태현"]
     );
   });
 });

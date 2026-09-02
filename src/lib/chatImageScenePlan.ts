@@ -577,14 +577,38 @@ function resolveNamedSpeakerIdentity(
 }
 
 function restoreAttributedSpeakerLineBreaks(text: string): string {
-  return text.replace(/\s+(?=(?:[\p{L}\p{N}·]{1,24})[:：]\s)/gu, "\n");
+  return text
+    .replace(/\s+(?=(?:[\p{L}\p{N}·]{1,24})[:：]\s)/gu, "\n")
+    .replace(/(["“”」』])\s+(?![\p{L}\p{N}·]{1,24}[:：]\s)/gu, "$1\n");
 }
 
-/** TRPG-style attributed speech beats — null when message has no named quoted dialogue. */
-function extractTrpgSpeechEvents(
+type AttributedDialogueIdentity = {
+  speakerName: string;
+  actor: SceneEventActor;
+};
+
+function dialogueMatchKey(text: string): string {
+  return unwrapTrpgOuterQuotes(text.trim()).trim();
+}
+
+function attributedDialogueKeysFromBeat(beatText: string): string[] {
+  const trimmed = beatText.trim();
+  if (isTrpgQuotedSpeech(trimmed)) {
+    return [dialogueMatchKey(trimmed)];
+  }
+  const keys: string[] = [];
+  for (const match of trimmed.matchAll(/["“”「『]([^"”」』]+)["“”」』]/gu)) {
+    const inner = match[1]?.trim();
+    if (inner) keys.push(inner);
+  }
+  return keys;
+}
+
+/** Named quoted speech lookup — enriches dialogue segments only; does not replace segment extraction. */
+function buildAttributedDialogueLookup(
   message: SceneSourceMessage,
   ctx: SceneSpeakerContext
-): Omit<SceneEvent, "id" | "order">[] | null {
+): Map<string, AttributedDialogueIdentity[]> {
   const knownNames = uniqueSpeakerNames([
     ctx.personaName,
     ctx.characterName,
@@ -594,56 +618,35 @@ function extractTrpgSpeechEvents(
     restoreAttributedSpeakerLineBreaks(message.text),
     knownNames
   );
-  const namedDialogueCount = beats.filter(
-    (beat) => beat.speaker && beat.speaker !== "GM" && isTrpgQuotedSpeech(beat.text)
-  ).length;
-  if (namedDialogueCount === 0) return null;
-
-  const out: Omit<SceneEvent, "id" | "order">[] = [];
+  const lookup = new Map<string, AttributedDialogueIdentity[]>();
   for (const beat of beats) {
-    const text = beat.text.trim();
-    if (!text) continue;
-    if (beat.speaker === "GM") {
-      out.push({
-        sourceMessageId: message.id,
-        sourceRole: message.role,
-        kind: "environment",
-        actor: "environment",
-        text,
-        segmentKind: "narration",
-      });
-      continue;
+    if (!beat.speaker || beat.speaker === "GM") continue;
+    const identity = resolveNamedSpeakerIdentity(beat.speaker, ctx);
+    if (!identity.eligibleForBubble) continue;
+    for (const key of attributedDialogueKeysFromBeat(beat.text)) {
+      const queue = lookup.get(key) ?? [];
+      queue.push({ speakerName: identity.speakerName, actor: identity.actor });
+      lookup.set(key, queue);
     }
-    if (beat.speaker && isTrpgQuotedSpeech(text)) {
-      const identity = resolveNamedSpeakerIdentity(beat.speaker, ctx);
-      if (!identity.eligibleForBubble) continue;
-      out.push({
-        sourceMessageId: message.id,
-        sourceRole: message.role,
-        kind: "dialogue",
-        actor: identity.actor,
-        speakerName: identity.speakerName,
-        text: unwrapTrpgOuterQuotes(text),
-        segmentKind: "dialogue",
-      });
-      continue;
-    }
-    out.push({
-      sourceMessageId: message.id,
-      sourceRole: message.role,
-      kind: "environment",
-      actor: "environment",
-      text,
-      segmentKind: "narration",
-    });
   }
-  return out;
+  return lookup;
+}
+
+function consumeAttributedDialogueIdentity(
+  lookup: Map<string, AttributedDialogueIdentity[]>,
+  segmentText: string
+): AttributedDialogueIdentity | undefined {
+  const key = dialogueMatchKey(segmentText);
+  const queue = lookup.get(key);
+  if (!queue?.length) return undefined;
+  return queue.shift();
 }
 
 function segmentToEvent(
   message: SceneSourceMessage,
   segment: SceneSourceSegment,
-  previousUserAction: SceneEvent | undefined
+  previousUserAction: SceneEvent | undefined,
+  attributedLookup?: Map<string, AttributedDialogueIdentity[]>
 ): Omit<SceneEvent, "id" | "order"> {
   if (segment.kind === "action") {
     return {
@@ -656,6 +659,20 @@ function segmentToEvent(
     };
   }
   if (segment.kind === "dialogue") {
+    const attributed = attributedLookup
+      ? consumeAttributedDialogueIdentity(attributedLookup, segment.text)
+      : undefined;
+    if (attributed) {
+      return {
+        sourceMessageId: message.id,
+        sourceRole: message.role,
+        kind: "dialogue",
+        actor: attributed.actor,
+        speakerName: attributed.speakerName,
+        text: dialogueMatchKey(segment.text),
+        segmentKind: "dialogue",
+      };
+    }
     return {
       sourceMessageId: message.id,
       sourceRole: message.role,
@@ -697,19 +714,16 @@ export function extractDeterministicEvents(
   };
 
   for (const message of messages) {
-    if (message.role === "assistant" && speakerContext) {
-      const trpgEvents = extractTrpgSpeechEvents(message, speakerContext);
-      if (trpgEvents) {
-        for (const partial of trpgEvents) push(partial);
-        continue;
-      }
-    }
+    const attributedLookup =
+      message.role === "assistant" && speakerContext
+        ? buildAttributedDialogueLookup(message, speakerContext)
+        : undefined;
     const segments = extractOrderedSceneSegments(message.text, message.role);
     for (const segment of segments) {
       const previousUserAction = [...events]
         .reverse()
         .find((event) => event.sourceRole === "user" && event.kind === "action");
-      push(segmentToEvent(message, segment, previousUserAction));
+      push(segmentToEvent(message, segment, previousUserAction, attributedLookup));
     }
   }
 
@@ -792,6 +806,21 @@ export function groupEventsContiguously(
     cursor += size;
   }
   return groups;
+}
+
+export function collectCanonicalSpeakerNames(plan: ScenePlan): string[] {
+  const names = new Set<string>();
+  for (const panel of plan.panels) {
+    for (const line of panel.dialogue) {
+      const trimmed = line.speakerName?.trim();
+      if (trimmed) names.add(trimmed);
+    }
+  }
+  for (const event of plan.events) {
+    const trimmed = event.speakerName?.trim();
+    if (trimmed) names.add(trimmed);
+  }
+  return [...names];
 }
 
 function panelFromEvents(
@@ -1274,8 +1303,9 @@ function dialogueOwnershipMatches(
   line: Pick<SceneDialogue, "speaker" | "speakerName">,
   event: SceneEvent
 ): boolean {
-  if (line.speakerName || event.speakerName) {
-    return line.speakerName === event.speakerName;
+  const resolvedLineSpeakerName = line.speakerName ?? event.speakerName;
+  if (resolvedLineSpeakerName || event.speakerName) {
+    return resolvedLineSpeakerName === event.speakerName;
   }
   if (line.speaker === "persona") {
     return event.actor === "persona" && event.sourceRole === "user";
@@ -1383,6 +1413,9 @@ export function validateScenePlan(
       const text = cleanLine(line.text, 160);
       if (!text) continue;
       const provenance = line.provenance === "user_edit" ? "user_edit" : "source";
+      let resolvedSpeakerName = speakerName;
+      let resolvedSourceEventId =
+        typeof line.sourceEventId === "string" ? cleanLine(line.sourceEventId, 24) || undefined : undefined;
       if (provenance === "user_edit") {
         if (!allowUserEdits) {
           return { ok: false, reason: "user_edit not allowed from planner" };
@@ -1402,17 +1435,14 @@ export function validateScenePlan(
         if (!dialogueOwnershipMatches({ speaker, speakerName }, linked)) {
           return { ok: false, reason: "dialogue speaker ownership mismatch" };
         }
+        resolvedSpeakerName = speakerName ?? linked.speakerName;
+        resolvedSourceEventId = sourceEventId;
       }
       dialogue.push({
         speaker,
-        speakerName,
+        speakerName: resolvedSpeakerName,
         text,
-        sourceEventId:
-          provenance === "source"
-            ? cleanLine(line.sourceEventId, 24) || undefined
-            : typeof line.sourceEventId === "string"
-              ? line.sourceEventId
-              : undefined,
+        sourceEventId: resolvedSourceEventId,
         provenance,
       });
     }
@@ -1520,10 +1550,11 @@ export function buildScenePlanPrompt(opts: {
   characterName: string;
   personaName: string;
   messages: readonly SceneSourceMessage[];
+  speakerContext?: SceneSpeakerContext;
 }): string {
   const contentKind = opts.contentKind ?? "character";
   const scenePlanIntent = opts.scenePlanIntent ?? "general";
-  const canonicalEvents = extractDeterministicEvents(opts.messages);
+  const canonicalEvents = extractDeterministicEvents(opts.messages, opts.speakerContext);
   const visual = visualEvents(canonicalEvents);
   const identityLines =
     contentKind === "simulation"

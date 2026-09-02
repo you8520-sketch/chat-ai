@@ -9,6 +9,7 @@ import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
 import {
   addPanelDialogueLine,
   applyUserPanelEdits,
+  collectCanonicalSpeakerNames,
   movePanelDialogueLine,
   projectComicPanelCompactDialoguePreview,
   projectComicPanelCompactSituation,
@@ -76,6 +77,7 @@ function speakerOptions(opts: {
   personaName: string;
   characterName: string;
   castSpeakerNames?: readonly string[];
+  canonicalSpeakerNames?: readonly string[];
   personaVisible: boolean;
   includeOther: boolean;
 }): Array<{ value: SceneDialogueSpeaker; label: string; speakerName?: string }> {
@@ -94,6 +96,15 @@ function speakerOptions(opts: {
   }
   pushNamed("character", opts.characterName);
   for (const name of opts.castSpeakerNames ?? []) {
+    if (
+      name.trim() &&
+      name.trim() !== opts.personaName.trim() &&
+      name.trim() !== opts.characterName.trim()
+    ) {
+      pushNamed("other", name);
+    }
+  }
+  for (const name of opts.canonicalSpeakerNames ?? []) {
     if (
       name.trim() &&
       name.trim() !== opts.personaName.trim() &&
@@ -363,10 +374,12 @@ function ComicPanelDialogueEditor({
   const includeOther = panel.dialogue.some(
     (line) => line.speaker === "other" && !line.speakerName
   );
+  const canonicalSpeakerNames = collectCanonicalSpeakerNames(plan);
   const choices = speakerOptions({
     personaName,
     characterName,
     castSpeakerNames,
+    canonicalSpeakerNames,
     personaVisible,
     includeOther,
   });

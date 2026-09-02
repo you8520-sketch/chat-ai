@@ -800,11 +800,17 @@ export async function POST(req: Request) {
       let planned;
       let scenePlanFailed = false;
       try {
+        const knownSpeakerNames = resolveKnownSpeakerNames(context, body.castIntent);
         planned = await planChatImageScene({
           contentKind: context.contentKind,
           characterName: context.character.name,
           personaName: context.persona.name,
           messages: source.messages,
+          speakerContext: {
+            personaName: context.persona.name,
+            characterName: context.character.name,
+            knownSpeakerNames,
+          },
         });
       } catch (error) {
         scenePlanFailed = true;
