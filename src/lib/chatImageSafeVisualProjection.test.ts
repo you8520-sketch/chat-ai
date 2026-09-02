@@ -14,11 +14,12 @@ import {
   buildSceneSourceMessages,
 } from "@/lib/chatImageScenePlan";
 import {
+  buildIllustrationSafeDepiction,
   classifyRawVisualRisk,
   collectApprovedComicTextForSafeImageGeneration,
   containsRawRiskySourceLeak,
   formatApprovedScenePlanForSafeImageGeneration,
-  ILLUSTRATION_SAFE_DEPICTION,
+  projectSceneBlockForSafeImageGeneration,
   projectSceneTextForSafeImageGeneration,
 } from "@/lib/chatImageSafeVisualProjection";
 
@@ -140,9 +141,12 @@ describe("chatImageSafeVisualProjection", () => {
     assert.match(formatted, /Close adult intimacy/i);
   });
 
-  it("ILLUSTRATION_SAFE_DEPICTION allows non-explicit adult intimacy", () => {
-    assert.match(ILLUSTRATION_SAFE_DEPICTION, /non-explicit/i);
-    assert.doesNotMatch(ILLUSTRATION_SAFE_DEPICTION, /wholesome conversation \/ meeting scene only/i);
+  it("ILLUSTRATION_SAFE_DEPICTION allows non-explicit adult intimacy when adult grounded", () => {
+    assert.match(buildIllustrationSafeDepiction({ adultGrounded: true }), /non-explicit/i);
+    assert.doesNotMatch(
+      buildIllustrationSafeDepiction({ adultGrounded: true }),
+      /wholesome conversation \/ meeting scene only/i
+    );
   });
 
   it("comic final prompt excludes explicit source after safe projection", () => {
@@ -360,6 +364,169 @@ describe("chatImageSafeVisualProjection", () => {
   it("RISK-2 classifies graphic violence on raw text before sanitizer", () => {
     const categories = classifyRawVisualRisk("피를 흘리며 쓰러졌다.");
     assert.equal(categories.includes("graphic_violence"), true);
+  });
+
+  it("M1 TRPG mixed graphic block preserves safe surrounding context", () => {
+    const narration = [
+      "세 사람이 괴물을 피해 출구로 달린다.",
+      "태형이 철문을 닫는다.",
+      "강이현의 팔에서 피가 흘렀다.",
+      "터널 끝에서 청록색 안개가 밀려온다.",
+    ].join("\n");
+    const situation = buildTrpgIllustrationSituation({
+      location: "폐허가 된 지하철역",
+      narration,
+    });
+    const prompt = buildChatLdIllustrationPrompt({
+      characterName: CHARACTER,
+      characterGender: "male",
+      personaName: PERSONA,
+      personaGender: "female",
+      currentTurn: "",
+      cast: [{ name: "태형", role: "player", gender: "male" }],
+      situation,
+    });
+    assert.match(prompt, /지하철역|출구|달린/);
+    assert.match(prompt, /철문|닫/);
+    assert.match(prompt, /청록색|안개/);
+    assert.doesNotMatch(prompt, /피가\s*흘/);
+    assert.match(prompt, /aftermath|concern|fatigue|Emotional/i);
+  });
+
+  it("M2 mixed block preserves safe lines around explicit adult fragment when adultGrounded", () => {
+    const block = [
+      "창밖에는 비가 내린다.",
+      "둘이 침대에서 성관계를 한다.",
+      "새벽빛이 커튼 사이로 들어온다.",
+    ].join("\n");
+    const projected = projectSceneBlockForSafeImageGeneration(block, { adultGrounded: true });
+    assert.match(projected.text, /비/);
+    assert.match(projected.text, /새벽|커튼/);
+    assert.doesNotMatch(projected.text, /성관계/);
+    assert.match(projected.text, /intimacy|non-explicit/i);
+  });
+
+  it("M3 mixed block preserves safe setting with neutral substitute when not adultGrounded", () => {
+    const block = [
+      "창밖에는 비가 내린다.",
+      "둘이 침대에서 성관계를 한다.",
+      "새벽빛이 커튼 사이로 들어온다.",
+    ].join("\n");
+    const projected = projectSceneBlockForSafeImageGeneration(block, { adultGrounded: false });
+    assert.match(projected.text, /비/);
+    assert.match(projected.text, /새벽|커튼/);
+    assert.doesNotMatch(projected.text, /성관계/);
+    assert.match(projected.text, /non-sexual/i);
+    assert.doesNotMatch(projected.text, /Close adult intimacy/i);
+  });
+
+  it("M4 all-risk single sentence may become one substitute", () => {
+    const projected = projectSceneBlockForSafeImageGeneration("둘이 침대에서 성관계를 한다.");
+    assert.equal(projected.applied, true);
+    assert.doesNotMatch(projected.text, /성관계/);
+  });
+
+  it("M5 all-safe multi-line block remains parity", () => {
+    const block = "카페에서 대화한다.\n창밖에 비가 내린다.";
+    const projected = projectSceneBlockForSafeImageGeneration(block);
+    assert.equal(projected.applied, false);
+    assert.match(projected.text, /카페/);
+    assert.match(projected.text, /비/);
+  });
+
+  it("P31 LD final prompt with adultGrounded=false excludes adult-specific allowance", () => {
+    const prompt = buildChatLdIllustrationPrompt({
+      characterName: CHARACTER,
+      characterGender: "male",
+      personaName: PERSONA,
+      personaGender: "female",
+      currentTurn: "둘이 침대에서 성관계를 한다.",
+      adultGrounded: false,
+    });
+    assert.doesNotMatch(prompt, /natural adult intimacy/i);
+    assert.doesNotMatch(prompt, /shirtless adult male torso/i);
+    assert.doesNotMatch(prompt, /Close adult intimacy/i);
+    assert.match(prompt, /non-explicit/i);
+    assert.doesNotMatch(prompt, /성관계/);
+    assert.match(prompt, /non-sexual/i);
+  });
+
+  it("P32 LD final prompt with adultGrounded=true may include adult non-explicit allowance", () => {
+    const prompt = buildChatLdIllustrationPrompt({
+      characterName: CHARACTER,
+      characterGender: "male",
+      personaName: PERSONA,
+      personaGender: "female",
+      currentTurn: "둘이 침대에서 성관계를 한다.",
+      adultGrounded: true,
+    });
+    assert.match(prompt, /non-explicit adult intimacy|shirtless adult male torso/i);
+    assert.doesNotMatch(prompt, /성관계/);
+  });
+
+  it("P33 comic final prompt adultGrounded=false has no adult-specific allowance", () => {
+    const plan = buildDeterministicScenePlan(
+      buildSceneSourceMessages([{ id: 1, role: "user", content: '"안녕?"' }]),
+      2
+    );
+    const prompt = buildChatComicImagePrompt({
+      characterName: CHARACTER,
+      characterGender: "male",
+      personaName: PERSONA,
+      personaGender: "female",
+      plan,
+      adultGrounded: false,
+      subjects: duoVisualSubjectsForCast({ personaName: PERSONA, characterName: CHARACTER }),
+    });
+    assert.doesNotMatch(prompt, /natural adult intimacy/i);
+    assert.doesNotMatch(prompt, /shirtless adult male torso/i);
+    assert.match(prompt, /non-explicit/i);
+  });
+
+  it("P34 comic final prompt adultGrounded=true may include adult allowance", () => {
+    const plan = buildDeterministicScenePlan(
+      buildSceneSourceMessages([{ id: 1, role: "user", content: '"안녕?"' }]),
+      2
+    );
+    const prompt = buildChatComicImagePrompt({
+      characterName: CHARACTER,
+      characterGender: "male",
+      personaName: PERSONA,
+      personaGender: "female",
+      plan,
+      adultGrounded: true,
+      subjects: duoVisualSubjectsForCast({ personaName: PERSONA, characterName: CHARACTER }),
+    });
+    assert.match(prompt, /non-explicit adult intimacy|shirtless adult male torso/i);
+  });
+
+  it("P35 TRPG party path adultGrounded=false uses base safety policy", () => {
+    const prompt = buildChatLdIllustrationPrompt({
+      characterName: CHARACTER,
+      characterGender: "male",
+      personaName: PERSONA,
+      personaGender: "female",
+      currentTurn: "던전 복도",
+      adultGrounded: false,
+      cast: [{ name: "태형", role: "player", gender: "male" }],
+      situation: "LOCATION: 폐허\nGM SCENE:\n복도를 조심스럽게 걷는다.",
+    });
+    assert.doesNotMatch(prompt, /natural adult intimacy/i);
+    assert.match(prompt, /non-explicit/i);
+  });
+
+  it("P36 TRPG party path adultGrounded=true may include adult allowance", () => {
+    const prompt = buildChatLdIllustrationPrompt({
+      characterName: CHARACTER,
+      characterGender: "male",
+      personaName: PERSONA,
+      personaGender: "female",
+      currentTurn: "던전 복도",
+      adultGrounded: true,
+      cast: [{ name: "태형", role: "player", gender: "male" }],
+      situation: "LOCATION: 폐허\nGM SCENE:\n복도를 조심스럽게 걷는다.",
+    });
+    assert.match(prompt, /non-explicit adult intimacy|shirtless adult male torso/i);
   });
 });
 

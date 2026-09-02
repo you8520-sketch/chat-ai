@@ -50,5 +50,20 @@ export function sanitizeChatTurnForIllustrationPrompt(raw: string): string {
   return text.replace(/\s+/g, " ").trim().slice(0, 2_500);
 }
 
-export const ILLUSTRATION_SAFE_DEPICTION =
-  "SAFETY — depict a non-explicit, non-graphic, provider-safe visual scene. Preserve cast, location, relationship, emotion, and natural adult intimacy (embrace, kiss, closeness, shirtless adult male torso, bare shoulders) when appropriate. Do not depict explicit sexual acts, exposed genitals, active injury, blood, weapons in use, self-harm, suicide, or medical trauma. A healed, non-graphic scar from saved identity may remain. Do not force a generic business meeting if the scene is romantic or intimate but still non-explicit.";
+export const BASE_IMAGE_SAFE_DEPICTION =
+  "SAFETY — depict a non-explicit, non-graphic, provider-safe visual scene. Preserve cast, location, relationship, and emotion. Do not depict explicit sexual acts, exposed genitals, active injury, blood, weapons in use, self-harm, suicide, or medical trauma. A healed, non-graphic scar from saved identity may remain. Do not force a generic business meeting if the scene is romantic or intimate but still non-explicit.";
+
+export const ADULT_GROUNDED_NON_EXPLICIT_ALLOWANCE =
+  "When characters are confirmed adults, non-explicit adult intimacy is allowed: embrace, kiss, closeness, shirtless adult male torso, bare shoulders, and covered bedroom aftermath — still no explicit sexual acts or exposed genitals.";
+
+/** Canonical image safety guidance — base policy plus optional adult-grounded allowance. */
+export function buildIllustrationSafeDepiction(opts?: { adultGrounded?: boolean }): string {
+  const adultGrounded = opts?.adultGrounded ?? false;
+  if (!adultGrounded) return BASE_IMAGE_SAFE_DEPICTION;
+  return `${BASE_IMAGE_SAFE_DEPICTION} ${ADULT_GROUNDED_NON_EXPLICIT_ALLOWANCE}`;
+}
+
+/**
+ * @deprecated Use buildIllustrationSafeDepiction({ adultGrounded }) — kept for legacy imports.
+ */
+export const ILLUSTRATION_SAFE_DEPICTION = buildIllustrationSafeDepiction({ adultGrounded: true });

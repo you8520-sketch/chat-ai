@@ -11,6 +11,7 @@ import {
 } from "@/lib/chatImageCastManifest";
 import type { ScenePanelCount, ScenePlan } from "@/lib/chatImageScenePlan";
 import { resolveScenePresentationVisibility, collectApprovedComicText } from "@/lib/chatImageScenePlan";
+import { buildIllustrationSafeDepiction } from "@/lib/chatImageIllustrationSanitizer";
 import {
   collectApprovedComicTextForSafeImageGeneration,
   projectTextForSafeImagePrompt,
@@ -194,6 +195,7 @@ export function buildChatComicImagePrompt(opts: {
           personaName: opts.personaName,
           personaGender: opts.personaGender,
         }),
+    buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
     `Overall tone: ${CHAT_COMIC_MOODS.find((item) => item.id === (opts.mood ?? "comic"))?.prompt ?? "comic"}.`,
     "STRICT CLOSED TEXT WHITELIST: the only text allowed anywhere in the image is listed below. Copy each used string exactly, character for character.",
     approvedText.length

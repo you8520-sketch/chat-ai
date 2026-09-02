@@ -10,7 +10,12 @@ import {
   type ScenePresentationVisibility,
 } from "@/lib/chatImageScenePlan";
 
-export { ILLUSTRATION_SAFE_DEPICTION } from "@/lib/chatImageIllustrationSanitizer";
+export {
+  ADULT_GROUNDED_NON_EXPLICIT_ALLOWANCE,
+  BASE_IMAGE_SAFE_DEPICTION,
+  buildIllustrationSafeDepiction,
+  ILLUSTRATION_SAFE_DEPICTION,
+} from "@/lib/chatImageIllustrationSanitizer";
 
 export type SafeVisualReasonCategory =
   | "adult_explicit"
@@ -153,6 +158,14 @@ export function projectSceneTextForSafeImageGeneration(
   };
 }
 
+function splitBlockIntoSemanticFragments(block: string): string[] {
+  return block
+    .split(/\n+/)
+    .flatMap((line) => line.split(/(?<=[.!?…])\s+/u))
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export function projectSceneBlockForSafeImageGeneration(
   raw: string,
   context: SafeVisualProjectionContext = {}
@@ -167,29 +180,25 @@ export function projectSceneBlockForSafeImageGeneration(
     };
   }
 
-  const blockCategories = classifyRawVisualRisk(rawTrimmed);
-  if (blockCategories.length) {
-    const substitute = narrationSubstitute(blockCategories, context);
+  const fragments = splitBlockIntoSemanticFragments(rawTrimmed);
+  if (!fragments.length) {
     return {
-      text: substitute,
-      applied: true,
+      text: "",
+      applied: false,
       omitFromImage: false,
-      reasonCategories: blockCategories,
+      reasonCategories: [],
     };
   }
 
-  const lines = rawTrimmed
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
   const categories: SafeVisualReasonCategory[] = [];
   let applied = false;
-  const projected = lines.map((line) => {
-    const result = projectSceneTextForSafeImageGeneration(line, context);
+  const projected = fragments.map((fragment) => {
+    const result = projectSceneTextForSafeImageGeneration(fragment, context);
     if (result.applied) applied = true;
     categories.push(...result.reasonCategories);
     return result.omitFromImage ? null : result.text;
   });
+
   return {
     text: projected.filter(Boolean).join("\n"),
     applied,

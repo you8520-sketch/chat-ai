@@ -23,7 +23,7 @@ import {
   type SafeVisualProjectionContext,
 } from "@/lib/chatImageSafeVisualProjection";
 import {
-  ILLUSTRATION_SAFE_DEPICTION,
+  buildIllustrationSafeDepiction,
   sanitizeChatTurnForIllustrationPrompt,
 } from "@/lib/chatImageIllustrationSanitizer";
 import type { ContentKind } from "@/lib/simulationMode";
@@ -56,13 +56,17 @@ export function resolveChatLdIllustrationPrice(
 }
 
 export { sanitizeChatTurnForIllustrationPrompt } from "@/lib/chatImageIllustrationSanitizer";
+export {
+  ADULT_GROUNDED_NON_EXPLICIT_ALLOWANCE,
+  BASE_IMAGE_SAFE_DEPICTION,
+  buildIllustrationSafeDepiction,
+  ILLUSTRATION_SAFE_DEPICTION,
+} from "@/lib/chatImageIllustrationSanitizer";
 
 /**
- * @deprecated Import from chatImageIllustrationSanitizer — kept for backward compatibility.
+ * @deprecated Import buildIllustrationSafeDepiction — kept for backward compatibility.
  */
 export { ILLUSTRATION_SAFE_DEPICTION as ILLUSTRATION_SAFETY_LEGACY } from "@/lib/chatImageIllustrationSanitizer";
-
-const ILLUSTRATION_SAFETY = ILLUSTRATION_SAFE_DEPICTION;
 
 /** Map upstream OpenAI Images safety rejections to a clearer Korean retry hint. */
 export function formatOpenAiImageUserError(message: string): string {
@@ -174,6 +178,7 @@ function buildPartyIllustrationPrompt(opts: {
   cast: readonly ChatLdIllustrationCastMember[];
   situation: string;
   subjects?: readonly ChatImageVisualSubject[];
+  adultGrounded?: boolean;
 }): string {
   const count = opts.cast.length;
   const subjects = opts.subjects?.length
@@ -195,7 +200,7 @@ function buildPartyIllustrationPrompt(opts: {
         gender: member.gender,
       }))
     ),
-    ILLUSTRATION_SAFETY,
+    buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
     "Depict the selected scene brief below as one cinematic, emotionally accurate group scene. If ROUND ACTIONS are listed, pose each named person according to their own action. Use LOCATION as the background.",
     "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
@@ -259,6 +264,7 @@ export function buildChatLdIllustrationPrompt(opts: {
         opts.situation?.trim() ||
         projectSceneBlockForSafeImageGeneration(opts.currentTurn, projectionContext).text,
       subjects: opts.subjects,
+      adultGrounded: opts.adultGrounded,
     });
   }
   const approved = String(opts.approvedScene ?? "").trim();
@@ -280,7 +286,7 @@ export function buildChatLdIllustrationPrompt(opts: {
       personaName: opts.personaName,
       personaGender: opts.personaGender,
     }),
-    ILLUSTRATION_SAFETY,
+    buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
     "Depict the approved scene plan below as one cinematic, emotionally accurate scene.",
     "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
@@ -389,7 +395,7 @@ export function buildLdSceneGenerationPlan(opts: {
         hasTemplate: false,
       }),
       renderCastGenderLock(bound.subjects),
-      ILLUSTRATION_SAFETY,
+      buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
       "Depict the approved scene plan below as one cinematic scene.",
       "Match the drawing style of the supplied identity references. Harmonize style, not identity.",
       "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
