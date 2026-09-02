@@ -101,14 +101,16 @@ import {
   hasRunningChatImageGenerationJob,
   startChatImageGenerationJob,
 } from "@/lib/chatImageGenerationJobs";
+import { persistChatImageGenerationResult } from "@/lib/chatImageGenerationPersistence";
 import { getDb } from "@/lib/db";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
-import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
 import {
   InsufficientPointsError,
   deductPoints,
   getPointBalance,
+  type DeductionSlice,
 } from "@/lib/points";
+import { refundDeductionSlices } from "@/lib/refund";
 import {
   filenameFromUploadUrl,
   resolveExistingUploadPath,
@@ -196,42 +198,37 @@ function nonNegativeInt(raw: unknown): number | null {
   return Number.isInteger(value) && value >= 0 ? value : null;
 }
 
-function ensureGenerationTable() {
-  getDb().exec(`
-    CREATE TABLE IF NOT EXISTS chat_image_generations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      chat_id INTEGER,
-      character_id INTEGER NOT NULL,
-      persona_id INTEGER NOT NULL,
-      template_id TEXT NOT NULL,
-      model TEXT NOT NULL,
-      options_json TEXT NOT NULL DEFAULT '{}',
-      result_url TEXT NOT NULL,
-      upstream_cost_usd REAL,
-      charged_points INTEGER NOT NULL,
-      deduction_slices TEXT,
-      exchange_rate_krw_per_usd REAL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_chat_image_generations_user_recent
-      ON chat_image_generations(user_id, created_at DESC, id DESC);
-  `);
-  const columns = new Set(
-    (
-      getDb().prepare("PRAGMA table_info(chat_image_generations)").all() as {
-        name: string;
-      }[]
-    ).map((column) => column.name)
+async function abortGeneratedImageAfterPersistenceFailure(opts: {
+  savedPath: string | null;
+  userId: number;
+  deduction: { slices: DeductionSlice[]; total: number };
+  jobId: number | null;
+  logTag: string;
+  refundReason: string;
+  error: unknown;
+}): Promise<NextResponse> {
+  if (opts.savedPath) await fs.unlink(opts.savedPath).catch(() => {});
+  const balance = refundDeductionSlices(
+    opts.userId,
+    opts.deduction.slices,
+    opts.deduction.total,
+    opts.refundReason
   );
-  if (!columns.has("deduction_slices")) {
-    getDb().exec("ALTER TABLE chat_image_generations ADD COLUMN deduction_slices TEXT");
-  }
-  if (!columns.has("exchange_rate_krw_per_usd")) {
-    getDb().exec(
-      "ALTER TABLE chat_image_generations ADD COLUMN exchange_rate_krw_per_usd REAL"
-    );
-  }
+  finishChatImageGenerationJob({
+    jobId: opts.jobId,
+    status: "failed",
+    errorMessage: "history/album persistence failed",
+  });
+  console.error(`[${opts.logTag}] history/album insert failed`, opts.error);
+  return NextResponse.json(
+    {
+      error: "이미지 저장을 완료하지 못했습니다. 포인트는 복구되었습니다.",
+      remainingPoints: balance.total,
+      paidPoints: balance.paid,
+      freePoints: balance.free,
+    },
+    { status: 500 }
+  );
 }
 
 function resolveGenerationContext(opts: {
@@ -1044,63 +1041,56 @@ export async function POST(req: Request) {
         throw error;
       }
 
-      ensureGenerationTable();
-      let generationId: number | null = null;
-      let savedToCharacterAlbum = false;
+      let generationId: number;
       try {
-        const insert = getDb()
-          .prepare(
-            `INSERT INTO chat_image_generations (
-               user_id, chat_id, character_id, persona_id, template_id, model,
-               options_json, result_url, upstream_cost_usd, charged_points,
-               deduction_slices, exchange_rate_krw_per_usd
-             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
-          )
-          .run(
-            user.id,
-            context.chatId,
-            context.character.id,
-            context.persona.id,
-            CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
-            model,
-            JSON.stringify({
-              mode: "illustration",
-              source: illustrationMessageId
-                ? "selected_chat_turn"
-                : campaignId
-                  ? "trpg_scene"
-                  : "latest_chat_turn",
-              messageId: illustrationMessageId,
-              campaignId: campaignId ?? undefined,
-              campaignTitle: campaignTitle || undefined,
-              roundNumber: roundNumber ?? undefined,
-              castNames: cast?.map((member) => member.name),
-              trpgImageSceneMode: campaignId ? trpgImageSceneModeApplied : undefined,
-              trpgAiFocusDiagnostics: trpgAiFocusDiagnostics ?? undefined,
-              quality: CHAT_LD_ILLUSTRATION_QUALITY,
-              outputSize: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
-            }),
-            resultUrl,
-            generated.costUsd,
-            deduction.total,
-            JSON.stringify(deduction.slices),
-            getEffectiveKrwPerUsd()
-          );
-        generationId = Number(insert.lastInsertRowid);
-        saveGeneratedImageToCharacterAlbum({
+        const persisted = persistChatImageGenerationResult({
           userId: user.id,
+          chatId: context.chatId,
           characterId: context.character.id,
           personaId: context.persona.id,
-          chatId: context.chatId,
-          generationId,
-          imageUrl: resultUrl,
-          mode: "illustration",
-          campaignId,
-          campaignTitle: campaignTitle || null,
+          templateId: CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
+          model,
+          optionsJson: {
+            mode: "illustration",
+            source: illustrationMessageId
+              ? "selected_chat_turn"
+              : campaignId
+                ? "trpg_scene"
+                : "latest_chat_turn",
+            messageId: illustrationMessageId,
+            campaignId: campaignId ?? undefined,
+            campaignTitle: campaignTitle || undefined,
+            roundNumber: roundNumber ?? undefined,
+            castNames: cast?.map((member) => member.name),
+            trpgImageSceneMode: campaignId ? trpgImageSceneModeApplied : undefined,
+            trpgAiFocusDiagnostics: trpgAiFocusDiagnostics ?? undefined,
+            quality: CHAT_LD_ILLUSTRATION_QUALITY,
+            outputSize: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
+          },
+          resultUrl,
+          upstreamCostUsd: generated.costUsd,
+          chargedPoints: deduction.total,
+          deductionSlices: deduction.slices,
+          exchangeRateKrwPerUsd: getEffectiveKrwPerUsd(),
+          album: {
+            mode: "illustration",
+            campaignId,
+            campaignTitle: campaignTitle || null,
+          },
         });
-        savedToCharacterAlbum = true;
+        generationId = persisted.generationId;
       } catch (error) {
-        console.error("[chat-ld-illustration] history/album insert failed", error);
+        const failedPath = savedPath;
+        savedPath = null;
+        return abortGeneratedImageAfterPersistenceFailure({
+          savedPath: failedPath,
+          userId: user.id,
+          deduction,
+          jobId,
+          logTag: "chat-ld-illustration",
+          refundReason: "LD 일러스트 저장 실패 환불",
+          error,
+        });
       }
 
       finishChatImageGenerationJob({ jobId, status: "completed", resultUrl });
@@ -1116,7 +1106,7 @@ export async function POST(req: Request) {
         mode: "illustration",
         generationId,
         imageUrl: resultUrl,
-        savedToCharacterAlbum,
+        savedToCharacterAlbum: true,
         title: "선택 턴 LD 일러스트",
         modelLabel: "GPT Image 2",
         messageId: illustrationMessageId ?? undefined,
@@ -1262,52 +1252,43 @@ export async function POST(req: Request) {
     }
 
     const totalCostUsd = generated.costUsd == null ? null : generated.costUsd;
-    ensureGenerationTable();
-    let generationId: number | null = null;
-    let savedToCharacterAlbum = false;
+    let generationId: number;
     try {
-      const insert = getDb()
-        .prepare(
-          `INSERT INTO chat_image_generations (
-             user_id, chat_id, character_id, persona_id, template_id, model,
-             options_json, result_url, upstream_cost_usd, charged_points,
-             deduction_slices, exchange_rate_krw_per_usd
-           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
-        )
-        .run(
-          user.id,
-          context.chatId,
-          context.character.id,
-          context.persona.id,
-          CHAT_COMIC_TEMPLATE_ID,
-          model,
-          JSON.stringify({
-            mode: "comic",
-            panelCount,
-            mood,
-            messageId: source.messageId,
-            plan: scenePlan,
-            quality: "medium",
-          }),
-          resultUrl,
-          totalCostUsd,
-          deduction.total,
-          JSON.stringify(deduction.slices),
-          getEffectiveKrwPerUsd()
-        );
-      generationId = Number(insert.lastInsertRowid);
-      saveGeneratedImageToCharacterAlbum({
+      const persisted = persistChatImageGenerationResult({
         userId: user.id,
+        chatId: context.chatId,
         characterId: context.character.id,
         personaId: context.persona.id,
-        chatId: context.chatId,
-        generationId,
-        imageUrl: resultUrl,
-        mode: "comic",
+        templateId: CHAT_COMIC_TEMPLATE_ID,
+        model,
+        optionsJson: {
+          mode: "comic",
+          panelCount,
+          mood,
+          messageId: source.messageId,
+          plan: scenePlan,
+          quality: "medium",
+        },
+        resultUrl,
+        upstreamCostUsd: totalCostUsd,
+        chargedPoints: deduction.total,
+        deductionSlices: deduction.slices,
+        exchangeRateKrwPerUsd: getEffectiveKrwPerUsd(),
+        album: { mode: "comic" },
       });
-      savedToCharacterAlbum = true;
+      generationId = persisted.generationId;
     } catch (error) {
-      console.error("[chat-comic-generation] history/album insert failed", error);
+      const failedPath = savedPath;
+      savedPath = null;
+      return abortGeneratedImageAfterPersistenceFailure({
+        savedPath: failedPath,
+        userId: user.id,
+        deduction,
+        jobId,
+        logTag: "chat-comic-generation",
+        refundReason: "컷만화 저장 실패 환불",
+        error,
+      });
     }
 
     finishChatImageGenerationJob({ jobId, status: "completed", resultUrl });
@@ -1335,7 +1316,7 @@ export async function POST(req: Request) {
       mode: "comic",
       generationId,
       imageUrl: resultUrl,
-      savedToCharacterAlbum,
+      savedToCharacterAlbum: true,
       title: `장면 ${panelCount}컷`,
       panelCount,
       modelLabel: "GPT Image 2",

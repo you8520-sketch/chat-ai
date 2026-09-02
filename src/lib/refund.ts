@@ -101,6 +101,39 @@ export function refundMessageDeduction(
   return getPointBalance(userId);
 }
 
+/** Restore deducted slices without message-scoped refund metadata — image generation persistence failures. */
+export function refundDeductionSlices(
+  userId: number,
+  slices: DeductionSlice[],
+  totalAmount: number,
+  reason: string
+): PointBalance {
+  const db = getDb();
+  db.transaction(() => {
+    if (slices.length > 0) {
+      for (const slice of slices) {
+        restoreSlice(userId, slice, db);
+      }
+    } else if (totalAmount > 0) {
+      db.prepare(
+        `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
+         VALUES (?, 'FREE', ?, datetime('now', '+${FREE_POINTS_VALID_YEARS} years'))`
+      ).run(userId, totalAmount);
+    }
+
+    db.prepare("INSERT INTO point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
+      userId,
+      roundAmount(totalAmount),
+      reason
+    );
+    db.prepare(
+      "UPDATE users SET points = (SELECT COALESCE(SUM(remaining_amount), 0) FROM point_transactions WHERE user_id = ? AND remaining_amount > 0 AND expires_at > datetime('now')) WHERE id = ?"
+    ).run(userId, userId);
+  })();
+
+  return getPointBalance(userId);
+}
+
 type MessageRefundContext = {
   id: number;
   chat_id: number;
