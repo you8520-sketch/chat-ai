@@ -441,19 +441,49 @@ function resolveSceneSource(opts: {
   throw new RequestError("장면으로 만들 내용을 입력해 주세요.");
 }
 
+function resolveKnownSpeakerNames(
+  context: GenerationContext,
+  castIntentRaw: unknown
+): string[] {
+  const intent = parseChatImageCastManifest(castIntentRaw, context.contentKind);
+  const names = new Set<string>();
+  for (const name of configuredCharacterVisualSubjectNames(
+    parseCharacterVisualSubjectsJson(context.character.simulation_visual_subjects_json ?? "")
+  )) {
+    names.add(name);
+  }
+  for (const name of extractSimulationCastNames(context.character.simulation_cast ?? "")) {
+    names.add(name);
+  }
+  for (const subject of intent?.subjects ?? []) {
+    if (subject.name?.trim()) names.add(subject.name.trim());
+  }
+  return [...names];
+}
+
 function resolveApprovedScenePlan(opts: {
   bodyPlan: unknown;
   messages: SceneSourceMessage[];
   panelCount?: unknown;
   personaName?: string;
   characterName?: string;
+  knownSpeakerNames?: readonly string[];
   contentKind?: ContentKind;
 }): ScenePlan {
   const requestedCount = isScenePanelCount(opts.panelCount) ? opts.panelCount : undefined;
+  const speakerContext =
+    opts.personaName && opts.characterName
+      ? {
+          personaName: opts.personaName,
+          characterName: opts.characterName,
+          knownSpeakerNames: opts.knownSpeakerNames,
+        }
+      : undefined;
   const validated = validateScenePlan(opts.bodyPlan, opts.messages, {
     allowUserEdits: true,
     personaName: opts.personaName,
     characterName: opts.characterName,
+    knownSpeakerNames: opts.knownSpeakerNames,
     contentKind: opts.contentKind,
   });
   if (validated.ok) {
@@ -461,7 +491,7 @@ function resolveApprovedScenePlan(opts: {
       ? reflowScenePlanPanels(validated.plan, requestedCount)
       : validated.plan;
   }
-  const fallback = buildDeterministicScenePlan(opts.messages, requestedCount);
+  const fallback = buildDeterministicScenePlan(opts.messages, requestedCount, speakerContext);
   return fallback;
 }
 
@@ -770,11 +800,17 @@ export async function POST(req: Request) {
       let planned;
       let scenePlanFailed = false;
       try {
+        const knownSpeakerNames = resolveKnownSpeakerNames(context, body.castIntent);
         planned = await planChatImageScene({
           contentKind: context.contentKind,
           characterName: context.character.name,
           personaName: context.persona.name,
           messages: source.messages,
+          speakerContext: {
+            personaName: context.persona.name,
+            characterName: context.character.name,
+            knownSpeakerNames,
+          },
         });
       } catch (error) {
         scenePlanFailed = true;
@@ -964,11 +1000,13 @@ export async function POST(req: Request) {
           requireChat: true,
         });
         illustrationMessageId = source.messageId;
+        const knownSpeakerNames = resolveKnownSpeakerNames(context, body.castIntent);
         const scenePlan = resolveApprovedScenePlan({
           bodyPlan: body.scenePlan,
           messages: source.messages,
           personaName: context.persona.name,
           characterName: context.character.name,
+          knownSpeakerNames,
           contentKind: context.contentKind,
         });
         const castManifest = resolveGroundedCastManifest({
@@ -1136,12 +1174,14 @@ export async function POST(req: Request) {
       requireChat: false,
     });
     const mood = "comic" as const;
+    const knownSpeakerNames = resolveKnownSpeakerNames(context, body.castIntent);
     const scenePlan = resolveApprovedScenePlan({
       bodyPlan: body.scenePlan,
       messages: source.messages,
       panelCount: body.panelCount,
       personaName: context.persona.name,
       characterName: context.character.name,
+      knownSpeakerNames,
       contentKind: context.contentKind,
     });
     const panelCount = scenePlan.panels.length as ChatComicPanelCount;

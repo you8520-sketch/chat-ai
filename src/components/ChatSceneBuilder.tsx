@@ -9,6 +9,7 @@ import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
 import {
   addPanelDialogueLine,
   applyUserPanelEdits,
+  collectCanonicalSpeakerNames,
   movePanelDialogueLine,
   projectComicPanelCompactDialoguePreview,
   projectComicPanelCompactSituation,
@@ -39,6 +40,7 @@ type ChatSceneBuilderProps = {
   contentKind?: ContentKind;
   personaName: string;
   characterName: string;
+  castSpeakerNames?: readonly string[];
   outputMode: SceneOutputMode;
   panelCount: ScenePanelCount;
   disabled?: boolean;
@@ -60,8 +62,10 @@ function fallbackSpeakerLabel(speaker: SceneDialogueSpeaker): string {
 function resolveSpeakerDisplayName(
   speaker: SceneDialogueSpeaker,
   personaName: string,
-  characterName: string
+  characterName: string,
+  speakerName?: string
 ): string {
+  if (speakerName?.trim()) return speakerName.trim();
   if (speaker === "persona") return personaName.trim() || fallbackSpeakerLabel("persona");
   if (speaker === "character") {
     return characterName.trim() || fallbackSpeakerLabel("character");
@@ -72,20 +76,43 @@ function resolveSpeakerDisplayName(
 function speakerOptions(opts: {
   personaName: string;
   characterName: string;
+  castSpeakerNames?: readonly string[];
+  canonicalSpeakerNames?: readonly string[];
   personaVisible: boolean;
   includeOther: boolean;
-}): Array<{ value: SceneDialogueSpeaker; label: string }> {
-  const options: Array<{ value: SceneDialogueSpeaker; label: string }> = [];
+}): Array<{ value: SceneDialogueSpeaker; label: string; speakerName?: string }> {
+  const options: Array<{ value: SceneDialogueSpeaker; label: string; speakerName?: string }> = [];
+  const seen = new Set<string>();
+  const pushNamed = (value: SceneDialogueSpeaker, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    options.push({ value, label: trimmed, speakerName: trimmed });
+  };
   if (opts.personaVisible) {
-    options.push({
-      value: "persona",
-      label: resolveSpeakerDisplayName("persona", opts.personaName, opts.characterName),
-    });
+    pushNamed("persona", opts.personaName);
   }
-  options.push({
-    value: "character",
-    label: resolveSpeakerDisplayName("character", opts.personaName, opts.characterName),
-  });
+  pushNamed("character", opts.characterName);
+  for (const name of opts.castSpeakerNames ?? []) {
+    if (
+      name.trim() &&
+      name.trim() !== opts.personaName.trim() &&
+      name.trim() !== opts.characterName.trim()
+    ) {
+      pushNamed("other", name);
+    }
+  }
+  for (const name of opts.canonicalSpeakerNames ?? []) {
+    if (
+      name.trim() &&
+      name.trim() !== opts.personaName.trim() &&
+      name.trim() !== opts.characterName.trim()
+    ) {
+      pushNamed("other", name);
+    }
+  }
   if (opts.includeOther) {
     options.push({
       value: "other",
@@ -123,7 +150,12 @@ function ComicPanelCompactDialoguePreview({
               className="flex gap-1.5 text-xs leading-snug text-zinc-300"
             >
               <span className="shrink-0 font-semibold text-zinc-400">
-                {resolveSpeakerDisplayName(line.speaker, personaName, characterName)}
+                {resolveSpeakerDisplayName(
+                  line.speaker,
+                  personaName,
+                  characterName,
+                  line.speakerName
+                )}
               </span>
               <span className="min-w-0 text-zinc-200">{line.text}</span>
             </li>
@@ -144,6 +176,7 @@ function ComicPanelStoryboardCard({
   plan,
   personaName,
   characterName,
+  castSpeakerNames,
   personaVisible,
   disabled,
   dialogueEditOpen,
@@ -154,6 +187,7 @@ function ComicPanelStoryboardCard({
   plan: ScenePlan;
   personaName: string;
   characterName: string;
+  castSpeakerNames?: readonly string[];
   personaVisible: boolean;
   disabled?: boolean;
   dialogueEditOpen: boolean;
@@ -178,6 +212,7 @@ function ComicPanelStoryboardCard({
           plan={plan}
           personaName={personaName}
           characterName={characterName}
+          castSpeakerNames={castSpeakerNames}
           personaVisible={personaVisible}
           disabled={disabled}
           onPlanChange={onPlanChange}
@@ -229,6 +264,7 @@ function DialogueRowEditor({
   lineIndex,
   lineCount,
   speaker,
+  speakerName,
   text,
   speakerChoices,
   disabled,
@@ -241,25 +277,36 @@ function DialogueRowEditor({
   lineIndex: number;
   lineCount: number;
   speaker: SceneDialogueSpeaker;
+  speakerName?: string;
   text: string;
-  speakerChoices: Array<{ value: SceneDialogueSpeaker; label: string }>;
+  speakerChoices: Array<{ value: SceneDialogueSpeaker; label: string; speakerName?: string }>;
   disabled?: boolean;
-  onSpeakerChange: (speaker: SceneDialogueSpeaker) => void;
+  onSpeakerChange: (speaker: SceneDialogueSpeaker, speakerName?: string) => void;
   onTextChange: (text: string) => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onRemove: () => void;
 }) {
+  const selectedKey = `${speaker}:${speakerName ?? ""}`;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <select
-        value={speaker}
+        value={selectedKey}
         disabled={disabled}
-        onChange={(event) => onSpeakerChange(event.target.value as SceneDialogueSpeaker)}
+        onChange={(event) => {
+          const choice = speakerChoices.find(
+            (item) => `${item.value}:${item.speakerName ?? ""}` === event.target.value
+          );
+          if (!choice) return;
+          onSpeakerChange(choice.value, choice.speakerName);
+        }}
         className="min-w-[4.5rem] rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
       >
         {speakerChoices.map((choice) => (
-          <option key={choice.value} value={choice.value}>
+          <option
+            key={`${choice.value}:${choice.speakerName ?? ""}`}
+            value={`${choice.value}:${choice.speakerName ?? ""}`}
+          >
             {choice.label}
           </option>
         ))}
@@ -310,6 +357,7 @@ function ComicPanelDialogueEditor({
   plan,
   personaName,
   characterName,
+  castSpeakerNames,
   personaVisible,
   disabled,
   onPlanChange,
@@ -318,14 +366,20 @@ function ComicPanelDialogueEditor({
   plan: ScenePlan;
   personaName: string;
   characterName: string;
+  castSpeakerNames?: readonly string[];
   personaVisible: boolean;
   disabled?: boolean;
   onPlanChange: (plan: ScenePlan) => void;
 }) {
-  const includeOther = panel.dialogue.some((line) => line.speaker === "other");
+  const includeOther = panel.dialogue.some(
+    (line) => line.speaker === "other" && !line.speakerName
+  );
+  const canonicalSpeakerNames = collectCanonicalSpeakerNames(plan);
   const choices = speakerOptions({
     personaName,
     characterName,
+    castSpeakerNames,
+    canonicalSpeakerNames,
     personaVisible,
     includeOther,
   });
@@ -347,12 +401,16 @@ function ComicPanelDialogueEditor({
               lineIndex={visibleIndex}
               lineCount={visibleDialogue.length}
               speaker={line.speaker}
+              speakerName={line.speakerName}
               text={line.text}
               speakerChoices={choices}
               disabled={disabled}
-              onSpeakerChange={(speaker) => {
+              onSpeakerChange={(speaker, speakerName) => {
                 onPlanChange(
-                  updatePanelDialogueAtIndex(plan, panel.index, lineIndex, { speaker })
+                  updatePanelDialogueAtIndex(plan, panel.index, lineIndex, {
+                    speaker,
+                    speakerName,
+                  })
                 );
               }}
               onTextChange={(text) => {
@@ -404,6 +462,7 @@ export default function ChatSceneBuilder({
   contentKind = "character",
   personaName,
   characterName,
+  castSpeakerNames,
   outputMode,
   panelCount,
   disabled,
@@ -515,6 +574,7 @@ export default function ChatSceneBuilder({
                   plan={plan}
                   personaName={personaName}
                   characterName={characterName}
+                  castSpeakerNames={castSpeakerNames}
                   personaVisible={personaVisible}
                   disabled={disabled}
                   dialogueEditOpen={dialogueEditOpenPanels.has(panel.index)}

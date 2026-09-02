@@ -16,6 +16,7 @@ import {
   type ScenePlan,
   type ScenePlanIntent,
   type SceneSourceMessage,
+  type SceneSpeakerContext,
 } from "@/lib/chatImageScenePlan";
 import type { ContentKind } from "@/lib/simulationMode";
 
@@ -57,6 +58,7 @@ export async function planChatImageScene(opts: {
   characterName: string;
   personaName: string;
   messages: readonly SceneSourceMessage[];
+  speakerContext?: SceneSpeakerContext;
   complete?: ScenePlanCompleter;
 }): Promise<{
   plan: ScenePlan;
@@ -69,12 +71,22 @@ export async function planChatImageScene(opts: {
     throw new Error("장면으로 만들 턴 내용이 없습니다.");
   }
 
+  const speakerContext =
+    opts.speakerContext ??
+    (opts.personaName && opts.characterName
+      ? {
+          personaName: opts.personaName,
+          characterName: opts.characterName,
+        }
+      : undefined);
+
   const prompt = buildScenePlanPrompt({
     contentKind: opts.contentKind,
     scenePlanIntent: opts.scenePlanIntent,
     characterName: opts.characterName,
     personaName: opts.personaName,
     messages,
+    speakerContext,
   });
   const complete = opts.complete ?? defaultComplete;
   const primary = resolveChatImageSceneBriefModel();
@@ -103,6 +115,7 @@ export async function planChatImageScene(opts: {
         allowUserEdits: false,
         personaName: opts.personaName,
         characterName: opts.characterName,
+        knownSpeakerNames: speakerContext?.knownSpeakerNames,
         contentKind: opts.contentKind,
         scenePlanIntent: opts.scenePlanIntent,
       });
@@ -120,7 +133,7 @@ export async function planChatImageScene(opts: {
   }
 
   return {
-    plan: buildDeterministicScenePlan(messages),
+    plan: buildDeterministicScenePlan(messages, undefined, speakerContext),
     model: "deterministic-fallback",
     usedFallback: true,
     attempts,
