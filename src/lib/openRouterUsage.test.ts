@@ -58,7 +58,7 @@ describe("parseOpenRouterUsage", () => {
     assert.equal(b.promptTokensDetailsRaw?.cached_tokens, 4290);
   });
 
-  it("reads DeepSeek prefix cache hit on turn 2", () => {
+  it("reads DeepSeek prefix cache hit on turn 2 (synthetic parser contract — not production provenance)", () => {
     const b = parseOpenRouterUsage({
       prompt_tokens: 4894,
       completion_tokens: 318,

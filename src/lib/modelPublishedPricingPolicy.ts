@@ -7,6 +7,7 @@ import {
   GEMINI31_MODEL_ID,
   OPUS5_MODEL_ID,
 } from "@/lib/premiumModelIds";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
 
 export type PricingApplicability = "base_tier_only" | "tier_aware";
@@ -33,7 +34,6 @@ export type ModelPublishedPricingPolicy = {
 export { GEMINI31_BASE_TIER_PROMPT_THRESHOLD } from "@/lib/premiumModelIds";
 
 const GEMINI37_MODEL_ID = "gemini-3.7-flash";
-const DEEPSEEK_V4_PRO_MODEL_ID = "deepseek-v4-pro-0813";
 
 const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPolicy> = {
   [GEMINI31_MODEL_ID]: {
@@ -53,10 +53,17 @@ const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPoli
     cacheSemanticStatus: "verified_5m",
     opusCacheTtlMode: "5M_ONLY",
   },
-  [DEEPSEEK_V4_PRO_MODEL_ID]: {
-    modelId: DEEPSEEK_V4_PRO_MODEL_ID,
+  [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]: {
+    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
     pricingApplicability: "tier_aware",
-    /** Prefix cache read verified; production-real usage reports cache_write_tokens=0. */
+    /**
+     * Class A sanitized production cache-read evidence (legacy outbound id deepseek-v4-pro
+     * canonicalizes to 0813):
+     * - data/shared-novel-prose-v2-luna-gemini-deepseek-metadata.json DeepSeek-A:
+     *   prompt_tokens=12871, cached_tokens=12800, cache_write absent
+     * - data/d2-live/REPORT.md sequential turns: cached_tokens=3072 stable
+     * DeepSeek never reports cache_write_tokens > 0 in captured production usage.
+     */
     cacheSemanticStatus: "verified",
   },
 };
