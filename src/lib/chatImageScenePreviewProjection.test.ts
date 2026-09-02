@@ -369,6 +369,8 @@ describe("chatImageScenePreviewProjection trustworthy UX", () => {
     assert.doesNotMatch(source, /outputMode === "illustration" && sceneEditOpen/);
     assert.doesNotMatch(source, /LdCompactPreview/);
     assert.doesNotMatch(source, /IllustrationEditor/);
+    assert.doesNotMatch(source, /장면 준비 완료/);
+    assert.doesNotMatch(source, /AI 분석 완료/);
   });
 
   it("B5: comic situation preview returns complete beat without hard char ellipsis", () => {
