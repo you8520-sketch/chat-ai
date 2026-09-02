@@ -1206,7 +1206,15 @@ export default function ChatImageGeneratorPanel({
     if (!isCurrentSceneSourceEpoch(epoch)) return;
     const key = sceneCacheKey(messageId, summary);
     const cached = deterministicPlanCacheRef.current.get(key);
-    const plan = cached ?? buildDeterministicScenePlan(messages);
+    const speakerContext =
+      info != null
+        ? {
+            personaName: info.persona?.name ?? "persona",
+            characterName: info.character.name,
+            knownSpeakerNames: configuredCastNames,
+          }
+        : undefined;
+    const plan = cached ?? buildDeterministicScenePlan(messages, undefined, speakerContext);
     if (!cached) deterministicPlanCacheRef.current.set(key, plan);
     setScenePlan(plan);
     commitPanelCount(plan.recommendedPanelCount);
@@ -2411,6 +2419,7 @@ export default function ChatImageGeneratorPanel({
                             contentKind={contentKind}
                             personaName={info?.persona?.name ?? "유저"}
                             characterName={info?.character.name ?? "캐릭터"}
+                            castSpeakerNames={configuredCastNames}
                             outputMode={sceneOutputMode}
                             panelCount={scenePanelCount}
                             disabled={generating}

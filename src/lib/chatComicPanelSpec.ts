@@ -1,6 +1,6 @@
 import type { SceneEventSubjectBinding } from "@/lib/chatImageCast";
 import type { ChatImageCastGroundedSubject } from "@/lib/chatImageCastManifest";
-import type { ScenePanelCount, ScenePlan, ScenePresentationVisibility } from "@/lib/chatImageScenePlan";
+import type { ScenePanelCount, ScenePlan, ScenePresentationVisibility, SceneDialogue } from "@/lib/chatImageScenePlan";
 import {
   DEFAULT_SCENE_PRESENTATION_VISIBILITY,
   projectComicPanelBeat,
@@ -153,10 +153,16 @@ function resolveContinuityRules(
 
 function resolveSpeakerLabel(
   subjectMap: PromptSubjectMap,
-  speaker: string
+  line: Pick<SceneDialogue, "speaker" | "speakerName">
 ): PromptSubjectLabel | "other" {
-  if (speaker === "persona" || speaker === "character") {
-    return resolveSpeakerSubject(subjectMap, speaker)?.label ?? "other";
+  if (line.speakerName?.trim()) {
+    const named = subjectMap.subjects.find(
+      (subject) => subject.name.trim() === line.speakerName!.trim()
+    );
+    if (named) return named.label;
+  }
+  if (line.speaker === "persona" || line.speaker === "character") {
+    return resolveSpeakerSubject(subjectMap, line.speaker)?.label ?? "other";
   }
   return "other";
 }
@@ -263,8 +269,8 @@ export function compileChatComicPanelSpec(opts: {
       subjectActions,
       sceneAction,
       speechBubbles: beat.dialogue.map((line) => ({
-        speakerLabel: resolveSpeakerLabel(subjectMap, line.speaker),
-        speaker: line.speaker,
+        speakerLabel: resolveSpeakerLabel(subjectMap, line),
+        speaker: line.speakerName?.trim() || line.speaker,
         text: line.text,
       })),
       sfx: [],
