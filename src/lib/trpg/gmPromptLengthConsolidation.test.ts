@@ -7,9 +7,10 @@ import {
   TRPG_GM_SPARSE_MIN_CHARS,
 } from "./gmNarrationBudget";
 import { buildTrpgGmUserBlock, TRPG_GM_SYSTEM } from "./gmPrompt";
+import { TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION } from "./gmPromptConsolidationBaseline";
 import { assessGmCompletionIntegrity } from "./gmCompletionIntegrity";
 
-const SYSTEM_PROMPT_CHARS_BEFORE = 11800;
+const PROMPT_CHAR_BASELINE_OWNER = "gmPromptConsolidationBaseline.TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION";
 
 function countRegex(hay: string, re: RegExp): number {
   return hay.match(re)?.length ?? 0;
@@ -120,8 +121,10 @@ describe("TRPG GM length prompt consolidation gates", () => {
   });
 
   it("FINAL_STATIC_GM_INSTRUCTION_CHARS <= BEFORE and system shrinks vs pre-consolidation baseline", () => {
-    assert.ok(TRPG_GM_SYSTEM.length <= SYSTEM_PROMPT_CHARS_BEFORE);
-    assert.ok(TRPG_GM_SYSTEM.length < 11067, "consolidation should shrink system prompt");
+    assert.equal(PROMPT_CHAR_BASELINE_OWNER, "gmPromptConsolidationBaseline.TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION");
+    assert.equal(TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION, 11_067);
+    assert.ok(TRPG_GM_SYSTEM.length <= TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION);
+    assert.ok(TRPG_GM_SYSTEM.length < TRPG_GM_SYSTEM_CHARS_PRE_CONSOLIDATION);
   });
 
   it("CURRENT_LENGTH_ACCEPTANCE_GAP — integrity accepts short healthy narration", () => {
