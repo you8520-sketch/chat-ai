@@ -210,6 +210,17 @@ type GenerateResult = {
   };
 };
 
+function isDurableAlbumGenerationSuccess(
+  data: GenerateResult | null
+): data is GenerateResult & { imageUrl: string; generationId: number } {
+  if (!data?.imageUrl) return false;
+  return (
+    typeof data.generationId === "number" &&
+    data.generationId > 0 &&
+    data.savedToCharacterAlbum === true
+  );
+}
+
 type SavedAlbumEntry = {
   imageUrl: string;
 };
@@ -1551,15 +1562,13 @@ export default function ChatImageGeneratorPanel({
         }),
       });
       const data = (await response.json().catch(() => null)) as GenerateResult | null;
-      if (!response.ok || !data?.imageUrl) {
+      if (!response.ok || !isDurableAlbumGenerationSuccess(data)) {
         if (data) updateBalance(data);
         throw new Error(data?.error || "컷만화 생성에 실패했습니다.");
       }
       if (isIllustration) setIllustrationResultUrl(data.imageUrl);
       else setComicResultUrl(data.imageUrl);
-      if (data.savedToCharacterAlbum) {
-        setSavedUrls((previous) => new Set(previous).add(data.imageUrl!));
-      }
+      setSavedUrls((previous) => new Set(previous).add(data.imageUrl));
       if (data.upstreamCostUsd != null && data.upstreamCostKrw != null) {
         setActualCosts((previous) => ({
           ...previous,

@@ -101,12 +101,11 @@ import {
   hasRunningChatImageGenerationJob,
   startChatImageGenerationJob,
 } from "@/lib/chatImageGenerationJobs";
+import { settleChatImageGenerationResult } from "@/lib/chatImageGenerationPersistence";
 import { getDb } from "@/lib/db";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
-import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
 import {
   InsufficientPointsError,
-  deductPoints,
   getPointBalance,
 } from "@/lib/points";
 import {
@@ -196,42 +195,44 @@ function nonNegativeInt(raw: unknown): number | null {
   return Number.isInteger(value) && value >= 0 ? value : null;
 }
 
-function ensureGenerationTable() {
-  getDb().exec(`
-    CREATE TABLE IF NOT EXISTS chat_image_generations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      chat_id INTEGER,
-      character_id INTEGER NOT NULL,
-      persona_id INTEGER NOT NULL,
-      template_id TEXT NOT NULL,
-      model TEXT NOT NULL,
-      options_json TEXT NOT NULL DEFAULT '{}',
-      result_url TEXT NOT NULL,
-      upstream_cost_usd REAL,
-      charged_points INTEGER NOT NULL,
-      deduction_slices TEXT,
-      exchange_rate_krw_per_usd REAL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+async function abortGeneratedImageAfterSettlementFailure(opts: {
+  savedPath: string | null;
+  userId: number;
+  jobId: number | null;
+  logTag: string;
+  error: unknown;
+  insufficientPoints?: InsufficientPointsError;
+}): Promise<NextResponse> {
+  if (opts.savedPath) await fs.unlink(opts.savedPath).catch(() => {});
+  finishChatImageGenerationJob({
+    jobId: opts.jobId,
+    status: "failed",
+    errorMessage: opts.insufficientPoints
+      ? "포인트가 부족합니다."
+      : "image generation settlement failed",
+  });
+  console.error(`[${opts.logTag}] settlement failed`, opts.error);
+  if (opts.insufficientPoints) {
+    return NextResponse.json(
+      {
+        error: `포인트가 부족합니다. ${opts.insufficientPoints.balance.total.toLocaleString()}P 보유 중입니다.`,
+        remainingPoints: opts.insufficientPoints.balance.total,
+        paidPoints: opts.insufficientPoints.balance.paid,
+        freePoints: opts.insufficientPoints.balance.free,
+      },
+      { status: 402 }
     );
-    CREATE INDEX IF NOT EXISTS idx_chat_image_generations_user_recent
-      ON chat_image_generations(user_id, created_at DESC, id DESC);
-  `);
-  const columns = new Set(
-    (
-      getDb().prepare("PRAGMA table_info(chat_image_generations)").all() as {
-        name: string;
-      }[]
-    ).map((column) => column.name)
+  }
+  const balance = getPointBalance(opts.userId);
+  return NextResponse.json(
+    {
+      error: "이미지 저장을 완료하지 못했습니다. 포인트는 차감되지 않았습니다.",
+      remainingPoints: balance.total,
+      paidPoints: balance.paid,
+      freePoints: balance.free,
+    },
+    { status: 500 }
   );
-  if (!columns.has("deduction_slices")) {
-    getDb().exec("ALTER TABLE chat_image_generations ADD COLUMN deduction_slices TEXT");
-  }
-  if (!columns.has("exchange_rate_krw_per_usd")) {
-    getDb().exec(
-      "ALTER TABLE chat_image_generations ADD COLUMN exchange_rate_krw_per_usd REAL"
-    );
-  }
 }
 
 function resolveGenerationContext(opts: {
@@ -1013,16 +1014,51 @@ export async function POST(req: Request) {
       await fs.writeFile(savedPath, generated.buffer);
       const resultUrl = uploadPublicUrl(filename);
 
-      let deduction;
+      let generationId: number;
+      let deductionTotal: number;
+      let deductionBalance: ReturnType<typeof getPointBalance>;
       try {
-        deduction = deductPoints(
-          user.id,
-          pricePoints,
-          "GPT Image 2 · 선택 턴 LD 일러스트",
-          context.chatId ? { chatId: context.chatId } : undefined
-        );
+        const settled = settleChatImageGenerationResult({
+          userId: user.id,
+          chatId: context.chatId,
+          characterId: context.character.id,
+          personaId: context.persona.id,
+          templateId: CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
+          model,
+          optionsJson: {
+            mode: "illustration",
+            source: illustrationMessageId
+              ? "selected_chat_turn"
+              : campaignId
+                ? "trpg_scene"
+                : "latest_chat_turn",
+            messageId: illustrationMessageId,
+            campaignId: campaignId ?? undefined,
+            campaignTitle: campaignTitle || undefined,
+            roundNumber: roundNumber ?? undefined,
+            castNames: cast?.map((member) => member.name),
+            trpgImageSceneMode: campaignId ? trpgImageSceneModeApplied : undefined,
+            trpgAiFocusDiagnostics: trpgAiFocusDiagnostics ?? undefined,
+            quality: CHAT_LD_ILLUSTRATION_QUALITY,
+            outputSize: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
+          },
+          resultUrl,
+          upstreamCostUsd: generated.costUsd,
+          chargePoints: pricePoints,
+          chargeReason: "GPT Image 2 · 선택 턴 LD 일러스트",
+          chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
+          exchangeRateKrwPerUsd: getEffectiveKrwPerUsd(),
+          album: {
+            mode: "illustration",
+            campaignId,
+            campaignTitle: campaignTitle || null,
+          },
+        });
+        generationId = settled.generationId;
+        deductionTotal = settled.chargedPoints;
+        deductionBalance = settled.balance;
       } catch (error) {
-        await fs.unlink(savedPath).catch(() => {});
+        const failedPath = savedPath;
         savedPath = null;
         if (error instanceof InsufficientPointsError) {
           finishChatImageGenerationJob({
@@ -1031,76 +1067,22 @@ export async function POST(req: Request) {
             errorMessage: "포인트가 부족합니다.",
           });
           jobId = null;
-          return NextResponse.json(
-            {
-              error: `포인트가 부족합니다. ${pricePoints.toLocaleString()}P가 필요합니다.`,
-              remainingPoints: error.balance.total,
-              paidPoints: error.balance.paid,
-              freePoints: error.balance.free,
-            },
-            { status: 402 }
-          );
+          return abortGeneratedImageAfterSettlementFailure({
+            savedPath: failedPath,
+            userId: user.id,
+            jobId,
+            logTag: "chat-ld-illustration",
+            error,
+            insufficientPoints: error,
+          });
         }
-        throw error;
-      }
-
-      ensureGenerationTable();
-      let generationId: number | null = null;
-      let savedToCharacterAlbum = false;
-      try {
-        const insert = getDb()
-          .prepare(
-            `INSERT INTO chat_image_generations (
-               user_id, chat_id, character_id, persona_id, template_id, model,
-               options_json, result_url, upstream_cost_usd, charged_points,
-               deduction_slices, exchange_rate_krw_per_usd
-             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
-          )
-          .run(
-            user.id,
-            context.chatId,
-            context.character.id,
-            context.persona.id,
-            CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
-            model,
-            JSON.stringify({
-              mode: "illustration",
-              source: illustrationMessageId
-                ? "selected_chat_turn"
-                : campaignId
-                  ? "trpg_scene"
-                  : "latest_chat_turn",
-              messageId: illustrationMessageId,
-              campaignId: campaignId ?? undefined,
-              campaignTitle: campaignTitle || undefined,
-              roundNumber: roundNumber ?? undefined,
-              castNames: cast?.map((member) => member.name),
-              trpgImageSceneMode: campaignId ? trpgImageSceneModeApplied : undefined,
-              trpgAiFocusDiagnostics: trpgAiFocusDiagnostics ?? undefined,
-              quality: CHAT_LD_ILLUSTRATION_QUALITY,
-              outputSize: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
-            }),
-            resultUrl,
-            generated.costUsd,
-            deduction.total,
-            JSON.stringify(deduction.slices),
-            getEffectiveKrwPerUsd()
-          );
-        generationId = Number(insert.lastInsertRowid);
-        saveGeneratedImageToCharacterAlbum({
+        return abortGeneratedImageAfterSettlementFailure({
+          savedPath: failedPath,
           userId: user.id,
-          characterId: context.character.id,
-          personaId: context.persona.id,
-          chatId: context.chatId,
-          generationId,
-          imageUrl: resultUrl,
-          mode: "illustration",
-          campaignId,
-          campaignTitle: campaignTitle || null,
+          jobId,
+          logTag: "chat-ld-illustration",
+          error,
         });
-        savedToCharacterAlbum = true;
-      } catch (error) {
-        console.error("[chat-ld-illustration] history/album insert failed", error);
       }
 
       finishChatImageGenerationJob({ jobId, status: "completed", resultUrl });
@@ -1116,7 +1098,7 @@ export async function POST(req: Request) {
         mode: "illustration",
         generationId,
         imageUrl: resultUrl,
-        savedToCharacterAlbum,
+        savedToCharacterAlbum: true,
         title: "선택 턴 LD 일러스트",
         modelLabel: "GPT Image 2",
         messageId: illustrationMessageId ?? undefined,
@@ -1127,10 +1109,10 @@ export async function POST(req: Request) {
           campaignId,
           payload: trpgImageSceneDiagnosticsPayload,
         }),
-        totalPointsCost: deduction.total,
-        remainingPoints: deduction.balance.total,
-        paidPoints: deduction.balance.paid,
-        freePoints: deduction.balance.free,
+        totalPointsCost: deductionTotal,
+        remainingPoints: deductionBalance.total,
+        paidPoints: deductionBalance.paid,
+        freePoints: deductionBalance.free,
       });
     }
 
@@ -1230,16 +1212,39 @@ export async function POST(req: Request) {
     await fs.writeFile(savedPath, generated.buffer);
     const resultUrl = uploadPublicUrl(filename);
 
-    let deduction;
+    const totalCostUsd = generated.costUsd == null ? null : generated.costUsd;
+    let generationId: number;
+    let deductionTotal: number;
+    let deductionBalance: ReturnType<typeof getPointBalance>;
     try {
-      deduction = deductPoints(
-        user.id,
-        pricePoints,
-        `GPT Image 2 · ${panelCount}컷 만화`,
-        context.chatId ? { chatId: context.chatId } : undefined
-      );
+      const settled = settleChatImageGenerationResult({
+        userId: user.id,
+        chatId: context.chatId,
+        characterId: context.character.id,
+        personaId: context.persona.id,
+        templateId: CHAT_COMIC_TEMPLATE_ID,
+        model,
+        optionsJson: {
+          mode: "comic",
+          panelCount,
+          mood,
+          messageId: source.messageId,
+          plan: scenePlan,
+          quality: "medium",
+        },
+        resultUrl,
+        upstreamCostUsd: totalCostUsd,
+        chargePoints: pricePoints,
+        chargeReason: `GPT Image 2 · ${panelCount}컷 만화`,
+        chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
+        exchangeRateKrwPerUsd: getEffectiveKrwPerUsd(),
+        album: { mode: "comic" },
+      });
+      generationId = settled.generationId;
+      deductionTotal = settled.chargedPoints;
+      deductionBalance = settled.balance;
     } catch (error) {
-      await fs.unlink(savedPath).catch(() => {});
+      const failedPath = savedPath;
       savedPath = null;
       if (error instanceof InsufficientPointsError) {
         finishChatImageGenerationJob({
@@ -1248,66 +1253,22 @@ export async function POST(req: Request) {
           errorMessage: "포인트가 부족합니다.",
         });
         jobId = null;
-        return NextResponse.json(
-          {
-            error: `포인트가 부족합니다. ${pricePoints.toLocaleString()}P가 필요합니다.`,
-            remainingPoints: error.balance.total,
-            paidPoints: error.balance.paid,
-            freePoints: error.balance.free,
-          },
-          { status: 402 }
-        );
+        return abortGeneratedImageAfterSettlementFailure({
+          savedPath: failedPath,
+          userId: user.id,
+          jobId,
+          logTag: "chat-comic-generation",
+          error,
+          insufficientPoints: error,
+        });
       }
-      throw error;
-    }
-
-    const totalCostUsd = generated.costUsd == null ? null : generated.costUsd;
-    ensureGenerationTable();
-    let generationId: number | null = null;
-    let savedToCharacterAlbum = false;
-    try {
-      const insert = getDb()
-        .prepare(
-          `INSERT INTO chat_image_generations (
-             user_id, chat_id, character_id, persona_id, template_id, model,
-             options_json, result_url, upstream_cost_usd, charged_points,
-             deduction_slices, exchange_rate_krw_per_usd
-           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
-        )
-        .run(
-          user.id,
-          context.chatId,
-          context.character.id,
-          context.persona.id,
-          CHAT_COMIC_TEMPLATE_ID,
-          model,
-          JSON.stringify({
-            mode: "comic",
-            panelCount,
-            mood,
-            messageId: source.messageId,
-            plan: scenePlan,
-            quality: "medium",
-          }),
-          resultUrl,
-          totalCostUsd,
-          deduction.total,
-          JSON.stringify(deduction.slices),
-          getEffectiveKrwPerUsd()
-        );
-      generationId = Number(insert.lastInsertRowid);
-      saveGeneratedImageToCharacterAlbum({
+      return abortGeneratedImageAfterSettlementFailure({
+        savedPath: failedPath,
         userId: user.id,
-        characterId: context.character.id,
-        personaId: context.persona.id,
-        chatId: context.chatId,
-        generationId,
-        imageUrl: resultUrl,
-        mode: "comic",
+        jobId,
+        logTag: "chat-comic-generation",
+        error,
       });
-      savedToCharacterAlbum = true;
-    } catch (error) {
-      console.error("[chat-comic-generation] history/album insert failed", error);
     }
 
     finishChatImageGenerationJob({ jobId, status: "completed", resultUrl });
@@ -1326,7 +1287,7 @@ export async function POST(req: Request) {
       imageModel: model,
       upstreamCostUsd: totalCostUsd,
       upstreamCostKrw: totalCostKrw,
-      chargedPoints: deduction.total,
+      chargedPoints: deductionTotal,
     });
 
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
@@ -1335,17 +1296,17 @@ export async function POST(req: Request) {
       mode: "comic",
       generationId,
       imageUrl: resultUrl,
-      savedToCharacterAlbum,
+      savedToCharacterAlbum: true,
       title: `장면 ${panelCount}컷`,
       panelCount,
       modelLabel: "GPT Image 2",
       messageId: source.messageId ?? undefined,
       upstreamCostUsd: canSeeCost ? totalCostUsd : undefined,
       upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
-      totalPointsCost: deduction.total,
-      remainingPoints: deduction.balance.total,
-      paidPoints: deduction.balance.paid,
-      freePoints: deduction.balance.free,
+      totalPointsCost: deductionTotal,
+      remainingPoints: deductionBalance.total,
+      paidPoints: deductionBalance.paid,
+      freePoints: deductionBalance.free,
     });
   } catch (error) {
     if (savedPath) await fs.unlink(savedPath).catch(() => {});

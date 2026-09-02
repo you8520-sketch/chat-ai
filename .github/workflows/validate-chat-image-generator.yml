@@ -15,6 +15,9 @@ on:
       - "src/components/ChatToolbarIcons.tsx"
       - "src/lib/chatImageGeneration.ts"
       - "src/lib/chatImageGeneration.test.ts"
+      - "src/lib/chatImageGenerationPersistence.ts"
+      - "src/lib/chatImageGenerationPersistence.test.ts"
+      - "src/lib/chatImageGenerationPersistence.regression.test.ts"
       - "src/lib/chatComicGeneration.ts"
       - "src/lib/chatComicGeneration.test.ts"
       - "src/lib/chatComicPanelSpec.ts"
@@ -123,6 +126,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck:app
+      - run: node --conditions=react-server --import tsx --test src/lib/chatImageGenerationPersistence.test.ts
+      - run: node --import tsx --test src/lib/chatImageGenerationPersistence.regression.test.ts
       - run: node --import tsx --test src/lib/chatImageGeneration.test.ts
       - run: node --import tsx --test src/lib/chatComicGeneration.test.ts
       - run: node --import tsx --test src/lib/chatComicPanelSpec.test.ts
