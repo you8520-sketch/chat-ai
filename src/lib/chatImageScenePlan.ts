@@ -732,7 +732,8 @@ export function extractDeterministicEvents(
 
 export function markAssistantEchoes(events: readonly SceneEvent[]): SceneEvent[] {
   return events.map((event, index) => {
-    if (event.sourceRole !== "assistant" || event.kind === "dialogue") return event;
+    if (event.sourceRole !== "assistant") return event;
+    if (event.kind === "dialogue") return event;
     const previous = events
       .slice(0, index)
       .reverse()
@@ -1399,6 +1400,7 @@ export function validateScenePlan(
   }
 
   const panels: ScenePanel[] = [];
+  const usedSourceDialogueEventIds = new Set<string>();
   for (const [index, row] of panelsRaw.entries()) {
     if (!row || typeof row !== "object") return { ok: false, reason: "panel invalid" };
     const item = row as Record<string, unknown>;
@@ -1447,6 +1449,10 @@ export function validateScenePlan(
         resolvedSpeaker = canonicalSpeaker;
         resolvedSpeakerName = linked.speakerName;
         resolvedSourceEventId = sourceEventId;
+        if (usedSourceDialogueEventIds.has(sourceEventId)) {
+          continue;
+        }
+        usedSourceDialogueEventIds.add(sourceEventId);
       }
       dialogue.push({
         speaker: resolvedSpeaker,

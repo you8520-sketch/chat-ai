@@ -7,6 +7,14 @@ import type { ChatImageCastIntentManifest, SelectableCastAsset } from "@/lib/cha
 import type { ContentKind } from "@/lib/simulationMode";
 import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
 import {
+  buildDialogueSpeakerOptions,
+  dialogueSpeakerChoiceFromKey,
+  dialogueSpeakerChoiceKey,
+  resolveDialogueSpeakerDisplayLabel,
+  resolveDialogueSpeakerOptionKey,
+  type DialogueSpeakerChoice,
+} from "@/lib/chatImageDialogueSpeakerEditor";
+import {
   addPanelDialogueLine,
   applyUserPanelEdits,
   collectCanonicalSpeakerNames,
@@ -53,75 +61,6 @@ type ChatSceneBuilderProps = {
   onCancelAiSuggestion: () => void;
 };
 
-function fallbackSpeakerLabel(speaker: SceneDialogueSpeaker): string {
-  if (speaker === "persona") return "유저캐";
-  if (speaker === "character") return "캐릭터";
-  return "기타";
-}
-
-function resolveSpeakerDisplayName(
-  speaker: SceneDialogueSpeaker,
-  personaName: string,
-  characterName: string,
-  speakerName?: string
-): string {
-  if (speakerName?.trim()) return speakerName.trim();
-  if (speaker === "persona") return personaName.trim() || fallbackSpeakerLabel("persona");
-  if (speaker === "character") {
-    return characterName.trim() || fallbackSpeakerLabel("character");
-  }
-  return fallbackSpeakerLabel("other");
-}
-
-function speakerOptions(opts: {
-  personaName: string;
-  characterName: string;
-  castSpeakerNames?: readonly string[];
-  canonicalSpeakerNames?: readonly string[];
-  personaVisible: boolean;
-  includeOther: boolean;
-}): Array<{ value: SceneDialogueSpeaker; label: string; speakerName?: string }> {
-  const options: Array<{ value: SceneDialogueSpeaker; label: string; speakerName?: string }> = [];
-  const seen = new Set<string>();
-  const pushNamed = (value: SceneDialogueSpeaker, name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    const key = trimmed.toLowerCase();
-    if (seen.has(key)) return;
-    seen.add(key);
-    options.push({ value, label: trimmed, speakerName: trimmed });
-  };
-  if (opts.personaVisible) {
-    pushNamed("persona", opts.personaName);
-  }
-  pushNamed("character", opts.characterName);
-  for (const name of opts.castSpeakerNames ?? []) {
-    if (
-      name.trim() &&
-      name.trim() !== opts.personaName.trim() &&
-      name.trim() !== opts.characterName.trim()
-    ) {
-      pushNamed("other", name);
-    }
-  }
-  for (const name of opts.canonicalSpeakerNames ?? []) {
-    if (
-      name.trim() &&
-      name.trim() !== opts.personaName.trim() &&
-      name.trim() !== opts.characterName.trim()
-    ) {
-      pushNamed("other", name);
-    }
-  }
-  if (opts.includeOther) {
-    options.push({
-      value: "other",
-      label: fallbackSpeakerLabel("other"),
-    });
-  }
-  return options;
-}
-
 function ComicPanelCompactDialoguePreview({
   panel,
   personaName,
@@ -150,7 +89,7 @@ function ComicPanelCompactDialoguePreview({
               className="flex gap-1.5 text-xs leading-snug text-zinc-300"
             >
               <span className="shrink-0 font-semibold text-zinc-400">
-                {resolveSpeakerDisplayName(
+                {resolveDialogueSpeakerDisplayLabel(
                   line.speaker,
                   personaName,
                   characterName,
@@ -266,6 +205,8 @@ function DialogueRowEditor({
   speaker,
   speakerName,
   text,
+  personaName,
+  characterName,
   speakerChoices,
   disabled,
   onSpeakerChange,
@@ -279,7 +220,9 @@ function DialogueRowEditor({
   speaker: SceneDialogueSpeaker;
   speakerName?: string;
   text: string;
-  speakerChoices: Array<{ value: SceneDialogueSpeaker; label: string; speakerName?: string }>;
+  personaName: string;
+  characterName: string;
+  speakerChoices: DialogueSpeakerChoice[];
   disabled?: boolean;
   onSpeakerChange: (speaker: SceneDialogueSpeaker, speakerName?: string) => void;
   onTextChange: (text: string) => void;
@@ -287,16 +230,18 @@ function DialogueRowEditor({
   onMoveDown: () => void;
   onRemove: () => void;
 }) {
-  const selectedKey = `${speaker}:${speakerName ?? ""}`;
+  const selectedKey = resolveDialogueSpeakerOptionKey(
+    { speaker, speakerName },
+    personaName,
+    characterName
+  );
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <select
         value={selectedKey}
         disabled={disabled}
         onChange={(event) => {
-          const choice = speakerChoices.find(
-            (item) => `${item.value}:${item.speakerName ?? ""}` === event.target.value
-          );
+          const choice = dialogueSpeakerChoiceFromKey(event.target.value, speakerChoices);
           if (!choice) return;
           onSpeakerChange(choice.value, choice.speakerName);
         }}
@@ -304,8 +249,8 @@ function DialogueRowEditor({
       >
         {speakerChoices.map((choice) => (
           <option
-            key={`${choice.value}:${choice.speakerName ?? ""}`}
-            value={`${choice.value}:${choice.speakerName ?? ""}`}
+            key={dialogueSpeakerChoiceKey(choice.value, choice.speakerName)}
+            value={dialogueSpeakerChoiceKey(choice.value, choice.speakerName)}
           >
             {choice.label}
           </option>
@@ -375,7 +320,7 @@ function ComicPanelDialogueEditor({
     (line) => line.speaker === "other" && !line.speakerName
   );
   const canonicalSpeakerNames = collectCanonicalSpeakerNames(plan);
-  const choices = speakerOptions({
+  const choices = buildDialogueSpeakerOptions({
     personaName,
     characterName,
     castSpeakerNames,
@@ -403,6 +348,8 @@ function ComicPanelDialogueEditor({
               speaker={line.speaker}
               speakerName={line.speakerName}
               text={line.text}
+              personaName={personaName}
+              characterName={characterName}
               speakerChoices={choices}
               disabled={disabled}
               onSpeakerChange={(speaker, speakerName) => {
