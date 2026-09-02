@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   parseAdultHandoffEnabled,
-  resolveChatAdultHandoffEnabled,
+  resolveEffectiveAdultRp,
+  resolveRoomAdultModeEnabled,
 } from "./chatAdultHandoff";
 
 describe("chat-room adult mode (handoff) preference", () => {
@@ -20,26 +21,26 @@ describe("chat-room adult mode (handoff) preference", () => {
 
   it("lets the current request override the persisted chat flag", () => {
     assert.equal(
-      resolveChatAdultHandoffEnabled({ persisted: 1, requested: false }),
+      resolveRoomAdultModeEnabled({ persisted: 1, requested: false }),
       false
     );
     assert.equal(
-      resolveChatAdultHandoffEnabled({ persisted: 0, requested: true }),
+      resolveRoomAdultModeEnabled({ persisted: 0, requested: true }),
       true
     );
     assert.equal(
-      resolveChatAdultHandoffEnabled({ persisted: 1, requested: undefined }),
+      resolveRoomAdultModeEnabled({ persisted: 1, requested: undefined }),
       true
     );
     assert.equal(
-      resolveChatAdultHandoffEnabled({ persisted: 0 }),
+      resolveRoomAdultModeEnabled({ persisted: 0 }),
       false
     );
   });
 
   it("never enables handoff for an unverified user", () => {
     assert.equal(
-      resolveChatAdultHandoffEnabled({
+      resolveRoomAdultModeEnabled({
         persisted: 1,
         requested: true,
         userAdultVerified: false,
@@ -48,10 +49,35 @@ describe("chat-room adult mode (handoff) preference", () => {
     );
   });
 
+  it("resolveEffectiveAdultRp requires verified user and room mode", () => {
+    assert.equal(
+      resolveEffectiveAdultRp({
+        userAdultVerified: true,
+        roomAdultModeEnabled: true,
+      }),
+      true
+    );
+    assert.equal(
+      resolveEffectiveAdultRp({
+        userAdultVerified: true,
+        roomAdultModeEnabled: false,
+      }),
+      false
+    );
+    assert.equal(
+      resolveEffectiveAdultRp({
+        userAdultVerified: false,
+        roomAdultModeEnabled: true,
+      }),
+      false
+    );
+  });
+
   it("keeps listing nsfw_on off the chat-route handoff gate", () => {
     const route = readFileSync(new URL("../app/api/chat/route.ts", import.meta.url), "utf8");
     assert.doesNotMatch(route, /adultContentVisibilityEnabled = !!user\.nsfw_on/);
-    assert.match(route, /chatAdultHandoffEnabled/);
+    assert.match(route, /resolveEffectiveAdultRp/);
+    assert.match(route, /roomAdultModeEnabled/);
     assert.doesNotMatch(route, /characterAdultContentEnabled:\s*ch\.nsfw/);
     assert.match(route, /characters\.nsfw is listing\/content-rating only/);
 
@@ -69,7 +95,8 @@ describe("chat-room adult mode (handoff) preference", () => {
     assert.doesNotMatch(chatClient, /AdultHandoffModelNotice/);
     assert.doesNotMatch(chatClient, /성인 장면 자동 호환 지원/);
     assert.match(chatClient, /ChatRoomAdultModeToggle/);
-    assert.match(chatClient, /adultHandoffEnabled/);
+    assert.doesNotMatch(chatClient, /isAdultMode:\s*nsfwMode/);
+    assert.doesNotMatch(chatClient, /nsfwMode\s*=\s*isAdult\s*&&\s*userNsfwOn/);
     assert.match(
       chatClient,
       /<\/select>\s*<ChatRoomAdultModeToggle/s

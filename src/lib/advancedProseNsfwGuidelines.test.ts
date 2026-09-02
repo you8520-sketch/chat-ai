@@ -16,9 +16,11 @@ import {
 import { buildWebnovelOutputLayoutRecencyBlock } from "@/lib/webnovelOutputFormat";
 
 describe("buildAdvancedProseNsfwGuidelines", () => {
-  it("SFW mode uses unified block without NSFW section", () => {
+  it("SFW mode uses unified block with safe 15+ contract", () => {
     const block = buildAdvancedProseNsfwGuidelines({ nsfwEnabled: false });
     assert.match(block, /\[WEBNOVEL OUTPUT FORMAT\]/);
+    assert.match(block, /\[SAFE SEXUAL LIMIT — 15\+ RP\]/);
+    assert.match(block, /in-character narrative diversion/);
     assert.doesNotMatch(block, /ALWAYS starts a new paragraph/);
     assert.doesNotMatch(block, /\[NO ABSTRACT SUMMARIES\]/);
     assert.doesNotMatch(block, /\[CROSS-TURN VARIATION\]/);
