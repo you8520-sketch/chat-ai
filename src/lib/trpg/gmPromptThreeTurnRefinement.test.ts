@@ -99,7 +99,7 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
       actions: [action({ participantId: 1, name: "렌", body: richBody, intent: "측면을 찌른다" })],
     });
     assert.match(block, /density=RICH/);
-    assert.match(block, /\[INTENT\]\n측면을 찌른다/);
+    assert.doesNotMatch(block, /\[INTENT\]/);
     assert.match(block, /\[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only\]/);
     assert.equal(block.split(richBody.trim()).length - 1, 1);
     assert.match(TRPG_GM_SYSTEM, /first new consequence or changed state/i);
@@ -158,7 +158,7 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
       opening: false,
       actions: [action({ participantId: 1, name: "렌", body: "문을 연다." })],
     });
-    assert.match(block, /Apply the system scene-craft contract and ROUND NARRATION BUDGET/);
+    assert.match(block, /Finish at or above Minimum/);
     assert.doesNotMatch(block, /players supply the approach/);
     assert.doesNotMatch(block, /End with 1–2 GM:/);
   });
@@ -182,7 +182,7 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
       TRPG_GM_SYSTEM.indexOf("[GM SCENE CRAFT — ADAPTIVE NARRATION]"),
       TRPG_GM_SYSTEM.indexOf("[LENGTH — SCENE RESPONSIVE]")
     );
-    assert.match(craft, /As encounter purpose is spent — or local scene state is transition_ready — open fiction outward/);
+    assert.match(craft, /When encounter purpose is spent — or local scene state is transition_ready — open fiction outward/);
     assert.match(craft, /reachable space, destination, route, objective, or consequence/);
     assert.match(craft, /sceneTransitionTo rather than objectiveSet alone/);
     assert.match(craft, /one location may still yield new play until then/);

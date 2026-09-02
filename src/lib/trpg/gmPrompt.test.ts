@@ -61,7 +61,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /Closing GM beat/);
     assert.match(TRPG_GM_SYSTEM, /GM:/);
     assert.match(TRPG_GM_SYSTEM, /never the addressee/);
-    assert.match(TRPG_GM_SYSTEM, /Submitted canonical actions fix intent/);
+    assert.match(TRPG_GM_SYSTEM, /Submitted canonical actions fix intent only/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
     assert.match(TRPG_GM_SYSTEM, /next meaningful decision/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /isolated per-character recaps/);
@@ -96,8 +96,8 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(block, /density=BRIEF/);
     assert.match(block, /\[ACTION PROSE — scene material for this resolution\]|\[AUTHORITATIVE HUMAN PC ACTION/);
     assert.match(block, /d20=14/);
-    assert.match(block, /SCENE CRAFT/);
-    assert.match(block, /Apply the system scene-craft contract and ROUND NARRATION BUDGET/);
+    assert.match(block, /ROUND EXECUTION/);
+    assert.match(block, /ROUND NARRATION BUDGET/);
     assert.doesNotMatch(block, /enrich if brief, do not retell if already rich/);
     assert.doesNotMatch(block, /ATTEMPTED ACTION/);
     assert.doesNotMatch(block, /PROPOSED FICTION/);
@@ -184,7 +184,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /CHARACTER SHEETS/);
     assert.match(TRPG_GM_SYSTEM, /이름: "대사"/);
     assert.match(TRPG_GM_SYSTEM, /For talk\/ask/);
-    assert.match(TRPG_GM_SYSTEM, /written text, signs/);
+    assert.match(TRPG_GM_SYSTEM, /signs, documents/);
     assert.match(TRPG_GM_SYSTEM, /submitted actions/);
     const talk = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
@@ -215,7 +215,7 @@ describe("TRPG GM prompt/parse", () => {
   it("owns adaptive narration in one GM SCENE CRAFT block", () => {
     assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[ACTION RESOLUTION\]/);
-    assert.match(TRPG_GM_SYSTEM, /Submitted canonical actions fix intent/);
+    assert.match(TRPG_GM_SYSTEM, /Submitted canonical actions fix intent only/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
     assert.match(TRPG_GM_SYSTEM, /Latest established scene state/);
     assert.match(TRPG_GM_SYSTEM, /next meaningful decision/);
@@ -240,7 +240,8 @@ describe("TRPG GM prompt/parse", () => {
     });
     assert.match(block, /\[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only\]/);
     assert.match(block, /검을 역수로 고쳐 쥐었다/);
-    assert.match(block, /Apply the system scene-craft contract and ROUND NARRATION BUDGET/);
+    assert.match(block, /ROUND EXECUTION/);
+    assert.match(block, /ROUND NARRATION BUDGET/);
     assert.doesNotMatch(block, /color only, never dump/);
   });
 
@@ -346,7 +347,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Aim about 4800/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /aim ~4800/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /exceeds 3000 characters/);
-    assert.match(TRPG_GM_SYSTEM, /Use the supplied ROUND NARRATION BUDGET/);
+    assert.match(TRPG_GM_SYSTEM, /terminal ROUND NARRATION BUDGET as the sole numeric length contract/);
   });
 
   it("H: adaptive narration has exactly one owner", () => {
@@ -356,18 +357,18 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[AGENCY\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FAILURE\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[DIALOGUE\]/);
-    assert.match(TRPG_GM_SYSTEM, /do not replay, re-quote, closely paraphrase, or re-stage/i);
+    assert.match(TRPG_GM_SYSTEM, /first new consequence or changed state/i);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /do not replay submitted prose/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /never dump into the scene/);
   });
 
   it("A: persona micro-reactions keep characters embodied", () => {
-    assert.match(TRPG_GM_SYSTEM, /each PC's next meaningful decision remains with that player/);
+    assert.match(TRPG_GM_SYSTEM, /each PC's next meaningful decision remains with that player/i);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /persona-true micro-reactions/);
   });
 
   it("B: micro-reactions do not take the next meaningful decision", () => {
-    assert.match(TRPG_GM_SYSTEM, /each PC's next meaningful decision remains with that player/);
+    assert.match(TRPG_GM_SYSTEM, /each PC's next meaningful decision remains with that player/i);
   });
 
   it("C: failure preserves competence without slapstick defaults", () => {
@@ -379,7 +380,7 @@ describe("TRPG GM prompt/parse", () => {
   });
 
   it("D: rich participant prose starts GM writing at the first new beat", () => {
-    assert.match(TRPG_GM_SYSTEM, /Submitted canonical actions fix intent/);
+    assert.match(TRPG_GM_SYSTEM, /Submitted canonical actions fix intent only/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /previously written action as the minimum continuity/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /isolated per-character recaps/);
@@ -414,9 +415,8 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[PROGRESSION\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CLOSING\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[QUALITY\]/);
-    assert.match(TRPG_GM_SYSTEM, /TARGET is the normal finish range/);
-    assert.match(TRPG_GM_SYSTEM, /Minimum is a compact-scene fallback/);
-    assert.match(TRPG_GM_SYSTEM, /Submitted canonical actions fix intent/);
+    assert.match(TRPG_GM_SYSTEM, /terminal ROUND NARRATION BUDGET as the sole numeric length contract/);
+    assert.match(TRPG_GM_SYSTEM, /Submitted canonical actions fix intent only/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
     assert.match(TRPG_GM_SYSTEM, /route opening|sceneTransitionTo rather than objectiveSet/);
     assert.match(TRPG_GM_SYSTEM, /1–2 sentences/);
@@ -437,9 +437,9 @@ describe("TRPG GM prompt/parse", () => {
     );
     const closing = TRPG_GM_SYSTEM.split("\n").find((line) => line.includes("Closing GM beat")) ?? "";
 
-    assert.match(craft, /Submitted canonical actions fix intent/);
+    assert.match(craft, /Submitted canonical actions fix intent only/);
     assert.match(craft, /first new consequence/i);
-    assert.equal((craft.match(/Submitted canonical actions fix intent/g) ?? []).length, 1);
+    assert.equal((craft.match(/Submitted canonical actions fix intent only/g) ?? []).length, 1);
     assert.doesNotMatch(craft, /previously written action as the minimum continuity/);
     assert.doesNotMatch(craft, /Most of the response must depict/);
     assert.doesNotMatch(craft, /isolated per-character recaps/);
@@ -458,9 +458,8 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(closing, /players supply the approach/);
     assert.doesNotMatch(craft, /\boptions\b/i);
 
-    assert.match(length, /TARGET is the normal finish range/);
-    assert.match(length, /Minimum is a compact-scene fallback/);
-    assert.doesNotMatch(TRPG_GM_SYSTEM, /2800|3600|4600|2400|3000|4000|2000|2500|3500/);
+    assert.match(length, /terminal ROUND NARRATION BUDGET as the sole numeric length contract/);
+    assert.doesNotMatch(length, /2800|3600|4600|2400|3000|4000|2000|2500|3500/);
 
     assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.equal((TRPG_GM_SYSTEM.match(/\[LENGTH — SCENE RESPONSIVE\]/g) ?? []).length, 1);
