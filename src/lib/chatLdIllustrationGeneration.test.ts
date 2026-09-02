@@ -58,7 +58,7 @@ describe("chatLdIllustrationGeneration", () => {
     assert.match(prompt, /vertical 2:3/);
     assert.match(prompt, /GENDER LOCK/);
     assert.match(prompt, /confirmed MALE/);
-    assert.match(prompt, /wholesome conversation/);
+    assert.match(prompt, /non-explicit/i);
     assert.match(prompt, /Show exactly these two people/);
   });
 

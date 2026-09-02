@@ -10,10 +10,12 @@ import {
   type ChatImageCastGroundedSubject,
 } from "@/lib/chatImageCastManifest";
 import type { ScenePanelCount, ScenePlan } from "@/lib/chatImageScenePlan";
+import { resolveScenePresentationVisibility, collectApprovedComicText } from "@/lib/chatImageScenePlan";
 import {
-  collectApprovedComicText,
-  resolveScenePresentationVisibility,
-} from "@/lib/chatImageScenePlan";
+  collectApprovedComicTextForSafeImageGeneration,
+  projectTextForSafeImagePrompt,
+  shouldOmitDialogueFromImageProjection,
+} from "@/lib/chatImageSafeVisualProjection";
 import { buildChatComicPanelSpecPromptSection, compileChatComicPanelSpec } from "@/lib/chatComicPanelSpec";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
@@ -154,7 +156,10 @@ export function buildChatComicImagePrompt(opts: {
     contentKind: opts.contentKind,
     castManifest: opts.castManifest,
   });
-  const approvedText = collectApprovedComicText(opts.plan, sceneVisibility);
+  const approvedText = collectApprovedComicTextForSafeImageGeneration(
+    opts.plan,
+    sceneVisibility
+  ).texts;
   const subjects = defaultComicSubjects(opts);
   const castAware = Boolean(opts.castManifest && opts.castSelected?.length);
   const castBlock =
@@ -203,6 +208,10 @@ export function buildChatComicImagePrompt(opts: {
       castSelected: castAware ? opts.castSelected : undefined,
       subjects,
       eventSubjectBindings: opts.castManifest?.eventSubjectBindings,
+      projection: {
+        projectSceneText: projectTextForSafeImagePrompt,
+        omitDialogueText: shouldOmitDialogueFromImageProjection,
+      },
     }),
   ]
     .filter(Boolean)
