@@ -4501,6 +4501,11 @@ export async function POST(req: Request) {
             billingWaiverReason,
             legacyWaiverMinimum,
             fxSnapshot: billingFxSnapshot,
+            diagnosticContext: {
+              requestId: clientRequestId ?? null,
+              chatId: chatRef.id,
+              messageId: persistedAssistantId,
+            },
           });
           if (isPhase1PublishedBillingEnabled()) {
             cost = billingContractDecision.points;
