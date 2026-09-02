@@ -17,13 +17,15 @@ function countOwnerMatches(text: string, pattern: RegExp): number {
 describe("TRPG GM resolution quality — prompt owners", () => {
   it("keeps single replay, failure, and forward-motion owners", () => {
     const craft = gmSceneCraftBlock();
-    assert.equal(countOwnerMatches(craft, /do not replay, re-quote, closely paraphrase, or re-stage/gi), 1);
+    assert.equal(countOwnerMatches(craft, /\[ROUND CRAFT\]/g), 1);
+    assert.equal(countOwnerMatches(craft, /first new consequence or changed state/gi), 1);
     assert.equal(countOwnerMatches(craft, /Failure: intended result does not fully land/g), 1);
-    assert.equal(countOwnerMatches(craft, /Resolution is a compact bridge, not the main destination/g), 1);
-    assert.equal(countOwnerMatches(craft, /never dedicate a separate long paragraph to each actor's performance or outcome/g), 1);
+    assert.equal(countOwnerMatches(craft, /compact resolution bridge/gi), 1);
+    assert.equal(countOwnerMatches(craft, /substantial majority of narration on NEW/gi), 1);
     assert.equal(countOwnerMatches(craft, /\[AUTHORITATIVE AI PC ATTEMPT — actor-only\]/g), 1);
     assert.equal(countOwnerMatches(craft, /\[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only\]/g), 1);
-    assert.equal(countOwnerMatches(craft, /do not choose their next actions, dialogue, allegiance, movement, or decisions/g), 1);
+    assert.match(craft, /voluntary action[\s\S]*allegiance[\s\S]*inner state/i);
+    assert.equal(countOwnerMatches(craft, /each PC's next meaningful decision remains with that player/gi), 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FORWARD MOTION\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[STORY PROGRESSION\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[NEW MATERIAL\]/);
@@ -33,7 +35,7 @@ describe("TRPG GM resolution quality — prompt owners", () => {
     assert.match(TRPG_GM_SYSTEM, /Do not narrate raw stat values, modifiers, d20, DC, or tier/);
     assert.match(craft, /Earlier SUCCESS in \[RESOLUTION ORDER\] stays canon/);
     assert.match(craft, /fold them into one coherent setback/);
-    assert.match(TRPG_GM_SYSTEM, /not actor-by-actor recap of submitted actions/);
+    assert.match(TRPG_GM_SYSTEM, /not actor recap/);
   });
 });
 

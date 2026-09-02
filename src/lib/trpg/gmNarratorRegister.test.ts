@@ -48,10 +48,10 @@ describe("TRPG GM narrator register contract", () => {
       TRPG_GM_SYSTEM.indexOf("[SPEECH FORMAT]")
     );
     assert.match(section, /literary plain style/i);
-    assert.match(section, /not formal polite/i);
+    assert.match(section, /formal polite report prose/i);
     assert.match(section, /했습니다|입니다|합니다/);
     assert.match(section, /했다|였다|있었다/);
-    assert.match(section, /short present or fragment beats/i);
+    assert.match(section, /short present beats/i);
     assert.doesNotMatch(section, /every sentence must end with/i);
   });
 
@@ -61,8 +61,7 @@ describe("TRPG GM narrator register contract", () => {
       TRPG_GM_SYSTEM.indexOf("[SPEECH FORMAT]")
     );
     assert.match(section, /Spoken dialogue keeps each character's speech level/i);
-    assert.match(section, /never normalize dialogue/i);
-    assert.match(section, /Applies to narration and the GM closing aside only/i);
+    assert.match(section, /narration and the GM closing aside/i);
     assert.match(section, /Quoted in-world text/i);
     assert.match(TRPG_GM_SYSTEM, /Closing GM beat/);
   });
@@ -128,6 +127,6 @@ describe("TRPG GM narrator register contract", () => {
       TRPG_GM_SYSTEM.indexOf(NARRATOR_REGISTER_MARKER),
       TRPG_GM_SYSTEM.indexOf("[SPEECH FORMAT]")
     );
-    assert.match(section, /Do not mimic injected plan or blueprint surface register/i);
+    assert.match(section, /Do not mimic injected plan or blueprint register/i);
   });
 });

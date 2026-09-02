@@ -192,10 +192,11 @@ describe("TRPG prompt owner cleanup", () => {
     assert.equal((TRPG_GM_SYSTEM.match(/\[TONE\]/g) ?? []).length, 1);
     assert.equal((TRPG_GM_SYSTEM.match(/\[LENGTH — SCENE RESPONSIVE\]/g) ?? []).length, 1);
     const user = gmSparseUser();
-    assert.match(user, /\[SCENE CRAFT\]/);
+    assert.match(user, /\[ROUND EXECUTION — binding\]/);
     assert.match(user, /\[ROUND NARRATION BUDGET\]/);
+    assert.equal((user.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.doesNotMatch(user, /\[SPEECH FORMAT\]/);
-    assert.doesNotMatch(user, /\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/);
+    assert.doesNotMatch(user, /\[GM SCENE CRAFT — ADAPTIVE NARRATION\]\nContinue timeline/);
   });
 
   it("PRESENTATION_UI_PROMPT_LEAK_COUNT = 0 in assembled Bot/GM prompts", () => {
