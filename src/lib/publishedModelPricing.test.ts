@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { getPublishedPricing, listExactPublishedCatalogEntries } from "./publishedModelPricing";
 import { evaluateGemini37V2AcceptanceGates } from "./gemini37PricingPolicy";
+import { evaluateDeepSeekV4ProV2AcceptanceGates } from "./deepseekV4ProPricingPolicy";
 import { evaluatePremiumPricingGates } from "./premiumPricingCalibration";
 import { requirePrimaryBenchmark } from "./marketUsageBenchmarks";
 
@@ -55,6 +56,22 @@ describe("publishedModelPricing", () => {
     assert.equal(g.billingReferenceOutputUsdPerMillion, 1.875);
     assert.equal(g.targetMargin, 0.55);
     assert.equal(g.minimumMarginFloor, 0.5);
+  });
+
+  it("deepseek v4 pro 0813 published v2 shadow calibration", () => {
+    const gates = evaluateDeepSeekV4ProV2AcceptanceGates(90);
+    assert.equal(gates.allPass, true);
+    const d = getPublishedPricing("deepseek-v4-pro-0813");
+    assert.equal(d.pricingVersion, 2);
+    assert.equal(d.billingReferenceInputUsdPerMillion, 0.66);
+    assert.equal(d.billingReferenceOutputUsdPerMillion, 1.98);
+    assert.equal(d.billingReferenceCacheReadUsdPerMillion, 0.022);
+    assert.equal(d.billingReferenceCacheWriteUsdPerMillion, undefined);
+    assert.equal(d.targetMargin, 0.5);
+    assert.equal(d.minimumMarginFloor, 0.4);
+    const alias = getPublishedPricing("deepseek-v4-pro");
+    assert.equal(alias.pricingVersion, d.pricingVersion);
+    assert.equal(alias.modelId, "deepseek-v4-pro-0813");
   });
 
   it("PUBLISHED_CATALOG_IDENTITY_INVARIANT — catalog key equals pricing.modelId", () => {

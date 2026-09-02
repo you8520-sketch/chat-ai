@@ -33,6 +33,7 @@ export type ModelPublishedPricingPolicy = {
 export { GEMINI31_BASE_TIER_PROMPT_THRESHOLD } from "@/lib/premiumModelIds";
 
 const GEMINI37_MODEL_ID = "gemini-3.7-flash";
+const DEEPSEEK_V4_PRO_MODEL_ID = "deepseek-v4-pro-0813";
 
 const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPolicy> = {
   [GEMINI31_MODEL_ID]: {
@@ -51,6 +52,12 @@ const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPoli
     pricingApplicability: "tier_aware",
     cacheSemanticStatus: "verified_5m",
     opusCacheTtlMode: "5M_ONLY",
+  },
+  [DEEPSEEK_V4_PRO_MODEL_ID]: {
+    modelId: DEEPSEEK_V4_PRO_MODEL_ID,
+    pricingApplicability: "tier_aware",
+    /** Prefix cache read verified; production-real usage reports cache_write_tokens=0. */
+    cacheSemanticStatus: "verified",
   },
 };
 
