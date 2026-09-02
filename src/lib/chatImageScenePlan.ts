@@ -1018,12 +1018,17 @@ export function normalizePanelDialogueEdits(
     const outputText = normalizeDialogueTextForOutput(line.text, 160);
     if (!outputText && !editText.trim()) {
       if (line.provenance === "user_edit") {
-        result.push({ speaker, text: "", provenance: "user_edit" });
+        result.push({ speaker, speakerName: line.speakerName, text: "", provenance: "user_edit" });
       }
       continue;
     }
     if (line.provenance === "user_edit") {
-      result.push({ speaker, text: editText, provenance: "user_edit" });
+      result.push({
+        speaker,
+        speakerName: line.speakerName,
+        text: editText,
+        provenance: "user_edit",
+      });
       continue;
     }
     const sourceEventId = cleanLine(line.sourceEventId, 24) || undefined;
@@ -1033,15 +1038,26 @@ export function normalizePanelDialogueEdits(
         prior &&
         prior.provenance === "source" &&
         normalizeDialogueTextForOutput(prior.text) === outputText &&
-        prior.speaker === speaker
+        prior.speaker === speaker &&
+        (prior.speakerName ?? undefined) === (line.speakerName ?? undefined)
       ) {
         result.push(prior);
         continue;
       }
-      result.push({ speaker, text: editText, provenance: "user_edit" });
+      result.push({
+        speaker,
+        speakerName: line.speakerName,
+        text: editText,
+        provenance: "user_edit",
+      });
       continue;
     }
-    result.push({ speaker, text: editText, provenance: "user_edit" });
+    result.push({
+      speaker,
+      speakerName: line.speakerName,
+      text: editText,
+      provenance: "user_edit",
+    });
   }
   return result;
 }
@@ -1299,21 +1315,12 @@ function validatePanelVisualCoverage(
   return { ok: true };
 }
 
-function dialogueOwnershipMatches(
-  line: Pick<SceneDialogue, "speaker" | "speakerName">,
-  event: SceneEvent
-): boolean {
-  const resolvedLineSpeakerName = line.speakerName ?? event.speakerName;
-  if (resolvedLineSpeakerName || event.speakerName) {
-    return resolvedLineSpeakerName === event.speakerName;
+function canonicalDialogueSpeakerFromEvent(event: SceneEvent): SceneDialogueSpeaker | null {
+  if (event.kind !== "dialogue") return null;
+  if (event.actor === "persona" || event.actor === "character" || event.actor === "other") {
+    return event.actor;
   }
-  if (line.speaker === "persona") {
-    return event.actor === "persona" && event.sourceRole === "user";
-  }
-  if (line.speaker === "character") {
-    return event.actor === "character" && event.sourceRole === "assistant";
-  }
-  return true;
+  return null;
 }
 
 export type ScenePlanIntent = "general" | "trpg_illustration";
@@ -1413,6 +1420,7 @@ export function validateScenePlan(
       const text = cleanLine(line.text, 160);
       if (!text) continue;
       const provenance = line.provenance === "user_edit" ? "user_edit" : "source";
+      let resolvedSpeaker: SceneDialogueSpeaker = speaker;
       let resolvedSpeakerName = speakerName;
       let resolvedSourceEventId =
         typeof line.sourceEventId === "string" ? cleanLine(line.sourceEventId, 24) || undefined : undefined;
@@ -1432,14 +1440,16 @@ export function validateScenePlan(
         if (linked.text !== text) {
           return { ok: false, reason: "dialogue text mismatch" };
         }
-        if (!dialogueOwnershipMatches({ speaker, speakerName }, linked)) {
-          return { ok: false, reason: "dialogue speaker ownership mismatch" };
+        const canonicalSpeaker = canonicalDialogueSpeakerFromEvent(linked);
+        if (!canonicalSpeaker) {
+          return { ok: false, reason: "dialogue sourceEvent actor invalid" };
         }
-        resolvedSpeakerName = speakerName ?? linked.speakerName;
+        resolvedSpeaker = canonicalSpeaker;
+        resolvedSpeakerName = linked.speakerName;
         resolvedSourceEventId = sourceEventId;
       }
       dialogue.push({
-        speaker,
+        speaker: resolvedSpeaker,
         speakerName: resolvedSpeakerName,
         text,
         sourceEventId: resolvedSourceEventId,
@@ -1652,7 +1662,7 @@ const PERSONA_EXCLUDED_VISIBLE_CAST_CONTRACT = [
 ].join(" ");
 
 function isPersonaOwnedEvent(event: SceneEvent): boolean {
-  return event.sourceRole === "user" && event.actor === "persona";
+  return event.actor === "persona";
 }
 
 function stripPersonaOwnedTexts(raw: string, plan: ScenePlan): string {

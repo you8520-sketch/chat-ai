@@ -6,8 +6,11 @@ import { compilerOnlyDuoVisualSubjects } from "@/lib/chatComicPanelSpec.fixtures
 import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
+  collectApprovedComicText,
   collectCanonicalSpeakerNames,
   extractDeterministicEvents,
+  formatApprovedScenePlanForIllustration,
+  projectComicPanelBeat,
   reflowScenePlanPanels,
   updatePanelDialogueAtIndex,
   validateScenePlan,
@@ -63,6 +66,68 @@ function trioVisualSubjects() {
       sourceKind: "cast_member" as const,
     },
   ];
+}
+
+function buildAdversarialProviderPlan() {
+  const messages = multiSpeakerMessages();
+  const canonical = buildDeterministicScenePlan(messages, 3, SPEAKER_CONTEXT);
+  const dialogueEvents = canonical.events.filter((event) => event.kind === "dialogue");
+  const ren = dialogueEvents.find((event) => event.speakerName === "렌");
+  const gang = dialogueEvents.find((event) => event.speakerName === "강이현");
+  const kwon = dialogueEvents.find((event) => event.speakerName === "권태현");
+  assert.ok(ren && gang && kwon);
+  assert.equal(ren.actor, "persona");
+  assert.equal(gang.actor, "other");
+  assert.equal(kwon.actor, "character");
+
+  const providerPlan = {
+    sceneBackground: canonical.sceneBackground,
+    heroEventIds: canonical.heroEventIds,
+    heroScene: canonical.heroScene,
+    recommendedPanelCount: 3,
+    panels: canonical.panels.map((panel) => ({
+      index: panel.index,
+      sourceEventIds: panel.sourceEventIds,
+      situation: panel.situation,
+      dialogue: panel.dialogue.map((line) => {
+        if (line.sourceEventId === ren.id) {
+          return {
+            speaker: "character",
+            text: line.text,
+            sourceEventId: line.sourceEventId,
+            provenance: "source",
+          };
+        }
+        if (line.sourceEventId === gang.id) {
+          return {
+            speaker: "character",
+            text: line.text,
+            sourceEventId: line.sourceEventId,
+            provenance: "source",
+          };
+        }
+        return {
+          speaker: line.speaker,
+          text: line.text,
+          sourceEventId: line.sourceEventId,
+          provenance: "source",
+        };
+      }),
+    })),
+  };
+
+  return { messages, canonical, providerPlan, ren, gang, kwon };
+}
+
+function validatedAdversarialPlan() {
+  const { messages, providerPlan } = buildAdversarialProviderPlan();
+  const validated = validateScenePlan(providerPlan, messages, {
+    personaName: SPEAKER_CONTEXT.personaName,
+    characterName: SPEAKER_CONTEXT.characterName,
+    knownSpeakerNames: SPEAKER_CONTEXT.knownSpeakerNames,
+  });
+  assert.equal(validated.ok, true);
+  return { messages, plan: validated.ok ? validated.plan : null };
 }
 
 describe("chat image multi-speaker dialogue identity", () => {
@@ -269,5 +334,99 @@ describe("chat image multi-speaker dialogue identity", () => {
       planned.plan.panels.flatMap((panel) => panel.dialogue.map((line) => line.speakerName)),
       ["렌", "강이현", "권태현"]
     );
+  });
+
+  it("A20: adversarial provider coarse-speaker mismatch canonicalizes to canonical identity", () => {
+    const { plan } = validatedAdversarialPlan();
+    assert.ok(plan);
+    const dialogue = plan!.panels.flatMap((panel) => panel.dialogue);
+    assert.deepEqual(
+      dialogue.map((line) => ({ speaker: line.speaker, speakerName: line.speakerName, text: line.text })),
+      [
+        { speaker: "persona", speakerName: "렌", text: "조심해." },
+        { speaker: "other", speakerName: "강이현", text: "뒤는 내가 볼게." },
+        { speaker: "character", speakerName: "권태현", text: "먼저 올라가." },
+      ]
+    );
+  });
+
+  it("A21: named assistant persona hidden when personaVisible=false", () => {
+    const { plan } = validatedAdversarialPlan();
+    assert.ok(plan);
+    const hidden = { personaVisible: false as const };
+    const panel = plan!.panels.find((entry) =>
+      entry.dialogue.some((line) => line.speakerName === "렌")
+    );
+    assert.ok(panel);
+    const beat = projectComicPanelBeat(plan!, panel, hidden);
+    assert.ok(!beat.dialogue.some((line) => line.speakerName === "렌" || line.text.includes("조심해")));
+    const approved = collectApprovedComicText(plan!, hidden);
+    assert.ok(!approved.some((text) => text.includes("조심해")));
+    const spec = compileChatComicPanelSpec({
+      plan: plan!,
+      personaName: "렌",
+      characterName: "권태현",
+      visibility: hidden,
+      subjects: trioVisualSubjects(),
+    });
+    const section = renderChatComicPanelSpecSection(spec);
+    assert.doesNotMatch(section, /Speech bubble .*렌/);
+    assert.doesNotMatch(section, /조심해/);
+    assert.match(section, /Speech bubble .*강이현/);
+    assert.match(section, /Speech bubble .*권태현/);
+    const illustration = formatApprovedScenePlanForIllustration(plan!, hidden);
+    assert.doesNotMatch(illustration, /조심해/);
+  });
+
+  it("A22: personaVisible=true retains all named speakers", () => {
+    const { plan } = validatedAdversarialPlan();
+    assert.ok(plan);
+    const visible = { personaVisible: true as const };
+    const dialogue = plan!.panels.flatMap((panel) =>
+      projectComicPanelBeat(plan!, panel, visible).dialogue
+    );
+    assert.deepEqual(
+      dialogue.map((line) => line.speakerName),
+      ["렌", "강이현", "권태현"]
+    );
+    const spec = compileChatComicPanelSpec({
+      plan: plan!,
+      personaName: "렌",
+      characterName: "권태현",
+      visibility: visible,
+      subjects: trioVisualSubjects(),
+    });
+    const section = renderChatComicPanelSpecSection(spec);
+    assert.match(section, /Speech bubble \(B \/ 렌\)/);
+    assert.match(section, /Speech bubble \(C \/ 강이현\)/);
+    assert.match(section, /Speech bubble \(A \/ 권태현\)/);
+  });
+
+  it("A23: user_edit speaker changes remain editor-owned", () => {
+    const { messages, providerPlan } = buildAdversarialProviderPlan();
+    const validated = validateScenePlan(providerPlan, messages, {
+      allowUserEdits: true,
+      personaName: SPEAKER_CONTEXT.personaName,
+      characterName: SPEAKER_CONTEXT.characterName,
+      knownSpeakerNames: SPEAKER_CONTEXT.knownSpeakerNames,
+    });
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    const panel = validated.plan.panels.find((entry) =>
+      entry.dialogue.some((line) => line.speakerName === "강이현")
+    );
+    assert.ok(panel);
+    const lineIndex = panel!.dialogue.findIndex((line) => line.speakerName === "강이현");
+    const edited = updatePanelDialogueAtIndex(validated.plan, panel!.index, lineIndex, {
+      speaker: "character",
+      speakerName: "권태현",
+      text: "뒤는 내가 볼게.",
+    });
+    const line = edited.panels
+      .find((entry) => entry.index === panel!.index)
+      ?.dialogue[lineIndex];
+    assert.equal(line?.provenance, "user_edit");
+    assert.equal(line?.speaker, "character");
+    assert.equal(line?.speakerName, "권태현");
   });
 });
