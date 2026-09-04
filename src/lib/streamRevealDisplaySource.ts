@@ -1,5 +1,5 @@
 import { resolveActiveVariantContent, type MessageVariant } from "@/lib/messageAlternates";
-import { isTerminalGenerationStatus } from "@/lib/streamingPersistence";
+import { isTerminalGenerationStatus } from "@/lib/streamingPersistenceShared";
 
 /**
  * Owner map (documentation):

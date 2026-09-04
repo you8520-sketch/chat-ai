@@ -10,7 +10,7 @@ import {
   CHAT_COMIC_PANEL_OPTIONS,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
   type ChatComicPanelCount,
-} from "@/lib/chatComicGeneration";
+} from "@/lib/chatComicGenerationConstants";
 import {
   applyApprovedAiScenePlan,
   buildDeterministicScenePlan,
