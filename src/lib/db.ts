@@ -697,6 +697,8 @@ function migrate(db: Database.Database) {
   addColumn("users", "creator_exclusive", "INTEGER NOT NULL DEFAULT 0");
   addColumn("users", "partner_tier_granted_at", "TEXT");
   addColumn("users", "partner_tier_valid_until", "TEXT");
+  addColumn("users", "pro_tier_granted_at", "TEXT");
+  addColumn("users", "pro_tier_valid_until", "TEXT");
   addColumn("users", "last_attendance_date", "TEXT");
   addColumn("users", "attendance_streak", "INTEGER NOT NULL DEFAULT 0");
   db.exec(`

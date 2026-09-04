@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   CREATOR_PRO_MIN_CHARACTERS,
   CREATOR_PRO_MIN_MONTHLY_SPENT,
+  CREATOR_PRO_MIN_TOTAL_CHATS,
   CREATOR_REWARD_RATE,
   CREATOR_REWARD_RATE_PRO,
   CREATOR_REWARD_RATE_SPROUT,
@@ -31,6 +32,7 @@ describe("creator tier policy", () => {
         stats({
           characterCount: 5,
           publicCharacterCount: CREATOR_PRO_MIN_CHARACTERS,
+          totalChats: CREATOR_PRO_MIN_TOTAL_CHATS,
           monthlySpentOnChars: CREATOR_PRO_MIN_MONTHLY_SPENT,
         })
       ).rewardRate,
@@ -50,11 +52,11 @@ describe("creator tier policy", () => {
     );
   });
 
-  it("keeps the existing pro spend condition while lowering only the public count to five", () => {
+  it("requires five public characters, 100,000 chats, and monthly spend for initial pro promotion", () => {
     const oneShort = stats({
       characterCount: 5,
       publicCharacterCount: CREATOR_PRO_MIN_CHARACTERS - 1,
-      totalChats: 100_000,
+      totalChats: CREATOR_PRO_MIN_TOTAL_CHATS,
       monthlySpentOnChars: CREATOR_PRO_MIN_MONTHLY_SPENT,
     });
     assert.equal(resolveCreatorTier(oneShort).tierLevel, "standard");
@@ -66,9 +68,21 @@ describe("creator tier policy", () => {
       resolveCreatorTier({
         ...oneShort,
         publicCharacterCount: CREATOR_PRO_MIN_CHARACTERS,
-        monthlySpentOnChars: CREATOR_PRO_MIN_MONTHLY_SPENT - 0.1,
+        totalChats: CREATOR_PRO_MIN_TOTAL_CHATS - 1,
       }).tierLevel,
       "standard"
     );
+    assert.equal(
+      resolveCreatorTier({
+        ...oneShort,
+        publicCharacterCount: CREATOR_PRO_MIN_CHARACTERS,
+        monthlySpentOnChars: CREATOR_PRO_MIN_MONTHLY_SPENT - 1,
+      }).tierLevel,
+      "standard"
+    );
+  });
+
+  it("keeps pro during an active guaranteed term", () => {
+    assert.equal(resolveCreatorTier(stats({ hasActiveProTerm: true })).tierLevel, "pro");
   });
 });

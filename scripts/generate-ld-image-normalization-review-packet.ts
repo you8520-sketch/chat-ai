@@ -14,7 +14,7 @@ import {
 } from "../src/lib/chatImageAttributionAudit";
 import {
   auditComicDialogueWhitelist,
-} from "../src/lib/chatComicGeneration";
+} from "../src/lib/chatComicDialogueAudit";
 import { renderChatComicPanelSpecSection, compileChatComicPanelSpec } from "../src/lib/chatComicPanelSpec";
 import {
   buildProductionDuoGenerationPlanForFixture,

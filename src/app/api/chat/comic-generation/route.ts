@@ -74,6 +74,8 @@ import {
 } from "@/lib/chatImageScenePlan";
 import {
   renderComicTextOverlay,
+} from "@/lib/chatComicTextOverlay.server";
+import {
   validateComicOverlayPreflight,
 } from "@/lib/chatComicTextOverlay";
 import { planChatImageScene } from "@/lib/chatImageScenePlanner";
