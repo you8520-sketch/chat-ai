@@ -1269,7 +1269,7 @@ export async function POST(req: Request) {
                   (attempt) => attempt.costUsd == null
                 ),
                 safetyFallbackUsed: providerAttempts.some(
-                  (attempt) => attempt.kind === "strict_safety_fallback" && attempt.outcome === "success"
+                  (attempt) => attempt.kind === "strict_safety_fallback"
                 ),
               }),
             }

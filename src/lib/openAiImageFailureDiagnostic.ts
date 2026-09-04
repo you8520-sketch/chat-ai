@@ -212,7 +212,9 @@ export function formatOpenAiImageFailureDiagnosticForAdmin(
     errorParam: diagnostic.errorParam,
     errorMessage: diagnostic.errorMessage,
     moderationStage: diagnostic.moderationStage ?? "unavailable",
-    safetyCategories: diagnostic.safetyCategories ?? [],
+    safetyCategories: diagnostic.safetyCategories?.length
+      ? diagnostic.safetyCategories
+      : "UNKNOWN",
     usageReturned: diagnostic.hasUsageEvidence,
     inputTokens: diagnostic.inputTokens,
     outputTokens: diagnostic.outputTokens,

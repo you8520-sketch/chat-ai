@@ -158,6 +158,16 @@ import {
   collectTier2RawSourceCandidates,
   formatComicGenerationAdminFailureDiagnostic,
 } from "@/lib/chatComicTier2SafetyAudit";
+import {
+  buildComicProviderReferences,
+  buildNeutralComicProviderScenePlan,
+  buildNeutralComicSafeStructure,
+  formatComicReferenceSetForAdmin,
+  isolateComicProviderReferences,
+  resolveComicDiagnosticOverrides,
+  type ComicProviderReference,
+  type ComicNormalizedProviderReference,
+} from "@/lib/chatComicReferenceIsolation";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -675,7 +685,7 @@ async function generateComicImage(opts: {
   model: string;
   prompt: string;
   strictFallbackPrompt: string;
-  references: string[];
+  references: ComicNormalizedProviderReference[];
   panelCount: ChatComicPanelCount;
 }): Promise<OpenAiImageGeneratedWithAttempts> {
   try {
@@ -684,7 +694,7 @@ async function generateComicImage(opts: {
       model: opts.model,
       primaryPrompt: opts.prompt,
       strictFallbackPrompt: opts.strictFallbackPrompt,
-      references: opts.references,
+      references: opts.references.map((reference) => reference.dataUrl),
       size: resolveChatComicOutputSize(opts.panelCount),
       quality: "medium",
       outputCompression: 84,
@@ -816,8 +826,23 @@ export async function POST(req: Request) {
   let jobId: number | null = null;
   let tier2PromptAudit: ReturnType<typeof auditTier2ComicPrompt> | null = null;
   let referenceRoleInventory: ReturnType<typeof buildComicReferenceRoleInventory> | null = null;
+  let providerReferences: ComicProviderReference[] | null = null;
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
+    let diagnosticOverrides;
+    try {
+      diagnosticOverrides = resolveComicDiagnosticOverrides({
+        canSeeCost,
+        referenceMode: body.comicReferenceIsolationMode,
+        visualContextMode: body.comicVisualContextIsolationMode,
+      });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "INVALID_COMIC_DIAGNOSTIC_OVERRIDE";
+      throw new RequestError(code === "COMIC_DIAGNOSTIC_OVERRIDE_FORBIDDEN"
+        ? "관리자만 컷만화 진단 모드를 사용할 수 있습니다."
+        : "컷만화 진단 모드가 올바르지 않습니다.", code.includes("FORBIDDEN") ? 403 : 400);
+    }
     const context = resolveGenerationContext({
       userId: user.id,
       characterId: positiveInt(body.characterId),
@@ -1342,7 +1367,29 @@ export async function POST(req: Request) {
       castManifest,
       contentKind: context.contentKind,
     });
-    const prompt = identityPack.prompt;
+    const neutralVisualContext = diagnosticOverrides.visualContextMode === "neutral_visual_context";
+    const providerScenePlan: ScenePlan = neutralVisualContext
+      ? buildNeutralComicProviderScenePlan(scenePlan)
+      : scenePlan;
+    const providerIdentityPack = neutralVisualContext
+      ? buildChatComicGenerationPlan({
+          characterName: context.character.name,
+          characterGender: context.characterGender,
+          characterImageUrl: context.characterImageUrl,
+          characterSavedAppearance: context.characterSavedAppearance,
+          characterAppearanceMode: appearanceModes.characterAppearanceMode,
+          personaName: context.persona.name,
+          personaGender: context.personaGender,
+          personaImageUrl: context.personaImageUrl,
+          personaSavedAppearance: context.personaSavedAppearance,
+          personaAppearanceMode: appearanceModes.personaAppearanceMode,
+          mood,
+          plan: providerScenePlan,
+          castManifest,
+          contentKind: context.contentKind,
+        })
+      : identityPack;
+    const prompt = providerIdentityPack.prompt;
     const comicVisibility = resolveScenePresentationVisibility({
       contentKind: context.contentKind,
       castManifest,
@@ -1359,7 +1406,9 @@ export async function POST(req: Request) {
     if (!overlayPreflight.ok) {
       return NextResponse.json({ error: overlayPreflight.reason }, { status: 400 });
     }
-    const tier2SafeStructure = projectComicSafeStructureForTier2(scenePlan, comicVisibility);
+    const tier2SafeStructure = neutralVisualContext
+      ? buildNeutralComicSafeStructure(scenePlan.panels.map((panel) => panel.index))
+      : projectComicSafeStructureForTier2(scenePlan, comicVisibility);
     const strictFallbackPrompt = buildStrictComicFallbackPrompt({
       panelCount,
       mood,
@@ -1367,7 +1416,7 @@ export async function POST(req: Request) {
       characterGender: context.characterGender,
       personaName: context.persona.name,
       personaGender: context.personaGender,
-      subjects: identityPack.subjects,
+      subjects: providerIdentityPack.subjects,
       castManifest,
       castSelected: castManifest?.subjects.filter((subject) => subject.included),
       contentKind: context.contentKind,
@@ -1375,18 +1424,28 @@ export async function POST(req: Request) {
     });
     const tier2PromptAuditResult = auditTier2ComicPrompt({
       prompt: strictFallbackPrompt,
-      subjects: identityPack.subjects,
+      subjects: providerIdentityPack.subjects,
       safeStructure: tier2SafeStructure,
       safeStructureProjectionApplied: true,
-      rawSourceCandidates: collectTier2RawSourceCandidates(scenePlan),
+      rawSourceCandidates: neutralVisualContext ? [] : collectTier2RawSourceCandidates(scenePlan),
     });
     tier2PromptAudit = tier2PromptAuditResult;
     referenceRoleInventory = buildComicReferenceRoleInventory({
-      referenceUrls: identityPack.referenceUrls,
-      subjects: identityPack.subjects,
+      referenceUrls: providerIdentityPack.referenceUrls,
+      subjects: providerIdentityPack.subjects,
     });
-    const references = await Promise.all(
-      identityPack.referenceUrls.map((url) => imageSourceToDataUrl(url))
+    providerReferences = isolateComicProviderReferences(
+      buildComicProviderReferences({
+        referenceUrls: providerIdentityPack.referenceUrls,
+        subjects: providerIdentityPack.subjects,
+      }),
+      diagnosticOverrides.referenceMode
+    );
+    const references: ComicNormalizedProviderReference[] = await Promise.all(
+      providerReferences.map(async (reference) => ({
+        ...reference,
+        dataUrl: await imageSourceToDataUrl(reference.sourceUrl),
+      }))
     );
     const model = resolveChatImageGenerationModel();
     const generated = await generateComicImage({
@@ -1504,7 +1563,6 @@ export async function POST(req: Request) {
       hasUnknownAttemptCost: generated.hasUnknownAttemptCost,
     });
 
-    const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
     return NextResponse.json({
       ok: true,
       mode: "comic",
@@ -1518,7 +1576,14 @@ export async function POST(req: Request) {
       upstreamCostUsd: canSeeCost ? totalCostUsd : undefined,
       upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
       ...(canSeeCost
-        ? { providerAttemptDiagnostic: adminProviderAttemptDiagnostic(generated) }
+        ? {
+            providerAttemptDiagnostic: adminProviderAttemptDiagnostic(generated),
+            comicDiagnostic: {
+              referenceIsolationMode: diagnosticOverrides.referenceMode,
+              visualContextIsolationMode: diagnosticOverrides.visualContextMode,
+              ...formatComicReferenceSetForAdmin(providerReferences),
+            },
+          }
         : {}),
       totalPointsCost: deductionTotal,
       remainingPoints: deductionBalance.total,
@@ -1550,14 +1615,15 @@ export async function POST(req: Request) {
           providerAttempts,
           tier2PromptAudit,
           referenceRoleInventory,
+          providerReferences: providerReferences ?? undefined,
           imageFailureDiagnostic: diagnostic,
         })
       : null;
-    console.error("[chat-comic-generation] failed", {
+    console.error("[chat-comic-generation] failed", JSON.stringify({
       status,
       message,
       ...(adminFailureDiagnostic ?? {}),
-    });
+    }));
     return NextResponse.json(
       {
         error: message,
