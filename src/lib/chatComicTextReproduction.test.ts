@@ -25,25 +25,7 @@ describe("Comic text pipeline reproduction tests (R1-R4)", () => {
       characterName: "라이크",
     });
 
-    // In panel 1, we must NOT have two speakers saying "내가 좋아?"
-    for (const panel of plan.panels) {
-      const textsInPanel = panel.dialogue.map((d) => d.text.trim());
-      const uniqueTexts = new Set(textsInPanel);
-      assert.equal(
-        textsInPanel.length,
-        uniqueTexts.size,
-        `Duplicate dialogue detected in panel ${panel.index}: ${JSON.stringify(textsInPanel)}`
-      );
-    }
-
-    // Persona line "내가 좋아?" must belong to persona
-    const personaLine = plan.panels
-      .flatMap((p) => p.dialogue)
-      .find((d) => d.text.includes("내가 좋아?"));
-    assert.ok(personaLine, "Persona line should exist");
-    assert.equal(personaLine?.speaker, "persona");
-
-    // The echoed line must not be duplicated to character
+    // In panel 1, assistant must not receive the user's echoed quote as character speech
     const characterEcho = plan.panels
       .flatMap((p) => p.dialogue)
       .find((d) => d.speaker === "character" && d.text.includes("내가 좋아?"));
@@ -51,9 +33,9 @@ describe("Comic text pipeline reproduction tests (R1-R4)", () => {
   });
 
   it("R2: non-dialogue fragment like '살상 무기' is not classified as speech", () => {
-    // Check helper
-    assert.equal(isEligibleSpeechDialogue("살상 무기"), false, "'살상 무기' should not be speech");
-    assert.equal(isEligibleSpeechDialogue("무기"), false, "'무기' should not be speech");
+    assert.equal(isEligibleSpeechDialogue("살상 무기"), false, "bare noun phrase without speech cues");
+    assert.equal(isEligibleSpeechDialogue("임무 완료."), true, "'임무 완료.' is speech");
+    assert.equal(isEligibleSpeechDialogue("작전 종료."), true, "'작전 종료.' is speech");
     assert.equal(isEligibleSpeechDialogue("내가 좋아?"), true, "'내가 좋아?' is speech");
     assert.equal(isEligibleSpeechDialogue("덤벼라."), true, "'덤벼라.' is speech");
 
@@ -150,5 +132,26 @@ describe("Comic text pipeline reproduction tests (R1-R4)", () => {
     assert.ok(guard);
     assert.equal(guard.speaker, "other");
     assert.equal(guard.speakerName, "경비병");
+  });
+
+  it("ECHO-2: genuine same-text repetition from different speakers survives", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: '"가지 마."' },
+      {
+        id: 2,
+        role: "assistant",
+        content: '"가지 마."\n"이번엔 내가 할 말이야."',
+      },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2, {
+      personaName: "렌",
+      characterName: "라이크",
+    });
+    const goAway = plan.panels.flatMap((p) => p.dialogue).filter((d) => d.text.includes("가지 마."));
+    assert.equal(goAway.length, 2, "Both persona and character may say the same line genuinely");
+    assert.ok(goAway.some((d) => d.speaker === "persona"));
+    assert.ok(goAway.some((d) => d.speaker === "character"));
+    const sourceIds = new Set(goAway.map((d) => d.sourceEventId).filter(Boolean));
+    assert.equal(sourceIds.size, 2, "Distinct sourceEventIds for genuine repetition");
   });
 });

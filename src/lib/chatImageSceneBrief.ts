@@ -80,8 +80,30 @@ export function isSceneActionText(text: string): boolean {
 const KOREAN_SPEECH_PREDICATE_ENDINGS =
   /(?:다|요|냐|자|어|아|지|네|까|죠|세|래|마|라|야|여|해|가|와|봐|줘|써|서|쳐|켜|져|둬|내|돼|니|나|군|걸|음|함|임|오|소|게|거든|잖아|는데|은데|텐데|을까|을게|을래|려고|란다|렴|ㅂ니다|습니다)(?:[.!?…~]+)?$/u;
 
-const NOUN_LABEL_TERMINAL_SUFFIXES =
-  /(?:무기|금지|구역|장치|설정|명령|경고|주의|위험|작전|임무|목표|대상|상태|보고|기록|데이터|시스템|프로젝트|코드|번호|단어|물건|도구|부품|아이템|스킬|레벨|스탯|퀘스트|개시|종료|완료|실패|성공|발동|해제|중단|대기|전환|탑재|가동)$/u;
+export type QuotedSpeechContext = {
+  messageText: string;
+  quoteStart: number;
+  quoteEnd: number;
+};
+
+/** Post-quote patterns that mark quoted text as a term/label/sign, not spoken dialogue. */
+const POST_QUOTE_TERM_OR_LABEL =
+  /^\s*(?:(?:이라|라)\s*(?:불리|는)|(?:이라|라)고\s*(?:적|쓰|기록|새겨|지칭|불러)|[을를]\s*(?:들|꺼내|뽑|바라|내려|가리|향해|가진|쥐|건네|착용|사용|휘두))/u;
+
+/** Canonical owner: quoted term/title/label vs speech — structure before lexical heuristic. */
+export function isQuotedTermOrLabelNotSpeech(ctx: QuotedSpeechContext): boolean {
+  const after = ctx.messageText.slice(ctx.quoteEnd, ctx.quoteEnd + 48);
+  return POST_QUOTE_TERM_OR_LABEL.test(after);
+}
+
+/** Pre-quote explicit attribution such as `라이크: "..."` establishes spoken dialogue. */
+export function hasExplicitSpeakerAttributionBeforeQuote(
+  messageText: string,
+  quoteStart: number
+): boolean {
+  const before = messageText.slice(Math.max(0, quoteStart - 40), quoteStart);
+  return /(?:^|[\s。!?…])[\p{L}0-9_]{1,24}\s*:\s*["“‘']?\s*$/u.test(before);
+}
 
 const KOREAN_CONVERSATIONAL_WORDS = new Set([
   "안녕",
@@ -132,22 +154,27 @@ const KOREAN_CONVERSATIONAL_WORDS = new Set([
   "다녀와",
 ]);
 
-/** Detects whether a string is valid spoken dialogue vs non-dialogue fragment/noun phrase. */
-export function isEligibleSpeechDialogue(text: string): boolean {
+/** Detects whether a string is valid spoken dialogue vs non-dialogue fragment. */
+export function isEligibleSpeechDialogue(text: string, quoteContext?: QuotedSpeechContext): boolean {
   const trimmed = normalizeSceneBriefWhitespace(text);
   if (!trimmed || trimmed.length < 1) return false;
   if (isSceneActionText(trimmed)) return false;
 
+  if (quoteContext && isQuotedTermOrLabelNotSpeech(quoteContext)) {
+    return false;
+  }
+  if (
+    quoteContext &&
+    hasExplicitSpeakerAttributionBeforeQuote(quoteContext.messageText, quoteContext.quoteStart)
+  ) {
+    return true;
+  }
+
   // Malformed attribution residue like '라고', '이라며'
   if (/^(?:이라고|라고|이라며|라며|이라면서|라면서)(?:\s|$)/u.test(trimmed)) return false;
 
-  // Stripped word without terminal punctuation
   const strippedWord = trimmed.replace(/[.!?…~]/g, "").trim();
-
-  // Pure noun phrase label ending check without punctuation or copula
-  if (NOUN_LABEL_TERMINAL_SUFFIXES.test(strippedWord)) {
-    return false;
-  }
+  const lastWord = strippedWord.split(/\s+/).pop() ?? strippedWord;
 
   // Conversational punctuation: ?, !, ~, or …
   if (/[?!~…]/.test(trimmed)) return true;
@@ -158,8 +185,17 @@ export function isEligibleSpeechDialogue(text: string): boolean {
   // Sentence-ending punctuation (. or ,) on non-label text
   if (/[.,]/.test(trimmed)) return true;
 
-  // Sentence-ending predicative endings
-  if (KOREAN_SPEECH_PREDICATE_ENDINGS.test(strippedWord)) {
+  // Label-like noun fragments without sentence punctuation (e.g. "접근 금지", bare "살상 무기")
+  if (
+    !/[?!~….,]/.test(trimmed) &&
+    strippedWord.split(/\s+/).length <= 2 &&
+    /(?:금지|무기|구역|명령|경고|주의|목표|상태|완료|종료|임무|작전)$/u.test(lastWord)
+  ) {
+    return false;
+  }
+
+  // Sentence-ending predicative endings on the final word — preserves "임무 완료.", "작전 종료.", "경고."
+  if (KOREAN_SPEECH_PREDICATE_ENDINGS.test(lastWord)) {
     return true;
   }
 

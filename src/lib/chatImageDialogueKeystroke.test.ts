@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { auditComicDialogueWhitelist, buildChatComicImagePrompt } from "./chatComicGeneration";
+import { compileComicTextOverlaySvg } from "./chatComicTextOverlay";
 import { compileChatComicPanelSpec } from "./chatComicPanelSpec";
 import { duoVisualSubjectsForCast } from "./chatComicPanelSpec.fixtures";
 import {
@@ -107,7 +108,7 @@ describe("chatImageDialogueKeystroke typing lifecycle", () => {
     assert.ok(bubbleTexts(edited).includes("같이 가자."));
   });
 
-  it("T4 keeps last typed character through immediate bubble projection", () => {
+  it("T4 keeps last typed character through immediate overlay projection", () => {
     const base = buildDeterministicScenePlan(
       buildSceneSourceMessages([{ id: 1, role: "assistant", content: '"안녕."' }]),
       2
@@ -121,7 +122,14 @@ describe("chatImageDialogueKeystroke typing lifecycle", () => {
       personaGender: "female",
       plan: edited,
     });
-    assert.match(prompt, /Room 3으로 가자\./);
+    const overlaySvg = compileComicTextOverlaySvg({
+      width: 400,
+      height: 800,
+      panelCount: 2,
+      plan: edited,
+    });
+    assert.match(overlaySvg, /Room 3으로 가자\./);
+    assert.doesNotMatch(prompt, /Room 3으로 가자\./);
     assert.ok(bubbleTexts(edited).includes("Room 3으로 가자."));
   });
 

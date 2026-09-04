@@ -6,10 +6,13 @@ import {
   compileComicTextOverlaySvg,
   filterDialogueForTextOverlay,
   layoutPanelBubbles,
+  layoutPanelOverlay,
   layoutPanelNarration,
   extractPanelSfxCue,
   renderComicTextOverlay,
   countLayoutOverlaps,
+  countPanelOverlayCollisions,
+  countElementsOutsidePanel,
   BUBBLE_OWNER,
   NARRATION_OWNER,
   SFX_OWNER,
@@ -28,6 +31,7 @@ import {
   buildDialogueSpeakerOptions,
   resolveDialogueSpeakerOptionKey,
 } from "./chatImageDialogueSpeakerEditor";
+import { duoVisualSubjectsForCast } from "./chatComicPanelSpec.fixtures";
 import {
   collectApprovedComicText,
   resolveScenePresentationVisibility,
@@ -140,39 +144,38 @@ describe("Comic Text Layer: Text-Layer Tests (T1-T8)", () => {
       ],
     ]);
 
-    const bubblesP1 = layoutPanelBubbles({
-      dialogue: plan.panels[0]!.dialogue,
+    const subjects = duoVisualSubjectsForCast({ characterName: "라이크", personaName: "렌" });
+    const layout = layoutPanelOverlay({
+      panel: plan.panels[0]!,
+      approvedDialogue: plan.panels[0]!.dialogue,
       panelX: 0,
       panelY: 0,
       panelWidth: 1008,
       panelHeight: 704,
       personaVisible: true,
+      subjects,
     });
-
-    assert.equal(bubblesP1.length, 2);
-    // Persona bubble is placed towards the left
-    const personaBubble = bubblesP1.find((b) => b.speaker === "persona");
-    assert.ok(personaBubble);
-    assert.ok(personaBubble!.x < 300, `Persona bubble x (${personaBubble!.x}) should be on the left`);
-
-    // Character bubble is placed towards the right
-    const characterBubble = bubblesP1.find((b) => b.speaker === "character");
-    assert.ok(characterBubble);
+    assert.equal(layout.bubbles.length, 2);
+    const personaBubble = layout.bubbles.find((b) => b.speaker === "persona");
+    const characterBubble = layout.bubbles.find((b) => b.speaker === "character");
+    assert.ok(personaBubble && characterBubble);
     assert.ok(
-      characterBubble!.x > 400,
-      `Character bubble x (${characterBubble!.x}) should be on the right`
+      characterBubble.x < personaBubble.x,
+      `Character bubble (${characterBubble.x}) should be left of persona (${personaBubble.x})`
     );
 
-    const bubblesP2 = layoutPanelBubbles({
-      dialogue: plan.panels[1]!.dialogue,
+    const layoutP2 = layoutPanelOverlay({
+      panel: plan.panels[1]!,
+      approvedDialogue: plan.panels[1]!.dialogue,
       panelX: 0,
       panelY: 704,
       panelWidth: 1008,
       panelHeight: 704,
       personaVisible: true,
+      subjects,
     });
-    assert.equal(bubblesP2.length, 1);
-    assert.equal(bubblesP2[0]!.speakerName, "경비병");
+    assert.equal(layoutP2.bubbles.length, 1);
+    assert.equal(layoutP2.bubbles[0]!.speakerName, "경비병");
   });
 
   it("T4: silent panel → no forced bubble", () => {
@@ -527,19 +530,65 @@ describe("Comic Text Layer: UI & Editor Parity Tests (U1-U3)", () => {
     assert.ok(svg.includes("내가 좋아?"), "Must include bubble text");
   });
 
-  it("O5: bubble layout resolves overlaps within a panel", () => {
+  it("O5: unified panel layout resolves overlaps within a panel", () => {
     const dialogue: SceneDialogue[] = [
-      { speaker: "persona", text: "첫 번째 긴 대사입니다.", provenance: "source" },
+      { speaker: "character", text: "첫 번째 긴 대사입니다.", provenance: "source" },
       { speaker: "persona", text: "두 번째 긴 대사입니다.", provenance: "source" },
       { speaker: "character", text: "세 번째 반응 대사.", provenance: "source" },
     ];
-    const bubbles = layoutPanelBubbles({
-      dialogue,
+    const subjects = duoVisualSubjectsForCast({ characterName: "라이크", personaName: "렌" });
+    const layout = layoutPanelOverlay({
+      panel: {
+        index: 1,
+        sourceEventIds: [],
+        situation: "카페",
+        dialogue,
+      },
+      approvedDialogue: dialogue,
       panelX: 0,
       panelY: 0,
       panelWidth: 400,
       panelHeight: 350,
+      subjects,
     });
-    assert.equal(countLayoutOverlaps(bubbles), 0, "Bubble overlaps must be zero after layout");
+    assert.equal(countPanelOverlayCollisions(layout), 0, "All overlay collisions must be zero");
+    assert.equal(countElementsOutsidePanel(layout, 0, 0, 400, 350), 0);
+  });
+
+  it("PLACEMENT-1: character left / persona right canonical sides", () => {
+    const subjects = duoVisualSubjectsForCast({
+      characterName: "라이크",
+      personaName: "렌",
+    });
+    const layout = layoutPanelOverlay({
+      panel: {
+        index: 1,
+        sourceEventIds: [],
+        situation: "카페",
+        dialogue: [
+          { speaker: "character", text: "캐릭터 대사", provenance: "source" },
+          { speaker: "persona", text: "페르소나 대사", provenance: "source" },
+        ],
+      },
+      approvedDialogue: [
+        { speaker: "character", text: "캐릭터 대사", provenance: "source" },
+        { speaker: "persona", text: "페르소나 대사", provenance: "source" },
+      ],
+      panelX: 0,
+      panelY: 0,
+      panelWidth: 400,
+      panelHeight: 350,
+      subjects,
+    });
+    const characterBubble = layout.bubbles.find((b) => b.speaker === "character");
+    const personaBubble = layout.bubbles.find((b) => b.speaker === "persona");
+    assert.ok(characterBubble && personaBubble);
+    assert.ok(characterBubble.x < personaBubble.x, "Character bubble should be left of persona bubble");
+    assert.ok(
+      (characterBubble.tailTargetX ?? 0) < (personaBubble.tailTargetX ?? 0),
+      "Tail targets follow canonical left/right staging"
+    );
+    assert.equal(countPanelOverlayCollisions(layout), 0);
+    assert.equal(countElementsOutsidePanel(layout, 0, 0, 400, 350), 0);
   });
 });

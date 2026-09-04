@@ -2,6 +2,12 @@ import sharp, { type Metadata } from "sharp";
 import type { SceneDialogue, ScenePanel, ScenePlan, ScenePresentationVisibility } from "@/lib/chatImageScenePlan";
 import { isEligibleSpeechDialogue } from "@/lib/chatImageScenePlan";
 import {
+  buildPromptSubjectMap,
+  resolveSpeakerSubject,
+  visiblePromptSubjects,
+  type PromptSubjectMap,
+} from "@/lib/chatImagePromptSubjectMap";
+import {
   classifyRawVisualRisk,
   containsRawRiskySourceLeak,
 } from "@/lib/chatImageSafeVisualProjection";
@@ -188,13 +194,12 @@ function escapeXml(unsafe: string): string {
     .replace(/'/g, "&apos;");
 }
 
-function bubbleBounds(layout: SpeechBubbleLayout): {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-} {
-  return { x: layout.x, y: layout.y, w: layout.width, h: layout.height };
+function bubbleBounds(layout: SpeechBubbleLayout): OverlayRect {
+  return { x: layout.x, y: layout.y, width: layout.width, height: layout.height };
+}
+
+function toOverlapRect(rect: OverlayRect): { x: number; y: number; w: number; h: number } {
+  return { x: rect.x, y: rect.y, w: rect.width, h: rect.height };
 }
 
 function rectsOverlap(
@@ -223,7 +228,7 @@ function resolveBubbleOverlaps(
     const current = layouts[i]!;
     for (let j = 0; j < i; j++) {
       const previous = layouts[j]!;
-      if (!rectsOverlap(bubbleBounds(current), bubbleBounds(previous))) continue;
+      if (!rectsOverlap(toOverlapRect(bubbleBounds(current)), toOverlapRect(bubbleBounds(previous)))) continue;
       current.y = Math.min(maxY - current.height, previous.y + previous.height + 14);
       current.tailY = current.y + current.height;
       current.tailTargetY = current.tailY + 28;
@@ -243,8 +248,8 @@ export function countLayoutOverlaps(
       const b = layouts[j]!;
       if (
         rectsOverlap(
-          { x: a.x, y: a.y, w: a.width, h: a.height },
-          { x: b.x, y: b.y, w: b.width, h: b.height }
+          toOverlapRect({ x: a.x, y: a.y, width: a.width, height: a.height }),
+          toOverlapRect({ x: b.x, y: b.y, width: b.width, height: b.height })
         )
       ) {
         count += 1;
@@ -254,6 +259,155 @@ export function countLayoutOverlaps(
   return count;
 }
 
+type OverlayRect = { x: number; y: number; width: number; height: number };
+
+function narrationRect(layout: NarrationBoxLayout): OverlayRect {
+  return { x: layout.x, y: layout.y, width: layout.width, height: layout.height };
+}
+
+function sfxRect(layout: SfxLayout): OverlayRect {
+  const pad = layout.fontSize * 0.6;
+  return {
+    x: layout.x - pad,
+    y: layout.y - layout.fontSize,
+    width: layout.fontSize * layout.text.length * 0.55,
+    height: layout.fontSize * 1.4,
+  };
+}
+
+function bubbleTailPoints(layout: SpeechBubbleLayout): Array<{ x: number; y: number }> {
+  return [
+    { x: layout.tailX, y: layout.tailY },
+    { x: layout.tailTargetX, y: layout.tailTargetY },
+  ];
+}
+
+/** Count all overlay element collisions within one panel (bubble/narration/SFX). */
+export function countPanelOverlayCollisions(layout: PanelOverlayLayout): number {
+  const rects: OverlayRect[] = layout.bubbles.map(bubbleBounds);
+  if (layout.narration) rects.push(narrationRect(layout.narration));
+  if (layout.sfx) rects.push(sfxRect(layout.sfx));
+  return countLayoutOverlaps(rects);
+}
+
+export function countElementsOutsidePanel(
+  layout: PanelOverlayLayout,
+  panelX: number,
+  panelY: number,
+  panelWidth: number,
+  panelHeight: number
+): number {
+  let count = 0;
+  const within = (rect: OverlayRect) =>
+    rect.x >= panelX &&
+    rect.y >= panelY &&
+    rect.x + rect.width <= panelX + panelWidth &&
+    rect.y + rect.height <= panelY + panelHeight;
+
+  for (const bubble of layout.bubbles) {
+    if (!within(bubbleBounds(bubble))) count += 1;
+    for (const point of bubbleTailPoints(bubble)) {
+      if (
+        point.x < panelX ||
+        point.y < panelY ||
+        point.x > panelX + panelWidth ||
+        point.y > panelY + panelHeight
+      ) {
+        count += 1;
+      }
+    }
+  }
+  if (layout.narration && !within(narrationRect(layout.narration))) count += 1;
+  if (layout.sfx && !within(sfxRect(layout.sfx))) count += 1;
+  return count;
+}
+
+type SpeakerSide = "left" | "right" | "center";
+
+function resolveSpeakerSide(
+  speaker: SceneDialogue["speaker"],
+  subjectMap: PromptSubjectMap,
+  personaVisible: boolean
+): SpeakerSide {
+  const subject = resolveSpeakerSubject(subjectMap, speaker);
+  if (!subject) return "center";
+  const visible = visiblePromptSubjects(subjectMap, personaVisible);
+  if (visible.length <= 1) return "center";
+  const index = visible.findIndex((entry) => entry.label === subject.label);
+  if (index <= 0) return "left";
+  if (index >= visible.length - 1) return "right";
+  return "center";
+}
+
+function shouldShowSpeakerNameBadge(
+  speaker: SceneDialogue["speaker"],
+  speakerName?: string
+): boolean {
+  if (!speakerName?.trim()) return false;
+  return speaker === "other";
+}
+
+function clampBubbleToPanel(
+  bubble: SpeechBubbleLayout,
+  panelX: number,
+  panelY: number,
+  panelWidth: number,
+  panelHeight: number
+): void {
+  const margin = 12;
+  const maxTailY = panelY + panelHeight - margin;
+  bubble.y = Math.max(panelY + margin, Math.min(bubble.y, maxTailY - bubble.height));
+  bubble.x = Math.max(
+    panelX + margin,
+    Math.min(bubble.x, panelX + panelWidth - bubble.width - margin)
+  );
+  bubble.tailY = bubble.y + bubble.height;
+  bubble.tailTargetY = Math.min(bubble.tailY + 24, maxTailY);
+  if (bubble.tailTargetX < panelX + margin) bubble.tailTargetX = panelX + margin;
+  if (bubble.tailTargetX > panelX + panelWidth - margin) {
+    bubble.tailTargetX = panelX + panelWidth - margin;
+  }
+}
+
+function resolvePanelTextCollisions(opts: {
+  bubbles: SpeechBubbleLayout[];
+  narration?: NarrationBoxLayout;
+  sfx?: SfxLayout;
+  panelX: number;
+  panelY: number;
+  panelWidth: number;
+  panelHeight: number;
+}): { bubbles: SpeechBubbleLayout[]; narration?: NarrationBoxLayout; sfx?: SfxLayout } {
+  let { bubbles, narration, sfx } = opts;
+  const { panelX, panelY, panelWidth, panelHeight } = opts;
+
+  resolveBubbleOverlaps(bubbles, panelX, panelY, panelWidth, panelHeight);
+
+  if (narration && bubbles.some((bubble) => rectsOverlap(toOverlapRect(bubbleBounds(bubble)), toOverlapRect(narrationRect(narration!))))) {
+    narration = {
+      ...narration,
+      y: panelY + panelHeight - narration.height - 16,
+    };
+    if (bubbles.some((bubble) => rectsOverlap(toOverlapRect(bubbleBounds(bubble)), toOverlapRect(narrationRect(narration!))))) {
+      narration = undefined;
+    }
+  }
+
+  if (sfx) {
+    const sfxBox = sfxRect(sfx);
+    const collides =
+      bubbles.some((bubble) => rectsOverlap(toOverlapRect(bubbleBounds(bubble)), toOverlapRect(sfxBox))) ||
+      (narration ? rectsOverlap(toOverlapRect(narrationRect(narration)), toOverlapRect(sfxBox)) : false);
+    if (collides) sfx = undefined;
+  }
+
+  for (const bubble of bubbles) {
+    clampBubbleToPanel(bubble, panelX, panelY, panelWidth, panelHeight);
+  }
+
+  return { bubbles, narration, sfx };
+}
+
 export function layoutPanelBubbles(opts: {
   dialogue: readonly SceneDialogue[];
   panelX: number;
@@ -261,21 +415,32 @@ export function layoutPanelBubbles(opts: {
   panelWidth: number;
   panelHeight: number;
   personaVisible?: boolean;
+  subjects?: readonly ChatImageVisualSubject[];
+  reservedTop?: number;
 }): SpeechBubbleLayout[] {
   const { dialogue, panelX, panelY, panelWidth, panelHeight } = opts;
   if (!dialogue.length) return [];
 
+  const subjectMap = opts.subjects?.length ? buildPromptSubjectMap(opts.subjects) : null;
+  const personaVisible = opts.personaVisible !== false;
+  const topOffset = opts.reservedTop ?? 0;
   const layouts: SpeechBubbleLayout[] = [];
   const fontSize = 23;
   const lineHeight = fontSize * 1.35;
   const paddingH = 22;
   const paddingV = 16;
 
-  // Staggering budget
-  let personaIndex = 0;
-  let characterIndex = 0;
+  let leftIndex = 0;
+  let rightIndex = 0;
+  let centerIndex = 0;
 
-  for (const line of dialogue) {
+  const prioritized = [...dialogue].sort((left, right) => {
+    if (left.provenance === "user_edit" && right.provenance !== "user_edit") return -1;
+    if (right.provenance === "user_edit" && left.provenance !== "user_edit") return 1;
+    return 0;
+  });
+
+  for (const line of prioritized.slice(0, 4)) {
     const lines = wrapKoreanText(line.text, 13);
     const maxLineChars = Math.max(...lines.map((l) => l.length), 3);
     const textWidth = Math.max(120, maxLineChars * fontSize * 0.95);
@@ -283,8 +448,13 @@ export function layoutPanelBubbles(opts: {
     const bubbleWidth = Math.min(panelWidth * 0.46, textWidth + paddingH * 2);
     const bubbleHeight = textHeight + paddingV * 2;
 
-    const isPersona = line.speaker === "persona";
-    const isCharacter = line.speaker === "character";
+    const side = subjectMap
+      ? resolveSpeakerSide(line.speaker, subjectMap, personaVisible)
+      : line.speaker === "character"
+        ? "left"
+        : line.speaker === "persona"
+          ? "right"
+          : "center";
 
     let x: number;
     let y: number;
@@ -293,39 +463,30 @@ export function layoutPanelBubbles(opts: {
     let tailTargetX: number;
     let tailTargetY: number;
 
-    if (isPersona) {
-      // Persona placed on left side
+    if (side === "left") {
       x = panelX + 44;
-      y = panelY + 32 + personaIndex * (bubbleHeight + 18);
-      // Ensure within panel
-      if (y + bubbleHeight > panelY + panelHeight - 20) {
-        y = panelY + panelHeight - bubbleHeight - 20;
-      }
+      y = panelY + topOffset + 32 + leftIndex * (bubbleHeight + 18);
       tailX = x + 36;
       tailY = y + bubbleHeight;
-      tailTargetX = x + 16;
-      tailTargetY = tailY + 28;
-      personaIndex++;
-    } else if (isCharacter) {
-      // Character placed on right side
+      tailTargetX = panelX + Math.floor(panelWidth * 0.22);
+      tailTargetY = tailY + 24;
+      leftIndex += 1;
+    } else if (side === "right") {
       x = panelX + panelWidth - bubbleWidth - 44;
-      y = panelY + 36 + characterIndex * (bubbleHeight + 18);
-      if (y + bubbleHeight > panelY + panelHeight - 20) {
-        y = panelY + panelHeight - bubbleHeight - 20;
-      }
+      y = panelY + topOffset + 36 + rightIndex * (bubbleHeight + 18);
       tailX = x + bubbleWidth - 36;
       tailY = y + bubbleHeight;
-      tailTargetX = x + bubbleWidth - 16;
-      tailTargetY = tailY + 28;
-      characterIndex++;
+      tailTargetX = panelX + Math.floor(panelWidth * 0.78);
+      tailTargetY = tailY + 24;
+      rightIndex += 1;
     } else {
-      // Other / Named supporting speaker: placed near center or staggered
       x = panelX + (panelWidth - bubbleWidth) / 2;
-      y = panelY + 40 + (personaIndex + characterIndex) * 24;
+      y = panelY + topOffset + 40 + centerIndex * (bubbleHeight + 16);
       tailX = x + bubbleWidth / 2;
       tailY = y + bubbleHeight;
       tailTargetX = x + bubbleWidth / 2;
-      tailTargetY = tailY + 28;
+      tailTargetY = tailY + 24;
+      centerIndex += 1;
     }
 
     layouts.push({
@@ -345,9 +506,73 @@ export function layoutPanelBubbles(opts: {
     });
   }
 
-  resolveBubbleOverlaps(layouts, panelX, panelY, panelWidth, panelHeight);
-
   return layouts;
+}
+
+/** Unified per-panel text layout owner — narration, bubbles, optional SFX with collision policy. */
+export function layoutPanelOverlay(opts: {
+  panel: ScenePanel;
+  approvedDialogue: readonly SceneDialogue[];
+  panelX: number;
+  panelY: number;
+  panelWidth: number;
+  panelHeight: number;
+  personaVisible?: boolean;
+  subjects?: readonly ChatImageVisualSubject[];
+}): PanelOverlayLayout {
+  const { panel, panelX, panelY, panelWidth, panelHeight } = opts;
+  const personaVisible = opts.personaVisible !== false;
+
+  let narration = layoutPanelNarration({
+    panel,
+    panelX,
+    panelY,
+    panelWidth,
+    panelHeight,
+    hasBubbles: opts.approvedDialogue.length > 0,
+  });
+  const reservedTop = narration ? narration.height + 28 : 0;
+
+  let bubbles = layoutPanelBubbles({
+    dialogue: opts.approvedDialogue,
+    panelX,
+    panelY,
+    panelWidth,
+    panelHeight,
+    personaVisible,
+    subjects: opts.subjects,
+    reservedTop,
+  });
+
+  if (opts.approvedDialogue.length >= 3) {
+    narration = undefined;
+  }
+
+  let sfx = extractPanelSfxCue(panel);
+  if (sfx) {
+    sfx = {
+      ...sfx,
+      x: panelX + panelWidth * 0.52,
+      y: panelY + panelHeight * 0.72,
+    };
+  }
+
+  const resolved = resolvePanelTextCollisions({
+    bubbles,
+    narration,
+    sfx,
+    panelX,
+    panelY,
+    panelWidth,
+    panelHeight,
+  });
+
+  return {
+    panelIndex: panel.index,
+    bubbles: resolved.bubbles,
+    narration: resolved.narration,
+    sfx: resolved.sfx,
+  };
 }
 
 // ============================================================================
@@ -451,24 +676,18 @@ export function compileComicTextOverlaySvg(opts: {
 
     // Filter dialogue through safety & validity policy
     const approvedDialogue = filterDialogueForTextOverlay(panel.dialogue, safetyContext);
-    const bubbles = layoutPanelBubbles({
-      dialogue: approvedDialogue,
+    const panelLayout = layoutPanelOverlay({
+      panel,
+      approvedDialogue,
       panelX,
       panelY,
       panelWidth: width,
       panelHeight,
       personaVisible: visibility.personaVisible,
+      subjects: opts.subjects,
     });
-
-    // Narration Box
-    const narration = layoutPanelNarration({
-      panel,
-      panelX,
-      panelY,
-      panelWidth: width,
-      panelHeight,
-      hasBubbles: bubbles.length > 0,
-    });
+    const bubbles = panelLayout.bubbles;
+    const narration = panelLayout.narration;
 
     if (narration) {
       svgElements.push(`
@@ -530,10 +749,10 @@ export function compileComicTextOverlaySvg(opts: {
         <g class="speech-bubble" data-text="${escapeXml(bubble.rawText)}" filter="url(#shadow)">
           <path d="${pathData}" fill="#ffffff" stroke="#0f172a" stroke-width="3.5" stroke-linejoin="round" />
           ${
-            bubble.speakerName
-              ? `<rect x="${bubble.x + 12}" y="${bubble.y - 12}" width="${bubble.speakerName.length * 14 + 16}" height="20" rx="4" fill="#3b82f6" />
+            shouldShowSpeakerNameBadge(bubble.speaker, bubble.speakerName)
+              ? `<rect x="${bubble.x + 12}" y="${bubble.y - 12}" width="${(bubble.speakerName?.length ?? 0) * 14 + 16}" height="20" rx="4" fill="#3b82f6" />
                  <text x="${bubble.x + 20}" y="${bubble.y + 2}" font-family="NanumSquareRound, NanumGothic, sans-serif" font-size="11" font-weight="bold" fill="#ffffff">${escapeXml(
-                  bubble.speakerName
+                  bubble.speakerName ?? ""
                 )}</text>`
               : ""
           }
@@ -554,10 +773,10 @@ export function compileComicTextOverlaySvg(opts: {
     }
 
     // SFX (Optional, deterministic on sound cue)
-    const sfx = extractPanelSfxCue(panel);
+    const sfx = panelLayout.sfx;
     if (sfx) {
-      const sfxX = panelX + width * 0.52;
-      const sfxY = panelY + panelHeight * 0.72;
+      const sfxX = sfx.x;
+      const sfxY = sfx.y;
       svgElements.push(`
         <!-- Panel ${i + 1} SFX -->
         <g class="sfx" transform="rotate(${sfx.rotation} ${sfxX} ${sfxY})">
