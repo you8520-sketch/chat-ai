@@ -380,6 +380,72 @@ export function renderChatComicPanelSpecSection(spec: ChatComicPanelSpec): strin
     .join("\n\n");
 }
 
+export function renderChatComicPanelSpecVisualSection(spec: ChatComicPanelSpec): string {
+  const castLines = spec.cast
+    .map((entry) => `${entry.label} = ${entry.role} (${entry.name})`)
+    .join("\n");
+  const panelBlocks = spec.panels
+    .map((panel) => {
+      const actions = [
+        ...panel.subjectActions.map(
+          (action) => `${action.label} action (${action.name}): ${action.text}`
+        ),
+        panel.sceneAction ? `Scene action: ${panel.sceneAction}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+      return [
+        `[Panel ${panel.index} — ${panel.beatRole}]`,
+        `Camera: ${panel.camera}`,
+        `Framing: ${panel.framing}`,
+        `Layout: ${panel.layout}`,
+        panel.situation ? `Situation: ${panel.situation}` : "",
+        `Background: ${panel.background}`,
+        actions,
+        "Visual only: do not render speech bubbles, captions, narration boxes, SFX, or any readable letters.",
+        "Composition: leave a clean upper-right negative space area for server text overlay.",
+        `Must avoid: ${panel.mustAvoid.join("; ")}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n\n");
+
+  return [
+    "COMIC PANEL SPEC — VISUAL LAYER ONLY",
+    `Format: ${spec.format} (${spec.panelCount} panels)`,
+    `Layout: ${spec.layout}`,
+    `Hero focus: ${spec.heroScene}`,
+    spec.heroEventIds.length ? `Hero event ids: ${spec.heroEventIds.join(", ")}` : "",
+    `Shared background: ${spec.sharedBackground}`,
+    spec.atmosphere ? `Atmosphere: ${spec.atmosphere}` : "",
+    "Cast:",
+    castLines,
+    panelBlocks,
+    "Continuity rules:",
+    ...spec.continuityRules.map((rule) => `- ${rule}`),
+    "Global must avoid:",
+    ...spec.globalMustAvoid.map((rule) => `- ${rule}`),
+    "Text will be added later by server overlay — image must contain zero readable text.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export function buildChatComicPanelSpecVisualSection(opts: {
+  plan: ScenePlan;
+  personaName: string;
+  characterName: string;
+  visibility?: ScenePresentationVisibility;
+  castSelected?: readonly ChatImageCastGroundedSubject[];
+  subjects: readonly ChatImageVisualSubject[];
+  eventSubjectBindings?: readonly SceneEventSubjectBinding[];
+  projection?: ChatComicPanelSpecProjection;
+}): string {
+  const spec = compileChatComicPanelSpec(opts);
+  return renderChatComicPanelSpecVisualSection(spec);
+}
+
 export function buildChatComicPanelSpecPromptSection(opts: {
   plan: ScenePlan;
   personaName: string;
