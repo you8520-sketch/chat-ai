@@ -107,6 +107,12 @@ import {
   OpenAiImageError,
   callOpenAiImageEdit,
 } from "@/lib/openAiImageEdit";
+import {
+  formatOpenAiImageFailureDiagnosticForAdmin,
+  serializeOpenAiImageFailureDiagnostic,
+  type OpenAiImageFailureDiagnostic,
+} from "@/lib/openAiImageFailureDiagnostic";
+import { formatOpenAiImageUserError } from "@/lib/chatLdIllustrationGeneration";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -169,7 +175,8 @@ type GenerationContext = {
 class RequestError extends Error {
   constructor(
     message: string,
-    public status = 400
+    public status = 400,
+    public imageFailureDiagnostic?: OpenAiImageFailureDiagnostic
   ) {
     super(message);
     this.name = "RequestError";
@@ -448,6 +455,8 @@ async function callOpenAiImage(opts: {
   outputHeight: number;
   quality: "low" | "medium" | "high";
   resizeFit?: "fill" | "cover";
+  templateId?: string;
+  mode?: string;
 }): Promise<{ buffer: Buffer; costUsd: number | null }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 285_000);
@@ -460,6 +469,8 @@ async function callOpenAiImage(opts: {
       quality: opts.quality,
       outputCompression: 88,
       signal: controller.signal,
+      templateId: opts.templateId,
+      mode: opts.mode,
     });
     let output = generated.buffer;
 
@@ -495,7 +506,11 @@ async function callOpenAiImage(opts: {
   } catch (error) {
     if (error instanceof RequestError) throw error;
     if (error instanceof OpenAiImageError) {
-      throw new RequestError(error.message, error.status);
+      throw new RequestError(
+        formatOpenAiImageUserError(error.message),
+        error.status,
+        error.diagnostic
+      );
     }
     if (error instanceof Error && error.name === "AbortError") {
       throw new RequestError("이미지 생성 시간이 초과되었습니다. 다시 시도해 주세요.", 504);
@@ -962,6 +977,8 @@ export async function POST(req: Request) {
       model,
       prompt,
       references,
+      templateId,
+      mode,
       requestSize: isEmoticon
         ? CHAT_EMOTICON_API_OUTPUT_SIZE
         : isPersona
@@ -1121,12 +1138,34 @@ export async function POST(req: Request) {
     if (savedPath) await fs.unlink(savedPath).catch(() => {});
     const status = error instanceof RequestError ? error.status : 500;
     const message = error instanceof Error ? error.message : "이미지 생성에 실패했습니다.";
-    finishChatImageGenerationJob({ jobId, status: "failed", errorMessage: message });
+    const diagnostic =
+      error instanceof RequestError ? error.imageFailureDiagnostic : undefined;
+    finishChatImageGenerationJob({
+      jobId,
+      status: "failed",
+      errorMessage: message,
+      failureDiagnosticJson: diagnostic
+        ? serializeOpenAiImageFailureDiagnostic(diagnostic)
+        : null,
+    });
+    const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
     console.error("[chat-image-generation] failed", {
       status,
       message,
-      error: error instanceof RequestError ? undefined : error,
+      imageAttemptDiagnostic: diagnostic
+        ? formatOpenAiImageFailureDiagnosticForAdmin(diagnostic)
+        : undefined,
     });
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json(
+      {
+        error: message,
+        ...(canSeeCost && diagnostic
+          ? {
+              imageAttemptDiagnostic: formatOpenAiImageFailureDiagnosticForAdmin(diagnostic),
+            }
+          : {}),
+      },
+      { status }
+    );
   }
 }

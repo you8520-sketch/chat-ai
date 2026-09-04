@@ -122,6 +122,11 @@ import {
   OpenAiImageError,
   callOpenAiImageEdit,
 } from "@/lib/openAiImageEdit";
+import {
+  formatOpenAiImageFailureDiagnosticForAdmin,
+  serializeOpenAiImageFailureDiagnostic,
+  type OpenAiImageFailureDiagnostic,
+} from "@/lib/openAiImageFailureDiagnostic";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -178,7 +183,8 @@ type GenerationContext = {
 class RequestError extends Error {
   constructor(
     message: string,
-    public status = 400
+    public status = 400,
+    public imageFailureDiagnostic?: OpenAiImageFailureDiagnostic
   ) {
     super(message);
     this.name = "RequestError";
@@ -648,6 +654,8 @@ async function generateComicImage(opts: {
       quality: "medium",
       outputCompression: 84,
       signal: controller.signal,
+      templateId: CHAT_COMIC_TEMPLATE_ID,
+      mode: "comic",
     });
     let output = generated.buffer;
     const metadata = await sharp(output, { failOn: "none" }).metadata();
@@ -667,7 +675,11 @@ async function generateComicImage(opts: {
   } catch (error) {
     if (error instanceof RequestError) throw error;
     if (error instanceof OpenAiImageError) {
-      throw new RequestError(formatOpenAiImageUserError(error.message), error.status);
+      throw new RequestError(
+        formatOpenAiImageUserError(error.message),
+        error.status,
+        error.diagnostic
+      );
     }
     if (error instanceof Error && error.name === "AbortError") {
       throw new RequestError("컷만화 생성 시간이 초과되었습니다. 다시 시도해 주세요.", 504);
@@ -694,6 +706,8 @@ async function generateLdIllustrationImage(opts: {
       quality: CHAT_LD_ILLUSTRATION_QUALITY,
       outputCompression: 86,
       signal: controller.signal,
+      templateId: CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
+      mode: "illustration",
     });
     let output = generated.buffer;
     const metadata = await sharp(output, { failOn: "none" }).metadata();
@@ -715,7 +729,11 @@ async function generateLdIllustrationImage(opts: {
   } catch (error) {
     if (error instanceof RequestError) throw error;
     if (error instanceof OpenAiImageError) {
-      throw new RequestError(formatOpenAiImageUserError(error.message), error.status);
+      throw new RequestError(
+        formatOpenAiImageUserError(error.message),
+        error.status,
+        error.diagnostic
+      );
     }
     if (error instanceof Error && error.name === "AbortError") {
       throw new RequestError("LD 일러스트 생성 시간이 초과되었습니다. 다시 시도해 주세요.", 504);
@@ -1352,12 +1370,34 @@ export async function POST(req: Request) {
     if (savedPath) await fs.unlink(savedPath).catch(() => {});
     const status = error instanceof RequestError ? error.status : 500;
     const message = error instanceof Error ? error.message : "컷만화 생성에 실패했습니다.";
-    finishChatImageGenerationJob({ jobId, status: "failed", errorMessage: message });
+    const diagnostic =
+      error instanceof RequestError ? error.imageFailureDiagnostic : undefined;
+    finishChatImageGenerationJob({
+      jobId,
+      status: "failed",
+      errorMessage: message,
+      failureDiagnosticJson: diagnostic
+        ? serializeOpenAiImageFailureDiagnostic(diagnostic)
+        : null,
+    });
+    const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
     console.error("[chat-comic-generation] failed", {
       status,
       message,
-      error: error instanceof RequestError ? undefined : error,
+      imageAttemptDiagnostic: diagnostic
+        ? formatOpenAiImageFailureDiagnosticForAdmin(diagnostic)
+        : undefined,
     });
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json(
+      {
+        error: message,
+        ...(canSeeCost && diagnostic
+          ? {
+              imageAttemptDiagnostic: formatOpenAiImageFailureDiagnosticForAdmin(diagnostic),
+            }
+          : {}),
+      },
+      { status }
+    );
   }
 }
