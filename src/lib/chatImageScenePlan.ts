@@ -330,8 +330,9 @@ type MarkedSpan = {
   text: string;
 };
 
+/** Recap evidence after a repeated user quote — not generic postposed speaker attribution. */
 const QUOTED_USER_RECAP_AFTER =
-  /^\s*(?:[\p{L}0-9_]{1,16}\s*)?(?:의|이)\s*말(?:에|을)?|^\s*(?:그|방금(?:\s*한)?)\s*말|^\s*[\p{L}0-9_]{1,16}(?:은|는|이|가)\s/u;
+  /^\s*(?:[\p{L}0-9_]{1,16}\s*)?(?:의|이)\s*말(?:에|을)?|^\s*(?:그|방금(?:\s*한)?)\s*말/u;
 
 function isAssistantQuotedUserRecap(
   messageText: string,
@@ -1516,20 +1517,25 @@ export function validateScenePlan(
       const speakerName =
         typeof line.speakerName === "string" ? cleanLine(line.speakerName, 24) || undefined : undefined;
       const text = cleanLine(line.text, 160);
-      if (!text) continue;
-      if (!isEligibleSpeechDialogue(text)) continue;
-
-      const normText = normalizeDialogueTextForOutput(text);
       const provenance = line.provenance === "user_edit" ? "user_edit" : "source";
+
+      if (provenance === "user_edit") {
+        if (!allowUserEdits) {
+          return { ok: false, reason: "user_edit not allowed from planner" };
+        }
+        if (!text) continue;
+      } else {
+        if (!text) continue;
+        if (!isEligibleSpeechDialogue(text)) continue;
+      }
 
       let resolvedSpeaker: SceneDialogueSpeaker = speaker;
       let resolvedSpeakerName = speakerName;
       let resolvedSourceEventId =
         typeof line.sourceEventId === "string" ? cleanLine(line.sourceEventId, 24) || undefined : undefined;
       if (provenance === "user_edit") {
-        if (!allowUserEdits) {
-          return { ok: false, reason: "user_edit not allowed from planner" };
-        }
+        resolvedSpeaker = speaker;
+        resolvedSpeakerName = speakerName;
       } else {
         const sourceEventId = cleanLine(line.sourceEventId, 24);
         if (!sourceEventId) {

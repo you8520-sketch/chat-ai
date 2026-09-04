@@ -11,13 +11,14 @@ import {
 } from "@/lib/chatImageCastManifest";
 import type { ScenePanelCount, ScenePlan } from "@/lib/chatImageScenePlan";
 import { resolveScenePresentationVisibility, collectApprovedComicText } from "@/lib/chatImageScenePlan";
+import { collectFinalOverlayBubbleTexts } from "@/lib/chatComicTextOverlay";
 import { buildIllustrationSafeDepiction } from "@/lib/chatImageIllustrationSanitizer";
 import {
   projectTextForSafeImagePrompt,
   shouldOmitDialogueFromImageProjection,
   type SafeVisualProjectionContext,
 } from "@/lib/chatImageSafeVisualProjection";
-import { buildChatComicPanelSpecVisualSection, compileChatComicPanelSpec } from "@/lib/chatComicPanelSpec";
+import { buildChatComicPanelSpecVisualSection } from "@/lib/chatComicPanelSpec";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
   bindChatImageReferencePack,
@@ -290,12 +291,20 @@ export function buildChatComicGenerationPlan(opts: {
   };
 }
 
+export function countProviderPromptReadableDialogue(prompt: string): number {
+  return prompt.match(/^Speech bubble \(/gm)?.length ?? 0;
+}
+
+/** Overlay-boundary audit: approved plan text vs final overlay bubble owner. */
 export function auditComicDialogueWhitelist(opts: {
   plan: ScenePlan;
   personaName: string;
   characterName: string;
   contentKind?: ContentKind;
   castManifest?: ChatImageCastGroundedManifest | null;
+  panelCount?: number;
+  width?: number;
+  height?: number;
 }): {
   panelTextWhitelistMismatchCount: number;
   userEditDialogueMismatchCount: number;
@@ -306,40 +315,42 @@ export function auditComicDialogueWhitelist(opts: {
   });
   const whitelist = collectApprovedComicText(opts.plan, visibility);
   const whitelistSet = new Set(whitelist);
-  const spec = compileChatComicPanelSpec({
+  const panelCount = opts.panelCount ?? opts.plan.panels.length;
+  const width = opts.width ?? 1008;
+  const height = opts.height ?? (panelCount === 4 ? 1824 : 1408);
+  const subjects = bindChatImageReferencePack({
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName: opts.characterName,
+      characterGender: "male",
+      characterImageUrl: "/character-ref",
+      characterSavedAppearance: "",
+      characterAppearanceMode: "image_only",
+      personaName: opts.personaName,
+      personaGender: "female",
+      personaImageUrl: "/persona-ref",
+      personaSavedAppearance: "",
+      personaAppearanceMode: "image_only",
+    }),
+  }).subjects;
+  const overlayTexts = collectFinalOverlayBubbleTexts({
+    width,
+    height,
+    panelCount,
     plan: opts.plan,
-    personaName: opts.personaName,
-    characterName: opts.characterName,
     visibility,
-    subjects: bindChatImageReferencePack({
-      subjectsInImageOrder: buildChatDuoVisualSubjects({
-        characterName: opts.characterName,
-        characterGender: "male",
-        characterImageUrl: "/character-ref",
-        characterSavedAppearance: "",
-        characterAppearanceMode: "image_only",
-        personaName: opts.personaName,
-        personaGender: "female",
-        personaImageUrl: "/persona-ref",
-        personaSavedAppearance: "",
-        personaAppearanceMode: "image_only",
-      }),
-    }).subjects,
+    subjects,
   });
-  const bubbleTexts = spec.panels.flatMap((panel) =>
-    panel.speechBubbles.map((bubble) => bubble.text).filter(Boolean)
-  );
-  const bubbleSet = new Set(bubbleTexts);
+  const overlaySet = new Set(overlayTexts);
   let panelTextWhitelistMismatchCount = 0;
-  for (const text of bubbleSet) {
+  for (const text of overlaySet) {
     if (!whitelistSet.has(text)) panelTextWhitelistMismatchCount += 1;
   }
   for (const text of whitelistSet) {
-    if (!bubbleSet.has(text)) panelTextWhitelistMismatchCount += 1;
+    if (!overlaySet.has(text)) panelTextWhitelistMismatchCount += 1;
   }
   const userEditDialogueMismatchCount = countUserEditDialogueMismatch(
     opts.plan,
-    bubbleTexts
+    overlayTexts
   );
   return { panelTextWhitelistMismatchCount, userEditDialogueMismatchCount };
 }
