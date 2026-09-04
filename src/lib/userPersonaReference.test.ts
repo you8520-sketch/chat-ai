@@ -30,4 +30,12 @@ describe("user persona reference owner", () => {
     assert.match(prompt, /캐릭터 말투·관계·Speech Lock·확립된 애칭/);
     assert.match(prompt, /Narrative POV, co-narration, Novel Mode, No Godmodding/);
   });
+
+  it("locks Korean kinship titles to the speaker and persona genders", () => {
+    const prompt = buildUserPersonaReferencePrompt("렌", "male");
+    assert.match(prompt, /"오빠"·"언니"는 여성 화자가/);
+    assert.match(prompt, /"형"·"누나"는 남성 화자가/);
+    assert.match(prompt, /남성 캐릭터가 남성 \[B\]에게 자신을 "오빠"라고 칭하는 식의 성별 불일치/);
+    assert.match(prompt, /정본이나 현재 대화에서 그 장난이 명시된 경우만 예외/);
+  });
 });
