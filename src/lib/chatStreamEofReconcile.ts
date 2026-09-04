@@ -11,7 +11,7 @@ import {
   isInFlightGenerationStatus,
   isTerminalGenerationStatus,
   type GenerationStatus,
-} from "@/lib/streamingPersistence";
+} from "@/lib/streamingPersistenceShared";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
 
 /** Matches resolveOpenRouterCompletionTimeoutMs("background-status-widget-extract") default. */

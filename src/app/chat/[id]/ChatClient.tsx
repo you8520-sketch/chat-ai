@@ -195,7 +195,7 @@ import {
   readChatStreamDraft,
   writeChatStreamDraft,
   type GenerationStatus,
-} from "@/lib/streamingPersistence";
+} from "@/lib/streamingPersistenceShared";
 import {
   generationStatusFromEofResult,
   needsEofReconcile,
