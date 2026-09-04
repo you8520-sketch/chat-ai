@@ -8,9 +8,7 @@ import {
   resolveActiveAssistantGenerationScopeFromRow,
   type AssistantGenerationScope,
 } from "@/lib/assistantGenerationScope";
-import {
-  buildAdminBillingReceiptV3,
-} from "@/lib/adminBillingReceiptV3";
+import { buildAdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3";
 import type { AdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3Shared";
 import type { Usage } from "@/lib/chatUsage";
 import { loadMessageSuggestedReplies } from "@/lib/suggestedReplies/job";
@@ -23,10 +21,30 @@ import {
   type MemoryRelationshipTaskRecord,
 } from "@/lib/memory/memoryRelationshipTask";
 import { normalizeMessageVariants } from "@/lib/messageAlternates";
+import { buildAdminBillingForensicMetadata } from "@/lib/adminBillingForensicMetadata";
+import {
+  locatePrivilegedAssistantMessage,
+  type AdminBillingReceiptLocator,
+} from "@/lib/adminBillingMessageLocator";
 
 export type LoadAdminBillingReceiptV3Result =
   | { ok: true; receipt: AdminBillingReceiptV3 }
-  | { ok: false; error: string; status: 403 | 404 | 400 };
+  | { ok: false; error: string; status: 403 | 404 | 400 | 409 };
+
+type AssistantMessageDbRow = {
+  id: number;
+  content: string;
+  model: string;
+  usage: string | null;
+  alternates: string | null;
+  active_variant: number | null;
+  request_id: string | null;
+  generation_status: string | null;
+  suggested_replies_json: string | null;
+  status_meta: string | null;
+  deduction_slices: string | null;
+  created_at: string;
+};
 
 function resolveMemoryTaskForGeneration(
   task: MemoryRelationshipTaskRecord | null,
@@ -37,42 +55,23 @@ function resolveMemoryTaskForGeneration(
   return task.generationSequence === scope.generationSequence ? task : null;
 }
 
-/** Canonical privileged server receipt projection owner. */
-export function loadAdminBillingReceiptV3ForMessage(input: {
-  userId: number;
-  messageId: number;
-}): LoadAdminBillingReceiptV3Result {
-  const row = assertMessageAccess(input.userId, input.messageId);
-  if (!row) {
-    return { ok: false, error: "메시지를 찾을 수 없습니다.", status: 404 };
-  }
-  if (row.role !== "assistant") {
-    return { ok: false, error: "assistant 메시지만 조회할 수 있습니다.", status: 400 };
-  }
-
+function loadAssistantMessageRow(messageId: number): AssistantMessageDbRow | undefined {
   const db = getDb();
-  const messageRow = db
+  return db
     .prepare(
       `SELECT id, content, model, usage, alternates, active_variant, request_id, generation_status,
-              suggested_replies_json, status_meta, created_at
+              suggested_replies_json, status_meta, deduction_slices, created_at
        FROM messages WHERE id=?`
     )
-    .get(input.messageId) as
-    | {
-        id: number;
-        content: string;
-        model: string;
-        usage: string | null;
-        alternates: string | null;
-        active_variant: number | null;
-        request_id: string | null;
-        generation_status: string | null;
-        suggested_replies_json: string | null;
-        status_meta: string | null;
-        created_at: string;
-      }
-    | undefined;
+    .get(messageId) as AssistantMessageDbRow | undefined;
+}
 
+/** Canonical receipt assembly — stored truth only, no ownership filter. */
+function assembleAdminBillingReceiptV3FromMessage(input: {
+  messageId: number;
+  chatId: number;
+}): LoadAdminBillingReceiptV3Result {
+  const messageRow = loadAssistantMessageRow(input.messageId);
   if (!messageRow) {
     return { ok: false, error: "메시지를 찾을 수 없습니다.", status: 404 };
   }
@@ -110,6 +109,7 @@ export function loadAdminBillingReceiptV3ForMessage(input: {
     ? rawStatusMeta
     : null;
 
+  const db = getDb();
   const allLedgerRows = listProviderCostEventsForAssistantMessage(input.messageId, db);
   const { scopedRows, hasUnscopedRows } = filterLedgerRowsForGenerationScope(
     allLedgerRows,
@@ -123,7 +123,7 @@ export function loadAdminBillingReceiptV3ForMessage(input: {
   const receipt = buildAdminBillingReceiptV3({
     usage,
     assistantMessageId: input.messageId,
-    chatId: row.chat_id,
+    chatId: input.chatId,
     generationScope,
     hasUnscopedLedgerRows: hasUnscopedRows,
     suggestedRepliesRecord,
@@ -132,5 +132,53 @@ export function loadAdminBillingReceiptV3ForMessage(input: {
     ledgerRows: scopedRows,
   });
 
-  return { ok: true, receipt };
+  const forensic = buildAdminBillingForensicMetadata({
+    assistantMessageId: input.messageId,
+    chatId: input.chatId,
+    requestId: messageRow.request_id,
+    usage,
+    deductionSlicesRaw: messageRow.deduction_slices,
+  });
+
+  return { ok: true, receipt: { ...receipt, forensic } };
+}
+
+/** Normal user ownership path — assertMessageAccess semantics unchanged. */
+export function loadAdminBillingReceiptV3ForOwnedMessage(input: {
+  userId: number;
+  messageId: number;
+}): LoadAdminBillingReceiptV3Result {
+  const row = assertMessageAccess(input.userId, input.messageId);
+  if (!row) {
+    return { ok: false, error: "메시지를 찾을 수 없습니다.", status: 404 };
+  }
+  if (row.role !== "assistant") {
+    return { ok: false, error: "assistant 메시지만 조회할 수 있습니다.", status: 400 };
+  }
+  return assembleAdminBillingReceiptV3FromMessage({
+    messageId: input.messageId,
+    chatId: row.chat_id,
+  });
+}
+
+/** Privileged admin forensic path — cross-chat lookup after canonical admin auth. */
+export function loadPrivilegedAdminBillingReceiptV3ForMessage(
+  locator: AdminBillingReceiptLocator
+): LoadAdminBillingReceiptV3Result {
+  const located = locatePrivilegedAssistantMessage(locator);
+  if (!located.ok) {
+    return { ok: false, error: located.error, status: located.status };
+  }
+  return assembleAdminBillingReceiptV3FromMessage({
+    messageId: located.messageId,
+    chatId: located.chatId,
+  });
+}
+
+/** @deprecated Prefer loadAdminBillingReceiptV3ForOwnedMessage or loadPrivilegedAdminBillingReceiptV3ForMessage. */
+export function loadAdminBillingReceiptV3ForMessage(input: {
+  userId: number;
+  messageId: number;
+}): LoadAdminBillingReceiptV3Result {
+  return loadAdminBillingReceiptV3ForOwnedMessage(input);
 }

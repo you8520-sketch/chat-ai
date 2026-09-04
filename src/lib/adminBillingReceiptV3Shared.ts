@@ -13,6 +13,7 @@ import type {
   AsyncTurnCoverageResult,
   TurnAttributableAsyncFamily,
 } from "@/lib/asyncTurnCoverage";
+import type { AdminBillingForensicMetadata } from "@/lib/adminBillingForensicMetadataShared";
 
 export type AdminBillingReceiptV3WholeTurnCoverage =
   | "complete"
@@ -84,6 +85,8 @@ export type AdminBillingReceiptV3 = {
   wholeTurn: AdminBillingReceiptV3WholeTurnSection;
   excludedCostScopes: string[];
   historicalNote?: string;
+  /** Admin billing forensics — stored truth projection, no repricing. */
+  forensic?: AdminBillingForensicMetadata;
 };
 
 export function wholeTurnCoverageLabel(
