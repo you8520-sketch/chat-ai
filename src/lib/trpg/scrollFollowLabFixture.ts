@@ -71,7 +71,14 @@ function roundLog(roundNumber: number, bot1Body: string, bot2Body: string): Trpg
   };
 }
 
-export type ScrollFollowLabScenario = "bot1" | "bot2" | "round2-bot1";
+export type ScrollFollowLabScenario = "bot1" | "bot2" | "round2-bot1" | "handoff";
+
+function parseScrollFollowLabScenario(raw: string | null): ScrollFollowLabScenario {
+  if (raw === "bot2" || raw === "round2-bot1" || raw === "handoff") return raw;
+  return "bot1";
+}
+
+export { parseScrollFollowLabScenario };
 
 export function scrollFollowLabPresentationSeed(
   scenario: ScrollFollowLabScenario
