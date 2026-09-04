@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { auditComicDialogueWhitelist, buildChatComicGenerationPlan } from "@/lib/chatComicGeneration";
+import {
+  auditComicDialogueWhitelist,
+  buildChatComicGenerationPlan,
+  countProviderPromptReadableDialogue,
+} from "@/lib/chatComicGeneration";
+import { compileComicTextOverlaySvg, layoutPanelOverlay } from "@/lib/chatComicTextOverlay";
 import {
   buildProductionDuoGenerationPlanForFixture,
   COMIC_PANEL_BENCHMARK_FIXTURES,
+  duoVisualSubjectsForCast,
   PRODUCTION_COMIC_TEMPLATE_URL,
   scenePlanForFixture,
 } from "@/lib/chatComicPanelSpec.fixtures";
@@ -32,9 +38,23 @@ function compileProductionDuoFixture(fixtureId: string) {
   return { fixture, plan, production };
 }
 
-describe("chatImagePromptIdentityBinding — duo canonical namespace", () => {
+function overlaySvgForPlan(
+  plan: ReturnType<typeof scenePlanForFixture>,
+  personaName: string,
+  characterName: string
+): string {
+  return compileComicTextOverlaySvg({
+    width: 1008,
+    height: 1408,
+    panelCount: plan.panels.length,
+    plan,
+    subjects: duoVisualSubjectsForCast({ personaName, characterName }),
+  });
+}
+
+describe("chatImagePromptIdentityBinding — duo canonical namespace (visual)", () => {
   it("F01 maps character to SUBJECT A and persona to SUBJECT B consistently", () => {
-    const { fixture, production } = compileProductionDuoFixture("F01-2panel-invite");
+    const { fixture, plan, production } = compileProductionDuoFixture("F01-2panel-invite");
     const { subjects, prompt } = production;
     const map = buildPromptSubjectMap(subjects);
     assert.equal(map.subjects[0]?.name, fixture.expectedCast.character);
@@ -49,6 +69,7 @@ describe("chatImagePromptIdentityBinding — duo canonical namespace", () => {
     assert.equal(audit.referenceSlotConflictCount, 0);
     assert.equal(audit.actionOwnerConflictCount, 0);
     assert.equal(audit.speechOwnerConflictCount, 0);
+    assert.equal(countProviderPromptReadableDialogue(prompt), 0);
 
     assert.match(prompt, /Reference image 1 is LAYOUT AND FINISH ONLY/i);
     assert.match(prompt, /\[SUBJECT A — CHAT CHARACTER: 태형\]/);
@@ -57,13 +78,17 @@ describe("chatImagePromptIdentityBinding — duo canonical namespace", () => {
     assert.match(prompt, /Reference: Image 3 belongs ONLY to 렌/);
     assert.match(prompt, /A = chat character \(태형\)/);
     assert.match(prompt, /B = user persona \(렌\)/);
-    assert.ok(prompt.includes("Speech bubble (B / persona):"));
-    assert.ok(prompt.includes("같이 갈래?"));
-    assert.ok(prompt.includes("Speech bubble (A / character):"));
-    assert.ok(prompt.includes("그래."));
+    assert.match(prompt, /Visual only: do not render speech bubbles/i);
+    assert.doesNotMatch(prompt, /Speech bubble \(/);
+    assert.doesNotMatch(prompt, /같이 갈래\?/);
+    assert.doesNotMatch(prompt, /그래\./);
     assert.doesNotMatch(prompt, /A = persona \(렌\)/);
     assert.doesNotMatch(prompt, /B = character \(태형\)/);
     assert.doesNotMatch(prompt, /Reference: Image 1 belongs ONLY to 태형/);
+
+    const svg = overlaySvgForPlan(plan, fixture.expectedCast.persona, fixture.expectedCast.character);
+    assert.ok(svg.includes("같이 갈래?"));
+    assert.ok(svg.includes("그래."));
   });
 
   it("production reference map includes template slot before human subjects", () => {
@@ -113,6 +138,7 @@ describe("chatImagePromptIdentityBinding — F08 action ownership", () => {
     const audit = auditPromptIdentityBinding(prompt);
     assert.equal(audit.actionOwnerConflictCount, 0);
     assert.equal(audit.templateReferenceOwnerConflictCount, 0);
+    assert.equal(countProviderPromptReadableDialogue(prompt), 0);
     assert.doesNotMatch(prompt, /B action \(시우\): 한별/);
     assert.doesNotMatch(prompt, /^B action: 한별/m);
   });
@@ -139,12 +165,17 @@ describe("chatImagePromptIdentityBinding — F04 source action preservation", ()
       ...closing.subjectActions.map((action) => action.text),
     ].join("\n");
     assert.match(panelText, /서연이 우산을 더 가까이 건넨다/);
-    assert.match(prompt, /Speech bubble \(A \/ character\):.*고마워/);
+    assert.equal(countProviderPromptReadableDialogue(prompt), 0);
+    assert.doesNotMatch(prompt, /Speech bubble/);
+    assert.doesNotMatch(prompt, /고마워/);
+
+    const svg = overlaySvgForPlan(plan, "서연", "도윤");
+    assert.ok(svg.includes("고마워"));
   });
 });
 
-describe("chatImagePromptIdentityBinding — user edit speaker", () => {
-  it("maps edited speaker to canonical prompt subject label", () => {
+describe("chatImagePromptIdentityBinding — overlay speech identity", () => {
+  it("maps edited speaker to canonical overlay side", () => {
     const messages = buildSceneSourceMessages([
       { id: 1, role: "assistant", content: '"그래."' },
     ]);
@@ -168,8 +199,24 @@ describe("chatImagePromptIdentityBinding — user edit speaker", () => {
       personaName: "렌",
     });
     const prompt = production.prompt;
-    assert.match(prompt, /Speech bubble \(B \/ persona\): “그래.”/);
-    assert.doesNotMatch(prompt, /Speech bubble \(A \/ character\): “그래.”/);
+    assert.equal(countProviderPromptReadableDialogue(prompt), 0);
+    assert.doesNotMatch(prompt, /Speech bubble/);
+
+    const subjects = duoVisualSubjectsForCast({ characterName: "태형", personaName: "렌" });
+    const layout = layoutPanelOverlay({
+      panel: plan.panels[0]!,
+      approvedDialogue: plan.panels[0]!.dialogue,
+      panelX: 0,
+      panelY: 0,
+      panelWidth: 400,
+      panelHeight: 350,
+      subjects,
+    });
+    const personaBubble = layout.bubbles.find((bubble) => bubble.speaker === "persona");
+    const characterBubble = layout.bubbles.find((bubble) => bubble.speaker === "character");
+    assert.ok(personaBubble);
+    assert.equal(characterBubble, undefined);
+    assert.equal(personaBubble?.rawText, "그래.");
     assert.equal(auditPromptIdentityBinding(prompt).speechOwnerConflictCount, 0);
   });
 });
@@ -220,10 +267,21 @@ describe("chatImagePromptIdentityBinding — persona hidden", () => {
     });
     const prompt = production.prompt;
     assert.match(prompt, /A = chat character \(태현\)/);
-    assert.match(prompt, /Speech bubble \(A \/ character\): “안녕.”/);
+    assert.doesNotMatch(prompt, /Speech bubble/);
+    assert.equal(countProviderPromptReadableDialogue(prompt), 0);
     assert.doesNotMatch(prompt, /persona A off-camera/);
     assert.match(prompt, /SUBJECT A \(태현\) centered; persona off-camera only/);
     assert.equal(auditPromptIdentityBinding(prompt).subjectLabelConflictCount, 0);
+
+    const svg = compileComicTextOverlaySvg({
+      width: 1008,
+      height: 1408,
+      panelCount: 2,
+      plan,
+      visibility: { personaVisible: false },
+      subjects: production.subjects,
+    });
+    assert.ok(svg.includes("안녕."));
   });
 });
 
@@ -280,8 +338,8 @@ describe("chatImagePromptIdentityBinding — negative controls", () => {
   });
 });
 
-describe("chatImagePromptIdentityBinding — whitelist regression", () => {
-  it("auditComicDialogueWhitelist stays aligned after identity bind", () => {
+describe("chatImagePromptIdentityBinding — overlay whitelist regression", () => {
+  it("auditComicDialogueWhitelist stays aligned at overlay boundary", () => {
     const { plan, production } = compileProductionDuoFixture("F01-2panel-invite");
     const audit = auditComicDialogueWhitelist({
       plan,
@@ -290,8 +348,7 @@ describe("chatImagePromptIdentityBinding — whitelist regression", () => {
     });
     assert.equal(audit.panelTextWhitelistMismatchCount, 0);
     assert.equal(audit.userEditDialogueMismatchCount, 0);
-    assert.ok(production.prompt.includes("같이 갈래?"));
-    assert.ok(production.prompt.includes("그래."));
+    assert.equal(countProviderPromptReadableDialogue(production.prompt), 0);
   });
 });
 
@@ -302,6 +359,7 @@ describe("chatImagePromptIdentityBinding — benchmark corpus counters", () => {
     let referenceSlotConflictTotal = 0;
     let actionOwnerConflictTotal = 0;
     let speechOwnerConflictTotal = 0;
+    let providerReadableDialogueTotal = 0;
 
     for (const fixture of COMIC_PANEL_BENCHMARK_FIXTURES) {
       const plan = scenePlanForFixture(fixture);
@@ -316,6 +374,7 @@ describe("chatImagePromptIdentityBinding — benchmark corpus counters", () => {
       referenceSlotConflictTotal += audit.referenceSlotConflictCount;
       actionOwnerConflictTotal += audit.actionOwnerConflictCount;
       speechOwnerConflictTotal += audit.speechOwnerConflictCount;
+      providerReadableDialogueTotal += countProviderPromptReadableDialogue(production.prompt);
     }
 
     assert.equal(subjectLabelConflictTotal, 0);
@@ -323,5 +382,6 @@ describe("chatImagePromptIdentityBinding — benchmark corpus counters", () => {
     assert.equal(referenceSlotConflictTotal, 0);
     assert.equal(actionOwnerConflictTotal, 0);
     assert.equal(speechOwnerConflictTotal, 0);
+    assert.equal(providerReadableDialogueTotal, 0);
   });
 });

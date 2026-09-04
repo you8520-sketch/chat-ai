@@ -13,6 +13,8 @@ import {
   countLayoutOverlaps,
   countPanelOverlayCollisions,
   countElementsOutsidePanel,
+  selectDialogueForPanelLayout,
+  compileComicPanelOverlayLayouts,
   BUBBLE_OWNER,
   NARRATION_OWNER,
   SFX_OWNER,
@@ -289,29 +291,33 @@ describe("Comic Text Layer: Text-Layer Tests (T1-T8)", () => {
     assert.ok(occurrences.length <= 1);
   });
 
-  it("T8: exact-text echo suppression → near-identical duplicated line in same panel = 0", () => {
+  it("T8: recap echo suppressed in overlay — not same-text panel dedupe", () => {
     const plan = buildDeterministicScenePlan(
       buildSceneSourceMessages([
         { id: 1, role: "user", content: '"내가 좋아?"' },
         {
           id: 2,
           role: "assistant",
-          content: '"내가 좋아?" 라이크는 픽 웃었다. "그걸 말이라고 물어?"',
+          content: '"내가 좋아?" 렌의 말에 라이크는 픽 웃었다. "그걸 말이라고 물어?"',
         },
       ]),
       2,
       { personaName: "렌", characterName: "라이크" }
     );
 
-    for (const panel of plan.panels) {
-      const texts = panel.dialogue.map((d) => d.text.trim());
-      const duplicates = texts.filter((item, index) => texts.indexOf(item) !== index);
-      assert.equal(
-        duplicates.length,
-        0,
-        `Panel ${panel.index} must not have duplicate text lines: ${JSON.stringify(duplicates)}`
-      );
-    }
+    const planTexts = plan.panels.flatMap((panel) => panel.dialogue.map((line) => line.text));
+    assert.equal(planTexts.filter((text) => text === "내가 좋아?").length, 1);
+    assert.ok(planTexts.includes("그걸 말이라고 물어?"));
+
+    const svg = compileComicTextOverlaySvg({
+      width: 1008,
+      height: 1408,
+      panelCount: 2,
+      plan,
+      subjects: duoVisualSubjectsForCast({ characterName: "라이크", personaName: "렌" }),
+    });
+    assert.equal((svg.match(/내가 좋아\?/g) ?? []).length, 1);
+    assert.ok(svg.includes("그걸 말이라고 물어?"));
   });
 });
 
@@ -590,5 +596,176 @@ describe("Comic Text Layer: UI & Editor Parity Tests (U1-U3)", () => {
     );
     assert.equal(countPanelOverlayCollisions(layout), 0);
     assert.equal(countElementsOutsidePanel(layout, 0, 0, 400, 350), 0);
+  });
+});
+
+describe("dense overlay layout matrix L1-L8", () => {
+  const subjects = duoVisualSubjectsForCast({ characterName: "라이크", personaName: "렌" });
+  const panelBox = { panelX: 0, panelY: 0, panelWidth: 400, panelHeight: 350 };
+
+  function assertFinalInvariants(
+    layout: ReturnType<typeof layoutPanelOverlay>,
+    panelX: number,
+    panelY: number,
+    panelWidth: number,
+    panelHeight: number
+  ) {
+    assert.equal(countPanelOverlayCollisions(layout), 0);
+    assert.equal(countElementsOutsidePanel(layout, panelX, panelY, panelWidth, panelHeight), 0);
+  }
+
+  it("L1: four short dialogue lines preserve order with zero collisions", () => {
+    const dialogue: SceneDialogue[] = [
+      { speaker: "character", text: "하나.", provenance: "source" },
+      { speaker: "persona", text: "둘.", provenance: "source" },
+      { speaker: "character", text: "셋.", provenance: "source" },
+      { speaker: "persona", text: "넷.", provenance: "source" },
+    ];
+    const layout = layoutPanelOverlay({
+      panel: { index: 1, sourceEventIds: [], situation: "카페", dialogue },
+      approvedDialogue: dialogue,
+      ...panelBox,
+      subjects,
+    });
+    assert.deepEqual(layout.bubbles.map((bubble) => bubble.rawText), ["하나.", "둘.", "셋.", "넷."]);
+    assertFinalInvariants(layout, 0, 0, 400, 350);
+  });
+
+  it("L2: source / user_edit / source retains original order when all fit", () => {
+    const dialogue: SceneDialogue[] = [
+      { speaker: "character", text: "A", provenance: "source" },
+      { speaker: "persona", text: "B", provenance: "user_edit" },
+      { speaker: "character", text: "C", provenance: "source" },
+    ];
+    const layout = layoutPanelOverlay({
+      panel: { index: 1, sourceEventIds: [], situation: "카페", dialogue },
+      approvedDialogue: dialogue,
+      ...panelBox,
+      subjects,
+    });
+    assert.deepEqual(layout.bubbles.map((bubble) => bubble.rawText), ["A", "B", "C"]);
+    assertFinalInvariants(layout, 0, 0, 400, 350);
+  });
+
+  it("L3: five lines retain user_edit and restore relative order", () => {
+    const dialogue: SceneDialogue[] = [
+      { speaker: "character", text: "1", provenance: "source" },
+      { speaker: "persona", text: "KEEP", provenance: "user_edit" },
+      { speaker: "character", text: "3", provenance: "source" },
+      { speaker: "persona", text: "4", provenance: "source" },
+      { speaker: "character", text: "5", provenance: "source" },
+    ];
+    const selected = selectDialogueForPanelLayout(dialogue);
+    assert.ok(selected.some((line) => line.text === "KEEP"));
+    const layout = layoutPanelOverlay({
+      panel: { index: 1, sourceEventIds: [], situation: "카페", dialogue },
+      approvedDialogue: dialogue,
+      ...panelBox,
+      subjects,
+    });
+    assert.ok(layout.bubbles.some((bubble) => bubble.rawText === "KEEP"));
+    const keepIndex = layout.bubbles.findIndex((bubble) => bubble.rawText === "KEEP");
+    assert.ok(keepIndex >= 0);
+    assert.ok(layout.bubbles[0]!.rawText === "1" || layout.bubbles[0]!.rawText === "KEEP");
+    assert.equal(layout.bubbles.length, 4);
+    assertFinalInvariants(layout, 0, 0, 400, 350);
+  });
+
+  it("L4: dense long dialogue + narration + SFX stay bounded", () => {
+    const dialogue: SceneDialogue[] = [
+      { speaker: "character", text: "아주 긴 대사 첫 줄입니다 정말 길게 이어집니다.", provenance: "source" },
+      { speaker: "persona", text: "두 번째 긴 대사도 충분히 길게 작성합니다.", provenance: "source" },
+      { speaker: "character", text: "세 번째 긴 대사 역시 길게 이어집니다.", provenance: "source" },
+      { speaker: "persona", text: "네 번째 긴 대사로 마무리합니다.", provenance: "source" },
+    ];
+    const layout = layoutPanelOverlay({
+      panel: {
+        index: 1,
+        sourceEventIds: [],
+        situation: "쾅! 와장창 퍼억",
+        dialogue,
+      },
+      approvedDialogue: dialogue,
+      ...panelBox,
+      subjects,
+    });
+    assert.equal(layout.narration, undefined);
+    assertFinalInvariants(layout, 0, 0, 400, 350);
+  });
+
+  it("L5: dense speech drops narration and reclaims reservedTop", () => {
+    const dialogue: SceneDialogue[] = [
+      { speaker: "character", text: "1", provenance: "source" },
+      { speaker: "persona", text: "2", provenance: "source" },
+      { speaker: "character", text: "3", provenance: "source" },
+    ];
+    const layout = layoutPanelOverlay({
+      panel: {
+        index: 1,
+        sourceEventIds: [],
+        situation: "긴 장면 설명 텍스트가 있는 상황 묘사",
+        dialogue,
+      },
+      approvedDialogue: dialogue,
+      ...panelBox,
+      subjects,
+    });
+    assert.equal(layout.narration, undefined);
+    assert.ok(layout.bubbles[0]!.y < 120, "Bubbles should not reserve removed narration space");
+    assertFinalInvariants(layout, 0, 0, 400, 350);
+  });
+
+  it("L6: final collision audit passes after clamp near bottom", () => {
+    const dialogue: SceneDialogue[] = [
+      { speaker: "character", text: "아래쪽에 모일 대사 1", provenance: "source" },
+      { speaker: "persona", text: "아래쪽에 모일 대사 2", provenance: "source" },
+      { speaker: "character", text: "아래쪽에 모일 대사 3", provenance: "source" },
+    ];
+    const layout = layoutPanelOverlay({
+      panel: { index: 1, sourceEventIds: [], situation: "카페", dialogue },
+      approvedDialogue: dialogue,
+      panelX: 0,
+      panelY: 0,
+      panelWidth: 320,
+      panelHeight: 220,
+      subjects,
+    });
+    assertFinalInvariants(layout, 0, 0, 320, 220);
+  });
+
+  it("L7: extremely long user_edit uses bounded geometry without outside-panel overflow", () => {
+    const longText =
+      "유저가 직접 입력한 아주 긴 대사입니다 ".repeat(8).trim();
+    const dialogue: SceneDialogue[] = [
+      { speaker: "persona", text: longText, provenance: "user_edit" },
+    ];
+    const layout = layoutPanelOverlay({
+      panel: { index: 1, sourceEventIds: [], situation: "카페", dialogue },
+      approvedDialogue: dialogue,
+      ...panelBox,
+      subjects,
+    });
+    assert.equal(layout.bubbles.length, 1);
+    assert.ok(layout.bubbles[0]!.fontSize >= 16);
+    assertFinalInvariants(layout, 0, 0, 400, 350);
+  });
+
+  it("L8: multi-panel page keeps overlay elements inside each panel", () => {
+    for (const panelCount of [2, 3, 4] as const) {
+      const plan = makeSamplePlan();
+      const height = panelCount === 4 ? 1824 : 1408;
+      const layouts = compileComicPanelOverlayLayouts({
+        width: 1008,
+        height,
+        panelCount,
+        plan,
+        subjects,
+      });
+      assert.equal(layouts.length, panelCount);
+      const panelHeight = height / panelCount;
+      layouts.forEach((layout, index) => {
+        assertFinalInvariants(layout, 0, index * panelHeight, 1008, panelHeight);
+      });
+    }
   });
 });

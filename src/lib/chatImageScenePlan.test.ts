@@ -883,3 +883,107 @@ describe("chatImageScenePlan user-facing scene description", () => {
     assert.equal(projectUserFacingHeroScene(plan), plan.heroScene);
   });
 });
+
+describe("validateScenePlan user_edit provenance (UE1-UE6)", () => {
+  const messages = buildSceneSourceMessages([
+    { id: 1, role: "assistant", content: '"안녕."' },
+  ]);
+
+  it("UE1: user_edit noun phrase 살상 무기 is preserved", () => {
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const edited = {
+      ...plan,
+      panels: plan.panels.map((panel, index) =>
+        index === 0
+          ? {
+              ...panel,
+              dialogue: [{ speaker: "character" as const, text: "살상 무기", provenance: "user_edit" as const }],
+            }
+          : panel
+      ),
+    };
+    const validated = validateScenePlan(edited, messages, { allowUserEdits: true });
+    assert.equal(validated.ok, true);
+    if (validated.ok) {
+      assert.equal(validated.plan.panels[0]!.dialogue[0]?.text, "살상 무기");
+    }
+  });
+
+  it("UE2: user_edit 접근 금지 is preserved", () => {
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const edited = {
+      ...plan,
+      panels: plan.panels.map((panel, index) =>
+        index === 0
+          ? {
+              ...panel,
+              dialogue: [{ speaker: "persona" as const, text: "접근 금지", provenance: "user_edit" as const }],
+            }
+          : panel
+      ),
+    };
+    const validated = validateScenePlan(edited, messages, { allowUserEdits: true });
+    assert.equal(validated.ok, true);
+    if (validated.ok) {
+      assert.equal(validated.plan.panels[0]!.dialogue[0]?.text, "접근 금지");
+    }
+  });
+
+  it("UE3: source unquoted noun fragment is not automatic speech", () => {
+    const sourceMessages = buildSceneSourceMessages([
+      { id: 1, role: "assistant", content: "*검을 든다* 살상 무기" },
+    ]);
+    const plan = buildDeterministicScenePlan(sourceMessages, 2);
+    const dialogue = plan.panels.flatMap((panel) => panel.dialogue);
+    assert.equal(dialogue.some((line) => line.text === "살상 무기"), false);
+  });
+
+  it("UE4: source sign label quote is not speech", () => {
+    const sourceMessages = buildSceneSourceMessages([
+      { id: 1, role: "assistant", content: '"접근 금지"라고 적힌 표지판' },
+    ]);
+    const plan = buildDeterministicScenePlan(sourceMessages, 2);
+    const dialogue = plan.panels.flatMap((panel) => panel.dialogue);
+    assert.equal(dialogue.some((line) => line.text.includes("접근 금지")), false);
+  });
+
+  it("UE5: empty user_edit string is not rendered", () => {
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const edited = {
+      ...plan,
+      panels: plan.panels.map((panel, index) =>
+        index === 0
+          ? {
+              ...panel,
+              dialogue: [{ speaker: "persona" as const, text: "", provenance: "user_edit" as const }],
+            }
+          : panel
+      ),
+    };
+    const validated = validateScenePlan(edited, messages, { allowUserEdits: true });
+    assert.equal(validated.ok, true);
+    if (validated.ok) {
+      assert.equal(validated.plan.panels[0]!.dialogue.length, 0);
+    }
+  });
+
+  it("UE6: forged user_edit rejected when allowUserEdits=false", () => {
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const forged = {
+      ...plan,
+      panels: plan.panels.map((panel, index) =>
+        index === 0
+          ? {
+              ...panel,
+              dialogue: [{ speaker: "persona" as const, text: "위조", provenance: "user_edit" as const }],
+            }
+          : panel
+      ),
+    };
+    const validated = validateScenePlan(forged, messages, { allowUserEdits: false });
+    assert.equal(validated.ok, false);
+    if (!validated.ok) {
+      assert.match(validated.reason, /user_edit not allowed from planner/);
+    }
+  });
+});
