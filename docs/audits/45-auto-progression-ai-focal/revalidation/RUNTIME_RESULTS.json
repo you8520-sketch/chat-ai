@@ -1,0 +1,15 @@
+{
+  "status": "AUTO_PROGRESSION_REVALIDATION_HUMAN_REVIEW_PENDING",
+  "offline_verdict": "AUTO_PROGRESSION_EXTERNAL_ACTION_DIALOGUE_OFFLINE_PASS",
+  "attempts": 6,
+  "valid": 2,
+  "replacement_calls": 0,
+  "exclusions": [],
+  "human_review": "COMPLETE",
+  "verdicts": [
+    "AUTO_PROGRESSION_AI_FOCAL_POV_PASS",
+    "AUTO_PROGRESSION_EXTERNAL_ACTION_DIALOGUE_FAIL",
+    "AUTO_PROGRESSION_CO_NARRATION_HARD_FAIL"
+  ],
+  "note": "Positive execution paragraph failed 2/2. No further wording revision until owner placement audit (Audit 50)."
+}
