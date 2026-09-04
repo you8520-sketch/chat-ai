@@ -676,7 +676,7 @@ test.describe("General chat live reading follow — production browser", () => {
 });
 
 test.describe("General chat continuous follow matrix — production browser", () => {
-  test.describe.configure({ retries: 0, timeout: 180_000, mode: "serial" });
+  test.describe.configure({ retries: 0, timeout: 180_000 });
 
   test.beforeEach(async ({ page }) => {
     await installScrollAudit(page);
