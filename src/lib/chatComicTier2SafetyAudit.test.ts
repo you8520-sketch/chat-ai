@@ -19,6 +19,7 @@ import {
 import type { ScenePlan } from "@/lib/chatImageScenePlan";
 import {
   auditProviderAttemptSequence,
+  auditRailwayAdminDiagnosticSafety,
   auditTier2ComicPrompt,
   buildAndAuditStrictComicFallbackPrompt,
   buildComicReferenceRoleInventory,
@@ -28,6 +29,7 @@ import {
   countNegativeSexualSafetyVocabulary,
   FINAL_TIER1_PROMPT_SECTION_INVENTORY,
   FINAL_TIER2_PROMPT_SECTION_INVENTORY,
+  formatComicGenerationAdminFailureDiagnostic,
   tier2AuditPromptHashMatchesAttempt2,
 } from "@/lib/chatComicTier2SafetyAudit";
 import { hashPromptForDiagnostic } from "@/lib/openAiImageFailureDiagnostic";
@@ -646,5 +648,128 @@ describe("auditTier2ComicPrompt invariants", () => {
     const audit = auditTier2ComicPrompt({ prompt, subjects: duoSubjects });
     assert.equal(audit.rawExplicitSourceLeakCount, 0);
     assert.match(prompt, /GENERAL-AUDIENCE VISUAL CONTRACT/);
+  });
+});
+
+describe("Railway admin failure diagnostic", () => {
+  const RAW_PROMPT_SECRET =
+    "TIER2_RAILWAY_RAW_PROMPT_SECRET_둘이 침대에서 겹치며 성관계를 한다";
+  const RAW_SOURCE_SECRET = "TIER2_RAILWAY_RAW_SOURCE_성관계_손목을긋";
+  const REFERENCE_URL_SECRET = "https://private.example.com/character-ref-secret.webp";
+  const API_KEY_SECRET = "sk-railway-leak-test-key-abcdef123456";
+
+  it("RAILWAY_ADMIN_DIAGNOSTIC_SAFE — canonical formatter includes required admin fields", () => {
+    const { prompt, audit } = buildTier2(explicitBedroomPlan());
+    const inventory = buildComicReferenceRoleInventory({
+      referenceUrls: [CHAT_COMIC_TEMPLATE_PREVIEW_URL, "/c.webp", "/p.webp"],
+      subjects: duoSubjects,
+    });
+    const providerAttempts = [
+      {
+        attempt: 1,
+        kind: "primary" as const,
+        outcome: "safety_rejected" as const,
+        promptHash: hashPromptForDiagnostic("tier-1-primary"),
+        diagnostic: { providerRequestId: "req-railway-1", usageReturned: false },
+      },
+      {
+        attempt: 2,
+        kind: "strict_safety_fallback" as const,
+        outcome: "safety_rejected" as const,
+        promptHash: audit.promptHash,
+        diagnostic: { providerRequestId: "req-railway-2", usageReturned: false },
+      },
+    ];
+    const imageFailureDiagnostic = {
+      httpStatus: 400,
+      providerRequestId: "req-railway-2",
+      errorType: "image_generation_user_error",
+      errorCode: "moderation_blocked",
+      errorParam: null,
+      errorMessage: "Your request was rejected by the safety system.",
+      moderationStage: null,
+      safetyCategories: ["sexual"],
+      usage: null,
+      inputTokens: null,
+      outputTokens: null,
+      imageInputTokens: null,
+      textInputTokens: null,
+      computedCostUsd: null,
+      hasUsageEvidence: false,
+      providerChargeEvidence: "usage_absent" as const,
+      attemptStartedAt: "2026-01-01T00:00:00.000Z",
+      attemptFinishedAt: "2026-01-01T00:00:01.000Z",
+      latencyMs: 1000,
+      model: "gpt-image-2",
+      size: "864x1824",
+      quality: "medium" as const,
+      referenceCount: 3,
+      promptCharCount: prompt.length,
+      promptHash: audit.promptHash,
+    };
+
+    const diagnostic = formatComicGenerationAdminFailureDiagnostic({
+      providerAttempts,
+      tier2PromptAudit: audit,
+      referenceRoleInventory: inventory,
+      imageFailureDiagnostic,
+    });
+
+    assert.ok(diagnostic.providerAttemptDiagnostic);
+    assert.ok(diagnostic.tier2PromptAudit);
+    assert.ok(Array.isArray(diagnostic.referenceRoleInventory));
+    assert.equal(diagnostic.templateModerationRisk, "UNKNOWN");
+    assert.equal(diagnostic.tier2PromptHashMatchesAttempt2, true);
+
+    const provider = diagnostic.providerAttemptDiagnostic as {
+      attemptCount?: number;
+      attempts?: Array<{ kind?: string; outcome?: string; promptHash?: string | null }>;
+    };
+    assert.equal(provider.attemptCount, 2);
+    assert.equal(provider.attempts?.[1]?.kind, "strict_safety_fallback");
+    assert.equal(provider.attempts?.[1]?.promptHash, audit.promptHash);
+
+    const tier2 = diagnostic.tier2PromptAudit as Record<string, unknown>;
+    assert.equal(tier2.tier2ExplicitLeakCount, 0);
+    assert.equal(tier2.promptHash, audit.promptHash);
+    assert.equal(tier2.tier2UserRawProseAuditStatus, audit.userRawProseAuditStatus);
+  });
+
+  it("RAILWAY_RAW_PROMPT_LEAK = 0 — forbidden secrets absent from diagnostic JSON", () => {
+    const { prompt, audit } = buildTier2(explicitBedroomPlan());
+    const diagnostic = formatComicGenerationAdminFailureDiagnostic({
+      providerAttempts: [
+        { attempt: 1, kind: "primary", outcome: "safety_rejected", promptHash: null },
+        {
+          attempt: 2,
+          kind: "strict_safety_fallback",
+          outcome: "safety_rejected",
+          promptHash: audit.promptHash,
+        },
+      ],
+      tier2PromptAudit: audit,
+      referenceRoleInventory: buildComicReferenceRoleInventory({
+        referenceUrls: [CHAT_COMIC_TEMPLATE_PREVIEW_URL, REFERENCE_URL_SECRET, "/p.webp"],
+        subjects: duoSubjects,
+      }),
+    });
+
+    void prompt;
+    void API_KEY_SECRET;
+
+    const safety = auditRailwayAdminDiagnosticSafety(diagnostic, [
+      RAW_PROMPT_SECRET,
+      RAW_SOURCE_SECRET,
+      REFERENCE_URL_SECRET,
+      API_KEY_SECRET,
+      "data:image/webp;base64,SECRETIMAGE",
+    ]);
+
+    assert.equal(safety.safe, true);
+    assert.equal(safety.rawPromptLeak, 0);
+    assert.equal(safety.rawSourceLeak, 0);
+    assert.equal(safety.referenceUrlLeak, 0);
+    assert.equal(safety.apiKeyLeak, 0);
+    assert.equal(safety.base64Leak, 0);
   });
 });

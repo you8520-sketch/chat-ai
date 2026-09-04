@@ -18,8 +18,16 @@ import {
 } from "@/lib/chatComicTier2SafeProjection";
 import type { ComicSafeStructureProjection } from "@/lib/chatComicSafeStructure";
 import type { ScenePlan } from "@/lib/chatImageScenePlan";
-import { hashPromptForDiagnostic } from "@/lib/openAiImageFailureDiagnostic";
-import type { OpenAiImageProviderAttemptRecord } from "@/lib/openAiImageSafetyFallback";
+import {
+  formatOpenAiImageFailureDiagnosticForAdmin,
+  hashPromptForDiagnostic,
+  type OpenAiImageFailureDiagnostic,
+} from "@/lib/openAiImageFailureDiagnostic";
+import {
+  aggregateKnownProviderCostUsd,
+  formatOpenAiImageProviderAttemptsForAdmin,
+  type OpenAiImageProviderAttemptRecord,
+} from "@/lib/openAiImageSafetyFallback";
 
 /** Strong genital / explicit act terms that must not appear in Tier-2 final prompt. */
 const STRONG_GENITAL_TERMS =
@@ -320,6 +328,119 @@ export function auditProviderAttemptSequence(
     ),
     attemptSequenceControlFlowProven: attempts.length > 0,
     liveIncidentFullAttemptRecordProven: opts?.liveIncidentFullAttemptRecordProven ?? false,
+  };
+}
+
+export function formatComicReferenceRoleInventoryForAdmin(
+  inventory: ComicReferenceRoleInventory
+): Array<{ index: number; role: string }> {
+  return inventory.roles.map((item) => ({
+    index: item.index,
+    role: item.role,
+  }));
+}
+
+/** Canonical admin-safe comic generation failure diagnostic — HTTP + Railway share this shape. */
+export function formatComicGenerationAdminFailureDiagnostic(opts: {
+  providerAttempts?: readonly OpenAiImageProviderAttemptRecord[];
+  tier2PromptAudit?: Tier2ComicPromptAudit | null;
+  referenceRoleInventory?: ComicReferenceRoleInventory | null;
+  imageFailureDiagnostic?: OpenAiImageFailureDiagnostic;
+}): Record<string, unknown> {
+  const payload: Record<string, unknown> = {};
+
+  if (opts.imageFailureDiagnostic) {
+    payload.imageAttemptDiagnostic = formatOpenAiImageFailureDiagnosticForAdmin(
+      opts.imageFailureDiagnostic
+    );
+  }
+
+  if (opts.providerAttempts?.length) {
+    payload.providerAttemptDiagnostic = formatOpenAiImageProviderAttemptsForAdmin({
+      providerAttempts: opts.providerAttempts,
+      knownProviderCostUsd: aggregateKnownProviderCostUsd(opts.providerAttempts),
+      hasUnknownAttemptCost: opts.providerAttempts.some((attempt) => attempt.costUsd == null),
+      safetyFallbackUsed: opts.providerAttempts.some(
+        (attempt) =>
+          attempt.kind === "strict_safety_fallback" && attempt.outcome === "success"
+      ),
+    });
+
+    if (opts.tier2PromptAudit) {
+      const attempt2 = opts.providerAttempts.find((attempt) => attempt.attempt === 2);
+      if (attempt2) {
+        payload.tier2PromptHashMatchesAttempt2 = tier2AuditPromptHashMatchesAttempt2({
+          audit: opts.tier2PromptAudit,
+          providerAttempts: opts.providerAttempts,
+        });
+      }
+    }
+  }
+
+  if (opts.tier2PromptAudit) {
+    payload.tier2PromptAudit = formatTier2ComicPromptAuditForAdmin(opts.tier2PromptAudit);
+  }
+
+  if (opts.referenceRoleInventory) {
+    payload.referenceRoleInventory = formatComicReferenceRoleInventoryForAdmin(
+      opts.referenceRoleInventory
+    );
+  }
+
+  payload.templateModerationRisk = classifyTemplateModerationRisk();
+  return payload;
+}
+
+export type RailwayAdminDiagnosticSafetyAudit = {
+  rawPromptLeak: number;
+  rawSourceLeak: number;
+  referenceUrlLeak: number;
+  apiKeyLeak: number;
+  base64Leak: number;
+  safe: boolean;
+};
+
+/** Verifies admin failure diagnostic JSON is safe for Railway logging. */
+export function auditRailwayAdminDiagnosticSafety(
+  diagnostic: Record<string, unknown>,
+  forbiddenSamples: readonly string[] = []
+): RailwayAdminDiagnosticSafetyAudit {
+  const serialized = JSON.stringify(diagnostic);
+  let rawPromptLeak = 0;
+  let rawSourceLeak = 0;
+  let referenceUrlLeak = 0;
+  let apiKeyLeak = 0;
+  let base64Leak = 0;
+
+  for (const sample of forbiddenSamples) {
+    if (!sample.trim()) continue;
+    if (serialized.includes(sample)) {
+      if (/^sk-/.test(sample) || /OPENAI_API_KEY/i.test(sample)) apiKeyLeak += 1;
+      else if (/data:image|base64/i.test(sample)) base64Leak += 1;
+      else if (/^https?:\/\//.test(sample) || sample.startsWith("/uploads/")) referenceUrlLeak += 1;
+      else if (/성관계|성행위|TIER2_RAW_SECRET/.test(sample)) rawSourceLeak += 1;
+      else rawPromptLeak += 1;
+    }
+  }
+
+  if (/data:image\/[^;]+;base64,/i.test(serialized)) base64Leak += 1;
+  if (/\bsk-[A-Za-z0-9]{8,}\b/.test(serialized)) apiKeyLeak += 1;
+  if (/https?:\/\/[^\s"']+/i.test(serialized)) referenceUrlLeak += 1;
+
+  const safe =
+    rawPromptLeak === 0 &&
+    rawSourceLeak === 0 &&
+    referenceUrlLeak === 0 &&
+    apiKeyLeak === 0 &&
+    base64Leak === 0;
+
+  return {
+    rawPromptLeak,
+    rawSourceLeak,
+    referenceUrlLeak,
+    apiKeyLeak,
+    base64Leak,
+    safe,
   };
 }
 

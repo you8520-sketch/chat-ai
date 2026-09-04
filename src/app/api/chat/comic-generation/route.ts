@@ -129,7 +129,6 @@ import {
   OpenAiImageError,
 } from "@/lib/openAiImageEdit";
 import {
-  formatOpenAiImageFailureDiagnosticForAdmin,
   serializeOpenAiImageFailureDiagnostic,
   type OpenAiImageFailureDiagnostic,
 } from "@/lib/openAiImageFailureDiagnostic";
@@ -156,9 +155,8 @@ import { projectComicSafeStructureForTier2 } from "@/lib/chatComicSafeStructure"
 import {
   auditTier2ComicPrompt,
   buildComicReferenceRoleInventory,
-  classifyTemplateModerationRisk,
   collectTier2RawSourceCandidates,
-  formatTier2ComicPromptAuditForAdmin,
+  formatComicGenerationAdminFailureDiagnostic,
 } from "@/lib/chatComicTier2SafetyAudit";
 
 export const runtime = "nodejs";
@@ -1537,43 +1535,23 @@ export async function POST(req: Request) {
         : null,
     });
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
+    const adminFailureDiagnostic = canSeeCost
+      ? formatComicGenerationAdminFailureDiagnostic({
+          providerAttempts,
+          tier2PromptAudit,
+          referenceRoleInventory,
+          imageFailureDiagnostic: diagnostic,
+        })
+      : null;
     console.error("[chat-comic-generation] failed", {
       status,
       message,
-      imageAttemptDiagnostic: diagnostic
-        ? formatOpenAiImageFailureDiagnosticForAdmin(diagnostic)
-        : undefined,
+      ...(adminFailureDiagnostic ?? {}),
     });
     return NextResponse.json(
       {
         error: message,
-        ...(canSeeCost && diagnostic
-          ? {
-              imageAttemptDiagnostic: formatOpenAiImageFailureDiagnosticForAdmin(diagnostic),
-            }
-          : {}),
-        ...(canSeeCost && providerAttempts?.length
-          ? {
-              providerAttemptDiagnostic: formatOpenAiImageProviderAttemptsForAdmin({
-                providerAttempts,
-                knownProviderCostUsd: aggregateKnownProviderCostUsd(providerAttempts),
-                hasUnknownAttemptCost: providerAttempts.some(
-                  (attempt) => attempt.costUsd == null
-                ),
-                safetyFallbackUsed: providerAttempts.some(
-                  (attempt) => attempt.kind === "strict_safety_fallback" && attempt.outcome === "success"
-                ),
-              }),
-              tier2PromptAudit: tier2PromptAudit
-                ? formatTier2ComicPromptAuditForAdmin(tier2PromptAudit)
-                : null,
-              referenceRoleInventory: referenceRoleInventory?.roles.map((item) => ({
-                index: item.index,
-                role: item.role,
-              })),
-              templateModerationRisk: classifyTemplateModerationRisk(),
-            }
-          : {}),
+        ...(adminFailureDiagnostic ?? {}),
       },
       { status }
     );
