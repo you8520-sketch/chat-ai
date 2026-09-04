@@ -17,6 +17,8 @@ import {
   COMIC_TIER2_POSITIVE_SAFE_DEPICTION,
 } from "@/lib/chatComicTier2SafeProjection";
 import type { ComicSafeStructureProjection } from "@/lib/chatComicSafeStructure";
+import type { ScenePlan } from "@/lib/chatImageScenePlan";
+import { hashPromptForDiagnostic } from "@/lib/openAiImageFailureDiagnostic";
 import type { OpenAiImageProviderAttemptRecord } from "@/lib/openAiImageSafetyFallback";
 
 /** Strong genital / explicit act terms that must not appear in Tier-2 final prompt. */
@@ -75,16 +77,20 @@ export type ReferenceModerationRisk = "NONE" | "LOW" | "HIGH" | "UNKNOWN";
 
 export type ReferenceRiskClassification =
   | "PROMPT_SAFE"
+  | "PROMPT_RISK"
   | "REFERENCE_RISK"
-  | "TEMPLATE_RISK"
+  | "MULTIPLE_RISKS"
   | "UNKNOWN";
+
+export type UserRawProseAuditStatus = "PROVEN_ZERO" | "LEAK_DETECTED" | "UNKNOWN";
 
 export type Tier2ComicPromptAudit = {
   rawExplicitSourceLeakCount: number;
   strongGenitalTermCount: number;
   untrustedDialogueCount: number;
   savedAppearanceFreeformCount: number;
-  userRawProseCount: number;
+  userRawProseCount: number | null;
+  userRawProseAuditStatus: UserRawProseAuditStatus;
   negativeSexualSafetyVocabCount: number;
   hasBedroom: boolean;
   hasBed: boolean;
@@ -109,7 +115,68 @@ export type ProviderAttemptSequenceAudit = {
   attempt2Kind: string | null;
   attempt2Outcome: string | null;
   safetyFallbackTriggered: boolean;
+  attemptSequenceControlFlowProven: boolean;
+  liveIncidentFullAttemptRecordProven: boolean;
 };
+
+const MIN_RAW_SOURCE_CANDIDATE_CHARS = 4;
+
+/** Collect canonical scene-plan strings that must not leak verbatim into Tier-2. */
+export function collectTier2RawSourceCandidates(plan: ScenePlan): string[] {
+  const candidates: string[] = [];
+  for (const event of plan.events ?? []) {
+    const text = String(event.text ?? "").trim();
+    if (text.length >= MIN_RAW_SOURCE_CANDIDATE_CHARS) candidates.push(text);
+  }
+  for (const panel of plan.panels ?? []) {
+    for (const field of [
+      panel.situation,
+      panel.personaAction,
+      panel.characterAction,
+      panel.backgroundOverride,
+    ]) {
+      const text = String(field ?? "").trim();
+      if (text.length >= MIN_RAW_SOURCE_CANDIDATE_CHARS) candidates.push(text);
+    }
+    for (const line of panel.dialogue ?? []) {
+      const text = String(line.text ?? "").trim();
+      if (text.length >= MIN_RAW_SOURCE_CANDIDATE_CHARS) candidates.push(text);
+    }
+  }
+  for (const field of [plan.sceneBackground, plan.atmosphere, plan.heroScene]) {
+    const text = String(field ?? "").trim();
+    if (text.length >= MIN_RAW_SOURCE_CANDIDATE_CHARS) candidates.push(text);
+  }
+  return [...new Set(candidates)];
+}
+
+function countUserRawProseLeaks(
+  prompt: string,
+  candidates: readonly string[]
+): number {
+  let count = 0;
+  for (const candidate of candidates) {
+    const risky =
+      classifyRawVisualRisk(candidate).length > 0 || containsRawRiskySourceLeak(candidate);
+    if (!risky) continue;
+    if (prompt.includes(candidate)) count += 1;
+  }
+  return count;
+}
+
+function resolveUserRawProseAudit(opts: {
+  prompt: string;
+  rawSourceCandidates?: readonly string[];
+}): Pick<Tier2ComicPromptAudit, "userRawProseCount" | "userRawProseAuditStatus"> {
+  if (opts.rawSourceCandidates == null) {
+    return { userRawProseCount: null, userRawProseAuditStatus: "UNKNOWN" };
+  }
+  const leakCount = countUserRawProseLeaks(opts.prompt, opts.rawSourceCandidates);
+  return {
+    userRawProseCount: leakCount,
+    userRawProseAuditStatus: leakCount === 0 ? "PROVEN_ZERO" : "LEAK_DETECTED",
+  };
+}
 
 function countMatches(text: string, pattern: RegExp): number {
   const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
@@ -146,8 +213,13 @@ export function auditTier2ComicPrompt(opts: {
   subjects: readonly ChatImageVisualSubject[];
   safeStructure?: ComicSafeStructureProjection;
   safeStructureProjectionApplied?: boolean;
+  rawSourceCandidates?: readonly string[];
 }): Tier2ComicPromptAudit {
   const prompt = opts.prompt;
+  const userRawProseAudit = resolveUserRawProseAudit({
+    prompt,
+    rawSourceCandidates: opts.rawSourceCandidates,
+  });
   const structureHaystack = opts.safeStructure
     ? [
         opts.safeStructure.sharedBackground,
@@ -169,7 +241,8 @@ export function auditTier2ComicPrompt(opts: {
     strongGenitalTermCount,
     untrustedDialogueCount: countMatches(prompt, /^Speech bubble \(/gm),
     savedAppearanceFreeformCount: countSavedAppearanceFreeform(prompt, opts.subjects),
-    userRawProseCount: 0,
+    userRawProseCount: userRawProseAudit.userRawProseCount,
+    userRawProseAuditStatus: userRawProseAudit.userRawProseAuditStatus,
     negativeSexualSafetyVocabCount,
     hasBedroom: /(?:bedroom|침실)/iu.test(structureHaystack),
     hasBed: /(?:\bed\b|침대)/iu.test(structureHaystack),
@@ -183,7 +256,7 @@ export function auditTier2ComicPrompt(opts: {
     hasNegativeSexualSafetyVocabulary: negativeSexualSafetyVocabCount > 0,
     safeStructureProjectionApplied: opts.safeStructureProjectionApplied ?? Boolean(opts.safeStructure),
     promptCharCount: prompt.length,
-    promptHash: null,
+    promptHash: hashPromptForDiagnostic(prompt),
   };
 }
 
@@ -206,8 +279,8 @@ export function buildComicReferenceRoleInventory(opts: {
 }
 
 export function classifyTemplateModerationRisk(): ReferenceModerationRisk {
-  // Static layout template — sample figures present but not user-derived content.
-  return "LOW";
+  // No deterministic image-content moderation audit in this path.
+  return "UNKNOWN";
 }
 
 export function classifyReferenceRiskFromFixtureMetadata(opts: {
@@ -218,15 +291,20 @@ export function classifyReferenceRiskFromFixtureMetadata(opts: {
     opts.promptAudit.rawExplicitSourceLeakCount === 0 &&
     !opts.promptAudit.hasSexualActSemantics &&
     opts.promptAudit.strongGenitalTermCount === 0;
+  const promptDirty = !promptClean;
+  const refsAudited = opts.referenceFlags != null;
   const unsafeRef = opts.referenceFlags?.some((item) => item.unsafeReference) ?? false;
+
   if (promptClean && unsafeRef) return "REFERENCE_RISK";
-  if (!promptClean && !unsafeRef) return "PROMPT_SAFE";
-  if (promptClean) return "PROMPT_SAFE";
+  if (promptClean && refsAudited && !unsafeRef) return "PROMPT_SAFE";
+  if (promptDirty && unsafeRef) return "MULTIPLE_RISKS";
+  if (promptDirty && refsAudited && !unsafeRef) return "PROMPT_RISK";
   return "UNKNOWN";
 }
 
 export function auditProviderAttemptSequence(
-  attempts: readonly OpenAiImageProviderAttemptRecord[]
+  attempts: readonly OpenAiImageProviderAttemptRecord[],
+  opts?: { liveIncidentFullAttemptRecordProven?: boolean }
 ): ProviderAttemptSequenceAudit {
   const attempt1 = attempts.find((item) => item.attempt === 1);
   const attempt2 = attempts.find((item) => item.attempt === 2);
@@ -240,6 +318,8 @@ export function auditProviderAttemptSequence(
     safetyFallbackTriggered: attempts.some(
       (item) => item.kind === "strict_safety_fallback"
     ),
+    attemptSequenceControlFlowProven: attempts.length > 0,
+    liveIncidentFullAttemptRecordProven: opts?.liveIncidentFullAttemptRecordProven ?? false,
   };
 }
 
@@ -256,8 +336,11 @@ export function formatTier2ComicPromptAuditForAdmin(
     tier2StrongGenitalTermCount: audit.strongGenitalTermCount,
     tier2SavedAppearanceFreeformCount: audit.savedAppearanceFreeformCount,
     tier2UntrustedDialogueCount: audit.untrustedDialogueCount,
+    tier2UserRawProseCount: audit.userRawProseCount,
+    tier2UserRawProseAuditStatus: audit.userRawProseAuditStatus,
     safeStructureProjectionApplied: audit.safeStructureProjectionApplied,
     promptCharCount: audit.promptCharCount,
+    promptHash: audit.promptHash,
   };
 }
 
@@ -267,7 +350,7 @@ export { COMIC_TIER2_POSITIVE_SAFE_DEPICTION };
 export type StrictComicFallbackAuditInput = Parameters<typeof buildStrictComicFallbackPrompt>[0];
 
 export function buildAndAuditStrictComicFallbackPrompt(
-  opts: StrictComicFallbackAuditInput
+  opts: StrictComicFallbackAuditInput & { rawSourceCandidates?: readonly string[] }
 ): { prompt: string; audit: Tier2ComicPromptAudit } {
   const prompt = buildStrictComicFallbackPrompt(opts);
   const audit = auditTier2ComicPrompt({
@@ -275,8 +358,19 @@ export function buildAndAuditStrictComicFallbackPrompt(
     subjects: opts.subjects,
     safeStructure: opts.safeStructure,
     safeStructureProjectionApplied: Boolean(opts.safeStructure),
+    rawSourceCandidates: opts.rawSourceCandidates,
   });
   return { prompt, audit };
+}
+
+/** Verifies Tier-2 audit hash matches attempt #2 provider record when present. */
+export function tier2AuditPromptHashMatchesAttempt2(opts: {
+  audit: Tier2ComicPromptAudit;
+  providerAttempts: readonly OpenAiImageProviderAttemptRecord[];
+}): boolean {
+  const attempt2 = opts.providerAttempts.find((item) => item.attempt === 2);
+  if (!attempt2) return false;
+  return opts.audit.promptHash != null && opts.audit.promptHash === attempt2.promptHash;
 }
 
 export function assertTier2BedroomInvariants(audit: Tier2ComicPromptAudit): void {

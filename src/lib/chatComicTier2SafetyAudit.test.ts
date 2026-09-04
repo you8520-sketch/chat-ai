@@ -24,10 +24,13 @@ import {
   buildComicReferenceRoleInventory,
   classifyReferenceRiskFromFixtureMetadata,
   classifyTemplateModerationRisk,
+  collectTier2RawSourceCandidates,
   countNegativeSexualSafetyVocabulary,
   FINAL_TIER1_PROMPT_SECTION_INVENTORY,
   FINAL_TIER2_PROMPT_SECTION_INVENTORY,
+  tier2AuditPromptHashMatchesAttempt2,
 } from "@/lib/chatComicTier2SafetyAudit";
+import { hashPromptForDiagnostic } from "@/lib/openAiImageFailureDiagnostic";
 
 const REF = `data:image/webp;base64,${Buffer.from("ref").toString("base64")}`;
 
@@ -233,6 +236,7 @@ function buildTier2(plan: ScenePlan) {
     personaGender: "female",
     subjects: duoSubjects,
     safeStructure: structure,
+    rawSourceCandidates: collectTier2RawSourceCandidates(plan),
   });
 }
 
@@ -258,6 +262,9 @@ describe("chatComicTier2SafetyAudit fixtures S1-S7", () => {
     assert.equal(audit.rawExplicitSourceLeakCount, 0);
     assert.equal(audit.strongGenitalTermCount, 0);
     assert.equal(audit.hasStrongExplicitSourceLeak, false);
+    assert.equal(audit.negativeSexualSafetyVocabCount, 0);
+    assert.equal(audit.userRawProseAuditStatus, "PROVEN_ZERO");
+    assert.equal(audit.userRawProseCount, 0);
   });
 
   it("SAFE-2 S1 explicit bedroom — bedroom retained", () => {
@@ -418,7 +425,20 @@ describe("reference inventory REF-1 REF-2 REF-3", () => {
   });
 
   it("TEMPLATE_MODERATION_RISK classified", () => {
-    assert.equal(classifyTemplateModerationRisk(), "LOW");
+    assert.equal(classifyTemplateModerationRisk(), "UNKNOWN");
+  });
+
+  it("REFERENCE_CLASSIFIER negative case — dirty prompt without unsafe ref is PROMPT_RISK", () => {
+    const dirtyAudit = auditTier2ComicPrompt({
+      prompt: "source still contains 성관계 wording",
+      subjects: duoSubjects,
+      rawSourceCandidates: ["성관계 wording"],
+    });
+    const classification = classifyReferenceRiskFromFixtureMetadata({
+      promptAudit: dirtyAudit,
+      referenceFlags: [{ index: 2, unsafeReference: false }],
+    });
+    assert.equal(classification, "PROMPT_RISK");
   });
 });
 
@@ -486,6 +506,8 @@ describe("live-equivalent attempt sequence ATTEMPT-1 ATTEMPT-2 ATTEMPT-3", () =>
           assert.equal(seq.attempt2Kind, "strict_safety_fallback");
           assert.equal(seq.attempt2Outcome, "safety_rejected");
           assert.equal(seq.safetyFallbackTriggered, true);
+          assert.equal(seq.attemptSequenceControlFlowProven, true);
+          assert.equal(seq.liveIncidentFullAttemptRecordProven, false);
           return true;
         }
       );
@@ -533,14 +555,72 @@ describe("prompt section inventories", () => {
     assert.ok(FINAL_TIER2_PROMPT_SECTION_INVENTORY.length >= 8);
   });
 
-  it("Tier-2 audit on explicit bedroom before/after negative vocab reduction", () => {
-    const { prompt, audit } = buildTier2(explicitBedroomPlan());
-    const beforeEstimate = countNegativeSexualSafetyVocabulary(
-      [STRICT_SAFE_DEPICTION, "non-explicit", "no suggestive pose", "explicit or graphic"].join(" ")
+  it("Tier-2 audit on explicit bedroom — negative sexual vocab is exactly zero", () => {
+    const { audit } = buildTier2(explicitBedroomPlan());
+    assert.equal(audit.negativeSexualSafetyVocabCount, 0);
+  });
+});
+
+describe("AUDIT-FALSE-GREEN-1 and prompt hash binding", () => {
+  it("AUDIT-FALSE-GREEN-1 unmeasured raw-prose status must NOT report 0", () => {
+    const audit = auditTier2ComicPrompt({
+      prompt: buildStrictComicFallbackPrompt({
+        panelCount: 2,
+        characterName: "A",
+        characterGender: "female",
+        personaName: "B",
+        personaGender: "male",
+        subjects: duoSubjects,
+      }),
+      subjects: duoSubjects,
+    });
+    assert.equal(audit.userRawProseCount, null);
+    assert.equal(audit.userRawProseAuditStatus, "UNKNOWN");
+  });
+
+  it("P1-2 tier2 audit prompt hash matches attempt #2 provider record", async () => {
+    const strictFallbackPrompt = "tier-2 exact provider-bound prompt for hash binding";
+    const audit = auditTier2ComicPrompt({
+      prompt: strictFallbackPrompt,
+      subjects: duoSubjects,
+    });
+    assert.equal(audit.promptHash, hashPromptForDiagnostic(strictFallbackPrompt));
+
+    let calls = 0;
+    const originalFetch = globalThis.fetch;
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-key";
+    globalThis.fetch = async () => {
+      calls += 1;
+      return safetyRejectResponse();
+    };
+    try {
+      await assert.rejects(() =>
+        callOpenAiImageEditWithSafetyFallback({
+          model: "gpt-image-2",
+          primaryPrompt: "tier-1",
+          strictFallbackPrompt,
+          references: [REF],
+          size: "864x1824",
+          quality: "medium",
+          outputCompression: 84,
+        })
+      );
+      assert.equal(calls, 2);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalKey == null) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+    }
+
+    const mockAttempts = [
+      { attempt: 1, kind: "primary" as const, outcome: "safety_rejected" as const, promptHash: hashPromptForDiagnostic("tier-1") },
+      { attempt: 2, kind: "strict_safety_fallback" as const, outcome: "safety_rejected" as const, promptHash: hashPromptForDiagnostic(strictFallbackPrompt) },
+    ];
+    assert.equal(
+      tier2AuditPromptHashMatchesAttempt2({ audit, providerAttempts: mockAttempts }),
+      true
     );
-    assert.ok(audit.negativeSexualSafetyVocabCount < beforeEstimate);
-    assert.ok(audit.negativeSexualSafetyVocabCount <= 1);
-    void prompt;
   });
 });
 
@@ -550,6 +630,7 @@ describe("auditTier2ComicPrompt invariants", () => {
     assert.equal(audit.rawExplicitSourceLeakCount, 0);
     assert.equal(audit.untrustedDialogueCount, 0);
     assert.equal(audit.savedAppearanceFreeformCount, 0);
+    assert.equal(audit.userRawProseAuditStatus, "PROVEN_ZERO");
     assert.equal(audit.userRawProseCount, 0);
   });
 

@@ -157,6 +157,7 @@ import {
   auditTier2ComicPrompt,
   buildComicReferenceRoleInventory,
   classifyTemplateModerationRisk,
+  collectTier2RawSourceCandidates,
   formatTier2ComicPromptAuditForAdmin,
 } from "@/lib/chatComicTier2SafetyAudit";
 
@@ -1373,6 +1374,7 @@ export async function POST(req: Request) {
       subjects: identityPack.subjects,
       safeStructure: tier2SafeStructure,
       safeStructureProjectionApplied: true,
+      rawSourceCandidates: collectTier2RawSourceCandidates(scenePlan),
     });
     tier2PromptAudit = tier2PromptAuditResult;
     referenceRoleInventory = buildComicReferenceRoleInventory({
