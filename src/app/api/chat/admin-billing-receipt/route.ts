@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { canShowFullBillingReceipt } from "@/lib/billingReceiptAccess";
-import { loadAdminBillingReceiptV3ForMessage } from "@/lib/adminBillingReceiptV3Server";
+import { parseAdminBillingReceiptLocator } from "@/lib/adminBillingMessageLocator";
+import { loadPrivilegedAdminBillingReceiptV3ForMessage } from "@/lib/adminBillingReceiptV3Server";
 
 export const dynamic = "force-dynamic";
 
@@ -28,15 +29,12 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
-  const messageId = Number(url.searchParams.get("messageId"));
-  if (!messageId || !Number.isFinite(messageId)) {
-    return NextResponse.json({ error: "messageId가 필요합니다." }, { status: 400 });
+  const parsed = parseAdminBillingReceiptLocator(url.searchParams);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
 
-  const result = loadAdminBillingReceiptV3ForMessage({
-    userId: user.id,
-    messageId,
-  });
+  const result = loadPrivilegedAdminBillingReceiptV3ForMessage(parsed.locator);
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
