@@ -68,9 +68,14 @@ export {
  */
 export { ILLUSTRATION_SAFE_DEPICTION as ILLUSTRATION_SAFETY_LEGACY } from "@/lib/chatImageIllustrationSanitizer";
 
-/** Map upstream OpenAI Images failures to a generic product message (final failure only). */
-export function formatOpenAiImageUserError(_message?: string): string {
-  return "이미지를 생성하지 못했습니다. 장면을 조금 바꿔 다시 시도해 주세요.";
+/** Map upstream OpenAI Images operational failures for primary (non-retry) errors. */
+export function formatOpenAiImageUserError(message: string): string {
+  const raw = String(message ?? "").trim();
+  if (/rate limit/i.test(raw)) {
+    return "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.";
+  }
+  if (raw) return raw.slice(0, 240);
+  return "이미지 생성에 실패했습니다.";
 }
 
 export type ChatLdIllustrationCastMember = {

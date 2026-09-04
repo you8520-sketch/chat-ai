@@ -126,12 +126,19 @@ import {
   type OpenAiImageFailureDiagnostic,
 } from "@/lib/openAiImageFailureDiagnostic";
 import {
+  aggregateKnownProviderCostUsd,
   callOpenAiImageEditWithSafetyFallback,
   formatOpenAiImageFinalUserError,
+  formatOpenAiImageProviderAttemptsForAdmin,
   OpenAiImageGenerationError,
   serializeOpenAiImageProviderAttempts,
+  toOpenAiImageGeneratedWithAttempts,
+  type OpenAiImageGeneratedWithAttempts,
   type OpenAiImageProviderAttemptRecord,
 } from "@/lib/openAiImageSafetyFallback";
+import {
+  formatOpenAiImageUserError,
+} from "@/lib/chatLdIllustrationGeneration";
 import {
   buildStrictComicFallbackPrompt,
   buildStrictLdDuoFallbackPrompt,
@@ -219,6 +226,7 @@ async function abortGeneratedImageAfterSettlementFailure(opts: {
   logTag: string;
   error: unknown;
   insufficientPoints?: InsufficientPointsError;
+  providerAttemptsJson?: string | null;
 }): Promise<NextResponse> {
   if (opts.savedPath) await fs.unlink(opts.savedPath).catch(() => {});
   finishChatImageGenerationJob({
@@ -227,6 +235,7 @@ async function abortGeneratedImageAfterSettlementFailure(opts: {
     errorMessage: opts.insufficientPoints
       ? "포인트가 부족합니다."
       : "image generation settlement failed",
+    providerAttemptsJson: opts.providerAttemptsJson ?? null,
   });
   console.error(`[${opts.logTag}] settlement failed`, opts.error);
   if (opts.insufficientPoints) {
@@ -654,14 +663,10 @@ async function generateComicImage(opts: {
   strictFallbackPrompt: string;
   references: string[];
   panelCount: ChatComicPanelCount;
-}): Promise<{
-  buffer: Buffer;
-  costUsd: number | null;
-  safetyFallbackUsed: boolean;
-  providerAttempts: OpenAiImageProviderAttemptRecord[];
-}> {
+}): Promise<OpenAiImageGeneratedWithAttempts> {
   try {
-    const generated = await callOpenAiImageEditWithSafetyFallback({
+    const generated = toOpenAiImageGeneratedWithAttempts(
+      await callOpenAiImageEditWithSafetyFallback({
       model: opts.model,
       primaryPrompt: opts.prompt,
       strictFallbackPrompt: opts.strictFallbackPrompt,
@@ -671,7 +676,8 @@ async function generateComicImage(opts: {
       outputCompression: 84,
       templateId: CHAT_COMIC_TEMPLATE_ID,
       mode: "comic",
-    });
+    })
+    );
     let output = generated.buffer;
     const metadata = await sharp(output, { failOn: "none" }).metadata();
     if (!metadata.width || !metadata.height) {
@@ -683,12 +689,7 @@ async function generateComicImage(opts: {
         .webp({ quality: 90, effort: 4 })
         .toBuffer();
     }
-    return {
-      buffer: output,
-      costUsd: generated.costUsd,
-      safetyFallbackUsed: generated.safetyFallbackUsed,
-      providerAttempts: generated.providerAttempts,
-    };
+    return { ...generated, buffer: output };
   } catch (error) {
     if (error instanceof RequestError) throw error;
     if (error instanceof OpenAiImageGenerationError) {
@@ -701,7 +702,7 @@ async function generateComicImage(opts: {
     }
     if (error instanceof OpenAiImageError) {
       throw new RequestError(
-        formatOpenAiImageFinalUserError(error.message),
+        formatOpenAiImageUserError(error.message),
         error.status,
         error.diagnostic
       );
@@ -718,14 +719,10 @@ async function generateLdIllustrationImage(opts: {
   prompt: string;
   strictFallbackPrompt: string;
   references: string[];
-}): Promise<{
-  buffer: Buffer;
-  costUsd: number | null;
-  safetyFallbackUsed: boolean;
-  providerAttempts: OpenAiImageProviderAttemptRecord[];
-}> {
+}): Promise<OpenAiImageGeneratedWithAttempts> {
   try {
-    const generated = await callOpenAiImageEditWithSafetyFallback({
+    const generated = toOpenAiImageGeneratedWithAttempts(
+      await callOpenAiImageEditWithSafetyFallback({
       model: opts.model,
       primaryPrompt: opts.prompt,
       strictFallbackPrompt: opts.strictFallbackPrompt,
@@ -735,7 +732,8 @@ async function generateLdIllustrationImage(opts: {
       outputCompression: 86,
       templateId: CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
       mode: "illustration",
-    });
+    })
+    );
     let output = generated.buffer;
     const metadata = await sharp(output, { failOn: "none" }).metadata();
     if (!metadata.width || !metadata.height) {
@@ -752,7 +750,7 @@ async function generateLdIllustrationImage(opts: {
         .webp({ quality: 90, effort: 4 })
         .toBuffer();
     }
-    return { buffer: output, costUsd: generated.costUsd, safetyFallbackUsed: generated.safetyFallbackUsed, providerAttempts: generated.providerAttempts };
+    return { ...generated, buffer: output };
   } catch (error) {
     if (error instanceof RequestError) throw error;
     if (error instanceof OpenAiImageGenerationError) {
@@ -765,7 +763,7 @@ async function generateLdIllustrationImage(opts: {
     }
     if (error instanceof OpenAiImageError) {
       throw new RequestError(
-        formatOpenAiImageFinalUserError(error.message),
+        formatOpenAiImageUserError(error.message),
         error.status,
         error.diagnostic
       );
@@ -775,6 +773,25 @@ async function generateLdIllustrationImage(opts: {
     }
     throw new RequestError("OpenAI LD 일러스트 생성 중 오류가 발생했습니다.", 502);
   }
+}
+
+function providerAttemptsJsonFromGenerated(
+  generated: OpenAiImageGeneratedWithAttempts
+): string | null {
+  return generated.providerAttempts.length > 0
+    ? serializeOpenAiImageProviderAttempts(generated.providerAttempts)
+    : null;
+}
+
+function adminProviderAttemptDiagnostic(
+  generated: OpenAiImageGeneratedWithAttempts
+): Record<string, unknown> {
+  return formatOpenAiImageProviderAttemptsForAdmin({
+    providerAttempts: generated.providerAttempts,
+    knownProviderCostUsd: generated.knownProviderCostUsd,
+    hasUnknownAttemptCost: generated.hasUnknownAttemptCost,
+    safetyFallbackUsed: generated.safetyFallbackUsed,
+  });
 }
 
 export async function POST(req: Request) {
@@ -1145,7 +1162,7 @@ export async function POST(req: Request) {
             outputSize: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
           },
           resultUrl,
-          upstreamCostUsd: generated.costUsd,
+          upstreamCostUsd: generated.knownProviderCostUsd,
           chargePoints: pricePoints,
           chargeReason: "GPT Image 2 · 선택 턴 LD 일러스트",
           chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
@@ -1162,13 +1179,8 @@ export async function POST(req: Request) {
       } catch (error) {
         const failedPath = savedPath;
         savedPath = null;
+        const attemptsJson = providerAttemptsJsonFromGenerated(generated);
         if (error instanceof InsufficientPointsError) {
-          finishChatImageGenerationJob({
-            jobId,
-            status: "failed",
-            errorMessage: "포인트가 부족합니다.",
-          });
-          jobId = null;
           return abortGeneratedImageAfterSettlementFailure({
             savedPath: failedPath,
             userId: user.id,
@@ -1176,6 +1188,7 @@ export async function POST(req: Request) {
             logTag: "chat-ld-illustration",
             error,
             insufficientPoints: error,
+            providerAttemptsJson: attemptsJson,
           });
         }
         return abortGeneratedImageAfterSettlementFailure({
@@ -1184,6 +1197,7 @@ export async function POST(req: Request) {
           jobId,
           logTag: "chat-ld-illustration",
           error,
+          providerAttemptsJson: attemptsJson,
         });
       }
 
@@ -1191,17 +1205,14 @@ export async function POST(req: Request) {
         jobId,
         status: "completed",
         resultUrl,
-        providerAttemptsJson:
-          generated.providerAttempts.length > 0
-            ? serializeOpenAiImageProviderAttempts(generated.providerAttempts)
-            : null,
+        providerAttemptsJson: providerAttemptsJsonFromGenerated(generated),
       });
       jobId = null;
 
       const totalCostKrw =
-        generated.costUsd == null
+        generated.knownProviderCostUsd == null
           ? null
-          : Math.round(generated.costUsd * getEffectiveKrwPerUsd() * 10) / 10;
+          : Math.round(generated.knownProviderCostUsd * getEffectiveKrwPerUsd() * 10) / 10;
       const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
       return NextResponse.json({
         ok: true,
@@ -1212,8 +1223,11 @@ export async function POST(req: Request) {
         title: "선택 턴 LD 일러스트",
         modelLabel: "GPT Image 2",
         messageId: illustrationMessageId ?? undefined,
-        upstreamCostUsd: canSeeCost ? generated.costUsd : undefined,
+        upstreamCostUsd: canSeeCost ? generated.knownProviderCostUsd : undefined,
         upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
+        ...(canSeeCost
+          ? { providerAttemptDiagnostic: adminProviderAttemptDiagnostic(generated) }
+          : {}),
         trpgImageSceneDiagnostics: resolveTrpgImageSceneDiagnosticsForResponse({
           canSeeCost,
           campaignId,
@@ -1318,7 +1332,6 @@ export async function POST(req: Request) {
       castManifest,
       castSelected: castManifest?.subjects.filter((subject) => subject.included),
       contentKind: context.contentKind,
-      plan: scenePlan,
     });
     const references = await Promise.all(
       identityPack.referenceUrls.map((url) => imageSourceToDataUrl(url))
@@ -1338,7 +1351,7 @@ export async function POST(req: Request) {
     await fs.writeFile(savedPath, generated.buffer);
     const resultUrl = uploadPublicUrl(filename);
 
-    const totalCostUsd = generated.costUsd == null ? null : generated.costUsd;
+    const totalCostUsd = generated.knownProviderCostUsd;
     let generationId: number;
     let deductionTotal: number;
     let deductionBalance: ReturnType<typeof getPointBalance>;
@@ -1372,13 +1385,8 @@ export async function POST(req: Request) {
     } catch (error) {
       const failedPath = savedPath;
       savedPath = null;
+      const attemptsJson = providerAttemptsJsonFromGenerated(generated);
       if (error instanceof InsufficientPointsError) {
-        finishChatImageGenerationJob({
-          jobId,
-          status: "failed",
-          errorMessage: "포인트가 부족합니다.",
-        });
-        jobId = null;
         return abortGeneratedImageAfterSettlementFailure({
           savedPath: failedPath,
           userId: user.id,
@@ -1386,6 +1394,7 @@ export async function POST(req: Request) {
           logTag: "chat-comic-generation",
           error,
           insufficientPoints: error,
+          providerAttemptsJson: attemptsJson,
         });
       }
       return abortGeneratedImageAfterSettlementFailure({
@@ -1394,6 +1403,7 @@ export async function POST(req: Request) {
         jobId,
         logTag: "chat-comic-generation",
         error,
+        providerAttemptsJson: attemptsJson,
       });
     }
 
@@ -1401,10 +1411,7 @@ export async function POST(req: Request) {
       jobId,
       status: "completed",
       resultUrl,
-      providerAttemptsJson:
-        generated.providerAttempts.length > 0
-          ? serializeOpenAiImageProviderAttempts(generated.providerAttempts)
-          : null,
+      providerAttemptsJson: providerAttemptsJsonFromGenerated(generated),
     });
     jobId = null;
 
@@ -1422,6 +1429,7 @@ export async function POST(req: Request) {
       upstreamCostUsd: totalCostUsd,
       upstreamCostKrw: totalCostKrw,
       chargedPoints: deductionTotal,
+      hasUnknownAttemptCost: generated.hasUnknownAttemptCost,
     });
 
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
@@ -1437,6 +1445,9 @@ export async function POST(req: Request) {
       messageId: source.messageId ?? undefined,
       upstreamCostUsd: canSeeCost ? totalCostUsd : undefined,
       upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
+      ...(canSeeCost
+        ? { providerAttemptDiagnostic: adminProviderAttemptDiagnostic(generated) }
+        : {}),
       totalPointsCost: deductionTotal,
       remainingPoints: deductionBalance.total,
       paidPoints: deductionBalance.paid,
@@ -1475,6 +1486,20 @@ export async function POST(req: Request) {
         ...(canSeeCost && diagnostic
           ? {
               imageAttemptDiagnostic: formatOpenAiImageFailureDiagnosticForAdmin(diagnostic),
+            }
+          : {}),
+        ...(canSeeCost && providerAttempts?.length
+          ? {
+              providerAttemptDiagnostic: formatOpenAiImageProviderAttemptsForAdmin({
+                providerAttempts,
+                knownProviderCostUsd: aggregateKnownProviderCostUsd(providerAttempts),
+                hasUnknownAttemptCost: providerAttempts.some(
+                  (attempt) => attempt.costUsd == null
+                ),
+                safetyFallbackUsed: providerAttempts.some(
+                  (attempt) => attempt.kind === "strict_safety_fallback" && attempt.outcome === "success"
+                ),
+              }),
             }
           : {}),
       },

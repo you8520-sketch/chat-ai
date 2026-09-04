@@ -112,12 +112,19 @@ import {
   type OpenAiImageFailureDiagnostic,
 } from "@/lib/openAiImageFailureDiagnostic";
 import {
+  aggregateKnownProviderCostUsd,
   callOpenAiImageEditWithSafetyFallback,
   formatOpenAiImageFinalUserError,
+  formatOpenAiImageProviderAttemptsForAdmin,
   OpenAiImageGenerationError,
   serializeOpenAiImageProviderAttempts,
+  toOpenAiImageGeneratedWithAttempts,
+  type OpenAiImageGeneratedWithAttempts,
   type OpenAiImageProviderAttemptRecord,
 } from "@/lib/openAiImageSafetyFallback";
+import {
+  formatOpenAiImageUserError,
+} from "@/lib/chatLdIllustrationGeneration";
 import {
   buildStrictCoupleStampFallbackPrompt,
   buildStrictEmoticonFallbackPrompt,
@@ -471,14 +478,10 @@ async function callOpenAiImage(opts: {
   resizeFit?: "fill" | "cover";
   templateId?: string;
   mode?: string;
-}): Promise<{
-  buffer: Buffer;
-  costUsd: number | null;
-  safetyFallbackUsed: boolean;
-  providerAttempts: OpenAiImageProviderAttemptRecord[];
-}> {
+}): Promise<OpenAiImageGeneratedWithAttempts> {
   try {
-    const generated = await callOpenAiImageEditWithSafetyFallback({
+    const generated = toOpenAiImageGeneratedWithAttempts(
+      await callOpenAiImageEditWithSafetyFallback({
       model: opts.model,
       primaryPrompt: opts.prompt,
       strictFallbackPrompt: opts.strictFallbackPrompt,
@@ -488,7 +491,8 @@ async function callOpenAiImage(opts: {
       outputCompression: 88,
       templateId: opts.templateId,
       mode: opts.mode,
-    });
+    })
+    );
     let output = generated.buffer;
 
     try {
@@ -516,12 +520,7 @@ async function callOpenAiImage(opts: {
       throw new RequestError("생성된 이미지 형식이 올바르지 않습니다.", 502);
     }
 
-    return {
-      buffer: output,
-      costUsd: generated.costUsd,
-      safetyFallbackUsed: generated.safetyFallbackUsed,
-      providerAttempts: generated.providerAttempts,
-    };
+    return { ...generated, buffer: output };
   } catch (error) {
     if (error instanceof RequestError) throw error;
     if (error instanceof OpenAiImageGenerationError) {
@@ -534,7 +533,7 @@ async function callOpenAiImage(opts: {
     }
     if (error instanceof OpenAiImageError) {
       throw new RequestError(
-        formatOpenAiImageFinalUserError(error.message),
+        formatOpenAiImageUserError(error.message),
         error.status,
         error.diagnostic
       );
@@ -544,6 +543,25 @@ async function callOpenAiImage(opts: {
     }
     throw new RequestError("OpenAI 이미지 생성 중 오류가 발생했습니다.", 502);
   }
+}
+
+function providerAttemptsJsonFromGenerated(
+  generated: OpenAiImageGeneratedWithAttempts
+): string | null {
+  return generated.providerAttempts.length > 0
+    ? serializeOpenAiImageProviderAttempts(generated.providerAttempts)
+    : null;
+}
+
+function adminProviderAttemptDiagnostic(
+  generated: OpenAiImageGeneratedWithAttempts
+): Record<string, unknown> {
+  return formatOpenAiImageProviderAttemptsForAdmin({
+    providerAttempts: generated.providerAttempts,
+    knownProviderCostUsd: generated.knownProviderCostUsd,
+    hasUnknownAttemptCost: generated.hasUnknownAttemptCost,
+    safetyFallbackUsed: generated.safetyFallbackUsed,
+  });
 }
 
 function publicContextResponse(context: GenerationContext, viewerUserId: number) {
@@ -1083,11 +1101,13 @@ export async function POST(req: Request) {
     } catch (error) {
       await fs.unlink(savedPath).catch(() => {});
       savedPath = null;
+      const attemptsJson = providerAttemptsJsonFromGenerated(generated);
       if (error instanceof InsufficientPointsError) {
         finishChatImageGenerationJob({
           jobId,
           status: "failed",
           errorMessage: "포인트가 부족합니다.",
+          providerAttemptsJson: attemptsJson,
         });
         jobId = null;
         return NextResponse.json(
@@ -1123,7 +1143,7 @@ export async function POST(req: Request) {
           model,
           JSON.stringify(generationOptions),
           resultUrl,
-          generated.costUsd,
+          generated.knownProviderCostUsd,
           deduction.total,
           JSON.stringify(deduction.slices),
           getEffectiveKrwPerUsd()
@@ -1154,17 +1174,14 @@ export async function POST(req: Request) {
       jobId,
       status: "completed",
       resultUrl,
-      providerAttemptsJson:
-        generated.providerAttempts.length > 0
-          ? serializeOpenAiImageProviderAttempts(generated.providerAttempts)
-          : null,
+      providerAttemptsJson: providerAttemptsJsonFromGenerated(generated),
     });
     jobId = null;
 
     const costKrw =
-      generated.costUsd == null
+      generated.knownProviderCostUsd == null
         ? null
-        : Math.round(generated.costUsd * getEffectiveKrwPerUsd() * 10) / 10;
+        : Math.round(generated.knownProviderCostUsd * getEffectiveKrwPerUsd() * 10) / 10;
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
     console.info("[chat-image-generation] completed", {
       userId: user.id,
@@ -1174,9 +1191,10 @@ export async function POST(req: Request) {
       model,
       quality,
       templateId,
-      upstreamCostUsd: generated.costUsd,
+      upstreamCostUsd: generated.knownProviderCostUsd,
       upstreamCostKrw: costKrw,
       chargedPoints: deduction.total,
+      hasUnknownAttemptCost: generated.hasUnknownAttemptCost,
     });
 
     return NextResponse.json({
@@ -1188,8 +1206,11 @@ export async function POST(req: Request) {
       modelLabel: "GPT Image 2",
       quality,
       savedToCharacterAlbum,
-      upstreamCostUsd: canSeeCost ? generated.costUsd : undefined,
+      upstreamCostUsd: canSeeCost ? generated.knownProviderCostUsd : undefined,
       upstreamCostKrw: canSeeCost ? costKrw : undefined,
+      ...(canSeeCost
+        ? { providerAttemptDiagnostic: adminProviderAttemptDiagnostic(generated) }
+        : {}),
       pricePoints: deduction.total,
       totalPointsCost: deduction.total,
       remainingPoints: deduction.balance.total,
@@ -1204,6 +1225,9 @@ export async function POST(req: Request) {
       error instanceof RequestError ? error.imageFailureDiagnostic : undefined;
     const providerAttempts =
       error instanceof RequestError ? error.providerAttempts : undefined;
+    const attemptsJson = providerAttempts?.length
+      ? serializeOpenAiImageProviderAttempts(providerAttempts)
+      : null;
     finishChatImageGenerationJob({
       jobId,
       status: "failed",
@@ -1211,9 +1235,7 @@ export async function POST(req: Request) {
       failureDiagnosticJson: diagnostic
         ? serializeOpenAiImageFailureDiagnostic(diagnostic)
         : null,
-      providerAttemptsJson: providerAttempts?.length
-        ? serializeOpenAiImageProviderAttempts(providerAttempts)
-        : null,
+      providerAttemptsJson: attemptsJson,
     });
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
     console.error("[chat-image-generation] failed", {
@@ -1229,6 +1251,20 @@ export async function POST(req: Request) {
         ...(canSeeCost && diagnostic
           ? {
               imageAttemptDiagnostic: formatOpenAiImageFailureDiagnosticForAdmin(diagnostic),
+            }
+          : {}),
+        ...(canSeeCost && providerAttempts?.length
+          ? {
+              providerAttemptDiagnostic: formatOpenAiImageProviderAttemptsForAdmin({
+                providerAttempts,
+                knownProviderCostUsd: aggregateKnownProviderCostUsd(providerAttempts),
+                hasUnknownAttemptCost: providerAttempts.some(
+                  (attempt) => attempt.costUsd == null
+                ),
+                safetyFallbackUsed: providerAttempts.some(
+                  (attempt) => attempt.kind === "strict_safety_fallback" && attempt.outcome === "success"
+                ),
+              }),
             }
           : {}),
       },
