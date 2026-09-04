@@ -153,6 +153,12 @@ import {
   buildStrictLdPartyFallbackPrompt,
 } from "@/lib/chatImageStrictSafetyFallbackPrompt";
 import { projectComicSafeStructureForTier2 } from "@/lib/chatComicSafeStructure";
+import {
+  auditTier2ComicPrompt,
+  buildComicReferenceRoleInventory,
+  classifyTemplateModerationRisk,
+  formatTier2ComicPromptAuditForAdmin,
+} from "@/lib/chatComicTier2SafetyAudit";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -809,6 +815,8 @@ export async function POST(req: Request) {
 
   let savedPath: string | null = null;
   let jobId: number | null = null;
+  let tier2PromptAudit: ReturnType<typeof auditTier2ComicPrompt> | null = null;
+  let referenceRoleInventory: ReturnType<typeof buildComicReferenceRoleInventory> | null = null;
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const context = resolveGenerationContext({
@@ -1360,6 +1368,17 @@ export async function POST(req: Request) {
       contentKind: context.contentKind,
       safeStructure: tier2SafeStructure,
     });
+    const tier2PromptAuditResult = auditTier2ComicPrompt({
+      prompt: strictFallbackPrompt,
+      subjects: identityPack.subjects,
+      safeStructure: tier2SafeStructure,
+      safeStructureProjectionApplied: true,
+    });
+    tier2PromptAudit = tier2PromptAuditResult;
+    referenceRoleInventory = buildComicReferenceRoleInventory({
+      referenceUrls: identityPack.referenceUrls,
+      subjects: identityPack.subjects,
+    });
     const references = await Promise.all(
       identityPack.referenceUrls.map((url) => imageSourceToDataUrl(url))
     );
@@ -1543,6 +1562,14 @@ export async function POST(req: Request) {
                   (attempt) => attempt.kind === "strict_safety_fallback" && attempt.outcome === "success"
                 ),
               }),
+              tier2PromptAudit: tier2PromptAudit
+                ? formatTier2ComicPromptAuditForAdmin(tier2PromptAudit)
+                : null,
+              referenceRoleInventory: referenceRoleInventory?.roles.map((item) => ({
+                index: item.index,
+                role: item.role,
+              })),
+              templateModerationRisk: classifyTemplateModerationRisk(),
             }
           : {}),
       },
