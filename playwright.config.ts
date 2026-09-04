@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const PROD_TEST_PORT = process.env.PLAYWRIGHT_PROD_PORT ?? "3001";
+const PROD_TEST_BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${PROD_TEST_PORT}`;
+
 export default defineConfig({
   testDir: "./tests/ui",
   timeout: 30_000,
@@ -9,7 +12,7 @@ export default defineConfig({
   fullyParallel: false,
   reporter: [["list"]],
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
+    baseURL: PROD_TEST_BASE_URL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -22,9 +25,12 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_SKIP_WEB_SERVER
     ? undefined
     : {
-        command: "npm run dev",
-        url: "http://localhost:3000",
-        reuseExistingServer: true,
-        timeout: 120_000,
+        command:
+          `bash -c "npm run build && ` +
+          `NODE_ENV=production PLAYWRIGHT_PROD_SERVER=1 DATA_DIR=data SESSION_SECRET=dev-test-session-secret-32chars-minimum ` +
+          `TRPG_SCROLL_FOLLOW_LAB_ENABLED=1 PORT=${PROD_TEST_PORT} npm run start"`,
+        url: PROD_TEST_BASE_URL,
+        reuseExistingServer: false,
+        timeout: 180_000,
       },
 });

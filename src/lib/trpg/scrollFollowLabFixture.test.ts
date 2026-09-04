@@ -50,7 +50,15 @@ describe("scroll follow lab fixture", () => {
     assert.doesNotMatch(client, /saveTrpgStreamIntervalMs/);
     assert.doesNotMatch(client, /labForceGmReveal/);
     assert.match(client, /labStreamIntervalMs=\{40\}/);
-    assert.match(client, /labFreezePresentationAdvance/);
+    assert.match(client, /labFreezePresentationAdvance=\{freezePresentationAdvance\}/);
     assert.match(client, /data-trpg-scroll-follow-lab-trailing-space/);
+  });
+
+  it("handoff scenario starts at bot1 and unfreezes presentation advance", () => {
+    const seed = scrollFollowLabPresentationSeed("handoff");
+    assert.equal(seed.presentationIndex, 1);
+    const seen = scrollFollowLabSeenLogKeys(2, "handoff");
+    assert.ok(seen.includes(`a:2:${SCROLL_FOLLOW_LAB_HUMAN_ID}`));
+    assert.ok(!seen.includes(`a:2:${SCROLL_FOLLOW_LAB_BOT1_ID}`));
   });
 });

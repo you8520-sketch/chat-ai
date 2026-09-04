@@ -6,24 +6,20 @@ import TrpgCampaignRoom from "../TrpgCampaignRoom";
 import type { TrpgActionType } from "@/lib/trpg/actionTypes";
 import {
   buildScrollFollowLabSnapshot,
+  parseScrollFollowLabScenario,
   scrollFollowLabPresentationSeed,
   scrollFollowLabSeenLogKeys,
-  type ScrollFollowLabScenario,
 } from "@/lib/trpg/scrollFollowLabFixture";
 
 const noop = () => {};
 
-function parseScenario(raw: string | null): ScrollFollowLabScenario {
-  if (raw === "bot2" || raw === "round2-bot1") return raw;
-  return "bot1";
-}
-
 export default function TrpgScrollFollowLabClient() {
   const searchParams = useSearchParams();
   const scenario = useMemo(
-    () => parseScenario(searchParams.get("scenario")),
+    () => parseScrollFollowLabScenario(searchParams.get("scenario")),
     [searchParams]
   );
+  const freezePresentationAdvance = scenario !== "handoff";
   const snap = useMemo(
     () => buildScrollFollowLabSnapshot({ roundNumber: 2 }),
     [scenario]
@@ -46,7 +42,7 @@ export default function TrpgScrollFollowLabClient() {
         <p>Deterministic bot prose · no provider calls</p>
       </div>
       <TrpgCampaignRoom
-        key={scenario}
+        key={scenario === "handoff" ? "handoff-lifetime" : scenario}
         snap={snap}
         starting={false}
         generating={false}
@@ -74,7 +70,7 @@ export default function TrpgScrollFollowLabClient() {
         labPresentationSeed={scrollFollowLabPresentationSeed(scenario)}
         labSeenLogKeysSeed={scrollFollowLabSeenLogKeys(2, scenario)}
         labStreamIntervalMs={40}
-        labFreezePresentationAdvance
+        labFreezePresentationAdvance={freezePresentationAdvance}
       />
       <div
         aria-hidden
