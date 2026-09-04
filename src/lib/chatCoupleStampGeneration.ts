@@ -12,6 +12,7 @@ import {
   CHAT_IMAGE_EXPRESSIONS,
   type ImagePromptGender,
 } from "@/lib/chatImageGeneration";
+import { CHAT_ROOM_IMAGE_GENERATION_POINTS } from "@/lib/chatImagePricing";
 import { buildChatImagePairGenderLock } from "@/lib/chatImageGender";
 import {
   bindChatImageReferencePack,
@@ -26,7 +27,7 @@ export const CHAT_COUPLE_STAMP_TEMPLATE_NAME = "커플 인장";
 export const CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL =
   "/image-templates/sd-couple-stamps-4.webp";
 
-export const CHAT_COUPLE_STAMP_GENERATION_DEFAULT_POINTS = 240;
+export const CHAT_COUPLE_STAMP_GENERATION_DEFAULT_POINTS = CHAT_ROOM_IMAGE_GENERATION_POINTS;
 /** gpt-image-2 square output. */
 export const CHAT_COUPLE_STAMP_API_OUTPUT_WIDTH = 1024;
 export const CHAT_COUPLE_STAMP_API_OUTPUT_HEIGHT = 1024;

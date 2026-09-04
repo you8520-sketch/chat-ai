@@ -87,6 +87,7 @@ import { parseContentKind, type ContentKind } from "@/lib/simulationMode";
 import { resolveChatImageSceneBuilderReadiness, type SelectableCastAsset } from "@/lib/chatImageCast";
 import { resolveChatImageGenderPair } from "@/lib/chatImageGender";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
+import { creditChatRoomImageCreatorReward } from "@/lib/imageGenerationEconomics";
 import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
 import {
   InsufficientPointsError,
@@ -1150,6 +1151,12 @@ export async function POST(req: Request) {
         );
       generationId = Number(insert.lastInsertRowid);
       if (!isPersona) {
+        creditChatRoomImageCreatorReward(getDb(), {
+          generationId,
+          creatorId: context.character.creator_id,
+          consumerUserId: user.id,
+          source: "character",
+        });
         const albumMode = isCoupleStamp
           ? "couple_stamp"
           : isEmoticon
