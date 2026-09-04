@@ -50,25 +50,12 @@ function creatorNameBadgeStyle(tier: CreatorTierLevel | null | undefined): Creat
         byClassName: "text-zinc-500",
         nameClassName: "font-semibold text-zinc-300",
       };
-    case "plus":
-      return {
-        byClassName: "text-violet-500/80",
-        nameClassName: "font-bold text-violet-300 drop-shadow-[0_0_6px_rgba(167,139,250,0.35)]",
-      };
     case "pro":
       return {
         byClassName: "text-slate-400",
         nameClassName: "font-extrabold text-slate-100 drop-shadow-[0_0_7px_rgba(226,232,240,0.42)]",
         medal: "🥈",
         label: "프로 크리에이터",
-      };
-    case "partner":
-    case "exclusive":
-      return {
-        byClassName: "text-amber-500/80",
-        nameClassName: "font-black text-amber-200 drop-shadow-[0_0_9px_rgba(251,191,36,0.55)]",
-        medal: tier === "exclusive" ? "🏆" : "🥇",
-        label: tier === "exclusive" ? "전속 크리에이터" : "파트너 크리에이터",
       };
     default:
       return {
