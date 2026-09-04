@@ -26,6 +26,7 @@ import {
   mergeFieldReportingStatus,
   type UsageFieldReportingStatus,
 } from "@/lib/usageReportingEvidence";
+import { isPublishedCacheWriteAbsentProvenZero } from "@/lib/modelPublishedPricingPolicy";
 
 export type TurnUsageFieldSource =
   | "PROVIDER_REPORTED_EXACT"
@@ -125,6 +126,23 @@ function classifyCacheField(
   if (reportingStatus === "reported_invalid") return "SANITIZED_MALFORMED";
   if (isMalformedRaw(raw)) return "SANITIZED_MALFORMED";
   return "PROVIDER_REPORTED_EXACT";
+}
+
+function classifyCacheWriteFieldSource(
+  modelId: string,
+  raw: unknown,
+  reportingStatus: UsageFieldReportingStatus,
+  estimatedStage?: boolean
+): TurnUsageFieldSource {
+  if (estimatedStage) return "ESTIMATED";
+  if (
+    reportingStatus === "unreported" &&
+    isPublishedCacheWriteAbsentProvenZero(modelId) &&
+    (raw == null || (typeof raw === "number" && raw === 0))
+  ) {
+    return "MISSING_BUT_PROVEN_ZERO";
+  }
+  return classifyCacheField(raw, reportingStatus, estimatedStage);
 }
 
 function resolveCacheReadReportingStatus(stage: StageUsage): UsageFieldReportingStatus {
@@ -279,9 +297,16 @@ export function resolveTurnBillableUsage(
   const rawCacheRead = primaryStage.cacheReadTokens ?? primaryStage.cachedContentTokens ?? 0;
   const rawCacheWrite = primaryStage.cacheWriteTokens ?? 0;
   const cacheReadSource = classifyCacheField(rawCacheRead, cacheReadStatus, primaryStage.estimated);
-  const cacheWriteSource = classifyCacheField(rawCacheWrite, cacheWriteStatus, primaryStage.estimated);
+  const cacheWriteSource = classifyCacheWriteFieldSource(
+    input.modelId,
+    rawCacheWrite,
+    cacheWriteStatus,
+    primaryStage.estimated
+  );
   if (!cacheReadReported) coverageReasons.push("cache_read_unreported");
-  if (!cacheWriteReported) coverageReasons.push("cache_write_unreported");
+  if (!cacheWriteReported && cacheWriteSource !== "MISSING_BUT_PROVEN_ZERO") {
+    coverageReasons.push("cache_write_unreported");
+  }
 
   const cacheReadTokens = cacheReadReported ? Math.max(0, Math.floor(Number(rawCacheRead) || 0)) : 0;
   const cacheWriteTokens = cacheWriteReported ? Math.max(0, Math.floor(Number(rawCacheWrite) || 0)) : 0;

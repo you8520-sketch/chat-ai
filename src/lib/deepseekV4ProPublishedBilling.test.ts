@@ -218,6 +218,7 @@ describe("deepseekV4ProPublishedBilling", () => {
     const policy = getModelPublishedPricingPolicy(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
     assert.ok(policy);
     assert.equal(policy!.cacheSemanticStatus, "verified");
+    assert.equal(policy!.cacheWriteAbsentSemantics, "proven_zero");
     assert.equal(getPublishedPricing(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL).billingReferenceCacheWriteUsdPerMillion, undefined);
   });
 });

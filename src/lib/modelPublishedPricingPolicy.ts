@@ -21,6 +21,9 @@ export type CacheSemanticStatus =
 
 export type OpusCacheTtlMode = "5M_ONLY" | "VARIABLE" | "UNKNOWN";
 
+/** Provider usage: absent cache_write field means proven zero vs unknown. Default unknown. */
+export type CacheWriteAbsentSemantics = "proven_zero" | "unknown";
+
 export type ModelPublishedPricingPolicy = {
   modelId: string;
   pricingApplicability: PricingApplicability;
@@ -28,6 +31,8 @@ export type ModelPublishedPricingPolicy = {
   publishedBaseTierMaxPromptTokens?: number;
   cacheSemanticStatus: CacheSemanticStatus;
   opusCacheTtlMode?: OpusCacheTtlMode;
+  /** When unreported, cache_write_tokens is proven zero (DeepSeek 0813 production evidence only). */
+  cacheWriteAbsentSemantics?: CacheWriteAbsentSemantics;
 };
 
 /** Official Gemini 3.1 Pro Preview base-tier prompt threshold (tokens). */
@@ -65,6 +70,7 @@ const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPoli
      * DeepSeek never reports cache_write_tokens > 0 in captured production usage.
      */
     cacheSemanticStatus: "verified",
+    cacheWriteAbsentSemantics: "proven_zero",
   },
 };
 
@@ -87,6 +93,13 @@ export function isCacheSemanticVerified(modelId: string): boolean {
   const policy = getModelPublishedPricingPolicy(modelId);
   if (!policy) return false;
   return policy.cacheSemanticStatus === "verified" || policy.cacheSemanticStatus === "verified_5m";
+}
+
+/** Reads explicit cacheWriteAbsentSemantics policy only — no inference from catalog rates. */
+export function isPublishedCacheWriteAbsentProvenZero(modelId: string): boolean {
+  const canonical = canonicalizePublishedModelId(modelId);
+  const policy = getModelPublishedPricingPolicy(canonical);
+  return policy?.cacheWriteAbsentSemantics === "proven_zero";
 }
 
 export const PUBLISHED_POLICY_SCHEMA_VERSION = 1 as const;

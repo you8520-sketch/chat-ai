@@ -23,6 +23,7 @@ import {
   CHAT_BILLING_CONTRACT_DISPATCH_OWNER,
   PHASE1_PUBLISHED_MODELS,
   isPhase1PublishedBillingEnabled,
+  isPhase2DeepSeekPublishedBillingEnabled,
   resolveChatBillingContract,
   type ResolveChatBillingContractInput,
 } from "@/lib/chatBillingContractDispatch";
@@ -52,6 +53,7 @@ function dispatchCompleteModel(modelId: string, output: number) {
   const stages = [completePrimaryStage(modelId, output)];
   return resolveChatBillingContract({
     deliveredModelId: modelId,
+    selectedModelId: modelId,
     stages,
     legacyFinalPoints: 999,
     billingWaiverReason: null,
@@ -117,6 +119,8 @@ function dispatchFromFixture(
   const waiver = fixtureWaiverContext(fixture);
   const input: ResolveChatBillingContractInput = {
     deliveredModelId: fixture.deliveredModelId,
+    selectedModelId:
+      fixture.requestedSelectedAI ?? fixture.deliveredSelectedAI ?? fixture.deliveredModelId,
     stages: fixture.stages,
     refusalFallbackDelivered: fixture.refusalFallbackDelivered,
     promptAuditTotal: fixture.promptAuditTotal,
@@ -214,11 +218,11 @@ describe("chatBillingContractDispatch — contract selection", () => {
     }
   });
 
-  it("DeepSeek0813 complete → legacy (non phase1)", () => {
+  it("DeepSeek0813 Phase2 OFF → legacy phase2_deepseek_billing_disabled", () => {
     const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "A1-deepseek-normal")!;
-    const decision = dispatchFromFixture(fixture);
+    const decision = dispatchFromFixture(fixture, { phase1Enabled: false });
     assert.equal(decision.contract, "legacy");
-    assert.equal(decision.reason, "non_phase1_model");
+    assert.equal(decision.reason, "phase2_deepseek_billing_disabled");
     assert.equal(decision.points, fixtureLegacyFinalPoints(fixture));
   });
 
@@ -227,14 +231,14 @@ describe("chatBillingContractDispatch — contract selection", () => {
     assert.equal(fixture.deliveredModelId, CHEAPER_INFERENCE_GPT_56_TERRA_MODEL);
     const decision = dispatchFromFixture(fixture);
     assert.equal(decision.contract, "legacy");
-    assert.equal(decision.reason, "non_phase1_model");
+    assert.equal(decision.reason, "non_published_model");
   });
 
   it("deferred models → legacy", () => {
     const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "A1-g36-normal")!;
     const decision = dispatchFromFixture(fixture);
     assert.equal(decision.contract, "legacy");
-    assert.equal(decision.reason, "non_phase1_model");
+    assert.equal(decision.reason, "non_published_model");
   });
 });
 
@@ -380,7 +384,7 @@ describe("chatBillingContractDispatch — cleanup audit classification", () => {
       SAFE_TO_DELETE: [] as string[],
       FOLLOW_UP: [
         "Enable PHASE1_PUBLISHED_BILLING_ENABLED after ops sign-off",
-        "DeepSeek Phase 2 Published promotion (separate price policy)",
+        "Enable PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED after user approval",
       ],
     };
     assert.ok(cleanup.KEEP.includes("computeTurnBilling() — legacy owner + DeepSeek/fallback"));
@@ -388,15 +392,25 @@ describe("chatBillingContractDispatch — cleanup audit classification", () => {
   });
 });
 
-describe("chatBillingContractDispatch — non-phase1 published unreachable", () => {
-  beforeEach(() => installAuditLegacyFxForTest());
-  afterEach(() => clearAuditLegacyFxForTest());
+describe("chatBillingContractDispatch — Phase2 DeepSeek gate default", () => {
+  const savedPhase2 = process.env.PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED;
 
-  it("DeepSeek catalog row does not produce published contract", () => {
+  beforeEach(() => installAuditLegacyFxForTest());
+  afterEach(() => {
+    clearAuditLegacyFxForTest();
+    if (savedPhase2 === undefined) delete process.env.PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED;
+    else process.env.PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED = savedPhase2;
+  });
+
+  it("PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED defaults false", () => {
+    delete process.env.PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED;
+    assert.equal(isPhase2DeepSeekPublishedBillingEnabled(), false);
+  });
+
+  it("DeepSeek never receives published_phase1 contract label", () => {
     const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "A1-deepseek-normal")!;
     assert.equal(fixture.deliveredModelId, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
     const decision = dispatchFromFixture(fixture);
-    assert.equal(decision.contract, "legacy");
     assert.notEqual(decision.telemetry.billingContract, "published_phase1");
   });
 });

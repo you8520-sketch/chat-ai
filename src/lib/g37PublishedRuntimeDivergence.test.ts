@@ -143,6 +143,7 @@ describe("G37 P0 Pass 2 — forensic published owner regressions", () => {
   it("R2 regen dispatch: resolveChatBillingContract published_phase1 with forensic stage", () => {
     const decision = resolveChatBillingContract({
       deliveredModelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
       stages: [regenProductionShapeStage()],
       legacyFinalPoints: 61,
       billingWaiverReason: null,
