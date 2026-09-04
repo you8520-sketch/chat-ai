@@ -55,6 +55,21 @@ export type ChatComicPanelSpec = {
   subjectMap: PromptSubjectMap;
 };
 
+/** Image-generation-only projection hooks — canonical ScenePlan is never mutated. */
+export type ChatComicPanelSpecProjection = {
+  projectSceneText?: (text: string) => string;
+  omitDialogueText?: (text: string) => boolean;
+};
+
+function applyPanelSpecTextProjection(
+  text: string,
+  projection?: ChatComicPanelSpecProjection
+): string {
+  const raw = String(text ?? "").trim();
+  if (!raw) return "";
+  return projection?.projectSceneText ? projection.projectSceneText(raw) : raw;
+}
+
 function resolveGlobalMustAvoid(castCount: number): readonly string[] {
   const identityRule =
     castCount >= 3
@@ -235,8 +250,10 @@ export function compileChatComicPanelSpec(opts: {
   castSelected?: readonly ChatImageCastGroundedSubject[];
   subjects: readonly ChatImageVisualSubject[];
   eventSubjectBindings?: readonly SceneEventSubjectBinding[];
+  projection?: ChatComicPanelSpecProjection;
 }): ChatComicPanelSpec {
   const visibility = opts.visibility ?? DEFAULT_SCENE_PRESENTATION_VISIBILITY;
+  const projection = opts.projection;
   const panelCount = opts.plan.panels.length as ScenePanelCount;
   const format = resolveComicPanelFormat(panelCount);
   const { sharedBackground } = projectComicSharedContext(opts.plan, visibility);
@@ -264,15 +281,22 @@ export function compileChatComicPanelSpec(opts: {
       camera: resolveCameraFromBeat(beat, panel.index, panelCount),
       framing: resolveFramingFromBeat(beat),
       layout: resolveLayoutFromSubjectMap(subjectMap, visibility.personaVisible, castCount),
-      situation: beat.situation,
-      background: beat.background,
-      subjectActions,
-      sceneAction,
-      speechBubbles: beat.dialogue.map((line) => ({
-        speakerLabel: resolveSpeakerLabel(subjectMap, line),
-        speaker: line.speakerName?.trim() || line.speaker,
-        text: line.text,
+      situation: applyPanelSpecTextProjection(beat.situation, projection),
+      background: applyPanelSpecTextProjection(beat.background, projection),
+      subjectActions: subjectActions.map((action) => ({
+        ...action,
+        text: applyPanelSpecTextProjection(action.text, projection),
       })),
+      sceneAction: sceneAction
+        ? applyPanelSpecTextProjection(sceneAction, projection)
+        : undefined,
+      speechBubbles: beat.dialogue
+        .filter((line) => !projection?.omitDialogueText?.(line.text))
+        .map((line) => ({
+          speakerLabel: resolveSpeakerLabel(subjectMap, line),
+          speaker: line.speakerName?.trim() || line.speaker,
+          text: line.text,
+        })),
       sfx: [],
       mustAvoid: ["invented SFX text", "speech bubble without an approved line below"],
     };
@@ -282,10 +306,12 @@ export function compileChatComicPanelSpec(opts: {
     format,
     panelCount,
     layout: `${panelCount} wide horizontal panels stacked vertically (vertical comic strip / ${format})`,
-    heroScene: opts.plan.heroScene,
+    heroScene: applyPanelSpecTextProjection(opts.plan.heroScene, projection),
     heroEventIds: opts.plan.heroEventIds,
-    sharedBackground,
-    atmosphere: opts.plan.atmosphere,
+    sharedBackground: applyPanelSpecTextProjection(sharedBackground, projection),
+    atmosphere: opts.plan.atmosphere
+      ? applyPanelSpecTextProjection(opts.plan.atmosphere, projection)
+      : undefined,
     cast,
     continuityRules: resolveContinuityRules(format, castCount, subjectMap, visibility.personaVisible),
     globalMustAvoid: resolveGlobalMustAvoid(castCount),
@@ -362,6 +388,7 @@ export function buildChatComicPanelSpecPromptSection(opts: {
   castSelected?: readonly ChatImageCastGroundedSubject[];
   subjects: readonly ChatImageVisualSubject[];
   eventSubjectBindings?: readonly SceneEventSubjectBinding[];
+  projection?: ChatComicPanelSpecProjection;
 }): string {
   const spec = compileChatComicPanelSpec(opts);
   return renderChatComicPanelSpecSection(spec);

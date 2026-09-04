@@ -14,9 +14,18 @@ import {
 } from "@/lib/chatImageCastManifest";
 import type { ScenePlan } from "@/lib/chatImageScenePlan";
 import {
-  formatApprovedScenePlanForIllustration,
   resolveScenePresentationVisibility,
 } from "@/lib/chatImageScenePlan";
+import {
+  formatApprovedScenePlanForSafeImageGeneration,
+  projectSceneBlockForSafeImageGeneration,
+  projectSceneTextForSafeImageGeneration,
+  type SafeVisualProjectionContext,
+} from "@/lib/chatImageSafeVisualProjection";
+import {
+  buildIllustrationSafeDepiction,
+  sanitizeChatTurnForIllustrationPrompt,
+} from "@/lib/chatImageIllustrationSanitizer";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
   bindChatImageReferencePack,
@@ -46,50 +55,18 @@ export function resolveChatLdIllustrationPrice(
   return CHAT_LD_ILLUSTRATION_DEFAULT_POINTS;
 }
 
+export { sanitizeChatTurnForIllustrationPrompt } from "@/lib/chatImageIllustrationSanitizer";
+export {
+  ADULT_GROUNDED_NON_EXPLICIT_ALLOWANCE,
+  BASE_IMAGE_SAFE_DEPICTION,
+  buildIllustrationSafeDepiction,
+  ILLUSTRATION_SAFE_DEPICTION,
+} from "@/lib/chatImageIllustrationSanitizer";
+
 /**
- * Soften RP hyperbole / metaphors that frequently false-trigger OpenAI Images
- * `safety_violations=[self-harm]` on ordinary conversation scenes.
+ * @deprecated Import buildIllustrationSafeDepiction — kept for backward compatibility.
  */
-export function sanitizeChatTurnForIllustrationPrompt(raw: string): string {
-  let text = String(raw ?? "");
-  text = text
-    .replace(/<<<STATUS_VALUES[\s\S]*?>>>/gi, " ")
-    .replace(/<<<STATUS[\s\S]*?>>>/gi, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<[^>]+>/g, " ");
-
-  const replacements: Array<[RegExp, string]> = [
-    [/자해/g, "괴로움"],
-    [/자살/g, "절망"],
-    [/목을\s*조/g, "목을 감싸"],
-    [/목을\s*졸/g, "목을 감싸"],
-    [/손목을\s*긋/g, "손을 움켜쥐"],
-    [/손목을\s*그어/g, "손을 움켜쥐"],
-    [/손목에\s*칼/g, "손에"],
-    [/손목/g, "손"],
-    [/피를\s*흘리/g, "눈물을 흘리"],
-    [/피범벅/g, "땀범벅"],
-    [/피투성이/g, "땀투성이"],
-    [/칼날/g, "날카로운 시선"],
-    [/흉터/g, "흔적"],
-    [/상처\s*입은/g, "마음 아픈"],
-    [/마음의\s*상처/g, "마음의 아픔"],
-    [/죽을\s*것\s*같/g, "너무 벅찬 것 같"],
-    [/죽을\s*만큼/g, "미칠 만큼"],
-    [/심장이\s*멎/g, "심장이 두근"],
-    [/self[-\s]?harm/gi, "distress"],
-    [/\bsuicide\b/gi, "despair"],
-    [/\bblood(?:y)?\b/gi, "blush"],
-    [/\bscar(?:s)?\b/gi, "mark"],
-    [/\bslit\b/gi, "line"],
-    [/\bwrist(?:s)?\b/gi, "hand"],
-  ];
-  for (const [pattern, replacement] of replacements) {
-    text = text.replace(pattern, replacement);
-  }
-
-  return text.replace(/\s+/g, " ").trim().slice(0, 2_500);
-}
+export { ILLUSTRATION_SAFE_DEPICTION as ILLUSTRATION_SAFETY_LEGACY } from "@/lib/chatImageIllustrationSanitizer";
 
 /** Map upstream OpenAI Images safety rejections to a clearer Korean retry hint. */
 export function formatOpenAiImageUserError(message: string): string {
@@ -153,8 +130,6 @@ export function withIllustrationReferenceIndices<T extends { imageUrl: string | 
   });
 }
 
-const ILLUSTRATION_SAFETY =
-  "SAFETY — depict a wholesome conversation / meeting scene only. Do not depict active injury, blood, fresh wounds, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text. A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text.";
 
 function peopleWord(count: number): string {
   return count === 1 ? "person" : "people";
@@ -174,7 +149,11 @@ export function buildTrpgIllustrationSituation(opts: {
   location?: string;
   actions?: ReadonlyArray<{ name: string; body: string }>;
   narration: string;
+  adultGrounded?: boolean;
 }): string {
+  const projectionContext: SafeVisualProjectionContext = {
+    adultGrounded: opts.adultGrounded ?? false,
+  };
   const lines: string[] = [];
   const location = String(opts.location ?? "").trim();
   if (location) lines.push(`LOCATION: ${location}`);
@@ -183,13 +162,15 @@ export function buildTrpgIllustrationSituation(opts: {
     lines.push("THIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):");
     for (const action of actions) {
       const name = action.name.trim() || "player";
-      const body = sanitizeChatTurnForIllustrationPrompt(action.body).slice(0, 400);
+      const body = projectSceneTextForSafeImageGeneration(action.body, projectionContext).text.slice(0, 400);
       if (!body) continue;
       lines.push(`- ${name}: ${body}`);
     }
   }
   lines.push("GM SCENE:");
-  lines.push(sanitizeChatTurnForIllustrationPrompt(opts.narration).slice(0, 1_800));
+  lines.push(
+    projectSceneBlockForSafeImageGeneration(opts.narration, projectionContext).text.slice(0, 1_800)
+  );
   return lines.join("\n");
 }
 
@@ -197,6 +178,7 @@ function buildPartyIllustrationPrompt(opts: {
   cast: readonly ChatLdIllustrationCastMember[];
   situation: string;
   subjects?: readonly ChatImageVisualSubject[];
+  adultGrounded?: boolean;
 }): string {
   const count = opts.cast.length;
   const subjects = opts.subjects?.length
@@ -218,7 +200,7 @@ function buildPartyIllustrationPrompt(opts: {
         gender: member.gender,
       }))
     ),
-    ILLUSTRATION_SAFETY,
+    buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
     "Depict the selected scene brief below as one cinematic, emotionally accurate group scene. If ROUND ACTIONS are listed, pose each named person according to their own action. Use LOCATION as the background.",
     "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
@@ -264,19 +246,25 @@ export function buildChatLdIllustrationPrompt(opts: {
   currentTurn: string;
   /** Approved Scene Plan text. Regular chat Scene Builder uses this instead of raw turn prose. */
   approvedScene?: string;
+  /** When true, explicit adult source may use non-explicit adult intimacy projection. */
+  adultGrounded?: boolean;
   /** When set (TRPG party), every listed person must appear — not just the 1:1 duo. */
   cast?: readonly ChatLdIllustrationCastMember[];
   /** Pre-formatted TRPG situation (location, round actions, GM scene). */
   situation?: string;
   subjects?: readonly ChatImageVisualSubject[];
 }) {
+  const projectionContext: SafeVisualProjectionContext = {
+    adultGrounded: opts.adultGrounded ?? false,
+  };
   if (opts.cast && opts.cast.length > 0) {
     return buildPartyIllustrationPrompt({
       cast: opts.cast,
       situation:
         opts.situation?.trim() ||
-        sanitizeChatTurnForIllustrationPrompt(opts.currentTurn),
+        projectSceneBlockForSafeImageGeneration(opts.currentTurn, projectionContext).text,
       subjects: opts.subjects,
+      adultGrounded: opts.adultGrounded,
     });
   }
   const approved = String(opts.approvedScene ?? "").trim();
@@ -284,7 +272,7 @@ export function buildChatLdIllustrationPrompt(opts: {
     ? ["APPROVED SCENE PLAN", approved]
     : [
         "SELECTED TURN SCENE BRIEF:",
-        sanitizeChatTurnForIllustrationPrompt(opts.currentTurn),
+        projectSceneBlockForSafeImageGeneration(opts.currentTurn, projectionContext).text,
       ];
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
@@ -298,7 +286,7 @@ export function buildChatLdIllustrationPrompt(opts: {
       personaName: opts.personaName,
       personaGender: opts.personaGender,
     }),
-    ILLUSTRATION_SAFETY,
+    buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
     "Depict the approved scene plan below as one cinematic, emotionally accurate scene.",
     "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
@@ -323,6 +311,7 @@ export function buildLdDuoGenerationPlan(opts: {
   personaAppearanceMode: ChatImageAppearanceMode;
   currentTurn: string;
   approvedScene?: string;
+  adultGrounded?: boolean;
 }) {
   const pack = bindChatImageReferencePack({
     subjectsInImageOrder: buildChatDuoVisualSubjects({
@@ -348,6 +337,7 @@ export function buildLdDuoGenerationPlan(opts: {
       personaGender: opts.personaGender,
       currentTurn: opts.currentTurn,
       approvedScene: opts.approvedScene,
+      adultGrounded: opts.adultGrounded,
       subjects: pack.subjects,
     }),
   };
@@ -368,17 +358,22 @@ export function buildLdSceneGenerationPlan(opts: {
   approvedScene?: string;
   castManifest?: ChatImageCastGroundedManifest | null;
   contentKind?: ContentKind;
+  adultGrounded?: boolean;
 }) {
+  const projectionContext: SafeVisualProjectionContext = {
+    adultGrounded: opts.adultGrounded ?? false,
+  };
   const approvedScene =
     opts.approvedScene ??
     (opts.approvedScenePlan
-      ? formatApprovedScenePlanForIllustration(
+      ? formatApprovedScenePlanForSafeImageGeneration(
           opts.approvedScenePlan,
           resolveScenePresentationVisibility({
             contentKind: opts.contentKind,
             castManifest: opts.castManifest,
-          })
-        )
+          }),
+          projectionContext
+        ).formatted
       : "");
   const useCast = Boolean(opts.castManifest);
   if (useCast) {
@@ -400,7 +395,7 @@ export function buildLdSceneGenerationPlan(opts: {
         hasTemplate: false,
       }),
       renderCastGenderLock(bound.subjects),
-      ILLUSTRATION_SAFETY,
+      buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
       "Depict the approved scene plan below as one cinematic scene.",
       "Match the drawing style of the supplied identity references. Harmonize style, not identity.",
       "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
@@ -434,5 +429,6 @@ export function buildLdSceneGenerationPlan(opts: {
     personaAppearanceMode: opts.personaAppearanceMode,
     currentTurn: "",
     approvedScene,
+    adultGrounded: opts.adultGrounded,
   });
 }

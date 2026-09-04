@@ -1770,8 +1770,15 @@ export function resolveScenePresentationVisibility(opts: {
 
 export function formatApprovedScenePlanForIllustration(
   plan: ScenePlan,
-  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY,
+  opts?: {
+    projectText?: (text: string, kind?: "dialogue" | "narration") => string;
+    omitDialogueText?: (text: string) => boolean;
+  }
 ): string {
+  const mapText = (text: string, kind: "dialogue" | "narration" = "narration") =>
+    opts?.projectText ? opts.projectText(text, kind) : text;
+  const omitDialogue = opts?.omitDialogueText ?? (() => false);
   const heroEvents = plan.events.filter((event) => plan.heroEventIds.includes(event.id));
   const visibleHeroEvents = visibility.personaVisible
     ? heroEvents
@@ -1784,21 +1791,43 @@ export function formatApprovedScenePlanForIllustration(
     .filter(
       (event) =>
         event.kind === "dialogue" &&
-        (visibility.personaVisible || event.actor !== "persona")
+        (visibility.personaVisible || event.actor !== "persona") &&
+        !omitDialogue(event.text)
     )
-    .map((event) => `${event.actor}: “${event.text}”`);
-  const heroScene = projectHeroScene(plan, visibleHeroEvents, projectedBackground, visibility);
+    .map((event) => {
+      const projected = mapText(event.text, "dialogue");
+      if (!projected.trim()) return "";
+      return `${event.actor}: “${projected}”`;
+    })
+    .filter(Boolean);
+  const heroScene = mapText(
+    projectHeroScene(plan, visibleHeroEvents, projectedBackground, visibility)
+  );
+  const heroBeatCombined = visibleHeroEvents
+    .filter((event) => !(event.kind === "dialogue" && omitDialogue(event.text)))
+    .map((event) => event.text)
+    .join(" ")
+    .trim();
+  const heroBeatProjected = heroBeatCombined ? mapText(heroBeatCombined) : "";
+  const heroBeatsUseCombined =
+    Boolean(heroBeatCombined) && heroBeatProjected !== heroBeatCombined;
   return [
     !visibility.personaVisible ? PERSONA_EXCLUDED_VISIBLE_CAST_CONTRACT : "",
-    `Background: ${projectedBackground}`,
-    plan.atmosphere ? `Atmosphere: ${plan.atmosphere}` : "",
+    `Background: ${mapText(projectedBackground)}`,
+    plan.atmosphere ? `Atmosphere: ${mapText(plan.atmosphere)}` : "",
     `Hero scene: ${heroScene}`,
     visibleHeroEvents.length
-      ? `Hero beats:\n${visibleHeroEvents.map((event) => `- ${event.kind}: ${event.text}`).join("\n")}`
+      ? heroBeatsUseCombined
+        ? `Hero beats:\n- scene: ${heroBeatProjected}`
+        : `Hero beats:\n${visibleHeroEvents
+            .filter((event) => !(event.kind === "dialogue" && omitDialogue(event.text)))
+            .map((event) => `- ${event.kind}: ${mapText(event.text, event.kind === "dialogue" ? "dialogue" : "narration")}`)
+            .filter((line) => !/- dialogue: “”$/.test(line))
+            .join("\n")}`
       : "",
     offCameraEvents.length
       ? `Off-camera context only (do not render as a visible person):\n${offCameraEvents
-          .map((event) => `- ${event.text}`)
+          .map((event) => `- ${mapText(event.text)}`)
           .join("\n")}`
       : "",
     dialogue.length
@@ -2087,8 +2116,11 @@ export function projectComicPanelCompactDialoguePreview(
 
 export function collectApprovedComicText(
   plan: ScenePlan,
-  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY,
+  opts?: { projectText?: (text: string) => string; omitText?: (text: string) => boolean }
 ): string[] {
+  const mapText = opts?.projectText ?? ((text: string) => text);
+  const omitText = opts?.omitText ?? (() => false);
   return Array.from(
     new Set(
       plan.panels.flatMap((panel) =>
@@ -2096,6 +2128,8 @@ export function collectApprovedComicText(
           .filter((line) => visibility.personaVisible || line.speaker !== "persona")
           .map((line) => normalizeDialogueTextForOutput(line.text))
           .filter(Boolean)
+          .map((text) => mapText(text))
+          .filter((text) => text && !omitText(text))
       )
     )
   );

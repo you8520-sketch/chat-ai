@@ -104,6 +104,9 @@ on:
       - "src/lib/openAiImageFailureDiagnostic.ts"
       - "src/lib/openAiImageFailureDiagnostic.test.ts"
       - "src/lib/chatImageGenerationJobs.ts"
+      - "src/lib/chatImageIllustrationSanitizer.ts"
+      - "src/lib/chatImageSafeVisualProjection.ts"
+      - "src/lib/chatImageSafeVisualProjection.test.ts"
       - "src/lib/trpg/illustrationCast.ts"
       - "src/lib/trpg/trpgAiFocusSelection.ts"
       - "src/lib/trpg/trpgAiFocusSelection.test.ts"
@@ -181,6 +184,7 @@ jobs:
       - run: node --import tsx --test src/lib/chatImageCast.clientBoundary.test.ts
       - run: node --import tsx --test src/lib/openAiImageEdit.test.ts
       - run: node --import tsx --test src/lib/openAiImageFailureDiagnostic.test.ts
+      - run: node --import tsx --test src/lib/chatImageSafeVisualProjection.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/trpg/trpgAiFocusSelection.test.ts
       - run: node --import tsx --test src/lib/trpg/trpgImageSceneDiagnosticsLifecycle.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/trpg/trpgImageSceneDiagnosticsLocationAudit.test.ts
