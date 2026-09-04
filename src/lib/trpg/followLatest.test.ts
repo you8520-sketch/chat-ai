@@ -90,7 +90,6 @@ describe("TRPG follow-latest scroll", () => {
     const vh = 800;
     const targetTop = vh * TRPG_NARRATION_FOLLOW_TARGET_RATIO;
     assert.equal(narrationFollowDeltaPx({ endTop: targetTop, viewportHeight: vh }), 0);
-    assert.equal(narrationFollowDeltaPx({ endTop: targetTop, viewportHeight: vh }), 0);
     assert.ok(narrationFollowDeltaPx({ endTop: 780, viewportHeight: vh }) > 0);
     assert.ok(narrationFollowDeltaPx({ endTop: 400, viewportHeight: vh }) < 0);
     assert.equal(isNearNarrationFollow({ endTop: targetTop, viewportHeight: vh }), true);

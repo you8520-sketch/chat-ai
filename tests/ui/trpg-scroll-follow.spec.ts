@@ -32,6 +32,7 @@ type ScrollFollowGeometry = {
 };
 
 const DECLARATION_END_SELECTOR = "[data-trpg-declaration-end]";
+const READING_TARGET_RATIO = 0.63;
 
 async function demoLogin(page: Page) {
   const response = await page.request.post("/api/auth/demo-login");
@@ -51,13 +52,13 @@ async function findActualScrollContainer(page: Page) {
 }
 
 async function readScrollFollowDiagnostics(page: Page) {
-  return page.evaluate(() => {
+  return page.evaluate((targetRatio) => {
     const root = document.querySelector("[data-trpg-live-follow-owner]");
     const growth = document.querySelector("[data-trpg-declaration-growth='true']");
     const end = document.querySelector("[data-trpg-declaration-end]");
     const prose = growth?.textContent ?? "";
     const endTop = end?.getBoundingClientRect().top ?? null;
-    const targetY = window.innerHeight * 0.78;
+    const targetY = window.innerHeight * targetRatio;
     return {
       followLatest: root?.getAttribute("data-trpg-follow-latest") === "true",
       liveFollowOwner: root?.getAttribute("data-trpg-live-follow-owner") ?? "",
@@ -74,16 +75,17 @@ async function readScrollFollowDiagnostics(page: Page) {
         document.querySelector("[data-trpg-stream-interval-ms]")?.getAttribute("data-trpg-stream-interval-ms") ??
         "",
     };
-  });
+  }, READING_TARGET_RATIO);
 }
 
 async function collectScrollFollowGeometry(page: Page, endSelector: string): Promise<ScrollFollowGeometry> {
-  return page.evaluate((selector) => {
-    const root = document.querySelector("[data-trpg-live-follow-owner]");
-    const growth = document.querySelector("[data-trpg-declaration-growth='true']");
-    const end = document.querySelector(selector);
-    const viewportHeight = window.innerHeight;
-    const targetY = viewportHeight * 0.78;
+  return page.evaluate(
+    ({ selector, targetRatio }) => {
+      const root = document.querySelector("[data-trpg-live-follow-owner]");
+      const growth = document.querySelector("[data-trpg-declaration-growth='true']");
+      const end = document.querySelector(selector);
+      const viewportHeight = window.innerHeight;
+      const targetY = viewportHeight * targetRatio;
     const endTop = end?.getBoundingClientRect().top ?? null;
     const currentScrollY = window.scrollY;
     const maxScrollY = Math.max(0, document.documentElement.scrollHeight - viewportHeight);
@@ -111,7 +113,9 @@ async function collectScrollFollowGeometry(page: Page, endSelector: string): Pro
       FOLLOW_REQUEST_COUNT: 0,
       SCROLL_APPLY_COUNT: 0,
     };
-  }, endSelector);
+  },
+    { selector: endSelector, targetRatio: READING_TARGET_RATIO }
+  );
 }
 
 function formatGeometry(geometry: ScrollFollowGeometry): string {
@@ -184,14 +188,14 @@ async function waitForBotReveal(page: Page, botId: number) {
 
 async function waitForFollowScrollMovement(page: Page, startScrollY: number) {
   await page.waitForFunction(
-    (baseline) => {
+    ({ baseline, targetRatio }) => {
       const growth = document.querySelector("[data-trpg-declaration-growth='true']");
       const visibleChars = growth?.textContent?.length ?? 0;
       if (visibleChars < 20) return false;
       const end = document.querySelector("[data-trpg-declaration-end]");
       if (!end) return false;
       const endTop = end.getBoundingClientRect().top;
-      const targetY = window.innerHeight * 0.78;
+      const targetY = window.innerHeight * targetRatio;
       const scrollY = window.scrollY;
       const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
       if (scrollY > baseline + 5 && Math.abs(endTop - targetY) <= 48) return true;
@@ -200,7 +204,7 @@ async function waitForFollowScrollMovement(page: Page, startScrollY: number) {
       const availableDown = maxScrollY - scrollY;
       return requiredDelta > 0 && availableDown <= 2 && maxScrollY - scrollY <= 2;
     },
-    startScrollY,
+    { baseline: startScrollY, targetRatio: READING_TARGET_RATIO },
     { timeout: 45_000 }
   );
 }
@@ -219,11 +223,11 @@ function isGeometryClampSuccess(geometry: ScrollFollowGeometry): boolean {
 async function waitForReadingBandAligned(page: Page, endSelector: string) {
   try {
     await page.waitForFunction(
-      (selector) => {
+      ({ selector, targetRatio }) => {
         const end = document.querySelector(selector);
         if (!end) return false;
         const endTop = end.getBoundingClientRect().top;
-        const targetY = window.innerHeight * 0.78;
+        const targetY = window.innerHeight * targetRatio;
         const scrollY = window.scrollY;
         const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
         if (scrollY > 10 && Math.abs(endTop - targetY) <= 48) return true;
@@ -232,7 +236,7 @@ async function waitForReadingBandAligned(page: Page, endSelector: string) {
         if (requiredDelta > 0 && availableDown <= 2 && maxScrollY - scrollY <= 2) return true;
         return false;
       },
-      endSelector,
+      { selector: endSelector, targetRatio: READING_TARGET_RATIO },
       { timeout: 30_000 }
     );
   } catch (error) {
@@ -389,6 +393,7 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     await page.mouse.wheel(0, -160);
     await page.waitForTimeout(150);
 
+    await page.locator("[data-trpg-jump-latest]").waitFor({ state: "visible", timeout: 15_000 });
     await page.locator("[data-trpg-jump-latest]").click({ timeout: 10_000 });
 
     const restored = await readScrollFollowDiagnostics(page);
@@ -410,5 +415,45 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     await waitForFollowScrollMovement(page, startContainer.scrollTop);
     await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
     await assertBotFollowUserBug(page, startContainer.scrollTop, startDiag.visibleChars);
+  });
+
+  test("F6: Bot1 to Bot2 sentinel actor ids stay scoped through handoff", async ({ page }) => {
+    await page.goto("/trpg/scroll-follow-lab?scenario=bot1");
+    await waitForBotReveal(page, SCROLL_FOLLOW_LAB_BOT1_ID);
+    await page.waitForFunction(
+      () => (document.querySelector("[data-trpg-declaration-growth='true']")?.textContent?.length ?? 0) >= 20,
+      undefined,
+      { timeout: 45_000 }
+    );
+    const bot1 = await page.evaluate(() => {
+      const end = document.querySelector("[data-trpg-declaration-end]");
+      return {
+        activeActorId: document
+          .querySelector("[data-trpg-active-actor-id]")
+          ?.getAttribute("data-trpg-active-actor-id"),
+        sentinelActorId: end?.getAttribute("data-trpg-declaration-actor-id"),
+      };
+    });
+    expect(bot1.activeActorId).toBe(String(SCROLL_FOLLOW_LAB_BOT1_ID));
+    expect(bot1.sentinelActorId).toBe(String(SCROLL_FOLLOW_LAB_BOT1_ID));
+
+    await page.goto("/trpg/scroll-follow-lab?scenario=bot2");
+    await waitForBotReveal(page, SCROLL_FOLLOW_LAB_BOT2_ID);
+    const bot2 = await page.evaluate(() => {
+      const end = document.querySelector("[data-trpg-declaration-end]");
+      return {
+        activeActorId: document
+          .querySelector("[data-trpg-active-actor-id]")
+          ?.getAttribute("data-trpg-active-actor-id"),
+        sentinelActorId: end?.getAttribute("data-trpg-declaration-actor-id"),
+      };
+    });
+    expect(bot2.activeActorId).toBe(String(SCROLL_FOLLOW_LAB_BOT2_ID));
+    expect(bot2.sentinelActorId).toBe(String(SCROLL_FOLLOW_LAB_BOT2_ID));
+    expect(bot2.sentinelActorId).not.toBe(bot1.sentinelActorId);
+
+    const startContainer = await findActualScrollContainer(page);
+    await waitForFollowScrollMovement(page, startContainer.scrollTop);
+    await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
   });
 });
