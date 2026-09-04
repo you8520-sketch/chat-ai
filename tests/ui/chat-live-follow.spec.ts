@@ -3,13 +3,13 @@ import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
 import { LIVE_READING_MAX_RATIO, LIVE_READING_MIN_RATIO, LIVE_READING_TARGET_RATIO } from "../../src/lib/liveReadingFollow";
 
 const CHAT_DISPLAY_PREFS_KEY = "playai-chat-display-prefs";
-const READING_TARGET_RATIO = LIVE_READING_TARGET_RATIO;
 const MAX_CATCHUP_PX_PER_SEC = 260;
 
 type MotionFrame = {
   t: number;
   scrollY: number;
   endTop: number | null;
+  remainingDelta: number | null;
 };
 
 type ChatDiagnostics = {
@@ -21,6 +21,10 @@ type ChatDiagnostics = {
   smoothWindowScroll: number;
 };
 
+type NetworkDoneSnapshot = ChatDiagnostics & {
+  networkRequestFinished: boolean;
+};
+
 function longAssistantProse(charCount: number): string {
   const unit = "일반 채팅 assistant prose가 viewport를 따라 부드럽게 흘러야 한다. ";
   let out = "";
@@ -28,11 +32,11 @@ function longAssistantProse(charCount: number): string {
   return out.slice(0, charCount);
 }
 
-function buildMockChatSseBody(finalText: string, requestId: string): string {
+function buildMockChatSseBody(finalText: string, requestId: string, chatId: number): string {
   const events: string[] = [
     `data: ${JSON.stringify({
       type: "turn_persisted",
-      chatId: 99001,
+      chatId,
       messageId: 99002,
       userMessageId: 99001,
       requestId,
@@ -44,7 +48,7 @@ function buildMockChatSseBody(finalText: string, requestId: string): string {
   events.push(
     `data: ${JSON.stringify({
       type: "done",
-      chatId: 99001,
+      chatId,
       messageId: 99002,
       userMessageId: 99001,
       requestId,
@@ -81,26 +85,22 @@ async function installScrollAudit(page: Page) {
   });
 }
 
+async function setReactTextareaValue(page: Page, text: string) {
+  await page.locator("textarea[placeholder*='메시지 입력']").evaluate((el, value) => {
+    const textarea = el as HTMLTextAreaElement;
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+    setter?.call(textarea, value);
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    textarea.dispatchEvent(new Event("change", { bubbles: true }));
+  }, text);
+}
+
 async function openFreshChat(page: Page, characterId = 2) {
   await page.goto(`/chat/${characterId}?fresh=1`, { waitUntil: "domcontentloaded" });
   await page.waitForURL(/\/chat\/\d+\?chat=\d+/, { timeout: 45_000 });
   await page.waitForSelector("textarea[placeholder*='메시지 입력']", { timeout: 45_000 });
   await page.waitForSelector("article", { timeout: 45_000 });
-  await page.waitForTimeout(2_500);
-  try {
-    await waitForChatInputReady(page);
-  } catch {
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForURL(/\/chat\/\d+\?chat=\d+/, { timeout: 45_000 });
-    await page.waitForSelector("textarea[placeholder*='메시지 입력']", { timeout: 45_000 });
-    await page.waitForTimeout(3_500);
-    try {
-      await waitForChatInputReady(page);
-    } catch {
-      await page.waitForTimeout(3_500);
-      await waitForChatInputReady(page);
-    }
-  }
+  await waitForChatInputReady(page);
   await resetScrollAudit(page);
 }
 
@@ -112,19 +112,31 @@ async function waitForAssistantStreamSentinel(page: Page) {
 }
 
 async function mockChatStreamRoute(page: Page, finalText: string) {
-  await page.route(/\/api\/chat\/message/, async (route: Route) => {
+  await page.route("**/api/chat/message", async (route: Route) => {
+    let chatId = 0;
+    try {
+      const url = new URL(route.request().url());
+      const fromQuery = Number(url.searchParams.get("messageId"));
+      if (Number.isFinite(fromQuery)) {
+        /* messageId-only lookups — keep chatId best-effort below */
+      }
+      const postBody = route.request().postDataJSON() as { chatId?: number } | undefined;
+      if (postBody?.chatId != null) chatId = postBody.chatId;
+    } catch {
+      /* ignore */
+    }
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
         messageId: 99002,
-        chatId: 99001,
+        chatId,
         content: finalText,
         generationStatus: "completed",
       }),
     });
   });
-  await page.route(/\/api\/chat\/settings/, async (route: Route) => {
+  await page.route("**/api/chat/settings", async (route: Route) => {
     const method = route.request().method();
     if (method === "POST" || method === "PATCH") {
       await route.fulfill({
@@ -136,22 +148,24 @@ async function mockChatStreamRoute(page: Page, finalText: string) {
     }
     await route.continue();
   });
-  await page.route(/\/api\/chat\/suggested-replies/, async (route: Route) => {
+  await page.route("**/api/chat/suggested-replies", async (route: Route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ suggestedReplies: [] }),
     });
   });
-  await page.route(/\/api\/chat$/, async (route: Route) => {
+  await page.route("**/api/chat", async (route: Route) => {
     if (route.request().method() !== "POST") {
       await route.continue();
       return;
     }
     let requestId = "mock-chat-request";
+    let chatId = 0;
     try {
-      const body = route.request().postDataJSON() as { clientRequestId?: string };
+      const body = route.request().postDataJSON() as { clientRequestId?: string; chatId?: number };
       if (body.clientRequestId) requestId = body.clientRequestId;
+      if (body.chatId != null) chatId = body.chatId;
     } catch {
       /* ignore */
     }
@@ -161,7 +175,7 @@ async function mockChatStreamRoute(page: Page, finalText: string) {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache",
       },
-      body: buildMockChatSseBody(finalText, requestId),
+      body: buildMockChatSseBody(finalText, requestId, chatId),
     });
   });
 }
@@ -183,20 +197,26 @@ async function readChatDiagnostics(page: Page): Promise<ChatDiagnostics> {
 }
 
 async function sampleMotionFrames(page: Page, durationMs: number): Promise<MotionFrame[]> {
-  return page.evaluate(async (ms) => {
-    const frames: MotionFrame[] = [];
-    const start = performance.now();
-    while (performance.now() - start < ms) {
-      const end = document.querySelector("[data-chat-assistant-stream-end]");
-      frames.push({
-        t: performance.now() - start,
-        scrollY: window.scrollY,
-        endTop: end?.getBoundingClientRect().top ?? null,
-      });
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-    }
-    return frames;
-  }, durationMs);
+  return page.evaluate(
+    async ({ ms, targetRatio }) => {
+      const frames: MotionFrame[] = [];
+      const start = performance.now();
+      while (performance.now() - start < ms) {
+        const end = document.querySelector("[data-chat-assistant-stream-end]");
+        const endTop = end?.getBoundingClientRect().top ?? null;
+        const targetY = window.innerHeight * targetRatio;
+        frames.push({
+          t: performance.now() - start,
+          scrollY: window.scrollY,
+          endTop,
+          remainingDelta: endTop == null ? null : endTop - targetY,
+        });
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+      return frames;
+    },
+    { ms: durationMs, targetRatio: LIVE_READING_TARGET_RATIO }
+  );
 }
 
 function assertMotionFrames(frames: MotionFrame[], viewportHeight: number) {
@@ -204,14 +224,17 @@ function assertMotionFrames(frames: MotionFrame[], viewportHeight: number) {
   let previousScrollY = frames[0]?.scrollY ?? 0;
   let previousT = frames[0]?.t ?? 0;
   let largeJumpCount = 0;
+  let monotonicSteps = 0;
 
   for (const frame of frames) {
-    if (frame.endTop == null) continue;
     const dtSec = Math.max(1 / 120, (frame.t - previousT) / 1000);
     const step = frame.scrollY - previousScrollY;
     if (step > 0) {
-      const maxStep = MAX_CATCHUP_PX_PER_SEC * dtSec + 6;
-      if (step > maxStep) largeJumpCount += 1;
+      monotonicSteps += 1;
+      if (frame.endTop != null) {
+        const maxStep = MAX_CATCHUP_PX_PER_SEC * dtSec + 6;
+        if (step > maxStep) largeJumpCount += 1;
+      }
     }
     previousScrollY = frame.scrollY;
     previousT = frame.t;
@@ -219,11 +242,27 @@ function assertMotionFrames(frames: MotionFrame[], viewportHeight: number) {
 
   expect(largeJumpCount).toBe(0);
 
+  const scrollRange =
+    frames.length > 0
+      ? Math.max(...frames.map((f) => f.scrollY)) - Math.min(...frames.map((f) => f.scrollY))
+      : 0;
+  const hasBandAlignedEnd = frames.some((f) => {
+    if (f.endTop == null) return false;
+    const ratio = f.endTop / Math.max(1, viewportHeight);
+    return ratio >= LIVE_READING_MIN_RATIO && ratio <= LIVE_READING_MAX_RATIO;
+  });
+  expect(monotonicSteps > 0 || scrollRange > 5 || hasBandAlignedEnd).toBe(true);
+
   const lastWithEnd = [...frames].reverse().find((f) => f.endTop != null);
   if (lastWithEnd?.endTop != null) {
     const ratio = lastWithEnd.endTop / Math.max(1, viewportHeight);
-    expect(ratio).toBeGreaterThanOrEqual(LIVE_READING_MIN_RATIO - 0.14);
-    expect(ratio).toBeLessThanOrEqual(LIVE_READING_MAX_RATIO + 0.08);
+    const clampBlocked =
+      lastWithEnd.remainingDelta != null && lastWithEnd.remainingDelta > 24 && lastWithEnd.scrollY > 10;
+    if (!clampBlocked) {
+      expect(ratio).toBeGreaterThanOrEqual(LIVE_READING_MIN_RATIO);
+      expect(ratio).toBeLessThanOrEqual(LIVE_READING_MAX_RATIO);
+    }
+    expect(Math.abs(ratio - LIVE_READING_TARGET_RATIO)).toBeLessThan(0.12);
   }
 }
 
@@ -238,16 +277,16 @@ async function resetScrollAudit(page: Page) {
 async function waitForChatInputReady(page: Page) {
   const textarea = page.locator("textarea[placeholder*='메시지 입력']");
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    await textarea.click();
-    await textarea.pressSequentially("z", { delay: 10 });
+    await setReactTextareaValue(page, "z");
+    const counter = page.locator("text=/\\/ 1,000자/");
+    const counterText = (await counter.textContent())?.trim() ?? "";
     const enabled = await page.getByRole("button", { name: "전송", exact: true }).isEnabled();
-    if (enabled) {
-      await textarea.press("Control+a");
-      await textarea.press("Backspace");
+    if (counterText.startsWith("1 ") && enabled) {
+      await setReactTextareaValue(page, "");
       await expect(textarea).toHaveValue("");
       return;
     }
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(200);
   }
   throw new Error("Chat input did not hydrate for Playwright typing");
 }
@@ -255,19 +294,14 @@ async function waitForChatInputReady(page: Page) {
 async function sendMockMessage(page: Page, text: string) {
   const textarea = page.locator("textarea[placeholder*='메시지 입력']");
   await expect(textarea).toBeEnabled({ timeout: 45_000 });
-  await textarea.click();
-  await textarea.pressSequentially(text, { delay: 15 });
+  await setReactTextareaValue(page, text);
   await expect(textarea).toHaveValue(text);
   const sendButton = page.getByRole("button", { name: "전송", exact: true });
   await expect(sendButton).toBeEnabled({ timeout: 15_000 });
   const responseWait = page.waitForResponse(
     (res) => {
-      const url = res.url();
-      return (
-        /\/api\/chat$/.test(url) &&
-        res.request().method() === "POST" &&
-        res.status() !== 0
-      );
+      const url = new URL(res.url());
+      return url.pathname.endsWith("/api/chat") && res.request().method() === "POST" && res.status() !== 0;
     },
     { timeout: 45_000 }
   );
@@ -289,6 +323,24 @@ async function waitForAssistantStreamSurface(page: Page) {
     undefined,
     { timeout: 45_000 }
   );
+}
+
+async function waitForNetworkDoneVisualRevealPending(page: Page): Promise<NetworkDoneSnapshot> {
+  await page.waitForFunction(
+    () => {
+      const bottom = document.querySelector("[data-chat-live-reading-active]");
+      const pending = Number(bottom?.getAttribute("data-chat-visual-reveal-pending-count") ?? "0");
+      return (
+        bottom?.getAttribute("data-chat-live-reading-active") === "true" &&
+        pending > 0 &&
+        document.querySelector("[data-chat-assistant-stream-end]") != null
+      );
+    },
+    undefined,
+    { timeout: 45_000 }
+  );
+  const diag = await readChatDiagnostics(page);
+  return { ...diag, networkRequestFinished: true };
 }
 
 test.describe("General chat live reading follow — production browser", () => {
@@ -314,37 +366,55 @@ test.describe("General chat live reading follow — production browser", () => {
   });
 
   test("C1/C2: network done + visual reveal continues following with sentinel connected", async ({ page }) => {
-    const finalText = longAssistantProse(720);
+    const finalText = longAssistantProse(1400);
+    await page.setViewportSize({ width: 1280, height: 520 });
     await mockChatStreamRoute(page, finalText);
     await openFreshChat(page);
     await resetScrollAudit(page);
 
+    const preStreamScrollY = await page.evaluate(() => window.scrollY);
+
+    const chatResponseDone = page.waitForResponse(
+      (res) => {
+        const url = new URL(res.url());
+        return url.pathname.endsWith("/api/chat") && res.request().method() === "POST" && res.ok();
+      },
+      { timeout: 45_000 }
+    );
     await sendMockMessage(page, "scroll follow browser proof");
+    await chatResponseDone;
     await resetScrollAudit(page);
     await waitForAssistantStreamSurface(page);
     await waitForAssistantStreamSentinel(page);
 
+    const framesPromise = sampleMotionFrames(page, 12_000);
+    const postNetwork = await waitForNetworkDoneVisualRevealPending(page);
+    expect(postNetwork.networkRequestFinished).toBe(true);
+    expect(postNetwork.sentinelConnected).toBe(true);
+    expect(postNetwork.liveReadingActive).toBe(true);
+    expect(postNetwork.visualRevealPendingCount).toBeGreaterThan(0);
+    expect(postNetwork.followLatest).toBe(true);
+    expect(postNetwork.manualDetached).toBe(false);
+    expect(postNetwork.smoothWindowScroll).toBe(0);
+
+    const frames = await framesPromise;
+    assertMotionFrames(frames, 520);
+
     await page.waitForFunction(
       () => {
-        const bottom = document.querySelector("[data-chat-live-reading-active]");
-        const pending = Number(bottom?.getAttribute("data-chat-visual-reveal-pending-count") ?? "0");
-        return (
-          bottom?.getAttribute("data-chat-live-reading-active") === "true" &&
-          pending > 0
+        const pending = Number(
+          document.querySelector("[data-chat-live-reading-active]")?.getAttribute(
+            "data-chat-visual-reveal-pending-count"
+          ) ?? "0"
         );
+        return pending === 0;
       },
       undefined,
       { timeout: 45_000 }
     );
 
-    const postNetwork = await readChatDiagnostics(page);
-    expect(postNetwork.sentinelConnected).toBe(true);
-    expect(postNetwork.liveReadingActive).toBe(true);
-    expect(postNetwork.visualRevealPendingCount).toBeGreaterThan(0);
-    expect(postNetwork.smoothWindowScroll).toBe(0);
-
-    const frames = await sampleMotionFrames(page, 5_000);
-    assertMotionFrames(frames, 720);
+    const endScrollY = await page.evaluate(() => window.scrollY);
+    expect(endScrollY).toBeGreaterThan(preStreamScrollY);
   });
 
   test("C3: no native smooth scroll during visual reveal growth", async ({ page }) => {
@@ -379,6 +449,36 @@ test.describe("General chat live reading follow — production browser", () => {
     await page.waitForTimeout(1200);
     const afterY = await page.evaluate(() => window.scrollY);
     expect(afterY).toBeLessThanOrEqual(frozenY + 2);
+  });
+
+  test("C5: explicit scroll-to-bottom reattaches during visual reveal", async ({ page }) => {
+    const finalText = longAssistantProse(720);
+    await mockChatStreamRoute(page, finalText);
+    await openFreshChat(page);
+    await sendMockMessage(page, "reattach proof");
+
+    await waitForAssistantStreamSentinel(page);
+    await page.waitForTimeout(400);
+    await page.mouse.wheel(0, -240);
+    await page.waitForTimeout(120);
+
+    const detached = await readChatDiagnostics(page);
+    expect(detached.manualDetached).toBe(true);
+
+    await page.evaluate(() => {
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+    });
+    await page.waitForTimeout(200);
+
+    const reattached = await readChatDiagnostics(page);
+    expect(reattached.followLatest).toBe(true);
+    expect(reattached.manualDetached).toBe(false);
+    expect(reattached.sentinelConnected).toBe(true);
+
+    const beforeY = await page.evaluate(() => window.scrollY);
+    await page.waitForTimeout(1200);
+    const afterY = await page.evaluate(() => window.scrollY);
+    expect(afterY).toBeGreaterThanOrEqual(beforeY - 2);
   });
 
   test("C6: reading history does not force latest jump on new stream", async ({ page }) => {
