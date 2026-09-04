@@ -68,9 +68,25 @@ export function buildAdminBillingForensicMetadata(input: {
   const slices = parseStoredDeductionSlices(input.deductionSlicesRaw);
   const sliceTotals = sumDeductionSliceTotals(slices);
 
-  const settledDeductedPoints =
-    dispatch?.settledDeductedPoints ??
-    (Number.isFinite(input.usage.cost) ? input.usage.cost : null);
+  const storedSettledDeductedPoints =
+    dispatch?.settledDeductedPoints != null &&
+    Number.isFinite(dispatch.settledDeductedPoints)
+      ? dispatch.settledDeductedPoints
+      : null;
+
+  const storedFinalUserChargePoints =
+    dispatch == null
+      ? null
+      : dispatch.billingContract === "published_phase1" ||
+          dispatch.billingContract === "published_phase2"
+        ? dispatch.publishedFinalPoints != null &&
+          Number.isFinite(dispatch.publishedFinalPoints)
+          ? dispatch.publishedFinalPoints
+          : null
+        : dispatch.legacyFinalPoints != null &&
+            Number.isFinite(dispatch.legacyFinalPoints)
+          ? dispatch.legacyFinalPoints
+          : null;
 
   const billingEvidenceStatus: AdminBillingForensicMetadata["billingEvidenceStatus"] =
     dispatch?.billingContract != null
@@ -80,10 +96,14 @@ export function buildAdminBillingForensicMetadata(input: {
         : "partial";
 
   let finalChargeConsistency: FinalChargeConsistencySnapshot | null = null;
-  if (settledDeductedPoints != null && Number.isFinite(input.usage.cost)) {
+  if (
+    storedFinalUserChargePoints != null &&
+    storedSettledDeductedPoints != null &&
+    Number.isFinite(input.usage.cost)
+  ) {
     finalChargeConsistency = evaluateFinalChargeConsistency({
-      finalUserChargePoints: settledDeductedPoints,
-      settledDeductionPoints: settledDeductedPoints,
+      finalUserChargePoints: storedFinalUserChargePoints,
+      settledDeductionPoints: storedSettledDeductedPoints,
       usageCostPoints: input.usage.cost,
       deductionSlices: slices,
     });

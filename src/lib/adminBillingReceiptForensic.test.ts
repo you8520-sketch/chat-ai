@@ -304,8 +304,8 @@ describe("admin billing forensic metadata — stored truth only", () => {
     }
   });
 
-  it("missing dispatch reports missing_stored_dispatch without reconstructing contract", () => {
-    const usage = phase2Usage({ billingContractDispatch: undefined });
+  it("missing dispatch reports missing_stored_dispatch without reconstructing contract (C2)", () => {
+    const usage = phase2Usage({ billingContractDispatch: undefined, cost: 35 });
     const forensic = buildAdminBillingForensicMetadata({
       assistantMessageId: 2,
       chatId: 756,
@@ -315,7 +315,9 @@ describe("admin billing forensic metadata — stored truth only", () => {
     });
     assert.equal(forensic.billingContract, null);
     assert.equal(forensic.billingEvidenceStatus, "missing_stored_dispatch");
+    assert.equal(forensic.settledDeductedPoints, null);
     assert.equal(forensic.usageCost, 35);
+    assert.equal(forensic.finalChargeConsistency, null);
   });
 
   it("mismatch surfaces consistency=false without hiding violations", () => {
@@ -342,5 +344,88 @@ describe("admin billing forensic metadata — stored truth only", () => {
     });
     assert.equal(forensic.finalChargeConsistency?.consistent, false);
     assert.ok((forensic.finalChargeConsistency?.violations.length ?? 0) > 0);
+  });
+
+  it("C1 Published decision mismatch: publishedFinalPoints != settledDeductedPoints", () => {
+    const usage = phase2Usage({
+      cost: 35,
+      billingContractDispatch: {
+        billingContract: "published_phase2",
+        billingContractReason: "phase2_deepseek_live_grade",
+        deliveredModelId: "deepseek-v4-pro-0813",
+        publishedCandidateStatus: "resolved",
+        publishedBlockReason: null,
+        pricingVersion: 2,
+        publishedFinalPoints: 34,
+        legacyFinalPoints: 40,
+        settledDeductedPoints: 35,
+      },
+    });
+    const forensic = buildAdminBillingForensicMetadata({
+      assistantMessageId: 4,
+      chatId: 756,
+      requestId: "req-c1",
+      usage,
+      deductionSlicesRaw: JSON.stringify([{ pointType: "PAID", amount: 35, transactionId: 4 }]),
+    });
+    assert.equal(forensic.finalChargeConsistency?.consistent, false);
+    assert.ok(
+      forensic.finalChargeConsistency?.violations.includes(
+        "final_user_charge!=settled_deduction"
+      )
+    );
+  });
+
+  it("C3 Correct Phase2 consistency", () => {
+    const usage = phase2Usage({
+      cost: 35,
+      billingContractDispatch: {
+        billingContract: "published_phase2",
+        billingContractReason: "phase2_deepseek_live_grade",
+        deliveredModelId: "deepseek-v4-pro-0813",
+        publishedCandidateStatus: "resolved",
+        publishedBlockReason: null,
+        pricingVersion: 2,
+        publishedFinalPoints: 35,
+        legacyFinalPoints: 40,
+        settledDeductedPoints: 35,
+      },
+    });
+    const forensic = buildAdminBillingForensicMetadata({
+      assistantMessageId: 5,
+      chatId: 756,
+      requestId: "req-c3",
+      usage,
+      deductionSlicesRaw: JSON.stringify([{ pointType: "PAID", amount: 35, transactionId: 5 }]),
+    });
+    assert.equal(forensic.finalChargeConsistency?.consistent, true);
+    assert.deepEqual(forensic.finalChargeConsistency?.violations, []);
+  });
+
+  it("C4 Correct Legacy consistency", () => {
+    const usage = phase2Usage({
+      cost: 40,
+      billingContractDispatch: {
+        billingContract: "legacy",
+        billingContractReason: "phase2_billing_disabled",
+        deliveredModelId: "deepseek-v4-pro-0813",
+        publishedCandidateStatus: "not_attempted",
+        publishedBlockReason: null,
+        pricingVersion: null,
+        publishedFinalPoints: null,
+        legacyFinalPoints: 40,
+        settledDeductedPoints: 40,
+      },
+    });
+    const forensic = buildAdminBillingForensicMetadata({
+      assistantMessageId: 6,
+      chatId: 756,
+      requestId: "req-c4",
+      usage,
+      deductionSlicesRaw: JSON.stringify([{ pointType: "PAID", amount: 40, transactionId: 6 }]),
+    });
+    assert.equal(forensic.billingContract, "legacy");
+    assert.equal(forensic.finalChargeConsistency?.consistent, true);
+    assert.deepEqual(forensic.finalChargeConsistency?.violations, []);
   });
 });
