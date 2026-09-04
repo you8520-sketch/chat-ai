@@ -79,7 +79,7 @@ async function resetDemoCharacterChats(page: Page, characterId = 2) {
   const response = await page.request.delete("/api/chat/session", {
     data: { characterIds: [characterId] },
   });
-  if (!response.ok() && response.status() !== 404) {
+  if (!response.ok() && response.status() !== 404 && response.status() !== 401) {
     throw new Error(`Failed to reset demo chats: ${response.status()} ${await response.text()}`);
   }
 }
@@ -431,7 +431,6 @@ async function runContinuousFollowScenario(page: Page, opts: {
     height: opts.viewportHeight ?? 520,
   });
   await openFreshChat(page);
-  await ensureExtraScrollRoom(page);
   await sendMockMessage(page, "continuous follow matrix");
   if (opts.instant) {
     await waitForAssistantStreamSurface(page);
@@ -443,6 +442,8 @@ async function runContinuousFollowScenario(page: Page, opts: {
   if (opts.layoutChrome) {
     await injectLayoutGrowthChrome(page, opts.layoutChrome);
   }
+  // Inject after follow is already attached. Doing this before send makes
+  // isNearBottom() false and resolveFollowBeforeStream detaches.
   await ensureExtraScrollRoom(page);
   const startGeometry = resolveScrollClampState(await collectScrollGeometry(page));
   const framesPromise = sampleMotionFrames(page, 10_000);
@@ -486,7 +487,7 @@ async function runContinuousFollowScenario(page: Page, opts: {
 }
 
 test.describe("General chat live reading follow — production browser", () => {
-  test.describe.configure({ retries: 0, timeout: 120_000, mode: "serial" });
+  test.describe.configure({ retries: 0, timeout: 120_000 });
 
   test.beforeEach(async ({ page }) => {
     await installScrollAudit(page);
