@@ -66,7 +66,7 @@ describe("Comic text pipeline reproduction tests (R1-R4)", () => {
     );
   });
 
-  it("R3: single user line + multiple AI lines has no blind echo duplication and correct ownership", () => {
+  it("R3: genuine postposed repetition keeps both speakers; recap drops duplicate", () => {
     const messages = buildSceneSourceMessages([
       { id: 1, role: "user", content: '"내가 좋아?"' },
       {
@@ -86,16 +86,13 @@ describe("Comic text pipeline reproduction tests (R1-R4)", () => {
     });
 
     const dialogues = plan.panels.flatMap((p) => p.dialogue);
-    const userLikes = dialogues.filter((d) => d.text.includes("내가 좋아?"));
-    assert.equal(userLikes.length, 1, "Only one '내가 좋아?' dialogue line across all panels");
-    assert.equal(userLikes[0]?.speaker, "persona", "Spoken by persona");
+    const userLikes = dialogues.filter((d) => d.text === "내가 좋아?");
+    assert.equal(userLikes.length, 2, "Genuine postposed repetition keeps persona + character lines");
+    assert.ok(userLikes.some((line) => line.speaker === "persona"));
+    assert.ok(userLikes.some((line) => line.speaker === "character"));
 
     const aiResponses = dialogues.filter((d) => d.speaker === "character");
-    assert.ok(aiResponses.length >= 1, "Character has genuine responses");
-    assert.ok(
-      aiResponses.every((d) => !d.text.includes("내가 좋아?")),
-      "Character responses do not duplicate user line"
-    );
+    assert.ok(aiResponses.length >= 2, "Character keeps repetition plus follow-up responses");
   });
 
   it("R4: named speakers (렌 / 라이크 / other) preserve distinct mapping", () => {
