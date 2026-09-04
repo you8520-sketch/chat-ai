@@ -53,6 +53,7 @@ describe("contextBuilder user persona reference owner", () => {
   it("uses the selected persona name and gender rather than the account nickname", () => {
     const built = build("male");
     assert.match(built.systemPrompt, /이름\/호칭: 렌\. 확정 성별: 남성/);
+    assert.match(built.systemPrompt, /남성 캐릭터가 남성 \[B\]에게 자신을 "오빠"라고 칭하는 식의 성별 불일치/);
     assert.doesNotMatch(
       built.openRouterSystemSplit?.dynamicBlock ?? "",
       /이름\/호칭: 계정 닉네임/
