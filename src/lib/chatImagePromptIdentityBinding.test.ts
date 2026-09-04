@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  auditComicDialogueWhitelist,
   buildChatComicGenerationPlan,
   countProviderPromptReadableDialogue,
 } from "@/lib/chatComicGeneration";
+import {
+  auditComicDialogueWhitelist,
+} from "@/lib/chatComicDialogueAudit";
 import { compileComicTextOverlaySvg, layoutPanelOverlay } from "@/lib/chatComicTextOverlay";
 import {
   buildProductionDuoGenerationPlanForFixture,

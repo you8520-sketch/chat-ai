@@ -9,7 +9,6 @@ import {
   layoutPanelOverlay,
   layoutPanelNarration,
   extractPanelSfxCue,
-  renderComicTextOverlay,
   countLayoutOverlaps,
   countPanelOverlayCollisions,
   countElementsOutsidePanel,
@@ -25,7 +24,11 @@ import {
   FINAL_COMIC_TEXT_LAYER_OWNER,
   TEXT_OVERLAY_SAFETY_POLICY_OWNER,
 } from "./chatComicTextOverlay";
-import { countUserEditDialogueMismatch } from "./chatComicGeneration";
+import { renderComicTextOverlay } from "./chatComicTextOverlay.server";
+import {
+  auditComicDialogueWhitelist,
+  countUserEditDialogueMismatch,
+} from "./chatComicDialogueAudit";
 import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,

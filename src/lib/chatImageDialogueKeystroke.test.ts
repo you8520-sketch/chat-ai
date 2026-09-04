@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { auditComicDialogueWhitelist, buildChatComicImagePrompt } from "./chatComicGeneration";
+import { buildChatComicImagePrompt } from "./chatComicGeneration";
+import { auditComicDialogueWhitelist } from "./chatComicDialogueAudit";
 import { compileComicTextOverlaySvg } from "./chatComicTextOverlay";
 import { compileChatComicPanelSpec } from "./chatComicPanelSpec";
 import { duoVisualSubjectsForCast } from "./chatComicPanelSpec.fixtures";
