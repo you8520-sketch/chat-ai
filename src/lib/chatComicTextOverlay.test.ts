@@ -309,15 +309,16 @@ describe("Comic Text Layer: Text-Layer Tests (T1-T8)", () => {
     assert.equal(planTexts.filter((text) => text === "내가 좋아?").length, 1);
     assert.ok(planTexts.includes("그걸 말이라고 물어?"));
 
-    const svg = compileComicTextOverlaySvg({
+    const subjects = duoVisualSubjectsForCast({ characterName: "라이크", personaName: "렌" });
+    const overlayTexts = compileComicPanelOverlayLayouts({
       width: 1008,
       height: 1408,
       panelCount: 2,
       plan,
-      subjects: duoVisualSubjectsForCast({ characterName: "라이크", personaName: "렌" }),
-    });
-    assert.equal((svg.match(/내가 좋아\?/g) ?? []).length, 1);
-    assert.ok(svg.includes("그걸 말이라고 물어?"));
+      subjects,
+    }).flatMap((layout) => layout.bubbles.map((bubble) => bubble.rawText));
+    assert.equal(overlayTexts.filter((text) => text === "내가 좋아?").length, 1);
+    assert.ok(overlayTexts.includes("그걸 말이라고 물어?"));
   });
 });
 
