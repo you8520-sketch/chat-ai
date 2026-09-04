@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
-import { LIVE_READING_MAX_RATIO, LIVE_READING_MIN_RATIO, LIVE_READING_TARGET_RATIO } from "../../src/lib/liveReadingFollow";
+import { LIVE_READING_MAX_RATIO, LIVE_READING_MIN_RATIO, LIVE_READING_TARGET_RATIO, measureScrollMotionContinuity } from "../../src/lib/liveReadingFollow";
 
 const CHAT_DISPLAY_PREFS_KEY = "playai-chat-display-prefs";
 const MAX_CATCHUP_PX_PER_SEC = 260;
@@ -219,6 +219,14 @@ async function sampleMotionFrames(page: Page, durationMs: number): Promise<Motio
   );
 }
 
+function assertContinuousMotion(frames: MotionFrame[], viewportHeight: number) {
+  assertMotionFrames(frames, viewportHeight);
+  const metrics = measureScrollMotionContinuity(frames.map((frame) => ({ t: frame.t, scrollY: frame.scrollY })));
+  expect(metrics.motionDutyCycle).toBeGreaterThanOrEqual(0.75);
+  expect(metrics.maxVisibleStopGapMs).toBeLessThanOrEqual(300);
+  expect(metrics.stopStartOscillation).toBe(false);
+}
+
 function assertMotionFrames(frames: MotionFrame[], viewportHeight: number) {
   expect(frames.length).toBeGreaterThan(5);
   let previousScrollY = frames[0]?.scrollY ?? 0;
@@ -343,6 +351,64 @@ async function waitForNetworkDoneVisualRevealPending(page: Page): Promise<Networ
   return { ...diag, networkRequestFinished: true };
 }
 
+async function installChatDisplayPrefs(
+  page: Page,
+  overrides: Partial<typeof DEFAULT_CHAT_DISPLAY_PREFS> & Record<string, unknown>
+) {
+  await page.addInitScript(
+    ({ key, defaults, patch }) => {
+      localStorage.setItem(key, JSON.stringify({ ...defaults, ...patch }));
+    },
+    { key: CHAT_DISPLAY_PREFS_KEY, defaults: DEFAULT_CHAT_DISPLAY_PREFS, patch: overrides }
+  );
+}
+
+async function injectLayoutGrowthChrome(page: Page, mode: "widget" | "meta" | "both") {
+  await page.evaluate((layoutMode) => {
+    const article = document.querySelector("article:last-of-type");
+    if (!article) return;
+    if (layoutMode === "widget" || layoutMode === "both") {
+      const widget = document.createElement("div");
+      widget.setAttribute("data-test-chat-status-widget", "true");
+      widget.className = "rounded-lg border border-white/10 bg-black/30 p-4";
+      widget.style.minHeight = "96px";
+      widget.textContent = "HP 82 / MP 40";
+      article.appendChild(widget);
+    }
+    if (layoutMode === "meta" || layoutMode === "both") {
+      const meta = document.createElement("div");
+      meta.setAttribute("data-test-chat-status-meta", "true");
+      meta.className = "mt-2 rounded-lg border border-white/10 bg-black/20 p-3 text-sm";
+      meta.style.minHeight = "72px";
+      meta.textContent = "Status meta block";
+      article.appendChild(meta);
+    }
+  }, mode);
+}
+
+async function runContinuousFollowScenario(page: Page, opts: {
+  charCount: number;
+  viewportHeight?: number;
+  layoutChrome?: "widget" | "meta" | "both";
+}) {
+  const finalText = longAssistantProse(opts.charCount);
+  await mockChatStreamRoute(page, finalText);
+  await page.setViewportSize({ width: 1280, height: opts.viewportHeight ?? 520 });
+  await openFreshChat(page);
+  await sendMockMessage(page, "continuous follow matrix");
+  await waitForAssistantStreamSentinel(page);
+  if (opts.layoutChrome) {
+    await injectLayoutGrowthChrome(page, opts.layoutChrome);
+  }
+  const framesPromise = sampleMotionFrames(page, 10_000);
+  await waitForNetworkDoneVisualRevealPending(page);
+  const diag = await readChatDiagnostics(page);
+  expect(diag.followLatest).toBe(true);
+  expect(diag.manualDetached).toBe(false);
+  const frames = await framesPromise;
+  assertContinuousMotion(frames, opts.viewportHeight ?? 520);
+}
+
 test.describe("General chat live reading follow — production browser", () => {
   test.describe.configure({ retries: 0, timeout: 120_000 });
 
@@ -354,7 +420,7 @@ test.describe("General chat live reading follow — production browser", () => {
           key,
           JSON.stringify({
             ...defaults,
-            streamIntervalMs: 25,
+            streamIntervalMs: 28,
             streamCharsPerTick: 4,
           })
         );
@@ -398,7 +464,7 @@ test.describe("General chat live reading follow — production browser", () => {
     expect(postNetwork.smoothWindowScroll).toBe(0);
 
     const frames = await framesPromise;
-    assertMotionFrames(frames, 520);
+    assertContinuousMotion(frames, 520);
 
     await page.waitForFunction(
       () => {
@@ -499,6 +565,29 @@ test.describe("General chat live reading follow — production browser", () => {
     expect(afterY - beforeY).toBeLessThan(40);
   });
 
+  test("P0-4: live-follow programmatic scroll does not self-detach followLatest", async ({ page }) => {
+    const finalText = longAssistantProse(1400);
+    await mockChatStreamRoute(page, finalText);
+    await page.setViewportSize({ width: 1280, height: 520 });
+    await openFreshChat(page);
+    await sendMockMessage(page, "no self detach");
+
+    await waitForAssistantStreamSentinel(page);
+    const violations = await page.evaluate(async () => {
+      const hits: number[] = [];
+      const start = performance.now();
+      while (performance.now() - start < 10_000) {
+        const follow = document
+          .querySelector("[data-chat-live-reading-active]")
+          ?.getAttribute("data-chat-follow-latest");
+        if (follow === "false") hits.push(performance.now() - start);
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+      return hits;
+    });
+    expect(violations).toEqual([]);
+  });
+
   test("P0-12: ArrowUp in textarea does not detach live follow", async ({ page }) => {
     const finalText = longAssistantProse(480);
     await mockChatStreamRoute(page, finalText);
@@ -514,5 +603,59 @@ test.describe("General chat live reading follow — production browser", () => {
     const diag = await readChatDiagnostics(page);
     expect(diag.followLatest).toBe(true);
     expect(diag.manualDetached).toBe(false);
+  });
+});
+
+test.describe("General chat continuous follow matrix — production browser", () => {
+  test.describe.configure({ retries: 0, timeout: 180_000 });
+
+  test.beforeEach(async ({ page }) => {
+    await installScrollAudit(page);
+    await demoLogin(page);
+  });
+
+  test("G1: portrait ON plain prose continuous flow", async ({ page }) => {
+    await installChatDisplayPrefs(page, { showCharacterPortrait: true, streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await runContinuousFollowScenario(page, { charCount: 1400 });
+  });
+
+  test("G2: portrait OFF plain prose continuous flow", async ({ page }) => {
+    await installChatDisplayPrefs(page, { showCharacterPortrait: false, streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await runContinuousFollowScenario(page, { charCount: 1400 });
+  });
+
+  test("G3: bottom status widget continuous flow", async ({ page }) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await runContinuousFollowScenario(page, { charCount: 1400, layoutChrome: "widget" });
+  });
+
+  test("G4: status meta continuous flow", async ({ page }) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await runContinuousFollowScenario(page, { charCount: 1400, layoutChrome: "meta" });
+  });
+
+  test("G5: status widget + status meta continuous flow", async ({ page }) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await runContinuousFollowScenario(page, { charCount: 1400, layoutChrome: "both" });
+  });
+
+  test("G6: long RP 2500+ chars continuous flow", async ({ page }) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await runContinuousFollowScenario(page, { charCount: 2600 });
+  });
+
+  test("G7: fast stream speed (28ms) continuous flow", async ({ page }) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await runContinuousFollowScenario(page, { charCount: 1400 });
+  });
+
+  test("G8: normal stream speed (40ms) continuous flow", async ({ page }) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 40, streamCharsPerTick: 4 });
+    await runContinuousFollowScenario(page, { charCount: 1400 });
+  });
+
+  test("G9: instant stream mode continuous flow", async ({ page }) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 0, streamCharsPerTick: 4 });
+    await runContinuousFollowScenario(page, { charCount: 1400 });
   });
 });

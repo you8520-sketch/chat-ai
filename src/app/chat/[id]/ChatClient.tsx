@@ -172,7 +172,9 @@ import {
   resolveActiveAssistantStreamEnd,
   resolveFollowBeforeStream,
   shouldDetachChatLiveFollowOnKey,
+  shouldDetachChatLiveFollowOnScrollDelta,
   shouldDetachChatLiveFollowOnWheel,
+  shouldIgnoreChatLiveFollowScrollForDetach,
   shouldSkipChatLiveFollowKeydown,
   shouldStartChatStreamFollow,
 } from "@/lib/chatLiveFollow";
@@ -1606,6 +1608,8 @@ export default function ChatClient({
   const activeAssistantStreamRequestIdRef = useRef<string | null>(null);
   const streamingMessageArticleRef = useRef<HTMLElement | null>(null);
   const liveFollowAnimatorRef = useRef<LiveReadingFollowController | null>(null);
+  const liveFollowScrollInFlightRef = useRef(false);
+  const lastFollowScrollYRef = useRef(0);
   const streamResizeObserverRef = useRef<ResizeObserver | null>(null);
   const scrollRafRef = useRef<number | null>(null);
   const applyEmotionRef = useRef<
@@ -2218,7 +2222,11 @@ export default function ChatClient({
     liveFollowAnimatorRef.current = createLiveReadingFollowController({
       getViewportHeight: () => window.innerHeight,
       scrollBy: (delta) => {
+        liveFollowScrollInFlightRef.current = true;
         window.scrollBy({ top: delta, behavior: "instant" });
+        requestAnimationFrame(() => {
+          liveFollowScrollInFlightRef.current = false;
+        });
       },
       resolveTargetElement: () =>
         resolveActiveAssistantStreamEnd({
@@ -2231,6 +2239,7 @@ export default function ChatClient({
           followLatest: followStreamRef.current,
           manualDetached: userScrollLockRef.current,
         }) && isChatLiveReadingActiveNow(),
+      motionProfile: { mode: "continuous-flow" },
     });
     return () => {
       liveFollowAnimatorRef.current?.stop();
@@ -2277,20 +2286,53 @@ export default function ChatClient({
 
   useEffect(() => {
     let touchStartY = 0;
+    if (typeof window !== "undefined") {
+      lastFollowScrollYRef.current = window.scrollY;
+    }
 
     const onScroll = () => {
+      const currentScrollY = window.scrollY;
+      const scrollDeltaPx = currentScrollY - lastFollowScrollYRef.current;
+      lastFollowScrollYRef.current = currentScrollY;
+      const liveReadingActive = isChatLiveReadingActiveNow();
+      const programmaticScrollInFlight = liveFollowScrollInFlightRef.current;
+
       if (userScrollLockRef.current) {
         if (isNearBottom()) {
           userScrollLockRef.current = false;
           followStreamRef.current = true;
-          if (isChatLiveReadingActiveNow()) {
+          if (liveReadingActive) {
             notifyChatLiveFollowTargetUpdate();
           }
         } else {
           followStreamRef.current = false;
         }
+        syncChatFollowDiagnostics();
         return;
       }
+
+      if (
+        shouldDetachChatLiveFollowOnScrollDelta({
+          liveReadingActive,
+          scrollDeltaPx,
+          programmaticScrollInFlight,
+        })
+      ) {
+        detachChatLiveFollow();
+        syncChatFollowDiagnostics();
+        return;
+      }
+
+      if (
+        shouldIgnoreChatLiveFollowScrollForDetach({
+          liveReadingActive,
+          programmaticScrollInFlight,
+        })
+      ) {
+        syncChatFollowDiagnostics();
+        return;
+      }
+
       followStreamRef.current = isNearBottom();
       syncChatFollowDiagnostics();
     };
