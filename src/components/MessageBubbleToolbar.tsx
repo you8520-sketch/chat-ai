@@ -3,7 +3,9 @@
 import { useState, type ReactNode } from "react";
 import { buildBillingReceipt } from "@/lib/billingDisplay";
 import type { Usage } from "@/lib/chatUsage";
+import type { UserMessageBillingSummary } from "@/lib/storedTurnChargeEvidenceShared";
 import BillingReceiptTooltip from "./BillingReceiptTooltip";
+import BillingChargeStatusTooltip from "./BillingChargeStatusTooltip";
 import ConfirmDialog from "./ConfirmDialog";
 import ReportRefundButton from "./ReportRefundButton";
 import BookmarkTitleDialog from "./BookmarkTitleDialog";
@@ -67,6 +69,7 @@ export default function MessageBubbleToolbar({
   variantPicker,
   compact = false,
   showFullReceipt = false,
+  billingChargeSummary,
 }: {
   role: "user" | "assistant";
   messageId?: number;
@@ -96,6 +99,8 @@ export default function MessageBubbleToolbar({
   compact?: boolean;
   /** 관리자·데모유저 — 영수증 전체 필드 */
   showFullReceipt?: boolean;
+  /** Stored charge evidence when usage receipt is unavailable. */
+  billingChargeSummary?: UserMessageBillingSummary | null;
 }) {
   const [busy, setBusy] = useState(false);
   const [confirmKind, setConfirmKind] = useState<ConfirmKind | null>(null);
@@ -290,7 +295,7 @@ export default function MessageBubbleToolbar({
             )}
           </div>
 
-          {(showReportRefund || receipt) && (
+          {(showReportRefund || receipt || billingChargeSummary) && (
             <div className="ml-auto flex shrink-0 items-center gap-1 self-end">
               {showReportRefund && role === "assistant" && (
                 <ReportRefundButton
@@ -313,6 +318,9 @@ export default function MessageBubbleToolbar({
                   showFullReceipt={showFullReceipt}
                   messageId={messageId}
                 />
+              )}
+              {!receipt && billingChargeSummary && (
+                <BillingChargeStatusTooltip summary={billingChargeSummary} />
               )}
             </div>
           )}

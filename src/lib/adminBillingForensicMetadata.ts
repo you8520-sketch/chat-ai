@@ -12,6 +12,7 @@ import type {
   AdminBillingForensicFxEvidence,
   AdminBillingForensicMetadata,
 } from "@/lib/adminBillingForensicMetadataShared";
+import type { StoredTurnChargeEvidence } from "@/lib/storedTurnChargeEvidenceShared";
 
 export type {
   AdminBillingForensicFxEvidence,
@@ -61,10 +62,13 @@ export function buildAdminBillingForensicMetadata(input: {
   assistantMessageId: number;
   chatId: number;
   requestId: string | null;
-  usage: Usage;
+  usage: Usage | null;
   deductionSlicesRaw: string | null;
+  generationStatus?: string | null;
+  chargeEvidence?: StoredTurnChargeEvidence;
 }): AdminBillingForensicMetadata {
-  const dispatch = input.usage.billingContractDispatch;
+  const usage = input.usage;
+  const dispatch = usage?.billingContractDispatch;
   const slices = parseStoredDeductionSlices(input.deductionSlicesRaw);
   const sliceTotals = sumDeductionSliceTotals(slices);
 
@@ -91,20 +95,24 @@ export function buildAdminBillingForensicMetadata(input: {
   const billingEvidenceStatus: AdminBillingForensicMetadata["billingEvidenceStatus"] =
     dispatch?.billingContract != null
       ? "complete"
-      : input.usage.cost != null
+      : usage?.cost != null
         ? "missing_stored_dispatch"
-        : "partial";
+        : input.chargeEvidence?.status === "charged" ||
+            input.chargeEvidence?.status === "not_charged"
+          ? "partial"
+          : "partial";
 
   let finalChargeConsistency: FinalChargeConsistencySnapshot | null = null;
   if (
+    usage &&
     storedFinalUserChargePoints != null &&
     storedSettledDeductedPoints != null &&
-    Number.isFinite(input.usage.cost)
+    Number.isFinite(usage.cost)
   ) {
     finalChargeConsistency = evaluateFinalChargeConsistency({
       finalUserChargePoints: storedFinalUserChargePoints,
       settledDeductionPoints: storedSettledDeductedPoints,
-      usageCostPoints: input.usage.cost,
+      usageCostPoints: usage.cost,
       deductionSlices: slices,
     });
   }
@@ -113,9 +121,9 @@ export function buildAdminBillingForensicMetadata(input: {
     assistantMessageId: input.assistantMessageId,
     chatId: input.chatId,
     requestId: input.requestId,
-    selectedModelId: input.usage.selectedAI?.trim() || null,
+    selectedModelId: usage?.selectedAI?.trim() || null,
     deliveredModelId:
-      dispatch?.deliveredModelId?.trim() || input.usage.model?.trim() || null,
+      dispatch?.deliveredModelId?.trim() || usage?.model?.trim() || null,
     billingContract: dispatch?.billingContract ?? null,
     billingContractReason: dispatch?.billingContractReason ?? null,
     publishedCandidateStatus: dispatch?.publishedCandidateStatus ?? null,
@@ -124,33 +132,43 @@ export function buildAdminBillingForensicMetadata(input: {
     publishedFinalPoints: dispatch?.publishedFinalPoints ?? null,
     legacyFinalPoints: dispatch?.legacyFinalPoints ?? null,
     settledDeductedPoints: dispatch?.settledDeductedPoints ?? null,
-    usageCost: Number.isFinite(input.usage.cost) ? input.usage.cost : null,
+    usageCost:
+      usage && Number.isFinite(usage.cost)
+        ? usage.cost
+        : input.chargeEvidence?.settledPoints ?? null,
     deductionSliceTotal: slices.length > 0 ? sliceTotals.total : null,
     billingEvidenceStatus,
-    billingInputTokens: Number.isFinite(input.usage.input) ? input.usage.input : null,
-    billingOutputTokens: Number.isFinite(input.usage.output) ? input.usage.output : null,
+    billingInputTokens:
+      usage && Number.isFinite(usage.input) ? usage.input : null,
+    billingOutputTokens:
+      usage && Number.isFinite(usage.output) ? usage.output : null,
     apiInputTokens:
-      input.usage.apiInputTokens != null && Number.isFinite(input.usage.apiInputTokens)
-        ? input.usage.apiInputTokens
+      usage?.apiInputTokens != null && Number.isFinite(usage.apiInputTokens)
+        ? usage.apiInputTokens
         : null,
     apiOutputTokens:
-      input.usage.apiOutputTokens != null && Number.isFinite(input.usage.apiOutputTokens)
-        ? input.usage.apiOutputTokens
+      usage?.apiOutputTokens != null && Number.isFinite(usage.apiOutputTokens)
+        ? usage.apiOutputTokens
         : null,
     reasoningTokens:
-      input.usage.apiReasoningOutputTokens != null &&
-      Number.isFinite(input.usage.apiReasoningOutputTokens)
-        ? input.usage.apiReasoningOutputTokens
+      usage?.apiReasoningOutputTokens != null &&
+      Number.isFinite(usage.apiReasoningOutputTokens)
+        ? usage.apiReasoningOutputTokens
         : null,
     cacheReadTokens:
-      input.usage.cacheReadTokens != null && Number.isFinite(input.usage.cacheReadTokens)
-        ? input.usage.cacheReadTokens
+      usage?.cacheReadTokens != null && Number.isFinite(usage.cacheReadTokens)
+        ? usage.cacheReadTokens
         : null,
     cacheWriteTokens:
-      input.usage.cacheWriteTokens != null && Number.isFinite(input.usage.cacheWriteTokens)
-        ? input.usage.cacheWriteTokens
+      usage?.cacheWriteTokens != null && Number.isFinite(usage.cacheWriteTokens)
+        ? usage.cacheWriteTokens
         : null,
-    fx: resolveStoredFxEvidence(input.usage),
+    fx: usage ? resolveStoredFxEvidence(usage) : { available: false, status: "UNAVAILABLE" },
     finalChargeConsistency,
+    generationStatus: input.generationStatus ?? null,
+    chargeStatus: input.chargeEvidence?.status,
+    usageSnapshotAvailable: usage != null,
+    chargeEvidenceStatus: input.chargeEvidence?.evidenceStatus,
+    chargeEvidenceViolations: input.chargeEvidence?.violations,
   };
 }

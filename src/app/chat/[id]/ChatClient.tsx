@@ -50,6 +50,7 @@ import {
   sanitizeGenerationPreparationUi,
   type GenerationPreparationUiPayload,
 } from "@/lib/generationPreparationUi";
+import type { UserMessageBillingSummary } from "@/lib/storedTurnChargeEvidenceShared";
 import type { MessageVariant } from "@/lib/messageAlternates";
 import {
   assetByUrl,
@@ -339,6 +340,8 @@ type Msg = {
   canonAdopted?: boolean;
   /** Server/client: newer canonical RP progress exists after this OOC scene. */
   canonAdoptionStale?: boolean;
+  /** Server-derived stored charge evidence when usage receipt is unavailable. */
+  billingChargeSummary?: UserMessageBillingSummary | null;
   /** UI 전용 — DB 미저장 */
   ephemeral?: boolean;
 };
@@ -4479,6 +4482,7 @@ export default function ChatClient({
           variantPicker={variantPicker}
           compact={!showCharacterPortrait}
           showFullReceipt={showFullBillingReceipt}
+          billingChargeSummary={m.billingChargeSummary ?? null}
           onToast={setToastMsg}
           onBookmarkChange={(id, on) => {
             setBookmarkedIds((prev) => {

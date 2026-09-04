@@ -9,6 +9,8 @@ import {
   serializeUsageForPublicClient,
 } from "@/lib/billingReceiptAccess";
 import { getReportStatusesForMessages } from "@/lib/refund";
+import { shouldAttachClientBillingChargeSummary } from "@/lib/clientBillingChargeSummary";
+import { buildUserMessageBillingSummary } from "@/lib/messageBillingSummaryServer";
 
 import { findAssetsByTag, parseAssets, chatAssets, type CharacterAsset } from "@/lib/characterAssets";
 import { resolveEmotionTag, stripEmotionTag } from "@/lib/emotionTag";
@@ -310,7 +312,7 @@ export default async function ChatPage({
 
   let rawMessages = db
     .prepare(
-      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, suggested_replies_json, created_at, request_id, generation_status FROM messages WHERE chat_id=? ORDER BY id ASC"
+      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, suggested_replies_json, created_at, request_id, generation_status, deduction_slices FROM messages WHERE chat_id=? ORDER BY id ASC"
     )
     .all(chat.id) as {
     id: number;
@@ -328,6 +330,7 @@ export default async function ChatPage({
     created_at: string;
     request_id: string | null;
     generation_status: string | null;
+    deduction_slices: string | null;
   }[];
 
   if (rawMessages.length > 0) {
@@ -340,7 +343,7 @@ export default async function ChatPage({
   if (recoverStaleInFlightAssistantMessages(db, chat.id, rawMessages) > 0) {
     rawMessages = db
       .prepare(
-        "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, suggested_replies_json, created_at, request_id, generation_status FROM messages WHERE chat_id=? ORDER BY id ASC"
+        "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, suggested_replies_json, created_at, request_id, generation_status, deduction_slices FROM messages WHERE chat_id=? ORDER BY id ASC"
       )
       .all(chat.id) as typeof rawMessages;
   }
@@ -408,6 +411,27 @@ export default async function ChatPage({
       ? (activeVariantSnapshot?.statusWidgetValues ?? null)
       : parseStoredStatusWidgetValuesJson(m.status_widget_values_json);
     const suggestedRepliesFields = resolveClientSuggestedReplies(suggestedRepliesRecord);
+    const billingChargeSummary =
+      m.role === "assistant" &&
+      shouldAttachClientBillingChargeSummary(activeUsage, m.generation_status)
+        ? buildUserMessageBillingSummary({
+            userId: user.id,
+            chatId: chat.id,
+            row: {
+              id: m.id,
+              chat_id: chat.id,
+              role: m.role,
+              content: m.content,
+              model: m.model,
+              usage: m.usage,
+              alternates: m.alternates,
+              active_variant: m.active_variant,
+              request_id: m.request_id,
+              generation_status: m.generation_status,
+              deduction_slices: m.deduction_slices,
+            },
+          })
+        : null;
     return {
       id: m.id,
       role: m.role,
@@ -433,6 +457,7 @@ export default async function ChatPage({
       oocSceneRender: oocFlags.oocSceneRender,
       canonAdopted: oocFlags.canonAdopted,
       canonAdoptionStale: staleAdoptionIds.has(m.id),
+      billingChargeSummary,
     };
   });
 

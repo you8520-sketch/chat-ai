@@ -26,6 +26,8 @@ import {
   locatePrivilegedAssistantMessage,
   type AdminBillingReceiptLocator,
 } from "@/lib/adminBillingMessageLocator";
+import { resolveStoredTurnChargeEvidence } from "@/lib/storedTurnChargeEvidence";
+import { billingModelDisplayName } from "@/lib/billingDisplay";
 
 export type LoadAdminBillingReceiptV3Result =
   | { ok: true; receipt: AdminBillingReceiptV3 }
@@ -44,6 +46,8 @@ type AssistantMessageDbRow = {
   status_meta: string | null;
   deduction_slices: string | null;
   created_at: string;
+  chat_id: number;
+  user_id: number;
 };
 
 function resolveMemoryTaskForGeneration(
@@ -59,11 +63,51 @@ function loadAssistantMessageRow(messageId: number): AssistantMessageDbRow | und
   const db = getDb();
   return db
     .prepare(
-      `SELECT id, content, model, usage, alternates, active_variant, request_id, generation_status,
-              suggested_replies_json, status_meta, deduction_slices, created_at
-       FROM messages WHERE id=?`
+      `SELECT m.id, m.content, m.model, m.usage, m.alternates, m.active_variant, m.request_id,
+              m.generation_status, m.suggested_replies_json, m.status_meta, m.deduction_slices,
+              m.created_at, m.chat_id, c.user_id
+       FROM messages m
+       JOIN chats c ON c.id = m.chat_id
+       WHERE m.id=?`
     )
     .get(messageId) as AssistantMessageDbRow | undefined;
+}
+
+function resolveUsageFromMessageRow(messageRow: AssistantMessageDbRow): Usage | null {
+  const { variants, activeVariant } = normalizeMessageVariants(messageRow);
+  const activeVariantUsage = variants[activeVariant]?.usage;
+  if (activeVariantUsage) return activeVariantUsage;
+  if (!messageRow.usage?.trim()) return null;
+  try {
+    return JSON.parse(messageRow.usage) as Usage;
+  } catch {
+    return null;
+  }
+}
+
+function buildStubUsageForChargeEvidence(input: {
+  messageRow: AssistantMessageDbRow;
+  usage: Usage | null;
+  chargeEvidence: ReturnType<typeof resolveStoredTurnChargeEvidence>;
+}): Usage {
+  const base = input.usage ?? ({} as Usage);
+  const settledPoints = input.chargeEvidence.settledPoints ?? 0;
+  const model = base.model ?? input.messageRow.model ?? "unknown";
+  return {
+    input: base.input ?? 0,
+    output: base.output ?? 0,
+    model,
+    modelLabel:
+      base.modelLabel ??
+      (base.selectedAI ? billingModelDisplayName(base.selectedAI) : model),
+    selectedAI: base.selectedAI,
+    provider: base.provider,
+    route: base.route ?? "safe",
+    cost: settledPoints,
+    breakdown: base.breakdown ?? [],
+    billingWaived: input.chargeEvidence.status === "not_charged",
+    billingContractDispatch: base.billingContractDispatch,
+  };
 }
 
 /** Canonical receipt assembly — stored truth only, no ownership filter. */
@@ -81,17 +125,35 @@ function assembleAdminBillingReceiptV3FromMessage(input: {
     return { ok: false, error: "generation scope를 확인할 수 없습니다.", status: 400 };
   }
 
-  const { variants, activeVariant } = normalizeMessageVariants(messageRow);
-  const activeVariantUsage = variants[activeVariant]?.usage;
-  let usage: Usage | null = activeVariantUsage ?? null;
-  if (!usage && messageRow.usage?.trim()) {
-    try {
-      usage = JSON.parse(messageRow.usage) as Usage;
-    } catch {
-      usage = null;
-    }
-  }
+  const storedUsage = resolveUsageFromMessageRow(messageRow);
+  const db = getDb();
+  const chargeEvidence = resolveStoredTurnChargeEvidence(db, {
+    userId: messageRow.user_id,
+    chatId: input.chatId,
+    assistantMessageId: input.messageId,
+    requestId: messageRow.request_id,
+    generationStatus: messageRow.generation_status,
+    deductionSlicesRaw: messageRow.deduction_slices,
+    usage: storedUsage,
+    model: messageRow.model,
+  });
+
+  const usage =
+    storedUsage ??
+    (chargeEvidence.status === "charged" ||
+    chargeEvidence.status === "not_charged" ||
+    chargeEvidence.status === "unknown"
+      ? buildStubUsageForChargeEvidence({
+          messageRow,
+          usage: storedUsage,
+          chargeEvidence,
+        })
+      : null);
+
   if (!usage) {
+    if (chargeEvidence.status === "pending") {
+      return { ok: false, error: "생성이 아직 진행 중입니다.", status: 409 };
+    }
     return { ok: false, error: "usage 스냅샷이 없습니다.", status: 404 };
   }
 
@@ -109,7 +171,6 @@ function assembleAdminBillingReceiptV3FromMessage(input: {
     ? rawStatusMeta
     : null;
 
-  const db = getDb();
   const allLedgerRows = listProviderCostEventsForAssistantMessage(input.messageId, db);
   const { scopedRows, hasUnscopedRows } = filterLedgerRowsForGenerationScope(
     allLedgerRows,
@@ -136,11 +197,35 @@ function assembleAdminBillingReceiptV3FromMessage(input: {
     assistantMessageId: input.messageId,
     chatId: input.chatId,
     requestId: messageRow.request_id,
-    usage,
+    usage: storedUsage,
     deductionSlicesRaw: messageRow.deduction_slices,
+    generationStatus: messageRow.generation_status,
+    chargeEvidence,
   });
 
-  return { ok: true, receipt: { ...receipt, forensic } };
+  const historicalNote = storedUsage
+    ? receipt.historicalNote
+    : "usage 스냅샷 없음 — 저장된 정산/차감 증거만 표시";
+
+  return {
+    ok: true,
+    receipt: {
+      ...receipt,
+      historicalNote,
+      syncReceipt: {
+        ...receipt.syncReceipt,
+        historicalNote: storedUsage
+          ? receipt.syncReceipt.historicalNote
+          : historicalNote,
+        snapshotAvailable: storedUsage ? receipt.syncReceipt.snapshotAvailable : false,
+      },
+      wholeTurn: {
+        ...receipt.wholeTurn,
+        coverage: storedUsage ? receipt.wholeTurn.coverage : "unverifiable",
+      },
+      forensic,
+    },
+  };
 }
 
 /** Normal user ownership path — assertMessageAccess semantics unchanged. */

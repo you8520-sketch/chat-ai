@@ -27,6 +27,8 @@ import {
   type ChatMessageLike,
 } from "@/lib/chatMessagePagination";
 import { getReportStatusesForMessages } from "@/lib/refund";
+import { shouldAttachClientBillingChargeSummary } from "@/lib/clientBillingChargeSummary";
+import { buildUserMessageBillingSummary } from "@/lib/messageBillingSummaryServer";
 import { collectStaleOocAdoptionIds, readOocSceneClientFlags } from "@/lib/oocSceneRender";
 
 type DbMessageRow = {
@@ -45,13 +47,15 @@ type DbMessageRow = {
   created_at: string;
   request_id: string | null;
   generation_status: string | null;
+  deduction_slices: string | null;
 };
 
 function mapDbMessageForClient(
   m: DbMessageRow,
   userNote?: string,
   reportStatus: "none" | "pending" | "approved" | "rejected" = "none",
-  keepInternalAdultRouting = false
+  keepInternalAdultRouting = false,
+  billingContext?: { userId: number; chatId: number }
 ) {
   const { variants, activeVariant } = normalizeMessageVariants(m);
   const variantMeta = serializeVariantsForClient(variants, activeVariant, {
@@ -89,6 +93,28 @@ function mapDbMessageForClient(
     ? (activeVariantSnapshot?.statusWidgetValues ?? null)
     : parseStoredStatusWidgetValuesJson(m.status_widget_values_json);
   const suggestedRepliesFields = resolveClientSuggestedReplies(suggestedRepliesRecord);
+  const billingChargeSummary =
+    billingContext &&
+    m.role === "assistant" &&
+    shouldAttachClientBillingChargeSummary(activeUsage, m.generation_status)
+      ? buildUserMessageBillingSummary({
+          userId: billingContext.userId,
+          chatId: billingContext.chatId,
+          row: {
+            id: m.id,
+            chat_id: billingContext.chatId,
+            role: m.role,
+            content: m.content,
+            model: m.model,
+            usage: m.usage,
+            alternates: m.alternates,
+            active_variant: m.active_variant,
+            request_id: m.request_id,
+            generation_status: m.generation_status,
+            deduction_slices: m.deduction_slices,
+          },
+        })
+      : null;
 
   return {
     id: m.id,
@@ -113,6 +139,7 @@ function mapDbMessageForClient(
     reportStatus,
     oocSceneRender: oocFlags.oocSceneRender,
     canonAdopted: oocFlags.canonAdopted,
+    billingChargeSummary,
   };
 }
 
@@ -157,7 +184,7 @@ export async function GET(req: Request) {
 
   let rawMessages = db
     .prepare(
-      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, suggested_replies_json, created_at, request_id, generation_status FROM messages WHERE chat_id=? ORDER BY id ASC"
+      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, suggested_replies_json, created_at, request_id, generation_status, deduction_slices FROM messages WHERE chat_id=? ORDER BY id ASC"
     )
     .all(chatId) as DbMessageRow[];
 
@@ -174,13 +201,16 @@ export async function GET(req: Request) {
   );
   const keepInternalAdultRouting = keepInternalAdultRoutingForUser(user);
 
+  const billingContext = { userId: user.id, chatId };
+
   const mapped = attachCanonAdoptionStale(
     rawMessages.map((m) =>
       mapDbMessageForClient(
         m,
         chat.user_note ?? undefined,
         reportStatusByMessageId.get(m.id) ?? "none",
-        keepInternalAdultRouting
+        keepInternalAdultRouting,
+        billingContext
       )
     ),
     rawMessages
@@ -204,7 +234,8 @@ export async function GET(req: Request) {
         r,
         chat.user_note ?? undefined,
         reportStatusByMessageId.get(r.id) ?? "none",
-        keepInternalAdultRouting
+        keepInternalAdultRouting,
+        billingContext
       )
     );
 

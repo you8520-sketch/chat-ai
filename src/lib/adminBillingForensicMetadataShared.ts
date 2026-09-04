@@ -1,4 +1,8 @@
 import type { FinalChargeConsistencySnapshot } from "@/lib/chatBillingFinalCharge";
+import type {
+  StoredTurnChargeEvidenceStatus,
+  StoredTurnChargeStatus,
+} from "@/lib/storedTurnChargeEvidenceShared";
 
 export type AdminBillingForensicFxEvidence =
   | {
@@ -38,4 +42,9 @@ export type AdminBillingForensicMetadata = {
   cacheWriteTokens: number | null;
   fx: AdminBillingForensicFxEvidence;
   finalChargeConsistency: FinalChargeConsistencySnapshot | null;
+  generationStatus?: string | null;
+  chargeStatus?: StoredTurnChargeStatus;
+  usageSnapshotAvailable?: boolean;
+  chargeEvidenceStatus?: StoredTurnChargeEvidenceStatus;
+  chargeEvidenceViolations?: string[];
 };
