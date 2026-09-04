@@ -85,6 +85,8 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.match(block, /강압·비동의·CNC/);
     assert.match(block, /\[19\+ INTIMACY\]/);
     assert.match(block, /해부학적 명칭/);
+    assert.match(block, /'좁은 곳', '은밀한 곳'/);
+    assert.match(block, /신체 부위의 이름을 장소·대명사·완곡어로 돌려 쓰지 않는다/);
     assert.match(block, /신체 행동은 접촉·자세·방향·강도·리듬/);
     assert.match(block, /대사량은 캐릭터 성격과 현재 장면에 맡기며/);
     assert.doesNotMatch(block, /티키타카/);
@@ -109,6 +111,7 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
   it("exports NSFW intimacy section constant", () => {
     assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /\[19\+ INTIMACY\]/);
     assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /신체 행동은 접촉·자세·방향·강도·리듬/);
+    assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /정확한 표준 해부학적 명칭/);
     assert.doesNotMatch(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /티키타카/);
   });
 
