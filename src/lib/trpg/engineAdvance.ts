@@ -12,6 +12,14 @@ import {
   toBillingBreakdown,
 } from "./economics";
 import { logTrpgRoundEconomics, observeTrpgRoundEconomics } from "./roundEconomics";
+import {
+  loadBillableRoundUsage,
+  loadRoundUsageEntries,
+  tagBotRoundUsage,
+  tagGmRoundUsage,
+  toModelUsageCalls,
+  type TrpgRoundUsageEntry,
+} from "./roundUsage";
 import { isTrpgActionType, pickStatForAction } from "./actionTypes";
 import { logTrpgMechanicsCheckTelemetry } from "./mechanicsObservability";
 import {
@@ -227,7 +235,7 @@ function persistGmRoundFailure(
   const failure = buildTrpgRoundErrorJson({
     error,
     reachedOpeningRound: true,
-    gmUsageCount: loadRoundUsage(db, roundId).length,
+    gmUsageCount: loadRoundUsageEntries(db, roundId).length,
     model: TRPG_GM_MODEL,
   });
   const errorJson = JSON.stringify(failure);
@@ -390,7 +398,7 @@ export async function regenerateTrpgNarration(
       buildTrpgRoundErrorJson({
         error: e,
         reachedOpeningRound: true,
-        gmUsageCount: loadRoundUsage(db, target.id).length,
+        gmUsageCount: loadRoundUsageEntries(db, target.id).length,
         model: TRPG_GM_MODEL,
       })
     );
@@ -1130,7 +1138,7 @@ async function generateBotActions(
       pre: adjudicationPre,
       deps: opts.deps,
     });
-    appendRoundUsage(db, opts.roundId, usage ?? TRPG_BOT_USAGE_FALLBACK);
+    appendRoundUsage(db, opts.roundId, tagBotRoundUsage(usage ?? TRPG_BOT_USAGE_FALLBACK));
     refreshBotGenerationHeartbeat(db, opts.roundId, opts.requestId);
     earlier.push({ name: bot.display_name, text: body });
   }
@@ -1358,15 +1366,21 @@ async function runGmForRound(
     draftCoalescer?.flush();
     if (opts.requestId) {
       if (
-        !appendGmRoundUsageForGeneration(db, opts.roundId, opts.requestId, usage ?? TRPG_GM_USAGE_FALLBACK, {
+        !appendGmRoundUsageForGeneration(
+          db,
+          opts.roundId,
+          opts.requestId,
+          tagGmRoundUsage(usage ?? TRPG_GM_USAGE_FALLBACK, opts.requestId),
+          {
           trackRerollUsage: opts.regenerate === true,
-        })
+        }
+        )
       ) {
         logStaleOwnerDiscard(opts.roundId, opts.requestId, "usage");
         throw new StaleGmGenerationOwnerError();
       }
     } else {
-      appendRoundUsage(db, opts.roundId, usage ?? TRPG_GM_USAGE_FALLBACK);
+      appendRoundUsage(db, opts.roundId, tagGmRoundUsage(usage ?? TRPG_GM_USAGE_FALLBACK, "legacy-gm"));
     }
     const integrity = assessGmCompletionIntegrity(text, { finishReason });
     console.info("[TRPG][gm] completion_integrity", {
@@ -1593,7 +1607,7 @@ function appendGmRoundUsageForGeneration(
   db: Database.Database,
   roundId: number,
   generationId: string,
-  usage: TrpgModelUsage,
+  usage: TrpgRoundUsageEntry,
   opts?: { trackRerollUsage?: boolean }
 ): boolean {
   return db.transaction(() => {
@@ -1603,13 +1617,13 @@ function appendGmRoundUsageForGeneration(
       | { usage_json: string | null; gm_reroll_usage_json: string | null }
       | undefined;
     if (!row) return false;
-    const next = [...parseJson(row.usage_json, [] as TrpgModelUsage[]), usage];
+    const next = [...parseJson(row.usage_json, [] as TrpgRoundUsageEntry[]), usage];
     const info = db
       .prepare(`UPDATE trpg_rounds SET usage_json=? WHERE id=? AND gm_generation_id=?`)
       .run(JSON.stringify(next), roundId, generationId);
     if (info.changes !== 1) return false;
     if (!opts?.trackRerollUsage) return true;
-    const rerollNext = [...parseJson(row.gm_reroll_usage_json, [] as TrpgModelUsage[]), usage];
+    const rerollNext = [...parseJson(row.gm_reroll_usage_json, [] as TrpgRoundUsageEntry[]), usage];
     const rerollInfo = db
       .prepare(`UPDATE trpg_rounds SET gm_reroll_usage_json=? WHERE id=? AND gm_generation_id=?`)
       .run(JSON.stringify(rerollNext), roundId, generationId);
@@ -1687,15 +1701,8 @@ export function billRerollGenerationExactlyOnce(
   }
 }
 
-function loadRoundUsage(db: Database.Database, roundId: number): TrpgModelUsage[] {
-  const row = db.prepare(`SELECT usage_json FROM trpg_rounds WHERE id=?`).get(roundId) as
-    | { usage_json: string | null }
-    | undefined;
-  return parseJson(row?.usage_json, [] as TrpgModelUsage[]);
-}
-
-function appendRoundUsage(db: Database.Database, roundId: number, usage: TrpgModelUsage): void {
-  const next = [...loadRoundUsage(db, roundId), usage];
+function appendRoundUsage(db: Database.Database, roundId: number, usage: TrpgRoundUsageEntry): void {
+  const next = [...loadRoundUsageEntries(db, roundId), usage];
   db.prepare(`UPDATE trpg_rounds SET usage_json=? WHERE id=?`).run(JSON.stringify(next), roundId);
 }
 
@@ -1709,11 +1716,13 @@ function maybeBillRound(
     billed: number;
   };
   if (row.billed === 1) return;
-  const calls = loadRoundUsage(db, roundId);
-  chargeTrpgCalls(db, campaign, roundId, calls.length ? calls : [TRPG_GM_USAGE_FALLBACK], {
+  const actualCalls = loadRoundUsageEntries(db, roundId);
+  const billableCalls = loadBillableRoundUsage(db, roundId);
+  chargeTrpgCalls(db, campaign, roundId, billableCalls.length ? billableCalls : [{ ...TRPG_GM_USAGE_FALLBACK }], {
     addToBilled: false,
     skip: deps?.skipBilling === true,
     billingFault: deps?.billingFault,
+    actualCalls,
   });
 }
 
@@ -1737,8 +1746,13 @@ function chargeTrpgCalls(
   db: Database.Database,
   campaign: TrpgCampaignRow,
   roundId: number,
-  calls: TrpgModelUsage[],
-  opts: { addToBilled: boolean; skip: boolean; billingFault?: TrpgEngineDeps["billingFault"] }
+  calls: TrpgRoundUsageEntry[],
+  opts: {
+    addToBilled: boolean;
+    skip: boolean;
+    billingFault?: TrpgEngineDeps["billingFault"];
+    actualCalls?: TrpgRoundUsageEntry[];
+  }
 ): void {
   if (opts.skip) {
     if (!opts.addToBilled) {
@@ -1749,7 +1763,7 @@ function chargeTrpgCalls(
   let substage: TrpgBillingSubstage = "pricing_quote";
   try {
     throwBillingFault(substage, opts.billingFault, "billing fault: pricing_quote");
-    const addPoints = computeTrpgRoundPoints(calls);
+    const addPoints = computeTrpgRoundPoints(toModelUsageCalls(calls));
     if (addPoints <= 0) {
       if (!opts.addToBilled) {
         db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=0 WHERE id=?`).run(roundId);
@@ -1853,13 +1867,15 @@ function chargeTrpgCalls(
     substage = "economics_observation";
     throwBillingFault(substage, opts.billingFault, "billing fault: economics_observation");
     const breakdownBase = toBillingBreakdown(quote);
+    const actualProviderCalls = opts.actualCalls ?? calls;
     const economics = observeTrpgRoundEconomics({
       breakdown: breakdownBase,
       billingMode,
       paidPointsSpent,
       freePointsSpent,
       actualCreatorCpCredited,
-      calls,
+      calls: toModelUsageCalls(calls),
+      actualProviderCalls: toModelUsageCalls(actualProviderCalls),
     });
     logTrpgRoundEconomics(economics);
     const breakdown = JSON.stringify({ ...breakdownBase, economics });
