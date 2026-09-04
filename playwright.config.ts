@@ -38,9 +38,10 @@ export default defineConfig({
     ? undefined
     : {
         command:
-          `bash -c "npm run build && ` +
-          `NODE_ENV=production PLAYWRIGHT_PROD_SERVER=1 DATA_DIR=${PLAYWRIGHT_DATA_DIR} SESSION_SECRET=dev-test-session-secret-32chars-minimum ` +
-          `TRPG_SCROLL_FOLLOW_LAB_ENABLED=1 PORT=${PROD_TEST_PORT} npm run start"`,
+          `bash -c "export SESSION_SECRET=dev-test-session-secret-32chars-minimum ` +
+          `PLAYWRIGHT_PROD_SERVER=1 DATA_DIR=${PLAYWRIGHT_DATA_DIR} ` +
+          `TRPG_SCROLL_FOLLOW_LAB_ENABLED=1 PORT=${PROD_TEST_PORT} && ` +
+          `npm run build && NODE_ENV=production npm run start"`,
         url: PROD_TEST_BASE_URL,
         reuseExistingServer: false,
         timeout: 180_000,
