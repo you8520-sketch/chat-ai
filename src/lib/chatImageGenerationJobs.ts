@@ -33,6 +33,7 @@ export type ChatImageGenerationJobRow = {
   result_url: string | null;
   error_message: string | null;
   failure_diagnostic_json: string | null;
+  provider_attempts_json: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -64,6 +65,9 @@ export function ensureChatImageGenerationJobSchema(db: Database.Database = getDb
   }>;
   if (!columns.some((column) => column.name === "failure_diagnostic_json")) {
     db.exec("ALTER TABLE chat_image_generation_jobs ADD COLUMN failure_diagnostic_json TEXT");
+  }
+  if (!columns.some((column) => column.name === "provider_attempts_json")) {
+    db.exec("ALTER TABLE chat_image_generation_jobs ADD COLUMN provider_attempts_json TEXT");
   }
   ensured = true;
 }
@@ -113,6 +117,7 @@ export function finishChatImageGenerationJob(opts: {
   resultUrl?: string | null;
   errorMessage?: string | null;
   failureDiagnosticJson?: string | null;
+  providerAttemptsJson?: string | null;
   db?: Database.Database;
 }): void {
   if (opts.jobId == null) return;
@@ -121,13 +126,14 @@ export function finishChatImageGenerationJob(opts: {
     ensureChatImageGenerationJobSchema(db);
     db.prepare(
       `UPDATE chat_image_generation_jobs
-          SET status=?, result_url=?, error_message=?, failure_diagnostic_json=?, updated_at=datetime('now')
+          SET status=?, result_url=?, error_message=?, failure_diagnostic_json=?, provider_attempts_json=?, updated_at=datetime('now')
         WHERE id=? AND status='running'`
     ).run(
       opts.status,
       opts.resultUrl ?? null,
       opts.errorMessage ?? null,
       opts.failureDiagnosticJson ?? null,
+      opts.providerAttemptsJson ?? null,
       opts.jobId
     );
   } catch (error) {

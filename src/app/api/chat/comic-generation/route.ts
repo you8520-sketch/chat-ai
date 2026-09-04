@@ -27,7 +27,6 @@ import {
   buildLdDuoGenerationPlan,
   buildLdSceneGenerationPlan,
   buildTrpgIllustrationSituation,
-  formatOpenAiImageUserError,
   resolveChatLdIllustrationPrice,
   type ChatLdIllustrationCastMember,
   withIllustrationReferenceIndices,
@@ -120,13 +119,24 @@ import {
 } from "@/lib/userPersonasClient";
 import {
   OpenAiImageError,
-  callOpenAiImageEdit,
 } from "@/lib/openAiImageEdit";
 import {
   formatOpenAiImageFailureDiagnosticForAdmin,
   serializeOpenAiImageFailureDiagnostic,
   type OpenAiImageFailureDiagnostic,
 } from "@/lib/openAiImageFailureDiagnostic";
+import {
+  callOpenAiImageEditWithSafetyFallback,
+  formatOpenAiImageFinalUserError,
+  OpenAiImageGenerationError,
+  serializeOpenAiImageProviderAttempts,
+  type OpenAiImageProviderAttemptRecord,
+} from "@/lib/openAiImageSafetyFallback";
+import {
+  buildStrictComicFallbackPrompt,
+  buildStrictLdDuoFallbackPrompt,
+  buildStrictLdPartyFallbackPrompt,
+} from "@/lib/chatImageStrictSafetyFallbackPrompt";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -184,7 +194,8 @@ class RequestError extends Error {
   constructor(
     message: string,
     public status = 400,
-    public imageFailureDiagnostic?: OpenAiImageFailureDiagnostic
+    public imageFailureDiagnostic?: OpenAiImageFailureDiagnostic,
+    public providerAttempts?: OpenAiImageProviderAttemptRecord[]
   ) {
     super(message);
     this.name = "RequestError";
@@ -640,20 +651,24 @@ async function imageSourceToDataUrl(source: string): Promise<string> {
 async function generateComicImage(opts: {
   model: string;
   prompt: string;
+  strictFallbackPrompt: string;
   references: string[];
   panelCount: ChatComicPanelCount;
-}): Promise<{ buffer: Buffer; costUsd: number | null }> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 285_000);
+}): Promise<{
+  buffer: Buffer;
+  costUsd: number | null;
+  safetyFallbackUsed: boolean;
+  providerAttempts: OpenAiImageProviderAttemptRecord[];
+}> {
   try {
-    const generated = await callOpenAiImageEdit({
+    const generated = await callOpenAiImageEditWithSafetyFallback({
       model: opts.model,
-      prompt: opts.prompt,
+      primaryPrompt: opts.prompt,
+      strictFallbackPrompt: opts.strictFallbackPrompt,
       references: opts.references,
       size: resolveChatComicOutputSize(opts.panelCount),
       quality: "medium",
       outputCompression: 84,
-      signal: controller.signal,
       templateId: CHAT_COMIC_TEMPLATE_ID,
       mode: "comic",
     });
@@ -671,12 +686,22 @@ async function generateComicImage(opts: {
     return {
       buffer: output,
       costUsd: generated.costUsd,
+      safetyFallbackUsed: generated.safetyFallbackUsed,
+      providerAttempts: generated.providerAttempts,
     };
   } catch (error) {
     if (error instanceof RequestError) throw error;
+    if (error instanceof OpenAiImageGenerationError) {
+      throw new RequestError(
+        formatOpenAiImageFinalUserError(error.message),
+        error.status,
+        error.diagnostic,
+        error.providerAttempts
+      );
+    }
     if (error instanceof OpenAiImageError) {
       throw new RequestError(
-        formatOpenAiImageUserError(error.message),
+        formatOpenAiImageFinalUserError(error.message),
         error.status,
         error.diagnostic
       );
@@ -685,27 +710,29 @@ async function generateComicImage(opts: {
       throw new RequestError("컷만화 생성 시간이 초과되었습니다. 다시 시도해 주세요.", 504);
     }
     throw new RequestError("OpenAI 컷만화 이미지 생성 중 오류가 발생했습니다.", 502);
-  } finally {
-    clearTimeout(timer);
   }
 }
 
 async function generateLdIllustrationImage(opts: {
   model: string;
   prompt: string;
+  strictFallbackPrompt: string;
   references: string[];
-}): Promise<{ buffer: Buffer; costUsd: number | null }> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 285_000);
+}): Promise<{
+  buffer: Buffer;
+  costUsd: number | null;
+  safetyFallbackUsed: boolean;
+  providerAttempts: OpenAiImageProviderAttemptRecord[];
+}> {
   try {
-    const generated = await callOpenAiImageEdit({
+    const generated = await callOpenAiImageEditWithSafetyFallback({
       model: opts.model,
-      prompt: opts.prompt,
+      primaryPrompt: opts.prompt,
+      strictFallbackPrompt: opts.strictFallbackPrompt,
       references: opts.references,
       size: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
       quality: CHAT_LD_ILLUSTRATION_QUALITY,
       outputCompression: 86,
-      signal: controller.signal,
       templateId: CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
       mode: "illustration",
     });
@@ -725,12 +752,20 @@ async function generateLdIllustrationImage(opts: {
         .webp({ quality: 90, effort: 4 })
         .toBuffer();
     }
-    return { buffer: output, costUsd: generated.costUsd };
+    return { buffer: output, costUsd: generated.costUsd, safetyFallbackUsed: generated.safetyFallbackUsed, providerAttempts: generated.providerAttempts };
   } catch (error) {
     if (error instanceof RequestError) throw error;
+    if (error instanceof OpenAiImageGenerationError) {
+      throw new RequestError(
+        formatOpenAiImageFinalUserError(error.message),
+        error.status,
+        error.diagnostic,
+        error.providerAttempts
+      );
+    }
     if (error instanceof OpenAiImageError) {
       throw new RequestError(
-        formatOpenAiImageUserError(error.message),
+        formatOpenAiImageFinalUserError(error.message),
         error.status,
         error.diagnostic
       );
@@ -739,8 +774,6 @@ async function generateLdIllustrationImage(opts: {
       throw new RequestError("LD 일러스트 생성 시간이 초과되었습니다. 다시 시도해 주세요.", 504);
     }
     throw new RequestError("OpenAI LD 일러스트 생성 중 오류가 발생했습니다.", 502);
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -914,6 +947,7 @@ export async function POST(req: Request) {
       let trpgImageSceneDiagnosticsPayload: TrpgImageSceneDiagnosticsPayload | null = null;
       let requestedTrpgSceneMode: TrpgImageSceneMode = TRPG_IMAGE_SCENE_MODE_DEFAULT;
       let prompt: string;
+      let strictFallbackPrompt: string;
       if (campaignId) {
         trpgScene = loadTrpgIllustrationScene(getDb(), {
           campaignId,
@@ -1010,6 +1044,10 @@ export async function POST(req: Request) {
           subjects: partyPlan?.subjects,
           situation,
         });
+        strictFallbackPrompt = buildStrictLdPartyFallbackPrompt({
+          cast,
+          subjects: partyPlan!.subjects,
+        });
       } else {
         const source = resolveSceneSource({
           chatId: context.chatId,
@@ -1052,6 +1090,13 @@ export async function POST(req: Request) {
         });
         prompt = plan.prompt;
         referenceUrls = plan.referenceUrls;
+        strictFallbackPrompt = buildStrictLdDuoFallbackPrompt({
+          characterName: context.character.name,
+          characterGender: context.characterGender,
+          personaName: context.persona.name,
+          personaGender: context.personaGender,
+          subjects: plan.subjects,
+        });
       }
       startJob(CHAT_LD_ILLUSTRATION_TEMPLATE_ID, "illustration");
       const references = await Promise.all(
@@ -1061,6 +1106,7 @@ export async function POST(req: Request) {
       const generated = await generateLdIllustrationImage({
         model,
         prompt,
+        strictFallbackPrompt,
         references,
       });
 
@@ -1141,7 +1187,15 @@ export async function POST(req: Request) {
         });
       }
 
-      finishChatImageGenerationJob({ jobId, status: "completed", resultUrl });
+      finishChatImageGenerationJob({
+        jobId,
+        status: "completed",
+        resultUrl,
+        providerAttemptsJson:
+          generated.providerAttempts.length > 0
+            ? serializeOpenAiImageProviderAttempts(generated.providerAttempts)
+            : null,
+      });
       jobId = null;
 
       const totalCostKrw =
@@ -1253,6 +1307,19 @@ export async function POST(req: Request) {
       contentKind: context.contentKind,
     });
     const prompt = identityPack.prompt;
+    const strictFallbackPrompt = buildStrictComicFallbackPrompt({
+      panelCount,
+      mood,
+      characterName: context.character.name,
+      characterGender: context.characterGender,
+      personaName: context.persona.name,
+      personaGender: context.personaGender,
+      subjects: identityPack.subjects,
+      castManifest,
+      castSelected: castManifest?.subjects.filter((subject) => subject.included),
+      contentKind: context.contentKind,
+      plan: scenePlan,
+    });
     const references = await Promise.all(
       identityPack.referenceUrls.map((url) => imageSourceToDataUrl(url))
     );
@@ -1260,6 +1327,7 @@ export async function POST(req: Request) {
     const generated = await generateComicImage({
       model,
       prompt,
+      strictFallbackPrompt,
       references,
       panelCount,
     });
@@ -1329,7 +1397,15 @@ export async function POST(req: Request) {
       });
     }
 
-    finishChatImageGenerationJob({ jobId, status: "completed", resultUrl });
+    finishChatImageGenerationJob({
+      jobId,
+      status: "completed",
+      resultUrl,
+      providerAttemptsJson:
+        generated.providerAttempts.length > 0
+          ? serializeOpenAiImageProviderAttempts(generated.providerAttempts)
+          : null,
+    });
     jobId = null;
 
     const totalCostKrw =
@@ -1372,12 +1448,17 @@ export async function POST(req: Request) {
     const message = error instanceof Error ? error.message : "컷만화 생성에 실패했습니다.";
     const diagnostic =
       error instanceof RequestError ? error.imageFailureDiagnostic : undefined;
+    const providerAttempts =
+      error instanceof RequestError ? error.providerAttempts : undefined;
     finishChatImageGenerationJob({
       jobId,
       status: "failed",
       errorMessage: message,
       failureDiagnosticJson: diagnostic
         ? serializeOpenAiImageFailureDiagnostic(diagnostic)
+        : null,
+      providerAttemptsJson: providerAttempts?.length
+        ? serializeOpenAiImageProviderAttempts(providerAttempts)
         : null,
     });
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });

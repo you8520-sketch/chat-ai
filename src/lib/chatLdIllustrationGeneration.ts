@@ -68,16 +68,9 @@ export {
  */
 export { ILLUSTRATION_SAFE_DEPICTION as ILLUSTRATION_SAFETY_LEGACY } from "@/lib/chatImageIllustrationSanitizer";
 
-/** Map upstream OpenAI Images safety rejections to a clearer Korean retry hint. */
-export function formatOpenAiImageUserError(message: string): string {
-  const raw = String(message ?? "").trim();
-  if (/safety_violations\s*=\s*\[[^\]]*self-harm/i.test(raw) || /self-harm/i.test(raw)) {
-    return "이미지 안전 필터가 장면 묘사를 오해해 거절했습니다. 상처·피·손목·자해 비유 표현을 순화한 뒤 다시 시도해 주세요.";
-  }
-  if (/rejected by the safety system/i.test(raw)) {
-    return "이미지 안전 필터에 의해 거절되었습니다. 장면 표현을 순화한 뒤 다시 시도해 주세요.";
-  }
-  return raw || "이미지 생성에 실패했습니다.";
+/** Map upstream OpenAI Images failures to a generic product message (final failure only). */
+export function formatOpenAiImageUserError(_message?: string): string {
+  return "이미지를 생성하지 못했습니다. 장면을 조금 바꿔 다시 시도해 주세요.";
 }
 
 export type ChatLdIllustrationCastMember = {
