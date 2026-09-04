@@ -7,11 +7,13 @@ export const CREATOR_SPROUT_MIN_CHARACTERS = 2;
 export const CREATOR_REWARD_RATE = 0.08;
 export const CREATOR_STANDARD_MIN_CHARACTERS = 2;
 export const CREATOR_STANDARD_MIN_TOTAL_CHATS = 5_000;
-/** 프로: 기존 조건을 유지하되 공개(검수 통과) 캐릭터 기준은 5개+ */
+/** 프로: 공개 캐릭터 5개+ & 다른 이용자의 통합 대화 10만+ & 월간 소비 200만P+ */
 export const CREATOR_REWARD_RATE_PRO = 0.12;
 export const CREATOR_PRO_MIN_CHARACTERS = 5;
 export const CREATOR_PRO_MIN_TOTAL_CHATS = 100_000;
 export const CREATOR_PRO_MIN_MONTHLY_SPENT = 2_000_000;
+export const CREATOR_PRO_TERM_MONTHS = 3;
+export const CREATOR_PRO_RENEWAL_MAINTENANCE_RATE = 0.75;
 /** 파트너: 공개(검수 통과) 캐릭터 10개+ & 월간 소비 500만P+ */
 export const CREATOR_REWARD_RATE_PARTNER = 0.15;
 export const CREATOR_PARTNER_MIN_CHARACTERS = 10;
@@ -36,6 +38,8 @@ export type CreatorTierStats = {
   publicCharacterCount: number;
   totalChats: number;
   monthlySpentOnChars: number;
+  /** 이미 승급해 현재 3개월 보장 기간 안에 있는지 여부 */
+  hasActiveProTerm?: boolean;
 };
 
 /** 등급과 CP 적립률의 canonical owner. 상위 등급 조건부터 판정한다. */
@@ -44,8 +48,10 @@ export function resolveCreatorTier(stats: CreatorTierStats): {
   rewardRate: number;
 } {
   if (
-    stats.publicCharacterCount >= CREATOR_PRO_MIN_CHARACTERS &&
-    stats.monthlySpentOnChars >= CREATOR_PRO_MIN_MONTHLY_SPENT
+    stats.hasActiveProTerm ||
+    (stats.publicCharacterCount >= CREATOR_PRO_MIN_CHARACTERS &&
+      stats.totalChats >= CREATOR_PRO_MIN_TOTAL_CHATS &&
+      stats.monthlySpentOnChars >= CREATOR_PRO_MIN_MONTHLY_SPENT)
   ) {
     return { tierLevel: "pro", rewardRate: CREATOR_REWARD_RATE_PRO };
   }
