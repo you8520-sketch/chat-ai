@@ -192,7 +192,7 @@ export function bootstrapStreamingTurn(
 
     db.prepare(
       `UPDATE messages SET content='', generation_status='generating', request_id=?, is_refunded=0,
-       alternates=?, active_variant=?,
+       alternates=?, active_variant=?, deduction_slices=NULL,
        status_meta=NULL, status_widget_values_json='', status_widget_turn_active=0,
        memory_relationship_task_json=NULL,
        updated_at=datetime('now') WHERE id=? AND chat_id=?`
