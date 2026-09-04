@@ -551,6 +551,9 @@ describe("chatBillingSettlement — legacy bridge", () => {
   });
 
   it("regen stale slices must not false-positive legacy bridge (197 requested, 49 stale)", () => {
+    // Unit-level isolation for SETTLEMENT_LEGACY_PROVENANCE_GUARD only.
+    // Production-equivalent integration uses bootstrapStreamingTurn — see
+    // geminiPublishedBillingRegenRegression.test.ts (no SQL request_id substitute).
     const dir = mkdtempSync(join(tmpdir(), "billing-settle-"));
     const dbPath = join(dir, "test.db");
     try {
