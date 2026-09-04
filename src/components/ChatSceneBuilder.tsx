@@ -328,7 +328,24 @@ function ComicPanelDialogueEditor({
     personaVisible,
     includeOther,
   });
-  const defaultSpeaker = personaVisible ? "persona" : "character";
+  const resolveNextSpeaker = (): { speaker: "persona" | "character" | "other"; speakerName?: string } => {
+    if (panel.dialogue.length > 0) {
+      const lastLine = panel.dialogue[panel.dialogue.length - 1]!;
+      if (lastLine.speaker === "persona") {
+        return { speaker: "character", speakerName: undefined };
+      }
+      if (lastLine.speaker === "character" && personaVisible) {
+        return { speaker: "persona", speakerName: undefined };
+      }
+    }
+    if (!personaVisible) {
+      return { speaker: "character", speakerName: undefined };
+    }
+    if (panel.characterAction && !panel.personaAction) {
+      return { speaker: "character", speakerName: undefined };
+    }
+    return { speaker: "persona", speakerName: undefined };
+  };
 
   const visibleDialogue = panel.dialogue.filter(
     (line) => personaVisible || line.speaker !== "persona"
@@ -384,7 +401,8 @@ function ComicPanelDialogueEditor({
         type="button"
         disabled={disabled}
         onClick={() => {
-          onPlanChange(addPanelDialogueLine(plan, panel.index, defaultSpeaker));
+          const next = resolveNextSpeaker();
+          onPlanChange(addPanelDialogueLine(plan, panel.index, next.speaker, next.speakerName));
         }}
         className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
       >

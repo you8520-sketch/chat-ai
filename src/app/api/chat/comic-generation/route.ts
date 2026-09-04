@@ -66,10 +66,12 @@ import {
   formatSceneSourcePreview,
   isScenePanelCount,
   reflowScenePlanPanels,
+  resolveScenePresentationVisibility,
   validateScenePlan,
   type ScenePlan,
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
+import { renderComicTextOverlay } from "@/lib/chatComicTextOverlay";
 import { planChatImageScene } from "@/lib/chatImageScenePlanner";
 import {
   assertChatImageScenePlanRateLimit,
@@ -1345,10 +1347,25 @@ export async function POST(req: Request) {
       panelCount,
     });
 
+    const sceneVisibility = resolveScenePresentationVisibility({
+      contentKind: context.contentKind,
+      castManifest,
+    });
+
+    const overlayedBuffer = await renderComicTextOverlay({
+      imageBuffer: generated.buffer,
+      panelCount,
+      plan: scenePlan,
+      visibility: sceneVisibility,
+      isSafetyFallback: generated.safetyFallbackUsed,
+      adultGrounded: false,
+      subjects: identityPack.subjects,
+    });
+
     await fs.mkdir(uploadsDataDir(), { recursive: true });
     const filename = `ai-comic-${panelCount}p-${crypto.randomUUID()}.webp`;
     savedPath = path.join(uploadsDataDir(), filename);
-    await fs.writeFile(savedPath, generated.buffer);
+    await fs.writeFile(savedPath, overlayedBuffer);
     const resultUrl = uploadPublicUrl(filename);
 
     const totalCostUsd = generated.knownProviderCostUsd;
