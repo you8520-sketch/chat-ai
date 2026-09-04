@@ -218,6 +218,24 @@ type LegacyBridgeState =
       assistantMessageId: number;
     };
 
+/** Prior settlement on the same assistant row under a different request_id (regen identity). */
+function hasPriorSettlementForAssistantRegeneration(
+  db: Database.Database,
+  chatId: number,
+  assistantMessageId: number,
+  requestId: string,
+  chargeKind: string
+): boolean {
+  const row = db
+    .prepare(
+      `SELECT 1 FROM chat_billing_settlements
+       WHERE chat_id = ? AND assistant_message_id = ? AND charge_kind = ? AND request_id != ?
+       LIMIT 1`
+    )
+    .get(chatId, assistantMessageId, chargeKind, requestId);
+  return row != null;
+}
+
 function findLegacyBridgeState(
   db: Database.Database,
   chatId: number,
@@ -440,7 +458,25 @@ function settleWithinTransaction(
   }
 
   const legacy = findLegacyBridgeState(db, input.chatId, input.requestId);
-  if (legacy?.kind === "valid") {
+  if (
+    legacy?.kind === "valid" &&
+    hasPriorSettlementForAssistantRegeneration(
+      db,
+      input.chatId,
+      legacy.assistantMessageId,
+      input.requestId,
+      chargeKind
+    )
+  ) {
+    console.info("[ChatBillingSettlement] stale_regeneration_slices_ignored", {
+      userId: input.userId,
+      chatId: input.chatId,
+      requestId: input.requestId,
+      assistantMessageId: legacy.assistantMessageId,
+      staleSliceTotal: legacy.settledPoints,
+      requestedPoints,
+    });
+  } else if (legacy?.kind === "valid") {
     persistMessageDeductionSlices(
       db,
       legacy.assistantMessageId,
