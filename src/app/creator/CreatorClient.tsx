@@ -8,7 +8,7 @@ import CommentsEnabledToggle from "@/components/CommentsEnabledToggle";
 import CreatorNotificationPrefs from "@/components/CreatorNotificationPrefs";
 import {
   CREATOR_PRO_MIN_CHARACTERS,
-  CREATOR_PRO_MIN_MONTHLY_SPENT,
+  CREATOR_PRO_MIN_TOTAL_CHATS,
   CREATOR_REWARD_RATE,
   CREATOR_REWARD_RATE_PRO,
   CREATOR_REWARD_RATE_SPROUT,
@@ -80,9 +80,8 @@ function allTierConditions(
   const standardMet =
     t.publicCharacterCount >= CREATOR_STANDARD_MIN_CHARACTERS &&
     t.totalChats >= CREATOR_STANDARD_MIN_TOTAL_CHATS;
-  const proMet =
-    t.publicCharacterCount >= CREATOR_PRO_MIN_CHARACTERS &&
-    t.monthlySpentOnChars >= CREATOR_PRO_MIN_MONTHLY_SPENT;
+  // 월간 소비 및 3개월 유지 여부는 서버에서 판정하고, 안내 문구에는 "기타 조건"으로만 노출한다.
+  const proMet = t.tierLevel === "pro";
 
   return [
     {
@@ -107,8 +106,8 @@ function allTierConditions(
       key: "pro",
       label: "프로",
       ratePct: proPct,
-      condition: `공개 캐릭터 ${CREATOR_PRO_MIN_CHARACTERS}개+ · 월간 소비 ${CREATOR_PRO_MIN_MONTHLY_SPENT.toLocaleString()}P+`,
-      current: `현재 공개 ${t.publicCharacterCount}개 · 월간 ${t.monthlySpentOnChars.toLocaleString()}P`,
+      condition: `공개 캐릭터 ${CREATOR_PRO_MIN_CHARACTERS}개 이상 · 총 대화 수 ${CREATOR_PRO_MIN_TOTAL_CHATS.toLocaleString()}회 이상 · 기타 조건 충족 시 자동 등업`,
+      current: `현재 공개 ${t.publicCharacterCount}개 · 총 대화 수 ${t.totalChats.toLocaleString()}회`,
       met: proMet,
       isCurrent: t.tierLevel === "pro",
     },

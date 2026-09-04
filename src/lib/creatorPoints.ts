@@ -26,6 +26,7 @@ import {
 } from "./creatorShared";
 import { getWithdrawalEligibility, personNamesMatch } from "./withdrawalEligibility";
 import { listCreatorNotices } from "./creatorNotices";
+import { syncProTierStatus } from "./creatorProTier";
 
 export {
   CREATOR_PRO_MIN_CHARACTERS,
@@ -123,7 +124,13 @@ export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
   const charRow = db
     .prepare(
       `SELECT COUNT(*) AS character_count,
-              COALESCE(SUM(chats_count), 0) AS total_chats
+              COALESCE(SUM(MAX(0,
+                chats_count - CASE WHEN EXISTS (
+                  SELECT 1 FROM chats
+                  WHERE chats.character_id = characters.id
+                    AND chats.user_id = characters.creator_id
+                ) THEN 1 ELSE 0 END
+              )), 0) AS total_chats
        FROM characters
        WHERE creator_id = ? AND official = 0`
     )
@@ -150,12 +157,18 @@ export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
   const publicCharacterCount = Number(publicCharRow?.public_character_count ?? 0);
   const totalChats = Number(charRow?.total_chats ?? 0);
   const monthlySpentOnChars = roundAmount(Number(monthlyRow?.monthly_spent ?? 0));
+  const hasActiveProTerm = syncProTierStatus(db, creatorId, {
+    publicCharacterCount,
+    totalChats,
+    monthlySpentOnChars,
+  });
 
   const { tierLevel, rewardRate } = resolveCreatorTier({
     characterCount,
     publicCharacterCount,
     totalChats,
     monthlySpentOnChars,
+    hasActiveProTerm,
   });
 
   return {
