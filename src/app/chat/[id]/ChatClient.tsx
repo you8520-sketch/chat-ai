@@ -1609,6 +1609,7 @@ export default function ChatClient({
   const streamingMessageArticleRef = useRef<HTMLElement | null>(null);
   const liveFollowAnimatorRef = useRef<LiveReadingFollowController | null>(null);
   const liveFollowScrollInFlightRef = useRef(false);
+  const liveFollowScrollRemainderRef = useRef(0);
   const lastFollowScrollYRef = useRef(0);
   const streamResizeObserverRef = useRef<ResizeObserver | null>(null);
   const scrollRafRef = useRef<number | null>(null);
@@ -2180,6 +2181,7 @@ export default function ChatClient({
   const reattachChatLiveFollow = useCallback(() => {
     userScrollLockRef.current = false;
     followStreamRef.current = true;
+    liveFollowScrollRemainderRef.current = 0;
     syncChatFollowDiagnostics();
     if (isChatLiveReadingActiveNow()) {
       liveFollowAnimatorRef.current?.notifyTargetUpdate();
@@ -2222,8 +2224,13 @@ export default function ChatClient({
     liveFollowAnimatorRef.current = createLiveReadingFollowController({
       getViewportHeight: () => window.innerHeight,
       scrollBy: (delta) => {
+        if (delta === 0) return;
+        liveFollowScrollRemainderRef.current += delta;
+        const applied = Math.trunc(liveFollowScrollRemainderRef.current);
+        if (applied === 0) return;
+        liveFollowScrollRemainderRef.current -= applied;
         liveFollowScrollInFlightRef.current = true;
-        window.scrollBy({ top: delta, behavior: "instant" });
+        window.scrollBy({ top: applied, behavior: "instant" });
         requestAnimationFrame(() => {
           liveFollowScrollInFlightRef.current = false;
         });
@@ -2239,6 +2246,8 @@ export default function ChatClient({
           followLatest: followStreamRef.current,
           manualDetached: userScrollLockRef.current,
         }) && isChatLiveReadingActiveNow(),
+      isContentGrowing: () =>
+        visualRevealPendingCountRef.current > 0 || loading || inFlightRef.current,
       motionProfile: { mode: "continuous-flow" },
     });
     return () => {

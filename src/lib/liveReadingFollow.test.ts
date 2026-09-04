@@ -53,6 +53,7 @@ describe("liveReadingFollow continuous motion", () => {
       },
       resolveTargetElement: () => el,
       shouldFollow: () => true,
+      isContentGrowing: () => true,
       motionProfile: { mode: "continuous-flow", targetSmoothingTimeSec: 0.5 },
       requestAnimationFrame: raf.requestAnimationFrame,
       cancelAnimationFrame: raf.cancelAnimationFrame,

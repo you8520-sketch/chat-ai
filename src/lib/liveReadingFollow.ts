@@ -12,8 +12,9 @@ export const LIVE_FOLLOW_ANIMATOR_EPSILON_PX = 2;
 export const LIVE_FOLLOW_TAIL_SPACER_RATIO = 0.38;
 
 export const LIVE_FOLLOW_CONTINUOUS_DEFAULT_SMOOTHING_SEC = 0.65;
-export const LIVE_FOLLOW_CONTINUOUS_MIN_CRUISE_PX_PER_SEC = 16;
+export const LIVE_FOLLOW_CONTINUOUS_MIN_CRUISE_PX_PER_SEC = 140;
 export const LIVE_FOLLOW_CONTINUOUS_GROWTH_MATCH = 0.9;
+export const LIVE_FOLLOW_CONTINUOUS_GROWTH_FLOOR_PX_PER_SEC = 32;
 
 export type LiveReadingMotionMode = "stepwise-chase" | "continuous-flow";
 
@@ -230,12 +231,20 @@ function updateEstimatedGrowthPxPerSec(opts: {
   previousSampleMs: number | null;
   nowMs: number;
   currentEstimate: number;
+  contentGrowing?: boolean;
 }): number {
-  if (opts.previousRawTop == null || opts.previousSampleMs == null) return opts.currentEstimate;
-  if (opts.rawTop <= opts.previousRawTop) return opts.currentEstimate * 0.92;
+  const floor = opts.contentGrowing ? LIVE_FOLLOW_CONTINUOUS_GROWTH_FLOOR_PX_PER_SEC : 0;
+  if (opts.previousRawTop == null || opts.previousSampleMs == null) {
+    return Math.max(floor, opts.currentEstimate);
+  }
+  if (opts.rawTop <= opts.previousRawTop) {
+    const decayed = opts.currentEstimate * (opts.contentGrowing ? 0.96 : 0.92);
+    return Math.max(floor, decayed);
+  }
   const dtSec = Math.max(0.001, (opts.nowMs - opts.previousSampleMs) / 1000);
   const instant = (opts.rawTop - opts.previousRawTop) / dtSec;
-  return opts.currentEstimate * 0.7 + instant * 0.3;
+  const blended = opts.currentEstimate * 0.7 + instant * 0.3;
+  return Math.max(floor, blended);
 }
 
 /** Single shared motion engine — TRPG and chat supply their own target resolver. */
@@ -248,6 +257,8 @@ export function createLiveReadingFollowController(opts: {
   baseSpeedPxPerSec?: number;
   maxCatchUpSpeedPxPerSec?: number;
   motionProfile?: LiveReadingMotionProfile;
+  /** When true, continuous-flow keeps cruising while content is still revealing. */
+  isContentGrowing?: () => boolean;
   prefersReducedMotion?: () => boolean;
   requestAnimationFrame?: (fn: FrameRequestCallback) => number;
   cancelAnimationFrame?: (id: number) => void;
@@ -311,6 +322,7 @@ export function createLiveReadingFollowController(opts: {
       previousSampleMs: previousGrowthSampleMs,
       nowMs: timestamp,
       currentEstimate: estimatedGrowthPxPerSec,
+      contentGrowing: opts.isContentGrowing?.() ?? false,
     });
     previousRawEndTop = rawEndTop;
     previousGrowthSampleMs = timestamp;
@@ -344,11 +356,13 @@ export function createLiveReadingFollowController(opts: {
             baseSpeedPxPerSec: opts.baseSpeedPxPerSec,
             maxCatchUpSpeedPxPerSec: opts.maxCatchUpSpeedPxPerSec,
           });
-    } else if (continuous && !reducedMotion()) {
+    }
+
+    if (continuous && !reducedMotion() && (opts.isContentGrowing?.() ?? false) && delta >= 0) {
       const growthMatch = profile?.growthMatchFactor ?? LIVE_FOLLOW_CONTINUOUS_GROWTH_MATCH;
       const minCruise = profile?.minCruiseVelocityPxPerSec ?? LIVE_FOLLOW_CONTINUOUS_MIN_CRUISE_PX_PER_SEC;
       const cruiseVelocity = Math.max(minCruise, estimatedGrowthPxPerSec * growthMatch);
-      if (cruiseVelocity > 0) step = cruiseVelocity * dtSec;
+      step = Math.max(step, cruiseVelocity * dtSec);
     }
 
     if (step !== 0) opts.scrollBy(step);
