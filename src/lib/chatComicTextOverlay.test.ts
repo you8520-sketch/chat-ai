@@ -9,6 +9,7 @@ import {
   layoutPanelNarration,
   extractPanelSfxCue,
   renderComicTextOverlay,
+  countLayoutOverlaps,
   BUBBLE_OWNER,
   NARRATION_OWNER,
   SFX_OWNER,
@@ -524,5 +525,21 @@ describe("Comic Text Layer: UI & Editor Parity Tests (U1-U3)", () => {
     assert.ok(svg.includes("speech-bubble"), "Must render speech bubble elements");
     assert.ok(svg.includes("#shadow"), "Must include drop shadow filter");
     assert.ok(svg.includes("내가 좋아?"), "Must include bubble text");
+  });
+
+  it("O5: bubble layout resolves overlaps within a panel", () => {
+    const dialogue: SceneDialogue[] = [
+      { speaker: "persona", text: "첫 번째 긴 대사입니다.", provenance: "source" },
+      { speaker: "persona", text: "두 번째 긴 대사입니다.", provenance: "source" },
+      { speaker: "character", text: "세 번째 반응 대사.", provenance: "source" },
+    ];
+    const bubbles = layoutPanelBubbles({
+      dialogue,
+      panelX: 0,
+      panelY: 0,
+      panelWidth: 400,
+      panelHeight: 350,
+    });
+    assert.equal(countLayoutOverlaps(bubbles), 0, "Bubble overlaps must be zero after layout");
   });
 });
