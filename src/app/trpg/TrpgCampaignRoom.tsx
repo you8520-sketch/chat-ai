@@ -150,6 +150,7 @@ import {
   resolveEffectiveActorRevealComplete,
   mergeActorRevealReport,
   handleTrpgLiveSceneResizeGrowth,
+  isTrpgLiveProseFollowOwner,
   scheduleTrpgReadingBandEndFollow,
   shouldDetachLiveFollowOnUserIntent,
   shouldShowTrpgReplySuggestions,
@@ -158,6 +159,13 @@ import {
   type GmRevealReport,
   type TrpgLiveFollowOwner,
 } from "@/lib/trpg/followLatest";
+import {
+  createEmptyActiveDeclarationEndRef,
+  createLiveStreamFollowController,
+  resolveActorScopedDeclarationEnd,
+  TRPG_LIVE_FOLLOW_TAIL_SPACER_RATIO,
+  type LiveStreamFollowController,
+} from "@/lib/trpg/liveStreamFollow";
 import {
   formatLiveTurnProcessStatus,
   isLiveTurnCinematicMotion,
@@ -389,8 +397,9 @@ export default function TrpgCampaignRoom({
   const bottomRef = useRef<HTMLDivElement>(null);
   const narrationStartRef = useRef<HTMLDivElement | null>(null);
   const narrationEndRef = useRef<HTMLSpanElement | null>(null);
-  const declarationEndRef = useRef<HTMLSpanElement | null>(null);
+  const activeDeclarationEndRef = useRef(createEmptyActiveDeclarationEndRef());
   const declarationGrowthRef = useRef<HTMLDivElement | null>(null);
+  const liveFollowAnimatorRef = useRef<LiveStreamFollowController | null>(null);
   const activePresentationCardRef = useRef<HTMLDivElement | null>(null);
   const liveGmRevealStateRef = useRef({ complete: false, progressive: false });
   const narrationFollowRafRef = useRef<number | null>(null);
@@ -1344,6 +1353,7 @@ export default function TrpgCampaignRoom({
   }, [toast]);
 
   const cancelPendingFollowScroll = useCallback(() => {
+    liveFollowAnimatorRef.current?.stop();
     if (narrationFollowRafRef.current != null) {
       window.cancelAnimationFrame(narrationFollowRafRef.current);
       narrationFollowRafRef.current = null;
@@ -1425,18 +1435,70 @@ export default function TrpgCampaignRoom({
   );
 
   const resolveActiveDeclarationEndElement = useCallback((): Element | null => {
-    if (declarationEndRef.current) return declarationEndRef.current;
-    return liveSceneRef.current?.querySelector("[data-trpg-declaration-end]") ?? null;
-  }, []);
+    const actorId = liveDeclaration.activeDeclarationActorId;
+    return resolveActorScopedDeclarationEnd({
+      activeActorId: actorId,
+      ref: activeDeclarationEndRef.current,
+      queryScopedElement: (id) =>
+        liveSceneRef.current?.querySelector(`[data-trpg-declaration-end][data-trpg-declaration-actor-id="${id}"]`) ??
+        null,
+    });
+  }, [liveDeclaration.activeDeclarationActorId]);
+
+  const resolveLiveFollowTargetElement = useCallback((): Element | null => {
+    switch (liveFollowOwner) {
+      case "GM_NARRATION_END":
+        return narrationEndRef.current;
+      case "ACTIVE_DECLARATION_END":
+        return resolveActiveDeclarationEndElement();
+      default:
+        return null;
+    }
+  }, [liveFollowOwner, resolveActiveDeclarationEndElement]);
+
+  const notifyLiveFollowTargetUpdate = useCallback(() => {
+    if (!isTrpgLiveProseFollowOwner(liveFollowOwner)) return;
+    if (!followLatestRef.current || manualScrollDetachedRef.current) return;
+    liveFollowAnimatorRef.current?.notifyTargetUpdate();
+  }, [liveFollowOwner]);
+
+  useEffect(() => {
+    if (!gmRevealReport.progressive && !gmRevealReport.complete) return;
+    if (liveFollowOwner !== "GM_NARRATION_END") return;
+    notifyLiveFollowTargetUpdate();
+  }, [gmRevealReport, liveFollowOwner, notifyLiveFollowTargetUpdate]);
+
+  useEffect(() => {
+    liveFollowAnimatorRef.current = createLiveStreamFollowController({
+      getViewportHeight: () => window.innerHeight,
+      scrollBy: (delta) => {
+        window.scrollBy({ top: delta, behavior: "instant" });
+      },
+      resolveTargetElement: () => resolveLiveFollowTargetElement(),
+      shouldFollow: () => followLatestRef.current && !manualScrollDetachedRef.current,
+    });
+    return () => {
+      liveFollowAnimatorRef.current?.stop();
+      liveFollowAnimatorRef.current = null;
+    };
+  }, [resolveLiveFollowTargetElement]);
 
   const scrollToFollowOwner = useCallback(
     (owner: TrpgLiveFollowOwner, behavior: ScrollBehavior = "instant") => {
       if (!followLatestRef.current || manualScrollDetachedRef.current) return;
       switch (owner) {
         case "GM_NARRATION_END":
+          if (isTrpgLiveProseFollowOwner(owner)) {
+            notifyLiveFollowTargetUpdate();
+            break;
+          }
           if (narrationEndRef.current) alignNarrationEnd(behavior);
           break;
         case "ACTIVE_DECLARATION_END": {
+          if (isTrpgLiveProseFollowOwner(owner)) {
+            notifyLiveFollowTargetUpdate();
+            break;
+          }
           const declarationEnd = resolveActiveDeclarationEndElement();
           if (declarationEnd) alignReadingBandEnd(declarationEnd, behavior);
           break;
@@ -1483,7 +1545,7 @@ export default function TrpgCampaignRoom({
           break;
       }
     },
-    [alignNarrationEnd, alignReadingBandEnd, resolveActiveDeclarationEndElement, runProgrammaticScroll]
+    [alignNarrationEnd, alignReadingBandEnd, notifyLiveFollowTargetUpdate, resolveActiveDeclarationEndElement, runProgrammaticScroll]
   );
 
   const requestActiveDeclarationEndFollow = useCallback(() => {
@@ -1495,9 +1557,10 @@ export default function TrpgCampaignRoom({
       requestAnimationFrame: window.requestAnimationFrame.bind(window),
       cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
       scrollToFollowOwner,
+      onLiveProseTargetUpdate: notifyLiveFollowTargetUpdate,
       onUnseenLatest: () => setUnseenLatest(true),
     });
-  }, [scrollToFollowOwner]);
+  }, [notifyLiveFollowTargetUpdate, scrollToFollowOwner]);
 
   const handleDeclarationRevealChange = useCallback(
     (report: ActorRevealReport) => {
@@ -1515,11 +1578,19 @@ export default function TrpgCampaignRoom({
   );
 
   const bindDeclarationEndRef = useCallback(
-    (el: HTMLSpanElement | null) => {
-      declarationEndRef.current = el;
-      if (el) requestActiveDeclarationEndFollow();
+    (actorId: number, el: HTMLSpanElement | null) => {
+      if (el) {
+        activeDeclarationEndRef.current = { actorId, element: el };
+        if (liveDeclaration.activeDeclarationActorId === actorId) {
+          requestActiveDeclarationEndFollow();
+        }
+        return;
+      }
+      if (activeDeclarationEndRef.current.actorId === actorId) {
+        activeDeclarationEndRef.current = createEmptyActiveDeclarationEndRef();
+      }
     },
-    [requestActiveDeclarationEndFollow]
+    [liveDeclaration.activeDeclarationActorId, requestActiveDeclarationEndFollow]
   );
 
   const isNearFollowOwner = useCallback((owner: TrpgLiveFollowOwner): boolean => {
@@ -1645,6 +1716,7 @@ export default function TrpgCampaignRoom({
         requestAnimationFrame: window.requestAnimationFrame.bind(window),
         cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
         scrollToFollowOwner,
+        onLiveProseTargetUpdate: notifyLiveFollowTargetUpdate,
         onUnseenLatest: () => setUnseenLatest(true),
       });
     });
@@ -1655,6 +1727,7 @@ export default function TrpgCampaignRoom({
     currentNarration,
     liveDeclaration.activeDeclarationActorId,
     liveFollowOwner,
+    notifyLiveFollowTargetUpdate,
     presentationStarting,
     roundShow.mode,
     scrollToFollowOwner,
@@ -1662,8 +1735,12 @@ export default function TrpgCampaignRoom({
   ]);
 
   useLayoutEffect(() => {
+    const actorId = liveDeclaration.activeDeclarationActorId;
+    if (actorId != null && activeDeclarationEndRef.current.actorId !== actorId) {
+      activeDeclarationEndRef.current = createEmptyActiveDeclarationEndRef();
+    }
     if (!followLatestRef.current || manualScrollDetachedRef.current) return;
-    if (liveDeclaration.activeDeclarationActorId == null) return;
+    if (actorId == null) return;
     requestActiveDeclarationEndFollow();
   }, [liveDeclaration.activeDeclarationActorId, requestActiveDeclarationEndFollow]);
 
@@ -1890,6 +1967,9 @@ export default function TrpgCampaignRoom({
 
   const declarationGrowthObserverAttached =
     liveFollowOwner === "ACTIVE_DECLARATION_END" && liveDeclaration.activeDeclarationActorId != null;
+  const liveFollowTailSpacerActive =
+    (liveFollowOwner === "ACTIVE_DECLARATION_END" && liveDeclaration.activeDeclarationActorId != null) ||
+    (liveFollowOwner === "GM_NARRATION_END" && !effectiveGmRevealComplete);
 
   return (
     <div
@@ -2149,7 +2229,7 @@ export default function TrpgCampaignRoom({
                   ? liveDeclaration.activeDeclarationActorId
                   : null
               }
-              declarationEndRef={
+              bindDeclarationEndRef={
                 row.roundNumber === presentationRoundNumber && gateLiveRound
                   ? bindDeclarationEndRef
                   : undefined
@@ -2437,6 +2517,14 @@ export default function TrpgCampaignRoom({
               )}
             </div>
           ) : null}
+          {liveFollowTailSpacerActive ? (
+            <div
+              aria-hidden="true"
+              data-trpg-live-follow-tail-spacer
+              className="pointer-events-none w-full shrink-0"
+              style={{ height: `${Math.round(TRPG_LIVE_FOLLOW_TAIL_SPACER_RATIO * 100)}vh` }}
+            />
+          ) : null}
           <div ref={bottomRef} aria-hidden="true" className="h-px w-full scroll-mb-28" />
         </div>
         {selfSheet ? (
@@ -2556,7 +2644,7 @@ function SceneTurn({
   cinematicActorAction = false,
   preCinematicVisibleIds = [],
   activeDeclarationRevealId = null,
-  declarationEndRef,
+  bindDeclarationEndRef,
   declarationGrowthRef,
   consumedDeclarationAiIds = [],
   onDeclarationRevealChange,
@@ -2603,7 +2691,7 @@ function SceneTurn({
   cinematicActorAction?: boolean;
   preCinematicVisibleIds?: readonly number[];
   activeDeclarationRevealId?: number | null;
-  declarationEndRef?: Ref<HTMLSpanElement | null>;
+  bindDeclarationEndRef?: (actorId: number, el: HTMLSpanElement | null) => void;
   declarationGrowthRef?: Ref<HTMLDivElement | null>;
   consumedDeclarationAiIds?: readonly number[];
   onDeclarationRevealChange?: (report: ActorRevealReport) => void;
@@ -2792,16 +2880,11 @@ function SceneTurn({
                           : undefined
                       }
                     />
-                    {isActiveDeclarationCard && decorativeReveal && declarationEndRef ? (
+                    {isActiveDeclarationCard && decorativeReveal && bindDeclarationEndRef ? (
                       <span
-                        ref={(el) => {
-                          if (typeof declarationEndRef === "function") {
-                            declarationEndRef(el);
-                          } else if (declarationEndRef) {
-                            declarationEndRef.current = el;
-                          }
-                        }}
+                        ref={(el) => bindDeclarationEndRef(action.participantId, el)}
                         data-trpg-declaration-end
+                        data-trpg-declaration-actor-id={action.participantId}
                         aria-hidden="true"
                         className="inline-block h-px w-px"
                       />
