@@ -71,14 +71,16 @@ describe("chatComicGeneration", () => {
       mood: "lovely",
       plan: SAMPLE_PLAN,
     });
-    assert.match(prompt, /COMIC PANEL SPEC/);
+    assert.match(prompt, /COMIC PANEL SPEC — VISUAL LAYER ONLY/);
     assert.match(prompt, /\[Panel 1/);
     assert.match(prompt, /Hero focus:/);
-    assert.match(prompt, /Speech bubble/);
+    assert.match(prompt, /Visual only: do not render speech bubbles/);
     assert.match(prompt, /Continuity rules:/);
-    assert.match(prompt, /STRICT CLOSED TEXT WHITELIST/);
+    assert.match(prompt, /VISUAL LAYER ONLY/);
+    assert.match(prompt, /server overlay/);
     assert.match(prompt, /IDENTITY OWNERSHIP IS STRICT/);
-    assert.match(prompt, /Silent panels with no speech are valid/);
+    assert.doesNotMatch(prompt, /STRICT CLOSED TEXT WHITELIST/);
+    assert.doesNotMatch(prompt, /Speech bubble \(/);
     assert.match(prompt, /GENDER LOCK/);
     assert.match(prompt, /LAYOUT AND FINISH ONLY/);
     assert.doesNotMatch(prompt, /Original prose context/);
@@ -102,8 +104,9 @@ describe("chatComicGeneration", () => {
       personaGender: "male",
       plan: silent,
     });
-    assert.match(prompt, /NO TEXT IS ALLOWED|No speech bubble/);
-    assert.doesNotMatch(prompt, /최소 1개의 대사/);
+    assert.match(prompt, /Visual only: do not render speech bubbles/);
+    assert.match(prompt, /server overlay/);
+    assert.doesNotMatch(prompt, /STRICT CLOSED TEXT WHITELIST/);
   });
 
   it("uses the same canonical visual identity pipeline as LD duo", () => {

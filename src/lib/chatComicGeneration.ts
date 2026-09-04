@@ -13,12 +13,11 @@ import type { ScenePanelCount, ScenePlan } from "@/lib/chatImageScenePlan";
 import { resolveScenePresentationVisibility, collectApprovedComicText } from "@/lib/chatImageScenePlan";
 import { buildIllustrationSafeDepiction } from "@/lib/chatImageIllustrationSanitizer";
 import {
-  collectApprovedComicTextForSafeImageGeneration,
   projectTextForSafeImagePrompt,
   shouldOmitDialogueFromImageProjection,
   type SafeVisualProjectionContext,
 } from "@/lib/chatImageSafeVisualProjection";
-import { buildChatComicPanelSpecPromptSection, compileChatComicPanelSpec } from "@/lib/chatComicPanelSpec";
+import { buildChatComicPanelSpecVisualSection, compileChatComicPanelSpec } from "@/lib/chatComicPanelSpec";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
   bindChatImageReferencePack,
@@ -162,10 +161,6 @@ export function buildChatComicImagePrompt(opts: {
     contentKind: opts.contentKind,
     castManifest: opts.castManifest,
   });
-  const approvedText = collectApprovedComicTextForSafeImageGeneration(
-    opts.plan,
-    sceneVisibility
-  ).texts;
   const subjects = defaultComicSubjects(opts);
   const castAware = Boolean(opts.castManifest && opts.castSelected?.length);
   const castBlock =
@@ -180,7 +175,7 @@ export function buildChatComicImagePrompt(opts: {
       : "";
   return [
     `Create one polished Korean manhwa-style page with exactly ${opts.plan.panels.length} wide horizontal panels stacked vertically.`,
-    "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and panel polish, but do not copy its exact poses.",
+    "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, polished full-color rendering, and panel polish, but do not copy its exact poses.",
     "Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.",
     castBlock,
     renderChatImageVisualIdentity({
@@ -197,17 +192,13 @@ export function buildChatComicImagePrompt(opts: {
         }),
     buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
     `Overall tone: ${CHAT_COMIC_MOODS.find((item) => item.id === (opts.mood ?? "comic"))?.prompt ?? "comic"}.`,
-    "STRICT CLOSED TEXT WHITELIST: the only text allowed anywhere in the image is listed below. Copy each used string exactly, character for character.",
-    approvedText.length
-      ? approvedText.map((text) => `- “${text}”`).join("\n")
-      : "- NO TEXT IS ALLOWED",
-    "Never invent reaction dialogue, bridge dialogue, narration, captions, labels, titles, signs, or sound effects. Silent panels with no speech are valid. Do not create a speech bubble for a panel marked No speech bubble.",
-    "Use proper speech bubbles with tails pointing to the correct speaker. Keep all approved text large, centered, uncropped, and easy to read.",
+    "VISUAL LAYER ONLY — depict characters, background, pose, expression, and camera. Do not render any readable text, speech bubbles, captions, narration boxes, or SFX in the image.",
+    "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay.",
     castAware
       ? `Exactly ${opts.castSelected!.length} recurring human ${opts.castSelected!.length === 1 ? "identity" : "identities"}. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.`
       : "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
-    "Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.",
-    buildChatComicPanelSpecPromptSection({
+    "Keep all panel borders and the full page visible. Do not crop off the last panel.",
+    buildChatComicPanelSpecVisualSection({
       plan: opts.plan,
       personaName: opts.personaName,
       characterName: opts.characterName,

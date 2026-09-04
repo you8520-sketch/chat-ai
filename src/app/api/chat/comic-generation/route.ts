@@ -66,6 +66,7 @@ import {
   formatSceneSourcePreview,
   isScenePanelCount,
   reflowScenePlanPanels,
+  resolveScenePresentationVisibility,
   validateScenePlan,
   type ScenePlan,
   type SceneSourceMessage,
@@ -144,6 +145,11 @@ import {
   buildStrictLdDuoFallbackPrompt,
   buildStrictLdPartyFallbackPrompt,
 } from "@/lib/chatImageStrictSafetyFallbackPrompt";
+import { projectComicSafeStructureForTier2 } from "@/lib/chatComicSafeStructure";
+import {
+  applyComicTextOverlay,
+  compileChatComicTextOverlay,
+} from "@/lib/chatComicTextOverlay";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -1321,6 +1327,11 @@ export async function POST(req: Request) {
       contentKind: context.contentKind,
     });
     const prompt = identityPack.prompt;
+    const comicVisibility = resolveScenePresentationVisibility({
+      contentKind: context.contentKind,
+      castManifest,
+    });
+    const tier2SafeStructure = projectComicSafeStructureForTier2(scenePlan, comicVisibility);
     const strictFallbackPrompt = buildStrictComicFallbackPrompt({
       panelCount,
       mood,
@@ -1332,6 +1343,7 @@ export async function POST(req: Request) {
       castManifest,
       castSelected: castManifest?.subjects.filter((subject) => subject.included),
       contentKind: context.contentKind,
+      safeStructure: tier2SafeStructure,
     });
     const references = await Promise.all(
       identityPack.referenceUrls.map((url) => imageSourceToDataUrl(url))
@@ -1345,10 +1357,31 @@ export async function POST(req: Request) {
       panelCount,
     });
 
+    const overlayPlan = compileChatComicTextOverlay({
+      plan: scenePlan,
+      personaName: context.persona.name,
+      characterName: context.character.name,
+      subjects: identityPack.subjects,
+      contentKind: context.contentKind,
+      castManifest,
+      eventSubjectBindings: castManifest?.eventSubjectBindings,
+      safetyFallbackUsed: generated.safetyFallbackUsed,
+    });
+    let finalComicBuffer: Buffer;
+    try {
+      finalComicBuffer = await applyComicTextOverlay({
+        image: generated.buffer,
+        overlay: overlayPlan,
+      });
+    } catch (overlayError) {
+      console.error("[chat-comic-generation] text overlay failed", overlayError);
+      throw new RequestError("컷만화 텍스트 합성에 실패했습니다.", 502);
+    }
+
     await fs.mkdir(uploadsDataDir(), { recursive: true });
     const filename = `ai-comic-${panelCount}p-${crypto.randomUUID()}.webp`;
     savedPath = path.join(uploadsDataDir(), filename);
-    await fs.writeFile(savedPath, generated.buffer);
+    await fs.writeFile(savedPath, finalComicBuffer);
     const resultUrl = uploadPublicUrl(filename);
 
     const totalCostUsd = generated.knownProviderCostUsd;
