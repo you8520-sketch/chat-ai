@@ -163,6 +163,7 @@ import {
 } from "@/lib/visualRevealPendingOwner";
 import {
   createLiveReadingFollowController,
+  LIVE_FOLLOW_MAX_CATCHUP_SPEED_PX_PER_SEC,
   LIVE_FOLLOW_TAIL_SPACER_RATIO,
   type LiveReadingFollowController,
 } from "@/lib/liveReadingFollow";
@@ -2223,11 +2224,16 @@ export default function ChatClient({
   useEffect(() => {
     liveFollowAnimatorRef.current = createLiveReadingFollowController({
       getViewportHeight: () => window.innerHeight,
+      getScrollPosition: () => window.scrollY,
       scrollBy: (delta) => {
         if (delta === 0) return;
         liveFollowScrollRemainderRef.current += delta;
-        const applied = Math.trunc(liveFollowScrollRemainderRef.current);
+        let applied = Math.trunc(liveFollowScrollRemainderRef.current);
         if (applied === 0) return;
+        const maxApplyPerFrame = Math.max(1, Math.floor(LIVE_FOLLOW_MAX_CATCHUP_SPEED_PX_PER_SEC / 60));
+        if (Math.abs(applied) > maxApplyPerFrame) {
+          applied = Math.sign(applied) * maxApplyPerFrame;
+        }
         liveFollowScrollRemainderRef.current -= applied;
         liveFollowScrollInFlightRef.current = true;
         window.scrollBy({ top: applied, behavior: "instant" });
@@ -2249,6 +2255,11 @@ export default function ChatClient({
       isContentGrowing: () =>
         visualRevealPendingCountRef.current > 0 || loading || inFlightRef.current,
       motionProfile: { mode: "continuous-flow" },
+      getMotionProfile: () => ({
+        mode: "continuous-flow" as const,
+        streamIntervalMs: displayPrefsRef.current.streamIntervalMs,
+        streamCharsPerTick: displayPrefsRef.current.streamCharsPerTick,
+      }),
     });
     return () => {
       liveFollowAnimatorRef.current?.stop();

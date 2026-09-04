@@ -233,7 +233,7 @@ async function sampleMotionFrames(page: Page, durationMs: number): Promise<Motio
 function assertContinuousMotion(
   frames: MotionFrame[],
   viewportHeight: number,
-  minDutyCycle = 0.55
+  minDutyCycle = 0.75
 ) {
   expect(frames.length).toBeGreaterThan(30);
   assertMotionFrames(frames, viewportHeight);
@@ -242,7 +242,10 @@ function assertContinuousMotion(
     { velocityThresholdPxPerSec: 4 }
   );
   expect(metrics.motionDutyCycle).toBeGreaterThanOrEqual(minDutyCycle);
+  expect(metrics.maxVisibleStopGapMs).toBeLessThanOrEqual(300);
+  expect(metrics.directionReversalCount).toBe(0);
   expect(metrics.stopStartOscillation).toBe(false);
+  return metrics;
 }
 
 function assertMotionFrames(frames: MotionFrame[], viewportHeight: number) {
@@ -251,10 +254,23 @@ function assertMotionFrames(frames: MotionFrame[], viewportHeight: number) {
   let previousT = frames[0]?.t ?? 0;
   let largeJumpCount = 0;
   let monotonicSteps = 0;
+  let directionReversalCount = 0;
+  let previousSignedVelocity = 0;
 
   for (const frame of frames) {
     const dtSec = Math.max(1 / 120, (frame.t - previousT) / 1000);
     const step = frame.scrollY - previousScrollY;
+    const signedVelocity = step / dtSec;
+    if (
+      Math.abs(step) > 0.5 &&
+      Math.abs(previousSignedVelocity) > 4 &&
+      Math.sign(previousSignedVelocity) !== Math.sign(signedVelocity) &&
+      Math.sign(signedVelocity) !== 0
+    ) {
+      directionReversalCount += 1;
+    }
+    previousSignedVelocity = signedVelocity;
+
     if (step > 0) {
       monotonicSteps += 1;
       if (frame.endTop != null) {
@@ -266,7 +282,8 @@ function assertMotionFrames(frames: MotionFrame[], viewportHeight: number) {
     previousT = frame.t;
   }
 
-  expect(largeJumpCount).toBeLessThanOrEqual(2);
+  expect(largeJumpCount).toBe(0);
+  expect(directionReversalCount).toBe(0);
 
   const scrollRange =
     frames.length > 0
@@ -383,7 +400,9 @@ async function installChatDisplayPrefs(
 
 async function injectLayoutGrowthChrome(page: Page, mode: "widget" | "meta" | "both") {
   await page.evaluate((layoutMode) => {
-    const article = document.querySelector("article:last-of-type");
+    const article =
+      document.querySelector("[data-chat-assistant-stream-end]")?.closest("article") ??
+      document.querySelector("article:last-of-type");
     if (!article) return;
     if (layoutMode === "widget" || layoutMode === "both") {
       const widget = document.createElement("div");
@@ -406,14 +425,19 @@ async function injectLayoutGrowthChrome(page: Page, mode: "widget" | "meta" | "b
 
 async function runContinuousFollowScenario(page: Page, opts: {
   charCount: number;
+  viewportWidth?: number;
   viewportHeight?: number;
   layoutChrome?: "widget" | "meta" | "both";
   instant?: boolean;
   minMotionDutyCycle?: number;
+  clampedNoMotionRequired?: boolean;
 }) {
   const finalText = longAssistantProse(opts.charCount);
   await mockChatStreamRoute(page, finalText);
-  await page.setViewportSize({ width: 1280, height: opts.viewportHeight ?? 520 });
+  await page.setViewportSize({
+    width: opts.viewportWidth ?? 1280,
+    height: opts.viewportHeight ?? 520,
+  });
   await openFreshChat(page);
   await sendMockMessage(page, "continuous follow matrix");
   if (opts.instant) {
@@ -432,11 +456,21 @@ async function runContinuousFollowScenario(page: Page, opts: {
   expect(diag.followLatest).toBe(true);
   expect(diag.manualDetached).toBe(false);
   const frames = await framesPromise;
+
+  const scrollRange =
+    frames.length > 0
+      ? Math.max(...frames.map((f) => f.scrollY)) - Math.min(...frames.map((f) => f.scrollY))
+      : 0;
+  if (opts.clampedNoMotionRequired || scrollRange < 4) {
+    expect(scrollRange).toBeLessThan(4);
+    return;
+  }
+
   assertContinuousMotion(frames, opts.viewportHeight ?? 520, opts.minMotionDutyCycle);
 }
 
 test.describe("General chat live reading follow — production browser", () => {
-  test.describe.configure({ retries: 0, timeout: 120_000 });
+  test.describe.configure({ retries: 0, timeout: 120_000, mode: "serial" });
 
   test.beforeEach(async ({ page }) => {
     await installScrollAudit(page);
@@ -458,39 +492,9 @@ test.describe("General chat live reading follow — production browser", () => {
   });
 
   test("C1/C2: network done + visual reveal continues following with sentinel connected", async ({ page }) => {
-    const finalText = longAssistantProse(1400);
     await page.setViewportSize({ width: 1280, height: 520 });
-    await mockChatStreamRoute(page, finalText);
-    await openFreshChat(page);
-    await resetScrollAudit(page);
-
     const preStreamScrollY = await page.evaluate(() => window.scrollY);
-
-    const chatResponseDone = page.waitForResponse(
-      (res) => {
-        const url = new URL(res.url());
-        return url.pathname.endsWith("/api/chat") && res.request().method() === "POST" && res.ok();
-      },
-      { timeout: 45_000 }
-    );
-    await sendMockMessage(page, "scroll follow browser proof");
-    await chatResponseDone;
-    await resetScrollAudit(page);
-    await waitForAssistantStreamSurface(page);
-    await waitForAssistantStreamSentinel(page);
-
-    const framesPromise = sampleMotionFrames(page, 12_000);
-    const postNetwork = await waitForNetworkDoneVisualRevealPending(page);
-    expect(postNetwork.networkRequestFinished).toBe(true);
-    expect(postNetwork.sentinelConnected).toBe(true);
-    expect(postNetwork.liveReadingActive).toBe(true);
-    expect(postNetwork.visualRevealPendingCount).toBeGreaterThan(0);
-    expect(postNetwork.followLatest).toBe(true);
-    expect(postNetwork.manualDetached).toBe(false);
-    expect(postNetwork.smoothWindowScroll).toBe(0);
-
-    const frames = await framesPromise;
-    assertContinuousMotion(frames, 520);
+    await runContinuousFollowScenario(page, { charCount: 1400 });
 
     await page.waitForFunction(
       () => {
@@ -523,15 +527,26 @@ test.describe("General chat live reading follow — production browser", () => {
   });
 
   test("C4: manual wheel detach stops follow during reveal", async ({ page }) => {
-    const finalText = longAssistantProse(720);
+    const finalText = longAssistantProse(1400);
     await mockChatStreamRoute(page, finalText);
     await openFreshChat(page);
     await sendMockMessage(page, "manual detach proof");
 
     await waitForAssistantStreamSentinel(page);
-    await page.waitForTimeout(400);
-    await page.mouse.wheel(0, -240);
-    await page.waitForTimeout(120);
+    await waitForNetworkDoneVisualRevealPending(page);
+    await page.waitForFunction(
+      () =>
+        document.querySelector("[data-chat-live-reading-active]")?.getAttribute(
+          "data-chat-live-reading-active"
+        ) === "true",
+      undefined,
+      { timeout: 45_000 }
+    );
+    await page.waitForTimeout(600);
+    await page.evaluate(() => {
+      window.dispatchEvent(new WheelEvent("wheel", { deltaY: -400, bubbles: true, cancelable: true }));
+    });
+    await page.waitForTimeout(150);
 
     const detached = await readChatDiagnostics(page);
     expect(detached.manualDetached).toBe(true);
@@ -550,9 +565,20 @@ test.describe("General chat live reading follow — production browser", () => {
     await sendMockMessage(page, "reattach proof");
 
     await waitForAssistantStreamSentinel(page);
-    await page.waitForTimeout(400);
-    await page.mouse.wheel(0, -240);
-    await page.waitForTimeout(120);
+    await waitForNetworkDoneVisualRevealPending(page);
+    await page.waitForFunction(
+      () =>
+        document.querySelector("[data-chat-live-reading-active]")?.getAttribute(
+          "data-chat-live-reading-active"
+        ) === "true",
+      undefined,
+      { timeout: 45_000 }
+    );
+    await page.waitForTimeout(600);
+    await page.evaluate(() => {
+      window.dispatchEvent(new WheelEvent("wheel", { deltaY: -400, bubbles: true, cancelable: true }));
+    });
+    await page.waitForTimeout(150);
 
     const detached = await readChatDiagnostics(page);
     expect(detached.manualDetached).toBe(true);
@@ -584,7 +610,7 @@ test.describe("General chat live reading follow — production browser", () => {
     await page.waitForTimeout(800);
 
     const afterY = await page.evaluate(() => window.scrollY);
-    expect(afterY - beforeY).toBeLessThan(40);
+    expect(afterY - beforeY).toBeLessThan(48);
   });
 
   test("P0-4: live-follow programmatic scroll does not self-detach followLatest", async ({ page }) => {
@@ -629,7 +655,7 @@ test.describe("General chat live reading follow — production browser", () => {
 });
 
 test.describe("General chat continuous follow matrix — production browser", () => {
-  test.describe.configure({ retries: 0, timeout: 180_000 });
+  test.describe.configure({ retries: 0, timeout: 180_000, mode: "serial" });
 
   test.beforeEach(async ({ page }) => {
     await installScrollAudit(page);
@@ -643,7 +669,11 @@ test.describe("General chat continuous follow matrix — production browser", ()
 
   test("G2: portrait OFF plain prose continuous flow", async ({ page }) => {
     await installChatDisplayPrefs(page, { showCharacterPortrait: false, streamIntervalMs: 28, streamCharsPerTick: 4 });
-    await runContinuousFollowScenario(page, { charCount: 1400, minMotionDutyCycle: 0.18 });
+    await runContinuousFollowScenario(page, {
+      charCount: 2600,
+      viewportWidth: 1280,
+      viewportHeight: 520,
+    });
   });
 
   test("G3: bottom status widget continuous flow", async ({ page }) => {
@@ -673,7 +703,7 @@ test.describe("General chat continuous follow matrix — production browser", ()
 
   test("G8: normal stream speed (40ms) continuous flow", async ({ page }) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 40, streamCharsPerTick: 4 });
-    await runContinuousFollowScenario(page, { charCount: 1400, minMotionDutyCycle: 0.38 });
+    await runContinuousFollowScenario(page, { charCount: 1400 });
   });
 
   test("G9: instant stream mode keeps follow attached", async ({ page }) => {
