@@ -9,9 +9,12 @@ import {
   projectComicSharedContext,
 } from "@/lib/chatImageScenePlan";
 import {
-  projectSceneBlockForSafeImageGeneration,
   projectSceneTextForSafeImageGeneration,
 } from "@/lib/chatImageSafeVisualProjection";
+import {
+  canonicalTier2SafePose,
+  projectSceneBlockForTier2Comic,
+} from "@/lib/chatComicTier2SafeProjection";
 
 export type ComicSafeStructurePanel = {
   index: number;
@@ -27,7 +30,7 @@ export type ComicSafeStructureProjection = {
 };
 
 function projectSafeField(raw: string): string {
-  const projected = projectSceneBlockForSafeImageGeneration(raw);
+  const projected = projectSceneBlockForTier2Comic(raw);
   return projected.omitFromImage ? "" : projected.text.trim();
 }
 
@@ -35,7 +38,16 @@ function derivePoseHint(opts: {
   personaAction?: string;
   characterAction?: string;
   situation: string;
+  background: string;
 }): string {
+  const canonical = canonicalTier2SafePose({
+    personaAction: opts.personaAction,
+    characterAction: opts.characterAction,
+    situation: opts.situation,
+    background: opts.background,
+  });
+  if (canonical) return canonical;
+
   const persona = opts.personaAction ? projectSafeField(opts.personaAction) : "";
   const character = opts.characterAction ? projectSafeField(opts.characterAction) : "";
   const combined = [persona, character].filter(Boolean).join("; ");
@@ -43,7 +55,7 @@ function derivePoseHint(opts: {
 
   const situation = opts.situation.trim();
   if (/누(?:워|운|어)/u.test(situation)) {
-    return "same characters lying on the bed with modest covered clothing and calm expressions";
+    return "same characters resting on the bed with modest covered clothing and calm expressions";
   }
   if (/앉(?:아|은|어)/u.test(situation)) {
     return "same characters seated in the same location with modest posture";
@@ -74,6 +86,7 @@ export function projectComicSafeStructureForTier2(
         personaAction: beat.personaAction,
         characterAction: beat.characterAction,
         situation,
+        background,
       }),
     };
   });
