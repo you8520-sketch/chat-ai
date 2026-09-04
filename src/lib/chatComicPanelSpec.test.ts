@@ -85,10 +85,13 @@ describe("chatComicPanelSpec compiler", () => {
       characterName: "시우",
       subjects: duoSubjects("시우", "한별"),
     });
-    assert.equal(four.panels[3]?.beatRole, "Closing beat");
+    assert.equal(four.panels[0]?.beatRole, "Setup");
+    assert.equal(four.panels[1]?.beatRole, "Progression");
+    assert.equal(four.panels[2]?.beatRole, "Turn / escalation");
+    assert.equal(four.panels[3]?.beatRole, "Payoff / aftermath");
     assert.match(
       renderChatComicPanelSpecSection(four),
-      /4-panel rhythm: opening → beat 2 → beat 3 → closing beat/
+      /4-panel rhythm: setup \(panel 1\) → progression \(panel 2\) → turn\/escalation \(panel 3\) → payoff\/aftermath \(panel 4\)/
     );
   });
 
@@ -104,7 +107,9 @@ describe("chatComicPanelSpec compiler", () => {
     assert.match(prompt, /COMIC PANEL SPEC/);
     assert.match(prompt, /\[Panel 1 — Opening beat\]/);
     assert.doesNotMatch(prompt, /APPROVED SCENE PLAN/);
-    assert.match(prompt, /STRICT CLOSED TEXT WHITELIST/);
+    assert.match(prompt, /COMIC PANEL SPEC — VISUAL LAYER ONLY/);
+    assert.match(prompt, /VISUAL LAYER ONLY/);
+    assert.doesNotMatch(prompt, /STRICT CLOSED TEXT WHITELIST/);
     assert.doesNotMatch(prompt, /romantic-comedy timing/i);
   });
 });

@@ -9,16 +9,20 @@ import {
   type ChatImageCastGroundedManifest,
   type ChatImageCastGroundedSubject,
 } from "@/lib/chatImageCastManifest";
-import type { ScenePanelCount, ScenePlan } from "@/lib/chatImageScenePlan";
-import { resolveScenePresentationVisibility, collectApprovedComicText } from "@/lib/chatImageScenePlan";
+import type { ScenePanelCount, ScenePlan, ScenePresentationVisibility } from "@/lib/chatImageScenePlan";
+import {
+  resolveScenePresentationVisibility,
+  collectApprovedComicText,
+  normalizeDialogueTextForOutput,
+} from "@/lib/chatImageScenePlan";
+import { collectFinalOverlayRenderedTexts } from "@/lib/chatComicTextOverlay";
 import { buildIllustrationSafeDepiction } from "@/lib/chatImageIllustrationSanitizer";
 import {
-  collectApprovedComicTextForSafeImageGeneration,
   projectTextForSafeImagePrompt,
   shouldOmitDialogueFromImageProjection,
   type SafeVisualProjectionContext,
 } from "@/lib/chatImageSafeVisualProjection";
-import { buildChatComicPanelSpecPromptSection, compileChatComicPanelSpec } from "@/lib/chatComicPanelSpec";
+import { buildChatComicPanelSpecVisualSection } from "@/lib/chatComicPanelSpec";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
   bindChatImageReferencePack,
@@ -28,79 +32,29 @@ import {
   type ChatImageVisualSubject,
 } from "@/lib/chatImageVisualIdentity";
 
-export const CHAT_COMIC_TEMPLATE_ID = "comic_horizontal_2_4" as const;
-export const CHAT_COMIC_TEMPLATE_NAME = "2~4컷 가로 만화";
-export const CHAT_COMIC_TEMPLATE_PREVIEW_URL =
-  "/image-templates/comic-vertical-sample-hq.webp";
-
-/** Soft guardrail for pasted prose — selected-turn summaries are not truncated. */
-export const CHAT_COMIC_MAX_INPUT_CHARS = 4_000;
-export const CHAT_COMIC_IMAGE_OUTPUT_SIZE = "1008x1408" as const;
-/** Promoted four-panel page size for the canonical 2|3|4 panel count. */
-export const CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE = "864x1824" as const;
-export const CHAT_COMIC_GENERATION_DEFAULT_POINTS = 230;
-
-export const CHAT_COMIC_PANEL_OPTIONS = [
-  { id: 2, label: "2컷" },
-  { id: 3, label: "3컷" },
-  { id: 4, label: "4컷" },
-] as const;
-
-export const CHAT_COMIC_MOODS = [
-  {
-    id: "comic",
-    label: "코믹",
-    prompt: "light romantic-comedy energy, exaggerated reactions and playful timing",
-  },
-  {
-    id: "lovely",
-    label: "달달",
-    prompt: "soft affectionate romance, warm blushes and tender expressions",
-  },
-  {
-    id: "daily",
-    label: "일상",
-    prompt: "natural slice-of-life interaction, relaxed and believable expressions",
-  },
-  {
-    id: "serious",
-    label: "진지",
-    prompt: "restrained emotional tension, cinematic expressions and clear acting",
-  },
-] as const;
-
-export type ChatComicPanelCount = ScenePanelCount;
-export type ChatComicMood = (typeof CHAT_COMIC_MOODS)[number]["id"];
-
-export function resolveChatComicOutputSize(panelCount: ChatComicPanelCount) {
-  return panelCount === 4
-    ? CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE
-    : CHAT_COMIC_IMAGE_OUTPUT_SIZE;
-}
-
-function toMood(raw: unknown): ChatComicMood {
-  const value = String(raw ?? "");
-  return CHAT_COMIC_MOODS.some((item) => item.id === value)
-    ? (value as ChatComicMood)
-    : "comic";
-}
-
-export function sanitizeChatComicOptions(raw: {
-  mood?: unknown;
-}) {
-  return {
-    mood: toMood(raw.mood),
-  };
-}
-
-export function resolveChatComicPrice(
-  _panelCount: ChatComicPanelCount,
-  env: NodeJS.ProcessEnv = process.env
-): number {
-  const override = Number(env.CHAT_COMIC_GENERATION_POINTS);
-  if (Number.isFinite(override) && override >= 1) return Math.ceil(override);
-  return CHAT_COMIC_GENERATION_DEFAULT_POINTS;
-}
+export {
+  CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE,
+  CHAT_COMIC_GENERATION_DEFAULT_POINTS,
+  CHAT_COMIC_IMAGE_OUTPUT_SIZE,
+  CHAT_COMIC_MAX_INPUT_CHARS,
+  CHAT_COMIC_MOODS,
+  CHAT_COMIC_PANEL_OPTIONS,
+  CHAT_COMIC_TEMPLATE_ID,
+  CHAT_COMIC_TEMPLATE_NAME,
+  CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+  type ChatComicMood,
+  type ChatComicPanelCount,
+  resolveChatComicOutputSize,
+  resolveChatComicPrice,
+  sanitizeChatComicOptions,
+} from "@/lib/chatComicGenerationConstants";
+import {
+  CHAT_COMIC_MOODS,
+  CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+  type ChatComicMood,
+  type ChatComicPanelCount,
+  resolveChatComicOutputSize,
+} from "@/lib/chatComicGenerationConstants";
 
 function defaultComicSubjects(opts: {
   characterName: string;
@@ -162,10 +116,6 @@ export function buildChatComicImagePrompt(opts: {
     contentKind: opts.contentKind,
     castManifest: opts.castManifest,
   });
-  const approvedText = collectApprovedComicTextForSafeImageGeneration(
-    opts.plan,
-    sceneVisibility
-  ).texts;
   const subjects = defaultComicSubjects(opts);
   const castAware = Boolean(opts.castManifest && opts.castSelected?.length);
   const castBlock =
@@ -174,13 +124,12 @@ export function buildChatComicImagePrompt(opts: {
           manifest: opts.castManifest,
           selected: opts.castSelected,
           subjects,
-          plan: opts.plan,
           contentKind: opts.contentKind,
         })
       : "";
   return [
     `Create one polished Korean manhwa-style page with exactly ${opts.plan.panels.length} wide horizontal panels stacked vertically.`,
-    "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and panel polish, but do not copy its exact poses.",
+    "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, polished full-color rendering, and panel polish, but do not copy its exact poses.",
     "Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.",
     castBlock,
     renderChatImageVisualIdentity({
@@ -197,17 +146,13 @@ export function buildChatComicImagePrompt(opts: {
         }),
     buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
     `Overall tone: ${CHAT_COMIC_MOODS.find((item) => item.id === (opts.mood ?? "comic"))?.prompt ?? "comic"}.`,
-    "STRICT CLOSED TEXT WHITELIST: the only text allowed anywhere in the image is listed below. Copy each used string exactly, character for character.",
-    approvedText.length
-      ? approvedText.map((text) => `- “${text}”`).join("\n")
-      : "- NO TEXT IS ALLOWED",
-    "Never invent reaction dialogue, bridge dialogue, narration, captions, labels, titles, signs, or sound effects. Silent panels with no speech are valid. Do not create a speech bubble for a panel marked No speech bubble.",
-    "Use proper speech bubbles with tails pointing to the correct speaker. Keep all approved text large, centered, uncropped, and easy to read.",
+    "VISUAL LAYER ONLY — depict characters, background, pose, expression, and camera. Do not render any readable text, speech bubbles, captions, narration boxes, or SFX in the image.",
+    "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay.",
     castAware
       ? `Exactly ${opts.castSelected!.length} recurring human ${opts.castSelected!.length === 1 ? "identity" : "identities"}. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.`
       : "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
-    "Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.",
-    buildChatComicPanelSpecPromptSection({
+    "Keep all panel borders and the full page visible. Do not crop off the last panel.",
+    buildChatComicPanelSpecVisualSection({
       plan: opts.plan,
       personaName: opts.personaName,
       characterName: opts.characterName,
@@ -299,12 +244,80 @@ export function buildChatComicGenerationPlan(opts: {
   };
 }
 
+export function parseChatComicOutputDimensions(panelCount: ChatComicPanelCount): {
+  width: number;
+  height: number;
+} {
+  const [widthRaw, heightRaw] = resolveChatComicOutputSize(panelCount).split("x");
+  return { width: Number(widthRaw), height: Number(heightRaw) };
+}
+
+export function countProviderPromptReadableDialogue(prompt: string): number {
+  return prompt.match(/^Speech bubble \(/gm)?.length ?? 0;
+}
+
+function normalizePromptAuditText(text: string): string {
+  return normalizeDialogueTextForOutput(text);
+}
+
+/** Provider prompt audit — verifies known dialogue source strings are absent from prompt. */
+export function auditProviderPromptDialogueLeak(opts: {
+  prompt: string;
+  plan: ScenePlan;
+  visibility?: ScenePresentationVisibility;
+}): {
+  speechBubbleDirectiveCount: number;
+  canonicalDialogueOccurrenceCount: number;
+  userEditOccurrenceCount: number;
+  leakedTexts: string[];
+} {
+  const visibility = opts.visibility ?? { personaVisible: true };
+  const speechBubbleDirectiveCount = countProviderPromptReadableDialogue(opts.prompt);
+  const leakedTexts: string[] = [];
+  let canonicalDialogueOccurrenceCount = 0;
+  let userEditOccurrenceCount = 0;
+
+  for (const panel of opts.plan.panels) {
+    for (const line of panel.dialogue) {
+      const norm = normalizePromptAuditText(line.text);
+      if (!norm || norm.length < 2) continue;
+      if (!opts.prompt.includes(norm)) continue;
+      leakedTexts.push(norm);
+      if (line.provenance === "user_edit") {
+        userEditOccurrenceCount += 1;
+      } else {
+        canonicalDialogueOccurrenceCount += 1;
+      }
+    }
+  }
+
+  for (const text of collectApprovedComicText(opts.plan, visibility)) {
+    const norm = normalizePromptAuditText(text);
+    if (!norm || norm.length < 2) continue;
+    if (!opts.prompt.includes(norm)) continue;
+    if (leakedTexts.includes(norm)) continue;
+    leakedTexts.push(norm);
+    canonicalDialogueOccurrenceCount += 1;
+  }
+
+  return {
+    speechBubbleDirectiveCount,
+    canonicalDialogueOccurrenceCount,
+    userEditOccurrenceCount,
+    leakedTexts,
+  };
+}
+
+/** Overlay-boundary audit: approved plan text vs final overlay bubble owner. */
 export function auditComicDialogueWhitelist(opts: {
   plan: ScenePlan;
   personaName: string;
   characterName: string;
   contentKind?: ContentKind;
   castManifest?: ChatImageCastGroundedManifest | null;
+  panelCount?: number;
+  width?: number;
+  height?: number;
 }): {
   panelTextWhitelistMismatchCount: number;
   userEditDialogueMismatchCount: number;
@@ -315,55 +328,59 @@ export function auditComicDialogueWhitelist(opts: {
   });
   const whitelist = collectApprovedComicText(opts.plan, visibility);
   const whitelistSet = new Set(whitelist);
-  const spec = compileChatComicPanelSpec({
+  const panelCount = opts.panelCount ?? opts.plan.panels.length;
+  const width = opts.width ?? 1008;
+  const height = opts.height ?? (panelCount === 4 ? 1824 : 1408);
+  const subjects = bindChatImageReferencePack({
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName: opts.characterName,
+      characterGender: "male",
+      characterImageUrl: "/character-ref",
+      characterSavedAppearance: "",
+      characterAppearanceMode: "image_only",
+      personaName: opts.personaName,
+      personaGender: "female",
+      personaImageUrl: "/persona-ref",
+      personaSavedAppearance: "",
+      personaAppearanceMode: "image_only",
+    }),
+  }).subjects;
+  const overlayTexts = collectFinalOverlayRenderedTexts({
+    width,
+    height,
+    panelCount,
     plan: opts.plan,
-    personaName: opts.personaName,
-    characterName: opts.characterName,
     visibility,
-    subjects: bindChatImageReferencePack({
-      subjectsInImageOrder: buildChatDuoVisualSubjects({
-        characterName: opts.characterName,
-        characterGender: "male",
-        characterImageUrl: "/character-ref",
-        characterSavedAppearance: "",
-        characterAppearanceMode: "image_only",
-        personaName: opts.personaName,
-        personaGender: "female",
-        personaImageUrl: "/persona-ref",
-        personaSavedAppearance: "",
-        personaAppearanceMode: "image_only",
-      }),
-    }).subjects,
+    subjects,
   });
-  const bubbleTexts = spec.panels.flatMap((panel) =>
-    panel.speechBubbles.map((bubble) => bubble.text).filter(Boolean)
-  );
-  const bubbleSet = new Set(bubbleTexts);
+  const overlaySet = new Set(overlayTexts);
   let panelTextWhitelistMismatchCount = 0;
-  for (const text of bubbleSet) {
+  for (const text of overlaySet) {
     if (!whitelistSet.has(text)) panelTextWhitelistMismatchCount += 1;
   }
   for (const text of whitelistSet) {
-    if (!bubbleSet.has(text)) panelTextWhitelistMismatchCount += 1;
+    if (!overlaySet.has(text)) panelTextWhitelistMismatchCount += 1;
   }
   const userEditDialogueMismatchCount = countUserEditDialogueMismatch(
     opts.plan,
-    bubbleTexts
+    overlayTexts
   );
   return { panelTextWhitelistMismatchCount, userEditDialogueMismatchCount };
 }
 
-/** Counts user-edited dialogue lines whose text is missing from final visible bubbles. */
+/** Counts user-edited dialogue lines whose rendered visible text mismatches final overlay. */
 export function countUserEditDialogueMismatch(
   plan: ScenePlan,
-  finalBubbleTexts: Iterable<string>
+  finalRenderedTexts: Iterable<string>
 ): number {
-  const bubbleSet = new Set(finalBubbleTexts);
+  const renderedSet = new Set(
+    [...finalRenderedTexts].map((text) => normalizePromptAuditText(text))
+  );
   let count = 0;
   for (const panel of plan.panels) {
     for (const line of panel.dialogue) {
       if (line.provenance !== "user_edit" || !line.text.trim()) continue;
-      if (!bubbleSet.has(line.text)) count += 1;
+      if (!renderedSet.has(normalizePromptAuditText(line.text))) count += 1;
     }
   }
   return count;

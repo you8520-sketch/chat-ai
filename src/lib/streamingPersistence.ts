@@ -6,17 +6,31 @@
 import type Database from "better-sqlite3";
 import { mergeIncomingUsageWithStoredSemantics } from "@/lib/oocSceneRender";
 import { markUserMessageCoauthorSemanticsVersion } from "@/lib/userCoauthorState";
-import { normalizeMessageVariants } from "./messageAlternates";
-
-export type GenerationStatus =
-  | "submitted"
-  | "generating"
-  | "completed"
-  | "completed_with_postprocess_error"
-  | "failed"
-  | "failed_partial"
-  | "interrupted"
-  | "ok"; // legacy synonym for completed
+import {
+  CHAT_TURN_CHARGE_KIND,
+  readChatBillingSettlement,
+} from "@/lib/chatBillingSettlement";
+import type { DeductionSlice } from "@/lib/points";
+import { normalizeMessageVariants, type MessageVariant } from "./messageAlternates";
+export {
+  type ChatStreamDraft,
+  type GenerationStatus,
+  type StreamingPersistenceDiag,
+  clearChatStreamDraft,
+  createClientRequestId,
+  isInFlightGenerationStatus,
+  isTerminalGenerationStatus,
+  logStreamingPersistence,
+  normalizeClientRequestId,
+  readChatStreamDraft,
+  streamDraftStorageKey,
+  writeChatStreamDraft,
+} from "./streamingPersistenceShared";
+import {
+  isInFlightGenerationStatus,
+  isTerminalGenerationStatus,
+  type GenerationStatus,
+} from "./streamingPersistenceShared";
 
 export type StreamingTurnBootstrap = {
   requestId: string;
@@ -27,68 +41,8 @@ export type StreamingTurnBootstrap = {
   assistantPlaceholderCreated: boolean;
 };
 
-export type StreamingPersistenceDiag = {
-  requestId: string;
-  userMessageSaved: boolean;
-  assistantPlaceholderCreated: boolean;
-  partialSaveCount: number;
-  lastPartialChars: number;
-  finalized: boolean;
-  interrupted: boolean;
-  postprocessError: boolean;
-  recoveredOnLoad: boolean;
-  reusedExisting: boolean;
-};
-
 const PARTIAL_SAVE_MIN_MS = 700;
 const PARTIAL_SAVE_MIN_CHARS = 700;
-
-export function isTerminalGenerationStatus(status: string | null | undefined): boolean {
-  const s = (status ?? "completed").toLowerCase();
-  return (
-    s === "completed" ||
-    s === "ok" ||
-    s === "completed_with_postprocess_error" ||
-    s === "failed" ||
-    s === "failed_partial" ||
-    s === "interrupted"
-  );
-}
-
-export function isInFlightGenerationStatus(status: string | null | undefined): boolean {
-  const s = (status ?? "").toLowerCase();
-  return s === "generating" || s === "submitted";
-}
-
-export function normalizeClientRequestId(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const trimmed = raw.trim();
-  if (trimmed.length < 8 || trimmed.length > 80) return null;
-  if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) return null;
-  return trimmed;
-}
-
-export function createClientRequestId(): string {
-  return `cr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-export function logStreamingPersistence(diag: StreamingPersistenceDiag): void {
-  if (process.env.NODE_ENV === "production" && !diag.interrupted && !diag.postprocessError) {
-    // Keep production quiet for happy path
-  }
-  console.log("[StreamingPersistence]", {
-    request_id: diag.requestId,
-    userMessageSaved: diag.userMessageSaved,
-    assistantPlaceholderCreated: diag.assistantPlaceholderCreated,
-    partialSaveCount: diag.partialSaveCount,
-    lastPartialChars: diag.lastPartialChars,
-    finalized: diag.finalized,
-    interrupted: diag.interrupted,
-    postprocessError: diag.postprocessError,
-    recoveredOnLoad: diag.recoveredOnLoad,
-    reusedExisting: diag.reusedExisting,
-  });
-}
 
 type ExistingTurnRow = {
   id: number;
@@ -168,7 +122,7 @@ export function bootstrapStreamingTurn(
   if (opts.regenerateAssistantId != null) {
     const existing = db
       .prepare(
-        `SELECT content, model, usage, alternates, active_variant FROM messages WHERE id=? AND chat_id=?`
+        `SELECT content, model, usage, alternates, active_variant, request_id FROM messages WHERE id=? AND chat_id=?`
       )
       .get(opts.regenerateAssistantId, opts.chatId) as
       | {
@@ -177,6 +131,7 @@ export function bootstrapStreamingTurn(
           usage: string | null;
           alternates: string | null;
           active_variant: number | null;
+          request_id: string | null;
         }
       | undefined;
 
@@ -186,13 +141,19 @@ export function bootstrapStreamingTurn(
     let activeVariant = 0;
     if (existing) {
       const { variants, activeVariant: active } = normalizeMessageVariants(existing);
-      alternatesJson = JSON.stringify(variants);
-      activeVariant = variants.length > 0 ? active : 0;
+      const priorRequestId = existing.request_id?.trim() || null;
+      const enrichedVariants = variants.map((variant, index) => {
+        if (index !== active || variant.requestId?.trim()) return variant;
+        if (!priorRequestId) return variant;
+        return { ...variant, requestId: priorRequestId };
+      });
+      alternatesJson = JSON.stringify(enrichedVariants);
+      activeVariant = enrichedVariants.length > 0 ? active : 0;
     }
 
     db.prepare(
       `UPDATE messages SET content='', generation_status='generating', request_id=?, is_refunded=0,
-       alternates=?, active_variant=?,
+       alternates=?, active_variant=?, deduction_slices=NULL,
        status_meta=NULL, status_widget_values_json='', status_widget_turn_active=0,
        memory_relationship_task_json=NULL,
        updated_at=datetime('now') WHERE id=? AND chat_id=?`
@@ -351,6 +312,40 @@ export function markAssistantFailed(
 }
 
 /**
+ * Rehydrate billing evidence for a prior generation from canonical settlement truth.
+ * Does not synthesize slices — reads persisted settlement rows only.
+ */
+function resolveRestoredGenerationBillingEvidence(
+  db: Database.Database,
+  chatId: number,
+  variant: MessageVariant
+): { requestId: string | null; slices: DeductionSlice[] | null } {
+  const requestId = variant.requestId?.trim() || null;
+  if (!requestId) return { requestId: null, slices: null };
+
+  try {
+    const chatRow = db
+      .prepare(`SELECT user_id FROM chats WHERE id=?`)
+      .get(chatId) as { user_id: number } | undefined;
+    if (!chatRow) return { requestId, slices: null };
+
+    const settlement = readChatBillingSettlement(
+      db,
+      chatRow.user_id,
+      chatId,
+      requestId,
+      CHAT_TURN_CHARGE_KIND
+    );
+    if (!settlement || settlement.slices.length === 0) {
+      return { requestId, slices: null };
+    }
+    return { requestId, slices: settlement.slices };
+  } catch {
+    return { requestId, slices: null };
+  }
+}
+
+/**
  * Regenerate failed before a usable new reply — restore last good alternate into content
  * so refresh / SSR does not show a blank bubble.
  */
@@ -361,7 +356,7 @@ export function restoreAssistantFromAlternatesOnFailedRegen(
 ): boolean {
   const row = db
     .prepare(
-      `SELECT content, model, usage, alternates, active_variant FROM messages WHERE id=? AND chat_id=?`
+      `SELECT content, model, usage, alternates, active_variant, user_message_id FROM messages WHERE id=? AND chat_id=?`
     )
     .get(assistantMessageId, chatId) as
     | {
@@ -370,6 +365,7 @@ export function restoreAssistantFromAlternatesOnFailedRegen(
         usage: string | null;
         alternates: string | null;
         active_variant: number | null;
+        user_message_id: number | null;
       }
     | undefined;
   if (!row) return false;
@@ -378,8 +374,15 @@ export function restoreAssistantFromAlternatesOnFailedRegen(
   const prev = variants[activeVariant] ?? variants[variants.length - 1];
   if (!prev?.content?.trim()) return false;
 
+  const billingEvidence = resolveRestoredGenerationBillingEvidence(db, chatId, prev);
+  const restoredRequestId = billingEvidence.requestId;
+  const restoredSlicesJson =
+    billingEvidence.slices != null ? JSON.stringify(billingEvidence.slices) : null;
+
   db.prepare(
     `UPDATE messages SET content=?, model=?, usage=?, active_variant=?,
+     request_id=COALESCE(?, request_id),
+     deduction_slices=?,
      generation_status='completed', status='ok', updated_at=datetime('now')
      WHERE id=? AND chat_id=?`
   ).run(
@@ -387,9 +390,19 @@ export function restoreAssistantFromAlternatesOnFailedRegen(
     prev.model ?? row.model ?? "",
     prev.usage ? JSON.stringify(prev.usage) : row.usage,
     variants.length > 0 ? activeVariant : 0,
+    restoredRequestId,
+    restoredSlicesJson,
     assistantMessageId,
     chatId
   );
+
+  if (row.user_message_id != null && restoredRequestId) {
+    db.prepare(`UPDATE messages SET request_id=? WHERE id=? AND chat_id=?`).run(
+      restoredRequestId,
+      row.user_message_id,
+      chatId
+    );
+  }
   return true;
 }
 
@@ -534,56 +547,4 @@ export function createDisconnectSafeSend(
       }
     },
   };
-}
-
-const STREAM_DRAFT_PREFIX = "chat-stream-draft:v1:";
-
-export type ChatStreamDraft = {
-  requestId: string;
-  chatId: number;
-  userText: string;
-  assistantPartial: string;
-  updatedAt: number;
-};
-
-export function streamDraftStorageKey(characterId: number, chatId: number | null): string {
-  return `${STREAM_DRAFT_PREFIX}${characterId}:${chatId ?? "new"}`;
-}
-
-export function writeChatStreamDraft(
-  characterId: number,
-  chatId: number | null,
-  draft: ChatStreamDraft
-): void {
-  if (typeof window === "undefined") return;
-  try {
-    sessionStorage.setItem(streamDraftStorageKey(characterId, chatId), JSON.stringify(draft));
-  } catch {
-    /* ignore quota */
-  }
-}
-
-export function readChatStreamDraft(
-  characterId: number,
-  chatId: number | null
-): ChatStreamDraft | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(streamDraftStorageKey(characterId, chatId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as ChatStreamDraft;
-    if (!parsed?.requestId) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-export function clearChatStreamDraft(characterId: number, chatId: number | null): void {
-  if (typeof window === "undefined") return;
-  try {
-    sessionStorage.removeItem(streamDraftStorageKey(characterId, chatId));
-  } catch {
-    /* ignore */
-  }
 }

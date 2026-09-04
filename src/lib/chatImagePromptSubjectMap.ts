@@ -1,4 +1,4 @@
-import type { SceneDialogueSpeaker } from "@/lib/chatImageScenePlan";
+import type { SceneDialogue, SceneDialogueSpeaker } from "@/lib/chatImageScenePlan";
 import {
   describeReferenceOrder,
   subjectLetter,
@@ -80,6 +80,127 @@ export function resolveSpeakerSubject(
   return undefined;
 }
 
+export type ComicSubjectSide = "left" | "center" | "right" | "neutral";
+
+export type ComicSubjectStaging = {
+  byLabel: ReadonlyMap<PromptSubjectLabel, ComicSubjectSide>;
+  byKey: ReadonlyMap<string, ComicSubjectSide>;
+};
+
+function isMainCharacterSubject(subject: PromptSubjectIdentity): boolean {
+  if (subject.key === "main_character" || subject.key === "character") return true;
+  return /main_character|chat character/i.test(subject.role);
+}
+
+function isPersonaSubject(subject: PromptSubjectIdentity): boolean {
+  if (subject.key === "persona") return true;
+  return /persona|user persona/i.test(subject.role);
+}
+
+/** Canonical visual + overlay staging — role-based, not reference/bind order. */
+export function resolveComicSubjectStaging(
+  map: PromptSubjectMap,
+  personaVisible: boolean
+): ComicSubjectStaging {
+  const visible = visiblePromptSubjects(map, personaVisible);
+  const byLabel = new Map<PromptSubjectLabel, ComicSubjectSide>();
+  const byKey = new Map<string, ComicSubjectSide>();
+
+  const main = visible.find((subject) => isMainCharacterSubject(subject));
+  const persona = visible.find((subject) => isPersonaSubject(subject));
+  const supporting = visible.filter((subject) => subject !== main && subject !== persona);
+
+  if (visible.length === 1) {
+    const only = visible[0]!;
+    byLabel.set(only.label, "center");
+    byKey.set(only.key, "center");
+    return { byLabel, byKey };
+  }
+
+  if (visible.length === 2 && main && persona) {
+    byLabel.set(main.label, "left");
+    byKey.set(main.key, "left");
+    byLabel.set(persona.label, "right");
+    byKey.set(persona.key, "right");
+    return { byLabel, byKey };
+  }
+
+  if (visible.length === 3) {
+    if (main) {
+      byLabel.set(main.label, "left");
+      byKey.set(main.key, "left");
+    }
+    if (persona) {
+      byLabel.set(persona.label, "right");
+      byKey.set(persona.key, "right");
+    }
+    for (const subject of supporting) {
+      byLabel.set(subject.label, "center");
+      byKey.set(subject.key, "center");
+    }
+    return { byLabel, byKey };
+  }
+
+  const slotSides: ComicSubjectSide[] = ["left", "center", "center", "right"];
+  visible.forEach((subject, index) => {
+    const side = slotSides[Math.min(index, slotSides.length - 1)] ?? "center";
+    byLabel.set(subject.label, side);
+    byKey.set(subject.key, side);
+  });
+  return { byLabel, byKey };
+}
+
+export function formatComicStagingLayout(
+  map: PromptSubjectMap,
+  personaVisible: boolean
+): string {
+  const staging = resolveComicSubjectStaging(map, personaVisible);
+  const visible = visiblePromptSubjects(map, personaVisible);
+  if (visible.length >= 4) {
+    return "ensemble group layout — distribute subjects across readable slots; follow cast manifest composition goal";
+  }
+  if (visible.length >= 3) {
+    const parts = visible.map(
+      (subject) => `${subject.label} ${staging.byLabel.get(subject.label) ?? "center"}`
+    );
+    return `${parts.join(", ")} — maintain stable orientation across panels`;
+  }
+  const main = visible.find((subject) => isMainCharacterSubject(subject));
+  const persona = visible.find((subject) => isPersonaSubject(subject));
+  if (!personaVisible && main) {
+    return `SUBJECT ${main.label} (${main.name}) centered; persona off-camera only`;
+  }
+  if (main && persona) {
+    return `${main.label} left, ${persona.label} right — maintain stable orientation across panels`;
+  }
+  if (main) {
+    return `SUBJECT ${main.label} (${main.name}) centered`;
+  }
+  return "recurring characters readable in frame";
+}
+
+/** Resolve dialogue speaker to a prompt subject — exact speakerName match first. */
+export function resolveDialogueSpeakerSubject(
+  map: PromptSubjectMap,
+  line: Pick<SceneDialogue, "speaker" | "speakerName">
+): PromptSubjectIdentity | undefined {
+  const speakerName = line.speakerName?.trim();
+  if (speakerName) {
+    return map.subjects.find((subject) => subject.name.trim() === speakerName);
+  }
+  return resolveSpeakerSubject(map, line.speaker);
+}
+
+export function resolveDialogueSpeakerSide(
+  map: PromptSubjectMap,
+  line: Pick<SceneDialogue, "speaker" | "speakerName">,
+  personaVisible: boolean
+): ComicSubjectSide {
+  const subject = resolveDialogueSpeakerSubject(map, line);
+  if (!subject) return "neutral";
+  return resolveComicSubjectStaging(map, personaVisible).byLabel.get(subject.label) ?? "neutral";
+}
+
 export function visiblePromptSubjects(
   map: PromptSubjectMap,
   personaVisible: boolean
@@ -105,20 +226,9 @@ export function resolveLayoutFromSubjectMap(
   castCount: number
 ): string {
   if (castCount >= 3) {
-    return "stable group layout — left / center / right readable; follow cast manifest composition goal";
+    return formatComicStagingLayout(map, personaVisible);
   }
-  const character = resolveSpeakerSubject(map, "character");
-  const persona = resolveSpeakerSubject(map, "persona");
-  if (!personaVisible && character) {
-    return `SUBJECT ${character.label} (${character.name}) centered; persona off-camera only`;
-  }
-  if (character && persona) {
-    return `${character.label} left, ${persona.label} right — maintain stable orientation across panels`;
-  }
-  if (character) {
-    return `SUBJECT ${character.label} (${character.name}) centered`;
-  }
-  return "recurring characters readable in frame";
+  return formatComicStagingLayout(map, personaVisible);
 }
 
 type ParsedIdentityManifest = {

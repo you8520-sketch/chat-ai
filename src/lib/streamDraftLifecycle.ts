@@ -11,7 +11,7 @@
  * - STREAM_DRAFT_CLEAR_OWNER → clearRecoveryDraftScopes via closeSessionRecoveryDraft
  * - STREAM_DRAFT_RECOVERY_OWNER → writeSessionRecoveryDraft / readChatStreamDraft on load
  */
-import type { ChatStreamDraft } from "@/lib/streamingPersistence";
+import type { ChatStreamDraft } from "@/lib/streamingPersistenceShared";
 
 export type StreamDraftWriteGate = {
   isActive: () => boolean;

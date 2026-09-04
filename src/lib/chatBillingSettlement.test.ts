@@ -549,6 +549,62 @@ describe("chatBillingSettlement — legacy bridge", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("regen stale slices must not false-positive legacy bridge (197 requested, 49 stale)", () => {
+    // Unit-level isolation for SETTLEMENT_LEGACY_PROVENANCE_GUARD only.
+    // Production-equivalent integration uses bootstrapStreamingTurn — see
+    // geminiPublishedBillingRegenRegression.test.ts (no SQL request_id substitute).
+    const dir = mkdtempSync(join(tmpdir(), "billing-settle-"));
+    const dbPath = join(dir, "test.db");
+    try {
+      const db = createSettlementTestDb(dbPath);
+      const assistantId = insertAssistant(db, 1, "req_gemini_gen_a");
+      const legacyGen = settleChatTurnBillingExactlyOnce(db, {
+        userId: 1,
+        chatId: 1,
+        requestId: "req_gemini_gen_a",
+        assistantMessageId: assistantId,
+        requestedPoints: 49,
+        reason: "legacy generation",
+      });
+      assert.equal(legacyGen.appliedNewCharge, true);
+      assert.equal(legacyGen.settledPoints, 49);
+
+      db.prepare(`UPDATE messages SET request_id='req_gemini_gen_b' WHERE id=?`).run(assistantId);
+
+      const beforeBalance = userBalance(db);
+      const publishedGen = settleChatTurnBillingExactlyOnce(db, {
+        userId: 1,
+        chatId: 1,
+        requestId: "req_gemini_gen_b",
+        assistantMessageId: assistantId,
+        requestedPoints: 197,
+        reason: "published generation",
+      });
+
+      assert.equal(publishedGen.appliedNewCharge, true);
+      assert.equal(publishedGen.requestedPoints, 197);
+      assert.equal(publishedGen.settledPoints, 197);
+      assert.equal(publishedGen.outcome, "charged");
+      assert.equal(publishedGen.source, "native");
+      assert.equal(userBalance(db), beforeBalance - 197);
+      assert.equal(countSettlements(db), 2);
+      assert.equal(countNegativeLogs(db), 2);
+
+      const slices = JSON.parse(
+        (db.prepare(`SELECT deduction_slices FROM messages WHERE id=?`).get(assistantId) as {
+          deduction_slices: string;
+        }).deduction_slices
+      ) as Array<{ amount: number }>;
+      assert.equal(
+        slices.reduce((sum, slice) => sum + slice.amount, 0),
+        197
+      );
+      db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("chatBillingSettlement — crash window", () => {

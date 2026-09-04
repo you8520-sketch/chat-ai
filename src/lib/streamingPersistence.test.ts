@@ -23,6 +23,12 @@ const REGENERATED_SAMPLE_PROSE =
 function createMessagesDb(): Database.Database {
   const db = new Database(":memory:");
   db.exec(`
+    CREATE TABLE chats (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL
+    );
+    INSERT INTO chats (id, user_id, character_id) VALUES (1, 1, 1);
     CREATE TABLE messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chat_id INTEGER NOT NULL,
@@ -352,6 +358,38 @@ describe("streamingPersistence", () => {
     const alts = JSON.parse(row.alternates) as { content: string }[];
     assert.equal(alts.length, 1);
     assert.equal(alts[0].content, "이전 답변");
+  });
+
+  it("regenerate bootstrap clears deduction_slices for the new request identity", () => {
+    const db = createMessagesDb();
+    const boot = bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_regen_bill_a",
+      userContent: "유저",
+      skipUserInsert: false,
+    });
+    db.prepare(`UPDATE messages SET deduction_slices=? WHERE id=?`).run(
+      JSON.stringify([{ transactionId: 1, pointType: "PAID", amount: 49 }]),
+      boot.assistantMessageId
+    );
+
+    bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_regen_bill_b",
+      userContent: "유저",
+      skipUserInsert: true,
+      existingUserMessageId: boot.userMessageId,
+      regenerateAssistantId: boot.assistantMessageId,
+    });
+
+    const row = db
+      .prepare(`SELECT request_id, deduction_slices FROM messages WHERE id=?`)
+      .get(boot.assistantMessageId) as { request_id: string; deduction_slices: string | null };
+    assert.equal(row.request_id, "cr_regen_bill_b");
+    assert.equal(row.deduction_slices, null);
+
+    const found = findTurnByRequestId(db, 1, "cr_regen_bill_b");
+    assert.equal(found.alreadyBilled, false);
   });
 
   it("clears memory_relationship_task_json when regenerating the same assistant row", () => {

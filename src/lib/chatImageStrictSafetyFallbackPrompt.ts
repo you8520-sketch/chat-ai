@@ -29,6 +29,11 @@ import {
   renderChatImageVisualIdentity,
   type ChatImageVisualSubject,
 } from "@/lib/chatImageVisualIdentity";
+import {
+  projectComicSafeStructureForTier2,
+  renderComicSafeStructureForTier2Prompt,
+  type ComicSafeStructureProjection,
+} from "@/lib/chatComicSafeStructure";
 import type { ContentKind } from "@/lib/simulationMode";
 
 /** Tier-2 uses reference identity only — omit untrusted freeform saved appearance prose. */
@@ -51,7 +56,16 @@ function formatStrictCastLine(member: ChatLdIllustrationCastMember, index: numbe
   return `${index + 1}. ${name} (${member.role}). Gender: confirmed ${gender}.`;
 }
 
-function strictComicPanelBeats(panelCount: ChatComicPanelCount): string {
+function strictComicPanelBeats(
+  panelCount: ChatComicPanelCount,
+  safeStructure?: ComicSafeStructureProjection
+): string {
+  if (safeStructure?.panels.length) {
+    return renderComicSafeStructureForTier2Prompt(safeStructure)
+      .filter((line) => line.startsWith("Panel "))
+      .slice(0, panelCount)
+      .join("\n");
+  }
   const beats = [
     "Panel 1 — establishing: same cast in a calm, well-lit setting; neutral relaxed poses; no readable text.",
     "Panel 2 — reaction: medium shot; gentle emotional expression; modest clothing; no readable text.",
@@ -142,6 +156,7 @@ export function buildStrictComicFallbackPrompt(opts: {
   castManifest?: ChatImageCastGroundedManifest | null;
   castSelected?: readonly ChatImageCastGroundedSubject[];
   contentKind?: ContentKind;
+  safeStructure?: ComicSafeStructureProjection;
 }): string {
   const strictSubjects = subjectsForStrictFallback(opts.subjects);
   const castAware = Boolean(opts.castManifest && opts.castSelected?.length);
@@ -172,10 +187,14 @@ export function buildStrictComicFallbackPrompt(opts: {
           personaGender: opts.personaGender,
         }),
     STRICT_SAFE_DEPICTION,
-    "STRICT PROVIDER-SAFE FALLBACK — sequential safe poses only.",
+    "STRICT PROVIDER-SAFE FALLBACK — preserve the same safe location, cast, and emotional beat while removing explicit or graphic content.",
+    opts.safeStructure?.sharedBackground
+      ? `Preserve safe location continuity: ${opts.safeStructure.sharedBackground}.`
+      : "",
+    opts.safeStructure?.atmosphere ? `Preserve mood: ${opts.safeStructure.atmosphere}.` : "",
     `Overall tone: ${moodPrompt} — keep expressions readable but non-explicit.`,
-    "NO TEXT CONTRACT: zero speech bubbles, captions, SFX, or readable letters anywhere.",
-    strictComicPanelBeats(opts.panelCount),
+    "VISUAL LAYER ONLY — zero speech bubbles, captions, SFX, or readable letters in the image. Text is added later by server overlay.",
+    strictComicPanelBeats(opts.panelCount, opts.safeStructure),
     castAware
       ? `Exactly ${opts.castSelected!.length} recurring identities — no extras.`
       : "Exactly two recurring characters — no extras.",
