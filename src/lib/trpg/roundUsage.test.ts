@@ -6,8 +6,11 @@ import { computeTrpgRoundPoints } from "./billing";
 import { ensureTrpgTables } from "./schema";
 import {
   isTrpgRoundUsageEntryBillable,
+  loadBillableRerollUsage,
   loadBillableRoundUsage,
+  loadRerollUsageEntries,
   loadRoundUsageEntries,
+  projectBillableGmUsage,
   projectBillableRoundUsage,
   tagBotRoundUsage,
   tagGmRoundUsage,
@@ -65,9 +68,27 @@ describe("roundUsage billable projection", () => {
     assert.equal(isTrpgRoundUsageEntryBillable(gmCommitted, "gm-live"), true);
   });
 
-  it("legacy GM rows without generation metadata remain billable", () => {
+  it("legacy GM rows without generation metadata are not billable", () => {
     const legacy = { ...usage(1000, 100), seat: "gm" as const };
-    assert.equal(isTrpgRoundUsageEntryBillable(legacy, "any"), true);
+    assert.equal(projectBillableGmUsage([legacy], "any").length, 0);
+  });
+
+  it("R2/R3 — reroll billable projection excludes failed generations", () => {
+    const failA = tagGmRoundUsage(usage(3000, 300), "reroll-a");
+    const okB = tagGmRoundUsage(usage(4000, 400), "reroll-b");
+    const actual = [failA, okB];
+    assert.equal(projectBillableGmUsage(actual, "reroll-a").length, 1);
+    assert.equal(projectBillableGmUsage(actual, "reroll-b").length, 1);
+    assert.equal(projectBillableGmUsage(actual, "reroll-b")[0]?.generationId, "reroll-b");
+  });
+
+  it("R4 — three reroll attempts bill only committed generation", () => {
+    const a = tagGmRoundUsage(usage(1000, 100), "a");
+    const b = tagGmRoundUsage(usage(1100, 110), "b");
+    const c = tagGmRoundUsage(usage(1200, 120), "c");
+    const billable = projectBillableGmUsage([a, b, c], "c");
+    assert.equal(billable.length, 1);
+    assert.equal(billable[0]?.generationId, "c");
   });
 
   it("loadBillableRoundUsage reads committed generation from DB", () => {

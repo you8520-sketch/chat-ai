@@ -20,6 +20,7 @@ import {
   type TrpgEngineDeps,
 } from "./engineAdvance";
 import { computeTrpgRoundPoints, TRPG_GM_USAGE_FALLBACK } from "./billing";
+import { tagGmRoundUsage } from "./roundUsage";
 import {
   beginGmGenerationLease,
   buildTrpgOrphanGenerationErrorJson,
@@ -108,16 +109,19 @@ function creditUser(db: Database.Database, userId: number, amount: number, type:
   creditPointsWithIds(db, userId, amount, type, `test-credit-${userId}-${type}`);
 }
 
-function rerollUsage(): typeof TRPG_GM_USAGE_FALLBACK {
-  return {
-    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-    inputTokens: TRPG_GM_USAGE_FALLBACK.inputTokens,
-    outputTokens: TRPG_GM_USAGE_FALLBACK.outputTokens,
-  };
+function rerollUsage(generationId = "reroll-a") {
+  return tagGmRoundUsage(
+    {
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      inputTokens: TRPG_GM_USAGE_FALLBACK.inputTokens,
+      outputTokens: TRPG_GM_USAGE_FALLBACK.outputTokens,
+    },
+    generationId
+  );
 }
 
-function rerollChargePoints(): number {
-  return computeTrpgRoundPoints([rerollUsage()]);
+function rerollChargePoints(generationId = "reroll-a"): number {
+  return computeTrpgRoundPoints([rerollUsage(generationId)]);
 }
 
 function staleHeartbeat(db: Database.Database, roundId: number, ageSec = 600): void {
@@ -1383,7 +1387,7 @@ describe("GM reroll billing fencing", () => {
     const roundId = seedRerollCommitted(db, campaignId, {
       provenanceId: tokenA,
       leaseOwnerId: tokenB,
-      usageJson: JSON.stringify([rerollUsage()]),
+      usageJson: JSON.stringify([rerollUsage(tokenA)]),
     });
     const before = getPointBalanceOnDb(db, 1).total;
     assert.equal(billRerollGenerationExactlyOnce(db, campaign, roundId, tokenA, tokenA), false);
@@ -1401,7 +1405,7 @@ describe("GM reroll billing fencing", () => {
     const roundId = seedRerollCommitted(db, campaignId, {
       provenanceId: tokenA,
       leaseOwnerId: tokenB,
-      usageJson: JSON.stringify([rerollUsage()]),
+      usageJson: JSON.stringify([rerollUsage(tokenA)]),
     });
     const before = getPointBalanceOnDb(db, 1).total;
     const expected = rerollChargePoints();
@@ -1421,7 +1425,7 @@ describe("GM reroll billing fencing", () => {
       provenanceId: tokenA,
       leaseOwnerId: tokenB,
       billed: true,
-      usageJson: JSON.stringify([rerollUsage()]),
+      usageJson: JSON.stringify([rerollUsage(tokenA)]),
       billedPoints: 100 + rerollChargePoints(),
     });
     const before = getPointBalanceOnDb(db, 1).total;
@@ -1441,7 +1445,7 @@ describe("GM reroll billing fencing", () => {
     const roundId = seedRerollCommitted(db, campaignId, {
       provenanceId: tokenA,
       leaseOwnerId: tokenB,
-      usageJson: JSON.stringify([rerollUsage()]),
+      usageJson: JSON.stringify([rerollUsage(tokenA)]),
     });
     staleHeartbeat(db, roundId);
     const before = getPointBalanceOnDb(db, 1).total;
@@ -1464,7 +1468,7 @@ describe("GM reroll billing fencing", () => {
     const roundId = seedRerollCommitted(db, campaignId, {
       provenanceId: tokenA,
       leaseOwnerId: tokenB,
-      usageJson: JSON.stringify([rerollUsage()]),
+      usageJson: JSON.stringify([rerollUsage(tokenA)]),
     });
     const before = creatorEarnings(db, roundId);
     assert.equal(billRerollGenerationExactlyOnce(db, campaign, roundId, tokenB, tokenA), true);
@@ -1485,7 +1489,7 @@ describe("GM reroll billing fencing", () => {
     const roundId = seedRerollCommitted(db, campaignId, {
       provenanceId: tokenA,
       leaseOwnerId: tokenB,
-      usageJson: JSON.stringify([rerollUsage()]),
+      usageJson: JSON.stringify([rerollUsage(tokenA)]),
       billedPoints: baseBilled,
     });
     const expected = rerollChargePoints();
@@ -1520,7 +1524,7 @@ describe("GM reroll billing fencing", () => {
           `INSERT INTO trpg_rounds (campaign_id, round_number, phase, gm_generation_id, gm_committed_generation_id, process_stage, gm_reroll_usage_json, billed_points)
            VALUES (?, 1, 'GENERATING_NARRATION', ?, ?, 'reroll', ?, 100)`
         )
-        .run(campaignId, tokenB, tokenA, JSON.stringify([rerollUsage()])).lastInsertRowid
+        .run(campaignId, tokenB, tokenA, JSON.stringify([rerollUsage(tokenA)])).lastInsertRowid
     );
     db.prepare(`INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (?,?,?)`).run(
       roundId,
