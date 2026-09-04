@@ -166,12 +166,16 @@ describe("chatLdIllustrationGeneration", () => {
     );
   });
 
-  it("maps OpenAI self-harm safety rejections to a Korean retry hint", () => {
-    const msg = formatOpenAiImageUserError(
-      "Your request was rejected by the safety system. safety_violations=[self-harm]."
-    );
-    assert.match(msg, /안전 필터/);
-    assert.match(msg, /순화/);
+  it("maps rate limit without misleading scene-change wording", () => {
+    const msg = formatOpenAiImageUserError("rate limit exceeded");
+    assert.match(msg, /잠시 후/);
+    assert.doesNotMatch(msg, /장면을 조금 바꿔/);
+  });
+
+  it("preserves operational provider messages for non-rate-limit failures", () => {
+    const msg = formatOpenAiImageUserError("Invalid image format");
+    assert.equal(msg, "Invalid image format");
+    assert.doesNotMatch(msg, /장면을 조금 바꿔/);
   });
 
   it("numbers only members who have a photo, in party order", () => {
