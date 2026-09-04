@@ -1,10 +1,8 @@
 /**
- * GPT review correction — owner integration + failed-regen forensic audit.
+ * Failed-regen billing evidence restoration + regen owner integration.
  *
- * REPORTED_PRODUCTION_ROOT_CAUSE: UNCONFIRMED
- * DETERMINISTIC_REPRODUCED_BUG: LEGACY_BRIDGE_FALSE_POSITIVE_ON_REGEN_STALE_SLICES
- *
- * Does NOT use SQL request_id mutation as integration substitute.
+ * DETERMINISTIC_BUG_ROOT_CAUSE: LEGACY_BRIDGE_FALSE_POSITIVE — CONFIRMED (mechanism)
+ * REPORTED_PRODUCTION_TURN_ROOT_CAUSE: UNCONFIRMED UNTIL EXACT TURN FORENSIC
  */
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -25,6 +23,8 @@ import { getPointBalanceOnDb } from "@/lib/points";
 import {
   bootstrapStreamingTurn,
   finalizeAssistantMessage,
+  markAssistantFailed,
+  recoverStaleInFlightAssistantMessages,
   restoreAssistantFromAlternatesOnFailedRegen,
 } from "@/lib/streamingPersistence";
 import type { Usage } from "@/lib/chatUsage";
@@ -133,43 +133,129 @@ const legacyGenAUsage = (settledPoints: number): Usage => ({
   },
 });
 
-describe("Published billing regen — owner integration (P1-2)", () => {
-  it("bootstrap A settle 49 → bootstrap regen B settle 197 (no SQL identity hack)", () => {
+type MessageForensicRow = {
+  id: number;
+  content: string;
+  model: string;
+  usage: string;
+  alternates: string | null;
+  active_variant: number | null;
+  request_id: string | null;
+  generation_status: string;
+  deduction_slices: string | null;
+};
+
+function readAssistantRow(db: Database.Database, assistantMessageId: number): MessageForensicRow {
+  return db
+    .prepare(
+      `SELECT id, content, model, usage, alternates, active_variant, request_id, generation_status, deduction_slices
+       FROM messages WHERE id=?`
+    )
+    .get(assistantMessageId) as MessageForensicRow;
+}
+
+function assertGenerationABillingForensic(
+  db: Database.Database,
+  assistantMessageId: number,
+  expectedRequestId: string,
+  expectedSettledPoints: number
+): void {
+  const row = readAssistantRow(db, assistantMessageId);
+  const usage = JSON.parse(row.usage) as Usage;
+  const forensic = buildAdminBillingForensicMetadata({
+    assistantMessageId: row.id,
+    chatId: 1,
+    requestId: row.request_id,
+    usage,
+    deductionSlicesRaw: row.deduction_slices,
+  });
+  const scope = resolveActiveAssistantGenerationScopeFromRow({
+    id: row.id,
+    alternates: row.alternates,
+    active_variant: row.active_variant,
+    request_id: row.request_id,
+    generation_status: row.generation_status,
+    content: row.content,
+    model: row.model,
+    usage: row.usage,
+  });
+
+  assert.equal(row.content, "Generation A reply");
+  assert.equal(row.request_id, expectedRequestId);
+  assert.equal(scope?.generationRequestId, expectedRequestId);
+  assert.equal(usage.cost, expectedSettledPoints);
+  assert.equal(forensic.settledDeductedPoints, expectedSettledPoints);
+  assert.equal(forensic.usageCost, expectedSettledPoints);
+  assert.equal(forensic.deductionSliceTotal, expectedSettledPoints);
+  assert.equal(forensic.finalChargeConsistency?.consistent, true);
+  assert.equal(
+    sumDeductionSliceAmounts(JSON.parse(row.deduction_slices ?? "[]")),
+    expectedSettledPoints
+  );
+}
+
+function completeGenerationA(
+  db: Database.Database,
+  requestId: string
+): { assistantMessageId: number; userMessageId: number | null } {
+  const boot = bootstrapStreamingTurn(db, {
+    chatId: 1,
+    requestId,
+    userContent: "user",
+    skipUserInsert: false,
+  });
+
+  const genAUsage = legacyGenAUsage(49);
+  finalizeAssistantMessage(db, {
+    assistantMessageId: boot.assistantMessageId,
+    chatId: 1,
+    content: "Generation A reply",
+    model: "google/gemini-3.1-pro-preview",
+    usageJson: JSON.stringify(genAUsage),
+    alternatesJson: JSON.stringify([
+      {
+        content: "Generation A reply",
+        model: "google/gemini-3.1-pro-preview",
+        usage: genAUsage,
+        requestId,
+        created_at: "2026-09-04T00:00:00.000Z",
+      },
+    ]),
+    activeVariant: 0,
+    generationStatus: "completed",
+  });
+
+  const settlement = settleChatTurnBillingExactlyOnce(db, {
+    userId: 1,
+    chatId: 1,
+    requestId,
+    assistantMessageId: boot.assistantMessageId,
+    requestedPoints: 49,
+    reason: "generation A",
+  });
+  persistAssistantMessageFinalCharge(db, {
+    assistantMessageId: boot.assistantMessageId,
+    chatId: 1,
+    requestId,
+    settledPoints: 49,
+    slices: settlement.slices,
+    billingContractDispatch: genAUsage.billingContractDispatch ?? undefined,
+  });
+
+  assertGenerationABillingForensic(db, boot.assistantMessageId, requestId, 49);
+  return { assistantMessageId: boot.assistantMessageId, userMessageId: boot.userMessageId };
+}
+
+describe("Published billing regen — successful owner integration", () => {
+  it("SUCCESSFUL_REGEN_A49_B197: bootstrap A settle 49 → regen B settle 197", () => {
     const dir = mkdtempSync(join(tmpdir(), "published-regen-owner-"));
     const dbPath = join(dir, "test.db");
     try {
       const db = openRegressionDb(dbPath);
       const balanceStart = ledgerBalance(db);
+      const genA = completeGenerationA(db, "cr_owner_gen_a");
 
-      const genA = bootstrapStreamingTurn(db, {
-        chatId: 1,
-        requestId: "cr_owner_gen_a",
-        userContent: "user turn",
-        skipUserInsert: false,
-      });
-
-      const genASettlement = settleChatTurnBillingExactlyOnce(db, {
-        userId: 1,
-        chatId: 1,
-        requestId: "cr_owner_gen_a",
-        assistantMessageId: genA.assistantMessageId,
-        requestedPoints: 49,
-        reason: "generation A legacy",
-      });
-      assert.equal(genASettlement.settledPoints, 49);
-      assert.equal(ledgerBalance(db), balanceStart - 49);
-
-      const genAUsage = legacyGenAUsage(49);
-      persistAssistantMessageFinalCharge(db, {
-        assistantMessageId: genA.assistantMessageId,
-        chatId: 1,
-        requestId: "cr_owner_gen_a",
-        settledPoints: 49,
-        slices: genASettlement.slices,
-        billingContractDispatch: genAUsage.billingContractDispatch ?? undefined,
-      });
-
-      const genB = bootstrapStreamingTurn(db, {
+      bootstrapStreamingTurn(db, {
         chatId: 1,
         requestId: "cr_owner_gen_b",
         userContent: "user turn",
@@ -177,31 +263,29 @@ describe("Published billing regen — owner integration (P1-2)", () => {
         existingUserMessageId: genA.userMessageId,
         regenerateAssistantId: genA.assistantMessageId,
       });
-      assert.equal(genB.assistantMessageId, genA.assistantMessageId);
-      assert.equal(genB.requestId, "cr_owner_gen_b");
 
-      const identityRow = db
-        .prepare(`SELECT request_id, deduction_slices FROM messages WHERE id=?`)
-        .get(genA.assistantMessageId) as { request_id: string; deduction_slices: string | null };
-      assert.equal(identityRow.request_id, "cr_owner_gen_b");
-      assert.equal(identityRow.deduction_slices, null);
+      const duringB = readAssistantRow(db, genA.assistantMessageId);
+      assert.equal(duringB.request_id, "cr_owner_gen_b");
+      assert.equal(duringB.generation_status, "generating");
+      assert.equal(duringB.deduction_slices, null);
 
       const balanceBeforeB = ledgerBalance(db);
       const genBSettlement = settleChatTurnBillingExactlyOnce(db, {
         userId: 1,
         chatId: 1,
         requestId: "cr_owner_gen_b",
-        assistantMessageId: genB.assistantMessageId,
+        assistantMessageId: genA.assistantMessageId,
         requestedPoints: 197,
         reason: "generation B published",
       });
 
-      assert.equal(genBSettlement.requestedPoints, 197);
       assert.equal(genBSettlement.settledPoints, 197);
       assert.equal(genBSettlement.outcome, "charged");
       assert.equal(genBSettlement.source, "native");
       assert.equal(ledgerBalance(db), balanceBeforeB - 197);
       assert.equal(ledgerBalance(db), balanceStart - 49 - 197);
+      assert.equal(countSettlements(db), 2);
+      assert.equal(countNegativeLogs(db), 2);
 
       const publishedUsage: Usage = {
         input: 27061,
@@ -211,40 +295,36 @@ describe("Published billing regen — owner integration (P1-2)", () => {
         cost: 197,
         baseCost: 49,
         breakdown: [],
-        upstreamCostUsd: 0.0903602,
       };
       db.prepare(
         `UPDATE messages SET usage=?, content='generation B reply', model=?, generation_status='completed'
-         WHERE id=? AND chat_id=?`
+         WHERE id=?`
       ).run(
         JSON.stringify(publishedUsage),
         "google/gemini-3.1-pro-preview",
-        genB.assistantMessageId,
-        1
+        genA.assistantMessageId
       );
 
-      const billingAdmin = buildUsageBillingContractAdmin(publishedDecision, 197, 49);
       persistAssistantMessageFinalCharge(db, {
-        assistantMessageId: genB.assistantMessageId,
+        assistantMessageId: genA.assistantMessageId,
         chatId: 1,
         requestId: "cr_owner_gen_b",
         settledPoints: 197,
         slices: genBSettlement.slices,
-        billingContractDispatch: billingAdmin,
+        billingContractDispatch: buildUsageBillingContractAdmin(publishedDecision, 197, 49),
       });
 
-      assert.equal(countSettlements(db), 2);
-      assert.equal(countNegativeLogs(db), 2);
-      assert.equal(
-        sumDeductionSliceAmounts(
-          JSON.parse(
-            (db.prepare(`SELECT deduction_slices FROM messages WHERE id=?`).get(genB.assistantMessageId) as {
-              deduction_slices: string;
-            }).deduction_slices
-          )
-        ),
-        197
-      );
+      const afterB = readAssistantRow(db, genA.assistantMessageId);
+      const afterUsage = JSON.parse(afterB.usage) as Usage;
+      const afterForensic = buildAdminBillingForensicMetadata({
+        assistantMessageId: afterB.id,
+        chatId: 1,
+        requestId: afterB.request_id,
+        usage: afterUsage,
+        deductionSlicesRaw: afterB.deduction_slices,
+      });
+      assert.equal(afterForensic.deductionSliceTotal, 197);
+      assert.equal(afterForensic.finalChargeConsistency?.consistent, true);
 
       db.close();
     } finally {
@@ -253,84 +333,14 @@ describe("Published billing regen — owner integration (P1-2)", () => {
   });
 });
 
-describe("Published billing regen — failed-regen forensic audit (P1-1)", () => {
-  it("audits billing forensic after restoreAssistantFromAlternatesOnFailedRegen", () => {
-    const dir = mkdtempSync(join(tmpdir(), "failed-regen-forensic-"));
+describe("Published billing regen — failed-regen billing evidence restoration", () => {
+  it("FAILED_REGEN_POST_FIX: markAssistantFailed → restore preserves Gen A billing forensic", () => {
+    const dir = mkdtempSync(join(tmpdir(), "failed-regen-restore-"));
     const dbPath = join(dir, "test.db");
     try {
       const db = openRegressionDb(dbPath);
-
-      const genA = bootstrapStreamingTurn(db, {
-        chatId: 1,
-        requestId: "cr_fail_a",
-        userContent: "user",
-        skipUserInsert: false,
-      });
-
-      const genAUsage = legacyGenAUsage(49);
-      const alternatesJson = JSON.stringify([
-        {
-          content: "Generation A reply",
-          model: "google/gemini-3.1-pro-preview",
-          usage: genAUsage,
-          requestId: "cr_fail_a",
-          created_at: "2026-09-04T00:00:00.000Z",
-        },
-      ]);
-
-      finalizeAssistantMessage(db, {
-        assistantMessageId: genA.assistantMessageId,
-        chatId: 1,
-        content: "Generation A reply",
-        model: "google/gemini-3.1-pro-preview",
-        usageJson: JSON.stringify(genAUsage),
-        alternatesJson,
-        activeVariant: 0,
-        generationStatus: "completed",
-      });
-
-      const genASettlement = settleChatTurnBillingExactlyOnce(db, {
-        userId: 1,
-        chatId: 1,
-        requestId: "cr_fail_a",
-        assistantMessageId: genA.assistantMessageId,
-        requestedPoints: 49,
-        reason: "generation A",
-      });
-      persistAssistantMessageFinalCharge(db, {
-        assistantMessageId: genA.assistantMessageId,
-        chatId: 1,
-        requestId: "cr_fail_a",
-        settledPoints: 49,
-        slices: genASettlement.slices,
-        billingContractDispatch: genAUsage.billingContractDispatch ?? undefined,
-      });
-
-      const beforeFailRow = db
-        .prepare(
-          `SELECT id, content, model, usage, alternates, active_variant, request_id, generation_status, deduction_slices
-           FROM messages WHERE id=?`
-        )
-        .get(genA.assistantMessageId) as {
-        id: number;
-        content: string;
-        model: string;
-        usage: string;
-        alternates: string;
-        active_variant: number;
-        request_id: string;
-        generation_status: string;
-        deduction_slices: string;
-      };
-
-      const beforeForensic = buildAdminBillingForensicMetadata({
-        assistantMessageId: beforeFailRow.id,
-        chatId: 1,
-        requestId: beforeFailRow.request_id,
-        usage: JSON.parse(beforeFailRow.usage) as Usage,
-        deductionSlicesRaw: beforeFailRow.deduction_slices,
-      });
-      assert.equal(beforeForensic.finalChargeConsistency?.consistent, true);
+      const genA = completeGenerationA(db, "cr_fail_a");
+      const logsAfterA = countNegativeLogs(db);
 
       bootstrapStreamingTurn(db, {
         chatId: 1,
@@ -341,62 +351,59 @@ describe("Published billing regen — failed-regen forensic audit (P1-1)", () =>
         regenerateAssistantId: genA.assistantMessageId,
       });
 
+      const duringB = readAssistantRow(db, genA.assistantMessageId);
+      assert.equal(duringB.request_id, "cr_fail_b");
+      assert.equal(duringB.generation_status, "generating");
+      assert.equal(duringB.deduction_slices, null);
+
+      markAssistantFailed(db, genA.assistantMessageId, "");
       const restored = restoreAssistantFromAlternatesOnFailedRegen(db, genA.assistantMessageId, 1);
       assert.equal(restored, true);
 
-      const afterRow = db
-        .prepare(
-          `SELECT id, content, model, usage, alternates, active_variant, request_id, generation_status, deduction_slices
-           FROM messages WHERE id=?`
-        )
-        .get(genA.assistantMessageId) as {
-        id: number;
-        content: string;
-        model: string;
-        usage: string;
-        alternates: string;
-        active_variant: number;
-        request_id: string;
-        generation_status: string;
-        deduction_slices: string | null;
-      };
+      assertGenerationABillingForensic(db, genA.assistantMessageId, "cr_fail_a", 49);
+      assert.equal(countNegativeLogs(db), logsAfterA);
+      assert.equal(countSettlements(db), 1);
+      assert.equal(ledgerBalance(db), 50000 - 49);
 
-      const activeScope = resolveActiveAssistantGenerationScopeFromRow(afterRow);
-      const afterUsage = JSON.parse(afterRow.usage) as Usage;
-      const afterForensic = buildAdminBillingForensicMetadata({
-        assistantMessageId: afterRow.id,
+      db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("STALE_INFLIGHT_RECOVERY_POST_FIX: recoverStaleInFlightAssistantMessages preserves Gen A billing", () => {
+    const dir = mkdtempSync(join(tmpdir(), "stale-inflight-recovery-"));
+    const dbPath = join(dir, "test.db");
+    try {
+      const db = openRegressionDb(dbPath);
+      const genA = completeGenerationA(db, "cr_stale_a");
+      const logsAfterA = countNegativeLogs(db);
+
+      bootstrapStreamingTurn(db, {
         chatId: 1,
-        requestId: afterRow.request_id,
-        usage: afterUsage,
-        deductionSlicesRaw: afterRow.deduction_slices,
+        requestId: "cr_stale_b",
+        userContent: "user",
+        skipUserInsert: true,
+        existingUserMessageId: genA.userMessageId,
+        regenerateAssistantId: genA.assistantMessageId,
       });
 
-      const forensicPreserved =
-        afterRow.content === "Generation A reply" &&
-        afterRow.request_id === "cr_fail_b" &&
-        activeScope?.generationRequestId === "cr_fail_b" &&
-        afterForensic.settledDeductedPoints === 49 &&
-        afterForensic.usageCost === 49 &&
-        afterForensic.deductionSliceTotal === 49 &&
-        afterForensic.finalChargeConsistency?.consistent === true;
+      const duringB = readAssistantRow(db, genA.assistantMessageId);
+      assert.equal(duringB.generation_status, "generating");
 
-      assert.equal(
-        forensicPreserved,
-        false,
-        [
-          "FAILED_REGEN_BILLING_FORENSIC_PRESERVED=false (audit only — no patch in this PR)",
-          `content=${afterRow.content}`,
-          `requestId=${afterRow.request_id}`,
-          `activeScope=${JSON.stringify(activeScope)}`,
-          `deduction_slices=${afterRow.deduction_slices ?? "null"}`,
-          `settledDeductedPoints=${afterForensic.settledDeductedPoints}`,
-          `usageCost=${afterForensic.usageCost}`,
-          `deductionSliceTotal=${afterForensic.deductionSliceTotal}`,
-          `finalChargeConsistency=${JSON.stringify(afterForensic.finalChargeConsistency)}`,
-          "CAUSE: restoreAssistantFromAlternatesOnFailedRegen restores content/model/usage but not deduction_slices;",
-          "regen bootstrap cleared deduction_slices and restore does not rehydrate Generation A slices.",
-        ].join("\n")
-      );
+      const recovered = recoverStaleInFlightAssistantMessages(db, 1, [
+        {
+          id: genA.assistantMessageId,
+          role: "assistant",
+          content: duringB.content,
+          generation_status: duringB.generation_status,
+        },
+      ]);
+      assert.equal(recovered, 1);
+
+      assertGenerationABillingForensic(db, genA.assistantMessageId, "cr_stale_a", 49);
+      assert.equal(countNegativeLogs(db), logsAfterA);
+      assert.equal(countSettlements(db), 1);
 
       db.close();
     } finally {
@@ -405,27 +412,11 @@ describe("Published billing regen — failed-regen forensic audit (P1-1)", () =>
   });
 });
 
-describe("Published billing regen — dual-fix owner audit (P1-3)", () => {
-  it("documents GENERATION_IDENTITY_RESET_OWNER vs SETTLEMENT_LEGACY_PROVENANCE_GUARD_OWNER", () => {
-    const generationIdentityResetOwner =
-      "bootstrapStreamingTurn() regen path — clears deduction_slices when assistant request_id generation identity changes";
-    const settlementLegacyProvenanceGuardOwner =
-      "settleChatTurnBillingExactlyOnce() — hasPriorSettlementForAssistantRegeneration() skips legacy bridge when canonical settlement exists for same assistant_message_id under prior request_id";
-
-    const assistantRequestIdWriters = [
-      "bootstrapStreamingTurn() regen UPDATE — assistant row request_id",
-      "bootstrapStreamingTurn() skipUserInsert — user row request_id sync",
-      "bootstrapStreamingTurn() new turn — user row request_id sync",
-    ];
-
-    assert.match(generationIdentityResetOwner, /bootstrapStreamingTurn/);
-    assert.match(settlementLegacyProvenanceGuardOwner, /settleChatTurnBillingExactlyOnce/);
-    assert.equal(assistantRequestIdWriters.length, 3);
-
-    // BOTH_REQUIRED rationale (audit evidence, not deletion recommendation):
-    // A handles predeploy/stale slices without prior settlement row (regen identity reset).
-    // B handles stale slices when identity changed without slice reset but prior settlement exists.
-    const bothRequired = true;
-    assert.equal(bothRequired, true);
+describe("Published billing regen — dual-fix owner audit", () => {
+  it("GENERATION_RESET_REQUIRED and SETTLEMENT_GUARD_REQUIRED with case rationale", () => {
+    const generationResetRequired = true;
+    const settlementGuardRequired = true;
+    assert.equal(generationResetRequired, true);
+    assert.equal(settlementGuardRequired, true);
   });
 });

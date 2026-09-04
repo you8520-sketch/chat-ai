@@ -23,6 +23,12 @@ const REGENERATED_SAMPLE_PROSE =
 function createMessagesDb(): Database.Database {
   const db = new Database(":memory:");
   db.exec(`
+    CREATE TABLE chats (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL
+    );
+    INSERT INTO chats (id, user_id, character_id) VALUES (1, 1, 1);
     CREATE TABLE messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chat_id INTEGER NOT NULL,
