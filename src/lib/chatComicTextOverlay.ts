@@ -1,6 +1,6 @@
 import sharp, { type Metadata } from "sharp";
 import type { SceneDialogue, ScenePanel, ScenePlan, ScenePresentationVisibility } from "@/lib/chatImageScenePlan";
-import { isEligibleSpeechDialogue } from "@/lib/chatImageScenePlan";
+import { isEligibleSpeechDialogue, normalizeDialogueTextForOutput } from "@/lib/chatImageScenePlan";
 import {
   buildPromptSubjectMap,
   resolveSpeakerSubject,
@@ -16,7 +16,7 @@ import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
 /**
  * COMIC TEXT OVERLAY SUB-SYSTEM (OVERLAY-FIRST ARCHITECTURE)
  *
- * Korean font runtime (Railway/Nixpacks): `noto-fonts-cjk-kr` in nixpacks.toml.
+ * Korean font runtime (Railway/Nixpacks): `noto-fonts-cjk-sans` in nixpacks.toml.
  * CI installs `fonts-noto-cjk` in validate-chat-image-generator workflow.
  * SVG font-family fallbacks: Nanum* → Noto Sans CJK KR → sans-serif.
  *
@@ -50,7 +50,10 @@ export type SpeechBubbleLayout = {
   speaker: "persona" | "character" | "other";
   speakerName?: string;
   rawText: string;
+  renderedText: string;
+  renderedLines: string[];
   provenance?: SceneDialogue["provenance"];
+  fitsInPanel: boolean;
   x: number;
   y: number;
   width: number;
@@ -59,7 +62,6 @@ export type SpeechBubbleLayout = {
   tailY: number;
   tailTargetX: number;
   tailTargetY: number;
-  lines: string[];
   fontSize: number;
 };
 
@@ -171,61 +173,90 @@ export function selectDialogueForPanelLayout(
   return selected.map((item) => item.line);
 }
 
+export const OVERLAY_PREFLIGHT_USER_MESSAGE =
+  "한 컷에 들어갈 대사가 너무 많습니다. 대사를 줄이거나 다른 컷으로 나눠 주세요.";
+
 type BubbleGeometry = {
-  lines: string[];
+  renderedLines: string[];
+  renderedText: string;
   fontSize: number;
   bubbleWidth: number;
   bubbleHeight: number;
   lineHeight: number;
   paddingH: number;
   paddingV: number;
+  fitsInPanel: boolean;
 };
 
-function computeBoundedBubbleGeometry(
-  text: string,
-  panelWidth: number,
-  panelHeight: number,
-  maxCharsPerLine = 13
-): BubbleGeometry {
+function charsPerLineForBubbleInnerWidth(innerWidth: number, fontSize: number): number {
+  return Math.max(4, Math.floor(innerWidth / Math.max(fontSize * 0.9, 8)));
+}
+
+function computeBubbleGeometry(opts: {
+  text: string;
+  panelWidth: number;
+  panelHeight: number;
+  provenance?: SceneDialogue["provenance"];
+}): BubbleGeometry {
   const paddingH = 22;
   const paddingV = 16;
-  let fontSize = DEFAULT_BUBBLE_FONT_SIZE;
+  const { panelWidth, panelHeight } = opts;
   const maxBubbleHeight = Math.max(80, panelHeight * MAX_BUBBLE_HEIGHT_RATIO);
+  const maxWidthRatio = opts.provenance === "user_edit" ? 0.88 : 0.52;
+  const cleanText = opts.text.trim();
 
-  let lines = wrapKoreanText(text, maxCharsPerLine);
-  let lineHeight = fontSize * 1.35;
-  let maxLineChars = Math.max(...lines.map((line) => line.length), 3);
-  let textWidth = Math.max(120, maxLineChars * fontSize * 0.95);
-  let bubbleWidth = Math.min(panelWidth * 0.46, textWidth + paddingH * 2);
-  let bubbleHeight = lines.length * lineHeight + paddingV * 2;
+  for (let fontSize = DEFAULT_BUBBLE_FONT_SIZE; fontSize >= MIN_BUBBLE_FONT_SIZE; fontSize -= 1) {
+    const lineHeight = fontSize * 1.35;
+    const maxBubbleWidth = panelWidth * maxWidthRatio;
+    const innerWidth = maxBubbleWidth - paddingH * 2;
+    const charsPerLine = charsPerLineForBubbleInnerWidth(innerWidth, fontSize);
+    const renderedLines = wrapKoreanText(cleanText, charsPerLine);
+    const maxLineChars = Math.max(...renderedLines.map((line) => line.length), 1);
+    const textWidth = Math.max(120, maxLineChars * fontSize * 0.95);
+    const bubbleWidth = Math.min(maxBubbleWidth, textWidth + paddingH * 2);
+    const bubbleHeight = renderedLines.length * lineHeight + paddingV * 2;
 
-  while (bubbleHeight > maxBubbleHeight && fontSize > MIN_BUBBLE_FONT_SIZE) {
-    fontSize -= 1;
-    lineHeight = fontSize * 1.35;
-    maxLineChars = Math.max(...lines.map((line) => line.length), 3);
-    textWidth = Math.max(120, maxLineChars * fontSize * 0.95);
-    bubbleWidth = Math.min(panelWidth * 0.46, textWidth + paddingH * 2);
-    bubbleHeight = lines.length * lineHeight + paddingV * 2;
+    if (bubbleHeight <= maxBubbleHeight) {
+      return {
+        renderedLines,
+        renderedText: cleanText,
+        fontSize,
+        bubbleWidth,
+        bubbleHeight,
+        lineHeight,
+        paddingH,
+        paddingV,
+        fitsInPanel: true,
+      };
+    }
   }
 
-  if (bubbleHeight > maxBubbleHeight) {
-    const maxLines = Math.max(
-      1,
-      Math.floor((maxBubbleHeight - paddingV * 2) / lineHeight)
-    );
-    lines = lines.slice(0, maxLines);
-    bubbleHeight = lines.length * lineHeight + paddingV * 2;
-  }
+  const fontSize = MIN_BUBBLE_FONT_SIZE;
+  const lineHeight = fontSize * 1.35;
+  const maxBubbleWidth = panelWidth * maxWidthRatio;
+  const innerWidth = maxBubbleWidth - paddingH * 2;
+  const charsPerLine = charsPerLineForBubbleInnerWidth(innerWidth, fontSize);
+  const renderedLines = wrapKoreanText(cleanText, charsPerLine);
+  const maxLineChars = Math.max(...renderedLines.map((line) => line.length), 1);
+  const textWidth = Math.max(120, maxLineChars * fontSize * 0.95);
+  const bubbleWidth = Math.min(maxBubbleWidth, textWidth + paddingH * 2);
+  const bubbleHeight = renderedLines.length * lineHeight + paddingV * 2;
 
   return {
-    lines,
+    renderedLines,
+    renderedText: cleanText,
     fontSize,
     bubbleWidth,
     bubbleHeight,
     lineHeight,
     paddingH,
     paddingV,
+    fitsInPanel: bubbleHeight <= maxBubbleHeight,
   };
+}
+
+export function bubbleVisibleRenderedText(bubble: SpeechBubbleLayout): string {
+  return bubble.renderedText;
 }
 
 // ============================================================================
@@ -501,7 +532,7 @@ function findDropCandidateIndex(bubbles: readonly SpeechBubbleLayout[]): number 
   for (let index = bubbles.length - 1; index >= 0; index -= 1) {
     if (bubbles[index]?.provenance !== "user_edit") return index;
   }
-  return bubbles.length > 0 ? bubbles.length - 1 : -1;
+  return -1;
 }
 
 /** Final-state layout: bounded second pass + deterministic drop when still impossible. */
@@ -590,8 +621,13 @@ export function layoutPanelBubbles(opts: {
   const selected = selectDialogueForPanelLayout(dialogue);
 
   for (const line of selected) {
-    const geometry = computeBoundedBubbleGeometry(line.text, panelWidth, panelHeight);
-    const { lines, fontSize, bubbleWidth, bubbleHeight } = geometry;
+    const geometry = computeBubbleGeometry({
+      text: line.text,
+      panelWidth,
+      panelHeight,
+      provenance: line.provenance,
+    });
+    const { renderedLines, renderedText, fontSize, bubbleWidth, bubbleHeight, fitsInPanel } = geometry;
 
     const side = subjectMap
       ? resolveSpeakerSide(line.speaker, subjectMap, personaVisible)
@@ -638,7 +674,10 @@ export function layoutPanelBubbles(opts: {
       speaker: line.speaker,
       speakerName: line.speakerName,
       rawText: line.text,
+      renderedText,
+      renderedLines,
       provenance: line.provenance,
+      fitsInPanel,
       x,
       y,
       width: bubbleWidth,
@@ -647,7 +686,6 @@ export function layoutPanelBubbles(opts: {
       tailY,
       tailTargetX,
       tailTargetY,
-      lines,
       fontSize,
     });
   }
@@ -755,7 +793,7 @@ export function compileComicPanelOverlayLayouts(opts: {
   return layouts;
 }
 
-export function collectFinalOverlayBubbleTexts(opts: {
+export function collectFinalOverlayRenderedTexts(opts: {
   width: number;
   height: number;
   panelCount: number;
@@ -765,8 +803,96 @@ export function collectFinalOverlayBubbleTexts(opts: {
   subjects?: readonly ChatImageVisualSubject[];
 }): string[] {
   return compileComicPanelOverlayLayouts(opts).flatMap((layout) =>
-    layout.bubbles.map((bubble) => bubble.rawText)
+    layout.bubbles.map((bubble) => bubble.renderedText)
   );
+}
+
+/** @deprecated Use collectFinalOverlayRenderedTexts — metadata rawText is not pixel parity. */
+export function collectFinalOverlayBubbleTexts(opts: {
+  width: number;
+  height: number;
+  panelCount: number;
+  plan: ScenePlan;
+  visibility?: ScenePresentationVisibility;
+  safetyContext?: TextOverlaySafetyContext;
+  subjects?: readonly ChatImageVisualSubject[];
+}): string[] {
+  return collectFinalOverlayRenderedTexts(opts);
+}
+
+export type ComicOverlayPreflightResult =
+  | { ok: true }
+  | { ok: false; reason: typeof OVERLAY_PREFLIGHT_USER_MESSAGE };
+
+export function validateComicOverlayPreflight(opts: {
+  width: number;
+  height: number;
+  panelCount: number;
+  plan: ScenePlan;
+  visibility?: ScenePresentationVisibility;
+  safetyContext?: TextOverlaySafetyContext;
+  subjects?: readonly ChatImageVisualSubject[];
+}): ComicOverlayPreflightResult {
+  const visibility = opts.visibility ?? { personaVisible: true };
+  const safetyContext: TextOverlaySafetyContext = {
+    ...opts.safetyContext,
+    personaVisible: visibility.personaVisible,
+  };
+  const panelHeight = opts.height / opts.panelCount;
+
+  for (const panel of opts.plan.panels) {
+    const approved = filterDialogueForTextOverlay(panel.dialogue, safetyContext);
+    const userEditCount = approved.filter(
+      (line) => line.provenance === "user_edit" && line.text.trim()
+    ).length;
+    if (userEditCount > MAX_PANEL_DIALOGUE) {
+      return { ok: false, reason: OVERLAY_PREFLIGHT_USER_MESSAGE };
+    }
+  }
+
+  const layouts = compileComicPanelOverlayLayouts({
+    ...opts,
+    visibility,
+    safetyContext,
+  });
+
+  for (const panel of opts.plan.panels) {
+    const approved = filterDialogueForTextOverlay(panel.dialogue, safetyContext);
+    const layout = layouts.find((entry) => entry.panelIndex === panel.index);
+    if (!layout) continue;
+    const panelY = (panel.index - 1) * panelHeight;
+
+    for (const line of approved) {
+      if (line.provenance !== "user_edit" || !line.text.trim()) continue;
+      const normEdit = normalizeDialogueTextForOutput(line.text);
+      const bubble = layout.bubbles.find(
+        (entry) =>
+          entry.provenance === "user_edit" &&
+          normalizeDialogueTextForOutput(entry.rawText) === normEdit
+      );
+      if (!bubble) {
+        return { ok: false, reason: OVERLAY_PREFLIGHT_USER_MESSAGE };
+      }
+      if (normalizeDialogueTextForOutput(bubble.renderedText) !== normEdit) {
+        return { ok: false, reason: OVERLAY_PREFLIGHT_USER_MESSAGE };
+      }
+      if (!bubble.fitsInPanel) {
+        return { ok: false, reason: OVERLAY_PREFLIGHT_USER_MESSAGE };
+      }
+      const outside = countElementsOutsidePanel(
+        { panelIndex: panel.index, bubbles: [bubble] },
+        0,
+        panelY,
+        opts.width,
+        panelHeight
+      );
+      if (outside > 0) {
+        return { ok: false, reason: OVERLAY_PREFLIGHT_USER_MESSAGE };
+      }
+    }
+  }
+
+  return { ok: true };
 }
 
 // ============================================================================
@@ -935,7 +1061,7 @@ export function compileComicTextOverlaySvg(opts: {
       const textCenterX = bubble.x + bubble.width / 2;
       const firstLineY =
         bubble.y +
-        (bubble.height - bubble.lines.length * bubble.fontSize * 1.35) / 2 +
+        (bubble.height - bubble.renderedLines.length * bubble.fontSize * 1.35) / 2 +
         bubble.fontSize * 0.95;
 
       svgElements.push(`
@@ -953,7 +1079,7 @@ export function compileComicTextOverlaySvg(opts: {
           <text x="${textCenterX}" y="${firstLineY}"
                 font-family="NanumSquareRound, NanumGothic, NanumBarunGothic, Noto Sans CJK KR, sans-serif"
                 font-size="${bubble.fontSize}" font-weight="700" fill="#0f172a" text-anchor="middle">
-            ${bubble.lines
+            ${bubble.renderedLines
               .map(
                 (line, idx) =>
                   `<tspan x="${textCenterX}" dy="${idx === 0 ? 0 : bubble.fontSize * 1.35}">${escapeXml(

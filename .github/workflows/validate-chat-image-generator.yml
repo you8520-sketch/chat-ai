@@ -20,6 +20,7 @@ on:
       - "src/lib/chatImageGenerationPersistence.regression.test.ts"
       - "src/lib/chatComicGeneration.ts"
       - "src/lib/chatComicGeneration.test.ts"
+      - "src/lib/chatComicProviderPrompt.test.ts"
       - "src/lib/chatComicPanelSpec.ts"
       - "src/lib/chatComicPanelSpec.test.ts"
       - "src/lib/chatComicPanelSpec.fixtures.ts"
@@ -150,6 +151,7 @@ jobs:
       - run: node --import tsx --test src/lib/chatImageGenerationPersistence.regression.test.ts
       - run: node --import tsx --test src/lib/chatImageGeneration.test.ts
       - run: node --import tsx --test src/lib/chatComicGeneration.test.ts
+      - run: node --import tsx --test src/lib/chatComicProviderPrompt.test.ts
       - run: node --import tsx --test src/lib/chatComicPanelSpec.test.ts
       - run: node --import tsx --test src/lib/chatCoupleStampGeneration.test.ts
       - run: node --import tsx --test src/lib/chatLdIllustrationGeneration.test.ts

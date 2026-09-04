@@ -9,9 +9,13 @@ import {
   type ChatImageCastGroundedManifest,
   type ChatImageCastGroundedSubject,
 } from "@/lib/chatImageCastManifest";
-import type { ScenePanelCount, ScenePlan } from "@/lib/chatImageScenePlan";
-import { resolveScenePresentationVisibility, collectApprovedComicText } from "@/lib/chatImageScenePlan";
-import { collectFinalOverlayBubbleTexts } from "@/lib/chatComicTextOverlay";
+import type { ScenePanelCount, ScenePlan, ScenePresentationVisibility } from "@/lib/chatImageScenePlan";
+import {
+  resolveScenePresentationVisibility,
+  collectApprovedComicText,
+  normalizeDialogueTextForOutput,
+} from "@/lib/chatImageScenePlan";
+import { collectFinalOverlayRenderedTexts } from "@/lib/chatComicTextOverlay";
 import { buildIllustrationSafeDepiction } from "@/lib/chatImageIllustrationSanitizer";
 import {
   projectTextForSafeImagePrompt,
@@ -170,7 +174,6 @@ export function buildChatComicImagePrompt(opts: {
           manifest: opts.castManifest,
           selected: opts.castSelected,
           subjects,
-          plan: opts.plan,
           contentKind: opts.contentKind,
         })
       : "";
@@ -291,8 +294,68 @@ export function buildChatComicGenerationPlan(opts: {
   };
 }
 
+export function parseChatComicOutputDimensions(panelCount: ChatComicPanelCount): {
+  width: number;
+  height: number;
+} {
+  const [widthRaw, heightRaw] = resolveChatComicOutputSize(panelCount).split("x");
+  return { width: Number(widthRaw), height: Number(heightRaw) };
+}
+
 export function countProviderPromptReadableDialogue(prompt: string): number {
   return prompt.match(/^Speech bubble \(/gm)?.length ?? 0;
+}
+
+function normalizePromptAuditText(text: string): string {
+  return normalizeDialogueTextForOutput(text);
+}
+
+/** Provider prompt audit — verifies known dialogue source strings are absent from prompt. */
+export function auditProviderPromptDialogueLeak(opts: {
+  prompt: string;
+  plan: ScenePlan;
+  visibility?: ScenePresentationVisibility;
+}): {
+  speechBubbleDirectiveCount: number;
+  canonicalDialogueOccurrenceCount: number;
+  userEditOccurrenceCount: number;
+  leakedTexts: string[];
+} {
+  const visibility = opts.visibility ?? { personaVisible: true };
+  const speechBubbleDirectiveCount = countProviderPromptReadableDialogue(opts.prompt);
+  const leakedTexts: string[] = [];
+  let canonicalDialogueOccurrenceCount = 0;
+  let userEditOccurrenceCount = 0;
+
+  for (const panel of opts.plan.panels) {
+    for (const line of panel.dialogue) {
+      const norm = normalizePromptAuditText(line.text);
+      if (!norm || norm.length < 2) continue;
+      if (!opts.prompt.includes(norm)) continue;
+      leakedTexts.push(norm);
+      if (line.provenance === "user_edit") {
+        userEditOccurrenceCount += 1;
+      } else {
+        canonicalDialogueOccurrenceCount += 1;
+      }
+    }
+  }
+
+  for (const text of collectApprovedComicText(opts.plan, visibility)) {
+    const norm = normalizePromptAuditText(text);
+    if (!norm || norm.length < 2) continue;
+    if (!opts.prompt.includes(norm)) continue;
+    if (leakedTexts.includes(norm)) continue;
+    leakedTexts.push(norm);
+    canonicalDialogueOccurrenceCount += 1;
+  }
+
+  return {
+    speechBubbleDirectiveCount,
+    canonicalDialogueOccurrenceCount,
+    userEditOccurrenceCount,
+    leakedTexts,
+  };
 }
 
 /** Overlay-boundary audit: approved plan text vs final overlay bubble owner. */
@@ -332,7 +395,7 @@ export function auditComicDialogueWhitelist(opts: {
       personaAppearanceMode: "image_only",
     }),
   }).subjects;
-  const overlayTexts = collectFinalOverlayBubbleTexts({
+  const overlayTexts = collectFinalOverlayRenderedTexts({
     width,
     height,
     panelCount,
@@ -355,17 +418,19 @@ export function auditComicDialogueWhitelist(opts: {
   return { panelTextWhitelistMismatchCount, userEditDialogueMismatchCount };
 }
 
-/** Counts user-edited dialogue lines whose text is missing from final visible bubbles. */
+/** Counts user-edited dialogue lines whose rendered visible text mismatches final overlay. */
 export function countUserEditDialogueMismatch(
   plan: ScenePlan,
-  finalBubbleTexts: Iterable<string>
+  finalRenderedTexts: Iterable<string>
 ): number {
-  const bubbleSet = new Set(finalBubbleTexts);
+  const renderedSet = new Set(
+    [...finalRenderedTexts].map((text) => normalizePromptAuditText(text))
+  );
   let count = 0;
   for (const panel of plan.panels) {
     for (const line of panel.dialogue) {
       if (line.provenance !== "user_edit" || !line.text.trim()) continue;
-      if (!bubbleSet.has(line.text)) count += 1;
+      if (!renderedSet.has(normalizePromptAuditText(line.text))) count += 1;
     }
   }
   return count;

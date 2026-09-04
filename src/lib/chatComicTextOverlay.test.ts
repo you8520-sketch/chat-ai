@@ -15,16 +15,21 @@ import {
   countElementsOutsidePanel,
   selectDialogueForPanelLayout,
   compileComicPanelOverlayLayouts,
+  validateComicOverlayPreflight,
+  bubbleVisibleRenderedText,
+  type SpeechBubbleLayout,
   BUBBLE_OWNER,
   NARRATION_OWNER,
   SFX_OWNER,
   FINAL_COMIC_TEXT_LAYER_OWNER,
   TEXT_OVERLAY_SAFETY_POLICY_OWNER,
 } from "./chatComicTextOverlay";
+import { countUserEditDialogueMismatch } from "./chatComicGeneration";
 import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
   normalizePanelDialogueEdits,
+  normalizeDialogueTextForOutput,
   type SceneDialogue,
   type ScenePanel,
   type ScenePlan,
@@ -748,6 +753,10 @@ describe("dense overlay layout matrix L1-L8", () => {
     });
     assert.equal(layout.bubbles.length, 1);
     assert.ok(layout.bubbles[0]!.fontSize >= 16);
+    assert.equal(
+      normalizeDialogueTextForOutput(layout.bubbles[0]!.renderedText),
+      normalizeDialogueTextForOutput(longText)
+    );
     assertFinalInvariants(layout, 0, 0, 400, 350);
   });
 
@@ -768,5 +777,195 @@ describe("dense overlay layout matrix L1-L8", () => {
         assertFinalInvariants(layout, 0, index * panelHeight, 1008, panelHeight);
       });
     }
+  });
+});
+
+function extractVisibleTspanText(svg: string): string {
+  return [...svg.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)]
+    .map((match) =>
+      (match[1] ?? "")
+        .replace(/&apos;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&amp;/g, "&")
+    )
+    .join("");
+}
+
+function extractSpeechBubbleTspanText(svg: string): string {
+  return [...svg.matchAll(/<g class="speech-bubble"[^>]*>([\s\S]*?)<\/g>/g)]
+    .map((match) => extractVisibleTspanText(match[1] ?? ""))
+    .join("");
+}
+
+function makeFourPanelUserEditPlan(editedText: string): ScenePlan {
+  const messages = buildSceneSourceMessages([
+    { id: 1, role: "user", content: `"${editedText.slice(0, 24)}"` },
+  ]);
+  const plan = buildDeterministicScenePlan(messages, 4, {
+    personaName: "렌",
+    characterName: "라이크",
+  });
+  return {
+    ...plan,
+    panels: plan.panels.map((panel, index) => ({
+      ...panel,
+      dialogue:
+        index === 0
+          ? [{ speaker: "persona", text: editedText, provenance: "user_edit" }]
+          : [],
+      situation: index === 0 ? panel.situation : "",
+    })),
+  };
+}
+
+describe("user_edit rendered text parity TEXT-1–TEXT-6", () => {
+  const subjects = duoVisualSubjectsForCast({ characterName: "라이크", personaName: "렌" });
+
+  it("TEXT-1: near-maximum user_edit renders full visible text on 4-panel page", () => {
+    const suffix = "마지막_문구_반드시_보임";
+    const editedText = `${"긴 유저 대사 ".repeat(12).trim()} ${suffix}`;
+    const plan = makeFourPanelUserEditPlan(editedText);
+    const preflight = validateComicOverlayPreflight({
+      width: 864,
+      height: 1824,
+      panelCount: 4,
+      plan,
+      subjects,
+    });
+    assert.equal(preflight.ok, true);
+    const layouts = compileComicPanelOverlayLayouts({
+      width: 864,
+      height: 1824,
+      panelCount: 4,
+      plan,
+      subjects,
+    });
+    const userBubble = layouts[0]?.bubbles.find((bubble) => bubble.provenance === "user_edit");
+    assert.ok(userBubble);
+    assert.equal(
+      normalizeDialogueTextForOutput(userBubble!.renderedText),
+      normalizeDialogueTextForOutput(editedText)
+    );
+    assert.ok(userBubble!.fontSize >= 16);
+    const svg = compileComicTextOverlaySvg({
+      width: 864,
+      height: 1824,
+      panelCount: 4,
+      plan,
+      subjects,
+    });
+    assert.ok(extractSpeechBubbleTspanText(svg).includes(suffix));
+    for (const line of userBubble!.renderedLines) {
+      assert.ok(svg.includes(line), `rendered line must appear in SVG tspans: ${line}`);
+    }
+  });
+
+  it("TEXT-2: unique suffix appears in SVG tspans, not only data-text metadata", () => {
+    const suffix = "마지막_문구_반드시_보임";
+    const editedText = `앞부분 텍스트 ${suffix}`;
+    const plan = makeSamplePlan([[{ speaker: "persona", text: editedText, provenance: "user_edit" }], []]);
+    const svg = compileComicTextOverlaySvg({
+      width: 1008,
+      height: 1408,
+      panelCount: 2,
+      plan,
+      subjects,
+    });
+    assert.ok(extractVisibleTspanText(svg).includes(suffix));
+    assert.ok(!extractVisibleTspanText(svg).includes('data-text="'));
+  });
+
+  it("TEXT-3: impossible geometry preflight rejects before provider would run", () => {
+    const block = "아주긴대사".repeat(40);
+    const plan = makeSamplePlan([
+      [
+        { speaker: "persona", text: block, provenance: "user_edit" },
+        { speaker: "character", text: block, provenance: "user_edit" },
+        { speaker: "persona", text: block, provenance: "user_edit" },
+        { speaker: "character", text: block, provenance: "user_edit" },
+        { speaker: "persona", text: block, provenance: "user_edit" },
+      ],
+      [],
+    ]);
+    const preflight = validateComicOverlayPreflight({
+      width: 320,
+      height: 220,
+      panelCount: 2,
+      plan,
+      subjects,
+    });
+    assert.equal(preflight.ok, false);
+  });
+
+  it("TEXT-4: long source lines drop first while user_edit survives exactly", () => {
+    const userEdit = "유저편집_핵심";
+    const dialogue: SceneDialogue[] = [
+      { speaker: "character", text: "소스1".repeat(20), provenance: "source" },
+      { speaker: "persona", text: "소스2".repeat(20), provenance: "source" },
+      { speaker: "character", text: "소스3".repeat(20), provenance: "source" },
+      { speaker: "persona", text: userEdit, provenance: "user_edit" },
+      { speaker: "character", text: "소스4".repeat(20), provenance: "source" },
+    ];
+    const layout = layoutPanelOverlay({
+      panel: { index: 1, sourceEventIds: [], situation: "카페", dialogue },
+      approvedDialogue: dialogue,
+      panelX: 0,
+      panelY: 0,
+      panelWidth: 400,
+      panelHeight: 350,
+      subjects,
+    });
+    const userBubble = layout.bubbles.find((bubble) => bubble.provenance === "user_edit");
+    assert.ok(userBubble);
+    assert.equal(normalizeDialogueTextForOutput(userBubble!.renderedText), userEdit);
+  });
+
+  it("TEXT-5: multiple impossible user_edit lines trigger preflight rejection", () => {
+    const longLine = "편집".repeat(80);
+    const plan = makeSamplePlan([
+      [
+        { speaker: "persona", text: longLine, provenance: "user_edit" },
+        { speaker: "character", text: longLine, provenance: "user_edit" },
+        { speaker: "persona", text: longLine, provenance: "user_edit" },
+        { speaker: "character", text: longLine, provenance: "user_edit" },
+        { speaker: "persona", text: longLine, provenance: "user_edit" },
+      ],
+      [],
+    ]);
+    const preflight = validateComicOverlayPreflight({
+      width: 400,
+      height: 300,
+      panelCount: 2,
+      plan,
+      subjects,
+    });
+    assert.equal(preflight.ok, false);
+  });
+
+  it("TEXT-6: audit detects rendered-text mismatch that rawText metadata would hide", () => {
+    const full = "전체 문구 마지막_문구_반드시_보임";
+    const truncatedBubble: SpeechBubbleLayout = {
+      speaker: "persona",
+      rawText: full,
+      renderedText: "전체 문구",
+      renderedLines: ["전체 문구"],
+      provenance: "user_edit",
+      fitsInPanel: false,
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 40,
+      tailX: 10,
+      tailY: 40,
+      tailTargetX: 20,
+      tailTargetY: 60,
+      fontSize: 16,
+    };
+    const plan = makeSamplePlan([[{ speaker: "persona", text: full, provenance: "user_edit" }], []]);
+    assert.equal(countUserEditDialogueMismatch(plan, [truncatedBubble.renderedText]), 1);
+    assert.equal(countUserEditDialogueMismatch(plan, [full]), 0);
+    assert.notEqual(bubbleVisibleRenderedText(truncatedBubble), full);
   });
 });

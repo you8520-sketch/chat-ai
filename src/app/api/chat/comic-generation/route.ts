@@ -15,6 +15,7 @@ import {
   CHAT_COMIC_MAX_INPUT_CHARS,
   CHAT_COMIC_TEMPLATE_ID,
   buildChatComicGenerationPlan,
+  parseChatComicOutputDimensions,
   resolveChatComicOutputSize,
   resolveChatComicPrice,
   type ChatComicPanelCount,
@@ -71,7 +72,10 @@ import {
   type ScenePlan,
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
-import { renderComicTextOverlay } from "@/lib/chatComicTextOverlay";
+import {
+  renderComicTextOverlay,
+  validateComicOverlayPreflight,
+} from "@/lib/chatComicTextOverlay";
 import { planChatImageScene } from "@/lib/chatImageScenePlanner";
 import {
   assertChatImageScenePlanRateLimit,
@@ -1328,6 +1332,18 @@ export async function POST(req: Request) {
       contentKind: context.contentKind,
       castManifest,
     });
+    const outputDims = parseChatComicOutputDimensions(panelCount);
+    const overlayPreflight = validateComicOverlayPreflight({
+      width: outputDims.width,
+      height: outputDims.height,
+      panelCount,
+      plan: scenePlan,
+      visibility: comicVisibility,
+      subjects: identityPack.subjects,
+    });
+    if (!overlayPreflight.ok) {
+      return NextResponse.json({ error: overlayPreflight.reason }, { status: 400 });
+    }
     const tier2SafeStructure = projectComicSafeStructureForTier2(scenePlan, comicVisibility);
     const strictFallbackPrompt = buildStrictComicFallbackPrompt({
       panelCount,
