@@ -642,7 +642,8 @@ describe("strict safety fallback prompts", () => {
         subjects: duoSubjects,
       });
       assert.match(prompt, new RegExp(`exactly ${panelCount}`, "i"));
-      assert.match(prompt, /NO TEXT CONTRACT/i);
+      assert.match(prompt, /VISUAL LAYER ONLY/i);
+      assert.match(prompt, /server overlay/i);
       assert.match(prompt, /Panel 1/);
       assert.match(prompt, new RegExp(`Panel ${panelCount}`));
       if (panelCount < 4) assert.doesNotMatch(prompt, /Panel 4/);
