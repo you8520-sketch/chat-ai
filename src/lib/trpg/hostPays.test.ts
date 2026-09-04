@@ -354,6 +354,46 @@ describe("TRPG round economics observability", () => {
       80 - 12 - observation.providerCostKrw
     );
   });
+
+  it("failed GM actual cost reduces margin while billable cost stays lower", () => {
+    const billableCall = {
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      inputTokens: 1000,
+      outputTokens: 200,
+      upstreamCostUsd: 0.01,
+    };
+    const failedGmCall = {
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      inputTokens: 5000,
+      outputTokens: 500,
+      upstreamCostUsd: 0.05,
+    };
+    const observation = observeTrpgRoundEconomics({
+      breakdown: {
+        modelSubtotal: 100,
+        partyPremiumPoints: 0,
+        serviceSubtotal: 100,
+        creatorFundingPoints: 0,
+        roundTotal: 100,
+        humanCount: 1,
+        botCount: 0,
+      },
+      paidPointsSpent: 100,
+      freePointsSpent: 0,
+      actualCreatorCpCredited: 0,
+      calls: [billableCall],
+      actualProviderCalls: [billableCall, failedGmCall],
+    });
+    assert.equal(observation.billableProviderCostUsd, 0.01);
+    assert.equal(observation.actualProviderCostUsd, 0.06);
+    assert.equal(observation.providerCostUsd, 0.06);
+    assert.equal(observation.platformAbsorbedFailureCostKrw! > 0, true);
+    assert.equal(
+      observation.netContributionPoints,
+      100 - observation.actualProviderCostKrw!
+    );
+    assert.ok(observation.netContributionPoints < 100 - observation.billableProviderCostKrw!);
+  });
 });
 
 function peekCode(db: Database.Database, campaignId: number): string {

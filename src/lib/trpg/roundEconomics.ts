@@ -27,6 +27,14 @@ export type TrpgRoundEconomicsObservation = {
   paidCoverageRate: number;
   /** Ops approximation only — not accounting net profit after discounts/subscriptions. */
   paidContribution: number;
+  /** Full round actual provider usage (including non-billable failed GM generations). */
+  actualProviderCostUsd?: number;
+  actualProviderCostKrw?: number;
+  /** Provider cost for user-billable calls only (matches modelSubtotal basis). */
+  billableProviderCostUsd?: number;
+  billableProviderCostKrw?: number;
+  /** Platform-absorbed provider cost from failed/replaced GM generations. */
+  platformAbsorbedFailureCostKrw?: number;
 };
 
 export function parseProviderUsageCostUsd(usage: unknown): number | undefined {
@@ -121,12 +129,19 @@ export function observeTrpgRoundEconomics(opts: {
   freePointsSpent: number;
   actualCreatorCpCredited: number;
   calls: TrpgModelUsage[];
+  actualProviderCalls?: TrpgModelUsage[];
 }): TrpgRoundEconomicsObservation {
-  const cost = resolveTrpgProviderCost(opts.calls);
+  const billableCost = resolveTrpgProviderCost(opts.calls);
+  const actualCalls = opts.actualProviderCalls ?? opts.calls;
+  const actualCost = resolveTrpgProviderCost(actualCalls);
   const roundTotalPoints = opts.breakdown.roundTotal;
   const netContributionPoints =
-    roundTotalPoints - opts.actualCreatorCpCredited - cost.providerCostKrw;
+    roundTotalPoints - opts.actualCreatorCpCredited - actualCost.providerCostKrw;
   const paidCoverageRate = roundTotalPoints > 0 ? opts.paidPointsSpent / roundTotalPoints : 0;
+  const platformAbsorbedFailureCostKrw = Math.max(
+    0,
+    Math.round((actualCost.providerCostKrw - billableCost.providerCostKrw) * 100) / 100
+  );
   return {
     billingMode: opts.billingMode ?? opts.breakdown.billingMode ?? DEFAULT_TRPG_BILLING_MODE,
     modelSubtotalPoints: opts.breakdown.modelSubtotal,
@@ -137,15 +152,20 @@ export function observeTrpgRoundEconomics(opts: {
     paidPointsSpent: opts.paidPointsSpent,
     freePointsSpent: opts.freePointsSpent,
     actualCreatorCpCredited: opts.actualCreatorCpCredited,
-    providerCostUsd: cost.providerCostUsd,
-    providerCostKrw: cost.providerCostKrw,
-    costSource: cost.costSource,
+    providerCostUsd: actualCost.providerCostUsd,
+    providerCostKrw: actualCost.providerCostKrw,
+    costSource: actualCost.costSource,
     humanCount: opts.breakdown.humanCount,
     botCount: opts.breakdown.botCount,
     netContributionPoints,
     pointContributionMargin: roundTotalPoints > 0 ? netContributionPoints / roundTotalPoints : 0,
     paidCoverageRate,
-    paidContribution: opts.paidPointsSpent - opts.actualCreatorCpCredited - cost.providerCostKrw,
+    paidContribution: opts.paidPointsSpent - opts.actualCreatorCpCredited - actualCost.providerCostKrw,
+    actualProviderCostUsd: actualCost.providerCostUsd,
+    actualProviderCostKrw: actualCost.providerCostKrw,
+    billableProviderCostUsd: billableCost.providerCostUsd,
+    billableProviderCostKrw: billableCost.providerCostKrw,
+    platformAbsorbedFailureCostKrw,
   };
 }
 
@@ -169,6 +189,8 @@ export function logTrpgRoundEconomics(observation: TrpgRoundEconomicsObservation
     pointContributionMargin: observation.pointContributionMargin,
     paidCoverageRate: observation.paidCoverageRate,
     paidContribution: observation.paidContribution,
+    actualProviderCostKrw: observation.actualProviderCostKrw,
+    platformAbsorbedFailureCostKrw: observation.platformAbsorbedFailureCostKrw,
     paidContributionNote: "ops approximation; not accounting net profit",
   });
 }
