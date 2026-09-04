@@ -35,23 +35,22 @@ import {
   type ChatImageAppearanceMode,
   type ChatImageVisualSubject,
 } from "@/lib/chatImageVisualIdentity";
+import { CHAT_ROOM_IMAGE_GENERATION_POINTS } from "@/lib/chatImagePricing";
 
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_ID = "current_turn_ld_illustration" as const;
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_NAME = "현재 턴 2:3 LD 일러스트";
 export const CHAT_LD_ILLUSTRATION_OUTPUT_SIZE = "800x1200" as const;
 export const CHAT_LD_ILLUSTRATION_QUALITY = "medium" as const;
 /**
- * Flat 200P for 1:1 and TRPG party shots alike.
+ * Flat chat-room price for 1:1 and TRPG party shots alike.
  * Extra party members only add cheap GPT Image 2 *input* image tokens;
  * the billed output is still one 800×1200 medium image. Do not scale by headcount.
  */
-export const CHAT_LD_ILLUSTRATION_DEFAULT_POINTS = 200;
+export const CHAT_LD_ILLUSTRATION_DEFAULT_POINTS = CHAT_ROOM_IMAGE_GENERATION_POINTS;
 
 export function resolveChatLdIllustrationPrice(
-  env: NodeJS.ProcessEnv = process.env
+  _env: NodeJS.ProcessEnv = process.env
 ): number {
-  const override = Number(env.CHAT_LD_ILLUSTRATION_POINTS);
-  if (Number.isFinite(override) && override >= 1) return Math.ceil(override);
   return CHAT_LD_ILLUSTRATION_DEFAULT_POINTS;
 }
 

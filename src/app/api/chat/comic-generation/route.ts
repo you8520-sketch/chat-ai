@@ -129,7 +129,6 @@ import {
   OpenAiImageError,
 } from "@/lib/openAiImageEdit";
 import {
-  formatOpenAiImageFailureDiagnosticForAdmin,
   serializeOpenAiImageFailureDiagnostic,
   type OpenAiImageFailureDiagnostic,
 } from "@/lib/openAiImageFailureDiagnostic";
@@ -153,6 +152,12 @@ import {
   buildStrictLdPartyFallbackPrompt,
 } from "@/lib/chatImageStrictSafetyFallbackPrompt";
 import { projectComicSafeStructureForTier2 } from "@/lib/chatComicSafeStructure";
+import {
+  auditTier2ComicPrompt,
+  buildComicReferenceRoleInventory,
+  collectTier2RawSourceCandidates,
+  formatComicGenerationAdminFailureDiagnostic,
+} from "@/lib/chatComicTier2SafetyAudit";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -809,6 +814,8 @@ export async function POST(req: Request) {
 
   let savedPath: string | null = null;
   let jobId: number | null = null;
+  let tier2PromptAudit: ReturnType<typeof auditTier2ComicPrompt> | null = null;
+  let referenceRoleInventory: ReturnType<typeof buildComicReferenceRoleInventory> | null = null;
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const context = resolveGenerationContext({
@@ -1175,6 +1182,12 @@ export async function POST(req: Request) {
           chargePoints: pricePoints,
           chargeReason: "GPT Image 2 · 선택 턴 LD 일러스트",
           chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
+          creatorReward: {
+            creatorId: campaignId
+              ? trpgScene?.authorUserId
+              : context.character.creator_id,
+            source: campaignId ? "trpg_scenario" : "character",
+          },
           exchangeRateKrwPerUsd: getEffectiveKrwPerUsd(),
           album: {
             mode: "illustration",
@@ -1360,6 +1373,18 @@ export async function POST(req: Request) {
       contentKind: context.contentKind,
       safeStructure: tier2SafeStructure,
     });
+    const tier2PromptAuditResult = auditTier2ComicPrompt({
+      prompt: strictFallbackPrompt,
+      subjects: identityPack.subjects,
+      safeStructure: tier2SafeStructure,
+      safeStructureProjectionApplied: true,
+      rawSourceCandidates: collectTier2RawSourceCandidates(scenePlan),
+    });
+    tier2PromptAudit = tier2PromptAuditResult;
+    referenceRoleInventory = buildComicReferenceRoleInventory({
+      referenceUrls: identityPack.referenceUrls,
+      subjects: identityPack.subjects,
+    });
     const references = await Promise.all(
       identityPack.referenceUrls.map((url) => imageSourceToDataUrl(url))
     );
@@ -1419,6 +1444,10 @@ export async function POST(req: Request) {
         chargePoints: pricePoints,
         chargeReason: `GPT Image 2 · ${panelCount}컷 만화`,
         chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
+        creatorReward: {
+          creatorId: context.character.creator_id,
+          source: "character",
+        },
         exchangeRateKrwPerUsd: getEffectiveKrwPerUsd(),
         album: { mode: "comic" },
       });
@@ -1516,35 +1545,23 @@ export async function POST(req: Request) {
         : null,
     });
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
+    const adminFailureDiagnostic = canSeeCost
+      ? formatComicGenerationAdminFailureDiagnostic({
+          providerAttempts,
+          tier2PromptAudit,
+          referenceRoleInventory,
+          imageFailureDiagnostic: diagnostic,
+        })
+      : null;
     console.error("[chat-comic-generation] failed", {
       status,
       message,
-      imageAttemptDiagnostic: diagnostic
-        ? formatOpenAiImageFailureDiagnosticForAdmin(diagnostic)
-        : undefined,
+      ...(adminFailureDiagnostic ?? {}),
     });
     return NextResponse.json(
       {
         error: message,
-        ...(canSeeCost && diagnostic
-          ? {
-              imageAttemptDiagnostic: formatOpenAiImageFailureDiagnosticForAdmin(diagnostic),
-            }
-          : {}),
-        ...(canSeeCost && providerAttempts?.length
-          ? {
-              providerAttemptDiagnostic: formatOpenAiImageProviderAttemptsForAdmin({
-                providerAttempts,
-                knownProviderCostUsd: aggregateKnownProviderCostUsd(providerAttempts),
-                hasUnknownAttemptCost: providerAttempts.some(
-                  (attempt) => attempt.costUsd == null
-                ),
-                safetyFallbackUsed: providerAttempts.some(
-                  (attempt) => attempt.kind === "strict_safety_fallback" && attempt.outcome === "success"
-                ),
-              }),
-            }
-          : {}),
+        ...(adminFailureDiagnostic ?? {}),
       },
       { status }
     );

@@ -41,6 +41,7 @@ export type TrpgIllustrationRoundAction = {
 
 export type TrpgIllustrationScene = {
   campaignTitle: string;
+  authorUserId: number | null;
   members: TrpgIllustrationCastMember[];
   location: string;
   actions: TrpgIllustrationRoundAction[];
@@ -300,6 +301,7 @@ export function loadTrpgIllustrationScene(
 
   return {
     campaignTitle: campaign.title.trim() || "TRPG 캠페인",
+    authorUserId: campaign.author_user_id ?? null,
     members,
     location,
     actions,

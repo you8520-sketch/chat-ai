@@ -59,6 +59,6 @@ describe("chatEmoticonGeneration", () => {
     assert.match(prompt, /IDENTITY OWNERSHIP IS STRICT/);
     assert.match(prompt, /GENDER LOCK/);
     assert.match(prompt, /confirmed MALE/);
-    assert.equal(resolveChatEmoticonPrice(), 230);
+    assert.equal(resolveChatEmoticonPrice(), 180);
   });
 });

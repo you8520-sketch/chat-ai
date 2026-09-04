@@ -9,6 +9,7 @@ import {
   type PointLogLink,
   type PointBalance,
 } from "@/lib/points";
+import { creditChatRoomImageCreatorReward } from "@/lib/imageGenerationEconomics";
 
 export type SettleChatImageGenerationInput = {
   userId: number;
@@ -24,6 +25,10 @@ export type SettleChatImageGenerationInput = {
   chargePoints: number;
   chargeReason: string;
   chargeLink?: PointLogLink;
+  creatorReward?: {
+    creatorId: number | null | undefined;
+    source: "character" | "trpg_scenario";
+  };
   album: {
     mode: ChatImageAlbumMode;
     campaignId?: number | null;
@@ -118,6 +123,15 @@ export function settleChatImageGenerationResult(
     const generationId = Number(insert.lastInsertRowid);
     if (!Number.isInteger(generationId) || generationId <= 0) {
       throw new Error("chat_image_generations insert failed");
+    }
+
+    if (input.creatorReward) {
+      creditChatRoomImageCreatorReward(db, {
+        generationId,
+        creatorId: input.creatorReward.creatorId,
+        consumerUserId: input.userId,
+        source: input.creatorReward.source,
+      });
     }
 
     db.prepare(

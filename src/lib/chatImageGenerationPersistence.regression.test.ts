@@ -29,4 +29,12 @@ describe("chat image generation durable success regression", () => {
     assert.match(panel, /isDurableAlbumGenerationSuccess/);
     assert.match(panel, /savedToCharacterAlbum === true/);
   });
+
+  it("does not credit character CP for persona portrait generation", () => {
+    const route = read("src/app/api/chat/image-generation/route.ts");
+    assert.match(
+      route,
+      /if \(!isPersona\) \{\s*creditChatRoomImageCreatorReward\(/
+    );
+  });
 });

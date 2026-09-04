@@ -5,6 +5,7 @@ import {
 } from "@/lib/characterGender";
 import { buildChatImageSubjectGenderLock } from "@/lib/chatImageGender";
 import { extractVisualAppearance } from "@/lib/chatImageVisualIdentity";
+import { CHAT_ROOM_IMAGE_GENERATION_POINTS } from "@/lib/chatImagePricing";
 
 export const CHAT_PERSONA_IMAGE_TEMPLATE_ID = "persona_portrait_ld" as const;
 export const CHAT_PERSONA_IMAGE_TEMPLATE_NAME = "페르소나 3:5 LD 이미지";
@@ -17,7 +18,7 @@ export const CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT = 1440;
 export const CHAT_PERSONA_IMAGE_API_OUTPUT_SIZE =
   `${CHAT_PERSONA_IMAGE_OUTPUT_WIDTH}x${CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT}` as const;
 export const CHAT_PERSONA_IMAGE_QUALITY = "medium" as const;
-export const CHAT_PERSONA_IMAGE_DEFAULT_POINTS = 200;
+export const CHAT_PERSONA_IMAGE_DEFAULT_POINTS = CHAT_ROOM_IMAGE_GENERATION_POINTS;
 
 export function extractPersonaAppearance(description: unknown): string {
   return extractVisualAppearance(description);

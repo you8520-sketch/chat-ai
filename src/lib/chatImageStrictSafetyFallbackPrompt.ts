@@ -30,10 +30,10 @@ import {
   type ChatImageVisualSubject,
 } from "@/lib/chatImageVisualIdentity";
 import {
-  projectComicSafeStructureForTier2,
   renderComicSafeStructureForTier2Prompt,
   type ComicSafeStructureProjection,
 } from "@/lib/chatComicSafeStructure";
+import { COMIC_TIER2_POSITIVE_SAFE_DEPICTION } from "@/lib/chatComicTier2SafeProjection";
 import type { ContentKind } from "@/lib/simulationMode";
 
 /** Tier-2 uses reference identity only — omit untrusted freeform saved appearance prose. */
@@ -69,8 +69,8 @@ function strictComicPanelBeats(
   const beats = [
     "Panel 1 — establishing: same cast in a calm, well-lit setting; neutral relaxed poses; no readable text.",
     "Panel 2 — reaction: medium shot; gentle emotional expression; modest clothing; no readable text.",
-    "Panel 3 — close interaction: safe neutral proximity; expressive faces; no suggestive pose; no readable text.",
-    "Panel 4 — closing beat: warm but non-explicit group or duo moment; no readable text.",
+    "Panel 3 — close interaction: calm affectionate proximity; expressive faces; modest clothing; no readable text.",
+    "Panel 4 — closing beat: warm general-audience group or duo moment; no readable text.",
   ];
   return beats.slice(0, panelCount).join("\n");
 }
@@ -186,13 +186,13 @@ export function buildStrictComicFallbackPrompt(opts: {
           personaName: opts.personaName,
           personaGender: opts.personaGender,
         }),
-    STRICT_SAFE_DEPICTION,
-    "STRICT PROVIDER-SAFE FALLBACK — preserve the same safe location, cast, and emotional beat while removing explicit or graphic content.",
+    COMIC_TIER2_POSITIVE_SAFE_DEPICTION,
+    "STRICT PROVIDER-SAFE FALLBACK — preserve the same safe location, cast, and emotional beat with general-audience visual depiction.",
     opts.safeStructure?.sharedBackground
       ? `Preserve safe location continuity: ${opts.safeStructure.sharedBackground}.`
       : "",
     opts.safeStructure?.atmosphere ? `Preserve mood: ${opts.safeStructure.atmosphere}.` : "",
-    `Overall tone: ${moodPrompt} — keep expressions readable but non-explicit.`,
+    `Overall tone: ${moodPrompt} — keep expressions readable and family-safe.`,
     "VISUAL LAYER ONLY — zero speech bubbles, captions, SFX, or readable letters in the image. Text is added later by server overlay.",
     strictComicPanelBeats(opts.panelCount, opts.safeStructure),
     castAware
