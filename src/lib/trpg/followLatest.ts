@@ -1,3 +1,4 @@
+
 export const TRPG_FOLLOW_LATEST_THRESHOLD_PX = 120;
 
 export function distanceFromBottom(opts: {
@@ -59,11 +60,27 @@ export function decideLiveFollowOnGrowth(opts: { following: boolean }): {
     : { autoFollow: false, unseenLatest: true };
 }
 
-/** Keep the live GM reveal end in the lower reading band, not the page bottom. */
-export const TRPG_NARRATION_FOLLOW_MIN_RATIO = 0.7;
-export const TRPG_NARRATION_FOLLOW_MAX_RATIO = 0.85;
-export const TRPG_NARRATION_FOLLOW_TARGET_RATIO = 0.78;
-export const TRPG_NARRATION_FOLLOW_EPSILON_PX = 8;
+import {
+  isNearLiveReadingBand as isNearLiveReadingBandShared,
+  LIVE_READING_FOLLOW_EPSILON_PX,
+  LIVE_READING_MAX_RATIO,
+  LIVE_READING_MIN_RATIO,
+  LIVE_READING_TARGET_RATIO,
+  narrationFollowDeltaPx as narrationFollowDeltaPxShared,
+} from "../liveReadingFollow";
+
+/** Keep the live prose end in the desktop reading band — not the page bottom. */
+export const TRPG_LIVE_READING_MIN_RATIO = LIVE_READING_MIN_RATIO;
+export const TRPG_LIVE_READING_MAX_RATIO = LIVE_READING_MAX_RATIO;
+export const TRPG_LIVE_READING_TARGET_RATIO = LIVE_READING_TARGET_RATIO;
+
+/** @deprecated Use TRPG_LIVE_READING_* — kept for existing imports during migration. */
+export const TRPG_NARRATION_FOLLOW_MIN_RATIO = TRPG_LIVE_READING_MIN_RATIO;
+/** @deprecated Use TRPG_LIVE_READING_* */
+export const TRPG_NARRATION_FOLLOW_MAX_RATIO = TRPG_LIVE_READING_MAX_RATIO;
+/** @deprecated Use TRPG_LIVE_READING_TARGET_RATIO */
+export const TRPG_NARRATION_FOLLOW_TARGET_RATIO = TRPG_LIVE_READING_TARGET_RATIO;
+export const TRPG_NARRATION_FOLLOW_EPSILON_PX = LIVE_READING_FOLLOW_EPSILON_PX;
 
 export function narrationFollowDeltaPx(opts: {
   endTop: number;
@@ -71,10 +88,7 @@ export function narrationFollowDeltaPx(opts: {
   targetRatio?: number;
   epsilonPx?: number;
 }): number {
-  const targetY = opts.viewportHeight * (opts.targetRatio ?? TRPG_NARRATION_FOLLOW_TARGET_RATIO);
-  const delta = opts.endTop - targetY;
-  if (Math.abs(delta) < (opts.epsilonPx ?? TRPG_NARRATION_FOLLOW_EPSILON_PX)) return 0;
-  return delta;
+  return narrationFollowDeltaPxShared(opts);
 }
 
 export function isNearNarrationFollow(opts: {
@@ -83,11 +97,7 @@ export function isNearNarrationFollow(opts: {
   minRatio?: number;
   maxRatio?: number;
 }): boolean {
-  const ratio = opts.endTop / Math.max(1, opts.viewportHeight);
-  return (
-    ratio >= (opts.minRatio ?? TRPG_NARRATION_FOLLOW_MIN_RATIO) &&
-    ratio <= (opts.maxRatio ?? TRPG_NARRATION_FOLLOW_MAX_RATIO)
-  );
+  return isNearLiveReadingBandShared(opts);
 }
 
 export function narrationFollowDeltaFromElement(el: Element): number {
@@ -127,6 +137,10 @@ export type TrpgLiveFollowOwner =
   | "NEXT_ACTION"
   | "NONE";
 
+export function isTrpgLiveProseFollowOwner(owner: TrpgLiveFollowOwner): boolean {
+  return owner === "ACTIVE_DECLARATION_END" || owner === "GM_NARRATION_END";
+}
+
 /** Single resolver for which live element owns auto-follow during a TRPG round. */
 export function resolveTrpgLiveFollowOwner(opts: {
   cinematicMotion: boolean;
@@ -154,7 +168,7 @@ export function isNearReadingBandFollowElement(el: Element): boolean {
   return isNearNarrationFollowElement(el);
 }
 
-/** ResizeObserver growth callback owner — matches TrpgCampaignRoom live scene observer. */
+/** ResizeObserver growth callback owner — notifies live prose animator or discrete scroll. */
 export function handleTrpgLiveSceneResizeGrowth(opts: {
   following: boolean;
   manualDetached: boolean;
@@ -163,10 +177,15 @@ export function handleTrpgLiveSceneResizeGrowth(opts: {
   requestAnimationFrame: (fn: FrameRequestCallback) => number;
   cancelAnimationFrame: (handle: number) => void;
   scrollToFollowOwner: (owner: TrpgLiveFollowOwner, behavior?: ScrollBehavior) => void;
+  onLiveProseTargetUpdate?: () => void;
   onUnseenLatest: () => void;
 }): void {
   const growth = decideLiveFollowOnGrowth({ following: opts.following });
   if (growth.autoFollow) {
+    if (opts.onLiveProseTargetUpdate && isTrpgLiveProseFollowOwner(opts.liveFollowOwner)) {
+      opts.onLiveProseTargetUpdate();
+      return;
+    }
     if (opts.followScrollRafRef.current != null) {
       opts.cancelAnimationFrame(opts.followScrollRafRef.current);
     }

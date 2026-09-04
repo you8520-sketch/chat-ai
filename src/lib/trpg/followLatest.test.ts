@@ -88,14 +88,11 @@ describe("TRPG follow-latest scroll", () => {
 
   it("keeps the live GM reveal end in the lower reading band", () => {
     const vh = 800;
-    assert.equal(
-      narrationFollowDeltaPx({ endTop: vh * TRPG_NARRATION_FOLLOW_TARGET_RATIO, viewportHeight: vh }),
-      0
-    );
-    assert.equal(narrationFollowDeltaPx({ endTop: 624, viewportHeight: vh }), 0);
+    const targetTop = vh * TRPG_NARRATION_FOLLOW_TARGET_RATIO;
+    assert.equal(narrationFollowDeltaPx({ endTop: targetTop, viewportHeight: vh }), 0);
     assert.ok(narrationFollowDeltaPx({ endTop: 780, viewportHeight: vh }) > 0);
     assert.ok(narrationFollowDeltaPx({ endTop: 400, viewportHeight: vh }) < 0);
-    assert.equal(isNearNarrationFollow({ endTop: 624, viewportHeight: vh }), true);
+    assert.equal(isNearNarrationFollow({ endTop: targetTop, viewportHeight: vh }), true);
     assert.equal(isNearNarrationFollow({ endTop: 200, viewportHeight: vh }), false);
     assert.equal(isNearNarrationFollow({ endTop: 760, viewportHeight: vh }), false);
     for (const viewportHeight of [640, 800, 720]) {
@@ -153,7 +150,7 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /case "GM_NARRATION_END"/);
     assert.match(room, /case "ACTIVE_DECLARATION_END"/);
     assert.match(room, /alignNarrationEnd\(behavior\)/);
-    assert.match(room, /scrollToFollowOwner\(liveFollowOwner, "instant"\)/);
+    assert.match(room, /onLiveProseTargetUpdate: notifyLiveFollowTargetUpdate/);
     assert.match(room, /data-trpg-live-follow-owner=\{liveFollowOwner\}/);
     assert.equal(
       resolveTrpgLiveFollowOwner({
