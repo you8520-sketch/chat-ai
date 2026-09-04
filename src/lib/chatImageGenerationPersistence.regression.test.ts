@@ -18,6 +18,12 @@ describe("chat image generation durable success regression", () => {
     );
   });
 
+  it("settlement failure preserves provider attempt evidence", () => {
+    const route = read("src/app/api/chat/comic-generation/route.ts");
+    assert.match(route, /providerAttemptsJson:\s*attemptsJson/);
+    assert.match(route, /providerAttemptsJson\?: string \| null/);
+  });
+
   it("client treats album persistence as part of comic/illustration success", () => {
     const panel = read("src/components/ChatImageGeneratorPanel.tsx");
     assert.match(panel, /isDurableAlbumGenerationSuccess/);
