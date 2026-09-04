@@ -3,8 +3,8 @@ import type { SceneDialogue, ScenePanel, ScenePlan, ScenePresentationVisibility 
 import { isEligibleSpeechDialogue, normalizeDialogueTextForOutput } from "@/lib/chatImageScenePlan";
 import {
   buildPromptSubjectMap,
-  resolveSpeakerSubject,
-  visiblePromptSubjects,
+  resolveDialogueSpeakerSide,
+  type ComicSubjectSide,
   type PromptSubjectMap,
 } from "@/lib/chatImagePromptSubjectMap";
 import {
@@ -49,6 +49,8 @@ export type TextOverlaySafetyContext = {
 export type SpeechBubbleLayout = {
   speaker: "persona" | "character" | "other";
   speakerName?: string;
+  /** Index in the approved panel dialogue array — row identity for preflight parity. */
+  dialogueIndex: number;
   rawText: string;
   renderedText: string;
   renderedLines: string[];
@@ -156,7 +158,16 @@ export function selectDialogueForPanelLayout(
   dialogue: readonly SceneDialogue[],
   capacity = MAX_PANEL_DIALOGUE
 ): SceneDialogue[] {
-  if (dialogue.length <= capacity) return [...dialogue];
+  return selectDialogueIndexedForPanelLayout(dialogue, capacity).map((entry) => entry.line);
+}
+
+export function selectDialogueIndexedForPanelLayout(
+  dialogue: readonly SceneDialogue[],
+  capacity = MAX_PANEL_DIALOGUE
+): Array<{ line: SceneDialogue; originalIndex: number }> {
+  if (dialogue.length <= capacity) {
+    return dialogue.map((line, originalIndex) => ({ line, originalIndex }));
+  }
   const indexed = dialogue.map((line, originalIndex) => ({ line, originalIndex }));
   const selected: Array<{ line: SceneDialogue; originalIndex: number }> = [];
   for (const item of indexed) {
@@ -170,7 +181,7 @@ export function selectDialogueForPanelLayout(
     selected.push(item);
   }
   selected.sort((left, right) => left.originalIndex - right.originalIndex);
-  return selected.map((item) => item.line);
+  return selected;
 }
 
 export const OVERLAY_PREFLIGHT_USER_MESSAGE =
@@ -417,6 +428,17 @@ export function countElementsOutsidePanel(
   panelWidth: number,
   panelHeight: number
 ): number {
+  return countBodyOutsidePanel(layout, panelX, panelY, panelWidth, panelHeight)
+    + countTailOutsidePanel(layout, panelX, panelY, panelWidth, panelHeight);
+}
+
+export function countBodyOutsidePanel(
+  layout: PanelOverlayLayout,
+  panelX: number,
+  panelY: number,
+  panelWidth: number,
+  panelHeight: number
+): number {
   let count = 0;
   const within = (rect: OverlayRect) =>
     rect.x >= panelX &&
@@ -426,6 +448,21 @@ export function countElementsOutsidePanel(
 
   for (const bubble of layout.bubbles) {
     if (!within(bubbleBounds(bubble))) count += 1;
+  }
+  if (layout.narration && !within(narrationRect(layout.narration))) count += 1;
+  if (layout.sfx && !within(sfxRect(layout.sfx))) count += 1;
+  return count;
+}
+
+export function countTailOutsidePanel(
+  layout: PanelOverlayLayout,
+  panelX: number,
+  panelY: number,
+  panelWidth: number,
+  panelHeight: number
+): number {
+  let count = 0;
+  for (const bubble of layout.bubbles) {
     for (const point of bubbleTailPoints(bubble)) {
       if (
         point.x < panelX ||
@@ -437,26 +474,102 @@ export function countElementsOutsidePanel(
       }
     }
   }
-  if (layout.narration && !within(narrationRect(layout.narration))) count += 1;
-  if (layout.sfx && !within(sfxRect(layout.sfx))) count += 1;
   return count;
 }
 
-type SpeakerSide = "left" | "right" | "center";
+export type FinalPanelOverlayAudit = {
+  collisionCount: number;
+  outsideCount: number;
+  tailOutsideCount: number;
+  userEditMissingCount: number;
+  userEditMismatchCount: number;
+  fitsInPanelFailureCount: number;
+  valid: boolean;
+};
 
-function resolveSpeakerSide(
-  speaker: SceneDialogue["speaker"],
-  subjectMap: PromptSubjectMap,
-  personaVisible: boolean
-): SpeakerSide {
-  const subject = resolveSpeakerSubject(subjectMap, speaker);
-  if (!subject) return "center";
-  const visible = visiblePromptSubjects(subjectMap, personaVisible);
-  if (visible.length <= 1) return "center";
-  const index = visible.findIndex((entry) => entry.label === subject.label);
-  if (index <= 0) return "left";
-  if (index >= visible.length - 1) return "right";
-  return "center";
+/** Canonical final geometry audit for one fully finalized panel overlay layout. */
+export function auditFinalPanelOverlayLayout(opts: {
+  layout: PanelOverlayLayout;
+  approvedDialogue: readonly SceneDialogue[];
+  panelX: number;
+  panelY: number;
+  panelWidth: number;
+  panelHeight: number;
+}): FinalPanelOverlayAudit {
+  const collisionCount = countPanelOverlayCollisions(opts.layout);
+  const tailOutsideCount = countTailOutsidePanel(
+    opts.layout,
+    opts.panelX,
+    opts.panelY,
+    opts.panelWidth,
+    opts.panelHeight
+  );
+  const outsideCount = countBodyOutsidePanel(
+    opts.layout,
+    opts.panelX,
+    opts.panelY,
+    opts.panelWidth,
+    opts.panelHeight
+  );
+
+  let userEditMissingCount = 0;
+  let userEditMismatchCount = 0;
+  let fitsInPanelFailureCount = 0;
+
+  for (let dialogueIndex = 0; dialogueIndex < opts.approvedDialogue.length; dialogueIndex += 1) {
+    const line = opts.approvedDialogue[dialogueIndex]!;
+    if (line.provenance !== "user_edit" || !line.text.trim()) continue;
+    const bubble = opts.layout.bubbles.find((entry) => entry.dialogueIndex === dialogueIndex);
+    if (!bubble) {
+      userEditMissingCount += 1;
+      continue;
+    }
+    if (
+      normalizeDialogueTextForOutput(bubble.renderedText) !==
+      normalizeDialogueTextForOutput(line.text)
+    ) {
+      userEditMismatchCount += 1;
+    }
+    if (!bubble.fitsInPanel) {
+      fitsInPanelFailureCount += 1;
+    }
+  }
+
+  const valid =
+    collisionCount === 0 &&
+    outsideCount === 0 &&
+    tailOutsideCount === 0 &&
+    userEditMissingCount === 0 &&
+    userEditMismatchCount === 0 &&
+    fitsInPanelFailureCount === 0;
+
+  return {
+    collisionCount,
+    outsideCount,
+    tailOutsideCount,
+    userEditMissingCount,
+    userEditMismatchCount,
+    fitsInPanelFailureCount,
+    valid,
+  };
+}
+
+function panelLayoutStillInvalid(
+  layout: PanelOverlayLayout,
+  approvedDialogue: readonly SceneDialogue[],
+  panelX: number,
+  panelY: number,
+  panelWidth: number,
+  panelHeight: number
+): boolean {
+  return !auditFinalPanelOverlayLayout({
+    layout,
+    approvedDialogue,
+    panelX,
+    panelY,
+    panelWidth,
+    panelHeight,
+  }).valid;
 }
 
 function shouldShowSpeakerNameBadge(
@@ -538,6 +651,7 @@ function findDropCandidateIndex(bubbles: readonly SpeechBubbleLayout[]): number 
 /** Final-state layout: bounded second pass + deterministic drop when still impossible. */
 function finalizePanelOverlayLayout(
   layout: PanelOverlayLayout,
+  approvedDialogue: readonly SceneDialogue[],
   panelX: number,
   panelY: number,
   panelWidth: number,
@@ -560,7 +674,17 @@ function finalizePanelOverlayLayout(
     bubbles = resolved.bubbles;
     narration = resolved.narration;
     sfx = resolved.sfx;
-    if (countPanelOverlayCollisions({ panelIndex: layout.panelIndex, bubbles, narration, sfx }) === 0) {
+    const interim: PanelOverlayLayout = { panelIndex: layout.panelIndex, bubbles, narration, sfx };
+    if (
+      !panelLayoutStillInvalid(
+        interim,
+        approvedDialogue,
+        panelX,
+        panelY,
+        panelWidth,
+        panelHeight
+      )
+    ) {
       break;
     }
   }
@@ -568,7 +692,7 @@ function finalizePanelOverlayLayout(
   let current: PanelOverlayLayout = { panelIndex: layout.panelIndex, bubbles, narration, sfx };
   let guard = 0;
   while (
-    countPanelOverlayCollisions(current) > 0 &&
+    panelLayoutStillInvalid(current, approvedDialogue, panelX, panelY, panelWidth, panelHeight) &&
     current.bubbles.length > 0 &&
     guard < MAX_PANEL_DIALOGUE
   ) {
@@ -618,9 +742,9 @@ export function layoutPanelBubbles(opts: {
   let rightIndex = 0;
   let centerIndex = 0;
 
-  const selected = selectDialogueForPanelLayout(dialogue);
+  const selected = selectDialogueIndexedForPanelLayout(dialogue);
 
-  for (const line of selected) {
+  for (const { line, originalIndex: dialogueIndex } of selected) {
     const geometry = computeBubbleGeometry({
       text: line.text,
       panelWidth,
@@ -629,13 +753,14 @@ export function layoutPanelBubbles(opts: {
     });
     const { renderedLines, renderedText, fontSize, bubbleWidth, bubbleHeight, fitsInPanel } = geometry;
 
-    const side = subjectMap
-      ? resolveSpeakerSide(line.speaker, subjectMap, personaVisible)
+    const side: ComicSubjectSide | "left" | "right" | "center" = subjectMap
+      ? resolveDialogueSpeakerSide(subjectMap, line, personaVisible)
       : line.speaker === "character"
         ? "left"
         : line.speaker === "persona"
           ? "right"
           : "center";
+    const placementSide = side === "neutral" ? "center" : side;
 
     let x: number;
     let y: number;
@@ -644,7 +769,7 @@ export function layoutPanelBubbles(opts: {
     let tailTargetX: number;
     let tailTargetY: number;
 
-    if (side === "left") {
+    if (placementSide === "left") {
       x = panelX + 44;
       y = panelY + topOffset + 32 + leftIndex * (bubbleHeight + 18);
       tailX = x + 36;
@@ -652,7 +777,7 @@ export function layoutPanelBubbles(opts: {
       tailTargetX = panelX + Math.floor(panelWidth * 0.22);
       tailTargetY = tailY + 24;
       leftIndex += 1;
-    } else if (side === "right") {
+    } else if (placementSide === "right") {
       x = panelX + panelWidth - bubbleWidth - 44;
       y = panelY + topOffset + 36 + rightIndex * (bubbleHeight + 18);
       tailX = x + bubbleWidth - 36;
@@ -673,6 +798,7 @@ export function layoutPanelBubbles(opts: {
     layouts.push({
       speaker: line.speaker,
       speakerName: line.speakerName,
+      dialogueIndex,
       rawText: line.text,
       renderedText,
       renderedLines,
@@ -747,6 +873,7 @@ export function layoutPanelOverlay(opts: {
       narration,
       sfx,
     },
+    opts.approvedDialogue,
     panelX,
     panelY,
     panelWidth,
@@ -856,39 +983,23 @@ export function validateComicOverlayPreflight(opts: {
     safetyContext,
   });
 
-  for (const panel of opts.plan.panels) {
+  for (let i = 0; i < opts.panelCount; i += 1) {
+    const panel = opts.plan.panels[i] ?? opts.plan.panels[opts.plan.panels.length - 1];
+    if (!panel) continue;
     const approved = filterDialogueForTextOverlay(panel.dialogue, safetyContext);
     const layout = layouts.find((entry) => entry.panelIndex === panel.index);
     if (!layout) continue;
     const panelY = (panel.index - 1) * panelHeight;
-
-    for (const line of approved) {
-      if (line.provenance !== "user_edit" || !line.text.trim()) continue;
-      const normEdit = normalizeDialogueTextForOutput(line.text);
-      const bubble = layout.bubbles.find(
-        (entry) =>
-          entry.provenance === "user_edit" &&
-          normalizeDialogueTextForOutput(entry.rawText) === normEdit
-      );
-      if (!bubble) {
-        return { ok: false, reason: OVERLAY_PREFLIGHT_USER_MESSAGE };
-      }
-      if (normalizeDialogueTextForOutput(bubble.renderedText) !== normEdit) {
-        return { ok: false, reason: OVERLAY_PREFLIGHT_USER_MESSAGE };
-      }
-      if (!bubble.fitsInPanel) {
-        return { ok: false, reason: OVERLAY_PREFLIGHT_USER_MESSAGE };
-      }
-      const outside = countElementsOutsidePanel(
-        { panelIndex: panel.index, bubbles: [bubble] },
-        0,
-        panelY,
-        opts.width,
-        panelHeight
-      );
-      if (outside > 0) {
-        return { ok: false, reason: OVERLAY_PREFLIGHT_USER_MESSAGE };
-      }
+    const audit = auditFinalPanelOverlayLayout({
+      layout,
+      approvedDialogue: approved,
+      panelX: 0,
+      panelY,
+      panelWidth: opts.width,
+      panelHeight,
+    });
+    if (!audit.valid) {
+      return { ok: false, reason: OVERLAY_PREFLIGHT_USER_MESSAGE };
     }
   }
 

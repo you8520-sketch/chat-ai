@@ -10,6 +10,7 @@ import {
 import {
   buildCastFromPromptSubjects,
   buildPromptSubjectMap,
+  resolveDialogueSpeakerSubject,
   resolveLayoutFromSubjectMap,
   resolveSpeakerSubject,
   type PromptSubjectLabel,
@@ -182,12 +183,8 @@ function resolveSpeakerLabel(
   subjectMap: PromptSubjectMap,
   line: Pick<SceneDialogue, "speaker" | "speakerName">
 ): PromptSubjectLabel | "other" {
-  if (line.speakerName?.trim()) {
-    const named = subjectMap.subjects.find(
-      (subject) => subject.name.trim() === line.speakerName!.trim()
-    );
-    if (named) return named.label;
-  }
+  const subject = resolveDialogueSpeakerSubject(subjectMap, line);
+  if (subject) return subject.label;
   if (line.speaker === "persona" || line.speaker === "character") {
     return resolveSpeakerSubject(subjectMap, line.speaker)?.label ?? "other";
   }

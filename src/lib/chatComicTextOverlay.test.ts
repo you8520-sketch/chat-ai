@@ -16,6 +16,7 @@ import {
   selectDialogueForPanelLayout,
   compileComicPanelOverlayLayouts,
   validateComicOverlayPreflight,
+  auditFinalPanelOverlayLayout,
   bubbleVisibleRenderedText,
   type SpeechBubbleLayout,
   BUBBLE_OWNER,
@@ -30,6 +31,7 @@ import {
   buildSceneSourceMessages,
   normalizePanelDialogueEdits,
   normalizeDialogueTextForOutput,
+  preserveDialogueEditText,
   type SceneDialogue,
   type ScenePanel,
   type ScenePlan,
@@ -944,10 +946,98 @@ describe("user_edit rendered text parity TEXT-1–TEXT-6", () => {
     assert.equal(preflight.ok, false);
   });
 
+  it("PRE-4: exactly four long user_edit lines reject on final panel collision audit", () => {
+    const longLine = (seed: string) =>
+      preserveDialogueEditText(`${seed}_${"긴유저대사".repeat(18)}`);
+    const dialogue: SceneDialogue[] = [
+      { speaker: "persona", text: longLine("UE1"), provenance: "user_edit" },
+      { speaker: "character", text: longLine("UE2"), provenance: "user_edit" },
+      { speaker: "persona", text: longLine("UE3"), provenance: "user_edit" },
+      { speaker: "character", text: longLine("UE4"), provenance: "user_edit" },
+    ];
+    assert.equal(dialogue.filter((line) => line.provenance === "user_edit").length, 4);
+    const plan: ScenePlan = {
+      sceneBackground: "카페",
+      heroEventIds: [],
+      heroScene: "카페",
+      recommendedPanelCount: 4,
+      panels: [
+        { index: 1, sourceEventIds: [], situation: "카페", dialogue },
+        { index: 2, sourceEventIds: [], situation: "", dialogue: [] },
+        { index: 3, sourceEventIds: [], situation: "", dialogue: [] },
+        { index: 4, sourceEventIds: [], situation: "", dialogue: [] },
+      ],
+      events: [],
+    };
+    const preflight = validateComicOverlayPreflight({
+      width: 864,
+      height: 1824,
+      panelCount: 4,
+      plan,
+      subjects,
+    });
+    assert.equal(preflight.ok, false);
+    const panelHeight = 1824 / 4;
+    const layout = compileComicPanelOverlayLayouts({
+      width: 864,
+      height: 1824,
+      panelCount: 4,
+      plan,
+      subjects,
+    })[0]!;
+    const audit = auditFinalPanelOverlayLayout({
+      layout,
+      approvedDialogue: dialogue,
+      panelX: 0,
+      panelY: 0,
+      panelWidth: 864,
+      panelHeight,
+    });
+    assert.ok(audit.collisionCount > 0 || !audit.valid);
+  });
+
+  it("PRE-4-DUP: duplicate user_edit text rows require distinct bubble owners", () => {
+    const shared = preserveDialogueEditText("공유문구_동일텍스트");
+    const dialogue: SceneDialogue[] = [
+      { speaker: "persona", text: shared, provenance: "user_edit" },
+      { speaker: "character", text: shared, provenance: "user_edit" },
+      { speaker: "persona", text: preserveDialogueEditText("고유_A"), provenance: "user_edit" },
+      { speaker: "character", text: preserveDialogueEditText("고유_B"), provenance: "user_edit" },
+    ];
+    const layout = layoutPanelOverlay({
+      panel: { index: 1, sourceEventIds: [], situation: "카페", dialogue },
+      approvedDialogue: dialogue,
+      panelX: 0,
+      panelY: 0,
+      panelWidth: 864,
+      panelHeight: 456,
+      subjects,
+    });
+    const userEditRows = dialogue.filter((line) => line.provenance === "user_edit");
+    assert.equal(userEditRows.length, 4);
+    assert.equal(layout.bubbles.filter((bubble) => bubble.provenance === "user_edit").length, 4);
+    for (let index = 0; index < dialogue.length; index += 1) {
+      const line = dialogue[index]!;
+      if (line.provenance !== "user_edit") continue;
+      const bubble = layout.bubbles.find((entry) => entry.dialogueIndex === index);
+      assert.ok(bubble, `missing bubble for dialogue row ${index}`);
+      assert.equal(
+        normalizeDialogueTextForOutput(bubble!.renderedText),
+        normalizeDialogueTextForOutput(line.text)
+      );
+    }
+    const dupBubbles = layout.bubbles.filter(
+      (bubble) => bubble.provenance === "user_edit" && bubble.rawText === shared
+    );
+    assert.equal(dupBubbles.length, 2);
+    assert.notEqual(dupBubbles[0]!.dialogueIndex, dupBubbles[1]!.dialogueIndex);
+  });
+
   it("TEXT-6: audit detects rendered-text mismatch that rawText metadata would hide", () => {
     const full = "전체 문구 마지막_문구_반드시_보임";
     const truncatedBubble: SpeechBubbleLayout = {
       speaker: "persona",
+      dialogueIndex: 0,
       rawText: full,
       renderedText: "전체 문구",
       renderedLines: ["전체 문구"],
