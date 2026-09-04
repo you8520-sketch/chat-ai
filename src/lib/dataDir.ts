@@ -99,6 +99,14 @@ export function getDatabasePath(): string {
 export function validateProductionDataDirRuntime(dataDir = getDataDir()): void {
   if (!isProductionRuntime()) return;
 
+  if (process.env.PLAYWRIGHT_PROD_SERVER === "1") {
+    const resolved = path.resolve(dataDir);
+    if (!fs.existsSync(resolved)) {
+      fs.mkdirSync(resolved, { recursive: true });
+    }
+    return;
+  }
+
   const resolved = path.resolve(dataDir);
   const ephemeralProjectData = path.resolve(process.cwd(), "data");
   if (resolved === ephemeralProjectData) {
