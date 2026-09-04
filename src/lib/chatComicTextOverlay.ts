@@ -1,4 +1,3 @@
-import sharp, { type Metadata } from "sharp";
 import type { SceneDialogue, ScenePanel, ScenePlan, ScenePresentationVisibility } from "@/lib/chatImageScenePlan";
 import { isEligibleSpeechDialogue, normalizeDialogueTextForOutput } from "@/lib/chatImageScenePlan";
 import {
@@ -25,7 +24,7 @@ import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
  * - BUBBLE_OWNER: Computes speech bubble geometry, tail placement, text wrap
  * - NARRATION_OWNER: Computes narration / caption box geometry when appropriate
  * - SFX_OWNER: Extracts onomatopoeia cues and computes stylized SFX placement
- * - FINAL_COMIC_TEXT_LAYER_OWNER: Compiles SVG document and composites onto image bytes
+ * - FINAL_COMIC_TEXT_LAYER_OWNER: Compiles SVG document (pixel composite is server-only)
  */
 
 export const TEXT_OVERLAY_SAFETY_POLICY_OWNER = "chatComicTextOverlay:safetyPolicy";
@@ -1076,7 +1075,7 @@ export function extractPanelSfxCue(panel: ScenePanel): SfxLayout | undefined {
 }
 
 // ============================================================================
-// 5. FINAL_COMIC_TEXT_LAYER_OWNER (SVG Composition & Sharp Rendering)
+// 5. FINAL_COMIC_TEXT_LAYER_OWNER (SVG compilation — pixel composite is server-only)
 // ============================================================================
 
 export function compileComicTextOverlaySvg(opts: {
@@ -1232,51 +1231,4 @@ export function compileComicTextOverlaySvg(opts: {
       ${svgElements.join("\n")}
     </svg>
   `.trim();
-}
-
-/**
- * Composites deterministic manhwa text overlay onto generated image bytes.
- * Returns post-processed WebP Buffer.
- */
-export async function renderComicTextOverlay(opts: {
-  imageBuffer: Buffer;
-  panelCount: number;
-  plan: ScenePlan;
-  visibility?: ScenePresentationVisibility;
-  isSafetyFallback?: boolean;
-  adultGrounded?: boolean;
-  subjects?: readonly ChatImageVisualSubject[];
-}): Promise<Buffer> {
-  if (!opts.imageBuffer || opts.imageBuffer.length === 0) {
-    throw new Error("Cannot render comic text overlay on empty image buffer");
-  }
-
-  let metadata: Metadata;
-  try {
-    metadata = await sharp(opts.imageBuffer, { failOn: "none" }).metadata();
-  } catch (err) {
-    throw new Error(`Invalid image buffer for comic text overlay: ${err instanceof Error ? err.message : String(err)}`);
-  }
-  if (!metadata.width || !metadata.height) {
-    throw new Error("Invalid image buffer metadata for comic text overlay");
-  }
-
-  const svgDoc = compileComicTextOverlaySvg({
-    width: metadata.width,
-    height: metadata.height,
-    panelCount: opts.panelCount,
-    plan: opts.plan,
-    visibility: opts.visibility,
-    safetyContext: {
-      isSafetyFallback: opts.isSafetyFallback,
-      adultGrounded: opts.adultGrounded,
-      personaVisible: opts.visibility?.personaVisible,
-    },
-    subjects: opts.subjects,
-  });
-
-  return await sharp(opts.imageBuffer, { failOn: "none" })
-    .composite([{ input: Buffer.from(svgDoc) }])
-    .webp({ quality: 90, effort: 4 })
-    .toBuffer();
 }

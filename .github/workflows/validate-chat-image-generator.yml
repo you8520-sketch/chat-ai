@@ -19,13 +19,18 @@ on:
       - "src/lib/chatImageGenerationPersistence.test.ts"
       - "src/lib/chatImageGenerationPersistence.regression.test.ts"
       - "src/lib/chatComicGeneration.ts"
+      - "src/lib/chatComicGenerationConstants.ts"
       - "src/lib/chatComicGeneration.test.ts"
+      - "src/lib/chatComicGeneration.clientBoundary.test.ts"
+      - "src/lib/chatComicDialogueAudit.ts"
       - "src/lib/chatComicCastStaging.test.ts"
       - "src/lib/chatComicProviderPrompt.test.ts"
       - "src/lib/chatComicPanelSpec.ts"
       - "src/lib/chatComicPanelSpec.test.ts"
       - "src/lib/chatComicPanelSpec.fixtures.ts"
       - "src/lib/chatComicTextOverlay.ts"
+      - "src/lib/chatComicTextOverlay.server.ts"
+      - "src/lib/chatComicTextOverlay.server.test.ts"
       - "src/lib/chatComicTextOverlay.test.ts"
       - "src/lib/chatComicTextReproduction.test.ts"
       - "src/lib/chatCoupleStampGeneration.ts"
@@ -114,6 +119,8 @@ on:
       - "src/lib/chatComicSafeStructure.ts"
       - "src/lib/chatComicSafeStructure.test.ts"
       - "src/lib/chatComicTextOverlay.ts"
+      - "src/lib/chatComicTextOverlay.server.ts"
+      - "src/lib/chatComicTextOverlay.server.test.ts"
       - "src/lib/chatComicTextOverlay.test.ts"
       - "src/lib/chatImageGenerationJobs.ts"
       - "src/lib/chatImageIllustrationSanitizer.ts"
@@ -138,7 +145,9 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
+    env:
+      SESSION_SECRET: "01234567890123456789012345678901"
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
@@ -148,10 +157,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck:app
+      - run: npm run build
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageGenerationPersistence.test.ts
       - run: node --import tsx --test src/lib/chatImageGenerationPersistence.regression.test.ts
       - run: node --import tsx --test src/lib/chatImageGeneration.test.ts
       - run: node --import tsx --test src/lib/chatComicGeneration.test.ts
+      - run: node --import tsx --test src/lib/chatComicGeneration.clientBoundary.test.ts
       - run: node --import tsx --test src/lib/chatComicProviderPrompt.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatComicCastStaging.test.ts
       - run: node --import tsx --test src/lib/chatComicPanelSpec.test.ts
@@ -168,6 +179,7 @@ jobs:
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageComicDialogueRegression.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatComicTextReproduction.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatComicTextOverlay.test.ts
+      - run: node --import tsx --test src/lib/chatComicTextOverlay.server.test.ts
       - run: node --import tsx --test src/lib/chatImageScenePreviewProjection.test.ts
       - run: node --import tsx --test src/lib/chatImageSceneDialogueEditor.test.ts
       - run: node --import tsx --test src/lib/chatImageDialogueKeystroke.test.ts

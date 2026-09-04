@@ -8,7 +8,7 @@ import {
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
   type ChatComicMood,
   type ChatComicPanelCount,
-} from "@/lib/chatComicGeneration";
+} from "@/lib/chatComicGenerationConstants";
 import {
   buildImageGenderLockPrompt,
   type ImagePromptGender,

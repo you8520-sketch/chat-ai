@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  auditComicDialogueWhitelist,
   buildChatComicImagePrompt,
-  countUserEditDialogueMismatch,
 } from "./chatComicGeneration";
+import {
+  auditComicDialogueWhitelist,
+  countUserEditDialogueMismatch,
+} from "./chatComicDialogueAudit";
 import { compileChatComicPanelSpec } from "./chatComicPanelSpec";
 import { duoVisualSubjectsForCast } from "./chatComicPanelSpec.fixtures";
 import {
