@@ -143,8 +143,12 @@ export function resolveVariantIndicesForFinalChargePatch(input: {
     variant.requestId?.trim() === requestId ? [index] : []
   );
   if (byRequestId.length === 1) {
+    const matchedIndex = byRequestId[0]!;
+    if (matchedIndex !== input.activeVariant) {
+      return { patchedVariantIndices: [], mode: "none", skippedCrossGeneration: true };
+    }
     return {
-      patchedVariantIndices: byRequestId,
+      patchedVariantIndices: [matchedIndex],
       mode: "request_id",
       skippedCrossGeneration: false,
     };
@@ -241,19 +245,13 @@ export function persistAssistantMessageFinalCharge(
   );
 
   const storedVariants = parseMessageVariants(row.alternates);
-  const { variants, activeVariant } =
-    storedVariants.length > 0
-      ? {
-          variants: storedVariants,
-          activeVariant: row.active_variant ?? storedVariants.length - 1,
-        }
-      : normalizeMessageVariants({
-          content: row.content,
-          model: row.model,
-          usage: row.usage,
-          alternates: row.alternates,
-          active_variant: row.active_variant,
-        });
+  const { variants, activeVariant } = normalizeMessageVariants({
+    content: row.content,
+    model: row.model,
+    usage: row.usage,
+    alternates: row.alternates,
+    active_variant: row.active_variant,
+  });
 
   const variantPatch = resolveVariantIndicesForFinalChargePatch({
     variants,

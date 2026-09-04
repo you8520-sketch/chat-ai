@@ -190,6 +190,32 @@ describe("resolveVariantIndicesForFinalChargePatch", () => {
     assert.deepEqual(result.patchedVariantIndices, []);
     assert.equal(result.skippedCrossGeneration, true);
   });
+
+  it("does not patch inactive generation even when requestId matches uniquely", () => {
+    const result = resolveVariantIndicesForFinalChargePatch({
+      variants: [
+        {
+          content: "old",
+          model: "m",
+          usage: preSettlementUsage({ cost: 10 }),
+          created_at: "",
+          requestId: "req-target",
+        },
+        {
+          content: "new",
+          model: "m",
+          usage: preSettlementUsage({ cost: 20 }),
+          created_at: "",
+          requestId: "req-active",
+        },
+      ],
+      requestId: "req-target",
+      activeVariant: 1,
+    });
+    assert.deepEqual(result.patchedVariantIndices, []);
+    assert.equal(result.mode, "none");
+    assert.equal(result.skippedCrossGeneration, true);
+  });
 });
 
 describe("persistAssistantMessageFinalCharge — variant parity matrix", () => {
@@ -439,6 +465,63 @@ describe("persistAssistantMessageFinalCharge — variant parity matrix", () => {
     const stored = JSON.parse(row.alternates) as MessageVariant[];
     assert.equal(stored[0]?.usage?.cost, 10);
     assert.equal(stored[1]?.usage?.cost, 20);
+    assert.equal(JSON.parse(row.usage).cost, 33);
+  });
+
+  it("E2. inactive unique requestId match never patches any variant", () => {
+    const db = openMemoryDb();
+    const oldUsage = preSettlementUsage({ cost: 10 });
+    oldUsage.billingContractDispatch = legacyDispatch(10);
+    const variants: MessageVariant[] = [
+      {
+        content: "inactive matched generation",
+        model: "deepseek-v4-pro-0813",
+        usage: oldUsage,
+        created_at: "2026-09-04T08:00:00.000Z",
+        requestId: "req-target",
+        generationSequence: 0,
+      },
+      {
+        content: "active generation",
+        model: "deepseek-v4-pro-0813",
+        usage: preSettlementUsage({ cost: 20 }),
+        created_at: "2026-09-04T08:01:00.000Z",
+        requestId: "req-active",
+        generationSequence: 1,
+      },
+    ];
+    insertAssistantRow(db, {
+      id: 1,
+      chatId: 10,
+      requestId: "req-target",
+      usage: preSettlementUsage({ cost: 20 }),
+      variants,
+      activeVariant: 1,
+    });
+
+    const patchPlan = resolveVariantIndicesForFinalChargePatch({
+      variants,
+      requestId: "req-target",
+      activeVariant: 1,
+    });
+    assert.deepEqual(patchPlan.patchedVariantIndices, []);
+    assert.equal(patchPlan.skippedCrossGeneration, true);
+
+    persistAssistantMessageFinalCharge(db, {
+      assistantMessageId: 1,
+      chatId: 10,
+      requestId: "req-target",
+      settledPoints: 33,
+      slices: [{ pointType: "FREE", amount: 33, transactionId: 1 }],
+      billingContractDispatch: phase2Dispatch(33),
+    });
+
+    const row = readRow(db, 1);
+    const stored = JSON.parse(row.alternates) as MessageVariant[];
+    assert.equal(stored[0]?.usage?.cost, 10);
+    assert.equal(stored[0]?.usage?.billingContractDispatch?.billingContract, "legacy");
+    assert.equal(stored[1]?.usage?.cost, 20);
+    assert.equal(stored[1]?.usage?.billingContractDispatch, undefined);
     assert.equal(JSON.parse(row.usage).cost, 33);
   });
 
