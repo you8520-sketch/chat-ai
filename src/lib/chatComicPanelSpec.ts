@@ -108,6 +108,12 @@ function resolveBeatRole(_format: ComicPanelFormatId, index: number, total: numb
     if (index === 2) return "Middle beat";
     return "Closing beat";
   }
+  if (total === 4) {
+    if (index === 1) return "Setup";
+    if (index === 2) return "Progression";
+    if (index === 3) return "Turn / escalation";
+    return "Payoff / aftermath";
+  }
   if (index === 1) return "Opening beat";
   if (index === total) return "Closing beat";
   return `Beat ${index}`;
@@ -118,6 +124,12 @@ function resolveCameraFromBeat(
   index: number,
   total: number
 ): string {
+  if (total === 4) {
+    if (index === 1) return "establish the setup beat with readable staging and location";
+    if (index === 2) return "show progression — a new action or reaction that advances the scene";
+    if (index === 3) return "frame the turn or escalation — heightened emotion or shifted dynamic";
+    return "close with payoff or aftermath — a distinct final beat, not a repeat of panel 3";
+  }
   if (index === 1) {
     return "establish the scripted opening beat in one readable frame";
   }
@@ -160,7 +172,7 @@ function resolveContinuityRules(
   if (format === "4panel") {
     return [
       ...shared,
-      "4-panel rhythm: opening → beat 2 → beat 3 → closing beat — each panel covers a distinct scripted moment.",
+      "4-panel rhythm: setup (panel 1) → progression (panel 2) → turn/escalation (panel 3) → payoff/aftermath (panel 4) — each panel covers a distinct scripted moment.",
     ];
   }
   return [...shared, "2-panel rhythm: opening beat in panel 1, closing beat in panel 2."];
@@ -378,6 +390,72 @@ export function renderChatComicPanelSpecSection(spec: ChatComicPanelSpec): strin
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+export function renderChatComicPanelSpecVisualSection(spec: ChatComicPanelSpec): string {
+  const castLines = spec.cast
+    .map((entry) => `${entry.label} = ${entry.role} (${entry.name})`)
+    .join("\n");
+  const panelBlocks = spec.panels
+    .map((panel) => {
+      const actions = [
+        ...panel.subjectActions.map(
+          (action) => `${action.label} action (${action.name}): ${action.text}`
+        ),
+        panel.sceneAction ? `Scene action: ${panel.sceneAction}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+      return [
+        `[Panel ${panel.index} — ${panel.beatRole}]`,
+        `Camera: ${panel.camera}`,
+        `Framing: ${panel.framing}`,
+        `Layout: ${panel.layout}`,
+        panel.situation ? `Situation: ${panel.situation}` : "",
+        `Background: ${panel.background}`,
+        actions,
+        "Visual only: do not render speech bubbles, captions, narration boxes, SFX, or any readable letters.",
+        "Composition: leave a clean upper-right negative space area for server text overlay.",
+        `Must avoid: ${panel.mustAvoid.join("; ")}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n\n");
+
+  return [
+    "COMIC PANEL SPEC — VISUAL LAYER ONLY",
+    `Format: ${spec.format} (${spec.panelCount} panels)`,
+    `Layout: ${spec.layout}`,
+    `Hero focus: ${spec.heroScene}`,
+    spec.heroEventIds.length ? `Hero event ids: ${spec.heroEventIds.join(", ")}` : "",
+    `Shared background: ${spec.sharedBackground}`,
+    spec.atmosphere ? `Atmosphere: ${spec.atmosphere}` : "",
+    "Cast:",
+    castLines,
+    panelBlocks,
+    "Continuity rules:",
+    ...spec.continuityRules.map((rule) => `- ${rule}`),
+    "Global must avoid:",
+    ...spec.globalMustAvoid.map((rule) => `- ${rule}`),
+    "Text will be added later by server overlay — image must contain zero readable text.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export function buildChatComicPanelSpecVisualSection(opts: {
+  plan: ScenePlan;
+  personaName: string;
+  characterName: string;
+  visibility?: ScenePresentationVisibility;
+  castSelected?: readonly ChatImageCastGroundedSubject[];
+  subjects: readonly ChatImageVisualSubject[];
+  eventSubjectBindings?: readonly SceneEventSubjectBinding[];
+  projection?: ChatComicPanelSpecProjection;
+}): string {
+  const spec = compileChatComicPanelSpec(opts);
+  return renderChatComicPanelSpecVisualSection(spec);
 }
 
 export function buildChatComicPanelSpecPromptSection(opts: {

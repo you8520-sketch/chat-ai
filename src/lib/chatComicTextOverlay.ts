@@ -188,6 +188,72 @@ function escapeXml(unsafe: string): string {
     .replace(/'/g, "&apos;");
 }
 
+function bubbleBounds(layout: SpeechBubbleLayout): {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+} {
+  return { x: layout.x, y: layout.y, w: layout.width, h: layout.height };
+}
+
+function rectsOverlap(
+  a: { x: number; y: number; w: number; h: number },
+  b: { x: number; y: number; w: number; h: number },
+  margin = 10
+): boolean {
+  return !(
+    a.x + a.w + margin <= b.x ||
+    b.x + b.w + margin <= a.x ||
+    a.y + a.h + margin <= b.y ||
+    b.y + b.h + margin <= a.y
+  );
+}
+
+function resolveBubbleOverlaps(
+  layouts: SpeechBubbleLayout[],
+  panelX: number,
+  panelY: number,
+  panelWidth: number,
+  panelHeight: number
+): void {
+  const minY = panelY + 12;
+  const maxY = panelY + panelHeight - 20;
+  for (let i = 1; i < layouts.length; i++) {
+    const current = layouts[i]!;
+    for (let j = 0; j < i; j++) {
+      const previous = layouts[j]!;
+      if (!rectsOverlap(bubbleBounds(current), bubbleBounds(previous))) continue;
+      current.y = Math.min(maxY - current.height, previous.y + previous.height + 14);
+      current.tailY = current.y + current.height;
+      current.tailTargetY = current.tailY + 28;
+    }
+    current.y = Math.max(minY, Math.min(current.y, maxY - current.height));
+    current.x = Math.max(panelX + 12, Math.min(current.x, panelX + panelWidth - current.width - 12));
+  }
+}
+
+export function countLayoutOverlaps(
+  layouts: readonly { x: number; y: number; width: number; height: number }[]
+): number {
+  let count = 0;
+  for (let i = 0; i < layouts.length; i++) {
+    for (let j = i + 1; j < layouts.length; j++) {
+      const a = layouts[i]!;
+      const b = layouts[j]!;
+      if (
+        rectsOverlap(
+          { x: a.x, y: a.y, w: a.width, h: a.height },
+          { x: b.x, y: b.y, w: b.width, h: b.height }
+        )
+      ) {
+        count += 1;
+      }
+    }
+  }
+  return count;
+}
+
 export function layoutPanelBubbles(opts: {
   dialogue: readonly SceneDialogue[];
   panelX: number;
@@ -278,6 +344,8 @@ export function layoutPanelBubbles(opts: {
       fontSize,
     });
   }
+
+  resolveBubbleOverlaps(layouts, panelX, panelY, panelWidth, panelHeight);
 
   return layouts;
 }

@@ -108,7 +108,10 @@ on:
       - "src/lib/openAiImageFailureDiagnostic.test.ts"
       - "src/lib/openAiImageSafetyFallback.ts"
       - "src/lib/openAiImageSafetyFallback.test.ts"
-      - "src/lib/chatImageStrictSafetyFallbackPrompt.ts"
+      - "src/lib/chatComicSafeStructure.ts"
+      - "src/lib/chatComicSafeStructure.test.ts"
+      - "src/lib/chatComicTextOverlay.ts"
+      - "src/lib/chatComicTextOverlay.test.ts"
       - "src/lib/chatImageGenerationJobs.ts"
       - "src/lib/chatImageIllustrationSanitizer.ts"
       - "src/lib/chatImageSafeVisualProjection.ts"
@@ -190,6 +193,8 @@ jobs:
       - run: node --import tsx --test src/lib/chatImageCastManifest.test.ts
       - run: node --import tsx --test src/lib/chatImageCastPromptDedup.test.ts
       - run: node --import tsx --test src/lib/chatImageCast.clientBoundary.test.ts
+      - run: node --import tsx --test src/lib/chatComicSafeStructure.test.ts
+      - run: node --import tsx --test src/lib/chatComicTextOverlay.test.ts
       - run: node --import tsx --test src/lib/openAiImageEdit.test.ts
       - run: node --import tsx --test src/lib/openAiImageFailureDiagnostic.test.ts
       - run: node --import tsx --test src/lib/openAiImageSafetyFallback.test.ts
