@@ -84,7 +84,6 @@ describe("continuous live follow animator", () => {
         return nowMs;
       },
       cancelAnimationFrame: () => {},
-      now: () => nowMs,
     });
 
     controller.notifyTargetUpdate();
@@ -121,7 +120,6 @@ describe("continuous live follow animator", () => {
       cancelAnimationFrame: () => {
         pending = null;
       },
-      now: () => 16,
     });
     controller.notifyTargetUpdate();
     assert.equal(pending != null, true);

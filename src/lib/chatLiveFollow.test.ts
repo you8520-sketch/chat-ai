@@ -136,7 +136,6 @@ describe("chat continuous follow motion (shared engine)", () => {
         return nowMs;
       },
       cancelAnimationFrame: () => {},
-      now: () => nowMs,
     });
 
     controller.notifyTargetUpdate();
@@ -169,7 +168,6 @@ describe("chat continuous follow motion (shared engine)", () => {
         return 1;
       },
       cancelAnimationFrame: () => {},
-      now: () => 16,
     });
     controller.notifyTargetUpdate();
     assert.equal(scrollY, 0);

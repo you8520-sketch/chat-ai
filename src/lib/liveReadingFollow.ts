@@ -90,7 +90,6 @@ export function createLiveReadingFollowController(opts: {
   prefersReducedMotion?: () => boolean;
   requestAnimationFrame?: (fn: FrameRequestCallback) => number;
   cancelAnimationFrame?: (id: number) => void;
-  now?: () => number;
 }): LiveReadingFollowController {
   let rafId: number | null = null;
   let lastFrameTimeMs: number | null = null;
@@ -104,7 +103,6 @@ export function createLiveReadingFollowController(opts: {
     if (typeof cancelAnimationFrame !== "undefined") cancelAnimationFrame(id);
     else clearTimeout(id as unknown as ReturnType<typeof setTimeout>);
   });
-  const now = opts.now ?? (() => (typeof performance !== "undefined" ? performance.now() : Date.now()));
   const reducedMotion = opts.prefersReducedMotion ?? prefersReducedLiveReadingMotion;
 
   const tick = (timestamp: number) => {
