@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet } from "./engineCreate";
@@ -25,16 +26,13 @@ function memoryDb(): Database.Database {
 }
 
 function gmWithLocalScene(localScene: Record<string, unknown>, narration = "장면이 전개된다."): string {
-  return `<<<NARRATION>>>
-${narration}
-<<<DELTA>>>
-${JSON.stringify({
+  return buildTrpgGmStructuredWireText(narration, {
   players: [],
   location: "복도",
   next_round_context: "다음 수",
   campaign_finished: false,
   localScene,
-})}`;
+});
 }
 
 async function setupSoloWithContext(db: Database.Database, deps: TrpgEngineDeps) {

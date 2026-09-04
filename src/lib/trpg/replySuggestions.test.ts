@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import fs from "node:fs";
 import { describe, it, beforeEach } from "node:test";
 import Database from "better-sqlite3";
@@ -32,10 +33,7 @@ function memoryDb(): Database.Database {
 }
 
 function gmText(narration = "폐역에 찬 바람이 돈다."): string {
-  return `<<<NARRATION>>>
-${narration}
-<<<DELTA>>>
-{"players":[],"location":"폐역","next_round_context":"기다릴지","campaign_finished":false}`;
+  return buildTrpgGmStructuredWireText(narration, {"players":[],"location":"폐역","next_round_context":"기다릴지","campaign_finished":false});
 }
 
 const validJson = JSON.stringify({

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -111,7 +112,12 @@ function mockBlueprintComplete(goal: string) {
 }
 
 function gmText(narration = "ok"): string {
-  return `<<<NARRATION>>>\n${narration}\n<<<DELTA>>>\n{"players":[],"location":"x","next_round_context":"y","campaign_finished":false,"storyPhase":"DEVELOPMENT"}`;
+  return buildTrpgGmStructuredWireText(narration, {
+    players: [],
+    location: "문턱",
+    next_round_context: "다음",
+    campaign_finished: false,
+  });
 }
 
 function startDeps(): TrpgEngineDeps {

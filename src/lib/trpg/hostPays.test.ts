@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { CREATOR_REWARD_RATE_EXCLUSIVE } from "@/lib/creatorShared";
@@ -34,10 +35,7 @@ function memoryDb(): Database.Database {
 const skipDeps: TrpgEngineDeps = {
   skipBilling: true,
   gmCall: async () => ({
-    text: `<<<NARRATION>>>
-문이 열린다.
-<<<DELTA>>>
-{"players":[],"location":"문턱","next_round_context":"조사","campaign_finished":false}`,
+    text: buildTrpgGmStructuredWireText("문이 열린다.", {"players":[],"location":"문턱","next_round_context":"조사","campaign_finished":false}),
   }),
 };
 

@@ -19,10 +19,11 @@ import { parseProviderUsageCostUsd } from "./roundEconomics";
 import { attachTrpgCallFailureMeta } from "./startFailure";
 import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 import {
-  createGmStreamParser,
-  feedGmStreamParser,
-  gmStreamParserComplete,
-} from "./gmStreamParser";
+  createGmStructuredStreamParser,
+  feedGmStructuredStreamParser,
+  gmStructuredStreamParserComplete,
+} from "./gmStructuredStreamParser";
+import { buildTrpgGmResponseFormat, buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import type { GmProviderTimings } from "./gmNarrationDraft";
 import { feedGmProviderSseBytes } from "./gmProviderSse";
 import { finishReasonFromSsePayload } from "./gmCompletionIntegrity";
@@ -94,10 +95,15 @@ export function reasoningTokensFromProviderUsage(usage: {
   return "unavailable";
 }
 
-const MOCK_GM = `<<<NARRATION>>>
-낡은 등불이 흔들린다. 당신은 문턱에 서서 다음 한 수를 고른다. 안에서 숨소리가 들린다.
-<<<DELTA>>>
-{"players":[],"location":"문턱","next_round_context":"문 너머를 조사하거나 말을 건넨다.","campaign_finished":false}`;
+const MOCK_GM = buildTrpgGmStructuredWireText(
+  "낡은 등불이 흔들린다. 당신은 문턱에 서서 다음 한 수를 고른다. 안에서 숨소리가 들린다.",
+  {
+    players: [],
+    location: "문턱",
+    next_round_context: "문 너머를 조사하거나 말을 건넨다.",
+    campaign_finished: false,
+  }
+);
 
 const MOCK_BOT = `*창가에 붙어 낮게* "…먼저 나가지 마. 내가 볼게."`;
 
@@ -264,7 +270,7 @@ async function readGmProviderSseStream(opts: {
   let usagePayload: StreamUsagePayload | undefined;
   let terminalFinishReason: string | null = null;
   let semanticDone = false;
-  const parser = createGmStreamParser();
+  const parser = createGmStructuredStreamParser();
   let sawFirstChunk = false;
   let sawFirstNarration = false;
 
@@ -277,7 +283,7 @@ async function readGmProviderSseStream(opts: {
       opts.timings.firstChunkAtMs = Date.now();
       opts.callbacks?.onProviderTimings?.({ ...opts.timings });
     }
-    const delta = feedGmStreamParser(parser, piece);
+    const delta = feedGmStructuredStreamParser(parser, piece);
     if (delta) {
       if (!sawFirstNarration && parser.narration.trim()) {
         sawFirstNarration = true;
@@ -322,7 +328,7 @@ async function readGmProviderSseStream(opts: {
     }
   }
 
-  gmStreamParserComplete(parser);
+  gmStructuredStreamParserComplete(parser);
   opts.timings.completeAtMs = Date.now();
   opts.callbacks?.onProviderTimings?.({ ...opts.timings });
 
@@ -453,14 +459,14 @@ function simulateMockGmStream(
     completeAtMs: null,
   };
   callbacks?.onProviderTimings?.({ ...timings });
-  const parser = createGmStreamParser();
+  const parser = createGmStructuredStreamParser();
   let sawFirstNarration = false;
   const chunkSize = Math.max(8, Math.ceil(text.length / 4));
   for (let i = 0; i < text.length; i += chunkSize) {
     const piece = text.slice(i, i + chunkSize);
     callbacks?.onProviderChunk?.(piece);
     if (timings.firstChunkAtMs == null) timings.firstChunkAtMs = Date.now();
-    const delta = feedGmStreamParser(parser, piece);
+    const delta = feedGmStructuredStreamParser(parser, piece);
     if (delta) {
       if (!sawFirstNarration && parser.narration.trim()) {
         sawFirstNarration = true;
@@ -469,7 +475,7 @@ function simulateMockGmStream(
       callbacks?.onNarrationChunk?.(parser.narration, delta);
     }
   }
-  gmStreamParserComplete(parser);
+  gmStructuredStreamParserComplete(parser);
   timings.completeAtMs = Date.now();
   callbacks?.onProviderTimings?.({ ...timings });
   return timings;
@@ -496,6 +502,7 @@ export async function callTrpgGm(opts: {
     stream: true,
     temperature: 0.7,
     max_tokens: TRPG_GM_MAX_TOKENS,
+    response_format: buildTrpgGmResponseFormat(),
   });
   const result = await postTrpgGmStream({
     model,

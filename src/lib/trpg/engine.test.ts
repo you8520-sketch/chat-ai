@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { EVEN_STATS, createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet, saveTrpgRelationshipBrief, writeSheet } from "./engineCreate";
@@ -26,17 +27,14 @@ function gmText(opts?: {
     opts?.participantId && opts.hp != null
       ? [{ participantId: opts.participantId, hp: opts.hp }]
       : [];
-  return `<<<NARRATION>>>
-${opts?.narration ?? "낡은 등불이 흔들린다. 당신은 문턱에서 다음 한 수를 고른다."}
-<<<DELTA>>>
-${JSON.stringify({
+  return buildTrpgGmStructuredWireText(opts?.narration ?? "낡은 등불이 흔들린다. 당신은 문턱에서 다음 한 수를 고른다.", {
   players,
   location: "문턱",
   next_round_context: opts?.nextRoundContext ?? "문 너머를 조사할지 말을 걸지",
   questsAdd: opts?.questsAdd ?? ["밀서 찾기"],
   flagsAdd: opts?.flagsAdd ?? ["문_열림"],
   campaign_finished: false,
-})}`;
+});
 }
 
 function memoryDb(): Database.Database {

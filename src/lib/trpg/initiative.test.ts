@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
@@ -27,10 +28,7 @@ function memoryDb(): Database.Database {
 }
 
 function gmText(narration = "장면"): string {
-  return `<<<NARRATION>>>
-${narration}
-<<<DELTA>>>
-{"players":[],"location":"문턱","next_round_context":"다음","campaign_finished":false}`;
+  return buildTrpgGmStructuredWireText(narration, {"players":[],"location":"문턱","next_round_context":"다음","campaign_finished":false});
 }
 
 describe("TRPG initiative resolution order", () => {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import { countTrpgNarrationChars, TRPG_GM_RICH_MIN_CHARS } from "./gmNarrationBudget";
 import { buildTrpgGmUserBlock, formatTrpgGenreToneLine, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
@@ -31,10 +32,7 @@ function action(opts: {
 
 describe("TRPG GM prompt/parse", () => {
   it("parses narration and a player delta", () => {
-    const parsed = parseTrpgGmOutput(`<<<NARRATION>>>
-등불이 흔들린다.
-<<<DELTA>>>
-{"players":[{"participantId":4,"hp":18,"conditions":["먼지"],"inventoryAdd":["열쇠"],"inventoryRemove":[],"location":"복도"}],"location":"복도","next_round_context":"창을 볼지 문을 밀지","questsAdd":["밀서 찾기"],"flagsAdd":["문_열림"],"campaign_finished":false}`);
+    const parsed = parseTrpgGmOutput(buildTrpgGmStructuredWireText("등불이 흔들린다.", {"players":[{"participantId":4,"hp":18,"conditions":["먼지"],"inventoryAdd":["열쇠"],"inventoryRemove":[],"location":"복도"}],"location":"복도","next_round_context":"창을 볼지 문을 밀지","questsAdd":["밀서 찾기"],"flagsAdd":["문_열림"],"campaign_finished":false}));
     assert.match(parsed.narration, /등불이 흔들린다/);
     assert.equal(parsed.delta.players[0]?.participantId, 4);
     assert.equal(parsed.delta.players[0]?.hp, 18);

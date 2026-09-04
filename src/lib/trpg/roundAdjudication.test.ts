@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
@@ -33,14 +33,14 @@ describe("roundAdjudication human pre-bot", () => {
       skipBilling: true,
       rollD20: () => 14,
       gmCall: async () => ({
-        text: `<<<NARRATION>>>x\n<<<DELTA>>>\n${JSON.stringify({
+        text: buildTrpgGmStructuredWireText("x", {
           players: [],
           location: "",
           next_round_context: "",
           questsAdd: [],
           flagsAdd: [],
           campaign_finished: false,
-        })}`,
+        }),
       }),
     };
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
@@ -124,14 +124,14 @@ describe("expected presentation actor roster", () => {
       skipBilling: true,
       rollD20: () => 14,
       gmCall: async () => ({
-        text: `<<<NARRATION>>>x\n<<<DELTA>>>\n${JSON.stringify({
+        text: buildTrpgGmStructuredWireText("x", {
           players: [],
           location: "",
           next_round_context: "",
           questsAdd: [],
           flagsAdd: [],
           campaign_finished: false,
-        })}`,
+        }),
       }),
     };
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });

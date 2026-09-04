@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
@@ -237,10 +238,7 @@ describe("TRPG local scene progress", () => {
   });
 
   it("parses GM delta localScene through canonical parse path", () => {
-    const parsed = parseTrpgGmOutput(`<<<NARRATION>>>
-환풍구가 보인다.
-<<<DELTA>>>
-{"players":[],"location":"복도","localScene":{"objectiveSet":"탈출","openRoutesAdd":["환풍구"],"resolvedObstaclesAdd":["균사벽 제거"]}}`);
+    const parsed = parseTrpgGmOutput(buildTrpgGmStructuredWireText("환풍구가 보인다.", {"players":[],"location":"복도","localScene":{"objectiveSet":"탈출","openRoutesAdd":["환풍구"],"resolvedObstaclesAdd":["균사벽 제거"]}}));
     assert.equal(parsed.delta.localScene?.objectiveSet, "탈출");
     assert.deepEqual(parsed.delta.localScene?.openRoutesAdd, ["환풍구"]);
   });

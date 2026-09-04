@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
@@ -50,16 +51,10 @@ import { shouldKickTrpgAdvance } from "./roundWorkKick";
 import { loadCampaign, loadLatestRound } from "./store";
 
 const NARRATION = "문이 천천히 열린다.";
-const GM_TEXT = `<<<NARRATION>>>
-${NARRATION}
-<<<DELTA>>>
-{"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false}`;
+const GM_TEXT = buildTrpgGmStructuredWireText(NARRATION, {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false});
 
 function gmText(n = NARRATION): string {
-  return `<<<NARRATION>>>
-${n}
-<<<DELTA>>>
-{"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false}`;
+  return buildTrpgGmStructuredWireText(n, {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false});
 }
 
 function installLedger(db: Database.Database): void {

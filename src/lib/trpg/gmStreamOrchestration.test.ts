@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { TextDecoder, TextEncoder } from "node:util";
@@ -16,18 +17,15 @@ import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./eng
 import { insertParticipant, loadLatestRound } from "./store";
 import { ensureTrpgTables } from "./schema";
 
-const GM_OK = `<<<NARRATION>>>
-문이 천천히 열린다.
-<<<DELTA>>>
-{"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false}`;
+const GM_OK = buildTrpgGmStructuredWireText("문이 천천히 열린다.", {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false});
 
 function gmText(narration = "장면"): string {
-  return `<<<NARRATION>>>\n${narration}\n<<<DELTA>>>\n${JSON.stringify({
+  return buildTrpgGmStructuredWireText(narration, {
     players: [],
     location: "문턱",
     next_round_context: "다음",
     campaign_finished: false,
-  })}`;
+  });
 }
 
 function memoryDb(): Database.Database {
@@ -214,7 +212,7 @@ describe("TRPG GM provider SSE stream transport", () => {
         },
       });
       assert.equal(sawStreamTrue, true, "GM_PROVIDER_STREAM=true");
-      assert.match(result.text, /<<<NARRATION>>>/);
+      assert.match(result.text, /"narration"/);
       assert.ok(firstChunkMs != null && firstChunkMs >= 0, "GM_FIRST_CHUNK_MEASURABLE=true");
     } finally {
       globalThis.fetch = previousFetch;
@@ -228,7 +226,7 @@ describe("TRPG GM provider SSE stream transport", () => {
   it("SSE_NETWORK_SPLIT_PASS + UTF8 + CRLF + EOF tail + final usage", async () => {
     delete process.env.MOCK_MODE;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-gm-stream";
-    const narration = "<<<NARRATION>>>\n한글 장면\n<<<DELTA>>>\n{}";
+    const narration = buildTrpgGmStructuredWireText("한글 장면", { players: [] });
     const payload = JSON.stringify({ choices: [{ delta: { content: narration } }] });
     const crlfLine = `data: ${payload}\r\n\r\n`;
     const usageLine = `data: ${JSON.stringify({

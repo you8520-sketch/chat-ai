@@ -1,3 +1,4 @@
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { describe, it } from "node:test";
@@ -172,7 +173,7 @@ describe("TRPG reply suggestion provider priority A-H", () => {
     const deps: TrpgEngineDeps = {
       skipBilling: true,
       gmCall: async () => ({
-        text: `<<<NARRATION>>>\n폐역\n<<<DELTA>>>\n{"players":[],"location":"폐역","next_round_context":"기다릴지","campaign_finished":false}`,
+        text: buildTrpgGmStructuredWireText("폐역", {"players":[],"location":"폐역","next_round_context":"기다릴지","campaign_finished":false}),
       }),
     };
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
@@ -324,7 +325,7 @@ describe("TRPG reply suggestion provider priority A-H", () => {
     const deps: TrpgEngineDeps = {
       skipBilling: true,
       gmCall: async () => ({
-        text: `<<<NARRATION>>>\n폐역\n<<<DELTA>>>\n{"players":[],"location":"폐역","next_round_context":"기다릴지","campaign_finished":false}`,
+        text: buildTrpgGmStructuredWireText("폐역", {"players":[],"location":"폐역","next_round_context":"기다릴지","campaign_finished":false}),
       }),
     };
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });

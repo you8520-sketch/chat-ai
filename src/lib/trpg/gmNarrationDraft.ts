@@ -2,9 +2,9 @@ import type Database from "better-sqlite3";
 
 export type GmProviderTimings = {
   startAtMs: number;
-  /** First provider content delta (may be marker-only). */
+  /** First provider content delta (may be JSON prefix only). */
   firstChunkAtMs: number | null;
-  /** First non-empty narration emitted by gmStreamParser. */
+  /** First non-empty narration emitted by gmStructuredStreamParser. */
   firstNarrationAtMs: number | null;
   completeAtMs: number | null;
 };

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
@@ -470,10 +471,7 @@ describe("TRPG recovery engine persist / HUD commit", () => {
         rollD20: () => 6,
         rollDie: () => 4,
         gmCall: async () => ({
-          text: `<<<NARRATION>>>
-쓰러진다.
-<<<DELTA>>>
-{"players":[],"location":"폐허","next_round_context":"","campaign_finished":false}`,
+          text: buildTrpgGmStructuredWireText("쓰러진다.", {"players":[],"location":"폐허","next_round_context":"","campaign_finished":false}),
         }),
       };
       const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
