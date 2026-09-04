@@ -59,28 +59,50 @@ export function isTrpgRoundUsageEntryBillable(
   committedGenerationId: string | null
 ): boolean {
   if (entry.seat === "gm") {
-    if (!entry.generationId) {
-      // Legacy GM rows without provenance metadata remain billable.
-      return true;
-    }
+    if (!entry.generationId) return false;
     return committedGenerationId != null && entry.generationId === committedGenerationId;
   }
   return true;
 }
 
-export function projectBillableRoundUsage(
+/** Shared GM provenance projection — normal round and reroll billing use the same rule. */
+export function projectBillableGmUsage(
   actual: readonly TrpgRoundUsageEntry[],
   committedGenerationId: string | null
 ): TrpgRoundUsageEntry[] {
   return actual.filter((entry) => isTrpgRoundUsageEntryBillable(entry, committedGenerationId));
 }
 
+export function projectBillableRoundUsage(
+  actual: readonly TrpgRoundUsageEntry[],
+  committedGenerationId: string | null
+): TrpgRoundUsageEntry[] {
+  return projectBillableGmUsage(actual, committedGenerationId);
+}
+
 /** Canonical round billing input owner — feeds `chargeTrpgCalls` for normal round settlement. */
 export function loadBillableRoundUsage(db: Database.Database, roundId: number): TrpgRoundUsageEntry[] {
-  return projectBillableRoundUsage(
+  return projectBillableGmUsage(
     loadRoundUsageEntries(db, roundId),
     loadRoundCommittedGenerationId(db, roundId)
   );
+}
+
+/** Actual reroll provider usage ledger in `gm_reroll_usage_json`. */
+export function loadRerollUsageEntries(db: Database.Database, roundId: number): TrpgRoundUsageEntry[] {
+  const row = db.prepare(`SELECT gm_reroll_usage_json FROM trpg_rounds WHERE id=?`).get(roundId) as
+    | { gm_reroll_usage_json: string | null }
+    | undefined;
+  return parseJson(row?.gm_reroll_usage_json, [] as TrpgRoundUsageEntry[]);
+}
+
+/** Canonical reroll billing input owner — same provenance rule as normal GM settlement. */
+export function loadBillableRerollUsage(
+  db: Database.Database,
+  roundId: number,
+  committedGenerationId: string
+): TrpgRoundUsageEntry[] {
+  return projectBillableGmUsage(loadRerollUsageEntries(db, roundId), committedGenerationId);
 }
 
 export function toModelUsageCalls(entries: readonly TrpgRoundUsageEntry[]): TrpgModelUsage[] {

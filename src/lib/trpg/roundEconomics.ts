@@ -136,7 +136,7 @@ export function observeTrpgRoundEconomics(opts: {
   const actualCost = resolveTrpgProviderCost(actualCalls);
   const roundTotalPoints = opts.breakdown.roundTotal;
   const netContributionPoints =
-    roundTotalPoints - opts.actualCreatorCpCredited - billableCost.providerCostKrw;
+    roundTotalPoints - opts.actualCreatorCpCredited - actualCost.providerCostKrw;
   const paidCoverageRate = roundTotalPoints > 0 ? opts.paidPointsSpent / roundTotalPoints : 0;
   const platformAbsorbedFailureCostKrw = Math.max(
     0,
@@ -152,15 +152,15 @@ export function observeTrpgRoundEconomics(opts: {
     paidPointsSpent: opts.paidPointsSpent,
     freePointsSpent: opts.freePointsSpent,
     actualCreatorCpCredited: opts.actualCreatorCpCredited,
-    providerCostUsd: billableCost.providerCostUsd,
-    providerCostKrw: billableCost.providerCostKrw,
-    costSource: billableCost.costSource,
+    providerCostUsd: actualCost.providerCostUsd,
+    providerCostKrw: actualCost.providerCostKrw,
+    costSource: actualCost.costSource,
     humanCount: opts.breakdown.humanCount,
     botCount: opts.breakdown.botCount,
     netContributionPoints,
     pointContributionMargin: roundTotalPoints > 0 ? netContributionPoints / roundTotalPoints : 0,
     paidCoverageRate,
-    paidContribution: opts.paidPointsSpent - opts.actualCreatorCpCredited - billableCost.providerCostKrw,
+    paidContribution: opts.paidPointsSpent - opts.actualCreatorCpCredited - actualCost.providerCostKrw,
     actualProviderCostUsd: actualCost.providerCostUsd,
     actualProviderCostKrw: actualCost.providerCostKrw,
     billableProviderCostUsd: billableCost.providerCostUsd,

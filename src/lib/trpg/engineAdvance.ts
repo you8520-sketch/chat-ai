@@ -14,6 +14,8 @@ import {
 import { logTrpgRoundEconomics, observeTrpgRoundEconomics } from "./roundEconomics";
 import {
   loadBillableRoundUsage,
+  loadBillableRerollUsage,
+  loadRerollUsageEntries,
   loadRoundUsageEntries,
   tagBotRoundUsage,
   tagGmRoundUsage,
@@ -364,6 +366,12 @@ export async function regenerateTrpgNarration(
     .get(opts.campaignId, target.round_number) as { 1: number } | undefined;
   if (laterLocked) {
     throw new Error("다음 행동이 이미 제출되어 장면을 리롤할 수 없습니다.");
+  }
+  const priorReroll = db
+    .prepare(`SELECT gm_reroll_billed_generation_id FROM trpg_rounds WHERE id=?`)
+    .get(target.id) as { gm_reroll_billed_generation_id: string | null } | undefined;
+  if (priorReroll?.gm_reroll_billed_generation_id) {
+    db.prepare(`UPDATE trpg_rounds SET gm_reroll_usage_json=NULL WHERE id=?`).run(target.id);
   }
   const rid = newRequestId();
   if (!tryBeginNarrationReroll(db, target.id, rid)) {
@@ -1676,11 +1684,16 @@ export function billRerollGenerationExactlyOnce(
       if (row.gm_committed_generation_id !== provenanceGenerationId) return false;
       if (row.gm_reroll_billed_generation_id === provenanceGenerationId) return true;
 
-      const usage = parseJson(row.gm_reroll_usage_json, [] as TrpgModelUsage[]);
-      chargeTrpgCalls(db, campaign, roundId, usage.length ? usage : [TRPG_GM_USAGE_FALLBACK], {
+      const actualUsage = loadRerollUsageEntries(db, roundId);
+      const billableUsage = loadBillableRerollUsage(db, roundId, provenanceGenerationId);
+      if (billableUsage.length === 0) {
+        return false;
+      }
+      chargeTrpgCalls(db, campaign, roundId, billableUsage, {
         addToBilled: true,
         skip: false,
         billingFault: deps?.billingFault,
+        actualCalls: actualUsage,
       });
 
       const info = db

@@ -156,7 +156,6 @@ export function beginGmGenerationLease(db: Database.Database, roundId: number, r
          gm_generation_heartbeat_at = datetime('now'),
          gm_committed_generation_id = NULL,
          gm_reroll_billed_generation_id = NULL,
-         gm_reroll_usage_json = NULL,
          updated_at = datetime('now')
      WHERE id = ?
        AND gm_generation_id = ?`
