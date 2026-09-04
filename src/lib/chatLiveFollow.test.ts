@@ -3,11 +3,13 @@ import { describe, it } from "node:test";
 import {
   CHAT_LIVE_FOLLOW_TARGET_RATIO,
   handleChatStreamLayoutGrowth,
+  isChatLiveReadingActive,
   resolveActiveAssistantStreamEnd,
   resolveFollowBeforeStream,
   shouldDetachChatLiveFollowOnKey,
   shouldDetachChatLiveFollowOnTouchDelta,
   shouldDetachChatLiveFollowOnWheel,
+  shouldSkipChatLiveFollowKeydown,
   shouldStartChatStreamFollow,
 } from "./chatLiveFollow";
 import {
@@ -27,6 +29,21 @@ describe("chat live follow owner map", () => {
     });
   });
 
+  it("P0-3: single live-reading active owner covers network + visual reveal", () => {
+    assert.equal(
+      isChatLiveReadingActive({ networkInFlight: false, visualRevealPendingCount: 0 }),
+      false
+    );
+    assert.equal(
+      isChatLiveReadingActive({ networkInFlight: true, visualRevealPendingCount: 0 }),
+      true
+    );
+    assert.equal(
+      isChatLiveReadingActive({ networkInFlight: false, visualRevealPendingCount: 1 }),
+      true
+    );
+  });
+
   it("C5/C6: manual detach helpers block auto follow", () => {
     assert.equal(shouldDetachChatLiveFollowOnWheel(-1), true);
     assert.equal(shouldDetachChatLiveFollowOnTouchDelta(-10), true);
@@ -35,15 +52,38 @@ describe("chat live follow owner map", () => {
     assert.equal(shouldStartChatStreamFollow({ followLatest: true, manualDetached: true }), false);
   });
 
-  it("C31: active assistant stream end sentinel resolves from ref or DOM", () => {
+  it("P0-12: keyboard detach skips editable controls", () => {
+    class MockElement {
+      closest() {
+        return this;
+      }
+    }
+    const priorElement = globalThis.Element;
+    globalThis.Element = MockElement as typeof Element;
+    try {
+      const input = new MockElement();
+      const plain = { closest: () => null };
+      assert.equal(shouldSkipChatLiveFollowKeydown(input as unknown as EventTarget), true);
+      assert.equal(shouldSkipChatLiveFollowKeydown(plain as unknown as EventTarget), false);
+    } finally {
+      globalThis.Element = priorElement;
+    }
+  });
+
+  it("C31: active assistant stream end resolves by request id, not first selector", () => {
     const sentinel = { id: "sentinel" } as HTMLElement;
     const endRef = { current: null as HTMLElement | null };
     const root = {
-      querySelector: () => sentinel,
+      querySelector: (selector: string) =>
+        selector.includes('data-chat-assistant-stream-request-id="req-2"') ? sentinel : null,
     } as ParentNode;
-    assert.equal(resolveActiveAssistantStreamEnd({ endRef, root }), sentinel);
+    assert.equal(resolveActiveAssistantStreamEnd({ endRef, root, activeRequestId: "req-1" }), null);
+    assert.equal(
+      resolveActiveAssistantStreamEnd({ endRef, root, activeRequestId: "req-2" }),
+      sentinel
+    );
     endRef.current = { id: "ref" } as HTMLElement;
-    assert.equal(resolveActiveAssistantStreamEnd({ endRef, root }), endRef.current);
+    assert.equal(resolveActiveAssistantStreamEnd({ endRef, root, activeRequestId: "req-2" }), endRef.current);
   });
 
   it("uses shared reading target ratio", () => {

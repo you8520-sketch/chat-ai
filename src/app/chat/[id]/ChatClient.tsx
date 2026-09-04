@@ -168,11 +168,12 @@ import {
 } from "@/lib/liveReadingFollow";
 import {
   handleChatStreamLayoutGrowth,
+  isChatLiveReadingActive,
   resolveActiveAssistantStreamEnd,
   resolveFollowBeforeStream,
   shouldDetachChatLiveFollowOnKey,
-  shouldDetachChatLiveFollowOnTouchDelta,
   shouldDetachChatLiveFollowOnWheel,
+  shouldSkipChatLiveFollowKeydown,
   shouldStartChatStreamFollow,
 } from "@/lib/chatLiveFollow";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
@@ -1069,6 +1070,16 @@ export default function ChatClient({
   const [visualRevealPendingIds, setVisualRevealPendingIds] = useState<ReadonlySet<string>>(
     () => new Set()
   );
+  const [chatFollowDiagnostics, setChatFollowDiagnostics] = useState({
+    followLatest: true,
+    manualDetached: false,
+  });
+  const syncChatFollowDiagnostics = useCallback(() => {
+    setChatFollowDiagnostics({
+      followLatest: followStreamRef.current,
+      manualDetached: userScrollLockRef.current,
+    });
+  }, []);
   const visualRevealPendingCountRef = useRef(0);
   const routerRef = useRef(router);
   routerRef.current = router;
@@ -1592,6 +1603,7 @@ export default function ChatClient({
   /** 스트리밍 중 사용자가 직접 스크롤하면 true — 자동 따라가기 일시 중단 */
   const userScrollLockRef = useRef(false);
   const activeAssistantStreamEndRef = useRef<HTMLSpanElement | null>(null);
+  const activeAssistantStreamRequestIdRef = useRef<string | null>(null);
   const streamingMessageArticleRef = useRef<HTMLElement | null>(null);
   const liveFollowAnimatorRef = useRef<LiveReadingFollowController | null>(null);
   const streamResizeObserverRef = useRef<ResizeObserver | null>(null);
@@ -2147,21 +2159,30 @@ export default function ChatClient({
     [scrollToBottom]
   );
 
+  const isChatLiveReadingActiveNow = useCallback(() => {
+    return isChatLiveReadingActive({
+      networkInFlight: loadingRef.current || inFlightRef.current,
+      visualRevealPendingCount: visualRevealPendingCountRef.current,
+    });
+  }, []);
+
   const detachChatLiveFollow = useCallback(() => {
     userScrollLockRef.current = true;
     followStreamRef.current = false;
     liveFollowAnimatorRef.current?.stop();
-  }, []);
+    syncChatFollowDiagnostics();
+  }, [syncChatFollowDiagnostics]);
 
   const reattachChatLiveFollow = useCallback(() => {
     userScrollLockRef.current = false;
     followStreamRef.current = true;
-    if (loadingRef.current || inFlightRef.current) {
+    syncChatFollowDiagnostics();
+    if (isChatLiveReadingActiveNow()) {
       liveFollowAnimatorRef.current?.notifyTargetUpdate();
     } else {
       scrollToBottom("smooth");
     }
-  }, [scrollToBottom]);
+  }, [isChatLiveReadingActiveNow, scrollToBottom, syncChatFollowDiagnostics]);
 
   const applyFollowBeforeStream = useCallback(() => {
     const next = resolveFollowBeforeStream({
@@ -2170,11 +2191,12 @@ export default function ChatClient({
     });
     followStreamRef.current = next.followLatest;
     userScrollLockRef.current = next.manualDetached;
+    syncChatFollowDiagnostics();
     return next.followLatest;
-  }, [isNearBottom]);
+  }, [isNearBottom, syncChatFollowDiagnostics]);
 
   const notifyChatLiveFollowTargetUpdate = useCallback(() => {
-    if (!loadingRef.current && !inFlightRef.current) return;
+    if (!isChatLiveReadingActiveNow()) return;
     if (!shouldStartChatStreamFollow({
       followLatest: followStreamRef.current,
       manualDetached: userScrollLockRef.current,
@@ -2182,7 +2204,7 @@ export default function ChatClient({
       return;
     }
     liveFollowAnimatorRef.current?.notifyTargetUpdate();
-  }, []);
+  }, [isChatLiveReadingActiveNow]);
 
   const handleChatStreamGrowth = useCallback(() => {
     handleChatStreamLayoutGrowth({
@@ -2201,31 +2223,37 @@ export default function ChatClient({
       resolveTargetElement: () =>
         resolveActiveAssistantStreamEnd({
           endRef: activeAssistantStreamEndRef,
+          activeRequestId: activeAssistantStreamRequestIdRef.current,
           root: quoteSelectContainerRef.current,
         }),
       shouldFollow: () =>
         shouldStartChatStreamFollow({
           followLatest: followStreamRef.current,
           manualDetached: userScrollLockRef.current,
-        }) &&
-        (loadingRef.current || inFlightRef.current),
+        }) && isChatLiveReadingActiveNow(),
     });
     return () => {
       liveFollowAnimatorRef.current?.stop();
       liveFollowAnimatorRef.current = null;
     };
-  }, []);
+  }, [isChatLiveReadingActiveNow]);
+
+  const chatLiveReadingActive = isChatLiveReadingActive({
+    networkInFlight: loading || inFlightRef.current,
+    visualRevealPendingCount: visualRevealPendingCountRef.current,
+  });
 
   useEffect(() => {
-    if (loading) return;
+    if (chatLiveReadingActive) return;
     liveFollowAnimatorRef.current?.stop();
     activeAssistantStreamEndRef.current = null;
-  }, [loading]);
+    activeAssistantStreamRequestIdRef.current = null;
+  }, [chatLiveReadingActive]);
 
   useEffect(() => {
     streamResizeObserverRef.current?.disconnect();
     streamResizeObserverRef.current = null;
-    if (!loading && visualRevealPendingCountRef.current <= 0) return;
+    if (!chatLiveReadingActive) return;
     if (!shouldStartChatStreamFollow({
       followLatest: followStreamRef.current,
       manualDetached: userScrollLockRef.current,
@@ -2245,7 +2273,7 @@ export default function ChatClient({
         streamResizeObserverRef.current = null;
       }
     };
-  }, [handleChatStreamGrowth, loading, lastAssistantIdx, messages, visualRevealPendingIds]);
+  }, [chatLiveReadingActive, handleChatStreamGrowth, lastAssistantIdx, messages, visualRevealPendingIds]);
 
   useEffect(() => {
     let touchStartY = 0;
@@ -2255,7 +2283,7 @@ export default function ChatClient({
         if (isNearBottom()) {
           userScrollLockRef.current = false;
           followStreamRef.current = true;
-          if (loadingRef.current || inFlightRef.current) {
+          if (isChatLiveReadingActiveNow()) {
             notifyChatLiveFollowTargetUpdate();
           }
         } else {
@@ -2264,10 +2292,11 @@ export default function ChatClient({
         return;
       }
       followStreamRef.current = isNearBottom();
+      syncChatFollowDiagnostics();
     };
 
     const onWheel = (e: WheelEvent) => {
-      if (!loadingRef.current) return;
+      if (!isChatLiveReadingActiveNow()) return;
       if (shouldDetachChatLiveFollowOnWheel(e.deltaY)) {
         detachChatLiveFollow();
         return;
@@ -2282,7 +2311,7 @@ export default function ChatClient({
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (!loadingRef.current) return;
+      if (!isChatLiveReadingActiveNow()) return;
       const y = e.touches[0]?.clientY ?? touchStartY;
       const touchDelta = y - touchStartY;
       if (touchDelta > 8) {
@@ -2293,7 +2322,8 @@ export default function ChatClient({
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!loadingRef.current) return;
+      if (!isChatLiveReadingActiveNow()) return;
+      if (shouldSkipChatLiveFollowKeydown(e.target)) return;
       if (shouldDetachChatLiveFollowOnKey(e.key)) {
         detachChatLiveFollow();
       }
@@ -2315,17 +2345,17 @@ export default function ChatClient({
       window.removeEventListener("keydown", onKeyDown);
       if (scrollRafRef.current != null) cancelAnimationFrame(scrollRafRef.current);
     };
-  }, [detachChatLiveFollow, isNearBottom, notifyChatLiveFollowTargetUpdate, reattachChatLiveFollow]);
+  }, [detachChatLiveFollow, isChatLiveReadingActiveNow, isNearBottom, notifyChatLiveFollowTargetUpdate, reattachChatLiveFollow]);
 
   useEffect(() => {
     if (hasBookmarkScrollTarget && scrollMessageIdRef.current != null) return;
     if (!followStreamRef.current || userScrollLockRef.current || loadingOlder) return;
-    if (loading || inFlightRef.current) {
+    if (chatLiveReadingActive) {
       notifyChatLiveFollowTargetUpdate();
       return;
     }
     scheduleScrollToBottom("smooth");
-  }, [messages, loading, loadingOlder, scheduleScrollToBottom, hasBookmarkScrollTarget, notifyChatLiveFollowTargetUpdate]);
+  }, [chatLiveReadingActive, messages, loading, loadingOlder, scheduleScrollToBottom, hasBookmarkScrollTarget, notifyChatLiveFollowTargetUpdate]);
 
   /** 채팅방 진입·전환 시 최신 대화가 보이도록 즉시 하단 스크롤 */
   useEffect(() => {
@@ -5253,14 +5283,17 @@ export default function ChatClient({
                             {proseStreamActive ? (
                               <span
                                 ref={(el) => {
-                                  if (isStreamingThisMessage) {
+                                  if (proseStreamActive) {
                                     activeAssistantStreamEndRef.current = el;
+                                    activeAssistantStreamRequestIdRef.current = m.requestId ?? null;
                                     if (el) notifyChatLiveFollowTargetUpdate();
                                   } else if (activeAssistantStreamEndRef.current === el) {
                                     activeAssistantStreamEndRef.current = null;
+                                    activeAssistantStreamRequestIdRef.current = null;
                                   }
                                 }}
                                 data-chat-assistant-stream-end
+                                data-chat-assistant-stream-request-id={m.requestId ?? undefined}
                                 aria-hidden="true"
                                 className="block h-0 w-full"
                               />
@@ -5345,7 +5378,7 @@ export default function ChatClient({
             );
           })}
           {error && <p className="text-center text-sm text-rose-400">{error}</p>}
-          {loading || visualRevealPendingIds.size > 0 ? (
+          {chatLiveReadingActive ? (
             <div
               aria-hidden="true"
               data-chat-live-follow-tail-spacer
@@ -5353,7 +5386,14 @@ export default function ChatClient({
               style={{ height: `${Math.round(LIVE_FOLLOW_TAIL_SPACER_RATIO * 100)}vh` }}
             />
           ) : null}
-          <div ref={bottomRef} className="sm:!mt-0" />
+          <div
+            ref={bottomRef}
+            className="sm:!mt-0"
+            data-chat-live-reading-active={chatLiveReadingActive ? "true" : "false"}
+            data-chat-follow-latest={chatFollowDiagnostics.followLatest ? "true" : "false"}
+            data-chat-manual-detached={chatFollowDiagnostics.manualDetached ? "true" : "false"}
+            data-chat-visual-reveal-pending-count={visualRevealPendingCountRef.current}
+          />
           </div>
         </div>
       </div>

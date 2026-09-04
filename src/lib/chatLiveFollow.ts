@@ -12,12 +12,26 @@ import { LIVE_READING_TARGET_RATIO } from "./liveReadingFollow";
 export const CHAT_ASSISTANT_STREAM_END_SELECTOR = "[data-chat-assistant-stream-end]";
 export const CHAT_LIVE_FOLLOW_TARGET_RATIO = LIVE_READING_TARGET_RATIO;
 
+/** Single owner for whether chat live-reading follow should be active. */
+export function isChatLiveReadingActive(opts: {
+  networkInFlight: boolean;
+  visualRevealPendingCount: number;
+}): boolean {
+  return opts.networkInFlight || opts.visualRevealPendingCount > 0;
+}
+
 export function resolveActiveAssistantStreamEnd(opts: {
   endRef: { current: HTMLElement | null };
+  activeRequestId?: string | null;
   root?: ParentNode | null;
 }): Element | null {
   if (opts.endRef.current) return opts.endRef.current;
-  return opts.root?.querySelector(CHAT_ASSISTANT_STREAM_END_SELECTOR) ?? null;
+  if (!opts.activeRequestId || !opts.root) return null;
+  return (
+    opts.root.querySelector(
+      `${CHAT_ASSISTANT_STREAM_END_SELECTOR}[data-chat-assistant-stream-request-id="${opts.activeRequestId}"]`
+    ) ?? null
+  );
 }
 
 export function shouldStartChatStreamFollow(opts: {
@@ -47,6 +61,11 @@ export function shouldDetachChatLiveFollowOnTouchDelta(deltaY: number): boolean 
 
 export function shouldDetachChatLiveFollowOnKey(key: string): boolean {
   return key === "PageUp" || key === "Home" || key === "ArrowUp";
+}
+
+export function shouldSkipChatLiveFollowKeydown(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
 }
 
 /** Layout growth during active stream — notify shared animator, never one-shot scroll. */
