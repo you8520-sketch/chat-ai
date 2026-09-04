@@ -7,7 +7,7 @@ import {
 } from "@/lib/streamRevealLifecycle";
 import { streamRevealOptionsFromInterval } from "@/lib/streamRevealTiming";
 
-const FAST = streamRevealOptionsFromInterval(35);
+const FAST = streamRevealOptionsFromInterval(28);
 const BURST = 3200;
 const FAST_TEST = streamRevealOptionsFromInterval(1);
 
@@ -91,7 +91,7 @@ describe("streamReveal lifecycle — server vs visual decoupling", () => {
 
   it("R9: SPEED CHANGE AFTER DONE — syncOptions applies without reset", () => {
     let shown = "";
-    let intervalMs = 35;
+    let intervalMs = 28;
     const reveal = createStreamReveal(
       { onAppend: (c) => { shown += c; } },
       () => ({ intervalMs, charsPerTick: 1 })

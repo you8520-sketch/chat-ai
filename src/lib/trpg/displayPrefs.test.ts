@@ -56,12 +56,12 @@ describe("TRPG display prefs", () => {
       );
       assert.equal(loadTrpgStreamIntervalMs(), DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs);
       saveTrpgStreamIntervalMs(60);
-      assert.equal(store.get(TRPG_STREAM_INTERVAL_KEY), "50");
-      assert.equal(loadTrpgStreamIntervalMs(), 50);
-      assert.equal(loadChatDisplayPrefs().streamIntervalMs, 65);
+      assert.equal(store.get(TRPG_STREAM_INTERVAL_KEY), "40");
+      assert.equal(loadTrpgStreamIntervalMs(), 40);
+      assert.equal(loadChatDisplayPrefs().streamIntervalMs, 40);
       store.set(TRPG_STREAM_INTERVAL_KEY, "20");
-      assert.equal(loadTrpgStreamIntervalMs(), 35);
-      assert.equal(store.get(TRPG_STREAM_INTERVAL_KEY), "35");
+      assert.equal(loadTrpgStreamIntervalMs(), 28);
+      assert.equal(store.get(TRPG_STREAM_INTERVAL_KEY), "28");
       saveTrpgStreamIntervalMs(0);
       assert.equal(loadTrpgStreamIntervalMs(), 0);
     });

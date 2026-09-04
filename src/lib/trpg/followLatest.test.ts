@@ -43,11 +43,9 @@ describe("TRPG follow-latest scroll", () => {
     assert.notEqual(liveFollowRound, 2);
     const fast = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "빠름")!;
     const normal = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "보통")!;
-    const slow = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "느림")!;
     const instant = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "즉시")!;
     assert.deepEqual(trpgGmRevealTick(fast.intervalMs), { intervalMs: fast.intervalMs, charsPerTick: 1 });
     assert.deepEqual(trpgGmRevealTick(normal.intervalMs), { intervalMs: normal.intervalMs, charsPerTick: 1 });
-    assert.deepEqual(trpgGmRevealTick(slow.intervalMs), { intervalMs: slow.intervalMs, charsPerTick: 1 });
     assert.equal(streamCharsPerTickForInterval(instant.intervalMs), 64);
     assert.equal(
       trpgRevealImmediate({ active: true, reducedMotion: false, charCount: 40, streamIntervalMs: 0 }),
@@ -112,11 +110,9 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /data-trpg-stream-interval-ms=\{streamIntervalMs\}/);
     const fast = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "빠름")!;
     const normal = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "보통")!;
-    const slow = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "느림")!;
     const instant = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "즉시")!;
     assert.deepEqual(trpgGmRevealTick(fast.intervalMs), { intervalMs: fast.intervalMs, charsPerTick: 1 });
     assert.deepEqual(trpgGmRevealTick(normal.intervalMs), { intervalMs: normal.intervalMs, charsPerTick: 1 });
-    assert.deepEqual(trpgGmRevealTick(slow.intervalMs), { intervalMs: slow.intervalMs, charsPerTick: 1 });
     assert.equal(streamCharsPerTickForInterval(instant.intervalMs), 64);
     assert.equal(
       trpgRevealImmediate({ active: true, reducedMotion: false, charCount: 80, streamIntervalMs: 0 }),

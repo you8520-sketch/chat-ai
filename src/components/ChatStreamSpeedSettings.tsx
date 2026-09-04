@@ -21,7 +21,7 @@ export default function ChatStreamSpeedSettings({
       <p className="mb-2 text-[10px] text-zinc-600">
         AI 답변이 화면에 나타나는 속도를 선택하세요. 기본 설정은 빠름입니다.
       </p>
-      <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label={title}>
+      <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label={title}>
         {CHAT_STREAM_SPEED_PRESETS.map((preset) => {
           const selected = selectedMs === preset.intervalMs;
           return (

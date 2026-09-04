@@ -151,12 +151,12 @@ describe("TRPG presentation reveal integration", () => {
 
   it("5: slow reveal longer than 700ms does not advance before completion", () => {
     const chars = 2500;
-    const duration = trpgRevealDurationMs(chars, "bot", 50);
+    const duration = trpgRevealDurationMs(chars, "bot", 40);
     assert.ok(duration > 700);
-    const at700 = trpgRevealCountForElapsed({ elapsedMs: 700, charCount: chars, streamIntervalMs: 50 });
+    const at700 = trpgRevealCountForElapsed({ elapsedMs: 700, charCount: chars, streamIntervalMs: 40 });
     assert.ok(at700 < chars);
     assert.equal(
-      trpgRevealCountForElapsed({ elapsedMs: duration, charCount: chars, streamIntervalMs: 50 }),
+      trpgRevealCountForElapsed({ elapsedMs: duration, charCount: chars, streamIntervalMs: 40 }),
       chars
     );
   });

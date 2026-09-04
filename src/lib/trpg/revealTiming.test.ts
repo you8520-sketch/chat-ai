@@ -34,7 +34,6 @@ describe("TRPG adaptive reveal", () => {
     const instant = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "즉시")!;
     const fast = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "빠름")!;
     const normal = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "보통")!;
-    const slow = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "느림")!;
     assert.deepEqual(trpgGmRevealTick(fast.intervalMs), {
       intervalMs: fast.intervalMs,
       charsPerTick: streamCharsPerTickForInterval(fast.intervalMs),
@@ -44,15 +43,11 @@ describe("TRPG adaptive reveal", () => {
     const botFastMs = trpgRevealDurationMs(100, "bot", fast.intervalMs);
     const normalMs = trpgRevealDurationMs(100, "gm", normal.intervalMs);
     const botNormalMs = trpgRevealDurationMs(100, "bot", normal.intervalMs);
-    const slowMs = trpgRevealDurationMs(100, "gm", slow.intervalMs);
-    const botSlowMs = trpgRevealDurationMs(100, "bot", slow.intervalMs);
     assert.equal(fastMs, 100 * fast.intervalMs);
     assert.equal(botFastMs, fastMs);
     assert.equal(normalMs, 100 * normal.intervalMs);
     assert.equal(botNormalMs, normalMs);
-    assert.equal(slowMs, 100 * slow.intervalMs);
-    assert.equal(botSlowMs, slowMs);
-    assert.ok(fastMs < normalMs && normalMs < slowMs);
+    assert.ok(fastMs < normalMs);
     assert.equal(fast.intervalMs, DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs);
   });
 
@@ -67,10 +62,10 @@ describe("TRPG adaptive reveal", () => {
     assert.equal(
       trpgRevealImmediate({ active: true, reducedMotion: false, charCount: 4800, streamIntervalMs: 20 }),
       false,
-      "legacy fast 20ms stays progressive after migrating to 35ms"
+      "legacy fast 20ms stays progressive after migrating to 28ms"
     );
     assert.equal(
-      trpgRevealImmediate({ active: true, reducedMotion: false, charCount: 4800, streamIntervalMs: 35 }),
+      trpgRevealImmediate({ active: true, reducedMotion: false, charCount: 4800, streamIntervalMs: 28 }),
       false
     );
   });
