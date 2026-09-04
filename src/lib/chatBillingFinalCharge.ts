@@ -6,6 +6,11 @@
 import type Database from "better-sqlite3";
 import type { Usage, UsageBillingContractAdmin } from "@/lib/chatUsage";
 import type { ChatBillingContractDecision } from "@/lib/chatBillingContractDispatch";
+import {
+  normalizeMessageVariants,
+  parseMessageVariants,
+  type MessageVariant,
+} from "@/lib/messageAlternates";
 import type { DeductionSlice } from "@/lib/points";
 
 export const FINAL_USER_CHARGE_OWNER =
@@ -112,6 +117,83 @@ export function evaluateFinalChargeConsistency(input: {
   };
 }
 
+export type FinalChargeVariantPatchMode =
+  | "none"
+  | "request_id"
+  | "active_only_legacy";
+
+export type FinalChargeVariantPatchResult = {
+  patchedVariantIndices: number[];
+  mode: FinalChargeVariantPatchMode;
+  skippedCrossGeneration: boolean;
+};
+
+/** Resolve which stored alternates entries receive the same final charge as top-level usage. */
+export function resolveVariantIndicesForFinalChargePatch(input: {
+  variants: MessageVariant[];
+  requestId: string;
+  activeVariant: number;
+}): FinalChargeVariantPatchResult {
+  const requestId = input.requestId.trim();
+  if (!requestId || input.variants.length === 0) {
+    return { patchedVariantIndices: [], mode: "none", skippedCrossGeneration: false };
+  }
+
+  const byRequestId = input.variants.flatMap((variant, index) =>
+    variant.requestId?.trim() === requestId ? [index] : []
+  );
+  if (byRequestId.length === 1) {
+    const matchedIndex = byRequestId[0]!;
+    if (matchedIndex !== input.activeVariant) {
+      return { patchedVariantIndices: [], mode: "none", skippedCrossGeneration: true };
+    }
+    return {
+      patchedVariantIndices: [matchedIndex],
+      mode: "request_id",
+      skippedCrossGeneration: false,
+    };
+  }
+  if (byRequestId.length > 1) {
+    return { patchedVariantIndices: [], mode: "none", skippedCrossGeneration: true };
+  }
+
+  // Legacy rows may lack per-variant requestId. Patch only when unambiguous.
+  if (
+    input.variants.length === 1 &&
+    input.activeVariant === 0 &&
+    !input.variants[0]?.requestId?.trim()
+  ) {
+    return {
+      patchedVariantIndices: [0],
+      mode: "active_only_legacy",
+      skippedCrossGeneration: false,
+    };
+  }
+
+  return { patchedVariantIndices: [], mode: "none", skippedCrossGeneration: true };
+}
+
+function patchVariantsForFinalCharge(input: {
+  variants: MessageVariant[];
+  variantIndices: number[];
+  settledPoints: number;
+  billingContractDispatch?: UsageBillingContractAdmin | null;
+}): MessageVariant[] {
+  if (input.variantIndices.length === 0) return input.variants;
+  const indexSet = new Set(input.variantIndices);
+  return input.variants.map((variant, index) => {
+    if (!indexSet.has(index) || !variant.usage) return variant;
+    return {
+      ...variant,
+      usage: applyFinalUserChargeToUsage(
+        variant.usage,
+        input.settledPoints,
+        input.billingContractDispatch
+      ),
+    };
+  });
+}
+
 export function persistAssistantMessageFinalCharge(
   db: Database.Database,
   input: {
@@ -125,11 +207,19 @@ export function persistAssistantMessageFinalCharge(
 ): FinalChargeConsistencySnapshot {
   const row = db
     .prepare(
-      `SELECT usage, deduction_slices FROM messages
+      `SELECT usage, deduction_slices, alternates, active_variant, content, model
+       FROM messages
        WHERE id=? AND chat_id=? AND request_id=?`
     )
     .get(input.assistantMessageId, input.chatId, input.requestId) as
-    | { usage: string | null; deduction_slices: string | null }
+    | {
+        usage: string | null;
+        deduction_slices: string | null;
+        alternates: string | null;
+        active_variant: number | null;
+        content: string;
+        model: string;
+      }
     | undefined;
 
   if (!row) {
@@ -154,14 +244,49 @@ export function persistAssistantMessageFinalCharge(
     input.billingContractDispatch
   );
 
-  db.prepare(
-    `UPDATE messages SET usage=? WHERE id=? AND chat_id=? AND request_id=?`
-  ).run(
-    JSON.stringify(patched),
-    input.assistantMessageId,
-    input.chatId,
-    input.requestId
-  );
+  const storedVariants = parseMessageVariants(row.alternates);
+  const { variants, activeVariant } = normalizeMessageVariants({
+    content: row.content,
+    model: row.model,
+    usage: row.usage,
+    alternates: row.alternates,
+    active_variant: row.active_variant,
+  });
+
+  const variantPatch = resolveVariantIndicesForFinalChargePatch({
+    variants,
+    requestId: input.requestId,
+    activeVariant,
+  });
+  const patchedVariants = patchVariantsForFinalCharge({
+    variants,
+    variantIndices: variantPatch.patchedVariantIndices,
+    settledPoints: input.settledPoints,
+    billingContractDispatch: input.billingContractDispatch,
+  });
+  const alternatesJson =
+    storedVariants.length > 0 ? JSON.stringify(patchedVariants) : null;
+
+  if (alternatesJson != null) {
+    db.prepare(
+      `UPDATE messages SET usage=?, alternates=? WHERE id=? AND chat_id=? AND request_id=?`
+    ).run(
+      JSON.stringify(patched),
+      alternatesJson,
+      input.assistantMessageId,
+      input.chatId,
+      input.requestId
+    );
+  } else {
+    db.prepare(
+      `UPDATE messages SET usage=? WHERE id=? AND chat_id=? AND request_id=?`
+    ).run(
+      JSON.stringify(patched),
+      input.assistantMessageId,
+      input.chatId,
+      input.requestId
+    );
+  }
 
   let persistedSlices = input.slices;
   if (row.deduction_slices && row.deduction_slices !== "[]" && row.deduction_slices !== "null") {
