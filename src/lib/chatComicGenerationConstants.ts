@@ -4,6 +4,7 @@
  */
 
 import type { ScenePanelCount } from "@/lib/chatImageScenePlan";
+import { CHAT_ROOM_IMAGE_GENERATION_POINTS } from "@/lib/chatImagePricing";
 
 export const CHAT_COMIC_TEMPLATE_ID = "comic_horizontal_2_4" as const;
 export const CHAT_COMIC_TEMPLATE_NAME = "2~4컷 가로 만화";
@@ -15,7 +16,7 @@ export const CHAT_COMIC_MAX_INPUT_CHARS = 4_000;
 export const CHAT_COMIC_IMAGE_OUTPUT_SIZE = "1008x1408" as const;
 /** Promoted four-panel page size for the canonical 2|3|4 panel count. */
 export const CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE = "864x1824" as const;
-export const CHAT_COMIC_GENERATION_DEFAULT_POINTS = 230;
+export const CHAT_COMIC_GENERATION_DEFAULT_POINTS = CHAT_ROOM_IMAGE_GENERATION_POINTS;
 
 export const CHAT_COMIC_PANEL_OPTIONS = [
   { id: 2, label: "2컷" },
@@ -72,9 +73,7 @@ export function sanitizeChatComicOptions(raw: {
 
 export function resolveChatComicPrice(
   _panelCount: ChatComicPanelCount,
-  env: NodeJS.ProcessEnv = process.env
+  _env: NodeJS.ProcessEnv = process.env
 ): number {
-  const override = Number(env.CHAT_COMIC_GENERATION_POINTS);
-  if (Number.isFinite(override) && override >= 1) return Math.ceil(override);
   return CHAT_COMIC_GENERATION_DEFAULT_POINTS;
 }

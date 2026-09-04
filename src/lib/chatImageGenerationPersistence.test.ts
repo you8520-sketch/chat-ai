@@ -54,10 +54,13 @@ describe("chatImageGenerationPersistence settlement", () => {
 
   after(() => {
     const db = getDb();
+    db.prepare(`DELETE FROM image_generation_creator_earnings WHERE consumer_user_id > ? OR creator_id > ?`).run(USER_ID_BASE, USER_ID_BASE);
+    db.prepare(`DELETE FROM creator_point_logs WHERE user_id > ?`).run(USER_ID_BASE);
     db.prepare(`DELETE FROM character_image_album WHERE user_id > ?`).run(USER_ID_BASE);
     db.prepare(`DELETE FROM chat_image_generations WHERE user_id > ?`).run(USER_ID_BASE);
     db.prepare(`DELETE FROM point_logs WHERE user_id > ?`).run(USER_ID_BASE);
     db.prepare(`DELETE FROM point_transactions WHERE user_id > ?`).run(USER_ID_BASE);
+    db.prepare(`DELETE FROM characters WHERE creator_id > ?`).run(USER_ID_BASE);
     db.prepare(`DELETE FROM users WHERE id > ?`).run(USER_ID_BASE);
   });
 
@@ -179,5 +182,33 @@ describe("chatImageGenerationPersistence settlement", () => {
       .get(settled.generationId);
     assert.ok(row);
     assert.ok(listCharacterAlbum(userId, 3).some((entry) => entry.imageUrl === resultUrl));
+  });
+
+  it("credits a fixed 15CP once when the character owner is sprout tier or above", () => {
+    const consumerUserId = uniqueUserId();
+    const creatorId = uniqueUserId();
+    seedUser(consumerUserId);
+    seedUser(creatorId, 0);
+    const db = getDb();
+    db.prepare(`INSERT INTO characters (name, creator_id) VALUES (?,?), (?,?)`).run(
+      `reward-a-${creatorId}`,
+      creatorId,
+      `reward-b-${creatorId}`,
+      creatorId
+    );
+
+    const input = {
+      ...settleInput(consumerUserId, `/uploads/test-reward-${consumerUserId}.webp`, 180),
+      creatorReward: { creatorId, source: "character" as const },
+    };
+    const settled = settleChatImageGenerationResult(input);
+    const creator = db.prepare(`SELECT creator_points FROM users WHERE id=?`).get(creatorId) as {
+      creator_points: number;
+    };
+    assert.equal(creator.creator_points, 15);
+    assert.equal(
+      (db.prepare(`SELECT COUNT(*) AS n FROM image_generation_creator_earnings WHERE generation_id=?`).get(settled.generationId) as { n: number }).n,
+      1
+    );
   });
 });

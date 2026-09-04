@@ -734,6 +734,17 @@ function migrate(db: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_creator_earnings_creator
       ON creator_earnings(creator_id, created_at);
+    CREATE TABLE IF NOT EXISTS image_generation_creator_earnings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      generation_id INTEGER NOT NULL UNIQUE,
+      consumer_user_id INTEGER NOT NULL,
+      creator_id INTEGER NOT NULL,
+      source TEXT NOT NULL CHECK(source IN ('character', 'trpg_scenario')),
+      reward_amount REAL NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_image_generation_creator_earnings_creator
+      ON image_generation_creator_earnings(creator_id, created_at);
     CREATE TABLE IF NOT EXISTS creator_point_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,

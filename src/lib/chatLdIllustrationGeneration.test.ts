@@ -20,8 +20,8 @@ describe("chatLdIllustrationGeneration", () => {
     assert.equal(CHAT_LD_ILLUSTRATION_QUALITY, "medium");
   });
 
-  it("charges 200P by default even when a four-person party cast is used", () => {
-    assert.equal(resolveChatLdIllustrationPrice({} as NodeJS.ProcessEnv), 200);
+  it("charges 180P by default even when a four-person party cast is used", () => {
+    assert.equal(resolveChatLdIllustrationPrice({} as NodeJS.ProcessEnv), 180);
   });
 
   it("uses an approved Scene Plan instead of raw chat when provided", () => {

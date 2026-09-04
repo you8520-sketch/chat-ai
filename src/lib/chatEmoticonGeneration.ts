@@ -1,4 +1,5 @@
 import { type ImagePromptGender } from "@/lib/chatImageGeneration";
+import { CHAT_ROOM_IMAGE_GENERATION_POINTS } from "@/lib/chatImagePricing";
 import { buildChatImagePairGenderLock } from "@/lib/chatImageGender";
 import {
   bindChatImageReferencePack,
@@ -13,7 +14,7 @@ export const CHAT_EMOTICON_TEMPLATE_NAME = "랜덤 9종 이모티콘";
 export const CHAT_EMOTICON_TEMPLATE_PREVIEW_URL =
   "/image-templates/sd-emoticon-grid-9.webp";
 
-export const CHAT_EMOTICON_GENERATION_DEFAULT_POINTS = 230;
+export const CHAT_EMOTICON_GENERATION_DEFAULT_POINTS = CHAT_ROOM_IMAGE_GENERATION_POINTS;
 export const CHAT_EMOTICON_API_OUTPUT_WIDTH = 1024;
 export const CHAT_EMOTICON_API_OUTPUT_HEIGHT = 1024;
 export const CHAT_EMOTICON_API_OUTPUT_SIZE =

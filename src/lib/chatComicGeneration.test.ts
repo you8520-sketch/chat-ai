@@ -52,13 +52,13 @@ describe("chatComicGeneration", () => {
     assert.equal(resolveChatComicOutputSize(4), "864x1824");
   });
 
-  it("charges 230P regardless of panel count", () => {
-    assert.equal(resolveChatComicPrice(2, {} as NodeJS.ProcessEnv), 230);
-    assert.equal(resolveChatComicPrice(3, {} as NodeJS.ProcessEnv), 230);
-    assert.equal(resolveChatComicPrice(4, {} as NodeJS.ProcessEnv), 230);
+  it("charges 180P regardless of panel count", () => {
+    assert.equal(resolveChatComicPrice(2, {} as NodeJS.ProcessEnv), 180);
+    assert.equal(resolveChatComicPrice(3, {} as NodeJS.ProcessEnv), 180);
+    assert.equal(resolveChatComicPrice(4, {} as NodeJS.ProcessEnv), 180);
     assert.equal(
       resolveChatComicPrice(3, { CHAT_COMIC_GENERATION_POINTS: "229.1" } as NodeJS.ProcessEnv),
-      230
+      180
     );
   });
 

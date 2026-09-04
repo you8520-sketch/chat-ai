@@ -1175,6 +1175,12 @@ export async function POST(req: Request) {
           chargePoints: pricePoints,
           chargeReason: "GPT Image 2 · 선택 턴 LD 일러스트",
           chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
+          creatorReward: {
+            creatorId: campaignId
+              ? trpgScene?.authorUserId
+              : context.character.creator_id,
+            source: campaignId ? "trpg_scenario" : "character",
+          },
           exchangeRateKrwPerUsd: getEffectiveKrwPerUsd(),
           album: {
             mode: "illustration",
@@ -1419,6 +1425,10 @@ export async function POST(req: Request) {
         chargePoints: pricePoints,
         chargeReason: `GPT Image 2 · ${panelCount}컷 만화`,
         chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
+        creatorReward: {
+          creatorId: context.character.creator_id,
+          source: "character",
+        },
         exchangeRateKrwPerUsd: getEffectiveKrwPerUsd(),
         album: { mode: "comic" },
       });
