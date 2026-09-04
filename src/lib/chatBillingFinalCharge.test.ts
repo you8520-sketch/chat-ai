@@ -32,9 +32,12 @@ function openTestDb(): Database.Database {
       chat_id INTEGER NOT NULL,
       role TEXT NOT NULL,
       content TEXT NOT NULL DEFAULT '',
+      model TEXT NOT NULL DEFAULT '',
       request_id TEXT,
       usage TEXT,
       deduction_slices TEXT,
+      alternates TEXT,
+      active_variant INTEGER,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       is_refunded INTEGER NOT NULL DEFAULT 0
     );
