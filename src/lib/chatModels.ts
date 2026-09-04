@@ -1,6 +1,6 @@
 /** 채팅방 AI 선택 (selectedAI) — 사용자 전역 선택 */
 /** 유저가 보내는 메시지 최대 글자 수 */
-export const CHAT_MESSAGE_MAX = 1000;
+export const CHAT_MESSAGE_MAX = 1500;
 
 export {
   ASSISTANT_MESSAGE_EDIT_MAX_CHARS as ASSISTANT_MESSAGE_MAX,

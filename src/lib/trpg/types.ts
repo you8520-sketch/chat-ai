@@ -35,7 +35,7 @@ export const TRPG_GM_GROSS_MARGIN = 0.65;
 /** Bot-seat Pro call — same 65% as RP Pro. Not Flash. */
 export const TRPG_BOT_GROSS_MARGIN = 0.65;
 export const TRPG_BOT_MODEL = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
-export const TRPG_ACTION_MAX_CHARS = 800;
+export const TRPG_ACTION_MAX_CHARS = 1500;
 /** Host-written party bonds, applied before campaign start. */
 export const TRPG_RELATIONSHIP_MAX_CHARS = 800;
 /** Out-of-world party talk. Never sent to GM or bot-seat prompts. */
