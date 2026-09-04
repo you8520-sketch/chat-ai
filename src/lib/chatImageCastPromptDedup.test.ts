@@ -184,7 +184,8 @@ describe("chatImageCastPromptDedup", () => {
         text: SUPPORT_SAVED_ONLY_APPEARANCE,
       },
     });
-    assert.match(castBlock(comic.prompt), /EVENT SUBJECT BINDINGS/);
+    assert.doesNotMatch(castBlock(comic.prompt), /EVENT SUBJECT BINDINGS/);
+    assert.match(comic.prompt, /COMIC PANEL SPEC — VISUAL LAYER ONLY/);
 
     const ld = buildLdSceneGenerationPlan({
       ...SCENE_BUILDER_SHARED_DUO,
