@@ -320,7 +320,11 @@ export default function MessageBubbleToolbar({
                 />
               )}
               {!receipt && billingChargeSummary && (
-                <BillingChargeStatusTooltip summary={billingChargeSummary} />
+                <BillingChargeStatusTooltip
+                  summary={billingChargeSummary}
+                  messageId={messageId}
+                  showFullReceipt={showFullReceipt}
+                />
               )}
             </div>
           )}

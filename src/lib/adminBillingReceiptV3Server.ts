@@ -8,7 +8,10 @@ import {
   resolveActiveAssistantGenerationScopeFromRow,
   type AssistantGenerationScope,
 } from "@/lib/assistantGenerationScope";
-import { buildAdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3";
+import {
+  buildAdminBillingReceiptV3,
+  buildAdminBillingReceiptV3ForMissingUsage,
+} from "@/lib/adminBillingReceiptV3";
 import type { AdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3Shared";
 import type { Usage } from "@/lib/chatUsage";
 import { loadMessageSuggestedReplies } from "@/lib/suggestedReplies/job";
@@ -27,7 +30,6 @@ import {
   type AdminBillingReceiptLocator,
 } from "@/lib/adminBillingMessageLocator";
 import { resolveStoredTurnChargeEvidence } from "@/lib/storedTurnChargeEvidence";
-import { billingModelDisplayName } from "@/lib/billingDisplay";
 
 export type LoadAdminBillingReceiptV3Result =
   | { ok: true; receipt: AdminBillingReceiptV3 }
@@ -85,31 +87,6 @@ function resolveUsageFromMessageRow(messageRow: AssistantMessageDbRow): Usage | 
   }
 }
 
-function buildStubUsageForChargeEvidence(input: {
-  messageRow: AssistantMessageDbRow;
-  usage: Usage | null;
-  chargeEvidence: ReturnType<typeof resolveStoredTurnChargeEvidence>;
-}): Usage {
-  const base = input.usage ?? ({} as Usage);
-  const settledPoints = input.chargeEvidence.settledPoints ?? 0;
-  const model = base.model ?? input.messageRow.model ?? "unknown";
-  return {
-    input: base.input ?? 0,
-    output: base.output ?? 0,
-    model,
-    modelLabel:
-      base.modelLabel ??
-      (base.selectedAI ? billingModelDisplayName(base.selectedAI) : model),
-    selectedAI: base.selectedAI,
-    provider: base.provider,
-    route: base.route ?? "safe",
-    cost: settledPoints,
-    breakdown: base.breakdown ?? [],
-    billingWaived: input.chargeEvidence.status === "not_charged",
-    billingContractDispatch: base.billingContractDispatch,
-  };
-}
-
 /** Canonical receipt assembly — stored truth only, no ownership filter. */
 function assembleAdminBillingReceiptV3FromMessage(input: {
   messageId: number;
@@ -138,25 +115,6 @@ function assembleAdminBillingReceiptV3FromMessage(input: {
     model: messageRow.model,
   });
 
-  const usage =
-    storedUsage ??
-    (chargeEvidence.status === "charged" ||
-    chargeEvidence.status === "not_charged" ||
-    chargeEvidence.status === "unknown"
-      ? buildStubUsageForChargeEvidence({
-          messageRow,
-          usage: storedUsage,
-          chargeEvidence,
-        })
-      : null);
-
-  if (!usage) {
-    if (chargeEvidence.status === "pending") {
-      return { ok: false, error: "생성이 아직 진행 중입니다.", status: 409 };
-    }
-    return { ok: false, error: "usage 스냅샷이 없습니다.", status: 404 };
-  }
-
   const rawSuggested = messageRow.suggested_replies_json
     ? parseSuggestedRepliesRecord(messageRow.suggested_replies_json)
     : loadMessageSuggestedReplies(input.messageId);
@@ -181,18 +139,6 @@ function assembleAdminBillingReceiptV3FromMessage(input: {
     generationScope
   );
 
-  const receipt = buildAdminBillingReceiptV3({
-    usage,
-    assistantMessageId: input.messageId,
-    chatId: input.chatId,
-    generationScope,
-    hasUnscopedLedgerRows: hasUnscopedRows,
-    suggestedRepliesRecord,
-    statusMetaRecord,
-    memoryRelationshipTask,
-    ledgerRows: scopedRows,
-  });
-
   const forensic = buildAdminBillingForensicMetadata({
     assistantMessageId: input.messageId,
     chatId: input.chatId,
@@ -203,26 +149,47 @@ function assembleAdminBillingReceiptV3FromMessage(input: {
     chargeEvidence,
   });
 
-  const historicalNote = storedUsage
-    ? receipt.historicalNote
-    : "usage 스냅샷 없음 — 저장된 정산/차감 증거만 표시";
+  // NO STORED USAGE → usage = null. Never fabricate Usage from settlement evidence.
+  // Explicit evidence-only Admin V3 mode (Strategy B: nullable unavailable sync section).
+  if (!storedUsage) {
+    if (chargeEvidence.status === "pending") {
+      return { ok: false, error: "생성이 아직 진행 중입니다.", status: 409 };
+    }
+    const receipt = buildAdminBillingReceiptV3ForMissingUsage({
+      assistantMessageId: input.messageId,
+      chatId: input.chatId,
+      generationScope,
+      hasUnscopedLedgerRows: hasUnscopedRows,
+      suggestedRepliesRecord,
+      statusMetaRecord,
+      memoryRelationshipTask,
+      ledgerRows: scopedRows,
+    });
+    return {
+      ok: true,
+      receipt: {
+        ...receipt,
+        forensic,
+      },
+    };
+  }
+
+  const receipt = buildAdminBillingReceiptV3({
+    usage: storedUsage,
+    assistantMessageId: input.messageId,
+    chatId: input.chatId,
+    generationScope,
+    hasUnscopedLedgerRows: hasUnscopedRows,
+    suggestedRepliesRecord,
+    statusMetaRecord,
+    memoryRelationshipTask,
+    ledgerRows: scopedRows,
+  });
 
   return {
     ok: true,
     receipt: {
       ...receipt,
-      historicalNote,
-      syncReceipt: {
-        ...receipt.syncReceipt,
-        historicalNote: storedUsage
-          ? receipt.syncReceipt.historicalNote
-          : historicalNote,
-        snapshotAvailable: storedUsage ? receipt.syncReceipt.snapshotAvailable : false,
-      },
-      wholeTurn: {
-        ...receipt.wholeTurn,
-        coverage: storedUsage ? receipt.wholeTurn.coverage : "unverifiable",
-      },
       forensic,
     },
   };

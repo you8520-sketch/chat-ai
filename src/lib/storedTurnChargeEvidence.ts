@@ -81,18 +81,12 @@ function readScopedSettlement(
     CHAT_TURN_CHARGE_KIND
   );
   if (!settlement) return null;
-  const row = db
-    .prepare(
-      `SELECT assistant_message_id FROM chat_billing_settlements
-       WHERE user_id = ? AND chat_id = ? AND request_id = ? AND charge_kind = ?`
-    )
-    .get(input.userId, input.chatId, requestId, CHAT_TURN_CHARGE_KIND) as
-    | { assistant_message_id: number | null }
-    | undefined;
+  // Canonical row identity comes from the settlement reader (read-only).
+  // No second ownership of chat_billing_settlements schema here.
   return {
     settledPoints: settlement.settledPoints,
     outcome: settlement.outcome,
-    assistantMessageId: row?.assistant_message_id ?? null,
+    assistantMessageId: settlement.assistantMessageId,
     source: settlement.source,
   };
 }
@@ -178,12 +172,20 @@ export function resolveStoredTurnChargeEvidence(
   }
 
   if (settlement) {
-    if (settlement.outcome === "waived" || settlement.outcome === "legacy_malformed") {
+    if (settlement.outcome === "waived") {
       return finalizeEvidence({
         status: "not_charged",
         settledPoints: 0,
         evidenceStatus: "complete",
         violations,
+      });
+    }
+    if (settlement.outcome === "legacy_malformed") {
+      return finalizeEvidence({
+        status: "unknown",
+        settledPoints: null,
+        evidenceStatus: "insufficient",
+        violations: [...violations, "legacy_malformed_unprovable"],
       });
     }
     if (settlement.settledPoints > 0) {
@@ -229,6 +231,13 @@ export function resolveStoredTurnChargeEvidence(
     });
   }
 
+  // Interrupted 0P invariant: settleChatTurnBillingExactlyOnce() runs
+  // deductPointsOnDb + deduction-slices persist + settlement finalize inside one
+  // BEGIN IMMEDIATE transaction (chatBillingSettlement.ts). Settlement lookup above
+  // is scoped by request_id, so reaching here means no scoped settlement and no
+  // scoped deduction evidence exist for this generation. That is a canonical
+  // no-charge proof — but only for this path. Malformed/legacy/ambiguous evidence
+  // must never use this branch (handled above → unknown).
   if (generationStatus === "interrupted") {
     return finalizeEvidence({
       status: "not_charged",

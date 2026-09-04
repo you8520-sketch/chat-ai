@@ -13,8 +13,12 @@ export type AdminReceiptTurnSummary = {
 };
 
 export function resolveAdminReceiptSettledPoints(receipt: AdminBillingReceiptV3): number {
-  const uc = receipt.syncReceipt.userCharge;
-  return uc.settledDeductedPoints ?? uc.deductedPoints;
+  const sync = receipt.syncReceipt;
+  if (sync) {
+    const uc = sync.userCharge;
+    return uc.settledDeductedPoints ?? uc.deductedPoints;
+  }
+  return receipt.forensic?.chargeEvidenceSettledPoints ?? 0;
 }
 
 /** Evidence-based whole-turn margin unavailability — not a single false Status Meta label. */
@@ -68,7 +72,7 @@ export function resolveWholeTurnMarginUnavailableReason(
 
 /** Turn summary — whole-turn contribution margin, Main RP user-charge tokens. */
 export function buildAdminReceiptTurnSummary(receipt: AdminBillingReceiptV3): AdminReceiptTurnSummary {
-  const uc = receipt.syncReceipt.userCharge;
+  const sync = receipt.syncReceipt;
   const marginPercent = receipt.wholeTurn.contributionMarginPercent;
   let marginUnavailableReason: string | null = null;
   if (marginPercent == null) {
@@ -77,8 +81,8 @@ export function buildAdminReceiptTurnSummary(receipt: AdminBillingReceiptV3): Ad
 
   return {
     deductedPoints: resolveAdminReceiptSettledPoints(receipt),
-    inputTokens: uc.inputTokens,
-    outputTokens: uc.outputTokens,
+    inputTokens: sync?.userCharge.inputTokens ?? 0,
+    outputTokens: sync?.userCharge.outputTokens ?? 0,
     marginPercent,
     marginUnavailableReason,
   };

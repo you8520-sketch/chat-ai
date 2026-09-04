@@ -56,6 +56,8 @@ export type ChatBillingSettlementResult = {
   outcome: ChatBillingSettlementOutcome;
   amountMismatch?: boolean;
   assistantMessageMismatch?: boolean;
+  /** Read-only canonical row identity — avoids second SELECT in resolvers. */
+  assistantMessageId: number | null;
 };
 
 type SettlementRow = {
@@ -203,6 +205,7 @@ export function readChatBillingSettlement(
     balance: getPointBalanceOnDb(db, userId),
     source: row.source as ChatBillingSettlementSource,
     outcome: row.outcome as ChatBillingSettlementOutcome,
+    assistantMessageId: row.assistant_message_id,
   };
 }
 
@@ -427,6 +430,7 @@ function buildResultFromRow(
     outcome: row.outcome as ChatBillingSettlementOutcome,
     amountMismatch: amountMismatch || undefined,
     assistantMessageMismatch: assistantMessageMismatch || undefined,
+    assistantMessageId: row.assistant_message_id,
   };
 }
 

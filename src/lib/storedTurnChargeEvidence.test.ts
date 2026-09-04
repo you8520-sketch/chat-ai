@@ -235,9 +235,14 @@ describe("storedTurnChargeEvidence regression matrix", () => {
     });
     assert.equal(receipt.ok, true);
     if (receipt.ok) {
-      assert.equal(receipt.receipt.syncReceipt.userCharge.deductedPoints, points);
+      // STORED TRUTH ONLY: no synthetic Usage — syncReceipt is null.
+      assert.equal(receipt.receipt.syncReceipt, null);
       assert.equal(receipt.receipt.forensic?.usageSnapshotAvailable, false);
+      assert.equal(receipt.receipt.forensic?.usageCost, null);
+      assert.equal(receipt.receipt.forensic?.billingInputTokens, null);
+      assert.equal(receipt.receipt.forensic?.billingOutputTokens, null);
       assert.equal(receipt.receipt.forensic?.chargeStatus, "charged");
+      assert.equal(receipt.receipt.forensic?.chargeEvidenceSettledPoints, points);
     }
   });
 
@@ -353,9 +358,11 @@ describe("storedTurnChargeEvidence regression matrix", () => {
     });
     assert.equal(beforeOwned.ok, true);
     if (beforeOwned.ok) {
-      assert.equal(beforeOwned.receipt.syncReceipt.userCharge.deductedPoints, points);
+      assert.equal(beforeOwned.receipt.syncReceipt, null);
       assert.equal(beforeOwned.receipt.forensic?.chargeStatus, "charged");
       assert.equal(beforeOwned.receipt.forensic?.usageSnapshotAvailable, false);
+      assert.equal(beforeOwned.receipt.forensic?.usageCost, null);
+      assert.equal(beforeOwned.receipt.forensic?.chargeEvidenceSettledPoints, points);
     }
 
     const userSummary = loadUserMessageBillingSummaryForOwnedMessage({
@@ -387,10 +394,76 @@ describe("storedTurnChargeEvidence regression matrix", () => {
     });
     assert.equal(receipt.ok, true);
     if (receipt.ok) {
-      assert.equal(receipt.receipt.syncReceipt.userCharge.deductedPoints, points);
+      assert.equal(receipt.receipt.syncReceipt?.userCharge.deductedPoints, points);
       assert.equal(receipt.receipt.forensic?.finalChargeConsistency?.consistent, true);
       assert.equal(receipt.receipt.forensic?.usageSnapshotAvailable, true);
     }
+  });
+
+  it("O legacy_malformed → unknown, NEVER confirmed 0P", () => {
+    const db = getDb();
+    insertAssistant({
+      id: ASSISTANT_ID,
+      requestId: "req_legacy_malformed",
+      generationStatus: "failed",
+      usage: null,
+      deductionSlices: "not-json",
+    });
+    settleAssistant({ assistantMessageId: ASSISTANT_ID, requestId: "req_legacy_malformed", points: 10 });
+    const evidence = resolveEvidenceForAssistant(ASSISTANT_ID);
+    assert.equal(evidence.status, "unknown");
+    assert.equal(evidence.settledPoints, null);
+    assert.ok(evidence.violations.includes("legacy_malformed_unprovable"));
+    void db;
+  });
+
+  it("P no usage + charged settlement → usage nulls, charge evidence separate", () => {
+    insertAssistant({
+      id: ASSISTANT_ID,
+      requestId: "req_p_charged",
+      generationStatus: "interrupted",
+      usage: null,
+    });
+    const points = 22;
+    settleAssistant({ assistantMessageId: ASSISTANT_ID, requestId: "req_p_charged", points });
+    const receipt = loadAdminBillingReceiptV3ForOwnedMessage({
+      userId: USER_ID,
+      messageId: ASSISTANT_ID,
+    });
+    assert.equal(receipt.ok, true);
+    if (receipt.ok) {
+      assert.equal(receipt.receipt.syncReceipt, null);
+      assert.equal(receipt.receipt.forensic?.usageSnapshotAvailable, false);
+      assert.equal(receipt.receipt.forensic?.usageCost, null);
+      assert.equal(receipt.receipt.forensic?.billingInputTokens, null);
+      assert.equal(receipt.receipt.forensic?.billingOutputTokens, null);
+      assert.equal(receipt.receipt.forensic?.chargeStatus, "charged");
+      assert.equal(receipt.receipt.forensic?.chargeEvidenceSettledPoints, points);
+    }
+  });
+
+  it("Q no usage + interrupted + canonical no-debit proof → not_charged 0P", () => {
+    insertAssistant({
+      id: ASSISTANT_ID,
+      requestId: "req_q_no_debit",
+      generationStatus: "interrupted",
+      usage: null,
+    });
+    const evidence = resolveEvidenceForAssistant(ASSISTANT_ID);
+    assert.equal(evidence.status, "not_charged");
+    assert.equal(evidence.settledPoints, 0);
+  });
+
+  it("R no usage + ambiguous historical evidence → unknown", () => {
+    insertAssistant({
+      id: ASSISTANT_ID,
+      requestId: "req_r_ambiguous",
+      generationStatus: "failed",
+      usage: null,
+    });
+    const evidence = resolveEvidenceForAssistant(ASSISTANT_ID);
+    assert.equal(evidence.status, "unknown");
+    assert.equal(evidence.settledPoints, null);
   });
 });
 

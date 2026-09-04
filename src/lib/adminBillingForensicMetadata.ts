@@ -132,10 +132,9 @@ export function buildAdminBillingForensicMetadata(input: {
     publishedFinalPoints: dispatch?.publishedFinalPoints ?? null,
     legacyFinalPoints: dispatch?.legacyFinalPoints ?? null,
     settledDeductedPoints: dispatch?.settledDeductedPoints ?? null,
+    chargeEvidenceSettledPoints: input.chargeEvidence?.settledPoints ?? null,
     usageCost:
-      usage && Number.isFinite(usage.cost)
-        ? usage.cost
-        : input.chargeEvidence?.settledPoints ?? null,
+      usage && Number.isFinite(usage.cost) ? usage.cost : null,
     deductionSliceTotal: slices.length > 0 ? sliceTotals.total : null,
     billingEvidenceStatus,
     billingInputTokens:

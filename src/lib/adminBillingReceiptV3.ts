@@ -50,6 +50,17 @@ export type BuildAdminBillingReceiptV3Input = {
   ledgerRows: ProviderCostLedgerRow[];
 };
 
+export type BuildAdminBillingReceiptV3MissingUsageInput = {
+  assistantMessageId: number;
+  chatId: number;
+  generationScope?: AssistantGenerationScope | null;
+  hasUnscopedLedgerRows?: boolean;
+  suggestedRepliesRecord: SuggestedRepliesRecord | null;
+  statusMetaRecord: StatusMetaRecord | null;
+  memoryRelationshipTask: MemoryRelationshipTaskRecord | null;
+  ledgerRows: ProviderCostLedgerRow[];
+};
+
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
@@ -303,6 +314,138 @@ export function projectWholeTurnExactKrw(
 ): number | null {
   if (exactUsd == null || !(exactUsd > 0) || fx == null) return null;
   return round1(convertUsdToKrw(exactUsd, fx.effectiveKrwPerUsd));
+}
+
+/**
+ * Evidence-only Admin V3 for missing Usage snapshots (Strategy B).
+ * No Usage is fabricated. syncReceipt is null; settlement evidence lives in
+ * `forensic` only. Async/whole-turn coverage is unverifiable without usage
+ * expectations, but scoped ledger rows remain visible.
+ */
+export function buildAdminBillingReceiptV3ForMissingUsage(
+  input: BuildAdminBillingReceiptV3MissingUsageInput
+): AdminBillingReceiptV3 {
+  const { relevant, unexpected } = filterAsyncLedgerRows(input.ledgerRows);
+  const rowsByFamily = new Map<TurnAttributableAsyncFamily, ProviderCostLedgerRow[]>();
+  for (const family of Object.keys(ASYNC_FAMILY_LABELS) as TurnAttributableAsyncFamily[]) {
+    rowsByFamily.set(family, []);
+  }
+  for (const row of relevant) {
+    const family = row.family?.trim() || null;
+    if (
+      family === "suggested_replies_repair" ||
+      family === "status_meta" ||
+      family === "memory_relationship"
+    ) {
+      rowsByFamily.get(family)!.push(row);
+    } else {
+      unexpected.push(row);
+    }
+  }
+  const families = (Object.keys(ASYNC_FAMILY_LABELS) as TurnAttributableAsyncFamily[]).map(
+    (family) => ({
+      family,
+      label: ASYNC_FAMILY_LABELS[family],
+      expectationState: "unverifiable" as const,
+      coverage: "unverifiable" as const,
+    })
+  );
+  const knownActualCostUsd = relevant.reduce(
+    (sum, row) => (isLedgerEventCostExact(row) ? sum + finiteUsd(row.actual_cost_usd) : sum),
+    0
+  );
+  const asyncSection: AdminBillingReceiptV3AsyncSection = {
+    coverage: "unverifiable",
+    expectation: {
+      families,
+      overallCoverage: "unverifiable",
+      expectedFamilies: [],
+      terminalFamilies: [],
+      pendingFamilies: [],
+      skippedFamilies: [],
+      unverifiableFamilies: families.map((f) => f.family),
+    },
+    physicalCallCount: relevant.length,
+    exactPhysicalCallCount: relevant.filter((row) => isLedgerEventCostExact(row)).length,
+    incompletePhysicalCallCount: relevant.filter((row) =>
+      isLedgerEventCostCoverageIncomplete(row)
+    ).length,
+    knownActualCostUsd,
+    exactActualCostUsd: null,
+    unexpectedRowCount: unexpected.length,
+    unexpectedFamilies: [
+      ...new Set(
+        unexpected.map((row) => {
+          const family = row.family?.trim();
+          return family ? family : "(missing family)";
+        })
+      ),
+    ],
+    byFamily: families.map((f) => {
+      const rows = rowsByFamily.get(f.family) ?? [];
+      const exactRows = rows.filter((row) => isLedgerEventCostExact(row));
+      const incompleteRows = rows.filter((row) => isLedgerEventCostCoverageIncomplete(row));
+      const knownUsd = rows.reduce(
+        (sum, row) => (isLedgerEventCostExact(row) ? sum + finiteUsd(row.actual_cost_usd) : sum),
+        0
+      );
+      return {
+        family: f.family,
+        label: f.label,
+        expectationState: f.expectationState,
+        coverage: f.coverage,
+        physicalCallCount: rows.length,
+        exactPhysicalCallCount: exactRows.length,
+        incompletePhysicalCallCount: incompleteRows.length,
+        knownActualCostUsd: knownUsd,
+        exactActualCostUsd: null,
+        taskPending: undefined,
+        taskFailed: undefined,
+        skipReason: undefined,
+      };
+    }),
+    events: relevant.map((row) => ({
+      eventKey: row.event_key,
+      family: row.family,
+      eventStatus: row.event_status,
+      actualCostUsd: row.actual_cost_usd,
+      actualCostSource: row.actual_cost_source,
+      exact: isLedgerEventCostExact(row),
+      incomplete: isLedgerEventCostCoverageIncomplete(row),
+    })),
+  };
+
+  return {
+    version: 3,
+    assistantMessageId: input.assistantMessageId,
+    chatId: input.chatId,
+    syncReceipt: null,
+    async: asyncSection,
+    wholeTurn: {
+      scope: "turn_attributable",
+      coverage: "unverifiable",
+      mainActualCostUsd: null,
+      mainExact: false,
+      syncActualCostUsd: null,
+      syncExact: false,
+      syncProvablyNone: false,
+      asyncKnownActualCostUsd: asyncSection.knownActualCostUsd,
+      asyncExactActualCostUsd: null,
+      knownProviderSpendUsd: asyncSection.knownActualCostUsd,
+      exactProviderSpendUsd: null,
+      exactProviderSpendKrw: null,
+      contributionMarginKrw: null,
+      contributionMarginPercent: null,
+      fx: null,
+    },
+    excludedCostScopes: [
+      "rolling_summary_batch",
+      "episodic_batch",
+      "chat_level_lorebook_maintenance",
+      "multi_turn_batch_allocation",
+    ],
+    historicalNote: "usage 스냅샷 없음 — 저장된 정산/차감 증거만 표시",
+  };
 }
 
 /** Canonical whole-turn aggregation + exactness owner. */
