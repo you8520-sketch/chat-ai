@@ -76,6 +76,7 @@ import {
   renderComicTextOverlay,
   validateComicOverlayPreflight,
 } from "@/lib/chatComicTextOverlay";
+import { buildComicGenerationExecutionDiagnostic } from "@/lib/chatComicExecutionParityAudit";
 import { planChatImageScene } from "@/lib/chatImageScenePlanner";
 import {
   assertChatImageScenePlanRateLimit,
@@ -1474,6 +1475,33 @@ export async function POST(req: Request) {
     });
 
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
+    const comicExecutionDiagnostic = canSeeCost
+      ? buildComicGenerationExecutionDiagnostic({
+          scenePlan,
+          panelCount,
+          messages: source.messages,
+          clientPlan: body.scenePlan,
+          personaName: context.persona.name,
+          characterName: context.character.name,
+          knownSpeakerNames,
+          contentKind: context.contentKind,
+          castManifest,
+          characterGender: context.characterGender,
+          personaGender: context.personaGender,
+          characterImageUrl: context.characterImageUrl,
+          personaImageUrl: context.personaImageUrl,
+          characterSavedAppearance: context.characterSavedAppearance,
+          personaSavedAppearance: context.personaSavedAppearance,
+          characterAppearanceMode: appearanceModes.characterAppearanceMode,
+          personaAppearanceMode: appearanceModes.personaAppearanceMode,
+          safetyFallbackUsed: generated.safetyFallbackUsed,
+          providerBuffer: generated.buffer,
+          finalBuffer: finalComicBuffer,
+        })
+      : undefined;
+    if (comicExecutionDiagnostic) {
+      console.info("[chat-comic-generation] execution diagnostic", comicExecutionDiagnostic);
+    }
     return NextResponse.json({
       ok: true,
       mode: "comic",
@@ -1488,6 +1516,9 @@ export async function POST(req: Request) {
       upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
       ...(canSeeCost
         ? { providerAttemptDiagnostic: adminProviderAttemptDiagnostic(generated) }
+        : {}),
+      ...(comicExecutionDiagnostic
+        ? { comicExecutionDiagnostic }
         : {}),
       totalPointsCost: deductionTotal,
       remainingPoints: deductionBalance.total,
