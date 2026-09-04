@@ -3,6 +3,17 @@
  *
  * DETERMINISTIC_BUG_ROOT_CAUSE: LEGACY_BRIDGE_FALSE_POSITIVE — CONFIRMED (mechanism)
  * REPORTED_PRODUCTION_TURN_ROOT_CAUSE: UNCONFIRMED UNTIL EXACT TURN FORENSIC
+ *
+ * Owner map (current main):
+ * - GENERATION_IDENTITY_OWNER: bootstrapStreamingTurn() — request_id + in-flight row state
+ * - GENERATION_BILLING_EVIDENCE_OWNER: per-generation settlement row + variant.usage snapshot
+ * - CURRENT_MESSAGE_DEDUCTION_SLICES_OWNER: messages.deduction_slices = active generation charge
+ *   (generation-scoped via request_id identity; regen clears until B settles or A restored)
+ * - FAILED_REGEN_RESTORE_OWNER: restoreAssistantFromAlternatesOnFailedRegen()
+ * - SETTLEMENT_LEGACY_PROVENANCE_OWNER: settleChatTurnBillingExactlyOnce() legacy bridge + guard
+ *
+ * Strategy: hybrid A+B — slice reset on regen bootstrap (A) + settlement rehydrate on failed
+ * restore (A) + prior-settlement provenance guard on successful B (B).
  */
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -365,6 +376,20 @@ describe("Published billing regen — failed-regen billing evidence restoration"
       assert.equal(countSettlements(db), 1);
       assert.equal(ledgerBalance(db), 50000 - 49);
 
+      // FAILED_REGEN_BILLING_FORENSIC_PRESERVED=true (final regression — not audit-only false expect)
+      const restoredRow = readAssistantRow(db, genA.assistantMessageId);
+      const restoredForensic = buildAdminBillingForensicMetadata({
+        assistantMessageId: restoredRow.id,
+        chatId: 1,
+        requestId: restoredRow.request_id,
+        usage: JSON.parse(restoredRow.usage) as Usage,
+        deductionSlicesRaw: restoredRow.deduction_slices,
+      });
+      const forensicPreserved =
+        restoredForensic.deductionSliceTotal === 49 &&
+        restoredForensic.finalChargeConsistency?.consistent === true;
+      assert.equal(forensicPreserved, true);
+
       db.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -418,5 +443,68 @@ describe("Published billing regen — dual-fix owner audit", () => {
     const settlementGuardRequired = true;
     assert.equal(generationResetRequired, true);
     assert.equal(settlementGuardRequired, true);
+  });
+});
+
+describe("Published billing regen — predeploy legacy + regen", () => {
+  it("PREDEPLOY_REGEN: legacy slices without settlement do not block regen B published charge", () => {
+    const dir = mkdtempSync(join(tmpdir(), "predeploy-regen-"));
+    const dbPath = join(dir, "test.db");
+    try {
+      const db = openRegressionDb(dbPath);
+      const balanceStart = ledgerBalance(db);
+
+      const boot = bootstrapStreamingTurn(db, {
+        chatId: 1,
+        requestId: "cr_predeploy_a",
+        userContent: "user",
+        skipUserInsert: false,
+      });
+
+      const legacySlices = JSON.stringify([{ transactionId: 1, pointType: "PAID", amount: 49 }]);
+      db.prepare(
+        `UPDATE messages SET deduction_slices=?, content='predeploy reply', generation_status='completed' WHERE id=?`
+      ).run(legacySlices, boot.assistantMessageId);
+      db.prepare(`UPDATE point_transactions SET remaining_amount=remaining_amount-49 WHERE id=1`).run();
+      db.prepare(
+        `INSERT INTO point_logs (user_id, delta, reason, message_id, chat_id) VALUES (1, -49, 'predeploy', ?, 1)`
+      ).run(boot.assistantMessageId);
+
+      assert.equal(countSettlements(db), 0);
+
+      bootstrapStreamingTurn(db, {
+        chatId: 1,
+        requestId: "cr_predeploy_b",
+        userContent: "user",
+        skipUserInsert: true,
+        existingUserMessageId: boot.userMessageId,
+        regenerateAssistantId: boot.assistantMessageId,
+      });
+
+      const duringB = readAssistantRow(db, boot.assistantMessageId);
+      assert.equal(duringB.request_id, "cr_predeploy_b");
+      assert.equal(duringB.deduction_slices, null);
+
+      const settlement = settleChatTurnBillingExactlyOnce(db, {
+        userId: 1,
+        chatId: 1,
+        requestId: "cr_predeploy_b",
+        assistantMessageId: boot.assistantMessageId,
+        requestedPoints: 197,
+        reason: "regen B published",
+      });
+
+      assert.equal(settlement.requestedPoints, 197);
+      assert.equal(settlement.settledPoints, 197);
+      assert.equal(settlement.outcome, "charged");
+      assert.equal(settlement.source, "native");
+      assert.equal(ledgerBalance(db), balanceStart - 49 - 197);
+      assert.equal(countSettlements(db), 1);
+      assert.equal(countNegativeLogs(db), 2);
+
+      db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
