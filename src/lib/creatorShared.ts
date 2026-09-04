@@ -1,19 +1,15 @@
 /** Client-safe creator constants, types, and pure helpers (no DB/auth). */
 
 /** 새싹: 캐릭터 2개+ 제작 */
-export const CREATOR_REWARD_RATE_SPROUT = 0.05;
+export const CREATOR_REWARD_RATE_SPROUT = 0.04;
 export const CREATOR_SPROUT_MIN_CHARACTERS = 2;
 /** 일반: 공개 유지 캐릭터 2개+ & 통합 대화 5천+ */
 export const CREATOR_REWARD_RATE = 0.08;
 export const CREATOR_STANDARD_MIN_CHARACTERS = 2;
 export const CREATOR_STANDARD_MIN_TOTAL_CHATS = 5_000;
-/** 플러스: 공개 유지 캐릭터 3개+ & 통합 대화 1만+ */
-export const CREATOR_REWARD_RATE_PLUS = 0.1;
-export const CREATOR_PLUS_MIN_CHARACTERS = 3;
-export const CREATOR_PLUS_MIN_TOTAL_CHATS = 10_000;
-/** 프로: 공개(검수 통과) 캐릭터 10개+ & 월간 소비 200만P+ */
+/** 프로: 기존 조건을 유지하되 공개(검수 통과) 캐릭터 기준은 5개+ */
 export const CREATOR_REWARD_RATE_PRO = 0.12;
-export const CREATOR_PRO_MIN_CHARACTERS = 10;
+export const CREATOR_PRO_MIN_CHARACTERS = 5;
 export const CREATOR_PRO_MIN_TOTAL_CHATS = 100_000;
 export const CREATOR_PRO_MIN_MONTHLY_SPENT = 2_000_000;
 /** 파트너: 공개(검수 통과) 캐릭터 10개+ & 월간 소비 500만P+ */
@@ -27,22 +23,44 @@ export const CREATOR_PARTNER_RENEWAL_MAINTENANCE_RATE = 0.8;
 /** 전속 20% — 파트너 등급 달성 후 운영팀 문의·전속 계약 체결 시 (creator_exclusive 플래그) */
 export const CREATOR_REWARD_RATE_EXCLUSIVE = 0.2;
 
-export type CreatorTierLevel =
-  | "sprout"
-  | "standard"
-  | "plus"
-  | "pro"
-  | "partner"
-  | "exclusive";
+export type CreatorTierLevel = "sprout" | "standard" | "pro";
 
 export const CREATOR_TIER_LABELS: Record<CreatorTierLevel, string> = {
   sprout: "새싹",
   standard: "일반",
-  plus: "플러스",
   pro: "프로",
-  partner: "파트너",
-  exclusive: "전속",
 };
+
+export type CreatorTierStats = {
+  characterCount: number;
+  publicCharacterCount: number;
+  totalChats: number;
+  monthlySpentOnChars: number;
+};
+
+/** 등급과 CP 적립률의 canonical owner. 상위 등급 조건부터 판정한다. */
+export function resolveCreatorTier(stats: CreatorTierStats): {
+  tierLevel: CreatorTierLevel;
+  rewardRate: number;
+} {
+  if (
+    stats.publicCharacterCount >= CREATOR_PRO_MIN_CHARACTERS &&
+    stats.monthlySpentOnChars >= CREATOR_PRO_MIN_MONTHLY_SPENT
+  ) {
+    return { tierLevel: "pro", rewardRate: CREATOR_REWARD_RATE_PRO };
+  }
+  if (
+    stats.publicCharacterCount >= CREATOR_STANDARD_MIN_CHARACTERS &&
+    stats.totalChats >= CREATOR_STANDARD_MIN_TOTAL_CHATS
+  ) {
+    return { tierLevel: "standard", rewardRate: CREATOR_REWARD_RATE };
+  }
+  return {
+    tierLevel: "sprout",
+    rewardRate:
+      stats.characterCount >= CREATOR_SPROUT_MIN_CHARACTERS ? CREATOR_REWARD_RATE_SPROUT : 0,
+  };
+}
 
 export const WITHDRAWAL_MIN_CP = 30_000;
 export const WITHDRAWAL_TAX_RATE = 0.088;
@@ -101,11 +119,8 @@ export type CreatorTierInfo = {
   totalChats: number;
   rewardRate: number;
   tierLevel: CreatorTierLevel;
-  isExclusive: boolean;
-  /** 프로 이상 (pro | partner | exclusive) */
+  /** 프로 등급 여부 */
   isPro: boolean;
-  /** 파트너 유지 기간·갱신 진행 (파트너/전속일 때) */
-  partnerTerm?: PartnerTermInfo | null;
 };
 
 export type CreatorCharacterStat = {

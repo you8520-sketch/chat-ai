@@ -2,19 +2,9 @@ import { getDb } from "./db";
 import { creditPoints, getPointBalance } from "./points";
 import { LISTABLE_USER_CHAR } from "./characterVisibility";
 import {
-  CREATOR_PARTNER_MIN_CHARACTERS,
-  CREATOR_PARTNER_MIN_MONTHLY_SPENT,
-  CREATOR_PARTNER_RENEWAL_MAINTENANCE_RATE,
-  CREATOR_PARTNER_TERM_MONTHS,
-  CREATOR_PLUS_MIN_CHARACTERS,
-  CREATOR_PLUS_MIN_TOTAL_CHATS,
   CREATOR_PRO_MIN_CHARACTERS,
   CREATOR_PRO_MIN_MONTHLY_SPENT,
-  CREATOR_PRO_MIN_TOTAL_CHATS,
   CREATOR_REWARD_RATE,
-  CREATOR_REWARD_RATE_EXCLUSIVE,
-  CREATOR_REWARD_RATE_PARTNER,
-  CREATOR_REWARD_RATE_PLUS,
   CREATOR_REWARD_RATE_PRO,
   CREATOR_REWARD_RATE_SPROUT,
   CREATOR_SPROUT_MIN_CHARACTERS,
@@ -31,31 +21,17 @@ import {
   type CreatorEarningPeriod,
   type CreatorEarningRow,
   type CreatorTierInfo,
-  type CreatorTierLevel,
+  resolveCreatorTier,
   type WithdrawalRequestRow,
 } from "./creatorShared";
 import { getWithdrawalEligibility, personNamesMatch } from "./withdrawalEligibility";
 import { listCreatorNotices } from "./creatorNotices";
-import {
-  CREATOR_PARTNER_RENEWAL_MIN_MONTHLY_SPENT,
-  hasPartnerTierBenefit,
-  syncPartnerTierStatus,
-} from "./partnerTier";
 
 export {
-  CREATOR_PARTNER_MIN_CHARACTERS,
-  CREATOR_PARTNER_MIN_MONTHLY_SPENT,
-  CREATOR_PARTNER_RENEWAL_MAINTENANCE_RATE,
-  CREATOR_PARTNER_TERM_MONTHS,
-  CREATOR_PLUS_MIN_CHARACTERS,
-  CREATOR_PLUS_MIN_TOTAL_CHATS,
   CREATOR_PRO_MIN_CHARACTERS,
   CREATOR_PRO_MIN_MONTHLY_SPENT,
   CREATOR_PRO_MIN_TOTAL_CHATS,
   CREATOR_REWARD_RATE,
-  CREATOR_REWARD_RATE_EXCLUSIVE,
-  CREATOR_REWARD_RATE_PARTNER,
-  CREATOR_REWARD_RATE_PLUS,
   CREATOR_REWARD_RATE_PRO,
   CREATOR_REWARD_RATE_SPROUT,
   CREATOR_SPROUT_MIN_CHARACTERS,
@@ -140,14 +116,9 @@ function getCreatorCharacterEarningShares(
   });
 }
 
-/** 전속 20% · 파트너 15% · 프로 12% · 플러스 10% · 일반 8% · 새싹 5% (상위 등급 우선 적용) */
+/** 프로 12% · 일반 8% · 새싹 4% (상위 등급 우선 적용) */
 export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
   const db = getDb();
-
-  const userRow = db
-    .prepare("SELECT creator_exclusive FROM users WHERE id = ?")
-    .get(creatorId) as { creator_exclusive: number } | undefined;
-  const isExclusive = userRow?.creator_exclusive === 1;
 
   const charRow = db
     .prepare(
@@ -180,48 +151,12 @@ export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
   const totalChats = Number(charRow?.total_chats ?? 0);
   const monthlySpentOnChars = roundAmount(Number(monthlyRow?.monthly_spent ?? 0));
 
-  const partnerSync = syncPartnerTierStatus(db, creatorId, {
+  const { tierLevel, rewardRate } = resolveCreatorTier({
+    characterCount,
     publicCharacterCount,
+    totalChats,
     monthlySpentOnChars,
   });
-  const qualifiesPartner = hasPartnerTierBenefit(
-    partnerSync,
-    publicCharacterCount,
-    monthlySpentOnChars
-  );
-  const hasExclusiveContract = isExclusive;
-
-  let tierLevel: CreatorTierLevel = "sprout";
-  let rewardRate = 0;
-
-  if (hasExclusiveContract && qualifiesPartner) {
-    tierLevel = "exclusive";
-    rewardRate = CREATOR_REWARD_RATE_EXCLUSIVE;
-  } else if (qualifiesPartner) {
-    tierLevel = "partner";
-    rewardRate = CREATOR_REWARD_RATE_PARTNER;
-  } else if (
-    publicCharacterCount >= CREATOR_PRO_MIN_CHARACTERS &&
-    monthlySpentOnChars >= CREATOR_PRO_MIN_MONTHLY_SPENT
-  ) {
-    tierLevel = "pro";
-    rewardRate = CREATOR_REWARD_RATE_PRO;
-  } else if (
-    publicCharacterCount >= CREATOR_PLUS_MIN_CHARACTERS &&
-    totalChats >= CREATOR_PLUS_MIN_TOTAL_CHATS
-  ) {
-    tierLevel = "plus";
-    rewardRate = CREATOR_REWARD_RATE_PLUS;
-  } else if (
-    publicCharacterCount >= CREATOR_STANDARD_MIN_CHARACTERS &&
-    totalChats >= CREATOR_STANDARD_MIN_TOTAL_CHATS
-  ) {
-    tierLevel = "standard";
-    rewardRate = CREATOR_REWARD_RATE;
-  } else if (characterCount >= CREATOR_SPROUT_MIN_CHARACTERS) {
-    tierLevel = "sprout";
-    rewardRate = CREATOR_REWARD_RATE_SPROUT;
-  }
 
   return {
     characterCount,
@@ -230,9 +165,7 @@ export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
     totalChats,
     rewardRate,
     tierLevel,
-    isExclusive: hasExclusiveContract && qualifiesPartner,
-    isPro: tierLevel === "pro" || tierLevel === "partner" || tierLevel === "exclusive",
-    partnerTerm: partnerSync.partnerTerm,
+    isPro: tierLevel === "pro",
   };
 }
 
