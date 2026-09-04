@@ -23,6 +23,9 @@ on:
       - "src/lib/chatComicPanelSpec.ts"
       - "src/lib/chatComicPanelSpec.test.ts"
       - "src/lib/chatComicPanelSpec.fixtures.ts"
+      - "src/lib/chatComicTextOverlay.ts"
+      - "src/lib/chatComicTextOverlay.test.ts"
+      - "src/lib/chatComicTextReproduction.test.ts"
       - "src/lib/chatCoupleStampGeneration.ts"
       - "src/lib/chatCoupleStampGeneration.test.ts"
       - "src/lib/chatLdIllustrationGeneration.ts"
@@ -153,6 +156,8 @@ jobs:
       - run: node --import tsx --test src/lib/chatImageScenePlan.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageMultiSpeakerDialogue.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageComicDialogueRegression.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatComicTextReproduction.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatComicTextOverlay.test.ts
       - run: node --import tsx --test src/lib/chatImageScenePreviewProjection.test.ts
       - run: node --import tsx --test src/lib/chatImageSceneDialogueEditor.test.ts
       - run: node --import tsx --test src/lib/chatImageDialogueKeystroke.test.ts

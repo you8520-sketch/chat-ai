@@ -7,11 +7,14 @@
 
 import {
   extractUserSpokenDialogue,
+  isEligibleSpeechDialogue,
   isSceneActionText,
   normalizeSceneBriefWhitespace,
   stripChatTurnMarkup,
 } from "@/lib/chatImageSceneBrief";
 import type { ContentKind } from "@/lib/simulationMode";
+
+export { isEligibleSpeechDialogue } from "@/lib/chatImageSceneBrief";
 
 export const SCENE_PLAN_MAX_SOURCE_CHARS = 24_000;
 export const SCENE_PLAN_MAX_PROVIDER_ATTEMPTS = 2;
@@ -178,7 +181,7 @@ export function extractQuotedLines(text: string): string[] {
   const pattern = /“([^”]+)”|"([^"]+)"|‘([^’]+)’|'([^']+)'/g;
   for (const match of text.matchAll(pattern)) {
     const line = cleanLine(match[1] ?? match[2] ?? match[3] ?? match[4]);
-    if (line.length < 1 || isSceneActionText(line)) continue;
+    if (line.length < 1 || isSceneActionText(line) || !isEligibleSpeechDialogue(line)) continue;
     if (!out.includes(line)) out.push(line);
   }
   return out;
@@ -318,6 +321,9 @@ type MarkedSpan = {
   text: string;
 };
 
+const POST_QUOTE_NON_DIALOGUE_INDICATORS =
+  /^(?:(?:이라|라)\s*불리|(?:이라|라)는|(?:이라|라)고\s*(?:적|쓰|기록|새겨|불리|지칭|불러)|[을를]\s*(?:들|꺼내|뽑|바라|내려|가리|향해|가진|쥐|건네|착용|사용|휘두))/u;
+
 function collectMarkedSpans(text: string): MarkedSpan[] {
   const spans: MarkedSpan[] = [];
   const patterns: Array<{ kind: MarkedSpan["kind"]; re: RegExp }> = [
@@ -335,7 +341,12 @@ function collectMarkedSpans(text: string): MarkedSpan[] {
       const inner = cleanLine(match[1] ?? "");
       const start = match.index ?? 0;
       if (!inner || !full) continue;
-      if (kind === "dialogue" && isSceneActionText(inner)) continue;
+      if (kind === "dialogue") {
+        if (isSceneActionText(inner) || !isEligibleSpeechDialogue(inner)) continue;
+        const afterIndex = start + full.length;
+        const afterText = text.slice(afterIndex, afterIndex + 30);
+        if (POST_QUOTE_NON_DIALOGUE_INDICATORS.test(afterText)) continue;
+      }
       spans.push({ start, end: start + full.length, kind, text: inner });
     }
   }
@@ -367,7 +378,7 @@ function gapSegments(
   }
   if (role === "user") {
     const spoken = cleanLine(trimmed);
-    if (!spoken || isSceneActionText(spoken)) return [];
+    if (!spoken || isSceneActionText(spoken) || !isEligibleSpeechDialogue(spoken)) return [];
     return [{ start: gapStart, end: gapEnd, kind: "dialogue", text: spoken }];
   }
   if (afterDialogue) {
@@ -485,12 +496,22 @@ export function extractOrderedSceneSegments(
   if (!marked.length) {
     if (role === "user") {
       const spoken = spokenLinesForMessage({ id: 0, order: 0, role, text });
-      if (!spoken.length) return [];
-      return spoken.map((line, index) => ({
+      const eligible = spoken.filter(isEligibleSpeechDialogue);
+      if (eligible.length) {
+        return eligible.map((line, index) => ({
+          start: index,
+          end: index + line.length,
+          kind: "dialogue" as const,
+          text: line,
+        }));
+      }
+      const narration = remainderNarration(text);
+      if (!narration) return [];
+      return splitKoreanClauses(narration).map((clause, index) => ({
         start: index,
-        end: index + line.length,
-        kind: "dialogue" as const,
-        text: line,
+        end: index + clause.length,
+        kind: "narration" as const,
+        text: clause,
       }));
     }
     const narration = remainderNarration(text);
@@ -827,7 +848,10 @@ export function collectCanonicalSpeakerNames(plan: ScenePlan): string[] {
 function panelFromEvents(
   index: number,
   events: readonly SceneEvent[],
-  sceneBackground: string
+  sceneBackground: string,
+  usedSourceEventIds?: Set<string>,
+  seenUserDialogueTexts?: Set<string>,
+  hasMultipleAssistantDialogueLines?: boolean
 ): ScenePanel {
   const persona = events.find(
     (event) => event.segmentKind === "action" && event.actor === "persona"
@@ -835,9 +859,42 @@ function panelFromEvents(
   const character = events.find(
     (event) => event.segmentKind === "action" && event.actor === "character"
   );
-  const dialogue: SceneDialogue[] = events
-    .filter((event) => event.kind === "dialogue")
-    .map((event) => ({
+  const dialogue: SceneDialogue[] = [];
+  const seenTextsInPanel = new Set<string>();
+
+  for (const event of events) {
+    if (event.kind !== "dialogue") continue;
+    if (usedSourceEventIds && usedSourceEventIds.has(event.id)) continue;
+
+    const norm = normalizeDialogueTextForOutput(event.text);
+    if (!norm) continue;
+
+    // Suppress exact-text echo in the same panel (R1 / T8)
+    if (seenTextsInPanel.has(norm)) {
+      continue;
+    }
+
+    // Suppress blind echo across panels when assistant repeats user dialogue and has multiple assistant dialogue lines (R3)
+    if (
+      event.sourceRole === "assistant" &&
+      hasMultipleAssistantDialogueLines &&
+      seenUserDialogueTexts &&
+      seenUserDialogueTexts.has(norm)
+    ) {
+      continue;
+    }
+
+    // Filter non-dialogue fragments
+    if (!isEligibleSpeechDialogue(event.text)) {
+      continue;
+    }
+
+    seenTextsInPanel.add(norm);
+    if (usedSourceEventIds) {
+      usedSourceEventIds.add(event.id);
+    }
+
+    dialogue.push({
       speaker:
         event.actor === "persona" || event.actor === "character" || event.actor === "other"
           ? event.actor
@@ -846,7 +903,9 @@ function panelFromEvents(
       text: event.text,
       sourceEventId: event.id,
       provenance: "source",
-    }));
+    });
+  }
+
   return {
     index,
     sourceEventIds: events.map((event) => event.id),
@@ -871,6 +930,15 @@ export function buildDeterministicScenePlan(
   const groups = groupEventsContiguously(events, resolvedCount);
   const heroEvents = usable.slice(0, Math.min(3, usable.length));
   const heroScene = buildUserFacingVisualDescription(heroEvents, background);
+  const usedSourceEventIds = new Set<string>();
+  const seenUserDialogueTexts = new Set(
+    events
+      .filter((e) => e.sourceRole === "user" && e.kind === "dialogue")
+      .map((e) => normalizeDialogueTextForOutput(e.text))
+  );
+  const hasMultipleAssistantDialogueLines =
+    events.filter((e) => e.sourceRole === "assistant" && e.kind === "dialogue").length > 1;
+
   return {
     sceneBackground: background,
     atmosphere: undefined,
@@ -879,7 +947,14 @@ export function buildDeterministicScenePlan(
     heroScene: heroScene || background,
     recommendedPanelCount,
     panels: groups.map((group, index) =>
-      panelFromEvents(index + 1, group, background)
+      panelFromEvents(
+        index + 1,
+        group,
+        background,
+        usedSourceEventIds,
+        seenUserDialogueTexts,
+        hasMultipleAssistantDialogueLines
+      )
     ),
   };
 }
@@ -996,10 +1071,26 @@ export function reflowScenePlanPanels(
   panelCount: ScenePanelCount
 ): ScenePlan {
   const groups = groupEventsContiguously(plan.events, panelCount);
+  const usedSourceEventIds = new Set<string>();
+  const seenUserDialogueTexts = new Set(
+    plan.events
+      .filter((e) => e.sourceRole === "user" && e.kind === "dialogue")
+      .map((e) => normalizeDialogueTextForOutput(e.text))
+  );
+  const hasMultipleAssistantDialogueLines =
+    plan.events.filter((e) => e.sourceRole === "assistant" && e.kind === "dialogue").length > 1;
+
   return {
     ...plan,
     panels: groups.map((group, index) =>
-      panelFromEvents(index + 1, group, plan.sceneBackground)
+      panelFromEvents(
+        index + 1,
+        group,
+        plan.sceneBackground,
+        usedSourceEventIds,
+        seenUserDialogueTexts,
+        hasMultipleAssistantDialogueLines
+      )
     ),
   };
 }
@@ -1097,14 +1188,15 @@ export function movePanelDialogueLine(
 export function addPanelDialogueLine(
   plan: ScenePlan,
   panelIndex: number,
-  speaker: SceneDialogueSpeaker = "persona"
+  speaker: SceneDialogueSpeaker = "persona",
+  speakerName?: string
 ): ScenePlan {
   const panel = plan.panels.find((item) => item.index === panelIndex);
   if (!panel) return plan;
   return applyUserPanelEdits(plan, panelIndex, {
     dialogue: [
       ...panel.dialogue,
-      { speaker, text: "", provenance: "user_edit" as const },
+      { speaker, speakerName, text: "", provenance: "user_edit" as const },
     ],
   });
 }
@@ -1401,6 +1493,14 @@ export function validateScenePlan(
 
   const panels: ScenePanel[] = [];
   const usedSourceDialogueEventIds = new Set<string>();
+  const seenUserDialogueTexts = new Set(
+    canonicalEvents
+      .filter((e) => e.sourceRole === "user" && e.kind === "dialogue")
+      .map((e) => normalizeDialogueTextForOutput(e.text))
+  );
+  const hasMultipleAssistantDialogueLines =
+    canonicalEvents.filter((e) => e.sourceRole === "assistant" && e.kind === "dialogue").length > 1;
+
   for (const [index, row] of panelsRaw.entries()) {
     if (!row || typeof row !== "object") return { ok: false, reason: "panel invalid" };
     const item = row as Record<string, unknown>;
@@ -1410,6 +1510,7 @@ export function validateScenePlan(
 
     const dialogueRaw = Array.isArray(item.dialogue) ? item.dialogue : [];
     const dialogue: SceneDialogue[] = [];
+    const seenTextsInPanel = new Set<string>();
     for (const lineRaw of dialogueRaw) {
       if (!lineRaw || typeof lineRaw !== "object") continue;
       const line = lineRaw as Record<string, unknown>;
@@ -1421,7 +1522,15 @@ export function validateScenePlan(
         typeof line.speakerName === "string" ? cleanLine(line.speakerName, 24) || undefined : undefined;
       const text = cleanLine(line.text, 160);
       if (!text) continue;
+      if (!isEligibleSpeechDialogue(text)) continue;
+
+      const normText = normalizeDialogueTextForOutput(text);
       const provenance = line.provenance === "user_edit" ? "user_edit" : "source";
+
+      if (provenance !== "user_edit" && seenTextsInPanel.has(normText)) {
+        continue;
+      }
+
       let resolvedSpeaker: SceneDialogueSpeaker = speaker;
       let resolvedSpeakerName = speakerName;
       let resolvedSourceEventId =
@@ -1452,8 +1561,19 @@ export function validateScenePlan(
         if (usedSourceDialogueEventIds.has(sourceEventId)) {
           continue;
         }
+
+        if (
+          linked.sourceRole === "assistant" &&
+          hasMultipleAssistantDialogueLines &&
+          seenUserDialogueTexts.has(normText)
+        ) {
+          continue;
+        }
+
         usedSourceDialogueEventIds.add(sourceEventId);
       }
+
+      seenTextsInPanel.add(normText);
       dialogue.push({
         speaker: resolvedSpeaker,
         speakerName: resolvedSpeakerName,
