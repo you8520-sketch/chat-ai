@@ -142,16 +142,6 @@ function classifyGeometryFailure(geometry: ScrollFollowGeometry): "GEOMETRY_CLAM
 async function waitForLabRoomReady(page: Page) {
   await page.waitForSelector("[data-trpg-scroll-follow-lab='true']", { timeout: 30_000 });
   await page.waitForSelector("[data-trpg-scroll-follow-lab-trailing-space='true']", { timeout: 30_000 });
-  // #region agent log
-  debugLog("H4", "TRPG test setup state", {
-    state: await page.evaluate(() => ({
-      url: location.href,
-      chatDisplayPrefs: localStorage.getItem("playai-chat-display-prefs"),
-      trpgStreamInterval: localStorage.getItem(TRPG_STREAM_INTERVAL_KEY),
-      trpgKeys: Object.keys(localStorage).filter((key) => key.startsWith("habi:trpg-")),
-    })),
-  });
-  // #endregion
   await page.waitForFunction(
     () =>
       document.querySelector("[data-trpg-round-presentation-mode]")?.getAttribute(
@@ -396,7 +386,7 @@ async function readSentinelActorSnapshot(page: Page) {
 test.describe("TRPG bot declaration viewport follow — production browser", () => {
   test.describe.configure({ retries: 0, timeout: 120_000 });
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
     await page.addInitScript(() => {
       for (const key of Object.keys(localStorage)) {
         if (localStorage.getItem(key) === "") localStorage.removeItem(key);
@@ -404,6 +394,17 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     });
     await demoLogin(page);
     await page.setViewportSize({ width: 1280, height: 720 });
+    // #region agent log
+    debugLog("H4", "TRPG test setup state", {
+      test: testInfo.title,
+      state: await page.evaluate(() => ({
+        url: location.href,
+        chatDisplayPrefs: localStorage.getItem("playai-chat-display-prefs"),
+        trpgStreamInterval: localStorage.getItem(TRPG_STREAM_INTERVAL_KEY),
+        trpgKeys: Object.keys(localStorage).filter((key) => key.startsWith("habi:trpg-")),
+      })),
+    });
+    // #endregion
   });
 
   test("lab does not mutate persisted TRPG stream interval", async ({ page }) => {
