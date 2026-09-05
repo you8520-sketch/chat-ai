@@ -13,6 +13,7 @@ import { OPENROUTER_DEEPSEEK_V4_PRO_MODEL, OPENROUTER_QWEN_37_MAX_MODEL } from "
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 import { DEEPSEEK_OPENING_SCENE_CONTEXT_HEADER } from "@/lib/deepseekOpeningSceneContext";
 import { messagesToTurns, rawRecentTurnsToHistory } from "@/lib/hybridMemory";
+import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
 import type { CharacterChunk } from "@/types";
 
 let buildContext: typeof BuildContextFn;
@@ -63,11 +64,11 @@ describe("buildContext — DeepSeek thin greeting remap", () => {
     assert.match(lastUser.content, new RegExp(DEEPSEEK_OPENING_SCENE_CONTEXT_HEADER.replace(/[[\]]/g, "\\$&")));
     assert.match(lastUser.content, /손전등을 렌에게 건넸다/);
     assert.match(lastUser.content, /여기서 기다려/);
-    assert.match(lastUser.content, /\[DEEPSEEK LENGTH — SINGLE CALL\]/);
-    assert.match(lastUser.content, /SHORT HISTORY/);
+    assert.equal(lastUser.content.split(USER_TAIL_LENGTH_OWNER_SENTENCE).length - 1, 1);
+    assert.ok(lastUser.content.endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
   });
 
-  it("injects SHORT USER TURN for brief DeepSeek RP lines (normal + regen)", () => {
+  it("keeps retired DeepSeek short-user and regen adapters out of the canonical tail", () => {
     const shortTermHistory = rawRecentTurnsToHistory(
       messagesToTurns([{ role: "assistant", content: GREETING, model: "greeting" }])
     );
@@ -83,8 +84,9 @@ describe("buildContext — DeepSeek thin greeting remap", () => {
       targetResponseChars: 3200,
     });
     const normalUser = normal.history.at(-1)!;
-    assert.match(normalUser.content, /\[SHORT USER TURN\]/);
-    assert.match(normalUser.content, /interaction cue/);
+    assert.doesNotMatch(normalUser.content, /\[SHORT USER TURN\]/);
+    assert.doesNotMatch(normalUser.content, /\[REGEN LENGTH\]/);
+    assert.ok(normalUser.content.endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
 
     const regenMsg =
       "[SYSTEM: REGENERATE — rewrite ONLY the last assistant message]\n" +
@@ -105,9 +107,9 @@ describe("buildContext — DeepSeek thin greeting remap", () => {
       rejectedAssistantDraft: "긴 초안. ".repeat(200),
     });
     const regenUser = regen.history.at(-1)!;
-    assert.match(regenUser.content, /\[SHORT USER TURN\]/);
-    assert.match(regenUser.content, /\[REGEN LENGTH\]/);
-    assert.equal((regenUser.content.match(/\[SHORT USER TURN\]/g) ?? []).length, 1);
+    assert.doesNotMatch(regenUser.content, /\[SHORT USER TURN\]/);
+    assert.doesNotMatch(regenUser.content, /\[REGEN LENGTH\]/);
+    assert.ok(regenUser.content.endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
 
     const qwen = buildContext({
       charName: "레온",
