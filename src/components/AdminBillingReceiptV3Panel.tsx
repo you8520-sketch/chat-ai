@@ -67,6 +67,7 @@ export function AdminBillingReceiptV3Panel({
 }) {
   const sync = receipt.syncReceipt;
   const turnSummary = buildAdminReceiptTurnSummary(receipt);
+  const forensic = receipt.forensic;
 
   return (
     <div className="space-y-0.5 text-[11px] leading-relaxed text-zinc-300">
@@ -104,7 +105,23 @@ export function AdminBillingReceiptV3Panel({
         <p className="text-[10px] text-amber-400/90">{receipt.historicalNote}</p>
       )}
 
-      {sync.userCharge.billingContract && (
+      {!sync ? (
+        <>
+          <SectionTitle>Usage snapshot</SectionTitle>
+          <ReceiptRow label="status" value="Unavailable — no stored Usage snapshot" />
+          {forensic?.chargeStatus && (
+            <ReceiptRow label="charge status" value={forensic.chargeStatus} />
+          )}
+          {forensic?.chargeEvidenceSettledPoints != null && (
+            <ReceiptRow
+              label="settled points (settlement evidence)"
+              value={`${formatPoints(forensic.chargeEvidenceSettledPoints)} P`}
+            />
+          )}
+        </>
+      ) : null}
+
+      {sync?.userCharge.billingContract && (
         <>
           <SectionTitle>User charge contract (admin)</SectionTitle>
           <ReceiptRow label="contract" value={sync.userCharge.billingContract} />
@@ -183,7 +200,7 @@ export function AdminBillingReceiptV3Panel({
       ))}
 
       <SectionTitle>Main RP (동기)</SectionTitle>
-      {sync.mainRp.actual ? (
+      {sync?.mainRp.actual ? (
         <>
           <ReceiptRow
             label="actual USD"
@@ -199,7 +216,7 @@ export function AdminBillingReceiptV3Panel({
       )}
 
       <SectionTitle>Sync 플랫폼 부담 (동기)</SectionTitle>
-      {sync.syncPlatformSpend.status === "available" ? (
+      {sync?.syncPlatformSpend.status === "available" ? (
         <>
           <ReceiptRow label="group" value={sync.syncPlatformSpend.groupLabel ?? "—"} />
           <ReceiptRow
@@ -211,7 +228,7 @@ export function AdminBillingReceiptV3Panel({
           )}
         </>
       ) : (
-        <ReceiptRow label="status" value={sync.syncPlatformSpend.status} />
+        <ReceiptRow label="status" value={sync?.syncPlatformSpend.status ?? "unavailable"} />
       )}
 
       <SectionTitle>범위 제외</SectionTitle>

@@ -8,7 +8,10 @@ import {
   resolveActiveAssistantGenerationScopeFromRow,
   type AssistantGenerationScope,
 } from "@/lib/assistantGenerationScope";
-import { buildAdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3";
+import {
+  buildAdminBillingReceiptV3,
+  buildAdminBillingReceiptV3ForMissingUsage,
+} from "@/lib/adminBillingReceiptV3";
 import type { AdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3Shared";
 import type { Usage } from "@/lib/chatUsage";
 import { loadMessageSuggestedReplies } from "@/lib/suggestedReplies/job";
@@ -26,6 +29,7 @@ import {
   locatePrivilegedAssistantMessage,
   type AdminBillingReceiptLocator,
 } from "@/lib/adminBillingMessageLocator";
+import { resolveStoredTurnChargeEvidence } from "@/lib/storedTurnChargeEvidence";
 
 export type LoadAdminBillingReceiptV3Result =
   | { ok: true; receipt: AdminBillingReceiptV3 }
@@ -44,6 +48,8 @@ type AssistantMessageDbRow = {
   status_meta: string | null;
   deduction_slices: string | null;
   created_at: string;
+  chat_id: number;
+  user_id: number;
 };
 
 function resolveMemoryTaskForGeneration(
@@ -59,11 +65,26 @@ function loadAssistantMessageRow(messageId: number): AssistantMessageDbRow | und
   const db = getDb();
   return db
     .prepare(
-      `SELECT id, content, model, usage, alternates, active_variant, request_id, generation_status,
-              suggested_replies_json, status_meta, deduction_slices, created_at
-       FROM messages WHERE id=?`
+      `SELECT m.id, m.content, m.model, m.usage, m.alternates, m.active_variant, m.request_id,
+              m.generation_status, m.suggested_replies_json, m.status_meta, m.deduction_slices,
+              m.created_at, m.chat_id, c.user_id
+       FROM messages m
+       JOIN chats c ON c.id = m.chat_id
+       WHERE m.id=?`
     )
     .get(messageId) as AssistantMessageDbRow | undefined;
+}
+
+function resolveUsageFromMessageRow(messageRow: AssistantMessageDbRow): Usage | null {
+  const { variants, activeVariant } = normalizeMessageVariants(messageRow);
+  const activeVariantUsage = variants[activeVariant]?.usage;
+  if (activeVariantUsage) return activeVariantUsage;
+  if (!messageRow.usage?.trim()) return null;
+  try {
+    return JSON.parse(messageRow.usage) as Usage;
+  } catch {
+    return null;
+  }
 }
 
 /** Canonical receipt assembly — stored truth only, no ownership filter. */
@@ -81,19 +102,18 @@ function assembleAdminBillingReceiptV3FromMessage(input: {
     return { ok: false, error: "generation scope를 확인할 수 없습니다.", status: 400 };
   }
 
-  const { variants, activeVariant } = normalizeMessageVariants(messageRow);
-  const activeVariantUsage = variants[activeVariant]?.usage;
-  let usage: Usage | null = activeVariantUsage ?? null;
-  if (!usage && messageRow.usage?.trim()) {
-    try {
-      usage = JSON.parse(messageRow.usage) as Usage;
-    } catch {
-      usage = null;
-    }
-  }
-  if (!usage) {
-    return { ok: false, error: "usage 스냅샷이 없습니다.", status: 404 };
-  }
+  const storedUsage = resolveUsageFromMessageRow(messageRow);
+  const db = getDb();
+  const chargeEvidence = resolveStoredTurnChargeEvidence(db, {
+    userId: messageRow.user_id,
+    chatId: input.chatId,
+    assistantMessageId: input.messageId,
+    requestId: messageRow.request_id,
+    generationStatus: messageRow.generation_status,
+    deductionSlicesRaw: messageRow.deduction_slices,
+    usage: storedUsage,
+    model: messageRow.model,
+  });
 
   const rawSuggested = messageRow.suggested_replies_json
     ? parseSuggestedRepliesRecord(messageRow.suggested_replies_json)
@@ -109,7 +129,6 @@ function assembleAdminBillingReceiptV3FromMessage(input: {
     ? rawStatusMeta
     : null;
 
-  const db = getDb();
   const allLedgerRows = listProviderCostEventsForAssistantMessage(input.messageId, db);
   const { scopedRows, hasUnscopedRows } = filterLedgerRowsForGenerationScope(
     allLedgerRows,
@@ -120,8 +139,43 @@ function assembleAdminBillingReceiptV3FromMessage(input: {
     generationScope
   );
 
+  const forensic = buildAdminBillingForensicMetadata({
+    assistantMessageId: input.messageId,
+    chatId: input.chatId,
+    requestId: messageRow.request_id,
+    usage: storedUsage,
+    deductionSlicesRaw: messageRow.deduction_slices,
+    generationStatus: messageRow.generation_status,
+    chargeEvidence,
+  });
+
+  // NO STORED USAGE → usage = null. Never fabricate Usage from settlement evidence.
+  // Explicit evidence-only Admin V3 mode (Strategy B: nullable unavailable sync section).
+  if (!storedUsage) {
+    if (chargeEvidence.status === "pending") {
+      return { ok: false, error: "생성이 아직 진행 중입니다.", status: 409 };
+    }
+    const receipt = buildAdminBillingReceiptV3ForMissingUsage({
+      assistantMessageId: input.messageId,
+      chatId: input.chatId,
+      generationScope,
+      hasUnscopedLedgerRows: hasUnscopedRows,
+      suggestedRepliesRecord,
+      statusMetaRecord,
+      memoryRelationshipTask,
+      ledgerRows: scopedRows,
+    });
+    return {
+      ok: true,
+      receipt: {
+        ...receipt,
+        forensic,
+      },
+    };
+  }
+
   const receipt = buildAdminBillingReceiptV3({
-    usage,
+    usage: storedUsage,
     assistantMessageId: input.messageId,
     chatId: input.chatId,
     generationScope,
@@ -132,15 +186,13 @@ function assembleAdminBillingReceiptV3FromMessage(input: {
     ledgerRows: scopedRows,
   });
 
-  const forensic = buildAdminBillingForensicMetadata({
-    assistantMessageId: input.messageId,
-    chatId: input.chatId,
-    requestId: messageRow.request_id,
-    usage,
-    deductionSlicesRaw: messageRow.deduction_slices,
-  });
-
-  return { ok: true, receipt: { ...receipt, forensic } };
+  return {
+    ok: true,
+    receipt: {
+      ...receipt,
+      forensic,
+    },
+  };
 }
 
 /** Normal user ownership path — assertMessageAccess semantics unchanged. */
