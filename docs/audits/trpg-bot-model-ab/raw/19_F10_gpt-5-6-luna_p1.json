@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F10",
+  "model": "gpt-5.6-luna",
+  "pass": 1,
+  "call_index": 19,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 8255,
+  "output_token_count": 415,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": 0,
+  "latency_ms": 9696,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "렌이 문에 귀를 댄 순간, 세라는 그의 어깨 너머로 철문의 표면을 살폈다. 이미 그려 둔 룬 패턴과 잠금부의 잔광을 겹쳐 보자, 바람이 새는 틈마다 빛의 세기가 미세하게 달라졌다. 문 안쪽의 원천이 단순히 봉인된 것이 아니라, 통로 쪽의 마력진과 서로 호응하고 있을 가능성이 있었다. 바닥의 혈흔은 문 앞에서 끊겼지만, 그 위에 남은 잔해는 누군가 급히 진을 훼손한 흔적처럼 보였다. 실버크로우의 스카우트가 이곳을 찾았다면, 잠금을 억지로 열기보다 우회로를 먼저 탐색했을지도 모른다.\n\n세라는 단장에게 방금 기록한 도식의 빈 부분을 가리킨 뒤, 렌의 청취를 방해하지 않도록 낮은 목소리로 말했다.\n\n\"문을 여는 시도는 잠시 미루는 편이 안전하겠습니다. 이 잔향은 석실 안쪽만이 아니라, 주변 통로 어딘가와도 이어져 있는 듯합니다.\"\n\n그녀는 무릎을 꿇고 문턱 옆 무너진 석재를 살폈다. 손등의 룬 각인을 가까이 대어 희미한 공명이나 바람의 방향을 확인하며, 숨겨진 틈이 있다면 그 위치를 도식에 덧붙이려 했다.\n\n<<<ACTION_TYPE>>> investigate\n<<<INTENT>>> 세라는 문턱 옆 무너진 석재와 벽면을 룬 각인으로 살펴, 석실 마력진과 연결된 숨은 틈이나 우회로의 흔적을 찾아보려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 622,
+    "outputTokenEstimate": 346,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "렌이 문에 귀를 댄 순간, 세라는 그의 어깨 너머로 철문의 표면을 살폈다. 이미 그려 둔 룬 패턴과 잠금부의 잔광을 겹쳐 보자, 바람이 새는 틈마다 빛의 세기가 미세하게 달라졌다. 문 안쪽의 원천이 단순히 봉인된 것이 아니라, 통로 쪽의 마력진과 서로 호응하고 있을 가능성이 있었다. 바닥의 혈흔은 문 앞에서 끊겼지만, 그 위에 남은 잔해는 누군가 급히 진을 훼손한 흔적처럼 보였다. 실버크로우의 스카우트가 이곳을 찾았다면, 잠금을 억지로 열기보다 우회로를 먼저 탐색했을지도 모른다.\n\n세라는 단장에게 방금 기록한 도식의 빈 부분을 가리킨 뒤, 렌의 청취를 방해하지 않도록 낮은 목소리로 말했다.\n\n\"문을 여는 시도는 잠시 미루는 편이 안전하겠습니다. 이 잔향은 석실 안쪽만이 아니라, 주변 통로 어딘가와도 이어져 있는 듯합니다.\"\n\n그녀는 무릎을 꿇고 문턱 옆 무너진 석재를 살폈다. 손등의 룬 각인을 가까이 대어 희미한 공명이나 바람의 방향을 확인하며, 숨겨진 틈이 있다면 그 위치를 도식에 덧붙이려 했다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "세라는 문턱 옆 무너진 석재와 벽면을 룬 각인으로 살펴, 석실 마력진과 연결된 숨은 틈이나 우회로의 흔적을 찾아보려 했다."
+  }
+}

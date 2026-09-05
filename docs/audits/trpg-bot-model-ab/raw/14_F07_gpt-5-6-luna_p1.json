@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F07",
+  "model": "gpt-5.6-luna",
+  "pass": 1,
+  "call_index": 14,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 8255,
+  "output_token_count": 419,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": 0,
+  "latency_ms": 8134,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "철제 문틈에서 새어 나온 냉기가 손등의 룬 각인을 스쳤다. 나는 방금 지나간 망토 형체와, 바닥에 겹쳐진 혈흔과 마법진 잔해를 번갈아 살폈다. 적대적인 침입자라면 흔적을 감추려 했을 테지만, 저 형체는 오히려 문 안쪽의 오래된 질서에 묶인 존재일 가능성도 있다. 수호자 고스트라는 이름이 떠올랐고, 실버크로우의 스카우트가 이 근처를 배회한다는 사실이 그 판단을 서두르게 했다.\n\n나는 유저의 외교적 시도를 방해하지 않도록 한 걸음 뒤에서 멈추고, 문에 그려진 룬 패턴의 스케치를 펼쳐 보였다. 망토 형체가 다시 나타난다면 공격 의사가 없다는 점을 먼저 강조하되, 왕실 금고 열쇠의 단서를 알고 있다는 말로 반응을 끌어내려 했다. 목소리는 낮추고, 폐허 속에서 울림이 지나치게 커지지 않게 했다.\n\n\"저희는 왕좌의 파편을 찾는 회색 등대 길드의 조사단입니다. 이 문을 억지로 열 생각은 없습니다. 혹시 이 룬과, 안쪽의 마력 원천을 지키는 이유를 말씀 나눌 수 있겠습니까?\"\n\n나는 스케치 가장자리에 손가락을 얹은 채 형체가 나타난 방향을 주시했다.\n\n<<<ACTION_TYPE>>>\npersuade\n\n<<<INTENT>>>\n세라는 문 너머의 망토 형체에게 자신들이 회색 등대 길드의 조사단이며 룬과 마력 원천에 대해 협상하고 싶다고 밝혀 적대 의사가 없음을 설득하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": false,
+    "outputCharCount": 656,
+    "outputTokenEstimate": 364,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "철제 문틈에서 새어 나온 냉기가 손등의 룬 각인을 스쳤다. 나는 방금 지나간 망토 형체와, 바닥에 겹쳐진 혈흔과 마법진 잔해를 번갈아 살폈다. 적대적인 침입자라면 흔적을 감추려 했을 테지만, 저 형체는 오히려 문 안쪽의 오래된 질서에 묶인 존재일 가능성도 있다. 수호자 고스트라는 이름이 떠올랐고, 실버크로우의 스카우트가 이 근처를 배회한다는 사실이 그 판단을 서두르게 했다.\n\n나는 유저의 외교적 시도를 방해하지 않도록 한 걸음 뒤에서 멈추고, 문에 그려진 룬 패턴의 스케치를 펼쳐 보였다. 망토 형체가 다시 나타난다면 공격 의사가 없다는 점을 먼저 강조하되, 왕실 금고 열쇠의 단서를 알고 있다는 말로 반응을 끌어내려 했다. 목소리는 낮추고, 폐허 속에서 울림이 지나치게 커지지 않게 했다.\n\n\"저희는 왕좌의 파편을 찾는 회색 등대 길드의 조사단입니다. 이 문을 억지로 열 생각은 없습니다. 혹시 이 룬과, 안쪽의 마력 원천을 지키는 이유를 말씀 나눌 수 있겠습니까?\"\n\n나는 스케치 가장자리에 손가락을 얹은 채 형체가 나타난 방향을 주시했다.",
+    "parsedActionType": "persuade",
+    "parsedIntent": "세라는 문 너머의 망토 형체에게 자신들이 회색 등대 길드의 조사단이며 룬과 마력 원천에 대해 협상하고 싶다고 밝혀 적대 의사가 없음을 설득하려 했다."
+  }
+}

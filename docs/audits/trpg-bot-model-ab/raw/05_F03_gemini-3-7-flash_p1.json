@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F03",
+  "model": "gemini-3.7-flash",
+  "pass": 1,
+  "call_index": 5,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 8009,
+  "output_token_count": 278,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 23612,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "저 성질머리는 붕괴된 왕국에서도 여전하군.\n\n렌은 피가 배어 나오는 손등의 붕대를 거칠게 고쳐 매며 혀를 찼다. 문틈으로 새어 나오는 한기와 불길한 마력 잔광이 뻔히 보이는데도 앞뒤 안 가리고 돌진하는 꼴이라니.\n\n\"하, 성질 급한 건 알아줘야지.\"\n\n비아냥거리는 투였지만 몸은 이미 반사적으로 움직이고 있었다. 문이 열리는 순간 안쪽에 숨어 있을 마수나 함정의 반격이 리더에게 쏟아질 게 뻔했다.\n\n렌은 한숨을 짓이기듯 삼키며 검을 고쳐 잡았다. 유저가 문을 박차는 궤적보다 반 보 빠르게 앞서 나가며, 문 뒤편에서 터져 나올지 모를 기습을 온몸으로 받아낼 태세로 방패를 단단히 치켜올렸다.\n\n<<<ACTION_TYPE>>>\ndefend\n<<<INTENT>>>\n렌은 유저가 문을 박차고 진입할 때 발생할 수 있는 안쪽의 기습이나 함정 공격을 차단하기 위해 방패를 앞세우며 선두를 엄호하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 445,
+    "outputTokenEstimate": 247,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "저 성질머리는 붕괴된 왕국에서도 여전하군.\n\n렌은 피가 배어 나오는 손등의 붕대를 거칠게 고쳐 매며 혀를 찼다. 문틈으로 새어 나오는 한기와 불길한 마력 잔광이 뻔히 보이는데도 앞뒤 안 가리고 돌진하는 꼴이라니.\n\n\"하, 성질 급한 건 알아줘야지.\"\n\n비아냥거리는 투였지만 몸은 이미 반사적으로 움직이고 있었다. 문이 열리는 순간 안쪽에 숨어 있을 마수나 함정의 반격이 리더에게 쏟아질 게 뻔했다.\n\n렌은 한숨을 짓이기듯 삼키며 검을 고쳐 잡았다. 유저가 문을 박차는 궤적보다 반 보 빠르게 앞서 나가며, 문 뒤편에서 터져 나올지 모를 기습을 온몸으로 받아낼 태세로 방패를 단단히 치켜올렸다.",
+    "parsedActionType": "defend",
+    "parsedIntent": "렌은 유저가 문을 박차고 진입할 때 발생할 수 있는 안쪽의 기습이나 함정 공격을 차단하기 위해 방패를 앞세우며 선두를 엄호하려 했다."
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F01",
+  "model": "gpt-5.6-luna",
+  "pass": 1,
+  "call_index": 2,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 8369,
+  "output_token_count": 391,
+  "cached_input_tokens": 8366,
+  "reasoning_tokens": 0,
+  "latency_ms": 11339,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "무너진 천장 사이로 들어온 냉기가 목덜미를 훑었다. 철문 안쪽에서 나는 바람치고는 지나치게 일정했고, 바닥의 혈흔은 문 앞에서 끊긴 게 아니라 안으로 길게 이어져 있었다. 게다가 아까부터 뒤통수를 간질이던 금속음이 다시 들리지 않았다. 조용한 게 아니라, 누군가 숨을 죽이고 기다리는 쪽에 가까웠다. 실버크로우의 스카우트가 이 근처를 훑었다는 기억이 발목을 붙잡았다.\n\n나는 단검을 뽑아 칼끝으로 문턱과 경첩 주변의 먼지를 살살 긁었다. 끈적한 실이나 새로 밟힌 자국이 있는지 확인한 뒤, 몸을 낮춰 무너진 기둥 그늘 쪽으로 반걸음 물러났다. 유저가 어깨로 문을 밀고 들어가려는 순간, 안쪽에서 보이지 않는 공격이 뻗어 나오면 먼저 손목을 잡아 끌어낼 생각이었다. 세라의 룬 스케치와 맞물리는 흔적이 있는지도 눈으로 훑었다.\n\n\"너, 밀기 전에 잠깐만. 문이 얌전히 열릴 얼굴은 아니거든.\"\n\n나는 문틈 아래와 경첩 주변을 더듬어 함정의 발동 장치나 새 흔적을 찾아보려 했다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n\n<<<INTENT>>>\n카일은 낮은 자세로 철문 문턱과 경첩 주변을 조사해 함정의 발동 장치, 새로 생긴 흔적, 안쪽에서 이어지는 혈흔의 방향을 확인하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": false,
+    "outputCharCount": 612,
+    "outputTokenEstimate": 340,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "무너진 천장 사이로 들어온 냉기가 목덜미를 훑었다. 철문 안쪽에서 나는 바람치고는 지나치게 일정했고, 바닥의 혈흔은 문 앞에서 끊긴 게 아니라 안으로 길게 이어져 있었다. 게다가 아까부터 뒤통수를 간질이던 금속음이 다시 들리지 않았다. 조용한 게 아니라, 누군가 숨을 죽이고 기다리는 쪽에 가까웠다. 실버크로우의 스카우트가 이 근처를 훑었다는 기억이 발목을 붙잡았다.\n\n나는 단검을 뽑아 칼끝으로 문턱과 경첩 주변의 먼지를 살살 긁었다. 끈적한 실이나 새로 밟힌 자국이 있는지 확인한 뒤, 몸을 낮춰 무너진 기둥 그늘 쪽으로 반걸음 물러났다. 유저가 어깨로 문을 밀고 들어가려는 순간, 안쪽에서 보이지 않는 공격이 뻗어 나오면 먼저 손목을 잡아 끌어낼 생각이었다. 세라의 룬 스케치와 맞물리는 흔적이 있는지도 눈으로 훑었다.\n\n\"너, 밀기 전에 잠깐만. 문이 얌전히 열릴 얼굴은 아니거든.\"\n\n나는 문틈 아래와 경첩 주변을 더듬어 함정의 발동 장치나 새 흔적을 찾아보려 했다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "카일은 낮은 자세로 철문 문턱과 경첩 주변을 조사해 함정의 발동 장치, 새로 생긴 흔적, 안쪽에서 이어지는 혈흔의 방향을 확인하려 했다."
+  }
+}
