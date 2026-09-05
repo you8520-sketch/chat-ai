@@ -57,4 +57,18 @@ describe("chatComicGeneration client bundle boundary", () => {
     const text = readFileSync("src/lib/chatComicGeneration.ts", "utf8");
     assert.doesNotMatch(text, /from "@\/lib\/chatComicTextOverlay"/);
   });
+
+  it("admin-only diagnostic controls are capability-gated and wired only to comic generation", () => {
+    const text = readFileSync("src/components/ChatImageGeneratorPanel.tsx", "utf8");
+    assert.match(text, /comicDiagnosticControlsAvailable/);
+    assert.match(text, /comicReferenceIsolationMode/);
+    assert.match(text, /comicVisualContextIsolationMode/);
+    assert.match(text, /info\.comicDiagnosticControlsAvailable/);
+    assert.match(text, /두 진단 축은 동시에 선택할 수 없습니다/);
+    assert.match(text, /comicReferenceIsolationMode:\s*!isIllustration && ldProduct === "scene"/);
+    assert.match(text, /comicVisualContextIsolationMode:\s*!isIllustration && ldProduct === "scene"/);
+    assert.match(text, /setComicReferenceIsolationMode\("normal"\)/);
+    assert.match(text, /setComicVisualContextIsolationMode\("normal"\)/);
+  });
 });
+
