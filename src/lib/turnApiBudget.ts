@@ -218,7 +218,21 @@ export function assertPayloadWithinTokenLimit(
   }
 }
 
-/** 유저 1턴 — Main RP provider fetch hard stop (exactly one). */
+/**
+ * 유저 1턴 — Main RP provider fetch hard stop (exactly one).
+ *
+ * Two distinct counters must not be conflated:
+ * - LOGICAL_MAIN_GENERATION_COUNT: this budget's fetchCount — one logical
+ *   Main RP generation per user turn (manual regeneration starts a NEW turn
+ *   with a fresh budget instance, so it is always allowed).
+ * - MAIN_RP_EXTERNAL_PROVIDER_ATTEMPT_COUNT: physical external HTTP provider
+ *   requests inside one generation — enforced to <= 1 separately in
+ *   deepseekProviderFailover (MAX_MAIN_RP_EXTERNAL_PROVIDER_ATTEMPTS) and by
+ *   the single-attempt transport in openRouterAdult. fetchCount=1 alone does
+ *   NOT prove one external request.
+ * Auxiliary provider calls (status widget, summaries, memories, suggested
+ * replies, …) never consult this budget and are attributed separately.
+ */
 export class TurnApiBudget {
   private fetchCount = 0;
 

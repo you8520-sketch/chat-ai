@@ -86,3 +86,25 @@ describe("turn length supplement API — disabled for all models", () => {
     );
   });
 });
+
+describe("manual regeneration scope — fresh budget per explicit generation", () => {
+  it("E — each explicit generation gets exactly one provider fetch", () => {
+    const generationA = new TurnApiBudget();
+    assert.doesNotThrow(() => generationA.beforeFetch("deepseek-v4-pro-0813-primary-stream"));
+    assert.equal(generationA.fetchCountSnapshot, 1);
+
+    const generationB = new TurnApiBudget();
+    assert.doesNotThrow(() => generationB.beforeFetch("deepseek-v4-pro-0813-primary-stream"));
+    assert.equal(generationB.fetchCountSnapshot, 1);
+  });
+
+  it("E — a failed generation does not leak budget exhaustion into the next generation", () => {
+    const generationA = new TurnApiBudget();
+    generationA.beforeFetch("primary-stream");
+    assert.throws(() => generationA.beforeFetch("retry"), /Main RP provider call budget exceeded/);
+
+    const generationB = new TurnApiBudget();
+    assert.equal(generationB.canSubCall(), true);
+    assert.doesNotThrow(() => generationB.beforeFetch("primary-stream"));
+  });
+});

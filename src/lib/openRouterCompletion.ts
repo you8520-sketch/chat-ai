@@ -37,6 +37,11 @@ import {
   resolveDeepSeekFailoverRouteKind,
   resolveDeepSeekLogicalModel,
 } from "@/lib/deepseekProviderFailover";
+import {
+  auxPromptFingerprint,
+  logAuxProviderCall,
+  resolveAuxProviderOwner,
+} from "@/lib/auxProviderProvenance";
 
 export type OpenRouterChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
@@ -204,6 +209,24 @@ export async function callOpenRouterCompletion(opts: {
       `[${providerLabel}] requires system + user history ending with user`
     );
   }
+
+  logAuxProviderCall({
+    auxOwner: resolveAuxProviderOwner({
+      requestKind: opts.requestKind,
+      ledgerFamily: opts.ledgerContext?.family,
+    }),
+    model,
+    requestKind: opts.requestKind ?? null,
+    trigger: opts.ledgerContext?.executionPhase ?? null,
+    chatId: opts.ledgerContext?.chatId ?? null,
+    messageId: opts.ledgerContext?.assistantMessageId ?? null,
+    requestId: opts.ledgerContext?.generationRequestId ?? null,
+    attempt: opts.ledgerContext?.jobAttemptOrdinal ?? 1,
+    isRetry:
+      (opts.ledgerContext?.jobAttemptOrdinal ?? 1) > 1 ||
+      /-retry|-repair|-fallback|-echo-fix/i.test(opts.requestKind ?? ""),
+    promptFingerprint: auxPromptFingerprint(model, messages),
+  });
 
   if (isMockApiMode()) {
     const mockText = getMockResponseText();
