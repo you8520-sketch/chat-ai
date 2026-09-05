@@ -169,4 +169,3 @@ test("human QA outcomes classify moderation association without declaring an ima
     normal: "moderation_blocked", neutral_visual_context: "pass",
   }), "REFERENCE_BYTES_ALONE_NOT_SUFFICIENT_CAUSE");
 });
-
