@@ -833,10 +833,10 @@ export async function POST(req: Request) {
   let tier2PromptAudit: ReturnType<typeof auditTier2ComicPrompt> | null = null;
   let referenceRoleInventory: ReturnType<typeof buildComicReferenceRoleInventory> | null = null;
   let providerReferences: ComicProviderReference[] | null = null;
+  let diagnosticOverrides = resolveComicDiagnosticOverrides({ canSeeCost: false });
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
-    let diagnosticOverrides;
     try {
       diagnosticOverrides = resolveComicDiagnosticOverrides({
         canSeeCost,
@@ -1622,6 +1622,7 @@ export async function POST(req: Request) {
           tier2PromptAudit,
           referenceRoleInventory,
           providerReferences: providerReferences ?? undefined,
+          referenceIsolationMode: diagnosticOverrides.referenceMode,
           imageFailureDiagnostic: diagnostic,
         })
       : null;
