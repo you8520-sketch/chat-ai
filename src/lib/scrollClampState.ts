@@ -134,8 +134,7 @@ export function measureIntegerScrollCadence(
 
   const steadyInterStepGaps = positiveStepTimes
     .slice(1)
-    .map((time, index) => Math.max(0, time - positiveStepTimes[index]!))
-    .filter((gap) => gap <= INTEGER_CADENCE_P95_INTER_STEP_GAP_MS);
+    .map((time, index) => Math.max(0, time - positiveStepTimes[index]!));
   const allInterStepGaps = allPositiveStepTimes
     .slice(1)
     .map((time, index) => Math.max(0, time - allPositiveStepTimes[index]!));
