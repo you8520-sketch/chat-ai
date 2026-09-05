@@ -14,6 +14,7 @@ import {
 import {
   canonicalTier2SafePose,
   projectSceneBlockForTier2Comic,
+  projectSceneTextForTier2Comic,
 } from "@/lib/chatComicTier2SafeProjection";
 
 export type ComicSafeStructurePanel = {
@@ -21,6 +22,8 @@ export type ComicSafeStructurePanel = {
   situation: string;
   background: string;
   poseHint: string;
+  /** Tier-2 SAFE_PROJECTED_PROVIDER_TEXT: provider-safe readable dialogue, risky rows omitted. */
+  dialogue?: string[];
 };
 
 export type ComicSafeStructureProjection = {
@@ -28,6 +31,14 @@ export type ComicSafeStructureProjection = {
   atmosphere?: string;
   panels: ComicSafeStructurePanel[];
 };
+
+/** TIER2_TEXT_MODE = SAFE_PROJECTED_PROVIDER_TEXT: safe dialogue is kept, risky rows are omitted (no invented replacements). */
+function projectTier2Dialogue(raw: string): string | null {
+  const projected = projectSceneTextForTier2Comic(raw);
+  if (projected.omitFromImage || projected.reasonCategories.length > 0) return null;
+  const text = projected.text.trim();
+  return text || null;
+}
 
 function projectSafeField(raw: string): string {
   const projected = projectSceneBlockForTier2Comic(raw);
@@ -88,6 +99,9 @@ export function projectComicSafeStructureForTier2(
         situation,
         background,
       }),
+      dialogue: beat.dialogue
+        .map((line) => projectTier2Dialogue(line.text))
+        .filter((text): text is string => text != null),
     };
   });
 
@@ -99,7 +113,8 @@ export function projectComicSafeStructureForTier2(
 }
 
 export function renderComicSafeStructureForTier2Prompt(
-  structure: ComicSafeStructureProjection
+  structure: ComicSafeStructureProjection,
+  mode: "overlay_first" | "full_provider_rendered" = "overlay_first"
 ): string[] {
   const lines: string[] = [];
   if (structure.sharedBackground) {
@@ -109,16 +124,31 @@ export function renderComicSafeStructureForTier2Prompt(
     lines.push(`Emotional atmosphere: ${structure.atmosphere}.`);
   }
   for (const panel of structure.panels) {
-    const parts = [
-      `Panel ${panel.index}`,
-      panel.background ? `location ${panel.background}` : "",
-      panel.situation ? `beat ${panel.situation}` : "",
-      panel.poseHint,
-      "modest covered clothing",
-      "leave a clean upper area for later text overlay",
-      "no readable letters in the image",
-    ].filter(Boolean);
-    lines.push(parts.join(" — "));
+    if (mode === "full_provider_rendered") {
+      const dialogue = panel.dialogue?.length
+        ? panel.dialogue.map((text) => `Speech bubble: "${text}"`).join("\n")
+        : "Speech bubble: (silent panel — no approved dialogue)";
+      const parts = [
+        `Panel ${panel.index}`,
+        panel.background ? `location ${panel.background}` : "",
+        panel.situation ? `beat ${panel.situation}` : "",
+        panel.poseHint,
+        "modest covered clothing",
+        dialogue,
+      ].filter(Boolean);
+      lines.push(parts.join(" — "));
+    } else {
+      const parts = [
+        `Panel ${panel.index}`,
+        panel.background ? `location ${panel.background}` : "",
+        panel.situation ? `beat ${panel.situation}` : "",
+        panel.poseHint,
+        "modest covered clothing",
+        "leave a clean upper area for later text overlay",
+        "no readable letters in the image",
+      ].filter(Boolean);
+      lines.push(parts.join(" — "));
+    }
   }
   return lines;
 }

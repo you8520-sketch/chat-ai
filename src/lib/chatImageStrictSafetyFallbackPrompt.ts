@@ -63,20 +63,29 @@ function formatStrictCastLine(member: ChatLdIllustrationCastMember, index: numbe
 
 function strictComicPanelBeats(
   panelCount: ChatComicPanelCount,
-  safeStructure?: ComicSafeStructureProjection
+  safeStructure?: ComicSafeStructureProjection,
+  mode: "overlay_first" | "full_provider_rendered" = "overlay_first"
 ): string {
   if (safeStructure?.panels.length) {
-    return renderComicSafeStructureForTier2Prompt(safeStructure)
+    return renderComicSafeStructureForTier2Prompt(safeStructure, mode)
       .filter((line) => line.startsWith("Panel "))
       .slice(0, panelCount)
       .join("\n");
   }
-  const beats = [
-    "Panel 1 — establishing: same cast in a calm, well-lit setting; neutral relaxed poses; no readable text.",
-    "Panel 2 — reaction: medium shot; gentle emotional expression; modest clothing; no readable text.",
-    "Panel 3 — close interaction: calm affectionate proximity; expressive faces; modest clothing; no readable text.",
-    "Panel 4 — closing beat: warm general-audience group or duo moment; no readable text.",
-  ];
+  const beats =
+    mode === "full_provider_rendered"
+      ? [
+          "Panel 1 — establishing: same cast in a calm, well-lit setting; neutral relaxed poses; silent panel unless approved dialogue is listed.",
+          "Panel 2 — reaction: medium shot; gentle emotional expression; modest clothing; silent panel unless approved dialogue is listed.",
+          "Panel 3 — close interaction: calm affectionate proximity; expressive faces; modest clothing; silent panel unless approved dialogue is listed.",
+          "Panel 4 — closing beat: warm general-audience group or duo moment; silent panel unless approved dialogue is listed.",
+        ]
+      : [
+          "Panel 1 — establishing: same cast in a calm, well-lit setting; neutral relaxed poses; no readable text.",
+          "Panel 2 — reaction: medium shot; gentle emotional expression; modest clothing; no readable text.",
+          "Panel 3 — close interaction: calm affectionate proximity; expressive faces; modest clothing; no readable text.",
+          "Panel 4 — closing beat: warm general-audience group or duo moment; no readable text.",
+        ];
   return beats.slice(0, panelCount).join("\n");
 }
 
@@ -181,7 +190,9 @@ export function buildStrictComicFallbackPrompt(opts: {
   const moodPrompt =
     CHAT_COMIC_MOODS.find((item) => item.id === (opts.mood ?? "comic"))?.prompt ??
     "natural slice-of-life interaction";
-  const hybrid = (opts.compositionMode ?? "overlay_first") === "blank_balloon_hybrid";
+  const compositionMode = opts.compositionMode ?? "overlay_first";
+  const hybrid = compositionMode === "blank_balloon_hybrid";
+  const fullProvider = compositionMode === "full_provider_rendered";
   const compositionLine = hybrid
     ? [
         "GPT IS COMIC DIRECTOR — create the complete comic artwork: panel composition, camera direction, character staging, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects.",
@@ -191,7 +202,15 @@ export function buildStrictComicFallbackPrompt(opts: {
           ? renderComicStrictBalloonSlotMetadata(opts.balloonSlots).split("\n")
           : []),
       ]
-    : ["VISUAL LAYER ONLY — zero speech bubbles, captions, SFX, or readable letters in the image. Text is added later by server overlay."];
+    : fullProvider
+      ? [
+          "RENDER THE COMPLETE MANHWA PAGE — the image is the final comic; no server text is added later.",
+          "Readable Korean speech bubbles are allowed for the approved safe dialogue listed below. Do not invent replacement dialogue.",
+          "Make balloon tails point toward the actual speaker. Do not cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page.",
+          "If a panel has no approved dialogue, keep it a silent visual panel.",
+          "Use narration sparingly — include only very short time-ordered narration boxes for crucial transitions, never long prose paragraphs.",
+        ]
+      : ["VISUAL LAYER ONLY — zero speech bubbles, captions, SFX, or readable letters in the image. Text is added later by server overlay."];
   return [
     `Create one polished Korean manhwa-style page with exactly ${opts.panelCount} wide horizontal panels stacked vertically.`,
     "Reference image 1 is LAYOUT AND FINISH ONLY.",
@@ -214,7 +233,7 @@ export function buildStrictComicFallbackPrompt(opts: {
     opts.safeStructure?.atmosphere ? `Preserve mood: ${opts.safeStructure.atmosphere}.` : "",
     `Overall tone: ${moodPrompt} — keep expressions readable and family-safe.`,
     ...compositionLine,
-    strictComicPanelBeats(opts.panelCount, opts.safeStructure),
+    strictComicPanelBeats(opts.panelCount, opts.safeStructure, fullProvider ? "full_provider_rendered" : "overlay_first"),
     castAware
       ? `Exactly ${opts.castSelected!.length} recurring identities — no extras.`
       : "Exactly two recurring characters — no extras.",

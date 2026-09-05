@@ -19,9 +19,18 @@ import {
   type PromptSubjectMap,
 } from "@/lib/chatImagePromptSubjectMap";
 import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
+import { classifyRawVisualRisk } from "@/lib/chatImageSafeVisualProjection";
+import { extractPanelSfxCue } from "@/lib/chatComicTextOverlay";
+import {
+  renderComicNarrationProviderContract,
+  resolveComicNarrationSlots,
+} from "@/lib/chatComicNarrationMinifier";
 
 export type ComicPanelFormatId = "2panel" | "3koma" | "4panel";
-export type ChatComicCompositionMode = "overlay_first" | "blank_balloon_hybrid";
+export type ChatComicCompositionMode =
+  | "full_provider_rendered"
+  | "overlay_first"
+  | "blank_balloon_hybrid";
 
 export type ComicBalloonSlotMetadata = {
   /** Ordinal within the panel's canonical dialogue rows — non-readable structural metadata. */
@@ -408,7 +417,7 @@ export function compileChatComicPanelSpec(opts: {
         personaVisible: visibility.personaVisible,
       }),
       narrationBoxNeeded: beat.dialogue.length === 0 || panel.index === 1,
-      sfx: [],
+      sfx: extractPanelSfxCue(panel) ? [extractPanelSfxCue(panel)!.text] : [],
       mustAvoid: ["invented SFX text", "speech bubble without an approved line below"],
     };
   });
@@ -596,6 +605,145 @@ export function buildChatComicPanelSpecVisualSection(opts: {
   return renderChatComicPanelSpecVisualSection(spec, {
     compositionMode: opts.compositionMode,
   });
+}
+
+/**
+ * FULL PROVIDER-RENDERED manhwa section — the provider draws the complete comic
+ * page including readable Korean dialogue, narration, and SFX. The planner
+ * passes beat, speaker ownership, and exact approved text only; GPT owns pose,
+ * camera, balloon geometry, tail geometry, and negative-space arrangement.
+ */
+export function renderChatComicPanelSpecFullProviderSection(spec: ChatComicPanelSpec): string {
+  const castLines = spec.cast
+    .map((entry) => `${entry.label} = ${entry.role} (${entry.name})`)
+    .join("\n");
+  const personaVisible = spec.cast.some((entry) => entry.role === "persona");
+  const staging = resolveLayoutFromSubjectMap(
+    spec.subjectMap,
+    personaVisible,
+    spec.cast.length
+  );
+  // COMIC NARRATION MINIFICATION: at most COMIC_PAGE_MAX_NARRATIONS short slots
+  // per page, silent panels only, one sentence, hard max 40 chars.
+  const narrationByPanel = new Map(
+    resolveComicNarrationSlots({
+      panels: spec.panels.map((panel) => ({
+        index: panel.index,
+        narrationBoxNeeded: panel.narrationBoxNeeded,
+        dialogueCount: panel.speechBubbles.length,
+        situation: panel.situation,
+      })),
+    }).map((slot) => [slot.panelIndex, slot.text])
+  );
+  const panelBlocks = spec.panels
+    .map((panel) => {
+      const actions = [
+        ...panel.subjectActions.map(
+          (action) => `${action.label} action (${action.name}): ${action.text}`
+        ),
+        panel.sceneAction ? `Scene action: ${panel.sceneAction}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const dialogue = panel.speechBubbles.length
+        ? panel.speechBubbles
+            .map((bubble) => `Speech bubble (${bubble.speakerLabel} / ${bubble.speaker}): "${bubble.text}"`)
+            .join("\n")
+        : "Speech bubble: (silent panel — no bubble)";
+      const narration = narrationByPanel.has(panel.index)
+        ? `Narration box (very short, read clearly): "${narrationByPanel.get(panel.index)}"`
+        : "Narration box: (none — dialogue/action carries this beat)";
+      const sfx = panel.sfx.length
+        ? `SFX text (readable Korean, when appropriate): ${panel.sfx.join(", ")}`
+        : "SFX: (none)";
+      return [
+        `[Panel ${panel.index} — ${panel.beatRole}]`,
+        panel.situation ? `Beat: ${panel.situation}` : "",
+        `Background: ${panel.background}`,
+        actions,
+        dialogue,
+        narration,
+        sfx,
+        "Render this panel as readable Korean comic text integrated into the artwork.",
+        `Must avoid: ${panel.mustAvoid.join("; ")}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n\n");
+
+  return [
+    "COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE",
+    `Format: ${spec.format} (${spec.panelCount} panels)`,
+    `Layout: ${spec.layout}`,
+    `Staging: ${staging}`,
+    `Hero focus: ${spec.heroScene}`,
+    spec.heroEventIds.length ? `Hero event ids: ${spec.heroEventIds.join(", ")}` : "",
+    `Shared background: ${spec.sharedBackground}`,
+    spec.atmosphere ? `Atmosphere: ${spec.atmosphere}` : "",
+    "Cast:",
+    castLines,
+    panelBlocks,
+    "Continuity rules:",
+    ...spec.continuityRules.map((rule) => `- ${rule}`),
+    "Global must avoid:",
+    ...spec.globalMustAvoid.map((rule) => `- ${rule}`),
+    renderComicNarrationProviderContract(),
+    "The provider owns pose, camera angle, balloon position/size/tails, negative-space arrangement, and manga effects. The planner supplies only the beat and the exact approved Korean text.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
+ * Provider-readable comic text INPUT eligibility. Reuses the site's existing
+ * adult text contract (resolveEffectiveAdultRp → adultGrounded). Ordinary
+ * dialogue is always provider-readable; adult-grounded dialogue is provider-
+ * readable only when the existing site adult eligibility allows it; self-harm
+ * and graphic-violence dialogue stay excluded. This is INPUT eligibility, not
+ * server image postprocessing.
+ */
+export function resolveComicProviderReadableTextEligibility(opts: {
+  text: string;
+  adultGrounded: boolean;
+  realPersonRestricted?: boolean;
+}): boolean {
+  const categories = classifyRawVisualRisk(opts.text);
+  if (categories.includes("self_harm")) return false;
+  if (categories.includes("graphic_violence")) return false;
+  if (categories.includes("adult_explicit")) {
+    if (opts.realPersonRestricted) return false;
+    if (!opts.adultGrounded) return false;
+  }
+  return true;
+}
+
+export function buildChatComicPanelSpecFullProviderSection(opts: {
+  plan: ScenePlan;
+  personaName: string;
+  characterName: string;
+  visibility?: ScenePresentationVisibility;
+  castSelected?: readonly ChatImageCastGroundedSubject[];
+  subjects: readonly ChatImageVisualSubject[];
+  eventSubjectBindings?: readonly SceneEventSubjectBinding[];
+  projection?: ChatComicPanelSpecProjection;
+  /** Site adult text eligibility (resolveEffectiveAdultRp) for provider-readable dialogue. */
+  adultGrounded?: boolean;
+  realPersonRestricted?: boolean;
+}): string {
+  const spec = compileChatComicPanelSpec({
+    ...opts,
+    projection: {
+      ...opts.projection,
+      omitDialogueText: (text) =>
+        !resolveComicProviderReadableTextEligibility({
+          text,
+          adultGrounded: opts.adultGrounded ?? false,
+          realPersonRestricted: opts.realPersonRestricted,
+        }),
+    },
+  });
+  return renderChatComicPanelSpecFullProviderSection(spec);
 }
 
 export function buildChatComicPanelSpecPromptSection(opts: {

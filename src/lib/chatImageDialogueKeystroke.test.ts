@@ -109,7 +109,7 @@ describe("chatImageDialogueKeystroke typing lifecycle", () => {
     assert.ok(bubbleTexts(edited).includes("같이 가자."));
   });
 
-  it("T4 keeps last typed character through immediate overlay projection", () => {
+  it("T4 full-provider prompt receives the final approved dialogue exactly", () => {
     const base = buildDeterministicScenePlan(
       buildSceneSourceMessages([{ id: 1, role: "assistant", content: '"안녕."' }]),
       2
@@ -129,8 +129,11 @@ describe("chatImageDialogueKeystroke typing lifecycle", () => {
       panelCount: 2,
       plan: edited,
     });
+    // Full provider-rendered comic: the final approved dialogue reaches the
+    // provider prompt verbatim (GPT renders the readable text). The test-only
+    // overlay SVG parity is retained.
+    assert.match(prompt, /Room 3으로 가자\./);
     assert.match(overlaySvg, /Room 3으로 가자\./);
-    assert.doesNotMatch(prompt, /Room 3으로 가자\./);
     assert.ok(bubbleTexts(edited).includes("Room 3으로 가자."));
   });
 

@@ -14,6 +14,7 @@ import {
   resolveScenePresentationVisibility,
   collectApprovedComicText,
   normalizeDialogueTextForOutput,
+  scenePlanHasRawChatLeak,
 } from "@/lib/chatImageScenePlan";
 import { buildIllustrationSafeDepiction } from "@/lib/chatImageIllustrationSanitizer";
 import {
@@ -22,6 +23,7 @@ import {
   type SafeVisualProjectionContext,
 } from "@/lib/chatImageSafeVisualProjection";
 import {
+  buildChatComicPanelSpecFullProviderSection,
   buildChatComicPanelSpecVisualSection,
   type ChatComicCompositionMode,
 } from "@/lib/chatComicPanelSpec";
@@ -111,10 +113,13 @@ export function buildChatComicImagePrompt(opts: {
   contentKind?: ContentKind;
   adultGrounded?: boolean;
   compositionMode?: ChatComicCompositionMode;
+  /** Site adult text eligibility (resolveEffectiveAdultRp) for provider-readable dialogue input. */
+  providerTextAdultEligible?: boolean;
 }): string {
   const projectionContext: SafeVisualProjectionContext = {
     adultGrounded: opts.adultGrounded ?? false,
   };
+  const providerTextAdultEligible = opts.providerTextAdultEligible ?? opts.adultGrounded ?? false;
   const sceneVisibility = resolveScenePresentationVisibility({
     contentKind: opts.contentKind,
     castManifest: opts.castManifest,
@@ -130,6 +135,47 @@ export function buildChatComicImagePrompt(opts: {
           contentKind: opts.contentKind,
         })
       : "";
+  const compositionMode = opts.compositionMode ?? "full_provider_rendered";
+  const projection = {
+    projectSceneText: (text: string) => projectTextForSafeImagePrompt(text, projectionContext),
+    omitDialogueText: shouldOmitDialogueFromImageProjection,
+  };
+  const compositionContract =
+    compositionMode === "blank_balloon_hybrid"
+      ? "GPT IS COMIC DIRECTOR — create the complete comic artwork, including panel composition, camera direction, character poses, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects."
+      : compositionMode === "overlay_first"
+        ? "VISUAL LAYER ONLY — depict characters, background, pose, expression, and camera. Do not render any readable text, speech bubbles, captions, narration boxes, or SFX in the image."
+        : "RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT — the image is the final comic. Draw readable Korean speech bubbles with the exact dialogue below, readable Korean narration boxes when indicated, and readable Korean SFX when indicated.";
+  const textContract =
+    compositionMode === "blank_balloon_hybrid"
+      ? "Draw natural white manga/manhwa speech balloons with black outlines. Place them in visually appropriate negative space. Their tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text. Render no readable letters, dialogue, captions, placeholder words, random symbols or gibberish inside speech balloons."
+      : compositionMode === "overlay_first"
+        ? "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay."
+        : "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page and do not repeat the same composition in every panel. Readable, visually integrated Korean text is required — imperfect typography is acceptable, but text must be legible and belong to the comic. Use narration sparingly — include only very short time-ordered narration boxes for crucial transitions, never long prose paragraphs.";
+  const panelSpecSection =
+    compositionMode === "full_provider_rendered"
+      ? buildChatComicPanelSpecFullProviderSection({
+          plan: opts.plan,
+          personaName: opts.personaName,
+          characterName: opts.characterName,
+          visibility: sceneVisibility,
+          castSelected: castAware ? opts.castSelected : undefined,
+          subjects,
+          eventSubjectBindings: opts.castManifest?.eventSubjectBindings,
+          projection,
+          adultGrounded: providerTextAdultEligible,
+        })
+      : buildChatComicPanelSpecVisualSection({
+          plan: opts.plan,
+          personaName: opts.personaName,
+          characterName: opts.characterName,
+          visibility: sceneVisibility,
+          castSelected: castAware ? opts.castSelected : undefined,
+          subjects,
+          eventSubjectBindings: opts.castManifest?.eventSubjectBindings,
+          projection,
+          compositionMode,
+        });
   return [
     `Create one polished Korean manhwa-style page with exactly ${opts.plan.panels.length} wide horizontal panels stacked vertically.`,
     "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, polished full-color rendering, and panel polish, but do not copy its exact poses.",
@@ -149,30 +195,13 @@ export function buildChatComicImagePrompt(opts: {
         }),
     buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
     `Overall tone: ${CHAT_COMIC_MOODS.find((item) => item.id === (opts.mood ?? "comic"))?.prompt ?? "comic"}.`,
-    opts.compositionMode === "blank_balloon_hybrid"
-      ? "GPT IS COMIC DIRECTOR — create the complete comic artwork, including panel composition, camera direction, character poses, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects."
-      : "VISUAL LAYER ONLY — depict characters, background, pose, expression, and camera. Do not render any readable text, speech bubbles, captions, narration boxes, or SFX in the image.",
-    opts.compositionMode === "blank_balloon_hybrid"
-      ? "Draw natural white manga/manhwa speech balloons with black outlines. Place them in visually appropriate negative space. Their tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text. Render no readable letters, dialogue, captions, placeholder words, random symbols or gibberish inside speech balloons."
-      : "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay.",
+    compositionContract,
+    textContract,
     castAware
       ? `Exactly ${opts.castSelected!.length} recurring human ${opts.castSelected!.length === 1 ? "identity" : "identities"}. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.`
       : "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
     "Keep all panel borders and the full page visible. Do not crop off the last panel.",
-    buildChatComicPanelSpecVisualSection({
-      plan: opts.plan,
-      personaName: opts.personaName,
-      characterName: opts.characterName,
-      visibility: sceneVisibility,
-      castSelected: castAware ? opts.castSelected : undefined,
-      subjects,
-      eventSubjectBindings: opts.castManifest?.eventSubjectBindings,
-      compositionMode: opts.compositionMode,
-      projection: {
-        projectSceneText: (text) => projectTextForSafeImagePrompt(text, projectionContext),
-        omitDialogueText: shouldOmitDialogueFromImageProjection,
-      },
-    }),
+    panelSpecSection,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -195,6 +224,7 @@ export function buildChatComicGenerationPlan(opts: {
   contentKind?: ContentKind;
   adultGrounded?: boolean;
   compositionMode?: ChatComicCompositionMode;
+  providerTextAdultEligible?: boolean;
 }) {
   const useCast = Boolean(opts.castManifest);
   let pack: { subjects: ChatImageVisualSubject[]; referenceUrls: string[] };
@@ -252,6 +282,7 @@ export function buildChatComicGenerationPlan(opts: {
       contentKind: opts.contentKind,
       adultGrounded: opts.adultGrounded,
       compositionMode: opts.compositionMode,
+      providerTextAdultEligible: opts.providerTextAdultEligible,
     }),
   };
 }
@@ -318,4 +349,49 @@ export function auditProviderPromptDialogueLeak(opts: {
     userEditOccurrenceCount,
     leakedTexts,
   };
+}
+
+/**
+ * Full provider-rendered comic audit — the provider prompt must contain every
+ * approved dialogue line (readable Korean text) and no raw source prose block.
+ */
+export function auditProviderPromptFullComic(opts: {
+  prompt: string;
+  plan: ScenePlan;
+  visibility?: ScenePresentationVisibility;
+}): {
+  expectedDialogueCount: number;
+  presentDialogueCount: number;
+  missingDialogueCount: number;
+  readableContractPresent: boolean;
+  rawChatLeak: boolean;
+} {
+  const visibility = opts.visibility ?? { personaVisible: true };
+  const expectedLines: string[] = [];
+  for (const panel of opts.plan.panels) {
+    for (const line of panel.dialogue) {
+      if (!visibility.personaVisible && line.speaker === "persona") continue;
+      const norm = normalizePromptAuditText(line.text);
+      if (norm && norm.length >= 2) expectedLines.push(norm);
+    }
+  }
+  const present = expectedLines.filter((text) => opts.prompt.includes(text));
+  return {
+    expectedDialogueCount: expectedLines.length,
+    presentDialogueCount: present.length,
+    missingDialogueCount: expectedLines.length - present.length,
+    readableContractPresent:
+      /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/i.test(opts.prompt),
+    rawChatLeak: scenePlanHasRawChatLeak(opts.prompt),
+  };
+}
+
+/**
+ * Canonical comic final-image owner — provider output IS the final saved comic.
+ * The server never composites a text layer for the production comic path.
+ */
+export function assembleComicFinalImage(opts: {
+  providerBuffer: Buffer;
+}): { buffer: Buffer; serverTextLayerApplied: boolean } {
+  return { buffer: opts.providerBuffer, serverTextLayerApplied: false };
 }

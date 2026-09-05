@@ -185,7 +185,7 @@ describe("chatImageCastPromptDedup", () => {
       },
     });
     assert.doesNotMatch(castBlock(comic.prompt), /EVENT SUBJECT BINDINGS/);
-    assert.match(comic.prompt, /COMIC PANEL SPEC — VISUAL LAYER ONLY/);
+    assert.match(comic.prompt, /COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE/);
 
     const ld = buildLdSceneGenerationPlan({
       ...SCENE_BUILDER_SHARED_DUO,

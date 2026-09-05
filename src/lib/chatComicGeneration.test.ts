@@ -6,6 +6,8 @@ import {
   CHAT_COMIC_IMAGE_OUTPUT_SIZE,
   CHAT_COMIC_MAX_INPUT_CHARS,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+  assembleComicFinalImage,
+  auditProviderPromptFullComic,
   auditProviderPromptDialogueLeak,
   buildChatComicImagePrompt,
   resolveChatComicOutputSize,
@@ -18,6 +20,7 @@ import {
   scenePlanHasRawChatLeak,
 } from "./chatImageScenePlan";
 import { buildLdDuoGenerationPlan } from "./chatLdIllustrationGeneration";
+import { resolveComicProviderReadableTextEligibility } from "./chatComicPanelSpec";
 import { renderChatImageVisualIdentity } from "./chatImageVisualIdentity";
 import {
   SCENE_BUILDER_SHARED_DUO,
@@ -72,22 +75,27 @@ describe("chatComicGeneration", () => {
       mood: "lovely",
       plan: SAMPLE_PLAN,
     });
-    assert.match(prompt, /COMIC PANEL SPEC — VISUAL LAYER ONLY/);
+    assert.match(prompt, /COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE/);
     assert.match(prompt, /\[Panel 1/);
     assert.match(prompt, /Hero focus:/);
-    assert.match(prompt, /Visual only: do not render speech bubbles/);
+    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
     assert.match(prompt, /Continuity rules:/);
-    assert.match(prompt, /VISUAL LAYER ONLY/);
-    assert.match(prompt, /server overlay/);
+    assert.doesNotMatch(prompt, /VISUAL LAYER ONLY/);
+    assert.doesNotMatch(prompt, /server overlay/i);
+    assert.match(prompt, /Speech bubble \(/);
     assert.match(prompt, /IDENTITY OWNERSHIP IS STRICT/);
     assert.doesNotMatch(prompt, /STRICT CLOSED TEXT WHITELIST/);
-    assert.doesNotMatch(prompt, /Speech bubble \(/);
     assert.match(prompt, /GENDER LOCK/);
     assert.match(prompt, /LAYOUT AND FINISH ONLY/);
     assert.doesNotMatch(prompt, /Original prose context/);
     assert.doesNotMatch(prompt, /SOURCE PROSE/);
     assert.doesNotMatch(prompt, /Preserve each person's hair color, eye color/);
     assert.equal(scenePlanHasRawChatLeak(prompt), false);
+    const audit = auditProviderPromptFullComic({ prompt, plan: SAMPLE_PLAN });
+    assert.equal(audit.readableContractPresent, true);
+    assert.equal(audit.rawChatLeak, false);
+    assert.equal(audit.missingDialogueCount, 0, "all approved dialogue present");
+    assert.ok(audit.presentDialogueCount >= 1);
   });
 
   it("allows a silent approved plan with no invented dialogue", () => {
@@ -105,9 +113,12 @@ describe("chatComicGeneration", () => {
       personaGender: "male",
       plan: silent,
     });
-    assert.match(prompt, /Visual only: do not render speech bubbles/);
-    assert.match(prompt, /server overlay/);
+    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+    assert.doesNotMatch(prompt, /Speech bubble \(/);
     assert.doesNotMatch(prompt, /STRICT CLOSED TEXT WHITELIST/);
+    const audit = auditProviderPromptFullComic({ prompt, plan: silent });
+    assert.equal(audit.expectedDialogueCount, 0);
+    assert.equal(audit.missingDialogueCount, 0);
   });
 
   it("gives the provider comic-director ownership in blank-balloon mode without dialogue text", () => {
@@ -128,7 +139,7 @@ describe("chatComicGeneration", () => {
     assert.doesNotMatch(prompt, /반가워/);
   });
 
-  it("NORMAL-1 default primary prompt is byte-identical to explicit overlay_first", () => {
+  it("NORMAL-1 default primary prompt is byte-identical to explicit full_provider_rendered", () => {
     const base = {
       characterName: "태형",
       characterGender: "male",
@@ -137,12 +148,12 @@ describe("chatComicGeneration", () => {
       plan: SAMPLE_PLAN,
     };
     const byDefault = buildChatComicImagePrompt(base);
-    const explicit = buildChatComicImagePrompt({ ...base, compositionMode: "overlay_first" });
+    const explicit = buildChatComicImagePrompt({ ...base, compositionMode: "full_provider_rendered" });
     assert.equal(byDefault, explicit);
-    assert.match(byDefault, /VISUAL LAYER ONLY/);
-    assert.match(byDefault, /server overlay/);
-    assert.doesNotMatch(byDefault, /GPT IS COMIC DIRECTOR/);
+    assert.match(byDefault, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+    assert.doesNotMatch(byDefault, /VISUAL LAYER ONLY/);
     assert.doesNotMatch(byDefault, /blank speech balloons/i);
+    assert.doesNotMatch(byDefault, /server overlay/i);
   });
 
   it("DIALOGUE-1 safe dialogue keeps a balloon directive with zero readable provider text", () => {
@@ -241,6 +252,140 @@ describe("chatComicGeneration", () => {
     assert.equal(audit.userEditOccurrenceCount, 0);
     assert.deepEqual(audit.leakedTexts, []);
     assert.doesNotMatch(prompt, /성관계|손목|자해/);
+  });
+
+  it("FULL-1 provider prompt includes the minified narration contract when needed", () => {
+    const narrationPlan = buildDeterministicScenePlan(
+      buildSceneSourceMessages([
+        { id: 1, role: "user", content: "*밤이 깊어졌다*\n\"조용히 있자.\"" },
+        { id: 2, role: "assistant", content: "*렌이 창밖을 바라본다*" },
+      ]),
+      2
+    );
+    const prompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan: narrationPlan,
+    });
+    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+    assert.match(prompt, /Use narration sparingly/i);
+    assert.match(prompt, /Narration box \(very short, read clearly\)/);
+    const narrationText = prompt.match(/Narration box \(very short, read clearly\): "([^"]+)"/)?.[1] ?? "";
+    assert.ok(narrationText.length > 0, "a minified narration slot exists for the silent panel");
+    assert.ok(narrationText.length <= 40, `narration hard max 40 chars, got ${narrationText.length}`);
+  });
+
+  it("FULL-2 provider prompt includes the readable Korean SFX contract when appropriate", () => {
+    const plan = hybridPlanWithSfx();
+    const prompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan,
+    });
+    assert.match(prompt, /SFX text \(readable Korean, when appropriate\)/);
+    assert.ok(prompt.includes("쾅"), "SFX cue text is rendered in the full-provider prompt");
+  });
+
+  it("FULL-3 final comic save path never applies a server text layer", () => {
+    const providerBuffer = Buffer.from("provider-comic-webp-bytes");
+    const assembled = assembleComicFinalImage({ providerBuffer });
+    assert.equal(assembled.buffer, providerBuffer);
+    assert.equal(assembled.serverTextLayerApplied, false);
+  });
+
+  it("TEXT-POLICY-1 normal non-adult context cannot forward adult-restricted dialogue", () => {
+    const adultLine = "성관계를 하고 싶어.";
+    assert.equal(
+      resolveComicProviderReadableTextEligibility({ text: adultLine, adultGrounded: false }),
+      false
+    );
+    const plan = {
+      sceneBackground: "",
+      events: [],
+      heroEventIds: [],
+      heroScene: "",
+      recommendedPanelCount: 2 as const,
+      panels: [
+        {
+          index: 1,
+          sourceEventIds: [],
+          situation: "",
+          dialogue: [{ speaker: "character" as const, text: adultLine, provenance: "user_edit" as const }],
+        },
+        { index: 2, sourceEventIds: [], situation: "", dialogue: [] },
+      ],
+    };
+    const prompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan,
+      providerTextAdultEligible: false,
+    });
+    assert.doesNotMatch(prompt, /성관계/);
+  });
+
+  it("TEXT-POLICY-2 existing adult-eligible context may forward adult-grounded dialogue", () => {
+    const adultLine = "성관계를 하고 싶어.";
+    assert.equal(
+      resolveComicProviderReadableTextEligibility({ text: adultLine, adultGrounded: true }),
+      true
+    );
+    const plan = {
+      sceneBackground: "",
+      events: [],
+      heroEventIds: [],
+      heroScene: "",
+      recommendedPanelCount: 2 as const,
+      panels: [
+        {
+          index: 1,
+          sourceEventIds: [],
+          situation: "",
+          dialogue: [{ speaker: "character" as const, text: adultLine, provenance: "user_edit" as const }],
+        },
+        { index: 2, sourceEventIds: [], situation: "", dialogue: [] },
+      ],
+    };
+    const prompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan,
+      providerTextAdultEligible: true,
+    });
+    assert.match(prompt, /성관계를 하고 싶어\./);
+  });
+
+  it("TEXT-POLICY-3 restricted self-harm / graphic dialogue stays excluded", () => {
+    assert.equal(
+      resolveComicProviderReadableTextEligibility({
+        text: "손목을 긋고 싶다.",
+        adultGrounded: true,
+      }),
+      false
+    );
+    assert.equal(
+      resolveComicProviderReadableTextEligibility({
+        text: "피를 흘리며 쓰러졌다.",
+        adultGrounded: true,
+      }),
+      false
+    );
+    assert.equal(
+      resolveComicProviderReadableTextEligibility({
+        text: "성관계를 하고 싶어.",
+        adultGrounded: true,
+        realPersonRestricted: true,
+      }),
+      false
+    );
   });
 
   it("uses the same canonical visual identity pipeline as LD duo", () => {
@@ -350,4 +495,28 @@ function subjectBlock(prompt: string, letter: string): string {
     contract === -1 ? prompt.length : contract
   );
   return prompt.slice(start, end);
+}
+
+function hybridPlanWithSfx() {
+  return {
+    sceneBackground: "",
+    events: [],
+    heroEventIds: [],
+    heroScene: "",
+    recommendedPanelCount: 2 as const,
+    panels: [
+      {
+        index: 1,
+        sourceEventIds: [],
+        situation: "문이 쾅 닫힌다",
+        dialogue: [] as Array<{ speaker: "character"; text: string; provenance: "user_edit" }>,
+      },
+      {
+        index: 2,
+        sourceEventIds: [],
+        situation: "",
+        dialogue: [],
+      },
+    ],
+  };
 }

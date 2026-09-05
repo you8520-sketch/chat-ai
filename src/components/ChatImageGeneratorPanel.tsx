@@ -12,11 +12,11 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGenerationConstants";
 import {
-  COMIC_BLANK_BALLOON_TEXT_STRATEGIES,
   COMIC_SEMANTIC_LADDER,
-  type ComicBlankBalloonTextStrategy,
+  COMIC_TEXT_BOUNDARY_LADDER,
   type ComicDiagnosticMode,
   type ComicSemanticLevel,
+  type ComicTextBoundaryLevel,
 } from "@/lib/chatComicDiagnostic";
 import {
   applyApprovedAiScenePlan,
@@ -204,8 +204,7 @@ type GenerateResult = {
   comicDiagnostic?: {
     mode?: ComicDiagnosticMode;
     semanticLevel?: ComicSemanticLevel | null;
-    textInsertionStrategy?: ComicBlankBalloonTextStrategy | null;
-    serverTextOnlyOverlay?: boolean;
+    textBoundaryLevel?: ComicTextBoundaryLevel | null;
     primaryResult?: string;
     tier2Result?: string;
     SEMANTIC_BOUNDARY_OWNER?: "PRIMARY_RESULT";
@@ -214,20 +213,6 @@ type GenerateResult = {
     safetyCategories?: string[] | string;
     providerRequestId?: string | null;
     usageEvidence?: Array<{ attempt: number; evidence: string }>;
-    blankBalloonDetection?: {
-      strategy: ComicBlankBalloonTextStrategy;
-      expectedProviderBalloonRegionCount: number;
-      approvedServerTextRegionCount: number;
-      policySuppressedTextRegionCount: number;
-      expectedTextRegionCount: number;
-      detectedRegionCount: number;
-      insertedTextRegionCount: number;
-      insertedNarrationRegionCount: number;
-      missingTextRegionCount: number;
-      ambiguousRegionCount: number;
-      rejectedRegionCount: number;
-      textInsertionComplete: boolean;
-    } | null;
   };
   trpgImageSceneDiagnostics?: {
     mode: TrpgImageSceneMode;
@@ -536,8 +521,8 @@ export default function ChatImageGeneratorPanel({
     useState<ComicDiagnosticMode>("normal");
   const [comicSemanticLevel, setComicSemanticLevel] =
     useState<ComicSemanticLevel>("L0");
-  const [comicBlankBalloonTextStrategy, setComicBlankBalloonTextStrategy] =
-    useState<ComicBlankBalloonTextStrategy>("local_image_detection");
+  const [comicTextBoundaryLevel, setComicTextBoundaryLevel] =
+    useState<ComicTextBoundaryLevel>("T0");
   const [comicDiagnosticResult, setComicDiagnosticResult] =
     useState<GenerateResult["comicDiagnostic"]>(undefined);
   const [summarizing, setSummarizing] = useState(false);
@@ -574,7 +559,7 @@ export default function ChatImageGeneratorPanel({
     setComicVisualContextIsolationMode("normal");
     setComicDiagnosticMode("normal");
     setComicSemanticLevel("L0");
-    setComicBlankBalloonTextStrategy("local_image_detection");
+    setComicTextBoundaryLevel("T0");
     setComicDiagnosticResult(undefined);
   }, []);
 
@@ -1658,12 +1643,12 @@ export default function ChatImageGeneratorPanel({
             comicDiagnosticMode === "semantic_ladder"
               ? comicSemanticLevel
               : undefined,
-          comicBlankBalloonTextStrategy:
+          comicTextBoundaryLevel:
             !isIllustration &&
             ldProduct === "scene" &&
             info.comicDiagnosticControlsAvailable &&
-            comicDiagnosticMode === "blank_balloon_hybrid"
-              ? comicBlankBalloonTextStrategy
+            comicDiagnosticMode === "semantic_ladder"
+              ? comicTextBoundaryLevel
               : undefined,
         }),
       });
@@ -2264,14 +2249,14 @@ export default function ChatImageGeneratorPanel({
                             }
                             className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200"
                           >
-                            <option value="normal">Normal production overlay</option>
+<option value="normal">Normal production comic</option>
                             <option value="semantic_ladder">Semantic ladder (one level)</option>
-                            <option value="blank_balloon_hybrid">GPT blank-balloon hybrid</option>
                           </select>
                         </label>
                         {comicDiagnosticMode === "semantic_ladder" ? (
+                          <>
                           <label className="block space-y-1 text-[11px] text-zinc-300">
-                            <span>Semantic level</span>
+                            <span>Visual level</span>
                             <select
                               value={comicSemanticLevel}
                               disabled={generating || saving}
@@ -2290,32 +2275,31 @@ export default function ChatImageGeneratorPanel({
                               한 번에 한 단계만 수동 실행합니다. 소스 대사와 본문은 provider에 보내지 않습니다.
                             </p>
                           </label>
-                        ) : null}
-                        {comicDiagnosticMode === "blank_balloon_hybrid" ? (
                           <label className="block space-y-1 text-[11px] text-zinc-300">
-                            <span>Text insertion strategy</span>
+                            <span>Text boundary (T axis)</span>
                             <select
-                              value={comicBlankBalloonTextStrategy}
+                              value={comicTextBoundaryLevel}
                               disabled={generating || saving}
                               onChange={(event) =>
-                                setComicBlankBalloonTextStrategy(
-                                  event.target.value as ComicBlankBalloonTextStrategy
+                                setComicTextBoundaryLevel(
+                                  event.target.value as ComicTextBoundaryLevel
                                 )
                               }
                               className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200"
                             >
-<option value={COMIC_BLANK_BALLOON_TEXT_STRATEGIES[0]}>
-                              A · local blank-region detection (canonical)
-                            </option>
-                            <option value={COMIC_BLANK_BALLOON_TEXT_STRATEGIES[1]}>
-                              B · shared planned anchor (experimental)
-                            </option>
-                          </select>
-                          <p className="text-[10px] leading-relaxed text-amber-200/70">
-                            provider가 말풍선 몸체·꼬리·나레이션 박스를 그리고 서버는 검출된 빈 내부에 glyph만 삽입합니다.
-                            (A = 실제 검출된 말풍선 내부에 텍스트 배치 — 검증 가능한 전략)
-                          </p>
+                              {COMIC_TEXT_BOUNDARY_LADDER.map((level) => (
+                                <option key={level.id} value={level.id}>
+                                  {level.id} · {level.name}
+                                </option>
+                              ))}
+                            </select>
+                            <p className="text-[10px] leading-relaxed text-amber-200/70">
+                              TEXT × VISUAL 경계 조사: 고정 대사 픽스처를 컷 1에 주입해 provider가
+                              대사를 거부하는지 확인합니다. 완전한 provider-rendered 만화 기준이며
+                              서버 텍스트 삽입은 없습니다.
+                            </p>
                           </label>
+                          </>
                         ) : null}
                         <label className="block space-y-1 text-[11px] text-zinc-300">
                           <span>Reference control</span>
@@ -2349,29 +2333,14 @@ export default function ChatImageGeneratorPanel({
                             <p className="font-semibold">최근 진단 결과</p>
                             <p>
                               primary {comicDiagnosticResult.primaryResult ?? "unknown"} · Tier-2{" "}
-                              {comicDiagnosticResult.tier2Result ?? "not_run"} · attempts{" "}
-                              {comicDiagnosticResult.usageEvidence?.length ?? 0}
+                              {comicDiagnosticResult.tier2Result ?? "not_run"}
+                              {comicDiagnosticResult.textBoundaryLevel
+                                ? ` · T ${comicDiagnosticResult.textBoundaryLevel}`
+                                : ""}
+                              {comicDiagnosticResult.PRIMARY_BOUNDARY
+                                ? ` · boundary ${comicDiagnosticResult.PRIMARY_BOUNDARY}`
+                                : ""}
                             </p>
-                            {comicDiagnosticResult.blankBalloonDetection ? (
-                              <p>
-                                balloon slots{" "}
-                                {comicDiagnosticResult.blankBalloonDetection.expectedProviderBalloonRegionCount}
-                                {" · approved "}
-                                {comicDiagnosticResult.blankBalloonDetection.approvedServerTextRegionCount}
-                                {comicDiagnosticResult.blankBalloonDetection.policySuppressedTextRegionCount > 0
-                                  ? ` · suppressed ${comicDiagnosticResult.blankBalloonDetection.policySuppressedTextRegionCount}`
-                                  : ""}
-                                {" · inserted "}
-                                {comicDiagnosticResult.blankBalloonDetection.insertedTextRegionCount}
-                                {comicDiagnosticResult.blankBalloonDetection.missingTextRegionCount > 0
-                                  ? ` · missing ${comicDiagnosticResult.blankBalloonDetection.missingTextRegionCount}`
-                                  : ""}
-                                {" · "}
-                                {comicDiagnosticResult.blankBalloonDetection.textInsertionComplete
-                                  ? "COMPLETE"
-                                  : "INCOMPLETE"}
-                              </p>
-                            ) : null}
                           </div>
                         ) : null}
                       </div>
