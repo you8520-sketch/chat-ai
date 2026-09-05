@@ -23,7 +23,7 @@ import {
 } from "@/lib/chatComicGeneration";
 import {
   applyComicHighlightStoryboardToPlan,
-  buildComicHighlightStoryboard,
+  resolveComicStoryboard,
   type ComicStoryboard,
 } from "@/lib/chatComicHighlightStoryboard";
 import {
@@ -1027,6 +1027,7 @@ export async function POST(req: Request) {
         const knownSpeakerNames = resolveKnownSpeakerNames(context, body.castIntent);
         planned = await planChatImageScene({
           contentKind: context.contentKind,
+          scenePlanIntent: body.scenePlanIntent === "comic" ? "comic" : undefined,
           characterName: context.character.name,
           personaName: context.persona.name,
           messages: source.messages,
@@ -1457,10 +1458,10 @@ export async function POST(req: Request) {
       const requestedPanelMode = isComicPanelMode(body.panelCount)
         ? body.panelCount
         : "auto";
-      comicStoryboard = buildComicHighlightStoryboard(canonicalPlan, {
-        manualPanelCount:
-          requestedPanelMode === "auto" ? undefined : (requestedPanelMode as 3 | 4),
+      const resolved = resolveComicStoryboard(canonicalPlan, {
+        manualPanelCount: requestedPanelMode === "auto" ? undefined : (requestedPanelMode as 3 | 4),
       });
+      comicStoryboard = resolved.storyboard;
       scenePlan = applyComicHighlightStoryboardToPlan(canonicalPlan, comicStoryboard);
       panelCount = comicStoryboard.panelCount;
     }

@@ -4,11 +4,14 @@ import { describe, it } from "node:test";
 import {
   buildComicHighlightStoryboard,
   applyComicHighlightStoryboardToPlan,
+  buildComicPresentationFromEditorial,
   renderComicHighlightScript,
   resolveComicFocusWindow,
+  resolveComicStoryboard,
   selectComicAnchor,
   COMIC_PANEL_MODES,
 } from "./chatComicHighlightStoryboard";
+import { validateComicEditorial } from "./chatImageScenePlan";
 import { COMIC_NARRATION_MAX_CHARS } from "./chatComicNarrationMinifier";
 import {
   buildDeterministicScenePlan,
@@ -409,5 +412,383 @@ describe("comic highlight storyboard — deterministic scene builder integration
     assert.ok(storyboard.panelCount === 3 || storyboard.panelCount === 4);
     const presented = applyComicHighlightStoryboardToPlan(plan, storyboard);
     assert.equal(presented.events.length, plan.events.length);
+  });
+});
+
+describe("scene-planner-owned comic editorial (V3 architecture)", () => {
+  const events = [
+    event(1, "E1", "dialogue", "character", "오늘은 날씨가 참 좋네."),
+    event(2, "E2", "dialogue", "character", "여기서 이대로 지내면 되는 거야."),
+    event(3, "E3", "dialogue", "character", "너만 괜찮다면, 이대로 계속 같이 있고 싶어."),
+    event(4, "E4", "reaction", "persona", "고개를 들어 그를 오래 바라본다"),
+  ];
+  const plan = planFromEvents(events, 4);
+
+  it("EDITOR-1 nuanced critical dialogue with no keyword hints follows the planner", () => {
+    const editorial = {
+      anchorEventId: "E2",
+      anchorType: "dialogue",
+      focusEventIds: ["E1", "E2", "E3", "E4"],
+      recommendedPanelCount: 3,
+      narration: [],
+      panels: [
+        { purpose: "context", sourceEventIds: ["E1"], dialogueEventIds: [] },
+        { purpose: "anchor", sourceEventIds: ["E2"], dialogueEventIds: ["E2"] },
+        { purpose: "reaction", sourceEventIds: ["E4"], dialogueEventIds: [] },
+      ],
+    };
+    const validated = validateComicEditorial(editorial, plan.events);
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    const storyboard = buildComicPresentationFromEditorial(plan, validated.editorial);
+    assert.equal(storyboard.anchor.eventId, "E2", "production anchor follows the planner");
+    const presented = applyComicHighlightStoryboardToPlan(plan, storyboard);
+    const presentedPlan = { ...presented, comicEditorial: validated.editorial };
+    const resolved = resolveComicStoryboard(presentedPlan);
+    assert.equal(resolved.source, "planner");
+    assert.equal(resolved.storyboard.anchor.eventId, "E2");
+  });
+
+  it("EDITOR-2 keyword-heavy trivial lines lose to the planner-selected critical line", () => {
+    const editorial = {
+      anchorEventId: "E3",
+      anchorType: "dialogue",
+      focusEventIds: ["E1", "E2", "E3", "E4"],
+      recommendedPanelCount: 3,
+      narration: [],
+      panels: [
+        { purpose: "context", sourceEventIds: ["E1"], dialogueEventIds: [] },
+        { purpose: "anchor", sourceEventIds: ["E3"], dialogueEventIds: ["E3"] },
+        { purpose: "reaction", sourceEventIds: ["E4"], dialogueEventIds: [] },
+      ],
+    };
+    const validated = validateComicEditorial(editorial, plan.events);
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    const storyboard = buildComicPresentationFromEditorial(plan, validated.editorial);
+    assert.equal(storyboard.anchor.eventId, "E3");
+  });
+
+  it("EDITOR-3 no-dialogue planner action anchor works", () => {
+    const actionEvents = [
+      event(1, "A1", "action", "character", "문을 연다"),
+      event(2, "A2", "reaction", "persona", "그를 발견한다"),
+    ];
+    const actionPlan = planFromEvents(actionEvents, 3);
+    const editorial = {
+      anchorEventId: "A2",
+      anchorType: "action",
+      focusEventIds: ["A1", "A2"],
+      recommendedPanelCount: 3,
+      narration: [],
+      panels: [
+        { purpose: "context", sourceEventIds: ["A1"], dialogueEventIds: [] },
+        { purpose: "anchor", sourceEventIds: ["A2"], dialogueEventIds: [] },
+        { purpose: "quiet_close", sourceEventIds: [], dialogueEventIds: [] },
+      ],
+    };
+    const validated = validateComicEditorial(editorial, actionPlan.events);
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    const storyboard = buildComicPresentationFromEditorial(actionPlan, validated.editorial);
+    assert.equal(storyboard.anchor.type, "action");
+    assert.equal(storyboard.panels.flatMap((panel) => panel.dialogue).length, 0);
+  });
+
+  it("WINDOW-1 planner 1-before + anchor + 2-after focus is accepted", () => {
+    const focusEvents = [
+      event(1, "W1", "action", "character", "다가간다"),
+      event(2, "W2", "dialogue", "character", "같이 갈래?"),
+      event(3, "W3", "reaction", "persona", "움직임을 멈춘다"),
+      event(4, "W4", "action", "character", "손을 내민다"),
+    ];
+    const windowPlan = planFromEvents(focusEvents, 4);
+    const editorial = {
+      anchorEventId: "W2",
+      anchorType: "dialogue",
+      focusEventIds: ["W1", "W2", "W3", "W4"],
+      recommendedPanelCount: 3,
+      narration: [],
+      panels: [
+        { purpose: "context", sourceEventIds: ["W1"], dialogueEventIds: [] },
+        { purpose: "anchor", sourceEventIds: ["W2"], dialogueEventIds: ["W2"] },
+        { purpose: "reaction", sourceEventIds: ["W3"], dialogueEventIds: [] },
+      ],
+    };
+    const validated = validateComicEditorial(editorial, windowPlan.events);
+    assert.equal(validated.ok, true);
+  });
+
+  it("WINDOW-2 non-contiguous distant highlights are rejected", () => {
+    const many = Array.from({ length: 12 }, (_, i) =>
+      event(i + 1, `M${i + 1}`, "action", "character", `행동 ${i + 1}`)
+    );
+    many[4] = event(5, "M5", "dialogue", "character", "멈춰.");
+    const manyPlan = planFromEvents(many, 4);
+    const editorial = {
+      anchorEventId: "M5",
+      anchorType: "dialogue",
+      focusEventIds: ["M2", "M5", "M8", "M11"],
+      recommendedPanelCount: 3,
+      narration: [],
+      panels: [
+        { purpose: "context", sourceEventIds: ["M2"], dialogueEventIds: [] },
+        { purpose: "anchor", sourceEventIds: ["M5"], dialogueEventIds: ["M5"] },
+        { purpose: "reaction", sourceEventIds: ["M11"], dialogueEventIds: [] },
+      ],
+    };
+    const validated = validateComicEditorial(editorial, manyPlan.events);
+    assert.equal(validated.ok, false, "non-contiguous focus is rejected");
+  });
+
+  it("WINDOW-3 unknown source event id is rejected", () => {
+    const editorial = {
+      anchorEventId: "E2",
+      anchorType: "dialogue",
+      focusEventIds: ["E1", "E2", "E3"],
+      recommendedPanelCount: 3,
+      narration: [],
+      panels: [
+        { purpose: "context", sourceEventIds: ["E1"], dialogueEventIds: [] },
+        { purpose: "anchor", sourceEventIds: ["E2"], dialogueEventIds: ["E2"] },
+        { purpose: "reaction", sourceEventIds: ["ZZ9"], dialogueEventIds: [] },
+      ],
+    };
+    const validated = validateComicEditorial(editorial, plan.events);
+    assert.equal(validated.ok, false);
+  });
+
+  it("NARR-1/3/4/5 planner-authored narration has provenance, coexists with dialogue, ≤ 2", () => {
+    const narrationEvents = [
+      event(1, "N1", "action", "character", "둘은 숙소로 향한다"),
+      event(2, "N2", "environment", "environment", "잠시 뒤, 둘은 숙소로 돌아왔다."),
+      event(3, "N3", "dialogue", "character", "머리부터 말리자."),
+      event(4, "N4", "reaction", "persona", "수건을 건넨다"),
+    ];
+    const narrationPlan = planFromEvents(narrationEvents, 4);
+    const editorial = {
+      anchorEventId: "N3",
+      anchorType: "dialogue",
+      focusEventIds: ["N1", "N2", "N3", "N4"],
+      recommendedPanelCount: 3,
+      narration: [
+        {
+          sourceEventIds: ["N2"],
+          purpose: "location_bridge",
+          text: "둘은 숙소에 도착했다.",
+        },
+      ],
+      panels: [
+        { purpose: "context", sourceEventIds: ["N2"], dialogueEventIds: [] },
+        { purpose: "anchor", sourceEventIds: ["N3"], dialogueEventIds: ["N3"] },
+        { purpose: "reaction", sourceEventIds: ["N4"], dialogueEventIds: [] },
+      ],
+    };
+    const validated = validateComicEditorial(editorial, narrationPlan.events);
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    assert.equal(validated.audit.narrationCount, 1);
+    assert.equal(validated.editorial.narration[0]?.sourceEventIds[0], "N2", "provenance");
+    assert.equal(validated.audit.firstSentenceNarrationSelection, 0);
+    const storyboard = buildComicPresentationFromEditorial(narrationPlan, validated.editorial);
+    const narrations = storyboard.panels.flatMap((panel) => (panel.narration ? [panel.narration] : []));
+    assert.equal(narrations.length, 1);
+    assert.ok(storyboard.panels.some((panel) => panel.dialogue.length > 0), "coexists with dialogue");
+  });
+
+  it("NARR-2 narration is not source first-sentence extraction", () => {
+    const firstSentence = "잠시 뒤, 둘은 숙소로 돌아왔다.";
+    const narrationEvents = [
+      event(1, "X1", "environment", "environment", firstSentence),
+      event(2, "X2", "dialogue", "character", "머리부터 말리자."),
+    ];
+    const narrationPlan = planFromEvents(narrationEvents, 3);
+    // Planner writes DIFFERENT narration than the source first sentence.
+    const editorial = {
+      anchorEventId: "X2",
+      anchorType: "dialogue",
+      focusEventIds: ["X1", "X2"],
+      recommendedPanelCount: 3,
+      narration: [
+        { sourceEventIds: ["X1"], purpose: "location_bridge", text: "둘은 숙소에 도착했다." },
+      ],
+      panels: [
+        { purpose: "context", sourceEventIds: ["X1"], dialogueEventIds: [] },
+        { purpose: "anchor", sourceEventIds: ["X2"], dialogueEventIds: ["X2"] },
+        { purpose: "quiet_close", sourceEventIds: [], dialogueEventIds: [] },
+      ],
+    };
+    const validated = validateComicEditorial(editorial, narrationPlan.events);
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    assert.equal(validated.audit.firstSentenceNarrationSelection, 0);
+    // First-sentence extraction is REJECTED by the validator (NORMAL narration
+    // must never be a verbatim first-sentence copy).
+    const badEditorial = {
+      ...editorial,
+      narration: [
+        { sourceEventIds: ["X1"], purpose: "location_bridge", text: firstSentence },
+      ],
+    };
+    const bad = validateComicEditorial(badEditorial, narrationPlan.events);
+    assert.equal(bad.ok, false, "first-sentence narration is rejected");
+  });
+
+  it("NARR-6 mid-clause truncation is flagged (prefix of a source event)", () => {
+    const longEvent = event(1, "Y1", "environment", "environment", "한 시간이 지나고 나서 두 사람은 마침내 자리에서 일어났다.");
+    const planY = planFromEvents([longEvent, event(2, "Y2", "dialogue", "character", "가자.")], 3);
+    const editorial = {
+      anchorEventId: "Y2",
+      anchorType: "dialogue",
+      focusEventIds: ["Y1", "Y2"],
+      recommendedPanelCount: 3,
+      narration: [{ sourceEventIds: ["Y1"], purpose: "time_bridge", text: "한 시간이 지나고 나서 두 사람은" }],
+      panels: [
+        { purpose: "context", sourceEventIds: ["Y1"], dialogueEventIds: [] },
+        { purpose: "anchor", sourceEventIds: ["Y2"], dialogueEventIds: ["Y2"] },
+        { purpose: "quiet_close", sourceEventIds: [], dialogueEventIds: [] },
+      ],
+    };
+    const validated = validateComicEditorial(editorial, planY.events);
+    assert.equal(validated.ok, false, "mid-clause truncation narration is rejected");
+  });
+
+  it("PANEL-1 one prior + anchor + reaction AUTO → 3; PANEL-2 two distinct priors can → 4", () => {
+    const simple = planFromEvents(
+      [
+        event(1, "P1", "action", "character", "상대를 바라본다"),
+        event(2, "P2", "dialogue", "character", "같이 갈래?"),
+        event(3, "P3", "reaction", "persona", "웃는다"),
+      ],
+      3
+    );
+    assert.equal(buildComicHighlightStoryboard(simple).panelCount, 3);
+    const four = planFromEvents(
+      [
+        event(1, "P1", "action", "character", "복도를 걸어간다"),
+        event(2, "P2", "action", "character", "문 앞에서 멈춘다"),
+        event(3, "P3", "dialogue", "character", "나랑 도망가자."),
+        event(4, "P4", "reaction", "persona", "손을 내민다"),
+      ],
+      4
+    );
+    assert.equal(buildComicHighlightStoryboard(four).panelCount, 4);
+  });
+
+  it("PANEL-3/4 no sourceEventId appears in two panels; manual 4 never duplicates", () => {
+    const simple = planFromEvents(
+      [
+        event(1, "Q1", "action", "character", "상대를 바라본다"),
+        event(2, "Q2", "dialogue", "character", "같이 갈래?"),
+        event(3, "Q3", "reaction", "persona", "웃는다"),
+      ],
+      3
+    );
+    // Manual 4 with only one prior beat must degrade (no duplication).
+    const manual4 = buildComicHighlightStoryboard(simple, { manualPanelCount: 4 });
+    assert.equal(manual4.audit.duplicatedPanelSourceEventCount, 0);
+    assert.equal(manual4.panelCount, 3, "degrades gracefully instead of duplicating a beat");
+    const ids = manual4.panels.flatMap((panel) => panel.sourceEventIds);
+    assert.equal(new Set(ids).size, ids.length, "no duplicated source event across panels");
+  });
+
+  it("DIALOGUE-1/2/3 editorial dialogue reconstructed verbatim with speaker preserved", () => {
+    const dialoguePlan = planFromEvents(
+      [
+        event(1, "D1", "dialogue", "character", "나랑 도망가자.", "assistant", "강이현"),
+        event(2, "D2", "reaction", "persona", "손을 잡는다"),
+      ],
+      3
+    );
+    const editorial = {
+      anchorEventId: "D1",
+      anchorType: "dialogue",
+      focusEventIds: ["D1", "D2"],
+      recommendedPanelCount: 3,
+      narration: [],
+      panels: [
+        { purpose: "anchor", sourceEventIds: ["D1"], dialogueEventIds: ["D1"] },
+        { purpose: "reaction", sourceEventIds: ["D2"], dialogueEventIds: [] },
+        { purpose: "quiet_close", sourceEventIds: [], dialogueEventIds: [] },
+      ],
+    };
+    const validated = validateComicEditorial(editorial, dialoguePlan.events);
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    const storyboard = buildComicPresentationFromEditorial(dialoguePlan, validated.editorial);
+    const line = storyboard.panels.flatMap((panel) => panel.dialogue)[0];
+    assert.equal(line?.text, "나랑 도망가자.", "verbatim");
+    assert.equal(line?.speakerName, "강이현", "speaker preserved");
+    assert.equal(storyboard.audit.inventedDialogueCount, 0);
+  });
+
+  it("AUDIT-1 duplicated source event across panels is rejected; AUDIT-2 chronology reversal detected", () => {
+    const dupEditorial = {
+      anchorEventId: "E2",
+      anchorType: "dialogue",
+      focusEventIds: ["E1", "E2", "E3"],
+      recommendedPanelCount: 3,
+      narration: [],
+      panels: [
+        { purpose: "context", sourceEventIds: ["E1"], dialogueEventIds: [] },
+        { purpose: "anchor", sourceEventIds: ["E2"], dialogueEventIds: ["E2"] },
+        { purpose: "reaction", sourceEventIds: ["E1"], dialogueEventIds: [] },
+      ],
+    };
+    assert.equal(validateComicEditorial(dupEditorial, plan.events).ok, false);
+    const reversalEditorial = {
+      anchorEventId: "E3",
+      anchorType: "dialogue",
+      focusEventIds: ["E1", "E2", "E3", "E4"],
+      recommendedPanelCount: 3,
+      narration: [],
+      panels: [
+        { purpose: "context", sourceEventIds: ["E4"], dialogueEventIds: [] },
+        { purpose: "anchor", sourceEventIds: ["E3"], dialogueEventIds: ["E3"] },
+        { purpose: "reaction", sourceEventIds: ["E1"], dialogueEventIds: [] },
+      ],
+    };
+    assert.equal(validateComicEditorial(reversalEditorial, plan.events).ok, false);
+  });
+
+  it("FALLBACK-1 invalid editorial degrades to the deterministic storyboard", () => {
+    const badEditorial = {
+      anchorEventId: "E2",
+      anchorType: "dialogue",
+      focusEventIds: ["E2", "E9", "E3"],
+      recommendedPanelCount: 3,
+      narration: [],
+      panels: [
+        { purpose: "context", sourceEventIds: ["E9"], dialogueEventIds: [] },
+        { purpose: "anchor", sourceEventIds: ["E2"], dialogueEventIds: ["E2"] },
+        { purpose: "reaction", sourceEventIds: ["E3"], dialogueEventIds: [] },
+      ],
+    };
+    const validated = validateComicEditorial(badEditorial, plan.events);
+    assert.equal(validated.ok, false, "E9 is outside the canonical events");
+    const fallbackPlan = { ...plan, comicEditorial: undefined };
+    const resolved = resolveComicStoryboard(fallbackPlan);
+    assert.equal(resolved.source, "deterministic_fallback");
+  });
+
+  it("CALL-1 extra planner call count stays zero", () => {
+    const validated = validateComicEditorial(
+      {
+        anchorEventId: "E2",
+        anchorType: "dialogue",
+        focusEventIds: ["E1", "E2", "E3"],
+        recommendedPanelCount: 3,
+        narration: [],
+        panels: [
+          { purpose: "context", sourceEventIds: ["E1"], dialogueEventIds: [] },
+          { purpose: "anchor", sourceEventIds: ["E2"], dialogueEventIds: ["E2"] },
+          { purpose: "reaction", sourceEventIds: ["E3"], dialogueEventIds: [] },
+        ],
+      },
+      plan.events
+    );
+    assert.equal(validated.ok, true);
+    const storyboard = buildComicHighlightStoryboard(plan);
+    assert.equal(storyboard.audit.extraPlannerCallCount, 0);
   });
 });

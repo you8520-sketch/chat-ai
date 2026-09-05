@@ -1348,6 +1348,7 @@ export default function ChatImageGeneratorPanel({
         body: JSON.stringify({
           ...ids,
           mode: "scene_plan",
+          scenePlanIntent: "comic",
           messageId: opts.messageId ?? undefined,
           sourceText: opts.messageId ? undefined : opts.summary,
           panelCount: scenePanelCountRef.current,
@@ -1404,6 +1405,7 @@ export default function ChatImageGeneratorPanel({
         body: JSON.stringify({
           ...ids,
           mode: "scene_plan",
+          scenePlanIntent: "comic",
           messageId: opts.messageId ?? undefined,
           sourceText: opts.messageId ? undefined : opts.summary,
           panelCount: scenePanelCountRef.current,
