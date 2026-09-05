@@ -173,6 +173,10 @@ import {
   type LiveReadingFollowController,
 } from "@/lib/liveReadingFollow";
 import {
+  createIntegerScrollDebtTransport,
+  type IntegerScrollDebtTransport,
+} from "@/lib/integerScrollTransport";
+import {
   handleChatStreamLayoutGrowth,
   isChatLiveReadingActive,
   resolveActiveAssistantStreamEnd,
@@ -1616,6 +1620,7 @@ export default function ChatClient({
   const activeAssistantStreamRequestIdRef = useRef<string | null>(null);
   const streamingMessageArticleRef = useRef<HTMLElement | null>(null);
   const liveFollowAnimatorRef = useRef<LiveReadingFollowController | null>(null);
+  const liveFollowIntegerTransportRef = useRef<IntegerScrollDebtTransport | null>(null);
   const liveFollowScrollInFlightRef = useRef(false);
   const lastFollowScrollYRef = useRef(0);
   const streamResizeObserverRef = useRef<ResizeObserver | null>(null);
@@ -2217,6 +2222,7 @@ export default function ChatClient({
   const detachChatLiveFollow = useCallback(() => {
     userScrollLockRef.current = true;
     followStreamRef.current = false;
+    liveFollowIntegerTransportRef.current?.reset();
     liveFollowAnimatorRef.current?.stop();
     syncChatFollowDiagnostics();
   }, [syncChatFollowDiagnostics]);
@@ -2224,6 +2230,7 @@ export default function ChatClient({
   const reattachChatLiveFollow = useCallback(() => {
     userScrollLockRef.current = false;
     followStreamRef.current = true;
+    liveFollowIntegerTransportRef.current?.reset();
     syncChatFollowDiagnostics();
     if (isChatLiveReadingActiveNow()) {
       liveFollowAnimatorRef.current?.notifyTargetUpdate();
@@ -2263,13 +2270,16 @@ export default function ChatClient({
   }, [notifyChatLiveFollowTargetUpdate]);
 
   useEffect(() => {
+    const integerTransport = createIntegerScrollDebtTransport((delta) => {
+      window.scrollBy({ top: delta, behavior: "instant" });
+    });
+    liveFollowIntegerTransportRef.current = integerTransport;
     liveFollowAnimatorRef.current = createLiveReadingFollowController({
       getViewportHeight: () => window.innerHeight,
       getScrollPosition: () => window.scrollY,
       scrollBy: (delta) => {
-        if (delta === 0) return;
+        if (integerTransport.apply(delta) === 0) return;
         liveFollowScrollInFlightRef.current = true;
-        window.scrollBy({ top: delta, behavior: "instant" });
         requestAnimationFrame(() => {
           liveFollowScrollInFlightRef.current = false;
         });
@@ -2297,6 +2307,10 @@ export default function ChatClient({
     return () => {
       liveFollowAnimatorRef.current?.stop();
       liveFollowAnimatorRef.current = null;
+      integerTransport.reset();
+      if (liveFollowIntegerTransportRef.current === integerTransport) {
+        liveFollowIntegerTransportRef.current = null;
+      }
     };
   }, [isChatLiveReadingActiveNow]);
 
@@ -2307,6 +2321,7 @@ export default function ChatClient({
 
   useEffect(() => {
     if (chatLiveReadingActive) return;
+    liveFollowIntegerTransportRef.current?.reset();
     liveFollowAnimatorRef.current?.stop();
     activeAssistantStreamEndRef.current = null;
     activeAssistantStreamRequestIdRef.current = null;
@@ -5380,8 +5395,12 @@ export default function ChatClient({
                               <span
                                 ref={(el) => {
                                   if (proseStreamActive) {
+                                    const requestId = m.requestId ?? null;
+                                    if (activeAssistantStreamRequestIdRef.current !== requestId) {
+                                      liveFollowIntegerTransportRef.current?.reset();
+                                    }
                                     activeAssistantStreamEndRef.current = el;
-                                    activeAssistantStreamRequestIdRef.current = m.requestId ?? null;
+                                    activeAssistantStreamRequestIdRef.current = requestId;
                                     if (el) notifyChatLiveFollowTargetUpdate();
                                   } else if (activeAssistantStreamEndRef.current === el) {
                                     activeAssistantStreamEndRef.current = null;

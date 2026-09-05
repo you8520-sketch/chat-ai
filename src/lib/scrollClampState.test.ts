@@ -5,13 +5,14 @@ import {
   IMPLICIT_SCROLL_RANGE_PASS_PATH,
   MIN_AVAILABLE_DOWNWARD_SCROLL_PX,
   MIN_MEANINGFUL_SCROLL_RANGE_PX,
+  measureIntegerScrollCadence,
   resolveScrollClampState,
   type MotionProofFrame,
 } from "./scrollClampState";
 
 function movingFrames(opts?: { startY?: number; step?: number; count?: number }): MotionProofFrame[] {
   const startY = opts?.startY ?? 40;
-  const step = opts?.step ?? 2;
+  const step = opts?.step ?? 1;
   const count = opts?.count ?? 48;
   return Array.from({ length: count }, (_, i) => ({
     t: i * 16,
@@ -153,11 +154,30 @@ describe("scrollClampState motion proof", () => {
     assert.equal(proof.passed, true, proof.reasons.join(","));
     assert.equal(proof.classification, "MUST_MOVE");
     assert.ok(proof.TOTAL_SCROLL_RANGE_PX >= MIN_MEANINGFUL_SCROLL_RANGE_PX);
-    assert.ok(proof.MOTION_DUTY_CYCLE >= 0.75);
-    assert.ok(proof.MAX_VISIBLE_STOP_GAP_MS <= 300);
+    assert.equal(proof.cadence.MEDIAN_POSITIVE_STEP_PX, 1);
+    assert.ok(proof.cadence.P95_INTER_STEP_GAP_MS <= 120);
+    assert.ok(proof.cadence.MAX_INTER_STEP_GAP_MS <= 200);
     assert.equal(proof.DIRECTION_REVERSAL_COUNT, 0);
     assert.equal(proof.LARGE_JUMP_COUNT, 0);
     assert.equal(proof.FOLLOW_LATEST_ALWAYS_TRUE, true);
     assert.equal(proof.PROGRAMMATIC_SELF_DETACH, false);
+  });
+
+  it("measures integer cadence independently from frame duty cycle", () => {
+    const metrics = measureIntegerScrollCadence([
+      { t: 0, scrollY: 0 },
+      { t: 16, scrollY: 0 },
+      { t: 48, scrollY: 1 },
+      { t: 96, scrollY: 1 },
+      { t: 112, scrollY: 2 },
+      { t: 176, scrollY: 3 },
+    ]);
+    assert.equal(metrics.POSITIVE_SCROLL_STEP_COUNT, 3);
+    assert.equal(metrics.MEDIAN_POSITIVE_STEP_PX, 1);
+    assert.equal(metrics.MEDIAN_INTER_STEP_GAP_MS, 64);
+    assert.equal(metrics.P95_INTER_STEP_GAP_MS, 64);
+    assert.equal(metrics.MAX_INTER_STEP_GAP_MS, 64);
+    assert.equal(metrics.DIRECTION_REVERSAL_COUNT, 0);
+    assert.equal(metrics.LARGE_JUMP_COUNT, 0);
   });
 });

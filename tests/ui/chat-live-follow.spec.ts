@@ -301,14 +301,6 @@ function assertReadingBand(frames: MotionFrame[], viewportHeight: number) {
   expect(Math.abs(ratio - LIVE_READING_TARGET_RATIO)).toBeLessThan(0.12);
 }
 
-function hasFractionalScrollDelta(frames: MotionFrame[]): boolean {
-  return frames.some((frame, index) => {
-    if (index === 0) return false;
-    const delta = frame.scrollY - frames[index - 1]!.scrollY;
-    return Math.abs(delta) > 0.001 && Math.abs(delta - Math.round(delta)) > 0.001;
-  });
-}
-
 async function resetScrollAudit(page: Page) {
   await page.evaluate(() => {
     const audit = (window as unknown as { __chatScrollAudit?: { smoothWindowScroll: number } })
@@ -490,7 +482,6 @@ async function runContinuousFollowScenario(page: Page, opts: {
   streamIntervalMs?: number;
   layoutChrome?: "widget" | "meta" | "both";
   instant?: boolean;
-  minMotionDutyCycle?: number;
   expectMotionFailure?: boolean;
 }): Promise<ContinuousMotionProof | null> {
   expect(IMPLICIT_SCROLL_RANGE_PASS_PATH).toBe(false);
@@ -530,14 +521,17 @@ async function runContinuousFollowScenario(page: Page, opts: {
     frames,
     startGeometry,
     requireMotion: true,
-    minDutyCycle: opts.minMotionDutyCycle,
   });
   const streamIntervalMs = opts.streamIntervalMs ?? 28;
   const expectedGrowth = estimateVerticalGrowthPxPerSec(streamIntervalMs, 1);
-  const medianVelocity = proof.metrics?.medianScrollVelocity ?? 0;
+  const expectedCruise = expectedGrowth * 0.9;
   console.log(
     `${streamIntervalMs}ms x 1char: expectedGrowth=${expectedGrowth.toFixed(2)} ` +
-      `medianScrollVelocity=${medianVelocity.toFixed(2)}`
+      `expectedCruise=${expectedCruise.toFixed(2)} ` +
+      `averageScrollVelocity=${proof.cadence.AVERAGE_SCROLL_VELOCITY.toFixed(2)} ` +
+      `medianStep=${proof.cadence.MEDIAN_POSITIVE_STEP_PX.toFixed(2)} ` +
+      `p95Gap=${proof.cadence.P95_INTER_STEP_GAP_MS.toFixed(2)} ` +
+      `maxGap=${proof.cadence.MAX_INTER_STEP_GAP_MS.toFixed(2)}`
   );
   if (opts.expectMotionFailure) {
     expect(
@@ -556,15 +550,16 @@ async function runContinuousFollowScenario(page: Page, opts: {
     `G1-G8 fixture must be scrollable\n${formatContinuousMotionProof(proof)}`
   ).toBeGreaterThanOrEqual(MIN_AVAILABLE_DOWNWARD_SCROLL_PX);
   expect(proof.passed, formatContinuousMotionProof(proof)).toBe(true);
-  expect(proof.MOTION_DUTY_CYCLE).toBeGreaterThanOrEqual(0.75);
-  expect(proof.MAX_VISIBLE_STOP_GAP_MS).toBeLessThanOrEqual(300);
+  expect(proof.cadence.POSITIVE_SCROLL_STEP_COUNT).toBeGreaterThan(0);
+  expect(proof.cadence.MEDIAN_POSITIVE_STEP_PX).toBe(1);
+  expect(proof.cadence.P95_INTER_STEP_GAP_MS).toBeLessThanOrEqual(120);
+  expect(proof.cadence.MAX_INTER_STEP_GAP_MS).toBeLessThanOrEqual(200);
+  expect(proof.cadence.AVERAGE_SCROLL_VELOCITY).toBeGreaterThanOrEqual(expectedCruise * 0.65);
+  expect(proof.cadence.AVERAGE_SCROLL_VELOCITY).toBeLessThanOrEqual(expectedCruise * 1.35);
   expect(proof.DIRECTION_REVERSAL_COUNT).toBe(0);
   expect(proof.LARGE_JUMP_COUNT).toBe(0);
   expect(proof.FOLLOW_LATEST_ALWAYS_TRUE).toBe(true);
   expect(proof.PROGRAMMATIC_SELF_DETACH).toBe(false);
-  expect(hasFractionalScrollDelta(frames), "fractional scrollY deltas must be observed").toBe(true);
-  expect(medianVelocity).toBeGreaterThan(expectedGrowth * 0.35);
-  expect(medianVelocity).toBeLessThan(expectedGrowth * 2.5);
   assertReadingBand(frames, opts.viewportHeight ?? 520);
   return proof;
 }
@@ -589,17 +584,6 @@ test.describe("General chat live reading follow — production browser", () => {
     );
     await demoLogin(page);
     await page.setViewportSize({ width: 1280, height: 720 });
-  });
-
-  test.beforeEach(async ({ page }, testInfo) => {
-    if (!testInfo.title.includes("C1/C2")) return;
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    const probe = await probeSubpixelWindowScroll(page);
-    const supported = probe.fractionalSamples.length > 0 && probe.distinctPositions > 1;
-    test.skip(
-      !supported,
-      "P0-11: configured production Chromium does not preserve fractional root scrollY"
-    );
   });
 
   test.afterEach(async ({ page }) => {
@@ -775,17 +759,6 @@ test.describe("General chat continuous follow matrix — production browser", ()
   test.beforeEach(async ({ page }) => {
     await installScrollAudit(page);
     await demoLogin(page);
-  });
-
-  test.beforeEach(async ({ page }, testInfo) => {
-    if (!/^G[1-8]:/.test(testInfo.title)) return;
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    const probe = await probeSubpixelWindowScroll(page);
-    const supported = probe.fractionalSamples.length > 0 && probe.distinctPositions > 1;
-    test.skip(
-      !supported,
-      "P0-11: configured production Chromium does not preserve fractional root scrollY"
-    );
   });
 
   test.afterEach(async ({ page }) => {
