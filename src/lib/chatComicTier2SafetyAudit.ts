@@ -351,6 +351,7 @@ export function formatComicGenerationAdminFailureDiagnostic(opts: {
   referenceRoleInventory?: ComicReferenceRoleInventory | null;
   imageFailureDiagnostic?: OpenAiImageFailureDiagnostic;
   providerReferences?: readonly ComicProviderReference[];
+  referenceIsolationMode?: string;
 }): Record<string, unknown> {
   const payload: Record<string, unknown> = {};
 
@@ -397,6 +398,9 @@ export function formatComicGenerationAdminFailureDiagnostic(opts: {
   }
   if (opts.providerReferences) {
     payload.referenceSet = formatComicReferenceSetForAdmin(opts.providerReferences);
+  }
+  if (opts.referenceIsolationMode) {
+    payload.referenceIsolationMode = opts.referenceIsolationMode;
   }
 
   payload.templateModerationRisk = classifyTemplateModerationRisk();
@@ -517,3 +521,4 @@ export type ComicTier2FixtureId = "S1" | "S2" | "S3" | "S4" | "S5" | "S6" | "S7"
 export function panelCountForFixture(_id: ComicTier2FixtureId): ChatComicPanelCount {
   return 2;
 }
+
