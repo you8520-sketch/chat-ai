@@ -2302,8 +2302,6 @@ export default function ChatClient({
         mode: "continuous-flow" as const,
         streamIntervalMs: displayPrefsRef.current.streamIntervalMs,
         streamCharsPerTick: displayPrefsRef.current.streamCharsPerTick,
-        growthMatchFactor:
-          displayPrefsRef.current.streamIntervalMs > 0 ? 1 : undefined,
       }),
     });
     return () => {
