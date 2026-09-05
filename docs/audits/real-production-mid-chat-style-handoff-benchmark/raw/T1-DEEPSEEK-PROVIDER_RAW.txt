@@ -1,0 +1,13 @@
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1787633415-psfpdGJ6FWlKNauQAkGO","object":"chat.completion","created":1787633415,"model":"deepseek/deepseek-v4-flash-0731","provider":"DeepInfra","system_fingerprint":null,"service_tier":null,"choices":[{"index":0,"logprobs":null,"finish_reason":"stop","native_finish_reason":"stop","message":{"role":"assistant","content":"```json\n{\n  \"만난일수\": 5,\n  \"날짜\": \"10월 12일\",\n  \"현재시각\": \"21:47\",\n  \"계절및날씨\": \"가을, 맑음\",\n  \"장소\": \"에이지스 본부 내 S급 센티넬 전용 숙소 거실\",\n  \"NPC의의상\": \"조태형: 하이넥 컴프레션 셔츠, 전자 초커\",\n  \"PC의의상\": \"렌: 주홍색 크롭 티셔츠, 블랙 테크웨어 하의\",\n  \"NPC의속마음\": \"렌이 곁에 있으니 이명도 가라앉고 숨이 편해지네. 저 눈빛이 또 뭘 내뱉을지 궁금해서 견딜 수가 없어.\",\n  \"속마음표정\": \"( •̀ ω •́ )✧\",\n  \"가이딩수치\": 72,\n  \"extracted_facts\": []\n}\n```","refusal":null}}],"usage":{"prompt_tokens":7662,"completion_tokens":251,"total_tokens":7913,"cost":0.00065814,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.00065814,"upstream_inference_prompt_cost":0.00061296,"upstream_inference_completions_cost":0.00004518},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
