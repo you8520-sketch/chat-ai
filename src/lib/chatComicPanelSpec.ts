@@ -21,6 +21,10 @@ import {
 import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
 import { classifyRawVisualRisk } from "@/lib/chatImageSafeVisualProjection";
 import { extractPanelSfxCue } from "@/lib/chatComicTextOverlay";
+import {
+  renderComicNarrationProviderContract,
+  resolveComicNarrationSlots,
+} from "@/lib/chatComicNarrationMinifier";
 
 export type ComicPanelFormatId = "2panel" | "3koma" | "4panel";
 export type ChatComicCompositionMode =
@@ -619,6 +623,18 @@ export function renderChatComicPanelSpecFullProviderSection(spec: ChatComicPanel
     personaVisible,
     spec.cast.length
   );
+  // COMIC NARRATION MINIFICATION: at most COMIC_PAGE_MAX_NARRATIONS short slots
+  // per page, silent panels only, one sentence, hard max 40 chars.
+  const narrationByPanel = new Map(
+    resolveComicNarrationSlots({
+      panels: spec.panels.map((panel) => ({
+        index: panel.index,
+        narrationBoxNeeded: panel.narrationBoxNeeded,
+        dialogueCount: panel.speechBubbles.length,
+        situation: panel.situation,
+      })),
+    }).map((slot) => [slot.panelIndex, slot.text])
+  );
   const panelBlocks = spec.panels
     .map((panel) => {
       const actions = [
@@ -634,9 +650,9 @@ export function renderChatComicPanelSpecFullProviderSection(spec: ChatComicPanel
             .map((bubble) => `Speech bubble (${bubble.speakerLabel} / ${bubble.speaker}): "${bubble.text}"`)
             .join("\n")
         : "Speech bubble: (silent panel — no bubble)";
-      const narration = panel.narrationBoxNeeded
-        ? `Narration box (readable Korean, when this beat needs context): "${panel.situation}"`
-        : "Narration box: not required for this beat.";
+      const narration = narrationByPanel.has(panel.index)
+        ? `Narration box (very short, read clearly): "${narrationByPanel.get(panel.index)}"`
+        : "Narration box: (none — dialogue/action carries this beat)";
       const sfx = panel.sfx.length
         ? `SFX text (readable Korean, when appropriate): ${panel.sfx.join(", ")}`
         : "SFX: (none)";
@@ -672,6 +688,7 @@ export function renderChatComicPanelSpecFullProviderSection(spec: ChatComicPanel
     ...spec.continuityRules.map((rule) => `- ${rule}`),
     "Global must avoid:",
     ...spec.globalMustAvoid.map((rule) => `- ${rule}`),
+    renderComicNarrationProviderContract(),
     "The provider owns pose, camera angle, balloon position/size/tails, negative-space arrangement, and manga effects. The planner supplies only the beat and the exact approved Korean text.",
   ]
     .filter(Boolean)

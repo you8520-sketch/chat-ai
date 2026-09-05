@@ -208,6 +208,7 @@ export function buildStrictComicFallbackPrompt(opts: {
           "Readable Korean speech bubbles are allowed for the approved safe dialogue listed below. Do not invent replacement dialogue.",
           "Make balloon tails point toward the actual speaker. Do not cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page.",
           "If a panel has no approved dialogue, keep it a silent visual panel.",
+          "Use narration sparingly — include only very short time-ordered narration boxes for crucial transitions, never long prose paragraphs.",
         ]
       : ["VISUAL LAYER ONLY — zero speech bubbles, captions, SFX, or readable letters in the image. Text is added later by server overlay."];
   return [

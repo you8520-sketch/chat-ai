@@ -254,7 +254,7 @@ describe("chatComicGeneration", () => {
     assert.doesNotMatch(prompt, /성관계|손목|자해/);
   });
 
-  it("FULL-1 provider prompt includes the readable Korean narration contract when needed", () => {
+  it("FULL-1 provider prompt includes the minified narration contract when needed", () => {
     const narrationPlan = buildDeterministicScenePlan(
       buildSceneSourceMessages([
         { id: 1, role: "user", content: "*밤이 깊어졌다*\n\"조용히 있자.\"" },
@@ -270,7 +270,11 @@ describe("chatComicGeneration", () => {
       plan: narrationPlan,
     });
     assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
-    assert.match(prompt, /Narration box \(readable Korean, when this beat needs context\)/);
+    assert.match(prompt, /Use narration sparingly/i);
+    assert.match(prompt, /Narration box \(very short, read clearly\)/);
+    const narrationText = prompt.match(/Narration box \(very short, read clearly\): "([^"]+)"/)?.[1] ?? "";
+    assert.ok(narrationText.length > 0, "a minified narration slot exists for the silent panel");
+    assert.ok(narrationText.length <= 40, `narration hard max 40 chars, got ${narrationText.length}`);
   });
 
   it("FULL-2 provider prompt includes the readable Korean SFX contract when appropriate", () => {
