@@ -613,6 +613,12 @@ export function renderChatComicPanelSpecFullProviderSection(spec: ChatComicPanel
   const castLines = spec.cast
     .map((entry) => `${entry.label} = ${entry.role} (${entry.name})`)
     .join("\n");
+  const personaVisible = spec.cast.some((entry) => entry.role === "persona");
+  const staging = resolveLayoutFromSubjectMap(
+    spec.subjectMap,
+    personaVisible,
+    spec.cast.length
+  );
   const panelBlocks = spec.panels
     .map((panel) => {
       const actions = [
@@ -654,6 +660,7 @@ export function renderChatComicPanelSpecFullProviderSection(spec: ChatComicPanel
     "COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE",
     `Format: ${spec.format} (${spec.panelCount} panels)`,
     `Layout: ${spec.layout}`,
+    `Staging: ${staging}`,
     `Hero focus: ${spec.heroScene}`,
     spec.heroEventIds.length ? `Hero event ids: ${spec.heroEventIds.join(", ")}` : "",
     `Shared background: ${spec.sharedBackground}`,

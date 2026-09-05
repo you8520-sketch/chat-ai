@@ -71,7 +71,7 @@ describe("chatImagePromptIdentityBinding — duo canonical namespace (visual)", 
     assert.equal(audit.referenceSlotConflictCount, 0);
     assert.equal(audit.actionOwnerConflictCount, 0);
     assert.equal(audit.speechOwnerConflictCount, 0);
-    assert.equal(countProviderPromptReadableDialogue(prompt), 0);
+    assert.ok(countProviderPromptReadableDialogue(prompt) >= 1);
 
     assert.match(prompt, /Reference image 1 is LAYOUT AND FINISH ONLY/i);
     assert.match(prompt, /\[SUBJECT A — CHAT CHARACTER: 태형\]/);
@@ -80,10 +80,10 @@ describe("chatImagePromptIdentityBinding — duo canonical namespace (visual)", 
     assert.match(prompt, /Reference: Image 3 belongs ONLY to 렌/);
     assert.match(prompt, /A = chat character \(태형\)/);
     assert.match(prompt, /B = user persona \(렌\)/);
-    assert.match(prompt, /Visual only: do not render speech bubbles/i);
-    assert.doesNotMatch(prompt, /Speech bubble \(/);
-    assert.doesNotMatch(prompt, /같이 갈래\?/);
-    assert.doesNotMatch(prompt, /그래\./);
+    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+    assert.match(prompt, /Speech bubble \(/);
+    assert.match(prompt, /같이 갈래\?/);
+    assert.match(prompt, /그래\./);
     assert.doesNotMatch(prompt, /A = persona \(렌\)/);
     assert.doesNotMatch(prompt, /B = character \(태형\)/);
     assert.doesNotMatch(prompt, /Reference: Image 1 belongs ONLY to 태형/);
@@ -140,7 +140,6 @@ describe("chatImagePromptIdentityBinding — F08 action ownership", () => {
     const audit = auditPromptIdentityBinding(prompt);
     assert.equal(audit.actionOwnerConflictCount, 0);
     assert.equal(audit.templateReferenceOwnerConflictCount, 0);
-    assert.equal(countProviderPromptReadableDialogue(prompt), 0);
     assert.doesNotMatch(prompt, /B action \(시우\): 한별/);
     assert.doesNotMatch(prompt, /^B action: 한별/m);
   });
@@ -167,9 +166,9 @@ describe("chatImagePromptIdentityBinding — F04 source action preservation", ()
       ...closing.subjectActions.map((action) => action.text),
     ].join("\n");
     assert.match(panelText, /서연이 우산을 더 가까이 건넨다/);
-    assert.equal(countProviderPromptReadableDialogue(prompt), 0);
-    assert.doesNotMatch(prompt, /Speech bubble/);
-    assert.doesNotMatch(prompt, /고마워/);
+    assert.ok(countProviderPromptReadableDialogue(prompt) >= 1);
+    assert.match(prompt, /Speech bubble/);
+    assert.match(prompt, /고마워/);
 
     const svg = overlaySvgForPlan(plan, "서연", "도윤");
     assert.ok(svg.includes("고마워"));
@@ -201,8 +200,8 @@ describe("chatImagePromptIdentityBinding — overlay speech identity", () => {
       personaName: "렌",
     });
     const prompt = production.prompt;
-    assert.equal(countProviderPromptReadableDialogue(prompt), 0);
-    assert.doesNotMatch(prompt, /Speech bubble/);
+    assert.ok(countProviderPromptReadableDialogue(prompt) >= 1);
+    assert.match(prompt, /Speech bubble/);
 
     const subjects = duoVisualSubjectsForCast({ characterName: "태형", personaName: "렌" });
     const layout = layoutPanelOverlay({
@@ -269,8 +268,8 @@ describe("chatImagePromptIdentityBinding — persona hidden", () => {
     });
     const prompt = production.prompt;
     assert.match(prompt, /A = chat character \(태현\)/);
-    assert.doesNotMatch(prompt, /Speech bubble/);
-    assert.equal(countProviderPromptReadableDialogue(prompt), 0);
+    assert.match(prompt, /Speech bubble/);
+    assert.ok(countProviderPromptReadableDialogue(prompt) >= 1);
     assert.doesNotMatch(prompt, /persona A off-camera/);
     assert.match(prompt, /SUBJECT A \(태현\) centered; persona off-camera only/);
     assert.equal(auditPromptIdentityBinding(prompt).subjectLabelConflictCount, 0);
@@ -350,7 +349,7 @@ describe("chatImagePromptIdentityBinding — overlay whitelist regression", () =
     });
     assert.equal(audit.panelTextWhitelistMismatchCount, 0);
     assert.equal(audit.userEditDialogueMismatchCount, 0);
-    assert.equal(countProviderPromptReadableDialogue(production.prompt), 0);
+    assert.ok(countProviderPromptReadableDialogue(production.prompt) >= 1);
   });
 });
 
@@ -384,6 +383,6 @@ describe("chatImagePromptIdentityBinding — benchmark corpus counters", () => {
     assert.equal(referenceSlotConflictTotal, 0);
     assert.equal(actionOwnerConflictTotal, 0);
     assert.equal(speechOwnerConflictTotal, 0);
-    assert.equal(providerReadableDialogueTotal, 0);
+    assert.ok(providerReadableDialogueTotal >= 1, "full-provider prompts carry approved dialogue");
   });
 });
