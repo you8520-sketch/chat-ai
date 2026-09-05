@@ -1,4 +1,3 @@
-import { appendFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import {
   SCROLL_FOLLOW_LAB_BOT1_ID,
@@ -34,13 +33,6 @@ type ScrollFollowGeometry = {
 
 const DECLARATION_END_SELECTOR = "[data-trpg-declaration-end]";
 const READING_TARGET_RATIO = 0.63;
-
-function debugLog(hypothesisId: string, message: string, data: Record<string, unknown>) {
-  appendFileSync(
-    "/opt/cursor/logs/debug.log",
-    `${JSON.stringify({ hypothesisId, location: "tests/ui/trpg-scroll-follow.spec.ts", message, data, timestamp: Date.now() })}\n`
-  );
-}
 
 async function demoLogin(page: Page) {
   const response = await page.request.post("/api/auth/demo-login");
@@ -169,17 +161,6 @@ async function waitForBotReveal(page: Page, botId: number) {
     botId,
     { timeout: 45_000 }
   );
-  // #region agent log
-  debugLog("H3", "TRPG active actor became ready", {
-    botId,
-    url: page.url(),
-    state: await page.evaluate(() => ({
-      activeActorId: document.querySelector("[data-trpg-active-actor-id]")?.getAttribute("data-trpg-active-actor-id"),
-      owner: document.querySelector("[data-trpg-live-follow-owner]")?.getAttribute("data-trpg-live-follow-owner"),
-      phase: document.querySelector("[data-trpg-round-presentation-phase]")?.getAttribute("data-trpg-round-presentation-phase"),
-    })),
-  });
-  // #endregion
 
   try {
     await page.waitForFunction(
@@ -199,13 +180,6 @@ async function waitForBotReveal(page: Page, botId: number) {
       botId,
       { timeout: 45_000 }
     );
-    // #region agent log
-    debugLog("H3", "TRPG reveal reached visible threshold", {
-      botId,
-      url: page.url(),
-      state: await readScrollFollowDiagnostics(page),
-    });
-    // #endregion
   } catch (error) {
     const geometry = await collectScrollFollowGeometry(page, DECLARATION_END_SELECTOR);
     const classification = classifyGeometryFailure(geometry);
@@ -341,23 +315,6 @@ async function assertBotFollowUserBug(page: Page, startScrollY: number, startVis
     endDiag.readingBandDelta != null && Math.abs(endDiag.readingBandDelta) <= 48 && endContainer.scrollTop > 10;
   const clampedAtMax = isGeometryClampSuccess(geometry);
 
-  // #region agent log
-  debugLog("H1", "TRPG follow assertion inputs", {
-    url: page.url(),
-    startVisibleChars,
-    endVisibleChars: endDiag.visibleChars,
-    visibleProseIncreased,
-    startScrollY,
-    endScrollY: endContainer.scrollTop,
-    liveFollowOwner: endDiag.liveFollowOwner,
-    activeActorId: await page
-      .locator("[data-trpg-active-actor-id]")
-      .getAttribute("data-trpg-active-actor-id"),
-    requiredDelta: geometry.REQUIRED_DELTA,
-    availableDownScroll: geometry.AVAILABLE_DOWN_SCROLL,
-  });
-  // #endregion
-
   expect(visibleProseIncreased || endDiag.visibleChars >= 20).toBe(true);
   expect(scrollMovedDown || endInReadingBand || clampedAtMax).toBe(true);
 
@@ -386,7 +343,7 @@ async function readSentinelActorSnapshot(page: Page) {
 test.describe("TRPG bot declaration viewport follow — production browser", () => {
   test.describe.configure({ retries: 0, timeout: 120_000 });
 
-  test.beforeEach(async ({ page }, testInfo) => {
+  test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       for (const key of Object.keys(localStorage)) {
         if (localStorage.getItem(key) === "") localStorage.removeItem(key);
@@ -394,17 +351,6 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     });
     await demoLogin(page);
     await page.setViewportSize({ width: 1280, height: 720 });
-    // #region agent log
-    debugLog("H4", "TRPG test setup state", {
-      test: testInfo.title,
-      state: await page.evaluate(() => ({
-        url: location.href,
-        chatDisplayPrefs: localStorage.getItem("playai-chat-display-prefs"),
-        trpgStreamInterval: localStorage.getItem(TRPG_STREAM_INTERVAL_KEY),
-        trpgKeys: Object.keys(localStorage).filter((key) => key.startsWith("habi:trpg-")),
-      })),
-    });
-    // #endregion
   });
 
   test("lab does not mutate persisted TRPG stream interval", async ({ page }) => {
