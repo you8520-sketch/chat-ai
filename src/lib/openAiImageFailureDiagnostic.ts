@@ -253,4 +253,3 @@ export function isOpenAiImageSafetyRejection(diagnostic: OpenAiImageFailureDiagn
     /moderation/.test(haystack)
   );
 }
-
