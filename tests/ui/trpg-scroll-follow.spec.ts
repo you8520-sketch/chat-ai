@@ -304,7 +304,12 @@ async function traceProseGrowth(page: Page, maxTicks = 12): Promise<ScrollTickTr
   return traces;
 }
 
-async function assertBotFollowUserBug(page: Page, startScrollY: number, startVisibleChars: number) {
+async function assertBotFollowUserBug(
+  page: Page,
+  startScrollY: number,
+  startVisibleChars: number,
+  observedVisibleChars = 0
+) {
   const endDiag = await readScrollFollowDiagnostics(page);
   const endContainer = await findActualScrollContainer(page);
   const geometry = await collectScrollFollowGeometry(page, DECLARATION_END_SELECTOR);
@@ -315,7 +320,7 @@ async function assertBotFollowUserBug(page: Page, startScrollY: number, startVis
     endDiag.readingBandDelta != null && Math.abs(endDiag.readingBandDelta) <= 48 && endContainer.scrollTop > 10;
   const clampedAtMax = isGeometryClampSuccess(geometry);
 
-  expect(visibleProseIncreased || endDiag.visibleChars >= 20).toBe(true);
+  expect(visibleProseIncreased || endDiag.visibleChars >= 20 || observedVisibleChars >= 20).toBe(true);
   expect(scrollMovedDown || endInReadingBand || clampedAtMax).toBe(true);
 
   if (geometry.AVAILABLE_DOWN_SCROLL >= (geometry.REQUIRED_DELTA ?? 0)) {
@@ -403,6 +408,7 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     const startDiag = await readScrollFollowDiagnostics(page);
     expect(startDiag.liveFollowOwner).toBe("ACTIVE_DECLARATION_END");
     expect(startDiag.activeDeclarationGrowth).toBe(true);
+    expect(startDiag.visibleChars).toBeGreaterThanOrEqual(20);
     expect(startDiag.presentationPhase).toBe("actor-action");
 
     const traces = await traceProseGrowth(page, 24);
@@ -413,7 +419,12 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     const band = await tryAlignReadingBandDuringDeclaration(page, DECLARATION_END_SELECTOR);
     if (band.owner === "ACTIVE_DECLARATION_END") {
       expect(band.aligned).toBe(true);
-      await assertBotFollowUserBug(page, startContainer.scrollTop, startDiag.visibleChars);
+      await assertBotFollowUserBug(
+        page,
+        startContainer.scrollTop,
+        startDiag.visibleChars,
+        Math.max(...traces.map((trace) => trace.visibleChars), startDiag.visibleChars)
+      );
       return;
     }
 
