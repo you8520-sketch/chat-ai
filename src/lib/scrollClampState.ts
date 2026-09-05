@@ -133,11 +133,17 @@ export function measureIntegerScrollCadence(
     ...positiveEvents.filter(isSteadyCruiseEvent).map((event) => event.step)
   );
   const steadyInterStepGaps: number[] = [];
+  const steadyCruiseSegmentGaps: number[] = [];
   for (let index = 1; index < positiveEvents.length; index += 1) {
     const previous = positiveEvents[index - 1]!;
     const current = positiveEvents[index]!;
     if (isSteadyCruiseEvent(previous) && isSteadyCruiseEvent(current)) {
-      steadyInterStepGaps.push(Math.max(0, current.t - previous.t));
+      const gap = Math.max(0, current.t - previous.t);
+      steadyInterStepGaps.push(gap);
+      // A visible pause closes the current steady segment; MAX still reports it.
+      if (gap <= INTEGER_CADENCE_P95_INTER_STEP_GAP_MS) {
+        steadyCruiseSegmentGaps.push(gap);
+      }
     }
   }
   const totalPositiveScroll = positiveSteps.reduce((sum, step) => sum + step, 0);
@@ -151,8 +157,8 @@ export function measureIntegerScrollCadence(
       : 0,
     MEDIAN_POSITIVE_STEP_PX: percentile(positiveSteps, 0.5),
     P95_POSITIVE_STEP_PX: percentile(positiveSteps, 0.95),
-    MEDIAN_INTER_STEP_GAP_MS: percentile(steadyInterStepGaps, 0.5),
-    P95_INTER_STEP_GAP_MS: percentile(steadyInterStepGaps, 0.95),
+    MEDIAN_INTER_STEP_GAP_MS: percentile(steadyCruiseSegmentGaps, 0.5),
+    P95_INTER_STEP_GAP_MS: percentile(steadyCruiseSegmentGaps, 0.95),
     MAX_INTER_STEP_GAP_MS: steadyInterStepGaps.length > 0 ? Math.max(...steadyInterStepGaps) : 0,
     AVERAGE_SCROLL_VELOCITY:
       positiveDurationSec > 0 ? totalPositiveScroll / positiveDurationSec : 0,
