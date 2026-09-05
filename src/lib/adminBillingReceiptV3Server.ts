@@ -23,13 +23,17 @@ import {
   loadMessageMemoryRelationshipTask,
   type MemoryRelationshipTaskRecord,
 } from "@/lib/memory/memoryRelationshipTask";
-import { normalizeMessageVariants } from "@/lib/messageAlternates";
+import {
+  generationSequenceForVariant,
+  normalizeMessageVariants,
+} from "@/lib/messageAlternates";
 import { buildAdminBillingForensicMetadata } from "@/lib/adminBillingForensicMetadata";
 import {
   locatePrivilegedAssistantMessage,
   type AdminBillingReceiptLocator,
 } from "@/lib/adminBillingMessageLocator";
 import { resolveStoredTurnChargeEvidence } from "@/lib/storedTurnChargeEvidence";
+import { visibleAssistantDisplayCharCount } from "@/lib/chatDisplayLength";
 
 export type LoadAdminBillingReceiptV3Result =
   | { ok: true; receipt: AdminBillingReceiptV3 }
@@ -51,6 +55,36 @@ type AssistantMessageDbRow = {
   chat_id: number;
   user_id: number;
 };
+
+/**
+ * Resolve persisted final text only when the active variant matches the
+ * requested generation identity. A restored prior variant must not satisfy a
+ * failed/newer generation receipt.
+ */
+export function resolveAdminReceiptPersistedFinalText(
+  row: Pick<
+    AssistantMessageDbRow,
+    "id" | "content" | "model" | "usage" | "alternates" | "active_variant" | "request_id"
+  >,
+  scope: AssistantGenerationScope
+): string | null {
+  if (row.id !== scope.assistantMessageId) return null;
+
+  const { variants, activeVariant } = normalizeMessageVariants(row);
+  const active = variants[activeVariant];
+  if (!active) return null;
+
+  const activeSequence = generationSequenceForVariant(active, activeVariant);
+  if (activeSequence !== scope.generationSequence) return null;
+
+  const scopedRequestId = scope.generationRequestId?.trim() || null;
+  const activeRequestId =
+    active.requestId?.trim() ||
+    (variants.length === 1 ? row.request_id?.trim() || null : null);
+  if (scopedRequestId !== activeRequestId) return null;
+
+  return typeof active.content === "string" ? active.content : null;
+}
 
 function resolveMemoryTaskForGeneration(
   task: MemoryRelationshipTaskRecord | null,
@@ -101,6 +135,12 @@ function assembleAdminBillingReceiptV3FromMessage(input: {
   if (!generationScope) {
     return { ok: false, error: "generation scope를 확인할 수 없습니다.", status: 400 };
   }
+  const persistedFinalText = resolveAdminReceiptPersistedFinalText(
+    messageRow,
+    generationScope
+  );
+  const mainRpOutputVisibleChars =
+    persistedFinalText == null ? null : visibleAssistantDisplayCharCount(persistedFinalText);
 
   const storedUsage = resolveUsageFromMessageRow(messageRow);
   const db = getDb();
@@ -158,6 +198,7 @@ function assembleAdminBillingReceiptV3FromMessage(input: {
     const receipt = buildAdminBillingReceiptV3ForMissingUsage({
       assistantMessageId: input.messageId,
       chatId: input.chatId,
+      mainRpOutputVisibleChars,
       generationScope,
       hasUnscopedLedgerRows: hasUnscopedRows,
       suggestedRepliesRecord,
@@ -178,6 +219,7 @@ function assembleAdminBillingReceiptV3FromMessage(input: {
     usage: storedUsage,
     assistantMessageId: input.messageId,
     chatId: input.chatId,
+    mainRpOutputVisibleChars,
     generationScope,
     hasUnscopedLedgerRows: hasUnscopedRows,
     suggestedRepliesRecord,

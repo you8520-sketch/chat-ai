@@ -42,6 +42,8 @@ export type BuildAdminBillingReceiptV3Input = {
   usage: Usage;
   assistantMessageId: number;
   chatId: number;
+  /** Server-resolved count from the exact scoped persisted final text. */
+  mainRpOutputVisibleChars?: number | null;
   generationScope?: AssistantGenerationScope | null;
   hasUnscopedLedgerRows?: boolean;
   suggestedRepliesRecord: SuggestedRepliesRecord | null;
@@ -53,6 +55,8 @@ export type BuildAdminBillingReceiptV3Input = {
 export type BuildAdminBillingReceiptV3MissingUsageInput = {
   assistantMessageId: number;
   chatId: number;
+  /** Server-resolved count from the exact scoped persisted final text. */
+  mainRpOutputVisibleChars?: number | null;
   generationScope?: AssistantGenerationScope | null;
   hasUnscopedLedgerRows?: boolean;
   suggestedRepliesRecord: SuggestedRepliesRecord | null;
@@ -419,6 +423,7 @@ export function buildAdminBillingReceiptV3ForMissingUsage(
     version: 3,
     assistantMessageId: input.assistantMessageId,
     chatId: input.chatId,
+    mainRpOutputVisibleChars: input.mainRpOutputVisibleChars ?? null,
     syncReceipt: null,
     async: asyncSection,
     wholeTurn: {
@@ -516,6 +521,7 @@ export function buildAdminBillingReceiptV3(
     version: 3,
     assistantMessageId: input.assistantMessageId,
     chatId: input.chatId,
+    mainRpOutputVisibleChars: input.mainRpOutputVisibleChars ?? null,
     syncReceipt,
     async: asyncSection,
     wholeTurn: {

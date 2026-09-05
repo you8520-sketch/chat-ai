@@ -8,6 +8,7 @@ export type AdminReceiptTurnSummary = {
   deductedPoints: number | null;
   inputTokens: number | null;
   outputTokens: number | null;
+  outputVisibleChars: number | null;
   marginPercent: number | null;
   marginUnavailableReason: string | null;
 };
@@ -87,6 +88,7 @@ export function buildAdminReceiptTurnSummary(receipt: AdminBillingReceiptV3): Ad
     deductedPoints: resolveAdminReceiptSettledPoints(receipt),
     inputTokens: sync?.userCharge.inputTokens ?? null,
     outputTokens: sync?.userCharge.outputTokens ?? null,
+    outputVisibleChars: receipt.mainRpOutputVisibleChars,
     marginPercent,
     marginUnavailableReason,
   };
@@ -104,7 +106,8 @@ export function formatAdminReceiptTurnSummaryLines(
     lines.push(
       `deducted: ${summary.deductedPoints == null ? "unavailable" : `${formatPoints(summary.deductedPoints)} P`}`,
       `input tokens (Main RP): ${summary.inputTokens == null ? "unavailable" : summary.inputTokens.toLocaleString()}`,
-      `output tokens (Main RP): ${summary.outputTokens == null ? "unavailable" : summary.outputTokens.toLocaleString()}`
+      `output tokens (Main RP): ${summary.outputTokens == null ? "unavailable" : summary.outputTokens.toLocaleString()}`,
+      `output chars (Main RP): ${summary.outputVisibleChars == null ? "unavailable" : summary.outputVisibleChars.toLocaleString()}`
     );
     if (summary.marginPercent != null) {
       lines.push(`margin: ${summary.marginPercent}%`);
@@ -119,7 +122,8 @@ export function formatAdminReceiptTurnSummaryLines(
   lines.push(
     `실제 차감          ${summary.deductedPoints == null ? "확인 불가" : `${formatPoints(summary.deductedPoints)} P`}`,
     `총 입력 토큰 (Main RP)       ${summary.inputTokens == null ? "확인 불가" : `${summary.inputTokens.toLocaleString()} tok`}`,
-    `총 출력 토큰 (Main RP)       ${summary.outputTokens == null ? "확인 불가" : `${summary.outputTokens.toLocaleString()} tok`}`
+    `총 출력 토큰 (Main RP)       ${summary.outputTokens == null ? "확인 불가" : `${summary.outputTokens.toLocaleString()} tok`}`,
+    `출력 글자수 (Main RP)       ${summary.outputVisibleChars == null ? "확인 불가" : `${summary.outputVisibleChars.toLocaleString()}자`}`
   );
   if (summary.marginPercent != null) {
     lines.push(`실현 마진          ${summary.marginPercent}%`);

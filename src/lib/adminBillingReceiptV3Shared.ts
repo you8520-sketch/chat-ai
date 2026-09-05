@@ -81,6 +81,8 @@ export type AdminBillingReceiptV3 = {
   version: 3;
   assistantMessageId: number;
   chatId: number;
+  /** Exact visible character count from the scoped persisted Main RP text. */
+  mainRpOutputVisibleChars: number | null;
   /**
    * Usage-based sync receipt. Null when no stored Usage snapshot exists —
    * settlement evidence lives in `forensic` only (Strategy B: nullable unavailable
