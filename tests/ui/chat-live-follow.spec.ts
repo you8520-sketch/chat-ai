@@ -643,7 +643,7 @@ test.describe("General chat live reading follow — production browser", () => {
     expect(diag.smoothWindowScroll).toBe(0);
   });
 
-  test("C4: manual wheel detach stops follow during reveal", async ({ page }) => {
+  test("C4: root upward scroll detaches during reveal", async ({ page }) => {
     const finalText = longAssistantProse(1400);
     await mockChatStreamRoute(page, finalText);
     await openFreshChat(page);
@@ -661,7 +661,7 @@ test.describe("General chat live reading follow — production browser", () => {
     );
     await page.waitForTimeout(600);
     await page.evaluate(() => {
-      window.dispatchEvent(new WheelEvent("wheel", { deltaY: -400, bubbles: true, cancelable: true }));
+      window.scrollBy({ top: -120, behavior: "instant" });
     });
     await page.waitForTimeout(150);
 
@@ -693,7 +693,7 @@ test.describe("General chat live reading follow — production browser", () => {
     );
     await page.waitForTimeout(600);
     await page.evaluate(() => {
-      window.dispatchEvent(new WheelEvent("wheel", { deltaY: -400, bubbles: true, cancelable: true }));
+      window.scrollBy({ top: -120, behavior: "instant" });
     });
     await page.waitForTimeout(150);
 
@@ -707,9 +707,9 @@ test.describe("General chat live reading follow — production browser", () => {
     expect(stillDetached.followLatest).toBe(false);
     expect(stillDetached.manualDetached).toBe(true);
 
-    // Explicit downward intent at latest is the reattach owner.
+    // Explicit root downward intent at latest is the reattach owner.
     await page.evaluate(() => {
-      window.dispatchEvent(new WheelEvent("wheel", { deltaY: 400, bubbles: true, cancelable: true }));
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
     });
     await page.waitForTimeout(200);
 
@@ -820,6 +820,37 @@ test.describe("General chat live reading follow — production browser", () => {
     expect(afterSendY - historyY).toBeLessThan(48);
   });
 
+  test("P1: nested settings wheel is not chat viewport detach intent", async ({ page }) => {
+    await mockChatStreamRoute(page, longAssistantProse(480));
+    await openFreshChat(page);
+    await page.locator("button[title^='채팅 설정']").click();
+    const panel = page.locator("[data-chat-settings-scroll-owner]").last();
+    await expect(panel).toBeVisible();
+    const before = await page.evaluate(() => window.scrollY);
+    const nested = await panel.evaluate((element) => {
+      const panel = element as HTMLElement;
+      panel.style.paddingBottom = "1600px";
+      panel.scrollTop = 900;
+      const before = panel.scrollTop;
+      panel.dispatchEvent(new WheelEvent("wheel", { deltaY: -240, bubbles: true }));
+      panel.scrollTop = Math.max(0, panel.scrollTop - 240);
+      return { before, after: panel.scrollTop };
+    });
+    expect(nested.after).toBeLessThan(nested.before);
+    expect(await page.evaluate(() => window.scrollY)).toBe(before);
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: true,
+      manualDetached: false,
+    });
+
+    await sendMockMessage(page, "nested settings must not disable initial follow");
+    await waitForNetworkDoneVisualRevealPending(page);
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: true,
+      manualDetached: false,
+    });
+  });
+
   test("P1 resize: clamp is geometry-only before, during, and after live follow", async ({ page }) => {
     await mockChatStreamRoute(page, longAssistantProse(900));
     await page.setViewportSize({ width: 1280, height: 420 });
@@ -879,7 +910,7 @@ test.describe("General chat live reading follow — production browser", () => {
     });
 
     await page.evaluate(() => {
-      window.dispatchEvent(new WheelEvent("wheel", { deltaY: -400, bubbles: true }));
+      window.scrollBy({ top: -120, behavior: "instant" });
     });
     await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
       followLatest: false,

@@ -182,12 +182,9 @@ import {
   resolveActiveAssistantStreamEnd,
   resolveChatFollowResize,
   resolveFollowBeforeStream,
-  shouldDetachChatLiveFollowOnKey,
-  shouldDetachChatLiveFollowOnWheel,
   shouldIgnoreChatLiveFollowScrollForDetach,
   shouldRecordChatManualDetachOnScrollDelta,
   shouldReattachChatLiveFollowOnScrollDelta,
-  shouldSkipChatLiveFollowKeydown,
   shouldStartChatStreamFollow,
 } from "@/lib/chatLiveFollow";
 import {
@@ -2383,7 +2380,6 @@ export default function ChatClient({
   }, [chatLiveReadingActive, handleChatStreamGrowth, lastAssistantIdx, messages, visualRevealPendingIds]);
 
   useEffect(() => {
-    let touchStartY = 0;
     if (typeof window !== "undefined") {
       lastFollowScrollYRef.current = window.scrollY;
     }
@@ -2441,16 +2437,6 @@ export default function ChatClient({
       syncChatFollowDiagnostics();
     };
 
-    const onWheel = (e: WheelEvent) => {
-      if (shouldDetachChatLiveFollowOnWheel(e.deltaY)) {
-        detachChatLiveFollow();
-        return;
-      }
-      if (e.deltaY > 0 && isNearBottom()) {
-        reattachChatLiveFollow();
-      }
-    };
-
     const onResize = () => {
       const next = resolveChatFollowResize({
         scrollY: window.scrollY,
@@ -2465,41 +2451,12 @@ export default function ChatClient({
       syncChatFollowDiagnostics();
     };
 
-    const onTouchStart = (e: TouchEvent) => {
-      touchStartY = e.touches[0]?.clientY ?? 0;
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      const y = e.touches[0]?.clientY ?? touchStartY;
-      const touchDelta = y - touchStartY;
-      if (touchDelta > 8) {
-        detachChatLiveFollow();
-      } else if (touchDelta < -8 && isNearBottom()) {
-        reattachChatLiveFollow();
-      }
-    };
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (shouldSkipChatLiveFollowKeydown(e.target)) return;
-      if (shouldDetachChatLiveFollowOnKey(e.key)) {
-        detachChatLiveFollow();
-      }
-    };
-
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize, { passive: true });
-    window.addEventListener("wheel", onWheel, { passive: true });
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
-    window.addEventListener("keydown", onKeyDown);
     onScroll();
     return () => {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
-      window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("keydown", onKeyDown);
       if (scrollRafRef.current != null) cancelAnimationFrame(scrollRafRef.current);
     };
   }, [detachChatLiveFollow, isChatLiveReadingActiveNow, isNearBottom, notifyChatLiveFollowTargetUpdate, reattachChatLiveFollow]);

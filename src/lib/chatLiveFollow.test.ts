@@ -7,13 +7,9 @@ import {
   resolveActiveAssistantStreamEnd,
   resolveChatFollowResize,
   resolveFollowBeforeStream,
-  shouldDetachChatLiveFollowOnKey,
-  shouldDetachChatLiveFollowOnTouchDelta,
-  shouldDetachChatLiveFollowOnWheel,
   shouldIgnoreChatLiveFollowScrollForDetach,
   shouldRecordChatManualDetachOnScrollDelta,
   shouldReattachChatLiveFollowOnScrollDelta,
-  shouldSkipChatLiveFollowKeydown,
   shouldStartChatStreamFollow,
 } from "./chatLiveFollow";
 import {
@@ -52,11 +48,7 @@ describe("chat live follow owner map", () => {
     );
   });
 
-  it("C5/C6: manual detach helpers block auto follow", () => {
-    assert.equal(shouldDetachChatLiveFollowOnWheel(-1), true);
-    assert.equal(shouldDetachChatLiveFollowOnTouchDelta(-10), true);
-    assert.equal(shouldDetachChatLiveFollowOnKey("PageUp"), true);
-    assert.equal(shouldDetachChatLiveFollowOnKey("ArrowDown"), false);
+  it("C5/C6: only root scroll intent controls follow state", () => {
     assert.equal(shouldStartChatStreamFollow({ followLatest: true, manualDetached: true }), false);
   });
 
@@ -168,24 +160,6 @@ describe("chat live follow owner map", () => {
       }),
       false
     );
-  });
-
-  it("P0-12: keyboard detach skips editable controls", () => {
-    class MockElement {
-      closest() {
-        return this;
-      }
-    }
-    const priorElement = globalThis.Element;
-    globalThis.Element = MockElement as typeof Element;
-    try {
-      const input = new MockElement();
-      const plain = { closest: () => null };
-      assert.equal(shouldSkipChatLiveFollowKeydown(input as unknown as EventTarget), true);
-      assert.equal(shouldSkipChatLiveFollowKeydown(plain as unknown as EventTarget), false);
-    } finally {
-      globalThis.Element = priorElement;
-    }
   });
 
   it("C31: active assistant stream end resolves by request id, not first selector", () => {

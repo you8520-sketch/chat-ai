@@ -53,23 +53,6 @@ export function resolveFollowBeforeStream(opts: {
     : { followLatest: true, manualDetached: false };
 }
 
-export function shouldDetachChatLiveFollowOnWheel(deltaY: number): boolean {
-  return deltaY < 0;
-}
-
-export function shouldDetachChatLiveFollowOnTouchDelta(deltaY: number): boolean {
-  return deltaY < 0;
-}
-
-export function shouldDetachChatLiveFollowOnKey(key: string): boolean {
-  return key === "PageUp" || key === "Home" || key === "ArrowUp";
-}
-
-export function shouldSkipChatLiveFollowKeydown(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) return false;
-  return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
-}
-
 /** Live-reading scroll events from the shared animator must not detach follow. */
 export function shouldIgnoreChatLiveFollowScrollForDetach(opts: {
   liveReadingActive: boolean;
