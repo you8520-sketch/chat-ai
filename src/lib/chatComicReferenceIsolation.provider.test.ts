@@ -223,5 +223,9 @@ test("route binds tested provider input after access gate and preserves the orig
   assert.match(route, /console\.error\("\[chat-comic-generation\] failed", JSON\.stringify\(/);
   assert.match(route, /referenceIsolationMode: diagnosticOverrides\.referenceMode/);
   assert.match(route, /renderComicTextOverlay\(\{\s+imageBuffer: generated\.buffer,\s+panelCount,\s+plan: scenePlan,/);
-  assert.match(route, /optionsJson: \{\s+mode: "comic",\s+panelCount,\s+mood,\s+messageId: source\.messageId,\s+plan: scenePlan,/);
+  assert.match(
+    route,
+    /diagnosticMode\.mode === "normal" \|\| diagnosticMode\.mode === "blank_balloon_hybrid"\s*\n\s+\? \{ plan: scenePlan \}/
+  );
+  assert.match(route, /serverTextOnlyOverlay:\s+diagnosticMode\.mode === "blank_balloon_hybrid"/);
 });
