@@ -101,7 +101,7 @@ function completedUsage(cost: number, overrides: Partial<Usage> = {}): Usage {
 function insertAssistant(input: {
   id: number;
   chatId?: number;
-  requestId: string;
+  requestId: string | null;
   generationStatus: string;
   usage?: Usage | null;
   deductionSlices?: string | null;
@@ -213,6 +213,19 @@ describe("storedTurnChargeEvidence regression matrix", () => {
     const evidence = resolveEvidenceForAssistant(ASSISTANT_ID);
     assert.equal(evidence.status, "not_charged");
     assert.equal(evidence.settledPoints, 0);
+  });
+
+  it("AB interrupted without request id → unknown, never confirmed zero", () => {
+    insertAssistant({
+      id: ASSISTANT_ID,
+      requestId: null,
+      generationStatus: "interrupted",
+      usage: null,
+    });
+    const evidence = resolveEvidenceForAssistant(ASSISTANT_ID);
+    assert.equal(evidence.status, "unknown");
+    assert.equal(evidence.settledPoints, null);
+    assert.equal(evidence.evidenceStatus, "insufficient");
   });
 
   it("C interrupted after debit before usage persistence → charged", () => {

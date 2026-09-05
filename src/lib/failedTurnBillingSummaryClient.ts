@@ -15,6 +15,18 @@ function normalizeStatus(status: string | null | undefined): string {
   return (status ?? "").toLowerCase();
 }
 
+function normalizeRequestId(requestId: string | null | undefined): string | null {
+  const normalized = requestId?.trim();
+  return normalized ? normalized : null;
+}
+
+function hasExactGenerationIdentity(
+  currentRequestId: string | null | undefined,
+  summaryRequestId: string | null | undefined
+): boolean {
+  return normalizeRequestId(currentRequestId) === normalizeRequestId(summaryRequestId);
+}
+
 /** Terminal failed statuses that require immediate charge visibility. */
 export function isTerminalFailedBillingStatus(status: string | null | undefined): boolean {
   const s = normalizeStatus(status);
@@ -48,12 +60,8 @@ export function applyBillingSummaryToMessages<T extends FailedTurnMessageLike>(
   if (idx < 0) return prev;
   const cur = prev[idx]!;
   if (cur.role !== "assistant") return prev;
-  // Generation identity guard: if both sides carry requestId, they must match.
-  if (
-    cur.requestId &&
-    summary.requestId &&
-    cur.requestId !== summary.requestId
-  ) {
+  // Modern generations require exact identity; both-null remains legacy-compatible.
+  if (!hasExactGenerationIdentity(cur.requestId, summary.requestId)) {
     return prev;
   }
   // Only patch terminal-failed rows; never clobber in-flight or completed rows.
@@ -83,7 +91,7 @@ export function mergeBillingChargeSummaryFieldsById<T extends FailedTurnMessageL
     const summary = serverById.get(m.id);
     if (!summary) return m;
     // Same generation guard as live patch.
-    if (m.requestId && summary.requestId && m.requestId !== summary.requestId) {
+    if (!hasExactGenerationIdentity(m.requestId, summary.requestId)) {
       return m;
     }
     if (m.billingChargeSummary?.messageId === summary.messageId &&

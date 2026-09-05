@@ -5,20 +5,24 @@ export const RECEIPT_BASIC_SUMMARY_OWNER = "adminBillingReceiptTurnSummary.ts";
 export const MARGIN_UNAVAILABLE_REASON_OWNER = "adminBillingReceiptTurnSummary.ts";
 
 export type AdminReceiptTurnSummary = {
-  deductedPoints: number;
-  inputTokens: number;
-  outputTokens: number;
+  deductedPoints: number | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
   marginPercent: number | null;
   marginUnavailableReason: string | null;
 };
 
-export function resolveAdminReceiptSettledPoints(receipt: AdminBillingReceiptV3): number {
+export function resolveAdminReceiptSettledPoints(receipt: AdminBillingReceiptV3): number | null {
   const sync = receipt.syncReceipt;
   if (sync) {
     const uc = sync.userCharge;
     return uc.settledDeductedPoints ?? uc.deductedPoints;
   }
-  return receipt.forensic?.chargeEvidenceSettledPoints ?? 0;
+  const forensic = receipt.forensic;
+  if (forensic?.chargeStatus === "charged" || forensic?.chargeStatus === "not_charged") {
+    return forensic.chargeEvidenceSettledPoints;
+  }
+  return null;
 }
 
 /** Evidence-based whole-turn margin unavailability — not a single false Status Meta label. */
@@ -98,9 +102,9 @@ export function formatAdminReceiptTurnSummaryLines(
     const lines: string[] = [];
     if (includeHeading) lines.push("[Turn Summary]");
     lines.push(
-      `deducted: ${formatPoints(summary.deductedPoints)} P`,
-      `input tokens (Main RP): ${summary.inputTokens.toLocaleString()}`,
-      `output tokens (Main RP): ${summary.outputTokens.toLocaleString()}`
+      `deducted: ${summary.deductedPoints == null ? "unavailable" : `${formatPoints(summary.deductedPoints)} P`}`,
+      `input tokens (Main RP): ${summary.inputTokens == null ? "unavailable" : summary.inputTokens.toLocaleString()}`,
+      `output tokens (Main RP): ${summary.outputTokens == null ? "unavailable" : summary.outputTokens.toLocaleString()}`
     );
     if (summary.marginPercent != null) {
       lines.push(`margin: ${summary.marginPercent}%`);
@@ -113,9 +117,9 @@ export function formatAdminReceiptTurnSummaryLines(
   const lines: string[] = [];
   if (includeHeading) lines.push("[턴 요약]");
   lines.push(
-    `실제 차감          ${formatPoints(summary.deductedPoints)} P`,
-    `총 입력 토큰 (Main RP)       ${summary.inputTokens.toLocaleString()} tok`,
-    `총 출력 토큰 (Main RP)       ${summary.outputTokens.toLocaleString()} tok`
+    `실제 차감          ${summary.deductedPoints == null ? "확인 불가" : `${formatPoints(summary.deductedPoints)} P`}`,
+    `총 입력 토큰 (Main RP)       ${summary.inputTokens == null ? "확인 불가" : `${summary.inputTokens.toLocaleString()} tok`}`,
+    `총 출력 토큰 (Main RP)       ${summary.outputTokens == null ? "확인 불가" : `${summary.outputTokens.toLocaleString()} tok`}`
   );
   if (summary.marginPercent != null) {
     lines.push(`실현 마진          ${summary.marginPercent}%`);

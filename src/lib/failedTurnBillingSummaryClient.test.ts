@@ -86,6 +86,19 @@ describe("failedTurnBillingSummaryClient live visibility", () => {
     assert.equal(next[0]?.billingChargeSummary?.messageId, 21);
   });
 
+  it("AC/AD reject one-sided request identity", () => {
+    const currentRequest = [{ id: 22, role: "assistant", requestId: "req_current", generationStatus: "failed", billingChargeSummary: null }];
+    const summaryRequest = [{ id: 23, role: "assistant", requestId: null, generationStatus: "failed", billingChargeSummary: null }];
+    assert.deepEqual(applyBillingSummaryToMessages(currentRequest, summaryFor(22, null)), currentRequest);
+    assert.deepEqual(applyBillingSummaryToMessages(summaryRequest, summaryFor(23, "req_summary")), summaryRequest);
+  });
+
+  it("AE exact request identity is applied, including normalized whitespace", () => {
+    const prev = [{ id: 24, role: "assistant", requestId: " req_exact ", generationStatus: "interrupted", billingChargeSummary: null }];
+    const next = applyBillingSummaryToMessages(prev, summaryFor(24, "req_exact"));
+    assert.equal(next[0]?.billingChargeSummary?.requestId, "req_exact");
+  });
+
   it("SSR merge copies server summary with generation guard", () => {
     const prev = [
       { id: 30, role: "assistant", requestId: "req_B", generationStatus: "interrupted", billingChargeSummary: null },
@@ -99,5 +112,11 @@ describe("failedTurnBillingSummaryClient live visibility", () => {
       { id: 30, role: "assistant", requestId: "req_A", generationStatus: "interrupted", billingChargeSummary: summaryFor(30, "req_A") },
     ];
     assert.deepEqual(mergeBillingChargeSummaryFieldsById(prev, staleServer), prev);
+    assert.deepEqual(
+      mergeBillingChargeSummaryFieldsById(prev, [
+        { id: 30, role: "assistant", requestId: "req_B", generationStatus: "interrupted", billingChargeSummary: summaryFor(30, null) },
+      ]),
+      prev
+    );
   });
 });

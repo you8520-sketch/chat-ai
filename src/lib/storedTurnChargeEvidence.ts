@@ -239,6 +239,14 @@ export function resolveStoredTurnChargeEvidence(
   // no-charge proof — but only for this path. Malformed/legacy/ambiguous evidence
   // must never use this branch (handled above → unknown).
   if (generationStatus === "interrupted") {
+    if (!input.requestId?.trim()) {
+      return finalizeEvidence({
+        status: "unknown",
+        settledPoints: null,
+        evidenceStatus: "insufficient",
+        violations,
+      });
+    }
     return finalizeEvidence({
       status: "not_charged",
       settledPoints: 0,
