@@ -11,7 +11,7 @@ import {
   selectComicAnchor,
   COMIC_PANEL_MODES,
 } from "./chatComicHighlightStoryboard";
-import { validateComicEditorial } from "./chatImageScenePlan";
+import { validateComicEditorial, buildScenePlanPrompt } from "./chatImageScenePlan";
 import { COMIC_NARRATION_MAX_CHARS } from "./chatComicNarrationMinifier";
 import {
   buildDeterministicScenePlan,
@@ -144,8 +144,7 @@ describe("comic highlight storyboard — fixture matrix", () => {
         assert.doesNotMatch(panel.narration, /원문|prose|novel/i);
       }
     }
-    assert.equal(storyboard.audit.firstSentenceNarrationSelection, 0);
-    assert.equal(storyboard.audit.midClauseTruncationCount, 0);
+    assert.equal(storyboard.audit.inventedEventCount, 0);
   });
 
   it("F. comedy → punchline anchor and reaction preserved", () => {
@@ -589,29 +588,27 @@ describe("scene-planner-owned comic editorial (V3 architecture)", () => {
     if (!validated.ok) return;
     assert.equal(validated.audit.narrationCount, 1);
     assert.equal(validated.editorial.narration[0]?.sourceEventIds[0], "N2", "provenance");
-    assert.equal(validated.audit.firstSentenceNarrationSelection, 0);
     const storyboard = buildComicPresentationFromEditorial(narrationPlan, validated.editorial);
     const narrations = storyboard.panels.flatMap((panel) => (panel.narration ? [panel.narration] : []));
     assert.equal(narrations.length, 1);
     assert.ok(storyboard.panels.some((panel) => panel.dialogue.length > 0), "coexists with dialogue");
   });
 
-  it("NARR-2 narration is not source first-sentence extraction", () => {
-    const firstSentence = "잠시 뒤, 둘은 숙소로 돌아왔다.";
-    const narrationEvents = [
-      event(1, "X1", "environment", "environment", firstSentence),
-      event(2, "X2", "dialogue", "character", "머리부터 말리자."),
-    ];
-    const narrationPlan = planFromEvents(narrationEvents, 3);
-    // Planner writes DIFFERENT narration than the source first sentence.
+  it("NARR-VALID-1 planner narration may exactly equal a concise source sentence (ACCEPT)", () => {
+    const concise = "잠시 뒤, 둘은 숙소로 돌아왔다.";
+    const narrationPlan = planFromEvents(
+      [
+        event(1, "X1", "environment", "environment", concise),
+        event(2, "X2", "dialogue", "character", "머리부터 말리자."),
+      ],
+      3
+    );
     const editorial = {
       anchorEventId: "X2",
       anchorType: "dialogue",
       focusEventIds: ["X1", "X2"],
       recommendedPanelCount: 3,
-      narration: [
-        { sourceEventIds: ["X1"], purpose: "location_bridge", text: "둘은 숙소에 도착했다." },
-      ],
+      narration: [{ sourceEventIds: ["X1"], purpose: "location_bridge", text: concise }],
       panels: [
         { purpose: "context", sourceEventIds: ["X1"], dialogueEventIds: [] },
         { purpose: "anchor", sourceEventIds: ["X2"], dialogueEventIds: ["X2"] },
@@ -619,38 +616,64 @@ describe("scene-planner-owned comic editorial (V3 architecture)", () => {
       ],
     };
     const validated = validateComicEditorial(editorial, narrationPlan.events);
-    assert.equal(validated.ok, true);
-    if (!validated.ok) return;
-    assert.equal(validated.audit.firstSentenceNarrationSelection, 0);
-    // First-sentence extraction is REJECTED by the validator (NORMAL narration
-    // must never be a verbatim first-sentence copy).
-    const badEditorial = {
-      ...editorial,
-      narration: [
-        { sourceEventIds: ["X1"], purpose: "location_bridge", text: firstSentence },
-      ],
-    };
-    const bad = validateComicEditorial(badEditorial, narrationPlan.events);
-    assert.equal(bad.ok, false, "first-sentence narration is rejected");
+    assert.equal(validated.ok, true, "source-sentence-equal narration is accepted");
   });
 
-  it("NARR-6 mid-clause truncation is flagged (prefix of a source event)", () => {
-    const longEvent = event(1, "Y1", "environment", "environment", "한 시간이 지나고 나서 두 사람은 마침내 자리에서 일어났다.");
-    const planY = planFromEvents([longEvent, event(2, "Y2", "dialogue", "character", "가자.")], 3);
+  it("NARR-VALID-2 narration equal to a complete first sentence of a longer source is accepted", () => {
+    const longSource = "한 시간 후, 비가 그치기 시작했다. 두 사람은 창가로 걸어가 바깥을 바라보았다.";
+    const narrationPlan = planFromEvents(
+      [
+        event(1, "Y1", "environment", "environment", longSource),
+        event(2, "Y2", "dialogue", "character", "가자."),
+      ],
+      3
+    );
     const editorial = {
       anchorEventId: "Y2",
       anchorType: "dialogue",
       focusEventIds: ["Y1", "Y2"],
       recommendedPanelCount: 3,
-      narration: [{ sourceEventIds: ["Y1"], purpose: "time_bridge", text: "한 시간이 지나고 나서 두 사람은" }],
+      narration: [
+        { sourceEventIds: ["Y1"], purpose: "time_bridge", text: "한 시간 후, 비가 그치기 시작했다." },
+      ],
       panels: [
         { purpose: "context", sourceEventIds: ["Y1"], dialogueEventIds: [] },
         { purpose: "anchor", sourceEventIds: ["Y2"], dialogueEventIds: ["Y2"] },
         { purpose: "quiet_close", sourceEventIds: [], dialogueEventIds: [] },
       ],
     };
-    const validated = validateComicEditorial(editorial, planY.events);
-    assert.equal(validated.ok, false, "mid-clause truncation narration is rejected");
+    const validated = validateComicEditorial(editorial, narrationPlan.events);
+    assert.equal(validated.ok, true);
+  });
+
+  it("NARR-VALID-3 normal planner path uses the editorial narration verbatim (no first-sentence helper)", () => {
+    const narrationPlan = planFromEvents(
+      [
+        event(1, "Z1", "environment", "environment", "잠시 뒤, 둘은 숙소로 돌아왔다."),
+        event(2, "Z2", "dialogue", "character", "머리부터 말리자."),
+      ],
+      3
+    );
+    const editorial = {
+      anchorEventId: "Z2",
+      anchorType: "dialogue",
+      focusEventIds: ["Z1", "Z2"],
+      recommendedPanelCount: 3,
+      narration: [
+        { sourceEventIds: ["Z1"], purpose: "location_bridge", text: "둘은 숙소에 도착했다." },
+      ],
+      panels: [
+        { purpose: "context", sourceEventIds: ["Z1"], dialogueEventIds: [] },
+        { purpose: "anchor", sourceEventIds: ["Z2"], dialogueEventIds: ["Z2"] },
+        { purpose: "quiet_close", sourceEventIds: [], dialogueEventIds: [] },
+      ],
+    };
+    const validated = validateComicEditorial(editorial, narrationPlan.events);
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    const storyboard = buildComicPresentationFromEditorial(narrationPlan, validated.editorial);
+    const narrationText = storyboard.panels.flatMap((panel) => (panel.narration ? [panel.narration] : []))[0];
+    assert.equal(narrationText, "둘은 숙소에 도착했다.", "planner narration used verbatim, not derived");
   });
 
   it("PANEL-1 one prior + anchor + reaction AUTO → 3; PANEL-2 two distinct priors can → 4", () => {
@@ -790,5 +813,131 @@ describe("scene-planner-owned comic editorial (V3 architecture)", () => {
     assert.equal(validated.ok, true);
     const storyboard = buildComicHighlightStoryboard(plan);
     assert.equal(storyboard.audit.extraPlannerCallCount, 0);
+  });
+});
+
+describe("V3 micro-correction — manual override, user-edit parity, prompt hierarchy", () => {
+  // Nuanced dialogue (no regex keywords) + reaction, editorial recommends 3.
+  const events = [
+    event(1, "M1", "action", "character", "상대를 바라본다"),
+    event(2, "M2", "dialogue", "character", "여기서 이대로 지내면 되는 거야."),
+    event(3, "M3", "reaction", "persona", "고개를 들어 그를 오래 바라본다"),
+  ];
+  const plan = planFromEvents(events, 3);
+  const editorial3 = {
+    anchorEventId: "M2",
+    anchorType: "dialogue",
+    focusEventIds: ["M1", "M2", "M3"],
+    recommendedPanelCount: 3,
+    narration: [],
+    panels: [
+      { purpose: "context", sourceEventIds: ["M1"], dialogueEventIds: [] },
+      { purpose: "anchor", sourceEventIds: ["M2"], dialogueEventIds: ["M2"] },
+      { purpose: "reaction", sourceEventIds: ["M3"], dialogueEventIds: [] },
+    ],
+  };
+
+  it("MANUAL-OWNER-1 planner anchor survives manual 3", () => {
+    const validated = validateComicEditorial(editorial3, plan.events);
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    const presented = { ...plan, comicEditorial: validated.editorial };
+    const resolved = resolveComicStoryboard(presented, { manualPanelCount: 3 });
+    assert.equal(resolved.source, "planner");
+    assert.equal(resolved.storyboard.anchor.eventId, "M2", "anchor preserved under manual 3");
+  });
+
+  it("MANUAL-OWNER-2/3 manual 4 keeps anchor and degrades to 3 without four distinct beats", () => {
+    const validated = validateComicEditorial(editorial3, plan.events);
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    const presented = { ...plan, comicEditorial: validated.editorial };
+    const resolved = resolveComicStoryboard(presented, { manualPanelCount: 4 });
+    assert.equal(resolved.source, "planner", "manual override never switches to regex fallback");
+    assert.equal(resolved.storyboard.anchor.eventId, "M2", "anchor preserved under manual 4");
+    assert.equal(
+      resolved.storyboard.panelCount,
+      3,
+      "only one pre-anchor beat → degrades to 3 (no filler, no duplication)"
+    );
+    assert.equal(resolved.storyboard.audit.duplicatedPanelSourceEventCount, 0);
+  });
+
+  it("MANUAL-OWNER-4 regex fallback not called merely because panel count differs", () => {
+    const validated = validateComicEditorial(editorial3, plan.events);
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    const presented = { ...plan, comicEditorial: validated.editorial };
+    const resolved = resolveComicStoryboard(presented, { manualPanelCount: 3 });
+    assert.equal(resolved.source, "planner");
+  });
+
+  it("EDIT-1/2/3/4 user-edited selected dialogue reaches the presentation; removed does not reappear; no invention", () => {
+    const uneditedPlan: ScenePlan = {
+      ...plan,
+      panels: [
+        { index: 1, sourceEventIds: ["M1"], situation: "", dialogue: [] },
+        {
+          index: 2,
+          sourceEventIds: ["M2"],
+          situation: "",
+          dialogue: [{ speaker: "character", text: "여기서 이대로 지내면 되는 거야.", sourceEventId: "M2", provenance: "source" }],
+        },
+        { index: 3, sourceEventIds: ["M3"], situation: "", dialogue: [] },
+      ],
+    };
+    const validated = validateComicEditorial(editorial3, uneditedPlan.events);
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    const uneditedSb = buildComicPresentationFromEditorial(uneditedPlan, validated.editorial);
+    const uneditedLine = uneditedSb.panels.flatMap((panel) => panel.dialogue)[0];
+    assert.equal(uneditedLine?.text, "여기서 이대로 지내면 되는 거야.", "EDIT-1 verbatim");
+
+    const editedPlan: ScenePlan = {
+      ...plan,
+      panels: [
+        { index: 1, sourceEventIds: ["M1"], situation: "", dialogue: [] },
+        {
+          index: 2,
+          sourceEventIds: ["M2"],
+          situation: "",
+          dialogue: [{ speaker: "character", text: "이대로 우리만 있어도 돼.", sourceEventId: "M2", provenance: "user_edit" }],
+        },
+        { index: 3, sourceEventIds: ["M3"], situation: "", dialogue: [] },
+      ],
+    };
+    const editedSb = buildComicPresentationFromEditorial(editedPlan, validated.editorial);
+    const editedLine = editedSb.panels.flatMap((panel) => panel.dialogue)[0];
+    assert.equal(editedLine?.text, "이대로 우리만 있어도 돼.", "EDIT-2 explicit user edit preserved");
+    assert.equal(editedLine?.provenance, "user_edit");
+
+    const removedPlan: ScenePlan = {
+      ...plan,
+      panels: [
+        { index: 1, sourceEventIds: ["M1"], situation: "", dialogue: [] },
+        { index: 2, sourceEventIds: ["M2"], situation: "", dialogue: [] },
+        { index: 3, sourceEventIds: ["M3"], situation: "", dialogue: [] },
+      ],
+    };
+    const removedSb = buildComicPresentationFromEditorial(removedPlan, validated.editorial);
+    const removedDialogue = removedSb.panels.flatMap((panel) => panel.dialogue);
+    assert.equal(removedDialogue.length, 0, "EDIT-3 removed dialogue does not reappear");
+    assert.equal(removedSb.audit.inventedDialogueCount, 0, "EDIT-4 planner invents nothing");
+  });
+
+  it("PROMPT-1/2/3 comic prompt allows a presentation subset without mutating the canonical timeline", () => {
+    const prompt = buildScenePlanPrompt({
+      scenePlanIntent: "comic",
+      characterName: "태형",
+      personaName: "렌",
+      messages: buildSceneSourceMessages([
+        { id: 1, role: "user", content: '"같이 갈래?"' },
+        { id: 2, role: "assistant", content: '"그래."' },
+      ]),
+    });
+    assert.match(prompt, /Never invent, omit, reorder, or reclassify events/, "PROMPT-1 canonical omission forbidden");
+    assert.match(prompt, /may select a subset of canonical events/, "PROMPT-2 comic subset allowed");
+    assert.match(prompt, /must never mutate, delete, or reorder the canonical timeline/, "PROMPT-3 boundary explicit");
+    assert.doesNotMatch(prompt, /panels here are the comic PRESENTATION \(a highlight\)\. Whole-turn event coverage is NOT required/, "no stale contradictory wording");
   });
 });

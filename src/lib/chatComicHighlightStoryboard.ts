@@ -65,8 +65,6 @@ export type ComicStoryboardAudit = {
   inventedDialogueCount: number;
   chronologyReversalCount: number;
   narrationCount: number;
-  firstSentenceNarrationSelection: number;
-  midClauseTruncationCount: number;
   extraPlannerCallCount: 0;
   duplicatedPanelSourceEventCount: number;
   unknownSourceEventCount: number;
@@ -268,19 +266,6 @@ function authorNarrationFromEvent(event: SceneEvent): string | null {
 // Storyboard builder
 // ---------------------------------------------------------------------------
 
-function dialogueLine(event: SceneEvent): SceneDialogue {
-  return {
-    speaker:
-      event.actor === "persona" || event.actor === "character" || event.actor === "other"
-        ? event.actor
-        : "other",
-    speakerName: event.speakerName,
-    text: event.text,
-    sourceEventId: event.id,
-    provenance: "source",
-  };
-}
-
 function isShortDialogueEvent(event: SceneEvent): boolean {
   return isEligibleDialogueEvent(event) && event.text.length <= 24;
 }
@@ -307,6 +292,16 @@ export function buildComicHighlightStoryboard(
   const prior = focusWindow.slice(0, anchorIndex);
   const post = focusWindow.slice(anchorIndex + 1);
   const anchorEvent = focusWindow[anchorIndex] ?? visual[0] ?? plan.events[0]!;
+  const lookup = buildDialogueLookup(plan);
+  const dialogueFor = (event: SceneEvent | undefined): SceneDialogue[] =>
+    event
+      ? resolveComicPanelDialogue({
+          lookup,
+          dialogueEventIds: [event.id],
+          panelSourceEventIds: [event.id],
+          fallbackEvents: new Map(plan.events.map((ev) => [ev.id, ev])),
+        })
+      : [];
 
   const auto = recommendComicPanelCount({
     plan,
@@ -351,7 +346,7 @@ export function buildComicHighlightStoryboard(
         index: 1,
         purpose: "context",
         events: contextBeat ? [contextBeat] : [],
-        dialogue: contextBeat && isShortDialogueEvent(contextBeat) ? [dialogueLine(contextBeat)] : [],
+        dialogue: dialogueFor(contextBeat),
       })
     );
     panels.push(
@@ -359,7 +354,7 @@ export function buildComicHighlightStoryboard(
         index: 2,
         purpose: "anchor",
         events: [anchorEvent],
-        dialogue: anchorEvent.kind === "dialogue" ? [dialogueLine(anchorEvent)] : [],
+        dialogue: dialogueFor(anchorEvent),
       })
     );
     panels.push(
@@ -367,10 +362,7 @@ export function buildComicHighlightStoryboard(
         index: 3,
         purpose: reactionBeat ? "reaction" : "quiet_close",
         events: reactionBeat ? [reactionBeat] : [],
-        dialogue:
-          reactionBeat && isShortDialogueEvent(reactionBeat)
-            ? [dialogueLine(reactionBeat)]
-            : [],
+        dialogue: dialogueFor(reactionBeat),
       })
     );
   } else {
@@ -380,7 +372,7 @@ export function buildComicHighlightStoryboard(
         index: 1,
         purpose: "context",
         events: [contextBeat!],
-        dialogue: [],
+        dialogue: dialogueFor(contextBeat),
       })
     );
     panels.push(
@@ -388,7 +380,7 @@ export function buildComicHighlightStoryboard(
         index: 2,
         purpose: "approach",
         events: [approachBeat!],
-        dialogue: isShortDialogueEvent(approachBeat!) ? [dialogueLine(approachBeat!)] : [],
+        dialogue: dialogueFor(approachBeat),
       })
     );
     panels.push(
@@ -396,7 +388,7 @@ export function buildComicHighlightStoryboard(
         index: 3,
         purpose: "anchor",
         events: [anchorEvent],
-        dialogue: anchorEvent.kind === "dialogue" ? [dialogueLine(anchorEvent)] : [],
+        dialogue: dialogueFor(anchorEvent),
       })
     );
     panels.push(
@@ -404,10 +396,7 @@ export function buildComicHighlightStoryboard(
         index: 4,
         purpose: reactionBeat ? "reaction" : "quiet_close",
         events: reactionBeat ? [reactionBeat] : secondReactionBeat ? [secondReactionBeat] : [],
-        dialogue:
-          reactionBeat && isShortDialogueEvent(reactionBeat)
-            ? [dialogueLine(reactionBeat)]
-            : [],
+        dialogue: dialogueFor(reactionBeat ?? secondReactionBeat),
       })
     );
   }
@@ -505,19 +494,6 @@ function computeComicStoryboardAudit(
     const next = eventsById.get(panelEventIds[i]!);
     if (prev && next && next.order < prev.order) chronologyReversal += 1;
   }
-  let firstSentenceNarrationSelection = 0;
-  let midClauseTruncationCount = 0;
-  for (const narration of storyboard.narration) {
-    for (const id of narration.sourceEventIds) {
-      const event = eventsById.get(id);
-      if (!event) continue;
-      const firstSentence = event.text.split(/[.!?…。！？]/u)[0]?.trim() ?? "";
-      if (firstSentence && narration.text === firstSentence) firstSentenceNarrationSelection += 1;
-      if (event.text.length > narration.text.length && event.text.startsWith(narration.text)) {
-        midClauseTruncationCount += 1;
-      }
-    }
-  }
 
   return {
     sourceEventCount: plan.events.length,
@@ -531,8 +507,6 @@ function computeComicStoryboardAudit(
     inventedDialogueCount: inventedDialogue,
     chronologyReversalCount: chronologyReversal,
     narrationCount: storyboard.narration.length,
-    firstSentenceNarrationSelection,
-    midClauseTruncationCount,
     extraPlannerCallCount: 0,
     duplicatedPanelSourceEventCount: duplicated,
     unknownSourceEventCount: unknown,
@@ -562,42 +536,164 @@ export function applyComicHighlightStoryboardToPlan(
 
 // ---------------------------------------------------------------------------
 // SCENE-PLANNER-OWNED editorial path. The model selects semantic importance;
-// the server reconstructs verbatim dialogue text from canonical events.
+// the server reconstructs verbatim dialogue text from the validated plan.
+// (Implementation below — dialogue lookup + reflow + orchestration.)
 // ---------------------------------------------------------------------------
+
+export type ComicStoryboardSource = "planner" | "deterministic_fallback";
+
+// ---------------------------------------------------------------------------
+// Dialogue lookup — USER EDIT PARITY. The plan the route validated with
+// allowUserEdits is the presentation dialogue owner: unedited selected lines
+// stay canonical-verbatim, edited lines keep the explicit user text, removed
+// lines are absent, and the planner never invents a line.
+// ---------------------------------------------------------------------------
+
+type DialogueLookup = {
+  bySourceId: Map<string, SceneDialogue>;
+  /** User-added lines (provenance user_edit, no sourceEventId) with their plan panel. */
+  userAdded: Array<{ panelSourceEventIds: string[]; line: SceneDialogue }>;
+  /** When the plan carries panels, absence of a line means the user removed it. */
+  panelsPresent: boolean;
+};
+
+function buildDialogueLookup(plan: ScenePlan): DialogueLookup {
+  const bySourceId = new Map<string, SceneDialogue>();
+  const userAdded: DialogueLookup["userAdded"] = [];
+  for (const panel of plan.panels) {
+    for (const line of panel.dialogue) {
+      if (line.provenance === "user_edit" && !line.sourceEventId) {
+        userAdded.push({ panelSourceEventIds: panel.sourceEventIds, line });
+        continue;
+      }
+      if (line.sourceEventId) bySourceId.set(line.sourceEventId, line);
+    }
+  }
+  return { bySourceId, userAdded, panelsPresent: plan.panels.length > 0 };
+}
+
+function dialogueFromEvent(event: SceneEvent): SceneDialogue {
+  return {
+    speaker:
+      event.actor === "persona" || event.actor === "character" || event.actor === "other"
+        ? event.actor
+        : "other",
+    speakerName: event.speakerName,
+    text: event.text,
+    sourceEventId: event.id,
+    provenance: "source",
+  };
+}
+
+function resolveComicPanelDialogue(opts: {
+  lookup: DialogueLookup;
+  dialogueEventIds: string[];
+  panelSourceEventIds: string[];
+  fallbackEvents?: Map<string, SceneEvent>;
+}): SceneDialogue[] {
+  const selected: SceneDialogue[] = [];
+  for (const id of opts.dialogueEventIds) {
+    const line = opts.lookup.bySourceId.get(id);
+    if (line) {
+      selected.push(line);
+    } else if (!opts.lookup.panelsPresent && opts.fallbackEvents?.has(id)) {
+      // No plan panels (e.g. deterministic fallback input) → canonical verbatim
+      // for DIALOGUE events only.
+      const fallbackEvent = opts.fallbackEvents.get(id);
+      if (fallbackEvent?.kind === "dialogue") {
+        selected.push(dialogueFromEvent(fallbackEvent));
+      }
+    }
+    // Plan panels present + line absent → user removed it; it does not reappear.
+  }
+  // Explicit user-added dialogue for this presentation panel is honored.
+  for (const added of opts.lookup.userAdded) {
+    if (added.panelSourceEventIds.some((id) => opts.panelSourceEventIds.includes(id))) {
+      selected.push(added.line);
+    }
+  }
+  return selected;
+}
 
 /**
  * Builds a storyboard from the Scene Planner's comic editorial. Dialogue text is
- * reconstructed verbatim from canonical events via dialogueEventIds; narration
- * is the planner-authored presentation text (with grounding provenance).
+ * reconstructed from the validated submitted plan (user-edit aware, verbatim);
+ * narration is the planner-authored presentation text (with grounding provenance).
+ * A manual panel-count override REFLOWS the same anchor/focus/narration — it
+ * never discards the editorial and never switches to the regex fallback.
  */
 export function buildComicPresentationFromEditorial(
   plan: ScenePlan,
-  editorial: ComicEditorial
+  editorial: ComicEditorial,
+  opts: BuildComicStoryboardOptions = {}
 ): ComicStoryboard {
   const eventsById = new Map(plan.events.map((event) => [event.id, event]));
-  const anchorEvent = eventsById.get(editorial.anchorEventId);
+  const lookup = buildDialogueLookup(plan);
   const anchor: ComicAnchor = {
     type: editorial.anchorType,
     eventId: editorial.anchorEventId,
     reason: "scene-planner editorial selection",
   };
 
-  const panels: ComicStoryboardPanel[] = editorial.panels.map((panel, index) => {
-    const beat = panel.sourceEventIds
-      .map((id) => eventsById.get(id))
-      .filter((event): event is SceneEvent => Boolean(event))[0];
-    const dialogue = panel.dialogueEventIds
-      .map((id) => eventsById.get(id))
-      .filter((event): event is SceneEvent => Boolean(event))
-      .map((event) => dialogueLine(event));
-    return {
-      index: index + 1,
-      purpose: panel.purpose,
-      sourceEventIds: panel.sourceEventIds,
-      situation: beat?.text ?? "",
-      dialogue,
+  const targetCount = opts.manualPanelCount ?? editorial.recommendedPanelCount;
+  const panels: ComicStoryboardPanel[] = [];
+
+  if (targetCount === editorial.recommendedPanelCount) {
+    for (const [index, panel] of editorial.panels.entries()) {
+      const beat = panel.sourceEventIds
+        .map((id) => eventsById.get(id))
+        .filter((event): event is SceneEvent => Boolean(event))[0];
+      panels.push({
+        index: index + 1,
+        purpose: panel.purpose,
+        sourceEventIds: panel.sourceEventIds,
+        situation: beat?.text ?? "",
+        dialogue: resolveComicPanelDialogue({
+          lookup,
+          dialogueEventIds: panel.dialogueEventIds,
+          panelSourceEventIds: panel.sourceEventIds,
+          fallbackEvents: eventsById,
+        }),
+      });
+    }
+  } else {
+    // Manual reflow of the SAME focus/anchor — presentation only.
+    const visual = visualEvents(plan.events);
+    const focusWindow = visual.filter((event) => editorial.focusEventIds.includes(event.id));
+    const anchorIndex = focusWindow.findIndex((event) => event.id === editorial.anchorEventId);
+    const prior = focusWindow.slice(0, Math.max(0, anchorIndex));
+    const post = focusWindow.slice(Math.max(0, anchorIndex + 1));
+    const anchorEvent = focusWindow[anchorIndex] ?? eventsById.get(editorial.anchorEventId);
+    let count: ComicPanelCount = targetCount;
+    if (count === 4 && !(prior.length >= 2 && post.length >= 1)) count = 3;
+
+    const buildPanel = (index: number, purpose: ComicPanelPurpose, events: SceneEvent[], dialogueEventIds: string[]) => {
+      const beat = events[0];
+      panels.push({
+        index,
+        purpose,
+        sourceEventIds: events.map((event) => event.id),
+        situation: beat?.text ?? "",
+        dialogue: resolveComicPanelDialogue({
+          lookup,
+          dialogueEventIds,
+          panelSourceEventIds: events.map((event) => event.id),
+          fallbackEvents: eventsById,
+        }),
+      });
     };
-  });
+
+    if (count === 3) {
+      buildPanel(1, "context", prior[0] ? [prior[0]] : [], []);
+      buildPanel(2, "anchor", anchorEvent ? [anchorEvent] : [], [editorial.anchorEventId]);
+      buildPanel(3, post[0] ? "reaction" : "quiet_close", post[0] ? [post[0]] : [], []);
+    } else {
+      buildPanel(1, "context", [prior[0]!], []);
+      buildPanel(2, "approach", [prior[1]!], []);
+      buildPanel(3, "anchor", anchorEvent ? [anchorEvent] : [], [editorial.anchorEventId]);
+      buildPanel(4, post[0] ? "reaction" : "quiet_close", post[0] ? [post[0]] : [], []);
+    }
+  }
 
   // Attach planner-authored narration (0-2) to the most relevant panel.
   for (const narration of editorial.narration) {
@@ -614,7 +710,7 @@ export function buildComicPresentationFromEditorial(
   const audit = computeComicStoryboardAudit(plan, {
     anchor,
     focusWindowEventIds: editorial.focusEventIds,
-    panelCount: editorial.recommendedPanelCount,
+    panelCount: panels.length as ComicPanelCount,
     panels,
     narration: editorial.narration.map((narration) => ({
       sourceEventIds: narration.sourceEventIds,
@@ -626,30 +722,25 @@ export function buildComicPresentationFromEditorial(
   return {
     anchor,
     focusWindowEventIds: editorial.focusEventIds,
-    panelCount: editorial.recommendedPanelCount,
+    panelCount: panels.length as ComicPanelCount,
     panels,
     narrationCount: editorial.narration.length,
     audit,
   };
 }
 
-export type ComicStoryboardSource = "planner" | "deterministic_fallback";
-
 /**
  * Orchestration: the SCENE PLANNER is the primary comic editorial owner. Its
- * validated comicEditorial drives the presentation when present; the
- * deterministic storyboard is only the recovery path.
+ * validated comicEditorial drives the presentation when present; a manual panel
+ * count is ONLY a presentation reflow (never a semantic ownership switch). The
+ * deterministic regex storyboard runs only when the editorial is missing/invalid.
  */
 export function resolveComicStoryboard(
   plan: ScenePlan,
   opts: BuildComicStoryboardOptions = {}
 ): { storyboard: ComicStoryboard; source: ComicStoryboardSource } {
-  const manualOverridesEditorial =
-    opts.manualPanelCount != null &&
-    plan.comicEditorial != null &&
-    opts.manualPanelCount !== plan.comicEditorial.recommendedPanelCount;
-  if (plan.comicEditorial && !manualOverridesEditorial) {
-    const storyboard = buildComicPresentationFromEditorial(plan, plan.comicEditorial);
+  if (plan.comicEditorial) {
+    const storyboard = buildComicPresentationFromEditorial(plan, plan.comicEditorial, opts);
     return { storyboard, source: "planner" };
   }
   return { storyboard: buildComicHighlightStoryboard(plan, opts), source: "deterministic_fallback" };

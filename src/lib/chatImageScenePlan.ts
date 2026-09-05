@@ -1483,8 +1483,6 @@ export type ComicEditorialAudit = {
   inventedDialogueCount: number;
   chronologyReversalCount: number;
   narrationCount: number;
-  firstSentenceNarrationSelection: number;
-  midClauseTruncationCount: number;
 };
 
 export function normalizeComicEditorialAudit(): ComicEditorialAudit {
@@ -1496,8 +1494,6 @@ export function normalizeComicEditorialAudit(): ComicEditorialAudit {
     inventedDialogueCount: 0,
     chronologyReversalCount: 0,
     narrationCount: 0,
-    firstSentenceNarrationSelection: 0,
-    midClauseTruncationCount: 0,
   };
 }
 
@@ -1656,25 +1652,11 @@ export function validateComicEditorial(
         return { ok: false, reason: "comic editorial narration provenance unknown" };
       }
     }
-    // Detect first-sentence extraction / mid-clause truncation bias.
+    // Structural narration validation only — provenance, purpose, length, budget.
     for (const id of provenanceIds) {
-      const event = eventsById.get(id);
-      if (!event) continue;
-      const firstSentence =
-        (event.text.split(/[.!?…。！？]/u)[0] ?? "").trim().replace(/[.!?…。！？]+$/u, "") ?? "";
-      const normalizedText = text.replace(/[.!?…。！？]+$/u, "");
-      if (firstSentence && normalizedText === firstSentence) {
-        audit.firstSentenceNarrationSelection += 1;
+      if (!eventsById.has(id)) {
+        return { ok: false, reason: "comic editorial narration provenance unknown" };
       }
-      if (event.text.length > text.length && event.text.startsWith(text)) {
-        audit.midClauseTruncationCount += 1;
-      }
-    }
-    if (audit.firstSentenceNarrationSelection > 0) {
-      return { ok: false, reason: "comic editorial narration is source first-sentence extraction" };
-    }
-    if (audit.midClauseTruncationCount > 0) {
-      return { ok: false, reason: "comic editorial narration is a mid-clause truncation" };
     }
     narration.push({ sourceEventIds: provenanceIds, purpose: row.purpose as ComicEditorialNarration["purpose"], text });
   }
@@ -2058,9 +2040,9 @@ export function buildScenePlanPrompt(opts: {
           "  - anchorType=action when no useful dialogue exists (one story-bearing action/reaction).",
           "focusEventIds: ONLY the chronologically local context needed to understand the anchor (e.g. 1–2 before + anchor + 1–2 after). Max 6 events. MUST include the anchor. MUST be one contiguous local region — never collect scattered distant highlights.",
           "recommendedPanelCount: 3 (context→anchor→reaction) when the micro-scene fits three beats; 4 (context→approach→anchor→reaction) only when an additional distinct source-grounded causal beat is required. NEVER choose by raw source length.",
-          "panels: one row per comic panel with purpose (context/approach/anchor/reaction/quiet_close), sourceEventIds (subset of focusEventIds, no duplication across panels, no invented ids), dialogueEventIds (canonical dialogue event ids whose verbatim text the server will render — the anchor line on the anchor panel, plus 0–2 short supporting lines only when needed to understand the anchor/reaction).",
-          "narration: 0–2 short Korean sentences written by you from the full micro-scene context (one short sentence each, ~10–36 chars, avoid >48). Each must reference canonical sourceEventIds as provenance and a purpose (time_bridge/location_bridge/action_bridge/context). Do NOT paste source prose, do NOT extract the first sentence of a source event, do NOT truncate mid-clause, do NOT restate same-panel dialogue. Narration may coexist with dialogue.",
-          "panels here are the comic PRESENTATION (a highlight). Whole-turn event coverage is NOT required for the comic editorial.",
+          "panels (in comicEditorial): one row per comic panel with purpose (context/approach/anchor/reaction/quiet_close), sourceEventIds (subset of focusEventIds, no duplication across panels, no invented ids), dialogueEventIds (canonical dialogue event ids whose verbatim text the server will render — the anchor line on the anchor panel, plus 0–2 short supporting lines only when needed to understand the anchor/reaction).",
+          "narration: 0–2 short Korean sentences written by you from the full micro-scene context (one short sentence each, ~10–36 chars, avoid >48). Each must reference canonical sourceEventIds as provenance and a purpose (time_bridge/location_bridge/action_bridge/context). Do NOT paste source prose. Narration may coexist with dialogue.",
+          "The comicEditorial.panels are the highlight PRESENTATION and may select a subset of canonical events. The top-level ScenePlan panels remain the canonical whole-turn grouping (100% coverage is still required there). The comicEditorial must never mutate, delete, or reorder the canonical timeline.",
         ]
       : []),
     "SOURCE MESSAGES:",
