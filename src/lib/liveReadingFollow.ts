@@ -439,30 +439,24 @@ export function createLiveReadingFollowController(opts: {
     previousGrowthSampleMs = timestamp;
 
     const contentGrowing = opts.isContentGrowing?.() ?? false;
+    const lineWrapSmoothingSec =
+      profile?.streamIntervalMs != null && profile.streamIntervalMs > 0
+        ? estimateLineWrapIntervalMs(profile.streamIntervalMs, profile.streamCharsPerTick) / 1000
+        : 0;
     const smoothedRawDocumentY = continuous
       ? smoothDocumentY({
           rawDocumentY,
           smoothedDocumentY,
           dtSec,
           smoothingTimeSec:
-            profile?.targetSmoothingTimeSec ?? LIVE_FOLLOW_CONTINUOUS_DEFAULT_SMOOTHING_SEC,
+            Math.max(
+              profile?.targetSmoothingTimeSec ?? LIVE_FOLLOW_CONTINUOUS_DEFAULT_SMOOTHING_SEC,
+              lineWrapSmoothingSec
+            ),
         })
       : rawDocumentY;
-    const expectedGrowthPxPerSec =
-      continuous &&
-      contentGrowing &&
-      profile?.streamIntervalMs != null &&
-      profile.streamIntervalMs > 0
-        ? estimateVerticalGrowthPxPerSec(profile.streamIntervalMs, profile.streamCharsPerTick)
-        : 0;
-    const paceProjectedDocumentY =
-      smoothedDocumentY == null
-        ? smoothedRawDocumentY
-        : smoothedDocumentY + expectedGrowthPxPerSec * dtSec;
-    const effectiveDocumentY = continuous
-      ? Math.max(smoothedRawDocumentY, paceProjectedDocumentY)
-      : rawDocumentY;
-    if (continuous) smoothedDocumentY = effectiveDocumentY;
+    const effectiveDocumentY = continuous ? smoothedRawDocumentY : rawDocumentY;
+    if (continuous) smoothedDocumentY = smoothedRawDocumentY;
 
     const viewportHeight = opts.getViewportHeight();
     const effectiveEndTop = effectiveDocumentY - scrollY;
