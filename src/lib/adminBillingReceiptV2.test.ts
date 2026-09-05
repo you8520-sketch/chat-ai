@@ -4,6 +4,7 @@ import {
   buildAdminBillingReceiptV2,
   adminReceiptExactnessLabel,
   formatAdminActualUsd,
+  formatAdminKrwFromUsd,
   formatAdminBillingReceiptV2Text,
 } from "@/lib/adminBillingReceiptV2";
 import { sanitizeUsageForPublicReceipt } from "@/lib/billingReceiptAccess";
@@ -242,6 +243,14 @@ describe("adminBillingReceiptV2 corrections", () => {
   it("R11 — tiny actual USD preserves non-zero display", () => {
     assert.equal(formatAdminActualUsd(0.000043), "$0.000043");
     assert.notEqual(formatAdminActualUsd(0.000043), "$0.0000");
+  });
+
+  it("R11b — USD→KRW inline label uses billing FX", () => {
+    assert.equal(formatAdminKrwFromUsd(0.02, 1375.97), "≈ ₩28");
+    assert.equal(formatAdminKrwFromUsd(0.5, 1375.97), "≈ ₩688");
+    assert.equal(formatAdminKrwFromUsd(null, 1375.97), null);
+    assert.equal(formatAdminKrwFromUsd(0.02, null), null);
+    assert.equal(formatAdminKrwFromUsd(0, 1375.97), null);
   });
 
   it("R12 — public strips new shadow provenance fields", () => {

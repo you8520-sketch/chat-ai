@@ -216,6 +216,17 @@ export function formatAdminActualUsd(value: number | undefined | null): string {
   return `$${trimmed}`;
 }
 
+/** Admin display — USD를 해당 턴의 billing FX(effective)로 즉시 환산한 KRW 라벨. */
+export function formatAdminKrwFromUsd(
+  value: number | undefined | null,
+  effectiveKrwPerUsd: number | undefined | null
+): string | null {
+  if (value == null || !(value > 0)) return null;
+  if (effectiveKrwPerUsd == null || !(effectiveKrwPerUsd > 0)) return null;
+  const krw = Math.round(value * effectiveKrwPerUsd);
+  return `≈ ₩${krw.toLocaleString()}`;
+}
+
 function formatKrwLine(value: number | undefined | null): string {
   if (value == null || !(value > 0)) return "—";
   return `${value} KRW`;
