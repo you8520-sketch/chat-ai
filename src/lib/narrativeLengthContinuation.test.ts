@@ -10,21 +10,21 @@ import {
 import { TurnApiBudget } from "@/lib/turnApiBudget";
 
 describe("narrativeLengthContinuation", () => {
-  it("needs continuation when visible prose below unified tier minimum (1,500)", () => {
+  it("needs continuation when visible prose below unified tier minimum (2,700)", () => {
     const short = "가".repeat(1200);
     assert.equal(needsVisibleLengthContinuation(short), true);
     assert.equal(needsVisibleLengthContinuation(short, 2000), true);
     assert.equal(needsVisibleLengthContinuation(short, 3000), true);
   });
 
-  it("does not continue above minimum but below soft aim (~1,743 chars)", () => {
-    assert.equal(needsVisibleLengthContinuation("가".repeat(1743)), false);
+  it("continues below the unified tier minimum even when below the soft aim", () => {
+    assert.equal(needsVisibleLengthContinuation("가".repeat(1743)), true);
     assert.equal(needsVisibleLengthContinuation("가".repeat(1100)), true);
   });
 
-  it("does not continue when char count meets tier minimum regardless of word count", () => {
+  it("continues when visible character count is below the tier minimum", () => {
     const longCharsFewWords = "가".repeat(1600);
-    assert.equal(needsVisibleLengthContinuation(longCharsFewWords), false);
+    assert.equal(needsVisibleLengthContinuation(longCharsFewWords), true);
   });
 
   it("does not need continuation when chars and words meet tier minimum", () => {

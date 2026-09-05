@@ -71,7 +71,7 @@ async function runMockProviderFallback(input: {
 }
 
 describe("adult handoff provider-mock integration", () => {
-  it("uses GLM once for a DeepSeek hard failure, then saves and charges only the delivered result", () => {
+  it("rejects a GLM hard-failure fallback after the DeepSeek primary fetch", () => {
     const config: AdultSceneModelPolicyConfig = {
       glmHardFailureFallbackEnabled: true,
       adminOnly: false,
@@ -88,18 +88,14 @@ describe("adult handoff provider-mock integration", () => {
       reason,
       fallbackAttemptCount: 0,
     }), true);
-    budget.beforeFetch("adult-hard-failure-fallback");
 
-    const glmDeliveredText = "GLM이 동일한 장면을 이어 쓴 최종 응답";
-    savedAssistantMessages.push(glmDeliveredText);
-    pointChargeCount += 1;
-
-    assert.deepEqual(savedAssistantMessages, [glmDeliveredText]);
-    assert.equal(pointChargeCount, 1);
     assert.throws(
       () => budget.beforeFetch("adult-hard-failure-fallback"),
-      /Max internal API calls exceeded/
+      /Main RP provider call budget exceeded/
     );
+
+    assert.deepEqual(savedAssistantMessages, []);
+    assert.equal(pointChargeCount, 0);
   });
 
   it("keeps a short usable DeepSeek response without invoking GLM", () => {

@@ -86,6 +86,7 @@ import {
 } from "@/lib/apiErrors";
 import {
   assertLengthSupplementApiAllowed,
+  RP_META_LEAK_REGEN_API_ENABLED,
   SERVER_UNDER_LENGTH_RECOVERY_ENABLED,
   type TurnApiBudget,
 } from "@/lib/turnApiBudget";
@@ -1882,9 +1883,10 @@ export async function streamOpenRouterAdultToClient(
   const degenerationCtx = { oocHtmlMode };
   let usage: TokenUsage = { inputTokens: 0, outputTokens: 0, estimated: true };
   let streamHistory = history;
+  const maxLeakAttempts = RP_META_LEAK_REGEN_API_ENABLED ? 2 : 1;
 
   leakGate:
-  for (let leakAttempt = 0; leakAttempt < 2; leakAttempt++) {
+  for (let leakAttempt = 0; leakAttempt < maxLeakAttempts; leakAttempt++) {
     if (leakAttempt > 0) {
       send({ type: "reset" });
       send({ type: "replace", text: "", instant: true });
@@ -2014,8 +2016,8 @@ export async function streamOpenRouterAdultToClient(
       break leakGate;
     }
 
-    if (leakAttempt >= 1) {
-      console.warn("[OpenRouter] repeated RP meta leak — blocking output", {
+    if (leakAttempt + 1 >= maxLeakAttempts) {
+      console.warn("[OpenRouter] RP meta leak — blocking output without regeneration", {
         matchedMarkers: leakResult.matchedMarkers,
         leakStartIndex: leakResult.leakStartIndex,
       });
