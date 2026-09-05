@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   CHAT_LIVE_FOLLOW_TARGET_RATIO,
+  createChatRootClampExpectation,
   handleChatStreamLayoutGrowth,
   isChatRootScrollGeometryClamp,
   isChatLiveReadingActive,
@@ -10,6 +11,7 @@ import {
   resolveFollowBeforeStream,
   shouldIgnoreChatLiveFollowScrollForDetach,
   shouldRecordChatManualDetachOnScrollDelta,
+  shouldConsumeChatRootClampExpectation,
   shouldReattachChatLiveFollowOnScrollDelta,
   shouldStartChatStreamFollow,
 } from "./chatLiveFollow";
@@ -165,6 +167,35 @@ describe("chat live follow owner map", () => {
         previousMaxScrollY: 1002,
         currentScrollY: 820,
         currentMaxScrollY: 900,
+      }),
+      false
+    );
+  });
+
+  it("P1 resize-first: expected clamp consumes only its exact new root boundary", () => {
+    const expectation = createChatRootClampExpectation({ scrollY: 1000, maxScrollY: 700 });
+    assert.deepEqual(expectation, { targetY: 700, maxScrollY: 700 });
+    assert.equal(
+      shouldConsumeChatRootClampExpectation({
+        expectation,
+        currentScrollY: 700,
+        currentMaxScrollY: 700,
+      }),
+      true
+    );
+    assert.equal(
+      shouldConsumeChatRootClampExpectation({
+        expectation,
+        currentScrollY: 620,
+        currentMaxScrollY: 700,
+      }),
+      false
+    );
+    assert.equal(
+      shouldConsumeChatRootClampExpectation({
+        expectation,
+        currentScrollY: 700,
+        currentMaxScrollY: 1200,
       }),
       false
     );

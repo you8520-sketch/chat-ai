@@ -87,6 +87,33 @@ export function isChatRootScrollGeometryClamp(opts: {
   );
 }
 
+export type ChatRootClampExpectation = { targetY: number; maxScrollY: number };
+
+export function createChatRootClampExpectation(opts: {
+  scrollY: number;
+  maxScrollY: number;
+  epsilonPx?: number;
+}): ChatRootClampExpectation | null {
+  const epsilonPx = opts.epsilonPx ?? 2;
+  return opts.scrollY > opts.maxScrollY + epsilonPx
+    ? { targetY: opts.maxScrollY, maxScrollY: opts.maxScrollY }
+    : null;
+}
+
+export function shouldConsumeChatRootClampExpectation(opts: {
+  expectation: ChatRootClampExpectation | null;
+  currentScrollY: number;
+  currentMaxScrollY: number;
+  epsilonPx?: number;
+}): boolean {
+  if (!opts.expectation) return false;
+  const epsilonPx = opts.epsilonPx ?? 2;
+  return (
+    Math.abs(opts.currentMaxScrollY - opts.expectation.maxScrollY) <= epsilonPx &&
+    Math.abs(opts.currentScrollY - opts.expectation.targetY) <= epsilonPx
+  );
+}
+
 /** Resize is geometry-only: rebase scroll measurement without changing user intent. */
 export function resolveChatFollowResize(input: {
   scrollY: number;

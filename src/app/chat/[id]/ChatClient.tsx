@@ -178,6 +178,7 @@ import {
 } from "@/lib/integerScrollTransport";
 import {
   handleChatStreamLayoutGrowth,
+  createChatRootClampExpectation,
   isChatRootScrollGeometryClamp,
   isChatLiveReadingActive,
   resolveActiveAssistantStreamEnd,
@@ -185,6 +186,7 @@ import {
   resolveFollowBeforeStream,
   shouldIgnoreChatLiveFollowScrollForDetach,
   shouldRecordChatManualDetachOnScrollDelta,
+  shouldConsumeChatRootClampExpectation,
   shouldReattachChatLiveFollowOnScrollDelta,
   shouldStartChatStreamFollow,
 } from "@/lib/chatLiveFollow";
@@ -1651,6 +1653,7 @@ export default function ChatClient({
     previousMaxScrollY: number;
     currentScrollY: number;
   } | null>(null);
+  const expectedRootClampRef = useRef<ReturnType<typeof createChatRootClampExpectation>>(null);
   const streamResizeObserverRef = useRef<ResizeObserver | null>(null);
   const scrollRafRef = useRef<number | null>(null);
   const applyEmotionRef = useRef<
@@ -2407,6 +2410,23 @@ export default function ChatClient({
       lastFollowScrollYRef.current = currentScrollY;
       lastFollowMaxScrollYRef.current = currentMaxScrollY;
       if (
+        shouldConsumeChatRootClampExpectation({
+          expectation: expectedRootClampRef.current,
+          currentScrollY,
+          currentMaxScrollY,
+        })
+      ) {
+        expectedRootClampRef.current = null;
+        syncChatFollowDiagnostics();
+        return;
+      }
+      if (
+        expectedRootClampRef.current &&
+        Math.abs(currentMaxScrollY - expectedRootClampRef.current.maxScrollY) > 2
+      ) {
+        expectedRootClampRef.current = null;
+      }
+      if (
         isChatRootScrollGeometryClamp({
           previousScrollY,
           previousMaxScrollY,
@@ -2495,6 +2515,10 @@ export default function ChatClient({
     const onResize = () => {
       const resizeScrollY = window.scrollY;
       const resizeMaxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      expectedRootClampRef.current = createChatRootClampExpectation({
+        scrollY: resizeScrollY,
+        maxScrollY: resizeMaxScrollY,
+      });
       const pendingNegative = pendingNegativeRootScrollRef.current;
       if (
         pendingNegative &&
