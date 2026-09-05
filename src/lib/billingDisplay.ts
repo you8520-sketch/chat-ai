@@ -450,7 +450,7 @@ export function formatBillingReceiptText(
   }
   if (extra?.statusWidgetExtractDiagnostics) {
     lines.push(
-      `위젯 진단: ${
+      `위젯 진단 (보조 위젯 추출 호출 — 메인 RP 생성 호출 제외): ${
         extra.statusWidgetExtractDiagnostics.usedFallback
           ? "V3 폴백 사용"
           : extra.statusWidgetExtractDiagnostics.exhausted

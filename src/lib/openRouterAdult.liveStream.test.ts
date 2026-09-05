@@ -104,22 +104,26 @@ test("trailing working notes are clipped without regenerating", async () => {
   assert.match(visible, /재현은 천천히 고개를 들었다/);
 });
 
-test("early working notes reset the bubble and regenerate live", async () => {
+test("early working notes block the turn without a second generation", async () => {
   const leaked = `${LEAK_TAIL}\n\n${RP}`;
   assert.equal(detectRpMetaLeakage(leaked).status, "FAILURE");
   assert.equal(detectRpMetaLeakage(leaked).tailOnly, false);
 
   let streamCalls = 0;
-  const events = await runToClient(() => {
-    streamCalls += 1;
-    return yieldParts([streamCalls === 1 ? leaked : RP]);
-  });
-
-  assert.equal(streamCalls, 2);
-  assert.ok(typesOf(events).includes("reset"));
-  const resetAt = typesOf(events).indexOf("reset");
-  const appendAfterReset = events
-    .slice(resetAt)
-    .some((event) => (event as { type?: string }).type === "append");
-  assert.ok(appendAfterReset, "retry should stream live appends after reset");
+  await assert.rejects(
+    () =>
+      runToClient(() => {
+        streamCalls += 1;
+        return yieldParts([leaked]);
+      }),
+    (error: unknown) => {
+      assert.equal((error as Error).name, "MetaLeakageAbortError");
+      return true;
+    }
+  );
+  assert.equal(
+    streamCalls,
+    1,
+    "strict Main RP single attempt — meta leak must not start a second generation"
+  );
 });

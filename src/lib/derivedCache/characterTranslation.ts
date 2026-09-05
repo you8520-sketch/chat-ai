@@ -72,7 +72,8 @@ function resolveWorldEnglishForCharacter(characterId: number): WorldEnglishResol
  */
 export async function translateCharacterChunksForDerivedRefresh(
   characterId: number,
-  koreanChunks: CharacterChunk[]
+  koreanChunks: CharacterChunk[],
+  jobId?: string | null
 ): Promise<boolean> {
   const translatable = koreanChunks.filter(isTranslatableChunk);
   if (translatable.length === 0) return true;
@@ -95,7 +96,7 @@ export async function translateCharacterChunksForDerivedRefresh(
         translatedById.set(chunk.id, { ...chunk, content: worldResolution.english });
       }
     } else {
-      const worldEnglish = await translateChunksToEnglish(worldChunks);
+      const worldEnglish = await translateChunksToEnglish(worldChunks, jobId);
       if (worldEnglish === null) return false;
       for (const chunk of worldEnglish) {
         translatedById.set(chunk.id, chunk);
@@ -104,7 +105,7 @@ export async function translateCharacterChunksForDerivedRefresh(
   }
 
   if (nonWorldChunks.length > 0) {
-    const nonWorldEnglish = await translateChunksToEnglish(nonWorldChunks);
+    const nonWorldEnglish = await translateChunksToEnglish(nonWorldChunks, jobId);
     if (nonWorldEnglish === null) return false;
     for (const chunk of nonWorldEnglish) {
       translatedById.set(chunk.id, chunk);

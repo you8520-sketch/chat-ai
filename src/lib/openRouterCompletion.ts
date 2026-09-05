@@ -37,6 +37,10 @@ import {
   resolveDeepSeekFailoverRouteKind,
   resolveDeepSeekLogicalModel,
 } from "@/lib/deepseekProviderFailover";
+import {
+  buildAuxProviderCallLogInput,
+  logAuxProviderCall,
+} from "@/lib/auxProviderProvenance";
 
 export type OpenRouterChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
@@ -188,6 +192,8 @@ export async function callOpenRouterCompletion(opts: {
   requestKind?: string;
   timeoutMs?: number;
   ledgerContext?: ProviderCostLedgerContext;
+  /** Durable queue job identity (derived-cache row id) — threaded when available. */
+  jobId?: string | null;
 }): Promise<{ text: string; usage: OpenRouterCompletionUsage }> {
   const rawModel = opts.model.trim();
   const useCheaperInference = isCheaperInferenceModel(rawModel);
@@ -204,6 +210,16 @@ export async function callOpenRouterCompletion(opts: {
       `[${providerLabel}] requires system + user history ending with user`
     );
   }
+
+  logAuxProviderCall(
+    buildAuxProviderCallLogInput({
+      model,
+      messages,
+      requestKind: opts.requestKind,
+      ledgerContext: opts.ledgerContext ?? null,
+      jobId: opts.jobId ?? null,
+    })
+  );
 
   if (isMockApiMode()) {
     const mockText = getMockResponseText();
