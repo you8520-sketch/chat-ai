@@ -1,24 +1,28 @@
 import type { CSSProperties } from "react";
 
 export const STREAM_INTERVAL_MIN = 0;
-export const STREAM_INTERVAL_MAX = 65;
+export const STREAM_INTERVAL_MAX = 40;
 
 export const CHAT_STREAM_SPEED_PRESETS = [
   { intervalMs: 0, label: "즉시" },
-  { intervalMs: 35, label: "빠름" },
-  { intervalMs: 50, label: "보통" },
-  { intervalMs: 65, label: "느림" },
+  { intervalMs: 28, label: "빠름" },
+  { intervalMs: 40, label: "보통" },
 ] as const;
 
 /**
  * Previous 즉시/빠름/보통/느림 millisecond values.
- * Map by label intent before nearest-ms — old 60 (보통) is closer to 65 (느림).
+ * Map by label intent — not nearest-ms (e.g. old 60 is 보통 → 40, not 28).
  */
 export const LEGACY_CHAT_STREAM_INTERVAL_MS: Record<number, number> = {
   0: 0,
-  20: 35,
-  60: 50,
-  100: 65,
+  20: 28,
+  35: 28,
+  50: 40,
+  60: 40,
+  65: 40,
+  100: 40,
+  28: 28,
+  40: 40,
 };
 
 export type ChatFontSizePreset = "small" | "medium" | "large" | "xlarge";
@@ -71,7 +75,7 @@ export const DEFAULT_CHARACTER_DIALOGUE_COLOR = "#c4b5fd";
 export const LEGACY_CHARACTER_DIALOGUE_COLOR = "#fb923c";
 
 export const DEFAULT_CHAT_DISPLAY_PREFS: ChatDisplayPrefs = {
-  streamIntervalMs: 35,
+  streamIntervalMs: 28,
   streamCharsPerTick: 1,
   fontFamily: "system",
   fontSizePreset: "medium",

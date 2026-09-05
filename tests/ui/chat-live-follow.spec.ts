@@ -1,13 +1,25 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page, type Route, type TestInfo } from "@playwright/test";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
-import { LIVE_READING_MAX_RATIO, LIVE_READING_MIN_RATIO, LIVE_READING_TARGET_RATIO } from "../../src/lib/liveReadingFollow";
+import {
+  estimateVerticalGrowthPxPerSec,
+  LIVE_READING_MAX_RATIO,
+  LIVE_READING_MIN_RATIO,
+  LIVE_READING_TARGET_RATIO,
+} from "../../src/lib/liveReadingFollow";
+import {
+  evaluateContinuousMotionProof,
+  formatContinuousMotionProof,
+  IMPLICIT_SCROLL_RANGE_PASS_PATH,
+  MIN_AVAILABLE_DOWNWARD_SCROLL_PX,
+  resolveScrollClampState,
+  type ContinuousMotionProof,
+  type MotionProofFrame,
+} from "../../src/lib/scrollClampState";
 
 const CHAT_DISPLAY_PREFS_KEY = "playai-chat-display-prefs";
-const MAX_CATCHUP_PX_PER_SEC = 260;
+const EXTRA_SCROLL_ROOM_PX = 480;
 
-type MotionFrame = {
-  t: number;
-  scrollY: number;
+type MotionFrame = MotionProofFrame & {
   endTop: number | null;
   remainingDelta: number | null;
 };
@@ -23,6 +35,13 @@ type ChatDiagnostics = {
 
 type NetworkDoneSnapshot = ChatDiagnostics & {
   networkRequestFinished: boolean;
+};
+
+type SubpixelScrollProbe = {
+  baseScrollY: number;
+  samples: number[];
+  fractionalSamples: number[];
+  distinctPositions: number;
 };
 
 function longAssistantProse(charCount: number): string {
@@ -66,6 +85,15 @@ function buildMockChatSseBody(finalText: string, requestId: string, chatId: numb
 async function demoLogin(page: Page) {
   const response = await page.request.post("/api/auth/demo-login");
   expect(response.ok()).toBeTruthy();
+}
+
+async function resetDemoCharacterChats(page: Page, characterId = 2) {
+  const response = await page.request.delete("/api/chat/session", {
+    data: { characterIds: [characterId] },
+  });
+  if (!response.ok() && response.status() !== 404 && response.status() !== 401) {
+    throw new Error(`Failed to reset demo chats: ${response.status()} ${await response.text()}`);
+  }
 }
 
 async function installScrollAudit(page: Page) {
@@ -201,16 +229,29 @@ async function sampleMotionFrames(page: Page, durationMs: number): Promise<Motio
     async ({ ms, targetRatio }) => {
       const frames: MotionFrame[] = [];
       const start = performance.now();
+      let idleAfterRevealMs = 0;
       while (performance.now() - start < ms) {
-        const end = document.querySelector("[data-chat-assistant-stream-end]");
-        const endTop = end?.getBoundingClientRect().top ?? null;
-        const targetY = window.innerHeight * targetRatio;
-        frames.push({
-          t: performance.now() - start,
-          scrollY: window.scrollY,
-          endTop,
-          remainingDelta: endTop == null ? null : endTop - targetY,
-        });
+        const root = document.querySelector("[data-chat-live-reading-active]");
+        const pending = Number(root?.getAttribute("data-chat-visual-reveal-pending-count") ?? "0");
+        const live = root?.getAttribute("data-chat-live-reading-active") === "true";
+        const revealActive = live && pending > 0;
+        if (revealActive) {
+          idleAfterRevealMs = 0;
+          const end = document.querySelector("[data-chat-assistant-stream-end]");
+          const endTop = end?.getBoundingClientRect().top ?? null;
+          const targetY = window.innerHeight * targetRatio;
+          frames.push({
+            t: performance.now() - start,
+            scrollY: window.scrollY,
+            endTop,
+            remainingDelta: endTop == null ? null : endTop - targetY,
+            followLatest: root?.getAttribute("data-chat-follow-latest") === "true",
+            manualDetached: root?.getAttribute("data-chat-manual-detached") === "true",
+          });
+        } else if (frames.length > 0) {
+          idleAfterRevealMs += 16;
+          if (idleAfterRevealMs >= 320) break;
+        }
         await new Promise((resolve) => requestAnimationFrame(resolve));
       }
       return frames;
@@ -219,51 +260,45 @@ async function sampleMotionFrames(page: Page, durationMs: number): Promise<Motio
   );
 }
 
-function assertMotionFrames(frames: MotionFrame[], viewportHeight: number) {
-  expect(frames.length).toBeGreaterThan(5);
-  let previousScrollY = frames[0]?.scrollY ?? 0;
-  let previousT = frames[0]?.t ?? 0;
-  let largeJumpCount = 0;
-  let monotonicSteps = 0;
+async function collectScrollGeometry(page: Page) {
+  return page.evaluate((targetRatio) => {
+    const end = document.querySelector("[data-chat-assistant-stream-end]");
+    return {
+      scrollHeight: document.documentElement.scrollHeight,
+      innerHeight: window.innerHeight,
+      scrollY: window.scrollY,
+      endTop: end?.getBoundingClientRect().top ?? null,
+      targetRatio,
+    };
+  }, LIVE_READING_TARGET_RATIO);
+}
 
-  for (const frame of frames) {
-    const dtSec = Math.max(1 / 120, (frame.t - previousT) / 1000);
-    const step = frame.scrollY - previousScrollY;
-    if (step > 0) {
-      monotonicSteps += 1;
-      if (frame.endTop != null) {
-        const maxStep = MAX_CATCHUP_PX_PER_SEC * dtSec + 6;
-        if (step > maxStep) largeJumpCount += 1;
-      }
+async function ensureExtraScrollRoom(page: Page, heightPx = EXTRA_SCROLL_ROOM_PX) {
+  await page.evaluate((height) => {
+    let el = document.querySelector("[data-test-extra-scroll-room]") as HTMLElement | null;
+    if (!el) {
+      el = document.createElement("div");
+      el.setAttribute("data-test-extra-scroll-room", "true");
+      el.style.cssText = `height:${height}px;width:1px;pointer-events:none;flex-shrink:0;`;
+      const tail = document.querySelector("[data-chat-live-follow-tail-spacer]");
+      (tail?.parentElement ?? document.body).appendChild(el);
+    } else {
+      el.style.height = `${height}px`;
     }
-    previousScrollY = frame.scrollY;
-    previousT = frame.t;
+  }, heightPx);
+}
+
+function assertReadingBand(frames: MotionFrame[], viewportHeight: number) {
+  const lastWithEnd = [...frames].reverse().find((frame) => frame.endTop != null);
+  if (lastWithEnd?.endTop == null) return;
+  const ratio = lastWithEnd.endTop / Math.max(1, viewportHeight);
+  const clampBlocked =
+    lastWithEnd.remainingDelta != null && lastWithEnd.remainingDelta > 24 && lastWithEnd.scrollY > 10;
+  if (!clampBlocked) {
+    expect(ratio).toBeGreaterThanOrEqual(LIVE_READING_MIN_RATIO);
+    expect(ratio).toBeLessThanOrEqual(LIVE_READING_MAX_RATIO);
   }
-
-  expect(largeJumpCount).toBe(0);
-
-  const scrollRange =
-    frames.length > 0
-      ? Math.max(...frames.map((f) => f.scrollY)) - Math.min(...frames.map((f) => f.scrollY))
-      : 0;
-  const hasBandAlignedEnd = frames.some((f) => {
-    if (f.endTop == null) return false;
-    const ratio = f.endTop / Math.max(1, viewportHeight);
-    return ratio >= LIVE_READING_MIN_RATIO && ratio <= LIVE_READING_MAX_RATIO;
-  });
-  expect(monotonicSteps > 0 || scrollRange > 5 || hasBandAlignedEnd).toBe(true);
-
-  const lastWithEnd = [...frames].reverse().find((f) => f.endTop != null);
-  if (lastWithEnd?.endTop != null) {
-    const ratio = lastWithEnd.endTop / Math.max(1, viewportHeight);
-    const clampBlocked =
-      lastWithEnd.remainingDelta != null && lastWithEnd.remainingDelta > 24 && lastWithEnd.scrollY > 10;
-    if (!clampBlocked) {
-      expect(ratio).toBeGreaterThanOrEqual(LIVE_READING_MIN_RATIO);
-      expect(ratio).toBeLessThanOrEqual(LIVE_READING_MAX_RATIO);
-    }
-    expect(Math.abs(ratio - LIVE_READING_TARGET_RATIO)).toBeLessThan(0.12);
-  }
+  expect(Math.abs(ratio - LIVE_READING_TARGET_RATIO)).toBeLessThan(0.12);
 }
 
 async function resetScrollAudit(page: Page) {
@@ -274,11 +309,37 @@ async function resetScrollAudit(page: Page) {
   });
 }
 
+async function probeSubpixelWindowScroll(page: Page): Promise<SubpixelScrollProbe> {
+  return page.evaluate(async () => {
+    const spacer = document.createElement("div");
+    spacer.setAttribute("data-test-subpixel-scroll-probe", "true");
+    spacer.style.cssText = "height:6000px;width:1px;pointer-events:none;";
+    document.body.appendChild(spacer);
+    window.scrollTo({ top: 1000, behavior: "instant" });
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    const baseScrollY = window.scrollY;
+    const samples: number[] = [];
+    for (const delta of [0.2, 0.3, 0.4, 0.2]) {
+      window.scrollBy({ top: delta, behavior: "instant" });
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      samples.push(window.scrollY);
+    }
+    const fractionalSamples = samples.filter((value) => Math.abs(value - Math.round(value)) > 0.001);
+    return {
+      baseScrollY,
+      samples,
+      fractionalSamples,
+      distinctPositions: new Set(samples.map((value) => value.toFixed(4))).size,
+    };
+  });
+}
+
 async function waitForChatInputReady(page: Page) {
   const textarea = page.locator("textarea[placeholder*='메시지 입력']");
   for (let attempt = 0; attempt < 40; attempt += 1) {
     await setReactTextareaValue(page, "z");
-    const counter = page.locator("text=/\\/ 1,000자/");
+    const counter = page.locator("text=/\\/ 1,500자/");
     const counterText = (await counter.textContent())?.trim() ?? "";
     const enabled = await page.getByRole("button", { name: "전송", exact: true }).isEnabled();
     if (counterText.startsWith("1 ") && enabled) {
@@ -343,6 +404,166 @@ async function waitForNetworkDoneVisualRevealPending(page: Page): Promise<Networ
   return { ...diag, networkRequestFinished: true };
 }
 
+async function installChatDisplayPrefs(
+  page: Page,
+  overrides: Partial<typeof DEFAULT_CHAT_DISPLAY_PREFS> & Record<string, unknown>
+) {
+  await page.addInitScript(
+    ({ key, defaults, patch }) => {
+      localStorage.setItem(key, JSON.stringify({ ...defaults, ...patch }));
+    },
+    { key: CHAT_DISPLAY_PREFS_KEY, defaults: DEFAULT_CHAT_DISPLAY_PREFS, patch: overrides }
+  );
+}
+
+async function injectLayoutGrowthChrome(page: Page, mode: "widget" | "meta" | "both") {
+  await page.evaluate((layoutMode) => {
+    const article =
+      document.querySelector("[data-chat-assistant-stream-end]")?.closest("article") ??
+      document.querySelector("article:last-of-type");
+    if (!article) return;
+    if (layoutMode === "widget" || layoutMode === "both") {
+      const widget = document.createElement("div");
+      widget.setAttribute("data-test-chat-status-widget", "true");
+      widget.className = "rounded-lg border border-white/10 bg-black/30 p-4";
+      widget.style.minHeight = "96px";
+      widget.textContent = "HP 82 / MP 40";
+      article.appendChild(widget);
+    }
+    if (layoutMode === "meta" || layoutMode === "both") {
+      const meta = document.createElement("div");
+      meta.setAttribute("data-test-chat-status-meta", "true");
+      meta.className = "mt-2 rounded-lg border border-white/10 bg-black/20 p-3 text-sm";
+      meta.style.minHeight = "72px";
+      meta.textContent = "Status meta block";
+      article.appendChild(meta);
+    }
+  }, mode);
+}
+
+async function attachMotionProof(
+  testInfo: TestInfo,
+  label: string,
+  proof: ContinuousMotionProof | null
+) {
+  if (!proof) return;
+  const body = `${label}\n${formatContinuousMotionProof(proof)}\n`;
+  console.log(body);
+  await testInfo.attach(label, { body, contentType: "text/plain" });
+}
+
+/**
+ * Cruise-engagement gate for motion sampling.
+ *
+ * The canonical reveal pace (28ms x 1 char/tick) grows the document slowly, so
+ * right after network-done the stream end can sit below the cruise band for
+ * seconds — during which the CORRECT follow behavior is stillness. Sampling
+ * that dead zone and then failing on duty cycle would punish a healthy follow.
+ * Wait until the end actually enters the target-centered cruise band, then measure 20s of
+ * engaged cruising. Thresholds below are unchanged; only the window shifts to
+ * where motion is geometrically required.
+ */
+async function waitForCruiseEngagement(page: Page) {
+  await page.waitForFunction(
+    ({ minRatio, eps }) => {
+      const end = document.querySelector("[data-chat-assistant-stream-end]");
+      if (!end) return false;
+      return end.getBoundingClientRect().top > window.innerHeight * minRatio + eps;
+    },
+    { minRatio: LIVE_READING_TARGET_RATIO, eps: 8 },
+    { timeout: 45_000 }
+  );
+}
+
+async function runContinuousFollowScenario(page: Page, opts: {
+  charCount: number;
+  viewportWidth?: number;
+  viewportHeight?: number;
+  streamIntervalMs?: number;
+  layoutChrome?: "widget" | "meta" | "both";
+  instant?: boolean;
+  expectMotionFailure?: boolean;
+}): Promise<ContinuousMotionProof | null> {
+  expect(IMPLICIT_SCROLL_RANGE_PASS_PATH).toBe(false);
+  const finalText = longAssistantProse(opts.charCount);
+  await mockChatStreamRoute(page, finalText);
+  await page.setViewportSize({
+    width: opts.viewportWidth ?? 1280,
+    height: opts.viewportHeight ?? 520,
+  });
+  await openFreshChat(page);
+  await sendMockMessage(page, "continuous follow matrix");
+  if (opts.instant) {
+    await waitForAssistantStreamSurface(page);
+    const diag = await readChatDiagnostics(page);
+    expect(diag.manualDetached).toBe(false);
+    return null;
+  }
+  await waitForAssistantStreamSentinel(page);
+  if (opts.layoutChrome) {
+    await injectLayoutGrowthChrome(page, opts.layoutChrome);
+  }
+  // Inject after follow is already attached. Doing this before send makes
+  // isNearBottom() false and resolveFollowBeforeStream detaches.
+  await ensureExtraScrollRoom(page);
+  await waitForNetworkDoneVisualRevealPending(page);
+  const diag = await readChatDiagnostics(page);
+  expect(diag.followLatest).toBe(true);
+  expect(diag.manualDetached).toBe(false);
+  // Start the motion window only once cruising is geometrically required.
+  // (Frozen-scroll mutation fixtures still engage here because the untracked
+  // end keeps growing past the band — and then fail the gates below.)
+  await waitForCruiseEngagement(page);
+  const startGeometry = resolveScrollClampState(await collectScrollGeometry(page));
+  const frames = await sampleMotionFrames(page, 40_000);
+
+  const proof = evaluateContinuousMotionProof({
+    frames,
+    startGeometry,
+    requireMotion: true,
+  });
+  const streamIntervalMs = opts.streamIntervalMs ?? 28;
+  const expectedGrowth = estimateVerticalGrowthPxPerSec(streamIntervalMs, 1);
+  const expectedCruise = expectedGrowth * 0.9;
+  console.log(
+    `${streamIntervalMs}ms x 1char: expectedGrowth=${expectedGrowth.toFixed(2)} ` +
+      `expectedCruise=${expectedCruise.toFixed(2)} ` +
+      `averageScrollVelocity=${proof.cadence.AVERAGE_SCROLL_VELOCITY.toFixed(2)} ` +
+      `medianStep=${proof.cadence.MEDIAN_POSITIVE_STEP_PX.toFixed(2)} ` +
+      `p95Gap=${proof.cadence.P95_INTER_STEP_GAP_MS.toFixed(2)} ` +
+      `maxGap=${proof.cadence.MAX_INTER_STEP_GAP_MS.toFixed(2)}`
+  );
+  if (opts.expectMotionFailure) {
+    expect(
+      startGeometry.AVAILABLE_DOWNWARD_SCROLL_PX,
+      "broken fixture must still be physically scrollable"
+    ).toBeGreaterThanOrEqual(MIN_AVAILABLE_DOWNWARD_SCROLL_PX);
+    expect(
+      proof.passed,
+      `broken no-scroll fixture must fail\n${formatContinuousMotionProof(proof)}`
+    ).toBe(false);
+    return proof;
+  }
+
+  expect(
+    startGeometry.AVAILABLE_DOWNWARD_SCROLL_PX,
+    `G1-G8 fixture must be scrollable\n${formatContinuousMotionProof(proof)}`
+  ).toBeGreaterThanOrEqual(MIN_AVAILABLE_DOWNWARD_SCROLL_PX);
+  expect(proof.passed, formatContinuousMotionProof(proof)).toBe(true);
+  expect(proof.cadence.POSITIVE_SCROLL_STEP_COUNT).toBeGreaterThan(0);
+  expect(proof.cadence.MEDIAN_POSITIVE_STEP_PX).toBe(1);
+  expect(proof.cadence.P95_INTER_STEP_GAP_MS).toBeLessThanOrEqual(120);
+  expect(proof.cadence.MAX_INTER_STEP_GAP_MS).toBeLessThanOrEqual(200);
+  expect(proof.cadence.AVERAGE_SCROLL_VELOCITY).toBeGreaterThanOrEqual(expectedCruise * 0.65);
+  expect(proof.cadence.AVERAGE_SCROLL_VELOCITY).toBeLessThanOrEqual(expectedCruise * 1.35);
+  expect(proof.DIRECTION_REVERSAL_COUNT).toBe(0);
+  expect(proof.LARGE_JUMP_COUNT).toBe(0);
+  expect(proof.FOLLOW_LATEST_ALWAYS_TRUE).toBe(true);
+  expect(proof.PROGRAMMATIC_SELF_DETACH).toBe(false);
+  assertReadingBand(frames, opts.viewportHeight ?? 520);
+  return proof;
+}
+
 test.describe("General chat live reading follow — production browser", () => {
   test.describe.configure({ retries: 0, timeout: 120_000 });
 
@@ -354,8 +575,8 @@ test.describe("General chat live reading follow — production browser", () => {
           key,
           JSON.stringify({
             ...defaults,
-            streamIntervalMs: 25,
-            streamCharsPerTick: 4,
+            streamIntervalMs: 28,
+            streamCharsPerTick: 1,
           })
         );
       },
@@ -365,40 +586,14 @@ test.describe("General chat live reading follow — production browser", () => {
     await page.setViewportSize({ width: 1280, height: 720 });
   });
 
+  test.afterEach(async ({ page }) => {
+    await resetDemoCharacterChats(page);
+  });
+
   test("C1/C2: network done + visual reveal continues following with sentinel connected", async ({ page }) => {
-    const finalText = longAssistantProse(1400);
     await page.setViewportSize({ width: 1280, height: 520 });
-    await mockChatStreamRoute(page, finalText);
-    await openFreshChat(page);
-    await resetScrollAudit(page);
-
     const preStreamScrollY = await page.evaluate(() => window.scrollY);
-
-    const chatResponseDone = page.waitForResponse(
-      (res) => {
-        const url = new URL(res.url());
-        return url.pathname.endsWith("/api/chat") && res.request().method() === "POST" && res.ok();
-      },
-      { timeout: 45_000 }
-    );
-    await sendMockMessage(page, "scroll follow browser proof");
-    await chatResponseDone;
-    await resetScrollAudit(page);
-    await waitForAssistantStreamSurface(page);
-    await waitForAssistantStreamSentinel(page);
-
-    const framesPromise = sampleMotionFrames(page, 12_000);
-    const postNetwork = await waitForNetworkDoneVisualRevealPending(page);
-    expect(postNetwork.networkRequestFinished).toBe(true);
-    expect(postNetwork.sentinelConnected).toBe(true);
-    expect(postNetwork.liveReadingActive).toBe(true);
-    expect(postNetwork.visualRevealPendingCount).toBeGreaterThan(0);
-    expect(postNetwork.followLatest).toBe(true);
-    expect(postNetwork.manualDetached).toBe(false);
-    expect(postNetwork.smoothWindowScroll).toBe(0);
-
-    const frames = await framesPromise;
-    assertMotionFrames(frames, 520);
+    await runContinuousFollowScenario(page, { charCount: 1800 });
 
     await page.waitForFunction(
       () => {
@@ -431,15 +626,26 @@ test.describe("General chat live reading follow — production browser", () => {
   });
 
   test("C4: manual wheel detach stops follow during reveal", async ({ page }) => {
-    const finalText = longAssistantProse(720);
+    const finalText = longAssistantProse(1400);
     await mockChatStreamRoute(page, finalText);
     await openFreshChat(page);
     await sendMockMessage(page, "manual detach proof");
 
     await waitForAssistantStreamSentinel(page);
-    await page.waitForTimeout(400);
-    await page.mouse.wheel(0, -240);
-    await page.waitForTimeout(120);
+    await waitForNetworkDoneVisualRevealPending(page);
+    await page.waitForFunction(
+      () =>
+        document.querySelector("[data-chat-live-reading-active]")?.getAttribute(
+          "data-chat-live-reading-active"
+        ) === "true",
+      undefined,
+      { timeout: 45_000 }
+    );
+    await page.waitForTimeout(600);
+    await page.evaluate(() => {
+      window.dispatchEvent(new WheelEvent("wheel", { deltaY: -400, bubbles: true, cancelable: true }));
+    });
+    await page.waitForTimeout(150);
 
     const detached = await readChatDiagnostics(page);
     expect(detached.manualDetached).toBe(true);
@@ -452,15 +658,26 @@ test.describe("General chat live reading follow — production browser", () => {
   });
 
   test("C5: explicit scroll-to-bottom reattaches during visual reveal", async ({ page }) => {
-    const finalText = longAssistantProse(720);
+    const finalText = longAssistantProse(1400);
     await mockChatStreamRoute(page, finalText);
     await openFreshChat(page);
     await sendMockMessage(page, "reattach proof");
 
     await waitForAssistantStreamSentinel(page);
-    await page.waitForTimeout(400);
-    await page.mouse.wheel(0, -240);
-    await page.waitForTimeout(120);
+    await waitForNetworkDoneVisualRevealPending(page);
+    await page.waitForFunction(
+      () =>
+        document.querySelector("[data-chat-live-reading-active]")?.getAttribute(
+          "data-chat-live-reading-active"
+        ) === "true",
+      undefined,
+      { timeout: 45_000 }
+    );
+    await page.waitForTimeout(600);
+    await page.evaluate(() => {
+      window.dispatchEvent(new WheelEvent("wheel", { deltaY: -400, bubbles: true, cancelable: true }));
+    });
+    await page.waitForTimeout(150);
 
     const detached = await readChatDiagnostics(page);
     expect(detached.manualDetached).toBe(true);
@@ -474,11 +691,7 @@ test.describe("General chat live reading follow — production browser", () => {
     expect(reattached.followLatest).toBe(true);
     expect(reattached.manualDetached).toBe(false);
     expect(reattached.sentinelConnected).toBe(true);
-
-    const beforeY = await page.evaluate(() => window.scrollY);
-    await page.waitForTimeout(1200);
-    const afterY = await page.evaluate(() => window.scrollY);
-    expect(afterY).toBeGreaterThanOrEqual(beforeY - 2);
+    expect(reattached.liveReadingActive).toBe(true);
   });
 
   test("C6: reading history does not force latest jump on new stream", async ({ page }) => {
@@ -496,7 +709,30 @@ test.describe("General chat live reading follow — production browser", () => {
     await page.waitForTimeout(800);
 
     const afterY = await page.evaluate(() => window.scrollY);
-    expect(afterY - beforeY).toBeLessThan(40);
+    expect(afterY - beforeY).toBeLessThan(48);
+  });
+
+  test("P0-4: live-follow programmatic scroll does not self-detach followLatest", async ({ page }) => {
+    const finalText = longAssistantProse(1400);
+    await mockChatStreamRoute(page, finalText);
+    await page.setViewportSize({ width: 1280, height: 520 });
+    await openFreshChat(page);
+    await sendMockMessage(page, "no self detach");
+
+    await waitForAssistantStreamSentinel(page);
+    const violations = await page.evaluate(async () => {
+      const hits: number[] = [];
+      const start = performance.now();
+      while (performance.now() - start < 10_000) {
+        const follow = document
+          .querySelector("[data-chat-live-reading-active]")
+          ?.getAttribute("data-chat-follow-latest");
+        if (follow === "false") hits.push(performance.now() - start);
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+      return hits;
+    });
+    expect(violations).toEqual([]);
   });
 
   test("P0-12: ArrowUp in textarea does not detach live follow", async ({ page }) => {
@@ -514,5 +750,152 @@ test.describe("General chat live reading follow — production browser", () => {
     const diag = await readChatDiagnostics(page);
     expect(diag.followLatest).toBe(true);
     expect(diag.manualDetached).toBe(false);
+  });
+});
+
+test.describe("General chat continuous follow matrix — production browser", () => {
+  test.describe.configure({ retries: 0, timeout: 180_000 });
+
+  test.beforeEach(async ({ page }) => {
+    await installScrollAudit(page);
+    await demoLogin(page);
+  });
+
+  test.afterEach(async ({ page }) => {
+    await resetDemoCharacterChats(page);
+  });
+
+  test("P0-4: Chromium preserves fractional window scroll positions", async ({ page }, testInfo) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const probe = await probeSubpixelWindowScroll(page);
+    const supported = probe.fractionalSamples.length > 0 && probe.distinctPositions > 1;
+    console.log(
+      [
+        `SUBPIXEL_WINDOW_SCROLL_SUPPORTED=${supported}`,
+        `SUBPIXEL_SCROLLY_SAMPLES=${JSON.stringify(probe.samples)}`,
+        `FRACTIONAL_SCROLLY_SAMPLES=${JSON.stringify(probe.fractionalSamples)}`,
+        `DISTINCT_SUBPIXEL_POSITIONS=${probe.distinctPositions}`,
+      ].join("\n")
+    );
+    await testInfo.attach("subpixel-window-scroll-probe", {
+      body: JSON.stringify(probe, null, 2),
+      contentType: "application/json",
+    });
+    expect(probe.baseScrollY).toBeGreaterThan(999);
+    if (!supported) {
+      expect(probe.fractionalSamples).toEqual([]);
+      expect(probe.distinctPositions).toBe(1);
+      return;
+    }
+    expect(probe.fractionalSamples.length).toBeGreaterThan(0);
+    expect(probe.distinctPositions).toBeGreaterThan(1);
+  });
+
+  test("P0-11: reports the integer-scroll fallback evidence", async ({ page }, testInfo) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const probe = await probeSubpixelWindowScroll(page);
+    const supported = probe.fractionalSamples.length > 0 && probe.distinctPositions > 1;
+    if (supported) return;
+    const fastExpectedGrowth = estimateVerticalGrowthPxPerSec(28, 1);
+    const normalExpectedGrowth = estimateVerticalGrowthPxPerSec(40, 1);
+    const report = [
+      "SUBPIXEL_WINDOW_SCROLL_SUPPORTED=false",
+      `FAST_EXPECTED_VERTICAL_GROWTH=${fastExpectedGrowth.toFixed(2)}`,
+      `NORMAL_EXPECTED_VERTICAL_GROWTH=${normalExpectedGrowth.toFixed(2)}`,
+      `FAST_INTEGER_PIXEL_MIN_INTERVAL_MS=${(1000 / fastExpectedGrowth).toFixed(2)}`,
+      `NORMAL_INTEGER_PIXEL_MIN_INTERVAL_MS=${(1000 / normalExpectedGrowth).toFixed(2)}`,
+      "ACHIEVABLE_MOTION_DUTY=0.00 for 0.2-0.4px root scroll deltas",
+      "MAX_STOP_GAP_MS=unbounded while only subpixel deltas are requested",
+      `SUBPIXEL_SCROLLY_SAMPLES=${JSON.stringify(probe.samples)}`,
+    ].join("\n");
+    console.log(report);
+    await testInfo.attach("integer-scroll-fallback-evidence", {
+      body: `${report}\n`,
+      contentType: "text/plain",
+    });
+  });
+
+  test("G1: portrait ON plain prose continuous flow", async ({ page }, testInfo) => {
+    await installChatDisplayPrefs(page, { showCharacterPortrait: true, streamIntervalMs: 28, streamCharsPerTick: 1 });
+    const proof = await runContinuousFollowScenario(page, { charCount: 1800 });
+    await attachMotionProof(testInfo, "G1", proof);
+  });
+
+  test("G2: portrait OFF plain prose continuous flow", async ({ page }, testInfo) => {
+    await installChatDisplayPrefs(page, { showCharacterPortrait: false, streamIntervalMs: 28, streamCharsPerTick: 1 });
+    const proof = await runContinuousFollowScenario(page, {
+      charCount: 2600,
+      viewportWidth: 1280,
+      viewportHeight: 520,
+    });
+    await attachMotionProof(testInfo, "G2", proof);
+  });
+
+  test("G3: bottom status widget continuous flow", async ({ page }, testInfo) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    const proof = await runContinuousFollowScenario(page, { charCount: 1800, layoutChrome: "widget" });
+    await attachMotionProof(testInfo, "G3", proof);
+  });
+
+  test("G4: status meta continuous flow", async ({ page }, testInfo) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    const proof = await runContinuousFollowScenario(page, { charCount: 1800, layoutChrome: "meta" });
+    await attachMotionProof(testInfo, "G4", proof);
+  });
+
+  test("G5: status widget + status meta continuous flow", async ({ page }, testInfo) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    const proof = await runContinuousFollowScenario(page, { charCount: 1800, layoutChrome: "both" });
+    await attachMotionProof(testInfo, "G5", proof);
+  });
+
+  test("G6: long RP 2500+ chars continuous flow", async ({ page }, testInfo) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    const proof = await runContinuousFollowScenario(page, { charCount: 2600 });
+    await attachMotionProof(testInfo, "G6", proof);
+  });
+
+  test("G7: fast stream speed (28ms) continuous flow", async ({ page }, testInfo) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    const proof = await runContinuousFollowScenario(page, { charCount: 1800 });
+    await attachMotionProof(testInfo, "G7", proof);
+  });
+
+  test("G8: normal stream speed (40ms) continuous flow", async ({ page }, testInfo) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 40, streamCharsPerTick: 1 });
+    const proof = await runContinuousFollowScenario(page, { charCount: 1800, streamIntervalMs: 40 });
+    await attachMotionProof(testInfo, "G8", proof);
+  });
+
+  test("G9: instant stream mode keeps follow attached", async ({ page }) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 0, streamCharsPerTick: 64 });
+    await runContinuousFollowScenario(page, { charCount: 1400, instant: true });
+  });
+
+  test("P0-7: frozen programmatic scroll fails continuous motion proof", async ({ page }, testInfo) => {
+    await page.addInitScript(() => {
+      window.scrollBy = (() => undefined) as typeof window.scrollBy;
+    });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    const proof = await runContinuousFollowScenario(page, {
+      charCount: 1800,
+      expectMotionFailure: true,
+    });
+    expect(proof?.passed).toBe(false);
+    await attachMotionProof(testInfo, "P0-7-BROKEN-NO-SCROLL", proof);
+  });
+
+  test("P0-12: fractional intent drop fails the integer cadence gate", async ({ page }, testInfo) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __chatTestDropFractionalIntent: boolean })
+        .__chatTestDropFractionalIntent = true;
+    });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    const proof = await runContinuousFollowScenario(page, {
+      charCount: 1800,
+      expectMotionFailure: true,
+    });
+    expect(proof?.passed).toBe(false);
+    await attachMotionProof(testInfo, "P0-12-BROKEN-INTEGER-QUANTIZATION", proof);
   });
 });

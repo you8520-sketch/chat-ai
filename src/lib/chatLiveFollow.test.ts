@@ -9,6 +9,8 @@ import {
   shouldDetachChatLiveFollowOnKey,
   shouldDetachChatLiveFollowOnTouchDelta,
   shouldDetachChatLiveFollowOnWheel,
+  shouldDetachChatLiveFollowOnScrollDelta,
+  shouldIgnoreChatLiveFollowScrollForDetach,
   shouldSkipChatLiveFollowKeydown,
   shouldStartChatStreamFollow,
 } from "./chatLiveFollow";
@@ -50,6 +52,47 @@ describe("chat live follow owner map", () => {
     assert.equal(shouldDetachChatLiveFollowOnKey("PageUp"), true);
     assert.equal(shouldDetachChatLiveFollowOnKey("ArrowDown"), false);
     assert.equal(shouldStartChatStreamFollow({ followLatest: true, manualDetached: true }), false);
+  });
+
+  it("P0-4: programmatic live-follow scroll must not detach via onScroll owner", () => {
+    assert.equal(
+      shouldIgnoreChatLiveFollowScrollForDetach({
+        liveReadingActive: true,
+        programmaticScrollInFlight: false,
+      }),
+      true
+    );
+    assert.equal(
+      shouldIgnoreChatLiveFollowScrollForDetach({
+        liveReadingActive: false,
+        programmaticScrollInFlight: true,
+      }),
+      true
+    );
+    assert.equal(
+      shouldDetachChatLiveFollowOnScrollDelta({
+        liveReadingActive: true,
+        scrollDeltaPx: -8,
+        programmaticScrollInFlight: false,
+      }),
+      true
+    );
+    assert.equal(
+      shouldDetachChatLiveFollowOnScrollDelta({
+        liveReadingActive: true,
+        scrollDeltaPx: 12,
+        programmaticScrollInFlight: false,
+      }),
+      false
+    );
+    assert.equal(
+      shouldDetachChatLiveFollowOnScrollDelta({
+        liveReadingActive: true,
+        scrollDeltaPx: -8,
+        programmaticScrollInFlight: true,
+      }),
+      false
+    );
   });
 
   it("P0-12: keyboard detach skips editable controls", () => {

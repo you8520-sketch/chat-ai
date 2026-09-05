@@ -68,6 +68,24 @@ export function shouldSkipChatLiveFollowKeydown(target: EventTarget | null): boo
   return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
 }
 
+/** Live-reading scroll events from the shared animator must not detach follow. */
+export function shouldIgnoreChatLiveFollowScrollForDetach(opts: {
+  liveReadingActive: boolean;
+  programmaticScrollInFlight: boolean;
+}): boolean {
+  return opts.liveReadingActive || opts.programmaticScrollInFlight;
+}
+
+/** User-initiated upward scroll during live reading (e.g. scrollbar drag). */
+export function shouldDetachChatLiveFollowOnScrollDelta(opts: {
+  liveReadingActive: boolean;
+  scrollDeltaPx: number;
+  programmaticScrollInFlight: boolean;
+}): boolean {
+  if (!opts.liveReadingActive || opts.programmaticScrollInFlight) return false;
+  return opts.scrollDeltaPx < -2;
+}
+
 /** Layout growth during active stream — notify shared animator, never one-shot scroll. */
 export function handleChatStreamLayoutGrowth(opts: {
   following: boolean;

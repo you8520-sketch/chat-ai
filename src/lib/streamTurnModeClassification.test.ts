@@ -16,7 +16,7 @@ import {
 } from "@/lib/streamTurnModeClassification";
 
 const TICK = streamRevealOptionsFromInterval(1);
-const STREAM_INTERVAL_MS = 35;
+const STREAM_INTERVAL_MS = 28;
 
 /** Fixture strings — route.ts remains the producer owner. */
 const NORMAL_STATUS_WIDGET_GENERATION_MESSAGE = "상태창 생성 중…";

@@ -173,12 +173,18 @@ import {
   type LiveReadingFollowController,
 } from "@/lib/liveReadingFollow";
 import {
+  createIntegerScrollDebtTransport,
+  type IntegerScrollDebtTransport,
+} from "@/lib/integerScrollTransport";
+import {
   handleChatStreamLayoutGrowth,
   isChatLiveReadingActive,
   resolveActiveAssistantStreamEnd,
   resolveFollowBeforeStream,
   shouldDetachChatLiveFollowOnKey,
+  shouldDetachChatLiveFollowOnScrollDelta,
   shouldDetachChatLiveFollowOnWheel,
+  shouldIgnoreChatLiveFollowScrollForDetach,
   shouldSkipChatLiveFollowKeydown,
   shouldStartChatStreamFollow,
 } from "@/lib/chatLiveFollow";
@@ -1614,6 +1620,9 @@ export default function ChatClient({
   const activeAssistantStreamRequestIdRef = useRef<string | null>(null);
   const streamingMessageArticleRef = useRef<HTMLElement | null>(null);
   const liveFollowAnimatorRef = useRef<LiveReadingFollowController | null>(null);
+  const liveFollowIntegerTransportRef = useRef<IntegerScrollDebtTransport | null>(null);
+  const liveFollowScrollInFlightRef = useRef(false);
+  const lastFollowScrollYRef = useRef(0);
   const streamResizeObserverRef = useRef<ResizeObserver | null>(null);
   const scrollRafRef = useRef<number | null>(null);
   const applyEmotionRef = useRef<
@@ -2213,6 +2222,7 @@ export default function ChatClient({
   const detachChatLiveFollow = useCallback(() => {
     userScrollLockRef.current = true;
     followStreamRef.current = false;
+    liveFollowIntegerTransportRef.current?.reset();
     liveFollowAnimatorRef.current?.stop();
     syncChatFollowDiagnostics();
   }, [syncChatFollowDiagnostics]);
@@ -2220,6 +2230,7 @@ export default function ChatClient({
   const reattachChatLiveFollow = useCallback(() => {
     userScrollLockRef.current = false;
     followStreamRef.current = true;
+    liveFollowIntegerTransportRef.current?.reset();
     syncChatFollowDiagnostics();
     if (isChatLiveReadingActiveNow()) {
       liveFollowAnimatorRef.current?.notifyTargetUpdate();
@@ -2259,10 +2270,24 @@ export default function ChatClient({
   }, [notifyChatLiveFollowTargetUpdate]);
 
   useEffect(() => {
+    const integerTransport = createIntegerScrollDebtTransport((delta) => {
+      window.scrollBy({ top: delta, behavior: "instant" });
+    });
+    liveFollowIntegerTransportRef.current = integerTransport;
     liveFollowAnimatorRef.current = createLiveReadingFollowController({
       getViewportHeight: () => window.innerHeight,
+      getScrollPosition: () => window.scrollY,
       scrollBy: (delta) => {
-        window.scrollBy({ top: delta, behavior: "instant" });
+        const testWindow = window as Window & {
+          __chatTestDropFractionalIntent?: boolean;
+        };
+        // Test-only mutation hook; production never sets this window flag.
+        if (testWindow.__chatTestDropFractionalIntent && Math.abs(delta) < 1) return;
+        if (integerTransport.apply(delta) === 0) return;
+        liveFollowScrollInFlightRef.current = true;
+        requestAnimationFrame(() => {
+          liveFollowScrollInFlightRef.current = false;
+        });
       },
       resolveTargetElement: () =>
         resolveActiveAssistantStreamEnd({
@@ -2275,10 +2300,22 @@ export default function ChatClient({
           followLatest: followStreamRef.current,
           manualDetached: userScrollLockRef.current,
         }) && isChatLiveReadingActiveNow(),
+      isContentGrowing: () =>
+        visualRevealPendingCountRef.current > 0 || loading || inFlightRef.current,
+      motionProfile: { mode: "continuous-flow" },
+      getMotionProfile: () => ({
+        mode: "continuous-flow" as const,
+        streamIntervalMs: displayPrefsRef.current.streamIntervalMs,
+        streamCharsPerTick: displayPrefsRef.current.streamCharsPerTick,
+      }),
     });
     return () => {
       liveFollowAnimatorRef.current?.stop();
       liveFollowAnimatorRef.current = null;
+      integerTransport.reset();
+      if (liveFollowIntegerTransportRef.current === integerTransport) {
+        liveFollowIntegerTransportRef.current = null;
+      }
     };
   }, [isChatLiveReadingActiveNow]);
 
@@ -2289,6 +2326,7 @@ export default function ChatClient({
 
   useEffect(() => {
     if (chatLiveReadingActive) return;
+    liveFollowIntegerTransportRef.current?.reset();
     liveFollowAnimatorRef.current?.stop();
     activeAssistantStreamEndRef.current = null;
     activeAssistantStreamRequestIdRef.current = null;
@@ -2321,20 +2359,53 @@ export default function ChatClient({
 
   useEffect(() => {
     let touchStartY = 0;
+    if (typeof window !== "undefined") {
+      lastFollowScrollYRef.current = window.scrollY;
+    }
 
     const onScroll = () => {
+      const currentScrollY = window.scrollY;
+      const scrollDeltaPx = currentScrollY - lastFollowScrollYRef.current;
+      lastFollowScrollYRef.current = currentScrollY;
+      const liveReadingActive = isChatLiveReadingActiveNow();
+      const programmaticScrollInFlight = liveFollowScrollInFlightRef.current;
+
       if (userScrollLockRef.current) {
         if (isNearBottom()) {
           userScrollLockRef.current = false;
           followStreamRef.current = true;
-          if (isChatLiveReadingActiveNow()) {
+          if (liveReadingActive) {
             notifyChatLiveFollowTargetUpdate();
           }
         } else {
           followStreamRef.current = false;
         }
+        syncChatFollowDiagnostics();
         return;
       }
+
+      if (
+        shouldDetachChatLiveFollowOnScrollDelta({
+          liveReadingActive,
+          scrollDeltaPx,
+          programmaticScrollInFlight,
+        })
+      ) {
+        detachChatLiveFollow();
+        syncChatFollowDiagnostics();
+        return;
+      }
+
+      if (
+        shouldIgnoreChatLiveFollowScrollForDetach({
+          liveReadingActive,
+          programmaticScrollInFlight,
+        })
+      ) {
+        syncChatFollowDiagnostics();
+        return;
+      }
+
       followStreamRef.current = isNearBottom();
       syncChatFollowDiagnostics();
     };
@@ -5329,8 +5400,12 @@ export default function ChatClient({
                               <span
                                 ref={(el) => {
                                   if (proseStreamActive) {
+                                    const requestId = m.requestId ?? null;
+                                    if (activeAssistantStreamRequestIdRef.current !== requestId) {
+                                      liveFollowIntegerTransportRef.current?.reset();
+                                    }
                                     activeAssistantStreamEndRef.current = el;
-                                    activeAssistantStreamRequestIdRef.current = m.requestId ?? null;
+                                    activeAssistantStreamRequestIdRef.current = requestId;
                                     if (el) notifyChatLiveFollowTargetUpdate();
                                   } else if (activeAssistantStreamEndRef.current === el) {
                                     activeAssistantStreamEndRef.current = null;

@@ -7,19 +7,19 @@ import {
   streamRevealOptionsFromInterval,
 } from "@/lib/streamRevealTiming";
 
-const FAST = streamRevealOptionsFromInterval(35);
+const FAST = streamRevealOptionsFromInterval(28);
 const BURST_CHARS = 3000;
 
 describe("streamReveal foreground speed — regression gates", () => {
   it("R1: 빠름 + normal incremental chunks honors base charsPerTick", () => {
     assert.equal(computeAdaptiveCharsPerTick(10, FAST), FAST.charsPerTick);
-    assert.equal(FAST.intervalMs, 35);
+    assert.equal(FAST.intervalMs, 28);
     assert.equal(FAST.charsPerTick, 1);
   });
 
   it("R2: 빠름 + 3000-char burst uses preset theoretical duration (no adaptive catch-up)", () => {
     assert.equal(computeAdaptiveCharsPerTick(BURST_CHARS, FAST), 1);
-    assert.equal(estimateStreamRevealDurationMs(BURST_CHARS, FAST), BURST_CHARS * 35);
+    assert.equal(estimateStreamRevealDurationMs(BURST_CHARS, FAST), BURST_CHARS * 28);
   });
 
   it("R3: 빠름 + pending backlog without flush reveals one char per tick", async () => {
@@ -66,12 +66,12 @@ describe("CASE A fixture — burst then done semantics", () => {
     await new Promise((r) => setTimeout(r, 40));
     const displayedAfterOneTick = [...shown].length;
 
-    assert.equal(FAST.intervalMs, 35);
+    assert.equal(FAST.intervalMs, 28);
     assert.equal(FAST.charsPerTick, 1);
     assert.equal(pendingPeak, 3200);
     assert.equal(displayedBeforeDone, 0);
     assert.equal(displayedAfterOneTick, 1);
-    assert.ok(estimateStreamRevealDurationMs(3200, FAST) > 100_000);
+    assert.ok(estimateStreamRevealDurationMs(3200, FAST) > 80_000);
     reveal.flush();
   });
 });
