@@ -1,0 +1,92 @@
+{
+  "phase": "gemini31-deepseek-refusal-handoff-p1",
+  "production_code_changed": false,
+  "prompt_changed": false,
+  "fixture_b_candidate": "B2",
+  "chats": {
+    "A": 1,
+    "B": 3,
+    "C": 3
+  },
+  "provider_call_counts": {
+    "A": 1,
+    "B": 2,
+    "C": 1
+  },
+  "gemini_call_counts": {
+    "A": 1,
+    "B": 1,
+    "C": 1
+  },
+  "deepseek_pro_0813_call_counts": {
+    "A": 0,
+    "B": 1,
+    "C": 0
+  },
+  "handoff_counts": {
+    "A": 0,
+    "B": 1,
+    "C": 0
+  },
+  "raw_paths": {
+    "A": [
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/A-USER_RAW.txt",
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/A-GEMINI-RAW.txt",
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/A-VISIBLE.txt",
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/A-CONTINUITY.txt"
+    ],
+    "B": [
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/B-USER_RAW.txt",
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/B-GEMINI-RAW.txt",
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/B-DEEPSEEK-RAW.txt",
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/B-VISIBLE.txt",
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/B-CONTINUITY.txt"
+    ],
+    "C": [
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/C-USER_RAW.txt",
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/C-GEMINI-RAW.txt",
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/C-VISIBLE.txt",
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/C-CONTINUITY.txt"
+    ]
+  },
+  "request_paths": {
+    "A": [
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/requests/A-GEMINI-input.json"
+    ],
+    "B": [
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/requests/B-GEMINI-input.json",
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/requests/B-DEEPSEEK-input.json"
+    ],
+    "C": [
+      "docs/audits/gemini31-deepseek-refusal-handoff-p1/requests/C-GEMINI-input.json"
+    ]
+  },
+  "metadata_paths": {
+    "A": "docs/audits/gemini31-deepseek-refusal-handoff-p1/meta/A.json",
+    "B": "docs/audits/gemini31-deepseek-refusal-handoff-p1/meta/B.json",
+    "C": "docs/audits/gemini31-deepseek-refusal-handoff-p1/meta/C.json",
+    "setup": "docs/audits/gemini31-deepseek-refusal-handoff-p1/meta/SETUP.json",
+    "index": "docs/audits/gemini31-deepseek-refusal-handoff-p1/INDEX.json"
+  },
+  "issue1": {
+    "production_code_changed": false,
+    "new_refusal_phrases_added": false,
+    "diagnosis": "docs/audits/gemini31-deepseek-refusal-handoff-p1/ISSUE1-B3-PATH-DIAGNOSIS.md",
+    "trace": "docs/audits/gemini31-deepseek-refusal-handoff-p1/ISSUE1-B3-PATH-DIAGNOSIS.json",
+    "first_controlling_divergence": "detectModelRefusal.refused",
+    "b2_refused": true,
+    "b3_refused": false,
+    "b3_gate_reason": "not_refusal",
+    "regression_test": "src/lib/adultHandoffB3FrozenRefusal.test.ts"
+  },
+  "issue2": {
+    "production_code_changed": false,
+    "prompt_changed": false,
+    "HANDOFF_LENGTH_OWNER_PRESENT": true,
+    "HANDOFF_DIALOGUE_OWNER_PRESENT": true,
+    "frozen_request": "docs/audits/gemini31-deepseek-refusal-handoff-p1/requests/B-DEEPSEEK-input.json",
+    "second_raw": "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/B-DEEPSEEK-RAW-2.txt",
+    "compare": "docs/audits/gemini31-deepseek-refusal-handoff-p1/ISSUE2-B2-HANDOFF-REPRO.md",
+    "stop_for_human_review": true
+  }
+}
