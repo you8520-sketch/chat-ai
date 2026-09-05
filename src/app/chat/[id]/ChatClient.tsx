@@ -185,9 +185,16 @@ import {
   shouldDetachChatLiveFollowOnScrollDelta,
   shouldDetachChatLiveFollowOnWheel,
   shouldIgnoreChatLiveFollowScrollForDetach,
+  shouldReattachChatLiveFollowOnScrollDelta,
   shouldSkipChatLiveFollowKeydown,
   shouldStartChatStreamFollow,
 } from "@/lib/chatLiveFollow";
+import {
+  clearChatBillingPresentations,
+  completeChatBillingPresentation,
+  createChatBillingPresentationOwner,
+  stageChatBillingPresentation,
+} from "@/lib/chatBillingPresentation";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
 import {
@@ -1095,6 +1102,21 @@ export default function ChatClient({
     });
   }, []);
   const visualRevealPendingCountRef = useRef(0);
+  const billingPresentationOwnerRef = useRef(
+    createChatBillingPresentationOwner<{
+      turnCost: number;
+      remainingPoints: number;
+      paidPoints: number;
+      freePoints: number;
+    }>()
+  );
+  const flushStreamBillingPresentation = useCallback((requestId: string) => {
+    const billing = completeChatBillingPresentation(
+      billingPresentationOwnerRef.current,
+      requestId
+    );
+    if (billing) applyStreamBilling(billing);
+  }, []);
   const routerRef = useRef(router);
   routerRef.current = router;
   const assistantPostTurnRefreshCoordinatorRef = useRef(
@@ -1151,8 +1173,9 @@ export default function ChatClient({
         pendingRevealSessionsRef.current.delete(requestId);
       }
       removeVisualRevealPending(requestId);
+      flushStreamBillingPresentation(requestId);
     },
-    [removeVisualRevealPending]
+    [flushStreamBillingPresentation, removeVisualRevealPending]
   );
   const [memoryRefreshKey, setMemoryRefreshKey] = useState(0);
   const [adultHandoffOn, setAdultHandoffOn] = useState(!!initialAdultHandoffEnabled);
@@ -1667,6 +1690,7 @@ export default function ChatClient({
       pendingRevealSessionsRef.current.clear();
       activeStreamRevealRef.current = null;
       clearVisualRevealPending();
+      clearChatBillingPresentations(billingPresentationOwnerRef.current);
     };
   }, [clearVisualRevealPending]);
 
@@ -2368,18 +2392,25 @@ export default function ChatClient({
       const scrollDeltaPx = currentScrollY - lastFollowScrollYRef.current;
       lastFollowScrollYRef.current = currentScrollY;
       const liveReadingActive = isChatLiveReadingActiveNow();
-      const programmaticScrollInFlight = liveFollowScrollInFlightRef.current;
+      const testWindow = window as Window & {
+        __chatTestProgrammaticScrollInFlight?: boolean;
+      };
+      const programmaticScrollInFlight =
+        liveFollowScrollInFlightRef.current ||
+        testWindow.__chatTestProgrammaticScrollInFlight === true;
 
       if (userScrollLockRef.current) {
-        if (isNearBottom()) {
-          userScrollLockRef.current = false;
-          followStreamRef.current = true;
-          if (liveReadingActive) {
-            notifyChatLiveFollowTargetUpdate();
-          }
-        } else {
-          followStreamRef.current = false;
+        if (
+          shouldReattachChatLiveFollowOnScrollDelta({
+            manualDetached: true,
+            scrollDeltaPx,
+            nearLatest: isNearBottom(),
+          })
+        ) {
+          reattachChatLiveFollow();
+          return;
         }
+        followStreamRef.current = false;
         syncChatFollowDiagnostics();
         return;
       }
@@ -2411,7 +2442,6 @@ export default function ChatClient({
     };
 
     const onWheel = (e: WheelEvent) => {
-      if (!isChatLiveReadingActiveNow()) return;
       if (shouldDetachChatLiveFollowOnWheel(e.deltaY)) {
         detachChatLiveFollow();
         return;
@@ -2426,7 +2456,6 @@ export default function ChatClient({
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (!isChatLiveReadingActiveNow()) return;
       const y = e.touches[0]?.clientY ?? touchStartY;
       const touchDelta = y - touchStartY;
       if (touchDelta > 8) {
@@ -2437,7 +2466,6 @@ export default function ChatClient({
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!isChatLiveReadingActiveNow()) return;
       if (shouldSkipChatLiveFollowKeydown(e.target)) return;
       if (shouldDetachChatLiveFollowOnKey(e.key)) {
         detachChatLiveFollow();
@@ -2758,6 +2786,7 @@ export default function ChatClient({
       reveal.reset();
       pendingRevealSessionsRef.current.delete(sessionRequestId);
       removeVisualRevealPending(sessionRequestId);
+      flushStreamBillingPresentation(sessionRequestId);
       if (activeStreamRevealRef.current === reveal) {
         activeStreamRevealRef.current = null;
       }
@@ -2766,6 +2795,7 @@ export default function ChatClient({
     const unregisterRevealSession = () => {
       pendingRevealSessionsRef.current.delete(sessionRequestId);
       removeVisualRevealPending(sessionRequestId);
+      flushStreamBillingPresentation(sessionRequestId);
       if (activeStreamRevealRef.current === reveal) {
         activeStreamRevealRef.current = null;
       }
@@ -3647,6 +3677,21 @@ export default function ChatClient({
     });
   }
 
+  function stageStreamBillingPresentation(
+    requestId: string,
+    billing: { turnCost: number; remainingPoints: number; paidPoints: number; freePoints: number }
+  ) {
+    const presentation = stageChatBillingPresentation(
+      billingPresentationOwnerRef.current,
+      {
+        requestId,
+        billing,
+        visualRevealPending: visualRevealPendingIdsRef.current.has(requestId),
+      }
+    );
+    if (presentation) applyStreamBilling(presentation);
+  }
+
   /** 실패 턴 롤백 + 안내 — ephemeral system을 히스토리 끝에 두지 않아 canContinue·전송 유지 */
   function applyTrafficOverloadNotice(notice: string, rollbackToIndex: number) {
     setMessages((m) => {
@@ -3824,7 +3869,7 @@ export default function ChatClient({
         !streamResult.streamError &&
         !streamResult.trafficOverload
       ) {
-        applyStreamBilling(streamResult.billing);
+        stageStreamBillingPresentation(clientRequestId, streamResult.billing);
       }
     }
   }
@@ -3952,7 +3997,7 @@ export default function ChatClient({
         !streamResult.streamError &&
         !streamResult.trafficOverload
       ) {
-        applyStreamBilling(streamResult.billing);
+        stageStreamBillingPresentation(clientRequestId, streamResult.billing);
       }
     }
   }
@@ -4195,7 +4240,7 @@ export default function ChatClient({
         !streamResult.streamError &&
         !streamResult.trafficOverload
       ) {
-        applyStreamBilling(streamResult.billing);
+        stageStreamBillingPresentation(clientRequestId, streamResult.billing);
       }
     }
   }
@@ -4559,9 +4604,10 @@ export default function ChatClient({
       isEditing: boolean;
       showToolbar: boolean;
       onLastTurn: boolean;
+      isCurrentTurnVisualRevealPending: boolean;
     }
   ) {
-    if (opts.isEditing) return null;
+    if (opts.isEditing || opts.isCurrentTurnVisualRevealPending) return null;
     const variantPicker =
       opts.showToolbar && (m.variantCount ?? 0) > 1 ? (
         <MessageVariantPicker
@@ -5092,6 +5138,10 @@ export default function ChatClient({
               messages[editingAssistantIdx]?.role === "assistant";
             const showToolbar = !!m.id && m.id > 0 && !!chatId;
             const onLastTurn = isLastTurnMessage(i, m);
+            const isCurrentTurnVisualRevealPending = isVisualRevealPendingForMessage(
+              m.requestId,
+              visualRevealPendingIds
+            );
 
             if (m.role === "system") {
               return (
@@ -5244,10 +5294,7 @@ export default function ChatClient({
                         loading,
                         messagesLength: messages.length,
                       });
-                      const isVisualRevealPending = isVisualRevealPendingForMessage(
-                        m.requestId,
-                        visualRevealPendingIds
-                      );
+                      const isVisualRevealPending = isCurrentTurnVisualRevealPending;
                       const proseStreamActive = isGenerationStreaming || isVisualRevealPending;
                       const useLiveDisplayedContent = shouldUseLiveDisplayedContent(
                         isGenerationStreaming,
@@ -5490,6 +5537,7 @@ export default function ChatClient({
                       isEditing,
                       showToolbar,
                       onLastTurn,
+                      isCurrentTurnVisualRevealPending,
                     })}
                   </>
                 )}

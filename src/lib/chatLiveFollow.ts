@@ -45,10 +45,12 @@ export function resolveFollowBeforeStream(opts: {
   nearLatest: boolean;
   manualDetached: boolean;
 }): { followLatest: boolean; manualDetached: boolean } {
-  if (opts.nearLatest && !opts.manualDetached) {
-    return { followLatest: true, manualDetached: false };
-  }
-  return { followLatest: false, manualDetached: true };
+  // Geometry can move between submit, optimistic rows, and sentinel mount.
+  // Only an explicit user-owned lock may carry manual detach into a new stream.
+  void opts.nearLatest;
+  return opts.manualDetached
+    ? { followLatest: false, manualDetached: true }
+    : { followLatest: true, manualDetached: false };
 }
 
 export function shouldDetachChatLiveFollowOnWheel(deltaY: number): boolean {
@@ -82,8 +84,20 @@ export function shouldDetachChatLiveFollowOnScrollDelta(opts: {
   scrollDeltaPx: number;
   programmaticScrollInFlight: boolean;
 }): boolean {
-  if (!opts.liveReadingActive || opts.programmaticScrollInFlight) return false;
+  if (!opts.liveReadingActive) return false;
+  // The live-follow transport only moves downward. A negative delta is therefore
+  // user intent even when it lands inside the broad programmatic-frame window.
+  void opts.programmaticScrollInFlight;
   return opts.scrollDeltaPx < -2;
+}
+
+/** A detached scrollbar/touch path may rejoin only with downward intent at latest. */
+export function shouldReattachChatLiveFollowOnScrollDelta(opts: {
+  manualDetached: boolean;
+  scrollDeltaPx: number;
+  nearLatest: boolean;
+}): boolean {
+  return opts.manualDetached && opts.scrollDeltaPx > 2 && opts.nearLatest;
 }
 
 /** Layout growth during active stream — notify shared animator, never one-shot scroll. */

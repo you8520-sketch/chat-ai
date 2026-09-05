@@ -11,6 +11,7 @@ import {
   shouldDetachChatLiveFollowOnWheel,
   shouldDetachChatLiveFollowOnScrollDelta,
   shouldIgnoreChatLiveFollowScrollForDetach,
+  shouldReattachChatLiveFollowOnScrollDelta,
   shouldSkipChatLiveFollowKeydown,
   shouldStartChatStreamFollow,
 } from "./chatLiveFollow";
@@ -20,14 +21,18 @@ import {
 } from "./liveReadingFollow";
 
 describe("chat live follow owner map", () => {
-  it("C11: preserves manual scroll when user was not at latest before stream", () => {
+  it("P0-A: geometry never creates manual detach at stream start", () => {
     assert.deepEqual(resolveFollowBeforeStream({ nearLatest: false, manualDetached: false }), {
-      followLatest: false,
-      manualDetached: true,
+      followLatest: true,
+      manualDetached: false,
     });
     assert.deepEqual(resolveFollowBeforeStream({ nearLatest: true, manualDetached: false }), {
       followLatest: true,
       manualDetached: false,
+    });
+    assert.deepEqual(resolveFollowBeforeStream({ nearLatest: true, manualDetached: true }), {
+      followLatest: false,
+      manualDetached: true,
     });
   });
 
@@ -90,6 +95,33 @@ describe("chat live follow owner map", () => {
         liveReadingActive: true,
         scrollDeltaPx: -8,
         programmaticScrollInFlight: true,
+      }),
+      true
+    );
+  });
+
+  it("P0-B: near-bottom geometry alone cannot reattach manual detach", () => {
+    assert.equal(
+      shouldReattachChatLiveFollowOnScrollDelta({
+        manualDetached: true,
+        scrollDeltaPx: 0,
+        nearLatest: true,
+      }),
+      false
+    );
+    assert.equal(
+      shouldReattachChatLiveFollowOnScrollDelta({
+        manualDetached: true,
+        scrollDeltaPx: 12,
+        nearLatest: true,
+      }),
+      true
+    );
+    assert.equal(
+      shouldReattachChatLiveFollowOnScrollDelta({
+        manualDetached: true,
+        scrollDeltaPx: 12,
+        nearLatest: false,
       }),
       false
     );
