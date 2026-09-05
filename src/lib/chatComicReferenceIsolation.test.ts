@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { hashPromptForDiagnostic } from "@/lib/openAiImageFailureDiagnostic";
 import { formatOpenAiImageProviderAttemptsForAdmin } from "@/lib/openAiImageSafetyFallback";
 import {
   buildComicProviderReferences,
@@ -91,7 +90,7 @@ test("REF-ISO-8..10: override is admin-only, invalid values reject, diagnostics 
 const scenePlan: ScenePlan = {
   sceneBackground: "bedroom SECRET_RAW_SOURCE",
   atmosphere: "intimate SECRET_RAW_SOURCE",
-  events: [{ id: "E1", sourceRole: "assistant", kind: "action", actor: "character", text: "SECRET_RAW_SOURCE", segmentKind: "prose" }],
+  events: [{ id: "E1", order: 1, sourceMessageId: 1, sourceRole: "assistant", kind: "action", actor: "character", text: "SECRET_RAW_SOURCE", segmentKind: "action" }],
   heroEventIds: ["E1"],
   heroScene: "SECRET_RAW_SOURCE",
   recommendedPanelCount: 2,
@@ -131,11 +130,6 @@ test("PROMPT-BIND-1..2: primary and Tier-2 retain template and identity slot bin
   assert.match(pack.prompt, /Image 3/);
   assert.match(tier2, /Image 2/);
   assert.match(tier2, /Image 3/);
-  for (const mode of ["normal", "neutral_template", "neutral_character", "neutral_persona", "neutral_identity_refs", "all_neutral"] as const) {
-    isolateComicProviderReferences(references, mode);
-    assert.equal(hashPromptForDiagnostic(pack.prompt), hashPromptForDiagnostic(pack.prompt));
-    assert.equal(hashPromptForDiagnostic(tier2), hashPromptForDiagnostic(tier2));
-  }
 });
 
 test("DIAG-1..7: attempts are explicit, preserve unknown safety data, and mark fallback invoked", () => {
@@ -175,3 +169,4 @@ test("human QA outcomes classify moderation association without declaring an ima
     normal: "moderation_blocked", neutral_visual_context: "pass",
   }), "REFERENCE_BYTES_ALONE_NOT_SUFFICIENT_CAUSE");
 });
+
