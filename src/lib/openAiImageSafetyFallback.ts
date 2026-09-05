@@ -2,6 +2,7 @@ import {
   callOpenAiImageEdit,
   OpenAiImageError,
   type OpenAiImageQuality,
+  type OpenAiImageUsageEvidence,
 } from "@/lib/openAiImageEdit";
 import {
   formatOpenAiImageFailureDiagnosticForAdmin,
@@ -11,6 +12,9 @@ import {
 } from "@/lib/openAiImageFailureDiagnostic";
 
 export const IMAGE_GENERATION_TOTAL_TIMEOUT_MS = 280_000;
+
+/** One primary call + one strict-safety fallback = max 2 provider attempts. */
+export const MAX_PROVIDER_ATTEMPTS = 2;
 
 export type OpenAiImageProviderAttemptKind = "primary" | "strict_safety_fallback";
 
@@ -39,6 +43,8 @@ export type OpenAiImageProviderAttemptRecord = {
   costUsd?: number | null;
   promptHash?: string | null;
   promptCharCount?: number;
+  providerRequestId?: string | null;
+  usageEvidence?: OpenAiImageUsageEvidence | "unknown";
 };
 
 export type OpenAiImageEditWithSafetyFallbackResult = {
@@ -158,6 +164,8 @@ export async function callOpenAiImageEditWithSafetyFallback(opts: {
         costUsd: primary.costUsd,
         promptHash: hashPromptForDiagnostic(opts.primaryPrompt),
         promptCharCount: opts.primaryPrompt.length,
+        providerRequestId: primary.providerRequestId,
+        usageEvidence: primary.usageEvidence,
       });
       return {
         buffer: primary.buffer,
@@ -205,6 +213,8 @@ export async function callOpenAiImageEditWithSafetyFallback(opts: {
           costUsd: fallback.costUsd,
           promptHash: hashPromptForDiagnostic(opts.strictFallbackPrompt),
           promptCharCount: opts.strictFallbackPrompt.length,
+          providerRequestId: fallback.providerRequestId,
+          usageEvidence: fallback.usageEvidence,
         });
         return {
           buffer: fallback.buffer,
@@ -298,8 +308,14 @@ export function formatOpenAiImageProviderAttemptsForAdmin(opts: {
       kind: attempt.kind,
       outcome: attempt.outcome,
       costUsd: attempt.costUsd ?? null,
-      providerRequestId: attempt.diagnostic?.providerRequestId ?? null,
-      usageReturned: attempt.diagnostic?.usageReturned ?? null,
+      providerRequestId: attempt.providerRequestId ?? attempt.diagnostic?.providerRequestId ?? null,
+      usageReturned: attempt.diagnostic?.usageReturned ?? (
+        attempt.usageEvidence === "usage_present"
+          ? true
+          : attempt.usageEvidence === "usage_absent"
+            ? false
+            : null
+      ),
       moderationStage: attempt.diagnostic?.moderationStage ?? null,
       errorCode: attempt.diagnostic?.errorCode ?? (attempt.outcome === "success" ? null : "UNKNOWN"),
       safetyCategories: Array.isArray(attempt.diagnostic?.safetyCategories)

@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { OpenAiImageError } from "./openAiImageEdit";
 import {
+  MAX_PROVIDER_ATTEMPTS,
   OpenAiImageGenerationError,
   aggregateKnownProviderCostUsd,
   callOpenAiImageEditWithSafetyFallback,
@@ -15,6 +16,8 @@ import {
   buildStrictLdDuoFallbackPrompt,
   STRICT_SAFE_DEPICTION,
 } from "./chatImageStrictSafetyFallbackPrompt";
+import { buildChatComicImagePrompt } from "./chatComicGeneration";
+import { buildComicPanelBalloonSlotMetadata } from "./chatComicPanelSpec";
 import type { ChatImageCastGroundedManifest } from "./chatImageCastManifest";
 import type { ScenePlan } from "./chatImageScenePlan";
 import { formatOpenAiImageUserError } from "./chatLdIllustrationGeneration";
@@ -111,6 +114,8 @@ describe("openAiImageSafetyFallback orchestration", () => {
       assert.equal(admin.safetyFallbackUsed, false);
       assert.equal(result.providerAttempts.length, 1);
       assert.equal(result.providerAttempts[0]?.outcome, "success");
+      assert.equal(result.providerAttempts[0]?.usageEvidence, "usage_present");
+      assert.equal(result.providerAttempts[0]?.providerRequestId, null);
       assert.equal(result.buffer.toString(), "ok-image");
       assert.equal(result.hasUnknownAttemptCost, false);
     })();
@@ -139,6 +144,7 @@ describe("openAiImageSafetyFallback orchestration", () => {
       assert.equal(result.hasUnknownAttemptCost, true);
       assert.equal(result.providerAttempts[0]?.outcome, "safety_rejected");
       assert.equal(result.providerAttempts[1]?.outcome, "success");
+      assert.equal(result.providerAttempts[1]?.usageEvidence, "usage_present");
     })();
   });
 
@@ -224,6 +230,93 @@ describe("openAiImageSafetyFallback orchestration", () => {
           return true;
         }
       );
+      assert.equal(counter.count(), 2);
+    })();
+  });
+
+  it("ATTEMPT-1 max provider attempts is exactly two", async () => {
+    assert.equal(MAX_PROVIDER_ATTEMPTS, 2);
+    await withMockFetch(async (counter) => {
+      globalThis.fetch = async () => {
+        counter.inc();
+        return safetyRejectResponse();
+      };
+      await assert.rejects(
+        () =>
+          callOpenAiImageEditWithSafetyFallback({
+            model: "gpt-image-2",
+            primaryPrompt: "risky primary",
+            strictFallbackPrompt: "strict safe fallback",
+            references: [REF],
+            size: "800x1200",
+            quality: "medium",
+            outputCompression: 86,
+          }),
+        (error: unknown) => {
+          if (!(error instanceof OpenAiImageGenerationError)) return false;
+          assert.equal(error.providerAttempts.length, MAX_PROVIDER_ATTEMPTS);
+          assert.equal(Math.max(...error.providerAttempts.map((a) => a.attempt)), 2);
+          assert.equal(error.providerAttempts.some((a) => a.attempt === 3), false);
+          return true;
+        }
+      );
+      assert.equal(counter.count(), 2);
+    })();
+  });
+
+  it("BILLING-1 rejected attempts never resolve into a settlement-able success", async () => {
+    await withMockFetch(async (counter) => {
+      globalThis.fetch = async () => {
+        counter.inc();
+        return safetyRejectResponse();
+      };
+      // Both attempts rejected → orchestrator throws, so the route never
+      // reaches settleChatImageGenerationResult (no buffer, no success).
+      await assert.rejects(
+        () =>
+          callOpenAiImageEditWithSafetyFallback({
+            model: "gpt-image-2",
+            primaryPrompt: "risky primary",
+            strictFallbackPrompt: "strict safe fallback",
+            references: [REF],
+            size: "800x1200",
+            quality: "medium",
+            outputCompression: 86,
+          }),
+        (error: unknown) => {
+          if (!(error instanceof OpenAiImageGenerationError)) return false;
+          assert.equal(error.providerAttempts.length, 2);
+          assert.equal(
+            error.providerAttempts.every((a) => a.outcome === "safety_rejected"),
+            true
+          );
+          return true;
+        }
+      );
+    })();
+  });
+
+  it("BILLING-2 primary reject + Tier-2 success is one settled success result", async () => {
+    await withMockFetch(async (counter) => {
+      globalThis.fetch = async () => {
+        const n = counter.inc();
+        return n === 1 ? safetyRejectResponse() : successResponse();
+      };
+      const result = await callOpenAiImageEditWithSafetyFallback({
+        model: "gpt-image-2",
+        primaryPrompt: "risky primary",
+        strictFallbackPrompt: "strict safe fallback",
+        references: [REF],
+        size: "800x1200",
+        quality: "medium",
+        outputCompression: 86,
+      });
+      // Single resolved success result (settle once); both attempts recorded.
+      assert.equal(result.providerAttempts.length, 2);
+      assert.equal(result.safetyFallbackUsed, true);
+      assert.equal(result.providerAttempts[0]?.outcome, "safety_rejected");
+      assert.equal(result.providerAttempts[1]?.outcome, "success");
+      assert.equal(result.finalAttemptCostUsd, result.providerAttempts[1]?.costUsd);
       assert.equal(counter.count(), 2);
     })();
   });
@@ -655,4 +748,180 @@ describe("strict safety fallback prompts", () => {
       if (panelCount < 4) assert.doesNotMatch(prompt, /Panel 4/);
     });
   }
+
+  it("NORMAL-2 default Tier-2 prompt is byte-identical to explicit overlay_first", () => {
+    const base = {
+      panelCount: 2,
+      characterName: "A",
+      characterGender: "female",
+      personaName: "B",
+      personaGender: "male",
+      subjects: duoSubjects,
+    };
+    const byDefault = buildStrictComicFallbackPrompt(base);
+    const explicit = buildStrictComicFallbackPrompt({ ...base, compositionMode: "overlay_first" });
+    assert.equal(byDefault, explicit);
+    assert.match(byDefault, /VISUAL LAYER ONLY — zero speech bubbles, captions, SFX/i);
+    assert.doesNotMatch(byDefault, /blank speech balloons/i);
+    assert.doesNotMatch(byDefault, /GPT IS COMIC DIRECTOR/i);
+  });
+
+  it("HYBRID-2 Tier-2 blank-balloon contract present and no readable text", () => {
+    const prompt = buildStrictComicFallbackPrompt({
+      panelCount: 2,
+      characterName: "A",
+      characterGender: "female",
+      personaName: "B",
+      personaGender: "male",
+      subjects: duoSubjects,
+      compositionMode: "blank_balloon_hybrid",
+    });
+    assert.match(prompt, /GPT IS COMIC DIRECTOR/i);
+    assert.match(prompt, /blank speech balloons/i);
+    assert.match(prompt, /black outlines/i);
+    assert.match(prompt, /tails must naturally point/i);
+    assert.match(prompt, /empty interior space/i);
+    assert.match(prompt, /blank narration boxes/i);
+    assert.doesNotMatch(prompt, /VISUAL LAYER ONLY/i);
+    assert.doesNotMatch(prompt, /TIER2_RAW_SECRET/);
+    assert.doesNotMatch(prompt, /성관계/);
+  });
+
+  it("HYBRID-TIER2-1 Tier-2 preserves the same structural balloon slot metadata", () => {
+    const plan: ScenePlan = {
+      sceneBackground: "ordinary indoor room",
+      atmosphere: "calm",
+      events: [],
+      heroEventIds: [],
+      heroScene: "two adults in a room",
+      panels: [
+        {
+          index: 1,
+          sourceEventIds: [],
+          situation: "conversation",
+          backgroundOverride: "ordinary indoor room",
+          personaAction: "sitting",
+          characterAction: "sitting",
+          dialogue: [
+            { speaker: "character", text: "오늘은 쉬자.", provenance: "user_edit" },
+            { speaker: "persona", text: "조용히 안아줘.", provenance: "user_edit" },
+          ],
+        },
+        {
+          index: 2,
+          sourceEventIds: [],
+          situation: "closing",
+          backgroundOverride: "ordinary indoor room",
+          personaAction: "standing",
+          characterAction: "standing",
+          dialogue: [],
+        },
+      ],
+    };
+    const slotMetadata = buildComicPanelBalloonSlotMetadata({
+      plan,
+      subjects: duoSubjects,
+    });
+    const primaryPrompt = buildChatComicImagePrompt({
+      characterName: "A",
+      characterGender: "female",
+      personaName: "B",
+      personaGender: "male",
+      plan,
+      compositionMode: "blank_balloon_hybrid",
+    });
+    const strict = buildStrictComicFallbackPrompt({
+      panelCount: 2,
+      characterName: "A",
+      characterGender: "female",
+      personaName: "B",
+      personaGender: "male",
+      subjects: duoSubjects,
+      compositionMode: "blank_balloon_hybrid",
+      balloonSlots: slotMetadata,
+    });
+    assert.match(strict, /Blank balloon slots/);
+    assert.match(strict, /Panel 1: 2 blank balloons/);
+    assert.match(strict, /slot 1 speaker=A length=short/);
+    assert.match(strict, /slot 2 speaker=B length=short/);
+    assert.doesNotMatch(strict, /오늘은 쉬자/);
+    assert.doesNotMatch(strict, /안아줘/);
+    // Same structural slot count as the primary hybrid directives.
+    const primarySlots = primaryPrompt.match(/Dialogue slot \d+/g) ?? [];
+    assert.equal(primarySlots.length, 2);
+  });
+
+  it("HYBRID-3 primary reject then Tier-2 success keeps blank-balloon composition", async () => {
+    const plan: ScenePlan = {
+      sceneBackground: "ordinary indoor room",
+      atmosphere: "calm",
+      events: [],
+      heroEventIds: [],
+      heroScene: "two adults in a room",
+      panels: [
+        {
+          index: 1,
+          sourceEventIds: [],
+          situation: "standing",
+          backgroundOverride: "ordinary indoor room",
+          personaAction: "standing",
+          characterAction: "standing",
+          dialogue: [],
+        },
+        {
+          index: 2,
+          sourceEventIds: [],
+          situation: "close conversation",
+          backgroundOverride: "ordinary indoor room",
+          personaAction: "sitting",
+          characterAction: "sitting",
+          dialogue: [],
+        },
+      ],
+    };
+    const primaryPrompt = buildChatComicImagePrompt({
+      characterName: "A",
+      characterGender: "female",
+      personaName: "B",
+      personaGender: "male",
+      plan,
+      compositionMode: "blank_balloon_hybrid",
+    });
+    assert.match(primaryPrompt, /GPT IS COMIC DIRECTOR/i);
+    assert.match(primaryPrompt, /blank speech balloons/i);
+    assert.doesNotMatch(primaryPrompt, /Speech bubble \(/);
+
+    const strictFallbackPrompt = buildStrictComicFallbackPrompt({
+      panelCount: 2,
+      characterName: "A",
+      characterGender: "female",
+      personaName: "B",
+      personaGender: "male",
+      subjects: duoSubjects,
+      compositionMode: "blank_balloon_hybrid",
+    });
+    assert.match(strictFallbackPrompt, /blank speech balloons/i);
+    assert.doesNotMatch(strictFallbackPrompt, /VISUAL LAYER ONLY/i);
+
+    await withMockFetch(async (counter) => {
+      globalThis.fetch = async () => {
+        const n = counter.inc();
+        return n === 1 ? safetyRejectResponse() : successResponse();
+      };
+      const result = await callOpenAiImageEditWithSafetyFallback({
+        model: "gpt-image-2",
+        primaryPrompt,
+        strictFallbackPrompt,
+        references: [REF],
+        size: "1008x1408",
+        quality: "medium",
+        outputCompression: 84,
+        mode: "comic",
+      });
+      assert.equal(result.providerAttempts[0]?.outcome, "safety_rejected");
+      assert.equal(result.providerAttempts[1]?.outcome, "success");
+      assert.equal(result.safetyFallbackUsed, true);
+      assert.equal(result.buffer.toString(), "ok-image");
+    })();
+  });
 });

@@ -1,5 +1,6 @@
 import {
   parseOpenAiImageFailureDiagnostic,
+  resolveOpenAiImageProviderRequestId,
   type OpenAiImageFailureDiagnostic,
 } from "@/lib/openAiImageFailureDiagnostic";
 
@@ -9,6 +10,7 @@ const OPENAI_IMAGE_EDITS_URL = "https://api.openai.com/v1/images/edits";
 export const OPENAI_IMAGE_EDIT_MIN_REFERENCES = 1;
 
 export type OpenAiImageQuality = "low" | "medium" | "high";
+export type OpenAiImageUsageEvidence = "usage_present" | "usage_absent";
 
 type OpenAiImageUsage = {
   input_tokens?: unknown;
@@ -83,7 +85,12 @@ export async function callOpenAiImageEdit(opts: {
   signal?: AbortSignal;
   templateId?: string;
   mode?: string;
-}): Promise<{ buffer: Buffer; costUsd: number | null }> {
+}): Promise<{
+  buffer: Buffer;
+  costUsd: number | null;
+  providerRequestId: string | null;
+  usageEvidence: OpenAiImageUsageEvidence;
+}> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new OpenAiImageError("OpenAI API 키가 설정되지 않았습니다.", 503);
   if (opts.references.length < OPENAI_IMAGE_EDIT_MIN_REFERENCES) {
@@ -154,8 +161,22 @@ export async function callOpenAiImageEdit(opts: {
   const buffer = Buffer.from(encoded, "base64");
   if (!buffer.length) throw new OpenAiImageError("생성된 이미지 데이터가 비어 있습니다.");
 
+  const usage = (data as { usage?: OpenAiImageUsage })?.usage;
+  const usageEvidence =
+    usage &&
+    (usage.input_tokens != null ||
+      usage.output_tokens != null ||
+      usage.input_tokens_details?.image_tokens != null ||
+      usage.input_tokens_details?.text_tokens != null)
+      ? "usage_present"
+      : "usage_absent";
   return {
     buffer,
-    costUsd: calculateGptImage2CostUsd((data as { usage?: OpenAiImageUsage })?.usage),
+    costUsd: calculateGptImage2CostUsd(usage),
+    providerRequestId: resolveOpenAiImageProviderRequestId({
+      headers: response.headers,
+      responseBody: data,
+    }),
+    usageEvidence,
   };
 }

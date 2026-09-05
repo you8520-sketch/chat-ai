@@ -11,14 +11,27 @@ import {
   buildCastFromPromptSubjects,
   buildPromptSubjectMap,
   resolveDialogueSpeakerSubject,
+  resolveDialogueSpeakerSide,
   resolveLayoutFromSubjectMap,
   resolveSpeakerSubject,
+  type ComicSubjectSide,
   type PromptSubjectLabel,
   type PromptSubjectMap,
 } from "@/lib/chatImagePromptSubjectMap";
 import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
 
 export type ComicPanelFormatId = "2panel" | "3koma" | "4panel";
+export type ChatComicCompositionMode = "overlay_first" | "blank_balloon_hybrid";
+
+export type ComicBalloonSlotMetadata = {
+  /** Ordinal within the panel's canonical dialogue rows — non-readable structural metadata. */
+  dialogueIndex: number;
+  speakerLabel: PromptSubjectLabel | "other";
+  lengthClass: "short" | "medium" | "long";
+  preferredSide: "left" | "center" | "right";
+};
+
+export type ComicDialogueDirective = ComicBalloonSlotMetadata;
 
 export type ComicCastRoleLabel = {
   label: PromptSubjectLabel;
@@ -37,6 +50,8 @@ export type ComicPanelSpecBeat = {
   subjectActions: Array<{ label: PromptSubjectLabel; name: string; text: string }>;
   sceneAction?: string;
   speechBubbles: Array<{ speakerLabel: PromptSubjectLabel | "other"; speaker: string; text: string }>;
+  dialogueDirectives: ComicDialogueDirective[];
+  narrationBoxNeeded: boolean;
   sfx: readonly string[];
   mustAvoid: readonly string[];
 };
@@ -191,6 +206,19 @@ function resolveSpeakerLabel(
   return "other";
 }
 
+function resolveDialogueLengthClass(text: string): ComicDialogueDirective["lengthClass"] {
+  const length = text.trim().length;
+  if (length <= 12) return "short";
+  if (length <= 38) return "medium";
+  return "long";
+}
+
+function resolvePreferredBalloonSide(
+  side: ComicSubjectSide
+): ComicDialogueDirective["preferredSide"] {
+  return side === "left" || side === "right" || side === "center" ? side : "center";
+}
+
 function resolveGroundedSubjectActions(
   beat: ProjectedComicPanelBeat,
   subjectMap: PromptSubjectMap
@@ -209,6 +237,74 @@ function resolveGroundedSubjectActions(
     }
   }
   return actions;
+}
+
+/**
+ * Canonical BALLOON_LAYOUT_METADATA owner. Builds non-readable structural balloon
+ * slots from the canonical approved dialogue rows AFTER speaker attribution,
+ * persona visibility, provenance validity, and dialogue-row eligibility — but
+ * BEFORE provider visual-risk text omission. A risky/adult dialogue line keeps
+ * its blank-balloon slot even though its readable text never reaches the provider.
+ */
+export function resolveComicPanelBalloonSlots(opts: {
+  dialogue: readonly SceneDialogue[];
+  subjectMap: PromptSubjectMap;
+  personaVisible: boolean;
+}): ComicBalloonSlotMetadata[] {
+  return opts.dialogue.map((line, index) => ({
+    dialogueIndex: index,
+    speakerLabel: resolveSpeakerLabel(opts.subjectMap, line),
+    lengthClass: resolveDialogueLengthClass(line.text),
+    preferredSide: resolvePreferredBalloonSide(
+      resolveDialogueSpeakerSide(opts.subjectMap, line, opts.personaVisible)
+    ),
+  }));
+}
+
+/** Plan-level balloon slot metadata for the hybrid Tier-2 prompt (structural, text-free). */
+export function buildComicPanelBalloonSlotMetadata(opts: {
+  plan: ScenePlan;
+  visibility?: ScenePresentationVisibility;
+  subjects?: readonly ChatImageVisualSubject[];
+}): Array<{ panelIndex: number; slots: ComicBalloonSlotMetadata[] }> {
+  const visibility = opts.visibility ?? DEFAULT_SCENE_PRESENTATION_VISIBILITY;
+  const subjectMap = buildPromptSubjectMap(opts.subjects ?? []);
+  return opts.plan.panels.map((panel) => {
+    const beat = projectComicPanelBeat(opts.plan, panel, visibility);
+    return {
+      panelIndex: panel.index,
+      slots: resolveComicPanelBalloonSlots({
+        dialogue: beat.dialogue,
+        subjectMap,
+        personaVisible: visibility.personaVisible,
+      }),
+    };
+  });
+}
+
+/** Text-free structural slot rendering for the hybrid Tier-2 provider prompt. */
+export function renderComicStrictBalloonSlotMetadata(
+  metadata: readonly { panelIndex: number; slots: ComicBalloonSlotMetadata[] }[]
+): string {
+  if (!metadata.length) return "";
+  const lines: string[] = ["Blank balloon slots — server inserts approved Korean text after generation."];
+  for (const panel of metadata) {
+    if (!panel.slots.length) {
+      lines.push(`Panel ${panel.panelIndex}: 0 blank balloons — keep this panel visually quiet.`);
+      continue;
+    }
+    const slots = panel.slots
+      .map(
+        (slot) =>
+          `slot ${slot.dialogueIndex + 1} speaker=${slot.speakerLabel} length=${slot.lengthClass}`
+      )
+      .join("; ");
+    lines.push(`Panel ${panel.panelIndex}: ${panel.slots.length} blank balloon${panel.slots.length > 1 ? "s" : ""} (${slots}).`);
+  }
+  lines.push(
+    "No readable letters, dialogue, captions, placeholder words, or gibberish anywhere in the image."
+  );
+  return lines.join("\n");
 }
 
 function resolveSceneActionFallback(
@@ -306,6 +402,12 @@ export function compileChatComicPanelSpec(opts: {
           speaker: line.speakerName?.trim() || line.speaker,
           text: line.text,
         })),
+      dialogueDirectives: resolveComicPanelBalloonSlots({
+        dialogue: beat.dialogue,
+        subjectMap,
+        personaVisible: visibility.personaVisible,
+      }),
+      narrationBoxNeeded: beat.dialogue.length === 0 || panel.index === 1,
       sfx: [],
       mustAvoid: ["invented SFX text", "speech bubble without an approved line below"],
     };
@@ -389,7 +491,11 @@ export function renderChatComicPanelSpecSection(spec: ChatComicPanelSpec): strin
     .join("\n\n");
 }
 
-export function renderChatComicPanelSpecVisualSection(spec: ChatComicPanelSpec): string {
+export function renderChatComicPanelSpecVisualSection(
+  spec: ChatComicPanelSpec,
+  opts: { compositionMode?: ChatComicCompositionMode } = {}
+): string {
+  const compositionMode = opts.compositionMode ?? "overlay_first";
   const castLines = spec.cast
     .map((entry) => `${entry.label} = ${entry.role} (${entry.name})`)
     .join("\n");
@@ -403,6 +509,36 @@ export function renderChatComicPanelSpecVisualSection(spec: ChatComicPanelSpec):
       ]
         .filter(Boolean)
         .join("\n");
+      if (compositionMode === "blank_balloon_hybrid") {
+        const balloonDirectives = panel.dialogueDirectives.length
+          ? panel.dialogueDirectives
+              .map(
+                (directive) =>
+                  `Dialogue slot ${directive.dialogueIndex + 1}: blank balloon ownership: ${directive.speakerLabel}; relative dialogue length: ${directive.lengthClass}; optional preferred side: ${directive.preferredSide}.`
+              )
+              .join("\n")
+          : "Blank balloon ownership: none — keep this panel visually quiet.";
+        return [
+          `[Panel ${panel.index} — ${panel.beatRole}]`,
+          "GPT COMIC DIRECTOR: choose the shot distance, camera angle, and natural staging for this beat.",
+          "Vary shot distance across the page; use a reaction close-up when narratively justified.",
+          panel.situation ? `Visual beat: ${panel.situation}` : "",
+          `Background: ${panel.background}`,
+          actions,
+          balloonDirectives,
+          panel.narrationBoxNeeded
+            ? "Blank narration box: include only when this beat needs context; leave its interior empty."
+            : "Blank narration box: not required for this beat.",
+          "Draw natural white manga/manhwa speech balloons with black outlines in appropriate negative space.",
+          "Aim each balloon tail naturally toward the actual speaker; do not cover faces, eyes, hands, or important actions.",
+          "Add blank narration boxes and decorative manga/manhwa effects only when they support the beat.",
+          "Do not use fixed pixel coordinates or repeat an identical seated composition.",
+          "Render no readable letters, dialogue, captions, placeholder words, random symbols, or gibberish.",
+          `Must avoid: ${panel.mustAvoid.join("; ")}`,
+        ]
+          .filter(Boolean)
+          .join("\n");
+      }
       return [
         `[Panel ${panel.index} — ${panel.beatRole}]`,
         `Camera: ${panel.camera}`,
@@ -421,7 +557,9 @@ export function renderChatComicPanelSpecVisualSection(spec: ChatComicPanelSpec):
     .join("\n\n");
 
   return [
-    "COMIC PANEL SPEC — VISUAL LAYER ONLY",
+    compositionMode === "blank_balloon_hybrid"
+      ? "COMIC PANEL SPEC — GPT-DIRECTED BLANK-BALLOON ARTWORK"
+      : "COMIC PANEL SPEC — VISUAL LAYER ONLY",
     `Format: ${spec.format} (${spec.panelCount} panels)`,
     `Layout: ${spec.layout}`,
     `Hero focus: ${spec.heroScene}`,
@@ -435,7 +573,9 @@ export function renderChatComicPanelSpecVisualSection(spec: ChatComicPanelSpec):
     ...spec.continuityRules.map((rule) => `- ${rule}`),
     "Global must avoid:",
     ...spec.globalMustAvoid.map((rule) => `- ${rule}`),
-    "Text will be added later by server overlay — image must contain zero readable text.",
+    compositionMode === "blank_balloon_hybrid"
+      ? "The provider owns panel composition, camera, character staging, facial reactions, blank balloon geometry, balloon tails, narration-box geometry, and decorative manga effects. The server adds glyphs only inside provider-created blank interiors."
+      : "Text will be added later by server overlay — image must contain zero readable text.",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -450,9 +590,12 @@ export function buildChatComicPanelSpecVisualSection(opts: {
   subjects: readonly ChatImageVisualSubject[];
   eventSubjectBindings?: readonly SceneEventSubjectBinding[];
   projection?: ChatComicPanelSpecProjection;
+  compositionMode?: ChatComicCompositionMode;
 }): string {
   const spec = compileChatComicPanelSpec(opts);
-  return renderChatComicPanelSpecVisualSection(spec);
+  return renderChatComicPanelSpecVisualSection(spec, {
+    compositionMode: opts.compositionMode,
+  });
 }
 
 export function buildChatComicPanelSpecPromptSection(opts: {

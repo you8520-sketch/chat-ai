@@ -1,5 +1,5 @@
 import type { SceneDialogue, ScenePanel, ScenePlan, ScenePresentationVisibility } from "@/lib/chatImageScenePlan";
-import { isEligibleSpeechDialogue, normalizeDialogueTextForOutput } from "@/lib/chatImageScenePlan";
+import { isEligibleSpeechDialogue, normalizeDialogueTextForOutput, projectComicPanelBeat } from "@/lib/chatImageScenePlan";
 import {
   buildPromptSubjectMap,
   resolveDialogueSpeakerSide,
@@ -11,6 +11,7 @@ import {
   containsRawRiskySourceLeak,
 } from "@/lib/chatImageSafeVisualProjection";
 import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
+import type { ContentKind } from "@/lib/simulationMode";
 
 /**
  * COMIC TEXT OVERLAY SUB-SYSTEM (OVERLAY-FIRST ARCHITECTURE)
@@ -43,7 +44,102 @@ export type TextOverlaySafetyContext = {
   isSafetyFallback?: boolean;
   adultGrounded?: boolean;
   personaVisible?: boolean;
+  /** When present, the comic text layer is governed by the application text policy. */
+  finalTextPolicy?: ComicFinalTextEligibilityContext;
 };
+
+export type ComicFinalTextEligibilityReason =
+  | "eligible"
+  | "adult_mode_off"
+  | "real_person_restricted"
+  | "self_harm_restricted"
+  | "graphic_violence_restricted"
+  | "empty";
+
+export type ComicFinalTextEligibility = {
+  eligible: boolean;
+  reason: ComicFinalTextEligibilityReason;
+};
+
+/**
+ * Canonical comic final-text policy owner (SERVER_FINAL_TEXT). Reuses the site's
+ * existing adult text eligibility contract (adult mode = verified user + room
+ * adult mode enabled). The image-provider visual safety projection must NOT be
+ * used to decide whether an application-rendered glyph exists.
+ */
+export type ComicFinalTextEligibilityContext = {
+  /** resolveEffectiveAdultRp({ userAdultVerified, roomAdultModeEnabled }) — site adult text gate. */
+  adultGrounded: boolean;
+  contentKind?: ContentKind;
+  realPersonRestricted?: boolean;
+};
+
+/** Application text-layer eligibility for one canonical dialogue row. */
+export function resolveComicFinalTextEligibility(opts: {
+  line: Pick<SceneDialogue, "text">;
+  context: ComicFinalTextEligibilityContext;
+}): ComicFinalTextEligibility {
+  const raw = String(opts.line.text ?? "").trim();
+  if (!raw) return { eligible: false, reason: "empty" };
+
+  const categories = classifyRawVisualRisk(raw);
+  if (categories.includes("self_harm")) {
+    return { eligible: false, reason: "self_harm_restricted" };
+  }
+  if (categories.includes("graphic_violence")) {
+    return { eligible: false, reason: "graphic_violence_restricted" };
+  }
+  if (categories.includes("adult_explicit")) {
+    if (opts.context.realPersonRestricted) {
+      return { eligible: false, reason: "real_person_restricted" };
+    }
+    if (!opts.context.adultGrounded) {
+      return { eligible: false, reason: "adult_mode_off" };
+    }
+  }
+  return { eligible: true, reason: "eligible" };
+}
+
+/** Application text-policy filter — approved glyph rows vs intentionally suppressed rows. */
+export function filterDialogueForComicFinalText(
+  dialogue: readonly SceneDialogue[],
+  context: ComicFinalTextEligibilityContext,
+  personaVisible = true
+): { approved: SceneDialogue[]; suppressed: SceneDialogue[] } {
+  const approved: SceneDialogue[] = [];
+  const suppressed: SceneDialogue[] = [];
+  for (const line of dialogue) {
+    const raw = String(line.text ?? "").trim();
+    if (!raw) continue;
+    if (!personaVisible && (line.speaker === "persona" || line.speakerName === "유저")) {
+      continue;
+    }
+    if (resolveComicFinalTextEligibility({ line, context }).eligible) {
+      approved.push(line);
+    } else {
+      suppressed.push(line);
+    }
+  }
+  return { approved, suppressed };
+}
+
+/** Count dialogue rows the application text policy intentionally suppresses across the plan. */
+export function countComicPanelDialogueSuppressed(opts: {
+  plan: ScenePlan;
+  visibility: ScenePresentationVisibility;
+  context: ComicFinalTextEligibilityContext;
+}): number {
+  let suppressed = 0;
+  for (const panel of opts.plan.panels) {
+    const beat = projectComicPanelBeat(opts.plan, panel, opts.visibility);
+    for (const line of beat.dialogue) {
+      if (!resolveComicFinalTextEligibility({ line, context: opts.context }).eligible) {
+        suppressed += 1;
+      }
+    }
+  }
+  return suppressed;
+}
 
 export type SpeechBubbleLayout = {
   speaker: "persona" | "character" | "other";
@@ -901,7 +997,13 @@ export function compileComicPanelOverlayLayouts(opts: {
   for (let i = 0; i < panelCount; i += 1) {
     const panel = plan.panels[i] ?? plan.panels[plan.panels.length - 1];
     if (!panel) continue;
-    const approvedDialogue = filterDialogueForTextOverlay(panel.dialogue, safetyContext);
+    const approvedDialogue = safetyContext.finalTextPolicy
+      ? filterDialogueForComicFinalText(
+          panel.dialogue,
+          safetyContext.finalTextPolicy,
+          visibility.personaVisible
+        ).approved
+      : filterDialogueForTextOverlay(panel.dialogue, safetyContext);
     layouts.push(
       layoutPanelOverlay({
         panel,
@@ -1228,6 +1330,71 @@ export function compileComicTextOverlaySvg(opts: {
           <feDropShadow dx="1.5" dy="2.5" stdDeviation="3.5" flood-color="#000000" flood-opacity="0.22"/>
         </filter>
       </defs>
+      ${svgElements.join("\n")}
+    </svg>
+  `.trim();
+}
+
+/**
+ * Text-only layer for the admin-only blank-balloon hybrid.
+ * The provider owns every balloon/narration body and tail; this compiler emits
+ * glyphs only and intentionally contains no body geometry.
+ */
+export function compileComicTextOnlyOverlaySvg(opts: {
+  width: number;
+  height: number;
+  panelLayouts: readonly PanelOverlayLayout[];
+}): string {
+  const svgElements: string[] = [];
+
+  for (const panelLayout of opts.panelLayouts) {
+    const narration = panelLayout.narration;
+    if (narration) {
+      svgElements.push(`
+        <text class="narration-text-only"
+              x="${narration.x + 14}"
+              y="${narration.y + narration.fontSize + 8}"
+              font-family="NanumSquareRound, NanumGothic, NanumBarunGothic, Noto Sans CJK KR, sans-serif"
+              font-size="${narration.fontSize}" font-weight="600" fill="#1e293b">
+          ${narration.lines
+            .map(
+              (line, index) =>
+                `<tspan x="${narration.x + 14}" dy="${index === 0 ? 0 : narration.fontSize * 1.35}">${escapeXml(
+                  line
+                )}</tspan>`
+            )
+            .join("")}
+        </text>
+      `);
+    }
+
+    for (const bubble of panelLayout.bubbles) {
+      const firstLineY =
+        bubble.y +
+        (bubble.height - bubble.renderedLines.length * bubble.fontSize * 1.35) / 2 +
+        bubble.fontSize * 0.95;
+      const textCenterX = bubble.x + bubble.width / 2;
+      svgElements.push(`
+        <text class="speech-text-only"
+              x="${textCenterX}"
+              y="${firstLineY}"
+              font-family="NanumSquareRound, NanumGothic, NanumBarunGothic, Noto Sans CJK KR, sans-serif"
+              font-size="${bubble.fontSize}" font-weight="700" fill="#0f172a" text-anchor="middle">
+          ${bubble.renderedLines
+            .map(
+              (line, index) =>
+                `<tspan x="${textCenterX}" dy="${index === 0 ? 0 : bubble.fontSize * 1.35}">${escapeXml(
+                  line
+                )}</tspan>`
+            )
+            .join("")}
+        </text>
+      `);
+    }
+  }
+
+  return `
+    <svg width="${opts.width}" height="${opts.height}" viewBox="0 0 ${opts.width} ${opts.height}" xmlns="http://www.w3.org/2000/svg">
       ${svgElements.join("\n")}
     </svg>
   `.trim();
