@@ -446,7 +446,7 @@ export default function ChatSettingsPanel({
             />
           ))}
         </nav>
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+        <div data-chat-settings-scroll-owner className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
           {active ? renderSectionContent(active) : (
             <p className="py-8 text-center text-xs text-zinc-500">메뉴를 선택하세요.</p>
           )}
@@ -469,7 +469,7 @@ export default function ChatSettingsPanel({
               <p className={flyoutTitleClass}>{activeLabel}</p>
             </div>
           )}
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">{renderSectionContent(active)}</div>
+          <div data-chat-settings-scroll-owner className="min-h-0 flex-1 overflow-y-auto px-3 py-3">{renderSectionContent(active)}</div>
         </div>
       )}
 

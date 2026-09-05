@@ -2,16 +2,17 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   CHAT_LIVE_FOLLOW_TARGET_RATIO,
+  createChatRootClampExpectation,
   handleChatStreamLayoutGrowth,
+  isChatRootScrollGeometryClamp,
   isChatLiveReadingActive,
   resolveActiveAssistantStreamEnd,
+  resolveChatFollowResize,
   resolveFollowBeforeStream,
-  shouldDetachChatLiveFollowOnKey,
-  shouldDetachChatLiveFollowOnTouchDelta,
-  shouldDetachChatLiveFollowOnWheel,
-  shouldDetachChatLiveFollowOnScrollDelta,
   shouldIgnoreChatLiveFollowScrollForDetach,
-  shouldSkipChatLiveFollowKeydown,
+  shouldRecordChatManualDetachOnScrollDelta,
+  shouldConsumeChatRootClampExpectation,
+  shouldReattachChatLiveFollowOnScrollDelta,
   shouldStartChatStreamFollow,
 } from "./chatLiveFollow";
 import {
@@ -20,14 +21,18 @@ import {
 } from "./liveReadingFollow";
 
 describe("chat live follow owner map", () => {
-  it("C11: preserves manual scroll when user was not at latest before stream", () => {
+  it("P0-A: geometry never creates manual detach at stream start", () => {
     assert.deepEqual(resolveFollowBeforeStream({ nearLatest: false, manualDetached: false }), {
-      followLatest: false,
-      manualDetached: true,
+      followLatest: true,
+      manualDetached: false,
     });
     assert.deepEqual(resolveFollowBeforeStream({ nearLatest: true, manualDetached: false }), {
       followLatest: true,
       manualDetached: false,
+    });
+    assert.deepEqual(resolveFollowBeforeStream({ nearLatest: true, manualDetached: true }), {
+      followLatest: false,
+      manualDetached: true,
     });
   });
 
@@ -46,11 +51,7 @@ describe("chat live follow owner map", () => {
     );
   });
 
-  it("C5/C6: manual detach helpers block auto follow", () => {
-    assert.equal(shouldDetachChatLiveFollowOnWheel(-1), true);
-    assert.equal(shouldDetachChatLiveFollowOnTouchDelta(-10), true);
-    assert.equal(shouldDetachChatLiveFollowOnKey("PageUp"), true);
-    assert.equal(shouldDetachChatLiveFollowOnKey("ArrowDown"), false);
+  it("C5/C6: only root scroll intent controls follow state", () => {
     assert.equal(shouldStartChatStreamFollow({ followLatest: true, manualDetached: true }), false);
   });
 
@@ -70,47 +71,161 @@ describe("chat live follow owner map", () => {
       true
     );
     assert.equal(
-      shouldDetachChatLiveFollowOnScrollDelta({
-        liveReadingActive: true,
+      shouldRecordChatManualDetachOnScrollDelta({
         scrollDeltaPx: -8,
         programmaticScrollInFlight: false,
       }),
       true
     );
     assert.equal(
-      shouldDetachChatLiveFollowOnScrollDelta({
-        liveReadingActive: true,
+      shouldRecordChatManualDetachOnScrollDelta({
         scrollDeltaPx: 12,
         programmaticScrollInFlight: false,
       }),
       false
     );
     assert.equal(
-      shouldDetachChatLiveFollowOnScrollDelta({
-        liveReadingActive: true,
+      shouldRecordChatManualDetachOnScrollDelta({
         scrollDeltaPx: -8,
         programmaticScrollInFlight: true,
+      }),
+      true
+    );
+  });
+
+  it("P1: records negative scrollbar intent before a live stream", () => {
+    assert.equal(
+      shouldRecordChatManualDetachOnScrollDelta({
+        scrollDeltaPx: -40,
+        programmaticScrollInFlight: false,
+      }),
+      true
+    );
+    assert.equal(
+      shouldRecordChatManualDetachOnScrollDelta({
+        scrollDeltaPx: 0,
+        programmaticScrollInFlight: false,
       }),
       false
     );
   });
 
-  it("P0-12: keyboard detach skips editable controls", () => {
-    class MockElement {
-      closest() {
-        return this;
-      }
-    }
-    const priorElement = globalThis.Element;
-    globalThis.Element = MockElement as typeof Element;
-    try {
-      const input = new MockElement();
-      const plain = { closest: () => null };
-      assert.equal(shouldSkipChatLiveFollowKeydown(input as unknown as EventTarget), true);
-      assert.equal(shouldSkipChatLiveFollowKeydown(plain as unknown as EventTarget), false);
-    } finally {
-      globalThis.Element = priorElement;
-    }
+  it("P1 resize: geometry rebases baseline without mutating detach or reattach state", () => {
+    const attached = resolveChatFollowResize({
+      scrollY: 940,
+      maxScrollY: 940,
+      followLatest: true,
+      manualDetached: false,
+      liveReadingActive: true,
+    });
+    assert.deepEqual(attached, {
+      scrollBaselineY: 940,
+      scrollBaselineMaxY: 940,
+      followLatest: true,
+      manualDetached: false,
+      notifyFollowTarget: true,
+    });
+
+    const detached = resolveChatFollowResize({
+      scrollY: 940,
+      maxScrollY: 940,
+      followLatest: false,
+      manualDetached: true,
+      liveReadingActive: false,
+    });
+    assert.deepEqual(detached, {
+      scrollBaselineY: 940,
+      scrollBaselineMaxY: 940,
+      followLatest: false,
+      manualDetached: true,
+      notifyFollowTarget: false,
+    });
+  });
+
+  it("P0 resize: root max-boundary clamp is geometry, not manual detach", () => {
+    assert.equal(
+      isChatRootScrollGeometryClamp({
+        previousScrollY: 1000,
+        previousMaxScrollY: 1000,
+        currentScrollY: 700,
+        currentMaxScrollY: 700,
+      }),
+      true
+    );
+    assert.equal(
+      isChatRootScrollGeometryClamp({
+        previousScrollY: 1000,
+        previousMaxScrollY: 1000,
+        currentScrollY: 880,
+        currentMaxScrollY: 1000,
+      }),
+      false
+    );
+    assert.equal(
+      isChatRootScrollGeometryClamp({
+        previousScrollY: 1000,
+        previousMaxScrollY: 1002,
+        currentScrollY: 820,
+        currentMaxScrollY: 900,
+      }),
+      false
+    );
+  });
+
+  it("P1 resize-first: expected clamp consumes only its exact new root boundary", () => {
+    const expectation = createChatRootClampExpectation({ scrollY: 1000, maxScrollY: 700 });
+    assert.deepEqual(expectation, { targetY: 700, maxScrollY: 700 });
+    assert.equal(
+      shouldConsumeChatRootClampExpectation({
+        expectation,
+        currentScrollY: 700,
+        currentMaxScrollY: 700,
+      }),
+      true
+    );
+    assert.equal(
+      shouldConsumeChatRootClampExpectation({
+        expectation,
+        currentScrollY: 620,
+        currentMaxScrollY: 700,
+      }),
+      false
+    );
+    assert.equal(
+      shouldConsumeChatRootClampExpectation({
+        expectation,
+        currentScrollY: 700,
+        currentMaxScrollY: 1200,
+      }),
+      false
+    );
+  });
+
+  it("P0-B: near-bottom geometry alone cannot reattach manual detach", () => {
+    assert.equal(
+      shouldReattachChatLiveFollowOnScrollDelta({
+        manualDetached: true,
+        scrollDeltaPx: 0,
+        nearLatest: true,
+      }),
+      false
+    );
+    assert.equal(
+      shouldReattachChatLiveFollowOnScrollDelta({
+        manualDetached: true,
+        scrollDeltaPx: 12,
+        nearLatest: true,
+      }),
+      true
+    );
+    assert.equal(
+      shouldReattachChatLiveFollowOnScrollDelta({
+        manualDetached: true,
+        scrollDeltaPx: 12,
+        nearLatest: false,
+      }),
+      false
+    );
   });
 
   it("C31: active assistant stream end resolves by request id, not first selector", () => {

@@ -178,16 +178,24 @@ import {
 } from "@/lib/integerScrollTransport";
 import {
   handleChatStreamLayoutGrowth,
+  createChatRootClampExpectation,
+  isChatRootScrollGeometryClamp,
   isChatLiveReadingActive,
   resolveActiveAssistantStreamEnd,
+  resolveChatFollowResize,
   resolveFollowBeforeStream,
-  shouldDetachChatLiveFollowOnKey,
-  shouldDetachChatLiveFollowOnScrollDelta,
-  shouldDetachChatLiveFollowOnWheel,
   shouldIgnoreChatLiveFollowScrollForDetach,
-  shouldSkipChatLiveFollowKeydown,
+  shouldRecordChatManualDetachOnScrollDelta,
+  shouldConsumeChatRootClampExpectation,
+  shouldReattachChatLiveFollowOnScrollDelta,
   shouldStartChatStreamFollow,
 } from "@/lib/chatLiveFollow";
+import {
+  clearChatBillingPresentations,
+  completeChatBillingPresentation,
+  createChatBillingPresentationOwner,
+  stageChatBillingPresentation,
+} from "@/lib/chatBillingPresentation";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
 import {
@@ -1095,6 +1103,21 @@ export default function ChatClient({
     });
   }, []);
   const visualRevealPendingCountRef = useRef(0);
+  const billingPresentationOwnerRef = useRef(
+    createChatBillingPresentationOwner<{
+      turnCost: number;
+      remainingPoints: number;
+      paidPoints: number;
+      freePoints: number;
+    }>()
+  );
+  const flushStreamBillingPresentation = useCallback((requestId: string) => {
+    const billing = completeChatBillingPresentation(
+      billingPresentationOwnerRef.current,
+      requestId
+    );
+    if (billing) applyStreamBilling(billing);
+  }, []);
   const routerRef = useRef(router);
   routerRef.current = router;
   const assistantPostTurnRefreshCoordinatorRef = useRef(
@@ -1151,8 +1174,9 @@ export default function ChatClient({
         pendingRevealSessionsRef.current.delete(requestId);
       }
       removeVisualRevealPending(requestId);
+      flushStreamBillingPresentation(requestId);
     },
-    [removeVisualRevealPending]
+    [flushStreamBillingPresentation, removeVisualRevealPending]
   );
   const [memoryRefreshKey, setMemoryRefreshKey] = useState(0);
   const [adultHandoffOn, setAdultHandoffOn] = useState(!!initialAdultHandoffEnabled);
@@ -1623,6 +1647,13 @@ export default function ChatClient({
   const liveFollowIntegerTransportRef = useRef<IntegerScrollDebtTransport | null>(null);
   const liveFollowScrollInFlightRef = useRef(false);
   const lastFollowScrollYRef = useRef(0);
+  const lastFollowMaxScrollYRef = useRef(0);
+  const pendingNegativeRootScrollRef = useRef<{
+    previousScrollY: number;
+    previousMaxScrollY: number;
+    currentScrollY: number;
+  } | null>(null);
+  const expectedRootClampRef = useRef<ReturnType<typeof createChatRootClampExpectation>>(null);
   const streamResizeObserverRef = useRef<ResizeObserver | null>(null);
   const scrollRafRef = useRef<number | null>(null);
   const applyEmotionRef = useRef<
@@ -1667,6 +1698,7 @@ export default function ChatClient({
       pendingRevealSessionsRef.current.clear();
       activeStreamRevealRef.current = null;
       clearVisualRevealPending();
+      clearChatBillingPresentations(billingPresentationOwnerRef.current);
     };
   }, [clearVisualRevealPending]);
 
@@ -2358,41 +2390,111 @@ export default function ChatClient({
   }, [chatLiveReadingActive, handleChatStreamGrowth, lastAssistantIdx, messages, visualRevealPendingIds]);
 
   useEffect(() => {
-    let touchStartY = 0;
     if (typeof window !== "undefined") {
       lastFollowScrollYRef.current = window.scrollY;
+      lastFollowMaxScrollYRef.current = Math.max(
+        0,
+        document.documentElement.scrollHeight - window.innerHeight
+      );
     }
 
     const onScroll = () => {
+      const previousScrollY = lastFollowScrollYRef.current;
+      const previousMaxScrollY = lastFollowMaxScrollYRef.current;
       const currentScrollY = window.scrollY;
-      const scrollDeltaPx = currentScrollY - lastFollowScrollYRef.current;
+      const currentMaxScrollY = Math.max(
+        0,
+        document.documentElement.scrollHeight - window.innerHeight
+      );
+      const scrollDeltaPx = currentScrollY - previousScrollY;
       lastFollowScrollYRef.current = currentScrollY;
+      lastFollowMaxScrollYRef.current = currentMaxScrollY;
+      if (
+        shouldConsumeChatRootClampExpectation({
+          expectation: expectedRootClampRef.current,
+          currentScrollY,
+          currentMaxScrollY,
+        })
+      ) {
+        expectedRootClampRef.current = null;
+        syncChatFollowDiagnostics();
+        return;
+      }
+      if (
+        expectedRootClampRef.current &&
+        Math.abs(currentMaxScrollY - expectedRootClampRef.current.maxScrollY) > 2
+      ) {
+        expectedRootClampRef.current = null;
+      }
+      if (
+        isChatRootScrollGeometryClamp({
+          previousScrollY,
+          previousMaxScrollY,
+          currentScrollY,
+          currentMaxScrollY,
+        })
+      ) {
+        syncChatFollowDiagnostics();
+        return;
+      }
       const liveReadingActive = isChatLiveReadingActiveNow();
-      const programmaticScrollInFlight = liveFollowScrollInFlightRef.current;
+      const testWindow = window as Window & {
+        __chatTestProgrammaticScrollInFlight?: boolean;
+      };
+      const programmaticScrollInFlight =
+        liveFollowScrollInFlightRef.current ||
+        testWindow.__chatTestProgrammaticScrollInFlight === true;
 
       if (userScrollLockRef.current) {
-        if (isNearBottom()) {
-          userScrollLockRef.current = false;
-          followStreamRef.current = true;
-          if (liveReadingActive) {
-            notifyChatLiveFollowTargetUpdate();
-          }
-        } else {
-          followStreamRef.current = false;
+        if (
+          shouldReattachChatLiveFollowOnScrollDelta({
+            manualDetached: true,
+            scrollDeltaPx,
+            nearLatest: isNearBottom(),
+          })
+        ) {
+          reattachChatLiveFollow();
+          return;
         }
+        followStreamRef.current = false;
         syncChatFollowDiagnostics();
         return;
       }
 
-      if (
-        shouldDetachChatLiveFollowOnScrollDelta({
-          liveReadingActive,
-          scrollDeltaPx,
-          programmaticScrollInFlight,
-        })
-      ) {
-        detachChatLiveFollow();
-        syncChatFollowDiagnostics();
+      if (shouldRecordChatManualDetachOnScrollDelta({ scrollDeltaPx, programmaticScrollInFlight })) {
+        // A viewport clamp may dispatch scroll before resize updates root bounds.
+        // Re-evaluate the same root movement after layout commits; no time window
+        // or gesture-source heuristic is involved.
+        pendingNegativeRootScrollRef.current ??= {
+          previousScrollY,
+          previousMaxScrollY,
+          currentScrollY,
+        };
+        if (scrollRafRef.current != null) cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = requestAnimationFrame(() => {
+          scrollRafRef.current = null;
+          const pending = pendingNegativeRootScrollRef.current;
+          pendingNegativeRootScrollRef.current = null;
+          if (!pending || userScrollLockRef.current) return;
+          const settledScrollY = window.scrollY;
+          const settledMaxScrollY = Math.max(
+            0,
+            document.documentElement.scrollHeight - window.innerHeight
+          );
+          lastFollowScrollYRef.current = settledScrollY;
+          lastFollowMaxScrollYRef.current = settledMaxScrollY;
+          if (
+            !isChatRootScrollGeometryClamp({
+              previousScrollY: pending.previousScrollY,
+              previousMaxScrollY: pending.previousMaxScrollY,
+              currentScrollY: settledScrollY,
+              currentMaxScrollY: settledMaxScrollY,
+            })
+          ) {
+            detachChatLiveFollow();
+          }
+          syncChatFollowDiagnostics();
+        });
         return;
       }
 
@@ -2410,54 +2512,52 @@ export default function ChatClient({
       syncChatFollowDiagnostics();
     };
 
-    const onWheel = (e: WheelEvent) => {
-      if (!isChatLiveReadingActiveNow()) return;
-      if (shouldDetachChatLiveFollowOnWheel(e.deltaY)) {
-        detachChatLiveFollow();
-        return;
+    const onResize = () => {
+      const resizeScrollY = window.scrollY;
+      const resizeMaxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      expectedRootClampRef.current = createChatRootClampExpectation({
+        scrollY: resizeScrollY,
+        maxScrollY: resizeMaxScrollY,
+      });
+      const pendingNegative = pendingNegativeRootScrollRef.current;
+      if (
+        pendingNegative &&
+        isChatRootScrollGeometryClamp({
+          previousScrollY: pendingNegative.previousScrollY,
+          previousMaxScrollY: pendingNegative.previousMaxScrollY,
+          currentScrollY: resizeScrollY,
+          currentMaxScrollY: resizeMaxScrollY,
+        })
+      ) {
+        // This negative root movement belongs to the resize clamp geometry, not
+        // to user history intent. Consume it before later send/layout epochs.
+        pendingNegativeRootScrollRef.current = null;
+        if (scrollRafRef.current != null) {
+          cancelAnimationFrame(scrollRafRef.current);
+          scrollRafRef.current = null;
+        }
       }
-      if (e.deltaY > 0 && isNearBottom()) {
-        reattachChatLiveFollow();
+      const next = resolveChatFollowResize({
+        scrollY: resizeScrollY,
+        maxScrollY: resizeMaxScrollY,
+        followLatest: followStreamRef.current,
+        manualDetached: userScrollLockRef.current,
+        liveReadingActive: isChatLiveReadingActiveNow(),
+      });
+      lastFollowScrollYRef.current = next.scrollBaselineY;
+      lastFollowMaxScrollYRef.current = next.scrollBaselineMaxY;
+      if (next.notifyFollowTarget) {
+        notifyChatLiveFollowTargetUpdate();
       }
-    };
-
-    const onTouchStart = (e: TouchEvent) => {
-      touchStartY = e.touches[0]?.clientY ?? 0;
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (!isChatLiveReadingActiveNow()) return;
-      const y = e.touches[0]?.clientY ?? touchStartY;
-      const touchDelta = y - touchStartY;
-      if (touchDelta > 8) {
-        detachChatLiveFollow();
-      } else if (touchDelta < -8 && isNearBottom()) {
-        reattachChatLiveFollow();
-      }
-    };
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!isChatLiveReadingActiveNow()) return;
-      if (shouldSkipChatLiveFollowKeydown(e.target)) return;
-      if (shouldDetachChatLiveFollowOnKey(e.key)) {
-        detachChatLiveFollow();
-      }
+      syncChatFollowDiagnostics();
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
-    window.addEventListener("wheel", onWheel, { passive: true });
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
-    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", onResize, { passive: true });
     onScroll();
     return () => {
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", onResize);
       if (scrollRafRef.current != null) cancelAnimationFrame(scrollRafRef.current);
     };
   }, [detachChatLiveFollow, isChatLiveReadingActiveNow, isNearBottom, notifyChatLiveFollowTargetUpdate, reattachChatLiveFollow]);
@@ -2758,6 +2858,7 @@ export default function ChatClient({
       reveal.reset();
       pendingRevealSessionsRef.current.delete(sessionRequestId);
       removeVisualRevealPending(sessionRequestId);
+      flushStreamBillingPresentation(sessionRequestId);
       if (activeStreamRevealRef.current === reveal) {
         activeStreamRevealRef.current = null;
       }
@@ -2766,6 +2867,7 @@ export default function ChatClient({
     const unregisterRevealSession = () => {
       pendingRevealSessionsRef.current.delete(sessionRequestId);
       removeVisualRevealPending(sessionRequestId);
+      flushStreamBillingPresentation(sessionRequestId);
       if (activeStreamRevealRef.current === reveal) {
         activeStreamRevealRef.current = null;
       }
@@ -3647,6 +3749,21 @@ export default function ChatClient({
     });
   }
 
+  function stageStreamBillingPresentation(
+    requestId: string,
+    billing: { turnCost: number; remainingPoints: number; paidPoints: number; freePoints: number }
+  ) {
+    const presentation = stageChatBillingPresentation(
+      billingPresentationOwnerRef.current,
+      {
+        requestId,
+        billing,
+        visualRevealPending: visualRevealPendingIdsRef.current.has(requestId),
+      }
+    );
+    if (presentation) applyStreamBilling(presentation);
+  }
+
   /** 실패 턴 롤백 + 안내 — ephemeral system을 히스토리 끝에 두지 않아 canContinue·전송 유지 */
   function applyTrafficOverloadNotice(notice: string, rollbackToIndex: number) {
     setMessages((m) => {
@@ -3824,7 +3941,7 @@ export default function ChatClient({
         !streamResult.streamError &&
         !streamResult.trafficOverload
       ) {
-        applyStreamBilling(streamResult.billing);
+        stageStreamBillingPresentation(clientRequestId, streamResult.billing);
       }
     }
   }
@@ -3952,7 +4069,7 @@ export default function ChatClient({
         !streamResult.streamError &&
         !streamResult.trafficOverload
       ) {
-        applyStreamBilling(streamResult.billing);
+        stageStreamBillingPresentation(clientRequestId, streamResult.billing);
       }
     }
   }
@@ -4195,7 +4312,7 @@ export default function ChatClient({
         !streamResult.streamError &&
         !streamResult.trafficOverload
       ) {
-        applyStreamBilling(streamResult.billing);
+        stageStreamBillingPresentation(clientRequestId, streamResult.billing);
       }
     }
   }
@@ -4559,9 +4676,10 @@ export default function ChatClient({
       isEditing: boolean;
       showToolbar: boolean;
       onLastTurn: boolean;
+      isCurrentTurnVisualRevealPending: boolean;
     }
   ) {
-    if (opts.isEditing) return null;
+    if (opts.isEditing || opts.isCurrentTurnVisualRevealPending) return null;
     const variantPicker =
       opts.showToolbar && (m.variantCount ?? 0) > 1 ? (
         <MessageVariantPicker
@@ -5092,6 +5210,10 @@ export default function ChatClient({
               messages[editingAssistantIdx]?.role === "assistant";
             const showToolbar = !!m.id && m.id > 0 && !!chatId;
             const onLastTurn = isLastTurnMessage(i, m);
+            const isCurrentTurnVisualRevealPending = isVisualRevealPendingForMessage(
+              m.requestId,
+              visualRevealPendingIds
+            );
 
             if (m.role === "system") {
               return (
@@ -5244,10 +5366,7 @@ export default function ChatClient({
                         loading,
                         messagesLength: messages.length,
                       });
-                      const isVisualRevealPending = isVisualRevealPendingForMessage(
-                        m.requestId,
-                        visualRevealPendingIds
-                      );
+                      const isVisualRevealPending = isCurrentTurnVisualRevealPending;
                       const proseStreamActive = isGenerationStreaming || isVisualRevealPending;
                       const useLiveDisplayedContent = shouldUseLiveDisplayedContent(
                         isGenerationStreaming,
@@ -5490,6 +5609,7 @@ export default function ChatClient({
                       isEditing,
                       showToolbar,
                       onLastTurn,
+                      isCurrentTurnVisualRevealPending,
                     })}
                   </>
                 )}
