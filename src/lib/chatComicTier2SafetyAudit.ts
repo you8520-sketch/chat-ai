@@ -28,6 +28,8 @@ import {
   formatOpenAiImageProviderAttemptsForAdmin,
   type OpenAiImageProviderAttemptRecord,
 } from "@/lib/openAiImageSafetyFallback";
+import type { ComicProviderReference } from "@/lib/chatComicReferenceIsolation";
+import { formatComicReferenceSetForAdmin } from "@/lib/chatComicReferenceIsolation";
 
 /** Strong genital / explicit act terms that must not appear in Tier-2 final prompt. */
 const STRONG_GENITAL_TERMS =
@@ -79,6 +81,8 @@ export const FINAL_TIER1_PROMPT_SECTION_INVENTORY = [
 export type ComicReferenceRoleInventory = {
   referenceCount: number;
   roles: Array<{ index: number; role: string }>;
+  referenceRoles?: ComicProviderReference["role"][];
+  referenceSetSignature?: string;
 };
 
 export type ReferenceModerationRisk = "NONE" | "LOW" | "HIGH" | "UNKNOWN";
@@ -346,6 +350,7 @@ export function formatComicGenerationAdminFailureDiagnostic(opts: {
   tier2PromptAudit?: Tier2ComicPromptAudit | null;
   referenceRoleInventory?: ComicReferenceRoleInventory | null;
   imageFailureDiagnostic?: OpenAiImageFailureDiagnostic;
+  providerReferences?: readonly ComicProviderReference[];
 }): Record<string, unknown> {
   const payload: Record<string, unknown> = {};
 
@@ -356,6 +361,9 @@ export function formatComicGenerationAdminFailureDiagnostic(opts: {
   }
 
   if (opts.providerAttempts?.length) {
+    const referenceSet = opts.providerReferences
+      ? formatComicReferenceSetForAdmin(opts.providerReferences)
+      : undefined;
     payload.providerAttemptDiagnostic = formatOpenAiImageProviderAttemptsForAdmin({
       providerAttempts: opts.providerAttempts,
       knownProviderCostUsd: aggregateKnownProviderCostUsd(opts.providerAttempts),
@@ -364,6 +372,7 @@ export function formatComicGenerationAdminFailureDiagnostic(opts: {
         (attempt) =>
           attempt.kind === "strict_safety_fallback" && attempt.outcome === "success"
       ),
+      referenceSet,
     });
 
     if (opts.tier2PromptAudit) {
@@ -385,6 +394,9 @@ export function formatComicGenerationAdminFailureDiagnostic(opts: {
     payload.referenceRoleInventory = formatComicReferenceRoleInventoryForAdmin(
       opts.referenceRoleInventory
     );
+  }
+  if (opts.providerReferences) {
+    payload.referenceSet = formatComicReferenceSetForAdmin(opts.providerReferences);
   }
 
   payload.templateModerationRisk = classifyTemplateModerationRisk();
