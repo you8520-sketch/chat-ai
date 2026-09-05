@@ -164,6 +164,7 @@ import {
   buildNeutralComicSafeStructure,
   formatComicReferenceSetForAdmin,
   isolateComicProviderReferences,
+  prepareComicProviderReferenceInput,
   resolveComicDiagnosticOverrides,
   type ComicProviderReference,
   type ComicNormalizedProviderReference,
@@ -1446,18 +1447,18 @@ export async function POST(req: Request) {
       }),
       diagnosticOverrides.referenceMode
     );
-    const references: ComicNormalizedProviderReference[] = await Promise.all(
-      providerReferences.map(async (reference) => ({
-        ...reference,
-        dataUrl: await imageSourceToDataUrl(reference.sourceUrl),
-      }))
-    );
+    const providerInput = await prepareComicProviderReferenceInput({
+      primaryPrompt: prompt,
+      strictFallbackPrompt,
+      references: providerReferences,
+      normalizeReference: imageSourceToDataUrl,
+    });
     const model = resolveChatImageGenerationModel();
     const generated = await generateComicImage({
       model,
-      prompt,
-      strictFallbackPrompt,
-      references,
+      prompt: providerInput.primaryPrompt,
+      strictFallbackPrompt: providerInput.strictFallbackPrompt,
+      references: providerInput.references,
       panelCount,
     });
 
@@ -1638,3 +1639,4 @@ export async function POST(req: Request) {
     );
   }
 }
+
