@@ -5,6 +5,7 @@ import {
   handleChatStreamLayoutGrowth,
   isChatLiveReadingActive,
   resolveActiveAssistantStreamEnd,
+  resolveChatFollowResize,
   resolveFollowBeforeStream,
   shouldDetachChatLiveFollowOnKey,
   shouldDetachChatLiveFollowOnTouchDelta,
@@ -112,6 +113,34 @@ describe("chat live follow owner map", () => {
       }),
       false
     );
+  });
+
+  it("P1 resize: geometry rebases baseline without mutating detach or reattach state", () => {
+    const attached = resolveChatFollowResize({
+      scrollY: 940,
+      followLatest: true,
+      manualDetached: false,
+      liveReadingActive: true,
+    });
+    assert.deepEqual(attached, {
+      scrollBaselineY: 940,
+      followLatest: true,
+      manualDetached: false,
+      notifyFollowTarget: true,
+    });
+
+    const detached = resolveChatFollowResize({
+      scrollY: 940,
+      followLatest: false,
+      manualDetached: true,
+      liveReadingActive: false,
+    });
+    assert.deepEqual(detached, {
+      scrollBaselineY: 940,
+      followLatest: false,
+      manualDetached: true,
+      notifyFollowTarget: false,
+    });
   });
 
   it("P0-B: near-bottom geometry alone cannot reattach manual detach", () => {

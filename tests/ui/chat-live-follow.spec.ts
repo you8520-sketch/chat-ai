@@ -820,6 +820,78 @@ test.describe("General chat live reading follow — production browser", () => {
     expect(afterSendY - historyY).toBeLessThan(48);
   });
 
+  test("P1 resize: clamp is geometry-only before, during, and after live follow", async ({ page }) => {
+    await mockChatStreamRoute(page, longAssistantProse(900));
+    await page.setViewportSize({ width: 1280, height: 420 });
+    await openFreshChat(page);
+    await sendMockMessage(page, "resize baseline source turn");
+    await waitForNetworkDoneVisualRevealPending(page);
+    await page.locator("[data-quote-assistant]").last().click();
+    await page.waitForFunction(
+      () =>
+        document.querySelector("[data-chat-live-reading-active]")?.getAttribute(
+          "data-chat-live-reading-active"
+        ) === "false",
+      undefined,
+      { timeout: 15_000 }
+    );
+    await ensureExtraScrollRoom(page, 1200);
+    // Keep this fixture geometry outside React's reconciled chat subtree so the
+    // subsequent send cannot turn a test-only DOM removal into a fake scroll.
+    await page.evaluate(() => {
+      const room = document.querySelector("[data-test-extra-scroll-room]");
+      if (room) document.body.appendChild(room);
+    });
+    await page.evaluate(() =>
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })
+    );
+    const beforeResizeY = await page.evaluate(() => window.scrollY);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    const afterResizeY = await page.evaluate(() => window.scrollY);
+    expect(afterResizeY).toBeLessThan(beforeResizeY);
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      liveReadingActive: false,
+      followLatest: true,
+      manualDetached: false,
+    });
+
+    await page.unroute("**/api/chat");
+    await mockChatStreamRoute(page, longAssistantProse(480));
+    await sendMockMessage(page, "resize before send stays attached");
+    await waitForNetworkDoneVisualRevealPending(page);
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: true,
+      manualDetached: false,
+    });
+
+    await page.setViewportSize({ width: 1280, height: 420 });
+    await page.evaluate(() =>
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })
+    );
+    const beforeLiveResizeY = await page.evaluate(() => window.scrollY);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    const afterLiveResizeY = await page.evaluate(() => window.scrollY);
+    expect(afterLiveResizeY).toBeLessThan(beforeLiveResizeY);
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      liveReadingActive: true,
+      followLatest: true,
+      manualDetached: false,
+    });
+
+    await page.evaluate(() => {
+      window.dispatchEvent(new WheelEvent("wheel", { deltaY: -400, bubbles: true }));
+    });
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: false,
+      manualDetached: true,
+    });
+    await page.setViewportSize({ width: 1280, height: 420 });
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: false,
+      manualDetached: true,
+    });
+  });
+
   test("P0-B: scrollbar-equivalent upward delta detaches for 1.5s", async ({ page }) => {
     const finalText = longAssistantProse(1400);
     await mockChatStreamRoute(page, finalText);

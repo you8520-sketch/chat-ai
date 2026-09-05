@@ -89,6 +89,27 @@ export function shouldRecordChatManualDetachOnScrollDelta(opts: {
   return opts.scrollDeltaPx < -2;
 }
 
+/** Resize is geometry-only: rebase scroll measurement without changing user intent. */
+export function resolveChatFollowResize(input: {
+  scrollY: number;
+  followLatest: boolean;
+  manualDetached: boolean;
+  liveReadingActive: boolean;
+}): {
+  scrollBaselineY: number;
+  followLatest: boolean;
+  manualDetached: boolean;
+  notifyFollowTarget: boolean;
+} {
+  return {
+    scrollBaselineY: input.scrollY,
+    followLatest: input.followLatest,
+    manualDetached: input.manualDetached,
+    notifyFollowTarget:
+      input.liveReadingActive && input.followLatest && !input.manualDetached,
+  };
+}
+
 /** A detached scrollbar/touch path may rejoin only with downward intent at latest. */
 export function shouldReattachChatLiveFollowOnScrollDelta(opts: {
   manualDetached: boolean;

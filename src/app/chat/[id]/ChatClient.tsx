@@ -180,6 +180,7 @@ import {
   handleChatStreamLayoutGrowth,
   isChatLiveReadingActive,
   resolveActiveAssistantStreamEnd,
+  resolveChatFollowResize,
   resolveFollowBeforeStream,
   shouldDetachChatLiveFollowOnKey,
   shouldDetachChatLiveFollowOnWheel,
@@ -2450,6 +2451,20 @@ export default function ChatClient({
       }
     };
 
+    const onResize = () => {
+      const next = resolveChatFollowResize({
+        scrollY: window.scrollY,
+        followLatest: followStreamRef.current,
+        manualDetached: userScrollLockRef.current,
+        liveReadingActive: isChatLiveReadingActiveNow(),
+      });
+      lastFollowScrollYRef.current = next.scrollBaselineY;
+      if (next.notifyFollowTarget) {
+        notifyChatLiveFollowTargetUpdate();
+      }
+      syncChatFollowDiagnostics();
+    };
+
     const onTouchStart = (e: TouchEvent) => {
       touchStartY = e.touches[0]?.clientY ?? 0;
     };
@@ -2472,7 +2487,7 @@ export default function ChatClient({
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
+    window.addEventListener("resize", onResize, { passive: true });
     window.addEventListener("wheel", onWheel, { passive: true });
     window.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: true });
@@ -2480,7 +2495,7 @@ export default function ChatClient({
     onScroll();
     return () => {
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("resize", onResize);
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
