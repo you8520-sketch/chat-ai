@@ -50,6 +50,12 @@ import {
   sanitizeGenerationPreparationUi,
   type GenerationPreparationUiPayload,
 } from "@/lib/generationPreparationUi";
+import type { UserMessageBillingSummary } from "@/lib/storedTurnChargeEvidenceShared";
+import {
+  applyBillingSummaryToMessages,
+  mergeBillingChargeSummaryFieldsById,
+  shouldFetchFailedTurnBillingSummary,
+} from "@/lib/failedTurnBillingSummaryClient";
 import type { MessageVariant } from "@/lib/messageAlternates";
 import {
   assetByUrl,
@@ -341,6 +347,8 @@ type Msg = {
   canonAdopted?: boolean;
   /** Server/client: newer canonical RP progress exists after this OOC scene. */
   canonAdoptionStale?: boolean;
+  /** Server-derived stored charge evidence when usage receipt is unavailable. */
+  billingChargeSummary?: UserMessageBillingSummary | null;
   /** UI 전용 — DB 미저장 */
   ephemeral?: boolean;
 };
@@ -2034,12 +2042,48 @@ export default function ChatClient({
   useEffect(() => {
     if (loadingRef.current || inFlightRef.current) return;
     setMessages((prev) =>
-      mergeSuggestedRepliesFieldsById(
-        mergeStatusMetaFieldsById(mergeBillingUsageFromServer(prev, initialMessages), initialMessages),
+      mergeBillingChargeSummaryFieldsById(
+        mergeSuggestedRepliesFieldsById(
+          mergeStatusMetaFieldsById(mergeBillingUsageFromServer(prev, initialMessages), initialMessages),
+          initialMessages
+        ),
         initialMessages
       )
     );
   }, [initialMessages]);
+
+  const billingSummaryFetchRef = useRef<Set<string>>(new Set());
+  /**
+   * Live failed/interrupted turns: fetch owned billing summary without manual
+   * refresh. Race-guarded by messageId + requestId; stale regen responses ignored.
+   */
+  useEffect(() => {
+    const targets = messages.filter((m) => shouldFetchFailedTurnBillingSummary(m));
+    if (targets.length === 0) return;
+    for (const target of targets) {
+      if (target.id == null) continue;
+      const key = `${target.id}:${target.requestId ?? ""}`;
+      if (billingSummaryFetchRef.current.has(key)) continue;
+      billingSummaryFetchRef.current.add(key);
+      const messageId = target.id;
+      const requestId = target.requestId ?? null;
+      void fetch(`/api/chat/message-billing-summary?messageId=${messageId}`, {
+        cache: "no-store",
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            billingSummaryFetchRef.current.delete(key);
+            return;
+          }
+          const summary = (await res.json()) as UserMessageBillingSummary;
+          if (!summary || summary.messageId !== messageId) return;
+          setMessages((prev) => applyBillingSummaryToMessages(prev, summary));
+        })
+        .catch(() => {
+          billingSummaryFetchRef.current.delete(key);
+        });
+    }
+  }, [messages]);
 
   const portraitRoomRef = useRef<number | null | undefined>(undefined);
   useEffect(() => {
@@ -4530,6 +4574,7 @@ export default function ChatClient({
           variantPicker={variantPicker}
           compact={!showCharacterPortrait}
           showFullReceipt={showFullBillingReceipt}
+          billingChargeSummary={m.billingChargeSummary ?? null}
           onToast={setToastMsg}
           onBookmarkChange={(id, on) => {
             setBookmarkedIds((prev) => {

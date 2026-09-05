@@ -74,6 +74,41 @@ describe("adminBillingReceiptTurnSummary", () => {
     assert.equal(receipt.wholeTurn.contributionMarginPercent, null);
   });
 
+  it("Y/Z unknown missing-Usage evidence never renders zero", () => {
+    const receipt = {
+      ...buildReceiptFromUsage(usage()),
+      syncReceipt: null,
+      forensic: {
+        chargeStatus: "unknown" as const,
+        chargeEvidenceSettledPoints: null,
+      },
+    };
+    const summary = buildAdminReceiptTurnSummary(receipt);
+    assert.equal(summary.deductedPoints, null);
+    assert.equal(summary.inputTokens, null);
+    assert.equal(summary.outputTokens, null);
+    const ko = formatAdminReceiptTurnSummaryLines(summary).join("\n");
+    const en = formatAdminReceiptTurnSummaryLines(summary, { locale: "en" }).join("\n");
+    assert.match(ko, /실제 차감\s+확인 불가/);
+    assert.match(ko, /총 입력 토큰.*확인 불가/);
+    assert.match(en, /deducted: unavailable/);
+    assert.match(en, /input tokens.*unavailable/);
+  });
+
+  it("AA proven not-charged missing-Usage evidence renders canonical 0P", () => {
+    const receipt = {
+      ...buildReceiptFromUsage(usage()),
+      syncReceipt: null,
+      forensic: {
+        chargeStatus: "not_charged" as const,
+        chargeEvidenceSettledPoints: 0,
+      },
+    };
+    const summary = buildAdminReceiptTurnSummary(receipt);
+    assert.equal(summary.deductedPoints, 0);
+    assert.match(formatAdminReceiptTurnSummaryLines(summary).join("\n"), /실제 차감\s+0 P/);
+  });
+
   it("settledDeductedPoints preferred over deductedPoints", () => {
     const u = usage({
       cost: 99,

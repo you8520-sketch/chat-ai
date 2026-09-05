@@ -80,7 +80,12 @@ export type AdminBillingReceiptV3 = {
   version: 3;
   assistantMessageId: number;
   chatId: number;
-  syncReceipt: AdminBillingReceiptV2;
+  /**
+   * Usage-based sync receipt. Null when no stored Usage snapshot exists —
+   * settlement evidence lives in `forensic` only (Strategy B: nullable unavailable
+   * sync section). Never fabricate Usage to fill this.
+   */
+  syncReceipt: AdminBillingReceiptV2 | null;
   async: AdminBillingReceiptV3AsyncSection;
   wholeTurn: AdminBillingReceiptV3WholeTurnSection;
   excludedCostScopes: string[];
@@ -123,7 +128,9 @@ export function formatAdminBillingReceiptV3Text(receipt: AdminBillingReceiptV3):
   );
 
   lines.push("", "[Sync Platform Spend]");
-  if (receipt.wholeTurn.syncProvablyNone) {
+  if (receipt.syncReceipt == null) {
+    lines.push("sync: unavailable — no stored Usage snapshot");
+  } else if (receipt.wholeTurn.syncProvablyNone) {
     lines.push("sync: provably none");
   } else if (receipt.syncReceipt.syncPlatformSpend.status === "not_persisted") {
     lines.push("sync: snapshot not persisted");

@@ -278,9 +278,18 @@ export function formatOpenAiImageProviderAttemptsForAdmin(opts: {
   knownProviderCostUsd: number | null;
   hasUnknownAttemptCost: boolean;
   safetyFallbackUsed: boolean;
+  referenceSet?: {
+    referenceCount: number;
+    referenceSetSignature: string;
+    references: ReadonlyArray<{ index: number; role: string; content: string }>;
+  };
 }): Record<string, unknown> {
+  const safetyFallbackInvoked = opts.providerAttempts.some(
+    (attempt) => attempt.kind === "strict_safety_fallback"
+  );
   return {
     safetyFallbackUsed: opts.safetyFallbackUsed,
+    safetyFallbackInvoked,
     attemptCount: opts.providerAttempts.length,
     knownProviderCostUsd: opts.knownProviderCostUsd,
     hasUnknownAttemptCost: opts.hasUnknownAttemptCost,
@@ -292,7 +301,13 @@ export function formatOpenAiImageProviderAttemptsForAdmin(opts: {
       providerRequestId: attempt.diagnostic?.providerRequestId ?? null,
       usageReturned: attempt.diagnostic?.usageReturned ?? null,
       moderationStage: attempt.diagnostic?.moderationStage ?? null,
+      errorCode: attempt.diagnostic?.errorCode ?? (attempt.outcome === "success" ? null : "UNKNOWN"),
+      safetyCategories: Array.isArray(attempt.diagnostic?.safetyCategories)
+        && attempt.diagnostic.safetyCategories.length
+        ? attempt.diagnostic.safetyCategories
+        : "UNKNOWN",
       promptHash: attempt.promptHash ?? null,
+      ...(opts.referenceSet ?? {}),
     })),
   };
 }

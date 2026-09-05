@@ -210,9 +210,15 @@ export function formatOpenAiImageFailureDiagnosticForAdmin(
     errorType: diagnostic.errorType,
     errorCode: diagnostic.errorCode,
     errorParam: diagnostic.errorParam,
-    errorMessage: diagnostic.errorMessage,
+    // Upstream free text may echo the prompt or reference source. Keep the raw
+    // diagnostic for classification; never copy that text into admin/log output.
+    errorMessage: isOpenAiImageSafetyRejection(diagnostic)
+      ? "Provider rejected the image request for safety."
+      : "Provider image request failed.",
     moderationStage: diagnostic.moderationStage ?? "unavailable",
-    safetyCategories: diagnostic.safetyCategories ?? [],
+    safetyCategories: diagnostic.safetyCategories?.length
+      ? diagnostic.safetyCategories
+      : "UNKNOWN",
     usageReturned: diagnostic.hasUsageEvidence,
     inputTokens: diagnostic.inputTokens,
     outputTokens: diagnostic.outputTokens,

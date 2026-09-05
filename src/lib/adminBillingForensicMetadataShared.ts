@@ -1,4 +1,8 @@
 import type { FinalChargeConsistencySnapshot } from "@/lib/chatBillingFinalCharge";
+import type {
+  StoredTurnChargeEvidenceStatus,
+  StoredTurnChargeStatus,
+} from "@/lib/storedTurnChargeEvidenceShared";
 
 export type AdminBillingForensicFxEvidence =
   | {
@@ -26,6 +30,11 @@ export type AdminBillingForensicMetadata = {
   publishedFinalPoints: number | null;
   legacyFinalPoints: number | null;
   settledDeductedPoints: number | null;
+  /**
+   * Stored settlement evidence — independent from Usage snapshot.
+   * USAGE EVIDENCE ≠ SETTLEMENT EVIDENCE. Never derive usageCost from this.
+   */
+  chargeEvidenceSettledPoints: number | null;
   usageCost: number | null;
   deductionSliceTotal: number | null;
   billingEvidenceStatus: "complete" | "missing_stored_dispatch" | "partial";
@@ -38,4 +47,9 @@ export type AdminBillingForensicMetadata = {
   cacheWriteTokens: number | null;
   fx: AdminBillingForensicFxEvidence;
   finalChargeConsistency: FinalChargeConsistencySnapshot | null;
+  generationStatus?: string | null;
+  chargeStatus?: StoredTurnChargeStatus;
+  usageSnapshotAvailable?: boolean;
+  chargeEvidenceStatus?: StoredTurnChargeEvidenceStatus;
+  chargeEvidenceViolations?: string[];
 };
