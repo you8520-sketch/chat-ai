@@ -80,7 +80,7 @@ describe("chatComicTextOverlay.server sharp composite", () => {
             {
               speaker: "character" as const,
               text: "짧은 대사",
-              provenance: "source" as const,
+              provenance: "user_edit" as const,
             },
           ],
         },
