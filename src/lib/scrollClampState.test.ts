@@ -180,4 +180,18 @@ describe("scrollClampState motion proof", () => {
     assert.equal(metrics.DIRECTION_REVERSAL_COUNT, 0);
     assert.equal(metrics.LARGE_JUMP_COUNT, 0);
   });
+
+  it("separates positive catch-up steps from steady cruise cadence", () => {
+    const metrics = measureIntegerScrollCadence([
+      { t: 0, scrollY: 0, remainingDelta: 4 },
+      { t: 16, scrollY: 1, remainingDelta: 3 },
+      { t: 149, scrollY: 1, remainingDelta: 0 },
+      { t: 199, scrollY: 2, remainingDelta: -1 },
+      { t: 282, scrollY: 3, remainingDelta: -2 },
+    ]);
+    assert.equal(metrics.POSITIVE_SCROLL_STEP_COUNT, 2);
+    assert.equal(metrics.MEDIAN_INTER_STEP_GAP_MS, 83);
+    assert.equal(metrics.P95_INTER_STEP_GAP_MS, 83);
+    assert.equal(metrics.MAX_INTER_STEP_GAP_MS, 183);
+  });
 });

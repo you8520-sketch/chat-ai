@@ -17,7 +17,6 @@ export const MAX_FRAME_VELOCITY_EPSILON_PX_PER_SEC = 12;
 export const INTEGER_CADENCE_MAX_INTER_STEP_GAP_MS = 200;
 export const INTEGER_CADENCE_P95_INTER_STEP_GAP_MS = 120;
 export const INTEGER_CADENCE_MAX_STEP_PX = 1;
-export const INTEGER_CADENCE_STEADY_MIN_REMAINING_DELTA_PX = -8;
 
 /** Documented: scrollRange < 4 is never a PASS reason. */
 export const IMPLICIT_SCROLL_RANGE_PASS_PATH = false;
@@ -114,7 +113,7 @@ export function measureIntegerScrollCadence(
       allPositiveStepTimes.push(sample.t);
       const inSteadyCruise =
         sample.remainingDelta == null ||
-        sample.remainingDelta > INTEGER_CADENCE_STEADY_MIN_REMAINING_DELTA_PX;
+        sample.remainingDelta <= 0;
       if (inSteadyCruise) {
         positiveSteps.push(step);
         positiveStepTimes.push(sample.t);
