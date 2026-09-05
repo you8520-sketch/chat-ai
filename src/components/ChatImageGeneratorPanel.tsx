@@ -216,9 +216,13 @@ type GenerateResult = {
     usageEvidence?: Array<{ attempt: number; evidence: string }>;
     blankBalloonDetection?: {
       strategy: ComicBlankBalloonTextStrategy;
+      expectedProviderBalloonRegionCount: number;
+      approvedServerTextRegionCount: number;
+      policySuppressedTextRegionCount: number;
       expectedTextRegionCount: number;
       detectedRegionCount: number;
       insertedTextRegionCount: number;
+      insertedNarrationRegionCount: number;
       missingTextRegionCount: number;
       ambiguousRegionCount: number;
       rejectedRegionCount: number;
@@ -2350,9 +2354,15 @@ export default function ChatImageGeneratorPanel({
                             </p>
                             {comicDiagnosticResult.blankBalloonDetection ? (
                               <p>
-                                text regions{" "}
-                                {comicDiagnosticResult.blankBalloonDetection.insertedTextRegionCount}/
-                                {comicDiagnosticResult.blankBalloonDetection.expectedTextRegionCount} inserted
+                                balloon slots{" "}
+                                {comicDiagnosticResult.blankBalloonDetection.expectedProviderBalloonRegionCount}
+                                {" · approved "}
+                                {comicDiagnosticResult.blankBalloonDetection.approvedServerTextRegionCount}
+                                {comicDiagnosticResult.blankBalloonDetection.policySuppressedTextRegionCount > 0
+                                  ? ` · suppressed ${comicDiagnosticResult.blankBalloonDetection.policySuppressedTextRegionCount}`
+                                  : ""}
+                                {" · inserted "}
+                                {comicDiagnosticResult.blankBalloonDetection.insertedTextRegionCount}
                                 {comicDiagnosticResult.blankBalloonDetection.missingTextRegionCount > 0
                                   ? ` · missing ${comicDiagnosticResult.blankBalloonDetection.missingTextRegionCount}`
                                   : ""}

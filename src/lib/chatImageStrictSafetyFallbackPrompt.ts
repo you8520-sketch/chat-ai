@@ -34,6 +34,10 @@ import {
   type ComicSafeStructureProjection,
 } from "@/lib/chatComicSafeStructure";
 import type { ChatComicCompositionMode } from "@/lib/chatComicPanelSpec";
+import {
+  renderComicStrictBalloonSlotMetadata,
+  type ComicBalloonSlotMetadata,
+} from "@/lib/chatComicPanelSpec";
 import { COMIC_TIER2_POSITIVE_SAFE_DEPICTION } from "@/lib/chatComicTier2SafeProjection";
 import type { ContentKind } from "@/lib/simulationMode";
 
@@ -160,6 +164,8 @@ export function buildStrictComicFallbackPrompt(opts: {
   safeStructure?: ComicSafeStructureProjection;
   /** overlay_first = current exact Tier-2; blank_balloon_hybrid = GPT blank-balloon composition. */
   compositionMode?: ChatComicCompositionMode;
+  /** Structural blank-balloon slot metadata for hybrid Tier-2 (text-free, provider-safe). */
+  balloonSlots?: ReadonlyArray<{ panelIndex: number; slots: ComicBalloonSlotMetadata[] }>;
 }): string {
   const strictSubjects = subjectsForStrictFallback(opts.subjects);
   const castAware = Boolean(opts.castManifest && opts.castSelected?.length);
@@ -181,6 +187,9 @@ export function buildStrictComicFallbackPrompt(opts: {
         "GPT IS COMIC DIRECTOR — create the complete comic artwork: panel composition, camera direction, character staging, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects.",
         "Draw natural white manga/manhwa speech balloons with black outlines in visually appropriate negative space. Tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text.",
         "Blank narration boxes only where the beat needs context, with empty interiors. Render no readable letters, dialogue, captions, placeholder words, random symbols, or gibberish anywhere in the image.",
+        ...(opts.balloonSlots?.length
+          ? renderComicStrictBalloonSlotMetadata(opts.balloonSlots).split("\n")
+          : []),
       ]
     : ["VISUAL LAYER ONLY — zero speech bubbles, captions, SFX, or readable letters in the image. Text is added later by server overlay."];
   return [

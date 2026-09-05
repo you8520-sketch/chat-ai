@@ -1,5 +1,5 @@
 import type { SceneDialogue, ScenePanel, ScenePlan, ScenePresentationVisibility } from "@/lib/chatImageScenePlan";
-import { isEligibleSpeechDialogue, normalizeDialogueTextForOutput } from "@/lib/chatImageScenePlan";
+import { isEligibleSpeechDialogue, normalizeDialogueTextForOutput, projectComicPanelBeat } from "@/lib/chatImageScenePlan";
 import {
   buildPromptSubjectMap,
   resolveDialogueSpeakerSide,
@@ -11,6 +11,7 @@ import {
   containsRawRiskySourceLeak,
 } from "@/lib/chatImageSafeVisualProjection";
 import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
+import type { ContentKind } from "@/lib/simulationMode";
 
 /**
  * COMIC TEXT OVERLAY SUB-SYSTEM (OVERLAY-FIRST ARCHITECTURE)
@@ -43,7 +44,102 @@ export type TextOverlaySafetyContext = {
   isSafetyFallback?: boolean;
   adultGrounded?: boolean;
   personaVisible?: boolean;
+  /** When present, the comic text layer is governed by the application text policy. */
+  finalTextPolicy?: ComicFinalTextEligibilityContext;
 };
+
+export type ComicFinalTextEligibilityReason =
+  | "eligible"
+  | "adult_mode_off"
+  | "real_person_restricted"
+  | "self_harm_restricted"
+  | "graphic_violence_restricted"
+  | "empty";
+
+export type ComicFinalTextEligibility = {
+  eligible: boolean;
+  reason: ComicFinalTextEligibilityReason;
+};
+
+/**
+ * Canonical comic final-text policy owner (SERVER_FINAL_TEXT). Reuses the site's
+ * existing adult text eligibility contract (adult mode = verified user + room
+ * adult mode enabled). The image-provider visual safety projection must NOT be
+ * used to decide whether an application-rendered glyph exists.
+ */
+export type ComicFinalTextEligibilityContext = {
+  /** resolveEffectiveAdultRp({ userAdultVerified, roomAdultModeEnabled }) — site adult text gate. */
+  adultGrounded: boolean;
+  contentKind?: ContentKind;
+  realPersonRestricted?: boolean;
+};
+
+/** Application text-layer eligibility for one canonical dialogue row. */
+export function resolveComicFinalTextEligibility(opts: {
+  line: Pick<SceneDialogue, "text">;
+  context: ComicFinalTextEligibilityContext;
+}): ComicFinalTextEligibility {
+  const raw = String(opts.line.text ?? "").trim();
+  if (!raw) return { eligible: false, reason: "empty" };
+
+  const categories = classifyRawVisualRisk(raw);
+  if (categories.includes("self_harm")) {
+    return { eligible: false, reason: "self_harm_restricted" };
+  }
+  if (categories.includes("graphic_violence")) {
+    return { eligible: false, reason: "graphic_violence_restricted" };
+  }
+  if (categories.includes("adult_explicit")) {
+    if (opts.context.realPersonRestricted) {
+      return { eligible: false, reason: "real_person_restricted" };
+    }
+    if (!opts.context.adultGrounded) {
+      return { eligible: false, reason: "adult_mode_off" };
+    }
+  }
+  return { eligible: true, reason: "eligible" };
+}
+
+/** Application text-policy filter — approved glyph rows vs intentionally suppressed rows. */
+export function filterDialogueForComicFinalText(
+  dialogue: readonly SceneDialogue[],
+  context: ComicFinalTextEligibilityContext,
+  personaVisible = true
+): { approved: SceneDialogue[]; suppressed: SceneDialogue[] } {
+  const approved: SceneDialogue[] = [];
+  const suppressed: SceneDialogue[] = [];
+  for (const line of dialogue) {
+    const raw = String(line.text ?? "").trim();
+    if (!raw) continue;
+    if (!personaVisible && (line.speaker === "persona" || line.speakerName === "유저")) {
+      continue;
+    }
+    if (resolveComicFinalTextEligibility({ line, context }).eligible) {
+      approved.push(line);
+    } else {
+      suppressed.push(line);
+    }
+  }
+  return { approved, suppressed };
+}
+
+/** Count dialogue rows the application text policy intentionally suppresses across the plan. */
+export function countComicPanelDialogueSuppressed(opts: {
+  plan: ScenePlan;
+  visibility: ScenePresentationVisibility;
+  context: ComicFinalTextEligibilityContext;
+}): number {
+  let suppressed = 0;
+  for (const panel of opts.plan.panels) {
+    const beat = projectComicPanelBeat(opts.plan, panel, opts.visibility);
+    for (const line of beat.dialogue) {
+      if (!resolveComicFinalTextEligibility({ line, context: opts.context }).eligible) {
+        suppressed += 1;
+      }
+    }
+  }
+  return suppressed;
+}
 
 export type SpeechBubbleLayout = {
   speaker: "persona" | "character" | "other";
@@ -901,7 +997,13 @@ export function compileComicPanelOverlayLayouts(opts: {
   for (let i = 0; i < panelCount; i += 1) {
     const panel = plan.panels[i] ?? plan.panels[plan.panels.length - 1];
     if (!panel) continue;
-    const approvedDialogue = filterDialogueForTextOverlay(panel.dialogue, safetyContext);
+    const approvedDialogue = safetyContext.finalTextPolicy
+      ? filterDialogueForComicFinalText(
+          panel.dialogue,
+          safetyContext.finalTextPolicy,
+          visibility.personaVisible
+        ).approved
+      : filterDialogueForTextOverlay(panel.dialogue, safetyContext);
     layouts.push(
       layoutPanelOverlay({
         panel,

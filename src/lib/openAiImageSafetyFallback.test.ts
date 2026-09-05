@@ -17,6 +17,7 @@ import {
   STRICT_SAFE_DEPICTION,
 } from "./chatImageStrictSafetyFallbackPrompt";
 import { buildChatComicImagePrompt } from "./chatComicGeneration";
+import { buildComicPanelBalloonSlotMetadata } from "./chatComicPanelSpec";
 import type { ChatImageCastGroundedManifest } from "./chatImageCastManifest";
 import type { ScenePlan } from "./chatImageScenePlan";
 import { formatOpenAiImageUserError } from "./chatLdIllustrationGeneration";
@@ -784,6 +785,70 @@ describe("strict safety fallback prompts", () => {
     assert.doesNotMatch(prompt, /VISUAL LAYER ONLY/i);
     assert.doesNotMatch(prompt, /TIER2_RAW_SECRET/);
     assert.doesNotMatch(prompt, /성관계/);
+  });
+
+  it("HYBRID-TIER2-1 Tier-2 preserves the same structural balloon slot metadata", () => {
+    const plan: ScenePlan = {
+      sceneBackground: "ordinary indoor room",
+      atmosphere: "calm",
+      events: [],
+      heroEventIds: [],
+      heroScene: "two adults in a room",
+      panels: [
+        {
+          index: 1,
+          sourceEventIds: [],
+          situation: "conversation",
+          backgroundOverride: "ordinary indoor room",
+          personaAction: "sitting",
+          characterAction: "sitting",
+          dialogue: [
+            { speaker: "character", text: "오늘은 쉬자.", provenance: "user_edit" },
+            { speaker: "persona", text: "조용히 안아줘.", provenance: "user_edit" },
+          ],
+        },
+        {
+          index: 2,
+          sourceEventIds: [],
+          situation: "closing",
+          backgroundOverride: "ordinary indoor room",
+          personaAction: "standing",
+          characterAction: "standing",
+          dialogue: [],
+        },
+      ],
+    };
+    const slotMetadata = buildComicPanelBalloonSlotMetadata({
+      plan,
+      subjects: duoSubjects,
+    });
+    const primaryPrompt = buildChatComicImagePrompt({
+      characterName: "A",
+      characterGender: "female",
+      personaName: "B",
+      personaGender: "male",
+      plan,
+      compositionMode: "blank_balloon_hybrid",
+    });
+    const strict = buildStrictComicFallbackPrompt({
+      panelCount: 2,
+      characterName: "A",
+      characterGender: "female",
+      personaName: "B",
+      personaGender: "male",
+      subjects: duoSubjects,
+      compositionMode: "blank_balloon_hybrid",
+      balloonSlots: slotMetadata,
+    });
+    assert.match(strict, /Blank balloon slots/);
+    assert.match(strict, /Panel 1: 2 blank balloons/);
+    assert.match(strict, /slot 1 speaker=A length=short/);
+    assert.match(strict, /slot 2 speaker=B length=short/);
+    assert.doesNotMatch(strict, /오늘은 쉬자/);
+    assert.doesNotMatch(strict, /안아줘/);
+    // Same structural slot count as the primary hybrid directives.
+    const primarySlots = primaryPrompt.match(/Dialogue slot \d+/g) ?? [];
+    assert.equal(primarySlots.length, 2);
   });
 
   it("HYBRID-3 primary reject then Tier-2 success keeps blank-balloon composition", async () => {

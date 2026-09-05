@@ -6,6 +6,8 @@ import {
   compileComicPanelOverlayLayouts,
   compileComicTextOnlyOverlaySvg,
   compileComicTextOverlaySvg,
+  filterDialogueForComicFinalText,
+  resolveComicFinalTextEligibility,
 } from "./chatComicTextOverlay";
 import {
   detectBlankBalloonRegions,
@@ -245,5 +247,88 @@ describe("chatComicTextOverlay.server sharp composite", () => {
     assert.equal(rendered.detection.insertedTextRegionCount, 0);
     assert.equal(rendered.detection.missingTextRegionCount, 1);
     assert.equal(rendered.detection.textInsertionComplete, false);
+  });
+
+  it("DIALOGUE-5 application policy preserves exact approved dialogue when adult mode allows", () => {
+    const line = { speaker: "character", text: "성관계를 하고 싶어.", provenance: "user_edit" as const };
+    const result = filterDialogueForComicFinalText([line], {
+      adultGrounded: true,
+      contentKind: "character",
+    });
+    assert.equal(result.approved.length, 1);
+    assert.equal(result.approved[0]?.text, "성관계를 하고 싶어.");
+    assert.equal(result.suppressed.length, 0);
+  });
+
+  it("DIALOGUE-6 policy-suppressed line is counted separately, never as a detector failure", async () => {
+    const plan = hybridPlan([
+      [{ speaker: "character", text: "성관계를 하고 싶어." }],
+      [],
+    ]);
+    // Provider image still contains one blank balloon, but the application text
+    // policy suppresses the adult line → no approved slot, so nothing is missing.
+    const providerBuffer = await sharp(providerComicSvg([{ x: 80, y: 60, w: 480, h: 240 }]))
+      .png()
+      .toBuffer();
+    const rendered = await renderComicBlankBalloonHybrid({
+      imageBuffer: providerBuffer,
+      panelCount: 2,
+      plan,
+      textStrategy: "local_image_detection",
+      finalTextPolicy: { adultGrounded: false, contentKind: "character" },
+    });
+    assert.equal(rendered.detection.expectedProviderBalloonRegionCount, 1);
+    assert.equal(rendered.detection.approvedServerTextRegionCount, 0);
+    assert.equal(rendered.detection.policySuppressedTextRegionCount, 1);
+    assert.equal(rendered.detection.insertedTextRegionCount, 0);
+    assert.equal(rendered.detection.missingTextRegionCount, 0);
+    assert.equal(rendered.detection.textInsertionComplete, true);
+  });
+
+  it("DIALOGUE-7 minor / real-person restricted adult paths remain rejected", () => {
+    const line = { speaker: "character", text: "성관계를 하고 싶어." };
+    // Minor / unverified user → adult mode off → not eligible.
+    assert.equal(
+      resolveComicFinalTextEligibility({ line, context: { adultGrounded: false } }).eligible,
+      false
+    );
+    // Real-person restricted adult content → not eligible.
+    assert.equal(
+      resolveComicFinalTextEligibility({
+        line,
+        context: { adultGrounded: true, realPersonRestricted: true },
+      }).eligible,
+      false
+    );
+    // Self-harm and raw-leak remain rejected regardless of adult mode.
+    assert.equal(
+      resolveComicFinalTextEligibility({
+        line: { speaker: "character", text: "손목을 긋고 피를 흘린다" },
+        context: { adultGrounded: true },
+      }).eligible,
+      false
+    );
+  });
+
+  it("NORMAL-3 overlay-first server full balloon overlay keeps provider-visual text policy", () => {
+    // Adult dialogue is still dropped by the visual-safety filter in overlay-first.
+    const adultPlan = hybridPlan([
+      [{ speaker: "character", text: "성관계를 하고 싶어." }],
+      [],
+    ]);
+    const layouts = compileComicPanelOverlayLayouts({
+      width: 1008,
+      height: 1408,
+      panelCount: 2,
+      plan: adultPlan,
+    });
+    assert.equal(layouts[0]?.bubbles.length, 0);
+    // Safe dialogue still renders the server balloon body (parity unchanged).
+    const safePlan = hybridPlan([
+      [{ speaker: "character", text: "안녕!" }],
+      [],
+    ]);
+    const svg = compileComicTextOverlaySvg({ width: 1008, height: 1408, panelCount: 2, plan: safePlan });
+    assert.match(svg, /speech-bubble/);
   });
 });

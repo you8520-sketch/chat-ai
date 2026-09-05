@@ -6,6 +6,7 @@ import {
   CHAT_COMIC_IMAGE_OUTPUT_SIZE,
   CHAT_COMIC_MAX_INPUT_CHARS,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+  auditProviderPromptDialogueLeak,
   buildChatComicImagePrompt,
   resolveChatComicOutputSize,
   resolveChatComicPrice,
@@ -142,6 +143,104 @@ describe("chatComicGeneration", () => {
     assert.match(byDefault, /server overlay/);
     assert.doesNotMatch(byDefault, /GPT IS COMIC DIRECTOR/);
     assert.doesNotMatch(byDefault, /blank speech balloons/i);
+  });
+
+  it("DIALOGUE-1 safe dialogue keeps a balloon directive with zero readable provider text", () => {
+    const prompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan: SAMPLE_PLAN,
+      compositionMode: "blank_balloon_hybrid",
+    });
+    assert.match(prompt, /Dialogue slot 1:/);
+    assert.doesNotMatch(prompt, /같이 갈래/);
+    assert.doesNotMatch(prompt, /그래\./);
+    assert.doesNotMatch(prompt, /Speech bubble \(/);
+    assert.equal(auditProviderPromptDialogueLeak({ prompt, plan: SAMPLE_PLAN }).leakedTexts.length, 0);
+  });
+
+  function riskyHybridPlan() {
+    return {
+      sceneBackground: "침실",
+      events: [],
+      heroEventIds: [],
+      heroScene: "침실 대화",
+      recommendedPanelCount: 2 as const,
+      panels: [
+        {
+          index: 1,
+          sourceEventIds: [],
+          situation: "대화",
+          dialogue: [{ speaker: "character" as const, text: "오늘은 쉬자.", provenance: "user_edit" as const }],
+        },
+        {
+          index: 2,
+          sourceEventIds: [],
+          situation: "대화",
+          dialogue: [
+            { speaker: "character" as const, text: "성관계를 하고 싶어.", provenance: "user_edit" as const },
+            { speaker: "persona" as const, text: "조용히 안아줘.", provenance: "user_edit" as const },
+          ],
+        },
+      ],
+    };
+  }
+
+  it("DIALOGUE-2 adult-grounded dialogue keeps balloon directive, zero raw provider text", () => {
+    const plan = riskyHybridPlan();
+    const prompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan,
+      compositionMode: "blank_balloon_hybrid",
+    });
+    assert.match(prompt, /Dialogue slot 1:/);
+    assert.doesNotMatch(prompt, /성관계/);
+    assert.doesNotMatch(prompt, /하고 싶어/);
+    assert.doesNotMatch(prompt, /안아줘/);
+    const audit = auditProviderPromptDialogueLeak({ prompt, plan });
+    assert.equal(audit.leakedTexts.length, 0);
+    assert.equal(audit.canonicalDialogueOccurrenceCount, 0);
+    assert.equal(audit.userEditOccurrenceCount, 0);
+  });
+
+  it("DIALOGUE-3 safe + provider-omitted lines both keep structural balloon directives", () => {
+    const plan = riskyHybridPlan();
+    const prompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan,
+      compositionMode: "blank_balloon_hybrid",
+    });
+    const blocks = prompt.split("[Panel ");
+    const panel2Block = blocks[2] ?? "";
+    const slots = panel2Block.match(/Dialogue slot \d+/g) ?? [];
+    assert.equal(slots.length, 2, "both dialogue rows keep a balloon directive");
+    assert.doesNotMatch(panel2Block, /성관계/);
+  });
+
+  it("DIALOGUE-4 provider prompt audit reports zero raw risky dialogue leak", () => {
+    const plan = riskyHybridPlan();
+    const prompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan,
+      compositionMode: "blank_balloon_hybrid",
+    });
+    const audit = auditProviderPromptDialogueLeak({ prompt, plan });
+    assert.equal(audit.speechBubbleDirectiveCount, 0);
+    assert.equal(audit.canonicalDialogueOccurrenceCount, 0);
+    assert.equal(audit.userEditOccurrenceCount, 0);
+    assert.deepEqual(audit.leakedTexts, []);
+    assert.doesNotMatch(prompt, /성관계|손목|자해/);
   });
 
   it("uses the same canonical visual identity pipeline as LD duo", () => {

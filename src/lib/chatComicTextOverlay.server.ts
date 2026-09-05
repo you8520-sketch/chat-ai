@@ -4,12 +4,18 @@ import {
   compileComicPanelOverlayLayouts,
   compileComicTextOnlyOverlaySvg,
   compileComicTextOverlaySvg,
+  countComicPanelDialogueSuppressed,
   wrapKoreanText,
+  type ComicFinalTextEligibilityContext,
   type PanelOverlayLayout,
   type SpeechBubbleLayout,
 } from "@/lib/chatComicTextOverlay";
 import type { ComicBlankBalloonTextStrategy } from "@/lib/chatComicDiagnostic";
-import type { ScenePlan, ScenePresentationVisibility } from "@/lib/chatImageScenePlan";
+import {
+  DEFAULT_SCENE_PRESENTATION_VISIBILITY,
+  type ScenePlan,
+  type ScenePresentationVisibility,
+} from "@/lib/chatImageScenePlan";
 import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
 
 export const COMIC_FINAL_WEBP_OPTIONS = { quality: 90, effort: 4 } as const;
@@ -25,9 +31,19 @@ export type BlankBalloonRegion = {
 
 export type BlankBalloonDetectionAudit = {
   strategy: ComicBlankBalloonTextStrategy;
+  /** Structural balloon slots GPT is asked to draw (canonical dialogue rows). */
+  expectedProviderBalloonRegionCount: number;
+  /** Dialogue slots the application text policy approves for server glyph insertion. */
+  approvedServerTextRegionCount: number;
+  /** Dialogue slots intentionally suppressed by the application text policy. */
+  policySuppressedTextRegionCount: number;
+  /** Alias of approvedServerTextRegionCount — server text regions to fill. */
   expectedTextRegionCount: number;
   detectedRegionCount: number;
+  /** Dialogue slots actually inserted (bubbles only). */
   insertedTextRegionCount: number;
+  insertedNarrationRegionCount: number;
+  /** approvedServerTextRegionCount − inserted dialogue slots (detector failures only). */
   missingTextRegionCount: number;
   ambiguousRegionCount: number;
   rejectedRegionCount: number;
@@ -199,13 +215,6 @@ export async function detectBlankBalloonRegions(
   );
 }
 
-function textRegionCount(layouts: readonly PanelOverlayLayout[]): number {
-  return layouts.reduce(
-    (count, layout) => count + layout.bubbles.length + (layout.narration ? 1 : 0),
-    0
-  );
-}
-
 function regionSide(
   x: number,
   width: number,
@@ -252,12 +261,14 @@ function pairDetectedRegions(
   layouts: PanelOverlayLayout[];
   ambiguousRegionCount: number;
   rejectedRegionCount: number;
-  insertedTextRegionCount: number;
+  insertedBubbleRegionCount: number;
+  insertedNarrationRegionCount: number;
 } {
   const used = new Set<number>();
   let ambiguousRegionCount = 0;
   let rejectedRegionCount = 0;
-  let insertedTextRegionCount = 0;
+  let insertedBubbleRegionCount = 0;
+  let insertedNarrationRegionCount = 0;
   const panelHeight = height / panelCount;
   const pairedLayouts = layouts.map((layout) => {
     const nextBubbles: SpeechBubbleLayout[] = [];
@@ -310,6 +321,7 @@ function pairDetectedRegions(
           continue;
         }
         nextBubbles.push(fitted);
+        insertedBubbleRegionCount += 1;
       } else {
         if (
           match.region.width < item.narration.width * 0.45 ||
@@ -325,8 +337,8 @@ function pairDetectedRegions(
           width: match.region.width,
           height: match.region.height,
         };
+        insertedNarrationRegionCount += 1;
       }
-      insertedTextRegionCount += 1;
     }
 
     return {
@@ -340,7 +352,8 @@ function pairDetectedRegions(
     layouts: pairedLayouts,
     ambiguousRegionCount,
     rejectedRegionCount,
-    insertedTextRegionCount,
+    insertedBubbleRegionCount,
+    insertedNarrationRegionCount,
   };
 }
 
@@ -413,6 +426,7 @@ export async function renderComicBlankBalloonHybrid(opts: {
   adultGrounded?: boolean;
   subjects?: readonly ChatImageVisualSubject[];
   textStrategy: ComicBlankBalloonTextStrategy;
+  finalTextPolicy?: ComicFinalTextEligibilityContext;
 }): Promise<{ buffer: Buffer; detection: BlankBalloonDetectionAudit }> {
   if (!opts.imageBuffer || opts.imageBuffer.length === 0) {
     throw new Error("Cannot render blank-balloon hybrid on empty image buffer");
@@ -430,26 +444,44 @@ export async function renderComicBlankBalloonHybrid(opts: {
     throw new Error("Invalid image buffer metadata for blank-balloon hybrid");
   }
 
+  const visibility = opts.visibility ?? DEFAULT_SCENE_PRESENTATION_VISIBILITY;
   const plannedLayouts = compileComicPanelOverlayLayouts({
     width: metadata.width,
     height: metadata.height,
     panelCount: opts.panelCount,
     plan: opts.plan,
-    visibility: opts.visibility,
+    visibility,
     safetyContext: {
       isSafetyFallback: opts.isSafetyFallback,
       adultGrounded: opts.adultGrounded,
-      personaVisible: opts.visibility?.personaVisible,
+      personaVisible: visibility.personaVisible,
+      finalTextPolicy: opts.finalTextPolicy,
     },
     subjects: opts.subjects,
   });
-  const expectedTextRegionCount = textRegionCount(plannedLayouts);
+  const approvedServerTextRegionCount = plannedLayouts.reduce(
+    (count, layout) => count + layout.bubbles.length,
+    0
+  );
+  const policySuppressedTextRegionCount = opts.finalTextPolicy
+    ? countComicPanelDialogueSuppressed({
+        plan: opts.plan,
+        visibility,
+        context: opts.finalTextPolicy,
+      })
+    : 0;
+  const expectedProviderBalloonRegionCount =
+    approvedServerTextRegionCount + policySuppressedTextRegionCount;
   let textLayouts = plannedLayouts;
   let detection: BlankBalloonDetectionAudit = {
     strategy: opts.textStrategy,
-    expectedTextRegionCount,
-    detectedRegionCount: expectedTextRegionCount,
-    insertedTextRegionCount: expectedTextRegionCount,
+    expectedProviderBalloonRegionCount,
+    approvedServerTextRegionCount,
+    policySuppressedTextRegionCount,
+    expectedTextRegionCount: approvedServerTextRegionCount,
+    detectedRegionCount: approvedServerTextRegionCount,
+    insertedTextRegionCount: approvedServerTextRegionCount,
+    insertedNarrationRegionCount: 0,
     missingTextRegionCount: 0,
     ambiguousRegionCount: 0,
     rejectedRegionCount: 0,
@@ -468,17 +500,21 @@ export async function renderComicBlankBalloonHybrid(opts: {
     textLayouts = paired.layouts;
     const missingTextRegionCount = Math.max(
       0,
-      expectedTextRegionCount - paired.insertedTextRegionCount
+      approvedServerTextRegionCount - paired.insertedBubbleRegionCount
     );
     detection = {
       strategy: opts.textStrategy,
-      expectedTextRegionCount,
+      expectedProviderBalloonRegionCount,
+      approvedServerTextRegionCount,
+      policySuppressedTextRegionCount,
+      expectedTextRegionCount: approvedServerTextRegionCount,
       detectedRegionCount: regions.length,
-      insertedTextRegionCount: paired.insertedTextRegionCount,
+      insertedTextRegionCount: paired.insertedBubbleRegionCount,
+      insertedNarrationRegionCount: paired.insertedNarrationRegionCount,
       missingTextRegionCount,
       ambiguousRegionCount: paired.ambiguousRegionCount,
       rejectedRegionCount: paired.rejectedRegionCount,
-      textInsertionComplete: paired.insertedTextRegionCount === expectedTextRegionCount,
+      textInsertionComplete: paired.insertedBubbleRegionCount === approvedServerTextRegionCount,
     };
   }
 

@@ -178,6 +178,12 @@ import {
   resolveComicPrimaryTier2Boundary,
   type ComicDiagnosticMode,
 } from "@/lib/chatComicDiagnostic";
+import { buildComicPanelBalloonSlotMetadata } from "@/lib/chatComicPanelSpec";
+import { effectiveIsAdult } from "@/lib/adultVerification";
+import {
+  resolveEffectiveAdultRp,
+  resolveRoomAdultModeEnabled,
+} from "@/lib/chatAdultHandoff";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -229,7 +235,10 @@ type GenerationContext = {
   visualSubjects: VisualSubject[];
   characterSavedAppearance: string;
   personaSavedAppearance: string;
+  roomAdultModeEnabled: boolean;
 };
+
+type SessionUserLike = { is_adult?: number };
 
 class RequestError extends Error {
   constructor(
@@ -297,6 +306,7 @@ async function abortGeneratedImageAfterSettlementFailure(opts: {
 
 function resolveGenerationContext(opts: {
   userId: number;
+  userAdultVerified: boolean;
   characterId: number | null;
   chatId: number | null;
   personaId: number | null;
@@ -306,17 +316,24 @@ function resolveGenerationContext(opts: {
   let characterId = opts.characterId;
   let selectedPersonaId = opts.personaId;
   let chatId: number | null = null;
+  let roomAdultModeEnabled = false;
 
   if (opts.chatId) {
     const chat = db
       .prepare(
-        "SELECT id, character_id, selected_persona_id FROM chats WHERE id=? AND user_id=?"
+        "SELECT id, character_id, selected_persona_id, COALESCE(adult_handoff_enabled, 0) AS adult_handoff_enabled FROM chats WHERE id=? AND user_id=?"
       )
-      .get(opts.chatId, opts.userId) as ChatRow | undefined;
+      .get(opts.chatId, opts.userId) as
+      | (ChatRow & { adult_handoff_enabled: number | boolean })
+      | undefined;
     if (!chat) throw new RequestError("채팅방을 찾을 수 없습니다.", 404);
     chatId = chat.id;
     characterId = chat.character_id;
     selectedPersonaId = chat.selected_persona_id ?? selectedPersonaId;
+    roomAdultModeEnabled = resolveRoomAdultModeEnabled({
+      persisted: chat.adult_handoff_enabled,
+      userAdultVerified: opts.userAdultVerified,
+    });
   }
 
   if (!characterId) throw new RequestError("캐릭터 정보가 없습니다.");
@@ -404,6 +421,7 @@ function resolveGenerationContext(opts: {
       appearanceCompiled: character.appearance_compiled,
     }),
     personaSavedAppearance: resolvePersonaSavedAppearance(persona.description),
+    roomAdultModeEnabled,
   };
 }
 
@@ -931,10 +949,15 @@ export async function POST(req: Request) {
     }
     const context = resolveGenerationContext({
       userId: user.id,
+      userAdultVerified: effectiveIsAdult((user as SessionUserLike).is_adult ?? 0),
       characterId: positiveInt(body.characterId),
       chatId: positiveInt(body.chatId),
       personaId: positiveInt(body.personaId),
       requestedCharacterImageUrl: body.characterImageUrl,
+    });
+    const roomAdultGrounded = resolveEffectiveAdultRp({
+      userAdultVerified: effectiveIsAdult((user as SessionUserLike).is_adult ?? 0),
+      roomAdultModeEnabled: context.roomAdultModeEnabled,
     });
 
     if (positiveInt(body.campaignId) && body.mode !== "illustration") {
@@ -1519,6 +1542,14 @@ export async function POST(req: Request) {
       : semanticLadderMode
         ? buildSemanticLadderSafeStructure(diagnosticMode.semanticLevel!, panelCount)
       : projectComicSafeStructureForTier2(scenePlan, comicVisibility);
+    const hybridBalloonSlots =
+      diagnosticMode.mode === "blank_balloon_hybrid"
+        ? buildComicPanelBalloonSlotMetadata({
+            plan: scenePlan,
+            visibility: comicVisibility,
+            subjects: identityPack.subjects,
+          })
+        : undefined;
     const strictFallbackPrompt = buildStrictComicFallbackPrompt({
       panelCount,
       mood,
@@ -1535,6 +1566,7 @@ export async function POST(req: Request) {
         diagnosticMode.mode === "blank_balloon_hybrid"
           ? "blank_balloon_hybrid"
           : "overlay_first",
+      balloonSlots: hybridBalloonSlots,
     });
     const tier2PromptAuditResult = auditTier2ComicPrompt({
       prompt: strictFallbackPrompt,
@@ -1588,6 +1620,10 @@ export async function POST(req: Request) {
           adultGrounded: false,
           subjects: identityPack.subjects,
           textStrategy: diagnosticMode.textStrategy,
+          finalTextPolicy: {
+            adultGrounded: roomAdultGrounded,
+            contentKind: context.contentKind,
+          },
         });
         finalComicBuffer = hybrid.buffer;
         blankBalloonDetection = hybrid.detection;

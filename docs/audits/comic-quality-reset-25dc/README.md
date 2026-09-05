@@ -68,10 +68,26 @@ reference content.
   (`SEMANTIC_BOUNDARY_OWNER=PRIMARY_RESULT`, `PRIMARY_BOUNDARY=PASS|BLOCKED`),
   and Tier-2 recovery is reported separately (`TIER2_SAFE_RECOVERY=PASS|FAIL`).
   A blocked primary with a successful Tier-2 is never reported as `L7 PASS`.
-- Text completeness audit: admin diagnostics expose expected/detected/inserted/
-  missing text-region counts and `TEXT_INSERTION_COMPLETE`
-  (`inserted === expected`). Hybrid is not promoted to normal-user production
-  while incomplete.
+- Text completeness audit: admin diagnostics expose expected provider balloon
+  regions, approved server text regions, policy-suppressed text regions, and
+  inserted text regions, plus `TEXT_INSERTION_COMPLETE`
+  (`inserted === approvedServerTextRegions`). Hybrid is not promoted to
+  normal-user production while incomplete.
+- Balloon metadata survives provider text omission: `READABLE_PROVIDER_DIALOGUE`
+  (visual/provider projection, zero readable text for hybrid), `BALLOON_LAYOUT_METADATA`
+  (canonical structural dialogue rows — speaker, length class, side, dialogue
+  ordinal; no text), and `SERVER_FINAL_TEXT` (application text policy) are
+  separate owners. A risky/adult dialogue row keeps its blank-balloon directive
+  even though its readable text never reaches the provider prompt.
+- Server final text eligibility reuses the site's existing adult text contract
+  (`resolveEffectiveAdultRp` = verified user + room adult mode). Adult-grounded
+  lines approved by that policy are inserted verbatim after generation;
+  lines it rejects are reported as `policySuppressedTextRegionCount` and are
+  never counted as missing detector failures. Minor (unverified), real-person
+  restricted, self-harm, and graphic-violence lines remain suppressed.
+- Hybrid Tier-2 (strict fallback) preserves the same structural balloon slot
+  metadata (count/speaker/length) as the primary prompt without copying any
+  raw dialogue.
 - Normal users cannot activate either diagnostic mode; normal production requests
   retain the existing overlay-first path.
 

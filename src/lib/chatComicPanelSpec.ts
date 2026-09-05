@@ -23,11 +23,15 @@ import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
 export type ComicPanelFormatId = "2panel" | "3koma" | "4panel";
 export type ChatComicCompositionMode = "overlay_first" | "blank_balloon_hybrid";
 
-export type ComicDialogueDirective = {
+export type ComicBalloonSlotMetadata = {
+  /** Ordinal within the panel's canonical dialogue rows — non-readable structural metadata. */
+  dialogueIndex: number;
   speakerLabel: PromptSubjectLabel | "other";
   lengthClass: "short" | "medium" | "long";
   preferredSide: "left" | "center" | "right";
 };
+
+export type ComicDialogueDirective = ComicBalloonSlotMetadata;
 
 export type ComicCastRoleLabel = {
   label: PromptSubjectLabel;
@@ -235,6 +239,74 @@ function resolveGroundedSubjectActions(
   return actions;
 }
 
+/**
+ * Canonical BALLOON_LAYOUT_METADATA owner. Builds non-readable structural balloon
+ * slots from the canonical approved dialogue rows AFTER speaker attribution,
+ * persona visibility, provenance validity, and dialogue-row eligibility — but
+ * BEFORE provider visual-risk text omission. A risky/adult dialogue line keeps
+ * its blank-balloon slot even though its readable text never reaches the provider.
+ */
+export function resolveComicPanelBalloonSlots(opts: {
+  dialogue: readonly SceneDialogue[];
+  subjectMap: PromptSubjectMap;
+  personaVisible: boolean;
+}): ComicBalloonSlotMetadata[] {
+  return opts.dialogue.map((line, index) => ({
+    dialogueIndex: index,
+    speakerLabel: resolveSpeakerLabel(opts.subjectMap, line),
+    lengthClass: resolveDialogueLengthClass(line.text),
+    preferredSide: resolvePreferredBalloonSide(
+      resolveDialogueSpeakerSide(opts.subjectMap, line, opts.personaVisible)
+    ),
+  }));
+}
+
+/** Plan-level balloon slot metadata for the hybrid Tier-2 prompt (structural, text-free). */
+export function buildComicPanelBalloonSlotMetadata(opts: {
+  plan: ScenePlan;
+  visibility?: ScenePresentationVisibility;
+  subjects?: readonly ChatImageVisualSubject[];
+}): Array<{ panelIndex: number; slots: ComicBalloonSlotMetadata[] }> {
+  const visibility = opts.visibility ?? DEFAULT_SCENE_PRESENTATION_VISIBILITY;
+  const subjectMap = buildPromptSubjectMap(opts.subjects ?? []);
+  return opts.plan.panels.map((panel) => {
+    const beat = projectComicPanelBeat(opts.plan, panel, visibility);
+    return {
+      panelIndex: panel.index,
+      slots: resolveComicPanelBalloonSlots({
+        dialogue: beat.dialogue,
+        subjectMap,
+        personaVisible: visibility.personaVisible,
+      }),
+    };
+  });
+}
+
+/** Text-free structural slot rendering for the hybrid Tier-2 provider prompt. */
+export function renderComicStrictBalloonSlotMetadata(
+  metadata: readonly { panelIndex: number; slots: ComicBalloonSlotMetadata[] }[]
+): string {
+  if (!metadata.length) return "";
+  const lines: string[] = ["Blank balloon slots — server inserts approved Korean text after generation."];
+  for (const panel of metadata) {
+    if (!panel.slots.length) {
+      lines.push(`Panel ${panel.panelIndex}: 0 blank balloons — keep this panel visually quiet.`);
+      continue;
+    }
+    const slots = panel.slots
+      .map(
+        (slot) =>
+          `slot ${slot.dialogueIndex + 1} speaker=${slot.speakerLabel} length=${slot.lengthClass}`
+      )
+      .join("; ");
+    lines.push(`Panel ${panel.panelIndex}: ${panel.slots.length} blank balloon${panel.slots.length > 1 ? "s" : ""} (${slots}).`);
+  }
+  lines.push(
+    "No readable letters, dialogue, captions, placeholder words, or gibberish anywhere in the image."
+  );
+  return lines.join("\n");
+}
+
 function resolveSceneActionFallback(
   beat: ProjectedComicPanelBeat,
   subjectActions: Array<{ label: PromptSubjectLabel; name: string; text: string }>
@@ -330,15 +402,11 @@ export function compileChatComicPanelSpec(opts: {
           speaker: line.speakerName?.trim() || line.speaker,
           text: line.text,
         })),
-      dialogueDirectives: beat.dialogue
-        .filter((line) => !projection?.omitDialogueText?.(line.text))
-        .map((line) => ({
-          speakerLabel: resolveSpeakerLabel(subjectMap, line),
-          lengthClass: resolveDialogueLengthClass(line.text),
-          preferredSide: resolvePreferredBalloonSide(
-            resolveDialogueSpeakerSide(subjectMap, line, visibility.personaVisible)
-          ),
-        })),
+      dialogueDirectives: resolveComicPanelBalloonSlots({
+        dialogue: beat.dialogue,
+        subjectMap,
+        personaVisible: visibility.personaVisible,
+      }),
       narrationBoxNeeded: beat.dialogue.length === 0 || panel.index === 1,
       sfx: [],
       mustAvoid: ["invented SFX text", "speech bubble without an approved line below"],
@@ -446,7 +514,7 @@ export function renderChatComicPanelSpecVisualSection(
           ? panel.dialogueDirectives
               .map(
                 (directive) =>
-                  `Blank balloon ownership: ${directive.speakerLabel}; relative dialogue length: ${directive.lengthClass}; optional preferred side: ${directive.preferredSide}.`
+                  `Dialogue slot ${directive.dialogueIndex + 1}: blank balloon ownership: ${directive.speakerLabel}; relative dialogue length: ${directive.lengthClass}; optional preferred side: ${directive.preferredSide}.`
               )
               .join("\n")
           : "Blank balloon ownership: none — keep this panel visually quiet.";
