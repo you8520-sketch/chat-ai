@@ -85,8 +85,8 @@ export function buildAdminReceiptTurnSummary(receipt: AdminBillingReceiptV3): Ad
 
   return {
     deductedPoints: resolveAdminReceiptSettledPoints(receipt),
-    inputTokens: sync?.userCharge.inputTokens ?? 0,
-    outputTokens: sync?.userCharge.outputTokens ?? 0,
+    inputTokens: sync?.userCharge.inputTokens ?? null,
+    outputTokens: sync?.userCharge.outputTokens ?? null,
     marginPercent,
     marginUnavailableReason,
   };
