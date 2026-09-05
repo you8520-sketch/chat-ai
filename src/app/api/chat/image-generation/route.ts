@@ -762,6 +762,7 @@ export async function GET(req: Request) {
     };
     return NextResponse.json({
       ...publicContextResponse(context, user.id),
+      comicDiagnosticControlsAvailable: canSeeCost,
       balance: getPointBalance(user.id),
       activeJob: findLatestChatImageGenerationJob({
         userId: user.id,
@@ -1279,3 +1280,4 @@ export async function POST(req: Request) {
     );
   }
 }
+
