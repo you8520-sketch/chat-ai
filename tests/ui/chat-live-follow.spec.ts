@@ -414,6 +414,29 @@ async function attachMotionProof(
   await testInfo.attach(label, { body, contentType: "text/plain" });
 }
 
+/**
+ * Cruise-engagement gate for motion sampling.
+ *
+ * The canonical reveal pace (28ms x 1 char/tick) grows the document slowly, so
+ * right after network-done the stream end can sit below the cruise band for
+ * seconds — during which the CORRECT follow behavior is stillness. Sampling
+ * that dead zone and then failing on duty cycle would punish a healthy follow.
+ * Wait until the end actually enters the cruise band, then measure 10s of
+ * engaged cruising. Thresholds below are unchanged; only the window shifts to
+ * where motion is geometrically required.
+ */
+async function waitForCruiseEngagement(page: Page) {
+  await page.waitForFunction(
+    ({ minRatio, eps }) => {
+      const end = document.querySelector("[data-chat-assistant-stream-end]");
+      if (!end) return false;
+      return end.getBoundingClientRect().top > window.innerHeight * minRatio + eps;
+    },
+    { minRatio: LIVE_READING_MIN_RATIO, eps: 2 },
+    { timeout: 45_000 }
+  );
+}
+
 async function runContinuousFollowScenario(page: Page, opts: {
   charCount: number;
   viewportWidth?: number;
@@ -445,13 +468,16 @@ async function runContinuousFollowScenario(page: Page, opts: {
   // Inject after follow is already attached. Doing this before send makes
   // isNearBottom() false and resolveFollowBeforeStream detaches.
   await ensureExtraScrollRoom(page);
-  const startGeometry = resolveScrollClampState(await collectScrollGeometry(page));
-  const framesPromise = sampleMotionFrames(page, 10_000);
   await waitForNetworkDoneVisualRevealPending(page);
   const diag = await readChatDiagnostics(page);
   expect(diag.followLatest).toBe(true);
   expect(diag.manualDetached).toBe(false);
-  const frames = await framesPromise;
+  // Start the motion window only once cruising is geometrically required.
+  // (Frozen-scroll mutation fixtures still engage here because the untracked
+  // end keeps growing past the band — and then fail the gates below.)
+  await waitForCruiseEngagement(page);
+  const startGeometry = resolveScrollClampState(await collectScrollGeometry(page));
+  const frames = await sampleMotionFrames(page, 10_000);
 
   const proof = evaluateContinuousMotionProof({
     frames,
