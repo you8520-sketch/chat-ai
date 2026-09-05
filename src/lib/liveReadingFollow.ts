@@ -438,7 +438,8 @@ export function createLiveReadingFollowController(opts: {
     previousDocumentY = rawDocumentY;
     previousGrowthSampleMs = timestamp;
 
-    const effectiveDocumentY = continuous
+    const contentGrowing = opts.isContentGrowing?.() ?? false;
+    const smoothedRawDocumentY = continuous
       ? smoothDocumentY({
           rawDocumentY,
           smoothedDocumentY,
@@ -446,6 +447,20 @@ export function createLiveReadingFollowController(opts: {
           smoothingTimeSec:
             profile?.targetSmoothingTimeSec ?? LIVE_FOLLOW_CONTINUOUS_DEFAULT_SMOOTHING_SEC,
         })
+      : rawDocumentY;
+    const expectedGrowthPxPerSec =
+      continuous &&
+      contentGrowing &&
+      profile?.streamIntervalMs != null &&
+      profile.streamIntervalMs > 0
+        ? estimateVerticalGrowthPxPerSec(profile.streamIntervalMs, profile.streamCharsPerTick)
+        : 0;
+    const paceProjectedDocumentY =
+      smoothedDocumentY == null
+        ? smoothedRawDocumentY
+        : smoothedDocumentY + expectedGrowthPxPerSec * dtSec;
+    const effectiveDocumentY = continuous
+      ? Math.max(smoothedRawDocumentY, paceProjectedDocumentY)
       : rawDocumentY;
     if (continuous) smoothedDocumentY = effectiveDocumentY;
 
@@ -459,7 +474,6 @@ export function createLiveReadingFollowController(opts: {
       epsilonPx: LIVE_FOLLOW_ANIMATOR_EPSILON_PX,
     });
 
-    const contentGrowing = opts.isContentGrowing?.() ?? false;
     let step = 0;
 
     if (delta > 0) {
