@@ -23,6 +23,15 @@ export type SummaryContentionSnapshot = {
   summaryActiveChatIds?: number[];
 };
 
+/** CheaperInference response diagnostics — header names only, no prose. */
+export type CheaperInferenceResponseDiagnostics = {
+  "x-ci-request-id"?: string | null;
+  "x-ci-cache"?: string | null;
+  "x-ci-techniques"?: string | null;
+  "x-ci-tokens-saved"?: string | null;
+  "x-ci-saved-usd"?: string | null;
+};
+
 export type TurnPhaseLatencyReport = {
   request_id: string;
   marks: Record<string, number>;
@@ -36,11 +45,16 @@ export type TurnPhaseLatencyReport = {
   REQUEST_ASSEMBLY_MS: number | null;
   PROVIDER_WAIT_MS: number | null;
   PROVIDER_VISIBLE_TTFT_MS: number | null;
+  FETCH_TO_HEADERS_MS: number | null;
+  HEADERS_TO_FIRST_SSE_MS: number | null;
+  FIRST_SSE_TO_VISIBLE_MS: number | null;
+  VISIBLE_TO_SERVER_WRITE_MS: number | null;
   SERVER_STREAM_MS: number | null;
   CLIENT_TRANSPORT_MS: number | null;
   UI_REVEAL_DELAY_MS: number | null;
   USER_VISIBLE_TTFT_MS: number | null;
   tokens: TurnPhaseTokenSnapshot;
+  cheaper_inference_diagnostics?: CheaperInferenceResponseDiagnostics;
   summary_contention?: SummaryContentionSnapshot;
   /** Section fingerprint telemetry — hashes only, no prompt bodies. */
   prompt_section_fingerprint?: {
@@ -65,6 +79,7 @@ export class TurnPhaseLatencyAudit {
   private marksInternal: Record<string, number> = {};
   private tokensInternal: TurnPhaseTokenSnapshot = {};
   private summaryContentionInternal: SummaryContentionSnapshot | null = null;
+  private cheaperInferenceDiagnosticsInternal: CheaperInferenceResponseDiagnostics | null = null;
   private sectionFingerprintInternal: TurnPhaseLatencyReport["prompt_section_fingerprint"] | null =
     null;
 
@@ -99,15 +114,35 @@ export class TurnPhaseLatencyAudit {
     this.summaryContentionInternal = snapshot;
   }
 
+  setCheaperInferenceDiagnostics(snapshot: CheaperInferenceResponseDiagnostics): void {
+    this.cheaperInferenceDiagnosticsInternal = { ...snapshot };
+  }
+
   setSectionFingerprint(snapshot: NonNullable<TurnPhaseLatencyReport["prompt_section_fingerprint"]>): void {
     this.sectionFingerprintInternal = snapshot;
   }
 
+  private markMs(name: string): number | null {
+    return this.marksInternal[name] ?? null;
+  }
+
   delta(from: string, to: string): number | null {
-    const a = this.marksInternal[from];
-    const b = this.marksInternal[to];
+    const a = this.markMs(from);
+    const b = this.markMs(to);
     if (a == null || b == null) return null;
     return Math.max(0, b - a);
+  }
+
+  /** T11 canonical name; legacy audits used T11_PROVIDER_HEADERS. */
+  private providerHeadersMs(): number | null {
+    return this.markMs("T11_PROVIDER_RESPONSE_HEADERS") ?? this.markMs("T11_PROVIDER_HEADERS");
+  }
+
+  private deltaViaProviderHeaders(to: string): number | null {
+    const headers = this.providerHeadersMs();
+    const b = this.markMs(to);
+    if (headers == null || b == null) return null;
+    return Math.max(0, b - headers);
   }
 
   deltaFromOrigin(to: string): number | null {
@@ -132,6 +167,15 @@ export class TurnPhaseLatencyAudit {
       REQUEST_ASSEMBLY_MS: d("T8_CONTEXT_BUILD_DONE", "T9_REQUEST_ASSEMBLY_DONE"),
       PROVIDER_WAIT_MS: d("T10_PROVIDER_FETCH_START", "T12_PROVIDER_FIRST_SSE"),
       PROVIDER_VISIBLE_TTFT_MS: d("T10_PROVIDER_FETCH_START", "T13_PROVIDER_FIRST_VISIBLE_TOKEN"),
+      FETCH_TO_HEADERS_MS: (() => {
+        const start = this.markMs("T10_PROVIDER_FETCH_START");
+        const headers = this.providerHeadersMs();
+        if (start == null || headers == null) return null;
+        return Math.max(0, headers - start);
+      })(),
+      HEADERS_TO_FIRST_SSE_MS: this.deltaViaProviderHeaders("T12_PROVIDER_FIRST_SSE"),
+      FIRST_SSE_TO_VISIBLE_MS: d("T12_PROVIDER_FIRST_SSE", "T13_PROVIDER_FIRST_VISIBLE_TOKEN"),
+      VISIBLE_TO_SERVER_WRITE_MS: d("T13_PROVIDER_FIRST_VISIBLE_TOKEN", "T14_SERVER_FIRST_VISIBLE_WRITE"),
       SERVER_STREAM_MS: d("T13_PROVIDER_FIRST_VISIBLE_TOKEN", "T14_SERVER_FIRST_VISIBLE_WRITE"),
       CLIENT_TRANSPORT_MS:
         clientSubmitMs != null && m.T15_BROWSER_FIRST_VISIBLE_RECEIVE != null
@@ -150,6 +194,9 @@ export class TurnPhaseLatencyAudit {
       tokens: { ...this.tokensInternal },
       ...(this.summaryContentionInternal
         ? { summary_contention: this.summaryContentionInternal }
+        : {}),
+      ...(this.cheaperInferenceDiagnosticsInternal
+        ? { cheaper_inference_diagnostics: this.cheaperInferenceDiagnosticsInternal }
         : {}),
       ...(this.sectionFingerprintInternal
         ? { prompt_section_fingerprint: this.sectionFingerprintInternal }
@@ -184,6 +231,32 @@ export function getActiveTurnPhaseAudit(): TurnPhaseLatencyAudit | null {
 
 export function clearActiveTurnPhaseAudit(audit: TurnPhaseLatencyAudit | null): void {
   if (activeAudit === audit) activeAudit = null;
+}
+
+const CI_DIAGNOSTIC_HEADER_NAMES = [
+  "x-ci-request-id",
+  "x-ci-cache",
+  "x-ci-techniques",
+  "x-ci-tokens-saved",
+  "x-ci-saved-usd",
+] as const;
+
+/** Safe subset of CheaperInference response headers for latency audits. */
+export function readCheaperInferenceResponseDiagnostics(
+  headers: Headers
+): CheaperInferenceResponseDiagnostics {
+  const out: CheaperInferenceResponseDiagnostics = {};
+  for (const name of CI_DIAGNOSTIC_HEADER_NAMES) {
+    const value = headers.get(name);
+    if (value != null && value !== "") {
+      out[name] = value;
+    }
+  }
+  const legacyId = headers.get("x-cheaper-inference-request-id");
+  if (!out["x-ci-request-id"] && legacyId) {
+    out["x-ci-request-id"] = legacyId;
+  }
+  return out;
 }
 
 export function wrapSendForPhaseAudit(
