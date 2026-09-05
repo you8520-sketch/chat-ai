@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   assertLengthSupplementApiAllowed,
+  MAX_MAIN_RP_PROVIDER_CALLS_PER_TURN,
   MAX_TURN_SUB_API_CALLS,
   NARRATIVE_LENGTH_CONTINUATION_ENABLED,
   RP_META_LEAK_REGEN_API_ENABLED,
@@ -16,19 +17,31 @@ describe("turn length supplement API — disabled for all models", () => {
     assert.equal(NARRATIVE_LENGTH_CONTINUATION_ENABLED, false);
     assert.equal(SERVER_UNDER_LENGTH_RECOVERY_ENABLED, false);
     assert.equal(RP_META_LEAK_REGEN_API_ENABLED, false);
+    assert.equal(MAX_MAIN_RP_PROVIDER_CALLS_PER_TURN, 1);
     assert.equal(MAX_TURN_SUB_API_CALLS, 0);
   });
 
-  it("does not allow a meta-leak regeneration slot when supplements are off", () => {
+  it("allows the primary fetch and rejects every second-call escape hatch", () => {
     const budget = new TurnApiBudget();
+    assert.equal(budget.canSubCall(), true);
+    assert.doesNotThrow(() => budget.beforeFetch("cheaperinference-primary-stream"));
     assert.equal(budget.canSubCall(), false);
-    budget.beforeFetch("primary");
-    assert.equal(budget.canSubCall(), false);
-    assert.throws(
-      () => budget.beforeFetch("rp-meta-leak-regen"),
-      /Max internal API calls exceeded/
-    );
-    assert.equal(budget.canSubCall(), false);
+
+    for (const requestKind of [
+      "ordinary-second-main-rp",
+      "adult-general-refusal-fallback",
+      "adult-hard-failure-fallback",
+      "rp-meta-leak-regen",
+      "server-under-length-recovery",
+      "narrative-length-continuation",
+      "truncation-recovery",
+    ]) {
+      assert.throws(
+        () => budget.beforeFetch(requestKind),
+        /Main RP provider call budget exceeded/
+      );
+    }
+    assert.equal(budget.fetchCountSnapshot, 1);
   });
 
   it("assertLengthSupplementApiAllowed rejects supplement request kinds", () => {
@@ -43,34 +56,33 @@ describe("turn length supplement API — disabled for all models", () => {
     assert.doesNotThrow(() => assertLengthSupplementApiAllowed("openrouter-primary-stream"));
   });
 
-  it("allows exactly one hard-failure fallback without enabling length supplements", () => {
+  it("rejects model-failure fallbacks after the primary fetch", () => {
     const budget = new TurnApiBudget();
     budget.beforeFetch("cheaperinference-primary-stream");
-    assert.doesNotThrow(() =>
-      budget.beforeFetch("adult-hard-failure-fallback")
-    );
     assert.throws(
       () => budget.beforeFetch("adult-hard-failure-fallback"),
-      /Max internal API calls exceeded/
+      /Main RP provider call budget exceeded/
     );
-    assert.equal(budget.canSubCall(), false);
-  });
-
-  it("rejects the retired Aion hard-failure requestKind", () => {
-    const budget = new TurnApiBudget();
-    budget.beforeFetch("cheaperinference-primary-stream");
     assert.throws(
-      () => budget.beforeFetch("adult-aion-hard-failure-fallback"),
-      /Max internal API calls exceeded/
+      () => budget.beforeFetch("adult-general-refusal-fallback"),
+      /Main RP provider call budget exceeded/
     );
   });
 
-  it("does not treat under-length output as an allowed fallback sub-call", () => {
+  it("rejects length recovery and continuation after the primary fetch", () => {
     const budget = new TurnApiBudget();
     budget.beforeFetch("cheaperinference-primary-stream");
     assert.throws(
       () => budget.beforeFetch("server-under-length-recovery"),
-      /Max internal API calls exceeded/
+      /Main RP provider call budget exceeded/
+    );
+    assert.throws(
+      () => budget.beforeFetch("narrative-length-continuation"),
+      /Main RP provider call budget exceeded/
+    );
+    assert.throws(
+      () => budget.beforeFetch("truncation-recovery"),
+      /Main RP provider call budget exceeded/
     );
   });
 });

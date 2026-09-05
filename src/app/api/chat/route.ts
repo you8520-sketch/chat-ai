@@ -3261,7 +3261,9 @@ export async function POST(req: Request) {
             const adultRefusalFallback =
               await invokePreparedAdultRefusalFallback({
                 plan: adultDeliveryPlan,
-                fallbackContextAvailable: fallbackAdultContext != null,
+                // Strict one-call invariant: refusal fallback never starts
+                // another Main RP provider request in this user turn.
+                fallbackContextAvailable: false,
                 error: primaryError,
                 hasVisibleTokens: streamGate.hasVisibleTokens(),
                 fallbackAlreadyAttempted: adultFallbackAttempted,
@@ -3279,7 +3281,9 @@ export async function POST(req: Request) {
             const adultRefusalFallback =
               await invokePreparedAdultRefusalFallback({
                 plan: adultDeliveryPlan,
-                fallbackContextAvailable: fallbackAdultContext != null,
+                // Strict one-call invariant: refusal fallback never starts
+                // another Main RP provider request in this user turn.
+                fallbackContextAvailable: false,
                 text: result.text,
                 finishReason: result.stage.finishReason,
                 hasVisibleTokens: streamGate.hasVisibleTokens(),

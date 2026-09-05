@@ -1,6 +1,5 @@
 import type { ChatMsg } from "@/lib/ai";
 import { isAnthropicModel } from "@/lib/chatModels";
-import { isGeminiIsolationMode } from "@/lib/geminiIsolationMode";
 import { estimateTokens } from "@/lib/tokenEstimate";
 
 /**
@@ -28,20 +27,14 @@ export const HTML_RECOVERY_SUB_CALLS_ENABLED = TURN_LENGTH_SUPPLEMENT_API_ENABLE
  */
 export const RP_META_LEAK_REGEN_API_ENABLED = false;
 
-/** 유저 1턴당 내부 API 재호출 상한 — 초기 1회(본 호출) 제외 */
-export const MAX_TURN_SUB_API_CALLS = TURN_LENGTH_SUPPLEMENT_API_ENABLED
-  ? (RECOVERY_SUB_CALLS_ENABLED ? 1 : 0) +
-    (NARRATIVE_LENGTH_CONTINUATION_ENABLED ? 1 : 0) +
-    (SERVER_UNDER_LENGTH_RECOVERY_ENABLED ? 1 : 0)
-  : RP_META_LEAK_REGEN_API_ENABLED
-    ? 1
-    : 0;
+/** Strict Main RP invariant: one provider fetch is the complete user turn. */
+export const MAX_MAIN_RP_PROVIDER_CALLS_PER_TURN = 1;
+
+/** @deprecated compatibility export; Main RP has no sub-call slot. */
+export const MAX_TURN_SUB_API_CALLS = 0;
 
 const LENGTH_SUPPLEMENT_REQUEST_KIND =
   /continuation|truncation-recovery|under-length|length-recovery|narrative-length/i;
-const MODEL_FAILURE_FALLBACK_REQUEST_KIND =
-  /^adult-(?:general-refusal|hard-failure)-fallback$/i;
-const RP_META_LEAK_REGEN_REQUEST_KIND = /^rp-meta-leak-regen$/i;
 
 /** 분량 보강·복구 sub-call requestKind — TURN_LENGTH_SUPPLEMENT_API_ENABLED=false면 금지 */
 export function isLengthSupplementRequestKind(requestKind?: string | null): boolean {
@@ -225,76 +218,26 @@ export function assertPayloadWithinTokenLimit(
   }
 }
 
-/** 유저 1턴 — API fetch 하드 킬스위치 (본 1회 + 서브 최대 1회) */
+/** 유저 1턴 — Main RP provider fetch hard stop (exactly one). */
 export class TurnApiBudget {
   private fetchCount = 0;
-  private modelFailureFallbackCount = 0;
 
   beforeFetch(context: string): void {
-    if (isGeminiIsolationMode() && this.fetchCount >= 1) {
-      console.error("[turn-api-budget] ISOLATION HARD STOP — max 1 Gemini request per turn", {
+    if (this.fetchCount >= MAX_MAIN_RP_PROVIDER_CALLS_PER_TURN) {
+      console.error("[turn-api-budget] HARD STOP — one Main RP provider call per turn", {
         context,
         fetchCount: this.fetchCount,
+        maxCalls: MAX_MAIN_RP_PROVIDER_CALLS_PER_TURN,
       });
       throw new Error(
-        `[turn-api-budget] Isolation mode — max 1 Gemini request per turn (${context})`
+        `[turn-api-budget] Main RP provider call budget exceeded (${context})`
       );
-    }
-    if (
-      this.fetchCount > 0 &&
-      MODEL_FAILURE_FALLBACK_REQUEST_KIND.test(context) &&
-      this.modelFailureFallbackCount < 1
-    ) {
-      this.modelFailureFallbackCount += 1;
-      this.fetchCount += 1;
-      console.warn("[turn-api-budget] one-shot model failure fallback", {
-        context,
-        fetchCount: this.fetchCount,
-      });
-      return;
-    }
-    if (
-      this.fetchCount > 0 &&
-      !TURN_LENGTH_SUPPLEMENT_API_ENABLED &&
-      !(
-        RP_META_LEAK_REGEN_API_ENABLED &&
-        RP_META_LEAK_REGEN_REQUEST_KIND.test(context)
-      )
-    ) {
-      console.error("[turn-api-budget] HARD STOP — disallowed sub-call", {
-        context,
-        fetchCount: this.fetchCount,
-      });
-      throw new Error(
-        `[turn-api-budget] Max internal API calls exceeded (${context})`
-      );
-    }
-    if (this.fetchCount > 0 && this.fetchCount > MAX_TURN_SUB_API_CALLS) {
-      console.error("[turn-api-budget] HARD STOP — max sub-calls exceeded", {
-        context,
-        fetchCount: this.fetchCount,
-        maxSubCalls: MAX_TURN_SUB_API_CALLS,
-      });
-      throw new Error(
-        `[turn-api-budget] Max internal API calls exceeded (${context})`
-      );
-    }
-    if (this.fetchCount > 0) {
-      console.warn("[turn-api-budget] sub-call", {
-        context,
-        retryIndex: this.fetchCount,
-        maxSubCalls: MAX_TURN_SUB_API_CALLS,
-      });
     }
     this.fetchCount++;
   }
 
   canSubCall(): boolean {
-    if (isGeminiIsolationMode()) return this.fetchCount < 1;
-    if (TURN_LENGTH_SUPPLEMENT_API_ENABLED) {
-      return this.fetchCount <= MAX_TURN_SUB_API_CALLS;
-    }
-    return RP_META_LEAK_REGEN_API_ENABLED && this.fetchCount <= MAX_TURN_SUB_API_CALLS;
+    return this.fetchCount < MAX_MAIN_RP_PROVIDER_CALLS_PER_TURN;
   }
 
   get fetchCountSnapshot(): number {
