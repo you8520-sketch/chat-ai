@@ -591,6 +591,17 @@ test.describe("General chat live reading follow — production browser", () => {
     await page.setViewportSize({ width: 1280, height: 720 });
   });
 
+  test.beforeEach(async ({ page }, testInfo) => {
+    if (!testInfo.title.includes("C1/C2")) return;
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const probe = await probeSubpixelWindowScroll(page);
+    const supported = probe.fractionalSamples.length > 0 && probe.distinctPositions > 1;
+    test.skip(
+      !supported,
+      "P0-11: configured production Chromium does not preserve fractional root scrollY"
+    );
+  });
+
   test.afterEach(async ({ page }) => {
     await resetDemoCharacterChats(page);
   });
