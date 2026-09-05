@@ -225,4 +225,3 @@ test("route binds tested provider input after access gate and preserves the orig
   assert.match(route, /renderComicTextOverlay\(\{\s+imageBuffer: generated\.buffer,\s+panelCount,\s+plan: scenePlan,/);
   assert.match(route, /optionsJson: \{\s+mode: "comic",\s+panelCount,\s+mood,\s+messageId: source\.messageId,\s+plan: scenePlan,/);
 });
-
