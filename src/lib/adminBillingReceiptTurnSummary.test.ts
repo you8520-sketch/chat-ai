@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   buildAdminReceiptTurnSummary,
@@ -40,11 +41,12 @@ function usage(overrides: Partial<Usage> = {}): Usage {
   };
 }
 
-function buildReceiptFromUsage(u: Usage) {
+function buildReceiptFromUsage(u: Usage, mainRpOutputVisibleChars: number | null = null) {
   return buildAdminBillingReceiptV3({
     usage: u,
     assistantMessageId: 1,
     chatId: 1,
+    mainRpOutputVisibleChars,
     suggestedRepliesRecord: null,
     statusMetaRecord: null,
     ledgerRows: [],
@@ -60,6 +62,39 @@ describe("adminBillingReceiptTurnSummary", () => {
     assert.equal(summary.inputTokens, 9000);
     assert.equal(summary.outputTokens, 2500);
     assert.equal(receipt.syncReceipt.userCharge.billingContract, undefined);
+  });
+
+  it("completed normal uses persisted visible Main RP text count", () => {
+    const summary = buildAdminReceiptTurnSummary(
+      buildReceiptFromUsage(usage({ output: 17 }), 3214)
+    );
+    assert.equal(summary.outputVisibleChars, 3214);
+    assert.match(
+      formatAdminReceiptTurnSummaryLines(summary).join("\n"),
+      /출력 글자수 \(Main RP\)\s+3,214자/
+    );
+  });
+
+  it("completed regen uses generation B persisted text count", () => {
+    const summary = buildAdminReceiptTurnSummary(
+      buildReceiptFromUsage(usage({ output: 3480 }), 3480)
+    );
+    assert.equal(summary.outputVisibleChars, 3480);
+  });
+
+  it("missing persisted text evidence stays null and never renders zero", () => {
+    const summary = buildAdminReceiptTurnSummary(buildReceiptFromUsage(usage(), null));
+    assert.equal(summary.outputVisibleChars, null);
+    const lines = formatAdminReceiptTurnSummaryLines(summary).join("\n");
+    assert.match(lines, /출력 글자수 \(Main RP\)\s+확인 불가/);
+    assert.doesNotMatch(lines, /출력 글자수 \(Main RP\).*0자/);
+  });
+
+  it("does not estimate visible chars from output tokens", () => {
+    const summary = buildAdminReceiptTurnSummary(
+      buildReceiptFromUsage(usage({ output: 1 }), 3214)
+    );
+    assert.equal(summary.outputVisibleChars, 3214);
   });
 
   it("missing shadowPricing keeps summary visible with margin unavailable", () => {
@@ -126,13 +161,23 @@ describe("adminBillingReceiptTurnSummary", () => {
 
   it("clipboard includes turn summary parity with UI fields", () => {
     const u = usage({ cost: 33, shadowPricing: undefined });
-    const receipt = buildReceiptFromUsage(u);
+    const receipt = buildReceiptFromUsage(u, 3421);
     const text = formatAdminBillingReceiptV3Text(receipt);
     assert.match(text, /\[Turn Summary\]/);
     assert.match(text, /deducted: 33 P/);
     assert.match(text, /input tokens \(Main RP\): 9,000/);
     assert.match(text, /output tokens \(Main RP\): 2,500/);
+    assert.match(text, /output chars \(Main RP\): 3,421/);
+    assert.match(
+      formatAdminReceiptTurnSummaryLines(buildAdminReceiptTurnSummary(receipt)).join("\n"),
+      /출력 글자수 \(Main RP\)\s+3,421자/
+    );
     assert.match(text, /margin: unavailable/);
+    const panelSource = readFileSync(
+      new URL("../components/AdminBillingReceiptV3Panel.tsx", import.meta.url),
+      "utf8"
+    );
+    assert.match(panelSource, /formatAdminReceiptTurnSummaryLines\(turnSummary/);
   });
 
   it("uses whole-turn contribution margin, not Main RP margin", () => {
