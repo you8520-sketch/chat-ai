@@ -361,13 +361,18 @@ export function formatComicGenerationAdminFailureDiagnostic(opts: {
   }
 
   if (opts.providerAttempts?.length) {
+    const referenceSet = opts.providerReferences
+      ? formatComicReferenceSetForAdmin(opts.providerReferences)
+      : undefined;
     payload.providerAttemptDiagnostic = formatOpenAiImageProviderAttemptsForAdmin({
       providerAttempts: opts.providerAttempts,
       knownProviderCostUsd: aggregateKnownProviderCostUsd(opts.providerAttempts),
       hasUnknownAttemptCost: opts.providerAttempts.some((attempt) => attempt.costUsd == null),
       safetyFallbackUsed: opts.providerAttempts.some(
-        (attempt) => attempt.kind === "strict_safety_fallback"
+        (attempt) =>
+          attempt.kind === "strict_safety_fallback" && attempt.outcome === "success"
       ),
+      referenceSet,
     });
 
     if (opts.tier2PromptAudit) {

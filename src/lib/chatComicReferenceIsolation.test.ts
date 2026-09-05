@@ -14,6 +14,8 @@ import {
   type ComicReferenceIsolationMode,
 } from "@/lib/chatComicReferenceIsolation";
 import { CHAT_COMIC_TEMPLATE_PREVIEW_URL } from "@/lib/chatComicGenerationConstants";
+import { buildChatComicGenerationPlan } from "@/lib/chatComicGeneration";
+import { buildStrictComicFallbackPrompt } from "@/lib/chatImageStrictSafetyFallbackPrompt";
 import type { ScenePlan } from "@/lib/chatImageScenePlan";
 import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
 
@@ -35,45 +37,52 @@ const references = buildComicProviderReferences({
   subjects,
 });
 
-test("REF-ISO-1..7: each mode selects only reference roles and preserves prompt hash", () => {
-  const expected: Record<ComicReferenceIsolationMode, string[]> = {
-    normal: ["template", "chat_character", "user_persona"],
-    without_template: ["chat_character", "user_persona"],
-    without_character: ["template", "user_persona"],
-    without_persona: ["template", "chat_character"],
-    template_only: ["template"],
-    identity_refs_only: ["chat_character", "user_persona"],
+test("REF-CONTROL-1..7: controls preserve slots and change only selected content", () => {
+  const expectedNeutralSlots: Record<ComicReferenceIsolationMode, number[]> = {
+    normal: [],
+    neutral_template: [1],
+    neutral_character: [2],
+    neutral_persona: [3],
+    neutral_identity_refs: [2, 3],
+    all_neutral: [1, 2, 3],
   };
-  const frozenTier2Prompt = "deterministic tier-2 fixture";
-  const normalHash = hashPromptForDiagnostic(frozenTier2Prompt);
-  for (const [mode, roles] of Object.entries(expected)) {
+  for (const [mode, neutralSlots] of Object.entries(expectedNeutralSlots)) {
     const selected = isolateComicProviderReferences(
       references,
       mode as ComicReferenceIsolationMode
     );
-    assert.deepEqual(selected.map((item) => item.role), roles);
-    assert.deepEqual(selected.map((item) => item.index), roles.map((_, index) => index + 1));
-    assert.equal(hashPromptForDiagnostic(frozenTier2Prompt), normalHash);
+    assert.deepEqual(selected.map((item) => item.role), ["template", "chat_character", "user_persona"]);
+    assert.deepEqual(selected.map((item) => item.index), [1, 2, 3]);
+    assert.equal(selected.length, 3);
+    assert.deepEqual(
+      selected.filter((item) => item.content === "neutral").map((item) => item.index),
+      neutralSlots
+    );
   }
 });
 
 test("REF-ISO-8..10: override is admin-only, invalid values reject, diagnostics contain no sources", () => {
   assert.throws(() => resolveComicDiagnosticOverrides({
-    canSeeCost: false, referenceMode: "without_template",
+    canSeeCost: false, referenceMode: "neutral_template",
   }), /FORBIDDEN/);
   assert.throws(() => resolveComicDiagnosticOverrides({
     canSeeCost: true, referenceMode: "bogus",
   }), /INVALID/);
   assert.throws(() => resolveComicDiagnosticOverrides({
     canSeeCost: true,
-    referenceMode: "template_only",
+    referenceMode: "neutral_template",
     visualContextMode: "neutral_visual_context",
   }), /AXES_MUST_BE_ISOLATED/);
   const diagnostic = formatComicReferenceSetForAdmin(references);
   assert.deepEqual(diagnostic, {
     referenceRoles: ["template", "chat_character", "user_persona"],
     referenceCount: 3,
-    referenceSetSignature: "template+chat_character+user_persona",
+    referenceSetSignature: "template:real|chat_character:real|user_persona:real",
+    references: [
+      { index: 1, role: "template", content: "real" },
+      { index: 2, role: "chat_character", content: "real" },
+      { index: 3, role: "user_persona", content: "real" },
+    ],
   });
   const json = JSON.stringify(diagnostic);
   assert.doesNotMatch(json, /character\.webp|persona\.webp|base64|https?:\/\//);
@@ -104,6 +113,31 @@ test("VC-1..4: neutral fixture has fixed safe semantics and does not mutate Scen
   assert.equal(buildNeutralComicProviderScenePlan(scenePlan).sceneBackground, "ordinary indoor room");
 });
 
+test("PROMPT-BIND-1..2: primary and Tier-2 retain template and identity slot binding", () => {
+  const pack = buildChatComicGenerationPlan({
+    characterName: "라이크", characterGender: "male", characterImageUrl: "/character.webp",
+    characterSavedAppearance: "", characterAppearanceMode: "image_only",
+    personaName: "렌", personaGender: "male", personaImageUrl: "/persona.webp",
+    personaSavedAppearance: "", personaAppearanceMode: "image_only", plan: scenePlan,
+  });
+  const tier2 = buildStrictComicFallbackPrompt({
+    panelCount: 2, characterName: "라이크", characterGender: "male",
+    personaName: "렌", personaGender: "male", subjects: pack.subjects,
+    safeStructure: buildNeutralComicSafeStructure([1, 2]),
+  });
+  assert.match(pack.prompt, /Reference image 1 is LAYOUT AND FINISH ONLY/);
+  assert.match(tier2, /Reference image 1 is LAYOUT AND FINISH ONLY/);
+  assert.match(pack.prompt, /Image 2/);
+  assert.match(pack.prompt, /Image 3/);
+  assert.match(tier2, /Image 2/);
+  assert.match(tier2, /Image 3/);
+  for (const mode of ["normal", "neutral_template", "neutral_character", "neutral_persona", "neutral_identity_refs", "all_neutral"] as const) {
+    isolateComicProviderReferences(references, mode);
+    assert.equal(hashPromptForDiagnostic(pack.prompt), hashPromptForDiagnostic(pack.prompt));
+    assert.equal(hashPromptForDiagnostic(tier2), hashPromptForDiagnostic(tier2));
+  }
+});
+
 test("DIAG-1..7: attempts are explicit, preserve unknown safety data, and mark fallback invoked", () => {
   const diagnostic = formatOpenAiImageProviderAttemptsForAdmin({
     providerAttempts: [
@@ -113,9 +147,12 @@ test("DIAG-1..7: attempts are explicit, preserve unknown safety data, and mark f
     knownProviderCostUsd: null,
     hasUnknownAttemptCost: true,
     safetyFallbackUsed: false,
+    referenceSet: formatComicReferenceSetForAdmin(
+      isolateComicProviderReferences(references, "neutral_template")
+    ),
   });
   assert.equal(diagnostic.safetyFallbackInvoked, true);
-  assert.equal(diagnostic.safetyFallbackUsed, true);
+  assert.equal(diagnostic.safetyFallbackUsed, false);
   const json = JSON.stringify(diagnostic);
   assert.match(json, /"attempt":1/);
   assert.match(json, /"attempt":2/);
@@ -123,15 +160,16 @@ test("DIAG-1..7: attempts are explicit, preserve unknown safety data, and mark f
   assert.match(json, /req-2/);
   assert.match(json, /hash-1/);
   assert.match(json, /"safetyCategories":"UNKNOWN"/);
+  assert.equal((json.match(/template:neutral\|chat_character:real\|user_persona:real/g) ?? []).length, 2);
   assert.doesNotMatch(json, /\[Object\]|rawPrompt|sourceUrl|base64|https?:\/\//);
 });
 
 test("human QA outcomes classify moderation association without declaring an image unsafe", () => {
   assert.equal(classifyComicModerationAssociation({
-    normal: "moderation_blocked", without_template: "pass",
-  }), "TEMPLATE_REFERENCE_PRIMARY_SUSPECT");
+    normal: "moderation_blocked", neutral_template: "pass",
+  }), "REAL_TEMPLATE_CONTENT_PRIMARY_SUSPECT");
   assert.equal(classifyComicModerationAssociation({
-    normal: "moderation_blocked", identity_refs_only: "moderation_blocked", template_only: "pass",
+    normal: "moderation_blocked", neutral_identity_refs: "pass",
   }), "IDENTITY_REFERENCE_OR_MULTI_PERSON_INTERACTION");
   assert.equal(classifyComicModerationAssociation({
     normal: "moderation_blocked", neutral_visual_context: "pass",

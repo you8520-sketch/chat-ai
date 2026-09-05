@@ -808,13 +808,18 @@ function providerAttemptsJsonFromGenerated(
 }
 
 function adminProviderAttemptDiagnostic(
-  generated: OpenAiImageGeneratedWithAttempts
+  generated: OpenAiImageGeneratedWithAttempts,
+  providerReferences?: readonly ComicProviderReference[]
 ): Record<string, unknown> {
+  const referenceSet = providerReferences
+    ? formatComicReferenceSetForAdmin(providerReferences)
+    : undefined;
   return formatOpenAiImageProviderAttemptsForAdmin({
     providerAttempts: generated.providerAttempts,
     knownProviderCostUsd: generated.knownProviderCostUsd,
     hasUnknownAttemptCost: generated.hasUnknownAttemptCost,
     safetyFallbackUsed: generated.safetyFallbackUsed,
+    referenceSet,
   });
 }
 
@@ -1577,7 +1582,7 @@ export async function POST(req: Request) {
       upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
       ...(canSeeCost
         ? {
-            providerAttemptDiagnostic: adminProviderAttemptDiagnostic(generated),
+            providerAttemptDiagnostic: adminProviderAttemptDiagnostic(generated, providerReferences),
             comicDiagnostic: {
               referenceIsolationMode: diagnosticOverrides.referenceMode,
               visualContextIsolationMode: diagnosticOverrides.visualContextMode,

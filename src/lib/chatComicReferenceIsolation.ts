@@ -10,17 +10,17 @@ export type ComicProviderReferenceRole =
 
 export type ComicReferenceIsolationMode =
   | "normal"
-  | "without_template"
-  | "without_character"
-  | "without_persona"
-  | "template_only"
-  | "identity_refs_only";
+  | "neutral_template"
+  | "neutral_character"
+  | "neutral_persona"
+  | "neutral_identity_refs"
+  | "all_neutral";
 
 export type ComicVisualContextIsolationMode = "normal" | "neutral_visual_context";
 
 export type ComicModerationIsolationOutcome = "pass" | "moderation_blocked";
 export type ComicModerationAssociation =
-  | "TEMPLATE_REFERENCE_PRIMARY_SUSPECT"
+  | "REAL_TEMPLATE_CONTENT_PRIMARY_SUSPECT"
   | "CHAT_CHARACTER_REFERENCE_PRIMARY_SUSPECT"
   | "USER_PERSONA_REFERENCE_PRIMARY_SUSPECT"
   | "IDENTITY_REFERENCE_OR_MULTI_PERSON_INTERACTION"
@@ -32,6 +32,7 @@ export type ComicProviderReference = {
   role: ComicProviderReferenceRole;
   index: number;
   sourceUrl: string;
+  content: "real" | "neutral";
   subjectId?: string;
 };
 
@@ -42,12 +43,17 @@ export type ComicNormalizedProviderReference = ComicProviderReference & {
 
 export const COMIC_REFERENCE_ISOLATION_MODES: readonly ComicReferenceIsolationMode[] = [
   "normal",
-  "without_template",
-  "without_character",
-  "without_persona",
-  "template_only",
-  "identity_refs_only",
+  "neutral_template",
+  "neutral_character",
+  "neutral_persona",
+  "neutral_identity_refs",
+  "all_neutral",
 ];
+
+export const COMIC_NEUTRAL_TEMPLATE_CONTROL_URL =
+  "/image-templates/comic-neutral-geometry-control.svg";
+export const COMIC_NEUTRAL_IDENTITY_CONTROL_URL =
+  "/image-templates/comic-neutral-identity-control.svg";
 
 function isReferenceMode(value: unknown): value is ComicReferenceIsolationMode {
   return COMIC_REFERENCE_ISOLATION_MODES.includes(value as ComicReferenceIsolationMode);
@@ -87,7 +93,7 @@ export function buildComicProviderReferences(opts: {
   return opts.referenceUrls.map((sourceUrl, offset) => {
     const originalIndex = offset + 1;
     if (originalIndex === 1 && sourceUrl === CHAT_COMIC_TEMPLATE_PREVIEW_URL) {
-      return { role: "template", index: originalIndex, sourceUrl };
+      return { role: "template", index: originalIndex, sourceUrl, content: "real" };
     }
     const subject = opts.subjects.find(
       (candidate) => candidate.referenceIndex === originalIndex
@@ -97,6 +103,7 @@ export function buildComicProviderReferences(opts: {
       role: subject?.sourceKind === "persona" ? "user_persona" : "chat_character",
       index: originalIndex,
       sourceUrl,
+      content: "real",
       ...(subject?.key ? { subjectId: subject.key } : {}),
     };
   });
@@ -106,25 +113,39 @@ export function isolateComicProviderReferences(
   references: readonly ComicProviderReference[],
   mode: ComicReferenceIsolationMode
 ): ComicProviderReference[] {
-  const included = references.filter((reference) => {
-    if (mode === "normal") return true;
-    if (mode === "without_template") return reference.role !== "template";
-    if (mode === "without_character") return reference.role !== "chat_character";
-    if (mode === "without_persona") return reference.role !== "user_persona";
-    if (mode === "template_only") return reference.role === "template";
-    return reference.role !== "template";
+  return references.map((reference) => {
+    const neutral = mode === "all_neutral"
+      || (mode === "neutral_template" && reference.role === "template")
+      || (mode === "neutral_character" && reference.role === "chat_character")
+      || (mode === "neutral_persona" && reference.role === "user_persona")
+      || (mode === "neutral_identity_refs" && reference.role !== "template");
+    if (!neutral) return { ...reference };
+    return {
+      ...reference,
+      content: "neutral" as const,
+      sourceUrl: reference.role === "template"
+        ? COMIC_NEUTRAL_TEMPLATE_CONTROL_URL
+        : COMIC_NEUTRAL_IDENTITY_CONTROL_URL,
+    };
   });
-  return included.map((reference, offset) => ({ ...reference, index: offset + 1 }));
 }
 
 export function formatComicReferenceSetForAdmin(
   references: readonly ComicProviderReference[]
-): { referenceRoles: ComicProviderReferenceRole[]; referenceCount: number; referenceSetSignature: string } {
+): {
+  referenceRoles: ComicProviderReferenceRole[];
+  referenceCount: number;
+  referenceSetSignature: string;
+  references: Array<{ index: number; role: ComicProviderReferenceRole; content: "real" | "neutral" }>;
+} {
   const referenceRoles = references.map((reference) => reference.role);
   return {
     referenceRoles,
     referenceCount: referenceRoles.length,
-    referenceSetSignature: referenceRoles.join("+"),
+    referenceSetSignature: references
+      .map((reference) => `${reference.role}:${reference.content}`)
+      .join("|"),
+    references: references.map(({ index, role, content }) => ({ index, role, content })),
   };
 }
 
@@ -136,20 +157,11 @@ export function classifyComicModerationAssociation(
   if (results.neutral_visual_context === "pass") {
     return "REFERENCE_BYTES_ALONE_NOT_SUFFICIENT_CAUSE";
   }
-  if (results.without_template === "pass") return "TEMPLATE_REFERENCE_PRIMARY_SUSPECT";
-  if (results.without_character === "pass") return "CHAT_CHARACTER_REFERENCE_PRIMARY_SUSPECT";
-  if (results.without_persona === "pass") return "USER_PERSONA_REFERENCE_PRIMARY_SUSPECT";
-  if (results.identity_refs_only === "moderation_blocked" && results.template_only === "pass") {
-    return "IDENTITY_REFERENCE_OR_MULTI_PERSON_INTERACTION";
-  }
-  if (
-    results.without_template === "moderation_blocked"
-    && results.without_character === "moderation_blocked"
-    && results.without_persona === "moderation_blocked"
-    && results.template_only === "moderation_blocked"
-  ) {
-    return "BROADER_PROVIDER_OR_VISUAL_CONTEXT_RISK";
-  }
+  if (results.neutral_template === "pass") return "REAL_TEMPLATE_CONTENT_PRIMARY_SUSPECT";
+  if (results.neutral_character === "pass") return "CHAT_CHARACTER_REFERENCE_PRIMARY_SUSPECT";
+  if (results.neutral_persona === "pass") return "USER_PERSONA_REFERENCE_PRIMARY_SUSPECT";
+  if (results.neutral_identity_refs === "pass") return "IDENTITY_REFERENCE_OR_MULTI_PERSON_INTERACTION";
+  if (results.all_neutral === "moderation_blocked") return "BROADER_PROVIDER_OR_VISUAL_CONTEXT_RISK";
   return "INSUFFICIENT_EVIDENCE";
 }
 
