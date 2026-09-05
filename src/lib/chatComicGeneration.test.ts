@@ -20,6 +20,7 @@ import {
   scenePlanHasRawChatLeak,
 } from "./chatImageScenePlan";
 import { buildLdDuoGenerationPlan } from "./chatLdIllustrationGeneration";
+import { resolveComicProviderReadableTextEligibility } from "./chatComicPanelSpec";
 import { renderChatImageVisualIdentity } from "./chatImageVisualIdentity";
 import {
   SCENE_BUILDER_SHARED_DUO,
@@ -290,6 +291,97 @@ describe("chatComicGeneration", () => {
     const assembled = assembleComicFinalImage({ providerBuffer });
     assert.equal(assembled.buffer, providerBuffer);
     assert.equal(assembled.serverTextLayerApplied, false);
+  });
+
+  it("TEXT-POLICY-1 normal non-adult context cannot forward adult-restricted dialogue", () => {
+    const adultLine = "성관계를 하고 싶어.";
+    assert.equal(
+      resolveComicProviderReadableTextEligibility({ text: adultLine, adultGrounded: false }),
+      false
+    );
+    const plan = {
+      sceneBackground: "",
+      events: [],
+      heroEventIds: [],
+      heroScene: "",
+      recommendedPanelCount: 2 as const,
+      panels: [
+        {
+          index: 1,
+          sourceEventIds: [],
+          situation: "",
+          dialogue: [{ speaker: "character" as const, text: adultLine, provenance: "user_edit" as const }],
+        },
+        { index: 2, sourceEventIds: [], situation: "", dialogue: [] },
+      ],
+    };
+    const prompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan,
+      providerTextAdultEligible: false,
+    });
+    assert.doesNotMatch(prompt, /성관계/);
+  });
+
+  it("TEXT-POLICY-2 existing adult-eligible context may forward adult-grounded dialogue", () => {
+    const adultLine = "성관계를 하고 싶어.";
+    assert.equal(
+      resolveComicProviderReadableTextEligibility({ text: adultLine, adultGrounded: true }),
+      true
+    );
+    const plan = {
+      sceneBackground: "",
+      events: [],
+      heroEventIds: [],
+      heroScene: "",
+      recommendedPanelCount: 2 as const,
+      panels: [
+        {
+          index: 1,
+          sourceEventIds: [],
+          situation: "",
+          dialogue: [{ speaker: "character" as const, text: adultLine, provenance: "user_edit" as const }],
+        },
+        { index: 2, sourceEventIds: [], situation: "", dialogue: [] },
+      ],
+    };
+    const prompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan,
+      providerTextAdultEligible: true,
+    });
+    assert.match(prompt, /성관계를 하고 싶어\./);
+  });
+
+  it("TEXT-POLICY-3 restricted self-harm / graphic dialogue stays excluded", () => {
+    assert.equal(
+      resolveComicProviderReadableTextEligibility({
+        text: "손목을 긋고 싶다.",
+        adultGrounded: true,
+      }),
+      false
+    );
+    assert.equal(
+      resolveComicProviderReadableTextEligibility({
+        text: "피를 흘리며 쓰러졌다.",
+        adultGrounded: true,
+      }),
+      false
+    );
+    assert.equal(
+      resolveComicProviderReadableTextEligibility({
+        text: "성관계를 하고 싶어.",
+        adultGrounded: true,
+        realPersonRestricted: true,
+      }),
+      false
+    );
   });
 
   it("uses the same canonical visual identity pipeline as LD duo", () => {

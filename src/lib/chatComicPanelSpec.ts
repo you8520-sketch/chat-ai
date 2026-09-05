@@ -671,6 +671,29 @@ export function renderChatComicPanelSpecFullProviderSection(spec: ChatComicPanel
     .join("\n\n");
 }
 
+/**
+ * Provider-readable comic text INPUT eligibility. Reuses the site's existing
+ * adult text contract (resolveEffectiveAdultRp → adultGrounded). Ordinary
+ * dialogue is always provider-readable; adult-grounded dialogue is provider-
+ * readable only when the existing site adult eligibility allows it; self-harm
+ * and graphic-violence dialogue stay excluded. This is INPUT eligibility, not
+ * server image postprocessing.
+ */
+export function resolveComicProviderReadableTextEligibility(opts: {
+  text: string;
+  adultGrounded: boolean;
+  realPersonRestricted?: boolean;
+}): boolean {
+  const categories = classifyRawVisualRisk(opts.text);
+  if (categories.includes("self_harm")) return false;
+  if (categories.includes("graphic_violence")) return false;
+  if (categories.includes("adult_explicit")) {
+    if (opts.realPersonRestricted) return false;
+    if (!opts.adultGrounded) return false;
+  }
+  return true;
+}
+
 export function buildChatComicPanelSpecFullProviderSection(opts: {
   plan: ScenePlan;
   personaName: string;
@@ -680,19 +703,20 @@ export function buildChatComicPanelSpecFullProviderSection(opts: {
   subjects: readonly ChatImageVisualSubject[];
   eventSubjectBindings?: readonly SceneEventSubjectBinding[];
   projection?: ChatComicPanelSpecProjection;
+  /** Site adult text eligibility (resolveEffectiveAdultRp) for provider-readable dialogue. */
+  adultGrounded?: boolean;
+  realPersonRestricted?: boolean;
 }): string {
   const spec = compileChatComicPanelSpec({
     ...opts,
     projection: {
       ...opts.projection,
-      // Full provider-rendered contract: approved dialogue reaches the provider
-      // as readable Korean text. Hard safety line: self-harm and graphic-violence
-      // dialogue is still omitted from the provider prompt (moderation probe via
-      // the admin TEXT × VISUAL matrix covers adult/romance text only).
-      omitDialogueText: (text) => {
-        const categories = classifyRawVisualRisk(text);
-        return categories.includes("self_harm") || categories.includes("graphic_violence");
-      },
+      omitDialogueText: (text) =>
+        !resolveComicProviderReadableTextEligibility({
+          text,
+          adultGrounded: opts.adultGrounded ?? false,
+          realPersonRestricted: opts.realPersonRestricted,
+        }),
     },
   });
   return renderChatComicPanelSpecFullProviderSection(spec);

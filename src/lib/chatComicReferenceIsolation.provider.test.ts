@@ -15,7 +15,7 @@ import {
   resolveComicDiagnosticOverrides,
   type ComicReferenceIsolationMode,
 } from "./chatComicReferenceIsolation";
-import { buildChatComicGenerationPlan } from "./chatComicGeneration";
+import { buildChatComicGenerationPlan, buildChatComicImagePrompt } from "./chatComicGeneration";
 import { buildStrictComicFallbackPrompt } from "./chatImageStrictSafetyFallbackPrompt";
 import { CHAT_COMIC_TEMPLATE_ID, CHAT_COMIC_TEMPLATE_PREVIEW_URL, resolveChatComicOutputSize } from "./chatComicGenerationConstants";
 import { hashPromptForDiagnostic } from "./openAiImageFailureDiagnostic";
@@ -230,4 +230,52 @@ test("route binds tested provider input after access gate and preserves the prov
     /diagnosticMode\.mode === "normal" \|\| diagnosticMode\.mode === "blank_balloon_hybrid"\s*\n\s+\? \{ plan: scenePlan \}/
   );
   assert.doesNotMatch(route, /serverTextOnlyOverlay/);
+});
+
+test("PREFLIGHT-1 normal full-provider route no longer calls the overlay preflight gate", () => {
+  const route = readFileSync("src/app/api/chat/comic-generation/route.ts", "utf8");
+  assert.doesNotMatch(route, /validateComicOverlayPreflight/);
+  assert.doesNotMatch(route, /OVERLAY_PREFLIGHT_USER_MESSAGE/);
+  assert.doesNotMatch(route, /parseChatComicOutputDimensions/);
+});
+
+test("PREFLIGHT-2 a dialogue-dense plan that fails old overlay geometry still builds a full-provider prompt", () => {
+  const plan = {
+    sceneBackground: "",
+    events: [],
+    heroEventIds: [],
+    heroScene: "",
+    recommendedPanelCount: 2 as const,
+    panels: [
+      {
+        index: 1,
+        sourceEventIds: [],
+        situation: "",
+        dialogue: Array.from({ length: 6 }, (_, i) => ({
+          speaker: "character" as const,
+          text: `대사 ${i + 1} 입니다.`,
+          provenance: "user_edit" as const,
+        })),
+      },
+      {
+        index: 2,
+        sourceEventIds: [],
+        situation: "",
+        dialogue: [],
+      },
+    ],
+  };
+  const prompt = buildChatComicImagePrompt({
+    characterName: "A",
+    characterGender: "female",
+    personaName: "B",
+    personaGender: "male",
+    plan,
+  });
+  // Old overlay preflight capped user_edit lines per panel at 4; the
+  // full-provider path must not gate on that geometry.
+  assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+  for (let i = 1; i <= 6; i += 1) {
+    assert.ok(prompt.includes(`대사 ${i} 입니다.`), `dialogue ${i} present in full-provider prompt`);
+  }
 });

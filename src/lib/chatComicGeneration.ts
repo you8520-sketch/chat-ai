@@ -113,10 +113,13 @@ export function buildChatComicImagePrompt(opts: {
   contentKind?: ContentKind;
   adultGrounded?: boolean;
   compositionMode?: ChatComicCompositionMode;
+  /** Site adult text eligibility (resolveEffectiveAdultRp) for provider-readable dialogue input. */
+  providerTextAdultEligible?: boolean;
 }): string {
   const projectionContext: SafeVisualProjectionContext = {
     adultGrounded: opts.adultGrounded ?? false,
   };
+  const providerTextAdultEligible = opts.providerTextAdultEligible ?? opts.adultGrounded ?? false;
   const sceneVisibility = resolveScenePresentationVisibility({
     contentKind: opts.contentKind,
     castManifest: opts.castManifest,
@@ -160,6 +163,7 @@ export function buildChatComicImagePrompt(opts: {
           subjects,
           eventSubjectBindings: opts.castManifest?.eventSubjectBindings,
           projection,
+          adultGrounded: providerTextAdultEligible,
         })
       : buildChatComicPanelSpecVisualSection({
           plan: opts.plan,
@@ -220,6 +224,7 @@ export function buildChatComicGenerationPlan(opts: {
   contentKind?: ContentKind;
   adultGrounded?: boolean;
   compositionMode?: ChatComicCompositionMode;
+  providerTextAdultEligible?: boolean;
 }) {
   const useCast = Boolean(opts.castManifest);
   let pack: { subjects: ChatImageVisualSubject[]; referenceUrls: string[] };
@@ -277,6 +282,7 @@ export function buildChatComicGenerationPlan(opts: {
       contentKind: opts.contentKind,
       adultGrounded: opts.adultGrounded,
       compositionMode: opts.compositionMode,
+      providerTextAdultEligible: opts.providerTextAdultEligible,
     }),
   };
 }

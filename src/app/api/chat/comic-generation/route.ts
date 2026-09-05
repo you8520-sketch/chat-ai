@@ -16,7 +16,6 @@ import {
   CHAT_COMIC_TEMPLATE_ID,
   assembleComicFinalImage,
   buildChatComicGenerationPlan,
-  parseChatComicOutputDimensions,
   resolveChatComicOutputSize,
   resolveChatComicPrice,
   type ChatComicPanelCount,
@@ -73,9 +72,6 @@ import {
   type ScenePlan,
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
-import {
-  validateComicOverlayPreflight,
-} from "@/lib/chatComicTextOverlay";
 import { planChatImageScene } from "@/lib/chatImageScenePlanner";
 import {
   assertChatImageScenePlanRateLimit,
@@ -179,6 +175,7 @@ import {
 import { buildComicPanelBalloonSlotMetadata } from "@/lib/chatComicPanelSpec";
 import { effectiveIsAdult } from "@/lib/adultVerification";
 import {
+  resolveEffectiveAdultRp,
   resolveRoomAdultModeEnabled,
 } from "@/lib/chatAdultHandoff";
 
@@ -955,6 +952,13 @@ export async function POST(req: Request) {
       personaId: positiveInt(body.personaId),
       requestedCharacterImageUrl: body.characterImageUrl,
     });
+    // Site adult text eligibility (resolveEffectiveAdultRp) gates whether
+    // adult-grounded approved dialogue may be forwarded as provider-readable
+    // INPUT text. This is not server image postprocessing.
+    const roomAdultGrounded = resolveEffectiveAdultRp({
+      userAdultVerified: effectiveIsAdult((user as SessionUserLike).is_adult ?? 0),
+      roomAdultModeEnabled: context.roomAdultModeEnabled,
+    });
 
     if (positiveInt(body.campaignId) && body.mode !== "illustration") {
       throw new RequestError("캠페인에서는 선택 턴 일러스트만 만들 수 있습니다.");
@@ -1486,12 +1490,13 @@ export async function POST(req: Request) {
       mood,
       plan: scenePlan,
       castManifest,
-      contentKind: context.contentKind,
+contentKind: context.contentKind,
       adultGrounded: semanticLadderMode,
       compositionMode:
         diagnosticMode.mode === "blank_balloon_hybrid"
           ? "blank_balloon_hybrid"
           : "full_provider_rendered",
+      providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
     });
     const neutralVisualContext = diagnosticOverrides.visualContextMode === "neutral_visual_context";
     const providerScenePlan: ScenePlan = neutralVisualContext
@@ -1512,12 +1517,13 @@ export async function POST(req: Request) {
           mood,
           plan: providerScenePlan,
           castManifest,
-          contentKind: context.contentKind,
+contentKind: context.contentKind,
           adultGrounded: semanticLadderMode,
           compositionMode:
             diagnosticMode.mode === "blank_balloon_hybrid"
               ? "blank_balloon_hybrid"
               : "full_provider_rendered",
+          providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
         })
       : identityPack;
     const prompt = providerIdentityPack.prompt;
@@ -1525,18 +1531,6 @@ export async function POST(req: Request) {
       contentKind: context.contentKind,
       castManifest,
     });
-    const outputDims = parseChatComicOutputDimensions(panelCount);
-    const overlayPreflight = validateComicOverlayPreflight({
-      width: outputDims.width,
-      height: outputDims.height,
-      panelCount,
-      plan: scenePlan,
-      visibility: comicVisibility,
-      subjects: identityPack.subjects,
-    });
-    if (!overlayPreflight.ok) {
-      return NextResponse.json({ error: overlayPreflight.reason }, { status: 400 });
-    }
     const tier2SafeStructure = neutralVisualContext
       ? buildNeutralComicSafeStructure(scenePlan.panels.map((panel) => panel.index))
       : semanticLadderMode
@@ -1565,7 +1559,7 @@ export async function POST(req: Request) {
       compositionMode:
         diagnosticMode.mode === "blank_balloon_hybrid"
           ? "blank_balloon_hybrid"
-          : "overlay_first",
+          : "full_provider_rendered",
       balloonSlots: hybridBalloonSlots,
     });
     const tier2PromptAuditResult = auditTier2ComicPrompt({

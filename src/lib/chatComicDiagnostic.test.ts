@@ -260,3 +260,19 @@ test("MATRIX-2 text fixture injects one fixed dialogue line into panel 1 only", 
     assert.equal(panel.dialogue.length, 0);
   }
 });
+
+test("MATRIX-1-MONO T0..T4 strength is strictly monotonic by intended text strength", () => {
+  const strengths = COMIC_TEXT_BOUNDARY_LADDER.map((level) => level.strength);
+  assert.deepEqual(strengths, [0, 1, 2, 3, 4]);
+  for (let i = 1; i < strengths.length; i += 1) {
+    assert.ok(strengths[i]! > strengths[i - 1]!, "strictly increasing");
+  }
+});
+
+test("MATRIX-2-MONO T fixtures contain no V-axis visual/location mutation", () => {
+  const vAxisCues = /(?:침대|이불|누(?:워|운|어)|눕|bed|lying|벗|나체|shirtless)/iu;
+  for (const level of COMIC_TEXT_BOUNDARY_LADDER) {
+    assert.doesNotMatch(level.text, vAxisCues, `T fixture ${level.id} must not mutate the visual axis`);
+    assert.doesNotMatch(level.name, vAxisCues);
+  }
+});
