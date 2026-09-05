@@ -2,8 +2,16 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import sharp from "sharp";
 
-import { compileComicTextOverlaySvg } from "./chatComicTextOverlay";
-import { renderComicTextOverlay } from "./chatComicTextOverlay.server";
+import {
+  compileComicPanelOverlayLayouts,
+  compileComicTextOnlyOverlaySvg,
+  compileComicTextOverlaySvg,
+} from "./chatComicTextOverlay";
+import {
+  detectBlankBalloonRegions,
+  renderComicBlankBalloonHybrid,
+  renderComicTextOverlay,
+} from "./chatComicTextOverlay.server";
 import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
@@ -54,5 +62,68 @@ describe("chatComicTextOverlay.server sharp composite", () => {
     assert.ok(finalBuffer.length > 0);
     const meta = await sharp(finalBuffer).metadata();
     assert.equal(meta.format, "webp");
+  });
+
+  it("blank-balloon hybrid emits glyphs only and never a server balloon body", async () => {
+    const plan = {
+      sceneBackground: "",
+      events: [],
+      heroEventIds: [],
+      heroScene: "",
+      recommendedPanelCount: 2 as const,
+      panels: [
+        {
+          index: 1,
+          sourceEventIds: [],
+          situation: "",
+          dialogue: [
+            {
+              speaker: "character" as const,
+              text: "짧은 대사",
+              provenance: "source" as const,
+            },
+          ],
+        },
+        {
+          index: 2,
+          sourceEventIds: [],
+          situation: "",
+          dialogue: [],
+        },
+      ],
+    };
+    const layouts = compileComicPanelOverlayLayouts({
+      width: 1008,
+      height: 1408,
+      panelCount: 2,
+      plan,
+    });
+    const textOnlySvg = compileComicTextOnlyOverlaySvg({
+      width: 1008,
+      height: 1408,
+      panelLayouts: layouts,
+    });
+    assert.match(textOnlySvg, /speech-text-only/);
+    assert.doesNotMatch(textOnlySvg, /<(?:path|rect|ellipse)\b/i);
+
+    const providerSvg = `
+      <svg width="1008" height="1408" xmlns="http://www.w3.org/2000/svg">
+        <rect width="1008" height="1408" fill="#52606d"/>
+        <rect x="60" y="40" width="420" height="220" rx="28" fill="#fff" stroke="#111" stroke-width="12"/>
+      </svg>
+    `;
+    const providerBuffer = await sharp(Buffer.from(providerSvg)).png().toBuffer();
+    const regions = await detectBlankBalloonRegions(providerBuffer, 2);
+    assert.ok(regions.length >= 1);
+
+    const rendered = await renderComicBlankBalloonHybrid({
+      imageBuffer: providerBuffer,
+      panelCount: 2,
+      plan,
+      textStrategy: "local_image_detection",
+    });
+    assert.equal(rendered.detection.strategy, "local_image_detection");
+    assert.ok(rendered.detection.insertedTextRegionCount >= 1);
+    assert.ok(rendered.buffer.length > 0);
   });
 });

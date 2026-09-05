@@ -1232,3 +1232,68 @@ export function compileComicTextOverlaySvg(opts: {
     </svg>
   `.trim();
 }
+
+/**
+ * Text-only layer for the admin-only blank-balloon hybrid.
+ * The provider owns every balloon/narration body and tail; this compiler emits
+ * glyphs only and intentionally contains no body geometry.
+ */
+export function compileComicTextOnlyOverlaySvg(opts: {
+  width: number;
+  height: number;
+  panelLayouts: readonly PanelOverlayLayout[];
+}): string {
+  const svgElements: string[] = [];
+
+  for (const panelLayout of opts.panelLayouts) {
+    const narration = panelLayout.narration;
+    if (narration) {
+      svgElements.push(`
+        <text class="narration-text-only"
+              x="${narration.x + 14}"
+              y="${narration.y + narration.fontSize + 8}"
+              font-family="NanumSquareRound, NanumGothic, NanumBarunGothic, Noto Sans CJK KR, sans-serif"
+              font-size="${narration.fontSize}" font-weight="600" fill="#1e293b">
+          ${narration.lines
+            .map(
+              (line, index) =>
+                `<tspan x="${narration.x + 14}" dy="${index === 0 ? 0 : narration.fontSize * 1.35}">${escapeXml(
+                  line
+                )}</tspan>`
+            )
+            .join("")}
+        </text>
+      `);
+    }
+
+    for (const bubble of panelLayout.bubbles) {
+      const firstLineY =
+        bubble.y +
+        (bubble.height - bubble.renderedLines.length * bubble.fontSize * 1.35) / 2 +
+        bubble.fontSize * 0.95;
+      const textCenterX = bubble.x + bubble.width / 2;
+      svgElements.push(`
+        <text class="speech-text-only"
+              x="${textCenterX}"
+              y="${firstLineY}"
+              font-family="NanumSquareRound, NanumGothic, NanumBarunGothic, Noto Sans CJK KR, sans-serif"
+              font-size="${bubble.fontSize}" font-weight="700" fill="#0f172a" text-anchor="middle">
+          ${bubble.renderedLines
+            .map(
+              (line, index) =>
+                `<tspan x="${textCenterX}" dy="${index === 0 ? 0 : bubble.fontSize * 1.35}">${escapeXml(
+                  line
+                )}</tspan>`
+            )
+            .join("")}
+        </text>
+      `);
+    }
+  }
+
+  return `
+    <svg width="${opts.width}" height="${opts.height}" viewBox="0 0 ${opts.width} ${opts.height}" xmlns="http://www.w3.org/2000/svg">
+      ${svgElements.join("\n")}
+    </svg>
+  `.trim();
+}

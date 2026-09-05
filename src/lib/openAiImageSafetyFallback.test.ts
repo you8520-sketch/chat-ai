@@ -111,6 +111,8 @@ describe("openAiImageSafetyFallback orchestration", () => {
       assert.equal(admin.safetyFallbackUsed, false);
       assert.equal(result.providerAttempts.length, 1);
       assert.equal(result.providerAttempts[0]?.outcome, "success");
+      assert.equal(result.providerAttempts[0]?.usageEvidence, "usage_present");
+      assert.equal(result.providerAttempts[0]?.providerRequestId, null);
       assert.equal(result.buffer.toString(), "ok-image");
       assert.equal(result.hasUnknownAttemptCost, false);
     })();
@@ -139,6 +141,7 @@ describe("openAiImageSafetyFallback orchestration", () => {
       assert.equal(result.hasUnknownAttemptCost, true);
       assert.equal(result.providerAttempts[0]?.outcome, "safety_rejected");
       assert.equal(result.providerAttempts[1]?.outcome, "success");
+      assert.equal(result.providerAttempts[1]?.usageEvidence, "usage_present");
     })();
   });
 

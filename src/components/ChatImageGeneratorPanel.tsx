@@ -12,6 +12,13 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGenerationConstants";
 import {
+  COMIC_BLANK_BALLOON_TEXT_STRATEGIES,
+  COMIC_SEMANTIC_LADDER,
+  type ComicBlankBalloonTextStrategy,
+  type ComicDiagnosticMode,
+  type ComicSemanticLevel,
+} from "@/lib/chatComicDiagnostic";
+import {
   applyApprovedAiScenePlan,
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
@@ -194,6 +201,25 @@ type GenerateResult = {
   freePoints?: number;
   savedToCharacterAlbum?: boolean;
   generationId?: number;
+  comicDiagnostic?: {
+    mode?: ComicDiagnosticMode;
+    semanticLevel?: ComicSemanticLevel | null;
+    textInsertionStrategy?: ComicBlankBalloonTextStrategy | null;
+    serverTextOnlyOverlay?: boolean;
+    primaryResult?: string;
+    tier2Result?: string;
+    safetyCategories?: string[] | string;
+    providerRequestId?: string | null;
+    usageEvidence?: Array<{ attempt: number; evidence: string }>;
+    blankBalloonDetection?: {
+      strategy: ComicBlankBalloonTextStrategy;
+      expectedTextRegionCount: number;
+      detectedRegionCount: number;
+      insertedTextRegionCount: number;
+      ambiguousRegionCount: number;
+      rejectedRegionCount: number;
+    } | null;
+  };
   trpgImageSceneDiagnostics?: {
     mode: TrpgImageSceneMode;
     modeRequested: TrpgImageSceneMode;
@@ -497,6 +523,14 @@ export default function ChatImageGeneratorPanel({
   const [comicVisualContextIsolationMode, setComicVisualContextIsolationMode] = useState<
     "normal" | "neutral_visual_context"
   >("normal");
+  const [comicDiagnosticMode, setComicDiagnosticMode] =
+    useState<ComicDiagnosticMode>("normal");
+  const [comicSemanticLevel, setComicSemanticLevel] =
+    useState<ComicSemanticLevel>("L0");
+  const [comicBlankBalloonTextStrategy, setComicBlankBalloonTextStrategy] =
+    useState<ComicBlankBalloonTextStrategy>("shared_anchor_regions");
+  const [comicDiagnosticResult, setComicDiagnosticResult] =
+    useState<GenerateResult["comicDiagnostic"]>(undefined);
   const [summarizing, setSummarizing] = useState(false);
   const [campaignId, setCampaignId] = useState<number | null>(null);
   const [campaignRoundNumber, setCampaignRoundNumber] = useState<number | null>(null);
@@ -529,6 +563,10 @@ export default function ChatImageGeneratorPanel({
   const resetComicDiagnosticModes = useCallback(() => {
     setComicReferenceIsolationMode("normal");
     setComicVisualContextIsolationMode("normal");
+    setComicDiagnosticMode("normal");
+    setComicSemanticLevel("L0");
+    setComicBlankBalloonTextStrategy("shared_anchor_regions");
+    setComicDiagnosticResult(undefined);
   }, []);
 
   useEffect(() => {
@@ -1508,14 +1546,16 @@ export default function ChatImageGeneratorPanel({
   async function generateComic() {
     if (!info?.ready || generating) return;
     const isIllustration = sceneIsIllustration;
+    const isSemanticLadderDiagnostic =
+      !isIllustration && comicDiagnosticMode === "semantic_ladder";
     if (campaignId && !isIllustration) return;
     const sourceText = comicText.trim();
     const summaryText = comicSummary.trim();
-    if (!isIllustration && !sourceMessageId && !sourceText) {
+    if (!isIllustration && !isSemanticLadderDiagnostic && !sourceMessageId && !sourceText) {
       setError("만화로 만들 턴을 선택하거나 내용을 입력해 주세요.");
       return;
     }
-    if (!isIllustration && sourceMessageId && !summaryText) {
+    if (!isIllustration && !isSemanticLadderDiagnostic && sourceMessageId && !summaryText) {
       setError("선택 턴 내용을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
       return;
     }
@@ -1531,7 +1571,12 @@ export default function ChatImageGeneratorPanel({
       );
       return;
     }
-    if (!isIllustration && !trpgCampaignMode && !scenePlan) {
+    if (
+      !isIllustration &&
+      !isSemanticLadderDiagnostic &&
+      !trpgCampaignMode &&
+      !scenePlan
+    ) {
       setError("장면 원본을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
       return;
     }
@@ -1539,6 +1584,7 @@ export default function ChatImageGeneratorPanel({
     setGenerating(true);
     setError("");
     setNotice("");
+    setComicDiagnosticResult(undefined);
     clearTrpgImageSceneDiagnostics();
     if (isIllustration) setIllustrationResultUrl("");
     else setComicResultUrl("");
@@ -1592,6 +1638,24 @@ export default function ChatImageGeneratorPanel({
             !isIllustration && ldProduct === "scene" && info.comicDiagnosticControlsAvailable
               ? comicVisualContextIsolationMode
               : undefined,
+          comicDiagnosticMode:
+            !isIllustration && ldProduct === "scene" && info.comicDiagnosticControlsAvailable
+              ? comicDiagnosticMode
+              : undefined,
+          comicSemanticLevel:
+            !isIllustration &&
+            ldProduct === "scene" &&
+            info.comicDiagnosticControlsAvailable &&
+            comicDiagnosticMode === "semantic_ladder"
+              ? comicSemanticLevel
+              : undefined,
+          comicBlankBalloonTextStrategy:
+            !isIllustration &&
+            ldProduct === "scene" &&
+            info.comicDiagnosticControlsAvailable &&
+            comicDiagnosticMode === "blank_balloon_hybrid"
+              ? comicBlankBalloonTextStrategy
+              : undefined,
         }),
       });
       const data = (await response.json().catch(() => null)) as GenerateResult | null;
@@ -1601,6 +1665,7 @@ export default function ChatImageGeneratorPanel({
       }
       if (isIllustration) setIllustrationResultUrl(data.imageUrl);
       else setComicResultUrl(data.imageUrl);
+      if (!isIllustration) setComicDiagnosticResult(data.comicDiagnostic);
       setSavedUrls((previous) => new Set(previous).add(data.imageUrl));
       if (data.upstreamCostUsd != null && data.upstreamCostKrw != null) {
         setActualCosts((previous) => ({
@@ -2181,6 +2246,68 @@ export default function ChatImageGeneratorPanel({
                       <div className="space-y-2 rounded-xl border border-amber-400/25 bg-amber-950/20 p-3">
                         <p className="text-[10px] font-semibold text-amber-200">관리자 진단</p>
                         <label className="block space-y-1 text-[11px] text-zinc-300">
+                          <span>Comic experiment</span>
+                          <select
+                            value={comicDiagnosticMode}
+                            disabled={generating || saving}
+                            onChange={(event) =>
+                              setComicDiagnosticMode(event.target.value as ComicDiagnosticMode)
+                            }
+                            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200"
+                          >
+                            <option value="normal">Normal production overlay</option>
+                            <option value="semantic_ladder">Semantic ladder (one level)</option>
+                            <option value="blank_balloon_hybrid">GPT blank-balloon hybrid</option>
+                          </select>
+                        </label>
+                        {comicDiagnosticMode === "semantic_ladder" ? (
+                          <label className="block space-y-1 text-[11px] text-zinc-300">
+                            <span>Semantic level</span>
+                            <select
+                              value={comicSemanticLevel}
+                              disabled={generating || saving}
+                              onChange={(event) =>
+                                setComicSemanticLevel(event.target.value as ComicSemanticLevel)
+                              }
+                              className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200"
+                            >
+                              {COMIC_SEMANTIC_LADDER.map((level) => (
+                                <option key={level.id} value={level.id}>
+                                  {level.id} · {level.name}
+                                </option>
+                              ))}
+                            </select>
+                            <p className="text-[10px] leading-relaxed text-amber-200/70">
+                              한 번에 한 단계만 수동 실행합니다. 소스 대사와 본문은 provider에 보내지 않습니다.
+                            </p>
+                          </label>
+                        ) : null}
+                        {comicDiagnosticMode === "blank_balloon_hybrid" ? (
+                          <label className="block space-y-1 text-[11px] text-zinc-300">
+                            <span>Text insertion strategy</span>
+                            <select
+                              value={comicBlankBalloonTextStrategy}
+                              disabled={generating || saving}
+                              onChange={(event) =>
+                                setComicBlankBalloonTextStrategy(
+                                  event.target.value as ComicBlankBalloonTextStrategy
+                                )
+                              }
+                              className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200"
+                            >
+                              <option value={COMIC_BLANK_BALLOON_TEXT_STRATEGIES[0]}>
+                                A · shared planned anchor regions
+                              </option>
+                              <option value={COMIC_BLANK_BALLOON_TEXT_STRATEGIES[1]}>
+                                B · local blank-region detection
+                              </option>
+                            </select>
+                            <p className="text-[10px] leading-relaxed text-amber-200/70">
+                              provider가 말풍선 몸체·꼬리·나레이션 박스를 그리고 서버는 glyph만 삽입합니다.
+                            </p>
+                          </label>
+                        ) : null}
+                        <label className="block space-y-1 text-[11px] text-zinc-300">
                           <span>Reference control</span>
                           <select value={comicReferenceIsolationMode}
                             disabled={generating || saving || comicVisualContextIsolationMode !== "normal"}
@@ -2207,6 +2334,23 @@ export default function ChatImageGeneratorPanel({
                         <p className="text-[10px] leading-relaxed text-amber-200/70">
                           두 진단 축은 동시에 선택할 수 없습니다. 창을 닫으면 Normal로 초기화됩니다.
                         </p>
+                        {comicDiagnosticResult ? (
+                          <div className="rounded-lg border border-emerald-400/20 bg-emerald-400/[0.06] px-2.5 py-2 text-[10px] leading-relaxed text-emerald-100">
+                            <p className="font-semibold">최근 진단 결과</p>
+                            <p>
+                              primary {comicDiagnosticResult.primaryResult ?? "unknown"} · Tier-2{" "}
+                              {comicDiagnosticResult.tier2Result ?? "not_run"} · attempts{" "}
+                              {comicDiagnosticResult.usageEvidence?.length ?? 0}
+                            </p>
+                            {comicDiagnosticResult.blankBalloonDetection ? (
+                              <p>
+                                text regions{" "}
+                                {comicDiagnosticResult.blankBalloonDetection.insertedTextRegionCount}/
+                                {comicDiagnosticResult.blankBalloonDetection.expectedTextRegionCount} inserted
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                     {actualCosts[activeMode] ? (

@@ -109,6 +109,24 @@ describe("chatComicGeneration", () => {
     assert.doesNotMatch(prompt, /STRICT CLOSED TEXT WHITELIST/);
   });
 
+  it("gives the provider comic-director ownership in blank-balloon mode without dialogue text", () => {
+    const prompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan: SAMPLE_PLAN,
+      compositionMode: "blank_balloon_hybrid",
+    });
+    assert.match(prompt, /GPT IS COMIC DIRECTOR/);
+    assert.match(prompt, /blank speech balloons/i);
+    assert.match(prompt, /tails must naturally point/i);
+    assert.match(prompt, /Render no readable letters/i);
+    assert.doesNotMatch(prompt, /Speech bubble \(/);
+    assert.doesNotMatch(prompt, /같이 갈래/);
+    assert.doesNotMatch(prompt, /반가워/);
+  });
+
   it("uses the same canonical visual identity pipeline as LD duo", () => {
     const ld = buildLdDuoGenerationPlan({
       ...SCENE_BUILDER_SHARED_DUO,

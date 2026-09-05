@@ -91,6 +91,13 @@ function bodyRequestId(data: unknown): string | null {
   );
 }
 
+export function resolveOpenAiImageProviderRequestId(opts: {
+  headers: Headers;
+  responseBody: unknown;
+}): string | null {
+  return headerRequestId(opts.headers) ?? bodyRequestId(opts.responseBody);
+}
+
 export function hashPromptForDiagnostic(prompt: string): string | null {
   const trimmed = prompt.trim();
   if (!trimmed) return null;
@@ -146,7 +153,10 @@ export function parseOpenAiImageFailureDiagnostic(opts: {
 
   return {
     httpStatus: opts.httpStatus,
-    providerRequestId: headerRequestId(opts.responseHeaders) ?? bodyRequestId(opts.responseBody),
+    providerRequestId: resolveOpenAiImageProviderRequestId({
+      headers: opts.responseHeaders,
+      responseBody: opts.responseBody,
+    }),
     errorType: cleanString(errorObj?.type, 64),
     errorCode: cleanString(errorObj?.code, 64),
     errorParam: cleanString(errorObj?.param, 120),

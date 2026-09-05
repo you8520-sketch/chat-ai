@@ -21,7 +21,10 @@ import {
   shouldOmitDialogueFromImageProjection,
   type SafeVisualProjectionContext,
 } from "@/lib/chatImageSafeVisualProjection";
-import { buildChatComicPanelSpecVisualSection } from "@/lib/chatComicPanelSpec";
+import {
+  buildChatComicPanelSpecVisualSection,
+  type ChatComicCompositionMode,
+} from "@/lib/chatComicPanelSpec";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
   bindChatImageReferencePack,
@@ -107,6 +110,7 @@ export function buildChatComicImagePrompt(opts: {
   personaAppearanceMode?: ChatImageAppearanceMode;
   contentKind?: ContentKind;
   adultGrounded?: boolean;
+  compositionMode?: ChatComicCompositionMode;
 }): string {
   const projectionContext: SafeVisualProjectionContext = {
     adultGrounded: opts.adultGrounded ?? false,
@@ -145,8 +149,12 @@ export function buildChatComicImagePrompt(opts: {
         }),
     buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
     `Overall tone: ${CHAT_COMIC_MOODS.find((item) => item.id === (opts.mood ?? "comic"))?.prompt ?? "comic"}.`,
-    "VISUAL LAYER ONLY — depict characters, background, pose, expression, and camera. Do not render any readable text, speech bubbles, captions, narration boxes, or SFX in the image.",
-    "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay.",
+    opts.compositionMode === "blank_balloon_hybrid"
+      ? "GPT IS COMIC DIRECTOR — create the complete comic artwork, including panel composition, camera direction, character poses, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects."
+      : "VISUAL LAYER ONLY — depict characters, background, pose, expression, and camera. Do not render any readable text, speech bubbles, captions, narration boxes, or SFX in the image.",
+    opts.compositionMode === "blank_balloon_hybrid"
+      ? "Draw natural white manga/manhwa speech balloons with black outlines. Place them in visually appropriate negative space. Their tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text. Render no readable letters, dialogue, captions, placeholder words, random symbols or gibberish inside speech balloons."
+      : "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay.",
     castAware
       ? `Exactly ${opts.castSelected!.length} recurring human ${opts.castSelected!.length === 1 ? "identity" : "identities"}. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.`
       : "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
@@ -159,6 +167,7 @@ export function buildChatComicImagePrompt(opts: {
       castSelected: castAware ? opts.castSelected : undefined,
       subjects,
       eventSubjectBindings: opts.castManifest?.eventSubjectBindings,
+      compositionMode: opts.compositionMode,
       projection: {
         projectSceneText: (text) => projectTextForSafeImagePrompt(text, projectionContext),
         omitDialogueText: shouldOmitDialogueFromImageProjection,
@@ -184,6 +193,8 @@ export function buildChatComicGenerationPlan(opts: {
   plan: ScenePlan;
   castManifest?: ChatImageCastGroundedManifest | null;
   contentKind?: ContentKind;
+  adultGrounded?: boolean;
+  compositionMode?: ChatComicCompositionMode;
 }) {
   const useCast = Boolean(opts.castManifest);
   let pack: { subjects: ChatImageVisualSubject[]; referenceUrls: string[] };
@@ -239,6 +250,8 @@ export function buildChatComicGenerationPlan(opts: {
       personaSavedAppearance: opts.personaSavedAppearance,
       personaAppearanceMode: opts.personaAppearanceMode,
       contentKind: opts.contentKind,
+      adultGrounded: opts.adultGrounded,
+      compositionMode: opts.compositionMode,
     }),
   };
 }
