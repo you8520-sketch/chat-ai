@@ -13,6 +13,7 @@ export const LIVE_FOLLOW_TAIL_SPACER_RATIO = 0.38;
 
 export const LIVE_FOLLOW_CONTINUOUS_DEFAULT_SMOOTHING_SEC = 0.65;
 export const LIVE_FOLLOW_CONTINUOUS_GROWTH_MATCH = 0.9;
+export const LIVE_FOLLOW_CONTINUOUS_LINE_WRAP_SMOOTHING_MULTIPLIER = 1.5;
 
 /** Typical assistant prose line height in general chat (px). */
 export const MEDIAN_LINE_HEIGHT_PX = 26;
@@ -451,7 +452,7 @@ export function createLiveReadingFollowController(opts: {
           smoothingTimeSec:
             Math.max(
               profile?.targetSmoothingTimeSec ?? LIVE_FOLLOW_CONTINUOUS_DEFAULT_SMOOTHING_SEC,
-              lineWrapSmoothingSec
+              lineWrapSmoothingSec * LIVE_FOLLOW_CONTINUOUS_LINE_WRAP_SMOOTHING_MULTIPLIER
             ),
         })
       : rawDocumentY;
