@@ -459,7 +459,7 @@ async function attachMotionProof(
  * right after network-done the stream end can sit below the cruise band for
  * seconds — during which the CORRECT follow behavior is stillness. Sampling
  * that dead zone and then failing on duty cycle would punish a healthy follow.
- * Wait until the end actually enters the cruise band, then measure 10s of
+ * Wait until the end actually enters the target-centered cruise band, then measure 20s of
  * engaged cruising. Thresholds below are unchanged; only the window shifts to
  * where motion is geometrically required.
  */
@@ -470,7 +470,7 @@ async function waitForCruiseEngagement(page: Page) {
       if (!end) return false;
       return end.getBoundingClientRect().top > window.innerHeight * minRatio + eps;
     },
-    { minRatio: LIVE_READING_MIN_RATIO, eps: 2 },
+    { minRatio: LIVE_READING_TARGET_RATIO, eps: 8 },
     { timeout: 45_000 }
   );
 }
@@ -515,7 +515,7 @@ async function runContinuousFollowScenario(page: Page, opts: {
   // end keeps growing past the band — and then fail the gates below.)
   await waitForCruiseEngagement(page);
   const startGeometry = resolveScrollClampState(await collectScrollGeometry(page));
-  const frames = await sampleMotionFrames(page, 10_000);
+  const frames = await sampleMotionFrames(page, 20_000);
 
   const proof = evaluateContinuousMotionProof({
     frames,
