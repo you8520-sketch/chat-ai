@@ -72,20 +72,38 @@ export function shouldRecordChatManualDetachOnScrollDelta(opts: {
   return opts.scrollDeltaPx < -2;
 }
 
+export function isChatRootScrollGeometryClamp(opts: {
+  previousScrollY: number;
+  previousMaxScrollY: number;
+  currentScrollY: number;
+  currentMaxScrollY: number;
+  epsilonPx?: number;
+}): boolean {
+  const epsilonPx = opts.epsilonPx ?? 2;
+  return (
+    opts.previousMaxScrollY > opts.currentMaxScrollY + epsilonPx &&
+    opts.previousScrollY > opts.currentMaxScrollY + epsilonPx &&
+    Math.abs(opts.currentScrollY - opts.currentMaxScrollY) <= epsilonPx
+  );
+}
+
 /** Resize is geometry-only: rebase scroll measurement without changing user intent. */
 export function resolveChatFollowResize(input: {
   scrollY: number;
+  maxScrollY: number;
   followLatest: boolean;
   manualDetached: boolean;
   liveReadingActive: boolean;
 }): {
   scrollBaselineY: number;
+  scrollBaselineMaxY: number;
   followLatest: boolean;
   manualDetached: boolean;
   notifyFollowTarget: boolean;
 } {
   return {
     scrollBaselineY: input.scrollY,
+    scrollBaselineMaxY: input.maxScrollY,
     followLatest: input.followLatest,
     manualDetached: input.manualDetached,
     notifyFollowTarget:

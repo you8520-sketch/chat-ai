@@ -178,6 +178,7 @@ import {
 } from "@/lib/integerScrollTransport";
 import {
   handleChatStreamLayoutGrowth,
+  isChatRootScrollGeometryClamp,
   isChatLiveReadingActive,
   resolveActiveAssistantStreamEnd,
   resolveChatFollowResize,
@@ -1644,6 +1645,11 @@ export default function ChatClient({
   const liveFollowIntegerTransportRef = useRef<IntegerScrollDebtTransport | null>(null);
   const liveFollowScrollInFlightRef = useRef(false);
   const lastFollowScrollYRef = useRef(0);
+  const lastFollowMaxScrollYRef = useRef(0);
+  const pendingNegativeRootScrollRef = useRef<{
+    previousScrollY: number;
+    previousMaxScrollY: number;
+  } | null>(null);
   const streamResizeObserverRef = useRef<ResizeObserver | null>(null);
   const scrollRafRef = useRef<number | null>(null);
   const applyEmotionRef = useRef<
@@ -2382,12 +2388,34 @@ export default function ChatClient({
   useEffect(() => {
     if (typeof window !== "undefined") {
       lastFollowScrollYRef.current = window.scrollY;
+      lastFollowMaxScrollYRef.current = Math.max(
+        0,
+        document.documentElement.scrollHeight - window.innerHeight
+      );
     }
 
     const onScroll = () => {
+      const previousScrollY = lastFollowScrollYRef.current;
+      const previousMaxScrollY = lastFollowMaxScrollYRef.current;
       const currentScrollY = window.scrollY;
-      const scrollDeltaPx = currentScrollY - lastFollowScrollYRef.current;
+      const currentMaxScrollY = Math.max(
+        0,
+        document.documentElement.scrollHeight - window.innerHeight
+      );
+      const scrollDeltaPx = currentScrollY - previousScrollY;
       lastFollowScrollYRef.current = currentScrollY;
+      lastFollowMaxScrollYRef.current = currentMaxScrollY;
+      if (
+        isChatRootScrollGeometryClamp({
+          previousScrollY,
+          previousMaxScrollY,
+          currentScrollY,
+          currentMaxScrollY,
+        })
+      ) {
+        syncChatFollowDiagnostics();
+        return;
+      }
       const liveReadingActive = isChatLiveReadingActiveNow();
       const testWindow = window as Window & {
         __chatTestProgrammaticScrollInFlight?: boolean;
@@ -2412,14 +2440,36 @@ export default function ChatClient({
         return;
       }
 
-      if (
-        shouldRecordChatManualDetachOnScrollDelta({
-          scrollDeltaPx,
-          programmaticScrollInFlight,
-        })
-      ) {
-        detachChatLiveFollow();
-        syncChatFollowDiagnostics();
+      if (shouldRecordChatManualDetachOnScrollDelta({ scrollDeltaPx, programmaticScrollInFlight })) {
+        // A viewport clamp may dispatch scroll before resize updates root bounds.
+        // Re-evaluate the same root movement after layout commits; no time window
+        // or gesture-source heuristic is involved.
+        pendingNegativeRootScrollRef.current ??= { previousScrollY, previousMaxScrollY };
+        if (scrollRafRef.current != null) cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = requestAnimationFrame(() => {
+          scrollRafRef.current = null;
+          const pending = pendingNegativeRootScrollRef.current;
+          pendingNegativeRootScrollRef.current = null;
+          if (!pending || userScrollLockRef.current) return;
+          const settledScrollY = window.scrollY;
+          const settledMaxScrollY = Math.max(
+            0,
+            document.documentElement.scrollHeight - window.innerHeight
+          );
+          lastFollowScrollYRef.current = settledScrollY;
+          lastFollowMaxScrollYRef.current = settledMaxScrollY;
+          if (
+            !isChatRootScrollGeometryClamp({
+              previousScrollY: pending.previousScrollY,
+              previousMaxScrollY: pending.previousMaxScrollY,
+              currentScrollY: settledScrollY,
+              currentMaxScrollY: settledMaxScrollY,
+            })
+          ) {
+            detachChatLiveFollow();
+          }
+          syncChatFollowDiagnostics();
+        });
         return;
       }
 
@@ -2440,11 +2490,13 @@ export default function ChatClient({
     const onResize = () => {
       const next = resolveChatFollowResize({
         scrollY: window.scrollY,
+        maxScrollY: Math.max(0, document.documentElement.scrollHeight - window.innerHeight),
         followLatest: followStreamRef.current,
         manualDetached: userScrollLockRef.current,
         liveReadingActive: isChatLiveReadingActiveNow(),
       });
       lastFollowScrollYRef.current = next.scrollBaselineY;
+      lastFollowMaxScrollYRef.current = next.scrollBaselineMaxY;
       if (next.notifyFollowTarget) {
         notifyChatLiveFollowTargetUpdate();
       }

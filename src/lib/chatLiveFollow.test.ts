@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   CHAT_LIVE_FOLLOW_TARGET_RATIO,
   handleChatStreamLayoutGrowth,
+  isChatRootScrollGeometryClamp,
   isChatLiveReadingActive,
   resolveActiveAssistantStreamEnd,
   resolveChatFollowResize,
@@ -110,12 +111,14 @@ describe("chat live follow owner map", () => {
   it("P1 resize: geometry rebases baseline without mutating detach or reattach state", () => {
     const attached = resolveChatFollowResize({
       scrollY: 940,
+      maxScrollY: 940,
       followLatest: true,
       manualDetached: false,
       liveReadingActive: true,
     });
     assert.deepEqual(attached, {
       scrollBaselineY: 940,
+      scrollBaselineMaxY: 940,
       followLatest: true,
       manualDetached: false,
       notifyFollowTarget: true,
@@ -123,16 +126,48 @@ describe("chat live follow owner map", () => {
 
     const detached = resolveChatFollowResize({
       scrollY: 940,
+      maxScrollY: 940,
       followLatest: false,
       manualDetached: true,
       liveReadingActive: false,
     });
     assert.deepEqual(detached, {
       scrollBaselineY: 940,
+      scrollBaselineMaxY: 940,
       followLatest: false,
       manualDetached: true,
       notifyFollowTarget: false,
     });
+  });
+
+  it("P0 resize: root max-boundary clamp is geometry, not manual detach", () => {
+    assert.equal(
+      isChatRootScrollGeometryClamp({
+        previousScrollY: 1000,
+        previousMaxScrollY: 1000,
+        currentScrollY: 700,
+        currentMaxScrollY: 700,
+      }),
+      true
+    );
+    assert.equal(
+      isChatRootScrollGeometryClamp({
+        previousScrollY: 1000,
+        previousMaxScrollY: 1000,
+        currentScrollY: 880,
+        currentMaxScrollY: 1000,
+      }),
+      false
+    );
+    assert.equal(
+      isChatRootScrollGeometryClamp({
+        previousScrollY: 1000,
+        previousMaxScrollY: 1002,
+        currentScrollY: 820,
+        currentMaxScrollY: 900,
+      }),
+      false
+    );
   });
 
   it("P0-B: near-bottom geometry alone cannot reattach manual detach", () => {
