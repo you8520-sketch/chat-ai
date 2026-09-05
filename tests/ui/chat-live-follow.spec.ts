@@ -660,9 +660,12 @@ test.describe("General chat live reading follow — production browser", () => {
       { timeout: 45_000 }
     );
     await page.waitForTimeout(600);
+    await ensureExtraScrollRoom(page, 1200);
     await page.evaluate(() => {
-      window.scrollBy({ top: -120, behavior: "instant" });
+      window.scrollTo({ top: 500, behavior: "instant" });
     });
+    await page.waitForTimeout(50);
+    await page.evaluate(() => window.scrollBy({ top: -120, behavior: "instant" }));
     await page.waitForTimeout(150);
 
     const detached = await readChatDiagnostics(page);
@@ -692,9 +695,12 @@ test.describe("General chat live reading follow — production browser", () => {
       { timeout: 45_000 }
     );
     await page.waitForTimeout(600);
+    await ensureExtraScrollRoom(page, 1200);
     await page.evaluate(() => {
-      window.scrollBy({ top: -120, behavior: "instant" });
+      window.scrollTo({ top: 500, behavior: "instant" });
     });
+    await page.waitForTimeout(50);
+    await page.evaluate(() => window.scrollBy({ top: -120, behavior: "instant" }));
     await page.waitForTimeout(150);
 
     const detached = await readChatDiagnostics(page);
@@ -843,6 +849,8 @@ test.describe("General chat live reading follow — production browser", () => {
       manualDetached: false,
     });
 
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
     await sendMockMessage(page, "nested settings must not disable initial follow");
     await waitForNetworkDoneVisualRevealPending(page);
     await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
