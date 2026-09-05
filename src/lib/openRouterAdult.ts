@@ -68,7 +68,7 @@ import {
   trimTrailingVisibleSelfCritique,
 } from "@/lib/narrativeRules";
 import { parseCompatibleUsage, parseOpenRouterUsage, logOpenRouterUsageCacheDiagnostics, tokenUsageFromOpenRouterBreakdown } from "@/lib/openRouterUsage";
-import { mergeUsageReportingEvidence, stageUsageReportingEvidenceFromTokenUsage, unreportedUsageReportingEvidence } from "@/lib/usageReportingEvidence";
+import { stageUsageReportingEvidenceFromTokenUsage, unreportedUsageReportingEvidence } from "@/lib/usageReportingEvidence";
 import { logOpenRouterCacheStabilityCheck } from "@/lib/openRouterCacheStability";
 import { logCharsPerTokenDiagnostic, logBannedVerbCheck, logHanjaLeakCheck, logLengthDiagnosticV2 } from "@/lib/lengthDiagnosticV2";
 import {
@@ -82,7 +82,6 @@ import {
   formatHttpApiError,
   formatMissingApiKeyError,
   formatClientApiError,
-  parseOpenRouterAffordableMaxTokens,
 } from "@/lib/apiErrors";
 import {
   assertLengthSupplementApiAllowed,
@@ -319,60 +318,40 @@ function throwOpenRouterHttpError(res: Response, bodyText: string): never {
   });
 }
 
-/** 402 — max_tokens를 OpenRouter가 허용하는 상한으로 1회 재시도 */
-async function fetchOpenRouterChatWithCreditRetry(
+/**
+ * Strict Main RP single-attempt transport fetch: exactly one external HTTP
+ * request. HTTP errors (including 402 insufficient credits) are canonical
+ * failures — the generation terminates, no same-provider retry.
+ */
+async function fetchOpenRouterChatCompletion(
   url: string,
   headers: Record<string, string>,
   requestBody: Record<string, unknown>,
   timeoutMs: number
 ): Promise<Response> {
-  let body = requestBody;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    let res: Response;
-    try {
-      res = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-    } catch (e) {
-      const msg = (e as Error).message ?? String(e);
-      console.error("[OPENROUTER API ERROR]: network", msg, e);
-      throw new OpenRouterApiError({ message: `503 Service Unavailable: ${msg}` });
-    }
-
-    if (res.status === 402 && attempt === 0) {
-      const errText = await res.text();
-      const affordable = parseOpenRouterAffordableMaxTokens(errText);
-      const requested =
-        typeof body.max_tokens === "number" ? body.max_tokens : Number(body.max_tokens) || 0;
-      if (affordable != null && requested > affordable) {
-        console.warn("[OpenRouter] 402 — retrying with affordable max_tokens", {
-          requested,
-          affordable,
-        });
-        body = { ...body, max_tokens: affordable };
-        continue;
-      }
-      throwOpenRouterHttpError(
-        new Response(errText, { status: 402, statusText: res.statusText }),
-        errText
-      );
-    }
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throwOpenRouterHttpError(
-        new Response(errText, { status: res.status, statusText: res.statusText }),
-        errText
-      );
-    }
-
-    return res;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (e) {
+    const msg = (e as Error).message ?? String(e);
+    console.error("[OPENROUTER API ERROR]: network", msg, e);
+    throw new OpenRouterApiError({ message: `503 Service Unavailable: ${msg}` });
   }
 
-  throw new OpenRouterApiError({ message: "502 Bad Gateway: OpenRouter credit retry exhausted" });
+  if (!res.ok) {
+    const errText = await res.text();
+    throwOpenRouterHttpError(
+      new Response(errText, { status: res.status, statusText: res.statusText }),
+      errText
+    );
+  }
+
+  return res;
 }
 
 /** @deprecated OPENROUTER_NSFW_CORE 사용 */
@@ -589,11 +568,6 @@ export type OpenRouterMessageOpts = {
   requestKind?: string;
   /** Temporary GEMINI_TTFT_PHASE_AUDIT instrumentation (env-gated). */
   phaseAudit?: import("@/lib/turnPhaseLatencyAudit").TurnPhaseLatencyAudit | null;
-  /**
-   * Experiment harness — when false, do not issue a second non-stream call
-   * after an empty primary stream. Production default remains enabled.
-   */
-  allowEmptyStreamFallback?: boolean;
 };
 
 export type PrimaryTextStream = AsyncGenerator<string, TokenUsage>;
@@ -1055,19 +1029,6 @@ function streamContentToText(content: unknown): string {
   return "";
 }
 
-function isEmptyFinishRetryable(finishReason?: string): boolean {
-  const r = (finishReason ?? "").toLowerCase();
-  return r === "stop" || r === "end_turn" || !finishReason;
-}
-
-function shouldRetryEmptyStream(
-  emptyAttempt: number,
-  canRetryWithoutPrefill: boolean,
-  finishReason?: string
-): boolean {
-  return emptyAttempt < 1 && canRetryWithoutPrefill && isEmptyFinishRetryable(finishReason);
-}
-
 /** OpenRouter usage — @see parseOpenRouterUsage in openRouterUsage.ts */
 function extractOpenRouterStreamDelta(choice: {
   delta?: {
@@ -1297,11 +1258,6 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   const skipStreamGuards = false;
   const degenerationCtx = { oocHtmlMode };
 
-  const canRetryWithoutPrefill =
-    transport.provider === "openrouter" &&
-    isAnthropicModel(apiModelId) &&
-    !messageOpts?.recoveryAssistantPrefill?.trim() &&
-    !messageOpts?.skipAssistantPrefill;
   const deepSeekRouteKind = resolveDeepSeekFailoverRouteKind({
     modelId: apiModelId,
     adultHandoff: messageOpts?.deepSeekAdultHandoffTrueOff === true,
@@ -1312,21 +1268,11 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     isDeepSeekPrimaryCheaperInferenceModel(apiModelId) &&
     deepSeekRouteKind != null &&
     deepSeekLogical != null;
-  let deepSeekProviderAttempts = 0;
 
-  emptyStreamRetry:
-  for (let emptyAttempt = 0; emptyAttempt <= 1; emptyAttempt++) {
-    const skipAssistantPrefill =
-      messageOpts?.skipAssistantPrefill === true ||
-      (emptyAttempt > 0 && canRetryWithoutPrefill);
-
-    if (emptyAttempt > 0) {
-      console.warn("[OpenRouter] empty stop response — retrying stream", {
-        attempt: emptyAttempt + 1,
-        skipAssistantPrefill,
-        model: apiModelId,
-      });
-    }
+  // Strict Main RP single-attempt: exactly one provider request per generation.
+  // Empty/degenerate streams terminate the generation with canonical failure —
+  // no automatic second provider request (retry, repair, non-stream fallback).
+  const skipAssistantPrefill = messageOpts?.skipAssistantPrefill === true;
 
     // Claude(Anthropic): system 블록 캐싱 + assistant prefill (그 외 모델은 no-op)
     // Cheaper Inference Anthropic은 history cache breakpoint만 적용한다.
@@ -1374,9 +1320,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   const requestKind =
     debugMeta?.requestKind ?? `${transport.provider}-stream`;
   assertLengthSupplementApiAllowed(requestKind);
-  if (debugMeta?.chargeTurnBudget !== false && emptyAttempt === 0) {
-    debugMeta?.turnApiBudget?.beforeFetch(requestKind);
-  }
+  debugMeta?.turnApiBudget?.beforeFetch(requestKind);
   let res: Response;
   if (isMockApiMode()) {
     const { chars, tokens } = estimatePayloadFromBody(requestBody);
@@ -1415,7 +1359,6 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
           stream: true,
         });
         res = failover.response;
-        deepSeekProviderAttempts = failover.telemetry.provider_attempt_count;
       } catch (error) {
         if (error instanceof DeepSeekDeterministicProviderError) {
           throw new OpenRouterApiError({
@@ -1433,7 +1376,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       }
     } else {
       messageOpts?.phaseAudit?.mark("T10_PROVIDER_FETCH_START");
-      res = await fetchOpenRouterChatWithCreditRetry(
+      res = await fetchOpenRouterChatCompletion(
         transport.endpoint,
         transport.headers,
         requestBody as Record<string, unknown>,
@@ -1674,13 +1617,12 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     console.error("[OpenRouter] empty AI body (prefill-only or no stream)", {
       finishReason,
       prefillLen: prefill.length,
-      emptyAttempt,
       outputTokens,
     });
-    if (shouldRetryEmptyStream(emptyAttempt, canRetryWithoutPrefill, finishReason)) {
-      continue emptyStreamRetry;
-    }
-    break emptyStreamRetry;
+    throw new OpenRouterApiError({
+      message:
+        "502 Bad Gateway: OpenRouter returned empty response — 모델이 빈 답변을 반환했습니다. 잠시 후 다시 시도해 주세요.",
+    });
   }
 
   fullText = trimLoopTail(sanitizeStreamArtifacts(combinedText()));
@@ -1698,11 +1640,11 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   }
 
   if (!fullText.trim()) {
-    console.error("[OpenRouter] empty response", { finishReason, emptyAttempt, outputTokens });
-    if (shouldRetryEmptyStream(emptyAttempt, canRetryWithoutPrefill, finishReason)) {
-      continue emptyStreamRetry;
-    }
-    break emptyStreamRetry;
+    console.error("[OpenRouter] empty response", { finishReason, outputTokens });
+    throw new OpenRouterApiError({
+      message:
+        "502 Bad Gateway: OpenRouter returned empty response — 모델이 빈 답변을 반환했습니다. 잠시 후 다시 시도해 주세요.",
+    });
   }
 
   const usageBreakdown = parseCompatibleUsage({
@@ -1766,74 +1708,6 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     debugRawUsage: lastStreamUsage,
     ...(responseModelId ? { responseModelId } : {}),
     ...(providerRequestId ? { providerRequestId } : {}),
-  };
-  }
-
-  if (
-    messageOpts?.allowEmptyStreamFallback !== false &&
-    !useDeepSeekProviderFailover &&
-    deepSeekProviderAttempts < 2
-  ) {
-    try {
-      console.warn("[OpenRouter] empty stream — non-stream fallback", {
-        model: apiModelId,
-      });
-      const fallback = await callOpenRouterAdult(
-        system,
-        history,
-        modelId,
-        targetResponseChars,
-        { ...messageOpts, skipAssistantPrefill: true },
-        {
-          ...debugMeta,
-          requestKind: debugMeta?.requestKind ?? "openrouter-stream-fallback",
-          chargeTurnBudget: false,
-        }
-      );
-      const cleaned = trimLoopTail(sanitizeStreamArtifacts(fallback.text)).trim();
-      if (cleaned) {
-        yield cleaned;
-        return {
-          ...fallback.usage,
-          finishReason: fallback.usage.finishReason ?? "stop",
-          responseModelId: fallback.usage.responseModelId ?? apiModelId,
-        };
-      }
-    } catch (fallbackErr) {
-      console.error("[OpenRouter] non-stream fallback failed", (fallbackErr as Error).message);
-    }
-  }
-
-  throw new OpenRouterApiError({
-    message:
-      "502 Bad Gateway: OpenRouter returned empty response — 모델이 빈 답변을 반환했습니다. 잠시 후 다시 시도해 주세요.",
-  });
-}
-
-function mergeOpenRouterUsage(a: TokenUsage, b: TokenUsage): TokenUsage {
-  const primaryBillable = a.billableInputTokens ?? a.inputTokens;
-  const summedUpstream = (a.upstreamCostUsd ?? 0) + (b.upstreamCostUsd ?? 0);
-  const summedCacheDiscount = (a.cacheDiscountUsd ?? 0) + (b.cacheDiscountUsd ?? 0);
-  const mergedEvidence = mergeUsageReportingEvidence(a.usageReportingEvidence, b.usageReportingEvidence);
-  return {
-    inputTokens: primaryBillable,
-    billableInputTokens: primaryBillable,
-    apiReportedInputTokens:
-      (a.apiReportedInputTokens ?? a.inputTokens) + (b.apiReportedInputTokens ?? b.inputTokens),
-    outputTokens: a.outputTokens + b.outputTokens,
-    estimated: a.estimated || b.estimated,
-    finishReason: b.finishReason ?? a.finishReason,
-    ...((a.reasoningOutputTokens ?? 0) + (b.reasoningOutputTokens ?? 0) > 0
-      ? {
-          reasoningOutputTokens:
-            (a.reasoningOutputTokens ?? 0) + (b.reasoningOutputTokens ?? 0),
-        }
-      : {}),
-    cacheReadTokens: (a.cacheReadTokens ?? 0) + (b.cacheReadTokens ?? 0) || undefined,
-    cacheWriteTokens: (a.cacheWriteTokens ?? 0) + (b.cacheWriteTokens ?? 0) || undefined,
-    ...(summedUpstream > 0 ? { upstreamCostUsd: summedUpstream } : {}),
-    ...(summedCacheDiscount !== 0 ? { cacheDiscountUsd: summedCacheDiscount } : {}),
-    ...(mergedEvidence ? { usageReportingEvidence: mergedEvidence } : {}),
   };
 }
 
@@ -2343,21 +2217,12 @@ export async function callOpenRouterAdult(
   });
 
   const baseMessages = buildOpenRouterMessages(system, history, messageOpts);
-  const canRetryWithoutPrefill =
-    transport.provider === "openrouter" &&
-    isAnthropicModel(apiModelId) &&
-    !messageOpts?.recoveryAssistantPrefill?.trim() &&
-    !messageOpts?.skipAssistantPrefill;
 
-  for (let attempt = 0; attempt <= (canRetryWithoutPrefill ? 1 : 0); attempt++) {
-    const skipAssistantPrefill =
-      messageOpts?.skipAssistantPrefill === true || (attempt > 0 && canRetryWithoutPrefill);
-    if (attempt > 0) {
-      console.warn("[OpenRouter] empty generate — retry without prefill", {
-        attempt: attempt + 1,
-        model: apiModelId,
-      });
-    }
+  // Strict Main RP single-attempt invariant: exactly one external provider
+  // request per generation. The former Anthropic "empty generate — retry
+  // without prefill" loop was a latent second-external-request escape hatch;
+  // an empty completion now terminates the generation with canonical failure.
+  const skipAssistantPrefill = messageOpts?.skipAssistantPrefill === true;
 
     const { messages, prefill } = applyCacheAndPrefillForTransport(
       transport,
@@ -2412,9 +2277,7 @@ export async function callOpenRouterAdult(
       const requestKind =
         debugMeta?.requestKind ?? `${transport.provider}-generate`;
       assertLengthSupplementApiAllowed(requestKind);
-      if (debugMeta?.chargeTurnBudget !== false && attempt === 0) {
-        debugMeta?.turnApiBudget?.beforeFetch(requestKind);
-      }
+      debugMeta?.turnApiBudget?.beforeFetch(requestKind);
       const generateLogical = resolveDeepSeekLogicalModel(apiModelId);
       const generateRouteKind = resolveDeepSeekFailoverRouteKind({
         modelId: apiModelId,
@@ -2459,7 +2322,7 @@ export async function callOpenRouterAdult(
           throw error;
         }
       } else {
-        res = await fetchOpenRouterChatWithCreditRetry(
+        res = await fetchOpenRouterChatCompletion(
           transport.endpoint,
           transport.headers,
           requestBody as Record<string, unknown>,
@@ -2479,9 +2342,6 @@ export async function callOpenRouterAdult(
   const aiBody = aiBodyAfterPrefill(text, prefill).trim();
 
   if (!aiBody) {
-    if (shouldRetryEmptyStream(attempt, canRetryWithoutPrefill, finishReason)) {
-      continue;
-    }
     throw new OpenRouterApiError({
       message: `502 Bad Gateway: OpenRouter returned empty completion (finishReason=${finishReason ?? "unknown"})`,
     });
@@ -2524,9 +2384,4 @@ export async function callOpenRouterAdult(
   }
 
   return { text, usage };
-  }
-
-  throw new OpenRouterApiError({
-    message: "502 Bad Gateway: OpenRouter returned empty completion after retries",
-  });
 }

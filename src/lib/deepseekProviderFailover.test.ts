@@ -1,30 +1,36 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   OPENROUTER_GEMINI_31_FLASH_MODEL,
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL,
 } from "./chatModels";
 import {
   DEEPSEEK_TRANSIENT_HTTP_STATUSES,
   DeepSeekDeterministicProviderError,
   DeepSeekProviderFailoverError,
+  executeDeepSeekWithProviderFailover,
+  MAX_MAIN_RP_EXTERNAL_PROVIDER_ATTEMPTS,
   adaptOpenRouterDeepSeekBackupBody,
   classifyDeepSeekProviderFailure,
   createDeepSeekLogicalTurnLedger,
-  executeDeepSeekWithProviderFailover,
   extractVisibleAssistantDeltaFromSseJson,
   OPENROUTER_DEEPSEEK_TRUE_OFF_REASONING,
   resolveDeepSeekBackupModelId,
   resolveDeepSeekFailoverRouteKind,
   type DeepSeekAssembledRequest,
   type DeepSeekFailoverTelemetry,
+  type DeepSeekRouteKind,
 } from "./deepseekProviderFailover";
 
 const CI_URL = "https://api.cheaperinference.com/v1/chat/completions";
-const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
 const encoder = new TextEncoder();
 
 function sseChunk(json: unknown): Uint8Array {
@@ -147,6 +153,23 @@ async function runStream(opts: {
   }
 }
 
+async function runStreamExpectFailoverError(opts: {
+  logical: "pro" | "flash";
+  routeKind?: "native_pro" | "native_flash" | "adult_handoff";
+  fetchFn: typeof fetch;
+  deadlines?: { headersMs?: number; firstVisibleMs?: number; backupFirstVisibleMs?: number };
+}): Promise<{ telemetry: DeepSeekFailoverTelemetry }> {
+  try {
+    await runStream(opts);
+  } catch (error) {
+    assert.ok(error instanceof DeepSeekProviderFailoverError);
+    const failoverError = error as DeepSeekProviderFailoverError;
+    assert.equal(failoverError.providerAttemptCount, 1);
+    return { telemetry: failoverError.telemetry };
+  }
+  assert.fail("expected DeepSeekProviderFailoverError");
+}
+
 describe("DeepSeek cross-provider failover owner", () => {
   it("maps dated backup slugs only", () => {
     assert.equal(
@@ -221,84 +244,83 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.match(result.text, /안녕/);
   });
 
-  it("P2 native Pro UND_ERR_SOCKET before headers → OR Pro exactly 1", async () => {
+  it("P2 native Pro UND_ERR_SOCKET before headers → strict single external attempt", async () => {
     let calls = 0;
-    const result = await runStream({
-      logical: "pro",
-      fetchFn: async () => {
-        calls += 1;
-        if (calls === 1) {
-          const err = new Error("UND_ERR_SOCKET");
-          err.name = "UND_ERR_SOCKET";
-          throw err;
-        }
-        return sseResponse([{ choices: [{ delta: { content: "구조" } }] }]);
-      },
-    });
-    assert.deepEqual(result.urls, [CI_URL, OR_URL]);
-    assert.deepEqual(result.models, [
-      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-      OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL,
-    ]);
-    assert.equal(result.telemetry.provider_attempt_count, 2);
-    assert.equal(result.telemetry.backup_success, true);
-    assert.equal(result.telemetry.failover_trigger, "error");
-    assert.match(result.text, /구조/);
+    await assert.rejects(
+      () =>
+        runStream({
+          logical: "pro",
+          fetchFn: async () => {
+            calls += 1;
+            const err = new Error("UND_ERR_SOCKET");
+            err.name = "UND_ERR_SOCKET";
+            throw err;
+          },
+        }),
+      (error: unknown) => {
+        assert.ok(error instanceof DeepSeekProviderFailoverError);
+        assert.equal(error.providerAttemptCount, 1);
+        return true;
+      }
+    );
+    assert.equal(calls, 1);
   });
 
-  it("P3 native Pro 502 → OR Pro exactly 1", async () => {
+  it("P3 native Pro 502 → strict single external attempt, no backup request", async () => {
     let calls = 0;
-    const result = await runStream({
+    const result = await runStreamExpectFailoverError({
       logical: "pro",
       fetchFn: async () => {
         calls += 1;
-        if (calls === 1) return new Response("bad gateway", { status: 502 });
-        return sseResponse([{ choices: [{ delta: { content: "백업" } }] }]);
+        return new Response("bad gateway", { status: 502 });
       },
     });
     assert.equal(result.telemetry.primary_http_status, 502);
-    assert.equal(result.telemetry.provider_attempt_count, 2);
-    assert.deepEqual(result.models[1], OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL);
+    assert.equal(result.telemetry.primary_failure_class, "http_502");
+    assert.equal(result.telemetry.provider_attempt_count, 1);
+    assert.equal(result.telemetry.backup_success, false);
+    assert.equal(result.telemetry.failover_trigger, null);
+    assert.equal(calls, 1);
   });
 
-  it("P4 native Pro no headers for deadline → primary abort → OR Pro 1", async () => {
+  it("P4 native Pro no headers for deadline → strict single external attempt", async () => {
     let calls = 0;
-    const result = await runStream({
+    const result = await runStreamExpectFailoverError({
       logical: "pro",
       deadlines: { headersMs: 25, firstVisibleMs: 80, backupFirstVisibleMs: 80 },
       fetchFn: async (input, init) => {
         calls += 1;
-        if (calls === 1) return hangUntilAbort(input, init);
-        return sseResponse([{ choices: [{ delta: { content: "헤더구조" } }] }]);
+        return hangUntilAbort(input, init);
       },
     });
-    assert.equal(result.telemetry.failover_trigger, "headers_timeout");
-    assert.equal(result.telemetry.provider_attempt_count, 2);
-    assert.equal(result.models[1], OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL);
+    assert.equal(result.telemetry.primary_failure_class, "headers_timeout");
+    assert.equal(result.telemetry.provider_attempt_count, 1);
+    assert.equal(result.telemetry.backup_success, false);
+    assert.equal(result.telemetry.failover_trigger, null);
+    assert.equal(calls, 1);
   });
 
-  it("P5 native Pro headers but no visible text by deadline → OR Pro 1", async () => {
+  it("P5 native Pro headers but no visible text by deadline → strict single external attempt", async () => {
     let calls = 0;
-    const result = await runStream({
+    const result = await runStreamExpectFailoverError({
       logical: "pro",
       deadlines: { headersMs: 80, firstVisibleMs: 30, backupFirstVisibleMs: 80 },
       fetchFn: async () => {
         calls += 1;
-        if (calls === 1) {
-          return sseResponse(
-            [
-              { choices: [{ delta: { reasoning: "hidden" } }] },
-              { usage: { prompt_tokens: 1 } },
-            ],
-            { hang: true }
-          );
-        }
-        return sseResponse([{ choices: [{ delta: { content: "가시" } }] }]);
+        return sseResponse(
+          [
+            { choices: [{ delta: { reasoning: "hidden" } }] },
+            { usage: { prompt_tokens: 1 } },
+          ],
+          { hang: true }
+        );
       },
     });
-    assert.equal(result.telemetry.failover_trigger, "first_visible_timeout");
-    assert.equal(result.models[1], OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL);
-    assert.match(result.text, /가시/);
+    assert.equal(result.telemetry.primary_failure_class, "first_visible_timeout");
+    assert.equal(result.telemetry.provider_attempt_count, 1);
+    assert.equal(result.telemetry.backup_success, false);
+    assert.equal(result.telemetry.failover_trigger, null);
+    assert.equal(calls, 1);
   });
 
   it("P6 native Pro one visible char then socket close → OR calls 0", async () => {
@@ -322,49 +344,47 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.equal(result.urls.length, 1);
   });
 
-  it("F2 Flash UND_ERR_SOCKET pre-visible → OR Flash0731 exactly 1", async () => {
+  it("F2 Flash UND_ERR_SOCKET pre-visible → strict single external attempt", async () => {
     let calls = 0;
-    const result = await runStream({
+    const result = await runStreamExpectFailoverError({
       logical: "flash",
       fetchFn: async () => {
         calls += 1;
-        if (calls === 1) throw new Error("fetch failed");
-        return sseResponse([{ choices: [{ delta: { content: "플백업" } }] }]);
+        throw new Error("fetch failed");
       },
     });
-    assert.deepEqual(result.models, [
-      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-      OPENROUTER_GEMINI_31_FLASH_MODEL,
-    ]);
+    assert.equal(result.telemetry.provider_attempt_count, 1);
+    assert.equal(result.telemetry.backup_success, false);
+    assert.equal(calls, 1);
   });
 
-  it("F3 Flash 503 → OR Flash0731 exactly 1", async () => {
+  it("F3 Flash 503 → strict single external attempt", async () => {
     let calls = 0;
-    const result = await runStream({
+    const result = await runStreamExpectFailoverError({
       logical: "flash",
       fetchFn: async () => {
         calls += 1;
-        if (calls === 1) return new Response("busy", { status: 503 });
-        return sseResponse([{ choices: [{ delta: { content: "ok" } }] }]);
+        return new Response("busy", { status: 503 });
       },
     });
     assert.equal(result.telemetry.primary_http_status, 503);
-    assert.equal(result.models[1], OPENROUTER_GEMINI_31_FLASH_MODEL);
+    assert.equal(result.telemetry.provider_attempt_count, 1);
+    assert.equal(calls, 1);
   });
 
-  it("F4 Flash first-visible deadline → OR Gemini Flash-Lite 1", async () => {
+  it("F4 Flash first-visible deadline → strict single external attempt", async () => {
     let calls = 0;
-    const result = await runStream({
+    const result = await runStreamExpectFailoverError({
       logical: "flash",
       deadlines: { headersMs: 80, firstVisibleMs: 25, backupFirstVisibleMs: 80 },
       fetchFn: async () => {
         calls += 1;
-        if (calls === 1) return sseResponse([], { hang: true });
-        return sseResponse([{ choices: [{ delta: { content: "flash-rescue" } }] }]);
+        return sseResponse([], { hang: true });
       },
     });
-    assert.equal(result.telemetry.failover_trigger, "first_visible_timeout");
-    assert.equal(result.models[1], OPENROUTER_GEMINI_31_FLASH_MODEL);
+    assert.equal(result.telemetry.primary_failure_class, "first_visible_timeout");
+    assert.equal(result.telemetry.provider_attempt_count, 1);
+    assert.equal(calls, 1);
   });
 
   it("F5 Flash partial visible then failure → OR calls 0", async () => {
@@ -387,52 +407,48 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.equal(result.urls.length, 1);
   });
 
-  it("A3 Gemini refusal + CI pre-visible socket failure → OR Pro0813 1", async () => {
+  it("A3 Gemini refusal + CI pre-visible socket failure → strict single external attempt", async () => {
     let calls = 0;
-    const result = await runStream({
+    const result = await runStreamExpectFailoverError({
       logical: "pro",
       routeKind: "adult_handoff",
       fetchFn: async () => {
         calls += 1;
-        if (calls === 1) throw new Error("ECONNRESET");
-        return sseResponse([{ choices: [{ delta: { content: "핸드오프" } }] }]);
+        throw new Error("ECONNRESET");
       },
     });
     assert.equal(result.telemetry.route_kind, "adult_handoff");
-    assert.equal(result.models[1], OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL);
+    assert.equal(result.telemetry.provider_attempt_count, 1);
+    assert.equal(calls, 1);
   });
 
-  it("A4 Gemini refusal + CI first-visible timeout → OR Pro0813 1", async () => {
+  it("A4 Gemini refusal + CI first-visible timeout → strict single external attempt", async () => {
     let calls = 0;
-    const result = await runStream({
+    const result = await runStreamExpectFailoverError({
       logical: "pro",
       routeKind: "adult_handoff",
       deadlines: { headersMs: 80, firstVisibleMs: 25, backupFirstVisibleMs: 80 },
       fetchFn: async () => {
         calls += 1;
-        if (calls === 1) {
-          return sseResponse([{ choices: [{ delta: { reasoning_content: "x" } }] }], {
-            hang: true,
-          });
-        }
-        return sseResponse([{ choices: [{ delta: { content: "이어쓰기" } }] }]);
+        return sseResponse([{ choices: [{ delta: { reasoning_content: "x" } }] }], {
+          hang: true,
+        });
       },
     });
-    assert.equal(result.models[1], OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL);
+    assert.equal(result.telemetry.route_kind, "adult_handoff");
+    assert.equal(result.telemetry.primary_failure_class, "first_visible_timeout");
+    assert.equal(result.telemetry.provider_attempt_count, 1);
+    assert.equal(calls, 1);
   });
 
-  it("A5 successful OR rescue is not sticky on the next turn", async () => {
+  it("A5 strict attempts are not sticky across independent executes", async () => {
     const starts: string[] = [];
     for (let i = 0; i < 2; i += 1) {
-      let calls = 0;
       const result = await runStream({
         logical: "pro",
         routeKind: "adult_handoff",
-        fetchFn: async () => {
-          calls += 1;
-          if (calls === 1) throw new Error("socket hang up");
-          return sseResponse([{ choices: [{ delta: { content: `턴${i}` } }] }]);
-        },
+        fetchFn: async () =>
+          sseResponse([{ choices: [{ delta: { content: `턴${i}` } }] }]),
       });
       starts.push(result.urls[0]!);
       assert.equal(result.models[0], CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
@@ -463,7 +479,7 @@ describe("DeepSeek cross-provider failover owner", () => {
     }
   });
 
-  it("E5 CI fail + OR fail → attempts 2, no third call, retryable", async () => {
+  it("E5 CI fail → strict single external attempt, no second call, retryable", async () => {
     let calls = 0;
     await assert.rejects(
       () =>
@@ -477,24 +493,31 @@ describe("DeepSeek cross-provider failover owner", () => {
       (error: unknown) => {
         assert.ok(error instanceof DeepSeekProviderFailoverError);
         assert.equal(error.retryable, true);
-        assert.equal(error.providerAttemptCount, 2);
+        assert.equal(error.providerAttemptCount, 1);
         return true;
       }
     );
-    assert.equal(calls, 2);
+    assert.equal(calls, 1);
   });
 
-  it("S1 primary fail + OR success is a single logical turn", async () => {
+  it("S1 strict single attempt — one logical turn with exactly one external request", async () => {
     const ledger = createDeepSeekLogicalTurnLedger();
-    const result = await runStream({
-      logical: "pro",
-      fetchFn: async (input) => {
-        if (String(input).includes("cheaperinference")) {
-          return new Response("down", { status: 504 });
-        }
-        return sseResponse([{ choices: [{ delta: { content: "한줄" } }] }]);
-      },
-    });
+    let calls = 0;
+    await assert.rejects(
+      () =>
+        runStream({
+          logical: "pro",
+          fetchFn: async () => {
+            calls += 1;
+            return new Response("down", { status: 504 });
+          },
+        }),
+      (error: unknown) => {
+        assert.ok(error instanceof DeepSeekProviderFailoverError);
+        assert.equal(error.telemetry.provider_attempt_count, 1);
+        return true;
+      }
+    );
     ledger.commitVisibleAssistant();
     ledger.commitBilling();
     ledger.commitMemory();
@@ -507,22 +530,17 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.equal(ledger.state.memoryCommits, 1);
     assert.equal(ledger.state.summaryTurnIncrements, 1);
     assert.equal(ledger.state.statusWidgetCommits, 1);
-    assert.equal(result.telemetry.provider_attempt_count, 2);
-    assert.equal((result.text.match(/한줄/g) ?? []).length, 1);
+    assert.equal(calls, 1);
   });
 
-  it("S2 does not duplicate stream chunks across the provider boundary", async () => {
+  it("S2 does not duplicate visible stream content on success", async () => {
     const result = await runStream({
       logical: "pro",
-      fetchFn: async (input) => {
-        if (String(input).includes("cheaperinference")) {
-          throw new Error("UND_ERR_SOCKET");
-        }
-        return sseResponse([
+      fetchFn: async () =>
+        sseResponse([
           { choices: [{ delta: { content: "유일한" } }] },
           { choices: [{ delta: { content: "응답" } }] },
-        ]);
-      },
+        ]),
     });
     assert.equal((result.text.match(/유일한/g) ?? []).length, 1);
     assert.equal((result.text.match(/응답/g) ?? []).length, 1);
@@ -588,11 +606,10 @@ describe("DeepSeek cross-provider failover owner", () => {
   });
 
   it("does not persist provider stickiness between independent executes", async () => {
-    const first = await runStream({
+    await runStreamExpectFailoverError({
       logical: "flash",
-      fetchFn: async (input) => {
-        if (String(input).includes("cheaperinference")) throw new Error("fetch failed");
-        return sseResponse([{ choices: [{ delta: { content: "1" } }] }]);
+      fetchFn: async () => {
+        throw new Error("fetch failed");
       },
     });
     const second = await runStream({
@@ -600,64 +617,47 @@ describe("DeepSeek cross-provider failover owner", () => {
       fetchFn: async () =>
         sseResponse([{ choices: [{ delta: { content: "2" } }] }]),
     });
-    assert.equal(first.urls[0], CI_URL);
     assert.equal(second.urls[0], CI_URL);
     assert.equal(second.urls.length, 1);
   });
 });
 
-describe("F500 Cheaper Inference HTTP 500 immediate OpenRouter", () => {
-  it("F500-1 CI Pro 0813 HTTP 500 → OR Pro 0813 exactly once", async () => {
-    const started = Date.now();
+describe("F500 Cheaper Inference strict single external attempt", () => {
+  it("F500-1 CI Pro 0813 HTTP 500 → canonical failure, exactly one external request", async () => {
     let calls = 0;
-    const result = await runStream({
+    const result = await runStreamExpectFailoverError({
       logical: "pro",
       routeKind: "adult_handoff",
       deadlines: { headersMs: 8_000, firstVisibleMs: 12_000, backupFirstVisibleMs: 80 },
       fetchFn: async () => {
         calls += 1;
-        if (calls === 1) return new Response("internal", { status: 500 });
-        return sseResponse([{ choices: [{ delta: { content: "구조500" } }] }]);
+        return new Response("internal", { status: 500 });
       },
     });
-    assert.ok(Date.now() - started < 1_000, "HTTP 500 must fail over immediately");
-    assert.equal(calls, 2);
-    assert.deepEqual(result.urls, [CI_URL, OR_URL]);
-    assert.deepEqual(result.models, [
-      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-      OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL,
-    ]);
+    assert.equal(calls, 1);
     assert.equal(result.telemetry.primary_http_status, 500);
     assert.equal(result.telemetry.primary_failure_class, "http_500");
-    assert.equal(result.telemetry.failover_trigger, "error");
-    assert.equal(result.telemetry.provider_attempt_count, 2);
-    assert.equal(result.telemetry.backup_success, true);
-    assert.match(result.text, /구조500/);
+    assert.equal(result.telemetry.failover_trigger, null);
+    assert.equal(result.telemetry.provider_attempt_count, 1);
+    assert.equal(result.telemetry.backup_success, false);
   });
 
-  it("F500-2 CI Flash 0731 HTTP 500 → OR Flash 0731 exactly once", async () => {
+  it("F500-2 CI Flash 0731 HTTP 500 → canonical failure, exactly one external request", async () => {
     let calls = 0;
-    const result = await runStream({
+    const result = await runStreamExpectFailoverError({
       logical: "flash",
       fetchFn: async () => {
         calls += 1;
-        if (calls === 1) return new Response("internal", { status: 500 });
-        return sseResponse([{ choices: [{ delta: { content: "플래시500" } }] }]);
+        return new Response("internal", { status: 500 });
       },
     });
-    assert.equal(calls, 2);
-    assert.deepEqual(result.models, [
-      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-      OPENROUTER_GEMINI_31_FLASH_MODEL,
-    ]);
+    assert.equal(calls, 1);
     assert.equal(result.telemetry.primary_http_status, 500);
     assert.equal(result.telemetry.primary_failure_class, "http_500");
-    assert.equal(result.telemetry.failover_trigger, "error");
-    assert.equal(result.telemetry.backup_success, true);
-    assert.match(result.text, /플래시500/);
+    assert.equal(result.telemetry.backup_success, false);
   });
 
-  it("F500-4 CI 500 + OR also fails → attempts 2, no third call", async () => {
+  it("F500-4 CI 500 → no second external call ever", async () => {
     let calls = 0;
     await assert.rejects(
       () =>
@@ -670,11 +670,11 @@ describe("F500 Cheaper Inference HTTP 500 immediate OpenRouter", () => {
         }),
       (error: unknown) => {
         assert.ok(error instanceof DeepSeekProviderFailoverError);
-        assert.equal(error.providerAttemptCount, 2);
+        assert.equal(error.providerAttemptCount, 1);
         return true;
       }
     );
-    assert.equal(calls, 2);
+    assert.equal(calls, 1);
   });
 
   it("F500-5 400/401/403/404/422 → OR calls 0", async () => {
@@ -700,59 +700,53 @@ describe("F500 Cheaper Inference HTTP 500 immediate OpenRouter", () => {
     }
   });
 
-  it("F500-6 502/503/504 existing immediate OpenRouter unchanged", async () => {
+  it("F500-6 502/503/504 → canonical failure on the primary attempt", async () => {
     for (const status of [502, 503, 504]) {
       let calls = 0;
-      const result = await runStream({
+      const result = await runStreamExpectFailoverError({
         logical: "pro",
         fetchFn: async () => {
           calls += 1;
-          if (calls === 1) return new Response("down", { status });
-          return sseResponse([{ choices: [{ delta: { content: `ok${status}` } }] }]);
+          return new Response("down", { status });
         },
       });
-      assert.equal(calls, 2);
+      assert.equal(calls, 1);
       assert.equal(result.telemetry.primary_http_status, status);
-      assert.equal(result.telemetry.failover_trigger, "error");
-      assert.equal(result.models[1], OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL);
+      assert.equal(result.telemetry.failover_trigger, null);
     }
   });
 
-  it("F500-7 headers timeout 8s owner still fails over once", async () => {
+  it("F500-7 headers timeout 8s owner → strict single external attempt", async () => {
     let calls = 0;
-    const result = await runStream({
+    const result = await runStreamExpectFailoverError({
       logical: "pro",
       deadlines: { headersMs: 25, firstVisibleMs: 80, backupFirstVisibleMs: 80 },
       fetchFn: async (input, init) => {
         calls += 1;
-        if (calls === 1) return hangUntilAbort(input, init);
-        return sseResponse([{ choices: [{ delta: { content: "헤더유지" } }] }]);
+        return hangUntilAbort(input, init);
       },
     });
-    assert.equal(result.telemetry.failover_trigger, "headers_timeout");
-    assert.equal(result.telemetry.provider_attempt_count, 2);
-    assert.equal(result.models[1], OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL);
+    assert.equal(result.telemetry.primary_failure_class, "headers_timeout");
+    assert.equal(result.telemetry.provider_attempt_count, 1);
+    assert.equal(calls, 1);
   });
 
-  it("F500-8 first-visible timeout 12s owner still fails over once", async () => {
+  it("F500-8 first-visible timeout 12s owner → strict single external attempt", async () => {
     let calls = 0;
-    const result = await runStream({
+    const result = await runStreamExpectFailoverError({
       logical: "pro",
       deadlines: { headersMs: 80, firstVisibleMs: 30, backupFirstVisibleMs: 80 },
       fetchFn: async () => {
         calls += 1;
-        if (calls === 1) {
-          return sseResponse(
-            [{ choices: [{ delta: { reasoning: "hidden" } }] }],
-            { hang: true }
-          );
-        }
-        return sseResponse([{ choices: [{ delta: { content: "가시유지" } }] }]);
+        return sseResponse(
+          [{ choices: [{ delta: { reasoning: "hidden" } }] }],
+          { hang: true }
+        );
       },
     });
-    assert.equal(result.telemetry.failover_trigger, "first_visible_timeout");
-    assert.equal(result.models[1], OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL);
-    assert.match(result.text, /가시유지/);
+    assert.equal(result.telemetry.primary_failure_class, "first_visible_timeout");
+    assert.equal(result.telemetry.provider_attempt_count, 1);
+    assert.equal(calls, 1);
   });
 
   it("F500-9 after visible assistant text → no OR duplicate", async () => {
@@ -766,5 +760,59 @@ describe("F500 Cheaper Inference HTTP 500 immediate OpenRouter", () => {
     assert.equal(result.telemetry.provider_attempt_count, 1);
     assert.equal(result.telemetry.failover_trigger, null);
     assert.equal((result.text.match(/이미보임/g) ?? []).length, 1);
+  });
+});
+
+describe("P0 strict Main RP external-attempt invariant", () => {
+  it("D — Main RP cap constant is exactly one external provider request", () => {
+    assert.equal(MAX_MAIN_RP_EXTERNAL_PROVIDER_ATTEMPTS, 1);
+  });
+
+  it("D — non-DeepSeek models never enter the DeepSeek failover owner", () => {
+    for (const modelId of [
+      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+      CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+      CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      OPENROUTER_GEMINI_36_FLASH_MODEL,
+      "anthropic/claude-opus-4.5",
+    ]) {
+      assert.equal(resolveDeepSeekFailoverRouteKind({ modelId }), null);
+    }
+  });
+
+  it("D — background_flash keeps the single backup attempt; Main RP kinds do not", async () => {
+    const attempt = async (routeKind: DeepSeekRouteKind) => {
+      let calls = 0;
+      await assert.rejects(
+        () =>
+          executeDeepSeekWithProviderFailover({
+            routeKind,
+            logicalModel: "pro",
+            primary: requestFor(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
+            backupBody: adaptOpenRouterDeepSeekBackupBody(
+              primaryBody(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
+              resolveDeepSeekBackupModelId("pro")
+            ),
+            stream: false,
+            deadlines: { completionMs: 60, headersMs: 60, backupCompletionMs: 60 },
+            hooks: {
+              fetchFn: (async () => {
+                calls += 1;
+                throw new Error("ETIMEDOUT");
+              }) as typeof fetch,
+            },
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof DeepSeekProviderFailoverError);
+          return true;
+        }
+      );
+      return calls;
+    };
+    for (const kind of ["native_pro", "native_flash", "adult_handoff"] as const) {
+      assert.equal(await attempt(kind), 1, `${kind} must not issue a second external request`);
+    }
   });
 });

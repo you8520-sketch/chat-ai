@@ -24,8 +24,19 @@ export const CHEAPER_INFERENCE_HEADERS_DEADLINE_MS = 8_000;
 export const CHEAPER_INFERENCE_FIRST_VISIBLE_DEADLINE_MS = 12_000;
 export const OPENROUTER_FIRST_VISIBLE_DEADLINE_MS = 15_000;
 export const BACKGROUND_FLASH_COMPLETION_DEADLINE_MS = 20_000;
-export const MAX_PROVIDER_ATTEMPTS_PER_LOGICAL_DEEPSEEK_TURN = 2;
-export const MAX_PROVIDER_ATTEMPTS_PER_BACKGROUND_TASK = 2;
+
+/**
+ * Strict Main RP invariant: ONE Main RP generation = ONE external provider
+ * request. The primary provider outcome (success or failure) is final —
+ * automatic retry / repair / same-provider retry / alternate-provider
+ * failover are all forbidden for Main RP route kinds.
+ *
+ * Only background/auxiliary DeepSeek tasks (route_kind="background_flash")
+ * may fail over once to OpenRouter (2 physical attempts), because they are
+ * a separate auxiliary responsibility, not the user-facing Main RP turn.
+ */
+export const MAX_MAIN_RP_EXTERNAL_PROVIDER_ATTEMPTS = 1;
+export const MAX_BACKGROUND_FLASH_PROVIDER_ATTEMPTS = 2;
 
 export const BACKGROUND_PRIMARY_COMPLETION_MS = {
   short: 20_000,
@@ -501,6 +512,14 @@ export function logDeepSeekFailoverTelemetry(
   });
 }
 
+/**
+ * Execute one DeepSeek logical provider call.
+ *
+ * Main RP route kinds (adult_handoff, native_pro, native_flash) are strict:
+ * exactly ONE external HTTP provider request — on failure the generation
+ * terminates with canonical failure semantics and no second external request.
+ * Only "background_flash" is allowed the single OpenRouter backup attempt.
+ */
 export async function executeDeepSeekWithProviderFailover(opts: {
   routeKind: DeepSeekRouteKind;
   logicalModel: DeepSeekLogicalModel;
@@ -515,6 +534,7 @@ export async function executeDeepSeekWithProviderFailover(opts: {
   usedProvider: DeepSeekProviderId;
 }> {
   const logicalModelId = resolveDeepSeekPrimaryModelId(opts.logicalModel);
+  const backupAllowed = opts.routeKind === "background_flash";
   const telemetry: DeepSeekFailoverTelemetry = {
     logical_model: logicalModelId,
     route_kind: opts.routeKind,
@@ -595,6 +615,23 @@ export async function executeDeepSeekWithProviderFailover(opts: {
     telemetry: DeepSeekFailoverTelemetry;
     usedProvider: DeepSeekProviderId;
   }> => {
+    if (!backupAllowed) {
+      // Strict Main RP single-external-attempt: the primary outcome is final.
+      // No automatic retry / repair / same-provider retry / alternate-provider
+      // failover — reuse canonical failure semantics (DeepSeekProviderFailover
+      // Error → OpenRouterApiError → failed assistant persistence, no
+      // settlement).
+      finishPrimaryAttempt(false, telemetry.primary_http_status);
+      telemetry.failover_trigger = null;
+      telemetry.backup_success = false;
+      logDeepSeekFailoverTelemetry(telemetry);
+      opts.hooks?.onTelemetry?.(telemetry);
+      throw new DeepSeekProviderFailoverError({
+        message: telemetry.primary_failure_class ?? "deepseek_primary_failed",
+        retryable: true,
+        telemetry,
+      });
+    }
     finishPrimaryAttempt(false, telemetry.primary_http_status);
     opts.hooks?.onPhysicalAttemptStart?.({
       physicalAttemptOrdinal: 2,
@@ -772,6 +809,7 @@ export async function fetchDeepSeekNonStreamCompletion(opts: {
   return { response, latencyMs: Math.max(0, now() - startedAt) };
 }
 
+/** Background/auxiliary wrapper — keeps the single OpenRouter backup attempt. */
 export async function executeDeepSeekBackgroundWithProviderFailover(opts: {
   routeKind?: DeepSeekRouteKind;
   logicalModel?: DeepSeekLogicalModel;
