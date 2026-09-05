@@ -151,7 +151,7 @@ export function buildChatComicImagePrompt(opts: {
       ? "Draw natural white manga/manhwa speech balloons with black outlines. Place them in visually appropriate negative space. Their tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text. Render no readable letters, dialogue, captions, placeholder words, random symbols or gibberish inside speech balloons."
       : compositionMode === "overlay_first"
         ? "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay."
-        : "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page and do not repeat the same composition in every panel. Readable, visually integrated Korean text is required — imperfect typography is acceptable, but text must be legible and belong to the comic.";
+        : "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page and do not repeat the same composition in every panel. Readable, visually integrated Korean text is required — imperfect typography is acceptable, but text must be legible and belong to the comic. Use narration sparingly — include only very short time-ordered narration boxes for crucial transitions, never long prose paragraphs.";
   const panelSpecSection =
     compositionMode === "full_provider_rendered"
       ? buildChatComicPanelSpecFullProviderSection({
