@@ -97,6 +97,80 @@ export type AdminBillingReceiptV3 = {
   forensic?: AdminBillingForensicMetadata;
 };
 
+/**
+ * Main RP model identity — canonical stored-evidence resolution.
+ *
+ * Sources (scoped per generation by the receipt assembly):
+ *  - syncReceipt.userCharge.selectedModelLabel — human-readable selected label
+ *  - syncReceipt.userCharge.billingModelId — delivered billing model id when
+ *    the handoff identity differs from the selected model
+ *  - syncReceipt.mainRp.actual.model — actual delivered model id
+ *
+ * Rules:
+ *  - selected == delivered  → `Main RP 모델: <selectedModelLabel>`
+ *  - selected != delivered  → `선택 모델: <selected>` + `실제 처리 모델: <delivered>`
+ *  - no usable stored evidence → `Main RP 모델: 확인 불가` (no guess / fallback /
+ *    current-selection inference). A failed generation without its own stored
+ *    Usage snapshot must never inherit a prior generation's model.
+ */
+export type AdminBillingReceiptV3MainRpModelIdentity =
+  | { kind: "same"; selectedModelLabel: string }
+  | { kind: "different"; selectedModelLabel: string; deliveredModel: string }
+  | { kind: "unverified" };
+
+export function resolveAdminBillingReceiptV3MainRpModelIdentity(
+  receipt: AdminBillingReceiptV3
+): AdminBillingReceiptV3MainRpModelIdentity {
+  const sync = receipt.syncReceipt;
+  if (!sync) return { kind: "unverified" };
+
+  const selectedModelLabel = sync.userCharge.selectedModelLabel?.trim() || "";
+  const billingModelId = sync.userCharge.billingModelId?.trim() || "";
+  const mainActualModel = sync.mainRp?.actual?.model?.trim() || "";
+
+  // Delivered identity from stored evidence only — never inferred from the
+  // current selection or another generation.
+  const deliveredModel = mainActualModel || billingModelId || "";
+
+  if (!selectedModelLabel && !deliveredModel) return { kind: "unverified" };
+  // Without a stored delivered-model identity we cannot prove same/different.
+  if (!deliveredModel) return { kind: "unverified" };
+
+  // billingModelId is stored by the V2 builder only when the delivered billing
+  // model differs from the selected model — canonical mismatch signal.
+  if (billingModelId) {
+    return {
+      kind: "different",
+      selectedModelLabel: selectedModelLabel || deliveredModel,
+      deliveredModel,
+    };
+  }
+  return {
+    kind: "same",
+    selectedModelLabel: selectedModelLabel || deliveredModel,
+  };
+}
+
+export function formatAdminBillingReceiptV3MainRpModelLines(
+  identity: AdminBillingReceiptV3MainRpModelIdentity
+): string[] {
+  switch (identity.kind) {
+    case "same":
+      return [`Main RP 모델: ${identity.selectedModelLabel}`];
+    case "different":
+      return [
+        `선택 모델: ${identity.selectedModelLabel}`,
+        `실제 처리 모델: ${identity.deliveredModel}`,
+      ];
+    case "unverified":
+      return ["Main RP 모델: 확인 불가"];
+    default: {
+      const _exhaustive: never = identity;
+      return _exhaustive;
+    }
+  }
+}
+
 export function wholeTurnCoverageLabel(
   coverage: AdminBillingReceiptV3WholeTurnCoverage
 ): string {
@@ -123,8 +197,10 @@ export function formatAdminBillingReceiptV3Text(receipt: AdminBillingReceiptV3):
     const krw = formatAdminKrwFromUsd(usd, fxRate);
     return krw == null ? "" : ` (${krw})`;
   };
+  const mainRpModelIdentity = resolveAdminBillingReceiptV3MainRpModelIdentity(receipt);
   const lines: string[] = [
     "Admin Receipt v3 · 턴 귀속 Provider 원가",
+    ...formatAdminBillingReceiptV3MainRpModelLines(mainRpModelIdentity),
     ...formatAdminReceiptTurnSummaryLines(summary, { locale: "en" }),
     `coverage: ${wholeTurnCoverageLabel(receipt.wholeTurn.coverage)}`,
   ];
