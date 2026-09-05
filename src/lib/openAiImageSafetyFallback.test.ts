@@ -106,6 +106,9 @@ describe("openAiImageSafetyFallback orchestration", () => {
       });
       assert.equal(counter.count(), 1);
       assert.equal(result.safetyFallbackUsed, false);
+      const admin = formatOpenAiImageProviderAttemptsForAdmin(result);
+      assert.equal(admin.safetyFallbackInvoked, false);
+      assert.equal(admin.safetyFallbackUsed, false);
       assert.equal(result.providerAttempts.length, 1);
       assert.equal(result.providerAttempts[0]?.outcome, "success");
       assert.equal(result.buffer.toString(), "ok-image");
@@ -130,6 +133,9 @@ describe("openAiImageSafetyFallback orchestration", () => {
       });
       assert.equal(counter.count(), 2);
       assert.equal(result.safetyFallbackUsed, true);
+      const admin = formatOpenAiImageProviderAttemptsForAdmin(result);
+      assert.equal(admin.safetyFallbackInvoked, true);
+      assert.equal(admin.safetyFallbackUsed, true);
       assert.equal(result.hasUnknownAttemptCost, true);
       assert.equal(result.providerAttempts[0]?.outcome, "safety_rejected");
       assert.equal(result.providerAttempts[1]?.outcome, "success");
@@ -650,3 +656,4 @@ describe("strict safety fallback prompts", () => {
     });
   }
 });
+
