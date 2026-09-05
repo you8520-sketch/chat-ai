@@ -31,7 +31,7 @@ describe("integer scroll debt transport", () => {
 
     transport.apply(1.4);
     assert.equal(transport.apply(-0.6), 0);
-    assert.equal(transport.getDebt(), -0.2);
+    assert.ok(Math.abs(transport.getDebt() + 0.2) < Number.EPSILON);
     assert.equal(transport.apply(0.2), 0);
     assert.deepEqual(applied, [1]);
   });

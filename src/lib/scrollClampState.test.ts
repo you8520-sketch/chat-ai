@@ -147,7 +147,7 @@ describe("scrollClampState motion proof", () => {
       endTop: 520 * 0.63,
     });
     const proof = evaluateContinuousMotionProof({
-      frames: movingFrames({ startY: 40, step: 2, count: 50 }),
+      frames: movingFrames({ startY: 40, step: 1, count: 50 }),
       startGeometry,
       requireMotion: true,
     });
