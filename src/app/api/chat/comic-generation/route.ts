@@ -835,7 +835,7 @@ function formatComicDiagnosticSafeRecord(opts: {
   mode: ComicDiagnosticMode;
   semanticLevel: string | null;
   generated: Pick<OpenAiImageGeneratedWithAttempts, "providerAttempts">;
-  providerReferences: readonly ComicProviderReference[];
+  providerReferences?: readonly ComicProviderReference[];
 }): Record<string, unknown> {
   const primary = opts.generated.providerAttempts.find((attempt) => attempt.attempt === 1);
   const tier2 = opts.generated.providerAttempts.find((attempt) => attempt.attempt === 2);
@@ -864,8 +864,9 @@ function formatComicDiagnosticSafeRecord(opts: {
     mode: opts.mode,
     semanticLevel: opts.semanticLevel,
     promptHash: primary?.promptHash ?? null,
-    referenceSetSignature: formatComicReferenceSetForAdmin(opts.providerReferences)
-      .referenceSetSignature,
+    referenceSetSignature: opts.providerReferences
+      ? formatComicReferenceSetForAdmin(opts.providerReferences).referenceSetSignature
+      : null,
     attemptCount: opts.generated.providerAttempts.length,
     primaryResult: primary?.outcome ?? "not_run",
     tier2Result: tier2?.outcome ?? "not_run",
@@ -1793,15 +1794,14 @@ export async function POST(req: Request) {
     });
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
     const isDiagnosticRequest = diagnosticMode.mode !== "normal";
-    const diagnosticFailure =
-      isDiagnosticRequest && providerAttempts?.length && providerReferences
-        ? formatComicDiagnosticSafeRecord({
-            mode: diagnosticMode.mode,
-            semanticLevel: diagnosticMode.semanticLevel,
-            generated: { providerAttempts },
-            providerReferences,
-          })
-        : null;
+    const diagnosticFailure = isDiagnosticRequest
+      ? formatComicDiagnosticSafeRecord({
+          mode: diagnosticMode.mode,
+          semanticLevel: diagnosticMode.semanticLevel,
+          generated: { providerAttempts: providerAttempts ?? [] },
+          providerReferences: providerReferences ?? undefined,
+        })
+      : null;
     const adminFailureDiagnostic = canSeeCost
       ? isDiagnosticRequest
         ? diagnosticFailure
