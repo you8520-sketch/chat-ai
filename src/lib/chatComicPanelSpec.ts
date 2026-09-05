@@ -19,9 +19,14 @@ import {
   type PromptSubjectMap,
 } from "@/lib/chatImagePromptSubjectMap";
 import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
+import { classifyRawVisualRisk } from "@/lib/chatImageSafeVisualProjection";
+import { extractPanelSfxCue } from "@/lib/chatComicTextOverlay";
 
 export type ComicPanelFormatId = "2panel" | "3koma" | "4panel";
-export type ChatComicCompositionMode = "overlay_first" | "blank_balloon_hybrid";
+export type ChatComicCompositionMode =
+  | "full_provider_rendered"
+  | "overlay_first"
+  | "blank_balloon_hybrid";
 
 export type ComicBalloonSlotMetadata = {
   /** Ordinal within the panel's canonical dialogue rows — non-readable structural metadata. */
@@ -408,7 +413,7 @@ export function compileChatComicPanelSpec(opts: {
         personaVisible: visibility.personaVisible,
       }),
       narrationBoxNeeded: beat.dialogue.length === 0 || panel.index === 1,
-      sfx: [],
+      sfx: extractPanelSfxCue(panel) ? [extractPanelSfxCue(panel)!.text] : [],
       mustAvoid: ["invented SFX text", "speech bubble without an approved line below"],
     };
   });
@@ -596,6 +601,101 @@ export function buildChatComicPanelSpecVisualSection(opts: {
   return renderChatComicPanelSpecVisualSection(spec, {
     compositionMode: opts.compositionMode,
   });
+}
+
+/**
+ * FULL PROVIDER-RENDERED manhwa section — the provider draws the complete comic
+ * page including readable Korean dialogue, narration, and SFX. The planner
+ * passes beat, speaker ownership, and exact approved text only; GPT owns pose,
+ * camera, balloon geometry, tail geometry, and negative-space arrangement.
+ */
+export function renderChatComicPanelSpecFullProviderSection(spec: ChatComicPanelSpec): string {
+  const castLines = spec.cast
+    .map((entry) => `${entry.label} = ${entry.role} (${entry.name})`)
+    .join("\n");
+  const panelBlocks = spec.panels
+    .map((panel) => {
+      const actions = [
+        ...panel.subjectActions.map(
+          (action) => `${action.label} action (${action.name}): ${action.text}`
+        ),
+        panel.sceneAction ? `Scene action: ${panel.sceneAction}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const dialogue = panel.speechBubbles.length
+        ? panel.speechBubbles
+            .map((bubble) => `Speech bubble (${bubble.speakerLabel} / ${bubble.speaker}): "${bubble.text}"`)
+            .join("\n")
+        : "Speech bubble: (silent panel — no bubble)";
+      const narration = panel.narrationBoxNeeded
+        ? `Narration box (readable Korean, when this beat needs context): "${panel.situation}"`
+        : "Narration box: not required for this beat.";
+      const sfx = panel.sfx.length
+        ? `SFX text (readable Korean, when appropriate): ${panel.sfx.join(", ")}`
+        : "SFX: (none)";
+      return [
+        `[Panel ${panel.index} — ${panel.beatRole}]`,
+        panel.situation ? `Beat: ${panel.situation}` : "",
+        `Background: ${panel.background}`,
+        actions,
+        dialogue,
+        narration,
+        sfx,
+        "Render this panel as readable Korean comic text integrated into the artwork.",
+        `Must avoid: ${panel.mustAvoid.join("; ")}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n\n");
+
+  return [
+    "COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE",
+    `Format: ${spec.format} (${spec.panelCount} panels)`,
+    `Layout: ${spec.layout}`,
+    `Hero focus: ${spec.heroScene}`,
+    spec.heroEventIds.length ? `Hero event ids: ${spec.heroEventIds.join(", ")}` : "",
+    `Shared background: ${spec.sharedBackground}`,
+    spec.atmosphere ? `Atmosphere: ${spec.atmosphere}` : "",
+    "Cast:",
+    castLines,
+    panelBlocks,
+    "Continuity rules:",
+    ...spec.continuityRules.map((rule) => `- ${rule}`),
+    "Global must avoid:",
+    ...spec.globalMustAvoid.map((rule) => `- ${rule}`),
+    "The provider owns pose, camera angle, balloon position/size/tails, negative-space arrangement, and manga effects. The planner supplies only the beat and the exact approved Korean text.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export function buildChatComicPanelSpecFullProviderSection(opts: {
+  plan: ScenePlan;
+  personaName: string;
+  characterName: string;
+  visibility?: ScenePresentationVisibility;
+  castSelected?: readonly ChatImageCastGroundedSubject[];
+  subjects: readonly ChatImageVisualSubject[];
+  eventSubjectBindings?: readonly SceneEventSubjectBinding[];
+  projection?: ChatComicPanelSpecProjection;
+}): string {
+  const spec = compileChatComicPanelSpec({
+    ...opts,
+    projection: {
+      ...opts.projection,
+      // Full provider-rendered contract: approved dialogue reaches the provider
+      // as readable Korean text. Hard safety line: self-harm and graphic-violence
+      // dialogue is still omitted from the provider prompt (moderation probe via
+      // the admin TEXT × VISUAL matrix covers adult/romance text only).
+      omitDialogueText: (text) => {
+        const categories = classifyRawVisualRisk(text);
+        return categories.includes("self_harm") || categories.includes("graphic_violence");
+      },
+    },
+  });
+  return renderChatComicPanelSpecFullProviderSection(spec);
 }
 
 export function buildChatComicPanelSpecPromptSection(opts: {

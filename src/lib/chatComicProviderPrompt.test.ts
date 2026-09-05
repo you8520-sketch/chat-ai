@@ -122,9 +122,11 @@ function assertZeroProviderDialogueLeak(
 }
 
 describe("cast-aware comic provider prompt regressions CAST-P1–P5", () => {
-  it("CAST-P1: cast-aware dialogue does not leak into provider prompt; overlay keeps it", () => {
-    const dialogue = "TIER1_DIALOGUE_SECRET_같이 갈래?";
-    const messages = buildSceneSourceMessages([{ id: 1, role: "user", content: `"${dialogue}"` }]);
+  it("CAST-P1: cast-aware approved dialogue reaches the full-provider prompt; raw source marker does not", () => {
+    const dialogue = "같이 갈래?";
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: `TIER1_DIALOGUE_SECRET\n"${dialogue}"` },
+    ]);
     const plan = buildDeterministicScenePlan(messages, 2, {
       personaName: "렌",
       characterName: "라이크",
@@ -137,9 +139,8 @@ describe("cast-aware comic provider prompt regressions CAST-P1–P5", () => {
       plan,
       castManifest: manifest,
     });
-    assertZeroProviderDialogueLeak(production.prompt, plan);
-    assert.ok(!production.prompt.includes("TIER1_DIALOGUE_SECRET"));
-    assert.ok(!production.prompt.includes("같이 갈래?"));
+    assert.ok(production.prompt.includes(dialogue), "approved dialogue is in the full-provider prompt");
+    assert.ok(!production.prompt.includes("TIER1_DIALOGUE_SECRET"), "raw source marker never leaks");
 
     const svg = compileComicTextOverlaySvg({
       width: 1008,
@@ -148,7 +149,7 @@ describe("cast-aware comic provider prompt regressions CAST-P1–P5", () => {
       plan,
       subjects: production.subjects,
     });
-    assert.ok(svg.includes("같이 갈래?"));
+    assert.ok(svg.includes(dialogue));
   });
 
   it("CAST-P2: cast-aware safe action binding survives in visual panel spec", () => {
@@ -203,7 +204,7 @@ describe("cast-aware comic provider prompt regressions CAST-P1–P5", () => {
     assert.equal(production.prompt.split("성관계").length - 1, 0);
   });
 
-  it("CAST-P4: named supporting speaker mapping survives without raw spoken text in provider", () => {
+  it("CAST-P4: named supporting speaker mapping and dialogue reach the full-provider prompt", () => {
     const messages = buildSceneSourceMessages([
       {
         id: 1,
@@ -224,9 +225,8 @@ describe("cast-aware comic provider prompt regressions CAST-P1–P5", () => {
       plan,
       castManifest: manifest,
     });
-    assertZeroProviderDialogueLeak(production.prompt, plan);
-    assert.ok(!production.prompt.includes("뒤는 내가 볼게."));
-    assert.ok(!production.prompt.includes("조심해."));
+    assert.ok(production.prompt.includes("뒤는 내가 볼게."));
+    assert.ok(production.prompt.includes("조심해."));
     assert.ok(
       plan.panels.some((panel) =>
         panel.dialogue.some((line) => line.speakerName === "강이현")
@@ -239,7 +239,7 @@ describe("cast-aware comic provider prompt regressions CAST-P1–P5", () => {
     );
   });
 
-  it("CAST-P5: duo without castManifest remains zero readable dialogue in provider", () => {
+  it("CAST-P5: duo without castManifest still includes readable approved dialogue", () => {
     const plan = buildDeterministicScenePlan(
       buildSceneSourceMessages([{ id: 1, role: "user", content: '"안녕."' }]),
       2
@@ -251,6 +251,7 @@ describe("cast-aware comic provider prompt regressions CAST-P1–P5", () => {
       personaGender: "female",
       plan,
     });
-    assertZeroProviderDialogueLeak(prompt, plan);
+    assert.ok(prompt.includes("안녕."));
+    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
   });
 });

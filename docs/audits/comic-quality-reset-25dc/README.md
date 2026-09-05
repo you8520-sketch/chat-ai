@@ -1,109 +1,78 @@
-# Comic quality reset audit
+# Comic quality reset audit — full provider-rendered comic
 
-Status: investigation and admin-only prototype. No merge or deploy.
+Status: dev-stage simplification. No merge or deploy.
 
-## Phase 1 — owner map
+## Product decision (NEW)
+
+The final comic is the GPT-Image-2 provider output itself — a complete,
+readable manhwa page. The provider owns 4-panel composition, camera, staging,
+facial reactions, speech balloons, balloon tails, Korean dialogue, narration
+boxes, SFX text, and manga direction. The server performs no text postprocessing
+for the comic final image. Imperfect Korean typography is acceptable; natural
+comic direction is prioritized over text fidelity.
+
+## Owner map (post-reset, user-facing production path)
 
 | Owner | Current implementation |
 | --- | --- |
-| `SOURCE_SCENE_OWNER` | `resolveSceneSource()` in `src/app/api/chat/comic-generation/route.ts`, with source sanitization in `src/lib/chatImageScenePlan.ts` |
-| `SCENE_BEAT_OWNER` | `ScenePlan`, deterministic extraction/reflow, and `projectComicPanelBeat()` |
-| `PANEL_COMPOSITION_OWNER` | `compileChatComicPanelSpec()` plus its visual prompt renderer |
-| `CAMERA_OWNER` | `resolveCameraFromBeat()`; four-panel roles are setup, progression, turn/escalation, and payoff |
-| `CHARACTER_STAGING_OWNER` | prompt subject map, cast manifest bindings, and `resolveComicSubjectStaging()` |
-| `BALLOON_GEOMETRY_OWNER` | `computeBubbleGeometry()`, `layoutPanelBubbles()`, collision resolution, and SVG compilation |
-| `BALLOON_TAIL_OWNER` | `layoutPanelBubbles()` and the server SVG path compiler |
-| `READABLE_TEXT_OWNER` | dialogue safety filtering, Korean wrapping, SVG text rendering, and persistence |
-| `FINAL_COMPOSITE_OWNER` | `renderComicTextOverlay()` and Sharp WebP persistence in the comic route |
+| `SCENE_SOURCE_OWNER` | `resolveSceneSource()` in `src/app/api/chat/comic-generation/route.ts`, sanitized in `src/lib/chatImageScenePlan.ts` |
+| `SCENEPLAN_OWNER` | `ScenePlan` / `resolveApprovedScenePlan()` — beat, speaker ownership, exact approved Korean text |
+| `CAST_IDENTITY_OWNER` | subject map, cast manifest bindings, gender lock, identity ownership manifest |
+| `PROVIDER_PROMPT_OWNER` | `buildChatComicGenerationPlan()` → `buildChatComicImagePrompt()` (`full_provider_rendered`) |
+| `FULL_COMIC_TEXT_OWNER` | the provider prompt carries the exact approved dialogue / narration / SFX as readable Korean text |
+| `SPEECH_BUBBLE_OWNER` | provider-rendered balloons + tails (no server body) |
+| `NARRATION_OWNER` | provider-rendered narration boxes (no server box) |
+| `SFX_OWNER` | provider-rendered SFX text (no server SFX) |
+| `SERVER_OVERLAY_OWNER` | removed from the production path — `assembleComicFinalImage()` returns the provider buffer as-is |
+| `FINAL_IMAGE_PERSISTENCE_OWNER` | `fs.writeFile(savedPath, providerBuffer)` + WebP re-encode in `generateComicImage()` |
+| `SETTLEMENT_OWNER` | `settleChatImageGenerationResult()` — success-only, unchanged |
 
-### Findings
+Reported values: `CURRENT_SERVER_TEXT_POSTPROCESS_PRESENT: false`,
+`CURRENT_PROVIDER_READABLE_TEXT_EXPECTED: true`,
+`TARGET_SERVER_TEXT_POSTPROCESS_PRESENT: false`,
+`TARGET_PROVIDER_READABLE_TEXT_EXPECTED: true`.
 
-`CURRENT_GPT_VISUAL_FREEDOM: MEDIUM`
+## Retired from the user-facing production path
 
-The provider still renders the pixels, including pose nuance, expression, lighting,
-and exact subject placement. However, the primary prompt prescribes panel roles,
-camera intent, framing, left/right layout, action ownership, no-bubble rendering,
-and an upper-right overlay reservation. The provider is therefore not a free comic
-director.
+- `overlay_first` final rendering branch (server-created bubble/narration/SFX)
+- `blank_balloon_hybrid` text insertion + `local_image_detection` + `shared_anchor_regions`
+- server text wrapping / text-only SVG composite for the comic final image
+- server balloon slot / text-completeness insertion logic for final rendering
 
-`SERVER_OVERLAY_COMPOSITION_INTERFERENCE: PROVEN`
+The related lib code (`chatComicTextOverlay*`, detection, balloon metadata) is
+retained test-only and is no longer called by the comic production route. The
+old experimental UI controls (hybrid mode, text-insertion strategy, anchor
+strategy, blank-balloon result audit) are removed.
 
-The saved image is a Sharp composite of the provider image and server-generated
-white bubble bodies, tails, narration boxes, SFX, and glyphs. This proves structural
-interference with provider composition. The current code does not measure whether a
-specific face, hand, or action was occluded, so the causal quality impact remains
-`ROOT_CAUSE_UNCONFIRMED`.
+## ScenePlan is beat-oriented, not geometry-forcing
 
-The strict Tier-2 path remains a separate safe prompt compiled from safe structure;
-it does not reuse the primary prompt or raw source prose. Reference isolation keeps
-template, character, and persona slot identity stable while changing only selected
-reference content.
+The planner passes panel beat, who speaks, exact dialogue text, optional
+narration/SFX, emotional beat, important action, and panel narrative role. The
+full-provider panel spec does NOT prescribe camera angle, framing, left/right
+layout, or negative-space coordinates — GPT owns pose, camera, balloon
+position/size, tail geometry, and negative-space arrangement.
 
-## Admin-only prototype
+## Admin-only diagnostics
 
-- `semantic_ladder` accepts exactly one manually selected level `L0`–`L8`.
-- Ladder fixtures use four panels, the existing GPT Image 2 model, medium quality,
-  the existing comic output size, and the same three reference slots.
-- Ladder provider prompts contain visual semantics only: no source prose and no
-  readable dialogue.
-- `blank_balloon_hybrid` lets GPT own composition, camera, staging, reactions,
-  blank balloon/narration geometry, tails, and decorative effects.
-- Hybrid Tier-2 (strict safety fallback) preserves the same blank-balloon
-  composition contract: complete comic composition, blank white speech balloons,
-  black outlines, natural tails toward the speaker, empty interiors, blank
-  narration boxes where needed, and zero readable/placeholder/gibberish text.
-  Only scene-safety semantics become stricter; the server text glyphs never
-  float over artwork without a blank-balloon layer.
-- Hybrid server compositing emits text glyphs only (no rect/path/ellipse body).
-  The canonical human-QA strategy is `local_image_detection`: Sharp pixel
-  analysis finds enclosed bright balloon interiors and the detected region owns
-  the glyph bounds. Ambiguous matches are rejected rather than covering artwork.
-  `shared_anchor_regions` is EXPERIMENTAL_UNPROVEN — the provider is only told
-  speaker/length/side while the server computes its own coordinates, so it is
-  not promoted and cannot report text-inside-balloon proof.
-- Diagnostic axes are isolated server-side: `semantic_ladder` and
-  `blank_balloon_hybrid` both reject any non-`normal` reference isolation or
-  visual-context override (400), so one experiment = one variable.
-- Semantic ladder results: the primary result owns the moderation boundary
-  (`SEMANTIC_BOUNDARY_OWNER=PRIMARY_RESULT`, `PRIMARY_BOUNDARY=PASS|BLOCKED`),
-  and Tier-2 recovery is reported separately (`TIER2_SAFE_RECOVERY=PASS|FAIL`).
-  A blocked primary with a successful Tier-2 is never reported as `L7 PASS`.
-- Text completeness audit: admin diagnostics expose expected provider balloon
-  regions, approved server text regions, policy-suppressed text regions, and
-  inserted text regions, plus `TEXT_INSERTION_COMPLETE`
-  (`inserted === approvedServerTextRegions`). Hybrid is not promoted to
-  normal-user production while incomplete.
-- Balloon metadata survives provider text omission: `READABLE_PROVIDER_DIALOGUE`
-  (visual/provider projection, zero readable text for hybrid), `BALLOON_LAYOUT_METADATA`
-  (canonical structural dialogue rows — speaker, length class, side, dialogue
-  ordinal; no text), and `SERVER_FINAL_TEXT` (application text policy) are
-  separate owners. A risky/adult dialogue row keeps its blank-balloon directive
-  even though its readable text never reaches the provider prompt.
-- Server final text eligibility reuses the site's existing adult text contract
-  (`resolveEffectiveAdultRp` = verified user + room adult mode). Adult-grounded
-  lines approved by that policy are inserted verbatim after generation;
-  lines it rejects are reported as `policySuppressedTextRegionCount` and are
-  never counted as missing detector failures. Minor (unverified), real-person
-  restricted, self-harm, and graphic-violence lines remain suppressed.
-- Hybrid Tier-2 (strict fallback) preserves the same structural balloon slot
-  metadata (count/speaker/length) as the primary prompt without copying any
-  raw dialogue.
-- Normal users cannot activate either diagnostic mode; normal production requests
-  retain the existing overlay-first path.
+- `semantic_ladder` (V axis `L0`–`L8`) stays admin-only and source-free.
+- TEXT × VISUAL moderation matrix: `comicTextBoundaryLevel` (T axis `T0`–`T4`)
+  injects one fixed dialogue fixture into panel 1 of the ladder scene. One
+  request probes one specific (V, T) cell. Admin-only; raw prompt / raw source /
+  reference URLs / reference bytes are never stored in logs.
+- The semantic ladder provider prompt now uses the full provider-rendered
+  contract (no server text insertion assumption).
+- Diagnostic isolation still requires normal reference / visual-context axes for
+  ladder and hybrid probes.
 
-Every diagnostic request logs only semantic level, prompt hash, reference-set
-signature, attempt/result metadata, semantic boundary owner, safety categories,
-provider request id, and usage evidence. Prompt text, source prose, reference
-URLs, and reference bytes are not included.
+Every diagnostic request logs only semantic level, text-boundary level, prompt
+hash, reference-set signature, attempt/result metadata, semantic boundary owner,
+safety categories, provider request id, and usage evidence.
 
 ## Human QA gate
 
-Do NOT start the semantic ladder first. Compare a normal production-overlay
-result (A) with a blank-balloon hybrid result (B) from the same safe source
-scene. B must use `local_image_detection` with reference isolation = Normal and
-visual context = Normal. Only COMPOSITION_OWNER, BALLOON_GEOMETRY_OWNER, and
-TEXT_INSERTION_OWNER may differ between A and B. Review panel composition, shot
-variety, identity, scene fidelity, facial reaction, balloon naturalness, subject
-occlusion, text-inside-balloon, dialogue readability, speaker attribution, and
-manga likeness. The implementation does not self-score those dimensions. After
-hybrid quality is proven, run the semantic ladder one level at a time.
+Run FULL PROVIDER-RENDERED COMIC NORMAL first (readable dialogue / narration /
+SFX rendered by GPT), then the TEXT × VISUAL boundary matrix one cell at a time.
+Review panel composition, shot variety, identity, scene fidelity, facial
+reaction, balloon naturalness, subject occlusion, dialogue readability, speaker
+attribution, and manga likeness. The implementation does not self-score those
+dimensions.

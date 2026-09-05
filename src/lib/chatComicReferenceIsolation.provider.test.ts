@@ -213,7 +213,7 @@ test("neutral_visual_context immutability: original overlay/persistence plan and
   assert.notEqual(realPack.prompt, neutralPack.prompt);
 });
 
-test("route binds tested provider input after access gate and preserves the original overlay/persistence owner", () => {
+test("route binds tested provider input after access gate and preserves the provider-output final owner", () => {
   const route = readFileSync("src/app/api/chat/comic-generation/route.ts", "utf8");
   assert.ok(route.indexOf("resolveComicDiagnosticOverrides({") < route.indexOf("const context = resolveGenerationContext({"));
   assert.match(route, /canSeeCost,\s+referenceMode: body\.comicReferenceIsolationMode/);
@@ -222,10 +222,12 @@ test("route binds tested provider input after access gate and preserves the orig
   assert.match(route, /references: opts\.references\.map\(\(reference\) => reference\.dataUrl\)/);
   assert.match(route, /console\.error\("\[chat-comic-generation\] failed", JSON\.stringify\(/);
   assert.match(route, /referenceIsolationMode: diagnosticOverrides\.referenceMode/);
-  assert.match(route, /renderComicTextOverlay\(\{\s+imageBuffer: generated\.buffer,\s+panelCount,\s+plan: scenePlan,/);
+  assert.match(route, /assembleComicFinalImage\(\{ providerBuffer: generated\.buffer \}\)/);
+  assert.doesNotMatch(route, /renderComicTextOverlay\(/);
+  assert.doesNotMatch(route, /renderComicBlankBalloonHybrid\(/);
   assert.match(
     route,
     /diagnosticMode\.mode === "normal" \|\| diagnosticMode\.mode === "blank_balloon_hybrid"\s*\n\s+\? \{ plan: scenePlan \}/
   );
-  assert.match(route, /serverTextOnlyOverlay:\s+diagnosticMode\.mode === "blank_balloon_hybrid"/);
+  assert.doesNotMatch(route, /serverTextOnlyOverlay/);
 });
