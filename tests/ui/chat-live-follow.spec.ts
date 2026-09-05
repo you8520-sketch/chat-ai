@@ -339,7 +339,7 @@ async function waitForChatInputReady(page: Page) {
   const textarea = page.locator("textarea[placeholder*='메시지 입력']");
   for (let attempt = 0; attempt < 40; attempt += 1) {
     await setReactTextareaValue(page, "z");
-    const counter = page.locator("text=/\\/ 1,000자/");
+    const counter = page.locator("text=/\\/ 1,500자/");
     const counterText = (await counter.textContent())?.trim() ?? "";
     const enabled = await page.getByRole("button", { name: "전송", exact: true }).isEnabled();
     if (counterText.startsWith("1 ") && enabled) {
