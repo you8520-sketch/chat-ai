@@ -333,4 +333,3 @@ export function toOpenAiImageGeneratedWithAttempts(
     providerAttempts: result.providerAttempts,
   };
 }
-
