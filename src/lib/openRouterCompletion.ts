@@ -38,9 +38,8 @@ import {
   resolveDeepSeekLogicalModel,
 } from "@/lib/deepseekProviderFailover";
 import {
-  auxPromptFingerprint,
+  buildAuxProviderCallLogInput,
   logAuxProviderCall,
-  resolveAuxProviderOwner,
 } from "@/lib/auxProviderProvenance";
 
 export type OpenRouterChatMsg = { role: "user" | "assistant" | "system"; content: string };
@@ -193,6 +192,8 @@ export async function callOpenRouterCompletion(opts: {
   requestKind?: string;
   timeoutMs?: number;
   ledgerContext?: ProviderCostLedgerContext;
+  /** Durable queue job identity (derived-cache row id) — threaded when available. */
+  jobId?: string | null;
 }): Promise<{ text: string; usage: OpenRouterCompletionUsage }> {
   const rawModel = opts.model.trim();
   const useCheaperInference = isCheaperInferenceModel(rawModel);
@@ -210,23 +211,15 @@ export async function callOpenRouterCompletion(opts: {
     );
   }
 
-  logAuxProviderCall({
-    auxOwner: resolveAuxProviderOwner({
+  logAuxProviderCall(
+    buildAuxProviderCallLogInput({
+      model,
+      messages,
       requestKind: opts.requestKind,
-      ledgerFamily: opts.ledgerContext?.family,
-    }),
-    model,
-    requestKind: opts.requestKind ?? null,
-    trigger: opts.ledgerContext?.executionPhase ?? null,
-    chatId: opts.ledgerContext?.chatId ?? null,
-    messageId: opts.ledgerContext?.assistantMessageId ?? null,
-    requestId: opts.ledgerContext?.generationRequestId ?? null,
-    attempt: opts.ledgerContext?.jobAttemptOrdinal ?? 1,
-    isRetry:
-      (opts.ledgerContext?.jobAttemptOrdinal ?? 1) > 1 ||
-      /-retry|-repair|-fallback|-echo-fix/i.test(opts.requestKind ?? ""),
-    promptFingerprint: auxPromptFingerprint(model, messages),
-  });
+      ledgerContext: opts.ledgerContext ?? null,
+      jobId: opts.jobId ?? null,
+    })
+  );
 
   if (isMockApiMode()) {
     const mockText = getMockResponseText();

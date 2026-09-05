@@ -257,13 +257,15 @@ function buildTranslationPayload(targets: CharacterChunk[]): string {
  */
 async function translateChunksWithModel(
   targets: CharacterChunk[],
-  modelId: string
+  modelId: string,
+  jobId?: string | null
 ): Promise<CharacterChunk[] | null> {
   const payload = buildTranslationPayload(targets);
   const { text, usage } = await callPromptTranslation(
     CHARACTER_TRANSLATION_SYSTEM_PROMPT,
     [{ role: "user", content: payload }],
-    modelId
+    modelId,
+    { jobId: jobId ?? null }
   );
   const finish = usage.finishReason?.toLowerCase() ?? "";
   if (finish === "length" || finish === "max_tokens") {
@@ -290,7 +292,8 @@ async function translateChunksWithModel(
  * Returns null when any expected segment fails — never a partial set.
  */
 export async function translateChunksToEnglish(
-  chunks: CharacterChunk[]
+  chunks: CharacterChunk[],
+  jobId?: string | null
 ): Promise<CharacterChunk[] | null> {
   const targets = chunks.filter(isTranslatableChunk);
   if (targets.length === 0) return [];
@@ -305,7 +308,7 @@ export async function translateChunksToEnglish(
     for (let i = 0; i < models.length; i++) {
       const model = models[i]!;
       try {
-        batchResult = await translateChunksWithModel(batch, model);
+        batchResult = await translateChunksWithModel(batch, model, jobId);
         if (batchResult) {
           if (i > 0) {
             console.log(

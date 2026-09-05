@@ -167,7 +167,8 @@ async function processCharacterDerivedRefresh(
 
   const translated = await translateCharacterChunksForDerivedRefresh(
     job.entity_id,
-    chunksForTranslation
+    chunksForTranslation,
+    String(job.id)
   );
   if (!translated) {
     return { ok: false, error: "character_translation_failed", retryable: true };

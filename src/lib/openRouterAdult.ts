@@ -1029,19 +1029,6 @@ function streamContentToText(content: unknown): string {
   return "";
 }
 
-function isEmptyFinishRetryable(finishReason?: string): boolean {
-  const r = (finishReason ?? "").toLowerCase();
-  return r === "stop" || r === "end_turn" || !finishReason;
-}
-
-function shouldRetryEmptyStream(
-  emptyAttempt: number,
-  canRetryWithoutPrefill: boolean,
-  finishReason?: string
-): boolean {
-  return emptyAttempt < 1 && canRetryWithoutPrefill && isEmptyFinishRetryable(finishReason);
-}
-
 /** OpenRouter usage — @see parseOpenRouterUsage in openRouterUsage.ts */
 function extractOpenRouterStreamDelta(choice: {
   delta?: {
@@ -2230,21 +2217,12 @@ export async function callOpenRouterAdult(
   });
 
   const baseMessages = buildOpenRouterMessages(system, history, messageOpts);
-  const canRetryWithoutPrefill =
-    transport.provider === "openrouter" &&
-    isAnthropicModel(apiModelId) &&
-    !messageOpts?.recoveryAssistantPrefill?.trim() &&
-    !messageOpts?.skipAssistantPrefill;
 
-  for (let attempt = 0; attempt <= (canRetryWithoutPrefill ? 1 : 0); attempt++) {
-    const skipAssistantPrefill =
-      messageOpts?.skipAssistantPrefill === true || (attempt > 0 && canRetryWithoutPrefill);
-    if (attempt > 0) {
-      console.warn("[OpenRouter] empty generate — retry without prefill", {
-        attempt: attempt + 1,
-        model: apiModelId,
-      });
-    }
+  // Strict Main RP single-attempt invariant: exactly one external provider
+  // request per generation. The former Anthropic "empty generate — retry
+  // without prefill" loop was a latent second-external-request escape hatch;
+  // an empty completion now terminates the generation with canonical failure.
+  const skipAssistantPrefill = messageOpts?.skipAssistantPrefill === true;
 
     const { messages, prefill } = applyCacheAndPrefillForTransport(
       transport,
@@ -2299,9 +2277,7 @@ export async function callOpenRouterAdult(
       const requestKind =
         debugMeta?.requestKind ?? `${transport.provider}-generate`;
       assertLengthSupplementApiAllowed(requestKind);
-      if (debugMeta?.chargeTurnBudget !== false && attempt === 0) {
-        debugMeta?.turnApiBudget?.beforeFetch(requestKind);
-      }
+      debugMeta?.turnApiBudget?.beforeFetch(requestKind);
       const generateLogical = resolveDeepSeekLogicalModel(apiModelId);
       const generateRouteKind = resolveDeepSeekFailoverRouteKind({
         modelId: apiModelId,
@@ -2366,9 +2342,6 @@ export async function callOpenRouterAdult(
   const aiBody = aiBodyAfterPrefill(text, prefill).trim();
 
   if (!aiBody) {
-    if (shouldRetryEmptyStream(attempt, canRetryWithoutPrefill, finishReason)) {
-      continue;
-    }
     throw new OpenRouterApiError({
       message: `502 Bad Gateway: OpenRouter returned empty completion (finishReason=${finishReason ?? "unknown"})`,
     });
@@ -2411,9 +2384,4 @@ export async function callOpenRouterAdult(
   }
 
   return { text, usage };
-  }
-
-  throw new OpenRouterApiError({
-    message: "502 Bad Gateway: OpenRouter returned empty completion after retries",
-  });
 }

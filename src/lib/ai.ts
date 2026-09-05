@@ -383,6 +383,7 @@ async function callGeminiOnce(
     maxTokens?: number;
     temperature?: number;
     ledgerContext?: ProviderCostLedgerContext;
+    jobId?: string | null;
   }
 ): Promise<{ text: string; usage: TokenUsage }> {
   if (
@@ -444,6 +445,7 @@ async function callGeminiOnce(
     requestKind,
     timeoutMs: /background-html-visual-card/i.test(requestKind) ? 240_000 : undefined,
     ledgerContext: opts?.ledgerContext,
+    jobId: opts?.jobId ?? null,
   });
 }
 
@@ -459,11 +461,13 @@ export async function callGemini(
 export async function callPromptTranslation(
   system: string,
   history: ChatMsg[],
-  modelId: string
+  modelId: string,
+  opts?: { jobId?: string | null }
 ): Promise<{ text: string; usage: TokenUsage }> {
   return callGeminiOnce(system, history, modelId, {
     requestKind: PROMPT_TRANSLATION_REQUEST_KIND,
     maxTokens: TRANSLATION_MAX_OUTPUT_TOKENS,
+    jobId: opts?.jobId ?? null,
   });
 }
 
@@ -485,6 +489,7 @@ export async function callBackgroundMemory(
     temperature?: number;
     modelId?: string;
     ledgerContext?: ProviderCostLedgerContext;
+    jobId?: string | null;
   }
 ): Promise<{ text: string; usage: TokenUsage }> {
   const explicitModelId = opts?.modelId?.trim();
@@ -496,6 +501,7 @@ export async function callBackgroundMemory(
       requestKind,
       maxTokens: opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),
       temperature: opts?.temperature,
+      jobId: opts?.jobId ?? null,
       ledgerContext: opts?.ledgerContext
         ? {
             ...opts.ledgerContext,
