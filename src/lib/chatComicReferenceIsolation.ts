@@ -130,6 +130,27 @@ export function isolateComicProviderReferences(
   });
 }
 
+/** Keep prompt binding fixed while normalizing the selected content in each slot. */
+export async function prepareComicProviderReferenceInput(opts: {
+  primaryPrompt: string;
+  strictFallbackPrompt: string;
+  references: readonly ComicProviderReference[];
+  normalizeReference: (sourceUrl: string) => Promise<string>;
+}): Promise<{
+  primaryPrompt: string;
+  strictFallbackPrompt: string;
+  references: ComicNormalizedProviderReference[];
+}> {
+  return {
+    primaryPrompt: opts.primaryPrompt,
+    strictFallbackPrompt: opts.strictFallbackPrompt,
+    references: await Promise.all(opts.references.map(async (reference) => ({
+      ...reference,
+      dataUrl: await opts.normalizeReference(reference.sourceUrl),
+    }))),
+  };
+}
+
 export function formatComicReferenceSetForAdmin(
   references: readonly ComicProviderReference[]
 ): {
@@ -203,3 +224,4 @@ export function buildNeutralComicProviderScenePlan(plan: ScenePlan): ScenePlan {
     })),
   };
 }
+
