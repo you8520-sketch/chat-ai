@@ -172,6 +172,7 @@ type Preflight = {
     errorMessage: string | null;
     startedAt: string;
   } | null;
+  comicDiagnosticControlsAvailable?: boolean;
 };
 
 /** Poll cadence while a server-side generation job is still running. */
@@ -490,6 +491,12 @@ export default function ChatImageGeneratorPanel({
   const [comicSummary, setComicSummary] = useState("");
   /** Cap edits at the originally loaded turn length (no fixed 1,000 cap). */
   const [comicLoadedMaxChars, setComicLoadedMaxChars] = useState(0);
+  const [comicReferenceIsolationMode, setComicReferenceIsolationMode] = useState<
+    "normal" | "neutral_template" | "neutral_character" | "neutral_persona" | "neutral_identity_refs" | "all_neutral"
+  >("normal");
+  const [comicVisualContextIsolationMode, setComicVisualContextIsolationMode] = useState<
+    "normal" | "neutral_visual_context"
+  >("normal");
   const [summarizing, setSummarizing] = useState(false);
   const [campaignId, setCampaignId] = useState<number | null>(null);
   const [campaignRoundNumber, setCampaignRoundNumber] = useState<number | null>(null);
@@ -518,6 +525,15 @@ export default function ChatImageGeneratorPanel({
   const [partyPicks, setPartyPicks] = useState<Record<number, string>>({});
   const [partyPickerId, setPartyPickerId] = useState<number | null>(null);
   const trpgCampaignMode = campaignId != null;
+
+  const resetComicDiagnosticModes = useCallback(() => {
+    setComicReferenceIsolationMode("normal");
+    setComicVisualContextIsolationMode("normal");
+  }, []);
+
+  useEffect(() => {
+    if (!open) resetComicDiagnosticModes();
+  }, [open, resetComicDiagnosticModes]);
 
   useEffect(() => {
     const openGenerator = (event: Event) => {
@@ -583,6 +599,7 @@ export default function ChatImageGeneratorPanel({
         }
       }
       setTrpgImageSceneMode(TRPG_IMAGE_SCENE_MODE_DEFAULT);
+      resetComicDiagnosticModes();
       const epoch = beginSceneSourceChange();
       setSourceMessageId(null);
       setSourceTurnPreview("");
@@ -1565,8 +1582,16 @@ export default function ChatImageGeneratorPanel({
                   }))
                   .filter((pick) => pick.imageUrl)
               : undefined,
-          trpgImageSceneMode:
+            trpgImageSceneMode:
             isIllustration && campaignId ? trpgImageSceneMode : undefined,
+          comicReferenceIsolationMode:
+            !isIllustration && ldProduct === "scene" && info.comicDiagnosticControlsAvailable
+              ? comicReferenceIsolationMode
+              : undefined,
+          comicVisualContextIsolationMode:
+            !isIllustration && ldProduct === "scene" && info.comicDiagnosticControlsAvailable
+              ? comicVisualContextIsolationMode
+              : undefined,
         }),
       });
       const data = (await response.json().catch(() => null)) as GenerateResult | null;
@@ -2149,6 +2174,41 @@ export default function ChatImageGeneratorPanel({
                     ) : null}
                       </>
                     )}
+                    {info?.comicDiagnosticControlsAvailable &&
+                    tab === "comic" &&
+                    ldProduct === "scene" &&
+                    !trpgCampaignMode ? (
+                      <div className="space-y-2 rounded-xl border border-amber-400/25 bg-amber-950/20 p-3">
+                        <p className="text-[10px] font-semibold text-amber-200">관리자 진단</p>
+                        <label className="block space-y-1 text-[11px] text-zinc-300">
+                          <span>Reference control</span>
+                          <select value={comicReferenceIsolationMode}
+                            disabled={generating || saving || comicVisualContextIsolationMode !== "normal"}
+                            onChange={(event) => setComicReferenceIsolationMode(event.target.value as typeof comicReferenceIsolationMode)}
+                            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200">
+                            <option value="normal">Normal</option>
+                            <option value="neutral_template">Neutral template</option>
+                            <option value="neutral_character">Neutral character</option>
+                            <option value="neutral_persona">Neutral persona</option>
+                            <option value="neutral_identity_refs">Neutral identity refs</option>
+                            <option value="all_neutral">All neutral</option>
+                          </select>
+                        </label>
+                        <label className="block space-y-1 text-[11px] text-zinc-300">
+                          <span>Visual context</span>
+                          <select value={comicVisualContextIsolationMode}
+                            disabled={generating || saving || comicReferenceIsolationMode !== "normal"}
+                            onChange={(event) => setComicVisualContextIsolationMode(event.target.value as typeof comicVisualContextIsolationMode)}
+                            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200">
+                            <option value="normal">Normal</option>
+                            <option value="neutral_visual_context">Neutral visual context</option>
+                          </select>
+                        </label>
+                        <p className="text-[10px] leading-relaxed text-amber-200/70">
+                          두 진단 축은 동시에 선택할 수 없습니다. 창을 닫으면 Normal로 초기화됩니다.
+                        </p>
+                      </div>
+                    ) : null}
                     {actualCosts[activeMode] ? (
                       <p className="rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-[11px] text-amber-100">
                         관리자 방금 생성 실제 API 원가: $
@@ -2558,3 +2618,4 @@ export default function ChatImageGeneratorPanel({
     </>
   );
 }
+
