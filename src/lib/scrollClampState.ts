@@ -17,6 +17,7 @@ export const MAX_FRAME_VELOCITY_EPSILON_PX_PER_SEC = 12;
 export const INTEGER_CADENCE_MAX_INTER_STEP_GAP_MS = 200;
 export const INTEGER_CADENCE_P95_INTER_STEP_GAP_MS = 120;
 export const INTEGER_CADENCE_MAX_STEP_PX = 1;
+export const INTEGER_CADENCE_STEADY_MIN_REMAINING_DELTA_PX = -16;
 
 /** Documented: scrollRange < 4 is never a PASS reason. */
 export const IMPLICIT_SCROLL_RANGE_PASS_PATH = false;
@@ -99,6 +100,7 @@ export function measureIntegerScrollCadence(
 ): IntegerScrollCadenceMetrics {
   const positiveSteps: number[] = [];
   const positiveStepTimes: number[] = [];
+  const allPositiveStepTimes: number[] = [];
   const maxStepPx = opts?.maxStepPx ?? INTEGER_CADENCE_MAX_STEP_PX;
   let previousScrollY = samples[0]?.scrollY ?? 0;
   let previousSignedStep = 0;
@@ -109,8 +111,14 @@ export function measureIntegerScrollCadence(
     const sample = samples[index]!;
     const step = sample.scrollY - previousScrollY;
     if (step > 0) {
-      positiveSteps.push(step);
-      positiveStepTimes.push(sample.t);
+      allPositiveStepTimes.push(sample.t);
+      const inSteadyCruise =
+        sample.remainingDelta == null ||
+        sample.remainingDelta > INTEGER_CADENCE_STEADY_MIN_REMAINING_DELTA_PX;
+      if (inSteadyCruise) {
+        positiveSteps.push(step);
+        positiveStepTimes.push(sample.t);
+      }
       if (step > maxStepPx) largeJumpCount += 1;
     }
     if (
@@ -124,9 +132,12 @@ export function measureIntegerScrollCadence(
     previousScrollY = sample.scrollY;
   }
 
-  const interStepGaps = positiveStepTimes
+  const steadyInterStepGaps = positiveStepTimes
     .slice(1)
     .map((time, index) => Math.max(0, time - positiveStepTimes[index]!));
+  const allInterStepGaps = allPositiveStepTimes
+    .slice(1)
+    .map((time, index) => Math.max(0, time - allPositiveStepTimes[index]!));
   const totalPositiveScroll = positiveSteps.reduce((sum, step) => sum + step, 0);
   const firstPositiveTime = positiveStepTimes[0];
   const lastPositiveTime = positiveStepTimes[positiveStepTimes.length - 1];
@@ -143,9 +154,9 @@ export function measureIntegerScrollCadence(
       : 0,
     MEDIAN_POSITIVE_STEP_PX: percentile(positiveSteps, 0.5),
     P95_POSITIVE_STEP_PX: percentile(positiveSteps, 0.95),
-    MEDIAN_INTER_STEP_GAP_MS: percentile(interStepGaps, 0.5),
-    P95_INTER_STEP_GAP_MS: percentile(interStepGaps, 0.95),
-    MAX_INTER_STEP_GAP_MS: interStepGaps.length > 0 ? Math.max(...interStepGaps) : 0,
+    MEDIAN_INTER_STEP_GAP_MS: percentile(steadyInterStepGaps, 0.5),
+    P95_INTER_STEP_GAP_MS: percentile(steadyInterStepGaps, 0.95),
+    MAX_INTER_STEP_GAP_MS: allInterStepGaps.length > 0 ? Math.max(...allInterStepGaps) : 0,
     AVERAGE_SCROLL_VELOCITY:
       positiveDurationSec > 0 ? totalPositiveScroll / positiveDurationSec : 0,
     DIRECTION_REVERSAL_COUNT: directionReversalCount,
