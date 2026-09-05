@@ -1,3 +1,4 @@
+import { appendFileSync } from "node:fs";
 import { expect, test, type Page, type Route, type TestInfo } from "@playwright/test";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
 import {
@@ -18,6 +19,13 @@ import {
 
 const CHAT_DISPLAY_PREFS_KEY = "playai-chat-display-prefs";
 const EXTRA_SCROLL_ROOM_PX = 480;
+
+function debugLog(hypothesisId: string, message: string, data: Record<string, unknown>) {
+  appendFileSync(
+    "/opt/cursor/logs/debug.log",
+    `${JSON.stringify({ hypothesisId, location: "tests/ui/chat-live-follow.spec.ts", message, data, timestamp: Date.now() })}\n`
+  );
+}
 
 type MotionFrame = MotionProofFrame & {
   endTop: number | null;
@@ -87,13 +95,14 @@ async function demoLogin(page: Page) {
   expect(response.ok()).toBeTruthy();
 }
 
-async function resetDemoCharacterChats(page: Page, characterId = 2) {
+async function resetDemoCharacterChats(page: Page, characterId = 2): Promise<number> {
   const response = await page.request.delete("/api/chat/session", {
     data: { characterIds: [characterId] },
   });
   if (!response.ok() && response.status() !== 404 && response.status() !== 401) {
     throw new Error(`Failed to reset demo chats: ${response.status()} ${await response.text()}`);
   }
+  return response.status();
 }
 
 async function installScrollAudit(page: Page) {
@@ -586,8 +595,14 @@ test.describe("General chat live reading follow — production browser", () => {
     await page.setViewportSize({ width: 1280, height: 720 });
   });
 
-  test.afterEach(async ({ page }) => {
-    await resetDemoCharacterChats(page);
+  test.afterEach(async ({ page }, testInfo) => {
+    const status = await resetDemoCharacterChats(page);
+    // #region agent log
+    debugLog("H2", "general chat cleanup completed", {
+      test: testInfo.title,
+      status,
+    });
+    // #endregion
   });
 
   test("C1/C2: network done + visual reveal continues following with sentinel connected", async ({ page }) => {
@@ -761,8 +776,14 @@ test.describe("General chat continuous follow matrix — production browser", ()
     await demoLogin(page);
   });
 
-  test.afterEach(async ({ page }) => {
-    await resetDemoCharacterChats(page);
+  test.afterEach(async ({ page }, testInfo) => {
+    const status = await resetDemoCharacterChats(page);
+    // #region agent log
+    debugLog("H2", "general chat cleanup completed", {
+      test: testInfo.title,
+      status,
+    });
+    // #endregion
   });
 
   test("P0-4: Chromium preserves fractional window scroll positions", async ({ page }, testInfo) => {
