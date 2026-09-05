@@ -885,19 +885,10 @@ test.describe("General chat continuous follow matrix — production browser", ()
     await attachMotionProof(testInfo, "P0-7-BROKEN-NO-SCROLL", proof);
   });
 
-  test("P0-12: integer-quantized scroll fails the strict continuous gate", async ({ page }, testInfo) => {
+  test("P0-12: fractional intent drop fails the integer cadence gate", async ({ page }, testInfo) => {
     await page.addInitScript(() => {
-      const originalScrollBy = window.scrollBy.bind(window);
-      window.scrollBy = ((...args: Parameters<typeof window.scrollBy>) => {
-        const first = args[0];
-        if (typeof first === "number") {
-          return originalScrollBy(first, Math.trunc(args[1] ?? 0));
-        }
-        return originalScrollBy({
-          ...first,
-          top: Math.trunc(first.top ?? 0),
-        });
-      }) as typeof window.scrollBy;
+      (window as unknown as { __chatTestDropFractionalIntent: boolean })
+        .__chatTestDropFractionalIntent = true;
     });
     await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
     const proof = await runContinuousFollowScenario(page, {

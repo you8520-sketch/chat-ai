@@ -2278,6 +2278,11 @@ export default function ChatClient({
       getViewportHeight: () => window.innerHeight,
       getScrollPosition: () => window.scrollY,
       scrollBy: (delta) => {
+        const testWindow = window as Window & {
+          __chatTestDropFractionalIntent?: boolean;
+        };
+        // Test-only mutation hook; production never sets this window flag.
+        if (testWindow.__chatTestDropFractionalIntent && Math.abs(delta) < 1) return;
         if (integerTransport.apply(delta) === 0) return;
         liveFollowScrollInFlightRef.current = true;
         requestAnimationFrame(() => {
