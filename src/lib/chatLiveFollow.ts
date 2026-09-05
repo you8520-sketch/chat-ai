@@ -3,7 +3,7 @@
  * - CHAT_STREAM_TEXT_OWNER: createStreamReveal onAppend → messages[aiIndex].content
  * - CHAT_STREAM_END_SENTINEL_OWNER: data-chat-assistant-stream-end on active assistant row
  * - CHAT_AUTO_FOLLOW_OWNER: followStreamRef + userScrollLockRef + createLiveReadingFollowController
- * - CHAT_MANUAL_DETACH_OWNER: userScrollLockRef (wheel/touch/key up during stream)
+ * - CHAT_MANUAL_DETACH_OWNER: userScrollLockRef (wheel/touch/key/scrollbar up)
  * - CHAT_JUMP_TO_LATEST_OWNER: scrollToBottom / discrete reattach on explicit user action
  */
 
@@ -78,13 +78,11 @@ export function shouldIgnoreChatLiveFollowScrollForDetach(opts: {
   return opts.liveReadingActive || opts.programmaticScrollInFlight;
 }
 
-/** User-initiated upward scroll during live reading (e.g. scrollbar drag). */
-export function shouldDetachChatLiveFollowOnScrollDelta(opts: {
-  liveReadingActive: boolean;
+/** User-owned upward scrollbar intent exists before, during, and after live reading. */
+export function shouldRecordChatManualDetachOnScrollDelta(opts: {
   scrollDeltaPx: number;
   programmaticScrollInFlight: boolean;
 }): boolean {
-  if (!opts.liveReadingActive) return false;
   // The live-follow transport only moves downward. A negative delta is therefore
   // user intent even when it lands inside the broad programmatic-frame window.
   void opts.programmaticScrollInFlight;

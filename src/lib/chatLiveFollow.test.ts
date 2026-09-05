@@ -9,8 +9,8 @@ import {
   shouldDetachChatLiveFollowOnKey,
   shouldDetachChatLiveFollowOnTouchDelta,
   shouldDetachChatLiveFollowOnWheel,
-  shouldDetachChatLiveFollowOnScrollDelta,
   shouldIgnoreChatLiveFollowScrollForDetach,
+  shouldRecordChatManualDetachOnScrollDelta,
   shouldReattachChatLiveFollowOnScrollDelta,
   shouldSkipChatLiveFollowKeydown,
   shouldStartChatStreamFollow,
@@ -75,28 +75,42 @@ describe("chat live follow owner map", () => {
       true
     );
     assert.equal(
-      shouldDetachChatLiveFollowOnScrollDelta({
-        liveReadingActive: true,
+      shouldRecordChatManualDetachOnScrollDelta({
         scrollDeltaPx: -8,
         programmaticScrollInFlight: false,
       }),
       true
     );
     assert.equal(
-      shouldDetachChatLiveFollowOnScrollDelta({
-        liveReadingActive: true,
+      shouldRecordChatManualDetachOnScrollDelta({
         scrollDeltaPx: 12,
         programmaticScrollInFlight: false,
       }),
       false
     );
     assert.equal(
-      shouldDetachChatLiveFollowOnScrollDelta({
-        liveReadingActive: true,
+      shouldRecordChatManualDetachOnScrollDelta({
         scrollDeltaPx: -8,
         programmaticScrollInFlight: true,
       }),
       true
+    );
+  });
+
+  it("P1: records negative scrollbar intent before a live stream", () => {
+    assert.equal(
+      shouldRecordChatManualDetachOnScrollDelta({
+        scrollDeltaPx: -40,
+        programmaticScrollInFlight: false,
+      }),
+      true
+    );
+    assert.equal(
+      shouldRecordChatManualDetachOnScrollDelta({
+        scrollDeltaPx: 0,
+        programmaticScrollInFlight: false,
+      }),
+      false
     );
   });
 

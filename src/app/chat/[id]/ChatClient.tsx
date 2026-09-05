@@ -182,9 +182,9 @@ import {
   resolveActiveAssistantStreamEnd,
   resolveFollowBeforeStream,
   shouldDetachChatLiveFollowOnKey,
-  shouldDetachChatLiveFollowOnScrollDelta,
   shouldDetachChatLiveFollowOnWheel,
   shouldIgnoreChatLiveFollowScrollForDetach,
+  shouldRecordChatManualDetachOnScrollDelta,
   shouldReattachChatLiveFollowOnScrollDelta,
   shouldSkipChatLiveFollowKeydown,
   shouldStartChatStreamFollow,
@@ -2416,8 +2416,7 @@ export default function ChatClient({
       }
 
       if (
-        shouldDetachChatLiveFollowOnScrollDelta({
-          liveReadingActive,
+        shouldRecordChatManualDetachOnScrollDelta({
           scrollDeltaPx,
           programmaticScrollInFlight,
         })

@@ -755,6 +755,71 @@ test.describe("General chat live reading follow — production browser", () => {
     expect(started.manualDetached).toBe(false);
   });
 
+  test("P1: pre-stream scrollbar history intent survives send and supports explicit reattach", async ({ page }) => {
+    await mockChatStreamRoute(page, longAssistantProse(900));
+    await page.setViewportSize({ width: 1280, height: 420 });
+    await openFreshChat(page);
+    await sendMockMessage(page, "completed long turn");
+    await waitForNetworkDoneVisualRevealPending(page);
+    await page.locator("[data-quote-assistant]").last().click();
+    await page.waitForFunction(
+      () =>
+        document.querySelector("[data-chat-live-reading-active]")?.getAttribute(
+          "data-chat-live-reading-active"
+        ) === "false",
+      undefined,
+      { timeout: 15_000 }
+    );
+
+    await page.evaluate(() =>
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })
+    );
+    await page.waitForTimeout(100);
+    const latestY = await page.evaluate(() => window.scrollY);
+
+    // Near-bottom geometry alone stays detached.
+    await page.evaluate(() => window.scrollBy({ top: -40, behavior: "instant" }));
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      liveReadingActive: false,
+      followLatest: false,
+      manualDetached: true,
+    });
+    await page.waitForTimeout(200);
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: false,
+      manualDetached: true,
+    });
+
+    // Downward scrollbar intent at latest explicitly rejoins before a stream.
+    await page.evaluate(() =>
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })
+    );
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: true,
+      manualDetached: false,
+    });
+
+    // Detach farther into history and prove send preserves that user-owned lock.
+    await page.evaluate(() => window.scrollBy({ top: -240, behavior: "instant" }));
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      liveReadingActive: false,
+      followLatest: false,
+      manualDetached: true,
+    });
+    const historyY = await page.evaluate(() => window.scrollY);
+    expect(historyY).toBeLessThan(latestY);
+
+    await page.unroute("**/api/chat");
+    await mockChatStreamRoute(page, longAssistantProse(480));
+    await sendMockMessage(page, "stay with history intent");
+    await waitForNetworkDoneVisualRevealPending(page);
+    const afterSend = await readChatDiagnostics(page);
+    expect(afterSend.followLatest).toBe(false);
+    expect(afterSend.manualDetached).toBe(true);
+    const afterSendY = await page.evaluate(() => window.scrollY);
+    expect(afterSendY - historyY).toBeLessThan(48);
+  });
+
   test("P0-B: scrollbar-equivalent upward delta detaches for 1.5s", async ({ page }) => {
     const finalText = longAssistantProse(1400);
     await mockChatStreamRoute(page, finalText);
