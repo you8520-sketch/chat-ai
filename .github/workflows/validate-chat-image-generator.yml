@@ -21,6 +21,9 @@ on:
       - "src/lib/chatComicGeneration.ts"
       - "src/lib/chatComicGenerationConstants.ts"
       - "src/lib/chatComicGeneration.test.ts"
+      - "src/lib/chatComicReferenceIsolation.ts"
+      - "src/lib/chatComicReferenceIsolation.test.ts"
+      - "src/lib/chatComicReferenceIsolation.provider.test.ts"
       - "src/lib/chatComicGeneration.clientBoundary.test.ts"
       - "src/lib/chatComicDialogueAudit.ts"
       - "src/lib/chatComicCastStaging.test.ts"
@@ -154,12 +157,18 @@ jobs:
       SESSION_SECRET: "01234567890123456789012345678901"
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
       - run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+      - run: npm run lint
+      - run: node --conditions=react-server --import tsx --test src/lib/chatComicReferenceIsolation.test.ts src/lib/chatComicReferenceIsolation.provider.test.ts
       - run: npm run typecheck:app
       - run: npm run build
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageGenerationPersistence.test.ts
