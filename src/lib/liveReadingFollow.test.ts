@@ -48,15 +48,15 @@ describe("liveReadingFollow continuous motion", () => {
   });
 
   it("natural cruise stays near prose growth for 28/40ms presets", () => {
-    const fast = estimateVerticalGrowthPxPerSec(28, 4);
-    const normal = estimateVerticalGrowthPxPerSec(40, 4);
+    const fast = estimateVerticalGrowthPxPerSec(28, 1);
+    const normal = estimateVerticalGrowthPxPerSec(40, 1);
     assert.ok(fast > normal);
-    assert.ok(fast < 200, `fast=${fast}`);
-    assert.ok(normal < 150, `normal=${normal}`);
+    assert.ok(fast > 20 && fast < 25, `fast=${fast}`);
+    assert.ok(normal > 14 && normal < 18, `normal=${normal}`);
     const cruise = computeNaturalCruiseVelocityPxPerSec({
       measuredGrowthPxPerSec: fast,
       streamIntervalMs: 28,
-      charsPerTick: 4,
+      charsPerTick: 1,
     });
     assert.ok(cruise <= fast * 0.95);
     assert.ok(cruise < 140, "must not use legacy 140px/s min cruise floor");
@@ -97,7 +97,7 @@ describe("liveReadingFollow continuous motion", () => {
         mode: "continuous-flow",
         targetSmoothingTimeSec: 0.5,
         streamIntervalMs: 28,
-        streamCharsPerTick: 4,
+        streamCharsPerTick: 1,
       },
       requestAnimationFrame: raf.requestAnimationFrame,
       cancelAnimationFrame: raf.cancelAnimationFrame,
@@ -138,7 +138,7 @@ describe("liveReadingFollow continuous motion", () => {
       resolveTargetElement: () => el,
       shouldFollow: () => true,
       isContentGrowing: () => true,
-      motionProfile: { mode: "continuous-flow", streamIntervalMs: 28, streamCharsPerTick: 4 },
+      motionProfile: { mode: "continuous-flow", streamIntervalMs: 28, streamCharsPerTick: 1 },
       requestAnimationFrame: raf.requestAnimationFrame,
       cancelAnimationFrame: raf.cancelAnimationFrame,
     });

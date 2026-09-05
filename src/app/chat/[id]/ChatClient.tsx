@@ -163,7 +163,6 @@ import {
 } from "@/lib/visualRevealPendingOwner";
 import {
   createLiveReadingFollowController,
-  LIVE_FOLLOW_MAX_CATCHUP_SPEED_PX_PER_SEC,
   LIVE_FOLLOW_TAIL_SPACER_RATIO,
   type LiveReadingFollowController,
 } from "@/lib/liveReadingFollow";
@@ -1610,7 +1609,6 @@ export default function ChatClient({
   const streamingMessageArticleRef = useRef<HTMLElement | null>(null);
   const liveFollowAnimatorRef = useRef<LiveReadingFollowController | null>(null);
   const liveFollowScrollInFlightRef = useRef(false);
-  const liveFollowScrollRemainderRef = useRef(0);
   const lastFollowScrollYRef = useRef(0);
   const streamResizeObserverRef = useRef<ResizeObserver | null>(null);
   const scrollRafRef = useRef<number | null>(null);
@@ -2182,7 +2180,6 @@ export default function ChatClient({
   const reattachChatLiveFollow = useCallback(() => {
     userScrollLockRef.current = false;
     followStreamRef.current = true;
-    liveFollowScrollRemainderRef.current = 0;
     syncChatFollowDiagnostics();
     if (isChatLiveReadingActiveNow()) {
       liveFollowAnimatorRef.current?.notifyTargetUpdate();
@@ -2227,16 +2224,8 @@ export default function ChatClient({
       getScrollPosition: () => window.scrollY,
       scrollBy: (delta) => {
         if (delta === 0) return;
-        liveFollowScrollRemainderRef.current += delta;
-        let applied = Math.trunc(liveFollowScrollRemainderRef.current);
-        if (applied === 0) return;
-        const maxApplyPerFrame = Math.max(1, Math.floor(LIVE_FOLLOW_MAX_CATCHUP_SPEED_PX_PER_SEC / 60));
-        if (Math.abs(applied) > maxApplyPerFrame) {
-          applied = Math.sign(applied) * maxApplyPerFrame;
-        }
-        liveFollowScrollRemainderRef.current -= applied;
         liveFollowScrollInFlightRef.current = true;
-        window.scrollBy({ top: applied, behavior: "instant" });
+        window.scrollBy({ top: delta, behavior: "instant" });
         requestAnimationFrame(() => {
           liveFollowScrollInFlightRef.current = false;
         });

@@ -1,6 +1,11 @@
 import { expect, test, type Page, type Route, type TestInfo } from "@playwright/test";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
-import { LIVE_READING_MAX_RATIO, LIVE_READING_MIN_RATIO, LIVE_READING_TARGET_RATIO } from "../../src/lib/liveReadingFollow";
+import {
+  estimateVerticalGrowthPxPerSec,
+  LIVE_READING_MAX_RATIO,
+  LIVE_READING_MIN_RATIO,
+  LIVE_READING_TARGET_RATIO,
+} from "../../src/lib/liveReadingFollow";
 import {
   evaluateContinuousMotionProof,
   formatContinuousMotionProof,
@@ -30,6 +35,13 @@ type ChatDiagnostics = {
 
 type NetworkDoneSnapshot = ChatDiagnostics & {
   networkRequestFinished: boolean;
+};
+
+type SubpixelScrollProbe = {
+  baseScrollY: number;
+  samples: number[];
+  fractionalSamples: number[];
+  distinctPositions: number;
 };
 
 function longAssistantProse(charCount: number): string {
@@ -289,11 +301,45 @@ function assertReadingBand(frames: MotionFrame[], viewportHeight: number) {
   expect(Math.abs(ratio - LIVE_READING_TARGET_RATIO)).toBeLessThan(0.12);
 }
 
+function hasFractionalScrollDelta(frames: MotionFrame[]): boolean {
+  return frames.some((frame, index) => {
+    if (index === 0) return false;
+    const delta = frame.scrollY - frames[index - 1]!.scrollY;
+    return Math.abs(delta) > 0.001 && Math.abs(delta - Math.round(delta)) > 0.001;
+  });
+}
+
 async function resetScrollAudit(page: Page) {
   await page.evaluate(() => {
     const audit = (window as unknown as { __chatScrollAudit?: { smoothWindowScroll: number } })
       .__chatScrollAudit;
     if (audit) audit.smoothWindowScroll = 0;
+  });
+}
+
+async function probeSubpixelWindowScroll(page: Page): Promise<SubpixelScrollProbe> {
+  return page.evaluate(async () => {
+    const spacer = document.createElement("div");
+    spacer.setAttribute("data-test-subpixel-scroll-probe", "true");
+    spacer.style.cssText = "height:6000px;width:1px;pointer-events:none;";
+    document.body.appendChild(spacer);
+    window.scrollTo({ top: 1000, behavior: "instant" });
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    const baseScrollY = window.scrollY;
+    const samples: number[] = [];
+    for (const delta of [0.2, 0.3, 0.4, 0.2]) {
+      window.scrollBy({ top: delta, behavior: "instant" });
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      samples.push(window.scrollY);
+    }
+    const fractionalSamples = samples.filter((value) => Math.abs(value - Math.round(value)) > 0.001);
+    return {
+      baseScrollY,
+      samples,
+      fractionalSamples,
+      distinctPositions: new Set(samples.map((value) => value.toFixed(4))).size,
+    };
   });
 }
 
@@ -441,6 +487,7 @@ async function runContinuousFollowScenario(page: Page, opts: {
   charCount: number;
   viewportWidth?: number;
   viewportHeight?: number;
+  streamIntervalMs?: number;
   layoutChrome?: "widget" | "meta" | "both";
   instant?: boolean;
   minMotionDutyCycle?: number;
@@ -485,6 +532,13 @@ async function runContinuousFollowScenario(page: Page, opts: {
     requireMotion: true,
     minDutyCycle: opts.minMotionDutyCycle,
   });
+  const streamIntervalMs = opts.streamIntervalMs ?? 28;
+  const expectedGrowth = estimateVerticalGrowthPxPerSec(streamIntervalMs, 1);
+  const medianVelocity = proof.metrics?.medianScrollVelocity ?? 0;
+  console.log(
+    `${streamIntervalMs}ms x 1char: expectedGrowth=${expectedGrowth.toFixed(2)} ` +
+      `medianScrollVelocity=${medianVelocity.toFixed(2)}`
+  );
   if (opts.expectMotionFailure) {
     expect(
       startGeometry.AVAILABLE_DOWNWARD_SCROLL_PX,
@@ -508,6 +562,9 @@ async function runContinuousFollowScenario(page: Page, opts: {
   expect(proof.LARGE_JUMP_COUNT).toBe(0);
   expect(proof.FOLLOW_LATEST_ALWAYS_TRUE).toBe(true);
   expect(proof.PROGRAMMATIC_SELF_DETACH).toBe(false);
+  expect(hasFractionalScrollDelta(frames), "fractional scrollY deltas must be observed").toBe(true);
+  expect(medianVelocity).toBeGreaterThan(expectedGrowth * 0.35);
+  expect(medianVelocity).toBeLessThan(expectedGrowth * 2.5);
   assertReadingBand(frames, opts.viewportHeight ?? 520);
   return proof;
 }
@@ -524,7 +581,7 @@ test.describe("General chat live reading follow — production browser", () => {
           JSON.stringify({
             ...defaults,
             streamIntervalMs: 28,
-            streamCharsPerTick: 4,
+            streamCharsPerTick: 1,
           })
         );
       },
@@ -713,14 +770,34 @@ test.describe("General chat continuous follow matrix — production browser", ()
     await resetDemoCharacterChats(page);
   });
 
+  test("P0-4: Chromium preserves fractional window scroll positions", async ({ page }, testInfo) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const probe = await probeSubpixelWindowScroll(page);
+    console.log(
+      [
+        "SUBPIXEL_WINDOW_SCROLL_SUPPORTED=true",
+        `SUBPIXEL_SCROLLY_SAMPLES=${JSON.stringify(probe.samples)}`,
+        `FRACTIONAL_SCROLLY_SAMPLES=${JSON.stringify(probe.fractionalSamples)}`,
+        `DISTINCT_SUBPIXEL_POSITIONS=${probe.distinctPositions}`,
+      ].join("\n")
+    );
+    await testInfo.attach("subpixel-window-scroll-probe", {
+      body: JSON.stringify(probe, null, 2),
+      contentType: "application/json",
+    });
+    expect(probe.baseScrollY).toBeGreaterThan(999);
+    expect(probe.fractionalSamples.length).toBeGreaterThan(0);
+    expect(probe.distinctPositions).toBeGreaterThan(1);
+  });
+
   test("G1: portrait ON plain prose continuous flow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { showCharacterPortrait: true, streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await installChatDisplayPrefs(page, { showCharacterPortrait: true, streamIntervalMs: 28, streamCharsPerTick: 1 });
     const proof = await runContinuousFollowScenario(page, { charCount: 1800 });
     await attachMotionProof(testInfo, "G1", proof);
   });
 
   test("G2: portrait OFF plain prose continuous flow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { showCharacterPortrait: false, streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await installChatDisplayPrefs(page, { showCharacterPortrait: false, streamIntervalMs: 28, streamCharsPerTick: 1 });
     const proof = await runContinuousFollowScenario(page, {
       charCount: 2600,
       viewportWidth: 1280,
@@ -730,38 +807,38 @@ test.describe("General chat continuous follow matrix — production browser", ()
   });
 
   test("G3: bottom status widget continuous flow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
     const proof = await runContinuousFollowScenario(page, { charCount: 1800, layoutChrome: "widget" });
     await attachMotionProof(testInfo, "G3", proof);
   });
 
   test("G4: status meta continuous flow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
     const proof = await runContinuousFollowScenario(page, { charCount: 1800, layoutChrome: "meta" });
     await attachMotionProof(testInfo, "G4", proof);
   });
 
   test("G5: status widget + status meta continuous flow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
     const proof = await runContinuousFollowScenario(page, { charCount: 1800, layoutChrome: "both" });
     await attachMotionProof(testInfo, "G5", proof);
   });
 
   test("G6: long RP 2500+ chars continuous flow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
     const proof = await runContinuousFollowScenario(page, { charCount: 2600 });
     await attachMotionProof(testInfo, "G6", proof);
   });
 
   test("G7: fast stream speed (28ms) continuous flow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
     const proof = await runContinuousFollowScenario(page, { charCount: 1800 });
     await attachMotionProof(testInfo, "G7", proof);
   });
 
   test("G8: normal stream speed (40ms) continuous flow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 40, streamCharsPerTick: 4 });
-    const proof = await runContinuousFollowScenario(page, { charCount: 1800 });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 40, streamCharsPerTick: 1 });
+    const proof = await runContinuousFollowScenario(page, { charCount: 1800, streamIntervalMs: 40 });
     await attachMotionProof(testInfo, "G8", proof);
   });
 
@@ -774,12 +851,35 @@ test.describe("General chat continuous follow matrix — production browser", ()
     await page.addInitScript(() => {
       window.scrollBy = (() => undefined) as typeof window.scrollBy;
     });
-    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 4 });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
     const proof = await runContinuousFollowScenario(page, {
       charCount: 1800,
       expectMotionFailure: true,
     });
     expect(proof?.passed).toBe(false);
     await attachMotionProof(testInfo, "P0-7-BROKEN-NO-SCROLL", proof);
+  });
+
+  test("P0-12: integer-quantized scroll fails the strict continuous gate", async ({ page }, testInfo) => {
+    await page.addInitScript(() => {
+      const originalScrollBy = window.scrollBy.bind(window);
+      window.scrollBy = ((...args: Parameters<typeof window.scrollBy>) => {
+        const first = args[0];
+        if (typeof first === "number") {
+          return originalScrollBy(first, Math.trunc(args[1] ?? 0));
+        }
+        return originalScrollBy({
+          ...first,
+          top: Math.trunc(first.top ?? 0),
+        });
+      }) as typeof window.scrollBy;
+    });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    const proof = await runContinuousFollowScenario(page, {
+      charCount: 1800,
+      expectMotionFailure: true,
+    });
+    expect(proof?.passed).toBe(false);
+    await attachMotionProof(testInfo, "P0-12-BROKEN-INTEGER-QUANTIZATION", proof);
   });
 });

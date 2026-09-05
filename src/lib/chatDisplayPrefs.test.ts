@@ -34,6 +34,7 @@ import {
   normalizeShowCharacterPortrait,
   normalizeShowSuggestedReplies,
   resolveClientDisplayPrefs,
+  streamCharsPerTickForInterval,
 } from "@/lib/chatDisplayPrefs";
 
 describe("character dialogue theme color", () => {
@@ -108,6 +109,9 @@ describe("chat streaming speed presets", () => {
       ]
     );
     assert.equal(CHAT_STREAM_SPEED_PRESETS.length, 3);
+    assert.equal(streamCharsPerTickForInterval(0), 64);
+    assert.equal(streamCharsPerTickForInterval(28), 1);
+    assert.equal(streamCharsPerTickForInterval(40), 1);
   });
 
   it("migrates the previous 빠름/보통/느림 millisecond values by label, not nearest ms", () => {

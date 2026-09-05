@@ -13,7 +13,6 @@ export const LIVE_FOLLOW_TAIL_SPACER_RATIO = 0.38;
 
 export const LIVE_FOLLOW_CONTINUOUS_DEFAULT_SMOOTHING_SEC = 0.65;
 export const LIVE_FOLLOW_CONTINUOUS_GROWTH_MATCH = 0.9;
-export const LIVE_FOLLOW_CONTINUOUS_GROWTH_FLOOR_PX_PER_SEC = 32;
 
 /** Typical assistant prose line height in general chat (px). */
 export const MEDIAN_LINE_HEIGHT_PX = 26;
@@ -66,7 +65,7 @@ export function resolveTargetDocumentY(opts: { element: Element; scrollY?: numbe
 
 export function estimateLineWrapIntervalMs(
   streamIntervalMs: number,
-  charsPerTick = 4
+  charsPerTick = 1
 ): number {
   if (streamIntervalMs <= 0) return 0;
   const ticksPerLine = Math.max(1, Math.ceil(MEDIAN_CHARS_PER_LINE / Math.max(1, charsPerTick)));
@@ -75,7 +74,7 @@ export function estimateLineWrapIntervalMs(
 
 export function estimateVerticalGrowthPxPerSec(
   streamIntervalMs: number,
-  charsPerTick = 4,
+  charsPerTick = 1,
   lineHeightPx = MEDIAN_LINE_HEIGHT_PX
 ): number {
   const wrapMs = estimateLineWrapIntervalMs(streamIntervalMs, charsPerTick);
@@ -91,7 +90,7 @@ export function computeNaturalCruiseVelocityPxPerSec(opts: {
   growthMatchFactor?: number;
 }): number {
   const match = opts.growthMatchFactor ?? LIVE_FOLLOW_CONTINUOUS_GROWTH_MATCH;
-  const charsPerTick = opts.charsPerTick ?? 4;
+  const charsPerTick = opts.charsPerTick ?? 1;
   const expected =
     opts.streamIntervalMs != null && opts.streamIntervalMs > 0
       ? estimateVerticalGrowthPxPerSec(opts.streamIntervalMs, charsPerTick)
@@ -332,13 +331,12 @@ function updateEstimatedGrowthPxPerSec(opts: {
   streamIntervalMs?: number;
   streamCharsPerTick?: number;
 }): number {
-  const floor = opts.contentGrowing ? LIVE_FOLLOW_CONTINUOUS_GROWTH_FLOOR_PX_PER_SEC : 0;
   if (opts.previousDocumentY == null || opts.previousSampleMs == null) {
-    return Math.max(floor, opts.currentEstimate);
+    return opts.currentEstimate;
   }
   if (opts.documentY <= opts.previousDocumentY) {
     const decayed = opts.currentEstimate * (opts.contentGrowing ? 0.96 : 0.92);
-    return Math.max(floor, decayed);
+    return decayed;
   }
   const dtSec = Math.max(0.001, (opts.nowMs - opts.previousSampleMs) / 1000);
   const instant = (opts.documentY - opts.previousDocumentY) / dtSec;
@@ -348,7 +346,7 @@ function updateEstimatedGrowthPxPerSec(opts: {
       : LIVE_FOLLOW_MAX_CATCHUP_SPEED_PX_PER_SEC;
   const clampedInstant = Math.min(instant, expectedMax);
   const blended = opts.currentEstimate * 0.7 + clampedInstant * 0.3;
-  return Math.max(floor, blended);
+  return blended;
 }
 
 /** Single shared motion engine — TRPG and chat supply their own target resolver. */
