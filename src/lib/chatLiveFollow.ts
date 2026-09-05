@@ -3,7 +3,7 @@
  * - CHAT_STREAM_TEXT_OWNER: createStreamReveal onAppend → messages[aiIndex].content
  * - CHAT_STREAM_END_SENTINEL_OWNER: data-chat-assistant-stream-end on active assistant row
  * - CHAT_AUTO_FOLLOW_OWNER: followStreamRef + userScrollLockRef + createLiveReadingFollowController
- * - CHAT_MANUAL_DETACH_OWNER: userScrollLockRef (wheel/touch/key/scrollbar up)
+ * - CHAT_MANUAL_DETACH_OWNER: userScrollLockRef (classified root window scroll movement)
  * - CHAT_JUMP_TO_LATEST_OWNER: scrollToBottom / discrete reattach on explicit user action
  */
 
