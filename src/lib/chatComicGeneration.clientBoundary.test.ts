@@ -71,4 +71,3 @@ describe("chatComicGeneration client bundle boundary", () => {
     assert.match(text, /setComicVisualContextIsolationMode\("normal"\)/);
   });
 });
-
