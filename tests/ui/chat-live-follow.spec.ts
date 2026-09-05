@@ -533,6 +533,20 @@ async function runContinuousFollowScenario(page: Page, opts: {
       `p95Gap=${proof.cadence.P95_INTER_STEP_GAP_MS.toFixed(2)} ` +
       `maxGap=${proof.cadence.MAX_INTER_STEP_GAP_MS.toFixed(2)}`
   );
+  if (streamIntervalMs === 40) {
+    const positiveFrames = frames.filter(
+      (frame, index) => index > 0 && frame.scrollY > frames[index - 1]!.scrollY
+    );
+    const longGaps = positiveFrames
+      .slice(1)
+      .map((frame, index) => ({
+        gap: frame.t - positiveFrames[index]!.t,
+        previousDelta: positiveFrames[index]!.remainingDelta,
+        currentDelta: frame.remainingDelta,
+      }))
+      .filter((sample) => sample.gap > 120);
+    console.log(`NORMAL_LONG_GAPS=${JSON.stringify(longGaps.slice(0, 12))}`);
+  }
   if (opts.expectMotionFailure) {
     expect(
       startGeometry.AVAILABLE_DOWNWARD_SCROLL_PX,
