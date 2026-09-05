@@ -221,6 +221,7 @@ test("route binds tested provider input after access gate and preserves the orig
   assert.match(route, /prompt: providerInput\.primaryPrompt,\s+strictFallbackPrompt: providerInput\.strictFallbackPrompt,\s+references: providerInput\.references/);
   assert.match(route, /references: opts\.references\.map\(\(reference\) => reference\.dataUrl\)/);
   assert.match(route, /console\.error\("\[chat-comic-generation\] failed", JSON\.stringify\(/);
+  assert.match(route, /referenceIsolationMode: diagnosticOverrides\.referenceMode/);
   assert.match(route, /renderComicTextOverlay\(\{\s+imageBuffer: generated\.buffer,\s+panelCount,\s+plan: scenePlan,/);
   assert.match(route, /optionsJson: \{\s+mode: "comic",\s+panelCount,\s+mood,\s+messageId: source\.messageId,\s+plan: scenePlan,/);
 });
