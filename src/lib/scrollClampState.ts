@@ -98,8 +98,7 @@ export function measureIntegerScrollCadence(
   opts?: { maxStepPx?: number }
 ): IntegerScrollCadenceMetrics {
   const positiveSteps: number[] = [];
-  const positiveStepTimes: number[] = [];
-  const allPositiveStepTimes: number[] = [];
+  const positiveEvents: Array<{ t: number; step: number; remainingDelta: number | null }> = [];
   const maxStepPx = opts?.maxStepPx ?? INTEGER_CADENCE_MAX_STEP_PX;
   let previousScrollY = samples[0]?.scrollY ?? 0;
   let previousSignedStep = 0;
@@ -110,14 +109,11 @@ export function measureIntegerScrollCadence(
     const sample = samples[index]!;
     const step = sample.scrollY - previousScrollY;
     if (step > 0) {
-      allPositiveStepTimes.push(sample.t);
-      const inSteadyCruise =
-        sample.remainingDelta == null ||
-        sample.remainingDelta <= 0;
-      if (inSteadyCruise) {
-        positiveSteps.push(step);
-        positiveStepTimes.push(sample.t);
-      }
+      positiveEvents.push({
+        t: sample.t,
+        step,
+        remainingDelta: sample.remainingDelta ?? null,
+      });
       if (step > maxStepPx) largeJumpCount += 1;
     }
     if (
@@ -131,19 +127,21 @@ export function measureIntegerScrollCadence(
     previousScrollY = sample.scrollY;
   }
 
-  const steadyInterStepGaps = positiveStepTimes
-    .slice(1)
-    .map((time, index) => Math.max(0, time - positiveStepTimes[index]!));
-  const allInterStepGaps = allPositiveStepTimes
-    .slice(1)
-    .map((time, index) => Math.max(0, time - allPositiveStepTimes[index]!));
+  const isSteadyCruiseEvent = (event: (typeof positiveEvents)[number]) =>
+    event.remainingDelta == null || event.remainingDelta <= 0;
+  positiveSteps.push(
+    ...positiveEvents.filter(isSteadyCruiseEvent).map((event) => event.step)
+  );
+  const steadyInterStepGaps: number[] = [];
+  for (let index = 1; index < positiveEvents.length; index += 1) {
+    const previous = positiveEvents[index - 1]!;
+    const current = positiveEvents[index]!;
+    if (isSteadyCruiseEvent(previous) && isSteadyCruiseEvent(current)) {
+      steadyInterStepGaps.push(Math.max(0, current.t - previous.t));
+    }
+  }
   const totalPositiveScroll = positiveSteps.reduce((sum, step) => sum + step, 0);
-  const firstPositiveTime = positiveStepTimes[0];
-  const lastPositiveTime = positiveStepTimes[positiveStepTimes.length - 1];
-  const positiveDurationSec =
-    firstPositiveTime != null && lastPositiveTime != null
-      ? Math.max(0.001, (lastPositiveTime - firstPositiveTime) / 1000)
-      : 0;
+  const positiveDurationSec = steadyInterStepGaps.reduce((sum, gap) => sum + gap, 0) / 1000;
 
   return {
     POSITIVE_SCROLL_STEP_COUNT: positiveSteps.length,
@@ -155,7 +153,7 @@ export function measureIntegerScrollCadence(
     P95_POSITIVE_STEP_PX: percentile(positiveSteps, 0.95),
     MEDIAN_INTER_STEP_GAP_MS: percentile(steadyInterStepGaps, 0.5),
     P95_INTER_STEP_GAP_MS: percentile(steadyInterStepGaps, 0.95),
-    MAX_INTER_STEP_GAP_MS: allInterStepGaps.length > 0 ? Math.max(...allInterStepGaps) : 0,
+    MAX_INTER_STEP_GAP_MS: steadyInterStepGaps.length > 0 ? Math.max(...steadyInterStepGaps) : 0,
     AVERAGE_SCROLL_VELOCITY:
       positiveDurationSec > 0 ? totalPositiveScroll / positiveDurationSec : 0,
     DIRECTION_REVERSAL_COUNT: directionReversalCount,

@@ -192,6 +192,6 @@ describe("scrollClampState motion proof", () => {
     assert.equal(metrics.POSITIVE_SCROLL_STEP_COUNT, 2);
     assert.equal(metrics.MEDIAN_INTER_STEP_GAP_MS, 83);
     assert.equal(metrics.P95_INTER_STEP_GAP_MS, 83);
-    assert.equal(metrics.MAX_INTER_STEP_GAP_MS, 183);
+    assert.equal(metrics.MAX_INTER_STEP_GAP_MS, 83);
   });
 });
