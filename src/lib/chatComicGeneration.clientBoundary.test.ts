@@ -65,8 +65,11 @@ describe("chatComicGeneration client bundle boundary", () => {
     assert.match(text, /comicVisualContextIsolationMode/);
     assert.match(text, /comicDiagnosticMode/);
     assert.match(text, /comicSemanticLevel/);
-    assert.match(text, /blank_balloon_hybrid/);
-    assert.match(text, /COMIC_BLANK_BALLOON_TEXT_STRATEGIES/);
+    assert.match(text, /comicTextBoundaryLevel/);
+    assert.match(text, /COMIC_TEXT_BOUNDARY_LADDER/);
+    assert.doesNotMatch(text, /blank_balloon_hybrid/);
+    assert.doesNotMatch(text, /COMIC_BLANK_BALLOON_TEXT_STRATEGIES/);
+    assert.doesNotMatch(text, /blankBalloonDetection/);
     assert.match(text, /info\.comicDiagnosticControlsAvailable/);
     assert.match(text, /두 진단 축은 동시에 선택할 수 없습니다/);
     assert.match(text, /comicReferenceIsolationMode:\s*!isIllustration && ldProduct === "scene"/);

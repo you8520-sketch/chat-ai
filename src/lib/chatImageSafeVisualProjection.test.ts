@@ -12,6 +12,7 @@ import {
 import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
+  scenePlanHasRawChatLeak,
 } from "@/lib/chatImageScenePlan";
 import {
   buildIllustrationSafeDepiction,
@@ -149,7 +150,7 @@ describe("chatImageSafeVisualProjection", () => {
     );
   });
 
-  it("comic final prompt excludes explicit source after safe projection", () => {
+  it("comic full-provider prompt carries adult-grounded approved dialogue as readable text", () => {
     const messages = buildSceneSourceMessages([
       { id: 1, role: "user", content: '"..."' },
       {
@@ -160,9 +161,12 @@ describe("chatImageSafeVisualProjection", () => {
     ]);
     const plan = buildDeterministicScenePlan(messages, 2);
     const prompt = comicPromptForPlan(plan, true);
-    assert.equal(containsRawRiskySourceLeak(prompt), false);
-    assert.doesNotMatch(prompt, /성관계/);
-    assert.doesNotMatch(prompt, /Close adult intimacy/i);
+    // Full provider-rendered comic: approved adult dialogue is rendered by GPT
+    // as readable Korean text (provider moderation + Tier-2 fallback are the
+    // backstop). Raw scene prose block must still be absent.
+    assert.ok(prompt.includes("성관계를 한다"), "approved dialogue reaches the full-provider prompt");
+    assert.equal(scenePlanHasRawChatLeak(prompt), false);
+    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
   });
 
   it("LD prompt uses safe projection for raw turn prose", () => {

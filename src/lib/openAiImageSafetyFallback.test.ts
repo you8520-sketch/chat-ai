@@ -321,6 +321,60 @@ describe("openAiImageSafetyFallback orchestration", () => {
     })();
   });
 
+  it("FULL-6 primary reject + Tier-2 success saves the full-provider Tier-2 provider output once", async () => {
+    const primaryPrompt = buildStrictComicFallbackPrompt({
+      panelCount: 2,
+      characterName: "A",
+      characterGender: "female",
+      personaName: "B",
+      personaGender: "male",
+      subjects: [
+        {
+          key: "character",
+          name: "A",
+          gender: "female",
+          role: "character",
+          referenceImageUrl: "/c.webp",
+          savedAppearance: "",
+          appearanceMode: "image_only",
+        },
+        {
+          key: "persona",
+          name: "B",
+          gender: "male",
+          role: "persona",
+          referenceImageUrl: "/p.webp",
+          savedAppearance: "",
+          appearanceMode: "image_only",
+        },
+      ],
+      compositionMode: "full_provider_rendered",
+    });
+    assert.match(primaryPrompt, /RENDER THE COMPLETE MANHWA PAGE/);
+    assert.doesNotMatch(primaryPrompt, /added later by server overlay/i);
+    await withMockFetch(async (counter) => {
+      globalThis.fetch = async () => {
+        const n = counter.inc();
+        return n === 1 ? safetyRejectResponse() : successResponse();
+      };
+      const result = await callOpenAiImageEditWithSafetyFallback({
+        model: "gpt-image-2",
+        primaryPrompt: "primary full-provider comic",
+        strictFallbackPrompt: primaryPrompt,
+        references: [REF],
+        size: "1008x1408",
+        quality: "medium",
+        outputCompression: 84,
+        mode: "comic",
+      });
+      assert.equal(result.providerAttempts[0]?.outcome, "safety_rejected");
+      assert.equal(result.providerAttempts[1]?.outcome, "success");
+      assert.equal(result.safetyFallbackUsed, true);
+      // The saved final image is the Tier-2 provider output buffer.
+      assert.equal(result.buffer.toString(), "ok-image");
+    })();
+  });
+
   it("A5 safety reject then fallback timeout — preserves both attempts", async () => {
     await withMockFetch(async (counter) => {
       globalThis.fetch = async () => {
@@ -764,6 +818,54 @@ describe("strict safety fallback prompts", () => {
     assert.match(byDefault, /VISUAL LAYER ONLY — zero speech bubbles, captions, SFX/i);
     assert.doesNotMatch(byDefault, /blank speech balloons/i);
     assert.doesNotMatch(byDefault, /GPT IS COMIC DIRECTOR/i);
+  });
+
+  it("FULL-2 normal Tier-2 prompt is full-provider-rendered with no stale overlay wording", () => {
+    const prompt = buildStrictComicFallbackPrompt({
+      panelCount: 2,
+      characterName: "A",
+      characterGender: "female",
+      personaName: "B",
+      personaGender: "male",
+      subjects: duoSubjects,
+      compositionMode: "full_provider_rendered",
+      safeStructure: {
+        sharedBackground: "calm living room",
+        panels: [
+          {
+            index: 1,
+            situation: "conversation",
+            background: "calm living room",
+            poseHint: "standing",
+            dialogue: ["오늘은 날씨가 참 좋네."],
+          },
+          { index: 2, situation: "reaction", background: "calm living room", poseHint: "seated" },
+        ],
+      },
+    });
+    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE/);
+    assert.match(prompt, /오늘은 날씨가 참 좋네\./);
+    assert.doesNotMatch(prompt, /VISUAL LAYER ONLY/);
+    assert.doesNotMatch(prompt, /Text is added later by server overlay/);
+    assert.doesNotMatch(prompt, /leave a clean upper area for later text overlay/);
+    assert.doesNotMatch(prompt, /no readable letters in the image/);
+  });
+
+  it("FULL-5 Tier-2 never claims the server will add text later", () => {
+    const prompt = buildStrictComicFallbackPrompt({
+      panelCount: 2,
+      characterName: "A",
+      characterGender: "female",
+      personaName: "B",
+      personaGender: "male",
+      subjects: duoSubjects,
+      compositionMode: "full_provider_rendered",
+    });
+    assert.doesNotMatch(prompt, /added later by server overlay/i);
+    assert.doesNotMatch(prompt, /server overlay/i);
+    assert.doesNotMatch(prompt, /VISUAL LAYER ONLY/i);
+    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE/);
+    assert.match(prompt, /no server text is added later/i);
   });
 
   it("HYBRID-2 Tier-2 blank-balloon contract present and no readable text", () => {

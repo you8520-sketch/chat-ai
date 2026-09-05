@@ -7,6 +7,8 @@ import {
   buildSemanticLadderScenePlan,
   COMIC_BLANK_BALLOON_TEXT_STRATEGIES,
   COMIC_SEMANTIC_LADDER,
+  COMIC_TEXT_BOUNDARY_LADDER,
+  getComicTextBoundaryLevel,
   resolveComicDiagnosticMode,
   resolveComicPrimaryTier2Boundary,
 } from "./chatComicDiagnostic";
@@ -32,6 +34,7 @@ test("semantic ladder mode requires one admin-selected level", () => {
     mode: "normal",
     semanticLevel: null,
     textStrategy: "local_image_detection",
+    textBoundaryLevel: null,
   });
   assert.throws(
     () => resolveComicDiagnosticMode({ canSeeCost: false, mode: "semantic_ladder", semanticLevel: "L0" }),
@@ -51,6 +54,7 @@ test("semantic ladder mode requires one admin-selected level", () => {
       mode: "semantic_ladder",
       semanticLevel: "L6",
       textStrategy: "local_image_detection",
+      textBoundaryLevel: null,
     }
   );
 });
@@ -67,6 +71,7 @@ test("blank-balloon strategy is admin-only and local_image_detection is canonica
       mode: "blank_balloon_hybrid",
       semanticLevel: null,
       textStrategy: "local_image_detection",
+      textBoundaryLevel: null,
     }
   );
   assert.deepEqual(
@@ -78,6 +83,7 @@ test("blank-balloon strategy is admin-only and local_image_detection is canonica
       mode: "blank_balloon_hybrid",
       semanticLevel: null,
       textStrategy: "local_image_detection",
+      textBoundaryLevel: null,
     }
   );
   assert.throws(
@@ -187,4 +193,86 @@ test("LADDER-1 primary result owns semantic boundary, tier2 is separate recovery
   });
   assert.equal(bothRejected.primaryBoundary, "BLOCKED");
   assert.equal(bothRejected.tier2SafeRecovery, "FAIL");
+});
+
+test("TEXT-VISUAL matrix has five fixed source-free text fixtures", () => {
+  assert.deepEqual(
+    COMIC_TEXT_BOUNDARY_LADDER.map((level) => level.id),
+    ["T0", "T1", "T2", "T3", "T4"]
+  );
+  for (const level of COMIC_TEXT_BOUNDARY_LADDER) {
+    assert.ok(getComicTextBoundaryLevel(level.id).text.trim().length >= 2);
+  }
+});
+
+test("MATRIX-1 text boundary level is admin-only and ladder-only", () => {
+  assert.deepEqual(
+    resolveComicDiagnosticMode({
+      canSeeCost: true,
+      mode: "semantic_ladder",
+      semanticLevel: "L3",
+      textBoundaryLevel: "T2",
+    }),
+    {
+      mode: "semantic_ladder",
+      semanticLevel: "L3",
+      textStrategy: "local_image_detection",
+      textBoundaryLevel: "T2",
+    }
+  );
+  assert.throws(
+    () =>
+      resolveComicDiagnosticMode({
+        canSeeCost: false,
+        mode: "semantic_ladder",
+        semanticLevel: "L3",
+        textBoundaryLevel: "T2",
+      }),
+    /FORBIDDEN/
+  );
+  assert.throws(
+    () =>
+      resolveComicDiagnosticMode({
+        canSeeCost: true,
+        mode: "normal",
+        textBoundaryLevel: "T2",
+      }),
+    /COMIC_TEXT_BOUNDARY_ONLY_FOR_LADDER/
+  );
+  assert.throws(
+    () =>
+      resolveComicDiagnosticMode({
+        canSeeCost: true,
+        mode: "semantic_ladder",
+        semanticLevel: "L3",
+        textBoundaryLevel: "TX",
+      }),
+    /INVALID_COMIC_TEXT_BOUNDARY_LEVEL/
+  );
+});
+
+test("MATRIX-2 text fixture injects one fixed dialogue line into panel 1 only", () => {
+  const plan = buildSemanticLadderScenePlan("L3", 4, "T2");
+  assert.equal(plan.panels[0]?.dialogue.length, 1);
+  assert.equal(plan.panels[0]?.dialogue[0]?.text, getComicTextBoundaryLevel("T2").text);
+  assert.equal(plan.panels[0]?.dialogue[0]?.provenance, "user_edit");
+  for (const panel of plan.panels.slice(1)) {
+    assert.equal(panel.dialogue.length, 0);
+  }
+});
+
+test("MATRIX-1-MONO T0..T4 strength is strictly monotonic by intended text strength", () => {
+  const strengths = COMIC_TEXT_BOUNDARY_LADDER.map((level) => level.strength);
+  assert.deepEqual(strengths, [0, 1, 2, 3, 4]);
+  for (let i = 1; i < strengths.length; i += 1) {
+    assert.ok(strengths[i]! > strengths[i - 1]!, "strictly increasing");
+  }
+});
+
+test("MATRIX-2-MONO T fixtures contain no V-axis visual/location mutation", () => {
+  const vAxisCues = /(?:침대|이불|누(?:워|운|어)|눕|bed|lying|벗|나체|shirtless)/iu;
+  for (const level of COMIC_TEXT_BOUNDARY_LADDER) {
+    assert.doesNotMatch(level.text, vAxisCues, `T fixture ${level.id} must not mutate the visual axis`);
+    assert.doesNotMatch(level.name, vAxisCues);
+  }
 });

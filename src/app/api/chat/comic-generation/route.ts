@@ -14,8 +14,8 @@ import { listSelectableCharacterImages, listCastSelectableAssets } from "@/lib/c
 import {
   CHAT_COMIC_MAX_INPUT_CHARS,
   CHAT_COMIC_TEMPLATE_ID,
+  assembleComicFinalImage,
   buildChatComicGenerationPlan,
-  parseChatComicOutputDimensions,
   resolveChatComicOutputSize,
   resolveChatComicPrice,
   type ChatComicPanelCount,
@@ -72,13 +72,6 @@ import {
   type ScenePlan,
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
-import {
-  renderComicTextOverlay,
-  renderComicBlankBalloonHybrid,
-} from "@/lib/chatComicTextOverlay.server";
-import {
-  validateComicOverlayPreflight,
-} from "@/lib/chatComicTextOverlay";
 import { planChatImageScene } from "@/lib/chatImageScenePlanner";
 import {
   assertChatImageScenePlanRateLimit,
@@ -177,6 +170,7 @@ import {
   resolveComicDiagnosticMode,
   resolveComicPrimaryTier2Boundary,
   type ComicDiagnosticMode,
+  type ComicTextBoundaryLevel,
 } from "@/lib/chatComicDiagnostic";
 import { buildComicPanelBalloonSlotMetadata } from "@/lib/chatComicPanelSpec";
 import { effectiveIsAdult } from "@/lib/adultVerification";
@@ -854,6 +848,7 @@ function adminProviderAttemptDiagnostic(
 function formatComicDiagnosticSafeRecord(opts: {
   mode: ComicDiagnosticMode;
   semanticLevel: string | null;
+  textBoundaryLevel?: ComicTextBoundaryLevel | null;
   generated: Pick<OpenAiImageGeneratedWithAttempts, "providerAttempts">;
   providerReferences?: readonly ComicProviderReference[];
 }): Record<string, unknown> {
@@ -887,6 +882,7 @@ function formatComicDiagnosticSafeRecord(opts: {
   return {
     mode: opts.mode,
     semanticLevel: opts.semanticLevel,
+    textBoundaryLevel: opts.textBoundaryLevel ?? null,
     promptHash: primary?.promptHash ?? null,
     referenceSetSignature: opts.providerReferences
       ? formatComicReferenceSetForAdmin(opts.providerReferences).referenceSetSignature
@@ -933,6 +929,7 @@ export async function POST(req: Request) {
         mode: body.comicDiagnosticMode,
         semanticLevel: body.comicSemanticLevel,
         textStrategy: body.comicBlankBalloonTextStrategy,
+        textBoundaryLevel: body.comicTextBoundaryLevel,
       });
       // One experiment = one variable. Ladder/hybrid must use normal isolation axes.
       assertComicDiagnosticAxisIsolation({
@@ -955,6 +952,9 @@ export async function POST(req: Request) {
       personaId: positiveInt(body.personaId),
       requestedCharacterImageUrl: body.characterImageUrl,
     });
+    // Site adult text eligibility (resolveEffectiveAdultRp) gates whether
+    // adult-grounded approved dialogue may be forwarded as provider-readable
+    // INPUT text. This is not server image postprocessing.
     const roomAdultGrounded = resolveEffectiveAdultRp({
       userAdultVerified: effectiveIsAdult((user as SessionUserLike).is_adult ?? 0),
       roomAdultModeEnabled: context.roomAdultModeEnabled,
@@ -1426,7 +1426,11 @@ export async function POST(req: Request) {
     const mood = "comic" as const;
     const knownSpeakerNames = resolveKnownSpeakerNames(context, body.castIntent);
     const scenePlan = semanticLadderMode
-      ? buildSemanticLadderScenePlan(diagnosticMode.semanticLevel!, 4)
+      ? buildSemanticLadderScenePlan(
+          diagnosticMode.semanticLevel!,
+          4,
+          diagnosticMode.textBoundaryLevel
+        )
       : resolveApprovedScenePlan({
           bodyPlan: body.scenePlan,
           messages: source.messages,
@@ -1486,12 +1490,13 @@ export async function POST(req: Request) {
       mood,
       plan: scenePlan,
       castManifest,
-      contentKind: context.contentKind,
+contentKind: context.contentKind,
       adultGrounded: semanticLadderMode,
       compositionMode:
         diagnosticMode.mode === "blank_balloon_hybrid"
           ? "blank_balloon_hybrid"
-          : "overlay_first",
+          : "full_provider_rendered",
+      providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
     });
     const neutralVisualContext = diagnosticOverrides.visualContextMode === "neutral_visual_context";
     const providerScenePlan: ScenePlan = neutralVisualContext
@@ -1512,12 +1517,13 @@ export async function POST(req: Request) {
           mood,
           plan: providerScenePlan,
           castManifest,
-          contentKind: context.contentKind,
+contentKind: context.contentKind,
           adultGrounded: semanticLadderMode,
           compositionMode:
             diagnosticMode.mode === "blank_balloon_hybrid"
               ? "blank_balloon_hybrid"
-              : "overlay_first",
+              : "full_provider_rendered",
+          providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
         })
       : identityPack;
     const prompt = providerIdentityPack.prompt;
@@ -1525,18 +1531,6 @@ export async function POST(req: Request) {
       contentKind: context.contentKind,
       castManifest,
     });
-    const outputDims = parseChatComicOutputDimensions(panelCount);
-    const overlayPreflight = validateComicOverlayPreflight({
-      width: outputDims.width,
-      height: outputDims.height,
-      panelCount,
-      plan: scenePlan,
-      visibility: comicVisibility,
-      subjects: identityPack.subjects,
-    });
-    if (!overlayPreflight.ok) {
-      return NextResponse.json({ error: overlayPreflight.reason }, { status: 400 });
-    }
     const tier2SafeStructure = neutralVisualContext
       ? buildNeutralComicSafeStructure(scenePlan.panels.map((panel) => panel.index))
       : semanticLadderMode
@@ -1565,7 +1559,7 @@ export async function POST(req: Request) {
       compositionMode:
         diagnosticMode.mode === "blank_balloon_hybrid"
           ? "blank_balloon_hybrid"
-          : "overlay_first",
+          : "full_provider_rendered",
       balloonSlots: hybridBalloonSlots,
     });
     const tier2PromptAuditResult = auditTier2ComicPrompt({
@@ -1605,43 +1599,11 @@ export async function POST(req: Request) {
       panelCount,
     });
 
-    let finalComicBuffer: Buffer;
-    let blankBalloonDetection: Awaited<
-      ReturnType<typeof renderComicBlankBalloonHybrid>
-    >["detection"] | null = null;
-    try {
-      if (diagnosticMode.mode === "blank_balloon_hybrid") {
-        const hybrid = await renderComicBlankBalloonHybrid({
-          imageBuffer: generated.buffer,
-          panelCount,
-          plan: scenePlan,
-          visibility: comicVisibility,
-          isSafetyFallback: generated.safetyFallbackUsed,
-          adultGrounded: false,
-          subjects: identityPack.subjects,
-          textStrategy: diagnosticMode.textStrategy,
-          finalTextPolicy: {
-            adultGrounded: roomAdultGrounded,
-            contentKind: context.contentKind,
-          },
-        });
-        finalComicBuffer = hybrid.buffer;
-        blankBalloonDetection = hybrid.detection;
-      } else {
-        finalComicBuffer = await renderComicTextOverlay({
-          imageBuffer: generated.buffer,
-          panelCount,
-          plan: scenePlan,
-          visibility: comicVisibility,
-          isSafetyFallback: generated.safetyFallbackUsed,
-          adultGrounded: false,
-          subjects: identityPack.subjects,
-        });
-      }
-    } catch (overlayError) {
-      console.error("[chat-comic-generation] text overlay failed", overlayError);
-      throw new RequestError("컷만화 텍스트 합성에 실패했습니다.", 502);
-    }
+    // FULL PROVIDER-RENDERED comic — the provider output IS the final saved
+    // image. No server text layer (speech bubbles, narration, SFX, or glyphs)
+    // is composited for the comic production path.
+    const assembled = assembleComicFinalImage({ providerBuffer: generated.buffer });
+    const finalComicBuffer = assembled.buffer;
 
     await fs.mkdir(uploadsDataDir(), { recursive: true });
     const filename = `ai-comic-${panelCount}p-${crypto.randomUUID()}.webp`;
@@ -1675,12 +1637,7 @@ export async function POST(req: Request) {
                 comicDiagnostic: {
                   mode: diagnosticMode.mode,
                   semanticLevel: diagnosticMode.semanticLevel,
-                  textStrategy:
-                    diagnosticMode.mode === "blank_balloon_hybrid"
-                      ? diagnosticMode.textStrategy
-                      : undefined,
-                  serverTextOnlyOverlay:
-                    diagnosticMode.mode === "blank_balloon_hybrid",
+                  textBoundaryLevel: diagnosticMode.textBoundaryLevel,
                 },
               }
             : {}),
@@ -1742,6 +1699,7 @@ export async function POST(req: Request) {
         ? formatComicDiagnosticSafeRecord({
             mode: diagnosticMode.mode,
             semanticLevel: diagnosticMode.semanticLevel,
+            textBoundaryLevel: diagnosticMode.textBoundaryLevel,
             generated,
             providerReferences: providerReferences!,
           })
@@ -1751,6 +1709,7 @@ export async function POST(req: Request) {
         "[chat-comic-diagnostic]",
         JSON.stringify({
           SEMANTIC_LEVEL: comicDiagnostic.semanticLevel,
+          TEXT_BOUNDARY_LEVEL: comicDiagnostic.textBoundaryLevel,
           PROMPT_HASH: comicDiagnostic.promptHash,
           REFERENCE_SET_SIGNATURE: comicDiagnostic.referenceSetSignature,
           ATTEMPT_COUNT: comicDiagnostic.attemptCount,
@@ -1807,13 +1766,7 @@ export async function POST(req: Request) {
           : {
               comicDiagnostic: {
                 ...comicDiagnostic,
-                textInsertionStrategy:
-                  diagnosticMode.mode === "blank_balloon_hybrid"
-                    ? diagnosticMode.textStrategy
-                    : null,
-                serverTextOnlyOverlay:
-                  diagnosticMode.mode === "blank_balloon_hybrid",
-                blankBalloonDetection,
+                textBoundaryLevel: diagnosticMode.textBoundaryLevel ?? null,
               },
             }
         : {}),
@@ -1847,6 +1800,7 @@ export async function POST(req: Request) {
       ? formatComicDiagnosticSafeRecord({
           mode: diagnosticMode.mode,
           semanticLevel: diagnosticMode.semanticLevel,
+          textBoundaryLevel: diagnosticMode.textBoundaryLevel,
           generated: { providerAttempts: providerAttempts ?? [] },
           providerReferences: providerReferences ?? undefined,
         })
@@ -1868,6 +1822,7 @@ export async function POST(req: Request) {
         "[chat-comic-diagnostic]",
         JSON.stringify({
           SEMANTIC_LEVEL: diagnosticFailure.semanticLevel,
+          TEXT_BOUNDARY_LEVEL: diagnosticFailure.textBoundaryLevel,
           PROMPT_HASH: diagnosticFailure.promptHash,
           REFERENCE_SET_SIGNATURE: diagnosticFailure.referenceSetSignature,
           ATTEMPT_COUNT: diagnosticFailure.attemptCount,
