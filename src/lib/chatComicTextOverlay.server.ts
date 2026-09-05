@@ -28,8 +28,11 @@ export type BlankBalloonDetectionAudit = {
   expectedTextRegionCount: number;
   detectedRegionCount: number;
   insertedTextRegionCount: number;
+  missingTextRegionCount: number;
   ambiguousRegionCount: number;
   rejectedRegionCount: number;
+  /** Admin gate: do not promote hybrid to normal-user production while false. */
+  textInsertionComplete: boolean;
 };
 
 function pixelLuminance(r: number, g: number, b: number): number {
@@ -447,8 +450,10 @@ export async function renderComicBlankBalloonHybrid(opts: {
     expectedTextRegionCount,
     detectedRegionCount: expectedTextRegionCount,
     insertedTextRegionCount: expectedTextRegionCount,
+    missingTextRegionCount: 0,
     ambiguousRegionCount: 0,
     rejectedRegionCount: 0,
+    textInsertionComplete: true,
   };
 
   if (opts.textStrategy === "local_image_detection") {
@@ -461,13 +466,19 @@ export async function renderComicBlankBalloonHybrid(opts: {
       opts.panelCount
     );
     textLayouts = paired.layouts;
+    const missingTextRegionCount = Math.max(
+      0,
+      expectedTextRegionCount - paired.insertedTextRegionCount
+    );
     detection = {
       strategy: opts.textStrategy,
       expectedTextRegionCount,
       detectedRegionCount: regions.length,
       insertedTextRegionCount: paired.insertedTextRegionCount,
+      missingTextRegionCount,
       ambiguousRegionCount: paired.ambiguousRegionCount,
       rejectedRegionCount: paired.rejectedRegionCount,
+      textInsertionComplete: paired.insertedTextRegionCount === expectedTextRegionCount,
     };
   }
 

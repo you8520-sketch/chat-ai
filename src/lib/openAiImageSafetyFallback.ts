@@ -13,6 +13,9 @@ import {
 
 export const IMAGE_GENERATION_TOTAL_TIMEOUT_MS = 280_000;
 
+/** One primary call + one strict-safety fallback = max 2 provider attempts. */
+export const MAX_PROVIDER_ATTEMPTS = 2;
+
 export type OpenAiImageProviderAttemptKind = "primary" | "strict_safety_fallback";
 
 export class OpenAiImageGenerationError extends OpenAiImageError {

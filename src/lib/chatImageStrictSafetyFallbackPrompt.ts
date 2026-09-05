@@ -33,6 +33,7 @@ import {
   renderComicSafeStructureForTier2Prompt,
   type ComicSafeStructureProjection,
 } from "@/lib/chatComicSafeStructure";
+import type { ChatComicCompositionMode } from "@/lib/chatComicPanelSpec";
 import { COMIC_TIER2_POSITIVE_SAFE_DEPICTION } from "@/lib/chatComicTier2SafeProjection";
 import type { ContentKind } from "@/lib/simulationMode";
 
@@ -157,6 +158,8 @@ export function buildStrictComicFallbackPrompt(opts: {
   castSelected?: readonly ChatImageCastGroundedSubject[];
   contentKind?: ContentKind;
   safeStructure?: ComicSafeStructureProjection;
+  /** overlay_first = current exact Tier-2; blank_balloon_hybrid = GPT blank-balloon composition. */
+  compositionMode?: ChatComicCompositionMode;
 }): string {
   const strictSubjects = subjectsForStrictFallback(opts.subjects);
   const castAware = Boolean(opts.castManifest && opts.castSelected?.length);
@@ -172,6 +175,14 @@ export function buildStrictComicFallbackPrompt(opts: {
   const moodPrompt =
     CHAT_COMIC_MOODS.find((item) => item.id === (opts.mood ?? "comic"))?.prompt ??
     "natural slice-of-life interaction";
+  const hybrid = (opts.compositionMode ?? "overlay_first") === "blank_balloon_hybrid";
+  const compositionLine = hybrid
+    ? [
+        "GPT IS COMIC DIRECTOR — create the complete comic artwork: panel composition, camera direction, character staging, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects.",
+        "Draw natural white manga/manhwa speech balloons with black outlines in visually appropriate negative space. Tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text.",
+        "Blank narration boxes only where the beat needs context, with empty interiors. Render no readable letters, dialogue, captions, placeholder words, random symbols, or gibberish anywhere in the image.",
+      ]
+    : ["VISUAL LAYER ONLY — zero speech bubbles, captions, SFX, or readable letters in the image. Text is added later by server overlay."];
   return [
     `Create one polished Korean manhwa-style page with exactly ${opts.panelCount} wide horizontal panels stacked vertically.`,
     "Reference image 1 is LAYOUT AND FINISH ONLY.",
@@ -193,7 +204,7 @@ export function buildStrictComicFallbackPrompt(opts: {
       : "",
     opts.safeStructure?.atmosphere ? `Preserve mood: ${opts.safeStructure.atmosphere}.` : "",
     `Overall tone: ${moodPrompt} — keep expressions readable and family-safe.`,
-    "VISUAL LAYER ONLY — zero speech bubbles, captions, SFX, or readable letters in the image. Text is added later by server overlay.",
+    ...compositionLine,
     strictComicPanelBeats(opts.panelCount, opts.safeStructure),
     castAware
       ? `Exactly ${opts.castSelected!.length} recurring identities — no extras.`

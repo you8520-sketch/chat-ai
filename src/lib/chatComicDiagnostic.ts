@@ -4,6 +4,10 @@ import type {
   ScenePanel,
   ScenePlan,
 } from "@/lib/chatImageScenePlan";
+import type {
+  ComicReferenceIsolationMode,
+  ComicVisualContextIsolationMode,
+} from "@/lib/chatComicReferenceIsolation";
 
 export type ComicDiagnosticMode =
   | "normal"
@@ -22,8 +26,8 @@ export type ComicSemanticLevel =
   | "L8";
 
 export type ComicBlankBalloonTextStrategy =
-  | "shared_anchor_regions"
-  | "local_image_detection";
+  | "local_image_detection"
+  | "shared_anchor_regions";
 
 export type ComicSemanticLevelDefinition = {
   id: ComicSemanticLevel;
@@ -118,9 +122,16 @@ export const COMIC_DIAGNOSTIC_MODES: readonly ComicDiagnosticMode[] = [
   "blank_balloon_hybrid",
 ];
 
+/**
+ * Canonical human-QA order. `local_image_detection` places server glyphs inside
+ * actually-detected provider balloon interiors — the only provable strategy.
+ * `shared_anchor_regions` is EXPERIMENTAL_UNPROVEN: the provider is only told
+ * speaker/length/side and the server computes its own coordinates, so there is
+ * no proof glyphs land inside provider balloons.
+ */
 export const COMIC_BLANK_BALLOON_TEXT_STRATEGIES: readonly ComicBlankBalloonTextStrategy[] = [
-  "shared_anchor_regions",
   "local_image_detection",
+  "shared_anchor_regions",
 ];
 
 function isSemanticLevel(value: unknown): value is ComicSemanticLevel {
@@ -159,8 +170,9 @@ export function resolveComicDiagnosticMode(opts: {
 } {
   const requestedMode = opts.mode == null ? "normal" : opts.mode;
   const requestedLevel = opts.semanticLevel == null ? null : opts.semanticLevel;
+  const strategyProvided = opts.textStrategy != null;
   const requestedStrategy =
-    opts.textStrategy == null ? "shared_anchor_regions" : opts.textStrategy;
+    opts.textStrategy == null ? "local_image_detection" : opts.textStrategy;
 
   if (!isDiagnosticMode(requestedMode)) {
     throw new Error("INVALID_COMIC_DIAGNOSTIC_MODE");
@@ -172,7 +184,7 @@ export function resolveComicDiagnosticMode(opts: {
     !opts.canSeeCost &&
     (requestedMode !== "normal" ||
       requestedLevel != null ||
-      requestedStrategy !== "shared_anchor_regions")
+      requestedStrategy !== "local_image_detection")
   ) {
     throw new Error("COMIC_DIAGNOSTIC_MODE_FORBIDDEN");
   }
@@ -183,7 +195,7 @@ export function resolveComicDiagnosticMode(opts: {
   } else if (requestedLevel != null) {
     throw new Error("COMIC_SEMANTIC_LEVEL_ONLY_FOR_LADDER");
   }
-  if (requestedMode !== "blank_balloon_hybrid" && requestedStrategy !== "shared_anchor_regions") {
+  if (requestedMode !== "blank_balloon_hybrid" && strategyProvided) {
     throw new Error("COMIC_TEXT_STRATEGY_ONLY_FOR_HYBRID");
   }
 
@@ -266,4 +278,59 @@ export function isComicDiagnosticMode(
   mode: ComicDiagnosticMode
 ): mode is Exclude<ComicDiagnosticMode, "normal"> {
   return mode !== "normal";
+}
+
+/**
+ * One experiment = one variable. Semantic ladder and blank-balloon quality
+ * comparisons both require the reference and visual-context isolation axes to
+ * be NORMAL. Combined/confounded requests are rejected server-side.
+ */
+export function assertComicDiagnosticAxisIsolation(opts: {
+  mode: ComicDiagnosticMode;
+  referenceMode: ComicReferenceIsolationMode;
+  visualContextMode: ComicVisualContextIsolationMode;
+}): void {
+  if (opts.mode === "semantic_ladder") {
+    if (opts.referenceMode !== "normal") {
+      throw new Error("COMIC_LADDER_REQUIRES_NORMAL_REFERENCE_ISOLATION");
+    }
+    if (opts.visualContextMode !== "normal") {
+      throw new Error("COMIC_LADDER_REQUIRES_NORMAL_VISUAL_CONTEXT");
+    }
+  }
+  if (opts.mode === "blank_balloon_hybrid") {
+    if (opts.referenceMode !== "normal") {
+      throw new Error("COMIC_HYBRID_REQUIRES_NORMAL_REFERENCE_ISOLATION");
+    }
+    if (opts.visualContextMode !== "normal") {
+      throw new Error("COMIC_HYBRID_REQUIRES_NORMAL_VISUAL_CONTEXT");
+    }
+  }
+}
+
+export type ComicPrimaryTier2Boundary = {
+  /** Primary result always owns the semantic moderation boundary. */
+  semanticBoundaryOwner: "PRIMARY_RESULT";
+  primaryBoundary: "PASS" | "BLOCKED" | "UNKNOWN";
+  tier2SafeRecovery: "PASS" | "FAIL" | "NOT_RUN";
+};
+
+/** Primary owns the moderation boundary; Tier-2 is a separate safe-recovery evidence. */
+export function resolveComicPrimaryTier2Boundary(input: {
+  primaryOutcome?: string | null;
+  tier2Outcome?: string | null;
+}): ComicPrimaryTier2Boundary {
+  const primary = input.primaryOutcome ?? null;
+  const tier2 = input.tier2Outcome ?? null;
+  return {
+    semanticBoundaryOwner: "PRIMARY_RESULT",
+    primaryBoundary:
+      primary === "success" ? "PASS" : primary === "safety_rejected" ? "BLOCKED" : "UNKNOWN",
+    tier2SafeRecovery:
+      tier2 === "success"
+        ? "PASS"
+        : tier2 === "safety_rejected" || tier2 === "failed"
+          ? "FAIL"
+          : "NOT_RUN",
+  };
 }

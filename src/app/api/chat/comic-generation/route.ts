@@ -171,9 +171,11 @@ import {
   type ComicNormalizedProviderReference,
 } from "@/lib/chatComicReferenceIsolation";
 import {
+  assertComicDiagnosticAxisIsolation,
   buildSemanticLadderSafeStructure,
   buildSemanticLadderScenePlan,
   resolveComicDiagnosticMode,
+  resolveComicPrimaryTier2Boundary,
   type ComicDiagnosticMode,
 } from "@/lib/chatComicDiagnostic";
 
@@ -860,6 +862,10 @@ function formatComicDiagnosticSafeRecord(opts: {
           : "unknown"
     ),
   }));
+  const boundary = resolveComicPrimaryTier2Boundary({
+    primaryOutcome: primary?.outcome ?? null,
+    tier2Outcome: tier2?.outcome ?? null,
+  });
   return {
     mode: opts.mode,
     semanticLevel: opts.semanticLevel,
@@ -870,6 +876,9 @@ function formatComicDiagnosticSafeRecord(opts: {
     attemptCount: opts.generated.providerAttempts.length,
     primaryResult: primary?.outcome ?? "not_run",
     tier2Result: tier2?.outcome ?? "not_run",
+    SEMANTIC_BOUNDARY_OWNER: boundary.semanticBoundaryOwner,
+    PRIMARY_BOUNDARY: boundary.primaryBoundary,
+    TIER2_SAFE_RECOVERY: boundary.tier2SafeRecovery,
     safetyCategories: categories.length ? categories : "UNKNOWN",
     providerRequestId:
       finalAttempt?.providerRequestId ??
@@ -907,15 +916,12 @@ export async function POST(req: Request) {
         semanticLevel: body.comicSemanticLevel,
         textStrategy: body.comicBlankBalloonTextStrategy,
       });
-      if (
-        diagnosticMode.mode === "semantic_ladder" &&
-        diagnosticOverrides.visualContextMode !== "normal"
-      ) {
-        throw new RequestError(
-          "Semantic ladder는 visual context isolation과 함께 사용할 수 없습니다.",
-          400
-        );
-      }
+      // One experiment = one variable. Ladder/hybrid must use normal isolation axes.
+      assertComicDiagnosticAxisIsolation({
+        mode: diagnosticMode.mode,
+        referenceMode: diagnosticOverrides.referenceMode,
+        visualContextMode: diagnosticOverrides.visualContextMode,
+      });
     } catch (error) {
       const code = error instanceof Error ? error.message : "INVALID_COMIC_DIAGNOSTIC_OVERRIDE";
       throw new RequestError(code === "COMIC_DIAGNOSTIC_OVERRIDE_FORBIDDEN"
@@ -1525,6 +1531,10 @@ export async function POST(req: Request) {
       castSelected: castManifest?.subjects.filter((subject) => subject.included),
       contentKind: context.contentKind,
       safeStructure: tier2SafeStructure,
+      compositionMode:
+        diagnosticMode.mode === "blank_balloon_hybrid"
+          ? "blank_balloon_hybrid"
+          : "overlay_first",
     });
     const tier2PromptAuditResult = auditTier2ComicPrompt({
       prompt: strictFallbackPrompt,
@@ -1710,6 +1720,9 @@ export async function POST(req: Request) {
           ATTEMPT_COUNT: comicDiagnostic.attemptCount,
           PRIMARY_RESULT: comicDiagnostic.primaryResult,
           TIER2_RESULT: comicDiagnostic.tier2Result,
+          SEMANTIC_BOUNDARY_OWNER: comicDiagnostic.SEMANTIC_BOUNDARY_OWNER,
+          PRIMARY_BOUNDARY: comicDiagnostic.PRIMARY_BOUNDARY,
+          TIER2_SAFE_RECOVERY: comicDiagnostic.TIER2_SAFE_RECOVERY,
           SAFETY_CATEGORIES: comicDiagnostic.safetyCategories,
           PROVIDER_REQUEST_ID: comicDiagnostic.providerRequestId,
           USAGE_EVIDENCE: comicDiagnostic.usageEvidence,
@@ -1824,6 +1837,9 @@ export async function POST(req: Request) {
           ATTEMPT_COUNT: diagnosticFailure.attemptCount,
           PRIMARY_RESULT: diagnosticFailure.primaryResult,
           TIER2_RESULT: diagnosticFailure.tier2Result,
+          SEMANTIC_BOUNDARY_OWNER: diagnosticFailure.SEMANTIC_BOUNDARY_OWNER,
+          PRIMARY_BOUNDARY: diagnosticFailure.PRIMARY_BOUNDARY,
+          TIER2_SAFE_RECOVERY: diagnosticFailure.TIER2_SAFE_RECOVERY,
           SAFETY_CATEGORIES: diagnosticFailure.safetyCategories,
           PROVIDER_REQUEST_ID: diagnosticFailure.providerRequestId,
           USAGE_EVIDENCE: diagnosticFailure.usageEvidence,

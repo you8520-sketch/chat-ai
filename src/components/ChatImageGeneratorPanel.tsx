@@ -208,6 +208,9 @@ type GenerateResult = {
     serverTextOnlyOverlay?: boolean;
     primaryResult?: string;
     tier2Result?: string;
+    SEMANTIC_BOUNDARY_OWNER?: "PRIMARY_RESULT";
+    PRIMARY_BOUNDARY?: "PASS" | "BLOCKED" | "UNKNOWN";
+    TIER2_SAFE_RECOVERY?: "PASS" | "FAIL" | "NOT_RUN";
     safetyCategories?: string[] | string;
     providerRequestId?: string | null;
     usageEvidence?: Array<{ attempt: number; evidence: string }>;
@@ -216,8 +219,10 @@ type GenerateResult = {
       expectedTextRegionCount: number;
       detectedRegionCount: number;
       insertedTextRegionCount: number;
+      missingTextRegionCount: number;
       ambiguousRegionCount: number;
       rejectedRegionCount: number;
+      textInsertionComplete: boolean;
     } | null;
   };
   trpgImageSceneDiagnostics?: {
@@ -528,7 +533,7 @@ export default function ChatImageGeneratorPanel({
   const [comicSemanticLevel, setComicSemanticLevel] =
     useState<ComicSemanticLevel>("L0");
   const [comicBlankBalloonTextStrategy, setComicBlankBalloonTextStrategy] =
-    useState<ComicBlankBalloonTextStrategy>("shared_anchor_regions");
+    useState<ComicBlankBalloonTextStrategy>("local_image_detection");
   const [comicDiagnosticResult, setComicDiagnosticResult] =
     useState<GenerateResult["comicDiagnostic"]>(undefined);
   const [summarizing, setSummarizing] = useState(false);
@@ -565,7 +570,7 @@ export default function ChatImageGeneratorPanel({
     setComicVisualContextIsolationMode("normal");
     setComicDiagnosticMode("normal");
     setComicSemanticLevel("L0");
-    setComicBlankBalloonTextStrategy("shared_anchor_regions");
+    setComicBlankBalloonTextStrategy("local_image_detection");
     setComicDiagnosticResult(undefined);
   }, []);
 
@@ -2295,16 +2300,17 @@ export default function ChatImageGeneratorPanel({
                               }
                               className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200"
                             >
-                              <option value={COMIC_BLANK_BALLOON_TEXT_STRATEGIES[0]}>
-                                A · shared planned anchor regions
-                              </option>
-                              <option value={COMIC_BLANK_BALLOON_TEXT_STRATEGIES[1]}>
-                                B · local blank-region detection
-                              </option>
-                            </select>
-                            <p className="text-[10px] leading-relaxed text-amber-200/70">
-                              provider가 말풍선 몸체·꼬리·나레이션 박스를 그리고 서버는 glyph만 삽입합니다.
-                            </p>
+<option value={COMIC_BLANK_BALLOON_TEXT_STRATEGIES[0]}>
+                              A · local blank-region detection (canonical)
+                            </option>
+                            <option value={COMIC_BLANK_BALLOON_TEXT_STRATEGIES[1]}>
+                              B · shared planned anchor (experimental)
+                            </option>
+                          </select>
+                          <p className="text-[10px] leading-relaxed text-amber-200/70">
+                            provider가 말풍선 몸체·꼬리·나레이션 박스를 그리고 서버는 검출된 빈 내부에 glyph만 삽입합니다.
+                            (A = 실제 검출된 말풍선 내부에 텍스트 배치 — 검증 가능한 전략)
+                          </p>
                           </label>
                         ) : null}
                         <label className="block space-y-1 text-[11px] text-zinc-300">
@@ -2347,6 +2353,13 @@ export default function ChatImageGeneratorPanel({
                                 text regions{" "}
                                 {comicDiagnosticResult.blankBalloonDetection.insertedTextRegionCount}/
                                 {comicDiagnosticResult.blankBalloonDetection.expectedTextRegionCount} inserted
+                                {comicDiagnosticResult.blankBalloonDetection.missingTextRegionCount > 0
+                                  ? ` · missing ${comicDiagnosticResult.blankBalloonDetection.missingTextRegionCount}`
+                                  : ""}
+                                {" · "}
+                                {comicDiagnosticResult.blankBalloonDetection.textInsertionComplete
+                                  ? "COMPLETE"
+                                  : "INCOMPLETE"}
                               </p>
                             ) : null}
                           </div>

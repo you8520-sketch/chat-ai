@@ -127,6 +127,23 @@ describe("chatComicGeneration", () => {
     assert.doesNotMatch(prompt, /반가워/);
   });
 
+  it("NORMAL-1 default primary prompt is byte-identical to explicit overlay_first", () => {
+    const base = {
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan: SAMPLE_PLAN,
+    };
+    const byDefault = buildChatComicImagePrompt(base);
+    const explicit = buildChatComicImagePrompt({ ...base, compositionMode: "overlay_first" });
+    assert.equal(byDefault, explicit);
+    assert.match(byDefault, /VISUAL LAYER ONLY/);
+    assert.match(byDefault, /server overlay/);
+    assert.doesNotMatch(byDefault, /GPT IS COMIC DIRECTOR/);
+    assert.doesNotMatch(byDefault, /blank speech balloons/i);
+  });
+
   it("uses the same canonical visual identity pipeline as LD duo", () => {
     const ld = buildLdDuoGenerationPlan({
       ...SCENE_BUILDER_SHARED_DUO,
