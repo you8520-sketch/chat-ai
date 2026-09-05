@@ -146,8 +146,11 @@ export function measureIntegerScrollCadence(
       }
     }
   }
-  const totalPositiveScroll = positiveSteps.reduce((sum, step) => sum + step, 0);
-  const positiveDurationSec = steadyInterStepGaps.reduce((sum, gap) => sum + gap, 0) / 1000;
+  const totalPositiveScroll = positiveEvents.reduce((sum, event) => sum + event.step, 0);
+  const sampleDurationSec =
+    samples.length >= 2
+      ? Math.max(0.001, (samples.at(-1)!.t - samples[0]!.t) / 1000)
+      : 0;
 
   return {
     POSITIVE_SCROLL_STEP_COUNT: positiveSteps.length,
@@ -160,8 +163,7 @@ export function measureIntegerScrollCadence(
     MEDIAN_INTER_STEP_GAP_MS: percentile(steadyCruiseSegmentGaps, 0.5),
     P95_INTER_STEP_GAP_MS: percentile(steadyCruiseSegmentGaps, 0.95),
     MAX_INTER_STEP_GAP_MS: steadyInterStepGaps.length > 0 ? Math.max(...steadyInterStepGaps) : 0,
-    AVERAGE_SCROLL_VELOCITY:
-      positiveDurationSec > 0 ? totalPositiveScroll / positiveDurationSec : 0,
+    AVERAGE_SCROLL_VELOCITY: sampleDurationSec > 0 ? totalPositiveScroll / sampleDurationSec : 0,
     DIRECTION_REVERSAL_COUNT: directionReversalCount,
     LARGE_JUMP_COUNT: largeJumpCount,
   };
