@@ -22,9 +22,11 @@ export const HTML_RECOVERY_SUB_CALLS_ENABLED = TURN_LENGTH_SUPPLEMENT_API_ENABLE
 
 /**
  * RP meta-leak full regeneration — one extra provider call per turn when detector fires.
- * Distinct from length supplement APIs (TURN_LENGTH_SUPPLEMENT_API_ENABLED).
+ * Retired for the single-primary RP invariant. The legacy request-kind and
+ * budget branches remain for compatibility, but no automatic regeneration is
+ * permitted on a user turn.
  */
-export const RP_META_LEAK_REGEN_API_ENABLED = true;
+export const RP_META_LEAK_REGEN_API_ENABLED = false;
 
 /** 유저 1턴당 내부 API 재호출 상한 — 초기 1회(본 호출) 제외 */
 export const MAX_TURN_SUB_API_CALLS = TURN_LENGTH_SUPPLEMENT_API_ENABLED

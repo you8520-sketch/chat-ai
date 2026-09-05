@@ -636,13 +636,14 @@ ok`;
     assert.equal(termQ.terminal_dialogue_budget_owner, 0);
     assert.equal(termU.terminal_dialogue_budget_owner, 1);
     assert.equal(termU.numeric_dialogue_percentage, 0);
-    // Must sit outside the user RP body and after length owner (absolute end).
+    // Must sit outside the user RP body, while the length owner remains the
+    // absolute end of the current user turn.
     assert.ok(U.lastUserContent.includes(USER_TAIL_LENGTH_OWNER_SENTENCE));
     assert.ok(
-      U.lastUserContent.trimEnd().endsWith(
-        "직접 발화는 최대 4개 블록으로 구성한다. 보통 1~3개면 충분하다."
-      )
+      U.lastUserContent.indexOf("[이번 응답 대화]") <
+        U.lastUserContent.indexOf(USER_TAIL_LENGTH_OWNER_SENTENCE)
     );
+    assert.ok(U.lastUserContent.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
     assert.ok(
       U.lastUserContent.indexOf(CURRENT_USER_INPUT_HEADER) <
         U.lastUserContent.indexOf("[이번 응답 대화]")
@@ -978,6 +979,15 @@ ok`;
     assert.match(V.lastUserContent, /하나의 중심축/);
     assert.match(V.lastUserContent, /\[B\]의 새 직접 발화·중대한 선택은 유저에게 남긴다/);
     assert.doesNotMatch(V.lastUserContent, /보통 1~3개면 충분/);
+    assert.ok(
+      V.lastUserContent.indexOf("[이번 응답 대화]") <
+        V.lastUserContent.indexOf(USER_TAIL_LENGTH_OWNER_SENTENCE)
+    );
+    assert.ok(V.lastUserContent.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
+    assert.equal(
+      V.lastUserContent.split(USER_TAIL_LENGTH_OWNER_SENTENCE).length - 1,
+      1
+    );
     assert.doesNotMatch(V.systemText, /여러 독립 결정/);
     assert.match(
       renderCompactScenePacingCue(quiet),

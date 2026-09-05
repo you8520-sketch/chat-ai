@@ -24,6 +24,12 @@ import {
   type SceneProgressionType,
 } from "@/lib/sceneDirective";
 import { SCENE_FLOW_BLOCK } from "@/lib/generationProcessBeatFlow";
+import { LUNA_TERMINAL_OUTPUT_CONTRACT } from "@/lib/lunaSinglePrimaryAdapter";
+import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
+import {
+  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
+  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT_CONTINUOUS_SCENE,
+} from "@/lib/terraTerminalLengthOwner";
 
 export type ScenePacingArm = "A" | "P" | "Q" | "R" | "T" | "U" | "V";
 
@@ -934,9 +940,41 @@ export function countTerminalDialogueBudgetOwners(text: string): {
   };
 }
 
+const TERMINAL_LENGTH_OWNER_TEXTS = [
+  USER_TAIL_LENGTH_OWNER_SENTENCE,
+  LUNA_TERMINAL_OUTPUT_CONTRACT,
+  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
+  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT_CONTINUOUS_SCENE,
+] as const;
+
 /**
- * Append private dialogue-budget line at CURRENT USER TURN end (after length
- * owner / layout). single_primary only — sim/party/ensemble skip (null budget).
+ * Keep the existing length owner at the absolute end of the current user turn.
+ * Wire-time scene controls are layered after context assembly, so inserting the
+ * dialogue ceiling naively after the user turn would silently override the
+ * terminal owner’s recency position.
+ */
+function appendBeforeTerminalLengthOwner(
+  userContent: string,
+  instruction: string
+): string {
+  const body = userContent.trimEnd();
+  let ownerStart = -1;
+  for (const owner of TERMINAL_LENGTH_OWNER_TEXTS) {
+    const candidate = body.lastIndexOf(owner);
+    if (candidate > ownerStart) ownerStart = candidate;
+  }
+  if (ownerStart < 0) {
+    return `${body}\n\n${instruction}`;
+  }
+  const prefix = body.slice(0, ownerStart).trimEnd();
+  const ownerAndSuffix = body.slice(ownerStart).trimStart();
+  return `${prefix}\n\n${instruction}\n\n${ownerAndSuffix}`;
+}
+
+/**
+ * Append private dialogue-budget line immediately before the terminal length
+ * owner. The length owner remains the absolute end of the current user turn.
+ * single_primary only — sim/party/ensemble skip (null budget).
  */
 export function appendTerminalDialogueBudgetToUserTurn(input: {
   userContent: string;
@@ -994,7 +1032,7 @@ export function appendTerminalDialogueBudgetToUserTurn(input: {
       ? renderTerminalDialogueBudgetOwner(budget.maxBlocks)
       : TERMINAL_DIALOGUE_BUDGET_OWNER;
   return {
-    userContent: `${input.userContent.trimEnd()}\n\n${owner}`,
+    userContent: appendBeforeTerminalLengthOwner(input.userContent, owner),
     appended: true,
     skippedReason: null,
     maxBlocks: budget.maxBlocks,
@@ -1188,7 +1226,8 @@ export function applyScenePacingArmToMessages(input: {
     }
   }
 
-  // G10-D2/D3: append private budget after production terminal length/layout lines.
+  // G10-D2/D3: insert private budget before the production terminal length
+  // owner so that length remains the absolute final RP instruction.
   if (input.arm === "U" || input.arm === "V") {
     const budgetInput = input.dialogueBudgetInput;
     if (input.arm === "V") {
