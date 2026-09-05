@@ -1,5 +1,6 @@
 import {
   formatAdminActualUsd,
+  formatAdminKrwFromUsd,
   type AdminBillingReceiptV2,
   type AdminBillingReceiptV2Fx,
 } from "@/lib/adminBillingReceiptV2";
@@ -115,6 +116,11 @@ export function wholeTurnCoverageLabel(
 
 export function formatAdminBillingReceiptV3Text(receipt: AdminBillingReceiptV3): string {
   const summary = buildAdminReceiptTurnSummary(receipt);
+  const fxRate = receipt.wholeTurn.fx?.effectiveKrwPerUsd ?? null;
+  const fxSuffix = (usd: number | null | undefined): string => {
+    const krw = formatAdminKrwFromUsd(usd, fxRate);
+    return krw == null ? "" : ` (${krw})`;
+  };
   const lines: string[] = [
     "Admin Receipt v3 · 턴 귀속 Provider 원가",
     ...formatAdminReceiptTurnSummaryLines(summary, { locale: "en" }),
@@ -124,7 +130,7 @@ export function formatAdminBillingReceiptV3Text(receipt: AdminBillingReceiptV3):
 
   lines.push("", "[Main RP]");
   lines.push(
-    `actual USD: ${formatAdminActualUsd(receipt.wholeTurn.mainActualCostUsd)} (${receipt.wholeTurn.mainExact ? "exact" : "not exact"})`
+    `actual USD: ${formatAdminActualUsd(receipt.wholeTurn.mainActualCostUsd)}${fxSuffix(receipt.wholeTurn.mainActualCostUsd)} (${receipt.wholeTurn.mainExact ? "exact" : "not exact"})`
   );
 
   lines.push("", "[Sync Platform Spend]");
@@ -136,26 +142,26 @@ export function formatAdminBillingReceiptV3Text(receipt: AdminBillingReceiptV3):
     lines.push("sync: snapshot not persisted");
   } else {
     lines.push(
-      `actual USD: ${formatAdminActualUsd(receipt.wholeTurn.syncActualCostUsd)} (${receipt.wholeTurn.syncExact ? "exact" : "not exact"})`
+      `actual USD: ${formatAdminActualUsd(receipt.wholeTurn.syncActualCostUsd)}${fxSuffix(receipt.wholeTurn.syncActualCostUsd)} (${receipt.wholeTurn.syncExact ? "exact" : "not exact"})`
     );
   }
 
   lines.push("", "[Async Turn-attributable]");
   lines.push(`coverage: ${wholeTurnCoverageLabel(receipt.async.coverage)}`);
-  lines.push(`known USD: ${formatAdminActualUsd(receipt.async.knownActualCostUsd)}`);
+  lines.push(`known USD: ${formatAdminActualUsd(receipt.async.knownActualCostUsd)}${fxSuffix(receipt.async.knownActualCostUsd)}`);
   lines.push(
-    `exact USD: ${receipt.async.exactActualCostUsd != null ? formatAdminActualUsd(receipt.async.exactActualCostUsd) : "—"}`
+    `exact USD: ${receipt.async.exactActualCostUsd != null ? formatAdminActualUsd(receipt.async.exactActualCostUsd) + fxSuffix(receipt.async.exactActualCostUsd) : "—"}`
   );
   for (const family of receipt.async.byFamily) {
     lines.push(
-      `- ${family.label}: calls=${family.physicalCallCount}, known=${formatAdminActualUsd(family.knownActualCostUsd)}, state=${family.expectationState}/${family.coverage}`
+      `- ${family.label}: calls=${family.physicalCallCount}, known=${formatAdminActualUsd(family.knownActualCostUsd)}${fxSuffix(family.knownActualCostUsd)}, state=${family.expectationState}/${family.coverage}`
     );
   }
 
   lines.push("", "[Whole Turn]");
-  lines.push(`known USD: ${formatAdminActualUsd(receipt.wholeTurn.knownProviderSpendUsd)}`);
+  lines.push(`known USD: ${formatAdminActualUsd(receipt.wholeTurn.knownProviderSpendUsd)}${fxSuffix(receipt.wholeTurn.knownProviderSpendUsd)}`);
   lines.push(
-    `exact USD: ${receipt.wholeTurn.exactProviderSpendUsd != null ? formatAdminActualUsd(receipt.wholeTurn.exactProviderSpendUsd) : "—"}`
+    `exact USD: ${receipt.wholeTurn.exactProviderSpendUsd != null ? formatAdminActualUsd(receipt.wholeTurn.exactProviderSpendUsd) + fxSuffix(receipt.wholeTurn.exactProviderSpendUsd) : "—"}`
   );
   lines.push(
     `exact KRW: ${receipt.wholeTurn.exactProviderSpendKrw != null ? `${receipt.wholeTurn.exactProviderSpendKrw} KRW` : "—"}`

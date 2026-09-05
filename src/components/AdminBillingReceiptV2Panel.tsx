@@ -5,6 +5,7 @@ import {
   adminReceiptExactnessLabel,
   buildAdminBillingReceiptV2,
   formatAdminActualUsd,
+  formatAdminKrwFromUsd,
   type AdminBillingReceiptV2,
 } from "@/lib/adminBillingReceiptV2";
 import { formatPoints } from "@/lib/billingDisplay";
@@ -42,6 +43,19 @@ function ReceiptRow({
 
 export function AdminBillingReceiptV2Panel({ usage }: { usage: Usage }) {
   const receipt = buildAdminBillingReceiptV2(usage);
+  const fxRate = receipt.fx?.effectiveKrwPerUsd ?? null;
+
+  const usdWithKrw = (usd: number | null | undefined): ReactNode => {
+    if (usd == null || !(usd > 0)) return "—";
+    const krw = formatAdminKrwFromUsd(usd, fxRate);
+    if (krw == null) return formatAdminActualUsd(usd);
+    return (
+      <>
+        {formatAdminActualUsd(usd)}{" "}
+        <span className="text-zinc-400">({krw})</span>
+      </>
+    );
+  };
 
   return (
     <div className="space-y-0.5 text-[11px] leading-relaxed text-zinc-300">
@@ -103,7 +117,7 @@ export function AdminBillingReceiptV2Panel({ usage }: { usage: Usage }) {
           <ReceiptRow label="model" value={receipt.mainRp.actual.model} />
           <ReceiptRow
             label="actual USD"
-            value={formatAdminActualUsd(receipt.mainRp.actual.actualProviderCostUsd)}
+            value={usdWithKrw(receipt.mainRp.actual.actualProviderCostUsd)}
           />
           <ReceiptRow label="actual KRW" value={formatKrw(receipt.mainRp.actual.actualProviderCostKrw)} />
           <ReceiptRow label="source" value={receipt.mainRp.actual.actualCostSource} />
@@ -201,7 +215,7 @@ export function AdminBillingReceiptV2Panel({ usage }: { usage: Usage }) {
           />
           <ReceiptRow
             label="actual USD"
-            value={formatAdminActualUsd(receipt.syncPlatformSpend.actualProviderCostUsd)}
+            value={usdWithKrw(receipt.syncPlatformSpend.actualProviderCostUsd)}
           />
           <ReceiptRow
             label="actual KRW (v2)"

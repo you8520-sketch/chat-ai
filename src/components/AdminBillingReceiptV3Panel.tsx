@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import {
   adminReceiptExactnessLabel,
   formatAdminActualUsd,
+  formatAdminKrwFromUsd,
 } from "@/lib/adminBillingReceiptV2";
 import {
   formatAdminBillingReceiptV3Text,
@@ -56,6 +57,22 @@ function coverageBadgeClass(coverage: AdminBillingReceiptV3["wholeTurn"]["covera
   }
 }
 
+/** USD 값 옆에 오늘의 billing FX로 환산한 KRW 금액을 함께 표시한다. */
+function usdWithKrw(
+  usd: number | null | undefined,
+  effectiveKrwPerUsd: number | null | undefined
+): ReactNode {
+  if (usd == null || !(usd > 0)) return "—";
+  const krw = formatAdminKrwFromUsd(usd, effectiveKrwPerUsd);
+  if (krw == null) return formatAdminActualUsd(usd);
+  return (
+    <>
+      {formatAdminActualUsd(usd)}{" "}
+      <span className="text-zinc-400">({krw})</span>
+    </>
+  );
+}
+
 export function AdminBillingReceiptV3Panel({
   receipt,
   onCopy,
@@ -68,6 +85,7 @@ export function AdminBillingReceiptV3Panel({
   const sync = receipt.syncReceipt;
   const turnSummary = buildAdminReceiptTurnSummary(receipt);
   const forensic = receipt.forensic;
+  const fxRate = receipt.wholeTurn.fx?.effectiveKrwPerUsd ?? null;
 
   return (
     <div className="space-y-0.5 text-[11px] leading-relaxed text-zinc-300">
@@ -141,16 +159,12 @@ export function AdminBillingReceiptV3Panel({
       <SectionTitle>턴 귀속 Provider 총원가</SectionTitle>
       <ReceiptRow
         label="현재 확인된 Provider 비용"
-        value={formatAdminActualUsd(receipt.wholeTurn.knownProviderSpendUsd)}
+        value={usdWithKrw(receipt.wholeTurn.knownProviderSpendUsd, fxRate)}
         hint="(정산확정 subset만 합산)"
       />
       <ReceiptRow
         label="확정 USD"
-        value={
-          receipt.wholeTurn.exactProviderSpendUsd != null
-            ? formatAdminActualUsd(receipt.wholeTurn.exactProviderSpendUsd)
-            : "—"
-        }
+        value={usdWithKrw(receipt.wholeTurn.exactProviderSpendUsd, fxRate)}
       />
       <ReceiptRow
         label="확정 KRW"
@@ -159,7 +173,11 @@ export function AdminBillingReceiptV3Panel({
             ? `~${formatPoints(receipt.wholeTurn.exactProviderSpendKrw)}원`
             : "—"
         }
-        hint="(parent turn FX 1회 적용)"
+        hint={
+          fxRate != null
+            ? `(billing FX ${fxRate.toLocaleString(undefined, { maximumFractionDigits: 2 })} KRW/USD · ${receipt.wholeTurn.fx?.dateKey ?? ""})`
+            : "(parent turn FX 1회 적용)"
+        }
       />
       {receipt.wholeTurn.contributionMarginPercent != null && (
         <ReceiptRow
@@ -173,15 +191,11 @@ export function AdminBillingReceiptV3Panel({
       <ReceiptRow label="coverage" value={wholeTurnCoverageLabel(receipt.async.coverage)} />
       <ReceiptRow
         label="known USD"
-        value={formatAdminActualUsd(receipt.async.knownActualCostUsd)}
+        value={usdWithKrw(receipt.async.knownActualCostUsd, fxRate)}
       />
       <ReceiptRow
         label="exact USD"
-        value={
-          receipt.async.exactActualCostUsd != null
-            ? formatAdminActualUsd(receipt.async.exactActualCostUsd)
-            : "—"
-        }
+        value={usdWithKrw(receipt.async.exactActualCostUsd, fxRate)}
       />
       {receipt.async.unexpectedRowCount > 0 && (
         <ReceiptRow
@@ -193,7 +207,7 @@ export function AdminBillingReceiptV3Panel({
       {receipt.async.byFamily.map((family) => (
         <p key={family.family} className="pl-2 text-[10px] text-zinc-400">
           {family.label}: calls {family.physicalCallCount}, known{" "}
-          {formatAdminActualUsd(family.knownActualCostUsd)}, {family.expectationState} /{" "}
+          {usdWithKrw(family.knownActualCostUsd, fxRate)}, {family.expectationState} /{" "}
           {family.coverage}
           {family.skipReason ? ` (${family.skipReason})` : ""}
         </p>
@@ -204,7 +218,7 @@ export function AdminBillingReceiptV3Panel({
         <>
           <ReceiptRow
             label="actual USD"
-            value={formatAdminActualUsd(sync.mainRp.actual.actualProviderCostUsd)}
+            value={usdWithKrw(sync.mainRp.actual.actualProviderCostUsd, fxRate)}
           />
           <ReceiptRow
             label="확정"
@@ -221,7 +235,7 @@ export function AdminBillingReceiptV3Panel({
           <ReceiptRow label="group" value={sync.syncPlatformSpend.groupLabel ?? "—"} />
           <ReceiptRow
             label="actual USD"
-            value={formatAdminActualUsd(sync.syncPlatformSpend.actualProviderCostUsd)}
+            value={usdWithKrw(sync.syncPlatformSpend.actualProviderCostUsd, fxRate)}
           />
           {sync.syncPlatformSpend.postTurnSharedInitial && (
             <ReceiptRow label="shared initial" value="included once in sync" />
