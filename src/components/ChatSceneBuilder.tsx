@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 
 import ChatImageCastPicker from "@/components/ChatImageCastPicker";
+import {
+  CHAT_COMIC_PANEL_OPTIONS,
+  type ChatComicPanelMode,
+} from "@/lib/chatComicGenerationConstants";
 import type { ChatImageCastIntentManifest, SelectableCastAsset } from "@/lib/chatImageCast";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
@@ -51,9 +55,11 @@ type ChatSceneBuilderProps = {
   castSpeakerNames?: readonly string[];
   outputMode: SceneOutputMode;
   panelCount: ScenePanelCount;
+  comicPanelMode?: ChatComicPanelMode;
   disabled?: boolean;
   onOutputModeChange: (mode: SceneOutputMode) => void;
   onPanelCountChange: (count: ScenePanelCount) => void;
+  onComicPanelModeChange?: (mode: ChatComicPanelMode) => void;
   onPlanChange: (plan: ScenePlan) => void;
   onCastChange: (manifest: ChatImageCastIntentManifest) => void;
   onRequestAiSuggestion: () => void;
@@ -430,9 +436,11 @@ export default function ChatSceneBuilder({
   castSpeakerNames,
   outputMode,
   panelCount,
+  comicPanelMode,
   disabled,
   onOutputModeChange,
   onPanelCountChange,
+  onComicPanelModeChange,
   onPlanChange,
   onCastChange,
   onRequestAiSuggestion,
@@ -492,19 +500,24 @@ export default function ChatSceneBuilder({
         <section className="space-y-2">
           <h3 className="text-[11px] font-semibold text-zinc-400">컷 수</h3>
           <div className="grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-1">
-            {([2, 3, 4] as const).map((count) => (
+            {CHAT_COMIC_PANEL_OPTIONS.map((option) => (
               <button
-                key={count}
+                key={option.id}
                 type="button"
                 disabled={disabled || !plan}
-                onClick={() => onPanelCountChange(count)}
+                onClick={() => {
+                  onComicPanelModeChange?.(option.id);
+                  // The scene planner still plans with a concrete count; AUTO
+                  // plans for 4 and the anchor-centered storyboard decides 3/4.
+                  onPanelCountChange(option.id === "auto" ? 4 : option.id);
+                }}
                 className={`rounded-lg px-2 py-2 text-[11px] font-semibold transition ${
-                  panelCount === count
+                  comicPanelMode === option.id
                     ? "bg-violet-600 text-white"
                     : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
                 }`}
               >
-                {count}컷
+                {option.label}
               </button>
             ))}
           </div>

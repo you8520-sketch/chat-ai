@@ -27,6 +27,7 @@ import {
   buildChatComicPanelSpecVisualSection,
   type ChatComicCompositionMode,
 } from "@/lib/chatComicPanelSpec";
+import type { ComicStoryboard } from "@/lib/chatComicHighlightStoryboard";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
   bindChatImageReferencePack,
@@ -46,8 +47,10 @@ export {
   CHAT_COMIC_TEMPLATE_ID,
   CHAT_COMIC_TEMPLATE_NAME,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+  isComicPanelMode,
   type ChatComicMood,
   type ChatComicPanelCount,
+  type ChatComicPanelMode,
   resolveChatComicOutputSize,
   resolveChatComicPrice,
   sanitizeChatComicOptions,
@@ -115,6 +118,8 @@ export function buildChatComicImagePrompt(opts: {
   compositionMode?: ChatComicCompositionMode;
   /** Site adult text eligibility (resolveEffectiveAdultRp) for provider-readable dialogue input. */
   providerTextAdultEligible?: boolean;
+  /** Anchor-centered highlight storyboard (comic production) — concise script rendering. */
+  storyboard?: ComicStoryboard;
 }): string {
   const projectionContext: SafeVisualProjectionContext = {
     adultGrounded: opts.adultGrounded ?? false,
@@ -164,6 +169,7 @@ export function buildChatComicImagePrompt(opts: {
           eventSubjectBindings: opts.castManifest?.eventSubjectBindings,
           projection,
           adultGrounded: providerTextAdultEligible,
+          storyboard: opts.storyboard,
         })
       : buildChatComicPanelSpecVisualSection({
           plan: opts.plan,
@@ -225,6 +231,7 @@ export function buildChatComicGenerationPlan(opts: {
   adultGrounded?: boolean;
   compositionMode?: ChatComicCompositionMode;
   providerTextAdultEligible?: boolean;
+  storyboard?: ComicStoryboard;
 }) {
   const useCast = Boolean(opts.castManifest);
   let pack: { subjects: ChatImageVisualSubject[]; referenceUrls: string[] };
@@ -283,6 +290,7 @@ export function buildChatComicGenerationPlan(opts: {
       adultGrounded: opts.adultGrounded,
       compositionMode: opts.compositionMode,
       providerTextAdultEligible: opts.providerTextAdultEligible,
+      storyboard: opts.storyboard,
     }),
   };
 }

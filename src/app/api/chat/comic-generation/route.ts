@@ -16,10 +16,16 @@ import {
   CHAT_COMIC_TEMPLATE_ID,
   assembleComicFinalImage,
   buildChatComicGenerationPlan,
+  isComicPanelMode,
   resolveChatComicOutputSize,
   resolveChatComicPrice,
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
+import {
+  applyComicHighlightStoryboardToPlan,
+  buildComicHighlightStoryboard,
+  type ComicStoryboard,
+} from "@/lib/chatComicHighlightStoryboard";
 import {
   CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
   CHAT_LD_ILLUSTRATION_QUALITY,
@@ -1425,7 +1431,7 @@ export async function POST(req: Request) {
         });
     const mood = "comic" as const;
     const knownSpeakerNames = resolveKnownSpeakerNames(context, body.castIntent);
-    const scenePlan = semanticLadderMode
+    const canonicalPlan = semanticLadderMode
       ? buildSemanticLadderScenePlan(
           diagnosticMode.semanticLevel!,
           4,
@@ -1434,19 +1440,36 @@ export async function POST(req: Request) {
       : resolveApprovedScenePlan({
           bodyPlan: body.scenePlan,
           messages: source.messages,
-          panelCount: body.panelCount,
           personaName: context.persona.name,
           characterName: context.character.name,
           knownSpeakerNames,
           contentKind: context.contentKind,
         });
-    const panelCount = scenePlan.panels.length as ChatComicPanelCount;
+    // COMIC HIGHLIGHT STORYBOARD V3 — anchor-centered 3/4-panel presentation.
+    // The canonical timeline stays lossless; only the comic panels are a selected
+    // contiguous focus window. 2-panel is removed from the user path (legacy
+    // requests retire to AUTO). Admin ladder/hybrid diagnostics keep the fixed
+    // canonical scene plan.
+    let comicStoryboard: ComicStoryboard | null = null;
+    let scenePlan = canonicalPlan;
+    let panelCount = scenePlan.panels.length as ChatComicPanelCount;
+    if (!semanticLadderMode) {
+      const requestedPanelMode = isComicPanelMode(body.panelCount)
+        ? body.panelCount
+        : "auto";
+      comicStoryboard = buildComicHighlightStoryboard(canonicalPlan, {
+        manualPanelCount:
+          requestedPanelMode === "auto" ? undefined : (requestedPanelMode as 3 | 4),
+      });
+      scenePlan = applyComicHighlightStoryboardToPlan(canonicalPlan, comicStoryboard);
+      panelCount = comicStoryboard.panelCount;
+    }
     const castManifest = semanticLadderMode
       ? null
       : resolveGroundedCastManifest({
           castIntentRaw: body.castIntent,
           context,
-          scenePlan,
+          scenePlan: canonicalPlan,
           userId: user.id,
           sourceMessages: source.messages,
           fromManualText: source.fromManualText,
@@ -1497,6 +1520,7 @@ contentKind: context.contentKind,
           ? "blank_balloon_hybrid"
           : "full_provider_rendered",
       providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
+      storyboard: comicStoryboard ?? undefined,
     });
     const neutralVisualContext = diagnosticOverrides.visualContextMode === "neutral_visual_context";
     const providerScenePlan: ScenePlan = neutralVisualContext
@@ -1524,6 +1548,7 @@ contentKind: context.contentKind,
               ? "blank_balloon_hybrid"
               : "full_provider_rendered",
           providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
+          storyboard: comicStoryboard ?? undefined,
         })
       : identityPack;
     const prompt = providerIdentityPack.prompt;

@@ -10,6 +10,7 @@ import {
   CHAT_COMIC_PANEL_OPTIONS,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
   type ChatComicPanelCount,
+  type ChatComicPanelMode,
 } from "@/lib/chatComicGenerationConstants";
 import {
   COMIC_SEMANTIC_LADDER,
@@ -437,6 +438,7 @@ export default function ChatImageGeneratorPanel({
   const [sceneOutputMode, setSceneOutputMode] = useState<SceneOutputMode>("illustration");
   const [scenePanelCount, setScenePanelCount] = useState<ScenePanelCount>(3);
   const scenePanelCountRef = useRef<ScenePanelCount>(3);
+  const [comicPanelMode, setComicPanelMode] = useState<ChatComicPanelMode>("auto");
   const commitPanelCount = useCallback((count: ScenePanelCount) => {
     commitScenePanelCount(scenePanelCountRef, count, setScenePanelCount);
   }, []);
@@ -1604,7 +1606,7 @@ export default function ChatImageGeneratorPanel({
             !campaignId && castIntent ? castIntent : undefined,
           panelCount:
             !isIllustration && scenePlan
-              ? scenePanelCount
+              ? comicPanelMode
               : undefined,
           campaignId: isIllustration && campaignId ? campaignId : undefined,
           roundNumber:
@@ -1898,7 +1900,7 @@ export default function ChatImageGeneratorPanel({
                                 ? "캐릭터 그림체 참조 이미지"
                                 : sceneIsIllustration
                                 ? "선택 턴 LD 일러스트 참조 이미지"
-                                : "2~4컷 만화 예시"
+                                : "3~4컷 만화 예시"
                               : sdProduct === "emoticon"
                                 ? "랜덤 9종 이모티콘 고정틀"
                                 : sdProduct === "coupleStamp"
@@ -2618,6 +2620,7 @@ export default function ChatImageGeneratorPanel({
                             castSpeakerNames={configuredCastNames}
                             outputMode={sceneOutputMode}
                             panelCount={scenePanelCount}
+                            comicPanelMode={comicPanelMode}
                             disabled={generating}
                             onOutputModeChange={(mode) => {
                               setSceneOutputMode(mode);
@@ -2641,6 +2644,7 @@ export default function ChatImageGeneratorPanel({
                               scenePlanUserEditedRef.current = false;
                               setScenePlan(reflowScenePlanPanels(scenePlan, count));
                             }}
+                            onComicPanelModeChange={setComicPanelMode}
                             onPlanChange={(nextPlan) => {
                               scenePlanUserEditedRef.current = true;
                               setScenePlan(nextPlan);
@@ -2673,9 +2677,12 @@ export default function ChatImageGeneratorPanel({
                                     label: "선택 턴 LD 일러스트",
                                     cost: info.averageCosts.illustration,
                                   }]
-                                : CHAT_COMIC_PANEL_OPTIONS.map(({ id: panelCount }) => ({
-                                    label: `${panelCount}컷 만화`,
-                                    cost: info.averageCosts!.comic[panelCount],
+                                : CHAT_COMIC_PANEL_OPTIONS.map((option) => ({
+                                    label:
+                                      option.id === "auto"
+                                        ? "컷만화 (자동)"
+                                        : `${option.id}컷 만화`,
+                                    cost: info.averageCosts!.comic[3],
                                   }))
                               : undefined
                           }
