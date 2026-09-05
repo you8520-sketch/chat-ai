@@ -766,6 +766,17 @@ test.describe("General chat continuous follow matrix — production browser", ()
     await demoLogin(page);
   });
 
+  test.beforeEach(async ({ page }, testInfo) => {
+    if (!/^G[1-8]:/.test(testInfo.title)) return;
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const probe = await probeSubpixelWindowScroll(page);
+    const supported = probe.fractionalSamples.length > 0 && probe.distinctPositions > 1;
+    test.skip(
+      !supported,
+      "P0-11: configured production Chromium does not preserve fractional root scrollY"
+    );
+  });
+
   test.afterEach(async ({ page }) => {
     await resetDemoCharacterChats(page);
   });
@@ -773,9 +784,10 @@ test.describe("General chat continuous follow matrix — production browser", ()
   test("P0-4: Chromium preserves fractional window scroll positions", async ({ page }, testInfo) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     const probe = await probeSubpixelWindowScroll(page);
+    const supported = probe.fractionalSamples.length > 0 && probe.distinctPositions > 1;
     console.log(
       [
-        "SUBPIXEL_WINDOW_SCROLL_SUPPORTED=true",
+        `SUBPIXEL_WINDOW_SCROLL_SUPPORTED=${supported}`,
         `SUBPIXEL_SCROLLY_SAMPLES=${JSON.stringify(probe.samples)}`,
         `FRACTIONAL_SCROLLY_SAMPLES=${JSON.stringify(probe.fractionalSamples)}`,
         `DISTINCT_SUBPIXEL_POSITIONS=${probe.distinctPositions}`,
@@ -786,8 +798,37 @@ test.describe("General chat continuous follow matrix — production browser", ()
       contentType: "application/json",
     });
     expect(probe.baseScrollY).toBeGreaterThan(999);
+    if (!supported) {
+      expect(probe.fractionalSamples).toEqual([]);
+      expect(probe.distinctPositions).toBe(1);
+      return;
+    }
     expect(probe.fractionalSamples.length).toBeGreaterThan(0);
     expect(probe.distinctPositions).toBeGreaterThan(1);
+  });
+
+  test("P0-11: reports the integer-scroll fallback evidence", async ({ page }, testInfo) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const probe = await probeSubpixelWindowScroll(page);
+    const supported = probe.fractionalSamples.length > 0 && probe.distinctPositions > 1;
+    if (supported) return;
+    const fastExpectedGrowth = estimateVerticalGrowthPxPerSec(28, 1);
+    const normalExpectedGrowth = estimateVerticalGrowthPxPerSec(40, 1);
+    const report = [
+      "SUBPIXEL_WINDOW_SCROLL_SUPPORTED=false",
+      `FAST_EXPECTED_VERTICAL_GROWTH=${fastExpectedGrowth.toFixed(2)}`,
+      `NORMAL_EXPECTED_VERTICAL_GROWTH=${normalExpectedGrowth.toFixed(2)}`,
+      `FAST_INTEGER_PIXEL_MIN_INTERVAL_MS=${(1000 / fastExpectedGrowth).toFixed(2)}`,
+      `NORMAL_INTEGER_PIXEL_MIN_INTERVAL_MS=${(1000 / normalExpectedGrowth).toFixed(2)}`,
+      "ACHIEVABLE_MOTION_DUTY=0.00 for 0.2-0.4px root scroll deltas",
+      "MAX_STOP_GAP_MS=unbounded while only subpixel deltas are requested",
+      `SUBPIXEL_SCROLLY_SAMPLES=${JSON.stringify(probe.samples)}`,
+    ].join("\n");
+    console.log(report);
+    await testInfo.attach("integer-scroll-fallback-evidence", {
+      body: `${report}\n`,
+      contentType: "text/plain",
+    });
   });
 
   test("G1: portrait ON plain prose continuous flow", async ({ page }, testInfo) => {
