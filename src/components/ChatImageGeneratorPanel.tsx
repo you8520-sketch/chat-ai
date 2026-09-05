@@ -2618,4 +2618,3 @@ export default function ChatImageGeneratorPanel({
     </>
   );
 }
-
