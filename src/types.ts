@@ -147,42 +147,6 @@ export type ContextBuildInput = {
   /** Compact private scene movement directive for this turn */
   sceneDirectiveBlock?: string | null;
   /**
-   * Terra main-home prompt canary — optional.
-   * When absent/null, layout and other owners stay production-identical.
-   */
-  terraPromptCanary?: {
-    variant:
-      | "baseline"
-      | "greeting_neutral"
-      | "scene_relation_priority"
-      | "greeting_neutral_scene_relation_priority"
-      | "greeting_neutral_relationship_axis"
-      | "dialogue_intent_unit"
-      | "greeting_neutral_card_dialogue_neutral"
-      | "greeting_neutral_scene_card_dialogue_neutral"
-      | "terra_dialogue_intent_adapter"
-      | "greeting_neutral_scene_terra_dialogue_intent"
-      | "final_main_home_candidate"
-      | "dialogue_root_baseline"
-      | "greeting_dialogue_bundled"
-      | "terminal_continuous_scene"
-      | "dialogue_reference_scope"
-      | "greeting_terminal_combined"
-      | "best_structure_temp_05"
-      | "best_structure_temp_06";
-    progressionAxis?:
-      | "relationship"
-      | "investigation"
-      | "environment"
-      | "external_event"
-      | "combat"
-      | "multi_character"
-      | null;
-    /** When true, SceneDirective is omitted from system and appended on user-turn before Terra length owner. */
-    relocateSceneDirectiveToUserTurn?: boolean;
-    sceneDirectiveUserTail?: string | null;
-  } | null;
-  /**
    * Model-neutral RP diagnostic canary (DeepSeek V4 Flash audit).
    * Server env only — no client variant selection.
    */

@@ -8,10 +8,6 @@ import {
 } from "@/lib/responseLength";
 import { MEMORY_CAPACITY_DEFAULT } from "@/lib/memory/memory-capacity-shared";
 import {
-  resolveCanaryGreeting,
-  resolveTerraPromptCanary,
-} from "@/lib/terraPromptCanary";
-import {
   resolveRpDiagnosticCanary,
   resolveRpDiagnosticGreeting,
 } from "@/lib/rpDiagnosticCanary";
@@ -51,11 +47,6 @@ export function createChatSession(input: CreateChatSessionInput): number {
     .prepare("SELECT content_kind FROM characters WHERE id=?")
     .get(input.characterId) as { content_kind?: string } | undefined;
   const contentKind = contentKindRow?.content_kind === "simulation" ? "simulation" : "character";
-  const terraCanary = resolveTerraPromptCanary({
-    userId: input.userId,
-    modelId: selectedAI,
-    contentKind,
-  });
   const rpCanary = resolveRpDiagnosticCanary({
     userId: input.userId,
     modelId: selectedAI,
@@ -64,11 +55,7 @@ export function createChatSession(input: CreateChatSessionInput): number {
   const greetingForInsert = rpCanary
     ? resolveRpDiagnosticGreeting(rpCanary.variant, input.characterId, input.greeting ?? "") ??
       (input.greeting ?? "")
-    : resolveCanaryGreeting({
-        canary: terraCanary,
-        characterId: input.characterId,
-        greeting: input.greeting ?? "",
-      });
+    : (input.greeting ?? "");
 
   const info = db
     .prepare(

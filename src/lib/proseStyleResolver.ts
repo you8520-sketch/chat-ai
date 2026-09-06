@@ -7,11 +7,9 @@
  *   3. VNext public rollout never applies to Muse
  *   4. otherwise → Legacy (undefined)
  *
- * Shared Novel Prose V2 (admin allowlist, exact 3 models):
- *   Luna gpt-5.6-luna, DeepSeek deepseek-v4-pro, Gemini google/gemini-3.6-flash.
+ * Shared Novel Prose V2 (admin allowlist, canonical 4 Main RP models).
  *   After the base route is chosen, if V2 gate is ON, swap to the V2 body for
  *   that same route family. Gate OFF → byte-identical to prior assembly.
- *   Muse is not in the V2 allowlist for this experiment phase.
  *
  * Non-Muse: PR #104 isProseVNextOn semantics unchanged when V2 is OFF.
  */

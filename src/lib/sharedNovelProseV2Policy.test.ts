@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
 import {
+  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
@@ -44,31 +47,32 @@ describe("sharedNovelProseV2Policy", () => {
 
   it("fail-closed when unset", () => {
     assert.equal(
-      isSharedNovelProseV2EnabledForUser(1, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
+      isSharedNovelProseV2EnabledForUser(1, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
       false
     );
   });
 
-  it("requires enabled + user allowlist + exact model", () => {
+  it("requires enabled + user allowlist + exact canonical model", () => {
     process.env.SHARED_NOVEL_PROSE_V2_ENABLED = "1";
     process.env.SHARED_NOVEL_PROSE_V2_USER_IDS = "1";
     assert.equal(
-      isSharedNovelProseV2EnabledForUser(1, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
+      isSharedNovelProseV2EnabledForUser(1, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
       true
     );
     assert.equal(
-      isSharedNovelProseV2EnabledForUser(
-        1,
-        CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
-      ),
+      isSharedNovelProseV2EnabledForUser(1, CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL),
       true
     );
     assert.equal(
-      isSharedNovelProseV2EnabledForUser(1, OPENROUTER_GEMINI_36_FLASH_MODEL),
+      isSharedNovelProseV2EnabledForUser(1, CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
       true
     );
     assert.equal(
-      isSharedNovelProseV2EnabledForUser(2, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
+      isSharedNovelProseV2EnabledForUser(1, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
+      true
+    );
+    assert.equal(
+      isSharedNovelProseV2EnabledForUser(2, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
       false
     );
     assert.equal(
@@ -77,13 +81,10 @@ describe("sharedNovelProseV2Policy", () => {
     );
   });
 
-  it("exact model allowlist — Muse and OpenRouter DeepSeek slug excluded", () => {
-    assert.equal(isSharedNovelProseV2Model(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL), true);
-    assert.equal(
-      isSharedNovelProseV2Model(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
-      true
-    );
-    assert.equal(isSharedNovelProseV2Model(OPENROUTER_GEMINI_36_FLASH_MODEL), true);
+  it("exact model allowlist — retired RP models, Muse and OpenRouter slugs excluded", () => {
+    assert.equal(isSharedNovelProseV2Model(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL), true);
+    assert.equal(isSharedNovelProseV2Model(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL), false);
+    assert.equal(isSharedNovelProseV2Model(OPENROUTER_GEMINI_36_FLASH_MODEL), false);
     assert.equal(isSharedNovelProseV2Model(OPENROUTER_MUSE_SPARK_11_MODEL), false);
     assert.equal(isSharedNovelProseV2Model(OPENROUTER_DEEPSEEK_V4_PRO_MODEL), false);
     assert.equal(isSharedNovelProseV2Model(OPENAI_GPT_56_TERRA_MODEL), false);

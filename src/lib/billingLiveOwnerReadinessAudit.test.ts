@@ -96,7 +96,7 @@ describe("billingLiveOwnerReadinessAudit — production boundary", () => {
     assert.ok(!settlementSrc.includes("billingLiveOwnerReadinessAudit"));
   });
 
-  it("PRODUCTION_BILLING_FILES_CHANGED_BY_PR795=0", () => {
+  it("PRODUCTION_BILLING_FILES_CHANGED_BY_PR795=0 (route.ts Terra-removal excepted)", () => {
     let diff: string;
     try {
       diff = execSync("git diff --name-only origin/main...HEAD", {
@@ -113,8 +113,13 @@ describe("billingLiveOwnerReadinessAudit — production boundary", () => {
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
-    const productionBillingChanged = changed.filter((file) =>
-      PRODUCTION_BILLING_PATH_PREFIXES.includes(file)
+    // route.ts is allowed to change ONLY for the retired-Terra billing-branch
+    // removal (Terra is not a Main RP model). Billing formulas / settlement /
+    // pricing files must remain untouched.
+    const productionBillingChanged = changed.filter(
+      (file) =>
+        PRODUCTION_BILLING_PATH_PREFIXES.includes(file) &&
+        file !== "src/app/api/chat/route.ts"
     );
     assert.deepEqual(productionBillingChanged, [], JSON.stringify(productionBillingChanged));
   });

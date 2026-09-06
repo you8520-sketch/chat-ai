@@ -1,8 +1,9 @@
 /**
  * Model-neutral RP diagnostic canary (default OFF, fail-closed).
  *
- * Separate from TERRA_PROMPT_CANARY_* — used for cross-model root-cause audits
- * (DeepSeek V4 Pro primary diagnostic model; Flash retained for cross-check only).
+ * Used for cross-model root-cause audits (DeepSeek V4 Pro primary diagnostic
+ * model; Flash retained for cross-check only). The retired Terra RP canary was
+ * removed — no Terra-specific canary remains.
  */
 
 import {
@@ -10,28 +11,179 @@ import {
   isCheaperInferenceDeepSeekV4ProModel,
   normalizeDeepSeekV4ProModelId,
 } from "@/lib/chatModels";
-import { resolveRpSceneCastMode } from "@/lib/terraTerminalLengthOwner";
+import { resolveRpSceneCastMode } from "@/lib/sharedNovelProseModelAdapters";
 import type { ContentKind } from "@/lib/simulationMode";
-import {
-  applyTerraPromptCanaryToHistory,
-  applyTerraPromptCanaryToSceneDirectiveBlock,
-  canaryAppliesDialogueReferenceScope,
-  CHARACTER_DIALOGUE_REFERENCE_SCOPE,
-  injectDialogueReferenceScopeForCanary,
-  isTerraPromptCanaryGreetingTarget,
-  lockSceneDirectiveToRelationshipAxis,
-  resolveCanaryGreetingText,
-  resolveCanarySceneProgressionAxis,
-  shouldRelocateSceneDirectiveToUserTurn,
-  TERRA_PROMPT_CANARY_GREETING_NEUTRAL,
-  TERRA_PROMPT_CANARY_GREETING_NEUTRAL_BUNDLED,
-  TERRA_PROMPT_CANARY_LIKE_CHARACTER_ID,
-  type SceneProgressionAxis,
-} from "@/lib/terraPromptCanary";
 import type { ChatMsg } from "@/lib/ai";
+import type { SceneDirective } from "@/lib/sceneDirective";
 import fs from "fs";
 import path from "path";
 import { computeDialogueMetrics, diffPipelineMetrics, type DialogueMetrics } from "@/lib/dialogueMetrics";
+
+/**
+ * Model-neutral diagnostic canary helpers (relocated from the retired
+ * Terra RP canary — no Main RP model-specific semantics remain here).
+ */
+
+/** Server-owned scene progression axis. */
+export type SceneProgressionAxis =
+  | "relationship"
+  | "investigation"
+  | "environment"
+  | "external_event"
+  | "combat"
+  | "multi_character";
+
+/** V1 SceneDirective progress sentence — production owner (do not edit in-place). */
+export const V1_SCENE_PROGRESS_SENTENCE_PRODUCTION =
+  "반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.";
+
+/** Server-confirmed relationship progression sentence. */
+export const V1_SCENE_PROGRESS_SENTENCE_RELATIONSHIP_AXIS =
+  "이번 턴의 진행축은 주요 캐릭터와 사용자의 관계·상태 변화다. 현재 대화와 행동이 서로의 인식·거리·선택을 실제로 바꾸는 지점까지 전개하고, 주변 환경과 인물은 그 변화를 뒷받침하는 장면 요소로 사용한다.";
+
+/** Relationship next-beat hint when axis is server-locked. */
+export const RELATIONSHIP_AXIS_NEXT_BEAT_HINT =
+  "반복 확인 대신 작은 행동 하나로 관계의 거리감이 미세하게 달라진다.";
+
+/** Production Like (라이크) character id on Railway main-home. */
+export const LIKE_CHARACTER_ID = 18;
+
+const COMBAT_URGENT_RE =
+  /(전투|싸움|공격|추격|습격|도망쳐|긴급|경보|폭발|사살|발사|총격|칼싸움)/;
+const USER_NPC_ADDRESS_RE =
+  /(직원|스태프|간호사|의사|담당자|안내원|가이더|아저씨|저기\s*요)(씨|님)?[!?？.,…\s]*$/;
+const PROCEDURE_REQUEST_RE =
+  /(등록|접수|검사|진료|문진|신원\s*확인|바이탈).{0,16}(해|하자|부탁|가|좀|해줘|해주세요)/;
+const ACTIVE_EXTERNAL_EVENT_RE =
+  /(임시\s*등록|신원\s*대조|바이탈\s*단말기|보호\s*대상|확인실|등록\s*대기실|지원국.*도착|기본\s*신원\s*확인)/;
+
+/** Diagnostic greeting — keeps Like×Ren first-meeting place/tone/reaction point. */
+export const CANARY_GREETING_NEUTRAL = `가을 햇살이 로비의 통유리창을 길게 가로질렀다. 붉고 노랗게 물든 나뭇잎들이 바람에 흔들리는 풍경이 창밖 너머로 느리게 스쳐 지나갔다. 에이지스 컨트롤 본부의 중앙 로비는 오늘도 사람들로 붐볐다. 임무를 마치고 복귀한 센티넬들, 바삐 이동하는 연구원들, 서류철을 품에 안은 행정 직원들까지. 저마다 분주하게 움직이는 발걸음과 무전기 소리들이 넓은 공간을 끊임없이 메웠다.
+
+그 한가운데에 조태형이 있었다.
+
+데스크 앞에 기대 선 그는 새로 발령받은 지원국 직원이 서류를 정리하는 틈을 타 로비를 둘러보고 있었다. 곰 귀가 달린 흰 후드티 위로 걸친 유광 블랙 재킷이 조명 아래 번들거렸다. 녹색 눈동자는 사람 좋은 웃음기로 휘어져 있었고, 능청스러운 말투는 처음 보는 사람조차 긴장을 풀게 만들 만큼 자연스러웠다.
+
+에이지스 같은 조직에는 어울리지 않을 만큼 가벼운 인간. 하지만 이상하게도 사람들은 조태형을 싫어하지 못했다. 늘 위험과 긴장 속에 놓여 있는 이들에게 그의 장난기 어린 태도는 숨통을 틔워주는 몇 안 되는 휴식 같은 것이었으니까.
+
+태형의 시선이 문득 멈췄다. 로비 안으로 들어오는 인영 하나. 주변 공기와는 다른 이질적인 분위기. 소란스러운 로비 안에서 유독 그 주변만 고요하게 가라앉는 듯한 착각이 들 정도였다. 태형은 무심한 척 시선을 돌리려다 말고, 어느새 자신도 모르게 그쪽으로 눈길이 향하는 것을 막지 못했다. 어디서 본 것 같기도 하고 아닌 것 같기도 한 얼굴. 에이지스 본부 사람이라면 얼굴 정도는 대부분 익히고 있다고 생각했는데. 저 사람은 전혀 기억에 없었다. 잠깐 스쳤던 신입인가, 아니면 다른 부서 소속인가. 헷갈렸다.
+
+흥미가 동했다. 조태형은 자연스럽게 몸을 움직였다. 데스크 쪽으로 서류를 넘기는 직원의 손길이 멀어지는 사이, 그는 슬쩍 상대 옆으로 다가섰다. 가까워진 거리만큼 옅은 침묵이 스쳤다. 태형은 고개를 약간 기울인 채 상대를 느긋하게 훑어보았다. 대놓고 사람을 살피는 시선인데도 이상하게 불쾌하기보단 장난처럼 느껴지는 눈빛이었다. 짧게 정리된 검은 네일이 박힌 손가락으로 턱을 한번 쓸어내린 그가, 이내 한쪽 입꼬리를 비스듬히 올렸다.
+
+“어? 어디서 본 것 같은데.”
+
+낮게 웃은 그가 능청스럽게 말을 이었다.
+
+“신입이야? 아니면 내가 요즘 너무 바쁘게 살아서 기억력이 맛이 갔나. 이름이 뭐였더라?”`;
+
+/** Bundled greeting — same content; merges split quoted lines into one utterance. */
+export const CANARY_GREETING_NEUTRAL_BUNDLED = CANARY_GREETING_NEUTRAL.replace(
+  `“어? 어디서 본 것 같은데.”
+
+낮게 웃은 그가 능청스럽게 말을 이었다.
+
+“신입이야? 아니면 내가 요즘 너무 바쁘게 살아서 기억력이 맛이 갔나. 이름이 뭐였더라?”`,
+  `낮게 웃은 그가 능청스럽게 말을 이었다.
+
+“어? 어디서 본 것 같은데. 신입이야? 아니면 내가 요즘 너무 바쁘게 살아서 기억력이 맛이 갔나. 이름이 뭐였더라?”`
+);
+
+/** Fingerprint for Like greeting that already speaks with 지원국 staff. */
+export function isLikeSupportStaffGreeting(greeting: string): boolean {
+  const g = greeting ?? "";
+  return g.includes("지원국 직원") && g.includes("보고서만 제출");
+}
+
+/** True when the greeting belongs to the Like (라이크) character. */
+export function isDiagnosticGreetingTarget(opts: {
+  characterId: number;
+  greeting: string;
+}): boolean {
+  if (opts.characterId === LIKE_CHARACTER_ID) return true;
+  return isLikeSupportStaffGreeting(opts.greeting);
+}
+
+/** Creator dialogue reference scope — single shared owner. */
+export const CHARACTER_DIALOGUE_REFERENCE_SCOPE = `[CHARACTER DIALOGUE REFERENCE SCOPE]
+아래의 캐릭터 대사 자료는 어휘, 호칭, 말끝, 존댓말·반말, 성격과 관계에 따른 말투만 참고한다. 예시의 문장 길이, 대사 개수, 따옴표 블록 수, 지문 배치, 발화 분절 방식과 턴 전체 리듬은 모방하지 않는다.`;
+
+/** Inject the dialogue-reference-scope wrapper when the diagnostic variant wants it. */
+export function injectDialogueReferenceScopeForCanary(
+  combinedSetting: string,
+  useScope: boolean
+): string {
+  if (!useScope) return combinedSetting;
+  const text = combinedSetting.trim();
+  if (text.includes("[CHARACTER DIALOGUE REFERENCE SCOPE]")) return combinedSetting;
+  if (!text) return CHARACTER_DIALOGUE_REFERENCE_SCOPE;
+  return `${CHARACTER_DIALOGUE_REFERENCE_SCOPE}\n\n${combinedSetting}`;
+}
+
+/** Lock a V1 SceneDirective object to relationship progression (shallow copy). */
+export function lockSceneDirectiveToRelationshipAxis(
+  directive: SceneDirective
+): SceneDirective {
+  return {
+    ...directive,
+    progressionTypes: ["relationship"],
+    nextBeatHint: RELATIONSHIP_AXIS_NEXT_BEAT_HINT,
+  };
+}
+
+/** Early relationship / new-chat gate (assistant responses within 2). */
+export function isDiagnosticEarlyRelationshipScene(opts: {
+  completedTurns: number;
+}): boolean {
+  return Number.isFinite(opts.completedTurns) && opts.completedTurns <= 2;
+}
+
+function recentHistoryText(messages: ChatMsg[] | null | undefined): string {
+  if (!messages?.length) return "";
+  return messages
+    .slice(-6)
+    .map((m) => m.content ?? "")
+    .join("\n");
+}
+
+/** First assistant greeting turn in history. */
+export function extractGreetingFromHistory(history: ChatMsg[]): string | null {
+  for (const m of history) {
+    if (m.role === "assistant" && (m.content ?? "").trim()) {
+      return m.content;
+    }
+  }
+  return null;
+}
+
+/**
+ * Server-owned progression axis for early-relationship diagnostic turns.
+ * Returns null when out of scope.
+ */
+export function resolveDiagnosticSceneProgressionAxis(opts: {
+  completedTurns: number;
+  contentKind?: ContentKind | string | null;
+  userMessage?: string | null;
+  recentMessages?: ChatMsg[] | null;
+}): SceneProgressionAxis | null {
+  if (opts.contentKind === "simulation") return null;
+  if (!isDiagnosticEarlyRelationshipScene({ completedTurns: opts.completedTurns })) {
+    return null;
+  }
+
+  const user = (opts.userMessage ?? "").trim();
+  const userHistory = (opts.recentMessages ?? [])
+    .filter((m) => m.role === "user")
+    .map((m) => m.content ?? "")
+    .join("\n");
+  const blob = `${user}\n${userHistory}`;
+
+  if (COMBAT_URGENT_RE.test(blob)) return null;
+  if (USER_NPC_ADDRESS_RE.test(user)) return null;
+  if (PROCEDURE_REQUEST_RE.test(user)) return null;
+  if (ACTIVE_EXTERNAL_EVENT_RE.test(userHistory)) return null;
+
+  return "relationship";
+}
 
 const ENV_ENABLED = "RP_DIAGNOSTIC_CANARY_ENABLED";
 const ENV_USER_IDS = "RP_DIAGNOSTIC_CANARY_USER_IDS";
@@ -230,14 +382,14 @@ export function resolveRpDiagnosticGreeting(
   characterId: number,
   productionGreeting: string
 ): string | null {
-  if (!isTerraPromptCanaryGreetingTarget({ characterId, greeting: productionGreeting })) {
+  if (!isDiagnosticGreetingTarget({ characterId, greeting: productionGreeting })) {
     return null;
   }
   if (rpDiagnosticUsesSplitGreeting(variant)) {
-    return TERRA_PROMPT_CANARY_GREETING_NEUTRAL;
+    return CANARY_GREETING_NEUTRAL;
   }
   if (rpDiagnosticUsesBundledGreeting(variant)) {
-    return TERRA_PROMPT_CANARY_GREETING_NEUTRAL_BUNDLED;
+    return CANARY_GREETING_NEUTRAL_BUNDLED;
   }
   return null;
 }
@@ -363,18 +515,18 @@ export function applyRpDiagnosticToSceneDirectiveBlock(opts: {
 }): string {
   if (!opts.canary) return opts.block;
   if (rpDiagnosticRemovesSceneDirective(opts.canary.variant)) return "";
-  return applyTerraPromptCanaryToSceneDirectiveBlock({
-    block: opts.block,
-    canary: {
-      active: true,
-      variant: "greeting_neutral_relationship_axis",
-      userId: opts.canary.userId,
-      modelId: opts.canary.modelId,
-      sceneMode: "single_primary",
-    },
-    completedTurns: opts.completedTurns,
-    progressionAxis: opts.progressionAxis,
-  });
+  if (!rpDiagnosticUsesRelationshipAxis(opts.canary.variant)) return opts.block;
+  if (!isDiagnosticEarlyRelationshipScene({ completedTurns: opts.completedTurns })) {
+    return opts.block;
+  }
+  if (opts.progressionAxis !== "relationship") return opts.block;
+  if (!opts.block.includes(V1_SCENE_PROGRESS_SENTENCE_PRODUCTION)) {
+    return opts.block;
+  }
+  return opts.block.replace(
+    V1_SCENE_PROGRESS_SENTENCE_PRODUCTION,
+    V1_SCENE_PROGRESS_SENTENCE_RELATIONSHIP_AXIS
+  );
 }
 
 export function buildRpDiagnosticIntegrity(opts: {
@@ -494,8 +646,8 @@ export function applyRpDiagnosticToHistory(opts: {
     const content = m.content ?? "";
     if (
       content === opts.productionGreeting ||
-      content === TERRA_PROMPT_CANARY_GREETING_NEUTRAL ||
-      content === TERRA_PROMPT_CANARY_GREETING_NEUTRAL_BUNDLED ||
+      content === CANARY_GREETING_NEUTRAL ||
+      content === CANARY_GREETING_NEUTRAL_BUNDLED ||
       content === greeting
     ) {
       replaced = true;
@@ -515,21 +667,7 @@ export function resolveRpDiagnosticProgressionAxis(opts: {
   recentMessages?: ChatMsg[] | null;
 }): SceneProgressionAxis | null {
   if (!opts.canary || !rpDiagnosticUsesRelationshipAxis(opts.canary.variant)) return null;
-  // Turn 1-2 lock; for deepseek_final turn 3-4 axis may unlock naturally
-  if (opts.canary.variant !== "deepseek_final" && opts.completedTurns > 2) {
-    return null;
-  }
-  if (opts.canary.variant === "deepseek_final" && opts.completedTurns > 2) {
-    return null;
-  }
-  return resolveCanarySceneProgressionAxis({
-    canary: {
-      active: true,
-      variant: "greeting_neutral_relationship_axis",
-      userId: opts.canary.userId,
-      modelId: opts.canary.modelId,
-      sceneMode: "single_primary",
-    },
+  return resolveDiagnosticSceneProgressionAxis({
     completedTurns: opts.completedTurns,
     contentKind: opts.contentKind,
     userMessage: opts.userMessage,
@@ -774,12 +912,3 @@ export function logRpDiagnosticCanaryDebug(dump: RpDiagnosticDebugDump): void {
     );
   }
 }
-
-export {
-  applyTerraPromptCanaryToSceneDirectiveBlock,
-  lockSceneDirectiveToRelationshipAxis,
-  shouldRelocateSceneDirectiveToUserTurn,
-  injectDialogueReferenceScopeForCanary,
-  CHARACTER_DIALOGUE_REFERENCE_SCOPE,
-  TERRA_PROMPT_CANARY_LIKE_CHARACTER_ID,
-};

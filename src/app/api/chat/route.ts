@@ -83,7 +83,7 @@ import {
   type TurnPhaseLatencyAudit,
 } from "@/lib/turnPhaseLatencyAudit";
 import { createStreamPostprocessHeartbeat } from "@/lib/streamPostprocessHeartbeat";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isCheaperInferenceModel, isCheaperInferenceQwen38MaxModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isCheaperInferenceModel, isCheaperInferenceQwen38MaxModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
 import { resolveDeepSeekAdultHandoffTrueOff } from "@/lib/cheaperInferenceConfig";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import type { Gemini37FlashPricingBreakdown } from "@/lib/gemini37FlashPricing";
@@ -193,23 +193,10 @@ import {
 } from "@/lib/livingSceneDirective";
 import { isLivingSceneDirectiveV2EnabledForUser } from "@/lib/livingSceneDirectivePolicy";
 import {
-  applyTerraPromptCanaryToHistory,
-  applyTerraPromptCanaryToSceneDirectiveBlock,
-  canaryAppliesCardDialogueNeutral,
-  canaryAppliesDialogueIntentUnitLayout,
-  DIALOGUE_LAYOUT_OWNER_KO_CANARY,
-  DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
   extractGreetingFromHistory,
   lockSceneDirectiveToRelationshipAxis,
-  logTerraPromptCanaryDebug,
-  resolveCanarySceneProgressionAxis,
-  resolveCanaryTerraTerminalContract,
-  resolveTerraPromptCanary,
-  resolveTerraPromptCanaryTemperature,
-  shouldRelocateSceneDirectiveToUserTurn,
   type SceneProgressionAxis,
-  type TerraPromptCanaryResolution,
-} from "@/lib/terraPromptCanary";
+} from "@/lib/rpDiagnosticCanary";
 import {
   applyRpDiagnosticToHistory,
   applyRpDiagnosticToSceneDirectiveBlock,
@@ -1833,13 +1820,6 @@ export async function POST(req: Request) {
     modelId: openRouterApiModelId,
     contentKind: contentKindForCanary,
   });
-  const terraPromptCanary: TerraPromptCanaryResolution | null = rpDiagnosticCanary
-    ? null
-    : resolveTerraPromptCanary({
-        userId: user.id,
-        modelId: openRouterApiModelId,
-        contentKind: contentKindForCanary,
-      });
   const promptHistory = rpDiagnosticCanary
     ? applyRpDiagnosticToHistory({
         history: shortTermHistory,
@@ -1847,16 +1827,7 @@ export async function POST(req: Request) {
         characterId: ch.id,
         productionGreeting: ch.greeting ?? "",
       })
-    : applyTerraPromptCanaryToHistory({
-        history: shortTermHistory,
-        canary: terraPromptCanary,
-        characterId: ch.id,
-        productionGreeting: ch.greeting ?? "",
-      });
-  if (terraPromptCanary && canaryAppliesCardDialogueNeutral(terraPromptCanary.variant)) {
-    // Single-field card canary: drop example dialogue injection only.
-    effectiveExampleDialog = "";
-  }
+    : shortTermHistory;
   const legacySceneDirective = buildSceneDirective({
     mode: autoContinueContext ? "auto_progression" : "interactive",
     recentMessages: promptHistory,
@@ -1992,13 +1963,7 @@ export async function POST(req: Request) {
         userMessage: policyUserMessage,
         recentMessages: promptHistory,
       })
-    : resolveCanarySceneProgressionAxis({
-        canary: terraPromptCanary,
-        completedTurns: playableTurnCount,
-        contentKind: contentKindForCanary,
-        userMessage: policyUserMessage,
-        recentMessages: promptHistory,
-      });
+    : null;
   const sceneDirectiveForRender =
     canaryProgressionAxis === "relationship" &&
     scenePacingOwner !== "event_restraint_v2" &&
@@ -2017,21 +1982,10 @@ export async function POST(req: Request) {
         completedTurns: playableTurnCount,
         progressionAxis: canaryProgressionAxis,
       })
-    : applyTerraPromptCanaryToSceneDirectiveBlock({
-        block:
-          scenePacingOwner === "event_restraint_v2" && eventRestraintV2
-            ? renderSceneDirectiveV2ForPrompt(eventRestraintV2)
-            : scenePacingOwner === "living_continuity_director" && livingSceneDirective
-              ? renderLivingSceneDirectiveForPrompt(livingSceneDirective)
-              : renderSceneDirectiveForPrompt(sceneDirectiveForRender),
-        canary: terraPromptCanary,
-        completedTurns: playableTurnCount,
-        progressionAxis: canaryProgressionAxis,
-      });
+    : renderSceneDirectiveForPrompt(sceneDirectiveForRender);
   const relocateSceneDirectiveToUserTurn = rpDiagnosticCanary
     ? shouldRelocateRpDiagnosticSceneDirective(rpDiagnosticCanary, canaryProgressionAxis)
-    : shouldRelocateSceneDirectiveToUserTurn(terraPromptCanary, canaryProgressionAxis);
-  const canaryTemperature = resolveTerraPromptCanaryTemperature(terraPromptCanary);
+    : false;
 
   const livingToLegacyProgression = (
     types: LivingProgressionType[]
@@ -2201,16 +2155,6 @@ export async function POST(req: Request) {
     canonInjectionPolicy: canonInjectionPolicy,
     canonPlan: canonLazyCompileResult?.plan ?? null,
     sceneMomentumInput,
-    terraPromptCanary: terraPromptCanary
-      ? {
-          variant: terraPromptCanary.variant,
-          progressionAxis: canaryProgressionAxis,
-          relocateSceneDirectiveToUserTurn,
-          sceneDirectiveUserTail: relocateSceneDirectiveToUserTurn
-            ? sceneDirectiveBlock
-            : null,
-        }
-      : null,
     rpDiagnosticCanary: rpDiagnosticCanary
       ? {
           variant: rpDiagnosticCanary.variant,
@@ -2310,61 +2254,6 @@ export async function POST(req: Request) {
     }
   }
 
-  if (terraPromptCanary) {
-    const assembledUserTurn =
-      [...(built.history ?? [])].reverse().find((m) => m.role === "user")?.content ??
-      promptUserMessage ??
-      "";
-    const userTurnTail =
-      typeof assembledUserTurn === "string" ? assembledUserTurn.slice(-1500) : "";
-    const terraLengthCount = (
-      assembledUserTurn.match(/한국어 RP 본문만 3,200자 이상을 기본 목표로/g) ?? []
-    ).length;
-    const relationshipAxisCount = (
-      assembledUserTurn.match(
-        /이번 턴의 진행축은 주요 캐릭터와 사용자의 관계·상태 변화다/g
-      ) ?? []
-    ).length;
-    const enumeratedCount = (
-      `${assembledUserTurn}\n${sceneDirectiveBlock}`.match(
-        /관계, 단서, 환경, NPC, 세계 반응/g
-      ) ?? []
-    ).length;
-    logTerraPromptCanaryDebug({
-      requestId: clientRequestId,
-      userId: user.id,
-      chatId: chat.id,
-      characterId: ch.id,
-      model: openRouterApiModelId,
-      sceneMode: "single_primary",
-      canaryVariant: terraPromptCanary.variant,
-      progressionAxis: canaryProgressionAxis,
-      temperature: canaryTemperature,
-      sceneDirectiveFinal: sceneDirectiveBlock,
-      greetingInjected: extractGreetingFromHistory(promptHistory),
-      terraAdapter: resolveCanaryTerraTerminalContract(terraPromptCanary.variant),
-      dialogueLayoutOwner: canaryAppliesDialogueIntentUnitLayout(terraPromptCanary.variant)
-        ? DIALOGUE_LAYOUT_OWNER_KO_CANARY
-        : DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
-      userTurnTail1500: userTurnTail,
-      providerRaw: null,
-      finalText: null,
-      metrics: {
-        phase: "prompt_assembled",
-        completedTurns: playableTurnCount,
-        historyLen: promptHistory.length,
-        relocateSceneDirectiveToUserTurn,
-        relationshipAxisSentenceCount: relationshipAxisCount,
-        enumeratedProgressSentenceCount: enumeratedCount,
-        terraLengthOwnerCount: terraLengthCount,
-        relationshipBeforeLengthOwner:
-          relationshipAxisCount > 0 &&
-          terraLengthCount > 0 &&
-          assembledUserTurn.indexOf("이번 턴의 진행축은 주요 캐릭터와 사용자의 관계·상태 변화다") <
-            assembledUserTurn.indexOf("한국어 RP 본문만 3,200자 이상을 기본 목표로"),
-      },
-    });
-  }
   if (
     shouldLogSceneMomentumProductionTelemetry({
       modelId: openRouterApiModelId,
@@ -3167,8 +3056,7 @@ export async function POST(req: Request) {
                         targetResponseCharsRef
                       )
                     : undefined;
-                  if (canaryTemperature == null) return regen;
-                  return { ...(regen ?? {}), temperature: canaryTemperature };
+                  return regen;
                 })(),
                 ...(input.provider === "openai" ||
                 input.provider === "cheaperinference" ||
@@ -5882,39 +5770,6 @@ export async function POST(req: Request) {
           });
         }
 
-        if (terraPromptCanary) {
-          logTerraPromptCanaryDebug({
-            requestId: clientRequestId,
-            userId: user.id,
-            chatId: chatRef.id,
-            characterId: ch.id,
-            model: openRouterApiModelId,
-            sceneMode: "single_primary",
-            canaryVariant: terraPromptCanary.variant,
-            progressionAxis: canaryProgressionAxis,
-            temperature: canaryTemperature,
-            sceneDirectiveFinal: sceneDirectiveBlock,
-            greetingInjected: extractGreetingFromHistory(promptHistory),
-            terraAdapter: resolveCanaryTerraTerminalContract(terraPromptCanary.variant),
-            dialogueLayoutOwner: canaryAppliesDialogueIntentUnitLayout(
-              terraPromptCanary.variant
-            )
-              ? DIALOGUE_LAYOUT_OWNER_KO_CANARY
-              : DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
-            userTurnTail1500:
-              typeof promptUserMessage === "string" ? promptUserMessage.slice(-1500) : "",
-            providerRaw: null,
-            finalText: savedText,
-            metrics: {
-              phase: "final",
-              canonicalLength: savedText.length,
-              finishReason: clientUsageRecord.finishReason ?? null,
-              cost,
-              relocateSceneDirectiveToUserTurn,
-            },
-          });
-        }
-
         if (rpDiagnosticCanary && rpDiagnosticEnablesPipelineCapture(rpDiagnosticCanary.variant)) {
           const providerRawMerged = rawStreamTextRef || fullText;
           const preNormalize = sanitizeStreamArtifacts(providerRawMerged);
@@ -5946,7 +5801,7 @@ export async function POST(req: Request) {
             resolvedProviderModelId: openRouterApiModelId,
             contentKind: contentKindForCanary,
             canary: rpDiagnosticCanary,
-            temperature: canaryTemperature,
+            temperature: null,
           });
           send({
             type: "diagnostic_pipeline",

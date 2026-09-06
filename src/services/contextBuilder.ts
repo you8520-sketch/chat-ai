@@ -102,11 +102,9 @@ import {
   unwrapRoleplayMarkdownInText,
 } from "@/lib/webnovelOutputFormat";
 import {
-  injectDialogueReferenceScopeForCanary,
-} from "@/lib/terraPromptCanary";
-import {
   COMMON_LAYOUT_MINIMAL_OWNER,
   COMMON_LENGTH_OWNER_MINIMAL,
+  injectDialogueReferenceScopeForCanary,
   rpDiagnosticDisablesDeepSeekStyleExtras,
   resolveDeepSeekExtrasMode,
   rpDiagnosticRemovesSceneDirective,
@@ -368,9 +366,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const rpVariant = input.rpDiagnosticCanary?.variant;
   const characterSettingText = injectDialogueReferenceScopeForCanary(
     injectExampleDialogStyleOnlyNote(characterSettingTextFiltered),
-    rpVariant && rpDiagnosticUsesDialogueReferenceScope(rpVariant)
-      ? "dialogue_reference_scope"
-      : input.terraPromptCanary?.variant
+    Boolean(rpVariant && rpDiagnosticUsesDialogueReferenceScope(rpVariant))
   );
 
   let effectiveExampleDialog = input.exampleDialog ?? "";
@@ -879,7 +875,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     ) {
       return;
     }
-    if (input.terraPromptCanary?.relocateSceneDirectiveToUserTurn) return;
     if (input.rpDiagnosticCanary?.relocateSceneDirectiveToUserTurn) return;
     if (!sceneDirectiveBlock) return;
     // Standard interactive: no SceneDirective progression owner (Audit 42 ARM D foundation).
@@ -1126,10 +1121,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "systemRules",
       rpVariant && rpDiagnosticUsesMinimalLayout(rpVariant)
         ? COMMON_LAYOUT_MINIMAL_OWNER
-        : buildWebnovelOutputLayoutRecencyBlock({
-            dialogueIntentUnit:
-              input.terraPromptCanary?.variant === "dialogue_intent_unit",
-          }),
+        : buildWebnovelOutputLayoutRecencyBlock(),
       "dynamic"
     );
   }
