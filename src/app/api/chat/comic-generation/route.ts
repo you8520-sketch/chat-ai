@@ -1817,12 +1817,12 @@ contentKind: context.contentKind,
                           canonicalPlan,
                           comicHighlightSelection!,
                           { characterLabel: "A", characterName: context.character.name, personaLabel: "B", personaName: context.persona.name },
-                          { providerReadableDialogueAdultEligible: roomAdultGrounded }
+                          { providerReadableDialogueAdultEligible: semanticLadderMode ? true : roomAdultGrounded }
                         );
                         const narrationCandidates = selectComicNarrationCandidates(
                           canonicalPlan,
                           comicHighlightSelection!,
-                          { visualProjectionAdultGrounded: false }
+                          { visualProjectionAdultGrounded: semanticLadderMode }
                         );
                         return buildComicTextBriefAudit({
                           selection: comicHighlightSelection!,
