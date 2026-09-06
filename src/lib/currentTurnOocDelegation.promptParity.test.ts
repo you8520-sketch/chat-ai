@@ -15,7 +15,7 @@ import { buildContext } from "@/services/contextBuilder";
 const user = "테스트_유저_캐릭터";
 const ai = "테스트_AI_캐릭터";
 
-/** Frozen on main b06037dd before P2 wiring. */
+/** Frozen on main 4b0218e8; SYSTEM hashes re-baselined by P1 common dialogue-economy prose (owner/wrapper/user unchanged). */
 const FROZEN = {
   STANDARD_OWNER: "3f2778a81813ef5ca5d222b5de0e371aeadf030c323b4a254bea78f3e191f576",
   AUTO_OWNER: "43155d2d707de17fdd1e25f1857b07df0c5448da7fe5e9d84cf24675c3b2bada",
@@ -23,11 +23,11 @@ const FROZEN = {
   WRAP_MANUAL: "1f3e645d965bcefb7cf47bd1ec2774e97408e990c6c4cd952572d509ac83369f",
   WRAP_AUTO: "308aca03db4645f6df2e8a97de9fbd15063954e131029b5b0b316275a9e66d7f",
   WRAP_OOC: "b27d927afab1ec2e24a6192a66cdd33acd1e64d82e153cd19e5f9ea8dd59174f",
-  MANUAL_SYSTEM: "290a994dea7180d6b18032dc12a6e9a4d18e551951091cdc1fc43595838d7975",
+  MANUAL_SYSTEM: "42722382992786a0d5e4203f185f1943358bc5c18244d593a2eb8d839bf0eafc",
   MANUAL_USER: "9b43e278c3cd79d3c27306429276b194d76fd76e92fed9b8aca7501384ac1565",
-  AUTO_SYSTEM: "0519439eb2c64b9bf4801cdd148c1b2490ef05155117d3167687f37b3cc87489",
+  AUTO_SYSTEM: "f3d60fa8146371c2197bd2f6819e53f702378756e339ee9c0a8585d3caec74c5",
   AUTO_USER: "920a2bcf89a77f79a54e0a9db6e2d7455d7914d83a18ab58fa876dfde3c95587",
-  STRUCTURED_SYSTEM: "39059813b56d4a6b52da188e1988ce0b9708bad3cb80c861e74b0e2398366a6a",
+  STRUCTURED_SYSTEM: "6a8d26a7389108a1d6aa2cda12bfc05eedaad693fcc7b4ba72564d3f205e191f",
 } as const;
 
 function sha(text: string): string {
