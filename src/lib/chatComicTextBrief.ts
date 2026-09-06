@@ -57,6 +57,7 @@ export type ComicNarrationCandidate = {
 };
 
 export type ComicTextDensity = {
+  effectivePanelMode: 3 | 4;
   totalTextTarget: string;
   spokenDialogueTarget: string;
   narrationTarget: string;
@@ -67,6 +68,7 @@ export type ComicTextDensity = {
 export type ComicTextBriefAudit = {
   eligibleDialogueCandidateCount: number;
   narrationCandidateCount: number;
+  effectivePanelMode: 3 | 4;
   spokenDialogueTarget: string;
   narrationTarget: string;
   totalTextTarget: string;
@@ -75,6 +77,12 @@ export type ComicTextBriefAudit = {
   sourceEventIdsUsed: string[];
   panelMode: ChatComicPanelMode;
   recommendedPanelMode: 3 | 4;
+};
+
+export type ComicDensityContext = {
+  recommendation: { mode: 3 | 4; reason: string };
+  effectivePanelMode: 3 | 4;
+  density: ComicTextDensity;
 };
 
 const DIALOGUE_CANDIDATE_HINT =
@@ -242,25 +250,52 @@ export function recommendComicPanelModeByTextDensity(
 }
 
 /**
- * COMIC_TEXT_DENSITY_POLICY_OWNER — separate SPOKEN-DIALOGUE / NARRATION / TOTAL
- * soft targets. This is a provider quality contract / diagnostic target, not a
- * server post-render hard validator.
+ * EFFECTIVE_DENSITY_PANEL_MODE_OWNER — the AUTO recommendation drives text
+ * density. AUTO is never itself a density context; it resolves to the
+ * recommended 3 or 4. Manual 3/4 use their exact mode. This value is ONLY the
+ * quality-contract context — never a claim of the provider's rendered count.
  */
-export function resolveComicTextDensity(
-  panelMode: ChatComicPanelMode,
+export function resolveComicDensityContext(
+  requestedPanelMode: ChatComicPanelMode,
   dialogueCandidateCount: number,
   narrationCandidateCount: number
-): ComicTextDensity {
-  const dialogueRichSource = dialogueCandidateCount >= 3;
-  const fourContext = panelMode === 4 || panelMode === "auto";
+): ComicDensityContext {
+  const recommendation = recommendComicPanelModeByTextDensity(
+    dialogueCandidateCount,
+    narrationCandidateCount
+  );
+  const effectivePanelMode =
+    requestedPanelMode === "auto" ? recommendation.mode : requestedPanelMode;
+  const density = resolveComicTextDensity({
+    effectivePanelMode,
+    dialogueCandidateCount,
+    narrationCandidateCount,
+  });
+  return { recommendation, effectivePanelMode, density };
+}
+
+/**
+ * COMIC_TEXT_DENSITY_POLICY_OWNER — separate SPOKEN-DIALOGUE / NARRATION / TOTAL
+ * soft targets keyed to the EFFECTIVE panel mode (3 or 4), never the raw AUTO
+ * token. This is a provider quality contract / diagnostic target, not a server
+ * post-render hard validator.
+ */
+export function resolveComicTextDensity(opts: {
+  effectivePanelMode: 3 | 4;
+  dialogueCandidateCount: number;
+  narrationCandidateCount: number;
+}): ComicTextDensity {
+  const dialogueRichSource = opts.dialogueCandidateCount >= 3;
+  const fourContext = opts.effectivePanelMode === 4;
   const totalTextTarget = fourContext ? "3-5" : "2-4";
   const spokenDialogueTarget =
     fourContext && dialogueRichSource
       ? "at least 3 distinct source dialogue beats across the page, across at least 2 dialogue-bearing panels, 1-2 bubbles per speaking panel"
       : "preserve 2-3 useful spoken beats when available";
   const sparse4Discouraged =
-    fourContext && dialogueCandidateCount < 3 && narrationCandidateCount === 0;
+    fourContext && opts.dialogueCandidateCount < 3 && opts.narrationCandidateCount === 0;
   return {
+    effectivePanelMode: opts.effectivePanelMode,
     totalTextTarget,
     spokenDialogueTarget,
     narrationTarget: "0-2",
@@ -274,15 +309,20 @@ export function buildComicTextBriefAudit(opts: {
   dialogueCandidates: ComicDialogueCandidate[];
   narrationCandidates: ComicNarrationCandidate[];
   panelMode: ChatComicPanelMode;
+  densityContext?: ComicDensityContext;
 }): ComicTextBriefAudit {
-  const density = resolveComicTextDensity(
-    opts.panelMode,
-    opts.dialogueCandidates.length,
-    opts.narrationCandidates.length
-  );
+  const context =
+    opts.densityContext ??
+    resolveComicDensityContext(
+      opts.panelMode,
+      opts.dialogueCandidates.length,
+      opts.narrationCandidates.length
+    );
+  const density = context.density;
   return {
     eligibleDialogueCandidateCount: opts.dialogueCandidates.length,
     narrationCandidateCount: opts.narrationCandidates.length,
+    effectivePanelMode: context.effectivePanelMode,
     spokenDialogueTarget: density.spokenDialogueTarget,
     narrationTarget: density.narrationTarget,
     totalTextTarget: density.totalTextTarget,
@@ -293,10 +333,7 @@ export function buildComicTextBriefAudit(opts: {
       ...opts.narrationCandidates.map((candidate) => candidate.sourceEventId),
     ],
     panelMode: opts.panelMode,
-    recommendedPanelMode: recommendComicPanelModeByTextDensity(
-      opts.dialogueCandidates.length,
-      opts.narrationCandidates.length
-    ).mode,
+    recommendedPanelMode: context.recommendation.mode,
   };
 }
 
@@ -324,7 +361,8 @@ export function renderComicTextBrief(opts: {
     opts.selection,
     opts.safety
   );
-  const recommendation = recommendComicPanelModeByTextDensity(
+  const densityContext = resolveComicDensityContext(
+    opts.panelMode,
     dialogueCandidates.length,
     narrationCandidates.length
   );
@@ -333,6 +371,7 @@ export function renderComicTextBrief(opts: {
     dialogueCandidates,
     narrationCandidates,
     panelMode: opts.panelMode,
+    densityContext,
   });
 
   const bindingLines = [
@@ -353,15 +392,11 @@ export function renderComicTextBrief(opts: {
         .join("\n")
     : "No preferred narration line is supplied. If the selected [action]/[context] source genuinely needs a transition, you may create up to 2 very short source-grounded narration bridges. Do not add new facts.";
 
-  const density = resolveComicTextDensity(
-    opts.panelMode,
-    dialogueCandidates.length,
-    narrationCandidates.length
-  );
+  const density = densityContext.density;
 
   const autoRecommendation =
     opts.panelMode === "auto"
-      ? recommendation.mode === 3
+      ? densityContext.recommendation.mode === 3
         ? "Prefer a natural 3-panel page for this highlight. Use 4 only if the selected scene clearly contains four distinct useful beats."
         : "Prefer a natural 4-panel page because this highlight contains enough distinct conversational/transition beats. Do not add filler merely to reach four."
       : "";
@@ -380,7 +415,7 @@ export function renderComicTextBrief(opts: {
     "TEXT FLOOR:",
     `- Spoken dialogue: ${density.spokenDialogueTarget}.`,
     `- Narration: ${density.narrationTarget} short boxes.`,
-    `- Total text units: ${density.totalTextTarget} for this ${opts.panelMode === "auto" ? "3- or 4-panel" : `${opts.panelMode}-panel`} page.`,
+    `- Total text units: ${density.totalTextTarget} for a ${density.effectivePanelMode}-panel layout.`,
     ...(density.sparse4Discouraged
       ? ["- This highlight is sparse in text: prefer 3 panels, or keep the page quiet rather than filling silent panels."]
       : []),

@@ -5,6 +5,7 @@ import {
   buildComicTextBriefAudit,
   recommendComicPanelModeByTextDensity,
   renderComicTextBrief,
+  resolveComicDensityContext,
   resolveComicTextDensity,
   selectComicDialogueCandidates,
   selectComicNarrationCandidates,
@@ -156,23 +157,107 @@ describe("PR #877 final quality-floor correction", () => {
   });
 
   it("DENSITY-1 dialogue-rich 4 has spokenDialogueTarget >= 3 distinct beats", () => {
-    const density = resolveComicTextDensity("auto", 3, 0);
+    const density = resolveComicTextDensity({ effectivePanelMode: 4, dialogueCandidateCount: 3, narrationCandidateCount: 0 });
     assert.equal(density.dialogueRichSource, true);
     assert.match(density.spokenDialogueTarget, /at least 3 distinct source dialogue beats/);
     assert.match(density.spokenDialogueTarget, /at least 2 dialogue-bearing panels/);
   });
 
   it("DENSITY-2 narration does not substitute for the spoken-dialogue target", () => {
-    const rich4 = resolveComicTextDensity(4, 3, 0);
-    const rich4Narration = resolveComicTextDensity(4, 3, 2);
+    const rich4 = resolveComicTextDensity({ effectivePanelMode: 4, dialogueCandidateCount: 3, narrationCandidateCount: 0 });
+    const rich4Narration = resolveComicTextDensity({ effectivePanelMode: 4, dialogueCandidateCount: 3, narrationCandidateCount: 2 });
     assert.equal(rich4.spokenDialogueTarget, rich4Narration.spokenDialogueTarget);
     assert.match(rich4Narration.spokenDialogueTarget, /at least 3 distinct source dialogue beats/);
   });
 
   it("DENSITY-3 sparse source does not force fake speech", () => {
-    const density = resolveComicTextDensity(4, 1, 0);
+    const density = resolveComicTextDensity({ effectivePanelMode: 4, dialogueCandidateCount: 1, narrationCandidateCount: 0 });
     assert.equal(density.sparse4Discouraged, true);
     assert.doesNotMatch(density.spokenDialogueTarget, /at least 3 distinct source dialogue beats/);
+  });
+
+  it("DENSITY-AUTO-1 1 dialogue + 1 narration → effective 3, total 2-4", () => {
+    const context = resolveComicDensityContext("auto", 1, 1);
+    assert.equal(context.recommendation.mode, 3);
+    assert.equal(context.effectivePanelMode, 3);
+    assert.equal(context.density.totalTextTarget, "2-4");
+  });
+
+  it("DENSITY-AUTO-2 2 dialogue + 0 narration → effective 3, total 2-4, sparse4 false", () => {
+    const context = resolveComicDensityContext("auto", 2, 0);
+    assert.equal(context.recommendation.mode, 3);
+    assert.equal(context.effectivePanelMode, 3);
+    assert.equal(context.density.totalTextTarget, "2-4");
+    assert.equal(context.density.sparse4Discouraged, false);
+  });
+
+  it("DENSITY-AUTO-3 3 dialogue + 0 narration → effective 4, dialogue-rich floor", () => {
+    const context = resolveComicDensityContext("auto", 3, 0);
+    assert.equal(context.recommendation.mode, 4);
+    assert.equal(context.effectivePanelMode, 4);
+    assert.equal(context.density.totalTextTarget, "3-5");
+    assert.equal(context.density.dialogueRichSource, true);
+    assert.match(context.density.spokenDialogueTarget, /at least 3 distinct source dialogue beats/);
+  });
+
+  it("DENSITY-AUTO-4 2 dialogue + 1 meaningful narration → effective 4, total 3-5", () => {
+    const context = resolveComicDensityContext("auto", 2, 1);
+    assert.equal(context.recommendation.mode, 4);
+    assert.equal(context.effectivePanelMode, 4);
+    assert.equal(context.density.totalTextTarget, "3-5");
+  });
+
+  it("DENSITY-MANUAL-3 total 2-4", () => {
+    const context = resolveComicDensityContext(3, 2, 0);
+    assert.equal(context.effectivePanelMode, 3);
+    assert.equal(context.density.totalTextTarget, "2-4");
+    assert.equal(context.density.sparse4Discouraged, false);
+  });
+
+  it("DENSITY-MANUAL-4 total 3-5", () => {
+    const context = resolveComicDensityContext(4, 2, 0);
+    assert.equal(context.effectivePanelMode, 4);
+    assert.equal(context.density.totalTextTarget, "3-5");
+  });
+
+  it("DENSITY-MANUAL-4-SPARSE sparse4Discouraged true, no filler invented", () => {
+    const context = resolveComicDensityContext(4, 1, 0);
+    assert.equal(context.effectivePanelMode, 4);
+    assert.equal(context.density.sparse4Discouraged, true);
+    assert.doesNotMatch(context.density.spokenDialogueTarget, /at least 3 distinct source dialogue beats/, "no fake speech");
+  });
+
+  it("PROMPT-AUTO-3 recommended 3 prompt carries 2-4 density, never 3-5", () => {
+    const sparse = fullAutopilotPrompt({
+      events: [
+        event(1, "S1", "dialogue", "character", "안녕.", "태형"),
+        event(2, "S2", "reaction", "persona", "웃는다"),
+      ],
+      anchorId: "S1",
+      focusIds: ["S1", "S2"],
+      panelMode: "auto",
+    });
+    assert.equal(sparse.brief.audit.recommendedPanelMode, 3);
+    assert.match(sparse.prompt, /Prefer a natural 3-panel page/);
+    assert.match(sparse.prompt, /Total text units: 2-4/);
+    assert.doesNotMatch(sparse.prompt, /Total text units: 3-5/);
+  });
+
+  it("PROMPT-AUTO-4 recommended 4 prompt carries 3-5 density", () => {
+    const rich = fullAutopilotPrompt({
+      events: [
+        event(1, "R1", "dialogue", "character", "너 사실 고양이지?", "태형"),
+        event(2, "R2", "dialogue", "persona", "냐옹.", "렌"),
+        event(3, "R3", "dialogue", "character", "그럼 같이 살자.", "태형"),
+        event(4, "R4", "reaction", "persona", "고개를 끄덕인다"),
+      ],
+      anchorId: "R3",
+      focusIds: ["R1", "R2", "R3", "R4"],
+      panelMode: "auto",
+    });
+    assert.equal(rich.brief.audit.recommendedPanelMode, 4);
+    assert.match(rich.prompt, /Prefer a natural 4-panel page/);
+    assert.match(rich.prompt, /Total text units: 3-5/);
   });
 
   it("NARR-1 environment transition → candidate", () => {
@@ -339,6 +424,7 @@ describe("PR #877 final quality-floor correction", () => {
       panelMode: "auto",
     });
     assert.equal(audit.eligibleDialogueCandidateCount, 3);
+    assert.equal(audit.effectivePanelMode, 4);
     assert.equal(audit.dialogueRichSource, true);
     assert.equal(audit.spokenDialogueTarget, "at least 3 distinct source dialogue beats across the page, across at least 2 dialogue-bearing panels, 1-2 bubbles per speaking panel");
     assert.equal(audit.narrationTarget, "0-2");
