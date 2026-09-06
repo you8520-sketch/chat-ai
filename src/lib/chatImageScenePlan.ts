@@ -147,6 +147,8 @@ export type ScenePlan = {
   castMentions?: SceneCastMention[];
   /** Optional SCENE-PLANNER-OWNED comic editorial projection (comic intent). */
   comicEditorial?: ComicEditorial;
+  /** Optional SCENE-PLANNER-OWNED highlight selection (comic intent) — WHAT to draw. */
+  comicHighlightSelection?: ComicHighlightSelection;
 };
 
 function cleanLine(raw: unknown, max = 400): string {
@@ -1463,6 +1465,22 @@ function canonicalDialogueSpeakerFromEvent(event: SceneEvent): SceneDialogueSpea
 
 export type ScenePlanIntent = "general" | "trpg_illustration" | "comic";
 
+// ---------------------------------------------------------------------------
+// Comic highlight selection — SCENE-PLANNER-OWNED "WHAT to illustrate" only.
+// The planner picks ONE anchor + ONE contiguous local focus window. GPT Image
+// owns HOW the selected scene becomes a comic (panels, dialogue, narration,
+// camera, balloons, SFX). The planner is NOT the panel/layout/narration owner.
+// ---------------------------------------------------------------------------
+
+export type ComicHighlightSelection = {
+  anchorEventId: string;
+  focusEventIds: string[];
+  /** Diagnostic-only; never required for normal production. */
+  selectionReason?: string;
+};
+
+export const COMIC_HIGHLIGHT_MAX_FOCUS_EVENTS = 8;
+
 export const TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS = 4;
 
 // ---------------------------------------------------------------------------
@@ -1474,6 +1492,78 @@ export const TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS = 4;
 export const COMIC_EDITORIAL_MAX_FOCUS_EVENTS = 6;
 export const COMIC_EDITORIAL_MAX_NARRATIONS = 2;
 export const COMIC_NARRATION_SOFT_MAX_CHARS = 48;
+
+/**
+ * Validates a SCENE-PLANNER-owned highlight selection. It answers only
+ * "WHAT to illustrate" — anchor + one contiguous local focus window. Whole-turn
+ * coverage is not required; per-panel planning is not the planner's job.
+ */
+export function validateComicHighlightSelection(
+  source: unknown,
+  events: readonly SceneEvent[]
+):
+  | { ok: true; selection: ComicHighlightSelection }
+  | { ok: false; reason: string } {
+  if (!source || typeof source !== "object") {
+    return { ok: false, reason: "comic highlight selection missing" };
+  }
+  const item = source as Record<string, unknown>;
+  const eventsById = new Map(events.map((event) => [event.id, event]));
+  const visual = visualEvents(events);
+  const visualIds = new Set(visual.map((event) => event.id));
+
+  const anchorEventId = cleanLine(item.anchorEventId, 24);
+  const anchor = eventsById.get(anchorEventId);
+  if (!anchor) return { ok: false, reason: "comic highlight anchor invalid" };
+  if (anchor.kind === "assistant_echo") {
+    return { ok: false, reason: "comic highlight anchor is assistant_echo" };
+  }
+
+  const focusRaw = Array.isArray(item.focusEventIds)
+    ? item.focusEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
+    : [];
+  if (!focusRaw.length) return { ok: false, reason: "comic highlight focus missing" };
+  if (focusRaw.length > COMIC_HIGHLIGHT_MAX_FOCUS_EVENTS) {
+    return { ok: false, reason: "comic highlight focus too large" };
+  }
+  if (!focusRaw.includes(anchorEventId)) {
+    return { ok: false, reason: "comic highlight focus omits anchor" };
+  }
+  const seen = new Set<string>();
+  for (const id of focusRaw) {
+    if (seen.has(id)) return { ok: false, reason: "comic highlight focus duplicated" };
+    seen.add(id);
+    const event = eventsById.get(id);
+    if (!event || event.kind === "assistant_echo" || !visualIds.has(id)) {
+      return { ok: false, reason: "comic highlight focus unknown/invalid event" };
+    }
+  }
+  const positions = focusRaw
+    .map((id) => visual.findIndex((event) => event.id === id))
+    .filter((index) => index >= 0);
+  const contiguous =
+    positions.length === focusRaw.length &&
+    positions[positions.length - 1]! - positions[0]! + 1 === positions.length;
+  if (!contiguous) {
+    return { ok: false, reason: "comic highlight focus not contiguous (distant highlights)" };
+  }
+  for (let i = 1; i < positions.length; i += 1) {
+    if (positions[i]! < positions[i - 1]!) {
+      return { ok: false, reason: "comic highlight focus chronology reversed" };
+    }
+  }
+
+  return {
+    ok: true,
+    selection: {
+      anchorEventId,
+      focusEventIds: focusRaw,
+      ...(typeof item.selectionReason === "string"
+        ? { selectionReason: cleanLine(item.selectionReason, 160) }
+        : {}),
+    },
+  };
+}
 
 export type ComicEditorialAudit = {
   focusWindowContiguous: boolean;
@@ -1903,6 +1993,18 @@ export function validateScenePlan(
     comicEditorial = editorialResult.editorial;
   }
 
+  let comicHighlightSelection: ComicHighlightSelection | undefined;
+  if (source.comicHighlightSelection != null) {
+    const highlightResult = validateComicHighlightSelection(
+      source.comicHighlightSelection,
+      canonicalEvents
+    );
+    if (!highlightResult.ok) {
+      return highlightResult;
+    }
+    comicHighlightSelection = highlightResult.selection;
+  }
+
   return {
     ok: true,
     plan: {
@@ -1923,6 +2025,7 @@ export function validateScenePlan(
       panels,
       castMentions,
       comicEditorial,
+      comicHighlightSelection,
     },
   };
 }
@@ -1981,23 +2084,9 @@ export function buildScenePlanPrompt(opts: {
           ],
         },
       ],
-      comicEditorial: {
+      comicHighlightSelection: {
         anchorEventId: "E12",
-        anchorType: "dialogue",
         focusEventIds: ["E10", "E11", "E12", "E13", "E14"],
-        recommendedPanelCount: 3,
-        narration: [
-          {
-            sourceEventIds: ["E13"],
-            purpose: "time_bridge",
-            text: "잠시 뒤, 둘은 숙소로 돌아왔다.",
-          },
-        ],
-        panels: [
-          { purpose: "context", sourceEventIds: ["E10"], dialogueEventIds: [] },
-          { purpose: "anchor", sourceEventIds: ["E12"], dialogueEventIds: ["E12"] },
-          { purpose: "reaction", sourceEventIds: ["E13"], dialogueEventIds: [] },
-        ],
       },
     }),
     "Rules:",
@@ -2032,17 +2121,11 @@ export function buildScenePlanPrompt(opts: {
       : []),
     ...(scenePlanIntent === "comic"
       ? [
-          "COMIC EDITORIAL MODE — SCENE-PLANNER-OWNED highlight selection.",
-          "The comic is ONE memorable micro-scene, not a whole-turn summary. You are the comic editor.",
-          "Select EXACTLY ONE primary anchor:",
-          "  - anchorType=dialogue when a meaningful dialogue event exists (choose by semantic importance: a line that causes a meaningful response, a relationship/emotional turning point, a reveal or new information, a decision/proposal/question/answer that changes what happens next, a conflict/tension turning point, a comedic punchline, or a memorable closing/emotional line).",
-          "  - Do NOT choose by first line, last line, longest line, shortest line, or keyword match alone.",
-          "  - anchorType=action when no useful dialogue exists (one story-bearing action/reaction).",
-          "focusEventIds: ONLY the chronologically local context needed to understand the anchor (e.g. 1–2 before + anchor + 1–2 after). Max 6 events. MUST include the anchor. MUST be one contiguous local region — never collect scattered distant highlights.",
-          "recommendedPanelCount: 3 (context→anchor→reaction) when the micro-scene fits three beats; 4 (context→approach→anchor→reaction) only when an additional distinct source-grounded causal beat is required. NEVER choose by raw source length.",
-          "panels (in comicEditorial): one row per comic panel with purpose (context/approach/anchor/reaction/quiet_close), sourceEventIds (subset of focusEventIds, no duplication across panels, no invented ids), dialogueEventIds (canonical dialogue event ids whose verbatim text the server will render — the anchor line on the anchor panel, plus 0–2 short supporting lines only when needed to understand the anchor/reaction).",
-          "narration: 0–2 short Korean sentences written by you from the full micro-scene context (one short sentence each, ~10–36 chars, avoid >48). Each must reference canonical sourceEventIds as provenance and a purpose (time_bridge/location_bridge/action_bridge/context). Do NOT paste source prose. Narration may coexist with dialogue.",
-          "The comicEditorial.panels are the highlight PRESENTATION and may select a subset of canonical events. The top-level ScenePlan panels remain the canonical whole-turn grouping (100% coverage is still required there). The comicEditorial must never mutate, delete, or reorder the canonical timeline.",
+          "COMIC HIGHLIGHT SELECTION MODE — you choose WHAT to illustrate; GPT Image decides HOW to draw it.",
+          "The comic is ONE memorable local micro-scene, not a whole-turn summary.",
+          "comicHighlightSelection.anchorEventId: choose ONE primary anchor event — preferably the most story-bearing dialogue (a line that causes a meaningful response, a relationship/emotional turning point, a reveal, a decision/proposal/question/answer that changes what happens next, a conflict turning point, a comedic punchline, or a memorable emotional line). If no useful dialogue exists, choose the most story-bearing action/reaction. Do NOT pick by first/last/longest/shortest or by keyword match alone.",
+          "comicHighlightSelection.focusEventIds: ONLY the chronologically local context needed to understand the anchor (1–2 meaningful events before + anchor + 1–2 after). Max 8. MUST include the anchor. MUST be ONE contiguous local region — never collect scattered distant highlights. Include enough adjacent context (physical setup, the other character's reaction, immediate consequence) that a reader can understand the moment.",
+          "Do NOT plan panels, camera, framing, speech-bubble counts, narration text, narration placement, or SFX — GPT Image owns all of that. Whole-turn coverage is not required for the highlight selection.",
         ]
       : []),
     "SOURCE MESSAGES:",

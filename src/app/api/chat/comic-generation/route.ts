@@ -22,10 +22,9 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
 import {
-  applyComicHighlightStoryboardToPlan,
-  resolveComicStoryboard,
-  type ComicStoryboard,
-} from "@/lib/chatComicHighlightStoryboard";
+  resolveComicHighlightFallback,
+} from "@/lib/chatComicHighlightExcerpt";
+import type { ComicHighlightSelection } from "@/lib/chatImageScenePlan";
 import {
   CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
   CHAT_LD_ILLUSTRATION_QUALITY,
@@ -1446,24 +1445,26 @@ export async function POST(req: Request) {
           knownSpeakerNames,
           contentKind: context.contentKind,
         });
-    // COMIC HIGHLIGHT STORYBOARD V3 — anchor-centered 3/4-panel presentation.
-    // The canonical timeline stays lossless; only the comic panels are a selected
-    // contiguous focus window. 2-panel is removed from the user path (legacy
-    // requests retire to AUTO). Admin ladder/hybrid diagnostics keep the fixed
-    // canonical scene plan.
-    let comicStoryboard: ComicStoryboard | null = null;
+    // COMIC PROVIDER AUTOPILOT — Scene Planner selects WHAT (anchor + contiguous
+    // highlight); GPT Image decides HOW (3/4-panel breakdown, dialogue density,
+    // narration 0-2, camera, balloons, SFX). Server builds a source-preserving
+    // highlight excerpt for the provider prompt; it never pre-plans panels.
+    // Admin diagnostics (ladder/hybrid/reference-isolation) keep the fixed path.
+    let comicHighlightSelection: ComicHighlightSelection | undefined;
     let scenePlan = canonicalPlan;
     let panelCount = scenePlan.panels.length as ChatComicPanelCount;
-    if (!semanticLadderMode) {
-      const requestedPanelMode = isComicPanelMode(body.panelCount)
-        ? body.panelCount
-        : "auto";
-      const resolved = resolveComicStoryboard(canonicalPlan, {
-        manualPanelCount: requestedPanelMode === "auto" ? undefined : (requestedPanelMode as 3 | 4),
-      });
-      comicStoryboard = resolved.storyboard;
-      scenePlan = applyComicHighlightStoryboardToPlan(canonicalPlan, comicStoryboard);
-      panelCount = comicStoryboard.panelCount;
+    const autopilotActive =
+      !semanticLadderMode &&
+      diagnosticOverrides.referenceMode === "normal" &&
+      diagnosticOverrides.visualContextMode === "normal" &&
+      diagnosticMode.mode === "normal";
+    const requestedPanelMode = isComicPanelMode(body.panelCount) ? body.panelCount : "auto";
+    if (autopilotActive) {
+      // Output-size hint only (AUTO → tall canvas for a natural 3- or 4-panel page).
+      panelCount = requestedPanelMode === "auto" ? 4 : requestedPanelMode;
+      comicHighlightSelection =
+        canonicalPlan.comicHighlightSelection ?? resolveComicHighlightFallback(canonicalPlan);
+      scenePlan = canonicalPlan;
     }
     const castManifest = semanticLadderMode
       ? null
@@ -1521,7 +1522,8 @@ contentKind: context.contentKind,
           ? "blank_balloon_hybrid"
           : "full_provider_rendered",
       providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
-      storyboard: comicStoryboard ?? undefined,
+      comicHighlightSelection: autopilotActive ? comicHighlightSelection : undefined,
+      comicPanelMode: autopilotActive ? requestedPanelMode : undefined,
     });
     const neutralVisualContext = diagnosticOverrides.visualContextMode === "neutral_visual_context";
     const providerScenePlan: ScenePlan = neutralVisualContext
@@ -1549,7 +1551,8 @@ contentKind: context.contentKind,
               ? "blank_balloon_hybrid"
               : "full_provider_rendered",
           providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
-          storyboard: comicStoryboard ?? undefined,
+          comicHighlightSelection: autopilotActive ? comicHighlightSelection : undefined,
+          comicPanelMode: autopilotActive ? requestedPanelMode : undefined,
         })
       : identityPack;
     const prompt = providerIdentityPack.prompt;

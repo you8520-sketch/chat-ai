@@ -936,8 +936,8 @@ describe("V3 micro-correction — manual override, user-edit parity, prompt hier
       ]),
     });
     assert.match(prompt, /Never invent, omit, reorder, or reclassify events/, "PROMPT-1 canonical omission forbidden");
-    assert.match(prompt, /may select a subset of canonical events/, "PROMPT-2 comic subset allowed");
-    assert.match(prompt, /must never mutate, delete, or reorder the canonical timeline/, "PROMPT-3 boundary explicit");
-    assert.doesNotMatch(prompt, /panels here are the comic PRESENTATION \(a highlight\)\. Whole-turn event coverage is NOT required/, "no stale contradictory wording");
+    assert.match(prompt, /focusEventIds/, "PROMPT-2 comic subset selection allowed");
+    assert.match(prompt, /Whole-turn coverage is not required for the highlight selection/, "PROMPT-2 subset explicit");
+    assert.match(prompt, /Do NOT plan panels, camera, framing/, "PROMPT-3 GPT owns HOW");
   });
 });
