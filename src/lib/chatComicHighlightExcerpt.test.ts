@@ -210,7 +210,7 @@ describe("comic provider autopilot — contract and validation", () => {
     const auto = renderComicAutopilotContract("auto");
     assert.match(auto, /natural 3- or 4-panel/);
     assert.match(auto, /Do not summarize the whole original turn/);
-    assert.match(auto, /0-2 short narration boxes/);
+    assert.doesNotMatch(auto, /0-2 short narration boxes/, "narration budget owned by text brief, not composition contract");
     assert.match(auto, /Choose camera, framing, reactions, balloon placement/);
     assert.match(auto, /Use only spoken lines from the selected source scene/, "DIALOGUE-1 source-only contract");
     assert.doesNotMatch(auto, /invent unrelated dialogue/, "DIALOGUE-2 no related-invention invitation");

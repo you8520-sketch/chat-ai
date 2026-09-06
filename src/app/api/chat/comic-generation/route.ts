@@ -24,6 +24,11 @@ import {
 import {
   resolveComicHighlightFallback,
 } from "@/lib/chatComicHighlightExcerpt";
+import {
+  buildComicTextBriefAudit,
+  selectComicDialogueCandidates,
+  selectComicNarrationCandidates,
+} from "@/lib/chatComicTextBrief";
 import type { ComicHighlightSelection } from "@/lib/chatImageScenePlan";
 import {
   CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
@@ -1805,6 +1810,29 @@ contentKind: context.contentKind,
                 referenceIsolationMode: diagnosticOverrides.referenceMode,
                 visualContextIsolationMode: diagnosticOverrides.visualContextMode,
                 ...formatComicReferenceSetForAdmin(providerReferences),
+                ...(autopilotActive && comicHighlightSelection
+                  ? {
+                      comicTextBrief: (() => {
+                        const dialogueCandidates = selectComicDialogueCandidates(
+                          canonicalPlan,
+                          comicHighlightSelection!,
+                          { characterLabel: "A", characterName: context.character.name, personaLabel: "B", personaName: context.persona.name },
+                          { providerReadableDialogueAdultEligible: semanticLadderMode ? true : roomAdultGrounded }
+                        );
+                        const narrationCandidates = selectComicNarrationCandidates(
+                          canonicalPlan,
+                          comicHighlightSelection!,
+                          { visualProjectionAdultGrounded: semanticLadderMode }
+                        );
+                        return buildComicTextBriefAudit({
+                          selection: comicHighlightSelection!,
+                          dialogueCandidates,
+                          narrationCandidates,
+                          panelMode: requestedPanelMode,
+                        });
+                      })(),
+                    }
+                  : {}),
               },
             }
           : {
