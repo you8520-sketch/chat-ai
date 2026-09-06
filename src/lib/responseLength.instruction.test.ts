@@ -12,7 +12,6 @@ import {
   normalizeTargetResponseChars,
   USER_TAIL_LENGTH_OWNER_SENTENCE,
 } from "@/lib/responseLength";
-import { LUNA_TERMINAL_OUTPUT_CONTRACT } from "@/lib/lunaSinglePrimaryAdapter";
 
 async function withServerOnlyMock<T>(fn: () => Promise<T>): Promise<T> {
   const require = createRequire(import.meta.url);
@@ -86,10 +85,10 @@ describe("buildLengthInstruction", () => {
     assert.match(tail, /\[분량 — 이번 턴 1회 출력\]/);
   });
 
-  it("OpenRouter Luna: system owners=0; terminal contract last on user turn", async () => {
+  it("OpenRouter canonical model: system owners=0; generic terminal length last on user turn", async () => {
     await withServerOnlyMock(async () => {
       const { buildContext } = await import("@/services/contextBuilder");
-      const { CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } = await import("@/lib/chatModels");
+      const { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } = await import("@/lib/chatModels");
 
       const built = buildContext({
         charName: "태형",
@@ -113,26 +112,24 @@ describe("buildLengthInstruction", () => {
         chatId: 1,
         targetResponseChars: 3200,
         completedTurns: 2,
-        modelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+        modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
         provider: "openrouter",
         personaDisplayName: "렌",
         contentKind: "character",
       });
 
       const sys = built.systemPrompt ?? "";
-      assert.equal(countOccurrences(sys, LUNA_TERMINAL_OUTPUT_CONTRACT), 0);
       assert.equal(countOccurrences(sys, USER_TAIL_LENGTH_OWNER_SENTENCE), 0);
       assert.doesNotMatch(sys, /4,200|4200/);
-      assert.ok(!(built.meta.trackedSections ?? []).some((s) => s.id === "luna-single-primary-adapter"));
       assert.ok(!(built.meta.trackedSections ?? []).some((s) => s.id === "rule-length-control"));
 
       const lastUser = built.history[built.history.length - 1];
       assert.equal(lastUser?.role, "user");
       assert.match(lastUser!.content, /지문과 "…" 대사 사이 빈 줄/);
-      assert.equal(countOccurrences(lastUser!.content, LUNA_TERMINAL_OUTPUT_CONTRACT), 1);
-      assert.ok(lastUser!.content.trimEnd().endsWith(LUNA_TERMINAL_OUTPUT_CONTRACT));
+      assert.equal(countOccurrences(lastUser!.content, USER_TAIL_LENGTH_OWNER_SENTENCE), 1);
+      assert.ok(lastUser!.content.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
       assert.ok(
-        lastUser!.content.indexOf("지문과") < lastUser!.content.indexOf(LUNA_TERMINAL_OUTPUT_CONTRACT)
+        lastUser!.content.indexOf("지문과") < lastUser!.content.indexOf(USER_TAIL_LENGTH_OWNER_SENTENCE)
       );
       assert.doesNotMatch(lastUser!.content, /TARGET_LENGTH|MINIMUM_FLOOR/);
     });

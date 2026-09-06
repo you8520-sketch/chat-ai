@@ -27,8 +27,6 @@ import {
   SCENE_CONTINUATION_PRIORITY_BLOCK_V2,
 } from "@/lib/sharedNovelProseV2Styles";
 import { buildCompactTerminalLayoutRecencyLine } from "@/lib/webnovelOutputFormat";
-import { TERRA_TERMINAL_LENGTH_OWNER_CONTRACT } from "@/lib/terraTerminalLengthOwner";
-import { resolveLunaTerminalOutputContract } from "@/lib/lunaSinglePrimaryAdapter";
 import {
   OPUS_ARM_E_TERMINAL,
   OPUS_ARM_E_TERMINAL_MARKER,
@@ -168,7 +166,8 @@ export type LengthInstructionOpts = {
 };
 
 /**
- * Non-Luna user-tail length owner (Luna uses LUNA_TERMINAL_OUTPUT_CONTRACT instead).
+ * User-tail length owner for all Main RP models (DeepSeek / Opus 5 /
+ * Gemini 3.1 / Gemini 3.7). Luna/Terra/Flash terminal adapters are retired.
  * No TARGET_LENGTH / MINIMUM_FLOOR / anti-early-stop / early-completion cue.
  */
 export const USER_TAIL_LENGTH_OWNER_SENTENCE =
@@ -658,47 +657,18 @@ MINIMUM_FLOOR 미달·조기 handoff 금지. [LENGTH CONTROL & SCENE EXPANSION] 
 }
 
 /**
- * Terra terminal single-owner — layout (format) then the sole length/completion
- * contract as the absolute last RP instruction on the current user turn.
- */
-export function appendTerraTerminalLengthOwnerToUserTurn(
-  userContent: string,
-  contract: string = TERRA_TERMINAL_LENGTH_OWNER_CONTRACT
-): string {
-  const layoutLine = buildCompactTerminalLayoutRecencyLine();
-  const tail = `${layoutLine}\n${contract}`;
-  const body = userContent.trim();
-  if (!body) return tail;
-  if (body.includes(contract)) {
-    // Ensure contract remains the absolute end (no trailing instructions after it).
-    if (body.trimEnd().endsWith(contract)) return body;
-    return `${body.replace(contract, "").trim()}\n\n${tail}`;
-  }
-  return `${body}\n\n${tail}`;
-}
-
-/**
  * Current user-turn bottom: layout first, then the terminal owner last.
- * Luna+single_primary → LUNA_TERMINAL_OUTPUT_CONTRACT (length + concentration).
- * Opus / Terra / DeepSeek / others → USER_TAIL_LENGTH_OWNER_SENTENCE
- *   (Arm E, Terra completion contract, DeepSeek future boundary retired).
- * Explicit opts.terraTerminalLengthOwner remains a test/canary seam only.
+ * All Main RP models (DeepSeek / Opus 5 / Gemini 3.1 / Gemini 3.7) use the
+ * generic USER_TAIL_LENGTH_OWNER_SENTENCE. Luna/Terra/Flash terminal adapters
+ * are retired (their constants remain only as stale-copy strip anchors).
  */
 export function appendCompactTerminalLengthToUserTurn(
   userContent: string,
   _targetInput?: number | null,
-  opts?: UserTailTerminalOpts
+  _opts?: UserTailTerminalOpts
 ): string {
-  if (opts?.terraTerminalLengthOwner) {
-    return appendTerraTerminalLengthOwnerToUserTurn(userContent);
-  }
   const layoutLine = buildCompactTerminalLayoutRecencyLine();
-  const lunaContract = resolveLunaTerminalOutputContract(
-    opts?.modelId,
-    opts?.contentKind,
-    opts?.party
-  );
-  const terminalLine = lunaContract ?? USER_TAIL_LENGTH_OWNER_SENTENCE;
+  const terminalLine = USER_TAIL_LENGTH_OWNER_SENTENCE;
   const layoutMarker = "지문과 \"…\" 대사 사이 빈 줄";
   const terminalMarkers = [
     "한국어 RP 본문만 3,200~4,200자로 작성한다",

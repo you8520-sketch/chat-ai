@@ -60,11 +60,10 @@ function assistantUsage(
 }
 
 describe("modelPickerPreview V2", () => {
-  it("hides Claude Opus 5 from the default user picker preview", () => {
+  it("shows the canonical 4 in the default user picker preview", () => {
     const preview = buildModelPickerPreview({ messages: [] });
-    assert.equal(
-      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL),
-      false
+    assert.ok(
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL)
     );
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL)

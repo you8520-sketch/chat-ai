@@ -38,8 +38,8 @@ export function createChatSession(input: CreateChatSessionInput): number {
     email: userRow?.email ?? "",
     is_admin: userRow?.is_admin ?? 0,
   });
-  /** 전역 선택 미러 — 라우팅은 request-time user-chat model (Opus 5 may be remapped) */
-  const selectedAI = getUserChatSelectedAI(db, input.userId, { isAdmin });
+  /** 전역 선택 미러 — 라우팅은 request-time user-chat model */
+  const selectedAI = getUserChatSelectedAI(db, input.userId);
   const mode = input.mode ?? "safe";
   const targetResponseChars = normalizeTargetResponseChars(
     input.targetResponseChars ?? DEFAULT_TARGET_RESPONSE_CHARS

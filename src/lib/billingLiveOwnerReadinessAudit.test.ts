@@ -164,7 +164,8 @@ describe("billingLiveOwnerReadinessAudit — owner map", () => {
     ]);
     assert.deepEqual(PHASE_2_PLANNED_MODELS, [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]);
     assert.equal(DEEPSEEK_PHASE2, true);
-    assert.ok(DEFERRED_BILLING_MODELS.length > 0);
+    // All 4 canonical Main RP models are covered by Phase 1/2 promotion gates.
+    assert.equal(DEFERRED_BILLING_MODELS.length, 0);
     assert.ok(CUTOVER_REQUIRED_MODEL_FAMILIES.length > PHASE_1_CUTOVER_REQUIRED_MODEL_FAMILIES.length);
     const full = collectExactDeliveredModelCoverage(buildBillingLiveOwnerReadinessFixtures());
     assert.notDeepEqual(
@@ -198,7 +199,7 @@ describe("billingLiveOwnerReadinessAudit — owner map", () => {
     assert.equal(legacy.classification, "LEGACY_COMPAT_ONLY");
   });
 
-  it("Opus 4.5 is not ADMIN_REACHABLE without admin-only route", () => {
+  it("Opus 4.5 (retired) is legacy-read only, not ADMIN_REACHABLE", () => {
     assert.equal(OPUS45_ADMIN_SPECIAL_CASE, false);
     const inventory = buildCurrentReachableBilledModelInventory();
     const opus45 = inventory.find((entry) => entry.deliveredModelId.includes("claude-opus-4"));
@@ -206,13 +207,11 @@ describe("billingLiveOwnerReadinessAudit — owner map", () => {
     assert.notEqual(opus45.classification, "ADMIN_REACHABLE");
   });
 
-  it("Opus 5 hidden flag uses CONDITIONAL_REACHABLE not ADMIN_REACHABLE", () => {
+  it("Opus 5 is canonical-selectable and USER_SELECTABLE (no hidden flag)", () => {
     const inventory = buildCurrentReachableBilledModelInventory();
     const opus5 = inventory.find((entry) => entry.deliveredModelId === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL);
     assert.ok(opus5);
-    if (process.env.OPUS5_USER_ENABLED?.trim() !== "1") {
-      assert.equal(opus5.classification, "CONDITIONAL_REACHABLE");
-    }
+    assert.equal(opus5.classification, "USER_SELECTABLE");
   });
 
   it("INTERNAL_DELIVERED models have production owner evidence", () => {

@@ -480,10 +480,6 @@ import {
   streamOpenRouterAdultToClient,
   convertToOpenRouterFormat,
 } from "@/lib/openRouterAdult";
-import {
-  buildTerraInstructions,
-  isRetryableTerraFinishReason,
-} from "@/lib/openAiResponsesClient";
 import { formatClientApiError } from "@/lib/apiErrors";
 import { refreshCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing.server";
 import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
@@ -716,7 +712,7 @@ export async function POST(req: Request) {
     email: user.email,
     is_admin: userAdminRow?.is_admin ?? 0,
   });
-  const selectedAI = getUserChatSelectedAI(db, user.id, { isAdmin: isAdminForChat });
+  const selectedAI = getUserChatSelectedAI(db, user.id);
 
   let initialPersonaId: number | null = null;
   if (requestedPersonaId) {
@@ -3130,10 +3126,7 @@ export async function POST(req: Request) {
               input.provider === "openai"
                 ? input.history
                 : convertToOpenRouterFormat(input.history);
-            const terraChat = isGpt56TerraModel(input.modelId);
-            const requestSystem = terraChat
-              ? buildTerraInstructions(input.system)
-              : input.system;
+            const requestSystem = input.system;
             return streamOpenRouterAdultToClient(
               input.send,
               requestSystem,
@@ -4105,19 +4098,6 @@ export async function POST(req: Request) {
           targetResponseCharsRef,
           visibleForLengthCheck
         );
-        const terraInterruptedTurn =
-          isGpt56TerraModel(deliveredModelId) &&
-          isRetryableTerraFinishReason(primaryStage?.finishReason) &&
-          resolveVisibleTierCharCount(savedText) >= CATASTROPHIC_MIN_RESPONSE_CHARS;
-
-        if (generationFailure === "under_length" && terraInterruptedTurn) {
-          console.warn("[/api/chat] preserving billable partial Terra response", {
-            finishReason: primaryStage?.finishReason,
-            outputChars: savedText.length,
-            targetResponseChars: targetResponseCharsRef,
-          });
-          generationFailure = null;
-        }
 
         if (
           generationFailure === "under_length" &&
@@ -4207,9 +4187,7 @@ export async function POST(req: Request) {
           controller.close();
           return;
         }
-        const persistedGenerationStatus = terraInterruptedTurn
-          ? ("interrupted" as const)
-          : ("completed" as const);
+        const persistedGenerationStatus = "completed" as const;
 
         const stageBillableInput =
           primaryStage?.input ?? estimateTokens(system + history.map((m) => m.content).join(""));

@@ -40,7 +40,6 @@ import {
   isGlmModel,
   isKimiModel,
   isMuseModel,
-  isOpus5UserEnabled,
   isOpusUserSelectable,
   isQwenModel,
   resolveSelectedAI,
@@ -236,6 +235,7 @@ const LEGACY_INVENTORY_SLUGS = [
   "google/gemini-2.5-pro",
   "google/gemini-3.1-pro-preview",
   "anthropic/claude-3-opus",
+  "anthropic/claude-opus-4.5",
   "deepseek/deepseek-v4-pro",
   "upstage/solar-pro-3",
 ] as const;
@@ -270,9 +270,6 @@ function resolveExactDeliveredSelectedAI(deliveredModelId: string): SelectedAI {
 function classifySelectedOption(id: SelectedAI): BilledModelReachabilityClass {
   if (id === DEFAULT_SELECTED_AI) return "USER_DEFAULT";
   if (USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === id)) return "USER_SELECTABLE";
-  if (id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL && !isOpus5UserEnabled()) {
-    return "CONDITIONAL_REACHABLE";
-  }
   if (id === CLAUDE_OPUS_MODEL) {
     return isOpusUserSelectable() ? "USER_SELECTABLE" : "HIDDEN_BUT_CANONICAL_VALID";
   }
