@@ -58,25 +58,6 @@ function logDatabaseDiagnosticsOnce() {
   );
 }
 
-function logPlaywrightDatabaseConnectionProbe(
-  stage: string,
-  db: Database.Database | undefined
-): void {
-  if (process.env.PLAYWRIGHT_PROD_SERVER !== "1") return;
-  const databaseList = db
-    ? (db.prepare("PRAGMA database_list").all() as Array<{ name?: unknown; file?: unknown }>).map(
-        (row) => ({ name: String(row.name ?? ""), file: String(row.file ?? "") })
-      )
-    : [];
-  console.info("[playwright-db-connection-probe]", {
-    stage,
-    globalDbPresent: Boolean(db),
-    databaseList,
-    expectedDatabaseFile: remoteDatabase ? null : getDatabasePath(),
-    expectedDatabaseFileExists: remoteDatabase ? null : fs.existsSync(getDatabasePath()),
-  });
-}
-
 declare global {
   // eslint-disable-next-line no-var
   var __db: Database.Database | undefined;
@@ -2260,17 +2241,14 @@ function seed(db: Database.Database) {
 
 export function getDb(): Database.Database {
   logDatabaseDiagnosticsOnce();
-  logPlaywrightDatabaseConnectionProbe("before-get-db", global.__db);
   if (!global.__db) {
     const options = remoteDatabase
       ? ({ authToken: remoteDatabase.authToken } as Database.Options & { authToken: string })
       : undefined;
     const candidate = new Database(remoteDatabase?.url ?? getDatabasePath(), options);
-    logPlaywrightDatabaseConnectionProbe("after-constructor", candidate);
     normalizeLibsqlRows(candidate);
     try {
       initializeDatabase(candidate);
-      logPlaywrightDatabaseConnectionProbe("after-initialize", candidate);
       global.__db = candidate;
     } catch (error) {
       candidate.close();

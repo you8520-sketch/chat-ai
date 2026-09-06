@@ -41,7 +41,7 @@ jobs:
         run: >
           npx playwright test
           tests/ui/chat-live-follow.spec.ts
-          --grep "P1 resize: clamp is geometry-only before, during, and after live follow"
+          tests/ui/trpg-scroll-follow.spec.ts
           --workers=1
           --retries=0
 
