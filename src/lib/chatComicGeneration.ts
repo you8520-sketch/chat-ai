@@ -30,9 +30,9 @@ import {
 import type { ComicStoryboard } from "@/lib/chatComicHighlightStoryboard";
 import {
   renderComicAutopilotContract,
-  renderComicAutopilotSection,
   type ComicSpeakerBinding,
 } from "@/lib/chatComicHighlightExcerpt";
+import { renderComicTextBrief } from "@/lib/chatComicTextBrief";
 import type { ComicHighlightSelection } from "@/lib/chatImageScenePlan";
 import type { ChatComicPanelMode } from "@/lib/chatComicGenerationConstants";
 import type { ContentKind } from "@/lib/simulationMode";
@@ -180,14 +180,17 @@ export function buildChatComicImagePrompt(opts: {
         ? "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay."
         : "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page and do not repeat the same composition in every panel. Readable, visually integrated Korean text is required — imperfect typography is acceptable, but text must be legible and belong to the comic. Use narration sparingly — include only very short time-ordered narration boxes for crucial transitions, never long prose paragraphs.";
   const panelSpecSection = autopilot
-    ? renderComicAutopilotSection({
+    ? renderComicTextBrief({
         plan: opts.plan,
         selection: autopilotSelection!,
         binding: speakerBinding,
-        providerReadableDialogueAdultEligible: providerTextAdultEligible,
-        visualProjectionAdultGrounded: opts.adultGrounded ?? false,
-        realPersonRestricted: false,
-      })
+        safety: {
+          providerReadableDialogueAdultEligible: providerTextAdultEligible,
+          visualProjectionAdultGrounded: opts.adultGrounded ?? false,
+          realPersonRestricted: false,
+        },
+        panelMode: opts.comicPanelMode ?? "auto",
+      }).text
     : compositionMode === "full_provider_rendered"
       ? buildChatComicPanelSpecFullProviderSection({
           plan: opts.plan,

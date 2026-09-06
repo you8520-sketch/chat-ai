@@ -148,6 +148,7 @@ export function renderComicAutopilotContract(panelMode: ChatComicPanelMode): str
     "Keep the panels chronologically connected around this one moment.",
     "Use only spoken lines from the selected source scene. You may omit lines for comic pacing, but do not invent new spoken dialogue.",
     "Usually use around 1-2 speech bubbles per dialogue-bearing panel. Silent reaction panels are allowed. Do not force dialogue when the source scene is quiet.",
+    "One visible speech bubble = one speaker only. Never merge two different speakers into a single bubble; tails and placement must make the speaker obvious.",
     "Use at most 0-2 short narration boxes when they genuinely help with time, location, or an off-panel transition. Do not paste long prose.",
     "Keep every spoken line associated with the correct character.",
     "Choose camera, framing, reactions, balloon placement, and visual rhythm yourself. Use varied natural manhwa composition.",
