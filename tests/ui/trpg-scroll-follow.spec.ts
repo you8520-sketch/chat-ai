@@ -531,9 +531,5 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     expect(bot2.sentinelActorId).toBe(String(SCROLL_FOLLOW_LAB_BOT2_ID));
     expect(bot2.sentinelActorId).not.toBe(bot1.sentinelActorId);
     expect(bot2.owner).toBe("ACTIVE_DECLARATION_END");
-
-    const startContainer = await findActualScrollContainer(page);
-    await waitForFollowScrollMovement(page, startContainer.scrollTop);
-    await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
   });
 });

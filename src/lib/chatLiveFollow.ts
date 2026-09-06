@@ -3,7 +3,7 @@
  * - CHAT_STREAM_TEXT_OWNER: createStreamReveal onAppend → messages[aiIndex].content
  * - CHAT_STREAM_END_SENTINEL_OWNER: data-chat-assistant-stream-end on active assistant row
  * - CHAT_AUTO_FOLLOW_OWNER: followStreamRef + userScrollLockRef + createLiveReadingFollowController
- * - CHAT_MANUAL_DETACH_OWNER: userScrollLockRef (wheel/touch/key up during stream)
+ * - CHAT_MANUAL_DETACH_OWNER: userScrollLockRef (classified root window scroll movement)
  * - CHAT_JUMP_TO_LATEST_OWNER: scrollToBottom / discrete reattach on explicit user action
  */
 
@@ -45,27 +45,12 @@ export function resolveFollowBeforeStream(opts: {
   nearLatest: boolean;
   manualDetached: boolean;
 }): { followLatest: boolean; manualDetached: boolean } {
-  if (opts.nearLatest && !opts.manualDetached) {
-    return { followLatest: true, manualDetached: false };
-  }
-  return { followLatest: false, manualDetached: true };
-}
-
-export function shouldDetachChatLiveFollowOnWheel(deltaY: number): boolean {
-  return deltaY < 0;
-}
-
-export function shouldDetachChatLiveFollowOnTouchDelta(deltaY: number): boolean {
-  return deltaY < 0;
-}
-
-export function shouldDetachChatLiveFollowOnKey(key: string): boolean {
-  return key === "PageUp" || key === "Home" || key === "ArrowUp";
-}
-
-export function shouldSkipChatLiveFollowKeydown(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) return false;
-  return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
+  // Geometry can move between submit, optimistic rows, and sentinel mount.
+  // Only an explicit user-owned lock may carry manual detach into a new stream.
+  void opts.nearLatest;
+  return opts.manualDetached
+    ? { followLatest: false, manualDetached: true }
+    : { followLatest: true, manualDetached: false };
 }
 
 /** Live-reading scroll events from the shared animator must not detach follow. */
@@ -76,14 +61,90 @@ export function shouldIgnoreChatLiveFollowScrollForDetach(opts: {
   return opts.liveReadingActive || opts.programmaticScrollInFlight;
 }
 
-/** User-initiated upward scroll during live reading (e.g. scrollbar drag). */
-export function shouldDetachChatLiveFollowOnScrollDelta(opts: {
-  liveReadingActive: boolean;
+/** User-owned upward scrollbar intent exists before, during, and after live reading. */
+export function shouldRecordChatManualDetachOnScrollDelta(opts: {
   scrollDeltaPx: number;
   programmaticScrollInFlight: boolean;
 }): boolean {
-  if (!opts.liveReadingActive || opts.programmaticScrollInFlight) return false;
+  // The live-follow transport only moves downward. A negative delta is therefore
+  // user intent even when it lands inside the broad programmatic-frame window.
+  void opts.programmaticScrollInFlight;
   return opts.scrollDeltaPx < -2;
+}
+
+export function isChatRootScrollGeometryClamp(opts: {
+  previousScrollY: number;
+  previousMaxScrollY: number;
+  currentScrollY: number;
+  currentMaxScrollY: number;
+  epsilonPx?: number;
+}): boolean {
+  const epsilonPx = opts.epsilonPx ?? 2;
+  return (
+    opts.previousMaxScrollY > opts.currentMaxScrollY + epsilonPx &&
+    opts.previousScrollY > opts.currentMaxScrollY + epsilonPx &&
+    Math.abs(opts.currentScrollY - opts.currentMaxScrollY) <= epsilonPx
+  );
+}
+
+export type ChatRootClampExpectation = { targetY: number; maxScrollY: number };
+
+export function createChatRootClampExpectation(opts: {
+  scrollY: number;
+  maxScrollY: number;
+  epsilonPx?: number;
+}): ChatRootClampExpectation | null {
+  const epsilonPx = opts.epsilonPx ?? 2;
+  return opts.scrollY > opts.maxScrollY + epsilonPx
+    ? { targetY: opts.maxScrollY, maxScrollY: opts.maxScrollY }
+    : null;
+}
+
+export function shouldConsumeChatRootClampExpectation(opts: {
+  expectation: ChatRootClampExpectation | null;
+  currentScrollY: number;
+  currentMaxScrollY: number;
+  epsilonPx?: number;
+}): boolean {
+  if (!opts.expectation) return false;
+  const epsilonPx = opts.epsilonPx ?? 2;
+  return (
+    Math.abs(opts.currentMaxScrollY - opts.expectation.maxScrollY) <= epsilonPx &&
+    Math.abs(opts.currentScrollY - opts.expectation.targetY) <= epsilonPx
+  );
+}
+
+/** Resize is geometry-only: rebase scroll measurement without changing user intent. */
+export function resolveChatFollowResize(input: {
+  scrollY: number;
+  maxScrollY: number;
+  followLatest: boolean;
+  manualDetached: boolean;
+  liveReadingActive: boolean;
+}): {
+  scrollBaselineY: number;
+  scrollBaselineMaxY: number;
+  followLatest: boolean;
+  manualDetached: boolean;
+  notifyFollowTarget: boolean;
+} {
+  return {
+    scrollBaselineY: input.scrollY,
+    scrollBaselineMaxY: input.maxScrollY,
+    followLatest: input.followLatest,
+    manualDetached: input.manualDetached,
+    notifyFollowTarget:
+      input.liveReadingActive && input.followLatest && !input.manualDetached,
+  };
+}
+
+/** A detached scrollbar/touch path may rejoin only with downward intent at latest. */
+export function shouldReattachChatLiveFollowOnScrollDelta(opts: {
+  manualDetached: boolean;
+  scrollDeltaPx: number;
+  nearLatest: boolean;
+}): boolean {
+  return opts.manualDetached && opts.scrollDeltaPx > 2 && opts.nearLatest;
 }
 
 /** Layout growth during active stream — notify shared animator, never one-shot scroll. */

@@ -34,6 +34,7 @@ export default function FloatingPointsDeduction({
       {items.map((item) => (
         <span
           key={item.id}
+          data-floating-points-deduction
           className="animate-float-points-up text-base font-black tracking-wide text-red-400 sm:text-lg"
         >
           - {formatPoints(item.amount)} P
