@@ -1,0 +1,496 @@
+{
+  "headSha": "02915fca67c594a93b520353487e3541c38301d6",
+  "model": "glm-5.2",
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "reasoningSettingForAB": "none",
+  "ratesUsed": {
+    "input": 0.7144,
+    "cachedInput": 0.11,
+    "output": 2.2748
+  },
+  "uiCatalogSnapshot": {
+    "source": "Cheaper Inference UI at benchmark time (not written to production pricing)",
+    "inputUsdPerMillion": 0.29,
+    "cachedInputUsdPerMillion": 0.053768,
+    "outputUsdPerMillion": 0.91
+  },
+  "liveCatalog": {
+    "id": "glm-5.2",
+    "aliases": [],
+    "object": "model",
+    "owned_by": "z.ai",
+    "provider": "z.ai",
+    "type": "text",
+    "endpoint": "/v1/chat/completions",
+    "capabilities": {
+      "vision": false,
+      "video": false,
+      "reasoning": true,
+      "streaming": true,
+      "image_generation": false
+    },
+    "is_free": false,
+    "available_until": null,
+    "pricing": {
+      "currency": "USD",
+      "input_per_million": "0.714400",
+      "cache_read_input_per_million": "0.110000",
+      "cache_write_input_per_million": "0.714400",
+      "output_per_million": "2.274800",
+      "image_output_per_million": null,
+      "media_input_unit_price": null,
+      "media_unit_price": null,
+      "media_unit": null,
+      "resolution_prices": {},
+      "reference_resolution_prices": {},
+      "image_pricing_unit": "token",
+      "discount_percent": "48.30",
+      "input_token_price_threshold": null,
+      "above_threshold": null
+    }
+  },
+  "rows": [
+    {
+      "cell": "S1-A",
+      "seed": "S1",
+      "arm": "A",
+      "user": "나는 렌이라고… 본 기억이 안 나는데… 나 알아?",
+      "invalidTransport": false,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "latencyMs": 13761,
+      "ttftMs": 1243,
+      "resolvedModel": "glm-5.2",
+      "charsInclSpaces": 964,
+      "charsExclSpaces": 715,
+      "paragraphCount": 15,
+      "dialogueParagraphCount": 7,
+      "dialogueRatio": 0.467,
+      "inputTokens": 3568,
+      "outputTokens": 848,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 3568,
+      "usageCostUsd": 0.004479,
+      "catalogEstimatedUsd": 0.00447801,
+      "costPer1000VisibleChars": 0.00464627,
+      "sampling": {
+        "temperature": 0.7,
+        "max_tokens": null,
+        "top_p": null,
+        "stream": true
+      },
+      "reasoning": {
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "thinking": null,
+        "include_reasoning": null
+      },
+      "assembledChars": {
+        "system": 3897,
+        "history": 1162,
+        "lastUser": 611,
+        "total": 5674,
+        "estimatedInputTokens": 5107
+      },
+      "usageRaw": {
+        "prompt_tokens": 3568,
+        "completion_tokens": 848,
+        "total_tokens": 4416,
+        "cost": 0.004479,
+        "cost_details": {
+          "upstream_inference_cost": 0.004479
+        }
+      },
+      "error": null
+    },
+    {
+      "cell": "S1-B",
+      "seed": "S1",
+      "arm": "B",
+      "user": "나는 렌이라고… 본 기억이 안 나는데… 나 알아?",
+      "invalidTransport": false,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "latencyMs": 34117,
+      "ttftMs": 2468,
+      "resolvedModel": "glm-5.2",
+      "charsInclSpaces": 2494,
+      "charsExclSpaces": 1862,
+      "paragraphCount": 26,
+      "dialogueParagraphCount": 5,
+      "dialogueRatio": 0.192,
+      "inputTokens": 5557,
+      "outputTokens": 2054,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 5557,
+      "usageCostUsd": 0.008643,
+      "catalogEstimatedUsd": 0.00864236,
+      "costPer1000VisibleChars": 0.00346552,
+      "sampling": {
+        "temperature": 0.7,
+        "max_tokens": null,
+        "top_p": null,
+        "stream": true
+      },
+      "reasoning": {
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "thinking": null,
+        "include_reasoning": null
+      },
+      "assembledChars": {
+        "system": 6399,
+        "history": 1162,
+        "lastUser": 815,
+        "total": 8380,
+        "estimatedInputTokens": 7542
+      },
+      "usageRaw": {
+        "prompt_tokens": 5557,
+        "completion_tokens": 2054,
+        "total_tokens": 7611,
+        "cost": 0.008643,
+        "cost_details": {
+          "upstream_inference_cost": 0.008643
+        }
+      },
+      "error": null
+    },
+    {
+      "cell": "S2-A",
+      "seed": "S2",
+      "arm": "A",
+      "user": "같이 갈래? *두리번*",
+      "invalidTransport": false,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "latencyMs": 10842,
+      "ttftMs": 4761,
+      "resolvedModel": "glm-5.2",
+      "charsInclSpaces": 556,
+      "charsExclSpaces": 414,
+      "paragraphCount": 8,
+      "dialogueParagraphCount": 4,
+      "dialogueRatio": 0.5,
+      "inputTokens": 3584,
+      "outputTokens": 478,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 3584,
+      "usageCostUsd": 0.003648,
+      "catalogEstimatedUsd": 0.00364776,
+      "costPer1000VisibleChars": 0.00656115,
+      "sampling": {
+        "temperature": 0.7,
+        "max_tokens": null,
+        "top_p": null,
+        "stream": true
+      },
+      "reasoning": {
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "thinking": null,
+        "include_reasoning": null
+      },
+      "assembledChars": {
+        "system": 3897,
+        "history": 1162,
+        "lastUser": 626,
+        "total": 5689,
+        "estimatedInputTokens": 5121
+      },
+      "usageRaw": {
+        "prompt_tokens": 3584,
+        "completion_tokens": 478,
+        "total_tokens": 4062,
+        "cost": 0.003648,
+        "cost_details": {
+          "upstream_inference_cost": 0.003648
+        }
+      },
+      "error": null
+    },
+    {
+      "cell": "S2-B",
+      "seed": "S2",
+      "arm": "B",
+      "user": "같이 갈래? *두리번*",
+      "invalidTransport": false,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "latencyMs": 30448,
+      "ttftMs": 1461,
+      "resolvedModel": "glm-5.2",
+      "charsInclSpaces": 2191,
+      "charsExclSpaces": 1634,
+      "paragraphCount": 21,
+      "dialogueParagraphCount": 8,
+      "dialogueRatio": 0.381,
+      "inputTokens": 5574,
+      "outputTokens": 1867,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 5574,
+      "usageCostUsd": 0.00498,
+      "catalogEstimatedUsd": 0.00822912,
+      "costPer1000VisibleChars": 0.00227293,
+      "sampling": {
+        "temperature": 0.7,
+        "max_tokens": null,
+        "top_p": null,
+        "stream": true
+      },
+      "reasoning": {
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "thinking": null,
+        "include_reasoning": null
+      },
+      "assembledChars": {
+        "system": 6399,
+        "history": 1162,
+        "lastUser": 830,
+        "total": 8395,
+        "estimatedInputTokens": 7556
+      },
+      "usageRaw": {
+        "prompt_tokens": 5574,
+        "completion_tokens": 1867,
+        "total_tokens": 7441,
+        "cost": 0.00498,
+        "cost_details": {
+          "upstream_inference_cost": 0.00498
+        }
+      },
+      "error": null
+    },
+    {
+      "cell": "S3-A",
+      "seed": "S3",
+      "arm": "A",
+      "user": "*가방 끈을 꼭 쥐고* 음… 조금만. 나 길 잘 모르거든.",
+      "invalidTransport": false,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "latencyMs": 16695,
+      "ttftMs": 8642,
+      "resolvedModel": "glm-5.2",
+      "charsInclSpaces": 615,
+      "charsExclSpaces": 458,
+      "paragraphCount": 8,
+      "dialogueParagraphCount": 3,
+      "dialogueRatio": 0.375,
+      "inputTokens": 3602,
+      "outputTokens": 506,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 3602,
+      "usageCostUsd": 0.003725,
+      "catalogEstimatedUsd": 0.00372432,
+      "costPer1000VisibleChars": 0.00605691,
+      "sampling": {
+        "temperature": 0.7,
+        "max_tokens": null,
+        "top_p": null,
+        "stream": true
+      },
+      "reasoning": {
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "thinking": null,
+        "include_reasoning": null
+      },
+      "assembledChars": {
+        "system": 3897,
+        "history": 1162,
+        "lastUser": 644,
+        "total": 5707,
+        "estimatedInputTokens": 5137
+      },
+      "usageRaw": {
+        "prompt_tokens": 3602,
+        "completion_tokens": 506,
+        "total_tokens": 4108,
+        "cost": 0.003725,
+        "cost_details": {
+          "upstream_inference_cost": 0.003725
+        }
+      },
+      "error": null
+    },
+    {
+      "cell": "S3-B",
+      "seed": "S3",
+      "arm": "B",
+      "user": "*가방 끈을 꼭 쥐고* 음… 조금만. 나 길 잘 모르거든.",
+      "invalidTransport": false,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "latencyMs": 34528,
+      "ttftMs": 1519,
+      "resolvedModel": "glm-5.2",
+      "charsInclSpaces": 2447,
+      "charsExclSpaces": 1836,
+      "paragraphCount": 19,
+      "dialogueParagraphCount": 7,
+      "dialogueRatio": 0.368,
+      "inputTokens": 5591,
+      "outputTokens": 2055,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 5591,
+      "usageCostUsd": 0.00542,
+      "catalogEstimatedUsd": 0.00866892,
+      "costPer1000VisibleChars": 0.00221496,
+      "sampling": {
+        "temperature": 0.7,
+        "max_tokens": null,
+        "top_p": null,
+        "stream": true
+      },
+      "reasoning": {
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "thinking": null,
+        "include_reasoning": null
+      },
+      "assembledChars": {
+        "system": 6399,
+        "history": 1162,
+        "lastUser": 848,
+        "total": 8413,
+        "estimatedInputTokens": 7572
+      },
+      "usageRaw": {
+        "prompt_tokens": 5591,
+        "completion_tokens": 2055,
+        "total_tokens": 7646,
+        "cost": 0.00542,
+        "cost_details": {
+          "upstream_inference_cost": 0.00542
+        }
+      },
+      "error": null
+    },
+    {
+      "cell": "S4-A",
+      "seed": "S4",
+      "arm": "A",
+      "user": "*물병을 꺼내 내민다* …목마르면 마셔. 나 괜찮으니까.",
+      "invalidTransport": false,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "latencyMs": 25600,
+      "ttftMs": 13940,
+      "resolvedModel": "glm-5.2",
+      "charsInclSpaces": 859,
+      "charsExclSpaces": 646,
+      "paragraphCount": 10,
+      "dialogueParagraphCount": 3,
+      "dialogueRatio": 0.3,
+      "inputTokens": 3605,
+      "outputTokens": 768,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 3605,
+      "usageCostUsd": 0.004323,
+      "catalogEstimatedUsd": 0.00432246,
+      "costPer1000VisibleChars": 0.0050326,
+      "sampling": {
+        "temperature": 0.7,
+        "max_tokens": null,
+        "top_p": null,
+        "stream": true
+      },
+      "reasoning": {
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "thinking": null,
+        "include_reasoning": null
+      },
+      "assembledChars": {
+        "system": 3897,
+        "history": 1162,
+        "lastUser": 644,
+        "total": 5707,
+        "estimatedInputTokens": 5137
+      },
+      "usageRaw": {
+        "prompt_tokens": 3605,
+        "completion_tokens": 768,
+        "total_tokens": 4373,
+        "cost": 0.004323,
+        "cost_details": {
+          "upstream_inference_cost": 0.004323
+        }
+      },
+      "error": null
+    },
+    {
+      "cell": "S4-B",
+      "seed": "S4",
+      "arm": "B",
+      "user": "*물병을 꺼내 내민다* …목마르면 마셔. 나 괜찮으니까.",
+      "invalidTransport": false,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "latencyMs": 83636,
+      "ttftMs": 5972,
+      "resolvedModel": "glm-5.2",
+      "charsInclSpaces": 7327,
+      "charsExclSpaces": 5512,
+      "paragraphCount": 44,
+      "dialogueParagraphCount": 14,
+      "dialogueRatio": 0.318,
+      "inputTokens": 5594,
+      "outputTokens": 5944,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 5594,
+      "usageCostUsd": 0.014269,
+      "catalogEstimatedUsd": 0.01751776,
+      "costPer1000VisibleChars": 0.00194745,
+      "sampling": {
+        "temperature": 0.7,
+        "max_tokens": null,
+        "top_p": null,
+        "stream": true
+      },
+      "reasoning": {
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "thinking": null,
+        "include_reasoning": null
+      },
+      "assembledChars": {
+        "system": 6399,
+        "history": 1162,
+        "lastUser": 848,
+        "total": 8413,
+        "estimatedInputTokens": 7572
+      },
+      "usageRaw": {
+        "prompt_tokens": 5594,
+        "completion_tokens": 5944,
+        "total_tokens": 11538,
+        "cost": 0.014269,
+        "cost_details": {
+          "upstream_inference_cost": 0.014269
+        }
+      },
+      "error": null
+    }
+  ]
+}

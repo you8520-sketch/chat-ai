@@ -1,0 +1,15 @@
+{
+  "headSha": "02915fca67c594a93b520353487e3541c38301d6",
+  "model": "glm-5.2",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "phase": "rp",
+  "startedAt": "2026-08-17T02:15:45.546Z",
+  "constraints": [
+    "no picker",
+    "no pricing change",
+    "no production routing change",
+    "no common prompt change",
+    "no GLM adapter",
+    "no merge/deploy"
+  ]
+}
