@@ -1,6 +1,9 @@
 import { expect, test, type Page, type Route, type TestInfo } from "@playwright/test";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
 import {
+  seedCanonicalCompletedChatHistory,
+} from "./helpers/canonicalChatHistorySeed";
+import {
   estimateVerticalGrowthPxPerSec,
   LIVE_READING_MAX_RATIO,
   LIVE_READING_MIN_RATIO,
@@ -860,30 +863,31 @@ test.describe("General chat live reading follow — production browser", () => {
   });
 
   test("P1 resize: clamp is geometry-only before, during, and after live follow", async ({ page }) => {
-    await mockChatStreamRoute(page, longAssistantProse(900));
     await page.setViewportSize({ width: 1280, height: 420 });
     await openFreshChat(page);
-    await sendMockMessage(page, "resize baseline source turn");
-    await waitForNetworkDoneVisualRevealPending(page);
-    await page.locator("[data-quote-assistant]").last().click();
+    const chatId = Number(new URL(page.url()).searchParams.get("chat"));
+    expect(chatId).toBeGreaterThan(0);
+    const seeded = seedCanonicalCompletedChatHistory(chatId);
+    expect(seeded.dbPath).toContain("app.db");
+    await page.goto(`/chat/2?chat=${chatId}`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("textarea[placeholder*='메시지 입력']", { timeout: 45_000 });
+    await expect(page.getByText(seeded.marker)).toBeVisible();
+    expect(await page.locator("[data-test-extra-scroll-room]").count()).toBe(0);
     await page.waitForFunction(
-      () =>
-        document.querySelector("[data-chat-live-reading-active]")?.getAttribute(
-          "data-chat-live-reading-active"
-        ) === "false",
+      () => {
+        const bottom = document.querySelector("[data-chat-live-reading-active]");
+        if (!bottom) return false;
+        const rect = bottom.getBoundingClientRect();
+        return rect.bottom > window.innerHeight * 0.45 && rect.bottom < window.innerHeight + 220;
+      },
       undefined,
       { timeout: 15_000 }
     );
-    await ensureExtraScrollRoom(page, 1200);
-    // Keep this fixture geometry outside React's reconciled chat subtree so the
-    // subsequent send cannot turn a test-only DOM removal into a fake scroll.
-    await page.evaluate(() => {
-      const room = document.querySelector("[data-test-extra-scroll-room]");
-      if (room) document.body.appendChild(room);
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      liveReadingActive: false,
+      followLatest: true,
+      manualDetached: false,
     });
-    await page.evaluate(() =>
-      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })
-    );
     const beforeResizeY = await page.evaluate(() => window.scrollY);
     await page.setViewportSize({ width: 1280, height: 720 });
     const afterResizeY = await page.evaluate(() => window.scrollY);

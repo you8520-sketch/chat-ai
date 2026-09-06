@@ -1,0 +1,55 @@
+name: Validate live-follow UI
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/validate-live-follow-ui.yml"
+      - "playwright.config.ts"
+      - "package.json"
+      - "tests/ui/**"
+      - "src/app/chat/**"
+      - "src/lib/chatLiveFollow.ts"
+      - "src/lib/chatBillingPresentation.ts"
+      - "src/lib/integerScrollTransport.ts"
+      - "src/app/trpg/**"
+      - "src/lib/trpg/**"
+
+permissions:
+  contents: read
+
+jobs:
+  live-follow-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Live-follow browser regression
+        run: >
+          npx playwright test
+          tests/ui/chat-live-follow.spec.ts
+          tests/ui/trpg-scroll-follow.spec.ts
+          --workers=1
+          --retries=0
+
+      - name: Upload Playwright failure artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-follow-playwright-results
+          path: test-results
+          if-no-files-found: ignore
+          retention-days: 7

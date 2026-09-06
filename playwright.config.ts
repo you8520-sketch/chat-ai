@@ -8,6 +8,10 @@ const PROD_TEST_BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:
 const PLAYWRIGHT_DATA_DIR =
   process.env.PLAYWRIGHT_DATA_DIR ?? path.join(os.tmpdir(), `habby-playwright-${process.pid}`);
 
+// The production web server and the Playwright worker must use one resolved
+// data directory when an E2E fixture seeds canonical persisted history.
+process.env.PLAYWRIGHT_DATA_DIR = PLAYWRIGHT_DATA_DIR;
+
 if (!process.env.PLAYWRIGHT_SKIP_WEB_SERVER) {
   fs.rmSync(PLAYWRIGHT_DATA_DIR, { recursive: true, force: true });
   fs.mkdirSync(PLAYWRIGHT_DATA_DIR, { recursive: true });
@@ -38,10 +42,15 @@ export default defineConfig({
     ? undefined
     : {
         command:
-          `bash -c "export SESSION_SECRET=dev-test-session-secret-32chars-minimum ` +
-          `PLAYWRIGHT_PROD_SERVER=1 DATA_DIR=${PLAYWRIGHT_DATA_DIR} ` +
-          `TRPG_SCROLL_FOLLOW_LAB_ENABLED=1 PORT=${PROD_TEST_PORT} && ` +
-          `npm run build && NODE_ENV=production npm run start"`,
+          "npm run prod",
+        env: {
+          SESSION_SECRET: "dev-test-session-secret-32chars-minimum",
+          PLAYWRIGHT_PROD_SERVER: "1",
+          DATA_DIR: PLAYWRIGHT_DATA_DIR,
+          TRPG_SCROLL_FOLLOW_LAB_ENABLED: "1",
+          PORT: PROD_TEST_PORT,
+          NODE_ENV: "production",
+        },
         url: PROD_TEST_BASE_URL,
         reuseExistingServer: false,
         timeout: 180_000,
