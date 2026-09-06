@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { expect, test, type Page, type Route, type TestInfo } from "@playwright/test";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
 import {
@@ -46,6 +49,28 @@ type SubpixelScrollProbe = {
   fractionalSamples: number[];
   distinctPositions: number;
 };
+
+function logCanonicalDatabaseProbe(stage: string) {
+  const dataDir = process.env.PLAYWRIGHT_DATA_DIR ?? "";
+  const expectedDbPath = path.resolve(dataDir || ".", "app.db");
+  const expectedDbExists = fs.existsSync(expectedDbPath);
+  const candidates = expectedDbExists
+    ? []
+    : [
+        expectedDbPath,
+        path.join(process.cwd(), "data", "app.db"),
+        ...fs
+          .readdirSync(os.tmpdir(), { withFileTypes: true })
+          .filter((entry) => entry.isDirectory() && entry.name.startsWith("habby-playwright-"))
+          .map((entry) => path.join(os.tmpdir(), entry.name, "app.db")),
+      ].filter((candidate, index, entries) => entries.indexOf(candidate) === index && fs.existsSync(candidate));
+
+  console.log(
+    `[canonical-db-probe] stage=${stage} PLAYWRIGHT_DATA_DIR=${dataDir} ` +
+      `EXPECTED_DB_PATH=${expectedDbPath} EXPECTED_DB_EXISTS=${expectedDbExists} ` +
+      `WORKER_CWD=${process.cwd()} FOUND_APP_DB_CANDIDATES=${JSON.stringify(candidates)}`
+  );
+}
 
 function longAssistantProse(charCount: number): string {
   const unit = "일반 채팅 assistant prose가 viewport를 따라 부드럽게 흘러야 한다. ";
@@ -603,7 +628,9 @@ test.describe("General chat live reading follow — production browser", () => {
       },
       { key: CHAT_DISPLAY_PREFS_KEY, defaults: DEFAULT_CHAT_DISPLAY_PREFS }
     );
+    logCanonicalDatabaseProbe("T0-before-demo-login");
     await demoLogin(page);
+    logCanonicalDatabaseProbe("T1-after-demo-login");
     await page.setViewportSize({ width: 1280, height: 720 });
   });
 
@@ -865,8 +892,10 @@ test.describe("General chat live reading follow — production browser", () => {
   test("P1 resize: clamp is geometry-only before, during, and after live follow", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 420 });
     await openFreshChat(page);
+    logCanonicalDatabaseProbe("T2-after-open-fresh-chat");
     const chatId = Number(new URL(page.url()).searchParams.get("chat"));
     expect(chatId).toBeGreaterThan(0);
+    logCanonicalDatabaseProbe("T3-before-canonical-history-seed");
     const seeded = seedCanonicalCompletedChatHistory(chatId);
     expect(seeded.dbPath).toContain("app.db");
     await page.goto(`/chat/2?chat=${chatId}`, { waitUntil: "domcontentloaded" });

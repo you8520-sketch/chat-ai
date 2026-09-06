@@ -47,18 +47,15 @@ export default defineConfig({
           SESSION_SECRET: "dev-test-session-secret-32chars-minimum",
           PLAYWRIGHT_PROD_SERVER: "1",
           DATA_DIR: PLAYWRIGHT_DATA_DIR,
-          // Canonical persisted-history fixtures seed the local app-owned SQLite
-          // database. Do not let an inherited CI remote-libSQL configuration split
-          // the server backend from the worker's resolved DATA_DIR.
-          TURSO_DATABASE_URL: "",
-          TURSO_AUTH_TOKEN: "",
-          TURSO_DATABASE_TURSO_AUTH_TOKEN: "",
           TRPG_SCROLL_FOLLOW_LAB_ENABLED: "1",
           PORT: PROD_TEST_PORT,
           NODE_ENV: "production",
         },
         url: PROD_TEST_BASE_URL,
         reuseExistingServer: false,
+        // Preserve existing app diagnostics (including database path/backend) in
+        // CI output without adding a production-only diagnostic surface.
+        stdout: "pipe",
         timeout: 180_000,
       },
 });
