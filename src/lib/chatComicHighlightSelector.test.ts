@@ -62,7 +62,7 @@ describe("true comic highlight selector — prompt inventory", () => {
       messages,
       speakerContext: SPEAKER_CONTEXT,
     });
-    assert.match(prompt, /CANONICAL EVENTS/);
+    assert.match(prompt, /CANONICAL EVENTS are immutable source truth/);
     assert.match(prompt, /anchorEventId/);
     assert.match(prompt, /focusEventIds/);
     assert.match(prompt, /Compare all plausible local moments/);
@@ -75,6 +75,72 @@ describe("true comic highlight selector — prompt inventory", () => {
     assert.doesNotMatch(prompt, /Every visual canonical event must appear exactly once/, "no generic panel coverage rule");
     assert.doesNotMatch(prompt, /personaAction/, "no per-panel action wording");
     assert.doesNotMatch(prompt, /COMIC HIGHLIGHT SELECTION MODE/, "no appended generic branch");
+  });
+
+  it("PROMPT-ID-1/2/3 no hardcoded or unknown example event IDs in the prompt", () => {
+    const { messages, events } = longGoldenEvents();
+    const short = buildSceneSourceMessages([
+      { id: 1, role: "user", content: '"안녕."' },
+      { id: 2, role: "assistant", content: '"그래." *웃는다*' },
+    ]);
+    const shortEvents = extractDeterministicEvents(short, SPEAKER_CONTEXT);
+    const shortPrompt = buildComicHighlightPrompt({
+      characterName: "태형",
+      personaName: "렌",
+      messages: short,
+      speakerContext: SPEAKER_CONTEXT,
+    });
+    assert.doesNotMatch(shortPrompt, /E24|E25|E26|E27|E28|E29/, "PROMPT-ID-1 no fake E24..E29 on E1..E6 fixture");
+    assert.doesNotMatch(shortPrompt, /"E27"|"E24"/, "PROMPT-ID-2 no example quote IDs");
+    // PROMPT-ID-3 — every literal E\d+ in the prompt must be a real canonical event id.
+    const longPrompt = buildComicHighlightPrompt({
+      characterName: "태형",
+      personaName: "렌",
+      messages,
+      speakerContext: SPEAKER_CONTEXT,
+    });
+    const known = new Set(events.map((event) => event.id));
+    const candidateIds = longPrompt.match(/E\d+/g) ?? [];
+    for (const id of candidateIds) {
+      assert.equal(known.has(id), true, `hardcoded event id ${id} must be a real canonical id`);
+    }
+    assert.match(shortPrompt, /Every returned ID MUST exist in the supplied canonical timeline/);
+    assert.match(shortPrompt, /Never copy example or placeholder IDs/);
+    assert.match(shortPrompt, /anchorEventId MUST appear in focusEventIds/);
+  });
+
+  it("SUBSET-1/2/3 immutable truth vs subset selection — no 'never omit' contradiction", () => {
+    const { messages } = longGoldenTurn();
+    const prompt = buildComicHighlightPrompt({
+      characterName: "태형",
+      personaName: "렌",
+      messages,
+      speakerContext: SPEAKER_CONTEXT,
+    });
+    assert.match(prompt, /Do not add, delete, rewrite, reorder, or reclassify them/, "SUBSET-1 immutable truth");
+    assert.match(prompt, /MAY and SHOULD choose only the small contiguous subset/, "SUBSET-2 subset explicitly allowed");
+    assert.doesNotMatch(prompt, /never add, omit, reorder/, "SUBSET-3 no whole-turn 'omit' ban");
+    assert.doesNotMatch(prompt, /never omit/i, "SUBSET-3 no 'never omit' wording");
+  });
+
+  it("SUBSET-4 a late subset (E8..E10 style) passes validation from a long timeline", () => {
+    const { messages, events, visual } = longGoldenEvents();
+    const mid = visual[Math.floor(visual.length / 2)]!;
+    const idx = visual.findIndex((event) => event.id === mid.id);
+    const focus = visual.slice(Math.max(0, idx - 1), Math.min(visual.length, idx + 2)).map((event) => event.id);
+    const validated = validateComicHighlightSelection({ anchorEventId: mid.id, focusEventIds: focus }, events);
+    assert.equal(validated.ok, true, "late subset valid");
+    assert.ok(focus.length <= 8);
+    assert.ok(focus.includes(mid.id), "anchor in focus");
+  });
+
+  it("FALLBACK-1/2 unknown AI id rejected; valid AI subset stays scene_planner", async () => {
+    const { messages, events } = longGoldenEvents();
+    assert.equal(validateComicHighlightSelection({ anchorEventId: "E9999", focusEventIds: ["E9999"] }, events).ok, false, "FALLBACK-1 unknown id rejected");
+    const anchor = visualEvents(events)[0]!;
+    const validated = validateComicHighlightSelection({ anchorEventId: anchor.id, focusEventIds: [anchor.id] }, events);
+    assert.equal(validated.ok, true, "FALLBACK-2 valid subset accepted");
+    assert.equal(resolveComicHighlightSelectionSource({ ...buildDeterministicScenePlan(messages, undefined, SPEAKER_CONTEXT), comicHighlightSelection: validated.selection }), "scene_planner");
   });
 
   it("story rubric ranks narrative over visual novelty; no keyword hacks", () => {
