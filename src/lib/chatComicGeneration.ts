@@ -184,7 +184,8 @@ export function buildChatComicImagePrompt(opts: {
         plan: opts.plan,
         selection: autopilotSelection!,
         binding: speakerBinding,
-        adultGrounded: providerTextAdultEligible,
+        providerReadableDialogueAdultEligible: providerTextAdultEligible,
+        visualProjectionAdultGrounded: opts.adultGrounded ?? false,
         realPersonRestricted: false,
       })
     : compositionMode === "full_provider_rendered"

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
@@ -229,7 +230,7 @@ describe("comic provider autopilot — contract and validation", () => {
     assert.ok(safe.text.includes("오늘은 날씨가 좋네."));
     // SAFE-3: unsafe visual prose is projected (graphic/violence-sensitive action).
     const projected = buildComicHighlightSourceExcerpt(plan, selection, BINDING, {
-      adultGrounded: false,
+      visualProjectionAdultGrounded: false,
     });
     assert.ok(!projected.text.includes("피를 흘리며"), "unsafe action prose projected/omitted");
     // SAFE-5: canonical events unchanged.
@@ -243,13 +244,46 @@ describe("comic provider autopilot — contract and validation", () => {
     const plan = planFromEvents(events);
     const selection = { anchorEventId: "AD1", focusEventIds: ["AD1"] };
     const adultEligible = buildComicHighlightSourceExcerpt(plan, selection, BINDING, {
-      adultGrounded: true,
+      providerReadableDialogueAdultEligible: true,
     });
     assert.ok(adultEligible.text.includes("성관계를 하고 싶어."), "adult-eligible dialogue kept");
     const notEligible = buildComicHighlightSourceExcerpt(plan, selection, BINDING, {
-      adultGrounded: false,
+      providerReadableDialogueAdultEligible: false,
     });
     assert.doesNotMatch(notEligible.text, /성관계/, "ineligible adult dialogue omitted by existing contract");
+  });
+
+  it("SAFE-PARITY-1..6 visual projection and dialogue eligibility are independent contexts", () => {
+    // Adult-explicit DIALOGUE is governed by the dialogue eligibility context only.
+    const events = [
+      event(1, "SV1", "dialogue", "character", "성관계를 하고 싶어.", "태형"),
+      event(2, "SV2", "action", "character", "겹치며 벗고 눕는다."),
+    ];
+    const plan = planFromEvents(events);
+    const selection = { anchorEventId: "SV1", focusEventIds: ["SV1", "SV2"] };
+    // SAFE-PARITY-2: dialogue eligible (room adult mode) while visual projection stays
+    // non-adult (normal production) → the dialogue is kept, the explicit visual action
+    // is projected away. This mirrors pre-#875 (adultGrounded=false visual context).
+    const normalProduction = buildComicHighlightSourceExcerpt(plan, selection, BINDING, {
+      providerReadableDialogueAdultEligible: true,
+      visualProjectionAdultGrounded: false,
+    });
+    assert.ok(normalProduction.text.includes("성관계를 하고 싶어."), "SAFE-PARITY-2 dialogue kept");
+    assert.doesNotMatch(normalProduction.text, /벗|눕|겹치/, "SAFE-PARITY-3 explicit visual action projected");
+    // SAFE-PARITY-4 graphic violence projected; SAFE-PARITY-5 self-harm projected.
+    const gvPlan = planFromEvents([event(1, "GV1", "action", "character", "피를 흘리며 베였다.")]);
+    const gv = buildComicHighlightSourceExcerpt(gvPlan, { anchorEventId: "GV1", focusEventIds: ["GV1"] }, BINDING, {
+      visualProjectionAdultGrounded: false,
+    });
+    assert.doesNotMatch(gv.text, /피를 흘/, "SAFE-PARITY-4 graphic violence projected");
+    const shPlan = planFromEvents([event(1, "SH1", "dialogue", "character", "손목을 긋고 싶다.")]);
+    const sh = buildComicHighlightSourceExcerpt(shPlan, { anchorEventId: "SH1", focusEventIds: ["SH1"] }, BINDING, {
+      providerReadableDialogueAdultEligible: true,
+    });
+    assert.doesNotMatch(sh.text, /손목을 긋/, "SAFE-PARITY-5 self-harm omitted by existing eligibility");
+    // SAFE-PARITY-6 canonical events unchanged.
+    assert.equal(plan.events[1]!.text, "겹치며 벗고 눕는다.");
+    assert.equal(gvPlan.events[0]!.text, "피를 흘리며 베였다.");
   });
 
   it("autopilot section binds speakers and renders the source excerpt only", () => {
@@ -388,5 +422,16 @@ describe("comic provider autopilot — contract and validation", () => {
       comicHighlightSelection: { anchorEventId: "R1", focusEventIds: ["R1", "R2"] },
       comicPanelMode: 4,
     }), /exactly 4 panels/, "AUTO-4 manual 4 exact");
+  });
+
+  it("AUTO-META-1..7 AUTO panel mode is separated from canvas size in the route", () => {
+    const route = readFileSync("src/app/api/chat/comic-generation/route.ts", "utf8");
+    assert.match(route, /canvasPanelCount/, "canvas size bucket is a distinct owner");
+    assert.match(route, /requestedPanelMode === "auto" \? 4 : requestedPanelMode/, "AUTO-META-2 tall canvas");
+    assert.match(route, /panelMode: autopilotActive \? requestedPanelMode : undefined/, "AUTO-META-5 panelMode persisted");
+    assert.match(route, /panelCount: autopilotActive \? undefined : panelCount/, "AUTO-META-3 response never claims actual 4 for AUTO");
+    assert.match(route, /"장면 컷만화"/, "AUTO-META-4 user-visible title does not claim 4");
+    assert.match(route, /`장면 \$\{panelCount\}컷`/, "manual title keeps exact count");
+    assert.match(route, /chargeReason/, "billing reason present");
   });
 });

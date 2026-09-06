@@ -42,17 +42,17 @@ export type ComicHighlightSourceExcerpt = {
 };
 
 /** Reuse the existing provider-readable comic text eligibility owner (no new safety policy). */
-function isProviderReadableDialogue(text: string, adultGrounded: boolean, realPersonRestricted: boolean): boolean {
-  return resolveComicProviderReadableTextEligibility({ text, adultGrounded, realPersonRestricted });
+function isProviderReadableDialogue(text: string, adultEligible: boolean, realPersonRestricted: boolean): boolean {
+  return resolveComicProviderReadableTextEligibility({ text, adultGrounded: adultEligible, realPersonRestricted });
 }
 
 function eventLine(
   event: SceneEvent,
   binding: ComicSpeakerBinding,
-  projection: { adultGrounded: boolean; realPersonRestricted: boolean }
+  projection: { dialogueAdultEligible: boolean; visualAdultGrounded: boolean; realPersonRestricted: boolean }
 ): string | null {
   if (event.kind === "dialogue") {
-    if (!isProviderReadableDialogue(event.text, projection.adultGrounded, projection.realPersonRestricted)) {
+    if (!isProviderReadableDialogue(event.text, projection.dialogueAdultEligible, projection.realPersonRestricted)) {
       return null;
     }
     const speaker =
@@ -64,11 +64,20 @@ function eventLine(
     return `${speaker}: "${event.text}"`;
   }
   // Action / environment / narration context → existing safe image-text projection.
-  const projected = projectTextForSafeImagePrompt(event.text, { adultGrounded: projection.adultGrounded });
+  const projected = projectTextForSafeImagePrompt(event.text, { adultGrounded: projection.visualAdultGrounded });
   const text = projected.trim();
   if (!text) return null;
   return event.kind === "environment" ? `[context] ${text}` : `[action] ${text}`;
 }
+
+/** Two independent canonical adult contexts (parity with the pre-#875 production owners). */
+export type ComicHighlightSafety = {
+  /** Dialogue eligibility: provider-readable dialogue adult gate (room adult mode). */
+  providerReadableDialogueAdultEligible?: boolean;
+  /** Visual projection: adult-grounded allowance for action/environment safe projection. */
+  visualProjectionAdultGrounded?: boolean;
+  realPersonRestricted?: boolean;
+};
 
 /**
  * Builds the source-preserving highlight excerpt from canonical focus events.
@@ -79,12 +88,13 @@ export function buildComicHighlightSourceExcerpt(
   plan: ScenePlan,
   selection: ComicHighlightSelection,
   binding: ComicSpeakerBinding,
-  safety: { adultGrounded?: boolean; realPersonRestricted?: boolean } = {}
+  safety: ComicHighlightSafety = {}
 ): ComicHighlightSourceExcerpt {
   const visual = visualEvents(plan.events);
   const eventsById = new Map(plan.events.map((event) => [event.id, event]));
   const projection = {
-    adultGrounded: safety.adultGrounded ?? false,
+    dialogueAdultEligible: safety.providerReadableDialogueAdultEligible ?? false,
+    visualAdultGrounded: safety.visualProjectionAdultGrounded ?? false,
     realPersonRestricted: safety.realPersonRestricted ?? false,
   };
   const focus = selection.focusEventIds
@@ -189,11 +199,13 @@ export function renderComicAutopilotSection(opts: {
   plan: ScenePlan;
   selection: ComicHighlightSelection;
   binding: ComicSpeakerBinding;
-  adultGrounded?: boolean;
+  providerReadableDialogueAdultEligible?: boolean;
+  visualProjectionAdultGrounded?: boolean;
   realPersonRestricted?: boolean;
 }): string {
   const excerpt = buildComicHighlightSourceExcerpt(opts.plan, opts.selection, opts.binding, {
-    adultGrounded: opts.adultGrounded,
+    providerReadableDialogueAdultEligible: opts.providerReadableDialogueAdultEligible,
+    visualProjectionAdultGrounded: opts.visualProjectionAdultGrounded,
     realPersonRestricted: opts.realPersonRestricted,
   });
   const bindingLines = [

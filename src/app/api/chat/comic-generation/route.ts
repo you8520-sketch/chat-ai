@@ -1448,20 +1448,22 @@ export async function POST(req: Request) {
     // COMIC PROVIDER AUTOPILOT — Scene Planner selects WHAT (anchor + contiguous
     // highlight); GPT Image decides HOW (3/4-panel breakdown, dialogue density,
     // narration 0-2, camera, balloons, SFX). Server builds a source-preserving
-    // highlight excerpt for the provider prompt; it never pre-plans panels.
+    // safe highlight excerpt for the provider prompt; it never pre-plans panels.
     // Admin diagnostics (ladder/hybrid/reference-isolation) keep the fixed path.
     let comicHighlightSelection: ComicHighlightSelection | undefined;
     let scenePlan = canonicalPlan;
+    // canvasPanelCount selects the provider OUTPUT SIZE only — for AUTO it is a
+    // tall 4-panel-sized canvas, NOT a claim about the rendered panel count.
+    const requestedPanelMode = isComicPanelMode(body.panelCount) ? body.panelCount : "auto";
+    const canvasPanelCount: 3 | 4 = requestedPanelMode === "auto" ? 4 : requestedPanelMode;
     let panelCount = scenePlan.panels.length as ChatComicPanelCount;
     const autopilotActive =
       !semanticLadderMode &&
       diagnosticOverrides.referenceMode === "normal" &&
       diagnosticOverrides.visualContextMode === "normal" &&
       diagnosticMode.mode === "normal";
-    const requestedPanelMode = isComicPanelMode(body.panelCount) ? body.panelCount : "auto";
     if (autopilotActive) {
-      // Output-size hint only (AUTO → tall canvas for a natural 3- or 4-panel page).
-      panelCount = requestedPanelMode === "auto" ? 4 : requestedPanelMode;
+      panelCount = canvasPanelCount;
       comicHighlightSelection =
         canonicalPlan.comicHighlightSelection ?? resolveComicHighlightFallback(canonicalPlan);
       scenePlan = canonicalPlan;
@@ -1654,7 +1656,9 @@ contentKind: context.contentKind,
         model,
         optionsJson: {
           mode: "comic",
-          panelCount,
+          panelMode: autopilotActive ? requestedPanelMode : undefined,
+          panelCount: autopilotActive ? undefined : panelCount,
+          canvasPanelCount: autopilotActive ? canvasPanelCount : undefined,
           mood,
           messageId: source.messageId,
           quality: "medium",
@@ -1674,7 +1678,11 @@ contentKind: context.contentKind,
         resultUrl,
         upstreamCostUsd: totalCostUsd,
         chargePoints: pricePoints,
-        chargeReason: `GPT Image 2 · ${panelCount}컷 만화`,
+        chargeReason: `GPT Image 2 · ${
+          autopilotActive && requestedPanelMode === "auto"
+            ? "컷만화"
+            : `${panelCount}컷 만화`
+        }`,
         chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
         creatorReward: {
           creatorId: context.character.creator_id,
@@ -1759,6 +1767,8 @@ contentKind: context.contentKind,
         characterId: context.character.id,
         personaId: context.persona.id,
         panelCount,
+        panelMode: autopilotActive ? requestedPanelMode : undefined,
+        canvasPanelCount: autopilotActive ? canvasPanelCount : undefined,
         imageModel: model,
         upstreamCostUsd: totalCostUsd,
         upstreamCostKrw: totalCostKrw,
@@ -1773,8 +1783,13 @@ contentKind: context.contentKind,
       generationId,
       imageUrl: resultUrl,
       savedToCharacterAlbum: true,
-      title: `장면 ${panelCount}컷`,
-      panelCount,
+      title:
+        autopilotActive && requestedPanelMode === "auto"
+          ? "장면 컷만화"
+          : `장면 ${panelCount}컷`,
+      panelCount: autopilotActive ? undefined : panelCount,
+      panelMode: autopilotActive ? requestedPanelMode : undefined,
+      canvasPanelCount: autopilotActive ? canvasPanelCount : undefined,
       modelLabel: "GPT Image 2",
       messageId: source.messageId ?? undefined,
       upstreamCostUsd: canSeeCost ? totalCostUsd : undefined,

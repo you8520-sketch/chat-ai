@@ -551,32 +551,43 @@ export default function ChatSceneBuilder({
 
         {plan && outputMode === "comic" ? (
           <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-            <h3 className="text-[11px] font-semibold text-zinc-400">컷 미리보기</h3>
-            <div className="space-y-2">
-              {plan.panels.map((panel) => (
-                <ComicPanelStoryboardCard
-                  key={panel.index}
-                  panel={panel}
-                  plan={plan}
-                  personaName={personaName}
-                  characterName={characterName}
-                  castSpeakerNames={castSpeakerNames}
-                  personaVisible={personaVisible}
-                  disabled={disabled}
-                  editable={!comicAutopilotMode}
-                  dialogueEditOpen={dialogueEditOpenPanels.has(panel.index)}
-                  onToggleDialogueEdit={() => {
-                    setDialogueEditOpenPanels((current) => {
-                      const next = new Set(current);
-                      if (next.has(panel.index)) next.delete(panel.index);
-                      else next.add(panel.index);
-                      return next;
-                    });
-                  }}
-                  onPlanChange={onPlanChange}
-                />
-              ))}
-            </div>
+            {comicAutopilotMode ? (
+              <div className="space-y-1">
+                <h3 className="text-[11px] font-semibold text-zinc-400">컷만화 생성</h3>
+                <p className="text-xs leading-relaxed text-zinc-400">
+                  AI가 이 턴에서 중요 장면을 골라 컷 구성을 자동으로 만듭니다.
+                </p>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-[11px] font-semibold text-zinc-400">컷 미리보기</h3>
+                <div className="space-y-2">
+                  {plan.panels.map((panel) => (
+                    <ComicPanelStoryboardCard
+                      key={panel.index}
+                      panel={panel}
+                      plan={plan}
+                      personaName={personaName}
+                      characterName={characterName}
+                      castSpeakerNames={castSpeakerNames}
+                      personaVisible={personaVisible}
+                      disabled={disabled}
+                      editable={!comicAutopilotMode}
+                      dialogueEditOpen={dialogueEditOpenPanels.has(panel.index)}
+                      onToggleDialogueEdit={() => {
+                        setDialogueEditOpenPanels((current) => {
+                          const next = new Set(current);
+                          if (next.has(panel.index)) next.delete(panel.index);
+                          else next.add(panel.index);
+                          return next;
+                        });
+                      }}
+                      onPlanChange={onPlanChange}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
             {!comicAutopilotMode ? (
               <button
                 type="button"
