@@ -22,10 +22,9 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
 import {
-  applyComicHighlightStoryboardToPlan,
-  resolveComicStoryboard,
-  type ComicStoryboard,
-} from "@/lib/chatComicHighlightStoryboard";
+  resolveComicHighlightFallback,
+} from "@/lib/chatComicHighlightExcerpt";
+import type { ComicHighlightSelection } from "@/lib/chatImageScenePlan";
 import {
   CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
   CHAT_LD_ILLUSTRATION_QUALITY,
@@ -1446,24 +1445,28 @@ export async function POST(req: Request) {
           knownSpeakerNames,
           contentKind: context.contentKind,
         });
-    // COMIC HIGHLIGHT STORYBOARD V3 — anchor-centered 3/4-panel presentation.
-    // The canonical timeline stays lossless; only the comic panels are a selected
-    // contiguous focus window. 2-panel is removed from the user path (legacy
-    // requests retire to AUTO). Admin ladder/hybrid diagnostics keep the fixed
-    // canonical scene plan.
-    let comicStoryboard: ComicStoryboard | null = null;
+    // COMIC PROVIDER AUTOPILOT — Scene Planner selects WHAT (anchor + contiguous
+    // highlight); GPT Image decides HOW (3/4-panel breakdown, dialogue density,
+    // narration 0-2, camera, balloons, SFX). Server builds a source-preserving
+    // safe highlight excerpt for the provider prompt; it never pre-plans panels.
+    // Admin diagnostics (ladder/hybrid/reference-isolation) keep the fixed path.
+    let comicHighlightSelection: ComicHighlightSelection | undefined;
     let scenePlan = canonicalPlan;
+    // canvasPanelCount selects the provider OUTPUT SIZE only — for AUTO it is a
+    // tall 4-panel-sized canvas, NOT a claim about the rendered panel count.
+    const requestedPanelMode = isComicPanelMode(body.panelCount) ? body.panelCount : "auto";
+    const canvasPanelCount: 3 | 4 = requestedPanelMode === "auto" ? 4 : requestedPanelMode;
     let panelCount = scenePlan.panels.length as ChatComicPanelCount;
-    if (!semanticLadderMode) {
-      const requestedPanelMode = isComicPanelMode(body.panelCount)
-        ? body.panelCount
-        : "auto";
-      const resolved = resolveComicStoryboard(canonicalPlan, {
-        manualPanelCount: requestedPanelMode === "auto" ? undefined : (requestedPanelMode as 3 | 4),
-      });
-      comicStoryboard = resolved.storyboard;
-      scenePlan = applyComicHighlightStoryboardToPlan(canonicalPlan, comicStoryboard);
-      panelCount = comicStoryboard.panelCount;
+    const autopilotActive =
+      !semanticLadderMode &&
+      diagnosticOverrides.referenceMode === "normal" &&
+      diagnosticOverrides.visualContextMode === "normal" &&
+      diagnosticMode.mode === "normal";
+    if (autopilotActive) {
+      panelCount = canvasPanelCount;
+      comicHighlightSelection =
+        canonicalPlan.comicHighlightSelection ?? resolveComicHighlightFallback(canonicalPlan);
+      scenePlan = canonicalPlan;
     }
     const castManifest = semanticLadderMode
       ? null
@@ -1521,7 +1524,8 @@ contentKind: context.contentKind,
           ? "blank_balloon_hybrid"
           : "full_provider_rendered",
       providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
-      storyboard: comicStoryboard ?? undefined,
+      comicHighlightSelection: autopilotActive ? comicHighlightSelection : undefined,
+      comicPanelMode: autopilotActive ? requestedPanelMode : undefined,
     });
     const neutralVisualContext = diagnosticOverrides.visualContextMode === "neutral_visual_context";
     const providerScenePlan: ScenePlan = neutralVisualContext
@@ -1549,7 +1553,8 @@ contentKind: context.contentKind,
               ? "blank_balloon_hybrid"
               : "full_provider_rendered",
           providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
-          storyboard: comicStoryboard ?? undefined,
+          comicHighlightSelection: autopilotActive ? comicHighlightSelection : undefined,
+          comicPanelMode: autopilotActive ? requestedPanelMode : undefined,
         })
       : identityPack;
     const prompt = providerIdentityPack.prompt;
@@ -1651,7 +1656,9 @@ contentKind: context.contentKind,
         model,
         optionsJson: {
           mode: "comic",
-          panelCount,
+          panelMode: autopilotActive ? requestedPanelMode : undefined,
+          panelCount: autopilotActive ? undefined : panelCount,
+          canvasPanelCount: autopilotActive ? canvasPanelCount : undefined,
           mood,
           messageId: source.messageId,
           quality: "medium",
@@ -1671,7 +1678,11 @@ contentKind: context.contentKind,
         resultUrl,
         upstreamCostUsd: totalCostUsd,
         chargePoints: pricePoints,
-        chargeReason: `GPT Image 2 · ${panelCount}컷 만화`,
+        chargeReason: `GPT Image 2 · ${
+          autopilotActive && requestedPanelMode === "auto"
+            ? "컷만화"
+            : `${panelCount}컷 만화`
+        }`,
         chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
         creatorReward: {
           creatorId: context.character.creator_id,
@@ -1756,6 +1767,8 @@ contentKind: context.contentKind,
         characterId: context.character.id,
         personaId: context.persona.id,
         panelCount,
+        panelMode: autopilotActive ? requestedPanelMode : undefined,
+        canvasPanelCount: autopilotActive ? canvasPanelCount : undefined,
         imageModel: model,
         upstreamCostUsd: totalCostUsd,
         upstreamCostKrw: totalCostKrw,
@@ -1770,8 +1783,13 @@ contentKind: context.contentKind,
       generationId,
       imageUrl: resultUrl,
       savedToCharacterAlbum: true,
-      title: `장면 ${panelCount}컷`,
-      panelCount,
+      title:
+        autopilotActive && requestedPanelMode === "auto"
+          ? "장면 컷만화"
+          : `장면 ${panelCount}컷`,
+      panelCount: autopilotActive ? undefined : panelCount,
+      panelMode: autopilotActive ? requestedPanelMode : undefined,
+      canvasPanelCount: autopilotActive ? canvasPanelCount : undefined,
       modelLabel: "GPT Image 2",
       messageId: source.messageId ?? undefined,
       upstreamCostUsd: canSeeCost ? totalCostUsd : undefined,

@@ -2623,6 +2623,7 @@ export default function ChatImageGeneratorPanel({
                             outputMode={sceneOutputMode}
                             panelCount={scenePanelCount}
                             comicPanelMode={comicPanelMode}
+                            comicAutopilotMode={!sceneIsIllustration && !trpgCampaignMode}
                             disabled={generating}
                             onOutputModeChange={(mode) => {
                               setSceneOutputMode(mode);

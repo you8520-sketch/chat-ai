@@ -28,6 +28,13 @@ import {
   type ChatComicCompositionMode,
 } from "@/lib/chatComicPanelSpec";
 import type { ComicStoryboard } from "@/lib/chatComicHighlightStoryboard";
+import {
+  renderComicAutopilotContract,
+  renderComicAutopilotSection,
+  type ComicSpeakerBinding,
+} from "@/lib/chatComicHighlightExcerpt";
+import type { ComicHighlightSelection } from "@/lib/chatImageScenePlan";
+import type { ChatComicPanelMode } from "@/lib/chatComicGenerationConstants";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
   bindChatImageReferencePack,
@@ -120,6 +127,9 @@ export function buildChatComicImagePrompt(opts: {
   providerTextAdultEligible?: boolean;
   /** Anchor-centered highlight storyboard (comic production) — concise script rendering. */
   storyboard?: ComicStoryboard;
+  /** SCENE-PLANNER highlight selection — provider autopilot path (normal comic). */
+  comicHighlightSelection?: ComicHighlightSelection;
+  comicPanelMode?: ChatComicPanelMode;
 }): string {
   const projectionContext: SafeVisualProjectionContext = {
     adultGrounded: opts.adultGrounded ?? false,
@@ -145,20 +155,40 @@ export function buildChatComicImagePrompt(opts: {
     projectSceneText: (text: string) => projectTextForSafeImagePrompt(text, projectionContext),
     omitDialogueText: shouldOmitDialogueFromImageProjection,
   };
-  const compositionContract =
-    compositionMode === "blank_balloon_hybrid"
+  const autopilotSelection =
+    opts.comicHighlightSelection ?? opts.plan.comicHighlightSelection;
+  const autopilot =
+    compositionMode === "full_provider_rendered" && Boolean(autopilotSelection);
+  const speakerBinding: ComicSpeakerBinding = {
+    characterLabel: "A",
+    characterName: opts.characterName,
+    personaLabel: "B",
+    personaName: opts.personaName,
+  };
+  const compositionContract = autopilot
+    ? renderComicAutopilotContract(opts.comicPanelMode ?? "auto")
+    : compositionMode === "blank_balloon_hybrid"
       ? "GPT IS COMIC DIRECTOR — create the complete comic artwork, including panel composition, camera direction, character poses, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects."
       : compositionMode === "overlay_first"
         ? "VISUAL LAYER ONLY — depict characters, background, pose, expression, and camera. Do not render any readable text, speech bubbles, captions, narration boxes, or SFX in the image."
         : "RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT — the image is the final comic. Draw readable Korean speech bubbles with the exact dialogue below, readable Korean narration boxes when indicated, and readable Korean SFX when indicated.";
-  const textContract =
-    compositionMode === "blank_balloon_hybrid"
+  const textContract = autopilot
+    ? ""
+    : compositionMode === "blank_balloon_hybrid"
       ? "Draw natural white manga/manhwa speech balloons with black outlines. Place them in visually appropriate negative space. Their tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text. Render no readable letters, dialogue, captions, placeholder words, random symbols or gibberish inside speech balloons."
       : compositionMode === "overlay_first"
         ? "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay."
         : "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page and do not repeat the same composition in every panel. Readable, visually integrated Korean text is required — imperfect typography is acceptable, but text must be legible and belong to the comic. Use narration sparingly — include only very short time-ordered narration boxes for crucial transitions, never long prose paragraphs.";
-  const panelSpecSection =
-    compositionMode === "full_provider_rendered"
+  const panelSpecSection = autopilot
+    ? renderComicAutopilotSection({
+        plan: opts.plan,
+        selection: autopilotSelection!,
+        binding: speakerBinding,
+        providerReadableDialogueAdultEligible: providerTextAdultEligible,
+        visualProjectionAdultGrounded: opts.adultGrounded ?? false,
+        realPersonRestricted: false,
+      })
+    : compositionMode === "full_provider_rendered"
       ? buildChatComicPanelSpecFullProviderSection({
           plan: opts.plan,
           personaName: opts.personaName,
@@ -183,7 +213,11 @@ export function buildChatComicImagePrompt(opts: {
           compositionMode,
         });
   return [
-    `Create one polished Korean manhwa-style page with exactly ${opts.plan.panels.length} wide horizontal panels stacked vertically.`,
+    ...(autopilot
+      ? []
+      : [
+          `Create one polished Korean manhwa-style page with exactly ${opts.plan.panels.length} wide horizontal panels stacked vertically.`,
+        ]),
     "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, polished full-color rendering, and panel polish, but do not copy its exact poses.",
     "Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.",
     castBlock,
@@ -232,6 +266,8 @@ export function buildChatComicGenerationPlan(opts: {
   compositionMode?: ChatComicCompositionMode;
   providerTextAdultEligible?: boolean;
   storyboard?: ComicStoryboard;
+  comicPanelMode?: ChatComicPanelMode;
+  comicHighlightSelection?: ComicHighlightSelection;
 }) {
   const useCast = Boolean(opts.castManifest);
   let pack: { subjects: ChatImageVisualSubject[]; referenceUrls: string[] };
@@ -291,6 +327,8 @@ export function buildChatComicGenerationPlan(opts: {
       compositionMode: opts.compositionMode,
       providerTextAdultEligible: opts.providerTextAdultEligible,
       storyboard: opts.storyboard,
+      comicPanelMode: opts.comicPanelMode,
+      comicHighlightSelection: opts.comicHighlightSelection,
     }),
   };
 }
