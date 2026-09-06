@@ -1,0 +1,58 @@
+{
+  "ACTUAL_PRODUCTION_HANDOFF_PATH": true,
+  "SELECTED_PRIMARY": "gemini-3.7-flash",
+  "HANDOFF_TARGET": "deepseek-v4-pro-0813",
+  "SOURCE_OWNER": "resolvePersistedAdultHandoffSourceModelId + resolveAdultHandoffTargetModelId",
+  "DELIVERY_PLAN": {
+    "primaryModelId": "gemini-3.7-flash",
+    "primaryRoute": "general",
+    "fallbackPrepared": true,
+    "fallbackModelId": "deepseek-v4-pro-0813",
+    "fallbackReason": "current_input_explicit_intent"
+  },
+  "TRUE_OFF_OWNER": "resolveDeepSeekAdultHandoffTrueOff → assemblePrimaryRpRequest.deepSeekAdultHandoffTrueOff",
+  "REFUSAL_SEAM": "I cannot fulfill this request.",
+  "REFUSAL_DETECTED": {
+    "refused": true,
+    "reason": "provider_refusal"
+  },
+  "HANDOFF_TRANSPORT": {
+    "model": "deepseek-v4-pro-0813",
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none",
+    "max_tokens": "OMITTED",
+    "stream": true,
+    "KEYS": [
+      "messages",
+      "model",
+      "reasoning_effort",
+      "stream",
+      "stream_options",
+      "temperature",
+      "thinking",
+      "top_p"
+    ]
+  },
+  "CONTINUITY_PACKET": {
+    "previousSceneMode": "normal",
+    "sexualContextActive": true,
+    "activeConsentMode": "standard",
+    "location": "벽면의 안내판을 훑고 지나갔다",
+    "charactersPresent": [
+      "라이크",
+      "렌"
+    ],
+    "currentPov": "third_person",
+    "unfinishedAction": "이 기묘한 침묵과 편안함을 조금이라도 더 길게 끌고 가고 싶다는 욕심이, 그의 능글맞은 태도 아래 은밀하게 도사리고 있었다.",
+    "currentSpeechState": "같이 갈래?"
+  },
+  "usedEnglish": true,
+  "NEXT_TURN_MODEL": "gemini-3.7-flash",
+  "DEEPSEEK_STICKY": false,
+  "USER_COAUTHOR_MODE": "OFF",
+  "BILLING_ISOLATION": "harness does not touch user points; USER_POINT_DEDUCTIONS=0"
+}
