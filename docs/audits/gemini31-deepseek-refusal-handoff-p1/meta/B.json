@@ -1,0 +1,145 @@
+{
+  "fixture": "B",
+  "qualifying_candidate": "B2",
+  "note": "usage.model stays gemini-3.1-pro-preview on the production receipt after silent replacement. Visible text and provider RAW are DeepSeek V4 Pro 0813.",
+  "primary_model": "gemini-3.1-pro-preview",
+  "delivered_visible_model": "deepseek-v4-pro-0813",
+  "receipt_model": "gemini-3.1-pro-preview",
+  "provider": "cheaperinference",
+  "visible_chars": 1701,
+  "paragraph_count": 17,
+  "dialogue_paragraph_count": 8,
+  "dialogue_paragraph_ratio": 0.471,
+  "max_consecutive_dialogue": 1,
+  "gemini": {
+    "input_tokens": 9652,
+    "output_tokens": 548,
+    "reasoning_tokens": 478,
+    "ttft_ms": 4229,
+    "latency_ms": 7846,
+    "finish_reason": "stop",
+    "request_sha": "f24ad7bda5afbcbfc3fed72c4eb69159fbc79e7040a27be4456262e56e9aa293",
+    "raw_sha": "e51edb267390fbb44a6b971768108becc9f94b58ec85081dc5aa5ba3ac6155aa",
+    "visible_chars": 128
+  },
+  "deepseek": {
+    "input_tokens": 11032,
+    "output_tokens": 1360,
+    "reasoning_tokens": null,
+    "ttft_ms": 2750,
+    "latency_ms": 31994,
+    "finish_reason": "stop",
+    "request_sha": "e558990d8eeff541176046d568b163f2a146a34068ed72145ce5251acbd3b11d",
+    "raw_sha": "0193b82752cfeda1bbe24ca80a321087b2ffa8195bc156b329aa161997950739",
+    "visible_chars": 1701
+  },
+  "input_tokens": 11032,
+  "output_tokens": 1360,
+  "reasoning_tokens": 478,
+  "ttft_ms": 4229,
+  "latency_ms": 43697,
+  "finish_reason": "stop",
+  "request_sha": "f24ad7bda5afbcbfc3fed72c4eb69159fbc79e7040a27be4456262e56e9aa293",
+  "raw_sha": "0193b82752cfeda1bbe24ca80a321087b2ffa8195bc156b329aa161997950739",
+  "provider_call_count": 2,
+  "gemini_call_count": 1,
+  "deepseek_call_count": 1,
+  "handoff_count": 1,
+  "provider_models": [
+    "gemini-3.1-pro-preview",
+    "deepseek-v4-pro-0813"
+  ],
+  "chat_id": 3,
+  "http_status": 200,
+  "usage": {
+    "input": 11032,
+    "output": 1360,
+    "finishReason": "stop",
+    "savedOutputChars": 1701,
+    "model": "gemini-3.1-pro-preview",
+    "provider": "cheaperinference",
+    "route": "nsfw",
+    "selectedAI": "gemini-3.1-pro-preview",
+    "cost": 38,
+    "baseCost": 38,
+    "modelLabel": "Gemini 3.1 Pro Preview",
+    "estimated": false,
+    "breakdown": [
+      {
+        "label": "최근 RAW: ~1,051 토큰 배분 · 0 chars · 0 exchanges",
+        "tokens": 1051,
+        "pct": 10
+      },
+      {
+        "label": "캐릭터 프롬프트: ~7,164 토큰 배분 · 21,360 chars",
+        "tokens": 7164,
+        "pct": 65
+      },
+      {
+        "label": "시스템 프롬프트: ~2,527 토큰 배분",
+        "tokens": 2527,
+        "pct": 23
+      },
+      {
+        "label": "페르소나: ~291 토큰 배분",
+        "tokens": 291,
+        "pct": 3
+      }
+    ],
+    "rawHistoryHealth": {
+      "rawCompleteExchanges": 0,
+      "rawMessages": 0,
+      "rawChars": 0,
+      "rawInternalEstimate": 1194,
+      "summaryInterval": 5,
+      "summarizedThroughTurn": 0,
+      "unsummarizedCompletedTurns": 0,
+      "realRawCompleteExchanges": 0,
+      "realRawMessages": 0,
+      "realRawChars": 0,
+      "openingPreludePresent": true,
+      "openingPreludeChars": 1325,
+      "generalRouteBridgePresent": false,
+      "generalRouteBridgeChars": 0
+    },
+    "stages": [
+      {
+        "stage": "main",
+        "model": "gemini-3.1-pro-preview",
+        "input": 11032,
+        "output": 1360,
+        "apiReportedInputTokens": 11032,
+        "apiOutputTokens": 1360,
+        "lengthRecoveryPasses": 0,
+        "savedOutputChars": 1701,
+        "estimated": false,
+        "finishReason": "stop",
+        "truncated": false,
+        "loopAborted": false,
+        "degenerationAborted": false,
+        "standardInputTokens": 11032,
+        "cost": 38
+      }
+    ],
+    "apiInputTokens": 11032,
+    "apiOutputTokens": 1360,
+    "apiCallCount": 2,
+    "assembledInputTokens": 26838,
+    "standardInputTokens": 11032,
+    "cacheRateSummary": "입력 $0.6204/M · 캐시히트 $0.02068/M · 출력 $1.8612/M",
+    "cacheFamily": "unknown",
+    "apiRawCostKrw": 13.2,
+    "apiRawCostSource": "live_catalog"
+  },
+  "alarm_candidates": [],
+  "capture_ids": [
+    "015",
+    "016"
+  ],
+  "background_flash_excluded": [
+    "012",
+    "013",
+    "014",
+    "017"
+  ]
+}

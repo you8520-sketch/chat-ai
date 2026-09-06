@@ -1,0 +1,117 @@
+{
+  "fixture": "A",
+  "primary_model": "gemini-3.1-pro-preview",
+  "delivered_model": "gemini-3.1-pro-preview",
+  "provider": "cheaperinference",
+  "visible_chars": 2246,
+  "paragraph_count": 15,
+  "dialogue_paragraph_count": 4,
+  "dialogue_paragraph_ratio": 0.267,
+  "max_consecutive_dialogue": 1,
+  "input_tokens": 9713,
+  "output_tokens": 4613,
+  "reasoning_tokens": null,
+  "ttft_ms": 4135,
+  "latency_ms": 58170,
+  "finish_reason": "stop",
+  "request_sha": "f758fdaa6e5e578984e7b2ed4d7f1476c968c663c8698c72749fd57578308353",
+  "raw_sha": "bcb84a1253b235504c4e9d1b86a51ed133f27272c9778211063f0e7ddc23154f",
+  "provider_call_count": 1,
+  "gemini_call_count": 1,
+  "deepseek_call_count": 0,
+  "handoff_count": 0,
+  "provider_models": [
+    "gemini-3.1-pro-preview"
+  ],
+  "chat_id": 1,
+  "http_status": 200,
+  "usage": {
+    "input": 9713,
+    "output": 4613,
+    "finishReason": "stop",
+    "savedOutputChars": 2246,
+    "model": "gemini-3.1-pro-preview",
+    "provider": "cheaperinference",
+    "route": "nsfw",
+    "selectedAI": "gemini-3.1-pro-preview",
+    "cost": 100,
+    "baseCost": 100,
+    "modelLabel": "Gemini 3.1 Pro Preview",
+    "estimated": false,
+    "breakdown": [
+      {
+        "label": "최근 RAW: ~896 토큰 배분 · 0 chars · 0 exchanges",
+        "tokens": 896,
+        "pct": 9
+      },
+      {
+        "label": "캐릭터 프롬프트: ~6,352 토큰 배분 · 1,995 chars",
+        "tokens": 6352,
+        "pct": 65
+      },
+      {
+        "label": "시스템 프롬프트: ~2,290 토큰 배분",
+        "tokens": 2290,
+        "pct": 24
+      },
+      {
+        "label": "페르소나: ~174 토큰 배분",
+        "tokens": 174,
+        "pct": 2
+      }
+    ],
+    "rawHistoryHealth": {
+      "rawCompleteExchanges": 0,
+      "rawMessages": 0,
+      "rawChars": 0,
+      "rawInternalEstimate": 1194,
+      "summaryInterval": 5,
+      "summarizedThroughTurn": 0,
+      "unsummarizedCompletedTurns": 0,
+      "realRawCompleteExchanges": 0,
+      "realRawMessages": 0,
+      "realRawChars": 0,
+      "openingPreludePresent": true,
+      "openingPreludeChars": 1325,
+      "generalRouteBridgePresent": false,
+      "generalRouteBridgeChars": 0
+    },
+    "stages": [
+      {
+        "stage": "Gemini 3.1 Pro Preview",
+        "model": "gemini-3.1-pro-preview",
+        "input": 9713,
+        "output": 4613,
+        "apiReportedInputTokens": 9713,
+        "apiOutputTokens": 4613,
+        "lengthRecoveryPasses": 0,
+        "savedOutputChars": 2250,
+        "estimated": false,
+        "finishReason": "stop",
+        "truncated": false,
+        "loopAborted": false,
+        "degenerationAborted": false,
+        "apiReasoningOutputTokens": 3103,
+        "standardInputTokens": 9713,
+        "cost": 100
+      }
+    ],
+    "apiInputTokens": 9713,
+    "apiOutputTokens": 4613,
+    "assembledInputTokens": 26623,
+    "standardInputTokens": 9713,
+    "cacheRateSummary": "입력 $0.94/M · 캐시히트 25% · 출력 $5.64/M",
+    "cacheFamily": "unknown",
+    "apiRawCostKrw": 49.7,
+    "apiRawCostSource": "live_catalog"
+  },
+  "alarm_candidates": [],
+  "capture_ids": [
+    "003"
+  ],
+  "dump_files": [
+    "requests/A-prompt_dump.txt",
+    "requests/A-token_breakdown.json"
+  ],
+  "note": "Background Flash/catalog captures excluded. RP chat completion = Gemini 3.1 x1."
+}

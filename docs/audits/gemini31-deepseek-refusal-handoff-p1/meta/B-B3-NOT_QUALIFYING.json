@@ -1,0 +1,14 @@
+{
+  "reason": "did_not_meet_B_expectations",
+  "stats": {
+    "providerCallCount": 2,
+    "geminiCalls": 1,
+    "deepseekCalls": 0,
+    "models": [
+      "deepseek-v4-flash-0731",
+      "gemini-3.1-pro-preview"
+    ]
+  },
+  "delivered": null,
+  "visible_chars": 0
+}
