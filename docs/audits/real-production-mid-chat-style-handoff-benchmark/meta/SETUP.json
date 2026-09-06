@@ -1,0 +1,15 @@
+{
+  "userId": 1,
+  "personaId": 1,
+  "characterId": 10,
+  "email": "handoff-benchmark-capsule@local.invalid",
+  "selected": {
+    "ok": true,
+    "selectedAI": "gemini-3.1-pro-preview",
+    "changed": false,
+    "label": "Gemini 3.1 Pro Preview"
+  },
+  "model": "gemini-3.1-pro-preview",
+  "fallback": "deepseek-v4-pro-0813",
+  "dataDir": "./data/handoff-benchmark-import"
+}
