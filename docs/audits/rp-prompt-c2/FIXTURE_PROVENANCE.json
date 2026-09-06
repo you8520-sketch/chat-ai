@@ -1,0 +1,20 @@
+{
+  "Q": {
+    "characterId": 5,
+    "label": "Quiet / inner / sensory (Northern Duke)",
+    "userInput": "*렌은 조심스레 다가가 무릎을 꿇고 눈높이를 맞춘다.* …괜찮아요? 제가 좀 도와드릴게요.",
+    "provenance": "C1 fixture N provenance — hard quiet/inner/sensory; card reconstructed from seed DB"
+  },
+  "D": {
+    "characterId": 18,
+    "label": "Dialogue / multi-speaker lobby (Like)",
+    "userInput": "신입 ...맞아.나 본적있어?(갸웃)나는 렌이라고 부르면 돼.",
+    "provenance": "C1 fixture D provenance — multi-NPC lobby path; greeting from Terra canary neutral"
+  },
+  "T": {
+    "characterId": 10,
+    "label": "Action / tension (Enoch)",
+    "userInput": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+    "provenance": "final-production-model-smoke terra_action T1; card reconstructed from d2-enoch"
+  }
+}

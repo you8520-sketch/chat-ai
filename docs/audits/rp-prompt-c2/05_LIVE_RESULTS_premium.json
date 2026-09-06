@@ -1,0 +1,7 @@
+{
+  "stage": "premium",
+  "status": "NOT_RUN",
+  "reason": "CHEAPER_INFERENCE_API_KEY empty — production Opus Arm E / Terra paths unavailable; OpenRouter Opus 4.5 is not the Arm E owner path",
+  "Opus": "NOT_RUN",
+  "Terra": "NOT_RUN"
+}
