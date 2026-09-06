@@ -7,6 +7,7 @@ import {
   renderComicAutopilotSection,
   resolveComicHighlightFallback,
 } from "./chatComicHighlightExcerpt";
+import { buildChatComicImagePrompt } from "./chatComicGeneration";
 import {
   validateComicHighlightSelection,
   type SceneEvent,
@@ -176,7 +177,7 @@ describe("comic provider autopilot — highlight excerpt fixtures", () => {
     const selection = { anchorEventId: "Z1", focusEventIds: ["Z1", "Z2"] };
     const excerpt = buildComicHighlightSourceExcerpt(plan, selection, BINDING);
     assert.ok(!excerpt.text.includes(requestState), "internal control metadata excluded");
-    assert.equal(excerpt.audit.metaTextLeakCount, 0);
+    assert.equal(excerpt.audit.narrativeSourceOwner, "canonical_events_only", "proven structural owner");
     // But if the character genuinely says it, it is legitimate story content.
     const legitEvents = [
       event(1, "Z3", "dialogue", "character", "자동진행으로 넘어가자.", "태형"),
@@ -210,9 +211,45 @@ describe("comic provider autopilot — contract and validation", () => {
     assert.match(auto, /Do not summarize the whole original turn/);
     assert.match(auto, /0-2 short narration boxes/);
     assert.match(auto, /Choose camera, framing, reactions, balloon placement/);
-    assert.match(auto, /Never render internal system\/control metadata/);
+    assert.match(auto, /Use only spoken lines from the selected source scene/, "DIALOGUE-1 source-only contract");
+    assert.doesNotMatch(auto, /invent unrelated dialogue/, "DIALOGUE-2 no related-invention invitation");
     assert.match(renderComicAutopilotContract(3), /exactly 3 panels/);
     assert.match(renderComicAutopilotContract(4), /exactly 4 panels/);
+  });
+
+  it("SAFE-1/2/3/4 safe projection applied to selected excerpt without mutating canonical", () => {
+    const events = [
+      event(1, "SA1", "dialogue", "character", "오늘은 날씨가 좋네.", "태형"),
+      event(2, "SA2", "action", "character", "피를 흘리며 손을 다쳤다."),
+    ];
+    const plan = planFromEvents(events);
+    const selection = { anchorEventId: "SA1", focusEventIds: ["SA1", "SA2"] };
+    // SAFE-1: safe dialogue preserved.
+    const safe = buildComicHighlightSourceExcerpt(plan, selection, BINDING);
+    assert.ok(safe.text.includes("오늘은 날씨가 좋네."));
+    // SAFE-3: unsafe visual prose is projected (graphic/violence-sensitive action).
+    const projected = buildComicHighlightSourceExcerpt(plan, selection, BINDING, {
+      adultGrounded: false,
+    });
+    assert.ok(!projected.text.includes("피를 흘리며"), "unsafe action prose projected/omitted");
+    // SAFE-5: canonical events unchanged.
+    assert.equal(plan.events[1]!.text, "피를 흘리며 손을 다쳤다.");
+  });
+
+  it("SAFE-4 adult eligibility parity — eligible adult dialogue kept, ineligible omitted", () => {
+    const events = [
+      event(1, "AD1", "dialogue", "character", "성관계를 하고 싶어.", "태형"),
+    ];
+    const plan = planFromEvents(events);
+    const selection = { anchorEventId: "AD1", focusEventIds: ["AD1"] };
+    const adultEligible = buildComicHighlightSourceExcerpt(plan, selection, BINDING, {
+      adultGrounded: true,
+    });
+    assert.ok(adultEligible.text.includes("성관계를 하고 싶어."), "adult-eligible dialogue kept");
+    const notEligible = buildComicHighlightSourceExcerpt(plan, selection, BINDING, {
+      adultGrounded: false,
+    });
+    assert.doesNotMatch(notEligible.text, /성관계/, "ineligible adult dialogue omitted by existing contract");
   });
 
   it("autopilot section binds speakers and renders the source excerpt only", () => {
@@ -266,5 +303,90 @@ describe("comic provider autopilot — contract and validation", () => {
     const selection = resolveComicHighlightFallback(plan);
     assert.equal(validateComicHighlightSelection(selection, plan.events).ok, true);
     assert.ok(selection.focusEventIds.length >= 1);
+  });
+
+  it("FALLBACK-WIRE-1/2/3 deterministic selection supplied by the route activates autopilot", () => {
+    // plan has no comicHighlightSelection; opts supplies the recovery selection.
+    const plan = planFromEvents([
+      event(1, "W1", "action", "character", "상대를 바라본다"),
+      event(2, "W2", "dialogue", "character", "같이 갈래?", "태형"),
+      event(3, "W3", "reaction", "persona", "웃는다"),
+    ]);
+    const fallback = resolveComicHighlightFallback(plan);
+    const prompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan,
+      comicHighlightSelection: fallback,
+      comicPanelMode: "auto",
+    });
+    assert.match(prompt, /SELECTED HIGHLIGHT SOURCE/, "FALLBACK-WIRE-1 autopilot active");
+    assert.ok(prompt.includes(fallback.focusEventIds.length > 0 ? "같이 갈래?" : ""), "FALLBACK-WIRE-2 excerpt uses fallback focus");
+    assert.doesNotMatch(prompt, /COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE/, "FALLBACK-WIRE-3 no panel-spec path");
+    assert.doesNotMatch(prompt, /exactly \d+ wide horizontal panels/, "AUTO-2 no exact-N contradiction");
+  });
+
+  it("PLANNER-WIRE-1 planner selection present is used unchanged", () => {
+    const plan = planFromEvents([
+      event(1, "P1", "dialogue", "character", "나랑 도망가자.", "태형"),
+      event(2, "P2", "reaction", "persona", "웃는다"),
+    ]);
+    const selection = { anchorEventId: "P1", focusEventIds: ["P1", "P2"] };
+    const planWith = { ...plan, comicHighlightSelection: selection };
+    const prompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan: planWith,
+      comicPanelMode: "auto",
+    });
+    assert.match(prompt, /SELECTED HIGHLIGHT SOURCE/);
+    assert.match(prompt, /나랑 도망가자\./);
+  });
+
+  it("AUTO-REAL-1/2 real AUTO freedom regardless of underlying plan.panels.length", () => {
+    const plan4 = planFromEvents([
+      event(1, "R1", "dialogue", "character", "같이 갈래?", "태형"),
+      event(2, "R2", "reaction", "persona", "웃는다"),
+    ]);
+    plan4.recommendedPanelCount = 4;
+    plan4.panels = Array.from({ length: 4 }, (_, i) => ({
+      index: i + 1,
+      sourceEventIds: [],
+      situation: "",
+      dialogue: [],
+    }));
+    const autoPrompt = buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan: plan4,
+      comicHighlightSelection: { anchorEventId: "R1", focusEventIds: ["R1", "R2"] },
+      comicPanelMode: "auto",
+    });
+    assert.match(autoPrompt, /natural 3- or 4-panel/, "AUTO-1 3-or-4 freedom");
+    assert.doesNotMatch(autoPrompt, /exactly 4 panels|exactly 4 wide|exactly 4/, "AUTO-REAL-1 no exact-4 contradiction");
+    assert.match(buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan: plan4,
+      comicHighlightSelection: { anchorEventId: "R1", focusEventIds: ["R1", "R2"] },
+      comicPanelMode: 3,
+    }), /exactly 3 panels/, "AUTO-3 manual 3 exact");
+    assert.match(buildChatComicImagePrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      plan: plan4,
+      comicHighlightSelection: { anchorEventId: "R1", focusEventIds: ["R1", "R2"] },
+      comicPanelMode: 4,
+    }), /exactly 4 panels/, "AUTO-4 manual 4 exact");
   });
 });

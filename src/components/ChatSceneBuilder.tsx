@@ -56,6 +56,8 @@ type ChatSceneBuilderProps = {
   outputMode: SceneOutputMode;
   panelCount: ScenePanelCount;
   comicPanelMode?: ChatComicPanelMode;
+  /** Normal comic autopilot: per-panel dialogue/speaker/situation edits are not authoritative. */
+  comicAutopilotMode?: boolean;
   disabled?: boolean;
   onOutputModeChange: (mode: SceneOutputMode) => void;
   onPanelCountChange: (count: ScenePanelCount) => void;
@@ -127,6 +129,7 @@ function ComicPanelStoryboardCard({
   dialogueEditOpen,
   onToggleDialogueEdit,
   onPlanChange,
+  editable = true,
 }: {
   panel: ScenePanel;
   plan: ScenePlan;
@@ -138,6 +141,8 @@ function ComicPanelStoryboardCard({
   dialogueEditOpen: boolean;
   onToggleDialogueEdit: () => void;
   onPlanChange: (plan: ScenePlan) => void;
+  /** Normal comic autopilot: per-panel dialogue/speaker edits are not authoritative. */
+  editable?: boolean;
 }) {
   const compactSituation = projectComicPanelCompactSituation(plan, panel, { personaVisible });
 
@@ -151,7 +156,7 @@ function ComicPanelStoryboardCard({
       ) : (
         <p className="mt-1 text-xs text-zinc-500">장면 없음</p>
       )}
-      {dialogueEditOpen ? (
+      {editable && dialogueEditOpen ? (
         <ComicPanelDialogueEditor
           panel={panel}
           plan={plan}
@@ -170,14 +175,16 @@ function ComicPanelStoryboardCard({
           personaVisible={personaVisible}
         />
       )}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onToggleDialogueEdit}
-        className="mt-1.5 text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
-      >
-        {dialogueEditOpen ? "대사 미리보기로" : "대사 편집"}
-      </button>
+      {editable ? (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onToggleDialogueEdit}
+          className="mt-1.5 text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
+        >
+          {dialogueEditOpen ? "대사 미리보기로" : "대사 편집"}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -437,6 +444,7 @@ export default function ChatSceneBuilder({
   outputMode,
   panelCount,
   comicPanelMode,
+  comicAutopilotMode,
   disabled,
   onOutputModeChange,
   onPanelCountChange,
@@ -555,6 +563,7 @@ export default function ChatSceneBuilder({
                   castSpeakerNames={castSpeakerNames}
                   personaVisible={personaVisible}
                   disabled={disabled}
+                  editable={!comicAutopilotMode}
                   dialogueEditOpen={dialogueEditOpenPanels.has(panel.index)}
                   onToggleDialogueEdit={() => {
                     setDialogueEditOpenPanels((current) => {
@@ -568,15 +577,17 @@ export default function ChatSceneBuilder({
                 />
               ))}
             </div>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => setSceneEditOpen((current) => !current)}
-              className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
-            >
-              {sceneEditOpen ? "장면 미리보기로" : "장면 자세히 수정"}
-            </button>
-            {sceneEditOpen ? (
+            {!comicAutopilotMode ? (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => setSceneEditOpen((current) => !current)}
+                className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
+              >
+                {sceneEditOpen ? "장면 미리보기로" : "장면 자세히 수정"}
+              </button>
+            ) : null}
+            {!comicAutopilotMode && sceneEditOpen ? (
               <div className="space-y-2 border-t border-white/10 pt-2">
                 {plan.panels.map((panel) => (
                   <div key={`visual-${panel.index}`} className="space-y-1">

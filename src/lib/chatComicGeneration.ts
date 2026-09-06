@@ -155,7 +155,10 @@ export function buildChatComicImagePrompt(opts: {
     projectSceneText: (text: string) => projectTextForSafeImagePrompt(text, projectionContext),
     omitDialogueText: shouldOmitDialogueFromImageProjection,
   };
-  const autopilot = Boolean(opts.comicHighlightSelection && opts.plan.comicHighlightSelection);
+  const autopilotSelection =
+    opts.comicHighlightSelection ?? opts.plan.comicHighlightSelection;
+  const autopilot =
+    compositionMode === "full_provider_rendered" && Boolean(autopilotSelection);
   const speakerBinding: ComicSpeakerBinding = {
     characterLabel: "A",
     characterName: opts.characterName,
@@ -179,8 +182,10 @@ export function buildChatComicImagePrompt(opts: {
   const panelSpecSection = autopilot
     ? renderComicAutopilotSection({
         plan: opts.plan,
-        selection: opts.plan.comicHighlightSelection!,
+        selection: autopilotSelection!,
         binding: speakerBinding,
+        adultGrounded: providerTextAdultEligible,
+        realPersonRestricted: false,
       })
     : compositionMode === "full_provider_rendered"
       ? buildChatComicPanelSpecFullProviderSection({
@@ -207,7 +212,11 @@ export function buildChatComicImagePrompt(opts: {
           compositionMode,
         });
   return [
-    `Create one polished Korean manhwa-style page with exactly ${opts.plan.panels.length} wide horizontal panels stacked vertically.`,
+    ...(autopilot
+      ? []
+      : [
+          `Create one polished Korean manhwa-style page with exactly ${opts.plan.panels.length} wide horizontal panels stacked vertically.`,
+        ]),
     "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, polished full-color rendering, and panel polish, but do not copy its exact poses.",
     "Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.",
     castBlock,

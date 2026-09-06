@@ -18,6 +18,8 @@ import type {
   ScenePlan,
 } from "@/lib/chatImageScenePlan";
 import { visualEvents } from "@/lib/chatImageScenePlan";
+import { projectTextForSafeImagePrompt } from "@/lib/chatImageSafeVisualProjection";
+import { resolveComicProviderReadableTextEligibility } from "@/lib/chatComicPanelSpec";
 
 export type ComicSpeakerBinding = { characterLabel: string; characterName: string; personaLabel: string; personaName: string };
 
@@ -26,7 +28,8 @@ export type ComicHighlightExcerptAudit = {
   highlightSourceCharCount: number;
   highlightCompressionRatio: number;
   sourceDialogueCountInHighlight: number;
-  metaTextLeakCount: number;
+  /** Proven structural property — the excerpt is built from canonical events only. */
+  narrativeSourceOwner: "canonical_events_only";
   focusEventCount: number;
   focusContiguous: boolean;
 };
@@ -38,20 +41,20 @@ export type ComicHighlightSourceExcerpt = {
   audit: ComicHighlightExcerptAudit;
 };
 
-const INTERNAL_META_OWNERS = new Set([
-  "scenePlan",
-  "panelIndex",
-  "sourceEventId",
-  "provenance",
-  "comicEditorial",
-  "comicHighlightSelection",
-  "recommendedPanelCount",
-  "heroEventIds",
-  "castMentions",
-]);
+/** Reuse the existing provider-readable comic text eligibility owner (no new safety policy). */
+function isProviderReadableDialogue(text: string, adultGrounded: boolean, realPersonRestricted: boolean): boolean {
+  return resolveComicProviderReadableTextEligibility({ text, adultGrounded, realPersonRestricted });
+}
 
-function eventLine(event: SceneEvent, binding: ComicSpeakerBinding): string {
+function eventLine(
+  event: SceneEvent,
+  binding: ComicSpeakerBinding,
+  projection: { adultGrounded: boolean; realPersonRestricted: boolean }
+): string | null {
   if (event.kind === "dialogue") {
+    if (!isProviderReadableDialogue(event.text, projection.adultGrounded, projection.realPersonRestricted)) {
+      return null;
+    }
     const speaker =
       event.actor === "character"
         ? `${binding.characterLabel} (${binding.characterName})`
@@ -60,27 +63,36 @@ function eventLine(event: SceneEvent, binding: ComicSpeakerBinding): string {
           : event.speakerName?.trim() || event.actor;
     return `${speaker}: "${event.text}"`;
   }
-  if (event.kind === "environment") {
-    return `[context] ${event.text}`;
-  }
-  return `[action] ${event.text}`;
+  // Action / environment / narration context → existing safe image-text projection.
+  const projected = projectTextForSafeImagePrompt(event.text, { adultGrounded: projection.adultGrounded });
+  const text = projected.trim();
+  if (!text) return null;
+  return event.kind === "environment" ? `[context] ${text}` : `[action] ${text}`;
 }
 
 /**
  * Builds the source-preserving highlight excerpt from canonical focus events.
- * Only canonical events are used — internal/request metadata can never enter it.
+ * Existing provider-safe projection is applied to the provider input ONLY —
+ * canonical events are never mutated. Internal/request metadata can never enter it.
  */
 export function buildComicHighlightSourceExcerpt(
   plan: ScenePlan,
   selection: ComicHighlightSelection,
-  binding: ComicSpeakerBinding
+  binding: ComicSpeakerBinding,
+  safety: { adultGrounded?: boolean; realPersonRestricted?: boolean } = {}
 ): ComicHighlightSourceExcerpt {
   const visual = visualEvents(plan.events);
   const eventsById = new Map(plan.events.map((event) => [event.id, event]));
+  const projection = {
+    adultGrounded: safety.adultGrounded ?? false,
+    realPersonRestricted: safety.realPersonRestricted ?? false,
+  };
   const focus = selection.focusEventIds
     .map((id) => eventsById.get(id))
     .filter((event): event is SceneEvent => Boolean(event));
-  const lines = focus.map((event) => eventLine(event, binding));
+  const lines = focus
+    .map((event) => eventLine(event, binding, projection))
+    .filter((line): line is string => Boolean(line));
   const text = lines.join("\n");
 
   const fullSourceCharCount = plan.events.reduce((sum, event) => sum + event.text.length, 0);
@@ -94,9 +106,6 @@ export function buildComicHighlightSourceExcerpt(
     focusPositions.length === selection.focusEventIds.length &&
     focusPositions[focusPositions.length - 1]! - focusPositions[0]! + 1 === focusPositions.length;
 
-  // Meta leak is structurally prevented: only canonical source text is emitted.
-  const metaTextLeakCount = 0;
-
   return {
     anchorEventId: selection.anchorEventId,
     focusEventIds: [...selection.focusEventIds],
@@ -107,7 +116,7 @@ export function buildComicHighlightSourceExcerpt(
       highlightCompressionRatio:
         fullSourceCharCount > 0 ? highlightSourceCharCount / fullSourceCharCount : 0,
       sourceDialogueCountInHighlight,
-      metaTextLeakCount,
+      narrativeSourceOwner: "canonical_events_only",
       focusEventCount: selection.focusEventIds.length,
       focusContiguous,
     },
@@ -127,11 +136,12 @@ export function renderComicAutopilotContract(panelMode: ChatComicPanelMode): str
     format,
     "Do not summarize the whole original turn.",
     "Keep the panels chronologically connected around this one moment.",
-    "Choose only the dialogue needed to make the scene readable and entertaining. Usually use around 1-2 speech bubbles per dialogue-bearing panel. Silent reaction panels are allowed. Do not force dialogue when the source scene is quiet.",
+    "Use only spoken lines from the selected source scene. You may omit lines for comic pacing, but do not invent new spoken dialogue.",
+    "Usually use around 1-2 speech bubbles per dialogue-bearing panel. Silent reaction panels are allowed. Do not force dialogue when the source scene is quiet.",
     "Use at most 0-2 short narration boxes when they genuinely help with time, location, or an off-panel transition. Do not paste long prose.",
-    "Keep every spoken line associated with the correct character. Do not invent unrelated dialogue.",
+    "Keep every spoken line associated with the correct character.",
     "Choose camera, framing, reactions, balloon placement, and visual rhythm yourself. Use varied natural manhwa composition.",
-    "Never render internal system/control metadata.",
+    "Never render internal system/control metadata, and never render the [action]/[context] prompt markers as visible comic text.",
   ].join("\n");
 }
 
@@ -169,22 +179,23 @@ export function resolveComicHighlightFallback(plan: ScenePlan): ComicHighlightSe
   };
 }
 
-/** Internal-owner meta markers that must never appear in the provider narrative source. */
-export function containsInternalMetaOwner(text: string): boolean {
-  return [...INTERNAL_META_OWNERS].some((owner) => text.includes(owner));
-}
-
 /**
  * Provider autopilot section — SPEAKER BINDING + SELECTED SOURCE EXCERPT.
  * GPT owns the 3/4-panel breakdown, dialogue density, narration, camera, and
  * visual rhythm from this source-grounded highlight. No per-panel plans.
+ * Existing provider-safe projection is applied to the provider input.
  */
 export function renderComicAutopilotSection(opts: {
   plan: ScenePlan;
   selection: ComicHighlightSelection;
   binding: ComicSpeakerBinding;
+  adultGrounded?: boolean;
+  realPersonRestricted?: boolean;
 }): string {
-  const excerpt = buildComicHighlightSourceExcerpt(opts.plan, opts.selection, opts.binding);
+  const excerpt = buildComicHighlightSourceExcerpt(opts.plan, opts.selection, opts.binding, {
+    adultGrounded: opts.adultGrounded,
+    realPersonRestricted: opts.realPersonRestricted,
+  });
   const bindingLines = [
     `- ${opts.binding.characterLabel} = ${opts.binding.characterName} (chat character)`,
     `- ${opts.binding.personaLabel} = ${opts.binding.personaName} (user persona)`,
@@ -195,6 +206,7 @@ export function renderComicAutopilotSection(opts: {
     bindingLines,
     "SELECTED HIGHLIGHT SOURCE (verbatim, chronologically ordered):",
     excerpt.text,
+    "The [action]/[context] markers are prompt roles, not visible comic text.",
     "Keep every speech balloon with the character who says that source line.",
   ].join("\n");
 }
