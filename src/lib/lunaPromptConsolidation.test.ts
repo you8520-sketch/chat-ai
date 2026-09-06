@@ -159,7 +159,8 @@ describe("luna prompt consolidation ownership", () => {
       null
     );
     assert.match(LUNA_TERMINAL_OUTPUT_CONTRACT, /한국어 RP 본문만 3,200자 이상을 기본 목표로/);
-    assert.match(LUNA_TERMINAL_OUTPUT_CONTRACT, /하나의 충분한 발화로 묶고/);
+    assert.doesNotMatch(LUNA_TERMINAL_OUTPUT_CONTRACT, /하나의 충분한 발화로 묶고/);
+    assert.doesNotMatch(LUNA_TERMINAL_OUTPUT_CONTRACT, /대사의 양은 장면에 따라/);
     assert.doesNotMatch(LUNA_TERMINAL_OUTPUT_CONTRACT, /반드시 3~6/);
     assert.doesNotMatch(LUNA_TERMINAL_OUTPUT_CONTRACT, /최초로 확인 가능한 결과/);
     assert.equal(buildCompactTerminalLengthAbsoluteTail(3200), "");
@@ -176,7 +177,9 @@ describe("luna prompt consolidation ownership", () => {
 
     const { systemPrompt, built } = buildE1Wire(STABLE_CANON);
     assert.doesNotMatch(systemPrompt, /4,200|4200/);
-    assert.doesNotMatch(systemPrompt, /충분한 발화로 묶어/);
+    // P1: dialogue concentration moved to the canonical common prose owner —
+    // present once in the system common prose, never in the Luna terminal tail.
+    assert.equal((systemPrompt.match(/하나의 충분한 발화로 묶는다/g) ?? []).length, 1);
     assert.doesNotMatch(systemPrompt, /luna-single-primary|LUNA_TERMINAL/);
     assert.ok(!(built.meta.trackedSections ?? []).some((s) => s.id === "luna-single-primary-adapter"));
     const lastUser = built.history[built.history.length - 1];
@@ -209,16 +212,18 @@ describe("luna prompt consolidation ownership", () => {
     assert.match(IMMERSIVE_PROSE_BLOCK, /내면·행동·환경·관계의 변화가 서로 인과적으로 이어지게 쓴다/);
   });
 
-  it("dialogue concentration + length once via Luna terminal contract only", () => {
+  it("P1 — dialogue concentration once via common prose; Luna terminal length-only", () => {
     assert.doesNotMatch(DIALOGUE_NARRATION_STRUCTURE_RULE, /충분한 길이의 하나의 발화/);
     assert.doesNotMatch(DIALOGUE_NARRATION_STRUCTURE_RULE, /주요 대화 몇 차례에 집중/);
     assert.match(DIALOGUE_NARRATION_STRUCTURE_RULE, /대사는 독립 문단으로 표시한다/);
 
     const { systemPrompt, built } = buildE1Wire(STABLE_CANON);
-    assert.equal((systemPrompt.match(/하나의 충분한 발화로 묶고/g) ?? []).length, 0);
+    // Common prose (system) carries the dialogue-economy owner exactly once.
+    assert.equal((systemPrompt.match(/하나의 충분한 발화로 묶는다/g) ?? []).length, 1);
     assert.equal((systemPrompt.match(/4,200|4200/g) ?? []).length, 0);
     const lastUser = built.history[built.history.length - 1]!;
-    assert.equal((lastUser.content.match(/하나의 충분한 발화로 묶고/g) ?? []).length, 1);
+    // Luna terminal tail keeps length only — no dialogue-concentration duplicate.
+    assert.equal((lastUser.content.match(/하나의 충분한 발화로 묶는다/g) ?? []).length, 0);
     assert.equal((lastUser.content.match(/3,200자 이상/g) ?? []).length, 1);
     assert.equal((lastUser.content.match(/4,200|4200/g) ?? []).length, 0);
 
