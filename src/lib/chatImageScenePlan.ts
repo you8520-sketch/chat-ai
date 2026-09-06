@@ -2119,18 +2119,90 @@ export function buildScenePlanPrompt(opts: {
           "Panel coverage rules still apply to panels only. Choosing a hero subset is NOT omitting canonical events from the server timeline.",
         ]
       : []),
-    ...(scenePlanIntent === "comic"
-      ? [
-          "COMIC HIGHLIGHT SELECTION MODE — you choose WHAT to illustrate; GPT Image decides HOW to draw it.",
-          "The comic is ONE memorable local micro-scene, not a whole-turn summary.",
-          "comicHighlightSelection.anchorEventId: choose ONE primary anchor event — preferably the most story-bearing dialogue (a line that causes a meaningful response, a relationship/emotional turning point, a reveal, a decision/proposal/question/answer that changes what happens next, a conflict turning point, a comedic punchline, or a memorable emotional line). If no useful dialogue exists, choose the most story-bearing action/reaction. Do NOT pick by first/last/longest/shortest or by keyword match alone.",
-          "comicHighlightSelection.focusEventIds: ONLY the chronologically local context needed to understand the anchor (1–2 meaningful events before + anchor + 1–2 after). Max 8. MUST include the anchor. MUST be ONE contiguous local region — never collect scattered distant highlights. Include enough adjacent context (physical setup, the other character's reaction, immediate consequence) that a reader can understand the moment.",
-          "Do NOT plan panels, camera, framing, speech-bubble counts, narration text, narration placement, or SFX — GPT Image owns all of that. Whole-turn coverage is not required for the highlight selection.",
-        ]
-      : []),
     "SOURCE MESSAGES:",
     JSON.stringify(opts.messages, null, 2),
   ].join("\n\n");
+}
+
+export const COMIC_HIGHLIGHT_WHOLE_TURN_COMPARISON_CONTRACT =
+  "Read and compare the ENTIRE canonical timeline above before choosing. Do not commit to the first visually drawable scene. Compare all plausible local moments and select the single moment with the greatest story, relationship, emotional, payoff, or consequence weight. Internal comparison only — never output your candidate reasoning.";
+
+export const COMIC_HIGHLIGHT_STORY_RUBRIC = [
+  "A. RELATIONSHIP / EMOTIONAL STATE CHANGE — trust, intimacy, jealousy, confession, possessiveness, vulnerability, rejection, acceptance, reconciliation, betrayal, important emotional realization.",
+  "B. CALLBACK / PAYOFF — an earlier object, promise, joke, gift, wound, secret, conflict, or event gains meaningful later significance; an earlier action is reinterpreted; setup receives payoff.",
+  "C. DECISION / COMMITMENT / CHOICE — proposal, agreement, refusal, ultimatum, promise, a 'choose' moment, relationship definition, meaningful future direction.",
+  "D. REVEAL / DISCOVERY — secret, identity, hidden motive, new important knowledge, realization.",
+  "E. CONFLICT TURN — confrontation, threat, breakthrough, surrender, power reversal, unexpected response.",
+  "F. COMEDIC PAYOFF — punchline, embarrassment, misunderstanding payoff, strong reaction.",
+  "G. CHARACTER-SPECIFIC MEMORABILITY — dialogue/action that could only belong to this character relationship; strong personality expression; distinctive recurring motif.",
+].join("\n");
+
+export const COMIC_HIGHLIGHT_LOW_PRIORITY =
+  "walking from A to B, generic room introduction, furniture description, ordinary eating, washing instructions, routine dressing, scenery showcase, logistics, generic 'let's go / sit / eat / wash' setup, long descriptive prose with little consequence";
+
+export const COMIC_HIGHLIGHT_COMPARATIVE_RULE =
+  "For every plausible candidate moment, weigh relationship change, emotional salience, callback/payoff, decision weight, reveal weight, conflict change, reaction potential, character specificity, and local scene coherence — and only THEN visual drawability as a tie-breaker. Visual novelty is NOT narrative importance: a 'large luxurious bedroom' must not outrank a relationship-defining callback just because it is easier to draw.";
+
+export const COMIC_HIGHLIGHT_POSITION_BIAS_CONTRACT =
+  "Do NOT pick by first scene, last scene, longest dialogue, longest prose, most visually descriptive prose, first question, or first dialogue. A high-value event in the middle or later part of a long turn is fully selectable.";
+
+/**
+ * COMIC HIGHLIGHT SELECTOR prompt — compact contract. The comic Scene Planner
+ * owns ONE responsibility: compare the whole canonical turn and return ONE
+ * anchor + ONE contiguous local focus window. No panels, hero, cast, narration,
+ * camera, or composition output. Generic ScenePlan generation uses
+ * buildScenePlanPrompt; this builder is for comic intent only.
+ */
+export function buildComicHighlightPrompt(opts: {
+  contentKind?: ContentKind;
+  characterName: string;
+  personaName: string;
+  messages: readonly SceneSourceMessage[];
+  speakerContext?: SceneSpeakerContext;
+}): string {
+  const contentKind = opts.contentKind ?? "character";
+  const canonicalEvents = extractDeterministicEvents(opts.messages, opts.speakerContext);
+  const identityLines =
+    contentKind === "simulation"
+      ? [`Simulation title (NOT A PERSON): ${opts.characterName}`]
+      : [`Chat character name: ${opts.characterName}`];
+  return [
+    "You are a Korean comic editor choosing the single most story-worthy local moment from a long roleplay turn.",
+    ...identityLines,
+    `User persona name: ${opts.personaName}`,
+    "CANONICAL EVENTS (server-owned immutable timeline — use these IDs only; never add, omit, reorder, or reclassify):",
+    JSON.stringify(canonicalEvents, null, 2),
+    "TASK — CHOOSE WHAT TO ILLUSTRATE (ONE micro-scene):",
+    COMIC_HIGHLIGHT_WHOLE_TURN_COMPARISON_CONTRACT,
+    "Your output is ONLY two fields:",
+    JSON.stringify({ anchorEventId: "E27", focusEventIds: ["E24", "E25", "E26", "E27", "E28", "E29"] }),
+    "anchorEventId — ONE primary anchor event.",
+    "focusEventIds — the chronologically contiguous local context needed to read the anchor (anchor included, max 8).",
+    "STORY IMPORTANCE — highest priority first:",
+    COMIC_HIGHLIGHT_STORY_RUBRIC,
+    `Lower priority when standing alone: ${COMIC_HIGHLIGHT_LOW_PRIORITY}.`,
+    "COMPARATIVE RULE:",
+    COMIC_HIGHLIGHT_COMPARATIVE_RULE,
+    "ANCHOR DIALOGUE PREFERENCE:",
+    "Prefer a dialogue anchor when meaningful dialogue exists — a line that changes the relationship, assigns meaning to an earlier event, makes a promise or claim, demands or offers a choice, reveals a secret, provokes a strong reaction, pays off an earlier setup, functions as a punchline, or defines the current emotional state. If no useful dialogue exists, choose the most story-bearing action or reaction.",
+    "FOCUS WINDOW:",
+    "Keep it to ONE local contiguous scene in chronological order, anchor included, no duplicates. Include enough setup before the anchor and the immediate response or consequence after it so a reader can understand the moment. Do not include distant or irrelevant events from the same turn.",
+    "POSITION BIAS — PROTECTIONS:",
+    COMIC_HIGHLIGHT_POSITION_BIAS_CONTRACT,
+    "OUTPUT:",
+    "Return JSON only, no markdown fences, no reasoning, no analysis, no commentary, and no additional fields.",
+  ].join("\n\n");
+}
+
+/**
+ * Reports where the comic highlight selection came from — scene planner AI or
+ * deterministic recovery. Admin diagnostics only; never decides semantics.
+ */
+export function resolveComicHighlightSelectionSource(
+  plan: ScenePlan | null | undefined
+): "scene_planner" | "deterministic_fallback" | "none" {
+  if (plan?.comicHighlightSelection?.anchorEventId) return "scene_planner";
+  return "deterministic_fallback";
 }
 
 export type ScenePresentationVisibility = {

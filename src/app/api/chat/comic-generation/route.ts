@@ -77,6 +77,7 @@ import {
   formatSceneSourcePreview,
   isScenePanelCount,
   reflowScenePlanPanels,
+  resolveComicHighlightSelectionSource,
   resolveScenePresentationVisibility,
   validateScenePlan,
   type ScenePlan,
@@ -1473,6 +1474,7 @@ export async function POST(req: Request) {
         canonicalPlan.comicHighlightSelection ?? resolveComicHighlightFallback(canonicalPlan);
       scenePlan = canonicalPlan;
     }
+    const highlightSelectionSource = resolveComicHighlightSelectionSource(canonicalPlan);
     const castManifest = semanticLadderMode
       ? null
       : resolveGroundedCastManifest({
@@ -1812,6 +1814,11 @@ contentKind: context.contentKind,
                 ...formatComicReferenceSetForAdmin(providerReferences),
                 ...(autopilotActive && comicHighlightSelection
                   ? {
+                      highlightSelectionSource,
+                      highlightSelection: {
+                        anchorEventId: comicHighlightSelection.anchorEventId,
+                        focusEventIds: comicHighlightSelection.focusEventIds,
+                      },
                       comicTextBrief: (() => {
                         const dialogueCandidates = selectComicDialogueCandidates(
                           canonicalPlan,
