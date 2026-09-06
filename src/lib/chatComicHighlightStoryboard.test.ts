@@ -11,7 +11,7 @@ import {
   selectComicAnchor,
   COMIC_PANEL_MODES,
 } from "./chatComicHighlightStoryboard";
-import { validateComicEditorial, buildScenePlanPrompt } from "./chatImageScenePlan";
+import { validateComicEditorial, buildComicHighlightPrompt } from "./chatImageScenePlan";
 import { COMIC_NARRATION_MAX_CHARS } from "./chatComicNarrationMinifier";
 import {
   buildDeterministicScenePlan,
@@ -926,8 +926,7 @@ describe("V3 micro-correction — manual override, user-edit parity, prompt hier
   });
 
   it("PROMPT-1/2/3 comic prompt allows a presentation subset without mutating the canonical timeline", () => {
-    const prompt = buildScenePlanPrompt({
-      scenePlanIntent: "comic",
+    const prompt = buildComicHighlightPrompt({
       characterName: "태형",
       personaName: "렌",
       messages: buildSceneSourceMessages([
@@ -935,9 +934,9 @@ describe("V3 micro-correction — manual override, user-edit parity, prompt hier
         { id: 2, role: "assistant", content: '"그래."' },
       ]),
     });
-    assert.match(prompt, /Never invent, omit, reorder, or reclassify events/, "PROMPT-1 canonical omission forbidden");
+    assert.match(prompt, /Do not add, delete, rewrite, reorder, or reclassify them/, "PROMPT-1 canonical mutation forbidden");
     assert.match(prompt, /focusEventIds/, "PROMPT-2 comic subset selection allowed");
-    assert.match(prompt, /Whole-turn coverage is not required for the highlight selection/, "PROMPT-2 subset explicit");
-    assert.match(prompt, /Do NOT plan panels, camera, framing/, "PROMPT-3 GPT owns HOW");
+    assert.match(prompt, /ONE local contiguous scene/, "PROMPT-2 subset explicit");
+    assert.match(prompt, /Return JSON only, no markdown fences/, "PROMPT-3 compact output only");
   });
 });
