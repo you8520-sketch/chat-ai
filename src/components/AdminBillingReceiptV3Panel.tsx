@@ -7,7 +7,9 @@ import {
   formatAdminKrwFromUsd,
 } from "@/lib/adminBillingReceiptV2";
 import {
+  formatAdminBillingReceiptV3MainRpModelLines,
   formatAdminBillingReceiptV3Text,
+  resolveAdminBillingReceiptV3MainRpModelIdentity,
   wholeTurnCoverageLabel,
   type AdminBillingReceiptV3,
 } from "@/lib/adminBillingReceiptV3Shared";
@@ -86,6 +88,8 @@ export function AdminBillingReceiptV3Panel({
   const turnSummary = buildAdminReceiptTurnSummary(receipt);
   const forensic = receipt.forensic;
   const fxRate = receipt.wholeTurn.fx?.effectiveKrwPerUsd ?? null;
+  const mainRpModelIdentity = resolveAdminBillingReceiptV3MainRpModelIdentity(receipt);
+  const mainRpModelLines = formatAdminBillingReceiptV3MainRpModelLines(mainRpModelIdentity);
 
   return (
     <div className="space-y-0.5 text-[11px] leading-relaxed text-zinc-300">
@@ -108,6 +112,13 @@ export function AdminBillingReceiptV3Panel({
           </button>
         )}
       </div>
+
+      <SectionTitle>Main RP 모델</SectionTitle>
+      {mainRpModelLines.map((line) => (
+        <p key={line} className="whitespace-pre-wrap font-mono text-[10px] leading-snug">
+          {line}
+        </p>
+      ))}
 
       <SectionTitle>턴 요약</SectionTitle>
       {formatAdminReceiptTurnSummaryLines(turnSummary, {

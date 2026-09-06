@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 
 import ChatImageCastPicker from "@/components/ChatImageCastPicker";
+import {
+  CHAT_COMIC_PANEL_OPTIONS,
+  type ChatComicPanelMode,
+} from "@/lib/chatComicGenerationConstants";
 import type { ChatImageCastIntentManifest, SelectableCastAsset } from "@/lib/chatImageCast";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
@@ -51,9 +55,13 @@ type ChatSceneBuilderProps = {
   castSpeakerNames?: readonly string[];
   outputMode: SceneOutputMode;
   panelCount: ScenePanelCount;
+  comicPanelMode?: ChatComicPanelMode;
+  /** Normal comic autopilot: per-panel dialogue/speaker/situation edits are not authoritative. */
+  comicAutopilotMode?: boolean;
   disabled?: boolean;
   onOutputModeChange: (mode: SceneOutputMode) => void;
   onPanelCountChange: (count: ScenePanelCount) => void;
+  onComicPanelModeChange?: (mode: ChatComicPanelMode) => void;
   onPlanChange: (plan: ScenePlan) => void;
   onCastChange: (manifest: ChatImageCastIntentManifest) => void;
   onRequestAiSuggestion: () => void;
@@ -121,6 +129,7 @@ function ComicPanelStoryboardCard({
   dialogueEditOpen,
   onToggleDialogueEdit,
   onPlanChange,
+  editable = true,
 }: {
   panel: ScenePanel;
   plan: ScenePlan;
@@ -132,6 +141,8 @@ function ComicPanelStoryboardCard({
   dialogueEditOpen: boolean;
   onToggleDialogueEdit: () => void;
   onPlanChange: (plan: ScenePlan) => void;
+  /** Normal comic autopilot: per-panel dialogue/speaker edits are not authoritative. */
+  editable?: boolean;
 }) {
   const compactSituation = projectComicPanelCompactSituation(plan, panel, { personaVisible });
 
@@ -145,7 +156,7 @@ function ComicPanelStoryboardCard({
       ) : (
         <p className="mt-1 text-xs text-zinc-500">장면 없음</p>
       )}
-      {dialogueEditOpen ? (
+      {editable && dialogueEditOpen ? (
         <ComicPanelDialogueEditor
           panel={panel}
           plan={plan}
@@ -164,14 +175,16 @@ function ComicPanelStoryboardCard({
           personaVisible={personaVisible}
         />
       )}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onToggleDialogueEdit}
-        className="mt-1.5 text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
-      >
-        {dialogueEditOpen ? "대사 미리보기로" : "대사 편집"}
-      </button>
+      {editable ? (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onToggleDialogueEdit}
+          className="mt-1.5 text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
+        >
+          {dialogueEditOpen ? "대사 미리보기로" : "대사 편집"}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -430,9 +443,12 @@ export default function ChatSceneBuilder({
   castSpeakerNames,
   outputMode,
   panelCount,
+  comicPanelMode,
+  comicAutopilotMode,
   disabled,
   onOutputModeChange,
   onPanelCountChange,
+  onComicPanelModeChange,
   onPlanChange,
   onCastChange,
   onRequestAiSuggestion,
@@ -492,19 +508,24 @@ export default function ChatSceneBuilder({
         <section className="space-y-2">
           <h3 className="text-[11px] font-semibold text-zinc-400">컷 수</h3>
           <div className="grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-1">
-            {([2, 3, 4] as const).map((count) => (
+            {CHAT_COMIC_PANEL_OPTIONS.map((option) => (
               <button
-                key={count}
+                key={option.id}
                 type="button"
                 disabled={disabled || !plan}
-                onClick={() => onPanelCountChange(count)}
+                onClick={() => {
+                  onComicPanelModeChange?.(option.id);
+                  // The scene planner still plans with a concrete count; AUTO
+                  // plans for 4 and the anchor-centered storyboard decides 3/4.
+                  onPanelCountChange(option.id === "auto" ? 4 : option.id);
+                }}
                 className={`rounded-lg px-2 py-2 text-[11px] font-semibold transition ${
-                  panelCount === count
+                  comicPanelMode === option.id
                     ? "bg-violet-600 text-white"
                     : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
                 }`}
               >
-                {count}컷
+                {option.label}
               </button>
             ))}
           </div>
@@ -530,40 +551,54 @@ export default function ChatSceneBuilder({
 
         {plan && outputMode === "comic" ? (
           <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-            <h3 className="text-[11px] font-semibold text-zinc-400">컷 미리보기</h3>
-            <div className="space-y-2">
-              {plan.panels.map((panel) => (
-                <ComicPanelStoryboardCard
-                  key={panel.index}
-                  panel={panel}
-                  plan={plan}
-                  personaName={personaName}
-                  characterName={characterName}
-                  castSpeakerNames={castSpeakerNames}
-                  personaVisible={personaVisible}
-                  disabled={disabled}
-                  dialogueEditOpen={dialogueEditOpenPanels.has(panel.index)}
-                  onToggleDialogueEdit={() => {
-                    setDialogueEditOpenPanels((current) => {
-                      const next = new Set(current);
-                      if (next.has(panel.index)) next.delete(panel.index);
-                      else next.add(panel.index);
-                      return next;
-                    });
-                  }}
-                  onPlanChange={onPlanChange}
-                />
-              ))}
-            </div>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => setSceneEditOpen((current) => !current)}
-              className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
-            >
-              {sceneEditOpen ? "장면 미리보기로" : "장면 자세히 수정"}
-            </button>
-            {sceneEditOpen ? (
+            {comicAutopilotMode ? (
+              <div className="space-y-1">
+                <h3 className="text-[11px] font-semibold text-zinc-400">컷만화 생성</h3>
+                <p className="text-xs leading-relaxed text-zinc-400">
+                  AI가 이 턴에서 중요 장면을 골라 컷 구성을 자동으로 만듭니다.
+                </p>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-[11px] font-semibold text-zinc-400">컷 미리보기</h3>
+                <div className="space-y-2">
+                  {plan.panels.map((panel) => (
+                    <ComicPanelStoryboardCard
+                      key={panel.index}
+                      panel={panel}
+                      plan={plan}
+                      personaName={personaName}
+                      characterName={characterName}
+                      castSpeakerNames={castSpeakerNames}
+                      personaVisible={personaVisible}
+                      disabled={disabled}
+                      editable={!comicAutopilotMode}
+                      dialogueEditOpen={dialogueEditOpenPanels.has(panel.index)}
+                      onToggleDialogueEdit={() => {
+                        setDialogueEditOpenPanels((current) => {
+                          const next = new Set(current);
+                          if (next.has(panel.index)) next.delete(panel.index);
+                          else next.add(panel.index);
+                          return next;
+                        });
+                      }}
+                      onPlanChange={onPlanChange}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+            {!comicAutopilotMode ? (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => setSceneEditOpen((current) => !current)}
+                className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
+              >
+                {sceneEditOpen ? "장면 미리보기로" : "장면 자세히 수정"}
+              </button>
+            ) : null}
+            {!comicAutopilotMode && sceneEditOpen ? (
               <div className="space-y-2 border-t border-white/10 pt-2">
                 {plan.panels.map((panel) => (
                   <div key={`visual-${panel.index}`} className="space-y-1">

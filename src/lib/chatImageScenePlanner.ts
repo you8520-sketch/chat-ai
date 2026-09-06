@@ -100,7 +100,7 @@ export async function planChatImageScene(opts: {
     try {
       const text = await complete({
         system:
-          "You are a precise closed-book scene planner. Group server canonical events only. Never invent user dialogue. Never add, omit, reorder, or reclassify events. Reasoning: none.",
+          "You are a precise closed-book scene planner. The canonical event timeline is immutable — NEVER add, delete, reorder, or reclassify canonical events. Never invent user dialogue. In comic mode you choose WHAT to illustrate (one anchor + one contiguous highlight window); you never plan panels, narration, camera, or composition — GPT Image owns HOW. Reasoning: none.",
         prompt,
         model,
       });

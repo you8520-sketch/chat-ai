@@ -87,6 +87,45 @@ export type ScenePanel = {
   dialogue: SceneDialogue[];
 };
 
+// ---------------------------------------------------------------------------
+// Comic editorial projection — SCENE-PLANNER-OWNED comic presentation metadata.
+// The model chooses semantic importance; the server reconstructs verbatim text.
+// ---------------------------------------------------------------------------
+
+export type ComicEditorialAnchorType = "dialogue" | "action";
+
+export type ComicEditorialNarration = {
+  /** Canonical source events this narration summarizes — grounding provenance. */
+  sourceEventIds: string[];
+  purpose: "time_bridge" | "location_bridge" | "action_bridge" | "context";
+  text: string;
+};
+
+export type ComicEditorialPanelPurpose =
+  | "context"
+  | "approach"
+  | "anchor"
+  | "reaction"
+  | "quiet_close";
+
+export type ComicEditorialPanel = {
+  purpose: ComicEditorialPanelPurpose;
+  /** Canonical visual event ids shown in this panel (no duplicates across panels). */
+  sourceEventIds: string[];
+  /** Canonical dialogue event ids whose text is shown verbatim in this panel. */
+  dialogueEventIds: string[];
+};
+
+export type ComicEditorial = {
+  anchorEventId: string;
+  anchorType: ComicEditorialAnchorType;
+  /** Chronologically local, contiguous focus window (max ~6). Includes the anchor. */
+  focusEventIds: string[];
+  recommendedPanelCount: 3 | 4;
+  narration: ComicEditorialNarration[];
+  panels: ComicEditorialPanel[];
+};
+
 import type { SceneCastMention } from "@/lib/chatImageCast";
 import { validateCastMentions } from "@/lib/chatImageCast";
 import {
@@ -106,6 +145,10 @@ export type ScenePlan = {
   recommendedPanelCount: ScenePanelCount;
   panels: ScenePanel[];
   castMentions?: SceneCastMention[];
+  /** Optional SCENE-PLANNER-OWNED comic editorial projection (comic intent). */
+  comicEditorial?: ComicEditorial;
+  /** Optional SCENE-PLANNER-OWNED highlight selection (comic intent) — WHAT to draw. */
+  comicHighlightSelection?: ComicHighlightSelection;
 };
 
 function cleanLine(raw: unknown, max = 400): string {
@@ -1420,9 +1463,305 @@ function canonicalDialogueSpeakerFromEvent(event: SceneEvent): SceneDialogueSpea
   return null;
 }
 
-export type ScenePlanIntent = "general" | "trpg_illustration";
+export type ScenePlanIntent = "general" | "trpg_illustration" | "comic";
+
+// ---------------------------------------------------------------------------
+// Comic highlight selection — SCENE-PLANNER-OWNED "WHAT to illustrate" only.
+// The planner picks ONE anchor + ONE contiguous local focus window. GPT Image
+// owns HOW the selected scene becomes a comic (panels, dialogue, narration,
+// camera, balloons, SFX). The planner is NOT the panel/layout/narration owner.
+// ---------------------------------------------------------------------------
+
+export type ComicHighlightSelection = {
+  anchorEventId: string;
+  focusEventIds: string[];
+  /** Diagnostic-only; never required for normal production. */
+  selectionReason?: string;
+};
+
+export const COMIC_HIGHLIGHT_MAX_FOCUS_EVENTS = 8;
 
 export const TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS = 4;
+
+// ---------------------------------------------------------------------------
+// Comic editorial computed audit + validator. Metrics are COMPUTED from the
+// submitted editorial and canonical events — a metric that cannot fail is not
+// an audit.
+// ---------------------------------------------------------------------------
+
+export const COMIC_EDITORIAL_MAX_FOCUS_EVENTS = 6;
+export const COMIC_EDITORIAL_MAX_NARRATIONS = 2;
+export const COMIC_NARRATION_SOFT_MAX_CHARS = 48;
+
+/**
+ * Validates a SCENE-PLANNER-owned highlight selection. It answers only
+ * "WHAT to illustrate" — anchor + one contiguous local focus window. Whole-turn
+ * coverage is not required; per-panel planning is not the planner's job.
+ */
+export function validateComicHighlightSelection(
+  source: unknown,
+  events: readonly SceneEvent[]
+):
+  | { ok: true; selection: ComicHighlightSelection }
+  | { ok: false; reason: string } {
+  if (!source || typeof source !== "object") {
+    return { ok: false, reason: "comic highlight selection missing" };
+  }
+  const item = source as Record<string, unknown>;
+  const eventsById = new Map(events.map((event) => [event.id, event]));
+  const visual = visualEvents(events);
+  const visualIds = new Set(visual.map((event) => event.id));
+
+  const anchorEventId = cleanLine(item.anchorEventId, 24);
+  const anchor = eventsById.get(anchorEventId);
+  if (!anchor) return { ok: false, reason: "comic highlight anchor invalid" };
+  if (anchor.kind === "assistant_echo") {
+    return { ok: false, reason: "comic highlight anchor is assistant_echo" };
+  }
+
+  const focusRaw = Array.isArray(item.focusEventIds)
+    ? item.focusEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
+    : [];
+  if (!focusRaw.length) return { ok: false, reason: "comic highlight focus missing" };
+  if (focusRaw.length > COMIC_HIGHLIGHT_MAX_FOCUS_EVENTS) {
+    return { ok: false, reason: "comic highlight focus too large" };
+  }
+  if (!focusRaw.includes(anchorEventId)) {
+    return { ok: false, reason: "comic highlight focus omits anchor" };
+  }
+  const seen = new Set<string>();
+  for (const id of focusRaw) {
+    if (seen.has(id)) return { ok: false, reason: "comic highlight focus duplicated" };
+    seen.add(id);
+    const event = eventsById.get(id);
+    if (!event || event.kind === "assistant_echo" || !visualIds.has(id)) {
+      return { ok: false, reason: "comic highlight focus unknown/invalid event" };
+    }
+  }
+  const positions = focusRaw
+    .map((id) => visual.findIndex((event) => event.id === id))
+    .filter((index) => index >= 0);
+  const contiguous =
+    positions.length === focusRaw.length &&
+    positions[positions.length - 1]! - positions[0]! + 1 === positions.length;
+  if (!contiguous) {
+    return { ok: false, reason: "comic highlight focus not contiguous (distant highlights)" };
+  }
+  for (let i = 1; i < positions.length; i += 1) {
+    if (positions[i]! < positions[i - 1]!) {
+      return { ok: false, reason: "comic highlight focus chronology reversed" };
+    }
+  }
+
+  return {
+    ok: true,
+    selection: {
+      anchorEventId,
+      focusEventIds: focusRaw,
+      ...(typeof item.selectionReason === "string"
+        ? { selectionReason: cleanLine(item.selectionReason, 160) }
+        : {}),
+    },
+  };
+}
+
+export type ComicEditorialAudit = {
+  focusWindowContiguous: boolean;
+  duplicatedPanelSourceEventCount: number;
+  unknownSourceEventCount: number;
+  dialogueOrderViolationCount: number;
+  inventedDialogueCount: number;
+  chronologyReversalCount: number;
+  narrationCount: number;
+};
+
+export function normalizeComicEditorialAudit(): ComicEditorialAudit {
+  return {
+    focusWindowContiguous: true,
+    duplicatedPanelSourceEventCount: 0,
+    unknownSourceEventCount: 0,
+    dialogueOrderViolationCount: 0,
+    inventedDialogueCount: 0,
+    chronologyReversalCount: 0,
+    narrationCount: 0,
+  };
+}
+
+/**
+ * Validates a SCENE-PLANNER-owned comic editorial projection and computes its
+ * audit. Whole-turn panel coverage is NOT required for the comic presentation.
+ */
+export function validateComicEditorial(
+  source: unknown,
+  events: readonly SceneEvent[]
+):
+  | { ok: true; editorial: ComicEditorial; audit: ComicEditorialAudit }
+  | { ok: false; reason: string } {
+  const audit = normalizeComicEditorialAudit();
+  if (!source || typeof source !== "object") {
+    return { ok: false, reason: "comic editorial missing" };
+  }
+  const item = source as Record<string, unknown>;
+  const eventsById = new Map(events.map((event) => [event.id, event]));
+  const visual = visualEvents(events);
+  const visualIds = new Set(visual.map((event) => event.id));
+
+  const anchorEventId = cleanLine(item.anchorEventId, 24);
+  const anchor = eventsById.get(anchorEventId);
+  if (!anchor) return { ok: false, reason: "comic editorial anchor invalid" };
+  if (anchor.kind === "assistant_echo") {
+    return { ok: false, reason: "comic editorial anchor is assistant_echo" };
+  }
+
+  const focusRaw = Array.isArray(item.focusEventIds)
+    ? item.focusEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
+    : [];
+  if (!focusRaw.length) return { ok: false, reason: "comic editorial focus missing" };
+  if (focusRaw.length > COMIC_EDITORIAL_MAX_FOCUS_EVENTS) {
+    return { ok: false, reason: "comic editorial focus window too large" };
+  }
+  if (!focusRaw.includes(anchorEventId)) {
+    return { ok: false, reason: "comic editorial focus omits anchor" };
+  }
+  const seenFocus = new Set<string>();
+  for (const id of focusRaw) {
+    if (seenFocus.has(id)) return { ok: false, reason: "comic editorial focus duplicated" };
+    seenFocus.add(id);
+    const event = eventsById.get(id);
+    if (!event || event.kind === "assistant_echo" || !visualIds.has(id)) {
+      return { ok: false, reason: "comic editorial focus unknown/invalid event" };
+    }
+  }
+  const focusPositions = focusRaw
+    .map((id) => visual.findIndex((event) => event.id === id))
+    .filter((index) => index >= 0);
+  audit.focusWindowContiguous =
+    focusPositions.length === focusRaw.length &&
+    focusPositions[focusPositions.length - 1]! - focusPositions[0]! + 1 === focusPositions.length;
+  if (!audit.focusWindowContiguous) {
+    return { ok: false, reason: "comic editorial focus not contiguous (distant highlights)" };
+  }
+  for (let i = 1; i < focusPositions.length; i += 1) {
+    if (focusPositions[i]! < focusPositions[i - 1]!) {
+      return { ok: false, reason: "comic editorial focus chronology reversed" };
+    }
+  }
+
+  const recommended = item.recommendedPanelCount;
+  if (recommended !== 3 && recommended !== 4) {
+    return { ok: false, reason: "comic editorial panel count invalid (3 or 4)" };
+  }
+
+  const panelsRaw = Array.isArray(item.panels) ? item.panels : [];
+  if (!panelsRaw.length) return { ok: false, reason: "comic editorial panels missing" };
+  if (panelsRaw.length !== recommended) {
+    return { ok: false, reason: "comic editorial panels count mismatch" };
+  }
+  const purposeSet = new Set<string>();
+  const panelEventIds = new Set<string>();
+  let lastOrder = 0;
+  const panels: ComicEditorialPanel[] = [];
+  for (const rowRaw of panelsRaw) {
+    if (!rowRaw || typeof rowRaw !== "object") return { ok: false, reason: "comic editorial panel invalid" };
+    const row = rowRaw as Record<string, unknown>;
+    const purpose = row.purpose;
+    if (!["context", "approach", "anchor", "reaction", "quiet_close"].includes(String(purpose))) {
+      return { ok: false, reason: "comic editorial panel purpose invalid" };
+    }
+    if (purposeSet.has(String(purpose))) return { ok: false, reason: "comic editorial panel purpose duplicated" };
+    purposeSet.add(String(purpose));
+    if (String(purpose) === "anchor" && panelsRaw.length > 0) {
+      const anchorPanelEventIds = Array.isArray(row.sourceEventIds)
+        ? row.sourceEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
+        : [];
+      if (!anchorPanelEventIds.includes(anchorEventId)) {
+        return { ok: false, reason: "comic editorial anchor panel omits anchor event" };
+      }
+    }
+    const sourceEventIds = Array.isArray(row.sourceEventIds)
+      ? row.sourceEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
+      : [];
+    for (const id of sourceEventIds) {
+      const event = eventsById.get(id);
+      if (!event || event.kind === "assistant_echo") {
+        audit.unknownSourceEventCount += 1;
+        return { ok: false, reason: "comic editorial panel unknown source event" };
+      }
+      if (panelEventIds.has(id)) {
+        audit.duplicatedPanelSourceEventCount += 1;
+        return { ok: false, reason: "comic editorial source event duplicated across panels" };
+      }
+      panelEventIds.add(id);
+      if (event.order < lastOrder) {
+        audit.chronologyReversalCount += 1;
+        return { ok: false, reason: "comic editorial panel chronology reversed" };
+      }
+      lastOrder = event.order;
+    }
+    const dialogueEventIds = Array.isArray(row.dialogueEventIds)
+      ? row.dialogueEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
+      : [];
+    for (const id of dialogueEventIds) {
+      const event = eventsById.get(id);
+      if (!event || event.kind !== "dialogue") {
+        audit.inventedDialogueCount += 1;
+        return { ok: false, reason: "comic editorial dialogueEventId not a canonical dialogue" };
+      }
+      if (!sourceEventIds.includes(id)) {
+        audit.inventedDialogueCount += 1;
+        return { ok: false, reason: "comic editorial dialogueEventId not in panel source" };
+      }
+    }
+    panels.push({ purpose: purpose as ComicEditorialPanelPurpose, sourceEventIds, dialogueEventIds });
+  }
+
+  const narrationRaw = Array.isArray(item.narration) ? item.narration : [];
+  if (narrationRaw.length > COMIC_EDITORIAL_MAX_NARRATIONS) {
+    return { ok: false, reason: "comic editorial narration exceeds 2/page" };
+  }
+  const narration: ComicEditorialNarration[] = [];
+  for (const rowRaw of narrationRaw) {
+    if (!rowRaw || typeof rowRaw !== "object") continue;
+    const row = rowRaw as Record<string, unknown>;
+    const text = cleanLine(row.text, 120);
+    if (!text) continue;
+    if (!["time_bridge", "location_bridge", "action_bridge", "context"].includes(String(row.purpose))) {
+      return { ok: false, reason: "comic editorial narration purpose invalid" };
+    }
+    if (text.length > COMIC_NARRATION_SOFT_MAX_CHARS) {
+      return { ok: false, reason: "comic editorial narration too long" };
+    }
+    const provenanceIds = Array.isArray(row.sourceEventIds)
+      ? row.sourceEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
+      : [];
+    if (!provenanceIds.length) {
+      return { ok: false, reason: "comic editorial narration missing provenance" };
+    }
+    for (const id of provenanceIds) {
+      if (!eventsById.has(id)) {
+        return { ok: false, reason: "comic editorial narration provenance unknown" };
+      }
+    }
+    // Structural narration validation only — provenance, purpose, length, budget.
+    for (const id of provenanceIds) {
+      if (!eventsById.has(id)) {
+        return { ok: false, reason: "comic editorial narration provenance unknown" };
+      }
+    }
+    narration.push({ sourceEventIds: provenanceIds, purpose: row.purpose as ComicEditorialNarration["purpose"], text });
+  }
+  audit.narrationCount = narration.length;
+
+  const editorial: ComicEditorial = {
+    anchorEventId,
+    anchorType: item.anchorType === "action" ? "action" : "dialogue",
+    focusEventIds: focusRaw,
+    recommendedPanelCount: recommended as 3 | 4,
+    narration,
+    panels,
+  };
+  return { ok: true, editorial, audit };
+}
 
 export type ScenePlanValidation =
   | { ok: true; plan: ScenePlan }
@@ -1645,6 +1984,27 @@ export function validateScenePlan(
     ? validateCastMentions(castMentionsParsed, canonicalEvents, reservedNames)
     : undefined;
 
+  let comicEditorial: ComicEditorial | undefined;
+  if (source.comicEditorial != null) {
+    const editorialResult = validateComicEditorial(source.comicEditorial, canonicalEvents);
+    if (!editorialResult.ok) {
+      return editorialResult;
+    }
+    comicEditorial = editorialResult.editorial;
+  }
+
+  let comicHighlightSelection: ComicHighlightSelection | undefined;
+  if (source.comicHighlightSelection != null) {
+    const highlightResult = validateComicHighlightSelection(
+      source.comicHighlightSelection,
+      canonicalEvents
+    );
+    if (!highlightResult.ok) {
+      return highlightResult;
+    }
+    comicHighlightSelection = highlightResult.selection;
+  }
+
   return {
     ok: true,
     plan: {
@@ -1664,6 +2024,8 @@ export function validateScenePlan(
       recommendedPanelCount: recommended,
       panels,
       castMentions,
+      comicEditorial,
+      comicHighlightSelection,
     },
   };
 }
@@ -1722,6 +2084,10 @@ export function buildScenePlanPrompt(opts: {
           ],
         },
       ],
+      comicHighlightSelection: {
+        anchorEventId: "E12",
+        focusEventIds: ["E10", "E11", "E12", "E13", "E14"],
+      },
     }),
     "Rules:",
     "1. CANONICAL EVENTS are fixed. Do not return an events array. Never invent, omit, reorder, or reclassify events.",
@@ -1751,6 +2117,15 @@ export function buildScenePlanPrompt(opts: {
           `heroEventIds MUST contain 1–${TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS} visual events forming ONE drawable moment in the same immediate action/reaction cluster.`,
           "Do NOT select the whole turn, every panel beat, post-action rest, corridor survey, or GM next-choice prompt unless that choice moment is explicitly the focus.",
           "Panel coverage rules still apply to panels only. Choosing a hero subset is NOT omitting canonical events from the server timeline.",
+        ]
+      : []),
+    ...(scenePlanIntent === "comic"
+      ? [
+          "COMIC HIGHLIGHT SELECTION MODE — you choose WHAT to illustrate; GPT Image decides HOW to draw it.",
+          "The comic is ONE memorable local micro-scene, not a whole-turn summary.",
+          "comicHighlightSelection.anchorEventId: choose ONE primary anchor event — preferably the most story-bearing dialogue (a line that causes a meaningful response, a relationship/emotional turning point, a reveal, a decision/proposal/question/answer that changes what happens next, a conflict turning point, a comedic punchline, or a memorable emotional line). If no useful dialogue exists, choose the most story-bearing action/reaction. Do NOT pick by first/last/longest/shortest or by keyword match alone.",
+          "comicHighlightSelection.focusEventIds: ONLY the chronologically local context needed to understand the anchor (1–2 meaningful events before + anchor + 1–2 after). Max 8. MUST include the anchor. MUST be ONE contiguous local region — never collect scattered distant highlights. Include enough adjacent context (physical setup, the other character's reaction, immediate consequence) that a reader can understand the moment.",
+          "Do NOT plan panels, camera, framing, speech-bubble counts, narration text, narration placement, or SFX — GPT Image owns all of that. Whole-turn coverage is not required for the highlight selection.",
         ]
       : []),
     "SOURCE MESSAGES:",

@@ -25,6 +25,7 @@ import {
   renderComicNarrationProviderContract,
   resolveComicNarrationSlots,
 } from "@/lib/chatComicNarrationMinifier";
+import type { ComicStoryboard } from "@/lib/chatComicHighlightStoryboard";
 
 export type ComicPanelFormatId = "2panel" | "3koma" | "4panel";
 export type ChatComicCompositionMode =
@@ -613,7 +614,10 @@ export function buildChatComicPanelSpecVisualSection(opts: {
  * passes beat, speaker ownership, and exact approved text only; GPT owns pose,
  * camera, balloon geometry, tail geometry, and negative-space arrangement.
  */
-export function renderChatComicPanelSpecFullProviderSection(spec: ChatComicPanelSpec): string {
+export function renderChatComicPanelSpecFullProviderSection(
+  spec: ChatComicPanelSpec,
+  storyboard?: ComicStoryboard
+): string {
   const castLines = spec.cast
     .map((entry) => `${entry.label} = ${entry.role} (${entry.name})`)
     .join("\n");
@@ -623,8 +627,11 @@ export function renderChatComicPanelSpecFullProviderSection(spec: ChatComicPanel
     personaVisible,
     spec.cast.length
   );
-  // COMIC NARRATION MINIFICATION: at most COMIC_PAGE_MAX_NARRATIONS short slots
-  // per page, silent panels only, one sentence, hard max 40 chars.
+  const trimmedContinuity = spec.continuityRules.filter(
+    (rule) => !/(?:rhythm:|escalation|payoff)/i.test(rule)
+  );
+  // COMIC NARRATION MINIFICATION fallback (non-storyboard paths): at most
+  // COMIC_PAGE_MAX_NARRATIONS short slots per page, silent panels only.
   const narrationByPanel = new Map(
     resolveComicNarrationSlots({
       panels: spec.panels.map((panel) => ({
@@ -635,46 +642,14 @@ export function renderChatComicPanelSpecFullProviderSection(spec: ChatComicPanel
       })),
     }).map((slot) => [slot.panelIndex, slot.text])
   );
-  const panelBlocks = spec.panels
-    .map((panel) => {
-      const actions = [
-        ...panel.subjectActions.map(
-          (action) => `${action.label} action (${action.name}): ${action.text}`
-        ),
-        panel.sceneAction ? `Scene action: ${panel.sceneAction}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
-      const dialogue = panel.speechBubbles.length
-        ? panel.speechBubbles
-            .map((bubble) => `Speech bubble (${bubble.speakerLabel} / ${bubble.speaker}): "${bubble.text}"`)
-            .join("\n")
-        : "Speech bubble: (silent panel — no bubble)";
-      const narration = narrationByPanel.has(panel.index)
-        ? `Narration box (very short, read clearly): "${narrationByPanel.get(panel.index)}"`
-        : "Narration box: (none — dialogue/action carries this beat)";
-      const sfx = panel.sfx.length
-        ? `SFX text (readable Korean, when appropriate): ${panel.sfx.join(", ")}`
-        : "SFX: (none)";
-      return [
-        `[Panel ${panel.index} — ${panel.beatRole}]`,
-        panel.situation ? `Beat: ${panel.situation}` : "",
-        `Background: ${panel.background}`,
-        actions,
-        dialogue,
-        narration,
-        sfx,
-        "Render this panel as readable Korean comic text integrated into the artwork.",
-        `Must avoid: ${panel.mustAvoid.join("; ")}`,
-      ]
-        .filter(Boolean)
-        .join("\n");
-    })
-    .join("\n\n");
 
-  return [
-    "COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE",
-    `Format: ${spec.format} (${spec.panelCount} panels)`,
+  const header: string[] = [
+    storyboard
+      ? "COMIC SCRIPT — ANCHOR-CENTERED HIGHLIGHT"
+      : "COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE",
+    storyboard
+      ? `COMIC FORMAT: ${storyboard.panelCount} panels`
+      : `Format: ${spec.format} (${spec.panelCount} panels)`,
     `Layout: ${spec.layout}`,
     `Staging: ${staging}`,
     `Hero focus: ${spec.heroScene}`,
@@ -683,6 +658,89 @@ export function renderChatComicPanelSpecFullProviderSection(spec: ChatComicPanel
     spec.atmosphere ? `Atmosphere: ${spec.atmosphere}` : "",
     "Cast:",
     castLines,
+  ];
+  if (storyboard) {
+    const anchorPanel = storyboard.panels.find((panel) => panel.purpose === "anchor");
+    header.push(
+      anchorPanel
+        ? `ANCHOR: Panel ${anchorPanel.index} contains the ${storyboard.anchor.type} anchor of this micro-scene.`
+        : "",
+      "CONTINUITY:",
+      "- Use varied, coherent manhwa framing that best communicates each beat.",
+      "- Do not repeat near-identical compositions unless repetition is narratively meaningful.",
+      "- Character identities and scene states persist across panels unless a panel explicitly changes them.",
+      ...trimmedContinuity.map((rule) => `- ${rule}`)
+    );
+  } else {
+    header.push(
+      ...spec.continuityRules.map((rule) => `- ${rule}`)
+    );
+  }
+
+  // Panel blocks: storyboard-driven (purpose + narration + dialogue) when present.
+  const panelBlocks = storyboard
+    ? storyboard.panels
+        .map((panel) => {
+          const dialogue = panel.dialogue.length
+            ? panel.dialogue
+                .map(
+                  (line) =>
+                    `Speech: ${line.speakerName?.trim() || line.speaker}: "${line.text}"`
+                )
+                .join("\n")
+            : "Dialogue: none";
+          const narration = panel.narration
+            ? `Narration: "${panel.narration}"`
+            : "Narration: none";
+          return [
+            `PANEL ${panel.index} — ${panel.purpose.toUpperCase()}`,
+            panel.situation ? `Beat: ${panel.situation}` : "",
+            dialogue,
+            narration,
+          ]
+            .filter(Boolean)
+            .join("\n");
+        })
+        .join("\n\n")
+    : spec.panels
+        .map((panel) => {
+          const actions = [
+            ...panel.subjectActions.map(
+              (action) => `${action.label} action (${action.name}): ${action.text}`
+            ),
+            panel.sceneAction ? `Scene action: ${panel.sceneAction}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n");
+          const dialogue = panel.speechBubbles.length
+            ? panel.speechBubbles
+                .map((bubble) => `Speech bubble (${bubble.speakerLabel} / ${bubble.speaker}): "${bubble.text}"`)
+                .join("\n")
+            : "Speech bubble: (silent panel — no bubble)";
+          const narration = narrationByPanel.has(panel.index)
+            ? `Narration box (very short, read clearly): "${narrationByPanel.get(panel.index)}"`
+            : "Narration box: (none — dialogue/action carries this beat)";
+          const sfx = panel.sfx.length
+            ? `SFX text (readable Korean, when appropriate): ${panel.sfx.join(", ")}`
+            : "SFX: (none)";
+          return [
+            `[Panel ${panel.index} — ${panel.beatRole}]`,
+            panel.situation ? `Beat: ${panel.situation}` : "",
+            `Background: ${panel.background}`,
+            actions,
+            dialogue,
+            narration,
+            sfx,
+            "Render this panel as readable Korean comic text integrated into the artwork.",
+            `Must avoid: ${panel.mustAvoid.join("; ")}`,
+          ]
+            .filter(Boolean)
+            .join("\n");
+        })
+        .join("\n\n");
+
+  return [
+    ...header,
     panelBlocks,
     "Continuity rules:",
     ...spec.continuityRules.map((rule) => `- ${rule}`),
@@ -730,6 +788,7 @@ export function buildChatComicPanelSpecFullProviderSection(opts: {
   /** Site adult text eligibility (resolveEffectiveAdultRp) for provider-readable dialogue. */
   adultGrounded?: boolean;
   realPersonRestricted?: boolean;
+  storyboard?: ComicStoryboard;
 }): string {
   const spec = compileChatComicPanelSpec({
     ...opts,
@@ -743,7 +802,7 @@ export function buildChatComicPanelSpecFullProviderSection(opts: {
         }),
     },
   });
-  return renderChatComicPanelSpecFullProviderSection(spec);
+  return renderChatComicPanelSpecFullProviderSection(spec, opts.storyboard);
 }
 
 export function buildChatComicPanelSpecPromptSection(opts: {
