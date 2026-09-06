@@ -123,10 +123,10 @@ describe("DeepSeek V4 Flash 0731 canonicalization", () => {
     );
   });
 
-  it("3. stored DB selectedAI deepseek-v4-flash stays valid and outbounds 0731", async () => {
-    assert.equal(isValidSelectedAI("deepseek-v4-flash"), true);
+  it("3. stored DB selectedAI deepseek-v4-flash is retired → remaps to default Main RP model", async () => {
+    assert.equal(isValidSelectedAI("deepseek-v4-flash"), false);
     assert.equal(isCheaperInferenceDeepSeekV4FlashModel("deepseek-v4-flash"), true);
-    assert.equal(resolveSelectedAI("deepseek-v4-flash"), "deepseek-v4-flash-0731");
+    assert.equal(resolveSelectedAI("deepseek-v4-flash"), CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
     assert.equal(selectedAILabel("deepseek-v4-flash"), "DeepSeek V4 Flash");
 
     const db = new Database(":memory:");
@@ -141,31 +141,24 @@ describe("DeepSeek V4 Flash 0731 canonicalization", () => {
       "deepseek-v4-flash"
     );
     const ensured = ensureUserSelectedAI(db, 1);
-    assert.equal(ensured.selectedAI, "deepseek-v4-flash-0731");
-    assert.equal(ensured.remappedFromRetired, false);
+    assert.equal(ensured.selectedAI, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(ensured.remappedFromRetired, true);
     db.close();
-
-    assert.equal(
-      await captureOutboundModel({ model: "deepseek-v4-flash" }),
-      "deepseek-v4-flash-0731"
-    );
   });
 
-  it("4. new UI DeepSeek V4 Flash selection is canonical 0731", () => {
+  it("4. DeepSeek V4 Flash is no longer a Main RP UI option", () => {
     const option = SELECTED_AI_OPTIONS.find(
-      (entry) => entry.label === "DeepSeek V4 Flash"
+      (entry) => entry.id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
     );
-    assert.ok(option);
-    assert.equal(option.id, "deepseek-v4-flash-0731");
-    assert.equal(option.label, "DeepSeek V4 Flash");
+    assert.equal(option, undefined);
     assert.equal(
-      USER_SELECTABLE_AI_OPTIONS.some((entry) => entry.id === option.id),
+      USER_SELECTABLE_AI_OPTIONS.some((entry) => entry.id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
       false
     );
-    assert.equal(isValidSelectedAI("deepseek-v4-flash-0731"), true);
+    assert.equal(isValidSelectedAI("deepseek-v4-flash-0731"), false);
     assert.equal(
       resolveSelectedAI("deepseek-v4-flash-0731"),
-      "deepseek-v4-flash-0731"
+      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
     );
   });
 

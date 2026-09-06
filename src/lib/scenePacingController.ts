@@ -24,12 +24,7 @@ import {
   type SceneProgressionType,
 } from "@/lib/sceneDirective";
 import { SCENE_FLOW_BLOCK } from "@/lib/generationProcessBeatFlow";
-import { LUNA_TERMINAL_OUTPUT_CONTRACT } from "@/lib/lunaSinglePrimaryAdapter";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
-import {
-  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
-  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT_CONTINUOUS_SCENE,
-} from "@/lib/terraTerminalLengthOwner";
 
 export type ScenePacingArm = "A" | "P" | "Q" | "R" | "T" | "U" | "V";
 
@@ -942,9 +937,6 @@ export function countTerminalDialogueBudgetOwners(text: string): {
 
 const TERMINAL_LENGTH_OWNER_TEXTS = [
   USER_TAIL_LENGTH_OWNER_SENTENCE,
-  LUNA_TERMINAL_OUTPUT_CONTRACT,
-  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
-  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT_CONTINUOUS_SCENE,
 ] as const;
 
 /**

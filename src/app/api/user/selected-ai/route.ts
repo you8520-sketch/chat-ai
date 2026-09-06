@@ -47,7 +47,7 @@ export async function GET(req: Request) {
     });
   }
 
-  const selectedAI = getUserChatSelectedAI(db, user.id, { isAdmin });
+  const selectedAI = getUserChatSelectedAI(db, user.id);
   return Response.json({
     selectedAI,
     label: selectedAILabel(selectedAI),

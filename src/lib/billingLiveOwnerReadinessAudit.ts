@@ -40,8 +40,6 @@ import {
   isGlmModel,
   isKimiModel,
   isMuseModel,
-  isOpus5UserEnabled,
-  isOpusUserSelectable,
   isQwenModel,
   resolveSelectedAI,
   isValidSelectedAI,
@@ -193,7 +191,7 @@ export const OPENROUTER_G31_BILLING_OWNER =
   "points.ts isGemini31ProModel pricing helpers (receipt/legacy only)";
 export const OPENROUTER_G31_FIXTURE: string | null = null;
 
-export const OPUS45_PICKER_REACHABLE = isOpusUserSelectable();
+export const OPUS45_PICKER_REACHABLE = false;
 export const OPUS45_STORED_SELECTION_REACHABLE = true;
 export const OPUS45_ADMIN_SPECIAL_CASE = false;
 /** Opus 4.5 billing remains live but is outside Published Billing Phase 1 cutover scope. */
@@ -236,6 +234,7 @@ const LEGACY_INVENTORY_SLUGS = [
   "google/gemini-2.5-pro",
   "google/gemini-3.1-pro-preview",
   "anthropic/claude-3-opus",
+  "anthropic/claude-opus-4.5",
   "deepseek/deepseek-v4-pro",
   "upstage/solar-pro-3",
 ] as const;
@@ -270,12 +269,6 @@ function resolveExactDeliveredSelectedAI(deliveredModelId: string): SelectedAI {
 function classifySelectedOption(id: SelectedAI): BilledModelReachabilityClass {
   if (id === DEFAULT_SELECTED_AI) return "USER_DEFAULT";
   if (USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === id)) return "USER_SELECTABLE";
-  if (id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL && !isOpus5UserEnabled()) {
-    return "CONDITIONAL_REACHABLE";
-  }
-  if (id === CLAUDE_OPUS_MODEL) {
-    return isOpusUserSelectable() ? "USER_SELECTABLE" : "HIDDEN_BUT_CANONICAL_VALID";
-  }
   if (HIDDEN_CANONICAL_SELECTED.has(id)) return "HIDDEN_BUT_CANONICAL_VALID";
   return "USER_SELECTABLE";
 }
@@ -542,8 +535,9 @@ export type BillingParityFixture = {
   id: BillingParityFixtureId;
   label: string;
   deliveredModelId: string;
-  requestedSelectedAI?: SelectedAI;
-  deliveredSelectedAI?: SelectedAI;
+  requestedSelectedAI?: string;
+  /** Historical delivered selected AI — may be a retired id (read-only audit). */
+  deliveredSelectedAI?: string;
   provider: "cheaperinference" | "openrouter";
   stages: StageUsage[];
   promptAuditTotal?: number | null;

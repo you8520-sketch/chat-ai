@@ -37,38 +37,21 @@ import {
   DIALOGUE_NARRATION_STRUCTURE_RULE,
   OUTPUT_LAYOUT_SEMANTIC_CORE,
 } from "@/lib/webnovelOutputFormat";
-import {
-  LUNA_TERMINAL_OUTPUT_CONTRACT,
-  resolveLunaTerminalOutputContract,
-} from "@/lib/lunaSinglePrimaryAdapter";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
 import { COLLABORATIVE_INTERACTIVE_OWNER_BLOCK } from "@/lib/noGodmodding";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
-  CLAUDE_OPUS_MODEL,
-  OPENROUTER_GEMINI_36_FLASH_MODEL,
+  MAIN_RP_MODEL_IDS,
 } from "@/lib/chatModels";
 
 const DIALOGUE_ECONOMY_MARKER = "하나의 충분한 발화로 묶는다";
 const DIALOGUE_ECONOMY_MARKER_RE = /하나의 충분한 발화로 묶는다/;
 
-const PRODUCTION_SELECTABLE_MODELS = [
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  OPENROUTER_GEMINI_36_FLASH_MODEL,
-  CLAUDE_OPUS_MODEL,
-  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
-  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-];
+/** Canonical 4 Main RP models — from the single source of truth. */
+const PRODUCTION_SELECTABLE_MODELS: readonly string[] = MAIN_RP_MODEL_IDS;
 
 function forceProdEnv() {
   for (const k of [
@@ -193,29 +176,21 @@ describe("P1 — canonical common dialogue-economy owner", () => {
   });
 });
 
-describe("P1 — Luna consolidation (no duplicate)", () => {
-  it("§12 — Luna terminal contract is length-only; common prose holds the economy", () => {
-    assert.match(LUNA_TERMINAL_OUTPUT_CONTRACT, /한국어 RP 본문만 3,200자 이상을 기본 목표로/);
-    assert.doesNotMatch(LUNA_TERMINAL_OUTPUT_CONTRACT, DIALOGUE_ECONOMY_MARKER_RE);
-    assert.doesNotMatch(LUNA_TERMINAL_OUTPUT_CONTRACT, /대사의 양은 장면에 따라/);
-    assert.equal(
-      resolveLunaTerminalOutputContract(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL, "character", false),
-      LUNA_TERMINAL_OUTPUT_CONTRACT
-    );
-  });
-
-  it("§16 — Luna assembled prompt has common owner once in system and zero in user tail", () => {
+describe("P1 — canonical 4 length owner (no retired terminal contract)", () => {
+  it("§12/§16 — every canonical model ends its user tail with the generic length owner", () => {
     forceProdEnv();
-    const built = buildContext({
-      ...MINIMAL_INPUT,
-      modelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-    });
-    const system = built.systemPrompt ?? "";
-    assert.equal(countOccurrences(system, DIALOGUE_ECONOMY_MARKER), 1);
-    const lastUser = built.history[built.history.length - 1];
-    assert.equal(lastUser?.role, "user");
-    assert.equal(countOccurrences(String(lastUser?.content ?? ""), DIALOGUE_ECONOMY_MARKER), 0);
-    assert.equal(countOccurrences(String(lastUser?.content ?? ""), "3,200자 이상"), 1);
+    for (const modelId of PRODUCTION_SELECTABLE_MODELS) {
+      const built = buildContext({ ...MINIMAL_INPUT, modelId });
+      const system = built.systemPrompt ?? "";
+      // Common prose (system) carries the dialogue-economy owner exactly once.
+      assert.equal(countOccurrences(system, DIALOGUE_ECONOMY_MARKER), 1, modelId);
+      const lastUser = String(built.history[built.history.length - 1]?.content ?? "");
+      // User tail carries the generic length owner once, absolute end, no dialogue economy.
+      assert.equal(countOccurrences(lastUser, DIALOGUE_ECONOMY_MARKER), 0, modelId);
+      assert.equal(countOccurrences(lastUser, "3,200자 이상"), 1, modelId);
+      assert.ok(lastUser.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE), modelId);
+      assert.ok(lastUser.indexOf("3,200자 이상") > lastUser.indexOf("레이아웃:"), modelId);
+    }
   });
 });
 
@@ -227,43 +202,32 @@ describe("P1 — protected invariants", () => {
     assert.doesNotMatch(OUTPUT_LAYOUT_SEMANTIC_CORE, DIALOGUE_ECONOMY_MARKER_RE);
   });
 
-  it("§21 — length owner count=1, position=absolute_end, Luna 3,200 preserved", () => {
+  it("§21 — length owner count=1, position=absolute_end for all canonical models", () => {
     // Generic terminal owner unchanged.
     assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /3,200자 이상/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, DIALOGUE_ECONOMY_MARKER_RE);
-    // Luna length clause preserved in the terminal contract (absolute end).
-    assert.match(LUNA_TERMINAL_OUTPUT_CONTRACT, /3,200자 이상/);
     forceProdEnv();
-    const built = buildContext({
-      ...MINIMAL_INPUT,
-      modelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-    });
-    const lastUser = String(built.history[built.history.length - 1]?.content ?? "");
-    assert.ok(lastUser.trimEnd().endsWith(LUNA_TERMINAL_OUTPUT_CONTRACT));
-    assert.ok(lastUser.indexOf("3,200자 이상") > lastUser.indexOf("레이아웃:"));
+    for (const modelId of PRODUCTION_SELECTABLE_MODELS) {
+      const built = buildContext({ ...MINIMAL_INPUT, modelId });
+      const lastUser = String(built.history[built.history.length - 1]?.content ?? "");
+      assert.ok(lastUser.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE), modelId);
+      assert.ok(lastUser.indexOf("3,200자 이상") > lastUser.indexOf("레이아웃:"), modelId);
+    }
   });
 
   it("§22 — P0 role-binding owner count=1 in the final interactive prompt", () => {
     assert.equal(countOccurrences(COLLABORATIVE_INTERACTIVE_OWNER_BLOCK, "주체·대상·방향"), 1);
     forceProdEnv();
-    for (const modelId of [
-      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-      OPENROUTER_GEMINI_36_FLASH_MODEL,
-      CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-    ]) {
+    for (const modelId of PRODUCTION_SELECTABLE_MODELS) {
       const built = buildContext({ ...MINIMAL_INPUT, modelId });
       const system = built.systemPrompt ?? "";
       assert.equal(countOccurrences(system, "주체·대상·방향"), 1, modelId);
     }
   });
 
-  it("§20 — token budget: common prose growth is bounded; Luna net delta small", () => {
-    const lunaLengthOnly = "이번 응답은 한국어 RP 본문만 3,200자 이상을 기본 목표로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다.";
+  it("§20 — token budget: common prose growth is bounded", () => {
     const commonTokens = estimateTokens(IMMERSIVE_PROSE_BLOCK);
     // The common block must stay well under a 3,000-token ceiling (29K P3 headroom).
     assert.ok(commonTokens < 3000, `common prose tokens ${commonTokens}`);
-    // Luna terminal is now strictly the length-only clause.
-    assert.equal(LUNA_TERMINAL_OUTPUT_CONTRACT, lunaLengthOnly);
-    assert.ok(estimateTokens(LUNA_TERMINAL_OUTPUT_CONTRACT) < 100);
   });
 });

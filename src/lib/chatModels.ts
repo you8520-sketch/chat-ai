@@ -198,26 +198,6 @@ export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
 
 export const GEMINI_31_PRO_DISPLAY_NAME = "Gemini 3.1 Pro";
 
-/** 채팅 UI에 Claude Opus 노출 — `OPENROUTER_OPUS_USER_SELECTABLE=1`로 재활성화 */
-export function isOpusUserSelectable(): boolean {
-  return process.env.OPENROUTER_OPUS_USER_SELECTABLE?.trim() === "1";
-}
-
-/**
- * User-chat Claude Opus 5 — TEMPORARY DISABLE.
- * Prompt cache is not applying on Cheaper Inference; all input is billed full-price.
- * Re-enable with `OPUS5_USER_ENABLED=1`. Does not delete routing/pricing/cache.
- * Admins (`is_admin` / ADMIN_EMAILS) may use Opus 5 in chat regardless.
- */
-export function isOpus5UserEnabled(): boolean {
-  return process.env.OPUS5_USER_ENABLED?.trim() === "1";
-}
-
-/** Chat-room Opus 5 — global flag or admin account. */
-export function isOpus5ChatEnabledForUser(isAdmin: boolean): boolean {
-  return isOpus5UserEnabled() || isAdmin;
-}
-
 export type SelectedAIOptionMeta = {
   id: string;
   label: string;
@@ -229,71 +209,84 @@ export type SelectedAIOptionMeta = {
   recommended?: boolean;
 };
 
-export const SELECTED_AI_OPTIONS = [
-  {
-    id: OPENROUTER_GEMINI_36_FLASH_MODEL,
-    label: GEMINI_36_FLASH_DISPLAY_NAME,
-    provider: "openrouter" as const,
-    tier: "pro" as const,
-    hint: "Google",
-  },
+/**
+ * CANONICAL Main RP picker — ONE source of truth (product decision: exactly 4).
+ *
+ * DeepSeek V4 Pro / Claude Opus 5 / Gemini 3.1 Pro Preview / Gemini 3.7 Flash.
+ * All other models (Luna, Terra, DeepSeek Flash, Gemini 3.6 Flash, old Opus,
+ * Muse, Qwen, GLM, Kimi, …) are NOT Main RP. Their constants remain only for
+ * auxiliary/background use or historical receipt/billing read compatibility.
+ */
+export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
   {
     id: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
     label: DEEPSEEK_DISPLAY_NAME,
-    provider: "cheaperinference" as const,
-    tier: "pro" as const,
+    provider: "cheaperinference",
+    tier: "pro",
     hint: "Reasoning",
-  },
-  {
-    id: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-    label: DEEPSEEK_V4_FLASH_DISPLAY_NAME,
-    provider: "cheaperinference" as const,
-    tier: "pro" as const,
-    hint: "Fast",
-  },
-  {
-    id: CLAUDE_OPUS_MODEL,
-    label: "Claude Opus 4P",
-    provider: "openrouter" as const,
-    tier: "pro" as const,
-    hint: "Premium",
+    recommended: true,
   },
   {
     id: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
     label: CLAUDE_OPUS_5_DISPLAY_NAME,
-    provider: "cheaperinference" as const,
-    tier: "pro" as const,
+    provider: "cheaperinference",
+    tier: "pro",
     hint: "Anthropic",
-  },
-  {
-    id: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-    label: GPT_56_LUNA_DISPLAY_NAME,
-    provider: "cheaperinference" as const,
-    tier: "pro" as const,
-    hint: "OpenAI",
-  },
-  {
-    id: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
-    label: GPT_56_TERRA_DISPLAY_NAME,
-    provider: "cheaperinference" as const,
-    tier: "pro" as const,
-    hint: "OpenAI",
   },
   {
     id: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
     label: GEMINI_31_PRO_PREVIEW_DISPLAY_NAME,
-    provider: "cheaperinference" as const,
-    tier: "pro" as const,
+    provider: "cheaperinference",
+    tier: "pro",
     hint: "Google",
   },
   {
     id: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
     label: GEMINI_37_FLASH_DISPLAY_NAME,
-    provider: "cheaperinference" as const,
-    tier: "pro" as const,
+    provider: "cheaperinference",
+    tier: "pro",
     hint: "Google",
   },
 ] as const satisfies readonly SelectedAIOptionMeta[];
+
+/** SelectedAI is exactly the canonical 4 literal union — never widened to string. */
+export type SelectedAI = (typeof MAIN_RP_USER_SELECTABLE_OPTIONS)[number]["id"];
+export type SelectedAITier = (typeof MAIN_RP_USER_SELECTABLE_OPTIONS)[number]["tier"];
+
+/** Derived from the canonical picker — no manual duplicate list. */
+export const MAIN_RP_MODEL_IDS: readonly SelectedAI[] =
+  MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.id);
+
+/** True only for the canonical 4 Main RP models. */
+export function isMainRpModel(modelId: string): boolean {
+  return MAIN_RP_MODEL_IDS.includes(modelId.trim().toLowerCase() as SelectedAI);
+}
+
+/** @deprecated use MAIN_RP_USER_SELECTABLE_OPTIONS — registry kept for tests/historical imports */
+export const SELECTED_AI_OPTIONS = MAIN_RP_USER_SELECTABLE_OPTIONS;
+
+/** 신규·미선택 사용자 기본값 — CheaperInference DeepSeek V4 Pro */
+export const DEFAULT_SELECTED_AI: SelectedAI =
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+
+/** Main RP picker — canonical 4만 (retired 모델 절대 재노출 금지). */
+export const USER_SELECTABLE_AI_OPTIONS = MAIN_RP_USER_SELECTABLE_OPTIONS;
+
+/** Main RP picker — canonical 4만. Admin도 동일 (퇴역 모델 재노출 금지). */
+export function userSelectableAIOptionsForUser(
+  _isAdmin: boolean
+): readonly SelectedAIOptionMeta[] {
+  return MAIN_RP_USER_SELECTABLE_OPTIONS;
+}
+
+export function isUserSelectableAI(modelId: string, _isAdmin: boolean): boolean {
+  return MAIN_RP_MODEL_IDS.includes(modelId.trim().toLowerCase() as SelectedAI);
+}
+
+export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
+  // Canonical 4만 Main RP — 퇴역 모델은 resolveSelectedAI에서 기본 모델로 이전.
+  return id;
+}
 
 /** Anthropic(Claude) 계열 모델 여부 — OpenRouter 경로 + prompt caching + prefill 적용 기준 */
 export function isAnthropicModel(modelId: string): boolean {
@@ -381,95 +374,10 @@ export function isCheaperInferenceModel(modelId: string): boolean {
   );
 }
 
-export type SelectedAI = (typeof SELECTED_AI_OPTIONS)[number]["id"];
-export type SelectedAITier = (typeof SELECTED_AI_OPTIONS)[number]["tier"];
-
-/** 신규·미선택 사용자 기본값 — CheaperInference DeepSeek V4 Pro */
-export const DEFAULT_SELECTED_AI: SelectedAI =
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
-
-/**
- * Request-time user-chat remap. Does not persist — stored Opus 5 can be restored
- * when the flag is turned back on or for admin accounts.
- */
-export function resolveUserChatSelectedAI(
-  selectedAI: SelectedAI,
-  opts?: { isAdmin?: boolean }
-): SelectedAI {
-  if (
-    !isOpus5ChatEnabledForUser(opts?.isAdmin === true) &&
-    selectedAI === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
-  ) {
-    return DEFAULT_SELECTED_AI;
-  }
-  return selectedAI;
-}
-
-/** 채팅 모델 선택 UI에만 노출 (Opus 5·Opus 4.5·Gemini 3.6 Flash·Luna·Terra·DeepSeek V4 Flash는 기본 숨김) */
-export const USER_SELECTABLE_AI_OPTIONS = SELECTED_AI_OPTIONS.filter(
-  (o) =>
-    o.id !== OPENROUTER_GEMINI_36_FLASH_MODEL &&
-    o.id !== CHEAPER_INFERENCE_GPT_56_LUNA_MODEL &&
-    o.id !== CHEAPER_INFERENCE_GPT_56_TERRA_MODEL &&
-    o.id !== CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL &&
-    (isOpus5UserEnabled() || o.id !== CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL) &&
-    (o.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
-      isOpusUserSelectable() ||
-      !isClaudeSelectedAI(o.id))
-);
-
-/** Admin accounts see Opus 5 in chat picker when global user enable is off. */
-export function userSelectableAIOptionsForUser(isAdmin: boolean): readonly SelectedAIOptionMeta[] {
-  if (!isAdmin || isOpus5UserEnabled()) return USER_SELECTABLE_AI_OPTIONS;
-  const opus = SELECTED_AI_OPTIONS.find((o) => o.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL);
-  if (!opus || USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === opus.id)) {
-    return USER_SELECTABLE_AI_OPTIONS;
-  }
-  const deepSeekIdx = USER_SELECTABLE_AI_OPTIONS.findIndex(
-    (o) => o.id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
-  );
-  if (deepSeekIdx < 0) return [...USER_SELECTABLE_AI_OPTIONS, opus];
-  return [
-    ...USER_SELECTABLE_AI_OPTIONS.slice(0, deepSeekIdx + 1),
-    opus,
-    ...USER_SELECTABLE_AI_OPTIONS.slice(deepSeekIdx + 1),
-  ];
-}
-
-export function isUserSelectableAI(modelId: string, isAdmin: boolean): boolean {
-  return userSelectableAIOptionsForUser(isAdmin).some((o) => o.id === modelId);
-}
-
-export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
-  if (
-    id !== CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL &&
-    !isOpusUserSelectable() &&
-    isClaudeSelectedAI(id)
-  ) {
-    return DEFAULT_SELECTED_AI;
-  }
-  // Gemini 3.6 Flash temporarily hidden — keep Cheaper Inference Gemini 3.1 Pro Preview.
-  if (id === OPENROUTER_GEMINI_36_FLASH_MODEL) {
-    return DEFAULT_SELECTED_AI;
-  }
-  // Luna temporarily hidden from picker.
-  if (id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL) {
-    return DEFAULT_SELECTED_AI;
-  }
-  // Terra hidden from picker — stored selections remap to the default chat model.
-  if (id === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL) {
-    return DEFAULT_SELECTED_AI;
-  }
-  // DeepSeek V4 Flash stays hidden from the picker. Stored/canonical Flash
-  // selections remain valid and must not collapse to the default Pro model.
-  return id;
-}
-
 export function selectedAIProvider(
   selected: SelectedAI
 ): SelectedAIOptionMeta["provider"] {
-  if (isCheaperInferenceDeepSeekV4FlashModel(selected)) return "cheaperinference";
-  return selectedAIOptionMeta(selected)?.provider ?? "openrouter";
+  return selectedAIOptionMeta(selected)?.provider ?? "cheaperinference";
 }
 
 /** selectedAI가 OpenRouter 라우팅 대상인지 */
@@ -607,10 +515,10 @@ export function isOpenRouterSharedProseModel(modelId: string): boolean {
 const VALID = new Set<string>(SELECTED_AI_OPTIONS.map((o) => o.id));
 
 const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
-  /** Gemini 2.5 제거 — 기존 채팅·선택값은 3.6 Flash로 자동 이전 */
-  "gemini-2.5-pro": OPENROUTER_GEMINI_36_FLASH_MODEL,
-  "gemini-2.5-flash": OPENROUTER_GEMINI_36_FLASH_MODEL,
-  "gemini-2.5": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  /** Gemini 2.5/3.6 제거 — 기존 채팅·선택값은 기본 모델로 이전 */
+  "gemini-2.5-pro": DEFAULT_SELECTED_AI,
+  "gemini-2.5-flash": DEFAULT_SELECTED_AI,
+  "gemini-2.5": DEFAULT_SELECTED_AI,
   "gemini-3.0": DEFAULT_SELECTED_AI,
   "gemini-3-flash-preview": DEFAULT_SELECTED_AI,
   "gemini-3.5-flash": DEFAULT_SELECTED_AI,
@@ -619,22 +527,26 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "gemini-3.1-pro-preview": CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   "gemini-3.7-flash": CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   "google/gemini-3.7-flash": CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  "google/gemini-2.5-pro": OPENROUTER_GEMINI_36_FLASH_MODEL,
-  "google/gemini-2.5-pro-preview": OPENROUTER_GEMINI_36_FLASH_MODEL,
-  "gemini-3.6-flash": OPENROUTER_GEMINI_36_FLASH_MODEL,
-  "google/gemini-3.6-flash": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  "google/gemini-2.5-pro": DEFAULT_SELECTED_AI,
+  "google/gemini-2.5-pro-preview": DEFAULT_SELECTED_AI,
+  "gemini-3.6-flash": DEFAULT_SELECTED_AI,
+  "google/gemini-3.6-flash": DEFAULT_SELECTED_AI,
   "google/gemini-3.1-pro-preview": DEFAULT_SELECTED_AI,
   masterpiece: DEFAULT_SELECTED_AI,
-  [CLAUDE_OPUS_MODEL_LEGACY]: CLAUDE_OPUS_MODEL,
-  "claude-opus": CLAUDE_OPUS_MODEL,
-  "anthropic/claude-opus-latest": CLAUDE_OPUS_MODEL,
+  [CLAUDE_OPUS_MODEL_LEGACY]: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  "claude-opus": CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  "anthropic/claude-opus-latest": CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  "anthropic/claude-opus-4.5": CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   deepseek: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-v4-pro-0813": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek/deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  "deepseek-v4-flash": CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  "deepseek-v4-flash-0731": CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  /** DeepSeek V4 Flash 퇴역 — 저장된 선택값은 기본 모델로 이전 (aux/TRPG 상수는 유지) */
+  "deepseek-v4-flash": DEFAULT_SELECTED_AI,
+  "deepseek-v4-flash-0731": DEFAULT_SELECTED_AI,
+  "gpt-5.6-luna": DEFAULT_SELECTED_AI,
+  "gpt-5.6-terra": DEFAULT_SELECTED_AI,
   /** Qwen 3.7 Max 제거 — 현재 기본 모델로 이전 */
   qwen: DEFAULT_SELECTED_AI,
   "qwen3.7-max": DEFAULT_SELECTED_AI,
@@ -663,24 +575,19 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "solar-pro": DEFAULT_SELECTED_AI,
   "solar-pro-3": DEFAULT_SELECTED_AI,
   "upstage/solar-pro-3": DEFAULT_SELECTED_AI,
-  /** Retired Sonnet → 현재 Google 채팅 모델 */
-  "anthropic/claude-3.5-sonnet": OPENROUTER_GEMINI_36_FLASH_MODEL,
-  "claude-3.5-sonnet": OPENROUTER_GEMINI_36_FLASH_MODEL,
-  "anthropic/claude-sonnet-4": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  /** Retired Sonnet → 기본 Main RP 모델 */
+  "anthropic/claude-3.5-sonnet": DEFAULT_SELECTED_AI,
+  "claude-3.5-sonnet": DEFAULT_SELECTED_AI,
+  "anthropic/claude-sonnet-4": DEFAULT_SELECTED_AI,
 };
 
 export function isValidSelectedAI(v: unknown): v is SelectedAI {
-  return (
-    typeof v === "string" &&
-    (VALID.has(v) || v === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL)
-  );
+  return typeof v === "string" && VALID.has(v);
 }
 
 export function resolveSelectedAI(value: unknown, fallback?: string): SelectedAI {
   let resolved: SelectedAI;
-  if (typeof value === "string" && value === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL) {
-    resolved = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
-  } else if (isValidSelectedAI(value)) resolved = value;
+  if (isValidSelectedAI(value)) resolved = value;
   else if (typeof value === "string" && LEGACY_TO_SELECTED[value]) resolved = LEGACY_TO_SELECTED[value];
   else if (typeof value === "string" && isKimiModel(value)) resolved = DEFAULT_SELECTED_AI;
   else if (fallback && isValidSelectedAI(fallback)) resolved = fallback;
@@ -690,13 +597,19 @@ export function resolveSelectedAI(value: unknown, fallback?: string): SelectedAI
   return coerceUserSelectableAI(resolved);
 }
 
-/** UI·영수증 표시용 */
+/** UI·영수증 표시용 — retired 모델도 historical receipt 라벨 유지 */
 export function selectedAILabel(id: string): string {
   if (isCheaperInferenceDeepSeekV4FlashModel(id)) {
     return DEEPSEEK_V4_FLASH_DISPLAY_NAME;
   }
   const opt = SELECTED_AI_OPTIONS.find((o) => o.id === id);
   if (opt) return opt.label;
+  if (isGpt56LunaModel(id)) {
+    return GPT_56_LUNA_DISPLAY_NAME;
+  }
+  if (isGpt56TerraModel(id)) {
+    return GPT_56_TERRA_DISPLAY_NAME;
+  }
   if (id === OPENROUTER_KIMI_K3_MODEL || isKimiModel(id)) {
     return KIMI_K3_DISPLAY_NAME;
   }

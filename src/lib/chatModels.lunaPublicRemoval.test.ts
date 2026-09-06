@@ -10,32 +10,28 @@ import {
   selectedAILabel,
 } from "@/lib/chatModels";
 
-describe("Luna public picker removal + legacy normalize", () => {
-  it("public picker contains luna = false", () => {
+describe("Luna retirement from Main RP (auxiliary/background only)", () => {
+  it("Luna is not in the picker and not a Main RP registry row", () => {
     assert.equal(
       USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
       false
     );
+    assert.ok(!SELECTED_AI_OPTIONS.some((o) => o.id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL));
+    assert.equal(isValidSelectedAI(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL), false);
   });
 
-  it("registry keeps luna for receipts / decoding", () => {
-    assert.ok(SELECTED_AI_OPTIONS.some((o) => o.id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL));
-    assert.equal(isValidSelectedAI(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL), true);
-    assert.equal(selectedAILabel(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL), "GPT-5.6 Luna");
-  });
-
-  it("legacy saved luna resolves to deepseek-v4-pro", () => {
+  it("stored Luna selections resolve to the default Main RP model", () => {
     assert.equal(
       resolveSelectedAI(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
     );
-  });
-
-  it("new preference cannot keep luna after resolve", () => {
-    // PATCH allow-list uses USER_SELECTABLE; resolve also coerces away.
     assert.equal(
       resolveSelectedAI("gpt-5.6-luna"),
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
     );
+  });
+
+  it("Luna display label is retained for historical receipts", () => {
+    assert.equal(selectedAILabel(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL), "GPT-5.6 Luna");
   });
 });

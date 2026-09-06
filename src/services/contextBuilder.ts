@@ -102,14 +102,9 @@ import {
   unwrapRoleplayMarkdownInText,
 } from "@/lib/webnovelOutputFormat";
 import {
-  canaryAppliesTerraDialogueIntentAdapter,
-  injectDialogueReferenceScopeForCanary,
-  resolveCanaryTerraTerminalContract,
-  TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE,
-} from "@/lib/terraPromptCanary";
-import {
   COMMON_LAYOUT_MINIMAL_OWNER,
   COMMON_LENGTH_OWNER_MINIMAL,
+  injectDialogueReferenceScopeForCanary,
   rpDiagnosticDisablesDeepSeekStyleExtras,
   resolveDeepSeekExtrasMode,
   rpDiagnosticRemovesSceneDirective,
@@ -152,11 +147,9 @@ import {
 } from "@/lib/bilingualDialoguePolicy";
 import {
   appendCompactTerminalLengthToUserTurn,
-  appendTerraTerminalLengthOwnerToUserTurn,
   buildLengthInstruction,
   resolveResponseLengthTarget,
 } from "@/lib/responseLength";
-import { isTerraTerminalLengthOwnerActive } from "@/lib/sharedNovelProseModelAdapters";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
 import { isCheaperInferenceDeepSeekV4FlashModel, isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
@@ -373,9 +366,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const rpVariant = input.rpDiagnosticCanary?.variant;
   const characterSettingText = injectDialogueReferenceScopeForCanary(
     injectExampleDialogStyleOnlyNote(characterSettingTextFiltered),
-    rpVariant && rpDiagnosticUsesDialogueReferenceScope(rpVariant)
-      ? "dialogue_reference_scope"
-      : input.terraPromptCanary?.variant
+    Boolean(rpVariant && rpDiagnosticUsesDialogueReferenceScope(rpVariant))
   );
 
   let effectiveExampleDialog = input.exampleDialog ?? "";
@@ -884,7 +875,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     ) {
       return;
     }
-    if (input.terraPromptCanary?.relocateSceneDirectiveToUserTurn) return;
     if (input.rpDiagnosticCanary?.relocateSceneDirectiveToUserTurn) return;
     if (!sceneDirectiveBlock) return;
     // Standard interactive: no SceneDirective progression owner (Audit 42 ARM D foundation).
@@ -985,8 +975,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  // Luna concentration+length live on user-tail LUNA_TERMINAL_OUTPUT_CONTRACT
-  // (system luna-single-primary-adapter removed).
+  // Main RP terminal length owner lives on the user tail (appendCompactTerminalLengthToUserTurn).
+  // Luna/Terra RP adapters retired — canonical 4 models use the generic USER_TAIL owner.
 
   if (needsUserInputParsingGuide(input)) {
     pushSection(
@@ -1101,16 +1091,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     input.userId,
     input.modelId
   );
-  const terraTerminalLengthOwner = isTerraTerminalLengthOwnerActive({
-    modelId: input.modelId,
-    contentKind: input.contentKind,
-  });
   const lengthInstructionOpts = {
     statusWindowEveryTurn: statusWindowPolicy.everyTurn,
     htmlFlashOwned: isOpenRouter,
     statusWidgetActive: input.statusWidgetActive === true,
     sharedNovelProseV2,
-    terraTerminalLengthOwner,
   };
 
   // Length owner lives on the current user-turn tail only (system length removed).
@@ -1136,10 +1121,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "systemRules",
       rpVariant && rpDiagnosticUsesMinimalLayout(rpVariant)
         ? COMMON_LAYOUT_MINIMAL_OWNER
-        : buildWebnovelOutputLayoutRecencyBlock({
-            dialogueIntentUnit:
-              input.terraPromptCanary?.variant === "dialogue_intent_unit",
-          }),
+        : buildWebnovelOutputLayoutRecencyBlock(),
       "dynamic"
     );
   }
@@ -1415,36 +1397,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     }
   }
   if (
-    input.terraPromptCanary?.relocateSceneDirectiveToUserTurn &&
-    input.terraPromptCanary.sceneDirectiveUserTail?.trim()
-  ) {
-    // Order: user input → confirmed SceneDirective focus → Terra length owner.
-    userTurnContent = `${userTurnContent.trimEnd()}\n\n${input.terraPromptCanary.sceneDirectiveUserTail.trim()}`;
-  }
-  if (
     input.rpDiagnosticCanary?.relocateSceneDirectiveToUserTurn &&
     input.rpDiagnosticCanary.sceneDirectiveUserTail?.trim()
   ) {
     userTurnContent = `${userTurnContent.trimEnd()}\n\n${input.rpDiagnosticCanary.sceneDirectiveUserTail.trim()}`;
   }
-  if (
-    terraTerminalLengthOwner &&
-    input.terraPromptCanary &&
-    canaryAppliesTerraDialogueIntentAdapter(input.terraPromptCanary.variant)
-  ) {
-    // Residual canary only — keep Terra length owner as absolute end.
-    userTurnContent = `${userTurnContent.trimEnd()}\n\n${TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE}`;
-  }
-  if (terraTerminalLengthOwner) {
-    const terminalContract = resolveCanaryTerraTerminalContract(
-      input.terraPromptCanary?.variant
-    );
-    userTurnContent = appendTerraTerminalLengthOwnerToUserTurn(
-      userTurnContent,
-      terminalContract
-    );
-  } else {
-    // Layout first, then Luna terminal contract (or non-Luna length) as last instruction.
+  {
+    // Layout first, then the generic terminal length owner as last instruction.
     userTurnContent = appendCompactTerminalLengthToUserTurn(
       userTurnContent,
       input.targetResponseChars,

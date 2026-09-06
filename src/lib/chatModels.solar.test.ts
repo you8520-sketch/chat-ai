@@ -24,10 +24,8 @@ describe("retired Solar Pro 3 compatibility", () => {
     assert.equal(resolveSelectedAI("solar-pro"), DEFAULT_SELECTED_AI);
     assert.equal(resolveSelectedAI("solar-pro-3"), DEFAULT_SELECTED_AI);
     assert.equal(resolveSelectedAI(OPENROUTER_SOLAR_PRO_3_MODEL), DEFAULT_SELECTED_AI);
-    assert.equal(
-      resolveOpenRouterModelId(OPENROUTER_SOLAR_PRO_3_MODEL),
-      DEFAULT_SELECTED_AI
-    );
+    // Transport-level OpenRouter fallback (not a Main RP selection).
+    assert.notEqual(resolveOpenRouterModelId(OPENROUTER_SOLAR_PRO_3_MODEL), OPENROUTER_SOLAR_PRO_3_MODEL);
   });
 
   it("keeps historical Solar receipts priced correctly", () => {

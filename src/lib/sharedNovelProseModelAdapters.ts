@@ -6,23 +6,23 @@
  *
  * Registry:
  * - DeepSeek length arms: experiment env only (default OFF)
- * - Terra terminal length owner: gpt-5.6-terra + single_primary (candidate)
- * - Luna / Gemini Flash: reserved null stubs
  */
 
 import { isCheaperInferenceDeepSeekV4ProModel } from "@/lib/chatModels";
-import {
-  shouldUseTerraTerminalLengthOwner,
-  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
-} from "@/lib/terraTerminalLengthOwner";
 import type { ContentKind } from "@/lib/simulationMode";
 
-export {
-  resolveRpSceneCastMode,
-  shouldUseTerraTerminalLengthOwner,
-  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
-} from "@/lib/terraTerminalLengthOwner";
-export type { RpSceneCastMode } from "@/lib/terraTerminalLengthOwner";
+/** Existing cast classification used by production contentKind. */
+export type RpSceneCastMode = "single_primary" | "simulation";
+
+/**
+ * Map production contentKind → scene cast mode.
+ * character (default) = single_primary; simulation = ensemble / multi-cast.
+ */
+export function resolveRpSceneCastMode(
+  contentKind?: ContentKind | string | null
+): RpSceneCastMode {
+  return contentKind === "simulation" ? "simulation" : "single_primary";
+}
 
 /** Experiment-only — DeepSeek length arm selector (A|B|C). Not a production flag. */
 export const SNPV2_DEEPSEEK_LENGTH_ARM_ENV = "SNPV2_DEEPSEEK_LENGTH_ARM";
@@ -101,34 +101,4 @@ export function resolveDeepSeekLengthAdapterSection(
   if (!isCheaperInferenceDeepSeekV4ProModel(modelId ?? "")) return null;
   const arm = parseDeepSeekLengthArm(process.env[SNPV2_DEEPSEEK_LENGTH_ARM_ENV]);
   return buildDeepSeekLengthAdapterBlock(arm);
-}
-
-/**
- * Terra terminal single-owner — sole active Terra length adapter.
- * Returns the frozen contract when model=gpt-5.6-terra and cast=single_primary;
- * null for simulation / other models (caller keeps production TARGET/FLOOR owners).
- */
-export function resolveTerraTerminalLengthOwnerContract(opts: {
-  modelId?: string | null;
-  contentKind?: ContentKind | string | null;
-}): string | null {
-  if (!shouldUseTerraTerminalLengthOwner(opts)) return null;
-  return TERRA_TERMINAL_LENGTH_OWNER_CONTRACT;
-}
-
-/** @deprecated Use resolveTerraTerminalLengthOwnerContract + scene cast gate. */
-export function isTerraTerminalLengthOwnerActive(opts: {
-  modelId?: string | null;
-  contentKind?: ContentKind | string | null;
-}): boolean {
-  return shouldUseTerraTerminalLengthOwner(opts);
-}
-
-/** Luna adapter — reserved; inactive (do not copy Terra contract here). */
-export function resolveLunaAdapterSection(): string | null {
-  return null;
-}
-
-export function resolveGemini36FlashAdapterSection(): string | null {
-  return null;
 }

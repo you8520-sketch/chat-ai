@@ -4,7 +4,6 @@ import {
   type SelectedAI,
   isValidSelectedAI,
   resolveSelectedAI,
-  resolveUserChatSelectedAI,
   selectedAILabel,
 } from "@/lib/chatModels";
 
@@ -146,10 +145,9 @@ export function getUserSelectedAI(db: Database.Database, userId: number): Select
  */
 export function getUserChatSelectedAI(
   db: Database.Database,
-  userId: number,
-  opts?: { isAdmin?: boolean }
+  userId: number
 ): SelectedAI {
-  return resolveUserChatSelectedAI(getUserSelectedAI(db, userId), opts);
+  return getUserSelectedAI(db, userId);
 }
 
 export function setUserSelectedAI(
@@ -233,5 +231,5 @@ export function consumeSelectedAiEntryNotice(
     );
   }
 
-  return { notice, kind, selectedAI: resolveUserChatSelectedAI(selectedAI, opts) };
+  return { notice, kind, selectedAI };
 }

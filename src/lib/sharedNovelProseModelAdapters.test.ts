@@ -11,10 +11,7 @@ import {
   DEEPSEEK_LENGTH_ARM_C_SENTENCE,
   DEEPSEEK_LENGTH_SAFETY_SENTENCE,
   resolveDeepSeekLengthAdapterSection,
-  resolveLunaAdapterSection,
-  resolveTerraTerminalLengthOwnerContract,
   SNPV2_DEEPSEEK_LENGTH_ARM_ENV,
-  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
 } from "@/lib/sharedNovelProseModelAdapters";
 
 describe("sharedNovelProseModelAdapters", () => {
@@ -64,30 +61,14 @@ describe("sharedNovelProseModelAdapters", () => {
     assert.equal(DEEPSEEK_LENGTH_ARM_C_SENTENCE, "단일 응답 최대 전개·미달 조기 종료 금지.");
   });
 
-  it("Terra registry retired (always null); Luna adapter remains null", () => {
+  it("retired RP model adapters are removed (no Terra/Luna/Gemini36 stubs)", () => {
     assert.equal(
-      resolveTerraTerminalLengthOwnerContract({
-        modelId: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
-        contentKind: "character",
-      }),
+      resolveDeepSeekLengthAdapterSection(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL),
       null
     );
     assert.equal(
-      resolveTerraTerminalLengthOwnerContract({
-        modelId: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
-        contentKind: "simulation",
-      }),
+      resolveDeepSeekLengthAdapterSection(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
       null
     );
-    assert.equal(
-      resolveTerraTerminalLengthOwnerContract({
-        modelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-        contentKind: "character",
-      }),
-      null
-    );
-    assert.equal(resolveLunaAdapterSection(), null);
-    // Constant retained for historical/canary seams only.
-    assert.ok(TERRA_TERMINAL_LENGTH_OWNER_CONTRACT.includes("3,200자 이상"));
   });
 });

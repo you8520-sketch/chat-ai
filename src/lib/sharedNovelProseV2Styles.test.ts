@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { IMMERSIVE_PROSE_BLOCK, PROSE_STYLE_SECTION } from "@/lib/advancedProseNsfwGuidelines";
 import {
+  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
@@ -86,19 +89,31 @@ describe("sharedNovelProseV2 styles + resolver", () => {
     );
   });
 
-  it("gate ON → Legacy becomes PROSE_STYLE_SECTION_V2 for Luna/Gemini/DeepSeek CI", () => {
+  it("gate ON → Legacy becomes PROSE_STYLE_SECTION_V2 for canonical 4 (retired excluded)", () => {
     process.env.SHARED_NOVEL_PROSE_V2_ENABLED = "1";
     process.env.SHARED_NOVEL_PROSE_V2_USER_IDS = "1";
     assert.equal(
+      resolveProseStyleSection(1, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
+      PROSE_STYLE_SECTION_V2
+    );
+    assert.equal(
+      resolveProseStyleSection(1, CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL),
+      PROSE_STYLE_SECTION_V2
+    );
+    assert.equal(
+      resolveProseStyleSection(1, CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
+      PROSE_STYLE_SECTION_V2
+    );
+    assert.equal(
+      resolveProseStyleSection(1, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
+      PROSE_STYLE_SECTION_V2
+    );
+    assert.notEqual(
       resolveProseStyleSection(1, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
       PROSE_STYLE_SECTION_V2
     );
-    assert.equal(
+    assert.notEqual(
       resolveProseStyleSection(1, OPENROUTER_GEMINI_36_FLASH_MODEL),
-      PROSE_STYLE_SECTION_V2
-    );
-    assert.equal(
-      resolveProseStyleSection(1, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
       PROSE_STYLE_SECTION_V2
     );
   });

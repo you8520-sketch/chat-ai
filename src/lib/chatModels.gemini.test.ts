@@ -52,10 +52,10 @@ describe("Gemini picker visibility", () => {
     );
   });
 
-  it("hides OpenRouter Gemini 3.6 Flash from user selection", () => {
+  it("retires OpenRouter Gemini 3.6 Flash from Main RP selection", () => {
     assert.ok(
-      SELECTED_AI_OPTIONS.some((o) => o.id === OPENROUTER_GEMINI_36_FLASH_MODEL),
-      "kept in SELECTED_AI_OPTIONS for receipt/legacy compatibility"
+      !SELECTED_AI_OPTIONS.some((o) => o.id === OPENROUTER_GEMINI_36_FLASH_MODEL),
+      "Gemini 3.6 Flash is retired — no longer a Main RP row"
     );
     assert.ok(
       !USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === OPENROUTER_GEMINI_36_FLASH_MODEL)

@@ -18,12 +18,12 @@ import {
   selectedAIProvider,
 } from "./chatModels";
 
-test("Claude Opus 5 stays registered but is temporarily hidden from the user picker", () => {
+test("Claude Opus 5 is a canonical-selectable Cheaper Inference model", () => {
   assert.equal(
     USER_SELECTABLE_AI_OPTIONS.some(
       (option) => option.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
     ),
-    false
+    true
   );
   assert.ok(
     SELECTED_AI_OPTIONS.some(
@@ -164,7 +164,7 @@ test("DeepSeek V4 Pro migrates to the selectable Cheaper Inference model", () =>
   );
 });
 
-test("DeepSeek V4 Flash stays Cheaper Inference but is temporarily hidden from picker", () => {
+test("DeepSeek V4 Flash is retired from Main RP but stays Cheaper Inference auxiliary", () => {
   assert.equal(
     USER_SELECTABLE_AI_OPTIONS.some(
       (option) => option.id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
@@ -181,7 +181,7 @@ test("DeepSeek V4 Flash stays Cheaper Inference but is temporarily hidden from p
   );
   assert.equal(
     resolveSelectedAI(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
-    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
   );
   assert.equal(
     isCheaperInferenceModel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),

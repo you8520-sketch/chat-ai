@@ -86,19 +86,19 @@ describe("userSelectedAI helpers", () => {
     db.close();
   });
 
-  it("legacy stored deepseek-v4-flash stays valid Flash and resolves to 0731", () => {
+  it("legacy stored deepseek-v4-flash is retired → remaps to default Main RP model", () => {
     const db = memoryDb();
     db.prepare("INSERT INTO users (id, selected_ai) VALUES (1, ?)").run(
       "deepseek-v4-flash"
     );
     const r = ensureUserSelectedAI(db, 1);
-    assert.equal(r.selectedAI, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL);
-    assert.equal(r.selectedAI, "deepseek-v4-flash-0731");
-    assert.equal(r.remappedFromRetired, false);
+    assert.equal(r.selectedAI, DEFAULT_SELECTED_AI);
+    assert.equal(r.selectedAI, "deepseek-v4-pro-0813");
+    assert.equal(r.remappedFromRetired, true);
     const stored = db.prepare("SELECT selected_ai FROM users WHERE id=1").get() as {
       selected_ai: string;
     };
-    assert.equal(stored.selected_ai, "deepseek-v4-flash-0731");
+    assert.equal(stored.selected_ai, "deepseek-v4-pro-0813");
     db.close();
   });
 

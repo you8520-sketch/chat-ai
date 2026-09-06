@@ -1,33 +1,36 @@
 /**
  * Shared Novel Prose V2 — admin allowlist canary (default OFF, fail-closed).
  *
- * Exact model IDs only (production selectedAI path):
- *   - gpt-5.6-luna
- *   - deepseek-v4-pro
- *   - google/gemini-3.6-flash
+ * Exact canonical Main RP model IDs only:
+ *   - deepseek-v4-pro-0813
+ *   - claude-opus-5
+ *   - gemini-3.1-pro-preview
+ *   - gemini-3.7-flash
  *
- * Muse Spark is intentionally excluded from this canary allowlist
- * (separate production-sample decision; not part of V2 prose experiments).
+ * Retired RP models (Luna, Gemini 3.6 Flash) are excluded — they are not Main
+ * RP selectable.
  *
  * Actual ON requires BOTH:
  *   SHARED_NOVEL_PROSE_V2_ENABLED=1 (or "true")
  *   AND requesting userId in SHARED_NOVEL_PROSE_V2_USER_IDS
- *   AND modelId is one of the three exact IDs above.
+ *   AND modelId is one of the exact IDs above.
  */
 
 import {
+  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-  OPENROUTER_GEMINI_36_FLASH_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
 } from "@/lib/chatModels";
 
 const ENV_ENABLED = "SHARED_NOVEL_PROSE_V2_ENABLED";
 const ENV_USER_IDS = "SHARED_NOVEL_PROSE_V2_USER_IDS";
 
 export const SHARED_NOVEL_PROSE_V2_MODEL_IDS = [
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  OPENROUTER_GEMINI_36_FLASH_MODEL,
+  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
 ] as const;
 
 const ALLOWED = new Set(
