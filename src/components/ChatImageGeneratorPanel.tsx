@@ -7,10 +7,8 @@ import Link from "next/link";
 import {
   CHAT_COMIC_GENERATION_DEFAULT_POINTS,
   CHAT_COMIC_MAX_INPUT_CHARS,
-  CHAT_COMIC_PANEL_OPTIONS,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
   type ChatComicPanelCount,
-  type ChatComicPanelMode,
 } from "@/lib/chatComicGenerationConstants";
 import {
   COMIC_SEMANTIC_LADDER,
@@ -22,15 +20,12 @@ import {
 import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
-  reflowScenePlanPanels,
   type ScenePlan,
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
-import { commitScenePanelCount } from "@/lib/chatImageScenePlanLifecycle";
 import ChatSceneBuilder, {
   type SceneOutputMode,
 } from "@/components/ChatSceneBuilder";
-import type { ScenePanelCount } from "@/lib/chatImageScenePlan";
 import TrpgImageSceneDiagnosticsPanel from "@/components/TrpgImageSceneDiagnosticsPanel";
 import {
   draftCastIntentFromCandidatePool,
@@ -431,12 +426,6 @@ export default function ChatImageGeneratorPanel({
   const [sdProduct, setSdProduct] = useState<SdProduct>("gift");
   const [ldProduct, setLdProduct] = useState<LdProduct>("scene");
   const [sceneOutputMode, setSceneOutputMode] = useState<SceneOutputMode>("illustration");
-  const [scenePanelCount, setScenePanelCount] = useState<ScenePanelCount>(3);
-  const scenePanelCountRef = useRef<ScenePanelCount>(3);
-  const [comicPanelMode, setComicPanelMode] = useState<ChatComicPanelMode>("auto");
-  const commitPanelCount = useCallback((count: ScenePanelCount) => {
-    commitScenePanelCount(scenePanelCountRef, count, setScenePanelCount);
-  }, []);
   const [sceneMessages, setSceneMessages] = useState<SceneSourceMessage[]>([]);
   const [scenePlan, setScenePlan] = useState<ScenePlan | null>(null);
   const deterministicPlanCacheRef = useRef<Map<string, ScenePlan>>(new Map());
@@ -1210,7 +1199,6 @@ export default function ChatImageGeneratorPanel({
     setSceneVisualSubjects(clearedScope.visualSubjects);
     setSceneCastSelectableAssets(clearedScope.castSelectableAssets);
     setSceneMessages([]);
-    commitPanelCount(3);
   }
 
   function beginSceneSourceChange(): number {
@@ -1247,7 +1235,6 @@ export default function ChatImageGeneratorPanel({
     const plan = cached ?? buildDeterministicScenePlan(messages, undefined, speakerContext);
     if (!cached) deterministicPlanCacheRef.current.set(key, plan);
     setScenePlan(plan);
-    commitPanelCount(plan.recommendedPanelCount);
   }
 
   function applyPreviewSceneSource(preview: string, epoch: number) {
@@ -1394,7 +1381,7 @@ export default function ChatImageGeneratorPanel({
             !campaignId && castIntent ? castIntent : undefined,
           panelCount:
             !isIllustration
-              ? comicPanelMode
+              ? "auto"
               : undefined,
           campaignId: isIllustration && campaignId ? campaignId : undefined,
           roundNumber:
@@ -2403,19 +2390,11 @@ export default function ChatImageGeneratorPanel({
                             characterName={info?.character.name ?? "캐릭터"}
                             castSpeakerNames={configuredCastNames}
                             outputMode={sceneOutputMode}
-                            panelCount={scenePanelCount}
-                            comicPanelMode={comicPanelMode}
                             comicAutopilotMode={!sceneIsIllustration && !trpgCampaignMode}
                             disabled={generating}
                             onOutputModeChange={(mode) => {
                               setSceneOutputMode(mode);
                             }}
-                            onPanelCountChange={(count) => {
-                              commitPanelCount(count);
-                              if (!scenePlan) return;
-                              setScenePlan(reflowScenePlanPanels(scenePlan, count));
-                            }}
-                            onComicPanelModeChange={setComicPanelMode}
                             onPlanChange={(nextPlan) => {
                               setScenePlan(nextPlan);
                             }}
@@ -2436,13 +2415,10 @@ export default function ChatImageGeneratorPanel({
                                     label: "선택 턴 LD 일러스트",
                                     cost: info.averageCosts.illustration,
                                   }]
-                                : CHAT_COMIC_PANEL_OPTIONS.map((option) => ({
-                                    label:
-                                      option.id === "auto"
-                                        ? "컷만화 (자동)"
-                                        : `${option.id}컷 만화`,
+                                : [{
+                                    label: "컷만화 (자동)",
                                     cost: info.averageCosts!.comic[3],
-                                  }))
+                                  }]
                               : undefined
                           }
                           exchangeRateKrwPerUsd={info?.averageCosts?.exchangeRateKrwPerUsd}
