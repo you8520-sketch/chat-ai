@@ -535,7 +535,7 @@ export default function ChatSceneBuilder({
       <section className="space-y-2">
         {loading ? (
           <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
-            선택 턴 장면을 정리하는 중…
+            선택한 턴을 불러오는 중…
           </p>
         ) : null}
         {aiSuggestionLoading ? (

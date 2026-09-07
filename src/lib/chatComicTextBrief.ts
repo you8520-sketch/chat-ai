@@ -19,6 +19,7 @@ import type {
   SceneEvent,
   ScenePlan,
 } from "@/lib/chatImageScenePlan";
+import { visualEvents } from "@/lib/chatImageScenePlan";
 import { projectTextForSafeImagePrompt } from "@/lib/chatImageSafeVisualProjection";
 import { resolveComicProviderReadableTextEligibility } from "@/lib/chatComicPanelSpec";
 import {
@@ -75,6 +76,7 @@ export type ComicTextBriefAudit = {
   dialogueRichSource: boolean;
   sparse4Discouraged: boolean;
   sourceEventIdsUsed: string[];
+  continuitySourceEventIds: string[];
   panelMode: ChatComicPanelMode;
   recommendedPanelMode: 3 | 4;
 };
@@ -90,6 +92,14 @@ const DIALOGUE_CANDIDATE_HINT =
 
 const ACTION_BRIDGE_HINT =
   /(?:다가|문(?:을|이)?\s*열|발견|잡아|안아|껴안|놀라|멈춰|멈추|돌아|떠나|고개(?:를)?\s*들|눈(?:을)?\s*마주|손(?:을)?\s*내밀|쓰러|기대|숨(?:을)?\s*죽|입을 열|돌아보|일어나|걸어가|뛰어)/u;
+
+const CONTINUITY_STATE_HINT =
+  /(?:갈아입|입(?:고|는다|어|은|은다|었다)|벗(?:고|는다|어)?|잠옷|재킷|코트|신발|목도리|장갑|뒤덮|쓰(?:고|었다)?|쥐고|들고|안고|메고|차고|두르고|끌어안)/u;
+
+const CONTINUITY_PLACE_HINT =
+  /(?:침실|거실|욕실|부엌|주방|테라스|베란다|밖|복도|현관|들어온다|들어간다|나간다|옮긴다|이동|내려온다|올라간다|도착)/u;
+
+const CONTINUITY_TIME_HINT = /(?:밤|새벽|저녁|낮|다음 날|이튿날|한 시간 후|잠시 후|얼마 후|뒤에|후에|날이 밝)/u;
 
 export const COMIC_DIALOGUE_CANDIDATE_MAX = 5;
 export const COMIC_NARRATION_PAGE_MAX = 2;
@@ -232,6 +242,75 @@ export function selectComicNarrationCandidates(
   return candidates;
 }
 
+export type ComicContinuityContext = {
+  /** Context lines — context only, never visible dialogue/narration. */
+  lines: string[];
+  /** Canonical event ids the context is grounded in. */
+  sourceEventIds: string[];
+};
+
+export const COMIC_CONTINUITY_MAX_CONTEXT_LINES = 3;
+
+/**
+ * COMIC_CONTINUITY_CONTEXT_OWNER — bounded source-grounded current-state context.
+ * The highlight excerpt carries only the selected focus window; state changes that
+ * happened immediately BEFORE the focus (outfit change, location/time transition,
+ * held object, physical state) can be lost. This owner surfaces the most recent
+ * such state from the canonical timeline as CONTEXT ONLY — no invented facts, no
+ * panel, no visible speech, no second model call.
+ */
+export function buildComicContinuityContext(
+  plan: ScenePlan,
+  selection: ComicHighlightSelection,
+  binding: ComicSpeakerBinding,
+  safety: ComicHighlightSafety = {}
+): ComicContinuityContext {
+  const visual = visualEvents(plan.events);
+  const focusStartIndex = visual.findIndex((event) => event.id === selection.focusEventIds[0]);
+  if (focusStartIndex <= 0) return { lines: [], sourceEventIds: [] };
+  const before = visual.slice(Math.max(0, focusStartIndex - 3), focusStartIndex);
+  const lines: string[] = [];
+  const sourceEventIds: string[] = [];
+  const visualAdultGrounded = safety.visualProjectionAdultGrounded ?? false;
+  for (const event of before) {
+    if (lines.length >= COMIC_CONTINUITY_MAX_CONTEXT_LINES) break;
+    if (event.kind === "environment") {
+      if (!CONTINUITY_PLACE_HINT.test(event.text) && !CONTINUITY_TIME_HINT.test(event.text)) {
+        continue;
+      }
+      const text = projectTextForSafeImagePrompt(event.text, {
+        adultGrounded: visualAdultGrounded,
+      })
+        .trim()
+        .slice(0, 60);
+      if (!text) continue;
+      lines.push(`Current place/time: ${text}.`);
+      sourceEventIds.push(event.id);
+      continue;
+    }
+    if (
+      (event.kind === "action" || event.kind === "reaction") &&
+      CONTINUITY_STATE_HINT.test(event.text)
+    ) {
+      const text = projectTextForSafeImagePrompt(event.text, {
+        adultGrounded: visualAdultGrounded,
+      })
+        .trim()
+        .slice(0, 60);
+      if (!text) continue;
+      const subject =
+        event.actor === "character"
+          ? `${binding.characterLabel} (${binding.characterName})`
+          : event.actor === "persona"
+            ? `${binding.personaLabel} (${binding.personaName})`
+            : event.actor;
+      lines.push(`Current state (${subject}): ${text}.`);
+      sourceEventIds.push(event.id);
+    }
+  }
+  return { lines, sourceEventIds };
+}
+
 /**
  * PANEL_MODE_DECISION_OWNER — real AUTO 3 vs 4 recommendation. A single narration
  * candidate never makes a scene rich. 4 requires genuine content for four beats.
@@ -310,6 +389,7 @@ export function buildComicTextBriefAudit(opts: {
   narrationCandidates: ComicNarrationCandidate[];
   panelMode: ChatComicPanelMode;
   densityContext?: ComicDensityContext;
+  continuity?: ComicContinuityContext;
 }): ComicTextBriefAudit {
   const context =
     opts.densityContext ??
@@ -332,6 +412,7 @@ export function buildComicTextBriefAudit(opts: {
       ...opts.dialogueCandidates.map((candidate) => candidate.sourceEventId),
       ...opts.narrationCandidates.map((candidate) => candidate.sourceEventId),
     ],
+    continuitySourceEventIds: opts.continuity?.sourceEventIds ?? [],
     panelMode: opts.panelMode,
     recommendedPanelMode: context.recommendation.mode,
   };
@@ -361,6 +442,12 @@ export function renderComicTextBrief(opts: {
     opts.selection,
     opts.safety
   );
+  const continuity = buildComicContinuityContext(
+    opts.plan,
+    opts.selection,
+    opts.binding,
+    opts.safety
+  );
   const densityContext = resolveComicDensityContext(
     opts.panelMode,
     dialogueCandidates.length,
@@ -372,6 +459,7 @@ export function renderComicTextBrief(opts: {
     narrationCandidates,
     panelMode: opts.panelMode,
     densityContext,
+    continuity,
   });
 
   const bindingLines = [
@@ -407,6 +495,13 @@ export function renderComicTextBrief(opts: {
     bindingLines,
     "SELECTED HIGHLIGHT SOURCE (verbatim, chronologically ordered):",
     excerpt.text,
+    ...(continuity.lines.length
+      ? [
+          "CURRENT SCENE CONTINUITY — CONTEXT ONLY, NOT VISIBLE TEXT:",
+          ...continuity.lines,
+          "This states how the characters currently look/are placed from the source before this highlight. Use it for consistency only — never render these lines as visible comic text.",
+        ]
+      : []),
     "DIALOGUE CANDIDATES (ranked source lines, exact text):",
     candidateLines,
     "NARRATION CANDIDATES (0-2, source-grounded):",

@@ -433,4 +433,98 @@ describe("PR #877 final quality-floor correction", () => {
     assert.equal(audit.recommendedPanelMode, 4);
     assert.deepEqual(audit.sourceEventIdsUsed, ["B1", "B2", "B3"], "anchor first, then speaker diversity, then score");
   });
+
+  it("TEXT-1 dialogue-rich manual/effective 4 → >=3 source dialogue candidates reach the brief", () => {
+    const plan = planFromEvents([
+      event(1, "T1", "dialogue", "character", "너 사실 고양이지?", "태형"),
+      event(2, "T2", "dialogue", "persona", "냐옹.", "렌"),
+      event(3, "T3", "dialogue", "character", "그럼 같이 살자.", "태형"),
+      event(4, "T4", "reaction", "persona", "고개를 끄덕인다"),
+    ]);
+    const selection = { anchorEventId: "T3", focusEventIds: ["T1", "T2", "T3", "T4"] };
+    const brief = renderComicTextBrief({ plan, selection, binding: BINDING, safety: {}, panelMode: 4 });
+    assert.equal(brief.audit.eligibleDialogueCandidateCount, 3, "all three source dialogue candidates reach the brief");
+    const candidateLines = brief.text.match(/^[0-9]+\. [AB]: .+$/gm) ?? [];
+    assert.ok(candidateLines.length >= 3, "final brief lists >=3 ranked source dialogue lines");
+    assert.match(brief.text, /너 사실 고양이지\?/u);
+    assert.match(brief.text, /그럼 같이 살자\./u);
+    assert.equal(brief.audit.effectivePanelMode, 4);
+  });
+
+  it("TEXT-2 2 dialogue + useful source action bridge → narration candidate available", () => {
+    const plan = planFromEvents([
+      event(1, "N1", "dialogue", "character", "기다려.", "태형"),
+      event(2, "N2", "action", "character", "손을 내밀어 그녀의 손을 잡는다."),
+      event(3, "N3", "dialogue", "persona", "그래.", "렌"),
+    ]);
+    const selection = { anchorEventId: "N3", focusEventIds: ["N1", "N2", "N3"] };
+    const brief = renderComicTextBrief({ plan, selection, binding: BINDING, safety: {}, panelMode: 4 });
+    assert.ok(brief.audit.narrationCandidateCount >= 1, "action bridge becomes a narration candidate");
+    assert.match(brief.text, /action_bridge/);
+    assert.ok(brief.audit.narrationCandidateCount <= 2, "0-2/page invariant");
+  });
+
+  it("TEXT-3 invented spoken dialogue = 0 (candidate lines are canonical exact text)", () => {
+    const plan = planFromEvents([
+      event(1, "V1", "dialogue", "character", "나랑 도망가자.", "태형"),
+      event(2, "V2", "dialogue", "persona", "그래.", "렌"),
+      event(3, "V3", "dialogue", "character", "정말?", "태형"),
+    ]);
+    const selection = { anchorEventId: "V1", focusEventIds: ["V1", "V2", "V3"] };
+    const brief = renderComicTextBrief({ plan, selection, binding: BINDING, safety: {}, panelMode: "auto" });
+    for (const candidateLine of brief.text.match(/^[0-9]+\. [AB]: .+$/gm) ?? []) {
+      const source = plan.events.find((entry) => candidateLine.includes(entry.text));
+      assert.ok(source, `candidate line grounded in canonical source: ${candidateLine}`);
+    }
+  });
+
+  it("CONTINUITY-1 outfit change before selected highlight → changed outfit preserved as context", () => {
+    const plan = planFromEvents([
+      event(1, "C1", "action", "character", "새 잠옷으로 갈아입는다."),
+      event(2, "C2", "dialogue", "character", "렌. 아까 낮에 네가 나한테 뇌물이라고 준 거 말이야.", "태형"),
+      event(3, "C3", "dialogue", "character", "평생 나만 보고 살겠다는 도장으로 알고 있을 테니까.", "태형"),
+    ]);
+    const selection = { anchorEventId: "C2", focusEventIds: ["C2", "C3"] };
+    const brief = renderComicTextBrief({ plan, selection, binding: BINDING, safety: {}, panelMode: 4 });
+    assert.deepEqual(brief.audit.continuitySourceEventIds, ["C1"]);
+    assert.match(brief.text, /CURRENT SCENE CONTINUITY — CONTEXT ONLY, NOT VISIBLE TEXT/);
+    assert.match(brief.text, /Current state \(A \(태형\)\): 새 잠옷으로 갈아입는다\./u);
+  });
+
+  it("CONTINUITY-2 location/time transition → correct current state reaches provider", () => {
+    const plan = planFromEvents([
+      event(1, "L1", "environment", "environment", "잠시 후, 침실로 들어온다."),
+      event(2, "L2", "dialogue", "character", "여기 침실이야.", "태형"),
+    ]);
+    const selection = { anchorEventId: "L2", focusEventIds: ["L2"] };
+    const brief = renderComicTextBrief({ plan, selection, binding: BINDING, safety: {}, panelMode: 3 });
+    assert.deepEqual(brief.audit.continuitySourceEventIds, ["L1"]);
+    assert.match(brief.text, /Current place\/time: 잠시 후, 침실로 들어온다\./u);
+  });
+
+  it("CONTINUITY-3 continuity context is context-only, not visible dialogue/narration", () => {
+    const plan = planFromEvents([
+      event(1, "S1", "action", "character", "새 잠옷으로 갈아입는다."),
+      event(2, "S2", "dialogue", "character", "안녕.", "태형"),
+      event(3, "S3", "reaction", "persona", "웃는다"),
+    ]);
+    const selection = { anchorEventId: "S2", focusEventIds: ["S2", "S3"] };
+    const brief = renderComicTextBrief({ plan, selection, binding: BINDING, safety: {}, panelMode: "auto" });
+    assert.deepEqual(brief.audit.continuitySourceEventIds, ["S1"]);
+    assert.match(brief.text, /CURRENT SCENE CONTINUITY — CONTEXT ONLY, NOT VISIBLE TEXT/);
+    // The outfit state must NOT appear inside DIALOGUE CANDIDATES or NARRATION CANDIDATES.
+    const dialogueSection = brief.text.slice(brief.text.indexOf("DIALOGUE CANDIDATES"));
+    assert.doesNotMatch(dialogueSection, /갈아입는다/u, "outfit state never becomes dialogue/narration");
+  });
+
+  it("no pre-focus state → no continuity section, sourceEventIds empty", () => {
+    const plan = planFromEvents([
+      event(1, "Z1", "dialogue", "character", "안녕.", "태형"),
+      event(2, "Z2", "reaction", "persona", "웃는다"),
+    ]);
+    const selection = { anchorEventId: "Z1", focusEventIds: ["Z1", "Z2"] };
+    const brief = renderComicTextBrief({ plan, selection, binding: BINDING, safety: {}, panelMode: "auto" });
+    assert.deepEqual(brief.audit.continuitySourceEventIds, []);
+    assert.doesNotMatch(brief.text, /CURRENT SCENE CONTINUITY/);
+  });
 });

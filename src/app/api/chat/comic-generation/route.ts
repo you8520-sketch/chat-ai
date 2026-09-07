@@ -1422,7 +1422,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const source = semanticLadderMode
+const source = semanticLadderMode
       ? {
           messages: [] as SceneSourceMessage[],
           turnText: "",
@@ -1437,54 +1437,35 @@ export async function POST(req: Request) {
         });
     const mood = "comic" as const;
     const knownSpeakerNames = resolveKnownSpeakerNames(context, body.castIntent);
-    const canonicalPlan = semanticLadderMode
-      ? buildSemanticLadderScenePlan(
-          diagnosticMode.semanticLevel!,
-          4,
-          diagnosticMode.textBoundaryLevel
-        )
-      : resolveApprovedScenePlan({
-          bodyPlan: body.scenePlan,
-          messages: source.messages,
-          personaName: context.persona.name,
-          characterName: context.character.name,
-          knownSpeakerNames,
-          contentKind: context.contentKind,
-        });
-    // COMIC PROVIDER AUTOPILOT — Scene Planner selects WHAT (anchor + contiguous
-    // highlight); GPT Image decides HOW (3/4-panel breakdown, dialogue density,
-    // narration 0-2, camera, balloons, SFX). Server builds a source-preserving
-    // safe highlight excerpt for the provider prompt; it never pre-plans panels.
-    // Admin diagnostics (ladder/hybrid/reference-isolation) keep the fixed path.
-    let comicHighlightSelection: ComicHighlightSelection | undefined;
-    let scenePlan = canonicalPlan;
+
     // canvasPanelCount selects the provider OUTPUT SIZE only — for AUTO it is a
     // tall 4-panel-sized canvas, NOT a claim about the rendered panel count.
     const requestedPanelMode = isComicPanelMode(body.panelCount) ? body.panelCount : "auto";
     const canvasPanelCount: 3 | 4 = requestedPanelMode === "auto" ? 4 : requestedPanelMode;
-    let panelCount = scenePlan.panels.length as ChatComicPanelCount;
     const autopilotActive =
       !semanticLadderMode &&
       diagnosticOverrides.referenceMode === "normal" &&
       diagnosticOverrides.visualContextMode === "normal" &&
       diagnosticMode.mode === "normal";
-    if (autopilotActive) {
-      panelCount = canvasPanelCount;
-      comicHighlightSelection =
-        canonicalPlan.comicHighlightSelection ?? resolveComicHighlightFallback(canonicalPlan);
-      scenePlan = canonicalPlan;
-    }
-    const highlightSelectionSource = resolveComicHighlightSelectionSource(canonicalPlan);
-    const castManifest = semanticLadderMode
-      ? null
-      : resolveGroundedCastManifest({
-          castIntentRaw: body.castIntent,
-          context,
-          scenePlan: canonicalPlan,
-          userId: user.id,
-          sourceMessages: source.messages,
-          fromManualText: source.fromManualText,
-        });
+
+    // NORMAL COMIC LIFECYCLE — auth/input/concurrency/balance preflight all run
+    // BEFORE the single Scene Planner call. The client-provided scenePlan is never
+    // canonical authority for the normal comic; diagnostic modes (ladder/hybrid/
+    // reference-isolation) resolve the client plan with no AI call.
+    const preflightPlan =
+      autopilotActive || semanticLadderMode
+        ? undefined
+        : resolveApprovedScenePlan({
+            bodyPlan: body.scenePlan,
+            messages: source.messages,
+            personaName: context.persona.name,
+            characterName: context.character.name,
+            knownSpeakerNames,
+            contentKind: context.contentKind,
+          });
+    const panelCount: ChatComicPanelCount = autopilotActive
+      ? canvasPanelCount
+      : ((preflightPlan?.panels.length ?? 4) as ChatComicPanelCount);
 
     const balanceBefore = getPointBalance(user.id);
     const pricePoints = resolveChatComicPrice(panelCount);
@@ -1502,6 +1483,54 @@ export async function POST(req: Request) {
     }
 
     startJob(CHAT_COMIC_TEMPLATE_ID, "comic");
+
+    // COMIC PROVIDER AUTOPILOT — Scene Planner selects WHAT (anchor + contiguous
+    // highlight) exactly ONCE here, at generate time, after preflight; GPT Image
+    // decides HOW (3/4-panel breakdown, dialogue density, narration 0-2, camera,
+    // balloons, SFX). Server builds a source-preserving safe highlight excerpt for
+    // the provider prompt; it never pre-plans panels. Admin diagnostics
+    // (ladder/hybrid/reference-isolation) keep the fixed path.
+    const canonicalPlan = semanticLadderMode
+      ? buildSemanticLadderScenePlan(
+          diagnosticMode.semanticLevel!,
+          4,
+          diagnosticMode.textBoundaryLevel
+        )
+      : autopilotActive
+        ? (
+            await planChatImageScene({
+              contentKind: context.contentKind,
+              scenePlanIntent: "comic",
+              characterName: context.character.name,
+              personaName: context.persona.name,
+              messages: source.messages,
+              speakerContext: {
+                personaName: context.persona.name,
+                characterName: context.character.name,
+                knownSpeakerNames,
+              },
+            })
+          ).plan
+        : preflightPlan!;
+    let comicHighlightSelection: ComicHighlightSelection | undefined;
+    let scenePlan = canonicalPlan;
+    if (autopilotActive) {
+      comicHighlightSelection =
+        canonicalPlan.comicHighlightSelection ?? resolveComicHighlightFallback(canonicalPlan);
+      scenePlan = canonicalPlan;
+    }
+    const highlightSelectionSource = resolveComicHighlightSelectionSource(canonicalPlan);
+    const castManifest = semanticLadderMode
+      ? null
+      : resolveGroundedCastManifest({
+          castIntentRaw: body.castIntent,
+          context,
+          scenePlan: canonicalPlan,
+          userId: user.id,
+          sourceMessages: source.messages,
+          fromManualText: source.fromManualText,
+        });
+
     const appearanceModes = resolveRequestAppearanceModes({
       characterImages: context.characterImages,
       selectedCharacterImageUrl: context.characterImageUrl,
