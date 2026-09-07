@@ -41,10 +41,6 @@ type ChatSceneBuilderProps = {
   sourceLoading: boolean;
   plan: ScenePlan | null;
   planLoading: boolean;
-  aiSuggestedPlan: ScenePlan | null;
-  aiSuggestionLoading: boolean;
-  aiSuggestionError: string;
-  hasAiSuggestionSession: boolean;
   castManifest: ChatImageCastIntentManifest | null;
   selectableAssets: readonly SelectableCastAsset[];
   visualSubjects?: readonly ClientVisibleVisualSubject[];
@@ -64,9 +60,6 @@ type ChatSceneBuilderProps = {
   onComicPanelModeChange?: (mode: ChatComicPanelMode) => void;
   onPlanChange: (plan: ScenePlan) => void;
   onCastChange: (manifest: ChatImageCastIntentManifest) => void;
-  onRequestAiSuggestion: () => void;
-  onApplyAiSuggestion: () => void;
-  onCancelAiSuggestion: () => void;
 };
 
 function ComicPanelCompactDialoguePreview({
@@ -429,10 +422,6 @@ export default function ChatSceneBuilder({
   sourceLoading,
   plan,
   planLoading,
-  aiSuggestedPlan,
-  aiSuggestionLoading,
-  aiSuggestionError,
-  hasAiSuggestionSession,
   castManifest,
   selectableAssets,
   visualSubjects,
@@ -451,9 +440,6 @@ export default function ChatSceneBuilder({
   onComicPanelModeChange,
   onPlanChange,
   onCastChange,
-  onRequestAiSuggestion,
-  onApplyAiSuggestion,
-  onCancelAiSuggestion,
 }: ChatSceneBuilderProps) {
   const [sceneEditOpen, setSceneEditOpen] = useState(false);
   const [dialogueEditOpenPanels, setDialogueEditOpenPanels] = useState<Set<number>>(
@@ -538,16 +524,6 @@ export default function ChatSceneBuilder({
             선택한 턴을 불러오는 중…
           </p>
         ) : null}
-        {aiSuggestionLoading ? (
-          <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
-            AI 장면을 정리하는 중…
-          </p>
-        ) : null}
-        {aiSuggestionError ? (
-          <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs leading-relaxed text-rose-200">
-            {aiSuggestionError}
-          </p>
-        ) : null}
 
         {plan && outputMode === "comic" ? (
           <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
@@ -614,41 +590,9 @@ export default function ChatSceneBuilder({
                 ))}
               </div>
             ) : null}
-            <button
-              type="button"
-              disabled={disabled || aiSuggestionLoading || planLoading || !plan}
-              onClick={onRequestAiSuggestion}
-              className="block text-[11px] font-semibold text-zinc-400 hover:text-violet-200 disabled:opacity-40"
-            >
-              {hasAiSuggestionSession ? "AI로 다시 정리" : "AI로 다시 정리 (선택)"}
-            </button>
           </div>
         ) : null}
       </section>
-
-      {aiSuggestedPlan ? (
-        <section className="space-y-2 rounded-xl border border-violet-400/25 bg-violet-500/[0.06] p-3">
-          <h3 className="text-[11px] font-semibold text-violet-200">AI 제안</h3>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={onApplyAiSuggestion}
-              className="rounded-lg bg-violet-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-500 disabled:opacity-40"
-            >
-              제안 적용
-            </button>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={onCancelAiSuggestion}
-              className="rounded-lg border border-white/15 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 hover:bg-white/[0.06] disabled:opacity-40"
-            >
-              취소
-            </button>
-          </div>
-        </section>
-      ) : null}
 
       {castManifest ? (
         <ChatImageCastPicker
@@ -657,7 +601,7 @@ export default function ChatSceneBuilder({
           visualSubjects={visualSubjects}
           reservedReferenceUrls={reservedReferenceUrls}
           contentKind={contentKind}
-          disabled={disabled || aiSuggestionLoading}
+          disabled={disabled}
           onChange={onCastChange}
         />
       ) : null}

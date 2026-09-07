@@ -93,13 +93,14 @@ const DIALOGUE_CANDIDATE_HINT =
 const ACTION_BRIDGE_HINT =
   /(?:다가|문(?:을|이)?\s*열|발견|잡아|안아|껴안|놀라|멈춰|멈추|돌아|떠나|고개(?:를)?\s*들|눈(?:을)?\s*마주|손(?:을)?\s*내밀|쓰러|기대|숨(?:을)?\s*죽|입을 열|돌아보|일어나|걸어가|뛰어)/u;
 
-const CONTINUITY_STATE_HINT =
-  /(?:갈아입|입(?:고|는다|어|은|은다|었다)|벗(?:고|는다|어)?|잠옷|재킷|코트|신발|목도리|장갑|뒤덮|쓰(?:고|었다)?|쥐고|들고|안고|메고|차고|두르고|끌어안)/u;
+const CONTINUITY_PLACE_TIME_HINT =
+  /(?:침실|거실|욕실|부엌|주방|테라스|베란다|밖|복도|현관|들어온다|들어간다|나간다|옮긴다|이동|내려온다|올라간다|도착|밤|새벽|저녁|낮|다음 날|이튿날|한 시간 후|잠시 후|얼마 후|뒤에|후에|날이 밝)/u;
 
-const CONTINUITY_PLACE_HINT =
-  /(?:침실|거실|욕실|부엌|주방|테라스|베란다|밖|복도|현관|들어온다|들어간다|나간다|옮긴다|이동|내려온다|올라간다|도착)/u;
+const CONTINUITY_APPEARANCE_HINT =
+  /(?:잠옷|재킷|셔츠|코트|신발|옷|가운|벗(?:고|는다|었다)?|갈아입|입(?:고|는다|었다|은)?|묶(?:고|는다|었다)?|풀(?:고|는다)?|젖은|말린 머리)/u;
 
-const CONTINUITY_TIME_HINT = /(?:밤|새벽|저녁|낮|다음 날|이튿날|한 시간 후|잠시 후|얼마 후|뒤에|후에|날이 밝)/u;
+const CONTINUITY_OBJECT_HINT =
+  /(?:들고|쥐고|안고|메고|차고|목에 걸|팔에|품에|들쳐)/u;
 
 export const COMIC_DIALOGUE_CANDIDATE_MAX = 5;
 export const COMIC_NARRATION_PAGE_MAX = 2;
@@ -251,61 +252,65 @@ export type ComicContinuityContext = {
 
 export const COMIC_CONTINUITY_MAX_CONTEXT_LINES = 3;
 
+/** Bounded reverse-scan window — persistent state can survive many unrelated beats. */
+export const COMIC_CONTINUITY_MAX_SCAN_BACK = 40;
+
 /**
  * COMIC_CONTINUITY_CONTEXT_OWNER — bounded source-grounded current-state context.
- * The highlight excerpt carries only the selected focus window; state changes that
- * happened immediately BEFORE the focus (outfit change, location/time transition,
- * held object, physical state) can be lost. This owner surfaces the most recent
- * such state from the canonical timeline as CONTEXT ONLY — no invented facts, no
+ * The highlight excerpt carries only the selected focus window; state facts that
+ * happened BEFORE the focus (outfit change, place/time transition, held object)
+ * can be lost. This owner surfaces the MOST RECENT applicable source fact per
+ * category from the canonical timeline as CONTEXT ONLY — no invented facts, no
  * panel, no visible speech, no second model call.
+ *
+ * SUBJECT OWNERSHIP — canonical assistant narration is canonicalized with
+ * actor="character" regardless of who the sentence describes (e.g. "렌은 검은색
+ * 잠옷으로 갈아입었다." → kind=reaction, actor=character). This owner therefore
+ * NEVER binds a subject from event.actor; it preserves the source sentence
+ * verbatim so the reader keeps the original Korean subject. It is a source-state
+ * preserver, not a subject-inference engine.
  */
 export function buildComicContinuityContext(
   plan: ScenePlan,
   selection: ComicHighlightSelection,
-  binding: ComicSpeakerBinding,
+  _binding: ComicSpeakerBinding,
   safety: ComicHighlightSafety = {}
 ): ComicContinuityContext {
   const visual = visualEvents(plan.events);
   const focusStartIndex = visual.findIndex((event) => event.id === selection.focusEventIds[0]);
   if (focusStartIndex <= 0) return { lines: [], sourceEventIds: [] };
-  const before = visual.slice(Math.max(0, focusStartIndex - 3), focusStartIndex);
+  const before = visual.slice(Math.max(0, focusStartIndex - COMIC_CONTINUITY_MAX_SCAN_BACK), focusStartIndex);
   const lines: string[] = [];
   const sourceEventIds: string[] = [];
   const visualAdultGrounded = safety.visualProjectionAdultGrounded ?? false;
-  for (const event of before) {
+  const settled = { placeTime: false, appearance: false, object: false };
+
+  for (let index = before.length - 1; index >= 0; index -= 1) {
     if (lines.length >= COMIC_CONTINUITY_MAX_CONTEXT_LINES) break;
-    if (event.kind === "environment") {
-      if (!CONTINUITY_PLACE_HINT.test(event.text) && !CONTINUITY_TIME_HINT.test(event.text)) {
-        continue;
-      }
-      const text = projectTextForSafeImagePrompt(event.text, {
-        adultGrounded: visualAdultGrounded,
-      })
-        .trim()
-        .slice(0, 60);
-      if (!text) continue;
-      lines.push(`Current place/time: ${text}.`);
+    const event = before[index]!;
+    if (event.kind === "dialogue" || event.kind === "assistant_echo") continue;
+    const projected = projectTextForSafeImagePrompt(event.text, {
+      adultGrounded: visualAdultGrounded,
+    })
+      .trim()
+      .slice(0, 60);
+    if (!projected) continue;
+    if (!settled.placeTime && CONTINUITY_PLACE_TIME_HINT.test(event.text)) {
+      lines.push(`Current place/time: ${projected}.`);
       sourceEventIds.push(event.id);
+      settled.placeTime = true;
       continue;
     }
-    if (
-      (event.kind === "action" || event.kind === "reaction") &&
-      CONTINUITY_STATE_HINT.test(event.text)
-    ) {
-      const text = projectTextForSafeImagePrompt(event.text, {
-        adultGrounded: visualAdultGrounded,
-      })
-        .trim()
-        .slice(0, 60);
-      if (!text) continue;
-      const subject =
-        event.actor === "character"
-          ? `${binding.characterLabel} (${binding.characterName})`
-          : event.actor === "persona"
-            ? `${binding.personaLabel} (${binding.personaName})`
-            : event.actor;
-      lines.push(`Current state (${subject}): ${text}.`);
+    if (!settled.appearance && CONTINUITY_APPEARANCE_HINT.test(event.text)) {
+      lines.push(`Current state: ${projected}.`);
       sourceEventIds.push(event.id);
+      settled.appearance = true;
+      continue;
+    }
+    if (!settled.object && CONTINUITY_OBJECT_HINT.test(event.text)) {
+      lines.push(`Held/worn: ${projected}.`);
+      sourceEventIds.push(event.id);
+      settled.object = true;
     }
   }
   return { lines, sourceEventIds };

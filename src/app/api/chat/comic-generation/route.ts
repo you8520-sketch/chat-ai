@@ -1422,7 +1422,7 @@ export async function POST(req: Request) {
       );
     }
 
-const source = semanticLadderMode
+    const source = semanticLadderMode
       ? {
           messages: [] as SceneSourceMessage[],
           turnText: "",
