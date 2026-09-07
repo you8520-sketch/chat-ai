@@ -244,6 +244,20 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.match(result.text, /안녕/);
   });
 
+  it("P1a reasoning then content parts opens the first-visible gate once visible prose arrives", async () => {
+    const result = await runStream({
+      logical: "pro",
+      fetchFn: async () =>
+        sseResponse([
+          { choices: [{ delta: { reasoning: "hidden" } }] },
+          { choices: [{ delta: { content: [{ type: "text", text: "visible prose" }] } }] },
+        ]),
+    });
+    assert.equal(result.urls.length, 1);
+    assert.notEqual(result.telemetry.primary_first_visible_ms, null);
+    assert.match(result.text, /visible prose/);
+  });
+
   it("P2 native Pro UND_ERR_SOCKET before headers → strict single external attempt", async () => {
     let calls = 0;
     await assert.rejects(
@@ -321,6 +335,37 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.equal(result.telemetry.backup_success, false);
     assert.equal(result.telemetry.failover_trigger, null);
     assert.equal(calls, 1);
+  });
+
+  it("P5a native Pro first-visible timeout aborts the request and cancels its reader once", async () => {
+    let requestSignal: AbortSignal | undefined;
+    let requestAbortCount = 0;
+    let bodyCancelCount = 0;
+    const result = await runStreamExpectFailoverError({
+      logical: "pro",
+      deadlines: { headersMs: 80, firstVisibleMs: 30, backupFirstVisibleMs: 80 },
+      fetchFn: async (_input, init) => {
+        requestSignal = init?.signal ?? undefined;
+        requestSignal?.addEventListener("abort", () => {
+          requestAbortCount += 1;
+        });
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(sseChunk({ choices: [{ delta: { reasoning: "hidden" } }] }));
+            },
+            cancel() {
+              bodyCancelCount += 1;
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "text/event-stream" } }
+        );
+      },
+    });
+    assert.equal(result.telemetry.primary_failure_class, "first_visible_timeout");
+    assert.equal(requestSignal?.aborted, true, "timeout aborts the original provider fetch");
+    assert.equal(requestAbortCount, 1, "timeout aborts the provider request exactly once");
+    assert.equal(bodyCancelCount, 1, "timeout cancels the provider response reader exactly once");
   });
 
   it("P6 native Pro one visible char then socket close → OR calls 0", async () => {
