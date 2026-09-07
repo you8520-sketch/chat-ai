@@ -137,7 +137,7 @@ describe("Admin Receipt compact view model — provenance & auxiliary summary", 
       })
     );
     const vm = buildAdminReceiptCompactViewModel(receipt);
-    assert.equal(vm.mainRp.provenanceLabel, "Provider 실제 청구 원가");
+    assert.equal(vm.mainRp.provenanceLabel, "Provider 보고 원가");
   });
 
   it("I — provider cost genuinely unavailable: no provenance label / cost hidden", () => {
@@ -156,14 +156,18 @@ describe("Admin Receipt compact view model — provenance & auxiliary summary", 
     assert.equal(vm.mainRp.provenanceLabel, null);
   });
 
-  it("estimated catalog source gets Published 기준 추정 원가 label", () => {
+  it("estimated catalog source gets CI 할인 요율 추정 원가 label", () => {
     assert.equal(
       resolveMainRpCostProvenanceLabel("live_catalog_estimated"),
-      "Published 기준 추정 원가"
+      "CI 할인 요율 추정 원가"
+    );
+    assert.equal(
+      resolveMainRpCostProvenanceLabel("live_catalog_partial"),
+      "CI 할인 요율 부분 추정"
     );
     assert.equal(
       resolveMainRpCostProvenanceLabel("published_fallback_estimated"),
-      "Published 기준 추정 원가"
+      "Provider 요율 추정 원가"
     );
     assert.equal(resolveMainRpCostProvenanceLabel("unavailable"), null);
   });
@@ -455,7 +459,7 @@ describe("Admin Receipt compact — review blocker regression", () => {
     const rel = vm.auxiliaryCalls.find((c) => c.label === "Relationship Memory");
     assert.ok(rel);
     assert.equal(rel?.result, "success");
-    assert.equal(rel?.costProvenanceLabel, "Published 기준 추정 원가");
+    assert.equal(rel?.costProvenanceLabel, "CI 할인 요율 추정 원가");
   });
 
   it("failed call → result=failed (transport outcome, not cost)", () => {
@@ -534,5 +538,85 @@ describe("Admin Receipt compact — review blocker regression", () => {
     // Clipboard carries model + call count + success.
     assert.match(text, /GPT-5\.6 Luna/);
     assert.match(text, /1회 성공/);
+  });
+});
+
+describe("Admin Receipt compact — final semantic correction", () => {
+  it("CI_BILLED_LABEL → CI 실제 청구 원가", () => {
+    assert.equal(
+      resolveMainRpCostProvenanceLabel("cheaper_inference_billed"),
+      "CI 실제 청구 원가"
+    );
+  });
+
+  it("CI_LIVE_CATALOG_ESTIMATE_LABEL → CI 할인 요율 추정 원가 (not Published)", () => {
+    assert.equal(
+      resolveMainRpCostProvenanceLabel("live_catalog_estimated"),
+      "CI 할인 요율 추정 원가"
+    );
+    assert.equal(
+      resolveMainRpCostProvenanceLabel("live_catalog_partial"),
+      "CI 할인 요율 부분 추정"
+    );
+  });
+
+  it("PROVIDER_REPORTED_LABEL → '보고' (no '실제 청구' overclaim)", () => {
+    assert.equal(
+      resolveMainRpCostProvenanceLabel("provider_reported"),
+      "Provider 보고 원가"
+    );
+  });
+
+  it("PUBLISHED_USER_PRICE_CONFUSION_REMOVED — provider actual estimate ≠ Published user price", () => {
+    // fallback estimate uses provider open-router rate, not Published user price.
+    assert.equal(
+      resolveMainRpCostProvenanceLabel("published_fallback_estimated"),
+      "Provider 요율 추정 원가"
+    );
+    assert.doesNotMatch(
+      resolveMainRpCostProvenanceLabel("published_fallback_estimated") ?? "",
+      /^Published /
+    );
+  });
+
+  it("STATUS_WIDGET_SUCCESS_EVIDENCE_OWNER — sync widget call result is success, not cost exactness", () => {
+    // A persisted statusWidgetExtract with an ESTIMATED catalog cost still means
+    // the extraction call succeeded (call result != cost exactness).
+    const receipt = buildV3(
+      baseUsage({
+        statusWidgetExtract: {
+          input: 100,
+          output: 50,
+          model: "gpt-5.6-luna",
+          modelLabel: "GPT-5.6 Luna",
+          estimated: false,
+          apiRawCostKrw: 4,
+          actualProviderCostUsd: 0.000928,
+          actualCostSource: "live_catalog_estimated",
+          actualCostCoverage: "complete",
+          actualProviderCostKrw: 1.5,
+        },
+      })
+    );
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    const widget = vm.auxiliaryCalls.find((c) => c.label === "상태창 위젯");
+    assert.ok(widget);
+    assert.equal(widget?.result, "success");
+    assert.equal(widget?.costProvenanceLabel, "CI 할인 요율 추정 원가");
+  });
+
+  it("normal widget success does NOT expose verbose diagnostics (panel/tooltip contract)", () => {
+    const fs = require("node:fs") as typeof import("node:fs");
+    const tooltipSource = fs.readFileSync(
+      "src/components/BillingReceiptTooltip.tsx",
+      "utf8"
+    );
+    // Normal success path must not render the per-attempt verbose dump
+    // ("API attempts" / "initial ·" / "결과:" lines).
+    assert.match(tooltipSource, /usedFallback/);
+    assert.match(tooltipSource, /exhausted/);
+    assert.match(tooltipSource, /countWidgetExtractAttempts/);
+    // Per-attempt verbose line formatter is no longer used by the tooltip.
+    assert.doesNotMatch(tooltipSource, /formatWidgetExtractAttemptLine/);
   });
 });

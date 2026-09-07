@@ -224,10 +224,17 @@ export function resolveMainRpCostProvenanceLabel(source: string | null | undefin
     case "cheaper_inference_billed":
       return "CI 실제 청구 원가";
     case "provider_reported":
-      return "Provider 실제 청구 원가";
+      // CI + provider_reported is exactness=estimated in the canonical V2
+      // semantics; "보고" states the evidence without overclaiming "실제 청구".
+      return "Provider 보고 원가";
     case "live_catalog_estimated":
+      // Uses the customer-facing discounted CI catalog rate.
+      return "CI 할인 요율 추정 원가";
+    case "live_catalog_partial":
+      return "CI 할인 요율 부분 추정";
     case "published_fallback_estimated":
-      return "Published 기준 추정 원가";
+      // Uses the provider open-router fallback rate (not the Published user price).
+      return "Provider 요율 추정 원가";
     case "unavailable":
       return null;
     default:
@@ -314,11 +321,15 @@ export function buildAdminReceiptCompactViewModel(
   // Sync platform spend (status widget extraction) is a real auxiliary provider call.
   const syncSpend = sync?.syncPlatformSpend;
   if (syncSpend?.status === "available" && (syncSpend.callCount ?? 1) > 0) {
+    // A persisted statusWidgetExtract / available sync spend means the widget
+    // extraction provider call actually ran and returned billable usage → the
+    // CALL RESULT is success. Cost exactness is shown separately as a
+    // provenance label (never conflated with call outcome).
     auxiliaryCalls.push({
       label: "상태창 위젯",
       model: syncSpend.modelLabel ?? syncSpend.model ?? null,
       calls: syncSpend.callCount ?? 1,
-      result: syncSpend.exactness === "settled" ? "success" : "partial",
+      result: "success",
       costUsd:
         syncSpend.actualProviderCostUsd != null && syncSpend.actualProviderCostUsd > 0
           ? syncSpend.actualProviderCostUsd
