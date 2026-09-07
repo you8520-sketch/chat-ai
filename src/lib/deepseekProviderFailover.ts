@@ -668,8 +668,9 @@ export async function executeDeepSeekWithProviderFailover(opts: {
   };
 
   let primaryResponse: Response;
+  let abortPrimaryRequest: (() => void) | undefined;
   try {
-    primaryResponse = await fetchCompatible({
+    const primaryFetch = await fetchCompatible({
       request: opts.primary,
       fetchFn,
       timeoutMs: opts.stream ? headersDeadline : completionDeadline ?? headersDeadline,
@@ -677,6 +678,8 @@ export async function executeDeepSeekWithProviderFailover(opts: {
       startedAt: primaryStarted,
       consumeCompleteBody: !opts.stream,
     });
+    primaryResponse = primaryFetch.response;
+    abortPrimaryRequest = primaryFetch.abort;
     telemetry.primary_headers_ms = Math.max(0, now() - primaryStarted);
     telemetry.primary_http_status = primaryResponse.status;
   } catch (error) {
@@ -760,6 +763,7 @@ export async function executeDeepSeekWithProviderFailover(opts: {
       fetchStartedAt: primaryStarted,
       deadlineMs: firstVisibleDeadline,
       now,
+      abortRequest: abortPrimaryRequest,
     });
     if (gated.kind === "visible") {
       telemetry.primary_first_visible_ms = gated.firstVisibleMs;
@@ -798,7 +802,7 @@ export async function fetchDeepSeekNonStreamCompletion(opts: {
   const fetchFn = opts.hooks?.fetchFn ?? globalThis.fetch.bind(globalThis);
   const now = opts.hooks?.now ?? Date.now;
   const startedAt = now();
-  const response = await fetchCompatible({
+  const result = await fetchCompatible({
     request: opts.request,
     fetchFn,
     timeoutMs: opts.timeoutMs,
@@ -806,7 +810,7 @@ export async function fetchDeepSeekNonStreamCompletion(opts: {
     startedAt,
     consumeCompleteBody: true,
   });
-  return { response, latencyMs: Math.max(0, now() - startedAt) };
+  return { response: result.response, latencyMs: Math.max(0, now() - startedAt) };
 }
 
 /** Background/auxiliary wrapper — keeps the single OpenRouter backup attempt. */
@@ -878,8 +882,9 @@ async function runBackup(input: {
   input.telemetry.provider_attempt_count = 2;
   const started = input.now();
   let response: Response;
+  let abortRequest: (() => void) | undefined;
   try {
-    response = await fetchCompatible({
+    const backupFetch = await fetchCompatible({
       request: {
         endpoint: backup.endpoint,
         headers: backup.headers,
@@ -893,6 +898,8 @@ async function runBackup(input: {
       startedAt: started,
       consumeCompleteBody: !input.opts.stream,
     });
+    response = backupFetch.response;
+    abortRequest = backupFetch.abort;
     input.telemetry.backup_headers_ms = Math.max(0, input.now() - started);
   } catch (error) {
     input.telemetry.backup_headers_ms = Math.max(0, input.now() - started);
@@ -921,6 +928,7 @@ async function runBackup(input: {
     fetchStartedAt: started,
     deadlineMs: input.backupFirstVisibleDeadline,
     now: input.now,
+    abortRequest,
   });
   if (gated.kind === "visible") {
     input.telemetry.backup_first_visible_ms = gated.firstVisibleMs;
@@ -942,10 +950,16 @@ async function fetchCompatible(opts: {
   now: () => number;
   startedAt: number;
   consumeCompleteBody?: boolean;
-}): Promise<Response> {
+}): Promise<{ response: Response; abort: () => void }> {
   const controller = new AbortController();
+  let abortRequested = false;
+  const abort = () => {
+    if (abortRequested) return;
+    abortRequested = true;
+    controller.abort();
+  };
   const remaining = Math.max(1, opts.timeoutMs - (opts.now() - opts.startedAt));
-  const timer = setTimeout(() => controller.abort(), remaining);
+  const timer = setTimeout(abort, remaining);
   let headersReceived = false;
   let httpStatus: number | null = null;
   try {
@@ -958,7 +972,7 @@ async function fetchCompatible(opts: {
     headersReceived = true;
     httpStatus = response.status;
     if (!opts.consumeCompleteBody) {
-      return response;
+      return { response, abort };
     }
     try {
       const leftoverMs = Math.max(1, opts.timeoutMs - (opts.now() - opts.startedAt));
@@ -967,14 +981,17 @@ async function fetchCompatible(opts: {
         leftoverMs,
         httpStatus,
         onTimeout: () => {
-          if (!controller.signal.aborted) controller.abort();
+          abort();
         },
       });
-      return new Response(bytes, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: response.headers,
-      });
+      return {
+        response: new Response(bytes, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        }),
+        abort,
+      };
     } catch (error) {
       if (error instanceof DeepSeekBodyDeliveryError) throw error;
       throw new DeepSeekBodyDeliveryError({
@@ -1039,6 +1056,7 @@ async function gateStreamFirstVisible(opts: {
   fetchStartedAt: number;
   deadlineMs: number;
   now: () => number;
+  abortRequest?: () => void;
 }): Promise<
   | { kind: "visible"; response: Response; firstVisibleMs: number }
   | {
@@ -1060,11 +1078,15 @@ async function gateStreamFirstVisible(opts: {
   let buffer = "";
   const prefixChunks: Uint8Array[] = [];
   let visibleChars = 0;
+  const abortAndCancel = async () => {
+    opts.abortRequest?.();
+    await cancelQuietly(reader);
+  };
   try {
     while (visibleChars === 0) {
       const remaining = opts.deadlineMs - (opts.now() - opts.fetchStartedAt);
       if (remaining <= 0) {
-        await cancelQuietly(reader);
+        await abortAndCancel();
         return {
           kind: "failover",
           trigger: "first_visible_timeout",
@@ -1073,7 +1095,7 @@ async function gateStreamFirstVisible(opts: {
       }
       const chunk = await readWithDeadline(reader, remaining);
       if (chunk.kind === "timeout") {
-        await cancelQuietly(reader);
+        await abortAndCancel();
         return {
           kind: "failover",
           trigger: "first_visible_timeout",
@@ -1082,7 +1104,7 @@ async function gateStreamFirstVisible(opts: {
       }
       if (chunk.kind === "done") {
         if (visibleChars === 0) {
-          await cancelQuietly(reader);
+          await abortAndCancel();
           return {
             kind: "failover",
             trigger: "first_visible_timeout",
@@ -1096,7 +1118,7 @@ async function gateStreamFirstVisible(opts: {
       visibleChars += countVisibleAssistantChars(buffer);
     }
   } catch (error) {
-    await cancelQuietly(reader);
+    await abortAndCancel();
     if (visibleChars > 0) throw error;
     const classified = classifyDeepSeekProviderFailure({ error });
     return {
@@ -1123,7 +1145,7 @@ async function gateStreamFirstVisible(opts: {
       }
     },
     cancel() {
-      return cancelQuietly(reader);
+      return abortAndCancel();
     },
   });
   const stream = prependBytes(prefix, rest);
