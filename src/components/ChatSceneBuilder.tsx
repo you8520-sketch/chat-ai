@@ -3,10 +3,6 @@
 import { useEffect, useState } from "react";
 
 import ChatImageCastPicker from "@/components/ChatImageCastPicker";
-import {
-  CHAT_COMIC_PANEL_OPTIONS,
-  type ChatComicPanelMode,
-} from "@/lib/chatComicGenerationConstants";
 import type { ChatImageCastIntentManifest, SelectableCastAsset } from "@/lib/chatImageCast";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
@@ -30,7 +26,6 @@ import {
   updatePanelDialogueAtIndex,
   type SceneDialogueSpeaker,
   type ScenePanel,
-  type ScenePanelCount,
   type ScenePlan,
 } from "@/lib/chatImageScenePlan";
 
@@ -50,14 +45,10 @@ type ChatSceneBuilderProps = {
   characterName: string;
   castSpeakerNames?: readonly string[];
   outputMode: SceneOutputMode;
-  panelCount: ScenePanelCount;
-  comicPanelMode?: ChatComicPanelMode;
   /** Normal comic autopilot: per-panel dialogue/speaker/situation edits are not authoritative. */
   comicAutopilotMode?: boolean;
   disabled?: boolean;
   onOutputModeChange: (mode: SceneOutputMode) => void;
-  onPanelCountChange: (count: ScenePanelCount) => void;
-  onComicPanelModeChange?: (mode: ChatComicPanelMode) => void;
   onPlanChange: (plan: ScenePlan) => void;
   onCastChange: (manifest: ChatImageCastIntentManifest) => void;
 };
@@ -431,13 +422,9 @@ export default function ChatSceneBuilder({
   characterName,
   castSpeakerNames,
   outputMode,
-  panelCount,
-  comicPanelMode,
   comicAutopilotMode,
   disabled,
   onOutputModeChange,
-  onPanelCountChange,
-  onComicPanelModeChange,
   onPlanChange,
   onCastChange,
 }: ChatSceneBuilderProps) {
@@ -460,7 +447,7 @@ export default function ChatSceneBuilder({
       }
       return next.size === current.size ? current : next;
     });
-  }, [plan?.panels, panelCount]);
+  }, [plan?.panels]);
 
   return (
     <div className="space-y-3">
@@ -492,28 +479,11 @@ export default function ChatSceneBuilder({
 
       {outputMode === "comic" ? (
         <section className="space-y-2">
-          <h3 className="text-[11px] font-semibold text-zinc-400">컷 수</h3>
-          <div className="grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-1">
-            {CHAT_COMIC_PANEL_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                disabled={disabled || !plan}
-                onClick={() => {
-                  onComicPanelModeChange?.(option.id);
-                  // The scene planner still plans with a concrete count; AUTO
-                  // plans for 4 and the anchor-centered storyboard decides 3/4.
-                  onPanelCountChange(option.id === "auto" ? 4 : option.id);
-                }}
-                className={`rounded-lg px-2 py-2 text-[11px] font-semibold transition ${
-                  comicPanelMode === option.id
-                    ? "bg-violet-600 text-white"
-                    : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
+          <h3 className="text-[11px] font-semibold text-zinc-400">컷만화</h3>
+          <div className="space-y-1">
+            <p className="text-xs leading-relaxed text-zinc-400">
+              AI가 대화에서 중요한 장면을 골라 자연스러운 컷만화로 구성합니다.
+            </p>
           </div>
         </section>
       ) : null}
