@@ -826,10 +826,10 @@ test.describe("General chat live reading follow — production browser", () => {
     await autoProgress.click();
     await deferredResponse.requestSeen;
 
-    // sendContinue's explicit reattach must settle before the response can add
-    // optimistic rows, a sentinel, or any visual prose.
+    // sendContinue starts its in-flight/placeholder lifecycle before fetch, but
+    // explicit reattach must already own the viewport before response prose.
     await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
-      liveReadingActive: false,
+      liveReadingActive: true,
       followLatest: true,
       manualDetached: false,
     });
