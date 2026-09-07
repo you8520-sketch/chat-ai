@@ -132,7 +132,25 @@ export function AdminBillingReceiptV3Panel({
             <ReceiptRow
               key={call.label}
               label={call.label}
-              value={`${call.calls}회 ${call.result === "success" ? "성공" : call.result}${call.costUsd != null ? ` · ${usdWithKrw(call.costUsd, fxRate)}` : ""}`}
+              value={
+                <>
+                  {call.model ? (
+                    <span className="text-zinc-200">{call.model} · </span>
+                  ) : null}
+                  <span className="text-zinc-200">
+                    {call.calls}회 {call.result === "success" ? "성공" : call.result}
+                  </span>
+                  {call.costUsd != null ? (
+                    <>
+                      {" · "}
+                      {usdWithKrw(call.costUsd, fxRate)}
+                      {call.costProvenanceLabel ? (
+                        <span className="text-zinc-500"> ({call.costProvenanceLabel})</span>
+                      ) : null}
+                    </>
+                  ) : null}
+                </>
+              }
             />
           ))}
         </>

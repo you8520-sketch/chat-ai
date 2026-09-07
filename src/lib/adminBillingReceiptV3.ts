@@ -269,6 +269,8 @@ function resolveAsyncSection(input: {
       actualCostSource: row.actual_cost_source,
       exact: isLedgerEventCostExact(row),
       incomplete: isLedgerEventCostCoverageIncomplete(row),
+      actualModel: row.actual_model?.trim() || null,
+      requestedModel: row.requested_model?.trim() || null,
     })),
   };
 }
@@ -416,6 +418,8 @@ export function buildAdminBillingReceiptV3ForMissingUsage(
       actualCostSource: row.actual_cost_source,
       exact: isLedgerEventCostExact(row),
       incomplete: isLedgerEventCostCoverageIncomplete(row),
+      actualModel: row.actual_model?.trim() || null,
+      requestedModel: row.requested_model?.trim() || null,
     })),
   };
 

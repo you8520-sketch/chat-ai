@@ -651,11 +651,7 @@ export default function BillingReceiptTooltip({
           ) && (
             <div className="mt-2 space-y-0.5 border-t border-white/10 pt-2 text-[10px] text-zinc-500">
               <p className="mb-1 font-semibold text-zinc-400">
-                컨텍스트 분해 (추정 배분)
-              </p>
-              <p className="mb-1 text-[9px] leading-snug text-zinc-600">
-                섹션별 토큰은 provider가 영역별로 보고한 값이 아니라 조립된 텍스트 크기에 따른
-                추정 배분입니다. API 입력 총합만 provider 보고값입니다.
+                컨텍스트 분해
               </p>
               {filterUsageBreakdownForReceipt(usage.breakdown, showFullReceipt)
                 .filter((b) => b.tokens > 0)
@@ -667,28 +663,8 @@ export default function BillingReceiptTooltip({
               {showFullReceipt && usage.rawHistoryHealth && (
                 <div className="mt-1 space-y-0.5 border-t border-white/5 pt-1">
                   <p>RAW exchanges: {usage.rawHistoryHealth.rawCompleteExchanges}</p>
-                  <p>RAW chars: {usage.rawHistoryHealth.rawChars.toLocaleString()}</p>
-                  <p>
-                    SUMMARY_INTERVAL: {usage.rawHistoryHealth.summaryInterval} · through turn{" "}
-                    {usage.rawHistoryHealth.summarizedThroughTurn}
-                  </p>
-                  {usage.rawHistoryHealth.policyViolation && (
-                    <p className="text-amber-400">RAW_HISTORY_POLICY_VIOLATION</p>
-                  )}
                 </div>
               )}
-            </div>
-          )}
-          {showFullReceipt && usage.assembledPromptChars && (
-            <div className="mt-2 space-y-0.5 border-t border-white/10 pt-2 text-[10px] text-zinc-500">
-              <p className="mb-1 font-semibold text-zinc-400">ASSEMBLED TEXT (chars)</p>
-              <p>system: {usage.assembledPromptChars.system.toLocaleString()}</p>
-              <p>systemRules: {usage.assembledPromptChars.systemRules.toLocaleString()}</p>
-              <p>characterSettings: {usage.assembledPromptChars.characterSettings.toLocaleString()}</p>
-              <p>dynamic: {usage.assembledPromptChars.dynamic.toLocaleString()}</p>
-              <p>RAW/history: {usage.assembledPromptChars.history.toLocaleString()}</p>
-              <p>current user: {usage.assembledPromptChars.currentUser.toLocaleString()}</p>
-              <p>total: {usage.assembledPromptChars.total.toLocaleString()}</p>
             </div>
           )}
           {showFullReceipt && (

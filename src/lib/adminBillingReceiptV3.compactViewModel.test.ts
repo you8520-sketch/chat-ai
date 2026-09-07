@@ -94,7 +94,11 @@ function buildV3(
   });
 }
 
-function asyncLedgerRow(family: string, usd: number): ProviderCostLedgerRow {
+function asyncLedgerRow(
+  family: string,
+  usd: number,
+  overrides: Partial<ProviderCostLedgerRow> = {}
+): ProviderCostLedgerRow {
   return {
     event_key: `ev-${family}`,
     event_status: "settled",
@@ -106,6 +110,9 @@ function asyncLedgerRow(family: string, usd: number): ProviderCostLedgerRow {
     exact: true,
     incomplete: false,
     generation_sequence: 0,
+    actual_model: "gpt-5.6-luna",
+    requested_model: "gpt-5.6-luna",
+    ...overrides,
   } as unknown as ProviderCostLedgerRow;
 }
 
@@ -355,5 +362,177 @@ describe("Admin Receipt compact view model — provenance & auxiliary summary", 
     assert.match(text, /Relationship Memory/);
     assert.doesNotMatch(text, /\[Turn Summary\]/);
     assert.doesNotMatch(text, /coverage:/);
+  });
+});
+
+describe("Admin Receipt compact — review blocker regression", () => {
+  it("status widget model is visible in UI semantics (view model carries model)", () => {
+    const receipt = buildV3(
+      baseUsage({
+        statusWidgetExtract: {
+          input: 100,
+          output: 50,
+          model: "gpt-5.6-luna",
+          modelLabel: "GPT-5.6 Luna",
+          estimated: false,
+          apiRawCostKrw: 4,
+          actualProviderCostUsd: 0.000928,
+          actualCostSource: "cheaper_inference_billed",
+          actualCostCoverage: "complete",
+          actualProviderCostKrw: 1.5,
+        },
+      })
+    );
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    const widget = vm.auxiliaryCalls.find((c) => c.label === "상태창 위젯");
+    assert.ok(widget);
+    assert.equal(widget?.model, "GPT-5.6 Luna");
+    assert.equal(widget?.calls, 1);
+    assert.equal(widget?.result, "success");
+    assert.equal(widget?.costUsd, 0.000928);
+  });
+
+  it("status widget model visible in clipboard", () => {
+    const receipt = buildV3(
+      baseUsage({
+        statusWidgetExtract: {
+          input: 100,
+          output: 50,
+          model: "gpt-5.6-luna",
+          modelLabel: "GPT-5.6 Luna",
+          estimated: false,
+          apiRawCostKrw: 4,
+          actualProviderCostUsd: 0.000928,
+          actualCostSource: "cheaper_inference_billed",
+          actualCostCoverage: "complete",
+          actualProviderCostKrw: 1.5,
+        },
+      })
+    );
+    const text = formatAdminBillingReceiptV3Text(receipt);
+    assert.match(text, /GPT-5\.6 Luna/);
+    assert.match(text, /1회 성공/);
+  });
+
+  it("relationship memory async actual_model is preserved in the view model", () => {
+    const receipt = buildV3(baseUsage(), {
+      memoryRelationshipTask: memoryTask("succeeded"),
+      ledgerRows: [asyncLedgerRow("memory_relationship", 0.000404)],
+    });
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    const rel = vm.auxiliaryCalls.find((c) => c.label === "Relationship Memory");
+    assert.ok(rel);
+    assert.equal(rel?.model, "gpt-5.6-luna");
+  });
+
+  it("requested_model != actual_model → actual_model wins", () => {
+    const receipt = buildV3(baseUsage(), {
+      memoryRelationshipTask: memoryTask("succeeded"),
+      ledgerRows: [
+        asyncLedgerRow("memory_relationship", 0.000404, {
+          requested_model: "deepseek-v4-flash",
+          actual_model: "gpt-5.6-luna",
+        }),
+      ],
+    });
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    const rel = vm.auxiliaryCalls.find((c) => c.label === "Relationship Memory");
+    assert.equal(rel?.model, "gpt-5.6-luna");
+  });
+
+  it("successful call + estimated cost → result=success, cost provenance separate", () => {
+    const receipt = buildV3(baseUsage(), {
+      memoryRelationshipTask: memoryTask("succeeded"),
+      ledgerRows: [
+        asyncLedgerRow("memory_relationship", 0.000404, {
+          event_status: "completed_without_exact_cost",
+          actual_cost_source: "live_catalog_estimated",
+          actual_cost_usd: 0.000404,
+        }),
+      ],
+    });
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    const rel = vm.auxiliaryCalls.find((c) => c.label === "Relationship Memory");
+    assert.ok(rel);
+    assert.equal(rel?.result, "success");
+    assert.equal(rel?.costProvenanceLabel, "Published 기준 추정 원가");
+  });
+
+  it("failed call → result=failed (transport outcome, not cost)", () => {
+    const receipt = buildV3(baseUsage(), {
+      memoryRelationshipTask: memoryTask("failed"),
+      ledgerRows: [
+        asyncLedgerRow("memory_relationship", 0, {
+          event_status: "failed_without_usage",
+          actual_cost_source: "unavailable",
+          actual_cost_usd: null,
+        }),
+      ],
+    });
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    const rel = vm.auxiliaryCalls.find((c) => c.label === "Relationship Memory");
+    assert.ok(rel);
+    assert.equal(rel?.result, "failed");
+  });
+
+  it("calls=0 → row hidden", () => {
+    const receipt = buildV3(baseUsage(), {
+      suggestedRepliesRecord: null,
+      statusMetaRecord: null,
+      ledgerRows: [],
+    });
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    assert.deepEqual(vm.auxiliaryCalls, []);
+  });
+
+  it("multiple distinct async models → no fabricated single model", () => {
+    const receipt = buildV3(baseUsage(), {
+      memoryRelationshipTask: memoryTask("succeeded"),
+      ledgerRows: [
+        asyncLedgerRow("memory_relationship", 0.000404, { actual_model: "model-a" }),
+        asyncLedgerRow("memory_relationship", 0.000404, { actual_model: "model-b" }),
+      ],
+    });
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    const rel = vm.auxiliaryCalls.find((c) => c.label === "Relationship Memory");
+    assert.ok(rel);
+    assert.equal(rel?.model, null);
+  });
+
+  it("REACT_RENDER_OBJECT_OBJECT — panel does not string-interpolate ReactNode", () => {
+    const fs = require("node:fs") as typeof import("node:fs");
+    const panelSource = fs.readFileSync(
+      "src/components/AdminBillingReceiptV3Panel.tsx",
+      "utf8"
+    );
+    // The auxiliary row must NOT embed a ReactNode (usdWithKrw) in a template literal.
+    assert.doesNotMatch(panelSource, /\$\{call\.costUsd[^}]*usdWithKrw/);
+    assert.doesNotMatch(panelSource, /\$\{[^}]*usdWithKrw\(call\.costUsd[^}]*\}\}/);
+  });
+
+  it("UI/clipboard semantic parity — both show model/calls/result/cost for a widget call", () => {
+    const receipt = buildV3(
+      baseUsage({
+        statusWidgetExtract: {
+          input: 100,
+          output: 50,
+          model: "gpt-5.6-luna",
+          modelLabel: "GPT-5.6 Luna",
+          estimated: false,
+          apiRawCostKrw: 4,
+          actualProviderCostUsd: 0.000928,
+          actualCostSource: "cheaper_inference_billed",
+          actualCostCoverage: "complete",
+          actualProviderCostKrw: 1.5,
+        },
+      })
+    );
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    const text = formatAdminBillingReceiptV3Text(receipt);
+    const widget = vm.auxiliaryCalls.find((c) => c.label === "상태창 위젯");
+    assert.ok(widget);
+    // Clipboard carries model + call count + success.
+    assert.match(text, /GPT-5\.6 Luna/);
+    assert.match(text, /1회 성공/);
   });
 });

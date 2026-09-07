@@ -53,6 +53,10 @@ export type AdminBillingReceiptV3AsyncSection = {
     actualCostSource: string | null;
     exact: boolean;
     incomplete: boolean;
+    /** Delivered model from the provider ledger — canonical, not inferred. */
+    actualModel?: string | null;
+    /** Requested model from the provider ledger. */
+    requestedModel?: string | null;
   }>;
 };
 
@@ -185,8 +189,11 @@ export type AdminReceiptAuxiliaryCall = {
   label: string;
   model: string | null;
   calls: number;
+  /** Transport/job event outcome — NOT cost exactness. */
   result: "success" | "failed" | "partial";
   costUsd: number | null;
+  /** Cost provenance label when a cost is shown (kept separate from result). */
+  costProvenanceLabel: string | null;
 };
 
 export type AdminReceiptMainRpCost = {
@@ -228,6 +235,58 @@ export function resolveMainRpCostProvenanceLabel(source: string | null | undefin
   }
 }
 
+/**
+ * Resolve the delivered model for an async family from its provider-ledger
+ * events. Canonical preference: actual_model → requested_model → null.
+ * If multiple distinct delivered models exist, return null (do not fabricate
+ * a single model that contradicts the evidence).
+ */
+export function resolveAsyncFamilyModel(
+  events:
+    | Array<{ actualModel?: string | null; requestedModel?: string | null }>
+    | undefined
+    | null
+): string | null {
+  if (!events || events.length === 0) return null;
+  const delivered = new Set<string>();
+  for (const ev of events) {
+    const m = ev.actualModel ?? ev.requestedModel;
+    if (m) delivered.add(m);
+  }
+  if (delivered.size === 1) {
+    return [...delivered][0] ?? null;
+  }
+  // Multiple distinct delivered models → cannot truthfully show one.
+  return null;
+}
+
+/**
+ * Resolve the transport/job event outcome for an async family from its
+ * provider-ledger events. This is the CALL RESULT — independent of whether the
+ * cost is exact/estimated. A successful provider call with an estimated cost is
+ * still "success".
+ */
+export function resolveAsyncCallResult(
+  events:
+    | Array<{ eventStatus?: string | null }>
+    | undefined
+    | null,
+  taskFailed?: boolean
+): "success" | "failed" | "partial" {
+  if (taskFailed === true) return "failed";
+  if (!events || events.length === 0) return "partial";
+  const failed = events.some((ev) => {
+    const s = ev.eventStatus ?? "";
+    return s === "failed_with_usage" || s === "failed_without_usage";
+  });
+  if (failed) return "failed";
+  const hasSettled = events.some((ev) => {
+    const s = ev.eventStatus ?? "";
+    return s === "settled" || s === "completed_without_exact_cost";
+  });
+  return hasSettled ? "success" : "partial";
+}
+
 /** Build the canonical compact view model from a receipt. */
 export function buildAdminReceiptCompactViewModel(
   receipt: AdminBillingReceiptV3
@@ -264,22 +323,34 @@ export function buildAdminReceiptCompactViewModel(
         syncSpend.actualProviderCostUsd != null && syncSpend.actualProviderCostUsd > 0
           ? syncSpend.actualProviderCostUsd
           : null,
+      costProvenanceLabel: resolveMainRpCostProvenanceLabel(syncSpend.actualCostSource),
     });
   }
   for (const family of receipt.async.byFamily) {
     // Only show jobs that actually made a physical provider call.
     if (family.physicalCallCount <= 0) continue;
-    const result: AdminReceiptAuxiliaryCall["result"] = family.taskFailed
-      ? "failed"
-      : family.coverage === "complete"
-        ? "success"
-        : "partial";
+    // Call result comes from the transport/job event outcome, NOT cost exactness.
+    const familyEvents = family.family
+      ? receipt.async.events?.filter((ev) => ev.family === family.family)
+      : [];
+    const result = resolveAsyncCallResult(familyEvents, family.taskFailed);
+    const model = resolveAsyncFamilyModel(familyEvents);
+    // A single settled cost source is the family's provenance; known-but-mixed
+    // sources keep a neutral label rather than a fabricated one.
+    const costSources = new Set(
+      (familyEvents ?? [])
+        .map((ev) => ev.actualCostSource?.trim())
+        .filter((s): s is string => Boolean(s))
+    );
+    const provenanceLabel =
+      costSources.size === 1 ? resolveMainRpCostProvenanceLabel([...costSources][0]) : null;
     auxiliaryCalls.push({
       label: family.label,
-      model: null,
+      model,
       calls: family.physicalCallCount,
       result,
       costUsd: family.knownActualCostUsd > 0 ? family.knownActualCostUsd : null,
+      costProvenanceLabel: provenanceLabel,
     });
   }
 
@@ -352,8 +423,12 @@ export function formatAdminBillingReceiptV3Text(receipt: AdminBillingReceiptV3):
   if (vm.auxiliaryCalls.length > 0) {
     lines.push("", "[이번 턴 보조 호출]");
     for (const call of vm.auxiliaryCalls) {
+      const model = call.model ? ` · ${call.model}` : "";
       const cost = call.costUsd != null ? ` · ${formatAdminActualUsd(call.costUsd)}${fxSuffix(call.costUsd)}` : "";
-      lines.push(`${call.label}: ${call.calls}회 ${call.result === "success" ? "성공" : call.result}${cost}`);
+      const prov = call.costProvenanceLabel ? ` (${call.costProvenanceLabel})` : "";
+      lines.push(
+        `${call.label}:${model} · ${call.calls}회 ${call.result === "success" ? "성공" : call.result}${cost}${prov}`
+      );
     }
   }
 
