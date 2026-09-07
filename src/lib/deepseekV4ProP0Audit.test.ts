@@ -185,4 +185,14 @@ describe("DeepSeek V4 Pro P0 deterministic primary payload audit", () => {
     );
     assert.ok((built.meta.promptAudit?.totalAssembledTokens ?? 0) > 0);
   });
+
+  it("prompt audit detects the production STYLE_ONLY reminder (measurement correctness)", () => {
+    const { built } = buildFixturePayload();
+    const audit = built.meta.promptAudit;
+    assert.ok(audit, "promptAudit must be present");
+    // Production DeepSeek injects DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY as the
+    // user-tail prefix. The audit must recognize it (legacy combined-reminder
+    // detection alone would report false and misattribute the structure).
+    assert.equal(audit?.deepSeekStructure?.bottomReminderBeforeCurrentTurn, true);
+  });
 });

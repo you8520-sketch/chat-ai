@@ -2,6 +2,7 @@ import { estimateTokens } from "@/lib/ai";
 import type { ChatMsg } from "@/lib/ai";
 import {
   DEEPSEEK_BOTTOM_REMINDER,
+  DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY,
   DEEPSEEK_XML_TAGS,
   formatDeepSeekChatHistoryBlock,
 } from "@/lib/deepseekPromptStructure";
@@ -269,7 +270,8 @@ export function auditAssembledPrompt(opts: {
         ),
         bottomReminderBeforeCurrentTurn:
           currentTurn?.role === "user" &&
-          currentTurn.content.trim().startsWith(DEEPSEEK_BOTTOM_REMINDER),
+          (currentTurn.content.trim().startsWith(DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY) ||
+            currentTurn.content.trim().startsWith(DEEPSEEK_BOTTOM_REMINDER)),
       }
     : undefined;
 
