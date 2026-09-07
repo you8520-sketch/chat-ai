@@ -4,10 +4,7 @@ import {
   type AdminBillingReceiptV2,
   type AdminBillingReceiptV2Fx,
 } from "@/lib/adminBillingReceiptV2";
-import {
-  buildAdminReceiptTurnSummary,
-  formatAdminReceiptTurnSummaryLines,
-} from "@/lib/adminBillingReceiptTurnSummary";
+import { formatPoints } from "@/lib/billingDisplay";
 import type {
   AsyncFamilyCoverageState,
   AsyncFamilyExpectationState,
@@ -171,6 +168,139 @@ export function formatAdminBillingReceiptV3MainRpModelLines(
   }
 }
 
+/**
+ * Compact Admin Receipt view model — ONE canonical display owner.
+ *
+ * The default receipt shows only what a decision needs:
+ *  - mainRp: model + actual cost + provenance label
+ *  - userCharge: deducted points (published-final duplication removed when equal)
+ *  - auxiliaryCalls: only jobs that actually ran (zero-call / missing-record rows
+ *    are hidden from the default display; the underlying forensic data is kept)
+ *
+ * Every UI section resolves from this view model, never from raw DB/forensic
+ * objects independently. ONE RESPONSIBILITY = ONE CANONICAL DISPLAY OWNER.
+ */
+
+export type AdminReceiptAuxiliaryCall = {
+  label: string;
+  model: string | null;
+  calls: number;
+  result: "success" | "failed" | "partial";
+  costUsd: number | null;
+};
+
+export type AdminReceiptMainRpCost = {
+  /** Delivered model label when known. */
+  model: string | null;
+  /** Actual provider cost USD, or null when not provable. */
+  costUsd: number | null;
+  /** Stored actual cost source — CI billed / provider reported / catalog estimated. */
+  provenance: string | null;
+  /** Human-readable provenance label matching the stored evidence. */
+  provenanceLabel: string | null;
+};
+
+export type AdminReceiptCompactViewModel = {
+  mainRp: AdminReceiptMainRpCost;
+  deductedPoints: number | null;
+  auxiliaryCalls: AdminReceiptAuxiliaryCall[];
+  /** True when a complete, same-provenance turn total is provable. */
+  hasCompleteTotal: boolean;
+  /** Complete total USD when hasCompleteTotal, else null. */
+  completeTotalUsd: number | null;
+  contextSummaryAvailable: boolean;
+};
+
+/** Map a stored actual-cost source to an evidence-true Korean label. */
+export function resolveMainRpCostProvenanceLabel(source: string | null | undefined): string | null {
+  switch (source) {
+    case "cheaper_inference_billed":
+      return "CI 실제 청구 원가";
+    case "provider_reported":
+      return "Provider 실제 청구 원가";
+    case "live_catalog_estimated":
+    case "published_fallback_estimated":
+      return "Published 기준 추정 원가";
+    case "unavailable":
+      return null;
+    default:
+      return source ? `원가 출처: ${source}` : null;
+  }
+}
+
+/** Build the canonical compact view model from a receipt. */
+export function buildAdminReceiptCompactViewModel(
+  receipt: AdminBillingReceiptV3
+): AdminReceiptCompactViewModel {
+  const sync = receipt.syncReceipt;
+  const mainActual = sync?.mainRp?.actual ?? null;
+  const mainRpModelIdentity = resolveAdminBillingReceiptV3MainRpModelIdentity(receipt);
+
+  const mainRp: AdminReceiptMainRpCost = {
+    model:
+      mainRpModelIdentity.kind === "same"
+        ? mainRpModelIdentity.selectedModelLabel
+        : mainRpModelIdentity.kind === "different"
+          ? mainRpModelIdentity.deliveredModel
+          : null,
+    costUsd:
+      mainActual?.exactness === "settled" && mainActual.actualProviderCostUsd != null
+        ? mainActual.actualProviderCostUsd
+        : receipt.wholeTurn.mainActualCostUsd,
+    provenance: mainActual?.actualCostSource ?? null,
+    provenanceLabel: resolveMainRpCostProvenanceLabel(mainActual?.actualCostSource),
+  };
+
+  const auxiliaryCalls: AdminReceiptAuxiliaryCall[] = [];
+  // Sync platform spend (status widget extraction) is a real auxiliary provider call.
+  const syncSpend = sync?.syncPlatformSpend;
+  if (syncSpend?.status === "available" && (syncSpend.callCount ?? 1) > 0) {
+    auxiliaryCalls.push({
+      label: "상태창 위젯",
+      model: syncSpend.modelLabel ?? syncSpend.model ?? null,
+      calls: syncSpend.callCount ?? 1,
+      result: syncSpend.exactness === "settled" ? "success" : "partial",
+      costUsd:
+        syncSpend.actualProviderCostUsd != null && syncSpend.actualProviderCostUsd > 0
+          ? syncSpend.actualProviderCostUsd
+          : null,
+    });
+  }
+  for (const family of receipt.async.byFamily) {
+    // Only show jobs that actually made a physical provider call.
+    if (family.physicalCallCount <= 0) continue;
+    const result: AdminReceiptAuxiliaryCall["result"] = family.taskFailed
+      ? "failed"
+      : family.coverage === "complete"
+        ? "success"
+        : "partial";
+    auxiliaryCalls.push({
+      label: family.label,
+      model: null,
+      calls: family.physicalCallCount,
+      result,
+      costUsd: family.knownActualCostUsd > 0 ? family.knownActualCostUsd : null,
+    });
+  }
+
+  // Complete total is provable only when whole-turn coverage is complete and
+  // exact (includes Main RP + sync + async, all settled).
+  const hasCompleteTotal = receipt.wholeTurn.coverage === "complete";
+  const completeTotalUsd = hasCompleteTotal ? receipt.wholeTurn.exactProviderSpendUsd : null;
+
+  return {
+    mainRp,
+    deductedPoints:
+      sync != null
+        ? (sync.userCharge.settledDeductedPoints ?? sync.userCharge.deductedPoints)
+        : receipt.forensic?.chargeEvidenceSettledPoints ?? null,
+    auxiliaryCalls,
+    hasCompleteTotal,
+    completeTotalUsd,
+    contextSummaryAvailable: false,
+  };
+}
+
 export function wholeTurnCoverageLabel(
   coverage: AdminBillingReceiptV3WholeTurnCoverage
 ): string {
@@ -191,67 +321,46 @@ export function wholeTurnCoverageLabel(
 }
 
 export function formatAdminBillingReceiptV3Text(receipt: AdminBillingReceiptV3): string {
-  const summary = buildAdminReceiptTurnSummary(receipt);
   const fxRate = receipt.wholeTurn.fx?.effectiveKrwPerUsd ?? null;
   const fxSuffix = (usd: number | null | undefined): string => {
     const krw = formatAdminKrwFromUsd(usd, fxRate);
     return krw == null ? "" : ` (${krw})`;
   };
   const mainRpModelIdentity = resolveAdminBillingReceiptV3MainRpModelIdentity(receipt);
+  const vm = buildAdminReceiptCompactViewModel(receipt);
+
   const lines: string[] = [
-    "Admin Receipt v3 · 턴 귀속 Provider 원가",
+    "Admin Receipt v3",
     ...formatAdminBillingReceiptV3MainRpModelLines(mainRpModelIdentity),
-    ...formatAdminReceiptTurnSummaryLines(summary, { locale: "en" }),
-    `coverage: ${wholeTurnCoverageLabel(receipt.wholeTurn.coverage)}`,
   ];
   if (receipt.historicalNote) lines.push(receipt.historicalNote);
 
   lines.push("", "[Main RP]");
-  lines.push(
-    `actual USD: ${formatAdminActualUsd(receipt.wholeTurn.mainActualCostUsd)}${fxSuffix(receipt.wholeTurn.mainActualCostUsd)} (${receipt.wholeTurn.mainExact ? "exact" : "not exact"})`
-  );
-
-  lines.push("", "[Sync Platform Spend]");
-  if (receipt.syncReceipt == null) {
-    lines.push("sync: unavailable — no stored Usage snapshot");
-  } else if (receipt.wholeTurn.syncProvablyNone) {
-    lines.push("sync: provably none");
-  } else if (receipt.syncReceipt.syncPlatformSpend.status === "not_persisted") {
-    lines.push("sync: snapshot not persisted");
-  } else {
+  if (vm.mainRp.provenanceLabel && vm.mainRp.costUsd != null) {
     lines.push(
-      `actual USD: ${formatAdminActualUsd(receipt.wholeTurn.syncActualCostUsd)}${fxSuffix(receipt.wholeTurn.syncActualCostUsd)} (${receipt.wholeTurn.syncExact ? "exact" : "not exact"})`
+      `${vm.mainRp.provenanceLabel}: ${formatAdminActualUsd(vm.mainRp.costUsd)}${fxSuffix(vm.mainRp.costUsd)}`
     );
   }
 
-  lines.push("", "[Async Turn-attributable]");
-  lines.push(`coverage: ${wholeTurnCoverageLabel(receipt.async.coverage)}`);
-  lines.push(`known USD: ${formatAdminActualUsd(receipt.async.knownActualCostUsd)}${fxSuffix(receipt.async.knownActualCostUsd)}`);
-  lines.push(
-    `exact USD: ${receipt.async.exactActualCostUsd != null ? formatAdminActualUsd(receipt.async.exactActualCostUsd) + fxSuffix(receipt.async.exactActualCostUsd) : "—"}`
-  );
-  for (const family of receipt.async.byFamily) {
+  if (receipt.syncReceipt != null) {
+    lines.push("", "[차감]");
     lines.push(
-      `- ${family.label}: calls=${family.physicalCallCount}, known=${formatAdminActualUsd(family.knownActualCostUsd)}${fxSuffix(family.knownActualCostUsd)}, state=${family.expectationState}/${family.coverage}`
+      `실제 차감: ${vm.deductedPoints != null ? `${formatPoints(vm.deductedPoints)} P` : "확인 불가"}`
     );
   }
 
-  lines.push("", "[Whole Turn]");
-  lines.push(`known USD: ${formatAdminActualUsd(receipt.wholeTurn.knownProviderSpendUsd)}${fxSuffix(receipt.wholeTurn.knownProviderSpendUsd)}`);
-  lines.push(
-    `exact USD: ${receipt.wholeTurn.exactProviderSpendUsd != null ? formatAdminActualUsd(receipt.wholeTurn.exactProviderSpendUsd) + fxSuffix(receipt.wholeTurn.exactProviderSpendUsd) : "—"}`
-  );
-  lines.push(
-    `exact KRW: ${receipt.wholeTurn.exactProviderSpendKrw != null ? `${receipt.wholeTurn.exactProviderSpendKrw} KRW` : "—"}`
-  );
-  if (receipt.wholeTurn.contributionMarginPercent != null) {
-    lines.push(
-      `turn-attributable margin: ${receipt.wholeTurn.contributionMarginPercent}% (${receipt.wholeTurn.contributionMarginKrw} KRW)`
-    );
+  if (vm.auxiliaryCalls.length > 0) {
+    lines.push("", "[이번 턴 보조 호출]");
+    for (const call of vm.auxiliaryCalls) {
+      const cost = call.costUsd != null ? ` · ${formatAdminActualUsd(call.costUsd)}${fxSuffix(call.costUsd)}` : "";
+      lines.push(`${call.label}: ${call.calls}회 ${call.result === "success" ? "성공" : call.result}${cost}`);
+    }
   }
 
-  lines.push("", "[Excluded scopes]");
-  lines.push(receipt.excludedCostScopes.join(", "));
+  if (vm.hasCompleteTotal && vm.completeTotalUsd != null) {
+    lines.push("", "[이번 턴 확인 원가]");
+    lines.push(`합계: ${formatAdminActualUsd(vm.completeTotalUsd)}${fxSuffix(vm.completeTotalUsd)}`);
+  }
 
   return lines.join("\n");
 }

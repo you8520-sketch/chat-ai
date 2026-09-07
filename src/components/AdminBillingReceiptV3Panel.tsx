@@ -2,21 +2,16 @@
 
 import type { ReactNode } from "react";
 import {
-  adminReceiptExactnessLabel,
   formatAdminActualUsd,
   formatAdminKrwFromUsd,
 } from "@/lib/adminBillingReceiptV2";
 import {
+  buildAdminReceiptCompactViewModel,
   formatAdminBillingReceiptV3MainRpModelLines,
   formatAdminBillingReceiptV3Text,
   resolveAdminBillingReceiptV3MainRpModelIdentity,
-  wholeTurnCoverageLabel,
   type AdminBillingReceiptV3,
 } from "@/lib/adminBillingReceiptV3Shared";
-import {
-  buildAdminReceiptTurnSummary,
-  formatAdminReceiptTurnSummaryLines,
-} from "@/lib/adminBillingReceiptTurnSummary";
 import { formatPoints } from "@/lib/billingDisplay";
 
 function SectionTitle({ children }: { children: ReactNode }) {
@@ -42,21 +37,6 @@ function ReceiptRow({
       {hint ? <span className="text-zinc-600"> {hint}</span> : null}
     </p>
   );
-}
-
-function coverageBadgeClass(coverage: AdminBillingReceiptV3["wholeTurn"]["coverage"]): string {
-  switch (coverage) {
-    case "complete":
-      return "text-emerald-300/95";
-    case "pending":
-      return "text-amber-300/95";
-    case "partial":
-      return "text-orange-300/95";
-    case "unverifiable":
-      return "text-zinc-400";
-    default:
-      return "text-zinc-400";
-  }
 }
 
 /** USD 값 옆에 오늘의 billing FX로 환산한 KRW 금액을 함께 표시한다. */
@@ -85,23 +65,18 @@ export function AdminBillingReceiptV3Panel({
   copied?: boolean;
 }) {
   const sync = receipt.syncReceipt;
-  const turnSummary = buildAdminReceiptTurnSummary(receipt);
-  const forensic = receipt.forensic;
   const fxRate = receipt.wholeTurn.fx?.effectiveKrwPerUsd ?? null;
-  const mainRpModelIdentity = resolveAdminBillingReceiptV3MainRpModelIdentity(receipt);
-  const mainRpModelLines = formatAdminBillingReceiptV3MainRpModelLines(mainRpModelIdentity);
+  const vm = buildAdminReceiptCompactViewModel(receipt);
+  const mainRpModelLines = formatAdminBillingReceiptV3MainRpModelLines(
+    resolveAdminBillingReceiptV3MainRpModelIdentity(receipt)
+  );
 
   return (
     <div className="space-y-0.5 text-[11px] leading-relaxed text-zinc-300">
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-[10px] font-semibold text-amber-300/90">
-          Admin Receipt v3 · 턴 귀속 Provider 원가
+          Admin Receipt v3
         </p>
-        <span
-          className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${coverageBadgeClass(receipt.wholeTurn.coverage)} bg-white/5`}
-        >
-          {wholeTurnCoverageLabel(receipt.wholeTurn.coverage)}
-        </span>
         {onCopy && (
           <button
             type="button"
@@ -113,151 +88,66 @@ export function AdminBillingReceiptV3Panel({
         )}
       </div>
 
-      <SectionTitle>Main RP 모델</SectionTitle>
+      <SectionTitle>Main RP</SectionTitle>
       {mainRpModelLines.map((line) => (
         <p key={line} className="whitespace-pre-wrap font-mono text-[10px] leading-snug">
           {line}
         </p>
       ))}
+      {vm.mainRp.provenanceLabel && vm.mainRp.costUsd != null ? (
+        <ReceiptRow
+          label={vm.mainRp.provenanceLabel}
+          value={usdWithKrw(vm.mainRp.costUsd, fxRate)}
+        />
+      ) : null}
 
-      <SectionTitle>턴 요약</SectionTitle>
-      {formatAdminReceiptTurnSummaryLines(turnSummary, {
-        locale: "ko",
-        includeHeading: false,
-      }).map((line) => (
-        <p key={line} className="whitespace-pre-wrap font-mono text-[10px] leading-snug">
-          {line}
-        </p>
-      ))}
-
-      {receipt.historicalNote && (
-        <p className="text-[10px] text-amber-400/90">{receipt.historicalNote}</p>
-      )}
-
-      {!sync ? (
+      {sync ? (
         <>
-          <SectionTitle>Usage snapshot</SectionTitle>
-          <ReceiptRow label="status" value="Unavailable — no stored Usage snapshot" />
-          {forensic?.chargeStatus && (
-            <ReceiptRow label="charge status" value={forensic.chargeStatus} />
-          )}
-          {forensic?.chargeEvidenceSettledPoints != null && (
+          <SectionTitle>차감</SectionTitle>
+          <ReceiptRow
+            label="실제 차감"
+            value={
+              vm.deductedPoints != null
+                ? `${formatPoints(vm.deductedPoints)} P`
+                : "확인 불가"
+            }
+          />
+          <ReceiptRow
+            label="입력/출력"
+            value={`${(sync.userCharge.inputTokens ?? 0).toLocaleString()} / ${(sync.userCharge.outputTokens ?? 0).toLocaleString()} tok`}
+          />
+          {receipt.mainRpOutputVisibleChars != null && (
             <ReceiptRow
-              label="settled points (settlement evidence)"
-              value={`${formatPoints(forensic.chargeEvidenceSettledPoints)} P`}
+              label="출력"
+              value={`${receipt.mainRpOutputVisibleChars.toLocaleString()}자`}
             />
           )}
         </>
       ) : null}
 
-      {sync?.userCharge.billingContract && (
+      {vm.auxiliaryCalls.length > 0 ? (
         <>
-          <SectionTitle>User charge contract (admin)</SectionTitle>
-          <ReceiptRow label="contract" value={sync.userCharge.billingContract} />
-          <ReceiptRow label="reason" value={sync.userCharge.billingContractReason ?? "—"} />
-          {sync.userCharge.publishedFinalPoints != null && (
+          <SectionTitle>이번 턴 보조 호출</SectionTitle>
+          {vm.auxiliaryCalls.map((call) => (
             <ReceiptRow
-              label="published final"
-              value={`${formatPoints(sync.userCharge.publishedFinalPoints)} P`}
+              key={call.label}
+              label={call.label}
+              value={`${call.calls}회 ${call.result === "success" ? "성공" : call.result}${call.costUsd != null ? ` · ${usdWithKrw(call.costUsd, fxRate)}` : ""}`}
             />
-          )}
-          {sync.userCharge.pricingVersion != null && (
-            <ReceiptRow label="pricingVersion" value={sync.userCharge.pricingVersion} />
-          )}
+          ))}
         </>
-      )}
+      ) : null}
 
-      <SectionTitle>턴 귀속 Provider 총원가</SectionTitle>
-      <ReceiptRow
-        label="현재 확인된 Provider 비용"
-        value={usdWithKrw(receipt.wholeTurn.knownProviderSpendUsd, fxRate)}
-        hint="(정산확정 subset만 합산)"
-      />
-      <ReceiptRow
-        label="확정 USD"
-        value={usdWithKrw(receipt.wholeTurn.exactProviderSpendUsd, fxRate)}
-      />
-      <ReceiptRow
-        label="확정 KRW"
-        value={
-          receipt.wholeTurn.exactProviderSpendKrw != null
-            ? `~${formatPoints(receipt.wholeTurn.exactProviderSpendKrw)}원`
-            : "—"
-        }
-        hint={
-          fxRate != null
-            ? `(billing FX ${fxRate.toLocaleString(undefined, { maximumFractionDigits: 2 })} KRW/USD · ${receipt.wholeTurn.fx?.dateKey ?? ""})`
-            : "(parent turn FX 1회 적용)"
-        }
-      />
-      {receipt.wholeTurn.contributionMarginPercent != null && (
-        <ReceiptRow
-          label="턴 귀속 마진"
-          value={`${receipt.wholeTurn.contributionMarginPercent}%`}
-          hint={`(${receipt.wholeTurn.contributionMarginKrw} KRW)`}
-        />
-      )}
-
-      <SectionTitle>Async 플랫폼 부담 (턴 귀속)</SectionTitle>
-      <ReceiptRow label="coverage" value={wholeTurnCoverageLabel(receipt.async.coverage)} />
-      <ReceiptRow
-        label="known USD"
-        value={usdWithKrw(receipt.async.knownActualCostUsd, fxRate)}
-      />
-      <ReceiptRow
-        label="exact USD"
-        value={usdWithKrw(receipt.async.exactActualCostUsd, fxRate)}
-      />
-      {receipt.async.unexpectedRowCount > 0 && (
-        <ReceiptRow
-          label="unexpected rows"
-          value={receipt.async.unexpectedRowCount}
-          hint={`(${receipt.async.unexpectedFamilies.join(", ")})`}
-        />
-      )}
-      {receipt.async.byFamily.map((family) => (
-        <p key={family.family} className="pl-2 text-[10px] text-zinc-400">
-          {family.label}: calls {family.physicalCallCount}, known{" "}
-          {usdWithKrw(family.knownActualCostUsd, fxRate)}, {family.expectationState} /{" "}
-          {family.coverage}
-          {family.skipReason ? ` (${family.skipReason})` : ""}
-        </p>
-      ))}
-
-      <SectionTitle>Main RP (동기)</SectionTitle>
-      {sync?.mainRp.actual ? (
+      {vm.hasCompleteTotal && vm.completeTotalUsd != null ? (
         <>
-          <ReceiptRow
-            label="actual USD"
-            value={usdWithKrw(sync.mainRp.actual.actualProviderCostUsd, fxRate)}
-          />
-          <ReceiptRow
-            label="확정"
-            value={adminReceiptExactnessLabel(sync.mainRp.actual.exactness)}
-          />
+          <SectionTitle>이번 턴 확인 원가</SectionTitle>
+          <ReceiptRow label="합계" value={usdWithKrw(vm.completeTotalUsd, fxRate)} />
         </>
-      ) : (
-        <p className="text-zinc-500">Main RP actual unavailable</p>
-      )}
+      ) : null}
 
-      <SectionTitle>Sync 플랫폼 부담 (동기)</SectionTitle>
-      {sync?.syncPlatformSpend.status === "available" ? (
-        <>
-          <ReceiptRow label="group" value={sync.syncPlatformSpend.groupLabel ?? "—"} />
-          <ReceiptRow
-            label="actual USD"
-            value={usdWithKrw(sync.syncPlatformSpend.actualProviderCostUsd, fxRate)}
-          />
-          {sync.syncPlatformSpend.postTurnSharedInitial && (
-            <ReceiptRow label="shared initial" value="included once in sync" />
-          )}
-        </>
-      ) : (
-        <ReceiptRow label="status" value={sync?.syncPlatformSpend.status ?? "unavailable"} />
+      {receipt.historicalNote && (
+        <p className="text-[10px] text-amber-400/90">{receipt.historicalNote}</p>
       )}
-
-      <SectionTitle>범위 제외</SectionTitle>
-      <p className="text-[10px] text-zinc-500">{receipt.excludedCostScopes.join(", ")}</p>
     </div>
   );
 }

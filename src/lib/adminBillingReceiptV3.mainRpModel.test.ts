@@ -219,18 +219,18 @@ describe("Admin Receipt v3 — Main RP model identity (canonical stored evidence
     for (const line of formatAdminBillingReceiptV3MainRpModelLines(identity)) {
       assert.ok(clipboardText.includes(line), `clipboard must include: ${line}`);
     }
-    // Model identity appears above the turn summary.
+    // Model identity renders above the deduction section.
     const modelIdx = clipboardText.indexOf("실제 처리 모델");
-    const summaryIdx = clipboardText.indexOf("deducted:");
+    const summaryIdx = clipboardText.indexOf("실제 차감:");
     assert.ok(modelIdx >= 0 && summaryIdx >= 0);
-    assert.ok(modelIdx < summaryIdx, "model identity must render above turn summary");
+    assert.ok(modelIdx < summaryIdx, "model identity must render above deduction section");
   });
 
-  it("same-model receipt clipboard also places Main RP 모델 above turn summary", () => {
+  it("same-model receipt clipboard also places Main RP 모델 above deduction", () => {
     const receipt = buildV3(sameModelUsage());
     const clipboardText = formatAdminBillingReceiptV3Text(receipt);
     const modelIdx = clipboardText.indexOf("Main RP 모델:");
-    const summaryIdx = clipboardText.indexOf("deducted:");
+    const summaryIdx = clipboardText.indexOf("실제 차감:");
     assert.ok(modelIdx >= 0 && summaryIdx >= 0);
     assert.ok(modelIdx < summaryIdx);
   });
