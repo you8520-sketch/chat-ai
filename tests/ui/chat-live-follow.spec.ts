@@ -794,14 +794,37 @@ test.describe("General chat live reading follow — production browser", () => {
     await sendMockAutoProgress(page);
     await waitForNetworkDoneVisualRevealPending(page);
 
-    // The explicit user action must rejoin before stream reveal; current main
-    // preserves manualDetached through resolveFollowBeforeStream and fails here.
+    // The explicit action rejoins before stream reveal without changing the
+    // normal-send policy that preserves a detached history reader.
     await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
       followLatest: true,
       manualDetached: false,
       sentinelConnected: true,
     });
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(detachedY);
+
+    // After first visible prose, normal continuous follow remains active.
+    await waitForCruiseEngagement(page);
+    const firstFollowY = await page.evaluate(() => window.scrollY);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(firstFollowY);
+
+    // A later root upward gesture remains sticky even while visual reveal grows.
+    await page.evaluate(() => window.scrollBy({ top: -120, behavior: "instant" }));
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: false,
+      manualDetached: true,
+    });
+    const frozenY = await page.evaluate(() => window.scrollY);
+    const visibleBefore = await page.locator("[data-quote-assistant]").last().innerText();
+    await expect.poll(() => page.locator("[data-quote-assistant]").last().innerText()).not.toBe(visibleBefore);
+    expect(await page.evaluate(() => window.scrollY)).toBeLessThanOrEqual(frozenY + 2);
+
+    // Existing downward-at-latest intent is the sole reattach owner after detach.
+    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: true,
+      manualDetached: false,
+    });
   });
 
   test("P0-A: geometry drift without user intent starts attached", async ({ page }) => {

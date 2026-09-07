@@ -3843,6 +3843,10 @@ export default function ChatClient({
     if (!canContinue || inFlightRef.current) return;
     if (!(await flushChatSettings())) return;
     if (inFlightRef.current) return;
+    // 자동진행 클릭은 사용자가 최신 진행으로 복귀하겠다는 명시적 viewport intent다.
+    // Keep generic send's detached-history policy intact; reuse the canonical
+    // reattach owner before loading makes it choose the live-reading branch.
+    reattachChatLiveFollow();
     inFlightRef.current = true;
     loadingRef.current = true;
     setError("");
