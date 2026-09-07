@@ -392,6 +392,25 @@ async function sendMockMessage(page: Page, text: string) {
   expect(response.ok()).toBeTruthy();
 }
 
+/** Production control path: ChatClient.sendContinue → POST /api/chat { isContinue: true }. */
+async function sendMockAutoProgress(page: Page) {
+  const autoProgress = page.getByRole("button", { name: "자동진행", exact: true });
+  await expect(autoProgress).toBeEnabled({ timeout: 45_000 });
+  const responseWait = page.waitForResponse(
+    (res) => {
+      const url = new URL(res.url());
+      if (!url.pathname.endsWith("/api/chat") || res.request().method() !== "POST" || res.status() === 0) {
+        return false;
+      }
+      const body = res.request().postDataJSON() as { isContinue?: unknown } | null;
+      return body?.isContinue === true;
+    },
+    { timeout: 45_000 }
+  );
+  await autoProgress.click();
+  expect((await responseWait).ok()).toBeTruthy();
+}
+
 async function waitForAssistantStreamSurface(page: Page) {
   await page.waitForFunction(
     () => {
@@ -745,6 +764,44 @@ test.describe("General chat live reading follow — production browser", () => {
 
     const afterY = await page.evaluate(() => window.scrollY);
     expect(afterY - beforeY).toBeLessThan(48);
+  });
+
+  test("P0 auto-progress: detached history click explicitly rejoins latest before first visible prose", async ({ page }) => {
+    await mockChatStreamRoute(page, longAssistantProse(1400));
+    await page.setViewportSize({ width: 1280, height: 420 });
+    await openFreshChat(page);
+
+    // A completed, scrollable prior turn gives the root scroll handler genuine
+    // history movement to classify as a manual detach before auto-progress.
+    await sendMockMessage(page, "completed history before auto progress");
+    await waitForNetworkDoneVisualRevealPending(page);
+    await page.locator("[data-quote-assistant]").last().click();
+    await page.waitForFunction(
+      () => document.querySelector("[data-chat-live-reading-active]")?.getAttribute("data-chat-live-reading-active") === "false",
+      undefined,
+      { timeout: 45_000 }
+    );
+    await ensureExtraScrollRoom(page, 1200);
+    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
+    await page.evaluate(() => window.scrollBy({ top: -240, behavior: "instant" }));
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      liveReadingActive: false,
+      followLatest: false,
+      manualDetached: true,
+    });
+    const detachedY = await page.evaluate(() => window.scrollY);
+
+    await sendMockAutoProgress(page);
+    await waitForNetworkDoneVisualRevealPending(page);
+
+    // The explicit user action must rejoin before stream reveal; current main
+    // preserves manualDetached through resolveFollowBeforeStream and fails here.
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: true,
+      manualDetached: false,
+      sentinelConnected: true,
+    });
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(detachedY);
   });
 
   test("P0-A: geometry drift without user intent starts attached", async ({ page }) => {
