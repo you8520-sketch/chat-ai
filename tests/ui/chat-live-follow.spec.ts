@@ -229,6 +229,37 @@ async function mockChatStreamRoute(page: Page, finalText: string) {
   });
 }
 
+/**
+ * Holds one POST before the normal mock stream handler fulfills it. This makes
+ * the pre-response viewport transition observable without a timing sleep.
+ */
+async function deferNextChatStreamResponse(page: Page) {
+  let requestObserved!: () => void;
+  const requestSeen = new Promise<void>((resolve) => {
+    requestObserved = resolve;
+  });
+  let releaseResponse!: () => void;
+  const responseReleased = new Promise<void>((resolve) => {
+    releaseResponse = resolve;
+  });
+
+  await page.route(
+    "**/api/chat",
+    async (route: Route) => {
+      if (route.request().method() !== "POST") {
+        await route.fallback();
+        return;
+      }
+      requestObserved();
+      await responseReleased;
+      await route.fallback();
+    },
+    { times: 1 }
+  );
+
+  return { requestSeen, releaseResponse };
+}
+
 async function readChatDiagnostics(page: Page): Promise<ChatDiagnostics> {
   return page.evaluate(() => {
     const bottom = document.querySelector("[data-chat-live-reading-active]");
@@ -791,7 +822,19 @@ test.describe("General chat live reading follow — production browser", () => {
     });
     const detachedY = await page.evaluate(() => window.scrollY);
 
-    await sendMockAutoProgress(page);
+    const deferredResponse = await deferNextChatStreamResponse(page);
+    const autoProgress = page.getByRole("button", { name: "자동진행", exact: true });
+    await autoProgress.click();
+    await deferredResponse.requestSeen;
+
+    // sendContinue's explicit reattach must settle before the response can add
+    // optimistic rows, a sentinel, or any visual prose.
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      liveReadingActive: false,
+      followLatest: true,
+      manualDetached: false,
+    });
+    deferredResponse.releaseResponse();
     await waitForNetworkDoneVisualRevealPending(page);
 
     // The explicit action rejoins before stream reveal without changing the
