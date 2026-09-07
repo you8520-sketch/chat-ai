@@ -1865,6 +1865,8 @@ contentKind: context.contentKind,
                           dialogueCandidates,
                           narrationCandidates,
                           panelMode: requestedPanelMode,
+                          plan: canonicalPlan,
+                          binding: { characterLabel: "A", characterName: context.character.name, personaLabel: "B", personaName: context.persona.name },
                         });
                       })(),
                     }
