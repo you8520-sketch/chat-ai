@@ -812,7 +812,6 @@ test.describe("General chat live reading follow — production browser", () => {
       undefined,
       { timeout: 45_000 }
     );
-    await ensureExtraScrollRoom(page, 1200);
     await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
     await page.evaluate(() => window.scrollBy({ top: -240, behavior: "instant" }));
     await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
