@@ -6,11 +6,11 @@ import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
   reflowScenePlanPanels,
+  resolveComicHighlightSelectionSource,
 } from "./chatImageScenePlan";
 import {
   commitScenePanelCount,
   resolveComicAiApplyPanelCount,
-  shouldApplyComicAiPlanUpgrade,
 } from "./chatImageScenePlanLifecycle";
 
 const MESSAGES = buildSceneSourceMessages([
@@ -18,8 +18,8 @@ const MESSAGES = buildSceneSourceMessages([
   { id: 2, role: "assistant", content: '"그래."' },
 ]);
 
-describe("chatImageScenePlanLifecycle async panel-count race", () => {
-  it("R0 sync write updates ref before async apply (no effect mirror required)", () => {
+describe("chatImageScenePlanLifecycle — normal comic generate lifecycle", () => {
+  it("R0 sync panel-count write updates ref before async apply", () => {
     const ref = { current: 3 as const };
     let state = 3 as const;
     const setState = (count: typeof state) => {
@@ -37,65 +37,33 @@ describe("chatImageScenePlanLifecycle async panel-count race", () => {
     assert.equal(applied.panels.length, 4);
   });
 
-  it("R2 rejects AI upgrade when user edited", () => {
-    assert.equal(
-      shouldApplyComicAiPlanUpgrade({
-        responseEpoch: 1,
-        currentEpoch: 1,
-        userEdited: true,
-      }),
-      false
-    );
-  });
-
-  it("R3 rejects stale epoch response", () => {
-    assert.equal(
-      shouldApplyComicAiPlanUpgrade({
-        responseEpoch: 1,
-        currentEpoch: 2,
-        userEdited: false,
-      }),
-      false
-    );
-  });
-
-  it("R4 keeps latest count when user edited after switch", () => {
-    const base = buildDeterministicScenePlan(MESSAGES, 3);
-    const switched = reflowScenePlanPanels(base, 4);
-    const edited = {
-      ...switched,
-      panels: switched.panels.map((panel, index) =>
-        index === 0
-          ? {
-              ...panel,
-              dialogue: [{ speaker: "persona" as const, text: "지금 갈게", provenance: "user_edit" as const }],
-            }
-          : panel
-      ),
-    };
-    assert.equal(edited.panels.length, 4);
-    assert.equal(edited.panels[0]?.dialogue[0]?.text, "지금 갈게");
-    assert.equal(
-      shouldApplyComicAiPlanUpgrade({
-        responseEpoch: 5,
-        currentEpoch: 5,
-        userEdited: true,
-      }),
-      false
-    );
-  });
-
-  it("R5 resolves to 4 after 3→2→4 switches", () => {
-    const aiPlan = buildDeterministicScenePlan(MESSAGES, 3);
-    const count = resolveComicAiApplyPanelCount(4);
-    assert.equal(count, 4);
-    assert.equal(applyApprovedAiScenePlan(aiPlan, count).panels.length, 4);
-  });
-
   it("R6 cached semantic plan reflows locally without new provider call contract", () => {
     const cached = buildDeterministicScenePlan(MESSAGES, 3);
     const reflowed = applyApprovedAiScenePlan(cached, 2);
     assert.equal(reflowed.panels.length, 2);
     assert.equal(reflowed.events.length, cached.events.length);
+  });
+
+  it("STALE-2 panel mode change before click → click-time mode is used (plan count reflowed at click time, never baked in)", () => {
+    const base = buildDeterministicScenePlan(MESSAGES, 3);
+    const atClick = reflowScenePlanPanels(base, 4);
+    assert.equal(atClick.panels.length, 4);
+    const backTo3 = reflowScenePlanPanels(atClick, 3);
+    assert.equal(backTo3.panels.length, 3);
+  });
+
+  it("deterministic plan + attached highlight reads scene_planner; bare plan reads deterministic_fallback", () => {
+    const base = buildDeterministicScenePlan(MESSAGES, undefined, {
+      personaName: "렌",
+      characterName: "태형",
+    });
+    assert.equal(resolveComicHighlightSelectionSource(base), "deterministic_fallback");
+    assert.equal(
+      resolveComicHighlightSelectionSource({
+        ...base,
+        comicHighlightSelection: { anchorEventId: "E2", focusEventIds: ["E1", "E2"] },
+      }),
+      "scene_planner"
+    );
   });
 });

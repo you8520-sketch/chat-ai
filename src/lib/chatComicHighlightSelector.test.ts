@@ -209,6 +209,57 @@ describe("true comic highlight selector — prompt inventory", () => {
 });
 
 describe("true comic highlight selector — planner branch", () => {
+  it("LIFECYCLE-3 click generate → Scene Planner invoked exactly once (single planChatImageScene call, one primary completer invocation)", async () => {
+    const { messages } = longGoldenTurn();
+    let completerCalls = 0;
+    const result = await planChatImageScene({
+      scenePlanIntent: "comic",
+      characterName: "태형",
+      personaName: "렌",
+      messages,
+      speakerContext: SPEAKER_CONTEXT,
+      complete: async (opts) => {
+        completerCalls += 1;
+        assert.match(opts.system, /comic scene selector/, "generate-time planner uses highlight-selector-only system");
+        const anchor = messages.length ? "E5" : "E1";
+        return JSON.stringify({ anchorEventId: anchor, focusEventIds: [anchor] });
+      },
+    });
+    assert.equal(completerCalls, 1, "one planner invocation per generate click");
+    assert.equal(result.usedFallback, false);
+    assert.equal(result.plan.comicHighlightSelection?.anchorEventId, "E5");
+    assert.equal(resolveComicHighlightSelectionSource(result.plan), "scene_planner");
+  });
+
+  it("LIFECYCLE-4 planner recovery — invalid selection never reaches provider; deterministic fallback plan only", async () => {
+    const { messages, events } = longGoldenEvents();
+    const anchor = events[0]!;
+    const result = await planChatImageScene({
+      scenePlanIntent: "comic",
+      characterName: "태형",
+      personaName: "렌",
+      messages,
+      speakerContext: SPEAKER_CONTEXT,
+      complete: async () => JSON.stringify({ anchorEventId: anchor.id, focusEventIds: ["E9999"] }),
+    });
+    assert.equal(result.model, "deterministic-fallback");
+    assert.equal(result.usedFallback, true);
+    assert.equal(result.plan.comicHighlightSelection, undefined);
+    assert.equal(resolveComicHighlightSelectionSource(result.plan), "deterministic_fallback");
+  });
+
+  it("LIFECYCLE-4 empty source → planner throws before any provider work (image 0, settlement 0 by construction)", async () => {
+    await assert.rejects(
+      planChatImageScene({
+        scenePlanIntent: "comic",
+        characterName: "태형",
+        personaName: "렌",
+        messages: [],
+        complete: async () => "{}",
+      }),
+      /턴 내용이 없습니다/u
+    );
+  });
   it("comic planner sends highlight-selector-only system + compact prompt; mock selection attaches to deterministic base", async () => {
     const { messages, events, visual } = longGoldenEvents();
     const lateAnchor = visual.find((event) => event.text.includes("평생 나만 보고"))!;
