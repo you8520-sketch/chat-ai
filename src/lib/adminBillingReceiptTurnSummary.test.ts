@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   buildAdminReceiptTurnSummary,
@@ -163,21 +162,16 @@ describe("adminBillingReceiptTurnSummary", () => {
     const u = usage({ cost: 33, shadowPricing: undefined });
     const receipt = buildReceiptFromUsage(u, 3421);
     const text = formatAdminBillingReceiptV3Text(receipt);
-    assert.match(text, /\[Turn Summary\]/);
-    assert.match(text, /deducted: 33 P/);
-    assert.match(text, /input tokens \(Main RP\): 9,000/);
-    assert.match(text, /output tokens \(Main RP\): 2,500/);
-    assert.match(text, /output chars \(Main RP\): 3,421/);
+    // Compact clipboard: deduction shown, no verbose turn-summary heading.
+    assert.match(text, /실제 차감: 33 P/);
+    assert.doesNotMatch(text, /\[Turn Summary\]/);
+    assert.doesNotMatch(text, /input tokens \(Main RP\)/);
+    assert.doesNotMatch(text, /output chars \(Main RP\)/);
     assert.match(
       formatAdminReceiptTurnSummaryLines(buildAdminReceiptTurnSummary(receipt)).join("\n"),
       /출력 글자수 \(Main RP\)\s+3,421자/
     );
-    assert.match(text, /margin: unavailable/);
-    const panelSource = readFileSync(
-      new URL("../components/AdminBillingReceiptV3Panel.tsx", import.meta.url),
-      "utf8"
-    );
-    assert.match(panelSource, /formatAdminReceiptTurnSummaryLines\(turnSummary/);
+    assert.doesNotMatch(text, /margin: unavailable/);
   });
 
   it("uses whole-turn contribution margin, not Main RP margin", () => {
