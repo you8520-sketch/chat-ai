@@ -229,6 +229,37 @@ async function mockChatStreamRoute(page: Page, finalText: string) {
   });
 }
 
+/**
+ * Holds one POST before the normal mock stream handler fulfills it. This makes
+ * the pre-response viewport transition observable without a timing sleep.
+ */
+async function deferNextChatStreamResponse(page: Page) {
+  let requestObserved!: () => void;
+  const requestSeen = new Promise<void>((resolve) => {
+    requestObserved = resolve;
+  });
+  let releaseResponse!: () => void;
+  const responseReleased = new Promise<void>((resolve) => {
+    releaseResponse = resolve;
+  });
+
+  await page.route(
+    "**/api/chat",
+    async (route: Route) => {
+      if (route.request().method() !== "POST") {
+        await route.fallback();
+        return;
+      }
+      requestObserved();
+      await responseReleased;
+      await route.fallback();
+    },
+    { times: 1 }
+  );
+
+  return { requestSeen, releaseResponse };
+}
+
 async function readChatDiagnostics(page: Page): Promise<ChatDiagnostics> {
   return page.evaluate(() => {
     const bottom = document.querySelector("[data-chat-live-reading-active]");
@@ -745,6 +776,78 @@ test.describe("General chat live reading follow — production browser", () => {
 
     const afterY = await page.evaluate(() => window.scrollY);
     expect(afterY - beforeY).toBeLessThan(48);
+  });
+
+  test("P0 auto-progress: detached history click explicitly rejoins latest before first visible prose", async ({ page }) => {
+    await mockChatStreamRoute(page, longAssistantProse(1400));
+    await page.setViewportSize({ width: 1280, height: 420 });
+    await openFreshChat(page);
+
+    // A completed, scrollable prior turn gives the root scroll handler genuine
+    // history movement to classify as a manual detach before auto-progress.
+    await sendMockMessage(page, "completed history before auto progress");
+    await waitForNetworkDoneVisualRevealPending(page);
+    await page.locator("[data-quote-assistant]").last().click();
+    await page.waitForFunction(
+      () => document.querySelector("[data-chat-live-reading-active]")?.getAttribute("data-chat-live-reading-active") === "false",
+      undefined,
+      { timeout: 45_000 }
+    );
+    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
+    await page.evaluate(() => window.scrollBy({ top: -240, behavior: "instant" }));
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      liveReadingActive: false,
+      followLatest: false,
+      manualDetached: true,
+    });
+    const detachedY = await page.evaluate(() => window.scrollY);
+
+    const deferredResponse = await deferNextChatStreamResponse(page);
+    const autoProgress = page.getByRole("button", { name: "자동진행", exact: true });
+    await autoProgress.click();
+    await deferredResponse.requestSeen;
+
+    // sendContinue starts its in-flight/placeholder lifecycle before fetch, but
+    // explicit reattach must already own the viewport before response prose.
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      liveReadingActive: true,
+      followLatest: true,
+      manualDetached: false,
+    });
+    deferredResponse.releaseResponse();
+    await waitForNetworkDoneVisualRevealPending(page);
+
+    // The explicit action rejoins before stream reveal without changing the
+    // normal-send policy that preserves a detached history reader.
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: true,
+      manualDetached: false,
+      sentinelConnected: true,
+    });
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(detachedY);
+
+    // After first visible prose, normal continuous follow remains active.
+    await waitForCruiseEngagement(page);
+    const firstFollowY = await page.evaluate(() => window.scrollY);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(firstFollowY);
+
+    // A later root upward gesture remains sticky even while visual reveal grows.
+    await page.evaluate(() => window.scrollBy({ top: -120, behavior: "instant" }));
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: false,
+      manualDetached: true,
+    });
+    const frozenY = await page.evaluate(() => window.scrollY);
+    const visibleBefore = await page.locator("[data-quote-assistant]").last().innerText();
+    await expect.poll(() => page.locator("[data-quote-assistant]").last().innerText()).not.toBe(visibleBefore);
+    expect(await page.evaluate(() => window.scrollY)).toBeLessThanOrEqual(frozenY + 2);
+
+    // Existing downward-at-latest intent is the sole reattach owner after detach.
+    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: true,
+      manualDetached: false,
+    });
   });
 
   test("P0-A: geometry drift without user intent starts attached", async ({ page }) => {
