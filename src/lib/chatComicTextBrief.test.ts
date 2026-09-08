@@ -343,7 +343,7 @@ describe("PR #877 final quality-floor correction", () => {
     });
     assert.doesNotMatch(brief.text, /narrat.*none/iu, "must not emit '(none)'");
     assert.match(brief.text, /No preferred narration line is supplied\./);
-    assert.match(brief.text, /you may create up to 2 very short source-grounded narration bridges\. Do not add new facts\./);
+    assert.match(brief.text, /Compose the scene from dialogue and action; add no narration boxes\./);
   });
 
   it("SPEAKER-1 / PROMPT-1/2/3 exactly one canonical owner per rule in the full prompt", () => {

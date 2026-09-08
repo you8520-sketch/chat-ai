@@ -108,10 +108,10 @@ const CONTINUITY_OBJECT_HINT =
   /(?:들고|쥐고|안고|메고|차고|목에 걸|팔에|품에|들쳐)/u;
 
 const NARRATION_TIME_HINT =
-  /(?:시간|후|뒤|다음|곧|밤|새벽|저녁|낮|이튿날|날이 밝)/iu;
+  /(?:한 시간 후(?![회한])|잠시 후(?![회한])|얼마 후(?![회한])|한참 후(?![회한])|그날 밤|다음 날|이튿날|날이 밝|시간|밤|새벽|저녁|\d+\s*(?:분|시간|초)\s*뒤)/iu;
 
 const NARRATION_PLACE_HINT =
-  /(?:침실|거실|욕실|부엌|주방|테라스|베란다|밖|복도|현관|들어온다|들어간다|나간다|옮긴다|이동|내려온다|올라간다|도착)/iu;
+  /(?:침실|거실|욕실|부엌|주방|테라스|베란다|복도|현관|밖으로|밖에서|들어온다|들어간다|나간다|옮긴다|이동|내려온다|올라간다|도착)/iu;
 
 export const COMIC_DIALOGUE_CANDIDATE_MAX = 5;
 export const COMIC_NARRATION_PAGE_MAX = 2;
@@ -119,8 +119,10 @@ export const COMIC_NARRATION_CANDIDATE_MAX_CHARS = 60;
 
 /**
  * Concise source-grounded projection for long narration/action sources. Cuts at
- * the first complete sentence boundary within the cap; if none fits, hard-cuts at
- * the cap. Never invents facts — it only shortens the original source sentence.
+ * the first complete sentence boundary within the cap; if none fits, tries clause
+ * boundaries (commas, semicolons, Korean particles); as last resort cuts at last
+ * word boundary before the cap. Never invents facts — it only shortens the original
+ * source sentence.
  */
 function projectConciseNarration(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -135,6 +137,23 @@ function projectConciseNarration(text: string, max: number): string {
     acc = candidate;
   }
   if (acc) return acc;
+  // Fallback 1: try clause boundaries (commas, semicolons, Korean particles)
+  const clauses = text
+    .split(/(?<=[,;~])/u)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+  let acc2 = "";
+  for (const clause of clauses) {
+    const candidate = acc2 ? `${acc2} ${clause}` : clause;
+    if (candidate.length > max) break;
+    acc2 = candidate;
+  }
+  if (acc2) return acc2;
+  // Fallback 2: last word boundary before max
+  if (max > 0 && text[max - 1] !== " ") {
+    const lastSpace = text.lastIndexOf(" ", max - 1);
+    if (lastSpace > 0) return text.slice(0, lastSpace).trim();
+  }
   return text.slice(0, max).trim();
 }
 
@@ -203,39 +222,15 @@ export function selectComicDialogueCandidates(
       Number(left.sourceEventId.replace(/\D/g, "")) - Number(right.sourceEventId.replace(/\D/g, ""))
   );
 
-  // UD-3 — an assistant may verbatim-echo a user line (되받아치듯). The same
-  // sentence must not become two candidates (user + character). Keep ONE
-  // occurrence per exact text, preferring the chronologically-earliest source
-  // event (the user's original line); reassign anchor semantics to whichever
-  // occurrence of the anchor text survives.
-  const anchorCandidate = scored.find((candidate) => candidate.priority === 1) ?? null;
-  const anchorText = anchorCandidate?.exactText;
-  const orderById = new Map(plan.events.map((event) => [event.id, event.order]));
-  const byText = new Map<string, ComicDialogueCandidate & { score: number }>();
-  for (const candidate of scored) {
-    const existing = byText.get(candidate.exactText);
-    if (!existing) {
-      byText.set(candidate.exactText, candidate);
-      continue;
-    }
-    const existingIsUser = existing.speakerSubject === binding.personaLabel;
-    const candidateIsUser = candidate.speakerSubject === binding.personaLabel;
-    if (candidateIsUser && !existingIsUser) {
-      byText.set(candidate.exactText, candidate);
-      continue;
-    }
-    if (existingIsUser && !candidateIsUser) continue;
-    const existingOrder = orderById.get(existing.sourceEventId) ?? Number.POSITIVE_INFINITY;
-    const candidateOrder = orderById.get(candidate.sourceEventId) ?? Number.POSITIVE_INFINITY;
-    if (candidateOrder < existingOrder) byText.set(candidate.exactText, candidate);
-  }
-  const deduped = [...byText.values()].map((candidate) => ({
-    ...candidate,
-    priority: anchorText !== undefined && candidate.exactText === anchorText ? 1 : 0,
-  }));
-  const anchor = deduped.find((candidate) => candidate.priority === 1);
-  const others = deduped.filter((candidate) => candidate !== anchor);
-  const selected: typeof deduped = [];
+  // No global exact-text dedupe: production parser evidence shows an assistant's
+  // quoted repetition (e.g. "...라고 되받아치듯 말했다") is classified as genuine
+  // dialogue (kind=dialogue, actor=character) — indistinguishable from a
+  // narrative recap without provenance. Same exactText alone therefore never
+  // deletes a dialogue event, and the Scene Planner anchor's sourceEventId is
+  // never reassigned downstream.
+  const anchor = scored.find((candidate) => candidate.priority === 1);
+  const others = scored.filter((candidate) => candidate !== anchor);
+  const selected: typeof scored = [];
   if (anchor) selected.push(anchor);
   const otherSpeakers = new Set<string>();
   for (const candidate of others) {
@@ -277,14 +272,17 @@ export function selectComicNarrationCandidates(
     .filter((event): event is SceneEvent => Boolean(event));
   const visualAdultGrounded = safety.visualProjectionAdultGrounded ?? false;
   const candidates: ComicNarrationCandidate[] = [];
+  const usedSourceEventIds = new Set<string>();
 
   const push = (event: SceneEvent, purpose: ComicNarrationPurpose): boolean => {
     if (candidates.length >= max) return false;
+    if (usedSourceEventIds.has(event.id)) return false;
     const projected = projectTextForSafeImagePrompt(event.text, { adultGrounded: visualAdultGrounded }).trim();
     if (!projected) return false;
     const concise = projectConciseNarration(projected, COMIC_NARRATION_CANDIDATE_MAX_CHARS);
     if (!concise) return false;
     candidates.push({ sourceEventId: event.id, text: concise, purpose });
+    usedSourceEventIds.add(event.id);
     return true;
   };
 
@@ -585,7 +583,7 @@ export function renderComicTextBrief(opts: {
     ? narrationCandidates
         .map((candidate) => `- "${candidate.text}"  [${candidate.purpose}]`)
         .join("\n")
-    : "No preferred narration line is supplied. If the selected [action]/[context] source genuinely needs a transition, you may create up to 2 very short source-grounded narration bridges. Do not add new facts.";
+    : "No preferred narration line is supplied. Compose the scene from dialogue and action; add no narration boxes.";
 
   const density = densityContext.density;
 
@@ -617,9 +615,11 @@ export function renderComicTextBrief(opts: {
     "TEXT FLOOR:",
     `- Spoken dialogue: ${density.spokenDialogueTarget}.`,
     `- Narration: ${density.narrationTarget} short boxes.`,
-    ...(narrationCandidates.length
-      ? ["- The selected scene contains source-grounded transition beats (time/location/action). Include a short narration bridge for that change when it helps the reader follow the jump; do not pad narration."]
-      : ["- No source-grounded transition needs a narration box; keep the page to spoken dialogue."]),
+    ...(density.narrationTarget === "0"
+      ? ["- Compose the scene from dialogue and action; add no narration boxes."]
+      : density.narrationTarget === "1"
+        ? ["- Use the supplied source-grounded transition candidate above as the narration bridge; add no other narration."]
+        : ["- Use one or two of the supplied source-grounded transition candidates above as narration bridges; add no other narration."]),
     `- Total text units: ${density.totalTextTarget} for a ${density.effectivePanelMode}-panel layout.`,
     ...(density.sparse4Discouraged
       ? ["- This highlight is sparse in text: prefer 3 panels, or keep the page quiet rather than filling silent panels."]
