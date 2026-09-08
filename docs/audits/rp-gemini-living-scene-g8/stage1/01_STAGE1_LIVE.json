@@ -1,0 +1,1370 @@
+{
+  "phase": "G8-STAGE1-LIVE",
+  "api_calls": 13,
+  "target_calls": 12,
+  "preaudit_summary": {
+    "fixed_reduction_pct": 31.9,
+    "negative_reduction_pct": 45.7,
+    "canon_parity": true
+  },
+  "cells": [
+    {
+      "cell_id": "Gemini_N1_A_D1",
+      "fixture": "N1",
+      "arm": "A",
+      "draw": 1,
+      "visible_chars": 1245,
+      "finish_reason": "stop",
+      "provider": "Google",
+      "latency_s": 22.873,
+      "tokens": {
+        "input_tokens": 4159,
+        "output_tokens": 2154,
+        "reasoning_tokens": 1104,
+        "cost_usd": 0.034166
+      },
+      "dialogue_char_share": 0.0426,
+      "narration_char_share": 0.9574,
+      "response_anchor": {
+        "response_anchor_count": 0,
+        "band": "IDEAL"
+      },
+      "same_speaker_dialogue_fragments": 2,
+      "continuity": {
+        "current_input_lcs_chars": 4,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE"
+      ],
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "canon_data_sha256": "0bb4a1cccc6647097524dec2df9b7a2529076b536a1e838b32c779ec5c4c272a",
+      "history_sha256": "6f0051e83067fd43b46a68b471ef6a527e0a8bb7aa83aa291fbe293b0613a533",
+      "user_tail_sha256": "52f498a56853bde5688434be7dfd707f0ff535cc06d0b67b7fcbd02300e959d7",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 59,
+        "breakdown": {
+          "scene": 8,
+          "immersion": 13,
+          "character": 11,
+          "length": 3,
+          "dialogue": 7,
+          "continuity": 8,
+          "agency": 9
+        },
+        "agency_class": "ALLOWED",
+        "severe": false,
+        "carriers": [
+          "AI action",
+          "AI perception",
+          "AI internal judgment",
+          "environment response",
+          "new information",
+          "relationship movement",
+          "local scene progression",
+          "consequence"
+        ],
+        "notes": "Short rest beat; thin new value"
+      }
+    },
+    {
+      "cell_id": "Gemini_N1_A_D2",
+      "fixture": "N1",
+      "arm": "A",
+      "draw": 2,
+      "visible_chars": 2577,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 61.794,
+      "tokens": {
+        "input_tokens": 4167,
+        "output_tokens": 6382,
+        "reasoning_tokens": 4208,
+        "cost_usd": 0.084918
+      },
+      "dialogue_char_share": 0.0749,
+      "narration_char_share": 0.9251,
+      "response_anchor": {
+        "response_anchor_count": 0,
+        "band": "IDEAL"
+      },
+      "same_speaker_dialogue_fragments": 4,
+      "continuity": {
+        "current_input_lcs_chars": 2,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "canon_data_sha256": "0bb4a1cccc6647097524dec2df9b7a2529076b536a1e838b32c779ec5c4c272a",
+      "history_sha256": "6f0051e83067fd43b46a68b471ef6a527e0a8bb7aa83aa291fbe293b0613a533",
+      "user_tail_sha256": "52f498a56853bde5688434be7dfd707f0ff535cc06d0b67b7fcbd02300e959d7",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 69,
+        "breakdown": {
+          "scene": 15,
+          "immersion": 16,
+          "character": 10,
+          "length": 8,
+          "dialogue": 8,
+          "continuity": 6,
+          "agency": 6
+        },
+        "agency_class": "MODERATE",
+        "severe": false,
+        "carriers": [
+          "AI action",
+          "AI perception",
+          "AI internal judgment",
+          "memory",
+          "environment",
+          "NPC",
+          "new information",
+          "relationship",
+          "consequence",
+          "progression"
+        ],
+        "notes": "Living threat escalate; calm rest undercut"
+      }
+    },
+    {
+      "cell_id": "Gemini_N1_B_D1",
+      "fixture": "N1",
+      "arm": "B",
+      "draw": 1,
+      "visible_chars": 1814,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 40.896,
+      "tokens": {
+        "input_tokens": 2883,
+        "output_tokens": 3223,
+        "reasoning_tokens": 1687,
+        "cost_usd": 0.044442
+      },
+      "dialogue_char_share": 0.0602,
+      "narration_char_share": 0.9398,
+      "response_anchor": {
+        "response_anchor_count": 1,
+        "band": "IDEAL"
+      },
+      "same_speaker_dialogue_fragments": 4,
+      "continuity": {
+        "current_input_lcs_chars": 18,
+        "current_input_overlap_alarm": true,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": true,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": true,
+        "alarms": [
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ]
+      },
+      "hard_alarms": [
+        "SETTING_EXACT_OVERLAP_18PLUS",
+        "CONTINUITY_REVIEW_REQUIRED",
+        "CURRENT_INPUT_REPLAY_SIGNAL"
+      ],
+      "system_sha256": "c3c9912ecdf5e5738f1efd0e861492329764594efb760dc20802457d4c5e6512",
+      "canon_data_sha256": "0bb4a1cccc6647097524dec2df9b7a2529076b536a1e838b32c779ec5c4c272a",
+      "history_sha256": "6f0051e83067fd43b46a68b471ef6a527e0a8bb7aa83aa291fbe293b0613a533",
+      "user_tail_sha256": "8c62ff1b719a7bd49dda6b95c898583f120a720d0256bd1966f67bbac5db0d6c",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 43,
+        "breakdown": {
+          "scene": 10,
+          "immersion": 11,
+          "character": 9,
+          "length": 5,
+          "dialogue": 5,
+          "continuity": 1,
+          "agency": 2
+        },
+        "agency_class": "SEVERE",
+        "severe": true,
+        "carriers": [
+          "AI action",
+          "AI perception",
+          "AI internal judgment",
+          "memory",
+          "environment",
+          "new information",
+          "relationship",
+          "consequence",
+          "progression"
+        ],
+        "notes": "SEVERE: restages user dialogue verbatim; assigns drink/relief; ends rest unilaterally"
+      }
+    },
+    {
+      "cell_id": "Gemini_N1_B_D2",
+      "fixture": "N1",
+      "arm": "B",
+      "draw": 2,
+      "visible_chars": 4177,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 76.627,
+      "tokens": {
+        "input_tokens": 2883,
+        "output_tokens": 8952,
+        "reasoning_tokens": 5433,
+        "cost_usd": 0.11319
+      },
+      "dialogue_char_share": 0.0738,
+      "narration_char_share": 0.9262,
+      "response_anchor": {
+        "response_anchor_count": 1,
+        "band": "IDEAL"
+      },
+      "same_speaker_dialogue_fragments": 2,
+      "continuity": {
+        "current_input_lcs_chars": 7,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "system_sha256": "c3c9912ecdf5e5738f1efd0e861492329764594efb760dc20802457d4c5e6512",
+      "canon_data_sha256": "0bb4a1cccc6647097524dec2df9b7a2529076b536a1e838b32c779ec5c4c272a",
+      "history_sha256": "6f0051e83067fd43b46a68b471ef6a527e0a8bb7aa83aa291fbe293b0613a533",
+      "user_tail_sha256": "8c62ff1b719a7bd49dda6b95c898583f120a720d0256bd1966f67bbac5db0d6c",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 71,
+        "breakdown": {
+          "scene": 14,
+          "immersion": 17,
+          "character": 11,
+          "length": 12,
+          "dialogue": 8,
+          "continuity": 7,
+          "agency": 2
+        },
+        "agency_class": "SEVERE",
+        "severe": true,
+        "carriers": [
+          "AI action",
+          "AI perception",
+          "AI internal judgment",
+          "memory",
+          "environment",
+          "NPC",
+          "new information",
+          "relationship",
+          "consequence",
+          "progression"
+        ],
+        "notes": "SEVERE: multi-step follow after AI abort rest + countdown; strong craft/length"
+      }
+    },
+    {
+      "cell_id": "Gemini_N2_A_D1",
+      "fixture": "N2",
+      "arm": "A",
+      "draw": 1,
+      "visible_chars": 1045,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 40.355,
+      "tokens": {
+        "input_tokens": 4155,
+        "output_tokens": 2187,
+        "reasoning_tokens": 1302,
+        "cost_usd": 0.034554
+      },
+      "dialogue_char_share": 0.2211,
+      "narration_char_share": 0.7789,
+      "response_anchor": {
+        "response_anchor_count": 1,
+        "band": "IDEAL"
+      },
+      "same_speaker_dialogue_fragments": 2,
+      "continuity": {
+        "current_input_lcs_chars": 3,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE"
+      ],
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "canon_data_sha256": "0bb4a1cccc6647097524dec2df9b7a2529076b536a1e838b32c779ec5c4c272a",
+      "history_sha256": "4936ef557c348cf52d9b38c0980d71e88eb670ba3875847716c7a810f3ed2117",
+      "user_tail_sha256": "a6413e436ff028f218a16a18ddb25481d0985f5b52c815dbba90ff8db820d45d",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 63,
+        "breakdown": {
+          "scene": 12,
+          "immersion": 12,
+          "character": 12,
+          "length": 4,
+          "dialogue": 8,
+          "continuity": 8,
+          "agency": 7
+        },
+        "agency_class": "MODERATE",
+        "severe": false,
+        "carriers": [
+          "AI action",
+          "AI perception",
+          "AI internal judgment",
+          "memory",
+          "environment",
+          "new information",
+          "relationship",
+          "consequence",
+          "progression"
+        ],
+        "notes": "Trap diagnosis; short; weak NPC autonomy"
+      }
+    },
+    {
+      "cell_id": "Gemini_N2_A_D2",
+      "fixture": "N2",
+      "arm": "A",
+      "draw": 2,
+      "visible_chars": 1983,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 48.217,
+      "tokens": {
+        "input_tokens": 4155,
+        "output_tokens": 4373,
+        "reasoning_tokens": 2713,
+        "cost_usd": 0.060786
+      },
+      "dialogue_char_share": 0.1089,
+      "narration_char_share": 0.8911,
+      "response_anchor": {
+        "response_anchor_count": 1,
+        "band": "IDEAL"
+      },
+      "same_speaker_dialogue_fragments": 2,
+      "continuity": {
+        "current_input_lcs_chars": 4,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "canon_data_sha256": "0bb4a1cccc6647097524dec2df9b7a2529076b536a1e838b32c779ec5c4c272a",
+      "history_sha256": "4936ef557c348cf52d9b38c0980d71e88eb670ba3875847716c7a810f3ed2117",
+      "user_tail_sha256": "a6413e436ff028f218a16a18ddb25481d0985f5b52c815dbba90ff8db820d45d",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 70,
+        "breakdown": {
+          "scene": 15,
+          "immersion": 14,
+          "character": 13,
+          "length": 8,
+          "dialogue": 7,
+          "continuity": 7,
+          "agency": 6
+        },
+        "agency_class": "MODERATE",
+        "severe": false,
+        "carriers": [
+          "AI action",
+          "AI perception",
+          "AI internal judgment",
+          "memory",
+          "environment",
+          "new information",
+          "relationship",
+          "consequence",
+          "progression"
+        ],
+        "notes": "Spore-sac env threat; static organism"
+      }
+    },
+    {
+      "cell_id": "Gemini_N2_B_D1",
+      "fixture": "N2",
+      "arm": "B",
+      "draw": 1,
+      "visible_chars": 3124,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 60.446,
+      "tokens": {
+        "input_tokens": 2871,
+        "output_tokens": 4372,
+        "reasoning_tokens": 1740,
+        "cost_usd": 0.058206
+      },
+      "dialogue_char_share": 0.1236,
+      "narration_char_share": 0.8764,
+      "response_anchor": {
+        "response_anchor_count": 1,
+        "band": "IDEAL"
+      },
+      "same_speaker_dialogue_fragments": 0,
+      "continuity": {
+        "current_input_lcs_chars": 4,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "system_sha256": "c3c9912ecdf5e5738f1efd0e861492329764594efb760dc20802457d4c5e6512",
+      "canon_data_sha256": "0bb4a1cccc6647097524dec2df9b7a2529076b536a1e838b32c779ec5c4c272a",
+      "history_sha256": "4936ef557c348cf52d9b38c0980d71e88eb670ba3875847716c7a810f3ed2117",
+      "user_tail_sha256": "9863908183d324877f4738dcdabf53a1884d8b23a62ad01249eef7fb5bd6c07f",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 82,
+        "breakdown": {
+          "scene": 18,
+          "immersion": 17,
+          "character": 14,
+          "length": 13,
+          "dialogue": 8,
+          "continuity": 9,
+          "agency": 3
+        },
+        "agency_class": "SEVERE",
+        "severe": true,
+        "carriers": [
+          "AI action",
+          "AI perception",
+          "AI internal judgment",
+          "memory",
+          "environment",
+          "NPC action",
+          "new information",
+          "relationship",
+          "consequence",
+          "progression"
+        ],
+        "notes": "Best world motion; SEVERE multi-step Ren hide/compliance chain"
+      }
+    },
+    {
+      "cell_id": "Gemini_N2_B_D2",
+      "fixture": "N2",
+      "arm": "B",
+      "draw": 2,
+      "visible_chars": 1913,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 40.652,
+      "tokens": {
+        "input_tokens": 2871,
+        "output_tokens": 3240,
+        "reasoning_tokens": 1621,
+        "cost_usd": 0.044622
+      },
+      "dialogue_char_share": 0.1432,
+      "narration_char_share": 0.8568,
+      "response_anchor": {
+        "response_anchor_count": 2,
+        "band": "ACCEPTABLE"
+      },
+      "same_speaker_dialogue_fragments": 4,
+      "continuity": {
+        "current_input_lcs_chars": 5,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "system_sha256": "c3c9912ecdf5e5738f1efd0e861492329764594efb760dc20802457d4c5e6512",
+      "canon_data_sha256": "0bb4a1cccc6647097524dec2df9b7a2529076b536a1e838b32c779ec5c4c272a",
+      "history_sha256": "4936ef557c348cf52d9b38c0980d71e88eb670ba3875847716c7a810f3ed2117",
+      "user_tail_sha256": "9863908183d324877f4738dcdabf53a1884d8b23a62ad01249eef7fb5bd6c07f",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 74,
+        "breakdown": {
+          "scene": 17,
+          "immersion": 15,
+          "character": 13,
+          "length": 7,
+          "dialogue": 8,
+          "continuity": 8,
+          "agency": 6
+        },
+        "agency_class": "MODERATE",
+        "severe": false,
+        "carriers": [
+          "AI action",
+          "AI perception",
+          "AI internal judgment",
+          "environment",
+          "NPC action",
+          "new information",
+          "relationship",
+          "consequence",
+          "progression"
+        ],
+        "notes": "Strong NPC validation of alley; shorter"
+      }
+    },
+    {
+      "cell_id": "Gemini_N3_A_D1",
+      "fixture": "N3",
+      "arm": "A",
+      "draw": 1,
+      "visible_chars": 1873,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 39.675,
+      "tokens": {
+        "input_tokens": 3958,
+        "output_tokens": 2932,
+        "reasoning_tokens": 1331,
+        "cost_usd": 0.0431
+      },
+      "dialogue_char_share": 0.0956,
+      "narration_char_share": 0.9044,
+      "response_anchor": {
+        "response_anchor_count": 0,
+        "band": "IDEAL"
+      },
+      "same_speaker_dialogue_fragments": 0,
+      "continuity": {
+        "current_input_lcs_chars": 5,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "canon_data_sha256": "0bb4a1cccc6647097524dec2df9b7a2529076b536a1e838b32c779ec5c4c272a",
+      "history_sha256": "118a7063855a5dd1e86473bfbcb97e6592645d2fbe26548da29047ce5866ea14",
+      "user_tail_sha256": "b6833890987e1ff8a164c3e9a38bcaa9c750bf5bb2006e566fbd212e5b8ce4fc",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 64,
+        "breakdown": {
+          "scene": 14,
+          "immersion": 15,
+          "character": 13,
+          "length": 6,
+          "dialogue": 8,
+          "continuity": 6,
+          "agency": 2
+        },
+        "agency_class": "SEVERE",
+        "severe": true,
+        "carriers": [
+          "AI action",
+          "AI perception",
+          "environment",
+          "NPC",
+          "new information",
+          "progression"
+        ],
+        "notes": "Assist OK then SEVERE follow/corridor puppet"
+      }
+    },
+    {
+      "cell_id": "Gemini_N3_A_D2",
+      "fixture": "N3",
+      "arm": "A",
+      "draw": 2,
+      "visible_chars": 752,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 42.932,
+      "tokens": {
+        "input_tokens": 3958,
+        "output_tokens": 2817,
+        "reasoning_tokens": 2158,
+        "cost_usd": 0.04172
+      },
+      "dialogue_char_share": 0.0824,
+      "narration_char_share": 0.9176,
+      "response_anchor": {
+        "response_anchor_count": 0,
+        "band": "IDEAL"
+      },
+      "same_speaker_dialogue_fragments": 0,
+      "continuity": {
+        "current_input_lcs_chars": 4,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": true,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": true,
+        "alarms": [
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ]
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE",
+        "CONTINUITY_REVIEW_REQUIRED",
+        "CURRENT_INPUT_REPLAY_SIGNAL"
+      ],
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "canon_data_sha256": "0bb4a1cccc6647097524dec2df9b7a2529076b536a1e838b32c779ec5c4c272a",
+      "history_sha256": "118a7063855a5dd1e86473bfbcb97e6592645d2fbe26548da29047ce5866ea14",
+      "user_tail_sha256": "b6833890987e1ff8a164c3e9a38bcaa9c750bf5bb2006e566fbd212e5b8ce4fc",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 72,
+        "breakdown": {
+          "scene": 14,
+          "immersion": 14,
+          "character": 14,
+          "length": 3,
+          "dialogue": 9,
+          "continuity": 9,
+          "agency": 9
+        },
+        "agency_class": "ALLOWED",
+        "severe": false,
+        "carriers": [
+          "AI action",
+          "AI perception",
+          "AI internal judgment",
+          "environment",
+          "consequence"
+        ],
+        "notes": "Clean assist; length collapse 752"
+      }
+    },
+    {
+      "cell_id": "Gemini_N3_B_D1",
+      "fixture": "N3",
+      "arm": "B",
+      "draw": 1,
+      "visible_chars": 2283,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 45.563,
+      "tokens": {
+        "input_tokens": 2674,
+        "output_tokens": 4360,
+        "reasoning_tokens": 2403,
+        "cost_usd": 0.057668
+      },
+      "dialogue_char_share": 0.1104,
+      "narration_char_share": 0.8896,
+      "response_anchor": {
+        "response_anchor_count": 1,
+        "band": "IDEAL"
+      },
+      "same_speaker_dialogue_fragments": 4,
+      "continuity": {
+        "current_input_lcs_chars": 3,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "system_sha256": "c3c9912ecdf5e5738f1efd0e861492329764594efb760dc20802457d4c5e6512",
+      "canon_data_sha256": "0bb4a1cccc6647097524dec2df9b7a2529076b536a1e838b32c779ec5c4c272a",
+      "history_sha256": "118a7063855a5dd1e86473bfbcb97e6592645d2fbe26548da29047ce5866ea14",
+      "user_tail_sha256": "eff77fb520fad7c37777bb0e1044a052e2ab51ffa9d13c99027e23d9e2564f0a",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 61,
+        "breakdown": {
+          "scene": 12,
+          "immersion": 13,
+          "character": 12,
+          "length": 4,
+          "dialogue": 7,
+          "continuity": 5,
+          "agency": 8
+        },
+        "agency_class": "ALLOWED",
+        "severe": false,
+        "carriers": [
+          "AI action",
+          "AI perception",
+          "environment",
+          "new information",
+          "progression"
+        ],
+        "notes": "Assist+world hush; lore pad; no severe"
+      }
+    },
+    {
+      "cell_id": "Gemini_N3_B_D2",
+      "fixture": "N3",
+      "arm": "B",
+      "draw": 2,
+      "visible_chars": 2209,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 51.491,
+      "tokens": {
+        "input_tokens": 2674,
+        "output_tokens": 4844,
+        "reasoning_tokens": 2901,
+        "cost_usd": 0.063476
+      },
+      "dialogue_char_share": 0.1372,
+      "narration_char_share": 0.8628,
+      "response_anchor": {
+        "response_anchor_count": 0,
+        "band": "IDEAL"
+      },
+      "same_speaker_dialogue_fragments": 4,
+      "continuity": {
+        "current_input_lcs_chars": 5,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": true,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": true,
+        "alarms": [
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ]
+      },
+      "hard_alarms": [
+        "CONTINUITY_REVIEW_REQUIRED",
+        "CURRENT_INPUT_REPLAY_SIGNAL"
+      ],
+      "system_sha256": "c3c9912ecdf5e5738f1efd0e861492329764594efb760dc20802457d4c5e6512",
+      "canon_data_sha256": "0bb4a1cccc6647097524dec2df9b7a2529076b536a1e838b32c779ec5c4c272a",
+      "history_sha256": "118a7063855a5dd1e86473bfbcb97e6592645d2fbe26548da29047ce5866ea14",
+      "user_tail_sha256": "eff77fb520fad7c37777bb0e1044a052e2ab51ffa9d13c99027e23d9e2564f0a",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 67,
+        "breakdown": {
+          "scene": 13,
+          "immersion": 15,
+          "character": 13,
+          "length": 5,
+          "dialogue": 8,
+          "continuity": 6,
+          "agency": 7
+        },
+        "agency_class": "MODERATE",
+        "severe": false,
+        "carriers": [
+          "AI action",
+          "AI perception",
+          "environment",
+          "NPC",
+          "progression"
+        ],
+        "notes": "Holds light through stalker pass; mild goal push"
+      }
+    }
+  ],
+  "human_review": {
+    "blind_means": {
+      "A": 66.17,
+      "B": 66.33,
+      "B_minus_A": 0.17
+    },
+    "by_fixture_means": {
+      "N1": {
+        "A": 64,
+        "B": 57,
+        "B_minus_A": -7
+      },
+      "N2": {
+        "A": 66.5,
+        "B": 78,
+        "B_minus_A": 11.5
+      },
+      "N3": {
+        "A": 68,
+        "B": 64,
+        "B_minus_A": -4
+      }
+    },
+    "by_fixture_chars": {
+      "N1": {
+        "A": [
+          1245,
+          2577
+        ],
+        "B": [
+          1814,
+          4177
+        ],
+        "A_median": 1911.0,
+        "B_median": 2995.5
+      },
+      "N2": {
+        "A": [
+          1045,
+          1983
+        ],
+        "B": [
+          3124,
+          1913
+        ],
+        "A_median": 1514.0,
+        "B_median": 2518.5
+      },
+      "N3": {
+        "A": [
+          1873,
+          752
+        ],
+        "B": [
+          2283,
+          2209
+        ],
+        "A_median": 1312.5,
+        "B_median": 2246.0
+      }
+    },
+    "severe_agency": {
+      "A": 1,
+      "B": 3
+    },
+    "systematic_length_collapse_B": "NO",
+    "n1_n2_B_median_ge_3000": {
+      "N1": false,
+      "N2": false
+    },
+    "stage1": "GEMINI_LIVING_SCENE_CONTRACT_FAIL",
+    "failure_class": [
+      "AGENCY_TAKEOVER",
+      "TOO_VERBOSE_FILLER"
+    ],
+    "secondary_notes": [
+      "B opens world-motion channels (N2 craft↑) but co-narration overshoots into multi-step user chains",
+      "N1 calm rest often aborted into threat/move; B_D1 replay of user dialogue",
+      "Overall blind mean not materially above A (+0.16 << +5 gate)",
+      "No systematic B length collapse; N1 B median≈2996, N2 B median≈2519"
+    ],
+    "regression_g3_g5_g6": "NOT_RUN",
+    "production_wire": "NOT_RUN",
+    "merge": "NOT_RUN",
+    "overall": "GEMINI_PROMPT_ARCHITECTURE_NOT_PROVEN"
+  },
+  "regression_g3_g5_g6": "NOT_RUN",
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN",
+  "scores": {
+    "Gemini_N1_A_D1": {
+      "total": 59,
+      "breakdown": {
+        "scene": 8,
+        "immersion": 13,
+        "character": 11,
+        "length": 3,
+        "dialogue": 7,
+        "continuity": 8,
+        "agency": 9
+      },
+      "agency_class": "ALLOWED",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "environment response",
+        "new information",
+        "relationship movement",
+        "local scene progression",
+        "consequence"
+      ],
+      "notes": "Short rest beat; thin new value"
+    },
+    "Gemini_N1_A_D2": {
+      "total": 69,
+      "breakdown": {
+        "scene": 15,
+        "immersion": 16,
+        "character": 10,
+        "length": 8,
+        "dialogue": 8,
+        "continuity": 6,
+        "agency": 6
+      },
+      "agency_class": "MODERATE",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "memory",
+        "environment",
+        "NPC",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "Living threat escalate; calm rest undercut"
+    },
+    "Gemini_N1_B_D1": {
+      "total": 43,
+      "breakdown": {
+        "scene": 10,
+        "immersion": 11,
+        "character": 9,
+        "length": 5,
+        "dialogue": 5,
+        "continuity": 1,
+        "agency": 2
+      },
+      "agency_class": "SEVERE",
+      "severe": true,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "memory",
+        "environment",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "SEVERE: restages user dialogue verbatim; assigns drink/relief; ends rest unilaterally"
+    },
+    "Gemini_N1_B_D2": {
+      "total": 71,
+      "breakdown": {
+        "scene": 14,
+        "immersion": 17,
+        "character": 11,
+        "length": 12,
+        "dialogue": 8,
+        "continuity": 7,
+        "agency": 2
+      },
+      "agency_class": "SEVERE",
+      "severe": true,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "memory",
+        "environment",
+        "NPC",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "SEVERE: multi-step follow after AI abort rest + countdown; strong craft/length"
+    },
+    "Gemini_N2_A_D1": {
+      "total": 63,
+      "breakdown": {
+        "scene": 12,
+        "immersion": 12,
+        "character": 12,
+        "length": 4,
+        "dialogue": 8,
+        "continuity": 8,
+        "agency": 7
+      },
+      "agency_class": "MODERATE",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "memory",
+        "environment",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "Trap diagnosis; short; weak NPC autonomy"
+    },
+    "Gemini_N2_A_D2": {
+      "total": 70,
+      "breakdown": {
+        "scene": 15,
+        "immersion": 14,
+        "character": 13,
+        "length": 8,
+        "dialogue": 7,
+        "continuity": 7,
+        "agency": 6
+      },
+      "agency_class": "MODERATE",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "memory",
+        "environment",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "Spore-sac env threat; static organism"
+    },
+    "Gemini_N2_B_D1": {
+      "total": 82,
+      "breakdown": {
+        "scene": 18,
+        "immersion": 17,
+        "character": 14,
+        "length": 13,
+        "dialogue": 8,
+        "continuity": 9,
+        "agency": 3
+      },
+      "agency_class": "SEVERE",
+      "severe": true,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "memory",
+        "environment",
+        "NPC action",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "Best world motion; SEVERE multi-step Ren hide/compliance chain"
+    },
+    "Gemini_N2_B_D2": {
+      "total": 74,
+      "breakdown": {
+        "scene": 17,
+        "immersion": 15,
+        "character": 13,
+        "length": 7,
+        "dialogue": 8,
+        "continuity": 8,
+        "agency": 6
+      },
+      "agency_class": "MODERATE",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "environment",
+        "NPC action",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "Strong NPC validation of alley; shorter"
+    },
+    "Gemini_N3_A_D1": {
+      "total": 64,
+      "breakdown": {
+        "scene": 14,
+        "immersion": 15,
+        "character": 13,
+        "length": 6,
+        "dialogue": 8,
+        "continuity": 6,
+        "agency": 2
+      },
+      "agency_class": "SEVERE",
+      "severe": true,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "environment",
+        "NPC",
+        "new information",
+        "progression"
+      ],
+      "notes": "Assist OK then SEVERE follow/corridor puppet"
+    },
+    "Gemini_N3_A_D2": {
+      "total": 72,
+      "breakdown": {
+        "scene": 14,
+        "immersion": 14,
+        "character": 14,
+        "length": 3,
+        "dialogue": 9,
+        "continuity": 9,
+        "agency": 9
+      },
+      "agency_class": "ALLOWED",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "environment",
+        "consequence"
+      ],
+      "notes": "Clean assist; length collapse 752"
+    },
+    "Gemini_N3_B_D1": {
+      "total": 61,
+      "breakdown": {
+        "scene": 12,
+        "immersion": 13,
+        "character": 12,
+        "length": 4,
+        "dialogue": 7,
+        "continuity": 5,
+        "agency": 8
+      },
+      "agency_class": "ALLOWED",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "environment",
+        "new information",
+        "progression"
+      ],
+      "notes": "Assist+world hush; lore pad; no severe"
+    },
+    "Gemini_N3_B_D2": {
+      "total": 67,
+      "breakdown": {
+        "scene": 13,
+        "immersion": 15,
+        "character": 13,
+        "length": 5,
+        "dialogue": 8,
+        "continuity": 6,
+        "agency": 7
+      },
+      "agency_class": "MODERATE",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "environment",
+        "NPC",
+        "progression"
+      ],
+      "notes": "Holds light through stalker pass; mild goal push"
+    }
+  }
+}
