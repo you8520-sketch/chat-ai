@@ -423,25 +423,6 @@ async function sendMockMessage(page: Page, text: string) {
   expect(response.ok()).toBeTruthy();
 }
 
-/** Production control path: ChatClient.sendContinue → POST /api/chat { isContinue: true }. */
-async function sendMockAutoProgress(page: Page) {
-  const autoProgress = page.getByRole("button", { name: "자동진행", exact: true });
-  await expect(autoProgress).toBeEnabled({ timeout: 45_000 });
-  const responseWait = page.waitForResponse(
-    (res) => {
-      const url = new URL(res.url());
-      if (!url.pathname.endsWith("/api/chat") || res.request().method() !== "POST" || res.status() === 0) {
-        return false;
-      }
-      const body = res.request().postDataJSON() as { isContinue?: unknown } | null;
-      return body?.isContinue === true;
-    },
-    { timeout: 45_000 }
-  );
-  await autoProgress.click();
-  expect((await responseWait).ok()).toBeTruthy();
-}
-
 async function waitForAssistantStreamSurface(page: Page) {
   await page.waitForFunction(
     () => {
