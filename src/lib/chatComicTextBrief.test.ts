@@ -343,7 +343,7 @@ describe("PR #877 final quality-floor correction", () => {
     });
     assert.doesNotMatch(brief.text, /narrat.*none/iu, "must not emit '(none)'");
     assert.match(brief.text, /No preferred narration line is supplied\./);
-    assert.match(brief.text, /you may create up to 2 very short source-grounded narration bridges\. Do not add new facts\./);
+    assert.match(brief.text, /Compose the scene from dialogue and action; add no narration boxes\./);
   });
 
   it("SPEAKER-1 / PROMPT-1/2/3 exactly one canonical owner per rule in the full prompt", () => {
@@ -360,7 +360,7 @@ describe("PR #877 final quality-floor correction", () => {
     });
     const count = (needle: string) => prompt.split(needle).length - 1;
     assert.equal(count("Never merge two different speakers into a single bubble."), 1, "one-bubble rule");
-    assert.equal(count("Narration: 0-2 short boxes."), 1, "narration budget rule");
+    assert.equal(count("Narration: 0 short boxes."), 1, "narration budget rule (no transition candidates)");
     assert.equal(count("Spoken dialogue:"), 1, "spoken-dialogue target rule");
     assert.equal(count("One visible speech bubble = one speaker only."), 1, "speaker-clarity rule");
     assert.doesNotMatch(renderComicAutopilotContract("auto"), /Never merge two different speakers/, "composition contract no longer duplicates speaker clarity");
@@ -452,7 +452,7 @@ describe("PR #877 final quality-floor correction", () => {
     assert.equal(audit.effectivePanelMode, 4);
     assert.equal(audit.dialogueRichSource, true);
     assert.equal(audit.spokenDialogueTarget, "at least 3 distinct source dialogue beats across the page, across at least 2 dialogue-bearing panels, 1-2 bubbles per speaking panel");
-    assert.equal(audit.narrationTarget, "0-2");
+    assert.equal(audit.narrationTarget, "0");
     assert.equal(audit.totalTextTarget, "3-5");
     assert.equal(audit.sparse4Discouraged, false);
     assert.equal(audit.recommendedPanelMode, 4);
