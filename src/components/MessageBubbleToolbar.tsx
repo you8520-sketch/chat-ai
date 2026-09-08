@@ -97,7 +97,7 @@ export default function MessageBubbleToolbar({
   variantPicker?: ReactNode;
   /** 초상 OFF — 툴바·본문 간격 축소 */
   compact?: boolean;
-  /** 관리자·데모유저 — 영수증 전체 필드 */
+  /** Server-authorized admins — full receipt fields. */
   showFullReceipt?: boolean;
   /** Stored charge evidence when usage receipt is unavailable. */
   billingChargeSummary?: UserMessageBillingSummary | null;

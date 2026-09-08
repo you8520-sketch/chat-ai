@@ -512,7 +512,7 @@ export default function BillingReceiptTooltip({
 }: {
   usage: Usage;
   triggerVariant?: "coin" | "info";
-  /** 관리자·데모유저 — thinking·API raw·strip 등 전체 영수증 */
+  /** Server-authorized admins — full receipt economics and diagnostics. */
   showFullReceipt?: boolean;
   messageId?: number;
 }) {

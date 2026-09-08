@@ -27,7 +27,7 @@ function isAdminEmailUser(user: { email: string } & { is_admin?: number }): bool
   return allow.includes(user.email.toLowerCase());
 }
 
-/** 관리자·로컬 데모유저만 영수증 상세(thinking·API raw·strip 등) 노출 */
+/** Server-authorized admins only: expose detailed receipt economics. */
 export function canShowFullBillingReceipt(
   user: { email: string } & { is_admin?: number }
 ): boolean {

@@ -1,0 +1,43 @@
+name: Validate billing receipt privacy
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/validate-billing-receipt-privacy.yml"
+      - "src/lib/publicUsageEconomicsBoundary.ts"
+      - "src/lib/publicUsageEconomicsBoundary.test.ts"
+      - "src/lib/billingReceiptAccess.ts"
+      - "src/lib/billingReceiptAccess.test.ts"
+      - "src/components/BillingReceiptTooltip.tsx"
+      - "src/components/BillingReceiptTooltip.test.ts"
+      - "src/components/MessageBubbleToolbar.tsx"
+      - "src/app/api/chat/admin-billing-receipt/**"
+
+permissions:
+  contents: read
+
+jobs:
+  billing-receipt-privacy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Public usage economics boundary
+        run: node --conditions=react-server --import tsx --test src/lib/publicUsageEconomicsBoundary.test.ts
+
+      - name: Billing receipt runtime fetch boundary
+        run: node --import tsx --test src/components/BillingReceiptTooltip.test.ts
+
+      - name: Admin billing receipt route authorization
+        run: node --conditions=react-server --import tsx --test src/app/api/chat/admin-billing-receipt/route.test.ts

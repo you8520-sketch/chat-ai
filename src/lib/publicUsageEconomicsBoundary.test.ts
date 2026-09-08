@@ -13,6 +13,36 @@ import {
 } from "@/lib/publicUsageEconomicsBoundary";
 import type { Usage } from "@/lib/chatUsage";
 
+const FORBIDDEN_PUBLIC_ECONOMICS = [
+  "actualProviderCost",
+  "providerListCost",
+  "billingReferenceCost",
+  "upstreamCost",
+  "cheaperInferenceBilledCost",
+  "apiRawCost",
+  "margin",
+  "grossProfit",
+  "discount",
+  "provenance",
+  "providerRequestId",
+  "usageReportingEvidence",
+  "shadowPricing",
+] as const;
+
+function findForbiddenPublicEconomics(value: unknown, path = ""): string[] {
+  if (value == null || typeof value !== "object") return [];
+  if (Array.isArray(value)) {
+    return value.flatMap((entry, index) => findForbiddenPublicEconomics(entry, `${path}[${index}]`));
+  }
+  return Object.entries(value as Record<string, unknown>).flatMap(([key, nested]) => {
+    const nextPath = path ? `${path}.${key}` : key;
+    const ownLeak = FORBIDDEN_PUBLIC_ECONOMICS.some((fragment) =>
+      key.toLowerCase().includes(fragment.toLowerCase())
+    );
+    return ownLeak ? [nextPath] : findForbiddenPublicEconomics(nested, nextPath);
+  });
+}
+
 function baseUsage(overrides: Partial<Usage> = {}): Usage {
   return {
     input: 100,
@@ -99,6 +129,36 @@ describe("public usage economics boundary — T1 top-level provider economics", 
       assert.equal((pub as Record<string, unknown>)[key], undefined, key);
     }
     assertNoInternalEconomics(pub, "T1");
+  });
+});
+
+describe("public usage economics boundary — independent forbidden-key contract", () => {
+  it("removes representative nested provider, CI, reference, discount, margin, and provenance economics", () => {
+    const internal = baseUsage({
+      upstreamCostUsd: 0.012,
+      apiRawCostKrw: 88,
+      cacheDiscountUsd: 0.001,
+      shadowPricing: {
+        pricingVersion: 1,
+        billingReferenceCostKrw: 10,
+        actualProviderCostKrw: 5,
+        providerListCostKrw: 8,
+        actualRealizedMargin: 0.5,
+      } as Usage["shadowPricing"],
+      stages: [
+        {
+          stage: "main",
+          model: "claude-opus-5",
+          input: 100,
+          output: 200,
+          cost: 42,
+          cheaperInferenceBilledCostUsd: 0.009,
+          providerRequestId: "provider-request-id",
+        } as NonNullable<Usage["stages"]>[number],
+      ],
+    });
+
+    assert.deepEqual(findForbiddenPublicEconomics(serializeUsageForPublicClient(internal)), []);
   });
 });
 
