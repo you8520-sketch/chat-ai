@@ -6,7 +6,7 @@ import {
   resolveChatComicOutputSize,
   resolveChatComicPrice,
 } from "./chatComicGenerationConstants";
-import { buildChatComicImagePrompt } from "./chatComicGeneration";
+import { buildChatComicImagePrompt, FULL_SOURCE_DIRECT_CONTENT_CONTRACT } from "./chatComicGeneration";
 import {
   assertComicDiagnosticAxisIsolation,
   COMIC_DIAGNOSTIC_MODES,
@@ -170,7 +170,8 @@ describe("comic full-source direct experiment — provider prompt variant", () =
     assert.ok(prompt.includes("오늘 밤에 뭐해?"), "full source user line present");
     assert.ok(prompt.includes("들어와."), "full source character line present");
     assert.match(prompt, /FULL SOURCE \(canonical turn/);
-    assert.match(prompt, /DIRECT COMPOSITION CONTRACT/);
+    assert.match(prompt, /DIRECT CONTENT CONTRACT/);
+    assert.ok(prompt.includes(FULL_SOURCE_DIRECT_CONTENT_CONTRACT));
     assert.match(prompt, /exactly 4 wide horizontal panels/);
     assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
   });
@@ -189,7 +190,7 @@ describe("comic full-source direct experiment — provider prompt variant", () =
   it("DIRECT-PROMPT-3 default path unchanged without the direct flag", () => {
     const prompt = buildChatComicImagePrompt(basePromptOpts(directPlan()));
     assert.doesNotMatch(prompt, /FULL SOURCE \(canonical turn/);
-    assert.doesNotMatch(prompt, /DIRECT COMPOSITION CONTRACT/);
+    assert.doesNotMatch(prompt, /DIRECT CONTENT CONTRACT/);
     assert.match(prompt, /COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE/);
   });
 
@@ -201,15 +202,24 @@ describe("comic full-source direct experiment — provider prompt variant", () =
       fullSourceDirectText: FULL_SOURCE_TEXT,
     });
     assert.match(prompt, /SELECTED HIGHLIGHT SOURCE/);
-    assert.doesNotMatch(prompt, /DIRECT COMPOSITION CONTRACT/);
+    assert.doesNotMatch(prompt, /DIRECT CONTENT CONTRACT/);
   });
 
-  it("DIRECT-PROMPT-5 complete-sentence text contract present in direct variant", () => {
+  it("DIRECT-PROMPT-5 canonical content contract is the single owner of direct semantics", () => {
     const prompt = buildChatComicImagePrompt({
       ...basePromptOpts(directPlan()),
       fullSourceDirectText: FULL_SOURCE_TEXT,
     });
-    assert.match(prompt, /complete sentence/);
+    assert.match(prompt, /important actions, emotional shifts, and key dialogue/);
+    assert.match(prompt, /Let the number of speech bubbles vary naturally with the scene/);
+    assert.match(prompt, /natural, complete Korean sentences/);
+    assert.match(prompt, /rendered clearly and stably/);
+    assert.match(prompt, /Preserve the source's key events and speaker relationships/);
+    assert.doesNotMatch(prompt, /at most two bubbles/i);
+    assert.doesNotMatch(prompt, /Limit to at most two bubbles/i);
+    assert.doesNotMatch(prompt, /only where a scene transition requires one/);
+    assert.doesNotMatch(prompt, /transition needs one/);
+    assert.doesNotMatch(prompt, /Select important dialogue from the full source above/);
   });
 
   it("DIRECT-PROMPT-6 direct prompt does not contain production exact-dialogue wording", () => {
