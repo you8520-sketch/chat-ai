@@ -25,7 +25,6 @@ import {
   renderComicNarrationProviderContract,
   resolveComicNarrationSlots,
 } from "@/lib/chatComicNarrationMinifier";
-import type { ComicStoryboard } from "@/lib/chatComicHighlightStoryboard";
 
 export type ComicPanelFormatId = "2panel" | "3koma" | "4panel";
 export type ChatComicCompositionMode =
@@ -615,8 +614,7 @@ export function buildChatComicPanelSpecVisualSection(opts: {
  * camera, balloon geometry, tail geometry, and negative-space arrangement.
  */
 export function renderChatComicPanelSpecFullProviderSection(
-  spec: ChatComicPanelSpec,
-  storyboard?: ComicStoryboard
+  spec: ChatComicPanelSpec
 ): string {
   const castLines = spec.cast
     .map((entry) => `${entry.label} = ${entry.role} (${entry.name})`)
@@ -644,12 +642,8 @@ export function renderChatComicPanelSpecFullProviderSection(
   );
 
   const header: string[] = [
-    storyboard
-      ? "COMIC SCRIPT — ANCHOR-CENTERED HIGHLIGHT"
-      : "COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE",
-    storyboard
-      ? `COMIC FORMAT: ${storyboard.panelCount} panels`
-      : `Format: ${spec.format} (${spec.panelCount} panels)`,
+    "COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE",
+    `Format: ${spec.format} (${spec.panelCount} panels)`,
     `Layout: ${spec.layout}`,
     `Staging: ${staging}`,
     `Hero focus: ${spec.heroScene}`,
@@ -659,50 +653,12 @@ export function renderChatComicPanelSpecFullProviderSection(
     "Cast:",
     castLines,
   ];
-  if (storyboard) {
-    const anchorPanel = storyboard.panels.find((panel) => panel.purpose === "anchor");
-    header.push(
-      anchorPanel
-        ? `ANCHOR: Panel ${anchorPanel.index} contains the ${storyboard.anchor.type} anchor of this micro-scene.`
-        : "",
-      "CONTINUITY:",
-      "- Use varied, coherent manhwa framing that best communicates each beat.",
-      "- Do not repeat near-identical compositions unless repetition is narratively meaningful.",
-      "- Character identities and scene states persist across panels unless a panel explicitly changes them.",
-      ...trimmedContinuity.map((rule) => `- ${rule}`)
-    );
-  } else {
-    header.push(
-      ...spec.continuityRules.map((rule) => `- ${rule}`)
-    );
-  }
+  header.push(
+    ...spec.continuityRules.map((rule) => `- ${rule}`)
+  );
 
-  // Panel blocks: storyboard-driven (purpose + narration + dialogue) when present.
-  const panelBlocks = storyboard
-    ? storyboard.panels
-        .map((panel) => {
-          const dialogue = panel.dialogue.length
-            ? panel.dialogue
-                .map(
-                  (line) =>
-                    `Speech: ${line.speakerName?.trim() || line.speaker}: "${line.text}"`
-                )
-                .join("\n")
-            : "Dialogue: none";
-          const narration = panel.narration
-            ? `Narration: "${panel.narration}"`
-            : "Narration: none";
-          return [
-            `PANEL ${panel.index} — ${panel.purpose.toUpperCase()}`,
-            panel.situation ? `Beat: ${panel.situation}` : "",
-            dialogue,
-            narration,
-          ]
-            .filter(Boolean)
-            .join("\n");
-        })
-        .join("\n\n")
-    : spec.panels
+  // Panel blocks: beat + approved dialogue per panel.
+  const panelBlocks = spec.panels
         .map((panel) => {
           const actions = [
             ...panel.subjectActions.map(
@@ -788,7 +744,6 @@ export function buildChatComicPanelSpecFullProviderSection(opts: {
   /** Site adult text eligibility (resolveEffectiveAdultRp) for provider-readable dialogue. */
   adultGrounded?: boolean;
   realPersonRestricted?: boolean;
-  storyboard?: ComicStoryboard;
 }): string {
   const spec = compileChatComicPanelSpec({
     ...opts,
@@ -802,7 +757,7 @@ export function buildChatComicPanelSpecFullProviderSection(opts: {
         }),
     },
   });
-  return renderChatComicPanelSpecFullProviderSection(spec, opts.storyboard);
+  return renderChatComicPanelSpecFullProviderSection(spec);
 }
 
 export function buildChatComicPanelSpecPromptSection(opts: {

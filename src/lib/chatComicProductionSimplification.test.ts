@@ -4,10 +4,6 @@ import { describe, it } from "node:test";
 
 import { buildChatComicImagePrompt } from "./chatComicGeneration";
 import {
-  isComicAutopilotActive,
-  resolveComicDiagnosticMode,
-} from "./chatComicDiagnostic";
-import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
   formatSceneSourcePreview,
@@ -30,29 +26,26 @@ function read(relativePath: string): string {
 }
 
 describe("production comic simplification — Scene Planner calls 0", () => {
-  it("PLANNER-0 production comic never runs the Scene Planner (route has no planChatImageScene call in the comic branch)", () => {
+  it("PLANNER-0 production comic never runs the Scene Planner (route has no planChatImageScene call)", () => {
     const route = read(ROUTE);
-    // The production comic branch (mode "comic") must not contain a planner call.
-    // planChatImageScene may only remain in the scene_plan diagnostic endpoint.
-    const comicBranch = route.slice(route.indexOf('if (body.mode === "comic")'));
-    assert.doesNotMatch(comicBranch, /planChatImageScene\(/);
+    // The comic route must not contain a planner call anywhere: the production
+    // path is full-source direct and the scene_plan diagnostic endpoint is gone.
+    // planChatImageScene remains available only via the TRPG focus module.
+    assert.doesNotMatch(route, /planChatImageScene\(/);
+    assert.doesNotMatch(route, /from "@\/lib\/chatImageScenePlanner"/);
   });
 
-  it("PLANNER-1 normal/normal/normal is never autopilot (planner calls = 0)", () => {
-    assert.equal(
-      isComicAutopilotActive({ mode: "normal", referenceMode: "normal", visualContextMode: "normal" }),
-      false
-    );
-    assert.equal(
-      isComicAutopilotActive({ mode: "normal", referenceMode: "normal", visualContextMode: "normal" }),
-      false
-    );
+  it("PLANNER-1 route has no autopilot/highlight planner gating for production", () => {
+    const route = read(ROUTE);
+    assert.doesNotMatch(route, /isComicAutopilotActive/);
+    assert.doesNotMatch(route, /autopilotActive/);
+    assert.doesNotMatch(route, /planChatImageScene/);
   });
 
-  it("PLANNER-2 default production request resolves to normal mode + normal axes", () => {
-    const mode = resolveComicDiagnosticMode({ canSeeCost: false });
-    assert.equal(mode.mode, "normal");
-    assert.equal(isComicAutopilotActive({ mode: mode.mode, referenceMode: "normal", visualContextMode: "normal" }), false);
+  it("PLANNER-2 route has no scene_plan diagnostic endpoint", () => {
+    const route = read(ROUTE);
+    assert.doesNotMatch(route, /body\.mode === "scene_plan"/);
+    assert.doesNotMatch(route, /mode: "scene_plan"/);
   });
 });
 
@@ -100,13 +93,24 @@ describe("production comic simplification — full source reaches provider promp
 describe("production comic simplification — route wiring", () => {
   it("ROUTE-1 route passes the full turn text for production comic", () => {
     const route = read(ROUTE);
-    assert.match(route, /fullSourceDirectText: fullSourceDirectMode \? source\.turnText : undefined/);
-    assert.match(route, /const autopilotActive = false/);
+    assert.match(route, /fullSourceDirectText: source\.turnText/);
+    assert.doesNotMatch(route, /comicHighlightSelection/);
   });
 
   it("ROUTE-2 route no longer resolves highlight selection for production", () => {
     const route = read(ROUTE);
     assert.doesNotMatch(route, /resolveComicHighlightFallback/);
+    assert.doesNotMatch(route, /resolveComicHighlightSelectionSource/);
+    assert.doesNotMatch(route, /ComicHighlightSelection/);
+  });
+
+  it("ROUTE-3 route has no diagnostic mode branches", () => {
+    const route = read(ROUTE);
+    assert.doesNotMatch(route, /diagnosticMode/);
+    assert.doesNotMatch(route, /diagnosticOverrides/);
+    assert.doesNotMatch(route, /semanticLadderMode/);
+    assert.doesNotMatch(route, /neutralVisualContext/);
+    assert.doesNotMatch(route, /blank_balloon_hybrid/);
   });
 });
 
@@ -136,19 +140,21 @@ describe("PR-A merge blockers — cost bucket + storyboard false owner", () => {
 
   it("UI-DIRECT-1 production comic mode shows no storyboard dialogue editor", () => {
     const panel = read(PANEL);
-    // The ChatSceneBuilder dialogue editor (ComicPanelStoryboardCard editable
-    // path) renders only when comicAutopilotMode is false; production must
-    // never enable it.
-    assert.doesNotMatch(panel, /comicAutopilotMode=\{false\}/);
+    const builder = read("src/components/ChatSceneBuilder.tsx");
+    // The editable storyboard path is removed: no autopilot switch prop is
+    // passed, and the builder exposes no dialogue editor wiring.
+    assert.doesNotMatch(panel, /comicAutopilotMode/);
+    assert.doesNotMatch(builder, /comicAutopilotMode/);
+    assert.doesNotMatch(builder, /onToggleDialogueEdit/);
+    assert.doesNotMatch(builder, /대사 편집/);
   });
 
   it("UI-DIRECT-2 production comic mode shows no scene-detail editor", () => {
-    const panel = read(PANEL);
     const builder = read("src/components/ChatSceneBuilder.tsx");
-    // The scene-detail editor button is gated on !comicAutopilotMode; production
-    // explicitly opts into the non-editable automatic state.
-    assert.match(builder, /!comicAutopilotMode \? \(/);
-    assert.match(panel, /comicAutopilotMode=\{true\}/);
+    // The scene-detail editor button and visual editor are removed entirely.
+    assert.doesNotMatch(builder, /장면 자세히 수정/);
+    assert.doesNotMatch(builder, /PanelVisualEditor/);
+    assert.doesNotMatch(builder, /sceneEditOpen/);
   });
 
   it("UI-DIRECT-3 provider-direct automatic explanation is retained", () => {
@@ -173,22 +179,63 @@ describe("non-admin privacy boundary (server gate is canonical owner)", () => {
     assert.match(route, /const canSeeCost = isAdminUser/);
   });
 
-  it("PRIV-2 comic POST gates upstream cost and provider diagnostics behind canSeeCost", () => {
+  it("PRIV-2 comic POST exposes only gated upstream cost, no diagnostic payload", () => {
     const route = read(ROUTE);
     assert.match(route, /const canSeeCost = isAdminUser/);
     assert.match(route, /upstreamCostUsd: canSeeCost \? totalCostUsd : undefined/);
-    assert.match(route, /providerAttemptDiagnostic: adminProviderAttemptDiagnostic/);
+    assert.doesNotMatch(route, /providerAttemptDiagnostic/);
+    assert.doesNotMatch(route, /comicDiagnostic/);
   });
 
-  it("PRIV-3 illustration POST gates upstream cost and provider diagnostics behind canSeeCost", () => {
+  it("PRIV-3 illustration POST exposes only gated upstream cost, no diagnostic payload", () => {
     const route = read(ROUTE);
     assert.match(route, /upstreamCostUsd: canSeeCost \? generated\.knownProviderCostUsd : undefined/);
-    assert.match(route, /providerAttemptDiagnostic: adminProviderAttemptDiagnostic\(generated\)/);
+    assert.doesNotMatch(route, /providerAttemptDiagnostic/);
   });
 
   it("PRIV-4 client only renders admin cost from server-provided values", () => {
     const panel = read(PANEL);
     assert.match(panel, /data\.upstreamCostUsd != null && data\.upstreamCostKrw != null/);
     assert.match(panel, /actualCosts\[activeMode\]/);
+  });
+});
+
+describe("PR-B decommission — production paths must not reintroduce deleted owners", () => {
+  it("DECOM-1 production comic route imports no planner/highlight/textBrief/diagnostic owners", () => {
+    const route = read(ROUTE);
+    assert.doesNotMatch(route, /chatImageScenePlanner/);
+    assert.doesNotMatch(route, /chatComicHighlightExcerpt/);
+    assert.doesNotMatch(route, /chatComicTextBrief/);
+    assert.doesNotMatch(route, /chatComicHighlightStoryboard/);
+    assert.doesNotMatch(route, /chatComicDiagnostic/);
+    assert.doesNotMatch(route, /chatImageScenePlanRateLimit/);
+    assert.doesNotMatch(route, /chatImageScenePlanLifecycle/);
+  });
+
+  it("DECOM-2 production comic prompt builder imports no highlight/textBrief/diagnostic owners", () => {
+    const builder = read("src/lib/chatComicGeneration.ts");
+    assert.doesNotMatch(builder, /chatComicHighlightExcerpt/);
+    assert.doesNotMatch(builder, /chatComicTextBrief/);
+    assert.doesNotMatch(builder, /chatComicHighlightStoryboard/);
+    assert.doesNotMatch(builder, /chatComicDiagnostic/);
+  });
+
+  it("DECOM-3 illustration route has no approved-scene-plan prompt path", () => {
+    const route = read(ROUTE);
+    assert.doesNotMatch(route, /approvedScenePlan/);
+  });
+
+  it("DECOM-4 panel exposes no SD/persona generation entrypoints", () => {
+    const panel = read(PANEL);
+    assert.doesNotMatch(panel, /generateSd/);
+    assert.doesNotMatch(panel, /generatePersona/);
+    assert.doesNotMatch(panel, /SD 이미지/);
+    assert.doesNotMatch(panel, /페르소나 이미지 생성/);
+  });
+
+  it("DECOM-5 image-generation route has no generation POST path", () => {
+    const route = read("src/app/api/chat/image-generation/route.ts");
+    assert.doesNotMatch(route, /export async function POST/);
+    assert.doesNotMatch(route, /isPersona|isEmoticon|isCoupleStamp/);
   });
 });

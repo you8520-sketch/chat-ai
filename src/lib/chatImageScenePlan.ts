@@ -147,8 +147,6 @@ export type ScenePlan = {
   castMentions?: SceneCastMention[];
   /** Optional SCENE-PLANNER-OWNED comic editorial projection (comic intent). */
   comicEditorial?: ComicEditorial;
-  /** Optional SCENE-PLANNER-OWNED highlight selection (comic intent) — WHAT to draw. */
-  comicHighlightSelection?: ComicHighlightSelection;
 };
 
 function cleanLine(raw: unknown, max = 400): string {
@@ -1463,23 +1461,7 @@ function canonicalDialogueSpeakerFromEvent(event: SceneEvent): SceneDialogueSpea
   return null;
 }
 
-export type ScenePlanIntent = "general" | "trpg_illustration" | "comic";
-
-// ---------------------------------------------------------------------------
-// Comic highlight selection — SCENE-PLANNER-OWNED "WHAT to illustrate" only.
-// The planner picks ONE anchor + ONE contiguous local focus window. GPT Image
-// owns HOW the selected scene becomes a comic (panels, dialogue, narration,
-// camera, balloons, SFX). The planner is NOT the panel/layout/narration owner.
-// ---------------------------------------------------------------------------
-
-export type ComicHighlightSelection = {
-  anchorEventId: string;
-  focusEventIds: string[];
-  /** Diagnostic-only; never required for normal production. */
-  selectionReason?: string;
-};
-
-export const COMIC_HIGHLIGHT_MAX_FOCUS_EVENTS = 8;
+export type ScenePlanIntent = "general" | "trpg_illustration";
 
 export const TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS = 4;
 
@@ -1492,78 +1474,6 @@ export const TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS = 4;
 export const COMIC_EDITORIAL_MAX_FOCUS_EVENTS = 6;
 export const COMIC_EDITORIAL_MAX_NARRATIONS = 2;
 export const COMIC_NARRATION_SOFT_MAX_CHARS = 48;
-
-/**
- * Validates a SCENE-PLANNER-owned highlight selection. It answers only
- * "WHAT to illustrate" — anchor + one contiguous local focus window. Whole-turn
- * coverage is not required; per-panel planning is not the planner's job.
- */
-export function validateComicHighlightSelection(
-  source: unknown,
-  events: readonly SceneEvent[]
-):
-  | { ok: true; selection: ComicHighlightSelection }
-  | { ok: false; reason: string } {
-  if (!source || typeof source !== "object") {
-    return { ok: false, reason: "comic highlight selection missing" };
-  }
-  const item = source as Record<string, unknown>;
-  const eventsById = new Map(events.map((event) => [event.id, event]));
-  const visual = visualEvents(events);
-  const visualIds = new Set(visual.map((event) => event.id));
-
-  const anchorEventId = cleanLine(item.anchorEventId, 24);
-  const anchor = eventsById.get(anchorEventId);
-  if (!anchor) return { ok: false, reason: "comic highlight anchor invalid" };
-  if (anchor.kind === "assistant_echo") {
-    return { ok: false, reason: "comic highlight anchor is assistant_echo" };
-  }
-
-  const focusRaw = Array.isArray(item.focusEventIds)
-    ? item.focusEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
-    : [];
-  if (!focusRaw.length) return { ok: false, reason: "comic highlight focus missing" };
-  if (focusRaw.length > COMIC_HIGHLIGHT_MAX_FOCUS_EVENTS) {
-    return { ok: false, reason: "comic highlight focus too large" };
-  }
-  if (!focusRaw.includes(anchorEventId)) {
-    return { ok: false, reason: "comic highlight focus omits anchor" };
-  }
-  const seen = new Set<string>();
-  for (const id of focusRaw) {
-    if (seen.has(id)) return { ok: false, reason: "comic highlight focus duplicated" };
-    seen.add(id);
-    const event = eventsById.get(id);
-    if (!event || event.kind === "assistant_echo" || !visualIds.has(id)) {
-      return { ok: false, reason: "comic highlight focus unknown/invalid event" };
-    }
-  }
-  const positions = focusRaw
-    .map((id) => visual.findIndex((event) => event.id === id))
-    .filter((index) => index >= 0);
-  const contiguous =
-    positions.length === focusRaw.length &&
-    positions[positions.length - 1]! - positions[0]! + 1 === positions.length;
-  if (!contiguous) {
-    return { ok: false, reason: "comic highlight focus not contiguous (distant highlights)" };
-  }
-  for (let i = 1; i < positions.length; i += 1) {
-    if (positions[i]! < positions[i - 1]!) {
-      return { ok: false, reason: "comic highlight focus chronology reversed" };
-    }
-  }
-
-  return {
-    ok: true,
-    selection: {
-      anchorEventId,
-      focusEventIds: focusRaw,
-      ...(typeof item.selectionReason === "string"
-        ? { selectionReason: cleanLine(item.selectionReason, 160) }
-        : {}),
-    },
-  };
-}
 
 export type ComicEditorialAudit = {
   focusWindowContiguous: boolean;
@@ -1993,18 +1903,6 @@ export function validateScenePlan(
     comicEditorial = editorialResult.editorial;
   }
 
-  let comicHighlightSelection: ComicHighlightSelection | undefined;
-  if (source.comicHighlightSelection != null) {
-    const highlightResult = validateComicHighlightSelection(
-      source.comicHighlightSelection,
-      canonicalEvents
-    );
-    if (!highlightResult.ok) {
-      return highlightResult;
-    }
-    comicHighlightSelection = highlightResult.selection;
-  }
-
   return {
     ok: true,
     plan: {
@@ -2025,7 +1923,6 @@ export function validateScenePlan(
       panels,
       castMentions,
       comicEditorial,
-      comicHighlightSelection,
     },
   };
 }
@@ -2084,10 +1981,6 @@ export function buildScenePlanPrompt(opts: {
           ],
         },
       ],
-      comicHighlightSelection: {
-        anchorEventId: "E12",
-        focusEventIds: ["E10", "E11", "E12", "E13", "E14"],
-      },
     }),
     "Rules:",
     "1. CANONICAL EVENTS are fixed. Do not return an events array. Never invent, omit, reorder, or reclassify events.",
@@ -2122,88 +2015,6 @@ export function buildScenePlanPrompt(opts: {
     "SOURCE MESSAGES:",
     JSON.stringify(opts.messages, null, 2),
   ].join("\n\n");
-}
-
-export const COMIC_HIGHLIGHT_WHOLE_TURN_COMPARISON_CONTRACT =
-  "Read and compare the ENTIRE canonical timeline above before choosing. Do not commit to the first visually drawable scene. Compare all plausible local moments and select the single moment with the greatest story, relationship, emotional, payoff, or consequence weight. Internal comparison only — never output your candidate reasoning.";
-
-export const COMIC_HIGHLIGHT_STORY_RUBRIC = [
-  "A. RELATIONSHIP / EMOTIONAL STATE CHANGE — trust, intimacy, jealousy, confession, possessiveness, vulnerability, rejection, acceptance, reconciliation, betrayal, important emotional realization.",
-  "B. CALLBACK / PAYOFF — an earlier object, promise, joke, gift, wound, secret, conflict, or event gains meaningful later significance; an earlier action is reinterpreted; setup receives payoff.",
-  "C. DECISION / COMMITMENT / CHOICE — proposal, agreement, refusal, ultimatum, promise, a 'choose' moment, relationship definition, meaningful future direction.",
-  "D. REVEAL / DISCOVERY — secret, identity, hidden motive, new important knowledge, realization.",
-  "E. CONFLICT TURN — confrontation, threat, breakthrough, surrender, power reversal, unexpected response.",
-  "F. COMEDIC PAYOFF — punchline, embarrassment, misunderstanding payoff, strong reaction.",
-  "G. CHARACTER-SPECIFIC MEMORABILITY — dialogue/action that could only belong to this character relationship; strong personality expression; distinctive recurring motif.",
-].join("\n");
-
-export const COMIC_HIGHLIGHT_LOW_PRIORITY =
-  "walking from A to B, generic room introduction, furniture description, ordinary eating, washing instructions, routine dressing, scenery showcase, logistics, generic 'let's go / sit / eat / wash' setup, long descriptive prose with little consequence";
-
-export const COMIC_HIGHLIGHT_COMPARATIVE_RULE =
-  "For every plausible candidate moment, weigh relationship change, emotional salience, callback/payoff, decision weight, reveal weight, conflict change, reaction potential, character specificity, and local scene coherence — and only THEN visual drawability as a tie-breaker. Visual novelty is NOT narrative importance: a 'large luxurious bedroom' must not outrank a relationship-defining callback just because it is easier to draw.";
-
-export const COMIC_HIGHLIGHT_POSITION_BIAS_CONTRACT =
-  "Do NOT pick by first scene, last scene, longest dialogue, longest prose, most visually descriptive prose, first question, or first dialogue. A high-value event in the middle or later part of a long turn is fully selectable.";
-
-/**
- * COMIC HIGHLIGHT SELECTOR prompt — compact contract. The comic Scene Planner
- * owns ONE responsibility: compare the whole canonical turn and return ONE
- * anchor + ONE contiguous local focus window. No panels, hero, cast, narration,
- * camera, or composition output. Generic ScenePlan generation uses
- * buildScenePlanPrompt; this builder is for comic intent only.
- */
-export function buildComicHighlightPrompt(opts: {
-  contentKind?: ContentKind;
-  characterName: string;
-  personaName: string;
-  messages: readonly SceneSourceMessage[];
-  speakerContext?: SceneSpeakerContext;
-}): string {
-  const contentKind = opts.contentKind ?? "character";
-  const canonicalEvents = extractDeterministicEvents(opts.messages, opts.speakerContext);
-  const identityLines =
-    contentKind === "simulation"
-      ? [`Simulation title (NOT A PERSON): ${opts.characterName}`]
-      : [`Chat character name: ${opts.characterName}`];
-  return [
-    "You are a Korean comic editor choosing the single most story-worthy local moment from a long roleplay turn.",
-    ...identityLines,
-    `User persona name: ${opts.personaName}`,
-    "CANONICAL EVENTS are immutable source truth. Do not add, delete, rewrite, reorder, or reclassify them. Your comic selection MAY and SHOULD choose only the small contiguous subset needed for the single best highlight:",
-    JSON.stringify(canonicalEvents, null, 2),
-    "TASK — CHOOSE WHAT TO ILLUSTRATE (ONE micro-scene):",
-    COMIC_HIGHLIGHT_WHOLE_TURN_COMPARISON_CONTRACT,
-    "OUTPUT CONTRACT:",
-    "Return a JSON object with exactly these two keys:",
-    "- anchorEventId: ONE actual event ID copied from CANONICAL EVENTS above.",
-    "- focusEventIds: actual canonical event IDs only, in chronological order.",
-    "Every returned ID MUST exist in the supplied canonical timeline. Never copy example or placeholder IDs. anchorEventId MUST appear in focusEventIds.",
-    "STORY IMPORTANCE — highest priority first:",
-    COMIC_HIGHLIGHT_STORY_RUBRIC,
-    `Lower priority when standing alone: ${COMIC_HIGHLIGHT_LOW_PRIORITY}.`,
-    "COMPARATIVE RULE:",
-    COMIC_HIGHLIGHT_COMPARATIVE_RULE,
-    "ANCHOR DIALOGUE PREFERENCE:",
-    "Prefer a dialogue anchor when meaningful dialogue exists — a line that changes the relationship, assigns meaning to an earlier event, makes a promise or claim, demands or offers a choice, reveals a secret, provokes a strong reaction, pays off an earlier setup, functions as a punchline, or defines the current emotional state. If no useful dialogue exists, choose the most story-bearing action or reaction.",
-    "FOCUS WINDOW:",
-    "Keep it to ONE local contiguous scene in chronological order, anchor included, no duplicates. Include enough setup before the anchor and the immediate response or consequence after it so a reader can understand the moment. Do not include distant or irrelevant events from the same turn.",
-    "POSITION BIAS — PROTECTIONS:",
-    COMIC_HIGHLIGHT_POSITION_BIAS_CONTRACT,
-    "OUTPUT:",
-    "Return JSON only, no markdown fences, no reasoning, no analysis, no commentary, and no additional fields.",
-  ].join("\n\n");
-}
-
-/**
- * Reports where the comic highlight selection came from — scene planner AI or
- * deterministic recovery. Admin diagnostics only; never decides semantics.
- */
-export function resolveComicHighlightSelectionSource(
-  plan: ScenePlan | null | undefined
-): "scene_planner" | "deterministic_fallback" | "none" {
-  if (plan?.comicHighlightSelection?.anchorEventId) return "scene_planner";
-  return "deterministic_fallback";
 }
 
 export type ScenePresentationVisibility = {

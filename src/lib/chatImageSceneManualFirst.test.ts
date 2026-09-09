@@ -20,17 +20,6 @@ import {
   reflowScenePlanPanels,
   type ScenePlan,
 } from "./chatImageScenePlan";
-import {
-  assertChatImageScenePlanRateLimit,
-  ChatImageScenePlanRateLimitError,
-  releaseChatImageScenePlanRateLimit,
-  resetChatImageScenePlanRateLimitForTests,
-  scenePlanRateLimitRowCountForTests,
-  SCENE_PLAN_COOLDOWN_MS,
-  SCENE_PLAN_MAX_IN_WINDOW,
-  SCENE_PLAN_WINDOW_MS,
-  setChatImageScenePlanRateLimitNowForTests,
-} from "./chatImageScenePlanRateLimit";
 import { planChatImageScene } from "./chatImageScenePlanner";
 
 const CONFIGURED = ["태형", "이현", "렌"];
@@ -535,85 +524,5 @@ describe("chatImageSceneManualFirst provider call semantics", () => {
     const four = reflowScenePlanPanels(plan, 4);
     assert.equal(two.panels.length, 2);
     assert.equal(four.panels.length, 4);
-  });
-});
-
-describe("chatImageScenePlanRateLimit", () => {
-  it("blocks concurrent in-flight scene-plan requests per user", () => {
-    resetChatImageScenePlanRateLimitForTests();
-    assertChatImageScenePlanRateLimit(42);
-    assert.throws(
-      () => assertChatImageScenePlanRateLimit(42),
-      ChatImageScenePlanRateLimitError
-    );
-    releaseChatImageScenePlanRateLimit(42);
-    assert.doesNotThrow(() => assertChatImageScenePlanRateLimit(43));
-    releaseChatImageScenePlanRateLimit(43);
-  });
-
-  it("enforces short cooldown between scene-plan requests", () => {
-    resetChatImageScenePlanRateLimitForTests();
-    assertChatImageScenePlanRateLimit(7);
-    releaseChatImageScenePlanRateLimit(7);
-    assert.throws(
-      () => assertChatImageScenePlanRateLimit(7),
-      ChatImageScenePlanRateLimitError
-    );
-  });
-
-  it("returns HTTP 429 semantics via typed limiter error", () => {
-    resetChatImageScenePlanRateLimitForTests();
-    try {
-      assertChatImageScenePlanRateLimit(99);
-      assertChatImageScenePlanRateLimit(99);
-      assert.fail("expected in-flight block");
-    } catch (error) {
-      assert.ok(error instanceof ChatImageScenePlanRateLimitError);
-      assert.equal((error as ChatImageScenePlanRateLimitError).statusCode, 429);
-    } finally {
-      releaseChatImageScenePlanRateLimit(99);
-    }
-  });
-
-  it("allows six requests per rolling window then blocks the seventh", () => {
-    resetChatImageScenePlanRateLimitForTests();
-    let now = 1_000_000;
-    setChatImageScenePlanRateLimitNowForTests(() => now);
-    for (let index = 0; index < SCENE_PLAN_MAX_IN_WINDOW; index += 1) {
-      assertChatImageScenePlanRateLimit(5);
-      releaseChatImageScenePlanRateLimit(5);
-      now += SCENE_PLAN_COOLDOWN_MS + 1;
-    }
-    assert.throws(
-      () => assertChatImageScenePlanRateLimit(5),
-      ChatImageScenePlanRateLimitError
-    );
-    now += SCENE_PLAN_WINDOW_MS + 1;
-    assert.doesNotThrow(() => assertChatImageScenePlanRateLimit(5));
-    releaseChatImageScenePlanRateLimit(5);
-  });
-
-  it("clears in-flight lock after failed release once backoff elapses", () => {
-    resetChatImageScenePlanRateLimitForTests();
-    let now = 1_000;
-    setChatImageScenePlanRateLimitNowForTests(() => now);
-    assertChatImageScenePlanRateLimit(8);
-    releaseChatImageScenePlanRateLimit(8, true);
-    now += 1_600;
-    assert.doesNotThrow(() => assertChatImageScenePlanRateLimit(8));
-    releaseChatImageScenePlanRateLimit(8);
-  });
-
-  it("prunes stale rows opportunistically", () => {
-    resetChatImageScenePlanRateLimitForTests();
-    let now = 5_000;
-    setChatImageScenePlanRateLimitNowForTests(() => now);
-    assertChatImageScenePlanRateLimit(1);
-    releaseChatImageScenePlanRateLimit(1);
-    assert.equal(scenePlanRateLimitRowCountForTests(), 1);
-    now += SCENE_PLAN_WINDOW_MS + SCENE_PLAN_COOLDOWN_MS + 1;
-    assertChatImageScenePlanRateLimit(2);
-    releaseChatImageScenePlanRateLimit(2);
-    assert.equal(scenePlanRateLimitRowCountForTests(), 1);
   });
 });

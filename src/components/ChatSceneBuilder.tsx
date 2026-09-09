@@ -1,38 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import ChatImageCastPicker from "@/components/ChatImageCastPicker";
 import type { ChatImageCastIntentManifest, SelectableCastAsset } from "@/lib/chatImageCast";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
-import {
-  buildDialogueSpeakerOptions,
-  dialogueSpeakerChoiceFromKey,
-  dialogueSpeakerChoiceKey,
-  resolveDialogueSpeakerDisplayLabel,
-  resolveDialogueSpeakerOptionKey,
-  type DialogueSpeakerChoice,
-} from "@/lib/chatImageDialogueSpeakerEditor";
-import {
-  addPanelDialogueLine,
-  applyUserPanelEdits,
-  collectCanonicalSpeakerNames,
-  movePanelDialogueLine,
-  projectComicPanelCompactDialoguePreview,
-  projectComicPanelCompactSituation,
-  removePanelDialogueLine,
-  resolveScenePresentationVisibility,
-  updatePanelDialogueAtIndex,
-  type SceneDialogueSpeaker,
-  type ScenePanel,
-  type ScenePlan,
-} from "@/lib/chatImageScenePlan";
+import type { ScenePlan } from "@/lib/chatImageScenePlan";
 
 export type SceneOutputMode = "illustration" | "comic";
 
 type ChatSceneBuilderProps = {
-  sourcePreview: string;
   sourceLoading: boolean;
   plan: ScenePlan | null;
   planLoading: boolean;
@@ -41,373 +17,11 @@ type ChatSceneBuilderProps = {
   visualSubjects?: readonly ClientVisibleVisualSubject[];
   reservedReferenceUrls?: readonly string[];
   contentKind?: ContentKind;
-  personaName: string;
-  characterName: string;
-  castSpeakerNames?: readonly string[];
   outputMode: SceneOutputMode;
-  /** Production provider-direct comic: per-panel dialogue/speaker/situation edits are not authoritative. */
-  comicAutopilotMode?: boolean;
   disabled?: boolean;
   onOutputModeChange: (mode: SceneOutputMode) => void;
-  onPlanChange: (plan: ScenePlan) => void;
   onCastChange: (manifest: ChatImageCastIntentManifest) => void;
 };
-
-function ComicPanelCompactDialoguePreview({
-  panel,
-  personaName,
-  characterName,
-  personaVisible,
-}: {
-  panel: ScenePanel;
-  personaName: string;
-  characterName: string;
-  personaVisible: boolean;
-}) {
-  const preview = projectComicPanelCompactDialoguePreview(panel, { personaVisible });
-
-  return (
-    <div className="mt-2 space-y-1">
-      <p className="text-[10px] font-semibold text-zinc-500">
-        대사 {preview.previewLines.length}/{preview.totalVisible} 표시
-      </p>
-      {preview.totalVisible === 0 ? (
-        <p className="text-xs text-zinc-500">대사 없음</p>
-      ) : (
-        <ul className="space-y-0.5">
-          {preview.previewLines.map((line, index) => (
-            <li
-              key={`${panel.index}-dialogue-preview-${index}`}
-              className="flex gap-1.5 text-xs leading-snug text-zinc-300"
-            >
-              <span className="shrink-0 font-semibold text-zinc-400">
-                {resolveDialogueSpeakerDisplayLabel(
-                  line.speaker,
-                  personaName,
-                  characterName,
-                  line.speakerName
-                )}
-              </span>
-              <span className="min-w-0 text-zinc-200">{line.text}</span>
-            </li>
-          ))}
-          {preview.hiddenCount > 0 ? (
-            <li className="text-[11px] font-semibold text-zinc-500">
-              +{preview.hiddenCount}개 더 있음
-            </li>
-          ) : null}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function ComicPanelStoryboardCard({
-  panel,
-  plan,
-  personaName,
-  characterName,
-  castSpeakerNames,
-  personaVisible,
-  disabled,
-  dialogueEditOpen,
-  onToggleDialogueEdit,
-  onPlanChange,
-  editable = true,
-}: {
-  panel: ScenePanel;
-  plan: ScenePlan;
-  personaName: string;
-  characterName: string;
-  castSpeakerNames?: readonly string[];
-  personaVisible: boolean;
-  disabled?: boolean;
-  dialogueEditOpen: boolean;
-  onToggleDialogueEdit: () => void;
-  onPlanChange: (plan: ScenePlan) => void;
-  /** Production provider-direct comic: per-panel dialogue/speaker edits are not authoritative. */
-  editable?: boolean;
-}) {
-  const compactSituation = projectComicPanelCompactSituation(plan, panel, { personaVisible });
-
-  return (
-    <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[11px] font-semibold text-violet-200">{panel.index}컷</p>
-      </div>
-      {compactSituation ? (
-        <p className="mt-1 text-xs leading-snug text-zinc-200">{compactSituation}</p>
-      ) : (
-        <p className="mt-1 text-xs text-zinc-500">장면 없음</p>
-      )}
-      {editable && dialogueEditOpen ? (
-        <ComicPanelDialogueEditor
-          panel={panel}
-          plan={plan}
-          personaName={personaName}
-          characterName={characterName}
-          castSpeakerNames={castSpeakerNames}
-          personaVisible={personaVisible}
-          disabled={disabled}
-          onPlanChange={onPlanChange}
-        />
-      ) : (
-        <ComicPanelCompactDialoguePreview
-          panel={panel}
-          personaName={personaName}
-          characterName={characterName}
-          personaVisible={personaVisible}
-        />
-      )}
-      {editable ? (
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onToggleDialogueEdit}
-          className="mt-1.5 text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
-        >
-          {dialogueEditOpen ? "대사 미리보기로" : "대사 편집"}
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function PanelVisualEditor({
-  panel,
-  disabled,
-  onChange,
-}: {
-  panel: ScenePanel;
-  disabled?: boolean;
-  onChange: (patch: Partial<ScenePanel>) => void;
-}) {
-  return (
-    <label className="block space-y-1 rounded-lg border border-white/10 bg-black/20 p-2">
-      <span className="text-[10px] font-semibold text-zinc-500">장면 설명</span>
-      <textarea
-        value={panel.situation}
-        disabled={disabled}
-        rows={2}
-        onChange={(event) => onChange({ situation: event.target.value })}
-        className="w-full resize-y rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-      />
-    </label>
-  );
-}
-
-function DialogueRowEditor({
-  lineIndex,
-  lineCount,
-  speaker,
-  speakerName,
-  text,
-  personaName,
-  characterName,
-  speakerChoices,
-  disabled,
-  onSpeakerChange,
-  onTextChange,
-  onMoveUp,
-  onMoveDown,
-  onRemove,
-}: {
-  lineIndex: number;
-  lineCount: number;
-  speaker: SceneDialogueSpeaker;
-  speakerName?: string;
-  text: string;
-  personaName: string;
-  characterName: string;
-  speakerChoices: DialogueSpeakerChoice[];
-  disabled?: boolean;
-  onSpeakerChange: (speaker: SceneDialogueSpeaker, speakerName?: string) => void;
-  onTextChange: (text: string) => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onRemove: () => void;
-}) {
-  const selectedKey = resolveDialogueSpeakerOptionKey(
-    { speaker, speakerName },
-    personaName,
-    characterName
-  );
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <select
-        value={selectedKey}
-        disabled={disabled}
-        onChange={(event) => {
-          const choice = dialogueSpeakerChoiceFromKey(event.target.value, speakerChoices);
-          if (!choice) return;
-          onSpeakerChange(choice.value, choice.speakerName);
-        }}
-        className="min-w-[4.5rem] rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-      >
-        {speakerChoices.map((choice) => (
-          <option
-            key={dialogueSpeakerChoiceKey(choice.value, choice.speakerName)}
-            value={dialogueSpeakerChoiceKey(choice.value, choice.speakerName)}
-          >
-            {choice.label}
-          </option>
-        ))}
-      </select>
-      <input
-        type="text"
-        value={text}
-        disabled={disabled}
-        placeholder="대사"
-        onChange={(event) => onTextChange(event.target.value)}
-        className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-      />
-      <div className="flex items-center gap-0.5">
-        <button
-          type="button"
-          disabled={disabled || lineIndex === 0}
-          onClick={onMoveUp}
-          className="rounded border border-white/10 px-1.5 py-1 text-[10px] text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200 disabled:opacity-30"
-          aria-label="대사 위로"
-        >
-          ↑
-        </button>
-        <button
-          type="button"
-          disabled={disabled || lineIndex >= lineCount - 1}
-          onClick={onMoveDown}
-          className="rounded border border-white/10 px-1.5 py-1 text-[10px] text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200 disabled:opacity-30"
-          aria-label="대사 아래로"
-        >
-          ↓
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onRemove}
-          className="rounded border border-white/10 px-1.5 py-1 text-[10px] text-zinc-400 hover:bg-rose-500/20 hover:text-rose-200 disabled:opacity-30"
-          aria-label="대사 삭제"
-        >
-          ×
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ComicPanelDialogueEditor({
-  panel,
-  plan,
-  personaName,
-  characterName,
-  castSpeakerNames,
-  personaVisible,
-  disabled,
-  onPlanChange,
-}: {
-  panel: ScenePanel;
-  plan: ScenePlan;
-  personaName: string;
-  characterName: string;
-  castSpeakerNames?: readonly string[];
-  personaVisible: boolean;
-  disabled?: boolean;
-  onPlanChange: (plan: ScenePlan) => void;
-}) {
-  const includeOther = panel.dialogue.some(
-    (line) => line.speaker === "other" && !line.speakerName
-  );
-  const canonicalSpeakerNames = collectCanonicalSpeakerNames(plan);
-  const choices = buildDialogueSpeakerOptions({
-    personaName,
-    characterName,
-    castSpeakerNames,
-    canonicalSpeakerNames,
-    personaVisible,
-    includeOther,
-  });
-  const resolveNextSpeaker = (): { speaker: "persona" | "character" | "other"; speakerName?: string } => {
-    if (panel.dialogue.length > 0) {
-      const lastLine = panel.dialogue[panel.dialogue.length - 1]!;
-      if (lastLine.speaker === "persona") {
-        return { speaker: "character", speakerName: undefined };
-      }
-      if (lastLine.speaker === "character" && personaVisible) {
-        return { speaker: "persona", speakerName: undefined };
-      }
-    }
-    if (!personaVisible) {
-      return { speaker: "character", speakerName: undefined };
-    }
-    if (panel.characterAction && !panel.personaAction) {
-      return { speaker: "character", speakerName: undefined };
-    }
-    return { speaker: "persona", speakerName: undefined };
-  };
-
-  const visibleDialogue = panel.dialogue.filter(
-    (line) => personaVisible || line.speaker !== "persona"
-  );
-
-  return (
-    <div className="mt-2 space-y-1.5">
-      <p className="text-[10px] font-semibold text-zinc-500">대사</p>
-      {visibleDialogue.length ? (
-        visibleDialogue.map((line, visibleIndex) => {
-          const lineIndex = panel.dialogue.indexOf(line);
-          return (
-            <DialogueRowEditor
-              key={`${panel.index}-${lineIndex}-${visibleIndex}`}
-              lineIndex={visibleIndex}
-              lineCount={visibleDialogue.length}
-              speaker={line.speaker}
-              speakerName={line.speakerName}
-              text={line.text}
-              personaName={personaName}
-              characterName={characterName}
-              speakerChoices={choices}
-              disabled={disabled}
-              onSpeakerChange={(speaker, speakerName) => {
-                onPlanChange(
-                  updatePanelDialogueAtIndex(plan, panel.index, lineIndex, {
-                    speaker,
-                    speakerName,
-                  })
-                );
-              }}
-              onTextChange={(text) => {
-                onPlanChange(
-                  updatePanelDialogueAtIndex(plan, panel.index, lineIndex, { text })
-                );
-              }}
-              onMoveUp={() => {
-                onPlanChange(movePanelDialogueLine(plan, panel.index, lineIndex, "up"));
-              }}
-              onMoveDown={() => {
-                onPlanChange(movePanelDialogueLine(plan, panel.index, lineIndex, "down"));
-              }}
-              onRemove={() => {
-                onPlanChange(removePanelDialogueLine(plan, panel.index, lineIndex));
-              }}
-            />
-          );
-        })
-      ) : (
-        <p className="text-xs text-zinc-500">대사 없음</p>
-      )}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => {
-          const next = resolveNextSpeaker();
-          onPlanChange(addPanelDialogueLine(plan, panel.index, next.speaker, next.speakerName));
-        }}
-        className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
-      >
-        + 대사 추가
-      </button>
-    </div>
-  );
-}
 
 export default function ChatSceneBuilder({
   sourceLoading,
@@ -418,36 +32,12 @@ export default function ChatSceneBuilder({
   visualSubjects,
   reservedReferenceUrls,
   contentKind = "character",
-  personaName,
-  characterName,
-  castSpeakerNames,
   outputMode,
-  comicAutopilotMode,
   disabled,
   onOutputModeChange,
-  onPlanChange,
   onCastChange,
 }: ChatSceneBuilderProps) {
-  const [sceneEditOpen, setSceneEditOpen] = useState(false);
-  const [dialogueEditOpenPanels, setDialogueEditOpenPanels] = useState<Set<number>>(
-    () => new Set()
-  );
   const loading = sourceLoading || planLoading;
-  const personaVisible = resolveScenePresentationVisibility({
-    contentKind,
-    castManifest,
-  }).personaVisible;
-
-  useEffect(() => {
-    setDialogueEditOpenPanels((current) => {
-      const validIndices = new Set(plan?.panels.map((panel) => panel.index) ?? []);
-      const next = new Set<number>();
-      for (const index of current) {
-        if (validIndices.has(index)) next.add(index);
-      }
-      return next.size === current.size ? current : next;
-    });
-  }, [plan?.panels]);
 
   return (
     <div className="space-y-3">
@@ -497,69 +87,12 @@ export default function ChatSceneBuilder({
 
         {plan && outputMode === "comic" ? (
           <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-            {comicAutopilotMode ? (
-              <div className="space-y-1">
-                <h3 className="text-[11px] font-semibold text-zinc-400">컷만화 생성</h3>
-                <p className="text-xs leading-relaxed text-zinc-400">
-                  전체 턴에서 중요한 장면을 골라 4컷 만화를 자동으로 구성합니다.
-                </p>
-              </div>
-            ) : (
-              <>
-                <h3 className="text-[11px] font-semibold text-zinc-400">컷 미리보기</h3>
-                <div className="space-y-2">
-                  {plan.panels.map((panel) => (
-                    <ComicPanelStoryboardCard
-                      key={panel.index}
-                      panel={panel}
-                      plan={plan}
-                      personaName={personaName}
-                      characterName={characterName}
-                      castSpeakerNames={castSpeakerNames}
-                      personaVisible={personaVisible}
-                      disabled={disabled}
-                      editable={!comicAutopilotMode}
-                      dialogueEditOpen={dialogueEditOpenPanels.has(panel.index)}
-                      onToggleDialogueEdit={() => {
-                        setDialogueEditOpenPanels((current) => {
-                          const next = new Set(current);
-                          if (next.has(panel.index)) next.delete(panel.index);
-                          else next.add(panel.index);
-                          return next;
-                        });
-                      }}
-                      onPlanChange={onPlanChange}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-            {!comicAutopilotMode ? (
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => setSceneEditOpen((current) => !current)}
-                className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
-              >
-                {sceneEditOpen ? "장면 미리보기로" : "장면 자세히 수정"}
-              </button>
-            ) : null}
-            {!comicAutopilotMode && sceneEditOpen ? (
-              <div className="space-y-2 border-t border-white/10 pt-2">
-                {plan.panels.map((panel) => (
-                  <div key={`visual-${panel.index}`} className="space-y-1">
-                    <p className="text-[11px] font-semibold text-violet-200">{panel.index}컷</p>
-                    <PanelVisualEditor
-                      panel={panel}
-                      disabled={disabled}
-                      onChange={(patch) => {
-                        onPlanChange(applyUserPanelEdits(plan, panel.index, patch));
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : null}
+            <div className="space-y-1">
+              <h3 className="text-[11px] font-semibold text-zinc-400">컷만화 생성</h3>
+              <p className="text-xs leading-relaxed text-zinc-400">
+                전체 턴에서 중요한 장면을 골라 4컷 만화를 자동으로 구성합니다.
+              </p>
+            </div>
           </div>
         ) : null}
       </section>

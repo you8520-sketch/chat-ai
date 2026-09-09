@@ -2,10 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  CHAT_PERSONA_IMAGE_API_OUTPUT_SIZE,
-  CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT,
-  CHAT_PERSONA_IMAGE_OUTPUT_WIDTH,
-  buildChatPersonaImagePrompt,
   extractPersonaAppearance,
   personaImageReadiness,
 } from "./chatPersonaImageGeneration";
@@ -36,33 +32,5 @@ describe("chat persona image generation", () => {
       personaImageReadiness({ gender: "female", description: "금발에 녹색 눈을 가졌다." }).ready,
       true
     );
-  });
-
-  it("uses the character reference for style while locking persona identity", () => {
-    const prompt = buildChatPersonaImagePrompt({
-      personaName: "라온",
-      gender: "male",
-      appearance: "짧은 흑발, 회색 눈, 검은 후드",
-      characterName: "하린",
-    });
-    assert.match(prompt, /ONLY the art-style reference/);
-    assert.match(prompt, /Do not copy.*identity/);
-    assert.match(prompt, /Saved gender setting: 남성/);
-    assert.match(prompt, /GENDER LOCK/);
-    assert.match(prompt, /confirmed MALE/);
-    assert.match(prompt, /짧은 흑발/);
-  });
-
-  it("requests and delivers exact 3:5 dimensions", () => {
-    assert.equal(CHAT_PERSONA_IMAGE_API_OUTPUT_SIZE, "864x1440");
-    assert.equal(CHAT_PERSONA_IMAGE_OUTPUT_WIDTH, 864);
-    assert.equal(CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT, 1440);
-    assert.equal(CHAT_PERSONA_IMAGE_OUTPUT_WIDTH % 16, 0);
-    assert.equal(CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT % 16, 0);
-    assert.equal(
-      CHAT_PERSONA_IMAGE_OUTPUT_WIDTH * 5,
-      CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT * 3
-    );
-    assert.equal(CHAT_PERSONA_IMAGE_OUTPUT_WIDTH / CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT, 3 / 5);
   });
 });

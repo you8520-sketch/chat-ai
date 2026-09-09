@@ -16,7 +16,6 @@ import {
   CHAT_COMIC_TEMPLATE_ID,
   assembleComicFinalImage,
   buildChatComicGenerationPlan,
-  isComicPanelMode,
   resolveChatComicOutputSize,
   resolveChatComicPrice,
   type ChatComicPanelCount,
@@ -64,7 +63,6 @@ import {
 import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
-  formatApprovedScenePlanForIllustration,
   formatSceneSourcePreview,
   isScenePanelCount,
   reflowScenePlanPanels,
@@ -73,12 +71,6 @@ import {
   type ScenePlan,
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
-import { planChatImageScene } from "@/lib/chatImageScenePlanner";
-import {
-  assertChatImageScenePlanRateLimit,
-  ChatImageScenePlanRateLimitError,
-  releaseChatImageScenePlanRateLimit,
-} from "@/lib/chatImageScenePlanRateLimit";
 import { configuredCharacterVisualSubjectNames, parseCharacterVisualSubjectsJson } from "@/lib/characterVisualSubjects";
 import { extractSimulationCastNames, parseContentKind, type ContentKind } from "@/lib/simulationMode";
 import {
@@ -155,25 +147,10 @@ import {
 } from "@/lib/chatComicTier2SafetyAudit";
 import {
   buildComicProviderReferences,
-  buildNeutralComicProviderScenePlan,
-  buildNeutralComicSafeStructure,
-  formatComicReferenceSetForAdmin,
-  isolateComicProviderReferences,
   prepareComicProviderReferenceInput,
-  resolveComicDiagnosticOverrides,
-  type ComicProviderReference,
   type ComicNormalizedProviderReference,
+  type ComicProviderReference,
 } from "@/lib/chatComicReferenceIsolation";
-import {
-  assertComicDiagnosticAxisIsolation,
-  buildSemanticLadderSafeStructure,
-  buildSemanticLadderScenePlan,
-  resolveComicDiagnosticMode,
-  resolveComicPrimaryTier2Boundary,
-  type ComicDiagnosticMode,
-  type ComicTextBoundaryLevel,
-} from "@/lib/chatComicDiagnostic";
-import { buildComicPanelBalloonSlotMetadata } from "@/lib/chatComicPanelSpec";
 import { effectiveIsAdult } from "@/lib/adultVerification";
 import {
   resolveEffectiveAdultRp,
@@ -830,79 +807,6 @@ function providerAttemptsJsonFromGenerated(
     : null;
 }
 
-function adminProviderAttemptDiagnostic(
-  generated: OpenAiImageGeneratedWithAttempts,
-  providerReferences?: readonly ComicProviderReference[]
-): Record<string, unknown> {
-  const referenceSet = providerReferences
-    ? formatComicReferenceSetForAdmin(providerReferences)
-    : undefined;
-  return formatOpenAiImageProviderAttemptsForAdmin({
-    providerAttempts: generated.providerAttempts,
-    knownProviderCostUsd: generated.knownProviderCostUsd,
-    hasUnknownAttemptCost: generated.hasUnknownAttemptCost,
-    safetyFallbackUsed: generated.safetyFallbackUsed,
-    referenceSet,
-  });
-}
-
-function formatComicDiagnosticSafeRecord(opts: {
-  mode: ComicDiagnosticMode;
-  semanticLevel: string | null;
-  textBoundaryLevel?: ComicTextBoundaryLevel | null;
-  generated: Pick<OpenAiImageGeneratedWithAttempts, "providerAttempts">;
-  providerReferences?: readonly ComicProviderReference[];
-}): Record<string, unknown> {
-  const primary = opts.generated.providerAttempts.find((attempt) => attempt.attempt === 1);
-  const tier2 = opts.generated.providerAttempts.find((attempt) => attempt.attempt === 2);
-  const categories = [
-    ...new Set(
-      opts.generated.providerAttempts.flatMap((attempt) => {
-        const value = attempt.diagnostic?.safetyCategories;
-        return Array.isArray(value)
-          ? value.filter((item): item is string => typeof item === "string")
-          : [];
-      })
-    ),
-  ];
-  const finalAttempt = tier2 ?? primary;
-  const usageEvidence = opts.generated.providerAttempts.map((attempt) => ({
-    attempt: attempt.attempt,
-    evidence: attempt.usageEvidence ?? (
-      attempt.diagnostic?.usageReturned === true
-        ? "usage_present"
-        : attempt.diagnostic?.usageReturned === false
-          ? "usage_absent"
-          : "unknown"
-    ),
-  }));
-  const boundary = resolveComicPrimaryTier2Boundary({
-    primaryOutcome: primary?.outcome ?? null,
-    tier2Outcome: tier2?.outcome ?? null,
-  });
-  return {
-    mode: opts.mode,
-    semanticLevel: opts.semanticLevel,
-    textBoundaryLevel: opts.textBoundaryLevel ?? null,
-    promptHash: primary?.promptHash ?? null,
-    referenceSetSignature: opts.providerReferences
-      ? formatComicReferenceSetForAdmin(opts.providerReferences).referenceSetSignature
-      : null,
-    attemptCount: opts.generated.providerAttempts.length,
-    primaryResult: primary?.outcome ?? "not_run",
-    tier2Result: tier2?.outcome ?? "not_run",
-    SEMANTIC_BOUNDARY_OWNER: boundary.semanticBoundaryOwner,
-    PRIMARY_BOUNDARY: boundary.primaryBoundary,
-    TIER2_SAFE_RECOVERY: boundary.tier2SafeRecovery,
-    safetyCategories: categories.length ? categories : "UNKNOWN",
-    providerRequestId:
-      finalAttempt?.providerRequestId ??
-      finalAttempt?.diagnostic?.providerRequestId ??
-      null,
-    usageEvidence,
-  };
-}
-
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
@@ -912,39 +816,9 @@ export async function POST(req: Request) {
   let tier2PromptAudit: ReturnType<typeof auditTier2ComicPrompt> | null = null;
   let referenceRoleInventory: ReturnType<typeof buildComicReferenceRoleInventory> | null = null;
   let providerReferences: ComicProviderReference[] | null = null;
-  let diagnosticOverrides = resolveComicDiagnosticOverrides({ canSeeCost: false });
-  let diagnosticMode = resolveComicDiagnosticMode({
-    canSeeCost: false,
-  });
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
-    try {
-      diagnosticOverrides = resolveComicDiagnosticOverrides({
-        canSeeCost,
-        referenceMode: body.comicReferenceIsolationMode,
-        visualContextMode: body.comicVisualContextIsolationMode,
-      });
-      diagnosticMode = resolveComicDiagnosticMode({
-        canSeeCost,
-        mode: body.comicDiagnosticMode,
-        semanticLevel: body.comicSemanticLevel,
-        textStrategy: body.comicBlankBalloonTextStrategy,
-        textBoundaryLevel: body.comicTextBoundaryLevel,
-      });
-      // One experiment = one variable. Ladder/hybrid must use normal isolation axes.
-      assertComicDiagnosticAxisIsolation({
-        mode: diagnosticMode.mode,
-        referenceMode: diagnosticOverrides.referenceMode,
-        visualContextMode: diagnosticOverrides.visualContextMode,
-      });
-    } catch (error) {
-      const code = error instanceof Error ? error.message : "INVALID_COMIC_DIAGNOSTIC_OVERRIDE";
-      throw new RequestError(code === "COMIC_DIAGNOSTIC_OVERRIDE_FORBIDDEN"
-        || code === "COMIC_DIAGNOSTIC_MODE_FORBIDDEN"
-        ? "관리자만 컷만화 진단 모드를 사용할 수 있습니다."
-        : "컷만화 진단 모드가 올바르지 않습니다.", code.includes("FORBIDDEN") ? 403 : 400);
-    }
     const context = resolveGenerationContext({
       userId: user.id,
       userAdultVerified: effectiveIsAdult((user as SessionUserLike).is_adult ?? 0),
@@ -1001,64 +875,6 @@ export async function POST(req: Request) {
       });
     }
 
-    if (body.mode === "scene_plan") {
-      const source = resolveSceneSource({
-        chatId: context.chatId,
-        messageId: positiveInt(body.messageId),
-        sourceText: String(body.sourceText ?? ""),
-        requireChat: false,
-      });
-      try {
-        assertChatImageScenePlanRateLimit(user.id);
-      } catch (error) {
-        if (error instanceof ChatImageScenePlanRateLimitError) {
-          return NextResponse.json({ ok: false, error: error.message }, { status: 429 });
-        }
-        throw error;
-      }
-      let planned;
-      let scenePlanFailed = false;
-      try {
-        const knownSpeakerNames = resolveKnownSpeakerNames(context, body.castIntent);
-        planned = await planChatImageScene({
-          contentKind: context.contentKind,
-          scenePlanIntent: body.scenePlanIntent === "comic" ? "comic" : undefined,
-          characterName: context.character.name,
-          personaName: context.persona.name,
-          messages: source.messages,
-          speakerContext: {
-            personaName: context.persona.name,
-            characterName: context.character.name,
-            knownSpeakerNames,
-          },
-        });
-      } catch (error) {
-        scenePlanFailed = true;
-        const message =
-          error instanceof Error
-            ? error.message
-            : "AI 제안을 불러오지 못했습니다. 현재 직접 편집한 장면은 그대로 유지됩니다.";
-        return NextResponse.json({ ok: false, error: message }, { status: 502 });
-      } finally {
-        releaseChatImageScenePlanRateLimit(user.id, scenePlanFailed);
-      }
-      const requestedCount = isScenePanelCount(body.panelCount)
-        ? body.panelCount
-        : planned.plan.recommendedPanelCount;
-      const plan =
-        requestedCount === planned.plan.panels.length
-          ? planned.plan
-          : reflowScenePlanPanels(planned.plan, requestedCount);
-      return NextResponse.json({
-        ok: true,
-        mode: "scene_plan",
-        messageId: source.messageId,
-        plan,
-        model: planned.model,
-        usedFallback: planned.usedFallback,
-        attempts: planned.attempts,
-      });
-    }
 
     if (hasRunningChatImageGenerationJob(user.id)) {
       return NextResponse.json(
@@ -1388,9 +1204,6 @@ export async function POST(req: Request) {
         messageId: illustrationMessageId ?? undefined,
         upstreamCostUsd: canSeeCost ? generated.knownProviderCostUsd : undefined,
         upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
-        ...(canSeeCost
-          ? { providerAttemptDiagnostic: adminProviderAttemptDiagnostic(generated) }
-          : {}),
         trpgImageSceneDiagnostics: resolveTrpgImageSceneDiagnosticsForResponse({
           canSeeCost,
           campaignId,
@@ -1405,70 +1218,44 @@ export async function POST(req: Request) {
 
     const messageId = positiveInt(body.messageId);
     const manualSourceText = String(body.sourceText ?? "").trim();
-    const semanticLadderMode = diagnosticMode.mode === "semantic_ladder";
-    if (!semanticLadderMode && !messageId && !manualSourceText && !body.scenePlan) {
+    if (!messageId && !manualSourceText && !body.scenePlan) {
       throw new RequestError(
         "장면으로 만들 턴을 선택하거나 내용을 입력해 주세요."
       );
     }
-    if (!semanticLadderMode && !messageId && manualSourceText.length > CHAT_COMIC_MAX_INPUT_CHARS) {
+    if (!messageId && manualSourceText.length > CHAT_COMIC_MAX_INPUT_CHARS) {
       throw new RequestError(
         `내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS.toLocaleString()}자까지 입력할 수 있습니다.`
       );
     }
 
-    const source = semanticLadderMode
-      ? {
-          messages: [] as SceneSourceMessage[],
-          turnText: "",
-          messageId: null,
-          fromManualText: false,
-        }
-      : resolveSceneSource({
-          chatId: context.chatId,
-          messageId,
-          sourceText: messageId ? undefined : manualSourceText,
-          requireChat: false,
-        });
+    const source = resolveSceneSource({
+      chatId: context.chatId,
+      messageId,
+      sourceText: messageId ? undefined : manualSourceText,
+      requireChat: false,
+    });
     const mood = "comic" as const;
     const knownSpeakerNames = resolveKnownSpeakerNames(context, body.castIntent);
 
-    // canvasPanelCount selects the provider OUTPUT SIZE only — for AUTO it is a
-    // tall 4-panel-sized canvas, NOT a claim about the rendered panel count.
-    const requestedPanelMode = isComicPanelMode(body.panelCount) ? body.panelCount : "auto";
-    const canvasPanelCount: 3 | 4 = requestedPanelMode === "auto" ? 4 : requestedPanelMode;
     // PRODUCTION COMIC — the provider selects WHAT + HOW directly from the full
-    // source. This is the canonical production path; it is NOT routed through an
-    // admin diagnostic mode. The full_source_direct diagnostic enum value remains
-    // only for the admin backend framework (UI removed).
-    const fullSourceDirectMode =
-      (diagnosticMode.mode === "normal" &&
-        diagnosticOverrides.referenceMode === "normal" &&
-        diagnosticOverrides.visualContextMode === "normal") ||
-      diagnosticMode.mode === "full_source_direct";
-    const autopilotActive = false;
+    // source. Fixed 4-panel output. No Scene Planner call, no diagnostic modes.
+    const panelCount: ChatComicPanelCount = 4;
 
     // NORMAL COMIC LIFECYCLE — auth/input/concurrency/balance preflight all run
     // before the single provider call. The client-provided scenePlan is never
     // canonical authority for the production comic; the provider receives the
     // full source text and picks the 4 scenes itself. No Scene Planner call.
-    const preflightPlan =
-      autopilotActive || semanticLadderMode
-        ? undefined
-        : resolveApprovedScenePlan({
-            bodyPlan: body.scenePlan,
-            messages: source.messages,
-            // Full-source production comic is fixed 4-panel — reuse the canonical
-            // reflow owner.
-            panelCount: fullSourceDirectMode ? 4 : undefined,
-            personaName: context.persona.name,
-            characterName: context.character.name,
-            knownSpeakerNames,
-            contentKind: context.contentKind,
-          });
-    const panelCount: ChatComicPanelCount = autopilotActive
-      ? canvasPanelCount
-      : ((preflightPlan?.panels.length ?? 4) as ChatComicPanelCount);
+    const preflightPlan = resolveApprovedScenePlan({
+      bodyPlan: body.scenePlan,
+      messages: source.messages,
+      // Fixed 4-panel — reuse the canonical reflow owner.
+      panelCount: 4,
+      personaName: context.persona.name,
+      characterName: context.character.name,
+      knownSpeakerNames,
+      contentKind: context.contentKind,
+    });
 
     const balanceBefore = getPointBalance(user.id);
     const pricePoints = resolveChatComicPrice(panelCount);
@@ -1490,26 +1277,16 @@ export async function POST(req: Request) {
     // PRODUCTION COMIC — GPT Image selects WHAT + HOW directly from the full
     // source. The canonical plan is the fixed 4-panel structural reflow; the
     // provider prompt carries the full source text and the provider owns scene
-    // selection. No Scene Planner / highlight / text-brief call. Admin diagnostics
-    // (ladder/hybrid/reference-isolation) keep their fixed paths.
-    const canonicalPlan = semanticLadderMode
-      ? buildSemanticLadderScenePlan(
-          diagnosticMode.semanticLevel!,
-          4,
-          diagnosticMode.textBoundaryLevel
-        )
-      : preflightPlan!;
-    const scenePlan = canonicalPlan;
-    const castManifest = semanticLadderMode
-      ? null
-      : resolveGroundedCastManifest({
-          castIntentRaw: body.castIntent,
-          context,
-          scenePlan: canonicalPlan,
-          userId: user.id,
-          sourceMessages: source.messages,
-          fromManualText: source.fromManualText,
-        });
+    // selection. No Scene Planner / highlight / text-brief call.
+    const scenePlan = preflightPlan;
+    const castManifest = resolveGroundedCastManifest({
+      castIntentRaw: body.castIntent,
+      context,
+      scenePlan,
+      userId: user.id,
+      sourceMessages: source.messages,
+      fromManualText: source.fromManualText,
+    });
 
     const appearanceModes = resolveRequestAppearanceModes({
       characterImages: context.characterImages,
@@ -1534,61 +1311,16 @@ export async function POST(req: Request) {
       plan: scenePlan,
       castManifest,
 contentKind: context.contentKind,
-      adultGrounded: semanticLadderMode,
-      compositionMode:
-        diagnosticMode.mode === "blank_balloon_hybrid"
-          ? "blank_balloon_hybrid"
-          : "full_provider_rendered",
-      providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
-      fullSourceDirectText: fullSourceDirectMode ? source.turnText : undefined,
+      compositionMode: "full_provider_rendered",
+      providerTextAdultEligible: roomAdultGrounded,
+      fullSourceDirectText: source.turnText,
     });
-    const neutralVisualContext = diagnosticOverrides.visualContextMode === "neutral_visual_context";
-    const providerScenePlan: ScenePlan = neutralVisualContext
-      ? buildNeutralComicProviderScenePlan(scenePlan)
-      : scenePlan;
-    const providerIdentityPack = neutralVisualContext
-      ? buildChatComicGenerationPlan({
-          characterName: context.character.name,
-          characterGender: context.characterGender,
-          characterImageUrl: context.characterImageUrl,
-          characterSavedAppearance: context.characterSavedAppearance,
-          characterAppearanceMode: appearanceModes.characterAppearanceMode,
-          personaName: context.persona.name,
-          personaGender: context.personaGender,
-          personaImageUrl: context.personaImageUrl,
-          personaSavedAppearance: context.personaSavedAppearance,
-          personaAppearanceMode: appearanceModes.personaAppearanceMode,
-          mood,
-          plan: providerScenePlan,
-          castManifest,
-contentKind: context.contentKind,
-          adultGrounded: semanticLadderMode,
-          compositionMode:
-            diagnosticMode.mode === "blank_balloon_hybrid"
-              ? "blank_balloon_hybrid"
-              : "full_provider_rendered",
-          providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
-          fullSourceDirectText: fullSourceDirectMode ? source.turnText : undefined,
-        })
-      : identityPack;
-    const prompt = providerIdentityPack.prompt;
+    const prompt = identityPack.prompt;
     const comicVisibility = resolveScenePresentationVisibility({
       contentKind: context.contentKind,
       castManifest,
     });
-    const tier2SafeStructure = neutralVisualContext
-      ? buildNeutralComicSafeStructure(scenePlan.panels.map((panel) => panel.index))
-      : semanticLadderMode
-        ? buildSemanticLadderSafeStructure(diagnosticMode.semanticLevel!, panelCount)
-      : projectComicSafeStructureForTier2(scenePlan, comicVisibility);
-    const hybridBalloonSlots =
-      diagnosticMode.mode === "blank_balloon_hybrid"
-        ? buildComicPanelBalloonSlotMetadata({
-            plan: scenePlan,
-            visibility: comicVisibility,
-            subjects: identityPack.subjects,
-          })
-        : undefined;
+    const tier2SafeStructure = projectComicSafeStructureForTier2(scenePlan, comicVisibility);
     const strictFallbackPrompt = buildStrictComicFallbackPrompt({
       panelCount,
       mood,
@@ -1596,39 +1328,29 @@ contentKind: context.contentKind,
       characterGender: context.characterGender,
       personaName: context.persona.name,
       personaGender: context.personaGender,
-      subjects: providerIdentityPack.subjects,
+      subjects: identityPack.subjects,
       castManifest,
       castSelected: castManifest?.subjects.filter((subject) => subject.included),
       contentKind: context.contentKind,
       safeStructure: tier2SafeStructure,
-      compositionMode:
-        diagnosticMode.mode === "blank_balloon_hybrid"
-          ? "blank_balloon_hybrid"
-          : "full_provider_rendered",
-      balloonSlots: hybridBalloonSlots,
+      compositionMode: "full_provider_rendered",
     });
     const tier2PromptAuditResult = auditTier2ComicPrompt({
       prompt: strictFallbackPrompt,
-      subjects: providerIdentityPack.subjects,
+      subjects: identityPack.subjects,
       safeStructure: tier2SafeStructure,
       safeStructureProjectionApplied: true,
-      rawSourceCandidates:
-        neutralVisualContext || semanticLadderMode
-          ? []
-          : collectTier2RawSourceCandidates(scenePlan),
+      rawSourceCandidates: collectTier2RawSourceCandidates(scenePlan),
     });
     tier2PromptAudit = tier2PromptAuditResult;
     referenceRoleInventory = buildComicReferenceRoleInventory({
-      referenceUrls: providerIdentityPack.referenceUrls,
-      subjects: providerIdentityPack.subjects,
+      referenceUrls: identityPack.referenceUrls,
+      subjects: identityPack.subjects,
     });
-    providerReferences = isolateComicProviderReferences(
-      buildComicProviderReferences({
-        referenceUrls: providerIdentityPack.referenceUrls,
-        subjects: providerIdentityPack.subjects,
-      }),
-      diagnosticOverrides.referenceMode
-    );
+    providerReferences = buildComicProviderReferences({
+      referenceUrls: identityPack.referenceUrls,
+      subjects: identityPack.subjects,
+    });
     const providerInput = await prepareComicProviderReferenceInput({
       primaryPrompt: prompt,
       strictFallbackPrompt,
@@ -1670,33 +1392,16 @@ contentKind: context.contentKind,
         model,
         optionsJson: {
           mode: "comic",
-          panelMode: autopilotActive ? requestedPanelMode : undefined,
-          panelCount: autopilotActive ? undefined : panelCount,
-          canvasPanelCount: autopilotActive ? canvasPanelCount : undefined,
+          panelCount,
           mood,
           messageId: source.messageId,
           quality: "medium",
-          ...(diagnosticMode.mode === "normal" || diagnosticMode.mode === "blank_balloon_hybrid"
-            ? { plan: scenePlan }
-            : {}),
-          ...(diagnosticMode.mode !== "normal"
-            ? {
-                comicDiagnostic: {
-                  mode: diagnosticMode.mode,
-                  semanticLevel: diagnosticMode.semanticLevel,
-                  textBoundaryLevel: diagnosticMode.textBoundaryLevel,
-                },
-              }
-            : {}),
+          plan: scenePlan,
         },
         resultUrl,
         upstreamCostUsd: totalCostUsd,
         chargePoints: pricePoints,
-        chargeReason: `GPT Image 2 · ${
-          autopilotActive && requestedPanelMode === "auto"
-            ? "컷만화"
-            : `${panelCount}컷 만화`
-        }`,
+        chargeReason: `GPT Image 2 · ${panelCount}컷 만화`,
         chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
         creatorReward: {
           creatorId: context.character.creator_id,
@@ -1745,51 +1450,18 @@ contentKind: context.contentKind,
       totalCostUsd == null
         ? null
         : Math.round(totalCostUsd * getEffectiveKrwPerUsd() * 10) / 10;
-    const comicDiagnostic =
-      diagnosticMode.mode !== "normal"
-        ? formatComicDiagnosticSafeRecord({
-            mode: diagnosticMode.mode,
-            semanticLevel: diagnosticMode.semanticLevel,
-            textBoundaryLevel: diagnosticMode.textBoundaryLevel,
-            generated,
-            providerReferences: providerReferences!,
-          })
-        : null;
-    if (comicDiagnostic) {
-      console.info(
-        "[chat-comic-diagnostic]",
-        JSON.stringify({
-          SEMANTIC_LEVEL: comicDiagnostic.semanticLevel,
-          TEXT_BOUNDARY_LEVEL: comicDiagnostic.textBoundaryLevel,
-          PROMPT_HASH: comicDiagnostic.promptHash,
-          REFERENCE_SET_SIGNATURE: comicDiagnostic.referenceSetSignature,
-          ATTEMPT_COUNT: comicDiagnostic.attemptCount,
-          PRIMARY_RESULT: comicDiagnostic.primaryResult,
-          TIER2_RESULT: comicDiagnostic.tier2Result,
-          SEMANTIC_BOUNDARY_OWNER: comicDiagnostic.SEMANTIC_BOUNDARY_OWNER,
-          PRIMARY_BOUNDARY: comicDiagnostic.PRIMARY_BOUNDARY,
-          TIER2_SAFE_RECOVERY: comicDiagnostic.TIER2_SAFE_RECOVERY,
-          SAFETY_CATEGORIES: comicDiagnostic.safetyCategories,
-          PROVIDER_REQUEST_ID: comicDiagnostic.providerRequestId,
-          USAGE_EVIDENCE: comicDiagnostic.usageEvidence,
-        })
-      );
-    } else {
-      console.info("[chat-comic-generation] completed", {
-        userId: user.id,
-        chatId: context.chatId,
-        characterId: context.character.id,
-        personaId: context.persona.id,
-        panelCount,
-        panelMode: autopilotActive ? requestedPanelMode : undefined,
-        canvasPanelCount: autopilotActive ? canvasPanelCount : undefined,
-        imageModel: model,
-        upstreamCostUsd: totalCostUsd,
-        upstreamCostKrw: totalCostKrw,
-        chargedPoints: deductionTotal,
-        hasUnknownAttemptCost: generated.hasUnknownAttemptCost,
-      });
-    }
+    console.info("[chat-comic-generation] completed", {
+      userId: user.id,
+      chatId: context.chatId,
+      characterId: context.character.id,
+      personaId: context.persona.id,
+      panelCount,
+      imageModel: model,
+      upstreamCostUsd: totalCostUsd,
+      upstreamCostKrw: totalCostKrw,
+      chargedPoints: deductionTotal,
+      hasUnknownAttemptCost: generated.hasUnknownAttemptCost,
+    });
 
     return NextResponse.json({
       ok: true,
@@ -1797,37 +1469,12 @@ contentKind: context.contentKind,
       generationId,
       imageUrl: resultUrl,
       savedToCharacterAlbum: true,
-      title:
-        autopilotActive && requestedPanelMode === "auto"
-          ? "장면 컷만화"
-          : `장면 ${panelCount}컷`,
-      panelCount: autopilotActive ? undefined : panelCount,
-      panelMode: autopilotActive ? requestedPanelMode : undefined,
-      canvasPanelCount: autopilotActive ? canvasPanelCount : undefined,
+      title: `장면 ${panelCount}컷`,
+      panelCount,
       modelLabel: "GPT Image 2",
       messageId: source.messageId ?? undefined,
       upstreamCostUsd: canSeeCost ? totalCostUsd : undefined,
       upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
-      ...(canSeeCost
-        ? diagnosticMode.mode === "normal"
-          ? {
-              providerAttemptDiagnostic: adminProviderAttemptDiagnostic(
-                generated,
-                providerReferences
-              ),
-              comicDiagnostic: {
-                referenceIsolationMode: diagnosticOverrides.referenceMode,
-                visualContextIsolationMode: diagnosticOverrides.visualContextMode,
-                ...formatComicReferenceSetForAdmin(providerReferences),
-              },
-            }
-          : {
-              comicDiagnostic: {
-                ...comicDiagnostic,
-                textBoundaryLevel: diagnosticMode.textBoundaryLevel ?? null,
-              },
-            }
-        : {}),
       totalPointsCost: deductionTotal,
       remainingPoints: deductionBalance.total,
       paidPoints: deductionBalance.paid,
@@ -1853,54 +1500,20 @@ contentKind: context.contentKind,
         : null,
     });
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
-    const isDiagnosticRequest = diagnosticMode.mode !== "normal";
-    const diagnosticFailure = isDiagnosticRequest
-      ? formatComicDiagnosticSafeRecord({
-          mode: diagnosticMode.mode,
-          semanticLevel: diagnosticMode.semanticLevel,
-          textBoundaryLevel: diagnosticMode.textBoundaryLevel,
-          generated: { providerAttempts: providerAttempts ?? [] },
-          providerReferences: providerReferences ?? undefined,
-        })
-      : null;
     const adminFailureDiagnostic = canSeeCost
-      ? isDiagnosticRequest
-        ? diagnosticFailure
-        : formatComicGenerationAdminFailureDiagnostic({
-            providerAttempts,
-            tier2PromptAudit,
-            referenceRoleInventory,
-            providerReferences: providerReferences ?? undefined,
-            referenceIsolationMode: diagnosticOverrides.referenceMode,
-            imageFailureDiagnostic: diagnostic,
-          })
-      : null;
-    if (diagnosticFailure) {
-      console.error(
-        "[chat-comic-diagnostic]",
-        JSON.stringify({
-          SEMANTIC_LEVEL: diagnosticFailure.semanticLevel,
-          TEXT_BOUNDARY_LEVEL: diagnosticFailure.textBoundaryLevel,
-          PROMPT_HASH: diagnosticFailure.promptHash,
-          REFERENCE_SET_SIGNATURE: diagnosticFailure.referenceSetSignature,
-          ATTEMPT_COUNT: diagnosticFailure.attemptCount,
-          PRIMARY_RESULT: diagnosticFailure.primaryResult,
-          TIER2_RESULT: diagnosticFailure.tier2Result,
-          SEMANTIC_BOUNDARY_OWNER: diagnosticFailure.SEMANTIC_BOUNDARY_OWNER,
-          PRIMARY_BOUNDARY: diagnosticFailure.PRIMARY_BOUNDARY,
-          TIER2_SAFE_RECOVERY: diagnosticFailure.TIER2_SAFE_RECOVERY,
-          SAFETY_CATEGORIES: diagnosticFailure.safetyCategories,
-          PROVIDER_REQUEST_ID: diagnosticFailure.providerRequestId,
-          USAGE_EVIDENCE: diagnosticFailure.usageEvidence,
+      ? formatComicGenerationAdminFailureDiagnostic({
+          providerAttempts,
+          tier2PromptAudit,
+          referenceRoleInventory,
+          providerReferences: providerReferences ?? undefined,
+          imageFailureDiagnostic: diagnostic,
         })
-      );
-    } else {
-      console.error("[chat-comic-generation] failed", JSON.stringify({
-        status,
-        message,
-        ...(adminFailureDiagnostic ?? {}),
-      }));
-    }
+      : null;
+    console.error("[chat-comic-generation] failed", JSON.stringify({
+      status,
+      message,
+      ...(adminFailureDiagnostic ?? {}),
+    }));
     return NextResponse.json(
       {
         error: message,
