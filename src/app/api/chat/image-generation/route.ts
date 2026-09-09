@@ -436,7 +436,7 @@ export async function GET(req: Request) {
                    AND json_extract(options_json, '$.quality') = 'medium'
                  )
                )
-AND template_id IN (?, ?, ?)
+AND template_id IN (?, ?)
               GROUP BY template_id, panel_count`
           )
           .all(
