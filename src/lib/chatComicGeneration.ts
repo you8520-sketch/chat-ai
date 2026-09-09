@@ -104,6 +104,21 @@ function defaultComicSubjects(opts: {
   }).subjects;
 }
 
+/**
+ * Full-source direct baseline section (admin diagnostic variant inside the
+ * canonical comic provider prompt owner). The provider — not the Scene
+ * Planner — selects the scenes. Shared identity/reference/composition/safety
+ * owners around it are unchanged.
+ */
+function renderFullSourceDirectSection(fullSourceText: string): string {
+  return [
+    "FULL SOURCE (canonical turn — select from this only):",
+    fullSourceText,
+    "DIRECT COMPOSITION CONTRACT:",
+    "Select the four most important scenes from the full source above in chronological order and compose them into one 4-panel comic page. Preserve the source events and speakers. Use key dialogue for visible speech and short narration boxes only where a transition needs one. Every visible text line must be a complete sentence.",
+  ].join("\n");
+}
+
 export function buildChatComicImagePrompt(opts: {
   characterName: string;
   characterGender: ImagePromptGender;
@@ -130,6 +145,12 @@ export function buildChatComicImagePrompt(opts: {
   /** SCENE-PLANNER highlight selection — provider autopilot path (normal comic). */
   comicHighlightSelection?: ComicHighlightSelection;
   comicPanelMode?: ChatComicPanelMode;
+  /**
+   * Full-source direct baseline (admin diagnostic) — the canonical full source
+   * text the provider itself selects 4 scenes from. Presence activates the
+   * direct variant; autopilot (highlight selection) always takes precedence.
+   */
+  fullSourceDirectText?: string;
 }): string {
   const projectionContext: SafeVisualProjectionContext = {
     adultGrounded: opts.adultGrounded ?? false,
@@ -159,6 +180,11 @@ export function buildChatComicImagePrompt(opts: {
     opts.comicHighlightSelection ?? opts.plan.comicHighlightSelection;
   const autopilot =
     compositionMode === "full_provider_rendered" && Boolean(autopilotSelection);
+  const directSourceText = (opts.fullSourceDirectText ?? "").trim();
+  const fullSourceDirect =
+    compositionMode === "full_provider_rendered" &&
+    !autopilot &&
+    directSourceText.length > 0;
   const speakerBinding: ComicSpeakerBinding = {
     characterLabel: "A",
     characterName: opts.characterName,
@@ -191,7 +217,9 @@ export function buildChatComicImagePrompt(opts: {
         },
         panelMode: opts.comicPanelMode ?? "auto",
       }).text
-    : compositionMode === "full_provider_rendered"
+    : fullSourceDirect
+      ? renderFullSourceDirectSection(directSourceText)
+      : compositionMode === "full_provider_rendered"
       ? buildChatComicPanelSpecFullProviderSection({
           plan: opts.plan,
           personaName: opts.personaName,
@@ -271,6 +299,7 @@ export function buildChatComicGenerationPlan(opts: {
   storyboard?: ComicStoryboard;
   comicPanelMode?: ChatComicPanelMode;
   comicHighlightSelection?: ComicHighlightSelection;
+  fullSourceDirectText?: string;
 }) {
   const useCast = Boolean(opts.castManifest);
   let pack: { subjects: ChatImageVisualSubject[]; referenceUrls: string[] };
@@ -332,6 +361,7 @@ export function buildChatComicGenerationPlan(opts: {
       storyboard: opts.storyboard,
       comicPanelMode: opts.comicPanelMode,
       comicHighlightSelection: opts.comicHighlightSelection,
+      fullSourceDirectText: opts.fullSourceDirectText,
     }),
   };
 }

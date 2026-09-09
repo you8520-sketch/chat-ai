@@ -178,6 +178,7 @@ import {
   assertComicDiagnosticAxisIsolation,
   buildSemanticLadderSafeStructure,
   buildSemanticLadderScenePlan,
+  isComicAutopilotActive,
   resolveComicDiagnosticMode,
   resolveComicPrimaryTier2Boundary,
   type ComicDiagnosticMode,
@@ -1442,11 +1443,12 @@ export async function POST(req: Request) {
     // tall 4-panel-sized canvas, NOT a claim about the rendered panel count.
     const requestedPanelMode = isComicPanelMode(body.panelCount) ? body.panelCount : "auto";
     const canvasPanelCount: 3 | 4 = requestedPanelMode === "auto" ? 4 : requestedPanelMode;
-    const autopilotActive =
-      !semanticLadderMode &&
-      diagnosticOverrides.referenceMode === "normal" &&
-      diagnosticOverrides.visualContextMode === "normal" &&
-      diagnosticMode.mode === "normal";
+    const fullSourceDirectMode = diagnosticMode.mode === "full_source_direct";
+    const autopilotActive = isComicAutopilotActive({
+      mode: diagnosticMode.mode,
+      referenceMode: diagnosticOverrides.referenceMode,
+      visualContextMode: diagnosticOverrides.visualContextMode,
+    });
 
     // NORMAL COMIC LIFECYCLE — auth/input/concurrency/balance preflight all run
     // BEFORE the single Scene Planner call. The client-provided scenePlan is never
@@ -1458,6 +1460,8 @@ export async function POST(req: Request) {
         : resolveApprovedScenePlan({
             bodyPlan: body.scenePlan,
             messages: source.messages,
+            // Full-source direct is fixed 4-panel — reuse the canonical reflow owner.
+            panelCount: fullSourceDirectMode ? 4 : undefined,
             personaName: context.persona.name,
             characterName: context.character.name,
             knownSpeakerNames,
@@ -1562,6 +1566,7 @@ contentKind: context.contentKind,
       providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
       comicHighlightSelection: autopilotActive ? comicHighlightSelection : undefined,
       comicPanelMode: autopilotActive ? requestedPanelMode : undefined,
+      fullSourceDirectText: fullSourceDirectMode ? source.turnText : undefined,
     });
     const neutralVisualContext = diagnosticOverrides.visualContextMode === "neutral_visual_context";
     const providerScenePlan: ScenePlan = neutralVisualContext
@@ -1591,6 +1596,7 @@ contentKind: context.contentKind,
           providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
           comicHighlightSelection: autopilotActive ? comicHighlightSelection : undefined,
           comicPanelMode: autopilotActive ? requestedPanelMode : undefined,
+          fullSourceDirectText: fullSourceDirectMode ? source.turnText : undefined,
         })
       : identityPack;
     const prompt = providerIdentityPack.prompt;
