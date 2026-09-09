@@ -62,17 +62,14 @@ function createRenderedTargetChaseHarness(
   const appliedScrolls: number[] = [];
   const transport = createIntegerScrollDebtTransport((delta) => {
     appliedScrolls.push(delta);
+    scrollY += delta;
   });
   const clock = createFrameClock();
   const controller: LiveReadingFollowController = createLiveReadingFollowController({
     getViewportHeight: () => VIEWPORT_HEIGHT,
     getScrollPosition: () => scrollY,
     scrollBy: (requestedDelta) => {
-      const appliedDelta = transport.apply(requestedDelta);
-      if (appliedDelta !== 0) {
-        appliedScrolls.push(appliedDelta);
-        scrollY += appliedDelta;
-      }
+      transport.apply(requestedDelta);
     },
     resolveTargetElement: () =>
       ({
