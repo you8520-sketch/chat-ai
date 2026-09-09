@@ -2,9 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { buildChatComicGenerationPlan } from "./chatComicGeneration";
-import { buildCoupleStampGenerationPlan } from "./chatCoupleStampGeneration";
-import { buildEmoticonGenerationPlan } from "./chatEmoticonGeneration";
-import { buildGiftBoxGenerationPlan } from "./chatImageGeneration";
 import { buildLdDuoGenerationPlan } from "./chatLdIllustrationGeneration";
 import { buildDeterministicScenePlan, buildSceneSourceMessages } from "./chatImageScenePlan";
 import { personaImageBaseUrl, sanitizePersonaImageUrl } from "./userPersonasClient";
@@ -13,11 +10,6 @@ import {
   SYNTHETIC_CHARACTER_B_APPEARANCE,
   SYNTHETIC_PRIVATE_CHARACTER_PROMPT,
   SYNTHETIC_PRIVATE_PERSONA_DESCRIPTION,
-  syntheticCoupleStampPlan,
-  syntheticDuoGiftAlternateImageOnly,
-  syntheticDuoGiftPlacementSwap,
-  syntheticDuoGiftPrimary,
-  syntheticEmoticonPlan,
   syntheticLdDuoPlan,
   syntheticLdPartyAllReferencesAbsent,
   syntheticLdPartyCast,
@@ -291,7 +283,7 @@ describe("chat image visual identity", () => {
   });
 
   it("normalizes Korean red-pupil semantics in subject manifests", () => {
-    const { prompt } = buildGiftBoxGenerationPlan({
+    const plan = buildLdDuoGenerationPlan({
       characterName: "RedPupil",
       characterGender: "female",
       characterImageUrl: "/synthetic/red-pupil.webp",
@@ -302,20 +294,17 @@ describe("chat image visual identity", () => {
       personaImageUrl: "/synthetic/plain.webp",
       personaSavedAppearance: "dark eyes",
       personaAppearanceMode: "image_plus_saved",
-      placement: "character_top",
-      topExpression: "calm",
-      bottomExpression: "calm",
-      mood: "warm",
+      currentTurn: "RedPupil and PlainEyes stand facing each other.",
     });
-    const blockA = subjectBlock(prompt, "A");
+    const blockA = subjectBlock(plan.prompt, "A");
     assert.match(blockA, /Pupil color: red/);
     assert.match(blockA, /do NOT fill the entire iris red/i);
     assert.match(blockA, /Iris color: black/);
-    assert.doesNotMatch(subjectBlock(prompt, "B"), /Pupil color: red/);
+    assert.doesNotMatch(subjectBlock(plan.prompt, "B"), /Pupil color: red/);
   });
 
   it("keeps iris/pupil/hair-part/clothing ownership inside subject A only", () => {
-    const { prompt, referenceUrls, subjects } = syntheticDuoGiftPrimary();
+    const { prompt, referenceUrls, subjects } = syntheticLdDuoPlan();
     const blockA = subjectBlock(prompt, "A");
     const blockB = subjectBlock(prompt, "B");
 
@@ -341,66 +330,40 @@ describe("chat image visual identity", () => {
 
     assert.match(prompt, /IDENTITY OWNERSHIP IS STRICT/);
     assert.match(prompt, /NEVER transfer between subjects/);
-    assert.match(prompt, /NEVER a character identity source/);
     assert.match(prompt, /Unify art style, not identity/);
     assert.match(prompt, /GENDER LOCK/);
     assert.deepEqual(referenceUrls, [
-      "/image-templates/sd-gift-box-duo-hq.webp",
       "/synthetic/character-a-primary.webp",
       "/synthetic/character-b-primary.webp",
     ]);
-    assert.equal(subjects[0]?.referenceIndex, 2);
-    assert.equal(subjects[1]?.referenceIndex, 3);
-    assert.match(prompt, /Image 2 belongs ONLY to CharacterA/);
-    assert.match(prompt, /Image 3 belongs ONLY to CharacterB/);
+    assert.equal(subjects[0]?.referenceIndex, 1);
+    assert.equal(subjects[1]?.referenceIndex, 2);
+    assert.match(prompt, /Image 1 belongs ONLY to CharacterA/);
+    assert.match(prompt, /Image 2 belongs ONLY to CharacterB/);
   });
 
   it("does not leak saved appearance in IMAGE_ONLY mode", () => {
-    const { prompt } = syntheticDuoGiftAlternateImageOnly();
-    const blockA = subjectBlock(prompt, "A");
+    const plan = buildLdDuoGenerationPlan({
+      characterName: "CharacterA",
+      characterGender: "male",
+      personaName: "CharacterB",
+      personaGender: "female",
+      characterImageUrl: "/synthetic/character-a-primary.webp",
+      characterSavedAppearance: SYNTHETIC_CHARACTER_A_APPEARANCE,
+      characterAppearanceMode: "image_only",
+      personaImageUrl: "/synthetic/character-b-primary.webp",
+      personaSavedAppearance: SYNTHETIC_CHARACTER_B_APPEARANCE,
+      personaAppearanceMode: "image_plus_saved",
+      currentTurn: "Setting: cafe",
+    });
+    const blockA = subjectBlock(plan.prompt, "A");
     assert.match(blockA, /IMAGE_ONLY/);
     assert.match(blockA, /Use this selected reference as the authoritative visual identity/);
     assert.doesNotMatch(blockA, /Iris color: red/);
     assert.doesNotMatch(blockA, /white shirt/);
     assert.doesNotMatch(blockA, /black harness/);
-    assert.match(subjectBlock(prompt, "B"), /Iris color: dark gray/);
-    assert.match(subjectBlock(prompt, "B"), /IMAGE_PLUS_SAVED/);
-  });
-
-  it("moves placement, names, appearance, and reference images together", () => {
-    const { prompt, referenceUrls, subjects } = syntheticDuoGiftPlacementSwap();
-    assert.deepEqual(referenceUrls, [
-      "/image-templates/sd-gift-box-duo-hq.webp",
-      "/synthetic/character-b-primary.webp",
-      "/synthetic/character-a-primary.webp",
-    ]);
-    assert.equal(subjects[0]?.name, "CharacterB");
-    assert.equal(subjects[0]?.referenceIndex, 2);
-    assert.equal(subjects[1]?.name, "CharacterA");
-    assert.equal(subjects[1]?.referenceIndex, 3);
-    assert.match(prompt, /TOP person is CharacterB/);
-    assert.match(prompt, /BOTTOM person is CharacterA/);
-    assert.match(subjectBlock(prompt, "A"), /Image 2 belongs ONLY to CharacterB/);
-    assert.match(subjectBlock(prompt, "A"), /Iris color: dark gray/);
-    assert.match(subjectBlock(prompt, "B"), /Image 3 belongs ONLY to CharacterA/);
-    assert.match(subjectBlock(prompt, "B"), /Iris color: red/);
-  });
-
-  it("applies the same identity contract to emoticon and couple-stamp plans", () => {
-    const emoticon = syntheticEmoticonPlan();
-    const stamp = syntheticCoupleStampPlan();
-    for (const plan of [emoticon, stamp]) {
-      assert.match(plan.prompt, /IDENTITY OWNERSHIP IS STRICT/);
-      assert.match(subjectBlock(plan.prompt, "A"), /Iris color: red/);
-      assert.doesNotMatch(subjectBlock(plan.prompt, "B"), /Iris color: red/);
-      assert.equal(plan.referenceUrls[0]?.startsWith("/image-templates/"), true);
-      assert.equal(plan.referenceUrls[1], "/synthetic/character-a-primary.webp");
-      assert.equal(plan.referenceUrls[2], "/synthetic/character-b-primary.webp");
-      assert.match(plan.prompt, /Image 2 belongs ONLY to CharacterA/);
-      assert.match(plan.prompt, /Image 3 belongs ONLY to CharacterB/);
-    }
-    assert.match(emoticon.prompt, /exactly nine equal panels/i);
-    assert.match(stamp.prompt, /four circular badges/i);
+    assert.match(subjectBlock(plan.prompt, "B"), /Iris color: dark gray/);
+    assert.match(subjectBlock(plan.prompt, "B"), /IMAGE_PLUS_SAVED/);
   });
 
   it("grounds standard LD duo subjects without a template identity source", () => {
@@ -844,7 +807,7 @@ describe("chat image visual identity", () => {
   });
 
   it("CROSS_SUBJECT_EYE_MORPHOLOGY does not leak color or pupil shape", () => {
-    const plan = buildGiftBoxGenerationPlan({
+    const plan = buildLdDuoGenerationPlan({
       characterName: "SubjectA",
       characterGender: "female",
       characterImageUrl: "/synthetic/a.webp",
@@ -855,10 +818,7 @@ describe("chat image visual identity", () => {
       personaImageUrl: "/synthetic/b.webp",
       personaSavedAppearance: "black pupils vertical slit pupil",
       personaAppearanceMode: "image_plus_saved",
-      placement: "character_top",
-      topExpression: "calm",
-      bottomExpression: "calm",
-      mood: "warm",
+      currentTurn: "The two subjects stand facing each other.",
     });
     const blockA = subjectBlock(plan.prompt, "A");
     const blockB = subjectBlock(plan.prompt, "B");
@@ -891,23 +851,6 @@ describe("chat image visual identity", () => {
     };
 
     const plans = [
-      buildGiftBoxGenerationPlan({
-        ...duoOpts,
-        placement: "character_top",
-        topExpression: "calm",
-        bottomExpression: "calm",
-        mood: "warm",
-      }),
-      buildCoupleStampGenerationPlan({
-        ...duoOpts,
-        options: { height: "persona_taller" },
-      }),
-      buildEmoticonGenerationPlan({
-        ...duoOpts,
-        scenes: [
-          { text: "안녕", subject: "duo", action: "waving" },
-        ],
-      }),
       buildLdDuoGenerationPlan({
         ...duoOpts,
         currentTurn: "They stand in the hallway.",

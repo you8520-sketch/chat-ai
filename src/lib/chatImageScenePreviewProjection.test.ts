@@ -502,10 +502,12 @@ describe("chatImageScenePreviewProjection trustworthy UX", () => {
     assert.ok(totalCompactChars < longClause.length * 2);
   });
 
-  it("B5: dialogue more label is non-actionable wording", () => {
+  it("B5: production comic builder exposes no per-panel dialogue preview or editor", () => {
     const source = fs.readFileSync("src/components/ChatSceneBuilder.tsx", "utf8");
-    assert.match(source, /\+{preview\.hiddenCount}개 더 있음/);
+    assert.doesNotMatch(source, /\+{preview\.hiddenCount}개 더 있음/);
     assert.doesNotMatch(source, /\+{preview\.hiddenCount}개 더 보기/);
+    assert.doesNotMatch(source, /대사 편집/);
+    assert.doesNotMatch(source, /ComicPanelStoryboardCard/);
   });
 
   it("B8: dialogue preview shows exact canonical text for visible rows", () => {

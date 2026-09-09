@@ -4,17 +4,14 @@ import test from "node:test";
 import { formatOpenAiImageProviderAttemptsForAdmin } from "@/lib/openAiImageSafetyFallback";
 import {
   buildComicProviderReferences,
-  buildNeutralComicProviderScenePlan,
-  buildNeutralComicSafeStructure,
   classifyComicModerationAssociation,
   formatComicReferenceSetForAdmin,
-  isolateComicProviderReferences,
-  resolveComicDiagnosticOverrides,
-  type ComicReferenceIsolationMode,
+  prepareComicProviderReferenceInput,
 } from "@/lib/chatComicReferenceIsolation";
 import { CHAT_COMIC_TEMPLATE_PREVIEW_URL } from "@/lib/chatComicGenerationConstants";
 import { buildChatComicGenerationPlan } from "@/lib/chatComicGeneration";
 import { buildStrictComicFallbackPrompt } from "@/lib/chatImageStrictSafetyFallbackPrompt";
+import { projectComicSafeStructureForTier2 } from "@/lib/chatComicSafeStructure";
 import type { ScenePlan } from "@/lib/chatImageScenePlan";
 import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
 
@@ -36,42 +33,14 @@ const references = buildComicProviderReferences({
   subjects,
 });
 
-test("REF-CONTROL-1..7: controls preserve slots and change only selected content", () => {
-  const expectedNeutralSlots: Record<ComicReferenceIsolationMode, number[]> = {
-    normal: [],
-    neutral_template: [1],
-    neutral_character: [2],
-    neutral_persona: [3],
-    neutral_identity_refs: [2, 3],
-    all_neutral: [1, 2, 3],
-  };
-  for (const [mode, neutralSlots] of Object.entries(expectedNeutralSlots)) {
-    const selected = isolateComicProviderReferences(
-      references,
-      mode as ComicReferenceIsolationMode
-    );
-    assert.deepEqual(selected.map((item) => item.role), ["template", "chat_character", "user_persona"]);
-    assert.deepEqual(selected.map((item) => item.index), [1, 2, 3]);
-    assert.equal(selected.length, 3);
-    assert.deepEqual(
-      selected.filter((item) => item.content === "neutral").map((item) => item.index),
-      neutralSlots
-    );
-  }
+test("REF-BIND-1: provider references preserve template/identity slots and stay real", () => {
+  assert.deepEqual(references.map((item) => item.role), ["template", "chat_character", "user_persona"]);
+  assert.deepEqual(references.map((item) => item.index), [1, 2, 3]);
+  assert.equal(references.length, 3);
+  assert.ok(references.every((item) => item.content === "real"));
 });
 
-test("REF-ISO-8..10: override is admin-only, invalid values reject, diagnostics contain no sources", () => {
-  assert.throws(() => resolveComicDiagnosticOverrides({
-    canSeeCost: false, referenceMode: "neutral_template",
-  }), /FORBIDDEN/);
-  assert.throws(() => resolveComicDiagnosticOverrides({
-    canSeeCost: true, referenceMode: "bogus",
-  }), /INVALID/);
-  assert.throws(() => resolveComicDiagnosticOverrides({
-    canSeeCost: true,
-    referenceMode: "neutral_template",
-    visualContextMode: "neutral_visual_context",
-  }), /AXES_MUST_BE_ISOLATED/);
+test("REF-BIND-2: reference set signature contains no source bytes", () => {
   const diagnostic = formatComicReferenceSetForAdmin(references);
   assert.deepEqual(diagnostic, {
     referenceRoles: ["template", "chat_character", "user_persona"],
@@ -87,30 +56,29 @@ test("REF-ISO-8..10: override is admin-only, invalid values reject, diagnostics 
   assert.doesNotMatch(json, /character\.webp|persona\.webp|base64|https?:\/\//);
 });
 
+test("REF-BIND-3: normalization preserves slots and never leaks bytes", async () => {
+  const input = await prepareComicProviderReferenceInput({
+    primaryPrompt: "prompt",
+    strictFallbackPrompt: "fallback",
+    references,
+    normalizeReference: async (sourceUrl) => `data:${sourceUrl}`,
+  });
+  assert.equal(input.primaryPrompt, "prompt");
+  assert.equal(input.strictFallbackPrompt, "fallback");
+  assert.deepEqual(input.references.map((item) => item.index), [1, 2, 3]);
+});
+
 const scenePlan: ScenePlan = {
-  sceneBackground: "bedroom SECRET_RAW_SOURCE",
-  atmosphere: "intimate SECRET_RAW_SOURCE",
-  events: [{ id: "E1", order: 1, sourceMessageId: 1, sourceRole: "assistant", kind: "action", actor: "character", text: "SECRET_RAW_SOURCE", segmentKind: "action" }],
+  sceneBackground: "ordinary indoor room",
+  atmosphere: "calm everyday mood",
+  events: [{ id: "E1", order: 1, sourceMessageId: 1, sourceRole: "assistant", kind: "action", actor: "character", text: "walks in", segmentKind: "action" }],
   heroEventIds: ["E1"],
-  heroScene: "SECRET_RAW_SOURCE",
+  heroScene: "walks in",
   recommendedPanelCount: 2,
   panels: [1, 2].map((index) => ({
-    index, sourceEventIds: ["E1"], situation: "SECRET_RAW_SOURCE", dialogue: [],
+    index, sourceEventIds: ["E1"], situation: "walks in", dialogue: [],
   })),
 };
-
-test("VC-1..4: neutral fixture has fixed safe semantics and does not mutate ScenePlan", () => {
-  const before = structuredClone(scenePlan);
-  const projected = buildNeutralComicProviderScenePlan(scenePlan);
-  const structure = buildNeutralComicSafeStructure([1, 2]);
-  assert.deepEqual(scenePlan, before);
-  assert.equal(projected.panels.length, scenePlan.panels.length);
-  assert.doesNotMatch(JSON.stringify(projected), /SECRET_RAW_SOURCE|bedroom|intimate/);
-  assert.match(JSON.stringify(projected), /two adult characters/);
-  assert.doesNotMatch(JSON.stringify(structure), /SECRET_RAW_SOURCE|bedroom|lying|dialogue/);
-  assert.equal(projected.recommendedPanelCount, scenePlan.recommendedPanelCount);
-  assert.equal(buildNeutralComicProviderScenePlan(scenePlan).sceneBackground, "ordinary indoor room");
-});
 
 test("PROMPT-BIND-1..2: primary and Tier-2 retain template and identity slot binding", () => {
   const pack = buildChatComicGenerationPlan({
@@ -122,7 +90,7 @@ test("PROMPT-BIND-1..2: primary and Tier-2 retain template and identity slot bin
   const tier2 = buildStrictComicFallbackPrompt({
     panelCount: 2, characterName: "라이크", characterGender: "male",
     personaName: "렌", personaGender: "male", subjects: pack.subjects,
-    safeStructure: buildNeutralComicSafeStructure([1, 2]),
+    safeStructure: projectComicSafeStructureForTier2(scenePlan, { personaVisible: true }),
   });
   assert.match(pack.prompt, /Reference image 1 is LAYOUT AND FINISH ONLY/);
   assert.match(tier2, /Reference image 1 is LAYOUT AND FINISH ONLY/);
@@ -141,9 +109,7 @@ test("DIAG-1..7: attempts are explicit, preserve unknown safety data, and mark f
     knownProviderCostUsd: null,
     hasUnknownAttemptCost: true,
     safetyFallbackUsed: false,
-    referenceSet: formatComicReferenceSetForAdmin(
-      isolateComicProviderReferences(references, "neutral_template")
-    ),
+    referenceSet: formatComicReferenceSetForAdmin(references),
   });
   assert.equal(diagnostic.safetyFallbackInvoked, true);
   assert.equal(diagnostic.safetyFallbackUsed, false);
@@ -154,7 +120,7 @@ test("DIAG-1..7: attempts are explicit, preserve unknown safety data, and mark f
   assert.match(json, /req-2/);
   assert.match(json, /hash-1/);
   assert.match(json, /"safetyCategories":"UNKNOWN"/);
-  assert.equal((json.match(/template:neutral\|chat_character:real\|user_persona:real/g) ?? []).length, 2);
+  assert.equal((json.match(/template:real\|chat_character:real\|user_persona:real/g) ?? []).length, 2);
   assert.doesNotMatch(json, /\[Object\]|rawPrompt|sourceUrl|base64|https?:\/\//);
 });
 

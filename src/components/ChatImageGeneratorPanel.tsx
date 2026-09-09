@@ -45,35 +45,6 @@ import {
 import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
 import { emptySceneVisualScopeState } from "@/lib/chatImageSceneVisualScope";
 import {
-  CHAT_COUPLE_STAMP_BACKGROUNDS,
-  CHAT_COUPLE_STAMP_BORDERS,
-  CHAT_COUPLE_STAMP_DEFAULT_OPTIONS,
-  CHAT_COUPLE_STAMP_EXPRESSIONS,
-  CHAT_COUPLE_STAMP_GENERATION_DEFAULT_POINTS,
-  CHAT_COUPLE_STAMP_HEIGHTS,
-  CHAT_COUPLE_STAMP_TEMPLATE_ID,
-  CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL,
-  type ChatCoupleStampBackground,
-  type ChatCoupleStampBorder,
-  type ChatCoupleStampExpression,
-  type ChatCoupleStampHeight,
-} from "@/lib/chatCoupleStampGeneration";
-import {
-  CHAT_EMOTICON_GENERATION_DEFAULT_POINTS,
-  CHAT_EMOTICON_TEMPLATE_ID,
-  CHAT_EMOTICON_TEMPLATE_PREVIEW_URL,
-} from "@/lib/chatEmoticonGeneration";
-import {
-  CHAT_IMAGE_EXPRESSIONS,
-  CHAT_IMAGE_GENERATION_DEFAULT_POINTS,
-  CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS,
-  CHAT_IMAGE_MOODS,
-  CHAT_IMAGE_PLACEMENTS,
-  type ChatImageExpression,
-  type ChatImageMood,
-  type ChatImagePlacement,
-} from "@/lib/chatImageGeneration";
-import {
   previewVisualAppearance,
   resolveChatImageAppearanceControlProduct,
   resolveEffectiveAppearanceMode,
@@ -83,26 +54,12 @@ import {
 import {
   CHAT_LD_ILLUSTRATION_DEFAULT_POINTS,
 } from "@/lib/chatLdIllustrationGeneration";
-import {
-  CHAT_PERSONA_IMAGE_DEFAULT_POINTS,
-  CHAT_PERSONA_IMAGE_TEMPLATE_ID,
-} from "@/lib/chatPersonaImageGeneration";
 import { dispatchPointsDeducted } from "@/lib/pointsEvents";
 
 const PERSONA_STORAGE_KEY = "habi:lastPersonaId";
 let characterIdOverride: number | null = null;
 
-type Tab = "sd" | "comic";
-type ResultMode = "sd" | "emoticon" | "couple_stamp" | "comic" | "illustration" | "persona";
-type SdProduct = "gift" | "emoticon" | "coupleStamp";
-type LdProduct = "scene" | "persona";
-
-const SD_PRODUCTS: readonly SdProduct[] = ["gift", "emoticon", "coupleStamp"];
-
-function cycleSdProduct(current: SdProduct, direction: -1 | 1): SdProduct {
-  const index = SD_PRODUCTS.indexOf(current);
-  return SD_PRODUCTS[(index + direction + SD_PRODUCTS.length) % SD_PRODUCTS.length]!;
-}
+type ResultMode = "comic" | "illustration";
 
 type ReferenceInfo = {
   id: number;
@@ -119,12 +76,9 @@ type AverageImageCost = {
 type Preflight = {
   ready: boolean;
   missing: string[];
-  personaReady: boolean;
-  personaMissing: string[];
   pricePoints: number;
   modelId: string;
   modelLabel: string;
-  template: { id: string; name: string; previewUrl: string };
   character: ReferenceInfo & {
     hasSavedAppearance?: boolean;
     appearancePreview?: string;
@@ -137,11 +91,7 @@ type Preflight = {
   balance?: { total: number; paid: number; free: number };
   averageCosts?: {
     exchangeRateKrwPerUsd: number;
-    sd: AverageImageCost;
-    emoticon: AverageImageCost;
-    coupleStamp: AverageImageCost;
     illustration: AverageImageCost;
-    persona: AverageImageCost;
     comic: Record<ChatComicPanelCount, AverageImageCost>;
   };
   latestResult?: {
@@ -163,7 +113,6 @@ type Preflight = {
     errorMessage: string | null;
     startedAt: string;
   } | null;
-  comicDiagnosticControlsAvailable?: boolean;
 };
 
 /** Poll cadence while a server-side generation job is still running. */
@@ -386,7 +335,6 @@ export default function ChatImageGeneratorPanel({
   showRailTrigger = true,
 }: ChatImageGeneratorPanelProps) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<Tab>("comic");
   const [loadingInfo, setLoadingInfo] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [trackedJobId, setTrackedJobId] = useState<number | null>(null);
@@ -394,8 +342,6 @@ export default function ChatImageGeneratorPanel({
   const [info, setInfo] = useState<Preflight | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [sdProduct, setSdProduct] = useState<SdProduct>("gift");
-  const [ldProduct, setLdProduct] = useState<LdProduct>("scene");
   const [sceneOutputMode, setSceneOutputMode] = useState<SceneOutputMode>("illustration");
   const [sceneMessages, setSceneMessages] = useState<SceneSourceMessage[]>([]);
   const [scenePlan, setScenePlan] = useState<ScenePlan | null>(null);
@@ -408,29 +354,8 @@ export default function ChatImageGeneratorPanel({
     []
   );
   const [castIntent, setCastIntent] = useState<ChatImageCastIntentManifest | null>(null);
-  const [coupleHeight, setCoupleHeight] = useState<ChatCoupleStampHeight>(
-    CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.height
-  );
-  const [coupleBackground, setCoupleBackground] = useState<ChatCoupleStampBackground>(
-    CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.background
-  );
-  const [coupleBorder, setCoupleBorder] = useState<ChatCoupleStampBorder>(
-    CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.border
-  );
-  const [coupleCharacterExpression, setCoupleCharacterExpression] =
-    useState<ChatCoupleStampExpression>(
-      CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.characterExpression
-    );
-  const [couplePersonaExpression, setCouplePersonaExpression] =
-    useState<ChatCoupleStampExpression>(
-      CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.personaExpression
-    );
-  const [sdResultUrl, setSdResultUrl] = useState("");
-  const [emoticonResultUrl, setEmoticonResultUrl] = useState("");
-  const [coupleStampResultUrl, setCoupleStampResultUrl] = useState("");
   const [comicResultUrl, setComicResultUrl] = useState("");
   const [illustrationResultUrl, setIllustrationResultUrl] = useState("");
-  const [personaResultUrl, setPersonaResultUrl] = useState("");
   const [actualCosts, setActualCosts] = useState<
     Partial<Record<ResultMode, { usd: number; krw: number }>>
   >({});
@@ -442,18 +367,6 @@ export default function ChatImageGeneratorPanel({
     useState(false);
   const [characterPickerOpen, setCharacterPickerOpen] = useState(false);
 
-  const [placement, setPlacement] = useState<ChatImagePlacement>(
-    CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS.placement
-  );
-  const [topExpression, setTopExpression] = useState<ChatImageExpression>(
-    CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS.topExpression
-  );
-  const [bottomExpression, setBottomExpression] = useState<ChatImageExpression>(
-    CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS.bottomExpression
-  );
-  const [sdMood, setSdMood] = useState<ChatImageMood>(
-    CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS.mood
-  );
   const [comicText, setComicText] = useState("");
   const [sourceMessageId, setSourceMessageId] = useState<number | null>(null);
   const [sourceTurnPreview, setSourceTurnPreview] = useState("");
@@ -559,8 +472,6 @@ export default function ChatImageGeneratorPanel({
       setComicSummary("");
       setComicLoadedMaxChars(0);
       setComicText("");
-      setTab("comic");
-      setLdProduct("scene");
       setSceneOutputMode("illustration");
 
       const preview = turnPreviewFromContent(String(detail?.content ?? ""));
@@ -582,8 +493,6 @@ export default function ChatImageGeneratorPanel({
 
   useEffect(() => {
     if (!trpgCampaignMode) return;
-    setTab("comic");
-    setLdProduct("scene");
     setSceneOutputMode("illustration");
   }, [trpgCampaignMode]);
 
@@ -633,7 +542,7 @@ export default function ChatImageGeneratorPanel({
   }, [open, campaignId]);
 
   const sceneIsIllustration =
-    ldProduct === "scene" && (trpgCampaignMode || sceneOutputMode === "illustration");
+    trpgCampaignMode || sceneOutputMode === "illustration";
   const selectableCastAssets = useMemo((): readonly SelectableCastAsset[] => {
     if (sceneCastSelectableAssets.length) return sceneCastSelectableAssets;
     if (info?.castSelectableAssets?.length) return info.castSelectableAssets;
@@ -712,9 +621,7 @@ export default function ChatImageGeneratorPanel({
   const activePrice =
     activeMode === "illustration"
       ? CHAT_LD_ILLUSTRATION_DEFAULT_POINTS
-      : activeMode === "comic"
-        ? CHAT_COMIC_GENERATION_DEFAULT_POINTS
-        : info?.pricePoints ?? CHAT_IMAGE_GENERATION_DEFAULT_POINTS;
+      : CHAT_COMIC_GENERATION_DEFAULT_POINTS;
   const activeSaved = activeResultUrl ? savedUrls.has(activeResultUrl) : false;
   const selectedCharacterInfo = useMemo<ReferenceInfo | null>(() => {
     if (!info?.character) return null;
@@ -846,21 +753,13 @@ export default function ChatImageGeneratorPanel({
       });
       setCharacterPickerOpen(false);
       if (data.latestResult?.imageUrl) {
-        if (data.latestResult.mode === "persona") {
-          if (!personaResultUrl) setPersonaResultUrl(data.latestResult.imageUrl);
-        } else if (data.latestResult.mode === "illustration") {
+        if (data.latestResult.mode === "illustration") {
           if (!illustrationResultUrl) setIllustrationResultUrl(data.latestResult.imageUrl);
         } else if (data.latestResult.mode === "comic") {
           if (!comicResultUrl) setComicResultUrl(data.latestResult.imageUrl);
-        } else if (data.latestResult.mode === "emoticon") {
-          if (!emoticonResultUrl) setEmoticonResultUrl(data.latestResult.imageUrl);
-        } else if (data.latestResult.mode === "couple_stamp") {
-          if (!coupleStampResultUrl) setCoupleStampResultUrl(data.latestResult.imageUrl);
-        } else if (!sdResultUrl) {
-          setSdResultUrl(data.latestResult.imageUrl);
         }
         if (
-          data.latestResult.mode &&
+          (data.latestResult.mode === "illustration" || data.latestResult.mode === "comic") &&
           data.latestResult.upstreamCostUsd != null &&
           data.latestResult.upstreamCostKrw != null
         ) {
@@ -882,12 +781,8 @@ export default function ChatImageGeneratorPanel({
     }
   }, [
     comicResultUrl,
-    coupleStampResultUrl,
-    emoticonResultUrl,
     illustrationResultUrl,
-    personaResultUrl,
     loadSavedImages,
-    sdResultUrl,
   ]);
 
   useEffect(() => {
@@ -957,148 +852,6 @@ export default function ChatImageGeneratorPanel({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, generating, saving]);
-
-  async function generateSd() {
-    if (campaignId || !info?.ready || generating) return;
-    setGenerating(true);
-    setError("");
-    setNotice("");
-    if (sdProduct === "emoticon") setEmoticonResultUrl("");
-    else if (sdProduct === "coupleStamp") setCoupleStampResultUrl("");
-    else setSdResultUrl("");
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 300_000);
-    try {
-      const ids = currentRouteIds();
-      const response = await fetch("/api/chat/image-generation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          ...ids,
-          placement,
-          topExpression,
-          bottomExpression,
-          mood: sdMood,
-          templateId:
-            sdProduct === "emoticon"
-              ? CHAT_EMOTICON_TEMPLATE_ID
-              : sdProduct === "coupleStamp"
-                ? CHAT_COUPLE_STAMP_TEMPLATE_ID
-                : info.template.id,
-          characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
-          characterAppearanceMode,
-          ...(sdProduct === "coupleStamp"
-            ? {
-                coupleHeight,
-                coupleBackground,
-                coupleBorder,
-                coupleCharacterExpression,
-                couplePersonaExpression,
-              }
-            : {}),
-        }),
-      });
-      const data = (await response.json().catch(() => null)) as GenerateResult | null;
-      if (!response.ok || !data?.imageUrl) {
-        if (data) updateBalance(data);
-        throw new Error(data?.error || "SD 이미지 생성에 실패했습니다.");
-      }
-      if (sdProduct === "emoticon") setEmoticonResultUrl(data.imageUrl);
-      else if (sdProduct === "coupleStamp") setCoupleStampResultUrl(data.imageUrl);
-      else setSdResultUrl(data.imageUrl);
-      if (data.savedToCharacterAlbum) {
-        setSavedUrls((previous) => new Set(previous).add(data.imageUrl!));
-      }
-      if (data.upstreamCostUsd != null && data.upstreamCostKrw != null) {
-        setActualCosts((previous) => ({
-          ...previous,
-          [
-            sdProduct === "emoticon"
-              ? "emoticon"
-              : sdProduct === "coupleStamp"
-                ? "couple_stamp"
-                : "sd"
-          ]: {
-            usd: data.upstreamCostUsd!,
-            krw: data.upstreamCostKrw!,
-          },
-        }));
-      }
-      updateBalance(data);
-      setNotice(
-        sdProduct === "emoticon"
-          ? "랜덤 문구 9종 이모티콘을 완성해 기존 캐릭터 이미지 앨범에 추가했습니다."
-          : sdProduct === "coupleStamp"
-            ? "선택한 커플 인장을 완성해 기존 캐릭터 이미지 앨범에 추가했습니다."
-          : "완성되어 기존 캐릭터 이미지 앨범에 자동으로 추가했습니다."
-      );
-      void loadInfo();
-    } catch (caught) {
-      const timedOut = caught instanceof DOMException && caught.name === "AbortError";
-      setError(
-        timedOut
-          ? "이미지 생성 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요."
-          : caught instanceof Error
-            ? caught.message
-            : "이미지 생성 중 오류가 발생했습니다."
-      );
-    } finally {
-      window.clearTimeout(timer);
-      setGenerating(false);
-    }
-  }
-
-  async function generatePersona() {
-    if (campaignId || !info?.personaReady || generating) return;
-    setGenerating(true);
-    setError("");
-    setNotice("");
-    setPersonaResultUrl("");
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 300_000);
-    try {
-      const ids = currentRouteIds();
-      const response = await fetch("/api/chat/image-generation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          ...ids,
-          personaId: info.persona?.id ?? null,
-          templateId: CHAT_PERSONA_IMAGE_TEMPLATE_ID,
-          characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
-        }),
-      });
-      const data = (await response.json().catch(() => null)) as GenerateResult | null;
-      if (!response.ok || !data?.imageUrl) {
-        if (data) updateBalance(data);
-        throw new Error(data?.error || "페르소나 이미지 생성에 실패했습니다.");
-      }
-      setPersonaResultUrl(data.imageUrl);
-      if (data.upstreamCostUsd != null && data.upstreamCostKrw != null) {
-        setActualCosts((previous) => ({
-          ...previous,
-          persona: { usd: data.upstreamCostUsd!, krw: data.upstreamCostKrw! },
-        }));
-      }
-      updateBalance(data);
-      setNotice("864×1440 페르소나 이미지를 완성했습니다. 저장하기로 내려받을 수 있습니다.");
-      void loadInfo();
-    } catch (caught) {
-      const timedOut = caught instanceof DOMException && caught.name === "AbortError";
-      setError(
-        timedOut
-          ? "페르소나 이미지 생성 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요."
-          : caught instanceof Error
-            ? caught.message
-            : "페르소나 이미지 생성 중 오류가 발생했습니다."
-      );
-    } finally {
-      window.clearTimeout(timer);
-      setGenerating(false);
-    }
-  }
 
   function isCurrentSceneSourceEpoch(epoch: number): boolean {
     return sceneSourceEpochRef.current === epoch;
@@ -1414,7 +1167,7 @@ export default function ChatImageGeneratorPanel({
             setOpen(true);
           }}
           className="flex w-full flex-col items-center gap-0.5 rounded-md px-0 py-1.5 text-zinc-400 transition hover:bg-white/[0.06] hover:text-violet-200"
-          title="SD 이미지와 LD 이미지 생성"
+          title="일러스트와 컷만화 생성"
           aria-label="이미지 생성"
         >
           <IconImageSpark className="h-4 w-4 shrink-0" />
@@ -1790,7 +1543,6 @@ export default function ChatImageGeneratorPanel({
                         ) : null}
                         {!campaignId ? (
                           <ChatSceneBuilder
-                            sourcePreview={comicSummary || sourceTurnPreview}
                             sourceLoading={summarizing}
                             plan={scenePlan}
                             planLoading={summarizing}
@@ -1799,17 +1551,10 @@ export default function ChatImageGeneratorPanel({
                             visualSubjects={activeVisualSubjects}
                             reservedReferenceUrls={reservedCastReferenceUrls}
                             contentKind={contentKind}
-                            personaName={info?.persona?.name ?? "유저"}
-                            characterName={info?.character.name ?? "캐릭터"}
-                            castSpeakerNames={configuredCastNames}
                             outputMode={sceneOutputMode}
-                            comicAutopilotMode={true}
                             disabled={generating}
                             onOutputModeChange={(mode) => {
                               setSceneOutputMode(mode);
-                            }}
-                            onPlanChange={(nextPlan) => {
-                              setScenePlan(nextPlan);
                             }}
                             onCastChange={setCastIntent}
                           />

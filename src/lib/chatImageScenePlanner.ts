@@ -10,11 +10,9 @@ import {
 } from "@/lib/chatImageSceneBrief";
 import {
   SCENE_PLAN_MAX_PROVIDER_ATTEMPTS,
-  buildComicHighlightPrompt,
   buildDeterministicScenePlan,
   buildScenePlanPrompt,
   extractDeterministicEvents,
-  validateComicHighlightSelection,
   validateScenePlan,
   type ScenePlan,
   type ScenePlanIntent,
@@ -83,23 +81,14 @@ export async function planChatImageScene(opts: {
         }
       : undefined);
 
-  const isComic = opts.scenePlanIntent === "comic";
-  const prompt = isComic
-    ? buildComicHighlightPrompt({
-        contentKind: opts.contentKind,
-        characterName: opts.characterName,
-        personaName: opts.personaName,
-        messages,
-        speakerContext,
-      })
-    : buildScenePlanPrompt({
-        contentKind: opts.contentKind,
-        scenePlanIntent: opts.scenePlanIntent,
-        characterName: opts.characterName,
-        personaName: opts.personaName,
-        messages,
-        speakerContext,
-      });
+  const prompt = buildScenePlanPrompt({
+    contentKind: opts.contentKind,
+    scenePlanIntent: opts.scenePlanIntent,
+    characterName: opts.characterName,
+    personaName: opts.personaName,
+    messages,
+    speakerContext,
+  });
   const complete = opts.complete ?? defaultComplete;
   const primary = resolveChatImageSceneBriefModel();
   const fallback = resolveChatImageSceneBriefFallbackModel();
@@ -111,9 +100,8 @@ export async function planChatImageScene(opts: {
     const usedFallbackModel = model !== primary;
     try {
       const text = await complete({
-        system: isComic
-          ? "You are a precise closed-book comic scene selector. The canonical event timeline is immutable — NEVER add, delete, reorder, or reclassify canonical events. You choose WHAT to illustrate: one anchor + one contiguous local focus window. Compare the ENTIRE turn before choosing; never plan panels, narration, camera, or composition — GPT Image owns HOW. Reasoning: none."
-          : "You are a precise closed-book scene planner. The canonical event timeline is immutable — NEVER add, delete, reorder, or reclassify canonical events. Never invent user dialogue. In comic mode you choose WHAT to illustrate (one anchor + one contiguous highlight window); you never plan panels, narration, camera, or composition — GPT Image owns HOW. Reasoning: none.",
+        system:
+          "You are a precise closed-book scene planner. The canonical event timeline is immutable — NEVER add, delete, reorder, or reclassify canonical events. Never invent user dialogue. You never plan panels, narration, camera, or composition — GPT Image owns HOW. Reasoning: none.",
         prompt,
         model,
       });
@@ -124,21 +112,7 @@ export async function planChatImageScene(opts: {
       } catch {
         continue;
       }
-      if (isComic) {
-        const canonicalEvents = extractDeterministicEvents(messages, speakerContext);
-        const validated = validateComicHighlightSelection(parsed, canonicalEvents);
-        if (validated.ok) {
-          // Server builds the deterministic canonical base plan; the AI owns
-          // ONLY the highlight selection. No AI-authored panels/hero/cast work.
-          const base = buildDeterministicScenePlan(messages, undefined, speakerContext);
-          return {
-            plan: { ...base, comicHighlightSelection: validated.selection },
-            model,
-            usedFallback: usedFallbackModel,
-            attempts,
-          };
-        }
-      } else {
+      {
         const validated = validateScenePlan(parsed, messages, {
           allowUserEdits: false,
           personaName: opts.personaName,

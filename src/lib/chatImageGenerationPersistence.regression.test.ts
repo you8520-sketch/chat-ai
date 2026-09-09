@@ -30,11 +30,9 @@ describe("chat image generation durable success regression", () => {
     assert.match(panel, /savedToCharacterAlbum === true/);
   });
 
-  it("does not credit character CP for persona portrait generation", () => {
+  it("image-generation route has no generation POST path (SD/persona decommissioned)", () => {
     const route = read("src/app/api/chat/image-generation/route.ts");
-    assert.match(
-      route,
-      /if \(!isPersona\) \{\s*creditChatRoomImageCreatorReward\(/
-    );
+    assert.doesNotMatch(route, /export async function POST/);
+    assert.doesNotMatch(route, /isPersona|isEmoticon|isCoupleStamp/);
   });
 });

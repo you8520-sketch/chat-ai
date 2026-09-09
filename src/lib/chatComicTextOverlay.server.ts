@@ -10,7 +10,6 @@ import {
   type PanelOverlayLayout,
   type SpeechBubbleLayout,
 } from "@/lib/chatComicTextOverlay";
-import type { ComicBlankBalloonTextStrategy } from "@/lib/chatComicDiagnostic";
 import {
   DEFAULT_SCENE_PRESENTATION_VISIBILITY,
   type ScenePlan,
@@ -19,6 +18,11 @@ import {
 import type { ChatImageVisualSubject } from "@/lib/chatImageVisualIdentity";
 
 export const COMIC_FINAL_WEBP_OPTIONS = { quality: 90, effort: 4 } as const;
+
+/** Server overlay blank-balloon text detection strategy (canonical owner). */
+export type ComicBlankBalloonTextStrategy =
+  | "local_image_detection"
+  | "shared_anchor_regions";
 
 export type BlankBalloonRegion = {
   panelIndex: number;
