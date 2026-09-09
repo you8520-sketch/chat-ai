@@ -64,7 +64,7 @@ describe("DeepSeek V4 Pro 0813 canonicalization", () => {
     assert.equal(isDeepSeekV4ProModel("deepseek-v4-pro"), true);
   });
 
-  it("sends 0813 with thinking disabled and without the legacy alias", () => {
+  it("sends 0813 with the canonical non-thinking controls and without the legacy alias", () => {
     const adapted = adaptCheaperInferenceChatBody({
       model: "deepseek-v4-pro-0813",
       messages: [{ role: "user", content: "hello" }],
@@ -72,7 +72,7 @@ describe("DeepSeek V4 Pro 0813 canonicalization", () => {
     });
     assert.equal(adapted.model, "deepseek-v4-pro-0813");
     assert.deepEqual(adapted.thinking, { type: "disabled" });
-    assert.equal(adapted.reasoning_effort, undefined);
+    assert.equal(adapted.reasoning_effort, "none");
     assert.equal(adapted.model === "deepseek-v4-pro", false);
   });
 

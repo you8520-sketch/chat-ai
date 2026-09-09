@@ -67,11 +67,8 @@ export function resolveDeepSeekAdultHandoffTrueOff(input: {
   );
 }
 
-/**
- * Final adult-handoff outbound owner — runs after the generic DeepSeek adapter
- * so `reasoning_effort` is not deleted again.
- */
-export function applyDeepSeekAdultHandoffTrueOff(
+/** Canonical CheaperInference wire contract for DeepSeek V4 non-thinking mode. */
+function applyCheaperInferenceDeepSeekTrueOffPolicy(
   body: Record<string, unknown>
 ): Record<string, unknown> {
   const next = { ...body };
@@ -81,6 +78,16 @@ export function applyDeepSeekAdultHandoffTrueOff(
   next.thinking = { type: "disabled" };
   next.reasoning_effort = "none";
   return next;
+}
+
+/**
+ * Adult-handoff adds no second DeepSeek reasoning policy. It preserves the
+ * canonical TRUE-OFF controls while removing handoff-only foreign fields.
+ */
+export function applyDeepSeekAdultHandoffTrueOff(
+  body: Record<string, unknown>
+): Record<string, unknown> {
+  return applyCheaperInferenceDeepSeekTrueOffPolicy(body);
 }
 
 /**
@@ -104,9 +111,7 @@ export function applyCheaperInferenceModelReasoningPolicy(
     } else {
       adapted.model = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
     }
-    delete adapted.reasoning_effort;
-    adapted.thinking = { type: "disabled" };
-    return adapted;
+    return applyCheaperInferenceDeepSeekTrueOffPolicy(adapted);
   }
   if (isCheaperInferenceClaudeOpus5Model(model)) {
     adapted.thinking = { type: "disabled" };

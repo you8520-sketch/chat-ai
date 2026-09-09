@@ -112,8 +112,8 @@ describe("DeepSeek0813 adult-handoff TRUE-OFF P2", () => {
     });
     assert.deepEqual(native, nativeWithUnusedFlagOff);
     assert.deepEqual(native.thinking, { type: "disabled" });
-    assert.equal(native.reasoning_effort, undefined);
-    assert.equal("reasoning_effort" in native, false);
+    assert.equal(native.reasoning_effort, "none");
+    assert.equal("reasoning_effort" in native, true);
   });
 
   it("C — Gemini normal RP stays Gemini and does not receive DeepSeek TRUE-OFF", () => {
@@ -160,7 +160,7 @@ describe("DeepSeek0813 adult-handoff TRUE-OFF P2", () => {
     );
   });
 
-  it("E — frozen adult-handoff messages SHA is identical; only reasoning_effort is added", () => {
+  it("E — frozen adult-handoff messages SHA is identical; TRUE-OFF transport is identical", () => {
     const before = assemblePrimaryRpRequest({
       system: FROZEN_SYSTEM,
       history: FROZEN_HISTORY,
@@ -186,14 +186,10 @@ describe("DeepSeek0813 adult-handoff TRUE-OFF P2", () => {
     assert.deepEqual(before.requestBody.messages, after.requestBody.messages);
     const beforeKeys = Object.keys(before.requestBody).sort();
     const afterKeys = Object.keys(after.requestBody).sort();
-    assert.deepEqual(
-      beforeKeys.filter((k) => k !== "reasoning_effort"),
-      afterKeys.filter((k) => k !== "reasoning_effort")
-    );
-    assert.equal(before.requestBody.reasoning_effort, undefined);
+    assert.deepEqual(beforeKeys, afterKeys);
+    assert.equal(before.requestBody.reasoning_effort, "none");
     assert.equal(after.requestBody.reasoning_effort, "none");
     for (const key of beforeKeys) {
-      if (key === "reasoning_effort") continue;
       assert.deepEqual(before.requestBody[key], after.requestBody[key], key);
     }
     assert.deepEqual(transportKeys(after.requestBody), {

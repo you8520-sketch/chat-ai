@@ -258,6 +258,14 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.equal(result.telemetry.backup_success, false);
     assert.equal(result.telemetry.failover_trigger, null);
     assert.match(result.text, /안녕/);
+    assert.equal(
+      result.telemetry.primary_stream_observability?.requested_thinking_mode,
+      "disabled"
+    );
+    assert.equal(
+      result.telemetry.primary_stream_observability?.thinking_contract_violation,
+      false
+    );
   });
 
   it("P1a reasoning then content parts opens the first-visible gate once visible prose arrives", async () => {
@@ -414,7 +422,10 @@ describe("DeepSeek cross-provider failover owner", () => {
         );
       },
     });
-    assert.equal(result.telemetry.primary_failure_class, "first_visible_timeout");
+    assert.equal(
+      result.telemetry.primary_failure_class,
+      "reasoning_only_until_visible_deadline"
+    );
     assert.equal(result.telemetry.provider_attempt_count, 1);
     assert.equal(result.telemetry.backup_success, false);
     assert.equal(result.telemetry.failover_trigger, null);
@@ -446,7 +457,10 @@ describe("DeepSeek cross-provider failover owner", () => {
         );
       },
     });
-    assert.equal(result.telemetry.primary_failure_class, "first_visible_timeout");
+    assert.equal(
+      result.telemetry.primary_failure_class,
+      "reasoning_only_until_visible_deadline"
+    );
     assert.equal(requestSignal?.aborted, true, "timeout aborts the original provider fetch");
     assert.equal(requestAbortCount, 1, "timeout aborts the provider request exactly once");
     assert.equal(bodyCancelCount, 1, "timeout cancels the provider response reader exactly once");
@@ -456,6 +470,8 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.equal(trace.sse_event_count, 1);
     assert.equal(trace.visible_content_event_count, 0);
     assert.equal(trace.reasoning_event_count, 1);
+    assert.equal(trace.requested_thinking_mode, "disabled");
+    assert.equal(trace.thinking_contract_violation, true);
     assert.equal(trace.abort_called, true);
     assert.notEqual(trace.abort_at_ms, null);
   });
@@ -580,7 +596,10 @@ describe("DeepSeek cross-provider failover owner", () => {
       },
     });
     assert.equal(result.telemetry.route_kind, "adult_handoff");
-    assert.equal(result.telemetry.primary_failure_class, "first_visible_timeout");
+    assert.equal(
+      result.telemetry.primary_failure_class,
+      "reasoning_only_until_visible_deadline"
+    );
     assert.equal(result.telemetry.provider_attempt_count, 1);
     assert.equal(calls, 1);
   });
@@ -888,7 +907,10 @@ describe("F500 Cheaper Inference strict single external attempt", () => {
         );
       },
     });
-    assert.equal(result.telemetry.primary_failure_class, "first_visible_timeout");
+    assert.equal(
+      result.telemetry.primary_failure_class,
+      "reasoning_only_until_visible_deadline"
+    );
     assert.equal(result.telemetry.provider_attempt_count, 1);
     assert.equal(calls, 1);
   });

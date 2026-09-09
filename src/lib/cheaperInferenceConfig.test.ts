@@ -142,6 +142,7 @@ test("DeepSeek V4 Flash disables hidden reasoning on CheaperInference", () => {
     model: "deepseek-v4-flash-0731",
     messages: [{ role: "user", content: "hello" }],
     thinking: { type: "disabled" },
+    reasoning_effort: "none",
   });
   assert.deepEqual(
     adaptCheaperInferenceChatBody({
@@ -152,6 +153,7 @@ test("DeepSeek V4 Flash disables hidden reasoning on CheaperInference", () => {
       model: "deepseek-v4-flash-0731",
       messages: [{ role: "user", content: "hello" }],
       thinking: { type: "disabled" },
+      reasoning_effort: "none",
     }
   );
 });
@@ -167,6 +169,7 @@ test("DeepSeek V4 Pro uses the native non-thinking switch on CheaperInference", 
       model: "deepseek-v4-pro-0813",
       messages: [{ role: "user", content: "hello" }],
       thinking: { type: "disabled" },
+      reasoning_effort: "none",
     }
   );
 });
@@ -192,11 +195,11 @@ test("DeepSeek V4 Pro 0813 keeps thinking disabled and never sends the legacy id
   });
   assert.equal(adapted.model, "deepseek-v4-pro-0813");
   assert.deepEqual(adapted.thinking, { type: "disabled" });
-  assert.equal(adapted.reasoning_effort, undefined);
+  assert.equal(adapted.reasoning_effort, "none");
   assert.notEqual(adapted.model, "deepseek-v4-pro");
 });
 
-test("adult-handoff TRUE-OFF adds reasoning_effort none after the native DeepSeek adapter", () => {
+test("native and adult-handoff DeepSeek share the same TRUE-OFF wire contract", () => {
   const native = adaptCheaperInferenceChatBody({
     model: "deepseek-v4-pro-0813",
     messages: [{ role: "user", content: "hello" }],
@@ -217,7 +220,7 @@ test("adult-handoff TRUE-OFF adds reasoning_effort none after the native DeepSee
     { deepSeekAdultHandoffTrueOff: true }
   );
   assert.deepEqual(native.thinking, { type: "disabled" });
-  assert.equal(native.reasoning_effort, undefined);
+  assert.equal(native.reasoning_effort, "none");
   assert.equal(native.reasoning, undefined);
   assert.equal(native.include_reasoning, undefined);
   assert.deepEqual(handoff.thinking, { type: "disabled" });

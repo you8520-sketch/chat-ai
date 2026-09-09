@@ -109,6 +109,8 @@ export type DeepSeekFailoverTelemetry = {
 
 export type DeepSeekStreamObservability = {
   provider_request_id: string | null;
+  requested_thinking_mode: "disabled" | "enabled" | null;
+  thinking_contract_violation: boolean;
   first_raw_body_ms: number | null;
   raw_body_chunk_count: number;
   raw_body_bytes: number;
@@ -792,6 +794,7 @@ export async function executeDeepSeekWithProviderFailover(opts: {
       deadlineMs: firstVisibleDeadline,
       now,
       abortRequest: abortPrimaryRequest,
+      requestedThinkingMode: resolveRequestedThinkingMode(opts.primary.body),
     });
     telemetry.primary_stream_observability = gated.observability;
     if (gated.kind === "visible") {
@@ -958,6 +961,7 @@ async function runBackup(input: {
     deadlineMs: input.backupFirstVisibleDeadline,
     now: input.now,
     abortRequest,
+    requestedThinkingMode: resolveRequestedThinkingMode(input.opts.backupBody),
   });
   if (gated.kind === "visible") {
     input.telemetry.backup_first_visible_ms = gated.firstVisibleMs;
@@ -1086,6 +1090,7 @@ async function gateStreamFirstVisible(opts: {
   deadlineMs: number;
   now: () => number;
   abortRequest?: () => void;
+  requestedThinkingMode: DeepSeekStreamObservability["requested_thinking_mode"];
 }): Promise<
   | {
       kind: "visible";
@@ -1100,7 +1105,10 @@ async function gateStreamFirstVisible(opts: {
       observability: DeepSeekStreamObservability;
     }
 > {
-  const observability = createDeepSeekStreamObservability(opts.response.headers);
+  const observability = createDeepSeekStreamObservability(
+    opts.response.headers,
+    opts.requestedThinkingMode
+  );
   const body = opts.response.body;
   if (!body) {
     return {
@@ -1132,7 +1140,7 @@ async function gateStreamFirstVisible(opts: {
         return {
           kind: "failover",
           trigger: "first_visible_timeout",
-          failureClass: "first_visible_timeout",
+          failureClass: resolveFirstVisibleDeadlineFailureClass(observability),
           observability,
         };
       }
@@ -1142,7 +1150,7 @@ async function gateStreamFirstVisible(opts: {
         return {
           kind: "failover",
           trigger: "first_visible_timeout",
-          failureClass: "first_visible_timeout",
+          failureClass: resolveFirstVisibleDeadlineFailureClass(observability),
           observability,
         };
       }
@@ -1152,7 +1160,7 @@ async function gateStreamFirstVisible(opts: {
           return {
             kind: "failover",
             trigger: "first_visible_timeout",
-            failureClass: "first_visible_timeout",
+            failureClass: resolveFirstVisibleDeadlineFailureClass(observability),
             observability,
           };
         }
@@ -1226,12 +1234,26 @@ async function gateStreamFirstVisible(opts: {
   };
 }
 
-function createDeepSeekStreamObservability(headers: Headers): DeepSeekStreamObservability {
+function resolveRequestedThinkingMode(
+  body: Record<string, unknown>
+): DeepSeekStreamObservability["requested_thinking_mode"] {
+  const thinking = body.thinking;
+  if (!thinking || typeof thinking !== "object") return null;
+  const type = (thinking as { type?: unknown }).type;
+  return type === "disabled" || type === "enabled" ? type : null;
+}
+
+function createDeepSeekStreamObservability(
+  headers: Headers,
+  requestedThinkingMode: DeepSeekStreamObservability["requested_thinking_mode"]
+): DeepSeekStreamObservability {
   return {
     provider_request_id:
       headers.get("x-ci-request-id") ??
       headers.get("x-cheaper-inference-request-id") ??
       null,
+    requested_thinking_mode: requestedThinkingMode,
+    thinking_contract_violation: false,
     first_raw_body_ms: null,
     raw_body_chunk_count: 0,
     raw_body_bytes: 0,
@@ -1273,6 +1295,9 @@ function observeDeepSeekSseLine(
     if (reasoning) {
       observability.reasoning_event_count += 1;
       observability.reasoning_chars += reasoning.length;
+      if (observability.requested_thinking_mode === "disabled") {
+        observability.thinking_contract_violation = true;
+      }
     }
     const delta =
       choice && typeof choice === "object"
@@ -1286,6 +1311,16 @@ function observeDeepSeekSseLine(
     observability.sse_json_parse_failure_count += 1;
     return 0;
   }
+}
+
+function resolveFirstVisibleDeadlineFailureClass(
+  observability: DeepSeekStreamObservability
+): "first_visible_timeout" | "reasoning_only_until_visible_deadline" {
+  return observability.raw_body_chunk_count > 0 &&
+    observability.reasoning_event_count > 0 &&
+    observability.visible_content_event_count === 0
+    ? "reasoning_only_until_visible_deadline"
+    : "first_visible_timeout";
 }
 
 function observeDeepSeekSseBuffer(
