@@ -183,6 +183,7 @@ import {
   isChatLiveReadingActive,
   resolveActiveAssistantStreamEnd,
   resolveChatFollowResize,
+  resolveChatLiveFollowMotionProfile,
   resolveFollowBeforeStream,
   shouldIgnoreChatLiveFollowScrollForDetach,
   shouldRecordChatManualDetachOnScrollDelta,
@@ -2312,9 +2313,15 @@ export default function ChatClient({
       scrollBy: (delta) => {
         const testWindow = window as Window & {
           __chatTestDropFractionalIntent?: boolean;
+          __chatTestDropChaseIntentPx?: number;
         };
-        // Test-only mutation hook; production never sets this window flag.
-        if (testWindow.__chatTestDropFractionalIntent && Math.abs(delta) < 1) return;
+        // Test-only mutation hook; production never sets these window flags.
+        if (
+          testWindow.__chatTestDropFractionalIntent &&
+          Math.abs(delta) < (testWindow.__chatTestDropChaseIntentPx ?? 1)
+        ) {
+          return;
+        }
         if (integerTransport.apply(delta) === 0) return;
         liveFollowScrollInFlightRef.current = true;
         requestAnimationFrame(() => {
@@ -2334,12 +2341,12 @@ export default function ChatClient({
         }) && isChatLiveReadingActiveNow(),
       isContentGrowing: () =>
         visualRevealPendingCountRef.current > 0 || loading || inFlightRef.current,
-      motionProfile: { mode: "continuous-flow" },
-      getMotionProfile: () => ({
-        mode: "continuous-flow" as const,
-        streamIntervalMs: displayPrefsRef.current.streamIntervalMs,
-        streamCharsPerTick: displayPrefsRef.current.streamCharsPerTick,
-      }),
+      // Reuse the shared stepwise target chase; line-level canvas growth starts it.
+      getMotionProfile: () =>
+        resolveChatLiveFollowMotionProfile({
+          streamIntervalMs: displayPrefsRef.current.streamIntervalMs,
+          streamCharsPerTick: displayPrefsRef.current.streamCharsPerTick,
+        }),
     });
     return () => {
       liveFollowAnimatorRef.current?.stop();

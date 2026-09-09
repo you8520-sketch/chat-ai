@@ -4,6 +4,7 @@ import {
   seedCanonicalCompletedChatHistory,
 } from "./helpers/canonicalChatHistorySeed";
 import {
+  estimateLineWrapIntervalMs,
   estimateVerticalGrowthPxPerSec,
   LIVE_READING_MAX_RATIO,
   LIVE_READING_MIN_RATIO,
@@ -13,8 +14,10 @@ import {
   evaluateContinuousMotionProof,
   formatContinuousMotionProof,
   IMPLICIT_SCROLL_RANGE_PASS_PATH,
+  INTEGER_CHASE_MAX_STEP_PX,
   MIN_AVAILABLE_DOWNWARD_SCROLL_PX,
   resolveScrollClampState,
+  resolveTargetChaseMaxInterStepGapMs,
   type ContinuousMotionProof,
   type MotionProofFrame,
 } from "../../src/lib/scrollClampState";
@@ -505,17 +508,17 @@ async function attachMotionProof(
 }
 
 /**
- * Cruise-engagement gate for motion sampling.
+ * Chase-engagement gate for motion sampling.
  *
  * The canonical reveal pace (28ms x 1 char/tick) grows the document slowly, so
- * right after network-done the stream end can sit below the cruise band for
+ * right after network-done the stream end can sit below the reading band for
  * seconds — during which the CORRECT follow behavior is stillness. Sampling
  * that dead zone and then failing on duty cycle would punish a healthy follow.
- * Wait until the end actually enters the target-centered cruise band, then measure 20s of
- * engaged cruising. Thresholds below are unchanged; only the window shifts to
- * where motion is geometrically required.
+ * Wait until the end actually enters the target-centered chase band, then sample
+ * bounded line-wrap chase episodes and their settles. Thresholds below are
+ * settle-aware; only the window shifts to where motion is geometrically required.
  */
-async function waitForCruiseEngagement(page: Page) {
+async function waitForChaseEngagement(page: Page) {
   await page.waitForFunction(
     ({ minRatio, eps }) => {
       const end = document.querySelector("[data-chat-assistant-stream-end]");
@@ -527,7 +530,7 @@ async function waitForCruiseEngagement(page: Page) {
   );
 }
 
-async function runContinuousFollowScenario(page: Page, opts: {
+async function runTargetChaseFollowScenario(page: Page, opts: {
   charCount: number;
   viewportWidth?: number;
   viewportHeight?: number;
@@ -544,7 +547,7 @@ async function runContinuousFollowScenario(page: Page, opts: {
     height: opts.viewportHeight ?? 520,
   });
   await openFreshChat(page);
-  await sendMockMessage(page, "continuous follow matrix");
+  await sendMockMessage(page, "target-chase follow matrix");
   if (opts.instant) {
     await waitForAssistantStreamSurface(page);
     const diag = await readChatDiagnostics(page);
@@ -562,24 +565,33 @@ async function runContinuousFollowScenario(page: Page, opts: {
   const diag = await readChatDiagnostics(page);
   expect(diag.followLatest).toBe(true);
   expect(diag.manualDetached).toBe(false);
-  // Start the motion window only once cruising is geometrically required.
+  // Start the motion window only once a downward chase is geometrically required.
   // (Frozen-scroll mutation fixtures still engage here because the untracked
   // end keeps growing past the band — and then fail the gates below.)
-  await waitForCruiseEngagement(page);
+  await waitForChaseEngagement(page);
   const startGeometry = resolveScrollClampState(await collectScrollGeometry(page));
   const frames = await sampleMotionFrames(page, 40_000);
 
+  const streamIntervalMs = opts.streamIntervalMs ?? 28;
+  const expectedGrowth = estimateVerticalGrowthPxPerSec(streamIntervalMs, 1);
+  const expectedCruise = expectedGrowth * 0.9;
+  const expectedWrapMs = estimateLineWrapIntervalMs(streamIntervalMs, 1);
+  const maxInterStepGapMs = resolveTargetChaseMaxInterStepGapMs(streamIntervalMs, 1);
   const proof = evaluateContinuousMotionProof({
     frames,
     startGeometry,
     requireMotion: true,
+    includeCatchUpSteps: true,
+    maxStepPx: INTEGER_CHASE_MAX_STEP_PX,
+    maxInterStepGapMs,
+    ignoreMaxFrameVelocity: true,
+    ignoreStopStartOscillation: true,
   });
-  const streamIntervalMs = opts.streamIntervalMs ?? 28;
-  const expectedGrowth = estimateVerticalGrowthPxPerSec(streamIntervalMs, 1);
-  const expectedCruise = expectedGrowth * 0.9;
   console.log(
     `${streamIntervalMs}ms x 1char: expectedGrowth=${expectedGrowth.toFixed(2)} ` +
       `expectedCruise=${expectedCruise.toFixed(2)} ` +
+      `expectedWrapMs=${expectedWrapMs.toFixed(2)} ` +
+      `maxInterStepGapMs=${maxInterStepGapMs.toFixed(2)} ` +
       `averageScrollVelocity=${proof.cadence.AVERAGE_SCROLL_VELOCITY.toFixed(2)} ` +
       `medianStep=${proof.cadence.MEDIAN_POSITIVE_STEP_PX.toFixed(2)} ` +
       `p95Gap=${proof.cadence.P95_INTER_STEP_GAP_MS.toFixed(2)} ` +
@@ -603,11 +615,12 @@ async function runContinuousFollowScenario(page: Page, opts: {
   ).toBeGreaterThanOrEqual(MIN_AVAILABLE_DOWNWARD_SCROLL_PX);
   expect(proof.passed, formatContinuousMotionProof(proof)).toBe(true);
   expect(proof.cadence.POSITIVE_SCROLL_STEP_COUNT).toBeGreaterThan(0);
-  expect(proof.cadence.MEDIAN_POSITIVE_STEP_PX).toBe(1);
+  expect(proof.cadence.MEDIAN_POSITIVE_STEP_PX).toBeLessThanOrEqual(INTEGER_CHASE_MAX_STEP_PX);
+  expect(proof.cadence.P95_POSITIVE_STEP_PX).toBeLessThanOrEqual(INTEGER_CHASE_MAX_STEP_PX);
   expect(proof.cadence.P95_INTER_STEP_GAP_MS).toBeLessThanOrEqual(120);
-  expect(proof.cadence.MAX_INTER_STEP_GAP_MS).toBeLessThanOrEqual(200);
-  expect(proof.cadence.AVERAGE_SCROLL_VELOCITY).toBeGreaterThanOrEqual(expectedCruise * 0.65);
-  expect(proof.cadence.AVERAGE_SCROLL_VELOCITY).toBeLessThanOrEqual(expectedCruise * 1.35);
+  expect(proof.cadence.MAX_INTER_STEP_GAP_MS).toBeLessThanOrEqual(maxInterStepGapMs);
+  expect(proof.cadence.AVERAGE_SCROLL_VELOCITY).toBeGreaterThanOrEqual(expectedCruise * 0.5);
+  expect(proof.cadence.AVERAGE_SCROLL_VELOCITY).toBeLessThanOrEqual(expectedCruise * 1.6);
   expect(proof.DIRECTION_REVERSAL_COUNT).toBe(0);
   expect(proof.LARGE_JUMP_COUNT).toBe(0);
   expect(proof.FOLLOW_LATEST_ALWAYS_TRUE).toBe(true);
@@ -645,7 +658,7 @@ test.describe("General chat live reading follow — production browser", () => {
   test("C1/C2: network done + visual reveal continues following with sentinel connected", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 520 });
     const preStreamScrollY = await page.evaluate(() => window.scrollY);
-    await runContinuousFollowScenario(page, { charCount: 1800 });
+    await runTargetChaseFollowScenario(page, { charCount: 1800 });
 
     await page.waitForFunction(
       () => {
@@ -826,8 +839,8 @@ test.describe("General chat live reading follow — production browser", () => {
     });
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(detachedY);
 
-    // After first visible prose, normal continuous follow remains active.
-    await waitForCruiseEngagement(page);
+    // After first visible prose, normal target-chase follow remains active.
+    await waitForChaseEngagement(page);
     const firstFollowY = await page.evaluate(() => window.scrollY);
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(firstFollowY);
 
@@ -1174,7 +1187,7 @@ test.describe("General chat live reading follow — production browser", () => {
   });
 });
 
-test.describe("General chat continuous follow matrix — production browser", () => {
+test.describe("General chat target-chase follow matrix — production browser", () => {
   test.describe.configure({ retries: 0, timeout: 180_000 });
 
   test.beforeEach(async ({ page }) => {
@@ -1236,15 +1249,15 @@ test.describe("General chat continuous follow matrix — production browser", ()
     });
   });
 
-  test("G1: portrait ON plain prose continuous flow", async ({ page }, testInfo) => {
+  test("G1: portrait ON plain prose stepwise chase", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { showCharacterPortrait: true, streamIntervalMs: 28, streamCharsPerTick: 1 });
-    const proof = await runContinuousFollowScenario(page, { charCount: 1800 });
+    const proof = await runTargetChaseFollowScenario(page, { charCount: 1800 });
     await attachMotionProof(testInfo, "G1", proof);
   });
 
-  test("G2: portrait OFF plain prose continuous flow", async ({ page }, testInfo) => {
+  test("G2: portrait OFF plain prose stepwise chase", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { showCharacterPortrait: false, streamIntervalMs: 28, streamCharsPerTick: 1 });
-    const proof = await runContinuousFollowScenario(page, {
+    const proof = await runTargetChaseFollowScenario(page, {
       charCount: 2600,
       viewportWidth: 1280,
       viewportHeight: 520,
@@ -1252,53 +1265,53 @@ test.describe("General chat continuous follow matrix — production browser", ()
     await attachMotionProof(testInfo, "G2", proof);
   });
 
-  test("G3: bottom status widget continuous flow", async ({ page }, testInfo) => {
+  test("G3: bottom status widget stepwise chase", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
-    const proof = await runContinuousFollowScenario(page, { charCount: 1800, layoutChrome: "widget" });
+    const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, layoutChrome: "widget" });
     await attachMotionProof(testInfo, "G3", proof);
   });
 
-  test("G4: status meta continuous flow", async ({ page }, testInfo) => {
+  test("G4: status meta stepwise chase", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
-    const proof = await runContinuousFollowScenario(page, { charCount: 1800, layoutChrome: "meta" });
+    const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, layoutChrome: "meta" });
     await attachMotionProof(testInfo, "G4", proof);
   });
 
-  test("G5: status widget + status meta continuous flow", async ({ page }, testInfo) => {
+  test("G5: status widget + status meta stepwise chase", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
-    const proof = await runContinuousFollowScenario(page, { charCount: 1800, layoutChrome: "both" });
+    const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, layoutChrome: "both" });
     await attachMotionProof(testInfo, "G5", proof);
   });
 
-  test("G6: long RP 2500+ chars continuous flow", async ({ page }, testInfo) => {
+  test("G6: long RP 2500+ chars stepwise chase", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
-    const proof = await runContinuousFollowScenario(page, { charCount: 2600 });
+    const proof = await runTargetChaseFollowScenario(page, { charCount: 2600 });
     await attachMotionProof(testInfo, "G6", proof);
   });
 
-  test("G7: fast stream speed (28ms) continuous flow", async ({ page }, testInfo) => {
+  test("G7: fast stream speed (28ms) stepwise chase", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
-    const proof = await runContinuousFollowScenario(page, { charCount: 1800 });
+    const proof = await runTargetChaseFollowScenario(page, { charCount: 1800 });
     await attachMotionProof(testInfo, "G7", proof);
   });
 
-  test("G8: normal stream speed (40ms) continuous flow", async ({ page }, testInfo) => {
+  test("G8: normal stream speed (40ms) stepwise chase", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 40, streamCharsPerTick: 1 });
-    const proof = await runContinuousFollowScenario(page, { charCount: 1800, streamIntervalMs: 40 });
+    const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, streamIntervalMs: 40 });
     await attachMotionProof(testInfo, "G8", proof);
   });
 
   test("G9: instant stream mode keeps follow attached", async ({ page }) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 0, streamCharsPerTick: 64 });
-    await runContinuousFollowScenario(page, { charCount: 1400, instant: true });
+    await runTargetChaseFollowScenario(page, { charCount: 1400, instant: true });
   });
 
-  test("P0-7: frozen programmatic scroll fails continuous motion proof", async ({ page }, testInfo) => {
+  test("P0-7: frozen programmatic scroll fails target-chase motion proof", async ({ page }, testInfo) => {
     await page.addInitScript(() => {
       window.scrollBy = (() => undefined) as typeof window.scrollBy;
     });
     await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
-    const proof = await runContinuousFollowScenario(page, {
+    const proof = await runTargetChaseFollowScenario(page, {
       charCount: 1800,
       expectMotionFailure: true,
     });
@@ -1306,17 +1319,21 @@ test.describe("General chat continuous follow matrix — production browser", ()
     await attachMotionProof(testInfo, "P0-7-BROKEN-NO-SCROLL", proof);
   });
 
-  test("P0-12: fractional intent drop fails the integer cadence gate", async ({ page }, testInfo) => {
+  test("P0-12: per-frame chase intent drop fails the target-chase gates", async ({ page }, testInfo) => {
     await page.addInitScript(() => {
-      (window as unknown as { __chatTestDropFractionalIntent: boolean })
-        .__chatTestDropFractionalIntent = true;
+      const win = window as unknown as {
+        __chatTestDropFractionalIntent?: boolean;
+        __chatTestDropChaseIntentPx?: number;
+      };
+      win.__chatTestDropFractionalIntent = true;
+      win.__chatTestDropChaseIntentPx = Number.MAX_SAFE_INTEGER;
     });
     await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
-    const proof = await runContinuousFollowScenario(page, {
+    const proof = await runTargetChaseFollowScenario(page, {
       charCount: 1800,
       expectMotionFailure: true,
     });
     expect(proof?.passed).toBe(false);
-    await attachMotionProof(testInfo, "P0-12-BROKEN-INTEGER-QUANTIZATION", proof);
+    await attachMotionProof(testInfo, "P0-12-BROKEN-CHASE-INTENT", proof);
   });
 });

@@ -270,7 +270,7 @@ describe("chat live follow owner map", () => {
   });
 });
 
-describe("chat continuous follow motion (shared engine)", () => {
+describe("chat target-chase motion (shared engine)", () => {
   it("C2/C3/C4: velocity-limited chase without per-line full delta jumps", () => {
     let scrollY = 0;
     let endTop = 900;

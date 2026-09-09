@@ -3,10 +3,12 @@ import { describe, it } from "node:test";
 import {
   evaluateContinuousMotionProof,
   IMPLICIT_SCROLL_RANGE_PASS_PATH,
+  INTEGER_CHASE_MAX_STEP_PX,
   MIN_AVAILABLE_DOWNWARD_SCROLL_PX,
   MIN_MEANINGFUL_SCROLL_RANGE_PX,
   measureIntegerScrollCadence,
   resolveScrollClampState,
+  resolveTargetChaseMaxInterStepGapMs,
   type MotionProofFrame,
 } from "./scrollClampState";
 
@@ -137,6 +139,51 @@ describe("scrollClampState motion proof", () => {
     });
     assert.equal(proof.passed, false);
     assert.equal(proof.classification, "FIXTURE_NOT_SCROLLABLE");
+  });
+
+  it("bounds a stepwise line-wrap settle by the canonical wrap interval", () => {
+    assert.equal(resolveTargetChaseMaxInterStepGapMs(28, 1).toFixed(3), "2483.714");
+    assert.equal(resolveTargetChaseMaxInterStepGapMs(40, 1).toFixed(3), "3365.714");
+
+    const frames: MotionProofFrame[] = [{ t: 0, scrollY: 0, remainingDelta: 26 }];
+    let t = 0;
+    let scrollY = 0;
+    for (let step = 0; step < 13; step += 1) {
+      t += 16;
+      scrollY += 2;
+      frames.push({ t, scrollY, remainingDelta: 26 - scrollY });
+    }
+    // One line-wrap settle separates the next bounded chase episode.
+    t += 1176;
+    for (let step = 0; step < 13; step += 1) {
+      t += 16;
+      scrollY += 2;
+      frames.push({ t, scrollY, remainingDelta: 52 - scrollY });
+    }
+    for (let settled = 0; settled < 5; settled += 1) {
+      t += 16;
+      frames.push({ t, scrollY, remainingDelta: 0 });
+    }
+    const startGeometry = resolveScrollClampState({
+      scrollHeight: 2400,
+      innerHeight: 520,
+      scrollY: 0,
+      endTop: 520 * 0.63 + 26,
+    });
+    const proof = evaluateContinuousMotionProof({
+      frames,
+      startGeometry,
+      requireMotion: true,
+      includeCatchUpSteps: true,
+      maxStepPx: INTEGER_CHASE_MAX_STEP_PX,
+      maxInterStepGapMs: resolveTargetChaseMaxInterStepGapMs(28, 1),
+    });
+
+    assert.equal(proof.passed, true, proof.reasons.join(","));
+    assert.equal(proof.cadence.POSITIVE_SCROLL_STEP_COUNT, 26);
+    assert.equal(proof.cadence.MAX_INTER_STEP_GAP_MS, 1192);
+    assert.equal(proof.DIRECTION_REVERSAL_COUNT, 0);
+    assert.equal(proof.LARGE_JUMP_COUNT, 0);
   });
 
   it("passes a healthy continuous downward chase", () => {

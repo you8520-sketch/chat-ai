@@ -7,10 +7,32 @@
  * - CHAT_JUMP_TO_LATEST_OWNER: scrollToBottom / discrete reattach on explicit user action
  */
 
-import { LIVE_READING_TARGET_RATIO } from "./liveReadingFollow";
+import { LIVE_READING_TARGET_RATIO, type LiveReadingMotionProfile } from "./liveReadingFollow";
 
 export const CHAT_ASSISTANT_STREAM_END_SELECTOR = "[data-chat-assistant-stream-end]";
 export const CHAT_LIVE_FOLLOW_TARGET_RATIO = LIVE_READING_TARGET_RATIO;
+
+export type ChatLiveFollowMotionPrefs = {
+  streamIntervalMs: number;
+  streamCharsPerTick: number;
+};
+
+/**
+ * Canonical general-chat motion profile. This reuses the shared controller’s
+ * stepwise target-chase semantics, without reveal-paced continuous cruise.
+ * The unchanged stream values preserve the production reveal preference for
+ * diagnostics; only rendered target changes may start a chase episode.
+ */
+export function resolveChatLiveFollowMotionProfile(
+  prefs: ChatLiveFollowMotionPrefs
+): LiveReadingMotionProfile {
+  return {
+    mode: "stepwise-chase",
+    streamIntervalMs: prefs.streamIntervalMs,
+    streamCharsPerTick: prefs.streamCharsPerTick,
+    downwardOnly: true,
+  };
+}
 
 /** Single owner for whether chat live-reading follow should be active. */
 export function isChatLiveReadingActive(opts: {

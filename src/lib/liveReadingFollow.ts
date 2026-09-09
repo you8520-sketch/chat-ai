@@ -32,6 +32,8 @@ export type LiveReadingMotionProfile = {
   streamIntervalMs?: number;
   /** Chars revealed per stream tick for natural cruise calibration. */
   streamCharsPerTick?: number;
+  /** Prevent programmatic upward corrections; general chat never ping-pongs. */
+  downwardOnly?: boolean;
 };
 
 export type MotionSample = {
@@ -470,12 +472,14 @@ export function createLiveReadingFollowController(opts: {
     });
 
     let step = 0;
+    const downwardOnly = profile?.downwardOnly === true;
+    const chaseDelta = downwardOnly && delta < 0 ? 0 : delta;
 
-    if (delta > 0) {
+    if (chaseDelta > 0) {
       step = reducedMotion()
-        ? delta
+        ? chaseDelta
         : computeLiveFollowFrameStep({
-            remainingDeltaPx: delta,
+            remainingDeltaPx: chaseDelta,
             dtSec,
             viewportHeight,
             baseSpeedPxPerSec: opts.baseSpeedPxPerSec,
@@ -509,7 +513,7 @@ export function createLiveReadingFollowController(opts: {
       return;
     }
 
-    if (delta === 0) {
+    if (chaseDelta === 0) {
       resetMotionState();
       return;
     }
