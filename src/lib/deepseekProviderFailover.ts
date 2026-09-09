@@ -87,10 +87,13 @@ export type DeepSeekFailoverTrigger =
 export type DeepSeekProviderId = "cheaperinference" | "openrouter";
 
 export type DeepSeekFailoverTelemetry = {
+  /** Application request id, when the Main RP caller supplied one. */
+  our_request_id?: string;
   logical_model: string;
   route_kind: DeepSeekRouteKind;
   primary_provider: "cheaperinference";
-  backup_provider: "openrouter";
+  /** Null for Main RP: alternate-provider routing is forbidden there. */
+  backup_provider: "openrouter" | null;
   primary_failure_class: string | null;
   primary_http_status: number | null;
   primary_headers_ms: number | null;
@@ -100,6 +103,26 @@ export type DeepSeekFailoverTelemetry = {
   backup_first_visible_ms: number | null;
   backup_success: boolean;
   provider_attempt_count: number;
+  /** Metadata only: prompt and generated prose are never retained here. */
+  primary_stream_observability?: DeepSeekStreamObservability;
+};
+
+export type DeepSeekStreamObservability = {
+  provider_request_id: string | null;
+  first_raw_body_ms: number | null;
+  raw_body_chunk_count: number;
+  raw_body_bytes: number;
+  sse_event_count: number;
+  sse_json_parse_success_count: number;
+  sse_json_parse_failure_count: number;
+  visible_content_event_count: number;
+  visible_content_chars: number;
+  reasoning_event_count: number;
+  reasoning_chars: number;
+  unknown_delta_event_count: number;
+  first_visible_ms: number | null;
+  abort_called: boolean;
+  abort_at_ms: number | null;
 };
 
 export type DeepSeekProviderTransport = {
@@ -496,6 +519,7 @@ export function logDeepSeekFailoverTelemetry(
   telemetry: DeepSeekFailoverTelemetry
 ): void {
   console.info("[deepseek-provider-failover]", {
+    our_request_id: telemetry.our_request_id ?? null,
     logical_model: telemetry.logical_model,
     route_kind: telemetry.route_kind,
     primary_provider: telemetry.primary_provider,
@@ -509,6 +533,7 @@ export function logDeepSeekFailoverTelemetry(
     backup_first_visible_ms: telemetry.backup_first_visible_ms,
     backup_success: telemetry.backup_success,
     provider_attempt_count: telemetry.provider_attempt_count,
+    primary_stream_observability: telemetry.primary_stream_observability,
   });
 }
 
@@ -526,6 +551,8 @@ export async function executeDeepSeekWithProviderFailover(opts: {
   primary: DeepSeekAssembledRequest;
   backupBody: Record<string, unknown>;
   stream: boolean;
+  /** Correlates metadata-only provider telemetry with the application request. */
+  ourRequestId?: string;
   deadlines?: DeepSeekFailoverDeadlines;
   hooks?: DeepSeekFailoverHooks;
 }): Promise<{
@@ -536,10 +563,11 @@ export async function executeDeepSeekWithProviderFailover(opts: {
   const logicalModelId = resolveDeepSeekPrimaryModelId(opts.logicalModel);
   const backupAllowed = opts.routeKind === "background_flash";
   const telemetry: DeepSeekFailoverTelemetry = {
+    ...(opts.ourRequestId ? { our_request_id: opts.ourRequestId } : {}),
     logical_model: logicalModelId,
     route_kind: opts.routeKind,
     primary_provider: "cheaperinference",
-    backup_provider: "openrouter",
+    backup_provider: backupAllowed ? "openrouter" : null,
     primary_failure_class: null,
     primary_http_status: null,
     primary_headers_ms: null,
@@ -765,6 +793,7 @@ export async function executeDeepSeekWithProviderFailover(opts: {
       now,
       abortRequest: abortPrimaryRequest,
     });
+    telemetry.primary_stream_observability = gated.observability;
     if (gated.kind === "visible") {
       telemetry.primary_first_visible_ms = gated.firstVisibleMs;
       return finish(gated.response, "cheaperinference");
@@ -1058,27 +1087,40 @@ async function gateStreamFirstVisible(opts: {
   now: () => number;
   abortRequest?: () => void;
 }): Promise<
-  | { kind: "visible"; response: Response; firstVisibleMs: number }
+  | {
+      kind: "visible";
+      response: Response;
+      firstVisibleMs: number;
+      observability: DeepSeekStreamObservability;
+    }
   | {
       kind: "failover";
       trigger: Exclude<DeepSeekFailoverTrigger, null>;
       failureClass: string;
+      observability: DeepSeekStreamObservability;
     }
 > {
+  const observability = createDeepSeekStreamObservability(opts.response.headers);
   const body = opts.response.body;
   if (!body) {
     return {
       kind: "failover",
       trigger: "error",
       failureClass: "empty_body",
+      observability,
     };
   }
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let observabilityBuffer = "";
   const prefixChunks: Uint8Array[] = [];
   let visibleChars = 0;
   const abortAndCancel = async () => {
+    if (!observability.abort_called) {
+      observability.abort_called = true;
+      observability.abort_at_ms = Math.max(0, opts.now() - opts.fetchStartedAt);
+    }
     opts.abortRequest?.();
     await cancelQuietly(reader);
   };
@@ -1091,6 +1133,7 @@ async function gateStreamFirstVisible(opts: {
           kind: "failover",
           trigger: "first_visible_timeout",
           failureClass: "first_visible_timeout",
+          observability,
         };
       }
       const chunk = await readWithDeadline(reader, remaining);
@@ -1100,6 +1143,7 @@ async function gateStreamFirstVisible(opts: {
           kind: "failover",
           trigger: "first_visible_timeout",
           failureClass: "first_visible_timeout",
+          observability,
         };
       }
       if (chunk.kind === "done") {
@@ -1109,13 +1153,33 @@ async function gateStreamFirstVisible(opts: {
             kind: "failover",
             trigger: "first_visible_timeout",
             failureClass: "first_visible_timeout",
+            observability,
           };
         }
         break;
       }
       prefixChunks.push(chunk.value);
-      buffer += decoder.decode(chunk.value, { stream: true });
+      observability.raw_body_chunk_count += 1;
+      observability.raw_body_bytes += chunk.value.byteLength;
+      if (observability.first_raw_body_ms == null) {
+        observability.first_raw_body_ms = Math.max(0, opts.now() - opts.fetchStartedAt);
+      }
+      const decoded = decoder.decode(chunk.value, { stream: true });
+      // Keep the pre-observability detector as the sole delivery owner. It
+      // intentionally parses any complete JSON currently accumulated, even
+      // before the provider emits the SSE line terminator.
+      buffer += decoded;
       visibleChars += countVisibleAssistantChars(buffer);
+
+      // Observation is passive and line-oriented. A complete JSON payload in
+      // an unterminated trailing line is safe to account once; an incomplete
+      // payload remains buffered until the next chunk completes it.
+      observabilityBuffer += decoded;
+      observabilityBuffer = observeDeepSeekSseBuffer(
+        observabilityBuffer,
+        observability,
+        () => Math.max(0, opts.now() - opts.fetchStartedAt)
+      );
     }
   } catch (error) {
     await abortAndCancel();
@@ -1125,6 +1189,7 @@ async function gateStreamFirstVisible(opts: {
       kind: "failover",
       trigger: "error",
       failureClass: classified.failureClass,
+      observability,
     };
   }
 
@@ -1152,12 +1217,103 @@ async function gateStreamFirstVisible(opts: {
   return {
     kind: "visible",
     firstVisibleMs: Math.max(0, opts.now() - opts.fetchStartedAt),
+    observability,
     response: new Response(stream, {
       status: opts.response.status,
       statusText: opts.response.statusText,
       headers: opts.response.headers,
     }),
   };
+}
+
+function createDeepSeekStreamObservability(headers: Headers): DeepSeekStreamObservability {
+  return {
+    provider_request_id:
+      headers.get("x-ci-request-id") ??
+      headers.get("x-cheaper-inference-request-id") ??
+      null,
+    first_raw_body_ms: null,
+    raw_body_chunk_count: 0,
+    raw_body_bytes: 0,
+    sse_event_count: 0,
+    sse_json_parse_success_count: 0,
+    sse_json_parse_failure_count: 0,
+    visible_content_event_count: 0,
+    visible_content_chars: 0,
+    reasoning_event_count: 0,
+    reasoning_chars: 0,
+    unknown_delta_event_count: 0,
+    first_visible_ms: null,
+    abort_called: false,
+    abort_at_ms: null,
+  };
+}
+
+function observeDeepSeekSseLine(
+  line: string,
+  observability: DeepSeekStreamObservability,
+  elapsedMs: () => number
+): number {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("data:")) return 0;
+  const payload = trimmed.slice(5).trim();
+  if (!payload || payload === "[DONE]") return 0;
+  observability.sse_event_count += 1;
+  try {
+    const json = JSON.parse(payload) as Record<string, unknown>;
+    observability.sse_json_parse_success_count += 1;
+    const choice = Array.isArray(json.choices) ? json.choices[0] : undefined;
+    const visible = extractVisibleAssistantDeltaFromSseJson(json);
+    const reasoning = extractReasoningAssistantDeltaFromSseJson(json);
+    if (visible) {
+      observability.visible_content_event_count += 1;
+      observability.visible_content_chars += visible.length;
+      if (observability.first_visible_ms == null) observability.first_visible_ms = elapsedMs();
+    }
+    if (reasoning) {
+      observability.reasoning_event_count += 1;
+      observability.reasoning_chars += reasoning.length;
+    }
+    const delta =
+      choice && typeof choice === "object"
+        ? (choice as { delta?: unknown }).delta
+        : undefined;
+    if (delta && typeof delta === "object" && !visible && !reasoning) {
+      observability.unknown_delta_event_count += 1;
+    }
+    return visible.length;
+  } catch {
+    observability.sse_json_parse_failure_count += 1;
+    return 0;
+  }
+}
+
+function observeDeepSeekSseBuffer(
+  buffer: string,
+  observability: DeepSeekStreamObservability,
+  elapsedMs: () => number
+): string {
+  const lines = buffer.split(/\r?\n/);
+  let trailing = lines.pop() ?? "";
+  for (const line of lines) observeDeepSeekSseLine(line, observability, elapsedMs);
+
+  // The canonical gate accepts a complete JSON payload without a trailing
+  // newline. Mirror that payload in the passive counters without making the
+  // observer responsible for delivery.
+  const trimmed = trailing.trim();
+  if (trimmed.startsWith("data:")) {
+    const payload = trimmed.slice(5).trim();
+    if (payload && payload !== "[DONE]") {
+      try {
+        JSON.parse(payload);
+        observeDeepSeekSseLine(trailing, observability, elapsedMs);
+        trailing = "";
+      } catch {
+        /* retain an incomplete payload until a later chunk completes it */
+      }
+    }
+  }
+  return trailing;
 }
 
 function countVisibleAssistantChars(buffer: string): number {
@@ -1174,6 +1330,16 @@ function countVisibleAssistantChars(buffer: string): number {
     }
   }
   return visible;
+}
+
+function extractReasoningAssistantDeltaFromSseJson(json: unknown): string {
+  if (!json || typeof json !== "object") return "";
+  const choice = (json as { choices?: Array<{ delta?: Record<string, unknown> }> }).choices?.[0];
+  const delta = choice?.delta;
+  if (!delta) return "";
+  return ["reasoning", "reasoning_content", "thought"]
+    .map((key) => extractVisibleAssistantText(delta[key]))
+    .join("");
 }
 
 async function readWithDeadline(

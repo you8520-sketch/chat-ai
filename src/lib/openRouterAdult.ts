@@ -514,6 +514,8 @@ export function buildAdultSystemPrompt(baseSystem: string, opts?: AdultSystemPro
 }
 
 export type OpenRouterMessageOpts = {
+  /** Application request id for metadata-only provider stream correlation. */
+  requestId?: string;
   /** @deprecated OpenRouter는 항상 system[0] + user/assistant history 구조 사용 */
   novelMode?: boolean;
   charName?: string;
@@ -1357,6 +1359,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
             resolveDeepSeekBackupModelId(deepSeekLogical)
           ),
           stream: true,
+          ourRequestId: messageOpts?.requestId,
         });
         res = failover.response;
       } catch (error) {
