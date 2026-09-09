@@ -233,7 +233,10 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
         : "deepseek";
   console.log("[openrouter-reasoning] disabled: true", { model: normalized, family });
   if (family === "deepseek") {
-    console.log("[deepseek-thinking] disabled: true", { model: normalized });
+    console.log("[deepseek-thinking] requested: disabled", {
+      model: normalized,
+      observed_provider_reasoning: "see deepseek-provider-failover telemetry",
+    });
   }
 }
 
