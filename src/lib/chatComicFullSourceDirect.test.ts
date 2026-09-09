@@ -211,6 +211,34 @@ describe("comic full-source direct experiment — provider prompt variant", () =
     });
     assert.match(prompt, /complete sentence/);
   });
+
+  it("DIRECT-PROMPT-6 direct prompt does not contain production exact-dialogue wording", () => {
+    const prompt = buildChatComicImagePrompt({
+      ...basePromptOpts(directPlan()),
+      fullSourceDirectText: FULL_SOURCE_TEXT,
+    });
+    assert.doesNotMatch(prompt, /exact dialogue below/);
+  });
+
+  it("DIRECT-PROMPT-7 direct text contract omits production verbose balloon instructions", () => {
+    const prompt = buildChatComicImagePrompt({
+      ...basePromptOpts(directPlan()),
+      fullSourceDirectText: FULL_SOURCE_TEXT,
+    });
+    assert.doesNotMatch(prompt, /Use narration sparingly/);
+    assert.doesNotMatch(prompt, /imperfect typography is acceptable/);
+  });
+
+  it("NORMAL-CONTRACT-1 production full-provider path retains exact-dialogue semantics", () => {
+    const prompt = buildChatComicImagePrompt(basePromptOpts(directPlan()));
+    assert.match(prompt, /exact dialogue below/);
+  });
+
+  it("NORMAL-CONTRACT-2 production text contract retains full balloon and narration instructions", () => {
+    const prompt = buildChatComicImagePrompt(basePromptOpts(directPlan()));
+    assert.match(prompt, /Use narration sparingly/);
+    assert.match(prompt, /imperfect typography is acceptable/);
+  });
 });
 
 describe("comic full-source direct experiment — fixed 4-panel wiring", () => {

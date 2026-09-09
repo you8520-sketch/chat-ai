@@ -193,18 +193,22 @@ export function buildChatComicImagePrompt(opts: {
   };
   const compositionContract = autopilot
     ? renderComicAutopilotContract(opts.comicPanelMode ?? "auto")
-    : compositionMode === "blank_balloon_hybrid"
-      ? "GPT IS COMIC DIRECTOR — create the complete comic artwork, including panel composition, camera direction, character poses, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects."
-      : compositionMode === "overlay_first"
-        ? "VISUAL LAYER ONLY — depict characters, background, pose, expression, and camera. Do not render any readable text, speech bubbles, captions, narration boxes, or SFX in the image."
-        : "RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT — the image is the final comic. Draw readable Korean speech bubbles with the exact dialogue below, readable Korean narration boxes when indicated, and readable Korean SFX when indicated.";
+    : fullSourceDirect
+      ? "RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT — the image is the final comic. Select important dialogue from the full source above and render it as readable Korean speech bubbles. Add readable Korean narration boxes only where a scene transition requires one. Render readable Korean SFX where appropriate."
+      : compositionMode === "blank_balloon_hybrid"
+        ? "GPT IS COMIC DIRECTOR — create the complete comic artwork, including panel composition, camera direction, character poses, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects."
+        : compositionMode === "overlay_first"
+          ? "VISUAL LAYER ONLY — depict characters, background, pose, expression, and camera. Do not render any readable text, speech bubbles, captions, narration boxes, or SFX in the image."
+          : "RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT — the image is the final comic. Draw readable Korean speech bubbles with the exact dialogue below, readable Korean narration boxes when indicated, and readable Korean SFX when indicated.";
   const textContract = autopilot
     ? ""
-    : compositionMode === "blank_balloon_hybrid"
-      ? "Draw natural white manga/manhwa speech balloons with black outlines. Place them in visually appropriate negative space. Their tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text. Render no readable letters, dialogue, captions, placeholder words, random symbols or gibberish inside speech balloons."
-      : compositionMode === "overlay_first"
-        ? "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay."
-        : "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page and do not repeat the same composition in every panel. Readable, visually integrated Korean text is required — imperfect typography is acceptable, but text must be legible and belong to the comic. Use narration sparingly — include only very short time-ordered narration boxes for crucial transitions, never long prose paragraphs.";
+    : fullSourceDirect
+      ? "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page and do not repeat the same composition in every panel."
+      : compositionMode === "blank_balloon_hybrid"
+        ? "Draw natural white manga/manhwa speech balloons with black outlines. Place them in visually appropriate negative space. Their tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text. Render no readable letters, dialogue, captions, placeholder words, random symbols or gibberish inside speech balloons."
+        : compositionMode === "overlay_first"
+          ? "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay."
+          : "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page and do not repeat the same composition in every panel. Readable, visually integrated Korean text is required — imperfect typography is acceptable, but text must be legible and belong to the comic. Use narration sparingly — include only very short time-ordered narration boxes for crucial transitions, never long prose paragraphs.";
   const panelSpecSection = autopilot
     ? renderComicTextBrief({
         plan: opts.plan,
