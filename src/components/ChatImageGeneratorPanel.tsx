@@ -11,13 +11,6 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGenerationConstants";
 import {
-  COMIC_SEMANTIC_LADDER,
-  COMIC_TEXT_BOUNDARY_LADDER,
-  type ComicDiagnosticMode,
-  type ComicSemanticLevel,
-  type ComicTextBoundaryLevel,
-} from "@/lib/chatComicDiagnostic";
-import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
   type ScenePlan,
@@ -192,19 +185,6 @@ type GenerateResult = {
   freePoints?: number;
   savedToCharacterAlbum?: boolean;
   generationId?: number;
-  comicDiagnostic?: {
-    mode?: ComicDiagnosticMode;
-    semanticLevel?: ComicSemanticLevel | null;
-    textBoundaryLevel?: ComicTextBoundaryLevel | null;
-    primaryResult?: string;
-    tier2Result?: string;
-    SEMANTIC_BOUNDARY_OWNER?: "PRIMARY_RESULT";
-    PRIMARY_BOUNDARY?: "PASS" | "BLOCKED" | "UNKNOWN";
-    TIER2_SAFE_RECOVERY?: "PASS" | "FAIL" | "NOT_RUN";
-    safetyCategories?: string[] | string;
-    providerRequestId?: string | null;
-    usageEvidence?: Array<{ attempt: number; evidence: string }>;
-  };
   trpgImageSceneDiagnostics?: {
     mode: TrpgImageSceneMode;
     modeRequested: TrpgImageSceneMode;
@@ -356,7 +336,9 @@ function PriceBox({
   exchangeRateKrwPerUsd?: number;
 }) {
   const costRows =
-    averageCosts ?? (averageCost ? [{ label: "평균", cost: averageCost }] : []);
+    (averageCosts ?? (averageCost ? [{ label: "평균", cost: averageCost }] : [])).filter(
+      ({ cost }) => cost.sampleCount > 0 && cost.averageUsd != null && cost.averageKrw != null
+    );
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-[11px] text-zinc-400">
       {balance ? (
@@ -367,27 +349,16 @@ function PriceBox({
       ) : null}
       {costRows.length ? (
         <div className="mt-2 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-2.5 py-2 text-amber-100">
-          <p className="font-semibold">관리자 종류별 평균 API 원가</p>
+          <p className="font-semibold">관리자 평균 API 원가 (현재 모델)</p>
           <div className="mt-1 space-y-1">
             {costRows.map(({ label, cost }) => (
               <p key={label} className="leading-relaxed">
-                <strong>{label}</strong>:{" "}
-                {cost.averageUsd != null && cost.averageKrw != null ? (
-                  <>
-                    약 {cost.averageKrw.toLocaleString()}원 · ${cost.averageUsd.toFixed(6)}
-                    {" · "}성공 {cost.sampleCount.toLocaleString()}건
-                  </>
-                ) : (
-                  <span className="text-amber-200/70">집계 기록 없음</span>
-                )}
+                <strong>{label}</strong>: 약 {cost.averageKrw!.toLocaleString()}원/장 · $
+                {cost.averageUsd!.toFixed(6)}
+                {" · "}성공 {cost.sampleCount.toLocaleString()}건
               </p>
             ))}
           </div>
-          {exchangeRateKrwPerUsd != null ? (
-            <p className="mt-1 text-amber-200/70">
-              적용 환율 {exchangeRateKrwPerUsd.toLocaleString()}원/USD
-            </p>
-          ) : null}
         </div>
       ) : null}
       <p className="mt-2 leading-relaxed text-zinc-500">
@@ -489,20 +460,6 @@ export default function ChatImageGeneratorPanel({
   const [comicSummary, setComicSummary] = useState("");
   /** Cap edits at the originally loaded turn length (no fixed 1,000 cap). */
   const [comicLoadedMaxChars, setComicLoadedMaxChars] = useState(0);
-  const [comicReferenceIsolationMode, setComicReferenceIsolationMode] = useState<
-    "normal" | "neutral_template" | "neutral_character" | "neutral_persona" | "neutral_identity_refs" | "all_neutral"
-  >("normal");
-  const [comicVisualContextIsolationMode, setComicVisualContextIsolationMode] = useState<
-    "normal" | "neutral_visual_context"
-  >("normal");
-  const [comicDiagnosticMode, setComicDiagnosticMode] =
-    useState<ComicDiagnosticMode>("normal");
-  const [comicSemanticLevel, setComicSemanticLevel] =
-    useState<ComicSemanticLevel>("L0");
-  const [comicTextBoundaryLevel, setComicTextBoundaryLevel] =
-    useState<ComicTextBoundaryLevel>("T0");
-  const [comicDiagnosticResult, setComicDiagnosticResult] =
-    useState<GenerateResult["comicDiagnostic"]>(undefined);
   const [summarizing, setSummarizing] = useState(false);
   const [campaignId, setCampaignId] = useState<number | null>(null);
   const [campaignRoundNumber, setCampaignRoundNumber] = useState<number | null>(null);
@@ -531,19 +488,6 @@ export default function ChatImageGeneratorPanel({
   const [partyPicks, setPartyPicks] = useState<Record<number, string>>({});
   const [partyPickerId, setPartyPickerId] = useState<number | null>(null);
   const trpgCampaignMode = campaignId != null;
-
-  const resetComicDiagnosticModes = useCallback(() => {
-    setComicReferenceIsolationMode("normal");
-    setComicVisualContextIsolationMode("normal");
-    setComicDiagnosticMode("normal");
-    setComicSemanticLevel("L0");
-    setComicTextBoundaryLevel("T0");
-    setComicDiagnosticResult(undefined);
-  }, []);
-
-  useEffect(() => {
-    if (!open) resetComicDiagnosticModes();
-  }, [open, resetComicDiagnosticModes]);
 
   useEffect(() => {
     const openGenerator = (event: Event) => {
@@ -609,7 +553,6 @@ export default function ChatImageGeneratorPanel({
         }
       }
       setTrpgImageSceneMode(TRPG_IMAGE_SCENE_MODE_DEFAULT);
-      resetComicDiagnosticModes();
       const epoch = beginSceneSourceChange();
       setSourceMessageId(null);
       setSourceTurnPreview("");
@@ -764,42 +707,14 @@ export default function ChatImageGeneratorPanel({
       };
     });
   }, [scenePlan, trpgCampaignMode, info, selectableCastAssets, activeVisualSubjects, configuredCastNames, contentKind]);
-  const activeResultUrl =
-    tab === "comic"
-      ? ldProduct === "persona"
-        ? personaResultUrl
-        : sceneIsIllustration
-          ? illustrationResultUrl
-          : comicResultUrl
-      : sdProduct === "emoticon"
-        ? emoticonResultUrl
-        : sdProduct === "coupleStamp"
-          ? coupleStampResultUrl
-          : sdResultUrl;
-  const activeMode: ResultMode =
-    tab === "comic"
-      ? ldProduct === "persona"
-        ? "persona"
-        : sceneIsIllustration
-          ? "illustration"
-          : "comic"
-      : sdProduct === "emoticon"
-        ? "emoticon"
-        : sdProduct === "coupleStamp"
-          ? "couple_stamp"
-          : "sd";
+  const activeResultUrl = sceneIsIllustration ? illustrationResultUrl : comicResultUrl;
+  const activeMode: ResultMode = sceneIsIllustration ? "illustration" : "comic";
   const activePrice =
-    activeMode === "persona"
-      ? CHAT_PERSONA_IMAGE_DEFAULT_POINTS
-      : activeMode === "illustration"
+    activeMode === "illustration"
       ? CHAT_LD_ILLUSTRATION_DEFAULT_POINTS
       : activeMode === "comic"
-      ? CHAT_COMIC_GENERATION_DEFAULT_POINTS
-      : activeMode === "emoticon"
-        ? CHAT_EMOTICON_GENERATION_DEFAULT_POINTS
-        : activeMode === "couple_stamp"
-          ? CHAT_COUPLE_STAMP_GENERATION_DEFAULT_POINTS
-          : info?.pricePoints ?? CHAT_IMAGE_GENERATION_DEFAULT_POINTS;
+        ? CHAT_COMIC_GENERATION_DEFAULT_POINTS
+        : info?.pricePoints ?? CHAT_IMAGE_GENERATION_DEFAULT_POINTS;
   const activeSaved = activeResultUrl ? savedUrls.has(activeResultUrl) : false;
   const selectedCharacterInfo = useMemo<ReferenceInfo | null>(() => {
     if (!info?.character) return null;
@@ -825,9 +740,7 @@ export default function ChatImageGeneratorPanel({
   const characterAppearanceFull = info?.character.appearancePreview?.trim() || "";
   const characterAppearancePreview = previewVisualAppearance(characterAppearanceFull);
   const appearanceControlProduct = resolveChatImageAppearanceControlProduct({
-    surface: tab === "sd" ? "sd" : "ld",
-    sdProduct,
-    ldProduct,
+    surface: "ld",
     isTrpgParty: Boolean(campaignId),
   });
   const showAppearanceModeControl = shouldShowChatImageAppearanceModeControl({
@@ -1317,16 +1230,14 @@ export default function ChatImageGeneratorPanel({
   async function generateComic() {
     if (!info?.ready || generating) return;
     const isIllustration = sceneIsIllustration;
-    const isSemanticLadderDiagnostic =
-      !isIllustration && comicDiagnosticMode === "semantic_ladder";
     if (campaignId && !isIllustration) return;
     const sourceText = comicText.trim();
     const summaryText = comicSummary.trim();
-    if (!isIllustration && !isSemanticLadderDiagnostic && !sourceMessageId && !sourceText) {
+    if (!isIllustration && !sourceMessageId && !sourceText) {
       setError("만화로 만들 턴을 선택하거나 내용을 입력해 주세요.");
       return;
     }
-    if (!isIllustration && !isSemanticLadderDiagnostic && sourceMessageId && !summaryText) {
+    if (!isIllustration && sourceMessageId && !summaryText) {
       setError("선택 턴 내용을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
       return;
     }
@@ -1344,7 +1255,6 @@ export default function ChatImageGeneratorPanel({
     }
     if (
       !isIllustration &&
-      !isSemanticLadderDiagnostic &&
       !trpgCampaignMode &&
       summarizing
     ) {
@@ -1355,7 +1265,6 @@ export default function ChatImageGeneratorPanel({
     setGenerating(true);
     setError("");
     setNotice("");
-    setComicDiagnosticResult(undefined);
     clearTrpgImageSceneDiagnostics();
     if (isIllustration) setIllustrationResultUrl("");
     else setComicResultUrl("");
@@ -1401,32 +1310,6 @@ export default function ChatImageGeneratorPanel({
               : undefined,
             trpgImageSceneMode:
             isIllustration && campaignId ? trpgImageSceneMode : undefined,
-          comicReferenceIsolationMode:
-            !isIllustration && ldProduct === "scene" && info.comicDiagnosticControlsAvailable
-              ? comicReferenceIsolationMode
-              : undefined,
-          comicVisualContextIsolationMode:
-            !isIllustration && ldProduct === "scene" && info.comicDiagnosticControlsAvailable
-              ? comicVisualContextIsolationMode
-              : undefined,
-          comicDiagnosticMode:
-            !isIllustration && ldProduct === "scene" && info.comicDiagnosticControlsAvailable
-              ? comicDiagnosticMode
-              : undefined,
-          comicSemanticLevel:
-            !isIllustration &&
-            ldProduct === "scene" &&
-            info.comicDiagnosticControlsAvailable &&
-            comicDiagnosticMode === "semantic_ladder"
-              ? comicSemanticLevel
-              : undefined,
-          comicTextBoundaryLevel:
-            !isIllustration &&
-            ldProduct === "scene" &&
-            info.comicDiagnosticControlsAvailable &&
-            comicDiagnosticMode === "semantic_ladder"
-              ? comicTextBoundaryLevel
-              : undefined,
         }),
       });
       const data = (await response.json().catch(() => null)) as GenerateResult | null;
@@ -1436,7 +1319,6 @@ export default function ChatImageGeneratorPanel({
       }
       if (isIllustration) setIllustrationResultUrl(data.imageUrl);
       else setComicResultUrl(data.imageUrl);
-      if (!isIllustration) setComicDiagnosticResult(data.comicDiagnostic);
       setSavedUrls((previous) => new Set(previous).add(data.imageUrl));
       if (data.upstreamCostUsd != null && data.upstreamCostKrw != null) {
         setActualCosts((previous) => ({
@@ -1572,32 +1454,9 @@ export default function ChatImageGeneratorPanel({
                 </button>
               </div>
               {!trpgCampaignMode ? (
-              <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
-                {(
-                  [
-                    ["comic", "LD 이미지"],
-                    ["sd", "SD 이미지"],
-                  ] as const
-                ).map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => {
-                      setTab(id);
-                      setError("");
-                      setNotice("");
-                    }}
-                    disabled={generating || saving}
-                    className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${
-                      tab === id
-                        ? "bg-violet-600 text-white"
-                        : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+                <p className="mt-2 pb-3 text-[11px] text-zinc-500">
+                  선택한 턴에서 한 장 일러스트 또는 컷만화를 만듭니다.
+                </p>
               ) : (
                 <p className="mt-2 pb-3 text-[11px] text-zinc-500">
                   캠페인에서는 선택 턴 일러스트만 만들 수 있습니다.
@@ -1611,157 +1470,46 @@ export default function ChatImageGeneratorPanel({
               ) : (
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)]">
                   <div className="space-y-3">
-                    {tab === "comic" && !trpgCampaignMode ? (
-                      <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
-                        {(
-                          [
-                            ["scene", "장면 만들기"],
-                            ["persona", "페르소나"],
-                          ] as const
-                        ).map(([id, label]) => (
-                          <button
-                            key={id}
-                            type="button"
-                            onClick={() => {
-                              setLdProduct(id);
-                              setError("");
-                              setNotice("");
-                            }}
-                            disabled={generating || saving}
-                            className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${
-                              ldProduct === id
-                                ? "bg-violet-600 text-white"
-                                : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
                     <div
                       className={`relative flex max-h-[64dvh] min-h-56 items-center justify-center overflow-hidden rounded-2xl border border-white/10 ${
-                        tab === "comic" ? "bg-[#08090d] p-0" : "bg-white p-1"
+                        "bg-[#08090d] p-0"
                       }`}
                     >
                       <img
                         src={
                           activeResultUrl ||
-                          (tab === "comic"
-                            ? ldProduct === "scene" || ldProduct === "persona"
-                              ? selectedCharacterInfo?.imageUrl || CHAT_COMIC_TEMPLATE_PREVIEW_URL
-                              : CHAT_COMIC_TEMPLATE_PREVIEW_URL
-                            : sdProduct === "emoticon"
-                              ? CHAT_EMOTICON_TEMPLATE_PREVIEW_URL
-                              : sdProduct === "coupleStamp"
-                                ? CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL
-                              : info?.template.previewUrl || "")
+                          selectedCharacterInfo?.imageUrl ||
+                          CHAT_COMIC_TEMPLATE_PREVIEW_URL
                         }
                         alt={
                           activeResultUrl
-                            ? tab === "comic"
-                              ? ldProduct === "persona"
-                                ? "생성된 페르소나 이미지"
-                                : sceneIsIllustration
-                                ? "생성된 선택 턴 LD 일러스트"
-                                : "생성된 컷만화"
-                              : sdProduct === "emoticon"
-                                ? "생성된 랜덤 9종 이모티콘"
-                                : sdProduct === "coupleStamp"
-                                  ? "생성된 커플 인장"
-                                : "생성된 SD 이미지"
-                            : tab === "comic"
-                              ? ldProduct === "persona"
-                                ? "캐릭터 그림체 참조 이미지"
-                                : sceneIsIllustration
-                                ? "선택 턴 LD 일러스트 참조 이미지"
-                                : "3~4컷 만화 예시"
-                              : sdProduct === "emoticon"
-                                ? "랜덤 9종 이모티콘 고정틀"
-                                : sdProduct === "coupleStamp"
-                                  ? "커플 인장 고정틀 샘플"
-                                : "선물상자 SD 고정틀"
+                            ? sceneIsIllustration
+                              ? "생성된 선택 턴 LD 일러스트"
+                              : "생성된 컷만화"
+                            : sceneIsIllustration
+                              ? "선택 턴 LD 일러스트 참조 이미지"
+                              : "3~4컷 만화 예시"
                         }
                         className={`max-h-[62dvh] object-contain ${
-                          tab === "comic"
-                            ? ldProduct === "persona"
-                              ? "aspect-[3/5] h-auto max-w-full"
-                              : sceneIsIllustration
-                                ? "aspect-[2/3] h-auto max-w-full"
-                              : "h-auto max-w-full"
-                            : sdProduct === "emoticon" || sdProduct === "coupleStamp"
-                              ? "aspect-square w-full"
-                              : "aspect-[3/2] w-full"
+                          sceneIsIllustration
+                            ? "aspect-[2/3] h-auto max-w-full"
+                            : "h-auto max-w-full"
                         }`}
                       />
-                      {tab === "sd" ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => setSdProduct((previous) => cycleSdProduct(previous, -1))}
-                            disabled={generating || saving}
-                            className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-xl font-bold text-white shadow hover:bg-black/70 disabled:opacity-40"
-                            aria-label="이전 SD 이미지"
-                          >
-                            ‹
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setSdProduct((previous) => cycleSdProduct(previous, 1))}
-                            disabled={generating || saving}
-                            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-xl font-bold text-white shadow hover:bg-black/70 disabled:opacity-40"
-                            aria-label="다음 SD 이미지"
-                          >
-                            ›
-                          </button>
-                        </>
-                      ) : null}
                     </div>
                     <p className="text-center text-[10px] leading-relaxed text-zinc-500">
                       {activeResultUrl
-                        ? activeMode === "persona"
-                          ? "생성 결과는 864×1440 WebP로 저장되며 아래 버튼으로 내려받을 수 있습니다."
-                          : activeSaved
+                        ? activeSaved
                           ? campaignId
                             ? `「${campaignTitle || "TRPG"}」 캠페인 앨범에 저장된 이미지입니다.`
                             : "캐릭터 앨범에 저장된 이미지입니다."
                           : campaignId
                             ? `생성 결과는 「${campaignTitle || "TRPG"}」 캠페인 앨범에 저장됩니다.`
                           : "생성 결과는 기존 캐릭터 이미지 앨범에 자동으로 추가됩니다."
-                        : tab === "comic"
-                          ? ldProduct === "persona"
-                            ? "선택 페르소나의 성별·외관 설정을 반영하고, 캐릭터 이미지는 그림체만 직접 참조합니다."
-                            : ldProduct === "scene"
-                            ? campaignId
-                              ? `파티 전원${partyNames.length ? `(${partyNames.join(", ")})` : ""}이 한 장면에 함께 나옵니다. 아래에서 멤버마다 참조 이미지를 고르세요. 포인트는 1:1 일러스트와 같습니다.`
-                              : "같은 장면 구성으로 한 장 일러스트 또는 컷만화를 만듭니다."
-                            : "같은 장면 구성으로 한 장 일러스트 또는 컷만화를 만듭니다."
-                          : sdProduct === "emoticon"
-                            ? "매번 다른 문구 9개를 뽑아 캐릭터 단독·페르소나 단독·두 사람 장면을 섞어 만듭니다."
-                            : sdProduct === "coupleStamp"
-                              ? "고정틀 샘플에서 모티프를 고른 뒤 키·배경·테두리·동물귀 옵션으로 원형 커플 인장 한 장을 만듭니다."
-                            : "선물상자·리본·인형·사탕 장식을 유지하면서 두 사람의 외형을 반영합니다."}
+                        : campaignId
+                          ? `파티 전원${partyNames.length ? `(${partyNames.join(", ")})` : ""}이 한 장면에 함께 나옵니다. 아래에서 멤버마다 참조 이미지를 고르세요. 포인트는 1:1 일러스트와 같습니다.`
+                          : "같은 장면 구성으로 한 장 일러스트 또는 컷만화를 만듭니다."}
                     </p>
-                    {tab === "sd" ? (
-                      <div className="flex items-center justify-center gap-2 text-[10px]">
-                        <span className={sdProduct === "gift" ? "text-violet-300" : "text-zinc-600"}>
-                          ●
-                        </span>
-                        <span className={sdProduct === "emoticon" ? "text-violet-300" : "text-zinc-600"}>
-                          ●
-                        </span>
-                        <span className={sdProduct === "coupleStamp" ? "text-violet-300" : "text-zinc-600"}>
-                          ●
-                        </span>
-                        <strong className="ml-1 text-zinc-400">
-                          {sdProduct === "gift"
-                            ? "선물상자 2인 SD"
-                            : sdProduct === "emoticon"
-                              ? "랜덤 9종 이모티콘"
-                              : "커플 인장"}
-                        </strong>
-                      </div>
-                    ) : null}
                     {activeResultUrl ? (
                       <button
                         type="button"
@@ -2010,119 +1758,6 @@ export default function ChatImageGeneratorPanel({
                     ) : null}
                       </>
                     )}
-                    {info?.comicDiagnosticControlsAvailable &&
-                    tab === "comic" &&
-                    ldProduct === "scene" &&
-                    !trpgCampaignMode ? (
-                      <div className="space-y-2 rounded-xl border border-amber-400/25 bg-amber-950/20 p-3">
-                        <p className="text-[10px] font-semibold text-amber-200">관리자 진단</p>
-                        <label className="block space-y-1 text-[11px] text-zinc-300">
-                          <span>Comic experiment</span>
-                          <select
-                            value={comicDiagnosticMode}
-                            disabled={generating || saving}
-                            onChange={(event) =>
-                              setComicDiagnosticMode(event.target.value as ComicDiagnosticMode)
-                            }
-                            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200"
-                          >
-<option value="normal">Normal production comic</option>
-                            <option value="full_source_direct">Full source → GPT Image 4-panel</option>
-                            <option value="semantic_ladder">Semantic ladder (one level)</option>
-                          </select>
-                        </label>
-                        {comicDiagnosticMode === "semantic_ladder" ? (
-                          <>
-                          <label className="block space-y-1 text-[11px] text-zinc-300">
-                            <span>Visual level</span>
-                            <select
-                              value={comicSemanticLevel}
-                              disabled={generating || saving}
-                              onChange={(event) =>
-                                setComicSemanticLevel(event.target.value as ComicSemanticLevel)
-                              }
-                              className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200"
-                            >
-                              {COMIC_SEMANTIC_LADDER.map((level) => (
-                                <option key={level.id} value={level.id}>
-                                  {level.id} · {level.name}
-                                </option>
-                              ))}
-                            </select>
-                            <p className="text-[10px] leading-relaxed text-amber-200/70">
-                              한 번에 한 단계만 수동 실행합니다. 소스 대사와 본문은 provider에 보내지 않습니다.
-                            </p>
-                          </label>
-                          <label className="block space-y-1 text-[11px] text-zinc-300">
-                            <span>Text boundary (T axis)</span>
-                            <select
-                              value={comicTextBoundaryLevel}
-                              disabled={generating || saving}
-                              onChange={(event) =>
-                                setComicTextBoundaryLevel(
-                                  event.target.value as ComicTextBoundaryLevel
-                                )
-                              }
-                              className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200"
-                            >
-                              {COMIC_TEXT_BOUNDARY_LADDER.map((level) => (
-                                <option key={level.id} value={level.id}>
-                                  {level.id} · {level.name}
-                                </option>
-                              ))}
-                            </select>
-                            <p className="text-[10px] leading-relaxed text-amber-200/70">
-                              TEXT × VISUAL 경계 조사: 고정 대사 픽스처를 컷 1에 주입해 provider가
-                              대사를 거부하는지 확인합니다. 완전한 provider-rendered 만화 기준이며
-                              서버 텍스트 삽입은 없습니다.
-                            </p>
-                          </label>
-                          </>
-                        ) : null}
-                        <label className="block space-y-1 text-[11px] text-zinc-300">
-                          <span>Reference control</span>
-                          <select value={comicReferenceIsolationMode}
-                            disabled={generating || saving || comicVisualContextIsolationMode !== "normal"}
-                            onChange={(event) => setComicReferenceIsolationMode(event.target.value as typeof comicReferenceIsolationMode)}
-                            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200">
-                            <option value="normal">Normal</option>
-                            <option value="neutral_template">Neutral template</option>
-                            <option value="neutral_character">Neutral character</option>
-                            <option value="neutral_persona">Neutral persona</option>
-                            <option value="neutral_identity_refs">Neutral identity refs</option>
-                            <option value="all_neutral">All neutral</option>
-                          </select>
-                        </label>
-                        <label className="block space-y-1 text-[11px] text-zinc-300">
-                          <span>Visual context</span>
-                          <select value={comicVisualContextIsolationMode}
-                            disabled={generating || saving || comicReferenceIsolationMode !== "normal"}
-                            onChange={(event) => setComicVisualContextIsolationMode(event.target.value as typeof comicVisualContextIsolationMode)}
-                            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200">
-                            <option value="normal">Normal</option>
-                            <option value="neutral_visual_context">Neutral visual context</option>
-                          </select>
-                        </label>
-                        <p className="text-[10px] leading-relaxed text-amber-200/70">
-                          두 진단 축은 동시에 선택할 수 없습니다. 창을 닫으면 Normal로 초기화됩니다.
-                        </p>
-                        {comicDiagnosticResult ? (
-                          <div className="rounded-lg border border-emerald-400/20 bg-emerald-400/[0.06] px-2.5 py-2 text-[10px] leading-relaxed text-emerald-100">
-                            <p className="font-semibold">최근 진단 결과</p>
-                            <p>
-                              primary {comicDiagnosticResult.primaryResult ?? "unknown"} · Tier-2{" "}
-                              {comicDiagnosticResult.tier2Result ?? "not_run"}
-                              {comicDiagnosticResult.textBoundaryLevel
-                                ? ` · T ${comicDiagnosticResult.textBoundaryLevel}`
-                                : ""}
-                              {comicDiagnosticResult.PRIMARY_BOUNDARY
-                                ? ` · boundary ${comicDiagnosticResult.PRIMARY_BOUNDARY}`
-                                : ""}
-                            </p>
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
                     {actualCosts[activeMode] ? (
                       <p className="rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-[11px] text-amber-100">
                         관리자 방금 생성 실제 API 원가: $
@@ -2131,231 +1766,8 @@ export default function ChatImageGeneratorPanel({
                       </p>
                     ) : null}
 
-                    {tab === "sd" ? (
-                      <>
-                        {sdProduct === "gift" ? (
-                          <>
-                          <label className="block space-y-1">
-                          <span className="text-[11px] font-semibold text-zinc-400">자리 배치</span>
-                          <select
-                            value={placement}
-                            onChange={(event) => setPlacement(event.target.value as ChatImagePlacement)}
-                            disabled={generating}
-                            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-                          >
-                            {CHAT_IMAGE_PLACEMENTS.map((item) => (
-                              <option key={item.id} value={item.id}>{item.label}</option>
-                            ))}
-                          </select>
-                        </label>
-                          <div className="grid grid-cols-2 gap-2">
-                          <label className="block space-y-1">
-                            <span className="text-[11px] font-semibold text-zinc-400">위 인물 표정</span>
-                            <select
-                              value={topExpression}
-                              onChange={(event) => setTopExpression(event.target.value as ChatImageExpression)}
-                              disabled={generating}
-                              className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-                            >
-                              {CHAT_IMAGE_EXPRESSIONS.map((item) => (
-                                <option key={item.id} value={item.id}>{item.label}</option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="block space-y-1">
-                            <span className="text-[11px] font-semibold text-zinc-400">아래 인물 표정</span>
-                            <select
-                              value={bottomExpression}
-                              onChange={(event) => setBottomExpression(event.target.value as ChatImageExpression)}
-                              disabled={generating}
-                              className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-                            >
-                              {CHAT_IMAGE_EXPRESSIONS.map((item) => (
-                                <option key={item.id} value={item.id}>{item.label}</option>
-                              ))}
-                            </select>
-                          </label>
-                          </div>
-                          <label className="block space-y-1">
-                          <span className="text-[11px] font-semibold text-zinc-400">분위기</span>
-                          <select
-                            value={sdMood}
-                            onChange={(event) => setSdMood(event.target.value as ChatImageMood)}
-                            disabled={generating}
-                            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-                          >
-                            {CHAT_IMAGE_MOODS.map((item) => (
-                              <option key={item.id} value={item.id}>{item.label}</option>
-                            ))}
-                          </select>
-                          </label>
-                          </>
-                        ) : sdProduct === "emoticon" ? null : (
-                          <div className="space-y-2">
-                            <div className="grid grid-cols-2 gap-2">
-                              <label className="block space-y-1">
-                                <span className="text-[11px] font-semibold text-zinc-400">캐릭터 표정</span>
-                                <select
-                                  value={coupleCharacterExpression}
-                                  onChange={(event) =>
-                                    setCoupleCharacterExpression(
-                                      event.target.value as ChatCoupleStampExpression
-                                    )
-                                  }
-                                  disabled={generating}
-                                  className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-                                >
-                                  {CHAT_COUPLE_STAMP_EXPRESSIONS.map((item) => (
-                                    <option key={item.id} value={item.id}>
-                                      {item.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label className="block space-y-1">
-                                <span className="text-[11px] font-semibold text-zinc-400">페르소나 표정</span>
-                                <select
-                                  value={couplePersonaExpression}
-                                  onChange={(event) =>
-                                    setCouplePersonaExpression(
-                                      event.target.value as ChatCoupleStampExpression
-                                    )
-                                  }
-                                  disabled={generating}
-                                  className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-                                >
-                                  {CHAT_COUPLE_STAMP_EXPRESSIONS.map((item) => (
-                                    <option key={item.id} value={item.id}>
-                                      {item.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            </div>
-                            <label className="block space-y-1">
-                              <span className="text-[11px] font-semibold text-zinc-400">키 높이</span>
-                              <select
-                                value={coupleHeight}
-                                onChange={(event) =>
-                                  setCoupleHeight(event.target.value as ChatCoupleStampHeight)
-                                }
-                                disabled={generating}
-                                className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-                              >
-                                {CHAT_COUPLE_STAMP_HEIGHTS.map((item) => (
-                                  <option key={item.id} value={item.id}>
-                                    {item.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <label className="block space-y-1">
-                              <span className="text-[11px] font-semibold text-zinc-400">배경 장식</span>
-                              <select
-                                value={coupleBackground}
-                                onChange={(event) =>
-                                  setCoupleBackground(
-                                    event.target.value as ChatCoupleStampBackground
-                                  )
-                                }
-                                disabled={generating}
-                                className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-                              >
-                                {CHAT_COUPLE_STAMP_BACKGROUNDS.map((item) => (
-                                  <option key={item.id} value={item.id}>
-                                    {item.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <label className="block space-y-1">
-                              <span className="text-[11px] font-semibold text-zinc-400">테두리 장식</span>
-                              <select
-                                value={coupleBorder}
-                                onChange={(event) =>
-                                  setCoupleBorder(event.target.value as ChatCoupleStampBorder)
-                                }
-                                disabled={generating}
-                                className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-                              >
-                                {CHAT_COUPLE_STAMP_BORDERS.map((item) => (
-                                  <option key={item.id} value={item.id}>
-                                    {item.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                          </div>
-                        )}
-                        <PriceBox
-                          balance={info?.balance}
-                          averageCosts={
-                            info?.averageCosts
-                              ? [
-                                  {
-                                    label:
-                                      sdProduct === "emoticon"
-                                        ? "랜덤 9종 이모티콘"
-                                        : sdProduct === "coupleStamp"
-                                          ? "커플 인장"
-                                        : "선물상자 SD 고정틀",
-                                    cost:
-                                      sdProduct === "emoticon"
-                                        ? info.averageCosts.emoticon
-                                        : sdProduct === "coupleStamp"
-                                          ? info.averageCosts.coupleStamp
-                                        : info.averageCosts.sd,
-                                  },
-                                ]
-                              : undefined
-                          }
-                          exchangeRateKrwPerUsd={info?.averageCosts?.exchangeRateKrwPerUsd}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => void generateSd()}
-                          disabled={
-                            generating ||
-                             loadingInfo ||
-                             !info?.ready ||
-                             (info.balance != null && info.balance.total < activePrice)
-                          }
-                          className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                           {generating
-                             ? sdProduct === "emoticon"
-                               ? "랜덤 이모티콘 9종 생성 중…"
-                               : sdProduct === "coupleStamp"
-                                 ? "커플 인장 생성 중…"
-                               : "SD 이미지 생성 중…"
-                             : activeResultUrl
-                               ? `다시 생성 · ${activePrice.toLocaleString()}P`
-                               : `${
-                                   sdProduct === "emoticon"
-                                     ? "랜덤 9종 이모티콘 생성"
-                                     : sdProduct === "coupleStamp"
-                                       ? "커플 인장 생성"
-                                       : "SD 이미지 생성"
-                                 } · ${activePrice.toLocaleString()}P`}
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        {ldProduct === "persona" ? (
-                          <div className="space-y-2 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
-                            <p>
-                              <strong className="text-violet-200">선택 페르소나 설정으로 생성</strong>
-                              <br />성별: {info?.persona == null ? "선택 안 됨" : info.persona.gender === "male" ? "남성" : info.persona.gender === "female" ? "여성" : "기타"}
-                            </p>
-                            <p className="whitespace-pre-line text-zinc-400">
-                              {info?.persona?.appearancePreview || "인식 가능한 외관 설정이 없습니다."}
-                            </p>
-                            <p className="text-zinc-500">
-                              캐릭터 이미지는 외형이 아니라 그림체 참조로만 전달됩니다. 864×1440(3:5)로 직접 생성하고, 공급자 응답 크기가 다를 때만 중앙 기준으로 안전하게 보정합니다.
-                            </p>
-                          </div>
-                        ) : null}
-                        {ldProduct === "scene" && campaignId ? (
+                    <>
+                        {campaignId ? (
                           <div className="space-y-2 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
                             <p>
                               <strong className="text-violet-200">
@@ -2376,7 +1788,7 @@ export default function ChatImageGeneratorPanel({
                             </p>
                           </div>
                         ) : null}
-                        {ldProduct === "scene" && !campaignId ? (
+                        {!campaignId ? (
                           <ChatSceneBuilder
                             sourcePreview={comicSummary || sourceTurnPreview}
                             sourceLoading={summarizing}
@@ -2391,7 +1803,7 @@ export default function ChatImageGeneratorPanel({
                             characterName={info?.character.name ?? "캐릭터"}
                             castSpeakerNames={configuredCastNames}
                             outputMode={sceneOutputMode}
-                            comicAutopilotMode={!sceneIsIllustration && !trpgCampaignMode}
+                            comicAutopilotMode={true}
                             disabled={generating}
                             onOutputModeChange={(mode) => {
                               setSceneOutputMode(mode);
@@ -2406,19 +1818,14 @@ export default function ChatImageGeneratorPanel({
                           balance={info?.balance}
                           averageCosts={
                             info?.averageCosts
-                              ? ldProduct === "persona"
+                              ? sceneIsIllustration
                                 ? [{
-                                    label: "페르소나 LD 이미지",
-                                    cost: info.averageCosts.persona,
-                                  }]
-                                : sceneIsIllustration
-                                ? [{
-                                    label: "선택 턴 LD 일러스트",
+                                    label: "일러스트",
                                     cost: info.averageCosts.illustration,
                                   }]
                                 : [{
-                                    label: "컷만화 (자동)",
-                                    cost: info.averageCosts!.comic[3],
+                                    label: "컷만화",
+                                    cost: info.averageCosts.comic[4],
                                   }]
                               : undefined
                           }
@@ -2426,13 +1833,12 @@ export default function ChatImageGeneratorPanel({
                         />
                         <button
                           type="button"
-                          onClick={() => void (ldProduct === "persona" ? generatePersona() : generateComic())}
+                          onClick={() => void generateComic()}
                           disabled={
                             generating ||
                             loadingInfo ||
-                            (ldProduct === "persona" ? !info?.personaReady : !info?.ready) ||
-                            (ldProduct === "scene" &&
-                              !campaignId &&
+                            !info?.ready ||
+                            (!campaignId &&
                               summarizing) ||
                             (info?.balance != null &&
                               info.balance.total < activePrice)
@@ -2440,40 +1846,29 @@ export default function ChatImageGeneratorPanel({
                           className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           {generating
-                            ? ldProduct === "persona"
-                              ? "페르소나 이미지 생성 중…"
-                              : sceneIsIllustration
-                                ? "장면 일러스트 생성 중…"
-                                : "중요 장면을 고르고 컷만화를 만드는 중…"
+                            ? sceneIsIllustration
+                              ? "장면 일러스트 생성 중…"
+                              : "중요 장면을 고르고 컷만화를 만드는 중…"
                             : activeResultUrl
                               ? `다시 생성 · ${activePrice.toLocaleString()}P`
                               : `${
-                                  ldProduct === "persona"
-                                    ? "페르소나 이미지 생성"
-                                    : sceneIsIllustration
-                                    ? "한 장 일러스트 생성"
+                                  sceneIsIllustration
+                                    ? "일러스트 생성"
                                     : "컷만화 생성"
                                 } · ${activePrice.toLocaleString()}P`}
                         </button>
-                      </>
-                    )}
+                    </>
 
-                    {info && (tab === "comic" && ldProduct === "persona" ? !info.personaReady : !info.ready) ? (
+                    {info && !info.ready ? (
                       <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-200">
-                        먼저 {(tab === "comic" && ldProduct === "persona" ? info.personaMissing : info.missing).join(", ")}를 등록해 주세요.
-                        {tab === "comic" && ldProduct === "persona" && info.personaMissing.some((item) => item.startsWith("페르소나") || item === "선택 페르소나") ? (
-                          <a href="/persona" className="ml-2 font-semibold underline underline-offset-2 hover:text-amber-100">
-                            페르소나 설정 열기
-                          </a>
-                        ) : null}
+                        먼저 {info.missing.join(", ")}를 등록해 주세요.
                       </p>
                     ) : null}
+
                     {generating ? (
                       <p className="rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-xs leading-relaxed text-violet-200">
                         이미지를 생성하고 있습니다. 이 창을 닫고 채팅을 계속해도 생성은 계속되고,
-                        {activeMode === "persona"
-                          ? "완료되면 이 창에서 결과를 저장할 수 있습니다."
-                          : "완료되면 캐릭터 이미지 앨범에 저장됩니다."}
+                        완료되면 캐릭터 이미지 앨범에 저장됩니다.
                       </p>
                     ) : null}
                     {notice ? (

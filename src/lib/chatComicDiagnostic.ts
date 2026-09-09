@@ -380,20 +380,17 @@ export function assertComicDiagnosticAxisIsolation(opts: {
 }
 
 /**
- * Normal autopilot predicate — the single gate for the generate-time Scene
- * Planner call. Only the normal production path plans; every diagnostic mode
- * (ladder / hybrid / full-source direct) skips the planner entirely.
+ * Legacy autopilot predicate — retained only for the admin diagnostic backend
+ * framework. Production comic is full-source direct: the provider selects WHAT
+ * + HOW from the full source, so the Scene Planner is NEVER called for the
+ * production path. Always returns false.
  */
-export function isComicAutopilotActive(opts: {
+export function isComicAutopilotActive(_opts: {
   mode: ComicDiagnosticMode;
   referenceMode: ComicReferenceIsolationMode;
   visualContextMode: ComicVisualContextIsolationMode;
 }): boolean {
-  return (
-    opts.mode === "normal" &&
-    opts.referenceMode === "normal" &&
-    opts.visualContextMode === "normal"
-  );
+  return false;
 }
 
 export type ComicPrimaryTier2Boundary = {

@@ -58,23 +58,20 @@ describe("chatComicGeneration client bundle boundary", () => {
     assert.doesNotMatch(text, /from "@\/lib\/chatComicTextOverlay"/);
   });
 
-  it("admin-only diagnostic controls are capability-gated and wired only to comic generation", () => {
+  it("admin comic diagnostic UI is removed; only the actual-cost line remains", () => {
     const text = readFileSync("src/components/ChatImageGeneratorPanel.tsx", "utf8");
-    assert.match(text, /comicDiagnosticControlsAvailable/);
-    assert.match(text, /comicReferenceIsolationMode/);
-    assert.match(text, /comicVisualContextIsolationMode/);
-    assert.match(text, /comicDiagnosticMode/);
-    assert.match(text, /comicSemanticLevel/);
-    assert.match(text, /comicTextBoundaryLevel/);
-    assert.match(text, /COMIC_TEXT_BOUNDARY_LADDER/);
+    assert.doesNotMatch(text, /관리자 진단/);
+    assert.doesNotMatch(text, /comicReferenceIsolationMode/);
+    assert.doesNotMatch(text, /comicVisualContextIsolationMode/);
+    assert.doesNotMatch(text, /comicDiagnosticMode/);
+    assert.doesNotMatch(text, /comicSemanticLevel/);
+    assert.doesNotMatch(text, /comicTextBoundaryLevel/);
+    assert.doesNotMatch(text, /COMIC_TEXT_BOUNDARY_LADDER/);
     assert.doesNotMatch(text, /blank_balloon_hybrid/);
     assert.doesNotMatch(text, /COMIC_BLANK_BALLOON_TEXT_STRATEGIES/);
     assert.doesNotMatch(text, /blankBalloonDetection/);
-    assert.match(text, /info\.comicDiagnosticControlsAvailable/);
-    assert.match(text, /두 진단 축은 동시에 선택할 수 없습니다/);
-    assert.match(text, /comicReferenceIsolationMode:\s*!isIllustration && ldProduct === "scene"/);
-    assert.match(text, /comicVisualContextIsolationMode:\s*!isIllustration && ldProduct === "scene"/);
-    assert.match(text, /setComicReferenceIsolationMode\("normal"\)/);
-    assert.match(text, /setComicVisualContextIsolationMode\("normal"\)/);
+    assert.doesNotMatch(text, /두 진단 축은 동시에 선택할 수 없습니다/);
+    assert.match(text, /관리자 방금 생성 실제 API 원가/);
+    assert.match(text, /actualCosts\[activeMode\]/);
   });
 });

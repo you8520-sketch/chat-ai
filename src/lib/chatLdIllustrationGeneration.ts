@@ -235,13 +235,25 @@ function defaultLdDuoSubjects(opts: {
   }).subjects;
 }
 
+/**
+ * Canonical full-turn important-moment content contract for regular chat
+ * illustration (single owner). The provider — not the Scene Planner — selects
+ * the one visually expressive moment from the full turn. Rendering/layout/
+ * safety owners live in their own prompt sections, not here.
+ */
+export const ILLUSTRATION_IMPORTANT_MOMENT_CONTRACT =
+  "Use the full turn as story context. Consider important actions, emotional " +
+  "shifts, relationship changes, and key events; select the single most " +
+  "important and visually expressive moment and compose it naturally as one " +
+  "illustration. Preserve the source's key events and character relationships.";
+
 export function buildChatLdIllustrationPrompt(opts: {
   characterName: string;
   characterGender: ImagePromptGender;
   personaName: string;
   personaGender: ImagePromptGender;
   currentTurn: string;
-  /** Approved Scene Plan text. Regular chat Scene Builder uses this instead of raw turn prose. */
+  /** Approved Scene Plan text. Retained for legacy/admin callers; production uses the full turn. */
   approvedScene?: string;
   /** When true, explicit adult source may use non-explicit adult intimacy projection. */
   adultGrounded?: boolean;
@@ -268,9 +280,14 @@ export function buildChatLdIllustrationPrompt(opts: {
   const sceneBlock = approved
     ? ["APPROVED SCENE PLAN", approved]
     : [
-        "SELECTED TURN SCENE BRIEF:",
+        "SELECTED TURN — SINGLE IMPORTANT VISUAL MOMENT:",
+        ILLUSTRATION_IMPORTANT_MOMENT_CONTRACT,
+        "FULL TURN (story context):",
         projectSceneBlockForSafeImageGeneration(opts.currentTurn, projectionContext).text,
       ];
+  const directInstruction = approved
+    ? "Depict the approved scene plan below as one cinematic, emotionally accurate scene."
+    : "Depict the selected important visual moment below as one cinematic, emotionally accurate scene.";
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
     renderChatImageVisualIdentity({
@@ -284,7 +301,7 @@ export function buildChatLdIllustrationPrompt(opts: {
       personaGender: opts.personaGender,
     }),
     buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
-    "Depict the approved scene plan below as one cinematic, emotionally accurate scene.",
+    directInstruction,
     "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
     "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
@@ -353,6 +370,8 @@ export function buildLdSceneGenerationPlan(opts: {
   personaAppearanceMode: ChatImageAppearanceMode;
   approvedScenePlan?: ScenePlan;
   approvedScene?: string;
+  /** Canonical full-turn source text — production regular illustration. */
+  currentTurn?: string;
   castManifest?: ChatImageCastGroundedManifest | null;
   contentKind?: ContentKind;
   adultGrounded?: boolean;
@@ -372,6 +391,15 @@ export function buildLdSceneGenerationPlan(opts: {
           projectionContext
         ).formatted
       : "");
+  const fullTurn = (opts.currentTurn ?? "").trim();
+  const sceneBlock = approvedScene
+    ? ["APPROVED SCENE PLAN", approvedScene].join("\n")
+    : [
+        "SELECTED TURN — SINGLE IMPORTANT VISUAL MOMENT:",
+        ILLUSTRATION_IMPORTANT_MOMENT_CONTRACT,
+        "FULL TURN (story context):",
+        projectSceneBlockForSafeImageGeneration(fullTurn, projectionContext).text,
+      ].join("\n");
   const useCast = Boolean(opts.castManifest);
   if (useCast) {
     const bound = bindApprovedCastManifest(opts.castManifest!, {
@@ -393,7 +421,9 @@ export function buildLdSceneGenerationPlan(opts: {
       }),
       renderCastGenderLock(bound.subjects),
       buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
-      "Depict the approved scene plan below as one cinematic scene.",
+      approvedScene
+        ? "Depict the approved scene plan below as one cinematic scene."
+        : "Depict the selected important visual moment below as one cinematic scene.",
       "Match the drawing style of the supplied identity references. Harmonize style, not identity.",
       "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
       selected.length === 1
@@ -403,7 +433,7 @@ export function buildLdSceneGenerationPlan(opts: {
           : "Show exactly these four selected people. Do not add unnamed extras. Background/cameo people may be smaller, but do not invent a new identity.",
       "Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixels. Keep important faces and gestures away from the outer crop edges.",
       "",
-      approvedScene ? ["APPROVED SCENE PLAN", approvedScene].join("\n") : "",
+      sceneBlock,
     ]
       .filter(Boolean)
       .join("\n");
@@ -424,7 +454,7 @@ export function buildLdSceneGenerationPlan(opts: {
     personaImageUrl: opts.personaImageUrl,
     personaSavedAppearance: opts.personaSavedAppearance,
     personaAppearanceMode: opts.personaAppearanceMode,
-    currentTurn: "",
+    currentTurn: fullTurn,
     approvedScene,
     adultGrounded: opts.adultGrounded,
   });

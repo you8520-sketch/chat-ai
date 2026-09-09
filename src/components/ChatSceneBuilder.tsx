@@ -45,7 +45,7 @@ type ChatSceneBuilderProps = {
   characterName: string;
   castSpeakerNames?: readonly string[];
   outputMode: SceneOutputMode;
-  /** Normal comic autopilot: per-panel dialogue/speaker/situation edits are not authoritative. */
+  /** Production provider-direct comic: per-panel dialogue/speaker/situation edits are not authoritative. */
   comicAutopilotMode?: boolean;
   disabled?: boolean;
   onOutputModeChange: (mode: SceneOutputMode) => void;
@@ -125,7 +125,7 @@ function ComicPanelStoryboardCard({
   dialogueEditOpen: boolean;
   onToggleDialogueEdit: () => void;
   onPlanChange: (plan: ScenePlan) => void;
-  /** Normal comic autopilot: per-panel dialogue/speaker edits are not authoritative. */
+  /** Production provider-direct comic: per-panel dialogue/speaker edits are not authoritative. */
   editable?: boolean;
 }) {
   const compactSituation = projectComicPanelCompactSituation(plan, panel, { personaVisible });
@@ -456,7 +456,7 @@ export default function ChatSceneBuilder({
         <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
           {(
             [
-              ["illustration", "한 장 일러스트"],
+              ["illustration", "일러스트"],
               ["comic", "컷만화"],
             ] as const
           ).map(([id, label]) => (
@@ -501,7 +501,7 @@ export default function ChatSceneBuilder({
               <div className="space-y-1">
                 <h3 className="text-[11px] font-semibold text-zinc-400">컷만화 생성</h3>
                 <p className="text-xs leading-relaxed text-zinc-400">
-                  AI가 이 턴에서 중요 장면을 골라 컷 구성을 자동으로 만듭니다.
+                  전체 턴에서 중요한 장면을 골라 4컷 만화를 자동으로 구성합니다.
                 </p>
               </div>
             ) : (
