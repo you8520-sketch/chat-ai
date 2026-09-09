@@ -2027,6 +2027,7 @@ export default function ChatImageGeneratorPanel({
                             className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200"
                           >
 <option value="normal">Normal production comic</option>
+                            <option value="full_source_direct">Full source → GPT Image 4-panel</option>
                             <option value="semantic_ladder">Semantic ladder (one level)</option>
                           </select>
                         </label>

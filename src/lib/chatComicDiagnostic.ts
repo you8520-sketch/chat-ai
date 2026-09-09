@@ -12,7 +12,8 @@ import type {
 export type ComicDiagnosticMode =
   | "normal"
   | "semantic_ladder"
-  | "blank_balloon_hybrid";
+  | "blank_balloon_hybrid"
+  | "full_source_direct";
 
 export type ComicSemanticLevel =
   | "L0"
@@ -145,6 +146,7 @@ export const COMIC_DIAGNOSTIC_MODES: readonly ComicDiagnosticMode[] = [
   "normal",
   "semantic_ladder",
   "blank_balloon_hybrid",
+  "full_source_direct",
 ];
 
 /**
@@ -367,6 +369,31 @@ export function assertComicDiagnosticAxisIsolation(opts: {
       throw new Error("COMIC_HYBRID_REQUIRES_NORMAL_VISUAL_CONTEXT");
     }
   }
+  if (opts.mode === "full_source_direct") {
+    if (opts.referenceMode !== "normal") {
+      throw new Error("COMIC_DIRECT_REQUIRES_NORMAL_REFERENCE_ISOLATION");
+    }
+    if (opts.visualContextMode !== "normal") {
+      throw new Error("COMIC_DIRECT_REQUIRES_NORMAL_VISUAL_CONTEXT");
+    }
+  }
+}
+
+/**
+ * Normal autopilot predicate — the single gate for the generate-time Scene
+ * Planner call. Only the normal production path plans; every diagnostic mode
+ * (ladder / hybrid / full-source direct) skips the planner entirely.
+ */
+export function isComicAutopilotActive(opts: {
+  mode: ComicDiagnosticMode;
+  referenceMode: ComicReferenceIsolationMode;
+  visualContextMode: ComicVisualContextIsolationMode;
+}): boolean {
+  return (
+    opts.mode === "normal" &&
+    opts.referenceMode === "normal" &&
+    opts.visualContextMode === "normal"
+  );
 }
 
 export type ComicPrimaryTier2Boundary = {

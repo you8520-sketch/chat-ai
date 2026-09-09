@@ -104,6 +104,21 @@ function defaultComicSubjects(opts: {
   }).subjects;
 }
 
+/**
+ * Full-source direct baseline section (admin diagnostic variant inside the
+ * canonical comic provider prompt owner). The provider — not the Scene
+ * Planner — selects the scenes. Shared identity/reference/composition/safety
+ * owners around it are unchanged.
+ */
+function renderFullSourceDirectSection(fullSourceText: string): string {
+  return [
+    "FULL SOURCE (canonical turn — select from this only):",
+    fullSourceText,
+    "DIRECT COMPOSITION CONTRACT:",
+    "Select the four most important scenes from the full source above in chronological order and compose them into one 4-panel comic page. Preserve the source events and speakers. Use key dialogue for visible speech and short narration boxes only where a transition needs one. Every visible text line must be a complete sentence.",
+  ].join("\n");
+}
+
 export function buildChatComicImagePrompt(opts: {
   characterName: string;
   characterGender: ImagePromptGender;
@@ -130,6 +145,12 @@ export function buildChatComicImagePrompt(opts: {
   /** SCENE-PLANNER highlight selection — provider autopilot path (normal comic). */
   comicHighlightSelection?: ComicHighlightSelection;
   comicPanelMode?: ChatComicPanelMode;
+  /**
+   * Full-source direct baseline (admin diagnostic) — the canonical full source
+   * text the provider itself selects 4 scenes from. Presence activates the
+   * direct variant; autopilot (highlight selection) always takes precedence.
+   */
+  fullSourceDirectText?: string;
 }): string {
   const projectionContext: SafeVisualProjectionContext = {
     adultGrounded: opts.adultGrounded ?? false,
@@ -159,6 +180,11 @@ export function buildChatComicImagePrompt(opts: {
     opts.comicHighlightSelection ?? opts.plan.comicHighlightSelection;
   const autopilot =
     compositionMode === "full_provider_rendered" && Boolean(autopilotSelection);
+  const directSourceText = (opts.fullSourceDirectText ?? "").trim();
+  const fullSourceDirect =
+    compositionMode === "full_provider_rendered" &&
+    !autopilot &&
+    directSourceText.length > 0;
   const speakerBinding: ComicSpeakerBinding = {
     characterLabel: "A",
     characterName: opts.characterName,
@@ -167,18 +193,22 @@ export function buildChatComicImagePrompt(opts: {
   };
   const compositionContract = autopilot
     ? renderComicAutopilotContract(opts.comicPanelMode ?? "auto")
-    : compositionMode === "blank_balloon_hybrid"
-      ? "GPT IS COMIC DIRECTOR — create the complete comic artwork, including panel composition, camera direction, character poses, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects."
-      : compositionMode === "overlay_first"
-        ? "VISUAL LAYER ONLY — depict characters, background, pose, expression, and camera. Do not render any readable text, speech bubbles, captions, narration boxes, or SFX in the image."
-        : "RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT — the image is the final comic. Draw readable Korean speech bubbles with the exact dialogue below, readable Korean narration boxes when indicated, and readable Korean SFX when indicated.";
+    : fullSourceDirect
+      ? "RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT — the image is the final comic. Select important dialogue from the full source above and render it as readable Korean speech bubbles. Add readable Korean narration boxes only where a scene transition requires one. Render readable Korean SFX where appropriate."
+      : compositionMode === "blank_balloon_hybrid"
+        ? "GPT IS COMIC DIRECTOR — create the complete comic artwork, including panel composition, camera direction, character poses, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects."
+        : compositionMode === "overlay_first"
+          ? "VISUAL LAYER ONLY — depict characters, background, pose, expression, and camera. Do not render any readable text, speech bubbles, captions, narration boxes, or SFX in the image."
+          : "RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT — the image is the final comic. Draw readable Korean speech bubbles with the exact dialogue below, readable Korean narration boxes when indicated, and readable Korean SFX when indicated.";
   const textContract = autopilot
     ? ""
-    : compositionMode === "blank_balloon_hybrid"
-      ? "Draw natural white manga/manhwa speech balloons with black outlines. Place them in visually appropriate negative space. Their tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text. Render no readable letters, dialogue, captions, placeholder words, random symbols or gibberish inside speech balloons."
-      : compositionMode === "overlay_first"
-        ? "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay."
-        : "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page and do not repeat the same composition in every panel. Readable, visually integrated Korean text is required — imperfect typography is acceptable, but text must be legible and belong to the comic. Use narration sparingly — include only very short time-ordered narration boxes for crucial transitions, never long prose paragraphs.";
+    : fullSourceDirect
+      ? "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page and do not repeat the same composition in every panel."
+      : compositionMode === "blank_balloon_hybrid"
+        ? "Draw natural white manga/manhwa speech balloons with black outlines. Place them in visually appropriate negative space. Their tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text. Render no readable letters, dialogue, captions, placeholder words, random symbols or gibberish inside speech balloons."
+        : compositionMode === "overlay_first"
+          ? "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay."
+          : "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page and do not repeat the same composition in every panel. Readable, visually integrated Korean text is required — imperfect typography is acceptable, but text must be legible and belong to the comic. Use narration sparingly — include only very short time-ordered narration boxes for crucial transitions, never long prose paragraphs.";
   const panelSpecSection = autopilot
     ? renderComicTextBrief({
         plan: opts.plan,
@@ -191,7 +221,9 @@ export function buildChatComicImagePrompt(opts: {
         },
         panelMode: opts.comicPanelMode ?? "auto",
       }).text
-    : compositionMode === "full_provider_rendered"
+    : fullSourceDirect
+      ? renderFullSourceDirectSection(directSourceText)
+      : compositionMode === "full_provider_rendered"
       ? buildChatComicPanelSpecFullProviderSection({
           plan: opts.plan,
           personaName: opts.personaName,
@@ -271,6 +303,7 @@ export function buildChatComicGenerationPlan(opts: {
   storyboard?: ComicStoryboard;
   comicPanelMode?: ChatComicPanelMode;
   comicHighlightSelection?: ComicHighlightSelection;
+  fullSourceDirectText?: string;
 }) {
   const useCast = Boolean(opts.castManifest);
   let pack: { subjects: ChatImageVisualSubject[]; referenceUrls: string[] };
@@ -332,6 +365,7 @@ export function buildChatComicGenerationPlan(opts: {
       storyboard: opts.storyboard,
       comicPanelMode: opts.comicPanelMode,
       comicHighlightSelection: opts.comicHighlightSelection,
+      fullSourceDirectText: opts.fullSourceDirectText,
     }),
   };
 }
