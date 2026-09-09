@@ -12,7 +12,7 @@ export const CHAT_IMAGE_TEMPLATE_NAME = "선물상자 2인 SD";
 export const CHAT_IMAGE_TEMPLATE_PREVIEW_URL =
   "/image-templates/sd-gift-box-duo-hq.webp";
 
-export const CHAT_IMAGE_GENERATION_DEFAULT_MODEL = "gpt-image-2";
+export const CHAT_IMAGE_GENERATION_DEFAULT_MODEL = "gpt-image-2.5-flare";
 export const CHAT_IMAGE_GENERATION_DEFAULT_POINTS = CHAT_ROOM_IMAGE_GENERATION_POINTS;
 export const CHAT_IMAGE_GENERATION_OUTPUT_WIDTH = 1024;
 export const CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT = 683;
