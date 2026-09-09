@@ -204,12 +204,15 @@ describe("comic full-source direct experiment — provider prompt variant", () =
     assert.doesNotMatch(prompt, /DIRECT COMPOSITION CONTRACT/);
   });
 
-  it("DIRECT-PROMPT-5 complete-sentence text contract present in direct variant", () => {
+  it("DIRECT-PROMPT-5 direct text contract contains concise Korean text guidance", () => {
     const prompt = buildChatComicImagePrompt({
       ...basePromptOpts(directPlan()),
       fullSourceDirectText: FULL_SOURCE_TEXT,
     });
-    assert.match(prompt, /complete sentence/);
+    assert.match(prompt, /short natural Korean/);
+    assert.match(prompt, /at most two speech bubbles per panel/);
+    assert.match(prompt, /Korean text must be clear, stable, and typo-free/);
+    assert.match(prompt, /Narration only when a transition requires it/);
   });
 
   it("DIRECT-PROMPT-6 direct prompt does not contain production exact-dialogue wording", () => {
@@ -227,6 +230,31 @@ describe("comic full-source direct experiment — provider prompt variant", () =
     });
     assert.doesNotMatch(prompt, /Use narration sparingly/);
     assert.doesNotMatch(prompt, /imperfect typography is acceptable/);
+  });
+
+  it("DIRECT-PROMPT-8 direct composition contract prioritizes story beats and limits density", () => {
+    const prompt = buildChatComicImagePrompt({
+      ...basePromptOpts(directPlan()),
+      fullSourceDirectText: FULL_SOURCE_TEXT,
+    });
+    assert.match(prompt, /Choose four story beats in chronological order/);
+    assert.match(prompt, /important actions, emotional shifts, and key dialogue/);
+    assert.match(prompt, /One main beat per panel/);
+    assert.match(prompt, /Limit to at most two bubbles per panel/);
+    assert.match(prompt, /Avoid long explanatory balloons/);
+    assert.match(prompt, /Preserve only memorable essential lines/);
+  });
+
+  it("DIRECT-PROMPT-9 direct section contract aligns with new priorities", () => {
+    const prompt = buildChatComicImagePrompt({
+      ...basePromptOpts(directPlan()),
+      fullSourceDirectText: FULL_SOURCE_TEXT,
+    });
+    assert.match(prompt, /Use the full source as story context/);
+    assert.match(prompt, /Each panel should focus on one main beat/);
+    assert.match(prompt, /short natural Korean complete sentences/);
+    assert.match(prompt, /If text would become too long, shorten the dialogue/);
+    assert.match(prompt, /without Korean typos/);
   });
 
   it("NORMAL-CONTRACT-1 production full-provider path retains exact-dialogue semantics", () => {

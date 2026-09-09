@@ -115,7 +115,7 @@ function renderFullSourceDirectSection(fullSourceText: string): string {
     "FULL SOURCE (canonical turn — select from this only):",
     fullSourceText,
     "DIRECT COMPOSITION CONTRACT:",
-    "Select the four most important scenes from the full source above in chronological order and compose them into one 4-panel comic page. Preserve the source events and speakers. Use key dialogue for visible speech and short narration boxes only where a transition needs one. Every visible text line must be a complete sentence.",
+    "Use the full source as story context. Choose four important scenes in chronological order. Focus on important actions, emotional changes, and key dialogue. Each panel should focus on one main beat. Use only necessary speech bubbles with short natural Korean complete sentences. If text would become too long, shorten the dialogue or use one short narration box only when needed for transition. Render text clearly, stably, and without Korean typos.",
   ].join("\n");
 }
 
@@ -194,7 +194,7 @@ export function buildChatComicImagePrompt(opts: {
   const compositionContract = autopilot
     ? renderComicAutopilotContract(opts.comicPanelMode ?? "auto")
     : fullSourceDirect
-      ? "RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT — the image is the final comic. Select important dialogue from the full source above and render it as readable Korean speech bubbles. Add readable Korean narration boxes only where a scene transition requires one. Render readable Korean SFX where appropriate."
+      ? "RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT — the image is the final comic. Choose four story beats in chronological order: important actions, emotional shifts, and key dialogue. One main beat per panel. Use concise speech bubbles with short natural Korean sentences. Limit to at most two bubbles per panel. Add a short narration box only when a scene transition requires it. Render Korean text clearly, stably, and without typos. Render readable Korean SFX where appropriate."
       : compositionMode === "blank_balloon_hybrid"
         ? "GPT IS COMIC DIRECTOR — create the complete comic artwork, including panel composition, camera direction, character poses, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects."
         : compositionMode === "overlay_first"
@@ -203,7 +203,7 @@ export function buildChatComicImagePrompt(opts: {
   const textContract = autopilot
     ? ""
     : fullSourceDirect
-      ? "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page and do not repeat the same composition in every panel."
+      ? "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions. Vary shot distance across the page. Text budget: at most two speech bubbles per panel. Avoid long explanatory balloons. Preserve only memorable essential lines. Narration only when a transition requires it, never by default. Korean text must be clear, stable, and typo-free."
       : compositionMode === "blank_balloon_hybrid"
         ? "Draw natural white manga/manhwa speech balloons with black outlines. Place them in visually appropriate negative space. Their tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text. Render no readable letters, dialogue, captions, placeholder words, random symbols or gibberish inside speech balloons."
         : compositionMode === "overlay_first"
