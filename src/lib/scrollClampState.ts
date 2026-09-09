@@ -1,8 +1,11 @@
 /** Test-only scroll clamp + continuous-motion proof. Not used by production follow. */
 
 import {
+  estimateLineWrapIntervalMs,
+  LIVE_FOLLOW_BASE_SPEED_PX_PER_SEC,
   LIVE_FOLLOW_MAX_CATCHUP_SPEED_PX_PER_SEC,
   LIVE_READING_TARGET_RATIO,
+  MEDIAN_LINE_HEIGHT_PX,
   measureScrollMotionContinuity,
   type ScrollMotionContinuityMetrics,
 } from "./liveReadingFollow";
@@ -17,6 +20,24 @@ export const MAX_FRAME_VELOCITY_EPSILON_PX_PER_SEC = 12;
 export const INTEGER_CADENCE_MAX_INTER_STEP_GAP_MS = 200;
 export const INTEGER_CADENCE_P95_INTER_STEP_GAP_MS = 120;
 export const INTEGER_CADENCE_MAX_STEP_PX = 1;
+/** Nominal-frame ceiling for one bounded rendered-line chase event. */
+export const INTEGER_CHASE_MAX_STEP_PX = 8;
+/** Sampling/scheduling tolerance after one line wrap plus its bounded chase. */
+export const TARGET_CHASE_SETTLE_TOLERANCE_MS = 240;
+/**
+ * Browser line widths exceed the 42-char median estimate, so a chase settle is
+ * allowed to span up to this multiple of the estimated wrap interval.
+ */
+export const TARGET_CHASE_WRAP_SPAN_MULTIPLIER = 1.75;
+
+export function resolveTargetChaseMaxInterStepGapMs(
+  streamIntervalMs: number,
+  charsPerTick = 1
+): number {
+  const wrapMs = estimateLineWrapIntervalMs(streamIntervalMs, charsPerTick);
+  const chaseMs = (MEDIAN_LINE_HEIGHT_PX / LIVE_FOLLOW_BASE_SPEED_PX_PER_SEC) * 1000;
+  return wrapMs * TARGET_CHASE_WRAP_SPAN_MULTIPLIER + chaseMs + TARGET_CHASE_SETTLE_TOLERANCE_MS;
+}
 
 /** Documented: scrollRange < 4 is never a PASS reason. */
 export const IMPLICIT_SCROLL_RANGE_PASS_PATH = false;
@@ -95,11 +116,12 @@ function percentile(values: number[], p: number): number {
 
 export function measureIntegerScrollCadence(
   samples: MotionProofFrame[],
-  opts?: { maxStepPx?: number }
+  opts?: { maxStepPx?: number; includeCatchUpSteps?: boolean }
 ): IntegerScrollCadenceMetrics {
   const positiveSteps: number[] = [];
   const positiveEvents: Array<{ t: number; step: number; remainingDelta: number | null }> = [];
   const maxStepPx = opts?.maxStepPx ?? INTEGER_CADENCE_MAX_STEP_PX;
+  const includeCatchUpSteps = opts?.includeCatchUpSteps ?? false;
   let previousScrollY = samples[0]?.scrollY ?? 0;
   let previousSignedStep = 0;
   let directionReversalCount = 0;
@@ -127,22 +149,22 @@ export function measureIntegerScrollCadence(
     previousScrollY = sample.scrollY;
   }
 
-  const isSteadyCruiseEvent = (event: (typeof positiveEvents)[number]) =>
-    event.remainingDelta == null || event.remainingDelta <= 0;
-  positiveSteps.push(
-    ...positiveEvents.filter(isSteadyCruiseEvent).map((event) => event.step)
-  );
-  const steadyInterStepGaps: number[] = [];
-  const steadyCruiseSegmentGaps: number[] = [];
+  const isCountedEvent = (event: (typeof positiveEvents)[number]) =>
+    includeCatchUpSteps ||
+    event.remainingDelta == null ||
+    event.remainingDelta <= 0;
+  positiveSteps.push(...positiveEvents.filter(isCountedEvent).map((event) => event.step));
+  const countedInterStepGaps: number[] = [];
+  const countedCruiseSegmentGaps: number[] = [];
   for (let index = 1; index < positiveEvents.length; index += 1) {
     const previous = positiveEvents[index - 1]!;
     const current = positiveEvents[index]!;
-    if (isSteadyCruiseEvent(previous) && isSteadyCruiseEvent(current)) {
+    if (isCountedEvent(previous) && isCountedEvent(current)) {
       const gap = Math.max(0, current.t - previous.t);
-      steadyInterStepGaps.push(gap);
-      // A visible pause closes the current steady segment; MAX still reports it.
+      countedInterStepGaps.push(gap);
+      // A visible pause closes the current chase/cruise segment; MAX still reports it.
       if (gap <= INTEGER_CADENCE_P95_INTER_STEP_GAP_MS) {
-        steadyCruiseSegmentGaps.push(gap);
+        countedCruiseSegmentGaps.push(gap);
       }
     }
   }
@@ -160,9 +182,9 @@ export function measureIntegerScrollCadence(
       : 0,
     MEDIAN_POSITIVE_STEP_PX: percentile(positiveSteps, 0.5),
     P95_POSITIVE_STEP_PX: percentile(positiveSteps, 0.95),
-    MEDIAN_INTER_STEP_GAP_MS: percentile(steadyCruiseSegmentGaps, 0.5),
-    P95_INTER_STEP_GAP_MS: percentile(steadyCruiseSegmentGaps, 0.95),
-    MAX_INTER_STEP_GAP_MS: steadyInterStepGaps.length > 0 ? Math.max(...steadyInterStepGaps) : 0,
+    MEDIAN_INTER_STEP_GAP_MS: percentile(countedCruiseSegmentGaps, 0.5),
+    P95_INTER_STEP_GAP_MS: percentile(countedCruiseSegmentGaps, 0.95),
+    MAX_INTER_STEP_GAP_MS: countedInterStepGaps.length > 0 ? Math.max(...countedInterStepGaps) : 0,
     AVERAGE_SCROLL_VELOCITY: sampleDurationSec > 0 ? totalPositiveScroll / sampleDurationSec : 0,
     DIRECTION_REVERSAL_COUNT: directionReversalCount,
     LARGE_JUMP_COUNT: largeJumpCount,
@@ -207,6 +229,12 @@ export function evaluateContinuousMotionProof(opts: {
   frames: MotionProofFrame[];
   startGeometry: ScrollClampState;
   requireMotion: boolean;
+  includeCatchUpSteps?: boolean;
+  maxStepPx?: number;
+  maxInterStepGapMs?: number;
+  maxFrameVelocityPxPerSec?: number;
+  ignoreMaxFrameVelocity?: boolean;
+  ignoreStopStartOscillation?: boolean;
 }): ContinuousMotionProof {
   const frames = opts.frames;
   const start = opts.startGeometry;
@@ -268,7 +296,10 @@ export function evaluateContinuousMotionProof(opts: {
           { velocityThresholdPxPerSec: 4 }
         )
       : null;
-  const cadence = measureIntegerScrollCadence(frames);
+  const cadence = measureIntegerScrollCadence(frames, {
+    maxStepPx: opts.maxStepPx,
+    includeCatchUpSteps: opts.includeCatchUpSteps,
+  });
 
   if (clampAllowed) {
     return {
@@ -307,7 +338,9 @@ export function evaluateContinuousMotionProof(opts: {
   if (cadence.P95_INTER_STEP_GAP_MS > INTEGER_CADENCE_P95_INTER_STEP_GAP_MS) {
     reasons.push("P95_INTER_STEP_GAP_MS");
   }
-  if (cadence.MAX_INTER_STEP_GAP_MS > INTEGER_CADENCE_MAX_INTER_STEP_GAP_MS) {
+  const maxInterStepGapLimit =
+    opts.maxInterStepGapMs ?? INTEGER_CADENCE_MAX_INTER_STEP_GAP_MS;
+  if (cadence.MAX_INTER_STEP_GAP_MS > maxInterStepGapLimit) {
     reasons.push("MAX_INTER_STEP_GAP_MS");
   }
   const reversals = Math.max(
@@ -322,7 +355,10 @@ export function evaluateContinuousMotionProof(opts: {
   if (largeJumps !== 0) {
     reasons.push("LARGE_JUMP_COUNT");
   }
-  if (maxFrameVelocity > MAX_FRAME_VELOCITY_PX_PER_SEC + MAX_FRAME_VELOCITY_EPSILON_PX_PER_SEC) {
+  const maxFrameVelocityLimit =
+    opts.maxFrameVelocityPxPerSec ??
+    MAX_FRAME_VELOCITY_PX_PER_SEC + MAX_FRAME_VELOCITY_EPSILON_PX_PER_SEC;
+  if (!opts.ignoreMaxFrameVelocity && maxFrameVelocity > maxFrameVelocityLimit) {
     reasons.push("MAX_FRAME_VELOCITY");
   }
   if (!followLatestAlwaysTrue) {
@@ -331,7 +367,7 @@ export function evaluateContinuousMotionProof(opts: {
   if (programmaticSelfDetach) {
     reasons.push("PROGRAMMATIC_SELF_DETACH");
   }
-  if (metrics?.stopStartOscillation) {
+  if (!opts.ignoreStopStartOscillation && metrics?.stopStartOscillation) {
     reasons.push("STOP_START_OSCILLATION");
   }
 
