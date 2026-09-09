@@ -105,6 +105,22 @@ function defaultComicSubjects(opts: {
 }
 
 /**
+ * Canonical Full-source direct content-selection contract (single owner).
+ * The provider — not the Scene Planner — picks the 4 panels from the full
+ * source and chooses the visible dialogue/narration. Bubble count stays
+ * scene-dependent, and the page must stay readable with stable Korean.
+ * Rendering and layout concerns live in their own contracts, not here.
+ */
+export const FULL_SOURCE_DIRECT_CONTENT_CONTRACT =
+  "Using the full source, compose a chronological 4-panel comic centered on " +
+  "important actions, emotional shifts, and key dialogue. Let the number of " +
+  "speech bubbles vary naturally with the scene, and place important dialogue " +
+  "and narration naturally according to the characters and composition. Keep " +
+  "the page from becoming overcrowded; all visible text should use natural, " +
+  "complete Korean sentences and be rendered clearly and stably. Preserve the " +
+  "source's key events and speaker relationships.";
+
+/**
  * Full-source direct baseline section (admin diagnostic variant inside the
  * canonical comic provider prompt owner). The provider — not the Scene
  * Planner — selects the scenes. Shared identity/reference/composition/safety
@@ -114,8 +130,8 @@ function renderFullSourceDirectSection(fullSourceText: string): string {
   return [
     "FULL SOURCE (canonical turn — select from this only):",
     fullSourceText,
-    "DIRECT COMPOSITION CONTRACT:",
-    "Select the four most important scenes from the full source above in chronological order and compose them into one 4-panel comic page. Preserve the source events and speakers. Use key dialogue for visible speech and short narration boxes only where a transition needs one. Every visible text line must be a complete sentence.",
+    "DIRECT CONTENT CONTRACT:",
+    FULL_SOURCE_DIRECT_CONTENT_CONTRACT,
   ].join("\n");
 }
 
@@ -194,7 +210,7 @@ export function buildChatComicImagePrompt(opts: {
   const compositionContract = autopilot
     ? renderComicAutopilotContract(opts.comicPanelMode ?? "auto")
     : fullSourceDirect
-      ? "RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT — the image is the final comic. Select important dialogue from the full source above and render it as readable Korean speech bubbles. Add readable Korean narration boxes only where a scene transition requires one. Render readable Korean SFX where appropriate."
+      ? "RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT — the image is the final comic. Render the composed dialogue and narration as readable Korean text, with readable Korean SFX where appropriate."
       : compositionMode === "blank_balloon_hybrid"
         ? "GPT IS COMIC DIRECTOR — create the complete comic artwork, including panel composition, camera direction, character poses, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects."
         : compositionMode === "overlay_first"
