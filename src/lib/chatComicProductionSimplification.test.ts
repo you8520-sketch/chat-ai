@@ -127,6 +127,44 @@ describe("production comic simplification — admin diagnostic UI removed", () =
   });
 });
 
+describe("PR-A merge blockers — cost bucket + storyboard false owner", () => {
+  it("COST-1 production comic admin cost uses the fixed 4-panel bucket", () => {
+    const panel = read(PANEL);
+    assert.match(panel, /averageCosts\.comic\[4\]/);
+    assert.doesNotMatch(panel, /averageCosts\.comic\[3\]/);
+  });
+
+  it("UI-DIRECT-1 production comic mode shows no storyboard dialogue editor", () => {
+    const panel = read(PANEL);
+    // The ChatSceneBuilder dialogue editor (ComicPanelStoryboardCard editable
+    // path) renders only when comicAutopilotMode is false; production must
+    // never enable it.
+    assert.doesNotMatch(panel, /comicAutopilotMode=\{false\}/);
+  });
+
+  it("UI-DIRECT-2 production comic mode shows no scene-detail editor", () => {
+    const panel = read(PANEL);
+    const builder = read("src/components/ChatSceneBuilder.tsx");
+    // The scene-detail editor button is gated on !comicAutopilotMode; production
+    // explicitly opts into the non-editable automatic state.
+    assert.match(builder, /!comicAutopilotMode \? \(/);
+    assert.match(panel, /comicAutopilotMode=\{true\}/);
+  });
+
+  it("UI-DIRECT-3 provider-direct automatic explanation is retained", () => {
+    const builder = read("src/components/ChatSceneBuilder.tsx");
+    assert.match(builder, /4컷 만화를 자동으로 구성합니다/);
+    assert.doesNotMatch(builder, /AI가 이 턴에서 중요 장면을 골라 컷 구성을 자동으로 만듭니다/);
+  });
+
+  it("UI-DIRECT-4 cast/reference controls are retained", () => {
+    const panel = read(PANEL);
+    assert.match(panel, /onCastChange=\{setCastIntent\}/);
+    const builder = read("src/components/ChatSceneBuilder.tsx");
+    assert.match(builder, /ChatImageCastPicker/);
+  });
+});
+
 describe("non-admin privacy boundary (server gate is canonical owner)", () => {
   it("PRIV-1 image-generation GET gates averageCosts and latestResult cost behind canSeeCost", () => {
     const route = read("src/app/api/chat/image-generation/route.ts");

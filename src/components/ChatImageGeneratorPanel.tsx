@@ -1803,7 +1803,7 @@ export default function ChatImageGeneratorPanel({
                             characterName={info?.character.name ?? "캐릭터"}
                             castSpeakerNames={configuredCastNames}
                             outputMode={sceneOutputMode}
-                            comicAutopilotMode={false}
+                            comicAutopilotMode={true}
                             disabled={generating}
                             onOutputModeChange={(mode) => {
                               setSceneOutputMode(mode);
@@ -1825,7 +1825,7 @@ export default function ChatImageGeneratorPanel({
                                   }]
                                 : [{
                                     label: "컷만화",
-                                    cost: info.averageCosts.comic[3],
+                                    cost: info.averageCosts.comic[4],
                                   }]
                               : undefined
                           }
