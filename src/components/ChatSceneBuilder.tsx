@@ -456,7 +456,7 @@ export default function ChatSceneBuilder({
         <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
           {(
             [
-              ["illustration", "한 장 일러스트"],
+              ["illustration", "일러스트"],
               ["comic", "컷만화"],
             ] as const
           ).map(([id, label]) => (

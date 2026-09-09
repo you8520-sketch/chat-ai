@@ -22,15 +22,6 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
 import {
-  resolveComicHighlightFallback,
-} from "@/lib/chatComicHighlightExcerpt";
-import {
-  buildComicTextBriefAudit,
-  selectComicDialogueCandidates,
-  selectComicNarrationCandidates,
-} from "@/lib/chatComicTextBrief";
-import type { ComicHighlightSelection } from "@/lib/chatImageScenePlan";
-import {
   CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
   CHAT_LD_ILLUSTRATION_QUALITY,
   CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
@@ -77,7 +68,6 @@ import {
   formatSceneSourcePreview,
   isScenePanelCount,
   reflowScenePlanPanels,
-  resolveComicHighlightSelectionSource,
   resolveScenePresentationVisibility,
   validateScenePlan,
   type ScenePlan,
@@ -178,7 +168,6 @@ import {
   assertComicDiagnosticAxisIsolation,
   buildSemanticLadderSafeStructure,
   buildSemanticLadderScenePlan,
-  isComicAutopilotActive,
   resolveComicDiagnosticMode,
   resolveComicPrimaryTier2Boundary,
   type ComicDiagnosticMode,
@@ -1237,7 +1226,12 @@ export async function POST(req: Request) {
         });
         illustrationMessageId = source.messageId;
         const knownSpeakerNames = resolveKnownSpeakerNames(context, body.castIntent);
-        const scenePlan = resolveApprovedScenePlan({
+        // REGULAR ILLUSTRATION — production path. The provider receives the full
+        // turn as story context and selects the single important visual moment
+        // itself (canonical important-moment contract). No Scene Planner call.
+        // A deterministic structural plan is still resolved only for cast/identity
+        // grounding; it is NOT passed to the prompt as an approved scene.
+        const groundingScenePlan = resolveApprovedScenePlan({
           bodyPlan: body.scenePlan,
           messages: source.messages,
           personaName: context.persona.name,
@@ -1248,7 +1242,7 @@ export async function POST(req: Request) {
         const castManifest = resolveGroundedCastManifest({
           castIntentRaw: body.castIntent,
           context,
-          scenePlan,
+          scenePlan: groundingScenePlan,
           userId: user.id,
           sourceMessages: source.messages,
           fromManualText: source.fromManualText,
@@ -1264,7 +1258,7 @@ export async function POST(req: Request) {
           personaImageUrl: context.personaImageUrl,
           personaSavedAppearance: context.personaSavedAppearance,
           personaAppearanceMode: appearanceModes.personaAppearanceMode,
-          approvedScenePlan: scenePlan,
+          currentTurn: source.turnText,
           castManifest,
           contentKind: context.contentKind,
         });
@@ -1443,24 +1437,29 @@ export async function POST(req: Request) {
     // tall 4-panel-sized canvas, NOT a claim about the rendered panel count.
     const requestedPanelMode = isComicPanelMode(body.panelCount) ? body.panelCount : "auto";
     const canvasPanelCount: 3 | 4 = requestedPanelMode === "auto" ? 4 : requestedPanelMode;
-    const fullSourceDirectMode = diagnosticMode.mode === "full_source_direct";
-    const autopilotActive = isComicAutopilotActive({
-      mode: diagnosticMode.mode,
-      referenceMode: diagnosticOverrides.referenceMode,
-      visualContextMode: diagnosticOverrides.visualContextMode,
-    });
+    // PRODUCTION COMIC — the provider selects WHAT + HOW directly from the full
+    // source. This is the canonical production path; it is NOT routed through an
+    // admin diagnostic mode. The full_source_direct diagnostic enum value remains
+    // only for the admin backend framework (UI removed).
+    const fullSourceDirectMode =
+      (diagnosticMode.mode === "normal" &&
+        diagnosticOverrides.referenceMode === "normal" &&
+        diagnosticOverrides.visualContextMode === "normal") ||
+      diagnosticMode.mode === "full_source_direct";
+    const autopilotActive = false;
 
     // NORMAL COMIC LIFECYCLE — auth/input/concurrency/balance preflight all run
-    // BEFORE the single Scene Planner call. The client-provided scenePlan is never
-    // canonical authority for the normal comic; diagnostic modes (ladder/hybrid/
-    // reference-isolation) resolve the client plan with no AI call.
+    // before the single provider call. The client-provided scenePlan is never
+    // canonical authority for the production comic; the provider receives the
+    // full source text and picks the 4 scenes itself. No Scene Planner call.
     const preflightPlan =
       autopilotActive || semanticLadderMode
         ? undefined
         : resolveApprovedScenePlan({
             bodyPlan: body.scenePlan,
             messages: source.messages,
-            // Full-source direct is fixed 4-panel — reuse the canonical reflow owner.
+            // Full-source production comic is fixed 4-panel — reuse the canonical
+            // reflow owner.
             panelCount: fullSourceDirectMode ? 4 : undefined,
             personaName: context.persona.name,
             characterName: context.character.name,
@@ -1488,42 +1487,19 @@ export async function POST(req: Request) {
 
     startJob(CHAT_COMIC_TEMPLATE_ID, "comic");
 
-    // COMIC PROVIDER AUTOPILOT — Scene Planner selects WHAT (anchor + contiguous
-    // highlight) exactly ONCE here, at generate time, after preflight; GPT Image
-    // decides HOW (3/4-panel breakdown, dialogue density, narration 0-2, camera,
-    // balloons, SFX). Server builds a source-preserving safe highlight excerpt for
-    // the provider prompt; it never pre-plans panels. Admin diagnostics
-    // (ladder/hybrid/reference-isolation) keep the fixed path.
+    // PRODUCTION COMIC — GPT Image selects WHAT + HOW directly from the full
+    // source. The canonical plan is the fixed 4-panel structural reflow; the
+    // provider prompt carries the full source text and the provider owns scene
+    // selection. No Scene Planner / highlight / text-brief call. Admin diagnostics
+    // (ladder/hybrid/reference-isolation) keep their fixed paths.
     const canonicalPlan = semanticLadderMode
       ? buildSemanticLadderScenePlan(
           diagnosticMode.semanticLevel!,
           4,
           diagnosticMode.textBoundaryLevel
         )
-      : autopilotActive
-        ? (
-            await planChatImageScene({
-              contentKind: context.contentKind,
-              scenePlanIntent: "comic",
-              characterName: context.character.name,
-              personaName: context.persona.name,
-              messages: source.messages,
-              speakerContext: {
-                personaName: context.persona.name,
-                characterName: context.character.name,
-                knownSpeakerNames,
-              },
-            })
-          ).plan
-        : preflightPlan!;
-    let comicHighlightSelection: ComicHighlightSelection | undefined;
-    let scenePlan = canonicalPlan;
-    if (autopilotActive) {
-      comicHighlightSelection =
-        canonicalPlan.comicHighlightSelection ?? resolveComicHighlightFallback(canonicalPlan);
-      scenePlan = canonicalPlan;
-    }
-    const highlightSelectionSource = resolveComicHighlightSelectionSource(canonicalPlan);
+      : preflightPlan!;
+    const scenePlan = canonicalPlan;
     const castManifest = semanticLadderMode
       ? null
       : resolveGroundedCastManifest({
@@ -1564,8 +1540,6 @@ contentKind: context.contentKind,
           ? "blank_balloon_hybrid"
           : "full_provider_rendered",
       providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
-      comicHighlightSelection: autopilotActive ? comicHighlightSelection : undefined,
-      comicPanelMode: autopilotActive ? requestedPanelMode : undefined,
       fullSourceDirectText: fullSourceDirectMode ? source.turnText : undefined,
     });
     const neutralVisualContext = diagnosticOverrides.visualContextMode === "neutral_visual_context";
@@ -1594,8 +1568,6 @@ contentKind: context.contentKind,
               ? "blank_balloon_hybrid"
               : "full_provider_rendered",
           providerTextAdultEligible: semanticLadderMode ? true : roomAdultGrounded,
-          comicHighlightSelection: autopilotActive ? comicHighlightSelection : undefined,
-          comicPanelMode: autopilotActive ? requestedPanelMode : undefined,
           fullSourceDirectText: fullSourceDirectMode ? source.turnText : undefined,
         })
       : identityPack;
@@ -1847,36 +1819,6 @@ contentKind: context.contentKind,
                 referenceIsolationMode: diagnosticOverrides.referenceMode,
                 visualContextIsolationMode: diagnosticOverrides.visualContextMode,
                 ...formatComicReferenceSetForAdmin(providerReferences),
-                ...(autopilotActive && comicHighlightSelection
-                  ? {
-                      highlightSelectionSource,
-                      highlightSelection: {
-                        anchorEventId: comicHighlightSelection.anchorEventId,
-                        focusEventIds: comicHighlightSelection.focusEventIds,
-                      },
-                      comicTextBrief: (() => {
-                        const dialogueCandidates = selectComicDialogueCandidates(
-                          canonicalPlan,
-                          comicHighlightSelection!,
-                          { characterLabel: "A", characterName: context.character.name, personaLabel: "B", personaName: context.persona.name },
-                          { providerReadableDialogueAdultEligible: semanticLadderMode ? true : roomAdultGrounded }
-                        );
-                        const narrationCandidates = selectComicNarrationCandidates(
-                          canonicalPlan,
-                          comicHighlightSelection!,
-                          { visualProjectionAdultGrounded: semanticLadderMode }
-                        );
-                        return buildComicTextBriefAudit({
-                          selection: comicHighlightSelection!,
-                          dialogueCandidates,
-                          narrationCandidates,
-                          panelMode: requestedPanelMode,
-                          plan: canonicalPlan,
-                          binding: { characterLabel: "A", characterName: context.character.name, personaLabel: "B", personaName: context.persona.name },
-                        });
-                      })(),
-                    }
-                  : {}),
               },
             }
           : {

@@ -4,8 +4,10 @@ import { describe, it } from "node:test";
 import {
   CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
   CHAT_LD_ILLUSTRATION_QUALITY,
+  ILLUSTRATION_IMPORTANT_MOMENT_CONTRACT,
   buildChatLdIllustrationPrompt,
   buildLdDuoGenerationPlan,
+  buildLdSceneGenerationPlan,
   buildTrpgIllustrationSituation,
   formatOpenAiImageUserError,
   resolveChatLdIllustrationPrice,
@@ -49,7 +51,8 @@ describe("chatLdIllustrationGeneration", () => {
       currentTurn: "Setting: 식당\nActions: 렌이 태형에게 깻잎을 먹여준다.",
     });
     assert.match(prompt, /렌이 태형에게 깻잎을 먹여준다/);
-    assert.match(prompt, /SELECTED TURN SCENE BRIEF/);
+    assert.match(prompt, /SELECTED TURN — SINGLE IMPORTANT VISUAL MOMENT/);
+    assert.match(prompt, /Use the full turn as story context/);
     assert.match(prompt, /Image 1 belongs ONLY to 태형/);
     assert.match(prompt, /Image 2 belongs ONLY to 렌/);
     assert.match(prompt, /IDENTITY OWNERSHIP IS STRICT/);
@@ -60,6 +63,52 @@ describe("chatLdIllustrationGeneration", () => {
     assert.match(prompt, /confirmed MALE/);
     assert.match(prompt, /non-explicit/i);
     assert.match(prompt, /Show exactly these two people/);
+  });
+
+  it("production illustration uses the canonical important-moment contract exactly once", () => {
+    const prompt = buildChatLdIllustrationPrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      currentTurn: "Setting: 식당\nActions: 렌이 태형에게 깻잎을 먹여준다.",
+    });
+    const occurrences = prompt.split(ILLUSTRATION_IMPORTANT_MOMENT_CONTRACT).length - 1;
+    assert.equal(occurrences, 1, "canonical important-moment contract exactly once");
+    assert.match(prompt, /depict the selected important visual moment/i);
+  });
+
+  it("production illustration keeps the one-illustration / no-comic-text invariants", () => {
+    const prompt = buildChatLdIllustrationPrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      currentTurn: "Setting: 식당\nActions: 렌이 태형에게 깻잎을 먹여준다.",
+    });
+    assert.match(prompt, /Create one polished vertical 2:3 Korean character illustration, not a comic page/);
+    assert.match(prompt, /Do not render speech bubbles, captions, subtitles, or readable dialogue text/);
+    assert.doesNotMatch(prompt, /컷만화|4-panel|manhwa page/);
+    assert.doesNotMatch(prompt, /APPROVED SCENE PLAN/);
+  });
+
+  it("buildLdSceneGenerationPlan forwards the full turn to the duo important-moment path", () => {
+    const plan = buildLdSceneGenerationPlan({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      characterImageUrl: "/synthetic/character-a-primary.webp",
+      characterSavedAppearance: "",
+      characterAppearanceMode: "image_only",
+      personaImageUrl: "/synthetic/character-b-primary.webp",
+      personaSavedAppearance: "",
+      personaAppearanceMode: "image_only",
+      currentTurn: "Setting: 식당\nActions: 렌이 태형에게 깻잎을 먹여준다.",
+    });
+    assert.match(plan.prompt, /렌이 태형에게 깻잎을 먹여준다/);
+    assert.match(plan.prompt, /SELECTED TURN — SINGLE IMPORTANT VISUAL MOMENT/);
+    assert.doesNotMatch(plan.prompt, /APPROVED SCENE PLAN/);
   });
 
   it("requires every TRPG party member to appear when a cast is provided", () => {

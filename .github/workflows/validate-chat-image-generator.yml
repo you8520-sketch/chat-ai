@@ -57,6 +57,7 @@ on:
       - "src/lib/chatComicHighlightSelector.test.ts"
       - "src/lib/chatComicTextBrief.test.ts"
       - "src/lib/chatComicFullSourceDirect.test.ts"
+      - "src/lib/chatComicProductionSimplification.test.ts"
       - "src/lib/chatComicUserDialogueNarration.test.ts"
       - "src/lib/chatImageMultiSpeakerDialogue.test.ts"
       - "src/lib/chatImageComicDialogueRegression.test.ts"
@@ -205,6 +206,7 @@ jobs:
       - run: node --conditions=react-server --import tsx --test src/lib/chatComicHighlightSelector.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatComicTextBrief.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatComicFullSourceDirect.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatComicProductionSimplification.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatComicUserDialogueNarration.test.ts
       - run: node --import tsx --test src/lib/chatComicPanelSpecSemantics.test.ts
       - run: node --import tsx --test src/lib/chatImagePromptIdentityBinding.test.ts

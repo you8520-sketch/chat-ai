@@ -115,10 +115,10 @@ describe("comic full-source direct experiment — resolve + axis isolation", () 
 });
 
 describe("comic full-source direct experiment — planner-call gate", () => {
-  it("DIRECT-PLAN-1 normal/normal/normal is autopilot (planner runs once)", () => {
+  it("DIRECT-PLAN-1 production comic is never autopilot (planner calls = 0)", () => {
     assert.equal(
       isComicAutopilotActive({ mode: "normal", referenceMode: "normal", visualContextMode: "normal" }),
-      true
+      false
     );
   });
 
