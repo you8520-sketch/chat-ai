@@ -3024,6 +3024,7 @@ export async function POST(req: Request) {
               selectedAILabel(input.selectedModel),
               targetResponseCharsRef,
               {
+                requestId: clientRequestId,
                 charName: ch.name,
                 personaName: personaDisplayName,
                 systemSplit: input.systemSplit,

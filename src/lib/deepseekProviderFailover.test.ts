@@ -37,7 +37,7 @@ function sseChunk(json: unknown): Uint8Array {
   return encoder.encode(`data: ${JSON.stringify(json)}\n\n`);
 }
 
-function sseResponse(events: unknown[], extra?: { hang?: boolean }): Response {
+function sseResponse(events: unknown[], extra?: { hang?: boolean; headers?: Record<string, string> }): Response {
   return new Response(
     new ReadableStream<Uint8Array>({
       start(controller) {
@@ -46,6 +46,21 @@ function sseResponse(events: unknown[], extra?: { hang?: boolean }): Response {
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         }
+      },
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream", ...extra?.headers },
+    }
+  );
+}
+
+function rawSseResponse(chunks: string[]): Response {
+  return new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+        controller.close();
       },
     }),
     { status: 200, headers: { "Content-Type": "text/event-stream" } }
@@ -239,6 +254,7 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.deepEqual(result.urls, [CI_URL]);
     assert.deepEqual(result.models, [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]);
     assert.equal(result.telemetry.provider_attempt_count, 1);
+    assert.equal(result.telemetry.backup_provider, null);
     assert.equal(result.telemetry.backup_success, false);
     assert.equal(result.telemetry.failover_trigger, null);
     assert.match(result.text, /안녕/);
@@ -256,6 +272,74 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.equal(result.urls.length, 1);
     assert.notEqual(result.telemetry.primary_first_visible_ms, null);
     assert.match(result.text, /visible prose/);
+    const trace = result.telemetry.primary_stream_observability;
+    assert.ok(trace);
+    assert.equal(trace.sse_event_count, 2);
+    assert.equal(trace.sse_json_parse_success_count, 2);
+    assert.equal(trace.visible_content_event_count, 1);
+    assert.equal(trace.visible_content_chars, "visible prose".length);
+    assert.equal(trace.reasoning_event_count, 1);
+    assert.equal(trace.reasoning_chars, "hidden".length);
+    assert.equal(trace.unknown_delta_event_count, 0);
+    assert.notEqual(trace.first_raw_body_ms, null);
+    assert.notEqual(trace.first_visible_ms, null);
+    assert.equal(trace.abort_called, false);
+  });
+
+  it("P1b complete visible JSON without trailing newline remains first-visible", async () => {
+    const result = await runStream({
+      logical: "pro",
+      fetchFn: async () =>
+        rawSseResponse(['data: {"choices":[{"delta":{"content":"visible prose"}}]}']),
+    });
+    assert.match(result.text, /visible prose/);
+    assert.notEqual(result.telemetry.primary_first_visible_ms, null);
+    assert.equal(result.telemetry.primary_stream_observability?.visible_content_chars, 13);
+  });
+
+  it("P1c visible JSON split across chunks is recognized exactly once", async () => {
+    const result = await runStream({
+      logical: "pro",
+      fetchFn: async () =>
+        rawSseResponse([
+          'data: {"choices":[{"delta":{"content":"vis',
+          'ible prose"}}]}\n',
+        ]),
+    });
+    assert.match(result.text, /visible prose/);
+    const trace = result.telemetry.primary_stream_observability;
+    assert.ok(trace);
+    assert.equal(trace.visible_content_event_count, 1);
+    assert.equal(trace.visible_content_chars, 13);
+  });
+
+  it("P1d resolves only CheaperInference request-id headers", async () => {
+    const canonical = await runStream({
+      logical: "pro",
+      fetchFn: async () =>
+        sseResponse([{ choices: [{ delta: { content: "ok" } }] }], {
+          headers: { "x-ci-request-id": "ci_123" },
+        }),
+    });
+    assert.equal(canonical.telemetry.primary_stream_observability?.provider_request_id, "ci_123");
+
+    const legacy = await runStream({
+      logical: "pro",
+      fetchFn: async () =>
+        sseResponse([{ choices: [{ delta: { content: "ok" } }] }], {
+          headers: { "X-Cheaper-Inference-Request-Id": "ci_legacy" },
+        }),
+    });
+    assert.equal(legacy.telemetry.primary_stream_observability?.provider_request_id, "ci_legacy");
+
+    const protocolOnly = await runStream({
+      logical: "pro",
+      fetchFn: async () =>
+        sseResponse([{ id: "chatcmpl_xxx", choices: [{ delta: { content: "ok" } }] }], {
+          headers: { "x-request-id": "not-ci-ledger-id" },
+        }),
+    });
+    assert.equal(protocolOnly.telemetry.primary_stream_observability?.provider_request_id, null);
   });
 
   it("P2 native Pro UND_ERR_SOCKET before headers → strict single external attempt", async () => {
@@ -366,6 +450,14 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.equal(requestSignal?.aborted, true, "timeout aborts the original provider fetch");
     assert.equal(requestAbortCount, 1, "timeout aborts the provider request exactly once");
     assert.equal(bodyCancelCount, 1, "timeout cancels the provider response reader exactly once");
+    const trace = result.telemetry.primary_stream_observability;
+    assert.ok(trace);
+    assert.equal(trace.raw_body_chunk_count, 1);
+    assert.equal(trace.sse_event_count, 1);
+    assert.equal(trace.visible_content_event_count, 0);
+    assert.equal(trace.reasoning_event_count, 1);
+    assert.equal(trace.abort_called, true);
+    assert.notEqual(trace.abort_at_ms, null);
   });
 
   it("P6 native Pro one visible char then socket close → OR calls 0", async () => {
@@ -430,6 +522,13 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.equal(result.telemetry.primary_failure_class, "first_visible_timeout");
     assert.equal(result.telemetry.provider_attempt_count, 1);
     assert.equal(calls, 1);
+    const trace = result.telemetry.primary_stream_observability;
+    assert.ok(trace);
+    assert.equal(trace.raw_body_chunk_count, 0);
+    assert.equal(trace.raw_body_bytes, 0);
+    assert.equal(trace.sse_event_count, 0);
+    assert.equal(trace.visible_content_event_count, 0);
+    assert.equal(trace.abort_called, true);
   });
 
   it("F5 Flash partial visible then failure → OR calls 0", async () => {
