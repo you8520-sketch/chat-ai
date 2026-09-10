@@ -51,6 +51,13 @@ export type ProviderCostLedgerContext = {
   requestedProvider: string;
   requestedModel: string;
   requestKind?: string;
+  /** Explicit write-time cost center; absent on legacy turn-scoped contexts. */
+  costCenter?: ProviderCostCenter | null;
+  /**
+   * Provider-scoped billing identity for atomic insert dedup. Absent on
+   * turn-scoped contexts (their idempotency owner is the settlement claim).
+   */
+  providerRequestId?: string | null;
   /** Failover grouping ordinal within one logical call (1-based). */
   physicalAttemptOrdinal?: number;
   /** Test seam — bypass NODE_TEST_CONTEXT skip. */
@@ -99,6 +106,8 @@ export type ProviderCostLedgerRow = {
   actual_model: string | null;
   request_kind: string;
   provider_request_id: string | null;
+  /** Explicit write-time center (null on legacy rows → classifier fallback). */
+  cost_center: string | null;
   input_tokens: number;
   output_tokens: number;
   reasoning_tokens: number | null;
@@ -181,6 +190,8 @@ export function ensureProviderCostLedgerSchema(db: Database.Database = getDb()):
   addColumn("completed_at", "completed_at TEXT");
   addColumn("generation_sequence", "generation_sequence INTEGER");
   addColumn("generation_request_id", "generation_request_id TEXT");
+  /** Explicit write-time cost center (new call-sites); legacy rows use the classifier fallback. */
+  addColumn("cost_center", "cost_center TEXT");
 
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_api_cost_ledger_event_key
@@ -191,6 +202,36 @@ export function ensureProviderCostLedgerSchema(db: Database.Database = getDb()):
       ON api_cost_ledger(assistant_message_id, generation_sequence, created_at);
     CREATE INDEX IF NOT EXISTS idx_api_cost_ledger_chat_created
       ON api_cost_ledger(chat_id, created_at);
+  `);
+  ensureProviderRequestIdempotencyIndex(db);
+}
+
+/**
+ * DB-level billing-identity guard: one row per (provider, request id).
+ * Raw request ids are provider-scoped (a CI id may equal an OpenRouter id),
+ * so the raw id alone is never a global unique owner. NULL/empty ids never
+ * conflict. Created only when existing data is clean — legacy duplicates
+ * keep the old SELECT-dedup path instead of breaking boot.
+ */
+function ensureProviderRequestIdempotencyIndex(db: Database.Database): void {
+  const dirty = db
+    .prepare(
+      `SELECT 1 FROM api_cost_ledger
+       WHERE provider_request_id IS NOT NULL AND provider_request_id != ''
+       GROUP BY provider, provider_request_id
+       HAVING COUNT(*) > 1 LIMIT 1`
+    )
+    .get() as { 1: number } | undefined;
+  if (dirty) {
+    console.warn(
+      "[provider-cost-ledger] duplicate (provider, request_id) rows exist — skipping unique index (SELECT-dedup fallback stays active)"
+    );
+    return;
+  }
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_api_cost_ledger_provider_request
+      ON api_cost_ledger(provider, provider_request_id)
+      WHERE provider_request_id IS NOT NULL AND provider_request_id != '';
   `);
 }
 
@@ -348,38 +389,46 @@ export function buildPlatformSyncTurnLedgerContext(input: {
 export function startProviderCostAttempt(
   ctx: ProviderCostLedgerContext,
   db: Database.Database = getDb()
-): ProviderCostPhysicalAttemptHandle {
+): ProviderCostPhysicalAttemptHandle & { deduplicated: boolean } {
   const physicalAttemptId = randomUUID();
   if (shouldSkipPersistence(ctx)) {
-    return { physicalAttemptId, context: ctx };
+    return { physicalAttemptId, context: ctx, deduplicated: false };
   }
 
   ensureProviderCostLedgerSchema(db);
-  db.prepare(
-    `INSERT INTO api_cost_ledger
+  const providerRequestId = ctx.providerRequestId?.trim() || null;
+  const result = db
+    .prepare(
+      `INSERT INTO api_cost_ledger
       (event_key, chat_id, assistant_message_id, generation_sequence, generation_request_id,
        family, funding_class, execution_phase,
        attempt_ordinal, requested_provider, requested_model, provider, model, request_kind,
-       event_status, exchange_rate_krw_per_usd, cost_krw, estimated, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'started', 0, 0, 1, datetime('now'))`
-  ).run(
-    physicalAttemptId,
-    ctx.chatId,
-    ctx.assistantMessageId,
-    ctx.generationSequence,
-    ctx.generationRequestId ?? null,
-    ctx.family,
-    ctx.fundingClass,
-    ctx.executionPhase,
-    ctx.jobAttemptOrdinal,
-    ctx.requestedProvider,
-    ctx.requestedModel,
-    ctx.requestedProvider,
-    ctx.requestedModel,
-    ctx.requestKind?.slice(0, 120) ?? ""
-  );
+       cost_center, provider_request_id, event_status, exchange_rate_krw_per_usd, cost_krw, estimated, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'started', 0, 0, 1, datetime('now'))
+     ON CONFLICT(provider, provider_request_id)
+     WHERE provider_request_id IS NOT NULL AND provider_request_id != ''
+     DO NOTHING`
+    )
+    .run(
+      physicalAttemptId,
+      ctx.chatId,
+      ctx.assistantMessageId,
+      ctx.generationSequence,
+      ctx.generationRequestId ?? null,
+      ctx.family,
+      ctx.fundingClass,
+      ctx.executionPhase,
+      ctx.jobAttemptOrdinal,
+      ctx.requestedProvider,
+      ctx.requestedModel,
+      ctx.requestedProvider,
+      ctx.requestedModel,
+      ctx.requestKind?.slice(0, 120) ?? "",
+      ctx.costCenter ?? null,
+      providerRequestId
+    );
 
-  return { physicalAttemptId, context: ctx };
+  return { physicalAttemptId, context: ctx, deduplicated: result.changes === 0 };
 }
 
 export function finalizeProviderCostAttempt(
@@ -425,9 +474,8 @@ export function finalizeProviderCostAttempt(
   const legacyCostKrw = legacyAccountingCostUsd * exchange.effectiveKrwPerUsd;
   const legacyEstimated = settlement.settled ? 0 : rawUpstreamUsd == null ? 1 : 0;
 
-  const result = db
-    .prepare(
-      `UPDATE api_cost_ledger SET
+  const update = db.prepare(
+    `UPDATE api_cost_ledger SET
          provider = ?,
          model = ?,
          actual_provider = ?,
@@ -450,8 +498,10 @@ export function finalizeProviderCostAttempt(
          completed_at = datetime('now')
        WHERE event_key = ?
          AND (event_status IS NULL OR event_status = 'started' OR event_status = 'failed_without_usage' OR event_status = 'failed_with_usage' OR event_status = 'completed_without_exact_cost')`
-    )
-    .run(
+  );
+  let result: { changes: number };
+  try {
+    result = update.run(
       input.actualProvider,
       input.actualModel,
       input.actualProvider,
@@ -473,6 +523,14 @@ export function finalizeProviderCostAttempt(
       legacyEstimated,
       eventKey
     );
+  } catch (error) {
+    // Same (provider, request id) already settled by a concurrent worker:
+    // the first writer owns the cost; this finalize is a duplicate no-op.
+    if ((error as { code?: string })?.code === "SQLITE_CONSTRAINT_UNIQUE") {
+      return { eventKey, updated: false };
+    }
+    throw error;
+  }
 
   if (result.changes === 0) {
     const existing = db
@@ -546,21 +604,35 @@ export type ProviderCostCenter =
 const COST_CENTER_BY_REQUEST_KIND: Array<{ center: ProviderCostCenter; match: RegExp }> = [
   { center: "memory", match: /memory|summary|summar|compress|episod|relationship|history/i },
   { center: "status_widget", match: /status|widget|suggested|post_turn_shared/i },
-  { center: "image", match: /image|comic|illustration|scene-brief|vision|asset/i },
+  // Asset tagging is its own center (distinct from image generation).
+  { center: "asset", match: /asset-vision|asset-tag/i },
+  // Scene briefs belong to the image pipeline (explicit, not accidental).
+  { center: "image", match: /image|comic|illustration|scene-brief|vision/i },
   { center: "moderation", match: /moderat/i },
   { center: "profile", match: /profile|appearance|persona/i },
   { center: "trpg", match: /trpg/i },
 ];
 
+/** Valid stored cost_center values (write-time explicit owner). */
+function asStoredCostCenter(value: unknown): ProviderCostCenter | null {
+  if (value !== "chat_turn" && value !== "memory" && value !== "status_widget" && value !== "image" && value !== "moderation" && value !== "profile" && value !== "asset" && value !== "trpg" && value !== "other") {
+    return null;
+  }
+  return value;
+}
+
 /**
- * Canonical cost-center owner. Turn-scoped families map to chat_turn;
- * message-independent rows are classified by request_kind. Unknown kinds
- * are never dropped — they land in "other" (unattributed bucket upstream).
+ * Canonical cost-center owner. Stored write-time centers win; the
+ * requestKind classifier below is the documented fallback for legacy rows
+ * only (never re-interpreted per call-site).
  */
 export function resolveLedgerCostCenter(row: {
   family?: string | null;
   request_kind?: string | null;
+  cost_center?: string | null;
 }): ProviderCostCenter {
+  const stored = asStoredCostCenter(row.cost_center);
+  if (stored) return stored;
   const family = row.family?.trim() ?? "";
   if (family !== "" && family !== "background") return "chat_turn";
   const kind = row.request_kind?.trim() ?? "";
@@ -586,6 +658,8 @@ export type BackgroundProviderCostInput = {
   provider: string;
   model: string;
   requestKind?: string;
+  /** Explicit write-time center; defaults to the canonical classifier. */
+  costCenter?: ProviderCostCenter | null;
   inputTokens?: number;
   outputTokens?: number;
   cacheReadTokens?: number;
@@ -604,8 +678,10 @@ export type BackgroundProviderCostInput = {
 /**
  * Canonical writer for message-independent background provider calls.
  * Same ledger, same settlement owner, same FX snapshot — no parallel table.
- * Idempotent per provider request id (sequential retries share one row);
- * rows without a request id are recorded once per call.
+ * Billing identity is (provider, provider request id): the start INSERT
+ * carries ON CONFLICT DO NOTHING on the partial unique index, so sequential
+ * retries AND concurrent workers converge on exactly one row (the first
+ * writer owns the cost; losers get recorded:false and never finalize).
  */
 export function recordBackgroundProviderCost(
   input: BackgroundProviderCostInput,
@@ -615,13 +691,8 @@ export function recordBackgroundProviderCost(
   ensureProviderCostLedgerSchema(db);
 
   const requestId = input.providerRequestId?.trim() || null;
-  if (requestId) {
-    const existing = db
-      .prepare("SELECT event_key FROM api_cost_ledger WHERE provider_request_id = ? LIMIT 1")
-      .get(requestId) as { event_key: string } | undefined;
-    if (existing) return { eventKey: existing.event_key, recorded: false };
-  }
-
+  const costCenter =
+    input.costCenter ?? resolveLedgerCostCenter({ family: "background", request_kind: input.requestKind });
   const attempt = startProviderCostAttempt(
     {
       chatId: null,
@@ -635,10 +706,22 @@ export function recordBackgroundProviderCost(
       requestedProvider: input.provider,
       requestedModel: input.model,
       requestKind: input.requestKind,
+      costCenter,
+      providerRequestId: requestId,
       persistInTests: input.persistInTests,
     },
     db
   );
+  if (attempt.deduplicated) {
+    const existing = requestId
+      ? (db
+          .prepare(
+            "SELECT event_key FROM api_cost_ledger WHERE provider = ? AND provider_request_id = ? LIMIT 1"
+          )
+          .get(input.provider, requestId) as { event_key: string } | undefined)
+      : undefined;
+    return { eventKey: existing?.event_key ?? attempt.physicalAttemptId, recorded: false };
+  }
   const finalized = finalizeProviderCostAttempt(
     attempt,
     {
@@ -676,6 +759,8 @@ export type LedgerPeriodCostAttribution = {
   byCenter: Record<ProviderCostCenter, LedgerCostAggregate>;
   byModel: Array<{
     model: string;
+    /** Canonical attribution dimension: message-linked vs background-only. */
+    kind: "direct" | "indirect";
     center: ProviderCostCenter;
     calls: number;
     actualKrw: number;
@@ -713,7 +798,7 @@ export function readLedgerPeriodCostAttribution(
 ): LedgerPeriodCostAttribution {
   const rows = db
     .prepare(
-      `SELECT family, request_kind, actual_model, model,
+      `SELECT family, request_kind, cost_center, actual_model, model,
               provider_request_id, input_tokens, output_tokens,
               actual_cost_usd, actual_cost_source, event_status,
               exchange_rate_krw_per_usd, cost_krw, estimated,
@@ -724,6 +809,7 @@ export function readLedgerPeriodCostAttribution(
     .all(start, end) as Array<{
     family: string | null;
     request_kind: string;
+    cost_center: string | null;
     actual_model: string | null;
     model: string;
     provider_request_id: string | null;
@@ -777,8 +863,10 @@ export function readLedgerPeriodCostAttribution(
     const fx = finiteNonNegative(row.exchange_rate_krw_per_usd);
     const actualKrw =
       exact && fx > 0 ? round1(finiteNonNegative(row.actual_cost_usd) * fx) : 0;
-    const estimatedKrw =
-      !exact && Number(row.estimated) === 1 ? round1(finiteNonNegative(row.cost_krw)) : 0;
+    // Non-exact rows contribute their provider-reported/token reference as
+    // the estimate fallback (unsettled upstream included) — never hidden,
+    // never mixed into actual.
+    const estimatedKrw = !exact ? round1(finiteNonNegative(row.cost_krw)) : 0;
 
     const agg = byCenter[center];
     agg.calls += 1;
@@ -799,8 +887,17 @@ export function readLedgerPeriodCostAttribution(
     }
 
     const key = model || "(unattributed model)";
-    const entry = byModel.get(key) ?? {
+    // Single canonical derivation per row, folded by precedence:
+    // actual_auto > estimated_auto > unavailable.
+    const rowState = resolveLedgerCostSourceState(row);
+    // Attribution dimension is model + direct/indirect: message-linked rows
+    // belong to direct chat economics, background-only rows never do — so a
+    // background 40 can never dilute a direct 100 margin.
+    const kind = unlinkedRow ? "indirect" : "direct";
+    const splitKey = `${key}|||${kind}`;
+    const entry = byModel.get(splitKey) ?? {
       model: key,
+      kind,
       center,
       calls: 0,
       actualKrw: 0,
@@ -810,12 +907,15 @@ export function readLedgerPeriodCostAttribution(
     entry.calls += 1;
     entry.actualKrw = round1(entry.actualKrw + actualKrw);
     entry.estimatedKrw = round1(entry.estimatedKrw + estimatedKrw);
-    entry.sourceState = exact
-      ? "actual_auto"
-      : entry.sourceState === "actual_auto"
-        ? "actual_auto"
-        : "unavailable";
-    byModel.set(key, entry);
+    if (
+      rowState === "actual_auto" ||
+      (rowState === "estimated_auto" && entry.sourceState === "unavailable")
+    ) {
+      entry.sourceState = rowState;
+    }
+    // Representative center follows the first row of the split; the
+    // direct/indirect split itself is the attribution dimension.
+    byModel.set(splitKey, entry);
 
     if (!model || center === "other") {
       unattributedKrw = round1(unattributedKrw + actualKrw + estimatedKrw);

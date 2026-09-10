@@ -46,6 +46,7 @@ function recordTrpgProviderCost(
       provider: "cheaperinference",
       model,
       requestKind,
+      costCenter: "trpg",
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
       cacheReadTokens: usage.cacheReadTokens,

@@ -73,6 +73,8 @@ export type AdminFinanceSummary = {
   aiCost: {
     totalActualKrw: number;
     estimatedFallbackKrw: number;
+    /** booked total (actual + estimate), consumed verbatim by the UI. */
+    totalKrw: number;
     unattributedKrw: number;
     unattributedCalls: number;
     calls: number;
@@ -630,6 +632,7 @@ export function buildAdminFinanceSummary(
   const aiCost = {
     totalActualKrw: round1(ledgerTotals.actualKrw),
     estimatedFallbackKrw: round1(ledgerTotals.estimatedKrw),
+    totalKrw: round1(ledgerTotals.actualKrw + ledgerTotals.estimatedKrw),
     unattributedKrw: round1(ledgerTotals.unattributedKrw),
     unattributedCalls: ledgerTotals.unattributedCalls,
     calls: ledgerTotals.calls,
@@ -662,8 +665,12 @@ export function buildAdminFinanceSummary(
   // NOTE: message-linked ledger exacts are already folded into the
   // messages-based apiCostKrw via usage stages, so direct-row contribution
   // never subtracts ledger amounts again (that would double-count).
-  const ledgerModelIndex = new Map(
-    ledgerAttribution.byModel.map((entry) => [entry.model.toLowerCase(), entry])
+  // Ledger direct splits merge into the messages row by model id; indirect
+  // splits always stay separate rows.
+  const ledgerDirectIndex = new Map(
+    ledgerAttribution.byModel
+      .filter((entry) => entry.kind === "direct")
+      .map((entry) => [entry.model.toLowerCase(), entry])
   );
   const seenLedgerModels = new Set<string>();
   const aiModelCosts: Array<{
@@ -678,7 +685,7 @@ export function buildAdminFinanceSummary(
     marginRate: number | null;
     sourceState: string;
   }> = [...modelMap.entries()].map(([model, values]) => {
-    const ledger = ledgerModelIndex.get(model.toLowerCase());
+    const ledger = ledgerDirectIndex.get(model.toLowerCase());
     if (ledger) seenLedgerModels.add(ledger.model.toLowerCase());
     const contribution = values.paidRevenueKrw - values.apiCostKrw;
     const eligible = values.realizedMarginExact && values.paidRevenueKrw > 0;
@@ -700,10 +707,15 @@ export function buildAdminFinanceSummary(
     };
   });
   for (const entry of ledgerAttribution.byModel) {
-    if (seenLedgerModels.has(entry.model.toLowerCase())) continue;
+    // Direct splits merge into the messages row above; indirect splits
+    // always stay separate. Seen-tracking is per split, never per model.
+    if (entry.kind === "direct") {
+      if (seenLedgerModels.has(entry.model.toLowerCase())) continue;
+      seenLedgerModels.add(entry.model.toLowerCase());
+    }
     aiModelCosts.push({
       model: entry.model,
-      kind: "indirect",
+      kind: entry.kind,
       center: entry.center,
       calls: entry.calls,
       paidRevenueKrw: 0,
@@ -758,6 +770,7 @@ export function buildAdminFinanceSummary(
     aiCost: {
       totalActualKrw: aiCost.totalActualKrw,
       estimatedFallbackKrw: aiCost.estimatedFallbackKrw,
+      totalKrw: aiCost.totalKrw,
       unattributedKrw: aiCost.unattributedKrw,
       unattributedCalls: aiCost.unattributedCalls,
       calls: aiCost.calls,

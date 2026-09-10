@@ -16,7 +16,6 @@ import {
 } from "@/lib/assetPersonTags";
 import { normalizeVisionModerationFlags } from "@/lib/visionModerationNormalize";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
-import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
 
 const VISION_BATCH_CONCURRENCY = 4;
 
@@ -100,6 +99,24 @@ function unresolvedTag(index: number): string {
 type VisionAttempt = {
   parsed: ParsedVisionTag | null;
   retryable: boolean;
+  /** Pure usage witness for this physical attempt (no persistence here). */
+  cost: VisionCostEvidence | null;
+};
+
+/**
+ * Server-side persistence owner lives in visionCost.ts. vision.ts stays a
+ * pure invocation/parsing module so deterministic tests import it without
+ * the server-only ledger boundary.
+ */
+export type VisionCostEvidence = {
+  model: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  cheaperInferenceBilledCostUsd?: number;
+  upstreamCostUsd?: number;
+  usageEstimated: boolean;
+  providerRequestId?: string | null;
+  outcome: "success" | "failed_with_usage";
 };
 
 /** Build OpenRouter chat-completions body for asset vision (exported for deterministic tests). */
@@ -151,12 +168,12 @@ async function analyzeWithModel(
     });
   } catch (err) {
     console.error("[vision] OpenRouter fetch failed:", model, err);
-    return { parsed: null, retryable: true };
+    return { parsed: null, retryable: true, cost: null };
   }
 
   if (!res.ok) {
     console.error("[vision] OpenRouter 오류:", model, await res.text());
-    return { parsed: null, retryable: true };
+    return { parsed: null, retryable: true, cost: null };
   }
 
   const body = (await res.json()) as {
@@ -165,14 +182,12 @@ async function analyzeWithModel(
   };
   const rawContent = body.choices?.[0]?.message?.content;
   const text = typeof rawContent === "string" ? rawContent : "";
-  // Canonical cost capture: asset-vision spend enters the shared ledger
-  // (actual billed cost wins at read time; estimate is fallback only).
+  // Pure witness only — persistence happens in visionCost.ts (server route).
+  let cost: VisionCostEvidence | null = null;
   try {
     const parsedUsage = parseCompatibleUsage({ usage: body.usage, headers: res.headers });
-    recordBackgroundProviderCost({
-      provider: "openrouter",
+    cost = {
       model,
-      requestKind: "background-asset-vision",
       inputTokens: parsedUsage.promptTokens,
       outputTokens: parsedUsage.completionTokens,
       cheaperInferenceBilledCostUsd: parsedUsage.cheaperInferenceBilledCostUsd,
@@ -181,22 +196,22 @@ async function analyzeWithModel(
       providerRequestId:
         res.headers.get("x-request-id") ?? res.headers.get("x-openrouter-request-id"),
       outcome: text ? "success" : "failed_with_usage",
-    });
+    };
   } catch (error) {
-    console.warn("[vision] cost record skipped:", (error as Error).message);
+    console.warn("[vision] usage witness skipped:", (error as Error).message);
   }
   if (!text) {
     console.warn("[vision] empty response:", model);
-    return { parsed: null, retryable: true };
+    return { parsed: null, retryable: true, cost };
   }
 
   const structured = parseAssetVisionResponseText(text);
   if (!structured) {
     console.warn("[vision] invalid structured response:", model, text.slice(0, 200));
-    return { parsed: null, retryable: true };
+    return { parsed: null, retryable: true, cost };
   }
 
-  return { parsed: finalizeStructuredVisionResult(structured), retryable: false };
+  return { parsed: finalizeStructuredVisionResult(structured), retryable: false, cost };
 }
 
 /** OpenRouter vision으로 캐릭터 에셋 분류 태그 + moderation (이미지 첨부 필수) */
@@ -209,6 +224,8 @@ export async function analyzeAssetImage(
   adultFlagged: boolean;
   moderationReject: boolean;
   moderationReason: string;
+  /** Per-attempt usage witnesses for server-side persistence (visionCost). */
+  costAttempts: VisionCostEvidence[];
 }> {
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   if (!apiKey) {
@@ -218,6 +235,7 @@ export async function analyzeAssetImage(
       adultFlagged: false,
       moderationReject: false,
       moderationReason: "",
+      costAttempts: [],
     };
   }
 
@@ -232,17 +250,20 @@ export async function analyzeAssetImage(
       adultFlagged: false,
       moderationReject: false,
       moderationReason: "",
+      costAttempts: [],
     };
   }
 
   const dataUrl = `data:${img.mime};base64,${img.data}`;
   const models = visionModels();
+  const costAttempts: VisionCostEvidence[] = [];
 
   for (let i = 0; i < models.length; i++) {
     const model = models[i]!;
     const result = await analyzeWithModel(model, dataUrl, apiKey);
+    if (result.cost) costAttempts.push(result.cost);
     if (result.parsed) {
-      return { ...result.parsed, estimated: false };
+      return { ...result.parsed, estimated: false, costAttempts };
     }
     const next = models[i + 1];
     if (next) {
@@ -256,6 +277,7 @@ export async function analyzeAssetImage(
     adultFlagged: false,
     moderationReject: false,
     moderationReason: "",
+    costAttempts,
   };
 }
 

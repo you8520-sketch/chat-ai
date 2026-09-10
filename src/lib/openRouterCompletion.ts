@@ -16,6 +16,7 @@ import type { UsageReportingEvidence } from "@/lib/usageReportingEvidence";
 import {
   finalizeProviderCostAttempt,
   recordBackgroundProviderCost,
+  resolveLedgerCostCenter,
   startProviderCostAttempt,
   type ProviderCostFinalizeInput,
   type ProviderCostLedgerContext,
@@ -450,6 +451,7 @@ export async function callOpenRouterCompletion(opts: {
         provider: usedProvider,
         model: usedModel,
         requestKind: opts.requestKind,
+        costCenter: resolveLedgerCostCenter({ family: "background", request_kind: opts.requestKind }),
         inputTokens: resolvedInputTokens,
         outputTokens: resolvedOutputTokens,
         cacheReadTokens: parsedUsage.cacheReadTokens || undefined,

@@ -98,7 +98,6 @@ export default function AdminFinanceClient({
   }
 
   const positive = summary.netProfitKrw != null && summary.netProfitKrw >= 0;
-  const aiTotalKrw = summary.aiCost.totalActualKrw + summary.aiCost.estimatedFallbackKrw;
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 text-zinc-100">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -143,7 +142,7 @@ export default function AdminFinanceClient({
         <Metric label="유료 포인트 사용 매출" value={won(summary.paidPointsConsumed)} />
         <Metric
           label={`전체 AI 원가${summary.aiCost.coveragePct == null ? "" : ` · 실제확정 ${summary.aiCost.coveragePct}%`}`}
-          value={won(aiTotalKrw)}
+          value={won(summary.aiCost.totalKrw)}
         />
         <Metric label="무료 포인트 사용" value={`${summary.freePointsConsumed.toLocaleString()}P`} />
         <Metric label="AI·이미지 API 원가" value={won(summary.totalApiCostKrw)} />
@@ -180,7 +179,7 @@ export default function AdminFinanceClient({
             : "기록 없음"}
         </p>
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-          <div><p className="text-zinc-500">전체 실제 원가</p><p className="mt-1 font-bold">{won(aiTotalKrw)}</p></div>
+          <div><p className="text-zinc-500">전체 실제 원가</p><p className="mt-1 font-bold">{won(summary.aiCost.totalKrw)}</p></div>
           <div><p className="text-zinc-500">실제 확정</p><p className="mt-1 font-bold">{won(summary.aiCost.totalActualKrw)}</p></div>
           <div><p className="text-zinc-500">추정 fallback</p><p className="mt-1 font-bold">{won(summary.aiCost.estimatedFallbackKrw)}</p></div>
           <div><p className="text-zinc-500">미분류</p><p className="mt-1 font-bold">{won(summary.aiCost.unattributedKrw)} ({summary.aiCost.unattributedCalls.toLocaleString()}회)</p></div>

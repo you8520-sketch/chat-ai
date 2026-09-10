@@ -123,6 +123,7 @@ async function callDeepSeekFormatProfile(text: string): Promise<string> {
       provider: "openrouter",
       model: FORMAT_PROFILE_MODEL,
       requestKind: "background-profile-format",
+      costCenter: "profile",
       inputTokens: parsedUsage.promptTokens,
       outputTokens: parsedUsage.completionTokens,
       cheaperInferenceBilledCostUsd: parsedUsage.cheaperInferenceBilledCostUsd,

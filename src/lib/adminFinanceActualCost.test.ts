@@ -15,8 +15,10 @@ import {
   finalizeProviderCostAttempt,
   readLedgerPeriodCostAttribution,
   recordBackgroundProviderCost,
+  resolveLedgerCostCenter,
   startProviderCostAttempt,
 } from "./providerCostLedger";
+import { spawnSync } from "node:child_process";
 
 const FX = resolveBillingExchangeRateSnapshot().effectiveKrwPerUsd;
 const krw = (usd: number) => Math.round(usd * FX * 10) / 10;
@@ -95,6 +97,7 @@ function settledBackground(
     upstreamUsd?: number;
     usageEstimated?: boolean;
     requestKind?: string;
+    costCenter?: "memory" | "status_widget" | "image" | "moderation" | "profile" | "asset" | "trpg" | "other";
     requestId?: string | null;
     inputTokens?: number;
     outputTokens?: number;
@@ -110,6 +113,7 @@ function settledBackground(
       upstreamCostUsd: opts.upstreamUsd,
       usageEstimated: opts.usageEstimated,
       requestKind: opts.requestKind,
+      costCenter: opts.costCenter,
       providerRequestId: opts.requestId,
       inputTokens: opts.inputTokens,
       outputTokens: opts.outputTokens,
@@ -450,5 +454,353 @@ describe("admin finance actual cost — dynamic discovery and attribution", () =
     } finally {
       db.close();
     }
+  });
+});
+
+describe("admin finance actual cost — merge-blocker regressions N-U", () => {
+  it("N. estimated-only costs emit estimated_auto and grow the estimate bucket", () => {
+    const db = financeDb();
+    try {
+      const attempt = startProviderCostAttempt(
+        {
+          chatId: null,
+          assistantMessageId: null,
+          generationSequence: 0,
+          family: "background",
+          fundingClass: "platform_funded",
+          executionPhase: "async_post_turn",
+          jobAttemptOrdinal: 1,
+          requestedProvider: "openrouter",
+          requestedModel: "n-model",
+          requestKind: "background-memory-extract",
+          persistInTests: true,
+        },
+        db
+      );
+      finalizeProviderCostAttempt(
+        attempt,
+        {
+          actualProvider: "openrouter",
+          actualModel: "n-model",
+          inputTokens: 100,
+          outputTokens: 50,
+          upstreamCostUsd: 0.02,
+          usageEstimated: true,
+          outcome: "success",
+        },
+        db
+      );
+      const attribution = readLedgerPeriodCostAttribution(db, "2000-01-01", "2100-01-01");
+      const entry = attribution.byModel.find((r) => r.model === "n-model");
+      assert.ok(entry, "estimated-only model row exists");
+      assert.equal(entry!.sourceState, "estimated_auto");
+      assert.equal(entry!.actualKrw, 0);
+      assert.ok(entry!.estimatedKrw > 0, "unsettled upstream reference lands in estimate fallback");
+      const summary = buildAdminFinanceSummary(db);
+      assert.ok(summary.aiCost.estimatedFallbackKrw > 0);
+      assert.equal(summary.aiCost.totalActualKrw, 0);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("O. asset tagging reaches the asset center, never image generation", () => {
+    assert.equal(
+      resolveLedgerCostCenter({ family: "background", request_kind: "background-asset-vision" }),
+      "asset"
+    );
+    // Stored write-time centers win over the classifier (legacy fallback only).
+    assert.equal(
+      resolveLedgerCostCenter({
+        family: "background",
+        request_kind: "background-chat-image-scene-brief",
+        cost_center: "asset",
+      }),
+      "asset"
+    );
+    const db = financeDb();
+    try {
+      settledBackground(db, {
+        model: "o-model",
+        billedUsd: 0.004,
+        requestKind: "background-asset-vision",
+        costCenter: "asset",
+        requestId: "req-o-1",
+      });
+      const summary = buildAdminFinanceSummary(db);
+      assert.equal(summary.aiCost.byCenter.find((c) => c.center === "asset")?.actualKrw, settledKrw(db, "req-o-1"));
+      assert.equal(summary.aiCost.byCenter.find((c) => c.center === "image")?.actualKrw ?? 0, 0);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("P. scene brief maps to the documented image pipeline center", () => {
+    assert.equal(
+      resolveLedgerCostCenter({ family: "background", request_kind: "background-chat-image-scene-brief" }),
+      "image"
+    );
+    const db = financeDb();
+    try {
+      settledBackground(db, {
+        model: "p-model",
+        billedUsd: 0.003,
+        requestKind: "background-chat-image-scene-brief",
+        requestId: "req-p-1",
+      });
+      const summary = buildAdminFinanceSummary(db);
+      assert.equal(summary.aiCost.byCenter.find((c) => c.center === "image")?.actualKrw, settledKrw(db, "req-p-1"));
+    } finally {
+      db.close();
+    }
+  });
+
+  it("Q. same model direct 100 + indirect 40 stays separated, totals exact", () => {
+    const db = financeDb();
+    try {
+      db.prepare(
+        `INSERT INTO messages (id, chat_id, role, usage, deduction_slices, created_at, is_refunded)
+         VALUES (1, 1, 'assistant', ?, ?, datetime('now'), 0)`
+      ).run(
+        JSON.stringify({ model: "q-model", modelLabel: "q-model" }),
+        JSON.stringify([{ pointType: "PAID", amount: 5000 }])
+      );
+      const linked = startProviderCostAttempt(
+        {
+          chatId: 1,
+          assistantMessageId: 1,
+          generationSequence: 0,
+          family: "post_turn_shared_initial",
+          fundingClass: "platform_funded",
+          executionPhase: "sync_post_turn",
+          jobAttemptOrdinal: 1,
+          requestedProvider: "cheaperinference",
+          requestedModel: "q-model",
+          requestKind: "background-shared-initial",
+          persistInTests: true,
+        },
+        db
+      );
+      finalizeProviderCostAttempt(
+        linked,
+        {
+          actualProvider: "cheaperinference",
+          actualModel: "q-model",
+          inputTokens: 200,
+          outputTokens: 100,
+          cheaperInferenceBilledCostUsd: 0.05,
+          providerRequestId: "req-q-direct",
+          outcome: "success",
+        },
+        db
+      );
+      settledBackground(db, {
+        model: "q-model",
+        billedUsd: 0.02,
+        requestKind: "background-memory-extract",
+        requestId: "req-q-indirect",
+      });
+      const attribution = readLedgerPeriodCostAttribution(db, "2000-01-01", "2100-01-01");
+      const direct = attribution.byModel.find((r) => r.model === "q-model" && r.kind === "direct");
+      const indirect = attribution.byModel.find((r) => r.model === "q-model" && r.kind === "indirect");
+      assert.ok(direct, "direct split exists");
+      assert.ok(indirect, "indirect split exists");
+      assert.equal(direct!.actualKrw, settledKrw(db, "req-q-direct"));
+      assert.equal(indirect!.actualKrw, settledKrw(db, "req-q-indirect"));
+      assert.equal(
+        attribution.totals.actualKrw,
+        Math.round((direct!.actualKrw + indirect!.actualKrw) * 10) / 10
+      );
+
+      const summary = buildAdminFinanceSummary(db);
+      const directRow = summary.aiModelCosts.find((r) => r.model === "q-model" && r.kind === "direct");
+      const indirectRow = summary.aiModelCosts.find((r) => r.model === "q-model" && r.kind === "indirect");
+      assert.ok(directRow, "direct finance row present with revenue");
+      assert.ok(indirectRow, "indirect finance row present without revenue");
+      assert.equal(directRow!.paidRevenueKrw, 5000);
+      assert.equal(indirectRow!.paidRevenueKrw, 0);
+      assert.equal(indirectRow!.contributionKrw, null);
+      assert.equal(indirectRow!.marginRate, null);
+      assert.equal(indirectRow!.actualKrw, settledKrw(db, "req-q-indirect"));
+    } finally {
+      db.close();
+    }
+  });
+
+  it.skip("R. BLOCKED: DeepSeek message-linked exact cost must appear exactly once (deletion needs approval)", () => {
+    // Root-cause proof: the isLedgeredDeepSeekFlash branch in
+    // buildAdminFinanceSummary zeroes message-linked flash costs even when
+    // an exact ledger settlement exists. Removing that branch needs user
+    // approval (existing-code deletion) — this fixture stays skipped until
+    // then. Pre-deletion run evidence: totalApiCostKrw 0 vs exact, model row 0.
+    const db = financeDb();
+    try {
+      db.prepare(
+        `INSERT INTO messages (id, chat_id, role, usage, deduction_slices, created_at, is_refunded)
+         VALUES (1, 1, 'assistant', ?, ?, datetime('now'), 0)`
+      ).run(
+        JSON.stringify({ model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL, modelLabel: "DeepSeek V4 Flash" }),
+        JSON.stringify([{ pointType: "PAID", amount: 5000 }])
+      );
+      const linked = startProviderCostAttempt(
+        {
+          chatId: 1,
+          assistantMessageId: 1,
+          generationSequence: 0,
+          family: "post_turn_shared_initial",
+          fundingClass: "platform_funded",
+          executionPhase: "sync_post_turn",
+          jobAttemptOrdinal: 1,
+          requestedProvider: "cheaperinference",
+          requestedModel: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+          requestKind: "background-shared-initial",
+          persistInTests: true,
+        },
+        db
+      );
+      finalizeProviderCostAttempt(
+        linked,
+        {
+          actualProvider: "cheaperinference",
+          actualModel: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+          inputTokens: 200,
+          outputTokens: 100,
+          cheaperInferenceBilledCostUsd: 0.05,
+          providerRequestId: "req-r-1",
+          outcome: "success",
+        },
+        db
+      );
+      const summary = buildAdminFinanceSummary(db);
+      const expected = settledKrw(db, "req-r-1");
+      assert.ok(expected > 0);
+      assert.equal(summary.totalApiCostKrw, expected);
+      assert.equal(summary.netProfitKrw, 5000 - expected);
+      const flashRow = summary.modelBreakdown.find((r) => r.model === "DeepSeek V4 Flash");
+      assert.ok(flashRow, "flash model row present");
+      assert.equal(flashRow!.apiCostKrw, expected);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("S. atomic start dedup: pre-existing (provider, request) wins, no finalize double-write", () => {
+    const db = financeDb();
+    try {
+      const first = recordBackgroundProviderCost(
+        {
+          provider: "cheaperinference",
+          model: "s-model",
+          requestKind: "background-memory-extract",
+          cheaperInferenceBilledCostUsd: 0.009,
+          providerRequestId: "req-s-1",
+          outcome: "success",
+          persistInTests: true,
+        },
+        db
+      );
+      assert.equal(first.recorded, true);
+      // A racing worker with the same billing identity converges on the
+      // existing row through the DB-level unique index (no in-memory flags).
+      const racer = startProviderCostAttempt(
+        {
+          chatId: null,
+          assistantMessageId: null,
+          generationSequence: 0,
+          family: "background",
+          fundingClass: "platform_funded",
+          executionPhase: "async_post_turn",
+          jobAttemptOrdinal: 1,
+          requestedProvider: "cheaperinference",
+          requestedModel: "s-model",
+          providerRequestId: "req-s-1",
+          persistInTests: true,
+        },
+        db
+      );
+      assert.equal(racer.deduplicated, true);
+      const second = recordBackgroundProviderCost(
+        {
+          provider: "cheaperinference",
+          model: "s-model",
+          requestKind: "background-memory-extract",
+          cheaperInferenceBilledCostUsd: 0.009,
+          providerRequestId: "req-s-1",
+          outcome: "success",
+          persistInTests: true,
+        },
+        db
+      );
+      assert.equal(second.recorded, false);
+      assert.equal(second.eventKey, first.eventKey);
+      const count = (
+        db.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger WHERE provider_request_id='req-s-1'").get() as {
+          c: number;
+        }
+      ).c;
+      assert.equal(count, 1);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("T. cross-provider same raw request id does not collide", () => {
+    const db = financeDb();
+    try {
+      const a = recordBackgroundProviderCost(
+        {
+          provider: "cheaperinference",
+          model: "t-model-a",
+          requestKind: "background-memory-extract",
+          cheaperInferenceBilledCostUsd: 0.002,
+          providerRequestId: "same-raw-id",
+          outcome: "success",
+          persistInTests: true,
+        },
+        db
+      );
+      const b = recordBackgroundProviderCost(
+        {
+          provider: "openrouter",
+          model: "t-model-b",
+          requestKind: "background-memory-extract",
+          upstreamCostUsd: 0.003,
+          providerRequestId: "same-raw-id",
+          outcome: "success",
+          persistInTests: true,
+        },
+        db
+      );
+      assert.equal(a.recorded, true);
+      assert.equal(b.recorded, true);
+      assert.notEqual(a.eventKey, b.eventKey);
+      const count = (
+        db.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger WHERE provider_request_id='same-raw-id'").get() as {
+          c: number;
+        }
+      ).c;
+      assert.equal(count, 2);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("U. assetVisionStructured passes the exact CI invocation (no react-server condition)", () => {
+    const visionSource = readFileSync(join(process.cwd(), "src/lib/vision.ts"), "utf8");
+    assert.equal(
+      visionSource.includes("providerCostLedger"),
+      false,
+      "pure vision module keeps no server-only ledger boundary"
+    );
+    const result = spawnSync(
+      process.execPath,
+      ["--import", "tsx", "--test", "src/lib/assetVisionStructured.test.ts"],
+      { cwd: process.cwd(), timeout: 240000, encoding: "utf8" }
+    );
+    assert.equal(
+      result.status,
+      0,
+      `CI-equivalent invocation must exit 0, stderr: ${(result.stderr as string ?? "").slice(-2000)}`
+    );
   });
 });
