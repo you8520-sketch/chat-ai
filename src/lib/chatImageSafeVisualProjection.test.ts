@@ -228,7 +228,7 @@ describe("chatImageSafeVisualProjection", () => {
       personaGender: "female",
       currentTurn: "",
       cast: [{ name: "전사", role: "player", gender: "male" }],
-      situation,
+      fullSource: situation,
     });
     assert.equal(containsRawRiskySourceLeak(prompt), false);
     assert.doesNotMatch(prompt, /피(?:가|를)?\s*흘/);
@@ -390,7 +390,7 @@ describe("chatImageSafeVisualProjection", () => {
       personaGender: "female",
       currentTurn: "",
       cast: [{ name: "태형", role: "player", gender: "male" }],
-      situation,
+      fullSource: situation,
     });
     assert.match(prompt, /지하철역|출구|달린/);
     assert.match(prompt, /철문|닫/);
@@ -515,7 +515,7 @@ describe("chatImageSafeVisualProjection", () => {
       currentTurn: "던전 복도",
       adultGrounded: false,
       cast: [{ name: "태형", role: "player", gender: "male" }],
-      situation: "LOCATION: 폐허\nGM SCENE:\n복도를 조심스럽게 걷는다.",
+      fullSource: "LOCATION: 폐허\nGM SCENE:\n복도를 조심스럽게 걷는다.",
     });
     assert.doesNotMatch(prompt, /natural adult intimacy/i);
     assert.match(prompt, /non-explicit/i);
@@ -530,7 +530,7 @@ describe("chatImageSafeVisualProjection", () => {
       currentTurn: "던전 복도",
       adultGrounded: true,
       cast: [{ name: "태형", role: "player", gender: "male" }],
-      situation: "LOCATION: 폐허\nGM SCENE:\n복도를 조심스럽게 걷는다.",
+      fullSource: "LOCATION: 폐허\nGM SCENE:\n복도를 조심스럽게 걷는다.",
     });
     assert.match(prompt, /non-explicit adult intimacy|shirtless adult male torso/i);
   });

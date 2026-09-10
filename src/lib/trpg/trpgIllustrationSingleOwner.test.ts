@@ -57,7 +57,7 @@ describe("TRPG illustration single canonical owner (focus removal)", () => {
       personaGender: "female",
       currentTurn: source,
       cast: ONE_CAST,
-      situation: source,
+      fullSource: source,
     });
     assert.match(prompt, /UNIQUE_LOCATION_ALPHA/, "location preserved");
     assert.match(prompt, /UNIQUE_ACTION_BETA/, "locked action preserved");

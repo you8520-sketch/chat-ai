@@ -240,8 +240,8 @@ export function buildChatLdIllustrationPrompt(opts: {
   adultGrounded?: boolean;
   /** When set (TRPG party), every listed person must appear — not just the 1:1 duo. */
   cast?: readonly ChatLdIllustrationCastMember[];
-  /** Pre-formatted TRPG situation (location, round actions, GM scene). */
-  situation?: string;
+  /** Canonical full source text for a party illustration (TRPG round source). */
+  fullSource?: string;
   subjects?: readonly ChatImageVisualSubject[];
 }) {
   const projectionContext: SafeVisualProjectionContext = {
@@ -251,7 +251,7 @@ export function buildChatLdIllustrationPrompt(opts: {
     return buildPartyIllustrationPrompt({
       cast: opts.cast,
       fullSource:
-        opts.situation?.trim() ||
+        opts.fullSource?.trim() ||
         projectSceneBlockForSafeImageGeneration(opts.currentTurn, projectionContext).text,
       subjects: opts.subjects,
       adultGrounded: opts.adultGrounded,

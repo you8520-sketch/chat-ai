@@ -118,7 +118,7 @@ describe("chatLdIllustrationGeneration", () => {
       personaName: "렌",
       personaGender: "male",
       currentTurn: "네 사람이 폐허 입구에 선다.",
-      situation: buildTrpgRoundSourceText({
+      fullSource: buildTrpgRoundSourceText({
         location: "폐허 입구",
         actions: [
           { name: "렌", body: "문을 밀어 연다." },

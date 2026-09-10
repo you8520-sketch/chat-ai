@@ -16,7 +16,6 @@ import {
   validateScenePlan,
 } from "@/lib/chatImageScenePlan";
 import { planChatImageScene } from "@/lib/chatImageScenePlanner";
-import { buildTrpgRoundSourceMessages } from "@/lib/trpg/roundSource";
 import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 
 const MULTI_SPEAKER_NARRATION = `렌: "조심해."
@@ -31,7 +30,7 @@ const SPEAKER_CONTEXT = {
 };
 
 function multiSpeakerMessages() {
-  return buildTrpgRoundSourceMessages(MULTI_SPEAKER_NARRATION);
+  return buildSceneSourceMessages([{ id: 1, role: "assistant", content: MULTI_SPEAKER_NARRATION }]);
 }
 
 const ACTION_MIXED_FIXTURE = `권태현이 총구를 들어 복도를 겨눴다.

@@ -1,8 +1,3 @@
-import {
-  buildSceneSourceMessages,
-  type SceneSourceMessage,
-} from "@/lib/chatImageScenePlan";
-
 export type TrpgRoundSourceScene = {
   location: string;
   actions: ReadonlyArray<{ name: string; body: string }>;
@@ -26,9 +21,4 @@ export function buildTrpgRoundSourceText(scene: TrpgRoundSourceScene): string {
   const narration = scene.narration.trim();
   if (narration) lines.push(narration);
   return lines.join("\n");
-}
-
-/** GM narration -> canonical scene source messages (shared TRPG round adapter). */
-export function buildTrpgRoundSourceMessages(narration: string): SceneSourceMessage[] {
-  return buildSceneSourceMessages([{ id: 1, role: "assistant", content: narration }]);
 }

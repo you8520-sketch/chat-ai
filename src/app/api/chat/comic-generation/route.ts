@@ -1052,7 +1052,7 @@ export async function POST(req: Request) {
           currentTurn: trpgSource,
           cast,
           subjects: partyPlan?.subjects,
-          situation: trpgSource,
+          fullSource: trpgSource,
         });
         strictFallbackPrompt = buildStrictLdPartyFallbackPrompt({
           cast: cast!,
