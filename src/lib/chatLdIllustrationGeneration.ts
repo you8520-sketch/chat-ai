@@ -42,9 +42,14 @@ export const CHAT_LD_ILLUSTRATION_TEMPLATE_NAME = "현재 턴 2:3 LD 일러스�
 export const CHAT_LD_ILLUSTRATION_OUTPUT_SIZE = "800x1200" as const;
 export const CHAT_LD_ILLUSTRATION_QUALITY = "medium" as const;
 /**
- * Flat chat-room price for 1:1 and TRPG party shots alike.
- * Extra party members only add cheap GPT Image 2 *input* image tokens;
- * the billed output is still one 800×1200 medium image. Do not scale by headcount.
+ * Base chat-room price for 1:1 and TRPG party shots alike. The final required
+ * points are computed by the canonical pricing owner
+ * (resolveImageGenerationRequiredPoints in chatImagePricing): the base 180P
+ * covers the base identity-reference pack (persona + main), and each extra
+ * identity reference above the base adds the shared additional-identity-
+ * reference surcharge (one request = one surcharge, never multiplied by
+ * headcount or panel count). This flat base constant no longer carries the
+ * full price on its own.
  */
 export const CHAT_LD_ILLUSTRATION_DEFAULT_POINTS = CHAT_ROOM_IMAGE_GENERATION_POINTS;
 

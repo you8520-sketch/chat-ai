@@ -7,6 +7,7 @@ import sharp from "sharp";
 import { getSessionUser } from "@/lib/auth";
 import { isAdminUser } from "@/lib/isAdminUser";
 import { parseAssets, type CharacterAsset } from "@/lib/characterAssets";
+import { resolveImageGenerationRequiredPoints } from "@/lib/chatImagePricing";
 import {
   selectCharacterImageUrl,
 } from "@/lib/chatCharacterImageSelection";
@@ -894,21 +895,6 @@ export async function POST(req: Request) {
       });
     };
     if (body.mode === "illustration") {
-      const pricePoints = resolveChatLdIllustrationPrice();
-      const balanceBefore = getPointBalance(user.id);
-      if (balanceBefore.total < pricePoints) {
-        return NextResponse.json(
-          {
-            error: `포인트가 부족합니다. 선택 턴 LD 일러스트에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
-            pricePoints,
-            remainingPoints: balanceBefore.total,
-            paidPoints: balanceBefore.paid,
-            freePoints: balanceBefore.free,
-          },
-          { status: 402 }
-        );
-      }
-
       const campaignId = positiveInt(body.campaignId);
       const roundNumber = nonNegativeInt(body.roundNumber);
       const appearanceModes = resolveRequestAppearanceModes({
@@ -1089,6 +1075,30 @@ export async function POST(req: Request) {
           subjects: plan.subjects,
         });
       }
+      // CANONICAL PRICING — final required points derive from the server-grounded
+      // identity-reference pack (regular cast refs, regular duo refs, or TRPG
+      // party refs), NEVER a client-selected cast/participant count. TRPG party
+      // members without a validated image simply produce fewer attachments, so
+      // the pricing input is the actual attachment count. One request = one
+      // surcharge (never multiplied by headcount).
+      const identityReferenceCount = referenceUrls.length;
+      const pricePoints = resolveImageGenerationRequiredPoints(
+        identityReferenceCount,
+        resolveChatLdIllustrationPrice()
+      );
+      const balanceBefore = getPointBalance(user.id);
+      if (balanceBefore.total < pricePoints) {
+        return NextResponse.json(
+          {
+            error: `포인트가 부족합니다. 선택 턴 LD 일러스트에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
+            pricePoints,
+            remainingPoints: balanceBefore.total,
+            paidPoints: balanceBefore.paid,
+            freePoints: balanceBefore.free,
+          },
+          { status: 402 }
+        );
+      }
       startJob(CHAT_LD_ILLUSTRATION_TEMPLATE_ID, "illustration");
       const references = await Promise.all(
         referenceUrls.map((sourceUrl) => imageSourceToDataUrl(sourceUrl))
@@ -1243,10 +1253,12 @@ export async function POST(req: Request) {
     // source. Fixed 4-panel output. No Scene Planner call, no diagnostic modes.
     const panelCount: ChatComicPanelCount = 4;
 
-    // NORMAL COMIC LIFECYCLE — auth/input/concurrency/balance preflight all run
-    // before the single provider call. The client-provided scenePlan is never
-    // canonical authority for the production comic; the provider receives the
-    // full source text and picks the 4 scenes itself. No Scene Planner call.
+    // NORMAL COMIC LIFECYCLE — auth/input/concurrency run before the single
+    // provider call; the balance preflight uses the FINAL canonical price
+    // (server-grounded identity-reference count) after the reference pack is
+    // built below. The client-provided scenePlan is never canonical authority
+    // for the production comic; the provider receives the full source text and
+    // picks the 4 scenes itself. No Scene Planner call.
     const preflightPlan = resolveApprovedScenePlan({
       bodyPlan: body.scenePlan,
       messages: source.messages,
@@ -1257,23 +1269,6 @@ export async function POST(req: Request) {
       knownSpeakerNames,
       contentKind: context.contentKind,
     });
-
-    const balanceBefore = getPointBalance(user.id);
-    const pricePoints = resolveChatComicPrice(panelCount);
-    if (balanceBefore.total < pricePoints) {
-      return NextResponse.json(
-        {
-          error: `포인트가 부족합니다. 컷만화에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
-          pricePoints,
-          remainingPoints: balanceBefore.total,
-          paidPoints: balanceBefore.paid,
-          freePoints: balanceBefore.free,
-        },
-        { status: 402 }
-      );
-    }
-
-    startJob(CHAT_COMIC_TEMPLATE_ID, "comic");
 
     // PRODUCTION COMIC — GPT Image selects WHAT + HOW directly from the full
     // source. The canonical plan is the fixed 4-panel structural reflow; the
@@ -1352,6 +1347,32 @@ contentKind: context.contentKind,
       referenceUrls: identityPack.referenceUrls,
       subjects: identityPack.subjects,
     });
+    // CANONICAL PRICING — final required points derive from the server-grounded
+    // identity-reference count. The layout template is NOT an identity
+    // reference and is excluded. A fixed 4-panel page is ONE provider
+    // generation request, so the additional-identity-reference surcharge is
+    // computed once per request — never multiplied by panelCount.
+    const identityReferenceCount = providerReferences.filter(
+      (reference) => reference.role !== "template"
+    ).length;
+    const pricePoints = resolveImageGenerationRequiredPoints(
+      identityReferenceCount,
+      resolveChatComicPrice(panelCount)
+    );
+    const balanceBefore = getPointBalance(user.id);
+    if (balanceBefore.total < pricePoints) {
+      return NextResponse.json(
+        {
+          error: `포인트가 부족합니다. 컷만화에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
+          pricePoints,
+          remainingPoints: balanceBefore.total,
+          paidPoints: balanceBefore.paid,
+          freePoints: balanceBefore.free,
+        },
+        { status: 402 }
+      );
+    }
+    startJob(CHAT_COMIC_TEMPLATE_ID, "comic");
     const providerInput = await prepareComicProviderReferenceInput({
       primaryPrompt: prompt,
       strictFallbackPrompt,
