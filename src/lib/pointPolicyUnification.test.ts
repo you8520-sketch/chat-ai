@@ -19,7 +19,7 @@ import {
   POINT_GIFT_FEE_RATE_PAID,
   resolveGiftMutationKey,
 } from "./pointGiftsShared";
-import { refundMessageDeduction } from "./refund";
+import { refundMessageDeduction, processReportRefund } from "./refund";
 
 const TAG = `pptest_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
 const FAKE_MESSAGE_ID = -987654321;
@@ -421,12 +421,13 @@ describe("point policy unification — refund provenance", () => {
     assert.equal(after[0]!.expires_at, before[0]!.expires_at);
   });
 
-  it("REFUND-2 refund of an expired attendance spend restores attendance 30d, not generic", () => {
-    // Provenance는 보존되나 expiry preservation은 아니다 (fresh 30d).
-    // BEFORE도 fresh-validity였으므로 PR은 invariant를 유지한 것이며,
-    // 만료보존(A)/보상크레딧(B)/별도정책(C) 선택은 제품 결정 대기 중.
+  it("REFUND-2 refund of an expired attendance spend restores the same expired row (EXACT REVERSAL)", () => {
+    // PRODUCT DECISION B: 환불은 compensation이 아니라 counterfactual
+    // 복원이다. 만료된 원본 row에 remaining만 복원하고, 새 30d lot을
+    // 만들지 않으며, 만료 상태이므로 spendable/giftable 잔액은 늘지 않는다.
     const user = createTestUser("refund_att");
-    claimDailyAttendance(user.id);
+    const claimed = claimDailyAttendance(user.id);
+    assert.equal(claimed.alreadyClaimed, false);
     const before = userLots(user.id);
     assert.equal(before.length, 1);
     const deducted = deductPoints(user.id, 100, "pptest spend");
@@ -436,13 +437,15 @@ describe("point policy unification — refund provenance", () => {
       .run(before[0]!.id);
 
     refundMessageDeduction(user.id, FAKE_MESSAGE_ID, deducted.slices, 100, "pptest refund");
-    const after = userLots(user.id).filter((lot) => lot.remaining_amount > 0);
-    const restored = after.find((lot) => lot.remaining_amount === 100);
-    assert.ok(restored, "restored 100 lot exists alongside the expired original");
-    assert.ok(
-      Math.abs(daysUntilExpiry(restored.expires_at) - 30) < 2,
-      `restored expires_at=${restored.expires_at}, expected ~30d attendance policy`
-    );
+    const after = userLots(user.id);
+    assert.equal(after.length, 1, "no new attendance lot created");
+    assert.equal(after[0]!.id, before[0]!.id, "same transaction row");
+    assert.equal(after[0]!.remaining_amount, claimed.reward, "consumed amount restored");
+    const sourceRow = getDb()
+      .prepare("SELECT COALESCE(source,'') AS source FROM point_transactions WHERE id=?")
+      .get(before[0]!.id) as { source: string };
+    assert.equal(sourceRow.source, "attendance", "provenance preserved, not re-projected");
+    assert.equal(getPointBalance(user.id).total, 0, "expired restore adds no spendable balance");
     const giftRecipient = createTestUser("refund_att_r");
     assert.throws(
       () =>
@@ -450,20 +453,18 @@ describe("point policy unification — refund provenance", () => {
           recipientNickname: giftRecipient.nickname,
           amount: Math.min(100, MIN_POINT_GIFT_AMOUNT),
         }),
-      isAttendanceError
+      PointGiftError,
+      "nothing giftable after expired-attendance reversal"
     );
   });
 });
 
-describe("point policy unification — legacy attendance provenance (BLOCKED)", () => {
-  it("LEGACY-1 (BLOCKED repro) legacy NULL-source attendance-style lot is still giftable — backfill pending, NOT approved behavior", () => {
-    // Root-cause proof for BLOCKER 1: migration 이전 출석 grant는 source
-    // 컬럼/파라미터 자체가 없어 point_transactions에 provenance 없이
-    // FREE lot으로만 남는다. attendance_checkins와의 연결고리(FK)가 없고,
-    // reason 문자열 + 일자/금액 일치는 admin 임의 지급·당일 동액 지급·
-    // 부분 사용 등으로 오탐이 가능해 100% deterministic 식별이 불가하다.
-    // 따라서 heuristic backfill을 구현하지 않으며, 이 fixture는 열린
-    // 결함을 재현한다 (통과 = 결함 현존, 승인 의미 아님).
+describe("point policy unification — legacy attendance cutover (NO BACKFILL / NULL=GENERIC)", () => {
+  it("LEGACY-1 cutover boundary: NULL-source lots are generic FREE and are never reclassified as attendance", () => {
+    // PRODUCT DECISION A: legacy attendance NULL-source lot을 백필하지
+    // 않고 DB reset도 하지 않는다. provenance가 없는 NULL-source lot은
+    // generic FREE로 취급하며 attendance로 추정 재분류하지 않는다.
+    // 이 fixture는 열린 결함이 아니라 cutover-boundary regression이다.
     const sender = createTestUser("legacy_s");
     const recipient = createTestUser("legacy_r");
     const db = getDb();
@@ -484,6 +485,12 @@ describe("point policy unification — legacy attendance provenance (BLOCKED)", 
     assert.equal(result.breakdown.net, 200);
     assert.equal(getPointBalance(sender.id).total, 0);
     assert.equal(getPointBalance(recipient.id).total, 200);
+    const sourceRow = db
+      .prepare(
+        "SELECT COALESCE(source,'') AS source FROM point_transactions WHERE user_id=? ORDER BY id DESC LIMIT 1"
+      )
+      .get(sender.id) as { source: string };
+    assert.equal(sourceRow.source, "", "no reclassification: source stays NULL (generic FREE)");
   });
 });
 
@@ -635,13 +642,10 @@ describe("point policy unification — mutation-intent key lifecycle", () => {
   });
 });
 
-describe("point policy unification — refund expiry boundary (POLICY PENDING)", () => {
-  it("REFUND-X1 expired generic FREE spend restores giftable generic FREE (duration pending product decision)", () => {
-    // BEFORE(=origin/main): 만료 롯 환불도 fresh 2y generic FREE로 재생성.
-    // PR: provenance 보존 + 기간만 1y로 정정. 즉 fresh-validity 자체는
-    // BEFORE invariant 유지이며, 만료보존(A)/보상크레딧(B)/별도정책(C)
-    // 중 무엇을 정답으로 볼지는 제품 결정 전이므로 이 fixture는 현행
-    // 동작을 고정하되 정답으로 승인하지 않는다.
+describe("point policy unification — refund expiry boundary (EXACT REVERSAL)", () => {
+  it("REFUND-X1 expired generic FREE spend restores the same expired row — no fresh 1y lot", () => {
+    // PRODUCT DECISION B: BEFORE의 fresh-validity 재생성은 laundering
+    // (만료 자산의 fresh 부활)이므로 제거. 원본 lifetime 연장은 없다.
     const user = createTestUser("refund_free");
     creditPoints(user.id, 500, "FREE", "pptest generic free");
     const before = userLots(user.id);
@@ -653,31 +657,12 @@ describe("point policy unification — refund expiry boundary (POLICY PENDING)",
       .run(before[0]!.id);
 
     refundMessageDeduction(user.id, FAKE_MESSAGE_ID, deducted.slices, 200, "pptest refund");
-    const after = userLots(user.id).filter((lot) => lot.remaining_amount > 0);
-    const restored = after.find((lot) => lot.remaining_amount === 200);
-    assert.ok(restored, "restored 200 lot exists alongside the expired original");
-    assert.equal(restored.point_type, "FREE");
-    assert.ok(
-      Math.abs(daysUntilExpiry(restored.expires_at) - 365) < 4,
-      `restored expires_at=${restored.expires_at}, currently fresh ~1y (POLICY PENDING)`
-    );
-    const db = getDb();
-    const sourceRow = db
-      .prepare("SELECT COALESCE(source,'') AS source FROM point_transactions WHERE id=?")
-      .get(
-        (
-          db
-            .prepare("SELECT id FROM point_transactions WHERE user_id=? AND remaining_amount=200 ORDER BY id DESC LIMIT 1")
-            .get(user.id) as { id: number }
-        ).id
-      ) as { source: string };
-    assert.notEqual(sourceRow.source, "attendance");
-    const giftRecipient = createTestUser("refund_free_r");
-    const gift = giftPoints(user.id, {
-      recipientNickname: giftRecipient.nickname,
-      amount: 200,
-    });
-    assert.equal(gift.breakdown.net, 160);
+    const after = userLots(user.id);
+    assert.equal(after.length, 1, "new point transaction count +0");
+    assert.equal(after[0]!.id, before[0]!.id, "same transaction row");
+    assert.equal(after[0]!.point_type, "FREE");
+    assert.equal(after[0]!.remaining_amount, 500, "exact consumed amount restored");
+    assert.equal(getPointBalance(user.id).total, 0, "no fresh spendable balance");
   });
 });
 
@@ -767,5 +752,205 @@ describe("point policy unification — server-authoritative commit over stale pr
       "attendance lot untouched by server commit"
     );
     assert.equal(getPointBalance(recipient.id).total, 320);
+  });
+});
+
+describe("refund exact reversal — canonical semantics (EXACT REVERSAL / ORIGINAL EXPIRY PRESERVED)", () => {
+  it("REFUND-REV-1 refund before expiry restores the same row in place", () => {
+    const user = createTestUser("rev_ok");
+    creditPoints(user.id, 500, "FREE", "pptest generic free");
+    const before = userLots(user.id);
+    assert.equal(before.length, 1);
+    const deducted = deductPoints(user.id, 200, "pptest spend");
+    assert.equal(deducted.slices.length, 1);
+
+    refundMessageDeduction(user.id, FAKE_MESSAGE_ID, deducted.slices, 200, "pptest refund");
+    const after = userLots(user.id);
+    assert.equal(after.length, 1, "no new transaction row");
+    assert.equal(after[0]!.id, before[0]!.id, "same transaction row");
+    assert.equal(after[0]!.remaining_amount, 500, "exact consumed amount restored");
+    assert.equal(after[0]!.expires_at, before[0]!.expires_at, "expiry untouched");
+    assert.equal(getPointBalance(user.id).total, 500, "spendable balance restored");
+  });
+
+  it("REFUND-REV-2 refund after expiry restores the SAME expired row — no fresh lot, no new expiry", () => {
+    const user = createTestUser("rev_exp");
+    creditPoints(user.id, 500, "FREE", "pptest generic free");
+    const before = userLots(user.id);
+    assert.equal(before.length, 1);
+    const deducted = deductPoints(user.id, 200, "pptest spend");
+    assert.equal(deducted.slices.length, 1);
+    getDb()
+      .prepare("UPDATE point_transactions SET expires_at=datetime('now','-1 day') WHERE id=?")
+      .run(before[0]!.id);
+    const expiredAt = (
+      getDb().prepare("SELECT expires_at FROM point_transactions WHERE id=?").get(before[0]!.id) as {
+        expires_at: string;
+      }
+    ).expires_at;
+
+    refundMessageDeduction(user.id, FAKE_MESSAGE_ID, deducted.slices, 200, "pptest refund");
+    const after = userLots(user.id);
+    assert.equal(after.length, 1, "new point transaction count +0");
+    assert.equal(after[0]!.id, before[0]!.id, "same transaction row");
+    assert.equal(after[0]!.remaining_amount, 500, "exact consumed amount restored to the row");
+    assert.equal(after[0]!.expires_at, expiredAt, "original (past) expiry preserved, not renewed");
+    assert.equal(
+      getPointBalance(user.id).total,
+      0,
+      "restored amount stays expired: spendable balance does not increase"
+    );
+  });
+
+  it("REFUND-REV-3 expired attendance refund restores the same row — no new 30d lot, no generic conversion", () => {
+    const user = createTestUser("rev_att");
+    const claimed = claimDailyAttendance(user.id);
+    assert.equal(claimed.alreadyClaimed, false);
+    const before = userLots(user.id);
+    assert.equal(before.length, 1);
+    const deducted = deductPoints(user.id, 100, "pptest spend");
+    assert.equal(deducted.slices.length, 1);
+    getDb()
+      .prepare("UPDATE point_transactions SET expires_at=datetime('now','-1 day') WHERE id=?")
+      .run(before[0]!.id);
+
+    refundMessageDeduction(user.id, FAKE_MESSAGE_ID, deducted.slices, 100, "pptest refund");
+    const after = userLots(user.id);
+    assert.equal(after.length, 1, "no new attendance lot created");
+    assert.equal(after[0]!.id, before[0]!.id, "same transaction row");
+    assert.equal(after[0]!.remaining_amount, claimed.reward, "consumed amount restored");
+    const sourceRow = getDb()
+      .prepare("SELECT COALESCE(source,'') AS source FROM point_transactions WHERE id=?")
+      .get(before[0]!.id) as { source: string };
+    assert.equal(sourceRow.source, "attendance", "provenance untouched, not re-projected");
+    assert.equal(getPointBalance(user.id).total, 0, "no giftable balance increase");
+  });
+
+  it("REFUND-REV-4 expired PAID refund restores the same row — no fresh 1y lot", () => {
+    const user = createTestUser("rev_paid");
+    creditPoints(user.id, 500, "PAID", "pptest paid");
+    const before = userLots(user.id);
+    const deducted = deductPoints(user.id, 200, "pptest spend");
+    getDb()
+      .prepare("UPDATE point_transactions SET expires_at=datetime('now','-1 day') WHERE id=?")
+      .run(before[0]!.id);
+
+    refundMessageDeduction(user.id, FAKE_MESSAGE_ID, deducted.slices, 200, "pptest refund");
+    const after = userLots(user.id);
+    assert.equal(after.length, 1, "new point transaction count +0");
+    assert.equal(after[0]!.id, before[0]!.id);
+    assert.equal(after[0]!.point_type, "PAID");
+    assert.equal(after[0]!.remaining_amount, 500);
+    assert.equal(getPointBalance(user.id).total, 0);
+  });
+
+  it("REFUND-NOSLICE-1 empty slices never mint fresh FREE — integrity failure, fail-closed", () => {
+    const user = createTestUser("rev_noslice");
+    assert.equal(userLots(user.id).length, 0);
+    assert.throws(
+      () => refundMessageDeduction(user.id, FAKE_MESSAGE_ID, [], 200, "pptest refund"),
+      /slices/,
+      "no silent fresh-credit mint without source slices"
+    );
+    assert.equal(userLots(user.id).length, 0, "no new lot minted");
+    assert.equal(getPointBalance(user.id).total, 0);
+  });
+
+  it("REFUND-MISSING-1 slice pointing at a deleted row never mints — integrity failure", () => {
+    const user = createTestUser("rev_missing");
+    creditPoints(user.id, 500, "FREE", "pptest generic free");
+    const before = userLots(user.id);
+    const deducted = deductPoints(user.id, 200, "pptest spend");
+    getDb().prepare("DELETE FROM point_transactions WHERE id=?").run(before[0]!.id);
+
+    assert.throws(
+      () => refundMessageDeduction(user.id, FAKE_MESSAGE_ID, deducted.slices, 200, "pptest refund"),
+      /slices|transaction|integrity/i,
+      "missing original row is a data-integrity failure, not a fresh-credit fallback"
+    );
+    assert.equal(userLots(user.id).length, 0, "no replacement lot minted");
+  });
+});
+
+describe("refund report-path boundaries — fail-closed, no silent mint", () => {
+  function createRefundMessageGraph(suffix: string, opts: { slices: string | null; cost: number }) {
+    const db = getDb();
+    const user = createTestUser(`rpt_${suffix}`);
+    const charName = `${TAG}_char_${suffix}`;
+    const charRow = db
+      .prepare("INSERT INTO characters (name) VALUES (?)")
+      .run(charName);
+    const characterId = Number(charRow.lastInsertRowid);
+    const chatRow = db
+      .prepare("INSERT INTO chats (user_id, character_id) VALUES (?,?)")
+      .run(user.id, characterId);
+    const chatId = Number(chatRow.lastInsertRowid);
+    const msgRow = db
+      .prepare(
+        "INSERT INTO messages (chat_id, role, content, status, usage, deduction_slices) VALUES (?, 'assistant', ?, 'error', ?, ?)"
+      )
+      .run(chatId, "x", JSON.stringify({ cost: opts.cost }), opts.slices);
+    const messageId = Number(msgRow.lastInsertRowid);
+    return { user, chatId, messageId, characterId };
+  }
+
+  function deleteRefundMessageGraph(graph: { chatId: number; messageId: number; characterId: number }) {
+    const db = getDb();
+    db.prepare("DELETE FROM report_refunds WHERE message_id=?").run(graph.messageId);
+    db.prepare("DELETE FROM reports WHERE message_id=?").run(graph.messageId);
+    db.prepare("DELETE FROM messages WHERE id=?").run(graph.messageId);
+    db.prepare("DELETE FROM chats WHERE id=?").run(graph.chatId);
+    db.prepare("DELETE FROM characters WHERE id=?").run(graph.characterId);
+  }
+
+  it("REFUND-E2E-NOSLICE error-status message without slices goes pending — never auto-minted", () => {
+    const graph = createRefundMessageGraph("noslice", { slices: null, cost: 200 });
+    try {
+      const txBefore = userLots(graph.user.id).length;
+      const result = processReportRefund(graph.user.id, graph.messageId, graph.chatId);
+      assert.equal(result.status, "pending", "fail-closed to manual review, not auto-approved");
+      assert.equal(userLots(graph.user.id).length, txBefore, "no lot minted by the report path");
+      assert.equal(getPointBalance(graph.user.id).total, 0);
+    } finally {
+      deleteRefundMessageGraph(graph);
+    }
+  });
+
+  it("REFUND-E2E-DOUBLE error-status message with valid slices approves once, then rejects", () => {
+    const graphUser = createTestUser("dbl");
+    const db = getDb();
+    creditPoints(graphUser.id, 500, "FREE", "pptest generic free");
+    const deducted = deductPoints(graphUser.id, 200, "pptest spend");
+    const charRow = db.prepare("INSERT INTO characters (name) VALUES (?)").run(`${TAG}_char_dbl`);
+    const characterId = Number(charRow.lastInsertRowid);
+    const chatRow = db
+      .prepare("INSERT INTO chats (user_id, character_id) VALUES (?,?)")
+      .run(graphUser.id, characterId);
+    const chatId = Number(chatRow.lastInsertRowid);
+    const msgRow = db
+      .prepare(
+        "INSERT INTO messages (chat_id, role, content, status, usage, deduction_slices) VALUES (?, 'assistant', ?, 'error', ?, ?)"
+      )
+      .run(chatId, "x", JSON.stringify({ cost: 200 }), JSON.stringify(deducted.slices));
+    const messageId = Number(msgRow.lastInsertRowid);
+    try {
+      const first = processReportRefund(graphUser.id, messageId, chatId);
+      assert.equal(first.status, "approved", "first error report auto-approves with intact slices");
+      const txAfterFirst = userLots(graphUser.id).length;
+      const balanceAfterFirst = getPointBalance(graphUser.id).total;
+
+      const second = processReportRefund(graphUser.id, messageId, chatId);
+      assert.equal(second.status, "rejected", "double refund rejected by existing guards");
+      assert.equal(userLots(graphUser.id).length, txAfterFirst, "no lots created by the second call");
+      assert.equal(getPointBalance(graphUser.id).total, balanceAfterFirst, "balance unchanged");
+      const flag = (
+        db.prepare("SELECT is_refunded FROM messages WHERE id=?").get(messageId) as {
+          is_refunded: number;
+        }
+      ).is_refunded;
+      assert.equal(flag, 1, "is_refunded invariant set by the first refund");
+    } finally {
+      deleteRefundMessageGraph({ chatId, messageId, characterId });
+    }
   });
 });
