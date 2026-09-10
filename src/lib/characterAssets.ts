@@ -62,6 +62,27 @@ export function isPortraitDisplayAsset(
   return !isWideInlineAsset(asset);
 }
 
+const CREATOR_ASSET_TAG_MAX = 32;
+
+/**
+ * Canonical normalization for the creator-editable asset tag (custom asset
+ * name). This value is BOTH the display label AND the semantic selection cue
+ * (general-chat `[태그: …]` and TRPG `[캐릭터에셋: participantId|tag]`), so it is
+ * treated as untrusted metadata: strip control characters, line breaks and
+ * bracket/allowlist-breaking punctuation so an instruction-like name can never
+ * escape the candidate list or change instruction priority. Read and write paths
+ * share this single owner.
+ */
+export function normalizeCreatorAssetTag(raw: unknown, fallback = ""): string {
+  const cleaned = String(raw ?? "")
+    .replace(/[\u0000-\u001f\u007f\r\n\t]/g, " ")
+    .replace(/[\[\]]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, CREATOR_ASSET_TAG_MAX);
+  return cleaned || fallback;
+}
+
 function optionalSizeFields(raw: Partial<CharacterAsset>): Pick<CharacterAsset, "width" | "height" | "orientation"> {
   const width = Number(raw.width);
   const height = Number(raw.height);
@@ -85,7 +106,7 @@ function normalizeAsset(raw: Partial<CharacterAsset>, index: number): CharacterA
     typeof raw.viewerBlur === "boolean" ? raw.viewerBlur : index === 0 ? false : true;
   return {
     url: String(raw.url),
-    tag: String(raw.tag),
+    tag: normalizeCreatorAssetTag(raw.tag),
     ...(typeof raw.visualSubjectKey === "string" && raw.visualSubjectKey.trim()
       ? { visualSubjectKey: raw.visualSubjectKey.trim() }
       : {}),

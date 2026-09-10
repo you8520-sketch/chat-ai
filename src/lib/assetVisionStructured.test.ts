@@ -149,7 +149,7 @@ const ADULT_RP_TAGS = [
 
 describe("adult-RP person tag taxonomy", () => {
   it("includes all 8 adult-RP tags in canonical ASSET_PERSON_TAGS", () => {
-    assert.equal(ASSET_PERSON_TAGS.length, 36);
+    assert.equal(ASSET_PERSON_TAGS.length, 38);
     for (const tag of ADULT_RP_TAGS) {
       assert.equal(ASSET_PERSON_TAGS.includes(tag), true, tag);
     }

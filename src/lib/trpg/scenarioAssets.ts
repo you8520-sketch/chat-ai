@@ -1,5 +1,5 @@
 import {
-  isWideInlineAsset,
+  chatAssets,
   parseAssets,
   withAssetSize,
   type CharacterAsset,
@@ -8,8 +8,6 @@ import { collectEmotionTags, resolveEmotionTag } from "@/lib/emotionTag";
 import { attachMatchingAssetTags, consumeAssetTagsOnce } from "@/lib/inlineTaggedAssets";
 
 export const TRPG_SCENARIO_MAX_ASSETS = 40;
-export const TRPG_SCENARIO_LANDSCAPE_ONLY_ERROR =
-  "대표 이미지(1번)를 제외한 시나리오 에셋은 가로로 긴 이미지만 사용할 수 있습니다.";
 
 export function parseScenarioAssets(raw: unknown): CharacterAsset[] {
   if (typeof raw === "string") return parseAssets(raw).slice(0, TRPG_SCENARIO_MAX_ASSETS);
@@ -21,32 +19,19 @@ export function getScenarioCoverUrl(assets: CharacterAsset[]): string | null {
   return assets[0]?.url ?? null;
 }
 
+/**
+ * Scenario images eligible for GM scene selection. Aspect ratio is NOT
+ * restricted — landscape, portrait, square and unusual ratios all qualify.
+ * (Display is orientation-aware at the render layer.)
+ */
 export function playableScenarioAssets(assets: CharacterAsset[]): CharacterAsset[] {
-  return assets.filter((asset) => isWideInlineAsset(asset));
-}
-
-export function assertScenarioAssetOrientations(assets: CharacterAsset[]): void {
-  for (let i = 1; i < assets.length; i++) {
-    const asset = assets[i];
-    if (!asset) continue;
-    if (!isWideInlineAsset(asset)) {
-      throw new Error(TRPG_SCENARIO_LANDSCAPE_ONLY_ERROR);
-    }
-  }
+  return chatAssets(assets).filter(
+    (asset) => asset.moderationReject !== true && asset.tag.trim()
+  );
 }
 
 export function normalizeScenarioAssets(raw: unknown): CharacterAsset[] {
-  const assets = parseScenarioAssets(raw);
-  assertScenarioAssetOrientations(assets);
-  return assets;
-}
-
-export function rejectNonLandscapeScenarioExtra(
-  asset: CharacterAsset,
-  index: number
-): CharacterAsset | null {
-  if (index === 0) return asset;
-  return isWideInlineAsset(asset) ? asset : null;
+  return parseScenarioAssets(raw);
 }
 
 export function buildScenarioAssetTagPrompt(assets: CharacterAsset[]): string {
@@ -55,7 +40,7 @@ export function buildScenarioAssetTagPrompt(assets: CharacterAsset[]): string {
   const unique = [...new Set(playable.map((a) => a.tag.trim()).filter(Boolean))];
   if (unique.length === 0) return "";
   const list = unique.join(", ");
-  return `[SCENARIO IMAGE TAGS — uploaded landscape scene images]
+  return `[SCENARIO IMAGE TAGS — uploaded scene images]
 GM NARRATION only. Insert [태그: tagname] only when this scene meaningfully matches that uploaded tag (environment, place, object, creature, supporting figure, event, or atmosphere).
 Do not insert an image merely because the tag exists. Never add filler images to reach a quota.
 Allowed scenario tags ONLY (copy spelling exactly): ${list}
