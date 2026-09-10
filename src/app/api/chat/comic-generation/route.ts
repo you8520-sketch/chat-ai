@@ -31,7 +31,6 @@ import {
   buildChatLdIllustrationPrompt,
   buildLdDuoGenerationPlan,
   buildLdSceneGenerationPlan,
-  buildTrpgIllustrationSituation,
   resolveChatLdIllustrationPrice,
   type ChatLdIllustrationCastMember,
   withIllustrationReferenceIndices,
@@ -50,20 +49,7 @@ import {
   applyTrpgCastImagePicks,
   loadTrpgIllustrationScene,
 } from "@/lib/trpg/illustrationCast";
-import {
-  resolveTrpgIllustrationSceneFocus,
-  type TrpgAiFocusDiagnostics,
-} from "@/lib/trpg/trpgAiFocusSelection";
-import {
-  buildTrpgImageSceneDiagnosticsPayload,
-  resolveTrpgImageSceneDiagnosticsForResponse,
-  type TrpgImageSceneDiagnosticsPayload,
-} from "@/lib/trpg/trpgImageSceneDiagnosticsLifecycle";
-import {
-  TRPG_IMAGE_SCENE_MODE_DEFAULT,
-  normalizeTrpgImageSceneMode,
-  type TrpgImageSceneMode,
-} from "@/lib/trpg/trpgImageSceneMode";
+import { buildTrpgRoundSourceText } from "@/lib/trpg/roundSource";
 import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
@@ -496,26 +482,6 @@ function resolveSceneSource(opts: {
   throw new RequestError("장면으로 만들 내용을 입력해 주세요.");
 }
 
-/**
- * Server-canonical full source for a TRPG round comic. Assembled only from the
- * server-loaded round (location, locked participant actions, committed GM
- * narration) — never from client preview/UI text.
- */
-function buildTrpgComicSourceText(
-  scene: NonNullable<ReturnType<typeof loadTrpgIllustrationScene>>
-): string {
-  const lines: string[] = [];
-  const location = scene.location.trim();
-  if (location) lines.push(`장소: ${location}`);
-  for (const action of scene.actions) {
-    const body = action.body.trim();
-    if (body) lines.push(`${action.name}: ${body}`);
-  }
-  const narration = scene.narration.trim();
-  if (narration) lines.push(narration);
-  return lines.join("\n");
-}
-
 function resolveKnownSpeakerNames(
   context: GenerationContext,
   castIntentRaw: unknown
@@ -935,16 +901,9 @@ export async function POST(req: Request) {
       let cast: ChatLdIllustrationCastMember[] | undefined;
       let partyPlan: ReturnType<typeof buildPartyIllustrationReferencePlan> | undefined;
       let referenceUrls: string[] = [];
-      let situation: string | undefined;
-      let sceneLocation = "";
-      let sceneActions: Array<{ name: string; body: string }> = [];
       let trpgScene: ReturnType<typeof loadTrpgIllustrationScene> = null;
       let illustrationMessageId: number | null = null;
       let campaignTitle = "";
-      let trpgImageSceneModeApplied: TrpgImageSceneMode = TRPG_IMAGE_SCENE_MODE_DEFAULT;
-      let trpgAiFocusDiagnostics: TrpgAiFocusDiagnostics | null = null;
-      let trpgImageSceneDiagnosticsPayload: TrpgImageSceneDiagnosticsPayload | null = null;
-      let requestedTrpgSceneMode: TrpgImageSceneMode = TRPG_IMAGE_SCENE_MODE_DEFAULT;
       let prompt = "";
       let strictFallbackPrompt = "";
       if (campaignId) {
@@ -999,10 +958,6 @@ export async function POST(req: Request) {
           referenceIndex: subject.referenceIndex,
           imageUrl: subject.referenceImageUrl,
         }));
-        sceneLocation = trpgScene.location;
-        sceneActions = trpgScene.actions;
-        trpgAiFocusDiagnostics = null;
-        requestedTrpgSceneMode = normalizeTrpgImageSceneMode(body.trpgImageSceneMode);
       } else {
         const source = resolveSceneSource({
           chatId: context.chatId,
@@ -1082,51 +1037,22 @@ export async function POST(req: Request) {
           { status: 402 }
         );
       }
-      // INSUFFICIENT BALANCE INVARIANT — the billable TRPG AI_FOCUS planner
-      // call runs only AFTER the balance preflight passes, so a 402 user never
-      // incurs planner cost, never starts a job, and never reaches the image
-      // provider. partyPlan.referenceUrls were grounded above, so the final
-      // price below is already exact before any AI call.
+      // Canonical TRPG illustration — the selected round's full source goes to
+      // the SAME important-moment illustration owner as general chat. The image
+      // provider selects the important visual moment; there is no Scene Planner
+      // or focus-selection call. partyPlan.referenceUrls were grounded above, so
+      // the final price was already exact before the preflight.
       if (campaignId) {
-        const focus = await resolveTrpgIllustrationSceneFocus({
-          sceneMode: requestedTrpgSceneMode,
-          rawNarration: trpgScene!.narration,
-          canonicalLocation: sceneLocation,
-        });
-        trpgImageSceneModeApplied = focus.modeApplied;
-        trpgAiFocusDiagnostics = focus.diagnostics;
-        trpgImageSceneDiagnosticsPayload = buildTrpgImageSceneDiagnosticsPayload({
-          requestedMode: requestedTrpgSceneMode,
-          modeApplied: focus.modeApplied,
-          canonicalLocation: sceneLocation,
-          focusDiagnostics: focus.diagnostics,
-        });
-        if (focus.modeApplied === "RAW" && requestedTrpgSceneMode === "AI_FOCUS") {
-          console.info(
-            "[trpg-ai-focus] RAW fallback",
-            JSON.stringify({
-              campaignId,
-              roundNumber,
-              reason: focus.diagnostics?.fallbackReason ?? "unknown",
-              model: focus.diagnostics?.aiModel,
-            })
-          );
-        }
-        const gmSceneNarration = focus.narration;
-        situation = buildTrpgIllustrationSituation({
-          location: sceneLocation,
-          actions: sceneActions,
-          narration: gmSceneNarration,
-        });
+        const trpgSource = buildTrpgRoundSourceText(trpgScene!);
         prompt = buildChatLdIllustrationPrompt({
           characterName: context.character.name,
           characterGender: context.characterGender,
           personaName: context.persona.name,
           personaGender: context.personaGender,
-          currentTurn: trpgScene!.narration,
+          currentTurn: trpgSource,
           cast,
           subjects: partyPlan?.subjects,
-          situation,
+          fullSource: trpgSource,
         });
         strictFallbackPrompt = buildStrictLdPartyFallbackPrompt({
           cast: cast!,
@@ -1174,8 +1100,6 @@ export async function POST(req: Request) {
             campaignTitle: campaignTitle || undefined,
             roundNumber: roundNumber ?? undefined,
             castNames: cast?.map((member) => member.name),
-            trpgImageSceneMode: campaignId ? trpgImageSceneModeApplied : undefined,
-            trpgAiFocusDiagnostics: trpgAiFocusDiagnostics ?? undefined,
             quality: CHAT_LD_ILLUSTRATION_QUALITY,
             outputSize: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
             // Cost-cohort evidence: the exact server-grounded pricing input.
@@ -1252,11 +1176,6 @@ export async function POST(req: Request) {
         messageId: illustrationMessageId ?? undefined,
         upstreamCostUsd: canSeeCost ? generated.knownProviderCostUsd : undefined,
         upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
-        trpgImageSceneDiagnostics: resolveTrpgImageSceneDiagnosticsForResponse({
-          canSeeCost,
-          campaignId,
-          payload: trpgImageSceneDiagnosticsPayload,
-        }),
         totalPointsCost: deductionTotal,
         remainingPoints: deductionBalance.total,
         paidPoints: deductionBalance.paid,
@@ -1318,7 +1237,7 @@ export async function POST(req: Request) {
         throw new RequestError(CHAT_IMAGE_PARTY_NO_REFERENCE_ERROR);
       }
       trpgPartyPack = partyPlan;
-      const trpgSourceText = buildTrpgComicSourceText(trpgScene);
+      const trpgSourceText = buildTrpgRoundSourceText(trpgScene);
       source = {
         messages: buildSceneSourceMessages([
           { id: 1, role: "assistant", content: stripChatTurnMarkup(trpgSourceText) },

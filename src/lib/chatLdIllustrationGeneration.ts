@@ -147,38 +147,9 @@ function formatCastLine(member: ChatLdIllustrationCastMember, index: number): st
   return `${index + 1}. ${name} (${member.role}). Gender: confirmed ${gender}.${aliasText}`;
 }
 
-export function buildTrpgIllustrationSituation(opts: {
-  location?: string;
-  actions?: ReadonlyArray<{ name: string; body: string }>;
-  narration: string;
-  adultGrounded?: boolean;
-}): string {
-  const projectionContext: SafeVisualProjectionContext = {
-    adultGrounded: opts.adultGrounded ?? false,
-  };
-  const lines: string[] = [];
-  const location = String(opts.location ?? "").trim();
-  if (location) lines.push(`LOCATION: ${location}`);
-  const actions = (opts.actions ?? []).filter((action) => action.body.trim());
-  if (actions.length > 0) {
-    lines.push("THIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):");
-    for (const action of actions) {
-      const name = action.name.trim() || "player";
-      const body = projectSceneTextForSafeImageGeneration(action.body, projectionContext).text.slice(0, 400);
-      if (!body) continue;
-      lines.push(`- ${name}: ${body}`);
-    }
-  }
-  lines.push("GM SCENE:");
-  lines.push(
-    projectSceneBlockForSafeImageGeneration(opts.narration, projectionContext).text.slice(0, 1_800)
-  );
-  return lines.join("\n");
-}
-
 function buildPartyIllustrationPrompt(opts: {
   cast: readonly ChatLdIllustrationCastMember[];
-  situation: string;
+  fullSource: string;
   subjects?: readonly ChatImageVisualSubject[];
   adultGrounded?: boolean;
 }): string {
@@ -186,6 +157,9 @@ function buildPartyIllustrationPrompt(opts: {
   const subjects = opts.subjects?.length
     ? [...opts.subjects]
     : visualSubjectsFromCastMembers(opts.cast);
+  const projectionContext: SafeVisualProjectionContext = {
+    adultGrounded: opts.adultGrounded ?? false,
+  };
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
     `This is a TRPG party group illustration. Show ALL ${count} listed ${peopleWord(count)} together in a single scene. Count the people: ${count}. Do not omit anyone.`,
@@ -203,7 +177,7 @@ function buildPartyIllustrationPrompt(opts: {
       }))
     ),
     buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
-    "Depict the selected scene brief below as one cinematic, emotionally accurate group scene. If ROUND ACTIONS are listed, pose each named person according to their own action. Use LOCATION as the background.",
+    "Depict the selected important visual moment below as one cinematic, emotionally accurate group scene, posing each listed person as that moment requires.",
     "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
     "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
@@ -211,8 +185,10 @@ function buildPartyIllustrationPrompt(opts: {
     "Compose a group shot so every listed face is clearly visible. Prefer a mid-shot or full-body arrangement. Do not hide a listed person behind another, off-canvas, or as a tiny background extra.",
     "Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixels. Keep important faces and gestures away from the outer crop edges.",
     "",
-    "SELECTED TURN SCENE BRIEF:",
-    opts.situation,
+    "SELECTED TURN — SINGLE IMPORTANT VISUAL MOMENT:",
+    ILLUSTRATION_IMPORTANT_MOMENT_CONTRACT,
+    "FULL TURN (story context):",
+    projectSceneBlockForSafeImageGeneration(opts.fullSource, projectionContext).text,
   ].join("\n");
 }
 
@@ -264,8 +240,8 @@ export function buildChatLdIllustrationPrompt(opts: {
   adultGrounded?: boolean;
   /** When set (TRPG party), every listed person must appear — not just the 1:1 duo. */
   cast?: readonly ChatLdIllustrationCastMember[];
-  /** Pre-formatted TRPG situation (location, round actions, GM scene). */
-  situation?: string;
+  /** Canonical full source text for a party illustration (TRPG round source). */
+  fullSource?: string;
   subjects?: readonly ChatImageVisualSubject[];
 }) {
   const projectionContext: SafeVisualProjectionContext = {
@@ -274,8 +250,8 @@ export function buildChatLdIllustrationPrompt(opts: {
   if (opts.cast && opts.cast.length > 0) {
     return buildPartyIllustrationPrompt({
       cast: opts.cast,
-      situation:
-        opts.situation?.trim() ||
+      fullSource:
+        opts.fullSource?.trim() ||
         projectSceneBlockForSafeImageGeneration(opts.currentTurn, projectionContext).text,
       subjects: opts.subjects,
       adultGrounded: opts.adultGrounded,

@@ -18,20 +18,15 @@ function read(relativePath: string): string {
 }
 
 describe("surcharge follow-up: TRPG dynamic preflight / price UI / cost-cohort persistence", () => {
-  it("TRPG-DYNAMIC-PREFLIGHT: 402 balance preflight runs BEFORE the AI_FOCUS planner call", () => {
+  it("TRPG-DYNAMIC-PREFLIGHT: 402 balance preflight runs BEFORE the provider; no focus planner", () => {
     const route = read(COMIC_ROUTE);
     const priceIndex = route.indexOf("const identityReferenceCount = referenceUrls.length;");
     const preflightIndex = route.indexOf("포인트가 부족합니다. 선택 턴 LD 일러스트에는");
-    const focusIndex = route.indexOf("resolveTrpgIllustrationSceneFocus({");
     assert.ok(priceIndex > -1, "illustration grounds references before pricing");
     assert.ok(priceIndex < preflightIndex, "preflight uses the grounded identity-reference count");
-    assert.ok(focusIndex > -1, "TRPG AI_FOCUS call exists");
-    assert.ok(
-      focusIndex > preflightIndex,
-      "AI_FOCUS (billable planner) must run only AFTER the balance preflight passes"
-    );
-    // Final price is resolved exactly once per path — never recomputed after
-    // the planner call; settlement reuses the same pricePoints.
+    // The TRPG focus Scene Planner path is fully removed — 0 planner calls.
+    assert.doesNotMatch(route, /resolveTrpgIllustrationSceneFocus|planChatImageScene/);
+    // Final price is resolved exactly once per path — settlement reuses it.
     const priceOwnerCalls = [...route.matchAll(/resolveImageGenerationRequiredPoints\(/g)].length;
     assert.equal(priceOwnerCalls, 2, "one canonical price owner call per production path");
   });
