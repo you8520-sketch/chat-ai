@@ -24,6 +24,7 @@ type Props = {
   recipientNickname: string;
   paidPoints: number;
   freePoints?: number;
+  giftableFreePoints?: number;
   loggedIn: boolean;
   loginRedirect: string;
   /** 액션 버튼 행(캐릭터 페이지) 등 레이아웃 맞춤 */
@@ -46,6 +47,7 @@ export default function CreatorGiftPanel({
   recipientNickname,
   paidPoints,
   freePoints = 0,
+  giftableFreePoints,
   loggedIn,
   loginRedirect,
   buttonClassName,
@@ -59,6 +61,7 @@ export default function CreatorGiftPanel({
   const [success, setSuccess] = useState("");
 
   const totalPoints = paidPoints + freePoints;
+  const giftableFree = giftableFreePoints ?? freePoints;
   const feePctPaid = Math.round(POINT_GIFT_FEE_RATE_PAID * 100);
   const feePctFree = Math.round(POINT_GIFT_FEE_RATE_FREE * 100);
   const btnClass = buttonClassName ?? DEFAULT_BUTTON_CLASS;
@@ -66,7 +69,7 @@ export default function CreatorGiftPanel({
   const preview = (() => {
     const n = Number(amount);
     if (!Number.isFinite(n) || n <= 0) return null;
-    return estimateGiftBreakdown(n, freePoints, paidPoints);
+    return estimateGiftBreakdown(n, giftableFree, paidPoints);
   })();
 
   useEffect(() => {
@@ -101,7 +104,7 @@ export default function CreatorGiftPanel({
       return;
     }
 
-    const breakdown = estimateGiftBreakdown(gross, freePoints, paidPoints);
+    const breakdown = estimateGiftBreakdown(gross, giftableFree, paidPoints);
     if (
       !confirm(
         `@${recipientNickname}님에게 포인트를 선물할까요?\n\n차감: ${breakdown.gross.toLocaleString()}P\n` +
@@ -116,10 +119,14 @@ export default function CreatorGiftPanel({
     setError("");
     setSuccess("");
 
+    const clientMutationId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
     const res = await fetch("/api/points/gift", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipientId, amount: gross }),
+      body: JSON.stringify({ recipientId, amount: gross, clientMutationId }),
     });
     const data = await res.json();
     setLoading(false);
@@ -179,8 +186,8 @@ export default function CreatorGiftPanel({
               {giftTitle}
             </p>
             <p className="mt-1 text-xs leading-relaxed text-gray-400">
-              유료·무료 포인트를 선물할 수 있습니다. 수수료는 유료 {feePctPaid}% · 무료(출석 포함){" "}
-              {feePctFree}%이며, 제외한 금액이 제작자에게 전달됩니다.
+              유료·무료 포인트를 선물할 수 있습니다. 수수료는 유료 {feePctPaid}% · 무료{" "}
+              {feePctFree}%이며, 제외한 금액이 제작자에게 전달됩니다. 출석 포인트는 선물할 수 없습니다.
             </p>
             <p className="mt-2 text-xs text-gray-500">
               보유 합계: <b className="text-white">{totalPoints.toLocaleString()}P</b> (유료{" "}

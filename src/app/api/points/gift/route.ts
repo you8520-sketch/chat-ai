@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import {
   estimateGiftBreakdown,
+  getGiftableBalance,
   giftPoints,
   PointGiftError,
   POINT_GIFT_FEE_RATE_FREE,
   POINT_GIFT_FEE_RATE_PAID,
   MIN_POINT_GIFT_AMOUNT,
 } from "@/lib/pointGifts";
-import { getPointBalance } from "@/lib/points";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
-  let body: { recipientId?: number; recipientNickname?: string; amount?: number };
+  let body: { recipientId?: number; recipientNickname?: string; amount?: number; clientMutationId?: string };
   try {
     body = await req.json();
   } catch {
@@ -27,12 +27,17 @@ export async function POST(req: Request) {
   if (!Number.isFinite(amount) || amount <= 0) {
     return NextResponse.json({ error: "선물 금액을 입력해 주세요." }, { status: 400 });
   }
+  const clientMutationId =
+    typeof body.clientMutationId === "string" && body.clientMutationId.trim()
+      ? body.clientMutationId.trim().slice(0, 64)
+      : undefined;
 
   try {
     const result = giftPoints(user.id, {
       recipientId: body.recipientId != null ? Number(body.recipientId) : undefined,
       recipientNickname: body.recipientNickname,
       amount,
+      clientMutationId,
     });
 
     return NextResponse.json({
@@ -50,7 +55,7 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     if (err instanceof PointGiftError) {
-      const bal = getPointBalance(user.id);
+      const giftable = getGiftableBalance(user.id);
       const status =
         err.code === "INSUFFICIENT_POINTS" || err.code === "INSUFFICIENT_PAID_POINTS"
           ? 402
@@ -64,7 +69,7 @@ export async function POST(req: Request) {
           feeRatePaid: POINT_GIFT_FEE_RATE_PAID,
           feeRateFree: POINT_GIFT_FEE_RATE_FREE,
           minAmount: MIN_POINT_GIFT_AMOUNT,
-          preview: estimateGiftBreakdown(amount, bal.free, bal.paid),
+          preview: estimateGiftBreakdown(amount, giftable.giftableFree, giftable.paid),
         },
         { status }
       );

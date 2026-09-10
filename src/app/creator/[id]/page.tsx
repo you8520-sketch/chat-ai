@@ -9,6 +9,7 @@ import { getSessionUser } from "@/lib/auth";
 import { listableWhere } from "@/lib/characterVisibility";
 import { getDb } from "@/lib/db";
 import { getPointBalance } from "@/lib/points";
+import { getGiftableBalance } from "@/lib/pointGifts";
 import { isActivePartnerCreator } from "@/lib/partnerTier";
 import {
   getCreatorCommentsEnabled,
@@ -52,6 +53,7 @@ export default async function CreatorProfilePage({
   const user = await getSessionUser();
   const isOwner = user?.id === creatorId;
   const balance = user ? getPointBalance(user.id) : null;
+  const giftable = user ? getGiftableBalance(user.id) : null;
   const paidPoints = balance?.paid ?? 0;
   const freePoints = balance?.free ?? 0;
   const blurNsfw = !user?.is_adult || !user?.nsfw_on;
@@ -120,6 +122,7 @@ export default async function CreatorProfilePage({
               recipientNickname={creator.nickname}
               paidPoints={paidPoints}
               freePoints={freePoints}
+              giftableFreePoints={giftable?.giftableFree}
               loggedIn={!!user}
               loginRedirect={`/creator/${creatorId}`}
             />

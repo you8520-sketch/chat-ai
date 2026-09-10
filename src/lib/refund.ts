@@ -1,6 +1,9 @@
 import { getDb } from "./db";
 import {
+  ATTENDANCE_POINTS_VALID_DAYS,
+  expiresModifier,
   getPointBalance,
+  POINT_SOURCE_ATTENDANCE,
   type DeductionSlice,
   type PointBalance,
   type PointType,
@@ -52,17 +55,24 @@ function restoreSlice(userId: number, slice: DeductionSlice, db: ReturnType<type
     return;
   }
 
+  // 원본 롯이 만료/소멸된 경우 — provenance를 보존하여 재생성한다.
+  // 출석 롯은 출석 정책(30일)으로, 그 외는 종류별 기본 정책으로 복원한다.
+  const original = db
+    .prepare(
+      `SELECT point_type, COALESCE(source,'') AS source FROM point_transactions
+       WHERE id = ? AND user_id = ?`
+    )
+    .get(slice.transactionId, userId) as
+    | { point_type: PointType; source: string }
+    | undefined;
+  const source = original?.source === POINT_SOURCE_ATTENDANCE ? POINT_SOURCE_ATTENDANCE : null;
+  const validity = source === POINT_SOURCE_ATTENDANCE ? { days: ATTENDANCE_POINTS_VALID_DAYS } : undefined;
+  const pointType = original?.point_type ?? slice.pointType;
+
   db.prepare(
-    `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
-     VALUES (?, ?, ?, datetime('now', ?))`
-  ).run(
-    userId,
-    slice.pointType,
-    slice.amount,
-    slice.pointType === "PAID"
-      ? `+${PAID_POINTS_VALID_YEARS} years`
-      : `+${FREE_POINTS_VALID_YEARS} years`
-  );
+    `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at, source)
+     VALUES (?, ?, ?, datetime('now', ?), ?)`
+  ).run(userId, pointType, slice.amount, expiresModifier(pointType, validity), source);
 }
 
 export function refundMessageDeduction(

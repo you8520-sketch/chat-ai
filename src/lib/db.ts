@@ -1289,6 +1289,8 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_point_tx_user_exp
       ON point_transactions(user_id, point_type, expires_at);
   `);
+  /** Point lot provenance (e.g. attendance) — additive, nullable; generic lots stay NULL. */
+  addColumn("point_transactions", "source", "TEXT");
   migratePointsLedger(db);
   ensureChatBillingSettlementSchema(db);
   db.exec(`
@@ -1451,6 +1453,12 @@ function migrate(db: Database.Database) {
       ON point_gifts(sender_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_point_gifts_recipient
       ON point_gifts(recipient_id, created_at);
+  `);
+  /** Gift idempotency key — additive, nullable; NULL rows never conflict. */
+  addColumn("point_gifts", "client_mutation_id", "TEXT");
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_point_gifts_client_mutation
+      ON point_gifts(client_mutation_id);
   `);
   addColumn("users", "creator_comments_enabled", "INTEGER NOT NULL DEFAULT 1");
   /** Creator inbox: notify when someone likes their character (1=on). */

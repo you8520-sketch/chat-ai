@@ -1,7 +1,7 @@
 /** 유료 포인트 선물 수수료 */
 export const POINT_GIFT_FEE_RATE_PAID = 0.1;
-/** 무료 포인트(출석 포함) 선물 수수료 */
-export const POINT_GIFT_FEE_RATE_FREE = 0.25;
+/** 무료 포인트(출석 제외) 선물 수수료 */
+export const POINT_GIFT_FEE_RATE_FREE = 0.2;
 /** @deprecated POINT_GIFT_FEE_RATE_PAID 사용 — 하위 호환 */
 export const POINT_GIFT_FEE_RATE = POINT_GIFT_FEE_RATE_PAID;
 export const MIN_POINT_GIFT_AMOUNT = 10;
