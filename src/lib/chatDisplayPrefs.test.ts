@@ -94,8 +94,8 @@ describe("chat streaming speed presets", () => {
 
   it("defaults new users to fast streaming", () => {
     const fast = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "빠름")!;
-    assert.equal(fast.intervalMs, 28);
-    assert.equal(DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs, 28);
+    assert.equal(fast.intervalMs, 24);
+    assert.equal(DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs, 24);
     assert.equal(formatStreamIntervalLabel(DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs), "빠름");
   });
 
@@ -104,28 +104,28 @@ describe("chat streaming speed presets", () => {
       CHAT_STREAM_SPEED_PRESETS.map((p) => [p.label, p.intervalMs]),
       [
         ["즉시", 0],
-        ["빠름", 28],
+        ["빠름", 24],
         ["보통", 40],
       ]
     );
     assert.equal(CHAT_STREAM_SPEED_PRESETS.length, 3);
     assert.equal(streamCharsPerTickForInterval(0), 64);
-    assert.equal(streamCharsPerTickForInterval(28), 1);
+    assert.equal(streamCharsPerTickForInterval(24), 1);
     assert.equal(streamCharsPerTickForInterval(40), 1);
   });
 
   it("migrates the previous 빠름/보통/느림 millisecond values by label, not nearest ms", () => {
     assert.equal(normalizeStreamIntervalMs(0), 0);
-    assert.equal(normalizeStreamIntervalMs(20), 28);
-    assert.equal(normalizeStreamIntervalMs(35), 28);
+    assert.equal(normalizeStreamIntervalMs(20), 24);
+    assert.equal(normalizeStreamIntervalMs(35), 24);
     assert.equal(normalizeStreamIntervalMs(50), 40);
     assert.equal(normalizeStreamIntervalMs(60), 40);
     assert.equal(normalizeStreamIntervalMs(65), 40);
     assert.equal(normalizeStreamIntervalMs(100), 40);
-    assert.equal(normalizeStreamIntervalMs(28), 28);
+    assert.equal(normalizeStreamIntervalMs(28), 24);
     assert.equal(normalizeStreamIntervalMs(40), 40);
     assert.equal(LEGACY_CHAT_STREAM_INTERVAL_MS[60], 40);
-    assert.notEqual(normalizeStreamIntervalMs(60), 28);
+    assert.notEqual(normalizeStreamIntervalMs(60), 24);
     assert.equal(formatStreamIntervalLabel(0), "즉시");
     assert.equal(formatStreamIntervalLabel(20), "빠름");
     assert.equal(formatStreamIntervalLabel(35), "빠름");
@@ -138,7 +138,7 @@ describe("chat streaming speed presets", () => {
   });
 
   it("maps unknown millisecond values to the nearest current preset", () => {
-    assert.equal(normalizeStreamIntervalMs(32), 28);
+    assert.equal(normalizeStreamIntervalMs(32), 24);
     assert.equal(normalizeStreamIntervalMs(45), 40);
     assert.equal(normalizeStreamIntervalMs(80), 40);
   });

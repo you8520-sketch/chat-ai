@@ -116,11 +116,11 @@ function createRenderedTargetChaseHarness(
 
 describe("general chat target-chase regression", () => {
   it("uses shared target-chase motion and preserves both production reveal speeds", () => {
-    const fastPrefs = { streamIntervalMs: 28, streamCharsPerTick: 1 };
+    const fastPrefs = { streamIntervalMs: 24, streamCharsPerTick: 1 };
     const normalPrefs = { streamIntervalMs: 40, streamCharsPerTick: 1 };
     assert.deepEqual(resolveChatLiveFollowMotionProfile(fastPrefs), {
       mode: "stepwise-chase",
-      streamIntervalMs: 28,
+      streamIntervalMs: 24,
       streamCharsPerTick: 1,
       downwardOnly: true,
     });
@@ -131,17 +131,17 @@ describe("general chat target-chase regression", () => {
       downwardOnly: true,
     });
 
-    const fastGrowth = estimateVerticalGrowthPxPerSec(28, 1);
+    const fastGrowth = estimateVerticalGrowthPxPerSec(24, 1);
     const normalGrowth = estimateVerticalGrowthPxPerSec(40, 1);
-    assert.equal(fastGrowth.toFixed(3), "22.109");
+    assert.equal(fastGrowth.toFixed(3), "25.794");
     assert.equal(normalGrowth.toFixed(3), "15.476");
     assert.equal(
       computeNaturalCruiseVelocityPxPerSec({
         measuredGrowthPxPerSec: fastGrowth,
-        streamIntervalMs: 28,
+        streamIntervalMs: 24,
         charsPerTick: 1,
       }).toFixed(3),
-      "19.898"
+      "23.214"
     );
     assert.equal(
       computeNaturalCruiseVelocityPxPerSec({
@@ -151,13 +151,13 @@ describe("general chat target-chase regression", () => {
       }).toFixed(3),
       "13.929"
     );
-    assert.equal(estimateLineWrapIntervalMs(28, 1), 1176);
+    assert.equal(estimateLineWrapIntervalMs(24, 1), 1008);
     assert.equal(estimateLineWrapIntervalMs(40, 1), 1680);
   });
 
   it("stays still while the rendered target does not grow", () => {
     const harness = createRenderedTargetChaseHarness({
-      streamIntervalMs: 28,
+      streamIntervalMs: 24,
       streamCharsPerTick: 1,
     });
 
@@ -173,7 +173,7 @@ describe("general chat target-chase regression", () => {
     let attached = true;
     const harness = createRenderedTargetChaseHarness(
       {
-        streamIntervalMs: 28,
+        streamIntervalMs: 24,
         streamCharsPerTick: 1,
       },
       { shouldFollow: () => attached }
@@ -191,7 +191,7 @@ describe("general chat target-chase regression", () => {
 
   it("chases one rendered line in a bounded episode and then settles", () => {
     const harness = createRenderedTargetChaseHarness({
-      streamIntervalMs: 28,
+      streamIntervalMs: 24,
       streamCharsPerTick: 1,
     });
     harness.setTargetDocumentY(TARGET_Y + RENDERED_LINE_PX);
@@ -217,7 +217,7 @@ describe("general chat target-chase regression", () => {
 
   it("coalesces rapid layout growth in the same canonical chase owner", () => {
     const harness = createRenderedTargetChaseHarness({
-      streamIntervalMs: 28,
+      streamIntervalMs: 24,
       streamCharsPerTick: 1,
     });
     const initialTarget = harness.targetDocumentY;
@@ -248,7 +248,7 @@ describe("general chat target-chase regression", () => {
 
   it("never issues an upward programmatic correction", () => {
     const harness = createRenderedTargetChaseHarness({
-      streamIntervalMs: 28,
+      streamIntervalMs: 24,
       streamCharsPerTick: 1,
     });
     harness.setTargetDocumentY(TARGET_Y - 10);

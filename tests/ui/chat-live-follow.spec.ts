@@ -263,6 +263,61 @@ async function deferNextChatStreamResponse(page: Page) {
   return { requestSeen, releaseResponse };
 }
 
+async function deferNextChatSettingsFlush(page: Page, status = 200) {
+  let requestObserved!: () => void;
+  const requestSeen = new Promise<void>((resolve) => {
+    requestObserved = resolve;
+  });
+  let releaseResponse!: () => void;
+  const responseReleased = new Promise<void>((resolve) => {
+    releaseResponse = resolve;
+  });
+
+  await page.route(
+    "**/api/chat/settings",
+    async (route: Route) => {
+      if (route.request().method() !== "PATCH") {
+        await route.fallback();
+        return;
+      }
+      requestObserved();
+      await responseReleased;
+      await route.fulfill({
+        status,
+        contentType: "application/json",
+        body: JSON.stringify(
+          status >= 400
+            ? { error: "deferred settings failure" }
+            : { narrativePov: "first_person" }
+        ),
+      });
+    },
+    { times: 1 }
+  );
+
+  return { requestSeen, releaseResponse };
+}
+
+async function observeChatPostCount(page: Page) {
+  let count = 0;
+  await page.route("**/api/chat", async (route: Route) => {
+    if (route.request().method() === "POST") count += 1;
+    await route.fallback();
+  });
+  return () => count;
+}
+
+async function markNarrativePovDirty(page: Page) {
+  await page.locator("button[title^='채팅 설정']").click();
+  await page.getByRole("radio", { name: /1인칭 몰입형/ }).check();
+}
+
+async function clickSendWithoutOverlayHitTest(page: Page) {
+  await page.getByRole("button", { name: "전송", exact: true }).evaluate((button) => {
+    (button as HTMLButtonElement).click();
+  });
+}
+
 async function readChatDiagnostics(page: Page): Promise<ChatDiagnostics> {
   return page.evaluate(() => {
     const bottom = document.querySelector("[data-chat-live-reading-active]");
@@ -510,7 +565,7 @@ async function attachMotionProof(
 /**
  * Chase-engagement gate for motion sampling.
  *
- * The canonical reveal pace (28ms x 1 char/tick) grows the document slowly, so
+ * The canonical reveal pace (24ms x 1 char/tick) grows the document slowly, so
  * right after network-done the stream end can sit below the reading band for
  * seconds — during which the CORRECT follow behavior is stillness. Sampling
  * that dead zone and then failing on duty cycle would punish a healthy follow.
@@ -572,7 +627,7 @@ async function runTargetChaseFollowScenario(page: Page, opts: {
   const startGeometry = resolveScrollClampState(await collectScrollGeometry(page));
   const frames = await sampleMotionFrames(page, 40_000);
 
-  const streamIntervalMs = opts.streamIntervalMs ?? 28;
+  const streamIntervalMs = opts.streamIntervalMs ?? 24;
   const expectedGrowth = estimateVerticalGrowthPxPerSec(streamIntervalMs, 1);
   const expectedCruise = expectedGrowth * 0.9;
   const expectedWrapMs = estimateLineWrapIntervalMs(streamIntervalMs, 1);
@@ -640,7 +695,7 @@ test.describe("General chat live reading follow — production browser", () => {
           key,
           JSON.stringify({
             ...defaults,
-            streamIntervalMs: 28,
+            streamIntervalMs: 24,
             streamCharsPerTick: 1,
           })
         );
@@ -773,22 +828,114 @@ test.describe("General chat live reading follow — production browser", () => {
     expect(reattached.liveReadingActive).toBe(true);
   });
 
-  test("C6: reading history does not force latest jump on new stream", async ({ page }) => {
+  test("C6: direct submit rejoins latest with its committed user row before provider response", async ({ page }) => {
     const finalText = longAssistantProse(480);
     await mockChatStreamRoute(page, finalText);
     await page.setViewportSize({ width: 1280, height: 420 });
     await openFreshChat(page);
 
-    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-    await page.mouse.wheel(0, -320);
-    await page.waitForTimeout(150);
-    const beforeY = await page.evaluate(() => window.scrollY);
+    await ensureExtraScrollRoom(page, 1200);
+    await page.evaluate(() => window.scrollTo({ top: 500, behavior: "instant" }));
+    await page.evaluate(() => window.scrollBy({ top: -120, behavior: "instant" }));
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: false,
+      manualDetached: true,
+    });
 
-    await sendMockMessage(page, "history no jump");
-    await page.waitForTimeout(800);
+    const deferredResponse = await deferNextChatStreamResponse(page);
+    const text = "direct submit latest before provider";
+    try {
+      await setReactTextareaValue(page, text);
+      await page.getByRole("button", { name: "전송", exact: true }).click();
+      await deferredResponse.requestSeen;
 
-    const afterY = await page.evaluate(() => window.scrollY);
-    expect(afterY - beforeY).toBeLessThan(48);
+      await expect(page.getByText(text, { exact: true })).toBeVisible();
+      await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+        followLatest: true,
+        manualDetached: false,
+      });
+      const userRowIsVisibleAboveDock = await page.getByText(text, { exact: true }).evaluate((node) => {
+        const row = node.closest("div.my-10, div.my-5");
+        return row != null && row.getBoundingClientRect().bottom <= window.innerHeight;
+      });
+      expect(userRowIsVisibleAboveDock).toBe(true);
+    } finally {
+      deferredResponse.releaseResponse();
+    }
+    await waitForNetworkDoneVisualRevealPending(page);
+  });
+
+  test("C6-A: deferred settings flush keeps optimistic latest UX ahead of the provider", async ({ page }) => {
+    await mockChatStreamRoute(page, longAssistantProse(480));
+    await page.setViewportSize({ width: 1280, height: 420 });
+    await openFreshChat(page);
+    await ensureExtraScrollRoom(page, 1200);
+    await page.evaluate(() => window.scrollTo({ top: 500, behavior: "instant" }));
+    await page.evaluate(() => window.scrollBy({ top: -120, behavior: "instant" }));
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({ manualDetached: true });
+
+    await markNarrativePovDirty(page);
+    const settings = await deferNextChatSettingsFlush(page);
+    const providerPostCount = await observeChatPostCount(page);
+    const deferredResponse = await deferNextChatStreamResponse(page);
+    const text = "settings deferred optimistic latest";
+    await setReactTextareaValue(page, text);
+    await clickSendWithoutOverlayHitTest(page);
+    await settings.requestSeen;
+
+    await expect(page.getByText(text, { exact: true })).toBeVisible();
+    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+      followLatest: true,
+      manualDetached: false,
+    });
+    expect(providerPostCount()).toBe(0);
+
+    settings.releaseResponse();
+    await deferredResponse.requestSeen;
+    expect(providerPostCount()).toBe(1);
+    deferredResponse.releaseResponse();
+    await waitForNetworkDoneVisualRevealPending(page);
+  });
+
+  test("C6-B: failed settings flush rolls back optimistic turn and restores input without provider POST", async ({ page }) => {
+    await mockChatStreamRoute(page, longAssistantProse(480));
+    await openFreshChat(page);
+    await markNarrativePovDirty(page);
+    const settings = await deferNextChatSettingsFlush(page, 500);
+    const providerPostCount = await observeChatPostCount(page);
+    const text = "settings failure rolls back optimistic turn";
+    await setReactTextareaValue(page, text);
+    await clickSendWithoutOverlayHitTest(page);
+    await settings.requestSeen;
+    await expect(page.getByText(text, { exact: true })).toBeVisible();
+
+    settings.releaseResponse();
+    await expect(page.getByText(text, { exact: true })).toHaveCount(0);
+    await expect(page.locator("textarea[placeholder*='메시지 입력']")).toHaveValue(text);
+    expect(providerPostCount()).toBe(0);
+    await expect(page.getByRole("button", { name: "전송", exact: true })).toBeEnabled();
+  });
+
+  test("C6-C: deferred settings flush reserves a direct submit against double send", async ({ page }) => {
+    await mockChatStreamRoute(page, longAssistantProse(480));
+    await openFreshChat(page);
+    await markNarrativePovDirty(page);
+    const settings = await deferNextChatSettingsFlush(page);
+    const providerPostCount = await observeChatPostCount(page);
+    const deferredResponse = await deferNextChatStreamResponse(page);
+    const text = "only one deferred direct submit";
+    await setReactTextareaValue(page, text);
+    await clickSendWithoutOverlayHitTest(page);
+    await clickSendWithoutOverlayHitTest(page);
+    await settings.requestSeen;
+    expect(providerPostCount()).toBe(0);
+
+    settings.releaseResponse();
+    await deferredResponse.requestSeen;
+    expect(providerPostCount()).toBe(1);
+    expect(await page.getByText(text, { exact: true }).count()).toBe(1);
+    deferredResponse.releaseResponse();
+    await waitForNetworkDoneVisualRevealPending(page);
   });
 
   test("P0 auto-progress: detached history click explicitly rejoins latest before first visible prose", async ({ page }) => {
@@ -924,7 +1071,8 @@ test.describe("General chat live reading follow — production browser", () => {
       manualDetached: false,
     });
 
-    // Detach farther into history and prove send preserves that user-owned lock.
+    // A direct send is a new explicit latest intent, unlike passive stream
+    // starts that preserve history reading.
     await page.evaluate(() => window.scrollBy({ top: -240, behavior: "instant" }));
     await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
       liveReadingActive: false,
@@ -936,13 +1084,13 @@ test.describe("General chat live reading follow — production browser", () => {
 
     await page.unroute("**/api/chat");
     await mockChatStreamRoute(page, longAssistantProse(480));
-    await sendMockMessage(page, "stay with history intent");
+    await sendMockMessage(page, "rejoin from history intent");
     await waitForNetworkDoneVisualRevealPending(page);
     const afterSend = await readChatDiagnostics(page);
-    expect(afterSend.followLatest).toBe(false);
-    expect(afterSend.manualDetached).toBe(true);
+    expect(afterSend.followLatest).toBe(true);
+    expect(afterSend.manualDetached).toBe(false);
     const afterSendY = await page.evaluate(() => window.scrollY);
-    expect(afterSendY - historyY).toBeLessThan(48);
+    expect(afterSendY).toBeGreaterThan(historyY);
   });
 
   test("P1: nested settings wheel is not chat viewport detach intent", async ({ page }) => {
@@ -1230,7 +1378,7 @@ test.describe("General chat target-chase follow matrix — production browser", 
     const probe = await probeSubpixelWindowScroll(page);
     const supported = probe.fractionalSamples.length > 0 && probe.distinctPositions > 1;
     if (supported) return;
-    const fastExpectedGrowth = estimateVerticalGrowthPxPerSec(28, 1);
+    const fastExpectedGrowth = estimateVerticalGrowthPxPerSec(24, 1);
     const normalExpectedGrowth = estimateVerticalGrowthPxPerSec(40, 1);
     const report = [
       "SUBPIXEL_WINDOW_SCROLL_SUPPORTED=false",
@@ -1250,13 +1398,13 @@ test.describe("General chat target-chase follow matrix — production browser", 
   });
 
   test("G1: portrait ON plain prose stepwise chase", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { showCharacterPortrait: true, streamIntervalMs: 28, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, { showCharacterPortrait: true, streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800 });
     await attachMotionProof(testInfo, "G1", proof);
   });
 
   test("G2: portrait OFF plain prose stepwise chase", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { showCharacterPortrait: false, streamIntervalMs: 28, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, { showCharacterPortrait: false, streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, {
       charCount: 2600,
       viewportWidth: 1280,
@@ -1266,31 +1414,31 @@ test.describe("General chat target-chase follow matrix — production browser", 
   });
 
   test("G3: bottom status widget stepwise chase", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, layoutChrome: "widget" });
     await attachMotionProof(testInfo, "G3", proof);
   });
 
   test("G4: status meta stepwise chase", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, layoutChrome: "meta" });
     await attachMotionProof(testInfo, "G4", proof);
   });
 
   test("G5: status widget + status meta stepwise chase", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, layoutChrome: "both" });
     await attachMotionProof(testInfo, "G5", proof);
   });
 
   test("G6: long RP 2500+ chars stepwise chase", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 2600 });
     await attachMotionProof(testInfo, "G6", proof);
   });
 
-  test("G7: fast stream speed (28ms) stepwise chase", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+  test("G7: fast stream speed (24ms) stepwise chase", async ({ page }, testInfo) => {
+    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800 });
     await attachMotionProof(testInfo, "G7", proof);
   });
@@ -1310,7 +1458,7 @@ test.describe("General chat target-chase follow matrix — production browser", 
     await page.addInitScript(() => {
       window.scrollBy = (() => undefined) as typeof window.scrollBy;
     });
-    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, {
       charCount: 1800,
       expectMotionFailure: true,
@@ -1328,7 +1476,7 @@ test.describe("General chat target-chase follow matrix — production browser", 
       win.__chatTestDropFractionalIntent = true;
       win.__chatTestDropChaseIntentPx = Number.MAX_SAFE_INTEGER;
     });
-    await installChatDisplayPrefs(page, { streamIntervalMs: 28, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, {
       charCount: 1800,
       expectMotionFailure: true,
