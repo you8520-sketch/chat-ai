@@ -53,11 +53,6 @@ export type StatusWidgetParserMode = "standard" | "deepseek";
 export type StatusWidgetResolutionSource =
   | "v3_extract"
   | "v3_repair"
-  | "stream_capture"
-  | "split_saved"
-  | "split_raw"
-  | "infer"
-  | "backfill"
   | "none";
 
 /** Per-turn resolution metrics — one row per widget-active chat turn */
