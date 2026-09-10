@@ -29,6 +29,7 @@ on:
       - "src/lib/chatComicGeneration.clientBoundary.test.ts"
       - "src/lib/chatComicDialogueAudit.ts"
       - "src/lib/chatComicCastStaging.test.ts"
+      - "src/lib/chatImageCastGeneralChatContract.test.ts"
       - "src/lib/chatComicProviderPrompt.test.ts"
       - "src/lib/chatComicPanelSpec.ts"
       - "src/lib/chatComicPanelSpec.test.ts"
@@ -174,6 +175,7 @@ jobs:
       - run: node --import tsx --test src/lib/chatComicGeneration.clientBoundary.test.ts
       - run: node --import tsx --test src/lib/chatComicProviderPrompt.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatComicCastStaging.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatImageCastGeneralChatContract.test.ts
       - run: node --import tsx --test src/lib/chatComicPanelSpec.test.ts
       - run: node --import tsx --test src/lib/chatLdIllustrationGeneration.test.ts
       - run: node --import tsx --test src/lib/chatImageVisualIdentity.test.ts
