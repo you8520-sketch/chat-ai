@@ -15,6 +15,8 @@ import {
   type StatusWidgetTurnTelemetry,
 } from "./telemetry";
 import { OPENROUTER_CLAUDE_DEFAULT } from "@/lib/chatModels";
+import type { StatusWidgetExtractCaller } from "./extract";
+import type { TokenUsage } from "@/lib/ai";
 
 function makeTelemetry(partial: Partial<StatusWidgetTurnTelemetry>): StatusWidgetTurnTelemetry {
   return {
@@ -106,13 +108,13 @@ describe("aggregateStatusWidgetTelemetry", () => {
   });
 });
 
-describe("resolveStatusWidgetTurnValues billing meta lifetime", () => {
-  it("main STATUS_VALUES parse success → no background extract usage/meta", async () => {
+describe("resolveStatusWidgetTurnValues canonical Luna owner", () => {
+  it("full leaked STATUS_VALUES tail does not suppress Luna canonical extraction", async () => {
     const resolved = resolveStatusWidgetTurn({
       characterWidgetJson: JSON.stringify(DEFAULT_STATUS_WIDGET),
       chatMode: "character_only",
     });
-    const valuesJson = JSON.stringify({
+    const leakJson = JSON.stringify({
       시간: "14:30",
       장소: "카페",
       속마음: "긴장",
@@ -121,7 +123,22 @@ describe("resolveStatusWidgetTurnValues billing meta lifetime", () => {
       다음상황: "주문",
       extracted_facts: [],
     });
-    const raw = `RP 본문입니다.\n\n${STATUS_VALUES_BLOCK}\n${valuesJson}\n${STATUS_VALUES_END}`;
+    const lunaJson = JSON.stringify({
+      시간: "15:00",
+      장소: "도서관",
+      속마음: "평온",
+      현재상황: "독서",
+      의식의흐름: "책 → 휴식",
+      다음상황: "귀가",
+      extracted_facts: [],
+    });
+    const raw = `RP 본문입니다.\n\n${STATUS_VALUES_BLOCK}\n${leakJson}\n${STATUS_VALUES_END}`;
+    const kinds: string[] = [];
+    const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
+      kinds.push(opts.requestKind);
+      const usage: TokenUsage = { inputTokens: 11, outputTokens: 6, estimated: true };
+      return { text: lunaJson, usage };
+    };
     const out = await resolveStatusWidgetTurnValues({
       chatId: -1,
       modelId: OPENROUTER_CLAUDE_DEFAULT,
@@ -131,10 +148,20 @@ describe("resolveStatusWidgetTurnValues billing meta lifetime", () => {
       charName: "레온",
       personaName: "렌",
       userMessage: "안녕",
+      extractCaller: caller,
     });
-    assert.equal(out.telemetry.resolutionSource, "split_raw");
-    assert.equal(out.widgetExtractUsage, null);
-    assert.equal(out.widgetExtractBillingMeta, null);
-    assert.ok(out.values);
+    assert.ok(kinds.length > 0, "Luna must be invoked despite the full leak");
+    assert.ok(
+      kinds.some((kind) => kind.includes("background-status-widget-extract")),
+      `kinds=${kinds.join(",")}`
+    );
+    assert.notEqual(out.telemetry.resolutionSource, "split_raw");
+    assert.ok(out.widgetExtractUsage, "Luna usage must be recorded");
+    assert.ok(out.widgetExtractBillingMeta, "Luna billing meta must be recorded");
+    assert.ok(out.values, "canonical values must exist");
+    assert.equal(out.values.character?.시간, "15:00", "canonical values must be Luna's, not the leak's");
+    assert.doesNotMatch(out.prose, /STATUS_VALUES/, "leak must be stripped from prose");
+    assert.equal(out.telemetry.splitRawHit, true, "leak detection telemetry preserved");
+    assert.equal(out.telemetry.backfillSkippedReason, null);
   });
 });

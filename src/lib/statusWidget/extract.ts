@@ -49,7 +49,6 @@ import {
   type StatusWidgetExtractStage,
   type StatusWidgetReasonCode,
 } from "./diagnostics";
-import { statusWidgetSourceValuesHaveContent } from "./displayPolicy";
 import { advanceUnchangedClockValuesForTurn } from "./temporalUnknown";
 import type {
   ExtractedStatusFact,
@@ -1006,11 +1005,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   primaryModelId?: string;
   fallbackModelId?: string | null;
   env?: NodeJS.ProcessEnv;
-  /**
-   * Main-parse seed. Sources that already have usable values are never re-extracted.
-   * Missing sources are extracted (combined when both missing).
-   */
-  seedValues?: ParsedStatusWidgetTurnValues | null;
   /** When true with route eligibility, coalesce widget initial + suggestions initial into one call. */
   coalesceSuggestedReplies?: { enabled: boolean };
 }): Promise<{
@@ -1055,21 +1049,13 @@ export async function extractStatusWidgetValuesForTurn(opts: {
 
   const charWidget = opts.resolved.characterWidget;
   const userWidget = opts.resolved.userWidget;
-  const seedCharOk =
-    opts.resolved.needsCharacterValues &&
-    statusWidgetSourceValuesHaveContent(opts.seedValues?.character);
-  const seedUserOk =
-    opts.resolved.needsUserValues && statusWidgetSourceValuesHaveContent(opts.seedValues?.user);
 
-  if (seedCharOk) out.character = opts.seedValues!.character!;
-  if (seedUserOk) out.user = opts.seedValues!.user!;
-  if (opts.seedValues?.extracted_facts?.length) {
-    factBatches.push(opts.seedValues.extracted_facts);
-  }
-
+  // Canonical owner invariant: current-turn values always come from Luna
+  // extraction (previous-turn canonical flows via previousValues, never via a
+  // main-model seed). Needed sources are therefore always extracted.
   const needCharExtract =
-    opts.resolved.needsCharacterValues && Boolean(charWidget) && !seedCharOk;
-  const needUserExtract = opts.resolved.needsUserValues && Boolean(userWidget) && !seedUserOk;
+    opts.resolved.needsCharacterValues && Boolean(charWidget);
+  const needUserExtract = opts.resolved.needsUserValues && Boolean(userWidget);
 
   const caller = opts.caller ?? defaultExtractCaller;
   const fallbackBudget = { remaining: 1 };

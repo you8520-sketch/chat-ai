@@ -990,7 +990,7 @@ describe("dual combined status extract", () => {
     assert.ok(result.values.user);
   });
 
-  it("6. seed character only → no combined; user single extract", async () => {
+  it("6. no seed API: character+user both extracted via Luna", async () => {
     const kinds: string[] = [];
     const result = await extractStatusWidgetValuesForTurn({
       charName: "레온",
@@ -998,26 +998,26 @@ describe("dual combined status extract", () => {
       userMessage: "x",
       assistantProse: "장면",
       resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
-      seedValues: {
-        character: { 시간: "10:00", 장소: "학교" },
-      },
       caller: async (_s, _h, opts) => {
         kinds.push(opts.requestKind);
         return {
-          text: JSON.stringify({ 기분: "긴장", 위치: "복도", extracted_facts: [] }),
+          text: JSON.stringify({
+            character_values: JSON.parse(
+              jsonForWidget(DEFAULT_STATUS_WIDGET, { 시간: "15:00", 장소: "도서관" })
+            ),
+            user_values: { 기분: "긴장", 위치: "복도" },
+            extracted_facts: [],
+          }),
           usage: usage(1),
         };
       },
     });
-    assert.equal(result.meta.extractMode, "single");
-    assert.ok(!kinds.some((k) => k.includes("combined")));
-    assert.deepEqual(kinds, ["background-status-widget-extract"]);
-    assert.equal(result.values.character?.["시간"], "10:00");
+    assert.ok(kinds.length > 0, "Luna must extract both sources without any seed");
+    assert.equal(result.values.character?.["시간"], "15:00");
     assert.equal(result.values.user?.["기분"], "긴장");
-    assert.equal(result.meta.actualCallCount, 1);
   });
 
-  it("7. seed both → background 0", async () => {
+  it("7. no seed bypass: full extraction always invokes Luna", async () => {
     let calls = 0;
     const result = await extractStatusWidgetValuesForTurn({
       charName: "레온",
@@ -1025,23 +1025,26 @@ describe("dual combined status extract", () => {
       userMessage: "x",
       assistantProse: "장면",
       resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
-      seedValues: {
-        character: { 시간: "10:00", 장소: "학교" },
-        user: { 기분: "평온", 위치: "교실" },
-      },
       caller: async () => {
         calls += 1;
-        return { text: "", usage: usage(1) };
+        return {
+          text: JSON.stringify({
+            character_values: JSON.parse(
+              jsonForWidget(DEFAULT_STATUS_WIDGET, { 시간: "15:00" })
+            ),
+            user_values: { 기분: "평온", 위치: "교실" },
+            extracted_facts: [],
+          }),
+          usage: usage(1),
+        };
       },
     });
-    assert.equal(calls, 0);
-    assert.equal(result.meta.actualCallCount, 0);
-    assert.equal(result.meta.billing, null);
-    assert.equal(result.values.character?.["시간"], "10:00");
+    assert.ok(calls > 0, "Luna must be invoked; no seed bypass exists");
+    assert.equal(result.values.character?.["시간"], "15:00");
     assert.equal(result.values.user?.["기분"], "평온");
   });
 
-  it("7b. stale main-model seed clock advances before persistence without another call", async () => {
+  it("7b. previousValues alone never suppresses Luna (temporal context only)", async () => {
     let calls = 0;
     const result = await extractStatusWidgetValuesForTurn({
       charName: "레온",
@@ -1050,16 +1053,18 @@ describe("dual combined status extract", () => {
       assistantProse: "레온은 대답을 고르고 천천히 고개를 끄덕였다.",
       resolved: characterResolved(),
       previousValues: { character: { 시간: "10:00", 장소: "학교" } },
-      seedValues: { character: { 시간: "10:00", 장소: "학교" } },
       caller: async () => {
         calls += 1;
-        return { text: "", usage: usage(1) };
+        return {
+          text: jsonForWidget(DEFAULT_STATUS_WIDGET, { 시간: "10:05", 장소: "도서관" }),
+          usage: usage(1),
+        };
       },
     });
 
-    assert.equal(calls, 0);
-    assert.equal(result.values.character?.["시간"], "10:01");
-    assert.equal(result.values.character?.["장소"], "학교");
+    assert.ok(calls > 0, "previousValues must not suppress Luna extraction");
+    assert.equal(result.values.character?.["시간"], "10:05");
+    assert.equal(result.values.character?.["장소"], "도서관");
   });
 
   it("8. temporal unknown dropped; sibling fields kept", async () => {
