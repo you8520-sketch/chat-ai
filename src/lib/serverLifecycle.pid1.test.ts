@@ -108,8 +108,10 @@ test(
     await waitForReady(baseUrl);
     const home = await fetch(baseUrl);
     assert.equal(home.status, 200);
+    await home.text();
     const login = await fetch(`${baseUrl}/api/auth/demo-login`, { method: "POST" });
     assert.equal(login.status, 200);
+    await login.text();
     const cookie = login.headers.get("set-cookie");
     assert.ok(cookie, "demo login must provide a session cookie for the active request");
 
