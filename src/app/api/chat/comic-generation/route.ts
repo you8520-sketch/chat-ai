@@ -8,6 +8,10 @@ import { getSessionUser } from "@/lib/auth";
 import { isAdminUser } from "@/lib/isAdminUser";
 import { parseAssets, type CharacterAsset } from "@/lib/characterAssets";
 import {
+  resolveImageGenerationRequiredPoints,
+  resolveImageIdentityReferenceSurcharge,
+} from "@/lib/chatImagePricing";
+import {
   selectCharacterImageUrl,
 } from "@/lib/chatCharacterImageSelection";
 import { listSelectableCharacterImages, listCastSelectableAssets } from "@/lib/chatCharacterImageSelection.server";
@@ -894,21 +898,6 @@ export async function POST(req: Request) {
       });
     };
     if (body.mode === "illustration") {
-      const pricePoints = resolveChatLdIllustrationPrice();
-      const balanceBefore = getPointBalance(user.id);
-      if (balanceBefore.total < pricePoints) {
-        return NextResponse.json(
-          {
-            error: `포인트가 부족합니다. 선택 턴 LD 일러스트에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
-            pricePoints,
-            remainingPoints: balanceBefore.total,
-            paidPoints: balanceBefore.paid,
-            freePoints: balanceBefore.free,
-          },
-          { status: 402 }
-        );
-      }
-
       const campaignId = positiveInt(body.campaignId);
       const roundNumber = nonNegativeInt(body.roundNumber);
       const appearanceModes = resolveRequestAppearanceModes({
@@ -932,8 +921,8 @@ export async function POST(req: Request) {
       let trpgAiFocusDiagnostics: TrpgAiFocusDiagnostics | null = null;
       let trpgImageSceneDiagnosticsPayload: TrpgImageSceneDiagnosticsPayload | null = null;
       let requestedTrpgSceneMode: TrpgImageSceneMode = TRPG_IMAGE_SCENE_MODE_DEFAULT;
-      let prompt: string;
-      let strictFallbackPrompt: string;
+      let prompt = "";
+      let strictFallbackPrompt = "";
       if (campaignId) {
         trpgScene = loadTrpgIllustrationScene(getDb(), {
           campaignId,
@@ -990,50 +979,6 @@ export async function POST(req: Request) {
         sceneActions = trpgScene.actions;
         trpgAiFocusDiagnostics = null;
         requestedTrpgSceneMode = normalizeTrpgImageSceneMode(body.trpgImageSceneMode);
-        const focus = await resolveTrpgIllustrationSceneFocus({
-          sceneMode: requestedTrpgSceneMode,
-          rawNarration: trpgScene.narration,
-          canonicalLocation: sceneLocation,
-        });
-        trpgImageSceneModeApplied = focus.modeApplied;
-        trpgAiFocusDiagnostics = focus.diagnostics;
-        trpgImageSceneDiagnosticsPayload = buildTrpgImageSceneDiagnosticsPayload({
-          requestedMode: requestedTrpgSceneMode,
-          modeApplied: focus.modeApplied,
-          canonicalLocation: sceneLocation,
-          focusDiagnostics: focus.diagnostics,
-        });
-        if (focus.modeApplied === "RAW" && requestedTrpgSceneMode === "AI_FOCUS") {
-          console.info(
-            "[trpg-ai-focus] RAW fallback",
-            JSON.stringify({
-              campaignId,
-              roundNumber,
-              reason: focus.diagnostics?.fallbackReason ?? "unknown",
-              model: focus.diagnostics?.aiModel,
-            })
-          );
-        }
-        const gmSceneNarration = focus.narration;
-        situation = buildTrpgIllustrationSituation({
-          location: sceneLocation,
-          actions: sceneActions,
-          narration: gmSceneNarration,
-        });
-        prompt = buildChatLdIllustrationPrompt({
-          characterName: context.character.name,
-          characterGender: context.characterGender,
-          personaName: context.persona.name,
-          personaGender: context.personaGender,
-          currentTurn: trpgScene.narration,
-          cast,
-          subjects: partyPlan?.subjects,
-          situation,
-        });
-        strictFallbackPrompt = buildStrictLdPartyFallbackPrompt({
-          cast,
-          subjects: partyPlan!.subjects,
-        });
       } else {
         const source = resolveSceneSource({
           chatId: context.chatId,
@@ -1089,6 +1034,81 @@ export async function POST(req: Request) {
           subjects: plan.subjects,
         });
       }
+      // CANONICAL PRICING — final required points derive from the server-grounded
+      // identity-reference pack (regular cast refs, regular duo refs, or TRPG
+      // party refs), NEVER a client-selected cast/participant count. TRPG party
+      // members without a validated image simply produce fewer attachments, so
+      // the pricing input is the actual attachment count. One request = one
+      // surcharge (never multiplied by headcount).
+      const identityReferenceCount = referenceUrls.length;
+      const pricePoints = resolveImageGenerationRequiredPoints(
+        identityReferenceCount,
+        resolveChatLdIllustrationPrice()
+      );
+      const balanceBefore = getPointBalance(user.id);
+      if (balanceBefore.total < pricePoints) {
+        return NextResponse.json(
+          {
+            error: `포인트가 부족합니다. 선택 턴 LD 일러스트에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
+            pricePoints,
+            remainingPoints: balanceBefore.total,
+            paidPoints: balanceBefore.paid,
+            freePoints: balanceBefore.free,
+          },
+          { status: 402 }
+        );
+      }
+      // INSUFFICIENT BALANCE INVARIANT — the billable TRPG AI_FOCUS planner
+      // call runs only AFTER the balance preflight passes, so a 402 user never
+      // incurs planner cost, never starts a job, and never reaches the image
+      // provider. partyPlan.referenceUrls were grounded above, so the final
+      // price below is already exact before any AI call.
+      if (campaignId) {
+        const focus = await resolveTrpgIllustrationSceneFocus({
+          sceneMode: requestedTrpgSceneMode,
+          rawNarration: trpgScene!.narration,
+          canonicalLocation: sceneLocation,
+        });
+        trpgImageSceneModeApplied = focus.modeApplied;
+        trpgAiFocusDiagnostics = focus.diagnostics;
+        trpgImageSceneDiagnosticsPayload = buildTrpgImageSceneDiagnosticsPayload({
+          requestedMode: requestedTrpgSceneMode,
+          modeApplied: focus.modeApplied,
+          canonicalLocation: sceneLocation,
+          focusDiagnostics: focus.diagnostics,
+        });
+        if (focus.modeApplied === "RAW" && requestedTrpgSceneMode === "AI_FOCUS") {
+          console.info(
+            "[trpg-ai-focus] RAW fallback",
+            JSON.stringify({
+              campaignId,
+              roundNumber,
+              reason: focus.diagnostics?.fallbackReason ?? "unknown",
+              model: focus.diagnostics?.aiModel,
+            })
+          );
+        }
+        const gmSceneNarration = focus.narration;
+        situation = buildTrpgIllustrationSituation({
+          location: sceneLocation,
+          actions: sceneActions,
+          narration: gmSceneNarration,
+        });
+        prompt = buildChatLdIllustrationPrompt({
+          characterName: context.character.name,
+          characterGender: context.characterGender,
+          personaName: context.persona.name,
+          personaGender: context.personaGender,
+          currentTurn: trpgScene!.narration,
+          cast,
+          subjects: partyPlan?.subjects,
+          situation,
+        });
+        strictFallbackPrompt = buildStrictLdPartyFallbackPrompt({
+          cast: cast!,
+          subjects: partyPlan!.subjects,
+        });
+      }
       startJob(CHAT_LD_ILLUSTRATION_TEMPLATE_ID, "illustration");
       const references = await Promise.all(
         referenceUrls.map((sourceUrl) => imageSourceToDataUrl(sourceUrl))
@@ -1134,6 +1154,9 @@ export async function POST(req: Request) {
             trpgAiFocusDiagnostics: trpgAiFocusDiagnostics ?? undefined,
             quality: CHAT_LD_ILLUSTRATION_QUALITY,
             outputSize: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
+            // Cost-cohort evidence: the exact server-grounded pricing input.
+            identityReferenceCount,
+            referenceSurchargePoints: resolveImageIdentityReferenceSurcharge(identityReferenceCount),
           },
           resultUrl,
           upstreamCostUsd: generated.knownProviderCostUsd,
@@ -1243,10 +1266,12 @@ export async function POST(req: Request) {
     // source. Fixed 4-panel output. No Scene Planner call, no diagnostic modes.
     const panelCount: ChatComicPanelCount = 4;
 
-    // NORMAL COMIC LIFECYCLE — auth/input/concurrency/balance preflight all run
-    // before the single provider call. The client-provided scenePlan is never
-    // canonical authority for the production comic; the provider receives the
-    // full source text and picks the 4 scenes itself. No Scene Planner call.
+    // NORMAL COMIC LIFECYCLE — auth/input/concurrency run before the single
+    // provider call; the balance preflight uses the FINAL canonical price
+    // (server-grounded identity-reference count) after the reference pack is
+    // built below. The client-provided scenePlan is never canonical authority
+    // for the production comic; the provider receives the full source text and
+    // picks the 4 scenes itself. No Scene Planner call.
     const preflightPlan = resolveApprovedScenePlan({
       bodyPlan: body.scenePlan,
       messages: source.messages,
@@ -1257,23 +1282,6 @@ export async function POST(req: Request) {
       knownSpeakerNames,
       contentKind: context.contentKind,
     });
-
-    const balanceBefore = getPointBalance(user.id);
-    const pricePoints = resolveChatComicPrice(panelCount);
-    if (balanceBefore.total < pricePoints) {
-      return NextResponse.json(
-        {
-          error: `포인트가 부족합니다. 컷만화에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
-          pricePoints,
-          remainingPoints: balanceBefore.total,
-          paidPoints: balanceBefore.paid,
-          freePoints: balanceBefore.free,
-        },
-        { status: 402 }
-      );
-    }
-
-    startJob(CHAT_COMIC_TEMPLATE_ID, "comic");
 
     // PRODUCTION COMIC — GPT Image selects WHAT + HOW directly from the full
     // source. The canonical plan is the fixed 4-panel structural reflow; the
@@ -1352,6 +1360,32 @@ contentKind: context.contentKind,
       referenceUrls: identityPack.referenceUrls,
       subjects: identityPack.subjects,
     });
+    // CANONICAL PRICING — final required points derive from the server-grounded
+    // identity-reference count. The layout template is NOT an identity
+    // reference and is excluded. A fixed 4-panel page is ONE provider
+    // generation request, so the additional-identity-reference surcharge is
+    // computed once per request — never multiplied by panelCount.
+    const identityReferenceCount = providerReferences.filter(
+      (reference) => reference.role !== "template"
+    ).length;
+    const pricePoints = resolveImageGenerationRequiredPoints(
+      identityReferenceCount,
+      resolveChatComicPrice(panelCount)
+    );
+    const balanceBefore = getPointBalance(user.id);
+    if (balanceBefore.total < pricePoints) {
+      return NextResponse.json(
+        {
+          error: `포인트가 부족합니다. 컷만화에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
+          pricePoints,
+          remainingPoints: balanceBefore.total,
+          paidPoints: balanceBefore.paid,
+          freePoints: balanceBefore.free,
+        },
+        { status: 402 }
+      );
+    }
+    startJob(CHAT_COMIC_TEMPLATE_ID, "comic");
     const providerInput = await prepareComicProviderReferenceInput({
       primaryPrompt: prompt,
       strictFallbackPrompt,
@@ -1398,6 +1432,10 @@ contentKind: context.contentKind,
           messageId: source.messageId,
           quality: "medium",
           plan: scenePlan,
+          // Cost-cohort evidence: exact identity-reference pricing input
+          // (layout template excluded), once per provider request.
+          identityReferenceCount,
+          referenceSurchargePoints: resolveImageIdentityReferenceSurcharge(identityReferenceCount),
         },
         resultUrl,
         upstreamCostUsd: totalCostUsd,

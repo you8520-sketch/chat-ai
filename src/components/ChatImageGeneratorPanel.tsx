@@ -25,6 +25,7 @@ import {
   mergeCastIntentDraft,
   selectedCastIntentSubjects,
   suggestAssetForSupportingName,
+  CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP,
   type ChatImageCastIntentManifest,
   type SelectableCastAsset,
 } from "@/lib/chatImageCast";
@@ -54,6 +55,11 @@ import {
 import {
   CHAT_LD_ILLUSTRATION_DEFAULT_POINTS,
 } from "@/lib/chatLdIllustrationGeneration";
+import {
+  CHAT_IMAGE_BASE_IDENTITY_REFERENCES,
+  CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS,
+  resolveImageGenerationRequiredPoints,
+} from "@/lib/chatImagePricing";
 import { dispatchPointsDeducted } from "@/lib/pointsEvents";
 
 const PERSONA_STORAGE_KEY = "habi:lastPersonaId";
@@ -622,6 +628,35 @@ export default function ChatImageGeneratorPanel({
     activeMode === "illustration"
       ? CHAT_LD_ILLUSTRATION_DEFAULT_POINTS
       : CHAT_COMIC_GENERATION_DEFAULT_POINTS;
+  // Expected identity-reference attachments for the CURRENT selection — an
+  // estimate only. The server-grounded final count is the billing authority;
+  // the POST 402/success response carries the final price.
+  const expectedIdentityRefCount = useMemo(() => {
+    if (campaignId) {
+      return partyCast.filter(
+        (member) =>
+          String(partyPicks[member.participantId] || member.imageUrl || "").trim()
+      ).length;
+    }
+    const includedSubjects = (castIntent?.subjects ?? []).filter(
+      (subject) => subject.included
+    );
+    if (includedSubjects.length === 0) {
+      return CHAT_IMAGE_BASE_IDENTITY_REFERENCES;
+    }
+    const grounded = includedSubjects.filter((subject) =>
+      subject.role === "supporting_character"
+        ? Boolean(String(subject.requestedReferenceAssetUrl ?? "").trim())
+        : true
+    ).length;
+    // Current production identity cap: a 4th selected cast member does not
+    // attach its own reference yet, so never quote a 4-ref price today.
+    return Math.min(grounded, CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP);
+  }, [campaignId, partyCast, partyPicks, castIntent]);
+  const expectedPrice = resolveImageGenerationRequiredPoints(
+    expectedIdentityRefCount,
+    activePrice
+  );
   const activeSaved = activeResultUrl ? savedUrls.has(activeResultUrl) : false;
   const selectedCharacterInfo = useMemo<ReferenceInfo | null>(() => {
     if (!info?.character) return null;
@@ -1260,7 +1295,7 @@ export default function ChatImageGeneratorPanel({
                             ? `생성 결과는 「${campaignTitle || "TRPG"}」 캠페인 앨범에 저장됩니다.`
                           : "생성 결과는 기존 캐릭터 이미지 앨범에 자동으로 추가됩니다."
                         : campaignId
-                          ? `파티 전원${partyNames.length ? `(${partyNames.join(", ")})` : ""}이 한 장면에 함께 나옵니다. 아래에서 멤버마다 참조 이미지를 고르세요. 포인트는 1:1 일러스트와 같습니다.`
+                          ? `파티 전원${partyNames.length ? `(${partyNames.join(", ")})` : ""}이 한 장면에 함께 나옵니다. 아래에서 멤버마다 참조 이미지를 고르세요.`
                           : "같은 장면 구성으로 한 장 일러스트 또는 컷만화를 만듭니다."}
                     </p>
                     {activeResultUrl ? (
@@ -1585,6 +1620,12 @@ export default function ChatImageGeneratorPanel({
                             !info?.ready ||
                             (!campaignId &&
                               summarizing) ||
+                            // expectedPrice is a non-authoritative DISPLAY
+                            // estimate. Only the guaranteed minimum/base price
+                            // (activePrice) is a safe client gate: the server
+                            // may ground fewer references than the client
+                            // estimated (e.g. stale-asset revalidation) and
+                            // accept a request the estimate would have blocked.
                             (info?.balance != null &&
                               info.balance.total < activePrice)
                           }
@@ -1595,13 +1636,18 @@ export default function ChatImageGeneratorPanel({
                               ? "장면 일러스트 생성 중…"
                               : "중요 장면을 고르고 컷만화를 만드는 중…"
                             : activeResultUrl
-                              ? `다시 생성 · ${activePrice.toLocaleString()}P`
+                              ? `다시 생성 · ${expectedPrice.toLocaleString()}P`
                               : `${
                                   sceneIsIllustration
                                     ? "일러스트 생성"
                                     : "컷만화 생성"
-                                } · ${activePrice.toLocaleString()}P`}
+                                } · ${expectedPrice.toLocaleString()}P`}
                         </button>
+                        <p className="text-center text-[10px] leading-relaxed text-zinc-500">
+                          기본 {CHAT_IMAGE_BASE_IDENTITY_REFERENCES}명 포함 · 추가 참조 인물 1명당
+                          +{CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS}P · 최종 요금은 서버 확정 참조
+                          기준입니다.
+                        </p>
                     </>
 
                     {info && !info.ready ? (
