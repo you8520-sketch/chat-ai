@@ -7,6 +7,9 @@ import {
   ensureChatImageGenerationsTable,
 } from "@/lib/chatImageGenerationPersistence";
 import {
+  CHAT_IMAGE_GENERATION_DEFAULT_MODEL,
+} from "@/lib/chatImageGeneration";
+import {
   CHAT_COMIC_TEMPLATE_ID,
 } from "@/lib/chatComicGeneration";
 import {
@@ -16,7 +19,7 @@ import {
 const USER_ID = 990_510_001;
 const CHARACTER_ID = 7001;
 const PERSONA_ID = 7002;
-const CURRENT_MODEL = "gpt-image-2";
+const CURRENT_MODEL = CHAT_IMAGE_GENERATION_DEFAULT_MODEL;
 // Decommissioned template IDs retained only for legacy history classification.
 const LEGACY_SD_TEMPLATE = "gift_box_duo";
 const LEGACY_EMOTICON_TEMPLATE = "emoticon_grid_9";

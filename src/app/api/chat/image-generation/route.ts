@@ -15,6 +15,7 @@ import {
 } from "@/lib/chatCharacterImageSelection";
 import { listSelectableCharacterImages, listCastSelectableAssets } from "@/lib/chatCharacterImageSelection.server";
 import {
+  CHAT_IMAGE_GENERATION_MODEL_LABEL,
   type ImagePromptGender,
   resolveChatImageGenerationModel,
   resolveChatImageGenerationPrice,
@@ -304,7 +305,7 @@ function publicContextResponse(context: GenerationContext, viewerUserId: number)
         ],
     pricePoints,
     modelId: resolveChatImageGenerationModel(),
-    modelLabel: "GPT Image 2",
+    modelLabel: CHAT_IMAGE_GENERATION_MODEL_LABEL,
     character: {
       id: context.character.id,
       name: context.character.name,

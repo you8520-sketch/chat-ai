@@ -86,6 +86,7 @@ import {
 } from "@/lib/chatImageCastManifest";
 import { stripChatTurnMarkup } from "@/lib/chatImageSceneBrief";
 import {
+  CHAT_IMAGE_GENERATION_MODEL_LABEL,
   resolveChatImageGenerationModel,
   type ImagePromptGender,
 } from "@/lib/chatImageGeneration";
@@ -1137,7 +1138,7 @@ export async function POST(req: Request) {
           resultUrl,
           upstreamCostUsd: generated.knownProviderCostUsd,
           chargePoints: pricePoints,
-          chargeReason: "GPT Image 2 · 선택 턴 LD 일러스트",
+          chargeReason: `${CHAT_IMAGE_GENERATION_MODEL_LABEL} · 선택 턴 LD 일러스트`,
           chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
           creatorReward: {
             creatorId: campaignId
@@ -1200,7 +1201,7 @@ export async function POST(req: Request) {
         imageUrl: resultUrl,
         savedToCharacterAlbum: true,
         title: "선택 턴 LD 일러스트",
-        modelLabel: "GPT Image 2",
+        modelLabel: CHAT_IMAGE_GENERATION_MODEL_LABEL,
         messageId: illustrationMessageId ?? undefined,
         upstreamCostUsd: canSeeCost ? generated.knownProviderCostUsd : undefined,
         upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
@@ -1401,7 +1402,7 @@ contentKind: context.contentKind,
         resultUrl,
         upstreamCostUsd: totalCostUsd,
         chargePoints: pricePoints,
-        chargeReason: `GPT Image 2 · ${panelCount}컷 만화`,
+        chargeReason: `${CHAT_IMAGE_GENERATION_MODEL_LABEL} · ${panelCount}컷 만화`,
         chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
         creatorReward: {
           creatorId: context.character.creator_id,
@@ -1471,7 +1472,7 @@ contentKind: context.contentKind,
       savedToCharacterAlbum: true,
       title: `장면 ${panelCount}컷`,
       panelCount,
-      modelLabel: "GPT Image 2",
+      modelLabel: CHAT_IMAGE_GENERATION_MODEL_LABEL,
       messageId: source.messageId ?? undefined,
       upstreamCostUsd: canSeeCost ? totalCostUsd : undefined,
       upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,

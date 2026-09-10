@@ -1,6 +1,13 @@
 import { CHAT_ROOM_IMAGE_GENERATION_POINTS } from "@/lib/chatImagePricing";
 
 export const CHAT_IMAGE_GENERATION_DEFAULT_MODEL = "gpt-image-2";
+/**
+ * Canonical friendly display label for the resolved image model. Single owner
+ * for every admin/user-facing label (GET responses, charge reasons); runtime
+ * ids come from resolveChatImageGenerationModel. Keeping id + label together
+ * means a model change flips both at one lockstep site.
+ */
+export const CHAT_IMAGE_GENERATION_MODEL_LABEL = "GPT Image 2";
 export const CHAT_IMAGE_GENERATION_DEFAULT_POINTS = CHAT_ROOM_IMAGE_GENERATION_POINTS;
 
 export type ImagePromptGender = "male" | "female" | "other";
