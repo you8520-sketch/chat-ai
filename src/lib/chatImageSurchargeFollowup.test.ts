@@ -136,4 +136,36 @@ describe("surcharge follow-up: TRPG dynamic preflight / price UI / cost-cohort p
     );
     assert.match(pricing, /cost cohort|cost cohorts|upstream_cost_usd/u);
   });
+
+  it("CLIENT-ESTIMATE-VS-SERVER-AUTHORITY CASE A: balance below the estimate but >= base is NOT client-blocked", () => {
+    const panel = read(PANEL);
+    const route = read(COMIC_ROUTE);
+    // The button's client authorization gate uses the guaranteed minimum/base
+    // price, never the non-authoritative expectedPrice estimate.
+    assert.match(panel, /info\.balance\.total < activePrice/);
+    assert.doesNotMatch(panel, /info\.balance\.total < expectedPrice/);
+    // expectedPrice is still DISPLAYED (button copy) — display != authorization.
+    assert.match(panel, /expectedPrice\.toLocaleString\(\)\}P/);
+    // CASE A semantics: base=180, expected(4 refs)=220, balance=210.
+    const base = CHAT_ROOM_IMAGE_GENERATION_POINTS;
+    const expected = resolveImageGenerationRequiredPoints(4, base);
+    assert.equal(expected, base + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS);
+    assert.equal(expected, 220);
+    assert.equal(210 < base, false, "balance 210 >= base 180 -> client must NOT disable");
+    // Server stale-asset revalidation grounds 3 refs -> final 200 <= 210 -> accepted.
+    const serverFinalAfterRevalidation = resolveImageGenerationRequiredPoints(3, base);
+    assert.equal(serverFinalAfterRevalidation, 200);
+    assert.ok(serverFinalAfterRevalidation <= 210);
+    // Server canonical preflight remains the final authority.
+    assert.match(route, /const pricePoints = resolveImageGenerationRequiredPoints\(/);
+    assert.match(route, /포인트가 부족합니다\. 선택 턴 LD 일러스트에는/);
+  });
+
+  it("CLIENT-ESTIMATE-VS-SERVER-AUTHORITY CASE B: balance below the base price is client-blocked", () => {
+    const panel = read(PANEL);
+    const base = CHAT_ROOM_IMAGE_GENERATION_POINTS;
+    assert.equal(170 < base, true, "balance 170 < base 180 -> request can never be satisfied");
+    // Route still owns the dynamic final price for the TRPG/illustration path.
+    assert.match(panel, /info\.balance\.total < activePrice/);
+  });
 });

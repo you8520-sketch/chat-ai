@@ -1620,8 +1620,14 @@ export default function ChatImageGeneratorPanel({
                             !info?.ready ||
                             (!campaignId &&
                               summarizing) ||
+                            // expectedPrice is a non-authoritative DISPLAY
+                            // estimate. Only the guaranteed minimum/base price
+                            // (activePrice) is a safe client gate: the server
+                            // may ground fewer references than the client
+                            // estimated (e.g. stale-asset revalidation) and
+                            // accept a request the estimate would have blocked.
                             (info?.balance != null &&
-                              info.balance.total < expectedPrice)
+                              info.balance.total < activePrice)
                           }
                           className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
                         >
