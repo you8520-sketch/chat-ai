@@ -86,8 +86,8 @@ import {
 } from "@/lib/chatImageCastManifest";
 import { stripChatTurnMarkup } from "@/lib/chatImageSceneBrief";
 import {
-  CHAT_IMAGE_GENERATION_MODEL_LABEL,
   resolveChatImageGenerationModel,
+  resolveChatImageGenerationModelLabel,
   type ImagePromptGender,
 } from "@/lib/chatImageGeneration";
 import { resolveChatImageGenderPair } from "@/lib/chatImageGender";
@@ -1138,7 +1138,7 @@ export async function POST(req: Request) {
           resultUrl,
           upstreamCostUsd: generated.knownProviderCostUsd,
           chargePoints: pricePoints,
-          chargeReason: `${CHAT_IMAGE_GENERATION_MODEL_LABEL} · 선택 턴 LD 일러스트`,
+          chargeReason: `${resolveChatImageGenerationModelLabel(model)} · 선택 턴 LD 일러스트`,
           chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
           creatorReward: {
             creatorId: campaignId
@@ -1201,7 +1201,7 @@ export async function POST(req: Request) {
         imageUrl: resultUrl,
         savedToCharacterAlbum: true,
         title: "선택 턴 LD 일러스트",
-        modelLabel: CHAT_IMAGE_GENERATION_MODEL_LABEL,
+        modelLabel: resolveChatImageGenerationModelLabel(model),
         messageId: illustrationMessageId ?? undefined,
         upstreamCostUsd: canSeeCost ? generated.knownProviderCostUsd : undefined,
         upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
@@ -1402,7 +1402,7 @@ contentKind: context.contentKind,
         resultUrl,
         upstreamCostUsd: totalCostUsd,
         chargePoints: pricePoints,
-        chargeReason: `${CHAT_IMAGE_GENERATION_MODEL_LABEL} · ${panelCount}컷 만화`,
+        chargeReason: `${resolveChatImageGenerationModelLabel(model)} · ${panelCount}컷 만화`,
         chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
         creatorReward: {
           creatorId: context.character.creator_id,
@@ -1472,7 +1472,7 @@ contentKind: context.contentKind,
       savedToCharacterAlbum: true,
       title: `장면 ${panelCount}컷`,
       panelCount,
-      modelLabel: CHAT_IMAGE_GENERATION_MODEL_LABEL,
+      modelLabel: resolveChatImageGenerationModelLabel(model),
       messageId: source.messageId ?? undefined,
       upstreamCostUsd: canSeeCost ? totalCostUsd : undefined,
       upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
