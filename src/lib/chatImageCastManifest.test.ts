@@ -1010,10 +1010,18 @@ describe("chatImageCastManifest", () => {
 
   it("POST_CAP_IDENTITY_TRUTH does not claim saved appearance or recognizable without bound evidence", () => {
     const ctx = withConfiguredSupport(GROUND_CTX, "SupportB", ASSET_B);
+    // SupportA has trusted saved appearance but NO selected reference asset, so
+    // it must stay SAVED-ONLY (no physical attachment), while SupportB carries
+    // a bound reference. (The physical budget is now 4; a subject without a
+    // reference is still never claimed as recognizable.)
     let intent: ChatImageCastIntentManifest = {
       compositionGoal: "trio_group",
       subjects: [
-        ...trioIntent().subjects,
+        ...trioIntent().subjects.map((subject) =>
+          subject.role === "supporting_character"
+            ? { ...subject, requestedReferenceAssetUrl: undefined }
+            : subject
+        ),
         {
           key: "supporting:B",
           role: "supporting_character",
