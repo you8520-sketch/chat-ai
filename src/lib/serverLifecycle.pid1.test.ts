@@ -58,6 +58,15 @@ async function statusOrConnectionFailure(url: string): Promise<number> {
   }
 }
 
+async function waitForOutput(output: string[], pattern: RegExp, timeoutMs = 5_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (pattern.test(output.join(""))) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Child output did not match ${pattern}:\n${output.join("")}`);
+}
+
 test(
   "direct Node PID1 command boots, serves readiness, and exits cleanly on SIGTERM",
   { skip: process.platform !== "linux" },
@@ -129,8 +138,7 @@ test(
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     child.kill("SIGTERM");
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    assert.match(output.join(""), /SIGTERM received; entering draining state \(activeRequests=1\)/);
+    await waitForOutput(output, /SIGTERM received; entering draining state \(activeRequests=1\)/);
     assert.notEqual(await statusOrConnectionFailure(`${baseUrl}/readyz`), 200);
     assert.notEqual(await statusOrConnectionFailure(baseUrl), 200);
 
