@@ -17,6 +17,7 @@ import { listSelectableCharacterImages, listCastSelectableAssets } from "@/lib/c
 import {
   type ImagePromptGender,
   resolveChatImageGenerationModel,
+  resolveChatImageGenerationModelLabel,
   resolveChatImageGenerationPrice,
 } from "@/lib/chatImageGeneration";
 import { extractAppearanceRawFromSetting } from "@/lib/appearanceCompiler";
@@ -283,6 +284,8 @@ function publicContextResponse(context: GenerationContext, viewerUserId: number)
   const state = readiness(context);
   const personaState = personaImageReadiness(context.persona);
   const pricePoints = resolveChatImageGenerationPrice();
+  const modelId = resolveChatImageGenerationModel();
+  const modelLabel = resolveChatImageGenerationModelLabel(modelId);
   const balance = getPointBalance(context.character.id ? 0 : 0);
   void balance;
   const characterAppearance = buildChatImageCharacterAppearanceClientView({
@@ -303,8 +306,8 @@ function publicContextResponse(context: GenerationContext, viewerUserId: number)
           ...(!context.characterImageUrl ? ["캐릭터 그림체 참조 이미지"] : []),
         ],
     pricePoints,
-    modelId: resolveChatImageGenerationModel(),
-    modelLabel: "GPT Image 2",
+    modelId,
+    modelLabel,
     character: {
       id: context.character.id,
       name: context.character.name,

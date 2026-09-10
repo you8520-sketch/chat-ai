@@ -1,6 +1,37 @@
 import { CHAT_ROOM_IMAGE_GENERATION_POINTS } from "@/lib/chatImagePricing";
 
 export const CHAT_IMAGE_GENERATION_DEFAULT_MODEL = "gpt-image-2";
+
+/**
+ * Friendly display labels for known provider image models. Display labels
+ * must always derive from the actual resolved model id (see
+ * resolveChatImageGenerationModelLabel) so an OPENAI_IMAGE_MODEL override can
+ * never be shown under the wrong label.
+ */
+const CHAT_IMAGE_GENERATION_MODEL_LABELS: Readonly<Record<string, string>> = {
+  "gpt-image-2.5-sunburst": "GPT Image 2.5 Sunburst",
+  "gpt-image-2.5-flare": "GPT Image 2.5 Flare",
+  "gpt-image-2": "GPT Image 2",
+};
+
+/**
+ * Canonical friendly display label derived from a resolved model id.
+ *
+ * - known ids map to their friendly label
+ * - dated snapshots ("<known-id>-…") inherit the parent's friendly label
+ * - unknown/custom ids are surfaced as-is (never borrowed a known label)
+ */
+export function resolveChatImageGenerationModelLabel(modelId: string): string {
+  const trimmed = modelId.trim();
+  if (!trimmed) return trimmed;
+  const known = CHAT_IMAGE_GENERATION_MODEL_LABELS[trimmed];
+  if (known) return known;
+  const snapshotBase = (
+    ["gpt-image-2.5-sunburst", "gpt-image-2.5-flare", "gpt-image-2"] as const
+  ).find((base) => trimmed.startsWith(`${base}-`));
+  return snapshotBase ? CHAT_IMAGE_GENERATION_MODEL_LABELS[snapshotBase] : trimmed;
+}
+
 export const CHAT_IMAGE_GENERATION_DEFAULT_POINTS = CHAT_ROOM_IMAGE_GENERATION_POINTS;
 
 export type ImagePromptGender = "male" | "female" | "other";

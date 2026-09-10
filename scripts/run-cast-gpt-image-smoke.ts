@@ -10,6 +10,7 @@ import sharp from "sharp";
 
 import { buildChatComicGenerationPlan } from "@/lib/chatComicGeneration";
 import { buildLdSceneGenerationPlan } from "@/lib/chatLdIllustrationGeneration";
+import { resolveChatImageGenerationModel } from "@/lib/chatImageGeneration";
 import { groundCastIntent, type ChatImageCastGroundedManifest } from "@/lib/chatImageCastManifest";
 import {
   buildDeterministicScenePlan,
@@ -233,7 +234,7 @@ async function main() {
   }
 
   const g1 = await callOpenAiImageEdit({
-    model: process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-1",
+    model: resolveChatImageGenerationModel(process.env),
     prompt: ldPlan.prompt,
     references: ldRefs,
     size: "1024x1536",
@@ -247,7 +248,7 @@ async function main() {
   );
 
   const g2 = await callOpenAiImageEdit({
-    model: process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-1",
+    model: resolveChatImageGenerationModel(process.env),
     prompt: comicPlan.prompt,
     references: comicRefs,
     size: "1024x1536",
