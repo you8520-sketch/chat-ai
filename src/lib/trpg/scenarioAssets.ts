@@ -6,6 +6,7 @@ import {
 } from "@/lib/characterAssets";
 import { collectEmotionTags, resolveEmotionTag } from "@/lib/emotionTag";
 import { attachMatchingAssetTags, consumeAssetTagsOnce } from "@/lib/inlineTaggedAssets";
+import { normalizePromptLabels, serializePromptLabels } from "@/lib/promptLabelSerialization";
 
 export const TRPG_SCENARIO_MAX_ASSETS = 40;
 
@@ -37,13 +38,13 @@ export function normalizeScenarioAssets(raw: unknown): CharacterAsset[] {
 export function buildScenarioAssetTagPrompt(assets: CharacterAsset[]): string {
   const playable = playableScenarioAssets(assets);
   if (playable.length === 0) return "";
-  const unique = [...new Set(playable.map((a) => a.tag.trim()).filter(Boolean))];
+  const unique = normalizePromptLabels(playable.map((a) => a.tag));
   if (unique.length === 0) return "";
-  const list = unique.join(", ");
+  const list = serializePromptLabels(unique);
   return `[SCENARIO IMAGE TAGS — uploaded scene images]
 GM NARRATION only. Insert [태그: tagname] only when this scene meaningfully matches that uploaded tag (environment, place, object, creature, supporting figure, event, or atmosphere).
 Do not insert an image merely because the tag exists. Never add filler images to reach a quota.
-Allowed scenario tags ONLY (copy spelling exactly): ${list}
+Allowed scenario tags ONLY (JSON array; each element is one exact tag — copy the element text verbatim): ${list}
 Use each scenario tag at most once this turn. Do not invent tags.
 Total images this scene ≤ 2. If AI characters are present, at most one scenario image. If not, at most two distinct scenario tags.
 Character images use a separate [캐릭터에셋: participantId|tag] namespace when that catalog is supplied. Do not reuse [태그: ...] for character assets.`;

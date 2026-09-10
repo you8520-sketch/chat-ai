@@ -167,7 +167,7 @@ describe("TRPG GM scene asset budget", () => {
         withAssetSize({ url: "/b.webp", tag: "분노" }, 800, 1200),
       ]) },
     ]);
-    assert.match(catalog, /tags=분노$/m);
+    assert.match(catalog, /tags=\["분노"\]$/m);
     assert.doesNotMatch(catalog, /\/a\.webp/);
   });
 

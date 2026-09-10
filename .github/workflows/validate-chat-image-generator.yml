@@ -145,6 +145,8 @@ on:
       - "src/lib/trpg/scenarioAssets.test.ts"
       - "src/lib/trpg/gmSceneAssets.ts"
       - "src/lib/trpg/gmSceneAssets.test.ts"
+      - "src/lib/emotionTag.ts"
+      - "src/lib/promptLabelSerialization.ts"
       - "src/app/trpg/[id]/page.tsx"
       - "src/app/trpg/[id]/TrpgRoomClient.tsx"
       - "src/app/trpg/TrpgCampaignRoom.tsx"

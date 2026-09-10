@@ -66,12 +66,16 @@ const CREATOR_ASSET_TAG_MAX = 32;
 
 /**
  * Canonical normalization for the creator-editable asset tag (custom asset
- * name). This value is BOTH the display label AND the semantic selection cue
- * (general-chat `[태그: …]` and TRPG `[캐릭터에셋: participantId|tag]`), so it is
- * treated as untrusted metadata: strip control characters, line breaks and
- * bracket/allowlist-breaking punctuation so an instruction-like name can never
- * escape the candidate list or change instruction priority. Read and write paths
- * share this single owner.
+ * name). This value is BOTH the display label AND the intended semantic
+ * selection cue (general-chat `[태그: …]` and TRPG `[캐릭터에셋: participantId|tag]`),
+ * so the model is expected to read its meaning.
+ *
+ * Guarantee is STRUCTURAL only: strip control characters / line breaks /
+ * brackets (which would break the `[태그: …]` marker grammar), canonicalize
+ * whitespace and bound the length. It does NOT — and cannot — prevent the model
+ * from interpreting the label text; that is the feature. Prompt candidate
+ * collections are separately boundary-safe via `serializePromptLabels`. Read
+ * and write paths share this owner.
  */
 export function normalizeCreatorAssetTag(raw: unknown, fallback = ""): string {
   const cleaned = String(raw ?? "")
