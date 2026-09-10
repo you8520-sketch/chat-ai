@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ChatRichBlocks from "@/components/ChatRichBlocks";
@@ -1635,6 +1635,8 @@ export default function ChatClient({
       window.removeEventListener("chat:image-generator:completed", onImageCompleted);
   }, []);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const pendingSubmitViewportRequestIdRef = useRef<string | null>(null);
+  const pendingSubmitViewportRowRef = useRef<HTMLDivElement | null>(null);
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
   const inputDockRef = useRef<HTMLDivElement>(null);
   /** true면 새 청크마다 하단으로 스크롤 — 사용자가 위로 올리면 false */
@@ -2260,17 +2262,36 @@ export default function ChatClient({
     syncChatFollowDiagnostics();
   }, [syncChatFollowDiagnostics]);
 
-  const reattachChatLiveFollow = useCallback(() => {
+  const reattachChatLiveFollow = useCallback((reason: "auto_progress" | "new_user_turn" = "auto_progress") => {
     userScrollLockRef.current = false;
     followStreamRef.current = true;
     liveFollowIntegerTransportRef.current?.reset();
     syncChatFollowDiagnostics();
+    if (reason === "new_user_turn") return;
     if (isChatLiveReadingActiveNow()) {
       liveFollowAnimatorRef.current?.notifyTargetUpdate();
     } else {
       scrollToBottom("smooth");
     }
   }, [isChatLiveReadingActiveNow, scrollToBottom, syncChatFollowDiagnostics]);
+
+  useLayoutEffect(() => {
+    const requestId = pendingSubmitViewportRequestIdRef.current;
+    const row = pendingSubmitViewportRowRef.current;
+    if (!requestId || !row?.isConnected) return;
+
+    const dockHeight = getInputDockHeight();
+    const dockBottom = getInputDockBottomOffset();
+    const isMobile = !window.matchMedia(CHAT_DESKTOP_MEDIA_QUERY).matches;
+    const pad = isMobile ? 2 : displayPrefs.showCharacterPortrait ? 4 : 2;
+    const visualBottom = window.innerHeight - dockHeight - dockBottom - pad;
+    const delta = row.getBoundingClientRect().bottom - visualBottom;
+    if (delta > 0) {
+      window.scrollBy({ top: delta, behavior: "instant" });
+    }
+    pendingSubmitViewportRequestIdRef.current = null;
+    pendingSubmitViewportRowRef.current = null;
+  }, [messages, displayPrefs.showCharacterPortrait, getInputDockBottomOffset, getInputDockHeight]);
 
   const applyFollowBeforeStream = useCallback(() => {
     const next = resolveFollowBeforeStream({
@@ -3964,17 +3985,13 @@ export default function ChatClient({
       setError(`메시지는 ${CHAT_MESSAGE_MAX}자까지 입력할 수 있습니다.`);
       return;
     }
-    if (!(await flushChatSettings())) return;
-    if (inFlightRef.current) return;
     inFlightRef.current = true;
     loadingRef.current = true;
     setInput("");
-    clearChatMessageDraft(character.id, chatId);
     setError("");
     setStreamPhase(null);
     setGenerationPrepUi({ phase: "preparing", badges: [] });
     setGenerationStartedAt(Date.now());
-    const followBeforeStream = applyFollowBeforeStream();
     let aiIndex = 0;
     const clientRequestId = createClientRequestId();
     const userPersonaText = selectedPersona?.description ?? null;
@@ -3985,6 +4002,10 @@ export default function ChatClient({
       userPersonaText,
       statusWidgetActive
     );
+    // A direct submit is an explicit latest intent. Position the exact
+    // committed optimistic user row before any provider request is allowed.
+    pendingSubmitViewportRequestIdRef.current = clientRequestId;
+    reattachChatLiveFollow("new_user_turn");
     setMessages((m) => {
       aiIndex = m.length + 1;
       return [
@@ -4004,9 +4025,27 @@ export default function ChatClient({
         },
       ];
     });
-    if (followBeforeStream) {
-      requestAnimationFrame(() => notifyChatLiveFollowTargetUpdate());
+    if (!(await flushChatSettings())) {
+      if (pendingSubmitViewportRequestIdRef.current === clientRequestId) {
+        pendingSubmitViewportRequestIdRef.current = null;
+        pendingSubmitViewportRowRef.current = null;
+      }
+      setMessages((m) => {
+        const optimisticAssistantIndex = m.findIndex(
+          (message) => message.role === "assistant" && message.requestId === clientRequestId
+        );
+        return optimisticAssistantIndex > 0
+          ? softRollbackTurn(m, optimisticAssistantIndex)
+          : m.filter((message) => message.requestId !== clientRequestId);
+      });
+      setInput(text);
+      inFlightRef.current = false;
+      loadingRef.current = false;
+      setLoading(false);
+      setGenerationPrepUi(null);
+      return;
     }
+    clearChatMessageDraft(character.id, chatId);
     writeChatStreamDraft(character.id, chatId, {
       requestId: clientRequestId,
       chatId: chatId ?? 0,
@@ -5249,6 +5288,11 @@ export default function ChatClient({
                 <div
                   key={m.id ?? `user-${i}`}
                   id={m.id ? `msg-${m.id}` : undefined}
+                  ref={(el) => {
+                    if (m.requestId === pendingSubmitViewportRequestIdRef.current) {
+                      pendingSubmitViewportRowRef.current = el;
+                    }
+                  }}
                   className={showCharacterPortrait ? "my-10 first:mt-2" : "my-5 first:mt-1 last:mb-0"}
                 >
                   <div className="mb-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
