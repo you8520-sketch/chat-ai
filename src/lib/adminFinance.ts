@@ -561,27 +561,25 @@ export function buildAdminFinanceSummary(
         .get(start, end) as { amount: number }
     ).amount
   );
-  // Approved-withdrawal snapshot attribution (period = processed_at; accrual
-  // lives in the created_at month, so a cross-month settlement reverses in
-  // the settlement month by design - no liability ledger in this scope).
+  // Canonical snapshot consumption: APPROVED rows carry a request-time
+  // locked platform_fee. Finance reads that stored field directly - it never
+  // recomputes retained from other snapshot fields or current rates.
+  // (Period = processed_at; accrual lives in the created_at month, so a
+  // cross-month settlement reverses in the settlement month by design - no
+  // liability ledger in this scope.)
   // Neither value enters revenue or costs here; the retained portion is
   // added back EXACTLY ONCE in top-level net profit below (no revenue leg -
   // recognizing both legs would double-count the same economics).
   const creatorWithdrawalAttribution = db
     .prepare(
       `SELECT COALESCE(SUM(tax_amount),0) AS tax,
-              COALESCE(SUM(requested_cp),0) AS requested,
-              COALESCE(SUM(payout_amount),0) AS payout
+              COALESCE(SUM(platform_fee),0) AS retained
        FROM withdrawal_requests
        WHERE status='APPROVED' AND processed_at>=? AND processed_at<?`
     )
-    .get(start, end) as { tax: number; requested: number; payout: number };
+    .get(start, end) as { tax: number; retained: number };
   const creatorTaxPayableKrw = finiteNonNegative(creatorWithdrawalAttribution.tax);
-  const creatorPlatformRetainedKrw = finiteNonNegative(
-    creatorWithdrawalAttribution.requested -
-      creatorWithdrawalAttribution.payout -
-      creatorWithdrawalAttribution.tax
-  );
+  const creatorPlatformRetainedKrw = finiteNonNegative(creatorWithdrawalAttribution.retained);
   const creatorForChat = creatorAccrued;
 
   const portoneTable = db

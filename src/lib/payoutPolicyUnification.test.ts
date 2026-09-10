@@ -549,20 +549,24 @@ describe("payout settlement adjustment — creator accrual vs cash withdrawal", 
     }
   });
 
-  it("SETTLE-E historical old-policy rows adjust by stored fee (11200, never recomputed 16700)", () => {
+  it("SETTLE-E snapshot owner: stored platform_fee is consumed directly (non-derivable 12345)", () => {
+    // Deterministic snapshot-owner fixture - the stored fee is deliberately
+    // NOT derivable (requested - payout - tax = 11200, current rate = 16700).
+    // Finance must use stored platform_fee = 12345. Either recomputation
+    // fails this test.
     const db = settlementDb({
       revenue: 200000,
       accrued: 100000,
-      withdrawal: { requested: 100000, tax: 8800, fee: 11200, payout: 80000 },
+      withdrawal: { requested: 100000, tax: 8800, fee: 12345, payout: 80000 },
     });
     try {
       const summary = buildAdminFinanceSummary(db);
       const view = summary as unknown as Record<string, unknown>;
-      assert.equal(view.creatorPlatformRetainedKrw, 11200);
+      assert.equal(view.creatorPlatformRetainedKrw, 12345);
       assert.equal(
         summary.netProfitKrw,
-        200000 - 100000 + 11200,
-        "stored snapshot honored; current-rate 16700 recompute would fail this"
+        200000 - 100000 + 12345,
+        "stored snapshot honored exactly once in net profit"
       );
     } finally {
       db.close();
