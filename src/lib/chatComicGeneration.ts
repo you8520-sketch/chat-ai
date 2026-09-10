@@ -137,6 +137,12 @@ export function buildChatComicImagePrompt(opts: {
   subjects?: readonly ChatImageVisualSubject[];
   castManifest?: ChatImageCastGroundedManifest | null;
   castSelected?: readonly ChatImageCastGroundedSubject[];
+  /**
+   * Explicit recurring-identity count when there is no general cast manifest
+   * (e.g. a prebuilt TRPG party pack). Keeps the comic count/gender contract
+   * without a TRPG-specific prompt owner.
+   */
+  castCount?: number;
   characterImageUrl?: string;
   characterSavedAppearance?: string;
   characterAppearanceMode?: ChatImageAppearanceMode;
@@ -163,7 +169,11 @@ export function buildChatComicImagePrompt(opts: {
     castManifest: opts.castManifest,
   });
   const subjects = defaultComicSubjects(opts);
-  const castAware = Boolean(opts.castManifest && opts.castSelected?.length);
+  const castCount =
+    opts.castManifest && opts.castSelected?.length
+      ? opts.castSelected.length
+      : opts.castCount ?? 0;
+  const castAware = castCount > 0;
   const castBlock =
     opts.castManifest && opts.castSelected?.length
       ? renderApprovedCastManifest({
@@ -242,7 +252,7 @@ export function buildChatComicImagePrompt(opts: {
     compositionContract,
     textContract,
     castAware
-      ? `Exactly ${opts.castSelected!.length} recurring human ${opts.castSelected!.length === 1 ? "identity" : "identities"}. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.`
+      ? `Exactly ${castCount} recurring human ${castCount === 1 ? "identity" : "identities"}. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.`
       : "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
     "Keep all panel borders and the full page visible. Do not crop off the last panel.",
     panelSpecSection,
@@ -265,6 +275,12 @@ export function buildChatComicGenerationPlan(opts: {
   mood?: ChatComicMood;
   plan: ScenePlan;
   castManifest?: ChatImageCastGroundedManifest | null;
+  /**
+   * Prebuilt grounded reference pack from a non-general-cast WHO owner (e.g. a
+   * TRPG party). Uses the same lower-level `bindChatImageReferencePack` owner as
+   * the general cast path, so the comic WHAT/HOW owner is not duplicated.
+   */
+  referencePack?: { subjects: ChatImageVisualSubject[]; referenceUrls: string[] } | null;
   contentKind?: ContentKind;
   adultGrounded?: boolean;
   compositionMode?: ChatComicCompositionMode;
@@ -272,6 +288,7 @@ export function buildChatComicGenerationPlan(opts: {
   fullSourceDirectText?: string;
 }) {
   const useCast = Boolean(opts.castManifest);
+  const useParty = !useCast && Boolean(opts.referencePack);
   let pack: { subjects: ChatImageVisualSubject[]; referenceUrls: string[] };
   let castSelected: readonly ChatImageCastGroundedSubject[] | undefined;
   if (useCast) {
@@ -284,6 +301,17 @@ export function buildChatComicGenerationPlan(opts: {
     });
     pack = bound;
     castSelected = bound.selected;
+  } else if (useParty) {
+    // TRPG party path: reuse the already-grounded WHO subjects (same
+    // bindChatImageReferencePack owner) and add the comic layout template.
+    pack = bindChatImageReferencePack({
+      template: {
+        url: CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+        role: "layout template",
+      },
+      subjectsInImageOrder: opts.referencePack!.subjects,
+    });
+    castSelected = undefined;
   } else {
     pack = bindChatImageReferencePack({
       template: {
@@ -318,6 +346,7 @@ export function buildChatComicGenerationPlan(opts: {
       subjects: pack.subjects,
       castManifest: useCast ? opts.castManifest : null,
       castSelected,
+      castCount: useParty ? pack.subjects.length : undefined,
       characterImageUrl: opts.characterImageUrl,
       characterSavedAppearance: opts.characterSavedAppearance,
       characterAppearanceMode: opts.characterAppearanceMode,

@@ -169,6 +169,8 @@ export function buildStrictComicFallbackPrompt(opts: {
   subjects: readonly ChatImageVisualSubject[];
   castManifest?: ChatImageCastGroundedManifest | null;
   castSelected?: readonly ChatImageCastGroundedSubject[];
+  /** Explicit recurring-identity count when there is no general cast manifest (e.g. TRPG party). */
+  castCount?: number;
   contentKind?: ContentKind;
   safeStructure?: ComicSafeStructureProjection;
   /** overlay_first = current exact Tier-2; blank_balloon_hybrid = GPT blank-balloon composition. */
@@ -177,7 +179,11 @@ export function buildStrictComicFallbackPrompt(opts: {
   balloonSlots?: ReadonlyArray<{ panelIndex: number; slots: ComicBalloonSlotMetadata[] }>;
 }): string {
   const strictSubjects = subjectsForStrictFallback(opts.subjects);
-  const castAware = Boolean(opts.castManifest && opts.castSelected?.length);
+  const castCount =
+    opts.castManifest && opts.castSelected?.length
+      ? opts.castSelected.length
+      : opts.castCount ?? 0;
+  const castAware = castCount > 0;
   const castBlock =
     opts.castManifest && opts.castSelected?.length
       ? renderApprovedCastManifest({
@@ -235,7 +241,7 @@ export function buildStrictComicFallbackPrompt(opts: {
     ...compositionLine,
     strictComicPanelBeats(opts.panelCount, opts.safeStructure, fullProvider ? "full_provider_rendered" : "overlay_first"),
     castAware
-      ? `Exactly ${opts.castSelected!.length} recurring identities — no extras.`
+      ? `Exactly ${castCount} recurring identities — no extras.`
       : "Exactly two recurring characters — no extras.",
     "Keep all panel borders visible. Modest clothing throughout.",
   ].join("\n");

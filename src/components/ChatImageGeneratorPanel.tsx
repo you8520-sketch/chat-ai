@@ -498,9 +498,11 @@ export default function ChatImageGeneratorPanel({
   }, [clearTrpgImageSceneDiagnostics, trpgImageSceneDiagnostics]);
 
   useEffect(() => {
-    if (!trpgCampaignMode) return;
+    // A new campaign/source opens with the illustration default, but a user's
+    // comic choice must survive re-renders (campaignId unchanged => no reset).
+    if (campaignId == null) return;
     setSceneOutputMode("illustration");
-  }, [trpgCampaignMode]);
+  }, [campaignId]);
 
   useEffect(() => {
     if (!open || !campaignId) {
@@ -547,8 +549,7 @@ export default function ChatImageGeneratorPanel({
     };
   }, [open, campaignId]);
 
-  const sceneIsIllustration =
-    trpgCampaignMode || sceneOutputMode === "illustration";
+  const sceneIsIllustration = sceneOutputMode === "illustration";
   const selectableCastAssets = useMemo((): readonly SelectableCastAsset[] => {
     if (sceneCastSelectableAssets.length) return sceneCastSelectableAssets;
     if (info?.castSelectableAssets?.length) return info.castSelectableAssets;
@@ -1018,14 +1019,15 @@ export default function ChatImageGeneratorPanel({
   async function generateComic() {
     if (!info?.ready || generating) return;
     const isIllustration = sceneIsIllustration;
-    if (campaignId && !isIllustration) return;
     const sourceText = comicText.trim();
     const summaryText = comicSummary.trim();
-    if (!isIllustration && !sourceMessageId && !sourceText) {
+    // TRPG rounds load their canonical source on the server, so the manual
+    // / selected-turn comic input guards do not apply to a campaign request.
+    if (!isIllustration && !campaignId && !sourceMessageId && !sourceText) {
       setError("만화로 만들 턴을 선택하거나 내용을 입력해 주세요.");
       return;
     }
-    if (!isIllustration && sourceMessageId && !summaryText) {
+    if (!isIllustration && !campaignId && sourceMessageId && !summaryText) {
       setError("선택 턴 내용을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
       return;
     }
@@ -1033,7 +1035,7 @@ export default function ChatImageGeneratorPanel({
     const comicMaxChars = sourceMessageId
       ? comicLoadedMaxChars || comicInput.length
       : CHAT_COMIC_MAX_INPUT_CHARS;
-    if (!isIllustration && comicInput.length > comicMaxChars) {
+    if (!isIllustration && !campaignId && comicInput.length > comicMaxChars) {
       setError(
         sourceMessageId
           ? `컷만화로 만들 내용은 불러온 턴 길이(${comicMaxChars.toLocaleString()}자)를 넘길 수 없습니다.`
@@ -1080,22 +1082,21 @@ export default function ChatImageGeneratorPanel({
             !isIllustration
               ? "auto"
               : undefined,
-          campaignId: isIllustration && campaignId ? campaignId : undefined,
+          campaignId: campaignId ? campaignId : undefined,
           roundNumber:
-            isIllustration && campaignId && campaignRoundNumber != null
+            campaignId && campaignRoundNumber != null
               ? campaignRoundNumber
               : undefined,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
           characterAppearanceMode,
-          castImagePicks:
-            isIllustration && campaignId
-              ? partyCast
-                  .map((member) => ({
-                    participantId: member.participantId,
-                    imageUrl: partyPicks[member.participantId] || member.imageUrl || "",
-                  }))
-                  .filter((pick) => pick.imageUrl)
-              : undefined,
+          castImagePicks: campaignId
+            ? partyCast
+                .map((member) => ({
+                  participantId: member.participantId,
+                  imageUrl: partyPicks[member.participantId] || member.imageUrl || "",
+                }))
+                .filter((pick) => pick.imageUrl)
+            : undefined,
             trpgImageSceneMode:
             isIllustration && campaignId ? trpgImageSceneMode : undefined,
         }),
@@ -1178,7 +1179,11 @@ export default function ChatImageGeneratorPanel({
     }
   }
 
-  const modalTitle = trpgCampaignMode ? "선택 턴 일러스트" : "이미지 생성";
+  const modalTitle = trpgCampaignMode
+    ? sceneIsIllustration
+      ? "선택 턴 일러스트"
+      : "선택 턴 4컷 만화"
+    : "이미지 생성";
 
   return (
     <>
@@ -1247,7 +1252,7 @@ export default function ChatImageGeneratorPanel({
                 </p>
               ) : (
                 <p className="mt-2 pb-3 text-[11px] text-zinc-500">
-                  캠페인에서는 선택 턴 일러스트만 만들 수 있습니다.
+                  캠페인에서는 선택 턴 일러스트와 4컷 만화를 만들 수 있습니다.
                 </p>
               )}
             </div>
@@ -1344,7 +1349,7 @@ export default function ChatImageGeneratorPanel({
                         {partyCast.length === 0 ? (
                           <p className="text-[10px] text-zinc-500">파티 이미지를 불러오는 중…</p>
                         ) : null}
-                        {trpgCampaignMode ? (
+                        {trpgCampaignMode && sceneIsIllustration ? (
                           <div className="rounded-xl border border-amber-400/25 bg-amber-950/20 p-3 space-y-2">
                             <p className="text-[10px] font-semibold text-amber-200">
                               장면 초점
@@ -1565,7 +1570,7 @@ export default function ChatImageGeneratorPanel({
                               {partyNames.length
                                 ? `${partyNames.join(", ")}이(가) 한 장면에 함께 나옵니다.`
                                 : "유저 포함 파티 전원(최대 4명)이 한 장면에 함께 나옵니다."}
-                              {" "}멤버마다 참조 이미지를 고를 수 있고, 포인트는 1:1 선택 턴 일러스트와 같습니다.
+                              {" "}멤버마다 참조 이미지를 고를 수 있고, 참조 인물 수에 따라 추가 포인트가 적용됩니다.
                               {" "}
                               <Link
                                 href={`/albums?campaignId=${campaignId}`}
@@ -1574,6 +1579,34 @@ export default function ChatImageGeneratorPanel({
                                 캠페인 앨범 보기
                               </Link>
                             </p>
+                          </div>
+                        ) : null}
+                        {campaignId ? (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setSceneOutputMode("illustration")}
+                              disabled={generating}
+                              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-bold transition disabled:opacity-40 ${
+                                sceneIsIllustration
+                                  ? "border-violet-400 bg-violet-500/20 text-violet-100"
+                                  : "border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/25"
+                              }`}
+                            >
+                              일러스트
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSceneOutputMode("comic")}
+                              disabled={generating}
+                              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-bold transition disabled:opacity-40 ${
+                                !sceneIsIllustration
+                                  ? "border-violet-400 bg-violet-500/20 text-violet-100"
+                                  : "border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/25"
+                              }`}
+                            >
+                              4컷 만화
+                            </button>
                           </div>
                         ) : null}
                         {!campaignId ? (
