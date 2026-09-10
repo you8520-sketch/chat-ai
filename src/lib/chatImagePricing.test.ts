@@ -63,20 +63,26 @@ describe("canonical additional identity-reference surcharge owner (all GPT Image
       "src/app/api/chat/comic-generation/route.ts",
       "src/lib/trpg/illustrationCast.ts",
     ];
-    const forSurchargeSymbols = [
-      "referenceSurcharge",
-      "additionalReference",
-      "partySurcharge",
-      "participantSurcharge",
-      "comicSurcharge",
-      "illustrationSurcharge",
-      "trpgSurcharge",
+    // Routes may CONSUME the canonical owner and persist its result, but must
+    // never DEFINE their own surcharge math (helper function/constant).
+    const forbiddenDefinitions = [
+      /function\s+\w*[Ss]urcharge\w*\s*\(/,
+      /const\s+\w*[Ss]urcharge\w*\s*=[^=]/,
+      /partySurcharge/,
+      /participantSurcharge/,
+      /comicSurcharge/,
+      /illustrationSurcharge/,
+      /trpgSurcharge/,
     ];
     for (const file of files) {
       if (file === "src/lib/chatImagePricing.ts") continue;
       const source = read(file);
-      for (const symbol of forSurchargeSymbols) {
-        assert.doesNotMatch(source, new RegExp(symbol), `${file} must not define its own ${symbol}`);
+      for (const pattern of forbiddenDefinitions) {
+        assert.doesNotMatch(
+          source,
+          pattern,
+          `${file} must not define its own surcharge helper (${pattern})`
+        );
       }
     }
   });

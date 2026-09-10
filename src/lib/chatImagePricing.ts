@@ -1,29 +1,34 @@
 /**
  * Canonical price for every image product launched from a chat or TRPG room.
  * This is the BASE price for one provider generation request and already
- * includes the base identity-reference pack (persona + main character =
- * CHAT_IMAGE_BASE_IDENTITY_REFERENCES). Every extra identity reference above
- * the base adds the canonical additional-identity-reference surcharge.
+ * includes the first CHAT_IMAGE_BASE_IDENTITY_REFERENCES identity-reference
+ * attachments. Every extra identity reference above the base adds the
+ * canonical additional-identity-reference surcharge.
  */
 export const CHAT_ROOM_IMAGE_GENERATION_POINTS = 180;
 
 /**
- * Identity references included in the base template price. A normal duo scene
- * (persona + main character) sends exactly this many identity references.
+ * Identity references included in the base template price: the first two
+ * identity-reference attachments of a request. In normal character chat these
+ * are typically the persona and the main character; TRPG party scenes count
+ * their own grounded participant references against the same base.
  */
 export const CHAT_IMAGE_BASE_IDENTITY_REFERENCES = 2;
 
 /**
- * PROPOSED — additional identity-reference surcharge, in points per identity
- * reference above CHAT_IMAGE_BASE_IDENTITY_REFERENCES.
+ * APPROVED INITIAL SURCHARGE (test-phase value) — additional
+ * identity-reference surcharge, in points per identity reference above
+ * CHAT_IMAGE_BASE_IDENTITY_REFERENCES.
  *
- * NOT an arbitrary number: it covers the marginal provider upstream cost of
- * one extra input reference image (the provider bills every attached
- * reference image as image input tokens; calculateGptImage2CostUsd reads
- * usage.input_tokens_details.image_tokens at $8/1M). 20P = ~11% of the 180P
- * base — a conservative proposal pending validation against recorded
- * upstream_cost_usd after the feature ships. Adjust this ONE constant to
- * change the surcharge everywhere.
+ * NOT a cost-validated final price. Confirmed facts: GPT Image image input
+ * tokens are billed, and every extra reference image adds image input tokens
+ * (calculateGptImage2CostUsd reads usage.input_tokens_details.image_tokens).
+ * Exact 2->3->4 marginal token/cost samples are NOT yet observed.
+ *
+ * Process: collect production cost cohorts (options_json.identityReferenceCount
+ * + upstream_cost_usd + model), then adjust this ONE constant if the observed
+ * cohorts require it. The 20P value is an approved initial/provisional product
+ * surcharge pending observed cost cohorts.
  */
 export const CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS = 20;
 

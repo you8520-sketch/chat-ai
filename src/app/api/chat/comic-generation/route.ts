@@ -7,7 +7,10 @@ import sharp from "sharp";
 import { getSessionUser } from "@/lib/auth";
 import { isAdminUser } from "@/lib/isAdminUser";
 import { parseAssets, type CharacterAsset } from "@/lib/characterAssets";
-import { resolveImageGenerationRequiredPoints } from "@/lib/chatImagePricing";
+import {
+  resolveImageGenerationRequiredPoints,
+  resolveImageIdentityReferenceSurcharge,
+} from "@/lib/chatImagePricing";
 import {
   selectCharacterImageUrl,
 } from "@/lib/chatCharacterImageSelection";
@@ -918,8 +921,8 @@ export async function POST(req: Request) {
       let trpgAiFocusDiagnostics: TrpgAiFocusDiagnostics | null = null;
       let trpgImageSceneDiagnosticsPayload: TrpgImageSceneDiagnosticsPayload | null = null;
       let requestedTrpgSceneMode: TrpgImageSceneMode = TRPG_IMAGE_SCENE_MODE_DEFAULT;
-      let prompt: string;
-      let strictFallbackPrompt: string;
+      let prompt = "";
+      let strictFallbackPrompt = "";
       if (campaignId) {
         trpgScene = loadTrpgIllustrationScene(getDb(), {
           campaignId,
@@ -976,50 +979,6 @@ export async function POST(req: Request) {
         sceneActions = trpgScene.actions;
         trpgAiFocusDiagnostics = null;
         requestedTrpgSceneMode = normalizeTrpgImageSceneMode(body.trpgImageSceneMode);
-        const focus = await resolveTrpgIllustrationSceneFocus({
-          sceneMode: requestedTrpgSceneMode,
-          rawNarration: trpgScene.narration,
-          canonicalLocation: sceneLocation,
-        });
-        trpgImageSceneModeApplied = focus.modeApplied;
-        trpgAiFocusDiagnostics = focus.diagnostics;
-        trpgImageSceneDiagnosticsPayload = buildTrpgImageSceneDiagnosticsPayload({
-          requestedMode: requestedTrpgSceneMode,
-          modeApplied: focus.modeApplied,
-          canonicalLocation: sceneLocation,
-          focusDiagnostics: focus.diagnostics,
-        });
-        if (focus.modeApplied === "RAW" && requestedTrpgSceneMode === "AI_FOCUS") {
-          console.info(
-            "[trpg-ai-focus] RAW fallback",
-            JSON.stringify({
-              campaignId,
-              roundNumber,
-              reason: focus.diagnostics?.fallbackReason ?? "unknown",
-              model: focus.diagnostics?.aiModel,
-            })
-          );
-        }
-        const gmSceneNarration = focus.narration;
-        situation = buildTrpgIllustrationSituation({
-          location: sceneLocation,
-          actions: sceneActions,
-          narration: gmSceneNarration,
-        });
-        prompt = buildChatLdIllustrationPrompt({
-          characterName: context.character.name,
-          characterGender: context.characterGender,
-          personaName: context.persona.name,
-          personaGender: context.personaGender,
-          currentTurn: trpgScene.narration,
-          cast,
-          subjects: partyPlan?.subjects,
-          situation,
-        });
-        strictFallbackPrompt = buildStrictLdPartyFallbackPrompt({
-          cast,
-          subjects: partyPlan!.subjects,
-        });
       } else {
         const source = resolveSceneSource({
           chatId: context.chatId,
@@ -1099,6 +1058,57 @@ export async function POST(req: Request) {
           { status: 402 }
         );
       }
+      // INSUFFICIENT BALANCE INVARIANT — the billable TRPG AI_FOCUS planner
+      // call runs only AFTER the balance preflight passes, so a 402 user never
+      // incurs planner cost, never starts a job, and never reaches the image
+      // provider. partyPlan.referenceUrls were grounded above, so the final
+      // price below is already exact before any AI call.
+      if (campaignId) {
+        const focus = await resolveTrpgIllustrationSceneFocus({
+          sceneMode: requestedTrpgSceneMode,
+          rawNarration: trpgScene!.narration,
+          canonicalLocation: sceneLocation,
+        });
+        trpgImageSceneModeApplied = focus.modeApplied;
+        trpgAiFocusDiagnostics = focus.diagnostics;
+        trpgImageSceneDiagnosticsPayload = buildTrpgImageSceneDiagnosticsPayload({
+          requestedMode: requestedTrpgSceneMode,
+          modeApplied: focus.modeApplied,
+          canonicalLocation: sceneLocation,
+          focusDiagnostics: focus.diagnostics,
+        });
+        if (focus.modeApplied === "RAW" && requestedTrpgSceneMode === "AI_FOCUS") {
+          console.info(
+            "[trpg-ai-focus] RAW fallback",
+            JSON.stringify({
+              campaignId,
+              roundNumber,
+              reason: focus.diagnostics?.fallbackReason ?? "unknown",
+              model: focus.diagnostics?.aiModel,
+            })
+          );
+        }
+        const gmSceneNarration = focus.narration;
+        situation = buildTrpgIllustrationSituation({
+          location: sceneLocation,
+          actions: sceneActions,
+          narration: gmSceneNarration,
+        });
+        prompt = buildChatLdIllustrationPrompt({
+          characterName: context.character.name,
+          characterGender: context.characterGender,
+          personaName: context.persona.name,
+          personaGender: context.personaGender,
+          currentTurn: trpgScene!.narration,
+          cast,
+          subjects: partyPlan?.subjects,
+          situation,
+        });
+        strictFallbackPrompt = buildStrictLdPartyFallbackPrompt({
+          cast: cast!,
+          subjects: partyPlan!.subjects,
+        });
+      }
       startJob(CHAT_LD_ILLUSTRATION_TEMPLATE_ID, "illustration");
       const references = await Promise.all(
         referenceUrls.map((sourceUrl) => imageSourceToDataUrl(sourceUrl))
@@ -1144,6 +1154,9 @@ export async function POST(req: Request) {
             trpgAiFocusDiagnostics: trpgAiFocusDiagnostics ?? undefined,
             quality: CHAT_LD_ILLUSTRATION_QUALITY,
             outputSize: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
+            // Cost-cohort evidence: the exact server-grounded pricing input.
+            identityReferenceCount,
+            referenceSurchargePoints: resolveImageIdentityReferenceSurcharge(identityReferenceCount),
           },
           resultUrl,
           upstreamCostUsd: generated.knownProviderCostUsd,
@@ -1419,6 +1432,10 @@ contentKind: context.contentKind,
           messageId: source.messageId,
           quality: "medium",
           plan: scenePlan,
+          // Cost-cohort evidence: exact identity-reference pricing input
+          // (layout template excluded), once per provider request.
+          identityReferenceCount,
+          referenceSurchargePoints: resolveImageIdentityReferenceSurcharge(identityReferenceCount),
         },
         resultUrl,
         upstreamCostUsd: totalCostUsd,
