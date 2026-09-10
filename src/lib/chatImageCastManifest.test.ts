@@ -341,7 +341,12 @@ describe("chatImageCastManifest", () => {
     assert.equal(grounded.ok, true);
     if (!grounded.ok) throw new Error(grounded.reason);
     const bound = bindApprovedCastManifest(grounded.manifest);
-    assert.equal(bound.referenceUrls.length, 3);
+    assert.equal(bound.referenceUrls.length, 4);
+    assert.deepEqual(bound.referenceUrls, [PERSONA_URL, MAIN_URL, SUPPORT_URL, ASSET_B]);
+    assert.deepEqual(
+      bound.subjects.map((subject) => subject.referenceIndex),
+      [1, 2, 3, 4]
+    );
     assert.ok(
       bound.selected.some((subject) => subject.importance !== "primary"),
       "overflow cast should downgrade to secondary/background"

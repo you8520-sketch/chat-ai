@@ -282,17 +282,9 @@ describe("general chat optional multi-cast selector — product contract", () =>
       if (url === PERSONA_URL || url === MAIN_URL) continue;
       assert.ok(url.startsWith("/synthetic/support-"));
     }
-    // INVESTIGATION NOTE (current implementation, NOT a product invariant):
-    // supporting identity references are currently capped at
-    // CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP=3, so the 4th selected cast member
-    // is attached without its own reference image. Raising 3->4 is an approved
-    // follow-up (4th identity ref + additional-person surcharge); this PR pins
-    // no cap value.
   });
 
-  it("CAST-REF-2 max selected = 4 is the product contract; 4th identity ref is an approved follow-up", () => {
-    // PRODUCT CONTRACT: up to 4 selected cast members are always valid,
-    // regardless of the identity-reference cap value.
+  it("CAST-REF-2 four selected cast members attach four physical identity references in order", () => {
     const grounded = groundCastIntent(
       { ...coreIntent(), subjects: addSupport(2) },
       castContext(2)
@@ -303,14 +295,18 @@ describe("general chat optional multi-cast selector — product contract", () =>
       grounded.manifest.subjects.filter((subject) => subject.included).length,
       4
     );
-    // COST FACT: reference images are billed as image input tokens
-    // (usage.input_tokens_details.image_tokens). A 4th identity reference adds
-    // upstream input cost, absorbed by an additional-person point surcharge
-    // (approved FOLLOW-UP; surcharge value TBD — not set in this PR).
-    const edit = readFileSync("src/lib/openAiImageEdit.ts", "utf8");
-    assert.ok(edit.includes("input_tokens_details"));
-    // CURRENT: 4 selected / max 3 identity refs (implementation detail)
-    // FOLLOW-UP: 4th identity ref + additional-person surcharge
+    const bound = bindApprovedCastManifest(grounded.manifest);
+    // 4 physical provider attachments: persona, main, support1, support2.
+    assert.deepEqual(bound.referenceUrls, [
+      PERSONA_URL,
+      MAIN_URL,
+      "/synthetic/support-1.webp",
+      "/synthetic/support-2.webp",
+    ]);
+    assert.deepEqual(
+      bound.subjects.map((subject) => subject.referenceIndex),
+      [1, 2, 3, 4]
+    );
   });
 
   it("CAST-REF-3 attached-reference loop has no client-side upper cap (provider transport proven)", () => {

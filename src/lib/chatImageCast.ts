@@ -6,8 +6,21 @@
 import type { ContentKind } from "@/lib/simulationMode";
 import { resolveVisualSubjectByName, type VisualSubject } from "@/lib/visualSubjects";
 
+/**
+ * Product contract: up to CHAT_IMAGE_CAST_MAX_SELECTED cast members may be
+ * selected, and each validated supporting identity gets a PHYSICAL provider
+ * reference attachment up to this budget. persona + main always attach, then
+ * supporting subjects attach in importance order until the budget is reached.
+ * This is an attachment/transport budget, not a fidelity guarantee.
+ */
+export const CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP = 4;
+/**
+ * Fidelity guarantee policy: for 4+ person scenes at most this many subjects
+ * (persona + main + the highest-priority supporting) are promised exact
+ * HIGH FIDELITY identity. The remaining attached references stay recognizable
+ * (SECONDARY). This is intentionally lower than the physical reference budget.
+ */
 export const CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP = 3;
-export const CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP = 3;
 export const CHAT_IMAGE_CAST_MAX_SELECTED = 4;
 export const CHAT_IMAGE_CAST_FOUR_PLUS_WARNING =
   "4인 장면은 일부 인물의 외형 정확도가 낮아질 수 있습니다.";
