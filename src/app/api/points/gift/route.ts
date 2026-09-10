@@ -61,7 +61,9 @@ export async function POST(req: Request) {
           ? 402
           : err.code === "RECIPIENT_NOT_FOUND" || err.code === "RECIPIENT_REQUIRED"
             ? 404
-            : 400;
+            : err.code === "IDEMPOTENCY_CONFLICT"
+              ? 409
+              : 400;
       return NextResponse.json(
         {
           error: err.message,

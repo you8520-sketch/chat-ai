@@ -13,9 +13,11 @@ import { claimDailyAttendance } from "./attendance";
 import { giftPoints, PointGiftError } from "./pointGifts";
 import {
   computeGiftBreakdown,
+  estimateGiftBreakdown,
   MIN_POINT_GIFT_AMOUNT,
   POINT_GIFT_FEE_RATE_FREE,
   POINT_GIFT_FEE_RATE_PAID,
+  resolveGiftMutationKey,
 } from "./pointGiftsShared";
 import { refundMessageDeduction } from "./refund";
 
@@ -84,6 +86,10 @@ function daysUntilExpiry(expiresAt: string): number {
 
 function isAttendanceError(err: unknown): boolean {
   return err instanceof PointGiftError && (err as { code?: unknown }).code === "ATTENDANCE_NOT_GIFTABLE";
+}
+
+function isIdempotencyConflict(err: unknown): boolean {
+  return err instanceof PointGiftError && (err as { code?: unknown }).code === "IDEMPOTENCY_CONFLICT";
 }
 
 describe("point policy unification — canonical durations", () => {
@@ -336,6 +342,9 @@ describe("point policy unification — gift idempotency and serialization", () =
 
 describe("point policy unification — expiry laundering boundary", () => {
   it("LAUND-1 nearly-expired free gift yields fresh 1y PAID for recipient; sender lot consumed", () => {
+    // PRESERVED (not removed): generic gift recipient가 fresh PAID credit을
+    // 받는 기존 semantics를 의도적으로 유지. REMOVED는 attendance gift
+    // launderingのみ. "gift laundering 전체 해결"로 표현하지 않는다.
     const sender = createTestUser("laund_s");
     const recipient = createTestUser("laund_r");
     creditPoints(sender.id, 500, "FREE", "pptest generic free");
@@ -413,6 +422,9 @@ describe("point policy unification — refund provenance", () => {
   });
 
   it("REFUND-2 refund of an expired attendance spend restores attendance 30d, not generic", () => {
+    // Provenance는 보존되나 expiry preservation은 아니다 (fresh 30d).
+    // BEFORE도 fresh-validity였으므로 PR은 invariant를 유지한 것이며,
+    // 만료보존(A)/보상크레딧(B)/별도정책(C) 선택은 제품 결정 대기 중.
     const user = createTestUser("refund_att");
     claimDailyAttendance(user.id);
     const before = userLots(user.id);
@@ -440,5 +452,320 @@ describe("point policy unification — refund provenance", () => {
         }),
       isAttendanceError
     );
+  });
+});
+
+describe("point policy unification — legacy attendance provenance (BLOCKED)", () => {
+  it("LEGACY-1 (BLOCKED repro) legacy NULL-source attendance-style lot is still giftable — backfill pending, NOT approved behavior", () => {
+    // Root-cause proof for BLOCKER 1: migration 이전 출석 grant는 source
+    // 컬럼/파라미터 자체가 없어 point_transactions에 provenance 없이
+    // FREE lot으로만 남는다. attendance_checkins와의 연결고리(FK)가 없고,
+    // reason 문자열 + 일자/금액 일치는 admin 임의 지급·당일 동액 지급·
+    // 부분 사용 등으로 오탐이 가능해 100% deterministic 식별이 불가하다.
+    // 따라서 heuristic backfill을 구현하지 않으며, 이 fixture는 열린
+    // 결함을 재현한다 (통과 = 결함 현존, 승인 의미 아님).
+    const sender = createTestUser("legacy_s");
+    const recipient = createTestUser("legacy_r");
+    const db = getDb();
+    db.prepare(
+      "INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at) VALUES (?, 'FREE', 250, datetime('now','+30 days'))"
+    ).run(sender.id);
+    db.prepare("INSERT INTO point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
+      sender.id,
+      250,
+      "주간 출석 1일차 보상 (+250P)"
+    );
+    db.prepare(
+      "INSERT OR IGNORE INTO attendance_checkins (user_id, attendance_date, streak, reward_points) VALUES (?,?,?,?)"
+    ).run(sender.id, new Date().toISOString().slice(0, 10), 1, 250);
+
+    const result = giftPoints(sender.id, { recipientNickname: recipient.nickname, amount: 250 });
+    assert.equal(result.breakdown.gross, 250);
+    assert.equal(result.breakdown.net, 200);
+    assert.equal(getPointBalance(sender.id).total, 0);
+    assert.equal(getPointBalance(recipient.id).total, 200);
+  });
+});
+
+describe("point policy unification — sender-scoped gift idempotency", () => {
+  it("IDEM-X1 cross-sender same key stays independent (no global UNIQUE)", () => {
+    const a = createTestUser("xsidemp_a");
+    const b = createTestUser("xsidemp_b");
+    const r = createTestUser("xsidemp_r");
+    creditPoints(a.id, 500, "PAID", "pptest paid");
+    creditPoints(b.id, 500, "PAID", "pptest paid");
+    const key = `pptest_${TAG}_xsend`;
+    const first = giftPoints(a.id, {
+      recipientNickname: r.nickname,
+      amount: 100,
+      clientMutationId: key,
+    });
+    const second = giftPoints(b.id, {
+      recipientNickname: r.nickname,
+      amount: 100,
+      clientMutationId: key,
+    });
+    assert.notEqual(second.giftId, first.giftId);
+    assert.equal(getPointBalance(a.id).total, 400);
+    assert.equal(getPointBalance(b.id).total, 400);
+    assert.equal(getPointBalance(r.id).total, 180);
+  });
+
+  it("IDEM-X2 same sender same key same payload replays across identifier forms", () => {
+    const sender = createTestUser("idemform_s");
+    const recipient = createTestUser("idemform_r");
+    creditPoints(sender.id, 1000, "PAID", "pptest paid");
+    const key = `pptest_${TAG}_idemform`;
+    const first = giftPoints(sender.id, {
+      recipientNickname: recipient.nickname,
+      amount: 100,
+      clientMutationId: key,
+    });
+    const second = giftPoints(sender.id, {
+      recipientId: recipient.id,
+      amount: 100,
+      clientMutationId: key,
+    });
+    assert.equal(second.giftId, first.giftId);
+    assert.equal(getPointBalance(sender.id).total, 900);
+    assert.equal(getPointBalance(recipient.id).total, 90);
+  });
+
+  it("IDEM-X3 same sender same key different amount is a conflict, not a silent replay", () => {
+    const sender = createTestUser("idemamt_s");
+    const recipient = createTestUser("idemamt_r");
+    creditPoints(sender.id, 1000, "PAID", "pptest paid");
+    const key = `pptest_${TAG}_idemamt`;
+    const first = giftPoints(sender.id, {
+      recipientNickname: recipient.nickname,
+      amount: 100,
+      clientMutationId: key,
+    });
+    assert.throws(
+      () =>
+        giftPoints(sender.id, {
+          recipientNickname: recipient.nickname,
+          amount: 200,
+          clientMutationId: key,
+        }),
+      isIdempotencyConflict
+    );
+    assert.equal(getPointBalance(sender.id).total, 900);
+    assert.equal(getPointBalance(recipient.id).total, 90);
+    const giftRows = getDb()
+      .prepare("SELECT COUNT(*) AS c FROM point_gifts WHERE sender_id=? AND recipient_id=?")
+      .get(sender.id, recipient.id) as { c: number };
+    assert.equal(giftRows.c, 1);
+    assert.equal(first.breakdown.gross, 100);
+  });
+
+  it("IDEM-X4 same sender same key different recipient is a conflict with zero debit", () => {
+    const sender = createTestUser("idemrcp_s");
+    const r1 = createTestUser("idemrcp_r1");
+    const r2 = createTestUser("idemrcp_r2");
+    creditPoints(sender.id, 1000, "PAID", "pptest paid");
+    const key = `pptest_${TAG}_idemrcp`;
+    giftPoints(sender.id, {
+      recipientNickname: r1.nickname,
+      amount: 100,
+      clientMutationId: key,
+    });
+    assert.throws(
+      () =>
+        giftPoints(sender.id, {
+          recipientNickname: r2.nickname,
+          amount: 100,
+          clientMutationId: key,
+        }),
+      isIdempotencyConflict
+    );
+    assert.equal(getPointBalance(sender.id).total, 900);
+    assert.equal(getPointBalance(r1.id).total, 90);
+    assert.equal(getPointBalance(r2.id).total, 0);
+  });
+
+  it("IDEM-X5 sequential over-balance attempts with keys leave exact balances", () => {
+    const sender = createTestUser("overkey_s");
+    const recipient = createTestUser("overkey_r");
+    creditPoints(sender.id, 300, "PAID", "pptest paid");
+    giftPoints(sender.id, {
+      recipientNickname: recipient.nickname,
+      amount: 200,
+      clientMutationId: `pptest_${TAG}_over1`,
+    });
+    assert.throws(
+      () =>
+        giftPoints(sender.id, {
+          recipientNickname: recipient.nickname,
+          amount: 200,
+          clientMutationId: `pptest_${TAG}_over2`,
+        }),
+      PointGiftError
+    );
+    assert.equal(getPointBalance(sender.id).total, 100);
+    assert.equal(getPointBalance(recipient.id).total, 180);
+    const lots = userLots(sender.id);
+    assert.ok(lots.every((lot) => lot.remaining_amount >= -0.001));
+    const giftRows = getDb()
+      .prepare("SELECT COUNT(*) AS c FROM point_gifts WHERE sender_id=?")
+      .get(sender.id) as { c: number };
+    assert.equal(giftRows.c, 1);
+  });
+});
+
+describe("point policy unification — mutation-intent key lifecycle", () => {
+  it("KEY-1 identical payload reuses the in-flight key (double-click/retry safe)", () => {
+    let n = 0;
+    const gen = () => `k${(n += 1)}`;
+    const first = resolveGiftMutationKey(null, "id:7", 100, gen);
+    assert.equal(first.key, "k1");
+    const second = resolveGiftMutationKey(first, "id:7", 100, gen);
+    assert.equal(second.key, "k1");
+    assert.equal(n, 1);
+  });
+
+  it("KEY-2 changed amount or recipient rotates the intent key", () => {
+    let n = 0;
+    const gen = () => `k${(n += 1)}`;
+    const first = resolveGiftMutationKey(null, "id:7", 100, gen);
+    const changedAmount = resolveGiftMutationKey(first, "id:7", 200, gen);
+    assert.equal(changedAmount.key, "k2");
+    const changedRecipient = resolveGiftMutationKey(first, "id:8", 100, gen);
+    assert.equal(changedRecipient.key, "k3");
+  });
+});
+
+describe("point policy unification — refund expiry boundary (POLICY PENDING)", () => {
+  it("REFUND-X1 expired generic FREE spend restores giftable generic FREE (duration pending product decision)", () => {
+    // BEFORE(=origin/main): 만료 롯 환불도 fresh 2y generic FREE로 재생성.
+    // PR: provenance 보존 + 기간만 1y로 정정. 즉 fresh-validity 자체는
+    // BEFORE invariant 유지이며, 만료보존(A)/보상크레딧(B)/별도정책(C)
+    // 중 무엇을 정답으로 볼지는 제품 결정 전이므로 이 fixture는 현행
+    // 동작을 고정하되 정답으로 승인하지 않는다.
+    const user = createTestUser("refund_free");
+    creditPoints(user.id, 500, "FREE", "pptest generic free");
+    const before = userLots(user.id);
+    assert.equal(before.length, 1);
+    const deducted = deductPoints(user.id, 200, "pptest spend");
+    assert.equal(deducted.slices.length, 1);
+    getDb()
+      .prepare("UPDATE point_transactions SET expires_at=datetime('now','-1 day') WHERE id=?")
+      .run(before[0]!.id);
+
+    refundMessageDeduction(user.id, FAKE_MESSAGE_ID, deducted.slices, 200, "pptest refund");
+    const after = userLots(user.id).filter((lot) => lot.remaining_amount > 0);
+    const restored = after.find((lot) => lot.remaining_amount === 200);
+    assert.ok(restored, "restored 200 lot exists alongside the expired original");
+    assert.equal(restored.point_type, "FREE");
+    assert.ok(
+      Math.abs(daysUntilExpiry(restored.expires_at) - 365) < 4,
+      `restored expires_at=${restored.expires_at}, currently fresh ~1y (POLICY PENDING)`
+    );
+    const db = getDb();
+    const sourceRow = db
+      .prepare("SELECT COALESCE(source,'') AS source FROM point_transactions WHERE id=?")
+      .get(
+        (
+          db
+            .prepare("SELECT id FROM point_transactions WHERE user_id=? AND remaining_amount=200 ORDER BY id DESC LIMIT 1")
+            .get(user.id) as { id: number }
+        ).id
+      ) as { source: string };
+    assert.notEqual(sourceRow.source, "attendance");
+    const giftRecipient = createTestUser("refund_free_r");
+    const gift = giftPoints(user.id, {
+      recipientNickname: giftRecipient.nickname,
+      amount: 200,
+    });
+    assert.equal(gift.breakdown.net, 160);
+  });
+});
+
+describe("point policy unification — schema owner and request-path purity", () => {
+  it("SCHEMA-1 central migration owns all gift columns and the sender-scoped idempotency index", () => {
+    const db = getDb();
+    const cols = db.prepare("PRAGMA table_info(point_gifts)").all() as { name: string }[];
+    const names = new Set(cols.map((c) => c.name));
+    for (const col of [
+      "client_mutation_id",
+      "paid_gross_amount",
+      "free_gross_amount",
+      "paid_fee_amount",
+      "free_fee_amount",
+    ]) {
+      assert.ok(names.has(col), `point_gifts.${col} owned by central migration`);
+    }
+    const indexes = db
+      .prepare("SELECT name, sql FROM sqlite_master WHERE type='index' AND tbl_name='point_gifts'")
+      .all() as { name: string; sql: string }[];
+    const byName = new Map(indexes.map((i) => [i.name, i.sql]));
+    assert.ok(byName.has("idx_point_gifts_sender_mutation"), "sender-scoped idempotency index exists");
+    assert.ok(
+      !byName.has("idx_point_gifts_client_mutation"),
+      "legacy global UNIQUE(client_mutation_id) is gone"
+    );
+  });
+
+  it("SCHEMA-2 normal gift performs no runtime ALTER (no request-path schema mutation)", () => {
+    const sender = createTestUser("noalter_s");
+    const recipient = createTestUser("noalter_r");
+    creditPoints(sender.id, 500, "PAID", "pptest paid");
+    const db = getDb();
+    const originalExec = db.exec;
+    const seen: string[] = [];
+    (db as unknown as { exec: (sql: string) => unknown }).exec = (sql: string) => {
+      seen.push(sql);
+      return (originalExec as (sql: string) => unknown).call(db, sql);
+    };
+    try {
+      giftPoints(sender.id, {
+        recipientNickname: recipient.nickname,
+        amount: 100,
+        clientMutationId: `pptest_${TAG}_noalter`,
+      });
+    } finally {
+      (db as unknown as { exec: (sql: string) => unknown }).exec = originalExec as (
+        sql: string
+      ) => unknown;
+    }
+    assert.equal(
+      seen.filter((sql) => /alter\s+table/i.test(sql)).length,
+      0,
+      `unexpected runtime DDL: ${JSON.stringify(seen)}`
+    );
+  });
+});
+
+describe("point policy unification — server-authoritative commit over stale preview", () => {
+  it("PREVIEW-1 stale client preview (total FREE) cannot move attendance; commit uses the giftable split", () => {
+    const sender = createTestUser("stale_s");
+    const recipient = createTestUser("stale_r");
+    const claimed = claimDailyAttendance(sender.id);
+    assert.equal(claimed.alreadyClaimed, false);
+    creditPoints(sender.id, 500, "FREE", "pptest generic free");
+    const lotsBefore = userLots(sender.id);
+    const attendanceLot = lotsBefore[0]!;
+
+    // Stale client math built on total FREE (attendance included).
+    const stalePreview = estimateGiftBreakdown(
+      400,
+      getPointBalance(sender.id).free,
+      getPointBalance(sender.id).paid
+    );
+    assert.equal(stalePreview.freeGross, 400);
+
+    const result = giftPoints(sender.id, { recipientNickname: recipient.nickname, amount: 400 });
+    assert.equal(result.breakdown.freeGross, 400);
+    assert.equal(result.breakdown.paidGross, 0);
+    assert.equal(result.breakdown.fee, 80);
+    assert.equal(result.breakdown.net, 320);
+
+    const lotsAfter = userLots(sender.id);
+    assert.equal(
+      lotsAfter.find((lot) => lot.id === attendanceLot.id)!.remaining_amount,
+      attendanceLot.remaining_amount,
+      "attendance lot untouched by server commit"
+    );
+    assert.equal(getPointBalance(recipient.id).total, 320);
   });
 });

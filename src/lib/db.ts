@@ -1456,9 +1456,25 @@ function migrate(db: Database.Database) {
   `);
   /** Gift idempotency key — additive, nullable; NULL rows never conflict. */
   addColumn("point_gifts", "client_mutation_id", "TEXT");
+  /**
+   * Canonical gift breakdown owner (server-authoritative fee/gross split).
+   * Previously created lazily in the gift request path / finance ensure —
+   * now owned here so no request ever mutates schema.
+   */
+  addColumn("point_gifts", "paid_fee_amount", "REAL NOT NULL DEFAULT 0");
+  addColumn("point_gifts", "free_fee_amount", "REAL NOT NULL DEFAULT 0");
+  addColumn("point_gifts", "paid_gross_amount", "REAL NOT NULL DEFAULT 0");
+  addColumn("point_gifts", "free_gross_amount", "REAL NOT NULL DEFAULT 0");
+  /**
+   * Sender-scoped idempotency contract: the code replays on
+   * (sender_id, client_mutation_id), so the DB guard must match exactly.
+   * Replaces the legacy global UNIQUE(client_mutation_id), which wrongly
+   * rejected independent gifts from different senders sharing a key.
+   */
+  db.exec(`DROP INDEX IF EXISTS idx_point_gifts_client_mutation`);
   db.exec(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_point_gifts_client_mutation
-      ON point_gifts(client_mutation_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_point_gifts_sender_mutation
+      ON point_gifts(sender_id, client_mutation_id);
   `);
   addColumn("users", "creator_comments_enabled", "INTEGER NOT NULL DEFAULT 1");
   /** Creator inbox: notify when someone likes their character (1=on). */

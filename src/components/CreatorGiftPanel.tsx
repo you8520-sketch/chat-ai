@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   estimateGiftBreakdown,
   MIN_POINT_GIFT_AMOUNT,
   POINT_GIFT_FEE_RATE_FREE,
   POINT_GIFT_FEE_RATE_PAID,
+  resolveGiftMutationKey,
+  type GiftMutationIntent,
 } from "@/lib/pointGiftsShared";
 import { isPaymentsEnabledClient } from "@/lib/paymentsEnabledClient";
 
@@ -59,6 +61,8 @@ export default function CreatorGiftPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  /** Mutation-intent key: stable across double-click/retry of the same submit. */
+  const mutationKeyRef = useRef<GiftMutationIntent | null>(null);
 
   const totalPoints = paidPoints + freePoints;
   const giftableFree = giftableFreePoints ?? freePoints;
@@ -85,6 +89,7 @@ export default function CreatorGiftPanel({
     setAmount("");
     setError("");
     setSuccess("");
+    mutationKeyRef.current = null;
   }
 
   function closeModal() {
@@ -119,10 +124,18 @@ export default function CreatorGiftPanel({
     setError("");
     setSuccess("");
 
-    const clientMutationId =
+    const generateKey =
       typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+        ? () => crypto.randomUUID()
+        : () => `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+    const intent = resolveGiftMutationKey(
+      mutationKeyRef.current,
+      `id:${recipientId}`,
+      gross,
+      generateKey
+    );
+    mutationKeyRef.current = intent;
+    const clientMutationId = intent.key;
     const res = await fetch("/api/points/gift", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -132,6 +145,7 @@ export default function CreatorGiftPanel({
     setLoading(false);
 
     if (res.ok) {
+      mutationKeyRef.current = null;
       setSuccess(
         `@${data.recipientNickname ?? recipientNickname}님에게 ${data.net.toLocaleString()}P를 선물했습니다.`
       );

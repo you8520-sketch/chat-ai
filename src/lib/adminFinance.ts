@@ -164,13 +164,8 @@ export function ensureAdminFinanceTables(db: Database.Database = getDb()) {
       );
     }
   }
-  const giftColumns = tableColumns("point_gifts");
-  if (!giftColumns.has("paid_fee_amount")) {
-    db.exec("ALTER TABLE point_gifts ADD COLUMN paid_fee_amount REAL NOT NULL DEFAULT 0");
-  }
-  if (!giftColumns.has("free_fee_amount")) {
-    db.exec("ALTER TABLE point_gifts ADD COLUMN free_fee_amount REAL NOT NULL DEFAULT 0");
-  }
+  // Gift breakdown columns (paid/free fee + gross) are owned by the central
+  // migration in db.ts — never mutated from this request-adjacent ensure path.
 }
 
 export function estimateApiCostUsd(input: {

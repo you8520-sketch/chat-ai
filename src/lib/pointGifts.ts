@@ -54,6 +54,7 @@ export class PointGiftError extends Error {
       | "INSUFFICIENT_POINTS"
       | "ATTENDANCE_NOT_GIFTABLE"
       | "RECIPIENT_REQUIRED"
+      | "IDEMPOTENCY_CONFLICT"
   ) {
     super(message);
     this.name = "PointGiftError";
@@ -265,7 +266,9 @@ export function giftPoints(
     recipientId?: number;
     recipientNickname?: string;
     amount: number;
-    /** Idempotency key — same sender+key replays the original gift without re-debit. */
+    /** Idempotency key — scoped to the sender. Same sender+key+payload replays
+     * the original gift without re-debit; same sender+key with a different
+     * recipient/amount is rejected (IDEMPOTENCY_CONFLICT). */
     clientMutationId?: string;
   }
 ): GiftResult {
@@ -280,6 +283,14 @@ export function giftPoints(
 
   const db = getDb();
   return db.transaction(() => {
+    const recipient = resolveRecipient(db, opts);
+    if (!recipient) {
+      throw new PointGiftError("받는 사람을 찾을 수 없습니다.", "RECIPIENT_NOT_FOUND");
+    }
+    if (recipient.id === senderId) {
+      throw new PointGiftError("본인에게는 선물할 수 없습니다.", "SELF_GIFT");
+    }
+
     if (clientMutationId) {
       const existing = db
         .prepare(
@@ -301,13 +312,24 @@ export function giftPoints(
           }
         | undefined;
       if (existing) {
-        const recipientRow = db
-          .prepare("SELECT nickname FROM users WHERE id=?")
-          .get(existing.recipient_id) as { nickname: string } | undefined;
+        // Same sender + same key: only an identical payload replays.
+        // A reused key with a different recipient/amount is a key-reuse bug
+        // across distinct intents — reject loudly instead of silently
+        // echoing the old gift (settlement precedent replays because its keys
+        // are server-deterministic per turn; gift keys are client-random per
+        // intent, so mismatch cannot be a legitimate retry).
+        const sameRecipient = existing.recipient_id === recipient.id;
+        const sameGross = roundAmount(existing.gross_amount) === roundAmount(gross);
+        if (!sameRecipient || !sameGross) {
+          throw new PointGiftError(
+            "이미 사용된 선물 요청 키입니다. 새로 선물하려면 다시 시도해 주세요.",
+            "IDEMPOTENCY_CONFLICT"
+          );
+        }
         return {
           giftId: existing.id,
           recipientId: existing.recipient_id,
-          recipientNickname: recipientRow?.nickname ?? "익명",
+          recipientNickname: recipient.nickname,
           breakdown: {
             gross: roundAmount(existing.gross_amount),
             fee: roundAmount(existing.fee_amount),
@@ -320,14 +342,6 @@ export function giftPoints(
           senderBalance: getPointBalance(senderId),
         };
       }
-    }
-
-    const recipient = resolveRecipient(db, opts);
-    if (!recipient) {
-      throw new PointGiftError("받는 사람을 찾을 수 없습니다.", "RECIPIENT_NOT_FOUND");
-    }
-    if (recipient.id === senderId) {
-      throw new PointGiftError("본인에게는 선물할 수 없습니다.", "SELF_GIFT");
     }
 
     // 출석 포인트는 선물 불가 — giftable(출석 제외) 기준으로 판정한다.
@@ -356,25 +370,7 @@ export function giftPoints(
     const recipientReason = `포인트 선물 수령 (${breakdown.net}P)`;
     creditPaidPointsInTx(db, recipient.id, breakdown.net, recipientReason);
 
-    const giftColumns = db.prepare("PRAGMA table_info(point_gifts)").all() as {
-      name: string;
-    }[];
-    const giftColumnNames = new Set(giftColumns.map((column) => column.name));
-    if (!giftColumnNames.has("paid_fee_amount")) {
-      db.exec("ALTER TABLE point_gifts ADD COLUMN paid_fee_amount REAL NOT NULL DEFAULT 0");
-    }
-    if (!giftColumnNames.has("free_fee_amount")) {
-      db.exec("ALTER TABLE point_gifts ADD COLUMN free_fee_amount REAL NOT NULL DEFAULT 0");
-    }
-    if (!giftColumnNames.has("paid_gross_amount")) {
-      db.exec("ALTER TABLE point_gifts ADD COLUMN paid_gross_amount REAL NOT NULL DEFAULT 0");
-    }
-    if (!giftColumnNames.has("free_gross_amount")) {
-      db.exec("ALTER TABLE point_gifts ADD COLUMN free_gross_amount REAL NOT NULL DEFAULT 0");
-    }
-    if (!giftColumnNames.has("client_mutation_id")) {
-      db.exec("ALTER TABLE point_gifts ADD COLUMN client_mutation_id TEXT");
-    }
+    // Schema is owned by the central migration (db.ts) — no request-path ALTER.
     const gift = db
       .prepare(
         `INSERT INTO point_gifts

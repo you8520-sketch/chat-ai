@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AttendanceBanner from "@/components/AttendanceBanner";
 import ChargeCancelButton from "@/components/ChargeCancelButton";
@@ -21,6 +21,8 @@ import {
   MIN_POINT_GIFT_AMOUNT,
   POINT_GIFT_FEE_RATE_FREE,
   POINT_GIFT_FEE_RATE_PAID,
+  resolveGiftMutationKey,
+  type GiftMutationIntent,
 } from "@/lib/pointGiftsShared";
 import { cn, studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
 
@@ -196,6 +198,8 @@ export default function PointsClient({
   const [error, setError] = useState("");
   const [giftNickname, setGiftNickname] = useState("");
   const [giftAmount, setGiftAmount] = useState("");
+  /** Mutation-intent key: stable across double-click/retry of the same submit. */
+  const giftMutationKeyRef = useRef<GiftMutationIntent | null>(null);
   const [historyTab, setHistoryTab] = useState<HistoryTab>("usage");
   const [usageLogs, setUsageLogs] = useState(initialUsageLogs);
   const [usagePage, setUsagePage] = useState(initialUsagePage);
@@ -392,10 +396,18 @@ export default function PointsClient({
     setLoading("gift");
     setError("");
     setMsg("");
-    const clientMutationId =
+    const generateKey =
       typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+        ? () => crypto.randomUUID()
+        : () => `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+    const intent = resolveGiftMutationKey(
+      giftMutationKeyRef.current,
+      `nick:${giftNickname.trim().toLowerCase()}`,
+      amount,
+      generateKey
+    );
+    giftMutationKeyRef.current = intent;
+    const clientMutationId = intent.key;
     const res = await fetch("/api/points/gift", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -404,6 +416,7 @@ export default function PointsClient({
     setLoading("");
     const data = await res.json();
     if (res.ok) {
+      giftMutationKeyRef.current = null;
       setMsg(
         `${data.recipientNickname}님에게 ${data.net.toLocaleString()}P를 선물했습니다. (차감 ${data.gross.toLocaleString()}P, 수수료 ${data.fee.toLocaleString()}P)`
       );
