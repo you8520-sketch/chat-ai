@@ -146,7 +146,7 @@ test(
 
     active.end(activeBody.slice(1));
     const completed = await activeResponse;
-    assert.ok(completed.status >= 400, `provider-free active request should fail closed: ${completed.status}`);
+    assert.equal(completed.status, 200, "the existing active stream must be allowed to finish");
 
     const [exitCode, signal] = await waitForChildExit(child, output);
     assert.equal(exitCode, 0, output.join(""));
