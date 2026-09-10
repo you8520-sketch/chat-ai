@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import {
   ATTENDANCE_CYCLE_DAYS,
+  ATTENDANCE_POINTS_VALID_DAYS,
   attendanceRewardForDay,
   formatAttendanceDayRewardLabel,
 } from "@/lib/attendanceConstants";
@@ -97,7 +98,7 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
         })}
       </div>
       <p className="mt-2 text-[11px] text-zinc-400">
-        출석 포인트는 지급일로부터 1개월 유효합니다. 연속으로 못 나와도 이번 주 N번째 출석이 N일차
+        출석 포인트는 지급일로부터 {ATTENDANCE_POINTS_VALID_DAYS}일 유효합니다. 연속으로 못 나와도 이번 주 N번째 출석이 N일차
         보상을 받으며, 새 주(월요일)마다 1일차부터 다시 시작합니다.
       </p>
 

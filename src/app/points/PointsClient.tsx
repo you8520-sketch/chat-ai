@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AttendanceBanner from "@/components/AttendanceBanner";
 import ChargeCancelButton from "@/components/ChargeCancelButton";
@@ -14,13 +14,15 @@ import {
 } from "@/lib/pointUsageLog";
 import { POINT_USAGE_HASH } from "@/lib/pointUi";
 import { FREE_POINTS_VALID_YEARS, POINT_CHARGE_PACKAGES } from "@/lib/plans";
-import { ATTENDANCE_POINTS_VALID_MONTHS } from "@/lib/attendanceConstants";
+import { ATTENDANCE_POINTS_VALID_DAYS } from "@/lib/attendanceConstants";
 import { runPortOnePointCharge } from "@/lib/portoneBrowser";
 import {
   estimateGiftBreakdown,
   MIN_POINT_GIFT_AMOUNT,
   POINT_GIFT_FEE_RATE_FREE,
   POINT_GIFT_FEE_RATE_PAID,
+  resolveGiftMutationKey,
+  type GiftMutationIntent,
 } from "@/lib/pointGiftsShared";
 import { cn, studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
 
@@ -145,6 +147,8 @@ export default function PointsClient({
   points,
   paidPoints,
   freePoints,
+  giftableFreePoints,
+  attendanceFreePoints = 0,
   usageLogs: initialUsageLogs,
   usagePage: initialUsagePage,
   usageTotal: initialUsageTotal,
@@ -167,6 +171,8 @@ export default function PointsClient({
   points: number;
   paidPoints: number;
   freePoints: number;
+  giftableFreePoints?: number;
+  attendanceFreePoints?: number;
   usageLogs: PointUsageLog[];
   usagePage: number;
   usageTotal: number;
@@ -192,6 +198,8 @@ export default function PointsClient({
   const [error, setError] = useState("");
   const [giftNickname, setGiftNickname] = useState("");
   const [giftAmount, setGiftAmount] = useState("");
+  /** Mutation-intent key: stable across double-click/retry of the same submit. */
+  const giftMutationKeyRef = useRef<GiftMutationIntent | null>(null);
   const [historyTab, setHistoryTab] = useState<HistoryTab>("usage");
   const [usageLogs, setUsageLogs] = useState(initialUsageLogs);
   const [usagePage, setUsagePage] = useState(initialUsagePage);
@@ -287,7 +295,8 @@ export default function PointsClient({
   const giftPreview = (() => {
     const n = Number(giftAmount);
     if (!Number.isFinite(n) || n <= 0) return null;
-    return estimateGiftBreakdown(n, freePoints, paidPoints);
+    const giftableFree = giftableFreePoints ?? freePoints;
+    return estimateGiftBreakdown(n, giftableFree, paidPoints);
   })();
   const feePctPaid = Math.round(POINT_GIFT_FEE_RATE_PAID * 100);
   const feePctFree = Math.round(POINT_GIFT_FEE_RATE_FREE * 100);
@@ -372,12 +381,13 @@ export default function PointsClient({
       return;
     }
 
-    const preview = estimateGiftBreakdown(amount, freePoints, paidPoints);
+    const giftableFree = giftableFreePoints ?? freePoints;
+    const preview = estimateGiftBreakdown(amount, giftableFree, paidPoints);
     if (
       !confirm(
         `${giftNickname.trim()}님에게 포인트를 선물할까요?\n\n차감: ${preview.gross.toLocaleString()}P\n` +
           `(유료 ${preview.paidGross.toLocaleString()}P·수수료 ${feePctPaid}% / 무료 ${preview.freeGross.toLocaleString()}P·수수료 ${feePctFree}%)\n` +
-          `수수료 합계: ${preview.fee.toLocaleString()}P\n상대 수령: ${preview.net.toLocaleString()}P\n\n※ 실제 차감은 만료 임박·무료 우선입니다.`
+          `수수료 합계: ${preview.fee.toLocaleString()}P\n상대 수령: ${preview.net.toLocaleString()}P\n\n※ 실제 차감은 만료 임박·무료 우선이며, 출석 포인트는 선물할 수 없습니다.`
       )
     ) {
       return;
@@ -386,14 +396,27 @@ export default function PointsClient({
     setLoading("gift");
     setError("");
     setMsg("");
+    const generateKey =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? () => crypto.randomUUID()
+        : () => `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+    const intent = resolveGiftMutationKey(
+      giftMutationKeyRef.current,
+      `nick:${giftNickname.trim().toLowerCase()}`,
+      amount,
+      generateKey
+    );
+    giftMutationKeyRef.current = intent;
+    const clientMutationId = intent.key;
     const res = await fetch("/api/points/gift", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipientNickname: giftNickname.trim(), amount }),
+      body: JSON.stringify({ recipientNickname: giftNickname.trim(), amount, clientMutationId }),
     });
     setLoading("");
     const data = await res.json();
     if (res.ok) {
+      giftMutationKeyRef.current = null;
       setMsg(
         `${data.recipientNickname}님에게 ${data.net.toLocaleString()}P를 선물했습니다. (차감 ${data.gross.toLocaleString()}P, 수수료 ${data.fee.toLocaleString()}P)`
       );
@@ -413,8 +436,10 @@ export default function PointsClient({
           <p className="text-3xl font-semibold tabular-nums text-zinc-50">{points.toLocaleString()}P</p>
         </PointsBalanceTooltip>
         <p className={`mt-2 ${studioType.caption}`}>
-          유료·무료(충전 보너스·이벤트) 포인트는 <b className="text-zinc-300">{FREE_POINTS_VALID_YEARS}년</b>, 출석 포인트는{" "}
-          <b className="text-zinc-300">{ATTENDANCE_POINTS_VALID_MONTHS}개월</b>간 유효합니다. 사용 시 만료 임박·무료 순으로 차감됩니다.
+          유료 포인트와 무료(충전 보너스·이벤트) 포인트는{" "}
+          <b className="text-zinc-300">{FREE_POINTS_VALID_YEARS}년</b>, 출석 포인트는 적립일로부터{" "}
+          <b className="text-zinc-300">{ATTENDANCE_POINTS_VALID_DAYS}일</b>간 유효합니다. 출석 포인트는 선물할 수
+          없으며, 사용 시 만료 임박·무료 순으로 차감됩니다.
         </p>
       </div>
 
@@ -485,8 +510,9 @@ export default function PointsClient({
       <div className={`mt-3 p-5 ${studioSurface.card}`}>
         <p className={studioType.body}>
           입력한 금액이 그대로 차감됩니다. 수수료는 유료{" "}
-          <b className="text-violet-300">{feePctPaid}%</b> · 무료(출석 포함){" "}
+          <b className="text-violet-300">{feePctPaid}%</b> · 무료{" "}
           <b className="text-violet-300">{feePctFree}%</b>이며, 받는 사람은 수수료를 제외한 금액을 받습니다.
+          출석 포인트는 선물할 수 없습니다.
         </p>
         <p className={`mt-1 ${studioType.caption}`}>
           보유 합계: <b className="text-zinc-50">{points.toLocaleString()}P</b> (유료{" "}
@@ -582,7 +608,7 @@ export default function PointsClient({
         )}
         {historyTab === "free" && free.total > 0 && (
           <p className={`mt-2 ${studioType.caption}`}>
-            최근 {Math.min(free.total, 100).toLocaleString()}건 · {CHARGE_PAGE_SIZE}건씩 · 출석(1개월)·이벤트/충전 보너스(2년)
+            최근 {Math.min(free.total, 100).toLocaleString()}건 · {CHARGE_PAGE_SIZE}건씩 · 출석(30일)·이벤트/충전 보너스(1년)
           </p>
         )}
 

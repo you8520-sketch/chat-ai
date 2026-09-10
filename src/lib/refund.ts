@@ -5,8 +5,6 @@ import {
   type PointBalance,
   type PointType,
 } from "./points";
-import { FREE_POINTS_VALID_YEARS } from "./plans";
-import { PAID_POINTS_VALID_YEARS } from "./points";
 import { reverseCreatorRewardForMessage } from "./creatorPoints";
 import { assessMessageForAutoRefund } from "./refundAutoValidation";
 import { buildMessageReceiptSnapshot } from "./refundMessageReceipt";
@@ -34,35 +32,85 @@ function roundAmount(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
+/**
+ * Refund/reversal integrity failure — the reversal source (deduction slices
+ * or the original transaction row) is missing or inconsistent. Never silently
+ * mint fresh credit; route to pending/manual review instead.
+ */
+export class RefundIntegrityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RefundIntegrityError";
+  }
+}
+
+/**
+ * Exact reversal: restore the consumed amount into the SAME original
+ * transaction row, preserving point_type, source and expires_at — regardless
+ * of whether the lot has since expired. The original row is the authoritative
+ * owner; nothing is re-projected and no fresh validity is ever granted.
+ * A missing row is a data-integrity failure, not a fresh-credit fallback.
+ */
 function restoreSlice(userId: number, slice: DeductionSlice, db: ReturnType<typeof getDb>) {
   const row = db
     .prepare(
       `SELECT id, point_type, remaining_amount FROM point_transactions
-       WHERE id = ? AND user_id = ? AND expires_at > datetime('now')`
+       WHERE id = ? AND user_id = ?`
     )
     .get(slice.transactionId, userId) as
     | { id: number; point_type: PointType; remaining_amount: number }
     | undefined;
 
-  if (row) {
-    db.prepare("UPDATE point_transactions SET remaining_amount = ? WHERE id = ?").run(
-      roundAmount(row.remaining_amount + slice.amount),
-      row.id
+  if (!row) {
+    throw new RefundIntegrityError(
+      `refund integrity failure: original point transaction ${slice.transactionId} not found (no fresh-credit fallback)`
     );
-    return;
+  }
+  if (row.point_type !== slice.pointType) {
+    throw new RefundIntegrityError(
+      `refund integrity failure: point type mismatch on transaction ${slice.transactionId} (no fresh-credit fallback)`
+    );
   }
 
-  db.prepare(
-    `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
-     VALUES (?, ?, ?, datetime('now', ?))`
-  ).run(
-    userId,
-    slice.pointType,
-    slice.amount,
-    slice.pointType === "PAID"
-      ? `+${PAID_POINTS_VALID_YEARS} years`
-      : `+${FREE_POINTS_VALID_YEARS} years`
+  db.prepare("UPDATE point_transactions SET remaining_amount = ? WHERE id = ?").run(
+    roundAmount(row.remaining_amount + slice.amount),
+    row.id
   );
+}
+
+/**
+ * Pre-refund slice integrity gate for the report/auto/admin paths.
+ * Current canonical billing always persists deduction slices on charged
+ * turns, and consumed transaction rows are never physically deleted — so a
+ * refundable spend must reference existing rows. Anything else fail-closes
+ * to pending/manual review instead of minting.
+ */
+export function checkRefundSlicesIntegrity(
+  userId: number,
+  slices: DeductionSlice[]
+): { ok: true } | { ok: false; reason: string } {
+  if (slices.length === 0) {
+    return { ok: false, reason: "원본 차감 내역(deduction slices)이 없습니다." };
+  }
+  const db = getDb();
+  for (const slice of slices) {
+    const row = db
+      .prepare(`SELECT point_type FROM point_transactions WHERE id = ? AND user_id = ?`)
+      .get(slice.transactionId, userId) as { point_type: PointType } | undefined;
+    if (!row) {
+      return {
+        ok: false,
+        reason: `원본 포인트 내역(#${slice.transactionId})을 찾을 수 없습니다.`,
+      };
+    }
+    if (row.point_type !== slice.pointType) {
+      return {
+        ok: false,
+        reason: `원본 포인트 내역(#${slice.transactionId})의 종류가 일치하지 않습니다.`,
+      };
+    }
+  }
+  return { ok: true };
 }
 
 export function refundMessageDeduction(
@@ -74,15 +122,16 @@ export function refundMessageDeduction(
 ): PointBalance {
   const db = getDb();
   db.transaction(() => {
-    if (slices.length > 0) {
-      for (const slice of slices) {
-        restoreSlice(userId, slice, db);
-      }
-    } else if (totalAmount > 0) {
-      db.prepare(
-        `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
-         VALUES (?, 'FREE', ?, datetime('now', '+${FREE_POINTS_VALID_YEARS} years'))`
-      ).run(userId, totalAmount);
+    if (slices.length === 0) {
+      // Exact-reversal contract: without source slices there is nothing to
+      // reverse. Never mint fresh credit here — callers fail-closed to
+      // pending/manual review via checkRefundSlicesIntegrity().
+      throw new RefundIntegrityError(
+        "refund integrity failure: no deduction slices (no silent fresh-credit mint)"
+      );
+    }
+    for (const slice of slices) {
+      restoreSlice(userId, slice, db);
     }
 
     db.prepare("INSERT INTO point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
@@ -228,8 +277,12 @@ export function processReportRefund(
   const receiptSnapshot = buildMessageReceiptSnapshot(msg.usage);
   const slices = parseDeductionSlices(msg.deduction_slices);
   const autoRefundsToday = countAutoRefundsToday(userId);
+  // Exact-reversal gate: auto-approve only when the reversal source is
+  // intact. Missing slices/rows fail-closed to pending/manual review —
+  // never auto-mint fresh credit.
+  const sliceIntegrity = checkRefundSlicesIntegrity(userId, slices);
   const canAutoRefund =
-    assessment.isError && autoRefundsToday < AUTO_REFUND_DAILY_LIMIT;
+    assessment.isError && autoRefundsToday < AUTO_REFUND_DAILY_LIMIT && sliceIntegrity.ok;
 
   if (canAutoRefund) {
     const balance = refundMessageDeduction(
@@ -272,11 +325,13 @@ export function processReportRefund(
     };
   }
 
-  const validationNote = assessment.isError
-    ? autoRefundsToday >= AUTO_REFUND_DAILY_LIMIT
-      ? `일일 자동 환불 한도(${AUTO_REFUND_DAILY_LIMIT}회) 초과 — 관리자 검토 (${assessment.summary})`
-      : `관리자 검토 (${assessment.summary})`
-    : "관리자 검토";
+  const validationNote = !sliceIntegrity.ok
+    ? `원본 차감 내역 확인 필요 (${sliceIntegrity.reason}) — 관리자 검토 (${assessment.summary})`
+    : assessment.isError
+      ? autoRefundsToday >= AUTO_REFUND_DAILY_LIMIT
+        ? `일일 자동 환불 한도(${AUTO_REFUND_DAILY_LIMIT}회) 초과 — 관리자 검토 (${assessment.summary})`
+        : `관리자 검토 (${assessment.summary})`
+      : "관리자 검토";
 
   db.prepare(
     `INSERT INTO report_refunds
@@ -485,6 +540,14 @@ export function reviewReportRefund(
   const totalAmount = parseRefundAmount({ usage: row.usage });
   const amount = totalAmount > 0 ? totalAmount : row.refund_amount;
   const slices = parseDeductionSlices(row.deduction_slices);
+
+  // Exact-reversal gate: even an explicit admin approval cannot mint fresh
+  // credit without a reversal source. Keep the report pending for
+  // investigation instead of fabricating lots.
+  const sliceIntegrity = checkRefundSlicesIntegrity(row.user_id, slices);
+  if (!sliceIntegrity.ok) {
+    return { ok: false, error: sliceIntegrity.reason, status: 400 };
+  }
 
   const balance = refundMessageDeduction(
     row.user_id,

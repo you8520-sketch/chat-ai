@@ -1,7 +1,7 @@
 /** 유료 포인트 선물 수수료 */
 export const POINT_GIFT_FEE_RATE_PAID = 0.1;
-/** 무료 포인트(출석 포함) 선물 수수료 */
-export const POINT_GIFT_FEE_RATE_FREE = 0.25;
+/** 무료 포인트(출석 제외) 선물 수수료 */
+export const POINT_GIFT_FEE_RATE_FREE = 0.2;
 /** @deprecated POINT_GIFT_FEE_RATE_PAID 사용 — 하위 호환 */
 export const POINT_GIFT_FEE_RATE = POINT_GIFT_FEE_RATE_PAID;
 export const MIN_POINT_GIFT_AMOUNT = 10;
@@ -19,9 +19,30 @@ export type GiftBreakdown = {
 function roundAmount(n: number): number {
   return Math.round(n * 10) / 10;
 }
-
 export function giftFeeRateForType(pointType: "PAID" | "FREE"): number {
   return pointType === "PAID" ? POINT_GIFT_FEE_RATE_PAID : POINT_GIFT_FEE_RATE_FREE;
+}
+
+/**
+ * Mutation-intent idempotency key lifecycle (single ref per gift form — not a
+ * parallel state system). The in-flight key is reused while the payload is
+ * identical, so a double-click or a retry after a timeout replays instead of
+ * double-spending; any change of recipient/amount rotates to a fresh intent.
+ */
+export type GiftMutationIntent = {
+  key: string;
+  recipientKey: string;
+  gross: number;
+};
+
+export function resolveGiftMutationKey(
+  prev: GiftMutationIntent | null,
+  recipientKey: string,
+  gross: number,
+  generateKey: () => string
+): GiftMutationIntent {
+  if (prev && prev.recipientKey === recipientKey && prev.gross === gross) return prev;
+  return { key: generateKey(), recipientKey, gross };
 }
 
 /** 단일 종류 기준 수수료 (미리보기용). */

@@ -6,6 +6,7 @@ import { getDb } from "@/lib/db";
 
 import { getSessionUser } from "@/lib/auth";
 import { getPointBalance } from "@/lib/points";
+import { getGiftableBalance } from "@/lib/pointGifts";
 
 import type { CharacterRow } from "@/components/CharacterCard";
 
@@ -216,6 +217,7 @@ export default async function CharacterPage({
   }
 
   const balance = user ? getPointBalance(user.id) : null;
+  const giftable = user ? getGiftableBalance(user.id) : null;
   const paidPoints = balance?.paid ?? 0;
   const freePoints = balance?.free ?? 0;
   const canWriteCharacterComment =
@@ -344,6 +346,7 @@ export default async function CharacterPage({
             recipientNickname={c.creator_name}
             paidPoints={paidPoints}
             freePoints={freePoints}
+            giftableFreePoints={giftable?.giftableFree}
             loggedIn={!!user}
             loginRedirect={`/character/${c.id}`}
             buttonClassName={ACTION_ROW_BUTTON_CLASS}

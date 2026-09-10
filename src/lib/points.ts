@@ -35,7 +35,7 @@ import {
 import { resolveResponseLengthTarget, isCatastrophicallyShortResponse, type GenerationFailureReason } from "./responseLength";
 import { isDegenerateOutput } from "./gibberishGuard";
 import { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_YEARS } from "./plans";
-import { ATTENDANCE_POINTS_VALID_MONTHS } from "./attendanceConstants";
+import { ATTENDANCE_POINTS_VALID_DAYS } from "./attendanceConstants";
 import type { StageUsage } from "./ai";
 import { BACKGROUND_CREATIVE_HTML_MODEL } from "./ai";
 import {
@@ -57,7 +57,7 @@ export {
   type PlanId,
   FREE_MEMORY_LIMIT,
   FREE_POINTS_VALID_YEARS,
-  ATTENDANCE_POINTS_VALID_MONTHS,
+  ATTENDANCE_POINTS_VALID_DAYS,
 };
 
 /** Gemini: (입력/1000)×3×tier + (출력/1000)×9×tier */
@@ -481,12 +481,20 @@ function roundAmount(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-export const PAID_POINTS_VALID_YEARS = 2;
+export const PAID_POINTS_VALID_YEARS = 1;
 
-function expiresModifier(pointType: PointType, validity?: { months?: number; years?: number }): string {
+/** Ledger provenance for attendance-derived lots (non-giftable, 30-day validity). */
+export const POINT_SOURCE_ATTENDANCE = "attendance";
+
+/** Canonical expires_at modifier owner — SQLite-relative durations (calendar anniversary for years). */
+export function expiresModifier(
+  pointType: PointType,
+  validity?: { days?: number; months?: number; years?: number }
+): string {
+  if (validity?.days) return `+${validity.days} days`;
   if (validity?.years) return `+${validity.years} years`;
   if (validity?.months) return `+${validity.months} months`;
-  // PAID·일반 FREE 모두 2년. 출석 FREE만 validity.months로 1개월 지정.
+  // PAID·일반 FREE 모두 1년. 출석 FREE만 validity.days로 30일 지정.
   return `+${pointType === "PAID" ? PAID_POINTS_VALID_YEARS : FREE_POINTS_VALID_YEARS} years`;
 }
 
@@ -520,24 +528,36 @@ export type CreditPointsResult = {
   logId: number;
 };
 
-/** 원장 적립 — PAID·FREE 기본 2년 만료 (출석 FREE는 validity로 1개월) */
+/** 원장 적립 — PAID·FREE 기본 1년 만료 (출석 FREE는 validity로 30일) */
 export function creditPointsWithIds(
   db: ReturnType<typeof getDb>,
   userId: number,
   amount: number,
   pointType: PointType,
   reason: string,
-  validity?: { months?: number; years?: number }
+  validity?: { days?: number; months?: number; years?: number },
+  source?: string | null
 ): CreditPointsResult | null {
   const rounded = roundAmount(amount);
   if (rounded <= 0) return null;
 
-  const tx = db
-    .prepare(
-      `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
-       VALUES (?, ?, ?, datetime('now', ?))`
-    )
-    .run(userId, pointType, rounded, expiresModifier(pointType, validity));
+  const modifier = expiresModifier(pointType, validity);
+  let tx;
+  if (source != null && source !== "") {
+    tx = db
+      .prepare(
+        `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at, source)
+         VALUES (?, ?, ?, datetime('now', ?), ?)`
+      )
+      .run(userId, pointType, rounded, modifier, source);
+  } else {
+    tx = db
+      .prepare(
+        `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
+         VALUES (?, ?, ?, datetime('now', ?))`
+      )
+      .run(userId, pointType, rounded, modifier);
+  }
   const log = db
     .prepare("INSERT INTO point_logs (user_id, delta, reason) VALUES (?,?,?)")
     .run(userId, rounded, reason);
@@ -554,11 +574,12 @@ export function creditPoints(
   amount: number,
   pointType: PointType,
   reason: string,
-  validity?: { months?: number; years?: number }
+  validity?: { days?: number; months?: number; years?: number },
+  source?: string | null
 ) {
   const db = getDb();
   db.transaction(() => {
-    creditPointsWithIds(db, userId, amount, pointType, reason, validity);
+    creditPointsWithIds(db, userId, amount, pointType, reason, validity, source);
   })();
 }
 

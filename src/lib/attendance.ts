@@ -1,5 +1,5 @@
 import { getDb } from "./db";
-import { creditPointsWithIds, getPointBalance, ATTENDANCE_POINTS_VALID_MONTHS } from "./points";
+import { creditPointsWithIds, getPointBalance, ATTENDANCE_POINTS_VALID_DAYS, POINT_SOURCE_ATTENDANCE } from "./points";
 import {
   ATTENDANCE_CYCLE_DAYS,
   ATTENDANCE_DAY7_BONUS,
@@ -230,8 +230,8 @@ export function claimDailyAttendance(userId: number): ClaimAttendanceResult {
       : `주간 출석 ${claimDay}일차 보상 (+${base}P)`;
 
     creditPointsWithIds(db, userId, reward, "FREE", reason, {
-      months: ATTENDANCE_POINTS_VALID_MONTHS,
-    });
+      days: ATTENDANCE_POINTS_VALID_DAYS,
+    }, POINT_SOURCE_ATTENDANCE);
 
     return {
       ok: true as const,

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { getAttendanceStatus } from "@/lib/attendance";
 import { getPointBalance } from "@/lib/points";
+import { getGiftableBalance } from "@/lib/pointGifts";
 import {
   fetchFreeCreditLogsPage,
   fetchPaidCreditLogsPage,
@@ -26,6 +27,7 @@ export default async function PointsPage() {
   const paidPage = fetchPaidCreditLogsPage(refreshed.id, 1);
   const freePage = fetchFreeCreditLogsPage(refreshed.id, 1);
   const balance = getPointBalance(refreshed.id);
+  const giftable = getGiftableBalance(refreshed.id);
   const attendance = getAttendanceStatus(refreshed.id);
 
   return (
@@ -33,6 +35,8 @@ export default async function PointsPage() {
       points={balance.total}
       paidPoints={balance.paid}
       freePoints={balance.free}
+      giftableFreePoints={giftable.giftableFree}
+      attendanceFreePoints={giftable.attendanceFree}
       usageLogs={usagePage.logs}
       usagePage={usagePage.page}
       usageTotal={usagePage.total}
