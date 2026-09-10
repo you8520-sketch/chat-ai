@@ -684,7 +684,8 @@ export function validateEventSubjectBindings(
 function castSubjectFidelityLine(
   castSubject: ChatImageCastGroundedSubject,
   visual: ChatImageVisualSubject | undefined,
-  selectedCount: number
+  selectedCount: number,
+  allocatedHighFidelity: boolean
 ): string {
   const name = castSubject.name;
   const hasEvidence = visual ? hasBoundIdentityEvidence(visual) : false;
@@ -693,17 +694,10 @@ function castSubjectFidelityLine(
   }
   if (visual?.referenceIndex != null) {
     if (selectedCount >= 4) {
-      if (
-        castSubject.role === "persona" ||
-        castSubject.role === "main_character" ||
-        castSubject.importance === "primary"
-      ) {
+      if (allocatedHighFidelity) {
         return `- ${name}: HIGH FIDELITY primary. Visibility: ${castSubject.visibility}.`;
       }
-      if (castSubject.importance === "secondary") {
-        return `- ${name}: SECONDARY fidelity. Recognizable, may be smaller. Visibility: ${castSubject.visibility}.`;
-      }
-      return `- ${name}: BACKGROUND / CAMEO fidelity. Exact identity detail is not guaranteed. Visibility: ${castSubject.visibility}.`;
+      return `- ${name}: SECONDARY fidelity. Recognizable, may be smaller. Visibility: ${castSubject.visibility}.`;
     }
     return `- ${name}: HIGH FIDELITY. Visibility: ${castSubject.visibility}.`;
   }
@@ -771,8 +765,30 @@ export function renderCastFidelityTiers(
 ): string {
   const count = selected.length;
   const visualByKey = new Map(visualSubjects.map((subject) => [subject.key, subject]));
+  // FIDELITY BUDGET OWNER (independent from the physical reference budget).
+  // For 4+ person scenes, allocate HIGH FIDELITY to the first
+  // CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP subjects that actually carry a bound
+  // physical reference, walking the canonical selected order. Later
+  // reference-bearing subjects are SECONDARY. Saved-only / no-evidence
+  // subjects never consume a HIGH slot, so the header promise and the detail
+  // lines can never contradict.
+  const highFidelityKeys = new Set<string>();
+  if (count >= 4) {
+    for (const subject of selected) {
+      if (highFidelityKeys.size >= CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP) break;
+      const visual = visualByKey.get(subject.key);
+      if (visual?.referenceIndex != null) {
+        highFidelityKeys.add(subject.key);
+      }
+    }
+  }
   const lines = selected.map((subject) =>
-    castSubjectFidelityLine(subject, visualByKey.get(subject.key), count)
+    castSubjectFidelityLine(
+      subject,
+      visualByKey.get(subject.key),
+      count,
+      highFidelityKeys.has(subject.key)
+    )
   );
   return [
     "CAST FIDELITY TIERS — do not promise equal detail for every person.",

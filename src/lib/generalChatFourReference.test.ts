@@ -12,6 +12,7 @@ import {
 import {
   bindApprovedCastManifest,
   groundCastIntent,
+  renderCastFidelityTiers,
   type GroundCastContext,
 } from "@/lib/chatImageCastManifest";
 import {
@@ -297,6 +298,55 @@ describe("general chat physical 4-identity-reference support (PR-A)", () => {
     // stays owned by exactly one identity in the strict fallback prompt.
     assert.match(strict, /Image 2 belongs ONLY to UserPersona/);
     assert.match(strict, /Image 5 belongs ONLY to Support2/);
+    // Fidelity promise budget is shared with Tier1 (same canonical owner):
+    // exactly 3 HIGH FIDELITY subjects, the 4th physical identity is SECONDARY,
+    // and the 4th identity is NOT removed from the strict provider pack.
+    assert.match(strict, /at most 3 subjects with bound identity evidence/);
+    const strictHigh = strict
+      .split("\n")
+      .filter((line) => /HIGH FIDELITY/.test(line));
+    assert.equal(strictHigh.length, CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP);
+    assert.match(strict, /Support2: SECONDARY fidelity/);
+    assert.doesNotMatch(strict, /Support2: HIGH FIDELITY/);
+    assert.match(strict, /Image 5 belongs ONLY to Support2/);
+  });
+
+  it("NORMAL-4-FIDELITY-BUDGET: 4 physical refs, exactly 3 HIGH FIDELITY, 4th SECONDARY", () => {
+    const bound = bindApprovedCastManifest(groundedFor(2));
+    assert.equal(bound.referenceUrls.length, 4);
+    assert.deepEqual(bound.referenceUrls, [
+      PERSONA_URL,
+      MAIN_URL,
+      supportUrl(1),
+      supportUrl(2),
+    ]);
+    const fidelity = renderCastFidelityTiers(bound.selected, bound.subjects);
+    assert.match(fidelity, /at most 3 subjects with bound identity evidence/);
+    const high = fidelity.split("\n").filter((line) => /HIGH FIDELITY/.test(line));
+    assert.equal(high.length, CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP);
+    assert.equal(high.length, 3);
+    assert.match(fidelity, /UserPersona: HIGH FIDELITY primary/);
+    assert.match(fidelity, /CharacterA: HIGH FIDELITY primary/);
+    assert.match(fidelity, /Support1: HIGH FIDELITY primary/);
+    assert.match(fidelity, /Support2: SECONDARY fidelity/);
+    assert.doesNotMatch(fidelity, /Support2: HIGH FIDELITY/);
+  });
+
+  it("THREE-PERSON: 3-person fidelity behavior is unchanged", () => {
+    const bound = bindApprovedCastManifest(groundedFor(1));
+    assert.deepEqual(bound.referenceUrls, [PERSONA_URL, MAIN_URL, supportUrl(1)]);
+    const fidelity = renderCastFidelityTiers(bound.selected, bound.subjects);
+    assert.match(
+      fidelity,
+      /Subjects with bound identity evidence must stay visually distinct\./
+    );
+    assert.doesNotMatch(fidelity, /at most 3 subjects/);
+    const high = fidelity.split("\n").filter((line) => /HIGH FIDELITY/.test(line));
+    assert.equal(high.length, 3);
+    assert.ok(
+      high.every((line) => /: HIGH FIDELITY\./.test(line)),
+      "3-person keeps plain HIGH FIDELITY with no primary/secondary split"
+    );
   });
 
   it("5th cast member is server-rejected", () => {

@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import type { CharacterAsset } from "@/lib/characterAssets";
 import {
+  CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP,
   draftCastIntentFromCandidatePool,
   type ChatImageCastIntentManifest,
 } from "@/lib/chatImageCast";
@@ -573,11 +574,23 @@ describe("simulationVisualSubjects generation grounding", () => {
     assert.equal(fourth?.savedAppearance, "appearance 4");
     assert.equal(fourth?.trustedSavedAppearance, true);
     const fidelity = renderCastFidelityTiers(bound.selected, bound.subjects);
-    // Simulation keeps all supporting subjects primary, so with a bound
-    // reference the 4th is HIGH FIDELITY primary rather than SAVED-ONLY.
-    assert.match(fidelity, /도윤: HIGH FIDELITY primary/);
+    // Fidelity promise budget is independent of the physical reference budget:
+    // all 4 physical refs stay attached, but only the first
+    // CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP reference-bearing subjects (canonical
+    // selected order) are promised HIGH FIDELITY; the 4th is SECONDARY.
+    assert.match(fidelity, /at most 3 subjects with bound identity evidence/);
+    const highLines = fidelity
+      .split("\n")
+      .filter((line) => /HIGH FIDELITY/.test(line));
+    assert.equal(highLines.length, CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP);
+    assert.equal(highLines.length, 3);
+    assert.match(fidelity, /도윤: SECONDARY fidelity/);
+    assert.doesNotMatch(fidelity, /도윤: HIGH FIDELITY/);
     assert.doesNotMatch(fidelity, /도윤: SAVED-ONLY fidelity/);
     assert.doesNotMatch(fidelity, /도윤: BACKGROUND \/ CAMEO\. No bound identity evidence/);
+    // The 4th identity is NOT dropped from the provider pack.
+    assert.equal(bound.referenceUrls.length, 4);
+    assert.equal(fourth?.referenceIndex, 4);
   });
 });
 
