@@ -300,21 +300,48 @@ async function deferNextChatSettingsFlush(page: Page, status = 200) {
 
 async function observeChatPostCount(page: Page) {
   let count = 0;
-  await page.route("**/api/chat", async (route: Route) => {
-    if (route.request().method() === "POST") count += 1;
-    await route.fallback();
+  page.on("request", (request) => {
+    if (request.method() === "POST" && new URL(request.url()).pathname === "/api/chat") {
+      count += 1;
+    }
   });
   return () => count;
 }
 
-async function markNarrativePovDirty(page: Page) {
+async function openNarrativePovSettings(page: Page) {
   await page.locator("button[title^='채팅 설정']").click();
+}
+
+async function markNarrativePovDirty(page: Page) {
   await page.getByRole("radio", { name: /1인칭 몰입형/ }).check();
 }
 
 async function clickSendWithoutOverlayHitTest(page: Page) {
   await page.getByRole("button", { name: "전송", exact: true }).evaluate((button) => {
     (button as HTMLButtonElement).click();
+  });
+}
+
+function userRowForText(page: Page, text: string) {
+  return page.locator("div.my-10, div.my-5").filter({ hasText: text }).first();
+}
+
+async function prepareDetachedHistory(page: Page, seedText: string) {
+  await sendMockMessage(page, seedText);
+  await waitForNetworkDoneVisualRevealPending(page);
+  await page.locator("[data-quote-assistant]").last().click();
+  await page.waitForFunction(
+    () => document.querySelector("[data-chat-live-reading-active]")?.getAttribute("data-chat-live-reading-active") === "false",
+    undefined,
+    { timeout: 15_000 }
+  );
+  await page.evaluate(() => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+    window.scrollBy({ top: -120, behavior: "instant" });
+  });
+  await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+    followLatest: false,
+    manualDetached: true,
   });
 }
 
@@ -835,12 +862,7 @@ test.describe("General chat live reading follow — production browser", () => {
     await openFreshChat(page);
 
     await ensureExtraScrollRoom(page, 1200);
-    await page.evaluate(() => window.scrollTo({ top: 500, behavior: "instant" }));
-    await page.evaluate(() => window.scrollBy({ top: -120, behavior: "instant" }));
-    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
-      followLatest: false,
-      manualDetached: true,
-    });
+    await prepareDetachedHistory(page, "completed history before direct submit");
 
     const deferredResponse = await deferNextChatStreamResponse(page);
     const text = "direct submit latest before provider";
@@ -849,14 +871,13 @@ test.describe("General chat live reading follow — production browser", () => {
       await page.getByRole("button", { name: "전송", exact: true }).click();
       await deferredResponse.requestSeen;
 
-      await expect(page.getByText(text, { exact: true })).toBeVisible();
+      await expect(userRowForText(page, text)).toBeVisible();
       await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
         followLatest: true,
         manualDetached: false,
       });
-      const userRowIsVisibleAboveDock = await page.getByText(text, { exact: true }).evaluate((node) => {
-        const row = node.closest("div.my-10, div.my-5");
-        return row != null && row.getBoundingClientRect().bottom <= window.innerHeight;
+      const userRowIsVisibleAboveDock = await userRowForText(page, text).evaluate((row) => {
+        return row.getBoundingClientRect().bottom <= window.innerHeight;
       });
       expect(userRowIsVisibleAboveDock).toBe(true);
     } finally {
@@ -870,20 +891,19 @@ test.describe("General chat live reading follow — production browser", () => {
     await page.setViewportSize({ width: 1280, height: 420 });
     await openFreshChat(page);
     await ensureExtraScrollRoom(page, 1200);
-    await page.evaluate(() => window.scrollTo({ top: 500, behavior: "instant" }));
-    await page.evaluate(() => window.scrollBy({ top: -120, behavior: "instant" }));
-    await expect.poll(() => readChatDiagnostics(page)).toMatchObject({ manualDetached: true });
+    await prepareDetachedHistory(page, "completed history before deferred settings");
 
-    await markNarrativePovDirty(page);
+    await openNarrativePovSettings(page);
     const settings = await deferNextChatSettingsFlush(page);
     const providerPostCount = await observeChatPostCount(page);
     const deferredResponse = await deferNextChatStreamResponse(page);
+    await markNarrativePovDirty(page);
     const text = "settings deferred optimistic latest";
     await setReactTextareaValue(page, text);
     await clickSendWithoutOverlayHitTest(page);
     await settings.requestSeen;
 
-    await expect(page.getByText(text, { exact: true })).toBeVisible();
+    await expect(userRowForText(page, text)).toBeVisible();
     await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
       followLatest: true,
       manualDetached: false,
@@ -892,7 +912,7 @@ test.describe("General chat live reading follow — production browser", () => {
 
     settings.releaseResponse();
     await deferredResponse.requestSeen;
-    expect(providerPostCount()).toBe(1);
+    await expect.poll(providerPostCount).toBe(1);
     deferredResponse.releaseResponse();
     await waitForNetworkDoneVisualRevealPending(page);
   });
@@ -900,17 +920,18 @@ test.describe("General chat live reading follow — production browser", () => {
   test("C6-B: failed settings flush rolls back optimistic turn and restores input without provider POST", async ({ page }) => {
     await mockChatStreamRoute(page, longAssistantProse(480));
     await openFreshChat(page);
-    await markNarrativePovDirty(page);
+    await openNarrativePovSettings(page);
     const settings = await deferNextChatSettingsFlush(page, 500);
     const providerPostCount = await observeChatPostCount(page);
+    await markNarrativePovDirty(page);
     const text = "settings failure rolls back optimistic turn";
     await setReactTextareaValue(page, text);
     await clickSendWithoutOverlayHitTest(page);
     await settings.requestSeen;
-    await expect(page.getByText(text, { exact: true })).toBeVisible();
+    await expect(userRowForText(page, text)).toBeVisible();
 
     settings.releaseResponse();
-    await expect(page.getByText(text, { exact: true })).toHaveCount(0);
+    await expect.poll(() => userRowForText(page, text).count()).toBe(0);
     await expect(page.locator("textarea[placeholder*='메시지 입력']")).toHaveValue(text);
     expect(providerPostCount()).toBe(0);
     await expect(page.getByRole("button", { name: "전송", exact: true })).toBeEnabled();
@@ -919,10 +940,11 @@ test.describe("General chat live reading follow — production browser", () => {
   test("C6-C: deferred settings flush reserves a direct submit against double send", async ({ page }) => {
     await mockChatStreamRoute(page, longAssistantProse(480));
     await openFreshChat(page);
-    await markNarrativePovDirty(page);
+    await openNarrativePovSettings(page);
     const settings = await deferNextChatSettingsFlush(page);
     const providerPostCount = await observeChatPostCount(page);
     const deferredResponse = await deferNextChatStreamResponse(page);
+    await markNarrativePovDirty(page);
     const text = "only one deferred direct submit";
     await setReactTextareaValue(page, text);
     await clickSendWithoutOverlayHitTest(page);
@@ -932,8 +954,8 @@ test.describe("General chat live reading follow — production browser", () => {
 
     settings.releaseResponse();
     await deferredResponse.requestSeen;
-    expect(providerPostCount()).toBe(1);
-    expect(await page.getByText(text, { exact: true }).count()).toBe(1);
+    await expect.poll(providerPostCount).toBe(1);
+    expect(await userRowForText(page, text).count()).toBe(1);
     deferredResponse.releaseResponse();
     await waitForNetworkDoneVisualRevealPending(page);
   });
