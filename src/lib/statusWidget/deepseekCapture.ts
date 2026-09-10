@@ -3,7 +3,6 @@
  */
 
 import { mergeExtractedFacts, sanitizeExtractedFacts } from "./extractedFacts";
-import { STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS } from "@/lib/memory/memory-episodic-prompt";
 import type { ExtractedStatusFact, ParsedStatusWidgetTurnValues, StatusWidgetValues } from "./types";
 import {
   STATUS_VALUES_BLOCK,
@@ -234,10 +233,3 @@ export function captureDeepSeekStatusWidgetValuesFromModelText(
   const split = splitProseAndStatusWidgetValuesDeepSeek(text);
   return split.values.character || split.values.user ? split.values : null;
 }
-
-export const DEEPSEEK_STATUS_WIDGET_BOTTOM_REMINDER = `[Status widget — required every turn]
-After RP prose, append this block (fill JSON from the scene — never skip):
-${STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS}
-<<<STATUS_VALUES char>>>
-{"시간":"<scene>","장소":"<scene>","속마음":"<scene>","현재상황":"<scene>","extracted_facts":[]}
-<<<END_STATUS>>>`;
