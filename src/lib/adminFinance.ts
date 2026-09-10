@@ -80,6 +80,18 @@ export type AdminFinanceSummary = {
   };
   creatorAccruedKrw: number;
   creatorPayoutCashKrw: number;
+  /**
+   * Cash-withdrawal settlement attribution from APPROVED snapshots.
+   * creatorTaxPayableKrw (withholding total) is a tax outflow, NOT platform
+   * revenue and NOT an extra creator cost (already inside the 100% accrual).
+   * creatorPlatformRetainedKrw (requested - payout - tax) is the CANONICAL
+   * settlement adjustment owner: creator cost was recognized at 100% when
+   * rewards accrued, so the retained portion reverses into top-level net
+   * profit EXACTLY ONCE here. It is NEVER added to revenue (Case A gross
+   * model — that would double-count).
+   */
+  creatorTaxPayableKrw: number;
+  creatorPlatformRetainedKrw: number;
   railwayCostKrw: number;
   operatingCostsKrw: number;
   totalApiCostKrw: number;
@@ -549,6 +561,25 @@ export function buildAdminFinanceSummary(
         .get(start, end) as { amount: number }
     ).amount
   );
+  // Canonical snapshot consumption: APPROVED rows carry a request-time
+  // locked platform_fee. Finance reads that stored field directly - it never
+  // recomputes retained from other snapshot fields or current rates.
+  // (Period = processed_at; accrual lives in the created_at month, so a
+  // cross-month settlement reverses in the settlement month by design - no
+  // liability ledger in this scope.)
+  // Neither value enters revenue or costs here; the retained portion is
+  // added back EXACTLY ONCE in top-level net profit below (no revenue leg -
+  // recognizing both legs would double-count the same economics).
+  const creatorWithdrawalAttribution = db
+    .prepare(
+      `SELECT COALESCE(SUM(tax_amount),0) AS tax,
+              COALESCE(SUM(platform_fee),0) AS retained
+       FROM withdrawal_requests
+       WHERE status='APPROVED' AND processed_at>=? AND processed_at<?`
+    )
+    .get(start, end) as { tax: number; retained: number };
+  const creatorTaxPayableKrw = finiteNonNegative(creatorWithdrawalAttribution.tax);
+  const creatorPlatformRetainedKrw = finiteNonNegative(creatorWithdrawalAttribution.retained);
   const creatorForChat = creatorAccrued;
 
   const portoneTable = db
@@ -617,8 +648,15 @@ export function buildAdminFinanceSummary(
   );
   const summaryRealizedMarginExact =
     chat.realizedMarginExact && image.realizedMarginExact;
+  // Top-level P&L only: creator cost was recognized at 100% on accrual, so
+  // the APPROVED-withdrawal retained portion reverses here exactly once.
+  // Category-level profits are untouched; revenue legs are never added.
   const netProfitKrw = summaryRealizedMarginExact
-    ? paidRevenue - totalApiCostKrw - creatorForChat - operatingCostsKrw
+    ? paidRevenue -
+      totalApiCostKrw -
+      creatorForChat +
+      creatorPlatformRetainedKrw -
+      operatingCostsKrw
     : null;
 
   return {
@@ -658,6 +696,8 @@ export function buildAdminFinanceSummary(
     },
     creatorAccruedKrw: round1(creatorAccrued),
     creatorPayoutCashKrw: round1(creatorPayoutCash),
+    creatorTaxPayableKrw: round1(creatorTaxPayableKrw),
+    creatorPlatformRetainedKrw: round1(creatorPlatformRetainedKrw),
     railwayCostKrw: round1(railwayCostKrw),
     operatingCostsKrw: round1(operatingCostsKrw),
     totalApiCostKrw: round1(totalApiCostKrw),

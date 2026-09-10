@@ -11,10 +11,10 @@ import type {
   AdminPayoutTaxPreview,
 } from "@/lib/adminPayoutShared";
 import {
-  calcLocalTax,
   isPayoutSchedulerEnabled,
   PAYOUT_SCHEDULE_LABEL,
   PAYOUT_TIMEZONE,
+  splitWithholdingTax,
 } from "@/lib/payoutSchedule";
 
 export type {
@@ -192,10 +192,11 @@ export function previewApprovedPayoutTaxes(
   let localTax = 0;
   let netPayout = 0;
   for (const row of rows) {
-    const national = Math.round(row.tax_amount);
+    // Stored tax_amount is TOTAL withholding - split structurally, never re-rated.
+    const { nationalTax: national, localTax: rowLocal } = splitWithholdingTax(row.tax_amount);
     grossAmount += Math.round(row.requested_cp);
     nationalTax += national;
-    localTax += calcLocalTax(national);
+    localTax += rowLocal;
     netPayout += row.payout_amount;
   }
 

@@ -15,3 +15,20 @@ export function isPayoutSchedulerEnabled(): boolean {
 export function calcLocalTax(nationalTax: number): number {
   return Math.floor(nationalTax * LOCAL_TAX_RATE_OF_NATIONAL);
 }
+
+/**
+ * Canonical withholding split owner. Stored `tax_amount` is TOTAL
+ * withholding (national + local combined), so display/reporting derives:
+ * national ~= total x 10/11, local = canonical 10%-of-national via
+ * calcLocalTax, and national absorbs the remainder - therefore
+ * `nationalTax + localTax === total` holds exactly for every total, in both
+ * the old 8.8% era and the current 3.3% era (rate-agnostic structure).
+ */
+export function splitWithholdingTax(totalWithholding: number): {
+  nationalTax: number;
+  localTax: number;
+} {
+  const total = Math.round(totalWithholding);
+  const localTax = calcLocalTax(Math.round((total * 10) / 11));
+  return { nationalTax: total - localTax, localTax };
+}

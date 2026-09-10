@@ -1,10 +1,10 @@
 import { getDb } from "./db";
 import { decryptSensitive } from "./fieldEncryption";
 import { formatResidentNumberDisplay } from "./residentId";
-import { parseAccountInfo, WITHDRAWAL_TAX_RATE } from "./creatorShared";
-import { calcLocalTax, LOCAL_TAX_RATE_OF_NATIONAL } from "./payoutSchedule";
+import { parseAccountInfo } from "./creatorShared";
+import { calcLocalTax, LOCAL_TAX_RATE_OF_NATIONAL, splitWithholdingTax } from "./payoutSchedule";
 
-export { calcLocalTax, LOCAL_TAX_RATE_OF_NATIONAL };
+export { calcLocalTax, LOCAL_TAX_RATE_OF_NATIONAL, splitWithholdingTax };
 
 export type PayoutExportRow = {
   payoutDate: string;
@@ -69,8 +69,8 @@ export function listApprovedWithdrawalsForMonth(year: number, monthPadded: strin
 export function toExportRow(record: ApprovedWithdrawalRecord): PayoutExportRow {
   const account = parseAccountInfo(record.account_info);
   const grossAmount = Math.round(record.requested_cp);
-  const nationalTax = Math.round(record.tax_amount);
-  const localTax = calcLocalTax(nationalTax);
+  // Stored tax_amount is TOTAL withholding — split structurally (no re-rating).
+  const { nationalTax, localTax } = splitWithholdingTax(record.tax_amount);
   const creatorName =
     record.real_name?.trim() ||
     account?.accountHolder?.trim() ||
@@ -144,9 +144,4 @@ export function buildPayoutCsv(rows: PayoutExportRow[]): string {
 
 export function exportFilename(year: number, month: number): string {
   return `정산내역_${year}_${padMonth(month)}.csv`;
-}
-
-/** 세무 검증용 — 국세율 8.8% 기준 역산 허용 오차 */
-export function expectedNationalTax(gross: number): number {
-  return Math.round(gross * WITHDRAWAL_TAX_RATE);
 }
