@@ -496,6 +496,26 @@ function resolveSceneSource(opts: {
   throw new RequestError("장면으로 만들 내용을 입력해 주세요.");
 }
 
+/**
+ * Server-canonical full source for a TRPG round comic. Assembled only from the
+ * server-loaded round (location, locked participant actions, committed GM
+ * narration) — never from client preview/UI text.
+ */
+function buildTrpgComicSourceText(
+  scene: NonNullable<ReturnType<typeof loadTrpgIllustrationScene>>
+): string {
+  const lines: string[] = [];
+  const location = scene.location.trim();
+  if (location) lines.push(`장소: ${location}`);
+  for (const action of scene.actions) {
+    const body = action.body.trim();
+    if (body) lines.push(`${action.name}: ${body}`);
+  }
+  const narration = scene.narration.trim();
+  if (narration) lines.push(narration);
+  return lines.join("\n");
+}
+
 function resolveKnownSpeakerNames(
   context: GenerationContext,
   castIntentRaw: unknown
@@ -840,8 +860,12 @@ export async function POST(req: Request) {
       roomAdultModeEnabled: context.roomAdultModeEnabled,
     });
 
-    if (positiveInt(body.campaignId) && body.mode !== "illustration") {
-      throw new RequestError("캠페인에서는 선택 턴 일러스트만 만들 수 있습니다.");
+    if (
+      positiveInt(body.campaignId) &&
+      body.mode !== "illustration" &&
+      body.mode !== "comic"
+    ) {
+      throw new RequestError("캠페인에서는 선택 턴 일러스트 또는 4컷 만화만 만들 수 있습니다.");
     }
 
     if (body.mode === "scene_brief") {
@@ -1240,31 +1264,94 @@ export async function POST(req: Request) {
       });
     }
 
-    const messageId = positiveInt(body.messageId);
-    const manualSourceText = String(body.sourceText ?? "").trim();
-    if (!messageId && !manualSourceText && !body.scenePlan) {
-      throw new RequestError(
-        "장면으로 만들 턴을 선택하거나 내용을 입력해 주세요."
-      );
-    }
-    if (!messageId && manualSourceText.length > CHAT_COMIC_MAX_INPUT_CHARS) {
-      throw new RequestError(
-        `내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS.toLocaleString()}자까지 입력할 수 있습니다.`
-      );
-    }
-
-    const source = resolveSceneSource({
-      chatId: context.chatId,
-      messageId,
-      sourceText: messageId ? undefined : manualSourceText,
-      requireChat: false,
-    });
-    const mood = "comic" as const;
-    const knownSpeakerNames = resolveKnownSpeakerNames(context, body.castIntent);
-
     // PRODUCTION COMIC — the provider selects WHAT + HOW directly from the full
     // source. Fixed 4-panel output. No Scene Planner call, no diagnostic modes.
     const panelCount: ChatComicPanelCount = 4;
+    const campaignId = positiveInt(body.campaignId);
+    const roundNumber = nonNegativeInt(body.roundNumber);
+
+    let source: ReturnType<typeof resolveSceneSource>;
+    let knownSpeakerNames: string[];
+    let castManifest: ChatImageCastGroundedManifest | null = null;
+    let trpgPartyPack: ReturnType<typeof buildPartyIllustrationReferencePlan> | null = null;
+    let trpgCampaignTitle = "";
+    let trpgAuthorUserId: number | null = null;
+    if (campaignId) {
+      // TRPG WHO owner: server-canonical round source + validated participant
+      // references. The comic WHAT/HOW owner is reused unchanged below.
+      const trpgScene = loadTrpgIllustrationScene(getDb(), {
+        campaignId,
+        viewerUserId: user.id,
+        roundNumber,
+      });
+      if (!trpgScene) throw new RequestError("캠페인을 찾을 수 없습니다.", 404);
+      if (!trpgScene.narration.trim()) {
+        throw new RequestError("이 라운드 GM 서술이 확정되기 전에는 컷만화를 만들 수 없습니다.");
+      }
+      trpgCampaignTitle = trpgScene.campaignTitle;
+      trpgAuthorUserId = trpgScene.authorUserId;
+      const pickedMembers = applyTrpgCastImagePicks(trpgScene.members, body.castImagePicks);
+      const indexed = withIllustrationReferenceIndices(pickedMembers);
+      const partyCast = indexed.map((member) => {
+        const isPrimary = isPrimarySelectableImage(member.images, member.imageUrl);
+        const appearanceMode = defaultAppearanceMode({
+          sourceKind: "cast_member",
+          isPrimaryImage: !member.imageUrl || isPrimary,
+          hasOwnSavedAppearance: Boolean(member.appearanceNote?.trim()),
+          hasOwnReference: Boolean(member.imageUrl),
+        });
+        return {
+          name: member.name,
+          gender: member.gender,
+          role: member.role,
+          referenceIndex: member.referenceIndex,
+          appearanceNote:
+            appearanceMode === "image_plus_saved" ? member.appearanceNote : undefined,
+          aliases: member.aliases,
+          appearanceMode,
+          imageUrl: member.imageUrl,
+          isPrimaryImage: isPrimary,
+        };
+      });
+      const partyPlan = buildPartyIllustrationReferencePlan(partyCast);
+      if (!partyPlan.canGenerate) {
+        throw new RequestError(CHAT_IMAGE_PARTY_NO_REFERENCE_ERROR);
+      }
+      trpgPartyPack = partyPlan;
+      const trpgSourceText = buildTrpgComicSourceText(trpgScene);
+      source = {
+        messages: buildSceneSourceMessages([
+          { id: 1, role: "assistant", content: stripChatTurnMarkup(trpgSourceText) },
+        ]),
+        turnText: trpgSourceText,
+        messageId: null,
+        fromManualText: false,
+      };
+      knownSpeakerNames = [
+        context.persona.name,
+        context.character.name,
+        ...trpgScene.members.map((member) => member.name),
+      ].filter((name): name is string => Boolean(name?.trim()));
+    } else {
+      const messageId = positiveInt(body.messageId);
+      const manualSourceText = String(body.sourceText ?? "").trim();
+      if (!messageId && !manualSourceText && !body.scenePlan) {
+        throw new RequestError("장면으로 만들 턴을 선택하거나 내용을 입력해 주세요.");
+      }
+      if (!messageId && manualSourceText.length > CHAT_COMIC_MAX_INPUT_CHARS) {
+        throw new RequestError(
+          `내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS.toLocaleString()}자까지 입력할 수 있습니다.`
+        );
+      }
+      source = resolveSceneSource({
+        chatId: context.chatId,
+        messageId,
+        sourceText: messageId ? undefined : manualSourceText,
+        requireChat: false,
+      });
+      knownSpeakerNames = resolveKnownSpeakerNames(context, body.castIntent);
+    }
+    const mood = "comic" as const;
 
     // NORMAL COMIC LIFECYCLE — auth/input/concurrency run before the single
     // provider call; the balance preflight uses the FINAL canonical price
@@ -1273,7 +1360,9 @@ export async function POST(req: Request) {
     // for the production comic; the provider receives the full source text and
     // picks the 4 scenes itself. No Scene Planner call.
     const preflightPlan = resolveApprovedScenePlan({
-      bodyPlan: body.scenePlan,
+      // TRPG uses only the server-loaded round source; client scenePlan is not
+      // authoritative for a campaign.
+      bodyPlan: campaignId ? undefined : body.scenePlan,
       messages: source.messages,
       // Fixed 4-panel — reuse the canonical reflow owner.
       panelCount: 4,
@@ -1288,14 +1377,16 @@ export async function POST(req: Request) {
     // provider prompt carries the full source text and the provider owns scene
     // selection. No Scene Planner / highlight / text-brief call.
     const scenePlan = preflightPlan;
-    const castManifest = resolveGroundedCastManifest({
-      castIntentRaw: body.castIntent,
-      context,
-      scenePlan,
-      userId: user.id,
-      sourceMessages: source.messages,
-      fromManualText: source.fromManualText,
-    });
+    castManifest = campaignId
+      ? null
+      : resolveGroundedCastManifest({
+          castIntentRaw: body.castIntent,
+          context,
+          scenePlan,
+          userId: user.id,
+          sourceMessages: source.messages,
+          fromManualText: source.fromManualText,
+        });
 
     const appearanceModes = resolveRequestAppearanceModes({
       characterImages: context.characterImages,
@@ -1319,6 +1410,7 @@ export async function POST(req: Request) {
       mood,
       plan: scenePlan,
       castManifest,
+      referencePack: trpgPartyPack,
 contentKind: context.contentKind,
       compositionMode: "full_provider_rendered",
       providerTextAdultEligible: roomAdultGrounded,
@@ -1340,6 +1432,7 @@ contentKind: context.contentKind,
       subjects: identityPack.subjects,
       castManifest,
       castSelected: castManifest?.subjects.filter((subject) => subject.included),
+      castCount: trpgPartyPack ? trpgPartyPack.subjects.length : undefined,
       contentKind: context.contentKind,
       safeStructure: tier2SafeStructure,
       compositionMode: "full_provider_rendered",
@@ -1432,6 +1525,13 @@ contentKind: context.contentKind,
           messageId: source.messageId,
           quality: "medium",
           plan: scenePlan,
+          ...(campaignId
+            ? {
+                campaignId,
+                campaignTitle: trpgCampaignTitle || undefined,
+                roundNumber: roundNumber ?? undefined,
+              }
+            : {}),
           // Cost-cohort evidence: exact identity-reference pricing input
           // (layout template excluded), once per provider request.
           identityReferenceCount,
@@ -1442,12 +1542,16 @@ contentKind: context.contentKind,
         chargePoints: pricePoints,
         chargeReason: `${resolveChatImageGenerationModelLabel(model)} · ${panelCount}컷 만화`,
         chargeLink: context.chatId ? { chatId: context.chatId } : undefined,
-        creatorReward: {
-          creatorId: context.character.creator_id,
-          source: "character",
-        },
+        creatorReward: campaignId
+          ? { creatorId: trpgAuthorUserId, source: "trpg_scenario" }
+          : {
+              creatorId: context.character.creator_id,
+              source: "character",
+            },
         exchangeRateKrwPerUsd: getEffectiveKrwPerUsd(),
-        album: { mode: "comic" },
+        album: campaignId
+          ? { mode: "comic", campaignId, campaignTitle: trpgCampaignTitle }
+          : { mode: "comic" },
       });
       generationId = settled.generationId;
       deductionTotal = settled.chargedPoints;
