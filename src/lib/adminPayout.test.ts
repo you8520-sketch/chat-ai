@@ -8,7 +8,6 @@ import {
   previewApprovedPayoutTaxes,
   toAdminPayoutApplicationRow,
 } from "./adminPayout";
-import { calcLocalTax } from "./payoutSchedule";
 
 function setupDb() {
   const db = new Database(":memory:");
@@ -90,8 +89,10 @@ describe("admin payout application list", () => {
     const preview = previewApprovedPayoutTaxes(db, 2026, 8);
     assert.equal(preview.count, 1);
     assert.equal(preview.grossAmount, 100000);
-    assert.equal(preview.nationalTax, 8800);
-    assert.equal(preview.localTax, calcLocalTax(8800));
+    // Stored tax_amount is TOTAL withholding ??display splits structurally
+    // (national 8000 + local 800), never re-rated to a new policy.
+    assert.equal(preview.nationalTax, 8000);
+    assert.equal(preview.localTax, 800);
     assert.equal(preview.netPayout, 80000);
     assert.equal(previewApprovedPayoutTaxes(db, 2026, 7).count, 0);
   });
@@ -101,8 +102,8 @@ describe("admin payout application list", () => {
       id: 9,
       user_id: 3,
       requested_cp: 30000,
-      tax_amount: 2640,
-      platform_fee: 3360,
+      tax_amount: 990,
+      platform_fee: 5010,
       payout_amount: 24000,
       account_info: accountA,
       status: "PENDING",

@@ -146,7 +146,12 @@ function createFinanceDb(): Database.Database {
     );
     CREATE TABLE withdrawal_requests (
       id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL DEFAULT 0,
+      requested_cp REAL NOT NULL DEFAULT 0,
+      tax_amount REAL NOT NULL DEFAULT 0,
+      platform_fee REAL NOT NULL DEFAULT 0,
       payout_amount REAL NOT NULL DEFAULT 0,
+      account_info TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'PENDING',
       processed_at TEXT
     );

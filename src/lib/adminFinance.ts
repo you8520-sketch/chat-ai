@@ -80,6 +80,15 @@ export type AdminFinanceSummary = {
   };
   creatorAccruedKrw: number;
   creatorPayoutCashKrw: number;
+  /**
+   * Informational attribution only (approved-withdrawal snapshots).
+   * creatorTaxPayableKrw (withholding total) is a tax outflow, NOT platform
+   * revenue. creatorPlatformRetainedKrw (requested - payout - tax) is the
+   * platform's economic share already implied by gross revenue minus creator
+   * cost ??it is NEVER added to revenue (that would double-count).
+   */
+  creatorTaxPayableKrw: number;
+  creatorPlatformRetainedKrw: number;
   railwayCostKrw: number;
   operatingCostsKrw: number;
   totalApiCostKrw: number;
@@ -549,6 +558,23 @@ export function buildAdminFinanceSummary(
         .get(start, end) as { amount: number }
     ).amount
   );
+  // Approved-withdrawal snapshot attribution (informational only ??excluded
+  // from both revenue and costs; see AdminFinanceSummary field docs).
+  const creatorWithdrawalAttribution = db
+    .prepare(
+      `SELECT COALESCE(SUM(tax_amount),0) AS tax,
+              COALESCE(SUM(requested_cp),0) AS requested,
+              COALESCE(SUM(payout_amount),0) AS payout
+       FROM withdrawal_requests
+       WHERE status='APPROVED' AND processed_at>=? AND processed_at<?`
+    )
+    .get(start, end) as { tax: number; requested: number; payout: number };
+  const creatorTaxPayableKrw = finiteNonNegative(creatorWithdrawalAttribution.tax);
+  const creatorPlatformRetainedKrw = finiteNonNegative(
+    creatorWithdrawalAttribution.requested -
+      creatorWithdrawalAttribution.payout -
+      creatorWithdrawalAttribution.tax
+  );
   const creatorForChat = creatorAccrued;
 
   const portoneTable = db
@@ -658,6 +684,8 @@ export function buildAdminFinanceSummary(
     },
     creatorAccruedKrw: round1(creatorAccrued),
     creatorPayoutCashKrw: round1(creatorPayoutCash),
+    creatorTaxPayableKrw: round1(creatorTaxPayableKrw),
+    creatorPlatformRetainedKrw: round1(creatorPlatformRetainedKrw),
     railwayCostKrw: round1(railwayCostKrw),
     operatingCostsKrw: round1(operatingCostsKrw),
     totalApiCostKrw: round1(totalApiCostKrw),

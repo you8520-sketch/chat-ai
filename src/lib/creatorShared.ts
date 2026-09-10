@@ -69,10 +69,24 @@ export function resolveCreatorTier(stats: CreatorTierStats): {
 }
 
 export const WITHDRAWAL_MIN_CP = 30_000;
-export const WITHDRAWAL_TAX_RATE = 0.088;
-export const WITHDRAWAL_PLATFORM_FEE_RATE = 0.112;
-export const WITHDRAWAL_TOTAL_DEDUCTION_RATE =
-  WITHDRAWAL_TAX_RATE + WITHDRAWAL_PLATFORM_FEE_RATE;
+/**
+ * Canonical withdrawal policy (single owner ??all layers consume these).
+ *
+ *   base 100% = creator payout 80% + total withholding 3.3% + platform retained 16.7%
+ *
+ * Stored `tax_amount` is TOTAL withholding (national + local combined);
+ * stored `platform_fee` is the platform-retained share (informational
+ * attribution only ??never added to admin-finance revenue, which already
+ * recognizes gross user spend).
+ */
+export const WITHDRAWAL_TOTAL_DEDUCTION_RATE = 0.2;
+/** ?먯쿇吏뺤닔 愿??珥앹븸 3.3% (援?꽭 + 吏諛⑹냼?앹꽭 ?⑷퀎) */
+export const WITHDRAWAL_WITHHOLDING_RATE = 0.033;
+/** ?뚮옯??洹?띾텇 16.7% ??derived, never an independent constant */
+export const WITHDRAWAL_PLATFORM_RETAINED_RATE =
+  WITHDRAWAL_TOTAL_DEDUCTION_RATE - WITHDRAWAL_WITHHOLDING_RATE;
+/** ?쒖옉???ㅼ?湲?80% ??derived, never an independent constant */
+export const WITHDRAWAL_PAYOUT_RATE = 1 - WITHDRAWAL_TOTAL_DEDUCTION_RATE;
 export const CREATOR_NOTICE_TITLE_MAX = 80;
 export const CREATOR_NOTICE_CONTENT_MAX = 5_000;
 
@@ -230,11 +244,19 @@ export function roundCreatorAmount(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
+/**
+ * Canonical withdrawal breakdown (single calculator owner).
+ * Integer-won exact: tax/fee round to the nearest won, the creator payout
+ * absorbs the remainder, so `requestedCp === payoutAmount + taxAmount +
+ * platformFee` holds for every base (including 10,001-style remainders).
+ * Fractional CP requests are floored to whole won ??bank transfers and the
+ * INTEGER `payout_amount` column cannot carry fractional won.
+ */
 export function calcWithdrawalBreakdown(cpAmount: number): WithdrawalBreakdown {
-  const requestedCp = roundCreatorAmount(cpAmount);
-  const taxAmount = roundCreatorAmount(requestedCp * WITHDRAWAL_TAX_RATE);
-  const platformFee = roundCreatorAmount(requestedCp * WITHDRAWAL_PLATFORM_FEE_RATE);
-  const payoutAmount = Math.floor(requestedCp - taxAmount - platformFee);
+  const requestedCp = Math.floor(roundCreatorAmount(cpAmount));
+  const taxAmount = Math.round(requestedCp * WITHDRAWAL_WITHHOLDING_RATE);
+  const platformFee = Math.round(requestedCp * WITHDRAWAL_PLATFORM_RETAINED_RATE);
+  const payoutAmount = requestedCp - taxAmount - platformFee;
   return { requestedCp, taxAmount, platformFee, payoutAmount };
 }
 

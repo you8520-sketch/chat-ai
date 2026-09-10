@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   WITHDRAWAL_MIN_CP,
-  WITHDRAWAL_PLATFORM_FEE_RATE,
-  WITHDRAWAL_TAX_RATE,
+  WITHDRAWAL_PLATFORM_RETAINED_RATE,
+  WITHDRAWAL_WITHHOLDING_RATE,
   WITHDRAWAL_TOTAL_DEDUCTION_RATE,
   calcWithdrawalBreakdown,
   formatAccountInfoLabel,
@@ -57,8 +57,8 @@ export default function WithdrawalForm({
     return calcWithdrawalBreakdown(amountNum);
   }, [amountNum]);
 
-  const taxPct = Math.round(WITHDRAWAL_TAX_RATE * 1000) / 10;
-  const platformPct = Math.round(WITHDRAWAL_PLATFORM_FEE_RATE * 1000) / 10;
+  const taxPct = Math.round(WITHDRAWAL_WITHHOLDING_RATE * 1000) / 10;
+  const platformPct = Math.round(WITHDRAWAL_PLATFORM_RETAINED_RATE * 1000) / 10;
   const totalPct = Math.round(WITHDRAWAL_TOTAL_DEDUCTION_RATE * 100);
 
   const formDisabled = hasPendingWithdrawal || busy || !withdrawal.canWithdraw;
@@ -267,7 +267,7 @@ export default function WithdrawalForm({
               <span className="text-rose-300/90">-{fmt(breakdown.taxAmount)}CP</span>
             </li>
             <li className="flex justify-between">
-              <span>플랫폼 이용료 ({platformPct}%)</span>
+              <span>플랫폼 귀속분 ({platformPct}%)</span>
               <span className="text-rose-300/90">-{fmt(breakdown.platformFee)}CP</span>
             </li>
             <li className="flex justify-between border-t border-white/5 pt-1 font-semibold">
@@ -302,7 +302,8 @@ export default function WithdrawalForm({
       {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
 
       <p className="mt-4 text-[11px] leading-relaxed text-gray-300/90">
-        💡 세금 {taxPct}% 포함 총 {totalPct}%의 수수료가 공제된 금액이 입금됩니다.
+        💡 세금 {taxPct}% 포함 총 {totalPct}%가 공제된 금액이 입금됩니다. 플랫폼 귀속분은
+        별도 추가 매출이 아니라 결제 매출에서 발생하는 정산 귀속분입니다.
       </p>
       <p className="mt-1 text-[11px] leading-relaxed text-gray-300/80">
         주민등록번호는 암호화되어 보관되며, 계좌 예금주는 신청 시 자동 확인됩니다.

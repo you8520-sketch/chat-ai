@@ -40,8 +40,9 @@ export {
   CREATOR_STANDARD_MIN_TOTAL_CHATS,
   CREATOR_TIER_LABELS,
   WITHDRAWAL_MIN_CP,
-  WITHDRAWAL_TAX_RATE,
-  WITHDRAWAL_PLATFORM_FEE_RATE,
+  WITHDRAWAL_WITHHOLDING_RATE,
+  WITHDRAWAL_PLATFORM_RETAINED_RATE,
+  WITHDRAWAL_PAYOUT_RATE,
   WITHDRAWAL_TOTAL_DEDUCTION_RATE,
   calcWithdrawalBreakdown,
   formatAccountInfoLabel,
@@ -356,7 +357,11 @@ export function requestCreatorWithdrawal(
     throw new Error("처리 대기 중인 출금 신청이 있습니다. 완료 후 다시 신청해 주세요.");
   }
 
-  const { taxAmount, platformFee, payoutAmount } = calcWithdrawalBreakdown(requestedCp);
+  const breakdown = calcWithdrawalBreakdown(requestedCp);
+  // Breakdown base is integer won (fractional CP floored) — debit, snapshot
+  // and log must all use the locked integer base, never the raw input.
+  const lockedCp = breakdown.requestedCp;
+  const { taxAmount, platformFee, payoutAmount } = breakdown;
   const accountInfo: AccountInfo = {
     bankName,
     accountNumber: accountDigits,
@@ -370,7 +375,7 @@ export function requestCreatorWithdrawal(
       .prepare(
         "UPDATE users SET creator_points = ROUND(creator_points - ?, 1) WHERE id=? AND creator_points >= ?"
       )
-      .run(requestedCp, userId, requestedCp);
+      .run(lockedCp, userId, lockedCp);
     if (updated.changes === 0) {
       throw new Error("크리에이터 포인트가 부족합니다.");
     }
@@ -384,7 +389,7 @@ export function requestCreatorWithdrawal(
       )
       .run(
         userId,
-        requestedCp,
+        lockedCp,
         taxAmount,
         platformFee,
         payoutAmount,
@@ -396,7 +401,7 @@ export function requestCreatorWithdrawal(
 
     db.prepare("INSERT INTO creator_point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
       userId,
-      -requestedCp,
+      -lockedCp,
       `출금 신청 #${info.lastInsertRowid} (실수령 ₩${payoutAmount.toLocaleString()} 예정 · 세금 ${taxAmount}CP · 수수료 ${platformFee}CP)`
     );
 
@@ -405,7 +410,7 @@ export function requestCreatorWithdrawal(
 
   return {
     withdrawalId,
-    requestedCp,
+    requestedCp: lockedCp,
     taxAmount,
     platformFee,
     payoutAmount,
