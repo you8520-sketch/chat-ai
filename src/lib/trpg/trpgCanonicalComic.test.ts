@@ -238,18 +238,14 @@ describe("TRPG canonical 4-panel comic (PR-B)", () => {
     assert.doesNotMatch(route, /trpgComicPlanner|buildTrpgComicPrompt/);
   });
 
-  it("NO-EXTRA-AI-CALL: comic campaign path uses the server round source, not AI_FOCUS", () => {
+  it("NO-EXTRA-AI-CALL: TRPG production paths use the shared round source with no focus planner", () => {
     const route = read(ROUTE);
-    // The billable TRPG AI_FOCUS resolver is only in the illustration branch.
+    // No TRPG AI focus / generic Scene Planner call remains anywhere.
+    assert.doesNotMatch(route, /resolveTrpgIllustrationSceneFocus|planChatImageScene/);
     const focusCalls = [...route.matchAll(/resolveTrpgIllustrationSceneFocus\(/g)].length;
-    assert.equal(focusCalls, 1);
-    assert.match(route, /buildTrpgComicSourceText\(trpgScene\)/);
-    // The comic campaign source builder must not call the focus resolver.
-    const sourceFn = route.slice(
-      route.indexOf("function buildTrpgComicSourceText"),
-      route.indexOf("function resolveKnownSpeakerNames")
-    );
-    assert.doesNotMatch(sourceFn, /resolveTrpgIllustrationSceneFocus|planChatImageScene/);
+    assert.equal(focusCalls, 0);
+    // Illustration + comic both consume the single canonical round-source owner.
+    assert.match(route, /buildTrpgRoundSourceText\(trpgScene!?\)/);
   });
 
   it("PERSISTENCE: TRPG comic persists campaign association + cohort fields", () => {
@@ -283,10 +279,13 @@ describe("TRPG canonical 4-panel comic (PR-B)", () => {
 
   it("ILLUSTRATION-PRESERVE: the TRPG illustration path is untouched", () => {
     const route = read(ROUTE);
-    // Participant manual picker + AI_FOCUS + party reference plan remain.
+    // Participant manual picker + party reference plan remain; the focus
+    // selector/planner is gone and the canonical round source feeds the
+    // existing important-moment illustration owner.
     assert.match(route, /applyTrpgCastImagePicks\(trpgScene\.members, body\.castImagePicks\)/);
-    assert.match(route, /resolveTrpgIllustrationSceneFocus\(/);
     assert.match(route, /buildPartyIllustrationReferencePlan\(cast\)/);
-    assert.match(route, /trpgImageSceneMode: campaignId \? trpgImageSceneModeApplied : undefined/);
+    assert.match(route, /buildChatLdIllustrationPrompt\(/);
+    assert.match(route, /buildTrpgRoundSourceText\(trpgScene!\)/);
+    assert.doesNotMatch(route, /resolveTrpgIllustrationSceneFocus|planChatImageScene/);
   });
 });

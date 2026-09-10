@@ -8,13 +8,13 @@ import {
   buildChatLdIllustrationPrompt,
   buildLdDuoGenerationPlan,
   buildLdSceneGenerationPlan,
-  buildTrpgIllustrationSituation,
   formatOpenAiImageUserError,
   resolveChatLdIllustrationPrice,
   sanitizeChatTurnForIllustrationPrompt,
   uniqueIllustrationAliases,
   withIllustrationReferenceIndices,
 } from "./chatLdIllustrationGeneration";
+import { buildTrpgRoundSourceText } from "./trpg/roundSource";
 
 describe("chatLdIllustrationGeneration", () => {
   it("uses a medium-quality 800x1200 vertical output", () => {
@@ -118,7 +118,7 @@ describe("chatLdIllustrationGeneration", () => {
       personaName: "렌",
       personaGender: "male",
       currentTurn: "네 사람이 폐허 입구에 선다.",
-      situation: buildTrpgIllustrationSituation({
+      situation: buildTrpgRoundSourceText({
         location: "폐허 입구",
         actions: [
           { name: "렌", body: "문을 밀어 연다." },
@@ -167,11 +167,10 @@ describe("chatLdIllustrationGeneration", () => {
     assert.match(prompt, /No photo for 민호/);
     assert.match(prompt, /짧은 흑발, 안경/);
     assert.match(prompt, /confirmed FEMALE/);
-    assert.match(prompt, /LOCATION: 폐허 입구/);
-    assert.match(prompt, /THIS ROUND'S ACTIONS/);
-    assert.match(prompt, /- 렌: 문을 밀어 연다/);
-    assert.match(prompt, /- 태형: 검을 뽑는다/);
-    assert.match(prompt, /GM SCENE:/);
+    assert.match(prompt, /SELECTED TURN — SINGLE IMPORTANT VISUAL MOMENT/);
+    assert.match(prompt, /장소: 폐허 입구/);
+    assert.match(prompt, /렌: 문을 밀어 연다/);
+    assert.match(prompt, /태형: 검을 뽑는다/);
     assert.match(prompt, /every listed face is clearly visible/);
     assert.match(prompt, /네 사람이 폐허 입구에 선다/);
   });

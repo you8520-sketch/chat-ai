@@ -7,8 +7,8 @@ import { buildChatComicImagePrompt } from "@/lib/chatComicGeneration";
 import {
   buildChatLdIllustrationPrompt,
   buildLdSceneGenerationPlan,
-  buildTrpgIllustrationSituation,
 } from "@/lib/chatLdIllustrationGeneration";
+import { buildTrpgRoundSourceText } from "@/lib/trpg/roundSource";
 import {
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
@@ -216,8 +216,9 @@ describe("chatImageSafeVisualProjection", () => {
   });
 
   it("P16 graphic violence TRPG final-prompt leak = 0", () => {
-    const situation = buildTrpgIllustrationSituation({
+    const situation = buildTrpgRoundSourceText({
       location: "던전",
+      actions: [],
       narration: "피를 흘리며 쓰러진 전사가 바닥에 누워 있다.",
     });
     const prompt = buildChatLdIllustrationPrompt({
@@ -377,8 +378,9 @@ describe("chatImageSafeVisualProjection", () => {
       "강이현의 팔에서 피가 흘렀다.",
       "터널 끝에서 청록색 안개가 밀려온다.",
     ].join("\n");
-    const situation = buildTrpgIllustrationSituation({
+    const situation = buildTrpgRoundSourceText({
       location: "폐허가 된 지하철역",
+      actions: [],
       narration,
     });
     const prompt = buildChatLdIllustrationPrompt({

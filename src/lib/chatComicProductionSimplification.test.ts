@@ -30,7 +30,7 @@ describe("production comic simplification — Scene Planner calls 0", () => {
     const route = read(ROUTE);
     // The comic route must not contain a planner call anywhere: the production
     // path is full-source direct and the scene_plan diagnostic endpoint is gone.
-    // planChatImageScene remains available only via the TRPG focus module.
+    // The TRPG AI focus Scene Planner path was also removed from the route.
     assert.doesNotMatch(route, /planChatImageScene\(/);
     assert.doesNotMatch(route, /from "@\/lib\/chatImageScenePlanner"/);
   });

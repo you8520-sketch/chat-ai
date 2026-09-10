@@ -19,7 +19,6 @@ import {
 import ChatSceneBuilder, {
   type SceneOutputMode,
 } from "@/components/ChatSceneBuilder";
-import TrpgImageSceneDiagnosticsPanel from "@/components/TrpgImageSceneDiagnosticsPanel";
 import {
   draftCastIntentFromCandidatePool,
   mergeCastIntentDraft,
@@ -30,19 +29,6 @@ import {
   type SelectableCastAsset,
 } from "@/lib/chatImageCast";
 import type { ContentKind } from "@/lib/simulationMode";
-import {
-  TRPG_IMAGE_SCENE_MODE_DEFAULT,
-  type TrpgImageSceneMode,
-} from "@/lib/trpg/trpgImageSceneMode";
-import {
-  buildTrpgDiagnosticsResultIdentity,
-  buildTrpgDiagnosticsSourceIdentity,
-  clearedTrpgImageSceneDiagnostics,
-  resolveTrpgImageSceneDiagnosticsFromResponse,
-  resolveTrpgImageSceneDiagnosticsOnSourceReopen,
-  shouldClearTrpgImageSceneDiagnosticsOnSourceOpen,
-  type TrpgImageSceneDiagnosticsPayload,
-} from "@/lib/trpg/trpgImageSceneDiagnosticsLifecycle";
 import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
 import { emptySceneVisualScopeState } from "@/lib/chatImageSceneVisualScope";
 import {
@@ -140,21 +126,6 @@ type GenerateResult = {
   freePoints?: number;
   savedToCharacterAlbum?: boolean;
   generationId?: number;
-  trpgImageSceneDiagnostics?: {
-    mode: TrpgImageSceneMode;
-    modeRequested: TrpgImageSceneMode;
-    modeApplied: TrpgImageSceneMode;
-    aiModel: string;
-    aiAttempts: number;
-    aiUsedFallback: boolean;
-    aiDeterministicFallback: boolean;
-    aiLatencyMs: number;
-    canonicalLocation: string;
-    selectedHeroScene: string;
-    heroEventIds: string[];
-    overSelectionRejected: boolean;
-    fallbackReason?: string;
-  };
 };
 
 function isDurableAlbumGenerationSuccess(
@@ -382,25 +353,6 @@ export default function ChatImageGeneratorPanel({
   const [summarizing, setSummarizing] = useState(false);
   const [campaignId, setCampaignId] = useState<number | null>(null);
   const [campaignRoundNumber, setCampaignRoundNumber] = useState<number | null>(null);
-  const [trpgImageSceneMode, setTrpgImageSceneMode] = useState<TrpgImageSceneMode>(
-    TRPG_IMAGE_SCENE_MODE_DEFAULT
-  );
-  const [trpgImageSceneDiagnostics, setTrpgImageSceneDiagnostics] =
-    useState<GenerateResult["trpgImageSceneDiagnostics"]>(undefined);
-  const trpgDiagnosticsCacheRef = useRef<{
-    sourceIdentity: string;
-    resultIdentity: string;
-    diagnostics: TrpgImageSceneDiagnosticsPayload;
-  } | null>(null);
-  const lastTrpgGenerationIdRef = useRef<number | null>(null);
-  const illustrationResultUrlRef = useRef(illustrationResultUrl);
-  useEffect(() => {
-    illustrationResultUrlRef.current = illustrationResultUrl;
-  }, [illustrationResultUrl]);
-  const clearTrpgImageSceneDiagnostics = useCallback(() => {
-    setTrpgImageSceneDiagnostics(clearedTrpgImageSceneDiagnostics());
-    trpgDiagnosticsCacheRef.current = null;
-  }, []);
   const [campaignTitle, setCampaignTitle] = useState("");
   const [partyNames, setPartyNames] = useState<string[]>([]);
   const [partyCast, setPartyCast] = useState<PartyCastMember[]>([]);
@@ -442,36 +394,6 @@ export default function ChatImageGeneratorPanel({
           : []
       );
       const messageId = Number(detail?.messageId);
-      const nextSourceIdentity = buildTrpgDiagnosticsSourceIdentity({
-        campaignId:
-          Number.isInteger(parsedCampaignId) && parsedCampaignId > 0 ? parsedCampaignId : null,
-        roundNumber:
-          Number.isInteger(parsedRound) && parsedRound >= 0 ? parsedRound : null,
-        sourceMessageId: Number.isFinite(messageId) && messageId > 0 ? messageId : null,
-      });
-      const currentResultIdentity = buildTrpgDiagnosticsResultIdentity({
-        generationId: lastTrpgGenerationIdRef.current,
-        imageUrl: illustrationResultUrlRef.current,
-      });
-      if (
-        shouldClearTrpgImageSceneDiagnosticsOnSourceOpen({
-          previousSourceIdentity: trpgDiagnosticsCacheRef.current?.sourceIdentity ?? null,
-          nextSourceIdentity,
-        })
-      ) {
-        clearTrpgImageSceneDiagnostics();
-      } else {
-        const restored = resolveTrpgImageSceneDiagnosticsOnSourceReopen({
-          nextSourceIdentity,
-          currentResultIdentity,
-          cached: trpgDiagnosticsCacheRef.current,
-          currentDiagnostics: trpgImageSceneDiagnostics,
-        });
-        if (restored !== trpgImageSceneDiagnostics) {
-          setTrpgImageSceneDiagnostics(restored);
-        }
-      }
-      setTrpgImageSceneMode(TRPG_IMAGE_SCENE_MODE_DEFAULT);
       const epoch = beginSceneSourceChange();
       setSourceMessageId(null);
       setSourceTurnPreview("");
@@ -495,7 +417,7 @@ export default function ChatImageGeneratorPanel({
     };
     window.addEventListener("chat:image-generator:open", openGenerator);
     return () => window.removeEventListener("chat:image-generator:open", openGenerator);
-  }, [clearTrpgImageSceneDiagnostics, trpgImageSceneDiagnostics]);
+  }, []);
 
   useEffect(() => {
     // A new campaign/source opens with the illustration default, but a user's
@@ -650,8 +572,10 @@ export default function ChatImageGeneratorPanel({
         ? Boolean(String(subject.requestedReferenceAssetUrl ?? "").trim())
         : true
     ).length;
-    // Current production identity cap: a 4th selected cast member does not
-    // attach its own reference yet, so never quote a 4-ref price today.
+    // Production identity-reference budget (physical attachments). A 4th
+    // selected cast member DOES attach its own reference, so 4 grounded refs
+    // quote the base + 2 surcharge tier. Still clamp to the canonical cap in
+    // case the constant changes.
     return Math.min(grounded, CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP);
   }, [campaignId, partyCast, partyPicks, castIntent]);
   const expectedPrice = resolveImageGenerationRequiredPoints(
@@ -1055,7 +979,6 @@ export default function ChatImageGeneratorPanel({
     setGenerating(true);
     setError("");
     setNotice("");
-    clearTrpgImageSceneDiagnostics();
     if (isIllustration) setIllustrationResultUrl("");
     else setComicResultUrl("");
     const controller = new AbortController();
@@ -1097,8 +1020,6 @@ export default function ChatImageGeneratorPanel({
                 }))
                 .filter((pick) => pick.imageUrl)
             : undefined,
-            trpgImageSceneMode:
-            isIllustration && campaignId ? trpgImageSceneMode : undefined,
         }),
       });
       const data = (await response.json().catch(() => null)) as GenerateResult | null;
@@ -1117,28 +1038,6 @@ export default function ChatImageGeneratorPanel({
             krw: data.upstreamCostKrw!,
           },
         }));
-      }
-      const diagnostics = resolveTrpgImageSceneDiagnosticsFromResponse(data);
-      setTrpgImageSceneDiagnostics(diagnostics);
-      if (diagnostics && isIllustration && campaignId != null) {
-        const generationId =
-          typeof data.generationId === "number" && data.generationId > 0
-            ? data.generationId
-            : null;
-        if (generationId) lastTrpgGenerationIdRef.current = generationId;
-        const resultIdentity = buildTrpgDiagnosticsResultIdentity({
-          generationId,
-          imageUrl: data.imageUrl,
-        });
-        trpgDiagnosticsCacheRef.current = {
-          sourceIdentity: buildTrpgDiagnosticsSourceIdentity({
-            campaignId,
-            roundNumber: campaignRoundNumber,
-            sourceMessageId,
-          }),
-          resultIdentity,
-          diagnostics,
-        };
       }
       updateBalance(data);
       setNotice(
@@ -1348,44 +1247,6 @@ export default function ChatImageGeneratorPanel({
                         </div>
                         {partyCast.length === 0 ? (
                           <p className="text-[10px] text-zinc-500">파티 이미지를 불러오는 중…</p>
-                        ) : null}
-                        {trpgCampaignMode && sceneIsIllustration ? (
-                          <div className="rounded-xl border border-amber-400/25 bg-amber-950/20 p-3 space-y-2">
-                            <p className="text-[10px] font-semibold text-amber-200">
-                              장면 초점
-                            </p>
-                            <div className="flex flex-wrap gap-2 text-[11px]">
-                              <label className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1">
-                                <input
-                                  type="radio"
-                                  name="trpg-image-scene-mode"
-                                  checked={trpgImageSceneMode === "RAW"}
-                                  onChange={() => {
-                                    clearTrpgImageSceneDiagnostics();
-                                    setTrpgImageSceneMode("RAW");
-                                  }}
-                                />
-                                CURRENT_RAW
-                              </label>
-                              <label className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1">
-                                <input
-                                  type="radio"
-                                  name="trpg-image-scene-mode"
-                                  checked={trpgImageSceneMode === "AI_FOCUS"}
-                                  onChange={() => {
-                                    clearTrpgImageSceneDiagnostics();
-                                    setTrpgImageSceneMode("AI_FOCUS");
-                                  }}
-                                />
-                                AI_FOCUS
-                              </label>
-                            </div>
-                            {trpgImageSceneDiagnostics ? (
-                              <TrpgImageSceneDiagnosticsPanel
-                                diagnostics={trpgImageSceneDiagnostics}
-                              />
-                            ) : null}
-                          </div>
                         ) : null}
                         {partyPickerMember && partyPickerMember.images.length > 1 ? (
                           <div className="rounded-xl border border-violet-400/20 bg-black/25 p-2">
