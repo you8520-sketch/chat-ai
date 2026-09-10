@@ -9,9 +9,8 @@ import {
   resolveOpenRouterModelRates,
 } from "@/lib/openRouterModelPricing";
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL,
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   isCheaperInferenceDeepSeekV4FlashModel,
+  MAIN_RP_USER_SELECTABLE_OPTIONS,
 } from "@/lib/chatModels";
 import type { Usage } from "@/lib/chatUsage";
 import {
@@ -20,7 +19,7 @@ import {
   resolveMessageTurnProviderCostKrw,
   type FinanceTurnCostCoverage,
 } from "@/lib/adminFinanceTurnCost";
-import { ensureProviderCostLedgerSchema, type ProviderCostLedgerRow } from "@/lib/providerCostLedger";
+import { ensureProviderCostLedgerSchema, readLedgerPeriodCostAttribution, type ProviderCostLedgerRow } from "@/lib/providerCostLedger";
 import { imageHasAccountingActivity } from "@/lib/adminFinanceMarginDisplay";
 
 export type FinanceMonthlyAdjustments = {
@@ -70,15 +69,46 @@ export type AdminFinanceSummary = {
     marginCoverage: FinanceMarginCoverage;
     realizedMarginExact: boolean;
   }>;
-  deepSeekV4Flash: {
+  /** Generic AI actual-cost attribution (dynamic union over the canonical ledger). */
+  aiCost: {
+    totalActualKrw: number;
+    estimatedFallbackKrw: number;
+    unattributedKrw: number;
+    unattributedCalls: number;
     calls: number;
     inputTokens: number;
     outputTokens: number;
-    cacheReadTokens: number;
-    costBeforeTaxKrw: number;
-    costWithTaxKrw: number;
+    /** Settled-actual share of ledger-recognized cost; null when nothing recorded. */
+    coveragePct: number | null;
+    hasInexact: boolean;
+    /** Latest ledger write in range ("last recorded", never "synced"). */
+    lastRecordedAt: string | null;
+    byCenter: Array<{
+      center: string;
+      calls: number;
+      actualKrw: number;
+      estimatedKrw: number;
+      sharePct: number;
+    }>;
   };
-  creatorAccruedKrw: number;
+  /**
+   * Union model view: messages-attributed direct rows (with revenue) plus
+   * ledger-only indirect rows (cost only, contribution/margin always null).
+   */
+  aiModelCosts: Array<{
+    model: string;
+    kind: "direct" | "indirect";
+    center: string | null;
+    calls: number | null;
+    paidRevenueKrw: number;
+    actualKrw: number;
+    estimatedKrw: number;
+    contributionKrw: number | null;
+    marginRate: number | null;
+    sourceState: string;
+  }>;
+  /** Active registry models with zero observed usage in range. */
+  zeroUseModels: Array<{ id: string; label: string }>;  creatorAccruedKrw: number;
   creatorPayoutCashKrw: number;
   /**
    * Cash-withdrawal settlement attribution from APPROVED snapshots.
@@ -197,48 +227,6 @@ export function estimateApiCostUsd(input: {
       cacheWrite * resolveCacheWriteUsdPerM(rates) +
       Math.max(0, input.outputTokens) * rates.outputUsdPerM) /
     1_000_000
-  );
-}
-
-export function recordApiCost(input: {
-  provider: string;
-  model: string;
-  requestKind?: string;
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadTokens?: number;
-  cacheWriteTokens?: number;
-  upstreamCostUsd?: number;
-  estimated?: boolean;
-}) {
-  // Unit tests frequently replace global fetch and assert a single provider request.
-  // Cost-ledger persistence is an operational side effect, not part of that contract.
-  if (process.env.NODE_TEST_CONTEXT) return;
-  const db = getDb();
-  ensureAdminFinanceTables(db);
-  const exchange = resolveBillingExchangeRateSnapshot();
-  const estimatedUsd = estimateApiCostUsd(input);
-  const upstreamCostUsd =
-    finiteNonNegative(input.upstreamCostUsd) || estimatedUsd;
-  const costKrw = upstreamCostUsd * exchange.effectiveKrwPerUsd;
-  db.prepare(
-    `INSERT INTO api_cost_ledger
-      (provider, model, request_kind, input_tokens, output_tokens,
-       cache_read_tokens, cache_write_tokens, upstream_cost_usd,
-       exchange_rate_krw_per_usd, cost_krw, estimated)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    input.provider,
-    input.model,
-    input.requestKind?.slice(0, 120) ?? "",
-    Math.max(0, Math.trunc(input.inputTokens)),
-    Math.max(0, Math.trunc(input.outputTokens)),
-    Math.max(0, Math.trunc(input.cacheReadTokens ?? 0)),
-    Math.max(0, Math.trunc(input.cacheWriteTokens ?? 0)),
-    upstreamCostUsd,
-    exchange.effectiveKrwPerUsd,
-    costKrw,
-    input.estimated || !finiteNonNegative(input.upstreamCostUsd) ? 1 : 0
   );
 }
 
@@ -503,41 +491,14 @@ export function buildAdminFinanceSummary(
     }
   }
 
-  const background = db
-    .prepare(
-      `SELECT COUNT(*) AS calls,
-              COALESCE(SUM(input_tokens),0) AS input_tokens,
-              COALESCE(SUM(output_tokens),0) AS output_tokens,
-              COALESCE(SUM(cache_read_tokens),0) AS cache_read_tokens,
-              COALESCE(SUM(cost_krw),0) AS cost_krw
-       FROM api_cost_ledger
-       WHERE created_at>=? AND created_at<?
-         AND lower(model) IN (?, ?)
-         AND (assistant_message_id IS NULL OR assistant_message_id = 0)`
-    )
-    .get(
-      start,
-      end,
-      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL,
-      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
-    ) as Record<string, number>;
-  const backgroundCost = finiteNonNegative(background.cost_krw);
-  const backgroundWithTax = backgroundCost * (1 + adjustments.providerTaxRate);
-  if (backgroundWithTax > 0) {
-    const flash = modelMap.get("DeepSeek V4 Flash · 백그라운드") ?? {
-      paidRevenueKrw: 0,
-      freePointSpend: 0,
-      apiCostKrw: 0,
-      marginCoverage: "estimated" as FinanceMarginCoverage,
-      realizedMarginExact: false,
-    };
-    flash.apiCostKrw += backgroundWithTax;
-    flash.marginCoverage = mergeFinanceTurnCostCoverage(flash.marginCoverage, "estimated");
-    flash.realizedMarginExact = false;
-    chatMarginCoverage = mergeFinanceTurnCostCoverage(chatMarginCoverage, "estimated");
-    chatRealizedMarginExact = false;
-    modelMap.set("DeepSeek V4 Flash · 백그라운드", flash);
-  }
+  // Generic AI-cost attribution over the canonical ledger (single owner).
+  // Message-linked rows are already recognized via usage stages; only the
+  // message-independent (unlinked) slice is added to totals here, so no
+  // physical cost is ever counted twice.
+  const ledgerAttribution = readLedgerPeriodCostAttribution(db, start, end);
+  const unlinkedApiKrw = round1(
+    ledgerAttribution.unlinked.actualKrw + ledgerAttribution.unlinked.estimatedKrw
+  );
 
   const creatorAccrued = finiteNonNegative(
     (
@@ -620,7 +581,7 @@ export function buildAdminFinanceSummary(
   const chat = category(
     chatPaid,
     chatFree,
-    chatApiCost * (1 + adjustments.providerTaxRate) + backgroundWithTax,
+    chatApiCost * (1 + adjustments.providerTaxRate),
     creatorForChat,
     chatMarginCoverage,
     chatRealizedMarginExact
@@ -641,13 +602,15 @@ export function buildAdminFinanceSummary(
     adjustments.creatorExtraIncentivesKrw +
     adjustments.otherCostsKrw;
   const paidRevenue = chat.paidRevenueKrw + image.paidRevenueKrw + giftFeeRevenueKrw;
-  const totalApiCostKrw = chat.apiCostKrw + image.apiCostKrw;
+  const totalApiCostKrw = round1(chat.apiCostKrw + image.apiCostKrw + unlinkedApiKrw);
   const summaryMarginCoverage = mergeFinanceTurnCostCoverage(
     chat.marginCoverage,
     image.marginCoverage
   );
   const summaryRealizedMarginExact =
-    chat.realizedMarginExact && image.realizedMarginExact;
+    chat.realizedMarginExact &&
+    image.realizedMarginExact &&
+    !ledgerAttribution.unlinked.hasInexact;
   // Top-level P&L only: creator cost was recognized at 100% on accrual, so
   // the APPROVED-withdrawal retained portion reverses here exactly once.
   // Category-level profits are untouched; revenue legs are never added.
@@ -658,6 +621,112 @@ export function buildAdminFinanceSummary(
       creatorPlatformRetainedKrw -
       operatingCostsKrw
     : null;
+
+  // --- Generic AI actual-cost attribution (dynamic; no model hardcoding) ---
+  const ledgerTotals = ledgerAttribution.totals;
+  const ledgerCostBase = ledgerTotals.actualKrw + ledgerTotals.estimatedKrw;
+  const aiCoveragePct =
+    ledgerCostBase > 0 ? round1((ledgerTotals.actualKrw / ledgerCostBase) * 100) : null;
+  const aiCost = {
+    totalActualKrw: round1(ledgerTotals.actualKrw),
+    estimatedFallbackKrw: round1(ledgerTotals.estimatedKrw),
+    unattributedKrw: round1(ledgerTotals.unattributedKrw),
+    unattributedCalls: ledgerTotals.unattributedCalls,
+    calls: ledgerTotals.calls,
+    inputTokens: ledgerTotals.inputTokens,
+    outputTokens: ledgerTotals.outputTokens,
+    // Share of ledger-recognized cost that is settled actual (definition is
+    // documented next to the UI coverage label; null when nothing recorded).
+    coveragePct: aiCoveragePct,
+    hasInexact: ledgerTotals.hasInexact,
+    // Honest freshness: latest ledger write in range, never "synced".
+    lastRecordedAt: ledgerAttribution.lastRecordedAt,
+    byCenter: (
+      Object.entries(ledgerAttribution.byCenter) as Array<
+        [string, (typeof ledgerAttribution.byCenter)[keyof typeof ledgerAttribution.byCenter]]
+      >
+    ).map(([center, agg]) => ({
+      center,
+      calls: agg.calls,
+      actualKrw: round1(agg.actualKrw),
+      estimatedKrw: round1(agg.estimatedKrw),
+      sharePct:
+        ledgerCostBase > 0
+          ? round1(((agg.actualKrw + agg.estimatedKrw) / ledgerCostBase) * 100)
+          : 0,
+    })),
+  };
+
+  // Union model view: messages-attributed (direct, with revenue) plus
+  // ledger-only models (indirect cost, never a fabricated margin).
+  // NOTE: message-linked ledger exacts are already folded into the
+  // messages-based apiCostKrw via usage stages, so direct-row contribution
+  // never subtracts ledger amounts again (that would double-count).
+  const ledgerModelIndex = new Map(
+    ledgerAttribution.byModel.map((entry) => [entry.model.toLowerCase(), entry])
+  );
+  const seenLedgerModels = new Set<string>();
+  const aiModelCosts: Array<{
+    model: string;
+    kind: "direct" | "indirect";
+    center: string | null;
+    calls: number | null;
+    paidRevenueKrw: number;
+    actualKrw: number;
+    estimatedKrw: number;
+    contributionKrw: number | null;
+    marginRate: number | null;
+    sourceState: string;
+  }> = [...modelMap.entries()].map(([model, values]) => {
+    const ledger = ledgerModelIndex.get(model.toLowerCase());
+    if (ledger) seenLedgerModels.add(ledger.model.toLowerCase());
+    const contribution = values.paidRevenueKrw - values.apiCostKrw;
+    const eligible = values.realizedMarginExact && values.paidRevenueKrw > 0;
+    return {
+      model,
+      kind: "direct" as const,
+      center: "chat_turn",
+      calls: ledger?.calls ?? null,
+      paidRevenueKrw: round1(values.paidRevenueKrw),
+      actualKrw: round1(ledger?.actualKrw ?? 0),
+      estimatedKrw: round1(ledger?.estimatedKrw ?? 0),
+      contributionKrw: eligible ? round1(contribution) : null,
+      marginRate: eligible && values.paidRevenueKrw > 0 ? contribution / values.paidRevenueKrw : null,
+      sourceState: ledger
+        ? ledger.sourceState
+        : values.realizedMarginExact
+          ? "actual_auto"
+          : "unavailable",
+    };
+  });
+  for (const entry of ledgerAttribution.byModel) {
+    if (seenLedgerModels.has(entry.model.toLowerCase())) continue;
+    aiModelCosts.push({
+      model: entry.model,
+      kind: "indirect",
+      center: entry.center,
+      calls: entry.calls,
+      paidRevenueKrw: 0,
+      actualKrw: round1(entry.actualKrw),
+      estimatedKrw: round1(entry.estimatedKrw),
+      contributionKrw: null,
+      marginRate: null,
+      sourceState: entry.sourceState,
+    });
+  }
+  aiModelCosts.sort(
+    (a, b) => b.actualKrw + b.estimatedKrw + b.paidRevenueKrw - (a.actualKrw + a.estimatedKrw + a.paidRevenueKrw)
+  );
+
+  // Active registry models with zero observed usage in range (compact UX data).
+  const observedModels = new Set<string>();
+  for (const key of modelMap.keys()) observedModels.add(key.toLowerCase());
+  for (const entry of ledgerAttribution.byModel) observedModels.add(entry.model.toLowerCase());
+  const zeroUseModels = MAIN_RP_USER_SELECTABLE_OPTIONS.filter(
+    (option) =>
+      !observedModels.has(option.id.toLowerCase()) &&
+      !observedModels.has(option.label.toLowerCase())
+  ).map((option) => ({ id: option.id, label: option.label }));
 
   return {
     monthKey,
@@ -686,14 +755,21 @@ export function buildAdminFinanceSummary(
         };
       })
       .sort((a, b) => b.paidRevenueKrw - a.paidRevenueKrw),
-    deepSeekV4Flash: {
-      calls: Number(background.calls ?? 0),
-      inputTokens: Number(background.input_tokens ?? 0),
-      outputTokens: Number(background.output_tokens ?? 0),
-      cacheReadTokens: Number(background.cache_read_tokens ?? 0),
-      costBeforeTaxKrw: round1(backgroundCost),
-      costWithTaxKrw: round1(backgroundWithTax),
+    aiCost: {
+      totalActualKrw: aiCost.totalActualKrw,
+      estimatedFallbackKrw: aiCost.estimatedFallbackKrw,
+      unattributedKrw: aiCost.unattributedKrw,
+      unattributedCalls: aiCost.unattributedCalls,
+      calls: aiCost.calls,
+      inputTokens: aiCost.inputTokens,
+      outputTokens: aiCost.outputTokens,
+      coveragePct: aiCost.coveragePct,
+      hasInexact: aiCost.hasInexact,
+      lastRecordedAt: aiCost.lastRecordedAt,
+      byCenter: aiCost.byCenter,
     },
+    aiModelCosts,
+    zeroUseModels,
     creatorAccruedKrw: round1(creatorAccrued),
     creatorPayoutCashKrw: round1(creatorPayoutCash),
     creatorTaxPayableKrw: round1(creatorTaxPayableKrw),

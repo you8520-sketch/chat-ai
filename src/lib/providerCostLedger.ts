@@ -15,7 +15,9 @@ export type ProviderCostFamily =
   | "status_meta"
   | "memory_relationship"
   | "post_turn_shared_initial"
-  | "status_widget_extract";
+  | "status_widget_extract"
+  /** Message-independent background calls (no chat/message linkage). */
+  | "background";
 
 export type ProviderCostExecutionPhase =
   | "main_generation"
@@ -33,8 +35,10 @@ export type ProviderCostEventStatus =
 
 /** Grouping/debug metadata — not the global physical attempt identity. */
 export type ProviderCostLedgerContext = {
-  chatId: number;
-  assistantMessageId: number;
+  /** Null for message-independent background calls. */
+  chatId: number | null;
+  /** Null for message-independent background calls. */
+  assistantMessageId: number | null;
   /** Canonical generation discriminator — captured before provider call. */
   generationSequence: number;
   /** Secondary provenance / idempotency field for the generation. */
@@ -525,4 +529,324 @@ export function readProviderCostEventByKey(
     .prepare("SELECT * FROM api_cost_ledger WHERE event_key = ?")
     .get(eventKey) as ProviderCostLedgerRow | undefined;
   return row ?? null;
+}
+
+/** Canonical feature/cost-center vocabulary for AI spend attribution. */
+export type ProviderCostCenter =
+  | "chat_turn"
+  | "memory"
+  | "status_widget"
+  | "image"
+  | "moderation"
+  | "profile"
+  | "asset"
+  | "trpg"
+  | "other";
+
+const COST_CENTER_BY_REQUEST_KIND: Array<{ center: ProviderCostCenter; match: RegExp }> = [
+  { center: "memory", match: /memory|summary|summar|compress|episod|relationship|history/i },
+  { center: "status_widget", match: /status|widget|suggested|post_turn_shared/i },
+  { center: "image", match: /image|comic|illustration|scene-brief|vision|asset/i },
+  { center: "moderation", match: /moderat/i },
+  { center: "profile", match: /profile|appearance|persona/i },
+  { center: "trpg", match: /trpg/i },
+];
+
+/**
+ * Canonical cost-center owner. Turn-scoped families map to chat_turn;
+ * message-independent rows are classified by request_kind. Unknown kinds
+ * are never dropped — they land in "other" (unattributed bucket upstream).
+ */
+export function resolveLedgerCostCenter(row: {
+  family?: string | null;
+  request_kind?: string | null;
+}): ProviderCostCenter {
+  const family = row.family?.trim() ?? "";
+  if (family !== "" && family !== "background") return "chat_turn";
+  const kind = row.request_kind?.trim() ?? "";
+  for (const { center, match } of COST_CENTER_BY_REQUEST_KIND) {
+    if (match.test(kind)) return center;
+  }
+  return "other";
+}
+
+/** Internal cost-source states (§5 semantics, mapped from ledger settlement). */
+export type LedgerCostSourceState = "actual_auto" | "estimated_auto" | "unavailable";
+
+export function resolveLedgerCostSourceState(row: Pick<
+  ProviderCostLedgerRow,
+  "actual_cost_usd" | "actual_cost_source" | "event_status"
+>): LedgerCostSourceState {
+  if (isLedgerEventCostExact(row)) return "actual_auto";
+  if (row.event_status === "failed_without_usage") return "unavailable";
+  return "estimated_auto";
+}
+
+export type BackgroundProviderCostInput = {
+  provider: string;
+  model: string;
+  requestKind?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  reasoningTokens?: number;
+  cheaperInferenceBilledCostUsd?: number;
+  upstreamCostUsd?: number;
+  usageEstimated?: boolean;
+  providerRequestId?: string | null;
+  httpStatus?: number | null;
+  outcome: "success" | "failed_without_usage" | "failed_with_usage";
+  /** Test seam — bypass NODE_TEST_CONTEXT skip. */
+  persistInTests?: boolean;
+};
+
+/**
+ * Canonical writer for message-independent background provider calls.
+ * Same ledger, same settlement owner, same FX snapshot — no parallel table.
+ * Idempotent per provider request id (sequential retries share one row);
+ * rows without a request id are recorded once per call.
+ */
+export function recordBackgroundProviderCost(
+  input: BackgroundProviderCostInput,
+  db: Database.Database = getDb()
+): { eventKey: string; recorded: boolean } {
+  if (shouldSkipPersistence(input)) return { eventKey: "", recorded: false };
+  ensureProviderCostLedgerSchema(db);
+
+  const requestId = input.providerRequestId?.trim() || null;
+  if (requestId) {
+    const existing = db
+      .prepare("SELECT event_key FROM api_cost_ledger WHERE provider_request_id = ? LIMIT 1")
+      .get(requestId) as { event_key: string } | undefined;
+    if (existing) return { eventKey: existing.event_key, recorded: false };
+  }
+
+  const attempt = startProviderCostAttempt(
+    {
+      chatId: null,
+      assistantMessageId: null,
+      generationSequence: 0,
+      generationRequestId: requestId,
+      family: "background",
+      fundingClass: "platform_funded",
+      executionPhase: "async_post_turn",
+      jobAttemptOrdinal: 1,
+      requestedProvider: input.provider,
+      requestedModel: input.model,
+      requestKind: input.requestKind,
+      persistInTests: input.persistInTests,
+    },
+    db
+  );
+  const finalized = finalizeProviderCostAttempt(
+    attempt,
+    {
+      actualProvider: input.provider,
+      actualModel: input.model,
+      inputTokens: input.inputTokens,
+      outputTokens: input.outputTokens,
+      cacheReadTokens: input.cacheReadTokens,
+      cacheWriteTokens: input.cacheWriteTokens,
+      reasoningTokens: input.reasoningTokens,
+      cheaperInferenceBilledCostUsd: input.cheaperInferenceBilledCostUsd,
+      upstreamCostUsd: input.upstreamCostUsd,
+      usageEstimated: input.usageEstimated,
+      providerRequestId: requestId,
+      httpStatus: input.httpStatus,
+      outcome: input.outcome,
+    },
+    db
+  );
+  return { eventKey: finalized.eventKey, recorded: finalized.updated };
+}
+
+export type LedgerCostAggregate = {
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+  /** Settled actual KRW (exact source only). */
+  actualKrw: number;
+  /** Estimate-reference KRW for non-exact rows. */
+  estimatedKrw: number;
+  hasInexact: boolean;
+};
+
+export type LedgerPeriodCostAttribution = {
+  byCenter: Record<ProviderCostCenter, LedgerCostAggregate>;
+  byModel: Array<{
+    model: string;
+    center: ProviderCostCenter;
+    calls: number;
+    actualKrw: number;
+    estimatedKrw: number;
+    sourceState: LedgerCostSourceState;
+  }>;
+  totals: LedgerCostAggregate & {
+    /** Rows whose model/center could not be mapped (never hidden). */
+    unattributedKrw: number;
+    unattributedCalls: number;
+  };
+  /**
+   * Message-independent rows (assistant_message_id IS NULL) — the only
+   * ledger slice finance may add to totals without double-counting the
+   * message-attributed costs already recognized via usage stages.
+   */
+  unlinked: LedgerCostAggregate;
+  /** Latest ledger event in range (honest freshness — "last recorded", never "synced"). */
+  lastRecordedAt: string | null;
+};
+
+function emptyAggregate(): LedgerCostAggregate {
+  return { calls: 0, inputTokens: 0, outputTokens: 0, actualKrw: 0, estimatedKrw: 0, hasInexact: false };
+}
+
+/**
+ * Canonical period-cost reader over api_cost_ledger. Covers every row in
+ * range (message-linked or not); callers decide attribution scope.
+ * Actual vs estimate are never summed together per row (actual wins).
+ */
+export function readLedgerPeriodCostAttribution(
+  db: Database.Database,
+  start: string,
+  end: string
+): LedgerPeriodCostAttribution {
+  const rows = db
+    .prepare(
+      `SELECT family, request_kind, actual_model, model,
+              provider_request_id, input_tokens, output_tokens,
+              actual_cost_usd, actual_cost_source, event_status,
+              exchange_rate_krw_per_usd, cost_krw, estimated,
+              assistant_message_id, created_at
+       FROM api_cost_ledger
+       WHERE created_at >= ? AND created_at < ?`
+    )
+    .all(start, end) as Array<{
+    family: string | null;
+    request_kind: string;
+    actual_model: string | null;
+    model: string;
+    provider_request_id: string | null;
+    input_tokens: number;
+    output_tokens: number;
+    actual_cost_usd: number | null;
+    actual_cost_source: string | null;
+    event_status: string | null;
+    exchange_rate_krw_per_usd: number;
+    cost_krw: number;
+    estimated: number;
+    assistant_message_id: number | null;
+    created_at: string;
+  }>;
+
+  const centers: ProviderCostCenter[] = [
+    "chat_turn",
+    "memory",
+    "status_widget",
+    "image",
+    "moderation",
+    "profile",
+    "asset",
+    "trpg",
+    "other",
+  ];
+  const byCenter = Object.fromEntries(centers.map((c) => [c, emptyAggregate()])) as Record<
+    ProviderCostCenter,
+    LedgerCostAggregate
+  >;
+  const byModel = new Map<string, LedgerPeriodCostAttribution["byModel"][number]>();
+  const unlinked = emptyAggregate();
+  let unattributedKrw = 0;
+  let unattributedCalls = 0;
+  let lastRecordedAt: string | null = null;
+  let totalsPendingInexact = false;
+
+  for (const row of rows) {
+    if (row.event_status === "started" || row.event_status === "failed_without_usage") {
+      // Failed/in-flight events contribute no cost but keep coverage honest:
+      // unknown spend exists, so totals are never presented as exact.
+      totalsPendingInexact = true;
+      continue;
+    }
+    if (row.created_at && (lastRecordedAt == null || row.created_at > lastRecordedAt)) {
+      lastRecordedAt = row.created_at;
+    }
+    const model = (row.actual_model?.trim() || row.model?.trim() || "").trim();
+    const center = resolveLedgerCostCenter(row);
+    const exact = isLedgerEventCostExact(row);
+    const fx = finiteNonNegative(row.exchange_rate_krw_per_usd);
+    const actualKrw =
+      exact && fx > 0 ? round1(finiteNonNegative(row.actual_cost_usd) * fx) : 0;
+    const estimatedKrw =
+      !exact && Number(row.estimated) === 1 ? round1(finiteNonNegative(row.cost_krw)) : 0;
+
+    const agg = byCenter[center];
+    agg.calls += 1;
+    agg.inputTokens += Math.max(0, Math.trunc(Number(row.input_tokens) || 0));
+    agg.outputTokens += Math.max(0, Math.trunc(Number(row.output_tokens) || 0));
+    agg.actualKrw = round1(agg.actualKrw + actualKrw);
+    agg.estimatedKrw = round1(agg.estimatedKrw + estimatedKrw);
+    if (!exact) agg.hasInexact = true;
+
+    const unlinkedRow = row.assistant_message_id == null;
+    if (unlinkedRow) {
+      unlinked.calls += 1;
+      unlinked.inputTokens += Math.max(0, Math.trunc(Number(row.input_tokens) || 0));
+      unlinked.outputTokens += Math.max(0, Math.trunc(Number(row.output_tokens) || 0));
+      unlinked.actualKrw = round1(unlinked.actualKrw + actualKrw);
+      unlinked.estimatedKrw = round1(unlinked.estimatedKrw + estimatedKrw);
+      if (!exact) unlinked.hasInexact = true;
+    }
+
+    const key = model || "(unattributed model)";
+    const entry = byModel.get(key) ?? {
+      model: key,
+      center,
+      calls: 0,
+      actualKrw: 0,
+      estimatedKrw: 0,
+      sourceState: "unavailable" as LedgerCostSourceState,
+    };
+    entry.calls += 1;
+    entry.actualKrw = round1(entry.actualKrw + actualKrw);
+    entry.estimatedKrw = round1(entry.estimatedKrw + estimatedKrw);
+    entry.sourceState = exact
+      ? "actual_auto"
+      : entry.sourceState === "actual_auto"
+        ? "actual_auto"
+        : "unavailable";
+    byModel.set(key, entry);
+
+    if (!model || center === "other") {
+      unattributedKrw = round1(unattributedKrw + actualKrw + estimatedKrw);
+      unattributedCalls += 1;
+    }
+  }
+
+  const totals = emptyAggregate() as LedgerPeriodCostAttribution["totals"];
+  for (const agg of Object.values(byCenter)) {
+    totals.calls += agg.calls;
+    totals.inputTokens += agg.inputTokens;
+    totals.outputTokens += agg.outputTokens;
+    totals.actualKrw = round1(totals.actualKrw + agg.actualKrw);
+    totals.estimatedKrw = round1(totals.estimatedKrw + agg.estimatedKrw);
+    if (agg.hasInexact) totals.hasInexact = true;
+  }
+  totals.unattributedKrw = unattributedKrw;
+  totals.unattributedCalls = unattributedCalls;
+  if (totalsPendingInexact) totals.hasInexact = true;
+
+  return {
+    byCenter,
+    byModel: [...byModel.values()].sort(
+      (a, b) => b.actualKrw + b.estimatedKrw - (a.actualKrw + a.estimatedKrw)
+    ),
+    totals,
+    unlinked,
+    lastRecordedAt,
+  };
+}
+
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
 }

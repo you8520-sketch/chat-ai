@@ -15,6 +15,8 @@ import {
   type AssetVisionStructuredResult,
 } from "@/lib/assetPersonTags";
 import { normalizeVisionModerationFlags } from "@/lib/visionModerationNormalize";
+import { parseCompatibleUsage } from "@/lib/openRouterUsage";
+import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
 
 const VISION_BATCH_CONCURRENCY = 4;
 
@@ -159,9 +161,30 @@ async function analyzeWithModel(
 
   const body = (await res.json()) as {
     choices?: { message?: { content?: string | null } }[];
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
   };
   const rawContent = body.choices?.[0]?.message?.content;
   const text = typeof rawContent === "string" ? rawContent : "";
+  // Canonical cost capture: asset-vision spend enters the shared ledger
+  // (actual billed cost wins at read time; estimate is fallback only).
+  try {
+    const parsedUsage = parseCompatibleUsage({ usage: body.usage, headers: res.headers });
+    recordBackgroundProviderCost({
+      provider: "openrouter",
+      model,
+      requestKind: "background-asset-vision",
+      inputTokens: parsedUsage.promptTokens,
+      outputTokens: parsedUsage.completionTokens,
+      cheaperInferenceBilledCostUsd: parsedUsage.cheaperInferenceBilledCostUsd,
+      upstreamCostUsd: parsedUsage.upstreamCostUsd,
+      usageEstimated: !parsedUsage.promptTokens || !parsedUsage.completionTokens,
+      providerRequestId:
+        res.headers.get("x-request-id") ?? res.headers.get("x-openrouter-request-id"),
+      outcome: text ? "success" : "failed_with_usage",
+    });
+  } catch (error) {
+    console.warn("[vision] cost record skipped:", (error as Error).message);
+  }
   if (!text) {
     console.warn("[vision] empty response:", model);
     return { parsed: null, retryable: true };

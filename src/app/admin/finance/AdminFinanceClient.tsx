@@ -98,6 +98,7 @@ export default function AdminFinanceClient({
   }
 
   const positive = summary.netProfitKrw != null && summary.netProfitKrw >= 0;
+  const aiTotalKrw = summary.aiCost.totalActualKrw + summary.aiCost.estimatedFallbackKrw;
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 text-zinc-100">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -108,6 +109,7 @@ export default function AdminFinanceClient({
           <h1 className="mt-2 text-2xl font-black">사이트 유지비 · 실제 수익률</h1>
           <p className="mt-1 text-sm text-zinc-500">
             유료 포인트만 매출로 계산하고 무료 포인트는 원가만 반영합니다.
+            순이익·수익률은 확정 원가 기준이며, AI 원가 커버리지를 함께 확인하세요.
           </p>
         </div>
         <input
@@ -139,6 +141,10 @@ export default function AdminFinanceClient({
         />
         <Metric label="실제 결제 유입" value={won(summary.paymentsCollectedKrw)} />
         <Metric label="유료 포인트 사용 매출" value={won(summary.paidPointsConsumed)} />
+        <Metric
+          label={`전체 AI 원가${summary.aiCost.coveragePct == null ? "" : ` · 실제확정 ${summary.aiCost.coveragePct}%`}`}
+          value={won(aiTotalKrw)}
+        />
         <Metric label="무료 포인트 사용" value={`${summary.freePointsConsumed.toLocaleString()}P`} />
         <Metric label="AI·이미지 API 원가" value={won(summary.totalApiCostKrw)} />
         <Metric label="Railway 총비용" value={won(summary.railwayCostKrw)} />
@@ -166,40 +172,89 @@ export default function AdminFinanceClient({
       </section>
 
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
-        <h2 className="font-bold">DeepSeek V4 Flash · 이번 달 실제 원가</h2>
-        <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-          <div><p className="text-zinc-500">호출</p><p className="mt-1 font-bold">{summary.deepSeekV4Flash.calls.toLocaleString()}회</p></div>
-          <div><p className="text-zinc-500">입력 / 출력</p><p className="mt-1 font-bold">{summary.deepSeekV4Flash.inputTokens.toLocaleString()} / {summary.deepSeekV4Flash.outputTokens.toLocaleString()}</p></div>
-          <div><p className="text-zinc-500">세전 원가</p><p className="mt-1 font-bold">{won(summary.deepSeekV4Flash.costBeforeTaxKrw)}</p></div>
-          <div><p className="text-zinc-500">환율·세금 포함</p><p className="mt-1 font-bold">{won(summary.deepSeekV4Flash.costWithTaxKrw)}</p></div>
-        </div>
-        <p className="mt-3 text-xs text-zinc-500">
-          환율 ₩{Math.round(summary.exchangeRateKrwPerUsd).toLocaleString()}/USD 적용 · 매일 12:00 KST 저장
+        <h2 className="font-bold">AI 실제 원가</h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          provider 확정 원가 우선 · 추정 fallback 분리 · 미분류 포함 ·{" "}
+          {summary.aiCost.lastRecordedAt
+            ? `최근 기록 ${summary.aiCost.lastRecordedAt}`
+            : "기록 없음"}
         </p>
+        <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+          <div><p className="text-zinc-500">전체 실제 원가</p><p className="mt-1 font-bold">{won(aiTotalKrw)}</p></div>
+          <div><p className="text-zinc-500">실제 확정</p><p className="mt-1 font-bold">{won(summary.aiCost.totalActualKrw)}</p></div>
+          <div><p className="text-zinc-500">추정 fallback</p><p className="mt-1 font-bold">{won(summary.aiCost.estimatedFallbackKrw)}</p></div>
+          <div><p className="text-zinc-500">미분류</p><p className="mt-1 font-bold">{won(summary.aiCost.unattributedKrw)} ({summary.aiCost.unattributedCalls.toLocaleString()}회)</p></div>
+          <div><p className="text-zinc-500">총 호출</p><p className="mt-1 font-bold">{summary.aiCost.calls.toLocaleString()}회</p></div>
+          <div><p className="text-zinc-500">입력 / 출력 토큰</p><p className="mt-1 font-bold">{summary.aiCost.inputTokens.toLocaleString()} / {summary.aiCost.outputTokens.toLocaleString()}</p></div>
+          <div><p className="text-zinc-500">실제 원가 커버리지</p><p className="mt-1 font-bold">{summary.aiCost.coveragePct == null ? "기록 없음" : `${summary.aiCost.coveragePct}%`}</p></div>
+          <div><p className="text-zinc-500">환율</p><p className="mt-1 font-bold">₩{Math.round(summary.exchangeRateKrwPerUsd).toLocaleString()}/USD</p></div>
+        </div>
+        <h3 className="mt-5 text-sm font-bold text-zinc-300">기능별 AI 원가</h3>
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <thead className="border-y border-white/10 text-xs text-zinc-500">
+              <tr><th className="p-2">기능</th><th className="p-2">호출</th><th className="p-2">실제 원가</th><th className="p-2">추정</th><th className="p-2">비중</th></tr>
+            </thead>
+            <tbody>
+              {summary.aiCost.byCenter.map((row) => (
+                <tr key={row.center} className="border-b border-white/[0.06]">
+                  <td className="p-2 font-semibold">{row.center}</td>
+                  <td className="p-2">{row.calls.toLocaleString()}회</td>
+                  <td className="p-2">{won(row.actualKrw)}</td>
+                  <td className="p-2">{won(row.estimatedKrw)}</td>
+                  <td className="p-2">{row.sharePct}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="mt-6 overflow-hidden rounded-2xl border border-white/10">
-        <div className="bg-[#11131a] px-5 py-4"><h2 className="font-bold">채팅 모델별 평균 마진</h2></div>
+        <div className="bg-[#11131a] px-5 py-4"><h2 className="font-bold">모델별 실제 원가 · 귀속매출 · 기여손익</h2></div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-left text-sm">
+          <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="border-y border-white/10 text-xs text-zinc-500">
-              <tr><th className="p-3">모델</th><th className="p-3">유료 매출</th><th className="p-3">무료 사용</th><th className="p-3">API 원가</th><th className="p-3">순마진</th></tr>
+              <tr><th className="p-3">모델</th><th className="p-3">구분</th><th className="p-3">호출</th><th className="p-3">유료 매출</th><th className="p-3">실제 원가</th><th className="p-3">추정</th><th className="p-3">기여손익</th><th className="p-3">상태</th></tr>
             </thead>
             <tbody>
-              {summary.modelBreakdown.length ? summary.modelBreakdown.map((row) => (
-                <tr key={row.model} className="border-b border-white/[0.06]">
-                  <td className="p-3 font-semibold">{row.model}</td>
-                  <td className="p-3">{won(row.paidRevenueKrw)}</td>
-                  <td className="p-3">{row.freePointSpend.toLocaleString()}P</td>
-                  <td className="p-3">{won(row.apiCostKrw)}</td>
-                  <td className="p-3">{profit(row.netProfitKrw, row.marginCoverage, row.paidRevenueKrw)} · {rate(row.marginRate, row.marginCoverage, row.paidRevenueKrw)}</td>
+              {summary.aiModelCosts.length ? summary.aiModelCosts.map((row) => (
+                <tr key={`${row.kind}:${row.model}`} className="border-b border-white/[0.06]">
+                  <td className="p-3 font-semibold">{row.model === "(unattributed model)" ? "미분류 모델" : row.model}</td>
+                  <td className="p-3 text-zinc-400">{row.kind === "direct" ? "직접" : "간접 AI 비용"}</td>
+                  <td className="p-3">{row.calls == null ? "-" : `${row.calls.toLocaleString()}회`}</td>
+                  <td className="p-3">{row.kind === "direct" ? won(row.paidRevenueKrw) : "-"}</td>
+                  <td className="p-3">{won(row.actualKrw)}</td>
+                  <td className="p-3">{won(row.estimatedKrw)}</td>
+                  <td className="p-3">
+                    {row.contributionKrw == null
+                      ? <span className="text-zinc-500">-</span>
+                      : `${won(row.contributionKrw)}${row.marginRate == null ? "" : ` (${(row.marginRate * 100).toFixed(1)}%)`}`}
+                  </td>
+                  <td className="p-3 text-zinc-400">{
+                    row.sourceState === "actual_auto" ? "실제확정"
+                    : row.sourceState === "estimated_auto" ? "추정"
+                    : "미확정"
+                  }</td>
                 </tr>
               )) : (
-                <tr><td colSpan={5} className="p-8 text-center text-zinc-500">아직 집계할 결제 사용 내역이 없습니다.</td></tr>
+                <tr><td colSpan={8} className="p-8 text-center text-zinc-500">아직 집계할 결제 사용 내역이 없습니다.</td></tr>
               )}
             </tbody>
           </table>
         </div>
+        {summary.zeroUseModels.length > 0 && (
+          <details className="border-t border-white/10 px-5 py-3 text-sm">
+            <summary className="cursor-pointer text-zinc-400">
+              사용량 0 모델 {summary.zeroUseModels.length}개
+            </summary>
+            <ul className="mt-2 space-y-1 text-zinc-500">
+              {summary.zeroUseModels.map((m) => (
+                <li key={m.id}>{m.label} <span className="text-zinc-600">({m.id})</span></li>
+              ))}
+            </ul>
+          </details>
+        )}
       </section>
 
       <section className="mt-6 rounded-2xl border border-white/10 bg-[#0e1016] p-5">
