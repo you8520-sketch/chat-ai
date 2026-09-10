@@ -402,7 +402,7 @@ export function requestCreatorWithdrawal(
     db.prepare("INSERT INTO creator_point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
       userId,
       -lockedCp,
-      `출금 신청 #${info.lastInsertRowid} (실수령 ₩${payoutAmount.toLocaleString()} 예정 · 세금 ${taxAmount}CP · 수수료 ${platformFee}CP)`
+      `출금 신청 #${info.lastInsertRowid} (실수령 ₩${payoutAmount.toLocaleString()} 예정 · 원천징수 세금 ${taxAmount}CP · 플랫폼 수수료 ${platformFee}CP)`
     );
 
     return Number(info.lastInsertRowid);

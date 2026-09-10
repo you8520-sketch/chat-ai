@@ -19,8 +19,8 @@ export function calcLocalTax(nationalTax: number): number {
 /**
  * Canonical withholding split owner. Stored `tax_amount` is TOTAL
  * withholding (national + local combined), so display/reporting derives:
- * national ??total횞10/11, local = canonical 10%-of-national via
- * calcLocalTax, and national absorbs the remainder ??therefore
+ * national ~= total x 10/11, local = canonical 10%-of-national via
+ * calcLocalTax, and national absorbs the remainder - therefore
  * `nationalTax + localTax === total` holds exactly for every total, in both
  * the old 8.8% era and the current 3.3% era (rate-agnostic structure).
  */

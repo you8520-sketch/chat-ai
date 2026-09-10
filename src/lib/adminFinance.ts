@@ -81,11 +81,14 @@ export type AdminFinanceSummary = {
   creatorAccruedKrw: number;
   creatorPayoutCashKrw: number;
   /**
-   * Informational attribution only (approved-withdrawal snapshots).
+   * Cash-withdrawal settlement attribution from APPROVED snapshots.
    * creatorTaxPayableKrw (withholding total) is a tax outflow, NOT platform
-   * revenue. creatorPlatformRetainedKrw (requested - payout - tax) is the
-   * platform's economic share already implied by gross revenue minus creator
-   * cost ??it is NEVER added to revenue (that would double-count).
+   * revenue and NOT an extra creator cost (already inside the 100% accrual).
+   * creatorPlatformRetainedKrw (requested - payout - tax) is the CANONICAL
+   * settlement adjustment owner: creator cost was recognized at 100% when
+   * rewards accrued, so the retained portion reverses into top-level net
+   * profit EXACTLY ONCE here. It is NEVER added to revenue (Case A gross
+   * model — that would double-count).
    */
   creatorTaxPayableKrw: number;
   creatorPlatformRetainedKrw: number;
@@ -558,8 +561,12 @@ export function buildAdminFinanceSummary(
         .get(start, end) as { amount: number }
     ).amount
   );
-  // Approved-withdrawal snapshot attribution (informational only ??excluded
-  // from both revenue and costs; see AdminFinanceSummary field docs).
+  // Approved-withdrawal snapshot attribution (period = processed_at; accrual
+  // lives in the created_at month, so a cross-month settlement reverses in
+  // the settlement month by design - no liability ledger in this scope).
+  // Neither value enters revenue or costs here; the retained portion is
+  // added back EXACTLY ONCE in top-level net profit below (no revenue leg -
+  // recognizing both legs would double-count the same economics).
   const creatorWithdrawalAttribution = db
     .prepare(
       `SELECT COALESCE(SUM(tax_amount),0) AS tax,
@@ -643,8 +650,15 @@ export function buildAdminFinanceSummary(
   );
   const summaryRealizedMarginExact =
     chat.realizedMarginExact && image.realizedMarginExact;
+  // Top-level P&L only: creator cost was recognized at 100% on accrual, so
+  // the APPROVED-withdrawal retained portion reverses here exactly once.
+  // Category-level profits are untouched; revenue legs are never added.
   const netProfitKrw = summaryRealizedMarginExact
-    ? paidRevenue - totalApiCostKrw - creatorForChat - operatingCostsKrw
+    ? paidRevenue -
+      totalApiCostKrw -
+      creatorForChat +
+      creatorPlatformRetainedKrw -
+      operatingCostsKrw
     : null;
 
   return {

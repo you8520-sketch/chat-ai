@@ -24,6 +24,8 @@ import {
   listPendingWithdrawals,
   processSingleWithdrawal,
 } from "./payoutQueue";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL } from "./chatModels";
+import { exchangeCreatorPoints } from "./creatorPoints";
 
 const TAG = `potest_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
 
@@ -360,8 +362,7 @@ describe("payout policy unification — pending snapshot lock", () => {
   });
 });
 
-describe("payout policy unification — request path validation", () => {
-  it("REQUEST-PATH stores the canonical snapshot and debits CP in full", () => {
+describe("payout policy unification — request path validation", () => {  it("REQUEST-PATH stores the canonical snapshot and debits CP in full", () => {
     const user = createDevUser("request");
     const db = getDb();
     try {
@@ -433,6 +434,151 @@ describe("payout policy unification — request path validation", () => {
       );
     } finally {
       deleteDevUser(user.id, user.email);
+    }
+  });
+});
+
+describe("payout settlement adjustment — creator accrual vs cash withdrawal", () => {
+  function settlementDb(opts: {
+    revenue: number;
+    accrued: number;
+    withdrawal?: { requested: number; tax: number; fee: number; payout: number };
+  }): Database.Database {
+    const db = financeDb();
+    db.prepare(
+      `INSERT INTO messages (id, chat_id, role, usage, deduction_slices, created_at, is_refunded)
+       VALUES (1, 1, 'assistant', ?, ?, datetime('now'), 0)`
+    ).run(
+      JSON.stringify({ model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL }),
+      JSON.stringify([{ pointType: "PAID", amount: opts.revenue }])
+    );
+    if (opts.accrued > 0) {
+      db.prepare(
+        `INSERT INTO creator_earnings (reward_amount, reversed, created_at)
+         VALUES (?, 0, datetime('now'))`
+      ).run(opts.accrued);
+    }
+    if (opts.withdrawal) {
+      const w = opts.withdrawal;
+      db.prepare(
+        `INSERT INTO withdrawal_requests
+          (user_id, requested_cp, tax_amount, platform_fee, payout_amount, account_info, status, processed_at, created_at)
+         VALUES (1, ?, ?, ?, ?, ?, 'APPROVED', datetime('now'), datetime('now'))`
+      ).run(w.requested, w.tax, w.fee, w.payout, accountJson);
+    }
+    return db;
+  }
+
+  it("SETTLE-A same-period withdrawal reverses retained into net profit (75010, not 70000)", () => {
+    const db = settlementDb({
+      revenue: 100000,
+      accrued: 30000,
+      withdrawal: { requested: 30000, tax: 990, fee: 5010, payout: 24000 },
+    });
+    try {
+      const summary = buildAdminFinanceSummary(db);
+      assert.equal(summary.chat.paidRevenueKrw, 100000);
+      assert.equal(summary.chat.creatorCostKrw, 30000);
+      assert.equal(summary.netProfitKrw, 75010);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("SETTLE-B retained is reflected exactly once — revenue untouched", () => {
+    const db = settlementDb({
+      revenue: 100000,
+      accrued: 30000,
+      withdrawal: { requested: 30000, tax: 990, fee: 5010, payout: 24000 },
+    });
+    try {
+      const summary = buildAdminFinanceSummary(db);
+      assert.equal(summary.chat.paidRevenueKrw, 100000);
+      assert.equal(summary.giftFeeRevenueKrw, 0);
+      assert.equal(summary.paidPointsConsumed, 100000);
+      const view = summary as unknown as Record<string, unknown>;
+      assert.equal(view.creatorPlatformRetainedKrw, 5010);
+      assert.equal(
+        summary.netProfitKrw,
+        100000 - 30000 + 5010,
+        "retained adjustment applied exactly once to net profit only"
+      );
+    } finally {
+      db.close();
+    }
+  });
+
+  it("SETTLE-C withholding tax is not double-costed (effective creator cost 24990)", () => {
+    const db = settlementDb({
+      revenue: 100000,
+      accrued: 30000,
+      withdrawal: { requested: 30000, tax: 990, fee: 5010, payout: 24000 },
+    });
+    try {
+      const summary = buildAdminFinanceSummary(db);
+      assert.equal(summary.netProfitKrw, 75010);
+      assert.equal(
+        100000 - (summary.netProfitKrw as number),
+        24990,
+        "effective creator cost = payout 24000 + withholding 990, tax never subtracted twice"
+      );
+    } finally {
+      db.close();
+    }
+  });
+
+  it("SETTLE-D PAID 1:1 exchange creates no withdrawal and no retained adjustment", () => {
+    const user = createDevUser("exchange");
+    const db = getDb();
+    try {
+      db.prepare("UPDATE users SET creator_points = 50000 WHERE id=?").run(user.id);
+      const result = exchangeCreatorPoints(user.id, 10000);
+      assert.equal(result.exchanged, 10000);
+      const withdrawals = db
+        .prepare("SELECT COUNT(*) AS c FROM withdrawal_requests WHERE user_id=?")
+        .get(user.id) as { c: number };
+      assert.equal(withdrawals.c, 0, "exchange never writes a withdrawal snapshot");
+      const balance = (
+        db.prepare("SELECT creator_points FROM users WHERE id=?").get(user.id) as {
+          creator_points: number;
+        }
+      ).creator_points;
+      assert.equal(balance, 40000);
+    } finally {
+      deleteDevUser(user.id, user.email);
+    }
+  });
+
+  it("SETTLE-E historical old-policy rows adjust by stored fee (11200, never recomputed 16700)", () => {
+    const db = settlementDb({
+      revenue: 200000,
+      accrued: 100000,
+      withdrawal: { requested: 100000, tax: 8800, fee: 11200, payout: 80000 },
+    });
+    try {
+      const summary = buildAdminFinanceSummary(db);
+      const view = summary as unknown as Record<string, unknown>;
+      assert.equal(view.creatorPlatformRetainedKrw, 11200);
+      assert.equal(
+        summary.netProfitKrw,
+        200000 - 100000 + 11200,
+        "stored snapshot honored; current-rate 16700 recompute would fail this"
+      );
+    } finally {
+      db.close();
+    }
+  });
+
+  it("SETTLE-F accrual without approved withdrawal adjusts nothing (70000)", () => {
+    const db = settlementDb({ revenue: 100000, accrued: 30000 });
+    try {
+      const summary = buildAdminFinanceSummary(db);
+      const view = summary as unknown as Record<string, unknown>;
+      assert.equal(view.creatorPlatformRetainedKrw, 0);
+      assert.equal(view.creatorTaxPayableKrw, 0);
+      assert.equal(summary.netProfitKrw, 70000);
+    } finally {
+      db.close();
     }
   });
 });

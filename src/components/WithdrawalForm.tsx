@@ -109,7 +109,7 @@ export default function WithdrawalForm({
           "",
           `신청 CP: ${fmt(breakdown.requestedCp)}CP`,
           `원천징수 세금 (${taxPct}%): -${fmt(breakdown.taxAmount)}CP`,
-          `플랫폼 이용료 (${platformPct}%): -${fmt(breakdown.platformFee)}CP`,
+          `플랫폼 수수료 (${platformPct}%): -${fmt(breakdown.platformFee)}CP`,
           `실수령 예정: ₩${breakdown.payoutAmount.toLocaleString()}`,
           "",
           `예금주: ${verifiedRealName} (본인인증 실명)`,
@@ -267,7 +267,7 @@ export default function WithdrawalForm({
               <span className="text-rose-300/90">-{fmt(breakdown.taxAmount)}CP</span>
             </li>
             <li className="flex justify-between">
-              <span>플랫폼 귀속분 ({platformPct}%)</span>
+              <span>플랫폼 수수료 ({platformPct}%)</span>
               <span className="text-rose-300/90">-{fmt(breakdown.platformFee)}CP</span>
             </li>
             <li className="flex justify-between border-t border-white/5 pt-1 font-semibold">
@@ -302,8 +302,8 @@ export default function WithdrawalForm({
       {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
 
       <p className="mt-4 text-[11px] leading-relaxed text-gray-300/90">
-        💡 세금 {taxPct}% 포함 총 {totalPct}%가 공제된 금액이 입금됩니다. 플랫폼 귀속분은
-        별도 추가 매출이 아니라 결제 매출에서 발생하는 정산 귀속분입니다.
+        세금 {taxPct}% 포함 총 {totalPct}%가 공제된 금액이 입금됩니다. (실수령 {100 - totalPct}
+        %)
       </p>
       <p className="mt-1 text-[11px] leading-relaxed text-gray-300/80">
         주민등록번호는 암호화되어 보관되며, 계좌 예금주는 신청 시 자동 확인됩니다.
@@ -325,7 +325,7 @@ export default function WithdrawalForm({
                 <div className="text-right">
                   <p className="font-bold text-emerald-300">₩{w.payout_amount.toLocaleString()}</p>
                   <p className="text-[10px] text-zinc-400">
-                    {fmt(w.requested_cp)}CP · 세금 {fmt(w.tax_amount)} · 수수료{" "}
+                    {fmt(w.requested_cp)}CP · 세금 {fmt(w.tax_amount)} · 플랫폼 수수료{" "}
                     {fmt(w.platform_fee)} · <WithdrawalStatusLabel status={w.status} />
                   </p>
                 </div>

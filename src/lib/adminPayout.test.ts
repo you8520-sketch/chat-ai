@@ -89,7 +89,7 @@ describe("admin payout application list", () => {
     const preview = previewApprovedPayoutTaxes(db, 2026, 8);
     assert.equal(preview.count, 1);
     assert.equal(preview.grossAmount, 100000);
-    // Stored tax_amount is TOTAL withholding ??display splits structurally
+    // Stored tax_amount is TOTAL withholding - display splits structurally
     // (national 8000 + local 800), never re-rated to a new policy.
     assert.equal(preview.nationalTax, 8000);
     assert.equal(preview.localTax, 800);
