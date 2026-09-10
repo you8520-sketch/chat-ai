@@ -14,7 +14,6 @@ import type {
 import { resolveNumericShadowEligibility } from "@/lib/rpNumericState/shadowPolicy";
 import { tryObserveNumericShadowForTurn } from "@/lib/rpNumericState/shadowObserver";
 import {
-  statusWidgetSourceValuesHaveContent,
   statusWidgetValuesHasContent,
 } from "./displayPolicy";
 import {
@@ -133,6 +132,11 @@ export type ResolveStatusWidgetTurnValuesInput = {
   /** Phase B1-B shadow eligibility (optional; fail-closed when absent). */
   userId?: number | null;
   characterId?: number | null;
+  /**
+   * Test seam — forwards a mock Luna caller to the extractor so orchestration
+   * tests never hit the provider network. Absent in production (real caller).
+   */
+  extractCaller?: import("./extract").StatusWidgetExtractCaller;
 };
 
 export type ResolveStatusWidgetTurnValuesResult = {
@@ -267,10 +271,13 @@ export async function resolveStatusWidgetTurnValues(
       characterWidget: input.statusWidgetTurn.characterWidget,
       userWidget: input.statusWidgetTurn.userWidget,
     });
+    // Canonical owner invariant: main-model leaked values are contamination,
+    // never canonical candidates. Record leak detection for sanitation and
+    // telemetry, but do NOT promote them into valuesPayload — Luna alone
+    // decides canonical values (previous-turn canonical flows via
+    // previousValues, not via this parse).
     if (statusWidgetValuesHasContent(rawValues)) {
-      valuesPayload = rawValues;
       splitRawHit = true;
-      resolutionSource = "split_raw";
     }
     const rawDiag = diagnoseStatusWidgetValues({
       resolved: input.statusWidgetTurn,
@@ -297,12 +304,10 @@ export async function resolveStatusWidgetTurnValues(
 
   const needCharExtract =
     input.statusWidgetTurn.needsCharacterValues &&
-    Boolean(input.statusWidgetTurn.characterWidget) &&
-    !statusWidgetSourceValuesHaveContent(valuesPayload?.character);
+    Boolean(input.statusWidgetTurn.characterWidget);
   const needUserExtract =
     input.statusWidgetTurn.needsUserValues &&
-    Boolean(input.statusWidgetTurn.userWidget) &&
-    !statusWidgetSourceValuesHaveContent(valuesPayload?.user);
+    Boolean(input.statusWidgetTurn.userWidget);
 
   let previousEchoStats: StatusWidgetPreviousEchoStats | null = null;
 
@@ -374,7 +379,10 @@ export async function resolveStatusWidgetTurnValues(
         previousAssistantProse,
         userNote: input.userNote,
         trace: traceBase,
-        seedValues: valuesPayload,
+        // No current-turn leak seed: valuesPayload is null here by invariant
+        // (leak never promoted), so Luna decides purely from prose plus the
+        // previous canonical values above. Test seam for mock caller.
+        caller: input.extractCaller,
         coalesceSuggestedReplies: input.coalesceSuggestedReplies
           ? { enabled: true }
           : undefined,
@@ -501,7 +509,9 @@ export async function resolveStatusWidgetTurnValues(
     extractedFactsRawCount: Array.isArray(extractedFactsRaw) ? extractedFactsRaw.length : 0,
     extractedFactsValidCount: extractedFactsValid.length,
     v3Used: resolutionSource === "v3_extract" || resolutionSource === "v3_repair",
-    fallbackUsed: resolutionSource === "split_raw",
+    // split_raw retired as a resolution source (leak never canonical) —
+    // the parse path is leak-detection/sanitation only.
+    fallbackUsed: false,
     parseError: splitRawParseError,
   });
   const corruptBeforeExtract = statusWidgetValuesAreCorrupt(valuesPayload);
@@ -562,13 +572,12 @@ export async function resolveStatusWidgetTurnValues(
     splitSavedHit: strippedLeak,
     splitRawHit,
     inferHit: false,
-    backfillAttempted: !splitRawHit && v3ExtractAttempted,
+    // Luna is the primary (not a backfill): attempted whenever values are
+    // needed, regardless of whether the main model leaked a tail. splitRawHit
+    // now means "leak detected and sanitized", never "leak used as canonical".
+    backfillAttempted: v3ExtractAttempted,
     backfillSuccess: v3ExtractSuccess,
-    backfillSkippedReason: splitRawHit
-      ? "raw_status_values_used"
-      : v3ExtractSuccess
-        ? null
-        : "v3_extract_empty",
+    backfillSkippedReason: v3ExtractSuccess ? null : "v3_extract_empty",
     jsonParseSuccess: strippedLeak || splitRawHit,
     resolutionSource: finalHasContent ? resolutionSource : "none",
     finalHasContent,
