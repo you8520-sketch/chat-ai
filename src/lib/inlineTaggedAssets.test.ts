@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { withAssetSize, type CharacterAsset } from "@/lib/characterAssets";
 import { INLINE_ASSET_TURN_LIMIT } from "@/lib/chatAssetPresentation";
+import { splitChatRichBlocks } from "@/lib/chatRichContent";
 import {
   attachMatchingAssetTags,
   consumeAssetTagsOnce,
@@ -154,5 +155,82 @@ describe("inline asset turn-level planning", () => {
     }
     assert.equal(rendered, INLINE_ASSET_TURN_LIMIT);
     assert.equal(new Set(urls).size, urls.length);
+  });
+});
+
+describe("non-prose rich blocks do not consume the inline quota", () => {
+  const make = (n: string) =>
+    withAssetSize({ url: `/${n}.webp`, tag: `장면${n}`, chat: true }, 1600, 900);
+  const A = make("A");
+  const B = make("B");
+  const C = make("C");
+  const D = make("D");
+  const X = make("X");
+  const pool: CharacterAsset[] = [A, B, C, D, X];
+
+  function renderNovelBlocks(displayed: string): string[] {
+    const rendered: string[] = [];
+    for (const block of splitChatRichBlocks(displayed)) {
+      if (block.kind !== "novel") continue;
+      const parts = splitProseForInlineAssets(block.text, pool, {
+        orientationPolicy: "any",
+        oncePerAsset: true,
+      });
+      for (const part of parts) {
+        if (part.kind === "image") rendered.push(part.asset.tag);
+      }
+    }
+    return rendered;
+  }
+
+  it("ignores a marker inside an HTML/status block and keeps that block intact", () => {
+    const html = `<div style="max-width:450px">\n[태그: 장면X]\n</div>`;
+    const message =
+      `도입.\n[태그: 장면A]\n\n\`\`\`html\n${html}\n\`\`\`\n\n` +
+      `후반.\n[태그: 장면B]\n[태그: 장면C]\n[태그: 장면D]`;
+
+    const displayed = displayBodyEmotionTags(message, pool, {
+      assetsEnabled: true,
+      orientationPolicy: "any",
+    });
+
+    // Canonical partition still sees the real HTML block, byte-identical.
+    const blocks = splitChatRichBlocks(displayed);
+    assert.deepEqual(blocks.map((b) => b.kind), ["novel", "html", "novel"]);
+    assert.equal(blocks[1]!.kind === "html" ? blocks[1]!.text : null, html);
+    assert.match(blocks[1]!.text, /\[태그: 장면X\]/);
+
+    // X (non-prose) does not consume quota; prose A/B/C chosen, D capped out.
+    assert.deepEqual(renderNovelBlocks(displayed), ["장면A", "장면B", "장면C"]);
+  });
+
+  it("ignores a marker inside a markdown-table block for the quota", () => {
+    const table = `| stat | val |\n|:---:|:---:|\n| 태그 | [태그: 장면X] |`;
+    const message =
+      `앞.\n[태그: 장면A]\n\n${table}\n\n` +
+      `뒤.\n[태그: 장면B]\n[태그: 장면C]\n[태그: 장면D]`;
+
+    const displayed = displayBodyEmotionTags(message, pool, {
+      assetsEnabled: true,
+      orientationPolicy: "any",
+    });
+    const blocks = splitChatRichBlocks(displayed);
+    assert.ok(blocks.some((b) => b.kind === "markdown-table"));
+    assert.deepEqual(renderNovelBlocks(displayed), ["장면A", "장면B", "장면C"]);
+  });
+
+  it("keeps the HTML marker untouched while dropping the capped prose marker", () => {
+    const html = `<div>[태그: 장면X]</div>`;
+    const raw = `[태그: 장면A]\n\`\`\`html\n${html}\n\`\`\`\n[태그: 장면B]\n[태그: 장면C]\n[태그: 장면D]`;
+    const displayed = displayBodyEmotionTags(raw, pool, {
+      assetsEnabled: true,
+      orientationPolicy: "any",
+    });
+    assert.match(displayed, /\[태그: 장면A\]/);
+    assert.match(displayed, /\[태그: 장면B\]/);
+    assert.match(displayed, /\[태그: 장면C\]/);
+    assert.equal(displayed.includes("[태그: 장면D]"), false);
+    assert.match(displayed, /\[태그: 장면X\]/);
+    assert.deepEqual(renderNovelBlocks(displayed), ["장면A", "장면B", "장면C"]);
   });
 });

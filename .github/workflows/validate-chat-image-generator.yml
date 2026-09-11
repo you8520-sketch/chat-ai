@@ -93,6 +93,9 @@ on:
       - "src/lib/chatAssetPresentation.test.ts"
       - "src/lib/inlineTaggedAssets.ts"
       - "src/lib/inlineTaggedAssets.test.ts"
+      - "src/lib/chatRichContent.ts"
+      - "src/lib/chatRichContent.test.ts"
+      - "src/lib/emotionTag.test.ts"
       - "src/lib/userChatPrefs.ts"
       - "src/lib/userChatPrefs.test.ts"
       - "src/lib/useChatDesktopViewport.ts"
@@ -250,6 +253,8 @@ jobs:
       - run: node --conditions=react-server --import tsx --test src/lib/chatDisplayPrefs.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatAssetPresentation.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/inlineTaggedAssets.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/emotionTag.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatRichContent.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/userChatPrefs.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/creatorAssetSemantics.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/uploadImageOptimize.test.ts

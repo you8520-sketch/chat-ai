@@ -130,8 +130,8 @@ export function buildEmotionTagPrompt(allowedTags: string[]): string {
   return `[DISPLAY ASSET TAG — UPLOADED IMAGES ONLY]
 Each tag names an uploaded character image (expression, pose, or situation — e.g. 부끄러움, 무표정, 키스, 밀착).
 Allowed tags ONLY (JSON array; each element is one exact tag — copy the element text verbatim): ${list}
-Insert [태그: tagname] in the body at the moment that image should appear. Wide/landscape images render inline in the message at that position. Tall/portrait images update the left portrait (and mobile chat background).
-You may use more than one tag. Prefer a portrait tag for expression and landscape tags for scene images.
+Insert [태그: tagname] in the body at the moment that image should appear.
+You may use more than one tag.
 If you only use one tag, put it at the end: [태그: tagname]
 Choose tags whose images match the character's look and what they are doing in this turn (e.g. if they end up lying on a bed and that tag exists, use it).
 FORBIDDEN: any tag not in the list — do not invent tags for images that were not uploaded.
