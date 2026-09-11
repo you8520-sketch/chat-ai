@@ -315,25 +315,23 @@ describe("V3 previous-echo guard (volatile shield + targeted repair)", () => {
     });
 
     assert.equal(extractCalls, 1);
-    assert.deepEqual(kinds, [
-      "background-status-widget-extract",
-      "background-status-widget-extract-volatile-echo-fix",
-    ]);
-    assert.equal(result.meta.actualCallCount, 2);
-    assert.equal(result.meta.usedRepair, true);
+    assert.deepEqual(kinds, ["background-status-widget-extract"]);
+    assert.equal(result.meta.actualCallCount, 1);
+    assert.equal(result.meta.usedRepair, false);
     assert.equal(
       result.meta.character?.finalReasonCode,
-      "V3_PREVIOUS_ECHO_REPAIR_USED"
+      "V3_PREVIOUS_ECHO_ACCEPTED"
     );
-    assert.equal(result.values.character?.["속마음"], FRESH);
-    assert.notEqual(result.values.character?.["속마음"], STALE);
-    // Persistent anchors from initial extract kept (not overwritten by repair).
+    // Exact previous==current on a volatile field is legitimate (state may be
+    // unchanged). Accept the parsed value without a second provider call.
+    assert.equal(result.values.character?.["속마음"], STALE);
+    // Persistent anchors from initial extract kept.
     assert.equal(result.values.character?.["장소"], "에이지스 복도");
     assert.equal(result.values.character?.["체력"], "88");
     assert.equal(result.values.character?.["시각"], "14:30");
   });
 
-  it("L2. targeted repair itself repeats stale exact → FAILED once, no retry", async () => {
+  it("L2. repeated stale exact echo is accepted in one call, no retry", async () => {
     const STALE = "이 신입, 정말 S급 가이드라니... 흥미롭군.";
     const kinds: string[] = [];
     const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
@@ -382,16 +380,13 @@ describe("V3 previous-echo guard (volatile shield + targeted repair)", () => {
       caller,
     });
 
-    assert.deepEqual(kinds, [
-      "background-status-widget-extract",
-      "background-status-widget-extract-volatile-echo-fix",
-    ]);
-    assert.equal(result.meta.actualCallCount, 2);
+    assert.deepEqual(kinds, ["background-status-widget-extract"]);
+    assert.equal(result.meta.actualCallCount, 1);
     assert.equal(
       result.meta.character?.finalReasonCode,
-      "V3_PREVIOUS_ECHO_REPAIR_FAILED"
+      "V3_PREVIOUS_ECHO_ACCEPTED"
     );
-    // Keep initial values (including stale 속마음) — do not loop or invent.
+    // Keep initial values (including unchanged 속마음) — no loop, no invention.
     assert.equal(result.values.character?.["속마음"], STALE);
     assert.equal(result.values.character?.["장소"], "에이지스 복도");
     assert.equal(result.values.character?.["체력"], "88");

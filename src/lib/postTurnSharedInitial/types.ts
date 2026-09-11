@@ -2,6 +2,7 @@ import type { TokenUsage } from "@/lib/ai";
 import type { CombinedDualWidgetExtractParseResult } from "@/lib/statusWidget/extractNormalize";
 import type { StatusWidget, StatusWidgetValues } from "@/lib/statusWidget/types";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
+import type { RelationshipMetaDelta } from "@/lib/chatMemory";
 
 export const POST_TURN_SHARED_INITIAL_REQUEST_KIND = "background-post-turn-shared-initial";
 
@@ -25,6 +26,12 @@ export type PostTurnSharedInitialInput = {
   previousCharacterValues?: StatusWidgetValues | null;
   previousUserValues?: StatusWidgetValues | null;
   primaryModelId: string;
+  /**
+   * When true, the shared response also carries the durable Relationship Memory
+   * delta (items/promises) so the relationship subsystem does not issue its own
+   * physical provider call for the same turn.
+   */
+  includeRelationship?: boolean;
 };
 
 export type PostTurnSharedSingleWidgetParse = {
@@ -40,6 +47,9 @@ export type PostTurnSharedInitialParseResult = {
   user: PostTurnSharedSingleWidgetParse | null;
   suggestedReplies: SuggestedReplyItem[];
   suggestedRepliesOk: boolean;
+  /** Durable relationship delta from the shared response (empty when no change). */
+  relationship: RelationshipMetaDelta | null;
+  relationshipOk: boolean;
 };
 
 export type PostTurnSharedInitialRunResult = {

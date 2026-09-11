@@ -321,6 +321,9 @@ export async function scheduleMemoryUpdate(opts: {
   /** DeepSeek/Qwen — 메인 JSON tail 파싱 성공 시 Flash 관계메모 추출 생략 */
   relationshipTailParsed?: boolean;
   relationshipDeltaFromMain?: import("@/lib/chatMemory").RelationshipMetaDelta | null;
+  /** Shared post-turn Luna call already carried the durable relationship delta. */
+  relationshipSharedParsed?: boolean;
+  relationshipSharedDelta?: import("@/lib/chatMemory").RelationshipMetaDelta | null;
   generationScope?: AssistantGenerationScope;
 }): Promise<void> {
   const generationScope = opts.generationScope;
@@ -397,6 +400,8 @@ export async function scheduleMemoryUpdate(opts: {
         turnTrace: opts.turnTrace,
         mainModelTailParsed: opts.relationshipTailParsed,
         mainModelDelta: opts.relationshipDeltaFromMain,
+        sharedInitialParsed: opts.relationshipSharedParsed,
+        sharedInitialDelta: opts.relationshipSharedDelta,
         sourceUserMessageId,
         boundarySnapshot,
         assistantMessageId: opts.assistantMessageId,

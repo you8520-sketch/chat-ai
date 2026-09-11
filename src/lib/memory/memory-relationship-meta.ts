@@ -329,6 +329,9 @@ export async function mergeRelationshipMetaFromTurn(opts: {
   /** DeepSeek/Qwen — 메인 모델 JSON tail 파싱 성공 시 Flash 생략 */
   mainModelTailParsed?: boolean;
   mainModelDelta?: RelationshipMetaDelta | null;
+  /** Shared post-turn Luna call already carried the durable relationship delta. */
+  sharedInitialParsed?: boolean;
+  sharedInitialDelta?: RelationshipMetaDelta | null;
   sourceUserMessageId?: number | null;
   boundarySnapshot?: MemorySourceBoundary;
   assistantMessageId?: number;
@@ -367,6 +370,35 @@ export async function mergeRelationshipMetaFromTurn(opts: {
   }
 
   const prevNormalized = normalizeMemoryMeta(loadChatRelationshipMeta(opts.chatId), names);
+
+  // Shared post-turn Luna call already produced the durable relationship delta:
+  // consume it WITHOUT any independent provider invocation (one physical owner).
+  if (opts.sharedInitialParsed === true) {
+    if (opts.assistantMessageId) {
+      setMemoryRelationshipTaskState(
+        opts.assistantMessageId,
+        "skipped",
+        "shared_initial_satisfied",
+        undefined,
+        opts.generationScope
+      );
+    }
+    try {
+      const applied = applyRelationshipDeltaToChat({
+        chatId: opts.chatId,
+        names,
+        delta: opts.sharedInitialDelta ?? {},
+        sourceUserMessageId: opts.sourceUserMessageId,
+        boundarySnapshot: opts.boundarySnapshot,
+        generationScope: opts.generationScope,
+        __testThrowOnSave: opts.__testThrowOnSave,
+      });
+      return applied.meta;
+    } catch (e) {
+      console.warn("[memory] relationship shared-initial commit failed:", (e as Error).message);
+      return loadChatRelationshipMeta(opts.chatId, opts.names);
+    }
+  }
 
   return runProviderBackedRelationshipMerge({
     chatId: opts.chatId,

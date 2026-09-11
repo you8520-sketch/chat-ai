@@ -14,14 +14,35 @@ Write as the USER persona named in [USER] — match voice from [SUGGESTED REPLIE
 Do not write as the character/NPC.
 Use [SUGGESTED REPLIES VOICE CONTEXT] only for suggestedReplies voice/style — never as evidence for statusWidget field values.`;
 
-function buildSharedOutputEnvelope(mode: PostTurnSharedInitialMode): string {
+const SHARED_RELATIONSHIP_OUTPUT_RULES = `RELATIONSHIP section — durable relationship memory only, from this turn's prose.
+Return these arrays; empty arrays are correct when nothing changed:
+- items: new/changed possessions only ("name: item1, item2"); gifts/transfers as "from→to: item" or the receiver's updated line.
+- itemsRemove: current possession lines that are no longer true (copy the previous line EXACTLY).
+- promisesAdd: newly made promises as [{ "text": "...", "deadline": "..." }].
+- promisesRemove: active promises now fulfilled/expired (copy the promise text EXACTLY).
+Never extract honorifics, nicknames, inner thoughts, emotion, relationship stage, speech style, gender, or current location.`;
+
+function buildSharedOutputEnvelope(
+  mode: PostTurnSharedInitialMode,
+  includeRelationship: boolean
+): string {
   const widgetShape =
     mode === "dual"
       ? `"statusWidget": { "character_values": { ... }, "user_values": { ... }, "extracted_facts": [] }`
       : mode === "character"
         ? `"statusWidget": { "character_values": { ... }, "extracted_facts": [] }`
         : `"statusWidget": { "user_values": { ... }, "extracted_facts": [] }`;
-  return `Return exactly one JSON object with two top-level keys:
+  const relationshipShape = includeRelationship
+    ? `,
+  "relationship": {
+    "items": [],
+    "itemsRemove": [],
+    "promisesAdd": [],
+    "promisesRemove": []
+  }`
+    : "";
+  const keyCount = includeRelationship ? "three" : "two";
+  return `Return exactly one JSON object with ${keyCount} top-level keys:
 {
   ${widgetShape},
   "suggestedReplies": {
@@ -30,10 +51,10 @@ function buildSharedOutputEnvelope(mode: PostTurnSharedInitialMode): string {
       { "kind": "soften", "text": "..." },
       { "kind": "pivot", "text": "..." }
     ]
-  }
+  }${relationshipShape}
 }
 Do not include markdown fences or prose outside JSON.
-${SHARED_SUGGESTIONS_OUTPUT_RULES}`;
+${SHARED_SUGGESTIONS_OUTPUT_RULES}${includeRelationship ? `\n${SHARED_RELATIONSHIP_OUTPUT_RULES}` : ""}`;
 }
 
 function buildSharedSuggestionVoiceContext(input: PostTurnSharedInitialInput): string {
@@ -72,8 +93,8 @@ export function buildPostTurnSharedInitialSystem(input: PostTurnSharedInitialInp
 
   return `${widgetSemantic}
 
-SHARED POST-TURN ENRICHMENT — produce status widget values and suggested user reply options in one response.
-${buildSharedOutputEnvelope(input.mode)}`;
+SHARED POST-TURN ENRICHMENT — produce status widget values${input.includeRelationship ? ", durable relationship memory," : ""} and suggested user reply options in one response.
+${buildSharedOutputEnvelope(input.mode, input.includeRelationship === true)}`;
 }
 
 export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitialInput): string {

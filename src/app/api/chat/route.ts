@@ -4824,6 +4824,10 @@ export async function POST(req: Request) {
           null;
         let widgetPrefetchedSuggestedRepliesAssistantProseHash: string | null = null;
         let widgetSharedInitialConsumed = false;
+        let widgetSharedRelationshipUsable = false;
+        let widgetSharedRelationshipDelta:
+          | import("@/lib/chatMemory").RelationshipMetaDelta
+          | null = null;
         const suggestedRepliesEligibleForCoalesce =
           body.suggestedRepliesEnabled !== false &&
           !htmlFlashOnlyTurn &&
@@ -4856,6 +4860,9 @@ export async function POST(req: Request) {
             coalesceSuggestedReplies:
               suggestedRepliesEligibleForCoalesce &&
               isStatusWidgetContextSafeForSuggestedRepliesCoalesce(statusWidgetTurn),
+            // Whole-turn owner: also carry the durable relationship delta in the
+            // same Luna inference when memory is enabled.
+            shareRelationshipDelta: isMemoryFeatureEnabled(),
           });
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;
@@ -4868,6 +4875,8 @@ export async function POST(req: Request) {
           widgetPrefetchedSuggestedRepliesAssistantProseHash =
             widgetResolved.prefetchedSuggestedRepliesAssistantProseHash;
           widgetSharedInitialConsumed = widgetResolved.sharedInitialConsumed;
+          widgetSharedRelationshipUsable = widgetResolved.sharedInitialRelationshipUsable;
+          widgetSharedRelationshipDelta = widgetResolved.sharedInitialRelationshipDelta;
           if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
             usageRecord = {
               ...usageRecord,
@@ -5997,6 +6006,8 @@ export async function POST(req: Request) {
               route: nextMode,
               relationshipTailParsed,
               relationshipDeltaFromMain,
+              relationshipSharedParsed: widgetSharedRelationshipUsable,
+              relationshipSharedDelta: widgetSharedRelationshipDelta,
               generationScope: postTurnGenerationScope,
             });
             }

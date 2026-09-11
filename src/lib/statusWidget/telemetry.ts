@@ -124,6 +124,8 @@ export type ResolveStatusWidgetTurnValuesInput = {
   requestId?: string | null;
   /** When true, coalesce widget initial + suggested replies initial (route gate). */
   coalesceSuggestedReplies?: boolean;
+  /** When true, the shared initial call also carries the durable relationship delta. */
+  shareRelationshipDelta?: boolean;
   /** Phase B1-B shadow eligibility (optional; fail-closed when absent). */
   userId?: number | null;
   characterId?: number | null;
@@ -145,6 +147,9 @@ export type ResolveStatusWidgetTurnValuesResult = {
   prefetchedSuggestedReplies: import("@/lib/suggestedReplies/types").SuggestedReplyItem[] | null;
   prefetchedSuggestedRepliesAssistantProseHash: string | null;
   sharedInitialConsumed: boolean;
+  /** Durable relationship delta carried by the shared initial call (usable only when boolean true). */
+  sharedInitialRelationshipUsable: boolean;
+  sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null;
   telemetry: StatusWidgetTurnTelemetry;
 };
 
@@ -235,6 +240,9 @@ export async function resolveStatusWidgetTurnValues(
     null;
   let prefetchedSuggestedRepliesAssistantProseHash: string | null = null;
   let sharedInitialConsumed = false;
+  let sharedInitialRelationshipUsable = false;
+  let sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null =
+    null;
   let resolutionSource: StatusWidgetResolutionSource = "none";
   let splitRawHit = false;
   let splitRawParseError: string | null = null;
@@ -381,6 +389,7 @@ export async function resolveStatusWidgetTurnValues(
         coalesceSuggestedReplies: input.coalesceSuggestedReplies
           ? { enabled: true }
           : undefined,
+        shareRelationshipDelta: input.shareRelationshipDelta === true,
       });
       widgetExtractDiagnostics = {
         exhausted: v3Result.meta.exhausted,
@@ -391,6 +400,10 @@ export async function resolveStatusWidgetTurnValues(
       prefetchedSuggestedRepliesAssistantProseHash =
         v3Result.meta.prefetchedSuggestedRepliesAssistantProseHash ?? null;
       sharedInitialConsumed = v3Result.meta.sharedInitialConsumed === true;
+      sharedInitialRelationshipUsable =
+        v3Result.meta.sharedInitialRelationshipUsable === true;
+      sharedInitialRelationshipDelta =
+        v3Result.meta.sharedInitialRelationshipDelta ?? null;
       // usage + billing meta share the same lifetime (both null or both set).
       if (v3Result.usage && v3Result.meta.billing) {
         widgetExtractUsage = v3Result.usage;
@@ -590,6 +603,8 @@ export async function resolveStatusWidgetTurnValues(
     prefetchedSuggestedReplies,
     prefetchedSuggestedRepliesAssistantProseHash,
     sharedInitialConsumed,
+    sharedInitialRelationshipUsable,
+    sharedInitialRelationshipDelta,
     telemetry,
   };
 }

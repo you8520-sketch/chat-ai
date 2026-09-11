@@ -125,6 +125,13 @@ export type StatusWidgetTurnExtractMeta = {
   prefetchedSuggestedRepliesAssistantProseHash?: string | null;
   sharedInitialConsumed?: boolean;
   postTurnSharedInitial?: boolean;
+  /**
+   * Durable relationship delta carried by the shared initial call. Present
+   * (possibly empty) only when the shared call was usable; the relationship
+   * subsystem must then skip its independent provider call for this turn.
+   */
+  sharedInitialRelationshipDelta?: import("@/lib/chatMemory").RelationshipMetaDelta | null;
+  sharedInitialRelationshipUsable?: boolean;
 };
 
 const defaultExtractCaller: StatusWidgetExtractCaller = async (system, history, opts) =>
@@ -584,72 +591,16 @@ async function maybeRepairVolatileExactEcho(opts: {
     };
   }
 
-  const repairSystem = buildVolatileEchoRepairSystem(echoKeys, opts.source);
-  const repairUser = buildVolatileEchoRepairUserBlock({
-    keys: echoKeys,
-    widget: opts.widget,
-    source: opts.source,
-    previousValues: opts.previousValues,
-    assistantProse: opts.assistantProse,
-    userMessage: opts.userMessage,
-    charName: opts.charName,
-    personaName: opts.personaName,
-    characterIdentity: opts.characterIdentity,
-    characterCriticalContext: opts.characterCriticalContext,
-  });
-  const repair = await runExtractAttempt({
-    system: repairSystem,
-    userBlock: repairUser,
-    widget: opts.widget,
-    source: opts.source,
-    stage: "volatile_echo_repair",
-    attemptIndex: opts.attemptIndex,
-    modelId: opts.primaryModelId,
-    requestKind: "background-status-widget-extract-volatile-echo-fix",
-    temperature: 0,
-    applyEchoFilter: false,
-    caller: opts.caller,
-    trace: opts.trace,
-    env: opts.env,
-  });
-  opts.apiCalls += 1;
-  opts.stages.push("volatile_echo_repair");
-  opts.models.push(opts.primaryModelId);
-  pushUsage(opts.usages, opts.attemptUsages, repair);
-  opts.attemptDiagnostics.push(toAttemptDiagnostic(repair));
-
-  if (repair.ok && repair.values) {
-    // Drop any key that still exact-matches previous after repair.
-    const stillEcho = collectVolatileExactEchoKeys({
-      widget: opts.widget,
-      previous: opts.previousValues,
-      current: repair.values,
-    });
-    const usableKeys = echoKeys.filter((k) => !stillEcho.includes(k));
-    const merged =
-      usableKeys.length > 0
-        ? mergeVolatileRepairIntoValues(opts.values, repair.values, usableKeys, opts.widget)
-        : opts.values;
-    return {
-      values: merged,
-      facts: repair.facts.length > 0 ? repair.facts : opts.facts,
-      apiCalls: opts.apiCalls,
-      finalStage: "volatile_echo_repair",
-      finalReasonCode:
-        usableKeys.length > 0
-          ? "V3_PREVIOUS_ECHO_REPAIR_USED"
-          : "V3_PREVIOUS_ECHO_REPAIR_FAILED",
-      volatileEchoKeys: echoKeys,
-      volatileEchoRepairSucceeded: usableKeys.length > 0,
-    };
-  }
-
+  // Successful parse + volatile fields equalling the previous turn is NOT invalid
+  // output evidence: time/place/state can genuinely be unchanged. Accept the
+  // parsed values without issuing a second same-model provider call (deterministic
+  // normalization only — no quality-heuristic re-inference).
   return {
     values: opts.values,
     facts: opts.facts,
     apiCalls: opts.apiCalls,
-    finalStage: "volatile_echo_repair",
-    finalReasonCode: "V3_PREVIOUS_ECHO_REPAIR_FAILED",
+    finalStage: "initial",
+    finalReasonCode: "V3_PREVIOUS_ECHO_ACCEPTED",
     volatileEchoKeys: echoKeys,
     volatileEchoRepairSucceeded: false,
   };
@@ -1007,6 +958,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   env?: NodeJS.ProcessEnv;
   /** When true with route eligibility, coalesce widget initial + suggestions initial into one call. */
   coalesceSuggestedReplies?: { enabled: boolean };
+  /** When true, the shared initial call also carries the durable relationship delta. */
+  shareRelationshipDelta?: boolean;
 }): Promise<{
   values: ParsedStatusWidgetTurnValues;
   usage: TokenUsage | null;
@@ -1040,6 +993,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     prefetchedSuggestedRepliesAssistantProseHash: null,
     sharedInitialConsumed: false,
     postTurnSharedInitial: false,
+    sharedInitialRelationshipDelta: null,
+    sharedInitialRelationshipUsable: false,
   });
 
   // Route gates HTML/OOC/interrupted; active=false must not call extract either.
@@ -1067,11 +1022,19 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   let postTurnSharedInitial = false;
   let sharedInitialParsed: PostTurnSharedInitialParseResult | null = null;
   let sharedInitialUsage: TokenUsage | null = null;
+  let sharedInitialRelationshipUsable = false;
+  let sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null =
+    null;
 
   const sharedMode = resolvePostTurnSharedInitialMode({ needCharExtract, needUserExtract });
+  // Canonical whole-turn post-turn owner: the shared initial call runs whenever a
+  // status widget extraction is needed AND at least one coalescable consumer is
+  // active (suggested replies and/or relationship memory), so a normal turn never
+  // issues more than one auxiliary Luna provider call.
+  const shareRelationshipDelta = opts.shareRelationshipDelta === true;
   if (
-    opts.coalesceSuggestedReplies?.enabled &&
     sharedMode &&
+    (opts.coalesceSuggestedReplies?.enabled || shareRelationshipDelta) &&
     isStatusWidgetContextSafeForSuggestedRepliesCoalesce(opts.resolved)
   ) {
     const syncLedgerContext =
@@ -1102,6 +1065,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         previousCharacterValues: opts.previousValues?.character ?? null,
         previousUserValues: opts.previousValues?.user ?? null,
         primaryModelId,
+        includeRelationship: shareRelationshipDelta,
       },
       caller,
       syncLedgerContext
@@ -1129,6 +1093,15 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       if (shouldPreservePostTurnSharedInitialParsed({ transportOk: shared.transportOk, parsed: shared.parsed })) {
         sharedInitialParsed = shared.parsed;
         sharedInitialUsage = shared.usage;
+      }
+      // Relationship sharing is usable whenever the shared response parsed
+      // (even empty delta = normal no-change turn). A transport/parse failure
+      // leaves this false so the relationship subsystem can still recover with
+      // its own single call.
+      if (shareRelationshipDelta && sharedInitialParsed != null) {
+        sharedInitialRelationshipUsable = true;
+        sharedInitialRelationshipDelta =
+          sharedInitialParsed.relationship ?? {};
       }
       if (postTurnSharedInitialSuggestedRepliesOk(shared.parsed)) {
         prefetchedSuggestedReplies = shared.parsed!.suggestedReplies;
@@ -1624,6 +1597,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       prefetchedSuggestedRepliesAssistantProseHash,
       sharedInitialConsumed,
       postTurnSharedInitial,
+      sharedInitialRelationshipDelta,
+      sharedInitialRelationshipUsable,
     },
   };
 }
