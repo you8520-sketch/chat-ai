@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>H5-luna.html</title>
+<style>body{margin:0;padding:16px;background:#0d1117;color:#c9d1d9;font-family:'Pretendard',sans-serif;}</style>
+</head>
+<body>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>관측 기록 / 08-26</title>
+<style>
+  :root{
+    --bg:#11181b;
+    --panel:#1b2528;
+    --panel2:#202d30;
+    --line:#334448;
+    --text:#dbe7e6;
+    --muted:#8da2a1;
+    --cyan:#55d6c8;
+    --cyan-dim:#1f5c5b;
+    --amber:#e2b56a;
+    --red:#da777b;
+    --white:#f4f8f6;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(48,105,103,.22), transparent 34%),
+      linear-gradient(145deg,#0d1315 0%,#172124 48%,#0c1113 100%);
+    color:var(--text);
+    font-family:Inter,"Noto Sans KR","Malgun Gothic",sans-serif;
+    letter-spacing:-.02em;
+  }
+  .screen{
+    max-width:920px;
+    margin:0 auto;
+    padding:28px 16px 42px;
+  }
+  .device{
+    overflow:hidden;
+    border:1px solid #314346;
+    border-radius:24px;
+    background:rgba(23,32,35,.96);
+    box-shadow:0 22px 70px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.04);
+  }
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:15px 20px;
+    border-bottom:1px solid var(--line);
+    color:var(--muted);
+    font-size:12px;
+  }
+  .signal{display:flex;gap:5px;align-items:center}
+  .signal i{display:block;width:4px;background:var(--cyan);border-radius:2px}
+  .signal i:nth-child(1){height:7px}.signal i:nth-child(2){height:10px}.signal i:nth-child(3){height:13px}.signal i:nth-child(4){height:16px;opacity:.28}
+  .header{
+    padding:28px 24px 24px;
+    background:
+      linear-gradient(110deg,rgba(65,154,148,.11),transparent 42%),
+      repeating-linear-gradient(0deg,transparent 0 23px,rgba(117,171,168,.035) 24px);
+  }
+  .eyebrow{
+    display:flex;gap:10px;align-items:center;
+    margin-bottom:13px;color:var(--cyan);font-size:11px;font-weight:700;letter-spacing:.14em;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+  h1{margin:0;color:var(--white);font-size:clamp(27px,5vw,42px);font-weight:650;letter-spacing:-.07em}
+  .date{margin-top:8px;color:var(--muted);font-size:13px}
+  .status-strip{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+    margin-top:25px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--line);
+  }
+  .stat{padding:14px 15px;background:#192528}
+  .stat small{display:block;color:var(--muted);font-size:10px;margin-bottom:7px;letter-spacing:.08em}
+  .stat strong{display:block;color:var(--white);font-size:15px}
+  .stat strong.cyan{color:var(--cyan)} .stat strong.warn{color:var(--amber)}
+  .body{padding:20px 24px 28px}
+  .alert{
+    display:flex;gap:14px;align-items:flex-start;
+    padding:16px 17px;margin-bottom:18px;
+    border:1px solid rgba(218,119,123,.55);border-left:4px solid var(--red);
+    border-radius:12px;background:rgba(111,46,52,.2);
+  }
+  .alert .icon{font-size:18px;color:var(--red);line-height:1}
+  .alert b{display:block;color:#f0b7b8;font-size:13px;margin-bottom:5px}
+  .alert span{color:#cba4a5;font-size:12px;line-height:1.65}
+  .section-title{
+    display:flex;align-items:center;gap:10px;margin:25px 0 12px;
+    color:var(--white);font-size:13px;font-weight:700;letter-spacing:.03em;
+  }
+  .section-title:after{content:"";height:1px;flex:1;background:var(--line)}
+  .section-title em{font-style:normal;color:var(--cyan);font-size:10px;font-weight:500}
+  .observation{
+    position:relative;padding:20px;border:1px solid #355456;border-radius:14px;
+    background:linear-gradient(135deg,rgba(36,87,86,.3),rgba(23,35,38,.8));
+    overflow:hidden;
+  }
+  .observation:before{
+    content:"";position:absolute;top:-50px;right:-30px;width:180px;height:180px;
+    border:1px solid rgba(85,214,200,.2);border-radius:50%;
+    box-shadow:0 0 0 16px rgba(85,214,200,.035),0 0 0 34px rgba(85,214,200,.025);
+  }
+  .obs-tag{display:inline-block;padding:5px 8px;border-radius:5px;background:var(--cyan-dim);color:#a6eee6;font-size:10px;font-weight:700;letter-spacing:.08em}
+  .observation h2{margin:15px 0 8px;color:var(--white);font-size:20px;letter-spacing:-.05em}
+  .observation p{max-width:650px;margin:0;color:#b9ccca;font-size:13px;line-height:1.75}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:17px}
+  .detail{padding:13px 14px;border:1px solid rgba(103,151,148,.25);border-radius:9px;background:rgba(10,25,27,.25)}
+  .detail label{display:block;margin-bottom:6px;color:var(--muted);font-size:10px}
+  .detail strong{font-size:13px;color:var(--text)}
+  .detail .key{color:var(--cyan)}
+  .route{
+    display:grid;grid-template-columns:1.15fr .85fr;gap:12px;
+  }
+  .map{
+    min-height:205px;position:relative;overflow:hidden;padding:17px;
+    border:1px solid var(--line);border-radius:13px;
+    background-color:#141e20;
+    background-image:
+      linear-gradient(rgba(91,142,140,.09) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(91,142,140,.09) 1px,transparent 1px);
+    background-size:24px 24px;
+  }
+  .map:after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(118deg,transparent 45%,rgba(85,214,200,.07) 46%,transparent 48%);
+    pointer-events:none;
+  }
+  .map-title{position:relative;z-index:2;color:var(--muted);font-size:10px;letter-spacing:.1em}
+  .line{position:absolute;height:2px;background:#59706f;transform-origin:left center;opacity:.8}
+  .l1{width:215px;left:65px;top:112px;transform:rotate(-20deg)}
+  .l2{width:150px;left:198px;top:64px;transform:rotate(72deg);background:var(--cyan)}
+  .l3{width:126px;left:106px;top:164px;transform:rotate(-65deg)}
+  .station{position:absolute;z-index:3;width:9px;height:9px;border:2px solid #b8ceca;border-radius:50%;background:#152124}
+  .s1{left:59px;top:108px}.s2{left:193px;top:59px}.s3{left:258px;top:168px}
+  .station.active{width:13px;height:13px;left:193px;top:58px;border-color:var(--cyan);box-shadow:0 0 0 5px rgba(85,214,200,.14),0 0 16px var(--cyan)}
+  .station.locked{border-color:var(--red);background:var(--red);box-shadow:0 0 0 4px rgba(218,119,123,.14)}
+  .map-label{position:absolute;z-index:4;color:#a8bcba;font-size:10px}
+  .ml1{left:43px;top:124px}.ml2{left:214px;top:38px;color:var(--cyan)}.ml3{left:267px;top:180px;color:#d68f91}
+  .legend{display:flex;gap:12px;position:absolute;bottom:13px;left:16px;color:var(--muted);font-size:10px}
+  .legend span:before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;background:#b8ceca}
+  .legend .leg-c:before{background:var(--cyan)}.legend .leg-r:before{background:var(--red)}
+  .side-card{padding:16px;border:1px solid var(--line);border-radius:13px;background:#192427}
+  .side-card h3{margin:0 0 15px;color:var(--white);font-size:13px}
+  .meter{margin:16px 0 20px}
+  .meter-head{display:flex;justify-content:space-between;margin-bottom:8px;font-size:11px;color:var(--muted)}
+  .meter-head b{color:var(--amber);font-size:13px}
+  .bar{height:7px;border-radius:10px;background:#303c3e;overflow:hidden}
+  .fill{width:42%;height:100%;background:linear-gradient(90deg,#c38452,var(--amber));box-shadow:0 0 9px rgba(226,181,106,.35)}
+  .log{display:flex;gap:10px;padding:10px 0;border-top:1px solid #2d3b3d;color:#b4c5c3;font-size:11px;line-height:1.55}
+  .log:first-of-type{border-top:0}.log time{flex:0 0 42px;color:var(--muted);font-size:10px}
+  .log b{color:var(--cyan);font-weight:500}
+  .action{
+    display:flex;justify-content:space-between;align-items:center;gap:16px;
+    padding:16px 17px;margin-top:12px;border-radius:12px;
+    background:#17292b;border:1px solid #315957;
+  }
+  .action .label{color:var(--cyan);font-size:10px;font-weight:700;letter-spacing:.1em}
+  .action p{margin:7px 0 0;color:#d4e1df;font-size:13px;line-height:1.55}
+  .badge{flex:none;padding:7px 9px;border:1px solid #806c42;border-radius:6px;color:var(--amber);font-size:10px;white-space:nowrap}
+  .footer{
+    display:flex;justify-content:space-between;gap:12px;padding:15px 24px;
+    border-top:1px solid var(--line);color:#718685;font-size:10px;
+  }
+  .footer b{color:#9eb6b3;font-weight:500}
+  @media(max-width:620px){
+    .screen{padding:10px 8px 25px}.device{border-radius:18px}.header,.body{padding-left:17px;padding-right:17px}
+    .status-strip{grid-template-columns:1fr}.stat{padding:11px 13px}
+    .route{grid-template-columns:1fr}.map{min-height:205px}.detail-grid{grid-template-columns:1fr}
+    .footer{padding:14px 17px;flex-direction:column}.action{align-items:flex-start;flex-direction:column}
+  }
+</style>
+</head>
+<body>
+  <main class="screen">
+    <article class="device">
+      <div class="topbar">
+        <span>FIELD NODE / WEST SECTOR</span>
+        <span class="signal"><i></i><i></i><i></i><i></i> 기록 동기화 대기</span>
+      </div>
+
+      <header class="header">
+        <div class="eyebrow"><span class="dot"></span>ARCHIVE ENTRY · OBSERVATION LOG</div>
+        <h1>관측 기록 <span style="color:var(--cyan)">/</span> 08-26</h1>
+        <div class="date">폐쇄역 서부 승강장 외벽 · 회색 생태권</div>
+        <div class="status-strip">
+          <div class="stat"><small>FILTER RESERVE</small><strong class="warn">42% · 주의</strong></div>
+          <div class="stat"><small>CONTACT STATUS</small><strong class="cyan">직접 접촉 없음</strong></div>
+          <div class="stat"><small>EXIT CONDITION</small><strong>1개 잠김</strong></div>
+        </div>
+      </header>
+
+      <section class="body">
+        <div class="alert">
+          <div class="icon">◈</div>
+          <div>
+            <b>서부 벽면에서 미확인 생장체 확인</b>
+            <span>청록색 신경 균사로 추정되는 구조물이 전력선 및 콘크리트 균열을 따라 확장 중. 관측 범위 밖의 추가 개체 여부는 확인되지 않음.</span>
+          </div>
+        </div>
+
+        <div class="section-title"><span>01</span> 핵심 관측 <em>PRIMARY FINDING</em></div>
+        <div class="observation">
+          <span class="obs-tag">BIOLOGICAL ANOMALY / LOW LIGHT RESPONSE</span>
+          <h2>청록색 신경 균사</h2>
+          <p>폐쇄된 지하철역 서쪽 벽에서 가느다란 균사 다발이 확인됨. 어두운 환경에서도 희미한 청록색 발광을 유지하며, 벽면의 균열을 따라 신경망처럼 분기되어 있다. 현재까지 렌과 강이현 모두 직접 접촉하지 않았으며, 관측은 안전거리 바깥에서 진행됐다.</p>
+          <div class="detail-grid">
+            <div class="detail"><label>발견 지점</label><strong>서쪽 벽면 · 폐쇄역 구간</strong></div>
+            <div class="detail"><label>추정 상태</label><strong class="key">활성 생장 중 / 반응 미확인</strong></div>
+            <div class="detail"><label>접촉 기록</label><strong>없음 · 장비 간접 관측</strong></div>
+            <div class="detail"><label>권장 대응</label><strong>거리 유지 · 채집 금지</strong></div>
+          </div>
+        </div>
+
+        <div class="section-title"><span>02</span> 이동 경로 <em>ROUTE TRACE</em></div>
+        <div class="route">
+          <div class="map">
+            <div class="map-title">SUBWAY SECTOR MAP / WEST WALL</div>
+            <div class="line l1"></div><div class="line l2"></div><div class="line l3"></div>
+            <div class="station s1"></div><div class="station active"></div><div class="station s3 locked"></div>
+            <div class="map-label ml1">진입 계단</div>
+            <div class="map-label ml2">현재 위치</div>
+            <div class="map-label ml3">출구 C · 잠김</div>
+            <div class="legend"><span>확인 경로</span><span class="leg-c">현재 위치</span><span class="leg-r">접근 불가</span></div>
+          </div>
+          <div class="side-card">
+            <h3>현장 상태</h3>
+            <div class="meter">
+              <div class="meter-head"><span>필터 잔량</span><b>42%</b></div>
+              <div class="bar"><div class="fill"></div></div>
+            </div>
+            <div class="log"><time>기록 01</time><span><b>강이현</b><br>왼팔 상처 지혈 완료. 추가 출혈 없음.</span></div>
+            <div class="log"><time>기록 02</time><span><b>출구 C</b><br>잠금 상태 지속. 강제 개방은 보류.</span></div>
+            <div class="log"><time>기록 03</time><span><b>렌</b><br>지도상 우회로 탐색 중.</span></div>
+          </div>
+        </div>
+
+        <div class="action">
+          <div>
+            <div class="label">NEXT MOVEMENT / 현재 우선순위</div>
+            <p>렌이 지도에서 서쪽 생장 구역을 피하는 우회로를 확보할 때까지 대기.<br>필터 잔량을 고려해 체류 시간을 줄이고, 잠긴 출구의 강제 개방은 최후 수단으로 유지한다.</p>
+          </div>
+          <div class="badge">우회로 탐색 중</div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span>RECORDED BY <b>렌 · FIELD OBSERVER</b></span>
+        <span>ARCHIVE STATUS <b>LOCAL ONLY / 08-26</b></span>
+      </footer>
+    </article>
+  </main>
+</body>
+</html>
+</body>
+</html>
