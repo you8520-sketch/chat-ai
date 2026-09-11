@@ -29,6 +29,7 @@ async function demoLogin(page: Page) {
 
 /** Give character 2 a single deterministic portrait asset (300x400 data URL). */
 function seedPortraitAsset(characterId: number) {
+  snapshotCharacterAssets(characterId);
   const db = new Database(playwrightDbPath());
   try {
     const assets = JSON.stringify([
@@ -71,6 +72,26 @@ function currentChatId(page: Page): number {
   return chatId;
 }
 
+// Shared Playwright DB isolation: this spec mutates character 2's assets and
+// inserts marker messages. Snapshot before first mutation and restore in
+// afterAll so later spec files (live-follow) see pristine shared rows.
+let originalCharacterAssets: string | null = null;
+let assetsSnapshotTaken = false;
+
+function snapshotCharacterAssets(characterId: number) {
+  if (assetsSnapshotTaken) return;
+  assetsSnapshotTaken = true;
+  const db = new Database(playwrightDbPath());
+  try {
+    const row = db
+      .prepare("SELECT assets FROM characters WHERE id = ?")
+      .get(characterId) as { assets: string | null } | undefined;
+    originalCharacterAssets = row?.assets ?? null;
+  } finally {
+    db.close();
+  }
+}
+
 async function openFreshChat(page: Page, characterId = 2) {
   await page.goto(`/chat/${characterId}?fresh=1`, { waitUntil: "domcontentloaded" });
   await page.waitForURL(/\/chat\/\d+\?chat=\d+/, { timeout: 45_000 });
@@ -78,6 +99,18 @@ async function openFreshChat(page: Page, characterId = 2) {
 }
 
 test.describe("general chat asset display guardrails (B0)", () => {
+  test.afterAll(async () => {
+    const db = new Database(playwrightDbPath());
+    try {
+      if (originalCharacterAssets !== null) {
+        db.prepare("UPDATE characters SET assets = ? WHERE id = 2").run(originalCharacterAssets);
+      }
+      db.prepare("DELETE FROM messages WHERE content LIKE ?").run(`%${ASSISTANT_MARKER_TEXT}%`);
+    } finally {
+      db.close();
+    }
+  });
+
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await demoLogin(page);
