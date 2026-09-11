@@ -155,13 +155,25 @@ export function extractFencedHtmlBlock(text: string): string | null {
   return `\`\`\`html\n${match[1].trim()}\n\`\`\``;
 }
 
-/** assistant 본문 → 소설 본문 / 마크다운 표 / HTML 블록 */
-export function splitChatRichBlocks(text: string): ChatRichBlock[] {
+export type ChatRichBlockSpan = ChatRichBlock & {
+  /** index in the trimmed input where the raw block starts (includes fences for html) */
+  start: number;
+  /** exclusive end index of the raw block in the trimmed input */
+  end: number;
+};
+
+/**
+ * Canonical raw partition: same blocks as {@link splitChatRichBlocks} plus the raw
+ * `[start, end)` span, so callers can transform prose segments without touching
+ * HTML/status/markdown-table content.
+ */
+export function splitChatRichBlockSpans(text: string): ChatRichBlockSpan[] {
   const input = text.trim();
   if (!input) return [];
 
-  const blocks: ChatRichBlock[] = [];
+  const spans: ChatRichBlockSpan[] = [];
   let rest = input;
+  let pos = 0;
 
   while (rest.length > 0) {
     const closedFence = findClosedHtmlFence(rest);
@@ -198,46 +210,141 @@ export function splitChatRichBlocks(text: string): ChatRichBlock[] {
     if (nextKind === "none") {
       const unclosed = extractUnclosedHtmlFence(rest);
       if (unclosed) {
-        if (unclosed.before) blocks.push({ kind: "novel", text: unclosed.before });
-        blocks.push({ kind: "html", text: unclosed.html });
+        if (unclosed.before) {
+          spans.push({
+            kind: "novel",
+            text: unclosed.before,
+            start: pos,
+            end: pos + unclosed.before.length,
+          });
+        }
+        spans.push({
+          kind: "html",
+          text: unclosed.html,
+          start: pos + rest.length - unclosed.html.length,
+          end: pos + rest.length,
+        });
       } else {
-        blocks.push({ kind: "novel", text: rest });
+        spans.push({ kind: "novel", text: rest, start: pos, end: pos + rest.length });
       }
       break;
     }
 
-    const prose = rest.slice(0, nextIdx).trim();
-    if (prose) blocks.push({ kind: "novel", text: prose });
+    const rawProse = rest.slice(0, nextIdx);
+    const prose = rawProse.trim();
+    if (prose) {
+      const lead = rawProse.length - rawProse.trimStart().length;
+      spans.push({ kind: "novel", text: prose, start: pos + lead, end: pos + lead + prose.length });
+    }
 
     if (nextKind === "fenced-html" && closedFence) {
-      blocks.push({ kind: "html", text: closedFence.html });
-      rest = rest.slice(nextIdx + closedFence.length).trimStart();
+      spans.push({
+        kind: "html",
+        text: closedFence.html,
+        start: pos + nextIdx,
+        end: pos + nextIdx + closedFence.length,
+      });
+      const after = rest.slice(nextIdx + closedFence.length);
+      const lead = after.length - after.trimStart().length;
+      pos += nextIdx + closedFence.length + lead;
+      rest = after.trimStart();
       continue;
     }
 
     if (nextKind === "bare-html" && bareHtmlMatch) {
-      blocks.push({ kind: "html", text: bareHtmlMatch.html });
+      spans.push({
+        kind: "html",
+        text: bareHtmlMatch.html,
+        start: pos + nextIdx,
+        end: pos + nextIdx + bareHtmlMatch.html.length,
+      });
+      const rawAfter = rest.slice(nextIdx + bareHtmlMatch.html.length);
+      const lead = rawAfter.length - bareHtmlMatch.after.length;
+      pos += nextIdx + bareHtmlMatch.html.length + lead;
       rest = bareHtmlMatch.after;
       continue;
     }
 
     if (nextKind === "bare-card" && bareCardMatch) {
-      blocks.push({ kind: "html", text: bareCardMatch.html });
+      spans.push({
+        kind: "html",
+        text: bareCardMatch.html,
+        start: pos + nextIdx,
+        end: pos + nextIdx + bareCardMatch.html.length,
+      });
+      const rawAfter = rest.slice(nextIdx + bareCardMatch.html.length);
+      const lead = rawAfter.length - bareCardMatch.after.length;
+      pos += nextIdx + bareCardMatch.html.length + lead;
       rest = bareCardMatch.after;
       continue;
     }
 
     if (nextKind === "table" && tableMatch) {
-      blocks.push({ kind: "markdown-table", text: tableMatch.table });
+      spans.push({
+        kind: "markdown-table",
+        text: tableMatch.table,
+        start: pos + nextIdx,
+        end: pos + nextIdx + tableMatch.table.length,
+      });
+      const rawAfter = rest.slice(nextIdx + tableMatch.table.length);
+      const lead = rawAfter.length - tableMatch.after.length;
+      pos += nextIdx + tableMatch.table.length + lead;
       rest = tableMatch.after;
       continue;
     }
 
-    blocks.push({ kind: "novel", text: rest });
+    spans.push({ kind: "novel", text: rest, start: pos, end: pos + rest.length });
     break;
   }
 
+  return spans;
+}
+
+/** assistant 본문 → 소설 본문 / 마크다운 표 / HTML 블록 */
+export function splitChatRichBlocks(text: string): ChatRichBlock[] {
+  const input = text.trim();
+  if (!input) return [];
+  const blocks = splitChatRichBlockSpans(input).map(({ kind, text: blockText }) => ({
+    kind,
+    text: blockText,
+  })) as ChatRichBlock[];
   return blocks.length > 0 ? blocks : [{ kind: "novel", text: input }];
+}
+
+/**
+ * Apply `fn` to each prose (`novel`) segment only, copying every non-prose
+ * segment (HTML / status card / markdown table) and inter-block whitespace
+ * verbatim. The last novel segment is flagged so callers can apply a trailing
+ * streaming holdback only at the true message end.
+ */
+export function transformNovelSegments(
+  text: string,
+  fn: (novel: string, isLastNovel: boolean) => string
+): string {
+  const input = text.trim();
+  if (!input) return input;
+  const spans = splitChatRichBlockSpans(input);
+  let lastNovelIdx = -1;
+  for (let i = spans.length - 1; i >= 0; i--) {
+    if (spans[i]!.kind === "novel") {
+      lastNovelIdx = i;
+      break;
+    }
+  }
+
+  let out = "";
+  let cursor = 0;
+  spans.forEach((span, i) => {
+    if (span.start > cursor) out += input.slice(cursor, span.start);
+    if (span.kind === "novel") {
+      out += fn(span.text, i === lastNovelIdx);
+    } else {
+      out += input.slice(span.start, span.end);
+    }
+    cursor = Math.max(cursor, span.end);
+  });
+  if (cursor < input.length) out += input.slice(cursor);
+  return out;
 }
 
 export type PartitionedRichBlocks = {

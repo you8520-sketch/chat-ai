@@ -64,6 +64,76 @@ function seedAssistantMessage(chatId: number, content: string) {
   }
 }
 
+const SVG = (w: number, h: number, label: string) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="#7c6aae"/><text x="${Math.floor(w / 2)}" y="${Math.floor(h / 2)}" font-size="24" text-anchor="middle" fill="white">${label}</text></svg>`;
+const dataUrl = (w: number, h: number, label: string) =>
+  "data:image/svg+xml;charset=utf-8," + encodeURIComponent(SVG(w, h, label));
+
+const ASSET_TALL = { url: dataUrl(300, 400, "tall"), tag: "guardrail-tall", width: 300, height: 400 };
+const ASSET_SQUARE = { url: dataUrl(300, 300, "sq"), tag: "guardrail-sq", width: 300, height: 300 };
+const ASSET_WIDE = { url: dataUrl(400, 300, "wide"), tag: "guardrail-wide", width: 400, height: 300 };
+
+function orientationFor(width: number, height: number): string {
+  return width > height ? "landscape" : height > width ? "portrait" : "square";
+}
+
+/** Replace character assets with a deterministic all-orientation fixture set. */
+function seedMixedAssets(characterId: number) {
+  snapshotCharacterAssets(characterId);
+  const db = new Database(playwrightDbPath());
+  try {
+    const assets = JSON.stringify(
+      [ASSET_TALL, ASSET_SQUARE, ASSET_WIDE].map((a) => ({
+        ...a,
+        orientation: orientationFor(a.width, a.height),
+        public: true,
+        chat: true,
+        viewerBlur: false,
+      }))
+    );
+    const updated = db.prepare("UPDATE characters SET assets = ? WHERE id = ?").run(assets, characterId);
+    if (updated.changes === 0) {
+      throw new Error(`No character row to seed mixed assets: ${characterId}`);
+    }
+  } finally {
+    db.close();
+  }
+}
+
+async function installAssetMode(page: Page, mode: "left" | "inline" | "off") {
+  await page.addInitScript(
+    ({ key, value }) => {
+      localStorage.setItem(key, JSON.stringify({ assetDisplayMode: value }));
+    },
+    { key: "playai-chat-display-prefs", value: mode }
+  );
+}
+
+async function readStoredAssetMode(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const raw = localStorage.getItem("playai-chat-display-prefs");
+    if (!raw) return null;
+    try {
+      return (JSON.parse(raw) as { assetDisplayMode?: string }).assetDisplayMode ?? null;
+    } catch {
+      return null;
+    }
+  });
+}
+
+function inlineFigures(page: Page) {
+  return page.locator('[data-testid="inline-tagged-asset"]');
+}
+
+async function seedAndReloadChatWithMessage(page: Page, message: string): Promise<void> {
+  await openFreshChat(page);
+  const chatId = currentChatId(page);
+  seedAssistantMessage(chatId, message);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector("textarea[placeholder*='메시지 입력']", { timeout: 45_000 });
+}
+
+
 function currentChatId(page: Page): number {
   const chatId = Number(new URL(page.url()).searchParams.get("chat"));
   if (!Number.isInteger(chatId) || chatId <= 0) {
@@ -203,5 +273,88 @@ test.describe("general chat asset display guardrails (B0)", () => {
     const action = page.getByRole("button", { name: "이미지 저장", exact: true });
     await expect(action).toBeVisible({ timeout: 15_000 });
     await expect(action).toBeEnabled();
+  });
+
+  test("INLINE-ALL-ORIENTATIONS: inline mode renders tall/square/wide at original ratio", async ({
+    page,
+  }) => {
+    await installAssetMode(page, "inline");
+    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    seedMixedAssets(2);
+    await seedAndReloadChatWithMessage(
+      page,
+      `${ASSISTANT_MARKER_TEXT}\n앞.\n[태그: guardrail-tall]\n중간.\n[태그: guardrail-sq]\n[태그: guardrail-wide]`
+    );
+
+    const figures = inlineFigures(page);
+    await expect(figures).toHaveCount(3, { timeout: 45_000 });
+    const tags = await figures.evaluateAll((els) => els.map((e) => e.getAttribute("data-asset-tag")));
+    expect(tags).toEqual(["guardrail-tall", "guardrail-sq", "guardrail-wide"]);
+
+    const styles = await figures.evaluateAll((els) =>
+      els.map((fig) => {
+        const img = fig.querySelector("img") as HTMLImageElement;
+        return {
+          aspect: getComputedStyle(fig).aspectRatio,
+          fit: getComputedStyle(img).objectFit,
+        };
+      })
+    );
+    for (const style of styles) expect(style.fit).toBe("contain");
+    expect(styles[0]!.aspect.replace(/\s+/g, "")).toBe("300/400");
+    expect(styles[1]!.aspect.replace(/\s+/g, "")).toBe("300/300");
+    expect(styles[2]!.aspect.replace(/\s+/g, "")).toBe("400/300");
+  });
+
+  test("OFF-HIDES-ALL: off mode renders no assets and no raw markers", async ({ page }) => {
+    await installAssetMode(page, "off");
+    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    seedMixedAssets(2);
+    await seedAndReloadChatWithMessage(
+      page,
+      `${ASSISTANT_MARKER_TEXT}\n[태그: guardrail-tall]\n[태그: guardrail-wide]`
+    );
+
+    await expect(inlineFigures(page)).toHaveCount(0);
+    await expect(page.locator(".chat-room-portrait-column")).toHaveCount(0);
+    await expect(page.locator('[data-testid="mobile-chat-portrait-background"]')).toHaveCount(0);
+    const assistant = page.locator("[data-quote-assistant]", { hasText: ASSISTANT_MARKER_TEXT }).first();
+    const body = await assistant.innerText();
+    expect(body).not.toContain("[태그:");
+  });
+
+  test("MOBILE-STORED-LEFT: stored left renders inline on mobile without mutating storage", async ({
+    page,
+  }) => {
+    await installAssetMode(page, "left");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    seedMixedAssets(2);
+    await seedAndReloadChatWithMessage(
+      page,
+      `${ASSISTANT_MARKER_TEXT}\n[태그: guardrail-tall]\n[태그: guardrail-wide]`
+    );
+
+    await expect(page.locator(".chat-room-portrait-column")).toHaveCount(0);
+    await expect(page.locator('[data-testid="mobile-chat-portrait-background"]')).toHaveCount(0);
+    await expect(inlineFigures(page)).toHaveCount(2, { timeout: 45_000 });
+    expect(await readStoredAssetMode(page)).toBe("left");
+  });
+
+  test("QUICK-RAIL-CYCLE: rail cycles left → inline → off and persists", async ({ page }) => {
+    await installAssetMode(page, "left");
+    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("textarea[placeholder*='메시지 입력']", { timeout: 45_000 });
+
+    const rail = page.getByRole("button", { name: /캐릭터 에셋 표시 좌측/ }).first();
+    await expect(rail).toBeVisible();
+    expect(await readStoredAssetMode(page)).toBe("left");
+
+    await rail.click();
+    await expect(page.getByRole("button", { name: /캐릭터 에셋 표시 본문/ }).first()).toBeVisible();
+    await expect.poll(() => readStoredAssetMode(page)).toBe("inline");
+
+    await page.getByRole("button", { name: /캐릭터 에셋 표시 본문/ }).first().click();
+    await expect.poll(() => readStoredAssetMode(page)).toBe("off");
   });
 });

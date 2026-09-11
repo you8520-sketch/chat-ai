@@ -5,7 +5,6 @@ import Link from "next/link";
 import ChatPersonaEditor, { restorePersonaSnapshot } from "@/components/ChatPersonaEditor";
 import PersonaSelector from "@/components/PersonaSelector";
 import StatusWidgetChatSettings from "@/components/StatusWidgetChatSettings";
-import { ChatPortraitPrefs } from "@/components/ChatStatusPortraitPrefs";
 import type { StatusWidgetSourceMode, StatusWidgetDisplayMode } from "@/lib/statusWidget";
 import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
@@ -994,11 +993,6 @@ function DisplaySettingsSection({
 }) {
   return (
     <div className="space-y-5 text-xs">
-      <ChatPortraitPrefs
-        displayPrefs={displayPrefs}
-        onDisplayPrefsChange={onDisplayPrefsChange}
-      />
-
       <ChatStreamSpeedSettings
         streamIntervalMs={displayPrefs.streamIntervalMs}
         onStreamIntervalMsChange={(intervalMs) =>

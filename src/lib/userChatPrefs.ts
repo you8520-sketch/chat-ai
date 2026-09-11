@@ -2,13 +2,12 @@ import { DEFAULT_TARGET_RESPONSE_CHARS, normalizeTargetResponseChars } from "@/l
 import {
   DEFAULT_CHAT_DISPLAY_PREFS,
   loadChatDisplayPrefs,
+  normalizeAssetDisplayMode,
   normalizeChatFontFamily,
   normalizeCharacterDialogueColor,
   normalizeFontSizePreset,
   normalizeParagraphSpacingPreset,
-  normalizePortraitBackgroundOpacity,
   normalizeReadableTextColor,
-  normalizeShowCharacterPortrait,
   normalizeShowSuggestedReplies,
   normalizeStreamIntervalMs,
   streamCharsPerTickForInterval,
@@ -34,12 +33,19 @@ export const EMPTY_USER_CHAT_PREFS: UserChatPrefs = {
   displayPrefs: DEFAULT_CHAT_DISPLAY_PREFS,
 };
 
-function normalizeDisplayPrefs(raw: Partial<ChatDisplayPrefs> | undefined): ChatDisplayPrefs {
+function normalizeDisplayPrefs(
+  raw:
+    | (Partial<ChatDisplayPrefs> & {
+        showCharacterPortrait?: unknown;
+        portraitBackgroundOpacity?: unknown;
+      })
+    | undefined
+): ChatDisplayPrefs {
   if (!raw) return DEFAULT_CHAT_DISPLAY_PREFS;
   const streamIntervalMs = normalizeStreamIntervalMs(raw.streamIntervalMs);
+  // Explicit allow-list build (no object spread): removed/legacy keys must not
+  // leak back into the canonical serialized JSON.
   return {
-    ...DEFAULT_CHAT_DISPLAY_PREFS,
-    ...raw,
     streamIntervalMs,
     streamCharsPerTick: streamCharsPerTickForInterval(streamIntervalMs),
     fontFamily: normalizeChatFontFamily(raw.fontFamily),
@@ -54,9 +60,12 @@ function normalizeDisplayPrefs(raw: Partial<ChatDisplayPrefs> | undefined): Chat
       raw.userNarrationColor,
       DEFAULT_CHAT_DISPLAY_PREFS.userNarrationColor
     ),
-    showCharacterPortrait: normalizeShowCharacterPortrait(raw.showCharacterPortrait),
+    userDialogueColor:
+      typeof raw.userDialogueColor === "string"
+        ? raw.userDialogueColor
+        : DEFAULT_CHAT_DISPLAY_PREFS.userDialogueColor,
+    assetDisplayMode: normalizeAssetDisplayMode(raw.assetDisplayMode, raw.showCharacterPortrait),
     showSuggestedReplies: normalizeShowSuggestedReplies(raw.showSuggestedReplies),
-    portraitBackgroundOpacity: normalizePortraitBackgroundOpacity(raw.portraitBackgroundOpacity),
   };
 }
 

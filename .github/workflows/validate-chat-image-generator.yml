@@ -88,6 +88,22 @@ on:
       - "src/lib/characterAssets.test.ts"
       - "src/lib/chatAssetDisplayGuardrails.test.ts"
       - "src/lib/chatDisplayPrefs.ts"
+      - "src/lib/chatDisplayPrefs.test.ts"
+      - "src/lib/chatAssetPresentation.ts"
+      - "src/lib/chatAssetPresentation.test.ts"
+      - "src/lib/inlineTaggedAssets.ts"
+      - "src/lib/inlineTaggedAssets.test.ts"
+      - "src/lib/chatRichContent.ts"
+      - "src/lib/chatRichContent.test.ts"
+      - "src/lib/emotionTag.test.ts"
+      - "src/lib/userChatPrefs.ts"
+      - "src/lib/userChatPrefs.test.ts"
+      - "src/lib/useChatDesktopViewport.ts"
+      - "src/components/ChatRichBlocks.tsx"
+      - "src/components/TaggedNovelText.tsx"
+      - "src/app/chat/[id]/ChatClient.tsx"
+      - "src/app/globals.css"
+      - "tests/ui/chat-asset-display.spec.ts"
       - "src/components/ChatCharacterPortrait.tsx"
       - "src/components/ChatEmotionPortraitPanel.tsx"
       - "src/components/ChatSelectionQuoteToolbar.tsx"
@@ -234,6 +250,12 @@ jobs:
       - run: node --conditions=react-server --import tsx --test src/lib/simulationCreatorAssetBoundary.test.ts
       - run: node --import tsx --test src/lib/characterAssets.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatAssetDisplayGuardrails.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatDisplayPrefs.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatAssetPresentation.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/inlineTaggedAssets.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/emotionTag.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatRichContent.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/userChatPrefs.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/creatorAssetSemantics.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/uploadImageOptimize.test.ts
       - run: node --import tsx --test src/lib/assetVisionStructured.test.ts

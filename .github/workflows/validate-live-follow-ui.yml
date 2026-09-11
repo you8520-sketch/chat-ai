@@ -11,6 +11,9 @@ on:
       - "src/lib/chatLiveFollow.ts"
       - "src/lib/chatBillingPresentation.ts"
       - "src/lib/integerScrollTransport.ts"
+      - "src/lib/emotionTag.ts"
+      - "src/lib/inlineTaggedAssets.ts"
+      - "src/lib/chatRichContent.ts"
       - "src/app/trpg/**"
       - "src/lib/trpg/**"
 
