@@ -667,7 +667,7 @@ async function runTargetChaseFollowScenario(page: Page, opts: {
     maxStepPx: INTEGER_CHASE_MAX_STEP_PX,
     maxInterStepGapMs,
     ignoreMaxFrameVelocity: true,
-    ignoreStopStartOscillation: true,
+    ignoreStopStartOscillation: false,
   });
   console.log(
     `${streamIntervalMs}ms x 1char: expectedGrowth=${expectedGrowth.toFixed(2)} ` +
@@ -1419,13 +1419,13 @@ test.describe("General chat target-chase follow matrix — production browser", 
     });
   });
 
-  test("G1: portrait ON plain prose stepwise chase", async ({ page }, testInfo) => {
+  test("G1: portrait ON plain prose continuous follow", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { showCharacterPortrait: true, streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800 });
     await attachMotionProof(testInfo, "G1", proof);
   });
 
-  test("G2: portrait OFF plain prose stepwise chase", async ({ page }, testInfo) => {
+  test("G2: portrait OFF plain prose continuous follow", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { showCharacterPortrait: false, streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, {
       charCount: 2600,
@@ -1435,37 +1435,37 @@ test.describe("General chat target-chase follow matrix — production browser", 
     await attachMotionProof(testInfo, "G2", proof);
   });
 
-  test("G3: bottom status widget stepwise chase", async ({ page }, testInfo) => {
+  test("G3: bottom status widget continuous follow", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, layoutChrome: "widget" });
     await attachMotionProof(testInfo, "G3", proof);
   });
 
-  test("G4: status meta stepwise chase", async ({ page }, testInfo) => {
+  test("G4: status meta continuous follow", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, layoutChrome: "meta" });
     await attachMotionProof(testInfo, "G4", proof);
   });
 
-  test("G5: status widget + status meta stepwise chase", async ({ page }, testInfo) => {
+  test("G5: status widget + status meta continuous follow", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, layoutChrome: "both" });
     await attachMotionProof(testInfo, "G5", proof);
   });
 
-  test("G6: long RP 2500+ chars stepwise chase", async ({ page }, testInfo) => {
+  test("G6: long RP 2500+ chars continuous follow", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 2600 });
     await attachMotionProof(testInfo, "G6", proof);
   });
 
-  test("G7: fast stream speed (24ms) stepwise chase", async ({ page }, testInfo) => {
+  test("G7: fast stream speed (24ms) continuous follow", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800 });
     await attachMotionProof(testInfo, "G7", proof);
   });
 
-  test("G8: normal stream speed (40ms) stepwise chase", async ({ page }, testInfo) => {
+  test("G8: normal stream speed (40ms) continuous follow", async ({ page }, testInfo) => {
     await installChatDisplayPrefs(page, { streamIntervalMs: 40, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, streamIntervalMs: 40 });
     await attachMotionProof(testInfo, "G8", proof);
