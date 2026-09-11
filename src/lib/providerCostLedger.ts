@@ -773,25 +773,16 @@ export function recordBackgroundProviderCost(
   // Legacy path (DBs whose pre-existing duplicates block the unique index):
   // no in-memory flags, no silent drops, no deletions. A fresh identity
   // records normally (a concurrent same-id race on such DBs can still
-  // duplicate - unfixable without the index; documented residual). A dirty
-  // identity records its cost on an unlink row so the spend stays visible
-  // without adding another duplicate of the corrupted identity. Callers
-  // never retry recordBackground itself (provider retries mint fresh
-  // provider ids), so the unlink fallback does not multiply costs.
-  let effectiveRequestId = requestId;
+  // duplicate - unfixable without the index; documented residual). A repeat of a
+  // known identity replays the stored row instead of minting new cost.
+  let effectiveRequestId: string | null = requestId;
   if (requestId) {
     const matches = db
       .prepare(
-        "SELECT COUNT(*) AS c FROM api_cost_ledger WHERE provider = ? AND provider_request_id = ?"
+        "SELECT event_key FROM api_cost_ledger WHERE provider = ? AND provider_request_id = ? LIMIT 1"
       )
-      .get(input.provider, requestId) as { c: number };
-    if (matches.c > 0) {
-      console.warn(
-        "[provider-cost-ledger] duplicate billing identity kept as-is; recording cost on an unlink row",
-        { provider: input.provider, requestId }
-      );
-      effectiveRequestId = null;
-    }
+      .get(input.provider, requestId) as { event_key: string } | undefined;
+    if (matches) return { eventKey: matches.event_key, recorded: false };
   }
   const costCenter =
     input.costCenter ?? resolveLedgerCostCenter({ family: "background", request_kind: input.requestKind });

@@ -10,7 +10,6 @@ import {
   MAIN_RP_USER_SELECTABLE_OPTIONS,
 } from "./chatModels";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL } from "./chatModels";
-import { ensureProviderCostLedgerSchema } from "./providerCostLedger";
 import {
   ensureProviderCostLedgerSchema,
   finalizeProviderCostAttempt,
@@ -862,17 +861,16 @@ describe("admin finance actual cost — billing-identity hardening V-Y", () => {
     ).c;
   }
 
-  it("V. dirty legacy duplicates: ensure survives, writer never errors, cost never lost, no new dup", () => {
+  it("V. dirty legacy duplicates: ensure survives, writer never errors, no new dup", () => {
     const db = dirtyLegacyDb();
     try {
       assert.equal(identityCount(db, "cheaperinference", "req-dirty-1"), 2);
       ensureProviderCostLedgerSchema(db);
-      const indexes = db
-        .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_api_cost_ledger_provider_request'")
-        .all() as { name: string }[];
-      assert.equal(indexes.length, 0, "unique index skipped on dirty data, boot survives");
-      const before = buildAdminFinanceSummary(db).aiCost.totalActualKrw;
-      const written = recordBackgroundProviderCost(
+      assert.equal(hasProviderRequestIdempotencyIndex(db), false, "unique index skipped, boot survives");
+      const rowsBefore = (
+        db.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+      ).c;
+      const replayed = recordBackgroundProviderCost(
         {
           provider: "cheaperinference",
           model: "v-model",
@@ -884,10 +882,15 @@ describe("admin finance actual cost — billing-identity hardening V-Y", () => {
         },
         db
       );
-      assert.equal(written.recorded, true, "new cost is recorded, never silently dropped");
+      // Same (provider, requestId) is the same billable request even on a
+      // dirty DB: replay the stored row, mint nothing, drop nothing.
+      assert.equal(replayed.recorded, false);
       assert.equal(identityCount(db, "cheaperinference", "req-dirty-1"), 2, "no third duplicate row");
-      const after = buildAdminFinanceSummary(db).aiCost.totalActualKrw;
-      assert.ok(after - before >= 13, `new actual cost visible in totals (delta=${after - before})`);
+      assert.equal(
+        (db.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }).c,
+        rowsBefore,
+        "no NULL unlink row minted for a known identity"
+      );
     } finally {
       db.close();
     }
@@ -975,12 +978,15 @@ describe("admin finance actual cost — billing-identity hardening V-Y", () => {
     }
   });
 
-  it("Y. actual cost survives duplicate-identity handling without loss", () => {
+  it("Y. dirty-identity repeat adds no cost and no rows (exactly-once)", () => {
     const db = dirtyLegacyDb();
     try {
       ensureProviderCostLedgerSchema(db);
       const before = readLedgerPeriodCostAttribution(db, "2000-01-01", "2100-01-01").totals.actualKrw;
-      recordBackgroundProviderCost(
+      const rowsBefore = (
+        db.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+      ).c;
+      const replayed = recordBackgroundProviderCost(
         {
           provider: "cheaperinference",
           model: "y-model",
@@ -992,8 +998,88 @@ describe("admin finance actual cost — billing-identity hardening V-Y", () => {
         },
         db
       );
+      assert.equal(replayed.recorded, false);
       const after = readLedgerPeriodCostAttribution(db, "2000-01-01", "2100-01-01").totals.actualKrw;
-      assert.ok(after - before >= 13, `duplicate-identity cost preserved (delta=${after - before})`);
+      assert.equal(after, before, "no double-count of a known billing identity");
+      assert.equal(
+        (db.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }).c,
+        rowsBefore
+      );
+    } finally {
+      db.close();
+    }
+  });
+
+  it("Z. unrelated dirty A present: fresh B recorded twice costs exactly once", () => {
+    // Billing invariant: same (provider, requestId) is the same billable
+    // request. A NULL unlink row for the repeat would double-count B.
+    const db = dirtyLegacyDb();
+    try {
+      ensureProviderCostLedgerSchema(db);
+      const input = {
+        provider: "cheaperinference",
+        model: "z-model",
+        requestKind: "background-memory-extract",
+        cheaperInferenceBilledCostUsd: 0.011,
+        providerRequestId: "req-fresh-b",
+        outcome: "success" as const,
+        persistInTests: true,
+      };
+      const first = recordBackgroundProviderCost(input, db);
+      const second = recordBackgroundProviderCost(input, db);
+      assert.equal(first.recorded, true);
+      assert.equal(second.recorded, false);
+      assert.equal(second.eventKey, first.eventKey);
+      assert.equal(
+        (
+          db
+            .prepare(
+              "SELECT COUNT(*) AS c FROM api_cost_ledger WHERE provider='cheaperinference' AND provider_request_id='req-fresh-b'"
+            )
+            .get() as { c: number }
+        ).c,
+        1,
+        "exactly one billing event for B"
+      );
+      const nullUnlink = (
+        db
+          .prepare(
+            "SELECT COUNT(*) AS c FROM api_cost_ledger WHERE provider_request_id IS NULL AND actual_cost_usd = 0.011"
+          )
+          .get() as { c: number }
+      ).c;
+      assert.equal(nullUnlink, 0, "no NULL unlink row duplicating B");
+      const totals = readLedgerPeriodCostAttribution(db, "2000-01-01", "2100-01-01").totals;
+      assert.equal(totals.actualKrw, 3 + settledKrw(db, "req-fresh-b"), "dirty A (3.0) + B exactly once");
+    } finally {
+      db.close();
+    }
+  });
+
+  it("AA. re-receiving a dirty identity creates no NULL-cost row", () => {
+    const db = dirtyLegacyDb();
+    try {
+      ensureProviderCostLedgerSchema(db);
+      const rowsBefore = (
+        db.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+      ).c;
+      const result = recordBackgroundProviderCost(
+        {
+          provider: "cheaperinference",
+          model: "aa-model",
+          requestKind: "background-memory-extract",
+          cheaperInferenceBilledCostUsd: 0.009,
+          providerRequestId: "req-dirty-1",
+          outcome: "success",
+          persistInTests: true,
+        },
+        db
+      );
+      assert.equal(result.recorded, false, "same billing event replays, no new cost row");
+      const rowsAfter = (
+        db.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+      ).c;
+      assert.equal(rowsAfter, rowsBefore, "no NULL unlink row minted for a known identity");
     } finally {
       db.close();
     }

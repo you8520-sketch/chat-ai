@@ -109,17 +109,18 @@ export type AdminFinanceSummary = {
     sourceState: string;
   }>;
   /** Active registry models with zero observed usage in range. */
-  zeroUseModels: Array<{ id: string; label: string }>;  creatorAccruedKrw: number;
+  zeroUseModels: Array<{ id: string; label: string }>;
+  creatorAccruedKrw: number;
   creatorPayoutCashKrw: number;
   /**
    * Cash-withdrawal settlement attribution from APPROVED snapshots.
    * creatorTaxPayableKrw (withholding total) is a tax outflow, NOT platform
    * revenue and NOT an extra creator cost (already inside the 100% accrual).
-   * creatorPlatformRetainedKrw (requested - payout - tax) is the CANONICAL
-   * settlement adjustment owner: creator cost was recognized at 100% when
-   * rewards accrued, so the retained portion reverses into top-level net
-   * profit EXACTLY ONCE here. It is NEVER added to revenue (Case A gross
-   * model — that would double-count).
+   * creatorPlatformRetainedKrw is the stored platform_fee snapshot consumed
+   * directly - the CANONICAL settlement adjustment owner: creator cost was
+   * recognized at 100% when rewards accrued, so the retained portion
+   * reverses into top-level net profit EXACTLY ONCE here. It is NEVER
+   * added to revenue (Case A gross model - that would double-count).
    */
   creatorTaxPayableKrw: number;
   creatorPlatformRetainedKrw: number;
