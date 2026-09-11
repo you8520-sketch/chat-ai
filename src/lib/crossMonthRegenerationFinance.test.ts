@@ -101,13 +101,15 @@ function insertMessage(
     actualKrw?: number | null;
     model?: string;
     modelLabel?: string;
+    chatId?: number;
   }
 ) {
   d.prepare(
     `INSERT INTO messages (id, chat_id, role, content, request_id, usage, deduction_slices, created_at, is_refunded)
-     VALUES (?, 1, 'assistant', 'reply', ?, ?, ?, ?, 0)`
+     VALUES (?, ?, 'assistant', 'reply', ?, ?, ?, ?, 0)`
   ).run(
     id,
+    opts.chatId ?? 1,
     opts.requestId,
     usageJson(opts.model, opts.modelLabel, opts.actualKrw ?? undefined),
     slices(opts.paid ?? 0, opts.free ?? 0),
@@ -145,6 +147,8 @@ function insertSettlement(
     source?: string;
     chargeKind?: string;
     ignoreDuplicate?: boolean;
+    chatId?: number;
+    userId?: number;
   }
 ) {
   const suffix = opts.ignoreDuplicate
@@ -155,9 +159,11 @@ function insertSettlement(
     `INSERT INTO chat_billing_settlements
        (user_id, chat_id, request_id, charge_kind, assistant_message_id, requested_points, settled_points,
         outcome, deduction_slices_json, reason, source, created_at)
-     VALUES (1, 1, ?, ?, ?, ?, ?, ?, ?, '', ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?)
      ${suffix}`
   ).run(
+    opts.userId ?? 1,
+    opts.chatId ?? 1,
     opts.requestId,
     opts.chargeKind ?? "chat_turn",
     opts.assistantMessageId,
@@ -172,11 +178,19 @@ function insertSettlement(
 
 function mainLedger(
   d: Database.Database,
-  opts: { messageId: number; requestId: string; eventTime: string; krw: number; model?: string }
+  opts: {
+    messageId: number;
+    requestId: string;
+    eventTime: string;
+    krw: number;
+    model?: string;
+    chatId?: number;
+    providerRequestId?: string;
+  }
 ) {
   return recordMainGenerationProviderCost(
     {
-      chatId: 1,
+      chatId: opts.chatId ?? 1,
       assistantMessageId: opts.messageId,
       generationSequence: 0,
       generationRequestId: opts.requestId,
@@ -186,7 +200,7 @@ function mainLedger(
       inputTokens: 1000,
       outputTokens: 500,
       cheaperInferenceBilledCostUsd: usd(opts.krw),
-      providerRequestId: opts.requestId,
+      providerRequestId: opts.providerRequestId ?? opts.requestId,
       exchangeRateKrwPerUsd: FX,
       eventTime: opts.eventTime,
       outcome: "success",
@@ -833,6 +847,181 @@ describe("provenance blockers — generation model + legacy bridge period", () =
       const sep = buildAdminFinanceSummary(d, "2026-09");
       assert.equal(sep.chat.paidRevenueKrw, 0);
       assert.equal(sep.paidPointsConsumed, 0);
+    } finally {
+      d.close();
+    }
+  });
+});
+
+describe("legacy-bridge regeneration + request-id identity", () => {
+  it("L2. legacy bridge owns original period; later native regen does not erase it", () => {
+    const d = financeDb();
+    try {
+      // AUG: legacy charge on the raw message, no settlement/bridge yet.
+      insertMessage(d, 1, {
+        createdAt: "2026-08-10 10:00:00",
+        requestId: "req-legacy",
+        paid: 500,
+        model: X_MODEL,
+        modelLabel: X_MODEL,
+      });
+      const augBefore = buildAdminFinanceSummary(d, "2026-08");
+      assert.equal(augBefore.chat.paidRevenueKrw, 500);
+
+      // SEP: legacy bridge materializes (bookkeeping; created_at = Sep).
+      insertSettlement(d, {
+        requestId: "req-legacy",
+        assistantMessageId: 1,
+        createdAt: "2026-09-15 10:00:00",
+        paid: 500,
+        outcome: "legacy_already_billed",
+        source: "legacy_message_deduction_slices",
+      });
+      const augAfterBridge = buildAdminFinanceSummary(d, "2026-08");
+      assert.equal(augAfterBridge.chat.paidRevenueKrw, 500);
+      assert.equal(buildAdminFinanceSummary(d, "2026-09").chat.paidRevenueKrw, 0);
+
+      // OCT: native regeneration C on the SAME assistant row.
+      regenerateMessage(d, 1, {
+        requestId: "req-C",
+        paid: 600,
+        model: Y_MODEL,
+        modelLabel: Y_MODEL,
+      });
+      insertSettlement(d, {
+        requestId: "req-C",
+        assistantMessageId: 1,
+        createdAt: "2026-10-05 10:00:00",
+        paid: 600,
+      });
+      mainLedger(d, {
+        messageId: 1,
+        requestId: "req-C",
+        eventTime: "2026-10-05 10:00:00",
+        krw: 120,
+        model: Y_MODEL,
+      });
+
+      const augAfter = buildAdminFinanceSummary(d, "2026-08");
+      const sep = buildAdminFinanceSummary(d, "2026-09");
+      const oct = buildAdminFinanceSummary(d, "2026-10");
+
+      assert.equal(
+        augAfter.chat.paidRevenueKrw,
+        augBefore.chat.paidRevenueKrw,
+        "August legacy revenue must not change after an October native regeneration"
+      );
+      assert.equal(augAfter.chat.paidRevenueKrw, 500);
+      assert.equal(sep.chat.paidRevenueKrw, 0);
+      assert.equal(oct.chat.paidRevenueKrw, 600);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("C2. same raw request id on different assistants stays independent", () => {
+    const d = financeDb();
+    try {
+      insertMessage(d, 1, {
+        createdAt: "2026-09-10 10:00:00",
+        requestId: "same-request",
+        paid: 500,
+        model: X_MODEL,
+        modelLabel: X_MODEL,
+        chatId: 1,
+      });
+      insertMessage(d, 2, {
+        createdAt: "2026-09-10 11:00:00",
+        requestId: "same-request",
+        paid: 600,
+        model: Y_MODEL,
+        modelLabel: Y_MODEL,
+        chatId: 2,
+      });
+      insertSettlement(d, {
+        requestId: "same-request",
+        assistantMessageId: 1,
+        createdAt: "2026-09-10 10:00:00",
+        paid: 500,
+        chatId: 1,
+      });
+      insertSettlement(d, {
+        requestId: "same-request",
+        assistantMessageId: 2,
+        createdAt: "2026-09-10 11:00:00",
+        paid: 600,
+        chatId: 2,
+      });
+      mainLedger(d, {
+        messageId: 1,
+        requestId: "same-request",
+        eventTime: "2026-09-10 10:00:00",
+        krw: 100,
+        model: X_MODEL,
+        chatId: 1,
+        providerRequestId: "prov-A",
+      });
+      mainLedger(d, {
+        messageId: 2,
+        requestId: "same-request",
+        eventTime: "2026-09-10 11:00:00",
+        krw: 120,
+        model: Y_MODEL,
+        chatId: 2,
+        providerRequestId: "prov-B",
+      });
+
+      assert.deepEqual(modelRows(buildAdminFinanceSummary(d, "2026-09")), [
+        { model: X_MODEL, paid: 500, api: 100 },
+        { model: Y_MODEL, paid: 600, api: 120 },
+      ]);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("C3. auxiliary ledger row cannot hijack the main generation model", () => {
+    const d = financeDb();
+    try {
+      const Z_MODEL = "cheaperinference/z-aux-model";
+      insertMessage(d, 1, {
+        createdAt: "2026-09-10 10:00:00",
+        requestId: "gen-req",
+        paid: 500,
+        model: X_MODEL,
+        modelLabel: X_MODEL,
+      });
+      insertSettlement(d, {
+        requestId: "gen-req",
+        assistantMessageId: 1,
+        createdAt: "2026-09-10 10:00:00",
+        paid: 500,
+      });
+      // Auxiliary row written FIRST, sharing generation_request_id, model Z.
+      d.prepare(
+        `INSERT INTO api_cost_ledger
+           (event_key, family, funding_class, execution_phase, attempt_ordinal,
+            requested_provider, requested_model, provider, model, request_kind, cost_center,
+            provider_request_id, generation_request_id, assistant_message_id, generation_sequence,
+            actual_cost_usd, actual_cost_source, event_status,
+            exchange_rate_krw_per_usd, cost_krw, estimated, created_at, completed_at)
+         VALUES ('aux-z','background','platform_funded','async_post_turn',1,
+                 'cheaperinference','z-model','cheaperinference','z-model','background-memory-extract','memory',
+                 'aux-req-z','gen-req',1,0,
+                 0.0,'cheaper_inference_usage_api','settled',
+                 ?,0,0,'2026-09-02 10:00:00','2026-09-02 10:00:00')`
+      ).run(FX);
+      mainLedger(d, {
+        messageId: 1,
+        requestId: "gen-req",
+        eventTime: "2026-09-10 10:00:00",
+        krw: 100,
+        model: X_MODEL,
+      });
+
+      const rows = modelRows(buildAdminFinanceSummary(d, "2026-09"));
+      assert.deepEqual(rows, [{ model: X_MODEL, paid: 500, api: 100 }]);
+      assert.equal(rows.some((row) => row.model === Z_MODEL), false);
     } finally {
       d.close();
     }

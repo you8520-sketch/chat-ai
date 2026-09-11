@@ -447,13 +447,57 @@ function readMonthlyChargeEvents(
 }
 
 /**
- * Assistant messages that have a NATIVE chat_turn settlement in ANY period.
- * Their revenue must come from settlement events (period-owned), never from the
- * regeneration-overwritten messages.deduction_slices. A legacy bridge does NOT
- * block the message fallback: its slices duplicate the original legacy charge,
- * whose period is the message's own chronology.
+ * Legacy bridge revenue ownership. The bridge is materialized later as
+ * bookkeeping, so its created_at must NOT be used as the economic period. Its
+ * immutable deduction_slices_json is the original legacy charge snapshot, and
+ * the original assistant row's created_at is the historical period owner. A
+ * bridge event is therefore included only in the month of the referenced
+ * message's created_at — never in its materialization month.
  */
-function readCanonicallySettledMessageIds(db: Database.Database): Set<number> {
+function readMonthlyLegacyBridgeEvents(
+  db: Database.Database,
+  start: string,
+  end: string
+): MonthlyChargeEvent[] {
+  if (!chatBillingSettlementTableExists(db)) return [];
+  const rows = db
+    .prepare(
+      `SELECT s.request_id, s.assistant_message_id, s.deduction_slices_json
+       FROM chat_billing_settlements s
+       JOIN messages m ON m.id = s.assistant_message_id
+       WHERE s.charge_kind = ?
+         AND s.source = 'legacy_message_deduction_slices'
+         AND m.created_at >= ? AND m.created_at < ?`
+    )
+    .all(CHAT_TURN_CHARGE_KIND, start, end) as Array<{
+    request_id: string;
+    assistant_message_id: number | null;
+    deduction_slices_json: string | null;
+  }>;
+  return rows.map((row) => {
+    const totals = sliceTotals(row.deduction_slices_json);
+    return {
+      requestId: typeof row.request_id === "string" ? row.request_id : "",
+      assistantMessageId:
+        row.assistant_message_id != null && Number.isFinite(row.assistant_message_id)
+          ? Number(row.assistant_message_id)
+          : null,
+      paid: totals.paid,
+      free: totals.free,
+    };
+  });
+}
+
+/**
+ * Assistant messages that already have a canonical charge owner in ANY period:
+ * a native chat_turn settlement OR a legacy bridge snapshot. Raw
+ * messages.deduction_slices are only a valid legacy fallback while the row has
+ * never been regenerated/settled/bridged (regeneration overwrites them). This
+ * is a raw-fallback safety guard, NOT an event owner: the actual economics come
+ * from the native settlement (own period) or the bridge snapshot (message
+ * chronology).
+ */
+function readOwnedMessageIds(db: Database.Database): Set<number> {
   const ids = new Set<number>();
   if (!chatBillingSettlementTableExists(db)) return ids;
   const rows = db
@@ -461,7 +505,7 @@ function readCanonicallySettledMessageIds(db: Database.Database): Set<number> {
       `SELECT DISTINCT assistant_message_id FROM chat_billing_settlements
        WHERE assistant_message_id IS NOT NULL
          AND charge_kind = ?
-         AND source = 'native'`
+         AND source IN ('native', 'legacy_message_deduction_slices')`
     )
     .all(CHAT_TURN_CHARGE_KIND) as Array<{ assistant_message_id: number }>;
   for (const row of rows) {
@@ -482,30 +526,40 @@ function ledgerModelLabel(model: string): string {
 }
 
 /**
- * Immutable generation→model provenance: settlement.request_id
- * is the same client request id stored as api_cost_ledger.generation_request_id
- * by the main-RP writer. First writer wins deterministically per generation.
+ * Immutable generation→model provenance. The canonical generation identity is
+ * (assistant_message_id, generation_request_id), because a raw request id is
+ * NOT globally unique (settlement UNIQUE is per user/chat/request/kind). Only
+ * the main physical event (`execution_phase='main_generation'`) may own the
+ * generation model, so an auxiliary row sharing the request id can never
+ * hijack it. First main writer wins deterministically per generation.
  */
-function readLedgerModelByGenerationRequestId(db: Database.Database): Map<string, string> {
+function generationModelKey(assistantMessageId: number | null, requestId: string): string {
+  return `${assistantMessageId ?? "null"}::${requestId}`;
+}
+
+function readMainGenerationModelByRequest(db: Database.Database): Map<string, string> {
   const map = new Map<string, string>();
   const rows = db
     .prepare(
-      `SELECT generation_request_id, actual_model, model
+      `SELECT assistant_message_id, generation_request_id, actual_model, model
        FROM api_cost_ledger
-       WHERE generation_request_id IS NOT NULL AND generation_request_id != ''
+       WHERE execution_phase = 'main_generation'
+         AND assistant_message_id IS NOT NULL
+         AND generation_request_id IS NOT NULL AND generation_request_id != ''
        ORDER BY id ASC`
     )
     .all() as Array<{
+    assistant_message_id: number;
     generation_request_id: string;
     actual_model: string | null;
     model: string | null;
   }>;
   for (const row of rows) {
-    const requestId = row.generation_request_id;
-    if (map.has(requestId)) continue;
+    const key = generationModelKey(Number(row.assistant_message_id), row.generation_request_id);
+    if (map.has(key)) continue;
     const model = (row.actual_model ?? "").trim() || (row.model ?? "").trim();
     if (!model) continue;
-    map.set(requestId, ledgerModelLabel(model));
+    map.set(key, ledgerModelLabel(model));
   }
   return map;
 }
@@ -570,7 +624,7 @@ export function buildAdminFinanceSummary(
   const inPeriodAssistantIds = new Set(messageRows.map((row) => row.id));
   // Immutable generation model provenance. The mutable current message model is
   // consulted ONLY when the generation request id matches exactly.
-  const ledgerModelByRequest = readLedgerModelByGenerationRequestId(db);
+  const mainModelByRequest = readMainGenerationModelByRequest(db);
   const provenanceByMessageId = new Map<number, MessageProvenance>();
   for (const row of messageRows) {
     provenanceByMessageId.set(row.id, {
@@ -581,13 +635,16 @@ export function buildAdminFinanceSummary(
   }
 
   // --- Canonical monthly user-charge events (chat_billing_settlements) ---
-  // ONE USER CHARGE EVENT = ONE REVENUE EVENT. Revenue is owned by the
-  // settlement row's created_at period — never by messages.created_at (which a
-  // regeneration never moves) nor the latest (regeneration-overwritten)
-  // messages.deduction_slices. Legacy message slices are a fallback ONLY for
-  // turns that have no canonical settlement in any period.
-  const chargeEvents = readMonthlyChargeEvents(db, start, end);
-  const settledMessageIds = readCanonicallySettledMessageIds(db);
+  // ONE USER CHARGE EVENT = ONE REVENUE EVENT. Native settlements are owned by
+  // their created_at period. Legacy bridges are owned by the referenced
+  // message's created_at period (their own created_at is bookkeeping time).
+  // Raw messages.deduction_slices are a fallback ONLY while the row has no
+  // canonical owner (see readOwnedMessageIds).
+  const chargeEvents = [
+    ...readMonthlyChargeEvents(db, start, end),
+    ...readMonthlyLegacyBridgeEvents(db, start, end),
+  ];
+  const ownedMessageIds = readOwnedMessageIds(db);
   // Resolve provenance for charge events that reference out-of-period messages
   // (regeneration reuses the original assistant row).
   const chargeProvenanceIds = [
@@ -619,7 +676,7 @@ export function buildAdminFinanceSummary(
   }
 
   // Generation-model resolution (never "latest message model"):
-  //   1. settlement.request_id ↔ ledger.generation_request_id model
+  //   1. (assistant_message_id, request_id) ↔ main ledger generation model
   //   2. message.request_id === settlement.request_id → current message usage
   //   3. stored variant matched by request id
   //   4. otherwise unknown (no timestamp/token/model guessing)
@@ -628,7 +685,7 @@ export function buildAdminFinanceSummary(
     const provenance = provenanceByMessageId.get(event.assistantMessageId);
     if (!provenance) return "알 수 없음";
     const ledgerModel = event.requestId
-      ? ledgerModelByRequest.get(event.requestId)
+      ? mainModelByRequest.get(generationModelKey(event.assistantMessageId, event.requestId))
       : undefined;
     if (ledgerModel) return ledgerModel;
     if (event.requestId && provenance.requestId === event.requestId) {
@@ -690,10 +747,10 @@ export function buildAdminFinanceSummary(
     };
 
   for (const row of messageRows) {
-    // Fallback revenue ONLY when this turn has no canonical settlement in any
-    // period (never summed with settlement revenue — one economic event, one
-    // owner).
-    const slices = settledMessageIds.has(row.id)
+    // Fallback revenue ONLY when this turn has no canonical charge owner in any
+    // period (never summed with settlement/bridge revenue — one economic event,
+    // one owner).
+    const slices = ownedMessageIds.has(row.id)
       ? { paid: 0, free: 0 }
       : sliceTotals(row.deduction_slices);
     chatPaid += slices.paid;
