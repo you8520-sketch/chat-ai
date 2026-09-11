@@ -22,12 +22,15 @@ import type { Usage } from "./chatUsage";
 const FX = resolveBillingExchangeRateSnapshot().effectiveKrwPerUsd;
 const usdForKrw = (krw: number) => krw / FX;
 const krwForUsd = (usd: number) => Math.round(usd * FX * 10) / 10;
+const nowSql = () => new Date().toISOString().slice(0, 19).replace("T", " ");
 
 function db(): Database.Database {
   const d = new Database(":memory:");
   d.exec(`
     CREATE TABLE messages (id INTEGER PRIMARY KEY, chat_id INTEGER NOT NULL DEFAULT 1, role TEXT NOT NULL,
       content TEXT NOT NULL DEFAULT '', request_id TEXT, usage TEXT, deduction_slices TEXT,
+      model TEXT NOT NULL DEFAULT '', alternates TEXT NOT NULL DEFAULT '[]',
+      active_variant INTEGER NOT NULL DEFAULT 0, generation_status TEXT NOT NULL DEFAULT 'completed',
       created_at TEXT NOT NULL DEFAULT (datetime('now')), is_refunded INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE point_gifts (id INTEGER PRIMARY KEY, paid_fee_amount REAL NOT NULL DEFAULT 0,
       free_fee_amount REAL NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')));
@@ -85,6 +88,42 @@ function insertMessage(d: Database.Database, id: number, u: Usage, paid = 5000) 
     `INSERT INTO messages (id, chat_id, role, usage, deduction_slices, created_at, is_refunded)
      VALUES (?, 1, 'assistant', ?, ?, datetime('now'), 0)`
   ).run(id, JSON.stringify(u), JSON.stringify([{ pointType: "PAID", amount: paid }]));
+}
+
+/**
+ * Persists a message whose usage carries the physical provider request id in
+ * `stages[].providerRequestId` (reconciliation linkage metadata, not a cost
+ * owner) and the request-time FX snapshot.
+ */
+function insertMessageWithStage(
+  d: Database.Database,
+  id: number,
+  opts: { actualKrw: number | null; stageProviderRequestId: string; requestFx: number }
+) {
+  const base = usage({ actualKrw: opts.actualKrw });
+  const persisted = {
+    ...(base as Record<string, unknown>),
+    stages: [
+      {
+        stage: "main",
+        model: base.model,
+        input: 1000,
+        output: 500,
+        cost: 5000,
+        providerRequestId: opts.stageProviderRequestId,
+      },
+    ],
+  };
+  if (opts.actualKrw != null) {
+    (persisted as Record<string, unknown>).shadowPricing = {
+      ...((base as Record<string, unknown>).shadowPricing as Record<string, unknown>),
+      fxSnapshot: { effectiveKrwPerUsd: opts.requestFx },
+    };
+  }
+  d.prepare(
+    `INSERT INTO messages (id, chat_id, role, content, usage, deduction_slices, created_at, is_refunded)
+     VALUES (?, 1, 'assistant', 'reply', ?, ?, datetime('now'), 0)`
+  ).run(id, JSON.stringify(persisted), JSON.stringify([{ pointType: "PAID", amount: 5000 }]));
 }
 
 function mainRow(
@@ -370,11 +409,16 @@ describe("provider usage reconciliation — safety and completeness", () => {
     }
   });
 
-  it("12. remote-only post-cutover => recorded exactly once", async () => {
+  it("12A. remote-only + deterministic message identity => linked recovery exactly once", async () => {
     const d = db();
     try {
-      insertMessage(d, 1, usage({ actualKrw: null }));
-      mainRow(d, { messageId: 1, billedKrw: 10, requestId: "cutover-anchor" });
+      // Ledger-write-failure precondition: message persisted (usage has the
+      // physical provider request id) but NO linked main_generation row.
+      insertMessageWithStage(d, 1, {
+        actualKrw: 100,
+        stageProviderRequestId: "post-1",
+        requestFx: FX,
+      });
       const requests = () => ({
         ok: true as const,
         value: {
@@ -383,7 +427,7 @@ describe("provider usage reconciliation — safety and completeness", () => {
             {
               requestId: "post-1",
               status: "settled",
-              billedMicroUsd: 20_000,
+              billedMicroUsd: Math.round(usdForKrw(100) * 1_000_000),
               settled: true,
               model: "m",
               endpoint: "/chat/completions",
@@ -395,29 +439,199 @@ describe("provider usage reconciliation — safety and completeness", () => {
       const deps = {
         persistInTests: true,
         fetchRequests: async () => requests(),
-        fetchDaily: async () => ({ ok: true as const, value: { settledMicroUsd: 20_000 } }),
+        fetchDaily: async () => ({ ok: true as const, value: { settledMicroUsd: 0 } }),
       };
       const r1 = await reconcileCheaperInferenceUsage({
-        windowStart: "2026-09-01 00:00:00",
-        windowEnd: "2026-10-01 00:00:00",
+        windowStart: "2000-01-01 00:00:00",
+        windowEnd: "2100-01-01 00:00:00",
         db: d,
         deps,
       });
-      const r2 = await reconcileCheaperInferenceUsage({
-        windowStart: "2026-09-01 00:00:00",
-        windowEnd: "2026-10-01 00:00:00",
+      assert.equal(r1.inserted, 1, "linked recovery inserted once");
+
+      const rows = listProviderCostEventsForAssistantMessage(1, d);
+      const main = rows.filter((r) => r.execution_phase === "main_generation");
+      assert.equal(main.length, 1);
+      assert.equal(main[0]!.assistant_message_id, 1, "recovered row is linked to the message");
+      const turn = resolveMessageTurnProviderCostKrw(usage({ actualKrw: null }), rows);
+      assert.equal(turn.knownApiCostKrw, 100);
+      const summary = buildAdminFinanceSummary(d);
+      assert.equal(summary.totalApiCostKrw, 100, "linked recovery, not usage+ledger double count");
+    } finally {
+      d.close();
+    }
+  });
+
+  it("12B. remote-only + no deterministic identity => no blind insert, gap", async () => {
+    const d = db();
+    try {
+      // cutover-anchor main row exists, but the request has no message identity.
+      insertMessage(d, 9, usage({ actualKrw: null }));
+      mainRow(d, { messageId: 9, billedKrw: 10, requestId: "cutover-anchor" });
+      const res = await reconcileCheaperInferenceUsage({
+        windowStart: "2000-01-01 00:00:00",
+        windowEnd: "2100-01-01 00:00:00",
         db: d,
-        deps,
+        deps: {
+          persistInTests: true,
+          fetchRequests: async () => ({
+            ok: true,
+            value: {
+              pages: 1,
+              requests: [
+                {
+                  requestId: "orphan-1",
+                  status: "settled",
+                  billedMicroUsd: 20_000,
+                  settled: true,
+                  model: "m",
+                  endpoint: "/c",
+                  createdAt: "2099-01-01 00:00:00",
+                },
+              ],
+            },
+          }),
+          fetchDaily: async () => ({ ok: true, value: { settledMicroUsd: 20_000 } }),
+        },
       });
-      assert.equal(r1.inserted, 1);
-      assert.equal(r2.inserted, 0);
-      assert.equal(r2.matched, 1);
+      assert.equal(res.inserted, 0);
+      assert.equal(res.unreconciledProviderMicroUsd, 20_000);
       const count = (
-        d.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger WHERE provider_request_id='post-1'").get() as {
+        d.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger WHERE provider_request_id='orphan-1'").get() as {
           c: number;
         }
       ).c;
-      assert.equal(count, 1);
+      assert.equal(count, 0, "no blind insert");
+    } finally {
+      d.close();
+    }
+  });
+
+  it("exactly-once: ledger write failure + usage + remote settled => 100 before/after, stable across syncs", async () => {
+    const d = db();
+    try {
+      insertMessageWithStage(d, 1, {
+        actualKrw: 100,
+        stageProviderRequestId: "req-B",
+        requestFx: FX,
+      });
+      // BEFORE any reconciliation the missing linked ledger means usage fallback.
+      assert.equal(buildAdminFinanceSummary(d).totalApiCostKrw, 100);
+
+      const remote = Math.round(usdForKrw(100) * 1_000_000);
+      const deps = {
+        persistInTests: true,
+        fetchRequests: async () => ({
+          ok: true as const,
+          value: {
+            pages: 1,
+            requests: [
+              {
+                requestId: "req-B",
+                status: "settled",
+                billedMicroUsd: remote,
+                settled: true,
+                model: "m",
+                endpoint: "/c",
+                createdAt: nowSql(),
+              },
+            ],
+          },
+        }),
+        fetchDaily: async () => ({ ok: true as const, value: { settledMicroUsd: remote } }),
+      };
+      await reconcileCheaperInferenceUsage({
+        windowStart: "2000-01-01 00:00:00",
+        windowEnd: "2100-01-01 00:00:00",
+        db: d,
+        deps,
+      });
+      const first = buildAdminFinanceSummary(d);
+      assert.equal(first.totalApiCostKrw, 100, "not 200");
+      const identityCount1 = (
+        d.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger WHERE provider_request_id='req-B'").get() as {
+          c: number;
+        }
+      ).c;
+      assert.equal(identityCount1, 1);
+
+      await reconcileCheaperInferenceUsage({
+        windowStart: "2000-01-01 00:00:00",
+        windowEnd: "2100-01-01 00:00:00",
+        db: d,
+        deps,
+      });
+      const second = buildAdminFinanceSummary(d);
+      assert.equal(second.totalApiCostKrw, 100, "stable across repeated syncs");
+      const identityCount2 = (
+        d.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger WHERE provider_request_id='req-B'").get() as {
+          c: number;
+        }
+      ).c;
+      assert.equal(identityCount2, 1, "exactly one physical billing identity");
+
+      // Receipt V3 reads the recovered linked owner.
+      const { buildAdminBillingReceiptV3 } = await import("./adminBillingReceiptV3");
+      const receipt = buildAdminBillingReceiptV3({
+        usage: usage({ actualKrw: null }),
+        assistantMessageId: 1,
+        chatId: 1,
+        suggestedRepliesRecord: null,
+        statusMetaRecord: null,
+        memoryRelationshipTask: null,
+        ledgerRows: listProviderCostEventsForAssistantMessage(1, d),
+      });
+      assert.equal(
+        receipt.wholeTurn.knownProviderSpendUsd,
+        Math.round((100 / FX) * 1_000_000) / 1_000_000
+      );
+    } finally {
+      d.close();
+    }
+  });
+
+  it("FX invariant: promotion preserves request-time FX, never re-values at sync time", () => {
+    const d = db();
+    try {
+      insertMessage(d, 1, usage({ actualKrw: null }));
+      // Request-time FX = 1400 (overridden), not the reconciliation-time snapshot.
+      recordMainGenerationProviderCost(
+        {
+          chatId: 1,
+          assistantMessageId: 1,
+          generationSequence: 0,
+          provider: "cheaperinference",
+          model: "deepseek-v4-pro-0813",
+          requestKind: "main-rp",
+          upstreamCostUsd: usdForKrw(90),
+          usageEstimated: true,
+          providerRequestId: "req-fx",
+          exchangeRateKrwPerUsd: 1400,
+          outcome: "success",
+          persistInTests: true,
+        },
+        d
+      );
+      const before = listProviderCostEventsForAssistantMessage(1, d)[0]!;
+      assert.equal(before.exchange_rate_krw_per_usd, 1400);
+
+      upsertReconciledProviderCost(
+        {
+          provider: "cheaperinference",
+          providerRequestId: "req-fx",
+          model: "deepseek-v4-pro-0813",
+          billedCostUsd: usdForKrw(83),
+          persistInTests: true,
+        },
+        d
+      );
+      const after = listProviderCostEventsForAssistantMessage(1, d)[0]!;
+      assert.equal(after.exchange_rate_krw_per_usd, 1400, "request-time FX preserved");
+      const turn = resolveMessageTurnProviderCostKrw(
+        usage({ actualKrw: null }),
+        listProviderCostEventsForAssistantMessage(1, d)
+      );
+      assert.equal(turn.knownApiCostKrw, Math.round(usdForKrw(83) * 1400 * 10) / 10);
     } finally {
       d.close();
     }
@@ -491,8 +705,12 @@ describe("provider usage reconciliation — safety and completeness", () => {
   it("19. concurrent duplicate sync => no duplicate ledger rows", async () => {
     const d = db();
     try {
-      insertMessage(d, 1, usage({ actualKrw: null }));
-      mainRow(d, { messageId: 1, billedKrw: 10, requestId: "anchor" });
+      // Deterministic message identity for the request, no linked ledger yet.
+      insertMessageWithStage(d, 1, {
+        actualKrw: null,
+        stageProviderRequestId: "concurrent-1",
+        requestFx: FX,
+      });
       const req = {
         requestId: "concurrent-1",
         status: "settled",

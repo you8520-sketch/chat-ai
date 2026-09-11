@@ -99,7 +99,8 @@ export type Usage = {
   exchangeRateMode?: "daily_kst" | "realtime";
   exchangeRateSource?: "api" | "fallback" | "api_daily" | "previous_daily_snapshot" | "emergency_fallback";
   breakdown: { label: string; tokens: number; pct: number }[];
-  stages?: { stage: string; model: string; input: number; output: number; cost: number }[];
+  /** Provider request id per physical stage — reconciliation linkage only, not a cost owner. */
+  stages?: { stage: string; model: string; input: number; output: number; cost: number; providerRequestId?: string }[];
   fallback?: string | null;
   /** 0P 면제 턴 — 영수증에 면제 사유 표시 */
   billingWaived?: boolean;

@@ -9,9 +9,11 @@ import {
 } from "@/lib/cheaperInferenceUsage";
 import {
   ensureProviderCostLedgerSchema,
+  recordMainGenerationProviderCost,
   toMicroUsd,
   upsertReconciledProviderCost,
 } from "@/lib/providerCostLedger";
+import { resolveActiveAssistantGenerationScopeFromRow } from "@/lib/assistantGenerationScope";
 
 /**
  * Canonical CheaperInference usage reconciliation owner.
@@ -56,16 +58,6 @@ type ReconciliationDeps = {
   persistInTests?: boolean;
 };
 
-/** Cutover marker for remote-only insertion: first canonical main-ledger row. */
-function resolveMainLedgerCutover(db: Database.Database): string | null {
-  const row = db
-    .prepare(
-      "SELECT MIN(created_at) AS cutover FROM api_cost_ledger WHERE execution_phase = 'main_generation'"
-    )
-    .get() as { cutover: string | null } | undefined;
-  return row?.cutover ?? null;
-}
-
 function identityExists(db: Database.Database, requestId: string): boolean {
   const row = db
     .prepare(
@@ -73,6 +65,83 @@ function identityExists(db: Database.Database, requestId: string): boolean {
     )
     .get(requestId) as { ok: number } | undefined;
   return row != null;
+}
+
+/**
+ * Deterministic local identity for a provider request: the main physical
+ * request id persisted on the assistant message/generation (usage.stages),
+ * with the request-time FX event snapshot. This is metadata, NOT a cost
+ * owner — it only links a remote settled request to its assistant turn so
+ * the canonical ledger can be recovered after a local ledger write failure.
+ */
+type MessageProviderIdentity = {
+  chatId: number;
+  assistantMessageId: number;
+  generationSequence: number;
+  model: string | null;
+  requestFx: number | null;
+};
+
+function readRequestFx(usage: Record<string, unknown>): number | null {
+  const shadow = usage.shadowPricing as { fxSnapshot?: { effectiveKrwPerUsd?: unknown } } | undefined;
+  const fromShadow = Number(shadow?.fxSnapshot?.effectiveKrwPerUsd);
+  if (Number.isFinite(fromShadow) && fromShadow > 0) return fromShadow;
+  const top = Number(usage.exchangeRateKrwPerUsd);
+  if (Number.isFinite(top) && top > 0) return top;
+  return null;
+}
+
+function buildMessageProviderIdentityIndex(
+  db: Database.Database,
+  windowStart: string,
+  windowEnd: string
+): Map<string, MessageProviderIdentity> {
+  const rows = db
+    .prepare(
+      `SELECT id, chat_id, content, model, usage, alternates, active_variant, request_id, generation_status
+         FROM messages
+        WHERE role = 'assistant' AND created_at >= ? AND created_at < ?
+          AND usage LIKE '%"providerRequestId"%'`
+    )
+    .all(windowStart, windowEnd) as Array<{
+    id: number;
+    chat_id: number;
+    content: string;
+    model: string;
+    usage: string | null;
+    alternates: string | null;
+    active_variant: number | null;
+    request_id: string | null;
+    generation_status: string | null;
+  }>;
+
+  const index = new Map<string, MessageProviderIdentity>();
+  for (const row of rows) {
+    let usage: Record<string, unknown>;
+    try {
+      usage = JSON.parse(row.usage ?? "{}") as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    const stages = Array.isArray(usage.stages) ? (usage.stages as unknown[]) : [];
+    const requestFx = readRequestFx(usage);
+    const scope = resolveActiveAssistantGenerationScopeFromRow(row);
+    if (!scope) continue;
+    for (const raw of stages) {
+      if (!raw || typeof raw !== "object") continue;
+      const stage = raw as Record<string, unknown>;
+      const requestId = typeof stage.providerRequestId === "string" ? stage.providerRequestId.trim() : "";
+      if (!requestId || index.has(requestId)) continue;
+      index.set(requestId, {
+        chatId: row.chat_id,
+        assistantMessageId: scope.assistantMessageId,
+        generationSequence: scope.generationSequence,
+        model: typeof stage.model === "string" ? stage.model : row.model || null,
+        requestFx,
+      });
+    }
+  }
+  return index;
 }
 
 /** Sum settled actual provider cost (micro-USD) for the window. */
@@ -285,7 +354,11 @@ export async function reconcileCheaperInferenceUsage(
   result.pages = requestsResult.value.pages;
   result.providerRequests = requests.length;
 
-  const cutover = resolveMainLedgerCutover(db);
+  const messageIdentity = buildMessageProviderIdentityIndex(
+    db,
+    opts.windowStart,
+    opts.windowEnd
+  );
   let settledMicroUsd = 0;
 
   for (const request of requests) {
@@ -296,16 +369,36 @@ export async function reconcileCheaperInferenceUsage(
     settledMicroUsd += request.billedMicroUsd;
     const existsLocally = identityExists(db, request.requestId);
     if (!existsLocally) {
-      // Remote-only. Blind historical insertion is forbidden: only requests
-      // at/after the canonical main-ledger cutover may be recorded, because
-      // before it the same charge may already live in messages.usage.
-      const afterCutover =
-        cutover != null && request.createdAt != null && request.createdAt >= cutover;
-      if (!afterCutover) {
+      // Remote-only: only a deterministic persisted message/generation
+      // identity may recover a linked canonical ledger row. Time cutover is
+      // NOT identity; with no deterministic match the spend stays an
+      // unreconciled gap (never blind-inserted, never fuzzy-matched).
+      const identity = messageIdentity.get(request.requestId);
+      if (!identity) {
         result.unreconciledProviderMicroUsd += request.billedMicroUsd;
         result.skipped += 1;
         continue;
       }
+      const recovery = recordMainGenerationProviderCost(
+        {
+          chatId: identity.chatId,
+          assistantMessageId: identity.assistantMessageId,
+          generationSequence: identity.generationSequence,
+          provider: "cheaperinference",
+          model: request.model ?? identity.model ?? "(unknown)",
+          requestKind: "usage-reconciliation-recovery",
+          cheaperInferenceBilledCostUsd: request.billedMicroUsd / 1_000_000,
+          providerRequestId: request.requestId,
+          // Request-time FX event provenance — never re-valued at sync time.
+          exchangeRateKrwPerUsd: identity.requestFx ?? undefined,
+          outcome: "success",
+          persistInTests: deps.persistInTests,
+        },
+        db
+      );
+      if (recovery.recorded) result.inserted += 1;
+      else result.matched += 1;
+      continue;
     }
     const outcome = upsertReconciledProviderCost(
       {

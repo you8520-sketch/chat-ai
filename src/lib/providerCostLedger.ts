@@ -84,6 +84,8 @@ export type ProviderCostFinalizeInput = {
   providerRequestId?: string | null;
   usageEstimated?: boolean;
   httpStatus?: number | null;
+  /** Request-time FX override (e.g. delayed reconciliation recovery). */
+  exchangeRateKrwPerUsd?: number;
   /** Transport/product outcome — distinct from cost exactness. */
   outcome: "success" | "failed_without_usage" | "failed_with_usage";
 };
@@ -436,6 +438,8 @@ export type MainGenerationProviderCostInput = {
   usageEstimated?: boolean;
   providerRequestId?: string | null;
   httpStatus?: number | null;
+  /** Request-time FX override (delayed reconciliation recovery uses event-time FX). */
+  exchangeRateKrwPerUsd?: number;
   outcome: "success" | "failed_without_usage" | "failed_with_usage";
   /** Test seam — bypass NODE_TEST_CONTEXT skip. */
   persistInTests?: boolean;
@@ -497,6 +501,7 @@ export function recordMainGenerationProviderCost(
       usageEstimated: input.usageEstimated,
       providerRequestId: requestId,
       httpStatus: input.httpStatus,
+      exchangeRateKrwPerUsd: input.exchangeRateKrwPerUsd,
       outcome: input.outcome,
     },
     db
@@ -585,7 +590,11 @@ export function finalizeProviderCostAttempt(
   }
 
   ensureProviderCostLedgerSchema(db);
-  const exchange = resolveBillingExchangeRateSnapshot();
+  const snapshot = resolveBillingExchangeRateSnapshot();
+  const effectiveKrwPerUsd =
+    input.exchangeRateKrwPerUsd && input.exchangeRateKrwPerUsd > 0
+      ? input.exchangeRateKrwPerUsd
+      : snapshot.effectiveKrwPerUsd;
 
   const inputTokens = Math.max(0, Math.trunc(input.inputTokens ?? 0));
   const outputTokens = Math.max(0, Math.trunc(input.outputTokens ?? 0));
@@ -614,7 +623,7 @@ export function finalizeProviderCostAttempt(
     settlement.settled && settlement.actualCostUsd
       ? settlement.actualCostUsd
       : rawUpstreamUsd ?? estimatedUsd;
-  const legacyCostKrw = legacyAccountingCostUsd * exchange.effectiveKrwPerUsd;
+  const legacyCostKrw = legacyAccountingCostUsd * effectiveKrwPerUsd;
   const legacyEstimated = settlement.settled ? 0 : rawUpstreamUsd == null ? 1 : 0;
 
   const update = db.prepare(
@@ -661,7 +670,7 @@ export function finalizeProviderCostAttempt(
       settlement.actualCostUsd ?? null,
       settlement.actualCostSource,
       settlement.eventStatus,
-      exchange.effectiveKrwPerUsd,
+      effectiveKrwPerUsd,
       legacyCostKrw,
       legacyEstimated,
       eventKey
@@ -997,15 +1006,20 @@ export function upsertReconciledProviderCost(
 
   const existing = db
     .prepare(
-      "SELECT id, actual_cost_usd, actual_cost_source, event_status FROM api_cost_ledger WHERE provider = ? AND provider_request_id = ? ORDER BY id ASC LIMIT 1"
+      "SELECT id, actual_cost_usd, actual_cost_source, event_status, exchange_rate_krw_per_usd FROM api_cost_ledger WHERE provider = ? AND provider_request_id = ? ORDER BY id ASC LIMIT 1"
     )
     .get(provider, requestId) as
-    | { id: number; actual_cost_usd: number | null; actual_cost_source: string | null; event_status: string | null }
+    | {
+        id: number;
+        actual_cost_usd: number | null;
+        actual_cost_source: string | null;
+        event_status: string | null;
+        exchange_rate_krw_per_usd: number | null;
+      }
     | undefined;
 
-  const exchange = resolveBillingExchangeRateSnapshot();
+  const snapshot = resolveBillingExchangeRateSnapshot();
   const usd = micro / 1_000_000;
-  const costKrw = Math.round(usd * exchange.effectiveKrwPerUsd * 10) / 10;
 
   if (existing) {
     const exact = isLedgerEventCostExact(existing);
@@ -1013,19 +1027,25 @@ export function upsertReconciledProviderCost(
     if (exact && existingMicro === micro) {
       return { outcome: "matched", rowId: existing.id };
     }
+    // Request-time FX is event provenance: preserve it and only promote the
+    // actual/estimate state. Never re-value KRW at reconciliation time.
+    const requestTimeFx =
+      finiteNonNegative(existing.exchange_rate_krw_per_usd) || snapshot.effectiveKrwPerUsd;
+    const promotedCostKrw = Math.round(usd * requestTimeFx * 10) / 10;
     db.prepare(
       `UPDATE api_cost_ledger
          SET actual_cost_usd = ?,
              actual_cost_source = 'cheaper_inference_usage_api',
              event_status = 'settled',
-             exchange_rate_krw_per_usd = ?,
              cost_krw = ?,
              estimated = 0,
              completed_at = datetime('now')
        WHERE id = ?`
-    ).run(usd, exchange.effectiveKrwPerUsd, costKrw, existing.id);
+    ).run(usd, promotedCostKrw, existing.id);
     return { outcome: exact ? "superseded" : "promoted", rowId: existing.id };
   }
+
+  const costKrw = Math.round(usd * snapshot.effectiveKrwPerUsd * 10) / 10;
 
   const eventKey = `recon:${provider}:${requestId}`;
   const createdAt = input.eventTime?.trim() || null;
@@ -1058,7 +1078,7 @@ export function upsertReconciledProviderCost(
       input.costCenter ?? "other",
       requestId,
       usd,
-      exchange.effectiveKrwPerUsd,
+      snapshot.effectiveKrwPerUsd,
       costKrw,
       createdAt
     );
