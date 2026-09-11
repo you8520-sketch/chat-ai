@@ -42,6 +42,7 @@ jobs:
           npx playwright test
           tests/ui/chat-live-follow.spec.ts
           tests/ui/trpg-scroll-follow.spec.ts
+          tests/ui/chat-asset-display.spec.ts
           --workers=1
           --retries=0
 

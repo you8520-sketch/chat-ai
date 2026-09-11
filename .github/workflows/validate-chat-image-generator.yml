@@ -86,6 +86,13 @@ on:
       - "src/lib/chatImageSceneVisualScope.test.ts"
       - "src/lib/characterAssets.ts"
       - "src/lib/characterAssets.test.ts"
+      - "src/lib/chatAssetDisplayGuardrails.test.ts"
+      - "src/lib/chatDisplayPrefs.ts"
+      - "src/components/ChatCharacterPortrait.tsx"
+      - "src/components/ChatEmotionPortraitPanel.tsx"
+      - "src/components/ChatSelectionQuoteToolbar.tsx"
+      - "src/lib/quoteSelectionContainer.ts"
+      - "src/components/ChatRoomDisplayQuickRail.tsx"
       - "src/lib/assetPersonTags.ts"
       - "src/lib/creatorAssetSemantics.test.ts"
       - "src/lib/uploadImageOptimize.ts"
@@ -226,6 +233,7 @@ jobs:
       - run: node --import tsx --test src/lib/simulationCreatorUx.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/simulationCreatorAssetBoundary.test.ts
       - run: node --import tsx --test src/lib/characterAssets.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatAssetDisplayGuardrails.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/creatorAssetSemantics.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/uploadImageOptimize.test.ts
       - run: node --import tsx --test src/lib/assetVisionStructured.test.ts
