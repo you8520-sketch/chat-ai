@@ -6,6 +6,8 @@ import {
   buildOpenRouterHeaders,
   resolveOpenRouterApiKey,
 } from "@/lib/openRouterConfig";
+import { parseCompatibleUsage } from "@/lib/openRouterUsage";
+import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
 
 export type ProfileData = {
   name: string | null;
@@ -111,8 +113,29 @@ async function callDeepSeekFormatProfile(text: string): Promise<string> {
 
   const data = (await res.json()) as {
     choices?: { message?: { content?: string } }[];
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
   };
   const out = data.choices?.[0]?.message?.content?.trim() ?? "";
+  // Canonical cost capture: profile-format spend enters the shared ledger.
+  try {
+    const parsedUsage = parseCompatibleUsage({ usage: data.usage, headers: res.headers });
+    recordBackgroundProviderCost({
+      provider: "openrouter",
+      model: FORMAT_PROFILE_MODEL,
+      requestKind: "background-profile-format",
+      costCenter: "profile",
+      inputTokens: parsedUsage.promptTokens,
+      outputTokens: parsedUsage.completionTokens,
+      cheaperInferenceBilledCostUsd: parsedUsage.cheaperInferenceBilledCostUsd,
+      upstreamCostUsd: parsedUsage.upstreamCostUsd,
+      usageEstimated: !parsedUsage.promptTokens || !parsedUsage.completionTokens,
+      providerRequestId:
+        res.headers.get("x-request-id") ?? res.headers.get("x-openrouter-request-id"),
+      outcome: out ? "success" : "failed_with_usage",
+    });
+  } catch (error) {
+    console.warn("[format-profile] cost record skipped:", (error as Error).message);
+  }
   if (!out) throw new Error("DeepSeek empty completion");
   return out;
 }

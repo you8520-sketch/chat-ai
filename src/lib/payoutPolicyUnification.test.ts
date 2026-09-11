@@ -445,11 +445,30 @@ describe("payout settlement adjustment — creator accrual vs cash withdrawal", 
     withdrawal?: { requested: number; tax: number; fee: number; payout: number };
   }): Database.Database {
     const db = financeDb();
+    // Settled zero-cost main stage (generic owner, no model special-casing):
+    // keeps the summary exact while contributing no API cost.
     db.prepare(
       `INSERT INTO messages (id, chat_id, role, usage, deduction_slices, created_at, is_refunded)
        VALUES (1, 1, 'assistant', ?, ?, datetime('now'), 0)`
     ).run(
-      JSON.stringify({ model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL }),
+      JSON.stringify({
+        model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+        modelLabel: "DeepSeek V4 Flash",
+        provider: "cheaperinference",
+        input: 100,
+        output: 50,
+        cost: opts.revenue,
+        shadowPricing: {
+          pricingVersion: 1,
+          actualTurnCostCoverage: "complete",
+          actualProviderCostKrw: 0,
+          actualCostUsd: 0,
+          actualCostSource: "cheaper_inference_billed",
+          provider: "cheaperinference",
+          modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+          fxSnapshot: { effectiveKrwPerUsd: 1500 },
+        },
+      }),
       JSON.stringify([{ pointType: "PAID", amount: opts.revenue }])
     );
     if (opts.accrued > 0) {

@@ -13,9 +13,10 @@ import {
 import { isCheaperInferenceModel } from "@/lib/chatModels";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
 import type { UsageReportingEvidence } from "@/lib/usageReportingEvidence";
-import { recordApiCost } from "@/lib/adminFinance";
 import {
   finalizeProviderCostAttempt,
+  recordBackgroundProviderCost,
+  resolveLedgerCostCenter,
   startProviderCostAttempt,
   type ProviderCostFinalizeInput,
   type ProviderCostLedgerContext,
@@ -442,19 +443,27 @@ export async function callOpenRouterCompletion(opts: {
       outcome: "success",
     });
   } else {
+    // No turn-scoped ledger context (message-independent background call):
+    // persist to the SAME canonical ledger with provider settled metadata.
+    // Actual billed cost wins at read time; estimate is fallback only.
     try {
-      recordApiCost({
+      recordBackgroundProviderCost({
         provider: usedProvider,
         model: usedModel,
         requestKind: opts.requestKind,
+        costCenter: resolveLedgerCostCenter({ family: "background", request_kind: opts.requestKind }),
         inputTokens: resolvedInputTokens,
         outputTokens: resolvedOutputTokens,
         cacheReadTokens: parsedUsage.cacheReadTokens || undefined,
         cacheWriteTokens: parsedUsage.cacheWriteTokens || undefined,
-        estimated: promptTokens == null || completionTokens == null,
+        cheaperInferenceBilledCostUsd: parsedUsage.cheaperInferenceBilledCostUsd,
+        upstreamCostUsd: parsedUsage.upstreamCostUsd,
+        usageEstimated: usage.estimated,
+        providerRequestId,
+        outcome: "success",
       });
     } catch (error) {
-      console.warn("[api-cost-ledger] usage record skipped:", (error as Error).message);
+      console.warn("[provider-cost-ledger] background record skipped:", (error as Error).message);
     }
   }
   return {

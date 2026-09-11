@@ -15,7 +15,7 @@ export function runFinanceSnapshotNow() {
     console.log("[finance-scheduler] daily snapshot saved", {
       month: summary.monthKey,
       netProfitKrw: summary.netProfitKrw,
-      deepSeekV4FlashCostKrw: summary.deepSeekV4Flash.costWithTaxKrw,
+      aiActualKrw: summary.aiCost.totalActualKrw,
     });
     return summary;
   } catch (error) {

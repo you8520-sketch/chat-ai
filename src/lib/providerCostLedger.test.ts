@@ -234,19 +234,26 @@ describe("providerCostLedger", () => {
     assert.equal(row.assistant_message_id, 99);
   });
 
-  it("micro-correction gates — legacy finance isolation and cleanup", () => {
+  it("micro-correction gates — canonical background recording, no legacy fork", () => {
     const openRouterCompletionSource = readFileSync(
       join(process.cwd(), "src/lib/openRouterCompletion.ts"),
       "utf8"
     );
-    const legacyRecordApiCostBlock = openRouterCompletionSource.match(
-      /recordApiCost\(\{[\s\S]*?\}\);/
+    // Message-independent background calls persist to the SAME canonical
+    // ledger with settled metadata (no legacy recordApiCost fork).
+    const canonicalBlock = openRouterCompletionSource.match(
+      /recordBackgroundProviderCost\(\{[\s\S]*?\}\);/
     )?.[0];
-    assert.ok(legacyRecordApiCostBlock);
+    assert.ok(canonicalBlock);
     assert.equal(
-      legacyRecordApiCostBlock.includes("upstreamCostUsd"),
+      canonicalBlock.includes("cheaperInferenceBilledCostUsd"),
+      true,
+      "CANONICAL_BACKGROUND_SETTLED_FORWARDING=true"
+    );
+    assert.equal(
+      /recordApiCost\(\{/.test(openRouterCompletionSource),
       false,
-      "LEGACY_NO_CONTEXT_UPSTREAM_FORWARDING=false"
+      "LEGACY_RECORD_API_COST_FORK_REMOVED=true"
     );
 
     const providerCostLedgerSource = readFileSync(

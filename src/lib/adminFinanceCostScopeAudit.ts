@@ -101,6 +101,7 @@ function ledgerStub(
     actual_provider: "cheaperinference",
     actual_model: "deepseek-v4-flash",
     request_kind: "",
+    cost_center: null,
     provider_request_id: null,
     input_tokens: 0,
     output_tokens: 0,

@@ -27,6 +27,37 @@ import { buildTrpgGmResponseFormat, buildTrpgGmStructuredWireText } from "./gmSt
 import type { GmProviderTimings } from "./gmNarrationDraft";
 import { feedGmProviderSseBytes } from "./gmProviderSse";
 import { finishReasonFromSsePayload } from "./gmCompletionIntegrity";
+import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
+
+/**
+ * Canonical TRPG cost capture. TRPG usage carries provider cost witnesses
+ * whose settlement semantics are unproven, so they are stored as reference
+ * (usageEstimated) — calls and tokens are attributed, cost stays honest
+ * "unavailable" rather than a fabricated actual.
+ */
+function recordTrpgProviderCost(
+  requestKind: "background-trpg-gm" | "background-trpg-bot",
+  model: string,
+  usage: TrpgModelUsage | undefined
+): void {
+  if (!usage) return;
+  try {
+    recordBackgroundProviderCost({
+      provider: "cheaperinference",
+      model,
+      requestKind,
+      costCenter: "trpg",
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      cacheReadTokens: usage.cacheReadTokens,
+      upstreamCostUsd: usage.upstreamCostUsd,
+      usageEstimated: true,
+      outcome: "success",
+    });
+  } catch (error) {
+    console.warn("[TRPG] cost record skipped:", (error as Error).message);
+  }
+}
 
 /** GM transport only: first attempt + one retry on known transient HTTP 5xx. */
 export const GM_MAX_PROVIDER_ATTEMPTS = 2;
@@ -510,6 +541,7 @@ export async function callTrpgGm(opts: {
     timeoutMs: opts.timeoutMs ?? GM_PROVIDER_TIMEOUT_MS,
     callbacks: opts.stream,
   });
+  recordTrpgProviderCost("background-trpg-gm", model, result.usage);
   return {
     text: result.text,
     usage: result.usage,
@@ -541,5 +573,7 @@ export async function callTrpgBot(opts: {
     temperature: 0.85,
     max_tokens: TRPG_BOT_MAX_TOKENS,
   });
-  return postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? 90_000, role: "bot" });
+  const result = await postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? 90_000, role: "bot" });
+  recordTrpgProviderCost("background-trpg-bot", model, result.usage);
+  return result;
 }
