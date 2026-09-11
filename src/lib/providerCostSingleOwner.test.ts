@@ -608,3 +608,134 @@ describe("cheaper inference usage client", () => {
     if (!res.ok) assert.equal(res.reason, "schema");
   });
 });
+
+
+
+describe("merge blockers A-C — real daily schema, true estimate, pagination cap", () => {
+  const OFFICIAL_DAILY = {
+    object: "usage.daily",
+    scope: "workspace",
+    currency: "USD",
+    start_at: "2026-07-01T00:00:00Z",
+    end_at: "2026-08-01T00:00:00Z",
+    total_requests: 820,
+    settled_requests: 811,
+    spend_usd: "148.420015",
+    prompt_tokens: 1043200,
+    cached_tokens: 786400,
+    cache_reported_request_count: 811,
+    cache_hit_pct: 75.4,
+    daily_spend: [{ date: "2026-07-01", spend_usd: "4.5" }],
+  };
+
+  it("21. official /usage/daily spend_usd decimal string => exact microUSD", async () => {
+    restoreKey = process.env.CHEAPER_INFERENCE_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+    const { fetchUsageDaily } = await import("./cheaperInferenceUsage");
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify(OFFICIAL_DAILY), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })) as unknown as typeof fetch;
+    const res = await fetchUsageDaily({
+      startAt: "2026-07-01T00:00:00Z",
+      endAt: "2026-08-01T00:00:00Z",
+      fetchImpl,
+    });
+    assert.equal(res.ok, true);
+    if (res.ok) assert.equal(res.value.settledMicroUsd, 148420015);
+  });
+
+  it("25. spend_usd + daily_spend both present => spend_usd counted once", async () => {
+    restoreKey = process.env.CHEAPER_INFERENCE_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+    const { fetchUsageDaily } = await import("./cheaperInferenceUsage");
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify(OFFICIAL_DAILY), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })) as unknown as typeof fetch;
+    const res = await fetchUsageDaily({
+      startAt: "2026-07-01T00:00:00Z",
+      endAt: "2026-08-01T00:00:00Z",
+      fetchImpl,
+    });
+    assert.equal(res.ok, true);
+    if (res.ok) assert.equal(res.value.settledMicroUsd, 148420015);
+    assert.notEqual((res as { value?: { settledMicroUsd: number } }).value?.settledMicroUsd, 148424515);
+  });
+
+  it("22/23. true non-exact main estimate 90 => known 90, promoted to 83 (not 173)", () => {
+    const d = db();
+    try {
+      insertMessage(d, 1, usage({ actualKrw: null }));
+      // TRUE estimate: no CI billed cost; upstream/reference only; not settled.
+      recordMainGenerationProviderCost(
+        {
+          chatId: 1,
+          assistantMessageId: 1,
+          generationSequence: 0,
+          provider: "cheaperinference",
+          model: "deepseek-v4-pro-0813",
+          requestKind: "main-rp",
+          inputTokens: 1000,
+          outputTokens: 500,
+          upstreamCostUsd: usdForKrw(90),
+          usageEstimated: true,
+          providerRequestId: "req-est-true",
+          outcome: "success",
+          persistInTests: true,
+        },
+        d
+      );
+      const before = listProviderCostEventsForAssistantMessage(1, d);
+      assert.equal(before[0]!.actual_cost_usd, null);
+      const turnBefore = resolveMessageTurnProviderCostKrw(usage({ actualKrw: null }), before);
+      assert.equal(turnBefore.knownApiCostKrw, 90, "ledger-owned estimate preserved, not 0");
+      assert.equal(turnBefore.realizedMarginExact, false);
+
+      const out = upsertReconciledProviderCost(
+        {
+          provider: "cheaperinference",
+          providerRequestId: "req-est-true",
+          model: "deepseek-v4-pro-0813",
+          billedCostUsd: usdForKrw(83),
+          persistInTests: true,
+        },
+        d
+      );
+      assert.equal(out.outcome, "promoted");
+      const after = listProviderCostEventsForAssistantMessage(1, d);
+      const turnAfter = resolveMessageTurnProviderCostKrw(usage({ actualKrw: null }), after);
+      assert.equal(turnAfter.knownApiCostKrw, 83);
+      assert.notEqual(turnAfter.knownApiCostKrw, 173);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("24. pagination cap hit with remaining cursor => not a complete success", async () => {
+    restoreKey = process.env.CHEAPER_INFERENCE_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+    const { fetchAllUsageRequests } = await import("./cheaperInferenceUsage");
+    let call = 0;
+    const fetchImpl = (async () => {
+      call += 1;
+      return new Response(
+        JSON.stringify({
+          data: [{ request_id: "r" + call, status: "settled", billed_cost_usd: "0.001" }],
+          next_cursor: "more-" + call,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    }) as unknown as typeof fetch;
+    const res = await fetchAllUsageRequests({
+      startAt: "2026-09-01T00:00:00Z",
+      endAt: "2026-10-01T00:00:00Z",
+      maxPages: 2,
+      fetchImpl,
+    });
+    assert.equal(res.ok, false, "truncated result must not be reported as complete");
+    if (!res.ok) assert.equal(res.reason, "incomplete");
+  });
+});

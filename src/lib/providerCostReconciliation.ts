@@ -261,7 +261,12 @@ export async function reconcileCheaperInferenceUsage(
     endAt: sqlDateTimeToIso(opts.windowEnd),
   });
   if (!requestsResult.ok) {
-    result.status = requestsResult.reason === "no_key" ? "not_configured" : "provider_unavailable";
+    result.status =
+      requestsResult.reason === "no_key"
+        ? "not_configured"
+        : requestsResult.reason === "incomplete"
+          ? "pending"
+          : "provider_unavailable";
     result.message = requestsResult.message;
     // Preserve last known good numbers; only restamp status/message.
     const previous = readProviderReconciliationState(db);

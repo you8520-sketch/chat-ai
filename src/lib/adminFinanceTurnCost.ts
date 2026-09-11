@@ -159,7 +159,7 @@ function resolveMainGenerationComponent(
   ledgerRows: ProviderCostLedgerRow[]
 ): CostComponent {
   let ledgerExactKrw = 0;
-  let ledgerHasIncomplete = false;
+  let ledgerEstimateKrw = 0;
   let ledgerPresent = false;
   for (const row of ledgerRows) {
     if (row.execution_phase !== "main_generation") continue;
@@ -168,27 +168,40 @@ function resolveMainGenerationComponent(
       const usd = finiteNonNegative(row.actual_cost_usd);
       const fx = finiteNonNegative(row.exchange_rate_krw_per_usd);
       if (usd > 0 && fx > 0) ledgerExactKrw += round1(usd * fx);
-    } else if (isLedgerEventCostCoverageIncomplete(row)) {
-      ledgerHasIncomplete = true;
+    } else {
+      // Not-yet-settled main request: keep the ledger-owned estimate/reference
+      // (cost_krw is already KRW). Never falls back to usage for a turn that
+      // already has a canonical main ledger row.
+      const reference = round1(finiteNonNegative(row.cost_krw));
+      if (reference > 0) ledgerEstimateKrw += reference;
     }
   }
 
-  if (ledgerExactKrw > 0) {
-    // Ledger owns main cost; usage is a diagnostics snapshot only.
-    return {
-      knownKrw: round1(ledgerExactKrw),
-      exactKrw: round1(ledgerExactKrw),
-      exactness: ledgerHasIncomplete ? "partial" : "settled",
-      hasIncomplete: ledgerHasIncomplete,
-    };
-  }
   if (ledgerPresent) {
-    // Main physical request recorded but not yet settled exact — do NOT fall
-    // back to usage (that would double count once the ledger settles).
+    const known = round1(ledgerExactKrw + ledgerEstimateKrw);
+    if (ledgerExactKrw > 0 && ledgerEstimateKrw <= 0) {
+      // Ledger owns main cost as settled exact; usage is diagnostics only.
+      return {
+        knownKrw: known,
+        exactKrw: known,
+        exactness: "settled",
+        hasIncomplete: false,
+      };
+    }
+    if (known > 0) {
+      // Ledger-owned estimate/reference: known cost, not yet exact. The
+      // estimate is replaced (never added to) when remote settlement lands.
+      return {
+        knownKrw: known,
+        exactKrw: 0,
+        exactness: "estimated",
+        hasIncomplete: false,
+      };
+    }
     return {
       knownKrw: 0,
       exactKrw: 0,
-      exactness: "partial",
+      exactness: "unavailable",
       hasIncomplete: true,
     };
   }

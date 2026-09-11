@@ -30,7 +30,7 @@ export type UsageClientResult<T> =
   | { ok: true; value: T }
   | {
       ok: false;
-      reason: "no_key" | "http" | "schema" | "network";
+      reason: "no_key" | "http" | "schema" | "network" | "incomplete";
       status?: number;
       retryAfterMs?: number;
       message: string;
@@ -226,7 +226,10 @@ export async function fetchUsageRequestsPage(opts: {
   return { ok: true, value: parsed };
 }
 
-/** All pages in [startAt, endAt). Cursor is never interpreted, only forwarded. */
+/** All pages in [startAt, endAt). Cursor is never interpreted, only forwarded.
+ * A safety cap that is hit while a cursor remains is NOT a complete history:
+ * the caller gets a non-success "incomplete" result so truncated pages are
+ * never treated as full provider history. */
 export async function fetchAllUsageRequests(opts: {
   startAt: string;
   endAt: string;
@@ -251,30 +254,29 @@ export async function fetchAllUsageRequests(opts: {
     cursor = page.value.nextCursor;
     pages += 1;
   } while (cursor && pages < maxPages);
+  if (cursor) {
+    return {
+      ok: false,
+      reason: "incomplete",
+      message: `usage requests pagination hit the ${maxPages}-page safety cap with more pages remaining`,
+    };
+  }
   return { ok: true, value: { requests, pages } };
 }
 
+/**
+ * Official /usage/daily schema (object "usage.daily"): the canonical window
+ * total is the REQUIRED top-level `spend_usd` decimal string. `daily_spend`
+ * is a per-day breakdown of the SAME spend and is never summed into it, so
+ * this parser reads `spend_usd` only (no additive alias owner).
+ */
 function parseDaily(payload: unknown): number | null {
-  const items = extractItems(payload);
-  if (items) {
-    let micro = 0;
-    for (const raw of items) {
-      if (!raw || typeof raw !== "object") continue;
-      micro += readBilledMicroUsd(raw as Record<string, unknown>);
-    }
-    return micro;
-  }
-  if (payload && typeof payload === "object") {
-    const obj = payload as Record<string, unknown>;
-    const total =
-      obj.settled_cost_usd ??
-      obj.total_cost_usd ??
-      obj.billed_cost_usd ??
-      obj.total_usd ??
-      obj.total;
-    if (total != null) return toMicroUsd(total as string | number);
-  }
-  return null;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const obj = payload as Record<string, unknown>;
+  if (obj.object !== "usage.daily") return null;
+  const spend = obj.spend_usd;
+  if (spend == null) return null;
+  return toMicroUsd(spend as string | number);
 }
 
 /** Workspace settled spend total for [startAt, endAt) — checksum only, never additive. */
