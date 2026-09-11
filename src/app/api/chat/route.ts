@@ -42,6 +42,7 @@ import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputS
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
+import { recordMainGenerationProviderCost } from "@/lib/providerCostLedger";
 import {
   shouldPreparePublishedBillingFxSnapshot,
   resolveChatBillingContract,
@@ -396,6 +397,7 @@ import {
 } from "@/lib/removalTrace";
 import { buildEstimatedReceiptSectionBreakdown } from "@/lib/billingReceiptSectionBreakdown";
 import {
+  attachProviderRequestLinkageForPersistence,
   BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL,
   canShowFullBillingReceipt,
   sanitizeUsageForPublicReceipt,
@@ -4933,7 +4935,12 @@ export async function POST(req: Request) {
         // Billing/public base usage (may still include admin receipt fields).
         let baseUsageRecord: Usage = usageRecord;
         if (!showFullBillingReceipt) {
-          baseUsageRecord = sanitizeUsageForPublicReceipt(usageRecord);
+          // Public privacy stays lossy for the client; restore ONLY the
+          // deterministic provider-request linkage into the DB record.
+          baseUsageRecord = attachProviderRequestLinkageForPersistence(
+            sanitizeUsageForPublicReceipt(usageRecord),
+            usageRecord
+          );
         }
 
         // Shadow pricing — admin-only diagnostics, never affects deductPoints(cost)
@@ -5726,6 +5733,44 @@ export async function POST(req: Request) {
           generationSequence: newVariant.generationSequence ?? snapshotVariantIndex ?? 0,
           generationRequestId: clientRequestId ?? null,
         };
+
+        // Canonical main-RP physical provider cost -> api_cost_ledger.
+        // ONE PHYSICAL PROVIDER REQUEST = ONE LEDGER ROW, linked by the
+        // canonical (assistantMessageId, generationSequence) triple. This is
+        // the accounting owner; messages.usage.shadowPricing stays a
+        // diagnostics/historical-fallback snapshot. Best-effort: never fail
+        // the turn over cost bookkeeping.
+        if (primaryStage != null) {
+          try {
+            recordMainGenerationProviderCost({
+              chatId: chatRef.id,
+              assistantMessageId: aiMessageId,
+              generationSequence: postTurnGenerationScope.generationSequence,
+              generationRequestId: postTurnGenerationScope.generationRequestId,
+              provider: usageRecord.provider ?? billingProvider,
+              model: primaryStage.responseModelId ?? primaryStage.model,
+              requestKind: "main-rp",
+              inputTokens: primaryStage.input,
+              outputTokens: primaryStage.output,
+              reasoningTokens: primaryStage.apiReasoningOutputTokens,
+              cacheReadTokens: primaryStage.cacheReadTokens,
+              cacheWriteTokens: primaryStage.cacheWriteTokens,
+              cheaperInferenceBilledCostUsd: primaryStage.cheaperInferenceBilledCostUsd,
+              upstreamCostUsd: primaryStage.upstreamCostUsd,
+              usageEstimated: primaryStage.estimated,
+              providerRequestId: primaryStage.providerRequestId,
+              outcome:
+                primaryStage.loopAborted || primaryStage.degenerationAborted
+                  ? "failed_with_usage"
+                  : "success",
+            });
+          } catch (mainCostErr) {
+            console.warn(
+              "[/api/chat] main provider cost record skipped:",
+              (mainCostErr as Error).message
+            );
+          }
+        }
 
         if (statusMetaEnabled && shouldCommitCanonicalTurnState(generationSemantics)) {
           scheduleStatusMetaExtraction({

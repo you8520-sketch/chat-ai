@@ -17,9 +17,19 @@ import {
   mergeFinanceTurnCostCoverage,
   resolveMessageTurnProviderCostKrw,
   type FinanceTurnCostCoverage,
+  type LedgerCostContribution,
 } from "@/lib/adminFinanceTurnCost";
-import { ensureProviderCostLedgerSchema, readLedgerPeriodCostAttribution, type ProviderCostLedgerRow } from "@/lib/providerCostLedger";
+import {
+  ensureProviderCostLedgerSchema,
+  isLedgerEventCostExact,
+  readLedgerPeriodCostAttribution,
+  resolveLedgerCostCenter,
+  type ProviderCostLedgerRow,
+} from "@/lib/providerCostLedger";
+import { readProviderReconciliationState } from "@/lib/providerCostReconciliation";
 import { imageHasAccountingActivity } from "@/lib/adminFinanceMarginDisplay";
+import { CHAT_TURN_CHARGE_KIND } from "@/lib/chatBillingSettlementSchema";
+import { parseMessageVariants } from "@/lib/messageAlternates";
 
 export type FinanceMonthlyAdjustments = {
   monthKey: string;
@@ -110,6 +120,12 @@ export type AdminFinanceSummary = {
   }>;
   /** Active registry models with zero observed usage in range. */
   zeroUseModels: Array<{ id: string; label: string }>;
+  /**
+   * CheaperInference usage reconciliation state (request-level settled truth
+   * promoted into the canonical ledger; /usage/daily as a checksum only).
+   * Null until the first sync runs.
+   */
+  providerReconciliation: import("@/lib/providerCostReconciliation").ProviderReconciliationResult | null;
   creatorAccruedKrw: number;
   creatorPayoutCashKrw: number;
   /**
@@ -232,7 +248,7 @@ export function estimateApiCostUsd(input: {
   );
 }
 
-function monthRange(monthKey: string): { start: string; end: string } {
+export function monthRangeSql(monthKey: string): { start: string; end: string } {
   if (!/^\d{4}-\d{2}$/.test(monthKey)) throw new Error("잘못된 월 형식입니다.");
   const [year, month] = monthKey.split("-").map(Number);
   const nextYear = month === 12 ? year + 1 : year;
@@ -280,7 +296,7 @@ export function saveFinanceAdjustments(
     providerTaxRate: Math.min(1, finiteNonNegative(input.providerTaxRate)),
     note: input.note.trim().slice(0, 2000),
   };
-  monthRange(clean.monthKey);
+  monthRangeSql(clean.monthKey);
   db.prepare(
     `INSERT INTO finance_monthly_adjustments
       (month_key, railway_usage_krw, railway_tax_krw, payment_gateway_fees_krw,
@@ -332,6 +348,260 @@ function sliceTotals(raw: unknown): { paid: number; free: number } {
   return { paid, free };
 }
 
+function usageModelLabel(usage: Usage | null | undefined): string {
+  if (!usage) return "알 수 없음";
+  const typed = usage as Usage & { modelLabel?: string };
+  return typed.modelLabel?.trim() || typed.model?.trim() || "알 수 없음";
+}
+
+function messageModelLabel(rawUsage: string | null): string {
+  try {
+    return usageModelLabel(JSON.parse(rawUsage ?? "{}") as Usage);
+  } catch {
+    return "알 수 없음";
+  }
+}
+
+/** Immutable per-generation model from a stored variant matched by request id. */
+function variantModelForRequest(rawAlternates: string | null, requestId: string): string | null {
+  if (!requestId) return null;
+  for (const variant of parseMessageVariants(rawAlternates)) {
+    if (variant.requestId && variant.requestId === requestId) {
+      return variant.model?.trim() || usageModelLabel(variant.usage);
+    }
+  }
+  return null;
+}
+
+type MonthlyChargeEvent = {
+  /** Immutable generation identity (settlement.request_id). */
+  requestId: string;
+  assistantMessageId: number | null;
+  paid: number;
+  free: number;
+};
+
+type MessageProvenance = {
+  requestId: string | null;
+  usage: string | null;
+  alternates: string | null;
+};
+
+function chatBillingSettlementTableExists(db: Database.Database): boolean {
+  return Boolean(
+    db
+      .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='chat_billing_settlements'"
+      )
+      .get()
+  );
+}
+
+function tableColumnSet(db: Database.Database, table: string): Set<string> {
+  return new Set(
+    (
+      db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+    ).map((column) => column.name)
+  );
+}
+
+/**
+ * Refund projection for a charge event (single owner for native + bridge).
+ *  - settlement.refunded_at marks the exact generation reversed by the
+ *    canonical refund core, so it survives later regeneration.
+ *  - unmarked historical refund fallback: is_refunded=1 means no regeneration
+ *    happened after the refund, so the current message request id IS the
+ *    refunded generation. Never an assistant-wide blind filter.
+ */
+function isChargeEventRefunded(row: {
+  request_id: string;
+  refunded_at: string | null;
+  message_is_refunded: number | null;
+  message_request_id: string | null;
+}): boolean {
+  if (row.refunded_at) return true;
+  return (
+    Number(row.message_is_refunded) === 1 &&
+    (row.message_request_id ?? "") === row.request_id
+  );
+}
+
+/**
+ * ONE USER CHARGE EVENT = ONE REVENUE EVENT. Only NATIVE chat_turn settlements
+ * are monthly charge events (owned by their created_at period; PAID/FREE from
+ * the stored slices). Refunded charge events are excluded by isChargeEventRefunded.
+ * The legacy bridge source (legacy_message_deduction_slices) is bookkeeping
+ * materialized later, NOT a charge event, so its insertion time is never used
+ * as an event period. Other charge kinds are excluded from chat revenue.
+ */
+function readMonthlyChargeEvents(
+  db: Database.Database,
+  start: string,
+  end: string
+): MonthlyChargeEvent[] {
+  if (!chatBillingSettlementTableExists(db)) return [];
+  const rows = db
+    .prepare(
+      `SELECT s.request_id, s.assistant_message_id, s.deduction_slices_json,
+              s.refunded_at,
+              m.is_refunded AS message_is_refunded,
+              m.request_id AS message_request_id
+       FROM chat_billing_settlements s
+       LEFT JOIN messages m ON m.id = s.assistant_message_id
+       WHERE s.created_at >= ? AND s.created_at < ?
+         AND s.charge_kind = ?
+         AND s.source = 'native'`
+    )
+    .all(start, end, CHAT_TURN_CHARGE_KIND) as Array<{
+    request_id: string;
+    assistant_message_id: number | null;
+    deduction_slices_json: string | null;
+    refunded_at: string | null;
+    message_is_refunded: number | null;
+    message_request_id: string | null;
+  }>;
+  return rows
+    .filter((row) => !isChargeEventRefunded(row))
+    .map((row) => {
+      const totals = sliceTotals(row.deduction_slices_json);
+      return {
+        requestId: typeof row.request_id === "string" ? row.request_id : "",
+        assistantMessageId:
+          row.assistant_message_id != null && Number.isFinite(row.assistant_message_id)
+            ? Number(row.assistant_message_id)
+            : null,
+        paid: totals.paid,
+        free: totals.free,
+      };
+    });
+}
+
+/**
+ * Legacy bridge revenue ownership. The bridge is materialized later as
+ * bookkeeping, so its created_at must NOT be used as the economic period. Its
+ * immutable deduction_slices_json is the original legacy charge snapshot, and
+ * the original assistant row's created_at is the historical period owner. A
+ * bridge event is therefore included only in the month of the referenced
+ * message's created_at — never in its materialization month.
+ */
+function readMonthlyLegacyBridgeEvents(
+  db: Database.Database,
+  start: string,
+  end: string
+): MonthlyChargeEvent[] {
+  if (!chatBillingSettlementTableExists(db)) return [];
+  const rows = db
+    .prepare(
+      `SELECT s.request_id, s.assistant_message_id, s.deduction_slices_json,
+              s.refunded_at,
+              m.is_refunded AS message_is_refunded,
+              m.request_id AS message_request_id
+       FROM chat_billing_settlements s
+       JOIN messages m ON m.id = s.assistant_message_id
+       WHERE s.charge_kind = ?
+         AND s.source = 'legacy_message_deduction_slices'
+         AND m.created_at >= ? AND m.created_at < ?`
+    )
+    .all(CHAT_TURN_CHARGE_KIND, start, end) as Array<{
+    request_id: string;
+    assistant_message_id: number | null;
+    deduction_slices_json: string | null;
+    refunded_at: string | null;
+    message_is_refunded: number | null;
+    message_request_id: string | null;
+  }>;
+  return rows
+    .filter((row) => !isChargeEventRefunded(row))
+    .map((row) => {
+      const totals = sliceTotals(row.deduction_slices_json);
+      return {
+        requestId: typeof row.request_id === "string" ? row.request_id : "",
+        assistantMessageId:
+          row.assistant_message_id != null && Number.isFinite(row.assistant_message_id)
+            ? Number(row.assistant_message_id)
+            : null,
+        paid: totals.paid,
+        free: totals.free,
+      };
+    });
+}
+
+/**
+ * Assistant messages that already have a canonical charge owner in ANY period:
+ * a native chat_turn settlement OR a legacy bridge snapshot. Raw
+ * messages.deduction_slices are only a valid legacy fallback while the row has
+ * never been regenerated/settled/bridged (regeneration overwrites them). This
+ * is a raw-fallback safety guard, NOT an event owner: the actual economics come
+ * from the native settlement (own period) or the bridge snapshot (message
+ * chronology).
+ */
+function readOwnedMessageIds(db: Database.Database): Set<number> {
+  const ids = new Set<number>();
+  if (!chatBillingSettlementTableExists(db)) return ids;
+  const rows = db
+    .prepare(
+      `SELECT DISTINCT assistant_message_id FROM chat_billing_settlements
+       WHERE assistant_message_id IS NOT NULL
+         AND charge_kind = ?
+         AND source IN ('native', 'legacy_message_deduction_slices')`
+    )
+    .all(CHAT_TURN_CHARGE_KIND) as Array<{ assistant_message_id: number }>;
+  for (const row of rows) {
+    if (Number.isFinite(row.assistant_message_id)) ids.add(Number(row.assistant_message_id));
+  }
+  return ids;
+}
+
+/** Display label for a ledger model id, aligned with message modelLabel values. */
+function ledgerModelLabel(model: string): string {
+  const trimmed = model.trim();
+  if (!trimmed) return "알 수 없음";
+  const key = trimmed.toLowerCase();
+  const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
+    (candidate) => candidate.id.toLowerCase() === key
+  );
+  return option?.label ?? trimmed;
+}
+
+/**
+ * Immutable generation→model provenance. The canonical generation identity is
+ * (assistant_message_id, generation_request_id), because a raw request id is
+ * NOT globally unique (settlement UNIQUE is per user/chat/request/kind). Only
+ * the main physical event (`execution_phase='main_generation'`) may own the
+ * generation model, so an auxiliary row sharing the request id can never
+ * hijack it. First main writer wins deterministically per generation.
+ */
+function generationModelKey(assistantMessageId: number | null, requestId: string): string {
+  return `${assistantMessageId ?? "null"}::${requestId}`;
+}
+
+function readMainGenerationModelByRequest(db: Database.Database): Map<string, string> {
+  const map = new Map<string, string>();
+  const rows = db
+    .prepare(
+      `SELECT assistant_message_id, generation_request_id, actual_model, model
+       FROM api_cost_ledger
+       WHERE execution_phase = 'main_generation'
+         AND assistant_message_id IS NOT NULL
+         AND generation_request_id IS NOT NULL AND generation_request_id != ''
+       ORDER BY id ASC`
+    )
+    .all() as Array<{
+    assistant_message_id: number;
+    generation_request_id: string;
+    actual_model: string | null;
+    model: string | null;
+  }>;
+  for (const row of rows) {
+    const key = generationModelKey(Number(row.assistant_message_id), row.generation_request_id);
+    if (map.has(key)) continue;
+    const model = (row.actual_model ?? "").trim() || (row.model ?? "").trim();
+    if (!model) continue;
+    map.set(key, ledgerModelLabel(model));
+  }
+  return map;
+}
+
 function category(
   paidRevenueKrw: number,
   freePointSpend: number,
@@ -360,32 +630,125 @@ export function buildAdminFinanceSummary(
 ): AdminFinanceSummary {
   ensureAdminFinanceTables(db);
   ensureProviderCostLedgerSchema(db);
-  const { start, end } = monthRange(monthKey);
+  const { start, end } = monthRangeSql(monthKey);
   const adjustments = getFinanceAdjustments(db, monthKey);
   const exchange = resolveBillingExchangeRateSnapshot();
 
+  // Provenance columns are read only when the live messages schema has them
+  // (minimal legacy/fixture schemas omit request_id/alternates).
+  const messageColumns = tableColumnSet(db, "messages");
+  const requestIdExpr = messageColumns.has("request_id")
+    ? "request_id"
+    : "NULL AS request_id";
+  const alternatesExpr = messageColumns.has("alternates")
+    ? "alternates"
+    : "NULL AS alternates";
+
   const messageRows = db
     .prepare(
-      `SELECT id, usage, deduction_slices
+      `SELECT id, ${requestIdExpr}, usage, deduction_slices, ${alternatesExpr}
        FROM messages
        WHERE role='assistant' AND created_at>=? AND created_at<?
          AND COALESCE(is_refunded, 0)=0`
     )
     .all(start, end) as {
     id: number;
+    request_id: string | null;
     usage: string | null;
     deduction_slices: string | null;
+    alternates: string | null;
   }[];
 
-  const assistantIds = messageRows.map((row) => row.id);
+  const inPeriodAssistantIds = new Set(messageRows.map((row) => row.id));
+  // Immutable generation model provenance. The mutable current message model is
+  // consulted ONLY when the generation request id matches exactly.
+  const mainModelByRequest = readMainGenerationModelByRequest(db);
+  const provenanceByMessageId = new Map<number, MessageProvenance>();
+  for (const row of messageRows) {
+    provenanceByMessageId.set(row.id, {
+      requestId: row.request_id,
+      usage: row.usage,
+      alternates: row.alternates,
+    });
+  }
+
+  // --- Canonical monthly user-charge events (chat_billing_settlements) ---
+  // ONE USER CHARGE EVENT = ONE REVENUE EVENT. Native settlements are owned by
+  // their created_at period. Legacy bridges are owned by the referenced
+  // message's created_at period (their own created_at is bookkeeping time).
+  // Raw messages.deduction_slices are a fallback ONLY while the row has no
+  // canonical owner (see readOwnedMessageIds).
+  const chargeEvents = [
+    ...readMonthlyChargeEvents(db, start, end),
+    ...readMonthlyLegacyBridgeEvents(db, start, end),
+  ];
+  const ownedMessageIds = readOwnedMessageIds(db);
+  // Resolve provenance for charge events that reference out-of-period messages
+  // (regeneration reuses the original assistant row).
+  const chargeProvenanceIds = [
+    ...new Set(
+      chargeEvents
+        .map((event) => event.assistantMessageId)
+        .filter((id): id is number => id != null && !provenanceByMessageId.has(id))
+    ),
+  ];
+  if (chargeProvenanceIds.length > 0) {
+    const placeholders = chargeProvenanceIds.map(() => "?").join(",");
+    const rows = db
+      .prepare(
+        `SELECT id, ${requestIdExpr}, usage, ${alternatesExpr} FROM messages WHERE id IN (${placeholders})`
+      )
+      .all(...chargeProvenanceIds) as Array<{
+      id: number;
+      request_id: string | null;
+      usage: string | null;
+      alternates: string | null;
+    }>;
+    for (const row of rows) {
+      provenanceByMessageId.set(row.id, {
+        requestId: row.request_id,
+        usage: row.usage,
+        alternates: row.alternates,
+      });
+    }
+  }
+
+  // Generation-model resolution (never "latest message model"):
+  //   1. (assistant_message_id, request_id) ↔ main ledger generation model
+  //   2. message.request_id === settlement.request_id → current message usage
+  //   3. stored variant matched by request id
+  //   4. otherwise unknown (no timestamp/token/model guessing)
+  const resolveChargeEventModel = (event: MonthlyChargeEvent): string => {
+    if (event.assistantMessageId == null) return "알 수 없음";
+    const provenance = provenanceByMessageId.get(event.assistantMessageId);
+    if (!provenance) return "알 수 없음";
+    const ledgerModel = event.requestId
+      ? mainModelByRequest.get(generationModelKey(event.assistantMessageId, event.requestId))
+      : undefined;
+    if (ledgerModel) return ledgerModel;
+    if (event.requestId && provenance.requestId === event.requestId) {
+      return messageModelLabel(provenance.usage);
+    }
+    const variantModel = variantModelForRequest(provenance.alternates, event.requestId);
+    if (variantModel) return variantModel;
+    return "알 수 없음";
+  };
+
+  const assistantIds = [...inPeriodAssistantIds];
   let ledgerByAssistant = new Map<number, ProviderCostLedgerRow[]>();
   if (assistantIds.length > 0) {
     const placeholders = assistantIds.map(() => "?").join(",");
+    // Period-scoped: a ledger physical event is folded into a message turn ONLY
+    // when it belongs to the requested period. A cross-month regeneration leaves
+    // the original message in its own month, so unrelated period events can no
+    // longer retroactively move an earlier month's cost.
     const ledgerRows = db
       .prepare(
-        `SELECT * FROM api_cost_ledger WHERE assistant_message_id IN (${placeholders})`
+        `SELECT * FROM api_cost_ledger
+         WHERE assistant_message_id IN (${placeholders})
+           AND created_at >= ? AND created_at < ?`
       )
-      .all(...assistantIds);
+      .all(...assistantIds, start, end);
     ledgerByAssistant = groupLedgerRowsByAssistantMessageId(
       ledgerRows as ProviderCostLedgerRow[]
     );
@@ -406,19 +769,42 @@ export function buildAdminFinanceSummary(
       realizedMarginExact: boolean;
     }
   >();
+  // Canonical charge-event revenue (period owner).
+  for (const event of chargeEvents) {
+    chatPaid += event.paid;
+    chatFree += event.free;
+  }
+
+  const modelEntry = (model: string) =>
+    modelMap.get(model) ?? {
+      paidRevenueKrw: 0,
+      freePointSpend: 0,
+      apiCostKrw: 0,
+      marginCoverage: "complete" as FinanceMarginCoverage,
+      realizedMarginExact: true,
+    };
+
   for (const row of messageRows) {
-    const slices = sliceTotals(row.deduction_slices);
+    // Fallback revenue ONLY when this turn has no canonical charge owner in any
+    // period (never summed with settlement/bridge revenue — one economic event,
+    // one owner).
+    const slices = ownedMessageIds.has(row.id)
+      ? { paid: 0, free: 0 }
+      : sliceTotals(row.deduction_slices);
     chatPaid += slices.paid;
     chatFree += slices.free;
     let model = "알 수 없음";
     let rowApiCost = 0;
     let rowMarginCoverage: FinanceMarginCoverage = "unavailable";
     let rowRealizedMarginExact = false;
+    let ledgerContributions: LedgerCostContribution[] = [];
+    let usageCostKrw = 0;
     try {
       const usage = JSON.parse(row.usage ?? "{}") as Usage & {
         modelLabel?: string;
       };
-      model = usage.modelLabel?.trim() || usage.model?.trim() || model;
+      const typedUsage = usage as Usage & { modelLabel?: string };
+      model = typedUsage.modelLabel?.trim() || typedUsage.model?.trim() || model;
       // No model-specific cost branches: every message goes through the
       // generic canonical turn-cost owner (settled actuals win inside it).
       const ledgerRows = ledgerByAssistant.get(row.id) ?? [];
@@ -426,6 +812,8 @@ export function buildAdminFinanceSummary(
       rowApiCost = turnCost.knownApiCostKrw;
       rowMarginCoverage = turnCost.coverage;
       rowRealizedMarginExact = turnCost.realizedMarginExact;
+      ledgerContributions = turnCost.ledgerCostContributions;
+      usageCostKrw = turnCost.usageFallbackKrw;
       chatApiCost += rowApiCost;
       chatMarginCoverage = mergeFinanceTurnCostCoverage(
         chatMarginCoverage,
@@ -439,25 +827,94 @@ export function buildAdminFinanceSummary(
       chatMarginCoverage = mergeFinanceTurnCostCoverage(chatMarginCoverage, "partial");
       chatRealizedMarginExact = false;
     }
-    const current = modelMap.get(model) ?? {
-      paidRevenueKrw: 0,
-      freePointSpend: 0,
-      apiCostKrw: 0,
-      marginCoverage: "complete" as FinanceMarginCoverage,
-      realizedMarginExact: true,
+    const taxFactor = 1 + adjustments.providerTaxRate;
+    const applyModelCost = (modelName: string, preTaxKrw: number) => {
+      if (preTaxKrw <= 0) return;
+      const entry = modelEntry(modelName);
+      entry.apiCostKrw += preTaxKrw * taxFactor;
+      entry.marginCoverage = mergeFinanceTurnCostCoverage(
+        entry.marginCoverage,
+        rowMarginCoverage
+      );
+      if (!rowRealizedMarginExact) entry.realizedMarginExact = false;
+      modelMap.set(modelName, entry);
     };
-    current.paidRevenueKrw += slices.paid;
-    current.freePointSpend += slices.free;
-    current.apiCostKrw += rowApiCost * (1 + adjustments.providerTaxRate);
-    current.marginCoverage = mergeFinanceTurnCostCoverage(
-      current.marginCoverage,
-      rowMarginCoverage
-    );
-    if (!rowRealizedMarginExact) {
-      current.realizedMarginExact = false;
+    // Revenue fallback (legacy only) belongs to the current message model.
+    if (slices.paid > 0 || slices.free > 0) {
+      const revenueEntry = modelEntry(model);
+      revenueEntry.paidRevenueKrw += slices.paid;
+      revenueEntry.freePointSpend += slices.free;
+      modelMap.set(model, revenueEntry);
     }
+    // Provider cost is attributed by GENERATION provenance, not the latest
+    // message model: each ledger physical event carries its own delivered model.
+    for (const contribution of ledgerContributions) {
+      applyModelCost(ledgerModelLabel(contribution.model), contribution.krw);
+    }
+    // Usage-snapshot cost (no canonical ledger owner) stays on the message model.
+    applyModelCost(model, usageCostKrw);
+  }
+
+  // Attribute canonical charge-event revenue to the generation's model.
+  for (const event of chargeEvents) {
+    if (event.paid === 0 && event.free === 0) continue;
+    const model = resolveChargeEventModel(event);
+    const current = modelEntry(model);
+    current.paidRevenueKrw += event.paid;
+    current.freePointSpend += event.free;
     modelMap.set(model, current);
   }
+
+  // --- Canonical period provider expense (api_cost_ledger.created_at) ---
+  // A ledger row folds into a message turn only when that message is in the
+  // period. Every other period row — unlinked background OR linked to an
+  // out-of-period regeneration message — is added directly, exactly once, by
+  // its own physical-event period. Linked vs unlinked no longer decides period
+  // inclusion, so a cross-month regeneration can neither drift the earlier
+  // month nor be dropped from its own month.
+  let orphanApiKrw = 0;
+  let orphanChatApiKrw = 0;
+  let orphanHasInexact = false;
+  const periodLedgerRows = db
+    .prepare(
+      `SELECT * FROM api_cost_ledger WHERE created_at >= ? AND created_at < ?`
+    )
+    .all(start, end) as ProviderCostLedgerRow[];
+  for (const row of periodLedgerRows) {
+    if (row.event_status === "started" || row.event_status === "failed_without_usage") {
+      orphanHasInexact = true;
+      continue;
+    }
+    if (
+      row.assistant_message_id != null &&
+      inPeriodAssistantIds.has(row.assistant_message_id)
+    ) {
+      continue; // already folded into the in-period message's turn cost
+    }
+    const exact = isLedgerEventCostExact(row);
+    const fx = finiteNonNegative(row.exchange_rate_krw_per_usd);
+    const rowKrw = exact
+      ? round1(finiteNonNegative(row.actual_cost_usd) * fx)
+      : round1(finiteNonNegative(row.cost_krw));
+    if (!exact) orphanHasInexact = true;
+    // Chat-turn expenses join the chat category (same event-period semantics);
+    // background/other centers stay a separate top-level slice. Model comes from
+    // the physical event itself (immutable), never the current message model.
+    if (resolveLedgerCostCenter(row) === "chat_turn") {
+      orphanChatApiKrw = round1(orphanChatApiKrw + rowKrw);
+      const ledgerModelRaw =
+        (row.actual_model ?? "").trim() || (row.model ?? "").trim() || "";
+      const model = ledgerModelLabel(ledgerModelRaw);
+      const current = modelEntry(model);
+      current.apiCostKrw += rowKrw * (1 + adjustments.providerTaxRate);
+      modelMap.set(model, current);
+    } else {
+      orphanApiKrw = round1(orphanApiKrw + rowKrw);
+    }
+  }
+  // Category-level chat cost uses the same event-period owner as the total.
+  chatApiCost += orphanChatApiKrw;
+
 
   let imagePaid = 0;
   let imageFree = 0;
@@ -487,13 +944,11 @@ export function buildAdminFinanceSummary(
   }
 
   // Generic AI-cost attribution over the canonical ledger (single owner).
-  // Message-linked rows are already recognized via usage stages; only the
-  // message-independent (unlinked) slice is added to totals here, so no
-  // physical cost is ever counted twice.
+  // The top-level totals add ONLY the period rows that are not already folded
+  // into an in-period message's turn cost (orphanApiKrw above). This keeps
+  // totalApiCostKrw and aiCost.totalKrw on the SAME physical-event set: every
+  // period ledger row is counted exactly once, regardless of linked/unlinked.
   const ledgerAttribution = readLedgerPeriodCostAttribution(db, start, end);
-  const unlinkedApiKrw = round1(
-    ledgerAttribution.unlinked.actualKrw + ledgerAttribution.unlinked.estimatedKrw
-  );
 
   const creatorAccrued = finiteNonNegative(
     (
@@ -597,7 +1052,7 @@ export function buildAdminFinanceSummary(
     adjustments.creatorExtraIncentivesKrw +
     adjustments.otherCostsKrw;
   const paidRevenue = chat.paidRevenueKrw + image.paidRevenueKrw + giftFeeRevenueKrw;
-  const totalApiCostKrw = round1(chat.apiCostKrw + image.apiCostKrw + unlinkedApiKrw);
+  const totalApiCostKrw = round1(chat.apiCostKrw + image.apiCostKrw + orphanApiKrw);
   const summaryMarginCoverage = mergeFinanceTurnCostCoverage(
     chat.marginCoverage,
     image.marginCoverage
@@ -605,7 +1060,7 @@ export function buildAdminFinanceSummary(
   const summaryRealizedMarginExact =
     chat.realizedMarginExact &&
     image.realizedMarginExact &&
-    !ledgerAttribution.unlinked.hasInexact;
+    !orphanHasInexact;
   // Top-level P&L only: creator cost was recognized at 100% on accrual, so
   // the APPROVED-withdrawal retained portion reverses here exactly once.
   // Category-level profits are untouched; revenue legs are never added.
@@ -655,15 +1110,26 @@ export function buildAdminFinanceSummary(
 
   // Union model view: messages-attributed (direct, with revenue) plus
   // ledger-only models (indirect cost, never a fabricated margin).
-  // NOTE: message-linked ledger exacts are already folded into the
-  // messages-based apiCostKrw via usage stages, so direct-row contribution
-  // never subtracts ledger amounts again (that would double-count).
-  // Ledger direct splits merge into the messages row by model id; indirect
-  // splits always stay separate rows.
+  // NOTE: In-period message-linked ledger exacts are already folded into the
+  // messages-based apiCostKrw via the canonical turn-cost owner, so direct-row
+  // contribution never subtracts ledger amounts again (that would
+  // double-count). Ledger direct splits merge into the messages row by model
+  // identity; indirect splits always stay separate rows. Ledger model ids are
+  // normalized to the registry label so a period-owned direct event merges with
+  // the settlement-revenue row even when its message is out of period.
   const ledgerDirectIndex = new Map(
     ledgerAttribution.byModel
       .filter((entry) => entry.kind === "direct")
-      .map((entry) => [entry.model.toLowerCase(), entry])
+      .flatMap((entry) => {
+        const label = ledgerModelLabel(entry.model);
+        const pairs: Array<[string, typeof entry]> = [
+          [entry.model.toLowerCase(), entry],
+        ];
+        if (label.toLowerCase() !== entry.model.toLowerCase()) {
+          pairs.push([label.toLowerCase(), entry]);
+        }
+        return pairs;
+      })
   );
   const seenLedgerModels = new Set<string>();
   const aiModelCosts: Array<{
@@ -679,7 +1145,10 @@ export function buildAdminFinanceSummary(
     sourceState: string;
   }> = [...modelMap.entries()].map(([model, values]) => {
     const ledger = ledgerDirectIndex.get(model.toLowerCase());
-    if (ledger) seenLedgerModels.add(ledger.model.toLowerCase());
+    if (ledger) {
+      seenLedgerModels.add(ledger.model.toLowerCase());
+      seenLedgerModels.add(ledgerModelLabel(ledger.model).toLowerCase());
+    }
     const contribution = values.paidRevenueKrw - values.apiCostKrw;
     const eligible = values.realizedMarginExact && values.paidRevenueKrw > 0;
     return {
@@ -701,13 +1170,18 @@ export function buildAdminFinanceSummary(
   });
   for (const entry of ledgerAttribution.byModel) {
     // Direct splits merge into the messages row above; indirect splits
-    // always stay separate. Seen-tracking is per split, never per model.
+    // always stay separate. Seen-tracking is per split, never per model, and
+    // uses the normalized label identity.
+    const labelKey = ledgerModelLabel(entry.model).toLowerCase();
     if (entry.kind === "direct") {
-      if (seenLedgerModels.has(entry.model.toLowerCase())) continue;
+      if (seenLedgerModels.has(entry.model.toLowerCase()) || seenLedgerModels.has(labelKey)) {
+        continue;
+      }
       seenLedgerModels.add(entry.model.toLowerCase());
+      seenLedgerModels.add(labelKey);
     }
     aiModelCosts.push({
-      model: entry.model,
+      model: ledgerModelLabel(entry.model),
       kind: entry.kind,
       center: entry.center,
       calls: entry.calls,
@@ -726,7 +1200,10 @@ export function buildAdminFinanceSummary(
   // Active registry models with zero observed usage in range (compact UX data).
   const observedModels = new Set<string>();
   for (const key of modelMap.keys()) observedModels.add(key.toLowerCase());
-  for (const entry of ledgerAttribution.byModel) observedModels.add(entry.model.toLowerCase());
+  for (const entry of ledgerAttribution.byModel) {
+    observedModels.add(entry.model.toLowerCase());
+    observedModels.add(ledgerModelLabel(entry.model).toLowerCase());
+  }
   const zeroUseModels = MAIN_RP_USER_SELECTABLE_OPTIONS.filter(
     (option) =>
       !observedModels.has(option.id.toLowerCase()) &&
@@ -776,6 +1253,7 @@ export function buildAdminFinanceSummary(
     },
     aiModelCosts,
     zeroUseModels,
+    providerReconciliation: readProviderReconciliationState(db),
     creatorAccruedKrw: round1(creatorAccrued),
     creatorPayoutCashKrw: round1(creatorPayoutCash),
     creatorTaxPayableKrw: round1(creatorTaxPayableKrw),

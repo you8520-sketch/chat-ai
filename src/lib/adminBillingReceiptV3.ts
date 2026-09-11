@@ -290,6 +290,33 @@ function resolveMainUsd(syncReceipt: AdminBillingReceiptV2): {
   return { usd, exact: true };
 }
 
+/**
+ * Ledger-first main-RP actual cost. When main_generation ledger rows exist
+ * (canonical accounting owner), the receipt projects them instead of the
+ * usage/shadowPricing snapshot — same owner as Admin Finance. Legacy turns
+ * with no main ledger row fall back to usage via resolveMainUsd().
+ */
+function resolveMainUsdFromLedger(ledgerRows: ProviderCostLedgerRow[]): {
+  usd: number | null;
+  exact: boolean;
+} | null {
+  let sawMainRow = false;
+  let usd = 0;
+  let hasIncomplete = false;
+  for (const row of ledgerRows) {
+    if (row.execution_phase !== "main_generation") continue;
+    sawMainRow = true;
+    if (isLedgerEventCostExact(row)) {
+      usd += finiteUsd(row.actual_cost_usd);
+    } else if (isLedgerEventCostCoverageIncomplete(row)) {
+      hasIncomplete = true;
+    }
+  }
+  if (!sawMainRow) return null;
+  if (usd <= 0 || hasIncomplete) return { usd: null, exact: false };
+  return { usd, exact: true };
+}
+
 function resolveSyncUsd(syncReceipt: AdminBillingReceiptV2): {
   usd: number | null;
   exact: boolean;
@@ -471,7 +498,7 @@ export function buildAdminBillingReceiptV3(
     hasUnscopedLedgerRows: input.hasUnscopedLedgerRows,
   });
 
-  const main = resolveMainUsd(syncReceipt);
+  const main = resolveMainUsdFromLedger(input.ledgerRows) ?? resolveMainUsd(syncReceipt);
   const sync = resolveSyncUsd(syncReceipt);
   const fx = syncReceipt.fx;
 

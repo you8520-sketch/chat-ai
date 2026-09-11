@@ -72,6 +72,47 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
 }
 
 /**
+ * DB-persistence counterpart of the public sanitizer.
+ * The public sanitizer is (correctly) lossy for privacy, so the DB record —
+ * which is built from the sanitized usage for non-admin turns — would lose the
+ * deterministic provider request linkage that delayed reconciliation needs.
+ * This helper restores ONLY `stages[].providerRequestId` from the internal
+ * usage; it never restores any economics/debug field (upstream cost, billed
+ * cost, cache discount, usage evidence, raw debug usage, …).
+ * ONE RESPONSIBILITY: sanitizer = client privacy; this = reconciliation identity.
+ */
+export function attachProviderRequestLinkageForPersistence(
+  persistedUsage: Usage,
+  internalUsage: Usage
+): Usage {
+  const internalStages = internalUsage.stages;
+  const persistedStages = persistedUsage.stages;
+  if (!internalStages?.length || !persistedStages?.length) return persistedUsage;
+
+  const linkageByKey = new Map<string, string>();
+  const linkageByIndex: (string | undefined)[] = [];
+  let hasLinkage = false;
+  for (const stage of internalStages) {
+    linkageByIndex.push(stage.providerRequestId);
+    if (stage.providerRequestId) {
+      hasLinkage = true;
+      linkageByKey.set(
+        `${stage.stage}|${stage.model}|${stage.input}|${stage.output}`,
+        stage.providerRequestId
+      );
+    }
+  }
+  if (!hasLinkage) return persistedUsage;
+
+  const stages = persistedStages.map((stage, index) => {
+    const byKey = linkageByKey.get(`${stage.stage}|${stage.model}|${stage.input}|${stage.output}`);
+    const providerRequestId = byKey ?? linkageByIndex[index];
+    return providerRequestId ? { ...stage, providerRequestId } : stage;
+  });
+  return { ...persistedUsage, stages };
+}
+
+/**
  * Client serialization — adult handoff identity transformation only.
  * Economics privacy is owned by sanitizeUsageForPublicReceipt.
  */

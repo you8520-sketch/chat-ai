@@ -350,6 +350,10 @@ export type StageUsage = {
   savedOutputChars?: number;
   loopAborted?: boolean;
   degenerationAborted?: boolean;
+  /** Provider request id captured from response headers/body (when present). */
+  providerRequestId?: string;
+  /** Provider-reported model id from the response payload (when present). */
+  responseModelId?: string;
 };
 
 export { estimateTokens } from "@/lib/tokenEstimate";

@@ -29,6 +29,14 @@ const SYNC_LEDGER_FAMILIES = new Set([
 
 export type StatusWidgetExtractFinanceSource = "usage" | "ledger" | "none";
 
+/** Per-generation KRW counted from one ledger physical event (pre-tax). */
+export type LedgerCostContribution = {
+  /** Delivered model id of the physical event (registry label mapping is caller-owned). */
+  model: string;
+  krw: number;
+  exact: boolean;
+};
+
 /** Whole-turn finance cost coverage — aligned with AdminReceiptExactness aggregation. */
 export type FinanceTurnCostCoverage = "complete" | "partial" | "estimated" | "unavailable";
 
@@ -47,6 +55,18 @@ export type MessageTurnProviderCost = {
   syncPostTurnKrw: number;
   asyncPostTurnKrw: number;
   statusWidgetExtractFinanceSource: StatusWidgetExtractFinanceSource;
+  /**
+   * Ledger physical events counted into knownApiCostKrw, split by their OWN
+   * delivered model. One assistant message may carry several generations with
+   * different models; this is the immutable generation provenance for model
+   * attribution (never the mutable current message model).
+   */
+  ledgerCostContributions: LedgerCostContribution[];
+  /**
+   * Usage-snapshot-sourced KRW counted into knownApiCostKrw (turns with no
+   * canonical ledger owner). Attributed to the current message model.
+   */
+  usageFallbackKrw: number;
   familyKrw: {
     main_generation: number;
     post_turn_shared_initial: number;
@@ -62,7 +82,13 @@ type CostComponent = {
   exactKrw: number;
   exactness: AdminReceiptExactness | "none";
   hasIncomplete: boolean;
+  /** KRW of this component sourced from the usage snapshot (no ledger owner). */
+  usageFallbackKrw: number;
 };
+
+function ledgerRowModel(row: ProviderCostLedgerRow): string {
+  return (row.actual_model ?? "").trim() || (row.model ?? "").trim() || "";
+}
 
 function finiteNonNegative(value: unknown): number {
   const n = Number(value);
@@ -148,15 +174,86 @@ function coverageFromComponents(
   return "partial";
 }
 
-function resolveMainGenerationComponent(usage: Usage): CostComponent {
+/**
+ * Canonical main-RP actual cost projection.
+ * Ledger-first: when a main_generation ledger row exists, it is the single
+ * accounting owner (settled exact). Legacy turns with no main ledger row fall
+ * back to the persisted usage/shadowPricing snapshot. The two are NEVER summed.
+ */
+function resolveMainGenerationComponent(
+  usage: Usage,
+  ledgerRows: ProviderCostLedgerRow[],
+  contributions: LedgerCostContribution[]
+): CostComponent {
+  let ledgerExactKrw = 0;
+  let ledgerEstimateKrw = 0;
+  let ledgerPresent = false;
+  for (const row of ledgerRows) {
+    if (row.execution_phase !== "main_generation") continue;
+    ledgerPresent = true;
+    if (isLedgerEventCostExact(row)) {
+      const usd = finiteNonNegative(row.actual_cost_usd);
+      const fx = finiteNonNegative(row.exchange_rate_krw_per_usd);
+      if (usd > 0 && fx > 0) {
+        const krw = round1(usd * fx);
+        ledgerExactKrw += krw;
+        contributions.push({ model: ledgerRowModel(row), krw, exact: true });
+      }
+    } else {
+      // Not-yet-settled main request: keep the ledger-owned estimate/reference
+      // (cost_krw is already KRW). Never falls back to usage for a turn that
+      // already has a canonical main ledger row.
+      const reference = round1(finiteNonNegative(row.cost_krw));
+      if (reference > 0) {
+        ledgerEstimateKrw += reference;
+        contributions.push({ model: ledgerRowModel(row), krw: reference, exact: false });
+      }
+    }
+  }
+
+  if (ledgerPresent) {
+    const known = round1(ledgerExactKrw + ledgerEstimateKrw);
+    if (ledgerExactKrw > 0 && ledgerEstimateKrw <= 0) {
+      // Ledger owns main cost as settled exact; usage is diagnostics only.
+      return {
+        knownKrw: known,
+        exactKrw: known,
+        exactness: "settled",
+        hasIncomplete: false,
+        usageFallbackKrw: 0,
+      };
+    }
+    if (known > 0) {
+      // Ledger-owned estimate/reference: known cost, not yet exact. The
+      // estimate is replaced (never added to) when remote settlement lands.
+      return {
+        knownKrw: known,
+        exactKrw: 0,
+        exactness: "estimated",
+        hasIncomplete: false,
+        usageFallbackKrw: 0,
+      };
+    }
+    return {
+      knownKrw: 0,
+      exactKrw: 0,
+      exactness: "unavailable",
+      hasIncomplete: true,
+      usageFallbackKrw: 0,
+    };
+  }
+
+  // Legacy fallback: no main_generation ledger row exists for this turn.
   const receipt = buildAdminBillingReceiptV2(usage);
   const main = receipt.mainRp.actual;
   if (main?.exactness === "settled" && main.actualProviderCostKrw > 0) {
+    const known = round1(main.actualProviderCostKrw);
     return {
-      knownKrw: round1(main.actualProviderCostKrw),
-      exactKrw: round1(main.actualProviderCostKrw),
+      knownKrw: known,
+      exactKrw: known,
       exactness: "settled",
       hasIncomplete: false,
+      usageFallbackKrw: known,
     };
   }
 
@@ -182,6 +279,7 @@ function resolveMainGenerationComponent(usage: Usage): CostComponent {
       exactKrw: 0,
       exactness: main?.exactness ?? "unavailable",
       hasIncomplete: main?.exactness === "partial" || main?.exactness === "unavailable",
+      usageFallbackKrw: 0,
     };
   }
 
@@ -191,12 +289,14 @@ function resolveMainGenerationComponent(usage: Usage): CostComponent {
     exactKrw: 0,
     exactness,
     hasIncomplete: exactness === "partial" || exactness === "unavailable",
+    usageFallbackKrw: fallbackKrw,
   };
 }
 
 function resolveSyncPostTurnComponent(
   usage: Usage,
-  ledgerRows: ProviderCostLedgerRow[]
+  ledgerRows: ProviderCostLedgerRow[],
+  contributions: LedgerCostContribution[]
 ): CostComponent & { source: StatusWidgetExtractFinanceSource } {
   const receipt = buildAdminBillingReceiptV2(usage);
   const sync = receipt.syncPlatformSpend;
@@ -206,20 +306,24 @@ function resolveSyncPostTurnComponent(
       sync.actualProviderCostKrw != null &&
       sync.actualProviderCostKrw > 0
     ) {
+      const known = round1(sync.actualProviderCostKrw);
       return {
-        knownKrw: round1(sync.actualProviderCostKrw),
-        exactKrw: round1(sync.actualProviderCostKrw),
+        knownKrw: known,
+        exactKrw: known,
         exactness: "settled",
         hasIncomplete: false,
+        usageFallbackKrw: known,
         source: "usage",
       };
     }
     if (sync.exactness === "partial") {
+      const known = finiteNonNegative(sync.legacyApiRawCostKrw ?? sync.legacyStoredActualKrw);
       return {
-        knownKrw: finiteNonNegative(sync.legacyApiRawCostKrw ?? sync.legacyStoredActualKrw),
+        knownKrw: known,
         exactKrw: 0,
         exactness: "partial",
         hasIncomplete: true,
+        usageFallbackKrw: known,
         source: "usage",
       };
     }
@@ -232,6 +336,7 @@ function resolveSyncPostTurnComponent(
         exactKrw: 0,
         exactness: "estimated",
         hasIncomplete: false,
+        usageFallbackKrw: round1(estimateKrw),
         source: "usage",
       };
     }
@@ -240,6 +345,7 @@ function resolveSyncPostTurnComponent(
       exactKrw: 0,
       exactness: "unavailable",
       hasIncomplete: true,
+      usageFallbackKrw: 0,
       source: "usage",
     };
   }
@@ -249,7 +355,9 @@ function resolveSyncPostTurnComponent(
   for (const row of ledgerRows) {
     if (!isRelevantSyncLedgerRow(row)) continue;
     if (isLedgerEventCostExact(row)) {
-      syncLedgerExactKrw += ledgerExactCostKrw(row);
+      const krw = ledgerExactCostKrw(row);
+      syncLedgerExactKrw += krw;
+      contributions.push({ model: ledgerRowModel(row), krw, exact: true });
     } else if (isLedgerEventCostCoverageIncomplete(row)) {
       syncLedgerHasIncomplete = true;
     }
@@ -261,6 +369,7 @@ function resolveSyncPostTurnComponent(
       exactKrw: round1(syncLedgerExactKrw),
       exactness: syncLedgerHasIncomplete ? "partial" : "settled",
       hasIncomplete: syncLedgerHasIncomplete,
+      usageFallbackKrw: 0,
       source: "ledger",
     };
   }
@@ -270,11 +379,15 @@ function resolveSyncPostTurnComponent(
     exactKrw: 0,
     exactness: "none",
     hasIncomplete: false,
+    usageFallbackKrw: 0,
     source: "none",
   };
 }
 
-function resolveAsyncPostTurnComponent(ledgerRows: ProviderCostLedgerRow[]): CostComponent & {
+function resolveAsyncPostTurnComponent(
+  ledgerRows: ProviderCostLedgerRow[],
+  contributions: LedgerCostContribution[]
+): CostComponent & {
   byFamily: Pick<
     MessageTurnProviderCost["familyKrw"],
     "suggested_replies_repair" | "status_meta" | "memory_relationship"
@@ -297,6 +410,7 @@ function resolveAsyncPostTurnComponent(ledgerRows: ProviderCostLedgerRow[]): Cos
       const krw = ledgerExactCostKrw(row);
       exactKrw += krw;
       byFamily[family as keyof typeof byFamily] += krw;
+      contributions.push({ model: ledgerRowModel(row), krw, exact: true });
     } else if (isLedgerEventCostCoverageIncomplete(row)) {
       hasIncomplete = true;
     }
@@ -311,6 +425,7 @@ function resolveAsyncPostTurnComponent(ledgerRows: ProviderCostLedgerRow[]): Cos
         : "settled"
       : "none",
     hasIncomplete,
+    usageFallbackKrw: 0,
     byFamily: {
       suggested_replies_repair: round1(byFamily.suggested_replies_repair),
       status_meta: round1(byFamily.status_meta),
@@ -324,9 +439,13 @@ export function resolveMessageTurnProviderCostKrw(
   usage: Usage,
   ledgerRows: ProviderCostLedgerRow[] = []
 ): MessageTurnProviderCost {
-  const main = resolveMainGenerationComponent(usage);
-  const sync = resolveSyncPostTurnComponent(usage, ledgerRows);
-  const asyncCost = resolveAsyncPostTurnComponent(ledgerRows);
+  const ledgerCostContributions: LedgerCostContribution[] = [];
+  const main = resolveMainGenerationComponent(usage, ledgerRows, ledgerCostContributions);
+  const sync = resolveSyncPostTurnComponent(usage, ledgerRows, ledgerCostContributions);
+  const asyncCost = resolveAsyncPostTurnComponent(ledgerRows, ledgerCostContributions);
+  const usageFallbackKrw = round1(
+    main.usageFallbackKrw + sync.usageFallbackKrw + asyncCost.usageFallbackKrw
+  );
 
   const coverage = coverageFromComponents(main, sync, asyncCost);
   const hasIncompleteProviderCost =
@@ -373,6 +492,8 @@ export function resolveMessageTurnProviderCostKrw(
     syncPostTurnKrw: sync.knownKrw,
     asyncPostTurnKrw: asyncCost.knownKrw,
     statusWidgetExtractFinanceSource: sync.source,
+    ledgerCostContributions,
+    usageFallbackKrw,
     familyKrw,
   };
 }

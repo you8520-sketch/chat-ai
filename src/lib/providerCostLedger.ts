@@ -11,6 +11,7 @@ import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import type { ActualCostSource } from "@/lib/shadowPricing";
 
 export type ProviderCostFamily =
+  | "main_generation"
   | "suggested_replies_repair"
   | "status_meta"
   | "memory_relationship"
@@ -60,6 +61,13 @@ export type ProviderCostLedgerContext = {
   providerRequestId?: string | null;
   /** Failover grouping ordinal within one logical call (1-based). */
   physicalAttemptOrdinal?: number;
+  /**
+   * Physical-event accounting time override ('YYYY-MM-DD HH:MM:SS' UTC).
+   * Live writers omit it (datetime('now')). Delayed reconciliation recovery
+   * passes the provider request's event time so the cost lands in the correct
+   * accounting window. Never an inferred/approximate timestamp.
+   */
+  eventTime?: string | null;
   /** Test seam — bypass NODE_TEST_CONTEXT skip. */
   persistInTests?: boolean;
 };
@@ -83,6 +91,8 @@ export type ProviderCostFinalizeInput = {
   providerRequestId?: string | null;
   usageEstimated?: boolean;
   httpStatus?: number | null;
+  /** Request-time FX override (e.g. delayed reconciliation recovery). */
+  exchangeRateKrwPerUsd?: number;
   /** Transport/product outcome — distinct from cost exactness. */
   outcome: "success" | "failed_without_usage" | "failed_with_usage";
 };
@@ -315,7 +325,9 @@ export function isLedgerEventCostExact(
   if (row.event_status === "started") return false;
   return (
     (row.actual_cost_source === "cheaper_inference_billed" ||
-      row.actual_cost_source === "provider_reported") &&
+      row.actual_cost_source === "provider_reported" ||
+      // External provider-settled truth recorded by usage reconciliation.
+      row.actual_cost_source === "cheaper_inference_usage_api") &&
     finiteNonNegative(row.actual_cost_usd) > 0
   );
 }
@@ -386,6 +398,127 @@ export function buildPlatformSyncTurnLedgerContext(input: {
   };
 }
 
+export function buildMainGenerationLedgerContext(input: {
+  chatId: number;
+  assistantMessageId: number;
+  generationSequence: number;
+  generationRequestId?: string | null;
+  requestedModel?: string;
+  requestedProvider?: string;
+  requestKind?: string;
+  /** Physical attempt ordinal within one logical turn (1-based). */
+  physicalAttemptOrdinal?: number;
+}): ProviderCostLedgerContext {
+  return {
+    chatId: input.chatId,
+    assistantMessageId: input.assistantMessageId,
+    generationSequence: input.generationSequence,
+    generationRequestId: input.generationRequestId ?? null,
+    family: "main_generation",
+    fundingClass: "user_funded",
+    executionPhase: "main_generation",
+    jobAttemptOrdinal: input.physicalAttemptOrdinal ?? 1,
+    requestedProvider: input.requestedProvider ?? "cheaperinference",
+    requestedModel: input.requestedModel ?? "",
+    requestKind: input.requestKind,
+    costCenter: "chat_turn",
+  };
+}
+
+/** Canonical input for one main-RP physical provider request. */
+export type MainGenerationProviderCostInput = {
+  chatId: number;
+  assistantMessageId: number;
+  generationSequence: number;
+  generationRequestId?: string | null;
+  physicalAttemptOrdinal?: number;
+  provider: string;
+  model: string;
+  requestKind?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  reasoningTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  cheaperInferenceBilledCostUsd?: number;
+  upstreamCostUsd?: number;
+  usageEstimated?: boolean;
+  providerRequestId?: string | null;
+  httpStatus?: number | null;
+  /** Request-time FX override (delayed reconciliation recovery uses event-time FX). */
+  exchangeRateKrwPerUsd?: number;
+  /** Physical-event accounting time override ('YYYY-MM-DD HH:MM:SS' UTC). */
+  eventTime?: string | null;
+  outcome: "success" | "failed_without_usage" | "failed_with_usage";
+  /** Test seam — bypass NODE_TEST_CONTEXT skip. */
+  persistInTests?: boolean;
+};
+
+/**
+ * Canonical writer for a main-RP physical provider request.
+ * ONE PHYSICAL PROVIDER REQUEST = ONE LEDGER ROW, linked by the canonical
+ * (chatId, assistantMessageId, generationSequence) triple and deduped by
+ * provider request id. Never writes a second aggregate turn-cost row.
+ */
+export function recordMainGenerationProviderCost(
+  input: MainGenerationProviderCostInput,
+  db: Database.Database = getDb()
+): { eventKey: string; recorded: boolean } {
+  if (shouldSkipPersistence(input)) return { eventKey: "", recorded: false };
+  ensureProviderCostLedgerSchema(db);
+
+  const requestId = input.providerRequestId?.trim() || null;
+  const attempt = startProviderCostAttempt(
+    {
+      ...buildMainGenerationLedgerContext({
+        chatId: input.chatId,
+        assistantMessageId: input.assistantMessageId,
+        generationSequence: input.generationSequence,
+        generationRequestId: input.generationRequestId ?? null,
+        requestedProvider: input.provider,
+        requestedModel: input.model,
+        requestKind: input.requestKind,
+        physicalAttemptOrdinal: input.physicalAttemptOrdinal,
+      }),
+      providerRequestId: requestId,
+      eventTime: input.eventTime ?? null,
+      persistInTests: input.persistInTests,
+    },
+    db
+  );
+  if (attempt.deduplicated) {
+    const existing = requestId
+      ? (db
+          .prepare(
+            "SELECT event_key FROM api_cost_ledger WHERE provider = ? AND provider_request_id = ? LIMIT 1"
+          )
+          .get(input.provider, requestId) as { event_key: string } | undefined)
+      : undefined;
+    return { eventKey: existing?.event_key ?? attempt.physicalAttemptId, recorded: false };
+  }
+  const finalized = finalizeProviderCostAttempt(
+    attempt,
+    {
+      actualProvider: input.provider,
+      actualModel: input.model,
+      inputTokens: input.inputTokens,
+      outputTokens: input.outputTokens,
+      reasoningTokens: input.reasoningTokens,
+      cacheReadTokens: input.cacheReadTokens,
+      cacheWriteTokens: input.cacheWriteTokens,
+      cheaperInferenceBilledCostUsd: input.cheaperInferenceBilledCostUsd,
+      upstreamCostUsd: input.upstreamCostUsd,
+      usageEstimated: input.usageEstimated,
+      providerRequestId: requestId,
+      httpStatus: input.httpStatus,
+      exchangeRateKrwPerUsd: input.exchangeRateKrwPerUsd,
+      outcome: input.outcome,
+    },
+    db
+  );
+  return { eventKey: finalized.eventKey, recorded: finalized.updated };
+}
+
 export function startProviderCostAttempt(
   ctx: ProviderCostLedgerContext,
   db: Database.Database = getDb()
@@ -421,24 +554,25 @@ export function startProviderCostAttempt(
     providerRequestId,
   ];
   const placeholders = values.map(() => "?").join(", ");
+  const eventTime = ctx.eventTime ?? null;
   let result: { changes: number };
   if (providerRequestId && hasProviderRequestIdempotencyIndex(db)) {
     result = db
       .prepare(
         `INSERT INTO api_cost_ledger (${columns})
-         VALUES (${placeholders}, 'started', 0, 0, 1, datetime('now'))
+         VALUES (${placeholders}, 'started', 0, 0, 1, COALESCE(?, datetime('now')))
          ON CONFLICT(provider, provider_request_id)
          WHERE provider_request_id IS NOT NULL AND provider_request_id != ''
          DO NOTHING`
       )
-      .run(...values);
+      .run(...values, eventTime);
   } else {
     result = db
       .prepare(
         `INSERT INTO api_cost_ledger (${columns})
-         VALUES (${placeholders}, 'started', 0, 0, 1, datetime('now'))`
+         VALUES (${placeholders}, 'started', 0, 0, 1, COALESCE(?, datetime('now')))`
       )
-      .run(...values);
+      .run(...values, eventTime);
   }
 
   return { physicalAttemptId, context: ctx, deduplicated: result.changes === 0 };
@@ -467,7 +601,11 @@ export function finalizeProviderCostAttempt(
   }
 
   ensureProviderCostLedgerSchema(db);
-  const exchange = resolveBillingExchangeRateSnapshot();
+  const snapshot = resolveBillingExchangeRateSnapshot();
+  const effectiveKrwPerUsd =
+    input.exchangeRateKrwPerUsd && input.exchangeRateKrwPerUsd > 0
+      ? input.exchangeRateKrwPerUsd
+      : snapshot.effectiveKrwPerUsd;
 
   const inputTokens = Math.max(0, Math.trunc(input.inputTokens ?? 0));
   const outputTokens = Math.max(0, Math.trunc(input.outputTokens ?? 0));
@@ -496,7 +634,7 @@ export function finalizeProviderCostAttempt(
     settlement.settled && settlement.actualCostUsd
       ? settlement.actualCostUsd
       : rawUpstreamUsd ?? estimatedUsd;
-  const legacyCostKrw = legacyAccountingCostUsd * exchange.effectiveKrwPerUsd;
+  const legacyCostKrw = legacyAccountingCostUsd * effectiveKrwPerUsd;
   const legacyEstimated = settlement.settled ? 0 : rawUpstreamUsd == null ? 1 : 0;
 
   const update = db.prepare(
@@ -543,7 +681,7 @@ export function finalizeProviderCostAttempt(
       settlement.actualCostUsd ?? null,
       settlement.actualCostSource,
       settlement.eventStatus,
-      exchange.effectiveKrwPerUsd,
+      effectiveKrwPerUsd,
       legacyCostKrw,
       legacyEstimated,
       eventKey
@@ -825,6 +963,145 @@ export function recordBackgroundProviderCost(
     db
   );
   return { eventKey: finalized.eventKey, recorded: finalized.updated };
+}
+
+/** Convert a USD decimal (string or number) to integer micro-USD. */
+export function toMicroUsd(value: unknown): number {
+  const n = typeof value === "string" ? Number(value) : Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.round(n * 1_000_000);
+}
+
+export type ReconciledProviderCostInput = {
+  provider: string;
+  providerRequestId: string;
+  model: string;
+  /** Provider-settled billed cost in USD (external truth). */
+  billedCostUsd: number;
+  requestKind?: string;
+  costCenter?: ProviderCostCenter;
+  /** Provider event time ('YYYY-MM-DD HH:MM:SS' UTC); defaults to now. */
+  eventTime?: string | null;
+  persistInTests?: boolean;
+};
+
+export type ReconciledProviderCostOutcome =
+  | "inserted"
+  | "promoted"
+  | "matched"
+  | "superseded"
+  | "skipped";
+
+/**
+ * Canonical writer for provider-settled external truth from the usage API.
+ * Deterministic identity = (provider, provider_request_id):
+ * - existing non-exact row  -> promoted to settled exact (estimate replaced)
+ * - existing exact same      -> matched (no change)
+ * - existing exact different -> superseded (external truth wins)
+ * - no local row             -> inserted as an unlinked settled row (global
+ *                               expense only; no message attribution)
+ * Never adds a second row for the same billing identity.
+ */
+export function upsertReconciledProviderCost(
+  input: ReconciledProviderCostInput,
+  db: Database.Database = getDb()
+): { outcome: ReconciledProviderCostOutcome; rowId?: number } {
+  if (shouldSkipPersistence(input)) return { outcome: "skipped" };
+  ensureProviderCostLedgerSchema(db);
+
+  const provider = input.provider;
+  const requestId = input.providerRequestId.trim();
+  if (!requestId) return { outcome: "skipped" };
+  const micro = toMicroUsd(input.billedCostUsd);
+  if (micro <= 0) return { outcome: "skipped" };
+
+  const existing = db
+    .prepare(
+      "SELECT id, actual_cost_usd, actual_cost_source, event_status, exchange_rate_krw_per_usd FROM api_cost_ledger WHERE provider = ? AND provider_request_id = ? ORDER BY id ASC LIMIT 1"
+    )
+    .get(provider, requestId) as
+    | {
+        id: number;
+        actual_cost_usd: number | null;
+        actual_cost_source: string | null;
+        event_status: string | null;
+        exchange_rate_krw_per_usd: number | null;
+      }
+    | undefined;
+
+  const snapshot = resolveBillingExchangeRateSnapshot();
+  const usd = micro / 1_000_000;
+
+  if (existing) {
+    const exact = isLedgerEventCostExact(existing);
+    const existingMicro = exact ? toMicroUsd(existing.actual_cost_usd) : 0;
+    if (exact && existingMicro === micro) {
+      return { outcome: "matched", rowId: existing.id };
+    }
+    // Request-time FX is event provenance: preserve it and only promote the
+    // actual/estimate state. Never re-value KRW at reconciliation time.
+    const requestTimeFx =
+      finiteNonNegative(existing.exchange_rate_krw_per_usd) || snapshot.effectiveKrwPerUsd;
+    const promotedCostKrw = Math.round(usd * requestTimeFx * 10) / 10;
+    db.prepare(
+      `UPDATE api_cost_ledger
+         SET actual_cost_usd = ?,
+             actual_cost_source = 'cheaper_inference_usage_api',
+             event_status = 'settled',
+             cost_krw = ?,
+             estimated = 0,
+             completed_at = datetime('now')
+       WHERE id = ?`
+    ).run(usd, promotedCostKrw, existing.id);
+    return { outcome: exact ? "superseded" : "promoted", rowId: existing.id };
+  }
+
+  const costKrw = Math.round(usd * snapshot.effectiveKrwPerUsd * 10) / 10;
+
+  const eventKey = `recon:${provider}:${requestId}`;
+  const createdAt = input.eventTime?.trim() || null;
+  const insert = db
+    .prepare(
+      `INSERT INTO api_cost_ledger
+         (event_key, chat_id, assistant_message_id, generation_sequence, generation_request_id,
+          family, funding_class, execution_phase, attempt_ordinal,
+          requested_provider, requested_model, provider, model, actual_provider, actual_model,
+          request_kind, cost_center, provider_request_id,
+          input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+          actual_cost_usd, actual_cost_source, event_status,
+          exchange_rate_krw_per_usd, cost_krw, estimated, created_at, completed_at)
+       VALUES (?, NULL, NULL, NULL, NULL, 'background', 'platform_funded', 'async_post_turn', 1,
+               ?, ?, ?, ?, ?, ?, ?, ?, ?,
+               0, 0, 0, 0,
+               ?, 'cheaper_inference_usage_api', 'settled',
+               ?, ?, 0, COALESCE(?, datetime('now')), datetime('now'))
+       ON CONFLICT(event_key) DO NOTHING`
+    )
+    .run(
+      eventKey,
+      provider,
+      input.model,
+      provider,
+      input.model,
+      provider,
+      input.model,
+      input.requestKind?.slice(0, 120) ?? "usage-reconciliation",
+      input.costCenter ?? "other",
+      requestId,
+      usd,
+      snapshot.effectiveKrwPerUsd,
+      costKrw,
+      createdAt
+    );
+
+  if (insert.changes === 0) {
+    // Another worker already inserted this billing identity.
+    const row = db
+      .prepare("SELECT id FROM api_cost_ledger WHERE provider = ? AND provider_request_id = ? LIMIT 1")
+      .get(provider, requestId) as { id: number } | undefined;
+    return { outcome: "matched", rowId: row?.id };
+  }
+  return { outcome: "inserted", rowId: Number(insert.lastInsertRowid) };
 }
 
 export type LedgerCostAggregate = {

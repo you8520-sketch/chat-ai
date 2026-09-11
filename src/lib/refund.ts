@@ -10,6 +10,8 @@ import { assessMessageForAutoRefund } from "./refundAutoValidation";
 import { buildMessageReceiptSnapshot } from "./refundMessageReceipt";
 import { AUTO_REFUND_DAILY_LIMIT } from "./reportRefundPolicy";
 import { notifyReportResult } from "./userNotifications";
+import { ensureChatBillingSettlementSchema } from "./chatBillingSettlementSchema";
+import { CHAT_TURN_CHARGE_KIND } from "./chatBillingSettlementSchema";
 
 export type RefundProcessResult =
   | {
@@ -121,6 +123,12 @@ export function refundMessageDeduction(
   reason: string
 ): PointBalance {
   const db = getDb();
+  try {
+    // Additive refund marker support (idempotent, non-destructive).
+    ensureChatBillingSettlementSchema(db);
+  } catch {
+    // Legacy/partial schemas: the reversal below still proceeds.
+  }
   db.transaction(() => {
     if (slices.length === 0) {
       // Exact-reversal contract: without source slices there is nothing to
@@ -141,6 +149,24 @@ export function refundMessageDeduction(
     );
 
     db.prepare("UPDATE messages SET is_refunded = 1 WHERE id = ?").run(messageId);
+    // Canonical refund projection: mark the charge event of the generation that
+    // is current at refund time, identified by the settlement's existing
+    // (assistant_message_id, request_id) identity. This keeps the refund tied to
+    // the exact generation even if the message is regenerated later (which
+    // resets is_refunded).
+    const requestIdRow = db
+      .prepare("SELECT request_id FROM messages WHERE id = ?")
+      .get(messageId) as { request_id: string | null } | undefined;
+    const refundedRequestId = requestIdRow?.request_id?.trim() || null;
+    if (refundedRequestId) {
+      db.prepare(
+        `UPDATE chat_billing_settlements
+            SET refunded_at = datetime('now')
+          WHERE assistant_message_id = ?
+            AND request_id = ?
+            AND charge_kind = ?`
+      ).run(messageId, refundedRequestId, CHAT_TURN_CHARGE_KIND);
+    }
     reverseCreatorRewardForMessage(messageId);
     db.prepare(
       "UPDATE users SET points = (SELECT COALESCE(SUM(remaining_amount), 0) FROM point_transactions WHERE user_id = ? AND remaining_amount > 0 AND expires_at > datetime('now')) WHERE id = ?"
