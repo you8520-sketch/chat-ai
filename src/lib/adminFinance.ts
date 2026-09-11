@@ -406,12 +406,33 @@ function tableColumnSet(db: Database.Database, table: string): Set<string> {
 }
 
 /**
+ * Refund projection for a charge event (single owner for native + bridge).
+ *  - settlement.refunded_at marks the exact generation reversed by the
+ *    canonical refund core, so it survives later regeneration.
+ *  - unmarked historical refund fallback: is_refunded=1 means no regeneration
+ *    happened after the refund, so the current message request id IS the
+ *    refunded generation. Never an assistant-wide blind filter.
+ */
+function isChargeEventRefunded(row: {
+  request_id: string;
+  refunded_at: string | null;
+  message_is_refunded: number | null;
+  message_request_id: string | null;
+}): boolean {
+  if (row.refunded_at) return true;
+  return (
+    Number(row.message_is_refunded) === 1 &&
+    (row.message_request_id ?? "") === row.request_id
+  );
+}
+
+/**
  * ONE USER CHARGE EVENT = ONE REVENUE EVENT. Only NATIVE chat_turn settlements
  * are monthly charge events (owned by their created_at period; PAID/FREE from
- * the stored slices). The legacy bridge source
- * (legacy_message_deduction_slices) is bookkeeping materialized later, NOT a
- * charge event, so its insertion time is never used as an event period.
- * Other charge kinds are excluded from chat revenue by construction.
+ * the stored slices). Refunded charge events are excluded by isChargeEventRefunded.
+ * The legacy bridge source (legacy_message_deduction_slices) is bookkeeping
+ * materialized later, NOT a charge event, so its insertion time is never used
+ * as an event period. Other charge kinds are excluded from chat revenue.
  */
 function readMonthlyChargeEvents(
   db: Database.Database,
@@ -421,29 +442,38 @@ function readMonthlyChargeEvents(
   if (!chatBillingSettlementTableExists(db)) return [];
   const rows = db
     .prepare(
-      `SELECT request_id, assistant_message_id, deduction_slices_json
-       FROM chat_billing_settlements
-       WHERE created_at >= ? AND created_at < ?
-         AND charge_kind = ?
-         AND source = 'native'`
+      `SELECT s.request_id, s.assistant_message_id, s.deduction_slices_json,
+              s.refunded_at,
+              m.is_refunded AS message_is_refunded,
+              m.request_id AS message_request_id
+       FROM chat_billing_settlements s
+       LEFT JOIN messages m ON m.id = s.assistant_message_id
+       WHERE s.created_at >= ? AND s.created_at < ?
+         AND s.charge_kind = ?
+         AND s.source = 'native'`
     )
     .all(start, end, CHAT_TURN_CHARGE_KIND) as Array<{
     request_id: string;
     assistant_message_id: number | null;
     deduction_slices_json: string | null;
+    refunded_at: string | null;
+    message_is_refunded: number | null;
+    message_request_id: string | null;
   }>;
-  return rows.map((row) => {
-    const totals = sliceTotals(row.deduction_slices_json);
-    return {
-      requestId: typeof row.request_id === "string" ? row.request_id : "",
-      assistantMessageId:
-        row.assistant_message_id != null && Number.isFinite(row.assistant_message_id)
-          ? Number(row.assistant_message_id)
-          : null,
-      paid: totals.paid,
-      free: totals.free,
-    };
-  });
+  return rows
+    .filter((row) => !isChargeEventRefunded(row))
+    .map((row) => {
+      const totals = sliceTotals(row.deduction_slices_json);
+      return {
+        requestId: typeof row.request_id === "string" ? row.request_id : "",
+        assistantMessageId:
+          row.assistant_message_id != null && Number.isFinite(row.assistant_message_id)
+            ? Number(row.assistant_message_id)
+            : null,
+        paid: totals.paid,
+        free: totals.free,
+      };
+    });
 }
 
 /**
@@ -462,7 +492,10 @@ function readMonthlyLegacyBridgeEvents(
   if (!chatBillingSettlementTableExists(db)) return [];
   const rows = db
     .prepare(
-      `SELECT s.request_id, s.assistant_message_id, s.deduction_slices_json
+      `SELECT s.request_id, s.assistant_message_id, s.deduction_slices_json,
+              s.refunded_at,
+              m.is_refunded AS message_is_refunded,
+              m.request_id AS message_request_id
        FROM chat_billing_settlements s
        JOIN messages m ON m.id = s.assistant_message_id
        WHERE s.charge_kind = ?
@@ -473,19 +506,24 @@ function readMonthlyLegacyBridgeEvents(
     request_id: string;
     assistant_message_id: number | null;
     deduction_slices_json: string | null;
+    refunded_at: string | null;
+    message_is_refunded: number | null;
+    message_request_id: string | null;
   }>;
-  return rows.map((row) => {
-    const totals = sliceTotals(row.deduction_slices_json);
-    return {
-      requestId: typeof row.request_id === "string" ? row.request_id : "",
-      assistantMessageId:
-        row.assistant_message_id != null && Number.isFinite(row.assistant_message_id)
-          ? Number(row.assistant_message_id)
-          : null,
-      paid: totals.paid,
-      free: totals.free,
-    };
-  });
+  return rows
+    .filter((row) => !isChargeEventRefunded(row))
+    .map((row) => {
+      const totals = sliceTotals(row.deduction_slices_json);
+      return {
+        requestId: typeof row.request_id === "string" ? row.request_id : "",
+        assistantMessageId:
+          row.assistant_message_id != null && Number.isFinite(row.assistant_message_id)
+            ? Number(row.assistant_message_id)
+            : null,
+        paid: totals.paid,
+        free: totals.free,
+      };
+    });
 }
 
 /**

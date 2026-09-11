@@ -32,6 +32,8 @@ export const CHAT_BILLING_SETTLEMENTS_DDL = `
     reason TEXT NOT NULL DEFAULT '',
     source TEXT NOT NULL DEFAULT 'native',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    /** Set when the canonical reversal core refunds this charge event. */
+    refunded_at TEXT,
     UNIQUE(user_id, chat_id, request_id, charge_kind)
   );
   CREATE INDEX IF NOT EXISTS idx_chat_billing_settlements_message
@@ -52,8 +54,21 @@ const REQUIRED_COLUMNS = [
   "source",
 ] as const;
 
-export function ensureChatBillingSettlementSchema(db: Pick<Database.Database, "exec">): void {
+export function ensureChatBillingSettlementSchema(
+  db: Pick<Database.Database, "exec" | "prepare">
+): void {
   db.exec(CHAT_BILLING_SETTLEMENTS_DDL);
+  // Additive refund projection marker (never part of the canonical identity).
+  const columns = new Set(
+    (
+      db.prepare(`PRAGMA table_info(${CHAT_BILLING_SETTLEMENTS_TABLE})`).all() as Array<{
+        name: string;
+      }>
+    ).map((column) => column.name)
+  );
+  if (!columns.has("refunded_at")) {
+    db.exec(`ALTER TABLE ${CHAT_BILLING_SETTLEMENTS_TABLE} ADD COLUMN refunded_at TEXT`);
+  }
 }
 
 function tableExists(db: Pick<Database.Database, "prepare">, table: string): boolean {
