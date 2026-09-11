@@ -9,7 +9,6 @@ import {
   resolveOpenRouterModelRates,
 } from "@/lib/openRouterModelPricing";
 import {
-  isCheaperInferenceDeepSeekV4FlashModel,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
 } from "@/lib/chatModels";
 import type { Usage } from "@/lib/chatUsage";
@@ -419,20 +418,13 @@ export function buildAdminFinanceSummary(
         modelLabel?: string;
       };
       model = usage.modelLabel?.trim() || usage.model?.trim() || model;
-      const isLedgeredDeepSeekFlash = isCheaperInferenceDeepSeekV4FlashModel(
-        usage.model ?? ""
-      );
-      if (isLedgeredDeepSeekFlash) {
-        rowApiCost = 0;
-        rowMarginCoverage = "complete";
-        rowRealizedMarginExact = true;
-      } else {
-        const ledgerRows = ledgerByAssistant.get(row.id) ?? [];
-        const turnCost = resolveMessageTurnProviderCostKrw(usage, ledgerRows);
-        rowApiCost = turnCost.knownApiCostKrw;
-        rowMarginCoverage = turnCost.coverage;
-        rowRealizedMarginExact = turnCost.realizedMarginExact;
-      }
+      // No model-specific cost branches: every message goes through the
+      // generic canonical turn-cost owner (settled actuals win inside it).
+      const ledgerRows = ledgerByAssistant.get(row.id) ?? [];
+      const turnCost = resolveMessageTurnProviderCostKrw(usage, ledgerRows);
+      rowApiCost = turnCost.knownApiCostKrw;
+      rowMarginCoverage = turnCost.coverage;
+      rowRealizedMarginExact = turnCost.realizedMarginExact;
       chatApiCost += rowApiCost;
       chatMarginCoverage = mergeFinanceTurnCostCoverage(
         chatMarginCoverage,

@@ -224,7 +224,7 @@ function ensureProviderRequestIdempotencyIndex(db: Database.Database): void {
     .get() as { 1: number } | undefined;
   if (dirty) {
     console.warn(
-      "[provider-cost-ledger] duplicate (provider, request_id) rows exist — skipping unique index (SELECT-dedup fallback stays active)"
+      "[provider-cost-ledger] duplicate (provider, request_id) rows exist — skipping unique index (writers use the legacy unlink-row path)"
     );
     return;
   }
@@ -397,38 +397,63 @@ export function startProviderCostAttempt(
 
   ensureProviderCostLedgerSchema(db);
   const providerRequestId = ctx.providerRequestId?.trim() || null;
-  const result = db
-    .prepare(
-      `INSERT INTO api_cost_ledger
-      (event_key, chat_id, assistant_message_id, generation_sequence, generation_request_id,
-       family, funding_class, execution_phase,
-       attempt_ordinal, requested_provider, requested_model, provider, model, request_kind,
-       cost_center, provider_request_id, event_status, exchange_rate_krw_per_usd, cost_krw, estimated, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'started', 0, 0, 1, datetime('now'))
-     ON CONFLICT(provider, provider_request_id)
-     WHERE provider_request_id IS NOT NULL AND provider_request_id != ''
-     DO NOTHING`
-    )
-    .run(
-      physicalAttemptId,
-      ctx.chatId,
-      ctx.assistantMessageId,
-      ctx.generationSequence,
-      ctx.generationRequestId ?? null,
-      ctx.family,
-      ctx.fundingClass,
-      ctx.executionPhase,
-      ctx.jobAttemptOrdinal,
-      ctx.requestedProvider,
-      ctx.requestedModel,
-      ctx.requestedProvider,
-      ctx.requestedModel,
-      ctx.requestKind?.slice(0, 120) ?? "",
-      ctx.costCenter ?? null,
-      providerRequestId
-    );
+  // Atomic billing-identity dedup only when the partial unique index
+  // exists; legacy/dirty DBs without it keep the plain INSERT (no crash —
+  // ON CONFLICT without a matching index would raise SQLITE_ERROR).
+  const columns =
+    "event_key, chat_id, assistant_message_id, generation_sequence, generation_request_id, family, funding_class, execution_phase, attempt_ordinal, requested_provider, requested_model, provider, model, request_kind, cost_center, provider_request_id, event_status, exchange_rate_krw_per_usd, cost_krw, estimated, created_at";
+  const values: unknown[] = [
+    physicalAttemptId,
+    ctx.chatId,
+    ctx.assistantMessageId,
+    ctx.generationSequence,
+    ctx.generationRequestId ?? null,
+    ctx.family,
+    ctx.fundingClass,
+    ctx.executionPhase,
+    ctx.jobAttemptOrdinal,
+    ctx.requestedProvider,
+    ctx.requestedModel,
+    ctx.requestedProvider,
+    ctx.requestedModel,
+    ctx.requestKind?.slice(0, 120) ?? "",
+    ctx.costCenter ?? null,
+    providerRequestId,
+  ];
+  const placeholders = values.map(() => "?").join(", ");
+  let result: { changes: number };
+  if (providerRequestId && hasProviderRequestIdempotencyIndex(db)) {
+    result = db
+      .prepare(
+        `INSERT INTO api_cost_ledger (${columns})
+         VALUES (${placeholders}, 'started', 0, 0, 1, datetime('now'))
+         ON CONFLICT(provider, provider_request_id)
+         WHERE provider_request_id IS NOT NULL AND provider_request_id != ''
+         DO NOTHING`
+      )
+      .run(...values);
+  } else {
+    result = db
+      .prepare(
+        `INSERT INTO api_cost_ledger (${columns})
+         VALUES (${placeholders}, 'started', 0, 0, 1, datetime('now'))`
+      )
+      .run(...values);
+  }
 
   return { physicalAttemptId, context: ctx, deduplicated: result.changes === 0 };
+}
+
+/** True only when the DB-level billing-identity guard exists. */
+export function hasProviderRequestIdempotencyIndex(
+  db: Database.Database = getDb()
+): boolean {
+  const row = db
+    .prepare(
+      "SELECT 1 AS ok FROM sqlite_master WHERE type='index' AND name='idx_api_cost_ledger_provider_request'"
+    )
+    .get() as { ok: number } | undefined;
+  return row != null;
 }
 
 export function finalizeProviderCostAttempt(
@@ -691,6 +716,83 @@ export function recordBackgroundProviderCost(
   ensureProviderCostLedgerSchema(db);
 
   const requestId = input.providerRequestId?.trim() || null;
+  if (requestId && hasProviderRequestIdempotencyIndex(db)) {
+    // Atomic path (clean DBs): the start INSERT converges concurrent
+    // workers on one row; losers never finalize.
+    const costCenter =
+      input.costCenter ?? resolveLedgerCostCenter({ family: "background", request_kind: input.requestKind });
+    const attempt = startProviderCostAttempt(
+      {
+        chatId: null,
+        assistantMessageId: null,
+        generationSequence: 0,
+        generationRequestId: requestId,
+        family: "background",
+        fundingClass: "platform_funded",
+        executionPhase: "async_post_turn",
+        jobAttemptOrdinal: 1,
+        requestedProvider: input.provider,
+        requestedModel: input.model,
+        requestKind: input.requestKind,
+        costCenter,
+        providerRequestId: requestId,
+        persistInTests: input.persistInTests,
+      },
+      db
+    );
+    if (attempt.deduplicated) {
+      const existing = db
+        .prepare(
+          "SELECT event_key FROM api_cost_ledger WHERE provider = ? AND provider_request_id = ? LIMIT 1"
+        )
+        .get(input.provider, requestId) as { event_key: string } | undefined;
+      return { eventKey: existing?.event_key ?? attempt.physicalAttemptId, recorded: false };
+    }
+    const finalized = finalizeProviderCostAttempt(
+      attempt,
+      {
+        actualProvider: input.provider,
+        actualModel: input.model,
+        inputTokens: input.inputTokens,
+        outputTokens: input.outputTokens,
+        cacheReadTokens: input.cacheReadTokens,
+        cacheWriteTokens: input.cacheWriteTokens,
+        reasoningTokens: input.reasoningTokens,
+        cheaperInferenceBilledCostUsd: input.cheaperInferenceBilledCostUsd,
+        upstreamCostUsd: input.upstreamCostUsd,
+        usageEstimated: input.usageEstimated,
+        providerRequestId: requestId,
+        httpStatus: input.httpStatus,
+        outcome: input.outcome,
+      },
+      db
+    );
+    return { eventKey: finalized.eventKey, recorded: finalized.updated };
+  }
+
+  // Legacy path (DBs whose pre-existing duplicates block the unique index):
+  // no in-memory flags, no silent drops, no deletions. A fresh identity
+  // records normally (a concurrent same-id race on such DBs can still
+  // duplicate - unfixable without the index; documented residual). A dirty
+  // identity records its cost on an unlink row so the spend stays visible
+  // without adding another duplicate of the corrupted identity. Callers
+  // never retry recordBackground itself (provider retries mint fresh
+  // provider ids), so the unlink fallback does not multiply costs.
+  let effectiveRequestId = requestId;
+  if (requestId) {
+    const matches = db
+      .prepare(
+        "SELECT COUNT(*) AS c FROM api_cost_ledger WHERE provider = ? AND provider_request_id = ?"
+      )
+      .get(input.provider, requestId) as { c: number };
+    if (matches.c > 0) {
+      console.warn(
+        "[provider-cost-ledger] duplicate billing identity kept as-is; recording cost on an unlink row",
+        { provider: input.provider, requestId }
+      );
+      effectiveRequestId = null;
+    }
+  }
   const costCenter =
     input.costCenter ?? resolveLedgerCostCenter({ family: "background", request_kind: input.requestKind });
   const attempt = startProviderCostAttempt(
@@ -698,7 +800,7 @@ export function recordBackgroundProviderCost(
       chatId: null,
       assistantMessageId: null,
       generationSequence: 0,
-      generationRequestId: requestId,
+      generationRequestId: effectiveRequestId,
       family: "background",
       fundingClass: "platform_funded",
       executionPhase: "async_post_turn",
@@ -707,21 +809,11 @@ export function recordBackgroundProviderCost(
       requestedModel: input.model,
       requestKind: input.requestKind,
       costCenter,
-      providerRequestId: requestId,
+      providerRequestId: effectiveRequestId,
       persistInTests: input.persistInTests,
     },
     db
   );
-  if (attempt.deduplicated) {
-    const existing = requestId
-      ? (db
-          .prepare(
-            "SELECT event_key FROM api_cost_ledger WHERE provider = ? AND provider_request_id = ? LIMIT 1"
-          )
-          .get(input.provider, requestId) as { event_key: string } | undefined)
-      : undefined;
-    return { eventKey: existing?.event_key ?? attempt.physicalAttemptId, recorded: false };
-  }
   const finalized = finalizeProviderCostAttempt(
     attempt,
     {
@@ -735,7 +827,7 @@ export function recordBackgroundProviderCost(
       cheaperInferenceBilledCostUsd: input.cheaperInferenceBilledCostUsd,
       upstreamCostUsd: input.upstreamCostUsd,
       usageEstimated: input.usageEstimated,
-      providerRequestId: requestId,
+      providerRequestId: effectiveRequestId,
       httpStatus: input.httpStatus,
       outcome: input.outcome,
     },

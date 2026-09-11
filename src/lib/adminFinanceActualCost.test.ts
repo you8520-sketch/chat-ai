@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildAdminFinanceSummary } from "./adminFinance";
+import { buildAdminFinanceSummary, ensureAdminFinanceTables } from "./adminFinance";
 import { resolveBillingExchangeRateSnapshot } from "./exchangeRate";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
@@ -12,7 +12,9 @@ import {
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL } from "./chatModels";
 import { ensureProviderCostLedgerSchema } from "./providerCostLedger";
 import {
+  ensureProviderCostLedgerSchema,
   finalizeProviderCostAttempt,
+  hasProviderRequestIdempotencyIndex,
   readLedgerPeriodCostAttribution,
   recordBackgroundProviderCost,
   resolveLedgerCostCenter,
@@ -33,7 +35,7 @@ function settledKrw(db: Database.Database, requestId: string): number {
   return Math.round(row.actual_cost_usd * row.exchange_rate_krw_per_usd * 10) / 10;
 }
 
-function financeDb(): Database.Database {
+function financeDbBare(): Database.Database {
   const db = new Database(":memory:");
   db.exec(`
     CREATE TABLE messages (
@@ -85,6 +87,12 @@ function financeDb(): Database.Database {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  ensureAdminFinanceTables(db);
+  return db;
+}
+
+function financeDb(): Database.Database {
+  const db = financeDbBare();
   ensureProviderCostLedgerSchema(db);
   return db;
 }
@@ -409,12 +417,32 @@ describe("admin finance actual cost — dynamic discovery and attribution", () =
     const base = financeDb();
     const withCost = financeDb();
     try {
+      // Settled zero-cost main stage (generic owner): exact summary with no
+      // API cost of its own, so the unlinked actual is the only delta.
+      const settledZeroUsage = JSON.stringify({
+        model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+        modelLabel: "DeepSeek V4 Flash",
+        provider: "cheaperinference",
+        input: 100,
+        output: 50,
+        cost: 5000,
+        shadowPricing: {
+          pricingVersion: 1,
+          actualTurnCostCoverage: "complete",
+          actualProviderCostKrw: 0,
+          actualCostUsd: 0,
+          actualCostSource: "cheaper_inference_billed",
+          provider: "cheaperinference",
+          modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+          fxSnapshot: { effectiveKrwPerUsd: 1500 },
+        },
+      });
       for (const db of [base, withCost]) {
         db.prepare(
           `INSERT INTO messages (id, chat_id, role, usage, deduction_slices, created_at, is_refunded)
            VALUES (1, 1, 'assistant', ?, ?, datetime('now'), 0)`
         ).run(
-          JSON.stringify({ model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL }),
+          settledZeroUsage,
           JSON.stringify([{ pointType: "PAID", amount: 5000 }])
         );
       }
@@ -627,58 +655,49 @@ describe("admin finance actual cost — merge-blocker regressions N-U", () => {
     }
   });
 
-  it.skip("R. BLOCKED: DeepSeek message-linked exact cost must appear exactly once (deletion needs approval)", () => {
-    // Root-cause proof: the isLedgeredDeepSeekFlash branch in
-    // buildAdminFinanceSummary zeroes message-linked flash costs even when
-    // an exact ledger settlement exists. Removing that branch needs user
-    // approval (existing-code deletion) — this fixture stays skipped until
-    // then. Pre-deletion run evidence: totalApiCostKrw 0 vs exact, model row 0.
+  it("R. DeepSeek message-linked exact cost appears exactly once", () => {
+    // Root cause was the isLedgeredDeepSeekFlash branch in
+    // buildAdminFinanceSummary, which zeroed message-linked flash costs.
+    // Production truth for a main-turn exact is the settled usage stage
+    // (main-turn costs live in usage, not in ledger rows), so this fixture
+    // carries settled shadowPricing with NO ledger rows: any ledger
+    // involvement would be a second, different cost. Exact 76.5 must appear
+    // in totals, net profit, and the model row exactly once.
     const db = financeDb();
     try {
       db.prepare(
         `INSERT INTO messages (id, chat_id, role, usage, deduction_slices, created_at, is_refunded)
          VALUES (1, 1, 'assistant', ?, ?, datetime('now'), 0)`
       ).run(
-        JSON.stringify({ model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL, modelLabel: "DeepSeek V4 Flash" }),
+        JSON.stringify({
+          model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+          modelLabel: "DeepSeek V4 Flash",
+          provider: "cheaperinference",
+          input: 1000,
+          output: 500,
+          cost: 5000,
+          shadowPricing: {
+            pricingVersion: 1,
+            actualTurnCostCoverage: "complete",
+            actualProviderCostKrw: 76.5,
+            actualCostUsd: 0.05,
+            actualCostSource: "cheaper_inference_billed",
+            provider: "cheaperinference",
+            modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+            fxSnapshot: { effectiveKrwPerUsd: 1530 },
+          },
+        }),
         JSON.stringify([{ pointType: "PAID", amount: 5000 }])
       );
-      const linked = startProviderCostAttempt(
-        {
-          chatId: 1,
-          assistantMessageId: 1,
-          generationSequence: 0,
-          family: "post_turn_shared_initial",
-          fundingClass: "platform_funded",
-          executionPhase: "sync_post_turn",
-          jobAttemptOrdinal: 1,
-          requestedProvider: "cheaperinference",
-          requestedModel: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-          requestKind: "background-shared-initial",
-          persistInTests: true,
-        },
-        db
-      );
-      finalizeProviderCostAttempt(
-        linked,
-        {
-          actualProvider: "cheaperinference",
-          actualModel: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-          inputTokens: 200,
-          outputTokens: 100,
-          cheaperInferenceBilledCostUsd: 0.05,
-          providerRequestId: "req-r-1",
-          outcome: "success",
-        },
-        db
-      );
       const summary = buildAdminFinanceSummary(db);
-      const expected = settledKrw(db, "req-r-1");
-      assert.ok(expected > 0);
-      assert.equal(summary.totalApiCostKrw, expected);
-      assert.equal(summary.netProfitKrw, 5000 - expected);
+      assert.equal(summary.totalApiCostKrw, 76.5);
+      assert.equal(summary.netProfitKrw, 5000 - 76.5);
       const flashRow = summary.modelBreakdown.find((r) => r.model === "DeepSeek V4 Flash");
       assert.ok(flashRow, "flash model row present");
-      assert.equal(flashRow!.apiCostKrw, expected);
+      assert.equal(flashRow!.apiCostKrw, 76.5);
+      const aiFlash = summary.aiModelCosts.find((r) => r.model === "DeepSeek V4 Flash");
+      assert.ok(aiFlash, "flash union row present");
+      assert.equal(aiFlash!.kind, "direct");
     } finally {
       db.close();
     }
@@ -785,8 +804,7 @@ describe("admin finance actual cost — merge-blocker regressions N-U", () => {
     }
   });
 
-  it("U. assetVisionStructured passes the exact CI invocation (no react-server condition)", () => {
-    const visionSource = readFileSync(join(process.cwd(), "src/lib/vision.ts"), "utf8");
+  it("U. assetVisionStructured passes the exact CI invocation (no react-server condition)", () => {    const visionSource = readFileSync(join(process.cwd(), "src/lib/vision.ts"), "utf8");
     assert.equal(
       visionSource.includes("providerCostLedger"),
       false,
@@ -802,5 +820,182 @@ describe("admin finance actual cost — merge-blocker regressions N-U", () => {
       0,
       `CI-equivalent invocation must exit 0, stderr: ${(result.stderr as string ?? "").slice(-2000)}`
     );
+  });
+});
+
+describe("admin finance actual cost — billing-identity hardening V-Y", () => {
+  function dirtyLegacyDb(): Database.Database {
+    // True dirty legacy shape: full columns, NO partial unique index, then
+    // two rows sharing one (provider, request id) — the state in which
+    // index creation must be skipped without breaking boot or writers.
+    const db = financeDbBare();
+    ensureProviderCostLedgerSchema(db);
+    db.exec("DROP INDEX IF EXISTS idx_api_cost_ledger_provider_request");
+    db.prepare(
+      `INSERT INTO api_cost_ledger
+        (provider, model, request_kind, provider_request_id, event_status,
+         actual_cost_usd, actual_cost_source, exchange_rate_krw_per_usd,
+         cost_krw, estimated, created_at)
+       VALUES ('cheaperinference', 'dirty-model', 'background-memory-extract',
+         'req-dirty-1', 'settled', 0.001, 'cheaper_inference_billed', 1500, 1.5, 0,
+         datetime('now'))`
+    ).run();
+    db.prepare(
+      `INSERT INTO api_cost_ledger
+        (provider, model, request_kind, provider_request_id, event_status,
+         actual_cost_usd, actual_cost_source, exchange_rate_krw_per_usd,
+         cost_krw, estimated, created_at)
+       VALUES ('cheaperinference', 'dirty-model', 'background-memory-extract',
+         'req-dirty-1', 'settled', 0.001, 'cheaper_inference_billed', 1500, 1.5, 0,
+         datetime('now'))`
+    ).run();
+    return db;
+  }
+
+  function identityCount(db: Database.Database, provider: string, requestId: string): number {
+    return (
+      db
+        .prepare(
+          "SELECT COUNT(*) AS c FROM api_cost_ledger WHERE provider = ? AND provider_request_id = ?"
+        )
+        .get(provider, requestId) as { c: number }
+    ).c;
+  }
+
+  it("V. dirty legacy duplicates: ensure survives, writer never errors, cost never lost, no new dup", () => {
+    const db = dirtyLegacyDb();
+    try {
+      assert.equal(identityCount(db, "cheaperinference", "req-dirty-1"), 2);
+      ensureProviderCostLedgerSchema(db);
+      const indexes = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_api_cost_ledger_provider_request'")
+        .all() as { name: string }[];
+      assert.equal(indexes.length, 0, "unique index skipped on dirty data, boot survives");
+      const before = buildAdminFinanceSummary(db).aiCost.totalActualKrw;
+      const written = recordBackgroundProviderCost(
+        {
+          provider: "cheaperinference",
+          model: "v-model",
+          requestKind: "background-memory-extract",
+          cheaperInferenceBilledCostUsd: 0.009,
+          providerRequestId: "req-dirty-1",
+          outcome: "success",
+          persistInTests: true,
+        },
+        db
+      );
+      assert.equal(written.recorded, true, "new cost is recorded, never silently dropped");
+      assert.equal(identityCount(db, "cheaperinference", "req-dirty-1"), 2, "no third duplicate row");
+      const after = buildAdminFinanceSummary(db).aiCost.totalActualKrw;
+      assert.ok(after - before >= 13, `new actual cost visible in totals (delta=${after - before})`);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("W. clean DB owns the partial unique index; duplicate writers keep exactly 1 row", () => {
+    const db = financeDb();
+    try {
+      ensureProviderCostLedgerSchema(db);
+      const indexes = db
+        .prepare("SELECT sql FROM sqlite_master WHERE type='index' AND name='idx_api_cost_ledger_provider_request'")
+        .all() as { sql: string }[];
+      assert.equal(indexes.length, 1, "partial unique index exists on clean data");
+      assert.ok(indexes[0]!.sql.includes("provider_request_id IS NOT NULL"));
+      const first = recordBackgroundProviderCost(
+        {
+          provider: "cheaperinference",
+          model: "w-model",
+          requestKind: "background-memory-extract",
+          cheaperInferenceBilledCostUsd: 0.005,
+          providerRequestId: "req-w-1",
+          outcome: "success",
+          persistInTests: true,
+        },
+        db
+      );
+      const second = recordBackgroundProviderCost(
+        {
+          provider: "cheaperinference",
+          model: "w-model",
+          requestKind: "background-memory-extract",
+          cheaperInferenceBilledCostUsd: 0.005,
+          providerRequestId: "req-w-1",
+          outcome: "success",
+          persistInTests: true,
+        },
+        db
+      );
+      assert.equal(first.recorded, true);
+      assert.equal(second.recorded, false);
+      assert.equal(identityCount(db, "cheaperinference", "req-w-1"), 1);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("X. calls without providerRequestId use the normal event-identity path", () => {
+    const db = financeDb();
+    try {
+      const first = recordBackgroundProviderCost(
+        {
+          provider: "openrouter",
+          model: "x-model",
+          requestKind: "comment-moderation",
+          inputTokens: 40,
+          outputTokens: 5,
+          upstreamCostUsd: 0.001,
+          outcome: "success",
+          persistInTests: true,
+        },
+        db
+      );
+      const second = recordBackgroundProviderCost(
+        {
+          provider: "openrouter",
+          model: "x-model",
+          requestKind: "comment-moderation",
+          inputTokens: 40,
+          outputTokens: 5,
+          upstreamCostUsd: 0.001,
+          outcome: "success",
+          persistInTests: true,
+        },
+        db
+      );
+      assert.equal(first.recorded, true);
+      assert.equal(second.recorded, true);
+      assert.notEqual(first.eventKey, second.eventKey);
+      const count = (
+        db.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+      ).c;
+      assert.equal(count, 2);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("Y. actual cost survives duplicate-identity handling without loss", () => {
+    const db = dirtyLegacyDb();
+    try {
+      ensureProviderCostLedgerSchema(db);
+      const before = readLedgerPeriodCostAttribution(db, "2000-01-01", "2100-01-01").totals.actualKrw;
+      recordBackgroundProviderCost(
+        {
+          provider: "cheaperinference",
+          model: "y-model",
+          requestKind: "background-memory-extract",
+          cheaperInferenceBilledCostUsd: 0.009,
+          providerRequestId: "req-dirty-1",
+          outcome: "success",
+          persistInTests: true,
+        },
+        db
+      );
+      const after = readLedgerPeriodCostAttribution(db, "2000-01-01", "2100-01-01").totals.actualKrw;
+      assert.ok(after - before >= 13, `duplicate-identity cost preserved (delta=${after - before})`);
+    } finally {
+      db.close();
+    }
   });
 });
