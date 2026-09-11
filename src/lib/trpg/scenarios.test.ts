@@ -607,7 +607,7 @@ describe("TRPG scenarios and catalog", () => {
     db.close();
   });
 
-  it("stores landscape scenario assets and exposes them on the campaign snapshot", () => {
+  it("stores scenario assets of any orientation and exposes them on the campaign snapshot", () => {
     const db = memoryDb();
     const templateId = insertScenarioTemplate(db, 1, {
       title: "에셋 시나리오",
@@ -615,6 +615,7 @@ describe("TRPG scenarios and catalog", () => {
       assets: [
         { url: "/uploads/cover.webp", tag: "표지", width: 800, height: 1200 },
         { url: "/uploads/hall.webp", tag: "대합실", width: 1600, height: 900 },
+        { url: "/uploads/tall.webp", tag: "초상", width: 800, height: 1200 },
       ],
     });
     const campaignId = createTrpgCampaign(db, {
@@ -624,20 +625,9 @@ describe("TRPG scenarios and catalog", () => {
       templateId,
     });
     const snap = loadTrpgSnapshot(db, campaignId, 1);
-    assert.equal(snap?.scenarioAssets.length, 2);
+    assert.equal(snap?.scenarioAssets.length, 3);
     assert.equal(snap?.scenarioAssets[1]?.tag, "대합실");
-    assert.throws(
-      () =>
-        insertScenarioTemplate(db, 1, {
-          title: "세로 금지",
-          content: "본문입니다.",
-          assets: [
-            { url: "/uploads/cover.webp", tag: "표지", width: 800, height: 1200 },
-            { url: "/uploads/tall.webp", tag: "초상", width: 800, height: 1200 },
-          ],
-        }),
-      /가로로 긴 이미지/
-    );
+    assert.equal(snap?.scenarioAssets[2]?.tag, "초상");
     db.close();
   });
 

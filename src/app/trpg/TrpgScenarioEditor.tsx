@@ -11,9 +11,7 @@ import type { CharacterGenre } from "@/lib/characterGenres";
 import { measureImageUrl } from "@/lib/measureImageSize";
 import type { TrpgCatalog } from "@/lib/trpg/catalog";
 import {
-  TRPG_SCENARIO_LANDSCAPE_ONLY_ERROR,
   TRPG_SCENARIO_MAX_ASSETS,
-  assertScenarioAssetOrientations,
 } from "@/lib/trpg/scenarioAssets";
 import {
   emptyTrpgScenarioPlan,
@@ -318,13 +316,9 @@ export default function TrpgScenarioEditor({
   }
 
   function commitAssets(next: CharacterAsset[]) {
-    try {
-      assertScenarioAssetOrientations(next);
-      setScenarioAuthoringActive(true);
-      setAssets(next);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : TRPG_SCENARIO_LANDSCAPE_ONLY_ERROR);
-    }
+    // Aspect ratio is unrestricted — landscape, portrait, square all allowed.
+    setScenarioAuthoringActive(true);
+    setAssets(next);
   }
 
   function pickFiles(list: FileList | null) {
@@ -379,33 +373,22 @@ export default function TrpgScenarioEditor({
       const byUrl = new Map(taggedAssets.map((asset) => [asset.url, asset]));
       const measured = await Promise.all(uploadedUrls.map((url) => measureImageUrl(url)));
       const accepted: CharacterAsset[] = [];
-      let rejected = 0;
       uploadedUrls.forEach((url, i) => {
         const index = assets.length + accepted.length;
-        const sized = withAssetSize(
-          {
-            url,
-            tag: byUrl.get(url)?.tag.trim() || fallbackAssetTag(index),
-            ...defaultAssetFlags(assets, i),
-          },
-          measured[i]?.width,
-          measured[i]?.height
+        accepted.push(
+          withAssetSize(
+            {
+              url,
+              tag: byUrl.get(url)?.tag.trim() || fallbackAssetTag(index),
+              ...defaultAssetFlags(assets, i),
+            },
+            measured[i]?.width,
+            measured[i]?.height
+          )
         );
-        if (index > 0 && !sized.orientation) {
-          rejected += 1;
-          return;
-        }
-        if (index > 0 && sized.orientation !== "landscape") {
-          rejected += 1;
-          return;
-        }
-        accepted.push(sized);
       });
       if (accepted.length > 0) commitAssets([...assets, ...accepted]);
       setFiles([]);
-      if (rejected > 0) {
-        setError(`${TRPG_SCENARIO_LANDSCAPE_ONLY_ERROR} ${rejected}장은 추가하지 않았습니다.`);
-      }
     } catch {
       setError("에셋 업로드 중 오류가 발생했습니다.");
     } finally {
@@ -1224,7 +1207,7 @@ export default function TrpgScenarioEditor({
           <h3 className="text-base font-bold text-zinc-100">장면 이미지 / 에셋</h3>
           <p className="text-sm leading-relaxed text-zinc-300">
             장소, 배경, 사건, 크리처, 분위기 같은 장면용 이미지입니다. 보스나 조연 NPC의 인물 이미지는 각 NPC 카드에서
-            추가하세요. 1번 대표 이미지는 가로·세로 모두 가능하고, 나머지 장면 에셋은 가로로 긴 이미지만 사용할 수
+            추가하세요. 1번 대표 이미지와 나머지 장면 에셋 모두 가로·세로·정사각 등 원본 비율 그대로 사용할 수
             있습니다.
           </p>
           <input
@@ -1246,7 +1229,7 @@ export default function TrpgScenarioEditor({
           >
             + 시나리오 에셋 추가
             <span className="mt-1 block text-xs font-medium text-violet-200/70">
-              {assets.length + files.length} / {TRPG_SCENARIO_MAX_ASSETS}장 · 1번 이후는 가로 이미지
+              {assets.length + files.length} / {TRPG_SCENARIO_MAX_ASSETS}장 · 모든 비율
             </span>
           </button>
           {files.length > 0 ? (
@@ -1265,7 +1248,7 @@ export default function TrpgScenarioEditor({
                 assets={assets}
                 onChange={commitAssets}
                 onRemove={(index) => commitAssets(assets.filter((_, i) => i !== index))}
-                note="1번은 카드 대표. 2번부터는 가로로 긴 장면만 유지됩니다."
+                note="1번은 카드 대표. 나머지 장면 에셋은 모든 비율을 사용할 수 있습니다."
               />
             </div>
           ) : null}

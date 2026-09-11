@@ -113,7 +113,7 @@ describe("TRPG character context + GM asset integration", () => {
     ]);
     assert.match(catalog, /\[AI CHARACTER IMAGE TAGS\]/);
     assert.match(catalog, /participantId=12/);
-    assert.match(catalog, /tags=분노 \| 무표정 \| 전투/);
+    assert.match(catalog, /tags=\["분노","무표정","전투"\]/);
     assert.doesNotMatch(catalog, /https?:\/\//);
     assert.doesNotMatch(catalog, /\.webp|\.png|\.jpg/);
     const characterContext = buildAiPartyCharacterContextBlock([

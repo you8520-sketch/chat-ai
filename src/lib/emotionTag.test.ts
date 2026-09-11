@@ -95,9 +95,9 @@ describe("streaming emotion tag display firewall", () => {
 });
 
 describe("buildEmotionTagPrompt", () => {
-  it("lists unique tags and requires scene-matched choice", () => {
+  it("lists unique tags as a JSON array and requires scene-matched choice", () => {
     const block = buildEmotionTagPrompt(["진지함", "부끄러움", "침대에 누움", "진지함"]);
-    assert.match(block, /진지함, 부끄러움, 침대에 누움/);
+    assert.match(block, /\["진지함","부끄러움","침대에 누움"\]/);
     assert.match(block, /in the body at the moment/);
     assert.match(block, /FORBIDDEN: any tag not in the list/);
     assert.match(block, /\[태그: tagname\]/);

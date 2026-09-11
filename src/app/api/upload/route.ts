@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { getSessionUser } from "@/lib/auth";
 import { storeUpload } from "@/lib/uploadStorage";
-import { optimizeUploadImage } from "@/lib/uploadImageOptimize";
+import { optimizeUploadImage, UploadImageError } from "@/lib/uploadImageOptimize";
 
 const MAX_FILES = 100;
 const MAX_SIZE = 4 * 1024 * 1024; // 4MB per file
@@ -30,7 +30,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `4MB를 초과하는 파일입니다: ${file.name}` }, { status: 400 });
     }
     const input = Buffer.from(await file.arrayBuffer());
-    const optimized = await optimizeUploadImage(input, file.type);
+    let optimized;
+    try {
+      optimized = await optimizeUploadImage(input, file.type);
+    } catch (error) {
+      if (error instanceof UploadImageError) {
+        return NextResponse.json({ error: `${error.message}: ${file.name}` }, { status: error.status });
+      }
+      return NextResponse.json({ error: `이미지를 처리할 수 없습니다: ${file.name}` }, { status: 400 });
+    }
     const name = `${crypto.randomUUID()}.${optimized.ext}`;
     const stored = await storeUpload(name, optimized.buffer, optimized.mime);
     urls.push(stored.url);

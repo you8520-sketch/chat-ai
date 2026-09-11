@@ -1,3 +1,8 @@
+import {
+  normalizePromptLabels,
+  serializePromptLabels,
+} from "@/lib/promptLabelSerialization";
+
 const TAG_RE = /\[태그:\s*([^\]]+)\]\s*$/;
 const PARTIAL_TAG_RE = /\[태그:[^\]]*$/;
 const ANY_TAG_RE = /\n?\[태그:\s*([^\]]+)\]\s*/g;
@@ -102,13 +107,13 @@ export function resolveEmotionTag(tag: string, allowedTags: string[]): string | 
 }
 
 export function buildEmotionTagPrompt(allowedTags: string[]): string {
-  if (allowedTags.length === 0) return "";
-  const unique = [...new Set(allowedTags.map((t) => t.trim()).filter(Boolean))];
-  const list = unique.join(", ");
+  const unique = normalizePromptLabels(allowedTags);
+  if (unique.length === 0) return "";
+  const list = serializePromptLabels(unique);
   const fallback = unique.includes("대화") ? "대화" : unique[0]!;
   return `[DISPLAY ASSET TAG — UPLOADED IMAGES ONLY]
 Each tag names an uploaded character image (expression, pose, or situation — e.g. 부끄러움, 무표정, 키스, 밀착).
-Allowed tags ONLY (copy spelling exactly): ${list}
+Allowed tags ONLY (JSON array; each element is one exact tag — copy the element text verbatim): ${list}
 Insert [태그: tagname] in the body at the moment that image should appear. Wide/landscape images render inline in the message at that position. Tall/portrait images update the left portrait (and mobile chat background).
 You may use more than one tag. Prefer a portrait tag for expression and landscape tags for scene images.
 If you only use one tag, put it at the end: [태그: tagname]
