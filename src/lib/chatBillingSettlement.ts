@@ -13,11 +13,11 @@ import {
 import {
   CHAT_BILLING_SETTLEMENTS_TABLE,
   CHAT_BILLING_SETTLEMENT_UNIQUE_COLUMNS,
+  CHAT_TURN_CHARGE_KIND,
 } from "./chatBillingSettlementSchema";
 
 export { ensureChatBillingSettlementSchema, hasChatBillingSettlementSchema } from "./chatBillingSettlementSchema";
-
-export const CHAT_TURN_CHARGE_KIND = "chat_turn";
+export { CHAT_TURN_CHARGE_KIND } from "./chatBillingSettlementSchema";
 
 /** Settlement uses BEGIN IMMEDIATE to serialize concurrent writers before claim insert. */
 export const SETTLEMENT_TRANSACTION_MODE = "IMMEDIATE" as const;

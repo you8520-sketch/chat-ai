@@ -7,6 +7,9 @@ import type Database from "better-sqlite3";
 
 export const CHAT_BILLING_SETTLEMENTS_TABLE = "chat_billing_settlements";
 
+/** Canonical charge-kind for a chat turn. Single literal owner (schema layer). */
+export const CHAT_TURN_CHARGE_KIND = "chat_turn";
+
 export const CHAT_BILLING_SETTLEMENT_UNIQUE_COLUMNS = [
   "user_id",
   "chat_id",
@@ -20,7 +23,7 @@ export const CHAT_BILLING_SETTLEMENTS_DDL = `
     user_id INTEGER NOT NULL,
     chat_id INTEGER NOT NULL,
     request_id TEXT NOT NULL,
-    charge_kind TEXT NOT NULL DEFAULT 'chat_turn',
+    charge_kind TEXT NOT NULL DEFAULT '${CHAT_TURN_CHARGE_KIND}',
     assistant_message_id INTEGER,
     requested_points INTEGER NOT NULL,
     settled_points INTEGER NOT NULL,

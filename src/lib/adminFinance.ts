@@ -17,6 +17,7 @@ import {
   mergeFinanceTurnCostCoverage,
   resolveMessageTurnProviderCostKrw,
   type FinanceTurnCostCoverage,
+  type LedgerCostContribution,
 } from "@/lib/adminFinanceTurnCost";
 import {
   ensureProviderCostLedgerSchema,
@@ -27,6 +28,8 @@ import {
 } from "@/lib/providerCostLedger";
 import { readProviderReconciliationState } from "@/lib/providerCostReconciliation";
 import { imageHasAccountingActivity } from "@/lib/adminFinanceMarginDisplay";
+import { CHAT_TURN_CHARGE_KIND } from "@/lib/chatBillingSettlementSchema";
+import { parseMessageVariants } from "@/lib/messageAlternates";
 
 export type FinanceMonthlyAdjustments = {
   monthKey: string;
@@ -345,19 +348,43 @@ function sliceTotals(raw: unknown): { paid: number; free: number } {
   return { paid, free };
 }
 
+function usageModelLabel(usage: Usage | null | undefined): string {
+  if (!usage) return "알 수 없음";
+  const typed = usage as Usage & { modelLabel?: string };
+  return typed.modelLabel?.trim() || typed.model?.trim() || "알 수 없음";
+}
+
 function messageModelLabel(rawUsage: string | null): string {
   try {
-    const usage = JSON.parse(rawUsage ?? "{}") as Usage & { modelLabel?: string };
-    return usage.modelLabel?.trim() || usage.model?.trim() || "알 수 없음";
+    return usageModelLabel(JSON.parse(rawUsage ?? "{}") as Usage);
   } catch {
     return "알 수 없음";
   }
 }
 
+/** Immutable per-generation model from a stored variant matched by request id. */
+function variantModelForRequest(rawAlternates: string | null, requestId: string): string | null {
+  if (!requestId) return null;
+  for (const variant of parseMessageVariants(rawAlternates)) {
+    if (variant.requestId && variant.requestId === requestId) {
+      return variant.model?.trim() || usageModelLabel(variant.usage);
+    }
+  }
+  return null;
+}
+
 type MonthlyChargeEvent = {
+  /** Immutable generation identity (settlement.request_id). */
+  requestId: string;
   assistantMessageId: number | null;
   paid: number;
   free: number;
+};
+
+type MessageProvenance = {
+  requestId: string | null;
+  usage: string | null;
+  alternates: string | null;
 };
 
 function chatBillingSettlementTableExists(db: Database.Database): boolean {
@@ -370,12 +397,21 @@ function chatBillingSettlementTableExists(db: Database.Database): boolean {
   );
 }
 
+function tableColumnSet(db: Database.Database, table: string): Set<string> {
+  return new Set(
+    (
+      db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+    ).map((column) => column.name)
+  );
+}
+
 /**
- * ONE USER CHARGE EVENT = ONE REVENUE EVENT. Canonical monthly charge events
- * are owned by chat_billing_settlements.created_at; PAID/FREE are summed from
- * the stored slices with the same semantics as the message fallback. A
- * duplicate replay reuses the single canonical row (never a second revenue
- * event), and a waived settlement has empty slices (0 revenue).
+ * ONE USER CHARGE EVENT = ONE REVENUE EVENT. Only NATIVE chat_turn settlements
+ * are monthly charge events (owned by their created_at period; PAID/FREE from
+ * the stored slices). The legacy bridge source
+ * (legacy_message_deduction_slices) is bookkeeping materialized later, NOT a
+ * charge event, so its insertion time is never used as an event period.
+ * Other charge kinds are excluded from chat revenue by construction.
  */
 function readMonthlyChargeEvents(
   db: Database.Database,
@@ -385,17 +421,21 @@ function readMonthlyChargeEvents(
   if (!chatBillingSettlementTableExists(db)) return [];
   const rows = db
     .prepare(
-      `SELECT assistant_message_id, deduction_slices_json
+      `SELECT request_id, assistant_message_id, deduction_slices_json
        FROM chat_billing_settlements
-       WHERE created_at >= ? AND created_at < ?`
+       WHERE created_at >= ? AND created_at < ?
+         AND charge_kind = ?
+         AND source = 'native'`
     )
-    .all(start, end) as Array<{
+    .all(start, end, CHAT_TURN_CHARGE_KIND) as Array<{
+    request_id: string;
     assistant_message_id: number | null;
     deduction_slices_json: string | null;
   }>;
   return rows.map((row) => {
     const totals = sliceTotals(row.deduction_slices_json);
     return {
+      requestId: typeof row.request_id === "string" ? row.request_id : "",
       assistantMessageId:
         row.assistant_message_id != null && Number.isFinite(row.assistant_message_id)
           ? Number(row.assistant_message_id)
@@ -407,9 +447,11 @@ function readMonthlyChargeEvents(
 }
 
 /**
- * Assistant messages that have a canonical settlement in ANY period. Their
- * revenue must come from the settlement event (period-owned), never from the
- * regeneration-overwritten messages.deduction_slices.
+ * Assistant messages that have a NATIVE chat_turn settlement in ANY period.
+ * Their revenue must come from settlement events (period-owned), never from the
+ * regeneration-overwritten messages.deduction_slices. A legacy bridge does NOT
+ * block the message fallback: its slices duplicate the original legacy charge,
+ * whose period is the message's own chronology.
  */
 function readCanonicallySettledMessageIds(db: Database.Database): Set<number> {
   const ids = new Set<number>();
@@ -417,9 +459,11 @@ function readCanonicallySettledMessageIds(db: Database.Database): Set<number> {
   const rows = db
     .prepare(
       `SELECT DISTINCT assistant_message_id FROM chat_billing_settlements
-       WHERE assistant_message_id IS NOT NULL`
+       WHERE assistant_message_id IS NOT NULL
+         AND charge_kind = ?
+         AND source = 'native'`
     )
-    .all() as Array<{ assistant_message_id: number }>;
+    .all(CHAT_TURN_CHARGE_KIND) as Array<{ assistant_message_id: number }>;
   for (const row of rows) {
     if (Number.isFinite(row.assistant_message_id)) ids.add(Number(row.assistant_message_id));
   }
@@ -435,6 +479,35 @@ function ledgerModelLabel(model: string): string {
     (candidate) => candidate.id.toLowerCase() === key
   );
   return option?.label ?? trimmed;
+}
+
+/**
+ * Immutable generation→model provenance: settlement.request_id
+ * is the same client request id stored as api_cost_ledger.generation_request_id
+ * by the main-RP writer. First writer wins deterministically per generation.
+ */
+function readLedgerModelByGenerationRequestId(db: Database.Database): Map<string, string> {
+  const map = new Map<string, string>();
+  const rows = db
+    .prepare(
+      `SELECT generation_request_id, actual_model, model
+       FROM api_cost_ledger
+       WHERE generation_request_id IS NOT NULL AND generation_request_id != ''
+       ORDER BY id ASC`
+    )
+    .all() as Array<{
+    generation_request_id: string;
+    actual_model: string | null;
+    model: string | null;
+  }>;
+  for (const row of rows) {
+    const requestId = row.generation_request_id;
+    if (map.has(requestId)) continue;
+    const model = (row.actual_model ?? "").trim() || (row.model ?? "").trim();
+    if (!model) continue;
+    map.set(requestId, ledgerModelLabel(model));
+  }
+  return map;
 }
 
 function category(
@@ -469,23 +542,42 @@ export function buildAdminFinanceSummary(
   const adjustments = getFinanceAdjustments(db, monthKey);
   const exchange = resolveBillingExchangeRateSnapshot();
 
+  // Provenance columns are read only when the live messages schema has them
+  // (minimal legacy/fixture schemas omit request_id/alternates).
+  const messageColumns = tableColumnSet(db, "messages");
+  const requestIdExpr = messageColumns.has("request_id")
+    ? "request_id"
+    : "NULL AS request_id";
+  const alternatesExpr = messageColumns.has("alternates")
+    ? "alternates"
+    : "NULL AS alternates";
+
   const messageRows = db
     .prepare(
-      `SELECT id, usage, deduction_slices
+      `SELECT id, ${requestIdExpr}, usage, deduction_slices, ${alternatesExpr}
        FROM messages
        WHERE role='assistant' AND created_at>=? AND created_at<?
          AND COALESCE(is_refunded, 0)=0`
     )
     .all(start, end) as {
     id: number;
+    request_id: string | null;
     usage: string | null;
     deduction_slices: string | null;
+    alternates: string | null;
   }[];
 
   const inPeriodAssistantIds = new Set(messageRows.map((row) => row.id));
-  const modelById = new Map<number, string>();
+  // Immutable generation model provenance. The mutable current message model is
+  // consulted ONLY when the generation request id matches exactly.
+  const ledgerModelByRequest = readLedgerModelByGenerationRequestId(db);
+  const provenanceByMessageId = new Map<number, MessageProvenance>();
   for (const row of messageRows) {
-    modelById.set(row.id, messageModelLabel(row.usage));
+    provenanceByMessageId.set(row.id, {
+      requestId: row.request_id,
+      usage: row.usage,
+      alternates: row.alternates,
+    });
   }
 
   // --- Canonical monthly user-charge events (chat_billing_settlements) ---
@@ -496,22 +588,56 @@ export function buildAdminFinanceSummary(
   // turns that have no canonical settlement in any period.
   const chargeEvents = readMonthlyChargeEvents(db, start, end);
   const settledMessageIds = readCanonicallySettledMessageIds(db);
-  // Resolve model labels for charge events that reference out-of-period
-  // messages (regeneration reuses the original assistant row).
-  const chargeModelIds = [
+  // Resolve provenance for charge events that reference out-of-period messages
+  // (regeneration reuses the original assistant row).
+  const chargeProvenanceIds = [
     ...new Set(
       chargeEvents
         .map((event) => event.assistantMessageId)
-        .filter((id): id is number => id != null && !modelById.has(id))
+        .filter((id): id is number => id != null && !provenanceByMessageId.has(id))
     ),
   ];
-  if (chargeModelIds.length > 0) {
-    const placeholders = chargeModelIds.map(() => "?").join(",");
+  if (chargeProvenanceIds.length > 0) {
+    const placeholders = chargeProvenanceIds.map(() => "?").join(",");
     const rows = db
-      .prepare(`SELECT id, usage FROM messages WHERE id IN (${placeholders})`)
-      .all(...chargeModelIds) as { id: number; usage: string | null }[];
-    for (const row of rows) modelById.set(row.id, messageModelLabel(row.usage));
+      .prepare(
+        `SELECT id, ${requestIdExpr}, usage, ${alternatesExpr} FROM messages WHERE id IN (${placeholders})`
+      )
+      .all(...chargeProvenanceIds) as Array<{
+      id: number;
+      request_id: string | null;
+      usage: string | null;
+      alternates: string | null;
+    }>;
+    for (const row of rows) {
+      provenanceByMessageId.set(row.id, {
+        requestId: row.request_id,
+        usage: row.usage,
+        alternates: row.alternates,
+      });
+    }
   }
+
+  // Generation-model resolution (never "latest message model"):
+  //   1. settlement.request_id ↔ ledger.generation_request_id model
+  //   2. message.request_id === settlement.request_id → current message usage
+  //   3. stored variant matched by request id
+  //   4. otherwise unknown (no timestamp/token/model guessing)
+  const resolveChargeEventModel = (event: MonthlyChargeEvent): string => {
+    if (event.assistantMessageId == null) return "알 수 없음";
+    const provenance = provenanceByMessageId.get(event.assistantMessageId);
+    if (!provenance) return "알 수 없음";
+    const ledgerModel = event.requestId
+      ? ledgerModelByRequest.get(event.requestId)
+      : undefined;
+    if (ledgerModel) return ledgerModel;
+    if (event.requestId && provenance.requestId === event.requestId) {
+      return messageModelLabel(provenance.usage);
+    }
+    const variantModel = variantModelForRequest(provenance.alternates, event.requestId);
+    if (variantModel) return variantModel;
+    return "알 수 없음";
+  };
 
   const assistantIds = [...inPeriodAssistantIds];
   let ledgerByAssistant = new Map<number, ProviderCostLedgerRow[]>();
@@ -576,11 +702,14 @@ export function buildAdminFinanceSummary(
     let rowApiCost = 0;
     let rowMarginCoverage: FinanceMarginCoverage = "unavailable";
     let rowRealizedMarginExact = false;
+    let ledgerContributions: LedgerCostContribution[] = [];
+    let usageCostKrw = 0;
     try {
       const usage = JSON.parse(row.usage ?? "{}") as Usage & {
         modelLabel?: string;
       };
-      model = usage.modelLabel?.trim() || usage.model?.trim() || model;
+      const typedUsage = usage as Usage & { modelLabel?: string };
+      model = typedUsage.modelLabel?.trim() || typedUsage.model?.trim() || model;
       // No model-specific cost branches: every message goes through the
       // generic canonical turn-cost owner (settled actuals win inside it).
       const ledgerRows = ledgerByAssistant.get(row.id) ?? [];
@@ -588,6 +717,8 @@ export function buildAdminFinanceSummary(
       rowApiCost = turnCost.knownApiCostKrw;
       rowMarginCoverage = turnCost.coverage;
       rowRealizedMarginExact = turnCost.realizedMarginExact;
+      ledgerContributions = turnCost.ledgerCostContributions;
+      usageCostKrw = turnCost.usageFallbackKrw;
       chatApiCost += rowApiCost;
       chatMarginCoverage = mergeFinanceTurnCostCoverage(
         chatMarginCoverage,
@@ -601,27 +732,38 @@ export function buildAdminFinanceSummary(
       chatMarginCoverage = mergeFinanceTurnCostCoverage(chatMarginCoverage, "partial");
       chatRealizedMarginExact = false;
     }
-    const current = modelEntry(model);
-    current.paidRevenueKrw += slices.paid;
-    current.freePointSpend += slices.free;
-    current.apiCostKrw += rowApiCost * (1 + adjustments.providerTaxRate);
-    current.marginCoverage = mergeFinanceTurnCostCoverage(
-      current.marginCoverage,
-      rowMarginCoverage
-    );
-    if (!rowRealizedMarginExact) {
-      current.realizedMarginExact = false;
+    const taxFactor = 1 + adjustments.providerTaxRate;
+    const applyModelCost = (modelName: string, preTaxKrw: number) => {
+      if (preTaxKrw <= 0) return;
+      const entry = modelEntry(modelName);
+      entry.apiCostKrw += preTaxKrw * taxFactor;
+      entry.marginCoverage = mergeFinanceTurnCostCoverage(
+        entry.marginCoverage,
+        rowMarginCoverage
+      );
+      if (!rowRealizedMarginExact) entry.realizedMarginExact = false;
+      modelMap.set(modelName, entry);
+    };
+    // Revenue fallback (legacy only) belongs to the current message model.
+    if (slices.paid > 0 || slices.free > 0) {
+      const revenueEntry = modelEntry(model);
+      revenueEntry.paidRevenueKrw += slices.paid;
+      revenueEntry.freePointSpend += slices.free;
+      modelMap.set(model, revenueEntry);
     }
-    modelMap.set(model, current);
+    // Provider cost is attributed by GENERATION provenance, not the latest
+    // message model: each ledger physical event carries its own delivered model.
+    for (const contribution of ledgerContributions) {
+      applyModelCost(ledgerModelLabel(contribution.model), contribution.krw);
+    }
+    // Usage-snapshot cost (no canonical ledger owner) stays on the message model.
+    applyModelCost(model, usageCostKrw);
   }
 
   // Attribute canonical charge-event revenue to the generation's model.
   for (const event of chargeEvents) {
     if (event.paid === 0 && event.free === 0) continue;
-    const model =
-      event.assistantMessageId != null
-        ? modelById.get(event.assistantMessageId) ?? "알 수 없음"
-        : "알 수 없음";
+    const model = resolveChargeEventModel(event);
     const current = modelEntry(model);
     current.paidRevenueKrw += event.paid;
     current.freePointSpend += event.free;
@@ -661,15 +803,13 @@ export function buildAdminFinanceSummary(
       : round1(finiteNonNegative(row.cost_krw));
     if (!exact) orphanHasInexact = true;
     // Chat-turn expenses join the chat category (same event-period semantics);
-    // background/other centers stay a separate top-level slice.
+    // background/other centers stay a separate top-level slice. Model comes from
+    // the physical event itself (immutable), never the current message model.
     if (resolveLedgerCostCenter(row) === "chat_turn") {
       orphanChatApiKrw = round1(orphanChatApiKrw + rowKrw);
       const ledgerModelRaw =
         (row.actual_model ?? "").trim() || (row.model ?? "").trim() || "";
-      const model =
-        row.assistant_message_id != null
-          ? modelById.get(row.assistant_message_id) ?? ledgerModelLabel(ledgerModelRaw)
-          : ledgerModelLabel(ledgerModelRaw);
+      const model = ledgerModelLabel(ledgerModelRaw);
       const current = modelEntry(model);
       current.apiCostKrw += rowKrw * (1 + adjustments.providerTaxRate);
       modelMap.set(model, current);

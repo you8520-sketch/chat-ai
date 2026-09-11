@@ -143,6 +143,7 @@ function insertSettlement(
     free?: number;
     outcome?: string;
     source?: string;
+    chargeKind?: string;
     ignoreDuplicate?: boolean;
   }
 ) {
@@ -154,10 +155,11 @@ function insertSettlement(
     `INSERT INTO chat_billing_settlements
        (user_id, chat_id, request_id, charge_kind, assistant_message_id, requested_points, settled_points,
         outcome, deduction_slices_json, reason, source, created_at)
-     VALUES (1, 1, ?, 'chat_turn', ?, ?, ?, ?, ?, '', ?, ?)
+     VALUES (1, 1, ?, ?, ?, ?, ?, ?, ?, '', ?, ?)
      ${suffix}`
   ).run(
     opts.requestId,
+    opts.chargeKind ?? "chat_turn",
     opts.assistantMessageId,
     settled,
     settled,
@@ -617,6 +619,220 @@ describe("cross-month regeneration — event-period accounting owners", () => {
         // must use the exact same physical-event set (invariant 6).
         assert.equal(summary.totalApiCostKrw, summary.aiCost.totalKrw);
       }
+    } finally {
+      d.close();
+    }
+  });
+});
+
+const X_MODEL = "cheaperinference/x-model";
+const Y_MODEL = "cheaperinference/y-model";
+
+function modelRows(s: ReturnType<typeof buildAdminFinanceSummary>) {
+  return s.modelBreakdown
+    .map((m) => ({ model: m.model, paid: m.paidRevenueKrw, api: m.apiCostKrw }))
+    .sort((a, b) => a.model.localeCompare(b.model));
+}
+
+function aiRows(s: ReturnType<typeof buildAdminFinanceSummary>) {
+  return s.aiModelCosts
+    .map((m) => ({ model: m.model, kind: m.kind, paid: m.paidRevenueKrw, actual: m.actualKrw }))
+    .sort((a, b) => a.model.localeCompare(b.model));
+}
+
+describe("provenance blockers — generation model + legacy bridge period", () => {
+  it("M1. cross-month X -> Y regeneration keeps X on August (never the latest model)", () => {
+    const d = financeDb();
+    try {
+      insertMessage(d, 1, {
+        createdAt: "2026-08-31 20:00:00",
+        requestId: "req-A",
+        paid: 500,
+        model: X_MODEL,
+        modelLabel: X_MODEL,
+      });
+      insertSettlement(d, {
+        requestId: "req-A",
+        assistantMessageId: 1,
+        createdAt: "2026-08-31 20:00:00",
+        paid: 500,
+      });
+      mainLedger(d, {
+        messageId: 1,
+        requestId: "req-A",
+        eventTime: "2026-08-31 20:00:00",
+        krw: 100,
+        model: X_MODEL,
+      });
+
+      const before = buildAdminFinanceSummary(d, "2026-08");
+      assert.deepEqual(modelRows(before), [{ model: X_MODEL, paid: 500, api: 100 }]);
+      assert.deepEqual(aiRows(before), [
+        { model: X_MODEL, kind: "direct", paid: 500, actual: 100 },
+      ]);
+
+      // September regeneration: same assistant row, NEW request + model Y.
+      regenerateMessage(d, 1, {
+        requestId: "req-B",
+        paid: 600,
+        model: Y_MODEL,
+        modelLabel: Y_MODEL,
+      });
+      insertSettlement(d, {
+        requestId: "req-B",
+        assistantMessageId: 1,
+        createdAt: "2026-09-01 10:00:00",
+        paid: 600,
+      });
+      mainLedger(d, {
+        messageId: 1,
+        requestId: "req-B",
+        eventTime: "2026-09-01 10:00:00",
+        krw: 120,
+        model: Y_MODEL,
+      });
+
+      const after = buildAdminFinanceSummary(d, "2026-08");
+      const sep = buildAdminFinanceSummary(d, "2026-09");
+
+      assert.deepEqual(
+        modelRows(after),
+        [{ model: X_MODEL, paid: 500, api: 100 }],
+        "August must keep generation A's model X, not the current message model Y"
+      );
+      assert.deepEqual(aiRows(after), [
+        { model: X_MODEL, kind: "direct", paid: 500, actual: 100 },
+      ]);
+      assert.deepEqual(modelRows(sep), [{ model: Y_MODEL, paid: 600, api: 120 }]);
+      assert.deepEqual(aiRows(sep), [
+        { model: Y_MODEL, kind: "direct", paid: 600, actual: 120 },
+      ]);
+      assert.equal(after.totalApiCostKrw, 100);
+      assert.equal(sep.totalApiCostKrw, 120);
+      assert.equal(sep.aiCost.totalKrw, 120);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("M2. same-month X -> Y regeneration splits both model rows by generation", () => {
+    const d = financeDb();
+    try {
+      insertMessage(d, 1, {
+        createdAt: "2026-08-05 10:00:00",
+        requestId: "req-A",
+        paid: 500,
+        model: X_MODEL,
+        modelLabel: X_MODEL,
+      });
+      insertSettlement(d, {
+        requestId: "req-A",
+        assistantMessageId: 1,
+        createdAt: "2026-08-05 10:00:00",
+        paid: 500,
+      });
+      mainLedger(d, {
+        messageId: 1,
+        requestId: "req-A",
+        eventTime: "2026-08-05 10:00:00",
+        krw: 100,
+        model: X_MODEL,
+      });
+
+      regenerateMessage(d, 1, {
+        requestId: "req-B",
+        paid: 600,
+        model: Y_MODEL,
+        modelLabel: Y_MODEL,
+      });
+      insertSettlement(d, {
+        requestId: "req-B",
+        assistantMessageId: 1,
+        createdAt: "2026-08-20 10:00:00",
+        paid: 600,
+      });
+      mainLedger(d, {
+        messageId: 1,
+        requestId: "req-B",
+        eventTime: "2026-08-20 10:00:00",
+        krw: 120,
+        model: Y_MODEL,
+      });
+
+      const aug = buildAdminFinanceSummary(d, "2026-08");
+      assert.deepEqual(modelRows(aug), [
+        { model: X_MODEL, paid: 500, api: 100 },
+        { model: Y_MODEL, paid: 600, api: 120 },
+      ]);
+      assert.deepEqual(aiRows(aug), [
+        { model: X_MODEL, kind: "direct", paid: 500, actual: 100 },
+        { model: Y_MODEL, kind: "direct", paid: 600, actual: 120 },
+      ]);
+      assert.equal(aug.chat.paidRevenueKrw, 1100);
+      assert.equal(aug.chat.apiCostKrw, 220);
+      assert.equal(aug.aiCost.totalKrw, 220);
+      assert.equal(aug.totalApiCostKrw, 220);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("L1. late legacy bridge materialization does not move revenue between months", () => {
+    const d = financeDb();
+    try {
+      // August legacy charge: message slices exist, NO settlement yet.
+      insertMessage(d, 1, {
+        createdAt: "2026-08-10 10:00:00",
+        requestId: "req-legacy",
+        paid: 500,
+        model: X_MODEL,
+        modelLabel: X_MODEL,
+      });
+      const before = buildAdminFinanceSummary(d, "2026-08");
+      assert.equal(before.chat.paidRevenueKrw, 500);
+      assert.equal(buildAdminFinanceSummary(d, "2026-09").chat.paidRevenueKrw, 0);
+
+      // September: compatibility bridge materializes the historical charge as
+      // a bookkeeping row (created_at = bridge time, NOT charge time).
+      insertSettlement(d, {
+        requestId: "req-legacy",
+        assistantMessageId: 1,
+        createdAt: "2026-09-15 10:00:00",
+        paid: 500,
+        outcome: "legacy_already_billed",
+        source: "legacy_message_deduction_slices",
+      });
+
+      const after = buildAdminFinanceSummary(d, "2026-08");
+      const sep = buildAdminFinanceSummary(d, "2026-09");
+      assert.equal(after.chat.paidRevenueKrw, 500, "August legacy charge must not disappear");
+      assert.equal(sep.chat.paidRevenueKrw, 0, "bridge materialization is not a September charge");
+      assert.deepEqual(modelRows(after), [{ model: X_MODEL, paid: 500, api: 0 }]);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("C1. non-chat charge_kind settlements are excluded from chat revenue", () => {
+    const d = financeDb();
+    try {
+      insertMessage(d, 1, {
+        createdAt: "2026-09-02 10:00:00",
+        requestId: "req-image",
+        paid: 0,
+        model: Y_MODEL,
+        modelLabel: Y_MODEL,
+      });
+      insertSettlement(d, {
+        requestId: "req-image",
+        assistantMessageId: 1,
+        createdAt: "2026-09-02 10:00:00",
+        paid: 999,
+        chargeKind: "image_charge",
+      });
+      const sep = buildAdminFinanceSummary(d, "2026-09");
+      assert.equal(sep.chat.paidRevenueKrw, 0);
+      assert.equal(sep.paidPointsConsumed, 0);
     } finally {
       d.close();
     }
