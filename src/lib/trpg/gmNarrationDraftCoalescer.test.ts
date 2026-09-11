@@ -84,7 +84,7 @@ describe("gmNarrationDraftCoalescer", () => {
     db.close();
   });
 
-  it("strips asset markers from persisted live draft without enforcing", () => {
+  it("default sanitizer keeps valid closed asset markers in persisted live draft", () => {
     const db = memoryDb();
     const roundId = insertRound(db, "token-a");
     const coalescer = new GmNarrationDraftCoalescer({
@@ -95,8 +95,24 @@ describe("gmNarrationDraftCoalescer", () => {
     coalescer.noteNarration("장면.\n[캐릭터에셋: 12|분노]\n[태그: 대합실]");
     const draft = loadGmNarrationDraft(db, roundId);
     assert.match(draft?.text ?? "", /장면/);
+    assert.match(draft?.text ?? "", /\[캐릭터에셋: 12\|분노\]/);
+    assert.match(draft?.text ?? "", /\[태그: 대합실\]/);
+    db.close();
+  });
+
+  it("strips malformed partial asset markers from persisted live draft", () => {
+    const db = memoryDb();
+    const roundId = insertRound(db, "token-a");
+    const coalescer = new GmNarrationDraftCoalescer({
+      db,
+      roundId,
+      generationId: "token-a",
+    });
+    coalescer.noteNarration("장면.\n[캐릭터에셋: 12|분\n[태그: 대합실]");
+    const draft = loadGmNarrationDraft(db, roundId);
+    assert.match(draft?.text ?? "", /장면/);
     assert.doesNotMatch(draft?.text ?? "", /캐릭터에셋/);
-    assert.doesNotMatch(draft?.text ?? "", /\[태그:/);
+    assert.match(draft?.text ?? "", /\[태그: 대합실\]/);
     db.close();
   });
 
