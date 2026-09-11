@@ -562,10 +562,6 @@ html.chat-room-active .mobile-bottom-nav {
     flex: 1 1 auto;
     min-width: 0;
   }
-
-  html.chat-room-active .chat-room-mobile-portrait-bg {
-    display: none !important;
-  }
 }
 
 @media (min-width: 768px) {

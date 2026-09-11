@@ -6,7 +6,7 @@ import {
   CHAT_PORTRAIT_PANEL_IMG_ENHANCED_CLASS,
   CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS,
   CHAT_PORTRAIT_RAIL_HEIGHT,
-  normalizeShowCharacterPortrait,
+  normalizeAssetDisplayMode,
 } from "@/lib/chatDisplayPrefs";
 import { normalizeQuoteSelectionText } from "@/lib/quoteSelectionContainer";
 
@@ -60,14 +60,18 @@ describe("general chat asset display guardrails (B0 — production behavior unch
     assert.match(container, /startAssistant !== endAssistant/);
   });
 
-  it("PREFS: portrait display defaults on and toggles through the quick rail", () => {
-    assert.equal(normalizeShowCharacterPortrait(undefined), true);
-    assert.equal(normalizeShowCharacterPortrait(true), true);
-    assert.equal(normalizeShowCharacterPortrait(false), false);
+  it("PREFS: canonical 3-state mode defaults to left and cycles in the quick rail", () => {
+    assert.equal(normalizeAssetDisplayMode(undefined), "left");
+    assert.equal(normalizeAssetDisplayMode(undefined, true), "left");
+    assert.equal(normalizeAssetDisplayMode(undefined, false), "off");
+    assert.equal(normalizeAssetDisplayMode("inline"), "inline");
     const rail = read("src/components/ChatRoomDisplayQuickRail.tsx");
-    assert.match(rail, /showCharacterPortrait: !on/);
-    assert.match(rail, /에셋ON/);
-    assert.match(rail, /에셋OFF/);
+    assert.match(rail, /assetDisplayMode: next/);
+    assert.match(rail, /CHAT_ASSET_DISPLAY_MODES/);
+    assert.match(rail, /좌측/);
+    assert.match(rail, /본문/);
+    assert.match(rail, /OFF/);
+    assert.doesNotMatch(rail, /aria-pressed/);
   });
 
   it("LIVE-FOLLOW-DOM: message list keeps the selection container and assistant markers", () => {

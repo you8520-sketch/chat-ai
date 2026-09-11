@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import NovelText from "@/components/NovelText";
 import TaggedNovelText from "@/components/TaggedNovelText";
 import type { CharacterAsset } from "@/lib/characterAssets";
+import type { InlineAssetOrientationPolicy } from "@/lib/chatAssetPresentation";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import {
   parseMarkdownPipeTable,
@@ -95,6 +96,7 @@ export default function ChatRichBlocks({
   proseOnly = false,
   streaming = false,
   inlineAssets,
+  inlineOrientationPolicy,
   viewerIsCreator = false,
   unlockedUrls,
   assetSelectionKey,
@@ -109,6 +111,7 @@ export default function ChatRichBlocks({
   proseOnly?: boolean;
   streaming?: boolean;
   inlineAssets?: CharacterAsset[];
+  inlineOrientationPolicy?: InlineAssetOrientationPolicy;
   viewerIsCreator?: boolean;
   unlockedUrls?: ReadonlySet<string>;
   assetSelectionKey?: string;
@@ -150,6 +153,7 @@ export default function ChatRichBlocks({
                 viewerIsCreator={viewerIsCreator}
                 unlockedUrls={unlockedUrls}
                 assetSelectionKey={assetSelectionKey}
+                inlineOrientationPolicy={inlineOrientationPolicy}
               />
             );
           }

@@ -63,6 +63,22 @@ export function stripEmotionTagsForDisplay(
   return source.replace(ANY_TAG_RE, "").trimEnd();
 }
 
+/**
+ * Display-only hard strip: removes EVERY [태그: …] marker, including markers that
+ * appear before a trailing one. Used when assets are hidden so no internal marker
+ * can leak as plain text. Does NOT replace {@link stripEmotionTagsForDisplay} on the
+ * server save path, where earlier inline markers must survive for reload rendering.
+ */
+export function stripAllEmotionTagsForDisplay(
+  text: string,
+  opts?: { streaming?: boolean }
+): string {
+  const source = opts?.streaming
+    ? stripTrailingEmotionTagStreamCandidate(text)
+    : text;
+  return source.replace(ANY_TAG_RE, "").trimEnd();
+}
+
 export function collectEmotionTags(text: string): string[] {
   const tags: string[] = [];
   const re = new RegExp(INLINE_TAG_RE.source, "g");

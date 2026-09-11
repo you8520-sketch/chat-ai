@@ -3,6 +3,7 @@
 import InlineTaggedAssetImage from "@/components/InlineTaggedAssetImage";
 import NovelText from "@/components/NovelText";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
+import type { InlineAssetOrientationPolicy } from "@/lib/chatAssetPresentation";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import { splitProseForInlineAssets } from "@/lib/inlineTaggedAssets";
 
@@ -17,6 +18,7 @@ export default function TaggedNovelText({
   unlockedUrls,
   dialogueAccent = true,
   assetSelectionKey,
+  inlineOrientationPolicy,
 }: {
   content: string;
   assets: CharacterAsset[];
@@ -31,11 +33,13 @@ export default function TaggedNovelText({
   unlockedUrls?: ReadonlySet<string>;
   dialogueAccent?: boolean;
   assetSelectionKey?: string;
+  inlineOrientationPolicy?: InlineAssetOrientationPolicy;
 }) {
   const parts = splitProseForInlineAssets(content, assets, {
     streaming,
     oncePerAsset: true,
     assetSelectionKey,
+    orientationPolicy: inlineOrientationPolicy,
   });
   if (parts.length === 0) return null;
   return (
