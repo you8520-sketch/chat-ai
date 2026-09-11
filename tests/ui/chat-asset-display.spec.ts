@@ -75,18 +75,24 @@ function currentChatId(page: Page): number {
 // Shared Playwright DB isolation: this spec mutates character 2's assets and
 // inserts marker messages. Snapshot before first mutation and restore in
 // afterAll so later spec files (live-follow) see pristine shared rows.
+// `assetsSnapshotTaken` records whether a snapshot was captured; it is NOT the
+// stored value sentinel. `originalCharacterAssets` preserves the raw DB value
+// verbatim, including a SQL NULL (distinct from "no snapshot taken").
 let originalCharacterAssets: string | null = null;
 let assetsSnapshotTaken = false;
 
 function snapshotCharacterAssets(characterId: number) {
   if (assetsSnapshotTaken) return;
-  assetsSnapshotTaken = true;
   const db = new Database(playwrightDbPath());
   try {
     const row = db
       .prepare("SELECT assets FROM characters WHERE id = ?")
       .get(characterId) as { assets: string | null } | undefined;
-    originalCharacterAssets = row?.assets ?? null;
+    if (!row) {
+      throw new Error(`No character row to snapshot assets from: ${characterId}`);
+    }
+    originalCharacterAssets = row.assets;
+    assetsSnapshotTaken = true;
   } finally {
     db.close();
   }
@@ -102,8 +108,22 @@ test.describe("general chat asset display guardrails (B0)", () => {
   test.afterAll(async () => {
     const db = new Database(playwrightDbPath());
     try {
-      if (originalCharacterAssets !== null) {
-        db.prepare("UPDATE characters SET assets = ? WHERE id = 2").run(originalCharacterAssets);
+      // Guard on snapshot success, not on the value's nullability: a captured
+      // SQL NULL must still be restored as SQL NULL.
+      if (assetsSnapshotTaken) {
+        db.prepare("UPDATE characters SET assets = ? WHERE id = 2").run(
+          originalCharacterAssets
+        );
+        const restored = db
+          .prepare("SELECT assets FROM characters WHERE id = 2")
+          .get() as { assets: string | null };
+        if (restored.assets !== originalCharacterAssets) {
+          throw new Error(
+            `assets restore mismatch for character 2: expected ${JSON.stringify(
+              originalCharacterAssets
+            )}, got ${JSON.stringify(restored.assets)}`
+          );
+        }
       }
       db.prepare("DELETE FROM messages WHERE content LIKE ?").run(`%${ASSISTANT_MARKER_TEXT}%`);
     } finally {
