@@ -27,7 +27,7 @@ export function resolveChatLiveFollowMotionProfile(
   prefs: ChatLiveFollowMotionPrefs
 ): LiveReadingMotionProfile {
   return {
-    mode: "stepwise-chase",
+    mode: "continuous-flow",
     streamIntervalMs: prefs.streamIntervalMs,
     streamCharsPerTick: prefs.streamCharsPerTick,
     downwardOnly: true,

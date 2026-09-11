@@ -12,7 +12,7 @@ import {
 } from "./gmSceneAssets";
 import { mergeScenarioDraft } from "./scenarioDraft";
 import { emptyTrpgScenarioPlan } from "./scenarioPlan";
-import { assertScenarioAssetOrientations } from "./scenarioAssets";
+import { normalizeScenarioAssets } from "./scenarioAssets";
 import {
   applyNpcSpeakerImageFallback,
   buildGmSceneAssetPrompt,
@@ -112,14 +112,12 @@ describe("TRPG NPC / boss authoring unification", () => {
     assert.equal(toPublicScenarioNpcImages([npc]).length, 1);
   });
 
-  it("GENERIC_SCENARIO_EXTRA_PORTRAIT_STILL_REJECTED", () => {
-    assert.throws(
-      () =>
-        assertScenarioAssetOrientations([
-          withAssetSize({ url: "/cover.webp", tag: "표지" }, 800, 1200),
-          withAssetSize({ url: "/tall.webp", tag: "세로" }, 800, 1200),
-        ]),
-      /가로로 긴 이미지/
+  it("GENERIC_SCENARIO_EXTRA_PORTRAIT_ACCEPTED", () => {
+    assert.doesNotThrow(() =>
+      normalizeScenarioAssets([
+        withAssetSize({ url: "/cover.webp", tag: "표지" }, 800, 1200),
+        withAssetSize({ url: "/tall.webp", tag: "세로" }, 800, 1200),
+      ])
     );
   });
 

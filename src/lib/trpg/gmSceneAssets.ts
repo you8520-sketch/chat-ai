@@ -5,6 +5,7 @@ import {
 } from "@/lib/characterAssets";
 import { GENDER_LABELS, resolveCharacterGender, type CharacterGender } from "@/lib/characterGender";
 import { resolveEmotionTag } from "@/lib/emotionTag";
+import { serializePromptLabels } from "@/lib/promptLabelSerialization";
 
 export const MAX_IMAGES_PER_GM_SCENE = 2;
 export const MAX_SCENARIO_IMAGES_WITH_AI = 1;
@@ -195,12 +196,13 @@ export function buildAiCharacterImageTagCatalog(
   if (usable.length === 0) return "";
   const blocks = usable.map((row) => {
     const tags = [...new Set(row.tags.map((tag) => tag.trim()).filter(Boolean))];
-    return `participantId=${row.participantId}\nname=${row.name.trim()}\ntags=${tags.join(" | ")}`;
+    return `participantId=${row.participantId}\nname=${row.name.trim()}\ntags=${serializePromptLabels(tags)}`;
   });
   return [
     "[AI CHARACTER IMAGE TAGS]",
     "Place a character image only when this narration has a meaningful expression change, emotional shift, reaction, or state change and an exact stored tag exists.",
     "Do not insert an image merely because the tag exists.",
+    "tags is a JSON array; each element is one exact stored tag — copy the element text verbatim.",
     `Marker: ${TRPG_CHARACTER_ASSET_MARKER_PREFIX} participantId|exactTag]`,
     "Example: [캐릭터에셋: 12|분노]",
     "Each exact CHARACTER + TAG pair at most once. Character markers are a separate namespace from scenario [태그: ...] markers.",

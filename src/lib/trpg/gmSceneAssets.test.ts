@@ -136,14 +136,14 @@ describe("TRPG GM scene asset budget", () => {
     assert.match(out.text, /뒤/);
   });
 
-  it("U. keeps the existing scenario landscape-only playable pool", () => {
+  it("U. scenario playable pool includes every orientation (no landscape restriction)", () => {
     const assets = [
       withAssetSize({ url: "/cover.webp", tag: "표지" }, 800, 1200),
       withAssetSize({ url: "/hall.webp", tag: "대합실" }, 1600, 900),
     ];
     assert.deepEqual(
       playableScenarioAssets(assets).map((asset) => asset.tag),
-      ["대합실"]
+      ["표지", "대합실"]
     );
   });
 
@@ -167,7 +167,7 @@ describe("TRPG GM scene asset budget", () => {
         withAssetSize({ url: "/b.webp", tag: "분노" }, 800, 1200),
       ]) },
     ]);
-    assert.match(catalog, /tags=분노$/m);
+    assert.match(catalog, /tags=\["분노"\]$/m);
     assert.doesNotMatch(catalog, /\/a\.webp/);
   });
 
