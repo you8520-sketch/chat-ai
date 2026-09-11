@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F09",
+  "model": "gemini-3.7-flash",
+  "pass": 1,
+  "call_index": 17,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 10484,
+  "output_token_count": 304,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 18391,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "바람을 타고 묻어오는 쇳내와 희미한 마력 잔향에 턱 끝이 굳었다. 손등의 붕대 사이로 피가 살짝 배어 나왔지만 통증을 신경 쓸 겨를은 없었다. 금속이 긁히는 듯한 소리는 결코 좋은 징조가 아니었다. 전장 한복판에서 수없이 맡아온 불길한 냄새가 코를 찔렀다.\n\n문틈으로 다가서는 유저의 등 뒤로 소리 없이 한 걸음 좁혀 섰다. 천장의 균열과 흔들리는 석재를 흘끗 올려다보며, 만약의 사태에 대비해 왼손의 방패 각도를 비스듬히 세웠다.\n\n\"안쪽에서 튀어나오든, 위가 무너지든 바로 막을 테니 틈만 보고 뒤로 빠져.\"\n\n낮게 깔린 목소리로 짧게 주의를 던진 뒤, 검자루를 쥔 손에 힘을 주며 문틈 주변의 어둠과 잔해의 움직임을 날카롭게 노려보았다.\n\n<<<ACTION_TYPE>>>\ndefend\n<<<INTENT>>>\n렌은 문틈을 확인하는 유저의 바로 뒤에서 방패를 세워 기습이나 천장 낙석에 즉각 대응할 수 있도록 엄호 태세를 취하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 468,
+    "outputTokenEstimate": 260,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "바람을 타고 묻어오는 쇳내와 희미한 마력 잔향에 턱 끝이 굳었다. 손등의 붕대 사이로 피가 살짝 배어 나왔지만 통증을 신경 쓸 겨를은 없었다. 금속이 긁히는 듯한 소리는 결코 좋은 징조가 아니었다. 전장 한복판에서 수없이 맡아온 불길한 냄새가 코를 찔렀다.\n\n문틈으로 다가서는 유저의 등 뒤로 소리 없이 한 걸음 좁혀 섰다. 천장의 균열과 흔들리는 석재를 흘끗 올려다보며, 만약의 사태에 대비해 왼손의 방패 각도를 비스듬히 세웠다.\n\n\"안쪽에서 튀어나오든, 위가 무너지든 바로 막을 테니 틈만 보고 뒤로 빠져.\"\n\n낮게 깔린 목소리로 짧게 주의를 던진 뒤, 검자루를 쥔 손에 힘을 주며 문틈 주변의 어둠과 잔해의 움직임을 날카롭게 노려보았다.",
+    "parsedActionType": "defend",
+    "parsedIntent": "렌은 문틈을 확인하는 유저의 바로 뒤에서 방패를 세워 기습이나 천장 낙석에 즉각 대응할 수 있도록 엄호 태세를 취하려 했다."
+  }
+}

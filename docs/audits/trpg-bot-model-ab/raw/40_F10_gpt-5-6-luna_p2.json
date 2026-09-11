@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F10",
+  "model": "gpt-5.6-luna",
+  "pass": 2,
+  "call_index": 40,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 8255,
+  "output_token_count": 436,
+  "cached_input_tokens": 8252,
+  "reasoning_tokens": 0,
+  "latency_ms": 8103,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "철문 옆에 귀를 댄 렌의 움직임을 방해하지 않으려 한 걸음 물러섰다. 대신 손등의 룬 각인과 방금 스케치한 잠금 문양을 번갈아 살폈다. 문틈에서 새어 나오는 냉기는 일정하지 않았다. 숨결처럼 약해졌다가, 바닥의 깨진 마법진 위에서 순간적으로 방향을 틀었다. 단순한 통풍이라기보다 석실 안쪽의 마력이 틈을 찾아 빠져나오는 흐름에 가까워 보였다. 바닥의 혈흔은 문 앞에서 끊겼지만, 가장자리의 검붉은 얼룩에는 희미한 은빛 가루가 들러붙어 있었다. 실버크로우의 스카우트가 이곳을 확인했다면 남긴 흔적일 가능성도 배제할 수 없었다.\n\n나는 쪼그려 앉아 지팡이 끝으로 가루를 건드리지 않고 주변의 결 방향만 따라갔다. 렌의 청취를 보완하되, 같은 소리를 되풀이해 확인하지 않도록 문양과 잔향이 이어지는 지점을 찾았다. 잠금이 열리는 순간 마력이 역류할지, 혹은 누군가 문 안쪽에서 움직일 때만 반응할지 판단하려면 이 흔적의 배열을 먼저 읽어야 했다. 단장에게 낮게 보고했다.\n\n\"잠금 문양은 기록되었습니다. 저는 문 앞 잔해와 은빛 가루의 배열을 대조해, 석실 내부의 마력 흐름과 외부 침입 흔적을 확인하겠습니다.\"\n\n<<<ACTION_TYPE>>> investigate  \n<<<INTENT>>> 세라는 철문 앞 마법진 잔해와 은빛 가루의 배열을 문에 기록한 룬 패턴과 대조해, 석실 내부 마력 흐름 및 최근 침입 흔적을 분석하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 688,
+    "outputTokenEstimate": 382,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "철문 옆에 귀를 댄 렌의 움직임을 방해하지 않으려 한 걸음 물러섰다. 대신 손등의 룬 각인과 방금 스케치한 잠금 문양을 번갈아 살폈다. 문틈에서 새어 나오는 냉기는 일정하지 않았다. 숨결처럼 약해졌다가, 바닥의 깨진 마법진 위에서 순간적으로 방향을 틀었다. 단순한 통풍이라기보다 석실 안쪽의 마력이 틈을 찾아 빠져나오는 흐름에 가까워 보였다. 바닥의 혈흔은 문 앞에서 끊겼지만, 가장자리의 검붉은 얼룩에는 희미한 은빛 가루가 들러붙어 있었다. 실버크로우의 스카우트가 이곳을 확인했다면 남긴 흔적일 가능성도 배제할 수 없었다.\n\n나는 쪼그려 앉아 지팡이 끝으로 가루를 건드리지 않고 주변의 결 방향만 따라갔다. 렌의 청취를 보완하되, 같은 소리를 되풀이해 확인하지 않도록 문양과 잔향이 이어지는 지점을 찾았다. 잠금이 열리는 순간 마력이 역류할지, 혹은 누군가 문 안쪽에서 움직일 때만 반응할지 판단하려면 이 흔적의 배열을 먼저 읽어야 했다. 단장에게 낮게 보고했다.\n\n\"잠금 문양은 기록되었습니다. 저는 문 앞 잔해와 은빛 가루의 배열을 대조해, 석실 내부의 마력 흐름과 외부 침입 흔적을 확인하겠습니다.\"",
+    "parsedActionType": "investigate",
+    "parsedIntent": "세라는 철문 앞 마법진 잔해와 은빛 가루의 배열을 문에 기록한 룬 패턴과 대조해, 석실 내부 마력 흐름 및 최근 침입 흔적을 분석하려 했다."
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F03",
+  "model": "gpt-5.6-luna",
+  "pass": 2,
+  "call_index": 25,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 8320,
+  "output_token_count": 338,
+  "cached_input_tokens": 8317,
+  "reasoning_tokens": 0,
+  "latency_ms": 6873,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "문이 박차와 함께 안쪽으로 밀리는 순간, 차가운 바람이 피 냄새와 함께 얼굴을 후려쳤다. 어둠 너머로 푸른 마력 잔광이 일렁이고, 무너진 천장 사이에서는 돌가루가 느리게 떨어졌다. 나는 반사적으로 검을 뽑아 유저의 옆을 막았다. 상처 난 손등이 욱신거렸지만, 이 정도로 티 낼 생각은 없었다. 금속을 긁던 소리가 석실 안에서 다시 울렸다. 이번엔 훨씬 가깝다. 문턱을 넘기 전, 발밑의 혈흔과 끊긴 마법진을 훑으며 시선을 낮췄다. 함정이든 수호자든, 먼저 맞는 건 내가 낫다.\n\n\"또 성질부터 부리네. 내가 앞을 볼 테니, 멋대로 깊이 들어가진 마.\"\n\n나는 방패를 세워 몸을 낮추고, 열린 문 너머에서 다가올 공격을 받을 자세로 한 걸음 내디뎠다. 동시에 검끝으로 문턱의 마법진 잔해를 건드려 반응을 살폈다.\n\n<<<ACTION_TYPE>>>\ndefend\n\n<<<INTENT>>>\n렌은 방패를 세우고 유저의 앞과 옆을 가리며 석실 문턱에 한 걸음 들어가, 안쪽에서 올 공격을 대신 받아내려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": false,
+    "outputCharCount": 502,
+    "outputTokenEstimate": 279,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "문이 박차와 함께 안쪽으로 밀리는 순간, 차가운 바람이 피 냄새와 함께 얼굴을 후려쳤다. 어둠 너머로 푸른 마력 잔광이 일렁이고, 무너진 천장 사이에서는 돌가루가 느리게 떨어졌다. 나는 반사적으로 검을 뽑아 유저의 옆을 막았다. 상처 난 손등이 욱신거렸지만, 이 정도로 티 낼 생각은 없었다. 금속을 긁던 소리가 석실 안에서 다시 울렸다. 이번엔 훨씬 가깝다. 문턱을 넘기 전, 발밑의 혈흔과 끊긴 마법진을 훑으며 시선을 낮췄다. 함정이든 수호자든, 먼저 맞는 건 내가 낫다.\n\n\"또 성질부터 부리네. 내가 앞을 볼 테니, 멋대로 깊이 들어가진 마.\"\n\n나는 방패를 세워 몸을 낮추고, 열린 문 너머에서 다가올 공격을 받을 자세로 한 걸음 내디뎠다. 동시에 검끝으로 문턱의 마법진 잔해를 건드려 반응을 살폈다.",
+    "parsedActionType": "defend",
+    "parsedIntent": "렌은 방패를 세우고 유저의 앞과 옆을 가리며 석실 문턱에 한 걸음 들어가, 안쪽에서 올 공격을 대신 받아내려 했다."
+  }
+}

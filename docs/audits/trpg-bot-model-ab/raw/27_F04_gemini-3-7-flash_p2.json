@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F04",
+  "model": "gemini-3.7-flash",
+  "pass": 2,
+  "call_index": 27,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 7978,
+  "output_token_count": 282,
+  "cached_input_tokens": 4077,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 5339,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "축축한 공기 사이로 마력 잔광이 파르르 떨렸다. 멀리서 긁히는 듯한 쇠소리가 사라진 뒤, 유저의 시선이 머문 곳을 따라 고개를 들었다.\n\n무너져 내린 천장 석재 틈새, 희미하게 빛이 새어 들어오는 위쪽 창문 틈.\n\n말없이 활을 쥐지 않은 손끝으로 유저의 어깨를 가볍게 툭 치며 위쪽을 가리켰다. 발소리를 죽인 채 튀어나온 벽돌을 디디며 그림자 속으로 몸을 밀어 넣었다. 화살촉 끝으로 석재 틈새를 가볍게 건드려 흔들림이 없는지 먼저 살폈다.\n\n\"…기다려.\"\n\n작게 속삭인 뒤, 창틀 너머로 마수나 실버크로우 척후병의 기척이 닿아 있는지 눈을 가늘게 뜨고 어둠 속을 응시했다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n<<<INTENT>>>\n은우는 벽면의 디딤돌을 밟고 조용히 올라가, 통로 위쪽 창문 틈 너머에 적의 기척이나 위험 요소가 있는지 살피려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 432,
+    "outputTokenEstimate": 240,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "축축한 공기 사이로 마력 잔광이 파르르 떨렸다. 멀리서 긁히는 듯한 쇠소리가 사라진 뒤, 유저의 시선이 머문 곳을 따라 고개를 들었다.\n\n무너져 내린 천장 석재 틈새, 희미하게 빛이 새어 들어오는 위쪽 창문 틈.\n\n말없이 활을 쥐지 않은 손끝으로 유저의 어깨를 가볍게 툭 치며 위쪽을 가리켰다. 발소리를 죽인 채 튀어나온 벽돌을 디디며 그림자 속으로 몸을 밀어 넣었다. 화살촉 끝으로 석재 틈새를 가볍게 건드려 흔들림이 없는지 먼저 살폈다.\n\n\"…기다려.\"\n\n작게 속삭인 뒤, 창틀 너머로 마수나 실버크로우 척후병의 기척이 닿아 있는지 눈을 가늘게 뜨고 어둠 속을 응시했다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "은우는 벽면의 디딤돌을 밟고 조용히 올라가, 통로 위쪽 창문 틈 너머에 적의 기척이나 위험 요소가 있는지 살피려 했다."
+  }
+}
