@@ -1,0 +1,8 @@
+{
+  "generatedAt": "2026-08-29T14:57:25.999Z",
+  "turns": 10,
+  "PROVIDER_WAIT_P50": 9407,
+  "VISIBLE_TTFT_P50": 43848,
+  "PRE_VISIBLE_GAP_P50": 32552.5,
+  "CASE": "B_hidden_pre_visible_generation"
+}
