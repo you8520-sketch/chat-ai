@@ -148,7 +148,52 @@ function coverageFromComponents(
   return "partial";
 }
 
-function resolveMainGenerationComponent(usage: Usage): CostComponent {
+/**
+ * Canonical main-RP actual cost projection.
+ * Ledger-first: when a main_generation ledger row exists, it is the single
+ * accounting owner (settled exact). Legacy turns with no main ledger row fall
+ * back to the persisted usage/shadowPricing snapshot. The two are NEVER summed.
+ */
+function resolveMainGenerationComponent(
+  usage: Usage,
+  ledgerRows: ProviderCostLedgerRow[]
+): CostComponent {
+  let ledgerExactKrw = 0;
+  let ledgerHasIncomplete = false;
+  let ledgerPresent = false;
+  for (const row of ledgerRows) {
+    if (row.execution_phase !== "main_generation") continue;
+    ledgerPresent = true;
+    if (isLedgerEventCostExact(row)) {
+      const usd = finiteNonNegative(row.actual_cost_usd);
+      const fx = finiteNonNegative(row.exchange_rate_krw_per_usd);
+      if (usd > 0 && fx > 0) ledgerExactKrw += round1(usd * fx);
+    } else if (isLedgerEventCostCoverageIncomplete(row)) {
+      ledgerHasIncomplete = true;
+    }
+  }
+
+  if (ledgerExactKrw > 0) {
+    // Ledger owns main cost; usage is a diagnostics snapshot only.
+    return {
+      knownKrw: round1(ledgerExactKrw),
+      exactKrw: round1(ledgerExactKrw),
+      exactness: ledgerHasIncomplete ? "partial" : "settled",
+      hasIncomplete: ledgerHasIncomplete,
+    };
+  }
+  if (ledgerPresent) {
+    // Main physical request recorded but not yet settled exact — do NOT fall
+    // back to usage (that would double count once the ledger settles).
+    return {
+      knownKrw: 0,
+      exactKrw: 0,
+      exactness: "partial",
+      hasIncomplete: true,
+    };
+  }
+
+  // Legacy fallback: no main_generation ledger row exists for this turn.
   const receipt = buildAdminBillingReceiptV2(usage);
   const main = receipt.mainRp.actual;
   if (main?.exactness === "settled" && main.actualProviderCostKrw > 0) {
@@ -324,7 +369,7 @@ export function resolveMessageTurnProviderCostKrw(
   usage: Usage,
   ledgerRows: ProviderCostLedgerRow[] = []
 ): MessageTurnProviderCost {
-  const main = resolveMainGenerationComponent(usage);
+  const main = resolveMainGenerationComponent(usage, ledgerRows);
   const sync = resolveSyncPostTurnComponent(usage, ledgerRows);
   const asyncCost = resolveAsyncPostTurnComponent(ledgerRows);
 

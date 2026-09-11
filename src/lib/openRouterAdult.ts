@@ -2185,6 +2185,8 @@ export async function streamOpenRouterAdultToClient(
       ...(usage.cacheDiscountUsd != null && usage.cacheDiscountUsd !== 0
         ? { cacheDiscountUsd: usage.cacheDiscountUsd }
         : {}),
+      ...(usage.providerRequestId ? { providerRequestId: usage.providerRequestId } : {}),
+      ...(usage.responseModelId ? { responseModelId: usage.responseModelId } : {}),
     },
     recoveryStage,
   };

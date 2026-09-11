@@ -19,6 +19,7 @@ import {
   type FinanceTurnCostCoverage,
 } from "@/lib/adminFinanceTurnCost";
 import { ensureProviderCostLedgerSchema, readLedgerPeriodCostAttribution, type ProviderCostLedgerRow } from "@/lib/providerCostLedger";
+import { readProviderReconciliationState } from "@/lib/providerCostReconciliation";
 import { imageHasAccountingActivity } from "@/lib/adminFinanceMarginDisplay";
 
 export type FinanceMonthlyAdjustments = {
@@ -110,6 +111,12 @@ export type AdminFinanceSummary = {
   }>;
   /** Active registry models with zero observed usage in range. */
   zeroUseModels: Array<{ id: string; label: string }>;
+  /**
+   * CheaperInference usage reconciliation state (request-level settled truth
+   * promoted into the canonical ledger; /usage/daily as a checksum only).
+   * Null until the first sync runs.
+   */
+  providerReconciliation: import("@/lib/providerCostReconciliation").ProviderReconciliationResult | null;
   creatorAccruedKrw: number;
   creatorPayoutCashKrw: number;
   /**
@@ -232,7 +239,7 @@ export function estimateApiCostUsd(input: {
   );
 }
 
-function monthRange(monthKey: string): { start: string; end: string } {
+export function monthRangeSql(monthKey: string): { start: string; end: string } {
   if (!/^\d{4}-\d{2}$/.test(monthKey)) throw new Error("잘못된 월 형식입니다.");
   const [year, month] = monthKey.split("-").map(Number);
   const nextYear = month === 12 ? year + 1 : year;
@@ -280,7 +287,7 @@ export function saveFinanceAdjustments(
     providerTaxRate: Math.min(1, finiteNonNegative(input.providerTaxRate)),
     note: input.note.trim().slice(0, 2000),
   };
-  monthRange(clean.monthKey);
+  monthRangeSql(clean.monthKey);
   db.prepare(
     `INSERT INTO finance_monthly_adjustments
       (month_key, railway_usage_krw, railway_tax_krw, payment_gateway_fees_krw,
@@ -360,7 +367,7 @@ export function buildAdminFinanceSummary(
 ): AdminFinanceSummary {
   ensureAdminFinanceTables(db);
   ensureProviderCostLedgerSchema(db);
-  const { start, end } = monthRange(monthKey);
+  const { start, end } = monthRangeSql(monthKey);
   const adjustments = getFinanceAdjustments(db, monthKey);
   const exchange = resolveBillingExchangeRateSnapshot();
 
@@ -776,6 +783,7 @@ export function buildAdminFinanceSummary(
     },
     aiModelCosts,
     zeroUseModels,
+    providerReconciliation: readProviderReconciliationState(db),
     creatorAccruedKrw: round1(creatorAccrued),
     creatorPayoutCashKrw: round1(creatorPayoutCash),
     creatorTaxPayableKrw: round1(creatorTaxPayableKrw),
