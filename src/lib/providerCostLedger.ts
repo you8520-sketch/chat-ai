@@ -61,6 +61,13 @@ export type ProviderCostLedgerContext = {
   providerRequestId?: string | null;
   /** Failover grouping ordinal within one logical call (1-based). */
   physicalAttemptOrdinal?: number;
+  /**
+   * Physical-event accounting time override ('YYYY-MM-DD HH:MM:SS' UTC).
+   * Live writers omit it (datetime('now')). Delayed reconciliation recovery
+   * passes the provider request's event time so the cost lands in the correct
+   * accounting window. Never an inferred/approximate timestamp.
+   */
+  eventTime?: string | null;
   /** Test seam — bypass NODE_TEST_CONTEXT skip. */
   persistInTests?: boolean;
 };
@@ -440,6 +447,8 @@ export type MainGenerationProviderCostInput = {
   httpStatus?: number | null;
   /** Request-time FX override (delayed reconciliation recovery uses event-time FX). */
   exchangeRateKrwPerUsd?: number;
+  /** Physical-event accounting time override ('YYYY-MM-DD HH:MM:SS' UTC). */
+  eventTime?: string | null;
   outcome: "success" | "failed_without_usage" | "failed_with_usage";
   /** Test seam — bypass NODE_TEST_CONTEXT skip. */
   persistInTests?: boolean;
@@ -472,6 +481,7 @@ export function recordMainGenerationProviderCost(
         physicalAttemptOrdinal: input.physicalAttemptOrdinal,
       }),
       providerRequestId: requestId,
+      eventTime: input.eventTime ?? null,
       persistInTests: input.persistInTests,
     },
     db
@@ -544,24 +554,25 @@ export function startProviderCostAttempt(
     providerRequestId,
   ];
   const placeholders = values.map(() => "?").join(", ");
+  const eventTime = ctx.eventTime ?? null;
   let result: { changes: number };
   if (providerRequestId && hasProviderRequestIdempotencyIndex(db)) {
     result = db
       .prepare(
         `INSERT INTO api_cost_ledger (${columns})
-         VALUES (${placeholders}, 'started', 0, 0, 1, datetime('now'))
+         VALUES (${placeholders}, 'started', 0, 0, 1, COALESCE(?, datetime('now')))
          ON CONFLICT(provider, provider_request_id)
          WHERE provider_request_id IS NOT NULL AND provider_request_id != ''
          DO NOTHING`
       )
-      .run(...values);
+      .run(...values, eventTime);
   } else {
     result = db
       .prepare(
         `INSERT INTO api_cost_ledger (${columns})
-         VALUES (${placeholders}, 'started', 0, 0, 1, datetime('now'))`
+         VALUES (${placeholders}, 'started', 0, 0, 1, COALESCE(?, datetime('now')))`
       )
-      .run(...values);
+      .run(...values, eventTime);
   }
 
   return { physicalAttemptId, context: ctx, deduplicated: result.changes === 0 };

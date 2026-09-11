@@ -16,6 +16,11 @@ import {
   readProviderReconciliationState,
   reconcileCheaperInferenceUsage,
 } from "./providerCostReconciliation";
+import {
+  attachProviderRequestLinkageForPersistence,
+  sanitizeUsageForPublicReceipt,
+  serializeUsageForPublicClient,
+} from "./billingReceiptAccess";
 import { fetchUsageRequestsPage } from "./cheaperInferenceUsage";
 import type { Usage } from "./chatUsage";
 
@@ -91,17 +96,23 @@ function insertMessage(d: Database.Database, id: number, u: Usage, paid = 5000) 
 }
 
 /**
- * Persists a message whose usage carries the physical provider request id in
- * `stages[].providerRequestId` (reconciliation linkage metadata, not a cost
- * owner) and the request-time FX snapshot.
+ * Persists a message through the REAL non-admin production persistence
+ * transform: internal usage -> sanitizeUsageForPublicReceipt (privacy) ->
+ * attachProviderRequestLinkageForPersistence (DB linkage). This proves the
+ * linkage survives the production path, not a hand-injected JSON blob.
  */
 function insertMessageWithStage(
   d: Database.Database,
   id: number,
-  opts: { actualKrw: number | null; stageProviderRequestId: string; requestFx: number }
+  opts: {
+    actualKrw: number | null;
+    stageProviderRequestId: string;
+    requestFx: number;
+    createdAt?: string;
+  }
 ) {
   const base = usage({ actualKrw: opts.actualKrw });
-  const persisted = {
+  const internal = {
     ...(base as Record<string, unknown>),
     stages: [
       {
@@ -115,15 +126,31 @@ function insertMessageWithStage(
     ],
   };
   if (opts.actualKrw != null) {
-    (persisted as Record<string, unknown>).shadowPricing = {
+    (internal as Record<string, unknown>).shadowPricing = {
       ...((base as Record<string, unknown>).shadowPricing as Record<string, unknown>),
       fxSnapshot: { effectiveKrwPerUsd: opts.requestFx },
     };
   }
+  // Non-admin (showFullBillingReceipt === false) production transform:
+  // 1) public privacy sanitize, 2) restore DB provider-request linkage,
+  // 3) re-attach shadowPricing diagnostics (route does this after sanitize).
+  const sanitized = sanitizeUsageForPublicReceipt(internal as unknown as Usage);
+  const persistedDb = attachProviderRequestLinkageForPersistence(
+    sanitized,
+    internal as unknown as Usage
+  ) as Record<string, unknown>;
+  if (opts.actualKrw != null) {
+    persistedDb.shadowPricing = (internal as Record<string, unknown>).shadowPricing;
+  }
   d.prepare(
     `INSERT INTO messages (id, chat_id, role, content, usage, deduction_slices, created_at, is_refunded)
-     VALUES (?, 1, 'assistant', 'reply', ?, ?, datetime('now'), 0)`
-  ).run(id, JSON.stringify(persisted), JSON.stringify([{ pointType: "PAID", amount: 5000 }]));
+     VALUES (?, 1, 'assistant', 'reply', ?, ?, COALESCE(?, datetime('now')), 0)`
+  ).run(
+    id,
+    JSON.stringify(persistedDb),
+    JSON.stringify([{ pointType: "PAID", amount: 5000 }]),
+    opts.createdAt ?? null
+  );
 }
 
 function mainRow(
@@ -955,5 +982,172 @@ describe("merge blockers A-C — real daily schema, true estimate, pagination ca
     });
     assert.equal(res.ok, false, "truncated result must not be reported as complete");
     if (!res.ok) assert.equal(res.reason, "incomplete");
+  });
+});
+
+
+describe("merge blockers — non-admin persistence linkage + accounting window", () => {
+  it("P1. non-admin DB persists providerRequestId, public serialization never leaks it", () => {
+    const internal = {
+      input: 1000,
+      output: 500,
+      model: "deepseek-v4-pro-0813",
+      modelLabel: "DeepSeek V4 Pro",
+      provider: "cheaperinference",
+      route: "safe",
+      cost: 5000,
+      breakdown: [],
+      stages: [
+        {
+          stage: "main",
+          model: "deepseek-v4-pro-0813",
+          input: 1000,
+          output: 500,
+          cost: 5000,
+          providerRequestId: "req-normal-user",
+          upstreamCostUsd: 0.05,
+          cheaperInferenceBilledCostUsd: 0.05,
+        },
+      ],
+      upstreamCostUsd: 0.05,
+    } as unknown as Usage;
+
+    // Public privacy owner still strips it (client must never see it).
+    const publicOnly = sanitizeUsageForPublicReceipt(internal);
+    const publicStage = (publicOnly.stages ?? [])[0] as unknown as Record<string, unknown>;
+    assert.equal(publicStage.providerRequestId, undefined);
+
+    // DB persistence restores ONLY the linkage.
+    const persisted = attachProviderRequestLinkageForPersistence(publicOnly, internal);
+    const persistedStage = (persisted.stages ?? [])[0] as unknown as Record<string, unknown>;
+    assert.equal(persistedStage.providerRequestId, "req-normal-user");
+    // No economics restored.
+    assert.equal(persistedStage.upstreamCostUsd, undefined);
+    assert.equal(persistedStage.cheaperInferenceBilledCostUsd, undefined);
+    assert.equal((persisted as unknown as Record<string, unknown>).upstreamCostUsd, undefined);
+
+    // Full public client serialization has zero occurrences anywhere.
+    const client = serializeUsageForPublicClient(persisted, { keepInternal: false });
+    assert.equal(JSON.stringify(client).includes("providerRequestId"), false);
+  });
+
+  it("P2. exactly-once recovery through the real non-admin persistence transform", async () => {
+    const d = db();
+    try {
+      // Persist via the production transform (sanitize + linkage attach).
+      insertMessageWithStage(d, 1, {
+        actualKrw: 100,
+        stageProviderRequestId: "req-B",
+        requestFx: FX,
+      });
+      const persistedUsage = JSON.parse(
+        (d.prepare("SELECT usage FROM messages WHERE id=1").get() as { usage: string }).usage
+      ) as { stages: Array<{ providerRequestId?: string }> };
+      assert.equal(persistedUsage.stages[0]!.providerRequestId, "req-B", "DB linkage persisted");
+
+      const remote = Math.round(usdForKrw(100) * 1_000_000);
+      const deps = {
+        persistInTests: true,
+        fetchRequests: async () => ({
+          ok: true as const,
+          value: {
+            pages: 1,
+            requests: [
+              {
+                requestId: "req-B",
+                status: "settled",
+                billedMicroUsd: remote,
+                settled: true,
+                model: "m",
+                endpoint: "/c",
+                createdAt: nowSql(),
+              },
+            ],
+          },
+        }),
+        fetchDaily: async () => ({ ok: true as const, value: { settledMicroUsd: remote } }),
+      };
+      const run = () =>
+        reconcileCheaperInferenceUsage({
+          windowStart: "2000-01-01 00:00:00",
+          windowEnd: "2100-01-01 00:00:00",
+          db: d,
+          deps,
+        });
+      await run();
+      assert.equal(buildAdminFinanceSummary(d).totalApiCostKrw, 100);
+      await run();
+      assert.equal(buildAdminFinanceSummary(d).totalApiCostKrw, 100);
+      const count = (
+        d.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger WHERE provider_request_id='req-B'").get() as {
+          c: number;
+        }
+      ).c;
+      assert.equal(count, 1);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("P3. cross-month: delayed recovery books into the original physical period", async () => {
+    const d = db();
+    try {
+      const AUG_START = "2026-08-01 00:00:00";
+      const AUG_END = "2026-09-01 00:00:00";
+      const SEP_END = "2026-10-01 00:00:00";
+      insertMessageWithStage(d, 1, {
+        actualKrw: 100,
+        stageProviderRequestId: "req-aug",
+        requestFx: FX,
+        createdAt: "2026-08-31 20:00:00",
+      });
+      assert.equal(readLocalReconciledMicroUsd(d, AUG_START, AUG_END), 0, "no ledger yet");
+
+      const remote = Math.round(usdForKrw(100) * 1_000_000);
+      await reconcileCheaperInferenceUsage({
+        windowStart: AUG_START,
+        windowEnd: AUG_END,
+        db: d,
+        deps: {
+          persistInTests: true,
+          fetchRequests: async () => ({
+            ok: true as const,
+            value: {
+              pages: 1,
+              requests: [
+                {
+                  requestId: "req-aug",
+                  status: "settled",
+                  billedMicroUsd: remote,
+                  settled: true,
+                  model: "m",
+                  endpoint: "/c",
+                  createdAt: "2026-08-31 20:00:00",
+                },
+              ],
+            },
+          }),
+          fetchDaily: async () => ({ ok: true as const, value: { settledMicroUsd: remote } }),
+        },
+      });
+
+      assert.equal(
+        readLocalReconciledMicroUsd(d, AUG_START, AUG_END),
+        remote,
+        "August attribution includes the recovered request"
+      );
+      assert.equal(
+        readLocalReconciledMicroUsd(d, AUG_END, SEP_END),
+        0,
+        "September attribution does not double-book it"
+      );
+      const row = d
+        .prepare("SELECT created_at FROM api_cost_ledger WHERE provider_request_id='req-aug'")
+        .get() as { created_at: string };
+      assert.equal(row.created_at, "2026-08-31 20:00:00");
+      assert.equal(buildAdminFinanceSummary(d, "2026-08").totalApiCostKrw, 100);
+    } finally {
+      d.close();
+    }
   });
 });

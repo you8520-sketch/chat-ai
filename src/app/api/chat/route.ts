@@ -397,6 +397,7 @@ import {
 } from "@/lib/removalTrace";
 import { buildEstimatedReceiptSectionBreakdown } from "@/lib/billingReceiptSectionBreakdown";
 import {
+  attachProviderRequestLinkageForPersistence,
   BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL,
   canShowFullBillingReceipt,
   sanitizeUsageForPublicReceipt,
@@ -4934,7 +4935,12 @@ export async function POST(req: Request) {
         // Billing/public base usage (may still include admin receipt fields).
         let baseUsageRecord: Usage = usageRecord;
         if (!showFullBillingReceipt) {
-          baseUsageRecord = sanitizeUsageForPublicReceipt(usageRecord);
+          // Public privacy stays lossy for the client; restore ONLY the
+          // deterministic provider-request linkage into the DB record.
+          baseUsageRecord = attachProviderRequestLinkageForPersistence(
+            sanitizeUsageForPublicReceipt(usageRecord),
+            usageRecord
+          );
         }
 
         // Shadow pricing — admin-only diagnostics, never affects deductPoints(cost)

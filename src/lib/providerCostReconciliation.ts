@@ -391,6 +391,9 @@ export async function reconcileCheaperInferenceUsage(
           providerRequestId: request.requestId,
           // Request-time FX event provenance — never re-valued at sync time.
           exchangeRateKrwPerUsd: identity.requestFx ?? undefined,
+          // Delayed recovery books into the ORIGINAL physical request period.
+          // No provider createdAt => no inferred timestamp (falls back to now).
+          eventTime: request.createdAt,
           outcome: "success",
           persistInTests: deps.persistInTests,
         },
