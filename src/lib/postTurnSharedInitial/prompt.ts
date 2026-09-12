@@ -170,23 +170,20 @@ export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitial
     });
   }
 
-  const regenBlock = input.relationshipRegenContext
+  const currentTurnBlock = input.relationshipRegenContext
     ? `[REJECTED ASSISTANT DRAFT — DISCARDED]\n${input.relationshipRegenContext.previousAssistantMessage}\n\n[NEW CANONICAL ASSISTANT]\n${input.assistantProse}`
-    : "";
+    : `[THIS TURN — USER]\n${input.userMessage}\n\n[THIS TURN — ASSISTANT]\n${input.assistantProse}`;
 
   const voiceContext = input.includeSuggestions
     ? buildSharedSuggestionVoiceContext(input)
     : "";
 
-  const relationshipBlock = input.includeRelationship
-    ? `[THIS TURN — USER]\n${input.userMessage}\n\n[THIS TURN — ASSISTANT]\n${input.assistantProse}`
-    : "";
-
   if (widgetBlock) {
     return [widgetBlock, voiceContext].filter(Boolean).join("\n\n");
   }
-  // relationship_only (or suggestions-only fallback): no widget prose block.
-  return [regenBlock || relationshipBlock, voiceContext].filter(Boolean).join("\n\n");
+  // No widget consumer (status OFF). Always include the current turn so
+  // suggestions-only work does not depend on the relationship section.
+  return [currentTurnBlock, voiceContext].filter(Boolean).join("\n\n");
 }
 
 /** @internal tests — count authoritative top-level JSON output contracts. */

@@ -494,12 +494,43 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
   boundarySnapshot?: MemorySourceBoundary;
   assistantMessageId?: number;
   generationScope?: AssistantGenerationScope;
+  /** Shared post-turn Luna call (with regen context) already produced the delta. */
+  sharedInitialParsed?: boolean;
+  sharedInitialDelta?: RelationshipMetaDelta | null;
   __testExtract?: () => Promise<RelationshipMetaExtractResult>;
   __testThrowOnSave?: boolean;
 }): Promise<MemoryMeta> {
   if (!isMemoryFeatureEnabled()) return loadChatRelationshipMeta(opts.chatId);
   const names = opts.names;
-  const prevNormalized = normalizeMemoryMeta(loadChatRelationshipMeta(opts.chatId), names);
+
+  // Regen shares the SAME physical inference: consume the shared delta (which
+  // compared the rejected draft and new canonical reply) without a second call.
+  if (opts.sharedInitialParsed === true) {
+    if (opts.assistantMessageId) {
+      setMemoryRelationshipTaskState(
+        opts.assistantMessageId,
+        "skipped",
+        "shared_initial_satisfied",
+        undefined,
+        opts.generationScope
+      );
+    }
+    try {
+      const applied = applyRelationshipDeltaToChat({
+        chatId: opts.chatId,
+        names,
+        delta: opts.sharedInitialDelta ?? {},
+        sourceUserMessageId: opts.sourceUserMessageId,
+        boundarySnapshot: opts.boundarySnapshot,
+        generationScope: opts.generationScope,
+        __testThrowOnSave: opts.__testThrowOnSave,
+      });
+      return applied.meta;
+    } catch (e) {
+      console.warn("[memory] relationship regen shared-initial commit failed:", (e as Error).message);
+      return loadChatRelationshipMeta(opts.chatId, opts.names);
+    }
+  }
 
   return runProviderBackedRelationshipMerge({
     chatId: opts.chatId,

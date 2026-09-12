@@ -23,7 +23,6 @@ function stringArray(value: unknown): string[] {
 }
 
 function parsePromisesAdd(value: unknown): MemoryPromise[] | null {
-  if (value === undefined) return [];
   if (!Array.isArray(value)) return null;
   const out: MemoryPromise[] = [];
   for (const entry of value) {
@@ -42,13 +41,13 @@ function parsePromisesAdd(value: unknown): MemoryPromise[] | null {
 
 /**
  * Parse the relationship section of the shared post-turn Luna response with
- * explicit section evidence:
- *  - present + valid + empty arrays → VALID NO-OP
- *  - present + valid + delta       → VALID DELTA
- *  - missing                       → present=false, valid=false (SECTION FAILURE)
- *  - malformed                     → present=true, valid=false (SECTION FAILURE)
- * Only durable auto-extract fields are kept. A section failure never
- * invalidates the status/suggestions sections.
+ * explicit section evidence and a STRICT schema:
+ *  - present + valid + all four canonical arrays empty → VALID NO-OP
+ *  - present + valid + delta                            → VALID DELTA
+ *  - missing / `{}` / partial keys / wrong type / null  → SECTION FAILURE
+ * The four canonical arrays (items, itemsRemove, promisesAdd, promisesRemove)
+ * must ALL be present with the correct type; anything less is invalid and
+ * routes to independent relationship recovery.
  */
 export function parseSharedRelationshipSection(raw: unknown): RelationshipSectionParse {
   if (raw === undefined || raw === null) {
@@ -57,12 +56,13 @@ export function parseSharedRelationshipSection(raw: unknown): RelationshipSectio
   const section = asRecord(raw);
   if (!section) return { present: true, valid: false, delta: {} };
 
-  const itemsOk = section.items === undefined || isStringArray(section.items);
-  const itemsRemoveOk = section.itemsRemove === undefined || isStringArray(section.itemsRemove);
-  const promisesRemoveOk =
-    section.promisesRemove === undefined || isStringArray(section.promisesRemove);
   const promisesAdd = parsePromisesAdd(section.promisesAdd);
-  if (!itemsOk || !itemsRemoveOk || !promisesRemoveOk || promisesAdd == null) {
+  if (
+    !isStringArray(section.items) ||
+    !isStringArray(section.itemsRemove) ||
+    !isStringArray(section.promisesRemove) ||
+    promisesAdd == null
+  ) {
     return { present: true, valid: false, delta: {} };
   }
 

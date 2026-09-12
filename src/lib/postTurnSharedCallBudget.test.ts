@@ -12,6 +12,8 @@
 
 import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { getDb } from "./db";
 import { installIsolatedTestDatabase } from "./test/isolatedTestDatabase";
 import { DEFAULT_STATUS_WIDGET } from "./statusWidget/defaultTemplate";
@@ -22,10 +24,11 @@ import {
   type StatusWidgetExtractCaller,
 } from "./statusWidget/extract";
 import type { TokenUsage } from "./ai";
-import { loadChatRelationshipMeta, mergeRelationshipMetaFromTurn } from "./memory/memory-relationship-meta";
+import { loadChatRelationshipMeta, mergeRelationshipMetaFromTurn, mergeRelationshipMetaAfterRegenerate } from "./memory/memory-relationship-meta";
 import { getOrCreateChatMemory } from "./memory/memory-db";
 import { ensureProviderCostLedgerSchema } from "./providerCostLedger";
 import { buildPostTurnSharedInitialSystem } from "./postTurnSharedInitial/prompt";
+import { buildPostTurnSharedInitialUserBlock } from "./postTurnSharedInitial/prompt";
 import { parsePostTurnSharedInitialResponse } from "./postTurnSharedInitial/parse";
 import { runPostTurnRelationshipOnlyInitial } from "./postTurnSharedInitial/run";
 import {
@@ -581,4 +584,158 @@ describe("consumer combination physical-call matrix", () => {
       assert.equal(result.meta.sharedInitialRelationshipUsable, row.expectRelationship);
     });
   }
+});
+
+describe("relationship section strict validity", () => {
+  const parse = (relationship: unknown) =>
+    parsePostTurnSharedInitialResponse(
+      JSON.stringify({ relationship }),
+      baseInput({ includeRelationship: true })
+    ).relationship;
+
+  const invalidCases: Array<[string, unknown]> = [
+    ["{}", {}],
+    ["partial items only", { items: [] }],
+    ["partial items+promisesAdd", { items: [], promisesAdd: [] }],
+    ["null", null],
+    ["array root", []],
+    ["string root", "not-an-object"],
+    ["wrong type items", { items: "x", itemsRemove: [], promisesAdd: [], promisesRemove: [] }],
+    ["wrong type promisesAdd", { items: [], itemsRemove: [], promisesAdd: "x", promisesRemove: [] }],
+  ];
+  for (const [name, value] of invalidCases) {
+    it(`${name} => invalid section`, () => {
+      assert.equal(parse(value).valid, false);
+    });
+  }
+
+  it("all four canonical arrays present => valid", () => {
+    const section = parse({ items: [], itemsRemove: [], promisesAdd: [], promisesRemove: [] });
+    assert.equal(section.present, true);
+    assert.equal(section.valid, true);
+  });
+});
+
+describe("status-OFF suggestions-only context", () => {
+  it("user block always contains the current turn (relationship OFF, empty persona)", () => {
+    const block = buildPostTurnSharedInitialUserBlock(
+      baseInput({
+        mode: "relationship_only",
+        includeSuggestions: true,
+        includeRelationship: false,
+        userMessage: "지금 무슨 생각해?",
+        assistantProse: "그는 잠시 창밖을 보았다.",
+      })
+    );
+    assert.match(block, /\[THIS TURN — USER\]/);
+    assert.match(block, /지금 무슨 생각해\?/);
+    assert.match(block, /\[THIS TURN — ASSISTANT\]/);
+    assert.match(block, /그는 잠시 창밖을 보았다\./);
+  });
+
+  it("suggestions-only (relationship OFF, empty persona) still calls provider once", async () => {
+    const calls: string[] = [];
+    const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
+      calls.push(opts.requestKind);
+      return {
+        text: JSON.stringify({
+          suggestedReplies: {
+            items: [
+              { kind: "escalate", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
+              { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
+              { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
+            ],
+          },
+        }),
+        usage: usage(1),
+      };
+    };
+    const run = await runPostTurnRelationshipOnlyInitial(
+      {
+        charName: "라이크",
+        personaName: "렌",
+        userMessage: "지금 무슨 생각해?",
+        assistantProse: "그는 잠시 창밖을 보았다.",
+        primaryModelId: "gpt-5.6-luna",
+        includeSuggestions: true,
+        includeRelationship: false,
+        userPersona: null,
+        personaDescription: null,
+        personaSpeechExamples: null,
+      },
+      caller
+    );
+    assert.equal(calls.length, 1);
+    assert.equal(run.parsed?.suggestedRepliesOk, true);
+    assert.equal(run.parsed?.relationship.valid, false);
+  });
+});
+
+describe("regeneration shared relationship path", () => {
+  it("regen user block includes rejected draft and new canonical reply", () => {
+    const block = buildPostTurnSharedInitialUserBlock(
+      baseInput({
+        mode: "relationship_only",
+        includeRelationship: true,
+        relationshipRegenContext: { previousAssistantMessage: "그는 검을 버렸다." },
+      })
+    );
+    assert.match(block, /REJECTED ASSISTANT DRAFT/);
+    assert.match(block, /그는 검을 버렸다\./);
+    assert.match(block, /NEW CANONICAL ASSISTANT/);
+  });
+
+  it("regen consumes the shared delta without a second provider call", async () => {
+    const db = getDb();
+    const userId = Number(
+      db
+        .prepare("INSERT INTO users (email, nickname, pw_hash, points) VALUES (?,?,?,0)")
+        .run(`regenrel_${Date.now()}@test.local`, `regenrel_${Date.now()}`, "x").lastInsertRowid
+    );
+    const characterId = Number(
+      db.prepare("INSERT INTO characters (name) VALUES ('regen-shared')").run().lastInsertRowid
+    );
+    const chatId = Number(
+      db.prepare("INSERT INTO chats (user_id, character_id) VALUES (?,?)").run(userId, characterId)
+        .lastInsertRowid
+    );
+    getOrCreateChatMemory(chatId, userId, characterId, "free");
+
+    let providerCalls = 0;
+    const meta = await mergeRelationshipMetaAfterRegenerate({
+      chatId,
+      names: { charName: "라이크", userName: "렌" },
+      userMessage: "*검을 내려놓는다.*",
+      newAssistantMessage: "라이크는 검을 받아 들었다.",
+      previousAssistantMessage: "라이크는 검을 버렸다.",
+      route: "safe",
+      sharedInitialParsed: true,
+      sharedInitialDelta: { items: ["렌: 검"] },
+      sourceUserMessageId: 1,
+      __testExtract: async () => {
+        providerCalls += 1;
+        return { delta: {}, parseOk: true };
+      },
+    });
+    assert.equal(providerCalls, 0);
+    assert.ok(JSON.stringify(meta).includes("검"));
+  });
+});
+
+describe("status-OFF lifecycle guardrail", () => {
+  it("shared work is deferred past SSE done, not awaited in the status-OFF branch", () => {
+    const route = readFileSync(join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
+    assert.match(route, /deferPostTurnShared = true;/);
+    assert.match(route, /if \(deferPostTurnShared\) \{/);
+    const marker = "} else if (isMemoryFeatureEnabled() || suggestedRepliesEligibleForCoalesce) {";
+    const start = route.indexOf(marker);
+    assert.ok(start > 0, "status-OFF branch present");
+    const end = route.indexOf("if (visualPolicy.hair", start);
+    assert.ok(end > start);
+    assert.doesNotMatch(
+      route.slice(start, end),
+      /await runPostTurnRelationshipOnlyInitial/,
+      "status-OFF branch must not await the shared provider before SSE done"
+    );
+  });
 });

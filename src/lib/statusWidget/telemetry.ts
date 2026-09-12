@@ -126,6 +126,8 @@ export type ResolveStatusWidgetTurnValuesInput = {
   coalesceSuggestedReplies?: boolean;
   /** When true, the shared initial call also carries the durable relationship delta. */
   shareRelationshipDelta?: boolean;
+  /** Regen: rejected assistant draft for the shared relationship section. */
+  relationshipRegenContext?: { previousAssistantMessage: string } | null;
   /** Phase B1-B shadow eligibility (optional; fail-closed when absent). */
   userId?: number | null;
   characterId?: number | null;
@@ -390,6 +392,7 @@ export async function resolveStatusWidgetTurnValues(
           ? { enabled: true }
           : undefined,
         shareRelationshipDelta: input.shareRelationshipDelta === true,
+        relationshipRegenContext: input.relationshipRegenContext ?? null,
       });
       widgetExtractDiagnostics = {
         exhausted: v3Result.meta.exhausted,

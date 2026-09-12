@@ -883,6 +883,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   coalesceSuggestedReplies?: { enabled: boolean };
   /** When true, the shared initial call also carries the durable relationship delta. */
   shareRelationshipDelta?: boolean;
+  /** Regen: rejected assistant draft for the shared relationship section. */
+  relationshipRegenContext?: { previousAssistantMessage: string } | null;
 }): Promise<{
   values: ParsedStatusWidgetTurnValues;
   usage: TokenUsage | null;
@@ -990,6 +992,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         primaryModelId,
         includeSuggestions: opts.coalesceSuggestedReplies?.enabled === true,
         includeRelationship: shareRelationshipDelta,
+        relationshipRegenContext: opts.relationshipRegenContext ?? null,
       },
       caller,
       syncLedgerContext

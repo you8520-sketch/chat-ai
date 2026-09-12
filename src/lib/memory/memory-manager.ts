@@ -389,6 +389,8 @@ export async function scheduleMemoryUpdate(opts: {
         boundarySnapshot,
         assistantMessageId: opts.assistantMessageId,
         generationScope,
+        sharedInitialParsed: opts.relationshipSharedParsed,
+        sharedInitialDelta: opts.relationshipSharedDelta,
       });
     } else {
       await mergeRelationshipMetaFromTurn({
