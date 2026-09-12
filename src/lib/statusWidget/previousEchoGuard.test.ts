@@ -6,7 +6,6 @@ import { normalizeWidgetExtraction } from "./extractNormalize";
 import {
   buildCombinedDualWidgetExtractSystem,
   buildCombinedDualWidgetExtractUserBlock,
-  buildVolatileEchoRepairUserBlock,
   buildWidgetExtractRepairUserBlock,
   buildWidgetExtractSystem,
   buildWidgetExtractUserBlock,
@@ -15,7 +14,6 @@ import {
   looksLikeInnerStateField,
   looksLikeVolatileTurnDerivedField,
   measureStatusWidgetPreviousEcho,
-  mergeVolatileRepairIntoValues,
 } from "./extractNormalize";
 import {
   extractStatusWidgetValuesForTurn,
@@ -238,26 +236,7 @@ describe("V3 previous-echo guard (volatile shield + targeted repair)", () => {
     assert.deepEqual(stats.exactKeys.sort(), ["속마음", "현재상황"].sort());
   });
 
-  it("J. mergeVolatileRepairIntoValues only overwrites listed volatile keys", () => {
-    const base = {
-      장소: "복도",
-      속마음: "이 신입, 정말 S급 가이드라니... 흥미롭군.",
-      현재상황: "신입과 마주침",
-      체력: "90",
-    };
-    const repaired = {
-      속마음: "위장 신분이라고? 경계가 날카로워진다.",
-      장소: "SHOULD_NOT_APPLY",
-      체력: "1",
-    };
-    const merged = mergeVolatileRepairIntoValues(base, repaired, ["속마음"], PERSISTENT_WIDGET);
-    assert.equal(merged["속마음"], "위장 신분이라고? 경계가 날카로워진다.");
-    assert.equal(merged["장소"], "복도");
-    assert.equal(merged["체력"], "90");
-    assert.equal(merged["현재상황"], "신입과 마주침");
-  });
-
-  it("K. Like fixture — exact 속마음 echo triggers targeted repair once; persistent kept", async () => {
+  it("K. Like fixture — exact 속마음 echo is accepted; persistent kept", async () => {
     const STALE =
       "이 신입, 정말 S급 가이드라니... 흥미롭군.";
     const FRESH =
@@ -315,25 +294,23 @@ describe("V3 previous-echo guard (volatile shield + targeted repair)", () => {
     });
 
     assert.equal(extractCalls, 1);
-    assert.deepEqual(kinds, [
-      "background-status-widget-extract",
-      "background-status-widget-extract-volatile-echo-fix",
-    ]);
-    assert.equal(result.meta.actualCallCount, 2);
-    assert.equal(result.meta.usedRepair, true);
+    assert.deepEqual(kinds, ["background-status-widget-extract"]);
+    assert.equal(result.meta.actualCallCount, 1);
+    assert.equal(result.meta.usedRepair, false);
     assert.equal(
       result.meta.character?.finalReasonCode,
-      "V3_PREVIOUS_ECHO_REPAIR_USED"
+      "V3_PREVIOUS_ECHO_ACCEPTED"
     );
-    assert.equal(result.values.character?.["속마음"], FRESH);
-    assert.notEqual(result.values.character?.["속마음"], STALE);
-    // Persistent anchors from initial extract kept (not overwritten by repair).
+    // Exact previous==current on a volatile field is legitimate (state may be
+    // unchanged). Accept the parsed value without a second provider call.
+    assert.equal(result.values.character?.["속마음"], STALE);
+    // Persistent anchors from initial extract kept.
     assert.equal(result.values.character?.["장소"], "에이지스 복도");
     assert.equal(result.values.character?.["체력"], "88");
     assert.equal(result.values.character?.["시각"], "14:30");
   });
 
-  it("L2. targeted repair itself repeats stale exact → FAILED once, no retry", async () => {
+  it("L2. repeated stale exact echo is accepted in one call, no retry", async () => {
     const STALE = "이 신입, 정말 S급 가이드라니... 흥미롭군.";
     const kinds: string[] = [];
     const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
@@ -382,16 +359,13 @@ describe("V3 previous-echo guard (volatile shield + targeted repair)", () => {
       caller,
     });
 
-    assert.deepEqual(kinds, [
-      "background-status-widget-extract",
-      "background-status-widget-extract-volatile-echo-fix",
-    ]);
-    assert.equal(result.meta.actualCallCount, 2);
+    assert.deepEqual(kinds, ["background-status-widget-extract"]);
+    assert.equal(result.meta.actualCallCount, 1);
     assert.equal(
       result.meta.character?.finalReasonCode,
-      "V3_PREVIOUS_ECHO_REPAIR_FAILED"
+      "V3_PREVIOUS_ECHO_ACCEPTED"
     );
-    // Keep initial values (including stale 속마음) — do not loop or invent.
+    // Keep initial values (including unchanged 속마음) — no loop, no invention.
     assert.equal(result.values.character?.["속마음"], STALE);
     assert.equal(result.values.character?.["장소"], "에이지스 복도");
     assert.equal(result.values.character?.["체력"], "88");
@@ -421,26 +395,6 @@ describe("V3 previous-echo guard (volatile shield + targeted repair)", () => {
     });
     assert.equal(result.values.character, null);
     assert.notEqual(result.values.character?.["속마음"], "이전값");
-  });
-
-  it("M. volatile echo repair user block lists only target keys as stale", () => {
-    const block = buildVolatileEchoRepairUserBlock({
-      keys: ["속마음"],
-      widget: PERSISTENT_WIDGET,
-      source: "character",
-      charName: "라이크",
-      personaName: "렌",
-      userMessage: "위장이야",
-      assistantProse: "그는 경계했다.",
-      previousValues: {
-        속마음: "이 신입, 정말 S급 가이드라니... 흥미롭군.",
-        장소: "복도",
-      },
-    });
-    assert.match(block, /REPAIR TARGETS ONLY/);
-    assert.match(block, /STALE PREVIOUS VALUE/);
-    assert.match(block, /흥미롭군/);
-    assert.doesNotMatch(block, /- 장소:/);
   });
 
   it("N. dual system still has soft continuity language", () => {

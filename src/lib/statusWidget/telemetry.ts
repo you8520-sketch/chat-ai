@@ -124,6 +124,10 @@ export type ResolveStatusWidgetTurnValuesInput = {
   requestId?: string | null;
   /** When true, coalesce widget initial + suggested replies initial (route gate). */
   coalesceSuggestedReplies?: boolean;
+  /** When true, the shared initial call also carries the durable relationship delta. */
+  shareRelationshipDelta?: boolean;
+  /** Regen: rejected assistant draft for the shared relationship section. */
+  relationshipRegenContext?: { previousAssistantMessage: string } | null;
   /** Phase B1-B shadow eligibility (optional; fail-closed when absent). */
   userId?: number | null;
   characterId?: number | null;
@@ -145,6 +149,9 @@ export type ResolveStatusWidgetTurnValuesResult = {
   prefetchedSuggestedReplies: import("@/lib/suggestedReplies/types").SuggestedReplyItem[] | null;
   prefetchedSuggestedRepliesAssistantProseHash: string | null;
   sharedInitialConsumed: boolean;
+  /** Durable relationship delta carried by the shared initial call (usable only when boolean true). */
+  sharedInitialRelationshipUsable: boolean;
+  sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null;
   telemetry: StatusWidgetTurnTelemetry;
 };
 
@@ -235,6 +242,9 @@ export async function resolveStatusWidgetTurnValues(
     null;
   let prefetchedSuggestedRepliesAssistantProseHash: string | null = null;
   let sharedInitialConsumed = false;
+  let sharedInitialRelationshipUsable = false;
+  let sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null =
+    null;
   let resolutionSource: StatusWidgetResolutionSource = "none";
   let splitRawHit = false;
   let splitRawParseError: string | null = null;
@@ -381,6 +391,8 @@ export async function resolveStatusWidgetTurnValues(
         coalesceSuggestedReplies: input.coalesceSuggestedReplies
           ? { enabled: true }
           : undefined,
+        shareRelationshipDelta: input.shareRelationshipDelta === true,
+        relationshipRegenContext: input.relationshipRegenContext ?? null,
       });
       widgetExtractDiagnostics = {
         exhausted: v3Result.meta.exhausted,
@@ -391,6 +403,10 @@ export async function resolveStatusWidgetTurnValues(
       prefetchedSuggestedRepliesAssistantProseHash =
         v3Result.meta.prefetchedSuggestedRepliesAssistantProseHash ?? null;
       sharedInitialConsumed = v3Result.meta.sharedInitialConsumed === true;
+      sharedInitialRelationshipUsable =
+        v3Result.meta.sharedInitialRelationshipUsable === true;
+      sharedInitialRelationshipDelta =
+        v3Result.meta.sharedInitialRelationshipDelta ?? null;
       // usage + billing meta share the same lifetime (both null or both set).
       if (v3Result.usage && v3Result.meta.billing) {
         widgetExtractUsage = v3Result.usage;
@@ -436,11 +452,9 @@ export async function resolveStatusWidgetTurnValues(
         previous: previousValues?.character ?? null,
         current: normalizedExtractValues?.character ?? null,
       });
-      const volatileEchoRepairUsed =
-        extractMeta.character?.finalReasonCode === "V3_PREVIOUS_ECHO_REPAIR_USED" ||
-        extractMeta.user?.finalReasonCode === "V3_PREVIOUS_ECHO_REPAIR_USED" ||
-        extractMeta.character?.stages.includes("volatile_echo_repair") === true ||
-        extractMeta.user?.stages.includes("volatile_echo_repair") === true;
+      const volatileEchoAccepted =
+        extractMeta.character?.finalReasonCode === "V3_PREVIOUS_ECHO_ACCEPTED" ||
+        extractMeta.user?.finalReasonCode === "V3_PREVIOUS_ECHO_ACCEPTED";
       logStatusWidgetLiveTrace({
         ...traceBase,
         phase: "status_normalize_result",
@@ -451,15 +465,15 @@ export async function resolveStatusWidgetTurnValues(
           ...v3Diag.actualKeys,
           `innerEcho:${previousEchoStats.exact}/${previousEchoStats.compared}`,
           `wholeCharEcho:${previousEchoStats.wholeCharacterExact ? 1 : 0}`,
-          `volatileEchoRepair:${volatileEchoRepairUsed ? 1 : 0}`,
+          `volatileEchoAccepted:${volatileEchoAccepted ? 1 : 0}`,
           ...previousEchoStats.exactKeys.map((k) => `echoKey:${k}`),
         ],
         normalizedKeys: normalizedDiag.normalizedKeys,
         missingKeys: normalizedDiag.missingKeys,
         hasUsableValues: normalizedDiag.hasUsableValues,
         dbValueShape: normalizedDiag.dbValueShape,
-        reasonCode: volatileEchoRepairUsed
-          ? "V3_PREVIOUS_ECHO_REPAIR_USED"
+        reasonCode: volatileEchoAccepted
+          ? "V3_PREVIOUS_ECHO_ACCEPTED"
           : normalizeReason,
       });
       if (statusWidgetValuesHasContent(normalizedExtractValues)) {
@@ -590,6 +604,8 @@ export async function resolveStatusWidgetTurnValues(
     prefetchedSuggestedReplies,
     prefetchedSuggestedRepliesAssistantProseHash,
     sharedInitialConsumed,
+    sharedInitialRelationshipUsable,
+    sharedInitialRelationshipDelta,
     telemetry,
   };
 }

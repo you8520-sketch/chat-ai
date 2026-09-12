@@ -11,7 +11,8 @@ import type { MemoryRelationshipTaskRecord } from "@/lib/memory/memoryRelationsh
 export type TurnAttributableAsyncFamily =
   | "suggested_replies_repair"
   | "status_meta"
-  | "memory_relationship";
+  | "memory_relationship"
+  | "post_turn_shared_initial";
 
 export type AsyncFamilyExpectationState =
   | "not_expected"
@@ -48,21 +49,29 @@ const ASYNC_FAMILY_LABELS: Record<TurnAttributableAsyncFamily, string> = {
   suggested_replies_repair: "Suggested Replies",
   status_meta: "Status Meta",
   memory_relationship: "Relationship Memory",
+  post_turn_shared_initial: "Shared Post-Turn",
 };
 
 const TURN_ATTRIBUTABLE_ASYNC_FAMILIES: TurnAttributableAsyncFamily[] = [
   "suggested_replies_repair",
   "status_meta",
   "memory_relationship",
+  "post_turn_shared_initial",
 ];
 
-function isTurnAttributableAsyncFamily(
+/**
+ * Canonical attributable-async-family recognizer. A `post_turn_shared_initial`
+ * row is a real physical async cost owner that can satisfy several logical
+ * consumers — it must never be classified as an unexpected row.
+ */
+export function isTurnAttributableAsyncFamily(
   family: string | null | undefined
 ): family is TurnAttributableAsyncFamily {
   return (
     family === "suggested_replies_repair" ||
     family === "status_meta" ||
-    family === "memory_relationship"
+    family === "memory_relationship" ||
+    family === "post_turn_shared_initial"
   );
 }
 
@@ -71,6 +80,8 @@ export function resolveSuggestedRepliesExpectation(input: {
   usage: Usage;
   record: SuggestedRepliesRecord | null;
   repairLedgerRowCount: number;
+  /** Scoped async `post_turn_shared_initial` rows for this generation. */
+  sharedInitialRowCount?: number;
 }): ResolvedAsyncFamilyExpectation {
   const family = "suggested_replies_repair" as const;
   if (input.usage.htmlFlashOnly) {
@@ -83,8 +94,10 @@ export function resolveSuggestedRepliesExpectation(input: {
   }
 
   const syncExtract = input.usage.statusWidgetExtract;
+  const sharedSatisfied =
+    syncExtract?.postTurnSharedInitial === true || (input.sharedInitialRowCount ?? 0) > 0;
   if (
-    syncExtract?.postTurnSharedInitial &&
+    sharedSatisfied &&
     input.record &&
     suggestedRepliesHaveContent(input.record.replies) &&
     !input.record.pending &&
@@ -270,6 +283,7 @@ export function resolveAsyncTurnCoverage(input: {
       usage: input.usage,
       record: input.suggestedRepliesRecord,
       repairLedgerRowCount: rowsByFamily.get("suggested_replies_repair")!.length,
+      sharedInitialRowCount: rowsByFamily.get("post_turn_shared_initial")!.length,
     }),
     resolveStatusMetaExpectation({
       record: input.statusMetaRecord,
@@ -322,13 +336,8 @@ export function resolveAsyncTurnCoverage(input: {
 export function isKnownAsyncFamily(
   family: string | null | undefined
 ): family is ProviderCostFamily {
-  return (
-    family === "suggested_replies_repair" ||
-    family === "status_meta" ||
-    family === "memory_relationship" ||
-    family === "post_turn_shared_initial" ||
-    family === "status_widget_extract"
-  );
+  // Single source: attributable async families + the sync status-widget family.
+  return isTurnAttributableAsyncFamily(family) || family === "status_widget_extract";
 }
 
 export { TURN_ATTRIBUTABLE_ASYNC_FAMILIES, ASYNC_FAMILY_LABELS };

@@ -620,3 +620,146 @@ describe("Admin Receipt compact — final semantic correction", () => {
     assert.doesNotMatch(tooltipSource, /formatWidgetExtractAttemptLine/);
   });
 });
+describe("Admin Receipt compact view model — shared post-turn physical projection", () => {
+  function padReply(seed: string, length = 72): string {
+    return `${seed}${"가".repeat(Math.max(0, length - seed.length))}`.slice(0, length);
+  }
+  function validSuggestedRecord() {
+    return {
+      replies: [
+        { kind: "escalate" as const, text: padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ") },
+        { kind: "soften" as const, text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
+        { kind: "pivot" as const, text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
+      ],
+      extractedAt: new Date().toISOString(),
+      source: "background-deepseek",
+      pending: false,
+      failed: false,
+    };
+  }
+  function displayStatusMetaRecord() {
+    return {
+      meta: {
+        tableMarkdown: "|a|b|\n|-|-|\n|1|2|",
+        datetime: "", location: "", relationship: "", npcEmotion: "", npcIntent: "", nextObjective: "", hiddenThought: "", sceneSummary: "",
+      },
+      extractedAt: new Date().toISOString(),
+      source: "background-deepseek",
+      pending: false,
+      failed: false,
+      formatSpec: null,
+    };
+  }
+  const noStatus = () => baseUsage({ statusWidgetExtract: undefined });
+  const sharedRow = (usd = 0.003, overrides: Partial<ProviderCostLedgerRow> = {}) =>
+    asyncLedgerRow("post_turn_shared_initial", usd, overrides);
+  const physRows = (receipt: ReturnType<typeof buildAdminBillingReceiptV3>) =>
+    receipt.async.byFamily.filter((f) => f.physicalCallCount > 0);
+
+  it("CASE A — shared success only: one Shared physical row, no logical duplicated rows", () => {
+    const receipt = buildV3(noStatus(), {
+      suggestedRepliesRecord: validSuggestedRecord() as never,
+      statusMetaRecord: displayStatusMetaRecord() as never,
+      memoryRelationshipTask: memoryTask("skipped", "shared_initial_satisfied"),
+      ledgerRows: [sharedRow()],
+    });
+    assert.equal(receipt.async.physicalCallCount, 1);
+    assert.equal(receipt.async.unexpectedRowCount, 0);
+    const shared = receipt.async.byFamily.find((f) => f.family === "post_turn_shared_initial");
+    assert.ok(shared, "shared physical byFamily summary present");
+    assert.equal(shared!.physicalCallCount, 1);
+    assert.equal(shared!.label, "Shared Post-Turn");
+
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    assert.equal(vm.auxiliaryCalls.length, 1);
+    assert.equal(vm.auxiliaryCalls[0]!.label, "Shared Post-Turn");
+    assert.equal(vm.auxiliaryCalls[0]!.calls, 1);
+    assert.ok(Math.abs((vm.auxiliaryCalls[0]!.costUsd ?? 0) - 0.003) < 1e-9);
+    assert.equal(vm.auxiliaryCalls[0]!.model, "gpt-5.6-luna");
+    assert.equal(vm.auxiliaryCalls.some((c) => c.label === "Suggested Replies"), false);
+    assert.equal(vm.auxiliaryCalls.some((c) => c.label === "Relationship Memory"), false);
+  });
+
+  it("CASE B — shared + relationship recovery: two physical rows, exact cost sum, no duplicate", () => {
+    const receipt = buildV3(noStatus(), {
+      suggestedRepliesRecord: validSuggestedRecord() as never,
+      statusMetaRecord: displayStatusMetaRecord() as never,
+      memoryRelationshipTask: memoryTask("succeeded"),
+      ledgerRows: [
+        sharedRow(0.003),
+        asyncLedgerRow("memory_relationship", 0.001),
+      ],
+    });
+    assert.equal(receipt.async.physicalCallCount, 2);
+    assert.equal(receipt.async.unexpectedRowCount, 0);
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    assert.equal(vm.auxiliaryCalls.length, 2);
+    assert.equal(vm.auxiliaryCalls.filter((c) => c.label === "Shared Post-Turn").length, 1);
+    assert.equal(vm.auxiliaryCalls.filter((c) => c.label === "Relationship Memory").length, 1);
+    const visible = vm.auxiliaryCalls.reduce((s, c) => s + (c.costUsd ?? 0), 0);
+    assert.ok(Math.abs(visible - receipt.async.knownActualCostUsd) < 1e-9);
+    assert.ok(Math.abs((receipt.async.exactActualCostUsd ?? 0) - 0.004) < 1e-9);
+  });
+
+  it("CASE C — shared + suggested repair: compact shows actual physical row count", () => {
+    const receipt = buildV3(noStatus(), {
+      suggestedRepliesRecord: validSuggestedRecord() as never,
+      statusMetaRecord: displayStatusMetaRecord() as never,
+      memoryRelationshipTask: memoryTask("skipped", "feature_disabled"),
+      ledgerRows: [
+        sharedRow(0.003),
+        asyncLedgerRow("suggested_replies_repair", 0.001),
+      ],
+    });
+    assert.equal(receipt.async.physicalCallCount, 2);
+    assert.equal(receipt.async.unexpectedRowCount, 0);
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    assert.equal(vm.auxiliaryCalls.length, 2);
+    assert.equal(vm.auxiliaryCalls.some((c) => c.label === "Shared Post-Turn"), true);
+    assert.equal(vm.auxiliaryCalls.some((c) => c.label === "Suggested Replies"), true);
+  });
+
+  it("CASE D — failed shared event reuses existing call-result rules", () => {
+    const receipt = buildV3(noStatus(), {
+      suggestedRepliesRecord: validSuggestedRecord() as never,
+      statusMetaRecord: displayStatusMetaRecord() as never,
+      memoryRelationshipTask: memoryTask("skipped", "feature_disabled"),
+      ledgerRows: [
+        sharedRow(0.003, { event_status: "failed_with_usage" } as never),
+      ],
+    });
+    assert.equal(receipt.async.unexpectedRowCount, 0);
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    const shared = vm.auxiliaryCalls.find((c) => c.label === "Shared Post-Turn");
+    assert.ok(shared);
+    assert.equal(shared!.result, "failed");
+    assert.equal(shared!.calls, 1);
+  });
+
+  it("parity — async byFamily physical rows === async.physicalCallCount; costs sum once", () => {
+    for (const receipt of [
+      buildV3(noStatus(), {
+        suggestedRepliesRecord: validSuggestedRecord() as never,
+        statusMetaRecord: displayStatusMetaRecord() as never,
+        memoryRelationshipTask: memoryTask("skipped", "shared_initial_satisfied"),
+        ledgerRows: [sharedRow(0.003)],
+      }),
+      buildV3(noStatus(), {
+        suggestedRepliesRecord: validSuggestedRecord() as never,
+        statusMetaRecord: displayStatusMetaRecord() as never,
+        memoryRelationshipTask: memoryTask("succeeded"),
+        ledgerRows: [sharedRow(0.003), asyncLedgerRow("memory_relationship", 0.001)],
+      }),
+    ]) {
+      const physicalRows = physRows(receipt).reduce((s, f) => s + f.physicalCallCount, 0);
+      assert.equal(physicalRows, receipt.async.physicalCallCount);
+      const knownSum = receipt.async.byFamily.reduce((s, f) => s + f.knownActualCostUsd, 0);
+      assert.ok(Math.abs(knownSum - receipt.async.knownActualCostUsd) < 1e-9);
+      // Shared cost is attributed to exactly one physical family, never duplicated.
+      const sharedCosts = receipt.async.byFamily
+        .filter((f) => f.family === "post_turn_shared_initial")
+        .reduce((s, f) => s + f.knownActualCostUsd, 0);
+      assert.ok(Math.abs(sharedCosts - 0.003) < 1e-9);
+    }
+  });
+});

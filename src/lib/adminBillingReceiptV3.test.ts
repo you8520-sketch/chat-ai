@@ -6,6 +6,7 @@ import Database from "better-sqlite3";
 import { describe, it } from "node:test";
 import {
   buildAdminBillingReceiptV3,
+  buildAdminBillingReceiptV3ForMissingUsage,
   projectWholeTurnExactKrw,
 } from "@/lib/adminBillingReceiptV3";
 import { ensureAdminFinanceTables } from "@/lib/adminFinance";
@@ -871,5 +872,162 @@ describe("adminBillingReceiptV3", () => {
     const publicUsage = sanitizeUsageForPublicReceipt(usage);
     assertNoInternalEconomics(publicUsage as Usage & Record<string, unknown>);
     assert.equal((publicUsage as Record<string, unknown>).wholeTurn, undefined);
+  });
+});
+
+describe("adminBillingReceiptV3 — shared post-turn physical family projection", () => {
+  function padReply(seed: string, length = 72): string {
+    return `${seed}${"가".repeat(Math.max(0, length - seed.length))}`.slice(0, length);
+  }
+  function validSuggestedRecord() {
+    return {
+      replies: [
+        { kind: "escalate" as const, text: padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ") },
+        { kind: "soften" as const, text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
+        { kind: "pivot" as const, text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
+      ],
+      extractedAt: new Date().toISOString(),
+      source: "background-deepseek",
+      pending: false,
+      failed: false,
+    };
+  }
+  function displayStatusMetaRecord() {
+    return {
+      meta: {
+        tableMarkdown: "|a|b|\n|-|-|\n|1|2|",
+        datetime: "",
+        location: "",
+        relationship: "",
+        npcEmotion: "",
+        npcIntent: "",
+        nextObjective: "",
+        hiddenThought: "",
+        sceneSummary: "",
+      },
+      extractedAt: new Date().toISOString(),
+      source: "background-deepseek",
+      pending: false,
+      failed: false,
+      formatSpec: null,
+    };
+  }
+
+  it("A — status OFF + relationship only shared success: 1 physical row, 0 unexpected", () => {
+    const db = createLedgerDb();
+    ledgerRow(db, 60, "post_turn_shared_initial", "async_post_turn", 0.003);
+    const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=60").all();
+    const receipt = buildAdminBillingReceiptV3({
+      usage: baseUsage({ statusWidgetExtract: undefined }),
+      assistantMessageId: 60,
+      chatId: 1,
+      suggestedRepliesRecord: validSuggestedRecord() as never,
+      statusMetaRecord: displayStatusMetaRecord() as never,
+      memoryRelationshipTask: memoryTask("skipped", "shared_initial_satisfied"),
+      ledgerRows: rows as never[],
+    });
+    assert.equal(receipt.async.unexpectedRowCount, 0);
+    assert.equal(receipt.async.physicalCallCount, 1);
+    assert.ok(Math.abs(receipt.async.knownActualCostUsd - 0.003) < 1e-9);
+    assert.notEqual(receipt.async.coverage, "unverifiable");
+    const rel = receipt.async.byFamily.find((f) => f.family === "memory_relationship");
+    assert.equal(rel?.expectationState, "not_expected");
+    const sug = receipt.async.byFamily.find((f) => f.family === "suggested_replies_repair");
+    assert.equal(sug?.expectationState, "not_expected");
+  });
+
+  it("B — status OFF + suggestions only shared success: repair row not required", () => {
+    const db = createLedgerDb();
+    ledgerRow(db, 61, "post_turn_shared_initial", "async_post_turn", 0.003);
+    const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=61").all();
+    const receipt = buildAdminBillingReceiptV3({
+      usage: baseUsage({ statusWidgetExtract: undefined }),
+      assistantMessageId: 61,
+      chatId: 1,
+      suggestedRepliesRecord: validSuggestedRecord() as never,
+      statusMetaRecord: displayStatusMetaRecord() as never,
+      memoryRelationshipTask: memoryTask("skipped", "feature_disabled"),
+      ledgerRows: rows as never[],
+    });
+    assert.equal(receipt.async.unexpectedRowCount, 0);
+    assert.equal(receipt.async.physicalCallCount, 1);
+    const sug = receipt.async.byFamily.find((f) => f.family === "suggested_replies_repair");
+    assert.equal(sug?.expectationState, "not_expected");
+    assert.equal(sug?.physicalCallCount, 0);
+    assert.notEqual(receipt.async.coverage, "unverifiable");
+  });
+
+  it("C — status OFF + suggestions + relationship shared success: cost once, consumers 2", () => {
+    const db = createLedgerDb();
+    ledgerRow(db, 62, "post_turn_shared_initial", "async_post_turn", 0.003);
+    const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=62").all();
+    const receipt = buildAdminBillingReceiptV3({
+      usage: baseUsage({ statusWidgetExtract: undefined }),
+      assistantMessageId: 62,
+      chatId: 1,
+      suggestedRepliesRecord: validSuggestedRecord() as never,
+      statusMetaRecord: displayStatusMetaRecord() as never,
+      memoryRelationshipTask: memoryTask("skipped", "shared_initial_satisfied"),
+      ledgerRows: rows as never[],
+    });
+    assert.equal(receipt.async.unexpectedRowCount, 0);
+    assert.equal(receipt.async.physicalCallCount, 1);
+    assert.ok(Math.abs(receipt.async.knownActualCostUsd - 0.003) < 1e-9);
+    assert.ok(Math.abs((receipt.async.exactActualCostUsd ?? 0) - 0.003) < 1e-9);
+  });
+
+  it("D — shared relationship section failure => recovery: both physical rows surfaced", () => {
+    const db = createLedgerDb();
+    ledgerRow(db, 63, "post_turn_shared_initial", "async_post_turn", 0.003);
+    ledgerRow(db, 63, "memory_relationship", "async_post_turn", 0.001);
+    const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=63").all();
+    const receipt = buildAdminBillingReceiptV3({
+      usage: baseUsage({ statusWidgetExtract: undefined }),
+      assistantMessageId: 63,
+      chatId: 1,
+      suggestedRepliesRecord: validSuggestedRecord() as never,
+      statusMetaRecord: displayStatusMetaRecord() as never,
+      memoryRelationshipTask: memoryTask("succeeded"),
+      ledgerRows: rows as never[],
+    });
+    assert.equal(receipt.async.unexpectedRowCount, 0);
+    assert.equal(receipt.async.physicalCallCount, 2);
+    assert.ok(Math.abs(receipt.async.knownActualCostUsd - 0.004) < 1e-9);
+    assert.ok(Math.abs((receipt.async.exactActualCostUsd ?? 0) - 0.004) < 1e-9);
+  });
+
+  it("E — shared suggestions failure => repair: shared row plus real repair rows", () => {
+    const db = createLedgerDb();
+    ledgerRow(db, 64, "post_turn_shared_initial", "async_post_turn", 0.003);
+    ledgerRow(db, 64, "suggested_replies_repair", "async_post_turn", 0.001);
+    const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=64").all();
+    const receipt = buildAdminBillingReceiptV3({
+      usage: baseUsage({ statusWidgetExtract: undefined }),
+      assistantMessageId: 64,
+      chatId: 1,
+      suggestedRepliesRecord: validSuggestedRecord() as never,
+      statusMetaRecord: displayStatusMetaRecord() as never,
+      memoryRelationshipTask: memoryTask("skipped", "feature_disabled"),
+      ledgerRows: rows as never[],
+    });
+    assert.equal(receipt.async.unexpectedRowCount, 0);
+    assert.equal(receipt.async.physicalCallCount, 2);
+    assert.ok(Math.abs(receipt.async.knownActualCostUsd - 0.004) < 1e-9);
+  });
+
+  it("F — missing-usage forensic path does not treat shared family as unexpected", () => {
+    const db = createLedgerDb();
+    ledgerRow(db, 65, "post_turn_shared_initial", "async_post_turn", 0.003);
+    const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=65").all();
+    const receipt = buildAdminBillingReceiptV3ForMissingUsage({
+      assistantMessageId: 65,
+      chatId: 1,
+      suggestedRepliesRecord: null,
+      statusMetaRecord: null,
+      memoryRelationshipTask: null,
+      ledgerRows: rows as never[],
+    });
+    assert.equal(receipt.async.unexpectedRowCount, 0);
+    assert.equal(receipt.async.physicalCallCount, 1);
   });
 });

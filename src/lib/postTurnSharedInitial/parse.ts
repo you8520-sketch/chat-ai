@@ -10,6 +10,7 @@ import {
   suggestedRepliesHaveContent,
 } from "@/lib/suggestedReplies/parse";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
+import { parseSharedRelationshipSection } from "./relationship";
 import type {
   PostTurnSharedInitialInput,
   PostTurnSharedInitialMode,
@@ -70,6 +71,7 @@ export function parsePostTurnSharedInitialResponse(
     user: null,
     suggestedReplies: [],
     suggestedRepliesOk: false,
+    relationship: { present: false, valid: false, delta: {} },
   };
   const root = extractJsonObjectFromWidgetText(text);
   if (!root) return empty;
@@ -94,7 +96,13 @@ export function parsePostTurnSharedInitialResponse(
     user = parseSingleWidgetSection(widgetRoot, input.userWidget, "user_values");
   }
 
-  const suggestedReplies = extractSuggestedRepliesSection(root);
+  // Inactive sections are neither requested nor parsed.
+  const suggestedReplies = input.includeSuggestions
+    ? extractSuggestedRepliesSection(root)
+    : [];
+  const relationship = input.includeRelationship
+    ? parseSharedRelationshipSection(root.relationship ?? root.relationshipMemory)
+    : { present: false, valid: false, delta: {} };
 
   return {
     jsonParseOk: true,
@@ -102,7 +110,8 @@ export function parsePostTurnSharedInitialResponse(
     character,
     user,
     suggestedReplies,
-    suggestedRepliesOk: suggestedRepliesHaveContent(suggestedReplies),
+    suggestedRepliesOk: input.includeSuggestions && suggestedRepliesHaveContent(suggestedReplies),
+    relationship,
   };
 }
 

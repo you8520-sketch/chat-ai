@@ -1,10 +1,9 @@
 import { getDb } from "@/lib/db";
-import type { Route } from "@/lib/ai";
-import {
-  extractRelationshipMetaFromTurn,
-  extractRelationshipMetaAfterRegenerate,
-  type RelationshipMetaExtractResult,
-} from "@/lib/ai";
+import { BACKGROUND_OPENROUTER_MODEL, type Route } from "@/lib/ai";
+import { type RelationshipMetaExtractResult } from "@/lib/ai";
+import { buildPlatformAsyncTurnLedgerContext } from "@/lib/providerCostLedger";
+import { runPostTurnRelationshipOnlyInitial } from "@/lib/postTurnSharedInitial/run";
+import { POST_TURN_SHARED_INITIAL_REQUEST_KIND } from "@/lib/postTurnSharedInitial/types";
 import {
   EMPTY_MEMORY_META,
   mergeMemoryMeta,
@@ -318,6 +317,58 @@ async function runProviderBackedRelationshipMerge(
   }
 }
 
+/**
+ * Canonical post-turn relationship inference owner (status-OFF and
+ * section-failure recovery): the SAME shared runner in relationship-only mode.
+ * No separate relationship orchestrator; one physical owner per call.
+ */
+async function extractRelationshipDeltaViaSharedOwner(opts: {
+  charName: string;
+  userName: string;
+  userMessage: string;
+  assistantMessage: string;
+  previousAssistantMessage?: string | null;
+  primaryModelId?: string;
+  ledgerOpts?: {
+    chatId: number;
+    assistantMessageId: number;
+    generationSequence: number;
+    generationRequestId?: string | null;
+    jobAttemptOrdinal?: number;
+  };
+}): Promise<RelationshipMetaExtractResult> {
+  const ledgerContext = opts.ledgerOpts
+    ? buildPlatformAsyncTurnLedgerContext({
+        chatId: opts.ledgerOpts.chatId,
+        assistantMessageId: opts.ledgerOpts.assistantMessageId,
+        generationSequence: opts.ledgerOpts.generationSequence,
+        generationRequestId: opts.ledgerOpts.generationRequestId ?? null,
+        family: "memory_relationship",
+        jobAttemptOrdinal: opts.ledgerOpts.jobAttemptOrdinal ?? 1,
+        requestKind: POST_TURN_SHARED_INITIAL_REQUEST_KIND,
+      })
+    : undefined;
+  const run = await runPostTurnRelationshipOnlyInitial(
+    {
+      charName: opts.charName,
+      personaName: opts.userName,
+      userMessage: opts.userMessage,
+      assistantProse: opts.assistantMessage,
+      primaryModelId: opts.primaryModelId ?? BACKGROUND_OPENROUTER_MODEL,
+      previousAssistantMessage: opts.previousAssistantMessage ?? null,
+    },
+    undefined,
+    ledgerContext
+  );
+  const section = run.parsed?.relationship;
+  if (!run.transportOk || !section || !section.valid) {
+    // Missing/malformed section (or transport failure) is a section failure,
+    // never a silent empty-delta success.
+    return { delta: {}, parseOk: false };
+  }
+  return { delta: section.delta, parseOk: true };
+}
+
 /** 턴 종료 후 호칭·물건·속마음·약속 추출 → chats.memory_meta 병합 */
 export async function mergeRelationshipMetaFromTurn(opts: {
   chatId: number;
@@ -329,6 +380,9 @@ export async function mergeRelationshipMetaFromTurn(opts: {
   /** DeepSeek/Qwen — 메인 모델 JSON tail 파싱 성공 시 Flash 생략 */
   mainModelTailParsed?: boolean;
   mainModelDelta?: RelationshipMetaDelta | null;
+  /** Shared post-turn Luna call already carried the durable relationship delta. */
+  sharedInitialParsed?: boolean;
+  sharedInitialDelta?: RelationshipMetaDelta | null;
   sourceUserMessageId?: number | null;
   boundarySnapshot?: MemorySourceBoundary;
   assistantMessageId?: number;
@@ -368,6 +422,35 @@ export async function mergeRelationshipMetaFromTurn(opts: {
 
   const prevNormalized = normalizeMemoryMeta(loadChatRelationshipMeta(opts.chatId), names);
 
+  // Shared post-turn Luna call already produced the durable relationship delta:
+  // consume it WITHOUT any independent provider invocation (one physical owner).
+  if (opts.sharedInitialParsed === true) {
+    if (opts.assistantMessageId) {
+      setMemoryRelationshipTaskState(
+        opts.assistantMessageId,
+        "skipped",
+        "shared_initial_satisfied",
+        undefined,
+        opts.generationScope
+      );
+    }
+    try {
+      const applied = applyRelationshipDeltaToChat({
+        chatId: opts.chatId,
+        names,
+        delta: opts.sharedInitialDelta ?? {},
+        sourceUserMessageId: opts.sourceUserMessageId,
+        boundarySnapshot: opts.boundarySnapshot,
+        generationScope: opts.generationScope,
+        __testThrowOnSave: opts.__testThrowOnSave,
+      });
+      return applied.meta;
+    } catch (e) {
+      console.warn("[memory] relationship shared-initial commit failed:", (e as Error).message);
+      return loadChatRelationshipMeta(opts.chatId, opts.names);
+    }
+  }
+
   return runProviderBackedRelationshipMerge({
     chatId: opts.chatId,
     names: opts.names,
@@ -380,23 +463,21 @@ export async function mergeRelationshipMetaFromTurn(opts: {
     extract: () =>
       opts.__testExtract
         ? opts.__testExtract()
-        : extractRelationshipMetaFromTurn(
-            opts.userMessage,
-            opts.assistantMessage,
-            names.charName,
-            names.userName,
-            opts.route,
-            prevNormalized,
-            opts.turnTrace,
-            opts.assistantMessageId && opts.generationScope
-              ? {
-                  chatId: opts.chatId,
-                  assistantMessageId: opts.assistantMessageId,
-                  generationSequence: opts.generationScope.generationSequence,
-                  generationRequestId: opts.generationScope.generationRequestId,
-                }
-              : undefined
-          ),
+        : extractRelationshipDeltaViaSharedOwner({
+            charName: names.charName,
+            userName: names.userName,
+            userMessage: opts.userMessage,
+            assistantMessage: opts.assistantMessage,
+            ledgerOpts:
+              opts.assistantMessageId && opts.generationScope
+                ? {
+                    chatId: opts.chatId,
+                    assistantMessageId: opts.assistantMessageId,
+                    generationSequence: opts.generationScope.generationSequence,
+                    generationRequestId: opts.generationScope.generationRequestId,
+                  }
+                : undefined,
+          }),
   });
 }
 
@@ -413,12 +494,43 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
   boundarySnapshot?: MemorySourceBoundary;
   assistantMessageId?: number;
   generationScope?: AssistantGenerationScope;
+  /** Shared post-turn Luna call (with regen context) already produced the delta. */
+  sharedInitialParsed?: boolean;
+  sharedInitialDelta?: RelationshipMetaDelta | null;
   __testExtract?: () => Promise<RelationshipMetaExtractResult>;
   __testThrowOnSave?: boolean;
 }): Promise<MemoryMeta> {
   if (!isMemoryFeatureEnabled()) return loadChatRelationshipMeta(opts.chatId);
   const names = opts.names;
-  const prevNormalized = normalizeMemoryMeta(loadChatRelationshipMeta(opts.chatId), names);
+
+  // Regen shares the SAME physical inference: consume the shared delta (which
+  // compared the rejected draft and new canonical reply) without a second call.
+  if (opts.sharedInitialParsed === true) {
+    if (opts.assistantMessageId) {
+      setMemoryRelationshipTaskState(
+        opts.assistantMessageId,
+        "skipped",
+        "shared_initial_satisfied",
+        undefined,
+        opts.generationScope
+      );
+    }
+    try {
+      const applied = applyRelationshipDeltaToChat({
+        chatId: opts.chatId,
+        names,
+        delta: opts.sharedInitialDelta ?? {},
+        sourceUserMessageId: opts.sourceUserMessageId,
+        boundarySnapshot: opts.boundarySnapshot,
+        generationScope: opts.generationScope,
+        __testThrowOnSave: opts.__testThrowOnSave,
+      });
+      return applied.meta;
+    } catch (e) {
+      console.warn("[memory] relationship regen shared-initial commit failed:", (e as Error).message);
+      return loadChatRelationshipMeta(opts.chatId, opts.names);
+    }
+  }
 
   return runProviderBackedRelationshipMerge({
     chatId: opts.chatId,
@@ -432,23 +544,21 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
     extract: () =>
       opts.__testExtract
         ? opts.__testExtract()
-        : extractRelationshipMetaAfterRegenerate(
-            opts.userMessage,
-            opts.newAssistantMessage,
-            opts.previousAssistantMessage,
-            names.charName,
-            names.userName,
-            opts.route,
-            prevNormalized,
-            opts.turnTrace,
-            opts.assistantMessageId && opts.generationScope
-              ? {
-                  chatId: opts.chatId,
-                  assistantMessageId: opts.assistantMessageId,
-                  generationSequence: opts.generationScope.generationSequence,
-                  generationRequestId: opts.generationScope.generationRequestId,
-                }
-              : undefined
-          ),
+        : extractRelationshipDeltaViaSharedOwner({
+            charName: names.charName,
+            userName: names.userName,
+            userMessage: opts.userMessage,
+            assistantMessage: opts.newAssistantMessage,
+            previousAssistantMessage: opts.previousAssistantMessage,
+            ledgerOpts:
+              opts.assistantMessageId && opts.generationScope
+                ? {
+                    chatId: opts.chatId,
+                    assistantMessageId: opts.assistantMessageId,
+                    generationSequence: opts.generationScope.generationSequence,
+                    generationRequestId: opts.generationScope.generationRequestId,
+                  }
+                : undefined,
+          }),
   });
 }

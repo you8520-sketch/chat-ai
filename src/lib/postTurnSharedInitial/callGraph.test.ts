@@ -114,6 +114,8 @@ describe("postTurnSharedInitial parse", () => {
       characterWidget: both.characterWidget!,
       userWidget: both.userWidget!,
       primaryModelId: "gpt-5.6-luna",
+      includeSuggestions: true,
+      includeRelationship: false,
     });
     assert.equal(parsed.jsonParseOk, true);
     assert.equal(parsed.dual?.characterOk, true);
@@ -296,6 +298,8 @@ describe("T10 shared prompt output contract", () => {
       characterWidget: both.characterWidget!,
       userWidget: both.userWidget!,
       primaryModelId: "gpt-5.6-luna",
+      includeSuggestions: true,
+      includeRelationship: false,
     });
     const widgetOnlySystem = buildCombinedDualWidgetExtractSystem(
       both.characterWidget!,
@@ -332,6 +336,8 @@ describe("T13 persona voice context parity", () => {
       userPersona: PUBLIC_PERSONA.userPersona,
       personaDescription: PUBLIC_PERSONA.personaDescription,
       personaSpeechExamples: PUBLIC_PERSONA.personaSpeechExamples,
+      includeSuggestions: true,
+      includeRelationship: false,
     });
     assert.match(block, /USER PERSONA PERSONALITY/);
     assert.match(block, /USER SPEECH EXAMPLES/);

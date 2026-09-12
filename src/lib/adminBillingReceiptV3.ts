@@ -9,6 +9,8 @@ import {
 } from "@/lib/adminBillingReceiptV2";
 import {
   ASYNC_FAMILY_LABELS,
+  TURN_ATTRIBUTABLE_ASYNC_FAMILIES,
+  isTurnAttributableAsyncFamily,
   resolveAsyncTurnCoverage,
   type AsyncFamilyCoverageState,
   type AsyncFamilyExpectationState,
@@ -115,6 +117,57 @@ function resolveFamilyCoverage(
   return "partial";
 }
 
+/**
+ * Single canonical async-family summary projection (logical expectations AND
+ * physical-only families like `post_turn_shared_initial`). Prevents divergent
+ * logical/physical family math.
+ */
+function buildAsyncFamilySummary(input: {
+  family: TurnAttributableAsyncFamily;
+  label: string;
+  expectationState: AsyncFamilyExpectationState;
+  rows: ProviderCostLedgerRow[];
+  taskPending?: boolean;
+  taskFailed?: boolean;
+  skipReason?: string;
+}): AdminBillingReceiptV3AsyncFamilySummary {
+  const rows = input.rows;
+  const exactRows = rows.filter((row) => isLedgerEventCostExact(row));
+  const incompleteRows = rows.filter((row) => isLedgerEventCostCoverageIncomplete(row));
+  const hasStarted = rows.some((row) => row.event_status === "started");
+  const knownUsd = rows.reduce(
+    (sum, row) => (isLedgerEventCostExact(row) ? sum + finiteUsd(row.actual_cost_usd) : sum),
+    0
+  );
+  const allExact = rows.length > 0 && rows.every((row) => isLedgerEventCostExact(row));
+  const familyCoverage = resolveFamilyCoverage(
+    input.expectationState,
+    rows,
+    hasStarted,
+    incompleteRows.length > 0,
+    allExact
+  );
+  return {
+    family: input.family,
+    label: input.label,
+    expectationState: input.expectationState,
+    coverage: familyCoverage,
+    physicalCallCount: rows.length,
+    exactPhysicalCallCount: exactRows.length,
+    incompletePhysicalCallCount: incompleteRows.length,
+    knownActualCostUsd: knownUsd,
+    exactActualCostUsd:
+      input.expectationState === "not_expected"
+        ? 0
+        : familyCoverage === "complete" && allExact
+          ? knownUsd
+          : null,
+    taskPending: input.taskPending,
+    taskFailed: input.taskFailed,
+    skipReason: input.skipReason,
+  };
+}
+
 function resolveAsyncSection(input: {
   usage: Usage;
   suggestedRepliesRecord: SuggestedRepliesRecord | null;
@@ -139,11 +192,7 @@ function resolveAsyncSection(input: {
   }
   for (const row of relevant) {
     const family = row.family?.trim() || null;
-    if (
-      family === "suggested_replies_repair" ||
-      family === "status_meta" ||
-      family === "memory_relationship"
-    ) {
+    if (isTurnAttributableAsyncFamily(family)) {
       rowsByFamily.get(family)!.push(row);
     } else {
       unexpected.push(row);
@@ -151,47 +200,36 @@ function resolveAsyncSection(input: {
   }
 
   const byFamily: AdminBillingReceiptV3AsyncFamilySummary[] = expectation.families.map(
-    (familyExpectation) => {
-      const rows = rowsByFamily.get(familyExpectation.family) ?? [];
-      const exactRows = rows.filter((row) => isLedgerEventCostExact(row));
-      const incompleteRows = rows.filter((row) => isLedgerEventCostCoverageIncomplete(row));
-      const hasStarted = rows.some((row) => row.event_status === "started");
-      const knownUsd = rows.reduce((sum, row) => {
-        if (isLedgerEventCostExact(row)) {
-          return sum + finiteUsd(row.actual_cost_usd);
-        }
-        return sum;
-      }, 0);
-      const allExact =
-        rows.length > 0 && rows.every((row) => isLedgerEventCostExact(row));
-      const familyCoverage = resolveFamilyCoverage(
-        familyExpectation.expectationState,
-        rows,
-        hasStarted,
-        incompleteRows.length > 0,
-        allExact
-      );
-      return {
+    (familyExpectation) =>
+      buildAsyncFamilySummary({
         family: familyExpectation.family,
         label: familyExpectation.label,
         expectationState: familyExpectation.expectationState,
-        coverage: familyCoverage,
-        physicalCallCount: rows.length,
-        exactPhysicalCallCount: exactRows.length,
-        incompletePhysicalCallCount: incompleteRows.length,
-        knownActualCostUsd: knownUsd,
-        exactActualCostUsd:
-          familyExpectation.expectationState === "not_expected"
-            ? 0
-            : familyCoverage === "complete" && allExact
-              ? knownUsd
-              : null,
+        rows: rowsByFamily.get(familyExpectation.family) ?? [],
         taskPending: familyExpectation.taskPending,
         taskFailed: familyExpectation.taskFailed,
         skipReason: familyExpectation.skipReason,
-      };
-    }
+      })
   );
+  // Physical-only async families (e.g. post_turn_shared_initial) are NOT logical
+  // task expectations, but they are real receipt physical-call entries. Project
+  // them from actual scoped ledger evidence so compact display never hides a
+  // physical provider call whose cost is already in the async total.
+  const logicalFamilySet = new Set(expectation.families.map((f) => f.family));
+  for (const family of TURN_ATTRIBUTABLE_ASYNC_FAMILIES) {
+    if (logicalFamilySet.has(family)) continue;
+    const rows = rowsByFamily.get(family) ?? [];
+    if (rows.length === 0) continue;
+    byFamily.push(
+      buildAsyncFamilySummary({
+        family,
+        label: ASYNC_FAMILY_LABELS[family],
+        expectationState: "terminal",
+        rows,
+        skipReason: "physical_family_evidence",
+      })
+    );
+  }
 
   const physicalCallCount = relevant.length;
   const exactPhysicalCallCount = relevant.filter((row) => isLedgerEventCostExact(row)).length;
@@ -365,11 +403,7 @@ export function buildAdminBillingReceiptV3ForMissingUsage(
   }
   for (const row of relevant) {
     const family = row.family?.trim() || null;
-    if (
-      family === "suggested_replies_repair" ||
-      family === "status_meta" ||
-      family === "memory_relationship"
-    ) {
+    if (isTurnAttributableAsyncFamily(family)) {
       rowsByFamily.get(family)!.push(row);
     } else {
       unexpected.push(row);

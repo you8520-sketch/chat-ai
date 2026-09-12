@@ -5,6 +5,7 @@ import {
   isTrafficOverloadSystemMessage,
   sendTrafficOverloadGracefulStream,
   estimateTokens,
+  BACKGROUND_OPENROUTER_MODEL,
   type ChatMsg,
   type Route,
   type StageUsage,
@@ -427,7 +428,10 @@ import {
   logStatusWidgetTurnTelemetry,
   resolveStatusWidgetTurnValues,
 } from "@/lib/statusWidget/telemetry";
-import { resolvePrefetchedSuggestedReplies } from "@/lib/postTurnSharedInitial/prefetch";
+import { resolvePrefetchedSuggestedReplies, hashAssistantProseForSuggestionPrefetch } from "@/lib/postTurnSharedInitial/prefetch";
+import { runPostTurnRelationshipOnlyInitial } from "@/lib/postTurnSharedInitial/run";
+import { POST_TURN_SHARED_INITIAL_REQUEST_KIND } from "@/lib/postTurnSharedInitial/types";
+import { buildPlatformAsyncTurnLedgerContext } from "@/lib/providerCostLedger";
 import { isStatusWidgetContextSafeForSuggestedRepliesCoalesce } from "@/lib/postTurnSharedInitial/coalesceVisibility";
 import {
   diagnoseStatusWidgetValues,
@@ -4824,6 +4828,12 @@ export async function POST(req: Request) {
           null;
         let widgetPrefetchedSuggestedRepliesAssistantProseHash: string | null = null;
         let widgetSharedInitialConsumed = false;
+        let widgetSharedRelationshipUsable = false;
+        let widgetSharedRelationshipDelta:
+          | import("@/lib/chatMemory").RelationshipMetaDelta
+          | null = null;
+        /** status OFF: run the shared post-turn inference AFTER SSE done (background). */
+        let deferPostTurnShared = false;
         const suggestedRepliesEligibleForCoalesce =
           body.suggestedRepliesEnabled !== false &&
           !htmlFlashOnlyTurn &&
@@ -4856,6 +4866,13 @@ export async function POST(req: Request) {
             coalesceSuggestedReplies:
               suggestedRepliesEligibleForCoalesce &&
               isStatusWidgetContextSafeForSuggestedRepliesCoalesce(statusWidgetTurn),
+            // Whole-turn owner: also carry the durable relationship delta in the
+            // same Luna inference when memory is enabled.
+            shareRelationshipDelta: isMemoryFeatureEnabled(),
+            relationshipRegenContext:
+              regenerateMessageId && rejectedAssistantDraft
+                ? { previousAssistantMessage: rejectedAssistantDraft }
+                : null,
           });
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;
@@ -4868,6 +4885,8 @@ export async function POST(req: Request) {
           widgetPrefetchedSuggestedRepliesAssistantProseHash =
             widgetResolved.prefetchedSuggestedRepliesAssistantProseHash;
           widgetSharedInitialConsumed = widgetResolved.sharedInitialConsumed;
+          widgetSharedRelationshipUsable = widgetResolved.sharedInitialRelationshipUsable;
+          widgetSharedRelationshipDelta = widgetResolved.sharedInitialRelationshipDelta;
           if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
             usageRecord = {
               ...usageRecord,
@@ -4900,6 +4919,11 @@ export async function POST(req: Request) {
               };
             }
           }
+        } else if (isMemoryFeatureEnabled() || suggestedRepliesEligibleForCoalesce) {
+          // Status widget OFF: do NOT await a provider call before SSE done.
+          // The canonical shared owner runs post-final (background) for the
+          // remaining active consumers.
+          deferPostTurnShared = true;
         }
 
         if (visualPolicy.hair || visualPolicy.eyes) {
@@ -5794,7 +5818,8 @@ export async function POST(req: Request) {
           !htmlFlashOnlyTurn &&
           !oocSceneRenderTurn &&
           Boolean(savedText.trim());
-        if (suggestedRepliesEnabled) {
+        const scheduleRepliesIfEnabled = () => {
+          if (!suggestedRepliesEnabled) return;
           const prefetchedReplies = resolvePrefetchedSuggestedReplies({
             prefetched: widgetPrefetchedSuggestedReplies,
             prefetchAssistantProseHash: widgetPrefetchedSuggestedRepliesAssistantProseHash,
@@ -5814,7 +5839,9 @@ export async function POST(req: Request) {
             prefetchedReplies,
             sharedInitialAttemptConsumed: widgetSharedInitialConsumed,
           });
-        }
+        };
+        // status OFF defers to the post-final background shared call.
+        if (statusWidgetActive) scheduleRepliesIfEnabled();
 
         if (rpDiagnosticCanary && rpDiagnosticEnablesPipelineCapture(rpDiagnosticCanary.variant)) {
           const providerRawMerged = rawStreamTextRef || fullText;
@@ -5978,6 +6005,56 @@ export async function POST(req: Request) {
               promptHash: computePromptHash(contextJson),
               contextJson,
             });
+            if (deferPostTurnShared) {
+              // Status OFF: ONE canonical background shared inference for the
+              // relationship and/or suggested-replies consumers, run AFTER SSE
+              // done so the main turn is never blocked by it. Its single physical
+              // call is written to api_cost_ledger exactly once.
+              const ledgerContext = buildPlatformAsyncTurnLedgerContext({
+                chatId: chatRef.id,
+                assistantMessageId: aiMessageId,
+                generationSequence: postTurnGenerationScope.generationSequence,
+                generationRequestId: postTurnGenerationScope.generationRequestId ?? null,
+                family: "post_turn_shared_initial",
+                jobAttemptOrdinal: 1,
+                requestKind: POST_TURN_SHARED_INITIAL_REQUEST_KIND,
+              });
+              const sharedConsumers = await runPostTurnRelationshipOnlyInitial(
+                {
+                  charName: ch.name,
+                  personaName: personaDisplayName,
+                  userMessage: messageText,
+                  assistantProse: savedText,
+                  primaryModelId: BACKGROUND_OPENROUTER_MODEL,
+                  includeSuggestions: suggestedRepliesEnabled,
+                  includeRelationship: isMemoryFeatureEnabled(),
+                  userPersona: backgroundPersonaIdentity,
+                  personaDescription,
+                  personaSpeechExamples: selectedPersona?.speech_examples ?? null,
+                  previousAssistantMessage:
+                    regenerateMessageId && rejectedAssistantDraft
+                      ? rejectedAssistantDraft
+                      : null,
+                },
+                undefined,
+                ledgerContext
+              );
+              if (sharedConsumers.attempted) {
+                widgetSharedInitialConsumed = true;
+                const rel = sharedConsumers.parsed?.relationship;
+                if (rel?.present === true && rel.valid === true) {
+                  widgetSharedRelationshipUsable = true;
+                  widgetSharedRelationshipDelta = rel.delta;
+                }
+                if (suggestedRepliesEnabled && sharedConsumers.parsed?.suggestedRepliesOk) {
+                  widgetPrefetchedSuggestedReplies = sharedConsumers.parsed.suggestedReplies;
+                  widgetPrefetchedSuggestedRepliesAssistantProseHash =
+                    hashAssistantProseForSuggestionPrefetch(savedText);
+                }
+              }
+              scheduleRepliesIfEnabled();
+            }
+
             if (shouldCommitCanonicalTurnState(generationSemantics)) {
             await scheduleMemoryUpdate({
               chatId: chatRef.id,
@@ -5997,6 +6074,8 @@ export async function POST(req: Request) {
               route: nextMode,
               relationshipTailParsed,
               relationshipDeltaFromMain,
+              relationshipSharedParsed: widgetSharedRelationshipUsable,
+              relationshipSharedDelta: widgetSharedRelationshipDelta,
               generationScope: postTurnGenerationScope,
             });
             }
