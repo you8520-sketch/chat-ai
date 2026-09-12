@@ -26,7 +26,7 @@ import {
 import type { TokenUsage } from "./ai";
 import { loadChatRelationshipMeta, mergeRelationshipMetaFromTurn, mergeRelationshipMetaAfterRegenerate } from "./memory/memory-relationship-meta";
 import { getOrCreateChatMemory } from "./memory/memory-db";
-import { ensureProviderCostLedgerSchema } from "./providerCostLedger";
+import { ensureProviderCostLedgerSchema, recordBackgroundProviderCost } from "./providerCostLedger";
 import { buildPostTurnSharedInitialSystem } from "./postTurnSharedInitial/prompt";
 import { buildPostTurnSharedInitialUserBlock } from "./postTurnSharedInitial/prompt";
 import { parsePostTurnSharedInitialResponse } from "./postTurnSharedInitial/parse";
@@ -737,5 +737,41 @@ describe("status-OFF lifecycle guardrail", () => {
       /await runPostTurnRelationshipOnlyInitial/,
       "status-OFF branch must not await the shared provider before SSE done"
     );
+  });
+});
+
+describe("provider-cost accounting parity (status-OFF shared owner)", () => {
+  it("one shared physical call shape => exactly one ledger row; consumers add none", () => {
+    const db = getDb();
+    const before = (
+      db.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+    ).c;
+    // The route's status-OFF shared call records via callBackgroundMemory with
+    // one ledger context. This is the canonical writer shape/path.
+    recordBackgroundProviderCost(
+      {
+        provider: "cheaperinference",
+        outcome: "success",
+        persistInTests: true,
+        model: "gpt-5.6-luna",
+        cheaperInferenceBilledCostUsd: 0.003,
+        requestKind: POST_TURN_SHARED_INITIAL_REQUEST_KIND,
+        costCenter: "other",
+      },
+      db
+    );
+    const after = (
+      db.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+    ).c;
+    assert.equal(after - before, 1, "one physical call => exactly one ledger row");
+    // Consuming the shared relationship delta writes no additional provider row.
+    const rowsForShared = (
+      db
+        .prepare(
+          "SELECT COUNT(*) AS c FROM api_cost_ledger WHERE request_kind = ?"
+        )
+        .get(POST_TURN_SHARED_INITIAL_REQUEST_KIND) as { c: number }
+    ).c;
+    assert.equal(rowsForShared, 1);
   });
 });
