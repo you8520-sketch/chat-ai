@@ -5,11 +5,16 @@ import {
   type CharacterAsset,
 } from "@/lib/characterAssets";
 import {
+  INLINE_ASSET_TURN_LIMIT,
+  type InlineAssetOrientationPolicy,
+} from "@/lib/chatAssetPresentation";
+import { transformNovelSegments } from "@/lib/chatRichContent";
+import {
   collectEmotionTags,
   resolveEmotionTag,
   sanitizeEmotionTagInText,
   splitProseWithEmotionTags,
-  stripEmotionTagsForDisplay,
+  stripAllEmotionTagsForDisplay,
 } from "@/lib/emotionTag";
 
 export type InlineAssetPart =
@@ -43,45 +48,135 @@ export function mergeAssetSizes(
   });
 }
 
-/** 에셋 OFF면 태그를 모두 숨기고, ON이면 가로 태그만 본문에 남긴다. */
+/** 에셋 OFF면 태그를 모두 숨기고, ON이면 prose의 표시 정책 태그만 본문에 남긴다. */
 export function displayBodyEmotionTags(
   text: string,
   assets: CharacterAsset[],
-  opts?: { streaming?: boolean; assetsEnabled?: boolean }
+  opts?: {
+    streaming?: boolean;
+    assetsEnabled?: boolean;
+    orientationPolicy?: InlineAssetOrientationPolicy;
+    selectionKey?: string;
+  }
 ): string {
   if (opts?.assetsEnabled === false) {
-    return stripEmotionTagsForDisplay(text, { streaming: opts.streaming });
+    return stripAllEmotionTagsForDisplay(text, { streaming: opts.streaming });
   }
-  return prepareBodyEmotionTags(text, assets, opts);
+  // Non-prose blocks (HTML/status/visual-card/markdown-table) are not asset
+  // presentation surfaces: plan prose segments only so their marker-like text
+  // cannot consume the turn quota (and their raw content is copied verbatim).
+  const turn = createInlineAssetTurnPlan(assets, {
+    orientationPolicy: opts?.orientationPolicy,
+    selectionKey: opts?.selectionKey,
+  });
+  return transformNovelSegments(text, (novel, isLastNovel) =>
+    turn.planSegment(novel, Boolean(opts?.streaming) && isLastNovel)
+  );
 }
 
-/** 본문에서 세로 태그는 제거하고 가로 태그만 남겨 인라인 렌더에 넘긴다. */
+export type InlineAssetTurnPlan = {
+  /** Plan one prose segment, sharing the turn-level dedupe/quota accumulator. */
+  planSegment: (text: string, streaming: boolean) => string;
+};
+
+/**
+ * Whole-turn pure policy. One accumulator per assistant turn: markers are kept in
+ * prose order, de-duplicated by resolved asset, and capped at
+ * {@link INLINE_ASSET_TURN_LIMIT} unique assets across every prose segment.
+ * The accumulator is a local closure (no global mutable state).
+ */
+export function createInlineAssetTurnPlan(
+  assets: CharacterAsset[],
+  opts?: {
+    orientationPolicy?: InlineAssetOrientationPolicy;
+    selectionKey?: string;
+  }
+): InlineAssetTurnPlan {
+  const policy = opts?.orientationPolicy ?? "landscape";
+  const seen = new Set<string>();
+  let count = 0;
+  const planSegment = (text: string, streaming: boolean): string => {
+    const parts = splitProseWithEmotionTags(text, { streaming });
+    const approved: string[] = [];
+    for (const part of parts) {
+      if (part.kind === "text") {
+        approved.push(part.text);
+        continue;
+      }
+      if (count >= INLINE_ASSET_TURN_LIMIT) continue;
+      const asset = resolveInlineAsset(assets, part.tag, policy, opts?.selectionKey);
+      if (!asset) continue;
+      if (policy === "landscape" && !isWideInlineAsset(asset)) continue;
+      const identity = asset.url || asset.tag;
+      if (seen.has(identity) || seen.has(asset.tag)) continue;
+      seen.add(identity);
+      seen.add(asset.tag);
+      count += 1;
+      approved.push(`[태그: ${part.tag}]`);
+    }
+    return approved.join("");
+  };
+  return { planSegment };
+}
+
+/**
+ * Whole-turn pure policy for a single prose body. Walks the text once, resolves
+ * each marker to its stable asset, and returns the body with only the approved
+ * `[태그: …]` markers retained: chronological, de-duplicated by resolved asset,
+ * and capped at {@link INLINE_ASSET_TURN_LIMIT} unique assets. No mutable global
+ * state; same input → same output.
+ */
+export function planInlineAssetBody(
+  text: string,
+  assets: CharacterAsset[],
+  opts?: {
+    streaming?: boolean;
+    orientationPolicy?: InlineAssetOrientationPolicy;
+    selectionKey?: string;
+  }
+): string {
+  return createInlineAssetTurnPlan(assets, opts).planSegment(text, Boolean(opts?.streaming));
+}
+
+/** Resolve one marker to its stable inline asset for the given orientation policy. */
+export function resolveInlineAsset(
+  assets: CharacterAsset[],
+  tag: string,
+  policy: InlineAssetOrientationPolicy,
+  selectionKey?: string
+): CharacterAsset | null {
+  const key = selectionKey?.trim();
+  const displayKind = policy === "any" ? "any" : "inline";
+  if (key) return findAssetByTagStable(assets, tag, key, displayKind);
+  const pool = findAssetsByTag(assets, tag);
+  if (policy === "landscape") return pool.find(isWideInlineAsset) ?? null;
+  return pool[0] ?? null;
+}
+
+/** 본문에서 정책에 맞지 않는 태그는 제거하고 승인된 태그만 남긴다 (턴 전체 기준). */
 export function prepareBodyEmotionTags(
   text: string,
   assets: CharacterAsset[],
-  opts?: { streaming?: boolean }
-): string {
-  const parts = splitProseWithEmotionTags(text, opts);
-  if (parts.length === 0) return opts?.streaming ? text : stripEmotionTagsForDisplay(text);
-  let out = "";
-  for (const part of parts) {
-    if (part.kind === "text") {
-      out += part.text;
-      continue;
-    }
-    const hasInlineCandidate = findAssetsByTag(assets, part.tag).some(isWideInlineAsset);
-    if (hasInlineCandidate) {
-      out += `[태그: ${part.tag}]`;
-    }
+  opts?: {
+    streaming?: boolean;
+    orientationPolicy?: InlineAssetOrientationPolicy;
+    selectionKey?: string;
   }
-  return out;
+): string {
+  return planInlineAssetBody(text, assets, opts);
 }
 
 export function splitProseForInlineAssets(
   text: string,
   assets: CharacterAsset[],
-  opts?: { streaming?: boolean; oncePerAsset?: boolean; assetSelectionKey?: string }
+  opts?: {
+    streaming?: boolean;
+    oncePerAsset?: boolean;
+    assetSelectionKey?: string;
+    orientationPolicy?: InlineAssetOrientationPolicy;
+  }
 ): InlineAssetPart[] {
+  const policy = opts?.orientationPolicy ?? "landscape";
   const seen = new Set<string>();
   const out: InlineAssetPart[] = [];
   for (const part of splitProseWithEmotionTags(text, opts)) {
@@ -89,11 +184,9 @@ export function splitProseForInlineAssets(
       if (part.text) out.push(part);
       continue;
     }
-    const selectionKey = opts?.assetSelectionKey?.trim();
-    const asset = selectionKey
-      ? findAssetByTagStable(assets, part.tag, selectionKey, "inline")
-      : findAssetsByTag(assets, part.tag).find(isWideInlineAsset) ?? null;
-    if (!asset || !isWideInlineAsset(asset)) continue;
+    const asset = resolveInlineAsset(assets, part.tag, policy, opts?.assetSelectionKey);
+    if (!asset) continue;
+    if (policy === "landscape" && !isWideInlineAsset(asset)) continue;
     if (opts?.oncePerAsset !== false) {
       if (seen.has(asset.url) || seen.has(asset.tag)) continue;
       seen.add(asset.url);

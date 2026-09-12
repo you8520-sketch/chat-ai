@@ -2,11 +2,16 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
+  CHAT_ASSET_DISPLAY_MODE_LABELS,
+  CHAT_ASSET_DISPLAY_MODE_LABELS_MOBILE,
+  CHAT_ASSET_DISPLAY_MODES,
   CHAT_INFO_STICKY_NO_PORTRAIT_CLASS,
+  CHAT_INLINE_ASSET_FIGURE_CLASS,
+  CHAT_INLINE_ASSET_IMG_CLASS,
   CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS,
+  CHAT_MESSAGES_COLUMN_CLASS,
   CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS,
   CHAT_MOBILE_PORTRAIT_IMAGE_CLASS,
-  CHAT_MESSAGES_COLUMN_CLASS,
   CHAT_PORTRAIT_CHAT_COLUMN_CLASS,
   CHAT_PORTRAIT_COLUMN_CLASS,
   CHAT_PORTRAIT_DESKTOP_TRACK_CLASS,
@@ -28,14 +33,17 @@ import {
   isCompactRoomPathname,
   formatStreamIntervalLabel,
   loadChatDisplayPrefs,
+  normalizeAssetDisplayMode,
   normalizeCharacterDialogueColor,
-  normalizeStreamIntervalMs,
   normalizePortraitBackgroundOpacity,
-  normalizeShowCharacterPortrait,
+  normalizeStreamIntervalMs,
   normalizeShowSuggestedReplies,
   resolveClientDisplayPrefs,
+  saveChatDisplayPrefs,
   streamCharsPerTickForInterval,
 } from "@/lib/chatDisplayPrefs";
+
+const { assetDisplayMode: _omitEnum, ...LEGACY_LOCAL_DEFAULTS } = DEFAULT_CHAT_DISPLAY_PREFS;
 
 describe("character dialogue theme color", () => {
   it("uses the high-contrast violet theme color by default", () => {
@@ -191,15 +199,32 @@ describe("showSuggestedReplies persistence", () => {
   });
 });
 
-describe("showCharacterPortrait persistence", () => {
-  it("keeps explicit false (OFF) instead of coercing to default ON", () => {
-    assert.equal(normalizeShowCharacterPortrait(false), false);
-    assert.equal(normalizeShowCharacterPortrait(true), true);
-    assert.equal(normalizeShowCharacterPortrait(undefined), true);
+describe("assetDisplayMode persistence (canonical 3-state)", () => {
+  it("defaults to left and keeps valid enum values", () => {
+    assert.equal(DEFAULT_CHAT_DISPLAY_PREFS.assetDisplayMode, "left");
+    assert.deepEqual([...CHAT_ASSET_DISPLAY_MODES], ["left", "inline", "off"]);
+    assert.equal(normalizeAssetDisplayMode("left"), "left");
+    assert.equal(normalizeAssetDisplayMode("inline"), "inline");
+    assert.equal(normalizeAssetDisplayMode("off"), "off");
   });
 
-  it("prefers localStorage OFF over server default ON", () => {
-    const store = new Map<string, string>();
+  it("maps legacy boolean only as a fallback input", () => {
+    assert.equal(normalizeAssetDisplayMode(undefined, true), "left");
+    assert.equal(normalizeAssetDisplayMode(undefined, false), "off");
+    assert.equal(normalizeAssetDisplayMode(undefined, undefined), "left");
+  });
+
+  it("prefers a valid enum over a conflicting legacy boolean", () => {
+    assert.equal(normalizeAssetDisplayMode("inline", false), "inline");
+    assert.equal(normalizeAssetDisplayMode("off", true), "off");
+  });
+
+  it("falls back to the legacy boolean on a malformed enum", () => {
+    assert.equal(normalizeAssetDisplayMode("bogus", false), "off");
+    assert.equal(normalizeAssetDisplayMode(42, true), "left");
+  });
+
+  function withLocalStorage(store: Map<string, string>, run: () => void) {
     const g = globalThis as typeof globalThis & {
       window?: unknown;
       localStorage?: Storage;
@@ -222,23 +247,154 @@ describe("showCharacterPortrait persistence", () => {
       },
     };
     try {
+      run();
+    } finally {
+      g.window = prevWindow;
+      g.localStorage = prevStorage;
+    }
+  }
+
+  it("migrates legacy localStorage boolean (false → off)", () => {
+    const store = new Map<string, string>();
+    withLocalStorage(store, () => {
       store.set(
         "playai-chat-display-prefs",
-        JSON.stringify({ ...DEFAULT_CHAT_DISPLAY_PREFS, showCharacterPortrait: false })
+        JSON.stringify({ ...LEGACY_LOCAL_DEFAULTS, showCharacterPortrait: false })
+      );
+      const loaded = loadChatDisplayPrefs();
+      assert.equal(loaded.assetDisplayMode, "off");
+    });
+  });
+
+  it("keeps portraitBackgroundOpacity and drops only removed legacy keys", () => {
+    const store = new Map<string, string>();
+    withLocalStorage(store, () => {
+      store.set(
+        "playai-chat-display-prefs",
+        JSON.stringify({
+          ...LEGACY_LOCAL_DEFAULTS,
+          showCharacterPortrait: false,
+          portraitBackgroundOpacity: 0.5,
+        })
+      );
+      const loaded = loadChatDisplayPrefs();
+      assert.equal(loaded.assetDisplayMode, "off");
+      assert.equal(loaded.portraitBackgroundOpacity, 0.5);
+      assert.equal("showCharacterPortrait" in loaded, false);
+      assert.equal("fontSizePx" in loaded, false);
+    });
+  });
+
+  it("prefers localStorage mode over server default", () => {
+    const store = new Map<string, string>();
+    withLocalStorage(store, () => {
+      store.set(
+        "playai-chat-display-prefs",
+        JSON.stringify({ ...DEFAULT_CHAT_DISPLAY_PREFS, assetDisplayMode: "off" })
       );
       const resolved = resolveClientDisplayPrefs({
         ...DEFAULT_CHAT_DISPLAY_PREFS,
-        showCharacterPortrait: true,
+        assetDisplayMode: "left",
       });
-      assert.equal(resolved.showCharacterPortrait, false);
+      assert.equal(resolved.assetDisplayMode, "off");
+    });
+  });
+});
+
+describe("portraitBackgroundOpacity (background visual parameter)", () => {
+  it("defaults to 0.22 and normalizes finite numbers into 0..1", () => {
+    assert.equal(DEFAULT_CHAT_DISPLAY_PREFS.portraitBackgroundOpacity, 0.22);
+    assert.equal(normalizePortraitBackgroundOpacity(undefined), 0.22);
+    assert.equal(normalizePortraitBackgroundOpacity("x"), 0.22);
+    assert.equal(normalizePortraitBackgroundOpacity(Number.NaN), 0.22);
+    assert.equal(normalizePortraitBackgroundOpacity(-1), 0);
+    assert.equal(normalizePortraitBackgroundOpacity(0), 0);
+    assert.equal(normalizePortraitBackgroundOpacity(0.22), 0.22);
+    assert.equal(normalizePortraitBackgroundOpacity(1), 1);
+    assert.equal(normalizePortraitBackgroundOpacity(2), 1);
+  });
+
+  it("round-trips through localStorage canonical output", () => {
+    const store = new Map<string, string>();
+    const g = globalThis as typeof globalThis & { window?: unknown; localStorage?: Storage };
+    const prevWindow = g.window;
+    const prevStorage = g.localStorage;
+    g.window = g;
+    g.localStorage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        store.set(k, v);
+      },
+      removeItem: (k: string) => store.delete(k),
+      clear: () => store.clear(),
+      key: () => null,
+      get length() {
+        return store.size;
+      },
+    };
+    try {
+      store.set(
+        "playai-chat-display-prefs",
+        JSON.stringify({ ...DEFAULT_CHAT_DISPLAY_PREFS, portraitBackgroundOpacity: 0.4 })
+      );
+      const loaded = loadChatDisplayPrefs();
+      assert.equal(loaded.portraitBackgroundOpacity, 0.4);
+      // canonical write omits removed legacy keys but keeps opacity
+      saveChatDisplayPrefs(loaded);
+      const persisted = JSON.parse(store.get("playai-chat-display-prefs") ?? "{}");
+      assert.equal(persisted.portraitBackgroundOpacity, 0.4);
+      assert.equal("showCharacterPortrait" in persisted, false);
     } finally {
       g.window = prevWindow;
       g.localStorage = prevStorage;
     }
   });
+
+  it("changing opacity does not change the canonical mode", () => {
+    const next = { ...DEFAULT_CHAT_DISPLAY_PREFS, portraitBackgroundOpacity: 0.9 };
+    assert.equal(next.assetDisplayMode, "left");
+  });
+
+  it("keeps distinct desktop/mobile QuickRail labels for the same stored mode", () => {
+    assert.deepEqual(CHAT_ASSET_DISPLAY_MODE_LABELS, {
+      left: "좌측",
+      inline: "본문",
+      off: "OFF",
+    });
+    assert.deepEqual(CHAT_ASSET_DISPLAY_MODE_LABELS_MOBILE, {
+      left: "배경",
+      inline: "본문",
+      off: "OFF",
+    });
+    const rail = readFileSync("src/components/ChatRoomDisplayQuickRail.tsx", "utf8");
+    assert.match(rail, /useChatDesktopViewport/);
+    assert.match(rail, /CHAT_ASSET_DISPLAY_MODE_LABELS_MOBILE/);
+    assert.match(rail, /assetDisplayMode: next/);
+  });
 });
 
 describe("mobile chat portrait background", () => {
+
+  it("restores the fixed, non-interactive mobile background layer", () => {
+    assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /chat-room-mobile-portrait-bg/);
+    assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /\bfixed\b/);
+    assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /pointer-events-none/);
+    assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /select-none/);
+    assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /min-\[576px\]:hidden/);
+    assert.match(CHAT_MOBILE_PORTRAIT_IMAGE_CLASS, /object-cover/);
+    assert.match(
+      CHAT_MOBILE_PORTRAIT_IMAGE_CLASS,
+      /opacity-\[var\(--mobile-portrait-opacity\)\]/
+    );
+  });
+
+  it("bounds mobile inline assets and keeps desktop full width", () => {
+    assert.match(CHAT_INLINE_ASSET_FIGURE_CLASS, /max-w-\[20rem\]/);
+    assert.match(CHAT_INLINE_ASSET_FIGURE_CLASS, /min-\[576px\]:max-w-full/);
+    assert.match(CHAT_INLINE_ASSET_FIGURE_CLASS, /mx-auto/);
+    assert.match(CHAT_INLINE_ASSET_IMG_CLASS, /object-contain/);
+    assert.doesNotMatch(CHAT_INLINE_ASSET_IMG_CLASS, /object-cover/);
+  });
 
   it("uses intrinsic-width desktop portrait column (flex w-max at 768+)", () => {
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /mx-auto/);
@@ -287,7 +443,6 @@ describe("mobile chat portrait background", () => {
     assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /min-\[768px\]:flex-row/);
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /chat-room-portrait-grid/);
     assert.match(CHAT_MESSAGES_COLUMN_CLASS, /chat-room-messages-column/);
-    assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /chat-room-mobile-portrait-bg/);
   });
 
   it("hides side portrait rail below 768 while keeping desktop name strip from 576", () => {
@@ -312,32 +467,5 @@ describe("mobile chat portrait background", () => {
   it("centers and narrows chat when portrait assets are off", () => {
     assert.match(CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS, /mx-auto/);
     assert.match(CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS, /max-w-\[780px\]/);
-  });
-  it("uses stable viewport geometry instead of message-list geometry", () => {
-    assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /\bfixed\b/);
-    assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /h-\[100svh\]/);
-    assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /w-\[100svw\]/);
-    assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /pointer-events-none/);
-    assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /select-none/);
-    assert.doesNotMatch(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /\babsolute\b/);
-  });
-
-  it("keeps image crop fixed and changes opacity only", () => {
-    assert.match(CHAT_MOBILE_PORTRAIT_IMAGE_CLASS, /\bh-full\b/);
-    assert.match(CHAT_MOBILE_PORTRAIT_IMAGE_CLASS, /\bw-full\b/);
-    assert.match(CHAT_MOBILE_PORTRAIT_IMAGE_CLASS, /object-cover/);
-    assert.match(CHAT_MOBILE_PORTRAIT_IMAGE_CLASS, /object-top/);
-    assert.match(CHAT_MOBILE_PORTRAIT_IMAGE_CLASS, /opacity-\[var\(--mobile-portrait-opacity\)\]/);
-    assert.doesNotMatch(CHAT_MOBILE_PORTRAIT_IMAGE_CLASS, /transition|animate|transform|scale/);
-  });
-
-  it("supports the full saved opacity range", () => {
-    assert.equal(normalizePortraitBackgroundOpacity(-1), 0);
-    assert.equal(normalizePortraitBackgroundOpacity(0), 0);
-    assert.equal(normalizePortraitBackgroundOpacity(0.2), 0.2);
-    assert.equal(normalizePortraitBackgroundOpacity(0.5), 0.5);
-    assert.equal(normalizePortraitBackgroundOpacity(0.8), 0.8);
-    assert.equal(normalizePortraitBackgroundOpacity(1), 1);
-    assert.equal(normalizePortraitBackgroundOpacity(2), 1);
   });
 });

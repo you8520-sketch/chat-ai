@@ -1420,13 +1420,13 @@ test.describe("General chat target-chase follow matrix — production browser", 
   });
 
   test("G1: portrait ON plain prose continuous follow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { showCharacterPortrait: true, streamIntervalMs: 24, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, { assetDisplayMode: "left", streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800 });
     await attachMotionProof(testInfo, "G1", proof);
   });
 
   test("G2: portrait OFF plain prose continuous follow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { showCharacterPortrait: false, streamIntervalMs: 24, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, { assetDisplayMode: "off", streamIntervalMs: 24, streamCharsPerTick: 1 });
     const proof = await runTargetChaseFollowScenario(page, {
       charCount: 2600,
       viewportWidth: 1280,

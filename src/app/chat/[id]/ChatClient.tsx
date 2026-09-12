@@ -262,8 +262,6 @@ import { cacheUserChatPrefsClient } from "@/lib/userChatPrefs";
 import {
   chatReadabilityRootStyle,
   chatMessageAreaLayoutClass,
-  CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS,
-  CHAT_MOBILE_PORTRAIT_IMAGE_CLASS,
   CHAT_MESSAGES_COLUMN_CLASS,
   CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS,
   CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS,
@@ -279,12 +277,19 @@ import {
   CHAT_ROOM_TITLE_BAR_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   CHAT_DESKTOP_MEDIA_QUERY,
+  CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS,
+  CHAT_MOBILE_PORTRAIT_IMAGE_CLASS,
   DEFAULT_CHAT_DISPLAY_PREFS,
   ensureChatDisplayWebFontsLoaded,
   resolveClientDisplayPrefs,
   saveChatDisplayPrefs,
   type ChatDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
+import {
+  inlineOrientationPolicy,
+  resolveChatAssetPresentation,
+} from "@/lib/chatAssetPresentation";
+import { useChatDesktopViewport } from "@/lib/useChatDesktopViewport";
 
 const CHAT_FETCH_TIMEOUT_MS = 240_000;
 /** Slow reasoning models (e.g. OpenRouter Opus) need a longer client window. */
@@ -1087,6 +1092,14 @@ export default function ChatClient({
     () => initialDisplayPrefs ?? DEFAULT_CHAT_DISPLAY_PREFS
   );
   const displayPrefsRef = useRef(displayPrefs);
+  // Effective presentation = stored mode × viewport. Viewport never mutates
+  // displayPrefs; stored `left` stays `left` on mobile, effective becomes inline.
+  const chatIsDesktop = useChatDesktopViewport();
+  const assetPresentation = resolveChatAssetPresentation(
+    displayPrefs.assetDisplayMode,
+    chatIsDesktop
+  );
+  const leftLayout = assetPresentation === "left";
   const activeStreamRevealRef = useRef<StreamRevealController | null>(null);
   const pendingRevealSessionsRef = useRef<Map<string, PendingRevealSession>>(new Map());
   const visualRevealPendingIdsRef = useRef<Set<string>>(new Set());
@@ -2221,7 +2234,7 @@ export default function ChatClient({
       const dockH = getInputDockHeight();
       const dockBottom = getInputDockBottomOffset();
       const isMobile = !window.matchMedia(CHAT_DESKTOP_MEDIA_QUERY).matches;
-      const pad = isMobile ? 2 : displayPrefs.showCharacterPortrait ? 4 : 2;
+      const pad = isMobile ? 2 : leftLayout ? 4 : 2;
       const rect = anchor.getBoundingClientRect();
       const targetBottom = window.innerHeight - dockH - dockBottom - pad;
       const delta = rect.bottom - targetBottom;
@@ -2231,7 +2244,7 @@ export default function ChatClient({
         behavior,
       });
     },
-    [getInputDockHeight, getInputDockBottomOffset, displayPrefs.showCharacterPortrait]
+    [getInputDockHeight, getInputDockBottomOffset, leftLayout]
   );
 
   const scheduleScrollToBottom = useCallback(
@@ -2283,7 +2296,7 @@ export default function ChatClient({
     const dockHeight = getInputDockHeight();
     const dockBottom = getInputDockBottomOffset();
     const isMobile = !window.matchMedia(CHAT_DESKTOP_MEDIA_QUERY).matches;
-    const pad = isMobile ? 2 : displayPrefs.showCharacterPortrait ? 4 : 2;
+    const pad = isMobile ? 2 : leftLayout ? 4 : 2;
     const visualBottom = window.innerHeight - dockHeight - dockBottom - pad;
     const delta = row.getBoundingClientRect().bottom - visualBottom;
     if (delta > 0) {
@@ -2291,7 +2304,7 @@ export default function ChatClient({
     }
     pendingSubmitViewportRequestIdRef.current = null;
     pendingSubmitViewportRowRef.current = null;
-  }, [messages, displayPrefs.showCharacterPortrait, getInputDockBottomOffset, getInputDockHeight]);
+  }, [messages, leftLayout, getInputDockBottomOffset, getInputDockHeight]);
 
   const applyFollowBeforeStream = useCallback(() => {
     const next = resolveFollowBeforeStream({
@@ -4760,7 +4773,7 @@ export default function ChatClient({
           showReportRefund={showReportRefund}
           reportRefundPending={reportRefundPending}
           variantPicker={variantPicker}
-          compact={!showCharacterPortrait}
+          compact={!leftLayout}
           showFullReceipt={showFullBillingReceipt}
           billingChargeSummary={m.billingChargeSummary ?? null}
           onToast={setToastMsg}
@@ -4930,18 +4943,6 @@ export default function ChatClient({
     );
   }
 
-  const showCharacterPortrait = displayPrefs.showCharacterPortrait;
-  const mobilePortraitUrl = (() => {
-    const active = assetByUrl(resolvedAssets, activePortraitUrl);
-    if (active && !isWideInlineAsset(active)) return active.url;
-    return defaultChatAsset?.url ?? null;
-  })();
-  const mobilePortraitAsset = assetByUrl(resolvedAssets, mobilePortraitUrl) ?? defaultChatAsset;
-  const mobilePortraitBlur = shouldBlurAssetForViewer(
-    mobilePortraitAsset ?? undefined,
-    isCharacterCreator,
-    unlockedUrls
-  );
   const unlockedAlbumAssets = useMemo(() => {
     return assets.filter(
       (asset) =>
@@ -4957,6 +4958,21 @@ export default function ChatClient({
       unlockedAlbumAssets.map((asset) => ({ url: asset.url, tag: asset.tag }))
     );
   }, [character.id, character.name, unlockedAlbumAssets]);
+
+  // Mobile `background` presentation source: the active portrait (portrait/square pool),
+  // falling back to the character's default chat asset. Reuses the same active-portrait
+  // state owner as the desktop left rail — no separate resolver.
+  const mobileBackgroundUrl = (() => {
+    const active = assetByUrl(resolvedAssets, activePortraitUrl);
+    if (active && !isWideInlineAsset(active)) return active.url;
+    return defaultChatAsset?.url ?? null;
+  })();
+  const mobileBackgroundAsset = assetByUrl(resolvedAssets, mobileBackgroundUrl) ?? defaultChatAsset;
+  const mobileBackgroundBlur = shouldBlurAssetForViewer(
+    mobileBackgroundAsset ?? undefined,
+    isCharacterCreator,
+    unlockedUrls
+  );
 
   return (
     <div className="flex min-w-0 flex-1 items-stretch gap-0">
@@ -5016,12 +5032,12 @@ export default function ChatClient({
 
       <div
         className={
-          showCharacterPortrait
+          leftLayout
             ? CHAT_PORTRAIT_GRID_CLASS
             : "flex min-h-0 min-w-0 flex-1 flex-col"
         }
       >
-        {showCharacterPortrait ? (
+        {leftLayout ? (
           <div className={`${CHAT_PORTRAIT_COLUMN_CLASS} pl-1 min-[576px]:pl-0`}>
             <div className={`${CHAT_PORTRAIT_INFO_STICKY_CLASS} pr-1`}>
               <div className="flex min-w-0 items-baseline gap-2">
@@ -5115,12 +5131,12 @@ export default function ChatClient({
         )}
         <div
           className={
-            showCharacterPortrait
+            leftLayout
               ? `${CHAT_PORTRAIT_CHAT_COLUMN_CLASS} pr-1`
               : "flex min-h-0 min-w-0 flex-1 flex-col"
           }
         >
-        {showCharacterPortrait && (
+        {leftLayout && (
           <div
             className={`${CHAT_PORTRAIT_INFO_HEADER_CHAT_CLASS} min-[768px]:sticky min-[768px]:top-[var(--site-header-height,44px)] min-[768px]:z-30`}
             aria-hidden
@@ -5128,7 +5144,7 @@ export default function ChatClient({
         )}
         <div
           className={
-            showCharacterPortrait
+            leftLayout
               ? CHAT_MESSAGES_COLUMN_CLASS
               : CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS
           }
@@ -5189,7 +5205,7 @@ export default function ChatClient({
         </div>
       </div>
       <div className="h-[3.25rem] shrink-0 min-[576px]:hidden" aria-hidden />
-      {showCharacterPortrait && mobilePortraitUrl && (
+      {assetPresentation === "background" && mobileBackgroundUrl && (
         <div
           data-testid="mobile-chat-portrait-background"
           className={CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS}
@@ -5206,9 +5222,9 @@ export default function ChatClient({
           aria-hidden
         >
           <CharacterAssetImage
-            src={mobilePortraitUrl}
+            src={mobileBackgroundUrl}
             alt=""
-            blurForViewer={mobilePortraitBlur}
+            blurForViewer={mobileBackgroundBlur}
             className="h-full w-full"
             imgClassName={CHAT_MOBILE_PORTRAIT_IMAGE_CLASS}
             imgTestId="mobile-chat-portrait-image"
@@ -5220,17 +5236,17 @@ export default function ChatClient({
       )}
       <div
         className={
-          showCharacterPortrait
+          leftLayout || assetPresentation === "background"
             ? "relative z-10 bg-transparent px-2 pl-3 pb-4 sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-0"
             : CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS
         }
         role="presentation"
       >
-        <div className={chatMessageAreaLayoutClass(showCharacterPortrait)}>
+        <div className={chatMessageAreaLayoutClass(assetPresentation)}>
           <div
             ref={quoteSelectContainerRef}
             className={
-              showCharacterPortrait
+              leftLayout
                 ? "min-w-0 space-y-1 pb-8 sm:space-y-2 sm:pb-0"
                 : CHAT_MESSAGES_LIST_NO_PORTRAIT_CLASS
             }
@@ -5293,7 +5309,7 @@ export default function ChatClient({
                       pendingSubmitViewportRowRef.current = el;
                     }
                   }}
-                  className={showCharacterPortrait ? "my-10 first:mt-2" : "my-5 first:mt-1 last:mb-0"}
+                  className={leftLayout ? "my-10 first:mt-2" : "my-5 first:mt-1 last:mb-0"}
                 >
                   <div className="mb-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                   {isUserTurnEdit ? (
@@ -5365,7 +5381,7 @@ export default function ChatClient({
                     streamingMessageArticleRef.current = null;
                   }
                 }}
-                className={showCharacterPortrait && !onLastTurn ? "pb-2" : "pb-0"}
+                className={leftLayout && !onLastTurn ? "pb-2" : "pb-0"}
               >
                 <div className="min-w-0">
                 {isEditing ? (
@@ -5439,7 +5455,9 @@ export default function ChatClient({
                               resolvedAssets,
                               {
                                 streaming: useLiveDisplayedContent,
-                                assetsEnabled: showCharacterPortrait,
+                                assetsEnabled: assetPresentation !== "off",
+                                orientationPolicy: inlineOrientationPolicy(assetPresentation),
+                                selectionKey: assetSelectionKeyForMessage(m, i),
                               }
                             )
                           )
@@ -5565,7 +5583,8 @@ export default function ChatClient({
                               paragraphMode={m.model === "greeting" ? "author" : "ai"}
                               proseOnly={m.model !== "greeting"}
                               streaming={useLiveDisplayedContent}
-                              inlineAssets={showCharacterPortrait ? resolvedAssets : undefined}
+                              inlineAssets={assetPresentation === "off" ? undefined : resolvedAssets}
+                              inlineOrientationPolicy={inlineOrientationPolicy(assetPresentation)}
                               viewerIsCreator={isCharacterCreator}
                               unlockedUrls={unlockedUrls}
                               assetSelectionKey={assetSelectionKeyForMessage(m, i)}
@@ -5696,13 +5715,13 @@ export default function ChatClient({
       <div
         ref={inputDockRef}
         className={
-          showCharacterPortrait
+          leftLayout
             ? "sticky bottom-0 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 pt-0 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:-mt-2 sm:bg-[#121212] sm:px-0 sm:pt-0 sm:pb-2 sm:backdrop-blur-none"
             : `${CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS} overflow-visible`
         }
       >
         <FloatingPointsDeduction amount={floatDeductionAmount} trigger={floatDeductionTrigger} />
-        <div className={`flex flex-wrap items-center gap-2 overflow-visible ${showCharacterPortrait ? "mb-1" : "mb-1"}`}>
+        <div className={`flex flex-wrap items-center gap-2 overflow-visible ${leftLayout ? "mb-1" : "mb-1"}`}>
           <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-zinc-400 sm:flex-none">
             <span className="shrink-0 font-semibold text-zinc-500">AI</span>
             <select

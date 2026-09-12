@@ -1,6 +1,12 @@
 "use client";
 
-import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
+import {
+  CHAT_ASSET_DISPLAY_MODE_LABELS,
+  CHAT_ASSET_DISPLAY_MODE_LABELS_MOBILE,
+  CHAT_ASSET_DISPLAY_MODES,
+  type ChatDisplayPrefs,
+} from "@/lib/chatDisplayPrefs";
+import { useChatDesktopViewport } from "@/lib/useChatDesktopViewport";
 
 function IconPortrait({ className }: { className?: string }) {
   return (
@@ -25,32 +31,44 @@ type Props = {
   onDisplayPrefsChange: (prefs: ChatDisplayPrefs) => void;
 };
 
+/**
+ * Canonical 3-state asset display cycle. Stored values are always
+ * `left → inline → off → left`; only the presentation label differs by viewport
+ * (desktop `좌측`, mobile `배경` — the same stored `left`).
+ */
 export default function ChatRoomDisplayQuickRail({
   displayPrefs,
   onDisplayPrefsChange,
 }: Props) {
-  const on = displayPrefs.showCharacterPortrait;
-  const label = on ? "에셋ON" : "에셋OFF";
+  const isDesktop = useChatDesktopViewport();
+  const labels = isDesktop
+    ? CHAT_ASSET_DISPLAY_MODE_LABELS
+    : CHAT_ASSET_DISPLAY_MODE_LABELS_MOBILE;
+  const current = displayPrefs.assetDisplayMode;
+  const index = CHAT_ASSET_DISPLAY_MODES.indexOf(current);
+  const next = CHAT_ASSET_DISPLAY_MODES[(index + 1) % CHAT_ASSET_DISPLAY_MODES.length]!;
+  const currentLabel = labels[current];
+  const nextLabel = labels[next];
+  const isOff = current === "off";
 
   return (
     <button
       type="button"
-          title={`캐릭터 에셋 ${on ? "표시" : "숨김"} · 좌측 초상·본문 가로 이미지 · 클릭하여 전환`}
-      aria-pressed={on}
-      aria-label={label}
+      title={`캐릭터 에셋 표시: ${currentLabel} · 클릭하여 ${nextLabel}(으)로 전환`}
+      aria-label={`캐릭터 에셋 표시 ${currentLabel}, 클릭하면 ${nextLabel}(으)로 전환`}
       onClick={() =>
         onDisplayPrefsChange({
           ...displayPrefs,
-          showCharacterPortrait: !on,
+          assetDisplayMode: next,
         })
       }
       className={`flex w-full flex-col items-center gap-0.5 rounded-md px-0 py-1.5 transition hover:bg-white/[0.06] ${
-        on ? "font-semibold text-violet-200" : "text-zinc-400 hover:text-zinc-200"
+        isOff ? "text-zinc-400 hover:text-zinc-200" : "font-semibold text-violet-200"
       }`}
     >
       <IconPortrait className="h-4 w-4 shrink-0" />
       <span className="max-w-full px-0.5 text-center text-[9px] font-medium leading-[1.15] tracking-tight">
-        {label}
+        {currentLabel}
       </span>
     </button>
   );

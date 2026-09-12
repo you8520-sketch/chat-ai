@@ -5,12 +5,12 @@ import Link from "next/link";
 import ChatPersonaEditor, { restorePersonaSnapshot } from "@/components/ChatPersonaEditor";
 import PersonaSelector from "@/components/PersonaSelector";
 import StatusWidgetChatSettings from "@/components/StatusWidgetChatSettings";
-import { ChatPortraitPrefs } from "@/components/ChatStatusPortraitPrefs";
 import type { StatusWidgetSourceMode, StatusWidgetDisplayMode } from "@/lib/statusWidget";
 import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
 import ChatDisplayReadabilitySettings from "@/components/ChatDisplayReadabilitySettings";
+import ChatBackgroundOpacitySettings from "@/components/ChatBackgroundOpacitySettings";
 import ChatStreamSpeedSettings from "@/components/ChatStreamSpeedSettings";
 import {
   withStreamSpeed,
@@ -994,7 +994,7 @@ function DisplaySettingsSection({
 }) {
   return (
     <div className="space-y-5 text-xs">
-      <ChatPortraitPrefs
+      <ChatBackgroundOpacitySettings
         displayPrefs={displayPrefs}
         onDisplayPrefsChange={onDisplayPrefsChange}
       />

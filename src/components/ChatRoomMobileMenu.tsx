@@ -65,30 +65,6 @@ export default function ChatRoomMobileMenu({
             />
             {settingsPanel}
             {bookmarksPanel}
-
-            {displayPrefs.showCharacterPortrait ? (
-              <label className="mt-1 flex flex-col items-center gap-1 border-t border-white/10 pt-1 text-[9px] font-medium leading-[1.15] text-zinc-300">
-                <span className="text-center">배경</span>
-                <span className="text-violet-300">
-                  {Math.round(displayPrefs.portraitBackgroundOpacity * 100)}%
-                </span>
-                <input
-                  type="range"
-                  aria-label="모바일 배경 이미지 투명도"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={Math.round(displayPrefs.portraitBackgroundOpacity * 100)}
-                  onChange={(e) =>
-                    onDisplayPrefsChange({
-                      ...displayPrefs,
-                      portraitBackgroundOpacity: Number(e.target.value) / 100,
-                    })
-                  }
-                  className="h-16 w-5 [writing-mode:vertical-lr] accent-violet-500"
-                />
-              </label>
-            ) : null}
           </aside>
         </div>
       ) : null}

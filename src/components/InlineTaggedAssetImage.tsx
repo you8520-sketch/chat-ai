@@ -2,6 +2,10 @@
 
 import CharacterAssetImage from "@/components/CharacterAssetImage";
 import { shouldBlurAssetForViewer, type CharacterAsset } from "@/lib/characterAssets";
+import {
+  CHAT_INLINE_ASSET_FIGURE_CLASS,
+  CHAT_INLINE_ASSET_IMG_CLASS,
+} from "@/lib/chatDisplayPrefs";
 
 export default function InlineTaggedAssetImage({
   asset,
@@ -21,7 +25,7 @@ export default function InlineTaggedAssetImage({
     <figure
       data-testid="inline-tagged-asset"
       data-asset-tag={asset.tag}
-      className="my-3 w-full max-w-full"
+      className={CHAT_INLINE_ASSET_FIGURE_CLASS}
       style={ratio ? { aspectRatio: ratio } : undefined}
     >
       <CharacterAssetImage
@@ -29,7 +33,7 @@ export default function InlineTaggedAssetImage({
         alt={asset.tag}
         blurForViewer={blur}
         className="h-full w-full max-w-full overflow-hidden rounded-lg"
-        imgClassName="block h-full w-full max-w-full object-contain object-center"
+        imgClassName={CHAT_INLINE_ASSET_IMG_CLASS}
       />
     </figure>
   );

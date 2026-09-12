@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   buildEmotionTagPrompt,
+  buildFlashOwnedEmotionTagUserOverlay,
   collectEmotionTags,
   resolveEmotionTag,
   sanitizeEmotionTagInText,
@@ -101,6 +102,30 @@ describe("buildEmotionTagPrompt", () => {
     assert.match(block, /in the body at the moment/);
     assert.match(block, /FORBIDDEN: any tag not in the list/);
     assert.match(block, /\[태그: tagname\]/);
+  });
+
+  it("is presentation-neutral: no orientation placement or mobile background rule", () => {
+    const block = buildEmotionTagPrompt(["진지함", "부끄러움", "침대에 누움"]);
+    // Obsolete presentation-coupled wording must be gone.
+    assert.doesNotMatch(block, /mobile chat background/i);
+    assert.doesNotMatch(block, /left portrait/i);
+    assert.doesNotMatch(block, /render inline/i);
+    assert.doesNotMatch(block, /portrait/i);
+    assert.doesNotMatch(block, /landscape/i);
+    assert.doesNotMatch(block, /\bwide\b/i);
+    // Canonical exact-tag / uploaded-only contract preserved.
+    assert.match(block, /UPLOADED IMAGES ONLY/);
+    assert.match(block, /copy the element text verbatim/);
+  });
+
+  it("final flash-owned overlay carries no obsolete presentation contract", () => {
+    const overlay = buildFlashOwnedEmotionTagUserOverlay(["부끄러움", "침대에 누움"]);
+    assert.match(overlay, /\[FLASH-OWNED/);
+    assert.match(overlay, /copy the element text verbatim/);
+    assert.doesNotMatch(overlay, /mobile chat background/i);
+    assert.doesNotMatch(overlay, /left portrait/i);
+    assert.doesNotMatch(overlay, /render inline/i);
+    assert.doesNotMatch(overlay, /portrait|landscape/i);
   });
 });
 
