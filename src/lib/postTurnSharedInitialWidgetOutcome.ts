@@ -45,6 +45,9 @@ export function evaluatePostTurnSharedInitialWidgetExtraction(input: {
         return { succeeded: true, reasonCode: "OK" };
       }
       return { succeeded: false, reasonCode: "V3_INITIAL_EMPTY" };
+    case "relationship_only":
+      // No status widget consumer in this mode.
+      return { succeeded: false, reasonCode: "STATUS_WIDGET_INACTIVE" };
     default: {
       const _exhaustive: never = input.mode;
       return _exhaustive;

@@ -449,11 +449,9 @@ export async function resolveStatusWidgetTurnValues(
         previous: previousValues?.character ?? null,
         current: normalizedExtractValues?.character ?? null,
       });
-      const volatileEchoRepairUsed =
-        extractMeta.character?.finalReasonCode === "V3_PREVIOUS_ECHO_REPAIR_USED" ||
-        extractMeta.user?.finalReasonCode === "V3_PREVIOUS_ECHO_REPAIR_USED" ||
-        extractMeta.character?.stages.includes("volatile_echo_repair") === true ||
-        extractMeta.user?.stages.includes("volatile_echo_repair") === true;
+      const volatileEchoAccepted =
+        extractMeta.character?.finalReasonCode === "V3_PREVIOUS_ECHO_ACCEPTED" ||
+        extractMeta.user?.finalReasonCode === "V3_PREVIOUS_ECHO_ACCEPTED";
       logStatusWidgetLiveTrace({
         ...traceBase,
         phase: "status_normalize_result",
@@ -464,15 +462,15 @@ export async function resolveStatusWidgetTurnValues(
           ...v3Diag.actualKeys,
           `innerEcho:${previousEchoStats.exact}/${previousEchoStats.compared}`,
           `wholeCharEcho:${previousEchoStats.wholeCharacterExact ? 1 : 0}`,
-          `volatileEchoRepair:${volatileEchoRepairUsed ? 1 : 0}`,
+          `volatileEchoAccepted:${volatileEchoAccepted ? 1 : 0}`,
           ...previousEchoStats.exactKeys.map((k) => `echoKey:${k}`),
         ],
         normalizedKeys: normalizedDiag.normalizedKeys,
         missingKeys: normalizedDiag.missingKeys,
         hasUsableValues: normalizedDiag.hasUsableValues,
         dbValueShape: normalizedDiag.dbValueShape,
-        reasonCode: volatileEchoRepairUsed
-          ? "V3_PREVIOUS_ECHO_REPAIR_USED"
+        reasonCode: volatileEchoAccepted
+          ? "V3_PREVIOUS_ECHO_ACCEPTED"
           : normalizeReason,
       });
       if (statusWidgetValuesHasContent(normalizedExtractValues)) {

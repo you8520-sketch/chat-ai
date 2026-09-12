@@ -10,7 +10,7 @@ import {
   suggestedRepliesHaveContent,
 } from "@/lib/suggestedReplies/parse";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
-import { parseSharedRelationshipDelta } from "./relationship";
+import { parseSharedRelationshipSection } from "./relationship";
 import type {
   PostTurnSharedInitialInput,
   PostTurnSharedInitialMode,
@@ -71,8 +71,7 @@ export function parsePostTurnSharedInitialResponse(
     user: null,
     suggestedReplies: [],
     suggestedRepliesOk: false,
-    relationship: null,
-    relationshipOk: false,
+    relationship: { present: false, valid: false, delta: {} },
   };
   const root = extractJsonObjectFromWidgetText(text);
   if (!root) return empty;
@@ -97,12 +96,13 @@ export function parsePostTurnSharedInitialResponse(
     user = parseSingleWidgetSection(widgetRoot, input.userWidget, "user_values");
   }
 
-  const suggestedReplies = extractSuggestedRepliesSection(root);
-  // A missing/empty relationship section is a valid empty delta (normal no-op
-  // turn), never a whole-response failure.
+  // Inactive sections are neither requested nor parsed.
+  const suggestedReplies = input.includeSuggestions
+    ? extractSuggestedRepliesSection(root)
+    : [];
   const relationship = input.includeRelationship
-    ? parseSharedRelationshipDelta(root.relationship ?? root.relationshipMemory)
-    : null;
+    ? parseSharedRelationshipSection(root.relationship ?? root.relationshipMemory)
+    : { present: false, valid: false, delta: {} };
 
   return {
     jsonParseOk: true,
@@ -110,9 +110,8 @@ export function parsePostTurnSharedInitialResponse(
     character,
     user,
     suggestedReplies,
-    suggestedRepliesOk: suggestedRepliesHaveContent(suggestedReplies),
+    suggestedRepliesOk: input.includeSuggestions && suggestedRepliesHaveContent(suggestedReplies),
     relationship,
-    relationshipOk: input.includeRelationship === true,
   };
 }
 

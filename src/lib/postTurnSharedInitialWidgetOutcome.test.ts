@@ -30,6 +30,8 @@ function dualInput() {
       fields: [{ id: "my_note", label: "메모", instruction: "표시용 메모" }],
     },
     primaryModelId: "gpt-5.6-luna",
+    includeSuggestions: true,
+    includeRelationship: false,
   };
 }
 

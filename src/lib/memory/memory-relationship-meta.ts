@@ -1,10 +1,9 @@
 import { getDb } from "@/lib/db";
-import type { Route } from "@/lib/ai";
-import {
-  extractRelationshipMetaFromTurn,
-  extractRelationshipMetaAfterRegenerate,
-  type RelationshipMetaExtractResult,
-} from "@/lib/ai";
+import { BACKGROUND_OPENROUTER_MODEL, type Route } from "@/lib/ai";
+import { type RelationshipMetaExtractResult } from "@/lib/ai";
+import { buildPlatformAsyncTurnLedgerContext } from "@/lib/providerCostLedger";
+import { runPostTurnRelationshipOnlyInitial } from "@/lib/postTurnSharedInitial/run";
+import { POST_TURN_SHARED_INITIAL_REQUEST_KIND } from "@/lib/postTurnSharedInitial/types";
 import {
   EMPTY_MEMORY_META,
   mergeMemoryMeta,
@@ -318,6 +317,58 @@ async function runProviderBackedRelationshipMerge(
   }
 }
 
+/**
+ * Canonical post-turn relationship inference owner (status-OFF and
+ * section-failure recovery): the SAME shared runner in relationship-only mode.
+ * No separate relationship orchestrator; one physical owner per call.
+ */
+async function extractRelationshipDeltaViaSharedOwner(opts: {
+  charName: string;
+  userName: string;
+  userMessage: string;
+  assistantMessage: string;
+  previousAssistantMessage?: string | null;
+  primaryModelId?: string;
+  ledgerOpts?: {
+    chatId: number;
+    assistantMessageId: number;
+    generationSequence: number;
+    generationRequestId?: string | null;
+    jobAttemptOrdinal?: number;
+  };
+}): Promise<RelationshipMetaExtractResult> {
+  const ledgerContext = opts.ledgerOpts
+    ? buildPlatformAsyncTurnLedgerContext({
+        chatId: opts.ledgerOpts.chatId,
+        assistantMessageId: opts.ledgerOpts.assistantMessageId,
+        generationSequence: opts.ledgerOpts.generationSequence,
+        generationRequestId: opts.ledgerOpts.generationRequestId ?? null,
+        family: "memory_relationship",
+        jobAttemptOrdinal: opts.ledgerOpts.jobAttemptOrdinal ?? 1,
+        requestKind: POST_TURN_SHARED_INITIAL_REQUEST_KIND,
+      })
+    : undefined;
+  const run = await runPostTurnRelationshipOnlyInitial(
+    {
+      charName: opts.charName,
+      personaName: opts.userName,
+      userMessage: opts.userMessage,
+      assistantProse: opts.assistantMessage,
+      primaryModelId: opts.primaryModelId ?? BACKGROUND_OPENROUTER_MODEL,
+      previousAssistantMessage: opts.previousAssistantMessage ?? null,
+    },
+    undefined,
+    ledgerContext
+  );
+  const section = run.parsed?.relationship;
+  if (!run.transportOk || !section || !section.valid) {
+    // Missing/malformed section (or transport failure) is a section failure,
+    // never a silent empty-delta success.
+    return { delta: {}, parseOk: false };
+  }
+  return { delta: section.delta, parseOk: true };
+}
+
 /** 턴 종료 후 호칭·물건·속마음·약속 추출 → chats.memory_meta 병합 */
 export async function mergeRelationshipMetaFromTurn(opts: {
   chatId: number;
@@ -412,23 +463,21 @@ export async function mergeRelationshipMetaFromTurn(opts: {
     extract: () =>
       opts.__testExtract
         ? opts.__testExtract()
-        : extractRelationshipMetaFromTurn(
-            opts.userMessage,
-            opts.assistantMessage,
-            names.charName,
-            names.userName,
-            opts.route,
-            prevNormalized,
-            opts.turnTrace,
-            opts.assistantMessageId && opts.generationScope
-              ? {
-                  chatId: opts.chatId,
-                  assistantMessageId: opts.assistantMessageId,
-                  generationSequence: opts.generationScope.generationSequence,
-                  generationRequestId: opts.generationScope.generationRequestId,
-                }
-              : undefined
-          ),
+        : extractRelationshipDeltaViaSharedOwner({
+            charName: names.charName,
+            userName: names.userName,
+            userMessage: opts.userMessage,
+            assistantMessage: opts.assistantMessage,
+            ledgerOpts:
+              opts.assistantMessageId && opts.generationScope
+                ? {
+                    chatId: opts.chatId,
+                    assistantMessageId: opts.assistantMessageId,
+                    generationSequence: opts.generationScope.generationSequence,
+                    generationRequestId: opts.generationScope.generationRequestId,
+                  }
+                : undefined,
+          }),
   });
 }
 
@@ -464,23 +513,21 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
     extract: () =>
       opts.__testExtract
         ? opts.__testExtract()
-        : extractRelationshipMetaAfterRegenerate(
-            opts.userMessage,
-            opts.newAssistantMessage,
-            opts.previousAssistantMessage,
-            names.charName,
-            names.userName,
-            opts.route,
-            prevNormalized,
-            opts.turnTrace,
-            opts.assistantMessageId && opts.generationScope
-              ? {
-                  chatId: opts.chatId,
-                  assistantMessageId: opts.assistantMessageId,
-                  generationSequence: opts.generationScope.generationSequence,
-                  generationRequestId: opts.generationScope.generationRequestId,
-                }
-              : undefined
-          ),
+        : extractRelationshipDeltaViaSharedOwner({
+            charName: names.charName,
+            userName: names.userName,
+            userMessage: opts.userMessage,
+            assistantMessage: opts.newAssistantMessage,
+            previousAssistantMessage: opts.previousAssistantMessage,
+            ledgerOpts:
+              opts.assistantMessageId && opts.generationScope
+                ? {
+                    chatId: opts.chatId,
+                    assistantMessageId: opts.assistantMessageId,
+                    generationSequence: opts.generationScope.generationSequence,
+                    generationRequestId: opts.generationScope.generationRequestId,
+                  }
+                : undefined,
+          }),
   });
 }

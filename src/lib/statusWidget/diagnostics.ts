@@ -19,8 +19,6 @@ export type StatusWidgetReasonCode =
   | "V3_INITIAL_EMPTY"
   | "V3_REPAIR_USED"
   | "V3_REPAIR_FAILED"
-  | "V3_PREVIOUS_ECHO_REPAIR_USED"
-  | "V3_PREVIOUS_ECHO_REPAIR_FAILED"
   | "V3_PREVIOUS_ECHO_ACCEPTED"
   | "FALLBACK_MODEL_USED"
   | "FALLBACK_MODEL_FAILED"
@@ -82,8 +80,7 @@ export type StatusWidgetLiveTracePhase =
 export type StatusWidgetExtractStage =
   | "initial"
   | "repair"
-  | "fallback"
-  | "volatile_echo_repair";
+  | "fallback";
 
 export type StatusWidgetLiveTraceEvent = {
   requestId?: string | null;

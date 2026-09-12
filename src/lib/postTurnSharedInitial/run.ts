@@ -94,3 +94,38 @@ export async function runPostTurnSharedInitial(
     });
   }
 }
+
+/**
+ * Canonical post-turn inference owner for status-OFF turns: the SAME shared
+ * runner in relationship-only mode. No separate relationship orchestrator.
+ */
+export async function runPostTurnRelationshipOnlyInitial(
+  input: {
+    charName: string;
+    personaName: string;
+    userMessage: string;
+    assistantProse: string;
+    primaryModelId: string;
+    previousAssistantMessage?: string | null;
+  },
+  caller?: StatusWidgetExtractCaller,
+  ledgerContext?: import("@/lib/providerCostLedger").ProviderCostLedgerContext
+): Promise<PostTurnSharedInitialRunResult> {
+  return runPostTurnSharedInitial(
+    {
+      mode: "relationship_only",
+      charName: input.charName,
+      personaName: input.personaName,
+      userMessage: input.userMessage,
+      assistantProse: input.assistantProse,
+      primaryModelId: input.primaryModelId,
+      includeSuggestions: false,
+      includeRelationship: true,
+      relationshipRegenContext: input.previousAssistantMessage?.trim()
+        ? { previousAssistantMessage: input.previousAssistantMessage }
+        : null,
+    },
+    caller,
+    ledgerContext
+  );
+}

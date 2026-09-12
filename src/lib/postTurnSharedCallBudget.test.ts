@@ -24,6 +24,14 @@ import {
 import type { TokenUsage } from "./ai";
 import { loadChatRelationshipMeta, mergeRelationshipMetaFromTurn } from "./memory/memory-relationship-meta";
 import { getOrCreateChatMemory } from "./memory/memory-db";
+import { ensureProviderCostLedgerSchema } from "./providerCostLedger";
+import { buildPostTurnSharedInitialSystem } from "./postTurnSharedInitial/prompt";
+import { parsePostTurnSharedInitialResponse } from "./postTurnSharedInitial/parse";
+import { runPostTurnRelationshipOnlyInitial } from "./postTurnSharedInitial/run";
+import {
+  POST_TURN_SHARED_INITIAL_REQUEST_KIND,
+  type PostTurnSharedInitialInput,
+} from "./postTurnSharedInitial/types";
 
 const WIDGET: StatusWidget = {
   ...DEFAULT_STATUS_WIDGET,
@@ -56,6 +64,11 @@ const usage = (n: number): TokenUsage => ({
   estimated: true,
 });
 
+function padReply(seed: string, length = 72): string {
+  const filler = "가".repeat(Math.max(0, length - seed.length));
+  return `${seed}${filler}`.slice(0, length);
+}
+
 function sharedResponse(opts: {
   relationship: Record<string, unknown>;
 }): string {
@@ -67,9 +80,9 @@ function sharedResponse(opts: {
     statusWidget: { character_values: characterValues, extracted_facts: [] },
     suggestedReplies: {
       items: [
-        { kind: "escalate", text: "정체를 밝히며 한 걸음 다가선다. *목소리는 낮게 가라앉힌다.*" },
-        { kind: "soften", text: "잠시 숨을 고르고 미소를 짓는다. *긴장을 풀어 보려 애쓴다.*" },
-        { kind: "pivot", text: "화제를 돌려 복도 끝을 가리킨다. *더 이상 캐묻지 않겠다는 뜻이다.*" },
+        { kind: "escalate", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
+        { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
+        { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
       ],
     },
     relationship: opts.relationship,
@@ -160,6 +173,7 @@ describe("whole-turn post-turn Luna call budget", () => {
 describe("shared relationship delta consumption (no second provider call)", () => {
   before(() => {
     installIsolatedTestDatabase();
+    ensureProviderCostLedgerSchema(getDb());
   });
 
   it("S4. mergeRelationshipMetaFromTurn consumes the shared delta without provider", async () => {
@@ -202,6 +216,12 @@ describe("shared relationship delta consumption (no second provider call)", () =
     assert.ok(meta.items.length > 0);
     const persisted = loadChatRelationshipMeta(chatId);
     assert.ok(JSON.stringify(persisted).includes("검"));
+    // Accounting parity: consuming a shared delta adds NO provider-cost row
+    // (the single physical shared call owns its one ledger row elsewhere).
+    const ledgerRows = (
+      db.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+    ).c;
+    assert.equal(ledgerRows, 0);
   });
 
   it("S5. end-to-end normal turn: shared extract + shared merge = ONE provider call", async () => {
@@ -273,4 +293,251 @@ describe("shared relationship delta consumption (no second provider call)", () =
     });
     assert.equal(independentProviderCalls, 1, "unshared path still performs one provider call");
   });
+});
+
+const baseInput = (
+  over: Partial<PostTurnSharedInitialInput>
+): PostTurnSharedInitialInput => ({
+  mode: "character",
+  charName: "라이크",
+  personaName: "렌",
+  userMessage: "*검을 내려놓는다.*",
+  assistantProse: "라이크는 검을 받아 들었다.",
+  characterWidget: WIDGET,
+  primaryModelId: "gpt-5.6-luna",
+  includeSuggestions: false,
+  includeRelationship: false,
+  ...over,
+});
+
+describe("shared prompt envelope — active consumers only", () => {
+  it("includes only the requested sections", () => {
+    const statusOnly = buildPostTurnSharedInitialSystem(baseInput({}));
+    assert.match(statusOnly, /"statusWidget"/);
+    assert.doesNotMatch(statusOnly, /"suggestedReplies"/);
+    assert.doesNotMatch(statusOnly, /"relationship"/);
+
+    const statusSuggest = buildPostTurnSharedInitialSystem(
+      baseInput({ includeSuggestions: true })
+    );
+    assert.match(statusSuggest, /"suggestedReplies"/);
+    assert.doesNotMatch(statusSuggest, /"relationship"/);
+
+    const statusRelationship = buildPostTurnSharedInitialSystem(
+      baseInput({ includeRelationship: true })
+    );
+    assert.match(statusRelationship, /"relationship"/);
+    assert.doesNotMatch(statusRelationship, /"suggestedReplies"/);
+
+    const all = buildPostTurnSharedInitialSystem(
+      baseInput({ includeSuggestions: true, includeRelationship: true })
+    );
+    assert.match(all, /"statusWidget"/);
+    assert.match(all, /"suggestedReplies"/);
+    assert.match(all, /"relationship"/);
+
+    const relationshipOnly = buildPostTurnSharedInitialSystem(
+      baseInput({ mode: "relationship_only", includeRelationship: true })
+    );
+    assert.doesNotMatch(relationshipOnly, /"statusWidget"/);
+    assert.doesNotMatch(relationshipOnly, /"suggestedReplies"/);
+    assert.match(relationshipOnly, /"relationship"/);
+  });
+});
+
+describe("relationship section parse evidence", () => {
+  const parseRel = (relationship: unknown) =>
+    parsePostTurnSharedInitialResponse(
+      JSON.stringify({ relationship }),
+      baseInput({ includeRelationship: true })
+    ).relationship;
+
+  it("explicit empty arrays => valid no-op", () => {
+    const section = parseRel({ items: [], itemsRemove: [], promisesAdd: [], promisesRemove: [] });
+    assert.equal(section.present, true);
+    assert.equal(section.valid, true);
+    assert.deepEqual(section.delta.items, []);
+    assert.deepEqual(section.delta.promisesAdd, []);
+  });
+
+  it("missing key => present=false valid=false (SECTION FAILURE)", () => {
+    const parsed = parsePostTurnSharedInitialResponse(
+      JSON.stringify({}),
+      baseInput({ includeRelationship: true })
+    );
+    assert.equal(parsed.relationship.present, false);
+    assert.equal(parsed.relationship.valid, false);
+  });
+
+  it("malformed arrays => present=true valid=false (SECTION FAILURE)", () => {
+    const section = parseRel({ items: "not-an-array" });
+    assert.equal(section.present, true);
+    assert.equal(section.valid, false);
+  });
+
+  it("valid delta => present=true valid=true with delta", () => {
+    const section = parseRel({
+      items: ["렌: 검"],
+      itemsRemove: [],
+      promisesAdd: [{ text: "다음에 다시 만나기" }],
+      promisesRemove: [],
+    });
+    assert.equal(section.valid, true);
+    assert.deepEqual(section.delta.items, ["렌: 검"]);
+    assert.deepEqual(section.delta.promisesAdd, [{ text: "다음에 다시 만나기" }]);
+  });
+
+  it("section failure does not invalidate status/suggestions sections", () => {
+    const parsed = parsePostTurnSharedInitialResponse(
+      JSON.stringify({
+        statusWidget: { character_values: { 장소: "복도" }, extracted_facts: [] },
+        suggestedReplies: {
+          items: [
+            { kind: "escalate", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
+            { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
+            { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
+          ],
+        },
+        relationship: { items: 42 },
+      }),
+      baseInput({ includeSuggestions: true, includeRelationship: true })
+    );
+    assert.equal(parsed.character?.ok, true);
+    assert.equal(parsed.suggestedRepliesOk, true);
+    assert.equal(parsed.relationship.present, true);
+    assert.equal(parsed.relationship.valid, false);
+  });
+});
+
+describe("relationship-only canonical shared owner", () => {
+  it("status OFF + relationship ON => same shared runner, ONE call, no status/suggestions ask", async () => {
+    const calls: string[] = [];
+    let systemSeen = "";
+    const caller: StatusWidgetExtractCaller = async (system, _history, opts) => {
+      calls.push(opts.requestKind);
+      systemSeen = system;
+      return {
+        text: JSON.stringify({
+          relationship: { items: ["렌: 검"], itemsRemove: [], promisesAdd: [], promisesRemove: [] },
+        }),
+        usage: usage(1),
+      };
+    };
+
+    const run = await runPostTurnRelationshipOnlyInitial(
+      {
+        charName: "라이크",
+        personaName: "렌",
+        userMessage: "*검을 내려놓는다.*",
+        assistantProse: "라이크는 검을 받아 들었다.",
+        primaryModelId: "gpt-5.6-luna",
+      },
+      caller
+    );
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0], POST_TURN_SHARED_INITIAL_REQUEST_KIND);
+    assert.doesNotMatch(systemSeen, /"statusWidget"/);
+    assert.doesNotMatch(systemSeen, /"suggestedReplies"/);
+    assert.equal(run.parsed?.relationship.valid, true);
+    assert.deepEqual(run.parsed?.relationship.delta.items, ["렌: 검"]);
+  });
+});
+
+describe("consumer combination physical-call matrix", () => {
+  it("all OFF => zero auxiliary provider calls", async () => {
+    let called = 0;
+    const caller: StatusWidgetExtractCaller = async () => {
+      called += 1;
+      return { text: "", usage: null };
+    };
+    const inactive: ResolvedStatusWidgetTurn = {
+      active: false,
+      requestedMode: "character_only",
+      mode: "character_only",
+      displayMode: "creator",
+      stackOrder: "character_first",
+      characterWidget: WIDGET,
+      userWidget: null,
+      needsCharacterValues: true,
+      needsUserValues: false,
+    };
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "라이크",
+      personaName: "렌",
+      userMessage: "안녕",
+      assistantProse: "그는 대답하지 않았다.",
+      resolved: inactive,
+      caller,
+      primaryModelId: "gpt-5.6-luna",
+      coalesceSuggestedReplies: { enabled: true },
+      shareRelationshipDelta: true,
+    });
+    assert.equal(called, 0);
+    assert.equal(result.meta.actualCallCount, 0);
+  });
+
+  const matrix: Array<{
+    name: string;
+    includeSuggestions: boolean;
+    includeRelationship: boolean;
+    expectSuggestions: boolean;
+    expectRelationship: boolean;
+  }> = [
+    { name: "status+suggestions+relationship", includeSuggestions: true, includeRelationship: true, expectSuggestions: true, expectRelationship: true },
+    { name: "status+relationship (suggestions OFF)", includeSuggestions: false, includeRelationship: true, expectSuggestions: false, expectRelationship: true },
+    { name: "status+suggestions (relationship OFF)", includeSuggestions: true, includeRelationship: false, expectSuggestions: true, expectRelationship: false },
+  ];
+
+  for (const row of matrix) {
+    it(`${row.name} => ONE physical call requesting only active sections`, async () => {
+      const calls: string[] = [];
+      const caller: StatusWidgetExtractCaller = async (_system, _history, opts) => {
+        calls.push(opts.requestKind);
+        const characterValues: Record<string, string> = {};
+        for (const key of collectWidgetJsonKeys(WIDGET)) characterValues[key] = `값-${key}`;
+        return {
+          text: JSON.stringify({
+            statusWidget: { character_values: characterValues, extracted_facts: [] },
+            ...(row.expectSuggestions
+              ? {
+                  suggestedReplies: {
+                    items: [
+                      { kind: "escalate", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
+                      { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
+                      { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
+                    ],
+                  },
+                }
+              : {}),
+            ...(row.expectRelationship
+              ? { relationship: { items: [], itemsRemove: [], promisesAdd: [], promisesRemove: [] } }
+              : {}),
+          }),
+          usage: usage(1),
+        };
+      };
+
+      const result = await extractStatusWidgetValuesForTurn({
+        charName: "라이크",
+        personaName: "렌",
+        userMessage: "*검을 내려놓는다.*",
+        assistantProse: "라이크는 검을 받아 들었다.",
+        resolved: characterResolved(),
+        caller,
+        primaryModelId: "gpt-5.6-luna",
+        coalesceSuggestedReplies: row.includeSuggestions ? { enabled: true } : undefined,
+        shareRelationshipDelta: row.includeRelationship,
+      });
+
+      assert.equal(calls.length, 1, `${row.name}: one physical call`);
+      assert.equal(result.meta.actualCallCount, 1);
+      if (row.expectSuggestions) {
+        assert.equal(result.meta.prefetchedSuggestedReplies?.length, 3);
+      } else {
+        assert.equal(result.meta.prefetchedSuggestedReplies ?? null, null);
+      }
+      assert.equal(result.meta.sharedInitialRelationshipUsable, row.expectRelationship);
+    });
+  }
 });

@@ -19,8 +19,6 @@ import { collectWidgetJsonKeys } from "./prompt";
 import {
   buildCombinedDualWidgetExtractSystem,
   buildCombinedDualWidgetExtractUserBlock,
-  buildVolatileEchoRepairSystem,
-  buildVolatileEchoRepairUserBlock,
   buildWidgetExtractRepairSystem,
   buildWidgetExtractRepairUserBlock,
   buildWidgetExtractSystem,
@@ -28,7 +26,6 @@ import {
   collectVolatileExactEchoKeys,
   dropRepairEchoFields,
   extractJsonObjectFromWidgetText,
-  mergeVolatileRepairIntoValues,
   normalizeWidgetExtraction,
   isCombinedExtractLikelyTruncated,
   parseCombinedDualWidgetExtractResponse,
@@ -161,14 +158,12 @@ function reasonCodeForExtractStage(
   if (kind === "ok") {
     if (stage === "initial") return "OK";
     if (stage === "repair") return "V3_REPAIR_USED";
-    if (stage === "volatile_echo_repair") return "V3_PREVIOUS_ECHO_REPAIR_USED";
     return "FALLBACK_MODEL_USED";
   }
   if (stage === "initial") {
     return kind === "parse" ? "V3_PARSE_FAILED" : "V3_INITIAL_EMPTY";
   }
   if (stage === "repair") return "V3_REPAIR_FAILED";
-  if (stage === "volatile_echo_repair") return "V3_PREVIOUS_ECHO_REPAIR_FAILED";
   return "FALLBACK_MODEL_FAILED";
 }
 
@@ -261,7 +256,7 @@ function shouldEmitExtractAttemptLog(opts: {
   const env = opts.env ?? process.env;
   const verbose =
     env.STATUS_WIDGET_TRACE_ENABLED === "1" || env.STATUS_WIDGET_EXTRACT_METRICS === "1";
-  if (opts.stage === "repair" || opts.stage === "volatile_echo_repair") return true;
+  if (opts.stage === "repair") return true;
   if (opts.reasonCode === "STATUS_WIDGET_EXTRACT_EXHAUSTED") return true;
   if (opts.stage === "initial" && !opts.succeeded) return true;
   if (opts.stage === "initial" && opts.succeeded) return verbose;
@@ -538,34 +533,18 @@ async function runExtractAttempt(opts: {
 }
 
 /**
- * After a successful extract: if volatile fields exact-match previous, run same-model
- * targeted repair once for those keys only and merge. Persistent exact matches ignored.
+ * After a successful extract, volatile fields that exactly equal the previous
+ * turn are ACCEPTED — time/place/state can legitimately be unchanged. Exact
+ * equality is not invalid-output evidence, so no second provider call is made.
  */
-async function maybeRepairVolatileExactEcho(opts: {
+function observeVolatileExactEcho(opts: {
   values: StatusWidgetValues;
   facts: ExtractedStatusFact[];
   widget: StatusWidget;
   source: "character" | "user";
   previousValues?: StatusWidgetValues | null;
-  assistantProse: string;
-  userMessage: string;
-  charName: string;
-  personaName: string;
-  characterIdentity?: string | null;
-  characterCriticalContext?: string | null;
-  primaryModelId: string;
-  caller: StatusWidgetExtractCaller;
-  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
-  env?: NodeJS.ProcessEnv;
-  attemptIndex: number;
-  usages: TokenUsage[];
-  stages: StatusWidgetExtractStage[];
-  models: string[];
-  attemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"];
-  attemptDiagnostics: StatusWidgetExtractAttemptDiagnostic[];
   apiCalls: number;
-  repairMaxTokens: number | null;
-}): Promise<{
+}): {
   values: StatusWidgetValues;
   facts: ExtractedStatusFact[];
   apiCalls: number;
@@ -573,34 +552,18 @@ async function maybeRepairVolatileExactEcho(opts: {
   finalReasonCode: StatusWidgetReasonCode;
   volatileEchoKeys: string[];
   volatileEchoRepairSucceeded: boolean;
-}> {
+} {
   const echoKeys = collectVolatileExactEchoKeys({
     widget: opts.widget,
     previous: opts.previousValues,
     current: opts.values,
   });
-  if (echoKeys.length === 0) {
-    return {
-      values: opts.values,
-      facts: opts.facts,
-      apiCalls: opts.apiCalls,
-      finalStage: "initial",
-      finalReasonCode: "OK",
-      volatileEchoKeys: [],
-      volatileEchoRepairSucceeded: false,
-    };
-  }
-
-  // Successful parse + volatile fields equalling the previous turn is NOT invalid
-  // output evidence: time/place/state can genuinely be unchanged. Accept the
-  // parsed values without issuing a second same-model provider call (deterministic
-  // normalization only — no quality-heuristic re-inference).
   return {
     values: opts.values,
     facts: opts.facts,
     apiCalls: opts.apiCalls,
     finalStage: "initial",
-    finalReasonCode: "V3_PREVIOUS_ECHO_ACCEPTED",
+    finalReasonCode: echoKeys.length === 0 ? "OK" : "V3_PREVIOUS_ECHO_ACCEPTED",
     volatileEchoKeys: echoKeys,
     volatileEchoRepairSucceeded: false,
   };
@@ -706,30 +669,13 @@ async function extractStatusWidgetValuesForWidget(opts: {
     pushUsage(usages, attemptUsages, initial);
     attemptDiagnostics.push(toAttemptDiagnostic(initial));
     if (initial.ok && initial.values) {
-      const echoFixed = await maybeRepairVolatileExactEcho({
+      const echoFixed = observeVolatileExactEcho({
         values: initial.values,
         facts: initial.facts,
         widget: opts.widget,
         source: opts.source,
         previousValues: opts.previousValues,
-        assistantProse: opts.assistantProse,
-        userMessage: opts.userMessage,
-        charName: opts.charName,
-        personaName: opts.personaName,
-        characterIdentity: opts.characterIdentity,
-        characterCriticalContext: opts.characterCriticalContext,
-        primaryModelId,
-        caller,
-        trace: opts.trace,
-        env: opts.env,
-        attemptIndex: 2,
-        usages,
-        stages,
-        models,
-        attemptUsages,
-        attemptDiagnostics,
         apiCalls,
-        repairMaxTokens,
       });
       return {
         values: echoFixed.values,
@@ -791,30 +737,13 @@ async function extractStatusWidgetValuesForWidget(opts: {
   attemptDiagnostics.push(toAttemptDiagnostic(repair));
   echoDroppedKeys = repair.echoDroppedKeys;
   if (repair.ok && repair.values) {
-    const echoFixed = await maybeRepairVolatileExactEcho({
+    const echoFixed = observeVolatileExactEcho({
       values: repair.values,
       facts: repair.facts,
       widget: opts.widget,
       source: opts.source,
       previousValues: opts.previousValues,
-      assistantProse: opts.assistantProse,
-      userMessage: opts.userMessage,
-      charName: opts.charName,
-      personaName: opts.personaName,
-      characterIdentity: opts.characterIdentity,
-      characterCriticalContext: opts.characterCriticalContext,
-      primaryModelId,
-      caller,
-      trace: opts.trace,
-      env: opts.env,
-      attemptIndex: opts.repairOnly ? 3 : 3,
-      usages,
-      stages,
-      models,
-      attemptUsages,
-      attemptDiagnostics,
       apiCalls,
-      repairMaxTokens,
     });
     return {
       values: echoFixed.values,
@@ -825,14 +754,8 @@ async function extractStatusWidgetValuesForWidget(opts: {
         source: opts.source,
         callCount: echoFixed.apiCalls,
         stages,
-        finalStage:
-          echoFixed.finalStage === "volatile_echo_repair"
-            ? echoFixed.finalStage
-            : "repair",
-        finalReasonCode:
-          echoFixed.finalStage === "volatile_echo_repair"
-            ? echoFixed.finalReasonCode
-            : "V3_REPAIR_USED",
+        finalStage: "repair",
+        finalReasonCode: "V3_REPAIR_USED",
         models,
         attemptUsages,
         attemptDiagnostics,
@@ -1065,6 +988,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         previousCharacterValues: opts.previousValues?.character ?? null,
         previousUserValues: opts.previousValues?.user ?? null,
         primaryModelId,
+        includeSuggestions: opts.coalesceSuggestedReplies?.enabled === true,
         includeRelationship: shareRelationshipDelta,
       },
       caller,
@@ -1094,14 +1018,17 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         sharedInitialParsed = shared.parsed;
         sharedInitialUsage = shared.usage;
       }
-      // Relationship sharing is usable whenever the shared response parsed
-      // (even empty delta = normal no-change turn). A transport/parse failure
-      // leaves this false so the relationship subsystem can still recover with
-      // its own single call.
-      if (shareRelationshipDelta && sharedInitialParsed != null) {
+      // Relationship sharing is usable ONLY when the relationship section is
+      // present AND valid (empty arrays = valid no-op). A missing/malformed
+      // section routes to independent recovery instead of silently losing a delta.
+      const relationshipSection = sharedInitialParsed?.relationship;
+      if (
+        shareRelationshipDelta &&
+        relationshipSection?.present === true &&
+        relationshipSection.valid === true
+      ) {
         sharedInitialRelationshipUsable = true;
-        sharedInitialRelationshipDelta =
-          sharedInitialParsed.relationship ?? {};
+        sharedInitialRelationshipDelta = relationshipSection.delta;
       }
       if (postTurnSharedInitialSuggestedRepliesOk(shared.parsed)) {
         prefetchedSuggestedReplies = shared.parsed!.suggestedReplies;
@@ -1254,30 +1181,13 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       const charAttemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"] = [];
       const charAttemptDiagnostics: StatusWidgetExtractAttemptDiagnostic[] = [];
       const charRepairMax: number | null = null;
-      const echoFixed = await maybeRepairVolatileExactEcho({
+      const echoFixed = observeVolatileExactEcho({
         values: parsed.character,
         facts: [],
         widget: charWidget,
         source: "character",
         previousValues: opts.previousValues?.character ?? null,
-        assistantProse: opts.assistantProse,
-        userMessage: opts.userMessage,
-        charName: opts.charName,
-        personaName: opts.personaName,
-        characterIdentity: opts.characterIdentity,
-        characterCriticalContext: opts.characterCriticalContext,
-        primaryModelId,
-        caller,
-        trace: opts.trace,
-        env: opts.env,
-        attemptIndex: 2,
-        usages: charUsages,
-        stages: charStages,
-        models: charModels,
-        attemptUsages: charAttemptUsages,
-        attemptDiagnostics: charAttemptDiagnostics,
         apiCalls: 0,
-        repairMaxTokens: charRepairMax,
       });
       actualCallCount += echoFixed.apiCalls;
       if (charUsages.length) turnUsages.push(...charUsages);
@@ -1333,30 +1243,13 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       const userAttemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"] = [];
       const userAttemptDiagnostics: StatusWidgetExtractAttemptDiagnostic[] = [];
       const userRepairMax: number | null = null;
-      const echoFixed = await maybeRepairVolatileExactEcho({
+      const echoFixed = observeVolatileExactEcho({
         values: parsed.user,
         facts: [],
         widget: userWidget,
         source: "user",
         previousValues: opts.previousValues?.user ?? null,
-        assistantProse: opts.assistantProse,
-        userMessage: opts.userMessage,
-        charName: opts.charName,
-        personaName: opts.personaName,
-        characterIdentity: opts.characterIdentity,
-        characterCriticalContext: opts.characterCriticalContext,
-        primaryModelId,
-        caller,
-        trace: opts.trace,
-        env: opts.env,
-        attemptIndex: 2,
-        usages: userUsages,
-        stages: userStages,
-        models: userModels,
-        attemptUsages: userAttemptUsages,
-        attemptDiagnostics: userAttemptDiagnostics,
         apiCalls: 0,
-        repairMaxTokens: userRepairMax,
       });
       actualCallCount += echoFixed.apiCalls;
       if (userUsages.length) turnUsages.push(...userUsages);
@@ -1547,9 +1440,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
 
   const usedRepair =
     characterMeta?.stages.includes("repair") === true ||
-    characterMeta?.stages.includes("volatile_echo_repair") === true ||
-    userMeta?.stages.includes("repair") === true ||
-    userMeta?.stages.includes("volatile_echo_repair") === true;
+    userMeta?.stages.includes("repair") === true;
   const usedFallback =
     characterMeta?.stages.includes("fallback") === true ||
     userMeta?.stages.includes("fallback") === true;
