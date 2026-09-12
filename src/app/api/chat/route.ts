@@ -5,6 +5,7 @@ import {
   isTrafficOverloadSystemMessage,
   sendTrafficOverloadGracefulStream,
   estimateTokens,
+  BACKGROUND_OPENROUTER_MODEL,
   type ChatMsg,
   type Route,
   type StageUsage,
@@ -427,7 +428,8 @@ import {
   logStatusWidgetTurnTelemetry,
   resolveStatusWidgetTurnValues,
 } from "@/lib/statusWidget/telemetry";
-import { resolvePrefetchedSuggestedReplies } from "@/lib/postTurnSharedInitial/prefetch";
+import { resolvePrefetchedSuggestedReplies, hashAssistantProseForSuggestionPrefetch } from "@/lib/postTurnSharedInitial/prefetch";
+import { runPostTurnRelationshipOnlyInitial } from "@/lib/postTurnSharedInitial/run";
 import { isStatusWidgetContextSafeForSuggestedRepliesCoalesce } from "@/lib/postTurnSharedInitial/coalesceVisibility";
 import {
   diagnoseStatusWidgetValues,
@@ -4907,6 +4909,38 @@ export async function POST(req: Request) {
                 baseCost: mainBillingCost,
                 cost: mainBillingCost,
               };
+            }
+          }
+        } else if (isMemoryFeatureEnabled() || suggestedRepliesEligibleForCoalesce) {
+          // Status widget OFF: the remaining active post-turn consumers
+          // (relationship and/or suggested replies) still use the SAME canonical
+          // shared owner — never a separate relationship provider call.
+          const sharedConsumers = await runPostTurnRelationshipOnlyInitial({
+            charName: ch.name,
+            personaName: personaDisplayName,
+            userMessage: messageText,
+            assistantProse: savedText,
+            primaryModelId: BACKGROUND_OPENROUTER_MODEL,
+            includeSuggestions: suggestedRepliesEligibleForCoalesce,
+            includeRelationship: isMemoryFeatureEnabled(),
+            userPersona: backgroundPersonaIdentity,
+            personaDescription,
+            personaSpeechExamples: selectedPersona?.speech_examples ?? null,
+          });
+          if (sharedConsumers.attempted) {
+            widgetSharedInitialConsumed = true;
+            const rel = sharedConsumers.parsed?.relationship;
+            if (rel?.present === true && rel.valid === true) {
+              widgetSharedRelationshipUsable = true;
+              widgetSharedRelationshipDelta = rel.delta;
+            }
+            if (
+              suggestedRepliesEligibleForCoalesce &&
+              sharedConsumers.parsed?.suggestedRepliesOk
+            ) {
+              widgetPrefetchedSuggestedReplies = sharedConsumers.parsed.suggestedReplies;
+              widgetPrefetchedSuggestedRepliesAssistantProseHash =
+                hashAssistantProseForSuggestionPrefetch(savedText);
             }
           }
         }

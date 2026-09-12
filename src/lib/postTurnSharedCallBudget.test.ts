@@ -442,6 +442,47 @@ describe("relationship-only canonical shared owner", () => {
     assert.equal(run.parsed?.relationship.valid, true);
     assert.deepEqual(run.parsed?.relationship.delta.items, ["렌: 검"]);
   });
+
+  it("status OFF + suggestions ON + relationship ON => same owner, ONE call, both sections", async () => {
+    const calls: string[] = [];
+    let systemSeen = "";
+    const caller: StatusWidgetExtractCaller = async (system, _history, opts) => {
+      calls.push(opts.requestKind);
+      systemSeen = system;
+      return {
+        text: JSON.stringify({
+          relationship: { items: ["렌: 검"], itemsRemove: [], promisesAdd: [], promisesRemove: [] },
+          suggestedReplies: {
+            items: [
+              { kind: "escalate", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
+              { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
+              { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
+            ],
+          },
+        }),
+        usage: usage(1),
+      };
+    };
+
+    const run = await runPostTurnRelationshipOnlyInitial(
+      {
+        charName: "라이크",
+        personaName: "렌",
+        userMessage: "*검을 내려놓는다.*",
+        assistantProse: "라이크는 검을 받아 들었다.",
+        primaryModelId: "gpt-5.6-luna",
+        includeSuggestions: true,
+      },
+      caller
+    );
+
+    assert.equal(calls.length, 1);
+    assert.doesNotMatch(systemSeen, /"statusWidget"/);
+    assert.match(systemSeen, /"relationship"/);
+    assert.match(systemSeen, /"suggestedReplies"/);
+    assert.equal(run.parsed?.relationship.valid, true);
+    assert.equal(run.parsed?.suggestedRepliesOk, true);
+  });
 });
 
 describe("consumer combination physical-call matrix", () => {

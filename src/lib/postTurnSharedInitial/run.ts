@@ -107,6 +107,13 @@ export async function runPostTurnRelationshipOnlyInitial(
     assistantProse: string;
     primaryModelId: string;
     previousAssistantMessage?: string | null;
+    /** Also produce suggested replies in the same inference (status OFF + suggestions ON). */
+    includeSuggestions?: boolean;
+    /** Relationship consumer active (default true for the relationship owner). */
+    includeRelationship?: boolean;
+    personaDescription?: string | null;
+    personaSpeechExamples?: string | null;
+    userPersona?: string | null;
   },
   caller?: StatusWidgetExtractCaller,
   ledgerContext?: import("@/lib/providerCostLedger").ProviderCostLedgerContext
@@ -119,8 +126,11 @@ export async function runPostTurnRelationshipOnlyInitial(
       userMessage: input.userMessage,
       assistantProse: input.assistantProse,
       primaryModelId: input.primaryModelId,
-      includeSuggestions: false,
-      includeRelationship: true,
+      userPersona: input.userPersona ?? null,
+      personaDescription: input.personaDescription ?? null,
+      personaSpeechExamples: input.personaSpeechExamples ?? null,
+      includeSuggestions: input.includeSuggestions === true,
+      includeRelationship: input.includeRelationship !== false,
       relationshipRegenContext: input.previousAssistantMessage?.trim()
         ? { previousAssistantMessage: input.previousAssistantMessage }
         : null,
