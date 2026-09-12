@@ -10,6 +10,7 @@ import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
 import ChatDisplayReadabilitySettings from "@/components/ChatDisplayReadabilitySettings";
+import ChatBackgroundOpacitySettings from "@/components/ChatBackgroundOpacitySettings";
 import ChatStreamSpeedSettings from "@/components/ChatStreamSpeedSettings";
 import {
   withStreamSpeed,
@@ -993,6 +994,11 @@ function DisplaySettingsSection({
 }) {
   return (
     <div className="space-y-5 text-xs">
+      <ChatBackgroundOpacitySettings
+        displayPrefs={displayPrefs}
+        onDisplayPrefsChange={onDisplayPrefsChange}
+      />
+
       <ChatStreamSpeedSettings
         streamIntervalMs={displayPrefs.streamIntervalMs}
         onStreamIntervalMsChange={(intervalMs) =>

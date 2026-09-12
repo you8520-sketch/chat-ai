@@ -121,6 +121,34 @@ async function readStoredAssetMode(page: Page): Promise<string | null> {
   });
 }
 
+async function readStoredPrefs(
+  page: Page
+): Promise<{ assetDisplayMode?: string; portraitBackgroundOpacity?: number } | null> {
+  return page.evaluate(() => {
+    const raw = localStorage.getItem("playai-chat-display-prefs");
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as { assetDisplayMode?: string; portraitBackgroundOpacity?: number };
+    } catch {
+      return null;
+    }
+  });
+}
+
+/** Drive a controlled range input through React's onChange. */
+async function setRangeValue(page: Page, selector: string, percent: number): Promise<void> {
+  await page.locator(selector).evaluate((el, value) => {
+    const input = el as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value"
+    )?.set;
+    setter?.call(input, String(value));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, percent);
+}
+
 function inlineFigures(page: Page) {
   return page.locator('[data-testid="inline-tagged-asset"]');
 }
@@ -323,7 +351,7 @@ test.describe("general chat asset display guardrails (B0)", () => {
     expect(body).not.toContain("[태그:");
   });
 
-  test("MOBILE-STORED-LEFT: stored left renders inline on mobile without mutating storage", async ({
+  test("MOBILE-STORED-LEFT: stored left shows the fixed background (not inline) without mutating storage", async ({
     page,
   }) => {
     await installAssetMode(page, "left");
@@ -336,9 +364,128 @@ test.describe("general chat asset display guardrails (B0)", () => {
     );
 
     await expect(page.locator(".chat-room-portrait-column")).toHaveCount(0);
-    await expect(page.locator('[data-testid="mobile-chat-portrait-background"]')).toHaveCount(0);
-    await expect(inlineFigures(page)).toHaveCount(2, { timeout: 45_000 });
+    const background = page.locator('[data-testid="mobile-chat-portrait-background"]');
+    await expect(background).toHaveCount(1, { timeout: 45_000 });
+    await expect(background).toBeVisible();
+
+    const layer = await background.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { position: cs.position, pointerEvents: cs.pointerEvents, zIndex: cs.zIndex };
+    });
+    expect(layer.position).toBe("fixed");
+    expect(layer.pointerEvents).toBe("none");
+
+    // Source is the portrait asset, not the landscape one.
+    await expect(page.locator('[data-testid="mobile-chat-portrait-image"]')).toHaveAttribute(
+      "src",
+      /tall/
+    );
+
+    // pre-B1 compatibility (bucket B): landscape inline lane is preserved.
+    await expect(inlineFigures(page)).toHaveCount(1, { timeout: 45_000 });
+    const tags = await inlineFigures(page).evaluateAll((els) =>
+      els.map((e) => e.getAttribute("data-asset-tag"))
+    );
+    expect(tags).toEqual(["guardrail-wide"]);
     expect(await readStoredAssetMode(page)).toBe("left");
+  });
+
+  test("MOBILE-BACKGROUND-OPACITY: default opacity is applied to the background image", async ({
+    page,
+  }) => {
+    await installAssetMode(page, "left");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    seedMixedAssets(2);
+    await seedAndReloadChatWithMessage(page, `${ASSISTANT_MARKER_TEXT}\n[태그: guardrail-tall]`);
+
+    const background = page.locator('[data-testid="mobile-chat-portrait-background"]');
+    await expect(background).toHaveCount(1, { timeout: 45_000 });
+    const imageOpacity = await page
+      .locator('[data-testid="mobile-chat-portrait-image"]')
+      .evaluate((el) => Number(getComputedStyle(el).opacity));
+    expect(imageOpacity).toBeCloseTo(0.22, 2);
+  });
+
+  test("MOBILE-INLINE-SIZE: mobile inline assets are bounded and centered", async ({ page }) => {
+    await installAssetMode(page, "inline");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    seedMixedAssets(2);
+    await seedAndReloadChatWithMessage(
+      page,
+      `${ASSISTANT_MARKER_TEXT}\n[태그: guardrail-tall]\n[태그: guardrail-sq]\n[태그: guardrail-wide]`
+    );
+
+    const figures = inlineFigures(page);
+    await expect(figures).toHaveCount(3, { timeout: 45_000 });
+    const geometry = await figures.evaluateAll((els) =>
+      els.map((fig) => {
+        const img = fig.querySelector("img") as HTMLImageElement;
+        const fr = fig.getBoundingClientRect();
+        const parent = fig.parentElement;
+        const pr = parent?.getBoundingClientRect();
+        const parentCenter = pr ? (pr.left + pr.right) / 2 : fr.left + fr.width / 2;
+        const vw = document.documentElement.clientWidth;
+        return {
+          width: fr.width,
+          // centered within its prose container, and never wider than the viewport
+          centerDelta: Math.abs((fr.left + fr.right) / 2 - parentCenter),
+          inViewport: fr.left >= -1 && fr.right <= vw + 1,
+          viewportWidth: vw,
+          fit: getComputedStyle(img).objectFit,
+          aspect: getComputedStyle(fig).aspectRatio.replace(/\s+/g, ""),
+        };
+      })
+    );
+    for (const g of geometry) {
+      expect(g.fit).toBe("contain");
+      expect(g.width).toBeLessThanOrEqual(321);
+      expect(g.width).toBeLessThan(g.viewportWidth);
+      expect(g.inViewport).toBe(true);
+      expect(g.centerDelta).toBeLessThan(2);
+    }
+    expect(geometry.map((g) => g.aspect)).toEqual(["300/400", "300/300", "400/300"]);
+  });
+
+  for (const mode of ["inline", "off"] as const) {
+    test(`MOBILE-${mode.toUpperCase()}-NO-BACKGROUND: no background layer`, async ({ page }) => {
+      await installAssetMode(page, mode);
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+      seedMixedAssets(2);
+      await seedAndReloadChatWithMessage(
+        page,
+        `${ASSISTANT_MARKER_TEXT}\n[태그: guardrail-tall]\n[태그: guardrail-wide]`
+      );
+      await expect(page.locator('[data-testid="mobile-chat-portrait-background"]')).toHaveCount(0);
+    });
+  }
+
+  test("MOBILE-QUICKRAIL: mobile labels 배경/본문/OFF, opacity slider persists without changing mode", async ({
+    page,
+  }) => {
+    await installAssetMode(page, "left");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("textarea[placeholder*='메시지 입력']", { timeout: 45_000 });
+
+    await page.getByRole("button", { name: "채팅 메뉴" }).click();
+    const rail = page.getByRole("button", { name: /캐릭터 에셋 표시 배경/ }).first();
+    await expect(rail).toBeVisible();
+
+    await page.getByRole("button", { name: /채팅\s*설정/ }).first().click();
+    const slider = page.getByLabel("모바일 배경 이미지 투명도");
+    await expect(slider).toBeVisible();
+    await setRangeValue(page, 'input[aria-label="모바일 배경 이미지 투명도"]', 50);
+    await expect.poll(async () => (await readStoredPrefs(page))?.portraitBackgroundOpacity).toBe(0.5);
+    expect((await readStoredPrefs(page))?.assetDisplayMode).toBe("left");
+
+    await rail.click();
+    await expect.poll(() => readStoredAssetMode(page)).toBe("inline");
+    await expect(page.getByRole("button", { name: /캐릭터 에셋 표시 본문/ }).first()).toBeVisible();
+    // slider is only shown in the background presentation
+    await expect(page.getByLabel("모바일 배경 이미지 투명도")).toHaveCount(0);
   });
 
   test("QUICK-RAIL-CYCLE: rail cycles left → inline → off and persists", async ({ page }) => {

@@ -2,9 +2,11 @@
 
 import {
   CHAT_ASSET_DISPLAY_MODE_LABELS,
+  CHAT_ASSET_DISPLAY_MODE_LABELS_MOBILE,
   CHAT_ASSET_DISPLAY_MODES,
   type ChatDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
+import { useChatDesktopViewport } from "@/lib/useChatDesktopViewport";
 
 function IconPortrait({ className }: { className?: string }) {
   return (
@@ -30,18 +32,23 @@ type Props = {
 };
 
 /**
- * Canonical 3-state asset display cycle: 좌측 → 본문 → OFF → 좌측.
- * One persisted value (`assetDisplayMode`); current state is always shown.
+ * Canonical 3-state asset display cycle. Stored values are always
+ * `left → inline → off → left`; only the presentation label differs by viewport
+ * (desktop `좌측`, mobile `배경` — the same stored `left`).
  */
 export default function ChatRoomDisplayQuickRail({
   displayPrefs,
   onDisplayPrefsChange,
 }: Props) {
+  const isDesktop = useChatDesktopViewport();
+  const labels = isDesktop
+    ? CHAT_ASSET_DISPLAY_MODE_LABELS
+    : CHAT_ASSET_DISPLAY_MODE_LABELS_MOBILE;
   const current = displayPrefs.assetDisplayMode;
   const index = CHAT_ASSET_DISPLAY_MODES.indexOf(current);
   const next = CHAT_ASSET_DISPLAY_MODES[(index + 1) % CHAT_ASSET_DISPLAY_MODES.length]!;
-  const currentLabel = CHAT_ASSET_DISPLAY_MODE_LABELS[current];
-  const nextLabel = CHAT_ASSET_DISPLAY_MODE_LABELS[next];
+  const currentLabel = labels[current];
+  const nextLabel = labels[next];
   const isOff = current === "off";
 
   return (
