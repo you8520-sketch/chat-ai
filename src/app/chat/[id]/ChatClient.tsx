@@ -44,6 +44,7 @@ import ReportRefundButton from "@/components/ReportRefundButton";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import MessageVariantPicker from "@/components/MessageVariantPicker";
 import ChatToast from "@/components/ChatToast";
+import CharacterAssetImage from "@/components/CharacterAssetImage";
 import GenerationPreparationIndicator from "@/components/GenerationPreparationIndicator";
 import {
   sanitizeGenerationPreparationUi,
@@ -276,6 +277,8 @@ import {
   CHAT_ROOM_TITLE_BAR_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   CHAT_DESKTOP_MEDIA_QUERY,
+  CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS,
+  CHAT_MOBILE_PORTRAIT_IMAGE_CLASS,
   DEFAULT_CHAT_DISPLAY_PREFS,
   ensureChatDisplayWebFontsLoaded,
   resolveClientDisplayPrefs,
@@ -4956,6 +4959,21 @@ export default function ChatClient({
     );
   }, [character.id, character.name, unlockedAlbumAssets]);
 
+  // Mobile `background` presentation source: the active portrait (portrait/square pool),
+  // falling back to the character's default chat asset. Reuses the same active-portrait
+  // state owner as the desktop left rail — no separate resolver.
+  const mobileBackgroundUrl = (() => {
+    const active = assetByUrl(resolvedAssets, activePortraitUrl);
+    if (active && !isWideInlineAsset(active)) return active.url;
+    return defaultChatAsset?.url ?? null;
+  })();
+  const mobileBackgroundAsset = assetByUrl(resolvedAssets, mobileBackgroundUrl) ?? defaultChatAsset;
+  const mobileBackgroundBlur = shouldBlurAssetForViewer(
+    mobileBackgroundAsset ?? undefined,
+    isCharacterCreator,
+    unlockedUrls
+  );
+
   return (
     <div className="flex min-w-0 flex-1 items-stretch gap-0">
       <div
@@ -5187,9 +5205,38 @@ export default function ChatClient({
         </div>
       </div>
       <div className="h-[3.25rem] shrink-0 min-[576px]:hidden" aria-hidden />
+      {assetPresentation === "background" && mobileBackgroundUrl && (
+        <div
+          data-testid="mobile-chat-portrait-background"
+          className={CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS}
+          style={
+            {
+              ["--mobile-portrait-opacity" as string]:
+                displayPrefs.portraitBackgroundOpacity,
+              ["--mobile-portrait-scrim-opacity" as string]:
+                Math.max(0, 0.18 * (1 - displayPrefs.portraitBackgroundOpacity)),
+              ["--mobile-portrait-gradient-opacity" as string]:
+                Math.max(0, 0.55 * (1 - displayPrefs.portraitBackgroundOpacity)),
+            }
+          }
+          aria-hidden
+        >
+          <CharacterAssetImage
+            src={mobileBackgroundUrl}
+            alt=""
+            blurForViewer={mobileBackgroundBlur}
+            className="h-full w-full"
+            imgClassName={CHAT_MOBILE_PORTRAIT_IMAGE_CLASS}
+            imgTestId="mobile-chat-portrait-image"
+          />
+          <div className="absolute inset-0 bg-[#121212] opacity-[var(--mobile-portrait-scrim-opacity)]" />
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#121212] to-transparent opacity-[var(--mobile-portrait-gradient-opacity)]" />
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#121212] to-transparent opacity-[var(--mobile-portrait-gradient-opacity)]" />
+        </div>
+      )}
       <div
         className={
-          leftLayout
+          leftLayout || assetPresentation === "background"
             ? "relative z-10 bg-transparent px-2 pl-3 pb-4 sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-0"
             : CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS
         }

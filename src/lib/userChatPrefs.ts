@@ -7,6 +7,7 @@ import {
   normalizeCharacterDialogueColor,
   normalizeFontSizePreset,
   normalizeParagraphSpacingPreset,
+  normalizePortraitBackgroundOpacity,
   normalizeReadableTextColor,
   normalizeShowSuggestedReplies,
   normalizeStreamIntervalMs,
@@ -37,7 +38,6 @@ function normalizeDisplayPrefs(
   raw:
     | (Partial<ChatDisplayPrefs> & {
         showCharacterPortrait?: unknown;
-        portraitBackgroundOpacity?: unknown;
       })
     | undefined
 ): ChatDisplayPrefs {
@@ -65,6 +65,7 @@ function normalizeDisplayPrefs(
         ? raw.userDialogueColor
         : DEFAULT_CHAT_DISPLAY_PREFS.userDialogueColor,
     assetDisplayMode: normalizeAssetDisplayMode(raw.assetDisplayMode, raw.showCharacterPortrait),
+    portraitBackgroundOpacity: normalizePortraitBackgroundOpacity(raw.portraitBackgroundOpacity),
     showSuggestedReplies: normalizeShowSuggestedReplies(raw.showSuggestedReplies),
   };
 }

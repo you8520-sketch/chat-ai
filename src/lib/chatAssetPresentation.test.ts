@@ -10,7 +10,7 @@ import {
 describe("effective chat asset presentation (stored mode × viewport)", () => {
   it("matches the canonical matrix", () => {
     assert.equal(resolveChatAssetPresentation("left", true), "left");
-    assert.equal(resolveChatAssetPresentation("left", false), "inline");
+    assert.equal(resolveChatAssetPresentation("left", false), "background");
     assert.equal(resolveChatAssetPresentation("inline", true), "inline");
     assert.equal(resolveChatAssetPresentation("inline", false), "inline");
     assert.equal(resolveChatAssetPresentation("off", true), "off");
@@ -25,7 +25,10 @@ describe("effective chat asset presentation (stored mode × viewport)", () => {
 
   it("selects the inline orientation policy per effective presentation", () => {
     assert.equal(inlineOrientationPolicy("left"), "landscape");
+    // mobile `left` (background) keeps the pre-B1 landscape inline lane.
+    assert.equal(inlineOrientationPolicy("background"), "landscape");
     assert.equal(inlineOrientationPolicy("inline"), "any");
+    assert.equal(inlineOrientationPolicy("off"), "landscape");
   });
 
   it("caps inline assets per turn at 3", () => {

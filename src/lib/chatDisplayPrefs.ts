@@ -43,6 +43,17 @@ export const CHAT_ASSET_DISPLAY_MODE_LABELS: Record<ChatAssetDisplayMode, string
   off: "OFF",
 };
 
+/**
+ * Mobile presentation labels — the same persisted mode reads differently because
+ * stored `left` renders as a fixed background on mobile (effective presentation
+ * `background`). No extra persisted value exists.
+ */
+export const CHAT_ASSET_DISPLAY_MODE_LABELS_MOBILE: Record<ChatAssetDisplayMode, string> = {
+  left: "배경",
+  inline: "본문",
+  off: "OFF",
+};
+
 export const CHAT_FONT_SIZE_PRESETS: {
   id: ChatFontSizePreset;
   label: string;
@@ -80,6 +91,8 @@ export type ChatDisplayPrefs = {
   userDialogueColor: string;
   /** 캐릭터 에셋 표시 방식 — 좌측 초상 / 본문 인라인 / 표시 안 함 */
   assetDisplayMode: ChatAssetDisplayMode;
+  /** 모바일 배경(background presentation) 이미지 투명도 0..1. visual parameter — not a mode. */
+  portraitBackgroundOpacity: number;
   /** AI 답변 후 유저 추천 메시지 3갈래 */
   showSuggestedReplies: boolean;
 };
@@ -99,6 +112,7 @@ export const DEFAULT_CHAT_DISPLAY_PREFS: ChatDisplayPrefs = {
   userNarrationColor: "#d4d4d8",
   userDialogueColor: "#e4e4e7",
   assetDisplayMode: "left",
+  portraitBackgroundOpacity: 0.22,
   showSuggestedReplies: true,
 };
 
@@ -378,16 +392,22 @@ export function normalizeShowSuggestedReplies(value: unknown): boolean {
   return value !== false;
 }
 
+/** Background presentation visual parameter — finite number clamped to 0..1. */
+export function normalizePortraitBackgroundOpacity(value: unknown): number {
+  const fallback = DEFAULT_CHAT_DISPLAY_PREFS.portraitBackgroundOpacity;
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.min(1, Math.max(0, value));
+}
+
 export function loadChatDisplayPrefs(): ChatDisplayPrefs {
   if (typeof window === "undefined") return DEFAULT_CHAT_DISPLAY_PREFS;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_CHAT_DISPLAY_PREFS;
     // Explicit allow-list build: removed/legacy keys (showCharacterPortrait,
-    // portraitBackgroundOpacity, fontSizePx) must NOT survive into canonical output.
+    // fontSizePx) must NOT survive into canonical output.
     const parsed = JSON.parse(raw) as Partial<ChatDisplayPrefs> & {
       showCharacterPortrait?: unknown;
-      portraitBackgroundOpacity?: unknown;
     };
     const streamIntervalMs = normalizeStreamIntervalMs(parsed.streamIntervalMs);
     const fontSizePreset = parsed.fontSizePreset
@@ -417,6 +437,9 @@ export function loadChatDisplayPrefs(): ChatDisplayPrefs {
       assetDisplayMode: normalizeAssetDisplayMode(
         parsed.assetDisplayMode,
         parsed.showCharacterPortrait
+      ),
+      portraitBackgroundOpacity: normalizePortraitBackgroundOpacity(
+        parsed.portraitBackgroundOpacity
       ),
       showSuggestedReplies: normalizeShowSuggestedReplies(parsed.showSuggestedReplies),
     };
@@ -602,6 +625,29 @@ export const CHAT_PORTRAIT_STICKY_CLASS =
  */
 export const CHAT_MESSAGES_COLUMN_CLASS =
   "chat-room-messages-column relative flex min-w-0 flex-1 flex-col overflow-x-clip";
+
+/**
+ * Mobile `background` presentation — fixed to the stable viewport (never the growing
+ * message list), non-interactive, so it adds no scroll height. Only rendered when the
+ * effective presentation is `background`; hidden at the chat desktop breakpoint.
+ */
+export const CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS =
+  "chat-room-mobile-portrait-bg pointer-events-none fixed inset-x-0 top-0 z-0 h-[100svh] w-[100svw] select-none overflow-hidden bg-[#121212] min-[576px]:hidden";
+
+/** Background image: crop geometry fixed; only opacity changes (blur/unlock preserved). */
+export const CHAT_MOBILE_PORTRAIT_IMAGE_CLASS =
+  "block h-full w-full select-none object-cover object-top opacity-[var(--mobile-portrait-opacity)]";
+
+/**
+ * Inline asset figure — full width on desktop (unchanged); bounded and centered on
+ * mobile so a single image never dominates the reading column. Aspect ratio is bound
+ * by the figure, image stays `object-contain` (no crop/stretch, no fixed height).
+ */
+export const CHAT_INLINE_ASSET_FIGURE_CLASS =
+  "my-3 mx-auto w-full max-w-[20rem] min-[576px]:max-w-full";
+
+export const CHAT_INLINE_ASSET_IMG_CLASS =
+  "block h-full w-full max-w-full object-contain object-center";
 
 /** 초상 OFF — 메시지+입력 열 (본문을 입력창 위로 밀어 붙임) */
 export const CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS =

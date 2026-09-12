@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
+  CHAT_ASSET_DISPLAY_MODE_LABELS,
+  CHAT_ASSET_DISPLAY_MODE_LABELS_MOBILE,
   CHAT_PORTRAIT_PANEL_IMG_ENHANCED_CLASS,
   CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS,
   CHAT_PORTRAIT_RAIL_HEIGHT,
@@ -68,10 +70,19 @@ describe("general chat asset display guardrails (B0 — production behavior unch
     const rail = read("src/components/ChatRoomDisplayQuickRail.tsx");
     assert.match(rail, /assetDisplayMode: next/);
     assert.match(rail, /CHAT_ASSET_DISPLAY_MODES/);
-    assert.match(rail, /좌측/);
-    assert.match(rail, /본문/);
-    assert.match(rail, /OFF/);
+    assert.match(rail, /useChatDesktopViewport/);
+    assert.match(rail, /CHAT_ASSET_DISPLAY_MODE_LABELS_MOBILE/);
     assert.doesNotMatch(rail, /aria-pressed/);
+    assert.deepEqual(CHAT_ASSET_DISPLAY_MODE_LABELS, {
+      left: "좌측",
+      inline: "본문",
+      off: "OFF",
+    });
+    assert.deepEqual(CHAT_ASSET_DISPLAY_MODE_LABELS_MOBILE, {
+      left: "배경",
+      inline: "본문",
+      off: "OFF",
+    });
   });
 
   it("LIVE-FOLLOW-DOM: message list keeps the selection container and assistant markers", () => {
