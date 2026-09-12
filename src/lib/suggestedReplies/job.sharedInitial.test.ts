@@ -3,9 +3,9 @@ import { describe, it } from "node:test";
 import { resolveSuggestedRepliesExtractMaxAttempts } from "./job";
 import { suggestedRepliesHaveContent } from "./parse";
 
-describe("suggested replies shared initial attempt budget", () => {
-  it("shared initial consumed leaves 2 repair attempts (3 total budget)", () => {
-    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(true), 2);
+describe("suggested replies shared initial hard budget", () => {
+  it("shared initial consumed => NO independent retries (hard <=1 physical call)", () => {
+    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(true), 0);
     assert.equal(resolveSuggestedRepliesExtractMaxAttempts(false), 3);
     assert.equal(resolveSuggestedRepliesExtractMaxAttempts(undefined), 3);
   });
@@ -17,6 +17,6 @@ describe("suggested replies shared initial attempt budget", () => {
       { kind: "pivot" as const, text: "*시계를 보며* \"일단 밥부터 먹고 얘기할까?\" *문 쪽을 가리키며*" },
     ];
     assert.equal(suggestedRepliesHaveContent(prefetched), true);
-    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(true), 2);
+    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(true), 0);
   });
 });

@@ -148,11 +148,7 @@ describe("status canonical owner orchestration (Luna decides, leak never canonic
     assert.equal(out.telemetry.splitRawHit, true);
   });
 
-  it("shared/coalesced path → Luna invoked, canonical values from Luna, no new duplicate", async () => {
-    // Note: the widget-only mock does not satisfy the combined shared parser,
-    // so the pre-existing shared-miss → dedicated-repair fallback engages.
-    // That fallback is shared-orchestration logic, not new duplication from
-    // the canonical-owner change. Assert Luna ownership + bounded calls.
+  it("shared/coalesced path → exactly one Luna call, no shared-miss repair fan-out", async () => {
     const kinds: string[] = [];
     const out = await resolveStatusWidgetTurnValues({
       ...baseInput(),
@@ -161,17 +157,14 @@ describe("status canonical owner orchestration (Luna decides, leak never canonic
       coalesceSuggestedReplies: true,
       extractCaller: lunaCaller(LUNA_JSON, kinds),
     });
-    assert.ok(kinds.length >= 1, "Luna extraction must be invoked");
-    assert.ok(
-      kinds.length <= 2,
-      `bounded physical calls (shared miss → repair fallback is pre-existing), kinds=${kinds.join(",")}`
-    );
+    assert.equal(kinds.length, 1, `hard <=1 physical call, kinds=${kinds.join(",")}`);
     assert.ok(
       kinds.every((kind) => kind.includes("background-")),
       "every invocation must be a Luna background call"
     );
-    assert.ok(out.values);
-    assert.equal(out.values.character?.시간, "15:00");
+    // The widget-only mock does not satisfy the shared parser, and the hard
+    // budget intentionally does not fan out into a repair call. Leaked raw tail
+    // is never promoted as a fallback.
     assert.notEqual(out.telemetry.resolutionSource, "split_raw");
   });
 });

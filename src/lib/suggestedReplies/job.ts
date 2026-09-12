@@ -25,7 +25,10 @@ function isJobRunning(scope: AssistantGenerationScope): boolean {
 export function resolveSuggestedRepliesExtractMaxAttempts(
   sharedInitialAttemptConsumed?: boolean
 ): number {
-  return sharedInitialAttemptConsumed ? EXTRACT_MAX_ATTEMPTS - 1 : EXTRACT_MAX_ATTEMPTS;
+  // Hard post-turn budget: the shared initial call is the ONLY post-turn Luna
+  // provider call for this generation. A shared miss (no usable prefetch) must
+  // NOT trigger independent retries — fall back to an empty/persisted result.
+  return sharedInitialAttemptConsumed ? 0 : EXTRACT_MAX_ATTEMPTS;
 }
 
 export function loadMessageSuggestedReplies(messageId: number): SuggestedRepliesRecord | null {

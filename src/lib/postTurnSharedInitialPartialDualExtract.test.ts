@@ -165,14 +165,17 @@ describe("shared initial partial dual extraction (production path)", () => {
     const initialDiag = result.meta.attemptDiagnostics.find((d) => d.stage === "initial");
 
     assert.equal(sharedInitialCalls, 1);
-    assert.equal(repairCalls, 1);
-    assert.equal(result.meta.actualCallCount, 2);
+    // Hard budget: no provider repair after the shared attempt.
+    assert.equal(repairCalls, 0);
+    assert.equal(result.meta.actualCallCount, 1);
     assert.equal(initialDiag?.succeeded, false);
     assert.equal(initialDiag?.reasonCode, "V3_INITIAL_EMPTY");
     assert.equal(result.meta.character?.stages.includes("repair"), false);
-    assert.equal(result.meta.user?.stages.includes("repair"), true);
+    assert.equal(result.meta.user?.stages.includes("repair"), false);
+    // Valid character section preserved; invalid user section is a no-retry gap.
     assert.equal(statusWidgetValuesHasContent({ character: result.values.character ?? undefined }), true);
-    assert.equal(statusWidgetValuesHasContent({ user: result.values.user ?? undefined }), true);
+    assert.equal(statusWidgetValuesHasContent({ user: result.values.user ?? undefined }), false);
+    assert.equal(result.meta.user?.finalReasonCode, "POST_TURN_SHARED_BUDGET_EXHAUSTED");
   });
 
   it("character fail + user success — preserve user, repair character only", async () => {
@@ -203,14 +206,15 @@ describe("shared initial partial dual extraction (production path)", () => {
       invocations.filter((i) => i.requestKind === POST_TURN_SHARED_INITIAL_REQUEST_KIND).length,
       1
     );
-    assert.equal(repairCalls, 1);
-    assert.equal(result.meta.actualCallCount, 2);
+    assert.equal(repairCalls, 0);
+    assert.equal(result.meta.actualCallCount, 1);
     assert.equal(initialDiag?.succeeded, false);
     assert.equal(initialDiag?.reasonCode, "V3_INITIAL_EMPTY");
-    assert.equal(result.meta.character?.stages.includes("repair"), true);
+    assert.equal(result.meta.character?.stages.includes("repair"), false);
     assert.equal(result.meta.user?.stages.includes("repair"), false);
-    assert.equal(statusWidgetValuesHasContent({ character: result.values.character ?? undefined }), true);
+    assert.equal(statusWidgetValuesHasContent({ character: result.values.character ?? undefined }), false);
     assert.equal(statusWidgetValuesHasContent({ user: result.values.user ?? undefined }), true);
+    assert.equal(result.meta.character?.finalReasonCode, "POST_TURN_SHARED_BUDGET_EXHAUSTED");
   });
 
   it("invalid JSON — no parsed payload preserved, both sources repaired", async () => {
@@ -236,9 +240,10 @@ describe("shared initial partial dual extraction (production path)", () => {
 
     assert.equal(initialDiag?.succeeded, false);
     assert.equal(initialDiag?.reasonCode, "V3_PARSE_FAILED");
-    assert.equal(repairCalls, 2);
-    assert.ok(result.meta.actualCallCount >= 3);
-    assert.equal(statusWidgetValuesHasContent({ character: result.values.character ?? undefined }), true);
-    assert.equal(statusWidgetValuesHasContent({ user: result.values.user ?? undefined }), true);
+    // Hard budget: a malformed shared response does NOT fan out into repairs.
+    assert.equal(repairCalls, 0);
+    assert.equal(result.meta.actualCallCount, 1);
+    assert.equal(statusWidgetValuesHasContent({ character: result.values.character ?? undefined }), false);
+    assert.equal(statusWidgetValuesHasContent({ user: result.values.user ?? undefined }), false);
   });
 });

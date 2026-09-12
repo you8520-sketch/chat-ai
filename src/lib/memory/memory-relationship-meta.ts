@@ -383,6 +383,9 @@ export async function mergeRelationshipMetaFromTurn(opts: {
   /** Shared post-turn Luna call already carried the durable relationship delta. */
   sharedInitialParsed?: boolean;
   sharedInitialDelta?: RelationshipMetaDelta | null;
+  /** Shared post-turn Luna call was attempted (hard budget spent → no recovery). */
+  sharedInitialAttempted?: boolean;
+  sharedInitialTransportOk?: boolean;
   sourceUserMessageId?: number | null;
   boundarySnapshot?: MemorySourceBoundary;
   assistantMessageId?: number;
@@ -451,6 +454,25 @@ export async function mergeRelationshipMetaFromTurn(opts: {
     }
   }
 
+  // Shared post-turn Luna call was ATTEMPTED for this generation (hard budget
+  // spent) but its relationship section was missing/malformed or transport
+  // failed. No provider recovery — leave prior memory_meta unchanged and record
+  // the real state.
+  if (opts.sharedInitialAttempted === true) {
+    if (opts.assistantMessageId) {
+      setMemoryRelationshipTaskState(
+        opts.assistantMessageId,
+        "skipped",
+        opts.sharedInitialTransportOk === false
+          ? "shared_transport_failed_no_retry"
+          : "shared_section_invalid_no_retry",
+        undefined,
+        opts.generationScope
+      );
+    }
+    return loadChatRelationshipMeta(opts.chatId, opts.names);
+  }
+
   return runProviderBackedRelationshipMerge({
     chatId: opts.chatId,
     names: opts.names,
@@ -497,6 +519,9 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
   /** Shared post-turn Luna call (with regen context) already produced the delta. */
   sharedInitialParsed?: boolean;
   sharedInitialDelta?: RelationshipMetaDelta | null;
+  /** Shared post-turn Luna call was attempted (hard budget spent → no recovery). */
+  sharedInitialAttempted?: boolean;
+  sharedInitialTransportOk?: boolean;
   __testExtract?: () => Promise<RelationshipMetaExtractResult>;
   __testThrowOnSave?: boolean;
 }): Promise<MemoryMeta> {
@@ -530,6 +555,21 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
       console.warn("[memory] relationship regen shared-initial commit failed:", (e as Error).message);
       return loadChatRelationshipMeta(opts.chatId, opts.names);
     }
+  }
+
+  if (opts.sharedInitialAttempted === true) {
+    if (opts.assistantMessageId) {
+      setMemoryRelationshipTaskState(
+        opts.assistantMessageId,
+        "skipped",
+        opts.sharedInitialTransportOk === false
+          ? "shared_transport_failed_no_retry"
+          : "shared_section_invalid_no_retry",
+        undefined,
+        opts.generationScope
+      );
+    }
+    return loadChatRelationshipMeta(opts.chatId, opts.names);
   }
 
   return runProviderBackedRelationshipMerge({

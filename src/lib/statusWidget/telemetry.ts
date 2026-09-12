@@ -152,6 +152,11 @@ export type ResolveStatusWidgetTurnValuesResult = {
   /** Durable relationship delta carried by the shared initial call (usable only when boolean true). */
   sharedInitialRelationshipUsable: boolean;
   sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null;
+  /** Shared initial provider call was attempted for this generation (hard budget spent). */
+  sharedInitialAttempted: boolean;
+  sharedInitialTransportOk: boolean;
+  /** Actual status-widget provider invocations this turn (includes the shared initial). */
+  statusProviderCalls: number;
   telemetry: StatusWidgetTurnTelemetry;
 };
 
@@ -243,6 +248,9 @@ export async function resolveStatusWidgetTurnValues(
   let prefetchedSuggestedRepliesAssistantProseHash: string | null = null;
   let sharedInitialConsumed = false;
   let sharedInitialRelationshipUsable = false;
+  let sharedInitialAttempted = false;
+  let sharedInitialTransportOk = false;
+  let statusProviderCalls = 0;
   let sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null =
     null;
   let resolutionSource: StatusWidgetResolutionSource = "none";
@@ -407,6 +415,9 @@ export async function resolveStatusWidgetTurnValues(
         v3Result.meta.sharedInitialRelationshipUsable === true;
       sharedInitialRelationshipDelta =
         v3Result.meta.sharedInitialRelationshipDelta ?? null;
+      sharedInitialAttempted = v3Result.meta.sharedInitialAttempted === true;
+      sharedInitialTransportOk = v3Result.meta.sharedInitialTransportOk === true;
+      statusProviderCalls = v3Result.meta.actualCallCount ?? 0;
       // usage + billing meta share the same lifetime (both null or both set).
       if (v3Result.usage && v3Result.meta.billing) {
         widgetExtractUsage = v3Result.usage;
@@ -606,6 +617,9 @@ export async function resolveStatusWidgetTurnValues(
     sharedInitialConsumed,
     sharedInitialRelationshipUsable,
     sharedInitialRelationshipDelta,
+    sharedInitialAttempted,
+    sharedInitialTransportOk,
+    statusProviderCalls,
     telemetry,
   };
 }

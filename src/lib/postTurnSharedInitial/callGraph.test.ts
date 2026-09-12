@@ -215,13 +215,17 @@ describe("shared initial call graph", () => {
     });
 
     assert.ok(result.meta.prefetchedSuggestedReplies?.length === 3);
-    assert.ok(spy.invocations.length >= 2);
+    // Hard budget: malformed widget section does NOT trigger a repair call.
+    assert.equal(spy.invocations.length, 1);
     assert.equal(spy.invocations[0]?.requestKind, POST_TURN_SHARED_INITIAL_REQUEST_KIND);
     assert.ok(
       !spy.invocations.some((i) => i.requestKind === "background-status-widget-extract-combined")
     );
     assert.ok(
       !spy.invocations.some((i) => i.requestKind === "background-suggested-replies-extract")
+    );
+    assert.ok(
+      !spy.invocations.some((i) => i.requestKind === "background-status-widget-extract-repair")
     );
   });
 
@@ -276,8 +280,8 @@ describe("shared initial call graph", () => {
     assert.equal(result.meta.sharedInitialConsumed, true);
     assert.equal(result.meta.postTurnSharedInitial, true);
     assert.equal(result.meta.prefetchedSuggestedReplies, null);
-    assert.ok(result.meta.actualCallCount <= 4, "widget failure budget not expanded beyond dual_combined max");
-    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(result.meta.sharedInitialConsumed), 2);
+    assert.equal(result.meta.actualCallCount, 1, "transport failure spends the one-call budget");
+    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(result.meta.sharedInitialConsumed), 0);
   });
 });
 

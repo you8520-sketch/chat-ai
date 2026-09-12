@@ -129,6 +129,10 @@ export type StatusWidgetTurnExtractMeta = {
    */
   sharedInitialRelationshipDelta?: import("@/lib/chatMemory").RelationshipMetaDelta | null;
   sharedInitialRelationshipUsable?: boolean;
+  /** Shared initial provider call was attempted for this generation (budget spent). */
+  sharedInitialAttempted?: boolean;
+  /** Transport outcome of the shared initial call (for no-retry reason codes). */
+  sharedInitialTransportOk?: boolean;
 };
 
 const defaultExtractCaller: StatusWidgetExtractCaller = async (system, history, opts) =>
@@ -591,6 +595,13 @@ async function extractStatusWidgetValuesForWidget(opts: {
   /** Skip initial; run existing same-model repair once (after dual combined miss). */
   repairOnly?: boolean;
   sharedCombinedInitial?: boolean;
+  /**
+   * Hard post-turn budget: the shared initial provider call was already made for
+   * this generation, so this helper MUST NOT issue any further provider call
+   * (initial/repair/fallback). Returns empty and lets persistence keep the
+   * previous canonical values.
+   */
+  providerBudgetExhausted?: boolean;
 }): Promise<{
   values: StatusWidgetValues | null;
   facts: ExtractedStatusFact[];
@@ -600,6 +611,28 @@ async function extractStatusWidgetValuesForWidget(opts: {
   apiCalls: number;
 }> {
   const keys = collectWidgetJsonKeys(opts.widget);
+  if (opts.providerBudgetExhausted === true) {
+    // Shared initial attempted for this generation → no second post-turn Luna call.
+    return {
+      values: null,
+      facts: [],
+      usage: null,
+      apiCalls: 0,
+      meta: {
+        source: opts.source,
+        callCount: 0,
+        stages: opts.repairOnly ? ["initial"] : [],
+        finalStage: null,
+        finalReasonCode: "POST_TURN_SHARED_BUDGET_EXHAUSTED",
+        models: [],
+        attemptUsages: [],
+        attemptDiagnostics: [],
+        echoDroppedKeys: [],
+        repairMaxTokens: null,
+        sharedCombinedInitial: opts.sharedCombinedInitial,
+      },
+    };
+  }
   if (keys.length === 0) {
     return {
       values: null,
@@ -920,6 +953,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     postTurnSharedInitial: false,
     sharedInitialRelationshipDelta: null,
     sharedInitialRelationshipUsable: false,
+    sharedInitialAttempted: false,
+    sharedInitialTransportOk: false,
   });
 
   // Route gates HTML/OOC/interrupted; active=false must not call extract either.
@@ -948,6 +983,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   let sharedInitialParsed: PostTurnSharedInitialParseResult | null = null;
   let sharedInitialUsage: TokenUsage | null = null;
   let sharedInitialRelationshipUsable = false;
+  let sharedInitialTransportOk = false;
   let sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null =
     null;
 
@@ -957,11 +993,10 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   // active (suggested replies and/or relationship memory), so a normal turn never
   // issues more than one auxiliary Luna provider call.
   const shareRelationshipDelta = opts.shareRelationshipDelta === true;
-  if (
-    sharedMode &&
-    (opts.coalesceSuggestedReplies?.enabled || shareRelationshipDelta) &&
-    isStatusWidgetContextSafeForSuggestedRepliesCoalesce(opts.resolved)
-  ) {
+  const safeForSuggestions = isStatusWidgetContextSafeForSuggestedRepliesCoalesce(opts.resolved);
+  const includeSuggestionsInShared =
+    opts.coalesceSuggestedReplies?.enabled === true && safeForSuggestions;
+  if (sharedMode && (includeSuggestionsInShared || shareRelationshipDelta)) {
     const syncLedgerContext =
       opts.trace?.chatId != null && opts.trace?.messageId != null
         ? buildPlatformSyncTurnLedgerContext({
@@ -990,7 +1025,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         previousCharacterValues: opts.previousValues?.character ?? null,
         previousUserValues: opts.previousValues?.user ?? null,
         primaryModelId,
-        includeSuggestions: opts.coalesceSuggestedReplies?.enabled === true,
+        includeSuggestions: includeSuggestionsInShared,
         includeRelationship: shareRelationshipDelta,
         relationshipRegenContext: opts.relationshipRegenContext ?? null,
       },
@@ -1001,6 +1036,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       sharedInitialAttempted = true;
       sharedInitialConsumed = true;
       postTurnSharedInitial = true;
+      sharedInitialTransportOk = shared.transportOk === true;
       actualCallCount += 1;
       if (shared.usage) turnUsages.push(shared.usage);
       const sharedInitialWidgetOutcome = evaluatePostTurnSharedInitialWidgetExtraction({
@@ -1231,6 +1267,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         env: opts.env,
         repairOnly: true,
         sharedCombinedInitial: true,
+        providerBudgetExhausted: sharedInitialAttempted,
       });
       actualCallCount += repaired.apiCalls;
       out.character = repaired.values;
@@ -1292,6 +1329,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         env: opts.env,
         repairOnly: true,
         sharedCombinedInitial: true,
+        providerBudgetExhausted: sharedInitialAttempted,
       });
       actualCallCount += repaired.apiCalls;
       out.user = repaired.values;
@@ -1349,8 +1387,9 @@ export async function extractStatusWidgetValuesForTurn(opts: {
           fallbackModelId: opts.fallbackModelId,
           fallbackBudget,
           env: opts.env,
-          repairOnly: sharedInitialConsumed,
-          sharedCombinedInitial: sharedInitialConsumed,
+        repairOnly: sharedInitialConsumed,
+        sharedCombinedInitial: sharedInitialConsumed,
+        providerBudgetExhausted: sharedInitialAttempted,
         });
         actualCallCount += character.apiCalls;
         out.character = character.values;
@@ -1409,8 +1448,9 @@ export async function extractStatusWidgetValuesForTurn(opts: {
           fallbackModelId: opts.fallbackModelId,
           fallbackBudget,
           env: opts.env,
-          repairOnly: sharedInitialConsumed,
-          sharedCombinedInitial: sharedInitialConsumed,
+        repairOnly: sharedInitialConsumed,
+        sharedCombinedInitial: sharedInitialConsumed,
+        providerBudgetExhausted: sharedInitialAttempted,
         });
         actualCallCount += user.apiCalls;
         out.user = user.values;
@@ -1493,6 +1533,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       postTurnSharedInitial,
       sharedInitialRelationshipDelta,
       sharedInitialRelationshipUsable,
+      sharedInitialAttempted,
+      sharedInitialTransportOk,
     },
   };
 }

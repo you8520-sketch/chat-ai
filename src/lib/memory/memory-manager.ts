@@ -324,6 +324,9 @@ export async function scheduleMemoryUpdate(opts: {
   /** Shared post-turn Luna call already carried the durable relationship delta. */
   relationshipSharedParsed?: boolean;
   relationshipSharedDelta?: import("@/lib/chatMemory").RelationshipMetaDelta | null;
+  /** Shared post-turn Luna call was attempted (hard budget spent → no provider recovery). */
+  relationshipSharedAttempted?: boolean;
+  relationshipSharedTransportOk?: boolean;
   generationScope?: AssistantGenerationScope;
 }): Promise<void> {
   const generationScope = opts.generationScope;
@@ -391,6 +394,8 @@ export async function scheduleMemoryUpdate(opts: {
         generationScope,
         sharedInitialParsed: opts.relationshipSharedParsed,
         sharedInitialDelta: opts.relationshipSharedDelta,
+        sharedInitialAttempted: opts.relationshipSharedAttempted,
+        sharedInitialTransportOk: opts.relationshipSharedTransportOk,
       });
     } else {
       await mergeRelationshipMetaFromTurn({
@@ -404,6 +409,8 @@ export async function scheduleMemoryUpdate(opts: {
         mainModelDelta: opts.relationshipDeltaFromMain,
         sharedInitialParsed: opts.relationshipSharedParsed,
         sharedInitialDelta: opts.relationshipSharedDelta,
+        sharedInitialAttempted: opts.relationshipSharedAttempted,
+        sharedInitialTransportOk: opts.relationshipSharedTransportOk,
         sourceUserMessageId,
         boundarySnapshot,
         assistantMessageId: opts.assistantMessageId,

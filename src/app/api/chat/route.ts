@@ -4832,6 +4832,11 @@ export async function POST(req: Request) {
         let widgetSharedRelationshipDelta:
           | import("@/lib/chatMemory").RelationshipMetaDelta
           | null = null;
+        /** Shared initial was attempted for this generation → hard post-turn budget spent. */
+        let widgetSharedAttempted = false;
+        let widgetSharedTransportOk = false;
+        /** Status-widget provider calls this turn (may itself be the one owner). */
+        let widgetStatusProviderCalls = 0;
         /** status OFF: run the shared post-turn inference AFTER SSE done (background). */
         let deferPostTurnShared = false;
         const suggestedRepliesEligibleForCoalesce =
@@ -4887,6 +4892,9 @@ export async function POST(req: Request) {
           widgetSharedInitialConsumed = widgetResolved.sharedInitialConsumed;
           widgetSharedRelationshipUsable = widgetResolved.sharedInitialRelationshipUsable;
           widgetSharedRelationshipDelta = widgetResolved.sharedInitialRelationshipDelta;
+          widgetSharedAttempted = widgetResolved.sharedInitialAttempted;
+          widgetSharedTransportOk = widgetResolved.sharedInitialTransportOk;
+          widgetStatusProviderCalls = widgetResolved.statusProviderCalls ?? 0;
           if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
             usageRecord = {
               ...usageRecord,
@@ -5837,7 +5845,7 @@ export async function POST(req: Request) {
             userMessage: messageText,
             assistantProse: savedText,
             prefetchedReplies,
-            sharedInitialAttemptConsumed: widgetSharedInitialConsumed,
+            sharedInitialAttemptConsumed: widgetSharedAttempted || widgetStatusProviderCalls > 0,
           });
         };
         // status OFF defers to the post-final background shared call.
@@ -6041,6 +6049,8 @@ export async function POST(req: Request) {
               );
               if (sharedConsumers.attempted) {
                 widgetSharedInitialConsumed = true;
+                widgetSharedAttempted = true;
+                widgetSharedTransportOk = sharedConsumers.transportOk === true;
                 const rel = sharedConsumers.parsed?.relationship;
                 if (rel?.present === true && rel.valid === true) {
                   widgetSharedRelationshipUsable = true;
@@ -6076,6 +6086,9 @@ export async function POST(req: Request) {
               relationshipDeltaFromMain,
               relationshipSharedParsed: widgetSharedRelationshipUsable,
               relationshipSharedDelta: widgetSharedRelationshipDelta,
+              relationshipSharedAttempted:
+                widgetSharedAttempted || widgetStatusProviderCalls > 0,
+              relationshipSharedTransportOk: widgetSharedTransportOk,
               generationScope: postTurnGenerationScope,
             });
             }
