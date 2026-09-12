@@ -9,6 +9,7 @@ import {
 } from "@/lib/adminBillingReceiptV2";
 import {
   ASYNC_FAMILY_LABELS,
+  isTurnAttributableAsyncFamily,
   resolveAsyncTurnCoverage,
   type AsyncFamilyCoverageState,
   type AsyncFamilyExpectationState,
@@ -139,11 +140,7 @@ function resolveAsyncSection(input: {
   }
   for (const row of relevant) {
     const family = row.family?.trim() || null;
-    if (
-      family === "suggested_replies_repair" ||
-      family === "status_meta" ||
-      family === "memory_relationship"
-    ) {
+    if (isTurnAttributableAsyncFamily(family)) {
       rowsByFamily.get(family)!.push(row);
     } else {
       unexpected.push(row);
@@ -365,11 +362,7 @@ export function buildAdminBillingReceiptV3ForMissingUsage(
   }
   for (const row of relevant) {
     const family = row.family?.trim() || null;
-    if (
-      family === "suggested_replies_repair" ||
-      family === "status_meta" ||
-      family === "memory_relationship"
-    ) {
+    if (isTurnAttributableAsyncFamily(family)) {
       rowsByFamily.get(family)!.push(row);
     } else {
       unexpected.push(row);
