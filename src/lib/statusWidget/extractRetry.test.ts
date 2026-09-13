@@ -75,7 +75,7 @@ describe("status widget hard one-attempt contract", () => {
     assert.equal(result.meta.postTurnPhysicalAttempted, true);
   });
 
-  it("configured fallback model never reopens the generation budget", async () => {
+  it("empty initial response is terminal with no fallback provider capability", async () => {
     const kinds: string[] = [];
     const result = await extractStatusWidgetValuesForTurn({
       charName: "라이크",
@@ -84,7 +84,6 @@ describe("status widget hard one-attempt contract", () => {
       assistantProse: "라이크는 복도에 서 있었다.",
       resolved,
       primaryModelId: "gpt-5.6-luna",
-      fallbackModelId: "google/gemini-2.5-flash-lite",
       caller: async (_system, _history, opts) => {
         kinds.push(opts.requestKind);
         return { text: "", usage };
@@ -92,5 +91,8 @@ describe("status widget hard one-attempt contract", () => {
     });
     assert.deepEqual(kinds, ["background-status-widget-extract"]);
     assert.equal(result.meta.actualCallCount, 1);
+    assert.equal(result.meta.usedFallback, false);
+    assert.equal(result.meta.exhausted, true);
+    assert.equal(result.values.character, null);
   });
 });

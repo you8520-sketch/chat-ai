@@ -373,7 +373,6 @@ describe("V3 previous-echo guard (volatile shield + no retry)", () => {
       resolved: characterResolved(),
       previousValues: previous,
       caller,
-      fallbackModelId: null,
     });
     assert.equal(result.values.character, null);
     assert.notEqual(result.values.character?.["속마음"], "이전값");
