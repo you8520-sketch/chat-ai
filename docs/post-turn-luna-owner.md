@@ -34,6 +34,12 @@ The renamed instruction-echo sanitizer is **KEEP** because both standalone and s
 Historical repair/fallback diagnostic enum values are **KEEP** for stored telemetry compatibility;
 they no longer have runtime provider invocation sites.
 
+The Status-only `fallbackModelId` plumbing and OpenRouter V4 fallback assertions were **SAFE TO
+DELETE**: runtime search found no Status fallback caller. `OPENROUTER_DEEPSEEK_V4_FLASH_MODEL`
+remains a shared model constant for non-Status owners, not a Status fallback. The `usedFallback`
+result field is **KEEP FOR COMPAT** so historical diagnostics and receipt shapes remain readable;
+new Status extraction always reports it as false.
+
 ## Relationship Memory audit
 
 Relationship Memory remains active and is not the same thing as rolling/episodic summary memory.

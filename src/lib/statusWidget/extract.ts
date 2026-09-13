@@ -584,7 +584,6 @@ async function extractStatusWidgetValuesForWidget(opts: {
   trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null; generationSequence?: number; generationRequestId?: string | null };
   caller?: StatusWidgetExtractCaller;
   primaryModelId?: string;
-  fallbackModelId?: string | null;
   env?: NodeJS.ProcessEnv;
   /** The shared owner already attempted this generation; never call again. */
   repairOnly?: boolean;
@@ -744,7 +743,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   /** Test seam — defaults to callBackgroundMemory */
   caller?: StatusWidgetExtractCaller;
   primaryModelId?: string;
-  fallbackModelId?: string | null;
   env?: NodeJS.ProcessEnv;
   /** When true with route eligibility, coalesce widget initial + suggestions initial into one call. */
   coalesceSuggestedReplies?: { enabled: boolean };
@@ -1117,7 +1115,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         trace: opts.trace,
         caller,
         primaryModelId,
-        fallbackModelId: opts.fallbackModelId,
         env: opts.env,
         repairOnly: true,
         sharedCombinedInitial: true,
@@ -1177,7 +1174,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         trace: opts.trace,
         caller,
         primaryModelId,
-        fallbackModelId: opts.fallbackModelId,
         env: opts.env,
         repairOnly: true,
         sharedCombinedInitial: true,
@@ -1235,8 +1231,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
           trace: opts.trace,
           caller,
           primaryModelId,
-          fallbackModelId: opts.fallbackModelId,
-          env: opts.env,
+            env: opts.env,
           repairOnly: sharedInitialConsumed,
           sharedCombinedInitial: sharedInitialConsumed,
         });
@@ -1294,8 +1289,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
           trace: opts.trace,
           caller,
           primaryModelId,
-          fallbackModelId: opts.fallbackModelId,
-          env: opts.env,
+            env: opts.env,
           repairOnly: sharedInitialConsumed,
           sharedCombinedInitial: sharedInitialConsumed,
         });
