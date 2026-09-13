@@ -11,7 +11,6 @@ import {
   INNER_STATE_QUALITY_KO,
   buildCombinedDualWidgetExtractSystem,
   buildCombinedDualWidgetExtractUserBlock,
-  buildWidgetExtractRepairSystem,
   buildWidgetExtractSystem,
   buildWidgetExtractUserBlock,
 } from "./extractNormalize";
@@ -47,8 +46,7 @@ describe("inner-state quality prompt policy", () => {
       DEFAULT_STATUS_WIDGET,
       DEFAULT_STATUS_WIDGET
     );
-    const repair = buildWidgetExtractRepairSystem(KEYS, "character");
-    for (const block of [system, dual, repair]) {
+    for (const block of [system, dual]) {
       assert.match(block, /do not invent a false change/);
       assert.doesNotMatch(block, /must change (the )?emotion/i);
       assert.doesNotMatch(block, /매 턴 새로운 감정/);
@@ -120,7 +118,7 @@ describe("inner-state quality prompt policy", () => {
     assert.doesNotMatch(reminder, /generic character evaluation/);
   });
 
-  it("full quality EN appears once in assembled single / dual / repair system owners", () => {
+  it("full quality EN appears once in assembled single / dual system owners", () => {
     const singleSystem = buildWidgetExtractSystem(DEFAULT_STATUS_WIDGET, KEYS, "character");
     const singleUser = buildWidgetExtractUserBlock({
       charName: "라이크",
@@ -152,19 +150,15 @@ describe("inner-state quality prompt policy", () => {
     assert.equal(countOccurrences(dualUser, INNER_STATE_QUALITY_EN), 0);
     assert.equal(countOccurrences(dualUser, INNER_STATE_QUALITY_KO), 1);
 
-    const repair = buildWidgetExtractRepairSystem(KEYS, "character");
-    assert.equal(countOccurrences(repair, INNER_STATE_QUALITY_EN), 1);
   });
 
-  it("single / dual / repair share the same EN quality owner (no conflicting wording)", () => {
+  it("single and dual share the same EN quality owner (no conflicting wording)", () => {
     const single = buildWidgetExtractSystem(DEFAULT_STATUS_WIDGET, KEYS, "character");
     const dual = buildCombinedDualWidgetExtractSystem(
       DEFAULT_STATUS_WIDGET,
       DEFAULT_STATUS_WIDGET
     );
-    const repair = buildWidgetExtractRepairSystem(KEYS, "character");
     assert.equal(single.includes(INNER_STATE_QUALITY_EN), true);
     assert.equal(dual.includes(INNER_STATE_QUALITY_EN), true);
-    assert.equal(repair.includes(INNER_STATE_QUALITY_EN), true);
   });
 });

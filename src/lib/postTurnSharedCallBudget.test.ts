@@ -17,6 +17,9 @@ import { join } from "node:path";
 import { getDb } from "./db";
 import { installIsolatedTestDatabase } from "./test/isolatedTestDatabase";
 import { DEFAULT_STATUS_WIDGET } from "./statusWidget/defaultTemplate";
+import { statusWidgetValuesHasContent } from "./statusWidget/displayPolicy";
+import { isStatusWidgetContextSafeForSuggestedRepliesCoalesce } from "./postTurnSharedInitial/coalesceVisibility";
+import { resolveSuggestedRepliesExtractMaxAttempts } from "./suggestedReplies/job";
 import { collectWidgetJsonKeys } from "./statusWidget/prompt";
 import type { ResolvedStatusWidgetTurn, StatusWidget } from "./statusWidget/types";
 import {
@@ -159,7 +162,7 @@ describe("whole-turn post-turn Luna call budget", () => {
     assert.deepEqual(result.meta.sharedInitialRelationshipDelta?.items, []);
   });
 
-  it("S3. transport failure leaves relationship usable=false so recovery can run once", async () => {
+  it("S3. transport failure consumes the budget and never fans out", async () => {
     const calls: string[] = [];
     const caller: StatusWidgetExtractCaller = async (_system, _history, opts) => {
       calls.push(opts.requestKind);
@@ -167,10 +170,102 @@ describe("whole-turn post-turn Luna call budget", () => {
     };
 
     const result = await runExtract(caller, calls);
-    assert.ok(calls.length >= 1, "failure recovery path ran");
+    assert.equal(calls.length, 1, "the failed physical attempt consumed the budget");
     assert.equal(calls[0], "background-post-turn-shared-initial");
     assert.equal(result.meta.sharedInitialRelationshipUsable, false);
   });
+
+  it("S3b. visibility-unsafe suggestions do not block status+relationship sharing", async () => {
+    const unsafe: ResolvedStatusWidgetTurn = {
+      ...characterResolved(),
+      displayMode: "hidden",
+    };
+    assert.equal(isStatusWidgetContextSafeForSuggestedRepliesCoalesce(unsafe), false);
+    const calls: string[] = [];
+    let systemSeen = "";
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "라이크",
+      personaName: "렌",
+      userMessage: "안녕",
+      assistantProse: "라이크는 복도에 서 있었다.",
+      resolved: unsafe,
+      coalesceSuggestedReplies: { enabled: true },
+      shareRelationshipDelta: true,
+      primaryModelId: "gpt-5.6-luna",
+      caller: async (system, _history, opts) => {
+        systemSeen = system;
+        calls.push(opts.requestKind);
+        return {
+          text: sharedResponse({
+            relationship: { items: [], itemsRemove: [], promisesAdd: [], promisesRemove: [] },
+          }),
+          usage: usage(1),
+        };
+      },
+    });
+
+    assert.equal(calls.length, 1);
+    assert.equal(result.meta.postTurnPhysicalAttempted, true);
+    assert.equal(result.meta.sharedInitialRelationshipUsable, true);
+    assert.match(systemSeen, /"relationship"/);
+    assert.doesNotMatch(systemSeen, /"suggestedReplies"/);
+    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(result.meta.postTurnPhysicalAttempted), 0);
+  });
+
+  it("S3c. visibility-unsafe standalone status spends the whole generation budget", async () => {
+    const unsafe: ResolvedStatusWidgetTurn = { ...characterResolved(), displayMode: "hidden" };
+    const calls: string[] = [];
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "라이크",
+      personaName: "렌",
+      userMessage: "안녕",
+      assistantProse: "라이크는 복도에 서 있었다.",
+      resolved: unsafe,
+      coalesceSuggestedReplies: { enabled: true },
+      shareRelationshipDelta: false,
+      primaryModelId: "gpt-5.6-luna",
+      caller: async (_system, _history, opts) => {
+        calls.push(opts.requestKind);
+        return {
+          text: JSON.stringify({ character_values: { 장소: "복도" } }),
+          usage: usage(1),
+        };
+      },
+    });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0], "background-status-widget-extract");
+    assert.equal(result.meta.sharedInitialConsumed, false);
+    assert.equal(result.meta.postTurnPhysicalAttempted, true);
+    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(result.meta.postTurnPhysicalAttempted), 0);
+  });
+
+  for (const fixture of [
+    { name: "status malformed / relationship valid", status: "bad", relationship: { items: [], itemsRemove: [], promisesAdd: [], promisesRemove: [] } },
+    { name: "status valid / relationship malformed", status: "valid", relationship: { items: "bad" } },
+    { name: "status malformed / relationship malformed", status: "bad", relationship: { items: "bad" } },
+  ] as const) {
+    it(`${fixture.name} => exactly one physical call`, async () => {
+      const calls: string[] = [];
+      const caller: StatusWidgetExtractCaller = async (_system, _history, opts) => {
+        calls.push(opts.requestKind);
+        const valid = JSON.parse(sharedResponse({ relationship: fixture.relationship }));
+        if (fixture.status === "bad") valid.statusWidget = { character_values: "malformed" };
+        return { text: JSON.stringify(valid), usage: usage(1) };
+      };
+
+      const result = await runExtract(caller, calls);
+      assert.equal(calls.length, 1);
+      assert.equal(result.meta.actualCallCount, 1);
+      assert.equal(
+        result.meta.sharedInitialRelationshipUsable,
+        fixture.name.endsWith("relationship valid")
+      );
+      assert.equal(
+        statusWidgetValuesHasContent({ character: result.values.character ?? undefined }),
+        fixture.status === "valid"
+      );
+    });
+  }
 });
 
 describe("shared relationship delta consumption (no second provider call)", () => {
@@ -278,8 +373,7 @@ describe("shared relationship delta consumption (no second provider call)", () =
     assert.equal(totalPhysicalCalls, 1, "whole-turn auxiliary Luna physical calls must be 1");
     assert.ok(loadChatRelationshipMeta(chatId).items.length > 0);
 
-    // Negative control: without the shared flag the independent relationship
-    // provider path still runs (pre-fix behavior => 1 shared + 1 relationship = 2).
+    // Invalid shared output must not invoke the independent relationship owner.
     let independentProviderCalls = 0;
     await mergeRelationshipMetaFromTurn({
       chatId,
@@ -287,6 +381,7 @@ describe("shared relationship delta consumption (no second provider call)", () =
       userMessage: "*검을 내려놓는다.*",
       assistantMessage: "라이크는 검을 받아 들었다.",
       route: "safe",
+      sharedInitialAttempted: true,
       sharedInitialParsed: false,
       sourceUserMessageId: 1,
       __testExtract: async () => {
@@ -294,7 +389,7 @@ describe("shared relationship delta consumption (no second provider call)", () =
         return { delta: { items: ["렌: 검"] }, parseOk: true };
       },
     });
-    assert.equal(independentProviderCalls, 1, "unshared path still performs one provider call");
+    assert.equal(independentProviderCalls, 0, "shared section failure is terminal for this generation");
   });
 });
 

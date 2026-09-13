@@ -4,7 +4,6 @@ import {
   type ChatMsg,
   type TokenUsage,
 } from "@/lib/ai";
-import { OPENROUTER_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
 import { CompatibleCompletionError } from "@/lib/openRouterCompletion";
 import {
   buildPlatformSyncTurnLedgerContext,
@@ -19,12 +18,10 @@ import { collectWidgetJsonKeys } from "./prompt";
 import {
   buildCombinedDualWidgetExtractSystem,
   buildCombinedDualWidgetExtractUserBlock,
-  buildWidgetExtractRepairSystem,
-  buildWidgetExtractRepairUserBlock,
   buildWidgetExtractSystem,
   buildWidgetExtractUserBlock,
   collectVolatileExactEchoKeys,
-  dropRepairEchoFields,
+  dropInstructionEchoFields,
   extractJsonObjectFromWidgetText,
   normalizeWidgetExtraction,
   isCombinedExtractLikelyTruncated,
@@ -122,6 +119,8 @@ export type StatusWidgetTurnExtractMeta = {
   prefetchedSuggestedRepliesAssistantProseHash?: string | null;
   sharedInitialConsumed?: boolean;
   postTurnSharedInitial?: boolean;
+  /** Any post-turn provider attempt spent this generation's physical budget. */
+  postTurnPhysicalAttempted?: boolean;
   /**
    * Durable relationship delta carried by the shared initial call. Present
    * (possibly empty) only when the shared call was usable; the relationship
@@ -264,7 +263,7 @@ function shouldEmitExtractAttemptLog(opts: {
 }
 
 function logExtractAttempt(event: {
-  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
+  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null; generationSequence?: number; generationRequestId?: string | null };
   source: "character" | "user";
   stage: StatusWidgetExtractStage;
   attemptIndex: number;
@@ -354,7 +353,7 @@ async function runExtractAttempt(opts: {
   temperature?: number;
   applyEchoFilter: boolean;
   caller: StatusWidgetExtractCaller;
-  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
+  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null; generationSequence?: number; generationRequestId?: string | null };
   env?: NodeJS.ProcessEnv;
 }): Promise<AttemptOutcome> {
   const started = Date.now();
@@ -462,7 +461,7 @@ async function runExtractAttempt(opts: {
     let normalized = normalizeWidgetExtraction(parsed, opts.widget);
     let echoDroppedKeys: string[] = [];
     if (opts.applyEchoFilter) {
-      const filtered = dropRepairEchoFields(normalized, opts.widget);
+      const filtered = dropInstructionEchoFields(normalized, opts.widget);
       normalized = filtered.values;
       echoDroppedKeys = filtered.droppedKeys;
     }
@@ -582,13 +581,11 @@ async function extractStatusWidgetValuesForWidget(opts: {
   previousValues?: StatusWidgetValues | null;
   previousAssistantProse?: string | null;
   userNote?: string;
-  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
+  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null; generationSequence?: number; generationRequestId?: string | null };
   caller?: StatusWidgetExtractCaller;
   primaryModelId?: string;
-  fallbackModelId?: string | null;
-  fallbackBudget?: { remaining: number };
   env?: NodeJS.ProcessEnv;
-  /** Skip initial; run existing same-model repair once (after dual combined miss). */
+  /** The shared owner already attempted this generation; never call again. */
   repairOnly?: boolean;
   sharedCombinedInitial?: boolean;
 }): Promise<{
@@ -622,26 +619,31 @@ async function extractStatusWidgetValuesForWidget(opts: {
     };
   }
 
-  const caller = opts.caller ?? defaultExtractCaller;
   const primaryModelId = opts.primaryModelId?.trim() || BACKGROUND_OPENROUTER_MODEL;
-  let effectiveFallback: string | null;
-  if (opts.fallbackModelId !== undefined) {
-    const trimmed = opts.fallbackModelId?.trim() || null;
-    effectiveFallback =
-      trimmed && trimmed.toLowerCase() !== primaryModelId.toLowerCase() ? trimmed : null;
-  } else {
-    effectiveFallback =
-      OPENROUTER_DEEPSEEK_V4_FLASH_MODEL.toLowerCase() !==
-      primaryModelId.toLowerCase()
-        ? OPENROUTER_DEEPSEEK_V4_FLASH_MODEL
-        : null;
-  }
+  const standaloneLedgerContext =
+    opts.trace?.chatId != null && opts.trace?.messageId != null
+      ? buildPlatformSyncTurnLedgerContext({
+          chatId: opts.trace.chatId,
+          assistantMessageId: opts.trace.messageId,
+          family: "status_widget_extract",
+          requestedModel: primaryModelId,
+          requestKind: "background-status-widget-extract",
+        })
+      : undefined;
+  const caller =
+    opts.caller ??
+    (async (system, history, callOpts) =>
+      callBackgroundMemory(system, history, undefined, callOpts.requestKind, {
+        maxTokens: callOpts.maxTokens,
+        temperature: callOpts.temperature,
+        modelId: callOpts.modelId,
+        ledgerContext: standaloneLedgerContext,
+      }));
   const usages: TokenUsage[] = [];
   const stages: StatusWidgetExtractStage[] = [];
   const models: string[] = [];
   const attemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"] = [];
   const attemptDiagnostics: StatusWidgetExtractAttemptDiagnostic[] = [];
-  let echoDroppedKeys: string[] = [];
   const repairMaxTokens: number | null = null;
   let apiCalls = 0;
 
@@ -702,142 +704,6 @@ async function extractStatusWidgetValuesForWidget(opts: {
     models.push(primaryModelId);
   }
 
-  const repairSystem = buildWidgetExtractRepairSystem(keys, opts.source);
-  const repairUser = buildWidgetExtractRepairUserBlock({
-    keys,
-    assistantProse: opts.assistantProse,
-    previousValues: opts.previousValues,
-    widget: opts.widget,
-    source: opts.source,
-    charName: opts.charName,
-    personaName: opts.personaName,
-    userMessage: opts.userMessage,
-    characterIdentity: opts.characterIdentity,
-    characterCriticalContext: opts.characterCriticalContext,
-  });
-  const repair = await runExtractAttempt({
-    system: repairSystem,
-    userBlock: repairUser,
-    widget: opts.widget,
-    source: opts.source,
-    stage: "repair",
-    attemptIndex: 2,
-    modelId: primaryModelId,
-    requestKind: "background-status-widget-extract-repair",
-    temperature: 0,
-    applyEchoFilter: true,
-    caller,
-    trace: opts.trace,
-    env: opts.env,
-  });
-  apiCalls += 1;
-  stages.push("repair");
-  models.push(primaryModelId);
-  pushUsage(usages, attemptUsages, repair);
-  attemptDiagnostics.push(toAttemptDiagnostic(repair));
-  echoDroppedKeys = repair.echoDroppedKeys;
-  if (repair.ok && repair.values) {
-    const echoFixed = observeVolatileExactEcho({
-      values: repair.values,
-      facts: repair.facts,
-      widget: opts.widget,
-      source: opts.source,
-      previousValues: opts.previousValues,
-      apiCalls,
-    });
-    return {
-      values: echoFixed.values,
-      facts: echoFixed.facts,
-      usage: mergeStatusWidgetExtractUsages(usages),
-      apiCalls: echoFixed.apiCalls,
-      meta: {
-        source: opts.source,
-        callCount: echoFixed.apiCalls,
-        stages,
-        finalStage: "repair",
-        finalReasonCode: "V3_REPAIR_USED",
-        models,
-        attemptUsages,
-        attemptDiagnostics,
-        echoDroppedKeys,
-        repairMaxTokens,
-        sharedCombinedInitial: opts.sharedCombinedInitial,
-      },
-    };
-  }
-
-  if (effectiveFallback) {
-    if (opts.fallbackBudget && opts.fallbackBudget.remaining <= 0) {
-      effectiveFallback = null;
-    } else if (opts.fallbackBudget) {
-      opts.fallbackBudget.remaining -= 1;
-    }
-  }
-
-  if (effectiveFallback) {
-    const fallback = await runExtractAttempt({
-      system: repairSystem,
-      userBlock: repairUser,
-      widget: opts.widget,
-      source: opts.source,
-      stage: "fallback",
-      attemptIndex: opts.repairOnly ? 3 : 3,
-      modelId: effectiveFallback,
-      requestKind: "background-status-widget-extract-fallback",
-      temperature: 0,
-      applyEchoFilter: true,
-      caller,
-      trace: opts.trace,
-      env: opts.env,
-    });
-    apiCalls += 1;
-    stages.push("fallback");
-    models.push(effectiveFallback);
-    pushUsage(usages, attemptUsages, fallback);
-    attemptDiagnostics.push(toAttemptDiagnostic(fallback));
-    echoDroppedKeys = fallback.echoDroppedKeys;
-    if (fallback.ok) {
-      return {
-        values: fallback.values,
-        facts: fallback.facts,
-        usage: mergeStatusWidgetExtractUsages(usages),
-        apiCalls,
-        meta: {
-          source: opts.source,
-          callCount: apiCalls,
-          stages,
-          finalStage: "fallback",
-          finalReasonCode: "FALLBACK_MODEL_USED",
-          models,
-          attemptUsages,
-          attemptDiagnostics,
-          echoDroppedKeys,
-          repairMaxTokens,
-          sharedCombinedInitial: opts.sharedCombinedInitial,
-        },
-      };
-    }
-    return {
-      values: null,
-      facts: [],
-      usage: mergeStatusWidgetExtractUsages(usages),
-      apiCalls,
-      meta: {
-        source: opts.source,
-        callCount: apiCalls,
-        stages,
-        finalStage: "fallback",
-        finalReasonCode: "STATUS_WIDGET_EXTRACT_EXHAUSTED",
-        models,
-        attemptUsages,
-        attemptDiagnostics,
-        echoDroppedKeys,
-        repairMaxTokens,
-        sharedCombinedInitial: opts.sharedCombinedInitial,
-      },
-    };
-  }
-
   return {
     values: null,
     facts: [],
@@ -847,12 +713,12 @@ async function extractStatusWidgetValuesForWidget(opts: {
       source: opts.source,
       callCount: apiCalls,
       stages,
-      finalStage: "repair",
+      finalStage: stages.includes("initial") ? "initial" : null,
       finalReasonCode: "STATUS_WIDGET_EXTRACT_EXHAUSTED",
       models,
       attemptUsages,
       attemptDiagnostics,
-      echoDroppedKeys,
+      echoDroppedKeys: [],
       repairMaxTokens,
       sharedCombinedInitial: opts.sharedCombinedInitial,
     },
@@ -873,11 +739,10 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   previousValues?: ParsedStatusWidgetTurnValues | null;
   previousAssistantProse?: string | null;
   userNote?: string;
-  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
+  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null; generationSequence?: number; generationRequestId?: string | null };
   /** Test seam — defaults to callBackgroundMemory */
   caller?: StatusWidgetExtractCaller;
   primaryModelId?: string;
-  fallbackModelId?: string | null;
   env?: NodeJS.ProcessEnv;
   /** When true with route eligibility, coalesce widget initial + suggestions initial into one call. */
   coalesceSuggestedReplies?: { enabled: boolean };
@@ -918,6 +783,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     prefetchedSuggestedRepliesAssistantProseHash: null,
     sharedInitialConsumed: false,
     postTurnSharedInitial: false,
+    postTurnPhysicalAttempted: false,
     sharedInitialRelationshipDelta: null,
     sharedInitialRelationshipUsable: false,
   });
@@ -937,8 +803,27 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     opts.resolved.needsCharacterValues && Boolean(charWidget);
   const needUserExtract = opts.resolved.needsUserValues && Boolean(userWidget);
 
-  const caller = opts.caller ?? defaultExtractCaller;
-  const fallbackBudget = { remaining: 1 };
+  const standaloneLedgerContext =
+    opts.trace?.chatId != null && opts.trace?.messageId != null
+      ? buildPlatformSyncTurnLedgerContext({
+          chatId: opts.trace.chatId,
+          assistantMessageId: opts.trace.messageId,
+          generationSequence: opts.trace.generationSequence,
+          generationRequestId: opts.trace.generationRequestId,
+          family: "status_widget_extract",
+          requestedModel: primaryModelId,
+          requestKind: "background-status-widget-extract",
+        })
+      : undefined;
+  const caller =
+    opts.caller ??
+    (async (system, history, callOpts) =>
+      callBackgroundMemory(system, history, undefined, callOpts.requestKind, {
+        maxTokens: callOpts.maxTokens,
+        temperature: callOpts.temperature,
+        modelId: callOpts.modelId,
+        ledgerContext: standaloneLedgerContext,
+      }));
 
   let prefetchedSuggestedReplies: SuggestedReplyItem[] | null = null;
   let prefetchedSuggestedRepliesAssistantProseHash: string | null = null;
@@ -957,16 +842,20 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   // active (suggested replies and/or relationship memory), so a normal turn never
   // issues more than one auxiliary Luna provider call.
   const shareRelationshipDelta = opts.shareRelationshipDelta === true;
+  const shareSuggestedReplies =
+    opts.coalesceSuggestedReplies?.enabled === true &&
+    isStatusWidgetContextSafeForSuggestedRepliesCoalesce(opts.resolved);
   if (
     sharedMode &&
-    (opts.coalesceSuggestedReplies?.enabled || shareRelationshipDelta) &&
-    isStatusWidgetContextSafeForSuggestedRepliesCoalesce(opts.resolved)
+    (shareSuggestedReplies || shareRelationshipDelta)
   ) {
     const syncLedgerContext =
       opts.trace?.chatId != null && opts.trace?.messageId != null
         ? buildPlatformSyncTurnLedgerContext({
             chatId: opts.trace.chatId,
             assistantMessageId: opts.trace.messageId,
+            generationSequence: opts.trace.generationSequence,
+            generationRequestId: opts.trace.generationRequestId,
             family: "post_turn_shared_initial",
             requestedModel: primaryModelId,
             requestKind: POST_TURN_SHARED_INITIAL_REQUEST_KIND,
@@ -990,11 +879,11 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         previousCharacterValues: opts.previousValues?.character ?? null,
         previousUserValues: opts.previousValues?.user ?? null,
         primaryModelId,
-        includeSuggestions: opts.coalesceSuggestedReplies?.enabled === true,
+        includeSuggestions: shareSuggestedReplies,
         includeRelationship: shareRelationshipDelta,
         relationshipRegenContext: opts.relationshipRegenContext ?? null,
       },
-      caller,
+      opts.caller,
       syncLedgerContext
     );
     if (shared.attempted) {
@@ -1226,8 +1115,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         trace: opts.trace,
         caller,
         primaryModelId,
-        fallbackModelId: opts.fallbackModelId,
-        fallbackBudget,
         env: opts.env,
         repairOnly: true,
         sharedCombinedInitial: true,
@@ -1287,8 +1174,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         trace: opts.trace,
         caller,
         primaryModelId,
-        fallbackModelId: opts.fallbackModelId,
-        fallbackBudget,
         env: opts.env,
         repairOnly: true,
         sharedCombinedInitial: true,
@@ -1346,9 +1231,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
           trace: opts.trace,
           caller,
           primaryModelId,
-          fallbackModelId: opts.fallbackModelId,
-          fallbackBudget,
-          env: opts.env,
+            env: opts.env,
           repairOnly: sharedInitialConsumed,
           sharedCombinedInitial: sharedInitialConsumed,
         });
@@ -1406,9 +1289,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
           trace: opts.trace,
           caller,
           primaryModelId,
-          fallbackModelId: opts.fallbackModelId,
-          fallbackBudget,
-          env: opts.env,
+            env: opts.env,
           repairOnly: sharedInitialConsumed,
           sharedCombinedInitial: sharedInitialConsumed,
         });
@@ -1491,6 +1372,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       prefetchedSuggestedRepliesAssistantProseHash,
       sharedInitialConsumed,
       postTurnSharedInitial,
+      postTurnPhysicalAttempted: actualCallCount > 0,
       sharedInitialRelationshipDelta,
       sharedInitialRelationshipUsable,
     },

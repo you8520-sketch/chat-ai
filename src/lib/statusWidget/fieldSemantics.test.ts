@@ -8,7 +8,6 @@ import {
   STATUS_WIDGET_FIELD_SEMANTICS_EN,
   buildCombinedDualWidgetExtractSystem,
   buildCombinedDualWidgetExtractUserBlock,
-  buildWidgetExtractRepairSystem,
   buildWidgetExtractSystem,
   buildWidgetExtractUserBlock,
   formatPreviousTurnWidgetValues,
@@ -121,8 +120,6 @@ describe("status widget creator field semantics", () => {
       1
     );
 
-    const repair = buildWidgetExtractRepairSystem(collectWidgetJsonKeys(MIXED_WIDGET), "character");
-    assert.equal(countOccurrences(repair, STATUS_WIDGET_FIELD_SEMANTICS_EN), 1);
   });
 
   it("CASE 1 — factual fields are not volatile; inventory/injury stay persistent-class", () => {

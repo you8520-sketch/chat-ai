@@ -4827,7 +4827,7 @@ export async function POST(req: Request) {
         let widgetPrefetchedSuggestedReplies: import("@/lib/suggestedReplies/types").SuggestedReplyItem[] | null =
           null;
         let widgetPrefetchedSuggestedRepliesAssistantProseHash: string | null = null;
-        let widgetSharedInitialConsumed = false;
+        let widgetPostTurnPhysicalAttempted = false;
         let widgetSharedRelationshipUsable = false;
         let widgetSharedRelationshipDelta:
           | import("@/lib/chatMemory").RelationshipMetaDelta
@@ -4884,7 +4884,7 @@ export async function POST(req: Request) {
           widgetPrefetchedSuggestedReplies = widgetResolved.prefetchedSuggestedReplies;
           widgetPrefetchedSuggestedRepliesAssistantProseHash =
             widgetResolved.prefetchedSuggestedRepliesAssistantProseHash;
-          widgetSharedInitialConsumed = widgetResolved.sharedInitialConsumed;
+          widgetPostTurnPhysicalAttempted = widgetResolved.postTurnPhysicalAttempted;
           widgetSharedRelationshipUsable = widgetResolved.sharedInitialRelationshipUsable;
           widgetSharedRelationshipDelta = widgetResolved.sharedInitialRelationshipDelta;
           if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
@@ -5837,7 +5837,7 @@ export async function POST(req: Request) {
             userMessage: messageText,
             assistantProse: savedText,
             prefetchedReplies,
-            sharedInitialAttemptConsumed: widgetSharedInitialConsumed,
+            sharedInitialAttemptConsumed: widgetPostTurnPhysicalAttempted,
           });
         };
         // status OFF defers to the post-final background shared call.
@@ -6040,7 +6040,7 @@ export async function POST(req: Request) {
                 ledgerContext
               );
               if (sharedConsumers.attempted) {
-                widgetSharedInitialConsumed = true;
+                widgetPostTurnPhysicalAttempted = true;
                 const rel = sharedConsumers.parsed?.relationship;
                 if (rel?.present === true && rel.valid === true) {
                   widgetSharedRelationshipUsable = true;
@@ -6076,6 +6076,7 @@ export async function POST(req: Request) {
               relationshipDeltaFromMain,
               relationshipSharedParsed: widgetSharedRelationshipUsable,
               relationshipSharedDelta: widgetSharedRelationshipDelta,
+              relationshipSharedAttempted: widgetPostTurnPhysicalAttempted,
               generationScope: postTurnGenerationScope,
             });
             }

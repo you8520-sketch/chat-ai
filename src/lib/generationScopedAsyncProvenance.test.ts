@@ -580,12 +580,8 @@ describe("generation-scoped async provenance", () => {
     releaseGen0();
   });
 
-  it("W4 — gen0 retry attempt2 after regen stays gen0-scoped and cannot overwrite gen1 record", async () => {
+  it("W4 — gen0 uses one attempt and cannot overwrite gen1 record after regen", async () => {
     seedRegenHarness();
-    let releaseAttempt2!: () => void;
-    const attempt2Gate = new Promise<void>((resolve) => {
-      releaseAttempt2 = resolve;
-    });
     let attemptCount = 0;
 
     scheduleSuggestedRepliesExtraction({
@@ -593,12 +589,7 @@ describe("generation-scoped async provenance", () => {
       generationScope: scope(0),
       __testExtract: async (attempt: number) => {
         attemptCount = attempt;
-        if (attempt === 1) {
-          return [];
-        }
-        await attempt2Gate;
-        insertLedgerRow(0, 0.003);
-        return validReplies("LATE");
+        return [];
       },
     });
 
@@ -610,12 +601,9 @@ describe("generation-scoped async provenance", () => {
     assert.ok(activeScope);
     markMessageSuggestedRepliesPending(MSG_ID, activeScope);
 
-    releaseAttempt2();
-    await new Promise((r) => setTimeout(r, 1400));
+    await new Promise((r) => setTimeout(r, 50));
 
-    assert.equal(attemptCount, 2);
-    const gen0Ledger = listProviderCostEventsForAssistantGeneration(MSG_ID, 0);
-    assert.ok(gen0Ledger.some((row) => row.actual_cost_usd === 0.003));
+    assert.equal(attemptCount, 1);
 
     const record = loadMessageSuggestedReplies(MSG_ID);
     assert.equal(record?.generationSequence, activeScope.generationSequence);
@@ -706,6 +694,158 @@ describe("generation-scoped async provenance", () => {
       MSG_ID
     );
     assert.equal(requeueStatusMetaExtractionIfNeeded(MSG_ID), true);
+  });
+
+  it("Q3 — shared attempt is terminal before process loss and blocks stale requeue", () => {
+    seedRegenHarness();
+    const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(activeScope);
+    const sharedAttempt = startProviderCostAttempt(
+      {
+        ...buildPlatformAsyncTurnLedgerContext({
+          chatId: CHAT_ID,
+          assistantMessageId: MSG_ID,
+          generationSequence: activeScope.generationSequence,
+          generationRequestId: activeScope.generationRequestId,
+          family: "post_turn_shared_initial",
+          jobAttemptOrdinal: 1,
+        }),
+        persistInTests: true,
+      },
+      getDb()
+    );
+    finalizeProviderCostAttempt(
+      sharedAttempt,
+      {
+        actualProvider: "openrouter",
+        actualModel: "gpt-5.6-luna",
+        upstreamCostUsd: 0.001,
+        outcome: "success",
+      },
+      getDb()
+    );
+    let providerCalls = 0;
+    scheduleSuggestedRepliesExtraction({
+      ...scheduleBase(),
+      generationScope: activeScope,
+      sharedInitialAttemptConsumed: true,
+      __testExtract: async () => {
+        providerCalls += 1;
+        return validReplies("MUST_NOT_RUN");
+      },
+    });
+
+    const terminal = loadMessageSuggestedReplies(MSG_ID);
+    assert.equal(terminal?.pending, false);
+    assert.equal(terminal?.failed, true);
+    assert.equal(terminal?.noRetry, true);
+    assert.equal(terminal?.generationSequence, activeScope.generationSequence);
+
+    // A reconnect long after a Railway restart enters the same production
+    // requeue owner, but the record is already terminal and budget-spent.
+    getDb().prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
+      serializeSuggestedRepliesRecord({
+        ...terminal!,
+        extractedAt: new Date(Date.now() - 120_000).toISOString(),
+      }),
+      MSG_ID
+    );
+
+    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
+    assert.equal(providerCalls, 0);
+    assert.equal(loadMessageSuggestedReplies(MSG_ID)?.generationSequence, activeScope.generationSequence);
+    assert.equal(
+      listProviderCostEventsForAssistantGeneration(
+        MSG_ID,
+        activeScope.generationSequence
+      ).length,
+      1
+    );
+  });
+
+  it("Q3b — marker write loss still fails closed from the physical ledger row", () => {
+    seedRegenHarness();
+    const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(activeScope);
+    const attempt = startProviderCostAttempt(
+      {
+        ...buildPlatformAsyncTurnLedgerContext({
+          chatId: CHAT_ID,
+          assistantMessageId: MSG_ID,
+          generationSequence: activeScope.generationSequence,
+          family: "post_turn_shared_initial",
+          jobAttemptOrdinal: 1,
+        }),
+        persistInTests: true,
+      },
+      getDb()
+    );
+    finalizeProviderCostAttempt(
+      attempt,
+      { actualProvider: "openrouter", actualModel: "gpt-5.6-luna", outcome: "success" },
+      getDb()
+    );
+    getDb().prepare("UPDATE messages SET suggested_replies_json=NULL WHERE id=?").run(MSG_ID);
+    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
+    assert.equal(
+      listProviderCostEventsForAssistantGeneration(MSG_ID, activeScope.generationSequence).length,
+      1
+    );
+  });
+
+  it("Q4 — non-shared generation gets exactly one suggestions provider attempt", async () => {
+    seedRegenHarness();
+    const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(activeScope);
+    let providerCalls = 0;
+    scheduleSuggestedRepliesExtraction({
+      ...scheduleBase(),
+      generationScope: activeScope,
+      __testExtract: async () => {
+        providerCalls += 1;
+        return validReplies("NON_SHARED");
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(providerCalls, 1);
+    assert.notEqual(loadMessageSuggestedReplies(MSG_ID)?.noRetry, true);
+  });
+
+  it("Q5 — generation N no-retry marker does not spend generation N+1 budget", async () => {
+    seedRegenHarness();
+    const gen0 = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(gen0);
+    getDb().prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
+      serializeSuggestedRepliesRecord({
+        replies: [],
+        extractedAt: new Date().toISOString(),
+        source: "background-deepseek",
+        pending: true,
+        failed: false,
+        noRetry: true,
+        generationSequence: gen0.generationSequence,
+        generationRequestId: gen0.generationRequestId,
+      }),
+      MSG_ID
+    );
+
+    startRegenHarness("next-generation-budget");
+    const gen1 = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(gen1);
+    assert.notEqual(gen1.generationSequence, gen0.generationSequence);
+    let providerCalls = 0;
+    scheduleSuggestedRepliesExtraction({
+      ...scheduleBase(),
+      generationScope: gen1,
+      __testExtract: async () => {
+        providerCalls += 1;
+        return validReplies("GEN1");
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(providerCalls, 1);
+    assert.equal(loadMessageSuggestedReplies(MSG_ID)?.generationSequence, gen1.generationSequence);
+    assert.notEqual(loadMessageSuggestedReplies(MSG_ID)?.noRetry, true);
   });
 
   it("regen bootstrap — post-bootstrap pending write is effective for current generation", () => {

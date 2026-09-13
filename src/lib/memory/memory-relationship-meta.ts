@@ -318,9 +318,9 @@ async function runProviderBackedRelationshipMerge(
 }
 
 /**
- * Canonical post-turn relationship inference owner (status-OFF and
- * section-failure recovery): the SAME shared runner in relationship-only mode.
- * No separate relationship orchestrator; one physical owner per call.
+ * Canonical post-turn relationship inference entry for a generation which has
+ * not attempted the shared owner yet (for example status-OFF relationship-only).
+ * Section/transport failure after an attempt never reaches this function.
  */
 async function extractRelationshipDeltaViaSharedOwner(opts: {
   charName: string;
@@ -381,6 +381,7 @@ export async function mergeRelationshipMetaFromTurn(opts: {
   mainModelTailParsed?: boolean;
   mainModelDelta?: RelationshipMetaDelta | null;
   /** Shared post-turn Luna call already carried the durable relationship delta. */
+  sharedInitialAttempted?: boolean;
   sharedInitialParsed?: boolean;
   sharedInitialDelta?: RelationshipMetaDelta | null;
   sourceUserMessageId?: number | null;
@@ -421,6 +422,22 @@ export async function mergeRelationshipMetaFromTurn(opts: {
   }
 
   const prevNormalized = normalizeMemoryMeta(loadChatRelationshipMeta(opts.chatId), names);
+
+  // An attempted shared request spends the generation's physical-call budget.
+  // Invalid/missing relationship output is a terminal no-retry failure and must
+  // preserve the previous durable projection rather than fan out to a provider.
+  if (opts.sharedInitialAttempted === true && opts.sharedInitialParsed !== true) {
+    if (opts.assistantMessageId) {
+      setMemoryRelationshipTaskState(
+        opts.assistantMessageId,
+        "skipped",
+        "shared_section_invalid_no_retry",
+        undefined,
+        opts.generationScope
+      );
+    }
+    return prevNormalized;
+  }
 
   // Shared post-turn Luna call already produced the durable relationship delta:
   // consume it WITHOUT any independent provider invocation (one physical owner).
@@ -495,6 +512,7 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
   assistantMessageId?: number;
   generationScope?: AssistantGenerationScope;
   /** Shared post-turn Luna call (with regen context) already produced the delta. */
+  sharedInitialAttempted?: boolean;
   sharedInitialParsed?: boolean;
   sharedInitialDelta?: RelationshipMetaDelta | null;
   __testExtract?: () => Promise<RelationshipMetaExtractResult>;
@@ -502,6 +520,19 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
 }): Promise<MemoryMeta> {
   if (!isMemoryFeatureEnabled()) return loadChatRelationshipMeta(opts.chatId);
   const names = opts.names;
+
+  if (opts.sharedInitialAttempted === true && opts.sharedInitialParsed !== true) {
+    if (opts.assistantMessageId) {
+      setMemoryRelationshipTaskState(
+        opts.assistantMessageId,
+        "skipped",
+        "shared_section_invalid_no_retry",
+        undefined,
+        opts.generationScope
+      );
+    }
+    return loadChatRelationshipMeta(opts.chatId, names);
+  }
 
   // Regen shares the SAME physical inference: consume the shared delta (which
   // compared the rejected draft and new canonical reply) without a second call.

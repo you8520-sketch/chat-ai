@@ -23,6 +23,7 @@ import {
 import { sanitizeExtractedFacts } from "./extractedFacts";
 import { splitProseAndStatusWidgetValuesDeepSeek } from "./deepseekCapture";
 import type { TokenUsage } from "@/lib/ai";
+import { resolveActiveAssistantGenerationScope } from "@/lib/assistantGenerationScope";
 import type { Usage } from "@/lib/chatUsage";
 import type { StatusWidgetExtractBillingMeta } from "./receiptUsage";
 import { fieldPlaceholderKey } from "./fieldKeys";
@@ -149,6 +150,8 @@ export type ResolveStatusWidgetTurnValuesResult = {
   prefetchedSuggestedReplies: import("@/lib/suggestedReplies/types").SuggestedReplyItem[] | null;
   prefetchedSuggestedRepliesAssistantProseHash: string | null;
   sharedInitialConsumed: boolean;
+  /** True for shared or standalone post-turn provider attempts. */
+  postTurnPhysicalAttempted: boolean;
   /** Durable relationship delta carried by the shared initial call (usable only when boolean true). */
   sharedInitialRelationshipUsable: boolean;
   sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null;
@@ -242,6 +245,7 @@ export async function resolveStatusWidgetTurnValues(
     null;
   let prefetchedSuggestedRepliesAssistantProseHash: string | null = null;
   let sharedInitialConsumed = false;
+  let postTurnPhysicalAttempted = false;
   let sharedInitialRelationshipUsable = false;
   let sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null =
     null;
@@ -370,6 +374,9 @@ export async function resolveStatusWidgetTurnValues(
         input.chatId,
         messageId ?? undefined
       );
+      const generationScope = messageId
+        ? resolveActiveAssistantGenerationScope(messageId)
+        : null;
       const v3Result = await extractStatusWidgetValuesForTurn({
         charName: input.charName,
         characterIdentity: input.characterIdentity,
@@ -383,7 +390,11 @@ export async function resolveStatusWidgetTurnValues(
         previousValues,
         previousAssistantProse,
         userNote: input.userNote,
-        trace: traceBase,
+        trace: {
+          ...traceBase,
+          generationSequence: generationScope?.generationSequence,
+          generationRequestId: generationScope?.generationRequestId,
+        },
         // No current-turn leak seed: valuesPayload is null here by invariant
         // (leak never promoted), so Luna decides purely from prose plus the
         // previous canonical values above. Test seam for mock caller.
@@ -403,6 +414,7 @@ export async function resolveStatusWidgetTurnValues(
       prefetchedSuggestedRepliesAssistantProseHash =
         v3Result.meta.prefetchedSuggestedRepliesAssistantProseHash ?? null;
       sharedInitialConsumed = v3Result.meta.sharedInitialConsumed === true;
+      postTurnPhysicalAttempted = v3Result.meta.postTurnPhysicalAttempted === true;
       sharedInitialRelationshipUsable =
         v3Result.meta.sharedInitialRelationshipUsable === true;
       sharedInitialRelationshipDelta =
@@ -604,6 +616,7 @@ export async function resolveStatusWidgetTurnValues(
     prefetchedSuggestedReplies,
     prefetchedSuggestedRepliesAssistantProseHash,
     sharedInitialConsumed,
+    postTurnPhysicalAttempted,
     sharedInitialRelationshipUsable,
     sharedInitialRelationshipDelta,
     telemetry,

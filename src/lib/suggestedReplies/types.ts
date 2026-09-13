@@ -44,6 +44,8 @@ export type SuggestedRepliesRecord = {
   source: "background-deepseek";
   pending?: boolean;
   failed?: boolean;
+  /** This generation already spent its shared physical-call budget. */
+  noRetry?: boolean;
   generationSequence?: number;
   generationRequestId?: string | null;
 };
