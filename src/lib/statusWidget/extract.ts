@@ -263,7 +263,7 @@ function shouldEmitExtractAttemptLog(opts: {
 }
 
 function logExtractAttempt(event: {
-  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
+  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null; generationSequence?: number; generationRequestId?: string | null };
   source: "character" | "user";
   stage: StatusWidgetExtractStage;
   attemptIndex: number;
@@ -353,7 +353,7 @@ async function runExtractAttempt(opts: {
   temperature?: number;
   applyEchoFilter: boolean;
   caller: StatusWidgetExtractCaller;
-  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
+  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null; generationSequence?: number; generationRequestId?: string | null };
   env?: NodeJS.ProcessEnv;
 }): Promise<AttemptOutcome> {
   const started = Date.now();
@@ -581,7 +581,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
   previousValues?: StatusWidgetValues | null;
   previousAssistantProse?: string | null;
   userNote?: string;
-  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
+  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null; generationSequence?: number; generationRequestId?: string | null };
   caller?: StatusWidgetExtractCaller;
   primaryModelId?: string;
   fallbackModelId?: string | null;
@@ -740,7 +740,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   previousValues?: ParsedStatusWidgetTurnValues | null;
   previousAssistantProse?: string | null;
   userNote?: string;
-  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
+  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null; generationSequence?: number; generationRequestId?: string | null };
   /** Test seam — defaults to callBackgroundMemory */
   caller?: StatusWidgetExtractCaller;
   primaryModelId?: string;
@@ -810,6 +810,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       ? buildPlatformSyncTurnLedgerContext({
           chatId: opts.trace.chatId,
           assistantMessageId: opts.trace.messageId,
+          generationSequence: opts.trace.generationSequence,
+          generationRequestId: opts.trace.generationRequestId,
           family: "status_widget_extract",
           requestedModel: primaryModelId,
           requestKind: "background-status-widget-extract",
@@ -854,6 +856,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         ? buildPlatformSyncTurnLedgerContext({
             chatId: opts.trace.chatId,
             assistantMessageId: opts.trace.messageId,
+            generationSequence: opts.trace.generationSequence,
+            generationRequestId: opts.trace.generationRequestId,
             family: "post_turn_shared_initial",
             requestedModel: primaryModelId,
             requestKind: POST_TURN_SHARED_INITIAL_REQUEST_KIND,
