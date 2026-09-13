@@ -6,6 +6,10 @@ on:
       - ".github/workflows/validate-live-follow-ui.yml"
       - "playwright.config.ts"
       - "package.json"
+      - "server.js"
+      - "src/lib/serverLifecycle.js"
+      - "src/lib/serverLifecycle.test.ts"
+      - "src/lib/serverLifecycle.pid1.test.ts"
       - "tests/ui/**"
       - "src/app/chat/**"
       - "src/lib/chatLiveFollow.ts"
@@ -21,6 +25,33 @@ permissions:
   contents: read
 
 jobs:
+  server-lifecycle-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      SESSION_SECRET: "pid1-ci-session-secret-32chars-minimum"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build production server
+        run: npm run build
+
+      - name: Linux server lifecycle proof
+        run: >
+          node --conditions=react-server --import tsx --test
+          --test-concurrency=1
+          src/lib/serverLifecycle.test.ts
+          src/lib/serverLifecycle.pid1.test.ts
+
   live-follow-browser:
     runs-on: ubuntu-latest
     timeout-minutes: 20
