@@ -13,6 +13,7 @@ import {
   suggestedRepliesHaveContent,
 } from "./parse";
 import type { SuggestedRepliesRecord, SuggestedReplyItem } from "./types";
+import { listProviderCostEventsForAssistantGeneration } from "@/lib/providerCostLedger";
 
 const running = new Set<string>();
 const STALE_PENDING_MS = 90_000;
@@ -23,13 +24,30 @@ function isJobRunning(scope: AssistantGenerationScope): boolean {
 }
 
 export function resolveSuggestedRepliesExtractMaxAttempts(
-  sharedInitialAttemptConsumed?: boolean
+  postTurnPhysicalAttemptConsumed?: boolean
 ): number {
   // The shared attempt consumes this generation's complete post-turn provider
   // budget, even when its suggestions section or transport failed. The next
   // assistant generation gets its own initial attempt; this generation never
   // repairs or retries.
-  return sharedInitialAttemptConsumed ? 0 : EXTRACT_MAX_ATTEMPTS;
+  return postTurnPhysicalAttemptConsumed ? 0 : EXTRACT_MAX_ATTEMPTS;
+}
+
+function generationHasDurablePostTurnAttempt(scope: AssistantGenerationScope): boolean {
+  try {
+    return listProviderCostEventsForAssistantGeneration(
+      scope.assistantMessageId,
+      scope.generationSequence
+    ).some((row) =>
+      row.family === "post_turn_shared_initial" ||
+      row.family === "status_widget_extract" ||
+      row.family === "suggested_replies_repair" ||
+      row.family === "memory_relationship"
+    );
+  } catch (error) {
+    console.warn("[SUGGESTED-REPLIES] provider budget lookup failed", (error as Error).message);
+    return true;
+  }
 }
 
 export function loadMessageSuggestedReplies(messageId: number): SuggestedRepliesRecord | null {
@@ -49,11 +67,7 @@ export function isSuggestedRepliesRecordStalePending(
   return age >= STALE_PENDING_MS;
 }
 
-function writePending(
-  messageId: number,
-  scope: AssistantGenerationScope,
-  noRetry = false
-): void {
+function writePending(messageId: number, scope: AssistantGenerationScope): void {
   const db = getDb();
   const pending: SuggestedRepliesRecord = {
     replies: [],
@@ -61,7 +75,6 @@ function writePending(
     source: "background-deepseek",
     pending: true,
     failed: false,
-    ...(noRetry ? { noRetry: true } : {}),
     generationSequence: scope.generationSequence,
     generationRequestId: scope.generationRequestId,
   };
@@ -133,11 +146,6 @@ export function isSuggestedRepliesJobRunning(scope: AssistantGenerationScope): b
   return isJobRunning(scope);
 }
 
-/** Simulates process-local ownership loss; durable records remain untouched. */
-export function clearSuggestedRepliesRunningJobsForTest(): void {
-  running.clear();
-}
-
 async function runSuggestedRepliesExtraction(opts: {
   messageId: number;
   chatId: number;
@@ -152,7 +160,6 @@ async function runSuggestedRepliesExtraction(opts: {
   prefetchedReplies?: SuggestedReplyItem[] | null;
   sharedInitialAttemptConsumed?: boolean;
   __testExtract?: (attempt: number) => Promise<SuggestedReplyItem[]>;
-  __testAfterPendingBarrier?: Promise<void>;
 }): Promise<SuggestedReplyItem[]> {
   if (suggestedRepliesHaveContent(opts.prefetchedReplies)) {
     return opts.prefetchedReplies!;
@@ -225,28 +232,34 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   prefetchedReplies?: SuggestedReplyItem[] | null;
   sharedInitialAttemptConsumed?: boolean;
   __testExtract?: (attempt: number) => Promise<SuggestedReplyItem[]>;
-  __testAfterPendingBarrier?: Promise<void>;
 }): void {
+  const physicalAttemptConsumed = opts.sharedInitialAttemptConsumed ?? false;
+  if (physicalAttemptConsumed) {
+    const replies = suggestedRepliesHaveContent(opts.prefetchedReplies)
+      ? opts.prefetchedReplies!
+      : [];
+    try {
+      writeReplies(opts.messageId, opts.generationScope, replies, replies.length === 0, true);
+    } catch (error) {
+      console.error(
+        "[SUGGESTED-REPLIES-ERROR] terminal shared write failed",
+        (error as Error).message
+      );
+    }
+    return;
+  }
   const jobKey = generationJobKey(opts.generationScope);
   if (running.has(jobKey)) return;
   running.add(jobKey);
 
   try {
-    // Persist the spent-budget evidence in the same synchronous write as
-    // pending. A crash/redeploy after this line cannot reopen this generation's
-    // provider budget through stale-pending requeue.
-    writePending(
-      opts.messageId,
-      opts.generationScope,
-      opts.sharedInitialAttemptConsumed === true
-    );
+    writePending(opts.messageId, opts.generationScope);
   } catch (e) {
     console.error("[SUGGESTED-REPLIES-ERROR] pending write failed", (e as Error).message);
   }
 
   void (async () => {
     try {
-      await opts.__testAfterPendingBarrier;
       const replies = await runSuggestedRepliesExtraction(opts);
       const ok = suggestedRepliesHaveContent(replies);
       writeReplies(
@@ -294,6 +307,7 @@ export function requeueSuggestedRepliesExtractionIfNeeded(messageId: number): bo
   if (record && record.generationSequence != null && record.generationSequence !== generationScope.generationSequence) {
     return false;
   }
+  if (generationHasDurablePostTurnAttempt(generationScope)) return false;
   if (isJobRunning(generationScope)) return true;
 
   const db = getDb();

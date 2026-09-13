@@ -11,18 +11,28 @@ after the shared owner had already spent one physical call.
 | --- | --- | --- | --- | --- |
 | Shared status/suggestions/relationship | `runPostTurnSharedInitial` | one initial call | canonical and only call | `post_turn_shared_initial` |
 | Status Widget | `extractStatusWidgetValuesForTurn` | repair and fallback could fan out | validates/preserves valid sections; invalid sections get no update and no retry | shared family above |
-| Suggested Replies | shared runner, then suggestion persistence job | background extractor could retry | the initial pending write durably records `noRetry`; persists valid prefetch or an empty failed result without retry | shared family above |
+| Suggested Replies | shared runner, then suggestion persistence owner | background extractor could retry | a spent physical budget synchronously persists terminal success/failure + `noRetry`; no pending job is created | shared family above |
 | Relationship Memory | shared runner, then memory persistence owner | invalid/missing section could call the relationship-only runner | applies a valid delta or preserves `memory_meta` and records `shared_section_invalid_no_retry` | shared family above |
 
 A transport error also spends the single attempt. The next assistant generation is the recovery
 boundary and may make its own one initial call. Generation, reset-boundary, and stale-result fences
 remain in the existing persistence owners.
 
-For Suggested Replies, the database record is the hard-budget source of truth: a shared attempt
-writes `pending: true` and `noRetry: true` atomically before the fire-and-forget closure begins.
-Stale-pending detection and GET requeue both read that record. The generation scope fences the
-marker to its assistant generation. The in-memory `running` set only avoids concurrent duplicate
-work and is not relied on across crashes or deploys.
+Consumer eligibility and physical budgeting are separate. The visibility gate controls only whether
+Suggested Replies may enter the shared prompt; it does not prevent Status + Relationship sharing.
+Every shared or standalone Status attempt returns `postTurnPhysicalAttempted`, and the route passes
+that one result to both downstream consumers. Suggested Replies synchronously persists a terminal
+generation-scoped `noRetry` record when that result is true, so no crash-sensitive pending job exists.
+On reconnect, requeue also checks the generation-scoped provider ledger and fails closed when a
+physical row exists or budget evidence cannot be read. The in-memory `running` set remains only a
+concurrency optimization.
+
+Standalone Status calls now write the existing `status_widget_extract` physical ledger family;
+shared calls continue to own `post_turn_shared_initial`. Removed repair/fallback prompt builders and
+their provider-contract tests were **SAFE TO DELETE** because runtime reader search returned zero.
+The renamed instruction-echo sanitizer is **KEEP** because both standalone and shared parsers use it.
+Historical repair/fallback diagnostic enum values are **KEEP** for stored telemetry compatibility;
+they no longer have runtime provider invocation sites.
 
 ## Relationship Memory audit
 

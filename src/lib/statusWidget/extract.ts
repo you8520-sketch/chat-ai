@@ -21,7 +21,7 @@ import {
   buildWidgetExtractSystem,
   buildWidgetExtractUserBlock,
   collectVolatileExactEchoKeys,
-  dropRepairEchoFields,
+  dropInstructionEchoFields,
   extractJsonObjectFromWidgetText,
   normalizeWidgetExtraction,
   isCombinedExtractLikelyTruncated,
@@ -119,6 +119,8 @@ export type StatusWidgetTurnExtractMeta = {
   prefetchedSuggestedRepliesAssistantProseHash?: string | null;
   sharedInitialConsumed?: boolean;
   postTurnSharedInitial?: boolean;
+  /** Any post-turn provider attempt spent this generation's physical budget. */
+  postTurnPhysicalAttempted?: boolean;
   /**
    * Durable relationship delta carried by the shared initial call. Present
    * (possibly empty) only when the shared call was usable; the relationship
@@ -459,7 +461,7 @@ async function runExtractAttempt(opts: {
     let normalized = normalizeWidgetExtraction(parsed, opts.widget);
     let echoDroppedKeys: string[] = [];
     if (opts.applyEchoFilter) {
-      const filtered = dropRepairEchoFields(normalized, opts.widget);
+      const filtered = dropInstructionEchoFields(normalized, opts.widget);
       normalized = filtered.values;
       echoDroppedKeys = filtered.droppedKeys;
     }
@@ -618,8 +620,26 @@ async function extractStatusWidgetValuesForWidget(opts: {
     };
   }
 
-  const caller = opts.caller ?? defaultExtractCaller;
   const primaryModelId = opts.primaryModelId?.trim() || BACKGROUND_OPENROUTER_MODEL;
+  const standaloneLedgerContext =
+    opts.trace?.chatId != null && opts.trace?.messageId != null
+      ? buildPlatformSyncTurnLedgerContext({
+          chatId: opts.trace.chatId,
+          assistantMessageId: opts.trace.messageId,
+          family: "status_widget_extract",
+          requestedModel: primaryModelId,
+          requestKind: "background-status-widget-extract",
+        })
+      : undefined;
+  const caller =
+    opts.caller ??
+    (async (system, history, callOpts) =>
+      callBackgroundMemory(system, history, undefined, callOpts.requestKind, {
+        maxTokens: callOpts.maxTokens,
+        temperature: callOpts.temperature,
+        modelId: callOpts.modelId,
+        ledgerContext: standaloneLedgerContext,
+      }));
   const usages: TokenUsage[] = [];
   const stages: StatusWidgetExtractStage[] = [];
   const models: string[] = [];
@@ -765,6 +785,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     prefetchedSuggestedRepliesAssistantProseHash: null,
     sharedInitialConsumed: false,
     postTurnSharedInitial: false,
+    postTurnPhysicalAttempted: false,
     sharedInitialRelationshipDelta: null,
     sharedInitialRelationshipUsable: false,
   });
@@ -784,7 +805,25 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     opts.resolved.needsCharacterValues && Boolean(charWidget);
   const needUserExtract = opts.resolved.needsUserValues && Boolean(userWidget);
 
-  const caller = opts.caller ?? defaultExtractCaller;
+  const standaloneLedgerContext =
+    opts.trace?.chatId != null && opts.trace?.messageId != null
+      ? buildPlatformSyncTurnLedgerContext({
+          chatId: opts.trace.chatId,
+          assistantMessageId: opts.trace.messageId,
+          family: "status_widget_extract",
+          requestedModel: primaryModelId,
+          requestKind: "background-status-widget-extract",
+        })
+      : undefined;
+  const caller =
+    opts.caller ??
+    (async (system, history, callOpts) =>
+      callBackgroundMemory(system, history, undefined, callOpts.requestKind, {
+        maxTokens: callOpts.maxTokens,
+        temperature: callOpts.temperature,
+        modelId: callOpts.modelId,
+        ledgerContext: standaloneLedgerContext,
+      }));
 
   let prefetchedSuggestedReplies: SuggestedReplyItem[] | null = null;
   let prefetchedSuggestedRepliesAssistantProseHash: string | null = null;
@@ -803,10 +842,12 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   // active (suggested replies and/or relationship memory), so a normal turn never
   // issues more than one auxiliary Luna provider call.
   const shareRelationshipDelta = opts.shareRelationshipDelta === true;
+  const shareSuggestedReplies =
+    opts.coalesceSuggestedReplies?.enabled === true &&
+    isStatusWidgetContextSafeForSuggestedRepliesCoalesce(opts.resolved);
   if (
     sharedMode &&
-    (opts.coalesceSuggestedReplies?.enabled || shareRelationshipDelta) &&
-    isStatusWidgetContextSafeForSuggestedRepliesCoalesce(opts.resolved)
+    (shareSuggestedReplies || shareRelationshipDelta)
   ) {
     const syncLedgerContext =
       opts.trace?.chatId != null && opts.trace?.messageId != null
@@ -836,11 +877,11 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         previousCharacterValues: opts.previousValues?.character ?? null,
         previousUserValues: opts.previousValues?.user ?? null,
         primaryModelId,
-        includeSuggestions: opts.coalesceSuggestedReplies?.enabled === true,
+        includeSuggestions: shareSuggestedReplies,
         includeRelationship: shareRelationshipDelta,
         relationshipRegenContext: opts.relationshipRegenContext ?? null,
       },
-      caller,
+      opts.caller,
       syncLedgerContext
     );
     if (shared.attempted) {
@@ -1333,6 +1374,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       prefetchedSuggestedRepliesAssistantProseHash,
       sharedInitialConsumed,
       postTurnSharedInitial,
+      postTurnPhysicalAttempted: actualCallCount > 0,
       sharedInitialRelationshipDelta,
       sharedInitialRelationshipUsable,
     },

@@ -18,6 +18,8 @@ import { getDb } from "./db";
 import { installIsolatedTestDatabase } from "./test/isolatedTestDatabase";
 import { DEFAULT_STATUS_WIDGET } from "./statusWidget/defaultTemplate";
 import { statusWidgetValuesHasContent } from "./statusWidget/displayPolicy";
+import { isStatusWidgetContextSafeForSuggestedRepliesCoalesce } from "./postTurnSharedInitial/coalesceVisibility";
+import { resolveSuggestedRepliesExtractMaxAttempts } from "./suggestedReplies/job";
 import { collectWidgetJsonKeys } from "./statusWidget/prompt";
 import type { ResolvedStatusWidgetTurn, StatusWidget } from "./statusWidget/types";
 import {
@@ -171,6 +173,70 @@ describe("whole-turn post-turn Luna call budget", () => {
     assert.equal(calls.length, 1, "the failed physical attempt consumed the budget");
     assert.equal(calls[0], "background-post-turn-shared-initial");
     assert.equal(result.meta.sharedInitialRelationshipUsable, false);
+  });
+
+  it("S3b. visibility-unsafe suggestions do not block status+relationship sharing", async () => {
+    const unsafe: ResolvedStatusWidgetTurn = {
+      ...characterResolved(),
+      displayMode: "hidden",
+    };
+    assert.equal(isStatusWidgetContextSafeForSuggestedRepliesCoalesce(unsafe), false);
+    const calls: string[] = [];
+    let systemSeen = "";
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "라이크",
+      personaName: "렌",
+      userMessage: "안녕",
+      assistantProse: "라이크는 복도에 서 있었다.",
+      resolved: unsafe,
+      coalesceSuggestedReplies: { enabled: true },
+      shareRelationshipDelta: true,
+      primaryModelId: "gpt-5.6-luna",
+      caller: async (system, _history, opts) => {
+        systemSeen = system;
+        calls.push(opts.requestKind);
+        return {
+          text: sharedResponse({
+            relationship: { items: [], itemsRemove: [], promisesAdd: [], promisesRemove: [] },
+          }),
+          usage: usage(1),
+        };
+      },
+    });
+
+    assert.equal(calls.length, 1);
+    assert.equal(result.meta.postTurnPhysicalAttempted, true);
+    assert.equal(result.meta.sharedInitialRelationshipUsable, true);
+    assert.match(systemSeen, /"relationship"/);
+    assert.doesNotMatch(systemSeen, /"suggestedReplies"/);
+    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(result.meta.postTurnPhysicalAttempted), 0);
+  });
+
+  it("S3c. visibility-unsafe standalone status spends the whole generation budget", async () => {
+    const unsafe: ResolvedStatusWidgetTurn = { ...characterResolved(), displayMode: "hidden" };
+    const calls: string[] = [];
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "라이크",
+      personaName: "렌",
+      userMessage: "안녕",
+      assistantProse: "라이크는 복도에 서 있었다.",
+      resolved: unsafe,
+      coalesceSuggestedReplies: { enabled: true },
+      shareRelationshipDelta: false,
+      primaryModelId: "gpt-5.6-luna",
+      caller: async (_system, _history, opts) => {
+        calls.push(opts.requestKind);
+        return {
+          text: JSON.stringify({ character_values: { 장소: "복도" } }),
+          usage: usage(1),
+        };
+      },
+    });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0], "background-status-widget-extract");
+    assert.equal(result.meta.sharedInitialConsumed, false);
+    assert.equal(result.meta.postTurnPhysicalAttempted, true);
+    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(result.meta.postTurnPhysicalAttempted), 0);
   });
 
   for (const fixture of [

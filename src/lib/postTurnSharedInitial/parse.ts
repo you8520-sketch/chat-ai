@@ -1,5 +1,5 @@
 import {
-  dropRepairEchoFields,
+  dropInstructionEchoFields,
   extractJsonObjectFromWidgetText,
   normalizeWidgetExtraction,
   parseCombinedDualWidgetExtractResponse,
@@ -37,7 +37,7 @@ function parseSingleWidgetSection(
   const section = asJsonRecord(raw[valuesKey]);
   if (!section) return empty;
   let normalized = normalizeWidgetExtraction(section, widget);
-  const filtered = dropRepairEchoFields(normalized, widget);
+  const filtered = dropInstructionEchoFields(normalized, widget);
   normalized = filtered.values;
   const keys = Object.entries(normalized).filter(([, v]) => Boolean(v?.trim())).map(([k]) => k);
   if (keys.length === 0) return { ...empty, echoDroppedKeys: filtered.droppedKeys };

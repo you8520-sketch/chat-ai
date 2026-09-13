@@ -149,6 +149,8 @@ export type ResolveStatusWidgetTurnValuesResult = {
   prefetchedSuggestedReplies: import("@/lib/suggestedReplies/types").SuggestedReplyItem[] | null;
   prefetchedSuggestedRepliesAssistantProseHash: string | null;
   sharedInitialConsumed: boolean;
+  /** True for shared or standalone post-turn provider attempts. */
+  postTurnPhysicalAttempted: boolean;
   /** Durable relationship delta carried by the shared initial call (usable only when boolean true). */
   sharedInitialRelationshipUsable: boolean;
   sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null;
@@ -242,6 +244,7 @@ export async function resolveStatusWidgetTurnValues(
     null;
   let prefetchedSuggestedRepliesAssistantProseHash: string | null = null;
   let sharedInitialConsumed = false;
+  let postTurnPhysicalAttempted = false;
   let sharedInitialRelationshipUsable = false;
   let sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null =
     null;
@@ -403,6 +406,7 @@ export async function resolveStatusWidgetTurnValues(
       prefetchedSuggestedRepliesAssistantProseHash =
         v3Result.meta.prefetchedSuggestedRepliesAssistantProseHash ?? null;
       sharedInitialConsumed = v3Result.meta.sharedInitialConsumed === true;
+      postTurnPhysicalAttempted = v3Result.meta.postTurnPhysicalAttempted === true;
       sharedInitialRelationshipUsable =
         v3Result.meta.sharedInitialRelationshipUsable === true;
       sharedInitialRelationshipDelta =
@@ -604,6 +608,7 @@ export async function resolveStatusWidgetTurnValues(
     prefetchedSuggestedReplies,
     prefetchedSuggestedRepliesAssistantProseHash,
     sharedInitialConsumed,
+    postTurnPhysicalAttempted,
     sharedInitialRelationshipUsable,
     sharedInitialRelationshipDelta,
     telemetry,

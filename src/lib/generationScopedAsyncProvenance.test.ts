@@ -37,7 +37,7 @@ import { ensureAdminFinanceTables } from "@/lib/adminFinance";
 import { resolveAsyncTurnCoverage, resolveMemoryRelationshipExpectation } from "@/lib/asyncTurnCoverage";
 import { buildAdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3";
 import type { Usage } from "@/lib/chatUsage";
-import { clearSuggestedRepliesRunningJobsForTest, markMessageSuggestedRepliesPending, loadMessageSuggestedReplies, scheduleSuggestedRepliesExtraction, isSuggestedRepliesJobRunning, requeueSuggestedRepliesExtractionIfNeeded } from "@/lib/suggestedReplies/job";
+import { markMessageSuggestedRepliesPending, loadMessageSuggestedReplies, scheduleSuggestedRepliesExtraction, isSuggestedRepliesJobRunning, requeueSuggestedRepliesExtractionIfNeeded } from "@/lib/suggestedReplies/job";
 import { markMessageStatusMetaPending, loadMessageStatusMeta, scheduleStatusMetaExtraction, isStatusMetaJobRunning, requeueStatusMetaExtractionIfNeeded } from "@/lib/statusMeta/job";
 import { SUGGESTED_REPLY_KINDS } from "@/lib/suggestedReplies/types";
 import { bootstrapStreamingTurn } from "@/lib/streamingPersistence";
@@ -696,7 +696,7 @@ describe("generation-scoped async provenance", () => {
     assert.equal(requeueStatusMetaExtractionIfNeeded(MSG_ID), true);
   });
 
-  it("Q3 — shared attempt pending evidence survives process loss and blocks stale requeue", () => {
+  it("Q3 — shared attempt is terminal before process loss and blocks stale requeue", () => {
     seedRegenHarness();
     const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
     assert.ok(activeScope);
@@ -725,30 +725,27 @@ describe("generation-scoped async provenance", () => {
       getDb()
     );
     let providerCalls = 0;
-    const neverComplete = new Promise<void>(() => {});
-
     scheduleSuggestedRepliesExtraction({
       ...scheduleBase(),
       generationScope: activeScope,
       sharedInitialAttemptConsumed: true,
-      __testAfterPendingBarrier: neverComplete,
       __testExtract: async () => {
         providerCalls += 1;
         return validReplies("MUST_NOT_RUN");
       },
     });
 
-    const pending = loadMessageSuggestedReplies(MSG_ID);
-    assert.equal(pending?.pending, true);
-    assert.equal(pending?.noRetry, true);
-    assert.equal(pending?.generationSequence, activeScope.generationSequence);
+    const terminal = loadMessageSuggestedReplies(MSG_ID);
+    assert.equal(terminal?.pending, false);
+    assert.equal(terminal?.failed, true);
+    assert.equal(terminal?.noRetry, true);
+    assert.equal(terminal?.generationSequence, activeScope.generationSequence);
 
-    // Railway restart loses only the in-memory optimization. Make the durable
-    // pending record stale, then enter the same production requeue owner.
-    clearSuggestedRepliesRunningJobsForTest();
+    // A reconnect long after a Railway restart enters the same production
+    // requeue owner, but the record is already terminal and budget-spent.
     getDb().prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
       serializeSuggestedRepliesRecord({
-        ...pending!,
+        ...terminal!,
         extractedAt: new Date(Date.now() - 120_000).toISOString(),
       }),
       MSG_ID
@@ -762,6 +759,36 @@ describe("generation-scoped async provenance", () => {
         MSG_ID,
         activeScope.generationSequence
       ).length,
+      1
+    );
+  });
+
+  it("Q3b — marker write loss still fails closed from the physical ledger row", () => {
+    seedRegenHarness();
+    const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(activeScope);
+    const attempt = startProviderCostAttempt(
+      {
+        ...buildPlatformAsyncTurnLedgerContext({
+          chatId: CHAT_ID,
+          assistantMessageId: MSG_ID,
+          generationSequence: activeScope.generationSequence,
+          family: "post_turn_shared_initial",
+          jobAttemptOrdinal: 1,
+        }),
+        persistInTests: true,
+      },
+      getDb()
+    );
+    finalizeProviderCostAttempt(
+      attempt,
+      { actualProvider: "openrouter", actualModel: "gpt-5.6-luna", outcome: "success" },
+      getDb()
+    );
+    getDb().prepare("UPDATE messages SET suggested_replies_json=NULL WHERE id=?").run(MSG_ID);
+    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
+    assert.equal(
+      listProviderCostEventsForAssistantGeneration(MSG_ID, activeScope.generationSequence).length,
       1
     );
   });
