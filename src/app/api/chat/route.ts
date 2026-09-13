@@ -6076,6 +6076,7 @@ export async function POST(req: Request) {
               relationshipDeltaFromMain,
               relationshipSharedParsed: widgetSharedRelationshipUsable,
               relationshipSharedDelta: widgetSharedRelationshipDelta,
+              relationshipSharedAttempted: widgetSharedInitialConsumed,
               generationScope: postTurnGenerationScope,
             });
             }

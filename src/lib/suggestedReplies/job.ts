@@ -16,7 +16,7 @@ import type { SuggestedRepliesRecord, SuggestedReplyItem } from "./types";
 
 const running = new Set<string>();
 const STALE_PENDING_MS = 90_000;
-const EXTRACT_MAX_ATTEMPTS = 3;
+const EXTRACT_MAX_ATTEMPTS = 1;
 
 function isJobRunning(scope: AssistantGenerationScope): boolean {
   return running.has(generationJobKey(scope));
@@ -25,7 +25,11 @@ function isJobRunning(scope: AssistantGenerationScope): boolean {
 export function resolveSuggestedRepliesExtractMaxAttempts(
   sharedInitialAttemptConsumed?: boolean
 ): number {
-  return sharedInitialAttemptConsumed ? EXTRACT_MAX_ATTEMPTS - 1 : EXTRACT_MAX_ATTEMPTS;
+  // The shared attempt consumes this generation's complete post-turn provider
+  // budget, even when its suggestions section or transport failed. The next
+  // assistant generation gets its own initial attempt; this generation never
+  // repairs or retries.
+  return sharedInitialAttemptConsumed ? 0 : EXTRACT_MAX_ATTEMPTS;
 }
 
 export function loadMessageSuggestedReplies(messageId: number): SuggestedRepliesRecord | null {
@@ -75,7 +79,8 @@ function writeReplies(
   messageId: number,
   scope: AssistantGenerationScope,
   replies: SuggestedReplyItem[],
-  failed = false
+  failed = false,
+  noRetry = false
 ): void {
   const db = getDb();
   if (!isCurrentAssistantGeneration(scope, db)) {
@@ -93,6 +98,7 @@ function writeReplies(
     source: "background-deepseek",
     pending: false,
     failed,
+    ...(noRetry ? { noRetry: true } : {}),
     generationSequence: scope.generationSequence,
     generationRequestId: scope.generationRequestId,
   };
@@ -223,7 +229,13 @@ export function scheduleSuggestedRepliesExtraction(opts: {
     try {
       const replies = await runSuggestedRepliesExtraction(opts);
       const ok = suggestedRepliesHaveContent(replies);
-      writeReplies(opts.messageId, opts.generationScope, replies, !ok);
+      writeReplies(
+        opts.messageId,
+        opts.generationScope,
+        replies,
+        !ok,
+        opts.sharedInitialAttemptConsumed === true
+      );
       if (!ok) {
         console.error("[SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies", {
           messageId: opts.messageId,
@@ -233,7 +245,13 @@ export function scheduleSuggestedRepliesExtraction(opts: {
     } catch (e) {
       console.error("[SUGGESTED-REPLIES-ERROR] extraction job failed", (e as Error).message);
       try {
-        writeReplies(opts.messageId, opts.generationScope, [], true);
+        writeReplies(
+          opts.messageId,
+          opts.generationScope,
+          [],
+          true,
+          opts.sharedInitialAttemptConsumed === true
+        );
       } catch (writeErr) {
         console.error(
           "[SUGGESTED-REPLIES-ERROR] failed to write failed replies after job error",
@@ -251,6 +269,7 @@ export function requeueSuggestedRepliesExtractionIfNeeded(messageId: number): bo
   if (!generationScope) return false;
 
   const record = loadMessageSuggestedReplies(messageId);
+  if (record?.noRetry === true) return false;
   if (!shouldEnsureSuggestedRepliesExtraction(record)) return false;
   if (record && record.generationSequence != null && record.generationSequence !== generationScope.generationSequence) {
     return false;

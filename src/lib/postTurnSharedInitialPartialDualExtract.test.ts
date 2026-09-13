@@ -137,7 +137,7 @@ function resolveBothWidgets() {
 }
 
 describe("shared initial partial dual extraction (production path)", () => {
-  it("character success + user fail — preserve character, repair user only", async () => {
+  it("character success + user fail — preserve character, do not retry user", async () => {
     const both = resolveBothWidgets();
     const userWidget = both.userWidget!;
     const { caller, invocations } = makePartialDualCaller({
@@ -165,17 +165,17 @@ describe("shared initial partial dual extraction (production path)", () => {
     const initialDiag = result.meta.attemptDiagnostics.find((d) => d.stage === "initial");
 
     assert.equal(sharedInitialCalls, 1);
-    assert.equal(repairCalls, 1);
-    assert.equal(result.meta.actualCallCount, 2);
+    assert.equal(repairCalls, 0);
+    assert.equal(result.meta.actualCallCount, 1);
     assert.equal(initialDiag?.succeeded, false);
     assert.equal(initialDiag?.reasonCode, "V3_INITIAL_EMPTY");
     assert.equal(result.meta.character?.stages.includes("repair"), false);
-    assert.equal(result.meta.user?.stages.includes("repair"), true);
+    assert.equal(result.meta.user?.stages.includes("repair"), false);
     assert.equal(statusWidgetValuesHasContent({ character: result.values.character ?? undefined }), true);
-    assert.equal(statusWidgetValuesHasContent({ user: result.values.user ?? undefined }), true);
+    assert.equal(statusWidgetValuesHasContent({ user: result.values.user ?? undefined }), false);
   });
 
-  it("character fail + user success — preserve user, repair character only", async () => {
+  it("character fail + user success — preserve user, do not retry character", async () => {
     const both = resolveBothWidgets();
     const userWidget = both.userWidget!;
     const { caller, invocations } = makePartialDualCaller({
@@ -203,17 +203,17 @@ describe("shared initial partial dual extraction (production path)", () => {
       invocations.filter((i) => i.requestKind === POST_TURN_SHARED_INITIAL_REQUEST_KIND).length,
       1
     );
-    assert.equal(repairCalls, 1);
-    assert.equal(result.meta.actualCallCount, 2);
+    assert.equal(repairCalls, 0);
+    assert.equal(result.meta.actualCallCount, 1);
     assert.equal(initialDiag?.succeeded, false);
     assert.equal(initialDiag?.reasonCode, "V3_INITIAL_EMPTY");
-    assert.equal(result.meta.character?.stages.includes("repair"), true);
+    assert.equal(result.meta.character?.stages.includes("repair"), false);
     assert.equal(result.meta.user?.stages.includes("repair"), false);
-    assert.equal(statusWidgetValuesHasContent({ character: result.values.character ?? undefined }), true);
+    assert.equal(statusWidgetValuesHasContent({ character: result.values.character ?? undefined }), false);
     assert.equal(statusWidgetValuesHasContent({ user: result.values.user ?? undefined }), true);
   });
 
-  it("invalid JSON — no parsed payload preserved, both sources repaired", async () => {
+  it("invalid JSON — no parsed payload preserved and no provider retry", async () => {
     const both = resolveBothWidgets();
     const userWidget = both.userWidget!;
     const { caller, invocations } = makeInvalidJsonCaller(userWidget);
@@ -236,9 +236,9 @@ describe("shared initial partial dual extraction (production path)", () => {
 
     assert.equal(initialDiag?.succeeded, false);
     assert.equal(initialDiag?.reasonCode, "V3_PARSE_FAILED");
-    assert.equal(repairCalls, 2);
-    assert.ok(result.meta.actualCallCount >= 3);
-    assert.equal(statusWidgetValuesHasContent({ character: result.values.character ?? undefined }), true);
-    assert.equal(statusWidgetValuesHasContent({ user: result.values.user ?? undefined }), true);
+    assert.equal(repairCalls, 0);
+    assert.equal(result.meta.actualCallCount, 1);
+    assert.equal(statusWidgetValuesHasContent({ character: result.values.character ?? undefined }), false);
+    assert.equal(statusWidgetValuesHasContent({ user: result.values.user ?? undefined }), false);
   });
 });
