@@ -49,7 +49,11 @@ export function isSuggestedRepliesRecordStalePending(
   return age >= STALE_PENDING_MS;
 }
 
-function writePending(messageId: number, scope: AssistantGenerationScope): void {
+function writePending(
+  messageId: number,
+  scope: AssistantGenerationScope,
+  noRetry = false
+): void {
   const db = getDb();
   const pending: SuggestedRepliesRecord = {
     replies: [],
@@ -57,6 +61,7 @@ function writePending(messageId: number, scope: AssistantGenerationScope): void 
     source: "background-deepseek",
     pending: true,
     failed: false,
+    ...(noRetry ? { noRetry: true } : {}),
     generationSequence: scope.generationSequence,
     generationRequestId: scope.generationRequestId,
   };
@@ -128,6 +133,11 @@ export function isSuggestedRepliesJobRunning(scope: AssistantGenerationScope): b
   return isJobRunning(scope);
 }
 
+/** Simulates process-local ownership loss; durable records remain untouched. */
+export function clearSuggestedRepliesRunningJobsForTest(): void {
+  running.clear();
+}
+
 async function runSuggestedRepliesExtraction(opts: {
   messageId: number;
   chatId: number;
@@ -142,6 +152,7 @@ async function runSuggestedRepliesExtraction(opts: {
   prefetchedReplies?: SuggestedReplyItem[] | null;
   sharedInitialAttemptConsumed?: boolean;
   __testExtract?: (attempt: number) => Promise<SuggestedReplyItem[]>;
+  __testAfterPendingBarrier?: Promise<void>;
 }): Promise<SuggestedReplyItem[]> {
   if (suggestedRepliesHaveContent(opts.prefetchedReplies)) {
     return opts.prefetchedReplies!;
@@ -214,19 +225,28 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   prefetchedReplies?: SuggestedReplyItem[] | null;
   sharedInitialAttemptConsumed?: boolean;
   __testExtract?: (attempt: number) => Promise<SuggestedReplyItem[]>;
+  __testAfterPendingBarrier?: Promise<void>;
 }): void {
   const jobKey = generationJobKey(opts.generationScope);
   if (running.has(jobKey)) return;
   running.add(jobKey);
 
   try {
-    writePending(opts.messageId, opts.generationScope);
+    // Persist the spent-budget evidence in the same synchronous write as
+    // pending. A crash/redeploy after this line cannot reopen this generation's
+    // provider budget through stale-pending requeue.
+    writePending(
+      opts.messageId,
+      opts.generationScope,
+      opts.sharedInitialAttemptConsumed === true
+    );
   } catch (e) {
     console.error("[SUGGESTED-REPLIES-ERROR] pending write failed", (e as Error).message);
   }
 
   void (async () => {
     try {
+      await opts.__testAfterPendingBarrier;
       const replies = await runSuggestedRepliesExtraction(opts);
       const ok = suggestedRepliesHaveContent(replies);
       writeReplies(

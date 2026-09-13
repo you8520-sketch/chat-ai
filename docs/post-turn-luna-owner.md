@@ -11,12 +11,18 @@ after the shared owner had already spent one physical call.
 | --- | --- | --- | --- | --- |
 | Shared status/suggestions/relationship | `runPostTurnSharedInitial` | one initial call | canonical and only call | `post_turn_shared_initial` |
 | Status Widget | `extractStatusWidgetValuesForTurn` | repair and fallback could fan out | validates/preserves valid sections; invalid sections get no update and no retry | shared family above |
-| Suggested Replies | shared runner, then suggestion persistence job | background extractor could retry | persists valid prefetch or an empty failed result; no retry | shared family above |
+| Suggested Replies | shared runner, then suggestion persistence job | background extractor could retry | the initial pending write durably records `noRetry`; persists valid prefetch or an empty failed result without retry | shared family above |
 | Relationship Memory | shared runner, then memory persistence owner | invalid/missing section could call the relationship-only runner | applies a valid delta or preserves `memory_meta` and records `shared_section_invalid_no_retry` | shared family above |
 
 A transport error also spends the single attempt. The next assistant generation is the recovery
 boundary and may make its own one initial call. Generation, reset-boundary, and stale-result fences
 remain in the existing persistence owners.
+
+For Suggested Replies, the database record is the hard-budget source of truth: a shared attempt
+writes `pending: true` and `noRetry: true` atomically before the fire-and-forget closure begins.
+Stale-pending detection and GET requeue both read that record. The generation scope fences the
+marker to its assistant generation. The in-memory `running` set only avoids concurrent duplicate
+work and is not relied on across crashes or deploys.
 
 ## Relationship Memory audit
 
