@@ -4,10 +4,10 @@ import { resolveSuggestedRepliesExtractMaxAttempts } from "./job";
 import { suggestedRepliesHaveContent } from "./parse";
 
 describe("suggested replies shared initial attempt budget", () => {
-  it("shared initial consumed leaves 2 repair attempts (3 total budget)", () => {
-    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(true), 2);
-    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(false), 3);
-    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(undefined), 3);
+  it("shared initial consumed leaves zero repair attempts", () => {
+    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(true), 0);
+    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(false), 1);
+    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(undefined), 1);
   });
 
   it("prefetched valid replies are accepted without a provider call", () => {
@@ -17,6 +17,6 @@ describe("suggested replies shared initial attempt budget", () => {
       { kind: "pivot" as const, text: "*시계를 보며* \"일단 밥부터 먹고 얘기할까?\" *문 쪽을 가리키며*" },
     ];
     assert.equal(suggestedRepliesHaveContent(prefetched), true);
-    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(true), 2);
+    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(true), 0);
   });
 });

@@ -160,6 +160,7 @@ export function parseSuggestedRepliesRecord(
       source: "background-deepseek",
       pending: parsed.pending === true,
       failed: parsed.failed === true,
+      ...(parsed.noRetry === true ? { noRetry: true } : {}),
       generationSequence:
         typeof parsed.generationSequence === "number" &&
         Number.isInteger(parsed.generationSequence) &&

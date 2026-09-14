@@ -6,7 +6,6 @@ import { normalizeWidgetExtraction } from "./extractNormalize";
 import {
   buildCombinedDualWidgetExtractSystem,
   buildCombinedDualWidgetExtractUserBlock,
-  buildWidgetExtractRepairUserBlock,
   buildWidgetExtractSystem,
   buildWidgetExtractUserBlock,
   collectVolatileExactEchoKeys,
@@ -63,7 +62,7 @@ function jsonForWidget(widget: StatusWidget, overrides: Record<string, string> =
   return JSON.stringify(obj);
 }
 
-describe("V3 previous-echo guard (volatile shield + targeted repair)", () => {
+describe("V3 previous-echo guard (volatile shield + no retry)", () => {
   it("A. persistent unchanged — keep-when-unchanged allowed; no force-every-turn rule", () => {
     const system = buildWidgetExtractSystem(
       PERSISTENT_WIDGET,
@@ -166,24 +165,7 @@ describe("V3 previous-echo guard (volatile shield + targeted repair)", () => {
     assert.equal(normalized["현재상황"], undefined);
   });
 
-  it("F. repair continuity also omits volatile previous answers", () => {
-    const block = buildWidgetExtractRepairUserBlock({
-      keys: collectWidgetJsonKeys(PERSISTENT_WIDGET),
-      widget: PERSISTENT_WIDGET,
-      source: "character",
-      charName: "레온",
-      personaName: "렌",
-      userMessage: "잠시 기다린다",
-      assistantProse: "그는 신입의 말에 숨을 고르며 표정을 바꿨다.",
-      previousValues: {
-        속마음: "이 신입은 조금 수상하네.",
-        장소: "옥상",
-      },
-    });
-    assert.match(block, /PREVIOUS CANONICAL WIDGET VALUES/);
-    assert.match(block, /옥상/);
-    assert.doesNotMatch(block, /이 신입은 조금 수상하네/);
-  });
+
 
   it("G. looksLikeVolatile includes 현재상황; persistent meters excluded", () => {
     assert.equal(looksLikeVolatileTurnDerivedField(PERSISTENT_WIDGET.fields[3]!), true); // 속마음
@@ -391,7 +373,6 @@ describe("V3 previous-echo guard (volatile shield + targeted repair)", () => {
       resolved: characterResolved(),
       previousValues: previous,
       caller,
-      fallbackModelId: null,
     });
     assert.equal(result.values.character, null);
     assert.notEqual(result.values.character?.["속마음"], "이전값");

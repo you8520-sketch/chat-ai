@@ -13,19 +13,41 @@ import {
   suggestedRepliesHaveContent,
 } from "./parse";
 import type { SuggestedRepliesRecord, SuggestedReplyItem } from "./types";
+import { listProviderCostEventsForAssistantGeneration } from "@/lib/providerCostLedger";
 
 const running = new Set<string>();
 const STALE_PENDING_MS = 90_000;
-const EXTRACT_MAX_ATTEMPTS = 3;
+const EXTRACT_MAX_ATTEMPTS = 1;
 
 function isJobRunning(scope: AssistantGenerationScope): boolean {
   return running.has(generationJobKey(scope));
 }
 
 export function resolveSuggestedRepliesExtractMaxAttempts(
-  sharedInitialAttemptConsumed?: boolean
+  postTurnPhysicalAttemptConsumed?: boolean
 ): number {
-  return sharedInitialAttemptConsumed ? EXTRACT_MAX_ATTEMPTS - 1 : EXTRACT_MAX_ATTEMPTS;
+  // The shared attempt consumes this generation's complete post-turn provider
+  // budget, even when its suggestions section or transport failed. The next
+  // assistant generation gets its own initial attempt; this generation never
+  // repairs or retries.
+  return postTurnPhysicalAttemptConsumed ? 0 : EXTRACT_MAX_ATTEMPTS;
+}
+
+function generationHasDurablePostTurnAttempt(scope: AssistantGenerationScope): boolean {
+  try {
+    return listProviderCostEventsForAssistantGeneration(
+      scope.assistantMessageId,
+      scope.generationSequence
+    ).some((row) =>
+      row.family === "post_turn_shared_initial" ||
+      row.family === "status_widget_extract" ||
+      row.family === "suggested_replies_repair" ||
+      row.family === "memory_relationship"
+    );
+  } catch (error) {
+    console.warn("[SUGGESTED-REPLIES] provider budget lookup failed", (error as Error).message);
+    return true;
+  }
 }
 
 export function loadMessageSuggestedReplies(messageId: number): SuggestedRepliesRecord | null {
@@ -75,7 +97,8 @@ function writeReplies(
   messageId: number,
   scope: AssistantGenerationScope,
   replies: SuggestedReplyItem[],
-  failed = false
+  failed = false,
+  noRetry = false
 ): void {
   const db = getDb();
   if (!isCurrentAssistantGeneration(scope, db)) {
@@ -93,6 +116,7 @@ function writeReplies(
     source: "background-deepseek",
     pending: false,
     failed,
+    ...(noRetry ? { noRetry: true } : {}),
     generationSequence: scope.generationSequence,
     generationRequestId: scope.generationRequestId,
   };
@@ -116,6 +140,14 @@ export function markMessageSuggestedRepliesPending(
       generationRequestId: null,
     } satisfies AssistantGenerationScope);
   writePending(messageId, scope);
+}
+
+/** Persist original-turn ineligibility so a later GET cannot create provider work. */
+export function markMessageSuggestedRepliesIneligible(
+  messageId: number,
+  generationScope: AssistantGenerationScope
+): void {
+  writeReplies(messageId, generationScope, [], true, true);
 }
 
 export function isSuggestedRepliesJobRunning(scope: AssistantGenerationScope): boolean {
@@ -209,6 +241,21 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   sharedInitialAttemptConsumed?: boolean;
   __testExtract?: (attempt: number) => Promise<SuggestedReplyItem[]>;
 }): void {
+  const physicalAttemptConsumed = opts.sharedInitialAttemptConsumed ?? false;
+  if (physicalAttemptConsumed) {
+    const replies = suggestedRepliesHaveContent(opts.prefetchedReplies)
+      ? opts.prefetchedReplies!
+      : [];
+    try {
+      writeReplies(opts.messageId, opts.generationScope, replies, replies.length === 0, true);
+    } catch (error) {
+      console.error(
+        "[SUGGESTED-REPLIES-ERROR] terminal shared write failed",
+        (error as Error).message
+      );
+    }
+    return;
+  }
   const jobKey = generationJobKey(opts.generationScope);
   if (running.has(jobKey)) return;
   running.add(jobKey);
@@ -223,7 +270,13 @@ export function scheduleSuggestedRepliesExtraction(opts: {
     try {
       const replies = await runSuggestedRepliesExtraction(opts);
       const ok = suggestedRepliesHaveContent(replies);
-      writeReplies(opts.messageId, opts.generationScope, replies, !ok);
+      writeReplies(
+        opts.messageId,
+        opts.generationScope,
+        replies,
+        !ok,
+        opts.sharedInitialAttemptConsumed === true
+      );
       if (!ok) {
         console.error("[SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies", {
           messageId: opts.messageId,
@@ -233,7 +286,13 @@ export function scheduleSuggestedRepliesExtraction(opts: {
     } catch (e) {
       console.error("[SUGGESTED-REPLIES-ERROR] extraction job failed", (e as Error).message);
       try {
-        writeReplies(opts.messageId, opts.generationScope, [], true);
+        writeReplies(
+          opts.messageId,
+          opts.generationScope,
+          [],
+          true,
+          opts.sharedInitialAttemptConsumed === true
+        );
       } catch (writeErr) {
         console.error(
           "[SUGGESTED-REPLIES-ERROR] failed to write failed replies after job error",
@@ -251,10 +310,12 @@ export function requeueSuggestedRepliesExtractionIfNeeded(messageId: number): bo
   if (!generationScope) return false;
 
   const record = loadMessageSuggestedReplies(messageId);
+  if (record?.noRetry === true) return false;
   if (!shouldEnsureSuggestedRepliesExtraction(record)) return false;
   if (record && record.generationSequence != null && record.generationSequence !== generationScope.generationSequence) {
     return false;
   }
+  if (generationHasDurablePostTurnAttempt(generationScope)) return false;
   if (isJobRunning(generationScope)) return true;
 
   const db = getDb();

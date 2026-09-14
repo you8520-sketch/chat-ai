@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
-} from "@/lib/chatModels";
+import { OPENROUTER_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
 import { CompatibleCompletionError } from "@/lib/openRouterCompletion";
 import { extractStatusWidgetValuesForTurn } from "./extract";
 import type { ResolvedStatusWidgetTurn, StatusWidget } from "./types";
@@ -31,7 +28,7 @@ const resolved: ResolvedStatusWidgetTurn = {
   needsUserValues: false,
 };
 
-test("V4 Flash is unbounded and falls back to OpenRouter V4 once with diagnostics", async () => {
+test("single-source V4 503 is terminal after one physical attempt", async () => {
   const calls: Array<{ modelId: string; maxTokens?: number }> = [];
   const result = await extractStatusWidgetValuesForTurn({
     charName: "라이크",
@@ -42,51 +39,37 @@ test("V4 Flash is unbounded and falls back to OpenRouter V4 once with diagnostic
     env: {},
     caller: async (_system, _history, opts) => {
       calls.push({ modelId: opts.modelId, maxTokens: opts.maxTokens });
-      if (opts.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL) {
-        throw new CompatibleCompletionError({
-          message: "CheaperInference 503",
-          provider: "CheaperInference",
-          httpStatus: 503,
-        });
-      }
-      return {
-        text: JSON.stringify({ 시간: "14:35", 장소: "본부 로비" }),
-        usage: {
-          inputTokens: 300,
-          outputTokens: 40,
-          estimated: false,
-          finishReason: "stop",
-        },
-      };
+      throw new CompatibleCompletionError({
+        message: "CheaperInference 503",
+        provider: "CheaperInference",
+        httpStatus: 503,
+      });
     },
   });
 
-  assert.deepEqual(
-    calls.map((call) => call.modelId),
-    [
-      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-      OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
-    ]
-  );
+  assert.deepEqual(calls.map((call) => call.modelId), ["gpt-5.6-luna"]);
   assert.equal(calls[0]?.maxTokens, undefined);
-  assert.equal(calls[1]?.maxTokens, undefined);
-  assert.equal(calls[2]?.maxTokens, undefined);
-  assert.equal(result.meta.usedFallback, true);
+  assert.equal(
+    calls.filter((call) => call.modelId === OPENROUTER_DEEPSEEK_V4_FLASH_MODEL).length,
+    0
+  );
+  assert.equal(result.meta.actualCallCount, 1);
+  assert.equal(result.meta.postTurnPhysicalAttempted, true);
+  assert.equal(result.meta.usedFallback, false);
+  assert.equal(result.meta.exhausted, true);
   assert.equal(result.meta.attemptDiagnostics[0]?.httpStatus, 503);
-  assert.equal(result.meta.attemptDiagnostics[1]?.httpStatus, 503);
-  assert.equal(result.meta.attemptDiagnostics[2]?.finishReason, "stop");
-  assert.equal(result.values.character?.["장소"], "본부 로비");
+  assert.equal(result.meta.attemptDiagnostics[0]?.errorCode, "CompatibleCompletionError");
+  assert.equal(result.values.character, null);
 });
 
-test("dual-source extraction never calls the OpenRouter V4 fallback more than once per turn", async () => {
+test("dual-source partial response preserves valid source without fallback", async () => {
   const userWidget: StatusWidget = {
     ...widget,
     name: "유저 상태",
     fields: [{ id: "기분", label: "기분", instruction: "유저 기분" }],
     htmlTemplate: "{{기분}}",
   };
-  const models: string[] = [];
+  const calls: Array<{ modelId: string; requestKind: string }> = [];
   const result = await extractStatusWidgetValuesForTurn({
     charName: "라이크",
     personaName: "렌",
@@ -101,17 +84,28 @@ test("dual-source extraction never calls the OpenRouter V4 fallback more than on
     },
     env: {},
     caller: async (_system, _history, opts) => {
-      models.push(opts.modelId);
+      calls.push({ modelId: opts.modelId, requestKind: opts.requestKind });
       return {
-        text: "",
+        text: JSON.stringify({
+          character_values: { 시간: "14:35", 장소: "본부 로비" },
+          user_values: {},
+          extracted_facts: [],
+        }),
         usage: { inputTokens: 20, outputTokens: 10, estimated: false },
       };
     },
   });
 
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.modelId, "gpt-5.6-luna");
+  assert.equal(calls[0]?.requestKind, "background-status-widget-extract-combined");
   assert.equal(
-    models.filter((model) => model === OPENROUTER_DEEPSEEK_V4_FLASH_MODEL).length,
-    1
+    calls.filter((call) => call.modelId === OPENROUTER_DEEPSEEK_V4_FLASH_MODEL).length,
+    0
   );
-  assert.equal(result.meta.usedFallback, true);
+  assert.equal(result.meta.actualCallCount, 1);
+  assert.equal(result.meta.postTurnPhysicalAttempted, true);
+  assert.equal(result.meta.usedFallback, false);
+  assert.equal(result.values.character?.["장소"], "본부 로비");
+  assert.equal(result.values.user, null);
 });
