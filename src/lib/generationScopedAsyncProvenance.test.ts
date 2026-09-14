@@ -34,7 +34,7 @@ import {
   type ProviderCostLedgerRow,
 } from "@/lib/providerCostLedger";
 import { ensureAdminFinanceTables } from "@/lib/adminFinance";
-import { resolveAsyncTurnCoverage, resolveMemoryRelationshipExpectation } from "@/lib/asyncTurnCoverage";
+import { resolveAsyncTurnCoverage, resolveMemoryRelationshipExpectation, resolveSuggestedRepliesExpectation } from "@/lib/asyncTurnCoverage";
 import { buildAdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3";
 import type { Usage } from "@/lib/chatUsage";
 import { markMessageSuggestedRepliesIneligible, markMessageSuggestedRepliesPending, loadMessageSuggestedReplies, scheduleSuggestedRepliesExtraction, isSuggestedRepliesJobRunning, requeueSuggestedRepliesExtractionIfNeeded } from "@/lib/suggestedReplies/job";
@@ -820,8 +820,17 @@ describe("generation-scoped async provenance", () => {
     assert.equal(record?.pending, false);
     assert.equal(record?.failed, true);
     assert.equal(record?.noRetry, true);
+    assert.equal(record?.terminalReason, "original_turn_ineligible");
     assert.equal(record?.generationSequence, activeScope.generationSequence);
     assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
+    const expectation = resolveSuggestedRepliesExpectation({
+      usage: {} as Usage,
+      record,
+      repairLedgerRowCount: 0,
+    });
+    assert.equal(expectation.expectationState, "not_expected");
+    assert.equal(expectation.skipReason, "original_turn_ineligible");
+    assert.notEqual(expectation.taskFailed, true);
   });
 
   it("Q5 — generation N no-retry marker does not spend generation N+1 budget", async () => {

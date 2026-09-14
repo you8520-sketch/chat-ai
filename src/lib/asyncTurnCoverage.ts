@@ -120,6 +120,15 @@ export function resolveSuggestedRepliesExpectation(input: {
     };
   }
 
+  if (input.record.terminalReason === "original_turn_ineligible") {
+    return {
+      family,
+      label: ASYNC_FAMILY_LABELS[family],
+      expectationState: "not_expected",
+      skipReason: "original_turn_ineligible",
+    };
+  }
+
   if (input.record.pending) {
     return {
       family,

@@ -98,7 +98,8 @@ function writeReplies(
   scope: AssistantGenerationScope,
   replies: SuggestedReplyItem[],
   failed = false,
-  noRetry = false
+  noRetry = false,
+  terminalReason?: SuggestedRepliesRecord["terminalReason"]
 ): void {
   const db = getDb();
   if (!isCurrentAssistantGeneration(scope, db)) {
@@ -117,6 +118,7 @@ function writeReplies(
     pending: false,
     failed,
     ...(noRetry ? { noRetry: true } : {}),
+    ...(terminalReason ? { terminalReason } : {}),
     generationSequence: scope.generationSequence,
     generationRequestId: scope.generationRequestId,
   };
@@ -147,7 +149,7 @@ export function markMessageSuggestedRepliesIneligible(
   messageId: number,
   generationScope: AssistantGenerationScope
 ): void {
-  writeReplies(messageId, generationScope, [], true, true);
+  writeReplies(messageId, generationScope, [], true, true, "original_turn_ineligible");
 }
 
 export function isSuggestedRepliesJobRunning(scope: AssistantGenerationScope): boolean {
