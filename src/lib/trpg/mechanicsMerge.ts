@@ -198,6 +198,14 @@ export function resolveParticipantHp(opts: {
     opts.participantId
   );
 
+  // Server mechanics HP owners take precedence over GM structured HP. When none
+  // of these owns the participant's HP (e.g. a non-actor who did not submit, an
+  // incapacitated actor, or a referee consultation that produced no HP effect),
+  // the GM's structured resulting HP is honored so narration and sheet state
+  // stay consistent — same ownership the GM_LEGACY_DIRECT path already gets.
+  const mechanicsOwnsHp =
+    ownership.FLASH_REFEREE || ownership.SERVER_RECOVERY || ownership.SERVER_PREACTION;
+
   if (ownership.FLASH_REFEREE && stored != null) {
     return clampHp(stored, opts.maxHp);
   }
@@ -206,14 +214,16 @@ export function resolveParticipantHp(opts: {
     if (ownership.SERVER_RECOVERY || ownership.SERVER_PREACTION) {
       return postMechanics;
     }
-    return stored != null && !ownership.GM_LEGACY ? clampHp(stored, opts.maxHp) : clampHp(opts.startHp, opts.maxHp);
+    return stored != null && !ownership.GM_LEGACY && !mechanicsOwnsHp
+      ? clampHp(stored, opts.maxHp)
+      : clampHp(opts.startHp, opts.maxHp);
   }
 
   if (ownership.FLASH_REFEREE && stored != null) {
     return clampHp(stored, opts.maxHp);
   }
 
-  if (!ownership.GM_LEGACY) {
+  if (!ownership.GM_LEGACY && mechanicsOwnsHp) {
     return postMechanics;
   }
 
