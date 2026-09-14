@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { mergeMechanicsOwnedDelta, type resolveParticipantHp } from "./mechanicsMerge";
+import { mergeMechanicsOwnedDelta, hpOwnershipOf, resolveParticipantHp } from "./mechanicsMerge";
 import { resolveRoundMechanics } from "./mechanicsResolve";
-import type { MechanicsActorInput, MechanicsResolution } from "./mechanicsTypes";
+import type {
+  MechanicsActorInput,
+  MechanicsResolution,
+  TrpgOngoingEffect,
+} from "./mechanicsTypes";
 import type { TrpgSheetSnapshot, TrpgStateDelta } from "./types";
 
 function sheet(partial: Partial<TrpgSheetSnapshot> = {}): TrpgSheetSnapshot {
@@ -34,6 +38,33 @@ function actor(partial: Partial<MechanicsActorInput> = {}): MechanicsActorInput 
     finalScore: 15,
     dc: 12,
     statKey: "str",
+    ...partial,
+  };
+}
+
+/** Deterministic periodic_harm ongoing effect (poison), ticks LIGHT each round. */
+function poison(partial: Partial<TrpgOngoingEffect> = {}): TrpgOngoingEffect {
+  return {
+    id: 10,
+    campaignId: 1,
+    participantId: 1,
+    label: "중독",
+    kind: "periodic_harm",
+    severity: "MEDIUM",
+    stackKey: "poison",
+    stackPolicy: "refresh",
+    sourceRound: 5,
+    appliedRound: 5,
+    startsRound: 6,
+    tickClass: "LIGHT",
+    remainingTicks: 3,
+    lastTickRound: null,
+    recoveryMode: "treatment",
+    recoveryStat: "res",
+    treatmentMode: "generic_support",
+    requiredItem: null,
+    actionModifier: 0,
+    metadata: {},
     ...partial,
   };
 }
@@ -86,9 +117,6 @@ describe("HP-REPRO: GM_LEGACY direct-damage ownership (referee OFF, production d
   });
 
   it("Case A2: non-actor participant (no submission) + GM structured hp lower → HP must decrease", () => {
-    // Participant 2 is present (present with the party) but did not submit an
-    // action this round (e.g. can_act=0 / not required to act). The GM narrates
-    // an enemy hitting them and emits a lower structured hp.
     const res = resolve({
       sheets: [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
       actors: [actor({ participantId: 1 })],
@@ -100,17 +128,10 @@ describe("HP-REPRO: GM_LEGACY direct-damage ownership (referee OFF, production d
     );
     assert.equal(out.ok, true);
     if (!out.ok) return;
-    assert.equal(
-      hpOf(out.next, 2),
-      24,
-      "non-actor GM hp must commit (GM structured state must match narration)"
-    );
+    assert.equal(hpOf(out.next, 2), 24, "non-actor GM hp must commit");
   });
 
-  it("Case A3: referee ON + Flash called, GM-driven world harm on actor is not silently dropped when no mechanics HP owns it", () => {
-    // Referee enabled and called with fallback "none" ⇒ directHpOwner stays NONE
-    // ⇒ GM_LEGACY=false. A current-GM-created NPC/world attack therefore has no
-    // mechanics HP owner, yet the merge returns postMechanics (startHp).
+  it("Case A3: referee ON + Flash called, GM world harm on actor with no authoritative HP is not dropped", () => {
     const res = resolve({
       actors: [actor({ participantId: 1 })],
       calledFlash: true,
@@ -118,40 +139,141 @@ describe("HP-REPRO: GM_LEGACY direct-damage ownership (referee OFF, production d
       flash: null,
       rng: () => 4,
     });
-    // Confirm the ownership predicate the merge relies on.
     const out = mergeMechanicsOwnedDelta([sheet({ hp: 30 })], gmPlayersHp(1, 23), res);
     assert.equal(out.ok, true);
     if (!out.ok) return;
-    assert.equal(
-      hpOf(out.next, 1),
-      23,
-      "GM structured harm must not be dropped when mechanics produced no authoritative HP"
-    );
+    assert.equal(hpOf(out.next, 1), 23);
   });
 });
 
-describe("HP-REPRO: ongoing / heal / reroll / retry invariants", () => {
-  it("Case C: ongoing poison does not double-tick in the same round", () => {
+describe("HP-REPRO: layered ownership boundaries (L1-L4)", () => {
+  it("L1: non-actor + ongoing tick + GM current direct harm → tick once AND GM harm composed", () => {
+    const p2poison = poison({ id: 21, participantId: 2 });
+    const res = resolve({
+      sheets: [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      actors: [actor({ participantId: 1 })],
+      effects: [p2poison],
+    });
+    const ownership = hpOwnershipOf(res, 2);
+    assert.equal(ownership.SERVER_PREACTION, true, "p2 has a pre-action tick layer");
+    assert.equal(ownership.GM_LEGACY, false, "p2 is a non-actor");
+    const tick = res.ongoingTicks.find((row) => row.participantId === 2);
+    assert.ok(tick, "ongoing tick must be scheduled for p2");
+    const tickedHp = 30 - (tick!.hpBefore - tick!.hpAfter);
+
+    // GM narrates a world/NPC attack and returns a lower resulting hp for p2.
+    const out = mergeMechanicsOwnedDelta(
+      [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      gmPlayersHp(2, 22),
+      res
+    );
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.equal(
+      hpOf(out.next, 2),
+      22,
+      `GM current harm must not be dropped by the pre-action tick layer (tickedHp=${tickedHp})`
+    );
+    assert.notEqual(hpOf(out.next, 2), tickedHp, "tick must not be the only applied layer");
+  });
+
+  it("L2: actor + ongoing tick + GM current direct harm → same composed result as L1", () => {
+    const p1poison = poison({ id: 22, participantId: 1 });
+    const res = resolve({
+      sheets: [sheet({ participantId: 1, hp: 30 })],
+      actors: [actor({ participantId: 1 })],
+      effects: [p1poison],
+    });
+    assert.equal(hpOwnershipOf(res, 1).GM_LEGACY, true);
+    assert.equal(hpOwnershipOf(res, 1).SERVER_PREACTION, true);
+    const out = mergeMechanicsOwnedDelta([sheet({ hp: 30 })], gmPlayersHp(1, 22), res);
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.equal(hpOf(out.next, 1), 22, "actor GM_LEGACY harm composes over the tick layer");
+  });
+
+  it("L3: authoritative FLASH harm wins; GM hp must not override it", () => {
     const res = resolve({
       sheets: [sheet({ hp: 30 })],
-      actors: [actor()],
-      effects: [],
+      actors: [actor({ participantId: 1 })],
+      flash: {
+        effects: [{ participantId: 1, directEffect: "harm", directClass: "MEDIUM", cause: "enemy_counter" }],
+      },
+      fallback: "none",
+      calledFlash: true,
+      rng: () => 4,
     });
-    // No effects configured ⇒ no tick this round.
+    assert.equal(hpOwnershipOf(res, 1).FLASH_REFEREE, true);
+    const stored = res.hpAfter["1"];
+    assert.notEqual(stored, undefined);
+    const out = mergeMechanicsOwnedDelta([sheet({ hp: 30 })], gmPlayersHp(1, 12), res);
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.equal(hpOf(out.next, 1), stored, "GM hp must not override authoritative FLASH HP");
+  });
+
+  it("L4: SERVER_RECOVERY floor composes with GM_LEGACY harm (layered recovery + GM)", () => {
+    // Mirrors mechanicsOwnership.test.ts "5. A heals B +4 and B GM_LEGACY harm".
+    const res = resolve({
+      sheets: [sheet({ participantId: 1, hp: 20 }), sheet({ participantId: 2, name: "렌", hp: 10, maxHp: 25 })],
+      actors: [
+        actor({ participantId: 1, body: "렌의 상처를 응급처치한다", actionType: "support", tier: "SUCCESS" }),
+        actor({ participantId: 2, name: "렌", actionType: "attack", body: "반격한다", tier: "FAILURE" }),
+      ],
+      fallback: "gm_legacy",
+      calledFlash: false,
+      rng: () => 4,
+    });
+    const bFlags = hpOwnershipOf(res, 2);
+    assert.equal(bFlags.SERVER_RECOVERY, true);
+    assert.equal(bFlags.GM_LEGACY, true);
+    assert.equal(
+      resolveParticipantHp({ startHp: 10, maxHp: 25, resolution: res, participantId: 2, gmHp: 7 }),
+      11,
+      "recovery floor (+4) and GM harm (7) compose to 11"
+    );
+    const out = mergeMechanicsOwnedDelta(
+      [sheet({ participantId: 1, hp: 20 }), sheet({ participantId: 2, name: "렌", hp: 10, maxHp: 25 })],
+      gmPlayersHp(2, 7),
+      res
+    );
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.equal(hpOf(out.next, 2), 11);
+  });
+});
+
+describe("HP-REPRO: actual periodic_harm tick semantics", () => {
+  it("ONGOING-1: first application ticks exactly once and sets owner flags", () => {
+    const res = resolve({
+      sheets: [sheet({ hp: 30 })],
+      actors: [actor({ participantId: 1 })],
+      effects: [poison({ id: 31, participantId: 1 })],
+    });
+    assert.equal(res.ongoingTicks.filter((t) => t.participantId === 1).length, 1, "exactly one tick");
+    assert.equal(hpOwnershipOf(res, 1).SERVER_PREACTION, true);
     const out = mergeMechanicsOwnedDelta([sheet({ hp: 30 })], { players: [] } as TrpgStateDelta, res);
     assert.equal(out.ok, true);
     if (!out.ok) return;
-    assert.equal(hpOf(out.next, 1), 30);
+    assert.equal(hpOf(out.next, 1), res.ongoingTicks[0]!.hpAfter, "tick floor applies");
   });
 
-  it("Case E: applying the same resolution twice is idempotent (no double damage)", () => {
-    const res = resolve();
-    const first = mergeMechanicsOwnedDelta([sheet({ hp: 30 })], gmPlayersHp(1, 24), res);
-    assert.equal(first.ok, true);
-    if (!first.ok) return;
-    const second = mergeMechanicsOwnedDelta(first.next, gmPlayersHp(1, 24), res);
-    assert.equal(second.ok, true);
-    if (!second.ok) return;
-    assert.equal(hpOf(second.next, 1), 24, "re-applying the same round must not double-decrement");
+  it("ONGOING-2: re-applying the same resolution does not tick twice", () => {
+    const res = resolve({
+      sheets: [sheet({ hp: 30 })],
+      actors: [actor({ participantId: 1 })],
+      effects: [poison({ id: 32, participantId: 1, lastTickRound: 6 })],
+    });
+    assert.equal(res.ongoingTicks.length, 0, "already ticked this round → no second tick");
+  });
+
+  it("ONGOING-3: next eligible round ticks once", () => {
+    const res = resolve({
+      roundNumber: 7,
+      sheets: [sheet({ hp: 27 })],
+      actors: [actor({ participantId: 1 })],
+      effects: [poison({ id: 33, participantId: 1, lastTickRound: 6, remainingTicks: 2 })],
+    });
+    assert.equal(res.ongoingTicks.filter((t) => t.participantId === 1).length, 1);
   });
 });

@@ -198,13 +198,16 @@ export function resolveParticipantHp(opts: {
     opts.participantId
   );
 
-  // Server mechanics HP owners take precedence over GM structured HP. When none
-  // of these owns the participant's HP (e.g. a non-actor who did not submit, an
-  // incapacitated actor, or a referee consultation that produced no HP effect),
-  // the GM's structured resulting HP is honored so narration and sheet state
-  // stay consistent — same ownership the GM_LEGACY_DIRECT path already gets.
-  const mechanicsOwnsHp =
-    ownership.FLASH_REFEREE || ownership.SERVER_RECOVERY || ownership.SERVER_PREACTION;
+  // Server mechanics owners of the participant's CURRENT-ACTION HP take
+  // precedence over GM structured HP: FLASH_REFEREE (authoritative classified
+  // direct HP) and SERVER_RECOVERY (recovery floor / authorized first aid).
+  // SERVER_PREACTION is only a pre-action tick layer — it is NOT a whole-round
+  // HP owner, so GM current-action HP still composes over it via
+  // fallbackHpAfterTickAndGmHeal. When none of these owns the HP (e.g. a
+  // non-actor who did not submit, an incapacitated actor, or a referee
+  // consultation that produced no HP effect), GM structured HP is honored so
+  // narration and sheet state stay consistent.
+  const mechanicsOwnsCurrentActionHp = ownership.FLASH_REFEREE || ownership.SERVER_RECOVERY;
 
   if (ownership.FLASH_REFEREE && stored != null) {
     return clampHp(stored, opts.maxHp);
@@ -214,7 +217,7 @@ export function resolveParticipantHp(opts: {
     if (ownership.SERVER_RECOVERY || ownership.SERVER_PREACTION) {
       return postMechanics;
     }
-    return stored != null && !ownership.GM_LEGACY && !mechanicsOwnsHp
+    return stored != null && !ownership.GM_LEGACY && !mechanicsOwnsCurrentActionHp
       ? clampHp(stored, opts.maxHp)
       : clampHp(opts.startHp, opts.maxHp);
   }
@@ -223,7 +226,7 @@ export function resolveParticipantHp(opts: {
     return clampHp(stored, opts.maxHp);
   }
 
-  if (!ownership.GM_LEGACY && mechanicsOwnsHp) {
+  if (!ownership.GM_LEGACY && mechanicsOwnsCurrentActionHp) {
     return postMechanics;
   }
 
