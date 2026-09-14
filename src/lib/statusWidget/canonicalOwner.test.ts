@@ -54,6 +54,11 @@ function baseInput(overrides: Record<string, unknown> = {}) {
     charName: "레온",
     personaName: "렌",
     userMessage: "안녕",
+    generationScope: {
+      assistantMessageId: 1,
+      generationSequence: 0,
+      generationRequestId: "status-owner-test",
+    },
     ...overrides,
   };
 }
@@ -149,23 +154,28 @@ describe("status canonical owner orchestration (Luna decides, leak never canonic
   });
 
   it("shared/coalesced path → Luna invoked, canonical values from Luna, no new duplicate", async () => {
-    // Note: the widget-only mock does not satisfy the combined shared parser,
-    // so the pre-existing shared-miss → dedicated-repair fallback engages.
-    // That fallback is shared-orchestration logic, not new duplication from
-    // the canonical-owner change. Assert Luna ownership + bounded calls.
     const kinds: string[] = [];
+    const sharedJson = JSON.stringify({
+      statusWidget: {
+        character_values: JSON.parse(LUNA_JSON),
+        extracted_facts: [],
+      },
+      suggestedReplies: {
+        items: [
+          { kind: "escalate", text: "가".repeat(60) },
+          { kind: "soften", text: "나".repeat(60) },
+          { kind: "pivot", text: "다".repeat(60) },
+        ],
+      },
+    });
     const out = await resolveStatusWidgetTurnValues({
       ...baseInput(),
       savedText: "RP 본문입니다. 카페에서 마주쳤다.",
       rawWidgetSourceText: "RP 본문입니다. 카페에서 마주쳤다.",
       coalesceSuggestedReplies: true,
-      extractCaller: lunaCaller(LUNA_JSON, kinds),
+      extractCaller: lunaCaller(sharedJson, kinds),
     });
-    assert.ok(kinds.length >= 1, "Luna extraction must be invoked");
-    assert.ok(
-      kinds.length <= 2,
-      `bounded physical calls (shared miss → repair fallback is pre-existing), kinds=${kinds.join(",")}`
-    );
+    assert.equal(kinds.length, 1, "shared owner must make exactly one physical call");
     assert.ok(
       kinds.every((kind) => kind.includes("background-")),
       "every invocation must be a Luna background call"

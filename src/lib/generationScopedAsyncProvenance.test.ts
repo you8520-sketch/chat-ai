@@ -245,6 +245,62 @@ before(() => {
 after(() => uninstallIsolatedTestDatabase());
 
 describe("generation-scoped async provenance", () => {
+  it("G0 — partial initial content must not redefine the current request generation", () => {
+    seedRegenHarness();
+    const db = getDb();
+    db.prepare(
+      `UPDATE messages
+       SET content='partial streamed reply', generation_status='generating',
+           request_id='initial-request', alternates='[]', active_variant=0,
+           suggested_replies_json=NULL
+       WHERE id=?`
+    ).run(MSG_ID);
+
+    const readSideWhileStreaming = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.equal(
+      readSideWhileStreaming?.generationSequence,
+      1,
+      "persisted read-side inference sees partial content as a synthetic variant"
+    );
+    const currentRequestScope: AssistantGenerationScope = {
+      assistantMessageId: MSG_ID,
+      generationSequence: 0,
+      generationRequestId: "initial-request",
+    };
+
+    const attempt = startProviderCostAttempt(
+      {
+        ...buildPlatformAsyncTurnLedgerContext({
+          chatId: CHAT_ID,
+          assistantMessageId: MSG_ID,
+          generationSequence: currentRequestScope.generationSequence,
+          generationRequestId: currentRequestScope.generationRequestId,
+          family: "post_turn_shared_initial",
+          jobAttemptOrdinal: 1,
+        }),
+        persistInTests: true,
+      },
+      db
+    );
+    finalizeProviderCostAttempt(
+      attempt,
+      { actualProvider: "openrouter", actualModel: "gpt-5.6-luna", outcome: "success" },
+      db
+    );
+    db.prepare("UPDATE messages SET generation_status='completed' WHERE id=?").run(MSG_ID);
+
+    const finalizedScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.equal(finalizedScope?.generationSequence, currentRequestScope.generationSequence);
+    assert.equal(
+      listProviderCostEventsForAssistantGeneration(
+        MSG_ID,
+        finalizedScope!.generationSequence
+      ).length,
+      1
+    );
+    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
+  });
+
   it("G1 — initial generation ledger stays on generation 0", () => {
     seedMessage(null, null);
     insertLedgerRow(0, 0.002);

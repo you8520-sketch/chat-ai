@@ -23,7 +23,7 @@ import {
 import { sanitizeExtractedFacts } from "./extractedFacts";
 import { splitProseAndStatusWidgetValuesDeepSeek } from "./deepseekCapture";
 import type { TokenUsage } from "@/lib/ai";
-import { resolveActiveAssistantGenerationScope } from "@/lib/assistantGenerationScope";
+import type { AssistantGenerationScope } from "@/lib/assistantGenerationScope";
 import type { Usage } from "@/lib/chatUsage";
 import type { StatusWidgetExtractBillingMeta } from "./receiptUsage";
 import { fieldPlaceholderKey } from "./fieldKeys";
@@ -123,6 +123,8 @@ export type ResolveStatusWidgetTurnValuesInput = {
   assistantMessageId?: number;
   regenerateMessageId?: number;
   requestId?: string | null;
+  /** Canonical identity allocated by this request's streaming bootstrap. */
+  generationScope: AssistantGenerationScope;
   /** When true, coalesce widget initial + suggested replies initial (route gate). */
   coalesceSuggestedReplies?: boolean;
   /** When true, the shared initial call also carries the durable relationship delta. */
@@ -374,9 +376,6 @@ export async function resolveStatusWidgetTurnValues(
         input.chatId,
         messageId ?? undefined
       );
-      const generationScope = messageId
-        ? resolveActiveAssistantGenerationScope(messageId)
-        : null;
       const v3Result = await extractStatusWidgetValuesForTurn({
         charName: input.charName,
         characterIdentity: input.characterIdentity,
@@ -392,8 +391,8 @@ export async function resolveStatusWidgetTurnValues(
         userNote: input.userNote,
         trace: {
           ...traceBase,
-          generationSequence: generationScope?.generationSequence,
-          generationRequestId: generationScope?.generationRequestId,
+          generationSequence: input.generationScope.generationSequence,
+          generationRequestId: input.generationScope.generationRequestId,
         },
         // No current-turn leak seed: valuesPayload is null here by invariant
         // (leak never promoted), so Luna decides purely from prose plus the
