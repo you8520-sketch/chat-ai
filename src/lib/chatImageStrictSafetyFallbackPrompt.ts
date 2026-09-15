@@ -84,8 +84,13 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
   const rawHasLying = containsSafeLyingOrRestContext(raw);
   const rawHasKiss = /(?:키스|kiss)/iu.test(raw);
   const rawHasHug = /(?:껴안|포옹|안아|hug|embrace)/iu.test(raw);
-  const rawHasShyMood = /(?:수줍|부끄|활(?:활)?(?:기|홍)|awkward|flushed|shy)/iu.test(raw);
-  const rawHasTenderMood = /(?:애틋|다정|tender|친밀|설렘|떨림)/iu.test(raw);
+  const rawHasShyMood = /(?:수줍|부끄|활(?:활)?(?:기|홍)|awkward|flushed|shy|홍조|상기)/iu.test(raw);
+  const rawHasTenderMood = /(?:애틋|다정|tender|친밀|설렘|떨림|열감|heated)/iu.test(raw);
+  const rawHasShirtless = /(?:셔츠(?:를)?\s*벗|상의(?:를)?\s*벗|shirtless|bare shoulders|어깨(?:가|를)?\s*(?:드|노))/iu.test(
+    raw
+  );
+  const rawHasMessyBed =
+    /(?:이불(?:이)?.{0,24}?(?:엉|구|헤|뒤)|rumpled|dishevel|messy\s*bed|흐트러|구김)/iu.test(raw);
   const rawHasCafe = /(?:카페|cafe)/iu.test(raw);
   const rawHasPark = /(?:공원|park)/iu.test(raw);
 
@@ -112,15 +117,29 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
   } else if (rawHasHug) {
     safeComposition =
       "same two characters sharing calm affectionate proximity with modest covered clothing";
-  } else if (rawHasBedroom && rawHasLying) {
-    safeComposition =
-      "same two characters resting side by side on the bed with modest covered clothing or soft sheet coverage";
-  } else if (rawHasLying) {
-    safeComposition =
-      "same two characters resting together with modest covered clothing, preserving lying posture";
-  } else if (rawHasBedroom) {
-    safeComposition =
-      "same two characters in the bedroom with modest covered clothing, preserving bed proximity";
+  } else if (rawHasBedroom || rawHasLying) {
+    const compositionParts = ["same two characters"];
+    if (rawHasBedroom && rawHasLying) {
+      compositionParts.push(
+        "resting side by side on the bed with modest covered clothing or soft sheet coverage"
+      );
+    } else if (rawHasLying) {
+      compositionParts.push("resting together with modest covered clothing, preserving lying posture");
+    } else {
+      compositionParts.push("in the bedroom with modest covered clothing, preserving bed proximity");
+    }
+    if (opts.adultGrounded === true && rawHasShirtless) {
+      compositionParts.push(
+        "adult male bare upper torso framed from shoulders/chest upward with modest sheet coverage below"
+      );
+    }
+    if (rawHasShyMood) {
+      compositionParts.push("flushed or shy expressions");
+    }
+    if (rawHasMessyBed) {
+      compositionParts.push("gently rumpled bedding");
+    }
+    safeComposition = compositionParts.join(", ");
   } else {
     safeComposition =
       "same two characters in the same location with modest posture and readable expressions";
@@ -128,9 +147,11 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
 
   let safeMood = "warm, gentle emotional connection";
   if (rawHasShyMood) {
-    safeMood = "shy, flushed, or gently awkward emotional tone preserved from the source";
+    safeMood = "shy, flushed, or gently heated emotional tone preserved from the source";
   } else if (rawHasTenderMood) {
     safeMood = "warm, tender emotional connection preserved from the source";
+  } else if (rawHasMessyBed) {
+    safeMood = "soft intimate bedroom mood with gently disheveled bedding preserved from the source";
   }
 
   return { safeBroadLocation, safeMood, safeComposition };

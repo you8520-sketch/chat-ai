@@ -1338,6 +1338,7 @@ export async function POST(req: Request) {
       referencePack: trpgPartyPack,
 contentKind: context.contentKind,
       compositionMode: "full_provider_rendered",
+      adultGrounded: roomAdultGrounded,
       providerTextAdultEligible: roomAdultGrounded,
       fullSourceDirectText: source.turnText,
     });

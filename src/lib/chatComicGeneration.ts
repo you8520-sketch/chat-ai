@@ -18,6 +18,7 @@ import {
 } from "@/lib/chatImageScenePlan";
 import { buildIllustrationSafeDepiction } from "@/lib/chatImageIllustrationSanitizer";
 import {
+  projectSceneBlockForSafeImageGeneration,
   projectTextForSafeImagePrompt,
   shouldOmitDialogueFromImageProjection,
   type SafeVisualProjectionContext,
@@ -191,6 +192,9 @@ export function buildChatComicImagePrompt(opts: {
   const directSourceText = (opts.fullSourceDirectText ?? "").trim();
   const fullSourceDirect =
     compositionMode === "full_provider_rendered" && directSourceText.length > 0;
+  const providerBoundDirectSource = fullSourceDirect
+    ? projectSceneBlockForSafeImageGeneration(directSourceText, projectionContext).text
+    : directSourceText;
   const compositionContract = fullSourceDirect
       ? "RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT — the image is the final comic. Render the composed dialogue and narration as readable Korean text, with readable Korean SFX where appropriate."
       : compositionMode === "blank_balloon_hybrid"
@@ -206,7 +210,7 @@ export function buildChatComicImagePrompt(opts: {
           ? "Readable dialogue and narration will be added later by server overlay. Leave clean negative space (especially upper-right of each panel) for text overlay."
           : "Make balloon tails point toward the actual speaker. Do not let bubbles cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page and do not repeat the same composition in every panel. Readable, visually integrated Korean text is required — imperfect typography is acceptable, but text must be legible and belong to the comic. Use narration sparingly — include only very short time-ordered narration boxes for crucial transitions, never long prose paragraphs.";
   const panelSpecSection = fullSourceDirect
-    ? renderFullSourceDirectSection(directSourceText)
+    ? renderFullSourceDirectSection(providerBoundDirectSource)
     : compositionMode === "full_provider_rendered"
       ? buildChatComicPanelSpecFullProviderSection({
           plan: opts.plan,
