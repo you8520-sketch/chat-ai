@@ -161,6 +161,9 @@ export function parseSuggestedRepliesRecord(
       pending: parsed.pending === true,
       failed: parsed.failed === true,
       ...(parsed.noRetry === true ? { noRetry: true } : {}),
+      ...(parsed.terminalReason === "original_turn_ineligible"
+        ? { terminalReason: parsed.terminalReason }
+        : {}),
       generationSequence:
         typeof parsed.generationSequence === "number" &&
         Number.isInteger(parsed.generationSequence) &&

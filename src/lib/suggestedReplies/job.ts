@@ -98,7 +98,8 @@ function writeReplies(
   scope: AssistantGenerationScope,
   replies: SuggestedReplyItem[],
   failed = false,
-  noRetry = false
+  noRetry = false,
+  terminalReason?: SuggestedRepliesRecord["terminalReason"]
 ): void {
   const db = getDb();
   if (!isCurrentAssistantGeneration(scope, db)) {
@@ -117,6 +118,7 @@ function writeReplies(
     pending: false,
     failed,
     ...(noRetry ? { noRetry: true } : {}),
+    ...(terminalReason ? { terminalReason } : {}),
     generationSequence: scope.generationSequence,
     generationRequestId: scope.generationRequestId,
   };
@@ -140,6 +142,14 @@ export function markMessageSuggestedRepliesPending(
       generationRequestId: null,
     } satisfies AssistantGenerationScope);
   writePending(messageId, scope);
+}
+
+/** Persist original-turn ineligibility so a later GET cannot create provider work. */
+export function markMessageSuggestedRepliesIneligible(
+  messageId: number,
+  generationScope: AssistantGenerationScope
+): void {
+  writeReplies(messageId, generationScope, [], true, true, "original_turn_ineligible");
 }
 
 export function isSuggestedRepliesJobRunning(scope: AssistantGenerationScope): boolean {

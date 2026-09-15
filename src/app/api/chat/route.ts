@@ -407,6 +407,7 @@ import {
 import { scheduleStatusMetaExtraction, markMessageStatusMetaPending } from "@/lib/statusMeta/job";
 import {
   scheduleSuggestedRepliesExtraction,
+  markMessageSuggestedRepliesIneligible,
   markMessageSuggestedRepliesPending,
 } from "@/lib/suggestedReplies/job";
 import { resolveStatusMetaExtractionEnabled } from "@/lib/statusMeta/displayPolicy";
@@ -2589,6 +2590,13 @@ export async function POST(req: Request) {
       });
   userMessageId = bootstrapped.userMessageId;
   const persistedAssistantId = bootstrapped.assistantMessageId;
+  const currentTurnGenerationScope: AssistantGenerationScope = {
+    assistantMessageId: persistedAssistantId,
+    generationSequence: regenerateMessageId
+      ? resolveNextAssistantGenerationSequence(regenerateMessageId, db)
+      : 0,
+    generationRequestId: clientRequestId ?? null,
+  };
   skipUserInsert = true; // already saved (or regenerate)
   persistenceDiag.userMessageSaved = bootstrapped.userMessageSaved;
   persistenceDiag.assistantPlaceholderCreated = bootstrapped.assistantPlaceholderCreated;
@@ -2599,11 +2607,7 @@ export async function POST(req: Request) {
       userPersona: userPersonaPrompt ?? undefined,
       userMessage: messageText,
     });
-    const regenGenerationScope: AssistantGenerationScope = {
-      assistantMessageId: regenerateMessageId,
-      generationSequence: resolveNextAssistantGenerationSequence(regenerateMessageId, db),
-      generationRequestId: clientRequestId ?? null,
-    };
+    const regenGenerationScope = currentTurnGenerationScope;
     if (regenStatusPolicy.everyTurn && regenStatusPolicy.formatSpec) {
       markMessageStatusMetaPending(
         regenerateMessageId,
@@ -4861,6 +4865,7 @@ export async function POST(req: Request) {
             assistantMessageId: persistedAssistantId,
             regenerateMessageId: regenerateMessageId ?? undefined,
             requestId: clientRequestId ?? null,
+            generationScope: currentTurnGenerationScope,
             userId: user.id,
             characterId: ch.id,
             coalesceSuggestedReplies:
@@ -5840,6 +5845,9 @@ export async function POST(req: Request) {
             sharedInitialAttemptConsumed: widgetPostTurnPhysicalAttempted,
           });
         };
+        if (!suggestedRepliesEnabled) {
+          markMessageSuggestedRepliesIneligible(aiMessageId, postTurnGenerationScope);
+        }
         // status OFF defers to the post-final background shared call.
         if (statusWidgetActive) scheduleRepliesIfEnabled();
 

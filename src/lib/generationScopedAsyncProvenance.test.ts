@@ -34,10 +34,10 @@ import {
   type ProviderCostLedgerRow,
 } from "@/lib/providerCostLedger";
 import { ensureAdminFinanceTables } from "@/lib/adminFinance";
-import { resolveAsyncTurnCoverage, resolveMemoryRelationshipExpectation } from "@/lib/asyncTurnCoverage";
+import { resolveAsyncTurnCoverage, resolveMemoryRelationshipExpectation, resolveSuggestedRepliesExpectation } from "@/lib/asyncTurnCoverage";
 import { buildAdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3";
 import type { Usage } from "@/lib/chatUsage";
-import { markMessageSuggestedRepliesPending, loadMessageSuggestedReplies, scheduleSuggestedRepliesExtraction, isSuggestedRepliesJobRunning, requeueSuggestedRepliesExtractionIfNeeded } from "@/lib/suggestedReplies/job";
+import { markMessageSuggestedRepliesIneligible, markMessageSuggestedRepliesPending, loadMessageSuggestedReplies, scheduleSuggestedRepliesExtraction, isSuggestedRepliesJobRunning, requeueSuggestedRepliesExtractionIfNeeded } from "@/lib/suggestedReplies/job";
 import { markMessageStatusMetaPending, loadMessageStatusMeta, scheduleStatusMetaExtraction, isStatusMetaJobRunning, requeueStatusMetaExtractionIfNeeded } from "@/lib/statusMeta/job";
 import { SUGGESTED_REPLY_KINDS } from "@/lib/suggestedReplies/types";
 import { bootstrapStreamingTurn } from "@/lib/streamingPersistence";
@@ -245,6 +245,62 @@ before(() => {
 after(() => uninstallIsolatedTestDatabase());
 
 describe("generation-scoped async provenance", () => {
+  it("G0 — partial initial content must not redefine the current request generation", () => {
+    seedRegenHarness();
+    const db = getDb();
+    db.prepare(
+      `UPDATE messages
+       SET content='partial streamed reply', generation_status='generating',
+           request_id='initial-request', alternates='[]', active_variant=0,
+           suggested_replies_json=NULL
+       WHERE id=?`
+    ).run(MSG_ID);
+
+    const readSideWhileStreaming = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.equal(
+      readSideWhileStreaming?.generationSequence,
+      1,
+      "persisted read-side inference sees partial content as a synthetic variant"
+    );
+    const currentRequestScope: AssistantGenerationScope = {
+      assistantMessageId: MSG_ID,
+      generationSequence: 0,
+      generationRequestId: "initial-request",
+    };
+
+    const attempt = startProviderCostAttempt(
+      {
+        ...buildPlatformAsyncTurnLedgerContext({
+          chatId: CHAT_ID,
+          assistantMessageId: MSG_ID,
+          generationSequence: currentRequestScope.generationSequence,
+          generationRequestId: currentRequestScope.generationRequestId,
+          family: "post_turn_shared_initial",
+          jobAttemptOrdinal: 1,
+        }),
+        persistInTests: true,
+      },
+      db
+    );
+    finalizeProviderCostAttempt(
+      attempt,
+      { actualProvider: "openrouter", actualModel: "gpt-5.6-luna", outcome: "success" },
+      db
+    );
+    db.prepare("UPDATE messages SET generation_status='completed' WHERE id=?").run(MSG_ID);
+
+    const finalizedScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.equal(finalizedScope?.generationSequence, currentRequestScope.generationSequence);
+    assert.equal(
+      listProviderCostEventsForAssistantGeneration(
+        MSG_ID,
+        finalizedScope!.generationSequence
+      ).length,
+      1
+    );
+    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
+  });
+
   it("G1 — initial generation ledger stays on generation 0", () => {
     seedMessage(null, null);
     insertLedgerRow(0, 0.002);
@@ -809,6 +865,28 @@ describe("generation-scoped async provenance", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     assert.equal(providerCalls, 1);
     assert.notEqual(loadMessageSuggestedReplies(MSG_ID)?.noRetry, true);
+  });
+
+  it("Q4b — original-turn ineligibility is terminal and later GET-equivalent cannot call", () => {
+    seedRegenHarness();
+    const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(activeScope);
+    markMessageSuggestedRepliesIneligible(MSG_ID, activeScope);
+    const record = loadMessageSuggestedReplies(MSG_ID);
+    assert.equal(record?.pending, false);
+    assert.equal(record?.failed, true);
+    assert.equal(record?.noRetry, true);
+    assert.equal(record?.terminalReason, "original_turn_ineligible");
+    assert.equal(record?.generationSequence, activeScope.generationSequence);
+    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
+    const expectation = resolveSuggestedRepliesExpectation({
+      usage: {} as Usage,
+      record,
+      repairLedgerRowCount: 0,
+    });
+    assert.equal(expectation.expectationState, "not_expected");
+    assert.equal(expectation.skipReason, "original_turn_ineligible");
+    assert.notEqual(expectation.taskFailed, true);
   });
 
   it("Q5 — generation N no-retry marker does not spend generation N+1 budget", async () => {
