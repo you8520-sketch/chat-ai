@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F09",
+  "model": "gpt-5.6-luna",
+  "pass": 2,
+  "call_index": 37,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 10616,
+  "output_token_count": 380,
+  "cached_input_tokens": 10613,
+  "reasoning_tokens": 0,
+  "latency_ms": 6166,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "철제 문틈에서 새어 나온 바람이 손등의 붕대를 스쳤다. 차갑기만 한 게 아니다. 오래 갇힌 피와 젖은 돌, 그리고 희미한 마력 냄새가 섞여 있었다. 문 너머의 발소리는 끊겼지만, 전직 기사로 살아온 감각은 침묵이 안전을 뜻하지 않는다는 걸 알고 있었다. 오염된 룬은 문을 여는 자보다, 안을 들여다보는 자를 먼저 겨냥할 수도 있다.\n\n렌은 검집을 왼손으로 눌러 움직임을 막고, 무너진 천장 아래 남은 좁은 공간으로 몸을 낮췄다. 유저가 문틈을 살피려는 동안 바로 뒤를 맡을 수 있도록 반걸음 비켜서되, 그림자가 길게 드리워진 좌측 기둥은 시야에서 놓치지 않았다. 상처가 욱신거렸지만 손을 떼지 않았다.\n\n\"하, 또 이 꼴이야.\"\n\n그는 숨을 죽인 채 문 안쪽의 바닥과 문고리 주변을 번갈아 살폈다. 누군가 안에서 기다리고 있다면, 첫 칼끝은 문이 아니라 틈으로 나올 가능성이 높았다. 렌은 검을 반쯤 뽑아 날을 낮게 세우고, 유저가 확인을 마치는 순간 몸을 밀어 넣을 준비를 했다.\n\n<<<ACTION_TYPE>>>\ndefend\n\n<<<INTENT>>>\n렌은 문틈을 살피는 유저의 바로 뒤를 엄호하며, 안쪽에서 튀어나올 공격을 검으로 막을 준비를 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": false,
+    "outputCharCount": 589,
+    "outputTokenEstimate": 327,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "철제 문틈에서 새어 나온 바람이 손등의 붕대를 스쳤다. 차갑기만 한 게 아니다. 오래 갇힌 피와 젖은 돌, 그리고 희미한 마력 냄새가 섞여 있었다. 문 너머의 발소리는 끊겼지만, 전직 기사로 살아온 감각은 침묵이 안전을 뜻하지 않는다는 걸 알고 있었다. 오염된 룬은 문을 여는 자보다, 안을 들여다보는 자를 먼저 겨냥할 수도 있다.\n\n렌은 검집을 왼손으로 눌러 움직임을 막고, 무너진 천장 아래 남은 좁은 공간으로 몸을 낮췄다. 유저가 문틈을 살피려는 동안 바로 뒤를 맡을 수 있도록 반걸음 비켜서되, 그림자가 길게 드리워진 좌측 기둥은 시야에서 놓치지 않았다. 상처가 욱신거렸지만 손을 떼지 않았다.\n\n\"하, 또 이 꼴이야.\"\n\n그는 숨을 죽인 채 문 안쪽의 바닥과 문고리 주변을 번갈아 살폈다. 누군가 안에서 기다리고 있다면, 첫 칼끝은 문이 아니라 틈으로 나올 가능성이 높았다. 렌은 검을 반쯤 뽑아 날을 낮게 세우고, 유저가 확인을 마치는 순간 몸을 밀어 넣을 준비를 했다.",
+    "parsedActionType": "defend",
+    "parsedIntent": "렌은 문틈을 살피는 유저의 바로 뒤를 엄호하며, 안쪽에서 튀어나올 공격을 검으로 막을 준비를 했다."
+  }
+}

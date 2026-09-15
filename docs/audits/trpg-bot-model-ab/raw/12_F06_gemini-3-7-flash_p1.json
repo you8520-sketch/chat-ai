@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F06",
+  "model": "gemini-3.7-flash",
+  "pass": 1,
+  "call_index": 12,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 7932,
+  "output_token_count": 235,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 8565,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "통로 안쪽에서 번쩍인 붉은 섬광을 본 순간, 렌은 반사적으로 대형 방패의 손잡이를 단단히 쥐었다. 손등의 상처가 욱신거렸지만 신경 쓸 겨를 따위는 없었다.\n\n유저가 거침없이 문을 향해 쇄도하자, 렌의 무거운 강철 갑주가 요란한 소리를 내며 그 뒤를 따랐다. 좁아진 통로의 무너진 석재를 걷어차며 한 발짝 앞서 나가 유저의 측면을 몸으로 가렸다.\n\n\"내 뒤로.\"\n\n낮게 깔린 목소리와 함께 그는 방패를 비스듬히 세워 문틈에서 뿜어져 나올지 모를 마력 파편과 기습에 대비하며 자세를 낮췄다.\n\n<<<ACTION_TYPE>>>\ndefend\n<<<INTENT>>>\n렌은 방패를 앞세워 돌진하는 유저의 측면을 엄호하며 문틈에서 날아올 공격이나 함정을 막아서려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 367,
+    "outputTokenEstimate": 204,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "통로 안쪽에서 번쩍인 붉은 섬광을 본 순간, 렌은 반사적으로 대형 방패의 손잡이를 단단히 쥐었다. 손등의 상처가 욱신거렸지만 신경 쓸 겨를 따위는 없었다.\n\n유저가 거침없이 문을 향해 쇄도하자, 렌의 무거운 강철 갑주가 요란한 소리를 내며 그 뒤를 따랐다. 좁아진 통로의 무너진 석재를 걷어차며 한 발짝 앞서 나가 유저의 측면을 몸으로 가렸다.\n\n\"내 뒤로.\"\n\n낮게 깔린 목소리와 함께 그는 방패를 비스듬히 세워 문틈에서 뿜어져 나올지 모를 마력 파편과 기습에 대비하며 자세를 낮췄다.",
+    "parsedActionType": "defend",
+    "parsedIntent": "렌은 방패를 앞세워 돌진하는 유저의 측면을 엄호하며 문틈에서 날아올 공격이나 함정을 막아서려 했다."
+  }
+}
