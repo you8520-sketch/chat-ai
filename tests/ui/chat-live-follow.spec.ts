@@ -335,14 +335,7 @@ async function prepareDetachedHistory(page: Page, seedText: string) {
     undefined,
     { timeout: 15_000 }
   );
-  await page.evaluate(() => {
-    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
-    window.scrollBy({ top: -120, behavior: "instant" });
-  });
-  await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
-    followLatest: false,
-    manualDetached: true,
-  });
+  await setUpManualDetach(page);
 }
 
 async function readChatDiagnostics(page: Page): Promise<ChatDiagnostics> {
@@ -423,6 +416,56 @@ async function ensureExtraScrollRoom(page: Page, heightPx = EXTRA_SCROLL_ROOM_PX
       el.style.height = `${height}px`;
     }
   }, heightPx);
+}
+
+/** Upward delta requested by the canonical manual-detach fixture. */
+const MANUAL_DETACH_UP_PX = 120;
+/** Minimum proven upward movement for the detach fixture to be valid. */
+const MANUAL_DETACH_MIN_UP_DELTA_PX = 80;
+
+/**
+ * Canonical manual-detach fixture (single owner for the recipe). Callers add
+ * scroll room first. It settles at the bottom, verifies upward room, performs
+ * the upward scroll as its own step so it cannot coalesce with a preceding
+ * downward reposition into one net-downward scroll event, proves the actual
+ * negative delta, then condition-waits for the canonical production state.
+ * It never mutates refs/state/DOM attributes directly.
+ */
+async function setUpManualDetach(
+  page: Page,
+  opts: { programmaticScrollInFlight?: boolean } = {}
+): Promise<number> {
+  const baseline = await page.evaluate(async (inFlight) => {
+    if (inFlight) {
+      (window as Window & { __chatTestProgrammaticScrollInFlight?: boolean })
+        .__chatTestProgrammaticScrollInFlight = true;
+    }
+    const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    window.scrollTo({ top: maxY, behavior: "instant" });
+    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    return { y: window.scrollY, maxY };
+  }, opts.programmaticScrollInFlight ?? false);
+  if (baseline.y < MANUAL_DETACH_UP_PX + 60) {
+    throw new Error(
+      `manual detach fixture lacks upward room: baseline=${baseline.y} maxY=${baseline.maxY}`
+    );
+  }
+  const moved = await page.evaluate(async (upPx) => {
+    const before = window.scrollY;
+    window.scrollBy({ top: -upPx, behavior: "instant" });
+    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    return { before, after: window.scrollY };
+  }, MANUAL_DETACH_UP_PX);
+  if (moved.before - moved.after < MANUAL_DETACH_MIN_UP_DELTA_PX) {
+    throw new Error(
+      `manual detach upward scroll did not move enough: before=${moved.before} after=${moved.after}`
+    );
+  }
+  await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
+    followLatest: false,
+    manualDetached: true,
+  });
+  return moved.after;
 }
 
 function assertReadingBand(frames: MotionFrame[], viewportHeight: number) {
@@ -790,12 +833,7 @@ test.describe("General chat live reading follow — production browser", () => {
     );
     await page.waitForTimeout(600);
     await ensureExtraScrollRoom(page, 1200);
-    await page.evaluate(() => {
-      window.scrollTo({ top: 500, behavior: "instant" });
-    });
-    await page.waitForTimeout(50);
-    await page.evaluate(() => window.scrollBy({ top: -120, behavior: "instant" }));
-    await page.waitForTimeout(150);
+    await setUpManualDetach(page);
 
     const detached = await readChatDiagnostics(page);
     expect(detached.manualDetached).toBe(true);
@@ -825,12 +863,7 @@ test.describe("General chat live reading follow — production browser", () => {
     );
     await page.waitForTimeout(600);
     await ensureExtraScrollRoom(page, 1200);
-    await page.evaluate(() => {
-      window.scrollTo({ top: 500, behavior: "instant" });
-    });
-    await page.waitForTimeout(50);
-    await page.evaluate(() => window.scrollBy({ top: -120, behavior: "instant" }));
-    await page.waitForTimeout(150);
+    await setUpManualDetach(page);
 
     const detached = await readChatDiagnostics(page);
     expect(detached.manualDetached).toBe(true);
@@ -868,7 +901,10 @@ test.describe("General chat live reading follow — production browser", () => {
     const text = "direct submit latest before provider";
     try {
       await setReactTextareaValue(page, text);
-      await page.getByRole("button", { name: "전송", exact: true }).click();
+      // The explicit direct submit must not let the harness auto-scroll the
+      // document while the optimistic row settles; a CDP-driven viewport move
+      // would be classified by the manual-detach owner as user intent.
+      await clickSendWithoutOverlayHitTest(page);
       await deferredResponse.requestSeen;
 
       await expect(userRowForText(page, text)).toBeVisible();
@@ -975,8 +1011,7 @@ test.describe("General chat live reading follow — production browser", () => {
       undefined,
       { timeout: 45_000 }
     );
-    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
-    await page.evaluate(() => window.scrollBy({ top: -240, behavior: "instant" }));
+    await setUpManualDetach(page);
     await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
       liveReadingActive: false,
       followLatest: false,
@@ -1229,9 +1264,7 @@ test.describe("General chat live reading follow — production browser", () => {
     await sendMockMessage(page, "scrollbar detach");
     await waitForNetworkDoneVisualRevealPending(page);
     await ensureExtraScrollRoom(page, 1200);
-    await page.evaluate(() => window.scrollTo({ top: 500, behavior: "instant" }));
-    await page.waitForTimeout(50);
-    await page.evaluate(() => window.scrollBy({ top: -120, behavior: "instant" }));
+    await setUpManualDetach(page);
 
     await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
       followLatest: false,
@@ -1255,13 +1288,7 @@ test.describe("General chat live reading follow — production browser", () => {
     await sendMockMessage(page, "programmatic frame detach");
     await waitForNetworkDoneVisualRevealPending(page);
     await ensureExtraScrollRoom(page, 1200);
-    await page.evaluate(() => {
-      (window as Window & { __chatTestProgrammaticScrollInFlight?: boolean })
-        .__chatTestProgrammaticScrollInFlight = true;
-      window.scrollTo({ top: 500, behavior: "instant" });
-    });
-    await page.waitForTimeout(50);
-    await page.evaluate(() => window.scrollBy({ top: -120, behavior: "instant" }));
+    await setUpManualDetach(page, { programmaticScrollInFlight: true });
 
     await expect.poll(() => readChatDiagnostics(page)).toMatchObject({
       followLatest: false,

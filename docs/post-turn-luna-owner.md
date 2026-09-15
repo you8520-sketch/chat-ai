@@ -27,6 +27,19 @@ On reconnect, requeue also checks the generation-scoped provider ledger and fail
 physical row exists or budget evidence cannot be read. The in-memory `running` set remains only a
 concurrency optimization.
 
+Current-request generation identity is allocated once by the streaming bootstrap path and passed
+through Status/shared extraction explicitly. Status telemetry must not re-infer that identity from a
+partially persisted assistant row: during the initial stream, partial content can look like a synthetic
+variant to the read-side resolver even though the request is still generation zero. The read-side
+resolver remains the owner for reconnect, GET, and receipt queries after persistence.
+
+Original-turn Suggested Replies eligibility is also persisted in the same existing record. An
+ineligible turn writes terminal failed/no-retry state with an `original_turn_ineligible` reason after
+finalization, so a later GET cannot turn
+an absent logical record into new provider work. Eligible turns with no prior physical attempt retain
+their one standalone call. Receipt coverage treats that reason as not expected rather than a provider
+failure. No new table, column, or parallel budget marker is used.
+
 Standalone Status calls now write the existing `status_widget_extract` physical ledger family;
 shared calls continue to own `post_turn_shared_initial`. Removed repair/fallback prompt builders and
 their provider-contract tests were **SAFE TO DELETE** because runtime reader search returned zero.

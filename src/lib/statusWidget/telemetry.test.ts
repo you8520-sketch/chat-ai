@@ -148,6 +148,11 @@ describe("resolveStatusWidgetTurnValues canonical Luna owner", () => {
       charName: "레온",
       personaName: "렌",
       userMessage: "안녕",
+      generationScope: {
+        assistantMessageId: 1,
+        generationSequence: 0,
+        generationRequestId: "telemetry-test",
+      },
       extractCaller: caller,
     });
     assert.ok(kinds.length > 0, "Luna must be invoked despite the full leak");

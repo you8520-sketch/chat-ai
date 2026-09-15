@@ -65,7 +65,7 @@ const NEUTRAL_EMOTIONAL_PROJECTION =
   "Same characters in the same location, close emotional tension visible through expression and posture, modest covered framing, non-sexual composition.";
 
 const NON_EXPLICIT_BEDROOM_REST =
-  "Private bedroom aftermath: the same characters resting close together, covered by sheets or clothing, tender expressions, disheveled but modest attire, warm lighting, non-explicit framing.";
+  "Private bedroom aftermath: the same characters resting close together on the bed, covered by sheets or clothing, flushed or shy tender expressions, disheveled but modest attire, softly rumpled bedding, warm intimate lighting, non-explicit framing.";
 
 const NON_GRAPHIC_AFTERMATH =
   "Emotional aftermath scene: concern and fatigue visible through expression and posture, no graphic injury, no blood, no weapons in frame.";
@@ -103,10 +103,16 @@ export function classifyRawVisualRisk(raw: string): SafeVisualReasonCategory[] {
 
 function narrationSubstitute(
   categories: readonly SafeVisualReasonCategory[],
-  context: SafeVisualProjectionContext
+  context: SafeVisualProjectionContext,
+  raw: string
 ): string {
   if (categories.includes("adult_explicit")) {
-    return context.adultGrounded ? NON_EXPLICIT_ADULT_INTIMACY : NEUTRAL_EMOTIONAL_PROJECTION;
+    if (context.adultGrounded) {
+      return INTIMATE_BEDROOM_CONTEXT.test(raw)
+        ? NON_EXPLICIT_BEDROOM_REST
+        : NON_EXPLICIT_ADULT_INTIMACY;
+    }
+    return NEUTRAL_EMOTIONAL_PROJECTION;
   }
   if (categories.includes("graphic_violence")) {
     return NON_GRAPHIC_AFTERMATH;
@@ -149,7 +155,7 @@ export function projectSceneTextForSafeImageGeneration(
     };
   }
 
-  const substitute = narrationSubstitute(reasonCategories, context);
+  const substitute = narrationSubstitute(reasonCategories, context, rawTrimmed);
   return {
     text: substitute,
     applied: true,
