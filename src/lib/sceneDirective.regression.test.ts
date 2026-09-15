@@ -10,8 +10,10 @@ import {
   analyzeStagnation,
   buildSceneDirective,
   detectSceneStagnation,
+  detectUserLedProgress,
   getLastProgressionSelectionMeta,
   renderSceneDirectiveForPrompt,
+  renderSceneEngineRule,
   resolveNpcGrounding,
   selectProgressionTypesWeighted,
 } from "@/lib/sceneDirective";
@@ -272,19 +274,27 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     assert.ok(d.progressionTypes.length >= 1);
   });
 
-  it("Q16 party — ensemble behavior preserved", () => {
-    const d = buildSceneDirective({
-      mode: "interactive",
-      contentKind: "character",
-      party: true,
+  it("Q16 party — motion policy matches single_primary for same scene", () => {
+    const shared = {
+      mode: "interactive" as const,
+      contentKind: "character" as const,
       primaryCharacterName: "리더",
-      establishedActiveCastNames: ["부관", "정찰"],
       chatId: 116,
       currentTurn: 2,
-      currentUserMessage: "전진한다.",
+      currentUserMessage: "작전 회의를 계속하자. 침투 경로를 다시 짠다.",
+      recentMessages: [
+        { role: "assistant", content: "작전실에서 지도를 펼치고 침투 경로를 검토했다." },
+      ],
+    };
+    const party = buildSceneDirective({
+      ...shared,
+      party: true,
+      establishedActiveCastNames: ["부관", "정찰"],
     });
-    assert.equal(d.castFocus.sceneCastMode, "ensemble");
-    assert.notEqual(d.motionDecision, "HOLD");
+    const single = buildSceneDirective(shared);
+    assert.equal(party.castFocus.sceneCastMode, "ensemble");
+    assert.equal(party.motionDecision, single.motionDecision);
+    assert.ok(!party.motionReasons.includes("ensemble_mode"));
   });
 
   it("Q17 regenerate — same turn deterministic selection", () => {
@@ -344,5 +354,146 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     });
     assert.ok(!meta.eligible.includes("npc_action"));
     assert.equal(getLastProgressionSelectionMeta()?.npcGrounding.existingNpcEligible, false);
+  });
+
+  it("Q19 HOLD prompt — no contradictory mandatory-motion instruction", () => {
+    const d = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      primaryCharacterName: "태형",
+      chatId: 219,
+      currentTurn: 4,
+      recentMessages: quietRomance,
+      currentUserMessage: "손을 겹친다.",
+    });
+    assert.equal(d.motionDecision, "HOLD");
+    const block = renderSceneDirectiveForPrompt(d);
+    assert.doesNotMatch(block, /하나를 조용히 움직인/);
+    assert.doesNotMatch(block, /관계, 단서, 환경, NPC, 세계 반응/);
+    assert.match(block, /별도 사건, 새 전개 축, 새 인물 도입 의무는 없다/);
+    assert.match(block, /전개 필요: 없음/);
+    assert.equal(renderSceneEngineRule("HOLD").includes("의무는 없다"), true);
+  });
+
+  it("Q20 lore-only NPC — not scene-present => existingNpcEligible=false", () => {
+    const grounding = resolveNpcGrounding({
+      sceneSignalText: "조용히 소파에 앉아 있다.",
+      groundingText: "윤태건은 과거 동료였고 작전 기록에 자주 등장한다.",
+      knownSupportingCastNames: ["윤태건"],
+      activeSpeakingCast: ["태형"],
+    });
+    assert.equal(grounding.existingNpcEligible, false);
+    assert.deepEqual(grounding.eligibleActorNames, []);
+  });
+
+  it("Q21 known NPC explicitly current/present => existingNpcEligible=true", () => {
+    const grounding = resolveNpcGrounding({
+      sceneSignalText: "윤태건이 입구에 서 있다.",
+      groundingText: "",
+      knownSupportingCastNames: ["윤태건"],
+      activeSpeakingCast: ["태형", "윤태건"],
+    });
+    assert.equal(grounding.existingNpcEligible, true);
+    assert.ok(grounding.eligibleActorNames.includes("윤태건"));
+  });
+
+  it("Q22 departed/off-scene NPC => not eligible for npc_action", () => {
+    const grounding = resolveNpcGrounding({
+      sceneSignalText: "윤태건은 이미 퇴장했다. 태형만 남아 있다.",
+      groundingText: "",
+      knownSupportingCastNames: ["윤태건"],
+      activeSpeakingCast: ["태형"],
+    });
+    assert.equal(grounding.existingNpcEligible, false);
+    const { meta } = selectProgressionTypesWeighted({
+      sceneSignalText: "윤태건은 이미 퇴장했다. 태형만 남아 있다.",
+      groundingText: "",
+      intensity: 2,
+      stagnant: false,
+      chatId: 222,
+      currentTurn: 3,
+      sceneCastMode: "single_primary",
+      knownSupportingCastNames: ["윤태건"],
+      activeSpeakingCast: ["태형"],
+    });
+    assert.ok(!meta.eligible.includes("npc_action"));
+  });
+
+  it("Q23 long emotional dialogue without action => userLedProgress=false", () => {
+    const longEmotional =
+      "사실은… 오늘 하루 종일 네 생각뿐이었어. 말하지 못했지만, 네가 곁에 있어서 정말 다행이라고 느꼈어. 이런 마음을 어떻게 표현해야 할지 모르겠어.";
+    assert.equal(
+      detectUserLedProgress({ currentUserMessage: longEmotional }),
+      false
+    );
+    const d = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      primaryCharacterName: "태형",
+      chatId: 223,
+      currentTurn: 5,
+      recentMessages: quietRomance,
+      currentUserMessage: longEmotional,
+    });
+    assert.notEqual(d.motionReasons[0], "user_led_progress");
+  });
+
+  it("Q24 substring collision — 질문/문득 do not trigger userLedProgress", () => {
+    assert.equal(detectUserLedProgress({ currentUserMessage: "질문 하나만 해도 될까?" }), false);
+    assert.equal(detectUserLedProgress({ currentUserMessage: "문득 생각이 났어." }), false);
+  });
+
+  it("Q25 quiet interactive party — cast count alone does not force SCENE_ADVANCE", () => {
+    const d = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      party: true,
+      primaryCharacterName: "리더",
+      establishedActiveCastNames: ["부관", "정찰"],
+      chatId: 225,
+      currentTurn: 4,
+      recentMessages: quietRomance,
+      currentUserMessage: "조용히 앉아 있자.",
+    });
+    assert.equal(d.castFocus.sceneCastMode, "ensemble");
+    assert.ok(d.motionDecision === "HOLD" || d.motionDecision === "MICRO_MOTION");
+  });
+
+  it("Q26 auto progression quiet non-stagnant => MICRO_MOTION per continue contract", () => {
+    const d = buildSceneDirective({
+      mode: "auto_progression",
+      contentKind: "character",
+      primaryCharacterName: "태형",
+      chatId: 226,
+      currentTurn: 3,
+      recentMessages: quietRomance,
+      currentUserMessage: "자동진행",
+    });
+    assert.equal(d.recentStagnation, false);
+    assert.equal(d.motionDecision, "MICRO_MOTION");
+    assert.notEqual(d.motionDecision, "HOLD");
+    assert.ok(d.progressionTypes.length >= 1);
+  });
+
+  it("Q27 vague contact + organization memory != new NPC arrival", () => {
+    const grounding = resolveNpcGrounding({
+      sceneSignalText: "조용히 앉아 있다.",
+      groundingText: "조직 기록과 부대 연락망",
+      triggeredEventText: "[TRIGGER] 연락이 왔다.",
+      knownSupportingCastNames: [],
+      activeSpeakingCast: ["태형"],
+    });
+    assert.equal(grounding.newNpcAllowed, false);
+  });
+
+  it("Q28 explicit support arrival => newNpcAllowed", () => {
+    const grounding = resolveNpcGrounding({
+      sceneSignalText: "작전 중이다.",
+      groundingText: "",
+      triggeredEventText: "[TRIGGER] 지원팀이 도착했다.",
+      knownSupportingCastNames: [],
+      activeSpeakingCast: ["지휘관"],
+    });
+    assert.equal(grounding.newNpcAllowed, true);
   });
 });

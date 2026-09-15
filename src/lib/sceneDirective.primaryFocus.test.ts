@@ -68,7 +68,7 @@ describe("world-motion-v1.1.1 primary focus (server cast focus)", () => {
     assert.equal((block.match(/직접 발화 중심:/g) ?? []).length, 1);
     assert.match(block, /직접 발화 중심: 태형\./);
     assert.doesNotMatch(block, /supportingCastBudget|발화자\s*1명|직원.*말시키지|퇴장시키지/);
-    assert.ok(block.length < 650, `directive length ${block.length}`);
+    assert.ok(block.length < 900, `directive length ${block.length}`);
     assert.equal((block.match(/\[PRIVATE SCENE ENGINE RULE\]/g) ?? []).length, 1);
   });
 

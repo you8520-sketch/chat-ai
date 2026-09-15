@@ -55,9 +55,7 @@ export type SceneMotionDecision = "HOLD" | "MICRO_MOTION" | "SCENE_ADVANCE" | "E
 export type SceneMotionReason =
   | "quiet_interaction"
   | "user_led_progress"
-  | "recent_motion"
   | "repetition"
-  | "unresolved_consequence"
   | "trigger"
   | "stagnation"
   | "scene_kind_escalation"
@@ -195,11 +193,26 @@ const USER_CONTROL_LABELS: Record<SceneUserControl, string> = {
   persona_based_dialogue_allowed: AUTO_PROGRESSION_SCENE_USER_CONTROL,
 };
 
-const BASE_SCENE_ENGINE_RULE = [
-  "[PRIVATE SCENE ENGINE RULE]",
-  "반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.",
-  "전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.",
-].join("\n");
+/** Motion-decision-aware scene engine rule — sole owner for mandatory-motion semantics. */
+export function renderSceneEngineRule(motionDecision: SceneMotionDecision): string {
+  const body = (() => {
+    switch (motionDecision) {
+      case "HOLD":
+        return "현재 비트의 자연스러운 반응·대화·몸짓·감각을 이어간다. 별도 사건, 새 전개 축, 새 인물 도입 의무는 없다.";
+      case "MICRO_MOTION":
+        return "현재 상호작용 안에서 작은 관계·감각·환경 변화 하나를 조용히 이어간다. 새 인물·별도 사건은 만들지 않는다.";
+      case "SCENE_ADVANCE":
+        return "현재 인과에 맞는 장면 전개를 진행한다. 허용된 전개 축과 execution contract를 따른다.";
+      case "ESCALATE":
+        return "현재 인과와 직접 연결된 강한 외부 변화를 진행한다. execution contract 범위를 넘기지 않는다.";
+      default: {
+        const _exhaustive: never = motionDecision;
+        return _exhaustive;
+      }
+    }
+  })();
+  return `[PRIVATE SCENE ENGINE RULE]\n${body}\n전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.`;
+}
 
 const AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE =
   "다인물: 전개는 현재 중심 인물 하나에 고정되지 않는다. 여러 AI 캐릭터·NPC의 대화·판단·갈등·협력·적대·세계 사건을 함께 진행할 수 있다. [B] 내면 시점으로 전환하지 않는다.";
@@ -250,27 +263,46 @@ function normalizeForRepeat(text: string): string {
     .slice(0, 80);
 }
 
-const USER_PROGRESS_TERMS = [
+/** Current-turn causal action cues — avoid broad substring collisions (문/열/잡). */
+const USER_PROGRESS_ACTIONS = [
   "이동",
   "나가",
-  "들어",
-  "문",
-  "전화",
-  "메시지",
-  "발견",
-  "단서",
-  "기록",
-  "계획",
+  "들어가",
+  "들어간",
+  "나간",
+  "빠져",
+  "전진",
+  "도망",
   "추적",
+  "조사",
+  "발견",
+  "공격",
+  "전투",
+  "문을 열",
+  "문을 닫",
+  "열어",
+  "닫아",
+  "계획",
+  "결정",
+  "시작",
   "요청",
   "보고",
-  "시작",
-  "결정",
-  "열",
-  "닫",
-  "잡",
-  "걷",
   "뛰",
+  "달리",
+  "걸어",
+  "전화",
+  "메시지",
+];
+
+const OFF_SCENE_CUES = ["떠났", "퇴장", "나갔", "떠나", "돌아갔", "자리를 비", "보이지 않", "사라졌"];
+
+const EXPLICIT_ARRIVAL_ACTOR_PATTERNS = [
+  /지원팀(?:이|은|가|을)?\s*(?:도착|찾아|들어|나타)/,
+  /증원(?:이|은|가|을)?\s*(?:도착|찾아|들어|나타)/,
+  /경비(?:가|는|들이)?\s*(?:도착|찾아|들어|나타|달려)/,
+  /부대(?:가|는|들이)?\s*(?:도착|찾아|들어|나타)/,
+  /의료(?:팀|진)?(?:이|가|는)?\s*(?:도착|찾아|들어|나타)/,
+  /파견(?:이|은|가|을)?\s*(?:도착|찾아|들어|나타)/,
 ];
 
 /** Deterministic stagnation axes — short replies alone are not stagnation. */
@@ -284,7 +316,7 @@ export function analyzeStagnation(recentMessages: ChatMsg[] | undefined): Stagna
   const assistantTurns = recent.filter((message) => message.role === "assistant");
   const userTurns = recent.filter((message) => message.role === "user");
   const reassuranceTerms = ["괜찮", "미안", "걱정", "말하지 않아도", "침묵"];
-  const movementCount = countMatches(compactText(recent), USER_PROGRESS_TERMS);
+  const movementCount = countMatches(compactText(recent), USER_PROGRESS_ACTIONS);
 
   const reassuranceCount = assistantTurns.filter((message) =>
     includesAny(message.content, reassuranceTerms)
@@ -313,20 +345,37 @@ export function detectSceneStagnation(recentMessages: ChatMsg[] | undefined): bo
   return analyzeStagnation(recentMessages).recentStagnation;
 }
 
+function includesCurrentTurnProgressAction(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  return USER_PROGRESS_ACTIONS.some((term) => trimmed.includes(term));
+}
+
+/** Current turn only — prior-turn movement must not force HOLD on dialogue-only turns. */
 export function detectUserLedProgress(input: {
   recentMessages?: ChatMsg[];
   currentUserMessage?: string | null;
 }): boolean {
-  const current = (input.currentUserMessage ?? "").trim();
-  if (current.length > 40) return true;
-  if (includesAny(current, USER_PROGRESS_TERMS)) return true;
-  const recentUsers = (input.recentMessages ?? [])
-    .slice(-4)
-    .filter((message) => message.role === "user");
-  return recentUsers.some(
-    (message) =>
-      includesAny(message.content, USER_PROGRESS_TERMS) || message.content.trim().length > 40
-  );
+  return includesCurrentTurnProgressAction(input.currentUserMessage ?? "");
+}
+
+function namePresentInScene(name: string, scenePresenceText: string): boolean {
+  if (!name || !scenePresenceText.includes(name)) return false;
+  let idx = 0;
+  while ((idx = scenePresenceText.indexOf(name, idx)) !== -1) {
+    const window = scenePresenceText.slice(Math.max(0, idx - 30), idx + name.length + 40);
+    const departed = OFF_SCENE_CUES.some((cue) => window.includes(cue));
+    if (!departed) return true;
+    idx += name.length;
+  }
+  return false;
+}
+
+function triggerImpliesExplicitArrival(trigger: string): boolean {
+  if (!trigger.trim()) return false;
+  if (EXPLICIT_ARRIVAL_ACTOR_PATTERNS.some((pattern) => pattern.test(trigger))) return true;
+  return TRIGGER_ARRIVAL_TERMS.some((term) => trigger.includes(term)) &&
+    includesAny(trigger, ["팀", "부대", "경비", "의료", "파견", "증원", "지원", "병력", "요원"]);
 }
 
 const TRIGGER_ARRIVAL_TERMS = [
@@ -342,7 +391,11 @@ const TRIGGER_ARRIVAL_TERMS = [
   "연락",
 ];
 
-/** Entity-evidence NPC grounding — generic role words alone do not qualify. */
+/**
+ * Entity-evidence NPC grounding.
+ * knownSupportingCastNames = identity whitelist only — not scene presence proof.
+ * Presence requires current scene signal, activeSpeakingCast, user target, or trigger.
+ */
 export function resolveNpcGrounding(input: {
   sceneSignalText: string;
   groundingText: string;
@@ -358,24 +411,23 @@ export function resolveNpcGrounding(input: {
   const known = (input.knownSupportingCastNames ?? [])
     .map((name) => name.trim())
     .filter((name) => name && name !== primary);
-  const textBlob = [
+  const scenePresenceText = [
     input.sceneSignalText,
-    input.groundingText,
     input.currentUserMessage ?? "",
     input.triggeredEventText ?? "",
   ].join("\n");
   const userMsg = input.currentUserMessage ?? "";
   const trigger = input.triggeredEventText?.trim() ?? "";
 
-  for (const name of known) {
-    if (textBlob.includes(name)) {
-      sources.push("known_cast_name");
-      if (!eligibleActorNames.includes(name)) eligibleActorNames.push(name);
-    }
-  }
   for (const name of supporting) {
     sources.push("active_speaking_cast");
     if (!eligibleActorNames.includes(name)) eligibleActorNames.push(name);
+  }
+  for (const name of known) {
+    if (namePresentInScene(name, scenePresenceText)) {
+      sources.push("known_cast_name");
+      if (!eligibleActorNames.includes(name)) eligibleActorNames.push(name);
+    }
   }
   for (const name of known) {
     if (userMsg.includes(name)) {
@@ -404,9 +456,8 @@ export function resolveNpcGrounding(input: {
   const existingNpcEligible = eligibleActorNames.length > 0;
   const newNpcAllowed = Boolean(
     trigger &&
-      includesAny(trigger, TRIGGER_ARRIVAL_TERMS) &&
-      (known.some((name) => trigger.includes(name)) ||
-        includesAny(input.groundingText, ["조직", "부대", "경비대", "의료", "지원팀"]))
+      (known.some((name) => trigger.includes(name) && includesAny(trigger, TRIGGER_ARRIVAL_TERMS)) ||
+        triggerImpliesExplicitArrival(trigger))
   );
 
   return {
@@ -436,17 +487,27 @@ export function resolveSceneMotionDecision(input: {
     };
   }
 
-  if (input.sceneCastMode !== "single_primary") {
-    return {
-      decision: input.stagnant ? "SCENE_ADVANCE" : "SCENE_ADVANCE",
-      reasons: reasons.length > 0 ? reasons : ["ensemble_mode"],
-    };
+  // Auto progression: explicit continue contract — never HOLD (autoProgressionRules).
+  if (input.mode === "auto_progression") {
+    if (input.intensity === 0 && !input.stagnant) {
+      return { decision: "MICRO_MOTION", reasons: ["quiet_interaction"] };
+    }
+    if (input.intensity <= 1 && input.stagnant) {
+      return { decision: "MICRO_MOTION", reasons: [...reasons, "stagnation"] };
+    }
+    if (input.intensity <= 1) return { decision: "MICRO_MOTION", reasons };
+    if (input.intensity <= 3) return { decision: "SCENE_ADVANCE", reasons };
+    return { decision: "ESCALATE", reasons: [...reasons, "scene_kind_escalation"] };
   }
 
-  if (input.mode === "auto_progression" && input.stagnant) {
-    return { decision: "MICRO_MOTION", reasons: [...reasons, "stagnation"] };
+  // Simulation: autonomous multi-cast product mode — never HOLD.
+  if (input.sceneCastMode === "simulation") {
+    if (input.intensity === 0 && !input.stagnant) {
+      return { decision: "MICRO_MOTION", reasons: ["ensemble_mode"] };
+    }
   }
 
+  // single_primary and party ensemble share motion policy; cast mode affects eligibility only.
   if (input.userLedProgress && !input.stagnant) {
     return { decision: "HOLD", reasons: ["user_led_progress"] };
   }
@@ -1099,12 +1160,10 @@ function buildExecutionContract(input: {
   motionDecision: SceneMotionDecision;
   progressionTypes: SceneProgressionType[];
   npcGrounding: NpcGroundingResult;
-  castFocus: SceneCastFocus;
 }): string {
   if (input.motionDecision === "HOLD") {
     return [
       "전개 필요: 없음 (현재 비트 유지)",
-      "허용된 변화: 현재 캐릭터·관계·감각·행동",
       "기존 NPC 행동: 없음",
       "새 인물 도입: 없음",
     ].join("\n");
@@ -1117,7 +1176,7 @@ function buildExecutionContract(input: {
     input.npcGrounding.eligibleActorNames.length > 0
       ? input.npcGrounding.eligibleActorNames.join(", ")
       : "없음";
-  const newNpc = input.npcGrounding.newNpcAllowed ? "트리거·확정 지원만" : "없음";
+  const newNpc = input.npcGrounding.newNpcAllowed ? "트리거·명시적 도착만" : "없음";
   const npcAction =
     input.progressionTypes.includes("npc_action") && input.npcGrounding.existingNpcEligible
       ? `기존 NPC (${existingNpc})의 행동만`
@@ -1240,10 +1299,9 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
     motionDecision: directive.motionDecision,
     progressionTypes: directive.progressionTypes,
     npcGrounding: directive.npcGrounding,
-    castFocus: directive.castFocus,
   });
   return [
-    BASE_SCENE_ENGINE_RULE,
+    renderSceneEngineRule(directive.motionDecision),
     "",
     "[이번 턴 장면 지시 - 비공개]",
     `모드: ${modeLabel}`,
