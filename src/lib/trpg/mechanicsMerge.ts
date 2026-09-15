@@ -149,19 +149,27 @@ export function mergeMechanicsOwnedDelta(
         cur.inventory.splice(idx, 1);
       }
     }
-    if (patch.hp != null && complete && resolution) {
+    // Single canonical HP commit-boundary validation (shared by complete and
+    // incomplete mechanics). A malformed structured GM value (NaN/Infinity/
+    // negative/fractional/over-max) is ignored — never clamped or coerced — so
+    // the mechanics floor (tick/recovery/Flash) or prior canonical HP survives.
+    const gmHp = patch.hp;
+    const gmHpValid =
+      typeof gmHp === "number" &&
+      Number.isInteger(gmHp) &&
+      gmHp >= 0 &&
+      gmHp <= cur.maxHp;
+    if (gmHpValid && complete && resolution) {
       const start = sheets.find((row) => row.participantId === cur.participantId)?.hp ?? cur.hp;
       cur.hp = resolveParticipantHp({
         startHp: start,
         maxHp: cur.maxHp,
         resolution,
         participantId: cur.participantId,
-        gmHp: patch.hp,
+        gmHp,
       });
-    } else if (patch.hp != null && !complete) {
-      if (Number.isInteger(patch.hp) && patch.hp >= 0 && patch.hp <= cur.maxHp) {
-        cur.hp = clampHp(patch.hp, cur.maxHp);
-      }
+    } else if (gmHpValid && !complete) {
+      cur.hp = clampHp(gmHp, cur.maxHp);
     }
   }
 
@@ -198,6 +206,17 @@ export function resolveParticipantHp(opts: {
     opts.participantId
   );
 
+  // Server mechanics owners of the participant's CURRENT-ACTION HP take
+  // precedence over GM structured HP: FLASH_REFEREE (authoritative classified
+  // direct HP) and SERVER_RECOVERY (recovery floor / authorized first aid).
+  // SERVER_PREACTION is only a pre-action tick layer — it is NOT a whole-round
+  // HP owner, so GM current-action HP still composes over it via
+  // fallbackHpAfterTickAndGmHeal. When none of these owns the HP (e.g. a
+  // non-actor who did not submit, an incapacitated actor, or a referee
+  // consultation that produced no HP effect), GM structured HP is honored so
+  // narration and sheet state stay consistent.
+  const mechanicsOwnsCurrentActionHp = ownership.FLASH_REFEREE || ownership.SERVER_RECOVERY;
+
   if (ownership.FLASH_REFEREE && stored != null) {
     return clampHp(stored, opts.maxHp);
   }
@@ -206,14 +225,16 @@ export function resolveParticipantHp(opts: {
     if (ownership.SERVER_RECOVERY || ownership.SERVER_PREACTION) {
       return postMechanics;
     }
-    return stored != null && !ownership.GM_LEGACY ? clampHp(stored, opts.maxHp) : clampHp(opts.startHp, opts.maxHp);
+    return stored != null && !ownership.GM_LEGACY && !mechanicsOwnsCurrentActionHp
+      ? clampHp(stored, opts.maxHp)
+      : clampHp(opts.startHp, opts.maxHp);
   }
 
   if (ownership.FLASH_REFEREE && stored != null) {
     return clampHp(stored, opts.maxHp);
   }
 
-  if (!ownership.GM_LEGACY) {
+  if (!ownership.GM_LEGACY && mechanicsOwnsCurrentActionHp) {
     return postMechanics;
   }
 
