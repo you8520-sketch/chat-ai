@@ -251,7 +251,7 @@ describe("world-motion-v1.1 weighted rotation", () => {
       currentUserMessage: "손을 겹친다.",
       chatId: 1,
       currentTurn: 1,
-      primaryCharacterName: "태형",
+      primaryCharacterName: "테스트주인공",
       contentKind: "character",
     });
     const block = renderSceneDirectiveForPrompt(d);

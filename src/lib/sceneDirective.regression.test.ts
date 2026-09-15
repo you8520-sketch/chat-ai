@@ -1,6 +1,6 @@
 /**
- * SceneDirective root-cause regression pack (Q1–Q18).
- * Deterministic — no provider calls.
+ * SceneDirective root-cause regression pack (Q1–Q32).
+ * Deterministic — no provider calls. Synthetic fixture names only.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -54,12 +54,12 @@ const activeUserLed: ChatMsg[] = [
   { role: "user", content: "저쪽 바람결이 바뀌었다. 계속 이동한다." },
 ];
 
-describe("sceneDirective root-cause regression Q1–Q18", () => {
+describe("sceneDirective root-cause regression Q1–Q32", () => {
   it("Q1 quiet romance — HOLD or MICRO, no ungrounded npc_action", () => {
     const d = buildSceneDirective({
       mode: "interactive",
       contentKind: "character",
-      primaryCharacterName: "태형",
+      primaryCharacterName: "테스트주인공",
       chatId: 101,
       currentTurn: 4,
       recentMessages: quietRomance,
@@ -74,7 +74,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const d = buildSceneDirective({
       mode: "interactive",
       contentKind: "character",
-      primaryCharacterName: "에녹",
+      primaryCharacterName: "테스트주인공",
       chatId: 102,
       currentTurn: 5,
       recentMessages: activeUserLed,
@@ -95,7 +95,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const d = buildSceneDirective({
       mode: "interactive",
       contentKind: "character",
-      primaryCharacterName: "태형",
+      primaryCharacterName: "테스트주인공",
       chatId: 104,
       currentTurn: 8,
       recentMessages: stagnantReassurance,
@@ -116,20 +116,20 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
       currentTurn: 2,
       sceneCastMode: "single_primary",
       knownSupportingCastNames: [],
-      activeSpeakingCast: ["수사관"],
+      activeSpeakingCast: ["테스트수사관"],
     });
     assert.ok(!meta.eligible.includes("npc_action"));
   });
 
   it("Q6 investigation / existing NPC — existing NPC may act", () => {
     const grounding = resolveNpcGrounding({
-      sceneSignalText: "윤태건이 보관함 앞에 서 있다.",
+      sceneSignalText: "테스트조연이 보관함 앞에 서 있다.",
       groundingText: "",
-      knownSupportingCastNames: ["윤태건"],
-      activeSpeakingCast: ["수사관", "윤태건"],
+      knownSupportingCastNames: ["테스트조연"],
+      activeSpeakingCast: ["테스트수사관", "테스트조연"],
     });
     assert.equal(grounding.existingNpcEligible, true);
-    assert.ok(grounding.eligibleActorNames.includes("윤태건"));
+    assert.ok(grounding.eligibleActorNames.includes("테스트조연"));
   });
 
   it("Q7 operation / no established NPC — npc_action not eligible", () => {
@@ -142,22 +142,22 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
       currentTurn: 2,
       sceneCastMode: "single_primary",
       knownSupportingCastNames: [],
-      activeSpeakingCast: ["지휘관"],
+      activeSpeakingCast: ["테스트지휘관"],
     });
     assert.ok(!meta.eligible.includes("npc_action"));
   });
 
   it("Q8 operation / grounded guard — guard may act when named in cast", () => {
     const { meta } = selectProgressionTypesWeighted({
-      sceneSignalText: "작전 회의에서 침투 경로를 논의한다. 경비 김철수가 대기 중.",
+      sceneSignalText: "작전 회의에서 침투 경로를 논의한다. 경비 테스트경비가 대기 중.",
       groundingText: "",
       intensity: 4,
       stagnant: false,
       chatId: 108,
       currentTurn: 2,
       sceneCastMode: "single_primary",
-      knownSupportingCastNames: ["김철수"],
-      activeSpeakingCast: ["지휘관", "김철수"],
+      knownSupportingCastNames: ["테스트경비"],
+      activeSpeakingCast: ["테스트지휘관", "테스트경비"],
     });
     assert.ok(meta.eligible.includes("npc_action"));
   });
@@ -166,12 +166,12 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const grounding = resolveNpcGrounding({
       sceneSignalText: "작전 중이다.",
       groundingText: "지원팀 경비대",
-      triggeredEventText: "[TRIGGER] 윤태건이 지원으로 도착했다.",
-      knownSupportingCastNames: ["윤태건"],
-      activeSpeakingCast: ["지휘관"],
+      triggeredEventText: "[TRIGGER] 테스트조연이 지원으로 도착했다.",
+      knownSupportingCastNames: ["테스트조연"],
+      activeSpeakingCast: ["테스트지휘관"],
     });
     assert.equal(grounding.newNpcAllowed, true);
-    assert.ok(grounding.eligibleActorNames.includes("윤태건"));
+    assert.ok(grounding.eligibleActorNames.includes("테스트조연"));
   });
 
   it("Q10 generic word only (경비) — lexical alone does not ground NPC", () => {
@@ -179,7 +179,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
       sceneSignalText: "복도 끝에 경비가 서 있다고 적혀 있다.",
       groundingText: "",
       knownSupportingCastNames: [],
-      activeSpeakingCast: ["주인공"],
+      activeSpeakingCast: ["테스트주인공"],
     });
     assert.equal(grounding.existingNpcEligible, false);
     assert.equal(grounding.newNpcAllowed, false);
@@ -205,7 +205,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const d = buildSceneDirective({
       mode: "interactive",
       contentKind: "character",
-      primaryCharacterName: "태형",
+      primaryCharacterName: "테스트주인공",
       chatId: 112,
       currentTurn: 3,
       recentMessages: quietRomance,
@@ -226,7 +226,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
       const d = buildSceneDirective({
         mode: "interactive",
         contentKind: "character",
-        primaryCharacterName: "태형",
+        primaryCharacterName: "테스트주인공",
         chatId: 113,
         currentTurn: turn,
         recentMessages: stagnantReassurance,
@@ -249,7 +249,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const d = buildSceneDirective({
       mode: "auto_progression",
       contentKind: "character",
-      primaryCharacterName: "태형",
+      primaryCharacterName: "테스트주인공",
       chatId: 114,
       currentTurn: 6,
       recentMessages: stagnantReassurance,
@@ -263,8 +263,8 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const d = buildSceneDirective({
       mode: "interactive",
       contentKind: "simulation",
-      primaryCharacterName: "서윤",
-      establishedActiveCastNames: ["도진", "관리 AI"],
+      primaryCharacterName: "테스트시뮬주인공",
+      establishedActiveCastNames: ["테스트조연B", "테스트시설AI"],
       chatId: 115,
       currentTurn: 2,
       currentUserMessage: "경보가 울렸다.",
@@ -278,7 +278,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const shared = {
       mode: "interactive" as const,
       contentKind: "character" as const,
-      primaryCharacterName: "리더",
+      primaryCharacterName: "테스트리더",
       chatId: 116,
       currentTurn: 2,
       currentUserMessage: "작전 회의를 계속하자. 침투 경로를 다시 짠다.",
@@ -289,7 +289,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const party = buildSceneDirective({
       ...shared,
       party: true,
-      establishedActiveCastNames: ["부관", "정찰"],
+      establishedActiveCastNames: ["테스트부관", "테스트정찰"],
     });
     const single = buildSceneDirective(shared);
     assert.equal(party.castFocus.sceneCastMode, "ensemble");
@@ -301,7 +301,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const input = {
       mode: "interactive" as const,
       contentKind: "character" as const,
-      primaryCharacterName: "태형",
+      primaryCharacterName: "테스트주인공",
       chatId: 117,
       currentTurn: 4,
       recentMessages: quietRomance,
@@ -317,7 +317,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const d = buildSceneDirective({
       mode: "interactive",
       contentKind: "character",
-      primaryCharacterName: "태형",
+      primaryCharacterName: "테스트주인공",
       chatId: 118,
       currentTurn: 1,
       recentMessages: [{ role: "assistant", content: "안녕. 오늘은 조용히 쉬자." }],
@@ -331,7 +331,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const d = buildSceneDirective({
       mode: "interactive",
       contentKind: "character",
-      primaryCharacterName: "태형",
+      primaryCharacterName: "테스트주인공",
       chatId: 201,
       currentTurn: 4,
       recentMessages: quietRomance,
@@ -360,7 +360,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const d = buildSceneDirective({
       mode: "interactive",
       contentKind: "character",
-      primaryCharacterName: "태형",
+      primaryCharacterName: "테스트주인공",
       chatId: 219,
       currentTurn: 4,
       recentMessages: quietRomance,
@@ -378,9 +378,9 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
   it("Q20 lore-only NPC — not scene-present => existingNpcEligible=false", () => {
     const grounding = resolveNpcGrounding({
       sceneSignalText: "조용히 소파에 앉아 있다.",
-      groundingText: "윤태건은 과거 동료였고 작전 기록에 자주 등장한다.",
-      knownSupportingCastNames: ["윤태건"],
-      activeSpeakingCast: ["태형"],
+      groundingText: "테스트조연은 과거 동료였고 작전 기록에 자주 등장한다.",
+      knownSupportingCastNames: ["테스트조연"],
+      activeSpeakingCast: ["테스트주인공"],
     });
     assert.equal(grounding.existingNpcEligible, false);
     assert.deepEqual(grounding.eligibleActorNames, []);
@@ -388,33 +388,33 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
 
   it("Q21 known NPC explicitly current/present => existingNpcEligible=true", () => {
     const grounding = resolveNpcGrounding({
-      sceneSignalText: "윤태건이 입구에 서 있다.",
+      sceneSignalText: "테스트조연이 입구에 서 있다.",
       groundingText: "",
-      knownSupportingCastNames: ["윤태건"],
-      activeSpeakingCast: ["태형", "윤태건"],
+      knownSupportingCastNames: ["테스트조연"],
+      activeSpeakingCast: ["테스트주인공", "테스트조연"],
     });
     assert.equal(grounding.existingNpcEligible, true);
-    assert.ok(grounding.eligibleActorNames.includes("윤태건"));
+    assert.ok(grounding.eligibleActorNames.includes("테스트조연"));
   });
 
   it("Q22 departed/off-scene NPC => not eligible for npc_action", () => {
     const grounding = resolveNpcGrounding({
-      sceneSignalText: "윤태건은 이미 퇴장했다. 태형만 남아 있다.",
+      sceneSignalText: "테스트조연은 이미 퇴장했다. 테스트주인공만 남아 있다.",
       groundingText: "",
-      knownSupportingCastNames: ["윤태건"],
-      activeSpeakingCast: ["태형"],
+      knownSupportingCastNames: ["테스트조연"],
+      activeSpeakingCast: ["테스트주인공"],
     });
     assert.equal(grounding.existingNpcEligible, false);
     const { meta } = selectProgressionTypesWeighted({
-      sceneSignalText: "윤태건은 이미 퇴장했다. 태형만 남아 있다.",
+      sceneSignalText: "테스트조연은 이미 퇴장했다. 테스트주인공만 남아 있다.",
       groundingText: "",
       intensity: 2,
       stagnant: false,
       chatId: 222,
       currentTurn: 3,
       sceneCastMode: "single_primary",
-      knownSupportingCastNames: ["윤태건"],
-      activeSpeakingCast: ["태형"],
+      knownSupportingCastNames: ["테스트조연"],
+      activeSpeakingCast: ["테스트주인공"],
     });
     assert.ok(!meta.eligible.includes("npc_action"));
   });
@@ -429,7 +429,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const d = buildSceneDirective({
       mode: "interactive",
       contentKind: "character",
-      primaryCharacterName: "태형",
+      primaryCharacterName: "테스트주인공",
       chatId: 223,
       currentTurn: 5,
       recentMessages: quietRomance,
@@ -448,8 +448,8 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
       mode: "interactive",
       contentKind: "character",
       party: true,
-      primaryCharacterName: "리더",
-      establishedActiveCastNames: ["부관", "정찰"],
+      primaryCharacterName: "테스트리더",
+      establishedActiveCastNames: ["테스트부관", "테스트정찰"],
       chatId: 225,
       currentTurn: 4,
       recentMessages: quietRomance,
@@ -463,7 +463,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
     const d = buildSceneDirective({
       mode: "auto_progression",
       contentKind: "character",
-      primaryCharacterName: "태형",
+      primaryCharacterName: "테스트주인공",
       chatId: 226,
       currentTurn: 3,
       recentMessages: quietRomance,
@@ -481,7 +481,7 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
       groundingText: "조직 기록과 부대 연락망",
       triggeredEventText: "[TRIGGER] 연락이 왔다.",
       knownSupportingCastNames: [],
-      activeSpeakingCast: ["태형"],
+      activeSpeakingCast: ["테스트주인공"],
     });
     assert.equal(grounding.newNpcAllowed, false);
   });
@@ -492,8 +492,94 @@ describe("sceneDirective root-cause regression Q1–Q18", () => {
       groundingText: "",
       triggeredEventText: "[TRIGGER] 지원팀이 도착했다.",
       knownSupportingCastNames: [],
-      activeSpeakingCast: ["지휘관"],
+      activeSpeakingCast: ["테스트지휘관"],
     });
     assert.equal(grounding.newNpcAllowed, true);
+  });
+
+  it("Q29 full-build departed NPC — recent mention must not leak into activeSpeakingCast", () => {
+    const d = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      primaryCharacterName: "테스트주인공",
+      knownSupportingCastNames: ["테스트조연"],
+      chatId: 929,
+      currentTurn: 5,
+      recentMessages: [
+        { role: "assistant", content: "테스트조연은 이미 퇴장했다." },
+        { role: "user", content: "..." },
+      ],
+      currentUserMessage: "테스트주인공을 바라본다.",
+    });
+    assert.ok(!d.castFocus.activeSpeakingCast.includes("테스트조연"));
+    assert.ok(!d.npcGrounding.eligibleActorNames.includes("테스트조연"));
+    assert.equal(d.npcGrounding.existingNpcEligible, false);
+    assert.ok(!d.progressionTypes.includes("npc_action"));
+  });
+
+  it("Q30 historical mention != presence — recall does not add supporting cast", () => {
+    const d = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      primaryCharacterName: "테스트주인공",
+      knownSupportingCastNames: ["테스트조연"],
+      chatId: 930,
+      currentTurn: 4,
+      recentMessages: [
+        { role: "assistant", content: "테스트조연이 전에 했던 말이 떠올랐다." },
+      ],
+      currentUserMessage: "조용히 앉아 있다.",
+    });
+    assert.deepEqual(d.castFocus.activeSpeakingCast, ["테스트주인공"]);
+    assert.equal(d.npcGrounding.existingNpcEligible, false);
+    assert.ok(!d.npcGrounding.eligibleActorNames.includes("테스트조연"));
+  });
+
+  it("Q31 named remote contact != arrival — existing eligible but no newNpcAllowed", () => {
+    const d = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      primaryCharacterName: "테스트주인공",
+      knownSupportingCastNames: ["테스트조연"],
+      triggeredEventText: "[TRIGGER] 테스트조연에게서 연락이 왔다.",
+      chatId: 931,
+      currentTurn: 5,
+      currentUserMessage: "메시지를 확인한다.",
+    });
+    assert.equal(d.npcGrounding.existingNpcEligible, true);
+    assert.equal(d.npcGrounding.newNpcAllowed, false);
+  });
+
+  it("Q32 empty multi-cast grounding invariant — no ungrounded npc_action", () => {
+    const party = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      party: true,
+      primaryCharacterName: "테스트리더",
+      establishedActiveCastNames: [],
+      chatId: 932,
+      currentTurn: 3,
+      currentUserMessage: "회의를 계속하자.",
+      recentMessages: [
+        { role: "assistant", content: "작전실에서 지도를 펼쳤다." },
+      ],
+    });
+    assert.equal(party.castFocus.sceneCastMode, "ensemble");
+    assert.equal(party.npcGrounding.existingNpcEligible, false);
+    assert.equal(party.npcGrounding.newNpcAllowed, false);
+    assert.ok(!party.progressionTypes.includes("npc_action"));
+
+    const simulation = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "simulation",
+      primaryCharacterName: "테스트시뮬주인공",
+      establishedActiveCastNames: [],
+      chatId: 933,
+      currentTurn: 2,
+      currentUserMessage: "경보가 울렸다.",
+    });
+    assert.equal(simulation.castFocus.sceneCastMode, "simulation");
+    assert.equal(simulation.npcGrounding.existingNpcEligible, false);
+    assert.ok(!simulation.progressionTypes.includes("npc_action"));
   });
 });
