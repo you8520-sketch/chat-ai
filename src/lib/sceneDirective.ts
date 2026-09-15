@@ -294,8 +294,6 @@ const USER_PROGRESS_ACTIONS = [
   "메시지",
 ];
 
-const OFF_SCENE_CUES = ["떠났", "퇴장", "나갔", "떠나", "돌아갔", "자리를 비", "보이지 않", "사라졌"];
-
 const EXPLICIT_ARRIVAL_ACTOR_PATTERNS = [
   /지원팀(?:이|은|가|을)?\s*(?:도착|찾아|들어|나타)/,
   /증원(?:이|은|가|을)?\s*(?:도착|찾아|들어|나타)/,
@@ -359,18 +357,6 @@ export function detectUserLedProgress(input: {
   return includesCurrentTurnProgressAction(input.currentUserMessage ?? "");
 }
 
-function namePresentInScene(name: string, scenePresenceText: string): boolean {
-  if (!name || !scenePresenceText.includes(name)) return false;
-  let idx = 0;
-  while ((idx = scenePresenceText.indexOf(name, idx)) !== -1) {
-    const window = scenePresenceText.slice(Math.max(0, idx - 30), idx + name.length + 40);
-    const departed = OFF_SCENE_CUES.some((cue) => window.includes(cue));
-    if (!departed) return true;
-    idx += name.length;
-  }
-  return false;
-}
-
 function triggerImpliesExplicitArrival(trigger: string): boolean {
   if (!trigger.trim()) return false;
   if (EXPLICIT_ARRIVAL_ACTOR_PATTERNS.some((pattern) => pattern.test(trigger))) return true;
@@ -378,17 +364,20 @@ function triggerImpliesExplicitArrival(trigger: string): boolean {
     includesAny(trigger, ["팀", "부대", "경비", "의료", "파견", "증원", "지원", "병력", "요원"]);
 }
 
-const TRIGGER_ARRIVAL_TERMS = [
+/** Physical arrival cues — remote contact (연락/메시지/호출) is not new-actor arrival. */
+const TRIGGER_PHYSICAL_ARRIVAL_TERMS = [
   "도착",
   "찾아왔",
   "노크",
   "들어왔",
   "나타났",
+  "파견",
+];
+
+const TRIGGER_ARRIVAL_TERMS = [
+  ...TRIGGER_PHYSICAL_ARRIVAL_TERMS,
   "지원",
   "증원",
-  "호출",
-  "파견",
-  "연락",
 ];
 
 /**
@@ -411,23 +400,12 @@ export function resolveNpcGrounding(input: {
   const known = (input.knownSupportingCastNames ?? [])
     .map((name) => name.trim())
     .filter((name) => name && name !== primary);
-  const scenePresenceText = [
-    input.sceneSignalText,
-    input.currentUserMessage ?? "",
-    input.triggeredEventText ?? "",
-  ].join("\n");
   const userMsg = input.currentUserMessage ?? "";
   const trigger = input.triggeredEventText?.trim() ?? "";
 
   for (const name of supporting) {
     sources.push("active_speaking_cast");
     if (!eligibleActorNames.includes(name)) eligibleActorNames.push(name);
-  }
-  for (const name of known) {
-    if (namePresentInScene(name, scenePresenceText)) {
-      sources.push("known_cast_name");
-      if (!eligibleActorNames.includes(name)) eligibleActorNames.push(name);
-    }
   }
   for (const name of known) {
     if (userMsg.includes(name)) {
@@ -456,7 +434,9 @@ export function resolveNpcGrounding(input: {
   const existingNpcEligible = eligibleActorNames.length > 0;
   const newNpcAllowed = Boolean(
     trigger &&
-      (known.some((name) => trigger.includes(name) && includesAny(trigger, TRIGGER_ARRIVAL_TERMS)) ||
+      (known.some(
+        (name) => trigger.includes(name) && includesAny(trigger, TRIGGER_PHYSICAL_ARRIVAL_TERMS)
+      ) ||
         triggerImpliesExplicitArrival(trigger))
   );
 
@@ -815,9 +795,7 @@ export function selectProgressionTypesWeighted(input: {
   const dangerCue =
     includesAny(input.sceneSignalText, DANGER_TERMS) || sceneKind === "climax" || sceneKind === "operation";
   const npcActionAllowed =
-    sceneCastMode !== "single_primary" ||
-    npcGrounding.existingNpcEligible ||
-    npcGrounding.newNpcAllowed;
+    npcGrounding.existingNpcEligible || npcGrounding.newNpcAllowed;
   const loreGrounded =
     includesAny(input.groundingText, ["단서", "기록", "소문", "조직", "장소", "세계"]) ||
     includesAny(input.sceneSignalText, INVESTIGATION_TERMS);
@@ -1055,8 +1033,8 @@ export function resolveSceneCastFocus(input: {
 
 /**
  * For single_primary, select at most one optional supporting speaker based on:
- * current user cue, active triggered event, last direct conversation partner,
- * or a character required for the current procedure.
+ * current user cue or active triggered event only.
+ * Prior-turn / recent-message name mentions are not scene-presence authority.
  * Never selects all grounded NPCs — only the one most relevant this turn.
  */
 function resolveActiveSpeakingCast(
@@ -1074,7 +1052,6 @@ function resolveActiveSpeakingCast(
   }
   const userMsg = (input.currentUserMessage ?? "").trim();
   const triggered = (input.triggeredEventText ?? "").trim();
-  const recent = (input.recentMessages ?? []).map((m) => m.content ?? "").join("\n");
 
   const nameVariants = (name: string): string[] => {
     const n = name.replace(/\s+/g, "");
@@ -1092,7 +1069,6 @@ function resolveActiveSpeakingCast(
     for (const v of variants) {
       if (userMsg.includes(v)) score += 3;
       if (triggered.includes(v)) score += 2;
-      if (recent.includes(v)) score += 1;
     }
     if (score > bestScore) {
       bestScore = score;
