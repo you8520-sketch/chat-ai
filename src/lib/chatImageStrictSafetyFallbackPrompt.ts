@@ -229,7 +229,7 @@ export function buildStrictLdDuoFallbackPrompt(opts: {
     `Setting: ${safeBroadLocation}.`,
     `Mood: ${safeMood}.`,
     `Composition: ${safeComposition}.`,
-    "Stricter coverage: fully modest clothing or soft coverage, no explicit acts, no exposed genitals.",
+    "Stricter coverage: fully modest clothing or soft coverage.",
     "No speech bubbles, captions, blood, weapons, injury, or suggestive poses.",
     "Match reference identity and art style. Vertical 800×1200 composition.",
   ].join("\n");
