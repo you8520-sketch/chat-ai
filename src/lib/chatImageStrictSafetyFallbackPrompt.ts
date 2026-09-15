@@ -39,12 +39,14 @@ import {
   type ComicBalloonSlotMetadata,
 } from "@/lib/chatComicPanelSpec";
 import {
-  canonicalTier2SafePose,
   COMIC_TIER2_POSITIVE_SAFE_DEPICTION,
   containsBedroomBedContext,
   containsSafeLyingOrRestContext,
 } from "@/lib/chatComicTier2SafeProjection";
-import { projectSceneBlockForSafeImageGeneration } from "@/lib/chatImageSafeVisualProjection";
+import {
+  containsRawRiskySourceLeak,
+  projectSceneBlockForSafeImageGeneration,
+} from "@/lib/chatImageSafeVisualProjection";
 import type { ContentKind } from "@/lib/simulationMode";
 
 /** Tier-2 uses reference identity only — omit untrusted freeform saved appearance prose. */
@@ -75,49 +77,59 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
   const raw = String(opts.sceneSourceText ?? "").trim();
   const projected = projectSceneBlockForSafeImageGeneration(raw, {
     adultGrounded: opts.adultGrounded ?? false,
-  }).text;
-  const haystack = [raw, projected].filter(Boolean).join("\n");
+  }).text.trim();
+
+  // Raw-only category/boolean detection → fixed safe literals (never copy raw substrings).
+  const rawHasBedroom = containsBedroomBedContext(raw);
+  const rawHasLying = containsSafeLyingOrRestContext(raw);
+  const rawHasKiss = /(?:키스|kiss)/iu.test(raw);
+  const rawHasHug = /(?:껴안|포옹|안아|hug|embrace)/iu.test(raw);
+  const rawHasShyMood = /(?:수줍|부끄|활(?:활)?(?:기|홍)|awkward|flushed|shy)/iu.test(raw);
+  const rawHasTenderMood = /(?:애틋|다정|tender|친밀|설렘|떨림)/iu.test(raw);
+  const rawHasCafe = /(?:카페|cafe)/iu.test(raw);
+  const rawHasPark = /(?:공원|park)/iu.test(raw);
 
   let safeBroadLocation = "";
-  if (containsBedroomBedContext(haystack)) {
+  if (rawHasBedroom) {
     safeBroadLocation = "same private bedroom with the bed visible";
   } else {
-    const trpgLocation = haystack.match(/(?:^|\n)LOCATION:\s*(.+)/imu)?.[1]?.trim();
-    if (trpgLocation) {
+    const trpgLocation = projected.match(/(?:^|\n)장소:\s*(.+)/imu)?.[1]?.trim();
+    if (trpgLocation && !containsRawRiskySourceLeak(trpgLocation)) {
       safeBroadLocation = `same location: ${trpgLocation.slice(0, 120)}`;
-    } else if (/(?:카페|cafe)/iu.test(haystack)) {
+    } else if (rawHasCafe) {
       safeBroadLocation = "same cafe setting as the source scene";
-    } else if (/(?:공원|park)/iu.test(haystack)) {
+    } else if (rawHasPark) {
       safeBroadLocation = "same outdoor park setting as the source scene";
     } else {
       safeBroadLocation = "the same location as the approved safe source scene";
     }
   }
 
-  const canonicalPose = canonicalTier2SafePose({ situation: haystack });
-  let safeComposition = canonicalPose ?? "";
-  if (!safeComposition) {
-    const kissing = /(?:키스|kiss)/iu.test(haystack);
-    const hugging = /(?:껴안|포옹|안아|hug|embrace)/iu.test(haystack);
-    if (kissing) {
-      safeComposition =
-        "same two characters with faces close in calm affectionate proximity, modest covered clothing, general-audience depiction";
-    } else if (hugging) {
-      safeComposition =
-        "same two characters sharing calm affectionate proximity with modest covered clothing";
-    } else if (containsSafeLyingOrRestContext(haystack)) {
-      safeComposition =
-        "same two characters resting together with modest covered clothing, preserving lying posture";
-    } else {
-      safeComposition =
-        "same two characters in the same location with modest posture and readable expressions";
-    }
+  let safeComposition = "";
+  if (rawHasKiss) {
+    safeComposition =
+      "same two characters with faces close in calm affectionate proximity, modest covered clothing, general-audience depiction";
+  } else if (rawHasHug) {
+    safeComposition =
+      "same two characters sharing calm affectionate proximity with modest covered clothing";
+  } else if (rawHasBedroom && rawHasLying) {
+    safeComposition =
+      "same two characters resting side by side on the bed with modest covered clothing or soft sheet coverage";
+  } else if (rawHasLying) {
+    safeComposition =
+      "same two characters resting together with modest covered clothing, preserving lying posture";
+  } else if (rawHasBedroom) {
+    safeComposition =
+      "same two characters in the bedroom with modest covered clothing, preserving bed proximity";
+  } else {
+    safeComposition =
+      "same two characters in the same location with modest posture and readable expressions";
   }
 
   let safeMood = "warm, gentle emotional connection";
-  if (/(?:수줍|부끄|활(?:활)?(?:기|홍)|awkward|flushed|shy)/iu.test(haystack)) {
+  if (rawHasShyMood) {
     safeMood = "shy, flushed, or gently awkward emotional tone preserved from the source";
-  } else if (/(?:애틋|다정|tender|친밀|설렘|떨림)/iu.test(haystack)) {
+  } else if (rawHasTenderMood) {
     safeMood = "warm, tender emotional connection preserved from the source";
   }
 

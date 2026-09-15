@@ -15,6 +15,7 @@ import {
   projectSceneTextForSafeImageGeneration,
 } from "@/lib/chatImageSafeVisualProjection";
 import { MAX_PROVIDER_ATTEMPTS } from "@/lib/openAiImageSafetyFallback";
+import { buildTrpgRoundSourceText } from "@/lib/trpg/roundSource";
 
 const DUO_SUBJECTS = [
   {
@@ -155,5 +156,49 @@ describe("chatImageSafeProjectionRegression", () => {
     assert.doesNotMatch(tier2, /standing or sitting near each other/i);
     assert.doesNotMatch(tier2, /no physical intimacy beyond neutral closeness/i);
     assert.doesNotMatch(tier2, /a calm, well-lit indoor or outdoor setting suited to the characters/i);
+  });
+
+  it("TIER2-RAW-LEAK strict fallback never copies raw risky location phrases", () => {
+    const explicitLoc = buildTrpgRoundSourceText({
+      location: "성관계를 하는 침실",
+      actions: [],
+      narration: "조용히 쉰다.",
+    });
+    const explicitTier2 = ldTier2(explicitLoc, true);
+    assert.equal(containsRawRiskySourceLeak(explicitTier2), false);
+    assert.doesNotMatch(explicitTier2, /성관계/);
+
+    const violentLoc = buildTrpgRoundSourceText({
+      location: "피가 흐르는 복도",
+      actions: [],
+      narration: "조용히 걷는다.",
+    });
+    const violentTier2 = ldTier2(violentLoc, true);
+    assert.equal(containsRawRiskySourceLeak(violentTier2), false);
+    assert.doesNotMatch(violentTier2, /피(?:가|를)?\s*흘/);
+  });
+
+  it("TRPG-ARBITRARY-LOCATION preserves canonical 장소 line from projected source", () => {
+    const trpgSource = buildTrpgRoundSourceText({
+      location: "고대 성채의 지하 기록보관소",
+      actions: [{ name: "탐색", body: "사본을 찾는다." }],
+      narration: "",
+    });
+    const tier2 = ldTier2(trpgSource, true);
+    assert.match(tier2, /고대 성채의 지하 기록보관소/);
+    assert.doesNotMatch(tier2, /bedroom|카페|park/i);
+  });
+
+  it("POSE-OWNER uses raw boolean pose facts without ineffective canonicalTier2SafePose", () => {
+    const explicitBed = "둘이 침대에서 겹치며 성관계를 한다.";
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: explicitBed,
+      adultGrounded: true,
+    });
+    assert.match(facts.safeComposition, /bed|resting/i);
+    assert.match(facts.safeBroadLocation, /bedroom/i);
+    const tier2 = ldTier2(explicitBed, true);
+    assert.doesNotMatch(tier2, /standing or sitting/i);
+    assert.equal(containsRawRiskySourceLeak(tier2), false);
   });
 });
