@@ -61,11 +61,12 @@ describe("production comic simplification — full source reaches provider promp
     });
   }
 
-  it("SOURCE-1 full canonical turn text reaches the provider prompt", () => {
+  it("SOURCE-1 safe projected canonical turn text reaches the provider prompt", () => {
     const prompt = productionPrompt();
     assert.ok(prompt.includes("오늘 밤에 뭐해?"), "full source user line present");
     assert.ok(prompt.includes("들어와."), "full source character line present");
-    assert.ok(prompt.includes(FULL_SOURCE_TEXT), "full turn text present verbatim");
+    assert.ok(prompt.includes("FULL SOURCE (canonical turn — select from this only):"));
+    assert.doesNotMatch(prompt, /<<<STATUS/);
   });
 
   it("SOURCE-2 canonical content contract appears exactly once", () => {
