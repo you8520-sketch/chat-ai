@@ -49,16 +49,54 @@ export type SceneCastFocus = {
   activeSpeakingCast: string[];
 };
 
+/** Canonical motion decision — HOLD is a valid first-class outcome. */
+export type SceneMotionDecision = "HOLD" | "MICRO_MOTION" | "SCENE_ADVANCE" | "ESCALATE";
+
+export type SceneMotionReason =
+  | "quiet_interaction"
+  | "user_led_progress"
+  | "recent_motion"
+  | "repetition"
+  | "unresolved_consequence"
+  | "trigger"
+  | "stagnation"
+  | "scene_kind_escalation"
+  | "ensemble_mode";
+
+export type NpcGroundingSource =
+  | "known_cast_name"
+  | "active_speaking_cast"
+  | "trigger_named"
+  | "user_named"
+  | "lexical_only"
+  | "none";
+
+export type NpcGroundingResult = {
+  existingNpcEligible: boolean;
+  newNpcAllowed: boolean;
+  eligibleActorNames: string[];
+  sources: NpcGroundingSource[];
+};
+
+export type StagnationAnalysis = {
+  recentStagnation: boolean;
+  reasons: SceneMotionReason[];
+};
+
 export type SceneDirective = {
   mode: SceneDirectiveMode;
   recentStagnation: boolean;
   recommendedIntensity: 0 | 1 | 2 | 3 | 4 | 5;
+  motionDecision: SceneMotionDecision;
+  motionReasons: SceneMotionReason[];
   progressionTypes: SceneProgressionType[];
   avoid: string[];
   nextBeatHint?: string;
   userControl: SceneUserControl;
   /** Focus computed from settings — budget is never prompt-exposed. */
   castFocus: SceneCastFocus;
+  /** Internal — never rendered into the model prompt. */
+  npcGrounding: NpcGroundingResult;
 };
 
 export type SceneDirectiveInput = {
@@ -97,14 +135,16 @@ export type SceneDirectiveInput = {
 /** Internal telemetry — never rendered into the model prompt. */
 export type ProgressionSelectionMeta = {
   sceneKind: SceneKind;
+  motionDecision: SceneMotionDecision;
   eligible: SceneProgressionType[];
   weights: Partial<Record<SceneProgressionType, number>>;
   cooldownOverrides: string[];
   seed: string;
   pickCount: number;
+  npcGrounding: NpcGroundingResult;
 };
 
-export const SCENE_DIRECTIVE_VERSION = "world-motion-v1.1";
+export const SCENE_DIRECTIVE_VERSION = "world-motion-v1.2";
 
 export const BASE_PROGRESSION_WEIGHTS: Record<SceneProgressionType, number> = {
   relationship: 1,
@@ -210,46 +250,222 @@ function normalizeForRepeat(text: string): string {
     .slice(0, 80);
 }
 
-export function detectSceneStagnation(recentMessages: ChatMsg[] | undefined): boolean {
+const USER_PROGRESS_TERMS = [
+  "이동",
+  "나가",
+  "들어",
+  "문",
+  "전화",
+  "메시지",
+  "발견",
+  "단서",
+  "기록",
+  "계획",
+  "추적",
+  "요청",
+  "보고",
+  "시작",
+  "결정",
+  "열",
+  "닫",
+  "잡",
+  "걷",
+  "뛰",
+];
+
+/** Deterministic stagnation axes — short replies alone are not stagnation. */
+export function analyzeStagnation(recentMessages: ChatMsg[] | undefined): StagnationAnalysis {
   const recent = (recentMessages ?? []).slice(-8);
-  if (recent.length < 4) return false;
+  const reasons: SceneMotionReason[] = [];
+  if (recent.length < 4) {
+    return { recentStagnation: false, reasons };
+  }
 
   const assistantTurns = recent.filter((message) => message.role === "assistant");
   const userTurns = recent.filter((message) => message.role === "user");
   const reassuranceTerms = ["괜찮", "미안", "걱정", "말하지 않아도", "침묵"];
-  const movementTerms = [
-    "이동",
-    "나가",
-    "들어",
-    "문",
-    "전화",
-    "메시지",
-    "발견",
-    "단서",
-    "기록",
-    "계획",
-    "추적",
-    "요청",
-    "보고",
-    "시작",
-    "결정",
-  ];
+  const movementCount = countMatches(compactText(recent), USER_PROGRESS_TERMS);
 
   const reassuranceCount = assistantTurns.filter((message) =>
     includesAny(message.content, reassuranceTerms)
   ).length;
   const shortUserReplies = userTurns.filter((message) => message.content.trim().length <= 12).length;
-  const movementCount = countMatches(compactText(recent), movementTerms);
   const normalizedAssistant = assistantTurns.map((message) => normalizeForRepeat(message.content));
   const repeatedAssistant =
     normalizedAssistant.length >= 3 &&
     new Set(normalizedAssistant.filter(Boolean)).size <= Math.max(1, normalizedAssistant.length - 2);
 
-  return (
-    (reassuranceCount >= 2 && shortUserReplies >= 1) ||
-    (shortUserReplies >= 3 && movementCount <= 1) ||
-    repeatedAssistant
+  if (reassuranceCount >= 2 && shortUserReplies >= 1) {
+    reasons.push("repetition");
+  }
+  if (repeatedAssistant) {
+    reasons.push("repetition");
+  }
+  // Short replies without reassurance/repetition = quiet intimacy, not stagnation.
+  if (shortUserReplies >= 3 && movementCount <= 1 && reassuranceCount >= 1) {
+    reasons.push("stagnation");
+  }
+
+  return { recentStagnation: reasons.length > 0, reasons };
+}
+
+export function detectSceneStagnation(recentMessages: ChatMsg[] | undefined): boolean {
+  return analyzeStagnation(recentMessages).recentStagnation;
+}
+
+export function detectUserLedProgress(input: {
+  recentMessages?: ChatMsg[];
+  currentUserMessage?: string | null;
+}): boolean {
+  const current = (input.currentUserMessage ?? "").trim();
+  if (current.length > 40) return true;
+  if (includesAny(current, USER_PROGRESS_TERMS)) return true;
+  const recentUsers = (input.recentMessages ?? [])
+    .slice(-4)
+    .filter((message) => message.role === "user");
+  return recentUsers.some(
+    (message) =>
+      includesAny(message.content, USER_PROGRESS_TERMS) || message.content.trim().length > 40
   );
+}
+
+const TRIGGER_ARRIVAL_TERMS = [
+  "도착",
+  "찾아왔",
+  "노크",
+  "들어왔",
+  "나타났",
+  "지원",
+  "증원",
+  "호출",
+  "파견",
+  "연락",
+];
+
+/** Entity-evidence NPC grounding — generic role words alone do not qualify. */
+export function resolveNpcGrounding(input: {
+  sceneSignalText: string;
+  groundingText: string;
+  triggeredEventText?: string | null;
+  currentUserMessage?: string | null;
+  knownSupportingCastNames?: string[] | null;
+  activeSpeakingCast?: string[];
+}): NpcGroundingResult {
+  const sources: NpcGroundingSource[] = [];
+  const eligibleActorNames: string[] = [];
+  const primary = input.activeSpeakingCast?.[0];
+  const supporting = (input.activeSpeakingCast ?? []).slice(1).filter(Boolean);
+  const known = (input.knownSupportingCastNames ?? [])
+    .map((name) => name.trim())
+    .filter((name) => name && name !== primary);
+  const textBlob = [
+    input.sceneSignalText,
+    input.groundingText,
+    input.currentUserMessage ?? "",
+    input.triggeredEventText ?? "",
+  ].join("\n");
+  const userMsg = input.currentUserMessage ?? "";
+  const trigger = input.triggeredEventText?.trim() ?? "";
+
+  for (const name of known) {
+    if (textBlob.includes(name)) {
+      sources.push("known_cast_name");
+      if (!eligibleActorNames.includes(name)) eligibleActorNames.push(name);
+    }
+  }
+  for (const name of supporting) {
+    sources.push("active_speaking_cast");
+    if (!eligibleActorNames.includes(name)) eligibleActorNames.push(name);
+  }
+  for (const name of known) {
+    if (userMsg.includes(name)) {
+      sources.push("user_named");
+      if (!eligibleActorNames.includes(name)) eligibleActorNames.push(name);
+    }
+  }
+  if (trigger && known.some((name) => trigger.includes(name))) {
+    sources.push("trigger_named");
+    for (const name of known) {
+      if (trigger.includes(name) && !eligibleActorNames.includes(name)) {
+        eligibleActorNames.push(name);
+      }
+    }
+  }
+
+  const lexicalOnly =
+    eligibleActorNames.length === 0 &&
+    (includesAny(input.sceneSignalText, NPC_GROUND_TERMS) ||
+      includesAny(input.groundingText, NPC_GROUND_TERMS) ||
+      includesAny(trigger, NPC_GROUND_TERMS));
+  if (lexicalOnly) {
+    sources.push("lexical_only");
+  }
+
+  const existingNpcEligible = eligibleActorNames.length > 0;
+  const newNpcAllowed = Boolean(
+    trigger &&
+      includesAny(trigger, TRIGGER_ARRIVAL_TERMS) &&
+      (known.some((name) => trigger.includes(name)) ||
+        includesAny(input.groundingText, ["조직", "부대", "경비대", "의료", "지원팀"]))
+  );
+
+  return {
+    existingNpcEligible,
+    newNpcAllowed,
+    eligibleActorNames,
+    sources: sources.length > 0 ? sources : ["none"],
+  };
+}
+
+export function resolveSceneMotionDecision(input: {
+  sceneKind: SceneKind;
+  sceneCastMode: SceneCastMode;
+  intensity: number;
+  stagnant: boolean;
+  stagnationReasons: SceneMotionReason[];
+  hasTrigger: boolean;
+  userLedProgress: boolean;
+  mode: SceneDirectiveMode;
+}): { decision: SceneMotionDecision; reasons: SceneMotionReason[] } {
+  const reasons = [...input.stagnationReasons];
+
+  if (input.hasTrigger) {
+    return {
+      decision: input.intensity >= 4 ? "ESCALATE" : "SCENE_ADVANCE",
+      reasons: [...reasons, "trigger"],
+    };
+  }
+
+  if (input.sceneCastMode !== "single_primary") {
+    return {
+      decision: input.stagnant ? "SCENE_ADVANCE" : "SCENE_ADVANCE",
+      reasons: reasons.length > 0 ? reasons : ["ensemble_mode"],
+    };
+  }
+
+  if (input.mode === "auto_progression" && input.stagnant) {
+    return { decision: "MICRO_MOTION", reasons: [...reasons, "stagnation"] };
+  }
+
+  if (input.userLedProgress && !input.stagnant) {
+    return { decision: "HOLD", reasons: ["user_led_progress"] };
+  }
+
+  if (input.intensity === 0 && !input.stagnant) {
+    return { decision: "HOLD", reasons: ["quiet_interaction"] };
+  }
+
+  if (input.intensity <= 1 && input.stagnant) {
+    return { decision: "MICRO_MOTION", reasons: [...reasons, "stagnation"] };
+  }
+
+  if (input.intensity <= 1) {
+    return { decision: "MICRO_MOTION", reasons };
+  }
+  if (input.intensity <= 3) {
+    return { decision: "SCENE_ADVANCE", reasons };
+  }
+  return { decision: "ESCALATE", reasons: [...reasons, "scene_kind_escalation"] };
 }
 
 /** Scene kind from current-scene signals only — never memory/lorebook. */
@@ -431,7 +647,13 @@ function cooldownMultiplierForType(
   return best;
 }
 
-function pickCountForIntensity(intensity: number, rng: () => number): number {
+function pickCountForIntensity(
+  intensity: number,
+  motionDecision: SceneMotionDecision,
+  rng: () => number
+): number {
+  if (motionDecision === "HOLD") return 0;
+  if (motionDecision === "MICRO_MOTION") return 1;
   if (intensity <= 1) return 1;
   if (intensity === 2) return rng() < 0.55 ? 1 : 2;
   if (intensity === 3) return 2;
@@ -479,15 +701,62 @@ export function selectProgressionTypesWeighted(input: {
   progressionHistory?: SceneProgressionHistoryEntry[] | null;
   /** Soft priority only — never used to flip cast mode. */
   sceneCastMode?: SceneCastMode | null;
+  motionDecision?: SceneMotionDecision | null;
+  npcGrounding?: NpcGroundingResult | null;
+  knownSupportingCastNames?: string[] | null;
+  activeSpeakingCast?: string[];
+  currentUserMessage?: string | null;
 }): { types: SceneProgressionType[]; meta: ProgressionSelectionMeta } {
   const sceneKind = resolveSceneKind(input.sceneSignalText);
   const hasTrigger = Boolean(input.triggeredEventText?.trim());
+  const sceneCastMode = input.sceneCastMode ?? "single_primary";
+  const npcGrounding =
+    input.npcGrounding ??
+    resolveNpcGrounding({
+      sceneSignalText: input.sceneSignalText,
+      groundingText: input.groundingText,
+      triggeredEventText: input.triggeredEventText,
+      currentUserMessage: input.currentUserMessage,
+      knownSupportingCastNames: input.knownSupportingCastNames,
+      activeSpeakingCast: input.activeSpeakingCast,
+    });
+  const motionDecision =
+    input.motionDecision ??
+    resolveSceneMotionDecision({
+      sceneKind,
+      sceneCastMode,
+      intensity: input.intensity,
+      stagnant: input.stagnant,
+      stagnationReasons: input.stagnant ? (["stagnation"] as SceneMotionReason[]) : [],
+      hasTrigger,
+      userLedProgress: detectUserLedProgress({
+        currentUserMessage: input.currentUserMessage,
+      }),
+      mode: "interactive",
+    }).decision;
+
+  if (motionDecision === "HOLD") {
+    return {
+      types: [],
+      meta: {
+        sceneKind,
+        motionDecision,
+        eligible: [],
+        weights: {},
+        cooldownOverrides: [],
+        seed: `${input.chatId ?? 0}:${input.currentTurn ?? 0}:${SCENE_DIRECTIVE_VERSION}`,
+        pickCount: 0,
+        npcGrounding,
+      },
+    };
+  }
+
   const dangerCue =
     includesAny(input.sceneSignalText, DANGER_TERMS) || sceneKind === "climax" || sceneKind === "operation";
-  const npcGrounded =
-    includesAny(input.sceneSignalText, NPC_GROUND_TERMS) ||
-    includesAny(input.groundingText, NPC_GROUND_TERMS) ||
-    (hasTrigger && includesAny(input.triggeredEventText || "", NPC_GROUND_TERMS));
+  const npcActionAllowed =
+    sceneCastMode !== "single_primary" ||
+    npcGrounding.existingNpcEligible ||
+    npcGrounding.newNpcAllowed;
   const loreGrounded =
     includesAny(input.groundingText, ["단서", "기록", "소문", "조직", "장소", "세계"]) ||
     includesAny(input.sceneSignalText, INVESTIGATION_TERMS);
@@ -512,12 +781,21 @@ export function selectProgressionTypesWeighted(input: {
   if (input.stagnant) applyBoost(stagnationBoosts());
   if (hasTrigger) applyBoost(triggerBoosts());
 
-  // single_primary: keep npc_action available, but prefer advancing the main interaction.
-  if (input.sceneCastMode === "single_primary" && !hasTrigger) {
-    const npc = weights.get("npc_action") ?? 0;
-    if (npc > 0) weights.set("npc_action", npc * 0.55);
+  // single_primary: prefer main interaction; npc_action only when entity-grounded.
+  if (sceneCastMode === "single_primary" && !hasTrigger) {
+    if (!npcActionAllowed) {
+      weights.set("npc_action", 0);
+    } else {
+      const npc = weights.get("npc_action") ?? 0;
+      if (npc > 0) weights.set("npc_action", npc * 0.55);
+    }
     weights.set("relationship", (weights.get("relationship") ?? 0) * 1.2);
     weights.set("daily_life", (weights.get("daily_life") ?? 0) * 1.15);
+  }
+
+  // Entity-grounded NPC gate — all scene kinds (not only rest/neutral).
+  if (!npcActionAllowed) {
+    weights.set("npc_action", 0);
   }
 
   // Eligibility gates — zero unfit (memory/lore never force operation).
@@ -526,9 +804,6 @@ export function selectProgressionTypesWeighted(input: {
       weights.set("tactical_planning", 0);
       // Quiet scenes: no ambient world crisis beat unless stagnant needs motion.
       if (!input.stagnant) weights.set("world_reaction", 0);
-    }
-    if (!npcGrounded) {
-      weights.set("npc_action", 0);
     }
   }
   if (!comedyOk) {
@@ -580,22 +855,32 @@ export function selectProgressionTypesWeighted(input: {
     }
   }
 
-  // Floor: ensure at least one eligible candidate.
-  let eligible = ALL_PROGRESSION_TYPES.filter((t) => (weights.get(t) ?? 0) > 0);
-  if (eligible.length === 0) {
-    weights.set("environment", 1);
-    weights.set("relationship", 1);
-    eligible = ["environment", "relationship"];
-  }
+  const eligible = ALL_PROGRESSION_TYPES.filter((t) => (weights.get(t) ?? 0) > 0);
 
   const chatKey = input.chatId == null || input.chatId === "" ? "0" : String(input.chatId);
   const seedStr = `${chatKey}:${turn || 0}:${SCENE_DIRECTIVE_VERSION}`;
   const seed = hashSeed([seedStr]);
   const rng = createSeededRng(seed);
   const pickCount = Math.min(
-    pickCountForIntensity(input.intensity, rng),
+    pickCountForIntensity(input.intensity, motionDecision, rng),
     eligible.length
   );
+
+  if (eligible.length === 0 || pickCount === 0) {
+    return {
+      types: [],
+      meta: {
+        sceneKind,
+        motionDecision,
+        eligible: [],
+        weights: {},
+        cooldownOverrides,
+        seed: seedStr,
+        pickCount: 0,
+        npcGrounding,
+      },
+    };
+  }
 
   const weightMap = new Map(
     eligible.map((t) => [t, Math.max(0, weights.get(t) ?? 0)] as const)
@@ -612,11 +897,13 @@ export function selectProgressionTypesWeighted(input: {
     types,
     meta: {
       sceneKind,
+      motionDecision,
       eligible,
       weights: weightSnapshot,
       cooldownOverrides,
       seed: seedStr,
       pickCount,
+      npcGrounding,
     },
   };
 }
@@ -808,8 +1095,45 @@ export function getLastProgressionSelectionMeta(): ProgressionSelectionMeta | nu
   return lastSelectionMeta;
 }
 
+function buildExecutionContract(input: {
+  motionDecision: SceneMotionDecision;
+  progressionTypes: SceneProgressionType[];
+  npcGrounding: NpcGroundingResult;
+  castFocus: SceneCastFocus;
+}): string {
+  if (input.motionDecision === "HOLD") {
+    return [
+      "전개 필요: 없음 (현재 비트 유지)",
+      "허용된 변화: 현재 캐릭터·관계·감각·행동",
+      "기존 NPC 행동: 없음",
+      "새 인물 도입: 없음",
+    ].join("\n");
+  }
+
+  const allowedSources = input.progressionTypes
+    .map((type) => PROGRESSION_LABELS[type])
+    .join(" + ");
+  const existingNpc =
+    input.npcGrounding.eligibleActorNames.length > 0
+      ? input.npcGrounding.eligibleActorNames.join(", ")
+      : "없음";
+  const newNpc = input.npcGrounding.newNpcAllowed ? "트리거·확정 지원만" : "없음";
+  const npcAction =
+    input.progressionTypes.includes("npc_action") && input.npcGrounding.existingNpcEligible
+      ? `기존 NPC (${existingNpc})의 행동만`
+      : "없음";
+
+  return [
+    `전개 필요: ${input.motionDecision === "MICRO_MOTION" ? "MICRO" : input.motionDecision === "ESCALATE" ? "ESCALATE" : "ADVANCE"}`,
+    `허용된 변화: ${allowedSources || "현재 캐릭터·환경"}`,
+    `기존 NPC 행동: ${npcAction}`,
+    `새 인물 도입: ${newNpc}`,
+  ].join("\n");
+}
+
 export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective {
-  const recentStagnation = detectSceneStagnation(input.recentMessages);
+  const stagnation = analyzeStagnation(input.recentMessages);
+  const recentStagnation = stagnation.recentStagnation;
   const baseCastFocus = resolveSceneCastFocus({
     contentKind: input.contentKind,
     primaryCharacterName: input.primaryCharacterName,
@@ -833,6 +1157,30 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
     currentUserMessage: input.currentUserMessage,
     triggeredEventText: input.triggeredEventText,
   });
+  const sceneKind = resolveSceneKind(sceneSignalText);
+  const hasTrigger = Boolean(input.triggeredEventText?.trim());
+  const userLedProgress = detectUserLedProgress({
+    recentMessages: input.recentMessages,
+    currentUserMessage: input.currentUserMessage,
+  });
+  const npcGrounding = resolveNpcGrounding({
+    sceneSignalText,
+    groundingText,
+    triggeredEventText: input.triggeredEventText,
+    currentUserMessage: input.currentUserMessage,
+    knownSupportingCastNames: input.knownSupportingCastNames,
+    activeSpeakingCast: castFocus.activeSpeakingCast,
+  });
+  const { decision: motionDecision, reasons: motionReasons } = resolveSceneMotionDecision({
+    sceneKind,
+    sceneCastMode: castFocus.sceneCastMode,
+    intensity: recommendedIntensity,
+    stagnant: recentStagnation,
+    stagnationReasons: stagnation.reasons,
+    hasTrigger,
+    userLedProgress,
+    mode: input.mode,
+  });
   const { types: progressionTypes, meta } = selectProgressionTypesWeighted({
     sceneSignalText,
     groundingText,
@@ -843,6 +1191,11 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
     currentTurn: input.currentTurn,
     progressionHistory: input.progressionHistory,
     sceneCastMode: castFocus.sceneCastMode,
+    motionDecision,
+    npcGrounding,
+    knownSupportingCastNames: input.knownSupportingCastNames,
+    activeSpeakingCast: castFocus.activeSpeakingCast,
+    currentUserMessage: input.currentUserMessage,
   });
   lastSelectionMeta = meta;
 
@@ -853,6 +1206,8 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
     mode: input.mode,
     recentStagnation,
     recommendedIntensity,
+    motionDecision,
+    motionReasons,
     progressionTypes,
     avoid: buildAvoidList(input.mode, recommendedIntensity),
     nextBeatHint: sanitizeHint(
@@ -865,6 +1220,7 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
     ),
     userControl,
     castFocus,
+    npcGrounding,
   };
 }
 
@@ -875,8 +1231,17 @@ function renderIntensity(value: SceneDirective["recommendedIntensity"], stagnant
 
 export function renderSceneDirectiveForPrompt(directive: SceneDirective): string {
   const modeLabel = directive.mode === "auto_progression" ? "자동진행" : "일반 RP";
-  const progression = directive.progressionTypes.map((type) => PROGRESSION_LABELS[type]).join(" + ");
+  const progression =
+    directive.progressionTypes.length > 0
+      ? directive.progressionTypes.map((type) => PROGRESSION_LABELS[type]).join(" + ")
+      : "없음 (현재 비트 유지)";
   const primaryFocusLine = renderPrimaryFocusLine(directive.castFocus);
+  const executionContract = buildExecutionContract({
+    motionDecision: directive.motionDecision,
+    progressionTypes: directive.progressionTypes,
+    npcGrounding: directive.npcGrounding,
+    castFocus: directive.castFocus,
+  });
   return [
     BASE_SCENE_ENGINE_RULE,
     "",
@@ -884,9 +1249,12 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
     `모드: ${modeLabel}`,
     `정체 감지: ${directive.recentStagnation ? "있음" : "없음"}`,
     `권장 강도: ${renderIntensity(directive.recommendedIntensity, directive.recentStagnation)}`,
+    executionContract,
     `전개 방향: ${progression}`,
     `피할 것: ${directive.avoid.join(", ")}`,
-    directive.nextBeatHint ? `다음 장면 힌트: ${directive.nextBeatHint}` : "",
+    directive.nextBeatHint && directive.motionDecision !== "HOLD"
+      ? `다음 장면 힌트: ${directive.nextBeatHint}`
+      : "",
     primaryFocusLine ?? "",
     `유저 조종: ${USER_CONTROL_LABELS[directive.userControl]}`,
     directive.mode === "auto_progression" ? AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE : "",
