@@ -275,6 +275,40 @@ export function applyLocalSceneProgressDelta(
   return enforceResolvedBlockerExclusivity(merged);
 }
 
+/**
+ * Deterministic progression floor — canonical owner for the accepted-routine-
+ * traversal fact.
+ *
+ * When a submitted canonical action was mechanically accepted as routine
+ * traversal of an existing open route (`actionCheck` reason `routine_traversal`)
+ * and the GM omitted `sceneTransitionTo`, the single accepted route becomes the
+ * new local scene via the existing reset semantics. The server authors no new
+ * fiction — it only promotes an already-canonical accepted route label.
+ *
+ * Returns null (defer to the GM) when the GM already transitioned, when no
+ * routine traversal was accepted, or when the accepted set is ambiguous
+ * (multiple distinct routes) — party-split ambiguity stays GM-owned rather than
+ * silently choosing one actor/route.
+ */
+export function resolveRoutineTraversalSceneTransition(opts: {
+  gmEmittedTransition: boolean;
+  acceptedRoutineRoutes: readonly string[];
+}): string | null {
+  if (opts.gmEmittedTransition) return null;
+  const distinct: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of opts.acceptedRoutineRoutes) {
+    const label = clipItem(raw);
+    if (!label) continue;
+    const norm = label.toLowerCase();
+    if (seen.has(norm)) continue;
+    seen.add(norm);
+    distinct.push(label);
+  }
+  if (distinct.length !== 1) return null;
+  return distinct[0] ?? null;
+}
+
 export function hasLocalSceneProgressContent(progress: TrpgLocalSceneProgressV1): boolean {
   return (
     progress.objective.trim().length > 0 ||

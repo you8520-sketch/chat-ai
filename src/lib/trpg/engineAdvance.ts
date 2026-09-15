@@ -76,6 +76,7 @@ import {
 } from "./campaignContext";
 import {
   hasLocalSceneProgressDelta,
+  resolveRoutineTraversalSceneTransition,
   serializeLocalSceneDeltaContract,
   serializeLocalSceneStateForGm,
 } from "./localSceneProgress";
@@ -184,6 +185,7 @@ import {
 import {
   adjudicateLockedHumanSubmissions,
   adjudicateSubmissionForParticipant,
+  collectAcceptedRoutineTraversalRoutes,
   ensureRoundAdjudicationContext,
   finalizeRoundAdjudication,
   loadFrozenAdjudicationDecision,
@@ -1541,6 +1543,34 @@ function commitPendingGmResult(
     nextRoundContext: parsed.nextRoundContext || parsed.delta.nextRoundContext,
     campaignFinished: parsed.campaignFinished,
   });
+  // Deterministic progression floor (accepted routine traversal + GM omission).
+  // Canonical owner: localSceneProgress. The server authors no new fiction — it
+  // only promotes an already-accepted canonical route label when unambiguous.
+  const resolveEffectiveLocalSceneDelta = () => {
+    const gmLocalSceneDelta = parsed.delta.localScene;
+    if (
+      gmLocalSceneDelta?.sceneTransitionTo != null ||
+      opts.opening ||
+      opts.regenerate ||
+      !campaignContext
+    ) {
+      return gmLocalSceneDelta;
+    }
+    const acceptedRoutineRoutes = collectAcceptedRoutineTraversalRoutes({
+      db,
+      roundId: opts.roundId,
+      openRoutes: campaignContext.localSceneProgress.openRoutes,
+    });
+    const fallback = resolveRoutineTraversalSceneTransition({
+      gmEmittedTransition: false,
+      acceptedRoutineRoutes,
+    });
+    if (fallback == null) return gmLocalSceneDelta;
+    console.info(
+      `[trpg-local-scene-progression] ROUTE_TRAVERSAL_ACCEPTED=${acceptedRoutineRoutes.length} GM_SCENE_TRANSITION_PRESENT=false SERVER_FALLBACK_TRANSITION_USED=true round=${roundNumber}`
+    );
+    return { ...(gmLocalSceneDelta ?? {}), sceneTransitionTo: fallback };
+  };
   try {
     db.transaction(() => {
       if (leaseOwnerId && provenanceId) {
@@ -1572,11 +1602,12 @@ function commitPendingGmResult(
         ).run(campaign.id, opts.roundId, `delta:${opts.roundId}`, JSON.stringify(parsed.delta));
       }
       persistCampaignLedger(db, campaign.id, roundNumber, ledger);
-      const hasLocalSceneDelta = hasLocalSceneProgressDelta(parsed.delta.localScene);
+      const effectiveLocalSceneDelta = resolveEffectiveLocalSceneDelta();
+      const hasLocalSceneDelta = hasLocalSceneProgressDelta(effectiveLocalSceneDelta);
       if (campaignContext && (hasLocalSceneDelta || resolvedPlan)) {
         let ctx = campaignContext;
         if (hasLocalSceneDelta) {
-          ctx = applyLocalSceneProgressToContext(ctx, parsed.delta.localScene);
+          ctx = applyLocalSceneProgressToContext(ctx, effectiveLocalSceneDelta);
         }
         if (resolvedPlan) {
           stage = "story_progress";
