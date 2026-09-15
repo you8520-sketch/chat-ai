@@ -243,6 +243,153 @@ describe("HP-REPRO: layered ownership boundaries (L1-L4)", () => {
   });
 });
 
+describe("HP-REPRO: malformed GM structured HP must be ignored, not clamped", () => {
+  it("M1: NaN → HP unchanged (never 0)", () => {
+    const res = resolve({
+      sheets: [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      actors: [actor({ participantId: 1 })],
+    });
+    const out = mergeMechanicsOwnedDelta(
+      [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      { players: [{ participantId: 2, hp: Number.NaN }] } as TrpgStateDelta,
+      res
+    );
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.equal(hpOf(out.next, 2), 30, "NaN must be ignored");
+  });
+
+  it("M2: Infinity → ignored", () => {
+    const res = resolve({
+      sheets: [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      actors: [actor({ participantId: 1 })],
+    });
+    const out = mergeMechanicsOwnedDelta(
+      [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      { players: [{ participantId: 2, hp: Number.POSITIVE_INFINITY }] } as TrpgStateDelta,
+      res
+    );
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.equal(hpOf(out.next, 2), 30);
+  });
+
+  it("M3: negative → ignored", () => {
+    const res = resolve({
+      sheets: [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      actors: [actor({ participantId: 1 })],
+    });
+    const out = mergeMechanicsOwnedDelta(
+      [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      { players: [{ participantId: 2, hp: -1 }] } as TrpgStateDelta,
+      res
+    );
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.equal(hpOf(out.next, 2), 30);
+  });
+
+  it("M4: over maxHp → ignored (not clamped up to maxHp)", () => {
+    const res = resolve({
+      sheets: [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 10, maxHp: 30 })],
+      actors: [actor({ participantId: 1 })],
+    });
+    const out = mergeMechanicsOwnedDelta(
+      [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 10, maxHp: 30 })],
+      { players: [{ participantId: 2, hp: 31 }] } as TrpgStateDelta,
+      res
+    );
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.equal(hpOf(out.next, 2), 10, "out-of-range HP must be ignored, not healed to maxHp");
+  });
+
+  it("M5: fractional → ignored (not rounded)", () => {
+    const res = resolve({
+      sheets: [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      actors: [actor({ participantId: 1 })],
+    });
+    const out = mergeMechanicsOwnedDelta(
+      [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      { players: [{ participantId: 2, hp: 12.5 }] } as TrpgStateDelta,
+      res
+    );
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.equal(hpOf(out.next, 2), 30);
+  });
+
+  it("M6: valid integer hp → committed as before", () => {
+    const res = resolve({
+      sheets: [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      actors: [actor({ participantId: 1 })],
+    });
+    const out = mergeMechanicsOwnedDelta(
+      [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      gmPlayersHp(2, 22),
+      res
+    );
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.equal(hpOf(out.next, 2), 22);
+  });
+
+  it("M7: ongoing tick floor preserved when GM hp is invalid", () => {
+    const res = resolve({
+      sheets: [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      actors: [actor({ participantId: 1 })],
+      effects: [poison({ id: 41, participantId: 2 })],
+    });
+    const tick = res.ongoingTicks.find((row) => row.participantId === 2);
+    assert.ok(tick);
+    const out = mergeMechanicsOwnedDelta(
+      [sheet({ participantId: 1, hp: 30 }), sheet({ participantId: 2, name: "렌", hp: 30 })],
+      { players: [{ participantId: 2, hp: Number.NaN }] } as TrpgStateDelta,
+      res
+    );
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.equal(hpOf(out.next, 2), tick!.hpAfter, "tick layer must survive an invalid GM hp");
+  });
+
+  it("M8: SERVER_RECOVERY floor preserved when GM hp is invalid", () => {
+    const res = resolve({
+      sheets: [sheet({ participantId: 1, hp: 10, maxHp: 30 })],
+      actors: [actor({ participantId: 1, actionType: "support", body: "상처를 응급처치한다", tier: "SUCCESS", statKey: "wis" })],
+    });
+    assert.equal(hpOwnershipOf(res, 1).SERVER_RECOVERY, true);
+    const recoveryHp = res.hpAfter["1"];
+    assert.notEqual(recoveryHp, undefined);
+    const out = mergeMechanicsOwnedDelta(
+      [sheet({ participantId: 1, hp: 10, maxHp: 30 })],
+      { players: [{ participantId: 1, hp: Number.NaN }] } as TrpgStateDelta,
+      res
+    );
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.equal(hpOf(out.next, 1), recoveryHp, "recovery floor must survive an invalid GM hp");
+  });
+
+  it("M9: FLASH_REFEREE authoritative HP preserved when GM hp is invalid", () => {
+    const res = resolve({
+      sheets: [sheet({ hp: 30 })],
+      actors: [actor({ participantId: 1 })],
+      flash: {
+        effects: [{ participantId: 1, directEffect: "harm", directClass: "MEDIUM", cause: "enemy_counter" }],
+      },
+      fallback: "none",
+      calledFlash: true,
+      rng: () => 4,
+    });
+    assert.equal(hpOwnershipOf(res, 1).FLASH_REFEREE, true);
+    const stored = res.hpAfter["1"];
+    const out = mergeMechanicsOwnedDelta([sheet({ hp: 30 })], { players: [{ participantId: 1, hp: -5 }] } as TrpgStateDelta, res);
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.equal(hpOf(out.next, 1), stored, "FLASH authoritative HP must survive an invalid GM hp");
+  });
+});
+
 describe("HP-REPRO: actual periodic_harm tick semantics", () => {
   it("ONGOING-1: first application ticks exactly once and sets owner flags", () => {
     const res = resolve({

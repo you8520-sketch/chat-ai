@@ -149,19 +149,27 @@ export function mergeMechanicsOwnedDelta(
         cur.inventory.splice(idx, 1);
       }
     }
-    if (patch.hp != null && complete && resolution) {
+    // Single canonical HP commit-boundary validation (shared by complete and
+    // incomplete mechanics). A malformed structured GM value (NaN/Infinity/
+    // negative/fractional/over-max) is ignored — never clamped or coerced — so
+    // the mechanics floor (tick/recovery/Flash) or prior canonical HP survives.
+    const gmHp = patch.hp;
+    const gmHpValid =
+      typeof gmHp === "number" &&
+      Number.isInteger(gmHp) &&
+      gmHp >= 0 &&
+      gmHp <= cur.maxHp;
+    if (gmHpValid && complete && resolution) {
       const start = sheets.find((row) => row.participantId === cur.participantId)?.hp ?? cur.hp;
       cur.hp = resolveParticipantHp({
         startHp: start,
         maxHp: cur.maxHp,
         resolution,
         participantId: cur.participantId,
-        gmHp: patch.hp,
+        gmHp,
       });
-    } else if (patch.hp != null && !complete) {
-      if (Number.isInteger(patch.hp) && patch.hp >= 0 && patch.hp <= cur.maxHp) {
-        cur.hp = clampHp(patch.hp, cur.maxHp);
-      }
+    } else if (gmHpValid && !complete) {
+      cur.hp = clampHp(gmHp, cur.maxHp);
     }
   }
 
