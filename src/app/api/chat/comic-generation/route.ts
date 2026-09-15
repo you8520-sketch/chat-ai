@@ -1002,6 +1002,7 @@ export async function POST(req: Request) {
           currentTurn: source.turnText,
           castManifest,
           contentKind: context.contentKind,
+          adultGrounded: roomAdultGrounded,
         });
         prompt = plan.prompt;
         referenceUrls = plan.referenceUrls;
@@ -1011,6 +1012,8 @@ export async function POST(req: Request) {
           personaName: context.persona.name,
           personaGender: context.personaGender,
           subjects: plan.subjects,
+          sceneSourceText: source.turnText,
+          adultGrounded: roomAdultGrounded,
         });
       }
       // CANONICAL PRICING — final required points derive from the server-grounded
@@ -1053,10 +1056,13 @@ export async function POST(req: Request) {
           cast,
           subjects: partyPlan?.subjects,
           fullSource: trpgSource,
+          adultGrounded: roomAdultGrounded,
         });
         strictFallbackPrompt = buildStrictLdPartyFallbackPrompt({
           cast: cast!,
           subjects: partyPlan!.subjects,
+          sceneSourceText: trpgSource,
+          adultGrounded: roomAdultGrounded,
         });
       }
       startJob(CHAT_LD_ILLUSTRATION_TEMPLATE_ID, "illustration");

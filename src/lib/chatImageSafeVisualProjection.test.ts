@@ -139,7 +139,7 @@ describe("chatImageSafeVisualProjection", () => {
     assert.equal(applied, true);
     assert.equal(containsRawRiskySourceLeak(formatted), false);
     assert.doesNotMatch(formatted, /성관계/);
-    assert.match(formatted, /Close adult intimacy/i);
+    assert.match(formatted, /Close adult intimacy|bedroom aftermath/i);
   });
 
   it("ILLUSTRATION_SAFE_DEPICTION allows non-explicit adult intimacy when adult grounded", () => {
@@ -265,11 +265,11 @@ describe("chatImageSafeVisualProjection", () => {
     assert.equal(categories.includes("adult_explicit"), false);
   });
 
-  it("P23 adult grounded explicit source uses non-explicit adult intimacy", () => {
+  it("P23 adult grounded explicit bedroom source uses covered non-explicit substitute", () => {
     const result = projectSceneTextForSafeImageGeneration("둘이 침대에서 겹치며 성관계를 한다.", {
       adultGrounded: true,
     });
-    assert.match(result.text, /Close adult intimacy/i);
+    assert.match(result.text, /Close adult intimacy|bedroom aftermath/i);
   });
 
   it("P24 unknown age explicit source uses neutral non-sexual projection", () => {
