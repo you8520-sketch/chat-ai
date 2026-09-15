@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { resolveTrpgActionCheckDecision, type TrpgActionCheckReason } from "./actionCheck";
+import { actionReferencesOpenRoute } from "./actionCheckContext";
 import { resolveTrpgAdjudicationDifficulty } from "./adjudicationDifficulty";
 import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { pickStatForActionDetailed } from "./actionTypes";
@@ -459,6 +460,41 @@ export function deriveAdjudicatedParticipantIds(
   outcomes: Record<number, TrpgParticipantAdjudicationOutcome>
 ): number[] {
   return Object.keys(outcomes).map(Number);
+}
+
+/**
+ * Accepted routine-traversal route labels for a round (canonical adjudication
+ * fact). A submission qualifies when its server-frozen decision is a no-check
+ * `routine_traversal` and its canonical attempt explicitly references one of the
+ * pre-round `openRoutes`. Uses only already-persisted facts — no new state.
+ */
+export function collectAcceptedRoutineTraversalRoutes(opts: {
+  db: Database.Database;
+  roundId: number;
+  openRoutes: readonly string[];
+}): string[] {
+  if (opts.openRoutes.length === 0) return [];
+  const subs = opts.db
+    .prepare(
+      `SELECT s.id, s.body, s.action_type, p.kind
+       FROM trpg_action_submissions s
+       JOIN trpg_participants p ON p.id = s.participant_id
+       WHERE s.round_id=? AND s.locked=1 ORDER BY s.id ASC`
+    )
+    .all(opts.roundId) as Array<{ id: number; body: string; action_type: string | null; kind: string }>;
+  const routes: string[] = [];
+  for (const sub of subs) {
+    const decision = loadFrozenAdjudicationDecision(opts.db, opts.roundId, sub.id);
+    if (!decision || decision.needsCheck || decision.reason !== "routine_traversal") continue;
+    const resolved = resolveTrpgCanonicalAttempt({
+      participantKind: sub.kind === "ai_character" ? "ai_character" : "human",
+      submissionBody: sub.body,
+      actionType: sub.action_type,
+    });
+    const matched = actionReferencesOpenRoute(resolved.canonicalAttempt, opts.openRoutes);
+    if (matched) routes.push(matched);
+  }
+  return routes;
 }
 
 /** Legacy batch entry — thin wrapper over the per-submission canonical owner. */
