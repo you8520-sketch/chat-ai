@@ -38,7 +38,13 @@ import {
   renderComicStrictBalloonSlotMetadata,
   type ComicBalloonSlotMetadata,
 } from "@/lib/chatComicPanelSpec";
-import { COMIC_TIER2_POSITIVE_SAFE_DEPICTION } from "@/lib/chatComicTier2SafeProjection";
+import {
+  canonicalTier2SafePose,
+  COMIC_TIER2_POSITIVE_SAFE_DEPICTION,
+  containsBedroomBedContext,
+  containsSafeLyingOrRestContext,
+} from "@/lib/chatComicTier2SafeProjection";
+import { projectSceneBlockForSafeImageGeneration } from "@/lib/chatImageSafeVisualProjection";
 import type { ContentKind } from "@/lib/simulationMode";
 
 /** Tier-2 uses reference identity only — omit untrusted freeform saved appearance prose. */
@@ -54,6 +60,97 @@ function subjectsForStrictFallback(
 
 /** Tier 2 always uses base safe depiction — never adult-grounded allowance. */
 export const STRICT_SAFE_DEPICTION = buildIllustrationSafeDepiction({ adultGrounded: false });
+
+export type LdStrictFallbackSceneFacts = {
+  safeBroadLocation: string;
+  safeMood: string;
+  safeComposition: string;
+};
+
+/** Derive same-scene facts from projected source for LD Tier-2 — not a new scene selector. */
+export function deriveLdStrictFallbackSceneFacts(opts: {
+  sceneSourceText: string;
+  adultGrounded?: boolean;
+}): LdStrictFallbackSceneFacts {
+  const raw = String(opts.sceneSourceText ?? "").trim();
+  const projected = projectSceneBlockForSafeImageGeneration(raw, {
+    adultGrounded: opts.adultGrounded ?? false,
+  }).text;
+  const haystack = [raw, projected].filter(Boolean).join("\n");
+
+  let safeBroadLocation = "";
+  if (containsBedroomBedContext(haystack)) {
+    safeBroadLocation = "same private bedroom with the bed visible";
+  } else {
+    const trpgLocation = haystack.match(/(?:^|\n)LOCATION:\s*(.+)/imu)?.[1]?.trim();
+    if (trpgLocation) {
+      safeBroadLocation = `same location: ${trpgLocation.slice(0, 120)}`;
+    } else if (/(?:카페|cafe)/iu.test(haystack)) {
+      safeBroadLocation = "same cafe setting as the source scene";
+    } else if (/(?:공원|park)/iu.test(haystack)) {
+      safeBroadLocation = "same outdoor park setting as the source scene";
+    } else {
+      safeBroadLocation = "the same location as the approved safe source scene";
+    }
+  }
+
+  const canonicalPose = canonicalTier2SafePose({ situation: haystack });
+  let safeComposition = canonicalPose ?? "";
+  if (!safeComposition) {
+    const kissing = /(?:키스|kiss)/iu.test(haystack);
+    const hugging = /(?:껴안|포옹|안아|hug|embrace)/iu.test(haystack);
+    if (kissing) {
+      safeComposition =
+        "same two characters with faces close in calm affectionate proximity, modest covered clothing, general-audience depiction";
+    } else if (hugging) {
+      safeComposition =
+        "same two characters sharing calm affectionate proximity with modest covered clothing";
+    } else if (containsSafeLyingOrRestContext(haystack)) {
+      safeComposition =
+        "same two characters resting together with modest covered clothing, preserving lying posture";
+    } else {
+      safeComposition =
+        "same two characters in the same location with modest posture and readable expressions";
+    }
+  }
+
+  let safeMood = "warm, gentle emotional connection";
+  if (/(?:수줍|부끄|활(?:활)?(?:기|홍)|awkward|flushed|shy)/iu.test(haystack)) {
+    safeMood = "shy, flushed, or gently awkward emotional tone preserved from the source";
+  } else if (/(?:애틋|다정|tender|친밀|설렘|떨림)/iu.test(haystack)) {
+    safeMood = "warm, tender emotional connection preserved from the source";
+  }
+
+  return { safeBroadLocation, safeMood, safeComposition };
+}
+
+function resolveLdStrictFallbackSceneFacts(opts: {
+  sceneSourceText?: string;
+  adultGrounded?: boolean;
+  safeBroadLocation?: string;
+  safeMood?: string;
+  safeComposition?: string;
+}): LdStrictFallbackSceneFacts {
+  const derived =
+    opts.sceneSourceText != null
+      ? deriveLdStrictFallbackSceneFacts({
+          sceneSourceText: opts.sceneSourceText,
+          adultGrounded: opts.adultGrounded,
+        })
+      : null;
+  return {
+    safeBroadLocation:
+      opts.safeBroadLocation?.trim() ||
+      derived?.safeBroadLocation ||
+      "the same location as the approved safe source scene",
+    safeMood:
+      opts.safeMood?.trim() || derived?.safeMood || "warm, gentle emotional connection",
+    safeComposition:
+      opts.safeComposition?.trim() ||
+      derived?.safeComposition ||
+      "same two characters in the same location with modest posture and readable expressions",
+  };
+}
 
 function formatStrictCastLine(member: ChatLdIllustrationCastMember, index: number): string {
   const name = member.name.trim() || `person ${index + 1}`;
@@ -97,11 +194,12 @@ export function buildStrictLdDuoFallbackPrompt(opts: {
   subjects: readonly ChatImageVisualSubject[];
   safeBroadLocation?: string;
   safeMood?: string;
+  safeComposition?: string;
+  /** When set, derives same-scene facts from projected source (Tier-2 same-scene contract). */
+  sceneSourceText?: string;
+  adultGrounded?: boolean;
 }): string {
-  const location =
-    opts.safeBroadLocation?.trim() ||
-    "a calm, well-lit indoor or outdoor setting suited to the characters";
-  const mood = opts.safeMood?.trim() || "warm, gentle emotional connection";
+  const { safeBroadLocation, safeMood, safeComposition } = resolveLdStrictFallbackSceneFacts(opts);
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
     renderChatImageVisualIdentity({
@@ -115,11 +213,11 @@ export function buildStrictLdDuoFallbackPrompt(opts: {
       personaGender: opts.personaGender,
     }),
     STRICT_SAFE_DEPICTION,
-    "STRICT PROVIDER-SAFE FALLBACK — depict a clearly non-sexual, non-graphic scene.",
-    `Setting: ${location}.`,
-    `Mood: ${mood}.`,
-    "Composition: two characters standing or sitting near each other with modest, fully covered clothing.",
-    "Show gentle eye contact or a calm shared moment — no physical intimacy beyond neutral closeness.",
+    "STRICT PROVIDER-SAFE FALLBACK — same scene, non-sexual non-graphic general-audience depiction.",
+    `Setting: ${safeBroadLocation}.`,
+    `Mood: ${safeMood}.`,
+    `Composition: ${safeComposition}.`,
+    "Stricter coverage: fully modest clothing or soft coverage, no explicit acts, no exposed genitals.",
     "No speech bubbles, captions, blood, weapons, injury, or suggestive poses.",
     "Match reference identity and art style. Vertical 800×1200 composition.",
   ].join("\n");
@@ -129,11 +227,17 @@ export function buildStrictLdPartyFallbackPrompt(opts: {
   cast: readonly ChatLdIllustrationCastMember[];
   subjects: readonly ChatImageVisualSubject[];
   safeBroadLocation?: string;
+  safeMood?: string;
+  safeComposition?: string;
+  sceneSourceText?: string;
+  adultGrounded?: boolean;
 }): string {
   const count = opts.cast.length;
-  const location =
-    opts.safeBroadLocation?.trim() ||
-    "a calm group-friendly indoor or outdoor setting with clear lighting";
+  const { safeBroadLocation, safeMood, safeComposition } = resolveLdStrictFallbackSceneFacts(opts);
+  const groupComposition = safeComposition.replace(
+    /same two characters/giu,
+    `same ${count} listed characters`
+  );
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
     `TRPG party group illustration — show ALL ${count} listed people together.`,
@@ -151,9 +255,11 @@ export function buildStrictLdPartyFallbackPrompt(opts: {
       }))
     ),
     STRICT_SAFE_DEPICTION,
-    "STRICT PROVIDER-SAFE FALLBACK — non-sexual, non-graphic group scene.",
-    `Setting: ${location}.`,
-    "Composition: group mid-shot; every listed face visible; modest clothing; calm alert or thoughtful expressions.",
+    "STRICT PROVIDER-SAFE FALLBACK — same scene, non-sexual non-graphic general-audience group depiction.",
+    `Setting: ${safeBroadLocation}.`,
+    `Mood: ${safeMood}.`,
+    `Composition: ${groupComposition}.`,
+    "Group mid-shot; every listed face visible; stricter modest coverage throughout.",
     "No combat action, blood, weapons in use, speech bubbles, or suggestive poses.",
     "Match reference identities and art style. Vertical 800×1200 composition.",
   ].join("\n");

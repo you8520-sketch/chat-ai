@@ -103,10 +103,16 @@ export function classifyRawVisualRisk(raw: string): SafeVisualReasonCategory[] {
 
 function narrationSubstitute(
   categories: readonly SafeVisualReasonCategory[],
-  context: SafeVisualProjectionContext
+  context: SafeVisualProjectionContext,
+  raw: string
 ): string {
   if (categories.includes("adult_explicit")) {
-    return context.adultGrounded ? NON_EXPLICIT_ADULT_INTIMACY : NEUTRAL_EMOTIONAL_PROJECTION;
+    if (context.adultGrounded) {
+      return INTIMATE_BEDROOM_CONTEXT.test(raw)
+        ? NON_EXPLICIT_BEDROOM_REST
+        : NON_EXPLICIT_ADULT_INTIMACY;
+    }
+    return NEUTRAL_EMOTIONAL_PROJECTION;
   }
   if (categories.includes("graphic_violence")) {
     return NON_GRAPHIC_AFTERMATH;
@@ -149,7 +155,7 @@ export function projectSceneTextForSafeImageGeneration(
     };
   }
 
-  const substitute = narrationSubstitute(reasonCategories, context);
+  const substitute = narrationSubstitute(reasonCategories, context, rawTrimmed);
   return {
     text: substitute,
     applied: true,
