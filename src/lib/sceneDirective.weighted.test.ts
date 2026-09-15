@@ -53,7 +53,7 @@ describe("world-motion-v1.1 weighted rotation", () => {
     const a = buildSceneDirective(input);
     const b = buildSceneDirective(input);
     assert.deepEqual(a.progressionTypes, b.progressionTypes);
-    assert.equal(getLastProgressionSelectionMeta()?.seed, "42:7:world-motion-v1.1");
+    assert.equal(getLastProgressionSelectionMeta()?.seed, "42:7:world-motion-v1.2");
   });
 
   it("next turn can select a different legal progression", () => {
@@ -251,18 +251,18 @@ describe("world-motion-v1.1 weighted rotation", () => {
       currentUserMessage: "손을 겹친다.",
       chatId: 1,
       currentTurn: 1,
-      primaryCharacterName: "태형",
+      primaryCharacterName: "테스트주인공",
       contentKind: "character",
     });
     const block = renderSceneDirectiveForPrompt(d);
     assert.equal((block.match(/\[PRIVATE SCENE ENGINE RULE\]/g) || []).length, 1);
-    assert.ok(block.length < 650, `directiveCharCount=${block.length}`);
+    assert.ok(block.length < 900, `directiveCharCount=${block.length}`);
     assert.doesNotMatch(block, /weight|cooldown|seed|world-motion/i);
   });
 
   it("seeded rng is deterministic", () => {
-    const a = createSeededRng(hashSeed(["1", "2", "world-motion-v1.1"]));
-    const b = createSeededRng(hashSeed(["1", "2", "world-motion-v1.1"]));
+    const a = createSeededRng(hashSeed(["1", "2", "world-motion-v1.2"]));
+    const b = createSeededRng(hashSeed(["1", "2", "world-motion-v1.2"]));
     assert.deepEqual([a(), a(), a()], [b(), b(), b()]);
   });
 

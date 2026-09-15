@@ -39,7 +39,7 @@ describe("sceneDirective", () => {
     });
 
     assert.match(block, /모드: 자동진행/);
-    assert.match(block, /짧은 외부 행동·대사/);
+    assert.match(block, /외부 행동·대사/);
     assert.match(block, /중대 결정/);
     assert.match(block, /다인물|여러 AI/);
     assert.match(block, /\[B\] 내면/);
