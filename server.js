@@ -27,6 +27,7 @@ const {
   resolveCustomServerImportedExport,
   requireCustomServerBootFunction,
 } = require("./src/lib/customServerBootImportBoundary.js");
+const { createServerLifecycle } = require("./src/lib/serverLifecycle.js");
 
 /** Background modules that transitively load server-only under plain tsx. */
 async function importBackgroundModule(specifier) {
@@ -167,11 +168,22 @@ async function runBackgroundInitialization() {
 const prepareStart = Date.now();
 app.prepare().then(() => {
   console.log(`[boot-timing] app.prepare() took ${Date.now() - prepareStart}ms`);
-  createServer((req, res) => {
+  let lifecycle;
+  const server = createServer((req, res) => {
+    if (lifecycle.handleReadiness(req, res)) return;
+    if (!lifecycle.isRunning()) {
+      lifecycle.rejectDrainingRequest(res);
+      return;
+    }
+    lifecycle.markRequestActive(res);
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
-  }).listen(port, hostname, (err) => {
+  });
+  lifecycle = createServerLifecycle({ server });
+
+  server.listen(port, hostname, (err) => {
     if (err) throw err;
+    lifecycle.installSignalHandlers();
     console.log(
       `[boot-timing] listen at ${Date.now()} (+${Date.now() - bootStart}ms from process start)`
     );
