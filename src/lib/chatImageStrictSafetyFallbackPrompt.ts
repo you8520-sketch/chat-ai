@@ -128,7 +128,7 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
     } else {
       compositionParts.push("in the bedroom with modest covered clothing, preserving bed proximity");
     }
-    if (rawHasShirtless) {
+    if (opts.adultGrounded === true && rawHasShirtless) {
       compositionParts.push(
         "adult male bare upper torso framed from shoulders/chest upward with modest sheet coverage below"
       );

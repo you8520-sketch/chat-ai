@@ -253,4 +253,32 @@ describe("chatImageAdultRpSafetyAudit — LD Tier-2 scene facts", () => {
     assert.doesNotMatch(tier2, /non-explicit adult intimacy allowance/i);
     assert.doesNotMatch(tier2, /shirtless adult male torso allowance/i);
   });
+
+  it("TIER2-ADULT-OFF-SHIRTLESS combined bedroom fixture omits bare-upper-torso when adultGrounded=false", () => {
+    const source = MILD_BED_SOURCE;
+    const facts = deriveLdStrictFallbackSceneFacts({ sceneSourceText: source, adultGrounded: false });
+    const tier2 = ldTier2(source, false);
+    assert.equal(containsRawRiskySourceLeak(tier2), false);
+    assert.doesNotMatch(tier2, /bare upper torso/i);
+    assert.doesNotMatch(tier2, /shirtless adult male/i);
+    assert.doesNotMatch(tier2, /non-explicit adult intimacy allowance/i);
+    assert.doesNotMatch(tier2, /shirtless adult male torso allowance/i);
+    assert.match(tier2, /resting side by side on the bed/i);
+    assert.match(tier2, /flushed or shy expressions/i);
+    assert.match(tier2, /gently rumpled bedding/i);
+    assert.doesNotMatch(facts.safeComposition, /bare upper torso/i);
+  });
+
+  it("TIER2-ADULT-ON-SHIRTLESS combined bedroom fixture preserves shirtless cue when adultGrounded=true", () => {
+    const source = MILD_BED_SOURCE;
+    const facts = deriveLdStrictFallbackSceneFacts({ sceneSourceText: source, adultGrounded: true });
+    const tier2 = ldTier2(source, true);
+    assert.match(facts.safeComposition, /resting side by side on the bed/i);
+    assert.match(facts.safeComposition, /bare upper torso framed from shoulders/i);
+    assert.match(facts.safeComposition, /flushed or shy expressions/i);
+    assert.match(facts.safeComposition, /gently rumpled bedding/i);
+    assert.match(tier2, /bare upper torso framed from shoulders/i);
+    assert.match(tier2, /flushed or shy expressions/i);
+    assert.match(tier2, /gently rumpled bedding/i);
+  });
 });
