@@ -1,0 +1,48 @@
+{
+  "EXACT_HISTORICAL_LONG_HISTORY_RESTORABLE": false,
+  "EXACT_493_VANILLA_REQUEST_RESTORABLE": false,
+  "PROVIDER_CALLS": 0,
+  "STOP_REASON": "Exact #493 Flood request cannot be reproduced from committed evidence without inventing missing content.",
+  "RESTORABLE": {
+    "GEMINI_ASSISTANT_TURN_RAWS": true,
+    "SYNTHETIC_USER_TURN_TEXTS": true,
+    "CURRENT_USER_RAW_TEXT": true,
+    "SHAS_AND_TELEMETRY": true
+  },
+  "MISSING_ARTIFACTS": [
+    {
+      "id": "PRIVATE_SNAPSHOT",
+      "path": "/data/handoff-audit-exports/handoff-17-1-2026-08-18T11-38-17-786Z/SNAPSHOT.json",
+      "why": "Full creator/persona/speech-lock/world RAW and greeting live only in the private snapshot. Snapshot is not on this VM and not in git."
+    },
+    {
+      "id": "ASSEMBLED_SYSTEM",
+      "committed_stub": "docs/audits/deepseek-flood-local-preflight-f1/SYSTEM.txt",
+      "known_sha": "8ab7541582ca8a831f1de2792468bff9163d9c0fa0d2af0fd2b7d135da4ecc23",
+      "why": "SYSTEM.txt is a stub. Assembled system prompt is not committed."
+    },
+    {
+      "id": "GREETING_RAW",
+      "committed_stub": "docs/audits/deepseek-flood-local-preflight-f1/HISTORY.txt",
+      "known_sha": "5ccafaaf4f45907ce9259522edbb14f6c339925af21ad98aa355e3a5fc72c4d5",
+      "why": "HISTORY.txt says greeting + three Gemini exchanges. Greeting RAW is not copied. HISTORY_SHA payload is not committed."
+    },
+    {
+      "id": "ASSEMBLED_MESSAGES",
+      "known_sha": "3a7e4f90a23f74c05cbfdc450cdcf88ace265bec59521a7ff4dcfeb48293b5ab",
+      "why": "Exact Vanilla request message list is not committed. Cannot prove SYSTEM/CURRENT_USER wrap parity for a replay."
+    },
+    {
+      "id": "ASSEMBLED_CURRENT_USER_TURN",
+      "committed_raw": "docs/audits/deepseek-flood-local-preflight-f1/CURRENT_USER.txt",
+      "known_sha": "a1a36509f4f5ec7e5230c48d3c0b8c15d357e401b8ac70f17b5389783c321215",
+      "why": "Committed CURRENT_USER is the 51-char synthetic line only. Production wrap (style reminder / CURRENT USER INPUT / layout / USER_TAIL) is not frozen."
+    }
+  ],
+  "NOT_DONE": [
+    "Do not synthesize greeting",
+    "Do not reconstruct a hybrid #493 Gemini history onto the #555 도윤 fixture",
+    "Do not re-assemble an incomplete #555 Flood row and call it #493",
+    "Do not add SHORT HISTORY / Candidate D / historical SINGLE CALL block"
+  ]
+}
