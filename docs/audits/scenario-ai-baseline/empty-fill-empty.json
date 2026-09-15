@@ -1,0 +1,36 @@
+{
+  "worldId": null,
+  "mode": "fill_empty",
+  "selectedFields": [],
+  "lockedFields": [],
+  "existingDraft": {
+    "title": "",
+    "summary": "",
+    "content": "",
+    "secretContent": "",
+    "startLocation": "",
+    "startInventory": [],
+    "npcs": [],
+    "plan": {
+      "version": 1,
+      "startingSituation": "",
+      "centralConflict": "",
+      "goal": "",
+      "secret": "",
+      "endingConditions": [],
+      "majorEvents": [],
+      "clues": [],
+      "forbiddenEvents": [],
+      "boss": "",
+      "specialRules": [],
+      "difficulty": "normal",
+      "climax": "",
+      "endingCandidates": [],
+      "factionChanges": [],
+      "gmDirection": "",
+      "playLength": "medium",
+      "provenance": null
+    },
+    "touchedFields": []
+  }
+}
