@@ -33,6 +33,145 @@ type ScrollFollowGeometry = {
 
 const DECLARATION_END_SELECTOR = "[data-trpg-declaration-end]";
 const READING_TARGET_RATIO = 0.63;
+const ALIGNMENT_BAND_PX = 48;
+const MIN_ALIGNMENT_SCROLL_Y = 10;
+
+/**
+ * Single immutable in-band alignment proof. Captured in one snapshot while the
+ * declaration owner is ACTIVE_DECLARATION_END, so a later presentation lifecycle
+ * advance cannot invalidate evidence that was already established.
+ */
+type DeclarationAlignmentProof = {
+  owner: string;
+  activeActorId: string | null;
+  sentinelActorId: string | null;
+  phase: string;
+  readingBandDelta: number;
+  scrollY: number;
+  visibleChars: number;
+};
+
+type ReadingBandOutcome =
+  | { status: "ALIGNED"; proof: DeclarationAlignmentProof }
+  | { status: "CLAMPED_AT_MAX" }
+  | { status: "OWNER_CHANGED"; owner: string }
+  | { status: "TIMEOUT_WITH_ACTIVE_OWNER"; owner: string };
+
+/** Canonical validity rules for the reading-band success proof. Pure. */
+function isDeclarationAlignmentProofValid(
+  proof: DeclarationAlignmentProof | null,
+  expectedActorId: string | null
+): boolean {
+  if (!proof) return false;
+  if (proof.owner !== "ACTIVE_DECLARATION_END") return false;
+  if (proof.readingBandDelta == null) return false;
+  if (Math.abs(proof.readingBandDelta) > ALIGNMENT_BAND_PX) return false;
+  if (!(proof.scrollY > MIN_ALIGNMENT_SCROLL_Y)) return false;
+  if (
+    expectedActorId != null &&
+    (proof.activeActorId !== expectedActorId || proof.sentinelActorId !== expectedActorId)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+type ReadingBandVerdict =
+  | { kind: "PROOF_ALIGNED" }
+  | { kind: "LIVE_ALIGNED" }
+  | { kind: "CLAMPED_AT_MAX" }
+  | { kind: "LIVE_MISALIGNED"; delta: number; scrollTop: number }
+  | { kind: "MISSING_PROOF" };
+
+/**
+ * Canonical reading-band verdict owner. `null` is a lifecycle state, never
+ * collapsed into a number. A missing proof with no live sentinel evidence is
+ * MISSING_PROOF (never a pass), while a live mounted sentinel that stays
+ * misaligned is a real failure.
+ */
+function resolveReadingBandVerdict(input: {
+  proof: DeclarationAlignmentProof | null;
+  expectedActorId: string | null;
+  outcome: ReadingBandOutcome | null;
+  liveSentinelMounted: boolean;
+  liveDelta: number | null;
+  scrollTop: number;
+  clampedAtMax: boolean;
+}): ReadingBandVerdict {
+  if (isDeclarationAlignmentProofValid(input.proof, input.expectedActorId)) {
+    return { kind: "PROOF_ALIGNED" };
+  }
+  if (input.outcome?.status === "CLAMPED_AT_MAX" || input.clampedAtMax) {
+    return { kind: "CLAMPED_AT_MAX" };
+  }
+  if (input.liveSentinelMounted) {
+    if (
+      input.liveDelta != null &&
+      Math.abs(input.liveDelta) <= ALIGNMENT_BAND_PX &&
+      input.scrollTop > MIN_ALIGNMENT_SCROLL_Y
+    ) {
+      return { kind: "LIVE_ALIGNED" };
+    }
+    return {
+      kind: "LIVE_MISALIGNED",
+      delta: input.liveDelta ?? Number.NaN,
+      scrollTop: input.scrollTop,
+    };
+  }
+  return { kind: "MISSING_PROOF" };
+}
+
+/** Canonical prose-growth evidence rule. Pure. */
+function hasProseGrowthEvidence(input: {
+  liveVisibleChars: number;
+  startVisibleChars: number;
+  observedVisibleChars: number;
+  proofVisibleChars: number;
+}): boolean {
+  if (input.liveVisibleChars > input.startVisibleChars) return true;
+  if (input.liveVisibleChars >= 20) return true;
+  if (input.observedVisibleChars >= 20) return true;
+  if (input.proofVisibleChars >= 20) return true;
+  return false;
+}
+
+/** Capture the reading-band proof in a single snapshot (no cross-read mixing). */
+async function captureDeclarationAlignmentProof(
+  page: Page,
+  endSelector: string
+): Promise<DeclarationAlignmentProof | null> {
+  return page.evaluate(
+    ({ selector, targetRatio }) => {
+      const root = document.querySelector("[data-trpg-live-follow-owner]");
+      const end = document.querySelector(selector);
+      if (!root || !end) return null;
+      const owner = root.getAttribute("data-trpg-live-follow-owner") ?? "";
+      if (owner !== "ACTIVE_DECLARATION_END") return null;
+      const delta = end.getBoundingClientRect().top - window.innerHeight * targetRatio;
+      if (!(Math.abs(delta) <= 48)) return null;
+      const scrollY = window.scrollY;
+      if (!(scrollY > 10)) return null;
+      const growth = document.querySelector("[data-trpg-declaration-growth='true']");
+      return {
+        owner,
+        activeActorId:
+          document
+            .querySelector("[data-trpg-active-actor-id]")
+            ?.getAttribute("data-trpg-active-actor-id") ?? null,
+        sentinelActorId: end.getAttribute("data-trpg-declaration-actor-id") ?? null,
+        phase:
+          document
+            .querySelector("[data-trpg-round-presentation-phase]")
+            ?.getAttribute("data-trpg-round-presentation-phase") ?? "",
+        readingBandDelta: Math.round(delta),
+        scrollY: Math.round(scrollY),
+        visibleChars: growth?.textContent?.length ?? 0,
+      };
+    },
+    { selector: endSelector, targetRatio: READING_TARGET_RATIO }
+  );
+}
+
 
 async function demoLogin(page: Page) {
   const response = await page.request.post("/api/auth/demo-login");
@@ -223,7 +362,11 @@ function isGeometryClampSuccess(geometry: ScrollFollowGeometry): boolean {
   return atMaxScroll && geometry.AVAILABLE_DOWN_SCROLL <= 2;
 }
 
-async function waitForReadingBandAligned(page: Page, endSelector: string) {
+async function waitForReadingBandAligned(
+  page: Page,
+  endSelector: string,
+  expectedActorId: string | null = null
+): Promise<ReadingBandOutcome> {
   try {
     await page.waitForFunction(
       ({ selector, targetRatio }) => {
@@ -249,30 +392,37 @@ async function waitForReadingBandAligned(page: Page, endSelector: string) {
       `waitForReadingBandAligned timeout (${classification})\n${formatGeometry(geometry)}\n${String(error)}`
     );
   }
+
+  const proof = await captureDeclarationAlignmentProof(page, endSelector);
+  if (isDeclarationAlignmentProofValid(proof, expectedActorId)) {
+    return { status: "ALIGNED", proof: proof as DeclarationAlignmentProof };
+  }
+  const geometry = await collectScrollFollowGeometry(page, endSelector);
+  if (isGeometryClampSuccess(geometry)) return { status: "CLAMPED_AT_MAX" };
+  const diag = await readScrollFollowDiagnostics(page);
+  return { status: "OWNER_CHANGED", owner: diag.liveFollowOwner };
 }
 
 async function tryAlignReadingBandDuringDeclaration(
   page: Page,
   endSelector: string,
-  maxMs = 8_000
-): Promise<{ aligned: boolean; owner: string }> {
+  maxMs = 8_000,
+  expectedActorId: string | null = null
+): Promise<ReadingBandOutcome> {
   const start = Date.now();
   while (Date.now() - start < maxMs) {
     const diag = await readScrollFollowDiagnostics(page);
     if (diag.liveFollowOwner !== "ACTIVE_DECLARATION_END") {
-      return { aligned: false, owner: diag.liveFollowOwner };
+      return { status: "OWNER_CHANGED", owner: diag.liveFollowOwner };
     }
-    if (
-      diag.readingBandDelta != null &&
-      Math.abs(diag.readingBandDelta) <= 48 &&
-      diag.windowScrollY > 10
-    ) {
-      return { aligned: true, owner: diag.liveFollowOwner };
+    const proof = await captureDeclarationAlignmentProof(page, endSelector);
+    if (isDeclarationAlignmentProofValid(proof, expectedActorId)) {
+      return { status: "ALIGNED", proof: proof as DeclarationAlignmentProof };
     }
     await page.waitForTimeout(120);
   }
   const finalDiag = await readScrollFollowDiagnostics(page);
-  return { aligned: false, owner: finalDiag.liveFollowOwner };
+  return { status: "TIMEOUT_WITH_ACTIVE_OWNER", owner: finalDiag.liveFollowOwner };
 }
 
 async function traceProseGrowth(page: Page, maxTicks = 12): Promise<ScrollTickTrace[]> {
@@ -308,25 +458,65 @@ async function assertBotFollowUserBug(
   page: Page,
   startScrollY: number,
   startVisibleChars: number,
-  observedVisibleChars = 0
+  observedVisibleChars = 0,
+  band: ReadingBandOutcome | null = null,
+  expectedActorId: string | null = null
 ) {
   const endDiag = await readScrollFollowDiagnostics(page);
   const endContainer = await findActualScrollContainer(page);
   const geometry = await collectScrollFollowGeometry(page, DECLARATION_END_SELECTOR);
 
-  const visibleProseIncreased = endDiag.visibleChars > startVisibleChars;
+  const proof = band?.status === "ALIGNED" ? band.proof : null;
   const scrollMovedDown = endContainer.scrollTop > startScrollY + 5;
-  const endInReadingBand =
-    endDiag.readingBandDelta != null && Math.abs(endDiag.readingBandDelta) <= 48 && endContainer.scrollTop > 10;
   const clampedAtMax = isGeometryClampSuccess(geometry);
 
-  expect(visibleProseIncreased || endDiag.visibleChars >= 20 || observedVisibleChars >= 20).toBe(true);
-  expect(scrollMovedDown || endInReadingBand || clampedAtMax).toBe(true);
+  expect(
+    hasProseGrowthEvidence({
+      liveVisibleChars: endDiag.visibleChars,
+      startVisibleChars,
+      observedVisibleChars,
+      proofVisibleChars: proof?.visibleChars ?? 0,
+    })
+  ).toBe(true);
 
-  if (geometry.AVAILABLE_DOWN_SCROLL >= (geometry.REQUIRED_DELTA ?? 0)) {
-    expect(endDiag.readingBandDelta ?? 999).toBeLessThan(48);
-    expect(endContainer.scrollTop).toBeGreaterThan(10);
+  const verdict = resolveReadingBandVerdict({
+    proof,
+    expectedActorId,
+    outcome: band,
+    liveSentinelMounted: geometry.REQUIRED_DELTA != null,
+    liveDelta: endDiag.readingBandDelta,
+    scrollTop: endContainer.scrollTop,
+    clampedAtMax,
+  });
+
+  // Follow evidence: an immutable in-band proof, a live in-band read, downward
+  // movement, or a geometry-limited clamp all prove the follow stayed on target.
+  expect(
+    verdict.kind === "PROOF_ALIGNED" ||
+      verdict.kind === "LIVE_ALIGNED" ||
+      verdict.kind === "CLAMPED_AT_MAX" ||
+      scrollMovedDown
+  ).toBe(true);
+
+  if (
+    verdict.kind === "PROOF_ALIGNED" ||
+    verdict.kind === "LIVE_ALIGNED" ||
+    verdict.kind === "CLAMPED_AT_MAX"
+  ) {
+    return;
   }
+  if (verdict.kind === "LIVE_MISALIGNED") {
+    // The sentinel is still mounted, so the reading band must be aligned now.
+    expect(Number.isFinite(verdict.delta)).toBe(true);
+    expect(Math.abs(verdict.delta)).toBeLessThanOrEqual(ALIGNMENT_BAND_PX);
+    expect(verdict.scrollTop).toBeGreaterThan(MIN_ALIGNMENT_SCROLL_Y);
+    return;
+  }
+  // MISSING_PROOF: the declaration lifecycle advanced before an in-band
+  // alignment could be captured. This is a lifecycle transition, not a pass.
+  throw new Error(
+    `FIXTURE_LIFECYCLE: no declaration alignment proof (owner=${endDiag.liveFollowOwner}, phase=${endDiag.presentationPhase}, outcome=${band?.status ?? "none"})`
+  );
 }
 
 async function readSentinelActorSnapshot(page: Page) {
@@ -396,11 +586,23 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     expect(traces[0]?.visibleChars ?? 0).toBeGreaterThanOrEqual(20);
 
     await waitForFollowScrollMovement(page, startContainer.scrollTop);
-    await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
-    await assertBotFollowUserBug(page, startContainer.scrollTop, startDiag.visibleChars);
+    const band = await waitForReadingBandAligned(
+      page,
+      DECLARATION_END_SELECTOR,
+      String(SCROLL_FOLLOW_LAB_BOT1_ID)
+    );
+    await assertBotFollowUserBug(
+      page,
+      startContainer.scrollTop,
+      startDiag.visibleChars,
+      0,
+      band,
+      String(SCROLL_FOLLOW_LAB_BOT1_ID)
+    );
   });
 
   test("F2: Bot2 handoff keeps follow target on Bot2 growth", async ({ page }) => {
+    const expectedActorId = String(SCROLL_FOLLOW_LAB_BOT2_ID);
     await page.goto("/trpg/scroll-follow-lab?scenario=bot2");
     await waitForBotReveal(page, SCROLL_FOLLOW_LAB_BOT2_ID);
 
@@ -416,20 +618,37 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     expect(traces[0]?.visibleChars ?? 0).toBeGreaterThanOrEqual(20);
 
     await waitForFollowScrollMovement(page, startContainer.scrollTop);
-    const band = await tryAlignReadingBandDuringDeclaration(page, DECLARATION_END_SELECTOR);
-    if (band.owner === "ACTIVE_DECLARATION_END") {
-      expect(band.aligned).toBe(true);
+    const band = await tryAlignReadingBandDuringDeclaration(
+      page,
+      DECLARATION_END_SELECTOR,
+      8_000,
+      expectedActorId
+    );
+    if (band.status === "ALIGNED" || band.status === "TIMEOUT_WITH_ACTIVE_OWNER") {
+      // The active declaration owner either proved in-band alignment (immutable
+      // proof, never re-measured) or never reached the band while still active.
       await assertBotFollowUserBug(
         page,
         startContainer.scrollTop,
         startDiag.visibleChars,
-        Math.max(...traces.map((trace) => trace.visibleChars), startDiag.visibleChars)
+        Math.max(...traces.map((trace) => trace.visibleChars), startDiag.visibleChars),
+        band,
+        expectedActorId
       );
       return;
     }
 
-    expect(traces.some((trace) => trace.visibleChars >= 20)).toBe(true);
-    expect(traces.some((trace) => trace.scrollTopAfter > startContainer.scrollTop + 5)).toBe(true);
+    // OWNER_CHANGED: the declaration lifecycle advanced before an in-band proof
+    // could be captured. Judge on Bot2-declaration evidence only (growth +
+    // follow engaged + real downward movement); never on the owner name alone.
+    const declarationEvidence = traces.filter((trace) => trace.visibleChars >= 20);
+    expect(declarationEvidence.length).toBeGreaterThan(0);
+    expect(declarationEvidence.some((trace) => trace.followLatest)).toBe(true);
+    const liveContainer = await findActualScrollContainer(page);
+    expect(
+      declarationEvidence.some((trace) => trace.scrollTopAfter > startContainer.scrollTop + 5) ||
+        liveContainer.scrollTop > startContainer.scrollTop + 5
+    ).toBe(true);
   });
 
   test("F3: manual detach blocks subsequent auto scroll", async ({ page }) => {
@@ -462,11 +681,20 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     const restored = await readScrollFollowDiagnostics(page);
     expect(restored.followLatest).toBe(true);
 
-    const band = await tryAlignReadingBandDuringDeclaration(page, DECLARATION_END_SELECTOR);
-    if (band.owner === "ACTIVE_DECLARATION_END") {
-      expect(band.aligned).toBe(true);
-      const endDiag = await readScrollFollowDiagnostics(page);
-      expect(Math.abs(endDiag.readingBandDelta ?? 999)).toBeLessThan(48);
+    const band = await tryAlignReadingBandDuringDeclaration(
+      page,
+      DECLARATION_END_SELECTOR,
+      8_000,
+      String(SCROLL_FOLLOW_LAB_BOT1_ID)
+    );
+    if (band.status === "TIMEOUT_WITH_ACTIVE_OWNER") {
+      throw new Error(
+        "explicit reattach did not reach the reading band while the declaration owner stayed active"
+      );
+    }
+    if (band.status === "ALIGNED") {
+      expect(Math.abs(band.proof.readingBandDelta)).toBeLessThanOrEqual(ALIGNMENT_BAND_PX);
+      expect(band.proof.scrollY).toBeGreaterThan(MIN_ALIGNMENT_SCROLL_Y);
     }
   });
 
@@ -479,8 +707,19 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
 
     await traceProseGrowth(page, 24);
     await waitForFollowScrollMovement(page, startContainer.scrollTop);
-    await waitForReadingBandAligned(page, DECLARATION_END_SELECTOR);
-    await assertBotFollowUserBug(page, startContainer.scrollTop, startDiag.visibleChars);
+    const band = await waitForReadingBandAligned(
+      page,
+      DECLARATION_END_SELECTOR,
+      String(SCROLL_FOLLOW_LAB_BOT1_ID)
+    );
+    await assertBotFollowUserBug(
+      page,
+      startContainer.scrollTop,
+      startDiag.visibleChars,
+      0,
+      band,
+      String(SCROLL_FOLLOW_LAB_BOT1_ID)
+    );
   });
 
   test("F6: same-lifetime Bot1 to Bot2 handoff keeps actor-scoped sentinel", async ({ page }) => {
@@ -531,5 +770,112 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     expect(bot2.sentinelActorId).toBe(String(SCROLL_FOLLOW_LAB_BOT2_ID));
     expect(bot2.sentinelActorId).not.toBe(bot1.sentinelActorId);
     expect(bot2.owner).toBe("ACTIVE_DECLARATION_END");
+  });
+});
+
+/**
+ * Deterministic fixtures for the reading-band proof engine. These pin the
+ * positive/negative semantics without depending on browser timing, so the F2
+ * lifecycle race cannot regress into a false failure or a silent pass.
+ */
+test.describe("TRPG reading-band proof engine (deterministic)", () => {
+  const BOT2 = String(SCROLL_FOLLOW_LAB_BOT2_ID);
+  const BOT1 = String(SCROLL_FOLLOW_LAB_BOT1_ID);
+  const validProof: DeclarationAlignmentProof = {
+    owner: "ACTIVE_DECLARATION_END",
+    activeActorId: BOT2,
+    sentinelActorId: BOT2,
+    phase: "actor-action",
+    readingBandDelta: 43,
+    scrollY: 1089,
+    visibleChars: 129,
+  };
+  const base = {
+    proof: null as DeclarationAlignmentProof | null,
+    expectedActorId: BOT2,
+    outcome: null as ReadingBandOutcome | null,
+    liveSentinelMounted: false,
+    liveDelta: null as number | null,
+    scrollTop: 0,
+    clampedAtMax: false,
+  };
+
+  test("F2-P1: an in-band Bot2 snapshot while active is a valid proof", () => {
+    expect(isDeclarationAlignmentProofValid(validProof, BOT2)).toBe(true);
+    expect(resolveReadingBandVerdict({ ...base, proof: validProof })).toEqual({
+      kind: "PROOF_ALIGNED",
+    });
+  });
+
+  test("F2-P2: a proof survives the later declaration lifecycle advance", () => {
+    // Sentinel unmounted and the live reading band is null, but the immutable
+    // proof must still win (no false failure).
+    expect(
+      resolveReadingBandVerdict({
+        ...base,
+        proof: validProof,
+        liveSentinelMounted: false,
+        liveDelta: null,
+      })
+    ).toEqual({ kind: "PROOF_ALIGNED" });
+  });
+
+  test("F2-N1: sentinel gone without a prior proof is never a pass", () => {
+    expect(resolveReadingBandVerdict({ ...base, proof: null })).toEqual({ kind: "MISSING_PROOF" });
+  });
+
+  test("F2-N2: a wrong-actor sentinel never yields a proof", () => {
+    expect(isDeclarationAlignmentProofValid({ ...validProof, sentinelActorId: BOT1 }, BOT2)).toBe(
+      false
+    );
+    expect(isDeclarationAlignmentProofValid({ ...validProof, activeActorId: BOT1 }, BOT2)).toBe(
+      false
+    );
+    expect(
+      resolveReadingBandVerdict({ ...base, proof: { ...validProof, sentinelActorId: BOT1 } })
+    ).toEqual({ kind: "MISSING_PROOF" });
+  });
+
+  test("F2-N3: a live mounted sentinel with a misaligned band is a real failure", () => {
+    const verdict = resolveReadingBandVerdict({
+      ...base,
+      proof: null,
+      liveSentinelMounted: true,
+      liveDelta: 135,
+      scrollTop: 1000,
+    });
+    expect(verdict.kind).toBe("LIVE_MISALIGNED");
+  });
+
+  test("F2-N4: missing prose-growth evidence fails", () => {
+    expect(
+      hasProseGrowthEvidence({
+        liveVisibleChars: 0,
+        startVisibleChars: 0,
+        observedVisibleChars: 0,
+        proofVisibleChars: 0,
+      })
+    ).toBe(false);
+    expect(
+      hasProseGrowthEvidence({
+        liveVisibleChars: 0,
+        startVisibleChars: 0,
+        observedVisibleChars: 120,
+        proofVisibleChars: 0,
+      })
+    ).toBe(true);
+  });
+
+  test("F2: out-of-band, zero-scroll and wrong-owner snapshots are not proofs", () => {
+    expect(isDeclarationAlignmentProofValid({ ...validProof, readingBandDelta: 49 }, BOT2)).toBe(
+      false
+    );
+    expect(isDeclarationAlignmentProofValid({ ...validProof, scrollY: 10 }, BOT2)).toBe(false);
+    expect(
+      isDeclarationAlignmentProofValid({ ...validProof, owner: "CURRENT_ACTOR" }, BOT2)
+    ).toBe(false);
+    expect(
+      isDeclarationAlignmentProofValid({ ...validProof, readingBandDelta: 43 }, null)
+    ).toBe(true);
   });
 });
