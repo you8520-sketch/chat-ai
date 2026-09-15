@@ -1,0 +1,22 @@
+{
+  "source": "production /data/app.db read-only Railway exec",
+  "deploymentId": "007ee8c3-5ca9-4613-8808-b738302a176b",
+  "instanceId": "0d8692b5-a2ac-49f7-9849-10fd7108b270",
+  "charactersScanned": 28,
+  "charactersWithCncInAllowlist": 0,
+  "publicApprovedNsfwConfirmedAdultWithCncOptIn": 0,
+  "CHARACTER_CNC_OPT_IN_ALLOWED": false,
+  "EFFECTIVE_CONSENT_MODE_CAN_BE_CNC": false,
+  "PROVIDER_CALLS_THIS_TURN": 0,
+  "STOP_REASON": "no_deployed_public_character_allows_cnc_opt_in",
+  "publicApprovedNsfw": [
+    { "id": 1, "name": "얀데레들 사이에서 바람을 핀다면?", "adult_status": "unknown", "adult_consent_modes_json": "[\"standard\"]" },
+    { "id": 6, "name": "밤의 비서실장", "adult_status": "confirmed", "adult_consent_modes_json": "[\"standard\"]" },
+    { "id": 11, "name": "이혁", "adult_status": "unknown", "adult_consent_modes_json": "[\"standard\"]" },
+    { "id": 14, "name": "로코", "adult_status": "unknown", "adult_consent_modes_json": "[\"standard\"]" },
+    { "id": 15, "name": "권태현", "adult_status": "unknown", "adult_consent_modes_json": "[\"standard\"]" },
+    { "id": 16, "name": "솔", "adult_status": "unknown", "adult_consent_modes_json": "[\"standard\"]" },
+    { "id": 17, "name": "플러드", "adult_status": "minor", "adult_consent_modes_json": "[\"standard\"]" },
+    { "id": 18, "name": "라이크", "adult_status": "unknown", "adult_consent_modes_json": "[\"standard\"]" }
+  ]
+}
