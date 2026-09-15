@@ -20,10 +20,48 @@ import {
   MAX_PROVIDER_ATTEMPTS,
   OpenAiImageGenerationError,
 } from "@/lib/openAiImageSafetyFallback";
+import {
+  buildStrictLdDuoFallbackPrompt,
+  deriveLdStrictFallbackSceneFacts,
+  STRICT_SAFE_DEPICTION,
+} from "@/lib/chatImageStrictSafetyFallbackPrompt";
 
 const MILD_BED_SOURCE =
   "침대에 나란히 누워 홍조를 띠며 서로를 바라본다. 남자는 상의를 벗어 어깨가 드러나 있고, 이불이 살짝 엉켜 있다.";
 const EXPLICIT_BED_SOURCE = "둘이 침대에서 겹치며 성관계를 한다. 둘 다 수줍게 뺨이 붉어진다.";
+
+const DUO_SUBJECTS = [
+  {
+    key: "character",
+    name: "태현",
+    gender: "male" as const,
+    role: "character",
+    referenceImageUrl: "/c.webp",
+    savedAppearance: "",
+    appearanceMode: "image_only" as const,
+  },
+  {
+    key: "persona",
+    name: "유저",
+    gender: "female" as const,
+    role: "persona",
+    referenceImageUrl: "/p.webp",
+    savedAppearance: "",
+    appearanceMode: "image_only" as const,
+  },
+];
+
+function ldTier2(source: string, adultGrounded: boolean) {
+  return buildStrictLdDuoFallbackPrompt({
+    characterName: "태현",
+    characterGender: "male",
+    personaName: "유저",
+    personaGender: "female",
+    subjects: DUO_SUBJECTS,
+    sceneSourceText: source,
+    adultGrounded,
+  });
+}
 
 function comicPrompt(source: string, adultGrounded: boolean) {
   const messages = buildSceneSourceMessages([
@@ -165,5 +203,54 @@ describe("chatImageAdultRpSafetyAudit — mild-adult fidelity gates", () => {
   it("EXPLICIT-RAW-LEAK comic and illustration provider-bound prompts leak count = 0", () => {
     assert.equal(containsRawRiskySourceLeak(comicPrompt(EXPLICIT_BED_SOURCE, true)), false);
     assert.equal(containsRawRiskySourceLeak(illustrationPrompt(EXPLICIT_BED_SOURCE, true)), false);
+  });
+});
+
+describe("chatImageAdultRpSafetyAudit — LD Tier-2 scene facts", () => {
+  it("TIER2-BED-LYING-FLUSHED bedroom + lying + flushed composition and mood", () => {
+    const source = "침대에 나란히 누워 홍조를 띠며 서로를 바라본다.";
+    const facts = deriveLdStrictFallbackSceneFacts({ sceneSourceText: source, adultGrounded: true });
+    const tier2 = ldTier2(source, true);
+    assert.match(facts.safeComposition, /resting side by side on the bed/i);
+    assert.match(facts.safeComposition, /flushed or shy expressions/i);
+    assert.match(facts.safeMood, /flushed|heated|shy/i);
+    assert.match(tier2, /Composition:.*resting side by side on the bed/i);
+    assert.match(tier2, /flushed or shy expressions/i);
+  });
+
+  it("TIER2-BED-SHIRTLESS bedroom + shirtless bare-upper-torso cue in composition", () => {
+    const source = "태형이 셔츠를 벗고 침대에 앉아 있다.";
+    const facts = deriveLdStrictFallbackSceneFacts({ sceneSourceText: source, adultGrounded: true });
+    const tier2 = ldTier2(source, true);
+    assert.match(facts.safeComposition, /bare upper torso framed from shoulders/i);
+    assert.match(tier2, /bare upper torso framed from shoulders/i);
+    assert.doesNotMatch(facts.safeComposition, /without exposed genitals/i);
+    assert.doesNotMatch(tier2, /without exposed genitals/i);
+  });
+
+  it("TIER2-COMBINED-BEDROOM combines lying + shirtless + flushed + messy bedding", () => {
+    const source = MILD_BED_SOURCE;
+    const facts = deriveLdStrictFallbackSceneFacts({ sceneSourceText: source, adultGrounded: true });
+    const tier2 = ldTier2(source, true);
+    assert.match(facts.safeComposition, /resting side by side on the bed/i);
+    assert.match(facts.safeComposition, /bare upper torso framed from shoulders/i);
+    assert.match(facts.safeComposition, /flushed or shy expressions/i);
+    assert.match(facts.safeComposition, /gently rumpled bedding/i);
+    assert.match(tier2, /bare upper torso framed from shoulders/i);
+    assert.match(tier2, /gently rumpled bedding/i);
+  });
+
+  it("TIER2-EXPLICIT-RAW-LEAK explicit source produces zero raw leak in strict fallback prompt", () => {
+    const tier2 = ldTier2(EXPLICIT_BED_SOURCE, true);
+    assert.equal(containsRawRiskySourceLeak(tier2), false);
+    assert.doesNotMatch(tier2, /성관계/);
+    assert.match(tier2, /STRICT PROVIDER-SAFE FALLBACK/i);
+  });
+
+  it("TIER2-ADULT-OFF uses base strict depiction without adult-grounded allowance", () => {
+    const tier2 = ldTier2(MILD_BED_SOURCE, false);
+    assert.ok(tier2.includes(STRICT_SAFE_DEPICTION));
+    assert.doesNotMatch(tier2, /non-explicit adult intimacy allowance/i);
+    assert.doesNotMatch(tier2, /shirtless adult male torso allowance/i);
   });
 });
