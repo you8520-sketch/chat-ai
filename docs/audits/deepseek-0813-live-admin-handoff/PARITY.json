@@ -1,0 +1,89 @@
+{
+  "LIVE_ADMIN_HANDOFF_FIXTURE_CAPTURE": "STOPPED_BEFORE_LIVE_CHAT",
+  "ADMIN_PARITY_PROVEN": false,
+  "CHARACTER": null,
+  "PERSONA": null,
+  "SOURCE_MODEL": "gemini-3.7-flash",
+  "FIXTURE_ID": null,
+  "PRODUCTION_EQUIVALENT": false,
+  "CHARACTER_PROVEN": false,
+  "PERSONA_PROVEN": false,
+  "SPEECH_LOCK_PROVEN": false,
+  "WORLD_CANON_PROVEN": false,
+  "SYSTEM_PROVEN": false,
+  "HISTORY_PROVEN": false,
+  "SOURCE_ASSISTANT_PROVEN": false,
+  "CURRENT_USER_PROVEN": false,
+  "ROUTING_PROVEN": false,
+  "TRANSPORT_PROVEN": false,
+  "DEEPSEEK_CALLS": 0,
+  "TURN_OWNERSHIP_TESTED": false,
+  "MULTITURN_CHAIN_LENGTH": 0,
+  "MODEL_CALLS_GENERATING_USER_TURNS": 0,
+  "SOURCE_MIRROR": false,
+  "COMPLETION": false,
+  "ORIGIN_POINTER": false,
+  "PRODUCTION_CHANGED": false,
+  "MAIN_MERGED": false,
+  "RAILWAY_DEPLOYED": false,
+  "reason": "admin_special_routing_path",
+  "blockers": [
+    "admin_forced_adult_flag",
+    "admin_handoff_canary_routing_enablement",
+    "admin_canary_glm_policy_override",
+    "admin_glm_fallback_is_admin_gate"
+  ],
+  "specialPaths": [
+    {
+      "id": "admin_forced_adult_flag",
+      "changesPrompt": false,
+      "changesRouting": true,
+      "detail": "getSessionUser() forces is_adult=1 for admins, which changes userAdultVerified and adult-handoff eligibility versus an ordinary unverified user."
+    },
+    {
+      "id": "admin_handoff_canary_routing_enablement",
+      "changesPrompt": false,
+      "changesRouting": true,
+      "detail": "chat/route.ts overwrites adultRoutingConfig.enabled with generalEnabled || adminCanaryAccess. Default ADULT_SCENE_HANDOFF_GENERAL_ENABLED=false, so an allowlisted admin canary chat can receive adult handoff while ordinary chats cannot."
+    },
+    {
+      "id": "admin_canary_glm_policy_override",
+      "changesPrompt": false,
+      "changesRouting": true,
+      "detail": "When adultHandoffCanaryAccess is true, adultModelPolicyConfig is rewritten to glmHardFailureFallbackEnabled=true and adminOnly=false."
+    },
+    {
+      "id": "admin_glm_fallback_is_admin_gate",
+      "changesPrompt": false,
+      "changesRouting": true,
+      "detail": "shouldFallbackToGlm() still reads isAdmin when ADULT_SCENE_MODEL_POLICY_ADMIN_ONLY is true."
+    }
+  ],
+  "promptLoaders": [
+    {
+      "name": "context_builder",
+      "sameCodePath": true
+    },
+    {
+      "name": "character_loader",
+      "sameCodePath": true
+    },
+    {
+      "name": "persona_loader",
+      "sameCodePath": true
+    },
+    {
+      "name": "speech_lock",
+      "sameCodePath": true
+    },
+    {
+      "name": "world_canon_loader",
+      "sameCodePath": true
+    },
+    {
+      "name": "memory_history_assembly",
+      "sameCodePath": true
+    }
+  ],
+  "historical_restoration": "stopped"
+}
