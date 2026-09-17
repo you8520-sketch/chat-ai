@@ -1,8 +1,12 @@
 # V2 Boundary Consolidation + Living Absorption Audit
 
-Classification: **ROOT_CAUSE_FIXED** (location hook + boundary materialization)
+Classification (runtime / state): **ROOT_CAUSE_FIXED** (location hook + boundary materialization)
 
-Benchmark status: **R5_VARIANCE_PILOT_COMPLETE** — output variance partially remains (see below)
+Observed six-sample provider output: **BOUNDARY_OUTPUT_COMPLIANT_IN_OBSERVED_SAMPLES**
+
+Benchmark evaluator: **VIOLATION_SCANNER_FALSE_POSITIVE_BUG** (fixed — prior `5/6 violation` was lexical false positives, not behavior evidence)
+
+Benchmark status: **R5_VARIANCE_PILOT_COMPLETE**
 
 ## BEFORE
 
@@ -64,6 +68,21 @@ Living renderer stays benchmark-only; production V2 ON does not dual-inject.
 
 - BOUND1–BOUND10 PASS (`src/lib/boundaryRegression.test.ts`)
 - RC1–RC9 PASS (`src/lib/reconvergenceRegression.test.ts`)
+
+## VARIANCE EVIDENCE (R5 × V2 × 2 repeats = 6 calls)
+
+| Metric | Value |
+|--------|-------|
+| Planned / successful | 6 / 6 |
+| Upstream USD | ~$0.070 |
+| All turns `hold_current_beat` | **6/6** (pre-fix T2 was `advance_existing_beat`) |
+| Lexical suspicion signals (corrected triage) | **0/6** samples with any signal |
+| External GPT semantic review | **0/6** confirmed action violations |
+| Prior incorrect report | 5/6 “violation” — evaluator false positives only |
+
+Does **not** claim universal zero-variance across all models/temperatures; characterizes six observed captures only.
+
+State/materialization root cause fixed. Prior `5/6 violation` rate must not be cited as behavior failure evidence.
 
 ## SYSTEM DELTA
 

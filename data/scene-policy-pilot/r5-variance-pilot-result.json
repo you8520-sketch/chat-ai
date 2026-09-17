@@ -528,35 +528,26 @@
   "violationSummary": {
     "totalSamples": 6,
     "violationCounts": {
-      "physical_revisit": 2,
-      "remote_contact": 3,
+      "physical_revisit": 0,
+      "remote_contact": 0,
       "gift_drop_off": 0,
-      "future_meeting_request": 1,
-      "boundary_clarification": 3,
+      "future_meeting_request": 0,
+      "boundary_clarification": 0,
       "relationship_closure_demand": 0
     },
-    "samplesWithAnyViolation": 5,
+    "samplesWithAnyViolation": 0,
     "perSample": [
       {
         "logical_id": "R5_rep1_T1_v2",
-        "violations": [
-          "physical_revisit"
-        ]
+        "violations": []
       },
       {
         "logical_id": "R5_rep1_T2_v2",
-        "violations": [
-          "remote_contact",
-          "future_meeting_request"
-        ]
+        "violations": []
       },
       {
         "logical_id": "R5_rep1_T3_v2",
-        "violations": [
-          "physical_revisit",
-          "remote_contact",
-          "boundary_clarification"
-        ]
+        "violations": []
       },
       {
         "logical_id": "R5_rep2_T1_v2",
@@ -564,16 +555,50 @@
       },
       {
         "logical_id": "R5_rep2_T2_v2",
-        "violations": [
-          "remote_contact",
-          "boundary_clarification"
-        ]
+        "violations": []
       },
       {
         "logical_id": "R5_rep2_T3_v2",
-        "violations": [
-          "boundary_clarification"
-        ]
+        "violations": []
+      }
+    ],
+    "_deprecated": "Use suspicionSummary — lexical triage only, not behavior violations"
+  },
+  "suspicionSummary": {
+    "totalSamples": 6,
+    "suspicionSignalCounts": {
+      "physical_revisit": 0,
+      "remote_contact": 0,
+      "gift_drop_off": 0,
+      "future_meeting_request": 0,
+      "boundary_clarification": 0,
+      "relationship_closure_demand": 0
+    },
+    "samplesWithAnySuspicionSignal": 0,
+    "perSample": [
+      {
+        "logical_id": "R5_rep1_T1_v2",
+        "suspicionSignals": []
+      },
+      {
+        "logical_id": "R5_rep1_T2_v2",
+        "suspicionSignals": []
+      },
+      {
+        "logical_id": "R5_rep1_T3_v2",
+        "suspicionSignals": []
+      },
+      {
+        "logical_id": "R5_rep2_T1_v2",
+        "suspicionSignals": []
+      },
+      {
+        "logical_id": "R5_rep2_T2_v2",
+        "suspicionSignals": []
+      },
+      {
+        "logical_id": "R5_rep2_T3_v2",
+        "suspicionSignals": []
       }
     ]
   }
