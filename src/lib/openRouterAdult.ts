@@ -1492,7 +1492,11 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
             const usageObj = json.usage as { prompt_tokens?: number; completion_tokens?: number };
             inputTokens = usageObj.prompt_tokens ?? inputTokens;
             outputTokens = usageObj.completion_tokens ?? outputTokens;
-            const partial = parseCompatibleUsage({ usage: json.usage, cheaperInference: json.cheaper_inference });
+            const partial = parseCompatibleUsage({
+              usage: json.usage,
+              cheaperInference: json.cheaper_inference,
+              transportProvider: transport.provider,
+            });
             if (partial.cacheReadTokens > 0) cacheReadTokens = partial.cacheReadTokens;
             if (partial.cacheWriteTokens > 0) cacheWriteTokens = partial.cacheWriteTokens;
           }
@@ -1662,6 +1666,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     usage: lastStreamUsage,
     cheaperInference: lastStreamCheaperInference,
     headers: res.headers,
+    transportProvider: transport.provider,
   });
   if (lastStreamUsage && !usageDebugLogged) {
     // usage 청크가 루프에서 누락된 경우 스트림 종료 시 한 번 더 출력
@@ -2364,6 +2369,7 @@ export async function callOpenRouterAdult(
     usage: data.usage,
     cheaperInference: (data as Record<string, unknown>).cheaper_inference,
     headers: res.headers,
+    transportProvider: transport.provider,
   });
   const usage: TokenUsage = data.usage
     ? {

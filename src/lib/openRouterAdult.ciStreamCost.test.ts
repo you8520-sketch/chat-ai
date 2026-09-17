@@ -138,9 +138,69 @@ describe("CheaperInference streaming exact cost capture", () => {
     }
   });
 
+  it("CASE 1: non-CI transport + usage.cost + cost_details stays upstream only", () => {
+    const breakdown = parseCompatibleUsage({
+      transportProvider: "openrouter",
+      usage: {
+        prompt_tokens: 100,
+        completion_tokens: 50,
+        cost: 0.01,
+        cost_details: { upstream_inference_cost: 0.01 },
+      },
+    });
+    assert.equal(breakdown.upstreamCostUsd, 0.01);
+    assert.equal(breakdown.cheaperInferenceBilledCostUsd, undefined);
+  });
+
+  it("CASE 2: CI transport + usage.cost + cost_details promotes exact billed cost", () => {
+    const breakdown = parseCompatibleUsage({
+      transportProvider: "cheaperinference",
+      usage: {
+        prompt_tokens: 100,
+        completion_tokens: 50,
+        cost: 0.0194,
+        cost_details: { upstream_inference_cost: 0.0194 },
+      },
+    });
+    assert.equal(breakdown.upstreamCostUsd, 0.0194);
+    assert.equal(breakdown.cheaperInferenceBilledCostUsd, 0.0194);
+  });
+
+  it("CASE 3: explicit cheaper_inference.billing.billed_cost_usd keeps envelope precedence", () => {
+    const breakdown = parseCompatibleUsage({
+      transportProvider: "cheaperinference",
+      usage: {
+        prompt_tokens: 100,
+        completion_tokens: 50,
+        cost: 0.0194,
+        cost_details: { upstream_inference_cost: 0.0194 },
+      },
+      cheaperInference: {
+        billing: { billed_cost_usd: "0.008000", status: "settled" },
+      },
+    });
+    assert.equal(breakdown.cheaperInferenceBilledCostUsd, 0.008);
+    assert.equal(breakdown.upstreamCostUsd, 0.0194);
+  });
+
+  it("CASE 4: CI header only + usage.cost promotes exact billed cost", () => {
+    const breakdown = parseCompatibleUsage({
+      usage: {
+        prompt_tokens: 31087,
+        completion_tokens: 3654,
+        cost: 0.0194,
+        cost_details: { upstream_inference_cost: 0.0194 },
+      },
+      headers: new Headers({ "x-cheaper-inference-request-id": "5dd1cc86-d8cf-4606-a6a3-61c63ac9d788" }),
+    });
+    assert.equal(breakdown.cheaperInferenceBilledCostUsd, 0.0194);
+    assert.equal(breakdown.upstreamCostUsd, 0.0194);
+  });
+
   it("parseCompatibleUsage leaves non-CI usage.cost as upstream only", () => {
     const breakdown = parseCompatibleUsage({
       usage: { prompt_tokens: 100, completion_tokens: 50, cost: 0.01 },
+      transportProvider: "openrouter",
     });
     assert.equal(breakdown.upstreamCostUsd, 0.01);
     assert.equal(breakdown.cheaperInferenceBilledCostUsd, undefined);

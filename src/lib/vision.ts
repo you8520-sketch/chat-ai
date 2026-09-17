@@ -185,7 +185,11 @@ async function analyzeWithModel(
   // Pure witness only — persistence happens in visionCost.ts (server route).
   let cost: VisionCostEvidence | null = null;
   try {
-    const parsedUsage = parseCompatibleUsage({ usage: body.usage, headers: res.headers });
+    const parsedUsage = parseCompatibleUsage({
+      usage: body.usage,
+      headers: res.headers,
+      transportProvider: "openrouter",
+    });
     cost = {
       model,
       inputTokens: parsedUsage.promptTokens,

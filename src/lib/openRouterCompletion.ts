@@ -412,7 +412,12 @@ export async function callOpenRouterCompletion(opts: {
     cheaper_inference?: { billing?: { billed_cost_usd?: unknown }; billed_cost_usd?: unknown };
   };
   const text = data.choices?.[0]?.message?.content?.trim() ?? "";
-  const parsedUsage = parseCompatibleUsage({ usage: data.usage, cheaperInference: (data as Record<string, unknown>).cheaper_inference, headers: res.headers });
+  const parsedUsage = parseCompatibleUsage({
+    usage: data.usage,
+    cheaperInference: (data as Record<string, unknown>).cheaper_inference,
+    headers: res.headers,
+    transportProvider: usedProvider,
+  });
   const promptTokens = parsedUsage.promptTokens || undefined;
   const completionTokens = parsedUsage.completionTokens || undefined;
   const resolvedInputTokens =

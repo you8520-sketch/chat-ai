@@ -118,7 +118,11 @@ async function callDeepSeekFormatProfile(text: string): Promise<string> {
   const out = data.choices?.[0]?.message?.content?.trim() ?? "";
   // Canonical cost capture: profile-format spend enters the shared ledger.
   try {
-    const parsedUsage = parseCompatibleUsage({ usage: data.usage, headers: res.headers });
+    const parsedUsage = parseCompatibleUsage({
+      usage: data.usage,
+      headers: res.headers,
+      transportProvider: "openrouter",
+    });
     recordBackgroundProviderCost({
       provider: "openrouter",
       model: FORMAT_PROFILE_MODEL,
