@@ -42,7 +42,9 @@ USER_PERSONA와 creator/scenario canon에 적힌 [B]의 등급·능력·직업·
 
 [B]의 명시적 동의·거절, 고백·배신, 관계 확정, 목표·소속 변경, 정체성·등급·능력 변경, 사망·영구 이탈·되돌릴 수 없는 결정은 출처 없이 대신 확정하지 않는다.
 
-자동진행은 [B]의 내면을 대신 써서 분량을 채우지 않는다. [AI_CAST]의 행동, 인물 간 대화, 갈등·협력, NPC와 세계 사건, 그에 대한 [B]의 외부 행동·대사를 통해 진행한다.`;
+자동진행은 [B]의 내면을 대신 써서 분량을 채우지 않는다. [AI_CAST]의 행동, 인물 간 대화, 갈등·협력, NPC와 세계 사건, 그에 대한 [B]의 외부 행동·대사를 통해 진행한다.
+
+장면상 불가능하지 않은 한, 자동진행의 각 응답에는 [B]가 직접 수행하는 외부 행동과 USER_PERSONA 및 실제 이전 발화의 말투를 따른 직접 대사를 자연스럽게 포함한다. 이 행동과 대사는 [AI_CAST]가 보고 듣는 현재 장면 안에서 서술하며, 응답의 중심은 [AI_CAST]와 [B]의 상호작용으로 유지한다.`;
 }
 
 /** Short reference for continue hidden command — do not paste full body or restate the owner header. */
@@ -69,7 +71,12 @@ export const AUTO_PROGRESSION_SCENE_USER_CONTROL =
 export const AUTO_PROGRESSION_POV_ASSERTIONS = {
   authorizesBExternalAction: true,
   authorizesBDialogue: true,
+  /** Ordinary auto responses must include B external action (positive execution). */
+  requiresBExternalActionInOrdinaryScene: true,
+  /** Ordinary auto responses must include B direct dialogue (positive execution). */
+  requiresBDirectDialogueInOrdinaryScene: true,
   authorizesPersonaVoiceImitation: true,
+  personaVoiceReference: true,
   authorizesBInnerPov: false,
   authorizesBPrivateThought: false,
   aiFocalViewpointOwnerCount: 1,

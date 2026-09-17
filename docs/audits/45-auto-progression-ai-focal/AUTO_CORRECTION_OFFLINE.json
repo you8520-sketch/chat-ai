@@ -1,0 +1,18 @@
+{
+  "verdict": "AUTO_PROGRESSION_EXTERNAL_ACTION_DIALOGUE_OFFLINE_PASS",
+  "reasons": [],
+  "autoOwners": 1,
+  "novel": 0,
+  "collab": 0,
+  "assertions": {
+    "authorizesBExternalAction": true,
+    "authorizesBDialogue": true,
+    "requiresBExternalActionInOrdinaryScene": true,
+    "requiresBDirectDialogueInOrdinaryScene": true,
+    "authorizesPersonaVoiceImitation": true,
+    "personaVoiceReference": true,
+    "authorizesBInnerPov": false,
+    "authorizesBPrivateThought": false,
+    "aiFocalViewpointOwnerCount": 1
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "status": "AUTO_PROGRESSION_HUMAN_REVIEW_PENDING",
+  "generated_at": "2026-08-06T07:00:49.436Z",
+  "model": "deepseek-v4-pro",
+  "architecture": "PR #248 collaborative default + AI-focal auto owner",
+  "attempts": 8,
+  "valid": 2,
+  "replacement_calls": 2,
+  "exclusions": [
+    {
+      "phase": "prep",
+      "run": 2,
+      "turn": 2,
+      "attempt": 1,
+      "reasons": [
+        "finish_metadata_missing"
+      ]
+    },
+    {
+      "phase": "auto",
+      "run": 2,
+      "attempt": 1,
+      "reasons": [
+        "finish_metadata_missing"
+      ]
+    }
+  ],
+  "chars": [
+    5037,
+    3292
+  ],
+  "human_review": "COMPLETE",
+  "verdicts": [
+    "AUTO_PROGRESSION_AI_FOCAL_POV_PASS",
+    "AUTO_PROGRESSION_USER_CO_NARRATION_FAIL",
+    "AUTO_PROGRESSION_SCREEN_FAIL"
+  ],
+  "note": "B dialogue/action co-narration failed. One minimal owner-paragraph correction + 2-output revalidation. Do not restore novel mode."
+}

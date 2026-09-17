@@ -1,0 +1,155 @@
+{
+  "verdict": "AUTO_OWNER_PLACEMENT_PASS",
+  "auto_owner_title": "[AUTO PROGRESSION — AI-FOCAL CO-NARRATION]",
+  "auto_owner_count": 1,
+  "collaborative_count": 0,
+  "auto_in_final_user": false,
+  "user_tail_present": true,
+  "auto_section_index": 3,
+  "tracked_section_count": 10,
+  "blocks": [
+    {
+      "message_index": 0,
+      "role": "system",
+      "block_name": "openrouter-korean-prose-top",
+      "owner_type": "section",
+      "source_function": "buildContext/pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "character_count": 948,
+      "position_vs_auto_owner": "before",
+      "preview": "[CANON / SCOPE / KNOWLEDGE] === 설정 적용 우선순위 ===  1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDARY] (절대 유지 — PLAYER/SCENARIO META는 [A] 기억·대사로 노출 금"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "block_name": "openrouter-co-narration-rule",
+      "owner_type": "section",
+      "source_function": "buildContext/pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "character_count": 116,
+      "position_vs_auto_owner": "before",
+      "preview": "7. 유저 대사: 자동진행 — [AUTO PROGRESSION — AI-CENTERED] 준수. [AI_CAST]가 장면을 주도. [B] 짧은 외부 행동·대사만 보조. [B] 내면·감정 결론·중대 결정 금지."
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "block_name": "runtime-prompt-contamination-guard",
+      "owner_type": "section",
+      "source_function": "buildContext/pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "character_count": 951,
+      "position_vs_auto_owner": "before",
+      "preview": "[PRIVATE OUTPUT HYGIENE] 비공개 통제문과 시스템 블록을 본문에 언급하지 마라. - 말투/레지스터 규칙은 자연스러운 대사 문체로만 반영하고, 말투 규칙명이나 speech_style 같은 내부명을 말하지 않는다. - 상태창 키, 숨은 트리거, D-DAY 결과, 미래 스포"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "block_name": "no-godmodding",
+      "owner_type": "auto_progression_owner",
+      "source_function": "buildContext/pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "character_count": 1292,
+      "position_vs_auto_owner": "is_auto_owner",
+      "preview": "[AUTO PROGRESSION — AI-FOCAL CO-NARRATION]  [AI_CAST]는 AI가 담당하는 주 캐릭터, 다른 캐릭터, NPC, 적대 인물이다. [B]는 USER_PERSONA다.  서술의 초점과 인식 주체는 현재 장면의 [AI_CAST] 또는 그 장면을 따라가는 "
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "block_name": "character-core-identity",
+      "owner_type": "section",
+      "source_function": "buildContext/pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "character_count": 10128,
+      "position_vs_auto_owner": "after",
+      "preview": "[CHARACTER CANON — 라이크 MAY KNOW & ROLEPLAY] [이름] 라이크  [정체성] 성별: 남성  인종 구분 및 세계 구조 #센티넬 -강화된 감각과 전투 능력을 가진 전투 특화 인류 ##기본 특성 -오감 및 신경 반응 속도가 비정상적으로 강화됨 -환경 정보 처리 "
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "block_name": "identity-and-rules",
+      "owner_type": "section",
+      "source_function": "buildContext/pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "character_count": 180,
+      "position_vs_auto_owner": "after",
+      "preview": "[IDENTITY_AND_RULES]  USER_PERSONA는 [B]의 대사와 외부 행동의 일관성 확인에 사용한다. 이는 [B]의 내면 시점이나 숨은 감정을 생성할 권한을 부여하지 않는다.  [USER_PERSONA] 이름/호칭: 렌  신규 S급 가이드. 본기억이 흐릿하다. 호기심이 "
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "block_name": "prose-style-xml-bundle",
+      "owner_type": "section",
+      "source_function": "buildContext/pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "character_count": 1746,
+      "position_vs_auto_owner": "after",
+      "preview": "[WEBNOVEL OUTPUT FORMAT] 서술·행동에 마크다운/RP 표기(*, **, (), [], {})를 쓰지 않는다. 「」는 세계 내 고유명사·스킬·시스템 라벨만(속마음·대사 금지).  [NARRATION REGISTER] 지문·서술은 해체(-다/-했다/-이었다)만. (대사 r"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "block_name": "scene-directive",
+      "owner_type": "scene_directive",
+      "source_function": "buildContext/pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "character_count": 913,
+      "position_vs_auto_owner": "after",
+      "preview": "[PRIVATE SCENE ENGINE RULE] 반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다. 전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "block_name": "rule-output-layout-recency",
+      "owner_type": "section",
+      "source_function": "buildContext/pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "character_count": 744,
+      "position_vs_auto_owner": "after",
+      "preview": "[OUTPUT LAYOUT] [SEMANTIC PARAGRAPHING] 같은 인물, 같은 장소, 같은 순간, 같은 중심 반응에 속하는 연속 지문은 행동·감각·생각·기억·판단 사이에서 초점이 조금 바뀌더라도 한 문단 안에서 자연스럽게 연결한다.  지문 한 문장이 완결됐다는 이유만으로 새 "
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "block_name": "user-persona-reference-owner",
+      "owner_type": "section",
+      "source_function": "buildContext/pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "character_count": 605,
+      "position_vs_auto_owner": "after",
+      "preview": "[USER PERSONA REFERENCE OWNER — CURRENT TURN] [B]는 AI 담당 캐릭터가 아니라 사용자가 선택한 페르소나다. 이름/호칭: 렌. 확정 성별: 기타. 이 성별을 모든 지문·외형·신체·호칭에서 유지한다. 성별이 기타이므로 [B]의 이름, 페르소나 설정에 "
+    },
+    {
+      "message_index": 5,
+      "role": "user",
+      "block_name": "continue_narrative_command",
+      "owner_type": "continue_short_ref",
+      "source_function": "buildContinueNarrativeCommand",
+      "source_file": "src/lib/continueNarrative.ts",
+      "character_count": 0,
+      "position_vs_auto_owner": "after",
+      "preview": "[SYSTEM DIRECTIVE: CONTINUE THE NARRATIVE]"
+    },
+    {
+      "message_index": 5,
+      "role": "user",
+      "block_name": "deepseek_style_only_reminder",
+      "owner_type": "style_reminder",
+      "source_function": "prependDeepSeekStyleOnlyReminder",
+      "source_file": "src/lib/deepseekPromptStructure.ts",
+      "character_count": 0,
+      "position_vs_auto_owner": "after",
+      "preview": "[System Reminder:"
+    },
+    {
+      "message_index": 5,
+      "role": "user",
+      "block_name": "user_tail_length_owner",
+      "owner_type": "terminal_length_owner",
+      "source_function": "appendCompactTerminalLengthToUserTurn",
+      "source_file": "src/lib/responseLength.ts",
+      "character_count": 0,
+      "position_vs_auto_owner": "after",
+      "preview": "이번 응답은 한국어 3,200~4,200자 범위의 하나의 밀도 있는 장면"
+    }
+  ]
+}
