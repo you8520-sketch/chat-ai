@@ -277,7 +277,13 @@ function resolveAsyncSection(input: {
   }
 
   const exactActualCostUsd =
-    coverage === "complete" && allPhysicalExact ? knownActualCostUsd : null;
+    coverage === "complete"
+      ? physicalCallCount === 0
+        ? 0
+        : allPhysicalExact
+          ? knownActualCostUsd
+          : null
+      : null;
 
   const unexpectedFamilies = [
     ...new Set(
@@ -613,5 +619,6 @@ export function buildAdminBillingReceiptV3(
       "multi_turn_batch_allocation",
     ],
     historicalNote: syncReceipt.historicalNote,
+    statusWidgetExtractDiagnostics: input.usage.statusWidgetExtractDiagnostics,
   };
 }
