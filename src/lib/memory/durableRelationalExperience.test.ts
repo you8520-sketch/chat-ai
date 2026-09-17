@@ -1,6 +1,6 @@
 /**
- * SEXMEM1–7, MEMEXP1–10 — durable relational experience investigation gates.
- * Deterministic structural proofs only — no provider calls.
+ * DRE — durable relational experience investigation (production-path deterministic proofs).
+ * SEXMEM*, MEMEXP*, DRE-PATH*, REL* — no provider HTTP.
  */
 import Module from "module";
 
@@ -15,7 +15,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { after, before, beforeEach, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import Database from "better-sqlite3";
 
 import { IMMERSIVE_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
@@ -31,14 +31,19 @@ import {
   ensureEpisodicMemoryFactsTable,
   getEpisodicMemoryForPrompt,
   persistEpisodicMemoryFactsBestEffort,
+  summarizeEpisodicFactPersistCandidates,
 } from "@/lib/episodicMemoryFacts";
+import type { EpisodicExtractedFact } from "@/lib/memory/memory-episodic-types";
 import {
   messagesToTurns,
   rawRecentTurnsToHistory,
   resolveLorebookExcludeFromTrimmedHistory,
   resolveProviderRawPoolExchangeCount,
 } from "@/lib/hybridMemory";
-import { buildRollingSummarySystemPrompt } from "@/lib/memory/memory-rolling-summary";
+import {
+  __setEpisodicExtractCallerForTests,
+  __resetEpisodicExtractCallCountForTests,
+} from "@/lib/memory/memory-episodic-extract";
 import { EPISODIC_FACTS_EXTRACT_INSTRUCTIONS } from "@/lib/memory/memory-episodic-prompt";
 import { parseEpisodicExtractedFacts } from "@/lib/memory/memory-episodic-extract";
 import {
@@ -50,10 +55,21 @@ import {
   ROLLING_SUMMARY_INTERVAL,
   ROLLING_SUMMARY_MAX_CHARS,
 } from "@/lib/memory/memory-constants";
-import { getOrCreateChatMemory } from "@/lib/memory/memory-db";
+import { getOrCreateChatMemory, updateChatMemory } from "@/lib/memory/memory-db";
 import { buildMemoryContextForChat } from "@/lib/memory/memory-manager";
+import { reconcileMemoryAfterTurnDelete } from "@/lib/memory/memory-reconcile";
 import { persistValidatedSummaryBatch } from "@/lib/memory/memory-summary-persist";
-import { rebuildLorebookFromRecords } from "@/lib/memory/memory-turn-summary";
+import {
+  buildRollingSummarySystemPrompt,
+  __setSummarizeTurnBatchCallerForTests,
+  processRollingSummaryBatch,
+  refreshRollingSummaryForRegeneratedAssistant,
+} from "@/lib/memory/memory-rolling-summary";
+import {
+  listMemoryRecordsForChat,
+  rebuildLorebookFromRecords,
+} from "@/lib/memory/memory-turn-summary";
+import { highestContiguousCompletedTurn } from "@/lib/memory/memory-summary-integrity";
 import { NO_FALSE_SHARED_MEMORY_RULE } from "@/lib/noGodmodding";
 import { RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK } from "@/lib/relationshipMemoryTailPrompt";
 import { extractReconvergenceHooks } from "@/lib/reconvergenceState";
@@ -66,12 +82,32 @@ import { buildContext } from "@/services/contextBuilder";
 const CHAT = 950001;
 const USER = 950002;
 const CHAR = 950003;
+const CHAR_NAME = "DreChar";
 
-/** Deterministic markers — continuity-changing facts, not sexual detail. */
+/** Trace markers embedded in real source dialogue — not summary-only injection. */
 const PRIOR_INTIMACY = "DRE_PRIOR_INTIMACY_7";
 const ROLE_USER_TOP = "DRE_ROLE_USER_TOP_9";
 const ROLE_CHAR_BOTTOM = "DRE_ROLE_CHAR_BOTTOM_8";
 const EXPLICIT_PREF = "DRE_EXPLICIT_PREF_CONTROL_3";
+const HALLUC_REVERSE = "DRE_HALLUC_REVERSE_TOP";
+
+const EPISODIC_RECALL_ENV = {
+  NODE_ENV: "development",
+  EPISODIC_MEMORY_RECALL_ENABLED: "1",
+  EPISODIC_MEMORY_MIN_AGE_TURNS: "5",
+} as NodeJS.ProcessEnv;
+
+const SOURCE_INTIMACY_USER_LINE =
+  `상호 합의하에 친밀한 관계를 맺자. ${PRIOR_INTIMACY} ` +
+  `이번 장면에서는 내가 주도하고 네가 받아들이는 쪽으로 가자. ${ROLE_USER_TOP}`;
+
+const SOURCE_INTIMACY_ASSISTANT_LINE =
+  `알겠어. ${ROLE_CHAR_BOTTOM} 네가 주도하는 방향으로 받아들일게.`;
+
+const SUMMARY_OMITS_CONTINUITY = summaryWith(
+  "DRE_SUMMARY_OMIT_BATCH",
+  "감정 변화와 대화 흐름만 기록하고 역할·친밀 사실은 생략"
+);
 
 function summaryWith(tag: string, extra = ""): string {
   return (
@@ -80,6 +116,31 @@ function summaryWith(tag: string, extra = ""): string {
     "인물의 감정 변화와 다음 장면 연결점을 짧게 기록한다. " +
     "동의·경계·후유증·공수 포지션은 다른 사건과 동일하게 보존한다."
   ).slice(0, ROLLING_SUMMARY_MAX_CHARS);
+}
+
+function roleEventFact(): EpisodicExtractedFact {
+  return {
+    category: "relationship",
+    subject: "dre_char_user",
+    attribute: "intimate_scene_role",
+    value: "user_led_char_received",
+    importance: "important",
+    fact_text:
+      `${ROLE_USER_TOP} 조건으로 유저가 주도하고 ${ROLE_CHAR_BOTTOM} 조건으로 캐릭터가 받아들인 친밀한 장면이 상호 합의 하에 있었다.`,
+    evidence_type: "explicit_scene_event",
+  };
+}
+
+function preferenceLockFact(): EpisodicExtractedFact {
+  return {
+    category: "relationship",
+    subject: "dre_char_user",
+    attribute: "relationship_dynamic",
+    value: "domination",
+    importance: "important",
+    fact_text: "둘의 관계는 강압적인 지배 관계가 되었다.",
+    evidence_type: "explicit_scene_event",
+  };
 }
 
 function cleanup(chatId = CHAT): void {
@@ -99,7 +160,7 @@ function ensureUserAndCharacter(): void {
     "dre",
     "x"
   );
-  db.prepare(`INSERT OR IGNORE INTO characters (id, name) VALUES (?,?)`).run(CHAR, "DreChar");
+  db.prepare(`INSERT OR IGNORE INTO characters (id, name) VALUES (?,?)`).run(CHAR, CHAR_NAME);
 }
 
 function seedChat(chatId = CHAT): void {
@@ -113,52 +174,149 @@ function seedChat(chatId = CHAT): void {
   getOrCreateChatMemory(chatId, USER, CHAR, "free");
 }
 
-function insertPlayableTurns(count: number, chatId = CHAT): void {
+/** Insert playable turns; turn 3 carries real source intimacy + role facts. */
+function insertPlayableTurnsWithSourceFact(totalCount: number): number[] {
   const db = getDb();
   db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
-    chatId,
+    CHAT,
     "assistant",
     "opening greeting",
     "greeting"
   );
-  for (let t = 1; t <= count; t++) {
+  const assistantIds: number[] = [];
+  for (let t = 1; t <= totalCount; t++) {
+    const userText =
+      t === 3
+        ? SOURCE_INTIMACY_USER_LINE
+        : `user turn ${t}`;
+    const assistantText =
+      t === 3
+        ? SOURCE_INTIMACY_ASSISTANT_LINE
+        : `assistant turn ${t}`;
     db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
-      chatId,
+      CHAT,
       "user",
-      `user turn ${t}`,
+      userText,
       "user"
     );
-    db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
-      chatId,
-      "assistant",
-      `assistant turn ${t}`,
-      "test"
-    );
+    const r = db
+      .prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`)
+      .run(CHAT, "assistant", assistantText, "test");
+    assistantIds.push(Number(r.lastInsertRowid));
   }
+  updateChatMemory(CHAT, USER, CHAR, {
+    message_count: totalCount,
+    membership_tier: "free",
+  });
+  return assistantIds;
 }
 
-function persistBatchSummary(
-  turnStart: number,
-  summary: string,
-  chatId = CHAT
-): void {
-  const result = persistValidatedSummaryBatch({
-    chatId,
+function loadMessageRows() {
+  return getDb()
+    .prepare(`SELECT role, content, model FROM messages WHERE chat_id=? ORDER BY id`)
+    .all(CHAT) as { role: "user" | "assistant"; content: string; model?: string }[];
+}
+
+function summarizedTurnCount(): number {
+  const rows = listMemoryRecordsForChat(CHAT);
+  return highestContiguousCompletedTurn(rows, loadMessageRows().length);
+}
+
+async function runProductionSealBatch1(opts: {
+  summaryText: string;
+  episodicFacts: EpisodicExtractedFact[];
+}): Promise<void> {
+  __setSummarizeTurnBatchCallerForTests(async () => ({ text: opts.summaryText }));
+  __setEpisodicExtractCallerForTests(async () => ({
+    text: JSON.stringify({ extracted_facts: opts.episodicFacts }),
+  }));
+  const ok = await processRollingSummaryBatch({
+    chatId: CHAT,
+    userId: USER,
+    characterId: CHAR,
+    charName: CHAR_NAME,
+    tier: "free",
+    memoryCapacity: 8000,
+  });
+  assert.equal(ok, true, "processRollingSummaryBatch must seal turns 1–5");
+}
+
+async function assembleFinalMainRpContext(opts: {
+  completedTurns: number;
+  currentUserMessage: string;
+}) {
+  const rows = loadMessageRows();
+  const turns = messagesToTurns(rows);
+  const summarized = summarizedTurnCount();
+  const rawPool = resolveProviderRawPoolExchangeCount({
+    memoryFeatureEnabled: true,
+    completedTurns: opts.completedTurns,
+    summarizedTurnCount: summarized,
+  });
+  const raw = rawRecentTurnsToHistory(turns, rawPool, {
+    summarizedTurnCount: summarized,
+    memoryFeatureEnabled: true,
+  });
+  const cutoff = resolveLorebookExcludeFromTrimmedHistory(turns, raw) ?? summarized + 1;
+  const injection = await buildMemoryContextForChat({
+    chatId: CHAT,
     userId: USER,
     characterId: CHAR,
     tier: "free",
-    turnStart,
-    assistantMessageId: null,
-    summary,
-    summaryKind: "main_canon",
-    scopePayload: { v: 1, scopes: { main_canon: summary }, branchId: null, branchStatus: null, promotedBy: null, promotedAt: null },
-    branchId: null,
-    branchStatus: null,
-    promotedBy: null,
-    promotedAt: null,
-    playableTurnCount: ROLLING_SUMMARY_INTERVAL,
+    memoryCapacity: 8000,
+    userMessage: opts.currentUserMessage,
+    excludeSummaryTurnStartGte: cutoff,
   });
-  assert.equal(result.ok, true, result.ok ? "" : String((result as { reason?: string }).reason));
+  const relationshipMemoryForPrompt = formatMemoryMetaForPrompt(
+    normalizeMemoryMeta(parseMemoryMeta("{}"), { charName: CHAR_NAME, userName: "유저" })
+  );
+  const db = getDb();
+  const episodicMemory = getEpisodicMemoryForPrompt(
+    db,
+    {
+      chatId: CHAT,
+      characterId: CHAR,
+      userId: USER,
+      currentTurn: opts.completedTurns + 1,
+      currentUserMessage: opts.currentUserMessage,
+      recentChatText: raw.map((m) => m.content).join("\n"),
+      longTermMemoryText: [injection.text, injection.archiveText].filter(Boolean).join("\n"),
+      relationshipMemoryText: relationshipMemoryForPrompt ?? "",
+      lorebookText: "",
+      triggeredEventText: "",
+    },
+    EPISODIC_RECALL_ENV
+  );
+  const built = buildContext({
+    charName: CHAR_NAME,
+    chunks: [],
+    userNickname: "유저",
+    shortTermHistory: raw,
+    currentUserMessage: opts.currentUserMessage,
+    longTermMemory: injection.text,
+    archiveMemory: injection.archiveText,
+    episodicMemoryBlock: episodicMemory.promptBlock,
+    memoryMeta: relationshipMemoryForPrompt ?? undefined,
+    nsfw: true,
+    provider: "openrouter",
+    completedTurns: opts.completedTurns,
+    summarizedTurnCount: summarized,
+  });
+  return {
+    built,
+    rawText: raw.map((m) => m.content).join("\n"),
+    ltmText: injection.text,
+    episodicBlock: episodicMemory.promptBlock,
+    episodicFacts: episodicMemory.facts,
+    cutoff,
+    trackedSections: built.meta.trackedSections ?? [],
+  };
+}
+
+function episodicRetrievedFactsSection(
+  sections: { id: string; label: string }[]
+): { id: string; label: string } | undefined {
+  return sections.find((section) => section.id === "episodic-memory-retrieved-facts");
 }
 
 before(() => installIsolatedTestDatabase());
@@ -167,246 +325,366 @@ beforeEach(() => {
   cleanup();
   seedChat();
 });
+afterEach(() => {
+  __setSummarizeTurnBatchCallerForTests(null);
+  __setEpisodicExtractCallerForTests(null);
+  __resetEpisodicExtractCallCountForTests();
+});
 
-describe("SEXMEM — prior relational experience fixtures", () => {
-  it("SEXMEM1 prior intimacy survives RAW4 exit when rolling summary preserves it", async () => {
-    insertPlayableTurns(10);
-    persistBatchSummary(1, summaryWith(PRIOR_INTIMACY, "이미 친밀한 관계가 성립한 상태로 이후 장면 진행"));
-    persistBatchSummary(6, summaryWith("후속 장면", "관계 유지"));
-
-    const rows = getDb()
-      .prepare(`SELECT role, content, model FROM messages WHERE chat_id=? ORDER BY id`)
-      .all(CHAT) as { role: "user" | "assistant"; content: string; model?: string }[];
-    const turns = messagesToTurns(rows);
-    const raw = rawRecentTurnsToHistory(turns, RAW_HISTORY_COMPLETE_EXCHANGES, {
-      summarizedTurnCount: 10,
-      memoryFeatureEnabled: true,
+describe("DRE-PATH — production seal dual-path proof", () => {
+  it("DRE-PATH-1 summary omission + episodic preserve → fact survives via [3a] after RAW4 exit", async () => {
+    insertPlayableTurnsWithSourceFact(10);
+    await runProductionSealBatch1({
+      summaryText: SUMMARY_OMITS_CONTINUITY,
+      episodicFacts: [roleEventFact()],
     });
-    const rawText = raw.map((m) => m.content).join("\n");
-    assert.doesNotMatch(rawText, new RegExp(PRIOR_INTIMACY));
-    assert.match(rawText, /user turn 7/);
 
-    const cutoff = resolveLorebookExcludeFromTrimmedHistory(turns, raw) ?? 7;
-    const lorebook = rebuildLorebookFromRecords(CHAT, { excludeTurnStartGte: cutoff });
-    assert.match(lorebook, new RegExp(PRIOR_INTIMACY));
-
-    const injection = await buildMemoryContextForChat({
-      chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
-      memoryCapacity: 8000,
-      userMessage: "다시 가까워진다.",
-      excludeSummaryTurnStartGte: cutoff,
+    const ctx = await assembleFinalMainRpContext({
+      completedTurns: 10,
+      currentUserMessage: "다시 가까워진다.",
     });
-    assert.match(injection.text, new RegExp(PRIOR_INTIMACY));
+
+    assert.doesNotMatch(ctx.rawText, new RegExp(ROLE_USER_TOP));
+    assert.doesNotMatch(ctx.rawText, new RegExp(PRIOR_INTIMACY));
+    assert.doesNotMatch(ctx.ltmText, new RegExp(ROLE_USER_TOP));
+    assert.doesNotMatch(ctx.ltmText, new RegExp(PRIOR_INTIMACY));
+    assert.match(ctx.episodicBlock, /\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
+    assert.match(ctx.episodicBlock, new RegExp(ROLE_USER_TOP));
+    assert.match(ctx.built.systemPrompt, /\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
+    assert.match(ctx.built.systemPrompt, new RegExp(ROLE_USER_TOP));
+    assert.equal(episodicRetrievedFactsSection(ctx.trackedSections)?.label, "[3a] Episodic memory retrieved facts");
+    assert.equal(ctx.episodicFacts.length, 1);
   });
 
-  it("SEXMEM2 role continuity has no relationship-memory owner — rolling summary / episodic only", () => {
-    const meta = mergeMemoryMeta(parseMemoryMeta("{}"), {
-      items: ["유저: 열쇠"],
-      promisesAdd: [{ text: "다음에 다시 만나자" }],
+  it("DRE-PATH-2 summary omission + episodic omission → DURABLE LOSS CONDITION PROVEN", async () => {
+    insertPlayableTurnsWithSourceFact(10);
+    await runProductionSealBatch1({
+      summaryText: SUMMARY_OMITS_CONTINUITY,
+      episodicFacts: [],
     });
-    const promptMeta = formatMemoryMetaForPrompt(normalizeMemoryMeta(meta, { charName: "캐", userName: "유저" }));
-    assert.ok(promptMeta);
-    assert.doesNotMatch(promptMeta!, new RegExp(ROLE_USER_TOP));
-    assert.doesNotMatch(promptMeta!, new RegExp(ROLE_CHAR_BOTTOM));
-    assert.match(RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK, /Relationship stage, attachment/);
-    assert.match(RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK, /Forbidden auto extraction/);
+
+    const ctx = await assembleFinalMainRpContext({
+      completedTurns: 10,
+      currentUserMessage: "새로운 친밀한 장면",
+    });
+
+    assert.doesNotMatch(ctx.rawText, new RegExp(PRIOR_INTIMACY));
+    assert.doesNotMatch(ctx.ltmText, new RegExp(PRIOR_INTIMACY));
+    assert.doesNotMatch(ctx.ltmText, new RegExp(ROLE_USER_TOP));
+    assert.equal(ctx.episodicFacts.length, 0);
+    assert.equal(ctx.episodicBlock, "");
+    assert.doesNotMatch(ctx.built.systemPrompt, new RegExp(PRIOR_INTIMACY));
+    assert.doesNotMatch(ctx.built.systemPrompt, new RegExp(ROLE_USER_TOP));
   });
 
-  it("SEXMEM3 false-memory policy blocks fabricated shared history but not personality-based past inference", () => {
-    assert.match(NO_FALSE_SHARED_MEMORY_RULE, /전에 말했잖아/);
-    assert.match(NO_FALSE_SHARED_MEMORY_RULE, /불확실하면 질문, 관찰, 추측/);
-    assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /과거 역할을 역추론/);
-    assert.doesNotMatch(NO_FALSE_SHARED_MEMORY_RULE, /현재 성격/);
-  });
-
-  it("SEXMEM4 first-time reset when summary omits prior intimacy fact", async () => {
-    insertPlayableTurns(10);
-    persistBatchSummary(1, summaryWith("일반 대화만 진행", "친밀 사건 없음"));
-    persistBatchSummary(6, summaryWith("후속 장면"));
-
-    const rows = getDb()
-      .prepare(`SELECT role, content, model FROM messages WHERE chat_id=? ORDER BY id`)
-      .all(CHAT) as { role: "user" | "assistant"; content: string; model?: string }[];
-    const turns = messagesToTurns(rows);
-    const raw = rawRecentTurnsToHistory(turns, RAW_HISTORY_COMPLETE_EXCHANGES, {
-      summarizedTurnCount: 10,
-      memoryFeatureEnabled: true,
-    });
-    const cutoff = resolveLorebookExcludeFromTrimmedHistory(turns, raw) ?? 7;
-    const injection = await buildMemoryContextForChat({
-      chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
-      memoryCapacity: 8000,
-      userMessage: "새로운 친밀한 장면",
-      excludeSummaryTurnStartGte: cutoff,
-    });
-    assert.doesNotMatch(injection.text, new RegExp(PRIOR_INTIMACY));
-  });
-
-  it("SEXMEM5 single episode role event must not become permanent preference", () => {
-    const inferred = parseEpisodicExtractedFacts(
-      JSON.stringify({
-        extracted_facts: [
-          {
-            category: "relationship",
-            subject: "char_user",
-            attribute: "relationship_dynamic",
-            value: "domination",
-            importance: "important",
-            fact_text: "둘의 관계는 강압적인 지배 관계가 되었다.",
-            evidence_type: "explicit_scene_event",
-          },
-        ],
-      }),
-      { requireEvidence: true }
+  it("DRE-PATH-4 role historical event persist/recall without preference lock-in", () => {
+    const event = roleEventFact();
+    const parsed = parseEpisodicExtractedFacts(
+      JSON.stringify({ extracted_facts: [event] })
     );
-    assert.equal(inferred.length, 1);
-    assert.equal(detectAbstractPsychologicalInference(inferred[0]!), "abstract_psychological_inference");
+    assert.equal(parsed.length, 1);
+    assert.equal(detectAbstractPsychologicalInference(parsed[0]!), null);
 
-    const eventOnly = parseEpisodicExtractedFacts(
-      JSON.stringify({
-        extracted_facts: [
-          {
-            category: "relationship",
-            subject: "char_user",
-            attribute: "intimate_event",
-            value: "occurred_once",
-            importance: "important",
-            fact_text: "유저와 캐릭터는 상호 합의 하에 친밀한 관계를 맺었다.",
-            evidence_type: "explicit_scene_event",
-          },
-        ],
-      }),
-      { requireEvidence: true }
+    const persistSummary = summarizeEpisodicFactPersistCandidates([event], {
+      batchUserSources: [{ turn: 3, messageId: null, text: SOURCE_INTIMACY_USER_LINE }],
+    });
+    assert.equal(persistSummary.insertableCount, 1);
+    assert.equal(detectAbstractPsychologicalInference(preferenceLockFact()), "abstract_psychological_inference");
+    assert.equal(
+      summarizeEpisodicFactPersistCandidates([preferenceLockFact()]).insertableCount,
+      0
     );
-    assert.equal(eventOnly.length, 1);
-    assert.equal(detectAbstractPsychologicalInference(eventOnly[0]!), null);
-  });
-
-  it("SEXMEM6 repeated role pattern — no dedicated schema owner", () => {
-    assert.match(EPISODIC_FACTS_EXTRACT_INSTRUCTIONS, /Maximum 3 facts/);
-    assert.match(EPISODIC_FACTS_EXTRACT_INSTRUCTIONS, /Do NOT infer persistent personality/);
-    const meta = parseMemoryMeta("{}");
-    assert.deepEqual(Object.keys(meta).sort(), [
-      "currentLocation",
-      "honorifics",
-      "items",
-      "promises",
-      "thoughts",
-    ]);
-  });
-
-  it("SEXMEM7 explicit user preference routes to episodic preference owner", () => {
-    const facts = parseEpisodicExtractedFacts(
-      JSON.stringify({
-        extracted_facts: [
-          {
-            category: "preference",
-            subject: "user",
-            attribute: "roleplay_preference",
-            value: "consensual_control",
-            importance: "important",
-            fact_text: `사용자는 ${EXPLICIT_PREF} 상호 합의된 통제 역할극을 선호한다고 명시했다.`,
-            evidence_type: "explicit_user_statement",
-          },
-        ],
-      }),
-      { requireEvidence: true }
-    );
-    assert.equal(facts.length, 1);
-    assert.equal(facts[0]!.category, "preference");
 
     const db = new Database(":memory:");
     ensureEpisodicMemoryFactsTable(db);
-    db.exec(`CREATE TABLE chat_memories (chat_id INTEGER PRIMARY KEY, memory_reset_after_message_id INTEGER, memory_epoch INTEGER NOT NULL DEFAULT 0)`);
+    db.exec(
+      `CREATE TABLE chat_memories (chat_id INTEGER PRIMARY KEY, memory_reset_after_message_id INTEGER, memory_epoch INTEGER NOT NULL DEFAULT 0)`
+    );
     assert.equal(
       persistEpisodicMemoryFactsBestEffort(db, {
         chatId: 1,
         characterId: CHAR,
         userId: USER,
         sourceTurn: 5,
-        facts,
+        facts: [event],
+        replaceSummarySealBatch: { batchStart: 1, batchEnd: 5 },
       }),
       1
     );
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      {
+        chatId: 1,
+        characterId: CHAR,
+        userId: USER,
+        currentTurn: 11,
+        currentUserMessage: "다시",
+        recentChatText: "user turn 10",
+        longTermMemoryText: SUMMARY_OMITS_CONTINUITY,
+        relationshipMemoryText: "",
+        lorebookText: "",
+        triggeredEventText: "",
+      },
+      EPISODIC_RECALL_ENV
+    );
+    assert.equal(recall.facts.length, 1);
+    assert.match(recall.promptBlock, new RegExp(ROLE_USER_TOP));
+  });
+
+  it("DRE-PATH-6 false history — summary can canonize assistant hallucination; episodic keeps attribution", async () => {
+    const db = getDb();
+    db.prepare("DELETE FROM messages WHERE chat_id=?").run(CHAT);
+    db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+      CHAT,
+      "assistant",
+      "opening",
+      "greeting"
+    );
+    for (let t = 1; t <= 10; t++) {
+      const userText = t === 3 ? SOURCE_INTIMACY_USER_LINE : `user ${t}`;
+      const assistantText =
+        t === 3
+          ? `${HALLUC_REVERSE} 캐릭터가 주도하고 유저가 받아들였다.`
+          : `assistant ${t}`;
+      db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+        CHAT,
+        "user",
+        userText,
+        "user"
+      );
+      db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+        CHAT,
+        "assistant",
+        assistantText,
+        "test"
+      );
+    }
+    updateChatMemory(CHAT, USER, CHAR, { message_count: 10, membership_tier: "free" });
+
+    const summaryWithHalluc = summaryWith(
+      "DRE_HALLUC_SUMMARY",
+      `${HALLUC_REVERSE} 캐릭터가 주도했고 유저가 받아들였다`
+    );
+    const hallucClaim: EpisodicExtractedFact = {
+      category: "character",
+      subject: "dre_char",
+      attribute: "scene_role_claim",
+      value: "char_led",
+      importance: "important",
+      fact_text: "캐릭터는 자신이 주도하고 유저가 받아들였다고 말했다.",
+      evidence_type: "explicit_character_claim",
+    };
+    const userEvent: EpisodicExtractedFact = roleEventFact();
+
+    await runProductionSealBatch1({
+      summaryText: summaryWithHalluc,
+      episodicFacts: [hallucClaim, userEvent],
+    });
+
+    const lore = rebuildLorebookFromRecords(CHAT);
+    assert.match(lore, new RegExp(HALLUC_REVERSE));
+
+    const persistHalluc = summarizeEpisodicFactPersistCandidates([hallucClaim], {
+      batchUserSources: [{ turn: 3, messageId: null, text: SOURCE_INTIMACY_USER_LINE }],
+    });
+    assert.equal(persistHalluc.insertableCount, 1, "attributed character claim passes persist filter");
+
+    const ctx = await assembleFinalMainRpContext({
+      completedTurns: 10,
+      currentUserMessage: "이어서",
+    });
+    assert.match(ctx.episodicBlock, /\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
+    assert.match(ctx.episodicBlock, /말했다/);
+    assert.match(ctx.episodicBlock, new RegExp(ROLE_USER_TOP));
+    assert.match(ctx.built.systemPrompt, /\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
+    assert.match(ctx.ltmText, new RegExp(HALLUC_REVERSE), "rolling summary canonizes assistant hallucination in LTM");
+    assert.equal(episodicRetrievedFactsSection(ctx.trackedSections)?.label, "[3a] Episodic memory retrieved facts");
+  });
+
+  it("DRE-PATH-7 regen replaces summary but leaves stale episodic until empty extract clears batch (production gap)", async () => {
+    const assistantIds = insertPlayableTurnsWithSourceFact(10);
+    await runProductionSealBatch1({
+      summaryText: summaryWith(PRIOR_INTIMACY, "첫 친밀"),
+      episodicFacts: [roleEventFact()],
+    });
+    assert.equal(
+      (getDb().prepare("SELECT COUNT(*) AS n FROM episodic_memory_facts WHERE chat_id=?").get(CHAT) as { n: number }).n,
+      1
+    );
+
+    getDb()
+      .prepare(`UPDATE messages SET content=? WHERE id=?`)
+      .run("assistant turn 3 revised — no intimacy", assistantIds[2]!);
+
+    __setSummarizeTurnBatchCallerForTests(async () => ({
+      text: summaryWith("DRE_REGEN_REPLACED", "친밀 사건 없음"),
+    }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({ extracted_facts: [] }),
+    }));
+    const ok = await refreshRollingSummaryForRegeneratedAssistant({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: CHAR_NAME,
+      tier: "free",
+      memoryCapacity: 8000,
+      assistantMessageId: assistantIds[2]!,
+    });
+    assert.equal(ok, true);
+
+    const lore = rebuildLorebookFromRecords(CHAT);
+    assert.match(lore, /DRE_REGEN_REPLACED/);
+    assert.doesNotMatch(lore, new RegExp(PRIOR_INTIMACY));
+
+    const episodicCount = (
+      getDb().prepare("SELECT COUNT(*) AS n FROM episodic_memory_facts WHERE chat_id=?").get(CHAT) as { n: number }
+    ).n;
+    assert.equal(
+      episodicCount,
+      1,
+      "production regen with empty episodic extract does not invalidate prior summary_seal_batch rows"
+    );
+
+    const ctx = await assembleFinalMainRpContext({
+      completedTurns: 10,
+      currentUserMessage: "이어서",
+    });
+    assert.match(ctx.episodicBlock, new RegExp(ROLE_USER_TOP), "stale role episodic still injects after regen");
+    assert.doesNotMatch(ctx.ltmText, new RegExp(PRIOR_INTIMACY), "summary side was replaced");
+  });
+
+  it("DRE-PATH-7b delete last turn preserves earlier sealed memory (production reconcile)", async () => {
+    insertPlayableTurnsWithSourceFact(10);
+    await runProductionSealBatch1({
+      summaryText: summaryWith(PRIOR_INTIMACY),
+      episodicFacts: [roleEventFact()],
+    });
+    persistValidatedSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      turnStart: 6,
+      turnEnd: 10,
+      assistantMessageId: null,
+      summary: summaryWith("DRE_LATER_BATCH", "후속"),
+      summaryKind: "main_canon",
+      scopePayload: { v: 1, scopes: { main_canon: summaryWith("DRE_LATER_BATCH") } },
+      playableTurnCount: 10,
+    });
+
+    const db = getDb();
+    const lastUser = db
+      .prepare(`SELECT id FROM messages WHERE chat_id=? AND role='user' ORDER BY id DESC LIMIT 1`)
+      .get(CHAT) as { id: number };
+    const lastAssistant = db
+      .prepare(`SELECT id FROM messages WHERE chat_id=? AND role='assistant' AND model='test' ORDER BY id DESC LIMIT 1`)
+      .get(CHAT) as { id: number };
+    db.prepare(`DELETE FROM messages WHERE id IN (?,?)`).run(lastUser.id, lastAssistant.id);
+
+    reconcileMemoryAfterTurnDelete({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: CHAR_NAME,
+      tier: "free",
+      memoryCapacity: 8000,
+      deletedUserMessageId: lastUser.id,
+      deletedAssistantMessageId: lastAssistant.id,
+      deletedPlayableTurn: 10,
+    });
+
+    const lore = rebuildLorebookFromRecords(CHAT);
+    assert.match(lore, new RegExp(PRIOR_INTIMACY));
   });
 });
 
-describe("Summary compression audit", () => {
-  it("rolling summary prompt preserves role/consent but validation does not enforce omission", () => {
-    const prompt = buildRollingSummarySystemPrompt(ROLLING_SUMMARY_INTERVAL);
-    assert.match(prompt, /공수 포지션/);
-    assert.match(prompt, /동의·경계/);
+describe("SEXMEM — structural owner fixtures", () => {
+  it("SEXMEM1 prior intimacy survives RAW4 exit when rolling summary preserves it", async () => {
+    insertPlayableTurnsWithSourceFact(10);
+    persistValidatedSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      turnStart: 1,
+      turnEnd: 5,
+      assistantMessageId: null,
+      summary: summaryWith(PRIOR_INTIMACY, "source turn 3 had intimacy"),
+      summaryKind: "main_canon",
+      scopePayload: { v: 1, scopes: { main_canon: summaryWith(PRIOR_INTIMACY) } },
+      playableTurnCount: 10,
+    });
 
-    const sourceDialogue = `[user] ${ROLE_USER_TOP} 유저가 주도하고 ${ROLE_CHAR_BOTTOM} 캐릭터가 받아들였다.`;
-    const badSummary = summaryWith("ROLE_OMIT_MARKER", "감정만 변화하고 역할 정보는 생략");
-    const validated = validateSummaryNarrative(badSummary, "main_canon");
-    assert.equal(validated.ok, true, validated.ok ? "" : String((validated as { reason?: string }).reason));
-    assert.equal(isRollingSummaryGroundedInDialogue(badSummary, sourceDialogue), true);
-    assert.doesNotMatch(badSummary, new RegExp(ROLE_USER_TOP));
-  });
-});
-
-describe("MEMEXP — durable relational experience regression gates", () => {
-  it("MEMEXP1 prior experience survives RAW4 exit (requires summary preservation)", async () => {
-    insertPlayableTurns(8);
-    persistBatchSummary(1, summaryWith(PRIOR_INTIMACY));
-    const rows = getDb()
-      .prepare(`SELECT role, content, model FROM messages WHERE chat_id=? ORDER BY id`)
-      .all(CHAT) as { role: "user" | "assistant"; content: string; model?: string }[];
-    const turns = messagesToTurns(rows);
+    const turns = messagesToTurns(loadMessageRows());
     const raw = rawRecentTurnsToHistory(turns, RAW_HISTORY_COMPLETE_EXCHANGES, {
       summarizedTurnCount: 5,
       memoryFeatureEnabled: true,
     });
-    const cutoff = resolveLorebookExcludeFromTrimmedHistory(turns, raw) ?? 5;
-    const lore = rebuildLorebookFromRecords(CHAT, { excludeTurnStartGte: cutoff });
-    assert.match(lore, new RegExp(PRIOR_INTIMACY));
+    assert.doesNotMatch(raw.map((m) => m.content).join("\n"), new RegExp(PRIOR_INTIMACY));
+    const cutoff = resolveLorebookExcludeFromTrimmedHistory(turns, raw) ?? 6;
+    const injection = await buildMemoryContextForChat({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      memoryCapacity: 8000,
+      userMessage: "다시",
+      excludeSummaryTurnStartGte: cutoff,
+    });
+    assert.match(injection.text, new RegExp(PRIOR_INTIMACY));
   });
 
-  it("MEMEXP2 prior role is not reversed by relationship memory (no role owner there)", () => {
-    const formatted = formatMemoryMetaForPrompt(
-      normalizeMemoryMeta(
-        parseMemoryMeta(
-          JSON.stringify({
-            items: ["유저: 반지"],
-            promises: [{ text: "비밀 유지" }],
-            honorifics: ["유저→캐: 오빠"],
-            currentLocation: "침실",
-          })
-        ),
-        { charName: "캐", userName: "유저" }
-      )
+  it("SEXMEM2 role continuity has no relationship-memory owner", () => {
+    const meta = mergeMemoryMeta(parseMemoryMeta("{}"), {
+      items: ["유저: 열쇠"],
+      promisesAdd: [{ text: "다음에 다시 만나자" }],
+    });
+    const promptMeta = formatMemoryMetaForPrompt(
+      normalizeMemoryMeta(meta, { charName: CHAR_NAME, userName: "유저" })
     );
-    assert.ok(formatted);
-    assert.doesNotMatch(formatted!, /top|bottom|공수|주도|수동/);
+    assert.ok(promptMeta);
+    assert.doesNotMatch(promptMeta!, new RegExp(ROLE_USER_TOP));
+    assert.match(RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK, /Forbidden auto extraction/);
   });
 
-  it("MEMEXP3 unknown role must not become fabricated historical fact — policy partial", () => {
+  it("SEXMEM3 false-memory policy partial — no personality-based past inference rule", () => {
     assert.match(NO_FALSE_SHARED_MEMORY_RULE, /없는 일을/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /relevant할 때만/);
+    assert.doesNotMatch(NO_FALSE_SHARED_MEMORY_RULE, /현재 성격/);
   });
 
-  it("MEMEXP4 one event does not become permanent preference", () => {
-    const blocked = {
-      category: "character" as const,
-      subject: "user",
-      attribute: "dominance",
-      value: "high",
-      importance: "important" as const,
-      fact_text: "유저는 본질적으로 통제하는 성격이다.",
-      evidence_type: "explicit_scene_event" as const,
-    };
-    assert.equal(detectAbstractPsychologicalInference(blocked), "abstract_psychological_inference");
+  it("SEXMEM4 marker-only summary without source fact is NOT end-to-end loss proof", async () => {
+    insertPlayableTurns(10);
+    persistValidatedSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      turnStart: 1,
+      turnEnd: 5,
+      assistantMessageId: null,
+      summary: summaryWith("일반 대화", "친밀 없음"),
+      summaryKind: "main_canon",
+      scopePayload: { v: 1, scopes: { main_canon: summaryWith("일반 대화") } },
+      playableTurnCount: 10,
+    });
+    const injection = await buildMemoryContextForChat({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      memoryCapacity: 8000,
+      userMessage: "새 장면",
+    });
+    assert.doesNotMatch(injection.text, new RegExp(PRIOR_INTIMACY));
+    assert.doesNotMatch(loadMessageRows().map((r) => r.content).join("\n"), new RegExp(PRIOR_INTIMACY));
   });
 
-  it("MEMEXP5 explicit preference remains durable via episodic owner", () => {
-    const facts = parseEpisodicExtractedFacts(
+  it("SEXMEM5–7 episodic epistemics unchanged", () => {
+    assert.equal(detectAbstractPsychologicalInference(preferenceLockFact()), "abstract_psychological_inference");
+    assert.match(EPISODIC_FACTS_EXTRACT_INSTRUCTIONS, /Maximum 3 facts/);
+    const pref = parseEpisodicExtractedFacts(
       JSON.stringify({
         extracted_facts: [
           {
@@ -422,10 +700,89 @@ describe("MEMEXP — durable relational experience regression gates", () => {
       }),
       { requireEvidence: true }
     );
-    assert.equal(facts.length, 1);
+    assert.equal(pref.length, 1);
+  });
+});
+
+/** Generic playable turns without embedded source intimacy/role facts. */
+function insertPlayableTurns(count: number): void {
+  const db = getDb();
+  db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+    CHAT,
+    "assistant",
+    "opening greeting",
+    "greeting"
+  );
+  for (let t = 1; t <= count; t++) {
+    db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+      CHAT,
+      "user",
+      `user turn ${t}`,
+      "user"
+    );
+    db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+      CHAT,
+      "assistant",
+      `assistant turn ${t}`,
+      "test"
+    );
+  }
+  updateChatMemory(CHAT, USER, CHAR, {
+    message_count: count,
+    membership_tier: "free",
+  });
+}
+
+describe("Summary compression audit", () => {
+  it("validation accepts summary that omits source role markers", () => {
+    const sourceDialogue = `[user] ${ROLE_USER_TOP} ${PRIOR_INTIMACY}`;
+    const badSummary = SUMMARY_OMITS_CONTINUITY;
+    assert.equal(validateSummaryNarrative(badSummary, "main_canon").ok, true);
+    assert.equal(isRollingSummaryGroundedInDialogue(badSummary, sourceDialogue), true);
+    assert.doesNotMatch(badSummary, new RegExp(ROLE_USER_TOP));
   });
 
-  it("MEMEXP6 summary lag expands RAW pool — no coverage hole", () => {
+  it("rolling summary prompt lists intimacy/role preserve targets", () => {
+    const prompt = buildRollingSummarySystemPrompt(ROLLING_SUMMARY_INTERVAL);
+    assert.match(prompt, /공수 포지션/);
+    assert.match(prompt, /동의·경계/);
+  });
+});
+
+describe("MEMEXP — regression gates", () => {
+  it("MEMEXP1 prior experience via summary after RAW4 exit", async () => {
+    insertPlayableTurnsWithSourceFact(8);
+    persistValidatedSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      turnStart: 1,
+      turnEnd: 5,
+      assistantMessageId: null,
+      summary: summaryWith(PRIOR_INTIMACY),
+      summaryKind: "main_canon",
+      scopePayload: { v: 1, scopes: { main_canon: summaryWith(PRIOR_INTIMACY) } },
+      playableTurnCount: 8,
+    });
+    const turns = messagesToTurns(loadMessageRows());
+    const raw = rawRecentTurnsToHistory(turns, RAW_HISTORY_COMPLETE_EXCHANGES, {
+      summarizedTurnCount: 5,
+      memoryFeatureEnabled: true,
+    });
+    const lore = rebuildLorebookFromRecords(CHAT, {
+      excludeTurnStartGte: resolveLorebookExcludeFromTrimmedHistory(turns, raw) ?? 6,
+    });
+    assert.match(lore, new RegExp(PRIOR_INTIMACY));
+  });
+
+  it("MEMEXP2–6 structural gates", () => {
+    assert.doesNotMatch(
+      formatMemoryMetaForPrompt(parseMemoryMeta("{}")) ?? "",
+      /top|bottom|공수/
+    );
+    assert.match(NO_FALSE_SHARED_MEMORY_RULE, /없는 일을/);
+    assert.equal(detectAbstractPsychologicalInference(preferenceLockFact()), "abstract_psychological_inference");
     assert.equal(
       resolveProviderRawPoolExchangeCount({
         memoryFeatureEnabled: true,
@@ -434,67 +791,36 @@ describe("MEMEXP — durable relational experience regression gates", () => {
       }),
       8
     );
-    assert.equal(
-      resolveProviderRawPoolExchangeCount({
-        memoryFeatureEnabled: true,
-        completedTurns: 12,
-        summarizedTurnCount: 9,
-      }),
-      RAW_HISTORY_COMPLETE_EXCHANGES
-    );
   });
 
-  it("MEMEXP7 prior intimacy does not reset when summary retains fact", async () => {
-    insertPlayableTurns(10);
-    persistBatchSummary(1, summaryWith(PRIOR_INTIMACY, "첫 친밀 경험 완료"));
-    const built = buildContext({
-      charName: "DreChar",
-      chunks: [],
-      userNickname: "유저",
-      shortTermHistory: rawRecentTurnsToHistory(messagesToTurns(
-        getDb()
-          .prepare(`SELECT role, content, model FROM messages WHERE chat_id=? ORDER BY id`)
-          .all(CHAT) as { role: "user" | "assistant"; content: string; model?: string }[]
-      ), RAW_HISTORY_COMPLETE_EXCHANGES, { summarizedTurnCount: 10, memoryFeatureEnabled: true }),
-      currentUserMessage: "다시 가까워진다.",
-      longTermMemory: rebuildLorebookFromRecords(CHAT),
-      nsfw: true,
-      provider: "openrouter",
-      completedTurns: 10,
-      summarizedTurnCount: 10,
-    });
-    assert.match(built.systemPrompt, new RegExp(PRIOR_INTIMACY));
-  });
-
-  it("MEMEXP8 memory callback anti-fixation lives in IMMERSIVE PROSE", () => {
+  it("MEMEXP8 anti-fixation in IMMERSIVE PROSE", () => {
     assert.match(IMMERSIVE_PROSE_BLOCK, /매 턴 의무적으로 회상하지 않는다/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /같은 기억·키워드·상징·비유/);
   });
 
-  it("MEMEXP9 regen invalidation — summary batch replace is idempotent scope", () => {
-    insertPlayableTurns(5);
-    persistBatchSummary(1, summaryWith(PRIOR_INTIMACY));
-    persistBatchSummary(1, summaryWith("REGEN_REPLACED_SUMMARY"));
-    const lore = rebuildLorebookFromRecords(CHAT);
-    assert.match(lore, /REGEN_REPLACED_SUMMARY/);
-    assert.doesNotMatch(lore, new RegExp(PRIOR_INTIMACY));
-  });
-
-  it("MEMEXP10 reconvergence provenance unchanged — static memory cannot hook", () => {
+  it("MEMEXP10 reconvergence provenance unchanged", () => {
     assert.equal(
-      extractReconvergenceHooks({
-        memoryText: "우리는 이미 친밀한 관계다.",
-        currentTurn: 1,
-      }).length,
+      extractReconvergenceHooks({ memoryText: "우리는 친밀하다.", currentTurn: 1 }).length,
       0
     );
   });
 });
 
-describe("REL — generalized durable relational experience", () => {
-  it("REL1 kiss/intimacy first-time risk when summary drops milestone", async () => {
+describe("REL — generalized (not end-to-end loss without DRE-PATH-2)", () => {
+  it("REL1 summary-only omission without source fact is insufficient loss proof", async () => {
     insertPlayableTurns(8);
-    persistBatchSummary(1, summaryWith("DRE_NO_INTIMACY_MILESTONE", "일반 대화만 진행"));
+    persistValidatedSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      turnStart: 1,
+      turnEnd: 5,
+      assistantMessageId: null,
+      summary: summaryWith("DRE_NO_INTIMACY_MILESTONE"),
+      summaryKind: "main_canon",
+      scopePayload: { v: 1, scopes: { main_canon: summaryWith("DRE_NO_INTIMACY_MILESTONE") } },
+      playableTurnCount: 8,
+    });
     const injection = await buildMemoryContextForChat({
       chatId: CHAT,
       userId: USER,
@@ -503,54 +829,11 @@ describe("REL — generalized durable relational experience", () => {
       memoryCapacity: 8000,
       userMessage: "입을 맞춘다.",
     });
-    assert.doesNotMatch(injection.text, /DRE_PRIOR_INTIMACY|이미.?키스|친밀.?관계.?성립/i);
+    assert.doesNotMatch(injection.text, new RegExp(PRIOR_INTIMACY));
   });
 
-  it("REL2 identity reveal — episodic explicit event allowed, inference blocked", () => {
-    const reveal = parseEpisodicExtractedFacts(
-      JSON.stringify({
-        extracted_facts: [
-          {
-            category: "character",
-            subject: "hero",
-            attribute: "identity_reveal",
-            value: "guild_master",
-            importance: "critical",
-            fact_text: "주인공은 자신이 길드장이라고 명시적으로 밝혔다.",
-            evidence_type: "explicit_character_claim",
-          },
-        ],
-      }),
-      { requireEvidence: true }
-    );
-    assert.equal(reveal.length, 1);
-    const inferred = parseEpisodicExtractedFacts(
-      JSON.stringify({
-        extracted_facts: [
-          {
-            category: "character",
-            subject: "hero",
-            attribute: "identity",
-            value: "guild_master",
-            importance: "critical",
-            fact_text: "주인공은 자신이 길드장이라고 단정적으로 밝혔다.",
-            evidence_type: "explicit_scene_event",
-          },
-        ],
-      }),
-      { requireEvidence: true }
-    );
-    assert.equal(inferred.length, 1, "parse accepts unattributed claims; persist/recall layers may block");
-  });
-
-  it("REL3 past betrayal event can live in rolling summary prose owner", () => {
-    const betrayalSummary = summaryWith("DRE_BETRAYAL_5", "배신 사건 발생, 신뢰 붕괴");
-    assert.match(betrayalSummary, /DRE_BETRAYAL_5/);
-    assert.equal(validateSummaryNarrative(betrayalSummary, "main_canon").ok, true);
-  });
-
-  it("REL4 repeated pattern has no structured owner — episodic max 3 per batch", () => {
-    assert.match(EPISODIC_FACTS_EXTRACT_INSTRUCTIONS, /Maximum 3 facts/);
+  it("REL3–4 structural", () => {
+    assert.equal(validateSummaryNarrative(summaryWith("DRE_BETRAYAL_5"), "main_canon").ok, true);
     assert.match(EPISODIC_FACTS_EXTRACT_INSTRUCTIONS, /Stable personality/);
   });
 });

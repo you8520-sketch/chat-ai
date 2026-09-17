@@ -1,96 +1,132 @@
-# Durable relational experience — memory continuity investigation
+# Durable relational experience — production-path deterministic proof
 
-**Status:** `STOP_SCHEMA_DECISION_REQUIRED`  
-**Classification:** `PROMPT_CONTRACT_ROOT_CAUSE: ROOT_CAUSE_UNCONFIRMED` | `LIVE_MODEL_OUTPUT: UNVERIFIED_NO_PROVIDER_CALL`  
-**Provider HTTP:** 0 | **DB migration:** 0 | **V2 / reconvergence:** unchanged
+**Status:** Draft investigation (PR #941 — **do not merge**)  
+**Stop lifted provisionally:** `STOP_SCHEMA_DECISION_REQUIRED` suspended pending dual-path proof  
+**Classification:** `ROOT_CAUSE_UNCONFIRMED` (dual-path proof complete; schema decision deferred)  
+**Architecture decision:** **B** — historical single event representable via existing episodic `explicit_scene_event`; repeated cross-episode pattern has no owner; regen episodic invalidation gap proven  
+**Provider HTTP:** 0 | **DB migration:** 0 | **New runtime prompt blocks:** 0
 
-## BEFORE — dataflow (current main)
-
-```
-RAW DB messages
-  → messagesToTurns / playable turns
-  → resolveProviderRawPoolExchangeCount (RAW4 floor + lag expansion)
-  → trimProviderHistoryToBudget → shortTermHistory (RAW RECENCY OWNER)
-  → rolling summary every 5 turns (Flash background, non-blocking)
-  → validateSummaryNarrative + isRollingSummaryGroundedInDialogue
-  → chat_turn_summaries → rebuildLorebook → recent_summary (ROLLING SUMMARY / LTM OWNER)
-  → episodic extract (max 3, explicit evidence) → episodic_memory_facts (EPISODIC FACT OWNER)
-  → relationship meta merge (items/promises only) → formatMemoryMetaForPrompt (RELATIONSHIP DURABLE OWNER — ledger subset)
-  → buildMemoryContextForChat + buildContext → Main RP (CONTINUITY CONSUMER)
-```
-
-Policy: `summary5_raw4` — `ROLLING_SUMMARY_INTERVAL=5`, `RAW_HISTORY_COMPLETE_EXCHANGES=4`. Summary lag expands RAW **pool** count; trim **floor** stays RAW4.
-
-## OWNER MAP
+## BEFORE — owner map (current main)
 
 | Fact type | Canonical owner | Preserved today? |
 |-----------|-----------------|------------------|
-| Prior intimacy / first-time milestone | Rolling summary → lorebook prose | **Conditional** — only if summarizer retained it in ≤600 chars |
-| Historical role (top/bottom, 공수) | Rolling summary prose (prompt asks) | **Unenforced** — no validation for role/consent omission |
-| Explicit user preference | Episodic (`preference` + `explicit_user_statement`) or user note/persona | **Yes** when explicitly stated |
-| Single-episode role event | Episodic `explicit_scene_event` (not `relationship_dynamic`) | **Possible** — parse allows; dominance/personality inference blocked |
-| Repeated role pattern | *No dedicated owner* | **No** — episodic max 3/batch, no pattern schema |
-| Promises / item ownership | Relationship durable ledger | **Yes** (items/promises only in Main RP prompt) |
-| Honorifics / location / thoughts | memory_meta DB | **Partial** — stored but **not** injected in `[3b] Relationship memo` |
-| Unknown past detail | `NO_FALSE_SHARED_MEMORY` + immersive prose callback rules | **Partial** — blocks fabricated shared-history *references*, not personality-based past inference |
+| Prior intimacy / milestone | Rolling summary → lorebook | **Conditional** — only if summarizer retained it |
+| Historical role (user top / char bottom) | Rolling summary (prompt asks) + episodic `explicit_scene_event` | **Dual-path** — episodic can backfill summary omission |
+| Explicit user preference | Episodic `preference` + `explicit_user_statement` | **Yes** when explicitly stated |
+| Single-episode role event | Episodic `explicit_scene_event` (not `relationship_dynamic`) | **Yes** — persist/recall proven (DRE-PATH-4) |
+| Repeated role pattern | *No dedicated owner* | **No** |
+| Promises / item ownership | Relationship durable ledger | **Yes** (items/promises only) |
+| Assistant hallucination of past role | Rolling summary (can canonize) vs episodic (keeps attribution) | **Split** — summary durable; episodic labels as character claim |
 
-## REPRODUCTION (deterministic fixtures)
+## AFTER — owner map (post proof, no schema change)
 
-| Case | Result | Evidence |
-|------|--------|----------|
-| **SEXMEM1** Prior intimacy after RAW4 exit | **PASS when summary contains fact** | Lorebook retains `DRE_PRIOR_INTIMACY_7`; RAW4 excludes turn 1 |
-| **SEXMEM2** Role continuity owner | **GAP** | Relationship memory forbids stage/attachment; no role field |
-| **SEXMEM3** Reversed false memory | **POLICY GAP** | `NO_FALSE_SHARED_MEMORY` blocks explicit false shared refs; no rule against inferring past role from current dominance |
-| **SEXMEM4** First-time reset | **FAIL CONDITION PROVEN** | Summary without intimacy marker → Main context lacks prior experience |
-| **SEXMEM5** Event ≠ preference | **PASS** | `relationship_dynamic` / dominance inference blocked in episodic |
-| **SEXMEM6** Repeated pattern | **GAP** | No schema; episodic max 3 facts |
-| **SEXMEM7** Explicit preference | **PASS** | Episodic `preference` + `explicit_user_statement` persists |
-| **Summary audit** | **GAP** | Prompt preserves 공수/동의; validation accepts summary that omits role markers |
-| **REL1–4** Generalized milestones | Same structural gaps | Kiss/intimacy/betrayal depend on summary prose retention |
+Same owners; evidence updates:
 
-## ROOT CAUSE
+| Boundary | Before assumption | After proof |
+|----------|-------------------|-------------|
+| Summary omission = final loss | Assumed | **Disproven** when episodic preserves (DRE-PATH-1) |
+| Durable loss | SEXMEM4/REL1 marker-only | **Only when summary AND episodic both omit** (DRE-PATH-2) |
+| Primary loss boundary | Rolling summary compression only | **Dual-path** — loss requires both paths to fail |
+| Regen invalidation | Assumed symmetric | **Gap** — summary replaced; episodic batch rows **not** cleared on empty re-extract (DRE-PATH-7) |
+| False history | Unverified | Summary canonizes assistant prose in LTM; episodic keeps user event + attributed claim (DRE-PATH-6) |
 
-**Primary loss boundary:** Rolling summary LLM compression (≤600 chars / batch), with **prompt-only** preservation of continuity-changing facts (intimacy existence, role, consent). Runtime validation does **not** detect omission of role/consent/intimacy facts.
+## Production dataflow (fixture chain)
 
-**Secondary gaps:**
+```
+SOURCE (turn 3 playable: PRIOR_INTIMACY + ROLE_USER_TOP / ROLE_CHAR_BOTTOM)
+  → processRollingSummaryBatch (test seam: summary omits / episodic preserves or omits)
+  → chat_turn_summaries + rebuildLorebook (LTM)
+  → episodic_memory_facts (seal batch extract)
+  → RAW4 exit (resolveProviderRawPoolExchangeCount + rawRecentTurnsToHistory)
+  → getEpisodicMemoryForPrompt → [EPISODIC MEMORY - RETRIEVED FACTS] / tracked [3a]
+  → buildMemoryContextForChat + buildContext (longTermMemory, episodicMemoryBlock, memoryMeta, shortTermHistory)
+  → FINAL Main RP systemPrompt
+```
 
-1. No canonical owner for **durable relational experience** except prose in rolling summary.
-2. Relationship memory is **ledger-only** (items/promises) — not role/history.
-3. Episodic blocks **inference** (good for preference epistemics) but cannot represent repeated patterns across batches without redundant prose in LTM.
-4. False-memory policy prevents *claiming* shared history without evidence, but does not prevent *improvising* unknown past details from current character traits.
+## Fixture evidence (source → summary → episodic → RAW4 → final context)
 
-**Not root cause:** RAW4 immediate loss (coverage logic + lorebook exclude overlap handles RAW4 exit when summary is good).
+### DRE-PATH-1 — summary omission + episodic preserve → **PASS**
 
-## AFTER (minimal direction — not implemented)
+| Stage | Evidence |
+|-------|----------|
+| Source | Turn 3 user/assistant lines contain `DRE_PRIOR_INTIMACY_7`, `DRE_ROLE_USER_TOP_9`, `DRE_ROLE_CHAR_BOTTOM_8` |
+| Summary | `SUMMARY_OMITS_CONTINUITY` — no role/intimacy markers |
+| Episodic | `roleEventFact()` persisted at seal (`explicit_scene_event`) |
+| RAW4 | `rawText` excludes role/intimacy markers; `ltmText` excludes them |
+| Final | `episodicBlock` + `systemPrompt` contain `[EPISODIC MEMORY - RETRIEVED FACTS]` and `DRE_ROLE_USER_TOP_9`; tracked section label `[3a] Episodic memory retrieved facts` |
 
-Within change budget, options **without** new schema:
+**Assertion:** fact survives via episodic dual-path — **not** summary-only loss.
 
-1. **Rolling summary owner:** Add deterministic post-seal **continuity sentinel** check when source batch contains explicit user-declared durable facts (not regex role canonization) — requires careful design; may hit stop condition if budget changes needed.
-2. **Episodic owner:** Already correct for explicit preferences; continue blocking single-event → permanent preference.
-3. **Main RP consumer:** Strengthen unknown-past epistemics in existing `NO_FALSE_SHARED_MEMORY` / immersive prose (prompt-only; no new block).
+### DRE-PATH-2 — summary omission + episodic omission → **DURABLE LOSS CONDITION PROVEN**
 
-**Requires schema / follow-up (STOP):**
+| Stage | Evidence |
+|-------|----------|
+| Source | Same real turn-3 facts |
+| Summary | Omits continuity |
+| Episodic | `[]` at seal |
+| Final | `episodicFacts.length === 0`, empty episodic block, `systemPrompt` lacks markers |
 
-- Repeated pattern state across episodes
-- Structured durable relational experience row
-- NSFW-specific permanent preference store
+**Assertion:** durable loss **only** when both owners omit.
 
-## PRESERVED
+### DRE-PATH-4 — role historical event representability → **PASS**
 
-RAW4 cost model, summary5 cadence, anti-fixation (IMMERSIVE PROSE), explicit preference epistemics, regen batch replace (MEMEXP9), reconvergence PROV1–10 unchanged.
+| Check | Result |
+|-------|--------|
+| `explicit_scene_event` persist | `insertableCount === 1` |
+| `relationship_dynamic` / dominance | Blocked (`abstract_psychological_inference`) |
+| Recall | `[EPISODIC MEMORY - RETRIEVED FACTS]` contains role markers |
 
-## REGRESSION RISKS (if fixing)
+**Assertion:** PAST ROLE ≠ PERMANENT ROLE LOCK — single event OK; trait lock blocked.
 
-Memory bloat, false permanent preference, old-event obsession, role lock-in.
+### DRE-PATH-6 — false history canonization → **PASS**
 
-## PROOF
+| Owner | Behavior |
+|-------|----------|
+| Rolling summary | LTM contains `DRE_HALLUC_REVERSE` (assistant hallucination canonized) |
+| Episodic | Block contains attributed claim (`말했다`) **and** user role event markers |
 
-- `src/lib/memory/durableRelationalExperience.test.ts` — SEXMEM1–7, MEMEXP1–10, REL1–4, summary audit
-- `src/lib/reconvergenceProvenance.test.ts` — MEMEXP10 / PROV unchanged
-- Existing: `memory-continuity-reset-audit`, `memory-ltm-raw-integration`, `episodicMemoryFacts`
+### DRE-PATH-7 — regen production path → **INVALIDATION GAP PROVEN**
 
-## STOP CONDITIONS MET
+| Stage | Evidence |
+|-------|----------|
+| Initial seal | Summary + episodic role fact |
+| Regen | `refreshRollingSummaryForRegeneratedAssistant` — revised assistant, empty episodic extract |
+| Summary | Replaced (`DRE_REGEN_REPLACED`); no `PRIOR_INTIMACY` |
+| Episodic | Row count **still 1** — empty re-extract does not delete `summary_seal_batch` rows |
+| Final | Stale `DRE_ROLE_USER_TOP_9` still in episodic block after regen |
 
-- Durable relational role/history lacks enforced owner beyond prose summary
-- Fixing reliably likely needs validation design and/or structured follow-up
-- No provider call performed; no DB migration in this PR
+### DRE-PATH-7b — delete + reconcile → **PASS**
+
+Earlier sealed summary memory preserved after production `reconcileMemoryAfterTurnDelete`.
+
+### SEXMEM4 / REL1 — corrected proof level
+
+| Case | Result |
+|------|--------|
+| SEXMEM4 | **Not end-to-end loss proof** — generic turns without source facts; marker-only summary absence is insufficient |
+| REL1 | Same — insufficient without source fact + dual-path trace |
+
+## Structural gaps (unchanged)
+
+1. `validateSummaryNarrative` / `isRollingSummaryGroundedInDialogue` do not detect continuity-changing fact omission.
+2. Rolling summary **prompt** lists intimacy/consent/공수 preservation; validation does not enforce.
+3. Relationship memory = items/promises only — no role owner.
+4. Regen clears summary batch but **not** episodic batch when re-extract returns empty.
+
+## Decision matrix result
+
+**B.** Historical single event: existing summary + episodic architecture can own it (episodic backfill proven). Repeated cross-episode pattern: no owner. Regen episodic stale row: immediate bugfix candidate (separate from schema). **Do not** open `SCHEMA_DECISION_REQUIRED` yet for single-event representation.
+
+## Regression / validation
+
+- `node --conditions=react-server --import tsx --test src/lib/memory/durableRelationalExperience.test.ts` — 19/19 pass
+- `npm run lint` / `npm run typecheck:app` / `npm run build` — run at commit time
+
+## Files changed
+
+- `src/lib/memory/durableRelationalExperience.test.ts` — production-path fixtures DRE-PATH-1/2/4/6/7/7b, SEXMEM/MEMEXP/REL corrections
+- `data/scene-policy-pilot/durable-relational-experience-report.md` — this report
+
+## Preserved
+
+RAW4 cost model, summary5 cadence, anti-fixation, explicit preference epistemics, reconvergence PROV unchanged. No merge.
