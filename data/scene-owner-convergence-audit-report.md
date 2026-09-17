@@ -3,7 +3,7 @@
 **Main SHA (verified at start):** `7a1ecb20fe66f0eace48b889cd8853a4afc9d88a`
 **Branch:** `cursor/scene-owner-convergence-audit-aa40`
 **Baseline:** SceneDirective v1.2 merged via PR #922
-**Status:** `ROOT_CAUSE_FIXED` (owner convergence + lossless policy projection)
+**Status:** `ROOT_CAUSE_FIXED` (owner convergence + lossless projection + directive propagation)
 **Standard SceneDirective production ON:** **NO** (foundation only)
 
 ---
@@ -91,6 +91,42 @@
 | **H5** | Duplicate stagnation decisions | **REJECTED** | Same `detectSceneStagnation` / `analyzeStagnation`; pacing now reads directive output |
 | **H6** | Dialogue budget breaks on motion delegation | **REJECTED** | O4 fixture: cap 4 preserved; S12 negotiation budget ≥ 5 |
 | **H7** | Compact [SCENE PACING] widens canonical permission | **CONFIRMED → FIXED** | P1–P7 + O6–O10: final Standard prompt preserves execution contract |
+| **H8** | Fallback directive not propagated to compact renderer | **CONFIRMED → FIXED** | O11–O13: ONE REQUEST = ONE MATERIALIZED CANONICAL DIRECTIVE |
+
+---
+
+## 3c. P0 — FALLBACK CANONICAL DIRECTIVE NOT PROPAGATED (fixed)
+
+### Invariant
+
+`ONE REQUEST = ONE MATERIALIZED CANONICAL DIRECTIVE = SAME OBJECT FOR DECISION + PROMPT PROJECTION`
+
+### BEFORE
+
+`resolveScenePacingDecision()` built a fallback `SceneDirective` when `canonicalSceneDirective` was omitted, but `applyProductionServerControlsToMessages()` passed only `input.canonicalSceneDirective ?? undefined` to `applyScenePacingArmToMessages()`. Decision and compact renderer diverged → `cue=null` → Standard `[SCENE PACING]` missing.
+
+### AFTER
+
+Production boundary materializes once:
+
+```typescript
+const canonicalSceneDirective =
+  input.canonicalSceneDirective ??
+  buildSceneDirective(pacingInputToSceneDirectiveInput(pacingInput));
+```
+
+Same object passed to both `resolveScenePacingDecision` and `applyScenePacingArmToMessages`. Prebuilt directive is never rebuilt.
+
+### Production callsite audit
+
+| Caller | Passes `canonicalSceneDirective`? | Notes |
+|--------|-----------------------------------|-------|
+| `route.ts` → `sceneServerControls` | **Yes** (`legacySceneDirective`) | Primary production path |
+| `openRouterAdult.ts` | Spreads `sceneServerControls` from route | No separate build |
+| `deepseekV4ProP0Audit.test.ts` | **No** (harness) | Fixed by boundary materialization |
+| `sceneOwnerConvergence.test.ts` | Mixed (O11 tests omit) | Fixed by boundary |
+
+No per-caller workaround added — canonicalization owner stays at `applyProductionServerControlsToMessages`.
 
 ---
 
@@ -214,6 +250,9 @@ Full Q1–Q32 unchanged.
 | O8 progression type does not widen | ✓ | n/a |
 | O9 newNpcAllowed=false preserved | ✓ | n/a |
 | O10 explicit-arrival=true without widening other paths | ✓ | n/a |
+| O11 implicit canonical build inserts Standard pacing | ✓ | n/a |
+| O12 explicit/implicit canonical parity | ✓ | n/a |
+| O13 auto/sim skipMotionCue duplicate-free | ✓ | ✓ |
 
 ### Lossless projection proof fixtures (P1–P7)
 
@@ -235,21 +274,25 @@ Full Q1–Q32 unchanged.
 - Auto/sim: SceneDirective block **and** `[SCENE PACING]` duplicate
 - DB progression: SceneDirective; prompt motion: pacing controller ( divergent )
 - Compact `[SCENE PACING]`: generic HOLD/MICRO "주변 인물·환경" sentences — **lossy projection** dropped execution contract
+- Fallback directive built in `resolveScenePacingDecision` but **not propagated** to compact renderer when caller omitted `canonicalSceneDirective`
 - File comment claimed pacing "not wired" — **false**
 
 ## PROBLEM
 
 1. Confirmed dual motion owner (H1) and lexical NPC conflict with #922 entity grounding (H4).
 2. **P0:** Compact Standard renderer projected motion level only; canonical NPC/progression permissions were **broader in prompt than policy** (H7).
+3. **Integration:** Implicit canonical build in decision path was not forwarded to compact renderer (H8).
 
 ## ROOT CAUSE
 
 1. Historical G10 experiment arms evolved a parallel motion classifier in `scenePacingController` while SceneDirective v1.2 became canonical for auto/sim and DB commits.
 2. Compact renderer used a separate 4-level map + generic sentences instead of reusing `renderSceneExecutionContract` from the full renderer.
+3. Production wire passed raw `input.canonicalSceneDirective` to arm apply while decision path silently materialized a fallback — **object flow split**.
 
 ## AFTER
 
 - `resolveScenePacingDecision` delegates to `buildSceneDirective` / `canonicalSceneDirective`
+- `applyProductionServerControlsToMessages` materializes canonical directive **once** at boundary; same object for decision + compact cue
 - `renderCompactScenePacingCue(directive)` = shared motion body + shared execution contract (**lossless projection**)
 - `skipMotionCue` prevents duplicate motion prompt on auto/sim
 - Route passes `canonicalSceneDirective`, `mode`, memory/trigger context
@@ -261,6 +304,7 @@ Full Q1–Q32 unchanged.
 - `resolveNpcActionEligible` + `NPC_GROUND_TERMS` lexical grounding
 - `ensemble_legacy_freedom` bypass
 - Generic compact HOLD/MICRO "주변 인물·환경" NPC-widening wording
+- Split directive object flow (decision vs renderer)
 
 ## PRESERVED
 
@@ -280,10 +324,11 @@ Full Q1–Q32 unchanged.
 
 ## PROOF
 
-- **208/208** scene-adjacent tests pass (Q1–Q32, O1–O10, P1–P7, S7, S12, scenePacingController, contextBuilder, auto progression)
+- **211/211** scene-adjacent tests pass (Q1–Q32, O1–O13, P1–P7, S7, S12, scenePacingController, contextBuilder, auto progression)
 - `npm run lint`, `typecheck:app`, `build`, `git diff --check` pass
 - **One owner:** marker count O1 + auto/sim skipMotionCue
 - **Lossless policy projection:** P1–P7 + O6–O10 inspect **final assembled Standard system prompt** — compact permission never broader than canonical policy
+- **One materialized directive:** O11–O13 — implicit build inserts Standard pacing; explicit/implicit parity; skipMotionCue still duplicate-free
 
 ---
 

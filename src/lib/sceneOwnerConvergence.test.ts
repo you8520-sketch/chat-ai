@@ -9,6 +9,7 @@ import {
   countPacingOwners,
   countTerminalDialogueBudgetOwners,
   mapSceneMotionDecisionToPacingLevel,
+  renderCompactScenePacingCue,
   resolveScenePacingDecision,
 } from "@/lib/scenePacingController";
 import {
@@ -537,5 +538,119 @@ describe("lossless policy projection owner checks O6–O10", () => {
     assert.match(arrivalPacing, /새 인물 도입: 트리거·명시적 도착만/);
     assert.match(noArrivalPacing, /새 인물 도입: 없음/);
     assert.doesNotMatch(noArrivalPacing, /트리거·명시적 도착만/);
+  });
+});
+
+describe("canonical directive object propagation O11–O13", () => {
+  const quietUser = "조용히 손을 겹친다.";
+  const standardSystem = `[CORE]\n${SCENE_FLOW_BLOCK}\n[IMMERSIVE PROSE]\nok`;
+
+  it("O11 implicit canonical build — Standard [SCENE PACING] inserted when directive omitted", () => {
+    const applied = applyProductionServerControlsToMessages({
+      messages: [
+        { role: "system", content: standardSystem },
+        { role: "user", content: quietUser },
+      ],
+      mode: "interactive",
+      contentKind: "character",
+      primaryCharacterName: PRIMARY,
+      currentUserMessage: quietUser,
+    });
+    assert.ok(
+      applied.decision.reasonCodes.includes("canonical:scene_directive"),
+      "decision must trace to canonical SceneDirective"
+    );
+    const owners = countPacingOwners(
+      applied.messages.find((m) => m.role === "system")?.content ?? ""
+    );
+    assert.equal(owners.scene_pacing, 1);
+    assert.equal(owners.scene_flow, 0);
+    assert.match(
+      applied.messages.find((m) => m.role === "system")?.content ?? "",
+      /\[SCENE PACING\]/
+    );
+  });
+
+  it("O12 explicit/implicit canonical parity — same facts, same decision + pacing text", () => {
+    const facts = {
+      mode: "interactive" as const,
+      contentKind: "character" as const,
+      primaryCharacterName: PRIMARY,
+      currentUserMessage: quietUser,
+      chatId: 920,
+      currentTurn: 2,
+    };
+    const explicitDirective = buildSceneDirective(facts);
+    const implicitDirective = buildSceneDirective(facts);
+
+    const explicit = applyProductionServerControlsToMessages({
+      messages: [
+        { role: "system", content: standardSystem },
+        { role: "user", content: quietUser },
+      ],
+      ...facts,
+      canonicalSceneDirective: explicitDirective,
+    });
+    const implicit = applyProductionServerControlsToMessages({
+      messages: [
+        { role: "system", content: standardSystem },
+        { role: "user", content: quietUser },
+      ],
+      ...facts,
+    });
+
+    assert.equal(explicitDirective.motionDecision, implicitDirective.motionDecision);
+    assert.deepEqual(explicitDirective.progressionTypes, implicitDirective.progressionTypes);
+    assert.deepEqual(explicitDirective.npcGrounding, implicitDirective.npcGrounding);
+    assert.equal(explicit.decision.motionLevel, implicit.decision.motionLevel);
+    assert.equal(
+      extractScenePacingBlock(
+        explicit.messages.find((m) => m.role === "system")?.content ?? ""
+      ),
+      extractScenePacingBlock(
+        implicit.messages.find((m) => m.role === "system")?.content ?? ""
+      )
+    );
+    assert.equal(
+      extractScenePacingBlock(
+        implicit.messages.find((m) => m.role === "system")?.content ?? ""
+      ),
+      renderCompactScenePacingCue(implicitDirective)
+    );
+  });
+
+  it("O13 auto/sim skipMotionCue — implicit materialize ok, but [SCENE PACING] stays 0", () => {
+    const block = renderSceneDirectiveForPrompt(
+      buildSceneDirective({
+        mode: "auto_progression",
+        contentKind: "character",
+        primaryCharacterName: PRIMARY,
+        currentUserMessage: "계속 진행",
+        chatId: 921,
+        currentTurn: 3,
+      })
+    );
+    const applied = applyProductionServerControlsToMessages({
+      messages: [
+        { role: "system", content: `[CORE]\n${SCENE_FLOW_BLOCK}\n${block}` },
+        { role: "user", content: "계속 진행" },
+      ],
+      mode: "auto_progression",
+      contentKind: "character",
+      primaryCharacterName: PRIMARY,
+      currentUserMessage: "계속 진행",
+      chatId: 921,
+      currentTurn: 3,
+      skipMotionCue: true,
+    });
+    assert.ok(applied.decision.reasonCodes.includes("canonical:scene_directive"));
+    const owners = countPacingOwners(
+      applied.messages.find((m) => m.role === "system")?.content ?? ""
+    );
+    assert.equal(owners.scene_pacing, 0);
+    assert.match(
+      applied.messages.find((m) => m.role === "system")?.content ?? "",
+      /\[PRIVATE SCENE ENGINE RULE\]/
+    );
   });
 });
