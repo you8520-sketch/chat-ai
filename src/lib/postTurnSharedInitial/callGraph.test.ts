@@ -15,6 +15,10 @@ import {
   countAuthoritativeSharedOutputContracts,
   sharedSystemHasConflictingWidgetOnlyContract,
 } from "@/lib/postTurnSharedInitial/prompt";
+import {
+  buildPostTurnSharedInitialJsonSchema,
+  sharedSchemaListsAllRequiredKeys,
+} from "@/lib/postTurnSharedInitial/schema";
 import { statusWidgetValuesHasContent } from "@/lib/statusWidget/displayPolicy";
 import { resolveSuggestedRepliesExtractMaxAttempts } from "@/lib/suggestedReplies/job";
 import { OPENROUTER_GEMINI_25_FLASH_MODEL } from "@/lib/chatModels";
@@ -363,18 +367,16 @@ describe("T10 shared prompt output contract", () => {
 
     assert.ok(envelope);
     assert.doesNotMatch(envelope!, /\{\s*\.\.\.\s*\}/);
+    assert.equal(sharedSchemaListsAllRequiredKeys(sharedInput), true);
+    const schemaText = JSON.stringify(buildPostTurnSharedInitialJsonSchema(sharedInput));
     for (const key of collectWidgetJsonKeys(both.characterWidget!)) {
-      assert.match(envelope!, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+      assert.match(schemaText, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
     }
     for (const key of collectWidgetJsonKeys(both.userWidget!)) {
-      assert.match(envelope!, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+      assert.match(schemaText, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
     }
-    for (const key of collectWidgetJsonKeys(both.characterWidget!)) {
-      assert.match(sharedSystem, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
-    }
-    for (const key of collectWidgetJsonKeys(both.userWidget!)) {
-      assert.match(sharedSystem, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
-    }
+    assert.doesNotMatch(sharedSystem, /WIDGET OUTPUT KEY CONTRACT/);
+    assert.match(sharedSystem, /provider JSON schema/);
   });
 });
 
