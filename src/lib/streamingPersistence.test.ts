@@ -6,6 +6,8 @@ import {
   bootstrapStreamingTurn,
   createDisconnectSafeSend,
   createPartialSaveThrottler,
+  resolveSsePipelineCatchForensics,
+  shouldMutateGenerationOnSsePipelineCatch,
   finalizeAssistantMessage,
   findTurnByRequestId,
   markAssistantInterrupted,
@@ -55,6 +57,21 @@ function createMessagesDb(): Database.Database {
   `);
   return db;
 }
+
+describe("SSE pipeline catch helpers", () => {
+  it("G2: finalized assistant skips generation_status mutation in catch", () => {
+    assert.equal(shouldMutateGenerationOnSsePipelineCatch(true), false);
+    assert.equal(shouldMutateGenerationOnSsePipelineCatch(false), true);
+  });
+
+  it("G2: catch forensics uses postprocess-error when partial content exists", () => {
+    assert.equal(
+      resolveSsePipelineCatchForensics("substantial prose"),
+      "completed_with_postprocess_error"
+    );
+    assert.equal(resolveSsePipelineCatchForensics(""), "interrupted");
+  });
+});
 
 describe("createDisconnectSafeSend", () => {
   it("F: disconnect during send prevents double-close exception", () => {

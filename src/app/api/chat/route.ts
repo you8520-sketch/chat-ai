@@ -66,6 +66,8 @@ import {
   bootstrapStreamingTurn,
   createDisconnectSafeSend,
   createPartialSaveThrottler,
+  resolveSsePipelineCatchForensics,
+  shouldMutateGenerationOnSsePipelineCatch,
   findTurnByRequestId,
   finalizeAssistantMessage,
   logStreamingPersistence,
@@ -6126,9 +6128,8 @@ export async function POST(req: Request) {
         stopPostprocessHeartbeat();
         console.error("[/api/chat] SSE 파이프라인 오류:", (e as Error).message);
         const partialOnError = streamVisibleTextRef || fullText;
-        const deliveryOnlyFailure = persistenceDiag.finalized;
         try {
-          if (!deliveryOnlyFailure) {
+          if (shouldMutateGenerationOnSsePipelineCatch(persistenceDiag.finalized)) {
             // Stream already persisted raw text — post-process failure should not lose it
             if (partialOnError.trim()) {
               db.prepare(
@@ -6152,16 +6153,10 @@ export async function POST(req: Request) {
         } else if (e instanceof DegenerationAbortError || e instanceof MetaLeakageAbortError) {
           send({ type: "reset" });
           send({ type: "error", error: DEGENERATION_USER_MESSAGE });
-        } else if (!deliveryOnlyFailure) {
+        } else {
           send({ type: "error", error: formatClientApiError(e, "Chat pipeline failed") });
         }
-        emitStreamTurnForensics(
-          deliveryOnlyFailure
-            ? "completed"
-            : partialOnError.trim()
-              ? "completed_with_postprocess_error"
-              : "interrupted"
-        );
+        emitStreamTurnForensics(resolveSsePipelineCatchForensics(partialOnError));
         emitPhaseLatencyAudit();
         safe.close(controller);
       }

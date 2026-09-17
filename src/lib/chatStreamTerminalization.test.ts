@@ -24,9 +24,12 @@ import {
   STREAM_POSTPROCESS_HEARTBEAT_INTERVAL_MS,
 } from "@/lib/streamPostprocessHeartbeat";
 import {
+  createDisconnectSafeSend,
   finalizeAssistantMessageCore,
   isTerminalGenerationStatus,
   markAssistantInterrupted,
+  resolveSsePipelineCatchForensics,
+  shouldMutateGenerationOnSsePipelineCatch,
 } from "@/lib/streamingPersistence";
 import Database from "better-sqlite3";
 
@@ -184,15 +187,41 @@ describe("post-process terminalization invariants", () => {
     assert.ok(isTerminalGenerationStatus("completed_with_postprocess_error"));
   });
 
-  it("G: delivery-only SSE close failure keeps completed forensics, not postprocess-error", () => {
+  it("G2: post-finalize pipeline throw is not delivery-only (no completed forensics hide)", () => {
     const partialOnError = "substantial prose already finalized in DB";
-    const deliveryOnlyFailure = true;
-    const forensicsStatus = deliveryOnlyFailure
-      ? "completed"
-      : partialOnError.trim()
-        ? "completed_with_postprocess_error"
-        : "interrupted";
-    assert.equal(forensicsStatus, "completed");
+    assert.equal(shouldMutateGenerationOnSsePipelineCatch(true), false);
+    assert.equal(
+      resolveSsePipelineCatchForensics(partialOnError),
+      "completed_with_postprocess_error"
+    );
+    assert.notEqual(resolveSsePipelineCatchForensics(partialOnError), "completed");
+  });
+
+  it("G3: terminal delivery close/disconnect absorbed after done send", () => {
+    let clientGone = false;
+    const controller = {
+      enqueue() {
+        if (clientGone) {
+          throw new TypeError("Invalid state: Controller is already closed");
+        }
+      },
+      close() {
+        throw new TypeError("Invalid state: Controller is already closed");
+      },
+    } as unknown as ReadableStreamDefaultController<Uint8Array>;
+
+    const safe = createDisconnectSafeSend(
+      (chunk) => controller.enqueue(chunk),
+      (obj) => new TextEncoder().encode(JSON.stringify(obj))
+    );
+
+    safe.send({ type: "done", finalContent: "canonical prose", generationStatus: "completed" });
+    clientGone = true;
+    safe.send({ type: "phase_latency_audit", report: {} });
+    assert.equal(safe.isDisconnected(), true);
+
+    assert.doesNotThrow(() => safe.close(controller));
+    assert.equal(safe.isDisconnected(), true);
   });
 
   it("G: interrupted partial preserved; completed finalize is terminal", () => {

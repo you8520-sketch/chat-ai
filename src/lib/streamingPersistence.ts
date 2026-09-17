@@ -536,6 +536,16 @@ export type DisconnectSafeSend = {
   close: (controller: ReadableStreamDefaultController<Uint8Array>) => void;
 };
 
+/** SSE pipeline catch: skip DB generation_status mutation when assistant already finalized. */
+export function shouldMutateGenerationOnSsePipelineCatch(finalized: boolean): boolean {
+  return !finalized;
+}
+
+/** SSE pipeline catch forensics — not success-path terminal delivery. */
+export function resolveSsePipelineCatchForensics(partialContent: string): string {
+  return partialContent.trim() ? "completed_with_postprocess_error" : "interrupted";
+}
+
 /** Safe send/close wrapper: disconnect never aborts generation/DB work. */
 export function createDisconnectSafeSend(
   enqueue: (chunk: Uint8Array) => void,
