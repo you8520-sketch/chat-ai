@@ -88,6 +88,7 @@ export type PilotCaptureRecord = {
 export type PilotRunResult = {
   status:
     | "PILOT_COMPLETE_READY_FOR_BLIND_EVALUATION"
+    | "TARGETED_PILOT_READY_FOR_GPT_EVALUATION"
     | "PILOT_PARTIAL_PROVIDER_FAILURE"
     | "PILOT_INVALID_PAYLOAD_DRIFT"
     | "PILOT_INVALID_HISTORY_CONTAMINATION"
@@ -172,6 +173,30 @@ export function deriveMinimalPilotSamples(): PilotLogicalSample[] {
     throw new Error(
       `derived samples ${samples.length} != MINIMAL totalCalls ${minimal.totalCalls}`
     );
+  }
+  return samples;
+}
+
+/** Targeted R1/R5 re-run: fixed V2 + Living only (14 calls). V1 baseline reused from prior pilot. */
+export function deriveTargetedReconvergencePilotSamples(): PilotLogicalSample[] {
+  const trajectories = listPilotTrajectories().filter((t) => t.id === "R1" || t.id === "R5");
+  const samples: PilotLogicalSample[] = [];
+  for (const traj of trajectories) {
+    for (const arm of ["v2", "living"] as const) {
+      for (const turn of traj.turns) {
+        samples.push({
+          logicalId: `${traj.id}_T${turn.turnIndex}_${arm}`,
+          kind: "trajectory",
+          fixtureId: `${traj.id}_T${turn.turnIndex}_${arm}`,
+          trajectoryId: traj.id,
+          turnIndex: turn.turnIndex,
+          arm,
+        });
+      }
+    }
+  }
+  if (samples.length !== 14) {
+    throw new Error(`expected 14 targeted samples, got ${samples.length}`);
   }
   return samples;
 }
@@ -344,16 +369,18 @@ function buildCaptureFromPayload(input: {
   };
 }
 
-export async function runMinimalScenePolicyPilot(input: {
+export async function runScenePolicyPilot(input: {
   pilotBaselineSha: string;
   mainSyncSha: string;
+  samples: PilotLogicalSample[];
+  planningUpstreamUsdEstimate: number;
+  completeStatus: PilotRunResult["status"];
   invokeProvider?: typeof invokeBenchmarkProviderCall;
 }): Promise<PilotRunResult> {
   const invoke = input.invokeProvider ?? invokeBenchmarkProviderCall;
   const pilotModel = getBenchmarkPilotModelDescriptor();
-  const samples = deriveMinimalPilotSamples();
-  const minimal = computeExecutionMatrix().plans.find((p) => p.name === "MINIMAL")!;
-  const planningUsd = minimal.estimatedUpstreamUsd;
+  const samples = input.samples;
+  const planningUsd = input.planningUpstreamUsdEstimate;
 
   const accounting: PilotCallAccounting = {
     plannedLogicalSamples: samples.length,
@@ -526,13 +553,13 @@ export async function runMinimalScenePolicyPilot(input: {
 
       if (sample.arm === "v2") {
         const policyInput = buildScenePolicyInputFromFixture(fixture);
-        const recentWithOutput: ChatMsg[] = [
+        // Match production commit timing: transition uses user turn input only (no assistant).
+        const recentForTransition: ChatMsg[] = [
           ...fixture.history,
           { role: "user", content: fixture.currentUserMessage },
-          { role: "assistant", content: providerResult.rawOutput },
         ];
         const { nextState } = advanceV2ReconvergenceForBenchmark({
-          policyInput: { ...policyInput, recentMessages: recentWithOutput },
+          policyInput: { ...policyInput, recentMessages: recentForTransition },
           previousState: v2ReconvergenceByTraj.get(sample.trajectoryId),
         });
         reconvergenceAfter = nextState;
@@ -569,7 +596,7 @@ export async function runMinimalScenePolicyPilot(input: {
   }
 
   return {
-    status: "PILOT_COMPLETE_READY_FOR_BLIND_EVALUATION",
+    status: input.completeStatus,
     pilotBaselineSha: input.pilotBaselineSha,
     mainSyncSha: input.mainSyncSha,
     accounting,
@@ -577,6 +604,102 @@ export async function runMinimalScenePolicyPilot(input: {
     totalUpstreamUsdEstimate: totalUpstreamUsd,
     planningUpstreamUsdEstimate: planningUsd,
   };
+}
+
+export async function runMinimalScenePolicyPilot(input: {
+  pilotBaselineSha: string;
+  mainSyncSha: string;
+  invokeProvider?: typeof invokeBenchmarkProviderCall;
+}): Promise<PilotRunResult> {
+  const minimal = computeExecutionMatrix().plans.find((p) => p.name === "MINIMAL")!;
+  return runScenePolicyPilot({
+    ...input,
+    samples: deriveMinimalPilotSamples(),
+    planningUpstreamUsdEstimate: minimal.estimatedUpstreamUsd,
+    completeStatus: "PILOT_COMPLETE_READY_FOR_BLIND_EVALUATION",
+  });
+}
+
+export async function runTargetedReconvergencePilot(input: {
+  pilotBaselineSha: string;
+  mainSyncSha: string;
+  invokeProvider?: typeof invokeBenchmarkProviderCall;
+}): Promise<PilotRunResult> {
+  const samples = deriveTargetedReconvergencePilotSamples();
+  const minimal = computeExecutionMatrix().plans.find((p) => p.name === "MINIMAL")!;
+  const perCall = minimal.estimatedUpstreamUsd / minimal.totalCalls;
+  return runScenePolicyPilot({
+    ...input,
+    samples,
+    planningUpstreamUsdEstimate: perCall * samples.length,
+    completeStatus: "TARGETED_PILOT_READY_FOR_GPT_EVALUATION",
+  });
+}
+
+export type GptEvaluationTurnRecord = {
+  trajectory_id: string;
+  turn_index: number;
+  arm: ScenePolicyArm;
+  current_user_message: string;
+  prior_visible_history: Array<{ role: "user" | "assistant"; content: string }>;
+  raw_output: string;
+  reconvergence_state_before: unknown;
+  reconvergence_state_after: unknown;
+  source: "v1_baseline_reuse" | "targeted_provider_run";
+};
+
+/** Labeled comparison package for external GPT evaluation (not blind). */
+export function buildGptEvaluationArtifact(input: {
+  v1BaselineCaptures: PilotCaptureRecord[];
+  targetedCaptures: PilotCaptureRecord[];
+}): {
+  trajectories: string[];
+  turns: GptEvaluationTurnRecord[];
+} {
+  const trajectories = ["R1", "R5"];
+  const turns: GptEvaluationTurnRecord[] = [];
+
+  const byLogical = new Map<string, PilotCaptureRecord>();
+  for (const cap of [...input.v1BaselineCaptures, ...input.targetedCaptures]) {
+    byLogical.set(cap.logical_id, cap);
+  }
+
+  for (const trajId of trajectories) {
+    const traj = listPilotTrajectories().find((t) => t.id === trajId);
+    if (!traj) continue;
+    for (const turn of traj.turns) {
+      for (const arm of ["v1", "v2", "living"] as const) {
+        const logicalId = `${trajId}_T${turn.turnIndex}_${arm}`;
+        const cap = byLogical.get(logicalId);
+        if (!cap?.raw_output) continue;
+
+        const histKey = `${trajId}:${arm}`;
+        const prior: Array<{ role: "user" | "assistant"; content: string }> = [];
+        for (const prev of traj.turns) {
+          if (prev.turnIndex >= turn.turnIndex) break;
+          prior.push({ role: "user", content: prev.userMessage });
+          const prevCap = byLogical.get(`${trajId}_T${prev.turnIndex}_${arm}`);
+          if (prevCap?.raw_output) {
+            prior.push({ role: "assistant", content: prevCap.raw_output });
+          }
+        }
+
+        turns.push({
+          trajectory_id: trajId,
+          turn_index: turn.turnIndex,
+          arm,
+          current_user_message: turn.userMessage,
+          prior_visible_history: prior,
+          raw_output: cap.raw_output,
+          reconvergence_state_before: cap.reconvergence_state_before,
+          reconvergence_state_after: cap.reconvergence_state_after,
+          source: arm === "v1" ? "v1_baseline_reuse" : "targeted_provider_run",
+        });
+      }
+    }
+  }
+
+  return { trajectories, turns };
 }
 
 export type PilotBlindSample = {
