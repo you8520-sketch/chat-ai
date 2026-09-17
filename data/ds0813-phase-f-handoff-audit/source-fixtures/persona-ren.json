@@ -1,0 +1,8 @@
+{
+  "name": "렌",
+  "gender": "male",
+  "description": "만 28세 성인 남성. 허구 창작 페르소나. 확인된 성인 테스트/관리자 페르소나. 낮고 짧은 말투.",
+  "isVerifiedAdultUserPersona": true,
+  "USER_COAUTHOR_MODE": "OFF",
+  "PROVENANCE": "Addressee of frozen Gemini 3.7 Flash baseline T1/T2 (docs/audits/gemini-37-flash-baseline). Confirmed-adult test persona. Not a production user row."
+}

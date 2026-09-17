@@ -1,0 +1,13 @@
+{
+  "NEXT_TURN_MODEL": "gemini-3.7-flash",
+  "DEEPSEEK_STICKY": false,
+  "nextPlan": {
+    "primaryModelId": "gemini-3.7-flash",
+    "primaryRoute": "general",
+    "fallbackPrepared": false,
+    "fallbackModelId": "deepseek-v4-pro-0813"
+  },
+  "afterHandoffActiveRoute": "adult",
+  "nextClassification": "normal",
+  "NOTE": "Deterministic routing only. No provider call."
+}
