@@ -50,6 +50,35 @@ export function resolveScenePacingPromptOwner(input: {
   return "legacy_v1";
 }
 
+/** V2 ON or Living canary — full experiment block replaces compact [SCENE PACING]. */
+export function isExperimentScenePacingPromptOwner(
+  owner: ScenePacingPromptOwner
+): boolean {
+  return owner === "event_restraint_v2" || owner === "living_continuity_director";
+}
+
+/**
+ * Materialize the already-selected scene pacing owner into a prompt block.
+ * Does not re-resolve owner — downstream must not infer owner from block text.
+ */
+export function materializeSceneDirectivePromptBlock(input: {
+  scenePacingOwner: ScenePacingPromptOwner;
+  v2Block: string | null | undefined;
+  livingBlock: string | null | undefined;
+  legacyBlock: string;
+}): string {
+  if (input.scenePacingOwner === "event_restraint_v2" && input.v2Block) {
+    return input.v2Block;
+  }
+  if (
+    input.scenePacingOwner === "living_continuity_director" &&
+    input.livingBlock
+  ) {
+    return input.livingBlock;
+  }
+  return input.legacyBlock;
+}
+
 export const SCENE_DIRECTIVE_V2_ENV = {
   MODE: ENV_MODE,
 } as const;

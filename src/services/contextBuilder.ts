@@ -114,6 +114,7 @@ import {
   rpDiagnosticUsesMinimalLengthOwner,
   rpDiagnosticUsesMinimalRpStyle,
 } from "@/lib/rpDiagnosticCanary";
+import { isExperimentScenePacingPromptOwner } from "@/lib/sceneDirectiveV2Policy";
 import type { CharacterChunk, GeminiContextSplit } from "@/types";
 import {
   type BuiltContext,
@@ -878,11 +879,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     if (input.rpDiagnosticCanary?.relocateSceneDirectiveToUserTurn) return;
     if (!sceneDirectiveBlock) return;
     // Standard interactive: compact [SCENE PACING] owns motion (see standard-full-block-activation-audit).
-    // Full SceneDirective block only for auto progression, simulation, and party.
+    // Full SceneDirective block for auto progression, simulation, party, and V2/Living experiment owners.
     const keepModeSpecificProgression =
       autoProgressionEnabled ||
       input.contentKind === "simulation" ||
-      !!input.party;
+      !!input.party ||
+      (input.scenePacingPromptOwner != null &&
+        isExperimentScenePacingPromptOwner(input.scenePacingPromptOwner));
     if (!keepModeSpecificProgression) return;
     pushSection(
       "scene-directive",

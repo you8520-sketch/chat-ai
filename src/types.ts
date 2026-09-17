@@ -5,6 +5,7 @@ import type { ChatRuntimeMode } from "@/lib/chatRuntimeMode";
 import type { CurrentTurnAuthoringDelegation } from "@/lib/currentTurnUserAuthoringDelegation";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { ResolvedNarrativePov } from "@/lib/narrativePov";
+import type { ScenePacingPromptOwner } from "@/lib/sceneDirectiveV2Policy";
 /** 캐릭터 설정 분할 단위 */
 export interface CharacterChunk {
   id: string;
@@ -146,6 +147,8 @@ export type ContextBuildInput = {
   privateSpeechControlBlock?: string | null;
   /** Compact private scene movement directive for this turn */
   sceneDirectiveBlock?: string | null;
+  /** Resolved once per request from resolveScenePacingPromptOwner — not re-inferred downstream. */
+  scenePacingPromptOwner?: ScenePacingPromptOwner;
   /**
    * Model-neutral RP diagnostic canary (DeepSeek V4 Flash audit).
    * Server env only — no client variant selection.
