@@ -172,15 +172,14 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
       staleRejected: true,
     };
   }
-  if (facts.length === 0) {
-    return { extracted: 0, persisted: 0, calls: 1 };
-  }
   const eligible = loadMemoryEligibleChatTurnsWithMessageIdsCore(
     db,
     opts.chatId,
     guardBefore.boundary
   );
   const sourceIds = batchSourceMessageIds(eligible, opts.startTurn, opts.endTurn);
+  // Always route through replaceSummarySealBatch persistence core — including valid
+  // empty extraction — so canonical batch replacement clears prior batch rows.
   const persisted = persistEpisodicMemoryFactsBestEffort(db, {
     chatId: opts.chatId,
     characterId: opts.characterId,
