@@ -29,7 +29,7 @@ Compare the rejected assistant draft and the new canonical assistant in the user
 Never extract honorifics, nicknames, inner thoughts, emotion, relationship stage, speech style, gender, or current location.`;
 
 function widgetValueKeyPlaceholders(keys: readonly string[]): string {
-  return keys.map((key) => `"${key}": "..."`).join(", ");
+  return keys.map((key) => `${JSON.stringify(key)}: "..."`).join(", ");
 }
 
 /** Canonical shared statusWidget JSON shape — every required field key listed explicitly. */

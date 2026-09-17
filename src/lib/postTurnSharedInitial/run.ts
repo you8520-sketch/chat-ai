@@ -42,6 +42,7 @@ export async function runPostTurnSharedInitial(
         temperature: opts.temperature,
         modelId: opts.modelId,
         ledgerContext,
+        responseFormat: "json_object",
       }));
 
   const system = buildPostTurnSharedInitialSystem(input);
