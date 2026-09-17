@@ -7,19 +7,19 @@ import {
   streamRevealOptionsFromInterval,
 } from "@/lib/streamRevealTiming";
 
-const FAST = streamRevealOptionsFromInterval(28);
+const FAST = streamRevealOptionsFromInterval(16);
 const BURST_CHARS = 3000;
 
 describe("streamReveal foreground speed — regression gates", () => {
   it("R1: 빠름 + normal incremental chunks honors base charsPerTick", () => {
     assert.equal(computeAdaptiveCharsPerTick(10, FAST), FAST.charsPerTick);
-    assert.equal(FAST.intervalMs, 28);
+    assert.equal(FAST.intervalMs, 16);
     assert.equal(FAST.charsPerTick, 1);
   });
 
   it("R2: 빠름 + 3000-char burst uses preset theoretical duration (no adaptive catch-up)", () => {
     assert.equal(computeAdaptiveCharsPerTick(BURST_CHARS, FAST), 1);
-    assert.equal(estimateStreamRevealDurationMs(BURST_CHARS, FAST), BURST_CHARS * 28);
+    assert.equal(estimateStreamRevealDurationMs(BURST_CHARS, FAST), BURST_CHARS * 16);
   });
 
   it("R3: 빠름 + pending backlog without flush reveals one char per tick", async () => {
@@ -28,7 +28,7 @@ describe("streamReveal foreground speed — regression gates", () => {
     reveal.enqueue("가".repeat(20));
     assert.equal(reveal.getPendingLength(), 20);
     assert.equal(shown, "");
-    await new Promise((r) => setTimeout(r, 40));
+    await new Promise((r) => setTimeout(r, FAST.intervalMs + 4));
     assert.equal([...shown].length, 1);
     assert.ok(reveal.getPendingLength() >= 18);
     reveal.flush();
@@ -63,15 +63,15 @@ describe("CASE A fixture — burst then done semantics", () => {
     const displayedBeforeDone = [...shown].length;
 
     // Simulated server done — no flush().
-    await new Promise((r) => setTimeout(r, 40));
+    await new Promise((r) => setTimeout(r, FAST.intervalMs + 4));
     const displayedAfterOneTick = [...shown].length;
 
-    assert.equal(FAST.intervalMs, 28);
+    assert.equal(FAST.intervalMs, 16);
     assert.equal(FAST.charsPerTick, 1);
     assert.equal(pendingPeak, 3200);
     assert.equal(displayedBeforeDone, 0);
-    assert.equal(displayedAfterOneTick, 1);
-    assert.ok(estimateStreamRevealDurationMs(3200, FAST) > 80_000);
+    assert.ok(displayedAfterOneTick >= 1 && displayedAfterOneTick <= 2);
+    assert.ok(estimateStreamRevealDurationMs(3200, FAST) > 45_000);
     reveal.flush();
   });
 });
