@@ -192,6 +192,36 @@ export function sharedOutputJsonExampleUsesActiveEmptyMapExemplar(
   return false;
 }
 
+function extractBalancedJsonObject(source: string, start: number): string | null {
+  if (source[start] !== "{") return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < source.length; i++) {
+    const ch = source[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return source.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 /** @internal tests — parse the literal structural JSON example from assembled system prompt. */
 export function extractSharedOutputJsonExampleFromSystem(
   system: string
@@ -200,10 +230,11 @@ export function extractSharedOutputJsonExampleFromSystem(
   if (markerIdx < 0) return null;
   const afterMarker = system.slice(markerIdx + SHARED_OUTPUT_JSON_EXAMPLE_MARKER.length);
   const start = afterMarker.indexOf("{");
-  const end = afterMarker.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
+  if (start < 0) return null;
+  const jsonText = extractBalancedJsonObject(afterMarker, start);
+  if (!jsonText) return null;
   try {
-    return JSON.parse(afterMarker.slice(start, end + 1)) as Record<string, unknown>;
+    return JSON.parse(jsonText) as Record<string, unknown>;
   } catch {
     return null;
   }
