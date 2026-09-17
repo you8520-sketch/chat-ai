@@ -525,9 +525,3 @@ export function renderLivingSceneDirectiveForPrompt(
     .filter(Boolean)
     .join("\n");
 }
-
-export function buildLivingSceneDirectivePromptBlock(
-  input: LivingSceneDirectiveInput
-): string {
-  return renderLivingSceneDirectiveForPrompt(buildLivingSceneDirective(input));
-}
