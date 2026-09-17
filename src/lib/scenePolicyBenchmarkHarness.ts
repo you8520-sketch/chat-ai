@@ -12,6 +12,7 @@ import {
 } from "@/lib/sceneDirective";
 import {
   buildSceneDirectiveV2,
+  getUpdatedReconvergenceStateFromBuild,
   renderSceneDirectiveV2ForPrompt,
   type SceneDirectiveV2,
 } from "@/lib/sceneDirectiveV2";
@@ -24,14 +25,19 @@ import {
   materializeSceneDirectivePromptBlock,
   type ScenePacingPromptOwner,
 } from "@/lib/sceneDirectiveV2Policy";
+import { SCENE_FLOW_BLOCK } from "@/lib/generationProcessBeatFlow";
 import { assemblePrimaryRpRequest } from "@/lib/openRouterAdult";
 import { flattenOpenRouterMessageContent } from "@/lib/openRouterClient";
-import { openRouterUsdCostFromRates } from "@/lib/openRouterModelPricing";
+import {
+  countPacingOwners,
+  renderCompactScenePacingCue,
+} from "@/lib/scenePacingController";
+import { openRouterUsdCostFromRates, resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { buildContext } from "@/services/contextBuilder";
 import type { ContextBuildInput } from "@/types";
 import { MAIN_RP_USER_SELECTABLE_OPTIONS } from "@/lib/chatModels";
-import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
+import type { ReconvergenceState } from "@/lib/reconvergenceState";
 
 import {
   BENCHMARK_CHAR_NAME,
@@ -40,10 +46,12 @@ import {
   buildBenchmarkContextBase,
   countSingleTurnFixtures,
   listPilotFixtures,
+  listPilotTrajectories,
   RECONVERGENCE_TRAJECTORIES,
   SCENE_POLICY_BENCHMARK_FIXTURES,
   type ScenePolicyBenchmarkFixture,
   type ScenePolicyBenchmarkTrajectory,
+  type BenchmarkTrajectoryTurn,
 } from "@/lib/scenePolicyBenchmarkDataset";
 
 export type ScenePolicyArm = "v1" | "v2" | "living";
@@ -93,23 +101,34 @@ export type NonSceneFingerprint = {
   temperature: string;
   maxOutput: string;
   targetLength: string;
-  canon: string;
-  userPersona: string;
-  memory: string;
-  history: string;
-  lore: string;
-  trigger: string;
-  speech: string;
-  agency: string;
-  style: string;
-  otherSystemSections: string;
+  generationParams: string;
+  normalizedMessages: string;
   composite: string;
+};
+
+export type SceneOwnerCounts = {
+  scenePacing: number;
+  v1Full: number;
+  v2Full: number;
+  livingFull: number;
+  sceneDirective3d: number;
+};
+
+export type NormalizedFinalPayload = {
+  normalizedMessages: Array<{ role: string; content: string }>;
+  generationParams: Record<string, unknown>;
+  rawMessagesHash: string;
+  normalizedMessagesHash: string;
+  sceneOwnedText: string;
+  sceneOwnerCounts: SceneOwnerCounts;
+  nonSceneFingerprint: NonSceneFingerprint;
 };
 
 export type BenchmarkArmPayload = {
   arm: ScenePolicyArm;
   owner: ScenePacingPromptOwner;
-  sceneBlock: string;
+  /** Renderer artifact — not necessarily present in final Standard V1 payload */
+  sceneBlockArtifact: string;
   sceneMetadata: SceneDeltaMetadata;
   systemPrompt: string;
   history: ChatMsg[];
@@ -118,7 +137,15 @@ export type BenchmarkArmPayload = {
   inputTokenEstimate: number;
   scenePolicyTokenEstimate: number;
   basePayloadTokenEstimate: number;
+  normalizedFinalPayload: NormalizedFinalPayload;
+  /** @deprecated use normalizedFinalPayload.nonSceneFingerprint */
   nonSceneFingerprint: NonSceneFingerprint;
+};
+
+export type SceneOnlyDeltaProof = {
+  rawPayloadDiffers: boolean;
+  normalizedPayloadMatches: boolean;
+  changedSections: string[];
 };
 
 export type BenchmarkCaseResult = {
@@ -128,6 +155,17 @@ export type BenchmarkCaseResult = {
   arms: Record<ScenePolicyArm, BenchmarkArmPayload>;
   parityValid: boolean;
   parityDiffs: string[];
+  sceneOnlyDelta: SceneOnlyDeltaProof;
+};
+
+export type CostOwnerStatus =
+  | "COST_OWNER_CONFIRMED"
+  | "COST_OWNER_MISMATCH"
+  | "COST_OWNER_UNCONFIRMED";
+
+export type LiveTrajectoryPriorTurn = {
+  userMessage: string;
+  assistantOutputByArm: Record<ScenePolicyArm, string>;
 };
 
 export type BlindEvaluationSlot = "A" | "B" | "C";
@@ -143,12 +181,17 @@ export type BlindEvaluationPackage = {
 export type CallPlan = {
   name: "MINIMAL" | "BALANCED" | "HIGH-CONFIDENCE";
   repeat: number;
+  singleTurnFixtureIds: string[];
+  trajectoryIds: string[];
+  armSet: ScenePolicyArm[] | Array<"v1" | "v2">;
+  callFormula: string;
   singleTurnCalls: number;
   trajectoryCalls: number;
   totalCalls: number;
   estimatedInputTokens: number;
   estimatedOutputTokens: number;
   estimatedUpstreamUsd: number;
+  outputTokenEstimateMethod: "ESTIMATE_HEURISTIC";
   notes: string[];
 };
 
@@ -320,104 +363,189 @@ export function buildSceneArmArtifacts(
   };
 }
 
-export function stripScenePolicySections(text: string): string {
-  let out = text;
-  const markers: Array<{ marker: string; token: string }> = [
-    { marker: V1_MARKER, token: "<<SCENE_POLICY_REMOVED:V1>>" },
-    { marker: V2_MARKER, token: "<<SCENE_POLICY_REMOVED:V2>>" },
-    { marker: LIVING_MARKER, token: "<<SCENE_POLICY_REMOVED:LIVING>>" },
-    { marker: "[SCENE PACING]", token: "<<SCENE_POLICY_REMOVED:PACING>>" },
-    { marker: "[SCENE STATE]", token: "<<SCENE_POLICY_REMOVED:STATE>>" },
-    { marker: "[SCENE FLOW]", token: "<<SCENE_POLICY_REMOVED:FLOW>>" },
-  ];
-  for (const { marker, token } of markers) {
-    while (out.includes(marker)) {
-      const start = out.indexOf(marker);
-      const nextSection = out.slice(start + marker.length).search(/\n\[[0-9]/);
-      const end =
-        nextSection >= 0 ? start + marker.length + nextSection : out.length;
-      out = out.slice(0, start) + token + out.slice(end);
+/** Fallback patterns for residual scene wire not covered by exact renderer blocks. */
+const SCENE_OWNED_FALLBACK_PATTERNS: RegExp[] = [
+  /\[SCENE STATE\][\s\S]*?(?=\n\[(?:RHYTHM|IMMERSIVE|2[cab]|1\.|7\]|4\]|Mem)|$)/g,
+];
+
+function collectSceneOwnedFallbackMatches(text: string): string[] {
+  const parts: string[] = [];
+  for (const pattern of SCENE_OWNED_FALLBACK_PATTERNS) {
+    pattern.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+      parts.push(match[0]);
     }
   }
-  return out
-    .replace(/<<SCENE_POLICY_REMOVED:[^>]+>>/g, "<<SCENE>>")
-    .replace(/\s+/g, " ")
-    .trim();
+  return parts;
 }
 
-function extractSectionByHeading(text: string, headingNeedle: string): string {
-  const start = text.indexOf(headingNeedle);
-  if (start < 0) return "";
-  const rest = text.slice(start + headingNeedle.length);
-  const next = rest.search(/\n\[[0-9]/);
-  return (next >= 0 ? rest.slice(0, next) : rest).trim();
+function collapseScenePlaceholders(text: string): string {
+  return text.replace(/<<SCENE>>/g, "").replace(/\s+/g, " ").trim();
 }
 
-export function computeNonSceneFingerprint(input: {
+/** Exact scene-owned blocks present in actual final payloads (renderer-aligned). */
+export function resolveSceneStripTextsForArm(input: {
+  arm: ScenePolicyArm;
   systemPrompt: string;
-  history: ChatMsg[];
+  sceneBlockArtifact: string;
+  v1Directive?: SceneDirective;
+}): string[] {
+  const texts: string[] = [];
+  if (input.systemPrompt.includes(SCENE_FLOW_BLOCK)) {
+    texts.push(SCENE_FLOW_BLOCK);
+  }
+  if (input.arm === "v1" && input.v1Directive) {
+    const compact = renderCompactScenePacingCue(input.v1Directive);
+    if (compact && input.systemPrompt.includes(compact)) texts.push(compact);
+  } else if (
+    (input.arm === "v2" || input.arm === "living") &&
+    input.sceneBlockArtifact &&
+    input.systemPrompt.includes(input.sceneBlockArtifact)
+  ) {
+    texts.push(input.sceneBlockArtifact);
+  }
+  for (const extra of collectSceneOwnedFallbackMatches(input.systemPrompt)) {
+    if (!texts.some((t) => t.includes(extra) || extra.includes(t))) texts.push(extra);
+  }
+  return texts.sort((a, b) => b.length - a.length);
+}
+
+function stripExactSceneBlocks(text: string, exactBlocks: readonly string[]): string {
+  let out = text;
+  for (const block of exactBlocks) {
+    if (block && out.includes(block)) out = out.split(block).join("<<SCENE>>");
+  }
+  return out;
+}
+
+/** Strip scene-owned sections from prompt text for final-payload parity normalization. */
+export function stripSceneOwnedSections(text: string, exactBlocks: readonly string[] = []): string {
+  let out = stripExactSceneBlocks(text, exactBlocks);
+  for (const pattern of SCENE_OWNED_FALLBACK_PATTERNS) {
+    pattern.lastIndex = 0;
+    out = out.replace(pattern, "<<SCENE>>");
+  }
+  return collapseScenePlaceholders(out);
+}
+
+export function countSceneOwnerMarkers(systemText: string): SceneOwnerCounts {
+  const pacing = countPacingOwners(systemText);
+  return {
+    scenePacing: pacing.scene_pacing,
+    v1Full: (systemText.match(/\[PRIVATE SCENE ENGINE RULE\]/g) ?? []).length,
+    v2Full: (systemText.match(/\[PRIVATE SCENE PACING RULE\]/g) ?? []).length,
+    livingFull: (systemText.match(/\[PRIVATE SCENE CONTINUITY RULE\]/g) ?? []).length,
+    sceneDirective3d: (systemText.match(/\[3d\] Private scene directive/g) ?? []).length,
+  };
+}
+
+function extractGenerationParams(body: Record<string, unknown>): Record<string, unknown> {
+  const keys = [
+    "model",
+    "temperature",
+    "max_tokens",
+    "stream",
+    "top_p",
+    "frequency_penalty",
+    "presence_penalty",
+    "repetition_penalty",
+    "seed",
+    "reasoning",
+    "thinking",
+    "provider",
+  ] as const;
+  const out: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (body[key] !== undefined) out[key] = body[key];
+  }
+  return out;
+}
+
+function stableJson(value: unknown): string {
+  const normalize = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(normalize);
+    if (v && typeof v === "object") {
+      const obj = v as Record<string, unknown>;
+      const out: Record<string, unknown> = {};
+      for (const key of Object.keys(obj).sort()) {
+        out[key] = normalize(obj[key]);
+      }
+      return out;
+    }
+    return v;
+  };
+  return JSON.stringify(normalize(value));
+}
+
+/** @deprecated use stripSceneOwnedSections */
+export function stripScenePolicySections(text: string): string {
+  return stripSceneOwnedSections(text);
+}
+
+/** Normalize actual assembled provider payload for cross-arm non-scene parity. */
+export function normalizeFinalPayloadForSceneParity(input: {
+  messages: Array<{ role: string; content: string }>;
   requestBody: Record<string, unknown>;
   targetResponseChars: number;
-  memoryText: string;
-  loreText: string;
-  triggerText: string;
-  userPersona: string;
-}): NonSceneFingerprint {
-  const strippedSystem = stripScenePolicySections(input.systemPrompt);
+  sceneStripTexts?: readonly string[];
+}): NormalizedFinalPayload {
+  const rawMessagesHash = sha256(
+    stableJson(input.messages.map((m) => ({ role: m.role, content: m.content })))
+  );
+  const systemText =
+    input.messages.find((m) => m.role === "system")?.content ?? "";
+  const stripTexts = input.sceneStripTexts ?? [];
+  const sceneOwnedText =
+    stripTexts.join("\n\n").trim() ||
+    collectSceneOwnedFallbackMatches(systemText).join("\n\n").trim();
+  const normalizedMessages = input.messages.map((m) =>
+    m.role === "system"
+      ? { role: m.role, content: stripSceneOwnedSections(m.content, stripTexts) }
+      : { role: m.role, content: m.content }
+  );
+  const normalizedMessagesHash = sha256(stableJson(normalizedMessages));
+  const generationParams = extractGenerationParams(input.requestBody);
   const model = String(input.requestBody.model ?? "");
   const temperature = String(input.requestBody.temperature ?? "unset");
   const maxOutput = String(input.requestBody.max_tokens ?? "unset");
   const targetLength = String(input.targetResponseChars);
-  const canon = sha256(
-    extractSectionByHeading(input.systemPrompt, "[2] Structured character canon") ||
-      extractSectionByHeading(input.systemPrompt, "[2] Structured character")
-  );
-  const userPersona = sha256(input.userPersona);
-  const memory = sha256(input.memoryText);
-  const history = sha256(
-    input.history.map((m) => `${m.role}:${m.content}`).join("\n")
-  );
-  const lore = sha256(input.loreText);
-  const trigger = sha256(input.triggerText);
-  const speech = sha256(extractSectionByHeading(input.systemPrompt, "[2b] Private speech"));
-  const agency = sha256(extractSectionByHeading(input.systemPrompt, "[0] Identity & Rules"));
-  const style = sha256(extractSectionByHeading(input.systemPrompt, "Narrative style"));
-  const otherSystemSections = sha256(strippedSystem);
+  const generationParamsHash = sha256(stableJson(generationParams));
   const composite = sha256(
-    [
-      model,
-      temperature,
-      maxOutput,
-      targetLength,
-      canon,
-      userPersona,
-      memory,
-      history,
-      lore,
-      trigger,
-      speech,
-      agency,
-      style,
-      otherSystemSections,
-    ].join("|")
+    [normalizedMessagesHash, generationParamsHash, targetLength].join("|")
   );
-  return {
+  const nonSceneFingerprint: NonSceneFingerprint = {
     model,
     temperature,
     maxOutput,
     targetLength,
-    canon,
-    userPersona,
-    memory,
-    history,
-    lore,
-    trigger,
-    speech,
-    agency,
-    style,
-    otherSystemSections,
+    generationParams: generationParamsHash,
+    normalizedMessages: normalizedMessagesHash,
     composite,
   };
+  return {
+    normalizedMessages,
+    generationParams,
+    rawMessagesHash,
+    normalizedMessagesHash,
+    sceneOwnedText,
+    sceneOwnerCounts: countSceneOwnerMarkers(systemText),
+    nonSceneFingerprint,
+  };
+}
+
+export function extractSceneOwnedTextFromFinalPayload(
+  payload: Pick<BenchmarkArmPayload, "messages" | "systemPrompt" | "sceneBlockArtifact" | "arm">,
+  v1Directive?: SceneDirective
+): string {
+  const systemText =
+    payload.messages.find((m) => m.role === "system")?.content ?? payload.systemPrompt;
+  return resolveSceneStripTextsForArm({
+    arm: payload.arm,
+    systemPrompt: systemText,
+    sceneBlockArtifact: payload.sceneBlockArtifact,
+    v1Directive,
+  }).join("\n\n");
 }
 
 export function buildBenchmarkArmPayload(input: {
@@ -451,12 +579,6 @@ export function buildBenchmarkArmPayload(input: {
     scenePacingPromptOwner: artifacts.owner,
   };
 
-  const sharedContextInput: ContextBuildInput = {
-    ...contextInput,
-    sceneDirectiveBlock: undefined,
-    scenePacingPromptOwner: undefined,
-  };
-  const sharedBuilt = buildContext(sharedContextInput);
   const built = buildContext(contextInput);
   const skipMotionCue = input.arm !== "v1";
 
@@ -493,27 +615,31 @@ export function buildBenchmarkArmPayload(input: {
   }));
 
   const systemPrompt = flatMessages.find((m) => m.role === "system")?.content ?? built.systemPrompt;
+  const sceneStripTexts = resolveSceneStripTextsForArm({
+    arm: input.arm,
+    systemPrompt,
+    sceneBlockArtifact: artifacts.sceneBlock,
+    v1Directive: input.arm === "v1" ? v1Directive : undefined,
+  });
+  const normalizedFinalPayload = normalizeFinalPayloadForSceneParity({
+    messages: flatMessages,
+    requestBody: assembled.requestBody,
+    targetResponseChars,
+    sceneStripTexts,
+  });
+  const sceneOwnedText = normalizedFinalPayload.sceneOwnedText;
   const inputTokenEstimate = estimateTokens(
     flatMessages.map((m) => m.content).join("\n")
   );
-  const scenePolicyTokenEstimate = estimateTokens(artifacts.sceneBlock);
-  const basePayloadTokenEstimate = Math.max(0, inputTokenEstimate - scenePolicyTokenEstimate);
-
-  const fingerprint = computeNonSceneFingerprint({
-    systemPrompt: sharedBuilt.systemPrompt,
-    history: sharedBuilt.history,
-    requestBody: assembled.requestBody,
-    targetResponseChars,
-    memoryText: input.fixture.memoryText ?? contextBase.longTermMemory ?? "",
-    loreText: input.fixture.lorebookText ?? "",
-    triggerText: input.fixture.triggeredEventText ?? "",
-    userPersona: contextBase.userPersona ?? "",
-  });
+  const scenePolicyTokenEstimate = estimateTokens(sceneOwnedText);
+  const basePayloadTokenEstimate = estimateTokens(
+    normalizedFinalPayload.normalizedMessages.map((m) => m.content).join("\n")
+  );
 
   return {
     arm: input.arm,
     owner: artifacts.owner,
-    sceneBlock: artifacts.sceneBlock,
+    sceneBlockArtifact: artifacts.sceneBlock,
     sceneMetadata: artifacts.metadata,
     systemPrompt,
     history: built.history,
@@ -522,7 +648,8 @@ export function buildBenchmarkArmPayload(input: {
     inputTokenEstimate,
     scenePolicyTokenEstimate,
     basePayloadTokenEstimate,
-    nonSceneFingerprint: fingerprint,
+    normalizedFinalPayload,
+    nonSceneFingerprint: normalizedFinalPayload.nonSceneFingerprint,
   };
 }
 
@@ -530,32 +657,44 @@ export function verifyThreeArmParity(
   arms: Record<ScenePolicyArm, BenchmarkArmPayload>
 ): { valid: boolean; diffs: string[] } {
   const diffs: string[] = [];
-  const ref = arms.v1.nonSceneFingerprint;
+  const ref = arms.v1.normalizedFinalPayload.nonSceneFingerprint;
   for (const arm of ["v2", "living"] as const) {
-    const fp = arms[arm].nonSceneFingerprint;
+    const fp = arms[arm].normalizedFinalPayload.nonSceneFingerprint;
     if (fp.model !== ref.model) diffs.push(`${arm}: model mismatch`);
     if (fp.temperature !== ref.temperature) diffs.push(`${arm}: temperature mismatch`);
     if (fp.maxOutput !== ref.maxOutput) diffs.push(`${arm}: max_output mismatch`);
     if (fp.targetLength !== ref.targetLength) diffs.push(`${arm}: target_length mismatch`);
-    if (fp.canon !== ref.canon) diffs.push(`${arm}: canon mismatch`);
-    if (fp.userPersona !== ref.userPersona) diffs.push(`${arm}: user_persona mismatch`);
-    if (fp.memory !== ref.memory) diffs.push(`${arm}: memory mismatch`);
-    if (fp.history !== ref.history) diffs.push(`${arm}: history mismatch`);
-    if (fp.lore !== ref.lore) diffs.push(`${arm}: lore mismatch`);
-    if (fp.trigger !== ref.trigger) diffs.push(`${arm}: trigger mismatch`);
-    if (fp.speech !== ref.speech) diffs.push(`${arm}: speech mismatch`);
-    if (fp.agency !== ref.agency) diffs.push(`${arm}: agency mismatch`);
-    if (fp.style !== ref.style) diffs.push(`${arm}: style mismatch`);
-    if (fp.otherSystemSections !== ref.otherSystemSections) {
-      diffs.push(`${arm}: other_system_sections mismatch`);
+    if (fp.generationParams !== ref.generationParams) {
+      diffs.push(`${arm}: generation_params mismatch`);
+    }
+    if (fp.normalizedMessages !== ref.normalizedMessages) {
+      diffs.push(`${arm}: normalized_messages mismatch`);
     }
     if (fp.composite !== ref.composite) diffs.push(`${arm}: composite mismatch`);
   }
-  const sceneBlocks = new Set(SCENE_POLICY_ARM_IDS.map((a) => arms[a].sceneBlock));
-  if (sceneBlocks.size === 1) {
-    diffs.push("scene blocks identical across arms — benchmark invalid");
-  }
   return { valid: diffs.length === 0, diffs };
+}
+
+export function proveSceneOnlyDelta(
+  arms: Record<ScenePolicyArm, BenchmarkArmPayload>
+): SceneOnlyDeltaProof {
+  const rawHashes = SCENE_POLICY_ARM_IDS.map(
+    (a) => arms[a].normalizedFinalPayload.rawMessagesHash
+  );
+  const normalizedHashes = SCENE_POLICY_ARM_IDS.map(
+    (a) => arms[a].normalizedFinalPayload.normalizedMessagesHash
+  );
+  const rawPayloadDiffers = new Set(rawHashes).size > 1;
+  const normalizedPayloadMatches =
+    normalizedHashes[0] === normalizedHashes[1] &&
+    normalizedHashes[1] === normalizedHashes[2];
+  const changedSections =
+    rawPayloadDiffers && normalizedPayloadMatches ? (["scene-policy"] as const) : [];
+  return {
+    rawPayloadDiffers,
+    normalizedPayloadMatches,
+    changedSections: [...changedSections],
+  };
 }
 
 export function runBenchmarkCase(fixture: ScenePolicyBenchmarkFixture): BenchmarkCaseResult {
@@ -565,13 +704,19 @@ export function runBenchmarkCase(fixture: ScenePolicyBenchmarkFixture): Benchmar
     living: buildBenchmarkArmPayload({ fixture, arm: "living" }),
   };
   const parity = verifyThreeArmParity(arms);
+  const sceneOnlyDelta = proveSceneOnlyDelta(arms);
   return {
     caseId: fixture.id,
     family: fixture.family,
     kind: fixture.kind,
     arms,
-    parityValid: parity.valid,
-    parityDiffs: parity.diffs,
+    parityValid: parity.valid && sceneOnlyDelta.normalizedPayloadMatches,
+    parityDiffs: parity.valid
+      ? sceneOnlyDelta.normalizedPayloadMatches
+        ? []
+        : ["normalized final payload mismatch across arms"]
+      : parity.diffs,
+    sceneOnlyDelta,
   };
 }
 
@@ -620,10 +765,14 @@ function getFixtureById(id: string): ScenePolicyBenchmarkFixture | undefined {
   return SCENE_POLICY_BENCHMARK_FIXTURES.find((f) => f.id === id);
 }
 
-export function buildTrajectoryTurnFixture(input: {
+/**
+ * OFFLINE PREPARATION ONLY — uses frozenAssistantResponse placeholders.
+ * Must not be used for live provider trajectory execution.
+ */
+export function buildOfflineTrajectoryTurnFixture(input: {
   trajectory: ScenePolicyBenchmarkTrajectory;
-  turn: ScenePolicyBenchmarkTrajectory["turns"][number];
-  priorTurns: ScenePolicyBenchmarkTrajectory["turns"];
+  turn: BenchmarkTrajectoryTurn;
+  priorTurns: BenchmarkTrajectoryTurn[];
 }): ScenePolicyBenchmarkFixture {
   const history: ChatMsg[] = [];
   for (const prev of input.priorTurns) {
@@ -640,6 +789,65 @@ export function buildTrajectoryTurnFixture(input: {
     reconvergenceState: input.turn.reconvergenceStateBefore,
     currentTurn: input.turn.turnIndex,
   };
+}
+
+/** @deprecated use buildOfflineTrajectoryTurnFixture */
+export function buildTrajectoryTurnFixture(input: {
+  trajectory: ScenePolicyBenchmarkTrajectory;
+  turn: BenchmarkTrajectoryTurn;
+  priorTurns: BenchmarkTrajectoryTurn[];
+}): ScenePolicyBenchmarkFixture {
+  return buildOfflineTrajectoryTurnFixture(input);
+}
+
+/**
+ * LIVE PROVIDER TRAJECTORY — each arm carries its own actual assistant outputs in history.
+ * Does not read frozenAssistantResponse.
+ */
+export function buildLiveTrajectoryTurnFixture(input: {
+  trajectory: ScenePolicyBenchmarkTrajectory;
+  turn: BenchmarkTrajectoryTurn;
+  arm: ScenePolicyArm;
+  priorTurns: LiveTrajectoryPriorTurn[];
+}): ScenePolicyBenchmarkFixture {
+  const history: ChatMsg[] = [];
+  for (const prev of input.priorTurns) {
+    history.push({ role: "user", content: prev.userMessage });
+    history.push({ role: "assistant", content: prev.assistantOutputByArm[input.arm] });
+  }
+  return {
+    id: `${input.trajectory.id}_T${input.turn.turnIndex}_${input.arm}`,
+    family: "B14_LONG_SEPARATION",
+    kind: "reconvergence_trajectory",
+    label: `${input.trajectory.label} turn ${input.turn.turnIndex} (${input.arm})`,
+    history,
+    currentUserMessage: input.turn.userMessage,
+    reconvergenceState:
+      input.arm === "v2" ? input.turn.reconvergenceStateBefore : undefined,
+    currentTurn: input.turn.turnIndex,
+  };
+}
+
+/** In-memory V2 reconvergence transition for benchmark live runner (no DB). */
+export function advanceV2ReconvergenceForBenchmark(input: {
+  policyInput: ScenePolicyBuildInput;
+  previousState?: ReconvergenceState;
+}): { directive: SceneDirectiveV2; nextState: ReconvergenceState } {
+  const v2Input = {
+    mode: input.policyInput.mode,
+    recentMessages: input.policyInput.recentMessages,
+    currentUserMessage: input.policyInput.currentUserMessage,
+    memoryText: input.policyInput.memoryText,
+    relationshipMemoryText: input.policyInput.relationshipMemoryText,
+    lorebookText: input.policyInput.lorebookText,
+    triggeredEventText: input.policyInput.triggeredEventText,
+    reconvergenceState: input.previousState,
+    currentTurn: input.policyInput.currentTurn,
+    isRegenerate: false,
+  };
+  const directive = buildSceneDirectiveV2(v2Input);
+  const nextState = getUpdatedReconvergenceStateFromBuild(v2Input, directive);
+  return { directive, nextState };
 }
 
 export function serializeReconvergenceState(state: unknown): string {
@@ -695,8 +903,70 @@ function avgInputTokensPerCall(modelId: string): number {
   return cachedAvgInputTokensPerCall;
 }
 
+/** ESTIMATE_HEURISTIC — tokenEstimate.estimateTokens uses chars×0.9, not provider tokenizer. */
 function avgOutputTokensPerCall(targetChars: number): number {
-  return Math.ceil(targetChars * 0.9);
+  return estimateTokens("x".repeat(Math.max(1, targetChars)));
+}
+
+function trajectoryCallsExact(
+  trajectories: ScenePolicyBenchmarkTrajectory[],
+  armsPerTurn: number,
+  repeat: number
+): number {
+  return trajectories.reduce((sum, t) => sum + t.turns.length * armsPerTurn, 0) * repeat;
+}
+
+export function verifyBenchmarkCostOwner(input?: {
+  modelId?: string;
+  transportProvider?: "cheaperinference" | "openrouter";
+}): {
+  status: CostOwnerStatus;
+  modelId: string;
+  transportProvider: string;
+  upstreamCostSource: string;
+  notes: string[];
+} {
+  const modelId = input?.modelId ?? BENCHMARK_DEFAULT_MODEL;
+  const transportProvider = input?.transportProvider ?? "cheaperinference";
+  const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find((o) => o.id === modelId);
+  const rates = resolveOpenRouterModelRates(modelId);
+  const notes: string[] = [];
+  if (!option) {
+    return {
+      status: "COST_OWNER_UNCONFIRMED",
+      modelId,
+      transportProvider,
+      upstreamCostSource: "unknown",
+      notes: ["model not in MAIN_RP_USER_SELECTABLE_OPTIONS"],
+    };
+  }
+  if (option.provider !== transportProvider) {
+    notes.push(`picker provider=${option.provider} transport=${transportProvider}`);
+  }
+  const ciMapped =
+    modelId === "deepseek-v4-pro-0813" ||
+    modelId === "claude-opus-5" ||
+    modelId.startsWith("gemini-") ||
+    modelId.startsWith("gpt-");
+  const pickerProvider = option.provider as "cheaperinference" | "openrouter" | "openai";
+  let upstreamCostSource = "unmapped";
+  if (pickerProvider === "cheaperinference" && ciMapped) {
+    upstreamCostSource =
+      "openRouterModelPricing.resolveOpenRouterModelRates (CheaperInference catalog snapshot + live catalog merge)";
+  } else if (pickerProvider === "openrouter") {
+    upstreamCostSource =
+      "openRouterModelPricing.resolveOpenRouterModelRates (OpenRouter list rates)";
+  }
+  const status: CostOwnerStatus =
+    upstreamCostSource.startsWith("openRouterModelPricing") &&
+    pickerProvider === transportProvider
+      ? "COST_OWNER_CONFIRMED"
+      : pickerProvider !== transportProvider
+        ? "COST_OWNER_MISMATCH"
+        : "COST_OWNER_UNCONFIRMED";
+  notes.push(`rates.label=${rates.label}`);
+  notes.push("billingRawCost.openRouterUsdCostFromRates uses same rate table for upstream USD");
+  return { status, modelId, transportProvider, upstreamCostSource, notes };
 }
 
 export function computeExecutionMatrix(input?: {
@@ -706,7 +976,8 @@ export function computeExecutionMatrix(input?: {
   const modelId = input?.modelId ?? BENCHMARK_DEFAULT_MODEL;
   const targetResponseChars = input?.targetResponseChars ?? BENCHMARK_DEFAULT_TARGET_CHARS;
   const singleTurnCount = countSingleTurnFixtures();
-  const pilotCount = listPilotFixtures().length;
+  const pilotFixtures = listPilotFixtures();
+  const pilotTrajectories = listPilotTrajectories();
   const trajectoryCount = RECONVERGENCE_TRAJECTORIES.length;
   const trajectoryTurnCount = RECONVERGENCE_TRAJECTORIES.reduce(
     (s, t) => s + t.turns.length,
@@ -714,26 +985,42 @@ export function computeExecutionMatrix(input?: {
   );
   const avgIn = avgInputTokensPerCall(modelId);
   const avgOut = avgOutputTokensPerCall(targetResponseChars);
+  const threeArms = SCENE_POLICY_ARM_IDS.length;
+  const reconArms = 2;
 
-  const planDefs: Array<{ name: CallPlan["name"]; repeat: number; scope: string }> = [
-    { name: "MINIMAL", repeat: 1, scope: "pilot" },
-    { name: "BALANCED", repeat: 2, scope: "full_single_plus_recon" },
-    { name: "HIGH-CONFIDENCE", repeat: 3, scope: "full_all" },
+  const planDefs: Array<{
+    name: CallPlan["name"];
+    repeat: number;
+    fixtures: ScenePolicyBenchmarkFixture[];
+    trajectories: ScenePolicyBenchmarkTrajectory[];
+    trajectoryArms: number;
+  }> = [
+    {
+      name: "MINIMAL",
+      repeat: 1,
+      fixtures: pilotFixtures,
+      trajectories: pilotTrajectories,
+      trajectoryArms: reconArms,
+    },
+    {
+      name: "BALANCED",
+      repeat: 2,
+      fixtures: SCENE_POLICY_BENCHMARK_FIXTURES,
+      trajectories: RECONVERGENCE_TRAJECTORIES,
+      trajectoryArms: reconArms,
+    },
+    {
+      name: "HIGH-CONFIDENCE",
+      repeat: 3,
+      fixtures: SCENE_POLICY_BENCHMARK_FIXTURES,
+      trajectories: RECONVERGENCE_TRAJECTORIES,
+      trajectoryArms: reconArms,
+    },
   ];
 
-  const plans = planDefs.map(({ name, repeat, scope }) => {
-    let singleTurnCalls = 0;
-    let trajectoryCalls = 0;
-    if (scope === "pilot") {
-      singleTurnCalls = pilotCount * 3 * repeat;
-      trajectoryCalls = 2 * 4 * repeat; // R1 + R5 approx
-    } else if (scope === "full_single_plus_recon") {
-      singleTurnCalls = singleTurnCount * 3 * repeat;
-      trajectoryCalls = trajectoryTurnCount * 2 * repeat; // v1 + v2 only
-    } else {
-      singleTurnCalls = singleTurnCount * 3 * repeat;
-      trajectoryCalls = trajectoryTurnCount * 2 * repeat;
-    }
+  const plans = planDefs.map(({ name, repeat, fixtures, trajectories, trajectoryArms }) => {
+    const singleTurnCalls = fixtures.length * threeArms * repeat;
+    const trajectoryCalls = trajectoryCallsExact(trajectories, trajectoryArms, repeat);
     const totalCalls = singleTurnCalls + trajectoryCalls;
     const estimatedInputTokens = totalCalls * avgIn;
     const estimatedOutputTokens = totalCalls * avgOut;
@@ -742,27 +1029,35 @@ export function computeExecutionMatrix(input?: {
       promptTokens: estimatedInputTokens,
       outputTokens: estimatedOutputTokens,
     });
+    const fixtureIds = fixtures.map((f) => f.id);
+    const trajectoryIds = trajectories.map((t) => t.id);
+    const callFormula = `single:${fixtureIds.length}×${threeArms}×${repeat} + trajectory:sum(turns×${trajectoryArms})×${repeat}`;
     return {
       name,
       repeat,
+      singleTurnFixtureIds: fixtureIds,
+      trajectoryIds,
+      armSet: ["v1", "v2"] as Array<"v1" | "v2">,
+      callFormula,
       singleTurnCalls,
       trajectoryCalls,
       totalCalls,
       estimatedInputTokens,
       estimatedOutputTokens,
       estimatedUpstreamUsd: Math.round(usdCost * 1000) / 1000,
+      outputTokenEstimateMethod: "ESTIMATE_HEURISTIC" as const,
       notes: [
-        `scope=${scope}`,
-        `avg_input_tokens_per_call=${avgIn} (pilot sample)`,
-        `avg_output_tokens_per_call=${avgOut} (targetResponseChars=${targetResponseChars})`,
-        "upstream cost via openRouterUsdCostFromRates — not user billing points",
+        callFormula,
+        `avg_input_tokens_per_call=${avgIn} (pilot final-payload sample)`,
+        `avg_output_tokens_per_call=${avgOut} (ESTIMATE_HEURISTIC: estimateTokens on targetResponseChars=${targetResponseChars})`,
+        verifyBenchmarkCostOwner({ modelId }).upstreamCostSource,
       ],
     };
   });
 
   return {
     singleTurnFixtureCount: singleTurnCount,
-    pilotFixtureCount: pilotCount,
+    pilotFixtureCount: pilotFixtures.length,
     trajectoryCount,
     trajectoryTurnCount,
     plans,
@@ -779,6 +1074,7 @@ export type ModelCandidateFacts = {
   maxOutputOwner: string;
   estimatedInputUsdPerM: number;
   estimatedOutputUsdPerM: number;
+  upstreamCostSource: string;
   cacheBehavior: string;
   availability: string;
 };
@@ -786,6 +1082,10 @@ export type ModelCandidateFacts = {
 export function listModelCandidateFacts(): ModelCandidateFacts[] {
   return MAIN_RP_USER_SELECTABLE_OPTIONS.map((opt, idx) => {
     const rates = resolveOpenRouterModelRates(opt.id);
+    const costOwner = verifyBenchmarkCostOwner({
+      modelId: opt.id,
+      transportProvider: opt.provider,
+    });
     return {
       slot: `MODEL_${String.fromCharCode(65 + idx)}`,
       modelId: opt.id,
@@ -796,12 +1096,27 @@ export function listModelCandidateFacts(): ModelCandidateFacts[] {
       maxOutputOwner: "openRouterClient.resolveOpenRouterMaxTokens + targetResponseChars",
       estimatedInputUsdPerM: rates.inputUsdPerM,
       estimatedOutputUsdPerM: rates.outputUsdPerM,
+      upstreamCostSource: costOwner.upstreamCostSource,
       cacheBehavior: rates.explicitCacheInjection
         ? `${rates.label} — explicit cache_control injection`
         : `${rates.label} — provider automatic prefix cache`,
       availability: "User-selectable in Main RP picker",
     };
   });
+}
+
+/** Fill blind package slots from captured benchmark results (no scoring). */
+export function applyCaptureResultsToBlindPackage(input: {
+  blindPackage: BlindEvaluationPackage;
+  captures: Array<{ arm: ScenePolicyArm; rawOutput: string }>;
+}): BlindEvaluationPackage {
+  const slots: BlindEvaluationPackage["slots"] = { ...input.blindPackage.slots };
+  for (const slot of ["A", "B", "C"] as const) {
+    const arm = input.blindPackage.answerKey[slot];
+    const capture = input.captures.find((c) => c.arm === arm);
+    slots[slot] = { rawOutputPlaceholder: capture?.rawOutput ?? "" };
+  }
+  return { ...input.blindPackage, slots };
 }
 
 export function runFullBenchmarkPreparation(): {
@@ -840,7 +1155,8 @@ export const BENCHMARK_OWNER_MAP = {
   REGEN_OWNER: "route.ts regenerate branch (benchmark follow-up — not in phase 1 pilot)",
   PROVIDER_PAYLOAD_OWNER: "openRouterAdult.assemblePrimaryRpRequest",
   TOKEN_ESTIMATE_OWNER: "tokenEstimate.estimateTokens + openRouterAdult estimatePayloadFromBody",
-  PROVIDER_COST_OWNER: "openRouterModelPricing.openRouterUsdCostFromRates + billingRawCost",
+  PROVIDER_COST_OWNER:
+    "openRouterModelPricing.resolveOpenRouterModelRates / openRouterUsdCostFromRates (CheaperInference slugs use CI catalog snapshot; billingRawCost for production receipts)",
   BILLING_PRICE_OWNER: "points.ts + billingDisplay (user-facing — benchmark must bypass)",
   BENCHMARK_FIXTURE_OWNER: "scenePolicyBenchmarkDataset.ts",
   MOCK_DRY_RUN_OWNER: "assemblePrimaryRpRequest (credential-free) + MOCK_MODE in openRouterAdult fetch path",

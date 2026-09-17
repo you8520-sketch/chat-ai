@@ -859,6 +859,10 @@ export function listPilotFixtures(): ScenePolicyBenchmarkFixture[] {
   return SCENE_POLICY_BENCHMARK_FIXTURES.filter((f) => f.pilotRepresentative);
 }
 
+export function listPilotTrajectories(): ScenePolicyBenchmarkTrajectory[] {
+  return RECONVERGENCE_TRAJECTORIES.filter((t) => t.pilotRepresentative);
+}
+
 export function countSingleTurnFixtures(): number {
   return SCENE_POLICY_BENCHMARK_FIXTURES.length;
 }
