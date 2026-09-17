@@ -46,8 +46,29 @@ import {
 
 export type OpenRouterChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
-/** Narrow structured-output contract — only json_object is supported at this owner. */
-export type OpenRouterCompletionResponseFormat = "json_object";
+export type OpenRouterJsonSchemaResponseFormat = {
+  type: "json_schema";
+  json_schema: {
+    name: string;
+    strict: boolean;
+    schema: Record<string, unknown>;
+  };
+};
+
+/** Structured-output wire contract forwarded to CheaperInference / OpenRouter. */
+export type OpenRouterCompletionResponseFormat =
+  | "json_object"
+  | OpenRouterJsonSchemaResponseFormat;
+
+function resolveResponseFormatWire(
+  format?: OpenRouterCompletionResponseFormat
+): Record<string, unknown> | undefined {
+  if (!format) return undefined;
+  if (format === "json_object") {
+    return { type: "json_object" as const };
+  }
+  return format;
+}
 
 export type OpenRouterCompletionUsage = {
   inputTokens: number;
@@ -260,8 +281,8 @@ export async function callOpenRouterCompletion(opts: {
     ...(opts.disableReasoning
       ? { reasoning: { effort: "none" as const }, include_reasoning: false }
       : {}),
-    ...(opts.responseFormat === "json_object"
-      ? { response_format: { type: "json_object" as const } }
+    ...(resolveResponseFormatWire(opts.responseFormat)
+      ? { response_format: resolveResponseFormatWire(opts.responseFormat) }
       : {}),
   };
   const requestBody = useCheaperInference

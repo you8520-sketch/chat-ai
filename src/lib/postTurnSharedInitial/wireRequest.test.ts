@@ -6,12 +6,11 @@ import { adaptCheaperInferenceChatBody } from "@/lib/cheaperInferenceConfig";
 import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
 import { runPostTurnSharedInitial } from "@/lib/postTurnSharedInitial/run";
 import { DEFAULT_STATUS_WIDGET } from "@/lib/statusWidget/defaultTemplate";
+import { buildPostTurnSharedInitialSystem } from "@/lib/postTurnSharedInitial/prompt";
 import {
-  buildPostTurnSharedInitialSystem,
-  buildSharedStatusWidgetEnvelope,
-  sharedSystemListsAllRequiredKeys,
-  sharedOutputJsonExampleUsesParserInvalidValueExemplar,
-} from "@/lib/postTurnSharedInitial/prompt";
+  buildPostTurnSharedInitialResponseFormat,
+  sharedSchemaListsAllRequiredKeys,
+} from "@/lib/postTurnSharedInitial/schema";
 import type { StatusWidget } from "@/lib/statusWidget/types";
 
 function withMockFetch(run: (bodies: Record<string, unknown>[]) => Promise<void>) {
@@ -52,7 +51,7 @@ function withMockFetch(run: (bodies: Record<string, unknown>[]) => Promise<void>
 }
 
 describe("post-turn shared initial wire contract", () => {
-  it("A: background-post-turn-shared-initial sends response_format=json_object", async () => {
+  it("A: background-post-turn-shared-initial sends response_format=json_schema strict", async () => {
     await withMockFetch(async (bodies) => {
       await runPostTurnSharedInitial({
         mode: "character",
@@ -70,7 +69,13 @@ describe("post-turn shared initial wire contract", () => {
         relationshipRegenContext: null,
       });
       assert.equal(bodies.length, 1);
-      assert.deepEqual(bodies[0]?.response_format, { type: "json_object" });
+      const wireFormat = bodies[0]?.response_format as {
+        type?: string;
+        json_schema?: { strict?: boolean; name?: string };
+      };
+      assert.equal(wireFormat?.type, "json_schema");
+      assert.equal(wireFormat?.json_schema?.strict, true);
+      assert.equal(wireFormat?.json_schema?.name, "post_turn_shared_initial");
     });
   });
 
@@ -114,20 +119,36 @@ describe("post-turn shared initial wire contract", () => {
     });
   });
 
-  it("E: CheaperInference adapter preserves response_format", () => {
+  it("E: CheaperInference adapter preserves json_schema response_format for Luna", () => {
+    const format = buildPostTurnSharedInitialResponseFormat({
+      mode: "character",
+      charName: "c",
+      characterIdentity: null,
+      characterCriticalContext: null,
+      personaName: "u",
+      userMessage: "m",
+      assistantProse: "a",
+      characterWidget: DEFAULT_STATUS_WIDGET,
+      userWidget: null,
+      primaryModelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      includeSuggestions: false,
+      includeRelationship: false,
+      relationshipRegenContext: null,
+    });
     const adapted = adaptCheaperInferenceChatBody({
       model: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
       messages: [{ role: "user", content: "x" }],
       stream: false,
       temperature: 0.4,
       max_tokens: 4096,
-      response_format: { type: "json_object" },
+      response_format: format,
     });
-    assert.deepEqual(adapted.response_format, { type: "json_object" });
+    assert.equal(adapted.response_format.type, "json_schema");
+    assert.equal(adapted.response_format.json_schema.strict, true);
     assert.deepEqual(adapted.reasoning, { effort: "none" });
   });
 
-  it("F: dynamic widget keys with JSON-special chars are escaped in envelope", () => {
+  it("F: dynamic widget keys with JSON-special chars are required in wire schema", () => {
     const widget: StatusWidget = {
       ...DEFAULT_STATUS_WIDGET,
       fields: [
@@ -138,8 +159,8 @@ describe("post-turn shared initial wire contract", () => {
         },
       ],
     };
-    const envelope = buildSharedStatusWidgetEnvelope({
-      mode: "character",
+    const input = {
+      mode: "character" as const,
       charName: "c",
       characterIdentity: null,
       characterCriticalContext: null,
@@ -152,44 +173,12 @@ describe("post-turn shared initial wire contract", () => {
       includeSuggestions: false,
       includeRelationship: false,
       relationshipRegenContext: null,
-    });
-    assert.ok(envelope);
-    assert.match(envelope!, /"key\\"quote"/);
-    assert.match(envelope!, /"라벨_줄"/);
-    assert.match(envelope!, /statusWidget\.character_values must contain exactly these keys:/);
-    const system = buildPostTurnSharedInitialSystem({
-      mode: "character",
-      charName: "c",
-      characterIdentity: null,
-      characterCriticalContext: null,
-      personaName: "u",
-      userMessage: "m",
-      assistantProse: "a",
-      characterWidget: widget,
-      userWidget: null,
-      primaryModelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-      includeSuggestions: false,
-      includeRelationship: false,
-      relationshipRegenContext: null,
-    });
-    assert.equal(sharedOutputJsonExampleUsesParserInvalidValueExemplar(system), false);
-    assert.equal(
-      sharedSystemListsAllRequiredKeys(system, {
-        mode: "character",
-        charName: "c",
-        characterIdentity: null,
-        characterCriticalContext: null,
-        personaName: "u",
-        userMessage: "m",
-        assistantProse: "a",
-        characterWidget: widget,
-        userWidget: null,
-        primaryModelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-        includeSuggestions: false,
-        includeRelationship: false,
-        relationshipRegenContext: null,
-      }),
-      true
-    );
+    };
+    assert.equal(sharedSchemaListsAllRequiredKeys(input), true);
+    const schemaText = JSON.stringify(buildPostTurnSharedInitialResponseFormat(input));
+    assert.match(schemaText, /key\\"quote/);
+    assert.match(schemaText, /라벨_줄/);
+    const system = buildPostTurnSharedInitialSystem(input);
+    assert.doesNotMatch(system, /Valid structural JSON example/);
   });
 });

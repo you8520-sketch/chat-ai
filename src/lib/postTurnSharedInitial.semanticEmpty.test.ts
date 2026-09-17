@@ -6,13 +6,13 @@ import type { StatusWidget } from "@/lib/statusWidget/types";
 import {
   buildPostTurnSharedInitialSystem,
   collectSharedWidgetRequiredKeys,
-  countAuthoritativeSharedOutputContracts,
-  extractSharedOutputJsonExampleFromSystem,
   sharedSystemHasConflictingWidgetOnlyContract,
-  sharedSystemListsAllRequiredKeys,
-  sharedOutputJsonExampleUsesActiveEmptyMapExemplar,
-  sharedOutputJsonExampleUsesParserInvalidValueExemplar,
 } from "@/lib/postTurnSharedInitial/prompt";
+import {
+  assertProductionStrictJsonSchemaValid,
+  buildPostTurnSharedInitialJsonSchema,
+  sharedSchemaListsAllRequiredKeys,
+} from "@/lib/postTurnSharedInitial/schema";
 import { parsePostTurnSharedInitialResponse } from "@/lib/postTurnSharedInitial/parse";
 import {
   evaluatePostTurnSharedInitialWidgetExtraction,
@@ -149,19 +149,12 @@ function validJson(input: PostTurnSharedInitialInput): string {
 }
 
 function assertFinalPromptContract(system: string, input: PostTurnSharedInitialInput): void {
-  assert.equal(sharedOutputJsonExampleUsesParserInvalidValueExemplar(system), false);
-  assert.equal(sharedOutputJsonExampleUsesActiveEmptyMapExemplar(system, input), false);
-  assert.equal(sharedSystemListsAllRequiredKeys(system, input), true);
-  assert.equal(countAuthoritativeSharedOutputContracts(system), 1);
+  assert.doesNotMatch(system, /Valid structural JSON example/);
+  assert.doesNotMatch(system, /WIDGET OUTPUT KEY CONTRACT/);
+  assert.match(system, /provider JSON schema/);
   assert.equal(sharedSystemHasConflictingWidgetOnlyContract(system), false);
-  const example = extractSharedOutputJsonExampleFromSystem(system);
-  assert.ok(example, "structural JSON example must parse");
-  const statusWidget = example?.statusWidget as Record<string, unknown> | undefined;
-  if (input.mode !== "relationship_only") {
-    assert.ok(statusWidget);
-    assert.equal("character_values" in (statusWidget ?? {}), false);
-    assert.equal("user_values" in (statusWidget ?? {}), false);
-  }
+  assert.equal(sharedSchemaListsAllRequiredKeys(input), true);
+  assertProductionStrictJsonSchemaValid(buildPostTurnSharedInitialJsonSchema(input));
 }
 
 describe("postTurnSharedInitial semantic-empty root cause", () => {
@@ -186,9 +179,8 @@ describe("postTurnSharedInitial semantic-empty root cause", () => {
     const input = dualInput({ includeSuggestions: true, includeRelationship: true });
     const system = buildPostTurnSharedInitialSystem(input);
     assertFinalPromptContract(system, input);
-    assert.match(system, /WIDGET OUTPUT KEY CONTRACT/);
-    assert.match(system, /statusWidget\.character_values must contain exactly these keys:/);
-    assert.match(system, /statusWidget\.user_values must contain exactly these keys:/);
+    assert.match(system, /provider JSON schema/);
+    assert.doesNotMatch(system, /WIDGET OUTPUT KEY CONTRACT/);
   });
 
   it("R5: character-only final prompt contract", () => {

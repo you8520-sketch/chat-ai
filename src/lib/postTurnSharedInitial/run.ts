@@ -6,6 +6,7 @@ import {
   buildPostTurnSharedInitialUserBlock,
 } from "./prompt";
 import { parsePostTurnSharedInitialResponse } from "./parse";
+import { buildPostTurnSharedInitialResponseFormat } from "./schema";
 import {
   POST_TURN_SHARED_INITIAL_REQUEST_KIND,
   type PostTurnSharedInitialInput,
@@ -42,7 +43,7 @@ export async function runPostTurnSharedInitial(
         temperature: opts.temperature,
         modelId: opts.modelId,
         ledgerContext,
-        responseFormat: "json_object",
+        responseFormat: buildPostTurnSharedInitialResponseFormat(input),
       }));
 
   const system = buildPostTurnSharedInitialSystem(input);

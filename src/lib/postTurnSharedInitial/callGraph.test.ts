@@ -12,9 +12,15 @@ import {
   buildPostTurnSharedInitialSystem,
   buildPostTurnSharedInitialUserBlock,
   buildSharedStatusWidgetEnvelope,
-  countAuthoritativeSharedOutputContracts,
   sharedSystemHasConflictingWidgetOnlyContract,
 } from "@/lib/postTurnSharedInitial/prompt";
+import {
+  assertProductionStrictJsonSchemaValid,
+  buildPostTurnSharedInitialJsonSchema,
+  buildPostTurnSharedInitialResponseFormat,
+  POST_TURN_SHARED_INITIAL_SCHEMA_NAME,
+  sharedSchemaListsAllRequiredKeys,
+} from "@/lib/postTurnSharedInitial/schema";
 import { statusWidgetValuesHasContent } from "@/lib/statusWidget/displayPolicy";
 import { resolveSuggestedRepliesExtractMaxAttempts } from "@/lib/suggestedReplies/job";
 import { OPENROUTER_GEMINI_25_FLASH_MODEL } from "@/lib/chatModels";
@@ -354,27 +360,25 @@ describe("T10 shared prompt output contract", () => {
     );
     const envelope = buildSharedStatusWidgetEnvelope(sharedInput);
 
-    assert.equal(countAuthoritativeSharedOutputContracts(sharedSystem), 1);
     assert.equal(sharedSystemHasConflictingWidgetOnlyContract(sharedSystem), false);
-    assert.match(sharedSystem, /"statusWidget"/);
-    assert.match(sharedSystem, /"suggestedReplies"/);
-    assert.equal(countAuthoritativeSharedOutputContracts(widgetOnlySystem), 1);
+    assert.doesNotMatch(sharedSystem, /Valid structural JSON example/);
     assert.equal(sharedSystemHasConflictingWidgetOnlyContract(widgetOnlySystem), true);
+    const wireFormat = buildPostTurnSharedInitialResponseFormat(sharedInput);
+    assert.equal(wireFormat.json_schema.name, POST_TURN_SHARED_INITIAL_SCHEMA_NAME);
+    assertProductionStrictJsonSchemaValid(wireFormat.json_schema.schema);
 
     assert.ok(envelope);
     assert.doesNotMatch(envelope!, /\{\s*\.\.\.\s*\}/);
+    assert.equal(sharedSchemaListsAllRequiredKeys(sharedInput), true);
+    const schemaText = JSON.stringify(buildPostTurnSharedInitialJsonSchema(sharedInput));
     for (const key of collectWidgetJsonKeys(both.characterWidget!)) {
-      assert.match(envelope!, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+      assert.match(schemaText, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
     }
     for (const key of collectWidgetJsonKeys(both.userWidget!)) {
-      assert.match(envelope!, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+      assert.match(schemaText, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
     }
-    for (const key of collectWidgetJsonKeys(both.characterWidget!)) {
-      assert.match(sharedSystem, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
-    }
-    for (const key of collectWidgetJsonKeys(both.userWidget!)) {
-      assert.match(sharedSystem, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
-    }
+    assert.doesNotMatch(sharedSystem, /WIDGET OUTPUT KEY CONTRACT/);
+    assert.match(sharedSystem, /provider JSON schema/);
   });
 });
 
