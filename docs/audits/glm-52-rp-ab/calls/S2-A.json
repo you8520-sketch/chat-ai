@@ -1,0 +1,55 @@
+{
+  "cell": "S2-A",
+  "seed": "S2",
+  "arm": "A",
+  "user": "같이 갈래? *두리번*",
+  "invalidTransport": false,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "latencyMs": 10842,
+  "ttftMs": 4761,
+  "resolvedModel": "glm-5.2",
+  "charsInclSpaces": 556,
+  "charsExclSpaces": 414,
+  "paragraphCount": 8,
+  "dialogueParagraphCount": 4,
+  "dialogueRatio": 0.5,
+  "inputTokens": 3584,
+  "outputTokens": 478,
+  "reasoningTokens": 0,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "standardInputTokens": 3584,
+  "usageCostUsd": 0.003648,
+  "catalogEstimatedUsd": 0.00364776,
+  "costPer1000VisibleChars": 0.00656115,
+  "sampling": {
+    "temperature": 0.7,
+    "max_tokens": null,
+    "top_p": null,
+    "stream": true
+  },
+  "reasoning": {
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "thinking": null,
+    "include_reasoning": null
+  },
+  "assembledChars": {
+    "system": 3897,
+    "history": 1162,
+    "lastUser": 626,
+    "total": 5689,
+    "estimatedInputTokens": 5121
+  },
+  "usageRaw": {
+    "prompt_tokens": 3584,
+    "completion_tokens": 478,
+    "total_tokens": 4062,
+    "cost": 0.003648,
+    "cost_details": {
+      "upstream_inference_cost": 0.003648
+    }
+  },
+  "error": null
+}
