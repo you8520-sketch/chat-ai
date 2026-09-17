@@ -32,6 +32,7 @@ import { getOrCreateChatMemory } from "./memory/memory-db";
 import { ensureProviderCostLedgerSchema, recordBackgroundProviderCost } from "./providerCostLedger";
 import { buildPostTurnSharedInitialSystem } from "./postTurnSharedInitial/prompt";
 import { buildPostTurnSharedInitialUserBlock } from "./postTurnSharedInitial/prompt";
+import { buildPostTurnSharedInitialJsonSchema } from "./postTurnSharedInitial/schema";
 import { parsePostTurnSharedInitialResponse } from "./postTurnSharedInitial/parse";
 import { runPostTurnRelationshipOnlyInitial } from "./postTurnSharedInitial/run";
 import {
@@ -207,8 +208,8 @@ describe("whole-turn post-turn Luna call budget", () => {
     assert.equal(calls.length, 1);
     assert.equal(result.meta.postTurnPhysicalAttempted, true);
     assert.equal(result.meta.sharedInitialRelationshipUsable, true);
-    assert.match(systemSeen, /"relationship"/);
-    assert.doesNotMatch(systemSeen, /"suggestedReplies"/);
+    assert.match(systemSeen, /RELATIONSHIP section/);
+    assert.doesNotMatch(systemSeen, /SUGGESTED REPLIES section/);
     assert.equal(resolveSuggestedRepliesExtractMaxAttempts(result.meta.postTurnPhysicalAttempted), 0);
   });
 
@@ -408,38 +409,34 @@ const baseInput = (
   ...over,
 });
 
-describe("shared prompt envelope — active consumers only", () => {
+function schemaRequiredKeys(input: PostTurnSharedInitialInput): string[] {
+  const schema = buildPostTurnSharedInitialJsonSchema(input);
+  return [...((schema.required as string[] | undefined) ?? [])].sort();
+}
+
+describe("shared wire schema — active consumers only", () => {
   it("includes only the requested sections", () => {
-    const statusOnly = buildPostTurnSharedInitialSystem(baseInput({}));
-    assert.match(statusOnly, /"statusWidget"/);
-    assert.doesNotMatch(statusOnly, /"suggestedReplies"/);
-    assert.doesNotMatch(statusOnly, /"relationship"/);
-
-    const statusSuggest = buildPostTurnSharedInitialSystem(
-      baseInput({ includeSuggestions: true })
+    assert.deepEqual(schemaRequiredKeys(baseInput({})), ["statusWidget"]);
+    assert.deepEqual(schemaRequiredKeys(baseInput({ includeSuggestions: true })), [
+      "statusWidget",
+      "suggestedReplies",
+    ]);
+    assert.deepEqual(schemaRequiredKeys(baseInput({ includeRelationship: true })), [
+      "relationship",
+      "statusWidget",
+    ]);
+    assert.deepEqual(
+      schemaRequiredKeys(baseInput({ includeSuggestions: true, includeRelationship: true })),
+      ["relationship", "statusWidget", "suggestedReplies"]
     );
-    assert.match(statusSuggest, /"suggestedReplies"/);
-    assert.doesNotMatch(statusSuggest, /"relationship"/);
-
-    const statusRelationship = buildPostTurnSharedInitialSystem(
-      baseInput({ includeRelationship: true })
+    assert.deepEqual(
+      schemaRequiredKeys(baseInput({ mode: "relationship_only", includeRelationship: true })),
+      ["relationship"]
     );
-    assert.match(statusRelationship, /"relationship"/);
-    assert.doesNotMatch(statusRelationship, /"suggestedReplies"/);
 
-    const all = buildPostTurnSharedInitialSystem(
-      baseInput({ includeSuggestions: true, includeRelationship: true })
-    );
-    assert.match(all, /"statusWidget"/);
-    assert.match(all, /"suggestedReplies"/);
-    assert.match(all, /"relationship"/);
-
-    const relationshipOnly = buildPostTurnSharedInitialSystem(
-      baseInput({ mode: "relationship_only", includeRelationship: true })
-    );
-    assert.doesNotMatch(relationshipOnly, /"statusWidget"/);
-    assert.doesNotMatch(relationshipOnly, /"suggestedReplies"/);
-    assert.match(relationshipOnly, /"relationship"/);
+    const statusOnlyPrompt = buildPostTurnSharedInitialSystem(baseInput({}));
+    assert.doesNotMatch(statusOnlyPrompt, /Valid structural JSON example/);
+    assert.match(statusOnlyPrompt, /provider JSON schema/);
   });
 });
 
@@ -575,9 +572,23 @@ describe("relationship-only canonical shared owner", () => {
     );
 
     assert.equal(calls.length, 1);
-    assert.doesNotMatch(systemSeen, /"statusWidget"/);
-    assert.match(systemSeen, /"relationship"/);
-    assert.match(systemSeen, /"suggestedReplies"/);
+    assert.doesNotMatch(systemSeen, /status widget values/);
+    assert.match(systemSeen, /RELATIONSHIP section/);
+    assert.match(systemSeen, /SUGGESTED REPLIES section/);
+    assert.deepEqual(
+      schemaRequiredKeys({
+        mode: "relationship_only",
+        charName: "라이크",
+        personaName: "렌",
+        userMessage: "*검을 내려놓는다.*",
+        assistantProse: "라이크는 검을 받아 들었다.",
+        primaryModelId: "gpt-5.6-luna",
+        includeSuggestions: true,
+        includeRelationship: true,
+        relationshipRegenContext: null,
+      }),
+      ["relationship", "suggestedReplies"]
+    );
     assert.equal(run.parsed?.relationship.valid, true);
     assert.equal(run.parsed?.suggestedRepliesOk, true);
   });
