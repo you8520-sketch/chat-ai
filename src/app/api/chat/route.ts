@@ -2944,7 +2944,7 @@ export async function POST(req: Request) {
           logStreamingPersistence(persistenceDiag);
           clearPartialTimer();
           stopPostprocessHeartbeat();
-          controller.close();
+          safe.close(controller);
           return;
         }
 
@@ -3312,7 +3312,7 @@ export async function POST(req: Request) {
               send({ type: "reset" });
             }
             send({ type: "error", error: DEGENERATION_USER_MESSAGE });
-            controller.close();
+            safe.close(controller);
             return;
           }
           console.error("[/api/chat] Main RP provider generation failed:", (e as Error).message);
@@ -3331,7 +3331,7 @@ export async function POST(req: Request) {
             type: "error",
             error: formatClientApiError(e, "OpenRouter request failed"),
           });
-          controller.close();
+          safe.close(controller);
           return;
         }
 
@@ -3541,7 +3541,7 @@ export async function POST(req: Request) {
             /* ignore */
           }
           sendTrafficOverloadGracefulStream(send);
-          controller.close();
+          safe.close(controller);
           return;
         }
 
@@ -3565,7 +3565,7 @@ export async function POST(req: Request) {
             send({ type: "reset" });
           }
           send({ type: "error", error: DEGENERATION_USER_MESSAGE });
-          controller.close();
+          safe.close(controller);
           return;
         }
 
@@ -4107,7 +4107,7 @@ export async function POST(req: Request) {
             userMessageId,
             requestId: clientRequestId,
           });
-          controller.close();
+          safe.close(controller);
           return;
         }
         const persistedGenerationStatus = "completed" as const;
@@ -5978,7 +5978,7 @@ export async function POST(req: Request) {
         });
         emitStreamTurnForensics(persistedGenerationStatus);
         emitPhaseLatencyAudit();
-        controller.close();
+        safe.close(controller);
 
         void (async () => {
           try {
@@ -6126,8 +6126,9 @@ export async function POST(req: Request) {
         stopPostprocessHeartbeat();
         console.error("[/api/chat] SSE 파이프라인 오류:", (e as Error).message);
         const partialOnError = streamVisibleTextRef || fullText;
+        const deliveryOnlyFailure = persistenceDiag.finalized;
         try {
-          if (!persistenceDiag.finalized) {
+          if (!deliveryOnlyFailure) {
             // Stream already persisted raw text — post-process failure should not lose it
             if (partialOnError.trim()) {
               db.prepare(
@@ -6151,14 +6152,18 @@ export async function POST(req: Request) {
         } else if (e instanceof DegenerationAbortError || e instanceof MetaLeakageAbortError) {
           send({ type: "reset" });
           send({ type: "error", error: DEGENERATION_USER_MESSAGE });
-        } else {
+        } else if (!deliveryOnlyFailure) {
           send({ type: "error", error: formatClientApiError(e, "Chat pipeline failed") });
         }
         emitStreamTurnForensics(
-          partialOnError.trim() ? "completed_with_postprocess_error" : "interrupted"
+          deliveryOnlyFailure
+            ? "completed"
+            : partialOnError.trim()
+              ? "completed_with_postprocess_error"
+              : "interrupted"
         );
         emitPhaseLatencyAudit();
-        controller.close();
+        safe.close(controller);
       }
       };
 

@@ -5,11 +5,13 @@ import {
   EOF_RECONCILE_RETRY_MS,
   EOF_RECONCILE_SUBSTANTIAL_PROSE_MIN_CHARS,
   classifyReconcileStatus,
+  clearStreamErrorOnCompletedReconcile,
   eofReconcileMaxSleepMs,
   generationStatusFromEofResult,
   needsEofReconcile,
   reconcileStreamEof,
   resolveEofReconcilePollBudget,
+  shouldRunLostTerminalReconcile,
   type EofReconcileSnapshot,
 } from "@/lib/chatStreamEofReconcile";
 import { applyStatusMessageEvidence, createEmptyPostProcessPhaseEvidence } from "@/lib/chatStreamPostProcessEvidence";
@@ -92,6 +94,87 @@ describe("reconcileStreamEof", () => {
     if (result.kind === "interrupted") {
       assert.equal(result.reason, "still_generating");
     }
+  });
+
+  it("A: receive exception + DB completed clears generic stream error", async () => {
+    assert.equal(
+      shouldRunLostTerminalReconcile({
+        trafficOverload: false,
+        sawDone: false,
+        sawError: false,
+      }),
+      true
+    );
+    const genericError = "스트림 수신 중 오류가 발생했습니다.";
+    const result = await reconcileStreamEof({
+      messageId: 707,
+      streamedContentChars: 5182,
+      retryMs: 0,
+      maxAttempts: 1,
+      sleep: async () => {},
+      fetchSnapshot: async () =>
+        snap({
+          generationStatus: "completed",
+          content: "final prose from DB",
+          messageId: 707,
+          chatId: 39,
+        }),
+    });
+    assert.equal(result.kind, "completed");
+    assert.equal(
+      clearStreamErrorOnCompletedReconcile(genericError, result),
+      "",
+      "completed reconcile must drop generic receive error"
+    );
+  });
+
+  it("A-guard: legacy EOF gate skipped reconcile when streamError was set", () => {
+    const streamError = "스트림 수신 중 오류가 발생했습니다.";
+    const legacyGate =
+      !"" &&
+      !streamError &&
+      needsEofReconcile({ sawDone: false, sawError: false });
+    assert.equal(legacyGate, false, "pre-fix gate blocked reconcile on receive exception");
+    assert.equal(
+      shouldRunLostTerminalReconcile({
+        trafficOverload: false,
+        sawDone: false,
+        sawError: false,
+      }),
+      true,
+      "lost-terminal gate ignores streamError"
+    );
+  });
+
+  it("C: receive exception + DB still generating stays interrupted", async () => {
+    const result = await reconcileStreamEof({
+      messageId: 781,
+      streamedContentChars: 4200,
+      retryMs: 0,
+      maxAttempts: 2,
+      sleep: async () => {},
+      fetchSnapshot: async () => snap({ generationStatus: "generating", content: "partial" }),
+    });
+    assert.equal(result.kind, "interrupted");
+    assert.equal(
+      clearStreamErrorOnCompletedReconcile("스트림 수신 중 오류가 발생했습니다.", result),
+      "스트림 수신 중 오류가 발생했습니다."
+    );
+  });
+
+  it("D: receive exception + DB failed keeps stream error", async () => {
+    const result = await reconcileStreamEof({
+      messageId: 781,
+      retryMs: 0,
+      maxAttempts: 1,
+      sleep: async () => {},
+      fetchSnapshot: async () => snap({ generationStatus: "failed", content: "x" }),
+    });
+    assert.equal(result.kind, "terminal");
+    assert.equal(
+      clearStreamErrorOnCompletedReconcile("스트림 수신 중 오류가 발생했습니다.", result),
+      "스트림 수신 중 오류가 발생했습니다."
+    );
   });
 
   it("failed_partial is terminal", async () => {

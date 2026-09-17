@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 
 import {
   bootstrapStreamingTurn,
+  createDisconnectSafeSend,
   createPartialSaveThrottler,
   finalizeAssistantMessage,
   findTurnByRequestId,
@@ -54,6 +55,56 @@ function createMessagesDb(): Database.Database {
   `);
   return db;
 }
+
+describe("createDisconnectSafeSend", () => {
+  it("F: disconnect during send prevents double-close exception", () => {
+    let enqueueThrows = false;
+    let closeCalls = 0;
+    const controller = {
+      enqueue() {
+        if (enqueueThrows) {
+          throw new TypeError("Invalid state: Controller is already closed");
+        }
+      },
+      close() {
+        closeCalls += 1;
+        throw new TypeError("Invalid state: Controller is already closed");
+      },
+    } as unknown as ReadableStreamDefaultController<Uint8Array>;
+
+    const safe = createDisconnectSafeSend(
+      (chunk) => controller.enqueue(chunk),
+      (obj) => new TextEncoder().encode(JSON.stringify(obj))
+    );
+
+    safe.send({ type: "done", finalContent: "ok" });
+    assert.equal(safe.isDisconnected(), false);
+
+    enqueueThrows = true;
+    safe.send({ type: "stream_heartbeat", phase: "finalizing" });
+    assert.equal(safe.isDisconnected(), true);
+
+    safe.close(controller);
+    assert.equal(closeCalls, 0, "safe close must not call controller.close after disconnect");
+  });
+
+  it("F: successful terminal close marks disconnect on controller.close throw", () => {
+    const controller = {
+      enqueue() {},
+      close() {
+        throw new TypeError("Invalid state: Controller is already closed");
+      },
+    } as unknown as ReadableStreamDefaultController<Uint8Array>;
+
+    const safe = createDisconnectSafeSend(
+      (chunk) => controller.enqueue(chunk),
+      (obj) => new TextEncoder().encode(JSON.stringify(obj))
+    );
+
+    assert.doesNotThrow(() => safe.close(controller));
+    assert.equal(safe.isDisconnected(), true);
+  });
+});
 
 describe("streamingPersistence", () => {
   it("saves user message and assistant placeholder before model call", () => {

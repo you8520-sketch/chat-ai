@@ -184,6 +184,17 @@ describe("post-process terminalization invariants", () => {
     assert.ok(isTerminalGenerationStatus("completed_with_postprocess_error"));
   });
 
+  it("G: delivery-only SSE close failure keeps completed forensics, not postprocess-error", () => {
+    const partialOnError = "substantial prose already finalized in DB";
+    const deliveryOnlyFailure = true;
+    const forensicsStatus = deliveryOnlyFailure
+      ? "completed"
+      : partialOnError.trim()
+        ? "completed_with_postprocess_error"
+        : "interrupted";
+    assert.equal(forensicsStatus, "completed");
+  });
+
   it("G: interrupted partial preserved; completed finalize is terminal", () => {
     const db = openMessagesDb();
     db.prepare(

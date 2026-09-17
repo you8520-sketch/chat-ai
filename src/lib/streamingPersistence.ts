@@ -530,12 +530,21 @@ export function finalizeAssistantMessage(
   return finalizeAssistantMessageCore(db, opts);
 }
 
-/** Safe send wrapper: catch enqueue failures so disconnect never aborts generation/DB work. */
+export type DisconnectSafeSend = {
+  send: (obj: object) => void;
+  isDisconnected: () => boolean;
+  close: (controller: ReadableStreamDefaultController<Uint8Array>) => void;
+};
+
+/** Safe send/close wrapper: disconnect never aborts generation/DB work. */
 export function createDisconnectSafeSend(
   enqueue: (chunk: Uint8Array) => void,
   encode: (obj: object) => Uint8Array
-): { send: (obj: object) => void; isDisconnected: () => boolean } {
+): DisconnectSafeSend {
   let disconnected = false;
+  const markDisconnected = () => {
+    disconnected = true;
+  };
   return {
     isDisconnected: () => disconnected,
     send: (obj: object) => {
@@ -543,7 +552,15 @@ export function createDisconnectSafeSend(
       try {
         enqueue(encode(obj));
       } catch {
-        disconnected = true;
+        markDisconnected();
+      }
+    },
+    close: (controller: ReadableStreamDefaultController<Uint8Array>) => {
+      if (disconnected) return;
+      try {
+        controller.close();
+      } catch {
+        markDisconnected();
       }
     },
   };
