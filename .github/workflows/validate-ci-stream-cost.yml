@@ -1,0 +1,48 @@
+name: Validate CI stream cost capture
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/validate-ci-stream-cost.yml"
+      - "src/lib/openRouterUsage.ts"
+      - "src/lib/openRouterAdult.ts"
+      - "src/lib/openRouterAdult.compatibleUsage.test.ts"
+      - "src/lib/openRouterAdult.ciStreamCost.test.ts"
+      - "src/lib/providerCostLedger.ts"
+      - "src/lib/adminBillingReceiptV3.ts"
+      - "src/app/api/chat/route.ts"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - run: git diff --check
+
+      - run: npm run lint
+
+      - run: npm run typecheck:app
+
+      - name: CheaperInference compatible usage (stream + non-stream)
+        run: node --conditions=react-server --import tsx --test src/lib/openRouterAdult.compatibleUsage.test.ts
+
+      - name: CheaperInference main RP stream exact cost capture
+        run: node --conditions=react-server --import tsx --test src/lib/openRouterAdult.ciStreamCost.test.ts
+
+      - name: Provider cost ledger single owner
+        run: node --conditions=react-server --import tsx --test src/lib/providerCostSingleOwner.test.ts

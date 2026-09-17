@@ -1419,6 +1419,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   let providerRequestId: string | undefined;
   if (!isMockApiMode() && res) {
     providerRequestId =
+      res.headers.get("x-cheaper-inference-request-id") ||
       res.headers.get("x-request-id") ||
       res.headers.get("x-openrouter-request-id") ||
       res.headers.get("cf-ray") ||

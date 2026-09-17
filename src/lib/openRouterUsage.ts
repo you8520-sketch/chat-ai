@@ -192,22 +192,67 @@ export function parseReasoningTokens(usage: unknown): number {
   return pickUsageField(u, ["reasoning_tokens"]);
 }
 
+function readCheaperInferenceEnvelopeBilledUsd(cheaperInference: unknown): number | undefined {
+  if (!cheaperInference || typeof cheaperInference !== "object") return undefined;
+  const obj = cheaperInference as Record<string, unknown>;
+  const billing =
+    obj.billing && typeof obj.billing === "object"
+      ? (obj.billing as Record<string, unknown>)
+      : null;
+  const candidates = [
+    billing?.billed_cost_usd,
+    billing?.billedCostUsd,
+    billing?.billed_cost,
+    billing?.cost_usd,
+    obj.billed_cost_usd,
+    obj.billedCostUsd,
+    obj.billed_cost,
+    obj.cost_usd,
+  ];
+  for (const candidate of candidates) {
+    const usd = readPositiveUsd(candidate);
+    if (usd != null) return usd;
+  }
+  return undefined;
+}
+
+function hasCheaperInferenceCostSignal(opts: {
+  cheaperInference?: unknown;
+  usage: unknown;
+  headers?: Headers | null;
+}): boolean {
+  if (opts.cheaperInference != null) return true;
+  if (opts.headers?.has("x-cheaper-inference-request-id")) return true;
+  if (!opts.usage || typeof opts.usage !== "object") return false;
+  const usage = opts.usage as Record<string, unknown>;
+  if (usage.cheaper_inference != null) return true;
+  const costDetails =
+    usage.cost_details && typeof usage.cost_details === "object"
+      ? (usage.cost_details as Record<string, unknown>)
+      : null;
+  return costDetails != null;
+}
+
 /** Envelope-aware parser — canonical helper for both stream/non-stream CheaperInference */
 export function parseCompatibleUsage(opts: {
   usage: unknown;
   cheaperInference?: unknown;
   headers?: Headers | null;
 }): OpenRouterUsageBreakdown {
-  const envelopeBilled =
-    opts.cheaperInference && typeof opts.cheaperInference === "object"
-      ? readPositiveUsd(
-          ((opts.cheaperInference as Record<string, unknown>).billing as Record<string, unknown> | undefined)?.billed_cost_usd ??
-            (opts.cheaperInference as Record<string, unknown>).billed_cost_usd
-        )
-      : undefined;
+  const envelopeBilled = readCheaperInferenceEnvelopeBilledUsd(opts.cheaperInference);
   const base = parseOpenRouterUsage(opts.usage, opts.headers);
   if (envelopeBilled != null) {
     return { ...base, cheaperInferenceBilledCostUsd: envelopeBilled };
+  }
+  // Cheaper Inference docs: usage.cost / cost_details.upstream_inference_cost are
+  // the exact settled customer charge when the namespaced envelope is absent from
+  // the final streaming chunk (common on DeepSeek main RP production turns).
+  if (
+    base.cheaperInferenceBilledCostUsd == null &&
+    base.upstreamCostUsd != null &&
+    hasCheaperInferenceCostSignal(opts)
+  ) {
+    return { ...base, cheaperInferenceBilledCostUsd: base.upstreamCostUsd };
   }
   return base;
 }
