@@ -45,6 +45,9 @@ import {
 
 export type OpenRouterChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
+/** Narrow structured-output contract — only json_object is supported at this owner. */
+export type OpenRouterCompletionResponseFormat = "json_object";
+
 export type OpenRouterCompletionUsage = {
   inputTokens: number;
   outputTokens: number;
@@ -195,6 +198,8 @@ export async function callOpenRouterCompletion(opts: {
   ledgerContext?: ProviderCostLedgerContext;
   /** Durable queue job identity (derived-cache row id) — threaded when available. */
   jobId?: string | null;
+  /** When set, adds response_format to the wire body (CheaperInference forwards it). */
+  responseFormat?: OpenRouterCompletionResponseFormat;
 }): Promise<{ text: string; usage: OpenRouterCompletionUsage }> {
   const rawModel = opts.model.trim();
   const useCheaperInference = isCheaperInferenceModel(rawModel);
@@ -253,6 +258,9 @@ export async function callOpenRouterCompletion(opts: {
     ...(configuredMaxTokens != null ? { max_tokens: configuredMaxTokens } : {}),
     ...(opts.disableReasoning
       ? { reasoning: { effort: "none" as const }, include_reasoning: false }
+      : {}),
+    ...(opts.responseFormat === "json_object"
+      ? { response_format: { type: "json_object" as const } }
       : {}),
   };
   const requestBody = useCheaperInference
