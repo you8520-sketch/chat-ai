@@ -1,5 +1,8 @@
 import { expect, test, type Page, type Route, type TestInfo } from "@playwright/test";
-import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
+import {
+  CHAT_STREAM_SPEED_PRESETS,
+  DEFAULT_CHAT_DISPLAY_PREFS,
+} from "../../src/lib/chatDisplayPrefs";
 import {
   seedCanonicalCompletedChatHistory,
 } from "./helpers/canonicalChatHistorySeed";
@@ -24,6 +27,10 @@ import {
 
 const CHAT_DISPLAY_PREFS_KEY = "playai-chat-display-prefs";
 const EXTRA_SCROLL_ROOM_PX = 480;
+const CANONICAL_FAST_STREAM_INTERVAL_MS =
+  CHAT_STREAM_SPEED_PRESETS.find((preset) => preset.label === "빠름")?.intervalMs ?? 16;
+const CANONICAL_NORMAL_STREAM_INTERVAL_MS =
+  CHAT_STREAM_SPEED_PRESETS.find((preset) => preset.label === "보통")?.intervalMs ?? 40;
 
 type MotionFrame = MotionProofFrame & {
   endTop: number | null;
@@ -635,7 +642,7 @@ async function attachMotionProof(
 /**
  * Chase-engagement gate for motion sampling.
  *
- * The canonical reveal pace (24ms x 1 char/tick) grows the document slowly, so
+ * The canonical reveal pace (fast preset ms x 1 char/tick) grows the document slowly, so
  * right after network-done the stream end can sit below the reading band for
  * seconds — during which the CORRECT follow behavior is stillness. Sampling
  * that dead zone and then failing on duty cycle would punish a healthy follow.
@@ -697,7 +704,7 @@ async function runTargetChaseFollowScenario(page: Page, opts: {
   const startGeometry = resolveScrollClampState(await collectScrollGeometry(page));
   const frames = await sampleMotionFrames(page, 40_000);
 
-  const streamIntervalMs = opts.streamIntervalMs ?? 24;
+  const streamIntervalMs = opts.streamIntervalMs ?? CANONICAL_FAST_STREAM_INTERVAL_MS;
   const expectedGrowth = estimateVerticalGrowthPxPerSec(streamIntervalMs, 1);
   const expectedCruise = expectedGrowth * 0.9;
   const expectedWrapMs = estimateLineWrapIntervalMs(streamIntervalMs, 1);
@@ -760,17 +767,21 @@ test.describe("General chat live reading follow — production browser", () => {
   test.beforeEach(async ({ page }) => {
     await installScrollAudit(page);
     await page.addInitScript(
-      ({ key, defaults }) => {
+      ({ key, defaults, fastIntervalMs }) => {
         localStorage.setItem(
           key,
           JSON.stringify({
             ...defaults,
-            streamIntervalMs: 24,
+            streamIntervalMs: fastIntervalMs,
             streamCharsPerTick: 1,
           })
         );
       },
-      { key: CHAT_DISPLAY_PREFS_KEY, defaults: DEFAULT_CHAT_DISPLAY_PREFS }
+      {
+        key: CHAT_DISPLAY_PREFS_KEY,
+        defaults: DEFAULT_CHAT_DISPLAY_PREFS,
+        fastIntervalMs: CANONICAL_FAST_STREAM_INTERVAL_MS,
+      }
     );
     await demoLogin(page);
     await page.setViewportSize({ width: 1280, height: 720 });
@@ -1427,8 +1438,8 @@ test.describe("General chat target-chase follow matrix — production browser", 
     const probe = await probeSubpixelWindowScroll(page);
     const supported = probe.fractionalSamples.length > 0 && probe.distinctPositions > 1;
     if (supported) return;
-    const fastExpectedGrowth = estimateVerticalGrowthPxPerSec(24, 1);
-    const normalExpectedGrowth = estimateVerticalGrowthPxPerSec(40, 1);
+    const fastExpectedGrowth = estimateVerticalGrowthPxPerSec(CANONICAL_FAST_STREAM_INTERVAL_MS, 1);
+    const normalExpectedGrowth = estimateVerticalGrowthPxPerSec(CANONICAL_NORMAL_STREAM_INTERVAL_MS, 1);
     const report = [
       "SUBPIXEL_WINDOW_SCROLL_SUPPORTED=false",
       `FAST_EXPECTED_VERTICAL_GROWTH=${fastExpectedGrowth.toFixed(2)}`,
@@ -1447,13 +1458,21 @@ test.describe("General chat target-chase follow matrix — production browser", 
   });
 
   test("G1: portrait ON plain prose continuous follow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { assetDisplayMode: "left", streamIntervalMs: 24, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, {
+      assetDisplayMode: "left",
+      streamIntervalMs: CANONICAL_FAST_STREAM_INTERVAL_MS,
+      streamCharsPerTick: 1,
+    });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800 });
     await attachMotionProof(testInfo, "G1", proof);
   });
 
   test("G2: portrait OFF plain prose continuous follow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { assetDisplayMode: "off", streamIntervalMs: 24, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, {
+      assetDisplayMode: "off",
+      streamIntervalMs: CANONICAL_FAST_STREAM_INTERVAL_MS,
+      streamCharsPerTick: 1,
+    });
     const proof = await runTargetChaseFollowScenario(page, {
       charCount: 2600,
       viewportWidth: 1280,
@@ -1463,38 +1482,59 @@ test.describe("General chat target-chase follow matrix — production browser", 
   });
 
   test("G3: bottom status widget continuous follow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, {
+      streamIntervalMs: CANONICAL_FAST_STREAM_INTERVAL_MS,
+      streamCharsPerTick: 1,
+    });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, layoutChrome: "widget" });
     await attachMotionProof(testInfo, "G3", proof);
   });
 
   test("G4: status meta continuous follow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, {
+      streamIntervalMs: CANONICAL_FAST_STREAM_INTERVAL_MS,
+      streamCharsPerTick: 1,
+    });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, layoutChrome: "meta" });
     await attachMotionProof(testInfo, "G4", proof);
   });
 
   test("G5: status widget + status meta continuous follow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, {
+      streamIntervalMs: CANONICAL_FAST_STREAM_INTERVAL_MS,
+      streamCharsPerTick: 1,
+    });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, layoutChrome: "both" });
     await attachMotionProof(testInfo, "G5", proof);
   });
 
   test("G6: long RP 2500+ chars continuous follow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, {
+      streamIntervalMs: CANONICAL_FAST_STREAM_INTERVAL_MS,
+      streamCharsPerTick: 1,
+    });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 2600 });
     await attachMotionProof(testInfo, "G6", proof);
   });
 
-  test("G7: fast stream speed (24ms) continuous follow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
+  test(`G7: fast stream speed (${CANONICAL_FAST_STREAM_INTERVAL_MS}ms) continuous follow`, async ({ page }, testInfo) => {
+    await installChatDisplayPrefs(page, {
+      streamIntervalMs: CANONICAL_FAST_STREAM_INTERVAL_MS,
+      streamCharsPerTick: 1,
+    });
     const proof = await runTargetChaseFollowScenario(page, { charCount: 1800 });
     await attachMotionProof(testInfo, "G7", proof);
   });
 
-  test("G8: normal stream speed (40ms) continuous follow", async ({ page }, testInfo) => {
-    await installChatDisplayPrefs(page, { streamIntervalMs: 40, streamCharsPerTick: 1 });
-    const proof = await runTargetChaseFollowScenario(page, { charCount: 1800, streamIntervalMs: 40 });
+  test(`G8: normal stream speed (${CANONICAL_NORMAL_STREAM_INTERVAL_MS}ms) continuous follow`, async ({ page }, testInfo) => {
+    await installChatDisplayPrefs(page, {
+      streamIntervalMs: CANONICAL_NORMAL_STREAM_INTERVAL_MS,
+      streamCharsPerTick: 1,
+    });
+    const proof = await runTargetChaseFollowScenario(page, {
+      charCount: 1800,
+      streamIntervalMs: CANONICAL_NORMAL_STREAM_INTERVAL_MS,
+    });
     await attachMotionProof(testInfo, "G8", proof);
   });
 
@@ -1507,7 +1547,10 @@ test.describe("General chat target-chase follow matrix — production browser", 
     await page.addInitScript(() => {
       window.scrollBy = (() => undefined) as typeof window.scrollBy;
     });
-    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, {
+      streamIntervalMs: CANONICAL_FAST_STREAM_INTERVAL_MS,
+      streamCharsPerTick: 1,
+    });
     const proof = await runTargetChaseFollowScenario(page, {
       charCount: 1800,
       expectMotionFailure: true,
@@ -1525,7 +1568,10 @@ test.describe("General chat target-chase follow matrix — production browser", 
       win.__chatTestDropFractionalIntent = true;
       win.__chatTestDropChaseIntentPx = Number.MAX_SAFE_INTEGER;
     });
-    await installChatDisplayPrefs(page, { streamIntervalMs: 24, streamCharsPerTick: 1 });
+    await installChatDisplayPrefs(page, {
+      streamIntervalMs: CANONICAL_FAST_STREAM_INTERVAL_MS,
+      streamCharsPerTick: 1,
+    });
     const proof = await runTargetChaseFollowScenario(page, {
       charCount: 1800,
       expectMotionFailure: true,

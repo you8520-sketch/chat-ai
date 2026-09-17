@@ -77,7 +77,7 @@ describe("CASE SPEED-A — prebuffered reveal cadence", () => {
 });
 
 describe("CASE SPEED-B — provider-like chunk supply", () => {
-  it("converges to provider rate when supply is slower than both presets", async () => {
+  it("can converge when supply is slower than both presets (fixture only — not production proof)", async () => {
     const providerCharEveryMs = 45;
     const totalProviderChars = 240;
     let providerDelivered = 0;

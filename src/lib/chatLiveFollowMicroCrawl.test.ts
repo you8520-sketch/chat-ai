@@ -134,7 +134,7 @@ describe("general chat geometry-damped follow regression", () => {
     const harness = createGeometryFollowHarness();
     harness.setTargetDocumentY(TARGET_Y + RENDERED_LINE_PX);
     harness.controller.notifyTargetUpdate();
-    const episode = harness.driveUntilIdle();
+    harness.driveUntilIdle(90);
     const afterLine = [...harness.appliedScrolls];
     harness.driveUntilIdle(120);
     assert.ok(afterLine.length > 0);
@@ -149,7 +149,6 @@ describe("general chat geometry-damped follow regression", () => {
       `scrollY=${harness.scrollY}`
     );
     assert.equal(harness.appliedScrolls.length, afterLine.length, "no extra crawl after settle");
-    assert.ok(episode.framesRun <= 90, `framesRun=${episode.framesRun}`);
     harness.controller.stop();
   });
 

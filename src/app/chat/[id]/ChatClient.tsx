@@ -191,6 +191,7 @@ import {
   shouldReattachChatLiveFollowOnScrollDelta,
   shouldStartChatStreamFollow,
 } from "@/lib/chatLiveFollow";
+import { resolveChatReadingProgressDocumentY } from "@/lib/chatLiveFollowReadingProgress";
 import {
   clearChatBillingPresentations,
   completeChatBillingPresentation,
@@ -2357,20 +2358,27 @@ export default function ChatClient({
         ) {
           return;
         }
-        const motionMode = resolveChatLiveFollowMotionProfile({
-          streamIntervalMs: displayPrefsRef.current.streamIntervalMs,
-          streamCharsPerTick: displayPrefsRef.current.streamCharsPerTick,
-        }).mode;
+        if (integerTransport.apply(delta) === 0) return;
         liveFollowScrollInFlightRef.current = true;
-        if (motionMode === "geometry-damped") {
-          window.scrollTo({ top: window.scrollY + delta, behavior: "instant" });
-        } else if (integerTransport.apply(delta) === 0) {
-          liveFollowScrollInFlightRef.current = false;
-          return;
-        }
         requestAnimationFrame(() => {
           liveFollowScrollInFlightRef.current = false;
         });
+      },
+      resolveReadingDocumentY: () => {
+        const article = streamingMessageArticleRef.current;
+        const quoteRoot =
+          article?.querySelector<HTMLElement>("[data-quote-assistant]") ?? null;
+        const fallbackSentinel = resolveActiveAssistantStreamEnd({
+          endRef: activeAssistantStreamEndRef,
+          activeRequestId: activeAssistantStreamRequestIdRef.current,
+          root: quoteSelectContainerRef.current,
+        });
+        const sample = resolveChatReadingProgressDocumentY({
+          scrollY: window.scrollY,
+          quoteRoot,
+          fallbackSentinel,
+        });
+        return sample?.documentY ?? null;
       },
       resolveTargetElement: () =>
         resolveActiveAssistantStreamEnd({

@@ -23,12 +23,15 @@ function createFrameClock() {
     cancelAnimationFrame: () => {
       pending.length = 0;
     },
-    drive(count: number) {
+    driveFrame(frameDurationMs: number) {
+      const fn = pending.shift();
+      if (!fn) return;
+      nowMs += frameDurationMs;
+      fn(nowMs);
+    },
+    drive(count: number, frameDurationMs = 1000 / 60) {
       for (let i = 0; i < count; i += 1) {
-        const fn = pending.shift();
-        if (!fn) break;
-        nowMs += 1000 / 60;
-        fn(nowMs);
+        this.driveFrame(frameDurationMs);
       }
     },
     get nowMs() {
@@ -144,12 +147,13 @@ describe("CAMERA geometry-damped — decoupled smooth follow", () => {
     controller.stop();
   });
 
-  it("C7: 60Hz vs 120Hz elapsed-time trajectory within tolerance", () => {
-    function runSampled(fps: number, durationMs: number) {
+  it("C7: 60Hz vs 120Hz share the same elapsed-time trajectory", () => {
+    const durationMs = 900;
+
+    function runSampled(frameDurationMs: number) {
       let scrollY = 0;
       let targetDocumentY = TARGET_Y + 120;
       const clock = createFrameClock();
-      const frameMs = 1000 / fps;
       const controller = createLiveReadingFollowController({
         getViewportHeight: () => VIEWPORT_HEIGHT,
         getScrollPosition: () => scrollY,
@@ -167,16 +171,17 @@ describe("CAMERA geometry-damped — decoupled smooth follow", () => {
         cancelAnimationFrame: clock.cancelAnimationFrame,
       });
       controller.notifyTargetUpdate();
-      const frames = Math.floor(durationMs / frameMs);
-      for (let i = 0; i < frames; i += 1) {
-        clock.drive(1);
+      let elapsedMs = 0;
+      while (elapsedMs < durationMs) {
+        clock.driveFrame(frameDurationMs);
+        elapsedMs += frameDurationMs;
       }
       controller.stop();
       return scrollY;
     }
 
-    const at60 = runSampled(60, 900);
-    const at120 = runSampled(120, 900);
+    const at60 = runSampled(1000 / 60);
+    const at120 = runSampled(1000 / 120);
     assert.ok(Math.abs(at60 - at120) <= 8, `60=${at60} 120=${at120}`);
   });
 });

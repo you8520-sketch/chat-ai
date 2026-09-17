@@ -210,6 +210,40 @@ describe("liveReadingFollow continuous motion", () => {
     assert.ok(Math.abs(step) <= 260 / 60 + 1);
   });
 
+  it("CAM-1: render-progress target keeps motion during contentGrowing between line wraps", () => {
+    let scrollY = 0;
+    let linePhase = 0;
+    const blockTop = 500;
+    const samples: number[] = [];
+    const raf = createQueuedRaf();
+    const controller = createLiveReadingFollowController({
+      getViewportHeight: () => 800,
+      getScrollPosition: () => scrollY,
+      scrollBy: (delta) => {
+        scrollY += delta;
+        samples.push(scrollY);
+      },
+      resolveTargetElement: () =>
+        ({
+          getBoundingClientRect: () => ({ top: blockTop - scrollY }),
+        }) as Element,
+      resolveReadingDocumentY: () => scrollY + blockTop + linePhase * 26,
+      shouldFollow: () => true,
+      isContentGrowing: () => true,
+      motionProfile: { mode: "geometry-damped", downwardOnly: true },
+      requestAnimationFrame: raf.requestAnimationFrame,
+      cancelAnimationFrame: raf.cancelAnimationFrame,
+    });
+
+    controller.notifyTargetUpdate();
+    for (let frame = 0; frame < 30; frame += 1) {
+      linePhase = Math.min(1, frame / 30);
+      raf.flush(1);
+    }
+    assert.ok(samples.length > 8, `expected continuous scroll samples, got ${samples.length}`);
+    controller.stop();
+  });
+
   it("geometry-damped keeps persistent motion while target moves", () => {
     let scrollY = 0;
     let targetDocumentY = 800 * LIVE_READING_TARGET_RATIO;

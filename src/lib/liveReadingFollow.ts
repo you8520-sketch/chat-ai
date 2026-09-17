@@ -388,6 +388,8 @@ export function createLiveReadingFollowController(opts: {
   getMotionProfile?: () => LiveReadingMotionProfile | undefined;
   /** When true, continuous-flow keeps cruising while content is still revealing. */
   isContentGrowing?: () => boolean;
+  /** Optional render-progress document Y (general chat Range-based target). */
+  resolveReadingDocumentY?: () => number | null;
   prefersReducedMotion?: () => boolean;
   requestAnimationFrame?: (fn: FrameRequestCallback) => number;
   cancelAnimationFrame?: (id: number) => void;
@@ -451,7 +453,10 @@ export function createLiveReadingFollowController(opts: {
     lastFrameTimeMs = timestamp;
 
     const scrollY = readScrollY();
-    const rawDocumentY = resolveTargetDocumentY({ element: el, scrollY });
+    const progressDocumentY = geometryDamped ? opts.resolveReadingDocumentY?.() : null;
+    const rawDocumentY =
+      progressDocumentY ??
+      resolveTargetDocumentY({ element: el, scrollY });
 
     if (geometryDamped) {
       const viewportHeight = opts.getViewportHeight();
@@ -486,7 +491,7 @@ export function createLiveReadingFollowController(opts: {
         epsilonPx,
       });
       const targetMovedDown =
-        previousDocumentY != null && rawDocumentY > previousDocumentY + 0.01;
+        previousDocumentY != null && rawDocumentY > previousDocumentY + 0.005;
       const atBand = downwardOnly
         ? chaseDelta <= epsilonPx
         : Math.abs(chaseDelta) <= epsilonPx;
@@ -506,9 +511,9 @@ export function createLiveReadingFollowController(opts: {
         }
       }
 
-      // Reveal may continue while the sentinel is between line wraps — do not cruise
-      // or keep RAF alive until measured geometry actually moves again.
-      const needsFollow = targetMovedDown || !atBand;
+      // Keep the motor alive during active reveal even between vertical line wraps;
+      // render-progress target advances horizontally within the current line.
+      const needsFollow = contentGrowing || targetMovedDown || !atBand;
 
       if (needsFollow && opts.shouldFollow()) {
         scheduleNextFrame();
