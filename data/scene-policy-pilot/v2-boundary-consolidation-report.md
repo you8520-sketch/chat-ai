@@ -2,7 +2,7 @@
 
 Classification: **ROOT_CAUSE_FIXED** (location hook + boundary materialization)
 
-Benchmark status: **R5_VARIANCE_PILOT_PENDING** → updated after variance run
+Benchmark status: **R5_VARIANCE_PILOT_COMPLETE** — output variance partially remains (see below)
 
 ## BEFORE
 
