@@ -13,11 +13,11 @@ import {
 } from "@/lib/chatImageSafeVisualProjection";
 import {
   boundTier2PanelDialogue,
-  canonicalTier2SafePose,
-  classifyTier2PhysicalBeatCategory,
+  deriveTier2PanelVisualBeat,
   projectSceneBlockForTier2Comic,
   projectSceneTextForTier2Comic,
   TIER2_PANEL_CONTINUITY_POSE,
+  TIER2_PANEL_GLOBAL_CLOTHING_CONTRACT,
   type Tier2PhysicalBeatCategory,
 } from "@/lib/chatComicTier2SafeProjection";
 
@@ -26,6 +26,8 @@ export type ComicSafeStructurePanel = {
   situation: string;
   background: string;
   poseHint: string;
+  /** Structured-source beat bucket — set once at projection, consumed by bounding only. */
+  physicalBeatCategory: Tier2PhysicalBeatCategory;
   /** Tier-2 SAFE_PROJECTED_PROVIDER_TEXT: provider-safe readable dialogue, risky rows omitted. */
   dialogue?: string[];
 };
@@ -49,74 +51,35 @@ function projectSafeField(raw: string): string {
   return projected.omitFromImage ? "" : projected.text.trim();
 }
 
-function derivePoseHint(opts: {
-  personaAction?: string;
-  characterAction?: string;
-  situation: string;
-  background: string;
-}): string {
-  const canonical = canonicalTier2SafePose({
-    personaAction: opts.personaAction,
-    characterAction: opts.characterAction,
-    situation: opts.situation,
-    background: opts.background,
-  });
-  if (canonical) return canonical;
-
-  const persona = opts.personaAction ? projectSafeField(opts.personaAction) : "";
-  const character = opts.characterAction ? projectSafeField(opts.characterAction) : "";
-  const combined = [persona, character].filter(Boolean).join("; ");
-  if (combined) return combined;
-
-  const situation = opts.situation.trim();
-  if (/누(?:워|운|어)/u.test(situation)) {
-    return "same characters resting on the bed with modest covered clothing and calm expressions";
-  }
-  if (/앉(?:아|은|어)/u.test(situation)) {
-    return "same characters seated in the same location with modest posture";
-  }
-  if (/서(?: 있|서)/u.test(situation)) {
-    return "same characters standing in the same location with readable expressions";
-  }
-  return "same cast in the same location with modest posture and readable expressions";
-}
-
 function normalizeTier2SituationKey(situation: string): string {
   return situation.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-/** Collapse duplicate physical/contact beats and bound dialogue for strict fallback. */
-export function boundComicSafeStructureProjection(
+function isCollapsibleBeatCategory(category: Tier2PhysicalBeatCategory): boolean {
+  return (
+    category !== "general" &&
+    category !== "seated" &&
+    category !== "standing" &&
+    category !== "blush_emotion"
+  );
+}
+
+function boundComicSafeStructureProjection(
   structure: ComicSafeStructureProjection
 ): ComicSafeStructureProjection {
   const seenBeatCategories = new Set<Tier2PhysicalBeatCategory>();
   const seenSituations = new Set<string>();
-  const seenPoseHints = new Set<string>();
 
   const panels = structure.panels.map((panel) => {
-    const combined = [panel.situation, panel.poseHint].filter(Boolean).join(" ");
-    const category = classifyTier2PhysicalBeatCategory(combined);
     let poseHint = panel.poseHint.trim();
     let situation = panel.situation.trim();
+    const category = panel.physicalBeatCategory;
 
-    const collapsible =
-      category !== "general" &&
-      category !== "seated" &&
-      category !== "standing" &&
-      category !== "blush_emotion";
-
-    if (collapsible && seenBeatCategories.has(category)) {
+    if (isCollapsibleBeatCategory(category) && seenBeatCategories.has(category)) {
       poseHint = TIER2_PANEL_CONTINUITY_POSE;
       situation = "";
-    } else if (collapsible) {
+    } else if (isCollapsibleBeatCategory(category)) {
       seenBeatCategories.add(category);
-    }
-
-    const poseKey = poseHint.toLowerCase();
-    if (poseKey && seenPoseHints.has(poseKey) && poseHint !== TIER2_PANEL_CONTINUITY_POSE) {
-      poseHint = TIER2_PANEL_CONTINUITY_POSE;
-    } else if (poseKey) {
-      seenPoseHints.add(poseKey);
     }
 
     const situationKey = normalizeTier2SituationKey(situation);
@@ -137,10 +100,9 @@ export function boundComicSafeStructureProjection(
   return { ...structure, panels };
 }
 
-/** Raw Tier-2 structural projection before semantic distillation (regression baseline). */
-export function projectComicSafeStructureForTier2Raw(
+function buildComicSafeStructureForTier2(
   plan: ScenePlan,
-  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+  visibility: ScenePresentationVisibility
 ): ComicSafeStructureProjection {
   const { sharedBackground } = projectComicSharedContext(plan, visibility);
   const atmosphere = plan.atmosphere ? projectSafeField(plan.atmosphere) : undefined;
@@ -149,16 +111,19 @@ export function projectComicSafeStructureForTier2Raw(
     const beat = projectComicPanelBeat(plan, panel, visibility);
     const situation = projectSafeField(beat.situation);
     const background = projectSafeField(beat.background || sharedBackground);
+    const structuredSource = {
+      personaAction: beat.personaAction,
+      characterAction: beat.characterAction,
+      situation: beat.situation,
+      background: beat.background || sharedBackground,
+    };
+    const visualBeat = deriveTier2PanelVisualBeat(structuredSource);
     return {
       index: panel.index,
       situation,
       background,
-      poseHint: derivePoseHint({
-        personaAction: beat.personaAction,
-        characterAction: beat.characterAction,
-        situation,
-        background,
-      }),
+      poseHint: visualBeat.poseHint,
+      physicalBeatCategory: visualBeat.physicalBeatCategory,
       dialogue: beat.dialogue
         .map((line) => projectTier2Dialogue(line.text))
         .filter((text): text is string => text != null),
@@ -177,43 +142,7 @@ export function projectComicSafeStructureForTier2(
   plan: ScenePlan,
   visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
 ): ComicSafeStructureProjection {
-  return boundComicSafeStructureProjection(
-    projectComicSafeStructureForTier2Raw(plan, visibility)
-  );
-}
-
-export function countTier2StructureDialogue(structure: ComicSafeStructureProjection): number {
-  return structure.panels.reduce((total, panel) => total + (panel.dialogue?.length ?? 0), 0);
-}
-
-export function countTier2StructurePhysicalBeats(
-  structure: ComicSafeStructureProjection
-): number {
-  const categories = new Set<Tier2PhysicalBeatCategory>();
-  for (const panel of structure.panels) {
-    const combined = [panel.situation, panel.poseHint].filter(Boolean).join(" ");
-    const category = classifyTier2PhysicalBeatCategory(combined);
-    if (category !== "general") categories.add(category);
-  }
-  return categories.size;
-}
-
-export function countTier2NonContinuityPanels(structure: ComicSafeStructureProjection): number {
-  return structure.panels.filter((panel) => panel.poseHint !== TIER2_PANEL_CONTINUITY_POSE).length;
-}
-
-export function measureTier2PanelBeatChars(structure: ComicSafeStructureProjection): number {
-  return structure.panels.reduce(
-    (total, panel) => total + panel.situation.length + panel.poseHint.length,
-    0
-  );
-}
-
-export function measureTier2StructurePromptChars(
-  structure: ComicSafeStructureProjection,
-  mode: "overlay_first" | "full_provider_rendered" = "full_provider_rendered"
-): number {
-  return renderComicSafeStructureForTier2Prompt(structure, mode).join("\n").length;
+  return boundComicSafeStructureProjection(buildComicSafeStructureForTier2(plan, visibility));
 }
 
 export function renderComicSafeStructureForTier2Prompt(
@@ -237,7 +166,7 @@ export function renderComicSafeStructureForTier2Prompt(
         panel.background ? `location ${panel.background}` : "",
         panel.situation ? `beat ${panel.situation}` : "",
         panel.poseHint,
-        "modest covered clothing",
+        TIER2_PANEL_GLOBAL_CLOTHING_CONTRACT,
         dialogue,
       ].filter(Boolean);
       lines.push(parts.join(" — "));
@@ -247,7 +176,7 @@ export function renderComicSafeStructureForTier2Prompt(
         panel.background ? `location ${panel.background}` : "",
         panel.situation ? `beat ${panel.situation}` : "",
         panel.poseHint,
-        "modest covered clothing",
+        TIER2_PANEL_GLOBAL_CLOTHING_CONTRACT,
         "leave a clean upper area for later text overlay",
         "no readable letters in the image",
       ].filter(Boolean);

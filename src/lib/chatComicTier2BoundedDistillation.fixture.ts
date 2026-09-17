@@ -366,6 +366,106 @@ export function e1ExplicitOriginSafePlan(): ScenePlan {
   };
 }
 
+/** Same close-contact category with alternate structured wording (no shared regex vocabulary). */
+export function closeContactWordingVariantPlan(): ScenePlan {
+  return {
+    sceneBackground: "침실",
+    atmosphere: "은은한 조명",
+    events: [],
+    castMentions: [],
+    heroEventIds: [],
+    heroScene: "침실",
+    panels: [
+      {
+        index: 1,
+        sourceEventIds: [],
+        situation: "침실",
+        personaAction: "상대와 밀착하며 이마를 맞댄다",
+        dialogue: [],
+      },
+      {
+        index: 2,
+        sourceEventIds: [],
+        situation: "침실",
+        characterAction: "어깨를 감싸 안는다",
+        dialogue: [],
+      },
+      {
+        index: 3,
+        sourceEventIds: [],
+        situation: "침실",
+        personaAction: "손을 맞잡는다",
+        dialogue: [],
+      },
+      {
+        index: 4,
+        sourceEventIds: [],
+        situation: "침실",
+        dialogue: [],
+      },
+    ],
+    recommendedPanelCount: 4,
+  };
+}
+
+/** Shy/tense atmosphere — continuity must not inject contradictory calm mood. */
+export function shyTenseAtmospherePlan(): ScenePlan {
+  return {
+    sceneBackground: "침실",
+    atmosphere: "수줍고 긴장된 분위기",
+    events: [],
+    castMentions: [],
+    heroEventIds: [],
+    heroScene: "침실 침대",
+    panels: [
+      {
+        index: 1,
+        sourceEventIds: [],
+        situation: "침실 침대",
+        personaAction: "수줍게 시선을 피한다",
+        dialogue: [],
+      },
+      {
+        index: 2,
+        sourceEventIds: [],
+        situation: "침실 침대",
+        characterAction: "밀착하며 손을 잡는다",
+        dialogue: [],
+      },
+    ],
+    recommendedPanelCount: 2,
+  };
+}
+
+/** Dialogue filler vs meaningful line — representative selection. */
+export function dialogueRepresentativePlan(): ScenePlan {
+  return {
+    sceneBackground: "카페",
+    events: [],
+    castMentions: [],
+    heroEventIds: [],
+    heroScene: "카페",
+    panels: [
+      {
+        index: 1,
+        sourceEventIds: [],
+        situation: "창가",
+        dialogue: [
+          { speaker: "persona", text: "…", provenance: "source" },
+          { speaker: "character", text: "여기 있어.", provenance: "source" },
+        ],
+      },
+      {
+        index: 2,
+        sourceEventIds: [],
+        situation: "카페",
+        dialogue: [],
+      },
+    ],
+    recommendedPanelCount: 2,
+  };
+}
+
 /** P3 — brief affectionate kiss. */
 export function p3BriefKissPlan(): ScenePlan {
   return {

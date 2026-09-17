@@ -172,33 +172,108 @@ export type Tier2PhysicalBeatCategory =
   | "blush_emotion"
   | "general";
 
-/** Continuity pose when a duplicate physical beat category would re-expand the arc. */
+/** Mood-neutral continuity pose — does not inject new emotion; atmosphere stays in shared owner. */
 export const TIER2_PANEL_CONTINUITY_POSE =
-  "continued scene — calm expressions, modest posture";
+  "same cast in the same location — maintain safe visual continuity";
 
-/** Classify projected Tier-2 panel text into one primary visual beat bucket. */
-export function classifyTier2PhysicalBeatCategory(text: string): Tier2PhysicalBeatCategory {
-  const hay = String(text ?? "").trim();
-  if (!hay) return "general";
-  if (/(?:키스|kiss)/iu.test(hay)) return "kiss";
-  if (/(?:껴안|포옹|안아|hug|embrace)/iu.test(hay)) return "embrace";
+/** Global per-panel clothing safety contract in Tier-2 renderer (not a scene fact). */
+export const TIER2_PANEL_GLOBAL_CLOTHING_CONTRACT = "modest covered clothing";
+
+/**
+ * Structured-source beat category — decided once from ScenePlan panel fields,
+ * never re-inferred from rendered pose/situation strings.
+ */
+export function deriveTier2PhysicalBeatCategoryFromStructuredSource(opts: {
+  personaAction?: string;
+  characterAction?: string;
+  situation?: string;
+  background?: string;
+}): Tier2PhysicalBeatCategory {
+  const haystack = [
+    opts.personaAction,
+    opts.characterAction,
+    opts.situation,
+    opts.background,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  if (!haystack.trim()) return "general";
+  if (/(?:키스|kiss)/iu.test(haystack)) return "kiss";
+  if (/(?:껴안|포옹|안아|hug|embrace)/iu.test(haystack)) return "embrace";
   if (
-    /(?:가까(?:이|운)|밀착|skin(?:\s|-)?to|face(?:s)?\s+close|cheek(?:s)?\s+touch|볼(?:을)?\s*(?:비|맞)|이마(?:를)?\s*(?:맞|대)|whisper|속삭|손(?:을)?\s*(?:잡|맞)|어깨(?:를)?\s*(?:감|안)|허리(?:를)?\s*(?:감|안)|close(?:ly)?\s+(?:together|proximity)|affectionate\s+proximity)/iu.test(
-      hay
+    /(?:가까|밀착|볼(?:에|을)|이마(?:를)?\s*(?:맞|대)|손(?:을)?\s*(?:잡|맞)|어깨(?:를)?\s*(?:감|안)|속삭|마주보|whisper|close(?:ly)?\s+(?:together|proximity)|affectionate\s+proximity)/iu.test(
+      haystack
     )
   ) {
     return "close_proximity";
   }
-  if (containsSafeLyingOrRestContext(hay)) return "resting";
-  if (/(?:앉(?:아|은|어)|seated|sitting)/iu.test(hay)) return "seated";
-  if (/(?:서(?:\s)?(?:있|서)|standing)/iu.test(hay)) return "standing";
-  if (/(?:홍조|수줍|부끄|blush|flushed|shy)/iu.test(hay)) return "blush_emotion";
+  if (containsSafeLyingOrRestContext(haystack)) return "resting";
+  if (/(?:앉(?:아|은|어)|seated|sitting)/iu.test(haystack)) return "seated";
+  if (/(?:서(?:\s)?(?:있|서)|standing)/iu.test(haystack)) return "standing";
+  if (/(?:홍조|수줍|부끄|blush|flushed|shy)/iu.test(haystack)) return "blush_emotion";
   return "general";
 }
 
-/** Canonical Tier-2 dialogue cap — one representative line per panel. */
+function isTier2DialogueFiller(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+  if (/^(?:…|\.{2,3}|~+|ㅋ+|ㅎ+)$/u.test(trimmed)) return true;
+  if (/^(?:응\.?|아\.?|음\.?|네\.?|응\.\.\.|아\.\.\.)$/u.test(trimmed)) return true;
+  return trimmed.length <= 1;
+}
+
+/** Canonical Tier-2 dialogue cap — one representative line per panel, chronology preserved. */
 export function boundTier2PanelDialogue(dialogue: readonly string[] | undefined): string[] {
   if (!dialogue?.length) return [];
-  const first = dialogue.find((line) => String(line ?? "").trim());
-  return first ? [first.trim()] : [];
+  const meaningful = dialogue
+    .map((line) => String(line ?? "").trim())
+    .filter((line) => line && !isTier2DialogueFiller(line));
+  const selected = meaningful[0] ?? dialogue.map((line) => String(line ?? "").trim()).find(Boolean);
+  return selected ? [selected] : [];
+}
+
+export function deriveTier2PanelVisualBeat(opts: {
+  personaAction?: string;
+  characterAction?: string;
+  situation?: string;
+  background?: string;
+}): { poseHint: string; physicalBeatCategory: Tier2PhysicalBeatCategory } {
+  const physicalBeatCategory = deriveTier2PhysicalBeatCategoryFromStructuredSource(opts);
+  const canonical = canonicalTier2SafePose(opts);
+  if (canonical) {
+    return { poseHint: canonical, physicalBeatCategory };
+  }
+
+  const persona = opts.personaAction ? projectSceneBlockForTier2Comic(opts.personaAction).text.trim() : "";
+  const character = opts.characterAction
+    ? projectSceneBlockForTier2Comic(opts.characterAction).text.trim()
+    : "";
+  const combined = [persona, character].filter(Boolean).join("; ");
+  if (combined) {
+    return { poseHint: combined, physicalBeatCategory };
+  }
+
+  const situation = String(opts.situation ?? "").trim();
+  if (/누(?:워|운|어)/u.test(situation)) {
+    return {
+      poseHint: "same characters resting on the bed with modest covered clothing and calm expressions",
+      physicalBeatCategory,
+    };
+  }
+  if (/앉(?:아|은|어)/u.test(situation)) {
+    return {
+      poseHint: "same characters seated in the same location with modest posture",
+      physicalBeatCategory,
+    };
+  }
+  if (/서(?: 있|서)/u.test(situation)) {
+    return {
+      poseHint: "same characters standing in the same location with readable expressions",
+      physicalBeatCategory,
+    };
+  }
+  return {
+    poseHint: "same cast in the same location with modest posture and readable expressions",
+    physicalBeatCategory,
+  };
 }
