@@ -750,7 +750,11 @@ async function runTargetChaseFollowScenario(page: Page, opts: {
       `averageScrollVelocity=${proof.cadence.AVERAGE_SCROLL_VELOCITY.toFixed(2)} ` +
       `medianStep=${proof.cadence.MEDIAN_POSITIVE_STEP_PX.toFixed(2)} ` +
       `p95Gap=${proof.cadence.P95_INTER_STEP_GAP_MS.toFixed(2)} ` +
-      `maxGap=${proof.cadence.MAX_INTER_STEP_GAP_MS.toFixed(2)}`
+      `maxGap=${proof.cadence.MAX_INTER_STEP_GAP_MS.toFixed(2)} ` +
+      `transportPassed=${proof.passed} transportCruiseDuty=${proof.TRANSPORT_CRUISE_DUTY.toFixed(2)} ` +
+      `visualStaircase=${proof.visual.INTEGER_STAIRCASE_DETECTED} ` +
+      `perceptualSmoothness=${proof.visual.PERCEPTUAL_SMOOTHNESS_MET} ` +
+      `longestStationaryRun=${proof.visual.LONGEST_STATIONARY_FRAME_RUN}`
   );
   if (opts.expectMotionFailure) {
     expect(

@@ -97,9 +97,6 @@ function runProductionHarness(frameCount: number, opts?: { contentGrowing?: bool
     getScrollPosition: () => physicalScrollY,
     scrollBy: (requestedDelta) => {
       lastAppliedIntegerDelta = transport.apply(requestedDelta);
-      if (lastAppliedIntegerDelta !== 0) {
-        physicalScrollY += lastAppliedIntegerDelta;
-      }
     },
     resolveTargetElement: () =>
       ({
@@ -149,6 +146,10 @@ describe("geometry-damped + integer transport contract", () => {
       traces.every((trace) => Math.abs(trace.logicalMinusPhysical) <= 1.001),
       `bound violated: ${traces.map((t) => t.logicalMinusPhysical.toFixed(3)).join(",")}`
     );
+    const maxDebt = Math.max(...traces.map((trace) => trace.integerDebt));
+    assert.ok(maxDebt < 1.001, `integer debt must stay bounded: maxDebt=${maxDebt}`);
+    const physicalAheadOfLogical = traces.some((trace) => trace.logicalMinusPhysical < -0.5);
+    assert.equal(physicalAheadOfLogical, false, "physical root must not overshoot logical camera");
     const debtSpikes = traces.filter(
       (trace, index) =>
         index > 0 &&

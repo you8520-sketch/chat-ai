@@ -6,8 +6,9 @@ import {
   INTEGER_CHASE_MAX_STEP_PX,
   MIN_AVAILABLE_DOWNWARD_SCROLL_PX,
   MIN_MEANINGFUL_SCROLL_RANGE_PX,
-  measureIntegerCruiseMotionDutyCycle,
+  measureIntegerTransportCruiseDutyCycle,
   measureIntegerScrollCadence,
+  measureVisualCameraQuality,
   resolveScrollClampState,
   resolveTargetChaseMaxInterStepGapMs,
   type MotionProofFrame,
@@ -211,9 +212,10 @@ describe("scrollClampState motion proof", () => {
     assert.equal(proof.LARGE_JUMP_COUNT, 0);
     assert.equal(proof.FOLLOW_LATEST_ALWAYS_TRUE, true);
     assert.equal(proof.PROGRAMMATIC_SELF_DETACH, false);
+    assert.ok(proof.visual.LONGEST_STATIONARY_FRAME_RUN >= 0);
   });
 
-  it("integer cruise duty treats expected 1px inter-step pauses as active motion", () => {
+  it("transport cruise duty treats expected 1px inter-step pauses as transport-active", () => {
     const samples: Array<{ t: number; scrollY: number }> = [{ t: 0, scrollY: 0 }];
     let t = 0;
     let scrollY = 0;
@@ -224,19 +226,53 @@ describe("scrollClampState motion proof", () => {
       scrollY += 1;
       samples.push({ t, scrollY });
     }
-    const duty = measureIntegerCruiseMotionDutyCycle(samples);
+    const duty = measureIntegerTransportCruiseDutyCycle(samples);
     assert.ok(duty >= 0.75, `duty=${duty}`);
   });
 
-  it("integer cruise duty fails on abnormal long visible stop gaps", () => {
+  it("transport cruise duty fails on abnormal long transport stop gaps", () => {
     const samples: Array<{ t: number; scrollY: number }> = [
       { t: 0, scrollY: 0 },
       { t: 16, scrollY: 1 },
       { t: 900, scrollY: 1 },
       { t: 916, scrollY: 2 },
     ];
-    const duty = measureIntegerCruiseMotionDutyCycle(samples);
+    const duty = measureIntegerTransportCruiseDutyCycle(samples);
     assert.ok(duty < 0.75, `duty=${duty}`);
+  });
+
+  it("visual quality detects integer 1px staircase cadence as not perceptually smooth", () => {
+    const samples: Array<{ t: number; scrollY: number }> = [{ t: 0, scrollY: 0 }];
+    let t = 0;
+    let scrollY = 0;
+    for (let step = 0; step < 20; step += 1) {
+      t += 16;
+      samples.push({ t, scrollY });
+      t += 50;
+      scrollY += 1;
+      samples.push({ t, scrollY });
+    }
+    const visual = measureVisualCameraQuality(samples);
+    assert.equal(visual.INTEGER_STAIRCASE_DETECTED, true);
+    assert.equal(visual.PERCEPTUAL_SMOOTHNESS_MET, false);
+    assert.ok(visual.LONGEST_STATIONARY_FRAME_RUN >= 1);
+  });
+
+  it("visual quality does not treat transport cruise duty as smoothness proof", () => {
+    const samples: Array<{ t: number; scrollY: number }> = [{ t: 0, scrollY: 0 }];
+    let t = 0;
+    let scrollY = 0;
+    for (let step = 0; step < 20; step += 1) {
+      t += 16;
+      samples.push({ t, scrollY });
+      t += 50;
+      scrollY += 1;
+      samples.push({ t, scrollY });
+    }
+    const transportDuty = measureIntegerTransportCruiseDutyCycle(samples);
+    const visual = measureVisualCameraQuality(samples);
+    assert.ok(transportDuty >= 0.75);
+    assert.equal(visual.PERCEPTUAL_SMOOTHNESS_MET, false);
   });
 
   it("measures integer cadence independently from frame duty cycle", () => {
