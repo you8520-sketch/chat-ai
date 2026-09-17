@@ -15,6 +15,20 @@ test("Cheaper Inference endpoint is fixed to chat completions", () => {
   );
 });
 
+test("response_format json_object is preserved for Luna", () => {
+  const body = {
+    model: "gpt-5.6-luna",
+    messages: [{ role: "user", content: "hello" }],
+    stream: false,
+    temperature: 0.4,
+    max_tokens: 4096,
+    response_format: { type: "json_object" },
+  };
+  assert.deepEqual(adaptCheaperInferenceChatBody(body).response_format, {
+    type: "json_object",
+  });
+});
+
 test("OpenRouter-only request extensions are removed", () => {
   const body = {
     model: "gpt-5.6-luna",

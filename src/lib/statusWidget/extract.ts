@@ -128,6 +128,14 @@ export type StatusWidgetTurnExtractMeta = {
    */
   sharedInitialRelationshipDelta?: import("@/lib/chatMemory").RelationshipMetaDelta | null;
   sharedInitialRelationshipUsable?: boolean;
+  /** Shared Luna transport — only when post-turn shared initial ran. */
+  sharedInitialTransportStatus?: "success" | "failed" | "not_attempted";
+  /** Top-level JSON.parse on shared response — not reached when transport failed. */
+  sharedInitialSerializationStatus?: "ok" | "failed" | "not_reached";
+  /** Widget semantic extraction after JSON parse — not reached when serialization failed. */
+  sharedInitialSemanticStatus?: "ok" | "failed" | "empty" | "not_reached";
+  sharedInitialFinishReason?: string | null;
+  sharedInitialOutputChars?: number | null;
 };
 
 const defaultExtractCaller: StatusWidgetExtractCaller = async (system, history, opts) =>
@@ -787,6 +795,11 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     postTurnPhysicalAttempted: false,
     sharedInitialRelationshipDelta: null,
     sharedInitialRelationshipUsable: false,
+    sharedInitialTransportStatus: "not_attempted",
+    sharedInitialSerializationStatus: "not_reached",
+    sharedInitialSemanticStatus: "not_reached",
+    sharedInitialFinishReason: null,
+    sharedInitialOutputChars: null,
   });
 
   // Route gates HTML/OOC/interrupted; active=false must not call extract either.
@@ -836,6 +849,14 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   let sharedInitialRelationshipUsable = false;
   let sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null =
     null;
+  let sharedInitialTransportStatus: "success" | "failed" | "not_attempted" =
+    "not_attempted";
+  let sharedInitialSerializationStatus: "ok" | "failed" | "not_reached" =
+    "not_reached";
+  let sharedInitialSemanticStatus: "ok" | "failed" | "empty" | "not_reached" =
+    "not_reached";
+  let sharedInitialFinishReason: string | null = null;
+  let sharedInitialOutputChars: number | null = null;
 
   const sharedMode = resolvePostTurnSharedInitialMode({ needCharExtract, needUserExtract });
   // Canonical whole-turn post-turn owner: the shared initial call runs whenever a
@@ -893,11 +914,28 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       postTurnSharedInitial = true;
       actualCallCount += 1;
       if (shared.usage) turnUsages.push(shared.usage);
+      sharedInitialTransportStatus = shared.transportOk ? "success" : "failed";
+      sharedInitialFinishReason = shared.finishReason ?? shared.usage?.finishReason ?? null;
+      sharedInitialOutputChars = (shared.text ?? "").length;
+      sharedInitialSerializationStatus = !shared.transportOk
+        ? "not_reached"
+        : shared.parsed?.jsonParseOk === true
+          ? "ok"
+          : "failed";
       const sharedInitialWidgetOutcome = evaluatePostTurnSharedInitialWidgetExtraction({
         transportOk: shared.transportOk,
         mode: sharedMode,
         parsed: shared.parsed,
       });
+      sharedInitialSemanticStatus = !shared.transportOk
+        ? "not_reached"
+        : shared.parsed?.jsonParseOk !== true
+          ? "not_reached"
+          : sharedInitialWidgetOutcome.succeeded
+            ? "ok"
+            : sharedInitialWidgetOutcome.reasonCode === "V3_INITIAL_EMPTY"
+              ? "empty"
+              : "failed";
       turnAttemptDiagnostics.push({
         stage: "initial",
         modelId: primaryModelId,
@@ -1376,6 +1414,11 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       postTurnPhysicalAttempted: actualCallCount > 0,
       sharedInitialRelationshipDelta,
       sharedInitialRelationshipUsable,
+      sharedInitialTransportStatus,
+      sharedInitialSerializationStatus,
+      sharedInitialSemanticStatus,
+      sharedInitialFinishReason,
+      sharedInitialOutputChars,
     },
   };
 }
