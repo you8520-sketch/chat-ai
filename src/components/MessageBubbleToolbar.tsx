@@ -208,12 +208,9 @@ export default function MessageBubbleToolbar({
 
   return (
     <>
-      <div data-chat-message-toolbar="true" className="relative mt-0 flex flex-col gap-0">
-        {variantPicker ? (
-          <div className="absolute left-0 -top-7 z-10">{variantPicker}</div>
-        ) : null}
-        <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-0.5">
-          <div className="flex flex-wrap items-start gap-0.5">
+      <div data-chat-message-toolbar="true" className="mt-0 flex flex-col gap-1">
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-1">
             {showRegenerate && role === "assistant" && (
               <button
                 type="button"
@@ -293,10 +290,11 @@ export default function MessageBubbleToolbar({
                 <IconImageSpark />
               </button>
             )}
+            {role === "assistant" && variantPicker ? variantPicker : null}
           </div>
 
           {(showReportRefund || receipt || billingChargeSummary) && (
-            <div className="ml-auto flex shrink-0 items-center gap-1 self-end">
+            <div className="ml-auto flex shrink-0 items-center gap-1">
               {showReportRefund && role === "assistant" && (
                 <ReportRefundButton
                   messageId={messageId}

@@ -5,7 +5,7 @@ export const STREAM_INTERVAL_MAX = 40;
 
 export const CHAT_STREAM_SPEED_PRESETS = [
   { intervalMs: 0, label: "즉시" },
-  { intervalMs: 24, label: "빠름" },
+  { intervalMs: 16, label: "빠름" },
   { intervalMs: 40, label: "보통" },
 ] as const;
 
@@ -15,13 +15,14 @@ export const CHAT_STREAM_SPEED_PRESETS = [
  */
 export const LEGACY_CHAT_STREAM_INTERVAL_MS: Record<number, number> = {
   0: 0,
-  20: 24,
-  35: 24,
+  20: 16,
+  24: 16,
+  35: 16,
   50: 40,
   60: 40,
   65: 40,
   100: 40,
-  28: 24,
+  28: 16,
   40: 40,
 };
 
@@ -102,7 +103,7 @@ export const DEFAULT_CHARACTER_DIALOGUE_COLOR = "#c4b5fd";
 export const LEGACY_CHARACTER_DIALOGUE_COLOR = "#fb923c";
 
 export const DEFAULT_CHAT_DISPLAY_PREFS: ChatDisplayPrefs = {
-  streamIntervalMs: 24,
+  streamIntervalMs: 16,
   streamCharsPerTick: 1,
   fontFamily: "system",
   fontSizePreset: "medium",
