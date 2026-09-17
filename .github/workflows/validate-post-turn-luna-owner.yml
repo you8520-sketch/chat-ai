@@ -13,6 +13,8 @@ on:
       - "src/lib/postTurnSharedInitialWidgetOutcome.test.ts"
       - "src/lib/postTurnSharedCallBudget.test.ts"
       - "src/lib/postTurnSharedInitialPartialDualExtract.test.ts"
+      - "src/lib/postTurnSharedInitial.semanticEmpty.test.ts"
+      - "src/lib/postTurnSharedInitial/widgetShapeDiagnostics.ts"
       - "src/lib/deepseekRegenTurnObservability.test.ts"
       - "src/lib/statusWidget/**"
       - "src/lib/openRouterCompletion.ts"
@@ -61,6 +63,9 @@ jobs:
 
       - name: Shared initial widget outcome
         run: node --conditions=react-server --import tsx --test src/lib/postTurnSharedInitialWidgetOutcome.test.ts
+
+      - name: Shared initial semantic-empty contract
+        run: node --conditions=react-server --import tsx --test src/lib/postTurnSharedInitial.semanticEmpty.test.ts
 
       - name: CheaperInference adapter (response_format preservation)
         run: node --conditions=react-server --import tsx --test src/lib/cheaperInferenceConfig.test.ts

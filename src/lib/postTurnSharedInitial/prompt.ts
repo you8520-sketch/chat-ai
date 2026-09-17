@@ -28,40 +28,60 @@ Compare the rejected assistant draft and the new canonical assistant in the user
 - items / promisesAdd / promisesRemove: only changes introduced by the NEW canonical reply.
 Never extract honorifics, nicknames, inner thoughts, emotion, relationship stage, speech style, gender, or current location.`;
 
-function widgetValueKeyPlaceholders(keys: readonly string[]): string {
-  return keys.map((key) => `${JSON.stringify(key)}: "..."`).join(", ");
+function widgetRequiredKeysAnnotation(
+  namespace: "character_values" | "user_values",
+  keys: readonly string[]
+): string {
+  if (keys.length === 0) return "";
+  const listed = keys.map((key) => JSON.stringify(key)).join(", ");
+  return `Required ${namespace} keys (one scene-grounded string each — never copy placeholder tokens like "...", "…", "—", or "<scene value>"): ${listed}`;
 }
 
-/** Canonical shared statusWidget JSON shape — every required field key listed explicitly. */
+/** @internal tests — authoritative envelope must not teach parser-invalid placeholder exemplars. */
+export function sharedStatusWidgetEnvelopeUsesPlaceholderExemplar(envelope: string): boolean {
+  return /:\s*"\.\.\."|:\s*"…"|:\s*"<scene value>"/.test(envelope);
+}
+
+/** Canonical shared statusWidget JSON shape — required keys enumerated without invalid example values. */
 export function buildSharedStatusWidgetEnvelope(input: PostTurnSharedInitialInput): string | null {
   switch (input.mode) {
     case "relationship_only":
       return null;
     case "dual": {
       if (!input.characterWidget || !input.userWidget) return null;
-      const charKeys = widgetValueKeyPlaceholders(collectWidgetJsonKeys(input.characterWidget));
-      const userKeys = widgetValueKeyPlaceholders(collectWidgetJsonKeys(input.userWidget));
-      return `"statusWidget": {
-  "character_values": { ${charKeys} },
-  "user_values": { ${userKeys} },
+      const charKeyList = collectWidgetJsonKeys(input.characterWidget);
+      const userKeyList = collectWidgetJsonKeys(input.userWidget);
+      return [
+        `"statusWidget": {
+  "character_values": {},
+  "user_values": {},
   "extracted_facts": []
-}`;
+}`,
+        widgetRequiredKeysAnnotation("character_values", charKeyList),
+        widgetRequiredKeysAnnotation("user_values", userKeyList),
+      ].join("\n");
     }
     case "character": {
       if (!input.characterWidget) return null;
-      const charKeys = widgetValueKeyPlaceholders(collectWidgetJsonKeys(input.characterWidget));
-      return `"statusWidget": {
-  "character_values": { ${charKeys} },
+      const charKeyList = collectWidgetJsonKeys(input.characterWidget);
+      return [
+        `"statusWidget": {
+  "character_values": {},
   "extracted_facts": []
-}`;
+}`,
+        widgetRequiredKeysAnnotation("character_values", charKeyList),
+      ].join("\n");
     }
     case "user": {
       if (!input.userWidget) return null;
-      const userKeys = widgetValueKeyPlaceholders(collectWidgetJsonKeys(input.userWidget));
-      return `"statusWidget": {
-  "user_values": { ${userKeys} },
+      const userKeyList = collectWidgetJsonKeys(input.userWidget);
+      return [
+        `"statusWidget": {
+  "user_values": {},
   "extracted_facts": []
-}`;
+}`,
+        widgetRequiredKeysAnnotation("user_values", userKeyList),
+      ].join("\n");
     }
     default: {
       const _exhaustive: never = input.mode;

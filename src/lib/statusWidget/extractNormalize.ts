@@ -47,7 +47,8 @@ function formatWidgetFieldsForExtract(
     .join("\n");
 }
 
-function isWidgetPlaceholderValue(value: string): boolean {
+/** Shared by normalization and post-turn shape diagnostics (no value bodies logged). */
+export function isWidgetPlaceholderValue(value: string): boolean {
   const t = value.trim();
   return (
     !t ||

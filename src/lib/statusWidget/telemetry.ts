@@ -40,6 +40,7 @@ import {
   measureStatusWidgetPreviousEcho,
   type StatusWidgetPreviousEchoStats,
 } from "./extractNormalize";
+import type { PostTurnSharedInitialWidgetShapeDiagnostics } from "@/lib/postTurnSharedInitial/widgetShapeDiagnostics";
 
 export type StatusWidgetModelFamily =
   | "deepseek"
@@ -87,6 +88,17 @@ export type StatusWidgetTurnTelemetry = {
   /** Shared Luna finish_reason — not the main RP model finishReason. */
   sharedFinishReason?: string | null;
   sharedOutputChars?: number | null;
+  statusWidgetPresent?: boolean;
+  characterValuesPresent?: boolean;
+  userValuesPresent?: boolean;
+  characterReturnedKeyCount?: number;
+  userReturnedKeyCount?: number;
+  characterRecognizedKeyCount?: number;
+  userRecognizedKeyCount?: number;
+  placeholderLikeDroppedCount?: number;
+  instructionEchoDroppedCount?: number;
+  unknownKeyCount?: number;
+  unknownReturnedKeys?: string[];
 };
 
 export const STATUS_WIDGET_TELEMETRY_LOG_PREFIX = "[status-widget-telemetry]";
@@ -268,6 +280,7 @@ export async function resolveStatusWidgetTurnValues(
     "not_reached";
   let sharedInitialFinishReason: string | null = null;
   let sharedInitialOutputChars: number | null = null;
+  let sharedInitialWidgetShape: PostTurnSharedInitialWidgetShapeDiagnostics | null = null;
   let resolutionSource: StatusWidgetResolutionSource = "none";
   let splitRawHit = false;
   let splitRawParseError: string | null = null;
@@ -443,6 +456,7 @@ export async function resolveStatusWidgetTurnValues(
         v3Result.meta.sharedInitialSemanticStatus ?? "not_reached";
       sharedInitialFinishReason = v3Result.meta.sharedInitialFinishReason ?? null;
       sharedInitialOutputChars = v3Result.meta.sharedInitialOutputChars ?? null;
+      sharedInitialWidgetShape = v3Result.meta.sharedInitialWidgetShape ?? null;
       // usage + billing meta share the same lifetime (both null or both set).
       if (v3Result.usage && v3Result.meta.billing) {
         widgetExtractUsage = v3Result.usage;
@@ -634,6 +648,23 @@ export async function resolveStatusWidgetTurnValues(
     semanticStatus: sharedInitialSemanticStatus,
     sharedFinishReason: sharedInitialFinishReason,
     sharedOutputChars: sharedInitialOutputChars,
+    ...(sharedInitialWidgetShape
+      ? {
+          statusWidgetPresent: sharedInitialWidgetShape.statusWidgetPresent,
+          characterValuesPresent: sharedInitialWidgetShape.characterValuesPresent,
+          userValuesPresent: sharedInitialWidgetShape.userValuesPresent,
+          characterReturnedKeyCount: sharedInitialWidgetShape.characterReturnedKeyCount,
+          userReturnedKeyCount: sharedInitialWidgetShape.userReturnedKeyCount,
+          characterRecognizedKeyCount: sharedInitialWidgetShape.characterRecognizedKeyCount,
+          userRecognizedKeyCount: sharedInitialWidgetShape.userRecognizedKeyCount,
+          placeholderLikeDroppedCount: sharedInitialWidgetShape.placeholderLikeDroppedCount,
+          instructionEchoDroppedCount: sharedInitialWidgetShape.instructionEchoDroppedCount,
+          unknownKeyCount: sharedInitialWidgetShape.unknownKeyCount,
+          ...(sharedInitialWidgetShape.unknownReturnedKeys
+            ? { unknownReturnedKeys: sharedInitialWidgetShape.unknownReturnedKeys }
+            : {}),
+        }
+      : {}),
   };
 
   return {
