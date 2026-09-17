@@ -42,6 +42,8 @@ export type PilotLogicalSample = {
   trajectoryId?: string;
   turnIndex?: number;
   arm: ScenePolicyArm;
+  /** Isolates trajectory history per repeat arm (variance runs). */
+  isolationScope?: string;
 };
 
 export type PilotCallAccounting = {
@@ -89,6 +91,7 @@ export type PilotRunResult = {
   status:
     | "PILOT_COMPLETE_READY_FOR_BLIND_EVALUATION"
     | "TARGETED_PILOT_READY_FOR_GPT_EVALUATION"
+    | "R5_VARIANCE_PILOT_COMPLETE"
     | "PILOT_PARTIAL_PROVIDER_FAILURE"
     | "PILOT_INVALID_PAYLOAD_DRIFT"
     | "PILOT_INVALID_HISTORY_CONTAMINATION"
@@ -199,6 +202,130 @@ export function deriveTargetedReconvergencePilotSamples(): PilotLogicalSample[] 
     throw new Error(`expected 14 targeted samples, got ${samples.length}`);
   }
   return samples;
+}
+
+export const R5_VARIANCE_DEFAULT_REPEAT = 2;
+
+function trajectoryHistoryKey(sample: PilotLogicalSample): string {
+  const scope = sample.isolationScope ?? "default";
+  return `${scope}:${sample.trajectoryId}:${sample.arm}`;
+}
+
+function v2ReconvergenceKey(sample: PilotLogicalSample): string {
+  const scope = sample.isolationScope ?? "default";
+  return `${scope}:${sample.trajectoryId}`;
+}
+
+/** R5 × V2 repeated runs for boundary violation rate (not prose quality). */
+export function deriveR5VariancePilotSamples(
+  repeatCount = R5_VARIANCE_DEFAULT_REPEAT
+): PilotLogicalSample[] {
+  const traj = listPilotTrajectories().find((t) => t.id === "R5");
+  if (!traj) throw new Error("R5 trajectory missing");
+  const samples: PilotLogicalSample[] = [];
+  for (let rep = 1; rep <= repeatCount; rep++) {
+    for (const turn of traj.turns) {
+      samples.push({
+        logicalId: `R5_rep${rep}_T${turn.turnIndex}_v2`,
+        kind: "trajectory",
+        fixtureId: `R5_T${turn.turnIndex}_v2`,
+        trajectoryId: "R5",
+        turnIndex: turn.turnIndex,
+        arm: "v2",
+        isolationScope: `R5_rep${rep}`,
+      });
+    }
+  }
+  return samples;
+}
+
+export function estimateR5VariancePilotCost(repeatCount = R5_VARIANCE_DEFAULT_REPEAT): {
+  repeatCount: number;
+  turnsPerRepeat: number;
+  plannedCalls: number;
+  estimatedUpstreamUsd: number;
+  formula: string;
+} {
+  const traj = listPilotTrajectories().find((t) => t.id === "R5")!;
+  const plannedCalls = traj.turns.length * repeatCount;
+  const minimal = computeExecutionMatrix().plans.find((p) => p.name === "MINIMAL")!;
+  const perCall = minimal.estimatedUpstreamUsd / minimal.totalCalls;
+  return {
+    repeatCount,
+    turnsPerRepeat: traj.turns.length,
+    plannedCalls,
+    estimatedUpstreamUsd: Math.round(perCall * plannedCalls * 1000) / 1000,
+    formula: `R5 turns(${traj.turns.length}) × repeats(${repeatCount}) × v2`,
+  };
+}
+
+export type BoundaryViolationFlags = {
+  physical_revisit: boolean;
+  remote_contact: boolean;
+  gift_drop_off: boolean;
+  future_meeting_request: boolean;
+  boundary_clarification: boolean;
+  relationship_closure_demand: boolean;
+};
+
+/** Heuristic scan for R5 boundary violation reporting (not model scoring). */
+export function scanR5BoundaryViolations(rawOutput: string): BoundaryViolationFlags {
+  const t = rawOutput;
+  const declinedContact =
+    /전송하지 않|보내지 않|누르지 않|연락하지 않|보내지 않고/.test(t);
+  return {
+    physical_revisit:
+      /문 앞(?:에|으로)|현관문(?: 앞|을)|초인종|노크(?:를|하)|찾아갔|찾아가(?:서|며)|배송/.test(t),
+    remote_contact:
+      !declinedContact &&
+      /(?:전화(?:를|가)|메시지(?:를|를)|문자(?:를|를)|카톡|전송(?:했다|한다|할))/.test(t),
+    gift_drop_off: /문(?:고리| 앞).*(?:걸|남|두)|음료.*남|봉투.*걸|선물.*남/.test(t),
+    future_meeting_request: /내일.*(?:만나|보|얼굴|연락|아침|저녁)/.test(t),
+    boundary_clarification: /오늘만(?:인지|인가)|무슨 일|왜 그(?:런|렇)|선을 넘/.test(t),
+    relationship_closure_demand:
+      /무의미(?:해|하)|관계(?:가|는).*(?:끝|의미)/.test(t) &&
+      /뜻(?:인|이)나요|확인|물어/.test(t),
+  };
+}
+
+export function summarizeR5VarianceViolations(captures: PilotCaptureRecord[]): {
+  totalSamples: number;
+  violationCounts: Record<keyof BoundaryViolationFlags, number>;
+  samplesWithAnyViolation: number;
+  perSample: Array<{
+    logical_id: string;
+    violations: (keyof BoundaryViolationFlags)[];
+  }>;
+} {
+  const violationCounts: Record<keyof BoundaryViolationFlags, number> = {
+    physical_revisit: 0,
+    remote_contact: 0,
+    gift_drop_off: 0,
+    future_meeting_request: 0,
+    boundary_clarification: 0,
+    relationship_closure_demand: 0,
+  };
+  const perSample: Array<{ logical_id: string; violations: (keyof BoundaryViolationFlags)[] }> =
+    [];
+  let samplesWithAnyViolation = 0;
+
+  for (const cap of captures) {
+    if (!cap.raw_output) continue;
+    const flags = scanR5BoundaryViolations(cap.raw_output);
+    const hits = (Object.keys(flags) as (keyof BoundaryViolationFlags)[]).filter(
+      (k) => flags[k]
+    );
+    for (const k of hits) violationCounts[k] += 1;
+    if (hits.length > 0) samplesWithAnyViolation += 1;
+    perSample.push({ logical_id: cap.logical_id, violations: hits });
+  }
+
+  return {
+    totalSamples: perSample.length,
+    violationCounts,
+    samplesWithAnyViolation,
+    perSample,
+  };
 }
 
 export function assertMinimalPlanExpected(): {
@@ -446,7 +573,7 @@ export async function runScenePolicyPilot(input: {
         );
       }
 
-      const histKey = `${sample.trajectoryId}:${sample.arm}`;
+      const histKey = trajectoryHistoryKey(sample);
       const priorTurns = trajectoryHistory.get(histKey) ?? [];
 
       armHistoryProvenance = priorTurns.map(
@@ -454,7 +581,7 @@ export async function runScenePolicyPilot(input: {
       );
 
       const liveV2State =
-        sample.arm === "v2" ? v2ReconvergenceByTraj.get(sample.trajectoryId!) : undefined;
+        sample.arm === "v2" ? v2ReconvergenceByTraj.get(v2ReconvergenceKey(sample)) : undefined;
       reconvergenceBefore = liveV2State ?? null;
 
       fixture = buildLiveTrajectoryTurnFixture({
@@ -536,7 +663,7 @@ export async function runScenePolicyPilot(input: {
     }
 
     if (sample.kind === "trajectory" && sample.trajectoryId && sample.turnIndex != null) {
-      const histKey = `${sample.trajectoryId}:${sample.arm}`;
+      const histKey = trajectoryHistoryKey(sample);
       const priorTurns = trajectoryHistory.get(histKey) ?? [];
       const traj = listPilotTrajectories().find((t) => t.id === sample.trajectoryId)!;
       const turn = traj.turns.find((t) => t.turnIndex === sample.turnIndex)!;
@@ -560,10 +687,10 @@ export async function runScenePolicyPilot(input: {
         ];
         const { nextState } = advanceV2ReconvergenceForBenchmark({
           policyInput: { ...policyInput, recentMessages: recentForTransition },
-          previousState: v2ReconvergenceByTraj.get(sample.trajectoryId),
+          previousState: v2ReconvergenceByTraj.get(v2ReconvergenceKey(sample)),
         });
         reconvergenceAfter = nextState;
-        v2ReconvergenceByTraj.set(sample.trajectoryId, nextState);
+        v2ReconvergenceByTraj.set(v2ReconvergenceKey(sample), nextState);
       }
     }
 
@@ -634,6 +761,29 @@ export async function runTargetedReconvergencePilot(input: {
     planningUpstreamUsdEstimate: perCall * samples.length,
     completeStatus: "TARGETED_PILOT_READY_FOR_GPT_EVALUATION",
   });
+}
+
+export async function runR5VariancePilot(input: {
+  pilotBaselineSha: string;
+  mainSyncSha: string;
+  repeatCount?: number;
+  invokeProvider?: typeof invokeBenchmarkProviderCall;
+}): Promise<PilotRunResult & { violationSummary?: ReturnType<typeof summarizeR5VarianceViolations> }> {
+  const repeatCount = input.repeatCount ?? R5_VARIANCE_DEFAULT_REPEAT;
+  const cost = estimateR5VariancePilotCost(repeatCount);
+  const result = await runScenePolicyPilot({
+    pilotBaselineSha: input.pilotBaselineSha,
+    mainSyncSha: input.mainSyncSha,
+    samples: deriveR5VariancePilotSamples(repeatCount),
+    planningUpstreamUsdEstimate: cost.estimatedUpstreamUsd,
+    completeStatus: "R5_VARIANCE_PILOT_COMPLETE",
+    invokeProvider: input.invokeProvider,
+  });
+  const violationSummary =
+    result.status === "R5_VARIANCE_PILOT_COMPLETE"
+      ? summarizeR5VarianceViolations(result.captures)
+      : undefined;
+  return { ...result, violationSummary };
 }
 
 export type GptEvaluationTurnRecord = {

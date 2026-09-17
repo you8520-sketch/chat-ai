@@ -152,6 +152,20 @@ const SHARED_ITEM_TERMS = ["맡긴", "돌려", "열쇠", "가방", "코트", "�
 const SHARED_TASK_TERMS = ["같이", "공동", "약속한 일", "남은 일", "미완료", "해야 할"];
 const PROMISE_TERMS = ["약속", "내일 만나", "다음에 보", "다시 만나"];
 const LOCATION_TERMS = ["집", "카페", "사무실", "기지", "숙소", "학교", "병원"];
+/** Co-presence / meeting-at-place — not solo user travel. */
+const SHARED_LOCATION_RELATION_MARKERS = [
+  "같이",
+  "함께",
+  "우리",
+  "만나",
+  "에서 보",
+  "거기서",
+  "약속",
+  "재회",
+  "모이",
+  "만날",
+  "보자",
+];
 const SCHEDULE_TERMS = ["일정", "회의", "출동", "디데이", "제한시간"];
 const ORG_TERMS = ["조직", "부서", "소속", "기지", "팀"];
 
@@ -352,6 +366,18 @@ export function collectAuthoritativeReconvergenceText(opts: {
   return parts.join("\n").trim();
 }
 
+/**
+ * B/C/D shared meeting or co-location evidence — not A (user alone at a place).
+ * Requires location term plus mutual/meeting relation semantics.
+ */
+export function hasSharedLocationReconvergenceEvidence(text: string): boolean {
+  const normalized = text.trim();
+  if (!normalized || !includesAny(normalized, LOCATION_TERMS)) return false;
+  if (includesAny(normalized, SHARED_LOCATION_RELATION_MARKERS)) return true;
+  if (/둘\s*(다|은|이)/.test(normalized)) return true;
+  return false;
+}
+
 export function extractReconvergenceHooks(opts: {
   recentMessages?: ChatMsg[];
   currentUserMessage?: string | null;
@@ -378,7 +404,7 @@ export function extractReconvergenceHooks(opts: {
   if (includesAny(text, CONTACT_CHANNEL_TERMS)) {
     add("established_contact_channel", "확립된 연락 수단", "high");
   }
-  if (includesAny(text, LOCATION_TERMS)) {
+  if (hasSharedLocationReconvergenceEvidence(text)) {
     add("known_shared_location", "공유·알려진 장소", "medium");
   }
   if (includesAny(text, SCHEDULE_TERMS)) add("confirmed_schedule", "확정 일정 흔적", "medium");
