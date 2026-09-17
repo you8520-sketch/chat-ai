@@ -20,7 +20,11 @@ import {
   resolveOpenRouterApiKey,
 } from "@/lib/openRouterConfig";
 
+/** Canonical Main RP streaming startup budget: request start → first visible output. */
+export const MAIN_RP_STARTUP_DEADLINE_MS = 20_000;
+/** @deprecated Pre-P0 split owners; use MAIN_RP_STARTUP_DEADLINE_MS for Main RP streaming. */
 export const CHEAPER_INFERENCE_HEADERS_DEADLINE_MS = 8_000;
+/** @deprecated Pre-P0 split owners; use MAIN_RP_STARTUP_DEADLINE_MS for Main RP streaming. */
 export const CHEAPER_INFERENCE_FIRST_VISIBLE_DEADLINE_MS = 12_000;
 export const OPENROUTER_FIRST_VISIBLE_DEADLINE_MS = 15_000;
 export const BACKGROUND_FLASH_COMPLETION_DEADLINE_MS = 20_000;
@@ -146,6 +150,31 @@ export type DeepSeekFailoverDeadlines = {
   completionMs?: number;
   backupCompletionMs?: number;
 };
+
+function isMainRpStreamingRoute(routeKind: DeepSeekRouteKind, stream: boolean): boolean {
+  return stream && routeKind !== "background_flash";
+}
+
+/** Remaining Main RP startup budget from a shared request-start timestamp. */
+export function computeRemainingStartupBudgetMs(opts: {
+  startupDeadlineMs: number;
+  startedAt: number;
+  now: () => number;
+}): number {
+  return Math.max(1, opts.startupDeadlineMs - (opts.now() - opts.startedAt));
+}
+
+/** Single owner for Main RP streaming header + first-visible deadlines. */
+export function resolveMainRpStreamingStartupDeadlines(
+  overrides?: DeepSeekFailoverDeadlines
+): { headersMs: number; firstVisibleMs: number } {
+  const startupMs =
+    overrides?.headersMs ?? overrides?.firstVisibleMs ?? MAIN_RP_STARTUP_DEADLINE_MS;
+  return {
+    headersMs: overrides?.headersMs ?? startupMs,
+    firstVisibleMs: overrides?.firstVisibleMs ?? startupMs,
+  };
+}
 
 export type DeepSeekPhysicalAttemptLifecycle = {
   physicalAttemptOrdinal: number;
@@ -582,10 +611,16 @@ export async function executeDeepSeekWithProviderFailover(opts: {
   };
   const fetchFn = opts.hooks?.fetchFn ?? globalThis.fetch.bind(globalThis);
   const now = opts.hooks?.now ?? Date.now;
-  const headersDeadline =
-    opts.deadlines?.headersMs ?? CHEAPER_INFERENCE_HEADERS_DEADLINE_MS;
-  const firstVisibleDeadline =
-    opts.deadlines?.firstVisibleMs ?? CHEAPER_INFERENCE_FIRST_VISIBLE_DEADLINE_MS;
+  const mainRpStreaming = isMainRpStreamingRoute(opts.routeKind, opts.stream);
+  const mainRpStartupDeadlines = mainRpStreaming
+    ? resolveMainRpStreamingStartupDeadlines(opts.deadlines)
+    : null;
+  const headersDeadline = mainRpStartupDeadlines
+    ? mainRpStartupDeadlines.headersMs
+    : opts.deadlines?.headersMs ?? CHEAPER_INFERENCE_HEADERS_DEADLINE_MS;
+  const firstVisibleDeadline = mainRpStartupDeadlines
+    ? mainRpStartupDeadlines.firstVisibleMs
+    : opts.deadlines?.firstVisibleMs ?? CHEAPER_INFERENCE_FIRST_VISIBLE_DEADLINE_MS;
   const backupFirstVisibleDeadline =
     opts.deadlines?.backupFirstVisibleMs ?? OPENROUTER_FIRST_VISIBLE_DEADLINE_MS;
   const completionDeadline = opts.deadlines?.completionMs;

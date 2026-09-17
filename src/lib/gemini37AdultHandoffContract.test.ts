@@ -36,8 +36,7 @@ import {
   type AdultDeliveryPlan,
 } from "@/lib/adultDeliveryPlan";
 import {
-  CHEAPER_INFERENCE_FIRST_VISIBLE_DEADLINE_MS,
-  CHEAPER_INFERENCE_HEADERS_DEADLINE_MS,
+  MAIN_RP_STARTUP_DEADLINE_MS,
   DEEPSEEK_TRANSIENT_HTTP_STATUSES,
 } from "@/lib/deepseekProviderFailover";
 import { UNIFIED_RESPONSE_LENGTH_TARGET } from "@/lib/responseLengthConstants";
@@ -230,9 +229,8 @@ describe("Gemini 3.7 Flash adult-handoff production contract", () => {
     assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /한국어 3,200자 이상을 기본 목표/);
   });
 
-  it("10. CI→OR reliability lock remains intact on this PR", () => {
-    assert.equal(CHEAPER_INFERENCE_HEADERS_DEADLINE_MS, 8_000);
-    assert.equal(CHEAPER_INFERENCE_FIRST_VISIBLE_DEADLINE_MS, 12_000);
+  it("10. Main RP startup budget lock remains intact on this PR", () => {
+    assert.equal(MAIN_RP_STARTUP_DEADLINE_MS, 20_000);
     assert.deepEqual([...DEEPSEEK_TRANSIENT_HTTP_STATUSES], [500, 502, 503, 504]);
   });
 

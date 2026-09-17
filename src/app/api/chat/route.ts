@@ -3315,7 +3315,7 @@ export async function POST(req: Request) {
             controller.close();
             return;
           }
-          console.error("[/api/chat] OpenRouter 생성 실패:", (e as Error).message);
+          console.error("[/api/chat] Main RP provider generation failed:", (e as Error).message);
           try {
             markAssistantFailed(db, persistedAssistantId, streamVisibleTextRef || fullText);
             if (regenerateMessageId) {
