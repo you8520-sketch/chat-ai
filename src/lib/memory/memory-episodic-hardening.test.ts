@@ -35,6 +35,7 @@ import {
   __resetEpisodicExtractCallCountForTests,
   __setEpisodicExtractCallerForTests,
   extractAndPersistEpisodicFactsForSealedBatch,
+  parseEpisodicExtractOutcome,
 } from "./memory-episodic-extract";
 import { selectEpisodicEligibleTurnEntries } from "./memory-summary-scope";
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
@@ -582,6 +583,35 @@ describe("migration hardening regression", () => {
   });
 });
 
+async function sealTwoBatches(opts: {
+  batchAFact: EpisodicExtractedFact;
+  batchBFact: EpisodicExtractedFact;
+}): Promise<void> {
+  __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+  __setEpisodicExtractCallerForTests(async () => ({
+    text: JSON.stringify({ extracted_facts: [opts.batchAFact] }),
+  }));
+  await processRollingSummaryBatch({
+    chatId: CHAT,
+    userId: USER,
+    characterId: CHAR,
+    charName: "HardChar",
+    tier: "free",
+    memoryCapacity: 8000,
+  });
+  __setEpisodicExtractCallerForTests(async () => ({
+    text: JSON.stringify({ extracted_facts: [opts.batchBFact] }),
+  }));
+  await processRollingSummaryBatch({
+    chatId: CHAT,
+    userId: USER,
+    characterId: CHAR,
+    charName: "HardChar",
+    tier: "free",
+    memoryCapacity: 8000,
+  });
+}
+
 describe("regen summary-seal episodic batch replacement", () => {
   beforeEach(() => {
     __setCompactCurrentMemoryTestOverride(async (text) => text);
@@ -593,7 +623,193 @@ describe("regen summary-seal episodic batch replacement", () => {
     __setCompactCurrentMemoryTestOverride(null);
   });
 
-  it("FIX-1 regen + successful empty extraction clears stale batch rows and final Main RP injection", async () => {
+  it("FIX-A same-source regenerateMemoryRecordBatch + explicit empty clears current batch only", async () => {
+    seedBase();
+    insertPlayableTurns(15);
+    await sealTwoBatches({
+      batchAFact: episodicMarkerFact(OLD_BATCH_MARKER, "batch_a"),
+      batchBFact: episodicMarkerFact(BATCH_B_MARKER, "batch_b"),
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+    assert.equal(batchSealEpisodicCount(6, 10), 1);
+
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({ extracted_facts: [] }),
+    }));
+    assert.equal(
+      await regenerateMemoryRecordBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "HardChar",
+        tier: "free",
+        memoryCapacity: 8000,
+        turnStart: 1,
+      }),
+      true
+    );
+    assert.equal(batchSealEpisodicCount(1, 5), 0);
+    assert.equal(batchSealEpisodicCount(6, 10), 1);
+  });
+
+  it("FIX-B same-source regenerate preserves rows on provider failure", async () => {
+    seedBase();
+    insertPlayableTurns(10);
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({ extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "keep")] }),
+    }));
+    await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => {
+      throw new Error("provider 503");
+    });
+    const ok = await regenerateMemoryRecordBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      turnStart: 1,
+    });
+    assert.equal(ok, true);
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+  });
+
+  it("FIX-C same-source regenerate preserves rows on malformed JSON", async () => {
+    seedBase();
+    insertPlayableTurns(10);
+    await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    persistEpisodicMemoryFactsBestEffort(getDb(), {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      sourceTurn: 5,
+      facts: [episodicMarkerFact(OLD_BATCH_MARKER, "keep")],
+      replaceSummarySealBatch: { batchStart: 1, batchEnd: 5 },
+      metadata: { extraction: "summary_seal_batch", batch_start: 1, batch_end: 5 },
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({ text: "not json at all" }));
+    await regenerateMemoryRecordBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      turnStart: 1,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+  });
+
+  it("FIX-D same-source regenerate preserves rows on blank response", async () => {
+    seedBase();
+    insertPlayableTurns(10);
+    persistEpisodicMemoryFactsBestEffort(getDb(), {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      sourceTurn: 5,
+      facts: [episodicMarkerFact(OLD_BATCH_MARKER, "keep")],
+      replaceSummarySealBatch: { batchStart: 1, batchEnd: 5 },
+      metadata: { extraction: "summary_seal_batch", batch_start: 1, batch_end: 5 },
+    });
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({ text: "   " }));
+    await regenerateMemoryRecordBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      turnStart: 1,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+  });
+
+  it("FIX-E non-empty raw extracted_facts with zero valid entries is contract failure", async () => {
+    const outcome = parseEpisodicExtractOutcome(
+      JSON.stringify({
+        extracted_facts: [
+          {
+            category: "relationship",
+            subject: "bad",
+            attribute: "x",
+            value: "y",
+            importance: "important",
+            fact_text: "too short",
+            evidence_type: "explicit_scene_event",
+          },
+        ],
+      })
+    );
+    assert.equal(outcome.ok, false);
+    if (!outcome.ok) {
+      assert.equal(outcome.reason, "invalid_contract");
+    }
+
+    seedBase();
+    insertPlayableTurns(10);
+    persistEpisodicMemoryFactsBestEffort(getDb(), {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      sourceTurn: 5,
+      facts: [episodicMarkerFact(OLD_BATCH_MARKER, "keep")],
+      replaceSummarySealBatch: { batchStart: 1, batchEnd: 5 },
+      metadata: { extraction: "summary_seal_batch", batch_start: 1, batch_end: 5 },
+    });
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({
+        extracted_facts: [
+          {
+            category: "relationship",
+            subject: "bad",
+            attribute: "x",
+            value: "y",
+            importance: "important",
+            fact_text: "too short",
+            evidence_type: "explicit_scene_event",
+          },
+        ],
+      }),
+    }));
+    await regenerateMemoryRecordBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      turnStart: 1,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+  });
+
+  it("FIX-F assistant source mutation + provider failure clears old rows via invalidation", async () => {
     seedBase();
     const assistantIds = insertTenPlayableTurns();
     __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
@@ -619,9 +835,9 @@ describe("regen summary-seal episodic batch replacement", () => {
     __setSummarizeTurnBatchCallerForTests(async () => ({
       text: REGEN_SUMMARY_NO_INTIMACY,
     }));
-    __setEpisodicExtractCallerForTests(async () => ({
-      text: JSON.stringify({ extracted_facts: [] }),
-    }));
+    __setEpisodicExtractCallerForTests(async () => {
+      throw new Error("provider 503");
+    });
     assert.equal(
       await refreshRollingSummaryForRegeneratedAssistant({
         chatId: CHAT,
@@ -645,7 +861,45 @@ describe("regen summary-seal episodic batch replacement", () => {
     assert.doesNotMatch(ctx.built.systemPrompt, new RegExp(OLD_BATCH_MARKER));
   });
 
-  it("FIX-2 regen + non-empty replacement removes old marker and keeps only new marker", async () => {
+  it("FIX-G assistant source mutation + explicit empty leaves no batch rows", async () => {
+    seedBase();
+    const assistantIds = insertTenPlayableTurns();
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({ extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "old_marker")] }),
+    }));
+    await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+
+    getDb()
+      .prepare(`UPDATE messages SET content=? WHERE id=?`)
+      .run("캐릭터 턴 3 revised", assistantIds[2]!);
+    __setSummarizeTurnBatchCallerForTests(async () => ({
+      text: REGEN_SUMMARY_NO_INTIMACY,
+    }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({ extracted_facts: [] }),
+    }));
+    await refreshRollingSummaryForRegeneratedAssistant({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      assistantMessageId: assistantIds[2]!,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 0);
+  });
+
+  it("FIX-H regen + non-empty replacement removes old marker and keeps only new marker", async () => {
     seedBase();
     const assistantIds = insertTenPlayableTurns();
     __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
@@ -701,7 +955,7 @@ describe("regen summary-seal episodic batch replacement", () => {
     assert.doesNotMatch(ctx.episodicBlock, new RegExp(OLD_BATCH_MARKER));
   });
 
-  it("FIX-3 regen on batch A preserves batch B episodic facts", async () => {
+  it("FIX-I regen on batch A preserves batch B episodic facts", async () => {
     seedBase();
     const assistantIds = insertPlayableTurns(15);
     __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
@@ -808,7 +1062,7 @@ describe("regen summary-seal episodic batch replacement", () => {
     assert.equal(batchSealEpisodicCount(1, 5), 0);
   });
 
-  it("FIX-5 stale source guard rejects both delete and insert", async () => {
+  it("FIX-J stale source guard rejects both delete and insert", async () => {
     seedBase();
     seedFiveTurnBatch();
     persistEpisodicMemoryFactsBestEffort(getDb(), {
@@ -843,7 +1097,7 @@ describe("regen summary-seal episodic batch replacement", () => {
     assert.equal(batchSealEpisodicCount(1, 5), 1);
   });
 
-  it("FIX-6 late extractor result cannot overwrite latest canonical batch (existing guard)", async () => {
+  it("FIX-J late extractor result cannot overwrite latest canonical batch (existing guard)", async () => {
     seedBase();
     seedFiveTurnBatch();
     __setEpisodicExtractCallerForTests(async () => {
@@ -870,5 +1124,99 @@ describe("regen summary-seal episodic batch replacement", () => {
     });
     assert.equal(result.staleRejected, true);
     assert.equal(batchSealEpisodicCount(1, 5), 0);
+  });
+
+  it("FIX-K NODE_TEST_CONTEXT without extract override preserves batch rows", async () => {
+    seedBase();
+    seedFiveTurnBatch();
+    persistEpisodicMemoryFactsBestEffort(getDb(), {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      sourceTurn: 5,
+      facts: [episodicMarkerFact(OLD_BATCH_MARKER, "keep")],
+      replaceSummarySealBatch: { batchStart: 1, batchEnd: 5 },
+      metadata: { extraction: "summary_seal_batch", batch_start: 1, batch_end: 5 },
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+
+    __setEpisodicExtractCallerForTests(null);
+    const prevNodeTest = process.env.NODE_TEST_CONTEXT;
+    process.env.NODE_TEST_CONTEXT = "1";
+    try {
+      const result = await extractAndPersistEpisodicFactsForSealedBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "HardChar",
+        startTurn: 1,
+        endTurn: 5,
+        dialogue: "dialogue",
+        batchUserSources: [{ turn: 1, messageId: null, text: "커피에 시럽을 두 번 넣어 마셔." }],
+      });
+      assert.equal(result.extractFailed, true);
+      assert.equal(result.failureReason, "test_network_suppressed");
+      assert.equal(result.persisted, 0);
+      assert.equal(batchSealEpisodicCount(1, 5), 1);
+    } finally {
+      if (prevNodeTest == null) delete process.env.NODE_TEST_CONTEXT;
+      else process.env.NODE_TEST_CONTEXT = prevNodeTest;
+    }
+  });
+
+  it("FIX-L final Main RP omits stale old-source marker after assistant regen", async () => {
+    seedBase();
+    const assistantIds = insertTenPlayableTurns();
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({ extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "old_marker")] }),
+    }));
+    await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+
+    getDb()
+      .prepare(`UPDATE messages SET content=? WHERE id=?`)
+      .run("캐릭터 턴 3 revised for final RP", assistantIds[2]!);
+    __setSummarizeTurnBatchCallerForTests(async () => ({
+      text: REGEN_SUMMARY_NEW_ROLE,
+    }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({
+        extracted_facts: [episodicMarkerFact(NEW_BATCH_MARKER, "new_marker")],
+      }),
+    }));
+    await refreshRollingSummaryForRegeneratedAssistant({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      assistantMessageId: assistantIds[2]!,
+    });
+
+    const ctx = await assembleFinalMainRpEpisodic({
+      completedTurns: 10,
+      currentUserMessage: "이어서 대화",
+    });
+    assert.match(ctx.built.systemPrompt, /\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
+    assert.match(ctx.episodicBlock, new RegExp(NEW_BATCH_MARKER));
+    assert.doesNotMatch(ctx.episodicBlock, new RegExp(OLD_BATCH_MARKER));
+    assert.doesNotMatch(ctx.built.systemPrompt, new RegExp(OLD_BATCH_MARKER));
+    assert.ok(
+      ctx.episodicFacts.some((fact) => fact.fact_text.includes(NEW_BATCH_MARKER)),
+      "recall facts must include new marker only"
+    );
+    assert.ok(
+      !ctx.episodicFacts.some((fact) => fact.fact_text.includes(OLD_BATCH_MARKER)),
+      "recall facts must not include stale old marker"
+    );
   });
 });

@@ -269,6 +269,8 @@ describe("episodic ownership decoupled from status widget", () => {
       batchUserSources: [{ turn: 1, messageId: null, text: "안녕" }],
     });
     assert.equal(result.persisted, 0);
+    assert.equal(result.extractFailed, true);
+    assert.equal(result.failureReason, "provider_error");
     const summaries = (
       getDb()
         .prepare("SELECT COUNT(*) AS n FROM chat_turn_summaries WHERE chat_id=?")

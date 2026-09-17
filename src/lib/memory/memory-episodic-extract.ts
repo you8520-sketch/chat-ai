@@ -27,6 +27,17 @@ export const EPISODIC_EXTRACT_MAX_PER_SUMMARY_BATCH = 1;
 
 export type { EpisodicBatchUserSource, EpisodicExtractedFact };
 
+export type EpisodicExtractFailureReason =
+  | "provider_error"
+  | "blank_response"
+  | "malformed_response"
+  | "invalid_contract"
+  | "test_network_suppressed";
+
+export type EpisodicExtractOutcome =
+  | { ok: true; facts: EpisodicExtractedFact[] }
+  | { ok: false; reason: EpisodicExtractFailureReason };
+
 type EpisodicExtractLlmCaller = (
   system: string,
   history: Array<{ role: "user" | "assistant"; content: string }>,
@@ -51,21 +62,42 @@ export function __resetEpisodicExtractCallCountForTests(): void {
   extractCallCountForTests = 0;
 }
 
-export function parseEpisodicExtractedFacts(raw: string): EpisodicExtractedFact[] {
+/** Structured seal-extract outcome — distinguishes semantic empty from contract/provider failure. */
+export function parseEpisodicExtractOutcome(raw: string): EpisodicExtractOutcome {
   const text = raw.trim();
-  if (!text) return [];
+  if (!text) {
+    return { ok: false, reason: "blank_response" };
+  }
   const fenced = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const start = fenced.indexOf("{");
   const end = fenced.lastIndexOf("}");
-  if (start < 0 || end <= start) return [];
-  try {
-    const parsed = JSON.parse(fenced.slice(start, end + 1)) as {
-      extracted_facts?: unknown;
-    };
-    return sanitizeEpisodicExtractedFacts(parsed.extracted_facts, { requireEvidence: true });
-  } catch {
-    return [];
+  if (start < 0 || end <= start) {
+    return { ok: false, reason: "malformed_response" };
   }
+  let parsed: { extracted_facts?: unknown };
+  try {
+    parsed = JSON.parse(fenced.slice(start, end + 1)) as { extracted_facts?: unknown };
+  } catch {
+    return { ok: false, reason: "malformed_response" };
+  }
+  if (!Array.isArray(parsed.extracted_facts)) {
+    return { ok: false, reason: "invalid_contract" };
+  }
+  const rawArr = parsed.extracted_facts;
+  if (rawArr.length === 0) {
+    return { ok: true, facts: [] };
+  }
+  const facts = sanitizeEpisodicExtractedFacts(rawArr, { requireEvidence: true });
+  if (facts.length === 0) {
+    return { ok: false, reason: "invalid_contract" };
+  }
+  return { ok: true, facts };
+}
+
+/** Compatibility wrapper — failures collapse to [] for legacy callers. */
+export function parseEpisodicExtractedFacts(raw: string): EpisodicExtractedFact[] {
+  const outcome = parseEpisodicExtractOutcome(raw);
+  return outcome.ok ? outcome.facts : [];
 }
 
 export function buildEpisodicExtractSystemPrompt(): string {
@@ -80,13 +112,13 @@ export async function extractEpisodicFactsFromSealedBatch(opts: {
   startTurn: number;
   endTurn: number;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
-}): Promise<EpisodicExtractedFact[]> {
+}): Promise<EpisodicExtractOutcome> {
   extractCallCountForTests += 1;
   // Provider/API-key validation belongs to the background caller.
   // Node-test network suppression only — no provider-specific key gate here.
   const runningUnderNodeTest = Boolean(process.env.NODE_TEST_CONTEXT);
   if (!extractCallerOverride && runningUnderNodeTest) {
-    return [];
+    return { ok: false, reason: "test_network_suppressed" };
   }
   const system = buildEpisodicExtractSystemPrompt();
   const userContent = `[${opts.startTurn}~${opts.endTurn}턴 원본 대화]
@@ -105,16 +137,25 @@ ${opts.dialogue}
       opts.turnTrace,
       "background-episodic-extract"
     );
-    return parseEpisodicExtractedFacts(text);
+    return parseEpisodicExtractOutcome(text);
   } catch (e) {
     console.warn("[memory] episodic seal extract LLM failed (best-effort)", {
       start: opts.startTurn,
       end: opts.endTurn,
       error: (e as Error).message?.slice(0, 200) ?? "unknown",
     });
-    return [];
+    return { ok: false, reason: "provider_error" };
   }
 }
+
+export type EpisodicSealExtractPersistResult = {
+  extracted: number;
+  persisted: number;
+  calls: number;
+  staleRejected?: boolean;
+  extractFailed?: boolean;
+  failureReason?: EpisodicExtractFailureReason;
+};
 
 export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
   chatId: number;
@@ -127,7 +168,7 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
   batchUserSources: EpisodicBatchUserSource[];
   boundarySnapshot?: MemorySourceBoundary;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
-}): Promise<{ extracted: number; persisted: number; calls: number; staleRejected?: boolean }> {
+}): Promise<EpisodicSealExtractPersistResult> {
   if (!isMemoryFeatureEnabled()) {
     return { extracted: 0, persisted: 0, calls: 0 };
   }
@@ -139,7 +180,7 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
     boundarySnapshot: opts.boundarySnapshot,
     sourceUserMessageIds: opts.batchUserSources.map((source) => source.messageId),
   });
-  const facts = await extractEpisodicFactsFromSealedBatch({
+  const outcome = await extractEpisodicFactsFromSealedBatch({
     dialogue: opts.dialogue,
     charName: opts.charName,
     startTurn: opts.startTurn,
@@ -166,10 +207,29 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
       epoch: guardBefore.boundary.epoch,
     });
     return {
-      extracted: facts.length,
+      extracted: outcome.ok ? outcome.facts.length : 0,
       persisted: 0,
       calls: 1,
       staleRejected: true,
+      extractFailed: !outcome.ok,
+      failureReason: outcome.ok ? undefined : outcome.reason,
+    };
+  }
+  if (!outcome.ok) {
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[EpisodicMemory] seal extract failed — preserving batch rows", {
+        chat_id: opts.chatId,
+        batch_start: opts.startTurn,
+        batch_end: opts.endTurn,
+        reason: outcome.reason,
+      });
+    }
+    return {
+      extracted: 0,
+      persisted: 0,
+      calls: 1,
+      extractFailed: true,
+      failureReason: outcome.reason,
     };
   }
   const eligible = loadMemoryEligibleChatTurnsWithMessageIdsCore(
@@ -178,8 +238,6 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
     guardBefore.boundary
   );
   const sourceIds = batchSourceMessageIds(eligible, opts.startTurn, opts.endTurn);
-  // Always route through replaceSummarySealBatch persistence core — including valid
-  // empty extraction — so canonical batch replacement clears prior batch rows.
   const persisted = persistEpisodicMemoryFactsBestEffort(db, {
     chatId: opts.chatId,
     characterId: opts.characterId,
@@ -189,7 +247,7 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
       opts.batchUserSources[opts.batchUserSources.length - 1]?.messageId ?? null,
     batchUserSources: opts.batchUserSources,
     boundarySnapshot: guardBefore.boundary,
-    facts,
+    facts: outcome.facts,
     replaceSummarySealBatch: { batchStart: opts.startTurn, batchEnd: opts.endTurn },
     metadata: {
       extraction: "summary_seal_batch",
@@ -200,5 +258,5 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
       source_fingerprint: guardBefore.batchFingerprint,
     },
   });
-  return { extracted: facts.length, persisted, calls: 1 };
+  return { extracted: outcome.facts.length, persisted, calls: 1 };
 }
