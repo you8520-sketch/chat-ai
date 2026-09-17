@@ -1,6 +1,9 @@
+import type { OpenRouterJsonSchemaResponseFormat } from "@/lib/openRouterCompletion";
 import { SUGGESTED_REPLY_KINDS } from "@/lib/suggestedReplies/types";
 import { collectSharedWidgetRequiredKeys } from "./prompt";
 import type { PostTurnSharedInitialInput } from "./types";
+
+export type { OpenRouterJsonSchemaResponseFormat };
 
 /** Canonical structural owner — dynamic JSON schema for shared post-turn Luna wire. */
 export const POST_TURN_SHARED_INITIAL_SCHEMA_NAME = "post_turn_shared_initial";
@@ -10,15 +13,6 @@ export type PostTurnSharedInitialSchemaStatus =
   | "missing_required_section"
   | "missing_required_key"
   | "not_reached";
-
-export type OpenRouterJsonSchemaResponseFormat = {
-  type: "json_schema";
-  json_schema: {
-    name: string;
-    strict: boolean;
-    schema: Record<string, unknown>;
-  };
-};
 
 function stringObjectSchema(requiredKeys: readonly string[]): Record<string, unknown> {
   const properties: Record<string, unknown> = {};
@@ -92,7 +86,7 @@ function buildRelationshipSchema(): Record<string, unknown> {
         items: {
           type: "object",
           additionalProperties: false,
-          required: ["text"],
+          required: ["text", "deadline"],
           properties: {
             text: { type: "string" },
             deadline: { type: "string" },
@@ -211,5 +205,49 @@ export function sharedSchemaListsAllRequiredKeys(input: PostTurnSharedInitialInp
   for (const key of [...characterKeys, ...userKeys]) {
     if (!schemaText.includes(JSON.stringify(key))) return false;
   }
-  return characterKeys.length + userKeys.length > 0 || input.mode === "relationship_only";
+  if (input.mode === "relationship_only") return true;
+  return characterKeys.length + userKeys.length > 0;
+}
+
+type StrictSchemaIssue = { path: string; message: string };
+
+/** @internal tests — verify strict json_schema shape (every property listed in required). */
+export function collectStrictJsonSchemaIssues(
+  node: unknown,
+  path = "$"
+): StrictSchemaIssue[] {
+  if (!node || typeof node !== "object" || Array.isArray(node)) return [];
+  const obj = node as Record<string, unknown>;
+  const issues: StrictSchemaIssue[] = [];
+
+  if (obj.type === "object" && obj.properties && typeof obj.properties === "object") {
+    const properties = obj.properties as Record<string, unknown>;
+    const required = Array.isArray(obj.required) ? (obj.required as string[]) : [];
+    for (const key of Object.keys(properties)) {
+      if (!required.includes(key)) {
+        issues.push({
+          path: `${path}.properties.${key}`,
+          message: "strict schema requires every property in required[]",
+        });
+      }
+    }
+    for (const [key, value] of Object.entries(properties)) {
+      issues.push(...collectStrictJsonSchemaIssues(value, `${path}.properties.${key}`));
+    }
+  }
+
+  if (obj.type === "array" && obj.items) {
+    issues.push(...collectStrictJsonSchemaIssues(obj.items, `${path}.items`));
+  }
+
+  return issues;
+}
+
+export function assertProductionStrictJsonSchemaValid(schema: Record<string, unknown>): void {
+  const issues = collectStrictJsonSchemaIssues(schema);
+  if (issues.length > 0) {
+    throw new Error(
+      `invalid strict production schema: ${issues.map((i) => `${i.path} ${i.message}`).join("; ")}`
+    );
+  }
 }

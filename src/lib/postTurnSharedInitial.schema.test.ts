@@ -13,8 +13,11 @@ import {
   analyzePostTurnSharedInitialWidgetShape,
 } from "@/lib/postTurnSharedInitial/widgetShapeDiagnostics";
 import {
+  assertProductionStrictJsonSchemaValid,
   buildPostTurnSharedInitialJsonSchema,
   buildPostTurnSharedInitialResponseFormat,
+  collectStrictJsonSchemaIssues,
+  POST_TURN_SHARED_INITIAL_SCHEMA_NAME,
   sharedSchemaListsAllRequiredKeys,
   validatePostTurnSharedInitialStructure,
 } from "@/lib/postTurnSharedInitial/schema";
@@ -333,6 +336,76 @@ describe("postTurnSharedInitial schema owner (S1–S12)", () => {
     const system = buildPostTurnSharedInitialSystem(input);
     assert.doesNotMatch(system, /WIDGET OUTPUT KEY CONTRACT/);
     assert.doesNotMatch(system, /must contain exactly these keys:/);
+    assert.doesNotMatch(system, /Valid structural JSON example/);
     assert.match(system, /provider JSON schema/);
+  });
+
+  it("exact relationship strict schema: promisesAdd deadline is required", () => {
+    const input = dualInput({ includeSuggestions: false, includeRelationship: true });
+    const schema = buildPostTurnSharedInitialJsonSchema(input);
+    assertProductionStrictJsonSchemaValid(schema);
+    const relationship = (schema.properties as Record<string, unknown>).relationship as Record<
+      string,
+      unknown
+    >;
+    const promisesAdd = (relationship.properties as Record<string, unknown>).promisesAdd as Record<
+      string,
+      unknown
+    >;
+    const item = promisesAdd.items as Record<string, unknown>;
+    assert.deepEqual(item.required, ["text", "deadline"]);
+    assert.equal(collectStrictJsonSchemaIssues(schema).length, 0);
+  });
+
+  it("production schema variants are strict-valid locally", () => {
+    const scenarios: Array<{ label: string; input: PostTurnSharedInitialInput }> = [
+      {
+        label: "character+suggestions+relationship",
+        input: dualInput({
+          mode: "character",
+          userWidget: null,
+          includeSuggestions: true,
+          includeRelationship: true,
+        }),
+      },
+      {
+        label: "dual+suggestions+relationship",
+        input: dualInput({ includeSuggestions: true, includeRelationship: true }),
+      },
+      {
+        label: "relationship_only",
+        input: dualInput({
+          mode: "relationship_only",
+          includeSuggestions: false,
+          includeRelationship: true,
+        }),
+      },
+      {
+        label: "regen+relationship",
+        input: dualInput({
+          includeSuggestions: false,
+          includeRelationship: true,
+          relationshipRegenContext: { previousAssistantMessage: "rejected draft" },
+        }),
+      },
+    ];
+    for (const scenario of scenarios) {
+      const format = buildPostTurnSharedInitialResponseFormat(scenario.input);
+      assert.equal(format.type, "json_schema");
+      assert.equal(format.json_schema.name, POST_TURN_SHARED_INITIAL_SCHEMA_NAME);
+      assert.equal(format.json_schema.strict, true);
+      assertProductionStrictJsonSchemaValid(format.json_schema.schema);
+      assert.equal(collectStrictJsonSchemaIssues(format.json_schema.schema).length, 0, scenario.label);
+    }
+  });
+
+  it("structural owner exactly one: schema.ts wire format, prompt has no structural JSON", () => {
+    const input = dualInput({ includeSuggestions: true, includeRelationship: true });
+    const system = buildPostTurnSharedInitialSystem(input);
+    assert.doesNotMatch(system, /Valid structural JSON example/);
+    assert.doesNotMatch(system, /"statusWidget"\s*:/);
+    const format = buildPostTurnSharedInitialResponseFormat(input);
+    assert.equal(format.json_schema.name, POST_TURN_SHARED_INITIAL_SCHEMA_NAME);
+    assert.ok(JSON.stringify(format.json_schema.schema).includes('"statusWidget"'));
   });
 });

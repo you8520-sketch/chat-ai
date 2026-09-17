@@ -12,11 +12,13 @@ import {
   buildPostTurnSharedInitialSystem,
   buildPostTurnSharedInitialUserBlock,
   buildSharedStatusWidgetEnvelope,
-  countAuthoritativeSharedOutputContracts,
   sharedSystemHasConflictingWidgetOnlyContract,
 } from "@/lib/postTurnSharedInitial/prompt";
 import {
+  assertProductionStrictJsonSchemaValid,
   buildPostTurnSharedInitialJsonSchema,
+  buildPostTurnSharedInitialResponseFormat,
+  POST_TURN_SHARED_INITIAL_SCHEMA_NAME,
   sharedSchemaListsAllRequiredKeys,
 } from "@/lib/postTurnSharedInitial/schema";
 import { statusWidgetValuesHasContent } from "@/lib/statusWidget/displayPolicy";
@@ -358,12 +360,12 @@ describe("T10 shared prompt output contract", () => {
     );
     const envelope = buildSharedStatusWidgetEnvelope(sharedInput);
 
-    assert.equal(countAuthoritativeSharedOutputContracts(sharedSystem), 1);
     assert.equal(sharedSystemHasConflictingWidgetOnlyContract(sharedSystem), false);
-    assert.match(sharedSystem, /"statusWidget"/);
-    assert.match(sharedSystem, /"suggestedReplies"/);
-    assert.equal(countAuthoritativeSharedOutputContracts(widgetOnlySystem), 1);
+    assert.doesNotMatch(sharedSystem, /Valid structural JSON example/);
     assert.equal(sharedSystemHasConflictingWidgetOnlyContract(widgetOnlySystem), true);
+    const wireFormat = buildPostTurnSharedInitialResponseFormat(sharedInput);
+    assert.equal(wireFormat.json_schema.name, POST_TURN_SHARED_INITIAL_SCHEMA_NAME);
+    assertProductionStrictJsonSchemaValid(wireFormat.json_schema.schema);
 
     assert.ok(envelope);
     assert.doesNotMatch(envelope!, /\{\s*\.\.\.\s*\}/);

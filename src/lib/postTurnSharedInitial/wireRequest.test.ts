@@ -6,10 +6,7 @@ import { adaptCheaperInferenceChatBody } from "@/lib/cheaperInferenceConfig";
 import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
 import { runPostTurnSharedInitial } from "@/lib/postTurnSharedInitial/run";
 import { DEFAULT_STATUS_WIDGET } from "@/lib/statusWidget/defaultTemplate";
-import {
-  buildPostTurnSharedInitialSystem,
-  sharedOutputJsonExampleUsesParserInvalidValueExemplar,
-} from "@/lib/postTurnSharedInitial/prompt";
+import { buildPostTurnSharedInitialSystem } from "@/lib/postTurnSharedInitial/prompt";
 import {
   buildPostTurnSharedInitialResponseFormat,
   sharedSchemaListsAllRequiredKeys,
@@ -182,6 +179,6 @@ describe("post-turn shared initial wire contract", () => {
     assert.match(schemaText, /key\\"quote/);
     assert.match(schemaText, /라벨_줄/);
     const system = buildPostTurnSharedInitialSystem(input);
-    assert.equal(sharedOutputJsonExampleUsesParserInvalidValueExemplar(system), false);
+    assert.doesNotMatch(system, /Valid structural JSON example/);
   });
 });
