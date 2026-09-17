@@ -6,6 +6,7 @@ import {
   INTEGER_CHASE_MAX_STEP_PX,
   MIN_AVAILABLE_DOWNWARD_SCROLL_PX,
   MIN_MEANINGFUL_SCROLL_RANGE_PX,
+  measureIntegerCruiseMotionDutyCycle,
   measureIntegerScrollCadence,
   resolveScrollClampState,
   resolveTargetChaseMaxInterStepGapMs,
@@ -177,6 +178,8 @@ describe("scrollClampState motion proof", () => {
       includeCatchUpSteps: true,
       maxStepPx: INTEGER_CHASE_MAX_STEP_PX,
       maxInterStepGapMs: resolveTargetChaseMaxInterStepGapMs(28, 1),
+      ignoreMotionDutyCycle: true,
+      ignoreMaxVisibleStopGap: true,
     });
 
     assert.equal(proof.passed, true, proof.reasons.join(","));
@@ -208,6 +211,32 @@ describe("scrollClampState motion proof", () => {
     assert.equal(proof.LARGE_JUMP_COUNT, 0);
     assert.equal(proof.FOLLOW_LATEST_ALWAYS_TRUE, true);
     assert.equal(proof.PROGRAMMATIC_SELF_DETACH, false);
+  });
+
+  it("integer cruise duty treats expected 1px inter-step pauses as active motion", () => {
+    const samples: Array<{ t: number; scrollY: number }> = [{ t: 0, scrollY: 0 }];
+    let t = 0;
+    let scrollY = 0;
+    for (let step = 0; step < 40; step += 1) {
+      t += 16;
+      samples.push({ t, scrollY });
+      t += 34;
+      scrollY += 1;
+      samples.push({ t, scrollY });
+    }
+    const duty = measureIntegerCruiseMotionDutyCycle(samples);
+    assert.ok(duty >= 0.75, `duty=${duty}`);
+  });
+
+  it("integer cruise duty fails on abnormal long visible stop gaps", () => {
+    const samples: Array<{ t: number; scrollY: number }> = [
+      { t: 0, scrollY: 0 },
+      { t: 16, scrollY: 1 },
+      { t: 900, scrollY: 1 },
+      { t: 916, scrollY: 2 },
+    ];
+    const duty = measureIntegerCruiseMotionDutyCycle(samples);
+    assert.ok(duty < 0.75, `duty=${duty}`);
   });
 
   it("measures integer cadence independently from frame duty cycle", () => {

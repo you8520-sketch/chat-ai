@@ -14,6 +14,26 @@ export type ChatReadingProgressSample = {
   source: ChatReadingProgressSource;
 };
 
+export type ReadingProgressResolveStats = {
+  lastMs: number;
+  maxMs: number;
+  sampleCount: number;
+};
+
+let resolveStats: ReadingProgressResolveStats = {
+  lastMs: 0,
+  maxMs: 0,
+  sampleCount: 0,
+};
+
+export function peekReadingProgressResolveStats(): ReadingProgressResolveStats {
+  return { ...resolveStats };
+}
+
+export function resetReadingProgressResolveStats(): void {
+  resolveStats = { lastMs: 0, maxMs: 0, sampleCount: 0 };
+}
+
 const MIN_USABLE_LINE_WIDTH_PX = 24;
 const MIN_LINE_HEIGHT_PX = 12;
 
@@ -89,6 +109,11 @@ export function resolveChatReadingProgressDocumentY(opts: {
 }): ChatReadingProgressSample | null {
   if (typeof document === "undefined") return null;
 
+  const started =
+    typeof performance !== "undefined" ? performance.now() : Date.now();
+
+  let sample: ChatReadingProgressSample | null = null;
+
   if (opts.quoteRoot) {
     const textNode = findLastTextNode(opts.quoteRoot);
     const bounds = resolveProseContentBounds(opts.quoteRoot);
@@ -103,7 +128,7 @@ export function resolveChatReadingProgressDocumentY(opts: {
           contentLeft: bounds.left,
           usableLineWidth: bounds.width,
         });
-        return {
+        sample = {
           documentY: opts.scrollY + viewportY,
           linePhase,
           source: "range-progress",
@@ -112,8 +137,8 @@ export function resolveChatReadingProgressDocumentY(opts: {
     }
   }
 
-  if (opts.fallbackSentinel) {
-    return {
+  if (!sample && opts.fallbackSentinel) {
+    sample = {
       documentY: resolveTargetDocumentY({
         element: opts.fallbackSentinel,
         scrollY: opts.scrollY,
@@ -123,5 +148,11 @@ export function resolveChatReadingProgressDocumentY(opts: {
     };
   }
 
-  return null;
+  const elapsed =
+    (typeof performance !== "undefined" ? performance.now() : Date.now()) - started;
+  resolveStats.lastMs = elapsed;
+  resolveStats.maxMs = Math.max(resolveStats.maxMs, elapsed);
+  resolveStats.sampleCount += 1;
+
+  return sample;
 }

@@ -19,9 +19,9 @@ export type ChatLiveFollowMotionPrefs = {
 };
 
 /**
- * Canonical general-chat camera profile. Geometry-damped follow tracks rendered
- * sentinel position only — stream reveal cadence (prefs) does not drive camera
- * smoothing, cruise, or line-wrap estimates.
+ * Canonical general-chat camera profile. Geometry-damped follow tracks Range-based
+ * render-progress virtual reading Y (sentinel fallback) — stream reveal cadence
+ * (prefs) does not drive camera smoothing, cruise, or line-wrap estimates.
  */
 export function resolveChatLiveFollowMotionProfile(
   _prefs: ChatLiveFollowMotionPrefs

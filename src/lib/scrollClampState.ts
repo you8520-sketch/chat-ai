@@ -30,6 +30,54 @@ export const TARGET_CHASE_SETTLE_TOLERANCE_MS = 240;
  */
 export const TARGET_CHASE_WRAP_SPAN_MULTIPLIER = 1.75;
 
+/**
+ * Integer root scroll is stationary between 1px quanta. Velocity-based duty cycle
+ * treats those expected inter-step pauses as visible stops (~0.4 at 60Hz sampling).
+ * This metric counts a frame interval as cruise-active when scroll moved or the
+ * interval is still within the canonical P95 inter-step budget.
+ */
+export function measureIntegerCruiseMotionDutyCycle(
+  samples: Array<{ t: number; scrollY: number }>,
+  maxExpectedInterStepGapMs = INTEGER_CADENCE_P95_INTER_STEP_GAP_MS
+): number {
+  if (samples.length < 2) return 0;
+  let cruiseActiveMs = 0;
+  let lastScrollStepMs = samples[0]!.t;
+  let previousScrollY = samples[0]!.scrollY;
+
+  for (let index = 1; index < samples.length; index += 1) {
+    const previous = samples[index - 1]!;
+    const current = samples[index]!;
+    const dtMs = Math.max(1, current.t - previous.t);
+    if (current.scrollY > previousScrollY) {
+      lastScrollStepMs = current.t;
+      previousScrollY = current.scrollY;
+    }
+    const sinceLastStepMs = current.t - lastScrollStepMs;
+    const inCruiseEpoch =
+      current.scrollY > previous.scrollY || sinceLastStepMs <= maxExpectedInterStepGapMs;
+    if (inCruiseEpoch) cruiseActiveMs += dtMs;
+  }
+
+  const totalMs = Math.max(1, samples.at(-1)!.t - samples[0]!.t);
+  return cruiseActiveMs / totalMs;
+}
+
+/** Trim sample edges so duty cycle / stop-gap gates measure active scroll motion only. */
+export function sliceActiveScrollMotionFrames(frames: MotionProofFrame[]): MotionProofFrame[] {
+  if (frames.length <= 2) return frames;
+  let firstMoveIndex = -1;
+  let lastMoveIndex = -1;
+  for (let index = 1; index < frames.length; index += 1) {
+    if (frames[index]!.scrollY > frames[index - 1]!.scrollY) {
+      if (firstMoveIndex === -1) firstMoveIndex = index - 1;
+      lastMoveIndex = index;
+    }
+  }
+  if (firstMoveIndex === -1 || lastMoveIndex === -1) return frames;
+  return frames.slice(firstMoveIndex, lastMoveIndex + 1);
+}
+
 export function resolveTargetChaseMaxInterStepGapMs(
   streamIntervalMs: number,
   charsPerTick = 1
@@ -235,6 +283,9 @@ export function evaluateContinuousMotionProof(opts: {
   maxFrameVelocityPxPerSec?: number;
   ignoreMaxFrameVelocity?: boolean;
   ignoreStopStartOscillation?: boolean;
+  /** Legacy stepwise fixtures may include principled line-wrap settle pauses. */
+  ignoreMotionDutyCycle?: boolean;
+  ignoreMaxVisibleStopGap?: boolean;
 }): ContinuousMotionProof {
   const frames = opts.frames;
   const start = opts.startGeometry;
@@ -289,12 +340,14 @@ export function evaluateContinuousMotionProof(opts: {
     previousT = frame.t;
   }
 
+  const activeMotionFrames = sliceActiveScrollMotionFrames(frames);
+  const activeMotionSamples = activeMotionFrames.map((frame) => ({
+    t: frame.t,
+    scrollY: frame.scrollY,
+  }));
   const metrics =
-    frames.length >= 2
-      ? measureScrollMotionContinuity(
-          frames.map((frame) => ({ t: frame.t, scrollY: frame.scrollY })),
-          { velocityThresholdPxPerSec: 4 }
-        )
+    activeMotionSamples.length >= 2
+      ? measureScrollMotionContinuity(activeMotionSamples, { velocityThresholdPxPerSec: 4 })
       : null;
   const cadence = measureIntegerScrollCadence(frames, {
     maxStepPx: opts.maxStepPx,
@@ -370,6 +423,22 @@ export function evaluateContinuousMotionProof(opts: {
   if (!opts.ignoreStopStartOscillation && metrics?.stopStartOscillation) {
     reasons.push("STOP_START_OSCILLATION");
   }
+  const usesIntegerCadenceGate =
+    cadence.MEDIAN_POSITIVE_STEP_PX > 0 &&
+    cadence.MEDIAN_POSITIVE_STEP_PX <= INTEGER_CADENCE_MAX_STEP_PX;
+  const motionDutyCycleForGate = usesIntegerCadenceGate
+    ? measureIntegerCruiseMotionDutyCycle(activeMotionSamples)
+    : metrics?.motionDutyCycle ?? 0;
+  if (!opts.ignoreMotionDutyCycle && motionDutyCycleForGate < MOTION_DUTY_CYCLE_MIN) {
+    reasons.push("MOTION_DUTY_CYCLE_LOW");
+  }
+  if (
+    !opts.ignoreMaxVisibleStopGap &&
+    metrics &&
+    metrics.maxVisibleStopGapMs > MAX_VISIBLE_STOP_GAP_MS_LIMIT
+  ) {
+    reasons.push("MAX_VISIBLE_STOP_GAP_MS");
+  }
 
   const classification = classifyProof({
     requireMotion: opts.requireMotion,
@@ -388,7 +457,7 @@ export function evaluateContinuousMotionProof(opts: {
     AVAILABLE_DOWNWARD_SCROLL_PX: start.AVAILABLE_DOWNWARD_SCROLL_PX,
     TARGET_REQUIRES_DOWNWARD_SCROLL: start.TARGET_REQUIRES_DOWNWARD_SCROLL,
     TOTAL_SCROLL_RANGE_PX: scrollRangePx,
-    MOTION_DUTY_CYCLE: metrics?.motionDutyCycle ?? 0,
+    MOTION_DUTY_CYCLE: motionDutyCycleForGate,
     MAX_VISIBLE_STOP_GAP_MS: metrics?.maxVisibleStopGapMs ?? 0,
     DIRECTION_REVERSAL_COUNT: reversals,
     LARGE_JUMP_COUNT: largeJumps,

@@ -191,7 +191,10 @@ import {
   shouldReattachChatLiveFollowOnScrollDelta,
   shouldStartChatStreamFollow,
 } from "@/lib/chatLiveFollow";
-import { resolveChatReadingProgressDocumentY } from "@/lib/chatLiveFollowReadingProgress";
+import {
+  peekReadingProgressResolveStats,
+  resolveChatReadingProgressDocumentY,
+} from "@/lib/chatLiveFollowReadingProgress";
 import {
   clearChatBillingPresentations,
   completeChatBillingPresentation,
@@ -2378,6 +2381,21 @@ export default function ChatClient({
           quoteRoot,
           fallbackSentinel,
         });
+        const stats = peekReadingProgressResolveStats();
+        bottomRef.current?.setAttribute(
+          "data-chat-reading-progress-resolve-ms",
+          String(stats.lastMs)
+        );
+        bottomRef.current?.setAttribute(
+          "data-chat-reading-progress-resolve-max-ms",
+          String(stats.maxMs)
+        );
+        if (sample) {
+          bottomRef.current?.setAttribute(
+            "data-chat-reading-target-top",
+            String(sample.documentY - window.scrollY)
+          );
+        }
         return sample?.documentY ?? null;
       },
       resolveTargetElement: () =>
