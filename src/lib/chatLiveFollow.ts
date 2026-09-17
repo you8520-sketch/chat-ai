@@ -18,18 +18,15 @@ export type ChatLiveFollowMotionPrefs = {
 };
 
 /**
- * Canonical general-chat motion profile. This reuses the shared controller’s
- * stepwise target-chase semantics, without reveal-paced continuous cruise.
- * The unchanged stream values preserve the production reveal preference for
- * diagnostics; only rendered target changes may start a chase episode.
+ * Canonical general-chat camera profile. Geometry-damped follow tracks rendered
+ * sentinel position only — stream reveal cadence (prefs) does not drive camera
+ * smoothing, cruise, or line-wrap estimates.
  */
 export function resolveChatLiveFollowMotionProfile(
-  prefs: ChatLiveFollowMotionPrefs
+  _prefs: ChatLiveFollowMotionPrefs
 ): LiveReadingMotionProfile {
   return {
-    mode: "continuous-flow",
-    streamIntervalMs: prefs.streamIntervalMs,
-    streamCharsPerTick: prefs.streamCharsPerTick,
+    mode: "geometry-damped",
     downwardOnly: true,
   };
 }

@@ -20,7 +20,7 @@ export const MEDIAN_LINE_HEIGHT_PX = 26;
 /** Typical wrapped line length for Korean chat prose (chars). */
 export const MEDIAN_CHARS_PER_LINE = 42;
 
-export type LiveReadingMotionMode = "stepwise-chase" | "continuous-flow";
+export type LiveReadingMotionMode = "stepwise-chase" | "continuous-flow" | "geometry-damped";
 
 export type LiveReadingMotionProfile = {
   mode?: LiveReadingMotionMode;
@@ -34,7 +34,11 @@ export type LiveReadingMotionProfile = {
   streamCharsPerTick?: number;
   /** Prevent programmatic upward corrections; general chat never ping-pongs. */
   downwardOnly?: boolean;
+  /** Exp-damping rate (1/s) for geometry-damped follow — frame-rate independent. */
+  geometryDampingRate?: number;
 };
+
+export const LIVE_FOLLOW_GEOMETRY_DAMPED_DEFAULT_RATE = 14;
 
 export type MotionSample = {
   t: number;
@@ -313,6 +317,23 @@ function isContinuousFlowProfile(profile: LiveReadingMotionProfile | undefined):
   return profile?.mode === "continuous-flow";
 }
 
+function isGeometryDampedProfile(profile: LiveReadingMotionProfile | undefined): boolean {
+  return profile?.mode === "geometry-damped";
+}
+
+/** Frame-rate independent exp smoothing toward a moving target. */
+export function computeGeometryDampedStep(opts: {
+  current: number;
+  target: number;
+  dtSec: number;
+  dampingRate?: number;
+}): number {
+  if (opts.dtSec <= 0) return opts.current;
+  const rate = opts.dampingRate ?? LIVE_FOLLOW_GEOMETRY_DAMPED_DEFAULT_RATE;
+  const alpha = 1 - Math.exp(-rate * opts.dtSec);
+  return opts.current + (opts.target - opts.current) * alpha;
+}
+
 function smoothDocumentY(opts: {
   rawDocumentY: number;
   smoothedDocumentY: number | null;
@@ -377,6 +398,7 @@ export function createLiveReadingFollowController(opts: {
   let previousDocumentY: number | null = null;
   let previousGrowthSampleMs: number | null = null;
   let estimatedGrowthPxPerSec = 0;
+  let floatScrollY: number | null = null;
   const readScrollY = opts.getScrollPosition ?? getScrollPosition;
   const raf =
     opts.requestAnimationFrame ??
@@ -398,6 +420,7 @@ export function createLiveReadingFollowController(opts: {
     previousDocumentY = null;
     previousGrowthSampleMs = null;
     estimatedGrowthPxPerSec = 0;
+    floatScrollY = null;
   };
 
   const scheduleNextFrame = () => {
@@ -413,9 +436,10 @@ export function createLiveReadingFollowController(opts: {
     }
     const profile = resolveProfile();
     const continuous = isContinuousFlowProfile(profile);
+    const geometryDamped = isGeometryDampedProfile(profile);
     const el = opts.resolveTargetElement();
     if (!el) {
-      if (continuous) {
+      if (continuous || geometryDamped) {
         scheduleNextFrame();
         return;
       }
@@ -428,6 +452,71 @@ export function createLiveReadingFollowController(opts: {
 
     const scrollY = readScrollY();
     const rawDocumentY = resolveTargetDocumentY({ element: el, scrollY });
+
+    if (geometryDamped) {
+      const viewportHeight = opts.getViewportHeight();
+      const targetBandY = viewportHeight * (opts.targetRatio ?? LIVE_READING_TARGET_RATIO);
+      const desiredScrollY = rawDocumentY - targetBandY;
+      const downwardOnly = profile?.downwardOnly === true;
+      const contentGrowing = opts.isContentGrowing?.() ?? false;
+      const epsilonPx = LIVE_FOLLOW_ANIMATOR_EPSILON_PX;
+
+      if (floatScrollY == null) floatScrollY = scrollY;
+
+      const dampingRate = profile?.geometryDampingRate ?? LIVE_FOLLOW_GEOMETRY_DAMPED_DEFAULT_RATE;
+      const chaseTarget = downwardOnly ? Math.max(floatScrollY, desiredScrollY) : desiredScrollY;
+      const nextFloatScrollY = reducedMotion()
+        ? chaseTarget
+        : computeGeometryDampedStep({
+            current: floatScrollY,
+            target: chaseTarget,
+            dtSec,
+            dampingRate,
+          });
+      floatScrollY = nextFloatScrollY;
+
+      let delta = floatScrollY - scrollY;
+      if (downwardOnly && delta < 0) delta = 0;
+
+      const endTop = rawDocumentY - scrollY;
+      const chaseDelta = narrationFollowDeltaPx({
+        endTop,
+        viewportHeight,
+        targetRatio: opts.targetRatio ?? LIVE_READING_TARGET_RATIO,
+        epsilonPx,
+      });
+      const targetMovedDown =
+        previousDocumentY != null && rawDocumentY > previousDocumentY + 0.01;
+      const atBand = downwardOnly
+        ? chaseDelta <= epsilonPx
+        : Math.abs(chaseDelta) <= epsilonPx;
+
+      previousDocumentY = rawDocumentY;
+      previousGrowthSampleMs = timestamp;
+
+      if (Math.abs(delta) > 0.001) {
+        const capped = capLiveFollowFrameStep({
+          step: delta,
+          dtSec,
+          maxCatchUpSpeedPxPerSec: maxCatchUp,
+        });
+        if (capped !== 0) {
+          opts.scrollBy(capped);
+          floatScrollY = scrollY + capped;
+        }
+      }
+
+      // Reveal may continue while the sentinel is between line wraps — do not cruise
+      // or keep RAF alive until measured geometry actually moves again.
+      const needsFollow = targetMovedDown || !atBand;
+
+      if (needsFollow && opts.shouldFollow()) {
+        scheduleNextFrame();
+      } else if (!needsFollow) {
+        resetMotionState();
+      }
+      return;
+    }
     estimatedGrowthPxPerSec = updateEstimatedGrowthPxPerSec({
       documentY: rawDocumentY,
       previousDocumentY,

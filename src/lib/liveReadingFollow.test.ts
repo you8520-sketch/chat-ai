@@ -209,4 +209,37 @@ describe("liveReadingFollow continuous motion", () => {
     });
     assert.ok(Math.abs(step) <= 260 / 60 + 1);
   });
+
+  it("geometry-damped keeps persistent motion while target moves", () => {
+    let scrollY = 0;
+    let targetDocumentY = 800 * LIVE_READING_TARGET_RATIO;
+    const raf = createQueuedRaf();
+    const applied: number[] = [];
+    const controller = createLiveReadingFollowController({
+      getViewportHeight: () => 800,
+      getScrollPosition: () => scrollY,
+      scrollBy: (delta) => {
+        applied.push(delta);
+        scrollY += delta;
+      },
+      resolveTargetElement: () =>
+        ({
+          getBoundingClientRect: () => ({ top: targetDocumentY - scrollY }),
+        }) as Element,
+      shouldFollow: () => true,
+      isContentGrowing: () => true,
+      motionProfile: { mode: "geometry-damped", downwardOnly: true },
+      requestAnimationFrame: raf.requestAnimationFrame,
+      cancelAnimationFrame: raf.cancelAnimationFrame,
+    });
+
+    controller.notifyTargetUpdate();
+    raf.flush(20);
+    targetDocumentY += 26;
+    controller.notifyTargetUpdate();
+    raf.flush(60);
+    assert.ok(applied.length > 10);
+    assert.ok(applied.every((step) => step >= 0));
+    controller.stop();
+  });
 });

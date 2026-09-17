@@ -281,6 +281,7 @@ import {
   CHAT_MOBILE_PORTRAIT_IMAGE_CLASS,
   DEFAULT_CHAT_DISPLAY_PREFS,
   ensureChatDisplayWebFontsLoaded,
+  isStreamSpeedOnlyDisplayPrefsChange,
   resolveClientDisplayPrefs,
   saveChatDisplayPrefs,
   type ChatDisplayPrefs,
@@ -2356,8 +2357,17 @@ export default function ChatClient({
         ) {
           return;
         }
-        if (integerTransport.apply(delta) === 0) return;
+        const motionMode = resolveChatLiveFollowMotionProfile({
+          streamIntervalMs: displayPrefsRef.current.streamIntervalMs,
+          streamCharsPerTick: displayPrefsRef.current.streamCharsPerTick,
+        }).mode;
         liveFollowScrollInFlightRef.current = true;
+        if (motionMode === "geometry-damped") {
+          window.scrollTo({ top: window.scrollY + delta, behavior: "instant" });
+        } else if (integerTransport.apply(delta) === 0) {
+          liveFollowScrollInFlightRef.current = false;
+          return;
+        }
         requestAnimationFrame(() => {
           liveFollowScrollInFlightRef.current = false;
         });
@@ -2375,7 +2385,7 @@ export default function ChatClient({
         }) && isChatLiveReadingActiveNow(),
       isContentGrowing: () =>
         visualRevealPendingCountRef.current > 0 || loading || inFlightRef.current,
-      // Reuse the shared stepwise target chase; line-level canvas growth starts it.
+      // Geometry-damped camera follows rendered sentinel growth, not reveal cadence.
       getMotionProfile: () =>
         resolveChatLiveFollowMotionProfile({
           streamIntervalMs: displayPrefsRef.current.streamIntervalMs,
@@ -4824,14 +4834,25 @@ export default function ChatClient({
 
   const handleDisplayPrefsChange = useCallback(
     (next: ChatDisplayPrefs) => {
+      const streamSpeedOnly = isStreamSpeedOnlyDisplayPrefsChange(
+        displayPrefsRef.current,
+        next
+      );
       const scrollY = typeof window === "undefined" ? null : window.scrollY;
-      followStreamRef.current = false;
-      userScrollLockRef.current = true;
+      if (!streamSpeedOnly) {
+        followStreamRef.current = false;
+        userScrollLockRef.current = true;
+      }
       setDisplayPrefs(next);
       saveChatDisplayPrefs(next);
-      if (scrollY != null) {
+      if (!streamSpeedOnly && scrollY != null) {
         requestAnimationFrame(() => {
           window.scrollTo({ top: scrollY, behavior: "instant" });
+        });
+      }
+      if (streamSpeedOnly && isChatLiveReadingActiveNow()) {
+        requestAnimationFrame(() => {
+          liveFollowAnimatorRef.current?.notifyTargetUpdate();
         });
       }
       // Keep account prefs in sync so SSR re-entry does not reset 에셋 ON/OFF.
@@ -4862,7 +4883,7 @@ export default function ChatClient({
         })();
       }, 400);
     },
-    [chatId]
+    [chatId, isChatLiveReadingActiveNow]
   );
 
   const handleSuggestedRepliesDisable = useCallback(() => {
