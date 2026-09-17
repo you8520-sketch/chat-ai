@@ -11,9 +11,11 @@ import { parsePostTurnSharedInitialResponse } from "@/lib/postTurnSharedInitial/
 import {
   buildPostTurnSharedInitialSystem,
   buildPostTurnSharedInitialUserBlock,
+  buildSharedStatusWidgetEnvelope,
   countAuthoritativeSharedOutputContracts,
   sharedSystemHasConflictingWidgetOnlyContract,
 } from "@/lib/postTurnSharedInitial/prompt";
+import { statusWidgetValuesHasContent } from "@/lib/statusWidget/displayPolicy";
 import { resolveSuggestedRepliesExtractMaxAttempts } from "@/lib/suggestedReplies/job";
 import { OPENROUTER_GEMINI_25_FLASH_MODEL } from "@/lib/chatModels";
 import type { StatusWidget } from "@/lib/statusWidget/types";
@@ -95,6 +97,29 @@ function makeSpyCaller(responseText: string) {
     };
   };
   return { caller, invocations };
+}
+
+const FORBIDDEN_POST_TURN_RETRY_KINDS = [
+  "background-status-widget-extract-repair",
+  "background-status-widget-extract-combined",
+  "background-suggested-replies-extract",
+] as const;
+
+function assertExactlyOneSharedInitialCall(invocations: Array<{ requestKind: string }>) {
+  assert.equal(invocations.length, 1);
+  assert.equal(invocations[0]?.requestKind, POST_TURN_SHARED_INITIAL_REQUEST_KIND);
+  for (const kind of FORBIDDEN_POST_TURN_RETRY_KINDS) {
+    assert.ok(!invocations.some((i) => i.requestKind === kind), `forbidden retry: ${kind}`);
+  }
+}
+
+function resolveBothWidgets() {
+  return resolveStatusWidgetTurn({
+    characterWidgetJson: creatorJson,
+    userWidgetJson: userJson,
+    chatMode: "both",
+    displayMode: "both",
+  });
 }
 
 describe("postTurnSharedInitial parse", () => {
@@ -183,13 +208,8 @@ describe("shared initial call graph", () => {
     assert.equal(result.meta.postTurnSharedInitial, false);
   });
 
-  it("T7 widget malformed / suggestions valid — widget repair only, suggestions prefetched", async () => {
-    const both = resolveStatusWidgetTurn({
-      characterWidgetJson: creatorJson,
-      userWidgetJson: userJson,
-      chatMode: "both",
-      displayMode: "both",
-    });
+  it("CASE 2 full dual empty + suggestions valid — exactly 1 call, widget semantic failure", async () => {
+    const both = resolveBothWidgets();
     const spy = makeSpyCaller(
       JSON.stringify({
         statusWidget: { character_values: {}, user_values: {}, extracted_facts: [] },
@@ -214,68 +234,28 @@ describe("shared initial call graph", () => {
       coalesceSuggestedReplies: { enabled: true },
     });
 
-    assert.ok(result.meta.prefetchedSuggestedReplies?.length === 3);
-    assert.ok(spy.invocations.length >= 2);
-    assert.equal(spy.invocations[0]?.requestKind, POST_TURN_SHARED_INITIAL_REQUEST_KIND);
-    assert.ok(
-      !spy.invocations.some((i) => i.requestKind === "background-status-widget-extract-combined")
-    );
-    assert.ok(
-      !spy.invocations.some((i) => i.requestKind === "background-suggested-replies-extract")
-    );
+    assertExactlyOneSharedInitialCall(spy.invocations);
+    assert.equal(result.meta.actualCallCount, 1);
+    assert.equal(result.meta.prefetchedSuggestedReplies?.length, 3);
+    assert.equal(statusWidgetValuesHasContent({ character: result.values.character ?? undefined }), false);
+    assert.equal(statusWidgetValuesHasContent({ user: result.values.user ?? undefined }), false);
+    assert.equal(result.meta.exhausted, true);
+    assert.equal(result.meta.usedRepair, false);
   });
 
-  it("T7b full dual empty shared initial — repair recovers widget values", async () => {
-    const both = resolveStatusWidgetTurn({
-      characterWidgetJson: creatorJson,
-      userWidgetJson: userJson,
-      chatMode: "both",
-      displayMode: "both",
-    });
-    const userWidget = both.userWidget!;
-    const emptyShared = JSON.stringify({
-      statusWidget: { character_values: {}, user_values: {}, extracted_facts: [] },
-      suggestedReplies: {
-        items: [
-          { kind: "escalate", text: padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72) },
-          { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ", 72) },
-          { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ", 72) },
-        ],
-      },
-    });
-    function jsonForWidget(widget: StatusWidget): string {
-      const obj: Record<string, unknown> = {};
-      for (const key of collectWidgetJsonKeys(widget)) {
-        obj[key] = padWidgetValue(key);
-      }
-      obj.extracted_facts = [];
-      return JSON.stringify(obj);
-    }
-
-    let repairIndex = 0;
-    const invocations: Array<{ requestKind: string }> = [];
-    const caller = async (
-      _system: string,
-      _history: ChatMsg[],
-      opts: { requestKind: string }
-    ) => {
-      invocations.push({ requestKind: opts.requestKind });
-      let text = emptyShared;
-      if (opts.requestKind === "background-status-widget-extract-repair") {
-        const widget = repairIndex === 0 ? DEFAULT_STATUS_WIDGET : userWidget;
-        repairIndex += 1;
-        text = jsonForWidget(widget);
-      }
-      return {
-        text,
-        usage: {
-          inputTokens: 1500,
-          outputTokens: 600,
-          estimated: false,
-          upstreamCostUsd: 0.003,
+  it("CASE 6 relationship enabled — widget failure does not trigger provider recovery", async () => {
+    const both = resolveBothWidgets();
+    const spy = makeSpyCaller(
+      JSON.stringify({
+        statusWidget: { character_values: {}, user_values: {}, extracted_facts: [] },
+        relationship: {
+          items: [],
+          itemsRemove: [],
+          promisesAdd: [],
+          promisesRemove: [],
         },
-      };
-    };
+      })
+    );
 
     const result = await extractStatusWidgetValuesForTurn({
       charName: "레온",
@@ -283,19 +263,16 @@ describe("shared initial call graph", () => {
       userMessage: "안녕",
       assistantProse: ASSISTANT,
       resolved: both,
-      caller,
+      caller: spy.caller,
       primaryModelId: OPENROUTER_GEMINI_25_FLASH_MODEL,
-      coalesceSuggestedReplies: { enabled: true },
+      shareRelationshipDelta: true,
     });
 
-    const repairCalls = invocations.filter(
-      (i) => i.requestKind === "background-status-widget-extract-repair"
-    ).length;
-    assert.ok(repairCalls >= 1);
-    assert.equal(result.meta.usedRepair, true);
-    assert.ok(result.values.character);
-    assert.ok(result.values.user);
-    assert.equal(result.meta.character?.finalReasonCode, "V3_REPAIR_USED");
+    assertExactlyOneSharedInitialCall(spy.invocations);
+    assert.equal(result.meta.actualCallCount, 1);
+    assert.equal(result.meta.sharedInitialRelationshipUsable, true);
+    assert.equal(result.meta.exhausted, true);
+    assert.equal(result.meta.usedRepair, false);
   });
 
   it("T9 shared transport failure — attempt consumed, no second full initial", async () => {
@@ -349,21 +326,16 @@ describe("shared initial call graph", () => {
     assert.equal(result.meta.sharedInitialConsumed, true);
     assert.equal(result.meta.postTurnSharedInitial, true);
     assert.equal(result.meta.prefetchedSuggestedReplies, null);
-    assert.ok(result.meta.actualCallCount <= 4, "widget failure budget not expanded beyond dual_combined max");
+    assert.equal(result.meta.actualCallCount, 1);
     assert.equal(resolveSuggestedRepliesExtractMaxAttempts(result.meta.sharedInitialConsumed), 0);
   });
 });
 
 describe("T10 shared prompt output contract", () => {
-  it("exactly one authoritative output contract, no conflicting widget-only top-level schema", () => {
-    const both = resolveStatusWidgetTurn({
-      characterWidgetJson: creatorJson,
-      userWidgetJson: userJson,
-      chatMode: "both",
-      displayMode: "both",
-    });
-    const sharedSystem = buildPostTurnSharedInitialSystem({
-      mode: "dual",
+  it("exactly one authoritative output contract with concrete widget keys", () => {
+    const both = resolveBothWidgets();
+    const sharedInput = {
+      mode: "dual" as const,
       charName: "레온",
       personaName: "렌",
       userMessage: "안녕",
@@ -373,12 +345,14 @@ describe("T10 shared prompt output contract", () => {
       primaryModelId: "gpt-5.6-luna",
       includeSuggestions: true,
       includeRelationship: false,
-    });
+    };
+    const sharedSystem = buildPostTurnSharedInitialSystem(sharedInput);
     const widgetOnlySystem = buildCombinedDualWidgetExtractSystem(
       both.characterWidget!,
       both.userWidget!,
       true
     );
+    const envelope = buildSharedStatusWidgetEnvelope(sharedInput);
 
     assert.equal(countAuthoritativeSharedOutputContracts(sharedSystem), 1);
     assert.equal(sharedSystemHasConflictingWidgetOnlyContract(sharedSystem), false);
@@ -386,6 +360,21 @@ describe("T10 shared prompt output contract", () => {
     assert.match(sharedSystem, /"suggestedReplies"/);
     assert.equal(countAuthoritativeSharedOutputContracts(widgetOnlySystem), 1);
     assert.equal(sharedSystemHasConflictingWidgetOnlyContract(widgetOnlySystem), true);
+
+    assert.ok(envelope);
+    assert.doesNotMatch(envelope!, /\{\s*\.\.\.\s*\}/);
+    for (const key of collectWidgetJsonKeys(both.characterWidget!)) {
+      assert.match(envelope!, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+    }
+    for (const key of collectWidgetJsonKeys(both.userWidget!)) {
+      assert.match(envelope!, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+    }
+    for (const key of collectWidgetJsonKeys(both.characterWidget!)) {
+      assert.match(sharedSystem, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+    }
+    for (const key of collectWidgetJsonKeys(both.userWidget!)) {
+      assert.match(sharedSystem, new RegExp(`"${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+    }
   });
 });
 
