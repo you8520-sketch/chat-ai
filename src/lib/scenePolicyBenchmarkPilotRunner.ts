@@ -27,7 +27,6 @@ import {
 } from "@/lib/scenePolicyBoundarySuspicionScan";
 import {
   advanceV2ReconvergenceForBenchmark,
-  BLIND_EVALUATION_RUBRIC_ITEMS,
   buildBenchmarkArmPayload,
   buildLiveTrajectoryTurnFixture,
   buildScenePolicyInputFromFixture,
@@ -796,45 +795,4 @@ export function buildGptEvaluationArtifact(input: {
   }
 
   return { trajectories, turns };
-}
-
-export type PilotBlindSample = {
-  blind_id: string;
-  fixture_context: string;
-  raw_output: string;
-  rubric_items: readonly string[];
-};
-
-export type PilotAnswerKeyEntry = {
-  blind_id: string;
-  arm_id: ScenePolicyArm;
-  logical_id: string;
-  benchmark_case_id: string;
-};
-
-/** Blind samples without arm identity; answer key separate. */
-export function buildPilotBlindArtifacts(input: {
-  captures: PilotCaptureRecord[];
-}): { blindSamples: PilotBlindSample[]; answerKey: PilotAnswerKeyEntry[] } {
-  const blindSamples: PilotBlindSample[] = [];
-  const answerKey: PilotAnswerKeyEntry[] = [];
-
-  for (const cap of input.captures) {
-    if (!cap.raw_output) continue;
-    const blindId = `BLIND_${cap.logical_id}`;
-    blindSamples.push({
-      blind_id: blindId,
-      fixture_context: `# ${cap.benchmark_case_id}\ntrajectory=${cap.trajectory_id ?? "single"}`,
-      raw_output: cap.raw_output,
-      rubric_items: BLIND_EVALUATION_RUBRIC_ITEMS,
-    });
-    answerKey.push({
-      blind_id: blindId,
-      arm_id: cap.arm_id,
-      logical_id: cap.logical_id,
-      benchmark_case_id: cap.benchmark_case_id,
-    });
-  }
-
-  return { blindSamples, answerKey };
 }

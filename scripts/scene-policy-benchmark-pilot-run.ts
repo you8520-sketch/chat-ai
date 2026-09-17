@@ -11,7 +11,6 @@ import path from "node:path";
 import { loadEnvLocal } from "./load-env-local";
 import {
   assertMinimalPlanExpected,
-  buildPilotBlindArtifacts,
   deriveMinimalPilotSamples,
   runMinimalScenePolicyPilot,
 } from "../src/lib/scenePolicyBenchmarkPilotRunner";
@@ -41,22 +40,6 @@ async function main() {
     `${JSON.stringify(result, null, 2)}\n`,
     "utf8"
   );
-
-  if (result.status === "PILOT_COMPLETE_READY_FOR_BLIND_EVALUATION") {
-    const { blindSamples, answerKey } = buildPilotBlindArtifacts({
-      captures: result.captures,
-    });
-    fs.writeFileSync(
-      path.join(OUT_DIR, "blind-samples.json"),
-      `${JSON.stringify(blindSamples, null, 2)}\n`,
-      "utf8"
-    );
-    fs.writeFileSync(
-      path.join(OUT_DIR, "answer-key.json"),
-      `${JSON.stringify(answerKey, null, 2)}\n`,
-      "utf8"
-    );
-  }
 
   console.log("status", result.status);
   console.log("accounting", result.accounting);

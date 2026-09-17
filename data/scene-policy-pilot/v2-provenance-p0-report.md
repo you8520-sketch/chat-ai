@@ -90,12 +90,9 @@ extractReconvergenceHooks
 
 | Artifact | Writer | Reader | Tests | Classification |
 |----------|--------|--------|-------|----------------|
-| `buildPilotBlindArtifacts()` | `scenePolicyBenchmarkPilotRunner.ts` | **none** | **none** | **SAFE TO DELETE** (pending user approval) |
-| `blind-samples.json` | `scripts/scene-policy-benchmark-pilot-run.ts` | **none** | **none** | **SAFE TO DELETE** |
-| `answer-key.json` | same | **none** | **none** | **SAFE TO DELETE** |
-| Comment "Blind samples without arm identity" | pilot runner | — | — | **Factually false** (`BLIND_${logical_id}` embeds arm) |
-
-**Not deleted** — awaiting explicit approval per STOP condition.
+| `buildPilotBlindArtifacts()` | removed | — | — | **REMOVED** — obsolete, no readers, known identity leak |
+| `blind-samples.json` | removed | — | — | **REMOVED** |
+| `answer-key.json` | removed | — | — | **REMOVED** |
 
 ## REGRESSION GATES ADDED
 
