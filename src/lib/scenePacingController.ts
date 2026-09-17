@@ -17,6 +17,8 @@ import type { SceneProgressionHistoryEntry } from "@/lib/sceneProgressionState";
 import {
   buildSceneDirective,
   buildSceneSignalText,
+  renderSceneExecutionContract,
+  renderSceneMotionBody,
   resolveSceneCastFocus,
   resolveSceneKind,
   type SceneCastMode,
@@ -441,29 +443,18 @@ export function resolveScenePacingDecision(
   });
 }
 
-/** Compact 1–2 sentence cue — no legacy intensity/avoid/next-beat dump. */
-export function renderCompactScenePacingCue(
-  decision: ScenePacingDecision
-): string {
-  const body = (() => {
-    switch (decision.motionLevel) {
-      case "HOLD":
-        return "현재 두 인물의 상호작용을 중심으로 관계·내면·행동·감각을 전개한다. 주변 인물·환경의 짧은 반응이나 작은 마찰은 이 중심축에 자연스럽게 흡수한다.";
-      case "AMBIENT":
-        return "현재 중심 상호작용을 유지하면서 주변 인물·환경의 짧은 변화로 장면을 살아 있게 만든다. 그 변화는 현재 상호작용으로 되돌아온다.";
-      case "LOCAL":
-        return "현재 인과에서 직접 이어지는 새 정보나 결과 하나를 장면 안에서 진행한다.";
-      case "EXTERNAL":
-        return "현재 인과와 직접 연결된 외부 변화 하나를 진행하고, 현재 중심 상호작용과 연결한다.";
-      default: {
-        const _exhaustive: never = decision.motionLevel;
-        return _exhaustive;
-      }
-    }
-  })();
-
-  // Response-axis ownership lives on the terminal dialogue owner — motion only here.
-  return `[SCENE PACING]\n${body}`;
+/**
+ * Compact Standard [SCENE PACING] — lossless projection of canonical SceneDirective policy.
+ * Consumes the same motion body + execution contract as the full renderer.
+ */
+export function renderCompactScenePacingCue(directive: SceneDirective): string {
+  const body = renderSceneMotionBody(directive.motionDecision);
+  const contract = renderSceneExecutionContract({
+    motionDecision: directive.motionDecision,
+    progressionTypes: directive.progressionTypes,
+    npcGrounding: directive.npcGrounding,
+  });
+  return `[SCENE PACING]\n${body}\n${contract}`;
 }
 
 /**
@@ -1032,6 +1023,8 @@ export function applyScenePacingArmToMessages(input: {
   messages: Array<{ role: string; content: string }>;
   arm: ScenePacingArm;
   decision: ScenePacingDecision;
+  /** Canonical motion policy — required for compact [SCENE PACING] render (Q/T/U/V). */
+  canonicalSceneDirective?: SceneDirective | null;
   /** When true, skip [SCENE PACING]/[SCENE STATE] cue — SceneDirective block owns motion. */
   skipMotionCue?: boolean;
   /** Optional signals for Arm V dynamic budget (ignored by other arms). */
@@ -1085,7 +1078,9 @@ export function applyScenePacingArmToMessages(input: {
   const cue =
     pacingArm === "R"
       ? renderCompactSceneStateEnvelope(input.decision)
-      : renderCompactScenePacingCue(input.decision);
+      : input.canonicalSceneDirective
+        ? renderCompactScenePacingCue(input.canonicalSceneDirective)
+        : null;
 
   for (const m of messages) {
     if (m.role !== "system") continue;
@@ -1093,7 +1088,7 @@ export function applyScenePacingArmToMessages(input: {
     m.content = stripGenreSceneModePacingHint(m.content);
     if (m.content !== before) strippedGenreSceneMode = true;
 
-    if (input.skipMotionCue) {
+    if (input.skipMotionCue || !cue) {
       // Dialogue budget only — motion prompt owned by SceneDirective block.
     } else if (
       m.content.includes("[SCENE PACING]") ||
@@ -1256,6 +1251,7 @@ export function applyProductionServerControlsToMessages(input: {
     messages: input.messages,
     arm: "V",
     decision,
+    canonicalSceneDirective: input.canonicalSceneDirective ?? undefined,
     skipMotionCue: input.skipMotionCue,
     dialogueBudgetInput: {
       currentUserMessage: input.currentUserMessage ?? undefined,
