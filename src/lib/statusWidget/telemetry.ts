@@ -78,6 +78,15 @@ export type StatusWidgetTurnTelemetry = {
   regenerate: boolean;
   /** Observe-only previous-echo stats (counts/keys; no field value bodies). */
   statusWidgetInnerStateExactMatch?: StatusWidgetPreviousEchoStats | null;
+  /** Shared Luna post-turn call transport (distinct from main DeepSeek finishReason). */
+  transportStatus?: "success" | "failed" | "not_attempted";
+  /** Top-level JSON.parse on shared Luna response. */
+  serializationStatus?: "ok" | "failed" | "not_reached";
+  /** Widget semantic extraction after successful JSON parse. */
+  semanticStatus?: "ok" | "failed" | "empty" | "not_reached";
+  /** Shared Luna finish_reason — not the main RP model finishReason. */
+  sharedFinishReason?: string | null;
+  sharedOutputChars?: number | null;
 };
 
 export const STATUS_WIDGET_TELEMETRY_LOG_PREFIX = "[status-widget-telemetry]";
@@ -251,6 +260,14 @@ export async function resolveStatusWidgetTurnValues(
   let sharedInitialRelationshipUsable = false;
   let sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null =
     null;
+  let sharedInitialTransportStatus: StatusWidgetTurnTelemetry["transportStatus"] =
+    "not_attempted";
+  let sharedInitialSerializationStatus: StatusWidgetTurnTelemetry["serializationStatus"] =
+    "not_reached";
+  let sharedInitialSemanticStatus: StatusWidgetTurnTelemetry["semanticStatus"] =
+    "not_reached";
+  let sharedInitialFinishReason: string | null = null;
+  let sharedInitialOutputChars: number | null = null;
   let resolutionSource: StatusWidgetResolutionSource = "none";
   let splitRawHit = false;
   let splitRawParseError: string | null = null;
@@ -418,6 +435,14 @@ export async function resolveStatusWidgetTurnValues(
         v3Result.meta.sharedInitialRelationshipUsable === true;
       sharedInitialRelationshipDelta =
         v3Result.meta.sharedInitialRelationshipDelta ?? null;
+      sharedInitialTransportStatus =
+        v3Result.meta.sharedInitialTransportStatus ?? "not_attempted";
+      sharedInitialSerializationStatus =
+        v3Result.meta.sharedInitialSerializationStatus ?? "not_reached";
+      sharedInitialSemanticStatus =
+        v3Result.meta.sharedInitialSemanticStatus ?? "not_reached";
+      sharedInitialFinishReason = v3Result.meta.sharedInitialFinishReason ?? null;
+      sharedInitialOutputChars = v3Result.meta.sharedInitialOutputChars ?? null;
       // usage + billing meta share the same lifetime (both null or both set).
       if (v3Result.usage && v3Result.meta.billing) {
         widgetExtractUsage = v3Result.usage;
@@ -604,6 +629,11 @@ export async function resolveStatusWidgetTurnValues(
     finalCorruptBeforeBackfill: corruptBeforeExtract,
     regenerate: input.regenerate === true,
     statusWidgetInnerStateExactMatch: previousEchoStats,
+    transportStatus: sharedInitialTransportStatus,
+    serializationStatus: sharedInitialSerializationStatus,
+    semanticStatus: sharedInitialSemanticStatus,
+    sharedFinishReason: sharedInitialFinishReason,
+    sharedOutputChars: sharedInitialOutputChars,
   };
 
   return {

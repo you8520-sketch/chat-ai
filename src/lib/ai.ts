@@ -385,6 +385,7 @@ async function callGeminiOnce(
     temperature?: number;
     ledgerContext?: ProviderCostLedgerContext;
     jobId?: string | null;
+    responseFormat?: import("@/lib/openRouterCompletion").OpenRouterCompletionResponseFormat;
   }
 ): Promise<{ text: string; usage: TokenUsage }> {
   if (
@@ -447,6 +448,7 @@ async function callGeminiOnce(
     timeoutMs: /background-html-visual-card/i.test(requestKind) ? 240_000 : undefined,
     ledgerContext: opts?.ledgerContext,
     jobId: opts?.jobId ?? null,
+    responseFormat: opts?.responseFormat,
   });
 }
 
@@ -491,6 +493,7 @@ export async function callBackgroundMemory(
     modelId?: string;
     ledgerContext?: ProviderCostLedgerContext;
     jobId?: string | null;
+    responseFormat?: import("@/lib/openRouterCompletion").OpenRouterCompletionResponseFormat;
   }
 ): Promise<{ text: string; usage: TokenUsage }> {
   const explicitModelId = opts?.modelId?.trim();
@@ -509,6 +512,7 @@ export async function callBackgroundMemory(
             requestedModel: opts.ledgerContext.requestedModel || targetModelId,
           }
         : undefined,
+      responseFormat: opts?.responseFormat,
     });
   return call(modelId);
 }
