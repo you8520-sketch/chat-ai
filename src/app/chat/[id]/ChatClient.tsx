@@ -144,6 +144,7 @@ import {
   resolveInstantRevealAtStreamDone,
   type StreamTurnModeState,
 } from "@/lib/streamTurnModeClassification";
+import { applyChatStreamDraftRecoveryOnLoad } from "@/lib/chatStreamDraftRecovery";
 import { createStreamDraftWriteGate, createSessionRecoveryDraftScope, adoptSessionRecoveryDraftChatId, clearRecoveryDraftScopes, type RecoveryDraftScopeOps } from "@/lib/streamDraftLifecycle";
 import {
   isGenerationStreamingMessage,
@@ -1943,65 +1944,25 @@ export default function ChatClient({
     if (!draft?.requestId) return;
 
     setMessages((prev) => {
-      const matchAssistant = prev.find(
-        (m) => m.role === "assistant" && m.requestId === draft.requestId
-      );
-      const matchUser = prev.find((m) => m.role === "user" && m.requestId === draft.requestId);
-
-      if (matchAssistant && isTerminalGenerationStatus(matchAssistant.generationStatus)) {
+      const recovery = applyChatStreamDraftRecoveryOnLoad(prev, draft);
+      if (recovery.clearedDraft) {
         clearChatStreamDraft(character.id, chatId ?? initialChatId);
-        return prev;
       }
-
-      if (
-        matchAssistant &&
-        isInFlightGenerationStatus(matchAssistant.generationStatus) &&
-        draft.assistantPartial.length > (matchAssistant.content?.length ?? 0)
-      ) {
-        if (process.env.NODE_ENV !== "production") {
-          console.log("[StreamingPersistence]", {
-            recoveredOnLoad: true,
-            request_id: draft.requestId,
-            source: "sessionStorage-ahead-of-db",
-          });
-        }
-        return prev.map((m) =>
-          m.role === "assistant" && m.requestId === draft.requestId
-            ? {
-                ...m,
-                content: draft.assistantPartial,
-                generationStatus: m.generationStatus ?? "generating",
-              }
-            : m
-        );
+      if (recovery.action === "hydrate-partial" && process.env.NODE_ENV !== "production") {
+        console.log("[StreamingPersistence]", {
+          recoveredOnLoad: true,
+          request_id: draft.requestId,
+          source: "sessionStorage-ahead-of-db",
+        });
       }
-
-      if (!matchAssistant && !matchUser && draft.userText) {
-        if (process.env.NODE_ENV !== "production") {
-          console.log("[StreamingPersistence]", {
-            recoveredOnLoad: true,
-            request_id: draft.requestId,
-            source: "sessionStorage-only",
-          });
-        }
-        return [
-          ...prev,
-          {
-            role: "user" as const,
-            content: draft.userText,
-            requestId: draft.requestId,
-            generationStatus: "submitted",
-          },
-          {
-            role: "assistant" as const,
-            content: draft.assistantPartial || "",
-            requestId: draft.requestId,
-            generationStatus: "generating",
-          },
-        ];
+      if (recovery.action === "clear-orphan" && process.env.NODE_ENV !== "production") {
+        console.log("[StreamingPersistence]", {
+          recoveredOnLoad: true,
+          request_id: draft.requestId,
+          source: "orphan-draft-cleared",
+        });
       }
-
-      return prev;
+      return recovery.messages as typeof prev;
     });
     // Intentionally once per room scope — not on every messages change
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3767,6 +3728,10 @@ export default function ChatClient({
       setGenerationPrepUi(null);
     }
 
+    if (streamError || trafficOverload) {
+      closeSessionRecoveryDraft();
+    }
+
     const billing =
       pendingDone && !trafficOverload ? extractBillingInfo(pendingDone) : undefined;
     return {
@@ -4099,7 +4064,10 @@ export default function ChatClient({
       const earlyExit = await handleStreamError(res, aiIndex, () => {
         setMessages((m) => softRollbackTurn(m, aiIndex));
       }, text);
-      if (earlyExit) return;
+      if (earlyExit) {
+        clearChatStreamDraft(character.id, chatId);
+        return;
+      }
 
       streamResult = await consumeChatStream(res, aiIndex, clientRequestId);
       handlePostStreamResult(streamResult, aiIndex, {
@@ -4121,6 +4089,9 @@ export default function ChatClient({
         if (!persisted) setInput(text);
         return softRollbackTurn(m, aiIndex);
       });
+      if (streamResult === undefined) {
+        clearChatStreamDraft(character.id, chatId);
+      }
     } finally {
       inFlightRef.current = false;
       loadingRef.current = false;
@@ -4337,7 +4308,10 @@ export default function ChatClient({
       });
 
       const earlyExit = await handleStreamError(res, regenIndex, restoreAssistant);
-      if (earlyExit) return;
+      if (earlyExit) {
+        clearChatStreamDraft(character.id, chatId);
+        return;
+      }
 
       streamResult = await consumeChatStream(res, regenIndex, clientRequestId);
       if (streamResult.trafficOverload) {
@@ -4364,6 +4338,9 @@ export default function ChatClient({
         setToastMsg("재생성이 중단되었습니다. 다시 시도해 주세요.");
       }
       restoreAssistant();
+      if (streamResult === undefined) {
+        clearChatStreamDraft(character.id, chatId);
+      }
     } finally {
       inFlightRef.current = false;
       loadingRef.current = false;

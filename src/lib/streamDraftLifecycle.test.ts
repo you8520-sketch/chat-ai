@@ -268,7 +268,7 @@ describe("new-chat scope migration — N1–N8", () => {
     sim.writeDraft("");
     sim.adoptChatId(REAL_CHAT_ID, "");
     sim.reveal.enqueue("ABCDEF");
-    await tick(10);
+    await sim.reveal.waitUntilIdle();
     assert.equal(readRoomDraft(store, null), null);
     assert.ok(readRoomDraft(store, REAL_CHAT_ID)?.assistantPartial.includes("A"));
     assert.equal(readRoomDraft(store, REAL_CHAT_ID)?.requestId, "req-a");
@@ -280,7 +280,7 @@ describe("new-chat scope migration — N1–N8", () => {
     sim.writeDraft("");
     sim.adoptChatId(REAL_CHAT_ID, "");
     sim.reveal.enqueue("RECOVERY_PARTIAL");
-    await tick(10);
+    await sim.reveal.waitUntilIdle();
     const recovered = readRoomDraft(store, REAL_CHAT_ID);
     assert.equal(recovered?.requestId, "req-a");
     assert.ok(recovered!.assistantPartial.includes("RECOVERY"));
