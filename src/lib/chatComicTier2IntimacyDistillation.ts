@@ -15,11 +15,11 @@ import {
 } from "@/lib/chatComicTier2SafeProjection";
 import type { Tier2PhysicalBeatCategory } from "@/lib/chatComicTier2SafeProjection";
 
-const INTIMACY_BEAT_CATEGORIES = new Set<Tier2PhysicalBeatCategory>([
+/** Structured intimacy beats — resting excluded (not sufficient alone). */
+const STRUCTURED_INTIMACY_CATEGORIES = new Set<Tier2PhysicalBeatCategory>([
   "kiss",
   "embrace",
   "close_proximity",
-  "resting",
 ]);
 
 const INTIMACY_CATEGORY_PRIORITY: Record<Tier2PhysicalBeatCategory, number> = {
@@ -38,47 +38,36 @@ export const TIER2_PANEL_EMOTIONAL_REACTION_POSE =
   "same cast in the same location — emotional reaction visible through expression and posture";
 
 export function isTier2IntimacyHeavyPanel(panel: ComicSafeStructurePanel): boolean {
-  if (INTIMACY_BEAT_CATEGORIES.has(panel.physicalBeatCategory)) return true;
-  const haystack = `${panel.situation} ${panel.poseHint} ${panel.background}`;
-  if (containsBedroomBedContext(haystack) && panel.situation.length >= 120) return true;
-  if (
-    /(?:affectionate|resting close|calm affectionate|껴안|키스|kiss|embrace|proximity|밀착)/iu.test(
-      panel.poseHint
-    )
-  ) {
-    return true;
-  }
-  return false;
+  if (panel.situationHadAdultExplicitProjection) return true;
+  return STRUCTURED_INTIMACY_CATEGORIES.has(panel.physicalBeatCategory);
 }
 
 function intimacyPanelScore(panel: ComicSafeStructurePanel): number {
   let score = INTIMACY_CATEGORY_PRIORITY[panel.physicalBeatCategory] ?? 0;
+  if (panel.situationHadAdultExplicitProjection) score += 20;
   score += Math.min(12, Math.floor(panel.situation.length / 100));
   if (containsBedroomBedContext(`${panel.background} ${panel.situation}`)) score += 2;
   return score;
 }
 
-/** Dense multi-panel intimacy cluster — not triggered for single-cue P1/P3 scenes. */
+/** Dense multi-panel adult/intimacy cluster — provenance-first, never bedroom/length primary. */
 export function shouldDistillAdultIntimacyCluster(
   panels: readonly ComicSafeStructurePanel[]
 ): boolean {
-  const heavy = panels.filter(isTier2IntimacyHeavyPanel);
-  if (heavy.length < 2) return false;
-
-  const totalSituationChars = heavy.reduce((sum, panel) => sum + panel.situation.length, 0);
-  const distinctIntimacyCategories = new Set(
-    heavy
-      .map((panel) => panel.physicalBeatCategory)
-      .filter((category) => INTIMACY_BEAT_CATEGORIES.has(category))
+  const adultExplicitPanels = panels.filter((panel) => panel.situationHadAdultExplicitProjection);
+  const structuredIntimacyPanels = panels.filter((panel) =>
+    STRUCTURED_INTIMACY_CATEGORIES.has(panel.physicalBeatCategory)
+  );
+  const distinctStructuredCategories = new Set(
+    structuredIntimacyPanels.map((panel) => panel.physicalBeatCategory)
   );
 
-  if (totalSituationChars >= 800) return true;
-  if (heavy.length >= 3 && totalSituationChars >= 400) return true;
-  if (heavy.length >= 2 && distinctIntimacyCategories.size >= 2 && totalSituationChars >= 200) {
+  if (adultExplicitPanels.length >= 2) return true;
+  if (adultExplicitPanels.length >= 1 && structuredIntimacyPanels.length >= 2) return true;
+  if (structuredIntimacyPanels.length >= 3 && distinctStructuredCategories.size >= 2) {
     return true;
   }
-  if (heavy.length >= 3 && distinctIntimacyCategories.size >= 2) return true;
-  if (heavy.length >= 4 && heavy.length === panels.length) return true;
+
   return false;
 }
 

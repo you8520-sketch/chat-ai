@@ -558,6 +558,81 @@ export function denseNonIntimateActionPlan(): ScenePlan {
   };
 }
 
+/** Long non-intimate bedroom RP — bed location + long narration, no intimacy progression. */
+export function longNonIntimateBedroomPlan(): ScenePlan {
+  const longBedroomBeat =
+    "프라이빗 침실의 넓은 침대 옆 작은 탁자에서 두 사람이 각자 책을 읽고 있다. " +
+    "창 밖으로는 잔잔한 아침 햇살이 들어오고 방 안은 정리되어 있다. " +
+    "한쪽은 수면 마스크를 벗으며 기지개를 켜고 다른 쪽은 물을 마신다.";
+  return {
+    sceneBackground: "프라이빗 침실",
+    atmosphere: "조용한 아침",
+    events: [],
+    castMentions: [],
+    heroEventIds: [],
+    heroScene: "침실 침대",
+    panels: [
+      {
+        index: 1,
+        sourceEventIds: [],
+        situation: longBedroomBeat,
+        dialogue: [{ speaker: "persona", text: "오늘 일정 뭐였더라?", provenance: "source" }],
+      },
+      {
+        index: 2,
+        sourceEventIds: [],
+        situation: longBedroomBeat,
+        personaAction: "침대에 앉아 신발 끈을 조인다",
+        dialogue: [{ speaker: "character", text: "일단 커피부터.", provenance: "source" }],
+      },
+      {
+        index: 3,
+        sourceEventIds: [],
+        situation: longBedroomBeat,
+        characterAction: "옷장에서 외투를 꺼낸다",
+        dialogue: [],
+      },
+      {
+        index: 4,
+        sourceEventIds: [],
+        situation: longBedroomBeat,
+        personaAction: "거울 앞에서 머리를 정리한다",
+        dialogue: [{ speaker: "persona", text: "나갈 준비 됐어.", provenance: "source" }],
+      },
+    ],
+    recommendedPanelCount: 4,
+  };
+}
+
+/** Resting-only bedroom — sleep/rest without adult-intimacy progression. */
+export function restingOnlyBedroomPlan(): ScenePlan {
+  return {
+    sceneBackground: "침실",
+    atmosphere: "고요한 밤",
+    events: [],
+    castMentions: [],
+    heroEventIds: [],
+    heroScene: "침실 침대",
+    panels: [
+      {
+        index: 1,
+        sourceEventIds: [],
+        situation: "침실 침대",
+        personaAction: "이불을 덮고 편히 누워 잠든다",
+        dialogue: [],
+      },
+      {
+        index: 2,
+        sourceEventIds: [],
+        situation: "침실",
+        characterAction: "조용히 숨을 고르며 눈을 감는다",
+        dialogue: [],
+      },
+    ],
+    recommendedPanelCount: 2,
+  };
+}
+
 /** P3 — brief affectionate kiss. */
 export function p3BriefKissPlan(): ScenePlan {
   return {

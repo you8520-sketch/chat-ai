@@ -12,6 +12,8 @@ import {
 import {
   generalLongRpPlan,
   denseNonIntimateActionPlan,
+  longNonIntimateBedroomPlan,
+  restingOnlyBedroomPlan,
   p1BedroomCloseProximityPlan,
   p2ShirtlessBedCoveragePlan,
   p3BriefKissPlan,
@@ -70,6 +72,24 @@ describe("chatComicTier2IntimacyDistillation cluster detection", () => {
   it("dense non-intimate action does not trigger cluster distillation", () => {
     const structure = projectComicSafeStructureForTier2(denseNonIntimateActionPlan());
     assert.equal(shouldDistillAdultIntimacyCluster(structure.panels), false);
+  });
+
+  it("long non-intimate bedroom does not trigger cluster distillation", () => {
+    const structure = projectComicSafeStructureForTier2(longNonIntimateBedroomPlan());
+    assert.equal(shouldDistillAdultIntimacyCluster(structure.panels), false);
+    assert.equal(
+      structure.panels.every((panel) => !panel.situationHadAdultExplicitProjection),
+      true
+    );
+  });
+
+  it("resting-only bedroom does not trigger cluster distillation", () => {
+    const structure = projectComicSafeStructureForTier2(restingOnlyBedroomPlan());
+    assert.equal(shouldDistillAdultIntimacyCluster(structure.panels), false);
+    assert.equal(
+      structure.panels.some((panel) => panel.poseHint === TIER2_PANEL_CONTINUITY_POSE),
+      false
+    );
   });
 });
 
@@ -144,5 +164,24 @@ describe("chatComicTier2IntimacyDistillation selective flattening", () => {
       structure.panels.some((panel) => panel.poseHint === TIER2_PANEL_CONTINUITY_POSE),
       false
     );
+  });
+
+  it("long non-intimate bedroom preserves all panel situations", () => {
+    const structure = projectComicSafeStructureForTier2(longNonIntimateBedroomPlan());
+    assert.equal(shouldDistillAdultIntimacyCluster(structure.panels), false);
+    assert.equal(
+      structure.panels.filter((panel) => panel.situation.length >= 100).length,
+      4
+    );
+    assert.equal(
+      structure.panels.some((panel) => panel.poseHint === TIER2_PANEL_CONTINUITY_POSE),
+      false
+    );
+  });
+
+  it("resting-only bedroom preserves resting pose without intimacy cluster", () => {
+    const structure = projectComicSafeStructureForTier2(restingOnlyBedroomPlan());
+    assert.match(structure.panels[0]?.poseHint ?? "", /rest|누|lying/iu);
+    assert.equal(shouldDistillAdultIntimacyCluster(structure.panels), false);
   });
 });

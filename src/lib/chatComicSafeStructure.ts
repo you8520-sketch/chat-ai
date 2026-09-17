@@ -27,6 +27,8 @@ export type ComicSafeStructurePanel = {
   poseHint: string;
   /** Structured-source beat bucket — set once at projection, consumed by bounding only. */
   physicalBeatCategory: Tier2PhysicalBeatCategory;
+  /** Canonical Tier-2 situation projection carried adult_explicit risk — not bedroom/length proxy. */
+  situationHadAdultExplicitProjection: boolean;
   /** Tier-2 SAFE_PROJECTED_PROVIDER_TEXT: provider-safe readable dialogue, risky rows omitted. */
   dialogue?: string[];
 };
@@ -46,8 +48,18 @@ function projectTier2Dialogue(raw: string): string | null {
 }
 
 function projectSafeField(raw: string): string {
+  return projectSafeSituationField(raw).text;
+}
+
+function projectSafeSituationField(raw: string): {
+  text: string;
+  hadAdultExplicitProjection: boolean;
+} {
   const projected = projectSceneBlockForTier2Comic(raw);
-  return projected.omitFromImage ? "" : projected.text.trim();
+  return {
+    text: projected.omitFromImage ? "" : projected.text.trim(),
+    hadAdultExplicitProjection: projected.reasonCategories.includes("adult_explicit"),
+  };
 }
 
 function buildComicSafeStructureForTier2(
@@ -59,7 +71,8 @@ function buildComicSafeStructureForTier2(
 
   const panels = plan.panels.map((panel) => {
     const beat = projectComicPanelBeat(plan, panel, visibility);
-    const situation = projectSafeField(beat.situation);
+    const situationProjection = projectSafeSituationField(beat.situation);
+    const situation = situationProjection.text;
     const background = projectSafeField(beat.background || sharedBackground);
     const structuredSource = {
       personaAction: beat.personaAction,
@@ -74,6 +87,7 @@ function buildComicSafeStructureForTier2(
       background,
       poseHint: visualBeat.poseHint,
       physicalBeatCategory: visualBeat.physicalBeatCategory,
+      situationHadAdultExplicitProjection: situationProjection.hadAdultExplicitProjection,
       dialogue: beat.dialogue
         .map((line) => projectTier2Dialogue(line.text))
         .filter((text): text is string => text != null),
