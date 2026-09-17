@@ -518,7 +518,9 @@ describe("CheaperInference streaming exact cost capture", () => {
     const fixture = buildCiCanonicalAccountingSse({ content: "Gate path prose here." });
     const trailingWithoutNewline = `${fixture.contentEvent}${fixture.accountingEvent.replace(/\n\n$/, "")}`;
     const previousFetch = globalThis.fetch;
+    const previousOpenRouterKey = process.env.OPENROUTER_API_KEY;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+    process.env.OPENROUTER_API_KEY = "test-key";
     globalThis.fetch = (async () => sseResponse([trailingWithoutNewline])) as typeof fetch;
     try {
       const gen = streamOpenRouterAdult(
@@ -544,6 +546,8 @@ describe("CheaperInference streaming exact cost capture", () => {
     } finally {
       globalThis.fetch = previousFetch;
       delete process.env.CHEAPER_INFERENCE_API_KEY;
+      if (previousOpenRouterKey == null) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = previousOpenRouterKey;
     }
   });
 
