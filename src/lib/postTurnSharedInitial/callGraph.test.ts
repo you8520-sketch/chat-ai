@@ -225,6 +225,79 @@ describe("shared initial call graph", () => {
     );
   });
 
+  it("T7b full dual empty shared initial — repair recovers widget values", async () => {
+    const both = resolveStatusWidgetTurn({
+      characterWidgetJson: creatorJson,
+      userWidgetJson: userJson,
+      chatMode: "both",
+      displayMode: "both",
+    });
+    const userWidget = both.userWidget!;
+    const emptyShared = JSON.stringify({
+      statusWidget: { character_values: {}, user_values: {}, extracted_facts: [] },
+      suggestedReplies: {
+        items: [
+          { kind: "escalate", text: padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72) },
+          { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ", 72) },
+          { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ", 72) },
+        ],
+      },
+    });
+    function jsonForWidget(widget: StatusWidget): string {
+      const obj: Record<string, unknown> = {};
+      for (const key of collectWidgetJsonKeys(widget)) {
+        obj[key] = padWidgetValue(key);
+      }
+      obj.extracted_facts = [];
+      return JSON.stringify(obj);
+    }
+
+    let repairIndex = 0;
+    const invocations: Array<{ requestKind: string }> = [];
+    const caller = async (
+      _system: string,
+      _history: ChatMsg[],
+      opts: { requestKind: string }
+    ) => {
+      invocations.push({ requestKind: opts.requestKind });
+      let text = emptyShared;
+      if (opts.requestKind === "background-status-widget-extract-repair") {
+        const widget = repairIndex === 0 ? DEFAULT_STATUS_WIDGET : userWidget;
+        repairIndex += 1;
+        text = jsonForWidget(widget);
+      }
+      return {
+        text,
+        usage: {
+          inputTokens: 1500,
+          outputTokens: 600,
+          estimated: false,
+          upstreamCostUsd: 0.003,
+        },
+      };
+    };
+
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "안녕",
+      assistantProse: ASSISTANT,
+      resolved: both,
+      caller,
+      primaryModelId: OPENROUTER_GEMINI_25_FLASH_MODEL,
+      coalesceSuggestedReplies: { enabled: true },
+    });
+
+    const repairCalls = invocations.filter(
+      (i) => i.requestKind === "background-status-widget-extract-repair"
+    ).length;
+    assert.ok(repairCalls >= 1);
+    assert.equal(result.meta.usedRepair, true);
+    assert.ok(result.values.character);
+    assert.ok(result.values.user);
+    assert.equal(result.meta.character?.finalReasonCode, "V3_REPAIR_USED");
+  });
+
   it("T9 shared transport failure — attempt consumed, no second full initial", async () => {
     const both = resolveStatusWidgetTurn({
       characterWidgetJson: creatorJson,
@@ -277,7 +350,7 @@ describe("shared initial call graph", () => {
     assert.equal(result.meta.postTurnSharedInitial, true);
     assert.equal(result.meta.prefetchedSuggestedReplies, null);
     assert.ok(result.meta.actualCallCount <= 4, "widget failure budget not expanded beyond dual_combined max");
-    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(result.meta.sharedInitialConsumed), 2);
+    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(result.meta.sharedInitialConsumed), 0);
   });
 });
 

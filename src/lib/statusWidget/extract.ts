@@ -18,6 +18,8 @@ import { collectWidgetJsonKeys } from "./prompt";
 import {
   buildCombinedDualWidgetExtractSystem,
   buildCombinedDualWidgetExtractUserBlock,
+  buildWidgetExtractRepairSystem,
+  buildWidgetExtractRepairUserBlock,
   buildWidgetExtractSystem,
   buildWidgetExtractUserBlock,
   collectVolatileExactEchoKeys,
@@ -585,8 +587,10 @@ async function extractStatusWidgetValuesForWidget(opts: {
   caller?: StatusWidgetExtractCaller;
   primaryModelId?: string;
   env?: NodeJS.ProcessEnv;
-  /** The shared owner already attempted this generation; never call again. */
+  /** The shared owner already attempted this generation; never call initial again. */
   repairOnly?: boolean;
+  /** When false, skip same-model repair (partial dual / parse-fail policy). */
+  allowRepair?: boolean;
   sharedCombinedInitial?: boolean;
 }): Promise<{
   values: StatusWidgetValues | null;
@@ -699,9 +703,114 @@ async function extractStatusWidgetValuesForWidget(opts: {
         },
       };
     }
-  } else {
-    stages.push("initial");
-    models.push(primaryModelId);
+
+    return {
+      values: null,
+      facts: [],
+      usage: mergeStatusWidgetExtractUsages(usages),
+      apiCalls,
+      meta: {
+        source: opts.source,
+        callCount: apiCalls,
+        stages,
+        finalStage: "initial",
+        finalReasonCode: "STATUS_WIDGET_EXTRACT_EXHAUSTED",
+        models,
+        attemptUsages,
+        attemptDiagnostics,
+        echoDroppedKeys: [],
+        repairMaxTokens,
+        sharedCombinedInitial: opts.sharedCombinedInitial,
+      },
+    };
+  }
+
+  stages.push("initial");
+  models.push(primaryModelId);
+
+  if (opts.allowRepair === false) {
+    return {
+      values: null,
+      facts: [],
+      usage: mergeStatusWidgetExtractUsages(usages),
+      apiCalls,
+      meta: {
+        source: opts.source,
+        callCount: apiCalls,
+        stages,
+        finalStage: "initial",
+        finalReasonCode: "STATUS_WIDGET_EXTRACT_EXHAUSTED",
+        models,
+        attemptUsages,
+        attemptDiagnostics,
+        echoDroppedKeys: [],
+        repairMaxTokens,
+        sharedCombinedInitial: opts.sharedCombinedInitial,
+      },
+    };
+  }
+
+  const repairSystem = buildWidgetExtractRepairSystem(keys, opts.source);
+  const repairUser = buildWidgetExtractRepairUserBlock({
+    keys,
+    assistantProse: opts.assistantProse,
+    previousValues: opts.previousValues,
+    widget: opts.widget,
+    source: opts.source,
+    charName: opts.charName,
+    personaName: opts.personaName,
+    userMessage: opts.userMessage,
+    characterIdentity: opts.characterIdentity,
+    characterCriticalContext: opts.characterCriticalContext,
+  });
+  const repair = await runExtractAttempt({
+    system: repairSystem,
+    userBlock: repairUser,
+    widget: opts.widget,
+    source: opts.source,
+    stage: "repair",
+    attemptIndex: 2,
+    modelId: primaryModelId,
+    requestKind: "background-status-widget-extract-repair",
+    temperature: 0,
+    applyEchoFilter: true,
+    caller,
+    trace: opts.trace,
+    env: opts.env,
+  });
+  apiCalls += 1;
+  stages.push("repair");
+  models.push(primaryModelId);
+  pushUsage(usages, attemptUsages, repair);
+  attemptDiagnostics.push(toAttemptDiagnostic(repair));
+  if (repair.ok && repair.values) {
+    const echoFixed = observeVolatileExactEcho({
+      values: repair.values,
+      facts: repair.facts,
+      widget: opts.widget,
+      source: opts.source,
+      previousValues: opts.previousValues,
+      apiCalls,
+    });
+    return {
+      values: echoFixed.values,
+      facts: echoFixed.facts,
+      usage: mergeStatusWidgetExtractUsages(usages),
+      apiCalls: echoFixed.apiCalls,
+      meta: {
+        source: opts.source,
+        callCount: echoFixed.apiCalls,
+        stages,
+        finalStage: "repair",
+        finalReasonCode: "V3_REPAIR_USED",
+        models,
+        attemptUsages,
+        attemptDiagnostics,
+        echoDroppedKeys: repair.echoDroppedKeys,
+        repairMaxTokens,
+        sharedCombinedInitial: opts.sharedCombinedInitial,
+      },
+    };
   }
 
   return {
@@ -713,12 +822,12 @@ async function extractStatusWidgetValuesForWidget(opts: {
       source: opts.source,
       callCount: apiCalls,
       stages,
-      finalStage: stages.includes("initial") ? "initial" : null,
+      finalStage: "repair",
       finalReasonCode: "STATUS_WIDGET_EXTRACT_EXHAUSTED",
       models,
       attemptUsages,
       attemptDiagnostics,
-      echoDroppedKeys: [],
+      echoDroppedKeys: repair.echoDroppedKeys,
       repairMaxTokens,
       sharedCombinedInitial: opts.sharedCombinedInitial,
     },
@@ -1062,6 +1171,10 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       })
     );
 
+    const allowSharedInitialNamespaceRepair =
+      sharedInitialParsed?.jsonParseOk === true &&
+      parsed.characterOk === parsed.userOk;
+
     if (parsed.extracted_facts.length > 0) {
       factBatches.push(parsed.extracted_facts);
     }
@@ -1117,6 +1230,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         primaryModelId,
         env: opts.env,
         repairOnly: true,
+        allowRepair: allowSharedInitialNamespaceRepair,
         sharedCombinedInitial: true,
       });
       actualCallCount += repaired.apiCalls;
@@ -1176,6 +1290,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         primaryModelId,
         env: opts.env,
         repairOnly: true,
+        allowRepair: allowSharedInitialNamespaceRepair,
         sharedCombinedInitial: true,
       });
       actualCallCount += repaired.apiCalls;
@@ -1233,6 +1348,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
           primaryModelId,
             env: opts.env,
           repairOnly: sharedInitialConsumed,
+          allowRepair: sharedInitialParsed?.jsonParseOk === true,
           sharedCombinedInitial: sharedInitialConsumed,
         });
         actualCallCount += character.apiCalls;
@@ -1291,6 +1407,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
           primaryModelId,
             env: opts.env,
           repairOnly: sharedInitialConsumed,
+          allowRepair: sharedInitialParsed?.jsonParseOk === true,
           sharedCombinedInitial: sharedInitialConsumed,
         });
         actualCallCount += user.apiCalls;
