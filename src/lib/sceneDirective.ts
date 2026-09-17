@@ -193,25 +193,27 @@ const USER_CONTROL_LABELS: Record<SceneUserControl, string> = {
   persona_based_dialogue_allowed: AUTO_PROGRESSION_SCENE_USER_CONTROL,
 };
 
+/** Shared motion body — full engine rule and compact [SCENE PACING] both consume this. */
+export function renderSceneMotionBody(motionDecision: SceneMotionDecision): string {
+  switch (motionDecision) {
+    case "HOLD":
+      return "현재 비트의 자연스러운 반응·대화·몸짓·감각을 이어간다. 별도 사건, 새 전개 축, 새 인물 도입 의무는 없다.";
+    case "MICRO_MOTION":
+      return "현재 상호작용 안에서 작은 관계·감각·환경 변화 하나를 조용히 이어간다. 새 인물·별도 사건은 만들지 않는다.";
+    case "SCENE_ADVANCE":
+      return "현재 인과에 맞는 장면 전개를 진행한다. 허용된 전개 축과 execution contract를 따른다.";
+    case "ESCALATE":
+      return "현재 인과와 직접 연결된 강한 외부 변화를 진행한다. execution contract 범위를 넘기지 않는다.";
+    default: {
+      const _exhaustive: never = motionDecision;
+      return _exhaustive;
+    }
+  }
+}
+
 /** Motion-decision-aware scene engine rule — sole owner for mandatory-motion semantics. */
 export function renderSceneEngineRule(motionDecision: SceneMotionDecision): string {
-  const body = (() => {
-    switch (motionDecision) {
-      case "HOLD":
-        return "현재 비트의 자연스러운 반응·대화·몸짓·감각을 이어간다. 별도 사건, 새 전개 축, 새 인물 도입 의무는 없다.";
-      case "MICRO_MOTION":
-        return "현재 상호작용 안에서 작은 관계·감각·환경 변화 하나를 조용히 이어간다. 새 인물·별도 사건은 만들지 않는다.";
-      case "SCENE_ADVANCE":
-        return "현재 인과에 맞는 장면 전개를 진행한다. 허용된 전개 축과 execution contract를 따른다.";
-      case "ESCALATE":
-        return "현재 인과와 직접 연결된 강한 외부 변화를 진행한다. execution contract 범위를 넘기지 않는다.";
-      default: {
-        const _exhaustive: never = motionDecision;
-        return _exhaustive;
-      }
-    }
-  })();
-  return `[PRIVATE SCENE ENGINE RULE]\n${body}\n전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.`;
+  return `[PRIVATE SCENE ENGINE RULE]\n${renderSceneMotionBody(motionDecision)}\n전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.`;
 }
 
 const AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE =
@@ -1132,7 +1134,8 @@ export function getLastProgressionSelectionMeta(): ProgressionSelectionMeta | nu
   return lastSelectionMeta;
 }
 
-function buildExecutionContract(input: {
+/** Canonical execution contract — shared by full and compact Standard renderers. */
+export function renderSceneExecutionContract(input: {
   motionDecision: SceneMotionDecision;
   progressionTypes: SceneProgressionType[];
   npcGrounding: NpcGroundingResult;
@@ -1271,7 +1274,7 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
       ? directive.progressionTypes.map((type) => PROGRESSION_LABELS[type]).join(" + ")
       : "없음 (현재 비트 유지)";
   const primaryFocusLine = renderPrimaryFocusLine(directive.castFocus);
-  const executionContract = buildExecutionContract({
+  const executionContract = renderSceneExecutionContract({
     motionDecision: directive.motionDecision,
     progressionTypes: directive.progressionTypes,
     npcGrounding: directive.npcGrounding,

@@ -3044,6 +3044,7 @@ export async function POST(req: Request) {
                 requestKind: input.requestKind,
                 phaseAudit,
                 sceneServerControls: {
+                  mode: autoContinueContext ? "auto_progression" : "interactive",
                   contentKind:
                     ch.content_kind === "simulation" ? "simulation" : "character",
                   party: false,
@@ -3055,10 +3056,23 @@ export async function POST(req: Request) {
                     ch.content_kind === "simulation"
                       ? extractSimulationCastNames(ch.simulation_cast ?? "")
                       : undefined,
+                  memoryText: memoryFeatureOn
+                    ? [memoryInjection.text, memoryInjection.archiveText]
+                        .filter(Boolean)
+                        .join("\n")
+                    : undefined,
+                  relationshipMemoryText: relationshipMemoryForPrompt || undefined,
+                  lorebookText: [keywordLorebookBlock, globalLorebookBlock]
+                    .filter(Boolean)
+                    .join("\n") || undefined,
+                  triggeredEventText: triggeredScenarioEventsBlock || undefined,
                   adultModeEnabled: effectiveAdultRp,
                   chatId: chat.id,
                   currentTurn: sceneProgressionTurn,
                   progressionHistory: sceneProgressionState.recent,
+                  canonicalSceneDirective: legacySceneDirective,
+                  skipMotionCue:
+                    autoContinueContext || ch.content_kind === "simulation",
                 },
                 generationOverrides: (() => {
                   const regen = regenerateMessageId
