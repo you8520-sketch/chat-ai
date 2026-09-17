@@ -3728,6 +3728,10 @@ export default function ChatClient({
       setGenerationPrepUi(null);
     }
 
+    if (streamError || trafficOverload) {
+      closeSessionRecoveryDraft();
+    }
+
     const billing =
       pendingDone && !trafficOverload ? extractBillingInfo(pendingDone) : undefined;
     return {
@@ -3790,13 +3794,11 @@ export default function ChatClient({
     opts?: { rollback?: () => void; restoreInput?: string }
   ) {
     if (streamResult.trafficOverload) {
-      clearChatStreamDraft(character.id, chatId);
       applyTrafficOverloadNotice(streamResult.trafficOverload, aiIndex - 1);
       if (opts?.restoreInput != null) setInput(opts.restoreInput);
       return;
     }
     if (streamResult.streamError) {
-      clearChatStreamDraft(character.id, chatId);
       setError(streamResult.streamError);
       if (opts?.rollback) {
         opts.rollback();
@@ -4087,7 +4089,9 @@ export default function ChatClient({
         if (!persisted) setInput(text);
         return softRollbackTurn(m, aiIndex);
       });
-      clearChatStreamDraft(character.id, chatId);
+      if (streamResult === undefined) {
+        clearChatStreamDraft(character.id, chatId);
+      }
     } finally {
       inFlightRef.current = false;
       loadingRef.current = false;
@@ -4100,12 +4104,6 @@ export default function ChatClient({
         !streamResult.trafficOverload
       ) {
         stageStreamBillingPresentation(clientRequestId, streamResult.billing);
-      } else if (
-        streamResult?.streamError ||
-        streamResult?.trafficOverload ||
-        streamResult?.eofUnresolved
-      ) {
-        clearChatStreamDraft(character.id, chatId);
       }
     }
   }
@@ -4317,15 +4315,12 @@ export default function ChatClient({
 
       streamResult = await consumeChatStream(res, regenIndex, clientRequestId);
       if (streamResult.trafficOverload) {
-        clearChatStreamDraft(character.id, chatId);
         restoreAssistant();
         setError(streamResult.trafficOverload);
       } else if (streamResult.streamError) {
-        clearChatStreamDraft(character.id, chatId);
         setError(streamResult.streamError);
         restoreAssistant();
       } else if (streamResult.eofUnresolved) {
-        clearChatStreamDraft(character.id, chatId);
         // Shared EOF reconcile already marked interrupted/failed; restore prior
         // variant when regenerate could not reach a completed server row.
         restoreAssistant();
@@ -4343,7 +4338,9 @@ export default function ChatClient({
         setToastMsg("재생성이 중단되었습니다. 다시 시도해 주세요.");
       }
       restoreAssistant();
-      clearChatStreamDraft(character.id, chatId);
+      if (streamResult === undefined) {
+        clearChatStreamDraft(character.id, chatId);
+      }
     } finally {
       inFlightRef.current = false;
       loadingRef.current = false;
@@ -4356,12 +4353,6 @@ export default function ChatClient({
         !streamResult.trafficOverload
       ) {
         stageStreamBillingPresentation(clientRequestId, streamResult.billing);
-      } else if (
-        streamResult?.streamError ||
-        streamResult?.trafficOverload ||
-        streamResult?.eofUnresolved
-      ) {
-        clearChatStreamDraft(character.id, chatId);
       }
     }
   }

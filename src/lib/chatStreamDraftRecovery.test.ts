@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   applyChatStreamDraftRecoveryOnLoad,
-  applyLegacySessionStorageOnlyRecovery,
-  deriveLastTurnInFlight,
-  deriveShowGeneratingPlaceholder,
   type ChatStreamDraftRecoveryMessage,
 } from "./chatStreamDraftRecovery";
-import type { ChatStreamDraft } from "./streamingPersistenceShared";
+import {
+  isInFlightGenerationStatus,
+  isTerminalGenerationStatus,
+  type ChatStreamDraft,
+} from "./streamingPersistenceShared";
 
 const TERMINAL_HISTORY: ChatStreamDraftRecoveryMessage[] = [
   { id: 1, role: "user", content: "안녕", generationStatus: "completed" },
@@ -28,22 +29,93 @@ const ORPHAN_DRAFT: ChatStreamDraft = {
   updatedAt: Date.now(),
 };
 
+/** Pre-fix sessionStorage-only branch — Case A BEFORE proof (test-only). */
+function applyLegacySessionStorageOnlyRecovery(
+  messages: readonly ChatStreamDraftRecoveryMessage[],
+  draft: ChatStreamDraft | null
+): ChatStreamDraftRecoveryMessage[] {
+  if (!draft?.requestId) return [...messages];
+
+  const matchAssistant = messages.find(
+    (m) => m.role === "assistant" && m.requestId === draft.requestId
+  );
+  const matchUser = messages.find((m) => m.role === "user" && m.requestId === draft.requestId);
+
+  if (matchAssistant && isTerminalGenerationStatus(matchAssistant.generationStatus)) {
+    return [...messages];
+  }
+
+  if (
+    matchAssistant &&
+    isInFlightGenerationStatus(matchAssistant.generationStatus) &&
+    draft.assistantPartial.length > (matchAssistant.content?.length ?? 0)
+  ) {
+    return messages.map((m) =>
+      m.role === "assistant" && m.requestId === draft.requestId
+        ? {
+            ...m,
+            content: draft.assistantPartial,
+            generationStatus: m.generationStatus ?? "generating",
+          }
+        : m
+    );
+  }
+
+  if (!matchAssistant && !matchUser && draft.userText) {
+    return [
+      ...messages,
+      {
+        role: "user" as const,
+        content: draft.userText,
+        requestId: draft.requestId,
+        generationStatus: "submitted",
+      },
+      {
+        role: "assistant" as const,
+        content: draft.assistantPartial || "",
+        requestId: draft.requestId,
+        generationStatus: "generating",
+      },
+    ];
+  }
+
+  return [...messages];
+}
+
+function lastAssistantInFlight(messages: readonly ChatStreamDraftRecoveryMessage[]): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m?.role === "assistant") {
+      return isInFlightGenerationStatus(m.generationStatus);
+    }
+  }
+  return false;
+}
+
+function wouldShowGeneratingPlaceholder(
+  message: ChatStreamDraftRecoveryMessage,
+  messageIndex: number,
+  messagesLength: number,
+  loading: boolean
+): boolean {
+  const genStatus = (message.generationStatus ?? "").toLowerCase();
+  return (
+    (message.content === "" && loading && messageIndex === messagesLength - 1) ||
+    (message.content === "" && genStatus === "generating" && !loading)
+  );
+}
+
 describe("chat stream draft room-load recovery", () => {
   it("Case A BEFORE: legacy sessionStorage-only branch creates fake in-flight turn", () => {
     const recovered = applyLegacySessionStorageOnlyRecovery(TERMINAL_HISTORY, ORPHAN_DRAFT);
     assert.equal(recovered.length, TERMINAL_HISTORY.length + 2);
-    assert.equal(deriveLastTurnInFlight(recovered), true);
+    assert.equal(lastAssistantInFlight(recovered), true);
     const last = recovered[recovered.length - 1];
     assert.equal(last?.role, "assistant");
     assert.equal(last?.generationStatus, "generating");
     assert.equal(last?.content, "");
     assert.equal(
-      deriveShowGeneratingPlaceholder({
-        message: last!,
-        messageIndex: recovered.length - 1,
-        messagesLength: recovered.length,
-        loading: false,
-      }),
+      wouldShowGeneratingPlaceholder(last!, recovered.length - 1, recovered.length, false),
       true
     );
   });
@@ -53,7 +125,7 @@ describe("chat stream draft room-load recovery", () => {
     assert.equal(result.action, "clear-orphan");
     assert.equal(result.clearedDraft, true);
     assert.deepEqual(result.messages, TERMINAL_HISTORY);
-    assert.equal(deriveLastTurnInFlight(result.messages), false);
+    assert.equal(lastAssistantInFlight(result.messages), false);
   });
 
   it("matching terminal assistant clears stale draft", () => {
@@ -102,7 +174,7 @@ describe("chat stream draft room-load recovery", () => {
     );
     assert.equal(assistant?.content, "부분 출력이 더 김");
     assert.equal(assistant?.generationStatus, "generating");
-    assert.equal(deriveLastTurnInFlight(result.messages), true);
+    assert.equal(lastAssistantInFlight(result.messages), true);
   });
 
   it("DB in-flight assistant keeps DB content when local partial is not ahead", () => {
@@ -148,7 +220,7 @@ describe("chat stream draft room-load recovery", () => {
     const result = applyChatStreamDraftRecoveryOnLoad(messages, draft);
     assert.equal(result.action, "noop");
     assert.equal(result.messages.length, messages.length);
-    assert.equal(deriveLastTurnInFlight(result.messages), false);
+    assert.equal(lastAssistantInFlight(result.messages), false);
   });
 
   it("room/chat scope isolation — draft requestId must match message rows", () => {
@@ -185,6 +257,6 @@ describe("chat stream draft room-load recovery", () => {
     const result = applyChatStreamDraftRecoveryOnLoad(messages, draft);
     assert.equal(result.action, "clear-orphan");
     assert.equal(result.messages[1]?.content, "good alternate");
-    assert.equal(deriveLastTurnInFlight(result.messages), false);
+    assert.equal(lastAssistantInFlight(result.messages), false);
   });
 });
