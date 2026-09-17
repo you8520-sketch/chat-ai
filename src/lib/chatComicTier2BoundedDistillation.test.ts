@@ -82,13 +82,19 @@ describe("chatComicTier2BoundedDistillation REAL_FAIL-like fixture", () => {
     );
   });
 
-  it("bounded projection reduces dialogue and duplicate structured beats", () => {
+  it("bounded projection reduces dialogue and flattens intimacy progression", () => {
     const bounded = projectComicSafeStructureForTier2(plan);
     const dialogueCount = countStructureDialogue(plan);
     const continuityPanels = bounded.panels.filter(
       (panel) => panel.poseHint === TIER2_PANEL_CONTINUITY_POSE
     ).length;
-    const expandedPanels = bounded.panels.length - continuityPanels;
+    const representativeIntimacyPanels = bounded.panels.filter(
+      (panel) =>
+        panel.poseHint !== TIER2_PANEL_CONTINUITY_POSE &&
+        /(?:affectionate|키스|kiss|proximity|resting|embrace|밀착|껴안)/iu.test(
+          `${panel.poseHint} ${panel.situation}`
+        )
+    ).length;
     const promptChars = renderComicSafeStructureForTier2Prompt(
       bounded,
       "full_provider_rendered"
@@ -98,8 +104,8 @@ describe("chatComicTier2BoundedDistillation REAL_FAIL-like fixture", () => {
 
     assert.equal(dialogueCount, 4);
     assert.ok(continuityPanels >= 1);
-    assert.ok(expandedPanels >= 2);
-    assert.ok(promptChars < 700);
+    assert.equal(representativeIntimacyPanels, 1);
+    assert.ok(promptChars < 900);
     for (const panel of bounded.panels) {
       assert.ok((panel.dialogue?.length ?? 0) <= 1);
       assert.ok(panel.physicalBeatCategory);
@@ -131,13 +137,22 @@ describe("chatComicTier2BoundedDistillation REAL_FAIL-like fixture", () => {
 });
 
 describe("chatComicTier2BoundedDistillation structured semantic owner", () => {
-  it("wording variant fixture collapses by structured category not rendered regex", () => {
+  it("wording variant fixture distills multi-beat intimacy cluster", () => {
     const bounded = projectComicSafeStructureForTier2(closeContactWordingVariantPlan());
     const categories = bounded.panels.map((panel) => panel.physicalBeatCategory);
     assert.ok(categories.includes("close_proximity") || categories.includes("embrace"));
     assert.ok(
       bounded.panels.some((panel) => panel.poseHint === TIER2_PANEL_CONTINUITY_POSE)
     );
+    const expandedIntimacy = bounded.panels.filter(
+      (panel) =>
+        panel.poseHint !== TIER2_PANEL_CONTINUITY_POSE &&
+        /(?:proximity|embrace|affectionate|밀착|안(?:는|아)|손)/iu.test(
+          `${panel.poseHint} ${panel.situation}`
+        )
+    );
+    assert.ok(expandedIntimacy.length >= 1);
+    assert.ok(expandedIntimacy.length <= 2);
   });
 
   it("dialogue representative skips punctuation-only filler", () => {

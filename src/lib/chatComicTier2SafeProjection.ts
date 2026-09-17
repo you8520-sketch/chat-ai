@@ -199,7 +199,9 @@ export function deriveTier2PhysicalBeatCategoryFromStructuredSource(opts: {
     .join(" ");
   if (!haystack.trim()) return "general";
   if (/(?:키스|kiss)/iu.test(haystack)) return "kiss";
-  if (/(?:껴안|포옹|안아|hug|embrace)/iu.test(haystack)) return "embrace";
+  if (/(?:껴안|포옹|안아|감싸\s*안|어깨(?:를)?\s*(?:감|안)|hug|embrace)/iu.test(haystack)) {
+    return "embrace";
+  }
   if (
     /(?:가까|밀착|볼(?:에|을)|이마(?:를)?\s*(?:맞|대)|손(?:을)?\s*(?:잡|맞)|어깨(?:를)?\s*(?:감|안)|속삭|마주보|whisper|close(?:ly)?\s+(?:together|proximity)|affectionate\s+proximity)/iu.test(
       haystack

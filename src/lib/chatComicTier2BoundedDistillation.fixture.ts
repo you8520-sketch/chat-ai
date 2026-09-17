@@ -466,6 +466,98 @@ export function dialogueRepresentativePlan(): ScenePlan {
   };
 }
 
+/** Long non-intimate RP — general comic chronology without intimacy cluster. */
+export function generalLongRpPlan(): ScenePlan {
+  return {
+    sceneBackground: "ACB 중앙 로비",
+    atmosphere: "분주한 오후",
+    events: [],
+    castMentions: [],
+    heroEventIds: [],
+    heroScene: "로비",
+    panels: [
+      {
+        index: 1,
+        sourceEventIds: [],
+        situation: "데스크 앞",
+        characterAction: "직원과 농담을 주고받는다",
+        dialogue: [{ speaker: "character", text: "억울하다니까?", provenance: "source" }],
+      },
+      {
+        index: 2,
+        sourceEventIds: [],
+        situation: "로비 통로",
+        personaAction: "들어선다",
+        characterAction: "시선을 돌린다",
+        dialogue: [{ speaker: "character", text: "어디서 본 것 같은데.", provenance: "source" }],
+      },
+      {
+        index: 3,
+        sourceEventIds: [],
+        situation: "로비 한쪽",
+        characterAction: "가볍게 다가선다",
+        personaAction: "긴장하며 바라본다",
+        dialogue: [],
+      },
+      {
+        index: 4,
+        sourceEventIds: [],
+        situation: "로비",
+        characterAction: "턱을 쓸며 웃는다",
+        dialogue: [{ speaker: "character", text: "신입이야?", provenance: "source" }],
+      },
+    ],
+    recommendedPanelCount: 4,
+  };
+}
+
+/** Dense non-intimate action — must not collapse merely due to panel density. */
+export function denseNonIntimateActionPlan(): ScenePlan {
+  return {
+    sceneBackground: "도시 골목",
+    atmosphere: "긴박한 추격",
+    events: [],
+    castMentions: [],
+    heroEventIds: [],
+    heroScene: "골목 추격",
+    panels: [
+      {
+        index: 1,
+        sourceEventIds: [],
+        situation: "골목 입구",
+        personaAction: "전력 질주한다",
+        characterAction: "뒤에서 쫓아온다",
+        dialogue: [{ speaker: "character", text: "거기 서!", provenance: "source" }],
+      },
+      {
+        index: 2,
+        sourceEventIds: [],
+        situation: "계단",
+        personaAction: "난간을 넘어 뛰어내린다",
+        characterAction: "벽을 타고 올라간다",
+        dialogue: [],
+      },
+      {
+        index: 3,
+        sourceEventIds: [],
+        situation: "옥상",
+        personaAction: "통로를 가로지른다",
+        characterAction: "장애물을 넘는다",
+        dialogue: [{ speaker: "persona", text: "숨 차!", provenance: "source" }],
+      },
+      {
+        index: 4,
+        sourceEventIds: [],
+        situation: "옥상 끝",
+        personaAction: "난간에 기대어 숨을 고른다",
+        characterAction: "천천히 다가선다",
+        dialogue: [],
+      },
+    ],
+    recommendedPanelCount: 4,
+  };
+}
+
 /** P3 — brief affectionate kiss. */
 export function p3BriefKissPlan(): ScenePlan {
   return {

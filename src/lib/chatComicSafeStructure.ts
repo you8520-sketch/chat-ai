@@ -11,12 +11,11 @@ import {
 import {
   projectSceneTextForSafeImageGeneration,
 } from "@/lib/chatImageSafeVisualProjection";
+import { distillAdultIntimacyClusterForTier2 } from "@/lib/chatComicTier2IntimacyDistillation";
 import {
-  boundTier2PanelDialogue,
   deriveTier2PanelVisualBeat,
   projectSceneBlockForTier2Comic,
   projectSceneTextForTier2Comic,
-  TIER2_PANEL_CONTINUITY_POSE,
   TIER2_PANEL_GLOBAL_CLOTHING_CONTRACT,
   type Tier2PhysicalBeatCategory,
 } from "@/lib/chatComicTier2SafeProjection";
@@ -49,55 +48,6 @@ function projectTier2Dialogue(raw: string): string | null {
 function projectSafeField(raw: string): string {
   const projected = projectSceneBlockForTier2Comic(raw);
   return projected.omitFromImage ? "" : projected.text.trim();
-}
-
-function normalizeTier2SituationKey(situation: string): string {
-  return situation.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function isCollapsibleBeatCategory(category: Tier2PhysicalBeatCategory): boolean {
-  return (
-    category !== "general" &&
-    category !== "seated" &&
-    category !== "standing" &&
-    category !== "blush_emotion"
-  );
-}
-
-function boundComicSafeStructureProjection(
-  structure: ComicSafeStructureProjection
-): ComicSafeStructureProjection {
-  const seenBeatCategories = new Set<Tier2PhysicalBeatCategory>();
-  const seenSituations = new Set<string>();
-
-  const panels = structure.panels.map((panel) => {
-    let poseHint = panel.poseHint.trim();
-    let situation = panel.situation.trim();
-    const category = panel.physicalBeatCategory;
-
-    if (isCollapsibleBeatCategory(category) && seenBeatCategories.has(category)) {
-      poseHint = TIER2_PANEL_CONTINUITY_POSE;
-      situation = "";
-    } else if (isCollapsibleBeatCategory(category)) {
-      seenBeatCategories.add(category);
-    }
-
-    const situationKey = normalizeTier2SituationKey(situation);
-    if (situationKey && seenSituations.has(situationKey)) {
-      situation = "";
-    } else if (situationKey) {
-      seenSituations.add(situationKey);
-    }
-
-    return {
-      ...panel,
-      situation,
-      poseHint,
-      dialogue: boundTier2PanelDialogue(panel.dialogue),
-    };
-  });
-
-  return { ...structure, panels };
 }
 
 function buildComicSafeStructureForTier2(
@@ -142,7 +92,7 @@ export function projectComicSafeStructureForTier2(
   plan: ScenePlan,
   visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
 ): ComicSafeStructureProjection {
-  return boundComicSafeStructureProjection(buildComicSafeStructureForTier2(plan, visibility));
+  return distillAdultIntimacyClusterForTier2(buildComicSafeStructureForTier2(plan, visibility));
 }
 
 export function renderComicSafeStructureForTier2Prompt(
