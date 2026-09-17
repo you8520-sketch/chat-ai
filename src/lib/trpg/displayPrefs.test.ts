@@ -60,8 +60,8 @@ describe("TRPG display prefs", () => {
       assert.equal(loadTrpgStreamIntervalMs(), 40);
       assert.equal(loadChatDisplayPrefs().streamIntervalMs, 40);
       store.set(TRPG_STREAM_INTERVAL_KEY, "20");
-      assert.equal(loadTrpgStreamIntervalMs(), 24);
-      assert.equal(store.get(TRPG_STREAM_INTERVAL_KEY), "24");
+      assert.equal(loadTrpgStreamIntervalMs(), 16);
+      assert.equal(store.get(TRPG_STREAM_INTERVAL_KEY), "16");
       saveTrpgStreamIntervalMs(0);
       assert.equal(loadTrpgStreamIntervalMs(), 0);
     });
