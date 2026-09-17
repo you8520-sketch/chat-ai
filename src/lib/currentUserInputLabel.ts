@@ -53,7 +53,9 @@ function sanitizePersonaName(raw: string | undefined | null): string | null {
 function buildCollaborativeInteractiveWrapper(): string {
   return `${CURRENT_USER_INPUT_HEADER}
 The following is the user's completed input and the newest state of the scene.
+Current turn runtime mode is interactive — only [USER CONTROL — COLLABORATIVE INTERACTIVE] governs [B] authoring this turn. Prior auto-progression co-narration does not carry over.
 Continue from what it changes now rather than restating or explaining the input.
+Past assistant messages that contain [B] dialogue or actions (including from auto-progression turns) are scene history only — not permission to write new [B] content this turn.
 [B]'s new dialogue, consequential choices, consent/refusal, and decisions that change relationship, goal, affiliation, or identity remain user-authored.
 Minor reversible expression, gaze, involuntary reaction, natural completion of an already-started action, and small movement/contact/object-handling/daily continuity may be co-narrated when consistent with [USER CONTROL — COLLABORATIVE INTERACTIVE].`;
 }

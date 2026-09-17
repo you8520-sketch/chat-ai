@@ -8,9 +8,9 @@ export const NO_INPUT_ECHO_RULE = `[NO INPUT ECHO — STRICT]
  * Kept short to avoid duplicating immersive fill materials.
  */
 export const NARRATIVE_DENSITY_BLOCK = `[NARRATIVE DENSITY]
-TARGET/FLOOR는 대화·내면·기억·연상·판단·관계·분위기·결과로 채운다.
+TARGET/FLOOR는 [AI_CAST]의 현재 심리·관찰·감각·판단·욕구·두려움·내부 갈등, AI 행동·대화·환경·NPC 변화를 먼저 깊게 전개한다. 정본·기억·페르소나 callback 방식은 [IMMERSIVE PROSE]를 따른다.
 모든 중간 동작을 기록하지 않는다 — 생략은 짧게 쓰라는 뜻이 아니다.
-미세 행동·반복 해설로 분량을 채우지 않는다.`;
+[B]의 새 직접 대사·중요 선택·중대 행동은 length filler가 아니다.`;
 
 /** @deprecated Step 7.5 — merged into [NARRATIVE DENSITY]; not injected in LENGTH CONTROL */
 export const MOMENT_TO_MOMENT_WRITING_BLOCK = "";
