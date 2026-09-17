@@ -245,11 +245,11 @@ describe("dead system parallel owner — policy matrix", () => {
     assert.equal(isSceneDirectiveV2ComputeEnabled({ SCENE_DIRECTIVE_V2_MODE: "shadow" }), true);
   });
 
-  it("rpDiagnosticCanary gates alternate block render — normal path uses legacy v1 only", () => {
-    assert.match(ROUTE_SOURCE, /const sceneDirectiveBlock = rpDiagnosticCanary/);
+  it("owner materialize precedes optional rpDiagnosticCanary transform", () => {
+    assert.match(ROUTE_SOURCE, /materializeSceneDirectivePromptBlock\(/);
     assert.match(
       ROUTE_SOURCE,
-      /:\s*renderSceneDirectiveForPrompt\(sceneDirectiveForRender\)/
+      /block:\s*rawSceneDirectiveBlock/
     );
   });
 });

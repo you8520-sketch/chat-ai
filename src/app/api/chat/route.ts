@@ -230,6 +230,7 @@ import {
   getSceneDirectiveV2Mode,
   isSceneDirectiveV2ComputeEnabled,
   isSceneDirectiveV2InjectEnabled,
+  materializeSceneDirectivePromptBlock,
   resolveScenePacingPromptOwner,
 } from "@/lib/sceneDirectiveV2Policy";
 import {
@@ -1977,19 +1978,24 @@ export async function POST(req: Request) {
     scenePacingOwner !== "living_continuity_director"
       ? lockSceneDirectiveToRelationshipAxis(legacySceneDirective)
       : legacySceneDirective;
+  const rawSceneDirectiveBlock = materializeSceneDirectivePromptBlock({
+    scenePacingOwner,
+    v2Block: eventRestraintV2
+      ? renderSceneDirectiveV2ForPrompt(eventRestraintV2)
+      : null,
+    livingBlock: livingSceneDirective
+      ? renderLivingSceneDirectiveForPrompt(livingSceneDirective)
+      : null,
+    legacyBlock: renderSceneDirectiveForPrompt(sceneDirectiveForRender),
+  });
   const sceneDirectiveBlock = rpDiagnosticCanary
     ? applyRpDiagnosticToSceneDirectiveBlock({
-        block:
-          scenePacingOwner === "event_restraint_v2" && eventRestraintV2
-            ? renderSceneDirectiveV2ForPrompt(eventRestraintV2)
-            : scenePacingOwner === "living_continuity_director" && livingSceneDirective
-              ? renderLivingSceneDirectiveForPrompt(livingSceneDirective)
-              : renderSceneDirectiveForPrompt(sceneDirectiveForRender),
+        block: rawSceneDirectiveBlock,
         canary: rpDiagnosticCanary,
         completedTurns: playableTurnCount,
         progressionAxis: canaryProgressionAxis,
       })
-    : renderSceneDirectiveForPrompt(sceneDirectiveForRender);
+    : rawSceneDirectiveBlock;
   const relocateSceneDirectiveToUserTurn = rpDiagnosticCanary
     ? shouldRelocateRpDiagnosticSceneDirective(rpDiagnosticCanary, canaryProgressionAxis)
     : false;
@@ -2157,6 +2163,7 @@ export async function POST(req: Request) {
     sceneDirectiveBlock: relocateSceneDirectiveToUserTurn
       ? null
       : sceneDirectiveBlock,
+    scenePacingPromptOwner: scenePacingOwner,
     keywordLorebookBlock: keywordLorebookBlock || undefined,
     globalLorebookBlock: globalLorebookBlock || undefined,
     canonInjectionPolicy: canonInjectionPolicy,
@@ -3072,7 +3079,10 @@ export async function POST(req: Request) {
                   progressionHistory: sceneProgressionState.recent,
                   canonicalSceneDirective: legacySceneDirective,
                   skipMotionCue:
-                    autoContinueContext || ch.content_kind === "simulation",
+                    autoContinueContext ||
+                    ch.content_kind === "simulation" ||
+                    scenePacingOwner === "event_restraint_v2" ||
+                    scenePacingOwner === "living_continuity_director",
                 },
                 generationOverrides: (() => {
                   const regen = regenerateMessageId
