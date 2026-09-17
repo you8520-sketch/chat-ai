@@ -525,6 +525,7 @@ export type OpenRouterMessageOpts = {
    * Applied after OpenRouter messages are assembled, before transport.
    */
   sceneServerControls?: {
+    mode?: import("@/lib/sceneDirective").SceneDirectiveMode;
     contentKind?: ContentKind | null;
     party?: boolean | null;
     primaryCharacterName?: string | null;
@@ -532,10 +533,16 @@ export type OpenRouterMessageOpts = {
     recentMessages?: ChatMsg[] | null;
     knownSupportingCastNames?: string[] | null;
     establishedActiveCastNames?: string[] | null;
+    memoryText?: string | null;
+    relationshipMemoryText?: string | null;
+    lorebookText?: string | null;
+    triggeredEventText?: string | null;
     adultModeEnabled?: boolean;
     chatId?: string | number | null;
     currentTurn?: number | null;
     progressionHistory?: SceneProgressionHistoryEntry[] | null;
+    canonicalSceneDirective?: import("@/lib/sceneDirective").SceneDirective | null;
+    skipMotionCue?: boolean;
   } | null;
   /** Anthropic prompt caching — rules + character 블록 분리 */
   systemSplit?: OpenRouterSystemSplit;

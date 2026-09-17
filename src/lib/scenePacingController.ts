@@ -1,26 +1,30 @@
 /**
- * Phase G10-SD* / G10-D1 / G10-D2 / G10-D3 — Scene Pacing + Dialogue Budget.
+ * Scene presentation wire — dialogue budget + compact [SCENE PACING] render.
  *
- * Experiment / harness-first. Does NOT wire into chat route by default.
- * Production standard interactive SceneDirective injection remains OFF (ARM D).
+ * Production (openRouterAdult → applyProductionServerControlsToMessages):
+ * - Standard interactive: [SCENE FLOW] → [SCENE PACING] cue (motion from SceneDirective v1.2)
+ * - Auto / simulation / party: dialogue budget only (SceneDirective block owns motion)
  *
- * G10-SD1/SD2 controller decision path is FROZEN (BYTE_IDENTICAL).
- * G10-D2 Arm U: fixed terminal max-4 (PASS sealed — do not rejudge).
- * G10-D3 Arm V sole architecture: SERVER-RESOLVED DIALOGUE CEILING
- * (same terminal location; number dynamic; no prompt mapping table).
+ * Scene motion policy (should-progress, stagnation, NPC grounding, progression types)
+ * is canonical in sceneDirective.ts — this module does not recompute motion policy.
+ *
+ * G10-D3 Arm V: server-resolved terminal dialogue ceiling on user turn.
  */
 
 import type { ChatMsg } from "@/lib/ai";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { SceneProgressionHistoryEntry } from "@/lib/sceneProgressionState";
 import {
-  buildGroundingText,
+  buildSceneDirective,
   buildSceneSignalText,
-  detectSceneStagnation,
   resolveSceneCastFocus,
   resolveSceneKind,
   type SceneCastMode,
+  type SceneDirective,
+  type SceneDirectiveInput,
+  type SceneDirectiveMode,
   type SceneKind,
+  type SceneMotionDecision,
   type SceneProgressionType,
 } from "@/lib/sceneDirective";
 import { SCENE_FLOW_BLOCK } from "@/lib/generationProcessBeatFlow";
@@ -99,6 +103,7 @@ export type ScenePacingDecision = {
 };
 
 export type ScenePacingControllerInput = {
+  mode?: SceneDirectiveMode;
   recentMessages?: ChatMsg[];
   currentUserMessage?: string | null;
   memoryText?: string | null;
@@ -115,6 +120,8 @@ export type ScenePacingControllerInput = {
   progressionHistory?: SceneProgressionHistoryEntry[] | null;
   /** Explicit adult content enabled — NOT sufficient alone for intimate dyad. */
   adultModeEnabled?: boolean | null;
+  /** Pre-built canonical motion policy — avoids duplicate buildSceneDirective in route. */
+  canonicalSceneDirective?: SceneDirective | null;
 };
 
 const DYAD_TERMS = [
@@ -213,21 +220,6 @@ const DANGER_NOW_TERMS = [
   "위험",
 ];
 
-const NPC_GROUND_TERMS = [
-  "NPC",
-  "동료",
-  "상관",
-  "담당",
-  "방문객",
-  "손님",
-  "병사",
-  "경비",
-  "의사",
-  "점원",
-  "사람",
-  "누군가",
-];
-
 const EXTERNAL_HISTORY_TYPES: SceneProgressionType[] = [
   "npc_action",
   "world_reaction",
@@ -294,31 +286,118 @@ export function resolveScenePacingMode(input: {
   return "DYAD";
 }
 
-export function resolveNpcActionEligible(input: {
-  sceneSignalText: string;
-  groundingText: string;
-  triggeredEventText?: string | null;
-  knownSupportingCastNames?: string[] | null;
-  userMentionsNpc: boolean;
-  castAlreadyPresent: boolean;
-  triggerRequiresNpc: boolean;
-}): boolean {
-  if (input.triggerRequiresNpc) return true;
-  if (input.castAlreadyPresent) return true;
-  if (input.userMentionsNpc) return true;
-  if (input.knownSupportingCastNames?.some((n) => n && input.sceneSignalText.includes(n))) {
-    return true;
+/** Map canonical SceneDirective motion → compact [SCENE PACING] presentation level. */
+export function mapSceneMotionDecisionToPacingLevel(
+  decision: SceneMotionDecision
+): SceneMotionLevel {
+  switch (decision) {
+    case "HOLD":
+      return "HOLD";
+    case "MICRO_MOTION":
+      return "AMBIENT";
+    case "SCENE_ADVANCE":
+      return "LOCAL";
+    case "ESCALATE":
+      return "EXTERNAL";
+    default: {
+      const _exhaustive: never = decision;
+      return _exhaustive;
+    }
   }
-  return (
-    includesAny(input.sceneSignalText, NPC_GROUND_TERMS) ||
-    includesAny(input.groundingText, NPC_GROUND_TERMS) ||
-    includesAny(input.triggeredEventText ?? "", NPC_GROUND_TERMS)
-  );
+}
+
+function pacingInputToSceneDirectiveInput(
+  input: ScenePacingControllerInput
+): SceneDirectiveInput {
+  return {
+    mode: input.mode ?? "interactive",
+    recentMessages: input.recentMessages,
+    currentUserMessage: input.currentUserMessage,
+    memoryText: input.memoryText,
+    relationshipMemoryText: input.relationshipMemoryText,
+    lorebookText: input.lorebookText,
+    triggeredEventText: input.triggeredEventText,
+    contentKind: input.contentKind,
+    primaryCharacterName: input.primaryCharacterName,
+    party: input.party,
+    establishedActiveCastNames: input.establishedActiveCastNames,
+    knownSupportingCastNames: input.knownSupportingCastNames,
+    chatId: input.chatId,
+    currentTurn: input.currentTurn,
+    progressionHistory: input.progressionHistory,
+  };
+}
+
+function sceneDirectiveToPacingDecision(input: {
+  directive: SceneDirective;
+  sceneKind: SceneKind;
+  pacingMode: ScenePacingMode;
+  intimateDyad: boolean;
+  externalCooldownActive: boolean;
+  triggerActive: boolean;
+  immediateDanger: boolean;
+}): ScenePacingDecision {
+  const { directive } = input;
+  const castFocus = directive.castFocus;
+  const motionLevel = mapSceneMotionDecisionToPacingLevel(directive.motionDecision);
+  const npcActionEligible =
+    directive.npcGrounding.existingNpcEligible || directive.npcGrounding.newNpcAllowed;
+  const primaryProgression = directive.progressionTypes[0] ?? null;
+  const carrierHints =
+    directive.progressionTypes.length > 0
+      ? [...directive.progressionTypes]
+      : (["relationship", "daily_life", "environment"] as SceneProgressionType[]);
+  const externalEligible =
+    motionLevel === "EXTERNAL" ||
+    (motionLevel === "LOCAL" && npcActionEligible && !input.externalCooldownActive);
+
+  const reasonCodes: string[] = [
+    "canonical:scene_directive",
+    `motion:${directive.motionDecision}`,
+    `kind:${input.sceneKind}`,
+    `mode:${input.pacingMode}`,
+    `cast:${castFocus.sceneCastMode}`,
+    ...directive.motionReasons.map((r) => `reason:${r}`),
+  ];
+  if (input.intimateDyad) reasonCodes.push("intimate_dyad");
+  if (input.triggerActive) reasonCodes.push("trigger");
+  if (input.immediateDanger) reasonCodes.push("immediate_danger");
+  if (directive.recentStagnation) reasonCodes.push("stagnation");
+  if (input.externalCooldownActive) reasonCodes.push("external_cooldown");
+  if (input.intimateDyad && motionLevel !== "EXTERNAL") {
+    reasonCodes.push("intimate_external_ineligible");
+  }
+
+  const meaningfulBeatBudget =
+    castFocus.sceneCastMode === "single_primary"
+      ? input.triggerActive
+        ? 1
+        : 1
+      : castFocus.sceneCastMode === "ensemble" || castFocus.sceneCastMode === "simulation"
+        ? 3
+        : 2;
+
+  return {
+    pacingMode: input.pacingMode,
+    motionLevel,
+    sceneKind: input.sceneKind,
+    castMode: castFocus.sceneCastMode,
+    intimateDyad: input.intimateDyad,
+    recentStagnation: directive.recentStagnation,
+    externalCooldownActive: input.externalCooldownActive,
+    triggerActive: input.triggerActive,
+    meaningfulBeatBudget,
+    carrierHints,
+    primaryProgression,
+    npcActionEligible,
+    externalEligible,
+    reasonCodes,
+  };
 }
 
 /**
- * Resolve motion budget for this turn.
- * HOLD is a first-class valid result (no forced environment+relationship floor).
+ * Resolve presentation decision for dialogue budget + [SCENE PACING] render.
+ * Motion policy is delegated to SceneDirective v1.2 (canonical owner).
  */
 export function resolveScenePacingDecision(
   input: ScenePacingControllerInput
@@ -328,21 +407,9 @@ export function resolveScenePacingDecision(
     currentUserMessage: input.currentUserMessage,
     triggeredEventText: input.triggeredEventText,
   });
-  const groundingText = buildGroundingText({
-    memoryText: input.memoryText,
-    relationshipMemoryText: input.relationshipMemoryText,
-    lorebookText: input.lorebookText,
-  });
   const sceneKind = resolveSceneKind(sceneSignalText);
-  const castFocus = resolveSceneCastFocus({
-    contentKind: input.contentKind,
-    party: input.party,
-    primaryCharacterName: input.primaryCharacterName,
-    establishedActiveCastNames: input.establishedActiveCastNames,
-  });
   const triggerActive = Boolean(input.triggeredEventText?.trim());
   const immediateDanger = includesAny(sceneSignalText, DANGER_NOW_TERMS);
-  const recentStagnation = detectSceneStagnation(input.recentMessages);
   const intimateDyad = detectIntimateDyad({
     sceneSignalText,
     adultModeEnabled: input.adultModeEnabled,
@@ -351,7 +418,6 @@ export function resolveScenePacingDecision(
     input.progressionHistory,
     input.currentTurn
   );
-
   const pacingMode = resolveScenePacingMode({
     sceneSignalText,
     contentKind: input.contentKind,
@@ -360,162 +426,19 @@ export function resolveScenePacingDecision(
     immediateDanger,
   });
 
-  const userMentionsNpc =
-    includesAny(input.currentUserMessage ?? "", NPC_GROUND_TERMS) ||
-    (input.knownSupportingCastNames ?? []).some((n) =>
-      Boolean(n && (input.currentUserMessage ?? "").includes(n))
-    );
-  const castAlreadyPresent =
-    castFocus.activeSpeakingCast.length > 1 ||
-    includesAny(sceneSignalText, NPC_GROUND_TERMS);
-  const npcActionEligible = resolveNpcActionEligible({
-    sceneSignalText,
-    groundingText,
-    triggeredEventText: input.triggeredEventText,
-    knownSupportingCastNames: input.knownSupportingCastNames,
-    userMentionsNpc,
-    castAlreadyPresent,
-    triggerRequiresNpc:
-      triggerActive && includesAny(input.triggeredEventText ?? "", NPC_GROUND_TERMS),
-  });
+  const directive =
+    input.canonicalSceneDirective ??
+    buildSceneDirective(pacingInputToSceneDirectiveInput(input));
 
-  const reasonCodes: string[] = [
-    `kind:${sceneKind}`,
-    `mode:${pacingMode}`,
-    `cast:${castFocus.sceneCastMode}`,
-  ];
-  if (intimateDyad) reasonCodes.push("intimate_dyad");
-  if (triggerActive) reasonCodes.push("trigger");
-  if (immediateDanger) reasonCodes.push("immediate_danger");
-  if (recentStagnation) reasonCodes.push("stagnation");
-  if (externalCooldownActive) reasonCodes.push("external_cooldown");
-
-  // Trigger semantics win — do not suppress/delay triggered events.
-  if (triggerActive) {
-    const motionLevel: SceneMotionLevel = immediateDanger ? "EXTERNAL" : "LOCAL";
-    return {
-      pacingMode: pacingMode === "ENSEMBLE" ? "ENSEMBLE" : "OPERATION",
-      motionLevel,
-      sceneKind,
-      castMode: castFocus.sceneCastMode,
-      intimateDyad,
-      recentStagnation,
-      externalCooldownActive,
-      triggerActive,
-      meaningfulBeatBudget: castFocus.sceneCastMode === "single_primary" ? 1 : 2,
-      carrierHints: ["consequence", "world_reaction", "relationship"],
-      primaryProgression: "consequence",
-      npcActionEligible,
-      externalEligible: true,
-      reasonCodes: [...reasonCodes, "trigger_priority"],
-    };
-  }
-
-  if (castFocus.sceneCastMode !== "single_primary" || pacingMode === "ENSEMBLE") {
-    return {
-      pacingMode: "ENSEMBLE",
-      motionLevel: "EXTERNAL",
-      sceneKind,
-      castMode: castFocus.sceneCastMode,
-      intimateDyad: false,
-      recentStagnation,
-      externalCooldownActive: false,
-      triggerActive,
-      meaningfulBeatBudget: 3,
-      carrierHints: [
-        "relationship",
-        "npc_action",
-        "world_reaction",
-        "environment",
-        "consequence",
-      ],
-      primaryProgression: "world_reaction",
-      npcActionEligible: true,
-      externalEligible: true,
-      reasonCodes: [...reasonCodes, "ensemble_legacy_freedom"],
-    };
-  }
-
-  // single_primary controller
-  let motionLevel: SceneMotionLevel = "HOLD";
-  let externalEligible = false;
-  let primaryProgression: SceneProgressionType | null = null;
-  let carrierHints: SceneProgressionType[] = ["relationship", "daily_life", "environment"];
-
-  if (intimateDyad || pacingMode === "DYAD") {
-    // DYAD: HOLD/AMBIENT only. EXTERNAL ineligible unless current danger (handled above).
-    externalEligible = false;
-    if (recentStagnation) {
-      // Stagnation → relationship/daily/environment enrichment — never EXTERNAL promote.
-      motionLevel = "AMBIENT";
-      primaryProgression = "environment";
-      carrierHints = ["relationship", "daily_life", "environment"];
-      reasonCodes.push("dyad_stagnation_ambient");
-    } else {
-      motionLevel = "HOLD";
-      primaryProgression = null;
-      carrierHints = ["relationship", "daily_life", "environment"];
-      reasonCodes.push("dyad_hold");
-    }
-    if (intimateDyad) {
-      // Generated EXTERNAL / NPC_ACTION / NEW_EVENT ineligible
-      reasonCodes.push("intimate_external_ineligible");
-    }
-  } else if (pacingMode === "EXPLORATION") {
-    externalEligible = !externalCooldownActive;
-    motionLevel = "LOCAL";
-    primaryProgression = "lore_clue";
-    carrierHints = ["lore_clue", "environment", "consequence"];
-    if (recentStagnation) {
-      motionLevel = "LOCAL";
-      primaryProgression = "environment";
-      reasonCodes.push("exploration_stagnation_local");
-    }
-    // EXTERNAL optional — only with grounded reason + cooldown clear.
-    if (externalEligible && immediateDanger) {
-      motionLevel = "EXTERNAL";
-      primaryProgression = npcActionEligible ? "npc_action" : "world_reaction";
-      reasonCodes.push("exploration_external_grounded");
-    } else {
-      reasonCodes.push("exploration_local");
-    }
-  } else if (pacingMode === "OPERATION") {
-    externalEligible = !externalCooldownActive;
-    if (externalEligible) {
-      motionLevel = "EXTERNAL";
-      primaryProgression = npcActionEligible ? "npc_action" : "world_reaction";
-      carrierHints = ["world_reaction", "consequence", "tactical_planning"];
-      reasonCodes.push("operation_external");
-    } else {
-      motionLevel = "LOCAL";
-      primaryProgression = "consequence";
-      carrierHints = ["consequence", "environment", "tactical_planning"];
-      reasonCodes.push("operation_local_cooldown");
-    }
-  }
-
-  // NPC action never primary unless eligible.
-  if (primaryProgression === "npc_action" && !npcActionEligible) {
-    primaryProgression = "world_reaction";
-    reasonCodes.push("npc_ungrounded_demote");
-  }
-
-  return {
-    pacingMode,
-    motionLevel,
+  return sceneDirectiveToPacingDecision({
+    directive,
     sceneKind,
-    castMode: castFocus.sceneCastMode,
+    pacingMode,
     intimateDyad,
-    recentStagnation,
     externalCooldownActive,
     triggerActive,
-    meaningfulBeatBudget: 1,
-    carrierHints,
-    primaryProgression,
-    npcActionEligible,
-    externalEligible,
-    reasonCodes,
-  };
+    immediateDanger,
+  });
 }
 
 /** Compact 1–2 sentence cue — no legacy intensity/avoid/next-beat dump. */
@@ -1109,6 +1032,8 @@ export function applyScenePacingArmToMessages(input: {
   messages: Array<{ role: string; content: string }>;
   arm: ScenePacingArm;
   decision: ScenePacingDecision;
+  /** When true, skip [SCENE PACING]/[SCENE STATE] cue — SceneDirective block owns motion. */
+  skipMotionCue?: boolean;
   /** Optional signals for Arm V dynamic budget (ignored by other arms). */
   dialogueBudgetInput?: {
     currentUserMessage?: string | null;
@@ -1168,7 +1093,9 @@ export function applyScenePacingArmToMessages(input: {
     m.content = stripGenreSceneModePacingHint(m.content);
     if (m.content !== before) strippedGenreSceneMode = true;
 
-    if (
+    if (input.skipMotionCue) {
+      // Dialogue budget only — motion prompt owned by SceneDirective block.
+    } else if (
       m.content.includes("[SCENE PACING]") ||
       m.content.includes("[SCENE STATE]")
     ) {
@@ -1280,6 +1207,7 @@ export function applyScenePacingArmToMessages(input: {
  */
 export function applyProductionServerControlsToMessages(input: {
   messages: Array<{ role: string; content: string }>;
+  mode?: SceneDirectiveMode;
   contentKind?: ContentKind | null;
   party?: boolean | null;
   primaryCharacterName?: string | null;
@@ -1287,10 +1215,17 @@ export function applyProductionServerControlsToMessages(input: {
   recentMessages?: ChatMsg[] | null;
   knownSupportingCastNames?: string[] | null;
   establishedActiveCastNames?: string[] | null;
+  memoryText?: string | null;
+  relationshipMemoryText?: string | null;
+  lorebookText?: string | null;
+  triggeredEventText?: string | null;
   adultModeEnabled?: boolean;
   chatId?: string | number | null;
   currentTurn?: number | null;
   progressionHistory?: SceneProgressionHistoryEntry[] | null;
+  canonicalSceneDirective?: SceneDirective | null;
+  /** Skip [SCENE PACING] when SceneDirective block is the motion owner (auto/sim/party). */
+  skipMotionCue?: boolean;
 }): {
   messages: Array<{ role: string; content: string }>;
   decision: ScenePacingDecision;
@@ -1299,6 +1234,7 @@ export function applyProductionServerControlsToMessages(input: {
   terminalDialogueBudgetAppended: boolean;
 } {
   const decision = resolveScenePacingDecision({
+    mode: input.mode ?? undefined,
     contentKind: input.contentKind ?? undefined,
     party: input.party ?? undefined,
     primaryCharacterName: input.primaryCharacterName ?? undefined,
@@ -1306,15 +1242,21 @@ export function applyProductionServerControlsToMessages(input: {
     recentMessages: input.recentMessages ?? undefined,
     knownSupportingCastNames: input.knownSupportingCastNames ?? undefined,
     establishedActiveCastNames: input.establishedActiveCastNames ?? undefined,
+    memoryText: input.memoryText ?? undefined,
+    relationshipMemoryText: input.relationshipMemoryText ?? undefined,
+    lorebookText: input.lorebookText ?? undefined,
+    triggeredEventText: input.triggeredEventText ?? undefined,
     adultModeEnabled: input.adultModeEnabled,
     chatId: input.chatId ?? undefined,
     currentTurn: input.currentTurn ?? undefined,
     progressionHistory: input.progressionHistory ?? undefined,
+    canonicalSceneDirective: input.canonicalSceneDirective ?? undefined,
   });
   const applied = applyScenePacingArmToMessages({
     messages: input.messages,
     arm: "V",
     decision,
+    skipMotionCue: input.skipMotionCue,
     dialogueBudgetInput: {
       currentUserMessage: input.currentUserMessage ?? undefined,
       recentMessages: input.recentMessages ?? undefined,
