@@ -812,6 +812,8 @@ export function buildLiveTrajectoryTurnFixture(input: {
   turn: BenchmarkTrajectoryTurn;
   arm: ScenePolicyArm;
   priorTurns: LiveTrajectoryPriorTurn[];
+  /** Live V2 run — overrides manifest frozen reconvergenceStateBefore */
+  liveReconvergenceState?: ReconvergenceState;
 }): ScenePolicyBenchmarkFixture {
   const history: ChatMsg[] = [];
   for (const prev of input.priorTurns) {
@@ -826,7 +828,9 @@ export function buildLiveTrajectoryTurnFixture(input: {
     history,
     currentUserMessage: input.turn.userMessage,
     reconvergenceState:
-      input.arm === "v2" ? input.turn.reconvergenceStateBefore : undefined,
+      input.arm === "v2"
+        ? (input.liveReconvergenceState ?? input.turn.reconvergenceStateBefore)
+        : undefined,
     currentTurn: input.turn.turnIndex,
   };
 }
