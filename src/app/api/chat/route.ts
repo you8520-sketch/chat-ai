@@ -1913,6 +1913,18 @@ export async function POST(req: Request) {
             currentTurn: playableTurnCount + 1,
             currentUserMessage: policyUserMessage,
             recentMessages: shortTermHistory,
+            memoryText: [
+              memoryFeatureOn
+                ? [memoryInjection.text, memoryInjection.archiveText].filter(Boolean).join("\n")
+                : "",
+              relationshipMemoryForPrompt,
+            ]
+              .filter(Boolean)
+              .join("\n"),
+            lorebookText: [keywordLorebookBlock, globalLorebookBlock]
+              .filter(Boolean)
+              .join("\n"),
+            triggeredEventText: triggeredScenarioEventsBlock,
             triggerPresent: Boolean(triggeredScenarioEventsBlock?.trim()),
             triggerImpliesReunion: /재회|만남|찾아왔|도착|노크|전화가|메시지가/.test(
               triggeredScenarioEventsBlock || ""

@@ -742,6 +742,9 @@ export function getUpdatedReconvergenceStateFromBuild(
     currentTurn: input.currentTurn ?? 0,
     currentUserMessage: input.currentUserMessage,
     recentMessages: input.recentMessages,
+    memoryText: input.memoryText,
+    lorebookText: input.lorebookText,
+    triggeredEventText: input.triggeredEventText,
     triggerPresent: Boolean(input.triggeredEventText?.trim()),
     triggerImpliesReunion:
       Boolean(input.triggeredEventText?.trim()) &&

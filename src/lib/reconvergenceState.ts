@@ -112,6 +112,7 @@ const PARTING_TERMS = [
   "돌아갈게",
   "먼저 갈게",
   "이만",
+  "여기까지",
   "작별",
   "집에 갈",
   "나 간다",
@@ -326,17 +327,40 @@ export function detectUserReturnContact(userMessage: string | null | undefined):
   return detectUserInitiatedReconnection(userMessage);
 }
 
+/** Authoritative evidence only — excludes assistant-generated speculation. */
+export function collectAuthoritativeReconvergenceText(opts: {
+  recentMessages?: ChatMsg[];
+  currentUserMessage?: string | null;
+  memoryText?: string | null;
+  lorebookText?: string | null;
+  triggeredEventText?: string | null;
+}): string {
+  const parts: string[] = [];
+  for (const msg of (opts.recentMessages ?? []).slice(-8)) {
+    if (msg.role === "user" && msg.content.trim()) parts.push(msg.content);
+  }
+  const userNow = opts.currentUserMessage?.trim();
+  if (userNow) parts.push(userNow);
+  for (const block of [
+    opts.triggeredEventText,
+    opts.lorebookText,
+    opts.memoryText,
+  ]) {
+    const trimmed = block?.trim();
+    if (trimmed) parts.push(trimmed);
+  }
+  return parts.join("\n").trim();
+}
+
 export function extractReconvergenceHooks(opts: {
   recentMessages?: ChatMsg[];
   currentUserMessage?: string | null;
   currentTurn: number;
+  memoryText?: string | null;
+  lorebookText?: string | null;
+  triggeredEventText?: string | null;
 }): ReconvergenceHook[] {
-  const text = [
-    ...(opts.recentMessages ?? []).slice(-8).map((m) => m.content),
-    opts.currentUserMessage ?? "",
-  ]
-    .join("\n")
-    .trim();
+  const text = collectAuthoritativeReconvergenceText(opts);
   if (!text) return [];
   const hooks: ReconvergenceHook[] = [];
   const add = (type: ReconvergenceHookType, summary: string, confidence: "high" | "medium") => {
@@ -420,6 +444,9 @@ export function advanceReconvergenceState(opts: {
   currentTurn: number;
   currentUserMessage?: string | null;
   recentMessages?: ChatMsg[];
+  memoryText?: string | null;
+  lorebookText?: string | null;
+  triggeredEventText?: string | null;
   triggerPresent?: boolean;
   triggerImpliesReunion?: boolean;
   isRegenerate?: boolean;
@@ -522,6 +549,9 @@ export function advanceReconvergenceState(opts: {
     recentMessages: opts.recentMessages,
     currentUserMessage: opts.currentUserMessage,
     currentTurn: opts.currentTurn,
+    memoryText: opts.memoryText,
+    lorebookText: opts.lorebookText,
+    triggeredEventText: opts.triggeredEventText,
   });
   for (const hook of freshHooks) {
     if (!next.unresolvedHooks.some((h) => h.type === hook.type)) {
@@ -650,6 +680,9 @@ export function prepareReconvergenceTransition(opts: {
   currentTurn: number;
   currentUserMessage?: string | null;
   recentMessages?: ChatMsg[];
+  memoryText?: string | null;
+  lorebookText?: string | null;
+  triggeredEventText?: string | null;
   triggerPresent?: boolean;
   triggerImpliesReunion?: boolean;
   requestId?: string | null;
@@ -667,6 +700,9 @@ export function prepareReconvergenceTransition(opts: {
     currentTurn: opts.currentTurn,
     currentUserMessage: opts.currentUserMessage,
     recentMessages: opts.recentMessages,
+    memoryText: opts.memoryText,
+    lorebookText: opts.lorebookText,
+    triggeredEventText: opts.triggeredEventText,
     triggerPresent: opts.triggerPresent,
     triggerImpliesReunion: opts.triggerImpliesReunion,
     isRegenerate: opts.isRegenerate,
