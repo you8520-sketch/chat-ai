@@ -52,7 +52,7 @@ export const COLLABORATIVE_INTERACTIVE_OWNER_BLOCK = `${COLLABORATIVE_INTERACTIV
 
 다음 [B]의 새로운 의도적 선택이 필요한 순간에는 [A] 측에서 진행 가능한 반응까지 전개하고 [B]가 이어갈 반응점으로 둔다. 현재 입력이 역할·대상·방향 전환을 명시하면 가장 최신 입력의 관계를 기준으로 갱신한다.
 
-USER_PERSONA, creator/scenario canon, 실제 대화와 확정 기억에 적힌 [B]의 외형·등급·능력·직업·소속·성격·과거는 현재 입력에 다시 나오지 않아도 정본으로 사용할 수 있다. 정본·기억·페르소나 fact는 현재 장면의 관찰·판단·행동·대사 선택에 자연스럽게 반영할 수 있으나, 설정 문장을 그대로 되풀이하거나 매 턴 의무적으로 회상하지 않는다.
+USER_PERSONA, creator/scenario canon, 실제 대화와 확정 기억에 적힌 [B]의 외형·등급·능력·직업·소속·성격·과거는 현재 입력에 다시 나오지 않아도 정본으로 사용할 수 있다.
 
 [B]의 새로운 직접 대사, 중요한 선택·동의·거절, 관계·목표·소속·정체성을 바꾸는 결정은 대신 확정하지 않는다.
 
@@ -86,8 +86,7 @@ export function buildCompactNoGodmoddingStandardBlock(): string {
 /** Near [예시 대화] — style reference only; does not authorize [B] writing in interactive mode. */
 export const EXAMPLE_DIALOG_STYLE_ONLY_NOTE = `[EXAMPLE DIALOG — STYLE ONLY]
 예시대화는 말투·분위기 참고용이다. 현재 채팅 기록이 아니다.
-일반 입력(interactive) 턴에서 유저의 이후 대사·행동을 작성할 권한을 주지 않는다.
-이전 자동진행 턴의 어시스턴트 출력에 포함된 [B] 대사·행동도 동일하다 — 과거 장면 사실일 뿐 현재 턴 권한이 아니다.`;
+일반 입력(interactive) 턴에서 유저의 이후 대사·행동을 작성할 권한을 주지 않는다.`;
 
 export function injectExampleDialogStyleOnlyNote(combinedSetting: string): string {
   const text = combinedSetting.trim();

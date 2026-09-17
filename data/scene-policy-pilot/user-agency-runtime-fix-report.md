@@ -1,53 +1,48 @@
-# User agency / length / contextual callback runtime fix
+# User agency / length / contextual callback — owner consolidation cleanup
 
-**Status:** ROOT_CAUSE_FIXED  
+**Status:** `READY_FOR_GPT_FINAL_MERGE`
+**Classification:** `PROMPT_CONTRACT_ROOT_CAUSE: ROOT_CAUSE_FIXED` | `LIVE_MODEL_OUTPUT: UNVERIFIED_NO_PROVIDER_CALL`
 **Provider HTTP:** 0 | **DB migration:** 0 | **V2 / reconvergence:** unchanged
 
-## BEFORE — owner graph
+## BEFORE
 
-| Owner | File | Scope |
-|-------|------|-------|
-| Interactive collaborative agency | `noGodmodding.ts` → `COLLABORATIVE_INTERACTIVE_OWNER_BLOCK` | `[0a]` system |
-| Auto progression agency | `autoProgressionRules.ts` | autoContinue mode only |
-| Current-user wrapper | `currentUserInputLabel.ts` | user-turn tail |
-| Length target | `responseLength.ts` → `USER_TAIL_LENGTH_OWNER_SENTENCE` | user-turn tail |
-| Narrative density | `sceneExpansionPolicy.ts` | prose bundle |
-| Immersive prose | `advancedProseNsfwGuidelines.ts` | prose bundle |
-| Runtime mode resolver | `chatRuntimeMode.ts` + `contextBuilder.ts` | per-turn flags |
+- Callback semantics duplicated across agency / prose / density owners
+- Example-dialog owner contaminated with auto-history permission rule
+- CTX7 used fake string proof (noGodmodding owner) instead of reconvergence regression
 
-## REPRODUCTION
+## PROBLEM
 
-| Case | Pre-fix gap | Post-fix |
-|------|-------------|----------|
-| **UA-AUTO1** Auto [B] dialogue in history → manual turn | Collaborative owner lacked explicit auto→manual reset; wrapper silent on prior auto output | Owner + wrapper declare prior auto assistant [B] = history only |
-| **LEN1** Long target | Length sentence did not forbid [B] filler | `USER_TAIL_LENGTH_OWNER_SENTENCE` prioritizes AI-owned expansion |
-| **CTX1–6** Memory/canon fixation | Present in immersive prose lightly; no anti-fixation / no-quota in density | Strengthened in existing `IMMERSIVE_PROSE` + `NARRATIVE DENSITY` |
+- Responsibility duplication violated ONE RESPONSIBILITY = ONE CANONICAL OWNER
+- EXAMPLE_DIALOG_STYLE_ONLY_NOTE could not be AUTO→MANUAL invariant owner (character-gated injection)
+- CTX7 name/proof mismatch on reconvergence hook behavior
 
-## ROOT CAUSE — H1–H7
+## AFTER — owner graph
 
-| ID | Verdict | Evidence |
-|----|---------|----------|
-| H1 AUTO permission persists in prompt state | **REJECT** | `resolveChatRuntimeMode` + `resolveNoGodmoddingMode` reset on manual turn |
-| H2 Prior auto assistant output as behavioral example | **ACCEPT** | Default collaborative path lacked “history ≠ permission” recency |
-| H3 Minor allowance → major action | **PARTIAL** | Clarified in collaborative owner (elevator chain, etc.) |
-| H4 Length pressure → user authoring filler | **ACCEPT** | Length owner mode-blind; no anti-filler clause |
-| H5 AI expansion priority unclear | **ACCEPT** | Density/length did not state AI-first priority |
-| H6 Anti-fixation semantics insufficient | **ACCEPT** | No explicit non-functional reuse rule |
-| H7 Memory retrieval ranking | **FOLLOW-UP** | Prompt consumption fix only; retrieval unchanged |
+| Owner | File | Responsibility |
+|-------|------|----------------|
+| User authoring permission | `noGodmodding.ts` → `COLLABORATIVE_INTERACTIVE_OWNER_BLOCK` | AUTO→MANUAL reset, [B] permission bounds, canonical fact usage (no callback contract) |
+| Turn recency materialization | `currentUserInputLabel.ts` | Current runtime = interactive; prior auto co-narration does not carry over |
+| Auto permission | `autoProgressionRules.ts` | Auto turn only; manual revert line preserved |
+| Contextual callback / anti-fixation | `advancedProseNsfwGuidelines.ts` → `IMMERSIVE_PROSE_BLOCK` | present first, relevant-only callback, no verbatim echo, no mandatory recall, anti-fixation |
+| AI-owned length routing | `sceneExpansionPolicy.ts` → `NARRATIVE_DENSITY_BLOCK` | AI_CAST expansion first; defers callback to IMMERSIVE PROSE; [B] not filler |
+| Terminal length target | `responseLength.ts` → `USER_TAIL_LENGTH_OWNER_SENTENCE` | 3200+ default, AI expansion priority, no [B] filler (compact) |
+| Example dialog boundary | `noGodmodding.ts` → `EXAMPLE_DIALOG_STYLE_ONLY_NOTE` | Style/reference only — no auto-history permission |
 
-## AFTER
+## REMOVED
 
-- **Current-turn scoped permission:** collaborative owner + wrapper + example-dialog note
-- **Auto boundary:** auto owner scoped to auto turns; explicit manual revert line
-- **AI-owned expansion priority:** length + density owners
-- **Contextual callback:** present-first, transform-not-explain, no quota, anti-fixation in immersive/density
+- Collaborative owner: callback / anti-fixation / verbatim-echo / quota semantics
+- Example-dialog note: auto assistant history permission line
+- NARRATIVE DENSITY: full contextual-callback contract duplication
+- USER_TAIL length: emotion-paraphrase anti-fixation duplicate
+- CTX7: invalid noGodmodding string pseudo-proof
 
 ## PRESERVED
 
-Minor co-narration, adult handoff wrapper, auto progression semantics, long-form 3200+ target, memory continuity as grounding (not hook creation), V2 OFF, reconvergence PR931 invariant text in owner.
+AUTO→MANUAL current-turn permission reset, manual minor/local co-narration, adult local reaction, auto progression semantics, AI-owned length expansion, contextual callback semantics (now single-owned), anti-fixation, no verbatim memory/canon echo, 3200+ length target, interactive wrapper recency, auto owner revert line.
 
 ## PROOF
 
-- `src/lib/userAgencyRuntime.test.ts`: UA1–12, LEN1–5, CTX1–10, UA-AUTO1
-- Existing: `userAgencyRoleBindingP0`, benchmark harness BMARK/TRJ/COST, RC/BOUND/EVAL (when present on branch)
-- `npm run lint` / `typecheck:app` / `build`
+- `src/lib/userAgencyRuntime.test.ts`: UA1–12, LEN1–5, CTX1–6/8–10, OWNER1–9, UA-AUTO1
+- CTX7 → PROV1–3 inline (canonical `extractReconvergenceHooks` regression from #931)
+- `src/lib/reconvergenceProvenance.test.ts`: PROV1–7, PARITY1–4, PART1–5 (unchanged)
+- `npm run lint` / `typecheck:app` / `build` / `git diff --check`

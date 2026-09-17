@@ -1,5 +1,5 @@
 /**
- * UA1–12, LEN1–5, CTX1–10 — user agency / length / contextual callback gates.
+ * UA1–12, LEN1–5, CTX1–6/8–10, OWNER1–9 — user agency / length / owner consolidation gates.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -8,6 +8,7 @@ import { AUTO_PROGRESSION_BLOCK_TITLE } from "@/lib/autoProgressionRules";
 import { IMMERSIVE_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
 import {
   buildNoGodmoddingBlock,
+  COLLABORATIVE_INTERACTIVE_OWNER_BLOCK,
   COLLABORATIVE_INTERACTIVE_OWNER_TITLE,
   EXAMPLE_DIALOG_STYLE_ONLY_NOTE,
 } from "@/lib/noGodmodding";
@@ -17,12 +18,22 @@ import {
   wrapCurrentUserInput,
 } from "@/lib/currentUserInputLabel";
 import { resolveChatRuntimeMode } from "@/lib/chatRuntimeMode";
+import { extractReconvergenceHooks } from "@/lib/reconvergenceState";
 import { NARRATIVE_DENSITY_BLOCK } from "@/lib/sceneExpansionPolicy";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
 import { buildContext } from "@/services/contextBuilder";
 
 const user = "테스트_유저";
 const ai = "테스트_AI";
+
+const CALLBACK_SEMANTIC_MARKERS = [
+  "present first",
+  "relevant할 때만",
+  "그대로 복사",
+  "매 턴 의무적으로 회상",
+  "같은 기억·키워드·상징·비유",
+  "설정 문장·기억 문장",
+] as const;
 
 function buildInteractive(
   userMessage: string,
@@ -56,6 +67,10 @@ function lastUserMessage(built: ReturnType<typeof buildContext>): string {
   const last = built.history.at(-1);
   assert.equal(last?.role, "user");
   return String(last?.content ?? "");
+}
+
+function countMarkerHits(text: string, markers: readonly string[]): number {
+  return markers.filter((m) => text.includes(m)).length;
 }
 
 describe("UA — user agency runtime gates", () => {
@@ -97,8 +112,10 @@ describe("UA — user agency runtime gates", () => {
     assert.match(owner, /interactive 턴으로 넘어가면/);
   });
 
-  it("UA4 example-dialog note blocks auto history as permission", () => {
-    assert.match(EXAMPLE_DIALOG_STYLE_ONLY_NOTE, /이전 자동진행 턴/);
+  it("UA4 example-dialog note is style-only — no auto-history permission rule", () => {
+    assert.doesNotMatch(EXAMPLE_DIALOG_STYLE_ONLY_NOTE, /이전 자동진행 턴/);
+    assert.doesNotMatch(EXAMPLE_DIALOG_STYLE_ONLY_NOTE, /현재 턴 권한/);
+    assert.match(EXAMPLE_DIALOG_STYLE_ONLY_NOTE, /말투·분위기 참고용/);
   });
 
   it("UA5 MINOR1 cup reach — minor co-narration allowed", () => {
@@ -156,8 +173,8 @@ describe("LEN — length vs user agency gates", () => {
     assert.match(NARRATIVE_DENSITY_BLOCK, /\[AI_CAST\]의 현재 심리/);
   });
 
-  it("LEN3 density forbids emotion paraphrase repetition", () => {
-    assert.match(NARRATIVE_DENSITY_BLOCK, /같은 감정 paraphrase/);
+  it("LEN3 immersive prose forbids micro-action/emotion paraphrase filler", () => {
+    assert.match(IMMERSIVE_PROSE_BLOCK, /미세 행동·반복 해설/);
   });
 
   it("LEN4 immersive prose forbids fabricated canon echo obligation", () => {
@@ -175,11 +192,12 @@ describe("CTX — contextual callback gates", () => {
   it("CTX1–3 present-first + transform canon to action (not explain)", () => {
     assert.match(IMMERSIVE_PROSE_BLOCK, /present first/);
     assert.match(IMMERSIVE_PROSE_BLOCK, /행동·대사 선택을 바꾸/);
-    assert.match(NARRATIVE_DENSITY_BLOCK, /flashback·설정 복습·문장 그대로 echo/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /설정 문장·기억 문장을 그대로 복사/);
   });
 
   it("CTX4 irrelevant memory — no mandatory callback quota", () => {
-    assert.match(NARRATIVE_DENSITY_BLOCK, /매 턴 callback 의무는 없다/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /의무적으로 회상하지 않는다/);
+    assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /매 턴 callback 의무/);
   });
 
   it("CTX5 anti-fixation requires new function on reuse", () => {
@@ -188,12 +206,30 @@ describe("CTX — contextual callback gates", () => {
 
   it("CTX6 no verbatim canon/memory echo", () => {
     assert.match(IMMERSIVE_PROSE_BLOCK, /그대로 복사/);
-    assert.match(NARRATIVE_DENSITY_BLOCK, /문장 그대로 echo/);
+    assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /문장 그대로 echo/);
   });
 
-  it("CTX7 memory callback is not active reconvergence hook (PR931 invariant)", () => {
-    const owner = ownerText(buildInteractive("안녕."));
-    assert.match(owner, /매 턴 의무적으로 회상하지 않는다/);
+  it("CTX7 static memory/lorebook cannot become active reconvergence hooks (PROV1–3)", () => {
+    const loreOnly = extractReconvergenceHooks({
+      currentUserMessage: "오늘은 여기까지. 들어가.",
+      lorebookText:
+        "두 사람은 같은 팀에서 통신 단말기를 사용하며 기지에서 함께 근무한다.",
+      currentTurn: 1,
+    });
+    assert.equal(loreOnly.length, 0);
+
+    const memoryOnly = extractReconvergenceHooks({
+      memoryText: "우리 관계는 오래된 지인이다.",
+      currentTurn: 1,
+    });
+    assert.equal(memoryOnly.length, 0);
+
+    const crossSource = extractReconvergenceHooks({
+      memoryText: "우리 관계는 오래된 지인이다.",
+      lorebookText: "도시 중앙에는 병원이 있다.",
+      currentTurn: 1,
+    });
+    assert.equal(crossSource.length, 0);
   });
 
   it("CTX8 persona use does not authorize inner thought fabrication", () => {
@@ -203,12 +239,88 @@ describe("CTX — contextual callback gates", () => {
   });
 
   it("CTX9 present scene first — no unnecessary flashback expansion", () => {
-    assert.match(NARRATIVE_DENSITY_BLOCK, /과거 설명·flashback/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /현재 장면/);
+    assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /flashback/);
   });
 
   it("CTX10 same memory/keyword non-functional repetition forbidden", () => {
-    assert.match(NARRATIVE_DENSITY_BLOCK, /무기능 반복/);
     assert.match(IMMERSIVE_PROSE_BLOCK, /같은 기억·키워드·상징·비유/);
+    assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /무기능 반복/);
+  });
+});
+
+describe("OWNER — responsibility consolidation gates", () => {
+  it("OWNER1 contextual callback semantics live in IMMERSIVE PROSE only", () => {
+    const proseHits = countMarkerHits(IMMERSIVE_PROSE_BLOCK, CALLBACK_SEMANTIC_MARKERS);
+    assert.ok(proseHits >= 4, "IMMERSIVE PROSE must own callback contract");
+    assert.equal(
+      countMarkerHits(COLLABORATIVE_INTERACTIVE_OWNER_BLOCK, CALLBACK_SEMANTIC_MARKERS),
+      0
+    );
+    assert.equal(countMarkerHits(NARRATIVE_DENSITY_BLOCK, CALLBACK_SEMANTIC_MARKERS), 0);
+  });
+
+  it("OWNER2 collaborative interactive owner is user-authoring permission only", () => {
+    assert.match(COLLABORATIVE_INTERACTIVE_OWNER_BLOCK, /현재 interactive 턴/);
+    assert.match(COLLABORATIVE_INTERACTIVE_OWNER_BLOCK, /정본으로 사용할 수 있다/);
+    assert.doesNotMatch(COLLABORATIVE_INTERACTIVE_OWNER_BLOCK, /매 턴 의무적으로 회상/);
+    assert.doesNotMatch(COLLABORATIVE_INTERACTIVE_OWNER_BLOCK, /설정 문장을 그대로 되풀이/);
+    assert.doesNotMatch(COLLABORATIVE_INTERACTIVE_OWNER_BLOCK, /같은 기억·키워드/);
+  });
+
+  it("OWNER3 example-dialog note is style boundary only", () => {
+    assert.match(EXAMPLE_DIALOG_STYLE_ONLY_NOTE, /STYLE ONLY/);
+    assert.doesNotMatch(EXAMPLE_DIALOG_STYLE_ONLY_NOTE, /자동진행/);
+    assert.doesNotMatch(EXAMPLE_DIALOG_STYLE_ONLY_NOTE, /scene history/);
+  });
+
+  it("OWNER4 manual assembled prompt: collaborative owner title exactly once", () => {
+    const built = buildInteractive("안녕.");
+    const owner = ownerText(built);
+    assert.equal(owner.split(COLLABORATIVE_INTERACTIVE_OWNER_TITLE).length - 1, 1);
+    assert.equal(built.systemPrompt.split(COLLABORATIVE_INTERACTIVE_OWNER_TITLE).length - 1, 1);
+  });
+
+  it("OWNER5 manual current-user wrapper: AUTO→MANUAL recency reset present", () => {
+    const wrapped = wrapCurrentUserInput("그를 바라본다.", { mode: "interactive" });
+    assert.match(wrapped, /Prior auto-progression co-narration does not carry over/);
+    assert.match(wrapped, /scene history only/);
+  });
+
+  it("OWNER6 auto assembled prompt: auto owner present, collaborative owner absent", () => {
+    const built = buildInteractive("", { isContinue: true, currentUserMessage: "..." });
+    const owner = ownerText(built);
+    assert.ok(owner.includes(AUTO_PROGRESSION_BLOCK_TITLE));
+    assert.equal(owner.includes(COLLABORATIVE_INTERACTIVE_OWNER_TITLE), false);
+  });
+
+  it("OWNER7 AUTO history + next MANUAL: auto permission absent, manual wrapper active", () => {
+    const built = buildInteractive("그를 바라본다.", {
+      shortTermHistory: [
+        { role: "user", content: "계속." },
+        { role: "assistant", content: '"[B]가 말했다. 「그래.」" 이동했다.' },
+      ],
+    });
+    const owner = ownerText(built);
+    assert.equal(owner.includes(AUTO_PROGRESSION_BLOCK_TITLE), false);
+    const userTail = lastUserMessage(built);
+    assert.match(userTail, /Prior auto-progression co-narration does not carry over/);
+  });
+
+  it("OWNER8 NARRATIVE DENSITY does not duplicate full contextual-callback contract", () => {
+    assert.match(NARRATIVE_DENSITY_BLOCK, /\[IMMERSIVE PROSE\]를 따른다/);
+    assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /present first/);
+    assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /relevant할 때만/);
+    assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /그대로 복사/);
+    assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /무기능 반복/);
+  });
+
+  it("OWNER9 USER_TAIL length owner stays compact — no prose anti-fixation duplicate", () => {
+    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /3,200자 이상/);
+    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /\[AI_CAST\]/);
+    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /분량 채우기/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /같은 감정·상태/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /의무적으로 회상/);
   });
 });
 
