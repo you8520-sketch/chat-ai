@@ -8,6 +8,7 @@ import {
   buildAdminReceiptCompactViewModel,
   resolveMainRpCostProvenanceLabel,
   formatAdminBillingReceiptV3Text,
+  formatAdminReceiptAuxiliaryCallOutcome,
 } from "@/lib/adminBillingReceiptV3Shared";
 import type { Usage } from "@/lib/chatUsage";
 import type { ProviderCostLedgerRow } from "@/lib/providerCostLedger";
@@ -92,6 +93,17 @@ function buildV3(
     ledgerRows: [],
     ...opts,
   });
+}
+
+function findStatusWidgetAuxiliaryCall(
+  calls: ReturnType<typeof buildAdminReceiptCompactViewModel>["auxiliaryCalls"]
+) {
+  return calls.find(
+    (call) =>
+      call.label === "상태창 위젯" ||
+      call.label === "상태창 추출" ||
+      call.label.includes("공유 초기")
+  );
 }
 
 function asyncLedgerRow(
@@ -190,7 +202,7 @@ describe("Admin Receipt compact view model — provenance & auxiliary summary", 
       })
     );
     const vm = buildAdminReceiptCompactViewModel(receipt);
-    const widget = vm.auxiliaryCalls.find((c) => c.label === "상태창 위젯");
+    const widget = findStatusWidgetAuxiliaryCall(vm.auxiliaryCalls);
     assert.ok(widget, "status widget call must be listed");
     assert.equal(widget?.calls, 1);
     assert.equal(widget?.model, "Luna");
@@ -231,7 +243,9 @@ describe("Admin Receipt compact view model — provenance & auxiliary summary", 
     );
     const vm = buildAdminReceiptCompactViewModel(receipt);
     const relRows = vm.auxiliaryCalls.filter((c) => c.label === "Relationship Memory");
-    const widgetRows = vm.auxiliaryCalls.filter((c) => c.label === "상태창 위젯");
+    const widgetRows = vm.auxiliaryCalls.filter(
+      (c) => findStatusWidgetAuxiliaryCall([c]) != null
+    );
     assert.equal(relRows.length, 1);
     assert.equal(widgetRows.length, 1);
     assert.equal(vm.auxiliaryCalls.length, 2);
@@ -388,7 +402,7 @@ describe("Admin Receipt compact — review blocker regression", () => {
       })
     );
     const vm = buildAdminReceiptCompactViewModel(receipt);
-    const widget = vm.auxiliaryCalls.find((c) => c.label === "상태창 위젯");
+    const widget = findStatusWidgetAuxiliaryCall(vm.auxiliaryCalls);
     assert.ok(widget);
     assert.equal(widget?.model, "GPT-5.6 Luna");
     assert.equal(widget?.calls, 1);
@@ -533,11 +547,16 @@ describe("Admin Receipt compact — review blocker regression", () => {
     );
     const vm = buildAdminReceiptCompactViewModel(receipt);
     const text = formatAdminBillingReceiptV3Text(receipt);
-    const widget = vm.auxiliaryCalls.find((c) => c.label === "상태창 위젯");
+    const widget = findStatusWidgetAuxiliaryCall(vm.auxiliaryCalls);
     assert.ok(widget);
     // Clipboard carries model + call count + success.
     assert.match(text, /GPT-5\.6 Luna/);
     assert.match(text, /1회 성공/);
+    const panelSource = require("node:fs").readFileSync(
+      "src/components/AdminBillingReceiptV3Panel.tsx",
+      "utf8"
+    );
+    assert.match(panelSource, /formatAdminReceiptAuxiliaryCallOutcome/);
   });
 });
 
@@ -599,10 +618,50 @@ describe("Admin Receipt compact — final semantic correction", () => {
       })
     );
     const vm = buildAdminReceiptCompactViewModel(receipt);
-    const widget = vm.auxiliaryCalls.find((c) => c.label === "상태창 위젯");
+    const widget = findStatusWidgetAuxiliaryCall(vm.auxiliaryCalls);
     assert.ok(widget);
     assert.equal(widget?.result, "success");
     assert.equal(widget?.costProvenanceLabel, "CI 할인 요율 추정 원가");
+  });
+
+  it("STATUS_WIDGET_EXTRACTION_EXHAUSTED — provider call success is not labeled plain 성공", () => {
+    const receipt = buildV3(
+      baseUsage({
+        statusWidgetExtract: {
+          input: 100,
+          output: 50,
+          model: "gpt-5.6-luna",
+          modelLabel: "GPT-5.6 Luna",
+          estimated: false,
+          apiRawCostKrw: 4,
+          postTurnSharedInitial: true,
+          actualProviderCostUsd: 0.000846,
+          actualCostSource: "cheaper_inference_billed",
+          actualCostCoverage: "complete",
+          actualProviderCostKrw: 1.3,
+        },
+        statusWidgetExtractDiagnostics: {
+          exhausted: true,
+          usedFallback: false,
+          attempts: [
+            {
+              stage: "initial",
+              modelId: "gpt-5.6-luna",
+              httpStatus: 200,
+              finishReason: "stop",
+              errorCode: null,
+              reasonCode: "V3_INITIAL_EMPTY",
+              succeeded: false,
+            },
+          ],
+        },
+      })
+    );
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    const widget = vm.auxiliaryCalls.find((c) => c.label.includes("공유 초기"));
+    assert.ok(widget);
+    assert.equal(widget?.extractionResult, "failed");
+    assert.match(formatAdminReceiptAuxiliaryCallOutcome(widget!), /추출 실패/);
   });
 
   it("normal widget success does NOT expose verbose diagnostics (panel/tooltip contract)", () => {

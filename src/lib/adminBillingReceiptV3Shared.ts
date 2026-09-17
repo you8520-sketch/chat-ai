@@ -5,6 +5,9 @@ import {
   type AdminBillingReceiptV2Fx,
 } from "@/lib/adminBillingReceiptV2";
 import { formatPoints } from "@/lib/billingDisplay";
+import type { Usage } from "@/lib/chatUsage";
+import { convertUsdToKrw } from "@/lib/exchangeRate";
+import { buildAdminReceiptTurnSummary } from "@/lib/adminBillingReceiptTurnSummary";
 import type {
   AsyncFamilyCoverageState,
   AsyncFamilyExpectationState,
@@ -96,6 +99,8 @@ export type AdminBillingReceiptV3 = {
   historicalNote?: string;
   /** Admin billing forensics — stored truth projection, no repricing. */
   forensic?: AdminBillingForensicMetadata;
+  /** Admin-only widget extract diagnostics — projected from Usage at build time. */
+  statusWidgetExtractDiagnostics?: Usage["statusWidgetExtractDiagnostics"];
 };
 
 /**
@@ -191,6 +196,8 @@ export type AdminReceiptAuxiliaryCall = {
   calls: number;
   /** Transport/job event outcome — NOT cost exactness. */
   result: "success" | "failed" | "partial";
+  /** Semantic extraction outcome when a sync widget call ran (null = unknown / N/A). */
+  extractionResult?: "success" | "failed" | "partial" | null;
   costUsd: number | null;
   /** Cost provenance label when a cost is shown (kept separate from result). */
   costProvenanceLabel: string | null;
@@ -215,8 +222,70 @@ export type AdminReceiptCompactViewModel = {
   hasCompleteTotal: boolean;
   /** Complete total USD when hasCompleteTotal, else null. */
   completeTotalUsd: number | null;
+  /** Known settled/partial provider spend USD for this turn (never includes in-progress). */
+  knownTurnCostUsd: number | null;
+  /** FX projection of knownTurnCostUsd using the receipt's billing FX snapshot. */
+  knownTurnCostKrw: number | null;
+  turnCostCoverage: AdminBillingReceiptV3WholeTurnCoverage;
+  marginPercent: number | null;
+  marginUnavailableReason: string | null;
   contextSummaryAvailable: boolean;
 };
+
+/** Separate provider transport success from semantic widget extraction success. */
+export function resolveStatusWidgetSyncAuxiliaryOutcome(input: {
+  syncSpendAvailable: boolean;
+  diagnostics?: Usage["statusWidgetExtractDiagnostics"];
+}): {
+  callResult: "success" | "failed" | "partial";
+  extractionResult: "success" | "failed" | "partial" | null;
+} {
+  if (!input.syncSpendAvailable) {
+    return { callResult: "partial", extractionResult: null };
+  }
+  const diagnostics = input.diagnostics;
+  if (!diagnostics) {
+    return { callResult: "success", extractionResult: null };
+  }
+  if (diagnostics.exhausted) {
+    return { callResult: "success", extractionResult: "failed" };
+  }
+  const semanticSucceeded = diagnostics.attempts.some((attempt) => attempt.succeeded === true);
+  if (semanticSucceeded) {
+    return { callResult: "success", extractionResult: "success" };
+  }
+  if (diagnostics.attempts.length > 0) {
+    return { callResult: "success", extractionResult: "partial" };
+  }
+  return { callResult: "success", extractionResult: null };
+}
+
+export function formatAdminReceiptAuxiliaryCallOutcome(call: AdminReceiptAuxiliaryCall): string {
+  if (call.extractionResult === "failed" && call.result === "success") {
+    return `${call.calls}회 호출 성공 · 추출 실패`;
+  }
+  if (call.extractionResult === "success" && call.result === "success") {
+    return `${call.calls}회 성공`;
+  }
+  if (call.result === "success") {
+    return `${call.calls}회 성공`;
+  }
+  if (call.result === "failed") {
+    return `${call.calls}회 실패`;
+  }
+  return `${call.calls}회 partial`;
+}
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+function projectKnownTurnCostKrw(receipt: AdminBillingReceiptV3): number | null {
+  const knownUsd = receipt.wholeTurn.knownProviderSpendUsd;
+  const fx = receipt.wholeTurn.fx?.effectiveKrwPerUsd ?? null;
+  if (!(knownUsd > 0) || fx == null) return null;
+  return round1(convertUsdToKrw(knownUsd, fx));
+}
 
 /** Map a stored actual-cost source to an evidence-true Korean label. */
 export function resolveMainRpCostProvenanceLabel(source: string | null | undefined): string | null {
@@ -321,15 +390,19 @@ export function buildAdminReceiptCompactViewModel(
   // Sync platform spend (status widget extraction) is a real auxiliary provider call.
   const syncSpend = sync?.syncPlatformSpend;
   if (syncSpend?.status === "available" && (syncSpend.callCount ?? 1) > 0) {
-    // A persisted statusWidgetExtract / available sync spend means the widget
-    // extraction provider call actually ran and returned billable usage → the
-    // CALL RESULT is success. Cost exactness is shown separately as a
-    // provenance label (never conflated with call outcome).
+    const widgetOutcome = resolveStatusWidgetSyncAuxiliaryOutcome({
+      syncSpendAvailable: true,
+      diagnostics: receipt.statusWidgetExtractDiagnostics,
+    });
+    const widgetLabel =
+      syncSpend.groupLabel?.trim() ||
+      (syncSpend.postTurnSharedInitial ? "공유 초기 (상태창 + 추천입력)" : "상태창 위젯");
     auxiliaryCalls.push({
-      label: "상태창 위젯",
+      label: widgetLabel,
       model: syncSpend.modelLabel ?? syncSpend.model ?? null,
       calls: syncSpend.callCount ?? 1,
-      result: "success",
+      result: widgetOutcome.callResult,
+      extractionResult: widgetOutcome.extractionResult,
       costUsd:
         syncSpend.actualProviderCostUsd != null && syncSpend.actualProviderCostUsd > 0
           ? syncSpend.actualProviderCostUsd
@@ -369,6 +442,9 @@ export function buildAdminReceiptCompactViewModel(
   // exact (includes Main RP + sync + async, all settled).
   const hasCompleteTotal = receipt.wholeTurn.coverage === "complete";
   const completeTotalUsd = hasCompleteTotal ? receipt.wholeTurn.exactProviderSpendUsd : null;
+  const turnSummary = buildAdminReceiptTurnSummary(receipt);
+  const knownTurnCostUsd =
+    receipt.wholeTurn.knownProviderSpendUsd > 0 ? receipt.wholeTurn.knownProviderSpendUsd : null;
 
   return {
     mainRp,
@@ -379,6 +455,11 @@ export function buildAdminReceiptCompactViewModel(
     auxiliaryCalls,
     hasCompleteTotal,
     completeTotalUsd,
+    knownTurnCostUsd,
+    knownTurnCostKrw: projectKnownTurnCostKrw(receipt),
+    turnCostCoverage: receipt.wholeTurn.coverage,
+    marginPercent: turnSummary.marginPercent,
+    marginUnavailableReason: turnSummary.marginUnavailableReason,
     contextSummaryAvailable: false,
   };
 }
@@ -429,6 +510,23 @@ export function formatAdminBillingReceiptV3Text(receipt: AdminBillingReceiptV3):
     lines.push(
       `실제 차감: ${vm.deductedPoints != null ? `${formatPoints(vm.deductedPoints)} P` : "확인 불가"}`
     );
+    if (vm.hasCompleteTotal && vm.completeTotalUsd != null) {
+      lines.push(
+        `총 실제 청구원가: ${formatAdminActualUsd(vm.completeTotalUsd)}${fxSuffix(vm.completeTotalUsd)}`
+      );
+      if (vm.marginPercent != null) {
+        lines.push(`마진율: ${vm.marginPercent}%`);
+      }
+    } else if (vm.knownTurnCostUsd != null && vm.knownTurnCostKrw != null) {
+      lines.push(
+        `확정 원가 (부분): ${formatAdminActualUsd(vm.knownTurnCostUsd)}${fxSuffix(vm.knownTurnCostUsd)} · ${wholeTurnCoverageLabel(vm.turnCostCoverage)}`
+      );
+      if (vm.marginUnavailableReason) {
+        lines.push(`마진율: 계산 불가 (${vm.marginUnavailableReason})`);
+      }
+    } else if (vm.marginUnavailableReason) {
+      lines.push(`마진율: 계산 불가 (${vm.marginUnavailableReason})`);
+    }
   }
 
   if (vm.auxiliaryCalls.length > 0) {
@@ -438,7 +536,7 @@ export function formatAdminBillingReceiptV3Text(receipt: AdminBillingReceiptV3):
       const cost = call.costUsd != null ? ` · ${formatAdminActualUsd(call.costUsd)}${fxSuffix(call.costUsd)}` : "";
       const prov = call.costProvenanceLabel ? ` (${call.costProvenanceLabel})` : "";
       lines.push(
-        `${call.label}:${model} · ${call.calls}회 ${call.result === "success" ? "성공" : call.result}${cost}${prov}`
+        `${call.label}:${model} · ${formatAdminReceiptAuxiliaryCallOutcome(call)}${cost}${prov}`
       );
     }
   }

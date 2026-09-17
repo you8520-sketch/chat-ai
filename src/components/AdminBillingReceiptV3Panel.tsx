@@ -9,7 +9,9 @@ import {
   buildAdminReceiptCompactViewModel,
   formatAdminBillingReceiptV3MainRpModelLines,
   formatAdminBillingReceiptV3Text,
+  formatAdminReceiptAuxiliaryCallOutcome,
   resolveAdminBillingReceiptV3MainRpModelIdentity,
+  wholeTurnCoverageLabel,
   type AdminBillingReceiptV3,
 } from "@/lib/adminBillingReceiptV3Shared";
 import { formatPoints } from "@/lib/billingDisplay";
@@ -112,6 +114,38 @@ export function AdminBillingReceiptV3Panel({
                 : "확인 불가"
             }
           />
+          {vm.hasCompleteTotal && vm.completeTotalUsd != null ? (
+            <>
+              <ReceiptRow
+                label="총 실제 청구원가"
+                value={usdWithKrw(vm.completeTotalUsd, fxRate)}
+              />
+              {vm.marginPercent != null ? (
+                <ReceiptRow label="마진율" value={`${vm.marginPercent}%`} />
+              ) : null}
+            </>
+          ) : vm.knownTurnCostUsd != null && vm.knownTurnCostKrw != null ? (
+            <>
+              <ReceiptRow
+                label="확정 원가 (부분)"
+                value={usdWithKrw(vm.knownTurnCostUsd, fxRate)}
+                hint={`· ${wholeTurnCoverageLabel(vm.turnCostCoverage)}`}
+              />
+              {vm.marginUnavailableReason ? (
+                <ReceiptRow
+                  label="마진율"
+                  value={`계산 불가`}
+                  hint={`· ${vm.marginUnavailableReason}`}
+                />
+              ) : null}
+            </>
+          ) : vm.marginUnavailableReason ? (
+            <ReceiptRow
+              label="마진율"
+              value="계산 불가"
+              hint={`· ${vm.marginUnavailableReason}`}
+            />
+          ) : null}
           <ReceiptRow
             label="입력/출력"
             value={`${(sync.userCharge.inputTokens ?? 0).toLocaleString()} / ${(sync.userCharge.outputTokens ?? 0).toLocaleString()} tok`}
@@ -138,7 +172,7 @@ export function AdminBillingReceiptV3Panel({
                     <span className="text-zinc-200">{call.model} · </span>
                   ) : null}
                   <span className="text-zinc-200">
-                    {call.calls}회 {call.result === "success" ? "성공" : call.result}
+                    {formatAdminReceiptAuxiliaryCallOutcome(call)}
                   </span>
                   {call.costUsd != null ? (
                     <>
