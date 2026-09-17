@@ -372,9 +372,6 @@ export function buildStrictComicFallbackPrompt(opts: {
         }),
     COMIC_TIER2_POSITIVE_SAFE_DEPICTION,
     "STRICT PROVIDER-SAFE FALLBACK — preserve the same safe location, cast, and emotional beat with general-audience visual depiction.",
-    opts.safeStructure?.sharedBackground
-      ? `Preserve safe location continuity: ${opts.safeStructure.sharedBackground}.`
-      : "",
     opts.safeStructure?.atmosphere ? `Preserve mood: ${opts.safeStructure.atmosphere}.` : "",
     `Overall tone: ${moodPrompt} — keep expressions readable and family-safe.`,
     ...compositionLine,

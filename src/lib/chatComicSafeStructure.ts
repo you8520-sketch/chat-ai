@@ -153,14 +153,29 @@ export function renderComicSafeStructureForTier2Prompt(
   return lines;
 }
 
+/** Provider-bound location facts serialized into strict Tier-2 panel blocks. */
+export function tier2ProviderBoundLocationHaystack(
+  structure: ComicSafeStructureProjection
+): string {
+  return structure.panels
+    .map((panel) => `${panel.background} ${panel.situation} ${panel.poseHint}`)
+    .join(" ");
+}
+
 export function containsBedroomBedStructure(structure: ComicSafeStructureProjection): boolean {
   const haystack = [
     structure.sharedBackground,
-    ...structure.panels.map((panel) => `${panel.background} ${panel.situation} ${panel.poseHint}`),
+    tier2ProviderBoundLocationHaystack(structure),
   ]
     .join(" ")
     .toLowerCase();
   return /(?:bedroom|bed|침실|침대|이불)/iu.test(haystack);
+}
+
+export function containsBedroomBedInProviderBoundPanels(
+  structure: ComicSafeStructureProjection
+): boolean {
+  return /(?:bedroom|bed|침실|침대|이불)/iu.test(tier2ProviderBoundLocationHaystack(structure));
 }
 
 /** Short narration candidate for overlay when a panel has no dialogue. */
