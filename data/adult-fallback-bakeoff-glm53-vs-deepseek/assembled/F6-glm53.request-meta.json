@@ -1,0 +1,31 @@
+{
+  "FIXTURE_ID": "F6",
+  "CHARACTER_CNC_OPT_IN_ALLOWED": false,
+  "REQUESTED_CONSENT_MODE": "standard",
+  "EFFECTIVE_CONSENT_MODE": "standard",
+  "EXPLICIT_CNC_OPT_IN_IN_CURRENT_INPUT": false,
+  "EFFECTIVE_COAUTHOR_MODE": "OFF",
+  "RUNTIME_MODE": "interactive",
+  "SCENE_MODE": "tension",
+  "USED_ENGLISH_CHARACTER_LAYER": true,
+  "MODEL": "glm53",
+  "MODEL_ID": "glm-5.3",
+  "TRUE_OFF": false,
+  "TEMPERATURE": 0.7,
+  "MAX_TOKENS": null,
+  "THINKING": null,
+  "REASONING_EFFORT": "none",
+  "ADAPTER_DIFF": {
+    "removed": [
+      "include_reasoning",
+      "reasoning"
+    ],
+    "added": [
+      "reasoning_effort"
+    ],
+    "changed": []
+  },
+  "SYSTEM_SHA256": "4e02c373748c08c4da3c85316ae912c8f84ec14bc7a2321ee40c827e3e226768",
+  "HISTORY_SHA256": "0f9882e24c15a96fd8f69943a2f47aba68d465af318728fd3667c8735ebbbcae",
+  "HISTORY_MESSAGE_COUNT": 5
+}
