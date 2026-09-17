@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F02",
+  "model": "gpt-5.6-luna",
+  "pass": 2,
+  "call_index": 24,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 8339,
+  "output_token_count": 407,
+  "cached_input_tokens": 8336,
+  "reasoning_tokens": 0,
+  "latency_ms": 8265,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "세라는 단장의 질문에 곧바로 답하지 않고, 먼저 자신이 스케치한 룬과 철문에 남은 선을 번갈아 대조했습니다. 습기 때문에 번진 마력 잔광이 획의 일부를 가렸지만, 중심에서 바깥으로 뻗은 세 갈래의 절단 흔적은 분명히 보였습니다. 이것은 단순한 잠금 해제의 흔적이 아니라, 결계의 흐름을 역류시켜 내부에서 문을 봉인한 방식에 가까웠습니다. 실버크로우의 스카우트가 이 부근을 보았다는 사실까지 고려하면, 섣불리 문을 건드리는 것은 기록보다 위험했습니다.\n\n세라는 무릎을 굽혀 바닥의 마법진 잔해 가까이 손을 내밀되, 직접 닿지는 않았습니다. 손끝에 희미한 탐지광을 띄워 룬의 끊긴 부분과 혈흔 아래 묻힌 보조선을 확인하려 했습니다.\n\n\"비슷하지만 동일하지는 않습니다. 왕실 결계식에 외부 봉인식이 덧씌워져 있습니다. 먼저 어느 쪽이 원형인지 확인해야 합니다.\"\n\n그녀는 단장의 시야를 가리지 않도록 옆으로 물러서며, 문과 바닥의 선이 이어지는 지점을 손전등으로 비췄습니다. 안쪽의 마력 원천을 조사할 필요가 있더라도, 지금은 안전한 진입 조건부터 판별해야 했습니다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n\n<<<INTENT>>>\n세라는 철문과 바닥의 마법진 잔해를 탐지광으로 대조해 원래의 왕실 결계식과 덧씌워진 외부 봉인식의 연결 구조를 확인하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": false,
+    "outputCharCount": 654,
+    "outputTokenEstimate": 363,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "세라는 단장의 질문에 곧바로 답하지 않고, 먼저 자신이 스케치한 룬과 철문에 남은 선을 번갈아 대조했습니다. 습기 때문에 번진 마력 잔광이 획의 일부를 가렸지만, 중심에서 바깥으로 뻗은 세 갈래의 절단 흔적은 분명히 보였습니다. 이것은 단순한 잠금 해제의 흔적이 아니라, 결계의 흐름을 역류시켜 내부에서 문을 봉인한 방식에 가까웠습니다. 실버크로우의 스카우트가 이 부근을 보았다는 사실까지 고려하면, 섣불리 문을 건드리는 것은 기록보다 위험했습니다.\n\n세라는 무릎을 굽혀 바닥의 마법진 잔해 가까이 손을 내밀되, 직접 닿지는 않았습니다. 손끝에 희미한 탐지광을 띄워 룬의 끊긴 부분과 혈흔 아래 묻힌 보조선을 확인하려 했습니다.\n\n\"비슷하지만 동일하지는 않습니다. 왕실 결계식에 외부 봉인식이 덧씌워져 있습니다. 먼저 어느 쪽이 원형인지 확인해야 합니다.\"\n\n그녀는 단장의 시야를 가리지 않도록 옆으로 물러서며, 문과 바닥의 선이 이어지는 지점을 손전등으로 비췄습니다. 안쪽의 마력 원천을 조사할 필요가 있더라도, 지금은 안전한 진입 조건부터 판별해야 했습니다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "세라는 철문과 바닥의 마법진 잔해를 탐지광으로 대조해 원래의 왕실 결계식과 덧씌워진 외부 봉인식의 연결 구조를 확인하려 했다."
+  }
+}

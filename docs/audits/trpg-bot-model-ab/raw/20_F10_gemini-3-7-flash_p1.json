@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F10",
+  "model": "gemini-3.7-flash",
+  "pass": 1,
+  "call_index": 20,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 7941,
+  "output_token_count": 301,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 12164,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "습한 공기 사이로 벽면에 흩뿌려진 마력 잔광이 파르르 떨렸다. 렌이 문가로 다가가 숨을 죽인 채 소리를 살피는 동안, 세라는 걸음을 멈추고 문설주에 새겨진 마법진 잔해로 시선을 내렸다. \n\n단장이 기록하려는 잠금 패턴 주위로 미세한 균열이 뻗어 있었다. 단순한 물리적 붕괴가 아니라, 강한 마력 반발로 인해 회로 자체가 엉켜 있는 구조였다. 렌의 경계 행동에 방해가 되지 않도록 발소리를 죽인 채, 세라는 가죽 수첩을 펼쳐 들었다.\n\n\"단장님, 문양을 기록하겠습니다. 잠금 회로 외곽에 과거 왕실 봉인술 특유의 보조 술식이 덧대어져 있군요.\"\n\n세라는 깃펜을 가볍게 쥐고 벽면의 룬 배열과 흐름을 눈으로 좇았다. 단장이 해제 방식을 찾는 동안, 자신이 분석한 역류 방지 룬의 위치를 표시해 안전한 해석 경로를 짚어낼 생각이었다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n<<<INTENT>>>\n세라는 철문 잠금 장치 외곽의 룬 배열과 마력 흐름을 분석하여 수첩에 기록하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 499,
+    "outputTokenEstimate": 277,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "습한 공기 사이로 벽면에 흩뿌려진 마력 잔광이 파르르 떨렸다. 렌이 문가로 다가가 숨을 죽인 채 소리를 살피는 동안, 세라는 걸음을 멈추고 문설주에 새겨진 마법진 잔해로 시선을 내렸다.\n\n단장이 기록하려는 잠금 패턴 주위로 미세한 균열이 뻗어 있었다. 단순한 물리적 붕괴가 아니라, 강한 마력 반발로 인해 회로 자체가 엉켜 있는 구조였다. 렌의 경계 행동에 방해가 되지 않도록 발소리를 죽인 채, 세라는 가죽 수첩을 펼쳐 들었다.\n\n\"단장님, 문양을 기록하겠습니다. 잠금 회로 외곽에 과거 왕실 봉인술 특유의 보조 술식이 덧대어져 있군요.\"\n\n세라는 깃펜을 가볍게 쥐고 벽면의 룬 배열과 흐름을 눈으로 좇았다. 단장이 해제 방식을 찾는 동안, 자신이 분석한 역류 방지 룬의 위치를 표시해 안전한 해석 경로를 짚어낼 생각이었다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "세라는 철문 잠금 장치 외곽의 룬 배열과 마력 흐름을 분석하여 수첩에 기록하려 했다."
+  }
+}
