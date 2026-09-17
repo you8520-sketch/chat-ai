@@ -13,10 +13,13 @@ import type {
 } from "@/lib/sceneDirective";
 import {
   advanceReconvergenceState,
+  collectAuthoritativeReconvergenceText,
   defaultReconvergenceState,
   markReconvergenceOffered,
   pickReconvergenceMethod,
+  type NoContactKind,
   type ReconvergenceDirective,
+  type ReconvergenceLifecycle,
   type ReconvergenceState,
 } from "@/lib/reconvergenceState";
 
@@ -70,6 +73,21 @@ export type SceneDirectiveV2 = {
   dialoguePressure: SceneDialoguePressure;
   /** Internal lifecycle snapshot for telemetry/tests — not rendered. */
   reconvergenceState: ReconvergenceLifecycleSnapshot;
+  /** Active separation / no-contact execution contract when lifecycle requires it. */
+  boundaryExecution?: BoundaryExecutionContract | null;
+};
+
+/** Positive execution permissions during separation or no-contact (V2 sole owner). */
+export type BoundaryExecutionContract = {
+  lifecycle: ReconvergenceLifecycle;
+  noContactKind: NoContactKind;
+  blocksPhysicalApproach: boolean;
+  blocksRemoteContact: boolean;
+  blocksGiftOrDropOff: boolean;
+  blocksBoundaryNegotiation: boolean;
+  blocksFutureMeetingInitiative: boolean;
+  allowsIndependentRoutine: boolean;
+  allowsInternalAftereffect: boolean;
 };
 
 export type ReconvergenceLifecycleSnapshot = {
@@ -427,10 +445,77 @@ export function selectProgressionTypesV2(input: {
   return selected;
 }
 
+const VISIT_BOUNDARY_TERMS = [
+  "찾아오지",
+  "오지 마",
+  "접근하지",
+  "접근 금지",
+  "들어오지",
+  "당분간 찾아오지",
+];
+
+const REMOTE_CONTACT_BOUNDARY_TERMS = [
+  "연락하지",
+  "전화하지",
+  "문자하지",
+  "메시지 보내지",
+  "카톡하지",
+];
+
+/** Canonical boundary contract — one owner for separation / quiet / no-contact execution. */
+export function resolveBoundaryExecutionContract(input: {
+  lifecycle: ReconvergenceLifecycle;
+  noContactKind: NoContactKind;
+  currentUserMessage?: string | null;
+  recentMessages?: ChatMsg[];
+  reconvergenceDue?: boolean;
+}): BoundaryExecutionContract | null {
+  const { lifecycle, noContactKind } = input;
+  const isHard = lifecycle === "hard_no_contact" || noContactKind === "hard_no_contact";
+  const isQuiet = lifecycle === "temporary_quiet" || noContactKind === "temporary_quiet";
+  const isSeparated =
+    lifecycle === "separated" ||
+    lifecycle === "separation_pending" ||
+    lifecycle === "reconvergence_offered";
+
+  if (!isHard && !isQuiet && !isSeparated) return null;
+  if (isSeparated && input.reconvergenceDue) return null;
+
+  const userText = collectAuthoritativeReconvergenceText({
+    recentMessages: input.recentMessages,
+    currentUserMessage: input.currentUserMessage,
+  });
+
+  const visitBlocked =
+    isHard ||
+    includesAny(userText, VISIT_BOUNDARY_TERMS) ||
+    (isQuiet && includesAny(userText, ["찾아오지", "오지 마"])) ||
+    (isSeparated && !input.reconvergenceDue);
+
+  const contactBlocked =
+    isHard ||
+    noContactKind != null ||
+    includesAny(userText, REMOTE_CONTACT_BOUNDARY_TERMS) ||
+    includesAny(userText, VISIT_BOUNDARY_TERMS);
+
+  return {
+    lifecycle,
+    noContactKind,
+    blocksPhysicalApproach: visitBlocked,
+    blocksRemoteContact: contactBlocked,
+    blocksGiftOrDropOff: visitBlocked || contactBlocked,
+    blocksBoundaryNegotiation: isHard || isQuiet || noContactKind != null,
+    blocksFutureMeetingInitiative: isHard || isQuiet || noContactKind != null,
+    allowsIndependentRoutine: true,
+    allowsInternalAftereffect: true,
+  };
+}
+
 function buildAvoidListV2(
   mode: SceneDirectiveMode,
   intensity: number,
-  pacing: ScenePacingDecision
+  pacing: ScenePacingDecision,
+  boundary?: BoundaryExecutionContract | null
 ): string[] {
   const avoid = [
     "괜찮냐는 반복",
@@ -453,7 +538,29 @@ function buildAvoidListV2(
     avoid.push("[B] 내면·감정 결론으로 분량 채우기");
     avoid.push("존재하지 않는 cast 확장");
   }
-  return avoid.slice(0, 8);
+  if (boundary) {
+    if (boundary.blocksBoundaryNegotiation) {
+      avoid.unshift(
+        "경계 확인 질문",
+        "오늘만인지 확인",
+        "관계 의미 재확인",
+        "거절을 hidden cry-for-help로 재해석"
+      );
+    }
+    if (boundary.blocksFutureMeetingInitiative) {
+      avoid.unshift("미래 만남·연락 약속", "내일 얼굴 보기 제안");
+    }
+    if (boundary.blocksGiftOrDropOff) {
+      avoid.unshift("선물·음식·메모 남기기", "문 앞 대기");
+    }
+    if (boundary.blocksRemoteContact) {
+      avoid.unshift("전화·메시지·문자 시도");
+    }
+    if (boundary.blocksPhysicalApproach) {
+      avoid.unshift("방문·재접근·초인종·노크");
+    }
+  }
+  return avoid.slice(0, 10);
 }
 
 function buildNextBeatHintV2(opts: {
@@ -462,7 +569,11 @@ function buildNextBeatHintV2(opts: {
   intensity: number;
   sceneText: string;
   reconvergence?: ReconvergenceDirective | null;
+  boundary?: BoundaryExecutionContract | null;
 }): string {
+  if (opts.boundary) {
+    return "직접 교환을 닫고 자기 공간·일상·관계 여파만 이어간다. 다음 접촉·만남·연락은 유저가 시작할 때까지 시작하지 않는다.";
+  }
   if (opts.pacing === "resolve_trigger") {
     return "이미 발생한 정식 사건의 여파만 이어가며 별도 새 사건은 추가하지 않는다.";
   }
@@ -520,6 +631,10 @@ export function buildSceneDirectiveV2(input: SceneDirectiveV2Input): SceneDirect
     currentTurn,
     currentUserMessage: input.currentUserMessage,
     recentMessages: input.recentMessages,
+    memoryText: input.memoryText,
+    relationshipMemoryText: input.relationshipMemoryText,
+    lorebookText: input.lorebookText,
+    triggeredEventText: input.triggeredEventText,
     triggerPresent,
     triggerImpliesReunion: triggerPresent && triggerImpliesReunion(input.triggeredEventText || ""),
     isRegenerate: input.isRegenerate,
@@ -560,6 +675,14 @@ export function buildSceneDirectiveV2(input: SceneDirectiveV2Input): SceneDirect
   let reconvergenceState = advanced.state;
   const sceneKind = resolveSceneKind(sceneText);
   const quietScene = sceneKind === "rest" || sceneKind === "intimate" || sceneKind === "neutral";
+
+  const boundaryExecution = resolveBoundaryExecutionContract({
+    lifecycle: reconvergenceState.state,
+    noContactKind: reconvergenceState.noContactKind,
+    currentUserMessage: input.currentUserMessage,
+    recentMessages: input.recentMessages,
+    reconvergenceDue: advanced.reconvergenceDue,
+  });
 
   if (triggerPresent) {
     pacingDecision = "resolve_trigger";
@@ -643,6 +766,13 @@ export function buildSceneDirectiveV2(input: SceneDirectiveV2Input): SceneDirect
     reasonCodes.push("LOCK_BLOCKS_RECONVERGE");
   }
 
+  if (boundaryExecution) {
+    pacingDecision = "hold_current_beat";
+    eventBudget = 0;
+    reconvergence = null;
+    reasonCodes.push("BOUNDARY_EXECUTION_CONTRACT");
+  }
+
   const recommendedIntensity =
     pacingDecision === "hold_current_beat"
       ? (0 as const)
@@ -684,6 +814,10 @@ export function buildSceneDirectiveV2(input: SceneDirectiveV2Input): SceneDirect
     if (pacingDecision !== "reconverge") progressionTypes = [];
   }
 
+  if (boundaryExecution) {
+    progressionTypes = [];
+  }
+
   const allowNewNpc = false;
   const castPolicy: SceneCastPolicy = npcGrounded ? "existing_cast_only" : "new_cast_forbidden";
   const allowNewExternalMessage =
@@ -703,13 +837,14 @@ export function buildSceneDirectiveV2(input: SceneDirectiveV2Input): SceneDirect
     recentStagnation: axes.recentStagnation,
     recommendedIntensity,
     progressionTypes,
-    avoid: buildAvoidListV2(input.mode, recommendedIntensity, pacingDecision),
+    avoid: buildAvoidListV2(input.mode, recommendedIntensity, pacingDecision, boundaryExecution),
     nextBeatHint: buildNextBeatHintV2({
       pacing: pacingDecision,
       types: progressionTypes,
       intensity: recommendedIntensity,
       sceneText,
       reconvergence,
+      boundary: boundaryExecution,
     }),
     userControl,
     pacingDecision,
@@ -727,6 +862,7 @@ export function buildSceneDirectiveV2(input: SceneDirectiveV2Input): SceneDirect
       dueInTurns,
       hookType: reconvergence?.hook?.type ?? null,
     },
+    boundaryExecution,
   };
 }
 
@@ -742,6 +878,10 @@ export function getUpdatedReconvergenceStateFromBuild(
     currentTurn: input.currentTurn ?? 0,
     currentUserMessage: input.currentUserMessage,
     recentMessages: input.recentMessages,
+    memoryText: input.memoryText,
+    relationshipMemoryText: input.relationshipMemoryText,
+    lorebookText: input.lorebookText,
+    triggeredEventText: input.triggeredEventText,
     triggerPresent: Boolean(input.triggeredEventText?.trim()),
     triggerImpliesReunion:
       Boolean(input.triggeredEventText?.trim()) &&
@@ -771,7 +911,9 @@ export function renderSceneDirectiveV2ForPrompt(directive: SceneDirectiveV2): st
       : "등장인물: 새 인물 생성 금지";
 
   let body: string[];
-  if (directive.pacingDecision === "hold_current_beat") {
+  if (directive.boundaryExecution) {
+    body = renderBoundaryHoldBody(directive.boundaryExecution, castLine);
+  } else if (directive.pacingDecision === "hold_current_beat") {
     body = [
       "[이번 턴 장면 조절 - 비공개]",
       "새 외부 사건: 만들지 않음",
@@ -840,6 +982,35 @@ export function renderSceneDirectiveV2ForPrompt(directive: SceneDirectiveV2): st
   }
 
   return lines.filter(Boolean).join("\n");
+}
+
+function renderBoundaryHoldBody(
+  contract: BoundaryExecutionContract,
+  castLine: string
+): string[] {
+  const prohibitions: string[] = [];
+  if (contract.blocksPhysicalApproach) prohibitions.push("방문·재접근·문 앞 대기");
+  if (contract.blocksRemoteContact) prohibitions.push("전화·메시지·문자");
+  if (contract.blocksGiftOrDropOff) prohibitions.push("선물·음식·메모 남기기");
+  if (contract.blocksBoundaryNegotiation) {
+    prohibitions.push("경계 확인", "오늘만인지 확인", "관계 의미 재확인");
+  }
+  if (contract.blocksFutureMeetingInitiative) prohibitions.push("미래 만남·연락 약속");
+
+  return [
+    "[이번 턴 장면 조절 - 비공개]",
+    "목적: 유저가 설정한 분리·침묵·거리 경계를 유지한다.",
+    contract.allowsIndependentRoutine
+      ? "진행: 캐릭터는 자기 공간·일상·생각으로 돌아가 이 비트를 닫는다."
+      : "진행: 현재 비트를 닫는다.",
+    contract.allowsInternalAftereffect
+      ? "허용: 내면 감정·여파·혼자 하는 일·환경 묘사."
+      : "",
+    prohibitions.length > 0 ? `금지: ${prohibitions.join(", ")}.` : "",
+    castLine,
+    "새 정보·NPC·일정·의무·물건: 금지",
+    "유저 행동·감정·대사: 대신 쓰지 않음",
+  ].filter(Boolean);
 }
 
 function inputExistingCastCountHint(_directive: SceneDirectiveV2): number {

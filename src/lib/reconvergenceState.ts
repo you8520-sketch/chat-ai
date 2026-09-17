@@ -151,6 +151,20 @@ const SHARED_ITEM_TERMS = ["맡긴", "돌려", "열쇠", "가방", "코트", "�
 const SHARED_TASK_TERMS = ["같이", "공동", "약속한 일", "남은 일", "미완료", "해야 할"];
 const PROMISE_TERMS = ["약속", "내일 만나", "다음에 보", "다시 만나"];
 const LOCATION_TERMS = ["집", "카페", "사무실", "기지", "숙소", "학교", "병원"];
+/** Co-presence / meeting-at-place — not solo user travel. */
+const SHARED_LOCATION_RELATION_MARKERS = [
+  "같이",
+  "함께",
+  "우리",
+  "만나",
+  "에서 보",
+  "거기서",
+  "약속",
+  "재회",
+  "모이",
+  "만날",
+  "보자",
+];
 const SCHEDULE_TERMS = ["일정", "회의", "출동", "디데이", "제한시간"];
 const ORG_TERMS = ["조직", "부서", "소속", "기지", "팀"];
 
@@ -302,9 +316,18 @@ export function detectNoContactLock(userMessage: string | null | undefined): boo
   return detectNoContactKind(userMessage) != null;
 }
 
+/** Session/end boundary — not bare spatial "여기까지" (arrival, follow, extent). */
+function detectSessionEndParting(text: string): boolean {
+  if (/여기까지\s*(?:할게|할게요|야|하자|마치|끝|\.|!)/.test(text)) return true;
+  if (/(?:오늘|지금|설명|이야기|말|회의|수업)[^.!?]{0,24}여기까지/.test(text)) return true;
+  if (/여기까지\s*\.?\s*(?:들어가|갈게|돌아|먼저)/.test(text)) return true;
+  return false;
+}
+
 export function detectPartingIntent(userMessage: string | null | undefined): boolean {
   const text = stripQuotedSpeech(userMessage?.trim() ?? "");
   if (!text) return false;
+  if (detectSessionEndParting(text)) return true;
   return includesAny(text, PARTING_TERMS);
 }
 
@@ -326,39 +349,129 @@ export function detectUserReturnContact(userMessage: string | null | undefined):
   return detectUserInitiatedReconnection(userMessage);
 }
 
-export function extractReconvergenceHooks(opts: {
+export type ReconvergenceEvidenceRole = "HOOK_ORIGINATOR" | "SUPPORT_ONLY" | "NOT_USED";
+
+/** Per-source evidence — do not flatten before hook-origin decisions. */
+export type ReconvergenceEvidenceSources = {
+  recentUserMessages: string[];
+  currentUserMessage: string;
+  triggeredEventText: string;
+  memoryText: string;
+  relationshipMemoryText: string;
+  lorebookText: string;
+};
+
+export const RECONVERGENCE_EVIDENCE_ROLE_MAP = {
+  CURRENT_USER: "HOOK_ORIGINATOR",
+  RECENT_USER: "HOOK_ORIGINATOR",
+  ACTIVE_TRIGGER: "HOOK_ORIGINATOR",
+  PERSISTED_UNRESOLVED_STATE: "HOOK_ORIGINATOR",
+  MEMORY: "SUPPORT_ONLY",
+  RELATIONSHIP_MEMORY: "SUPPORT_ONLY",
+  LOREBOOK: "SUPPORT_ONLY",
+} as const satisfies Record<string, ReconvergenceEvidenceRole>;
+
+/** Normalize route/build/persistence inputs once per turn. */
+export function buildReconvergenceEvidenceSources(opts: {
   recentMessages?: ChatMsg[];
   currentUserMessage?: string | null;
-  currentTurn: number;
-}): ReconvergenceHook[] {
-  const text = [
-    ...(opts.recentMessages ?? []).slice(-8).map((m) => m.content),
-    opts.currentUserMessage ?? "",
-  ]
-    .join("\n")
-    .trim();
-  if (!text) return [];
+  memoryText?: string | null;
+  relationshipMemoryText?: string | null;
+  lorebookText?: string | null;
+  triggeredEventText?: string | null;
+}): ReconvergenceEvidenceSources {
+  const recentUserMessages: string[] = [];
+  for (const msg of (opts.recentMessages ?? []).slice(-8)) {
+    if (msg.role === "user" && msg.content.trim()) {
+      recentUserMessages.push(msg.content);
+    }
+  }
+  return {
+    recentUserMessages,
+    currentUserMessage: opts.currentUserMessage?.trim() ?? "",
+    triggeredEventText: opts.triggeredEventText?.trim() ?? "",
+    memoryText: opts.memoryText?.trim() ?? "",
+    relationshipMemoryText: opts.relationshipMemoryText?.trim() ?? "",
+    lorebookText: opts.lorebookText?.trim() ?? "",
+  };
+}
+
+function originatorEvidenceTexts(sources: ReconvergenceEvidenceSources): string[] {
+  const texts: string[] = [...sources.recentUserMessages];
+  if (sources.currentUserMessage) texts.push(sources.currentUserMessage);
+  if (sources.triggeredEventText) texts.push(sources.triggeredEventText);
+  return texts;
+}
+
+/** Turn-level user/trigger text only — static canon/memory is SUPPORT_ONLY, not mixed here. */
+export function collectAuthoritativeReconvergenceText(opts: {
+  recentMessages?: ChatMsg[];
+  currentUserMessage?: string | null;
+  triggeredEventText?: string | null;
+}): string {
+  return originatorEvidenceTexts(buildReconvergenceEvidenceSources(opts)).join("\n").trim();
+}
+
+/**
+ * B/C/D shared meeting or co-location evidence — not A (user alone at a place).
+ * Requires location term plus mutual/meeting relation semantics.
+ */
+export function hasSharedLocationReconvergenceEvidence(text: string): boolean {
+  const normalized = text.trim();
+  if (!normalized || !includesAny(normalized, LOCATION_TERMS)) return false;
+  if (includesAny(normalized, SHARED_LOCATION_RELATION_MARKERS)) return true;
+  if (/둘\s*(다|은|이)/.test(normalized)) return true;
+  return false;
+}
+
+function extractHooksFromOriginatorText(
+  text: string,
+  currentTurn: number
+): ReconvergenceHook[] {
+  const normalized = text.trim();
+  if (!normalized) return [];
   const hooks: ReconvergenceHook[] = [];
   const add = (type: ReconvergenceHookType, summary: string, confidence: "high" | "medium") => {
     if (hooks.some((h) => h.type === type)) return;
     hooks.push({
       type,
       summary: clampSummary(summary),
-      sourceTurn: opts.currentTurn,
+      sourceTurn: currentTurn,
       confidence,
     });
   };
-  if (includesAny(text, SHARED_ITEM_TERMS)) add("shared_item", "공유·미반환 물건 흔적", "high");
-  if (includesAny(text, SHARED_TASK_TERMS)) add("shared_task", "미완료 공동 업무 흔적", "high");
-  if (includesAny(text, PROMISE_TERMS)) add("existing_promise", "기존 약속 흔적", "medium");
-  if (includesAny(text, CONTACT_CHANNEL_TERMS)) {
+  if (includesAny(normalized, SHARED_ITEM_TERMS)) add("shared_item", "공유·미반환 물건 흔적", "high");
+  if (includesAny(normalized, SHARED_TASK_TERMS)) add("shared_task", "미완료 공동 업무 흔적", "high");
+  if (includesAny(normalized, PROMISE_TERMS)) add("existing_promise", "기존 약속 흔적", "medium");
+  if (includesAny(normalized, CONTACT_CHANNEL_TERMS)) {
     add("established_contact_channel", "확립된 연락 수단", "high");
   }
-  if (includesAny(text, LOCATION_TERMS)) {
+  if (hasSharedLocationReconvergenceEvidence(normalized)) {
     add("known_shared_location", "공유·알려진 장소", "medium");
   }
-  if (includesAny(text, SCHEDULE_TERMS)) add("confirmed_schedule", "확정 일정 흔적", "medium");
-  if (includesAny(text, ORG_TERMS)) add("shared_organization", "공유 조직·거점", "medium");
+  if (includesAny(normalized, SCHEDULE_TERMS)) add("confirmed_schedule", "확정 일정 흔적", "medium");
+  if (includesAny(normalized, ORG_TERMS)) add("shared_organization", "공유 조직·거점", "medium");
+  return hooks;
+}
+
+export function extractReconvergenceHooks(opts: {
+  recentMessages?: ChatMsg[];
+  currentUserMessage?: string | null;
+  currentTurn: number;
+  memoryText?: string | null;
+  relationshipMemoryText?: string | null;
+  lorebookText?: string | null;
+  triggeredEventText?: string | null;
+}): ReconvergenceHook[] {
+  const sources = buildReconvergenceEvidenceSources(opts);
+  const hooks: ReconvergenceHook[] = [];
+  for (const text of originatorEvidenceTexts(sources)) {
+    for (const hook of extractHooksFromOriginatorText(text, opts.currentTurn)) {
+      if (!hooks.some((h) => h.type === hook.type)) {
+        hooks.push(hook);
+      }
+    }
+  }
   return hooks.slice(0, 4);
 }
 
@@ -420,6 +533,10 @@ export function advanceReconvergenceState(opts: {
   currentTurn: number;
   currentUserMessage?: string | null;
   recentMessages?: ChatMsg[];
+  memoryText?: string | null;
+  relationshipMemoryText?: string | null;
+  lorebookText?: string | null;
+  triggeredEventText?: string | null;
   triggerPresent?: boolean;
   triggerImpliesReunion?: boolean;
   isRegenerate?: boolean;
@@ -522,6 +639,10 @@ export function advanceReconvergenceState(opts: {
     recentMessages: opts.recentMessages,
     currentUserMessage: opts.currentUserMessage,
     currentTurn: opts.currentTurn,
+    memoryText: opts.memoryText,
+    relationshipMemoryText: opts.relationshipMemoryText,
+    lorebookText: opts.lorebookText,
+    triggeredEventText: opts.triggeredEventText,
   });
   for (const hook of freshHooks) {
     if (!next.unresolvedHooks.some((h) => h.type === hook.type)) {
@@ -650,6 +771,10 @@ export function prepareReconvergenceTransition(opts: {
   currentTurn: number;
   currentUserMessage?: string | null;
   recentMessages?: ChatMsg[];
+  memoryText?: string | null;
+  relationshipMemoryText?: string | null;
+  lorebookText?: string | null;
+  triggeredEventText?: string | null;
   triggerPresent?: boolean;
   triggerImpliesReunion?: boolean;
   requestId?: string | null;
@@ -667,6 +792,10 @@ export function prepareReconvergenceTransition(opts: {
     currentTurn: opts.currentTurn,
     currentUserMessage: opts.currentUserMessage,
     recentMessages: opts.recentMessages,
+    memoryText: opts.memoryText,
+    relationshipMemoryText: opts.relationshipMemoryText,
+    lorebookText: opts.lorebookText,
+    triggeredEventText: opts.triggeredEventText,
     triggerPresent: opts.triggerPresent,
     triggerImpliesReunion: opts.triggerImpliesReunion,
     isRegenerate: opts.isRegenerate,
