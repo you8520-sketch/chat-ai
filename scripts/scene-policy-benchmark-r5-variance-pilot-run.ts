@@ -38,7 +38,7 @@ async function main() {
     "utf8"
   );
 
-  const summary = result.violationSummary;
+  const summary = result.suspicionSummary ?? result.violationSummary;
   const report = [
     "# R5 boundary variance pilot",
     "",
@@ -50,16 +50,16 @@ async function main() {
     "",
     summary
       ? [
-          "## Violation heuristic counts",
+          "## Lexical suspicion signals (triage only — not semantic scoring)",
           "",
           `- Samples: ${summary.totalSamples}`,
-          `- Any violation: ${summary.samplesWithAnyViolation}`,
-          `- physical_revisit: ${summary.violationCounts.physical_revisit}`,
-          `- remote_contact: ${summary.violationCounts.remote_contact}`,
-          `- gift_drop_off: ${summary.violationCounts.gift_drop_off}`,
-          `- future_meeting_request: ${summary.violationCounts.future_meeting_request}`,
-          `- boundary_clarification: ${summary.violationCounts.boundary_clarification}`,
-          `- relationship_closure_demand: ${summary.violationCounts.relationship_closure_demand}`,
+          `- Any suspicion signal: ${summary.samplesWithAnySuspicionSignal}`,
+          `- physical_revisit: ${summary.suspicionSignalCounts.physical_revisit}`,
+          `- remote_contact: ${summary.suspicionSignalCounts.remote_contact}`,
+          `- gift_drop_off: ${summary.suspicionSignalCounts.gift_drop_off}`,
+          `- future_meeting_request: ${summary.suspicionSignalCounts.future_meeting_request}`,
+          `- boundary_clarification: ${summary.suspicionSignalCounts.boundary_clarification}`,
+          `- relationship_closure_demand: ${summary.suspicionSignalCounts.relationship_closure_demand}`,
           "",
         ].join("\n")
       : "",
@@ -68,7 +68,7 @@ async function main() {
 
   console.log("status", result.status);
   console.log("accounting", result.accounting);
-  if (summary) console.log("violations", summary);
+  if (summary) console.log("suspicionSignals", summary);
 
   if (result.status !== "R5_VARIANCE_PILOT_COMPLETE") {
     process.exitCode = 1;
