@@ -1,0 +1,54 @@
+{
+  "measured_at": "2026-08-08T02:32:08.035Z",
+  "note": "Re-measured on current main tip for C2 — do not reuse C1 SHA blindly.",
+  "prose_A": {
+    "nsfw_off": {
+      "sha256": "90ab305b53eaa45cf08e6b7397c0396d5762bf0380da42bb17a81c28a36faa90",
+      "est_tokens": 1572,
+      "chars": 1746
+    },
+    "nsfw_on": {
+      "sha256": "e6bbf83064e5f72ed6fc3d7682102b55ce3776b5d13ad532dae257d58971ca71",
+      "est_tokens": 1709,
+      "chars": 1898
+    }
+  },
+  "prose_B_c2_micro": {
+    "nsfw_off": {
+      "sha256": "7775b5f54d1cc920fdaab5769e5d2938953e74c0bf84d3c261c7f29bc25ca078",
+      "est_tokens": 1542,
+      "chars": 1713
+    },
+    "nsfw_on": {
+      "sha256": "ad3a596714655d29d70f887ad59fe8816c76d336e0436933733276389a62b0e1",
+      "est_tokens": 1679,
+      "chars": 1865
+    }
+  },
+  "components": {
+    "PROSE_STYLE_SECTION": {
+      "sha256": "cb2811fd73a8bbee737cf5b07ffb9d2c2fc2db531c5f4f94cd84656e3acd6b58",
+      "est_tokens": 1474
+    },
+    "PROSE_STYLE_SECTION_C2_MICRO": {
+      "sha256": "5dd6544a873106a55a948e3b0d38c50e2feb09d2c88fc5d5fb8ce8cd6e843b61",
+      "est_tokens": 1444
+    },
+    "SCENE_FLOW_BLOCK": {
+      "sha256": "3f5dcce4a3de2c4029145b34d44231b913593b88938a16d849b26dbf42c23510",
+      "est_tokens": 110
+    },
+    "SCENE_FLOW_BLOCK_C2_MICRO": {
+      "sha256": "7b863764aaba81c13f0e71b89f940fd71d09e7a003971ce046786ae900dd375a",
+      "est_tokens": 137
+    },
+    "IMMERSIVE_PROSE_BLOCK": {
+      "sha256": "79e9a385a5687282cb50fdb68a5489f1c30feaaf73ae65ed96c563a779a13a68",
+      "est_tokens": 827
+    },
+    "IMMERSIVE_PROSE_BLOCK_C2_MICRO": {
+      "sha256": "e5432c0882d841e6fbfc1096a44b37490badb06385bbca3f4629b6447c655b50",
+      "est_tokens": 776
+    }
+  }
+}
