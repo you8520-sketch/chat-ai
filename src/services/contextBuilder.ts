@@ -877,8 +877,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     }
     if (input.rpDiagnosticCanary?.relocateSceneDirectiveToUserTurn) return;
     if (!sceneDirectiveBlock) return;
-    // Standard interactive: no SceneDirective progression owner (Audit 42 ARM D foundation).
-    // Keep mode-specific owners for auto progression, simulation, and party.
+    // Standard interactive: compact [SCENE PACING] owns motion (see standard-full-block-activation-audit).
+    // Full SceneDirective block only for auto progression, simulation, and party.
     const keepModeSpecificProgression =
       autoProgressionEnabled ||
       input.contentKind === "simulation" ||
