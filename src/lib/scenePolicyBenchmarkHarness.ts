@@ -43,7 +43,9 @@ import {
   BENCHMARK_CHAR_NAME,
   BENCHMARK_DEFAULT_MODEL,
   BENCHMARK_DEFAULT_TARGET_CHARS,
+  BENCHMARK_PILOT_MODEL_ID,
   buildBenchmarkContextBase,
+  getBenchmarkPilotModelDescriptor,
   countSingleTurnFixtures,
   listPilotFixtures,
   listPilotTrajectories,
@@ -554,7 +556,8 @@ export function buildBenchmarkArmPayload(input: {
   modelId?: string;
   targetResponseChars?: number;
 }): BenchmarkArmPayload {
-  const modelId = input.modelId ?? BENCHMARK_DEFAULT_MODEL;
+  const pilotModel = getBenchmarkPilotModelDescriptor();
+  const modelId = input.modelId ?? pilotModel.modelId;
   const targetResponseChars = input.targetResponseChars ?? BENCHMARK_DEFAULT_TARGET_CHARS;
   const policyInput = buildScenePolicyInputFromFixture(input.fixture);
   const artifacts = buildSceneArmArtifacts(policyInput, input.arm);
@@ -589,7 +592,7 @@ export function buildBenchmarkArmPayload(input: {
     targetResponseChars,
     stream: false,
     messageOpts: {
-      transportProvider: "cheaperinference",
+      transportProvider: pilotModel.transportProvider,
       charName: BENCHMARK_CHAR_NAME,
       sceneServerControls: {
         mode: "interactive",
@@ -864,8 +867,8 @@ export function buildResultCaptureSchema(input: {
   return {
     benchmark_case_id: input.caseId,
     arm_id: input.arm,
-    model_id: String(input.payload.requestBody.model ?? BENCHMARK_DEFAULT_MODEL),
-    provider: "cheaperinference",
+    model_id: String(input.payload.requestBody.model ?? getBenchmarkPilotModelDescriptor().modelId),
+    provider: getBenchmarkPilotModelDescriptor().transportProvider,
     generation_parameters: {
       temperature: input.payload.requestBody.temperature,
       max_tokens: input.payload.requestBody.max_tokens,
@@ -926,8 +929,9 @@ export function verifyBenchmarkCostOwner(input?: {
   upstreamCostSource: string;
   notes: string[];
 } {
-  const modelId = input?.modelId ?? BENCHMARK_DEFAULT_MODEL;
-  const transportProvider = input?.transportProvider ?? "cheaperinference";
+  const pilotModel = getBenchmarkPilotModelDescriptor();
+  const modelId = input?.modelId ?? pilotModel.modelId;
+  const transportProvider = input?.transportProvider ?? pilotModel.transportProvider;
   const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find((o) => o.id === modelId);
   const rates = resolveOpenRouterModelRates(modelId);
   const notes: string[] = [];
@@ -1158,6 +1162,8 @@ export const BENCHMARK_OWNER_MAP = {
   PROVIDER_COST_OWNER:
     "openRouterModelPricing.resolveOpenRouterModelRates / openRouterUsdCostFromRates (CheaperInference slugs use CI catalog snapshot; billingRawCost for production receipts)",
   BILLING_PRICE_OWNER: "points.ts + billingDisplay (user-facing — benchmark must bypass)",
+  BENCHMARK_PILOT_MODEL_OWNER:
+    "scenePolicyBenchmarkDataset.getBenchmarkPilotModelDescriptor (Gemini 3.7 Flash CheaperInference)",
   BENCHMARK_FIXTURE_OWNER: "scenePolicyBenchmarkDataset.ts",
   MOCK_DRY_RUN_OWNER: "assemblePrimaryRpRequest (credential-free) + MOCK_MODE in openRouterAdult fetch path",
 } as const;

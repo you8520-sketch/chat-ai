@@ -11,9 +11,12 @@ import {
   RECONVERGENCE_TRAJECTORIES,
   EVENT_RESTRAINT_BENCHMARK_IDS,
   LIVING_BENCHMARK_IDS,
+  BENCHMARK_PILOT_MODEL_ID,
+  getBenchmarkPilotModelDescriptor,
   listPilotFixtures,
   listPilotTrajectories,
 } from "@/lib/scenePolicyBenchmarkDataset";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
 import {
   BENCHMARK_OWNER_MAP,
   BLIND_EVALUATION_RUBRIC_ITEMS,
@@ -376,10 +379,58 @@ describe("scene policy benchmark trajectory contract TRJ1-TRJ4", () => {
   });
 });
 
-describe("scene policy benchmark cost owner COST1-COST3", () => {
-  it("COST1 benchmark default model cost owner confirmed", () => {
-    const owner = verifyBenchmarkCostOwner();
+describe("scene policy benchmark pilot model MODEL1-MODEL4", () => {
+  it("MODEL1 all three arms use canonical Gemini 3.7 Flash pilot model", () => {
+    const pilot = getBenchmarkPilotModelDescriptor();
+    assert.equal(pilot.modelId, BENCHMARK_PILOT_MODEL_ID);
+    assert.equal(pilot.modelId, "gemini-3.7-flash");
+    for (const fixture of SCENE_POLICY_BENCHMARK_FIXTURES) {
+      const result = runBenchmarkCase(fixture);
+      for (const arm of SCENE_POLICY_ARM_IDS) {
+        assert.equal(result.arms[arm].requestBody.model, pilot.modelId, `${fixture.id}/${arm}`);
+        assert.equal(result.arms[arm].nonSceneFingerprint.model, pilot.modelId);
+      }
+    }
+  });
+
+  it("MODEL2 all three arms use identical provider transport", () => {
+    const pilot = getBenchmarkPilotModelDescriptor();
+    const sample = runBenchmarkCase(SCENE_POLICY_BENCHMARK_FIXTURES[0]!);
+    const refProvider = sample.arms.v1.requestBody.provider;
+    for (const arm of ["v2", "living"] as const) {
+      assert.deepEqual(sample.arms[arm].requestBody.provider, refProvider);
+    }
+    assert.equal(pilot.transportProvider, "cheaperinference");
+  });
+
+  it("MODEL3 all three arms use identical non-scene generation params", () => {
+    for (const fixture of SCENE_POLICY_BENCHMARK_FIXTURES) {
+      const result = runBenchmarkCase(fixture);
+      const ref = result.arms.v1.normalizedFinalPayload.generationParams;
+      for (const arm of ["v2", "living"] as const) {
+        assert.deepEqual(
+          result.arms[arm].normalizedFinalPayload.generationParams,
+          ref,
+          fixture.id
+        );
+      }
+    }
+  });
+
+  it("MODEL4 no benchmark arm payload uses DeepSeek as pilot model", () => {
+    const sample = runBenchmarkCase(SCENE_POLICY_BENCHMARK_FIXTURES[0]!);
+    for (const arm of SCENE_POLICY_ARM_IDS) {
+      assert.notEqual(sample.arms[arm].requestBody.model, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+      assert.equal(sample.arms[arm].requestBody.model, BENCHMARK_PILOT_MODEL_ID);
+    }
+  });
+});
+
+describe("scene policy benchmark cost owner COST1-COST5", () => {
+  it("COST1 benchmark pilot model cost owner confirmed", () => {
+    const owner = verifyBenchmarkCostOwner({ modelId: BENCHMARK_PILOT_MODEL_ID });
     assert.equal(owner.status, "COST_OWNER_CONFIRMED");
+    assert.equal(owner.modelId, "gemini-3.7-flash");
     assert.equal(owner.transportProvider, "cheaperinference");
     assert.match(owner.upstreamCostSource, /openRouterModelPricing/);
   });
@@ -407,6 +458,27 @@ describe("scene policy benchmark cost owner COST1-COST3", () => {
     const minimal = matrix.plans.find((p) => p.name === "MINIMAL")!;
     assert.deepEqual(minimal.singleTurnFixtureIds.sort(), ["B01a", "B03a", "B10a", "B13a"].sort());
     assert.deepEqual(minimal.trajectoryIds.sort(), ["R1", "R5"].sort());
+  });
+
+  it("COST4 Gemini 3.7 provider matches upstream cost owner", () => {
+    const owner = verifyBenchmarkCostOwner();
+    assert.equal(owner.status, "COST_OWNER_CONFIRMED");
+    assert.equal(owner.modelId, BENCHMARK_PILOT_MODEL_ID);
+  });
+
+  it("COST5 MINIMAL 26-call estimate uses Gemini 3.7 rates not DeepSeek", () => {
+    const minimal = computeExecutionMatrix().plans.find((p) => p.name === "MINIMAL")!;
+    assert.equal(minimal.totalCalls, 26);
+    assert.equal(minimal.outputTokenEstimateMethod, "ESTIMATE_HEURISTIC");
+    assert.ok(minimal.estimatedUpstreamUsd > 0);
+    const deepseekOwner = verifyBenchmarkCostOwner({
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+    });
+    const deepseekMinimal = computeExecutionMatrix({
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+    }).plans.find((p) => p.name === "MINIMAL")!;
+    assert.notEqual(minimal.estimatedUpstreamUsd, deepseekMinimal.estimatedUpstreamUsd);
+    assert.ok(deepseekOwner.modelId !== BENCHMARK_PILOT_MODEL_ID);
   });
 });
 

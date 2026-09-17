@@ -8,7 +8,10 @@ import { parseCharacterSetting } from "@/utils/characterParser";
 import { formatSelectedPersonaForPrompt } from "@/lib/userPersonas";
 import { formatMemoryMetaForPrompt, parseMemoryMeta } from "@/lib/chatMemory";
 import type { ContextBuildInput } from "@/types";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  MAIN_RP_USER_SELECTABLE_OPTIONS,
+} from "@/lib/chatModels";
 
 export type BenchmarkFamily =
   | "B01_QUIET_STABLE"
@@ -72,8 +75,39 @@ export const BENCHMARK_CHAT_ID = 88001;
 export const BENCHMARK_CHARACTER_ID = 8801;
 export const BENCHMARK_CHAR_NAME = "한서린";
 export const BENCHMARK_USER_PERSONA = "민";
-export const BENCHMARK_DEFAULT_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+/** Scene policy provider pilot — canonical Gemini 3.7 Flash (Main RP picker). */
+export const BENCHMARK_PILOT_MODEL_ID = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
+/** @deprecated use BENCHMARK_PILOT_MODEL_ID — kept for harness imports */
+export const BENCHMARK_DEFAULT_MODEL = BENCHMARK_PILOT_MODEL_ID;
 export const BENCHMARK_DEFAULT_TARGET_CHARS = 3200;
+
+export type BenchmarkPilotModelDescriptor = {
+  modelId: string;
+  displayLabel: string;
+  pickerProvider: "cheaperinference";
+  transportProvider: "cheaperinference";
+  /** CheaperInference wire model id (bare slug, same as picker id). */
+  providerWireModelId: string;
+};
+
+/** Single canonical owner for benchmark pilot model + provider transport. */
+export function getBenchmarkPilotModelDescriptor(): BenchmarkPilotModelDescriptor {
+  const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
+    (o) => o.id === BENCHMARK_PILOT_MODEL_ID
+  );
+  if (!option) {
+    throw new Error(
+      `benchmark pilot model ${BENCHMARK_PILOT_MODEL_ID} missing from MAIN_RP_USER_SELECTABLE_OPTIONS`
+    );
+  }
+  return {
+    modelId: option.id,
+    displayLabel: option.label,
+    pickerProvider: option.provider,
+    transportProvider: "cheaperinference",
+    providerWireModelId: option.id,
+  };
+}
 
 const BASE_MEMORY =
   "두 사람은 같은 아파트 단지에 살며, 최근 몇 달간 서로의 일상을 자연스럽게 공유해 왔다.";
@@ -138,6 +172,7 @@ export function buildBenchmarkContextBase(): Pick<
     exampleDialog: `유저: 오늘은 좀 쉴까?\n${BENCHMARK_CHAR_NAME}: …그래요. 조용히 있어도 괜찮아요.`,
     statusWindowPrompt: "",
   });
+  const pilotModel = getBenchmarkPilotModelDescriptor();
   return {
     charName: BENCHMARK_CHAR_NAME,
     personaDisplayName: BENCHMARK_USER_PERSONA,
@@ -158,8 +193,8 @@ export function buildBenchmarkContextBase(): Pick<
     targetResponseChars: BENCHMARK_DEFAULT_TARGET_CHARS,
     completedTurns: 8,
     genres: ["현대/일상"],
-    provider: "cheaperinference",
-    modelId: BENCHMARK_DEFAULT_MODEL,
+    provider: pilotModel.transportProvider,
+    modelId: pilotModel.modelId,
     contentKind: "character",
   };
 }

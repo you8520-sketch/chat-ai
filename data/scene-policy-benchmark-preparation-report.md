@@ -1,131 +1,137 @@
 # Scene Policy Provider-Evidence Benchmark Preparation Report
 
-**Main SHA (verified at start):** `21a4e33e0f245011e22859d9bd7f475be70f1f8d`
+**Main SHA (synced):** `316d1dc14e748611c5843860b480ed682631d099`
 **Branch:** `cursor/scene-policy-benchmark-preparation-aa40`
-**Type:** Benchmark harness correctness bugfix — **no provider calls, no production changes**
+**Type:** Pilot preparation update (latest main + Gemini 3.7 Flash MODEL_A) — **no provider calls, no production changes**
 **Status:** `READY_FOR_PROVIDER_PILOT`
 
 ---
 
 ## BEFORE
 
-The initial harness computed non-scene fingerprints from `sharedBuilt` — a scene-free `buildContext` pass shared across arms. That proved “identical scene-free input → identical hash,” not **actual final V1/V2/Living provider payload parity** after `assemblePrimaryRpRequest`.
+PR #931 benchmark harness used `BENCHMARK_DEFAULT_MODEL = deepseek-v4-pro-0813` (DeepSeek V4 Pro) as MODEL_A. Scene policy pilot intent is Gemini 3.7 Flash — the stale DeepSeek default made cost estimates, capture schema, and pilot model assumptions inconsistent with the intended provider pilot.
 
-Additional bugs fixed in this pass:
+---
 
-- V1 `scenePolicyTokenEstimate` used full `renderSceneDirectiveForPrompt` artifact, not compact `[SCENE PACING]` in the actual payload.
-- `stableJson` replacer dropped nested message fields, collapsing distinct raw payloads to identical hashes.
-- Scene strip regex terminated at internal V2/Living `[이번 턴 …]` headers and over-stripped `[SCENE FLOW]` through `[RHYTHM]`.
+## LATEST MAIN
+
+| Item | Value |
+|------|-------|
+| Synced main SHA | `316d1dc14e748611c5843860b480ed682631d099` |
+| Merge | PR #930 (DeepSeek regen receipt observability) + prior main |
+| Scene assembly delta | **None observed** — `buildContext`, `assemblePrimaryRpRequest`, scene owner/materialization paths unchanged for benchmark purposes |
+| Post-sync parity | 32/32 normalized final payload parity retained |
+
+---
+
+## MODEL OWNER
+
+Single canonical owner: `scenePolicyBenchmarkDataset.getBenchmarkPilotModelDescriptor()`
+
+| Owner | Canonical source |
+|-------|------------------|
+| Benchmark pilot model | `CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL` (`gemini-3.7-flash`) |
+| Picker provider | `MAIN_RP_USER_SELECTABLE_OPTIONS` → `cheaperinference` |
+| Transport provider | `cheaperinference` (via `assemblePrimaryRpRequest` messageOpts) |
+| Provider wire model ID | `gemini-3.7-flash` (bare CheaperInference slug) |
+| Generation params | `openRouterClient.buildOpenRouterRequestBody` |
+| Upstream cost rates | `openRouterModelPricing.resolveOpenRouterModelRates` |
+| Call plan | `computeExecutionMatrix` from manifest filters |
+| Capture schema model/provider | `getBenchmarkPilotModelDescriptor()` |
 
 ---
 
 ## FINAL PAYLOAD PARITY
 
-Parity is now computed from **actual** `assembled.messages` + `assembled.requestBody`:
+Actual `assembled.messages` + `requestBody` compared after scene-owned strip (renderer-aligned blocks).
 
-1. `buildBenchmarkArmPayload` → production path (`buildContext` + `assemblePrimaryRpRequest` + `sceneServerControls`).
-2. `resolveSceneStripTextsForArm` removes exact renderer-aligned scene blocks:
-   - V1: `renderCompactScenePacingCue` (compact `[SCENE PACING]`)
-   - V2: full `[PRIVATE SCENE PACING RULE]` block
-   - Living: full `[PRIVATE SCENE CONTINUITY RULE]` block
-   - Residual wire: exact `SCENE_FLOW_BLOCK` when present (V2/Living Standard wire)
-3. `normalizeFinalPayloadForSceneParity` hashes normalized messages + generation params.
-
-**BMARK2:** 32/32 fixtures pass — `NORMALIZED_FINAL_PAYLOAD_HASH(v1) = hash(v2) = hash(living)`.
+**BMARK2:** 32/32 fixtures — `NORMALIZED_FINAL_PAYLOAD_HASH(v1) = hash(v2) = hash(living)`
 
 ---
 
-## SCENE-ONLY DELTA PROOF
+## SCENE-ONLY DELTA
 
-**BMARK9:** raw final payloads differ; normalized payloads match; `changedSections = ["scene-policy"]`.
+**BMARK9:** raw payloads differ; normalized match; `changedSections = ["scene-policy"]`
 
 ---
 
 ## REPRESENTATION PROOF
 
-| Arm | Final scene surface | Owner counts (BMARK18–20) |
-|-----|---------------------|---------------------------|
-| V1 Standard | compact `[SCENE PACING]` only | `scenePacing=1`, `v1Full=0` |
-| V2 | full `[PRIVATE SCENE PACING RULE]` | `v2Full=1`, `scenePacing=0` |
-| Living | full `[PRIVATE SCENE CONTINUITY RULE]` | `livingFull=1`, `scenePacing=0` |
+| Arm | Final surface | BMARK |
+|-----|---------------|-------|
+| V1 Standard | compact `[SCENE PACING]` only | BMARK18 |
+| V2 | full `[PRIVATE SCENE PACING RULE]` | BMARK19 |
+| Living | full `[PRIVATE SCENE CONTINUITY RULE]` | BMARK20 |
+
+**BMARK21–22:** scene token estimate from actual final scene text; non-additivity documented.
 
 ---
 
-## TOKEN COST
+## TRAJECTORY
 
-- `scenePolicyTokenEstimate` = `estimateTokens(actual final scene-owned text)` (**BMARK21**).
-- `basePayloadTokenEstimate` = tokens of scene-stripped normalized messages.
-- `inputTokenEstimate` = total final payload tokens.
-- **BMARK22:** `base + scene ≠ total` within ~15% — `estimateTokens` is non-additive across joined segments (documented limitation, not enforced as exact arithmetic).
+Offline (`buildOfflineTrajectoryTurnFixture`) vs live (`buildLiveTrajectoryTurnFixture`) separation unchanged.
 
-Output tokens: **ESTIMATE_HEURISTIC** — `estimateTokens` on `targetResponseChars` (chars×0.9), not provider tokenizer.
-
----
-
-## TRAJECTORY CONTRACT
-
-| Path | Function | History source |
-|------|----------|------------------|
-| Offline preparation | `buildOfflineTrajectoryTurnFixture` | `frozenAssistantResponse` placeholders |
-| Live provider (future) | `buildLiveTrajectoryTurnFixture` | per-arm `assistantOutputByArm` only |
-
-**TRJ1–TRJ3:** arm-specific history isolation; V2 reconvergence state only on V2 live fixtures.
-**TRJ4:** live path does not read `frozenAssistantResponse`.
-**Reconvergence transition:** `advanceV2ReconvergenceForBenchmark` reuses `getUpdatedReconvergenceStateFromBuild` (in-memory, no DB).
+**TRJ1–TRJ4:** PASS on latest main + Gemini 3.7 configuration.
 
 ---
 
 ## COST OWNER
 
-**Classification:** `COST_OWNER_CONFIRMED` (COST1)
+**Classification:** `COST_OWNER_CONFIRMED` (COST1, COST4)
 
 | Field | Value |
 |-------|-------|
-| Benchmark model | `deepseek-v4-pro-0813` (MODEL_A) |
-| Transport provider | `cheaperinference` |
-| Upstream rate source | `openRouterModelPricing.resolveOpenRouterModelRates` (CheaperInference catalog snapshot + live catalog merge) |
-| USD estimate fn | `openRouterUsdCostFromRates` (same table as `billingRawCost`) |
+| Pilot model | `gemini-3.7-flash` |
+| Transport | `cheaperinference` |
+| Wire model ID | `gemini-3.7-flash` |
+| Upstream source | `openRouterModelPricing.resolveOpenRouterModelRates` (CI catalog snapshot + live merge) |
+| Rates label | Cheaper Inference · Google automatic cache |
+| Billing alignment | `billingRawCost.openRouterUsdCostFromRates` uses same table |
 
-All four MAIN_RP picker models route through CheaperInference; rates are resolved per model via `listModelCandidateFacts` with per-model `upstreamCostSource`.
+DeepSeek V4 Pro COST_OWNER_CONFIRMED result is **not** reused for Gemini pilot.
 
 ---
 
 ## EXACT CALL PLAN
 
-Derived from manifest (`listPilotFixtures`, `listPilotTrajectories`, `RECONVERGENCE_TRAJECTORIES`) — no hardcoded `2×4`.
-
-### MINIMAL (repeat=1)
+Derived from manifest (not hardcoded):
 
 | Component | Selected IDs | Formula | Calls |
 |-----------|--------------|---------|------:|
 | Single-turn | B01a, B03a, B10a, B13a | 4 × 3 arms × 1 | 12 |
-| Trajectory | R1 (4 turns), R5 (3 turns) | sum(turns) × 2 arms × 1 = 7 × 2 | 14 |
-| **Total** | | | **26** |
+| Trajectory | R1 (4 turns), R5 (3 turns) | sum(turns) × 2 arms × 1 | 14 |
+| **MINIMAL total** | | `single:4×3×1 + trajectory:sum(turns×2)×1` | **26** |
 
-`callFormula`: `single:4×3×1 + trajectory:sum(turns×2)×1`
-
-Sample estimates (MODEL_A, targetResponseChars=3200):
-
-- avg input tokens/call ≈ 8104 (pilot final-payload sample)
-- avg output tokens/call ≈ 2880 (ESTIMATE_HEURISTIC)
-- estimated upstream USD ≈ **$0.11** (upper-bound heuristic, not billing quote)
-
-BALANCED / HIGH-CONFIDENCE plans scale from full 32-fixture + R1–R6 manifest with repeats 2 and 3 respectively.
+Arms: `v1`, `v2` (trajectory); all three for single-turn.
 
 ---
 
-## BLIND PACKAGE
+## COST ESTIMATE (Gemini 3.7 Flash, MINIMAL 26 calls)
 
-- Deterministic shuffle per `caseId`; `answerKey` separate from blind slots.
-- `applyCaptureResultsToBlindPackage` stub for future live captures → slot fill (no Cursor scoring).
+| Metric | Value | Method |
+|--------|------:|--------|
+| Est. input tokens | ~197k | pilot final-payload sample avg × 26 |
+| Est. output tokens | ~75k | **ESTIMATE_HEURISTIC** (`estimateTokens` on targetResponseChars=3200) |
+| Est. upstream USD | **~$0.30** | `openRouterUsdCostFromRates` (upper-bound heuristic, not billing quote) |
+
+DeepSeek ~$0.11 estimate **not reused**. Output token cost is heuristic, not provider tokenizer exact.
 
 ---
 
 ## PRESERVED
 
 - Production route / SceneDirective v1.2 owner
-- Railway env / DB / billing paths untouched
-- No provider HTTP calls / no billing execution
+- Railway env / DB / billing paths
+- DeepSeek production selectable option (not retired in this PR)
+- Provider HTTP = 0, billing = 0
+
+---
+
+## REMOVED/UPDATED
+
+- Benchmark-only `BENCHMARK_DEFAULT_MODEL` → `gemini-3.7-flash` via `getBenchmarkPilotModelDescriptor()`
+- Report cost text updated from DeepSeek to Gemini 3.7
+- Added MODEL1–4, COST4–5 regression gates
 
 ---
 
@@ -133,18 +139,16 @@ BALANCED / HIGH-CONFIDENCE plans scale from full 32-fixture + R1–R6 manifest w
 
 | Gate | Result |
 |------|--------|
-| BMARK2 (32 fixtures) | PASS |
-| BMARK9 scene-only delta | PASS |
-| BMARK18–22 token/representation | PASS |
-| TRJ1–TRJ4 trajectory contract | PASS |
-| COST1–COST3 cost owner + exact calls | PASS |
+| BMARK1–22 | PASS |
+| TRJ1–4 | PASS |
+| MODEL1–4 | PASS |
+| COST1–5 | PASS |
+| Parity 32/32 | PASS |
 | Provider HTTP | 0 |
-| Billing | 0 |
-
-Regression: existing scene audit suites (Q/O/P/F/W/D/C/X) unchanged scope.
+| Billing / DB | 0 |
 
 ---
 
 ## NEXT ACTION
 
-**READY_FOR_PROVIDER_PILOT** — provider execution remains a separate follow-up PR with user approval. Cursor does not score quality.
+**READY_FOR_PROVIDER_PILOT** — actual provider execution remains separate follow-up. **Do not merge** until pilot approved. Cursor does not score quality.
