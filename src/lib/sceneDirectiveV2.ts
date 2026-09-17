@@ -847,10 +847,6 @@ function inputExistingCastCountHint(_directive: SceneDirectiveV2): number {
   return 0;
 }
 
-export function buildSceneDirectiveV2PromptBlock(input: SceneDirectiveV2Input): string {
-  return renderSceneDirectiveV2ForPrompt(buildSceneDirectiveV2(input));
-}
-
 export type SceneDirectiveV2Telemetry = {
   version: "v2";
   pacingDecision: ScenePacingDecision;
