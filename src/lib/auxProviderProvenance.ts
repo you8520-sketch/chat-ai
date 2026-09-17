@@ -147,6 +147,43 @@ export function buildAuxProviderCallLogInput(
   };
 }
 
+export type AuxProviderSuccessKey = {
+  assistantMessageId?: number | null;
+  generationSequence?: number | null;
+  requestKind?: string | null;
+};
+
+/** Dev/test sentinel — surfaces duplicate successful aux calls for the same generation op. */
+export function buildAuxProviderSuccessKey(input: AuxProviderSuccessKey): string | null {
+  const messageId = input.assistantMessageId;
+  const generationSequence = input.generationSequence;
+  const requestKind = input.requestKind?.trim();
+  if (messageId == null || generationSequence == null || !requestKind) return null;
+  return `${messageId}:${generationSequence}:${requestKind}`;
+}
+
+const devAuxSuccessKeys = new Set<string>();
+
+export function resetAuxProviderSuccessSentinelForTests(): void {
+  devAuxSuccessKeys.clear();
+}
+
+export function assertNoDuplicateAuxProviderSuccess(input: AuxProviderSuccessKey): void {
+  if (process.env.NODE_ENV === "production") return;
+  const key = buildAuxProviderSuccessKey(input);
+  if (!key) return;
+  if (devAuxSuccessKeys.has(key)) {
+    console.error("[aux_duplicate_call_sentinel]", {
+      key,
+      assistantMessageId: input.assistantMessageId ?? null,
+      generationSequence: input.generationSequence ?? null,
+      requestKind: input.requestKind ?? null,
+    });
+    return;
+  }
+  devAuxSuccessKeys.add(key);
+}
+
 /** event=aux_provider_call — safe structured provenance line. */
 export function logAuxProviderCall(input: AuxProviderCallLogInput): void {
   if (process.env.NODE_TEST_CONTEXT) return;

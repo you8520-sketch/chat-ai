@@ -5871,6 +5871,11 @@ export async function POST(req: Request) {
         };
         if (!suggestedRepliesEnabled) {
           markMessageSuggestedRepliesIneligible(aiMessageId, postTurnGenerationScope);
+        } else if (deferPostTurnShared) {
+          // Status OFF: SSE done precedes the deferred shared owner. Reserve a
+          // generation-scoped pending row before the client can poll GET
+          // /suggested-replies and requeue a standalone Luna extract.
+          markMessageSuggestedRepliesPending(aiMessageId, postTurnGenerationScope);
         }
         // status OFF defers to the post-final background shared call.
         if (statusWidgetActive) scheduleRepliesIfEnabled();
