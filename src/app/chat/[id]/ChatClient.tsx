@@ -219,9 +219,10 @@ import {
   type GenerationStatus,
 } from "@/lib/streamingPersistenceShared";
 import {
+  clearStreamErrorOnCompletedReconcile,
   generationStatusFromEofResult,
-  needsEofReconcile,
   reconcileStreamEof,
+  shouldRunLostTerminalReconcile,
   type EofReconcileSnapshot,
 } from "@/lib/chatStreamEofReconcile";
 import {
@@ -3386,6 +3387,85 @@ export default function ChatClient({
       });
     };
 
+    async function runLostTerminalReconcileIfNeeded(): Promise<void> {
+      if (!shouldRunLostTerminalReconcile({ trafficOverload: Boolean(trafficOverload), sawDone, sawError })) {
+        return;
+      }
+      const messageIdForReconcile = persistedAssistantMessageId;
+
+      const eofResult = await reconcileStreamEof({
+        messageId: messageIdForReconcile,
+        streamedContentChars: sessionDisplayedText.trim().length,
+        postProcessEvidence,
+        fetchSnapshot: async (messageId) => {
+          const snapRes = await fetch(`/api/chat/message?messageId=${messageId}`);
+          if (!snapRes.ok) return null;
+          const body = (await snapRes.json()) as EofReconcileSnapshot & {
+            error?: string;
+          };
+          if (!body?.messageId) return null;
+          return body;
+        },
+      });
+
+      streamError = clearStreamErrorOnCompletedReconcile(streamError, eofResult);
+
+      if (eofResult.kind === "completed") {
+        const s = eofResult.snapshot;
+        applyStreamReplaceTarget(s.content || sessionDisplayedText, {
+          instant: true,
+        });
+        applyStreamDone({
+          chatId: s.chatId,
+          messageId: s.messageId,
+          userMessageId: s.userMessageId ?? null,
+          finalContent: s.content,
+          usage: (s.usage as Usage | null) ?? undefined,
+          variants: s.variants as MessageVariant[] | undefined,
+          activeVariant: s.activeVariant,
+          variantCount: s.variantCount,
+          statusMetaPending: s.statusMetaPending === true,
+          statusWidgetTurnActive: s.statusWidgetTurnActive === true,
+          statusWidgetActive: s.statusWidgetTurnActive === true,
+          statusWidgetValues:
+            (s.statusWidgetValues as ParsedStatusWidgetTurnValues | null) ?? null,
+          suggestedRepliesPending: s.suggestedRepliesPending === true,
+        });
+      } else {
+        eofUnresolved = true;
+        const status = generationStatusFromEofResult(eofResult);
+        const snapContent =
+          eofResult.kind === "terminal" || eofResult.kind === "interrupted"
+            ? eofResult.snapshot?.content
+            : undefined;
+        setMessages((m) => {
+          const copy = [...m];
+          const cur = copy[aiIndex];
+          if (cur?.role === "assistant") {
+            copy[aiIndex] = {
+              ...cur,
+              id: eofResult.snapshot?.messageId ?? cur.id ?? messageIdForReconcile ?? undefined,
+              content: (snapContent && snapContent.trim() ? snapContent : cur.content) || cur.content,
+              generationStatus: status,
+              usage: (eofResult.snapshot?.usage as Usage | null) ?? cur.usage,
+              variants: (eofResult.snapshot?.variants as MessageVariant[] | undefined) ?? cur.variants,
+              activeVariant: eofResult.snapshot?.activeVariant ?? cur.activeVariant,
+              variantCount: eofResult.snapshot?.variantCount ?? cur.variantCount,
+              statusWidgetValues:
+                (eofResult.snapshot?.statusWidgetValues as ParsedStatusWidgetTurnValues | null) ??
+                cur.statusWidgetValues,
+              statusWidgetTurnActive:
+                eofResult.snapshot?.statusWidgetTurnActive ?? cur.statusWidgetTurnActive,
+            };
+          }
+          return copy;
+        });
+        if (status === "interrupted" || status === "failed" || status === "failed_partial") {
+          closeSessionRecoveryDraft();
+        }
+      }
+    }
+
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -3625,82 +3705,8 @@ export default function ChatClient({
       }
       if (pendingDone && !trafficOverload && !streamDoneApplied) {
         applyStreamDone(pendingDone);
-      } else if (
-        !trafficOverload &&
-        !streamError &&
-        needsEofReconcile({ sawDone, sawError })
-      ) {
-        const messageIdForReconcile = persistedAssistantMessageId;
-
-        const eofResult = await reconcileStreamEof({
-          messageId: messageIdForReconcile,
-          streamedContentChars: sessionDisplayedText.trim().length,
-          postProcessEvidence,
-          fetchSnapshot: async (messageId) => {
-            const snapRes = await fetch(`/api/chat/message?messageId=${messageId}`);
-            if (!snapRes.ok) return null;
-            const body = (await snapRes.json()) as EofReconcileSnapshot & {
-              error?: string;
-            };
-            if (!body?.messageId) return null;
-            return body;
-          },
-        });
-
-        if (eofResult.kind === "completed") {
-          const s = eofResult.snapshot;
-          applyStreamReplaceTarget(s.content || sessionDisplayedText, {
-            instant: true,
-          });
-          applyStreamDone({
-            chatId: s.chatId,
-            messageId: s.messageId,
-            userMessageId: s.userMessageId ?? null,
-            finalContent: s.content,
-            usage: (s.usage as Usage | null) ?? undefined,
-            variants: s.variants as MessageVariant[] | undefined,
-            activeVariant: s.activeVariant,
-            variantCount: s.variantCount,
-            statusMetaPending: s.statusMetaPending === true,
-            statusWidgetTurnActive: s.statusWidgetTurnActive === true,
-            statusWidgetActive: s.statusWidgetTurnActive === true,
-            statusWidgetValues:
-              (s.statusWidgetValues as ParsedStatusWidgetTurnValues | null) ?? null,
-            suggestedRepliesPending: s.suggestedRepliesPending === true,
-          });
-        } else {
-          eofUnresolved = true;
-          const status = generationStatusFromEofResult(eofResult);
-          const snapContent =
-            eofResult.kind === "terminal" || eofResult.kind === "interrupted"
-              ? eofResult.snapshot?.content
-              : undefined;
-          setMessages((m) => {
-            const copy = [...m];
-            const cur = copy[aiIndex];
-            if (cur?.role === "assistant") {
-              copy[aiIndex] = {
-                ...cur,
-                id: eofResult.snapshot?.messageId ?? cur.id ?? messageIdForReconcile ?? undefined,
-                content: (snapContent && snapContent.trim() ? snapContent : cur.content) || cur.content,
-                generationStatus: status,
-                usage: (eofResult.snapshot?.usage as Usage | null) ?? cur.usage,
-                variants: (eofResult.snapshot?.variants as MessageVariant[] | undefined) ?? cur.variants,
-                activeVariant: eofResult.snapshot?.activeVariant ?? cur.activeVariant,
-                variantCount: eofResult.snapshot?.variantCount ?? cur.variantCount,
-                statusWidgetValues:
-                  (eofResult.snapshot?.statusWidgetValues as ParsedStatusWidgetTurnValues | null) ??
-                  cur.statusWidgetValues,
-                statusWidgetTurnActive:
-                  eofResult.snapshot?.statusWidgetTurnActive ?? cur.statusWidgetTurnActive,
-              };
-            }
-            return copy;
-          });
-          if (status === "interrupted" || status === "failed" || status === "failed_partial") {
-            closeSessionRecoveryDraft();
-          }
-        }
+      } else {
+        await runLostTerminalReconcileIfNeeded();
       }
 
       endRevealLifetime(
@@ -3722,6 +3728,7 @@ export default function ChatClient({
       } else if (!isBenignChatStreamAbort(e)) {
         streamError = streamError || "스트림 수신 중 오류가 발생했습니다.";
         console.error("[chat] stream consume failed:", e);
+        await runLostTerminalReconcileIfNeeded();
       }
     } finally {
       setStreamPhase(null);

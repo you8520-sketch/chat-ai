@@ -88,6 +88,15 @@ export function needsEofReconcile(flags: StreamTerminalFlags): boolean {
   return !flags.sawDone && !flags.sawError;
 }
 
+/** Lost-terminal reconcile eligibility (EOF or receive exception). Ignores streamError. */
+export function shouldRunLostTerminalReconcile(opts: {
+  trafficOverload: boolean;
+  sawDone: boolean;
+  sawError: boolean;
+}): boolean {
+  return !opts.trafficOverload && needsEofReconcile({ sawDone: opts.sawDone, sawError: opts.sawError });
+}
+
 export type EofReconcileSnapshot = {
   messageId: number;
   chatId: number;
@@ -121,6 +130,15 @@ export type EofReconcileResult =
       fetchCount: number;
       snapshot?: EofReconcileSnapshot | null;
     };
+
+/** Clear generic receive error only when DB confirms completed terminal truth. */
+export function clearStreamErrorOnCompletedReconcile(
+  streamError: string,
+  result: EofReconcileResult
+): string {
+  if (result.kind === "completed" && streamError.trim()) return "";
+  return streamError;
+}
 
 function normalizeStatus(status: string | null | undefined): string {
   return (status ?? "").trim().toLowerCase();
