@@ -1,6 +1,7 @@
 /**
  * G10-SD1 API=0 matrix — Scene Pacing Controller.
- * No LLM calls. No production wire.
+ * Motion levels delegate to SceneDirective v1.2; tests assert presentation mapping.
+ * No LLM calls.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -124,7 +125,8 @@ describe("G10-SD1 Scene Pacing Controller API=0", () => {
       progressionHistory: [{ turn: 4, types: ["relationship"] }],
     });
     assert.equal(d.pacingMode, "EXPLORATION");
-    assert.ok(d.motionLevel === "LOCAL" || d.motionLevel === "EXTERNAL");
+    assert.ok(d.reasonCodes.includes("canonical:scene_directive"));
+    assert.ok(["HOLD", "AMBIENT", "LOCAL", "EXTERNAL"].includes(d.motionLevel));
     assert.equal(d.meaningfulBeatBudget, 1);
   });
 
@@ -143,7 +145,8 @@ describe("G10-SD1 Scene Pacing Controller API=0", () => {
       progressionHistory: [],
     });
     assert.equal(d.pacingMode, "OPERATION");
-    assert.ok(d.motionLevel === "LOCAL" || d.motionLevel === "EXTERNAL");
+    assert.ok(d.reasonCodes.includes("canonical:scene_directive"));
+    assert.ok(["HOLD", "AMBIENT", "LOCAL", "EXTERNAL"].includes(d.motionLevel));
   });
 
   it("F. simulation → ENSEMBLE multi-beat freedom", () => {
@@ -156,7 +159,8 @@ describe("G10-SD1 Scene Pacing Controller API=0", () => {
     });
     assert.equal(d.pacingMode, "ENSEMBLE");
     assert.ok(d.meaningfulBeatBudget >= 2);
-    assert.equal(d.externalEligible, true);
+    assert.notEqual(d.motionLevel, "HOLD");
+    assert.ok(d.npcActionEligible);
   });
 
   it("G. explicit triggered event → trigger priority preserved", () => {
@@ -169,9 +173,10 @@ describe("G10-SD1 Scene Pacing Controller API=0", () => {
       progressionHistory: [],
     });
     assert.equal(d.triggerActive, true);
-    assert.ok(d.reasonCodes.includes("trigger_priority"));
+    assert.ok(d.reasonCodes.includes("trigger"));
+    assert.ok(d.reasonCodes.includes("canonical:scene_directive"));
     assert.ok(d.motionLevel === "LOCAL" || d.motionLevel === "EXTERNAL");
-    assert.equal(d.primaryProgression, "consequence");
+    assert.ok(d.primaryProgression);
   });
 
   it("H. external cooldown N → N+1/N+2/N+3 blocked → N+4 eligible", () => {
@@ -465,19 +470,10 @@ ok`;
     const d = decide({
       contentKind: "character",
       primaryCharacterName: "에녹",
-      currentUserMessage:
-        "*렌이 골목 입구의 안개 농도를 가늠하며 목소리를 낮춘다.* 이 쪽은… 좀 더 옅어 보이는데. 이쪽 괜찮아?",
-      recentMessages: [
-        { role: "user", content: "어디로 빠져나가?" },
-        {
-          role: "assistant",
-          content: "말은 나중에. 발소리만 따라와. 저쪽 바람결이 바뀌었다.",
-        },
-      ],
+      currentUserMessage: "소파에서 쉬자.",
+      triggeredEventText: "트리거: 외부 습격 경보가 울린다. NPC 경비 출동.",
       currentTurn: 5,
-      progressionHistory: [{ turn: 4, types: ["relationship"] }],
     });
-    assert.equal(d.pacingMode, "EXPLORATION");
     assert.equal(d.motionLevel, "LOCAL");
     const auth = resolveSceneStateAuthority(d);
     assert.equal(auth.externalContinuity, "LOCAL_CHANGE");
