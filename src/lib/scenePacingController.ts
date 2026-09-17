@@ -1200,6 +1200,46 @@ export function applyScenePacingArmToMessages(input: {
  * REPLACE [SCENE FLOW] with [SCENE PACING], append dynamic terminal dialogue budget.
  * Call after messages are fully assembled (length owner already on user turn).
  */
+function productionWireToPacingInput(input: {
+  mode?: SceneDirectiveMode;
+  contentKind?: ContentKind | null;
+  party?: boolean | null;
+  primaryCharacterName?: string | null;
+  currentUserMessage?: string | null;
+  recentMessages?: ChatMsg[] | null;
+  knownSupportingCastNames?: string[] | null;
+  establishedActiveCastNames?: string[] | null;
+  memoryText?: string | null;
+  relationshipMemoryText?: string | null;
+  lorebookText?: string | null;
+  triggeredEventText?: string | null;
+  adultModeEnabled?: boolean;
+  chatId?: string | number | null;
+  currentTurn?: number | null;
+  progressionHistory?: SceneProgressionHistoryEntry[] | null;
+  canonicalSceneDirective?: SceneDirective | null;
+}): ScenePacingControllerInput {
+  return {
+    mode: input.mode ?? undefined,
+    contentKind: input.contentKind ?? undefined,
+    party: input.party ?? undefined,
+    primaryCharacterName: input.primaryCharacterName ?? undefined,
+    currentUserMessage: input.currentUserMessage ?? undefined,
+    recentMessages: input.recentMessages ?? undefined,
+    knownSupportingCastNames: input.knownSupportingCastNames ?? undefined,
+    establishedActiveCastNames: input.establishedActiveCastNames ?? undefined,
+    memoryText: input.memoryText ?? undefined,
+    relationshipMemoryText: input.relationshipMemoryText ?? undefined,
+    lorebookText: input.lorebookText ?? undefined,
+    triggeredEventText: input.triggeredEventText ?? undefined,
+    adultModeEnabled: input.adultModeEnabled,
+    chatId: input.chatId ?? undefined,
+    currentTurn: input.currentTurn ?? undefined,
+    progressionHistory: input.progressionHistory ?? undefined,
+    canonicalSceneDirective: input.canonicalSceneDirective ?? undefined,
+  };
+}
+
 export function applyProductionServerControlsToMessages(input: {
   messages: Array<{ role: string; content: string }>;
   mode?: SceneDirectiveMode;
@@ -1228,30 +1268,20 @@ export function applyProductionServerControlsToMessages(input: {
   replacedSceneFlow: boolean;
   terminalDialogueBudgetAppended: boolean;
 } {
+  const pacingInput = productionWireToPacingInput(input);
+  const canonicalSceneDirective =
+    input.canonicalSceneDirective ??
+    buildSceneDirective(pacingInputToSceneDirectiveInput(pacingInput));
+
   const decision = resolveScenePacingDecision({
-    mode: input.mode ?? undefined,
-    contentKind: input.contentKind ?? undefined,
-    party: input.party ?? undefined,
-    primaryCharacterName: input.primaryCharacterName ?? undefined,
-    currentUserMessage: input.currentUserMessage ?? undefined,
-    recentMessages: input.recentMessages ?? undefined,
-    knownSupportingCastNames: input.knownSupportingCastNames ?? undefined,
-    establishedActiveCastNames: input.establishedActiveCastNames ?? undefined,
-    memoryText: input.memoryText ?? undefined,
-    relationshipMemoryText: input.relationshipMemoryText ?? undefined,
-    lorebookText: input.lorebookText ?? undefined,
-    triggeredEventText: input.triggeredEventText ?? undefined,
-    adultModeEnabled: input.adultModeEnabled,
-    chatId: input.chatId ?? undefined,
-    currentTurn: input.currentTurn ?? undefined,
-    progressionHistory: input.progressionHistory ?? undefined,
-    canonicalSceneDirective: input.canonicalSceneDirective ?? undefined,
+    ...pacingInput,
+    canonicalSceneDirective,
   });
   const applied = applyScenePacingArmToMessages({
     messages: input.messages,
     arm: "V",
     decision,
-    canonicalSceneDirective: input.canonicalSceneDirective ?? undefined,
+    canonicalSceneDirective,
     skipMotionCue: input.skipMotionCue,
     dialogueBudgetInput: {
       currentUserMessage: input.currentUserMessage ?? undefined,
