@@ -14,6 +14,10 @@ import {
   shouldPreservePostTurnSharedInitialParsed,
 } from "@/lib/postTurnSharedInitialWidgetOutcome";
 import { POST_TURN_SHARED_INITIAL_REQUEST_KIND } from "@/lib/postTurnSharedInitial/types";
+import {
+  validatePostTurnSharedInitialStructure,
+  type PostTurnSharedInitialSchemaStatus,
+} from "@/lib/postTurnSharedInitial/schema";
 import { collectWidgetJsonKeys } from "./prompt";
 import {
   buildCombinedDualWidgetExtractSystem,
@@ -136,8 +140,14 @@ export type StatusWidgetTurnExtractMeta = {
   sharedInitialTransportStatus?: "success" | "failed" | "not_attempted";
   /** Top-level JSON.parse on shared response — not reached when transport failed. */
   sharedInitialSerializationStatus?: "ok" | "failed" | "not_reached";
-  /** Widget semantic extraction after JSON parse — not reached when serialization failed. */
-  sharedInitialSemanticStatus?: "ok" | "failed" | "empty" | "not_reached";
+  /** Structural schema validation after JSON parse — not reached when serialization failed. */
+  sharedInitialSchemaStatus?:
+    | "ok"
+    | "missing_required_section"
+    | "missing_required_key"
+    | "not_reached";
+  /** Widget semantic extraction after schema ok — not evaluated when schema failed. */
+  sharedInitialSemanticStatus?: "ok" | "failed" | "empty" | "not_reached" | "not_evaluated";
   sharedInitialFinishReason?: string | null;
   sharedInitialOutputChars?: number | null;
   /** Shape-only shared Luna widget diagnostics — no value bodies. */
@@ -860,8 +870,17 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     "not_attempted";
   let sharedInitialSerializationStatus: "ok" | "failed" | "not_reached" =
     "not_reached";
-  let sharedInitialSemanticStatus: "ok" | "failed" | "empty" | "not_reached" =
-    "not_reached";
+  let sharedInitialSchemaStatus:
+    | "ok"
+    | "missing_required_section"
+    | "missing_required_key"
+    | "not_reached" = "not_reached";
+  let sharedInitialSemanticStatus:
+    | "ok"
+    | "failed"
+    | "empty"
+    | "not_reached"
+    | "not_evaluated" = "not_reached";
   let sharedInitialFinishReason: string | null = null;
   let sharedInitialOutputChars: number | null = null;
   let sharedInitialWidgetShape: PostTurnSharedInitialWidgetShapeDiagnostics | null = null;
@@ -925,7 +944,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       sharedInitialTransportStatus = shared.transportOk ? "success" : "failed";
       sharedInitialFinishReason = shared.finishReason ?? shared.usage?.finishReason ?? null;
       sharedInitialOutputChars = (shared.text ?? "").length;
-      sharedInitialWidgetShape = analyzePostTurnSharedInitialWidgetShape(shared.text ?? "", {
+      const sharedInput = {
         mode: sharedMode,
         charName: opts.charName,
         characterIdentity: opts.characterIdentity,
@@ -945,12 +964,25 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         includeSuggestions: shareSuggestedReplies,
         includeRelationship: shareRelationshipDelta,
         relationshipRegenContext: opts.relationshipRegenContext ?? null,
-      });
+      };
+      sharedInitialWidgetShape = analyzePostTurnSharedInitialWidgetShape(
+        shared.text ?? "",
+        sharedInput
+      );
       sharedInitialSerializationStatus = !shared.transportOk
         ? "not_reached"
         : shared.parsed?.jsonParseOk === true
           ? "ok"
           : "failed";
+      let sharedInitialSchemaStatusLocal: PostTurnSharedInitialSchemaStatus = "not_reached";
+      if (shared.transportOk && shared.parsed?.jsonParseOk === true) {
+        const structuralRoot = extractJsonObjectFromWidgetText(shared.text ?? "");
+        sharedInitialSchemaStatusLocal = validatePostTurnSharedInitialStructure(
+          structuralRoot,
+          sharedInput
+        );
+      }
+      sharedInitialSchemaStatus = sharedInitialSchemaStatusLocal;
       const sharedInitialWidgetOutcome = evaluatePostTurnSharedInitialWidgetExtraction({
         transportOk: shared.transportOk,
         mode: sharedMode,
@@ -960,11 +992,13 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         ? "not_reached"
         : shared.parsed?.jsonParseOk !== true
           ? "not_reached"
-          : sharedInitialWidgetOutcome.succeeded
-            ? "ok"
-            : sharedInitialWidgetOutcome.reasonCode === "V3_INITIAL_EMPTY"
-              ? "empty"
-              : "failed";
+          : sharedInitialSchemaStatusLocal !== "ok"
+            ? "not_evaluated"
+            : sharedInitialWidgetOutcome.succeeded
+              ? "ok"
+              : sharedInitialWidgetOutcome.reasonCode === "V3_INITIAL_EMPTY"
+                ? "empty"
+                : "failed";
       turnAttemptDiagnostics.push({
         stage: "initial",
         modelId: primaryModelId,
@@ -1445,6 +1479,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       sharedInitialRelationshipUsable,
       sharedInitialTransportStatus,
       sharedInitialSerializationStatus,
+      sharedInitialSchemaStatus,
       sharedInitialSemanticStatus,
       sharedInitialFinishReason,
       sharedInitialOutputChars,

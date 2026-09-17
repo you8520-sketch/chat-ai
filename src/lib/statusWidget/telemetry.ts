@@ -83,8 +83,15 @@ export type StatusWidgetTurnTelemetry = {
   transportStatus?: "success" | "failed" | "not_attempted";
   /** Top-level JSON.parse on shared Luna response. */
   serializationStatus?: "ok" | "failed" | "not_reached";
-  /** Widget semantic extraction after successful JSON parse. */
-  semanticStatus?: "ok" | "failed" | "empty" | "not_reached";
+  /** Required sections/keys after successful JSON parse. */
+  schemaStatus?:
+    | "ok"
+    | "missing_required_section"
+    | "missing_required_key"
+    | "not_reached"
+    | "not_evaluated";
+  /** Widget semantic extraction after schema ok — not evaluated when schema failed. */
+  semanticStatus?: "ok" | "failed" | "empty" | "not_reached" | "not_evaluated";
   /** Shared Luna finish_reason — not the main RP model finishReason. */
   sharedFinishReason?: string | null;
   sharedOutputChars?: number | null;
@@ -275,6 +282,8 @@ export async function resolveStatusWidgetTurnValues(
     "not_attempted";
   let sharedInitialSerializationStatus: StatusWidgetTurnTelemetry["serializationStatus"] =
     "not_reached";
+  let sharedInitialSchemaStatus: StatusWidgetTurnTelemetry["schemaStatus"] =
+    "not_reached";
   let sharedInitialSemanticStatus: StatusWidgetTurnTelemetry["semanticStatus"] =
     "not_reached";
   let sharedInitialFinishReason: string | null = null;
@@ -451,6 +460,8 @@ export async function resolveStatusWidgetTurnValues(
         v3Result.meta.sharedInitialTransportStatus ?? "not_attempted";
       sharedInitialSerializationStatus =
         v3Result.meta.sharedInitialSerializationStatus ?? "not_reached";
+      sharedInitialSchemaStatus =
+        v3Result.meta.sharedInitialSchemaStatus ?? "not_reached";
       sharedInitialSemanticStatus =
         v3Result.meta.sharedInitialSemanticStatus ?? "not_reached";
       sharedInitialFinishReason = v3Result.meta.sharedInitialFinishReason ?? null;
@@ -644,6 +655,7 @@ export async function resolveStatusWidgetTurnValues(
     statusWidgetInnerStateExactMatch: previousEchoStats,
     transportStatus: sharedInitialTransportStatus,
     serializationStatus: sharedInitialSerializationStatus,
+    schemaStatus: sharedInitialSchemaStatus,
     semanticStatus: sharedInitialSemanticStatus,
     sharedFinishReason: sharedInitialFinishReason,
     sharedOutputChars: sharedInitialOutputChars,

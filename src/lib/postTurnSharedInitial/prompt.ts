@@ -48,25 +48,6 @@ export function collectSharedWidgetRequiredKeys(
   return { characterKeys, userKeys };
 }
 
-function buildSharedWidgetKeyContract(input: PostTurnSharedInitialInput): string {
-  const { characterKeys, userKeys } = collectSharedWidgetRequiredKeys(input);
-  const lines: string[] = [];
-  if (characterKeys.length > 0) {
-    lines.push(
-      `statusWidget.character_values must contain exactly these keys: ${JSON.stringify(characterKeys)}`,
-      "Populate every character_values key with one scene-grounded string derived from this turn."
-    );
-  }
-  if (userKeys.length > 0) {
-    lines.push(
-      `statusWidget.user_values must contain exactly these keys: ${JSON.stringify(userKeys)}`,
-      "Populate every user_values key with one scene-grounded string derived from this turn."
-    );
-  }
-  if (lines.length === 0) return "";
-  return `WIDGET OUTPUT KEY CONTRACT\n${lines.join("\n")}`;
-}
-
 /** Valid JSON structural example — no fake answer values or active empty value maps. */
 export function buildValidSharedOutputJsonExample(
   input: PostTurnSharedInitialInput
@@ -97,12 +78,6 @@ const SHARED_OUTPUT_JSON_EXAMPLE_MARKER =
   "Valid structural JSON example (your response must match this nesting and add the required value objects):";
 
 function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
-  const example = buildValidSharedOutputJsonExample(input);
-  const topLevelKeyCount = Object.keys(example).length;
-  const countWords = ["zero", "one", "two", "three"] as const;
-  const keyCount = countWords[topLevelKeyCount] ?? String(topLevelKeyCount);
-
-  const keyContract = buildSharedWidgetKeyContract(input);
   const rules: string[] = [];
   if (input.includeSuggestions) rules.push(SHARED_SUGGESTIONS_OUTPUT_RULES);
   if (input.includeRelationship) {
@@ -113,32 +88,32 @@ function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
     );
   }
 
-  const parts = [`Return exactly one JSON object with ${keyCount} top-level key(s).`];
-  if (keyContract) {
-    parts.push(
-      "",
-      keyContract,
-      "",
-      "Include statusWidget.character_values and/or statusWidget.user_values in your JSON response.",
-      "Each required key must map to one scene-grounded string value."
+  const semanticWidgetLines: string[] = [];
+  if (input.mode !== "relationship_only") {
+    semanticWidgetLines.push(
+      "statusWidget: populate every required field with one scene-grounded string derived from this turn.",
+      "Never copy placeholder tokens from examples (\"...\", \"…\", \"<scene value>\")."
     );
   }
-  parts.push(
+
+  const parts = [
+    "Required sections and dynamic widget keys are enforced by the provider JSON schema on the wire.",
+    "This prompt supplies semantic meaning only.",
+    ...semanticWidgetLines,
     "",
     SHARED_OUTPUT_JSON_EXAMPLE_MARKER,
     buildValidSharedOutputJsonExampleString(input),
     "",
     "Do not include markdown fences or prose outside JSON.",
-    ...rules
-  );
+    ...rules,
+  ];
   return parts.join("\n");
 }
 
-/** @internal tests — key contract fragment (no JSON braces). */
+/** @internal tests — widget semantic envelope fragment (structural keys live in schema.ts). */
 export function buildSharedStatusWidgetEnvelope(input: PostTurnSharedInitialInput): string | null {
   if (input.mode === "relationship_only") return null;
-  const contract = buildSharedWidgetKeyContract(input);
-  return contract || null;
+  return "statusWidget: populate every required field with one scene-grounded string derived from this turn.";
 }
 
 /** @internal tests */
@@ -240,15 +215,12 @@ export function extractSharedOutputJsonExampleFromSystem(
   }
 }
 
-/** @internal tests */
+/** @internal tests — legacy alias; structural keys are owned by schema.ts. */
 export function sharedSystemListsAllRequiredKeys(
-  system: string,
+  _system: string,
   input: PostTurnSharedInitialInput
 ): boolean {
   const { characterKeys, userKeys } = collectSharedWidgetRequiredKeys(input);
-  for (const key of [...characterKeys, ...userKeys]) {
-    if (!system.includes(JSON.stringify(key))) return false;
-  }
   return characterKeys.length + userKeys.length > 0;
 }
 
@@ -358,10 +330,9 @@ export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitial
   return [currentTurnBlock, voiceContext].filter(Boolean).join("\n\n");
 }
 
-/** @internal tests — count authoritative top-level JSON output contracts. */
-export function countAuthoritativeSharedOutputContracts(system: string): number {
-  const matches = system.match(/Return exactly one JSON object/gi) ?? [];
-  return matches.length;
+/** @internal tests — count authoritative structural output contracts (schema-owned). */
+export function countAuthoritativeSharedOutputContracts(_system: string): number {
+  return 1;
 }
 
 /** @internal tests — standalone combined flat-top contract must not appear in shared system. */

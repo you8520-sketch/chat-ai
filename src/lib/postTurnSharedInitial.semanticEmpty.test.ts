@@ -186,9 +186,8 @@ describe("postTurnSharedInitial semantic-empty root cause", () => {
     const input = dualInput({ includeSuggestions: true, includeRelationship: true });
     const system = buildPostTurnSharedInitialSystem(input);
     assertFinalPromptContract(system, input);
-    assert.match(system, /WIDGET OUTPUT KEY CONTRACT/);
-    assert.match(system, /statusWidget\.character_values must contain exactly these keys:/);
-    assert.match(system, /statusWidget\.user_values must contain exactly these keys:/);
+    assert.match(system, /provider JSON schema/);
+    assert.doesNotMatch(system, /WIDGET OUTPUT KEY CONTRACT/);
   });
 
   it("R5: character-only final prompt contract", () => {
