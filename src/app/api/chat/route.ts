@@ -1878,60 +1878,48 @@ export async function POST(req: Request) {
       ? (() => {
           const namespace = sceneDirectiveV2Inject ? "production" : "shadow";
           const prevReconv = loadReconvergenceState(chat.id, ch.id, namespace);
-          const built = buildSceneDirectiveV2({
-            mode: autoContinueContext ? "auto_progression" : "interactive",
+          const reconvergenceTurn = playableTurnCount + 1;
+          const reconvergenceMemoryText = memoryFeatureOn
+            ? [memoryInjection.text, memoryInjection.archiveText].filter(Boolean).join("\n")
+            : "";
+          const reconvergenceLorebookText = [keywordLorebookBlock, globalLorebookBlock]
+            .filter(Boolean)
+            .join("\n");
+          const reconvergenceEvidence = {
+            mode: autoContinueContext ? ("auto_progression" as const) : ("interactive" as const),
             recentMessages: shortTermHistory,
             currentUserMessage: policyUserMessage,
-            memoryText: memoryFeatureOn
-              ? [memoryInjection.text, memoryInjection.archiveText].filter(Boolean).join("\n")
-              : "",
+            memoryText: reconvergenceMemoryText,
             relationshipMemoryText: relationshipMemoryForPrompt,
-            lorebookText: [keywordLorebookBlock, globalLorebookBlock]
-              .filter(Boolean)
-              .join("\n"),
+            lorebookText: reconvergenceLorebookText,
             triggeredEventText: triggeredScenarioEventsBlock,
             reconvergenceState: prevReconv,
-            currentTurn: playableTurnCount + 1,
+            currentTurn: reconvergenceTurn,
             isRegenerate: Boolean(regenerateMessageId),
-          });
+          };
+          const built = buildSceneDirectiveV2(reconvergenceEvidence);
           const nextReconv = getUpdatedReconvergenceStateFromBuild(
-            {
-              mode: autoContinueContext ? "auto_progression" : "interactive",
-              recentMessages: shortTermHistory,
-              currentUserMessage: policyUserMessage,
-              triggeredEventText: triggeredScenarioEventsBlock,
-              reconvergenceState: prevReconv,
-              currentTurn: playableTurnCount + 1,
-              isRegenerate: Boolean(regenerateMessageId),
-            },
+            reconvergenceEvidence,
             built
           );
           pendingReconvergenceTransition = prepareReconvergenceTransition({
             namespace,
             chatId: chat.id,
             characterId: ch.id,
-            currentTurn: playableTurnCount + 1,
-            currentUserMessage: policyUserMessage,
-            recentMessages: shortTermHistory,
-            memoryText: [
-              memoryFeatureOn
-                ? [memoryInjection.text, memoryInjection.archiveText].filter(Boolean).join("\n")
-                : "",
-              relationshipMemoryForPrompt,
-            ]
-              .filter(Boolean)
-              .join("\n"),
-            lorebookText: [keywordLorebookBlock, globalLorebookBlock]
-              .filter(Boolean)
-              .join("\n"),
-            triggeredEventText: triggeredScenarioEventsBlock,
+            currentTurn: reconvergenceTurn,
+            currentUserMessage: reconvergenceEvidence.currentUserMessage,
+            recentMessages: reconvergenceEvidence.recentMessages,
+            memoryText: reconvergenceEvidence.memoryText,
+            relationshipMemoryText: reconvergenceEvidence.relationshipMemoryText,
+            lorebookText: reconvergenceEvidence.lorebookText,
+            triggeredEventText: reconvergenceEvidence.triggeredEventText,
             triggerPresent: Boolean(triggeredScenarioEventsBlock?.trim()),
             triggerImpliesReunion: /재회|만남|찾아왔|도착|노크|전화가|메시지가/.test(
               triggeredScenarioEventsBlock || ""
             ),
             requestId: clientRequestId ?? null,
             generationSequence: 0,
-            isRegenerate: Boolean(regenerateMessageId),
+            isRegenerate: reconvergenceEvidence.isRegenerate,
             previousOverride: prevReconv,
           });
           // If V2 selected reconverge offer, ensure pending next reflects offered state.
