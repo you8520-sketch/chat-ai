@@ -36,6 +36,10 @@ import { isStatusWidgetContextSafeForSuggestedRepliesCoalesce } from "@/lib/post
 import { hashAssistantProseForSuggestionPrefetch } from "@/lib/postTurnSharedInitial/prefetch";
 import { runPostTurnSharedInitial } from "@/lib/postTurnSharedInitial/run";
 import type { PostTurnSharedInitialParseResult } from "@/lib/postTurnSharedInitial/types";
+import {
+  analyzePostTurnSharedInitialWidgetShape,
+  type PostTurnSharedInitialWidgetShapeDiagnostics,
+} from "@/lib/postTurnSharedInitial/widgetShapeDiagnostics";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
 import { mergeExtractedFacts, sanitizeExtractedFacts } from "./extractedFacts";
 import {
@@ -136,6 +140,8 @@ export type StatusWidgetTurnExtractMeta = {
   sharedInitialSemanticStatus?: "ok" | "failed" | "empty" | "not_reached";
   sharedInitialFinishReason?: string | null;
   sharedInitialOutputChars?: number | null;
+  /** Shape-only shared Luna widget diagnostics — no value bodies. */
+  sharedInitialWidgetShape?: PostTurnSharedInitialWidgetShapeDiagnostics | null;
 };
 
 const defaultExtractCaller: StatusWidgetExtractCaller = async (system, history, opts) =>
@@ -800,6 +806,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     sharedInitialSemanticStatus: "not_reached",
     sharedInitialFinishReason: null,
     sharedInitialOutputChars: null,
+    sharedInitialWidgetShape: null,
   });
 
   // Route gates HTML/OOC/interrupted; active=false must not call extract either.
@@ -857,6 +864,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     "not_reached";
   let sharedInitialFinishReason: string | null = null;
   let sharedInitialOutputChars: number | null = null;
+  let sharedInitialWidgetShape: PostTurnSharedInitialWidgetShapeDiagnostics | null = null;
 
   const sharedMode = resolvePostTurnSharedInitialMode({ needCharExtract, needUserExtract });
   // Canonical whole-turn post-turn owner: the shared initial call runs whenever a
@@ -917,6 +925,27 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       sharedInitialTransportStatus = shared.transportOk ? "success" : "failed";
       sharedInitialFinishReason = shared.finishReason ?? shared.usage?.finishReason ?? null;
       sharedInitialOutputChars = (shared.text ?? "").length;
+      sharedInitialWidgetShape = analyzePostTurnSharedInitialWidgetShape(shared.text ?? "", {
+        mode: sharedMode,
+        charName: opts.charName,
+        characterIdentity: opts.characterIdentity,
+        characterCriticalContext: opts.characterCriticalContext,
+        personaName: opts.personaName,
+        userPersona: opts.userPersona,
+        personaDescription: opts.personaDescription,
+        personaSpeechExamples: opts.personaSpeechExamples,
+        userMessage: opts.userMessage,
+        assistantProse: opts.assistantProse,
+        previousAssistantProse: opts.previousAssistantProse,
+        characterWidget: charWidget,
+        userWidget: userWidget,
+        previousCharacterValues: opts.previousValues?.character ?? null,
+        previousUserValues: opts.previousValues?.user ?? null,
+        primaryModelId,
+        includeSuggestions: shareSuggestedReplies,
+        includeRelationship: shareRelationshipDelta,
+        relationshipRegenContext: opts.relationshipRegenContext ?? null,
+      });
       sharedInitialSerializationStatus = !shared.transportOk
         ? "not_reached"
         : shared.parsed?.jsonParseOk === true
@@ -1419,6 +1448,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       sharedInitialSemanticStatus,
       sharedInitialFinishReason,
       sharedInitialOutputChars,
+      sharedInitialWidgetShape,
     },
   };
 }

@@ -6,7 +6,12 @@ import { adaptCheaperInferenceChatBody } from "@/lib/cheaperInferenceConfig";
 import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
 import { runPostTurnSharedInitial } from "@/lib/postTurnSharedInitial/run";
 import { DEFAULT_STATUS_WIDGET } from "@/lib/statusWidget/defaultTemplate";
-import { buildSharedStatusWidgetEnvelope } from "@/lib/postTurnSharedInitial/prompt";
+import {
+  buildPostTurnSharedInitialSystem,
+  buildSharedStatusWidgetEnvelope,
+  sharedSystemListsAllRequiredKeys,
+  sharedOutputJsonExampleUsesParserInvalidValueExemplar,
+} from "@/lib/postTurnSharedInitial/prompt";
 import type { StatusWidget } from "@/lib/statusWidget/types";
 
 function withMockFetch(run: (bodies: Record<string, unknown>[]) => Promise<void>) {
@@ -151,5 +156,40 @@ describe("post-turn shared initial wire contract", () => {
     assert.ok(envelope);
     assert.match(envelope!, /"key\\"quote"/);
     assert.match(envelope!, /"라벨_줄"/);
+    assert.match(envelope!, /statusWidget\.character_values must contain exactly these keys:/);
+    const system = buildPostTurnSharedInitialSystem({
+      mode: "character",
+      charName: "c",
+      characterIdentity: null,
+      characterCriticalContext: null,
+      personaName: "u",
+      userMessage: "m",
+      assistantProse: "a",
+      characterWidget: widget,
+      userWidget: null,
+      primaryModelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      includeSuggestions: false,
+      includeRelationship: false,
+      relationshipRegenContext: null,
+    });
+    assert.equal(sharedOutputJsonExampleUsesParserInvalidValueExemplar(system), false);
+    assert.equal(
+      sharedSystemListsAllRequiredKeys(system, {
+        mode: "character",
+        charName: "c",
+        characterIdentity: null,
+        characterCriticalContext: null,
+        personaName: "u",
+        userMessage: "m",
+        assistantProse: "a",
+        characterWidget: widget,
+        userWidget: null,
+        primaryModelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+        includeSuggestions: false,
+        includeRelationship: false,
+        relationshipRegenContext: null,
+      }),
+      true
+    );
   });
 });
