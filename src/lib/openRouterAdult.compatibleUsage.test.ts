@@ -44,7 +44,11 @@ test("streamOpenRouterAdult captures top-level CI billing envelope after usage c
       [{ role: "user", content: "hello" }],
       "gemini-3.7-flash",
       800,
-      { allowOpenRouterUnderLengthRecovery: false, skipAssistantPrefill: true }
+      {
+        allowOpenRouterUnderLengthRecovery: false,
+        skipAssistantPrefill: true,
+        transportProvider: "cheaperinference",
+      }
     );
 
     let deltaCount = 0;
@@ -97,7 +101,11 @@ test("callOpenRouterAdult non-stream uses parseCompatibleUsage envelope preceden
       [{ role: "user", content: "hello" }],
       "gemini-3.7-flash",
       800,
-      { allowOpenRouterUnderLengthRecovery: false, skipAssistantPrefill: true }
+      {
+        allowOpenRouterUnderLengthRecovery: false,
+        skipAssistantPrefill: true,
+        transportProvider: "cheaperinference",
+      }
     );
     assert.equal(result.usage.cheaperInferenceBilledCostUsd, 0.008);
     assert.equal(result.text, "OK");
