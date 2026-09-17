@@ -5,6 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { buildSceneDirective } from "@/lib/sceneDirective";
 import {
   appendTerminalDialogueBudgetToUserTurn,
   applyScenePacingArmToMessages,
@@ -24,6 +25,8 @@ import {
   resolveTerminalDialogueBudget,
   stripGenreSceneModePacingHint,
   TERMINAL_DIALOGUE_BUDGET_OWNER,
+  type ScenePacingArm,
+  type ScenePacingControllerInput,
   type ScenePacingDecision,
 } from "@/lib/scenePacingController";
 import { SCENE_FLOW_BLOCK } from "@/lib/generationProcessBeatFlow";
@@ -31,10 +34,57 @@ import { DIALOGUE_NARRATION_STRUCTURE_RULE } from "@/lib/webnovelOutputFormat";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
 import { CURRENT_USER_INPUT_HEADER } from "@/lib/currentUserInputLabel";
 
+function directiveFrom(partial: ScenePacingControllerInput) {
+  return buildSceneDirective({
+    mode: partial.mode ?? "interactive",
+    contentKind: partial.contentKind ?? "character",
+    recentMessages: partial.recentMessages,
+    currentUserMessage: partial.currentUserMessage,
+    memoryText: partial.memoryText,
+    relationshipMemoryText: partial.relationshipMemoryText,
+    lorebookText: partial.lorebookText,
+    triggeredEventText: partial.triggeredEventText,
+    primaryCharacterName: partial.primaryCharacterName,
+    party: partial.party,
+    establishedActiveCastNames: partial.establishedActiveCastNames,
+    knownSupportingCastNames: partial.knownSupportingCastNames,
+    chatId: partial.chatId,
+    currentTurn: partial.currentTurn,
+    progressionHistory: partial.progressionHistory,
+  });
+}
+
 function decide(
   partial: Parameters<typeof resolveScenePacingDecision>[0]
 ): ScenePacingDecision {
-  return resolveScenePacingDecision(partial);
+  const directive = partial.canonicalSceneDirective ?? directiveFrom(partial);
+  return resolveScenePacingDecision({ ...partial, canonicalSceneDirective: directive });
+}
+
+function pacingBundle(partial: ScenePacingControllerInput) {
+  const directive = directiveFrom(partial);
+  return {
+    directive,
+    decision: resolveScenePacingDecision({ ...partial, canonicalSceneDirective: directive }),
+  };
+}
+
+function applyArm(input: {
+  messages: Array<{ role: string; content: string }>;
+  arm: ScenePacingArm;
+  partial: ScenePacingControllerInput;
+  dialogueBudgetInput?: Parameters<typeof applyScenePacingArmToMessages>[0]["dialogueBudgetInput"];
+  skipMotionCue?: boolean;
+}) {
+  const { directive, decision } = pacingBundle(input.partial);
+  return applyScenePacingArmToMessages({
+    messages: input.messages,
+    arm: input.arm,
+    decision,
+    canonicalSceneDirective: directive,
+    dialogueBudgetInput: input.dialogueBudgetInput,
+    skipMotionCue: input.skipMotionCue,
+  });
 }
 
 describe("G10-SD1 Scene Pacing Controller API=0", () => {
@@ -295,13 +345,13 @@ describe("G10-SD1 Scene Pacing Controller API=0", () => {
   });
 
   it("compact renderer has no legacy BASE engine pressure / no negative list", () => {
-    const d = decide({
+    const { directive } = pacingBundle({
       contentKind: "character",
       primaryCharacterName: "에녹",
       currentUserMessage: "잠깐 이대로 있어도 돼?",
       currentTurn: 1,
     });
-    const cue = renderCompactScenePacingCue(d);
+    const cue = renderCompactScenePacingCue(directive);
     assert.match(cue, /\[SCENE PACING\]/);
     assert.doesNotMatch(cue, /추천 강도|피해야|다음 비트/);
     assert.doesNotMatch(cue, /사건 만들지|위기 금지|전투 금지/);
@@ -324,12 +374,13 @@ ok`;
   });
 
   it("Arm P inserts compact cue; Arm A untouched; no legacy verbose block", () => {
-    const d = decide({
-      contentKind: "character",
+    const partial = {
+      contentKind: "character" as const,
       primaryCharacterName: "에녹",
       currentUserMessage: "잠깐 이대로 있어도 돼?",
       currentTurn: 1,
-    });
+    };
+    const { decision: d } = pacingBundle(partial);
     const base = [
       {
         role: "system",
@@ -337,16 +388,8 @@ ok`;
       },
       { role: "user", content: "hi" },
     ];
-    const A = applyScenePacingArmToMessages({
-      messages: base,
-      arm: "A",
-      decision: d,
-    });
-    const P = applyScenePacingArmToMessages({
-      messages: base,
-      arm: "P",
-      decision: d,
-    });
+    const A = applyArm({ messages: base, arm: "A", partial });
+    const P = applyArm({ messages: base, arm: "P", partial });
     assert.equal(A.insertedCue, false);
     assert.equal(P.insertedCue, true);
     assert.match(P.systemText, /\[SCENE PACING\]/);
@@ -357,12 +400,13 @@ ok`;
   });
 
   it("G10-SD2 Arm Q REPLACES SCENE FLOW — pacing SoT = 1", () => {
-    const d = decide({
-      contentKind: "character",
+    const partial = {
+      contentKind: "character" as const,
       primaryCharacterName: "에녹",
       currentUserMessage: "잠깐 이대로 있어도 돼?",
       currentTurn: 1,
-    });
+    };
+    const { directive } = pacingBundle(partial);
     const base = [
       {
         role: "system",
@@ -370,16 +414,8 @@ ok`;
       },
       { role: "user", content: "hi" },
     ];
-    const P = applyScenePacingArmToMessages({
-      messages: base,
-      arm: "P",
-      decision: d,
-    });
-    const Q = applyScenePacingArmToMessages({
-      messages: base,
-      arm: "Q",
-      decision: d,
-    });
+    const P = applyArm({ messages: base, arm: "P", partial });
+    const Q = applyArm({ messages: base, arm: "Q", partial });
     const ownP = countPacingOwners(P.systemText);
     const ownQ = countPacingOwners(Q.systemText);
     assert.equal(Q.replacedSceneFlow, true);
@@ -389,12 +425,13 @@ ok`;
     assert.equal(ownQ.pacing_sot_count, 1);
     assert.equal(ownP.pacing_sot_count, 2);
     assert.ok(Q.systemText.length <= P.systemText.length);
-    // Cue wording identical (HOLD) — motion only; response-axis is terminal-owned
-    assert.equal(
-      renderCompactScenePacingCue(d),
-      `[SCENE PACING]\n현재 두 인물의 상호작용을 중심으로 관계·내면·행동·감각을 전개한다. 주변 인물·환경의 짧은 반응이나 작은 마찰은 이 중심축에 자연스럽게 흡수한다.`
-    );
-    assert.doesNotMatch(renderCompactScenePacingCue(d), /여러 독립 결정/);
+    const cue = renderCompactScenePacingCue(directive);
+    const embeddedCue = Q.systemText.match(/\[SCENE PACING\][\s\S]*?(?=\n\[|$)/)?.[0]?.trim();
+    assert.equal(cue, embeddedCue);
+    assert.match(cue, /기존 NPC 행동: 없음/);
+    assert.match(cue, /새 인물 도입: 없음/);
+    assert.doesNotMatch(cue, /주변 인물/);
+    assert.doesNotMatch(cue, /여러 독립 결정/);
   });
 
   it("single_primary meaningful beat budget is max 1", () => {
@@ -440,11 +477,16 @@ ok`;
       },
       { role: "user", content: "hi" },
     ];
-    const Q = applyScenePacingArmToMessages({
-      messages: base,
-      arm: "Q",
-      decision: d,
-    });
+    const partial = {
+      contentKind: "character" as const,
+      primaryCharacterName: "에녹",
+      currentUserMessage: "잠깐 이대로 있어도 돼?",
+      recentMessages: [
+        { role: "assistant", content: "문은 잠겼다. 소파에 앉아 숨을 고른다." },
+      ],
+      currentTurn: 1,
+    };
+    const Q = applyArm({ messages: base, arm: "Q", partial });
     const R = applyScenePacingArmToMessages({
       messages: base,
       arm: "R",
@@ -483,15 +525,16 @@ ok`;
   });
 
   it("G10-D1 Arm T = Q + single_primary [대화 운용]; no % quota; SoT pacing=1", () => {
-    const d = decide({
-      contentKind: "character",
+    const partial = {
+      contentKind: "character" as const,
       primaryCharacterName: "에녹",
       currentUserMessage: "잠깐 이대로 있어도 돼?",
       recentMessages: [
         { role: "assistant", content: "문은 잠겼다. 소파에 앉아 숨을 고른다." },
       ],
       currentTurn: 1,
-    });
+    };
+    const { decision: d } = pacingBundle(partial);
     assert.equal(d.castMode, "single_primary");
     const owner = renderDialogueBlockCapOwner();
     assert.match(owner, /\[대화 운용\]/);
@@ -506,16 +549,8 @@ ok`;
       },
       { role: "user", content: "hi" },
     ];
-    const Q = applyScenePacingArmToMessages({
-      messages: base,
-      arm: "Q",
-      decision: d,
-    });
-    const T = applyScenePacingArmToMessages({
-      messages: base,
-      arm: "T",
-      decision: d,
-    });
+    const Q = applyArm({ messages: base, arm: "Q", partial });
+    const T = applyArm({ messages: base, arm: "T", partial });
     const ownQ = countPacingOwners(Q.systemText);
     const ownT = countPacingOwners(T.systemText);
     const dialQ = countDialogueBlockOwners(Q.systemText);
@@ -562,15 +597,28 @@ ok`;
         content: `[CORE RP]\nok\n${SCENE_FLOW_BLOCK}\n${DIALOGUE_NARRATION_STRUCTURE_RULE}\n`,
       },
     ];
-    const Tsim = applyScenePacingArmToMessages({
+    const Tsim = applyArm({
       messages: base,
       arm: "T",
-      decision: sim,
+      partial: {
+        contentKind: "simulation",
+        primaryCharacterName: "지휘관",
+        establishedActiveCastNames: ["병사A", "병사B", "정찰대"],
+        currentUserMessage: "전원 위치로.",
+        currentTurn: 2,
+      },
     });
-    const Tparty = applyScenePacingArmToMessages({
+    const Tparty = applyArm({
       messages: base,
       arm: "T",
-      decision: party,
+      partial: {
+        contentKind: "character",
+        party: true,
+        primaryCharacterName: "에녹",
+        establishedActiveCastNames: ["에녹", "렌", "동료"],
+        currentUserMessage: "다들 준비됐지?",
+        currentTurn: 2,
+      },
     });
     assert.equal(Tsim.dialogueBlockCapIntegrated, false);
     assert.equal(Tparty.dialogueBlockCapIntegrated, false);
@@ -581,15 +629,16 @@ ok`;
   });
 
   it("G10-D2 Arm U = Q + terminal dialogue budget; system cap=0", () => {
-    const d = decide({
-      contentKind: "character",
+    const partial = {
+      contentKind: "character" as const,
       primaryCharacterName: "에녹",
       currentUserMessage: "잠깐 이대로 있어도 돼?",
       recentMessages: [
         { role: "assistant", content: "문은 잠겼다. 소파에 앉아 숨을 고른다." },
       ],
       currentTurn: 1,
-    });
+    };
+    const { decision: d } = pacingBundle(partial);
     assert.equal(d.castMode, "single_primary");
     assert.match(TERMINAL_DIALOGUE_BUDGET_OWNER, /\[이번 응답 대화\]/);
     assert.match(TERMINAL_DIALOGUE_BUDGET_OWNER, /최대 4개/);
@@ -609,16 +658,8 @@ ok`;
       },
       { role: "user", content: userBody },
     ];
-    const Q = applyScenePacingArmToMessages({
-      messages: base,
-      arm: "Q",
-      decision: d,
-    });
-    const U = applyScenePacingArmToMessages({
-      messages: base,
-      arm: "U",
-      decision: d,
-    });
+    const Q = applyArm({ messages: base, arm: "Q", partial });
+    const U = applyArm({ messages: base, arm: "U", partial });
     const dialSysU = countDialogueBlockOwners(U.systemText);
     const termQ = countTerminalDialogueBudgetOwners(Q.lastUserContent);
     const termU = countTerminalDialogueBudgetOwners(U.lastUserContent);
@@ -671,15 +712,28 @@ ok`;
       },
       { role: "user", content: userBody },
     ];
-    const Usim = applyScenePacingArmToMessages({
+    const Usim = applyArm({
       messages: base,
       arm: "U",
-      decision: sim,
+      partial: {
+        contentKind: "simulation",
+        primaryCharacterName: "지휘관",
+        establishedActiveCastNames: ["병사A", "병사B", "정찰대"],
+        currentUserMessage: "전원 위치로.",
+        currentTurn: 2,
+      },
     });
-    const Uparty = applyScenePacingArmToMessages({
+    const Uparty = applyArm({
       messages: base,
       arm: "U",
-      decision: party,
+      partial: {
+        contentKind: "character",
+        party: true,
+        primaryCharacterName: "에녹",
+        establishedActiveCastNames: ["에녹", "렌", "동료"],
+        currentUserMessage: "다들 준비됐지?",
+        currentTurn: 2,
+      },
     });
     assert.equal(Usim.terminalDialogueBudgetAppended, false);
     assert.equal(Uparty.terminalDialogueBudgetAppended, false);
@@ -933,16 +987,15 @@ ok`;
     );
     assert.doesNotMatch(renderTerminalDialogueBudgetOwner(6), /1~3|DYAD|OPERATION|표|%|퍼센트/);
     assert.match(renderTerminalDialogueBudgetOwner(4), /하나의 중심축/);
+    const quietPartial = {
+      contentKind: "character" as const,
+      primaryCharacterName: "에녹",
+      currentUserMessage: "잠깐 이대로 있어도 돼?",
+      currentTurn: 1,
+    };
     assert.doesNotMatch(
-      renderCompactScenePacingCue(
-        decide({
-          contentKind: "character",
-          primaryCharacterName: "에녹",
-          currentUserMessage: "잠깐 이대로 있어도 돼?",
-          currentTurn: 1,
-        })
-      ),
-      /여러 독립 결정|중심축으로 모으/
+      renderCompactScenePacingCue(directiveFrom(quietPartial)),
+      /여러 독립 결정|중심축으로 모으|주변 인물/
     );
 
     // Arm V applies dynamic owner; system cap remains 0
@@ -956,10 +1009,19 @@ ok`;
       },
       { role: "user", content: userBody },
     ];
-    const V = applyScenePacingArmToMessages({
+    const V = applyArm({
       messages: base,
       arm: "V",
-      decision: quiet,
+      partial: {
+        contentKind: "character",
+        primaryCharacterName: "에녹",
+        currentUserMessage:
+          "*렌이 소파 등받이에 기대며 컵을 내려놓는다.* 오늘은 좀 조용하네. 잠깐 이대로 있어도 돼?",
+        recentMessages: [
+          { role: "assistant", content: "문은 잠겼다. 소파에 앉아 숨을 고른다." },
+        ],
+        currentTurn: 3,
+      },
       dialogueBudgetInput: {
         currentUserMessage: "잠깐 이대로 있어도 돼?",
         recentMessages: [
@@ -986,14 +1048,47 @@ ok`;
     );
     assert.doesNotMatch(V.systemText, /여러 독립 결정/);
     assert.match(
-      renderCompactScenePacingCue(quiet),
-      /주변 인물·환경의 짧은 반응이나 작은 마찰/
+      renderCompactScenePacingCue(
+        directiveFrom({
+          contentKind: "character",
+          primaryCharacterName: "에녹",
+          currentUserMessage:
+            "*렌이 소파 등받이에 기대며 컵을 내려놓는다.* 오늘은 좀 조용하네. 잠깐 이대로 있어도 돼?",
+          recentMessages: [
+            { role: "assistant", content: "문은 잠겼다. 소파에 앉아 숨을 고른다." },
+          ],
+          currentTurn: 3,
+        })
+      ),
+      /기존 NPC 행동: 없음/
+    );
+    assert.doesNotMatch(
+      renderCompactScenePacingCue(
+        directiveFrom({
+          contentKind: "character",
+          primaryCharacterName: "에녹",
+          currentUserMessage:
+            "*렌이 소파 등받이에 기대며 컵을 내려놓는다.* 오늘은 좀 조용하네. 잠깐 이대로 있어도 돼?",
+          recentMessages: [
+            { role: "assistant", content: "문은 잠겼다. 소파에 앉아 숨을 고른다." },
+          ],
+          currentTurn: 3,
+        })
+      ),
+      /주변 인물/
     );
 
-    const Vparty = applyScenePacingArmToMessages({
+    const Vparty = applyArm({
       messages: base,
       arm: "V",
-      decision: party,
+      partial: {
+        contentKind: "character",
+        party: true,
+        primaryCharacterName: "에녹",
+        establishedActiveCastNames: ["에녹", "렌", "동료"],
+        currentUserMessage: "다들 준비됐지?",
+        currentTurn: 2,
+      },
       dialogueBudgetInput: { party: true, contentKind: "character" },
     });
     assert.equal(Vparty.dialogueBudget?.maxBlocks, null);

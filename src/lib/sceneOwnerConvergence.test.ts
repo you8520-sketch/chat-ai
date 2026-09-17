@@ -14,6 +14,10 @@ import {
 import {
   buildSceneDirective,
   renderSceneDirectiveForPrompt,
+  type NpcGroundingResult,
+  type SceneDirective,
+  type SceneMotionDecision,
+  type SceneProgressionType,
 } from "@/lib/sceneDirective";
 import { SCENE_FLOW_BLOCK } from "@/lib/generationProcessBeatFlow";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
@@ -51,6 +55,44 @@ function wireStandardInteractive(input: {
     applied.messages.find((m) => m.role === "system")?.content ?? "";
   return { ...applied, systemText };
 }
+
+function fixtureDirective(input: {
+  motionDecision: SceneMotionDecision;
+  progressionTypes?: SceneProgressionType[];
+  npcGrounding?: Partial<NpcGroundingResult> &
+    Pick<NpcGroundingResult, "existingNpcEligible" | "newNpcAllowed">;
+}): SceneDirective {
+  const npcGrounding: NpcGroundingResult = {
+    existingNpcEligible: input.npcGrounding?.existingNpcEligible ?? false,
+    newNpcAllowed: input.npcGrounding?.newNpcAllowed ?? false,
+    eligibleActorNames: input.npcGrounding?.eligibleActorNames ?? [],
+    sources: input.npcGrounding?.sources ?? ["none"],
+  };
+  return {
+    mode: "interactive",
+    recentStagnation: false,
+    recommendedIntensity: 1,
+    motionDecision: input.motionDecision,
+    motionReasons: ["quiet_interaction"],
+    progressionTypes: input.progressionTypes ?? [],
+    avoid: [],
+    userControl: "no_user_control",
+    castFocus: {
+      sceneCastMode: "single_primary",
+      primaryCharacterName: PRIMARY,
+      supportingCastBudget: 0,
+      activeSpeakingCast: [PRIMARY, ...npcGrounding.eligibleActorNames],
+    },
+    npcGrounding,
+  };
+}
+
+function extractScenePacingBlock(systemText: string): string {
+  return systemText.match(/\[SCENE PACING\][\s\S]*?(?=\n\[|$)/)?.[0] ?? "";
+}
+
+/** Pre-fix lossy compact cue wording — must not reappear in final Standard prompt. */
+const LEGACY_LOSSY_PROJECTION = /주변 인물·환경|주변 인물·환경의 짧은/;
 
 describe("scene owner convergence audit", () => {
   it("O1 standard interactive — single motion cue owner ([SCENE PACING], not SceneDirective block)", () => {
@@ -214,5 +256,286 @@ describe("scene owner convergence audit", () => {
       recentMessages: [{ role: "assistant", content: "작전 회의 중이다." }],
     });
     assert.ok((applied.dialogueBudget?.maxBlocks ?? 0) >= 5);
+  });
+});
+
+describe("lossless canonical policy projection P1–P7", () => {
+  it("P1 HOLD no-NPC — final [SCENE PACING] does not widen NPC permission", () => {
+    const directive = fixtureDirective({
+      motionDecision: "HOLD",
+      progressionTypes: [],
+      npcGrounding: {
+        existingNpcEligible: false,
+        newNpcAllowed: false,
+        eligibleActorNames: [],
+      },
+    });
+    const applied = wireStandardInteractive({
+      system: `[CORE]\n${SCENE_FLOW_BLOCK}\n[IMMERSIVE PROSE]\nok`,
+      user: "조용히 있다.",
+      sceneDirective: directive,
+    });
+    const pacing = extractScenePacingBlock(applied.systemText);
+    assert.match(pacing, /전개 필요: 없음 \(현재 비트 유지\)/);
+    assert.match(pacing, /기존 NPC 행동: 없음/);
+    assert.match(pacing, /새 인물 도입: 없음/);
+    assert.doesNotMatch(pacing, LEGACY_LOSSY_PROJECTION);
+  });
+
+  it("P2 MICRO_MOTION no-NPC — final prompt does not imply NPC/new actor permission", () => {
+    const directive = fixtureDirective({
+      motionDecision: "MICRO_MOTION",
+      progressionTypes: ["relationship"],
+      npcGrounding: {
+        existingNpcEligible: false,
+        newNpcAllowed: false,
+        eligibleActorNames: [],
+      },
+    });
+    const applied = wireStandardInteractive({
+      system: `[CORE]\n${SCENE_FLOW_BLOCK}`,
+      user: "손끝만 살짝 움직인다.",
+      sceneDirective: directive,
+    });
+    const pacing = extractScenePacingBlock(applied.systemText);
+    assert.match(pacing, /새 인물·별도 사건은 만들지 않는다/);
+    assert.match(pacing, /기존 NPC 행동: 없음/);
+    assert.match(pacing, /새 인물 도입: 없음/);
+    assert.doesNotMatch(pacing, LEGACY_LOSSY_PROJECTION);
+  });
+
+  it("P3 SCENE_ADVANCE relationship-only — compact cue does not widen to unrelated sources", () => {
+    const directive = fixtureDirective({
+      motionDecision: "SCENE_ADVANCE",
+      progressionTypes: ["relationship"],
+      npcGrounding: {
+        existingNpcEligible: false,
+        newNpcAllowed: false,
+        eligibleActorNames: [],
+      },
+    });
+    const applied = wireStandardInteractive({
+      system: `[CORE]\n${SCENE_FLOW_BLOCK}`,
+      user: "시선을 맞춘다.",
+      sceneDirective: directive,
+    });
+    const pacing = extractScenePacingBlock(applied.systemText);
+    assert.match(pacing, /허용된 변화: 관계 변화/);
+    assert.doesNotMatch(pacing, /허용된 변화:.*단서/);
+    assert.doesNotMatch(pacing, /허용된 변화:.*세계 반응/);
+    assert.doesNotMatch(pacing, /허용된 변화:.*NPC 행동/);
+    assert.doesNotMatch(pacing, /허용된 변화:.*이전 선택의 결과/);
+  });
+
+  it("P4 SCENE_ADVANCE npc_action grounded — existing actor action preserved in final prompt", () => {
+    const directive = fixtureDirective({
+      motionDecision: "SCENE_ADVANCE",
+      progressionTypes: ["npc_action", "relationship"],
+      npcGrounding: {
+        existingNpcEligible: true,
+        newNpcAllowed: false,
+        eligibleActorNames: [SUPPORT],
+        sources: ["user_named"],
+      },
+    });
+    const applied = wireStandardInteractive({
+      system: `[CORE]\n${SCENE_FLOW_BLOCK}`,
+      user: `${SUPPORT}을 바라본다.`,
+      sceneDirective: directive,
+    });
+    const pacing = extractScenePacingBlock(applied.systemText);
+    assert.match(pacing, new RegExp(`기존 NPC \\(${SUPPORT}\\)의 행동만`));
+    assert.match(pacing, /새 인물 도입: 없음/);
+  });
+
+  it("P5 remote contact — newNpcAllowed=false, no physical arrival permission in final prompt", () => {
+    const directive = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      primaryCharacterName: PRIMARY,
+      knownSupportingCastNames: [SUPPORT],
+      triggeredEventText: "무전으로 연락이 온다.",
+      currentUserMessage: "수신한다.",
+      chatId: 910,
+      currentTurn: 2,
+    });
+    assert.equal(directive.npcGrounding.newNpcAllowed, false);
+    const applied = wireStandardInteractive({
+      system: `[CORE]\n${SCENE_FLOW_BLOCK}`,
+      user: "수신한다.",
+      sceneDirective: directive,
+    });
+    const pacing = extractScenePacingBlock(applied.systemText);
+    assert.match(pacing, /새 인물 도입: 없음/);
+    assert.doesNotMatch(pacing, /트리거·명시적 도착만/);
+  });
+
+  it("P6 ESCALATE newNpcAllowed=false — external pressure separated from new actor intro", () => {
+    const directive = fixtureDirective({
+      motionDecision: "ESCALATE",
+      progressionTypes: ["world_reaction", "consequence"],
+      npcGrounding: {
+        existingNpcEligible: false,
+        newNpcAllowed: false,
+        eligibleActorNames: [],
+      },
+    });
+    const applied = wireStandardInteractive({
+      system: `[CORE]\n${SCENE_FLOW_BLOCK}`,
+      user: "밖 소음에 귀를 기울인다.",
+      sceneDirective: directive,
+    });
+    const pacing = extractScenePacingBlock(applied.systemText);
+    assert.match(pacing, /전개 필요: ESCALATE/);
+    assert.match(pacing, /새 인물 도입: 없음/);
+    assert.doesNotMatch(pacing, LEGACY_LOSSY_PROJECTION);
+  });
+
+  it("P7 ESCALATE explicit arrival — new actor allowed only via trigger·arrival contract", () => {
+    const directive = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      primaryCharacterName: PRIMARY,
+      knownSupportingCastNames: [SUPPORT],
+      triggeredEventText: `${SUPPORT}이 문 앞에 도착했다.`,
+      currentUserMessage: "문을 연다.",
+      chatId: 911,
+      currentTurn: 3,
+    });
+    assert.equal(directive.npcGrounding.newNpcAllowed, true);
+    const applied = wireStandardInteractive({
+      system: `[CORE]\n${SCENE_FLOW_BLOCK}`,
+      user: "문을 연다.",
+      sceneDirective: directive,
+    });
+    const pacing = extractScenePacingBlock(applied.systemText);
+    assert.match(pacing, /새 인물 도입: 트리거·명시적 도착만/);
+    assert.doesNotMatch(pacing, LEGACY_LOSSY_PROJECTION);
+  });
+});
+
+describe("lossless policy projection owner checks O6–O10", () => {
+  it("O6 HOLD final prompt preserves no-NPC contract", () => {
+    const directive = fixtureDirective({
+      motionDecision: "HOLD",
+      progressionTypes: [],
+      npcGrounding: {
+        existingNpcEligible: false,
+        newNpcAllowed: false,
+        eligibleActorNames: [],
+      },
+    });
+    const applied = wireStandardInteractive({
+      system: `[CORE]\n${SCENE_FLOW_BLOCK}`,
+      user: "가만히 있다.",
+      sceneDirective: directive,
+    });
+    const pacing = extractScenePacingBlock(applied.systemText);
+    assert.match(pacing, /기존 NPC 행동: 없음/);
+    assert.match(pacing, /새 인물 도입: 없음/);
+    assert.doesNotMatch(applied.systemText, LEGACY_LOSSY_PROJECTION);
+  });
+
+  it("O7 MICRO final prompt preserves no-NPC contract", () => {
+    const directive = fixtureDirective({
+      motionDecision: "MICRO_MOTION",
+      progressionTypes: ["relationship"],
+      npcGrounding: {
+        existingNpcEligible: false,
+        newNpcAllowed: false,
+        eligibleActorNames: [],
+      },
+    });
+    const applied = wireStandardInteractive({
+      system: `[CORE]\n${SCENE_FLOW_BLOCK}`,
+      user: "숨을 고른다.",
+      sceneDirective: directive,
+    });
+    const pacing = extractScenePacingBlock(applied.systemText);
+    assert.match(pacing, /기존 NPC 행동: 없음/);
+    assert.match(pacing, /새 인물 도입: 없음/);
+    assert.doesNotMatch(applied.systemText, LEGACY_LOSSY_PROJECTION);
+  });
+
+  it("O8 progression type does not widen in projection — relationship-only stays bounded", () => {
+    const directive = fixtureDirective({
+      motionDecision: "SCENE_ADVANCE",
+      progressionTypes: ["relationship"],
+      npcGrounding: {
+        existingNpcEligible: false,
+        newNpcAllowed: false,
+        eligibleActorNames: [],
+      },
+    });
+    const applied = wireStandardInteractive({
+      system: `[CORE]\n${SCENE_FLOW_BLOCK}`,
+      user: "눈을 맞춘다.",
+      sceneDirective: directive,
+    });
+    const pacing = extractScenePacingBlock(applied.systemText);
+    const allowedLine = pacing.match(/허용된 변화: .+/)?.[0] ?? "";
+    assert.match(allowedLine, /관계 변화/);
+    assert.doesNotMatch(allowedLine, /단서|세계 반응|NPC 행동|환경 변화|이전 선택/);
+  });
+
+  it("O9 newNpcAllowed=false preserved in final assembled Standard prompt", () => {
+    const directive = fixtureDirective({
+      motionDecision: "SCENE_ADVANCE",
+      progressionTypes: ["environment"],
+      npcGrounding: {
+        existingNpcEligible: false,
+        newNpcAllowed: false,
+        eligibleActorNames: [],
+      },
+    });
+    const applied = wireStandardInteractive({
+      system: `[CORE]\n${SCENE_FLOW_BLOCK}`,
+      user: "창문 쪽을 본다.",
+      sceneDirective: directive,
+    });
+    const pacing = extractScenePacingBlock(applied.systemText);
+    assert.match(pacing, /새 인물 도입: 없음/);
+    assert.doesNotMatch(pacing, /트리거·명시적 도착만/);
+  });
+
+  it("O10 explicit-arrival=true preserved without widening other paths", () => {
+    const withArrival = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      primaryCharacterName: PRIMARY,
+      knownSupportingCastNames: [SUPPORT],
+      triggeredEventText: `${SUPPORT}이 복도에서 나타났다.`,
+      currentUserMessage: "고개를 든다.",
+      chatId: 912,
+      currentTurn: 2,
+    });
+    assert.equal(withArrival.npcGrounding.newNpcAllowed, true);
+
+    const withoutArrival = fixtureDirective({
+      motionDecision: "ESCALATE",
+      progressionTypes: ["world_reaction"],
+      npcGrounding: {
+        existingNpcEligible: false,
+        newNpcAllowed: false,
+        eligibleActorNames: [],
+      },
+    });
+
+    const arrivalApplied = wireStandardInteractive({
+      system: `[CORE]\n${SCENE_FLOW_BLOCK}`,
+      user: "고개를 든다.",
+      sceneDirective: withArrival,
+    });
+    const noArrivalApplied = wireStandardInteractive({
+      system: `[CORE]\n${SCENE_FLOW_BLOCK}`,
+      user: "밖을 본다.",
+      sceneDirective: withoutArrival,
+    });
+
+    const arrivalPacing = extractScenePacingBlock(arrivalApplied.systemText);
+    const noArrivalPacing = extractScenePacingBlock(noArrivalApplied.systemText);
+    assert.match(arrivalPacing, /새 인물 도입: 트리거·명시적 도착만/);
+    assert.match(noArrivalPacing, /새 인물 도입: 없음/);
+    assert.doesNotMatch(noArrivalPacing, /트리거·명시적 도착만/);
   });
 });
