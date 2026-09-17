@@ -1,0 +1,15 @@
+{
+  "id": "019",
+  "url": "https://api.cheaperinference.com/v1/chat/completions",
+  "method": "POST",
+  "status": 200,
+  "model": "deepseek-v4-flash-0731",
+  "requestSha": "ba7ab499d2b2927fb241b993700ff67c2256e16684ab652602c63dfaa8b91887",
+  "rawSha": "2d103b20ec4bb94378d9b451f10c65c258236826e75cef3c9b598f0cd03215ac",
+  "ttftMs": 9793,
+  "latencyMs": 9794,
+  "finishReason": null,
+  "usage": null,
+  "visibleChars": 0,
+  "capturedAt": "2026-08-24T11:17:18.189Z"
+}

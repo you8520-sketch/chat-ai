@@ -1,0 +1,84 @@
+{
+  "owners": {
+    "HANDOFF_LENGTH_OWNER_PRESENT": true,
+    "HANDOFF_DIALOGUE_OWNER_PRESENT": true,
+    "HANDOFF_CONTINUATION_PRESENT": true,
+    "length_owner_count": 1,
+    "dialogue_owner_count": 1,
+    "model": "deepseek-v4-pro-0813",
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "max_tokens": null,
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none"
+  },
+  "first": {
+    "visible_chars": 1701,
+    "paragraph_count": 17,
+    "dialogue_paragraph_count": 8,
+    "dialogue_paragraph_ratio": 0.471,
+    "finish_reason": "stop",
+    "truncated": false,
+    "insertion_present": true,
+    "intercourse_motion_present": true,
+    "orgasm_or_ejaculation_present": false,
+    "requested_scene_completed": false,
+    "requested_destination": "오르가슴까지 이 침대에서",
+    "alarm_candidates": [],
+    "source": "B2-first",
+    "raw_sha": "0193b82752cfeda1bbe24ca80a321087b2ffa8195bc156b329aa161997950739"
+  },
+  "second": {
+    "visible_chars": 2346,
+    "paragraph_count": 20,
+    "dialogue_paragraph_count": 10,
+    "dialogue_paragraph_ratio": 0.5,
+    "finish_reason": "stop",
+    "truncated": false,
+    "insertion_present": true,
+    "intercourse_motion_present": true,
+    "orgasm_or_ejaculation_present": true,
+    "requested_scene_completed": true,
+    "requested_destination": "오르가슴까지 이 침대에서",
+    "alarm_candidates": [],
+    "source": "B2-second",
+    "raw_sha": "1a84bf92a8f7c2293447c28b31209aa318cd6d9610c9ce4a92b2f31bb1692d53",
+    "request_sha": "e558990d8eeff541176046d568b163f2a146a34068ed72145ce5251acbd3b11d",
+    "frozen_request_sha": "e558990d8eeff541176046d568b163f2a146a34068ed72145ce5251acbd3b11d",
+    "http_status": 200,
+    "model": "deepseek-v4-pro-0813",
+    "usage": {
+      "prompt_tokens": 11032,
+      "completion_tokens": 1907,
+      "total_tokens": 12939,
+      "cost": 0.003792,
+      "cost_details": {
+        "upstream_inference_cost": 0.003792
+      }
+    },
+    "ttft_ms": 1365,
+    "latency_ms": 40680
+  },
+  "deltas": {
+    "visible_chars": 645,
+    "dialogue_paragraph_count": 2,
+    "paragraph_count": 3,
+    "finish_reason_same": true,
+    "requested_scene_completed_first": false,
+    "requested_scene_completed_second": true
+  },
+  "length_class_repeats": true,
+  "dialogue_class_repeats": true,
+  "scene_incomplete_class_repeats": false,
+  "same_class_repeats": false,
+  "stop_for_human_review": true,
+  "stop_reason": "Length class (2346 < 3200) and dialogue class (10 > 4) still repeat on the identical frozen request. Scene-destination miss did not repeat. STOP for human/ChatGPT review. No adapter/prompt/Gemini/3200-owner change.",
+  "notes": [
+    "No prose similarity or quality score.",
+    "No prompt/context/temperature/model/provider/max-token change.",
+    "Triple-class AND (under 3200 AND >4 dialogue AND scene incomplete) did not repeat because the second RAW reached the requested destination.",
+    "Two of the three original B2 defect classes still repeat, so review stops here."
+  ]
+}
