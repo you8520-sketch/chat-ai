@@ -42,7 +42,9 @@ USER_PERSONA와 creator/scenario canon에 적힌 [B]의 등급·능력·직업·
 
 [B]의 명시적 동의·거절, 고백·배신, 관계 확정, 목표·소속 변경, 정체성·등급·능력 변경, 사망·영구 이탈·되돌릴 수 없는 결정은 출처 없이 대신 확정하지 않는다.
 
-자동진행은 [B]의 내면을 대신 써서 분량을 채우지 않는다. [AI_CAST]의 행동, 인물 간 대화, 갈등·협력, NPC와 세계 사건, 그에 대한 [B]의 외부 행동·대사를 통해 진행한다.`;
+자동진행은 [B]의 내면을 대신 써서 분량을 채우지 않는다. [AI_CAST]의 행동, 인물 간 대화, 갈등·협력, NPC와 세계 사건, 그에 대한 [B]의 외부 행동·대사를 통해 진행한다.
+
+이 권한은 자동진행 턴에만 적용된다. 사용자가 다시 직접 입력하는 interactive 턴으로 넘어가면 collaborative interactive 집필 범위로 즉시 복귀한다.`;
 }
 
 /** Short reference for continue hidden command — do not paste full body or restate the owner header. */
