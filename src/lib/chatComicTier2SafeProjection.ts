@@ -160,3 +160,45 @@ export function canonicalTier2SafePose(opts: {
   }
   return "same cast in the same location with modest posture and readable expressions";
 }
+
+/** Tier-2 visual beat buckets used to collapse duplicate contact/intimacy arc replay. */
+export type Tier2PhysicalBeatCategory =
+  | "kiss"
+  | "embrace"
+  | "close_proximity"
+  | "resting"
+  | "seated"
+  | "standing"
+  | "blush_emotion"
+  | "general";
+
+/** Continuity pose when a duplicate physical beat category would re-expand the arc. */
+export const TIER2_PANEL_CONTINUITY_POSE =
+  "continued scene — calm expressions, modest posture";
+
+/** Classify projected Tier-2 panel text into one primary visual beat bucket. */
+export function classifyTier2PhysicalBeatCategory(text: string): Tier2PhysicalBeatCategory {
+  const hay = String(text ?? "").trim();
+  if (!hay) return "general";
+  if (/(?:키스|kiss)/iu.test(hay)) return "kiss";
+  if (/(?:껴안|포옹|안아|hug|embrace)/iu.test(hay)) return "embrace";
+  if (
+    /(?:가까(?:이|운)|밀착|skin(?:\s|-)?to|face(?:s)?\s+close|cheek(?:s)?\s+touch|볼(?:을)?\s*(?:비|맞)|이마(?:를)?\s*(?:맞|대)|whisper|속삭|손(?:을)?\s*(?:잡|맞)|어깨(?:를)?\s*(?:감|안)|허리(?:를)?\s*(?:감|안)|close(?:ly)?\s+(?:together|proximity)|affectionate\s+proximity)/iu.test(
+      hay
+    )
+  ) {
+    return "close_proximity";
+  }
+  if (containsSafeLyingOrRestContext(hay)) return "resting";
+  if (/(?:앉(?:아|은|어)|seated|sitting)/iu.test(hay)) return "seated";
+  if (/(?:서(?:\s)?(?:있|서)|standing)/iu.test(hay)) return "standing";
+  if (/(?:홍조|수줍|부끄|blush|flushed|shy)/iu.test(hay)) return "blush_emotion";
+  return "general";
+}
+
+/** Canonical Tier-2 dialogue cap — one representative line per panel. */
+export function boundTier2PanelDialogue(dialogue: readonly string[] | undefined): string[] {
+  if (!dialogue?.length) return [];
+  const first = dialogue.find((line) => String(line ?? "").trim());
+  return first ? [first.trim()] : [];
+}

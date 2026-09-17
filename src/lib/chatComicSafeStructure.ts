@@ -12,9 +12,13 @@ import {
   projectSceneTextForSafeImageGeneration,
 } from "@/lib/chatImageSafeVisualProjection";
 import {
+  boundTier2PanelDialogue,
   canonicalTier2SafePose,
+  classifyTier2PhysicalBeatCategory,
   projectSceneBlockForTier2Comic,
   projectSceneTextForTier2Comic,
+  TIER2_PANEL_CONTINUITY_POSE,
+  type Tier2PhysicalBeatCategory,
 } from "@/lib/chatComicTier2SafeProjection";
 
 export type ComicSafeStructurePanel = {
@@ -77,8 +81,64 @@ function derivePoseHint(opts: {
   return "same cast in the same location with modest posture and readable expressions";
 }
 
-/** Canonical Tier-2 safe structural projection owner — no raw SceneEvent.text. */
-export function projectComicSafeStructureForTier2(
+function normalizeTier2SituationKey(situation: string): string {
+  return situation.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Collapse duplicate physical/contact beats and bound dialogue for strict fallback. */
+export function boundComicSafeStructureProjection(
+  structure: ComicSafeStructureProjection
+): ComicSafeStructureProjection {
+  const seenBeatCategories = new Set<Tier2PhysicalBeatCategory>();
+  const seenSituations = new Set<string>();
+  const seenPoseHints = new Set<string>();
+
+  const panels = structure.panels.map((panel) => {
+    const combined = [panel.situation, panel.poseHint].filter(Boolean).join(" ");
+    const category = classifyTier2PhysicalBeatCategory(combined);
+    let poseHint = panel.poseHint.trim();
+    let situation = panel.situation.trim();
+
+    const collapsible =
+      category !== "general" &&
+      category !== "seated" &&
+      category !== "standing" &&
+      category !== "blush_emotion";
+
+    if (collapsible && seenBeatCategories.has(category)) {
+      poseHint = TIER2_PANEL_CONTINUITY_POSE;
+      situation = "";
+    } else if (collapsible) {
+      seenBeatCategories.add(category);
+    }
+
+    const poseKey = poseHint.toLowerCase();
+    if (poseKey && seenPoseHints.has(poseKey) && poseHint !== TIER2_PANEL_CONTINUITY_POSE) {
+      poseHint = TIER2_PANEL_CONTINUITY_POSE;
+    } else if (poseKey) {
+      seenPoseHints.add(poseKey);
+    }
+
+    const situationKey = normalizeTier2SituationKey(situation);
+    if (situationKey && seenSituations.has(situationKey)) {
+      situation = "";
+    } else if (situationKey) {
+      seenSituations.add(situationKey);
+    }
+
+    return {
+      ...panel,
+      situation,
+      poseHint,
+      dialogue: boundTier2PanelDialogue(panel.dialogue),
+    };
+  });
+
+  return { ...structure, panels };
+}
+
+/** Raw Tier-2 structural projection before semantic distillation (regression baseline). */
+export function projectComicSafeStructureForTier2Raw(
   plan: ScenePlan,
   visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
 ): ComicSafeStructureProjection {
@@ -110,6 +170,50 @@ export function projectComicSafeStructureForTier2(
     atmosphere,
     panels,
   };
+}
+
+/** Canonical Tier-2 safe structural projection owner — no raw SceneEvent.text. */
+export function projectComicSafeStructureForTier2(
+  plan: ScenePlan,
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+): ComicSafeStructureProjection {
+  return boundComicSafeStructureProjection(
+    projectComicSafeStructureForTier2Raw(plan, visibility)
+  );
+}
+
+export function countTier2StructureDialogue(structure: ComicSafeStructureProjection): number {
+  return structure.panels.reduce((total, panel) => total + (panel.dialogue?.length ?? 0), 0);
+}
+
+export function countTier2StructurePhysicalBeats(
+  structure: ComicSafeStructureProjection
+): number {
+  const categories = new Set<Tier2PhysicalBeatCategory>();
+  for (const panel of structure.panels) {
+    const combined = [panel.situation, panel.poseHint].filter(Boolean).join(" ");
+    const category = classifyTier2PhysicalBeatCategory(combined);
+    if (category !== "general") categories.add(category);
+  }
+  return categories.size;
+}
+
+export function countTier2NonContinuityPanels(structure: ComicSafeStructureProjection): number {
+  return structure.panels.filter((panel) => panel.poseHint !== TIER2_PANEL_CONTINUITY_POSE).length;
+}
+
+export function measureTier2PanelBeatChars(structure: ComicSafeStructureProjection): number {
+  return structure.panels.reduce(
+    (total, panel) => total + panel.situation.length + panel.poseHint.length,
+    0
+  );
+}
+
+export function measureTier2StructurePromptChars(
+  structure: ComicSafeStructureProjection,
+  mode: "overlay_first" | "full_provider_rendered" = "full_provider_rendered"
+): number {
+  return renderComicSafeStructureForTier2Prompt(structure, mode).join("\n").length;
 }
 
 export function renderComicSafeStructureForTier2Prompt(
