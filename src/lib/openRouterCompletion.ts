@@ -39,6 +39,7 @@ import {
   resolveDeepSeekLogicalModel,
 } from "@/lib/deepseekProviderFailover";
 import {
+  assertNoDuplicateAuxProviderSuccess,
   buildAuxProviderCallLogInput,
   logAuxProviderCall,
 } from "@/lib/auxProviderProvenance";
@@ -449,6 +450,11 @@ export async function callOpenRouterCompletion(opts: {
       usage,
       providerRequestId,
       outcome: "success",
+    });
+    assertNoDuplicateAuxProviderSuccess({
+      assistantMessageId: ledgerBase?.assistantMessageId,
+      generationSequence: ledgerBase?.generationSequence,
+      requestKind: opts.requestKind ?? ledgerBase?.requestKind,
     });
   } else {
     // No turn-scoped ledger context (message-independent background call):

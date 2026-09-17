@@ -833,6 +833,14 @@ describe("status-OFF lifecycle guardrail", () => {
       "status-OFF branch must not await the shared provider before SSE done"
     );
   });
+
+  it("reserves suggested-replies pending before SSE done when deferring shared owner", () => {
+    const route = readFileSync(join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
+    assert.match(
+      route,
+      /else if \(deferPostTurnShared\) \{[\s\S]*markMessageSuggestedRepliesPending\(aiMessageId, postTurnGenerationScope\)/
+    );
+  });
 });
 
 describe("provider-cost accounting parity (status-OFF shared owner)", () => {

@@ -3,9 +3,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
 import {
+  assertNoDuplicateAuxProviderSuccess,
   auxPromptFingerprint,
   buildAuxProviderCallLogInput,
+  buildAuxProviderSuccessKey,
   logAuxProviderCall,
+  resetAuxProviderSuccessSentinelForTests,
   resolveAuxProviderOwner,
 } from "@/lib/auxProviderProvenance";
 import { MAX_MAIN_RP_EXTERNAL_PROVIDER_ATTEMPTS } from "@/lib/deepseekProviderFailover";
@@ -268,6 +271,28 @@ describe("P0-6 — provenance safety", () => {
     assert.equal(serialized.includes("Bearer"), false);
     assert.equal(serialized.includes("apiKey"), false);
     assert.equal(logAuxProviderCall(input), undefined);
+  });
+});
+
+describe("aux duplicate-call sentinel", () => {
+  it("flags a second successful call for the same generation operation", () => {
+    resetAuxProviderSuccessSentinelForTests();
+    const key = buildAuxProviderSuccessKey({
+      assistantMessageId: 42,
+      generationSequence: 0,
+      requestKind: "background-post-turn-shared-initial",
+    });
+    assert.equal(key, "42:0:background-post-turn-shared-initial");
+    assertNoDuplicateAuxProviderSuccess({
+      assistantMessageId: 42,
+      generationSequence: 0,
+      requestKind: "background-post-turn-shared-initial",
+    });
+    assertNoDuplicateAuxProviderSuccess({
+      assistantMessageId: 42,
+      generationSequence: 0,
+      requestKind: "background-post-turn-shared-initial",
+    });
   });
 });
 
