@@ -259,6 +259,48 @@ export type RollingSummaryLlmCaller = (
   requestKind: string
 ) => Promise<{ text: string; usage?: import("@/lib/ai").TokenUsage }>;
 
+/** Production rolling-summary LLM request (system + user) — shared by runtime and benchmarks. */
+export function buildRollingSummaryLlmRequest(opts: {
+  dialogue: string;
+  charName: string;
+  characterIdentity?: string | null;
+  startTurn: number;
+  endTurn: number;
+  sourceTurnIndexes?: number[];
+  userPersona?: string | null;
+  openingPrelude?: string | null;
+}): { system: string; user: string; sourceTurnCount: number } {
+  const personaBlock = opts.userPersona?.trim()
+    ? `\n\n[유저 페르소나 — 성별·호칭·신체 묘사 절대 준수]\n${opts.userPersona.trim()}`
+    : "";
+  const characterBlock = opts.characterIdentity?.trim()
+    ? `\n\n[캐릭터 식별정보 — 성별·호칭·신체 묘사 절대 준수]\n${opts.characterIdentity.trim()}`
+    : "";
+  const sourceTurnIndexes = Array.from(
+    new Set(
+      (opts.sourceTurnIndexes?.length
+        ? opts.sourceTurnIndexes
+        : Array.from(
+            { length: Math.max(0, opts.endTurn - opts.startTurn + 1) },
+            (_, i) => opts.startTurn + i
+          )
+      ).filter((turn) => Number.isInteger(turn) && turn > 0)
+    )
+  ).sort((a, b) => a - b);
+  const sourceCoverage = sourceTurnIndexes.map((turn) => `[${turn}턴]`).join(" ");
+  const sourceTurnCount = Math.max(1, opts.endTurn - opts.startTurn + 1);
+  const systemPrompt = buildRollingSummarySystemPrompt(sourceTurnCount);
+  const openingBlock = opts.openingPrelude?.trim()
+    ? `${opts.openingPrelude.trim()}\n\n`
+    : "";
+  const user = `${openingBlock}[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n[요약 대상 RP source 턴]\n${sourceCoverage}\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. OPENING/PRELUDE CONTEXT가 있으면 턴 1~${opts.endTurn} 이해에 필요한 설정·사실만 보존하고 장식적 인사만은 요약하지 않는다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${sourceTurnCount}턴 히스토리 요약] 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
+  return {
+    system: `${systemPrompt}\n\n${ROLLING_SUMMARY_EPISTEMIC_POLICY}`,
+    user,
+    sourceTurnCount,
+  };
+}
+
 /** @internal test seam — stub summarizeTurnBatch without live network */
 let summarizeTurnBatchCallerOverride: RollingSummaryLlmCaller | null = null;
 
@@ -301,30 +343,7 @@ export async function summarizeTurnBatch(opts: {
   openingPrelude?: string | null;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
 }): Promise<string> {
-  const personaBlock = opts.userPersona?.trim()
-    ? `\n\n[유저 페르소나 — 성별·호칭·신체 묘사 절대 준수]\n${opts.userPersona.trim()}`
-    : "";
-  const characterBlock = opts.characterIdentity?.trim()
-    ? `\n\n[캐릭터 식별정보 — 성별·호칭·신체 묘사 절대 준수]\n${opts.characterIdentity.trim()}`
-    : "";
-  const sourceTurnIndexes = Array.from(
-    new Set(
-      (opts.sourceTurnIndexes?.length
-        ? opts.sourceTurnIndexes
-        : Array.from(
-            { length: Math.max(0, opts.endTurn - opts.startTurn + 1) },
-            (_, i) => opts.startTurn + i
-          )
-      ).filter((turn) => Number.isInteger(turn) && turn > 0)
-    )
-  ).sort((a, b) => a - b);
-  const sourceCoverage = sourceTurnIndexes.map((turn) => `[${turn}턴]`).join(" ");
-  const sourceTurnCount = Math.max(1, opts.endTurn - opts.startTurn + 1);
-  const systemPrompt = buildRollingSummarySystemPrompt(sourceTurnCount);
-  const openingBlock = opts.openingPrelude?.trim()
-    ? `${opts.openingPrelude.trim()}\n\n`
-    : "";
-  const userContent = `${openingBlock}[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n[요약 대상 RP source 턴]\n${sourceCoverage}\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. OPENING/PRELUDE CONTEXT가 있으면 턴 1~${opts.endTurn} 이해에 필요한 설정·사실만 보존하고 장식적 인사만은 요약하지 않는다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${sourceTurnCount}턴 히스토리 요약] 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
+  const { system: systemPrompt, user: userContent } = buildRollingSummaryLlmRequest(opts);
   const finishSummary = (raw: string): string => {
     const cleaned = normalizeSummaryText(raw);
     if (!cleaned) return "";
@@ -338,7 +357,7 @@ export async function summarizeTurnBatch(opts: {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const { text } = await callLlm(
-        `${systemPrompt}\n\n${ROLLING_SUMMARY_EPISTEMIC_POLICY}`,
+        systemPrompt,
         [{ role: "user", content: userContent }],
         opts.turnTrace,
         attempt === 0 ? "background-memory-extract" : "background-memory-extract-retry"
