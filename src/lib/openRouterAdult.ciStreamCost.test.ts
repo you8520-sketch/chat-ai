@@ -59,7 +59,11 @@ describe("CheaperInference streaming exact cost capture", () => {
         [{ role: "user", content: "hello" }],
         "deepseek-v4-pro-0813",
         800,
-        { allowOpenRouterUnderLengthRecovery: false, skipAssistantPrefill: true }
+        {
+          allowOpenRouterUnderLengthRecovery: false,
+          skipAssistantPrefill: true,
+          transportProvider: "cheaperinference",
+        }
       );
       let usage = { inputTokens: 0, outputTokens: 0, estimated: true };
       while (true) {
@@ -111,7 +115,11 @@ describe("CheaperInference streaming exact cost capture", () => {
         [{ role: "user", content: "hello" }],
         "deepseek-v4-pro-0813",
         800,
-        { allowOpenRouterUnderLengthRecovery: false, skipAssistantPrefill: true }
+        {
+          allowOpenRouterUnderLengthRecovery: false,
+          skipAssistantPrefill: true,
+          transportProvider: "cheaperinference",
+        }
       );
       let usage = { inputTokens: 0, outputTokens: 0, estimated: true };
       while (true) {
