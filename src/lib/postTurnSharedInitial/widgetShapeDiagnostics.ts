@@ -20,8 +20,6 @@ export type PostTurnSharedInitialWidgetShapeDiagnostics = {
   placeholderLikeDroppedCount: number;
   instructionEchoDroppedCount: number;
   unknownKeyCount: number;
-  /** Non-sensitive schema field names only — no value bodies. */
-  unknownReturnedKeys?: string[];
 };
 
 function asJsonRecord(value: unknown): Record<string, unknown> | null {
@@ -115,7 +113,6 @@ export function analyzePostTurnSharedInitialWidgetShape(
   let instructionEchoDroppedCount = 0;
   let placeholderLikeDroppedCount = 0;
   let unknownKeyCount = 0;
-  const unknownReturnedKeys: string[] = [];
 
   if (input.characterWidget && characterSection) {
     const normalized = normalizeWidgetExtraction(characterSection, input.characterWidget);
@@ -128,9 +125,7 @@ export function analyzePostTurnSharedInitialWidgetShape(
       characterSection,
       input.characterWidget
     );
-    const unknown = countUnknownReturnedKeys(characterSection, input.characterWidget);
-    unknownKeyCount += unknown.count;
-    unknownReturnedKeys.push(...unknown.names);
+    unknownKeyCount += countUnknownReturnedKeys(characterSection, input.characterWidget).count;
   }
 
   if (input.userWidget && userSection) {
@@ -141,9 +136,7 @@ export function analyzePostTurnSharedInitialWidgetShape(
     ).length;
     instructionEchoDroppedCount += filtered.droppedKeys.length;
     placeholderLikeDroppedCount += countPlaceholderLikeDropped(userSection, input.userWidget);
-    const unknown = countUnknownReturnedKeys(userSection, input.userWidget);
-    unknownKeyCount += unknown.count;
-    unknownReturnedKeys.push(...unknown.names);
+    unknownKeyCount += countUnknownReturnedKeys(userSection, input.userWidget).count;
   }
 
   return {
@@ -157,9 +150,6 @@ export function analyzePostTurnSharedInitialWidgetShape(
     placeholderLikeDroppedCount,
     instructionEchoDroppedCount,
     unknownKeyCount,
-    ...(unknownReturnedKeys.length > 0
-      ? { unknownReturnedKeys: [...new Set(unknownReturnedKeys)].sort() }
-      : {}),
   };
 }
 

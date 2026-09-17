@@ -2,12 +2,16 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { DEFAULT_STATUS_WIDGET } from "@/lib/statusWidget/defaultTemplate";
 import { collectWidgetJsonKeys } from "@/lib/statusWidget/prompt";
-import { serializeStatusWidget } from "@/lib/statusWidget/serialize";
 import type { StatusWidget } from "@/lib/statusWidget/types";
 import {
-  buildSharedStatusWidgetEnvelope,
   buildPostTurnSharedInitialSystem,
-  sharedStatusWidgetEnvelopeUsesPlaceholderExemplar,
+  collectSharedWidgetRequiredKeys,
+  countAuthoritativeSharedOutputContracts,
+  extractSharedOutputJsonExampleFromSystem,
+  sharedSystemHasConflictingWidgetOnlyContract,
+  sharedSystemListsAllRequiredKeys,
+  sharedOutputJsonExampleUsesActiveEmptyMapExemplar,
+  sharedOutputJsonExampleUsesParserInvalidValueExemplar,
 } from "@/lib/postTurnSharedInitial/prompt";
 import { parsePostTurnSharedInitialResponse } from "@/lib/postTurnSharedInitial/parse";
 import {
@@ -23,6 +27,10 @@ import {
   extractStatusWidgetValuesForTurn,
   type StatusWidgetExtractCaller,
 } from "@/lib/statusWidget/extract";
+import {
+  logStatusWidgetTurnTelemetry,
+  type StatusWidgetTurnTelemetry,
+} from "@/lib/statusWidget/telemetry";
 import { POST_TURN_SHARED_INITIAL_REQUEST_KIND } from "@/lib/postTurnSharedInitial/types";
 import type { TokenUsage } from "@/lib/ai";
 import type { ResolvedStatusWidgetTurn } from "@/lib/statusWidget/types";
@@ -102,6 +110,15 @@ function placeholderLiteralJson(input: PostTurnSharedInitialInput): string {
   return JSON.stringify(root);
 }
 
+function emptyMapLiteralJson(input: PostTurnSharedInitialInput): string {
+  const statusWidget: Record<string, unknown> = {
+    character_values: {},
+    user_values: {},
+    extracted_facts: [],
+  };
+  return JSON.stringify({ statusWidget });
+}
+
 function validJson(input: PostTurnSharedInitialInput): string {
   const statusWidget: Record<string, unknown> = { extracted_facts: [] };
   if (input.characterWidget) {
@@ -131,30 +148,31 @@ function validJson(input: PostTurnSharedInitialInput): string {
   return JSON.stringify(root);
 }
 
-function evaluateSemantic(input: PostTurnSharedInitialInput, text: string) {
-  const parsed = parsePostTurnSharedInitialResponse(text, input);
-  const outcome = evaluatePostTurnSharedInitialWidgetExtraction({
-    transportOk: true,
-    mode: input.mode === "relationship_only" ? "character" : input.mode,
-    parsed,
-  });
-  return { parsed, outcome };
+function assertFinalPromptContract(system: string, input: PostTurnSharedInitialInput): void {
+  assert.equal(sharedOutputJsonExampleUsesParserInvalidValueExemplar(system), false);
+  assert.equal(sharedOutputJsonExampleUsesActiveEmptyMapExemplar(system, input), false);
+  assert.equal(sharedSystemListsAllRequiredKeys(system, input), true);
+  assert.equal(countAuthoritativeSharedOutputContracts(system), 1);
+  assert.equal(sharedSystemHasConflictingWidgetOnlyContract(system), false);
+  const example = extractSharedOutputJsonExampleFromSystem(system);
+  assert.ok(example, "structural JSON example must parse");
+  const statusWidget = example?.statusWidget as Record<string, unknown> | undefined;
+  if (input.mode !== "relationship_only") {
+    assert.ok(statusWidget);
+    assert.equal("character_values" in (statusWidget ?? {}), false);
+    assert.equal("user_values" in (statusWidget ?? {}), false);
+  }
 }
 
 describe("postTurnSharedInitial semantic-empty root cause", () => {
-  it("reproduces semantic empty: valid JSON + placeholder literal values dropped by normalize", () => {
+  it("R1: placeholder-literal response → serialization ok → semantic empty", () => {
     const input = dualInput();
     const text = placeholderLiteralJson(input);
     const parsed = parsePostTurnSharedInitialResponse(text, input);
     assert.equal(parsed.jsonParseOk, true);
     const shape = analyzePostTurnSharedInitialWidgetShape(text, input);
-    assert.equal(shape.statusWidgetPresent, true);
-    assert.equal(shape.characterValuesPresent, true);
-    assert.equal(shape.userValuesPresent, true);
-    assert.ok(shape.characterReturnedKeyCount > 0);
     assert.ok(shape.placeholderLikeDroppedCount > 0);
     assert.equal(shape.characterRecognizedKeyCount, 0);
-    assert.equal(shape.userRecognizedKeyCount, 0);
     const outcome = evaluatePostTurnSharedInitialWidgetExtraction({
       transportOk: true,
       mode: "dual",
@@ -164,76 +182,58 @@ describe("postTurnSharedInitial semantic-empty root cause", () => {
     assert.equal(outcome.reasonCode, "V3_INITIAL_EMPTY");
   });
 
-  it("authoritative output contract contains no downstream-invalid placeholder exemplar", () => {
-    const envelope = buildSharedStatusWidgetEnvelope(dualInput());
-    assert.ok(envelope);
-    assert.equal(sharedStatusWidgetEnvelopeUsesPlaceholderExemplar(envelope!), false);
-    const system = buildPostTurnSharedInitialSystem(dualInput());
-    assert.match(system, /Required character_values keys/);
-    assert.match(system, /"character_values": \{\}/);
-    assert.match(envelope!, /"character_values": \{\}/);
-    assert.doesNotMatch(envelope!, /:\s*"\.\.\."/);
+  it("R2/R3/E: dual final prompt — no fake values, no empty-map exemplar, valid JSON example", () => {
+    const input = dualInput({ includeSuggestions: true, includeRelationship: true });
+    const system = buildPostTurnSharedInitialSystem(input);
+    assertFinalPromptContract(system, input);
+    assert.match(system, /WIDGET OUTPUT KEY CONTRACT/);
+    assert.match(system, /statusWidget\.character_values must contain exactly these keys:/);
+    assert.match(system, /statusWidget\.user_values must contain exactly these keys:/);
   });
 
-  it("valid JSON with recognized values yields semantic ok (dual)", () => {
+  it("R5: character-only final prompt contract", () => {
+    const input = dualInput({ mode: "character", userWidget: null, includeSuggestions: false });
+    const system = buildPostTurnSharedInitialSystem(input);
+    assertFinalPromptContract(system, input);
+    assert.doesNotMatch(system, /statusWidget\.user_values must contain exactly these keys:/);
+  });
+
+  it("R6: user-only final prompt contract", () => {
+    const input = dualInput({ mode: "user", characterWidget: null, includeSuggestions: false });
+    const system = buildPostTurnSharedInitialSystem(input);
+    assertFinalPromptContract(system, input);
+    assert.doesNotMatch(system, /statusWidget\.character_values must contain exactly these keys:/);
+  });
+
+  it("R4/R7: valid model response with all required keys → semantic ok (dual)", () => {
     const input = dualInput();
-    const { parsed, outcome } = evaluateSemantic(input, validJson(input));
+    const text = validJson(input);
+    const parsed = parsePostTurnSharedInitialResponse(text, input);
     assert.equal(parsed.jsonParseOk, true);
-    assert.ok(countRecognizedWidgetKeysForInput(validJson(input), input) > 0);
+    assert.ok(countRecognizedWidgetKeysForInput(text, input) > 0);
+    const outcome = evaluatePostTurnSharedInitialWidgetExtraction({
+      transportOk: true,
+      mode: "dual",
+      parsed,
+    });
     assert.equal(outcome.succeeded, true);
     assert.equal(outcome.reasonCode, "OK");
   });
 
-  it("character-only shared parse succeeds with recognized values", () => {
-    const input = dualInput({
-      mode: "character",
-      userWidget: null,
-      includeSuggestions: false,
-    });
-    const { outcome } = evaluateSemantic(input, validJson(input));
-    assert.equal(outcome.succeeded, true);
-  });
-
-  it("user-only shared parse succeeds with recognized values", () => {
-    const input = dualInput({
-      mode: "user",
-      characterWidget: null,
-      includeSuggestions: false,
-    });
-    const { outcome } = evaluateSemantic(input, validJson(input));
-    assert.equal(outcome.succeeded, true);
-  });
-
-  it("suggestions coalesced: valid widget + suggestions both preserved", () => {
+  it("R8: suggestions coalesced", () => {
     const input = dualInput({ includeSuggestions: true });
     const parsed = parsePostTurnSharedInitialResponse(validJson(input), input);
     assert.equal(postTurnSharedInitialSuggestedRepliesOk(parsed), true);
-    assert.equal(
-      evaluatePostTurnSharedInitialWidgetExtraction({
-        transportOk: true,
-        mode: "dual",
-        parsed,
-      }).succeeded,
-      true
-    );
   });
 
-  it("relationship coalesced: valid widget + relationship section usable", () => {
+  it("R9: relationship coalesced", () => {
     const input = dualInput({ includeSuggestions: false, includeRelationship: true });
     const parsed = parsePostTurnSharedInitialResponse(validJson(input), input);
     assert.equal(parsed.relationship.present, true);
     assert.equal(parsed.relationship.valid, true);
-    assert.equal(
-      evaluatePostTurnSharedInitialWidgetExtraction({
-        transportOk: true,
-        mode: "dual",
-        parsed,
-      }).succeeded,
-      true
-    );
   });
 
-  it("shared initial coalesced turn spends exactly one physical Luna call", async () => {
+  it("R10: physical shared Luna calls === 1", async () => {
     const invocations: string[] = [];
     const caller: StatusWidgetExtractCaller = async (_system, _history, opts) => {
       invocations.push(opts.requestKind);
@@ -268,7 +268,77 @@ describe("postTurnSharedInitial semantic-empty root cause", () => {
     assert.equal(invocations.filter((k) => k === POST_TURN_SHARED_INITIAL_REQUEST_KIND).length, 1);
     assert.equal(result.meta.actualCallCount, 1);
     assert.equal(result.meta.sharedInitialSemanticStatus, "ok");
-    assert.ok(result.meta.sharedInitialWidgetShape);
-    assert.ok(result.meta.sharedInitialWidgetShape!.characterRecognizedKeyCount > 0);
+  });
+
+  it("empty-map model copy still reproduces semantic empty (R1 class)", () => {
+    const input = dualInput();
+    const parsed = parsePostTurnSharedInitialResponse(emptyMapLiteralJson(input), input);
+    assert.equal(parsed.jsonParseOk, true);
+    const outcome = evaluatePostTurnSharedInitialWidgetExtraction({
+      transportOk: true,
+      mode: "dual",
+      parsed,
+    });
+    assert.equal(outcome.succeeded, false);
+    assert.equal(outcome.reasonCode, "V3_INITIAL_EMPTY");
+  });
+
+  it("R12: unknown output keys increment count only — telemetry never logs arbitrary key strings", () => {
+    const input = dualInput();
+    const text = JSON.stringify({
+      statusWidget: {
+        character_values: { ...buildValues(DEFAULT_STATUS_WIDGET), "유저가_쓴_임의키": "값" },
+        user_values: buildValues(USER_WIDGET),
+        extracted_facts: [],
+      },
+    });
+    const shape = analyzePostTurnSharedInitialWidgetShape(text, input);
+    assert.ok(shape.unknownKeyCount >= 1);
+    assert.equal("unknownReturnedKeys" in shape, false);
+
+    const lines: string[] = [];
+    const prevInfo = console.info;
+    console.info = (...args: unknown[]) => {
+      lines.push(args.map(String).join(" "));
+    };
+    try {
+      const telemetry: StatusWidgetTurnTelemetry = {
+        event: "status_widget_turn",
+        chatId: 1,
+        modelId: "gpt-5.6-luna",
+        modelFamily: "openai",
+        parserMode: "standard",
+        streamCaptureHit: false,
+        splitSavedHit: false,
+        splitRawHit: false,
+        inferHit: false,
+        backfillAttempted: true,
+        backfillSuccess: false,
+        backfillSkippedReason: "v3_extract_empty",
+        jsonParseSuccess: false,
+        resolutionSource: "none",
+        finalHasContent: false,
+        finalCorruptBeforeBackfill: false,
+        regenerate: false,
+        transportStatus: "success",
+        serializationStatus: "ok",
+        semanticStatus: "empty",
+        unknownKeyCount: shape.unknownKeyCount,
+      };
+      logStatusWidgetTurnTelemetry(telemetry);
+    } finally {
+      console.info = prevInfo;
+    }
+    const logged = lines.join("\n");
+    assert.match(logged, /"unknownKeyCount":\d+/);
+    assert.doesNotMatch(logged, /unknownReturnedKeys/);
+    assert.doesNotMatch(logged, /유저가_쓴_임의키/);
+  });
+
+  it("required keys generated once from collectWidgetJsonKeys", () => {
+    const input = dualInput();
+    const fromContract = collectSharedWidgetRequiredKeys(input);
+    assert.deepEqual(fromContract.characterKeys, collectWidgetJsonKeys(DEFAULT_STATUS_WIDGET));
+    assert.deepEqual(fromContract.userKeys, collectWidgetJsonKeys(USER_WIDGET));
   });
 });

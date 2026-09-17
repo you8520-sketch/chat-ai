@@ -28,92 +28,81 @@ Compare the rejected assistant draft and the new canonical assistant in the user
 - items / promisesAdd / promisesRemove: only changes introduced by the NEW canonical reply.
 Never extract honorifics, nicknames, inner thoughts, emotion, relationship stage, speech style, gender, or current location.`;
 
-function widgetRequiredKeysAnnotation(
-  namespace: "character_values" | "user_values",
-  keys: readonly string[]
-): string {
-  if (keys.length === 0) return "";
-  const listed = keys.map((key) => JSON.stringify(key)).join(", ");
-  return `Required ${namespace} keys (one scene-grounded string each — never copy placeholder tokens like "...", "…", "—", or "<scene value>"): ${listed}`;
+export type SharedWidgetRequiredKeys = {
+  characterKeys: readonly string[];
+  userKeys: readonly string[];
+};
+
+/** Single owner — required dynamic widget keys for the shared output contract. */
+export function collectSharedWidgetRequiredKeys(
+  input: PostTurnSharedInitialInput
+): SharedWidgetRequiredKeys {
+  const characterKeys =
+    input.mode !== "user" && input.mode !== "relationship_only" && input.characterWidget
+      ? collectWidgetJsonKeys(input.characterWidget)
+      : [];
+  const userKeys =
+    input.mode !== "character" && input.mode !== "relationship_only" && input.userWidget
+      ? collectWidgetJsonKeys(input.userWidget)
+      : [];
+  return { characterKeys, userKeys };
 }
 
-/** @internal tests — authoritative envelope must not teach parser-invalid placeholder exemplars. */
-export function sharedStatusWidgetEnvelopeUsesPlaceholderExemplar(envelope: string): boolean {
-  return /:\s*"\.\.\."|:\s*"…"|:\s*"<scene value>"/.test(envelope);
-}
-
-/** Canonical shared statusWidget JSON shape — required keys enumerated without invalid example values. */
-export function buildSharedStatusWidgetEnvelope(input: PostTurnSharedInitialInput): string | null {
-  switch (input.mode) {
-    case "relationship_only":
-      return null;
-    case "dual": {
-      if (!input.characterWidget || !input.userWidget) return null;
-      const charKeyList = collectWidgetJsonKeys(input.characterWidget);
-      const userKeyList = collectWidgetJsonKeys(input.userWidget);
-      return [
-        `"statusWidget": {
-  "character_values": {},
-  "user_values": {},
-  "extracted_facts": []
-}`,
-        widgetRequiredKeysAnnotation("character_values", charKeyList),
-        widgetRequiredKeysAnnotation("user_values", userKeyList),
-      ].join("\n");
-    }
-    case "character": {
-      if (!input.characterWidget) return null;
-      const charKeyList = collectWidgetJsonKeys(input.characterWidget);
-      return [
-        `"statusWidget": {
-  "character_values": {},
-  "extracted_facts": []
-}`,
-        widgetRequiredKeysAnnotation("character_values", charKeyList),
-      ].join("\n");
-    }
-    case "user": {
-      if (!input.userWidget) return null;
-      const userKeyList = collectWidgetJsonKeys(input.userWidget);
-      return [
-        `"statusWidget": {
-  "user_values": {},
-  "extracted_facts": []
-}`,
-        widgetRequiredKeysAnnotation("user_values", userKeyList),
-      ].join("\n");
-    }
-    default: {
-      const _exhaustive: never = input.mode;
-      return _exhaustive;
-    }
+function buildSharedWidgetKeyContract(input: PostTurnSharedInitialInput): string {
+  const { characterKeys, userKeys } = collectSharedWidgetRequiredKeys(input);
+  const lines: string[] = [];
+  if (characterKeys.length > 0) {
+    lines.push(
+      `statusWidget.character_values must contain exactly these keys: ${JSON.stringify(characterKeys)}`,
+      "Populate every character_values key with one scene-grounded string derived from this turn."
+    );
   }
+  if (userKeys.length > 0) {
+    lines.push(
+      `statusWidget.user_values must contain exactly these keys: ${JSON.stringify(userKeys)}`,
+      "Populate every user_values key with one scene-grounded string derived from this turn."
+    );
+  }
+  if (lines.length === 0) return "";
+  return `WIDGET OUTPUT KEY CONTRACT\n${lines.join("\n")}`;
 }
 
-function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
-  const shapes: string[] = [];
-  const widget = buildSharedStatusWidgetEnvelope(input);
-  if (widget) shapes.push(widget);
+/** Valid JSON structural example — no fake answer values or active empty value maps. */
+export function buildValidSharedOutputJsonExample(
+  input: PostTurnSharedInitialInput
+): Record<string, unknown> {
+  const example: Record<string, unknown> = {};
+  if (input.mode !== "relationship_only") {
+    example.statusWidget = { extracted_facts: [] };
+  }
   if (input.includeSuggestions) {
-    shapes.push(`"suggestedReplies": {
-    "items": [
-      { "kind": "escalate", "text": "..." },
-      { "kind": "soften", "text": "..." },
-      { "kind": "pivot", "text": "..." }
-    ]
-  }`);
+    example.suggestedReplies = { items: [] };
   }
   if (input.includeRelationship) {
-    shapes.push(`"relationship": {
-    "items": [],
-    "itemsRemove": [],
-    "promisesAdd": [],
-    "promisesRemove": []
-  }`);
+    example.relationship = {
+      items: [],
+      itemsRemove: [],
+      promisesAdd: [],
+      promisesRemove: [],
+    };
   }
-  const countWords = ["zero", "one", "two", "three"] as const;
-  const keyCount = countWords[shapes.length] ?? String(shapes.length);
+  return example;
+}
 
+export function buildValidSharedOutputJsonExampleString(input: PostTurnSharedInitialInput): string {
+  return JSON.stringify(buildValidSharedOutputJsonExample(input), null, 2);
+}
+
+const SHARED_OUTPUT_JSON_EXAMPLE_MARKER =
+  "Valid structural JSON example (your response must match this nesting and add the required value objects):";
+
+function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
+  const example = buildValidSharedOutputJsonExample(input);
+  const topLevelKeyCount = Object.keys(example).length;
+  const countWords = ["zero", "one", "two", "three"] as const;
+  const keyCount = countWords[topLevelKeyCount] ?? String(topLevelKeyCount);
+
+  const keyContract = buildSharedWidgetKeyContract(input);
   const rules: string[] = [];
   if (input.includeSuggestions) rules.push(SHARED_SUGGESTIONS_OUTPUT_RULES);
   if (input.includeRelationship) {
@@ -123,12 +112,113 @@ function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
         : SHARED_RELATIONSHIP_OUTPUT_RULES
     );
   }
-  return `Return exactly one JSON object with ${keyCount} top-level key(s):
-{
-  ${shapes.join(",\n  ")}
+
+  const parts = [`Return exactly one JSON object with ${keyCount} top-level key(s).`];
+  if (keyContract) {
+    parts.push(
+      "",
+      keyContract,
+      "",
+      "Include statusWidget.character_values and/or statusWidget.user_values in your JSON response.",
+      "Each required key must map to one scene-grounded string value."
+    );
+  }
+  parts.push(
+    "",
+    SHARED_OUTPUT_JSON_EXAMPLE_MARKER,
+    buildValidSharedOutputJsonExampleString(input),
+    "",
+    "Do not include markdown fences or prose outside JSON.",
+    ...rules
+  );
+  return parts.join("\n");
 }
-Do not include markdown fences or prose outside JSON.
-${rules.join("\n")}`;
+
+/** @internal tests — key contract fragment (no JSON braces). */
+export function buildSharedStatusWidgetEnvelope(input: PostTurnSharedInitialInput): string | null {
+  if (input.mode === "relationship_only") return null;
+  const contract = buildSharedWidgetKeyContract(input);
+  return contract || null;
+}
+
+/** @internal tests */
+export const PARSER_INVALID_VALUE_EXEMPLAR_RE =
+  /:\s*"\.\.\."|:\s*"…"|:\s*"<scene value>"/;
+
+/** @internal tests — inspect literal structural JSON example only (not semantic rule prose). */
+export function sharedOutputJsonExampleUsesParserInvalidValueExemplar(
+  system: string
+): boolean {
+  const example = extractSharedOutputJsonExampleFromSystem(system);
+  if (!example) return true;
+  return PARSER_INVALID_VALUE_EXEMPLAR_RE.test(JSON.stringify(example));
+}
+
+/** @internal tests — active widget value maps must not appear empty in the JSON example. */
+export function sharedOutputJsonExampleUsesActiveEmptyMapExemplar(
+  system: string,
+  input: PostTurnSharedInitialInput
+): boolean {
+  const example = extractSharedOutputJsonExampleFromSystem(system);
+  if (!example) return true;
+  const statusWidget = example.statusWidget;
+  if (!statusWidget || typeof statusWidget !== "object" || Array.isArray(statusWidget)) {
+    return false;
+  }
+  const widget = statusWidget as Record<string, unknown>;
+  const { characterKeys, userKeys } = collectSharedWidgetRequiredKeys(input);
+  if (characterKeys.length > 0) {
+    const section = widget.character_values;
+    if (
+      section &&
+      typeof section === "object" &&
+      !Array.isArray(section) &&
+      Object.keys(section as Record<string, unknown>).length === 0
+    ) {
+      return true;
+    }
+  }
+  if (userKeys.length > 0) {
+    const section = widget.user_values;
+    if (
+      section &&
+      typeof section === "object" &&
+      !Array.isArray(section) &&
+      Object.keys(section as Record<string, unknown>).length === 0
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** @internal tests — parse the literal structural JSON example from assembled system prompt. */
+export function extractSharedOutputJsonExampleFromSystem(
+  system: string
+): Record<string, unknown> | null {
+  const markerIdx = system.indexOf(SHARED_OUTPUT_JSON_EXAMPLE_MARKER);
+  if (markerIdx < 0) return null;
+  const afterMarker = system.slice(markerIdx + SHARED_OUTPUT_JSON_EXAMPLE_MARKER.length);
+  const start = afterMarker.indexOf("{");
+  const end = afterMarker.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(afterMarker.slice(start, end + 1)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/** @internal tests */
+export function sharedSystemListsAllRequiredKeys(
+  system: string,
+  input: PostTurnSharedInitialInput
+): boolean {
+  const { characterKeys, userKeys } = collectSharedWidgetRequiredKeys(input);
+  for (const key of [...characterKeys, ...userKeys]) {
+    if (!system.includes(JSON.stringify(key))) return false;
+  }
+  return characterKeys.length + userKeys.length > 0;
 }
 
 function buildSharedSuggestionVoiceContext(input: PostTurnSharedInitialInput): string {

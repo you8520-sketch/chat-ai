@@ -98,7 +98,6 @@ export type StatusWidgetTurnTelemetry = {
   placeholderLikeDroppedCount?: number;
   instructionEchoDroppedCount?: number;
   unknownKeyCount?: number;
-  unknownReturnedKeys?: string[];
 };
 
 export const STATUS_WIDGET_TELEMETRY_LOG_PREFIX = "[status-widget-telemetry]";
@@ -660,9 +659,6 @@ export async function resolveStatusWidgetTurnValues(
           placeholderLikeDroppedCount: sharedInitialWidgetShape.placeholderLikeDroppedCount,
           instructionEchoDroppedCount: sharedInitialWidgetShape.instructionEchoDroppedCount,
           unknownKeyCount: sharedInitialWidgetShape.unknownKeyCount,
-          ...(sharedInitialWidgetShape.unknownReturnedKeys
-            ? { unknownReturnedKeys: sharedInitialWidgetShape.unknownReturnedKeys }
-            : {}),
         }
       : {}),
   };
