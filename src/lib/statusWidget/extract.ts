@@ -699,6 +699,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
         },
       };
     }
+
   } else {
     stages.push("initial");
     models.push(primaryModelId);

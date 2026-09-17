@@ -28,20 +28,51 @@ Compare the rejected assistant draft and the new canonical assistant in the user
 - items / promisesAdd / promisesRemove: only changes introduced by the NEW canonical reply.
 Never extract honorifics, nicknames, inner thoughts, emotion, relationship stage, speech style, gender, or current location.`;
 
-function widgetShapeForMode(mode: PostTurnSharedInitialMode): string | null {
-  if (mode === "relationship_only") return null;
-  if (mode === "dual") {
-    return `"statusWidget": { "character_values": { ... }, "user_values": { ... }, "extracted_facts": [] }`;
+function widgetValueKeyPlaceholders(keys: readonly string[]): string {
+  return keys.map((key) => `"${key}": "..."`).join(", ");
+}
+
+/** Canonical shared statusWidget JSON shape — every required field key listed explicitly. */
+export function buildSharedStatusWidgetEnvelope(input: PostTurnSharedInitialInput): string | null {
+  switch (input.mode) {
+    case "relationship_only":
+      return null;
+    case "dual": {
+      if (!input.characterWidget || !input.userWidget) return null;
+      const charKeys = widgetValueKeyPlaceholders(collectWidgetJsonKeys(input.characterWidget));
+      const userKeys = widgetValueKeyPlaceholders(collectWidgetJsonKeys(input.userWidget));
+      return `"statusWidget": {
+  "character_values": { ${charKeys} },
+  "user_values": { ${userKeys} },
+  "extracted_facts": []
+}`;
+    }
+    case "character": {
+      if (!input.characterWidget) return null;
+      const charKeys = widgetValueKeyPlaceholders(collectWidgetJsonKeys(input.characterWidget));
+      return `"statusWidget": {
+  "character_values": { ${charKeys} },
+  "extracted_facts": []
+}`;
+    }
+    case "user": {
+      if (!input.userWidget) return null;
+      const userKeys = widgetValueKeyPlaceholders(collectWidgetJsonKeys(input.userWidget));
+      return `"statusWidget": {
+  "user_values": { ${userKeys} },
+  "extracted_facts": []
+}`;
+    }
+    default: {
+      const _exhaustive: never = input.mode;
+      return _exhaustive;
+    }
   }
-  if (mode === "character") {
-    return `"statusWidget": { "character_values": { ... }, "extracted_facts": [] }`;
-  }
-  return `"statusWidget": { "user_values": { ... }, "extracted_facts": [] }`;
 }
 
 function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
   const shapes: string[] = [];
-  const widget = widgetShapeForMode(input.mode);
+  const widget = buildSharedStatusWidgetEnvelope(input);
   if (widget) shapes.push(widget);
   if (input.includeSuggestions) {
     shapes.push(`"suggestedReplies": {
@@ -192,7 +223,9 @@ export function countAuthoritativeSharedOutputContracts(system: string): number 
   return matches.length;
 }
 
-/** @internal tests — widget-only flat top-level contract must not appear in shared system. */
+/** @internal tests — standalone combined flat-top contract must not appear in shared system. */
 export function sharedSystemHasConflictingWidgetOnlyContract(system: string): boolean {
-  return /"character_values"\s*:\s*\{[^}]+\}\s*,\s*\n\s*"user_values"\s*:/.test(system);
+  return /Return exactly one JSON object with this shape:\s*\{[\s\S]*?"character_values"/.test(
+    system
+  );
 }
