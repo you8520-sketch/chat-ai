@@ -1,9 +1,7 @@
 import type Database from "better-sqlite3";
 
-import { CHAT_ROOM_IMAGE_GENERATION_POINTS } from "@/lib/chatImagePricing";
 import { resolveCreatorRewardRate } from "@/lib/creatorPoints";
 
-export { CHAT_ROOM_IMAGE_GENERATION_POINTS } from "@/lib/chatImagePricing";
 /** Fixed creator reward for an eligible image generation. */
 export const CHAT_ROOM_IMAGE_CREATOR_REWARD_CP = 15;
 

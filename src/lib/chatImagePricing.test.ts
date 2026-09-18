@@ -3,56 +3,94 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
+  CHAT_COMIC_BASE_POINTS,
+  CHAT_ILLUSTRATION_BASE_POINTS,
   CHAT_IMAGE_BASE_IDENTITY_REFERENCES,
   CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS,
-  CHAT_ROOM_IMAGE_GENERATION_POINTS,
   resolveImageGenerationRequiredPoints,
   resolveImageIdentityReferenceSurcharge,
 } from "@/lib/chatImagePricing";
+import { resolveChatLdIllustrationPrice } from "@/lib/chatLdIllustrationGeneration";
+import { resolveChatComicPrice } from "@/lib/chatComicGenerationConstants";
 
 function read(relativePath: string): string {
   return readFileSync(new URL(`../../${relativePath}`, import.meta.url), "utf8");
 }
 
 const COMIC_ROUTE = "src/app/api/chat/comic-generation/route.ts";
+const ILLUSTRATION_BASE = resolveChatLdIllustrationPrice();
+const COMIC_BASE = resolveChatComicPrice(4);
 
-describe("canonical additional identity-reference surcharge owner (all GPT Image paths)", () => {
-  it("PRICING-1 base includes 2 identity references; 2 refs = base price", () => {
-    assert.equal(CHAT_IMAGE_BASE_IDENTITY_REFERENCES, 2);
-    assert.equal(resolveImageIdentityReferenceSurcharge(2), 0);
+describe("canonical image product pricing (single owner)", () => {
+  it("PRICE-LD-1 regular illustration 2 refs = 150", () => {
     assert.equal(
-      resolveImageGenerationRequiredPoints(2),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS
+      resolveImageGenerationRequiredPoints(2, ILLUSTRATION_BASE),
+      CHAT_ILLUSTRATION_BASE_POINTS
+    );
+    assert.equal(CHAT_ILLUSTRATION_BASE_POINTS, 150);
+  });
+
+  it("PRICE-LD-2 regular illustration 3 refs = 170", () => {
+    assert.equal(
+      resolveImageGenerationRequiredPoints(3, ILLUSTRATION_BASE),
+      CHAT_ILLUSTRATION_BASE_POINTS + CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
     );
   });
 
-  it("PRICING-2 3 identity references = base + 1 surcharge", () => {
-    assert.equal(resolveImageIdentityReferenceSurcharge(3), CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS);
+  it("PRICE-LD-3 regular illustration 4 refs = 190", () => {
     assert.equal(
-      resolveImageGenerationRequiredPoints(3),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS + CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
+      resolveImageGenerationRequiredPoints(4, ILLUSTRATION_BASE),
+      CHAT_ILLUSTRATION_BASE_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
     );
   });
 
-  it("PRICING-3 4 identity references = base + 2 surcharge", () => {
-    assert.equal(resolveImageIdentityReferenceSurcharge(4), 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS);
+  it("PRICE-TRPG-1 TRPG illustration 2 refs = 150 (same illustration base resolver)", () => {
+    assert.equal(resolveImageGenerationRequiredPoints(2, ILLUSTRATION_BASE), 150);
+  });
+
+  it("PRICE-TRPG-2 TRPG illustration 3 refs = 170", () => {
+    assert.equal(resolveImageGenerationRequiredPoints(3, ILLUSTRATION_BASE), 170);
+  });
+
+  it("PRICE-TRPG-3 TRPG illustration 4 refs = 190", () => {
+    assert.equal(resolveImageGenerationRequiredPoints(4, ILLUSTRATION_BASE), 190);
+  });
+
+  it("PRICE-COMIC-1 comic 2 refs = existing comic base (180)", () => {
     assert.equal(
-      resolveImageGenerationRequiredPoints(4),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
+      resolveImageGenerationRequiredPoints(2, COMIC_BASE),
+      CHAT_COMIC_BASE_POINTS
+    );
+    assert.equal(CHAT_COMIC_BASE_POINTS, 180);
+  });
+
+  it("PRICE-COMIC-2 comic 3 refs = comic base + 20", () => {
+    assert.equal(
+      resolveImageGenerationRequiredPoints(3, COMIC_BASE),
+      CHAT_COMIC_BASE_POINTS + CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
     );
   });
 
-  it("PRICING-4 below-base counts (0/1) never go below base (no negative surcharge)", () => {
-    assert.equal(resolveImageIdentityReferenceSurcharge(1), 0);
+  it("PRICE-COMIC-3 comic 4 refs = comic base + 40", () => {
+    assert.equal(
+      resolveImageGenerationRequiredPoints(4, COMIC_BASE),
+      CHAT_COMIC_BASE_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
+    );
+  });
+
+  it("PRICE-BOUNDARY below-base counts never go below product base", () => {
     assert.equal(resolveImageIdentityReferenceSurcharge(0), 0);
-    assert.equal(resolveImageGenerationRequiredPoints(1), CHAT_ROOM_IMAGE_GENERATION_POINTS);
-    assert.equal(resolveImageGenerationRequiredPoints(0), CHAT_ROOM_IMAGE_GENERATION_POINTS);
+    assert.equal(resolveImageIdentityReferenceSurcharge(1), 0);
+    assert.equal(resolveImageGenerationRequiredPoints(0, ILLUSTRATION_BASE), 150);
+    assert.equal(resolveImageGenerationRequiredPoints(1, ILLUSTRATION_BASE), 150);
+    assert.equal(resolveImageGenerationRequiredPoints(0, COMIC_BASE), 180);
+    assert.equal(resolveImageGenerationRequiredPoints(1, COMIC_BASE), 180);
   });
 
-  it("PRICING-5 base-points param honors the per-product base resolvers", () => {
-    assert.equal(resolveImageGenerationRequiredPoints(2, 180), 180);
-    assert.equal(resolveImageGenerationRequiredPoints(3, 180), 180 + CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS);
-    assert.equal(resolveImageGenerationRequiredPoints(4, 180), 180 + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS);
+  it("PRICE-UI-SERVER product base resolvers match canonical constants", () => {
+    assert.equal(ILLUSTRATION_BASE, CHAT_ILLUSTRATION_BASE_POINTS);
+    assert.equal(COMIC_BASE, CHAT_COMIC_BASE_POINTS);
+    assert.equal(CHAT_IMAGE_BASE_IDENTITY_REFERENCES, 2);
   });
 
   it("PRICING-6 single canonical owner: no per-path surcharge helper exists", () => {
@@ -63,8 +101,6 @@ describe("canonical additional identity-reference surcharge owner (all GPT Image
       "src/app/api/chat/comic-generation/route.ts",
       "src/lib/trpg/illustrationCast.ts",
     ];
-    // Routes may CONSUME the canonical owner and persist its result, but must
-    // never DEFINE their own surcharge math (helper function/constant).
     const forbiddenDefinitions = [
       /function\s+\w*[Ss]urcharge\w*\s*\(/,
       /const\s+\w*[Ss]urcharge\w*\s*=[^=]/,
@@ -89,18 +125,11 @@ describe("canonical additional identity-reference surcharge owner (all GPT Image
 
   it("PRICING-7 comic surcharge counted once per request, never per panelCount", () => {
     const comic = read(COMIC_ROUTE);
-    // The pricing owner receives the identity-reference count, and it is not
-    // multiplied by panelCount before reaching the canonical owner.
     assert.match(comic, /const identityReferenceCount = providerReferences\.filter\(/);
     assert.match(comic, /resolveImageGenerationRequiredPoints\(\s*identityReferenceCount,/);
     assert.doesNotMatch(
       comic,
       /resolveImageGenerationRequiredPoints\(\s*identityReferenceCount\s*\*\s*panelCount/
-    );
-    // The canonical owner has no panel dimension at all.
-    assert.equal(
-      resolveImageGenerationRequiredPoints(3, 180),
-      resolveImageGenerationRequiredPoints(3, 180)
     );
   });
 

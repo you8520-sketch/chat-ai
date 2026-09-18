@@ -31,7 +31,8 @@ import {
 } from "@/lib/chatImageScenePlan";
 import {
   CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS,
-  CHAT_ROOM_IMAGE_GENERATION_POINTS,
+  CHAT_ILLUSTRATION_BASE_POINTS,
+  CHAT_COMIC_BASE_POINTS,
   resolveImageGenerationRequiredPoints,
   resolveImageIdentityReferenceSurcharge,
 } from "@/lib/chatImagePricing";
@@ -380,13 +381,15 @@ describe("general chat physical 4-identity-reference support (PR-A)", () => {
     assert.equal(grounded.ok, false);
   });
 
-  it("PRICING 4 actual grounded refs -> base + 40P (220P) via the canonical owner", () => {
-    assert.equal(CHAT_ROOM_IMAGE_GENERATION_POINTS, 180);
+  it("PRICING 4 actual grounded refs -> illustration 190P / comic 220P via the canonical owner", () => {
+    assert.equal(CHAT_ILLUSTRATION_BASE_POINTS, 150);
+    assert.equal(CHAT_COMIC_BASE_POINTS, 180);
     assert.equal(resolveImageIdentityReferenceSurcharge(4), 40);
-    assert.equal(resolveImageGenerationRequiredPoints(4), 220);
+    assert.equal(resolveImageGenerationRequiredPoints(4, CHAT_ILLUSTRATION_BASE_POINTS), 190);
+    assert.equal(resolveImageGenerationRequiredPoints(4, CHAT_COMIC_BASE_POINTS), 220);
     assert.equal(
-      resolveImageGenerationRequiredPoints(4),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
+      resolveImageGenerationRequiredPoints(4, CHAT_ILLUSTRATION_BASE_POINTS),
+      CHAT_ILLUSTRATION_BASE_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
     );
     // The illustration + comic packs yield the identical grounded count.
     assert.equal(bindApprovedCastManifest(groundedFor(2)).referenceUrls.length, 4);

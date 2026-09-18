@@ -7,10 +7,11 @@ import {
   buildChatLdIllustrationPrompt,
 } from "@/lib/chatLdIllustrationGeneration";
 import {
+  CHAT_ILLUSTRATION_BASE_POINTS,
   CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS,
-  CHAT_ROOM_IMAGE_GENERATION_POINTS,
   resolveImageGenerationRequiredPoints,
 } from "@/lib/chatImagePricing";
+import { resolveChatLdIllustrationPrice } from "@/lib/chatLdIllustrationGeneration";
 import { buildTrpgRoundSourceText } from "@/lib/trpg/roundSource";
 
 const ROUTE = "src/app/api/chat/comic-generation/route.ts";
@@ -79,14 +80,15 @@ describe("TRPG illustration single canonical owner (focus removal)", () => {
     assert.match(panel, /onClick=\{\(\) => setSceneOutputMode\("comic"\)\}/);
   });
 
-  it("PRICE-PARITY: 2/3/4 grounded refs -> 180/200/220 via the shared canonical owner", () => {
-    assert.equal(CHAT_ROOM_IMAGE_GENERATION_POINTS, 180);
-    assert.equal(resolveImageGenerationRequiredPoints(2), 180);
-    assert.equal(resolveImageGenerationRequiredPoints(3), 200);
-    assert.equal(resolveImageGenerationRequiredPoints(4), 220);
+  it("PRICE-PARITY: 2/3/4 grounded refs -> 150/170/190 via the illustration base resolver", () => {
+    const base = resolveChatLdIllustrationPrice();
+    assert.equal(CHAT_ILLUSTRATION_BASE_POINTS, 150);
+    assert.equal(resolveImageGenerationRequiredPoints(2, base), 150);
+    assert.equal(resolveImageGenerationRequiredPoints(3, base), 170);
+    assert.equal(resolveImageGenerationRequiredPoints(4, base), 190);
     assert.equal(
-      resolveImageGenerationRequiredPoints(4),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
+      resolveImageGenerationRequiredPoints(4, base),
+      CHAT_ILLUSTRATION_BASE_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
     );
     // The panel quotes the shared owner (estimate only; server is authority).
     assert.match(read(PANEL), /resolveImageGenerationRequiredPoints/);
