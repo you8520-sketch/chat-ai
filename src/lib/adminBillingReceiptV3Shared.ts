@@ -67,6 +67,8 @@ export type AdminBillingReceiptV3WholeTurnSection = {
   scope: "turn_attributable";
   coverage: AdminBillingReceiptV3WholeTurnCoverage;
   mainActualCostUsd: number | null;
+  /** Canonical main cost source — ledger-first, same owner as mainActualCostUsd. */
+  mainActualCostSource: string | null;
   mainExact: boolean;
   syncActualCostUsd: number | null;
   syncExact: boolean;
@@ -291,6 +293,7 @@ function projectKnownTurnCostKrw(receipt: AdminBillingReceiptV3): number | null 
 export function resolveMainRpCostProvenanceLabel(source: string | null | undefined): string | null {
   switch (source) {
     case "cheaper_inference_billed":
+    case "cheaper_inference_usage_api":
       return "CI 실제 청구 원가";
     case "provider_reported":
       // CI + provider_reported is exactness=estimated in the canonical V2
@@ -363,13 +366,61 @@ export function resolveAsyncCallResult(
   return hasSettled ? "success" : "partial";
 }
 
+export type AdminReceiptMainRpCostEvidence = {
+  costUsd: number | null;
+  provenance: string | null;
+  provenanceLabel: string | null;
+};
+
+/**
+ * Select Main RP display cost as one evidence object — value, exactness, and
+ * source must never come from different owners (ledger vs usage snapshot).
+ */
+export function resolveMainRpDisplayEvidence(
+  receipt: AdminBillingReceiptV3
+): AdminReceiptMainRpCostEvidence {
+  const mainActual = receipt.syncReceipt?.mainRp?.actual ?? null;
+  const whole = receipt.wholeTurn;
+
+  if (whole.mainExact && whole.mainActualCostUsd != null) {
+    return {
+      costUsd: whole.mainActualCostUsd,
+      provenance: whole.mainActualCostSource,
+      provenanceLabel: resolveMainRpCostProvenanceLabel(whole.mainActualCostSource),
+    };
+  }
+
+  if (mainActual?.exactness === "settled" && mainActual.actualProviderCostUsd != null) {
+    return {
+      costUsd: mainActual.actualProviderCostUsd,
+      provenance: mainActual.actualCostSource,
+      provenanceLabel: resolveMainRpCostProvenanceLabel(mainActual.actualCostSource),
+    };
+  }
+
+  if (mainActual?.actualProviderCostUsd != null) {
+    return {
+      costUsd: mainActual.actualProviderCostUsd,
+      provenance: mainActual.actualCostSource,
+      provenanceLabel: resolveMainRpCostProvenanceLabel(mainActual.actualCostSource),
+    };
+  }
+
+  const provenance = whole.mainActualCostSource ?? mainActual?.actualCostSource ?? null;
+  return {
+    costUsd: whole.mainActualCostUsd,
+    provenance,
+    provenanceLabel: resolveMainRpCostProvenanceLabel(provenance),
+  };
+}
+
 /** Build the canonical compact view model from a receipt. */
 export function buildAdminReceiptCompactViewModel(
   receipt: AdminBillingReceiptV3
 ): AdminReceiptCompactViewModel {
   const sync = receipt.syncReceipt;
-  const mainActual = sync?.mainRp?.actual ?? null;
   const mainRpModelIdentity = resolveAdminBillingReceiptV3MainRpModelIdentity(receipt);
+  const mainEvidence = resolveMainRpDisplayEvidence(receipt);
 
   const mainRp: AdminReceiptMainRpCost = {
     model:
@@ -378,12 +429,9 @@ export function buildAdminReceiptCompactViewModel(
         : mainRpModelIdentity.kind === "different"
           ? mainRpModelIdentity.deliveredModel
           : null,
-    costUsd:
-      mainActual?.exactness === "settled" && mainActual.actualProviderCostUsd != null
-        ? mainActual.actualProviderCostUsd
-        : receipt.wholeTurn.mainActualCostUsd,
-    provenance: mainActual?.actualCostSource ?? null,
-    provenanceLabel: resolveMainRpCostProvenanceLabel(mainActual?.actualCostSource),
+    costUsd: mainEvidence.costUsd,
+    provenance: mainEvidence.provenance,
+    provenanceLabel: mainEvidence.provenanceLabel,
   };
 
   const auxiliaryCalls: AdminReceiptAuxiliaryCall[] = [];
