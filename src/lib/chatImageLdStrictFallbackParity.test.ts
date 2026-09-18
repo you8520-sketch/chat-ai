@@ -531,6 +531,84 @@ describe("chatImageLdStrictFallbackParity — canonical duo kiss LD-KISS-7–12"
   });
 });
 
+describe("chatImageLdStrictFallbackParity — subject vs object LD-K9–K12", () => {
+  it("LD-K9 persona grammatical subject with character object — main shirtless false", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "다음날 유저는 태현을 바라보며 자신의 셔츠를 벗었다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
+  });
+
+  it("LD-K10 location prefix preserves persona subject — main shirtless false", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "침실에서 유저는 태현을 바라보며 자신의 셔츠를 벗었다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
+  });
+
+  it("LD-K11 character grammatical subject self-removal — main shirtless true", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "다음날 태현은 유저를 바라보며 자신의 셔츠를 벗었다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, true);
+  });
+
+  it("LD-K12 location prefix character subject self-removal — main shirtless true", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "침실에서 태현은 유저를 바라보며 자신의 셔츠를 벗었다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, true);
+  });
+});
+
+describe("chatImageLdStrictFallbackParity — unknown kiss counterparty LD-KISS-13–17", () => {
+  it("LD-KISS-13 explicit unknown counterparty with 와 — canonical duo kiss false", () => {
+    assert.doesNotMatch(ldTier2("로코와 짧게 키스했다.", true), /brief non-explicit affectionate kiss/i);
+  });
+
+  it("LD-KISS-14 explicit unknown counterparty dative — canonical duo kiss false", () => {
+    assert.doesNotMatch(ldTier2("민수에게 짧게 키스했다.", true), /brief non-explicit affectionate kiss/i);
+  });
+
+  it("LD-KISS-15 implicit duo shorthand — canonical duo kiss true", () => {
+    assert.match(ldTier2("둘은 짧게 키스했다.", true), /brief non-explicit affectionate kiss/i);
+  });
+
+  it("LD-KISS-16 explicit character/persona pair — canonical duo kiss true", () => {
+    assert.match(
+      ldTier2("태현과 유저는 짧게 키스했다.", true),
+      /brief non-explicit affectionate kiss/i
+    );
+  });
+
+  it("LD-KISS-17 character to persona dative — canonical duo kiss true", () => {
+    assert.match(
+      ldTier2("태현은 유저에게 짧게 키스했다.", true),
+      /brief non-explicit affectionate kiss/i
+    );
+  });
+});
+
 describe("chatImageLdStrictFallbackParity — same-clause boundary semantics", () => {
   it("LD-BOUNDARY-KISS-1 today marker resets prior but keeps same-clause kiss", () => {
     assert.match(

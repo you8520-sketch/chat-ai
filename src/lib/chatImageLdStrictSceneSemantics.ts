@@ -74,32 +74,6 @@ function resolveNameIdentity(name: string, ctx: LdStrictSceneSemanticContext): N
   return "unknown";
 }
 
-function findCanonicalSubjectInClause(
-  clause: string,
-  ctx: LdStrictSceneSemanticContext
-): NameIdentity | null {
-  const candidates: Array<{ name: string; identity: NameIdentity }> = [
-    { name: ctx.characterName, identity: "character" },
-    { name: ctx.personaName, identity: "persona" },
-    ...(ctx.knownSpeakerNames ?? []).map((name) => ({
-      name,
-      identity: "supporting" as const,
-    })),
-  ];
-  for (const candidate of candidates) {
-    const trimmed = candidate.name.trim();
-    if (!trimmed) continue;
-    const pattern = new RegExp(
-      `(?:^|[^\\p{L}\\p{N}])${trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:은|는|이|가|를|을|의|에게|한테|과|와|도|만|[^\\p{L}\\p{N}]|$)`,
-      "iu"
-    );
-    if (pattern.test(clause)) {
-      return candidate.identity;
-    }
-  }
-  return null;
-}
-
 function resolveCanonicalDuoKissParticipant(
   clause: string,
   sourceText: string,
@@ -189,6 +163,26 @@ function resolveCanonicalDuoKissParticipant(
 
   if (UNBOUND_PRONOUN_LEAD.test(stripLeadingSceneBoundary(clause))) {
     return "ambiguous";
+  }
+
+  const explicitWithCounterparty = clause.match(
+    /([\p{L}\p{N}·]{1,24})(?:과|와)\s*(?:.{0,48})(?:키스|입(?:을|술(?:을)?)\s*맞)/u
+  );
+  if (explicitWithCounterparty) {
+    const counterpartyId = resolveNameIdentity(explicitWithCounterparty[1] ?? "", ctx);
+    if (counterpartyId === "unknown" || counterpartyId === "supporting") {
+      return "non_canonical";
+    }
+  }
+
+  const explicitDativeCounterparty = clause.match(
+    /([\p{L}\p{N}·]{1,24})(?:에게|한테)\s*(?:.{0,48})(?:키스|입(?:을|술(?:을)?)\s*맞)/u
+  );
+  if (explicitDativeCounterparty) {
+    const counterpartyId = resolveNameIdentity(explicitDativeCounterparty[1] ?? "", ctx);
+    if (counterpartyId === "unknown" || counterpartyId === "supporting") {
+      return "non_canonical";
+    }
   }
 
   const namedParticipantInClause =

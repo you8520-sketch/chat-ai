@@ -577,12 +577,17 @@ function stripLeadingSceneBoundary(clause: string): string {
   return clause.replace(LEADING_SCENE_BOUNDARY, "").trim();
 }
 
+const LD_SUBJECT_TOPIC_PARTICLES = "(?:은|는|이|가)" as const;
+
+/** LD strict fallback — earliest subject/topic evidence only (not object/dative particles). */
 function findLdClauseSubject(
   clause: string,
   ctx: ApplyCanonicalComicClothingCoverageContext
 ): NamedIdentity | null {
-  const anchored = resolveClauseGrammaticalSubject(clause, ctx);
+  const stripped = stripLeadingSceneBoundary(clause.trim());
+  const anchored = resolveClauseGrammaticalSubject(stripped, ctx);
   if (anchored) return anchored;
+
   const candidates = [
     { name: ctx.characterName, identity: "character" as const },
     { name: ctx.personaName, identity: "persona" as const },
@@ -591,18 +596,26 @@ function findLdClauseSubject(
       identity: "supporting" as const,
     })),
   ];
+
+  let earliest: { index: number; identity: NamedIdentity } | null = null;
   for (const candidate of candidates) {
     const trimmed = candidate.name.trim();
     if (!trimmed) continue;
     const pattern = new RegExp(
-      `(?:^|[^\\p{L}\\p{N}])${escapeRegExp(trimmed)}(?:${KOREAN_NAME_PARTICLES}|[^\\p{L}\\p{N}]|$)`,
+      `(?:^|[^\\p{L}\\p{N}])${escapeRegExp(trimmed)}${LD_SUBJECT_TOPIC_PARTICLES}(?:\\s|$|[^\\p{L}\\p{N}])`,
       "iu"
     );
-    if (pattern.test(clause)) {
-      return candidate.identity;
+    const match = pattern.exec(stripped);
+    if (!match || match.index === undefined) continue;
+    if (!earliest || match.index < earliest.index) {
+      earliest = { index: match.index, identity: candidate.identity };
     }
   }
-  return null;
+  return earliest?.identity ?? null;
+}
+
+function ldClauseHasInheritedClothingAction(clause: string): boolean {
+  return CLOTHING_ACTION_PATTERN.test(clause);
 }
 
 function ldSyntheticActionEvent(clause: string, actor: SceneEvent["actor"]): SceneEvent {
@@ -695,6 +708,13 @@ export function hasCurrentCharacterShirtlessUpperTorso(
       actor = "persona";
     } else if (clauseSubject === "character") {
       actor = "character";
+    } else if (
+      !actor &&
+      inheritedSubject &&
+      inheritedSubject !== "supporting" &&
+      ldClauseHasInheritedClothingAction(clause)
+    ) {
+      actor = inheritedSubject;
     }
 
     if (!actor) {
