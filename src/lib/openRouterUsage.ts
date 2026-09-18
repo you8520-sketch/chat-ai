@@ -192,6 +192,117 @@ export function parseReasoningTokens(usage: unknown): number {
   return pickUsageField(u, ["reasoning_tokens"]);
 }
 
+export function usageObjectHasSettledCost(
+  usage: unknown,
+  cheaperInference?: unknown,
+  transportProvider: CompatibleUsageTransportProvider = "cheaperinference"
+): boolean {
+  return (
+    parseCompatibleUsage({ usage, cheaperInference, transportProvider })
+      .cheaperInferenceBilledCostUsd != null
+  );
+}
+
+/** Preserve settled accounting when a later stream chunk reports tokens only. */
+export function mergeStreamUsageAccounting(prior: unknown, incoming: unknown): unknown {
+  if (prior == null) return incoming;
+  if (incoming == null) return prior;
+  if (typeof prior !== "object" || typeof incoming !== "object") return incoming;
+  const p = prior as Record<string, unknown>;
+  const i = incoming as Record<string, unknown>;
+  if (!usageObjectHasSettledCost(p) || usageObjectHasSettledCost(i)) {
+    return incoming;
+  }
+  return {
+    ...i,
+    ...(p.cost != null ? { cost: p.cost } : {}),
+    ...(p.cost_details != null ? { cost_details: p.cost_details } : {}),
+    ...(p.cheaper_inference != null && i.cheaper_inference == null
+      ? { cheaper_inference: p.cheaper_inference }
+      : {}),
+  };
+}
+
+export function mergeStreamCheaperInferenceAccounting(
+  prior: unknown,
+  incoming: unknown
+): unknown {
+  if (prior == null) return incoming;
+  if (incoming == null) return prior;
+  const priorBilled = readCheaperInferenceEnvelopeBilledUsd(prior);
+  const incomingBilled = readCheaperInferenceEnvelopeBilledUsd(incoming);
+  if (priorBilled != null && incomingBilled == null) return prior;
+  return incoming;
+}
+
+/** Split SSE buffer into complete lines; remainder lacks trailing newline. */
+export function drainOpenRouterSseLines(buffer: string): { lines: string[]; remaining: string } {
+  const lines = buffer.split("\n");
+  const remaining = lines.pop() ?? "";
+  return { lines, remaining };
+}
+
+/** Flush terminal SSE buffer once at EOF — includes final partial line. */
+export function flushOpenRouterSseTerminalBuffer(buffer: string): string[] {
+  const trimmed = buffer.trim();
+  if (!trimmed) return [];
+  return trimmed.split(/\r?\n/).filter((line) => line.trim().length > 0);
+}
+
+export type CiStreamAccountingTelemetry = {
+  provider_request_id: string | null;
+  event_ordinal: number;
+  choices_length: number;
+  has_usage: boolean;
+  usage_key_names: string[];
+  has_usage_cost: boolean;
+  has_cost_details: boolean;
+  has_cheaper_inference: boolean;
+  has_billing: boolean;
+  billing_status: string | null;
+  has_billed_cost_usd: boolean;
+  is_done: boolean;
+  terminal_buffer_chars: number;
+};
+
+export function buildCiStreamAccountingTelemetry(opts: {
+  json: Record<string, unknown>;
+  eventOrdinal: number;
+  isDone?: boolean;
+  terminalBufferChars?: number;
+  providerRequestId?: string | null;
+}): CiStreamAccountingTelemetry {
+  const usage =
+    opts.json.usage && typeof opts.json.usage === "object"
+      ? (opts.json.usage as Record<string, unknown>)
+      : null;
+  const cheaperInference =
+    opts.json.cheaper_inference && typeof opts.json.cheaper_inference === "object"
+      ? (opts.json.cheaper_inference as Record<string, unknown>)
+      : null;
+  const billing =
+    cheaperInference?.billing && typeof cheaperInference.billing === "object"
+      ? (cheaperInference.billing as Record<string, unknown>)
+      : null;
+  return {
+    provider_request_id:
+      opts.providerRequestId ??
+      (typeof opts.json.id === "string" ? opts.json.id : null),
+    event_ordinal: opts.eventOrdinal,
+    choices_length: Array.isArray(opts.json.choices) ? opts.json.choices.length : 0,
+    has_usage: usage != null,
+    usage_key_names: usage ? Object.keys(usage).sort() : [],
+    has_usage_cost: usage != null && usage.cost != null,
+    has_cost_details: usage != null && usage.cost_details != null,
+    has_cheaper_inference: cheaperInference != null,
+    has_billing: billing != null,
+    billing_status: typeof billing?.status === "string" ? billing.status : null,
+    has_billed_cost_usd: billing?.billed_cost_usd != null || billing?.billedCostUsd != null,
+    is_done: opts.isDone === true,
+    terminal_buffer_chars: opts.terminalBufferChars ?? 0,
+  };
+}
+
 function readCheaperInferenceEnvelopeBilledUsd(cheaperInference: unknown): number | undefined {
   if (!cheaperInference || typeof cheaperInference !== "object") return undefined;
   const obj = cheaperInference as Record<string, unknown>;
