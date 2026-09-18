@@ -11,7 +11,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import {
   installIsolatedTestDatabase,
@@ -19,19 +19,29 @@ import {
 } from "@/lib/test/isolatedTestDatabase";
 import {
   detectUnsupportedEvidenceFact,
+  getEpisodicMemoryForPrompt,
   persistEpisodicMemoryFactsBestEffort,
   resolveExplicitUserStatementProvenance,
 } from "@/lib/episodicMemoryFacts";
-import { getOrCreateChatMemory } from "./memory-db";
+import {
+  messagesToTurns,
+  rawRecentTurnsToHistory,
+  resolveProviderRawPoolExchangeCount,
+} from "@/lib/hybridMemory";
+import { buildContext } from "@/services/contextBuilder";
+import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
+import { buildMemoryContextForChat } from "./memory-manager";
 import {
   __getEpisodicExtractCallCountForTests,
   __resetEpisodicExtractCallCountForTests,
   __setEpisodicExtractCallerForTests,
   extractAndPersistEpisodicFactsForSealedBatch,
+  parseEpisodicExtractOutcome,
 } from "./memory-episodic-extract";
+import type { EpisodicExtractedFact } from "./memory-episodic-types";
 import { selectEpisodicEligibleTurnEntries } from "./memory-summary-scope";
+import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import {
-  classifyChatForFiveTurnRebuild,
   countLegacySixTurnInventory,
   dryRunMemorySummaryMigration,
   isPhaseCLegacyCleanupAllowed,
@@ -39,7 +49,10 @@ import {
   runMemorySummaryMigrationPass,
 } from "./memory-summary-migration";
 import {
+  __setCompactCurrentMemoryTestOverride,
   __setSummarizeTurnBatchCallerForTests,
+  processRollingSummaryBatch,
+  refreshRollingSummaryForRegeneratedAssistant,
   regenerateMemoryRecordBatch,
 } from "./memory-rolling-summary";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
@@ -73,6 +86,168 @@ const UNSUPPORTED_FACT = {
 const FIXTURE =
   "레온은 연회장 테라스에서 렌을 만나 정원을 안내했다 → 렌의 청혼에 흔들리며 감정을 드러냈다 → " +
   "커프링크스를 받으며 둘만의 약속을 나눴다 → 이별 전 심장을 맡긴다고 고백했다.";
+
+const OLD_BATCH_MARKER = "REGEN_EPISODIC_OLD_MARKER_9";
+const NEW_BATCH_MARKER = "REGEN_EPISODIC_NEW_MARKER_7";
+const BATCH_B_MARKER = "REGEN_EPISODIC_BATCH_B_MARKER_5";
+
+const REGEN_SUMMARY_NO_INTIMACY =
+  "본편에서 사건_C가 발생했다 → 인물이 다른 반응을 보이며 관계가 정리되었다 → " +
+  "새로운 약속 없이 감정선만 이어갔다 → 다음 장면을 향해 호흡을 맞췄다.";
+const REGEN_SUMMARY_NEW_ROLE =
+  "본편에서 사건_D가 발생했다 → 역할 방향이 바뀌며 새 사실이 기록되었다 → " +
+  "둘의 관계 흐름이 갱신되었고 다음 행동을 준비했다 → 장면을 마무리하며 여운을 남겼다.";
+const REGEN_SUMMARY_BATCH_A =
+  "본편에서 사건_E가 발생했다 → batch A regen 후 감정선만 정리되었다 → " +
+  "약속 없이 대화 흐름을 이어갔다 → 다음 만남을 암시하며 장면을 닫았다.";
+
+const EPISODIC_RECALL_ENV = {
+  NODE_ENV: "development",
+  EPISODIC_MEMORY_RECALL_ENABLED: "1",
+  EPISODIC_MEMORY_MIN_AGE_TURNS: "5",
+} as NodeJS.ProcessEnv;
+
+function episodicMarkerFact(marker: string, value: string): EpisodicExtractedFact {
+  return {
+    category: "relationship",
+    subject: "regen_char_user",
+    attribute: "scene_role_marker",
+    value,
+    importance: "important",
+    fact_text: `${marker} 조건으로 과거 장면 역할 이벤트가 있었다.`,
+    evidence_type: "explicit_scene_event",
+  };
+}
+
+function batchSealEpisodicCount(batchStart: number, batchEnd: number): number {
+  return (
+    getDb()
+      .prepare(
+        `SELECT COUNT(*) AS n FROM episodic_memory_facts
+         WHERE chat_id=?
+           AND json_extract(metadata, '$.extraction')='summary_seal_batch'
+           AND json_extract(metadata, '$.batch_start')=?
+           AND json_extract(metadata, '$.batch_end')=?`
+      )
+      .get(CHAT, batchStart, batchEnd) as { n: number }
+  ).n;
+}
+
+function insertPlayableTurns(count: number): number[] {
+  const db = getDb();
+  db.prepare("DELETE FROM messages WHERE chat_id=?").run(CHAT);
+  db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+    CHAT,
+    "assistant",
+    "인사.",
+    "greeting"
+  );
+  const assistantIds: number[] = [];
+  for (let t = 1; t <= count; t++) {
+    db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+      CHAT,
+      "user",
+      `유저 턴 ${t}`,
+      "user"
+    );
+    const r = db
+      .prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`)
+      .run(CHAT, "assistant", `캐릭터 턴 ${t}`, "test");
+    assistantIds.push(Number(r.lastInsertRowid));
+  }
+  updateChatMemory(CHAT, USER, CHAR, { message_count: count, membership_tier: "free" });
+  return assistantIds;
+}
+
+async function assembleFinalMainRpEpisodic(opts: {
+  completedTurns: number;
+  currentUserMessage: string;
+  recallEnv?: NodeJS.ProcessEnv;
+}) {
+  const rows = getDb()
+    .prepare(`SELECT role, content, model FROM messages WHERE chat_id=? ORDER BY id`)
+    .all(CHAT) as { role: "user" | "assistant"; content: string; model?: string }[];
+  const turns = messagesToTurns(rows);
+  const summarized = highestContiguousCompletedTurn(listMemoryRecordsForChat(CHAT), rows.length);
+  const rawPool = resolveProviderRawPoolExchangeCount({
+    memoryFeatureEnabled: true,
+    completedTurns: opts.completedTurns,
+    summarizedTurnCount: summarized,
+  });
+  const raw = rawRecentTurnsToHistory(turns, rawPool, {
+    summarizedTurnCount: summarized,
+    memoryFeatureEnabled: true,
+  });
+  const injection = await buildMemoryContextForChat({
+    chatId: CHAT,
+    userId: USER,
+    characterId: CHAR,
+    tier: "free",
+    memoryCapacity: 8000,
+    userMessage: opts.currentUserMessage,
+  });
+  const db = getDb();
+  const episodicMemory = getEpisodicMemoryForPrompt(
+    db,
+    {
+      chatId: CHAT,
+      characterId: CHAR,
+      userId: USER,
+      currentTurn: opts.completedTurns + 1,
+      currentUserMessage: opts.currentUserMessage,
+      recentChatText: raw.map((m) => m.content).join("\n"),
+      longTermMemoryText: injection.text,
+      relationshipMemoryText: "",
+      lorebookText: "",
+      triggeredEventText: "",
+      dynamicMemoryTotalMaxChars: 10_000,
+    },
+    opts.recallEnv ?? EPISODIC_RECALL_ENV
+  );
+  const built = buildContext({
+    charName: "HardChar",
+    chunks: [],
+    userNickname: "유저",
+    shortTermHistory: raw,
+    currentUserMessage: opts.currentUserMessage,
+    longTermMemory: injection.text,
+    episodicMemoryBlock: episodicMemory.promptBlock,
+    nsfw: true,
+    provider: "openrouter",
+    completedTurns: opts.completedTurns,
+    summarizedTurnCount: summarized,
+  });
+  return { built, episodicBlock: episodicMemory.promptBlock, episodicFacts: episodicMemory.facts };
+}
+
+async function sealTwoBatches(opts: {
+  batchAFact: EpisodicExtractedFact;
+  batchBFact: EpisodicExtractedFact;
+}): Promise<void> {
+  __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+  __setEpisodicExtractCallerForTests(async () => ({
+    text: JSON.stringify({ extracted_facts: [opts.batchAFact] }),
+  }));
+  await processRollingSummaryBatch({
+    chatId: CHAT,
+    userId: USER,
+    characterId: CHAR,
+    charName: "HardChar",
+    tier: "free",
+    memoryCapacity: 8000,
+  });
+  __setEpisodicExtractCallerForTests(async () => ({
+    text: JSON.stringify({ extracted_facts: [opts.batchBFact] }),
+  }));
+  await processRollingSummaryBatch({
+    chatId: CHAT,
+    userId: USER,
+    characterId: CHAR,
+    charName: "HardChar",
+    tier: "free",
+    memoryCapacity: 8000,
+  });
+}
 
 function cleanup() {
   const db = getDb();
@@ -429,5 +604,578 @@ describe("migration hardening regression", () => {
     assert.ok(inventory.INACTIVE_AUTOMATIC_LEGACY_6TURN_ROWS >= 1);
     assert.ok(inventory.TOTAL_AUTOMATIC_LEGACY_6TURN_ROWS >= 1);
     assert.equal(isPhaseCLegacyCleanupAllowed(inventory), false);
+  });
+});
+
+describe("regen summary-seal episodic batch replacement", () => {
+  beforeEach(() => {
+    __setCompactCurrentMemoryTestOverride(async (text) => text);
+  });
+
+  afterEach(() => {
+    __setEpisodicExtractCallerForTests(null);
+    __setSummarizeTurnBatchCallerForTests(null);
+    __setCompactCurrentMemoryTestOverride(null);
+  });
+
+  it("R1 assistant regen + semantic empty removes stale batch fact (E6)", async () => {
+    seedBase();
+    const assistantIds = insertPlayableTurns(10);
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({
+        extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "old_marker")],
+      }),
+    }));
+    await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+
+    getDb()
+      .prepare(`UPDATE messages SET content=? WHERE id=?`)
+      .run("캐릭터 턴 3 revised", assistantIds[2]!);
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: REGEN_SUMMARY_NO_INTIMACY }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({ extracted_facts: [] }),
+    }));
+    await refreshRollingSummaryForRegeneratedAssistant({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      assistantMessageId: assistantIds[2]!,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 0);
+  });
+
+  it("E1 initial success persists batch fact", async () => {
+    seedBase();
+    insertPlayableTurns(5);
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({
+        extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "initial")],
+      }),
+    }));
+    await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+  });
+
+  it("E2 same-source semantic empty clears current batch only (FIX-A)", async () => {
+    seedBase();
+    insertPlayableTurns(15);
+    await sealTwoBatches({
+      batchAFact: episodicMarkerFact(OLD_BATCH_MARKER, "batch_a"),
+      batchBFact: episodicMarkerFact(BATCH_B_MARKER, "batch_b"),
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+    assert.equal(batchSealEpisodicCount(6, 10), 1);
+
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({ extracted_facts: [] }),
+    }));
+    assert.equal(
+      await regenerateMemoryRecordBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "HardChar",
+        tier: "free",
+        memoryCapacity: 8000,
+        turnStart: 1,
+      }),
+      true
+    );
+    assert.equal(batchSealEpisodicCount(1, 5), 0);
+    assert.equal(batchSealEpisodicCount(6, 10), 1);
+  });
+
+  it("E3 same-source provider failure preserves batch rows (FIX-B / R2)", async () => {
+    seedBase();
+    insertPlayableTurns(10);
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({
+        extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "keep")],
+      }),
+    }));
+    await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => {
+      throw new Error("provider 503");
+    });
+    assert.equal(
+      await regenerateMemoryRecordBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "HardChar",
+        tier: "free",
+        memoryCapacity: 8000,
+        turnStart: 1,
+      }),
+      true
+    );
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+  });
+
+  it("E4 same-source malformed response preserves batch rows (FIX-C / R4)", async () => {
+    seedBase();
+    insertPlayableTurns(10);
+    persistEpisodicMemoryFactsBestEffort(getDb(), {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      sourceTurn: 5,
+      facts: [episodicMarkerFact(OLD_BATCH_MARKER, "keep")],
+      replaceSummarySealBatch: { batchStart: 1, batchEnd: 5 },
+      metadata: { extraction: "summary_seal_batch", batch_start: 1, batch_end: 5 },
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({ text: "not json at all" }));
+    await regenerateMemoryRecordBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      turnStart: 1,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+  });
+
+  it("E5 same-source blank response preserves batch rows (FIX-D / R3)", async () => {
+    seedBase();
+    insertPlayableTurns(10);
+    persistEpisodicMemoryFactsBestEffort(getDb(), {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      sourceTurn: 5,
+      facts: [episodicMarkerFact(OLD_BATCH_MARKER, "keep")],
+      replaceSummarySealBatch: { batchStart: 1, batchEnd: 5 },
+      metadata: { extraction: "summary_seal_batch", batch_start: 1, batch_end: 5 },
+    });
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({ text: "   " }));
+    await regenerateMemoryRecordBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      turnStart: 1,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+  });
+
+  it("E11 sanitizer rejects all invalid entries as contract failure (FIX-E / R5)", async () => {
+    const outcome = parseEpisodicExtractOutcome(
+      JSON.stringify({
+        extracted_facts: [
+          {
+            category: "relationship",
+            subject: "bad",
+            attribute: "x",
+            value: "y",
+            importance: "important",
+            fact_text: "too short",
+            evidence_type: "explicit_scene_event",
+          },
+        ],
+      })
+    );
+    assert.equal(outcome.ok, false);
+    if (!outcome.ok) {
+      assert.equal(outcome.reason, "invalid_contract");
+    }
+
+    seedBase();
+    insertPlayableTurns(10);
+    persistEpisodicMemoryFactsBestEffort(getDb(), {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      sourceTurn: 5,
+      facts: [episodicMarkerFact(OLD_BATCH_MARKER, "keep")],
+      replaceSummarySealBatch: { batchStart: 1, batchEnd: 5 },
+      metadata: { extraction: "summary_seal_batch", batch_start: 1, batch_end: 5 },
+    });
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({
+        extracted_facts: [
+          {
+            category: "relationship",
+            subject: "bad",
+            attribute: "x",
+            value: "y",
+            importance: "important",
+            fact_text: "too short",
+            evidence_type: "explicit_scene_event",
+          },
+        ],
+      }),
+    }));
+    await regenerateMemoryRecordBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      turnStart: 1,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+  });
+
+  it("E6 assistant source mutation + provider failure clears via invalidation (FIX-F)", async () => {
+    seedBase();
+    const assistantIds = insertPlayableTurns(10);
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({
+        extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "old_marker")],
+      }),
+    }));
+    await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+
+    getDb()
+      .prepare(`UPDATE messages SET content=? WHERE id=?`)
+      .run("캐릭터 턴 3 revised", assistantIds[2]!);
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: REGEN_SUMMARY_NO_INTIMACY }));
+    __setEpisodicExtractCallerForTests(async () => {
+      throw new Error("provider 503");
+    });
+    await refreshRollingSummaryForRegeneratedAssistant({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      assistantMessageId: assistantIds[2]!,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 0);
+    const ctx = await assembleFinalMainRpEpisodic({
+      completedTurns: 10,
+      currentUserMessage: "이어서",
+    });
+    assert.equal(ctx.episodicFacts.length, 0);
+    assert.doesNotMatch(ctx.episodicBlock, new RegExp(OLD_BATCH_MARKER));
+    assert.doesNotMatch(ctx.built.systemPrompt, new RegExp(OLD_BATCH_MARKER));
+  });
+
+  it("E7 regen + non-empty replacement keeps only new marker (FIX-H)", async () => {
+    seedBase();
+    const assistantIds = insertPlayableTurns(10);
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({
+        extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "old_marker")],
+      }),
+    }));
+    await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+
+    getDb()
+      .prepare(`UPDATE messages SET content=? WHERE id=?`)
+      .run("캐릭터 턴 3 revised again", assistantIds[2]!);
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: REGEN_SUMMARY_NEW_ROLE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({
+        extracted_facts: [episodicMarkerFact(NEW_BATCH_MARKER, "new_marker")],
+      }),
+    }));
+    await refreshRollingSummaryForRegeneratedAssistant({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      assistantMessageId: assistantIds[2]!,
+    });
+
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+    const rows = getDb()
+      .prepare(
+        `SELECT fact_text FROM episodic_memory_facts
+         WHERE chat_id=? AND json_extract(metadata, '$.batch_start')=1 AND json_extract(metadata, '$.batch_end')=5`
+      )
+      .all(CHAT) as { fact_text: string }[];
+    assert.equal(rows.length, 1);
+    assert.match(rows[0]!.fact_text, new RegExp(NEW_BATCH_MARKER));
+    assert.doesNotMatch(rows[0]!.fact_text, new RegExp(OLD_BATCH_MARKER));
+  });
+
+  it("E9 regen on batch A preserves batch B episodic facts (FIX-I)", async () => {
+    seedBase();
+    const assistantIds = insertPlayableTurns(15);
+    await sealTwoBatches({
+      batchAFact: episodicMarkerFact(OLD_BATCH_MARKER, "batch_a"),
+      batchBFact: episodicMarkerFact(BATCH_B_MARKER, "batch_b"),
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+    assert.equal(batchSealEpisodicCount(6, 10), 1);
+
+    getDb()
+      .prepare(`UPDATE messages SET content=? WHERE id=?`)
+      .run("캐릭터 턴 3 batch-a regen", assistantIds[2]!);
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: REGEN_SUMMARY_BATCH_A }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({ extracted_facts: [] }),
+    }));
+    await refreshRollingSummaryForRegeneratedAssistant({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      assistantMessageId: assistantIds[2]!,
+    });
+
+    assert.equal(batchSealEpisodicCount(1, 5), 0);
+    assert.equal(batchSealEpisodicCount(6, 10), 1);
+  });
+
+  it("E10 legacy per_turn rows untouched on semantic empty (FIX-4)", async () => {
+    seedBase();
+    seedFiveTurnBatch();
+    getDb()
+      .prepare(
+        `INSERT INTO episodic_memory_facts
+          (chat_id, character_id, user_id, source_turn, source_user_message_id,
+           category, subject, attribute, value, importance, fact_text, metadata)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+      )
+      .run(
+        CHAT,
+        CHAR,
+        USER,
+        5,
+        null,
+        "preference",
+        "user",
+        "legacy_marker",
+        "kept",
+        "normal",
+        "레거시 사실은 유지되어야 한다.",
+        JSON.stringify({ extraction: "per_turn_legacy" })
+      );
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({ extracted_facts: [] }),
+    }));
+    const result = await extractAndPersistEpisodicFactsForSealedBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      startTurn: 1,
+      endTurn: 5,
+      dialogue: "dialogue",
+      batchUserSources: [{ turn: 1, messageId: null, text: "커피에 시럽을 두 번 넣어 마셔." }],
+    });
+    assert.equal(result.persisted, 0);
+    const legacy = getDb()
+      .prepare(
+        `SELECT COUNT(*) AS n FROM episodic_memory_facts
+         WHERE chat_id=? AND json_extract(metadata, '$.extraction')='per_turn_legacy'`
+      )
+      .get(CHAT) as { n: number };
+    assert.equal(legacy.n, 1);
+    assert.equal(batchSealEpisodicCount(1, 5), 0);
+  });
+
+  it("E8 stale fingerprint during extract rejects mutation (FIX-J)", async () => {
+    seedBase();
+    seedFiveTurnBatch();
+    persistEpisodicMemoryFactsBestEffort(getDb(), {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      sourceTurn: 5,
+      facts: [episodicMarkerFact(OLD_BATCH_MARKER, "seed")],
+      replaceSummarySealBatch: { batchStart: 1, batchEnd: 5 },
+      metadata: { extraction: "summary_seal_batch", batch_start: 1, batch_end: 5 },
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+
+    const boundary = getMemorySourceBoundaryCore(getDb(), CHAT);
+    __setEpisodicExtractCallerForTests(async () => {
+      invalidateDerivedMemoryGenerationCore(getDb(), CHAT);
+      return { text: JSON.stringify({ extracted_facts: [] }) };
+    });
+    const result = await extractAndPersistEpisodicFactsForSealedBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      startTurn: 1,
+      endTurn: 5,
+      dialogue: "dialogue",
+      batchUserSources: [{ turn: 1, messageId: null, text: "커피에 시럽을 두 번 넣어 마셔." }],
+      boundarySnapshot: boundary,
+    });
+    assert.equal(result.staleRejected, true);
+    assert.equal(result.persisted, 0);
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+  });
+
+  it("E12 NODE_TEST network suppression preserves batch rows (FIX-K / R6)", async () => {
+    seedBase();
+    seedFiveTurnBatch();
+    persistEpisodicMemoryFactsBestEffort(getDb(), {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      sourceTurn: 5,
+      facts: [episodicMarkerFact(OLD_BATCH_MARKER, "keep")],
+      replaceSummarySealBatch: { batchStart: 1, batchEnd: 5 },
+      metadata: { extraction: "summary_seal_batch", batch_start: 1, batch_end: 5 },
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+
+    __setEpisodicExtractCallerForTests(null);
+    const prevNodeTest = process.env.NODE_TEST_CONTEXT;
+    process.env.NODE_TEST_CONTEXT = "1";
+    try {
+      const result = await extractAndPersistEpisodicFactsForSealedBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "HardChar",
+        startTurn: 1,
+        endTurn: 5,
+        dialogue: "dialogue",
+        batchUserSources: [{ turn: 1, messageId: null, text: "커피에 시럽을 두 번 넣어 마셔." }],
+      });
+      assert.equal(result.extractFailed, true);
+      assert.equal(result.failureReason, "test_network_suppressed");
+      assert.equal(result.persisted, 0);
+      assert.equal(batchSealEpisodicCount(1, 5), 1);
+    } finally {
+      if (prevNodeTest == null) delete process.env.NODE_TEST_CONTEXT;
+      else process.env.NODE_TEST_CONTEXT = prevNodeTest;
+    }
+  });
+
+  it("E13 final Main RP omits stale marker after assistant regen (FIX-L)", async () => {
+    seedBase();
+    const assistantIds = insertPlayableTurns(10);
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({
+        extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "old_marker")],
+      }),
+    }));
+    await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+
+    getDb()
+      .prepare(`UPDATE messages SET content=? WHERE id=?`)
+      .run("캐릭터 턴 3 revised for final RP", assistantIds[2]!);
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: REGEN_SUMMARY_NEW_ROLE }));
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({
+        extracted_facts: [episodicMarkerFact(NEW_BATCH_MARKER, "new_marker")],
+      }),
+    }));
+    await refreshRollingSummaryForRegeneratedAssistant({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      assistantMessageId: assistantIds[2]!,
+    });
+
+    const ctx = await assembleFinalMainRpEpisodic({
+      completedTurns: 10,
+      currentUserMessage: "이어서",
+    });
+    assert.match(ctx.episodicBlock, new RegExp(NEW_BATCH_MARKER));
+    assert.doesNotMatch(ctx.episodicBlock, new RegExp(OLD_BATCH_MARKER));
+    assert.doesNotMatch(ctx.built.systemPrompt, new RegExp(OLD_BATCH_MARKER));
+  });
+
+  it("E14 refresh not reached before canonical commit preserves batch facts", async () => {
+    seedBase();
+    insertPlayableTurns(10);
+    persistEpisodicMemoryFactsBestEffort(getDb(), {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      sourceTurn: 5,
+      facts: [episodicMarkerFact(OLD_BATCH_MARKER, "old_marker")],
+      replaceSummarySealBatch: { batchStart: 1, batchEnd: 5 },
+      metadata: { extraction: "summary_seal_batch", batch_start: 1, batch_end: 5 },
+    });
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
+
+    // No assistant mutation committed — refreshRollingSummary never invoked (pre-commit path).
+    const ok = await refreshRollingSummaryForRegeneratedAssistant({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "HardChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      assistantMessageId: 999_999,
+    });
+    assert.equal(ok, false);
+    assert.equal(batchSealEpisodicCount(1, 5), 1);
   });
 });
