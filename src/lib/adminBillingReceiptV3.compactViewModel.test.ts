@@ -677,7 +677,7 @@ describe("Admin Receipt compact — main cost evidence consistency (P1–P5)", (
     assert.match(formatAdminBillingReceiptV3Text(receipt), /확정 원가 \(부분\)/);
   });
 
-  it("production-equivalent shared initial + missing status meta record blocks margin via unverifiable", () => {
+  it("legacy production-equivalent null status meta record remains unverifiable (S6)", () => {
     const receipt = buildV3(catalogEstimateUsage(), {
       suggestedRepliesRecord: {
         replies: [

@@ -15,6 +15,13 @@ on:
       - "src/lib/adminBillingReceiptV3.ts"
       - "src/lib/adminBillingReceiptV3Shared.ts"
       - "src/lib/adminBillingReceiptV3.compactViewModel.test.ts"
+      - "src/lib/asyncTurnCoverage.ts"
+      - "src/lib/asyncTurnCoverage.statusMetaExpectation.test.ts"
+      - "src/lib/statusMeta/types.ts"
+      - "src/lib/statusMeta/job.ts"
+      - "src/lib/statusMeta/displayPolicy.ts"
+      - "src/lib/statusMeta/statusMeta.previousTurnGeneration.test.ts"
+      - "src/app/api/chat/status-meta/route.ts"
       - "src/app/api/chat/route.ts"
 
 permissions:
@@ -57,3 +64,9 @@ jobs:
 
       - name: Admin Receipt compact view model provenance (P1-P5)
         run: node --conditions=react-server --import tsx --test src/lib/adminBillingReceiptV3.compactViewModel.test.ts
+
+      - name: Status Meta async expectation (S1-S8)
+        run: node --conditions=react-server --import tsx --test src/lib/asyncTurnCoverage.statusMetaExpectation.test.ts
+
+      - name: Status Meta previous-turn continuity (S9)
+        run: node --conditions=react-server --import tsx --test src/lib/statusMeta/statusMeta.previousTurnGeneration.test.ts

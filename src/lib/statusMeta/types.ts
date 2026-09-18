@@ -46,6 +46,9 @@ export type StatusMetaRecord = {
 
   failed?: boolean;
 
+  /** Terminal logical outcome; extraction was disabled by server policy for this generation. */
+  terminalReason?: "extraction_disabled";
+
   generationSequence?: number;
 
   generationRequestId?: string | null;
@@ -116,6 +119,12 @@ export function normalizeStatusMeta(raw: unknown): StatusMeta {
 
 
 
+export function isStatusMetaExtractionDisabledRecord(
+  record: StatusMetaRecord | null | undefined
+): boolean {
+  return record?.terminalReason === "extraction_disabled";
+}
+
 export function parseStatusMetaRecord(raw: string | null | undefined): StatusMetaRecord | null {
 
   if (!raw?.trim()) return null;
@@ -142,6 +151,9 @@ export function parseStatusMetaRecord(raw: string | null | undefined): StatusMet
       formatSpec: typeof parsed.formatSpec === "string" ? parsed.formatSpec : null,
 
       failed: parsed.failed === true,
+
+      terminalReason:
+        parsed.terminalReason === "extraction_disabled" ? "extraction_disabled" : undefined,
 
       generationSequence:
         typeof parsed.generationSequence === "number" && Number.isInteger(parsed.generationSequence)

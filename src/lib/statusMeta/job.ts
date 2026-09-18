@@ -14,11 +14,21 @@ import {
 } from "./formatSpec";
 import { statusMetaHasDisplayContent } from "./render";
 import {
+  isStatusMetaExtractionDisabledRecord,
   parseStatusMetaRecord,
   serializeStatusMetaRecord,
   type StatusMeta,
   type StatusMetaRecord,
 } from "./types";
+
+/**
+ * SQL filter for previous-meta candidate rows.
+ * - json_extract runs only when json_valid(status_meta)=1 (malformed rows never throw).
+ * - Malformed and extraction_disabled rows are excluded before LIMIT.
+ */
+const PREVIOUS_STATUS_META_SQL_FILTER = `status_meta IS NOT NULL AND status_meta != ''
+       AND json_valid(status_meta) = 1
+       AND COALESCE(json_extract(status_meta, '$.terminalReason'), '') != 'extraction_disabled'`;
 
 const running = new Set<string>();
 const STALE_PENDING_MS = 90_000;
@@ -57,7 +67,7 @@ export function loadPreviousTurnStatusMeta(
       `SELECT id, content, model, usage, alternates, active_variant, request_id, generation_status, status_meta
        FROM messages
        WHERE chat_id=? AND role='assistant' AND (model IS NULL OR model != 'greeting')
-       AND status_meta IS NOT NULL AND status_meta != ''
+       AND ${PREVIOUS_STATUS_META_SQL_FILTER}
        ORDER BY id DESC LIMIT 12`
     )
     .all(chatId) as {
@@ -81,6 +91,7 @@ export function loadPreviousTurnStatusMeta(
       : null;
     if (
       record &&
+      !isStatusMetaExtractionDisabledRecord(record) &&
       !record.pending &&
       !record.failed &&
       statusMetaHasDisplayContent(record.meta, record.formatSpec)
@@ -160,6 +171,47 @@ function writeMeta(
     generationSequence: scope.generationSequence,
     generationRequestId: scope.generationRequestId,
   };
+  db.prepare("UPDATE messages SET status_meta=? WHERE id=?").run(
+    serializeStatusMetaRecord(record),
+    messageId
+  );
+}
+
+/** Persist policy-disabled extraction so billing can distinguish not_expected from missing. */
+export function markMessageStatusMetaExtractionDisabled(
+  messageId: number,
+  generationScope: AssistantGenerationScope
+): void {
+  const db = getDb();
+  const record: StatusMetaRecord = {
+    meta: {
+      tableMarkdown: "",
+      datetime: "",
+      location: "",
+      relationship: "",
+      npcEmotion: "",
+      npcIntent: "",
+      nextObjective: "",
+      hiddenThought: "",
+      sceneSummary: "",
+    },
+    extractedAt: new Date().toISOString(),
+    source: "background-deepseek",
+    pending: false,
+    failed: false,
+    terminalReason: "extraction_disabled",
+    generationSequence: generationScope.generationSequence,
+    generationRequestId: generationScope.generationRequestId,
+  };
+  if (!isCurrentAssistantGeneration(generationScope, db)) {
+    console.info("STALE_GENERATION_RESULT_REJECTED", {
+      family: "status_meta",
+      messageId,
+      generationSequence: generationScope.generationSequence,
+      phase: "extraction_disabled_write",
+    });
+    return;
+  }
   db.prepare("UPDATE messages SET status_meta=? WHERE id=?").run(
     serializeStatusMetaRecord(record),
     messageId
