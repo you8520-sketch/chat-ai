@@ -167,6 +167,7 @@ on:
       - "src/lib/chatImageSafeProjectionRegression.test.ts"
       - "src/lib/chatImageAdultRpSafetyAudit.test.ts"
       - "src/lib/chatImageLdStrictFallbackParity.test.ts"
+      - "src/lib/chatImageLdStrictSceneSemantics.ts"
       - "src/lib/chatImageStrictSafetyFallbackPrompt.ts"
       - "src/lib/trpg/illustrationCast.ts"
       - "src/lib/trpg/illustrationReferencePricing.regression.test.ts"

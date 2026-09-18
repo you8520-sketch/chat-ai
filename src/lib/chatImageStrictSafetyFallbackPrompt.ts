@@ -46,6 +46,11 @@ import {
   containsSafeLyingOrRestContext,
 } from "@/lib/chatComicTier2SafeProjection";
 import {
+  hasCharacterShirtlessUpperTorso,
+  hasCurrentCompletedKiss,
+  type LdStrictSceneSemanticContext,
+} from "@/lib/chatImageLdStrictSceneSemantics";
+import {
   containsRawRiskySourceLeak,
   projectSceneBlockForSafeImageGeneration,
 } from "@/lib/chatImageSafeVisualProjection";
@@ -77,8 +82,12 @@ export type LdStrictFallbackSceneFacts = {
 export function deriveLdStrictFallbackSceneFacts(opts: {
   sceneSourceText: string;
   adultGrounded?: boolean;
+  characterName?: string;
+  personaName?: string;
   /** Required for adult male shirtless preservation — do not infer from raw keywords alone. */
   characterGender?: ImagePromptGender;
+  personaGender?: ImagePromptGender;
+  knownSpeakerNames?: readonly string[];
 }): LdStrictFallbackSceneFacts {
   const raw = String(opts.sceneSourceText ?? "").trim();
   const projected = projectSceneBlockForSafeImageGeneration(raw, {
@@ -88,13 +97,18 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
   // Raw-only category/boolean detection → fixed safe literals (never copy raw substrings).
   const rawHasBedroom = containsBedroomBedContext(raw);
   const rawHasLying = containsSafeLyingOrRestContext(raw);
-  const rawHasKiss = /(?:키스|kiss)/iu.test(raw);
+  const semanticCtx: LdStrictSceneSemanticContext = {
+    characterName: opts.characterName?.trim() || "character",
+    personaName: opts.personaName?.trim() || "persona",
+    characterGender: opts.characterGender,
+    personaGender: opts.personaGender,
+    knownSpeakerNames: opts.knownSpeakerNames,
+  };
+  const hasCurrentCompletedKissEvent = hasCurrentCompletedKiss(raw);
+  const hasCharacterShirtlessUpperTorsoEvent = hasCharacterShirtlessUpperTorso(raw, semanticCtx);
   const rawHasHug = /(?:껴안|포옹|안아|hug|embrace)/iu.test(raw);
   const rawHasShyMood = /(?:수줍|부끄|활(?:활)?(?:기|홍)|awkward|flushed|shy|홍조|상기)/iu.test(raw);
   const rawHasTenderMood = /(?:애틋|다정|tender|친밀|설렘|떨림|열감|heated)/iu.test(raw);
-  const rawHasShirtless = /(?:셔츠(?:를)?\s*벗|상의(?:를)?\s*벗|shirtless|bare shoulders|어깨(?:가|를)?\s*(?:드|노))/iu.test(
-    raw
-  );
   const rawHasMessyBed =
     /(?:이불(?:이)?.{0,24}?(?:엉|구|헤|뒤)|rumpled|dishevel|messy\s*bed|흐트러|구김)/iu.test(raw);
   const rawHasCafe = /(?:카페|cafe)/iu.test(raw);
@@ -118,7 +132,7 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
 
   const adultGrounded = opts.adultGrounded === true;
   const adultMaleShirtlessContract =
-    adultGrounded && rawHasShirtless && opts.characterGender === "male";
+    adultGrounded && hasCharacterShirtlessUpperTorsoEvent;
 
   const compositionParts = ["same two characters"];
   if (rawHasBedroom && rawHasLying) {
@@ -129,7 +143,7 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
     compositionParts.push("resting together, preserving lying posture");
   }
 
-  if (rawHasKiss) {
+  if (hasCurrentCompletedKissEvent) {
     compositionParts.push(
       adultGrounded
         ? "sharing a brief non-explicit affectionate kiss"
@@ -178,7 +192,11 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
 function resolveLdStrictFallbackSceneFacts(opts: {
   sceneSourceText?: string;
   adultGrounded?: boolean;
+  characterName?: string;
+  personaName?: string;
   characterGender?: ImagePromptGender;
+  personaGender?: ImagePromptGender;
+  knownSpeakerNames?: readonly string[];
   safeBroadLocation?: string;
   safeMood?: string;
   safeComposition?: string;
@@ -188,7 +206,11 @@ function resolveLdStrictFallbackSceneFacts(opts: {
       ? deriveLdStrictFallbackSceneFacts({
           sceneSourceText: opts.sceneSourceText,
           adultGrounded: opts.adultGrounded,
+          characterName: opts.characterName,
+          personaName: opts.personaName,
           characterGender: opts.characterGender,
+          personaGender: opts.personaGender,
+          knownSpeakerNames: opts.knownSpeakerNames,
         })
       : null;
   const safeComposition =
@@ -268,10 +290,7 @@ export function buildStrictLdDuoFallbackPrompt(opts: {
 }): string {
   const adultGrounded = opts.adultGrounded ?? false;
   const { safeBroadLocation, safeMood, safeComposition, adultMaleShirtlessContract } =
-    resolveLdStrictFallbackSceneFacts({
-      ...opts,
-      characterGender: opts.characterGender,
-    });
+    resolveLdStrictFallbackSceneFacts(opts);
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
     renderChatImageVisualIdentity({
@@ -305,7 +324,6 @@ export function buildStrictLdPartyFallbackPrompt(opts: {
   adultGrounded?: boolean;
 }): string {
   const count = opts.cast.length;
-  const adultGrounded = opts.adultGrounded ?? false;
   const { safeBroadLocation, safeMood, safeComposition } = resolveLdStrictFallbackSceneFacts(opts);
   const groupComposition = safeComposition.replace(
     /same two characters/giu,
@@ -327,7 +345,7 @@ export function buildStrictLdPartyFallbackPrompt(opts: {
         gender: member.gender,
       }))
     ),
-    buildIllustrationSafeDepiction({ adultGrounded }),
+    STRICT_SAFE_DEPICTION,
     "STRICT PROVIDER-SAFE FALLBACK — same scene, non-sexual non-graphic general-audience group depiction.",
     `Setting: ${safeBroadLocation}.`,
     `Mood: ${safeMood}.`,

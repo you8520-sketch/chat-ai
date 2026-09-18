@@ -110,7 +110,10 @@ describe("chatImageLdStrictFallbackParity — root cause fixtures L0-L5", () => 
     const facts = deriveLdStrictFallbackSceneFacts({
       sceneSourceText: source,
       adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
       characterGender: "male",
+      personaGender: "female",
     });
     const tier2 = ldTier2(source, true);
     assert.match(facts.safeComposition, /brief non-explicit affectionate kiss/i);
@@ -253,5 +256,174 @@ describe("chatImageLdStrictFallbackParity — final prompt assertions LD-D/E", (
     assert.equal(kissDowngradedToProximityOnly, false, "KISS_DOWNGRADED_TO_PROXIMITY_ONLY");
     assert.equal(rawExplicitProseLeak, false, "RAW_EXPLICIT_PROSE_LEAK");
     assert.ok(tier2.includes(buildIllustrationSafeDepiction({ adultGrounded: true })));
+  });
+});
+
+describe("chatImageLdStrictFallbackParity — shirtless target attribution LD-K1–K5", () => {
+  it("LD-K1 persona undresses — main character shirtless FALSE", () => {
+    const source = "유저는 셔츠를 벗어 침대에 앉았다. 태현은 그녀를 바라봤다.";
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: source,
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    const tier2 = ldTier2(source, true);
+    assert.equal(facts.adultMaleShirtlessContract, false);
+    assert.doesNotMatch(tier2, /confirmed adult male chat character is shirtless/i);
+  });
+
+  it("LD-K2 persona removes character shirt — main TRUE", () => {
+    const source = "유저가 태현의 셔츠를 벗겨 주었다.";
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: source,
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, true);
+    assert.match(ldTier2(source, true), /confirmed adult male chat character is shirtless/i);
+  });
+
+  it("LD-K3 character self-removal — main TRUE", () => {
+    const source = "태현은 셔츠를 벗어 맨가슴을 드러냈다.";
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: source,
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, true);
+  });
+
+  it("LD-K4 character removes persona shirt — main FALSE", () => {
+    const source = "태현은 유저의 셔츠를 벗겨 주었다.";
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: source,
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
+  });
+
+  it("LD-K5 character removes supporting garment — main FALSE", () => {
+    const source = "태현이 로코의 셔츠를 벗겼다.";
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: source,
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
+  });
+});
+
+describe("chatImageLdStrictFallbackParity — kiss event semantics LD-KISS-1–6", () => {
+  it("LD-KISS-1 completed kiss TRUE", () => {
+    const tier2 = ldTier2("둘은 짧게 키스했다.", true);
+    assert.match(tier2, /brief non-explicit affectionate kiss/i);
+  });
+
+  it("LD-KISS-2 negated kiss FALSE", () => {
+    assert.doesNotMatch(ldTier2("둘은 키스하지 않았다.", true), /brief non-explicit affectionate kiss/i);
+  });
+
+  it("LD-KISS-3 hypothetical kiss FALSE", () => {
+    assert.doesNotMatch(ldTier2("키스할까?", true), /brief non-explicit affectionate kiss/i);
+  });
+
+  it("LD-KISS-4 incomplete kiss FALSE", () => {
+    assert.doesNotMatch(
+      ldTier2("태현은 키스하려다 멈췄다.", true),
+      /brief non-explicit affectionate kiss/i
+    );
+  });
+
+  it("LD-KISS-5 historical kiss in past scene FALSE for current cafe scene", () => {
+    assert.doesNotMatch(
+      ldTier2("어제 둘은 키스했었다. 오늘은 카페에서 마주 앉아 있다.", true),
+      /brief non-explicit affectionate kiss/i
+    );
+  });
+
+  it("LD-KISS-6 입을 맞췄다 phrasing TRUE", () => {
+    assert.match(
+      ldTier2("둘은 서로를 바라보다 짧게 입을 맞췄다.", true),
+      /brief non-explicit affectionate kiss/i
+    );
+  });
+});
+
+describe("chatImageLdStrictFallbackParity — shirtless non-event guards", () => {
+  it("LD-SHIRT-NEG negated undress FALSE", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "태현은 셔츠를 벗지 않았다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
+  });
+
+  it("LD-SHIRT-HYP hypothetical undress FALSE", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "태현은 셔츠를 벗을까 고민했다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
+  });
+
+  it("LD-SHIRT-ATTEMPT incomplete undress FALSE", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "태현은 셔츠를 벗으려다 멈췄다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
+  });
+
+  it("LD-SHIRT-HIST historical shirtless FALSE for current clothed scene", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText:
+        "어제 태현은 셔츠를 벗었었다. 오늘은 카페에서 코트를 입고 있다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
+  });
+
+  it("LD-SHIRT-POSITIVE completed removal TRUE", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "태현은 셔츠를 벗어 맨가슴을 드러냈다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, true);
   });
 });
