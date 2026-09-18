@@ -44,6 +44,7 @@ import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
 import { recordMainGenerationProviderCost } from "@/lib/providerCostLedger";
+import { scheduleTargetedCheaperInferenceRequestReconciliation } from "@/lib/providerCostReconciliation";
 import {
   shouldPreparePublishedBillingFxSnapshot,
   resolveChatBillingContract,
@@ -5825,6 +5826,18 @@ export async function POST(req: Request) {
               (mainCostErr as Error).message
             );
           }
+
+          scheduleTargetedCheaperInferenceRequestReconciliation({
+            provider: usageRecord.provider ?? billingProvider,
+            providerRequestId: primaryStage.providerRequestId,
+            streamBilledCostUsd: primaryStage.cheaperInferenceBilledCostUsd,
+            outcome:
+              primaryStage.loopAborted || primaryStage.degenerationAborted
+                ? "failed_with_usage"
+                : "success",
+            requestStartedAtMs: requestStartedAt,
+            requestKind: "main-rp",
+          });
         }
 
         if (statusMetaEnabled && shouldCommitCanonicalTurnState(generationSemantics)) {
