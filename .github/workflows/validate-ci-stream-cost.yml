@@ -13,6 +13,8 @@ on:
       - "src/lib/providerCostReconciliation.targeted.test.ts"
       - "src/lib/providerCostLedger.ts"
       - "src/lib/adminBillingReceiptV3.ts"
+      - "src/lib/adminBillingReceiptV3Shared.ts"
+      - "src/lib/adminBillingReceiptV3.compactViewModel.test.ts"
       - "src/app/api/chat/route.ts"
 
 permissions:
@@ -52,3 +54,6 @@ jobs:
 
       - name: Targeted Usage API reconciliation (T1-T11)
         run: node --conditions=react-server --import tsx --test src/lib/providerCostReconciliation.targeted.test.ts
+
+      - name: Admin Receipt compact view model provenance (P1-P5)
+        run: node --conditions=react-server --import tsx --test src/lib/adminBillingReceiptV3.compactViewModel.test.ts
