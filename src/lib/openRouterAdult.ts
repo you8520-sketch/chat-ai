@@ -1640,10 +1640,14 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     return "continue";
   };
 
+  let reachedProviderEof = false;
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        reachedProviderEof = true;
+        break;
+      }
       if (value?.byteLength) {
         messageOpts?.phaseAudit?.mark("T12_PROVIDER_FIRST_SSE");
       }
@@ -1670,18 +1674,20 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       }
     }
 
-    buffer += decoder.decode(undefined, { stream: true });
-    const terminalBufferChars = buffer.length;
-    for (const line of flushOpenRouterSseTerminalBuffer(buffer)) {
-      const lineGen = processStreamSseLine(line, { terminalBufferChars, isDone: true });
-      let lineStep = await lineGen.next();
-      while (!lineStep.done) {
-        yield lineStep.value;
-        lineStep = await lineGen.next();
+    if (reachedProviderEof) {
+      buffer += decoder.decode();
+      const terminalBufferChars = buffer.length;
+      for (const line of flushOpenRouterSseTerminalBuffer(buffer)) {
+        const lineGen = processStreamSseLine(line, { terminalBufferChars, isDone: true });
+        let lineStep = await lineGen.next();
+        while (!lineStep.done) {
+          yield lineStep.value;
+          lineStep = await lineGen.next();
+        }
+        if (lineStep.value === "break") break;
       }
-      if (lineStep.value === "break") break;
+      buffer = "";
     }
-    buffer = "";
   } finally {
     reader.releaseLock();
   }

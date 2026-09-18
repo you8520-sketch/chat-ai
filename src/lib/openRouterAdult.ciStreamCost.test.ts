@@ -514,7 +514,7 @@ describe("CheaperInference streaming exact cost capture", () => {
     assert.equal(breakdown.cheaperInferenceBilledCostUsd, undefined);
   });
 
-  it("C7: CI response through gateStreamFirstVisible preserves terminal accounting", async () => {
+  it("C7: DeepSeek CI failover gate path preserves terminal accounting at EOF", async () => {
     const fixture = buildCiCanonicalAccountingSse({ content: "Gate path prose here." });
     const trailingWithoutNewline = `${fixture.contentEvent}${fixture.accountingEvent.replace(/\n\n$/, "")}`;
     const previousFetch = globalThis.fetch;
@@ -531,6 +531,7 @@ describe("CheaperInference streaming exact cost capture", () => {
         {
           allowOpenRouterUnderLengthRecovery: false,
           skipAssistantPrefill: true,
+          transportProvider: "cheaperinference",
         }
       );
       while (true) {
@@ -605,6 +606,53 @@ describe("CheaperInference streaming exact cost capture", () => {
     const rows = listProviderCostEventsForAssistantMessage(1001, db);
     assert.equal(rows.length, 1);
     db.close();
+  });
+
+  it("C10: intentional abort does not flush trailing unterminated SSE remainder", async () => {
+    const line1 = `data: ${JSON.stringify({ choices: [{ delta: { content: "Hello. " } }] })}\n`;
+    const repeatedLine = "동일한 문장이 반복됩니다.\n";
+    const loopBody = repeatedLine.repeat(12);
+    const line2 = `data: ${JSON.stringify({ choices: [{ delta: { content: loopBody } }] })}\n`;
+    const trailingMarker = "FORBIDDEN_TRAILING_ABORT_REMAINDER_XYZ";
+    const line2Partial =
+      "data: " +
+      JSON.stringify({
+        choices: [{ delta: { content: trailingMarker } }],
+      });
+    const singleNetworkChunk = line1 + line2 + line2Partial;
+
+    const previousFetch = globalThis.fetch;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+    globalThis.fetch = (async () => sseResponse([singleNetworkChunk])) as typeof fetch;
+    try {
+      const gen = streamOpenRouterAdult(
+        "system",
+        [{ role: "user", content: "hello" }],
+        "deepseek-v4-pro-0813",
+        800,
+        {
+          allowOpenRouterUnderLengthRecovery: false,
+          skipAssistantPrefill: true,
+          transportProvider: "cheaperinference",
+        }
+      );
+      let streamed = "";
+      let finishReason: string | undefined;
+      while (true) {
+        const { value, done } = await gen.next();
+        if (done) {
+          finishReason = value.finishReason;
+          break;
+        }
+        streamed += value;
+      }
+      assert.equal(finishReason, "LOOP_ABORT");
+      assert.equal(streamed.includes(trailingMarker), false);
+      assert.ok(streamed.length > 0);
+    } finally {
+      globalThis.fetch = previousFetch;
+      delete process.env.CHEAPER_INFERENCE_API_KEY;
+    }
   });
 
   it("C9: Main provider attempts remain exactly one through stream path", async () => {
