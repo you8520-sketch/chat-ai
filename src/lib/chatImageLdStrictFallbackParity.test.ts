@@ -96,7 +96,7 @@ describe("chatImageLdStrictFallbackParity — root cause fixtures L0-L5", () => 
   });
 
   it("L2 adultGrounded=true shirtless + bedroom preserves bare torso without modest contradiction", () => {
-    const source = "태형이 셔츠를 벗고 침대에 앉아 있다.";
+    const source = "태현이 셔츠를 벗고 침대에 앉아 있다.";
     const tier2 = ldTier2(source, true);
     assert.match(tier2, /confirmed adult male chat character is shirtless/i);
     assert.match(tier2, /bare shoulders, chest, and upper torso/i);
@@ -161,7 +161,7 @@ describe("chatImageLdStrictFallbackParity — regression matrix LD-A to LD-J", (
   });
 
   it("LD-C adult=true bedroom + male shirtless preserves upper torso", () => {
-    const tier2 = ldTier2("태형이 셔츠를 벗고 침대에 앉아 있다.", true);
+    const tier2 = ldTier2("태현이 셔츠를 벗고 침대에 앉아 있다.", true);
     assert.match(tier2, /confirmed adult male chat character is shirtless/i);
     assert.match(tier2, /bare shoulders, chest, and upper torso/i);
   });
@@ -233,7 +233,7 @@ describe("chatImageLdStrictFallbackParity — final prompt assertions LD-D/E", (
   it("LD-D/E combined fixture satisfies required assertion flags", () => {
     const tier2 = ldTier2(KISS_BED_SHIRTLESS_SOURCE, true);
     const hasBedroomContext = /bedroom|bed/i.test(tier2);
-    const hasActualKissContract = /brief non-explicit affectionate kiss/i.test(tier2);
+    const hasCanonicalDuoKiss = /brief non-explicit affectionate kiss/i.test(tier2);
     const hasAdultMaleShirtlessContract = /confirmed adult male chat character is shirtless/i.test(
       tier2
     );
@@ -247,7 +247,7 @@ describe("chatImageLdStrictFallbackParity — final prompt assertions LD-D/E", (
     const rawExplicitProseLeak = containsRawRiskySourceLeak(tier2);
 
     assert.equal(hasBedroomContext, true, "HAS_BEDROOM_CONTEXT");
-    assert.equal(hasActualKissContract, true, "HAS_ACTUAL_KISS_CONTRACT");
+    assert.equal(hasCanonicalDuoKiss, true, "HAS_CANONICAL_DUO_KISS");
     assert.equal(hasAdultMaleShirtlessContract, true, "HAS_ADULT_MALE_SHIRTLESS_CONTRACT");
     assert.equal(hasBareShouldersOrChest, true, "HAS_BARE_SHOULDERS_OR_CHEST");
     assert.equal(otherParticipantRemainsClothed, true, "OTHER_PARTICIPANT_REMAINS_CLOTHED");
@@ -425,5 +425,160 @@ describe("chatImageLdStrictFallbackParity — shirtless non-event guards", () =>
       personaGender: "female",
     });
     assert.equal(facts.adultMaleShirtlessContract, true);
+  });
+});
+
+describe("chatImageLdStrictFallbackParity — unknown subject LD-K6–K8", () => {
+  it("LD-K6 unknown named subject does not attribute shirtless to main", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "로코는 셔츠를 벗어 맨가슴을 드러냈다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
+  });
+
+  it("LD-K7 unknown generic subject does not attribute shirtless to main", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "누군가는 셔츠를 벗어 맨가슴을 드러냈다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
+  });
+
+  it("LD-K8 unbound pronoun without canonical evidence stays conservative false", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "그는 셔츠를 벗어 맨가슴을 드러냈다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
+  });
+});
+
+describe("chatImageLdStrictFallbackParity — canonical duo kiss LD-KISS-7–12", () => {
+  const supportSubject = {
+    key: "roko",
+    name: "로코",
+    gender: "male" as const,
+    role: "support",
+    referenceImageUrl: "/r.webp",
+    savedAppearance: "",
+    appearanceMode: "image_only" as const,
+    sourceKind: "cast_member" as const,
+  };
+
+  it("LD-KISS-7 character kisses supporting — canonical duo kiss false", () => {
+    const source = "태현은 로코와 짧게 키스했다. 유저는 옆에서 바라봤다.";
+    assert.doesNotMatch(
+      ldTier2(source, true),
+      /brief non-explicit affectionate kiss/i
+    );
+  });
+
+  it("LD-KISS-8 persona kisses supporting — canonical duo kiss false", () => {
+    const source = "유저는 로코와 짧게 키스했다. 태현은 바라봤다.";
+    assert.doesNotMatch(ldTier2(source, true), /brief non-explicit affectionate kiss/i);
+  });
+
+  it("LD-KISS-9 explicit character/persona pair kiss true", () => {
+    assert.match(
+      ldTier2("태현과 유저는 서로를 바라보다 짧게 키스했다.", true),
+      /brief non-explicit affectionate kiss/i
+    );
+  });
+
+  it("LD-KISS-10 character to persona dative kiss true", () => {
+    assert.match(
+      ldTier2("태현은 유저에게 짧게 키스했다.", true),
+      /brief non-explicit affectionate kiss/i
+    );
+  });
+
+  it("LD-KISS-11 persona to character dative kiss true", () => {
+    assert.match(
+      ldTier2("유저가 태현에게 짧게 키스했다.", true),
+      /brief non-explicit affectionate kiss/i
+    );
+  });
+
+  it("LD-KISS-12 unambiguous duo shorthand kiss true", () => {
+    assert.match(ldTier2("둘은 짧게 키스했다.", true), /brief non-explicit affectionate kiss/i);
+  });
+
+  it("LD-KISS-12 conservative false when third party in source", () => {
+    const source = "둘은 짧게 키스했다.";
+    const tier2 = buildStrictLdDuoFallbackPrompt({
+      characterName: "태현",
+      characterGender: "male",
+      personaName: "유저",
+      personaGender: "female",
+      subjects: [supportSubject],
+      sceneSourceText: `${source} 로코는 창가에 서 있다.`,
+      adultGrounded: true,
+    });
+    assert.doesNotMatch(tier2, /brief non-explicit affectionate kiss/i);
+  });
+});
+
+describe("chatImageLdStrictFallbackParity — same-clause boundary semantics", () => {
+  it("LD-BOUNDARY-KISS-1 today marker resets prior but keeps same-clause kiss", () => {
+    assert.match(
+      ldTier2("오늘은 태현과 유저가 짧게 키스했다.", true),
+      /brief non-explicit affectionate kiss/i
+    );
+  });
+
+  it("LD-BOUNDARY-KISS-2 next-day marker keeps same-clause kiss", () => {
+    assert.match(
+      ldTier2("다음날 태현과 유저는 짧게 키스했다.", true),
+      /brief non-explicit affectionate kiss/i
+    );
+  });
+
+  it("LD-BOUNDARY-SHIRT-1 boundary plus main undress same clause true", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "다음날 태현은 셔츠를 벗어 맨가슴을 드러냈다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, true);
+  });
+
+  it("LD-BOUNDARY-SHIRT-2 boundary plus persona undress same clause main false", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "다음날 유저는 셔츠를 벗어 침대에 앉았다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
+  });
+
+  it("LD-BOUNDARY-RESET prior shirtless cleared after later boundary clause", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "태현은 셔츠를 벗었다. 다음날 카페에서 유저와 마주 앉았다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
   });
 });

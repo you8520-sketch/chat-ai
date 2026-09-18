@@ -570,6 +570,41 @@ export type LdStrictClothingContext = {
   knownSpeakerNames?: readonly string[];
 };
 
+const LEADING_SCENE_BOUNDARY =
+  /^(?:다음\s*날|다음날|며칠\s*(?:뒤|후)|오늘(?:은|의)?|지금(?:은|의)?|현재|장면\s*(?:이|이\s*)?전환|시간(?:이|은)?\s*(?:지나|흘러))\s*/u;
+
+function stripLeadingSceneBoundary(clause: string): string {
+  return clause.replace(LEADING_SCENE_BOUNDARY, "").trim();
+}
+
+function findLdClauseSubject(
+  clause: string,
+  ctx: ApplyCanonicalComicClothingCoverageContext
+): NamedIdentity | null {
+  const anchored = resolveClauseGrammaticalSubject(clause, ctx);
+  if (anchored) return anchored;
+  const candidates = [
+    { name: ctx.characterName, identity: "character" as const },
+    { name: ctx.personaName, identity: "persona" as const },
+    ...(ctx.knownSpeakerNames ?? []).map((name) => ({
+      name,
+      identity: "supporting" as const,
+    })),
+  ];
+  for (const candidate of candidates) {
+    const trimmed = candidate.name.trim();
+    if (!trimmed) continue;
+    const pattern = new RegExp(
+      `(?:^|[^\\p{L}\\p{N}])${escapeRegExp(trimmed)}(?:${KOREAN_NAME_PARTICLES}|[^\\p{L}\\p{N}]|$)`,
+      "iu"
+    );
+    if (pattern.test(clause)) {
+      return candidate.identity;
+    }
+  }
+  return null;
+}
+
 function ldSyntheticActionEvent(clause: string, actor: SceneEvent["actor"]): SceneEvent {
   return {
     id: "ld-strict-semantic",
@@ -635,12 +670,15 @@ export function hasCurrentCharacterShirtlessUpperTorso(
     if (SCENE_TIME_BOUNDARY.test(clause)) {
       shirtless = false;
       inheritedSubject = null;
-      continue;
     }
 
-    const clauseSubject = resolveClauseGrammaticalSubject(clause, writerCtx);
+    const clauseSubject = findLdClauseSubject(clause, writerCtx);
     if (clauseSubject) {
       inheritedSubject = clauseSubject;
+    }
+
+    if (clauseSubject === "supporting") {
+      continue;
     }
 
     const genericActor = resolveGenericGenderActor(clause, ctx);
@@ -648,14 +686,20 @@ export function hasCurrentCharacterShirtlessUpperTorso(
       continue;
     }
 
-    const actor: SceneEvent["actor"] =
-      genericActor === "persona"
-        ? "persona"
-        : genericActor === "character"
-          ? "character"
-          : clauseSubject === "persona"
-            ? "persona"
-            : "character";
+    let actor: SceneEvent["actor"] | null = null;
+    if (genericActor === "persona") {
+      actor = "persona";
+    } else if (genericActor === "character") {
+      actor = "character";
+    } else if (clauseSubject === "persona") {
+      actor = "persona";
+    } else if (clauseSubject === "character") {
+      actor = "character";
+    }
+
+    if (!actor) {
+      continue;
+    }
 
     const classified = classifyClause(
       clause,

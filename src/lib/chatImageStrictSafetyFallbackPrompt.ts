@@ -46,8 +46,9 @@ import {
   containsSafeLyingOrRestContext,
 } from "@/lib/chatComicTier2SafeProjection";
 import {
+  collectLdKnownSpeakerNames,
   hasCharacterShirtlessUpperTorso,
-  hasCurrentCompletedKiss,
+  hasCurrentCanonicalDuoKiss,
   type LdStrictSceneSemanticContext,
 } from "@/lib/chatImageLdStrictSceneSemantics";
 import {
@@ -88,6 +89,7 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
   characterGender?: ImagePromptGender;
   personaGender?: ImagePromptGender;
   knownSpeakerNames?: readonly string[];
+  subjects?: readonly ChatImageVisualSubject[];
 }): LdStrictFallbackSceneFacts {
   const raw = String(opts.sceneSourceText ?? "").trim();
   const projected = projectSceneBlockForSafeImageGeneration(raw, {
@@ -97,14 +99,21 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
   // Raw-only category/boolean detection → fixed safe literals (never copy raw substrings).
   const rawHasBedroom = containsBedroomBedContext(raw);
   const rawHasLying = containsSafeLyingOrRestContext(raw);
+  const characterName = opts.characterName?.trim() || "character";
+  const personaName = opts.personaName?.trim() || "persona";
   const semanticCtx: LdStrictSceneSemanticContext = {
-    characterName: opts.characterName?.trim() || "character",
-    personaName: opts.personaName?.trim() || "persona",
+    characterName,
+    personaName,
     characterGender: opts.characterGender,
     personaGender: opts.personaGender,
-    knownSpeakerNames: opts.knownSpeakerNames,
+    knownSpeakerNames: collectLdKnownSpeakerNames({
+      characterName,
+      personaName,
+      subjects: opts.subjects,
+      knownSpeakerNames: opts.knownSpeakerNames,
+    }),
   };
-  const hasCurrentCompletedKissEvent = hasCurrentCompletedKiss(raw);
+  const hasCurrentCanonicalDuoKissEvent = hasCurrentCanonicalDuoKiss(raw, semanticCtx);
   const hasCharacterShirtlessUpperTorsoEvent = hasCharacterShirtlessUpperTorso(raw, semanticCtx);
   const rawHasHug = /(?:껴안|포옹|안아|hug|embrace)/iu.test(raw);
   const rawHasShyMood = /(?:수줍|부끄|활(?:활)?(?:기|홍)|awkward|flushed|shy|홍조|상기)/iu.test(raw);
@@ -143,7 +152,7 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
     compositionParts.push("resting together, preserving lying posture");
   }
 
-  if (hasCurrentCompletedKissEvent) {
+  if (hasCurrentCanonicalDuoKissEvent) {
     compositionParts.push(
       adultGrounded
         ? "sharing a brief non-explicit affectionate kiss"
@@ -197,6 +206,7 @@ function resolveLdStrictFallbackSceneFacts(opts: {
   characterGender?: ImagePromptGender;
   personaGender?: ImagePromptGender;
   knownSpeakerNames?: readonly string[];
+  subjects?: readonly ChatImageVisualSubject[];
   safeBroadLocation?: string;
   safeMood?: string;
   safeComposition?: string;
@@ -211,6 +221,7 @@ function resolveLdStrictFallbackSceneFacts(opts: {
           characterGender: opts.characterGender,
           personaGender: opts.personaGender,
           knownSpeakerNames: opts.knownSpeakerNames,
+          subjects: opts.subjects,
         })
       : null;
   const safeComposition =
@@ -287,6 +298,7 @@ export function buildStrictLdDuoFallbackPrompt(opts: {
   /** When set, derives same-scene facts from projected source (Tier-2 same-scene contract). */
   sceneSourceText?: string;
   adultGrounded?: boolean;
+  knownSpeakerNames?: readonly string[];
 }): string {
   const adultGrounded = opts.adultGrounded ?? false;
   const { safeBroadLocation, safeMood, safeComposition, adultMaleShirtlessContract } =
