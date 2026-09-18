@@ -15,6 +15,7 @@ import {
   CHAT_BILLING_SETTLEMENT_UNIQUE_COLUMNS,
   CHAT_TURN_CHARGE_KIND,
 } from "./chatBillingSettlementSchema";
+import { isCanonicalDerivedStateGenerationStatus } from "./rpDerivedStateLifecycle";
 
 export { ensureChatBillingSettlementSchema, hasChatBillingSettlementSchema } from "./chatBillingSettlementSchema";
 export { CHAT_TURN_CHARGE_KIND } from "./chatBillingSettlementSchema";
@@ -43,6 +44,72 @@ export type ChatBillingSettlementOutcome =
   | "legacy_already_billed"
   | "duplicate_replay"
   | "legacy_malformed";
+
+export type AssistantChargeEligibilityReason =
+  | "missing_row"
+  | "request_id_mismatch"
+  | "not_durable_terminal";
+
+export type AssistantChargeEligibility =
+  | { ok: true; generationStatus: string }
+  | { ok: false; reason: AssistantChargeEligibilityReason };
+
+/** Pre-settlement gate: user charge requires durable terminal assistant product. */
+export function readAssistantChargeEligibility(
+  db: Database.Database,
+  assistantMessageId: number,
+  chatId: number,
+  requestId: string
+): AssistantChargeEligibility {
+  const row = db
+    .prepare(
+      `SELECT generation_status, request_id FROM messages
+       WHERE id = ? AND chat_id = ? AND role = 'assistant'`
+    )
+    .get(assistantMessageId, chatId) as
+    | { generation_status: string | null; request_id: string | null }
+    | undefined;
+
+  if (!row) {
+    return { ok: false, reason: "missing_row" };
+  }
+  if ((row.request_id ?? "") !== requestId) {
+    return { ok: false, reason: "request_id_mismatch" };
+  }
+  if (!isCanonicalDerivedStateGenerationStatus(row.generation_status)) {
+    return { ok: false, reason: "not_durable_terminal" };
+  }
+  return { ok: true, generationStatus: row.generation_status ?? "completed" };
+}
+
+export class BillingProductNotDeliveredError extends Error {
+  readonly reason: AssistantChargeEligibilityReason;
+
+  constructor(reason: AssistantChargeEligibilityReason, message: string) {
+    super(message);
+    this.name = "BillingProductNotDeliveredError";
+    this.reason = reason;
+  }
+}
+
+function assertDurableProductForCharge(
+  db: Database.Database,
+  assistantMessageId: number,
+  chatId: number,
+  requestId: string
+): void {
+  const eligibility = readAssistantChargeEligibility(
+    db,
+    assistantMessageId,
+    chatId,
+    requestId
+  );
+  if (eligibility.ok) return;
+  throw new BillingProductNotDeliveredError(
+    eligibility.reason,
+    `Cannot charge chat turn: durable assistant product not delivered (${eligibility.reason})`
+  );
+}
 
 export type ChatBillingSettlementResult = {
   settlementId: number;
@@ -556,6 +623,12 @@ function settleWithinTransaction(
   let outcome: ChatBillingSettlementOutcome = requestedPoints > 0 ? "charged" : "waived";
 
   if (requestedPoints > 0) {
+    assertDurableProductForCharge(
+      db,
+      input.assistantMessageId,
+      input.chatId,
+      input.requestId
+    );
     const deducted = deductPointsOnDb(db, input.userId, requestedPoints, input.reason, {
       messageId: input.assistantMessageId,
       chatId: input.chatId,

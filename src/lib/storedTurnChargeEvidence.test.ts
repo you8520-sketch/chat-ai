@@ -22,7 +22,10 @@ import {
   loadAdminBillingReceiptV3ForOwnedMessage,
   loadPrivilegedAdminBillingReceiptV3ForMessage,
 } from "@/lib/adminBillingReceiptV3Server";
-import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
+import {
+  BillingProductNotDeliveredError,
+  settleChatTurnBillingExactlyOnce,
+} from "@/lib/chatBillingSettlement";
 import { loadUserMessageBillingSummaryForOwnedMessage } from "@/lib/messageBillingSummaryServer";
 import { resolveStoredTurnChargeEvidence } from "@/lib/storedTurnChargeEvidence";
 import { finalizeAssistantMessage } from "@/lib/streamingPersistence";
@@ -228,35 +231,26 @@ describe("storedTurnChargeEvidence regression matrix", () => {
     assert.equal(evidence.evidenceStatus, "insufficient");
   });
 
-  it("C interrupted after debit before usage persistence → charged", () => {
+  it("C interrupted generation blocks settlement charge (D13 guard)", () => {
     insertAssistant({
       id: ASSISTANT_ID,
       requestId: "req_interrupt_post_debit",
       generationStatus: "interrupted",
       usage: null,
     });
-    const points = 37;
-    settleAssistant({ assistantMessageId: ASSISTANT_ID, requestId: "req_interrupt_post_debit", points });
+    assert.throws(
+      () =>
+        settleAssistant({
+          assistantMessageId: ASSISTANT_ID,
+          requestId: "req_interrupt_post_debit",
+          points: 37,
+        }),
+      BillingProductNotDeliveredError
+    );
 
     const evidence = resolveEvidenceForAssistant(ASSISTANT_ID);
-    assert.equal(evidence.status, "charged");
-    assert.equal(evidence.settledPoints, points);
-
-    const receipt = loadPrivilegedAdminBillingReceiptV3ForMessage({
-      kind: "messageId",
-      messageId: ASSISTANT_ID,
-    });
-    assert.equal(receipt.ok, true);
-    if (receipt.ok) {
-      // STORED TRUTH ONLY: no synthetic Usage — syncReceipt is null.
-      assert.equal(receipt.receipt.syncReceipt, null);
-      assert.equal(receipt.receipt.forensic?.usageSnapshotAvailable, false);
-      assert.equal(receipt.receipt.forensic?.usageCost, null);
-      assert.equal(receipt.receipt.forensic?.billingInputTokens, null);
-      assert.equal(receipt.receipt.forensic?.billingOutputTokens, null);
-      assert.equal(receipt.receipt.forensic?.chargeStatus, "charged");
-      assert.equal(receipt.receipt.forensic?.chargeEvidenceSettledPoints, points);
-    }
+    assert.equal(evidence.status, "not_charged");
+    assert.equal(evidence.settledPoints, 0);
   });
 
   it("D failed with insufficient evidence → unknown (never false 0P)", () => {
@@ -271,18 +265,25 @@ describe("storedTurnChargeEvidence regression matrix", () => {
     assert.equal(evidence.settledPoints, null);
   });
 
-  it("E failed_partial + charged", () => {
-    const points = 29;
+  it("E failed_partial blocks settlement charge", () => {
     insertAssistant({
       id: ASSISTANT_ID,
       requestId: "req_failed_partial",
       generationStatus: "failed_partial",
       usage: null,
     });
-    settleAssistant({ assistantMessageId: ASSISTANT_ID, requestId: "req_failed_partial", points });
+    assert.throws(
+      () =>
+        settleAssistant({
+          assistantMessageId: ASSISTANT_ID,
+          requestId: "req_failed_partial",
+          points: 29,
+        }),
+      BillingProductNotDeliveredError
+    );
     const evidence = resolveEvidenceForAssistant(ASSISTANT_ID);
-    assert.equal(evidence.status, "charged");
-    assert.equal(evidence.settledPoints, points);
+    assert.equal(evidence.status, "unknown");
+    assert.equal(evidence.settledPoints, null);
   });
 
   it("F completed_with_postprocess_error + charged keeps receipt", () => {
@@ -351,11 +352,11 @@ describe("storedTurnChargeEvidence regression matrix", () => {
     if (!owned.ok) assert.equal(owned.status, 404);
   });
 
-  it("M usage missing but settlement exists returns structured admin receipt (not 404)", () => {
+  it("M usage missing but completed settlement returns structured admin receipt (not 404)", () => {
     insertAssistant({
       id: ASSISTANT_ID,
       requestId: "req_missing_usage_settled",
-      generationStatus: "interrupted",
+      generationStatus: "completed",
       usage: null,
     });
     const points = 37;
@@ -430,11 +431,11 @@ describe("storedTurnChargeEvidence regression matrix", () => {
     void db;
   });
 
-  it("P no usage + charged settlement → usage nulls, charge evidence separate", () => {
+  it("P no usage + completed charged settlement → usage nulls, charge evidence separate", () => {
     insertAssistant({
       id: ASSISTANT_ID,
       requestId: "req_p_charged",
-      generationStatus: "interrupted",
+      generationStatus: "completed",
       usage: null,
     });
     const points = 22;
@@ -486,12 +487,12 @@ describe("storedTurnChargeEvidence — finalize path parity", () => {
 
   beforeEach(() => seedHarness());
 
-  it("completed interrupted finalize with usage still resolves charged from settlement", () => {
+  it("completed finalize with usage resolves charged from settlement", () => {
     const db = getDb();
     db.prepare(
       `INSERT INTO messages (id, chat_id, role, content, model, request_id, generation_status, alternates, active_variant)
        VALUES (?, ?, 'assistant', 'partial', 'deepseek-v4-pro-0813', ?, 'generating', '[]', 0)`
-    ).run(ASSISTANT_ID, CHAT_ID, "req_finalize_interrupt");
+    ).run(ASSISTANT_ID, CHAT_ID, "req_finalize_completed");
 
     const usage = completedUsage(12);
     finalizeAssistantMessage(db, {
@@ -502,9 +503,9 @@ describe("storedTurnChargeEvidence — finalize path parity", () => {
       usageJson: JSON.stringify(usage),
       alternatesJson: "[]",
       activeVariant: 0,
-      generationStatus: "interrupted",
+      generationStatus: "completed",
     });
-    settleAssistant({ assistantMessageId: ASSISTANT_ID, requestId: "req_finalize_interrupt", points: 12 });
+    settleAssistant({ assistantMessageId: ASSISTANT_ID, requestId: "req_finalize_completed", points: 12 });
 
     const evidence = resolveEvidenceForAssistant(ASSISTANT_ID);
     assert.equal(evidence.status, "charged");
