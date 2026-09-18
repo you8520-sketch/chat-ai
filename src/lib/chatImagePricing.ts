@@ -1,11 +1,20 @@
 /**
- * Canonical price for every image product launched from a chat or TRPG room.
- * This is the BASE price for one provider generation request and already
- * includes the first CHAT_IMAGE_BASE_IDENTITY_REFERENCES identity-reference
- * attachments. Every extra identity reference above the base adds the
- * canonical additional-identity-reference surcharge.
+ * Base price (2 grounded identity references included) for LD illustration and
+ * TRPG party illustration — one provider generation request.
  */
-export const CHAT_ROOM_IMAGE_GENERATION_POINTS = 180;
+export const CHAT_ILLUSTRATION_BASE_POINTS = 150;
+
+/**
+ * Base price (2 grounded identity references included) for 4-cut / horizontal
+ * comic generation — unchanged while illustration base is reduced.
+ */
+export const CHAT_COMIC_BASE_POINTS = 180;
+
+/**
+ * Historical alias for the comic base price. Illustration/TRPG must use
+ * CHAT_ILLUSTRATION_BASE_POINTS (via resolveChatLdIllustrationPrice).
+ */
+export const CHAT_ROOM_IMAGE_GENERATION_POINTS = CHAT_COMIC_BASE_POINTS;
 
 /**
  * Identity references included in the base template price: the first two
@@ -44,14 +53,13 @@ export function resolveImageIdentityReferenceSurcharge(identityReferenceCount: n
 }
 
 /**
- * Canonical final required points for ONE image generation request. Single
- * pricing owner shared by regular illustration, regular comic (fixed 4-panel
- * page = one provider generation request — surcharge is counted once per
- * request, never multiplied by panelCount), and TRPG party illustration.
+ * Canonical final required points for ONE image generation request. Product
+ * base (illustration vs comic) is passed explicitly; surcharge is counted once
+ * per request, never multiplied by panelCount.
  */
 export function resolveImageGenerationRequiredPoints(
   identityReferenceCount: number,
-  basePoints: number = CHAT_ROOM_IMAGE_GENERATION_POINTS
+  basePoints: number
 ): number {
   return basePoints + resolveImageIdentityReferenceSurcharge(identityReferenceCount);
 }

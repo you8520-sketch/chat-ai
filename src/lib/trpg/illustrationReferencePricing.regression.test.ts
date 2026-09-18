@@ -3,10 +3,13 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
+  CHAT_ILLUSTRATION_BASE_POINTS,
   CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS,
-  CHAT_ROOM_IMAGE_GENERATION_POINTS,
   resolveImageGenerationRequiredPoints,
 } from "@/lib/chatImagePricing";
+import { resolveChatLdIllustrationPrice } from "@/lib/chatLdIllustrationGeneration";
+
+const ILLUSTRATION_BASE = resolveChatLdIllustrationPrice();
 import { buildPartyIllustrationReferencePlan } from "@/lib/chatImageVisualIdentity";
 import {
   applyTrpgCastImagePicks,
@@ -47,8 +50,8 @@ describe("TRPG participant identity-reference pricing regression (shared canonic
     assert.equal(plan.subjects[0]?.referenceIndex, 1);
     assert.equal(plan.subjects[0]?.referenceImageUrl, "/uploads/taehyun.webp");
     assert.equal(
-      resolveImageGenerationRequiredPoints(plan.referenceUrls.length),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS
+      resolveImageGenerationRequiredPoints(plan.referenceUrls.length, ILLUSTRATION_BASE),
+      CHAT_ILLUSTRATION_BASE_POINTS
     );
   });
 
@@ -64,8 +67,8 @@ describe("TRPG participant identity-reference pricing regression (shared canonic
     );
     assert.equal(plan.referenceUrls.length, 2);
     assert.equal(
-      resolveImageGenerationRequiredPoints(plan.referenceUrls.length),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS
+      resolveImageGenerationRequiredPoints(plan.referenceUrls.length, ILLUSTRATION_BASE),
+      CHAT_ILLUSTRATION_BASE_POINTS
     );
   });
 
@@ -77,8 +80,8 @@ describe("TRPG participant identity-reference pricing regression (shared canonic
     ]);
     assert.deepEqual(plan.referenceUrls, ["/uploads/a.webp", "/uploads/b.webp", "/uploads/c.webp"]);
     assert.equal(
-      resolveImageGenerationRequiredPoints(plan.referenceUrls.length),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS + CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
+      resolveImageGenerationRequiredPoints(plan.referenceUrls.length, ILLUSTRATION_BASE),
+      CHAT_ILLUSTRATION_BASE_POINTS + CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
     );
   });
 
@@ -97,8 +100,8 @@ describe("TRPG participant identity-reference pricing regression (shared canonic
     ]);
     assert.equal(plan.referenceUrls.length, 4);
     assert.equal(
-      resolveImageGenerationRequiredPoints(plan.referenceUrls.length),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
+      resolveImageGenerationRequiredPoints(plan.referenceUrls.length, ILLUSTRATION_BASE),
+      CHAT_ILLUSTRATION_BASE_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
     );
   });
 
@@ -112,8 +115,8 @@ describe("TRPG participant identity-reference pricing regression (shared canonic
     ]);
     assert.equal(plan.referenceUrls.length, 3);
     assert.equal(
-      resolveImageGenerationRequiredPoints(plan.referenceUrls.length),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS + CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
+      resolveImageGenerationRequiredPoints(plan.referenceUrls.length, ILLUSTRATION_BASE),
+      CHAT_ILLUSTRATION_BASE_POINTS + CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
     );
   });
 
@@ -162,8 +165,8 @@ describe("TRPG participant identity-reference pricing regression (shared canonic
     assert.doesNotMatch(route, /participantSurcharge|partySurcharge|trpgSurcharge/i);
     // Uniform: a 4-identity-ref TRPG party costs the same as any 4-ref request.
     assert.equal(
-      resolveImageGenerationRequiredPoints(4),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
+      resolveImageGenerationRequiredPoints(4, ILLUSTRATION_BASE),
+      CHAT_ILLUSTRATION_BASE_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
     );
   });
 });
