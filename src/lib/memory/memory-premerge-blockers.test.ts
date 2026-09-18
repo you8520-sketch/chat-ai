@@ -443,7 +443,10 @@ describe("pre-merge blocker regression", () => {
   });
 
   it("I episodic memory layer does not import status episodic aliases", () => {
-    const src = readFileSync("/workspace/src/lib/episodicMemoryFacts.ts", "utf8");
+    const src = readFileSync(
+      new URL("../episodicMemoryFacts.ts", import.meta.url),
+      "utf8"
+    );
     assert.equal(src.includes("@/lib/statusWidget/types"), false);
     assert.equal(src.includes("statusWidget"), false);
   });
