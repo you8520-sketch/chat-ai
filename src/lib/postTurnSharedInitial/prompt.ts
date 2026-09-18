@@ -1,7 +1,4 @@
-import {
-  buildSharedInitialEpisodicSectionInstructions,
-  SHARED_STATUS_WIDGET_SCOPE_INSTRUCTIONS,
-} from "@/lib/memory/memory-episodic-prompt";
+import { buildSharedInitialEpisodicSectionInstructions } from "@/lib/memory/memory-episodic-prompt";
 import {
   buildCombinedDualWidgetExtractSystem,
   buildCombinedDualWidgetExtractUserBlock,
@@ -74,7 +71,6 @@ function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
   const semanticWidgetLines: string[] = [];
   if (input.mode !== "relationship_only") {
     semanticWidgetLines.push(
-      SHARED_STATUS_WIDGET_SCOPE_INSTRUCTIONS,
       "Populate every required statusWidget field with one scene-grounded string derived from this turn.",
       "Never copy placeholder tokens from examples (\"...\", \"…\", \"<scene value>\")."
     );
@@ -207,7 +203,11 @@ export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitial
     : "";
 
   if (widgetBlock) {
-    return [widgetBlock, voiceContext].filter(Boolean).join("\n\n");
+    const rejectedDraftBlock =
+      input.relationshipRegenContext?.previousAssistantMessage?.trim()
+        ? `[REJECTED ASSISTANT DRAFT — RELATIONSHIP COMPARISON ONLY; NOT EPISODIC EVIDENCE]\n${input.relationshipRegenContext.previousAssistantMessage}`
+        : "";
+    return [widgetBlock, rejectedDraftBlock, voiceContext].filter(Boolean).join("\n\n");
   }
   // No widget consumer (status OFF). Always include the current turn so
   // suggestions-only work does not depend on the relationship section.

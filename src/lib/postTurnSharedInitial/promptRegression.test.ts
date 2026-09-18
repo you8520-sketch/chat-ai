@@ -43,16 +43,64 @@ function dualInput(overrides: Partial<PostTurnSharedInitialInput> = {}): PostTur
   };
 }
 
+const SHARED_STATUS_SCOPE_MARKER =
+  "statusWidget section — current-turn UI snapshot only (field values)";
+
 function assertSharedEpisodicPromptClean(system: string) {
+  const scopeRuleMatches = system.match(
+    new RegExp(SHARED_STATUS_SCOPE_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")
+  );
+  assert.equal(
+    scopeRuleMatches?.length ?? 0,
+    1,
+    "shared status scope ownership rule appears exactly once"
+  );
   const episodicRuleMatches =
     system.match(/Structured facts for long-term episodic memory/g) ?? [];
   assert.equal(episodicRuleMatches.length, 1, "episodic semantic rules appear exactly once");
-  assert.doesNotMatch(system, /Do not produce long-term episodic memory facts/);
+  const standaloneNoEpisodicMatches =
+    system.match(/Do not produce long-term episodic memory facts/g) ?? [];
+  assert.equal(
+    standaloneNoEpisodicMatches.length,
+    0,
+    "standalone no-episodic instruction must not appear in Shared Initial"
+  );
   assert.doesNotMatch(
     system,
     /If the JSON schema includes "extracted_facts", output exactly "extracted_facts": \[\]/
   );
   assert.match(system, /statusWidget section — current-turn UI snapshot only/);
+}
+
+function assertStatusOnRegenUserBlock(
+  userBlock: string,
+  opts: {
+    userMessage: string;
+    canonicalAssistant: string;
+    rejectedDraft: string;
+  }
+) {
+  const rejectedDraftLabel =
+    /\[REJECTED ASSISTANT DRAFT — RELATIONSHIP COMPARISON ONLY; NOT EPISODIC EVIDENCE\]/g;
+  assert.equal(
+    userBlock.match(rejectedDraftLabel)?.length ?? 0,
+    1,
+    "rejected draft block appears exactly once"
+  );
+  assert.match(userBlock, new RegExp(`\\[USER MESSAGE\\]\\n${opts.userMessage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+  assert.match(
+    userBlock,
+    new RegExp(
+      `\\[ASSISTANT REPLY — current turn prose only\\]\\n${opts.canonicalAssistant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`
+    )
+  );
+  assert.match(userBlock, /STATUS CONTINUITY ONLY; NOT EPISODIC EVIDENCE/);
+  assert.match(userBlock, /RELATIONSHIP COMPARISON ONLY; NOT EPISODIC EVIDENCE/);
+  assert.match(userBlock, new RegExp(opts.rejectedDraft.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.doesNotMatch(
+    userBlock,
+    /\[THIS TURN — USER\][\s\S]*\[THIS TURN — USER\]/
+  );
 }
 
 describe("Shared Initial prompt regression P1–P8", () => {
@@ -143,6 +191,44 @@ describe("Shared Initial prompt regression P1–P8", () => {
     assert.match(userBlock, /\[ASSISTANT REPLY — current turn prose only\]/);
     const system = buildPostTurnSharedInitialSystem(dualInput());
     assert.match(system, /current USER message \+ current canonical ASSISTANT prose only/);
+  });
+
+  it("P12 Status ON dual regen: rejected draft present without duplicating current turn", () => {
+    const input = dualInput({
+      relationshipRegenContext: { previousAssistantMessage: "rejected dual draft" },
+    });
+    assertStatusOnRegenUserBlock(buildPostTurnSharedInitialUserBlock(input), {
+      userMessage: input.userMessage,
+      canonicalAssistant: input.assistantProse,
+      rejectedDraft: "rejected dual draft",
+    });
+  });
+
+  it("P13 Status ON character regen: rejected draft present without duplicating current turn", () => {
+    const input = dualInput({
+      mode: "character",
+      userWidget: null,
+      relationshipRegenContext: { previousAssistantMessage: "rejected character draft" },
+    });
+    assertStatusOnRegenUserBlock(buildPostTurnSharedInitialUserBlock(input), {
+      userMessage: input.userMessage,
+      canonicalAssistant: input.assistantProse,
+      rejectedDraft: "rejected character draft",
+    });
+  });
+
+  it("P14 Status ON user regen: rejected draft present without duplicating current turn", () => {
+    const input = dualInput({
+      mode: "user",
+      characterWidget: null,
+      userWidget: USER_WIDGET,
+      relationshipRegenContext: { previousAssistantMessage: "rejected user draft" },
+    });
+    assertStatusOnRegenUserBlock(buildPostTurnSharedInitialUserBlock(input), {
+      userMessage: input.userMessage,
+      canonicalAssistant: input.assistantProse,
+      rejectedDraft: "rejected user draft",
+    });
   });
 });
 
