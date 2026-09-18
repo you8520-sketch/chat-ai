@@ -32,6 +32,7 @@ on:
       - "src/lib/streamingPersistenceShared.ts"
       - "src/lib/rpDerivedStateLifecycle.ts"
       - "src/lib/refund.ts"
+      - "src/lib/creatorPoints.ts"
       - "src/lib/pointPolicyUnification.test.ts"
 
 permissions:

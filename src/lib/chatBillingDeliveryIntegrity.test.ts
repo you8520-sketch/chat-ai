@@ -32,6 +32,11 @@ import {
 import { ensureChatBillingSettlementSchema } from "./chatBillingSettlementSchema";
 import { getDb } from "./db";
 import { getPointBalance } from "./points";
+import {
+  getCreatorPointsBalance,
+  maybeCreditCreatorReward,
+  paidCreatorRewardSpend,
+} from "./creatorPoints";
 import { refundMessageDeduction } from "./refund";
 import {
   installIsolatedTestDatabase,
@@ -717,6 +722,152 @@ describe("billing delivery integrity — D14 refund via canonical owner", () => 
       assistantMessageId: msgId,
       requestedPoints: 79,
       reason: "D14 replay after refund",
+    });
+    assert.equal(replay.duplicate, true);
+    assert.equal(replay.appliedNewCharge, false);
+  });
+});
+
+describe("billing delivery integrity — D14b creator reward reversal", () => {
+  before(() => installIsolatedTestDatabase());
+  after(() => uninstallIsolatedTestDatabase());
+
+  it("D14b refund reverses maybeCreditCreatorReward via canonical owners", () => {
+    const db = getDb();
+    const creatorRow = db
+      .prepare(
+        `INSERT INTO users (email, nickname, pw_hash, points, creator_points)
+         VALUES (?, ?, ?, 0, 0)`
+      )
+      .run("d14b-creator@test.local", "d14b_creator", "x");
+    const creatorId = Number(creatorRow.lastInsertRowid);
+
+    const consumerRow = db
+      .prepare(`INSERT INTO users (email, nickname, pw_hash, points) VALUES (?, ?, ?, 0)`)
+      .run("d14b-consumer@test.local", "d14b_consumer", "x");
+    const consumerId = Number(consumerRow.lastInsertRowid);
+    db.prepare(
+      `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
+       VALUES (?, 'PAID', 10000, '2030-01-01')`
+    ).run(consumerId);
+
+    const characterId = Number(
+      db
+        .prepare(`INSERT INTO characters (name, creator_id, official) VALUES (?, ?, 0)`)
+        .run("d14b_char_a", creatorId).lastInsertRowid
+    );
+    db.prepare(`INSERT INTO characters (name, creator_id, official) VALUES (?, ?, 0)`).run(
+      "d14b_char_b",
+      creatorId
+    );
+
+    const chatId = Number(
+      db
+        .prepare(`INSERT INTO chats (user_id, character_id) VALUES (?, ?)`)
+        .run(consumerId, characterId).lastInsertRowid
+    );
+    const msgId = Number(
+      db
+        .prepare(
+          `INSERT INTO messages (chat_id, role, content, request_id, generation_status)
+           VALUES (?, 'assistant', ?, ?, 'completed')`
+        )
+        .run(chatId, "creator reward reversal answer", "d14b_req").lastInsertRowid
+    );
+
+    const creatorBaseline = getCreatorPointsBalance(creatorId);
+    const consumerLotBefore = db
+      .prepare(
+        `SELECT id, remaining_amount, point_type FROM point_transactions WHERE user_id=? ORDER BY id`
+      )
+      .all(consumerId) as Array<{ id: number; remaining_amount: number; point_type: string }>;
+    const consumerBalanceBefore = getPointBalance(consumerId).total;
+
+    const settlement = settleChatTurnBillingExactlyOnce(db, {
+      userId: consumerId,
+      chatId,
+      requestId: "d14b_req",
+      assistantMessageId: msgId,
+      requestedPoints: 79,
+      reason: "D14b charge",
+    });
+    assert.equal(settlement.appliedNewCharge, true);
+
+    const paidSpend = paidCreatorRewardSpend(settlement.slices);
+    assert.ok(paidSpend > 0);
+    const reward = maybeCreditCreatorReward({
+      creatorId,
+      official: 0,
+      characterId,
+      messageId: msgId,
+      consumerUserId: consumerId,
+      pointsSpent: paidSpend,
+    });
+    assert.ok(reward > 0);
+
+    const earningBefore = db
+      .prepare(`SELECT reversed FROM creator_earnings WHERE message_id=?`)
+      .get(msgId) as { reversed: number };
+    assert.equal(earningBefore.reversed, 0);
+    assert.ok(getCreatorPointsBalance(creatorId) > creatorBaseline);
+    const rewardLogsBefore = (
+      db
+        .prepare(
+          `SELECT COUNT(*) AS c FROM creator_point_logs
+           WHERE user_id=? AND delta > 0 AND reason LIKE ?`
+        )
+        .get(creatorId, `%메시지 #${msgId}%`) as { c: number }
+    ).c;
+    assert.ok(rewardLogsBefore >= 1);
+
+    refundMessageDeduction(
+      consumerId,
+      msgId,
+      settlement.slices,
+      settlement.settledPoints,
+      "D14b refund"
+    );
+
+    const earningAfter = db
+      .prepare(`SELECT reversed FROM creator_earnings WHERE message_id=?`)
+      .get(msgId) as { reversed: number };
+    assert.equal(earningAfter.reversed, 1);
+    assert.equal(getCreatorPointsBalance(creatorId), creatorBaseline);
+
+    const reversalLog = db
+      .prepare(
+        `SELECT delta, reason FROM creator_point_logs
+         WHERE user_id=? AND delta < 0 AND reason LIKE ?`
+      )
+      .get(creatorId, `%메시지 #${msgId}%`) as { delta: number; reason: string } | undefined;
+    assert.ok(reversalLog);
+    assert.ok(reversalLog.delta < 0);
+    assert.match(reversalLog.reason, /환불/);
+
+    const restoredLot = db
+      .prepare(`SELECT remaining_amount, point_type FROM point_transactions WHERE id=?`)
+      .get(consumerLotBefore[0]!.id) as { remaining_amount: number; point_type: string };
+    assert.equal(restoredLot.point_type, "PAID");
+    assert.equal(restoredLot.remaining_amount, consumerLotBefore[0]!.remaining_amount);
+    assert.equal(getPointBalance(consumerId).total, consumerBalanceBefore);
+
+    const messageRow = db
+      .prepare(`SELECT is_refunded FROM messages WHERE id=?`)
+      .get(msgId) as { is_refunded: number };
+    assert.equal(messageRow.is_refunded, 1);
+
+    const settlementRow = db
+      .prepare(`SELECT refunded_at FROM chat_billing_settlements WHERE request_id='d14b_req'`)
+      .get() as { refunded_at: string | null };
+    assert.ok(settlementRow.refunded_at);
+
+    const replay = settleChatTurnBillingExactlyOnce(db, {
+      userId: consumerId,
+      chatId,
+      requestId: "d14b_req",
+      assistantMessageId: msgId,
+      requestedPoints: 79,
+      reason: "D14b replay",
     });
     assert.equal(replay.duplicate, true);
     assert.equal(replay.appliedNewCharge, false);
