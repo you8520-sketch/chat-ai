@@ -373,12 +373,13 @@ describe("shared initial episodic consumer", () => {
     assert.equal(eligible.facts.length, 1);
   });
 
-  it("S15 rolling summary path does not call background-episodic-extract", () => {
+  it("S15 rolling summary production path has no episodic provider branch", () => {
     const rolling = readFileSync(
       new URL("./memory-rolling-summary.ts", import.meta.url),
       "utf8"
     );
-    assert.match(rolling, /EPISODIC_SEAL_BATCH_EXTRACT_ENABLED = false/);
+    assert.doesNotMatch(rolling, /extractAndPersistEpisodicFactsForSealedBatch/);
+    assert.doesNotMatch(rolling, /EPISODIC_SEAL_BATCH_EXTRACT_ENABLED/);
     __resetEpisodicExtractCallCountForTests();
     assert.equal(__getEpisodicExtractCallCountForTests(), 0);
   });

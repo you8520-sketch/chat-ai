@@ -1,7 +1,38 @@
 import { fieldPlaceholderKey } from "./fieldKeys";
 import { expandStatusWidgetProfilePlaceholders } from "./placeholders";
 import { collectWidgetJsonKeys } from "./prompt";
-import { STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS } from "@/lib/memory/memory-episodic-prompt";
+import {
+  SHARED_STATUS_WIDGET_SCOPE_INSTRUCTIONS,
+  STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS,
+} from "@/lib/memory/memory-episodic-prompt";
+
+/** Standalone status extract vs Shared Initial embedded statusWidget semantic owner. */
+export type StatusWidgetExtractPromptOwner = "standalone" | "shared_initial";
+
+function statusWidgetEpisodicOwnershipTail(
+  promptOwner: StatusWidgetExtractPromptOwner
+): string {
+  return promptOwner === "shared_initial"
+    ? SHARED_STATUS_WIDGET_SCOPE_INSTRUCTIONS
+    : STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS;
+}
+
+function previousAssistantContinuityRule(
+  promptOwner: StatusWidgetExtractPromptOwner
+): string {
+  if (promptOwner === "shared_initial") {
+    return "- [PREVIOUS TURN ASSISTANT] is STATUS CONTINUITY ONLY — NOT episodic evidence; use only for time/place/mood continuity in statusWidget fields.";
+  }
+  return "- When [PREVIOUS TURN ASSISTANT] is provided, use it only for continuity (time/place/mood); prefer current-turn evidence.";
+}
+
+function previousAssistantUserBlockLabel(
+  promptOwner: StatusWidgetExtractPromptOwner
+): string {
+  return promptOwner === "shared_initial"
+    ? "[PREVIOUS TURN ASSISTANT — STATUS CONTINUITY ONLY; NOT EPISODIC EVIDENCE]"
+    : "[PREVIOUS TURN ASSISTANT — prose only]";
+}
 import { allocateWidgetExtractNarrativeSlices } from "./proseStrip";
 import { sanitizeExtractedFacts } from "./extractedFacts";
 import {
@@ -231,7 +262,8 @@ export function buildWidgetExtractSystem(
   widget: StatusWidget,
   keys: string[],
   source: "character" | "user" = "character",
-  includeOutputContract = true
+  includeOutputContract = true,
+  promptOwner: StatusWidgetExtractPromptOwner = "standalone"
 ): string {
   const keyList = keys.map((k) => `"${k}"`).join(", ");
   const defaultSubject = source === "character" ? "[CHARACTER] (the NPC)" : "[USER] (the user persona)";
@@ -261,8 +293,8 @@ ${outputContract}Rules:
   If [PREVIOUS TURN WIDGET VALUES] has a prior value for that field, or this turn's events affect the required person at all, that IS enough basis — update from this turn's events instead of giving up. Only when the required person has truly zero basis (no prior state AND no relevant event) output exactly "(자리비움)" — never fall back to the other person's emotions.
 - Do NOT add keys beyond the required list.
 - Never copy [CHARACTER CRITICAL CONTEXT] wording into field values.
-- When [PREVIOUS TURN ASSISTANT] is provided, use it only for continuity (time/place/mood); prefer current-turn evidence.
-${STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS}`;
+${previousAssistantContinuityRule(promptOwner)}
+${statusWidgetEpisodicOwnershipTail(promptOwner)}`;
 }
 
 export function buildWidgetExtractUserBlock(opts: {
@@ -278,7 +310,9 @@ export function buildWidgetExtractUserBlock(opts: {
   source: "character" | "user";
   previousValues?: StatusWidgetValues | null;
   userNote?: string;
+  promptOwner?: StatusWidgetExtractPromptOwner;
 }): string {
+  const promptOwner = opts.promptOwner ?? "standalone";
   const { currentSlice, previousSlice } = allocateWidgetExtractNarrativeSlices(
     opts.assistantProse,
     opts.previousAssistantProse
@@ -295,7 +329,9 @@ export function buildWidgetExtractUserBlock(opts: {
     }),
     `[USER] ${opts.personaName}`,
     `[USER MESSAGE]\n${opts.userMessage}`,
-    previousSlice ? `[PREVIOUS TURN ASSISTANT — prose only]\n${previousSlice}` : "",
+    previousSlice
+      ? `${previousAssistantUserBlockLabel(promptOwner)}\n${previousSlice}`
+      : "",
     `[ASSISTANT REPLY — current turn prose only]\n${currentSlice}`,
     buildWidgetSourceReminder(opts.source, opts.charName, opts.personaName),
   ]
@@ -643,7 +679,8 @@ function usableWidgetValueKeys(values: StatusWidgetValues | null): string[] {
 export function buildCombinedDualWidgetExtractSystem(
   characterWidget: StatusWidget,
   userWidget: StatusWidget,
-  includeOutputContract = true
+  includeOutputContract = true,
+  promptOwner: StatusWidgetExtractPromptOwner = "standalone"
 ): string {
   const charKeys = collectWidgetJsonKeys(characterWidget)
     .map((k) => `"${k}"`)
@@ -682,7 +719,8 @@ ${outputContract}Rules:
 - Do NOT copy field labels, instructions, or requirement phrases as values.
 - Never copy [CHARACTER CRITICAL CONTEXT] wording into field values.
 - Prefer current-turn explicit change over previous canonical anchors.
-${STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS}`;
+${previousAssistantContinuityRule(promptOwner)}
+${statusWidgetEpisodicOwnershipTail(promptOwner)}`;
 }
 
 export function buildCombinedDualWidgetExtractUserBlock(opts: {
@@ -697,7 +735,9 @@ export function buildCombinedDualWidgetExtractUserBlock(opts: {
   userWidget: StatusWidget;
   previousCharacterValues?: StatusWidgetValues | null;
   previousUserValues?: StatusWidgetValues | null;
+  promptOwner?: StatusWidgetExtractPromptOwner;
 }): string {
+  const promptOwner = opts.promptOwner ?? "standalone";
   const { currentSlice, previousSlice } = allocateWidgetExtractNarrativeSlices(
     opts.assistantProse,
     opts.previousAssistantProse
@@ -714,7 +754,9 @@ export function buildCombinedDualWidgetExtractUserBlock(opts: {
     }),
     `[USER] ${opts.personaName}`,
     `[USER MESSAGE]\n${opts.userMessage}`,
-    previousSlice ? `[PREVIOUS TURN ASSISTANT — prose only]\n${previousSlice}` : "",
+    previousSlice
+      ? `${previousAssistantUserBlockLabel(promptOwner)}\n${previousSlice}`
+      : "",
     `[ASSISTANT REPLY — current turn prose only]\n${currentSlice}`,
     `[REMINDER] character_values = [CHARACTER](${opts.charName}) widget only; user_values = [USER](${opts.personaName}) widget only. Previous widget values are continuity references, not answer text to copy. Infer inner-state per source from the current scene end — do not mechanically repeat previous wording when this turn has new cues; preserve meaning if truly unchanged. Do not share one emotion across both namespaces, and avoid unknown placeholders when scene cues exist. Obey each field instruction's subject. Prefer current explicit change over previous anchors. Use the location, time, and situation of the LAST scene, never an earlier scene. Do not copy instructions/labels or CRITICAL context wording as values. ${INNER_STATE_QUALITY_KO}`,
   ]
