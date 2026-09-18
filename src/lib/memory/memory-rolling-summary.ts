@@ -1244,9 +1244,15 @@ export async function refreshRollingSummaryForRegeneratedAssistant(opts: {
   }
   const summarized = memory.summarized_turn_count ?? 0;
   if (!record || record.inactive) {
+    // Deferred seal — the target turn's batch is not sealed yet, so the frontier
+    // regen must NOT trigger a summary provider call (or repeat per regen). The
+    // pending batch is sealed by the next request-start catch-up owner, which
+    // reads the final active-variant content after the canon freeze.
     if (shouldTriggerRollingSummary(eligibleCount, summarized)) {
-      void processRollingSummaryBatch(opts).catch((e) => {
-        console.warn("[memory] regen seal pending batch failed:", (e as Error).message);
+      console.info("MEMORY_SUMMARY_REGEN_PENDING_SEAL_DEFERRED", {
+        chat_id: opts.chatId,
+        assistant_message_id: opts.assistantMessageId,
+        batch_start: batchStart,
       });
     }
     return false;

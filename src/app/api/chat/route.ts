@@ -154,6 +154,7 @@ import {
   scheduleMemoryUpdate,
 } from "@/lib/memory/memory-manager";
 import {
+  ensureSummaryBarrier,
   getRollingSummaryContentionSnapshot,
   prepareNonBlockingSummaryForMainRp,
 } from "@/lib/memory/memory-rolling-summary";
@@ -170,6 +171,7 @@ import {
   trimProviderHistoryToBudget,
 } from "@/lib/providerHistoryPolicy";
 import {
+  DEFERRED_SUMMARY_RAW_COVERAGE_EXCHANGES,
   resolveProviderRawPoolExchangeCount,
   resolveProviderRawTrimFloorExchanges,
   resolveSummaryHealthState,
@@ -1443,8 +1445,40 @@ export async function POST(req: Request) {
     });
     phaseAudit?.mark("T4b_SUMMARY_PREP_DONE");
     effectiveSummarizedTurnCount = summaryPrep.summarizedThrough;
+    // Summary lag already slipped past the deferred boundary (>RAW4+1): restore
+    // RAW↔summary coverage with the existing barrier owner before Main RP runs.
+    if (
+      Math.max(0, completedTurnsForMemoryCoverage - effectiveSummarizedTurnCount) >
+      RAW_HISTORY_COMPLETE_EXCHANGES + 1
+    ) {
+      const barrier = await ensureSummaryBarrier({
+        chatId: chat.id,
+        userId: user.id,
+        characterId: ch.id,
+        charName: ch.name,
+        tier: memoryTier,
+        memoryCapacity,
+        userPersona: personaDisplayName,
+        completedTurns: completedTurnsForMemoryCoverage,
+      });
+      if (barrier.ok) {
+        effectiveSummarizedTurnCount = barrier.summarizedThrough;
+      } else {
+        console.warn("MEMORY_SUMMARY_BARRIER_INCOMPLETE", {
+          chat_id: chat.id,
+          reason: barrier.reason,
+          pending_range: barrier.pendingRange,
+          summarized_through: effectiveSummarizedTurnCount,
+          raw_trim_floor: DEFERRED_SUMMARY_RAW_COVERAGE_EXCHANGES,
+        });
+      }
+    }
   }
 
+  const unsummarizedTurnsAtPrep = Math.max(
+    0,
+    completedTurnsForMemoryCoverage - effectiveSummarizedTurnCount
+  );
   const providerRawPoolExchangeCount = memoryFeatureOn
     ? resolveProviderRawPoolExchangeCount({
         memoryFeatureEnabled: true,
@@ -1452,7 +1486,9 @@ export async function POST(req: Request) {
         summarizedTurnCount: effectiveSummarizedTurnCount,
       })
     : RAW_HISTORY_COMPLETE_EXCHANGES;
-  const providerRawTrimFloor = RAW_HISTORY_COMPLETE_EXCHANGES;
+  const providerRawTrimFloor = memoryFeatureOn
+    ? resolveProviderRawTrimFloorExchanges(unsummarizedTurnsAtPrep)
+    : RAW_HISTORY_COMPLETE_EXCHANGES;
   const summaryHealthState = memoryFeatureOn
     ? resolveSummaryHealthState({
         completedTurns: completedTurnsForMemoryCoverage,

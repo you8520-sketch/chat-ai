@@ -308,6 +308,18 @@ export async function PATCH(req: Request) {
 
   // ─── Nonnumeric path (unchanged behavior) ───
   if (isLatest) {
+    // Canon freeze — once ANY later message row exists (e.g. the next user
+    // message was canonically accepted), the frontier has moved and this
+    // assistant is immutable. Same frontier contract as the numeric path.
+    if (!isCanonicalFrontierAssistantMessage(db, msg.chat_id, messageId)) {
+      return NextResponse.json(
+        {
+          error: "이후 입력이 있어 이 답변의 버전을 바꿀 수 없습니다. 새로고침 후 다시 시도해 주세요.",
+          code: "variant_switch_frontier_moved",
+        },
+        { status: 409 }
+      );
+    }
     try {
       executeAtomicVariantSwitchCore(db, {
         chatId: msg.chat_id,
