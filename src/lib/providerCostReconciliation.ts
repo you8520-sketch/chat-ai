@@ -12,6 +12,7 @@ import {
   recordMainGenerationProviderCost,
   toMicroUsd,
   upsertReconciledProviderCost,
+  type ReconciledProviderCostOutcome,
 } from "@/lib/providerCostLedger";
 import { resolveActiveAssistantGenerationScopeFromRow } from "@/lib/assistantGenerationScope";
 
@@ -308,6 +309,255 @@ function sqlDateTimeToIso(value: string): string {
   return `${trimmed.replace(" ", "T")}Z`;
 }
 
+function finiteNonNegative(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function normalizeProvider(provider: string): string {
+  return provider.trim().toLowerCase();
+}
+
+function buildTargetedUsageLookupWindow(requestStartedAtMs: number): {
+  windowStartIso: string;
+  windowEndIso: string;
+} {
+  const startMs = Math.max(0, requestStartedAtMs - 2 * 60_000);
+  const endMs = Date.now() + 60_000;
+  return {
+    windowStartIso: new Date(startMs).toISOString(),
+    windowEndIso: new Date(endMs).toISOString(),
+  };
+}
+
+type ApplySettledRequestOpts = {
+  persistInTests?: boolean;
+  requestKind?: string;
+};
+
+type ApplySettledRequestResult =
+  | { kind: "skipped" }
+  | { kind: "unreconciled"; billedMicroUsd: number }
+  | { kind: "inserted" }
+  | { kind: "promoted" }
+  | { kind: "matched" }
+  | { kind: "superseded" };
+
+/** Shared settled-request → ledger semantics for window and targeted reconciliation. */
+function applySettledCheaperInferenceRequest(
+  db: Database.Database,
+  request: CheaperInferenceUsageRequest,
+  messageIdentity: Map<string, MessageProviderIdentity>,
+  opts: ApplySettledRequestOpts
+): ApplySettledRequestResult {
+  const existsLocally = identityExists(db, request.requestId);
+  if (!existsLocally) {
+    const identity = messageIdentity.get(request.requestId);
+    if (!identity) {
+      return { kind: "unreconciled", billedMicroUsd: request.billedMicroUsd };
+    }
+    const recovery = recordMainGenerationProviderCost(
+      {
+        chatId: identity.chatId,
+        assistantMessageId: identity.assistantMessageId,
+        generationSequence: identity.generationSequence,
+        provider: "cheaperinference",
+        model: request.model ?? identity.model ?? "(unknown)",
+        requestKind: "usage-reconciliation-recovery",
+        cheaperInferenceBilledCostUsd: request.billedMicroUsd / 1_000_000,
+        providerRequestId: request.requestId,
+        exchangeRateKrwPerUsd: identity.requestFx ?? undefined,
+        eventTime: request.createdAt,
+        outcome: "success",
+        persistInTests: opts.persistInTests,
+      },
+      db
+    );
+    return recovery.recorded ? { kind: "inserted" } : { kind: "matched" };
+  }
+
+  const outcome = upsertReconciledProviderCost(
+    {
+      provider: "cheaperinference",
+      providerRequestId: request.requestId,
+      model: request.model ?? "(unknown)",
+      billedCostUsd: request.billedMicroUsd / 1_000_000,
+      requestKind: opts.requestKind ?? "usage-reconciliation",
+      costCenter: "other",
+      eventTime: request.createdAt,
+      persistInTests: opts.persistInTests,
+    },
+    db
+  );
+  switch (outcome.outcome) {
+    case "inserted":
+      return { kind: "inserted" };
+    case "promoted":
+      return { kind: "promoted" };
+    case "superseded":
+      return { kind: "superseded" };
+    case "matched":
+      return { kind: "matched" };
+    default:
+      return { kind: "skipped" };
+  }
+}
+
+export type TargetedRequestReconcileInput = {
+  provider: string;
+  providerRequestId?: string | null;
+  model: string;
+  streamBilledCostUsd?: number | null;
+  outcome: "success" | "failed_without_usage" | "failed_with_usage";
+  requestStartedAtMs: number;
+  requestKind?: string;
+  db?: Database.Database;
+  deps?: ReconciliationDeps;
+};
+
+export type TargetedRequestReconcileResult = {
+  attempted: boolean;
+  skippedReason?: string;
+  lookupOk: boolean;
+  requestFound: boolean;
+  requestStatus?: string;
+  billedCostUsd?: number;
+  ledgerOutcome?: ReconciledProviderCostOutcome;
+  message?: string;
+};
+
+export function shouldTargetReconcileMainGeneration(
+  input: Pick<
+    TargetedRequestReconcileInput,
+    "provider" | "providerRequestId" | "streamBilledCostUsd" | "outcome"
+  >
+): boolean {
+  if (input.outcome !== "success") return false;
+  if (normalizeProvider(input.provider) !== "cheaperinference") return false;
+  const requestId = input.providerRequestId?.trim();
+  if (!requestId) return false;
+  if (finiteNonNegative(input.streamBilledCostUsd) > 0) return false;
+  return true;
+}
+
+/**
+ * Targeted post-turn reconciliation for one provider request id.
+ * Reuses the same settled → ledger promotion path as full-window reconciliation.
+ */
+export async function reconcileCheaperInferenceRequestById(
+  input: TargetedRequestReconcileInput
+): Promise<TargetedRequestReconcileResult> {
+  if (!shouldTargetReconcileMainGeneration(input)) {
+    return {
+      attempted: false,
+      skippedReason: "stream_exact_or_ineligible",
+      lookupOk: false,
+      requestFound: false,
+    };
+  }
+
+  const providerRequestId = input.providerRequestId!.trim();
+  const db = input.db ?? getDb();
+  ensureProviderCostLedgerSchema(db);
+  const deps = input.deps ?? {};
+  const fetchRequests = deps.fetchRequests ?? fetchAllUsageRequests;
+  const { windowStartIso, windowEndIso } = buildTargetedUsageLookupWindow(
+    input.requestStartedAtMs
+  );
+
+  const page = await fetchRequests({
+    startAt: windowStartIso,
+    endAt: windowEndIso,
+    maxPages: 5,
+  });
+
+  if (!page.ok) {
+    return {
+      attempted: true,
+      lookupOk: false,
+      requestFound: false,
+      message: page.message,
+    };
+  }
+
+  const match = page.value.requests.find((r) => r.requestId === providerRequestId);
+  if (!match) {
+    return {
+      attempted: true,
+      lookupOk: true,
+      requestFound: false,
+      message: "provider request not in usage window",
+    };
+  }
+
+  if (match.status !== "settled" || match.billedMicroUsd <= 0) {
+    return {
+      attempted: true,
+      lookupOk: true,
+      requestFound: true,
+      requestStatus: match.status,
+      message: "provider request not settled",
+    };
+  }
+
+  const applied = applySettledCheaperInferenceRequest(db, match, new Map(), {
+    persistInTests: deps.persistInTests,
+    requestKind: input.requestKind ?? "main-rp-targeted-reconcile",
+  });
+
+  const billedCostUsd = match.billedMicroUsd / 1_000_000;
+  if (applied.kind === "unreconciled") {
+    return {
+      attempted: true,
+      lookupOk: true,
+      requestFound: true,
+      requestStatus: match.status,
+      message: "no local ledger row for provider request id",
+    };
+  }
+  if (applied.kind === "skipped") {
+    return {
+      attempted: true,
+      lookupOk: true,
+      requestFound: true,
+      requestStatus: match.status,
+      billedCostUsd,
+      message: "ledger promotion skipped",
+    };
+  }
+
+  const ledgerOutcome: ReconciledProviderCostOutcome =
+    applied.kind === "inserted"
+      ? "inserted"
+      : applied.kind === "promoted"
+        ? "promoted"
+        : applied.kind === "superseded"
+          ? "superseded"
+          : "matched";
+
+  return {
+    attempted: true,
+    lookupOk: true,
+    requestFound: true,
+    requestStatus: match.status,
+    billedCostUsd,
+    ledgerOutcome,
+  };
+}
+
+/** Fire-and-forget post-turn targeted reconcile — never blocks stream completion. */
+export function scheduleTargetedCheaperInferenceRequestReconciliation(
+  input: TargetedRequestReconcileInput
+): void {
+  if (!shouldTargetReconcileMainGeneration(input)) return;
+  void reconcileCheaperInferenceRequestById(input).catch((error) => {
+    console.warn(
+      "[provider-cost-reconciliation] targeted request reconcile failed:",
+      (error as Error).message
+    );
+  });
+}
+
 /**
  * Reconcile request-level settled provider truth into the canonical ledger.
  * Never additive on /usage/daily; stale state is preserved on failure.
@@ -367,56 +617,11 @@ export async function reconcileCheaperInferenceUsage(
       continue;
     }
     settledMicroUsd += request.billedMicroUsd;
-    const existsLocally = identityExists(db, request.requestId);
-    if (!existsLocally) {
-      // Remote-only: only a deterministic persisted message/generation
-      // identity may recover a linked canonical ledger row. Time cutover is
-      // NOT identity; with no deterministic match the spend stays an
-      // unreconciled gap (never blind-inserted, never fuzzy-matched).
-      const identity = messageIdentity.get(request.requestId);
-      if (!identity) {
-        result.unreconciledProviderMicroUsd += request.billedMicroUsd;
-        result.skipped += 1;
-        continue;
-      }
-      const recovery = recordMainGenerationProviderCost(
-        {
-          chatId: identity.chatId,
-          assistantMessageId: identity.assistantMessageId,
-          generationSequence: identity.generationSequence,
-          provider: "cheaperinference",
-          model: request.model ?? identity.model ?? "(unknown)",
-          requestKind: "usage-reconciliation-recovery",
-          cheaperInferenceBilledCostUsd: request.billedMicroUsd / 1_000_000,
-          providerRequestId: request.requestId,
-          // Request-time FX event provenance — never re-valued at sync time.
-          exchangeRateKrwPerUsd: identity.requestFx ?? undefined,
-          // Delayed recovery books into the ORIGINAL physical request period.
-          // No provider createdAt => no inferred timestamp (falls back to now).
-          eventTime: request.createdAt,
-          outcome: "success",
-          persistInTests: deps.persistInTests,
-        },
-        db
-      );
-      if (recovery.recorded) result.inserted += 1;
-      else result.matched += 1;
-      continue;
-    }
-    const outcome = upsertReconciledProviderCost(
-      {
-        provider: "cheaperinference",
-        providerRequestId: request.requestId,
-        model: request.model ?? "(unknown)",
-        billedCostUsd: request.billedMicroUsd / 1_000_000,
-        requestKind: "usage-reconciliation",
-        costCenter: "other",
-        eventTime: request.createdAt,
-        persistInTests: deps.persistInTests,
-      },
-      db
-    );
-    switch (outcome.outcome) {
+    const applied = applySettledCheaperInferenceRequest(db, request, messageIdentity, {
+      persistInTests: deps.persistInTests,
+      requestKind: "usage-reconciliation",
+    });
+    switch (applied.kind) {
       case "inserted":
         result.inserted += 1;
         break;
@@ -428,6 +633,10 @@ export async function reconcileCheaperInferenceUsage(
         break;
       case "matched":
         result.matched += 1;
+        break;
+      case "unreconciled":
+        result.unreconciledProviderMicroUsd += applied.billedMicroUsd;
+        result.skipped += 1;
         break;
       default:
         result.skipped += 1;

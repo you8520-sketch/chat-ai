@@ -43,8 +43,8 @@ import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputS
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
-import { scheduleMainGenerationCostUsageApiFallback } from "@/lib/cheaperInferenceMainCostFallback";
 import { recordMainGenerationProviderCost } from "@/lib/providerCostLedger";
+import { scheduleTargetedCheaperInferenceRequestReconciliation } from "@/lib/providerCostReconciliation";
 import {
   shouldPreparePublishedBillingFxSnapshot,
   resolveChatBillingContract,
@@ -5827,7 +5827,7 @@ export async function POST(req: Request) {
             );
           }
 
-          scheduleMainGenerationCostUsageApiFallback({
+          scheduleTargetedCheaperInferenceRequestReconciliation({
             provider: usageRecord.provider ?? billingProvider,
             providerRequestId: primaryStage.providerRequestId,
             model: primaryStage.responseModelId ?? primaryStage.model,
