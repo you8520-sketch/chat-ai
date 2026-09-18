@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { fetchAllUsageRequests } from "./cheaperInferenceUsage";
 import {
@@ -73,6 +73,18 @@ function ensureMessagesTable(d: Database.Database): void {
 }
 
 describe("providerCostReconciliation targeted request reconcile T1–T11", () => {
+  let restoreKey: string | undefined;
+
+  beforeEach(() => {
+    restoreKey = process.env.CHEAPER_INFERENCE_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+  });
+
+  afterEach(() => {
+    if (restoreKey === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
+    else process.env.CHEAPER_INFERENCE_API_KEY = restoreKey;
+  });
+
   const baseInput = {
     provider: "cheaperinference",
     providerRequestId: "0840da41-b1d4-4946-8175-c645e5613b77",
