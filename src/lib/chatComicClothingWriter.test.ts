@@ -329,6 +329,58 @@ describe("chatComicClothingWriter adversarial matrix", () => {
     const result = applyFromEvents(events, [["evt_1"]]);
     assert.equal(coverageAt(result, 1), "adult_male_character_shirtless_upper_torso");
   });
+
+  it("C34 re-clothing → boundary → shirtless in same event → final shirtless", () => {
+    const events = [
+      event(
+        1,
+        "라이크는 셔츠를 입었다. 다음날 아침. 라이크는 셔츠를 벗어 맨가슴을 드러냈다."
+      ),
+    ];
+    const result = applyFromEvents(events, [["evt_1"]]);
+    assert.equal(coverageAt(result, 1), "adult_male_character_shirtless_upper_torso");
+    const audit = result.audit.find((entry) => entry.panelIndex === 1);
+    assert.notEqual(audit?.reasonCategory, "conflict_same_event");
+  });
+
+  it("C35 same-scene conflict → boundary → shirtless → final shirtless", () => {
+    const events = [
+      event(
+        1,
+        "라이크는 셔츠를 벗어 맨가슴을 드러냈다. 곧바로 셔츠를 다시 입었다. 다음날 아침. 라이크는 셔츠를 벗어 맨가슴을 드러냈다."
+      ),
+    ];
+    const result = applyFromEvents(events, [["evt_1"]]);
+    assert.equal(coverageAt(result, 1), "adult_male_character_shirtless_upper_torso");
+    const audit = result.audit.find((entry) => entry.panelIndex === 1);
+    assert.notEqual(audit?.reasonCategory, "conflict_same_event");
+  });
+
+  it("C36 shirtless → boundary → re-clothing → modest via chronology not conflict", () => {
+    const events = [
+      event(
+        1,
+        "라이크는 셔츠를 벗어 맨가슴을 드러냈다. 다음날 아침. 라이크는 셔츠를 입었다."
+      ),
+    ];
+    const result = applyFromEvents(events, [["evt_1"]]);
+    assert.equal(coverageAt(result, 1), undefined);
+    const audit = result.audit.find((entry) => entry.panelIndex === 1);
+    assert.notEqual(audit?.reasonCategory, "conflict_same_event");
+    assert.equal(audit?.reasonCategory, "explicit_reclothing");
+  });
+
+  it("C37 incoming shirtless → boundary only → modest (C17 semantics)", () => {
+    const events = [
+      event(0, "라이크는 셔츠를 벗어 맨가슴을 드러냈다."),
+      event(1, "다음날 아침 창가에 서 있었다."),
+    ];
+    const result = applyFromEvents(events, [["evt_0"], ["evt_1"], [], []]);
+    assert.equal(coverageAt(result, 1), "adult_male_character_shirtless_upper_torso");
+    assert.equal(coverageAt(result, 2), undefined);
+    const audit = result.audit.find((entry) => entry.panelIndex === 2);
+    assert.equal(audit?.reasonCategory, "scene_time_boundary");
+  });
 });
 
 function assertModestPrompt(prompt: string, panel = 1): void {
@@ -524,6 +576,54 @@ describe("chatComicClothingWriter production integration", () => {
         role: "assistant",
         content:
           "*라이크는 셔츠를 벗어 맨가슴을 드러냈다. 다음날 아침 창가에 섰다.*",
+      },
+    ]);
+    const prompt = buildTier2StrictFallbackPrompt({
+      plan: result.plan,
+      adultGrounded: true,
+      characterGender: "male",
+    });
+    assertModestPrompt(prompt);
+  });
+
+  it("integration I1 — re-clothing → boundary → shirtless source → shirtless contract", () => {
+    const result = applyFromSource([
+      {
+        role: "assistant",
+        content:
+          "*라이크는 셔츠를 입었다. 다음날 아침. 라이크는 셔츠를 벗어 맨가슴을 드러냈다.*",
+      },
+    ]);
+    const prompt = buildTier2StrictFallbackPrompt({
+      plan: result.plan,
+      adultGrounded: true,
+      characterGender: "male",
+    });
+    assertShirtlessPrompt(prompt);
+  });
+
+  it("integration I2 — same-scene conflict → boundary → shirtless source → shirtless contract", () => {
+    const result = applyFromSource([
+      {
+        role: "assistant",
+        content:
+          "*라이크는 셔츠를 벗어 맨가슴을 드러냈다. 곧바로 셔츠를 다시 입었다. 다음날 아침. 라이크는 셔츠를 벗어 맨가슴을 드러냈다.*",
+      },
+    ]);
+    const prompt = buildTier2StrictFallbackPrompt({
+      plan: result.plan,
+      adultGrounded: true,
+      characterGender: "male",
+    });
+    assertShirtlessPrompt(prompt);
+  });
+
+  it("integration I3 — shirtless → boundary source → modest contract", () => {
+    const result = applyFromSource([
+      {
+        role: "assistant",
+        content:
+          "*라이크는 셔츠를 벗어 맨가슴을 드러냈다. 다음날 아침 창가에 서 있었다.*",
       },
     ]);
     const prompt = buildTier2StrictFallbackPrompt({

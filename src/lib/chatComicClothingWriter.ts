@@ -402,6 +402,9 @@ function processEventChronology(
     if (SCENE_TIME_BOUNDARY.test(clause)) {
       state = "DEFAULT_COVERED";
       reason = "scene_time_boundary";
+      sawShirtlessTransition = false;
+      sawReclothingTransition = false;
+      conflict = false;
       continue;
     }
 
