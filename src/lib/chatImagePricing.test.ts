@@ -7,7 +7,6 @@ import {
   CHAT_ILLUSTRATION_BASE_POINTS,
   CHAT_IMAGE_BASE_IDENTITY_REFERENCES,
   CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS,
-  CHAT_ROOM_IMAGE_GENERATION_POINTS,
   resolveImageGenerationRequiredPoints,
   resolveImageIdentityReferenceSurcharge,
 } from "@/lib/chatImagePricing";
@@ -63,7 +62,6 @@ describe("canonical image product pricing (single owner)", () => {
       CHAT_COMIC_BASE_POINTS
     );
     assert.equal(CHAT_COMIC_BASE_POINTS, 180);
-    assert.equal(CHAT_ROOM_IMAGE_GENERATION_POINTS, CHAT_COMIC_BASE_POINTS);
   });
 
   it("PRICE-COMIC-2 comic 3 refs = comic base + 20", () => {

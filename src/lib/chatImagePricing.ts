@@ -11,12 +11,6 @@ export const CHAT_ILLUSTRATION_BASE_POINTS = 150;
 export const CHAT_COMIC_BASE_POINTS = 180;
 
 /**
- * Historical alias for the comic base price. Illustration/TRPG must use
- * CHAT_ILLUSTRATION_BASE_POINTS (via resolveChatLdIllustrationPrice).
- */
-export const CHAT_ROOM_IMAGE_GENERATION_POINTS = CHAT_COMIC_BASE_POINTS;
-
-/**
  * Identity references included in the base template price: the first two
  * identity-reference attachments of a request. In normal character chat these
  * are typically the persona and the main character; TRPG party scenes count
