@@ -1,4 +1,4 @@
-name: Validate CI stream cost capture
+name: Validate CI exact-cost compatibility (synthetic fixtures)
 
 on:
   pull_request:
@@ -41,7 +41,7 @@ jobs:
       - name: CheaperInference compatible usage (stream + non-stream)
         run: node --conditions=react-server --import tsx --test src/lib/openRouterAdult.compatibleUsage.test.ts
 
-      - name: CheaperInference main RP stream exact cost capture
+      - name: CheaperInference synthetic exact-cost compatibility (not Main live contract)
         run: node --conditions=react-server --import tsx --test src/lib/openRouterAdult.ciStreamCost.test.ts
 
       - name: Provider cost ledger single owner

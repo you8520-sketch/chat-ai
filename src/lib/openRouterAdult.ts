@@ -67,17 +67,7 @@ import {
   stripInternalTagLeakage,
   trimTrailingVisibleSelfCritique,
 } from "@/lib/narrativeRules";
-import {
-  buildCiStreamAccountingTelemetry,
-  drainOpenRouterSseLines,
-  flushOpenRouterSseTerminalBuffer,
-  logOpenRouterUsageCacheDiagnostics,
-  mergeStreamCheaperInferenceAccounting,
-  mergeStreamUsageAccounting,
-  parseCompatibleUsage,
-  parseOpenRouterUsage,
-  tokenUsageFromOpenRouterBreakdown,
-} from "@/lib/openRouterUsage";
+import { parseCompatibleUsage, parseOpenRouterUsage, logOpenRouterUsageCacheDiagnostics, tokenUsageFromOpenRouterBreakdown } from "@/lib/openRouterUsage";
 import { stageUsageReportingEvidenceFromTokenUsage, unreportedUsageReportingEvidence } from "@/lib/usageReportingEvidence";
 import { logOpenRouterCacheStabilityCheck } from "@/lib/openRouterCacheStability";
 import { logCharsPerTokenDiagnostic, logBannedVerbCheck, logHanjaLeakCheck, logLengthDiagnosticV2 } from "@/lib/lengthDiagnosticV2";
@@ -1451,242 +1441,180 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     return delta;
   };
 
-  let sseEventOrdinal = 0;
-  type StreamSseJson = {
-    model?: string | null;
-    id?: string | null;
-    stop_reason?: string | null;
-    stop_details?: { type?: string | null };
-    choices?: {
-      delta?: { content?: string | null; text?: string | null; reasoning?: string | null };
-      message?: { content?: string | null };
-      text?: string | null;
-      finish_reason?: string | null;
-      stop_reason?: string | null;
-      native_finish_reason?: string | { stop_reason?: string; type?: string } | null;
-      stop_details?: { type?: string | null };
-    }[];
-    usage?: {
-      prompt_tokens?: number;
-      completion_tokens?: number;
-      prompt_tokens_details?: { cached_tokens?: number; cache_write_tokens?: number };
-    };
-    cheaper_inference?: unknown;
-  };
-
-  const applyStreamUsageFromEvent = (json: StreamSseJson) => {
-    if (json.usage == null) return;
-    lastStreamUsage = mergeStreamUsageAccounting(lastStreamUsage, json.usage);
-    usageDebugLogged = true;
-    const usageObj = json.usage as { prompt_tokens?: number; completion_tokens?: number };
-    inputTokens = usageObj.prompt_tokens ?? inputTokens;
-    outputTokens = usageObj.completion_tokens ?? outputTokens;
-    const partial = parseCompatibleUsage({
-      usage: json.usage,
-      cheaperInference: json.cheaper_inference ?? lastStreamCheaperInference,
-      transportProvider: transport.provider,
-    });
-    if (partial.cacheReadTokens > 0) cacheReadTokens = partial.cacheReadTokens;
-    if (partial.cacheWriteTokens > 0) cacheWriteTokens = partial.cacheWriteTokens;
-  };
-
-  const processStreamSseLine = async function* (
-    line: string,
-    opts?: { terminalBufferChars?: number; isDone?: boolean }
-  ): AsyncGenerator<string, "continue" | "break", void> {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith(":")) return "continue";
-    if (!trimmed.startsWith("data:")) return "continue";
-    const payload = trimmed.slice(5).trim();
-    if (!payload) return "continue";
-    if (payload === "[DONE]") return "continue";
-    try {
-      const json = JSON.parse(payload) as StreamSseJson;
-      sseEventOrdinal += 1;
-      if (
-        transport.provider === "cheaperinference" &&
-        (json.usage != null || json.cheaper_inference != null)
-      ) {
-        console.info(
-          "[ci-stream-accounting-telemetry]",
-          buildCiStreamAccountingTelemetry({
-            json: json as Record<string, unknown>,
-            eventOrdinal: sseEventOrdinal,
-            isDone: opts?.isDone,
-            terminalBufferChars: opts?.terminalBufferChars ?? 0,
-            providerRequestId: providerRequestId ?? null,
-          })
-        );
-      }
-      if (typeof json.model === "string" && json.model.trim()) {
-        responseModelId = json.model.trim();
-      }
-      if (!providerRequestId && typeof json.id === "string" && json.id.trim()) {
-        providerRequestId = json.id.trim();
-      }
-      applyStreamUsageFromEvent(json);
-      if (json.cheaper_inference != null) {
-        lastStreamCheaperInference = mergeStreamCheaperInferenceAccounting(
-          lastStreamCheaperInference,
-          json.cheaper_inference
-        );
-      }
-      const choice = json.choices?.[0];
-      const normalizedFinish = normalizeStreamTermination(
-        choice as Record<string, unknown> | undefined,
-        json as Record<string, unknown>
-      );
-      if (normalizedFinish) {
-        finishReason = accumulateStreamFinishReason(finishReason, normalizedFinish);
-      }
-      if (!choice) return "continue";
-
-      const rawDelta = extractOpenRouterStreamDelta(choice);
-      const delta = rawDelta ? prefillStripper.push(rawDelta) : "";
-      if (!delta) return "continue";
-
-      messageOpts?.phaseAudit?.mark("T13_PROVIDER_FIRST_VISIBLE_TOKEN");
-      if (process.env.DEBUG_STREAM === "true") {
-        console.log("[STREAMING CHUNK]:", delta.slice(0, 50));
-      }
-
-      const guardsActive = !skipStreamGuards;
-      let emitDelta = delta;
-      let prospective = combinedText() + delta;
-
-      if (
-        guardsActive &&
-        hasUnexpectedForeignScriptLeak(prospective) &&
-        isStripableForeignScriptOnly(prospective)
-      ) {
-        const cleaned = stripUnexpectedForeignScriptLeak(prospective);
-        const prev = combinedText();
-        if (cleaned.startsWith(prev)) {
-          emitDelta = cleaned.slice(prev.length);
-          prospective = cleaned;
-        } else {
-          emitDelta = stripUnexpectedForeignScriptLeak(delta);
-          prospective = combinedText() + emitDelta;
-        }
-      }
-
-      if (!emitDelta) return "continue";
-
-      if (
-        guardsActive &&
-        (detectChunkDegeneration(emitDelta, combinedText(), degenerationCtx) ||
-          detectStreamingDegeneration(prospective, degenerationCtx))
-      ) {
-        finishReason = "DEGENERATION_ABORT";
-        console.warn("[OpenRouter 19+] DEGENERATION_ABORT — stream cancelled, billing waiver eligible", {
-          chars: combinedText().length,
-          reason: getDegenerationReason(prospective),
-        });
-        try {
-          await reader.cancel();
-        } catch {
-          /* ignore */
-        }
-        return "break";
-      }
-
-      if (guardsActive && detectStreamingLoop(prospective)) {
-        finishReason = "LOOP_ABORT";
-        const trimmed = trimLoopTail(sanitizeStreamArtifacts(combinedText()));
-        aiGenerated =
-          prefill && trimmed.startsWith(prefill) ? trimmed.slice(prefill.length) : trimmed;
-        fullText = prefill ? prefill + aiGenerated : aiGenerated;
-        console.warn("[OpenRouter 19+] LOOP_ABORT — stream cancelled, billing waiver eligible", {
-          chars: fullText.length,
-        });
-        try {
-          await reader.cancel();
-        } catch {
-          /* ignore */
-        }
-        return "break";
-      }
-
-      const lengthCap = applyStreamLengthCap(
-        combinedText(),
-        emitDelta,
-        targetResponseChars,
-        undefined
-      );
-      if (lengthCap.capped) {
-        aiGenerated =
-          prefill && lengthCap.text.startsWith(prefill)
-            ? lengthCap.text.slice(prefill.length)
-            : lengthCap.text;
-        fullText = lengthCap.text;
-        finishReason = finishReason ?? STREAM_LENGTH_CAP_FINISH;
-        const outbound = yieldWithPrefill(lengthCap.emittedDelta);
-        if (outbound) yield outbound;
-        try {
-          await reader.cancel();
-        } catch {
-          /* ignore */
-        }
-        return "break";
-      }
-
-      aiGenerated += emitDelta;
-      fullText = combinedText();
-      const outbound = yieldWithPrefill(emitDelta);
-      if (outbound) yield outbound;
-    } catch {
-      /* 불완전 JSON */
-    }
-    return "continue";
-  };
-
-  let reachedProviderEof = false;
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) {
-        reachedProviderEof = true;
-        break;
-      }
+      if (done) break;
       if (value?.byteLength) {
         messageOpts?.phaseAudit?.mark("T12_PROVIDER_FIRST_SSE");
       }
       buffer += decoder.decode(value, { stream: true });
-      const drained = drainOpenRouterSseLines(buffer);
-      buffer = drained.remaining;
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
 
-      let streamControl: "continue" | "break" = "continue";
-      for (const line of drained.lines) {
-        const lineGen = processStreamSseLine(line);
-        let lineStep = await lineGen.next();
-        while (!lineStep.done) {
-          yield lineStep.value;
-          lineStep = await lineGen.next();
-        }
-        if (lineStep.value === "break") {
-          streamControl = "break";
-          break;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith(":")) continue;
+        if (!trimmed.startsWith("data:")) continue;
+        const payload = trimmed.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        try {
+          const json = JSON.parse(payload) as {
+            model?: string | null;
+            id?: string | null;
+            stop_reason?: string | null;
+            stop_details?: { type?: string | null };
+            choices?: {
+              delta?: { content?: string | null; text?: string | null; reasoning?: string | null };
+              message?: { content?: string | null };
+              text?: string | null;
+              finish_reason?: string | null;
+              stop_reason?: string | null;
+              native_finish_reason?: string | { stop_reason?: string; type?: string } | null;
+              stop_details?: { type?: string | null };
+            }[];
+            usage?: {
+              prompt_tokens?: number;
+              completion_tokens?: number;
+              prompt_tokens_details?: { cached_tokens?: number; cache_write_tokens?: number };
+            };
+            cheaper_inference?: unknown;
+          };
+          if (typeof json.model === "string" && json.model.trim()) {
+            responseModelId = json.model.trim();
+          }
+          if (!providerRequestId && typeof json.id === "string" && json.id.trim()) {
+            providerRequestId = json.id.trim();
+          }
+          if (json.usage != null) {
+            lastStreamUsage = json.usage;
+            usageDebugLogged = true;
+            const usageObj = json.usage as { prompt_tokens?: number; completion_tokens?: number };
+            inputTokens = usageObj.prompt_tokens ?? inputTokens;
+            outputTokens = usageObj.completion_tokens ?? outputTokens;
+            const partial = parseCompatibleUsage({
+              usage: json.usage,
+              cheaperInference: json.cheaper_inference,
+              transportProvider: transport.provider,
+            });
+            if (partial.cacheReadTokens > 0) cacheReadTokens = partial.cacheReadTokens;
+            if (partial.cacheWriteTokens > 0) cacheWriteTokens = partial.cacheWriteTokens;
+          }
+          if (json.cheaper_inference != null) {
+            lastStreamCheaperInference = json.cheaper_inference;
+          }
+          const choice = json.choices?.[0];
+          const normalizedFinish = normalizeStreamTermination(
+            choice as Record<string, unknown> | undefined,
+            json as Record<string, unknown>
+          );
+          if (normalizedFinish) {
+            finishReason = accumulateStreamFinishReason(finishReason, normalizedFinish);
+          }
+          if (!choice) continue;
+
+          const rawDelta = extractOpenRouterStreamDelta(choice);
+          const delta = rawDelta ? prefillStripper.push(rawDelta) : "";
+          if (delta) {
+            messageOpts?.phaseAudit?.mark("T13_PROVIDER_FIRST_VISIBLE_TOKEN");
+            if (process.env.DEBUG_STREAM === "true") {
+              console.log("[STREAMING CHUNK]:", delta.slice(0, 50));
+            }
+
+            const guardsActive = !skipStreamGuards;
+            let emitDelta = delta;
+            let prospective = combinedText() + delta;
+
+            // Small Cyrillic/Arabic/Devanagari leaks: strip live and keep streaming
+            // instead of DEGENERATION_ABORT (matches save-time strip policy).
+            if (
+              guardsActive &&
+              hasUnexpectedForeignScriptLeak(prospective) &&
+              isStripableForeignScriptOnly(prospective)
+            ) {
+              const cleaned = stripUnexpectedForeignScriptLeak(prospective);
+              const prev = combinedText();
+              if (cleaned.startsWith(prev)) {
+                emitDelta = cleaned.slice(prev.length);
+                prospective = cleaned;
+              } else {
+                emitDelta = stripUnexpectedForeignScriptLeak(delta);
+                prospective = combinedText() + emitDelta;
+              }
+            }
+
+            if (!emitDelta) continue;
+
+            if (
+              guardsActive &&
+              (detectChunkDegeneration(emitDelta, combinedText(), degenerationCtx) ||
+                detectStreamingDegeneration(prospective, degenerationCtx))
+            ) {
+              finishReason = "DEGENERATION_ABORT";
+              console.warn("[OpenRouter 19+] DEGENERATION_ABORT — stream cancelled, billing waiver eligible", {
+                chars: combinedText().length,
+                reason: getDegenerationReason(prospective),
+              });
+              try {
+                await reader.cancel();
+              } catch {
+                /* ignore */
+              }
+              break;
+            }
+
+            if (guardsActive && detectStreamingLoop(prospective)) {
+              finishReason = "LOOP_ABORT";
+              const trimmed = trimLoopTail(sanitizeStreamArtifacts(combinedText()));
+              aiGenerated =
+                prefill && trimmed.startsWith(prefill) ? trimmed.slice(prefill.length) : trimmed;
+              fullText = prefill ? prefill + aiGenerated : aiGenerated;
+              console.warn("[OpenRouter 19+] LOOP_ABORT — stream cancelled, billing waiver eligible", {
+                chars: fullText.length,
+              });
+              try {
+                await reader.cancel();
+              } catch {
+                /* ignore */
+              }
+              break;
+            }
+
+            const lengthCap = applyStreamLengthCap(
+              combinedText(),
+              emitDelta,
+              targetResponseChars,
+              undefined
+            );
+            if (lengthCap.capped) {
+              aiGenerated =
+                prefill && lengthCap.text.startsWith(prefill)
+                  ? lengthCap.text.slice(prefill.length)
+                  : lengthCap.text;
+              fullText = lengthCap.text;
+              finishReason = finishReason ?? STREAM_LENGTH_CAP_FINISH;
+              const outbound = yieldWithPrefill(lengthCap.emittedDelta);
+              if (outbound) yield outbound;
+              try {
+                await reader.cancel();
+              } catch {
+                /* ignore */
+              }
+              break;
+            }
+
+            aiGenerated += emitDelta;
+            fullText = combinedText();
+            const outbound = yieldWithPrefill(emitDelta);
+            if (outbound) yield outbound;
+          }
+        } catch {
+          /* 불완전 JSON */
         }
       }
-      if (streamControl === "break") break;
       if (finishReason === "LOOP_ABORT" || finishReason === "DEGENERATION_ABORT" || finishReason === STREAM_LENGTH_CAP_FINISH) {
         break;
       }
-    }
-
-    if (reachedProviderEof) {
-      buffer += decoder.decode();
-      const terminalBufferChars = buffer.length;
-      for (const line of flushOpenRouterSseTerminalBuffer(buffer)) {
-        const lineGen = processStreamSseLine(line, { terminalBufferChars, isDone: true });
-        let lineStep = await lineGen.next();
-        while (!lineStep.done) {
-          yield lineStep.value;
-          lineStep = await lineGen.next();
-        }
-        if (lineStep.value === "break") break;
-      }
-      buffer = "";
     }
   } finally {
     reader.releaseLock();

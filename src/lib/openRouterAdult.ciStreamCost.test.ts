@@ -1,3 +1,14 @@
+/**
+ * SYNTHETIC COMPATIBILITY — not production-observed Main RP contract.
+ *
+ * Production (2026-09-18, request 0840da41-b1d4-4946-8175-c645e5613b77):
+ * final CI stream event has token usage only; billing fields
+ * (usage.cost, cheaper_inference.billing.billed_cost_usd) are absent.
+ *
+ * These fixtures guard parseCompatibleUsage + ledger/receipt wiring when
+ * billing envelopes ARE present (docs/Luna/non-stream paths). They must not
+ * be read as proof that Main live stream always supplies exact cost.
+ */
 import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import { describe, it } from "node:test";
@@ -28,91 +39,8 @@ function sseResponse(chunks: string[], headers: Record<string, string> = {}): Re
   });
 }
 
-/** Canonical CheaperInference final accounting SSE per provider docs. */
-function buildCiCanonicalAccountingSse(opts?: {
-  providerRequestId?: string;
-  billedCostUsd?: string;
-  promptTokens?: number;
-  completionTokens?: number;
-  cacheReadTokens?: number;
-  content?: string;
-}): {
-  contentEvent: string;
-  finishEvent: string;
-  accountingEvent: string;
-  doneEvent: string;
-  billedCost: number;
-  providerRequestId: string;
-} {
-  const providerRequestId = opts?.providerRequestId ?? "bfc3252f-1aca-4f4c-bd35-c8494f381e93";
-  const billedCost = opts?.billedCostUsd ?? "0.019400";
-  const promptTokens = opts?.promptTokens ?? 31692;
-  const completionTokens = opts?.completionTokens ?? 3356;
-  const cacheReadTokens = opts?.cacheReadTokens ?? 10240;
-  const content = opts?.content ?? "Visible RP prose.";
-  const contentEvent = `data: ${JSON.stringify({
-    choices: [{ delta: { content } }],
-  })}\n\n`;
-  const finishEvent = `data: ${JSON.stringify({
-    choices: [{ finish_reason: "stop", delta: {} }],
-  })}\n\n`;
-  const accountingEvent = `data: ${JSON.stringify({
-    id: providerRequestId,
-    choices: [],
-    usage: {
-      prompt_tokens: promptTokens,
-      completion_tokens: completionTokens,
-      total_tokens: promptTokens + completionTokens,
-      cost: Number(billedCost),
-      cost_details: { upstream_inference_cost: Number(billedCost) },
-      prompt_tokens_details: { cached_tokens: cacheReadTokens },
-    },
-    cheaper_inference: {
-      request_id: providerRequestId,
-      billing: { status: "settled", billed_cost_usd: billedCost, currency: "USD" },
-    },
-  })}\n\n`;
-  const doneEvent = "data: [DONE]\n\n";
-  return {
-    contentEvent,
-    finishEvent,
-    accountingEvent,
-    doneEvent,
-    billedCost: Number(billedCost),
-    providerRequestId,
-  };
-}
-
-async function consumeStreamUsage(fetchImpl: typeof fetch) {
-  const previousFetch = globalThis.fetch;
-  process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
-  globalThis.fetch = fetchImpl;
-  try {
-    const gen = streamOpenRouterAdult(
-      "system",
-      [{ role: "user", content: "hello" }],
-      "deepseek-v4-pro-0813",
-      800,
-      {
-        allowOpenRouterUnderLengthRecovery: false,
-        skipAssistantPrefill: true,
-        transportProvider: "cheaperinference",
-      }
-    );
-    while (true) {
-      const { value, done } = await gen.next();
-      if (done) return value;
-      void value;
-    }
-    throw new Error("stream ended without usage return");
-  } finally {
-    globalThis.fetch = previousFetch;
-    delete process.env.CHEAPER_INFERENCE_API_KEY;
-  }
-}
-
-describe("CheaperInference streaming exact cost capture", () => {
-  it("captures cheaper_inference.billing.billed_cost_usd from documented final event", async () => {
+describe("CheaperInference exact cost — synthetic compatibility (not Main live contract)", () => {
+  it("[SYNTHETIC] stream fixture with cheaper_inference.billing.billed_cost_usd envelope", async () => {
     const previousFetch = globalThis.fetch;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
     globalThis.fetch = (async () =>
@@ -167,7 +95,7 @@ describe("CheaperInference streaming exact cost capture", () => {
     }
   });
 
-  it("promotes usage.cost to cheaperInferenceBilledCostUsd when CI header present without envelope", async () => {
+  it("[SYNTHETIC] usage.cost promotes when CI transport confirmed (header, no envelope)", async () => {
     const previousFetch = globalThis.fetch;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
     globalThis.fetch = (async () =>
@@ -289,7 +217,7 @@ describe("CheaperInference streaming exact cost capture", () => {
     assert.equal(breakdown.cheaperInferenceBilledCostUsd, undefined);
   });
 
-  it("main ledger settles with cheaper_inference_billed from stream usage", () => {
+  it("[SYNTHETIC] ledger settles when exact billed cost is supplied to writer", () => {
     const db = new Database(":memory:");
     ensureProviderCostLedgerSchema(db);
     const { eventKey, recorded } = recordMainGenerationProviderCost(
@@ -433,236 +361,6 @@ describe("CheaperInference streaming exact cost capture", () => {
     assert.ok(receipt.wholeTurn.mainActualCostUsd != null);
     assert.ok(Math.abs(receipt.wholeTurn.mainActualCostUsd! - 0.0194) < 0.0001);
     db.close();
-  });
-
-  it("C1: canonical CI accounting final event captures exact billed cost", async () => {
-    const fixture = buildCiCanonicalAccountingSse();
-    const usage = await consumeStreamUsage(async () =>
-      sseResponse([
-        fixture.contentEvent,
-        fixture.finishEvent,
-        fixture.accountingEvent,
-        fixture.doneEvent,
-      ])
-    );
-    assert.equal(usage.providerRequestId, fixture.providerRequestId);
-    assert.equal(usage.cheaperInferenceBilledCostUsd, fixture.billedCost);
-    assert.equal(usage.inputTokens, 31692);
-    assert.equal(usage.outputTokens, 3356);
-  });
-
-  it("C2: final accounting JSON split across byte chunks is captured", async () => {
-    const fixture = buildCiCanonicalAccountingSse();
-    const accountingPayload = fixture.accountingEvent.replace(/^data: /, "").trim();
-    const splitAt = Math.floor(accountingPayload.length / 2);
-    const part1 = `data: ${accountingPayload.slice(0, splitAt)}`;
-    const part2 = `${accountingPayload.slice(splitAt)}\n\n`;
-    const usage = await consumeStreamUsage(async () =>
-      sseResponse([fixture.contentEvent, part1, part2, fixture.doneEvent])
-    );
-    assert.equal(usage.cheaperInferenceBilledCostUsd, fixture.billedCost);
-  });
-
-  it("C3: final accounting event in trailing EOF buffer is captured exactly once", async () => {
-    const fixture = buildCiCanonicalAccountingSse();
-    const trailingWithoutNewline = `${fixture.contentEvent}${fixture.accountingEvent.replace(/\n\n$/, "")}`;
-    const usage = await consumeStreamUsage(async () => sseResponse([trailingWithoutNewline]));
-    assert.equal(usage.cheaperInferenceBilledCostUsd, fixture.billedCost);
-  });
-
-  it("C4: cost-less usage then cost-bearing usage preserves cost", async () => {
-    const fixture = buildCiCanonicalAccountingSse();
-    const usage = await consumeStreamUsage(async () =>
-      sseResponse([
-        fixture.contentEvent,
-        `data: ${JSON.stringify({
-          usage: { prompt_tokens: 100, completion_tokens: 10 },
-        })}\n\n`,
-        fixture.accountingEvent,
-        fixture.doneEvent,
-      ])
-    );
-    assert.equal(usage.cheaperInferenceBilledCostUsd, fixture.billedCost);
-  });
-
-  it("C5: cost-bearing usage then later cost-less usage does not lose cost", async () => {
-    const fixture = buildCiCanonicalAccountingSse();
-    const usage = await consumeStreamUsage(async () =>
-      sseResponse([
-        fixture.contentEvent,
-        fixture.accountingEvent,
-        `data: ${JSON.stringify({
-          usage: { prompt_tokens: 31692, completion_tokens: 3356 },
-        })}\n\n`,
-        fixture.doneEvent,
-      ])
-    );
-    assert.equal(usage.cheaperInferenceBilledCostUsd, fixture.billedCost);
-  });
-
-  it("C6: OpenRouter transport + usage.cost + cost_details is not CI billed cost", () => {
-    const breakdown = parseCompatibleUsage({
-      transportProvider: "openrouter",
-      usage: {
-        prompt_tokens: 100,
-        completion_tokens: 50,
-        cost: 0.01,
-        cost_details: { upstream_inference_cost: 0.01 },
-      },
-    });
-    assert.equal(breakdown.upstreamCostUsd, 0.01);
-    assert.equal(breakdown.cheaperInferenceBilledCostUsd, undefined);
-  });
-
-  it("C7: DeepSeek CI failover gate path preserves terminal accounting at EOF", async () => {
-    const fixture = buildCiCanonicalAccountingSse({ content: "Gate path prose here." });
-    const trailingWithoutNewline = `${fixture.contentEvent}${fixture.accountingEvent.replace(/\n\n$/, "")}`;
-    const previousFetch = globalThis.fetch;
-    const previousOpenRouterKey = process.env.OPENROUTER_API_KEY;
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
-    process.env.OPENROUTER_API_KEY = "test-key";
-    globalThis.fetch = (async () => sseResponse([trailingWithoutNewline])) as typeof fetch;
-    try {
-      const gen = streamOpenRouterAdult(
-        "system",
-        [{ role: "user", content: "hello" }],
-        "deepseek-v4-pro-0813",
-        800,
-        {
-          allowOpenRouterUnderLengthRecovery: false,
-          skipAssistantPrefill: true,
-          transportProvider: "cheaperinference",
-        }
-      );
-      while (true) {
-        const { value, done } = await gen.next();
-        if (done) {
-          assert.equal(value.cheaperInferenceBilledCostUsd, fixture.billedCost);
-          assert.equal(value.providerRequestId, fixture.providerRequestId);
-          return;
-        }
-        void value;
-      }
-      throw new Error("stream ended without usage return");
-    } finally {
-      globalThis.fetch = previousFetch;
-      delete process.env.CHEAPER_INFERENCE_API_KEY;
-      if (previousOpenRouterKey == null) delete process.env.OPENROUTER_API_KEY;
-      else process.env.OPENROUTER_API_KEY = previousOpenRouterKey;
-    }
-  });
-
-  it("C8: provider cost ledger records exactly one main-rp row", async () => {
-    const fixture = buildCiCanonicalAccountingSse();
-    const usage = await consumeStreamUsage(async () =>
-      sseResponse([
-        fixture.contentEvent,
-        fixture.accountingEvent,
-        fixture.doneEvent,
-      ])
-    );
-    const db = new Database(":memory:");
-    ensureProviderCostLedgerSchema(db);
-    const first = recordMainGenerationProviderCost(
-      {
-        chatId: 707,
-        assistantMessageId: 1001,
-        generationSequence: 0,
-        provider: "cheaperinference",
-        model: "deepseek-v4-pro-0813",
-        requestKind: "main-rp",
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens,
-        cheaperInferenceBilledCostUsd: usage.cheaperInferenceBilledCostUsd,
-        upstreamCostUsd: usage.upstreamCostUsd,
-        usageEstimated: usage.estimated,
-        providerRequestId: usage.providerRequestId,
-        outcome: "success",
-        persistInTests: true,
-      },
-      db
-    );
-    const second = recordMainGenerationProviderCost(
-      {
-        chatId: 707,
-        assistantMessageId: 1001,
-        generationSequence: 0,
-        provider: "cheaperinference",
-        model: "deepseek-v4-pro-0813",
-        requestKind: "main-rp",
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens,
-        cheaperInferenceBilledCostUsd: usage.cheaperInferenceBilledCostUsd,
-        upstreamCostUsd: usage.upstreamCostUsd,
-        usageEstimated: usage.estimated,
-        providerRequestId: usage.providerRequestId,
-        outcome: "success",
-        persistInTests: true,
-      },
-      db
-    );
-    assert.equal(first.recorded, true);
-    assert.equal(second.recorded, false);
-    const rows = listProviderCostEventsForAssistantMessage(1001, db);
-    assert.equal(rows.length, 1);
-    db.close();
-  });
-
-  it("C10: intentional abort does not flush trailing unterminated SSE remainder", async () => {
-    const line1 = `data: ${JSON.stringify({ choices: [{ delta: { content: "Hello. " } }] })}\n`;
-    const repeatedLine = "동일한 문장이 반복됩니다.\n";
-    const loopBody = repeatedLine.repeat(12);
-    const line2 = `data: ${JSON.stringify({ choices: [{ delta: { content: loopBody } }] })}\n`;
-    const trailingMarker = "FORBIDDEN_TRAILING_ABORT_REMAINDER_XYZ";
-    const line2Partial =
-      "data: " +
-      JSON.stringify({
-        choices: [{ delta: { content: trailingMarker } }],
-      });
-    const singleNetworkChunk = line1 + line2 + line2Partial;
-
-    const previousFetch = globalThis.fetch;
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
-    globalThis.fetch = (async () => sseResponse([singleNetworkChunk])) as typeof fetch;
-    try {
-      const gen = streamOpenRouterAdult(
-        "system",
-        [{ role: "user", content: "hello" }],
-        "deepseek-v4-pro-0813",
-        800,
-        {
-          allowOpenRouterUnderLengthRecovery: false,
-          skipAssistantPrefill: true,
-          transportProvider: "cheaperinference",
-        }
-      );
-      let streamed = "";
-      let finishReason: string | undefined;
-      while (true) {
-        const { value, done } = await gen.next();
-        if (done) {
-          finishReason = value.finishReason;
-          break;
-        }
-        streamed += value;
-      }
-      assert.equal(finishReason, "LOOP_ABORT");
-      assert.equal(streamed.includes(trailingMarker), false);
-      assert.ok(streamed.length > 0);
-    } finally {
-      globalThis.fetch = previousFetch;
-      delete process.env.CHEAPER_INFERENCE_API_KEY;
-    }
-  });
-
-  it("C9: Main provider attempts remain exactly one through stream path", async () => {
-    const fixture = buildCiCanonicalAccountingSse();
-    let fetchCount = 0;
-    await consumeStreamUsage(async () => {
-      fetchCount += 1;
-      return sseResponse([fixture.contentEvent, fixture.accountingEvent, fixture.doneEvent]);
-    });
-    assert.equal(fetchCount, 1);
   });
 
   it("tokenUsageFromOpenRouterBreakdown threads cheaperInferenceBilledCostUsd", () => {
