@@ -51,7 +51,7 @@ export type ProjectComicSafeStructureForTier2Options = {
 const TIER2_PANEL_CLOTHING_MODEST = "modest covered clothing" as const;
 
 const TIER2_PANEL_CLOTHING_ADULT_MALE_SHIRTLESS =
-  "confirmed adult male chat character with bare upper torso framed from shoulders upward; persona modestly covered; no lower-body or genital exposure" as const;
+  "confirmed adult male chat character is shirtless, with bare shoulders, chest, and upper torso clearly visible in an above-the-waist composition; persona remains clothed" as const;
 
 /** Canonical Tier-2 panel clothing contract renderer — single owner for provider panel lines. */
 export function renderTier2PanelClothingContract(

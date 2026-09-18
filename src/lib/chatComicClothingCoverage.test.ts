@@ -11,8 +11,12 @@ import {
   tier2ShirtlessRomanceScenePlan,
   tier2SingleDialogueScenePlan,
   TIER2_CLOTHING_FEMALE_CHARACTER_SUBJECTS,
-  TIER2_CLOTHING_TEST_SUBJECTS,
 } from "./chatComicClothingCoverage.fixtures";
+import {
+  buildDeterministicScenePlan,
+  buildSceneSourceMessages,
+  validateScenePlan,
+} from "./chatImageScenePlan";
 import {
   projectComicSafeStructureForTier2,
   renderTier2ComicGlobalClothingFooter,
@@ -112,7 +116,10 @@ describe("chatComicClothingCoverage N2A offline contract", () => {
     });
 
     const p1 = panelLine(n2aPrompt, 1);
-    assert.match(p1, /bare upper torso framed from shoulders upward/iu);
+    assert.match(p1, /confirmed adult male chat character is shirtless/iu);
+    assert.match(p1, /bare shoulders, chest, and upper torso clearly visible/iu);
+    assert.match(p1, /above-the-waist composition/iu);
+    assert.match(p1, /persona remains clothed/iu);
     assert.doesNotMatch(p1, /modest covered clothing/iu);
     assert.match(p1, /Speech bubble: "좋아해\."/u);
 
@@ -169,21 +176,25 @@ describe("chatComicClothingCoverage N2A offline contract", () => {
 });
 
 describe("chatComicClothingCoverage production writer boundary", () => {
-  it("documents that validateScenePlan does not copy clothingCoverage from client panels", () => {
-    assert.equal(TIER2_CLOTHING_TEST_SUBJECTS.length, 2);
-    assert.equal(
-      resolveTier2PanelClothingCoverage(
-        {
-          index: 1,
-          sourceEventIds: [],
-          situation: "x",
-          dialogue: [],
-          clothingCoverage: "adult_male_character_shirtless_upper_torso",
-        },
-        true,
-        "male"
+  it("validateScenePlan drops client-injected clothingCoverage from canonical panels", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: "*침실 침대 옆에 앉는다*" },
+      { id: 2, role: "assistant", content: "태형이 옆에 앉아 고개를 돌린다." },
+    ]);
+    const fallback = buildDeterministicScenePlan(messages, 4);
+    const forged = {
+      ...fallback,
+      panels: fallback.panels.map((panel) =>
+        panel.index === 1
+          ? { ...panel, clothingCoverage: "adult_male_character_shirtless_upper_torso" as const }
+          : panel
       ),
-      "adult_male_character_shirtless_upper_torso"
-    );
+    };
+    const validated = validateScenePlan(forged, messages, { allowUserEdits: true });
+    assert.equal(validated.ok, true);
+    if (!validated.ok) return;
+    for (const panel of validated.plan.panels) {
+      assert.equal(panel.clothingCoverage, undefined);
+    }
   });
 });
