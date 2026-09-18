@@ -11,10 +11,13 @@ import {
 import {
   projectSceneTextForSafeImageGeneration,
 } from "@/lib/chatImageSafeVisualProjection";
+import { distillAdultIntimacyClusterForTier2 } from "@/lib/chatComicTier2IntimacyDistillation";
 import {
-  canonicalTier2SafePose,
+  deriveTier2PanelVisualBeat,
   projectSceneBlockForTier2Comic,
   projectSceneTextForTier2Comic,
+  TIER2_PANEL_GLOBAL_CLOTHING_CONTRACT,
+  type Tier2PhysicalBeatCategory,
 } from "@/lib/chatComicTier2SafeProjection";
 
 export type ComicSafeStructurePanel = {
@@ -22,6 +25,10 @@ export type ComicSafeStructurePanel = {
   situation: string;
   background: string;
   poseHint: string;
+  /** Structured-source beat bucket — set once at projection, consumed by bounding only. */
+  physicalBeatCategory: Tier2PhysicalBeatCategory;
+  /** Canonical Tier-2 situation projection carried adult_explicit risk — not bedroom/length proxy. */
+  situationHadAdultExplicitProjection: boolean;
   /** Tier-2 SAFE_PROJECTED_PROVIDER_TEXT: provider-safe readable dialogue, risky rows omitted. */
   dialogue?: string[];
 };
@@ -41,64 +48,46 @@ function projectTier2Dialogue(raw: string): string | null {
 }
 
 function projectSafeField(raw: string): string {
+  return projectSafeSituationField(raw).text;
+}
+
+function projectSafeSituationField(raw: string): {
+  text: string;
+  hadAdultExplicitProjection: boolean;
+} {
   const projected = projectSceneBlockForTier2Comic(raw);
-  return projected.omitFromImage ? "" : projected.text.trim();
+  return {
+    text: projected.omitFromImage ? "" : projected.text.trim(),
+    hadAdultExplicitProjection: projected.reasonCategories.includes("adult_explicit"),
+  };
 }
 
-function derivePoseHint(opts: {
-  personaAction?: string;
-  characterAction?: string;
-  situation: string;
-  background: string;
-}): string {
-  const canonical = canonicalTier2SafePose({
-    personaAction: opts.personaAction,
-    characterAction: opts.characterAction,
-    situation: opts.situation,
-    background: opts.background,
-  });
-  if (canonical) return canonical;
-
-  const persona = opts.personaAction ? projectSafeField(opts.personaAction) : "";
-  const character = opts.characterAction ? projectSafeField(opts.characterAction) : "";
-  const combined = [persona, character].filter(Boolean).join("; ");
-  if (combined) return combined;
-
-  const situation = opts.situation.trim();
-  if (/누(?:워|운|어)/u.test(situation)) {
-    return "same characters resting on the bed with modest covered clothing and calm expressions";
-  }
-  if (/앉(?:아|은|어)/u.test(situation)) {
-    return "same characters seated in the same location with modest posture";
-  }
-  if (/서(?: 있|서)/u.test(situation)) {
-    return "same characters standing in the same location with readable expressions";
-  }
-  return "same cast in the same location with modest posture and readable expressions";
-}
-
-/** Canonical Tier-2 safe structural projection owner — no raw SceneEvent.text. */
-export function projectComicSafeStructureForTier2(
+function buildComicSafeStructureForTier2(
   plan: ScenePlan,
-  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+  visibility: ScenePresentationVisibility
 ): ComicSafeStructureProjection {
   const { sharedBackground } = projectComicSharedContext(plan, visibility);
   const atmosphere = plan.atmosphere ? projectSafeField(plan.atmosphere) : undefined;
 
   const panels = plan.panels.map((panel) => {
     const beat = projectComicPanelBeat(plan, panel, visibility);
-    const situation = projectSafeField(beat.situation);
+    const situationProjection = projectSafeSituationField(beat.situation);
+    const situation = situationProjection.text;
     const background = projectSafeField(beat.background || sharedBackground);
+    const structuredSource = {
+      personaAction: beat.personaAction,
+      characterAction: beat.characterAction,
+      situation: beat.situation,
+      background: beat.background || sharedBackground,
+    };
+    const visualBeat = deriveTier2PanelVisualBeat(structuredSource);
     return {
       index: panel.index,
       situation,
       background,
-      poseHint: derivePoseHint({
-        personaAction: beat.personaAction,
-        characterAction: beat.characterAction,
-        situation,
-        background,
-      }),
+      poseHint: visualBeat.poseHint,
+      physicalBeatCategory: visualBeat.physicalBeatCategory,
+      situationHadAdultExplicitProjection: situationProjection.hadAdultExplicitProjection,
       dialogue: beat.dialogue
         .map((line) => projectTier2Dialogue(line.text))
         .filter((text): text is string => text != null),
@@ -110,6 +99,14 @@ export function projectComicSafeStructureForTier2(
     atmosphere,
     panels,
   };
+}
+
+/** Canonical Tier-2 safe structural projection owner — no raw SceneEvent.text. */
+export function projectComicSafeStructureForTier2(
+  plan: ScenePlan,
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+): ComicSafeStructureProjection {
+  return distillAdultIntimacyClusterForTier2(buildComicSafeStructureForTier2(plan, visibility));
 }
 
 export function renderComicSafeStructureForTier2Prompt(
@@ -133,7 +130,7 @@ export function renderComicSafeStructureForTier2Prompt(
         panel.background ? `location ${panel.background}` : "",
         panel.situation ? `beat ${panel.situation}` : "",
         panel.poseHint,
-        "modest covered clothing",
+        TIER2_PANEL_GLOBAL_CLOTHING_CONTRACT,
         dialogue,
       ].filter(Boolean);
       lines.push(parts.join(" — "));
@@ -143,7 +140,7 @@ export function renderComicSafeStructureForTier2Prompt(
         panel.background ? `location ${panel.background}` : "",
         panel.situation ? `beat ${panel.situation}` : "",
         panel.poseHint,
-        "modest covered clothing",
+        TIER2_PANEL_GLOBAL_CLOTHING_CONTRACT,
         "leave a clean upper area for later text overlay",
         "no readable letters in the image",
       ].filter(Boolean);

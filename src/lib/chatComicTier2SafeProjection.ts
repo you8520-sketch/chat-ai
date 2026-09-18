@@ -160,3 +160,122 @@ export function canonicalTier2SafePose(opts: {
   }
   return "same cast in the same location with modest posture and readable expressions";
 }
+
+/** Tier-2 visual beat buckets used to collapse duplicate contact/intimacy arc replay. */
+export type Tier2PhysicalBeatCategory =
+  | "kiss"
+  | "embrace"
+  | "close_proximity"
+  | "resting"
+  | "seated"
+  | "standing"
+  | "blush_emotion"
+  | "general";
+
+/** Mood-neutral continuity pose — does not inject new emotion; atmosphere stays in shared owner. */
+export const TIER2_PANEL_CONTINUITY_POSE =
+  "same cast in the same location — maintain safe visual continuity";
+
+/** Global per-panel clothing safety contract in Tier-2 renderer (not a scene fact). */
+export const TIER2_PANEL_GLOBAL_CLOTHING_CONTRACT = "modest covered clothing";
+
+/**
+ * Structured-source beat category — decided once from ScenePlan panel fields,
+ * never re-inferred from rendered pose/situation strings.
+ */
+export function deriveTier2PhysicalBeatCategoryFromStructuredSource(opts: {
+  personaAction?: string;
+  characterAction?: string;
+  situation?: string;
+  background?: string;
+}): Tier2PhysicalBeatCategory {
+  const haystack = [
+    opts.personaAction,
+    opts.characterAction,
+    opts.situation,
+    opts.background,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  if (!haystack.trim()) return "general";
+  if (/(?:키스|kiss)/iu.test(haystack)) return "kiss";
+  if (/(?:껴안|포옹|안아|감싸\s*안|어깨(?:를)?\s*(?:감|안)|hug|embrace)/iu.test(haystack)) {
+    return "embrace";
+  }
+  if (
+    /(?:가까|밀착|볼(?:에|을)|이마(?:를)?\s*(?:맞|대)|손(?:을)?\s*(?:잡|맞)|어깨(?:를)?\s*(?:감|안)|속삭|마주보|whisper|close(?:ly)?\s+(?:together|proximity)|affectionate\s+proximity)/iu.test(
+      haystack
+    )
+  ) {
+    return "close_proximity";
+  }
+  if (containsSafeLyingOrRestContext(haystack)) return "resting";
+  if (/(?:앉(?:아|은|어)|seated|sitting)/iu.test(haystack)) return "seated";
+  if (/(?:서(?:\s)?(?:있|서)|standing)/iu.test(haystack)) return "standing";
+  if (/(?:홍조|수줍|부끄|blush|flushed|shy)/iu.test(haystack)) return "blush_emotion";
+  return "general";
+}
+
+function isTier2DialogueFiller(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+  if (/^(?:…|\.{2,3}|~+|ㅋ+|ㅎ+)$/u.test(trimmed)) return true;
+  if (/^(?:응\.?|아\.?|음\.?|네\.?|응\.\.\.|아\.\.\.)$/u.test(trimmed)) return true;
+  return trimmed.length <= 1;
+}
+
+/** Canonical Tier-2 dialogue cap — one representative line per panel, chronology preserved. */
+export function boundTier2PanelDialogue(dialogue: readonly string[] | undefined): string[] {
+  if (!dialogue?.length) return [];
+  const meaningful = dialogue
+    .map((line) => String(line ?? "").trim())
+    .filter((line) => line && !isTier2DialogueFiller(line));
+  const selected = meaningful[0] ?? dialogue.map((line) => String(line ?? "").trim()).find(Boolean);
+  return selected ? [selected] : [];
+}
+
+export function deriveTier2PanelVisualBeat(opts: {
+  personaAction?: string;
+  characterAction?: string;
+  situation?: string;
+  background?: string;
+}): { poseHint: string; physicalBeatCategory: Tier2PhysicalBeatCategory } {
+  const physicalBeatCategory = deriveTier2PhysicalBeatCategoryFromStructuredSource(opts);
+  const canonical = canonicalTier2SafePose(opts);
+  if (canonical) {
+    return { poseHint: canonical, physicalBeatCategory };
+  }
+
+  const persona = opts.personaAction ? projectSceneBlockForTier2Comic(opts.personaAction).text.trim() : "";
+  const character = opts.characterAction
+    ? projectSceneBlockForTier2Comic(opts.characterAction).text.trim()
+    : "";
+  const combined = [persona, character].filter(Boolean).join("; ");
+  if (combined) {
+    return { poseHint: combined, physicalBeatCategory };
+  }
+
+  const situation = String(opts.situation ?? "").trim();
+  if (/누(?:워|운|어)/u.test(situation)) {
+    return {
+      poseHint: "same characters resting on the bed with modest covered clothing and calm expressions",
+      physicalBeatCategory,
+    };
+  }
+  if (/앉(?:아|은|어)/u.test(situation)) {
+    return {
+      poseHint: "same characters seated in the same location with modest posture",
+      physicalBeatCategory,
+    };
+  }
+  if (/서(?: 있|서)/u.test(situation)) {
+    return {
+      poseHint: "same characters standing in the same location with readable expressions",
+      physicalBeatCategory,
+    };
+  }
+  return {
+    poseHint: "same cast in the same location with modest posture and readable expressions",
+    physicalBeatCategory,
+  };
+}
