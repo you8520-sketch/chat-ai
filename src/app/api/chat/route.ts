@@ -158,6 +158,7 @@ import {
   getRollingSummaryContentionSnapshot,
   prepareNonBlockingSummaryForMainRp,
 } from "@/lib/memory/memory-rolling-summary";
+import { gateChatOnSummaryBarrier } from "@/lib/memory/memory-barrier-route-gate";
 import { auditTokenAccounting } from "@/lib/promptTokenAccounting";
 import { RAW_HISTORY_COMPLETE_EXCHANGES } from "@/lib/memory/memory-constants";
 import {
@@ -1461,17 +1462,20 @@ export async function POST(req: Request) {
         userPersona: personaDisplayName,
         completedTurns: completedTurnsForMemoryCoverage,
       });
-      if (barrier.ok) {
-        effectiveSummarizedTurnCount = barrier.summarizedThrough;
-      } else {
+      const barrierGate = gateChatOnSummaryBarrier(barrier);
+      if (!barrierGate.proceed) {
         console.warn("MEMORY_SUMMARY_BARRIER_INCOMPLETE", {
           chat_id: chat.id,
-          reason: barrier.reason,
-          pending_range: barrier.pendingRange,
+          reason: barrierGate.response.body.code,
+          pending_range: barrierGate.response.body.pendingRange,
           summarized_through: effectiveSummarizedTurnCount,
           raw_trim_floor: DEFERRED_SUMMARY_RAW_COVERAGE_EXCHANGES,
         });
+        return Response.json(barrierGate.response.body, {
+          status: barrierGate.response.status,
+        });
       }
+      effectiveSummarizedTurnCount = barrierGate.summarizedThrough;
     }
   }
 

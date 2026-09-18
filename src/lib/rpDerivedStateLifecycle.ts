@@ -126,6 +126,34 @@ export function isCanonicalFrontierAssistantMessage(
   return !hasLaterMessageAfter(db, chatId, assistantMessageId);
 }
 
+export type CanonicalVariantSwitchGate =
+  | { allowed: true }
+  | { allowed: false; code: string; error: string };
+
+/** Single server authority — only the canonical frontier assistant may switch variants. */
+export function resolveCanonicalVariantSwitchGate(
+  db: Database.Database,
+  chatId: number,
+  assistantMessageId: number
+): CanonicalVariantSwitchGate {
+  if (hasLaterCanonicalTurn(db, chatId, assistantMessageId)) {
+    return {
+      allowed: false,
+      code: "numeric_state_historical_variant_replay_unsupported",
+      error: "이후 대화가 있는 과거 턴의 버전 전환은 지원하지 않습니다.",
+    };
+  }
+  if (!isCanonicalFrontierAssistantMessage(db, chatId, assistantMessageId)) {
+    return {
+      allowed: false,
+      code: "variant_switch_frontier_moved",
+      error:
+        "이후 입력이 있어 이 답변의 버전을 바꿀 수 없습니다. 새로고침 후 다시 시도해 주세요.",
+    };
+  }
+  return { allowed: true };
+}
+
 /**
  * Logical source-turn number for an assistant message = count of non-greeting
  * assistant messages with id <= this message. Used to re-evaluate triggers

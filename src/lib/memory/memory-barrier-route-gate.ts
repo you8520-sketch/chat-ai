@@ -15,7 +15,7 @@ export type SummaryBarrierGateResult =
   | { proceed: true; summarizedThrough: number }
   | { proceed: false; response: SummaryBarrierGateFailure };
 
-/** @deprecated Main /api/chat no longer blocks on barrier failure — chat proceeds with RAW expansion. */
+/** Fail-closed gate when ensureSummaryBarrier cannot restore summary coverage. */
 export function gateChatOnSummaryBarrier(
   barrier: SummaryBarrierResult
 ): SummaryBarrierGateResult {
