@@ -255,7 +255,90 @@ describe("chatComicClothingWriter adversarial matrix", () => {
     assert.equal(coverageAt(result, 2), undefined);
     assert.equal(coverageAt(result, 3), undefined);
   });
+
+  it("C24 inverse garment ownership — character acts on persona garment → modest", () => {
+    const events = [event(1, "라이크가 렌의 셔츠를 벗겼다.")];
+    const result = applyFromEvents(events, [["evt_1"]]);
+    assert.equal(coverageAt(result, 1), undefined);
+  });
+
+  it("C25 character acts on supporting garment → modest", () => {
+    const events = [event(1, "라이크가 로코의 셔츠를 벗겼다.")];
+    const result = applyFromEvents(events, [["evt_1"]]);
+    assert.equal(coverageAt(result, 1), undefined);
+  });
+
+  it("C26 persona acts on character garment → shirtless (C03 preserved)", () => {
+    const events = [event(1, "렌이 라이크의 셔츠를 벗겼다.")];
+    const result = applyFromEvents(events, [["evt_1"]]);
+    assert.equal(coverageAt(result, 1), "adult_male_character_shirtless_upper_torso");
+  });
+
+  it("C27 character owns 자신의 셔츠 removal → shirtless", () => {
+    const events = [event(1, "라이크는 렌을 바라보며 자신의 셔츠를 벗었다.")];
+    const result = applyFromEvents(events, [["evt_1"]]);
+    assert.equal(coverageAt(result, 1), "adult_male_character_shirtless_upper_torso");
+  });
+
+  it("C28 persona owns 자신의 셔츠 removal → character modest", () => {
+    const events = [event(1, "렌은 라이크를 바라보며 자신의 셔츠를 벗었다.")];
+    const result = applyFromEvents(events, [["evt_1"]]);
+    assert.equal(coverageAt(result, 1), undefined);
+  });
+
+  it("C29 same event boundary then shirtless → final shirtless", () => {
+    const events = [event(1, "다음날 아침. 라이크는 셔츠를 벗어 맨가슴을 드러냈다.")];
+    const result = applyFromEvents(events, [["evt_1"]]);
+    assert.equal(coverageAt(result, 1), "adult_male_character_shirtless_upper_torso");
+  });
+
+  it("C30 same event shirtless then boundary → final modest", () => {
+    const events = [
+      event(1, "라이크는 셔츠를 벗어 맨가슴을 드러냈다. 다음날 아침 창가에 서 있었다."),
+    ];
+    const result = applyFromEvents(events, [["evt_1"]]);
+    assert.equal(coverageAt(result, 1), undefined);
+  });
+
+  it("C31 incoming shirtless + boundary only → modest", () => {
+    const events = [event(1, "다음날 아침 창가에 서 있었다.")];
+    const prior = applyFromEvents([event(0, "라이크는 셔츠를 벗어 맨가슴을 드러냈다.")], [["evt_0"]]);
+    assert.equal(coverageAt(prior, 1), "adult_male_character_shirtless_upper_torso");
+    const result = applyFromEvents(
+      [
+        event(0, "라이크는 셔츠를 벗어 맨가슴을 드러냈다."),
+        ...events,
+      ],
+      [["evt_0"], ["evt_1"], [], []]
+    );
+    assert.equal(coverageAt(result, 2), undefined);
+  });
+
+  it("C32 incoming shirtless + boundary then re-clothing → modest", () => {
+    const events = [event(1, "다음날 아침. 라이크는 셔츠를 입었다.")];
+    const result = applyFromEvents(
+      [event(0, "라이크는 셔츠를 벗어 맨가슴을 드러냈다."), ...events],
+      [["evt_0"], ["evt_1"], [], []]
+    );
+    assert.equal(coverageAt(result, 1), "adult_male_character_shirtless_upper_torso");
+    assert.equal(coverageAt(result, 2), undefined);
+  });
+
+  it("C33 dual garment mention — self garment action wins → shirtless", () => {
+    const events = [event(1, "라이크는 렌의 셔츠를 바라보며 자신의 셔츠를 벗었다.")];
+    const result = applyFromEvents(events, [["evt_1"]]);
+    assert.equal(coverageAt(result, 1), "adult_male_character_shirtless_upper_torso");
+  });
 });
+
+function assertModestPrompt(prompt: string, panel = 1): void {
+  assert.match(panelLine(prompt, panel), /modest covered clothing/iu);
+  assert.doesNotMatch(panelLine(prompt, panel), /confirmed adult male chat character is shirtless/iu);
+}
+
+function assertShirtlessPrompt(prompt: string, panel = 1): void {
+  assert.match(panelLine(prompt, panel), /confirmed adult male chat character is shirtless/iu);
+}
 
 describe("chatComicClothingWriter production integration", () => {
   it("client-injected clothingCoverage is ignored before server writer runs", () => {
@@ -394,5 +477,60 @@ describe("chatComicClothingWriter production integration", () => {
     assert.match(panelLine(n2aManual, 1), /confirmed adult male chat character is shirtless/iu);
     assert.match(panelLine(n2aManual, 2), /modest covered clothing/iu);
     assert.match(panelLine(writerPrompt, 2), /confirmed adult male chat character is shirtless/iu);
+  });
+
+  it("integration A — persona removes character shirt → shirtless Tier-2 contract", () => {
+    const result = applyFromSource([
+      { role: "assistant", content: "*렌이 라이크의 셔츠를 벗겼다.*" },
+    ]);
+    const prompt = buildTier2StrictFallbackPrompt({
+      plan: result.plan,
+      adultGrounded: true,
+      characterGender: "male",
+    });
+    assertShirtlessPrompt(prompt);
+  });
+
+  it("integration B — character removes persona shirt → modest Tier-2 contract", () => {
+    const result = applyFromSource([
+      { role: "assistant", content: "*라이크가 렌의 셔츠를 벗겼다.*" },
+    ]);
+    const prompt = buildTier2StrictFallbackPrompt({
+      plan: result.plan,
+      adultGrounded: true,
+      characterGender: "male",
+    });
+    assertModestPrompt(prompt);
+  });
+
+  it("integration C — boundary then shirtless in same source → shirtless contract", () => {
+    const result = applyFromSource([
+      {
+        role: "assistant",
+        content: "*다음날 아침. 라이크는 셔츠를 벗어 맨가슴을 드러냈다.*",
+      },
+    ]);
+    const prompt = buildTier2StrictFallbackPrompt({
+      plan: result.plan,
+      adultGrounded: true,
+      characterGender: "male",
+    });
+    assertShirtlessPrompt(prompt);
+  });
+
+  it("integration D — shirtless then boundary in same source → modest contract", () => {
+    const result = applyFromSource([
+      {
+        role: "assistant",
+        content:
+          "*라이크는 셔츠를 벗어 맨가슴을 드러냈다. 다음날 아침 창가에 섰다.*",
+      },
+    ]);
+    const prompt = buildTier2StrictFallbackPrompt({
+      plan: result.plan,
+      adultGrounded: true,
+      characterGender: "male",
+    });
+    assertModestPrompt(prompt);
   });
 });

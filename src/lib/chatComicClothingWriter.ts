@@ -54,6 +54,18 @@ export type ApplyCanonicalComicClothingCoverageResult = {
 export type ApplyCanonicalComicClothingCoverageContext = SceneSpeakerContext;
 
 const KOREAN_NAME_PARTICLES = "[이가은는을를의에게한테도만]" as const;
+const UPPER_GARMENT_PATTERN =
+  "(?:셔츠|상의|윗옷|티셔츠|남방|블라우스|맨투맨|후드티)";
+const CLOTHING_UNDRESS_ACTION =
+  "벗(?:어(?:서)?|었다|었(?:다|음|어)?|겨(?:내(?:서)?)?|겼(?:다|어|음)?|기(?:내)?)";
+const CLOTHING_DRESS_ACTION = "입(?:어(?:서)?|은|음|었다|었(?:다|음|어)?|는다)";
+const CLOTHING_ACTION_PATTERN = new RegExp(
+  `(?:${CLOTHING_UNDRESS_ACTION}|${CLOTHING_DRESS_ACTION})`,
+  "u"
+);
+
+type NamedIdentity = "character" | "persona" | "supporting";
+type ClothingTarget = "character" | "other" | "ambiguous";
 
 function normalizeNameToken(value: string): string {
   return value.trim().toLowerCase();
@@ -107,17 +119,17 @@ const PARTIAL_UNBUTTON =
 const INCOMPLETE_UNDRESS =
   /(?:벗(?:으려|으려고|으려\s*는|을\s*뻔|을\s*듯|을\s*것\s*같)|벗(?:기\s*시작|기\s*하려)|손(?:을|만)\s*(?:올|뻗|대).{0,12}벗)/u;
 
-const UPPER_GARMENT =
-  /(?:셔츠|상의|윗옷|티셔츠|남방|블라우스|맨투맨|후드티)/u;
+const UPPER_GARMENT = new RegExp(UPPER_GARMENT_PATTERN, "u");
 
 const SHIRTLESS_STATE =
   /(?:맨(?:가슴|몸|상체|윗몸)|상(?:반신|체)(?:가|을|를)?\s*(?:드|노)|윗몸(?:이|을|를)?\s*(?:드|노)|shirtless|bare\s+(?:chest|torso|upper)|상의(?:를|가)?\s*(?:벗(?:은|어)|없)|셔츠(?:를|가)?\s*(?:벗(?:은|어)|없)|벗(?:은|어)\s*(?:상태|채))/u;
 
 function hasCompletedUpperRemoval(clause: string): boolean {
   if (
-    /(?:셔츠|상의|윗옷|티셔츠|남방)(?:를|을|가)?\s*(?:완전히\s*)?벗(?:어(?:서)?|겨(?:내(?:서)?)?|겼(?:다|어|음)?|기(?:내)?)/u.test(
-      clause
-    )
+    new RegExp(
+      `(?:(?:[\\p{L}\\p{N}·]{1,24}|자신)의\\s*)?(?:${UPPER_GARMENT_PATTERN})(?:를|을|가)?\\s*(?:완전히\\s*)?${CLOTHING_UNDRESS_ACTION}`,
+      "u"
+    ).test(clause)
   ) {
     return true;
   }
@@ -131,15 +143,19 @@ function hasCompletedUpperRemoval(clause: string): boolean {
 }
 
 function hasCompletedReclothing(clause: string): boolean {
-  if (/(?:다시|새로)\s*(?:셔츠|상의|윗옷|티셔츠|남방|옷)(?:를|을|가)?\s*입/u.test(clause)) {
+  if (
+    new RegExp(
+      `(?:다시|새로)\\s*(?:(?:[\\p{L}\\p{N}·]{1,24}|자신)의\\s*)?(?:${UPPER_GARMENT_PATTERN}|옷)(?:를|을|가)?\\s*입`,
+      "u"
+    ).test(clause)
+  ) {
     return true;
   }
-  return /(?:셔츠|상의|윗옷|티셔츠|남방|옷)(?:를|을|가)?\s*(?:다시\s*)?입(?:어(?:서)?|은|음|었다|는다)/u.test(
-    clause
-  );
+  return new RegExp(
+    `(?:(?:[\\p{L}\\p{N}·]{1,24}|자신)의\\s*)?(?:${UPPER_GARMENT_PATTERN}|옷)(?:를|을|가)?\\s*(?:다시\\s*)?입(?:어(?:서)?|은|음|었다|는다)`,
+    "u"
+  ).test(clause);
 }
-
-type ClothingTarget = "character" | "other" | "ambiguous";
 
 type ClauseClassification = {
   target: ClothingTarget;
@@ -148,32 +164,114 @@ type ClauseClassification = {
   reason: ComicClothingReasonCategory;
 };
 
+function identityForCanonicalName(name: string, ctx: ApplyCanonicalComicClothingCoverageContext): NamedIdentity | null {
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  if (normalizeNameToken(trimmed) === normalizeNameToken(ctx.characterName)) {
+    return "character";
+  }
+  if (normalizeNameToken(trimmed) === normalizeNameToken(ctx.personaName)) {
+    return "persona";
+  }
+  for (const known of ctx.knownSpeakerNames ?? []) {
+    const knownTrimmed = known.trim();
+    if (!knownTrimmed) continue;
+    if (
+      normalizeNameToken(knownTrimmed) !== normalizeNameToken(ctx.characterName) &&
+      normalizeNameToken(knownTrimmed) !== normalizeNameToken(ctx.personaName) &&
+      normalizeNameToken(trimmed) === normalizeNameToken(knownTrimmed)
+    ) {
+      return "supporting";
+    }
+  }
+  return null;
+}
+
+/** Resolve grammatical subject at clause start (Name+particle). */
+function resolveClauseGrammaticalSubject(
+  clause: string,
+  ctx: ApplyCanonicalComicClothingCoverageContext
+): NamedIdentity | null {
+  const trimmed = clause.trim();
+  const candidates = [
+    ctx.characterName,
+    ctx.personaName,
+    ...(ctx.knownSpeakerNames ?? []),
+  ];
+  for (const name of candidates) {
+    const identity = identityForCanonicalName(name, ctx);
+    if (!identity) continue;
+    const pattern = new RegExp(
+      `^${escapeRegExp(name.trim())}(?:${KOREAN_NAME_PARTICLES})`,
+      "iu"
+    );
+    if (pattern.test(trimmed)) {
+      return identity;
+    }
+  }
+  return null;
+}
+
+/** Resolve possessive garment owner nearest to the clothing action verb. */
+function resolveActionGarmentOwner(
+  clause: string,
+  ctx: ApplyCanonicalComicClothingCoverageContext
+): NamedIdentity | "self" | null {
+  const actionMatch = CLOTHING_ACTION_PATTERN.exec(clause);
+  if (!actionMatch || actionMatch.index === undefined) {
+    return null;
+  }
+  const beforeAction = clause.slice(0, actionMatch.index);
+  const possessivePattern = new RegExp(
+    `(자신|[\\p{L}\\p{N}·]{1,24})의\\s*${UPPER_GARMENT_PATTERN}`,
+    "giu"
+  );
+  let lastOwner: string | null = null;
+  for (const match of beforeAction.matchAll(possessivePattern)) {
+    lastOwner = match[1] ?? null;
+  }
+  if (lastOwner === "자신") {
+    return "self";
+  }
+  if (lastOwner) {
+    return identityForCanonicalName(lastOwner, ctx);
+  }
+  return null;
+}
+
 function resolveClothingTarget(
   clause: string,
   event: SceneEvent,
-  ctx: ApplyCanonicalComicClothingCoverageContext
+  ctx: ApplyCanonicalComicClothingCoverageContext,
+  inheritedSubject?: NamedIdentity | null
 ): ClothingTarget {
-  const characterNamed = matchesCanonicalName(clause, ctx.characterName);
-  const personaNamed = matchesCanonicalName(clause, ctx.personaName);
+  const garmentOwner = resolveActionGarmentOwner(clause, ctx);
 
-  const otherNamed = (ctx.knownSpeakerNames ?? []).some(
-    (name) =>
-      name.trim() &&
-      normalizeNameToken(name) !== normalizeNameToken(ctx.characterName) &&
-      normalizeNameToken(name) !== normalizeNameToken(ctx.personaName) &&
-      matchesCanonicalName(clause, name)
-  );
+  if (garmentOwner === "character") {
+    return "character";
+  }
+  if (garmentOwner === "persona" || garmentOwner === "supporting") {
+    return "other";
+  }
+  if (garmentOwner === "self") {
+    const subject = resolveClauseGrammaticalSubject(clause, ctx) ?? inheritedSubject ?? null;
+    if (subject === "character") return "character";
+    if (subject === "persona" || subject === "supporting") return "other";
+    if (event.actor === "character") return "character";
+    return "ambiguous";
+  }
 
-  if (personaNamed && !characterNamed) return "other";
-  if (otherNamed && !characterNamed) return "other";
+  const subject = resolveClauseGrammaticalSubject(clause, ctx) ?? inheritedSubject ?? null;
+  if (subject === "persona" || subject === "supporting") {
+    return "other";
+  }
+  if (subject === "character") {
+    return "character";
+  }
 
-  if (characterNamed) return "character";
-
-  if (personaNamed && characterNamed) return "ambiguous";
-
-  if (event.actor === "character") return "character";
-
-  if (personaNamed || otherNamed) return "other";
+  if (event.actor === "character") {
+    return "character";
+  }
 
   return "ambiguous";
 }
@@ -181,7 +279,8 @@ function resolveClothingTarget(
 function classifyClause(
   clause: string,
   event: SceneEvent,
-  ctx: ApplyCanonicalComicClothingCoverageContext
+  ctx: ApplyCanonicalComicClothingCoverageContext,
+  inheritedSubject?: NamedIdentity | null
 ): ClauseClassification | null {
   if (!clause.trim()) return null;
   if (NEGATION.test(clause)) {
@@ -211,7 +310,7 @@ function classifyClause(
     return null;
   }
 
-  const target = resolveClothingTarget(clause, event, ctx);
+  const target = resolveClothingTarget(clause, event, ctx, inheritedSubject);
 
   if (target === "other") {
     return { target, shirtless: false, covered: false, reason: "wrong_target" };
@@ -235,65 +334,121 @@ function classifyClause(
     const personaRemovedCharacterShirt =
       hasRemoval &&
       matchesCanonicalName(clause, ctx.personaName) &&
-      matchesCanonicalName(clause, ctx.characterName) &&
+      resolveActionGarmentOwner(clause, ctx) === "character" &&
       /(?:벗(?:기|겨)|벗겨)/u.test(clause);
-    const reason = personaRemovedCharacterShirt
-      ? "persona_removed_character_shirt"
-      : hasRemoval
-        ? "explicit_upper_garment_removal"
-        : "explicit_shirtless_current_state";
-    return { target, shirtless: true, covered: false, reason };
+    return {
+      target,
+      shirtless: true,
+      covered: false,
+      reason: personaRemovedCharacterShirt
+        ? "persona_removed_character_shirt"
+        : hasRemoval
+          ? "explicit_upper_garment_removal"
+          : "explicit_shirtless_current_state",
+    };
   }
 
   return null;
 }
 
-function classifyEvent(
+function transitionBetweenStates(
+  from: ComicClothingSemanticState,
+  to: ComicClothingSemanticState,
+  reason: ComicClothingReasonCategory
+): ComicClothingTransitionKind {
+  if (from === to) return "none";
+  if (to === "SHIRTLESS_UPPER_TORSO") return "covered_to_shirtless";
+  if (to === "DEFAULT_COVERED" && from === "SHIRTLESS_UPPER_TORSO") {
+    return reason === "scene_time_boundary" ? "scene_reset" : "shirtless_to_covered";
+  }
+  if (to === "DEFAULT_COVERED" && reason === "scene_time_boundary") {
+    return "scene_reset";
+  }
+  return "none";
+}
+
+function processEventChronology(
+  incomingState: ComicClothingSemanticState,
   event: SceneEvent,
   ctx: ApplyCanonicalComicClothingCoverageContext
 ): {
-  shirtless: boolean;
-  covered: boolean;
+  nextState: ComicClothingSemanticState;
   conflict: boolean;
+  transition: ComicClothingTransitionKind;
   reason: ComicClothingReasonCategory;
 } {
   if (event.kind === "dialogue") {
-    return { shirtless: false, covered: false, conflict: false, reason: "dialogue_skipped" };
-  }
-
-  if (SCENE_TIME_BOUNDARY.test(event.text)) {
-    return { shirtless: false, covered: true, conflict: false, reason: "scene_time_boundary" };
-  }
-
-  const clauses = splitWriterClauses(event.text);
-  let sawShirtless = false;
-  let sawCovered = false;
-  let lastReason: ComicClothingReasonCategory = "ambiguous_target";
-
-  for (const clause of clauses) {
-    const classified = classifyClause(clause, event, ctx);
-    if (!classified) continue;
-    if (classified.shirtless) sawShirtless = true;
-    if (classified.covered) sawCovered = true;
-    lastReason = classified.reason;
-  }
-
-  if (sawShirtless && sawCovered) {
     return {
-      shirtless: false,
-      covered: false,
+      nextState: incomingState,
+      conflict: false,
+      transition: "none",
+      reason: "dialogue_skipped",
+    };
+  }
+
+  let state = incomingState;
+  let reason: ComicClothingReasonCategory = "ambiguous_target";
+  let sawShirtlessTransition = false;
+  let sawReclothingTransition = false;
+  let conflict = false;
+  let eventSubject: NamedIdentity | null = null;
+
+  for (const clause of splitWriterClauses(event.text)) {
+    const clauseSubject = resolveClauseGrammaticalSubject(clause, ctx);
+    if (clauseSubject) {
+      eventSubject = clauseSubject;
+    }
+
+    if (SCENE_TIME_BOUNDARY.test(clause)) {
+      state = "DEFAULT_COVERED";
+      reason = "scene_time_boundary";
+      continue;
+    }
+
+    const classified = classifyClause(clause, event, ctx, eventSubject);
+    if (!classified) continue;
+
+    if (classified.shirtless) {
+      if (sawReclothingTransition) {
+        conflict = true;
+        state = "DEFAULT_COVERED";
+        reason = "conflict_same_event";
+        continue;
+      }
+      sawShirtlessTransition = true;
+      state = "SHIRTLESS_UPPER_TORSO";
+      reason = classified.reason;
+      continue;
+    }
+
+    if (classified.covered && classified.reason === "explicit_reclothing") {
+      if (sawShirtlessTransition) {
+        conflict = true;
+        state = "DEFAULT_COVERED";
+        reason = "conflict_same_event";
+        continue;
+      }
+      sawReclothingTransition = true;
+      state = "DEFAULT_COVERED";
+      reason = "explicit_reclothing";
+    }
+  }
+
+  if (conflict) {
+    return {
+      nextState: "DEFAULT_COVERED",
       conflict: true,
+      transition: "none",
       reason: "conflict_same_event",
     };
   }
-  if (sawShirtless) {
-    return { shirtless: true, covered: false, conflict: false, reason: lastReason };
-  }
-  if (sawCovered) {
-    return { shirtless: false, covered: true, conflict: false, reason: lastReason };
-  }
 
-  return { shirtless: false, covered: false, conflict: false, reason: "ambiguous_target" };
+  return {
+    nextState: state,
+    conflict: false,
+    transition: transitionBetweenStates(incomingState, state, reason),
+    reason,
+  };
 }
 
 function semanticStateToCoverage(
@@ -303,34 +458,6 @@ function semanticStateToCoverage(
     return "adult_male_character_shirtless_upper_torso";
   }
   return undefined;
-}
-
-function applyEventToState(
-  state: ComicClothingSemanticState,
-  eventResult: ReturnType<typeof classifyEvent>
-): {
-  nextState: ComicClothingSemanticState;
-  transition: ComicClothingTransitionKind;
-} {
-  if (eventResult.conflict) {
-    return { nextState: "DEFAULT_COVERED", transition: "none" };
-  }
-  if (eventResult.reason === "scene_time_boundary") {
-    return { nextState: "DEFAULT_COVERED", transition: "scene_reset" };
-  }
-  if (eventResult.shirtless) {
-    return {
-      nextState: "SHIRTLESS_UPPER_TORSO",
-      transition: state === "SHIRTLESS_UPPER_TORSO" ? "none" : "covered_to_shirtless",
-    };
-  }
-  if (eventResult.covered) {
-    return {
-      nextState: "DEFAULT_COVERED",
-      transition: state === "DEFAULT_COVERED" ? "none" : "shirtless_to_covered",
-    };
-  }
-  return { nextState: state, transition: "none" };
 }
 
 function eventsById(plan: ScenePlan): Map<string, SceneEvent> {
@@ -361,20 +488,18 @@ function resolvePanelState(
   for (const eventId of orderedIds) {
     const event = eventMap.get(eventId);
     if (!event) continue;
-    const result = classifyEvent(event, ctx);
+    const result = processEventChronology(state, event, ctx);
+    state = result.nextState;
     if (result.conflict) {
       conflict = true;
       reasonCategory = "conflict_same_event";
-      state = "DEFAULT_COVERED";
       transition = "none";
       continue;
     }
-    const applied = applyEventToState(state, result);
-    state = applied.nextState;
-    if (applied.transition !== "none") {
-      transition = applied.transition;
+    if (result.transition !== "none") {
+      transition = result.transition;
       reasonCategory = result.reason;
-    } else if (result.reason !== "ambiguous_target" || result.shirtless || result.covered) {
+    } else if (result.reason !== "ambiguous_target" && result.reason !== "dialogue_skipped") {
       reasonCategory = result.reason;
     }
   }
