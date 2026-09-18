@@ -21,8 +21,13 @@ import {
   type StatusMetaRecord,
 } from "./types";
 
-/** SQL filter — extraction_disabled markers must not consume previous-meta lookup budget. */
+/**
+ * SQL filter for previous-meta candidate rows.
+ * - json_extract runs only when json_valid(status_meta)=1 (malformed rows never throw).
+ * - Malformed and extraction_disabled rows are excluded before LIMIT.
+ */
 const PREVIOUS_STATUS_META_SQL_FILTER = `status_meta IS NOT NULL AND status_meta != ''
+       AND json_valid(status_meta) = 1
        AND COALESCE(json_extract(status_meta, '$.terminalReason'), '') != 'extraction_disabled'`;
 
 const running = new Set<string>();
