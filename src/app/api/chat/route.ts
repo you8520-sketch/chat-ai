@@ -5830,7 +5830,6 @@ export async function POST(req: Request) {
           scheduleTargetedCheaperInferenceRequestReconciliation({
             provider: usageRecord.provider ?? billingProvider,
             providerRequestId: primaryStage.providerRequestId,
-            model: primaryStage.responseModelId ?? primaryStage.model,
             streamBilledCostUsd: primaryStage.cheaperInferenceBilledCostUsd,
             outcome:
               primaryStage.loopAborted || primaryStage.degenerationAborted

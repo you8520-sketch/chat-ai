@@ -318,12 +318,15 @@ function normalizeProvider(provider: string): string {
   return provider.trim().toLowerCase();
 }
 
-function buildTargetedUsageLookupWindow(requestStartedAtMs: number): {
+function buildTargetedUsageLookupWindow(
+  requestStartedAtMs: number,
+  nowMs: number
+): {
   windowStartIso: string;
   windowEndIso: string;
 } {
   const startMs = Math.max(0, requestStartedAtMs - 2 * 60_000);
-  const endMs = Date.now() + 60_000;
+  const endMs = nowMs + 60_000;
   return {
     windowStartIso: new Date(startMs).toISOString(),
     windowEndIso: new Date(endMs).toISOString(),
@@ -406,7 +409,6 @@ function applySettledCheaperInferenceRequest(
 export type TargetedRequestReconcileInput = {
   provider: string;
   providerRequestId?: string | null;
-  model: string;
   streamBilledCostUsd?: number | null;
   outcome: "success" | "failed_without_usage" | "failed_with_usage";
   requestStartedAtMs: number;
@@ -460,9 +462,11 @@ export async function reconcileCheaperInferenceRequestById(
   const db = input.db ?? getDb();
   ensureProviderCostLedgerSchema(db);
   const deps = input.deps ?? {};
+  const nowMs = (deps.now ?? Date.now)();
   const fetchRequests = deps.fetchRequests ?? fetchAllUsageRequests;
   const { windowStartIso, windowEndIso } = buildTargetedUsageLookupWindow(
-    input.requestStartedAtMs
+    input.requestStartedAtMs,
+    nowMs
   );
 
   const page = await fetchRequests({
@@ -490,7 +494,7 @@ export async function reconcileCheaperInferenceRequestById(
     };
   }
 
-  if (match.status !== "settled" || match.billedMicroUsd <= 0) {
+  if (!match.settled || match.billedMicroUsd <= 0) {
     return {
       attempted: true,
       lookupOk: true,

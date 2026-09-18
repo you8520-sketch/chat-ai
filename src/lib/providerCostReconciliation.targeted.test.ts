@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
-import type { UsageClientResult } from "./cheaperInferenceUsage";
+import { fetchAllUsageRequests } from "./cheaperInferenceUsage";
 import {
   reconcileCheaperInferenceRequestById,
   reconcileCheaperInferenceUsage,
@@ -15,6 +15,8 @@ import {
 import { resolveBillingExchangeRateSnapshot } from "./exchangeRate";
 
 const FX = resolveBillingExchangeRateSnapshot().effectiveKrwPerUsd;
+const REQUEST_STARTED_MS = Date.parse("2026-09-18T00:12:27Z");
+const FIXED_NOW_MS = Date.parse("2026-09-18T00:14:00Z");
 
 function db(): Database.Database {
   const d = new Database(":memory:");
@@ -22,71 +24,74 @@ function db(): Database.Database {
   return d;
 }
 
-function mockFetch(
-  pages: Array<{ requests: Array<Record<string, unknown>> }>,
-  status = 200
-) {
+/** Raw Usage API payloads parsed by production cheaperInferenceUsage client. */
+function usageApiFetchImpl(
+  pages: Array<{ data: Array<Record<string, unknown>> }>,
+  httpStatus = 200
+): typeof fetch {
   let call = 0;
-  return async (): Promise<
-    UsageClientResult<{
-      requests: Array<{
-        requestId: string;
-        status: string;
-        billedMicroUsd: number;
-        settled: boolean;
-        model: string | null;
-        endpoint: string | null;
-        createdAt: string | null;
-      }>;
-      pages: number;
-    }>
-  > => {
-    if (status === 403) {
-      return { ok: false, reason: "http", status: 403, message: "usage API 403" };
+  return (async () => {
+    if (httpStatus === 403) {
+      return new Response("forbidden", { status: 403 });
     }
-    if (status >= 500) {
-      return { ok: false, reason: "http", status, message: `usage API ${status}` };
+    if (httpStatus >= 500) {
+      return new Response("error", { status: httpStatus });
     }
-    const page = pages[call] ?? { requests: [] };
+    const page = pages[call] ?? { data: [] };
     call += 1;
-    const requests = page.requests.map((item) => {
-      const billed = String(item.billed_cost_usd ?? "0");
-      const micro = Math.round(Number(billed) * 1_000_000);
-      const statusVal = String(item.status ?? "settled");
-      return {
-        requestId: String(item.request_id),
-        status: statusVal,
-        billedMicroUsd: micro,
-        settled: micro > 0 && statusVal === "settled",
-        model: typeof item.model === "string" ? item.model : null,
-        endpoint: null,
-        createdAt: "2026-09-18 00:12:27",
-      };
+    return new Response(JSON.stringify(page), {
+      status: 200,
+      headers: { "content-type": "application/json" },
     });
-    return { ok: true, value: { requests, pages: call } };
+  }) as typeof fetch;
+}
+
+function depsWithUsagePages(
+  pages: Array<{ data: Array<Record<string, unknown>> }>,
+  opts?: { httpStatus?: number; now?: number }
+) {
+  const fetchImpl = usageApiFetchImpl(pages, opts?.httpStatus ?? 200);
+  return {
+    persistInTests: true,
+    now: opts?.now != null ? () => opts.now! : undefined,
+    fetchRequests: (requestOpts) =>
+      fetchAllUsageRequests({ ...requestOpts, fetchImpl }),
+    fetchDaily: async () => ({ ok: true, value: { settledMicroUsd: 0 } }),
   };
 }
 
-describe("providerCostReconciliation targeted request reconcile T1–T10", () => {
+function ensureMessagesTable(d: Database.Database): void {
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY, chat_id INTEGER NOT NULL DEFAULT 1, role TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '', request_id TEXT, usage TEXT, deduction_slices TEXT,
+      model TEXT NOT NULL DEFAULT '', alternates TEXT NOT NULL DEFAULT '[]',
+      active_variant INTEGER NOT NULL DEFAULT 0, generation_status TEXT NOT NULL DEFAULT 'completed',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')), is_refunded INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+}
+
+describe("providerCostReconciliation targeted request reconcile T1–T11", () => {
   const baseInput = {
     provider: "cheaperinference",
     providerRequestId: "0840da41-b1d4-4946-8175-c645e5613b77",
-    model: "deepseek-v4-pro-0813",
-    requestStartedAtMs: Date.parse("2026-09-18T00:12:27Z"),
+    requestStartedAtMs: REQUEST_STARTED_MS,
     outcome: "success" as const,
-    persistInTests: true,
   };
 
   it("T1 stream exact present → targeted lookup skip", async () => {
     let called = false;
-    const fetchRequests = async () => {
-      called = true;
-      return { ok: true as const, value: { requests: [], pages: 0 } };
-    };
     const result = await reconcileCheaperInferenceRequestById({
       ...baseInput,
       streamBilledCostUsd: 0.019894,
-      deps: { fetchRequests, persistInTests: true },
+      deps: {
+        persistInTests: true,
+        fetchRequests: async () => {
+          called = true;
+          return { ok: true, value: { requests: [], pages: 0 } };
+        },
+      },
     });
     assert.equal(result.attempted, false);
     assert.equal(called, false);
@@ -111,21 +116,18 @@ describe("providerCostReconciliation targeted request reconcile T1–T10", () =>
       const result = await reconcileCheaperInferenceRequestById({
         ...baseInput,
         db: d,
-        deps: {
-          persistInTests: true,
-          fetchRequests: mockFetch([
-            {
-              requests: [
-                {
-                  request_id: baseInput.providerRequestId,
-                  status: "settled",
-                  billed_cost_usd: "0.019894",
-                  model: "deepseek-v4-pro-0813",
-                },
-              ],
-            },
-          ]),
-        },
+        deps: depsWithUsagePages([
+          {
+            data: [
+              {
+                request_id: baseInput.providerRequestId,
+                status: "settled",
+                billed_cost_usd: "0.019894",
+                model: "deepseek-v4-pro-0813",
+              },
+            ],
+          },
+        ]),
       });
       assert.equal(result.ledgerOutcome, "promoted");
       const rows = listProviderCostEventsForAssistantMessage(10, d);
@@ -156,7 +158,7 @@ describe("providerCostReconciliation targeted request reconcile T1–T10", () =>
       const forbidden = await reconcileCheaperInferenceRequestById({
         ...baseInput,
         db: d,
-        deps: { persistInTests: true, fetchRequests: mockFetch([], 403) },
+        deps: depsWithUsagePages([], { httpStatus: 403 }),
       });
       assert.equal(forbidden.lookupOk, false);
       assert.equal(
@@ -167,7 +169,7 @@ describe("providerCostReconciliation targeted request reconcile T1–T10", () =>
       const serverError = await reconcileCheaperInferenceRequestById({
         ...baseInput,
         db: d,
-        deps: { persistInTests: true, fetchRequests: mockFetch([], 503) },
+        deps: depsWithUsagePages([], { httpStatus: 503 }),
       });
       assert.equal(serverError.lookupOk, false);
     } finally {
@@ -194,20 +196,17 @@ describe("providerCostReconciliation targeted request reconcile T1–T10", () =>
       const pending = await reconcileCheaperInferenceRequestById({
         ...baseInput,
         db: d,
-        deps: {
-          persistInTests: true,
-          fetchRequests: mockFetch([
-            {
-              requests: [
-                {
-                  request_id: baseInput.providerRequestId,
-                  status: "pending",
-                  billed_cost_usd: "0.019894",
-                },
-              ],
-            },
-          ]),
-        },
+        deps: depsWithUsagePages([
+          {
+            data: [
+              {
+                request_id: baseInput.providerRequestId,
+                status: "pending",
+                billed_cost_usd: "0",
+              },
+            ],
+          },
+        ]),
       });
       assert.equal(pending.requestStatus, "pending");
       assert.equal(
@@ -218,10 +217,7 @@ describe("providerCostReconciliation targeted request reconcile T1–T10", () =>
       const missing = await reconcileCheaperInferenceRequestById({
         ...baseInput,
         db: d,
-        deps: {
-          persistInTests: true,
-          fetchRequests: mockFetch([{ requests: [] }]),
-        },
+        deps: depsWithUsagePages([{ data: [] }]),
       });
       assert.equal(missing.requestFound, false);
     } finally {
@@ -249,20 +245,17 @@ describe("providerCostReconciliation targeted request reconcile T1–T10", () =>
         ...baseInput,
         providerRequestId: "actual-request-id",
         db: d,
-        deps: {
-          persistInTests: true,
-          fetchRequests: mockFetch([
-            {
-              requests: [
-                {
-                  request_id: "different-request-id",
-                  status: "settled",
-                  billed_cost_usd: "0.019894",
-                },
-              ],
-            },
-          ]),
-        },
+        deps: depsWithUsagePages([
+          {
+            data: [
+              {
+                request_id: "different-request-id",
+                status: "settled",
+                billed_cost_usd: "0.019894",
+              },
+            ],
+          },
+        ]),
       });
       assert.equal(
         listProviderCostEventsForAssistantMessage(13, d)[0]?.actual_cost_source,
@@ -306,20 +299,17 @@ describe("providerCostReconciliation targeted request reconcile T1–T10", () =>
         ...baseInput,
         providerRequestId: "req-variant-b",
         db: d,
-        deps: {
-          persistInTests: true,
-          fetchRequests: mockFetch([
-            {
-              requests: [
-                {
-                  request_id: "req-variant-b",
-                  status: "settled",
-                  billed_cost_usd: "0.008000",
-                },
-              ],
-            },
-          ]),
-        },
+        deps: depsWithUsagePages([
+          {
+            data: [
+              {
+                request_id: "req-variant-b",
+                status: "settled",
+                billed_cost_usd: "0.008000",
+              },
+            ],
+          },
+        ]),
       });
       const rows = listProviderCostEventsForAssistantMessage(14, d);
       const rowA = rows.find((r) => r.generation_sequence === 0);
@@ -352,20 +342,17 @@ describe("providerCostReconciliation targeted request reconcile T1–T10", () =>
         ...baseInput,
         streamBilledCostUsd: 0.019894,
         db: d,
-        deps: {
-          persistInTests: true,
-          fetchRequests: mockFetch([
-            {
-              requests: [
-                {
-                  request_id: baseInput.providerRequestId,
-                  status: "settled",
-                  billed_cost_usd: "0.019894",
-                },
-              ],
-            },
-          ]),
-        },
+        deps: depsWithUsagePages([
+          {
+            data: [
+              {
+                request_id: baseInput.providerRequestId,
+                status: "settled",
+                billed_cost_usd: "0.019894",
+              },
+            ],
+          },
+        ]),
       });
       assert.equal(result.attempted, false);
       assert.equal(listProviderCostEventsForAssistantMessage(15, d).length, 1);
@@ -377,15 +364,7 @@ describe("providerCostReconciliation targeted request reconcile T1–T10", () =>
   it("T8 targeted miss → full-window reconciliation later promotes same row", async () => {
     const d = db();
     try {
-      d.exec(`
-        CREATE TABLE IF NOT EXISTS messages (
-          id INTEGER PRIMARY KEY, chat_id INTEGER NOT NULL DEFAULT 1, role TEXT NOT NULL,
-          content TEXT NOT NULL DEFAULT '', request_id TEXT, usage TEXT, deduction_slices TEXT,
-          model TEXT NOT NULL DEFAULT '', alternates TEXT NOT NULL DEFAULT '[]',
-          active_variant INTEGER NOT NULL DEFAULT 0, generation_status TEXT NOT NULL DEFAULT 'completed',
-          created_at TEXT NOT NULL DEFAULT (datetime('now')), is_refunded INTEGER NOT NULL DEFAULT 0
-        );
-      `);
+      ensureMessagesTable(d);
       recordMainGenerationProviderCost(
         {
           chatId: 1,
@@ -402,10 +381,7 @@ describe("providerCostReconciliation targeted request reconcile T1–T10", () =>
       const miss = await reconcileCheaperInferenceRequestById({
         ...baseInput,
         db: d,
-        deps: {
-          persistInTests: true,
-          fetchRequests: mockFetch([{ requests: [] }]),
-        },
+        deps: depsWithUsagePages([{ data: [] }]),
       });
       assert.equal(miss.requestFound, false);
 
@@ -414,10 +390,9 @@ describe("providerCostReconciliation targeted request reconcile T1–T10", () =>
         windowEnd: "2026-09-19 00:00:00",
         db: d,
         deps: {
-          persistInTests: true,
-          fetchRequests: mockFetch([
+          ...depsWithUsagePages([
             {
-              requests: [
+              data: [
                 {
                   request_id: baseInput.providerRequestId,
                   status: "settled",
@@ -463,20 +438,17 @@ describe("providerCostReconciliation targeted request reconcile T1–T10", () =>
       await reconcileCheaperInferenceRequestById({
         ...baseInput,
         db: d,
-        deps: {
-          persistInTests: true,
-          fetchRequests: mockFetch([
-            {
-              requests: [
-                {
-                  request_id: baseInput.providerRequestId,
-                  status: "settled",
-                  billed_cost_usd: "0.019894",
-                },
-              ],
-            },
-          ]),
-        },
+        deps: depsWithUsagePages([
+          {
+            data: [
+              {
+                request_id: baseInput.providerRequestId,
+                status: "settled",
+                billed_cost_usd: "0.019894",
+              },
+            ],
+          },
+        ]),
       });
 
       const after = listProviderCostEventsForAssistantMessage(17, d)[0];
@@ -505,5 +477,118 @@ describe("providerCostReconciliation targeted request reconcile T1–T10", () =>
       }),
       false
     );
+  });
+
+  it("T11 settlement parity — cached status uses canonical CheaperInferenceUsageRequest.settled", async () => {
+    const requestId = "cached-req-parity";
+    const pages = [
+      {
+        data: [
+          {
+            request_id: requestId,
+            status: "cached",
+            billed_cost_usd: "0.019894",
+            model: "deepseek-v4-pro-0813",
+          },
+        ],
+      },
+    ];
+
+    const dTargeted = db();
+    const dWindow = db();
+    try {
+      ensureMessagesTable(dWindow);
+      for (const d of [dTargeted, dWindow]) {
+        recordMainGenerationProviderCost(
+          {
+            chatId: 1,
+            assistantMessageId: 18,
+            generationSequence: 0,
+            provider: "cheaperinference",
+            model: "deepseek-v4-pro-0813",
+            providerRequestId: requestId,
+            outcome: "success",
+            persistInTests: true,
+          },
+          d
+        );
+      }
+
+      const targeted = await reconcileCheaperInferenceRequestById({
+        provider: "cheaperinference",
+        providerRequestId: requestId,
+        requestStartedAtMs: REQUEST_STARTED_MS,
+        outcome: "success",
+        db: dTargeted,
+        deps: depsWithUsagePages(pages),
+      });
+
+      const window = await reconcileCheaperInferenceUsage({
+        windowStart: "2026-09-18 00:00:00",
+        windowEnd: "2026-09-19 00:00:00",
+        db: dWindow,
+        deps: {
+          ...depsWithUsagePages(pages),
+          fetchDaily: async () => ({ ok: true, value: { settledMicroUsd: 19_894 } }),
+        },
+      });
+
+      assert.equal(targeted.ledgerOutcome, "promoted");
+      assert.equal(window.promoted, 1);
+      assert.equal(
+        listProviderCostEventsForAssistantMessage(18, dTargeted)[0]?.actual_cost_usd,
+        0.019894
+      );
+      assert.equal(
+        listProviderCostEventsForAssistantMessage(18, dWindow)[0]?.actual_cost_usd,
+        0.019894
+      );
+    } finally {
+      dTargeted.close();
+      dWindow.close();
+    }
+  });
+
+  it("targeted lookup window uses ReconciliationDeps.now seam", async () => {
+    let capturedStart = "";
+    let capturedEnd = "";
+    const d = db();
+    try {
+      recordMainGenerationProviderCost(
+        {
+          chatId: 1,
+          assistantMessageId: 19,
+          generationSequence: 0,
+          provider: "cheaperinference",
+          model: "deepseek-v4-pro-0813",
+          providerRequestId: baseInput.providerRequestId,
+          outcome: "success",
+          persistInTests: true,
+        },
+        d
+      );
+      await reconcileCheaperInferenceRequestById({
+        ...baseInput,
+        db: d,
+        deps: {
+          ...depsWithUsagePages([{ data: [] }], { now: FIXED_NOW_MS }),
+          fetchRequests: async (requestOpts) => {
+            capturedStart = requestOpts.startAt;
+            capturedEnd = requestOpts.endAt;
+            return fetchAllUsageRequests({
+              ...requestOpts,
+              fetchImpl: usageApiFetchImpl([{ data: [] }]),
+            });
+          },
+        },
+      });
+      assert.equal(
+        capturedStart,
+        new Date(Math.max(0, REQUEST_STARTED_MS - 2 * 60_000)).toISOString()
+      );
+      assert.equal(capturedEnd, new Date(FIXED_NOW_MS + 60_000).toISOString());
+    } finally {
+      d.close();
+    }
   });
 });
