@@ -31,6 +31,7 @@ import {
 } from "@/lib/chatImageVisualIdentity";
 import {
   renderComicSafeStructureForTier2Prompt,
+  renderTier2ComicGlobalClothingFooter,
   type ComicSafeStructureProjection,
 } from "@/lib/chatComicSafeStructure";
 import type { ChatComicCompositionMode } from "@/lib/chatComicPanelSpec";
@@ -382,7 +383,7 @@ export function buildStrictComicFallbackPrompt(opts: {
     castAware
       ? `Exactly ${castCount} recurring identities — no extras.`
       : "Exactly two recurring characters — no extras.",
-    "Keep all panel borders visible. Modest clothing throughout.",
+    renderTier2ComicGlobalClothingFooter(opts.safeStructure),
   ].join("\n");
 }
 

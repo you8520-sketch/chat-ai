@@ -2,7 +2,12 @@
  * Tier-2 safe structural fidelity — preserves location/pose/mood facts without raw scene text.
  */
 
-import type { ScenePlan, ScenePresentationVisibility } from "@/lib/chatImageScenePlan";
+import type {
+  ScenePanel,
+  ScenePanelClothingCoverage,
+  ScenePlan,
+  ScenePresentationVisibility,
+} from "@/lib/chatImageScenePlan";
 import {
   DEFAULT_SCENE_PRESENTATION_VISIBILITY,
   projectComicPanelBeat,
@@ -17,11 +22,14 @@ import {
   projectSceneTextForTier2Comic,
 } from "@/lib/chatComicTier2SafeProjection";
 
+export type Tier2PanelClothingCoverage = ScenePanelClothingCoverage;
+
 export type ComicSafeStructurePanel = {
   index: number;
   situation: string;
   background: string;
   poseHint: string;
+  clothingCoverage: Tier2PanelClothingCoverage;
   /** Tier-2 SAFE_PROJECTED_PROVIDER_TEXT: provider-safe readable dialogue, risky rows omitted. */
   dialogue?: string[];
 };
@@ -31,6 +39,70 @@ export type ComicSafeStructureProjection = {
   atmosphere?: string;
   panels: ComicSafeStructurePanel[];
 };
+
+export type ProjectComicSafeStructureForTier2Options = {
+  /** Required to honor adult_male_character_shirtless_upper_torso panel coverage. */
+  adultGrounded?: boolean;
+};
+
+const TIER2_PANEL_CLOTHING_MODEST = "modest covered clothing" as const;
+
+const TIER2_PANEL_CLOTHING_ADULT_MALE_SHIRTLESS =
+  "confirmed adult male chat character with bare upper torso framed from shoulders upward; persona modestly covered; no lower-body or genital exposure" as const;
+
+/** Canonical Tier-2 panel clothing contract renderer — single owner for provider panel lines. */
+export function renderTier2PanelClothingContract(
+  coverage: Tier2PanelClothingCoverage
+): string {
+  switch (coverage) {
+    case "adult_male_character_shirtless_upper_torso":
+      return TIER2_PANEL_CLOTHING_ADULT_MALE_SHIRTLESS;
+    case "modest_covered":
+      return TIER2_PANEL_CLOTHING_MODEST;
+    default: {
+      const _exhaustive: never = coverage;
+      return TIER2_PANEL_CLOTHING_MODEST;
+    }
+  }
+}
+
+/** Resolve panel clothing from structured ScenePlan input; shirtless requires adultGrounded. */
+export function resolveTier2PanelClothingCoverage(
+  panel: ScenePanel,
+  adultGrounded: boolean
+): Tier2PanelClothingCoverage {
+  const requested = panel.clothingCoverage ?? "modest_covered";
+  if (requested === "adult_male_character_shirtless_upper_torso" && adultGrounded) {
+    return requested;
+  }
+  return "modest_covered";
+}
+
+/** Global comic clothing footer — modest default; mixed panels use non-contradictory contract. */
+export function renderTier2ComicGlobalClothingFooter(
+  structure?: ComicSafeStructureProjection
+): string {
+  if (!structure?.panels.length) {
+    return "Keep all panel borders visible. Modest clothing throughout.";
+  }
+  const allModest = structure.panels.every(
+    (panel) => panel.clothingCoverage === "modest_covered"
+  );
+  if (allModest) {
+    return "Keep all panel borders visible. Modest clothing throughout.";
+  }
+  return "Keep all panel borders visible. Follow each panel's clothing contract above.";
+}
+
+function stripModestCoveredClothingFromPoseHint(
+  poseHint: string,
+  clothingCoverage: Tier2PanelClothingCoverage
+): string {
+  if (clothingCoverage === "modest_covered") return poseHint;
+  return poseHint
+    .replace(/ with modest covered clothing/giu, "")
+    .replace(/modest covered clothing and /giu, "");
+}
 
 /** TIER2_TEXT_MODE = SAFE_PROJECTED_PROVIDER_TEXT: safe dialogue is kept, risky rows are omitted (no invented replacements). */
 function projectTier2Dialogue(raw: string): string | null {
@@ -50,6 +122,7 @@ function derivePoseHint(opts: {
   characterAction?: string;
   situation: string;
   background: string;
+  clothingCoverage: Tier2PanelClothingCoverage;
 }): string {
   const canonical = canonicalTier2SafePose({
     personaAction: opts.personaAction,
@@ -57,7 +130,9 @@ function derivePoseHint(opts: {
     situation: opts.situation,
     background: opts.background,
   });
-  if (canonical) return canonical;
+  if (canonical) {
+    return stripModestCoveredClothingFromPoseHint(canonical, opts.clothingCoverage);
+  }
 
   const persona = opts.personaAction ? projectSafeField(opts.personaAction) : "";
   const character = opts.characterAction ? projectSafeField(opts.characterAction) : "";
@@ -66,7 +141,10 @@ function derivePoseHint(opts: {
 
   const situation = opts.situation.trim();
   if (/누(?:워|운|어)/u.test(situation)) {
-    return "same characters resting on the bed with modest covered clothing and calm expressions";
+    return stripModestCoveredClothingFromPoseHint(
+      "same characters resting on the bed with modest covered clothing and calm expressions",
+      opts.clothingCoverage
+    );
   }
   if (/앉(?:아|은|어)/u.test(situation)) {
     return "same characters seated in the same location with modest posture";
@@ -80,8 +158,10 @@ function derivePoseHint(opts: {
 /** Canonical Tier-2 safe structural projection owner — no raw SceneEvent.text. */
 export function projectComicSafeStructureForTier2(
   plan: ScenePlan,
-  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY,
+  opts?: ProjectComicSafeStructureForTier2Options
 ): ComicSafeStructureProjection {
+  const adultGrounded = opts?.adultGrounded ?? false;
   const { sharedBackground } = projectComicSharedContext(plan, visibility);
   const atmosphere = plan.atmosphere ? projectSafeField(plan.atmosphere) : undefined;
 
@@ -89,15 +169,18 @@ export function projectComicSafeStructureForTier2(
     const beat = projectComicPanelBeat(plan, panel, visibility);
     const situation = projectSafeField(beat.situation);
     const background = projectSafeField(beat.background || sharedBackground);
+    const clothingCoverage = resolveTier2PanelClothingCoverage(panel, adultGrounded);
     return {
       index: panel.index,
       situation,
       background,
+      clothingCoverage,
       poseHint: derivePoseHint({
         personaAction: beat.personaAction,
         characterAction: beat.characterAction,
         situation,
         background,
+        clothingCoverage,
       }),
       dialogue: beat.dialogue
         .map((line) => projectTier2Dialogue(line.text))
@@ -124,6 +207,7 @@ export function renderComicSafeStructureForTier2Prompt(
     lines.push(`Emotional atmosphere: ${structure.atmosphere}.`);
   }
   for (const panel of structure.panels) {
+    const clothingContract = renderTier2PanelClothingContract(panel.clothingCoverage);
     if (mode === "full_provider_rendered") {
       const dialogue = panel.dialogue?.length
         ? panel.dialogue.map((text) => `Speech bubble: "${text}"`).join("\n")
@@ -133,7 +217,7 @@ export function renderComicSafeStructureForTier2Prompt(
         panel.background ? `location ${panel.background}` : "",
         panel.situation ? `beat ${panel.situation}` : "",
         panel.poseHint,
-        "modest covered clothing",
+        clothingContract,
         dialogue,
       ].filter(Boolean);
       lines.push(parts.join(" — "));
@@ -143,7 +227,7 @@ export function renderComicSafeStructureForTier2Prompt(
         panel.background ? `location ${panel.background}` : "",
         panel.situation ? `beat ${panel.situation}` : "",
         panel.poseHint,
-        "modest covered clothing",
+        clothingContract,
         "leave a clean upper area for later text overlay",
         "no readable letters in the image",
       ].filter(Boolean);

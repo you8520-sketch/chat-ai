@@ -1347,7 +1347,9 @@ contentKind: context.contentKind,
       contentKind: context.contentKind,
       castManifest,
     });
-    const tier2SafeStructure = projectComicSafeStructureForTier2(scenePlan, comicVisibility);
+    const tier2SafeStructure = projectComicSafeStructureForTier2(scenePlan, comicVisibility, {
+      adultGrounded: roomAdultGrounded,
+    });
     const strictFallbackPrompt = buildStrictComicFallbackPrompt({
       panelCount,
       mood,
