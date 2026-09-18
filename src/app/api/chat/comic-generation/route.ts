@@ -1349,6 +1349,7 @@ contentKind: context.contentKind,
     });
     const tier2SafeStructure = projectComicSafeStructureForTier2(scenePlan, comicVisibility, {
       adultGrounded: roomAdultGrounded,
+      characterGender: context.characterGender,
     });
     const strictFallbackPrompt = buildStrictComicFallbackPrompt({
       panelCount,

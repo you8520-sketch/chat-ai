@@ -2,6 +2,7 @@
  * Tier-2 safe structural fidelity — preserves location/pose/mood facts without raw scene text.
  */
 
+import type { ImagePromptGender } from "@/lib/chatImageGeneration";
 import type {
   ScenePanel,
   ScenePanelClothingCoverage,
@@ -43,6 +44,8 @@ export type ComicSafeStructureProjection = {
 export type ProjectComicSafeStructureForTier2Options = {
   /** Required to honor adult_male_character_shirtless_upper_torso panel coverage. */
   adultGrounded?: boolean;
+  /** Required for male-specific shirtless coverage. */
+  characterGender?: ImagePromptGender;
 };
 
 const TIER2_PANEL_CLOTHING_MODEST = "modest covered clothing" as const;
@@ -66,13 +69,18 @@ export function renderTier2PanelClothingContract(
   }
 }
 
-/** Resolve panel clothing from structured ScenePlan input; shirtless requires adultGrounded. */
+/** Resolve panel clothing from structured ScenePlan input. Shirtless requires adultGrounded + male chat character. */
 export function resolveTier2PanelClothingCoverage(
   panel: ScenePanel,
-  adultGrounded: boolean
+  adultGrounded: boolean,
+  characterGender?: ImagePromptGender
 ): Tier2PanelClothingCoverage {
   const requested = panel.clothingCoverage ?? "modest_covered";
-  if (requested === "adult_male_character_shirtless_upper_torso" && adultGrounded) {
+  if (
+    requested === "adult_male_character_shirtless_upper_torso" &&
+    adultGrounded &&
+    characterGender === "male"
+  ) {
     return requested;
   }
   return "modest_covered";
@@ -94,16 +102,6 @@ export function renderTier2ComicGlobalClothingFooter(
   return "Keep all panel borders visible. Follow each panel's clothing contract above.";
 }
 
-function stripModestCoveredClothingFromPoseHint(
-  poseHint: string,
-  clothingCoverage: Tier2PanelClothingCoverage
-): string {
-  if (clothingCoverage === "modest_covered") return poseHint;
-  return poseHint
-    .replace(/ with modest covered clothing/giu, "")
-    .replace(/modest covered clothing and /giu, "");
-}
-
 /** TIER2_TEXT_MODE = SAFE_PROJECTED_PROVIDER_TEXT: safe dialogue is kept, risky rows are omitted (no invented replacements). */
 function projectTier2Dialogue(raw: string): string | null {
   const projected = projectSceneTextForTier2Comic(raw);
@@ -122,7 +120,6 @@ function derivePoseHint(opts: {
   characterAction?: string;
   situation: string;
   background: string;
-  clothingCoverage: Tier2PanelClothingCoverage;
 }): string {
   const canonical = canonicalTier2SafePose({
     personaAction: opts.personaAction,
@@ -130,9 +127,7 @@ function derivePoseHint(opts: {
     situation: opts.situation,
     background: opts.background,
   });
-  if (canonical) {
-    return stripModestCoveredClothingFromPoseHint(canonical, opts.clothingCoverage);
-  }
+  if (canonical) return canonical;
 
   const persona = opts.personaAction ? projectSafeField(opts.personaAction) : "";
   const character = opts.characterAction ? projectSafeField(opts.characterAction) : "";
@@ -141,10 +136,7 @@ function derivePoseHint(opts: {
 
   const situation = opts.situation.trim();
   if (/누(?:워|운|어)/u.test(situation)) {
-    return stripModestCoveredClothingFromPoseHint(
-      "same characters resting on the bed with modest covered clothing and calm expressions",
-      opts.clothingCoverage
-    );
+    return "same characters resting on the bed with calm expressions";
   }
   if (/앉(?:아|은|어)/u.test(situation)) {
     return "same characters seated in the same location with modest posture";
@@ -162,6 +154,7 @@ export function projectComicSafeStructureForTier2(
   opts?: ProjectComicSafeStructureForTier2Options
 ): ComicSafeStructureProjection {
   const adultGrounded = opts?.adultGrounded ?? false;
+  const characterGender = opts?.characterGender;
   const { sharedBackground } = projectComicSharedContext(plan, visibility);
   const atmosphere = plan.atmosphere ? projectSafeField(plan.atmosphere) : undefined;
 
@@ -169,7 +162,11 @@ export function projectComicSafeStructureForTier2(
     const beat = projectComicPanelBeat(plan, panel, visibility);
     const situation = projectSafeField(beat.situation);
     const background = projectSafeField(beat.background || sharedBackground);
-    const clothingCoverage = resolveTier2PanelClothingCoverage(panel, adultGrounded);
+    const clothingCoverage = resolveTier2PanelClothingCoverage(
+      panel,
+      adultGrounded,
+      characterGender
+    );
     return {
       index: panel.index,
       situation,
@@ -180,7 +177,6 @@ export function projectComicSafeStructureForTier2(
         characterAction: beat.characterAction,
         situation,
         background,
-        clothingCoverage,
       }),
       dialogue: beat.dialogue
         .map((line) => projectTier2Dialogue(line.text))
