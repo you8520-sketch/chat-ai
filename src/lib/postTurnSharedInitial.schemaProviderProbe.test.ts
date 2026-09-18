@@ -32,6 +32,7 @@ function fullProductionProbeInput(): PostTurnSharedInitialInput {
     primaryModelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
     includeSuggestions: true,
     includeRelationship: true,
+    includeEpisodic: false,
     relationshipRegenContext: { previousAssistantMessage: "rejected shorter draft" },
   };
 }

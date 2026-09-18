@@ -1,4 +1,5 @@
 import type { TokenUsage } from "@/lib/ai";
+import type { EpisodicSectionParse } from "@/lib/memory/memory-episodic-shared";
 import type { CombinedDualWidgetExtractParseResult } from "@/lib/statusWidget/extractNormalize";
 import type { StatusWidget, StatusWidgetValues } from "@/lib/statusWidget/types";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
@@ -18,6 +19,8 @@ export type PostTurnSharedConsumerFlags = {
   includeStatus: boolean;
   includeSuggestions: boolean;
   includeRelationship: boolean;
+  /** Top-level episodic.extracted_facts — memory layer persistence owner. */
+  includeEpisodic: boolean;
 };
 
 export type PostTurnSharedInitialInput = {
@@ -44,6 +47,8 @@ export type PostTurnSharedInitialInput = {
    */
   includeSuggestions: boolean;
   includeRelationship: boolean;
+  /** Top-level episodic section — durable memory facts (memory layer persists). */
+  includeEpisodic: boolean;
   /** Regen: rejected assistant draft for relationship comparison (relationship section only). */
   relationshipRegenContext?: { previousAssistantMessage: string } | null;
 };
@@ -73,6 +78,8 @@ export type PostTurnSharedInitialParseResult = {
   suggestedReplies: SuggestedReplyItem[];
   suggestedRepliesOk: boolean;
   relationship: RelationshipSectionParse;
+  /** Parsed independently — section failure must not discard other consumers. */
+  episodic: EpisodicSectionParse;
 };
 
 export type PostTurnSharedInitialRunResult = {

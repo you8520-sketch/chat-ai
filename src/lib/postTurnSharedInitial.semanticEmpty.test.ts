@@ -72,13 +72,14 @@ function dualInput(overrides: Partial<PostTurnSharedInitialInput> = {}): PostTur
     primaryModelId: "gpt-5.6-luna",
     includeSuggestions: true,
     includeRelationship: false,
+    includeEpisodic: false,
     relationshipRegenContext: null,
     ...overrides,
   };
 }
 
 function placeholderLiteralJson(input: PostTurnSharedInitialInput): string {
-  const statusWidget: Record<string, unknown> = { extracted_facts: [] };
+  const statusWidget: Record<string, unknown> = {};
   if (input.characterWidget) {
     statusWidget.character_values = Object.fromEntries(
       collectWidgetJsonKeys(input.characterWidget).map((key) => [key, "..."])
@@ -114,13 +115,12 @@ function emptyMapLiteralJson(input: PostTurnSharedInitialInput): string {
   const statusWidget: Record<string, unknown> = {
     character_values: {},
     user_values: {},
-    extracted_facts: [],
   };
   return JSON.stringify({ statusWidget });
 }
 
 function validJson(input: PostTurnSharedInitialInput): string {
-  const statusWidget: Record<string, unknown> = { extracted_facts: [] };
+  const statusWidget: Record<string, unknown> = {};
   if (input.characterWidget) {
     statusWidget.character_values = buildValues(input.characterWidget);
   }
@@ -281,7 +281,6 @@ describe("postTurnSharedInitial semantic-empty root cause", () => {
       statusWidget: {
         character_values: { ...buildValues(DEFAULT_STATUS_WIDGET), "유저가_쓴_임의키": "값" },
         user_values: buildValues(USER_WIDGET),
-        extracted_facts: [],
       },
     });
     const shape = analyzePostTurnSharedInitialWidgetShape(text, input);

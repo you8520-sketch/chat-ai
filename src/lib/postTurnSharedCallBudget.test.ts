@@ -84,7 +84,7 @@ function sharedResponse(opts: {
   characterValues["장소"] = "에이지스 복도";
   characterValues["시각"] = "14:30";
   return JSON.stringify({
-    statusWidget: { character_values: characterValues, extracted_facts: [] },
+    statusWidget: { character_values: characterValues },
     suggestedReplies: {
       items: [
         { kind: "escalate", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
@@ -406,6 +406,7 @@ const baseInput = (
   primaryModelId: "gpt-5.6-luna",
   includeSuggestions: false,
   includeRelationship: false,
+  includeEpisodic: false,
   ...over,
 });
 
@@ -485,7 +486,7 @@ describe("relationship section parse evidence", () => {
   it("section failure does not invalidate status/suggestions sections", () => {
     const parsed = parsePostTurnSharedInitialResponse(
       JSON.stringify({
-        statusWidget: { character_values: { 장소: "복도" }, extracted_facts: [] },
+        statusWidget: { character_values: { 장소: "복도" } },
         suggestedReplies: {
           items: [
             { kind: "escalate", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
@@ -648,7 +649,7 @@ describe("consumer combination physical-call matrix", () => {
         for (const key of collectWidgetJsonKeys(WIDGET)) characterValues[key] = `값-${key}`;
         return {
           text: JSON.stringify({
-            statusWidget: { character_values: characterValues, extracted_facts: [] },
+            statusWidget: { character_values: characterValues },
             ...(row.expectSuggestions
               ? {
                   suggestedReplies: {

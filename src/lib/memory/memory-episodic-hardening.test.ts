@@ -133,6 +133,37 @@ function batchSealEpisodicCount(batchStart: number, batchEnd: number): number {
   ).n;
 }
 
+/** Test seam — production seal no longer auto-extracts; invoke batch helper directly for #954 semantics. */
+async function extractEpisodicForSealedBatchTurns(batchStart: number, batchEnd: number) {
+  const batchUserSources = [];
+  for (let t = batchStart; t <= batchEnd; t++) {
+    batchUserSources.push({ turn: t, messageId: null, text: `유저 턴 ${t}` });
+  }
+  await extractAndPersistEpisodicFactsForSealedBatch({
+    chatId: CHAT,
+    userId: USER,
+    characterId: CHAR,
+    charName: "HardChar",
+    startTurn: batchStart,
+    endTurn: batchEnd,
+    dialogue: "test batch dialogue",
+    batchUserSources,
+    boundarySnapshot: getMemorySourceBoundaryCore(getDb(), CHAT),
+  });
+}
+
+async function processRollingSummaryBatchWithTestEpisodicExtract(
+  opts: Parameters<typeof processRollingSummaryBatch>[0]
+) {
+  const beforeRecords = listMemoryRecordsForChat(CHAT).length;
+  await processRollingSummaryBatch(opts);
+  const records = listMemoryRecordsForChat(CHAT);
+  if (records.length > beforeRecords) {
+    const sealed = records[records.length - 1]!;
+    await extractEpisodicForSealedBatchTurns(sealed.turnStart, sealed.turnEnd);
+  }
+}
+
 function insertPlayableTurns(count: number): number[] {
   const db = getDb();
   db.prepare("DELETE FROM messages WHERE chat_id=?").run(CHAT);
@@ -228,7 +259,7 @@ async function sealTwoBatches(opts: {
   __setEpisodicExtractCallerForTests(async () => ({
     text: JSON.stringify({ extracted_facts: [opts.batchAFact] }),
   }));
-  await processRollingSummaryBatch({
+  await processRollingSummaryBatchWithTestEpisodicExtract({
     chatId: CHAT,
     userId: USER,
     characterId: CHAR,
@@ -239,7 +270,7 @@ async function sealTwoBatches(opts: {
   __setEpisodicExtractCallerForTests(async () => ({
     text: JSON.stringify({ extracted_facts: [opts.batchBFact] }),
   }));
-  await processRollingSummaryBatch({
+  await processRollingSummaryBatchWithTestEpisodicExtract({
     chatId: CHAT,
     userId: USER,
     characterId: CHAR,
@@ -627,7 +658,7 @@ describe("regen summary-seal episodic batch replacement", () => {
         extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "old_marker")],
       }),
     }));
-    await processRollingSummaryBatch({
+    await processRollingSummaryBatchWithTestEpisodicExtract({
       chatId: CHAT,
       userId: USER,
       characterId: CHAR,
@@ -665,7 +696,7 @@ describe("regen summary-seal episodic batch replacement", () => {
         extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "initial")],
       }),
     }));
-    await processRollingSummaryBatch({
+    await processRollingSummaryBatchWithTestEpisodicExtract({
       chatId: CHAT,
       userId: USER,
       characterId: CHAR,
@@ -702,6 +733,7 @@ describe("regen summary-seal episodic batch replacement", () => {
       }),
       true
     );
+    await extractEpisodicForSealedBatchTurns(1, 5);
     assert.equal(batchSealEpisodicCount(1, 5), 0);
     assert.equal(batchSealEpisodicCount(6, 10), 1);
   });
@@ -715,7 +747,7 @@ describe("regen summary-seal episodic batch replacement", () => {
         extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "keep")],
       }),
     }));
-    await processRollingSummaryBatch({
+    await processRollingSummaryBatchWithTestEpisodicExtract({
       chatId: CHAT,
       userId: USER,
       characterId: CHAR,
@@ -867,7 +899,7 @@ describe("regen summary-seal episodic batch replacement", () => {
         extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "old_marker")],
       }),
     }));
-    await processRollingSummaryBatch({
+    await processRollingSummaryBatchWithTestEpisodicExtract({
       chatId: CHAT,
       userId: USER,
       characterId: CHAR,
@@ -912,7 +944,7 @@ describe("regen summary-seal episodic batch replacement", () => {
         extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "old_marker")],
       }),
     }));
-    await processRollingSummaryBatch({
+    await processRollingSummaryBatchWithTestEpisodicExtract({
       chatId: CHAT,
       userId: USER,
       characterId: CHAR,
@@ -939,6 +971,7 @@ describe("regen summary-seal episodic batch replacement", () => {
       memoryCapacity: 8000,
       assistantMessageId: assistantIds[2]!,
     });
+    await extractEpisodicForSealedBatchTurns(1, 5);
 
     assert.equal(batchSealEpisodicCount(1, 5), 1);
     const rows = getDb()
@@ -1113,7 +1146,7 @@ describe("regen summary-seal episodic batch replacement", () => {
         extracted_facts: [episodicMarkerFact(OLD_BATCH_MARKER, "old_marker")],
       }),
     }));
-    await processRollingSummaryBatch({
+    await processRollingSummaryBatchWithTestEpisodicExtract({
       chatId: CHAT,
       userId: USER,
       characterId: CHAR,
@@ -1141,6 +1174,7 @@ describe("regen summary-seal episodic batch replacement", () => {
       memoryCapacity: 8000,
       assistantMessageId: assistantIds[2]!,
     });
+    await extractEpisodicForSealedBatchTurns(1, 5);
 
     const ctx = await assembleFinalMainRpEpisodic({
       completedTurns: 10,

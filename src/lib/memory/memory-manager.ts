@@ -35,6 +35,7 @@ import {
 import { countMemoryEligibleCompletedTurnsCore } from "./memory-turn-loader";
 import { resolveOocSceneRenderIntent } from "@/lib/oocSceneRender";
 import { syncMemoryEligibleTurnCount } from "./memory-reconcile";
+import { reconcileSharedEpisodicFactsForTurn } from "./memory-episodic-shared";
 import { buildMemoryContext } from "./memory-injector";
 import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
 import {
@@ -325,6 +326,9 @@ export async function scheduleMemoryUpdate(opts: {
   relationshipSharedAttempted?: boolean;
   relationshipSharedParsed?: boolean;
   relationshipSharedDelta?: import("@/lib/chatMemory").RelationshipMetaDelta | null;
+  /** Shared initial episodic section parse — memory layer persists after canonical finalize. */
+  sharedInitialEpisodic?: import("@/lib/memory/memory-episodic-shared").EpisodicSectionParse | null;
+  episodicSharedAttempted?: boolean;
   generationScope?: AssistantGenerationScope;
 }): Promise<void> {
   const generationScope = opts.generationScope;
@@ -415,6 +419,42 @@ export async function scheduleMemoryUpdate(opts: {
     }
   } catch (e) {
     console.warn("[memory] relationship meta extract failed:", (e as Error).message);
+  }
+
+  if (
+    opts.assistantMessageId &&
+    (opts.episodicSharedAttempted === true || isRegenerate)
+  ) {
+    try {
+      const episodicResult = reconcileSharedEpisodicFactsForTurn(getDb(), {
+        chatId: opts.chatId,
+        userId: opts.userId,
+        characterId: opts.characterId,
+        assistantMessageId: opts.assistantMessageId,
+        sourceUserMessageId,
+        sourceUserText: opts.userMessage,
+        boundarySnapshot,
+        episodic: opts.sharedInitialEpisodic ?? {
+          present: false,
+          valid: false,
+          facts: [],
+        },
+        isRegeneration: isRegenerate,
+        requestId: generationScope?.generationRequestId ?? opts.turnTrace?.turnRequestId ?? null,
+        generationSequence: generationScope?.generationSequence,
+      });
+      if (process.env.NODE_ENV !== "production") {
+        console.info("[memory] shared episodic reconcile", {
+          chat_id: opts.chatId,
+          assistant_message_id: opts.assistantMessageId,
+          replaced: episodicResult.replaced,
+          inserted: episodicResult.inserted,
+          skipped: episodicResult.skipped,
+        });
+      }
+    } catch (e) {
+      console.warn("[memory] shared episodic reconcile failed:", (e as Error).message);
+    }
   }
 
   if (isRegenerate && opts.assistantMessageId) {

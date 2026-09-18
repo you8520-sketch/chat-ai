@@ -32,6 +32,7 @@ function dualInput() {
     primaryModelId: "gpt-5.6-luna",
     includeSuggestions: true,
     includeRelationship: false,
+    includeEpisodic: false,
   };
 }
 
@@ -45,7 +46,7 @@ function validDualJson() {
     user_values[key] = `${key}-값`.padEnd(8, "x");
   }
   return JSON.stringify({
-    statusWidget: { character_values, user_values, extracted_facts: [] },
+    statusWidget: { character_values, user_values },
     suggestedReplies: { items: [] },
   });
 }

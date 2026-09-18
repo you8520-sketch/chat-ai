@@ -10,6 +10,7 @@ import {
   suggestedRepliesHaveContent,
 } from "@/lib/suggestedReplies/parse";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
+import { parseSharedEpisodicSection } from "@/lib/memory/memory-episodic-shared";
 import { parseSharedRelationshipSection } from "./relationship";
 import type {
   PostTurnSharedInitialInput,
@@ -72,6 +73,7 @@ export function parsePostTurnSharedInitialResponse(
     suggestedReplies: [],
     suggestedRepliesOk: false,
     relationship: { present: false, valid: false, delta: {} },
+    episodic: { present: false, valid: false, facts: [] },
   };
   const root = extractJsonObjectFromWidgetText(text);
   if (!root) return empty;
@@ -103,6 +105,9 @@ export function parsePostTurnSharedInitialResponse(
   const relationship = input.includeRelationship
     ? parseSharedRelationshipSection(root.relationship ?? root.relationshipMemory)
     : { present: false, valid: false, delta: {} };
+  const episodic = input.includeEpisodic
+    ? parseSharedEpisodicSection(root.episodic)
+    : { present: false, valid: false, facts: [] };
 
   return {
     jsonParseOk: true,
@@ -112,6 +117,7 @@ export function parsePostTurnSharedInitialResponse(
     suggestedReplies,
     suggestedRepliesOk: input.includeSuggestions && suggestedRepliesHaveContent(suggestedReplies),
     relationship,
+    episodic,
   };
 }
 

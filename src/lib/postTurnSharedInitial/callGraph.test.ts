@@ -61,7 +61,7 @@ function buildCombinedWidgetJson(characterWidget: StatusWidget, userWidget: Stat
   for (const key of collectWidgetJsonKeys(userWidget)) {
     user_values[key] = padWidgetValue(key);
   }
-  return { character_values, user_values, extracted_facts: [] as unknown[] };
+  return { character_values, user_values };
 }
 
 function makeSharedResponseJson(
@@ -218,7 +218,7 @@ describe("shared initial call graph", () => {
     const both = resolveBothWidgets();
     const spy = makeSpyCaller(
       JSON.stringify({
-        statusWidget: { character_values: {}, user_values: {}, extracted_facts: [] },
+        statusWidget: { character_values: {}, user_values: {} },
         suggestedReplies: {
           items: [
             { kind: "escalate", text: padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72) },
@@ -253,7 +253,7 @@ describe("shared initial call graph", () => {
     const both = resolveBothWidgets();
     const spy = makeSpyCaller(
       JSON.stringify({
-        statusWidget: { character_values: {}, user_values: {}, extracted_facts: [] },
+        statusWidget: { character_values: {}, user_values: {} },
         relationship: {
           items: [],
           itemsRemove: [],

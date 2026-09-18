@@ -1,4 +1,8 @@
 import {
+  buildSharedInitialEpisodicSectionInstructions,
+  SHARED_STATUS_WIDGET_SCOPE_INSTRUCTIONS,
+} from "@/lib/memory/memory-episodic-prompt";
+import {
   buildCombinedDualWidgetExtractSystem,
   buildCombinedDualWidgetExtractUserBlock,
   buildWidgetExtractSystem,
@@ -58,11 +62,17 @@ function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
         : SHARED_RELATIONSHIP_OUTPUT_RULES
     );
   }
+  if (input.includeEpisodic) {
+    rules.push(
+      buildSharedInitialEpisodicSectionInstructions(Boolean(input.relationshipRegenContext))
+    );
+  }
 
   const semanticWidgetLines: string[] = [];
   if (input.mode !== "relationship_only") {
     semanticWidgetLines.push(
-      "statusWidget: populate every required field with one scene-grounded string derived from this turn.",
+      SHARED_STATUS_WIDGET_SCOPE_INSTRUCTIONS,
+      "Populate every required statusWidget field with one scene-grounded string derived from this turn.",
       "Never copy placeholder tokens from examples (\"...\", \"…\", \"<scene value>\")."
     );
   }
@@ -122,6 +132,7 @@ export function buildPostTurnSharedInitialSystem(input: PostTurnSharedInitialInp
     widgetSemantic ? "status widget values" : "",
     input.includeSuggestions ? "suggested user reply options" : "",
     input.includeRelationship ? "durable relationship memory" : "",
+    input.includeEpisodic ? "durable episodic memory facts" : "",
   ]
     .filter(Boolean)
     .join(", ");

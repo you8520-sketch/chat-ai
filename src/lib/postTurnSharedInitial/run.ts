@@ -113,6 +113,8 @@ export async function runPostTurnRelationshipOnlyInitial(
     includeSuggestions?: boolean;
     /** Relationship consumer active (default true for the relationship owner). */
     includeRelationship?: boolean;
+    /** Top-level episodic section (memory layer persists). */
+    includeEpisodic?: boolean;
     personaDescription?: string | null;
     personaSpeechExamples?: string | null;
     userPersona?: string | null;
@@ -133,6 +135,7 @@ export async function runPostTurnRelationshipOnlyInitial(
       personaSpeechExamples: input.personaSpeechExamples ?? null,
       includeSuggestions: input.includeSuggestions === true,
       includeRelationship: input.includeRelationship !== false,
+      includeEpisodic: input.includeEpisodic === true,
       relationshipRegenContext: input.previousAssistantMessage?.trim()
         ? { previousAssistantMessage: input.previousAssistantMessage }
         : null,

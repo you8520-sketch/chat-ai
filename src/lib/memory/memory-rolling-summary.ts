@@ -1127,7 +1127,11 @@ async function persistComposedBatchScopes(opts: {
     `[memory] ${opts.logLabel} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} (${opts.composed.displaySummary.length}ch → lorebook ${currentMemory.length}/${lorebookBudget}ch) reason=${opts.composed.reasonTag} mainCalls=${opts.composed.mainModelCalls}`
   );
 
-  if (opts.charName && !opts.skipEpisodicExtract) {
+  // Automatic 5-turn seal episodic extraction retired — per-turn Shared Initial
+  // is the production owner. extractAndPersistEpisodicFactsForSealedBatch remains
+  // for direct tests and historical batch semantics (#954).
+  const EPISODIC_SEAL_BATCH_EXTRACT_ENABLED = false;
+  if (EPISODIC_SEAL_BATCH_EXTRACT_ENABLED && opts.charName && !opts.skipEpisodicExtract) {
     try {
       const episodicEntries = selectEpisodicEligibleTurnEntries(opts.allEntries, {
         previousWasNoncanonOrBranch: opts.previousWasNoncanonOrBranch,

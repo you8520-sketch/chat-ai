@@ -9,6 +9,8 @@ on:
       - ".github/workflows/validate-post-turn-luna-owner.yml"
       - "docs/post-turn-luna-owner.md"
       - "src/lib/postTurnSharedInitial/**"
+      - "src/lib/memory/memory-episodic-prompt.ts"
+      - "src/lib/memory/memory-episodic-shared.ts"
       - "src/lib/postTurnSharedInitialWidgetOutcome.ts"
       - "src/lib/postTurnSharedInitialWidgetOutcome.test.ts"
       - "src/lib/postTurnSharedCallBudget.test.ts"
