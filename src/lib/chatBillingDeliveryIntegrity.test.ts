@@ -3,24 +3,43 @@
  * Deterministic reproduction before patch; regression gate after guard.
  */
 
+import Module from "module";
+
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (
+  request: string,
+  parent: NodeModule,
+  isMain: boolean
+) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 import {
   BillingProductNotDeliveredError,
   readAssistantChargeEligibility,
   readChatBillingSettlement,
   settleChatTurnBillingExactlyOnce,
   CHAT_TURN_CHARGE_KIND,
+  SUCCESSFUL_DURABLE_GENERATION_STATUSES,
 } from "./chatBillingSettlement";
 import { ensureChatBillingSettlementSchema } from "./chatBillingSettlementSchema";
-import { finalizeAssistantMessageCore } from "./streamingPersistence";
-import { createDisconnectSafeSend } from "./streamingPersistence";
+import { getDb } from "./db";
+import { getPointBalance } from "./points";
+import { refundMessageDeduction } from "./refund";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "./test/isolatedTestDatabase";
+import { finalizeAssistantMessageCore, createDisconnectSafeSend } from "./streamingPersistence";
 import { classifyReconcileStatus } from "./chatStreamEofReconcile";
-import { isCanonicalDerivedStateGenerationStatus } from "./rpDerivedStateLifecycle";
+import { isSuccessfulDurableGenerationStatus } from "./streamingPersistenceShared";
 
 function createIntegrityDb(dbPath: string): Database.Database {
   const db = new Database(dbPath);
@@ -250,6 +269,18 @@ describe("billing delivery integrity — D2/D7 transport loss", () => {
   });
 });
 
+describe("billing delivery integrity — generation lifecycle owner", () => {
+  it("billing pins successful durable generation statuses", () => {
+    assert.deepEqual(SUCCESSFUL_DURABLE_GENERATION_STATUSES, [
+      "completed",
+      "ok",
+      "completed_with_postprocess_error",
+    ]);
+    assert.equal(isSuccessfulDurableGenerationStatus("completed"), true);
+    assert.equal(isSuccessfulDurableGenerationStatus("interrupted"), false);
+  });
+});
+
 describe("billing delivery integrity — D3 missing assistant row", () => {
   it("D3 missing assistant row before settlement → no charge, no settlement row", () => {
     withDb((db) => {
@@ -269,6 +300,82 @@ describe("billing delivery integrity — D3 missing assistant row", () => {
       assert.equal(userBalance(db), before);
       assert.equal(countSettlements(db), 0);
       assert.equal(countNegativeLogs(db), 0);
+    });
+  });
+});
+
+describe("billing delivery integrity — D3b/D13b empty product", () => {
+  it("D3b completed row with empty content blocks charge (empty_product)", () => {
+    withDb((db) => {
+      const before = userBalance(db);
+      const msgId = insertAssistant(db, {
+        requestId: "d3b_empty",
+        generationStatus: "completed",
+        content: "",
+      });
+      assert.throws(
+        () =>
+          settleChatTurnBillingExactlyOnce(db, {
+            userId: 1,
+            chatId: 1,
+            requestId: "d3b_empty",
+            assistantMessageId: msgId,
+            requestedPoints: 79,
+            reason: "D3b",
+          }),
+        (err: unknown) =>
+          err instanceof BillingProductNotDeliveredError && err.reason === "empty_product"
+      );
+      assert.equal(userBalance(db), before);
+      assert.equal(countSettlements(db), 0);
+      assert.equal(countNegativeLogs(db), 0);
+      const eligibility = readAssistantChargeEligibility(db, msgId, 1, "d3b_empty");
+      assert.equal(eligibility.ok, false);
+      if (!eligibility.ok) assert.equal(eligibility.reason, "empty_product");
+    });
+  });
+
+  it("D13b whitespace-only content blocks charge (empty_product)", () => {
+    withDb((db) => {
+      const msgId = insertAssistant(db, {
+        requestId: "d13b_ws",
+        generationStatus: "completed",
+        content: "   \n\t  ",
+      });
+      assert.throws(
+        () =>
+          settleChatTurnBillingExactlyOnce(db, {
+            userId: 1,
+            chatId: 1,
+            requestId: "d13b_ws",
+            assistantMessageId: msgId,
+            requestedPoints: 79,
+            reason: "D13b",
+          }),
+        (err: unknown) =>
+          err instanceof BillingProductNotDeliveredError && err.reason === "empty_product"
+      );
+      assert.equal(detectPaidWithoutDurableProduct(db, 1, 1, "d13b_ws"), false);
+    });
+  });
+
+  it("completed_with_postprocess_error with durable content remains billable", () => {
+    withDb((db) => {
+      const msgId = insertAssistant(db, {
+        requestId: "d3b_postprocess",
+        generationStatus: "completed_with_postprocess_error",
+        content: "recoverable answer",
+      });
+      const settlement = settleChatTurnBillingExactlyOnce(db, {
+        userId: 1,
+        chatId: 1,
+        requestId: "d3b_postprocess",
+        assistantMessageId: msgId,
+        requestedPoints: 79,
+        reason: "postprocess billable",
+      });
+      assert.equal(settlement.appliedNewCharge, true);
+      assert.equal(settlement.settledPoints, 79);
     });
   });
 });
@@ -396,7 +503,7 @@ describe("billing delivery integrity — D8/D9 crash windows", () => {
       const row = db
         .prepare(`SELECT content, generation_status FROM messages WHERE id=?`)
         .get(msgId) as { content: string; generation_status: string };
-      assert.ok(isCanonicalDerivedStateGenerationStatus(row.generation_status));
+      assert.ok(isSuccessfulDurableGenerationStatus(row.generation_status));
       assert.ok(row.content.includes("reload"));
     });
   });
@@ -523,51 +630,95 @@ describe("billing delivery integrity — D13 integrity invariant", () => {
   });
 });
 
-describe("billing delivery integrity — D14 refund integrity", () => {
-  it("D14 settlement slices + refunded_at marker are generation-scoped", () => {
-    withDb((db) => {
-      const msgId = insertAssistant(db, {
-        requestId: "d14_req",
-        generationStatus: "completed",
-      });
-      const settlement = settleChatTurnBillingExactlyOnce(db, {
-        userId: 1,
-        chatId: 1,
-        requestId: "d14_req",
-        assistantMessageId: msgId,
-        requestedPoints: 79,
-        reason: "D14",
-      });
-      assert.ok(settlement.slices.length > 0);
-      const slicesJson = (
-        db.prepare(`SELECT deduction_slices FROM messages WHERE id=?`).get(msgId) as {
-          deduction_slices: string | null;
-        }
-      ).deduction_slices;
-      assert.ok(slicesJson && slicesJson !== "[]");
+describe("billing delivery integrity — D14 refund via canonical owner", () => {
+  before(() => installIsolatedTestDatabase());
+  after(() => uninstallIsolatedTestDatabase());
 
-      db.prepare(
-        `UPDATE chat_billing_settlements SET refunded_at=datetime('now') WHERE request_id='d14_req'`
-      ).run();
-      db.prepare(`UPDATE messages SET is_refunded=1 WHERE id=?`).run(msgId);
+  it("D14 refundMessageDeduction restores exact lots and settlement marker", () => {
+    const db = getDb();
+    const userRow = db
+      .prepare(`INSERT INTO users (email, nickname, pw_hash, points) VALUES (?, ?, ?, ?)`)
+      .run("d14@test.local", "d14user", "x", 10_000);
+    const userId = Number(userRow.lastInsertRowid);
+    db.prepare(
+      `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
+       VALUES (?, 'PAID', 10000, '2030-01-01')`
+    ).run(userId);
+    db.prepare(`INSERT INTO characters (name) VALUES ('d14char')`).run();
+    const characterId = Number(
+      (db.prepare(`SELECT id FROM characters WHERE name='d14char'`).get() as { id: number }).id
+    );
+    const chatRow = db
+      .prepare(`INSERT INTO chats (user_id, character_id) VALUES (?, ?)`)
+      .run(userId, characterId);
+    const chatId = Number(chatRow.lastInsertRowid);
+    const msgRow = db
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, request_id, generation_status)
+         VALUES (?, 'assistant', ?, ?, 'completed')`
+      )
+      .run(chatId, "refundable answer", "d14_req");
+    const msgId = Number(msgRow.lastInsertRowid);
 
-      const refunded = db
-        .prepare(
-          `SELECT refunded_at FROM chat_billing_settlements WHERE request_id='d14_req'`
-        )
-        .get() as { refunded_at: string | null };
-      assert.ok(refunded.refunded_at);
-      const replay = settleChatTurnBillingExactlyOnce(db, {
-        userId: 1,
-        chatId: 1,
-        requestId: "d14_req",
-        assistantMessageId: msgId,
-        requestedPoints: 79,
-        reason: "D14 replay",
-      });
-      assert.equal(replay.duplicate, true);
-      assert.equal(replay.appliedNewCharge, false);
-      assert.equal(countNegativeLogs(db), 1);
+    const beforeLots = db
+      .prepare(
+        `SELECT id, point_type, remaining_amount FROM point_transactions WHERE user_id=? ORDER BY id`
+      )
+      .all(userId) as Array<{ id: number; point_type: string; remaining_amount: number }>;
+    const balanceBeforeCharge = getPointBalance(userId).total;
+
+    const settlement = settleChatTurnBillingExactlyOnce(db, {
+      userId,
+      chatId,
+      requestId: "d14_req",
+      assistantMessageId: msgId,
+      requestedPoints: 79,
+      reason: "D14 charge",
     });
+    assert.equal(settlement.appliedNewCharge, true);
+    assert.ok(settlement.slices.length > 0);
+    assert.equal(settlement.slices[0]!.pointType, "PAID");
+    assert.equal(getPointBalance(userId).total, balanceBeforeCharge - 79);
+
+    const consumedLot = db
+      .prepare(`SELECT remaining_amount, point_type FROM point_transactions WHERE id=?`)
+      .get(settlement.slices[0]!.transactionId) as {
+      remaining_amount: number;
+      point_type: string;
+    };
+    assert.ok(consumedLot.remaining_amount < beforeLots[0]!.remaining_amount);
+
+    refundMessageDeduction(userId, msgId, settlement.slices, settlement.settledPoints, "D14 refund");
+
+    const restoredLot = db
+      .prepare(`SELECT remaining_amount, point_type FROM point_transactions WHERE id=?`)
+      .get(settlement.slices[0]!.transactionId) as {
+      remaining_amount: number;
+      point_type: string;
+    };
+    assert.equal(restoredLot.point_type, "PAID");
+    assert.equal(restoredLot.remaining_amount, beforeLots[0]!.remaining_amount);
+    assert.equal(getPointBalance(userId).total, balanceBeforeCharge);
+
+    const messageRow = db
+      .prepare(`SELECT is_refunded FROM messages WHERE id=?`)
+      .get(msgId) as { is_refunded: number };
+    assert.equal(messageRow.is_refunded, 1);
+
+    const settlementRow = db
+      .prepare(`SELECT refunded_at FROM chat_billing_settlements WHERE request_id='d14_req'`)
+      .get() as { refunded_at: string | null };
+    assert.ok(settlementRow.refunded_at);
+
+    const replay = settleChatTurnBillingExactlyOnce(db, {
+      userId,
+      chatId,
+      requestId: "d14_req",
+      assistantMessageId: msgId,
+      requestedPoints: 79,
+      reason: "D14 replay after refund",
+    });
+    assert.equal(replay.duplicate, true);
+    assert.equal(replay.appliedNewCharge, false);
   });
 });

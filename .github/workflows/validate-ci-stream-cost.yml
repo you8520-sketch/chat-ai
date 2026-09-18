@@ -23,6 +23,16 @@ on:
       - "src/lib/statusMeta/statusMeta.previousTurnGeneration.test.ts"
       - "src/app/api/chat/status-meta/route.ts"
       - "src/app/api/chat/route.ts"
+      - "src/lib/chatBillingSettlement.ts"
+      - "src/lib/chatBillingSettlement.test.ts"
+      - "src/lib/chatBillingDeliveryIntegrity.test.ts"
+      - "src/lib/storedTurnChargeEvidence.test.ts"
+      - "src/lib/chatStreamTerminalization.test.ts"
+      - "src/lib/chatStreamEofReconcile.test.ts"
+      - "src/lib/streamingPersistenceShared.ts"
+      - "src/lib/rpDerivedStateLifecycle.ts"
+      - "src/lib/refund.ts"
+      - "src/lib/pointPolicyUnification.test.ts"
 
 permissions:
   contents: read
@@ -70,3 +80,21 @@ jobs:
 
       - name: Status Meta previous-turn continuity (S9)
         run: node --conditions=react-server --import tsx --test src/lib/statusMeta/statusMeta.previousTurnGeneration.test.ts
+
+      - name: Billing delivery integrity (D1-D14, D3b/D13b)
+        run: node --conditions=react-server --import tsx --test src/lib/chatBillingDeliveryIntegrity.test.ts
+
+      - name: Chat billing settlement exactly-once
+        run: node --conditions=react-server --import tsx --test src/lib/chatBillingSettlement.test.ts
+
+      - name: Stored turn charge evidence
+        run: node --conditions=react-server --import tsx --test src/lib/storedTurnChargeEvidence.test.ts
+
+      - name: Chat stream terminalization
+        run: node --conditions=react-server --import tsx --test src/lib/chatStreamTerminalization.test.ts
+
+      - name: Chat stream EOF reconcile
+        run: node --conditions=react-server --import tsx --test src/lib/chatStreamEofReconcile.test.ts
+
+      - name: Refund integrity regression
+        run: node --conditions=react-server --import tsx --test src/lib/pointPolicyUnification.test.ts

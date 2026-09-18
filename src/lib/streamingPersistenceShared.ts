@@ -43,6 +43,29 @@ export function isInFlightGenerationStatus(status: string | null | undefined): b
   return s === "generating" || s === "submitted";
 }
 
+/** Generation statuses that represent a successful durable assistant product. */
+export const SUCCESSFUL_DURABLE_GENERATION_STATUSES = [
+  "completed",
+  "ok",
+  "completed_with_postprocess_error",
+] as const;
+
+export type SuccessfulDurableGenerationStatus =
+  (typeof SUCCESSFUL_DURABLE_GENERATION_STATUSES)[number];
+
+/** Canonical generation lifecycle: successful durable terminal product. */
+export function isSuccessfulDurableGenerationStatus(
+  status: string | null | undefined
+): boolean {
+  if (!status) return false;
+  return (SUCCESSFUL_DURABLE_GENERATION_STATUSES as readonly string[]).includes(status);
+}
+
+/** Recoverable assistant output must survive trim — empty/whitespace is not delivered. */
+export function isDurableProductContent(content: string | null | undefined): boolean {
+  return typeof content === "string" && content.trim().length > 0;
+}
+
 export function normalizeClientRequestId(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const trimmed = raw.trim();

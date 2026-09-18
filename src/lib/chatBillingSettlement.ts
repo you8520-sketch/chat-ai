@@ -15,7 +15,13 @@ import {
   CHAT_BILLING_SETTLEMENT_UNIQUE_COLUMNS,
   CHAT_TURN_CHARGE_KIND,
 } from "./chatBillingSettlementSchema";
-import { isCanonicalDerivedStateGenerationStatus } from "./rpDerivedStateLifecycle";
+import {
+  isDurableProductContent,
+  isSuccessfulDurableGenerationStatus,
+  SUCCESSFUL_DURABLE_GENERATION_STATUSES,
+} from "./streamingPersistenceShared";
+
+export { SUCCESSFUL_DURABLE_GENERATION_STATUSES };
 
 export { ensureChatBillingSettlementSchema, hasChatBillingSettlementSchema } from "./chatBillingSettlementSchema";
 export { CHAT_TURN_CHARGE_KIND } from "./chatBillingSettlementSchema";
@@ -48,7 +54,8 @@ export type ChatBillingSettlementOutcome =
 export type AssistantChargeEligibilityReason =
   | "missing_row"
   | "request_id_mismatch"
-  | "not_durable_terminal";
+  | "not_durable_terminal"
+  | "empty_product";
 
 export type AssistantChargeEligibility =
   | { ok: true; generationStatus: string }
@@ -63,11 +70,15 @@ export function readAssistantChargeEligibility(
 ): AssistantChargeEligibility {
   const row = db
     .prepare(
-      `SELECT generation_status, request_id FROM messages
+      `SELECT generation_status, request_id, content FROM messages
        WHERE id = ? AND chat_id = ? AND role = 'assistant'`
     )
     .get(assistantMessageId, chatId) as
-    | { generation_status: string | null; request_id: string | null }
+    | {
+        generation_status: string | null;
+        request_id: string | null;
+        content: string | null;
+      }
     | undefined;
 
   if (!row) {
@@ -76,8 +87,11 @@ export function readAssistantChargeEligibility(
   if ((row.request_id ?? "") !== requestId) {
     return { ok: false, reason: "request_id_mismatch" };
   }
-  if (!isCanonicalDerivedStateGenerationStatus(row.generation_status)) {
+  if (!isSuccessfulDurableGenerationStatus(row.generation_status)) {
     return { ok: false, reason: "not_durable_terminal" };
+  }
+  if (!isDurableProductContent(row.content)) {
+    return { ok: false, reason: "empty_product" };
   }
   return { ok: true, generationStatus: row.generation_status ?? "completed" };
 }
