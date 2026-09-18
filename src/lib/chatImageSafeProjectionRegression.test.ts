@@ -185,8 +185,8 @@ describe("chatImageSafeProjectionRegression", () => {
       narration: "",
     });
     const tier2 = ldTier2(trpgSource, true);
-    assert.match(tier2, /고대 성채의 지하 기록보관소/);
-    assert.doesNotMatch(tier2, /bedroom|카페|park/i);
+    assert.match(tier2, /Setting: same location: 고대 성채의 지하 기록보관소/);
+    assert.doesNotMatch(tier2, /Setting:.*(?:bedroom|카페|park)/i);
   });
 
   it("POSE-OWNER uses raw boolean pose facts without ineffective canonicalTier2SafePose", () => {

@@ -219,24 +219,39 @@ describe("chatImageAdultRpSafetyAudit — LD Tier-2 scene facts", () => {
   });
 
   it("TIER2-BED-SHIRTLESS bedroom + shirtless bare-upper-torso cue in composition", () => {
-    const source = "태형이 셔츠를 벗고 침대에 앉아 있다.";
-    const facts = deriveLdStrictFallbackSceneFacts({ sceneSourceText: source, adultGrounded: true });
+    const source = "태현이 셔츠를 벗고 침대에 앉아 있다.";
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: source,
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
     const tier2 = ldTier2(source, true);
-    assert.match(facts.safeComposition, /bare upper torso framed from shoulders/i);
-    assert.match(tier2, /bare upper torso framed from shoulders/i);
+    assert.match(facts.safeComposition, /confirmed adult male chat character is shirtless/i);
+    assert.match(tier2, /confirmed adult male chat character is shirtless/i);
+    assert.match(facts.safeComposition, /bare shoulders, chest, and upper torso/i);
     assert.doesNotMatch(facts.safeComposition, /without exposed genitals/i);
     assert.doesNotMatch(tier2, /without exposed genitals/i);
   });
 
   it("TIER2-COMBINED-BEDROOM combines lying + shirtless + flushed + messy bedding", () => {
     const source = MILD_BED_SOURCE;
-    const facts = deriveLdStrictFallbackSceneFacts({ sceneSourceText: source, adultGrounded: true });
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: source,
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
     const tier2 = ldTier2(source, true);
     assert.match(facts.safeComposition, /resting side by side on the bed/i);
-    assert.match(facts.safeComposition, /bare upper torso framed from shoulders/i);
+    assert.match(facts.safeComposition, /confirmed adult male chat character is shirtless/i);
     assert.match(facts.safeComposition, /flushed or shy expressions/i);
     assert.match(facts.safeComposition, /gently rumpled bedding/i);
-    assert.match(tier2, /bare upper torso framed from shoulders/i);
+    assert.match(tier2, /confirmed adult male chat character is shirtless/i);
     assert.match(tier2, /gently rumpled bedding/i);
   });
 
@@ -250,8 +265,8 @@ describe("chatImageAdultRpSafetyAudit — LD Tier-2 scene facts", () => {
   it("TIER2-ADULT-OFF uses base strict depiction without adult-grounded allowance", () => {
     const tier2 = ldTier2(MILD_BED_SOURCE, false);
     assert.ok(tier2.includes(STRICT_SAFE_DEPICTION));
-    assert.doesNotMatch(tier2, /non-explicit adult intimacy allowance/i);
-    assert.doesNotMatch(tier2, /shirtless adult male torso allowance/i);
+    assert.doesNotMatch(tier2, /non-explicit adult intimacy is allowed/i);
+    assert.doesNotMatch(tier2, /shirtless adult male torso/i);
   });
 
   it("TIER2-ADULT-OFF-SHIRTLESS combined bedroom fixture omits bare-upper-torso when adultGrounded=false", () => {
@@ -271,14 +286,48 @@ describe("chatImageAdultRpSafetyAudit — LD Tier-2 scene facts", () => {
 
   it("TIER2-ADULT-ON-SHIRTLESS combined bedroom fixture preserves shirtless cue when adultGrounded=true", () => {
     const source = MILD_BED_SOURCE;
-    const facts = deriveLdStrictFallbackSceneFacts({ sceneSourceText: source, adultGrounded: true });
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: source,
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
     const tier2 = ldTier2(source, true);
     assert.match(facts.safeComposition, /resting side by side on the bed/i);
-    assert.match(facts.safeComposition, /bare upper torso framed from shoulders/i);
+    assert.match(facts.safeComposition, /confirmed adult male chat character is shirtless/i);
     assert.match(facts.safeComposition, /flushed or shy expressions/i);
     assert.match(facts.safeComposition, /gently rumpled bedding/i);
-    assert.match(tier2, /bare upper torso framed from shoulders/i);
+    assert.match(tier2, /confirmed adult male chat character is shirtless/i);
     assert.match(tier2, /flushed or shy expressions/i);
     assert.match(tier2, /gently rumpled bedding/i);
+  });
+
+  it("TIER2-ADULT-ON uses shared adult allowance in strict fallback when adultGrounded=true", () => {
+    const tier2 = ldTier2(MILD_BED_SOURCE, true);
+    assert.ok(tier2.includes(buildIllustrationSafeDepiction({ adultGrounded: true })));
+    assert.match(tier2, /non-explicit adult intimacy is allowed/i);
+  });
+
+  it("TIER2-KISS-SHIRTLESS-COMBINED preserves kiss and shirtless together when adultGrounded=true", () => {
+    const source =
+      "침실 침대에서 두 성인이 짧게 키스한다. 남자는 셔츠를 벗어 맨가슴과 어깨가 드러나 있고, 둘 다 홍조를 띤다.";
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: source,
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    const tier2 = ldTier2(source, true);
+    assert.match(facts.safeComposition, /brief non-explicit affectionate kiss/i);
+    assert.match(facts.safeComposition, /confirmed adult male chat character is shirtless/i);
+    assert.doesNotMatch(facts.safeComposition, /faces close in calm affectionate proximity/i);
+    assert.match(tier2, /brief non-explicit affectionate kiss/i);
+    assert.match(tier2, /confirmed adult male chat character is shirtless/i);
+    assert.doesNotMatch(tier2, /fully modest clothing or soft coverage/i);
+    assert.match(tier2, /preserve above-the-waist shirtless framing/i);
   });
 });

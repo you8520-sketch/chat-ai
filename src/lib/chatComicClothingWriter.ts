@@ -3,6 +3,7 @@
  * Runs on final reflowed ScenePlan; does not authorize, render, or persist state.
  */
 
+import type { ImagePromptGender } from "@/lib/chatImageGeneration";
 import type {
   SceneEvent,
   ScenePanel,
@@ -57,7 +58,7 @@ const KOREAN_NAME_PARTICLES = "[이가은는을를의에게한테도만]" as con
 const UPPER_GARMENT_PATTERN =
   "(?:셔츠|상의|윗옷|티셔츠|남방|블라우스|맨투맨|후드티)";
 const CLOTHING_UNDRESS_ACTION =
-  "벗(?:어(?:서)?|었다|었(?:다|음|어)?|겨(?:내(?:서)?)?|겼(?:다|어|음)?|기(?:내)?)";
+  "벗(?:어(?:서)?|고|으며|는|았(?:다|음|어)?|었다|었(?:다|음|어)?|겨(?:내(?:서)?)?|겼(?:다|어|음)?|기(?:내)?)";
 const CLOTHING_DRESS_ACTION = "입(?:어(?:서)?|은|음|었다|었(?:다|음|어)?|는다)";
 const CLOTHING_ACTION_PATTERN = new RegExp(
   `(?:${CLOTHING_UNDRESS_ACTION}|${CLOTHING_DRESS_ACTION})`,
@@ -122,7 +123,7 @@ const INCOMPLETE_UNDRESS =
 const UPPER_GARMENT = new RegExp(UPPER_GARMENT_PATTERN, "u");
 
 const SHIRTLESS_STATE =
-  /(?:맨(?:가슴|몸|상체|윗몸)|상(?:반신|체)(?:가|을|를)?\s*(?:드|노)|윗몸(?:이|을|를)?\s*(?:드|노)|shirtless|bare\s+(?:chest|torso|upper)|상의(?:를|가)?\s*(?:벗(?:은|어)|없)|셔츠(?:를|가)?\s*(?:벗(?:은|어)|없)|벗(?:은|어)\s*(?:상태|채))/u;
+  /(?:맨(?:가슴|몸|상체|윗몸)|상(?:반신|체)(?:가|을|를)?\s*(?:드|노)|윗몸(?:이|을|를)?\s*(?:드|노)|shirtless|bare\s+(?:chest|torso|upper)|상의(?:를|가)?\s*(?:벗(?:은|어|고|으며|는)|없)|셔츠(?:를|가)?\s*(?:벗(?:은|어|고|으며|는)|없)|벗(?:은|어|고|으며|는)\s*(?:상태|채))/u;
 
 function hasCompletedUpperRemoval(clause: string): boolean {
   if (
@@ -239,6 +240,29 @@ function resolveActionGarmentOwner(
   return null;
 }
 
+function resolveUnknownPossessiveGarmentOwner(
+  clause: string,
+  ctx: ApplyCanonicalComicClothingCoverageContext
+): NamedIdentity | null {
+  const actionMatch = CLOTHING_ACTION_PATTERN.exec(clause);
+  if (!actionMatch || actionMatch.index === undefined) {
+    return null;
+  }
+  const beforeAction = clause.slice(0, actionMatch.index);
+  const possessivePattern = new RegExp(
+    `(자신|[\\p{L}\\p{N}·]{1,24})의\\s*${UPPER_GARMENT_PATTERN}`,
+    "giu"
+  );
+  let lastOwner: string | null = null;
+  for (const match of beforeAction.matchAll(possessivePattern)) {
+    lastOwner = match[1] ?? null;
+  }
+  if (!lastOwner || lastOwner === "자신") {
+    return null;
+  }
+  return identityForCanonicalName(lastOwner, ctx);
+}
+
 function resolveClothingTarget(
   clause: string,
   event: SceneEvent,
@@ -252,6 +276,16 @@ function resolveClothingTarget(
   }
   if (garmentOwner === "persona" || garmentOwner === "supporting") {
     return "other";
+  }
+  if (garmentOwner === null && resolveUnknownPossessiveGarmentOwner(clause, ctx) === null) {
+    const unknownOwner = /([\p{L}\p{N}·]{1,24})의\s*(?:셔츠|상의|윗옷)/u.exec(clause)?.[1];
+    if (
+      unknownOwner &&
+      unknownOwner !== "자신" &&
+      !identityForCanonicalName(unknownOwner, ctx)
+    ) {
+      return "other";
+    }
   }
   if (garmentOwner === "self") {
     const subject = resolveClauseGrammaticalSubject(clause, ctx) ?? inheritedSubject ?? null;
@@ -526,6 +560,184 @@ function resolvePanelState(
       reasonCategory,
     },
   };
+}
+
+export type LdStrictClothingContext = {
+  characterName: string;
+  personaName: string;
+  characterGender?: ImagePromptGender;
+  personaGender?: ImagePromptGender;
+  knownSpeakerNames?: readonly string[];
+};
+
+const LEADING_SCENE_BOUNDARY =
+  /^(?:다음\s*날|다음날|며칠\s*(?:뒤|후)|오늘(?:은|의)?|지금(?:은|의)?|현재|장면\s*(?:이|이\s*)?전환|시간(?:이|은)?\s*(?:지나|흘러))\s*/u;
+
+function stripLeadingSceneBoundary(clause: string): string {
+  return clause.replace(LEADING_SCENE_BOUNDARY, "").trim();
+}
+
+const LD_SUBJECT_TOPIC_PARTICLES = "(?:은|는|이|가)" as const;
+
+/** LD strict fallback — earliest subject/topic evidence only (은/는/이/가; never object/dative). */
+function findLdClauseSubject(
+  clause: string,
+  ctx: ApplyCanonicalComicClothingCoverageContext
+): NamedIdentity | null {
+  const stripped = stripLeadingSceneBoundary(clause.trim());
+
+  const candidates = [
+    { name: ctx.characterName, identity: "character" as const },
+    { name: ctx.personaName, identity: "persona" as const },
+    ...(ctx.knownSpeakerNames ?? []).map((name) => ({
+      name,
+      identity: "supporting" as const,
+    })),
+  ];
+
+  let earliest: { index: number; identity: NamedIdentity } | null = null;
+  for (const candidate of candidates) {
+    const trimmed = candidate.name.trim();
+    if (!trimmed) continue;
+    const pattern = new RegExp(
+      `(?:^|[^\\p{L}\\p{N}])${escapeRegExp(trimmed)}${LD_SUBJECT_TOPIC_PARTICLES}(?:\\s|$|[^\\p{L}\\p{N}])`,
+      "iu"
+    );
+    const match = pattern.exec(stripped);
+    if (!match || match.index === undefined) continue;
+    if (!earliest || match.index < earliest.index) {
+      earliest = { index: match.index, identity: candidate.identity };
+    }
+  }
+  return earliest?.identity ?? null;
+}
+
+function ldClauseHasInheritedClothingAction(clause: string): boolean {
+  return CLOTHING_ACTION_PATTERN.test(clause);
+}
+
+function ldSyntheticActionEvent(clause: string, actor: SceneEvent["actor"]): SceneEvent {
+  return {
+    id: "ld-strict-semantic",
+    order: 0,
+    sourceMessageId: 0,
+    sourceRole: "assistant",
+    kind: "action",
+    actor,
+    text: clause,
+    segmentKind: "narration",
+  };
+}
+
+function resolveGenericGenderActor(
+  clause: string,
+  ctx: LdStrictClothingContext
+): NamedIdentity | "ambiguous" | null {
+  if (!/(?:벗|shirtless|맨(?:가슴|상체|몸)|bare\s+(?:chest|torso))/u.test(clause)) {
+    return null;
+  }
+  const maleLead =
+    /(?:^|[^\p{L}\p{N}])(?:남자|남성)(?:은|는|이|가|를|을|의)?\s/iu.test(clause);
+  const femaleLead =
+    /(?:^|[^\p{L}\p{N}])(?:여자|여성|그녀)(?:는|가|를|을|의)?\s/iu.test(clause);
+  if (maleLead && !femaleLead) {
+    if (ctx.characterGender === "male") {
+      if (ctx.personaGender === "male") return "ambiguous";
+      return "character";
+    }
+    if (ctx.characterGender === "female" && ctx.personaGender === "male") {
+      return "persona";
+    }
+    return "ambiguous";
+  }
+  if (femaleLead && !maleLead) {
+    if (ctx.characterGender === "female") {
+      if (ctx.personaGender === "female") return "ambiguous";
+      return "character";
+    }
+    if (ctx.characterGender === "male" && ctx.personaGender === "female") {
+      return "persona";
+    }
+    return "ambiguous";
+  }
+  return null;
+}
+
+/** LD strict fallback — current-scene character shirtless with canonical target attribution. */
+export function hasCurrentCharacterShirtlessUpperTorso(
+  sourceText: string,
+  ctx: LdStrictClothingContext
+): boolean {
+  const writerCtx: ApplyCanonicalComicClothingCoverageContext = {
+    characterName: ctx.characterName,
+    personaName: ctx.personaName,
+    knownSpeakerNames: ctx.knownSpeakerNames,
+  };
+
+  let shirtless = false;
+  let inheritedSubject: NamedIdentity | null = null;
+
+  for (const clause of splitWriterClauses(sourceText)) {
+    if (SCENE_TIME_BOUNDARY.test(clause)) {
+      shirtless = false;
+      inheritedSubject = null;
+    }
+
+    const clauseSubject = findLdClauseSubject(clause, writerCtx);
+    if (clauseSubject) {
+      inheritedSubject = clauseSubject;
+    }
+
+    if (clauseSubject === "supporting") {
+      continue;
+    }
+
+    const genericActor = resolveGenericGenderActor(clause, ctx);
+    if (genericActor === "ambiguous") {
+      continue;
+    }
+
+    let actor: SceneEvent["actor"] | null = null;
+    if (genericActor === "persona") {
+      actor = "persona";
+    } else if (genericActor === "character") {
+      actor = "character";
+    } else if (clauseSubject === "persona") {
+      actor = "persona";
+    } else if (clauseSubject === "character") {
+      actor = "character";
+    } else if (
+      !actor &&
+      inheritedSubject &&
+      inheritedSubject !== "supporting" &&
+      ldClauseHasInheritedClothingAction(clause)
+    ) {
+      actor = inheritedSubject;
+    }
+
+    if (!actor) {
+      continue;
+    }
+
+    const classified = classifyClause(
+      clause,
+      ldSyntheticActionEvent(clause, actor),
+      writerCtx,
+      inheritedSubject
+    );
+    if (!classified) {
+      continue;
+    }
+    if (classified.shirtless && classified.target === "character") {
+      shirtless = true;
+      continue;
+    }
+    if (classified.covered && classified.reason === "explicit_reclothing") {
+      shirtless = false;
+    }
+  }
+
+  return shirtless;
 }
 
 /** Canonical production clothing writer — sets server-derived panel.clothingCoverage. */

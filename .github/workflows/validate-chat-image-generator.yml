@@ -165,6 +165,9 @@ on:
       - "src/lib/chatImageSafeVisualProjection.test.ts"
       - "src/lib/chatImageSafeProjectionRegression.test.ts"
       - "src/lib/chatImageAdultRpSafetyAudit.test.ts"
+      - "src/lib/chatImageLdStrictFallbackParity.test.ts"
+      - "src/lib/chatImageLdStrictSceneSemantics.ts"
+      - "src/lib/chatImageStrictSafetyFallbackPrompt.ts"
       - "src/lib/trpg/illustrationCast.ts"
       - "src/lib/trpg/illustrationReferencePricing.regression.test.ts"
       - "src/lib/trpg/trpgCanonicalComic.test.ts"
@@ -284,6 +287,7 @@ jobs:
       - run: node --import tsx --test src/lib/chatImageSafeVisualProjection.test.ts
       - run: node --import tsx --test src/lib/chatImageSafeProjectionRegression.test.ts
       - run: node --import tsx --test src/lib/chatImageAdultRpSafetyAudit.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatImageLdStrictFallbackParity.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/trpg/trpgIllustrationSingleOwner.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/trpg/scenarioAssets.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/trpg/gmSceneAssets.test.ts
