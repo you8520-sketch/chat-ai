@@ -9,6 +9,8 @@ on:
       - ".github/workflows/validate-post-turn-luna-owner.yml"
       - "docs/post-turn-luna-owner.md"
       - "src/lib/postTurnSharedInitial/**"
+      - "src/lib/memory/memory-episodic-prompt.ts"
+      - "src/lib/memory/memory-episodic-shared.ts"
       - "src/lib/postTurnSharedInitialWidgetOutcome.ts"
       - "src/lib/postTurnSharedInitialWidgetOutcome.test.ts"
       - "src/lib/postTurnSharedCallBudget.test.ts"
@@ -19,6 +21,7 @@ on:
       - "src/lib/postTurnSharedInitial/widgetShapeDiagnostics.ts"
       - "src/lib/deepseekRegenTurnObservability.test.ts"
       - "src/lib/statusWidget/**"
+      - "src/lib/statusWidget/extractNormalize.ts"
       - "src/lib/openRouterCompletion.ts"
       - "src/lib/openRouterCompletion.cheaperInference.test.ts"
       - "src/lib/ai.ts"
@@ -71,6 +74,9 @@ jobs:
 
       - name: Shared initial strict schema owner
         run: node --conditions=react-server --import tsx --test src/lib/postTurnSharedInitial.schema.test.ts
+
+      - name: Shared initial prompt regression (P1–P11)
+        run: node --conditions=react-server --import tsx --test src/lib/postTurnSharedInitial/promptRegression.test.ts
 
       - name: CheaperInference adapter (response_format preservation)
         run: node --conditions=react-server --import tsx --test src/lib/cheaperInferenceConfig.test.ts

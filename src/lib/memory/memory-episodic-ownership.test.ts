@@ -101,7 +101,7 @@ describe("episodic ownership decoupled from status widget", () => {
     assert.doesNotMatch(route, /persistEpisodicMemoryFactsBestEffort/);
     assert.doesNotMatch(route, /StatusMemoryPersistence/);
     assert.match(route, /extracted_facts/);
-    assert.match(route, /EPISODIC_WRITE_OWNER = 5_TURN_SUMMARY_SEAL/);
+    assert.match(route, /EPISODIC_WRITE_OWNER = memory layer via Shared Initial episodic section/);
     assert.match(route, /extractedFactsForTelemetry/);
   });
 

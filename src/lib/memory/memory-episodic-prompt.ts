@@ -42,3 +42,25 @@ export const STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS = `Do not produce 
 - If the JSON schema includes "extracted_facts", output exactly "extracted_facts": [].
 - Status widget values are a current-turn snapshot/UI only.
 - Promises, item ownership, possession, acquisition, loss, transfer, and gifting belong ONLY to the Relationship Durable Ledger.`;
+
+/** Shared Initial statusWidget section — UI snapshot only; episodic is top-level. */
+export const SHARED_STATUS_WIDGET_SCOPE_INSTRUCTIONS = `statusWidget section — current-turn UI snapshot only (field values).
+- Do NOT place durable episodic memory facts in statusWidget.
+- Promises, item ownership, possession, acquisition, loss, transfer, and gifting belong ONLY to the Relationship Durable Ledger section.`;
+
+const EPISODIC_FACTS_BODY = EPISODIC_FACTS_EXTRACT_INSTRUCTIONS.replace(
+  'Return exactly one JSON object: {"extracted_facts": []}',
+  "Return facts in episodic.extracted_facts"
+);
+
+/** Canonical episodic semantic rules for Shared Initial top-level episodic section. */
+export function buildSharedInitialEpisodicSectionInstructions(isRegen: boolean): string {
+  const regenScope = isRegen
+    ? `EPISODIC section — assistant reply was REGENERATED.
+- Extract durable facts ONLY from the NEW canonical assistant and current user message.
+- Do NOT copy facts from the rejected assistant draft; it is context for what is being replaced only.
+`
+    : "";
+  return `${regenScope}EPISODIC section — durable long-term memory (NOT status widget UI):
+${EPISODIC_FACTS_BODY}`;
+}

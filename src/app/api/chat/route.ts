@@ -106,6 +106,7 @@ import {
 import { maybeRewriteNarrationLexicon } from "@/lib/speechLock";
 import { isMockApiMode, logMockModeOnce } from "@/lib/mockApiMode";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
+import { shouldRequestEpisodicInSharedInitial } from "@/lib/memory/memory-episodic-shared";
 import { parseAssets, chatAssets } from "@/lib/characterAssets";
 import { sanitizeEmotionTagInText, stripEmotionTagsForDisplay } from "@/lib/emotionTag";
 import { sanitizeCharacterGenres } from "@/lib/characterGenres";
@@ -4867,8 +4868,14 @@ export async function POST(req: Request) {
         let widgetSharedRelationshipDelta:
           | import("@/lib/chatMemory").RelationshipMetaDelta
           | null = null;
+        let widgetSharedEpisodic:
+          | import("@/lib/memory/memory-episodic-shared").EpisodicSectionParse
+          | null = null;
         /** status OFF: run the shared post-turn inference AFTER SSE done (background). */
         let deferPostTurnShared = false;
+        const shareEpisodicInSharedInitial = shouldRequestEpisodicInSharedInitial({
+          userMessage: messageText,
+        });
         const suggestedRepliesEligibleForCoalesce =
           body.suggestedRepliesEnabled !== false &&
           !htmlFlashOnlyTurn &&
@@ -4905,6 +4912,7 @@ export async function POST(req: Request) {
             // Whole-turn owner: also carry the durable relationship delta in the
             // same Luna inference when memory is enabled.
             shareRelationshipDelta: isMemoryFeatureEnabled(),
+            shareEpisodic: shareEpisodicInSharedInitial,
             relationshipRegenContext:
               regenerateMessageId && rejectedAssistantDraft
                 ? { previousAssistantMessage: rejectedAssistantDraft }
@@ -4923,6 +4931,7 @@ export async function POST(req: Request) {
           widgetPostTurnPhysicalAttempted = widgetResolved.postTurnPhysicalAttempted;
           widgetSharedRelationshipUsable = widgetResolved.sharedInitialRelationshipUsable;
           widgetSharedRelationshipDelta = widgetResolved.sharedInitialRelationshipDelta;
+          widgetSharedEpisodic = widgetResolved.sharedInitialEpisodic;
           if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
             usageRecord = {
               ...usageRecord,
@@ -5506,7 +5515,7 @@ export async function POST(req: Request) {
         // request actually finalized the assistant (not an idempotent
         // duplicate) AND the generation status is canonical.
         // Status Widget must not persist/reconcile long-term episodic facts.
-        // EPISODIC_WRITE_OWNER = 5_TURN_SUMMARY_SEAL.
+        // EPISODIC_WRITE_OWNER = memory layer via Shared Initial episodic section.
         const derivedStateAllowed =
           assistantFinalizedThisRequest &&
           isCanonicalDerivedStateGenerationStatus(persistedGenerationStatus) &&
@@ -6088,6 +6097,7 @@ export async function POST(req: Request) {
                   primaryModelId: BACKGROUND_OPENROUTER_MODEL,
                   includeSuggestions: suggestedRepliesEnabled,
                   includeRelationship: isMemoryFeatureEnabled(),
+                  includeEpisodic: shareEpisodicInSharedInitial,
                   userPersona: backgroundPersonaIdentity,
                   personaDescription,
                   personaSpeechExamples: selectedPersona?.speech_examples ?? null,
@@ -6110,6 +6120,9 @@ export async function POST(req: Request) {
                   widgetPrefetchedSuggestedReplies = sharedConsumers.parsed.suggestedReplies;
                   widgetPrefetchedSuggestedRepliesAssistantProseHash =
                     hashAssistantProseForSuggestionPrefetch(savedText);
+                }
+                if (shareEpisodicInSharedInitial && sharedConsumers.parsed?.episodic) {
+                  widgetSharedEpisodic = sharedConsumers.parsed.episodic;
                 }
               }
               scheduleRepliesIfEnabled();
@@ -6137,6 +6150,8 @@ export async function POST(req: Request) {
               relationshipSharedParsed: widgetSharedRelationshipUsable,
               relationshipSharedDelta: widgetSharedRelationshipDelta,
               relationshipSharedAttempted: widgetPostTurnPhysicalAttempted,
+              sharedInitialEpisodic: widgetSharedEpisodic,
+              episodicSharedAttempted: widgetPostTurnPhysicalAttempted && shareEpisodicInSharedInitial,
               generationScope: postTurnGenerationScope,
             });
             }

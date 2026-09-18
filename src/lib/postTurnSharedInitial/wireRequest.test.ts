@@ -30,7 +30,6 @@ function withMockFetch(run: (bodies: Record<string, unknown>[]) => Promise<void>
                 statusWidget: {
                   character_values: { 시간: "14:00" },
                   user_values: {},
-                  extracted_facts: [],
                 },
               }),
             },
@@ -66,6 +65,7 @@ describe("post-turn shared initial wire contract", () => {
         primaryModelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
         includeSuggestions: false,
         includeRelationship: false,
+        includeEpisodic: false,
         relationshipRegenContext: null,
       });
       assert.equal(bodies.length, 1);
@@ -133,6 +133,7 @@ describe("post-turn shared initial wire contract", () => {
       primaryModelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
       includeSuggestions: false,
       includeRelationship: false,
+      includeEpisodic: false,
       relationshipRegenContext: null,
     });
     const adapted = adaptCheaperInferenceChatBody({
@@ -172,6 +173,7 @@ describe("post-turn shared initial wire contract", () => {
       primaryModelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
       includeSuggestions: false,
       includeRelationship: false,
+      includeEpisodic: false,
       relationshipRegenContext: null,
     };
     assert.equal(sharedSchemaListsAllRequiredKeys(input), true);

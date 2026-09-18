@@ -73,6 +73,7 @@ function dualInput(overrides: Partial<PostTurnSharedInitialInput> = {}): PostTur
     primaryModelId: "gpt-5.6-luna",
     includeSuggestions: true,
     includeRelationship: false,
+    includeEpisodic: false,
     relationshipRegenContext: null,
     ...overrides,
   };
@@ -88,8 +89,24 @@ function validSuggestions() {
   };
 }
 
+function validEpisodicFacts() {
+  return {
+    extracted_facts: [
+      {
+        category: "preference",
+        subject: "user",
+        attribute: "favorite_drink",
+        value: "syrup_coffee",
+        importance: "important",
+        fact_text: "사용자는 커피에 시럽을 두 번 넣어 마신다.",
+        evidence_type: "explicit_user_statement",
+      },
+    ],
+  };
+}
+
 function validJson(input: PostTurnSharedInitialInput): string {
-  const statusWidget: Record<string, unknown> = { extracted_facts: [] };
+  const statusWidget: Record<string, unknown> = {};
   if (input.characterWidget) {
     statusWidget.character_values = buildValues(input.characterWidget);
   }
@@ -105,6 +122,9 @@ function validJson(input: PostTurnSharedInitialInput): string {
       promisesAdd: [],
       promisesRemove: [],
     };
+  }
+  if (input.includeEpisodic) {
+    root.episodic = validEpisodicFacts();
   }
   return JSON.stringify(root);
 }
@@ -140,7 +160,6 @@ describe("postTurnSharedInitial schema owner (S1–S12)", () => {
     const text = JSON.stringify({
       statusWidget: {
         user_values: buildValues(USER_WIDGET),
-        extracted_facts: [],
       },
     });
     assert.equal(schemaStatusForText(text, input), "missing_required_section");
@@ -155,7 +174,6 @@ describe("postTurnSharedInitial schema owner (S1–S12)", () => {
       statusWidget: {
         character_values: partial,
         user_values: buildValues(USER_WIDGET),
-        extracted_facts: [],
       },
     });
     assert.equal(schemaStatusForText(text, input), "missing_required_key");
@@ -196,6 +214,20 @@ describe("postTurnSharedInitial schema owner (S1–S12)", () => {
     assert.equal(outcome.reasonCode, "V3_INITIAL_EMPTY");
   });
 
+  it("S6b: includeEpisodic adds top-level episodic section without statusWidget extracted_facts", () => {
+    const input = dualInput({
+      mode: "relationship_only",
+      includeSuggestions: false,
+      includeRelationship: true,
+      includeEpisodic: true,
+    });
+    const schema = buildPostTurnSharedInitialJsonSchema(input);
+    assert.deepEqual(schema.required, ["relationship", "episodic"]);
+    const schemaText = JSON.stringify(schema);
+    assert.doesNotMatch(schemaText, /statusWidget/);
+    assert.match(schemaText, /explicit_user_statement/);
+  });
+
   it("S6: widget OFF (relationship_only) → statusWidget not required", () => {
     const input = dualInput({
       mode: "relationship_only",
@@ -217,7 +249,7 @@ describe("postTurnSharedInitial schema owner (S1–S12)", () => {
       string,
       unknown
     >;
-    assert.deepEqual(statusWidget.required, ["extracted_facts", "character_values"]);
+    assert.deepEqual(statusWidget.required, ["character_values"]);
     assert.equal("user_values" in (statusWidget.properties as object), false);
   });
 
@@ -228,7 +260,7 @@ describe("postTurnSharedInitial schema owner (S1–S12)", () => {
       string,
       unknown
     >;
-    assert.deepEqual(statusWidget.required, ["extracted_facts", "user_values"]);
+    assert.deepEqual(statusWidget.required, ["user_values"]);
   });
 
   it("S9: dual schema requires both value maps", () => {
@@ -238,11 +270,7 @@ describe("postTurnSharedInitial schema owner (S1–S12)", () => {
       string,
       unknown
     >;
-    assert.deepEqual(statusWidget.required, [
-      "extracted_facts",
-      "character_values",
-      "user_values",
-    ]);
+    assert.deepEqual(statusWidget.required, ["character_values", "user_values"]);
   });
 
   it("S10: regen input keeps widget schema + relationship section", () => {

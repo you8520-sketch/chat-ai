@@ -14,7 +14,11 @@ on:
       - "src/lib/memory/memory-episodic-normalize.ts"
       - "src/lib/memory/memory-episodic-ownership.test.ts"
       - "src/lib/memory/memory-episodic-prompt.ts"
+      - "src/lib/memory/memory-episodic-shared.ts"
+      - "src/lib/memory/memory-episodic-shared-initial.test.ts"
       - "src/lib/memory/memory-episodic-types.ts"
+      - "src/lib/memory/memory-manager.ts"
+      - "src/app/api/chat/route.ts"
       - "src/lib/memory/memory-premerge-blockers.test.ts"
       - "src/lib/memory/memory-regen-scope.test.ts"
       - "src/lib/memory/memory-rolling-summary.ts"
@@ -61,3 +65,6 @@ jobs:
 
       - name: Memory source boundary stale guard
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-source-boundary.test.ts
+
+      - name: Shared initial episodic consumer regression
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-shared-initial.test.ts

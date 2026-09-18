@@ -1,3 +1,4 @@
+import { buildSharedInitialEpisodicSectionInstructions } from "@/lib/memory/memory-episodic-prompt";
 import {
   buildCombinedDualWidgetExtractSystem,
   buildCombinedDualWidgetExtractUserBlock,
@@ -58,11 +59,19 @@ function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
         : SHARED_RELATIONSHIP_OUTPUT_RULES
     );
   }
+  if (input.includeEpisodic) {
+    rules.push(
+      buildSharedInitialEpisodicSectionInstructions(Boolean(input.relationshipRegenContext)),
+      "Episodic current-turn evidence: current USER message + current canonical ASSISTANT prose only.",
+      "Character identity / critical context = canon reference, NOT new episodic evidence.",
+      "[PREVIOUS TURN ASSISTANT] blocks = status continuity only, NOT episodic evidence."
+    );
+  }
 
   const semanticWidgetLines: string[] = [];
   if (input.mode !== "relationship_only") {
     semanticWidgetLines.push(
-      "statusWidget: populate every required field with one scene-grounded string derived from this turn.",
+      "Populate every required statusWidget field with one scene-grounded string derived from this turn.",
       "Never copy placeholder tokens from examples (\"...\", \"…\", \"<scene value>\")."
     );
   }
@@ -101,20 +110,27 @@ function buildSharedSuggestionVoiceContext(input: PostTurnSharedInitialInput): s
 export function buildPostTurnSharedInitialSystem(input: PostTurnSharedInitialInput): string {
   const widgetSemantic =
     input.mode === "dual" && input.characterWidget && input.userWidget
-      ? buildCombinedDualWidgetExtractSystem(input.characterWidget, input.userWidget, false)
+      ? buildCombinedDualWidgetExtractSystem(
+          input.characterWidget,
+          input.userWidget,
+          false,
+          "shared_initial"
+        )
       : input.mode === "character" && input.characterWidget
         ? buildWidgetExtractSystem(
             input.characterWidget,
             collectWidgetJsonKeys(input.characterWidget),
             "character",
-            false
+            false,
+            "shared_initial"
           )
         : input.mode === "user" && input.userWidget
           ? buildWidgetExtractSystem(
               input.userWidget,
               collectWidgetJsonKeys(input.userWidget),
               "user",
-              false
+              false,
+              "shared_initial"
             )
           : "";
 
@@ -122,6 +138,7 @@ export function buildPostTurnSharedInitialSystem(input: PostTurnSharedInitialInp
     widgetSemantic ? "status widget values" : "",
     input.includeSuggestions ? "suggested user reply options" : "",
     input.includeRelationship ? "durable relationship memory" : "",
+    input.includeEpisodic ? "durable episodic memory facts" : "",
   ]
     .filter(Boolean)
     .join(", ");
@@ -145,6 +162,7 @@ export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitial
       userWidget: input.userWidget,
       previousCharacterValues: input.previousCharacterValues ?? null,
       previousUserValues: input.previousUserValues ?? null,
+      promptOwner: "shared_initial",
     });
   } else if (input.mode === "character" && input.characterWidget) {
     widgetBlock = buildWidgetExtractUserBlock({
@@ -158,6 +176,7 @@ export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitial
       widget: input.characterWidget,
       source: "character",
       previousValues: input.previousCharacterValues ?? null,
+      promptOwner: "shared_initial",
     });
   } else if (input.mode === "user" && input.userWidget) {
     widgetBlock = buildWidgetExtractUserBlock({
@@ -171,11 +190,12 @@ export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitial
       widget: input.userWidget,
       source: "user",
       previousValues: input.previousUserValues ?? null,
+      promptOwner: "shared_initial",
     });
   }
 
   const currentTurnBlock = input.relationshipRegenContext
-    ? `[REJECTED ASSISTANT DRAFT — DISCARDED]\n${input.relationshipRegenContext.previousAssistantMessage}\n\n[NEW CANONICAL ASSISTANT]\n${input.assistantProse}`
+    ? `[THIS TURN — USER]\n${input.userMessage}\n\n[REJECTED ASSISTANT DRAFT — RELATIONSHIP COMPARISON ONLY; NOT EPISODIC EVIDENCE]\n${input.relationshipRegenContext.previousAssistantMessage}\n\n[NEW CANONICAL ASSISTANT — CURRENT TURN]\n${input.assistantProse}`
     : `[THIS TURN — USER]\n${input.userMessage}\n\n[THIS TURN — ASSISTANT]\n${input.assistantProse}`;
 
   const voiceContext = input.includeSuggestions
@@ -183,7 +203,11 @@ export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitial
     : "";
 
   if (widgetBlock) {
-    return [widgetBlock, voiceContext].filter(Boolean).join("\n\n");
+    const rejectedDraftBlock =
+      input.relationshipRegenContext?.previousAssistantMessage?.trim()
+        ? `[REJECTED ASSISTANT DRAFT — RELATIONSHIP COMPARISON ONLY; NOT EPISODIC EVIDENCE]\n${input.relationshipRegenContext.previousAssistantMessage}`
+        : "";
+    return [widgetBlock, rejectedDraftBlock, voiceContext].filter(Boolean).join("\n\n");
   }
   // No widget consumer (status OFF). Always include the current turn so
   // suggestions-only work does not depend on the relationship section.

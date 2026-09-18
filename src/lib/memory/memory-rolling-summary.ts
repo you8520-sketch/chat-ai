@@ -16,7 +16,6 @@ import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { isMemoryFeatureEnabled, isSummaryBarrierActive } from "./memory-feature";
 import { invalidateSummarySealBatchEpisodicFactsForSourceMutation } from "@/lib/episodicMemoryFacts";
-import { extractAndPersistEpisodicFactsForSealedBatch } from "./memory-episodic-extract";
 import { newBatchEndForStart, resolveNextBatchRange } from "./memory-summary-range";
 import {
   findBatchControlSource,
@@ -62,7 +61,6 @@ import {
   buildPreferenceSummaryFromTurns,
   classifyMemoryBatchScopes,
   displaySummaryFromScopes,
-  selectEpisodicEligibleTurnEntries,
   shouldPromoteBranchContinue,
   type BranchStatus,
   type MemorySummaryScope,
@@ -1019,7 +1017,6 @@ async function persistComposedBatchScopes(opts: {
     userMessageId?: number | null;
   }>;
   previousWasNoncanonOrBranch?: boolean;
-  skipEpisodicExtract?: boolean;
   charName?: string;
   dialogue?: string;
 }): Promise<boolean> {
@@ -1127,44 +1124,6 @@ async function persistComposedBatchScopes(opts: {
     `[memory] ${opts.logLabel} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} (${opts.composed.displaySummary.length}ch → lorebook ${currentMemory.length}/${lorebookBudget}ch) reason=${opts.composed.reasonTag} mainCalls=${opts.composed.mainModelCalls}`
   );
 
-  if (opts.charName && !opts.skipEpisodicExtract) {
-    try {
-      const episodicEntries = selectEpisodicEligibleTurnEntries(opts.allEntries, {
-        previousWasNoncanonOrBranch: opts.previousWasNoncanonOrBranch,
-      });
-      if (episodicEntries.length > 0) {
-        const episodicDialogue = formatBatchDialogue(
-          episodicEntries.map((entry) => ({
-            turnIndex: entry.turnIndex,
-            turn: entry.turn,
-          })),
-          opts.charName
-        );
-        const batchUserSources = opts.allEntries.map((entry) => ({
-          turn: entry.turnIndex,
-          messageId: entry.userMessageId ?? null,
-          text: entry.turn.user,
-        }));
-        await extractAndPersistEpisodicFactsForSealedBatch({
-          chatId: opts.chatId,
-          userId: opts.userId,
-          characterId: opts.characterId,
-          charName: opts.charName,
-          startTurn: opts.batchStart,
-          endTurn: opts.endTurn,
-          dialogue: episodicDialogue,
-          batchUserSources,
-          boundarySnapshot: opts.boundarySnapshot,
-          turnTrace: opts.turnTrace,
-        });
-      }
-    } catch (e) {
-      console.warn("[memory] episodic seal extract skipped (best-effort)", {
-        chat_id: opts.chatId,
-        error: (e as Error).message?.slice(0, 200) ?? "unknown",
-      });
-    }
-  }
   return true;
 }
 

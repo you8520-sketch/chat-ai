@@ -1,4 +1,5 @@
 import type { OpenRouterJsonSchemaResponseFormat } from "@/lib/openRouterCompletion";
+import { buildSharedEpisodicSectionJsonSchema } from "@/lib/memory/memory-episodic-shared";
 import { SUGGESTED_REPLY_KINDS } from "@/lib/suggestedReplies/types";
 import { collectSharedWidgetRequiredKeys } from "./prompt";
 import type { PostTurnSharedInitialInput } from "./types";
@@ -29,10 +30,8 @@ function stringObjectSchema(requiredKeys: readonly string[]): Record<string, unk
 
 function buildStatusWidgetSchema(input: PostTurnSharedInitialInput): Record<string, unknown> {
   const { characterKeys, userKeys } = collectSharedWidgetRequiredKeys(input);
-  const required: string[] = ["extracted_facts"];
-  const properties: Record<string, unknown> = {
-    extracted_facts: { type: "array", items: { type: "string" } },
-  };
+  const required: string[] = [];
+  const properties: Record<string, unknown> = {};
   if (characterKeys.length > 0) {
     required.push("character_values");
     properties.character_values = stringObjectSchema(characterKeys);
@@ -117,6 +116,10 @@ export function buildPostTurnSharedInitialJsonSchema(
     required.push("relationship");
     properties.relationship = buildRelationshipSchema();
   }
+  if (input.includeEpisodic) {
+    required.push("episodic");
+    properties.episodic = buildSharedEpisodicSectionJsonSchema();
+  }
 
   return {
     type: "object",
@@ -165,15 +168,15 @@ export function validatePostTurnSharedInitialStructure(
   if (input.includeRelationship && !("relationship" in root)) {
     return "missing_required_section";
   }
+  if (input.includeEpisodic && !("episodic" in root)) {
+    return "missing_required_section";
+  }
 
   const { characterKeys, userKeys } = collectSharedWidgetRequiredKeys(input);
 
   if (input.mode !== "relationship_only") {
     const statusWidget = asRecord(root.statusWidget);
     if (!statusWidget) return "missing_required_section";
-    if (!Array.isArray(statusWidget.extracted_facts)) {
-      return "missing_required_section";
-    }
     if (characterKeys.length > 0) {
       const characterValues = asRecord(statusWidget.character_values);
       if (!characterValues) return "missing_required_section";
