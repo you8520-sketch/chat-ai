@@ -18,7 +18,6 @@ import {
   type ImagePromptGender,
   resolveChatImageGenerationModel,
   resolveChatImageGenerationModelLabel,
-  resolveChatImageGenerationPrice,
 } from "@/lib/chatImageGeneration";
 import { extractAppearanceRawFromSetting } from "@/lib/appearanceCompiler";
 import {
@@ -283,7 +282,6 @@ function readiness(context: GenerationContext) {
 function publicContextResponse(context: GenerationContext, viewerUserId: number) {
   const state = readiness(context);
   const personaState = personaImageReadiness(context.persona);
-  const pricePoints = resolveChatImageGenerationPrice();
   const modelId = resolveChatImageGenerationModel();
   const modelLabel = resolveChatImageGenerationModelLabel(modelId);
   const balance = getPointBalance(context.character.id ? 0 : 0);
@@ -305,7 +303,6 @@ function publicContextResponse(context: GenerationContext, viewerUserId: number)
           ...personaState.missing,
           ...(!context.characterImageUrl ? ["캐릭터 그림체 참조 이미지"] : []),
         ],
-    pricePoints,
     modelId,
     modelLabel,
     character: {

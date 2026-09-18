@@ -35,7 +35,7 @@ import {
   type ChatImageAppearanceMode,
   type ChatImageVisualSubject,
 } from "@/lib/chatImageVisualIdentity";
-import { CHAT_ROOM_IMAGE_GENERATION_POINTS } from "@/lib/chatImagePricing";
+import { CHAT_ILLUSTRATION_BASE_POINTS } from "@/lib/chatImagePricing";
 
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_ID = "current_turn_ld_illustration" as const;
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_NAME = "현재 턴 2:3 LD 일러스트";
@@ -44,19 +44,18 @@ export const CHAT_LD_ILLUSTRATION_QUALITY = "medium" as const;
 /**
  * Base chat-room price for 1:1 and TRPG party shots alike. The final required
  * points are computed by the canonical pricing owner
- * (resolveImageGenerationRequiredPoints in chatImagePricing): the base 180P
- * covers the base identity-reference pack (persona + main), and each extra
- * identity reference above the base adds the shared additional-identity-
+ * (resolveImageGenerationRequiredPoints in chatImagePricing): the illustration
+ * base covers the first identity-reference pack (persona + main), and each
+ * extra identity reference above the base adds the shared additional-identity-
  * reference surcharge (one request = one surcharge, never multiplied by
- * headcount or panel count). This flat base constant no longer carries the
- * full price on its own.
+ * headcount or panel count).
  */
-export const CHAT_LD_ILLUSTRATION_DEFAULT_POINTS = CHAT_ROOM_IMAGE_GENERATION_POINTS;
+export const CHAT_LD_ILLUSTRATION_DEFAULT_POINTS = CHAT_ILLUSTRATION_BASE_POINTS;
 
 export function resolveChatLdIllustrationPrice(
   _env: NodeJS.ProcessEnv = process.env
 ): number {
-  return CHAT_LD_ILLUSTRATION_DEFAULT_POINTS;
+  return CHAT_ILLUSTRATION_BASE_POINTS;
 }
 
 export { sanitizeChatTurnForIllustrationPrompt } from "@/lib/chatImageIllustrationSanitizer";

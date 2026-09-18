@@ -4,7 +4,7 @@
  */
 
 import type { ScenePanelCount } from "@/lib/chatImageScenePlan";
-import { CHAT_ROOM_IMAGE_GENERATION_POINTS } from "@/lib/chatImagePricing";
+import { CHAT_COMIC_BASE_POINTS } from "@/lib/chatImagePricing";
 
 export const CHAT_COMIC_TEMPLATE_ID = "comic_horizontal_3_4" as const;
 export const CHAT_COMIC_TEMPLATE_NAME = "3~4컷 가로 만화";
@@ -16,7 +16,7 @@ export const CHAT_COMIC_MAX_INPUT_CHARS = 4_000;
 export const CHAT_COMIC_IMAGE_OUTPUT_SIZE = "1008x1408" as const;
 /** Promoted four-panel page size for the canonical 3|4 panel count. */
 export const CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE = "864x1824" as const;
-export const CHAT_COMIC_GENERATION_DEFAULT_POINTS = CHAT_ROOM_IMAGE_GENERATION_POINTS;
+export const CHAT_COMIC_GENERATION_DEFAULT_POINTS = CHAT_COMIC_BASE_POINTS;
 
 /** User-facing comic panel modes: AUTO (recommended) or manual 3/4. 2-panel is removed. */
 export type ChatComicPanelMode = "auto" | 3 | 4;
@@ -82,5 +82,5 @@ export function resolveChatComicPrice(
   _panelCount: ChatComicPanelCount,
   _env: NodeJS.ProcessEnv = process.env
 ): number {
-  return CHAT_COMIC_GENERATION_DEFAULT_POINTS;
+  return CHAT_COMIC_BASE_POINTS;
 }

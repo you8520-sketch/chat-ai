@@ -1,5 +1,3 @@
-import { CHAT_ROOM_IMAGE_GENERATION_POINTS } from "@/lib/chatImagePricing";
-
 export const CHAT_IMAGE_GENERATION_DEFAULT_MODEL = "gpt-image-2";
 
 /**
@@ -31,8 +29,6 @@ export function resolveChatImageGenerationModelLabel(modelId: string): string {
   ).find((base) => trimmed.startsWith(`${base}-`));
   return snapshotBase ? CHAT_IMAGE_GENERATION_MODEL_LABELS[snapshotBase] : trimmed;
 }
-
-export const CHAT_IMAGE_GENERATION_DEFAULT_POINTS = CHAT_ROOM_IMAGE_GENERATION_POINTS;
 
 export type ImagePromptGender = "male" | "female" | "other";
 
@@ -70,12 +66,6 @@ export function buildImageGenderLockPrompt(
     ...rules,
     "Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.",
   ].join("\n");
-}
-
-export function resolveChatImageGenerationPrice(
-  _env: NodeJS.ProcessEnv = process.env
-): number {
-  return CHAT_IMAGE_GENERATION_DEFAULT_POINTS;
 }
 
 export function resolveChatImageGenerationModel(

@@ -15,7 +15,7 @@ import {
 } from "@/lib/chatImageScenePlan";
 import {
   CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS,
-  CHAT_ROOM_IMAGE_GENERATION_POINTS,
+  CHAT_COMIC_BASE_POINTS,
   resolveImageGenerationRequiredPoints,
   resolveImageIdentityReferenceSurcharge,
 } from "@/lib/chatImagePricing";
@@ -188,10 +188,10 @@ describe("TRPG canonical 4-panel comic (PR-B)", () => {
     const count = identityRefs(plan).length;
     assert.equal(count, 4);
     assert.equal(resolveImageIdentityReferenceSurcharge(count), 40);
-    assert.equal(resolveImageGenerationRequiredPoints(count), 220);
+    assert.equal(resolveImageGenerationRequiredPoints(count, CHAT_COMIC_BASE_POINTS), 220);
     assert.equal(
-      resolveImageGenerationRequiredPoints(count),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
+      resolveImageGenerationRequiredPoints(count, CHAT_COMIC_BASE_POINTS),
+      CHAT_COMIC_BASE_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
     );
     // The comic panel count never multiplies the surcharge.
     assert.match(read(ROUTE), /const identityReferenceCount = providerReferences\.filter\(/);

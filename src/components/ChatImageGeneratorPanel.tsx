@@ -68,7 +68,6 @@ type AverageImageCost = {
 type Preflight = {
   ready: boolean;
   missing: string[];
-  pricePoints: number;
   modelId: string;
   modelLabel: string;
   character: ReferenceInfo & {

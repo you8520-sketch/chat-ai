@@ -3,9 +3,10 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
+  CHAT_COMIC_BASE_POINTS,
+  CHAT_ILLUSTRATION_BASE_POINTS,
   CHAT_IMAGE_BASE_IDENTITY_REFERENCES,
   CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS,
-  CHAT_ROOM_IMAGE_GENERATION_POINTS,
   resolveImageGenerationRequiredPoints,
   resolveImageIdentityReferenceSurcharge,
 } from "@/lib/chatImagePricing";
@@ -74,15 +75,18 @@ describe("surcharge follow-up: TRPG dynamic preflight / price UI / cost-cohort p
     // cap later automatically surfaces the higher price.
     assert.match(panel, /CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP/);
     assert.equal(CHAT_IMAGE_BASE_IDENTITY_REFERENCES, 2);
-    // 2 expected refs -> base; 3 -> base+20; TRPG 4 grounded -> base+40.
-    assert.equal(resolveImageGenerationRequiredPoints(2), CHAT_ROOM_IMAGE_GENERATION_POINTS);
+    // 2 expected refs -> illustration base; 3 -> base+20; 4 grounded -> base+40.
     assert.equal(
-      resolveImageGenerationRequiredPoints(3),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS + CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
+      resolveImageGenerationRequiredPoints(2, CHAT_ILLUSTRATION_BASE_POINTS),
+      CHAT_ILLUSTRATION_BASE_POINTS
     );
     assert.equal(
-      resolveImageGenerationRequiredPoints(4),
-      CHAT_ROOM_IMAGE_GENERATION_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
+      resolveImageGenerationRequiredPoints(3, CHAT_ILLUSTRATION_BASE_POINTS),
+      CHAT_ILLUSTRATION_BASE_POINTS + CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
+    );
+    assert.equal(
+      resolveImageGenerationRequiredPoints(4, CHAT_ILLUSTRATION_BASE_POINTS),
+      CHAT_ILLUSTRATION_BASE_POINTS + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS
     );
   });
 
@@ -141,16 +145,16 @@ describe("surcharge follow-up: TRPG dynamic preflight / price UI / cost-cohort p
     assert.doesNotMatch(panel, /info\.balance\.total < expectedPrice/);
     // expectedPrice is still DISPLAYED (button copy) — display != authorization.
     assert.match(panel, /expectedPrice\.toLocaleString\(\)\}P/);
-    // CASE A semantics: base=180, expected(4 refs)=220, balance=210.
-    const base = CHAT_ROOM_IMAGE_GENERATION_POINTS;
+    // CASE A semantics: illustration base=150, expected(4 refs)=190, balance=180.
+    const base = CHAT_ILLUSTRATION_BASE_POINTS;
     const expected = resolveImageGenerationRequiredPoints(4, base);
     assert.equal(expected, base + 2 * CHAT_IMAGE_REFERENCE_SURCHARGE_POINTS);
-    assert.equal(expected, 220);
-    assert.equal(210 < base, false, "balance 210 >= base 180 -> client must NOT disable");
-    // Server stale-asset revalidation grounds 3 refs -> final 200 <= 210 -> accepted.
+    assert.equal(expected, 190);
+    assert.equal(180 < base, false, "balance 180 >= base 150 -> client must NOT disable");
+    // Server stale-asset revalidation grounds 3 refs -> final 170 <= 180 -> accepted.
     const serverFinalAfterRevalidation = resolveImageGenerationRequiredPoints(3, base);
-    assert.equal(serverFinalAfterRevalidation, 200);
-    assert.ok(serverFinalAfterRevalidation <= 210);
+    assert.equal(serverFinalAfterRevalidation, 170);
+    assert.ok(serverFinalAfterRevalidation <= 180);
     // Server canonical preflight remains the final authority.
     assert.match(route, /const pricePoints = resolveImageGenerationRequiredPoints\(/);
     assert.match(route, /포인트가 부족합니다\. 선택 턴 LD 일러스트에는/);
@@ -158,8 +162,8 @@ describe("surcharge follow-up: TRPG dynamic preflight / price UI / cost-cohort p
 
   it("CLIENT-ESTIMATE-VS-SERVER-AUTHORITY CASE B: balance below the base price is client-blocked", () => {
     const panel = read(PANEL);
-    const base = CHAT_ROOM_IMAGE_GENERATION_POINTS;
-    assert.equal(170 < base, true, "balance 170 < base 180 -> request can never be satisfied");
+    const base = CHAT_ILLUSTRATION_BASE_POINTS;
+    assert.equal(140 < base, true, "balance 140 < base 150 -> request can never be satisfied");
     // Route still owns the dynamic final price for the TRPG/illustration path.
     assert.match(panel, /info\.balance\.total < activePrice/);
   });
