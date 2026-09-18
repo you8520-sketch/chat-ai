@@ -1,3 +1,8 @@
+/**
+ * SYNTHETIC COMPATIBILITY — CheaperInference billing envelope parsing.
+ * Production Main RP may omit billing fields on the final stream event;
+ * these fixtures protect Luna/non-stream and documented-envelope paths.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 import { streamOpenRouterAdult, callOpenRouterAdult } from "./openRouterAdult";
@@ -20,7 +25,7 @@ function sseResponse(chunks: string[]): Response {
   });
 }
 
-test("streamOpenRouterAdult captures top-level CI billing envelope after usage chunk", async () => {
+test("[SYNTHETIC] streamOpenRouterAdult captures CI billing envelope when provider sends it", async () => {
   const previousFetch = globalThis.fetch;
   const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
   process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
@@ -80,7 +85,7 @@ test("streamOpenRouterAdult captures top-level CI billing envelope after usage c
   }
 });
 
-test("callOpenRouterAdult non-stream uses parseCompatibleUsage envelope precedence", async () => {
+test("[SYNTHETIC] callOpenRouterAdult non-stream uses parseCompatibleUsage envelope precedence", async () => {
   const previousFetch = globalThis.fetch;
   const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
   process.env.CHEAPER_INFERENCE_API_KEY = "test-key";

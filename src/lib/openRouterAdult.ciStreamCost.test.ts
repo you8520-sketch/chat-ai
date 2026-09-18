@@ -1,3 +1,14 @@
+/**
+ * SYNTHETIC COMPATIBILITY — not production-observed Main RP contract.
+ *
+ * Production (2026-09-18, request 0840da41-b1d4-4946-8175-c645e5613b77):
+ * final CI stream event has token usage only; billing fields
+ * (usage.cost, cheaper_inference.billing.billed_cost_usd) are absent.
+ *
+ * These fixtures guard parseCompatibleUsage + ledger/receipt wiring when
+ * billing envelopes ARE present (docs/Luna/non-stream paths). They must not
+ * be read as proof that Main live stream always supplies exact cost.
+ */
 import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import { describe, it } from "node:test";
@@ -28,8 +39,8 @@ function sseResponse(chunks: string[], headers: Record<string, string> = {}): Re
   });
 }
 
-describe("CheaperInference streaming exact cost capture", () => {
-  it("captures cheaper_inference.billing.billed_cost_usd from documented final event", async () => {
+describe("CheaperInference exact cost — synthetic compatibility (not Main live contract)", () => {
+  it("[SYNTHETIC] stream fixture with cheaper_inference.billing.billed_cost_usd envelope", async () => {
     const previousFetch = globalThis.fetch;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
     globalThis.fetch = (async () =>
@@ -84,7 +95,7 @@ describe("CheaperInference streaming exact cost capture", () => {
     }
   });
 
-  it("promotes usage.cost to cheaperInferenceBilledCostUsd when CI header present without envelope", async () => {
+  it("[SYNTHETIC] usage.cost promotes when CI transport confirmed (header, no envelope)", async () => {
     const previousFetch = globalThis.fetch;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
     globalThis.fetch = (async () =>
@@ -206,7 +217,7 @@ describe("CheaperInference streaming exact cost capture", () => {
     assert.equal(breakdown.cheaperInferenceBilledCostUsd, undefined);
   });
 
-  it("main ledger settles with cheaper_inference_billed from stream usage", () => {
+  it("[SYNTHETIC] ledger settles when exact billed cost is supplied to writer", () => {
     const db = new Database(":memory:");
     ensureProviderCostLedgerSchema(db);
     const { eventKey, recorded } = recordMainGenerationProviderCost(

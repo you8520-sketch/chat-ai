@@ -242,8 +242,9 @@ export function parseCompatibleUsage(opts: {
   if (envelopeBilled != null) {
     return { ...base, cheaperInferenceBilledCostUsd: envelopeBilled };
   }
-  // Cheaper Inference docs: usage.cost is the exact settled customer charge when
-  // transport is CI-confirmed and the namespaced envelope is absent from the chunk.
+  // Docs/Luna compatibility: when transport is CI-confirmed, usage.cost may be
+  // treated as exact billed cost if the billing envelope is absent from the chunk.
+  // Production Main RP stream (2026-09-18) may omit both — unresolved until supplied elsewhere.
   if (
     base.cheaperInferenceBilledCostUsd == null &&
     base.upstreamCostUsd != null &&
