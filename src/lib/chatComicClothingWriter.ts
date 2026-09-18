@@ -579,14 +579,12 @@ function stripLeadingSceneBoundary(clause: string): string {
 
 const LD_SUBJECT_TOPIC_PARTICLES = "(?:은|는|이|가)" as const;
 
-/** LD strict fallback — earliest subject/topic evidence only (not object/dative particles). */
+/** LD strict fallback — earliest subject/topic evidence only (은/는/이/가; never object/dative). */
 function findLdClauseSubject(
   clause: string,
   ctx: ApplyCanonicalComicClothingCoverageContext
 ): NamedIdentity | null {
   const stripped = stripLeadingSceneBoundary(clause.trim());
-  const anchored = resolveClauseGrammaticalSubject(stripped, ctx);
-  if (anchored) return anchored;
 
   const candidates = [
     { name: ctx.characterName, identity: "character" as const },

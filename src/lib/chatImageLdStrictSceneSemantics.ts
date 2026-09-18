@@ -46,6 +46,14 @@ const LEADING_SCENE_BOUNDARY =
 
 type NameIdentity = "character" | "persona" | "supporting" | "unknown";
 
+type KissParticipantEvidence = {
+  explicitCanonicalPair: boolean;
+  explicitConflictingCounterparty: boolean;
+  duoShorthand: boolean;
+  unboundPronounLead: boolean;
+  implicitRegularDuo: boolean;
+};
+
 function stripLeadingSceneBoundary(clause: string): string {
   return clause.replace(LEADING_SCENE_BOUNDARY, "").trim();
 }
@@ -63,68 +71,105 @@ function splitSemanticClauses(text: string): string[] {
     .filter(Boolean);
 }
 
+/** Exact canonical token match first; particle stripping only as fallback for grammatical variants. */
 function resolveNameIdentity(name: string, ctx: LdStrictSceneSemanticContext): NameIdentity {
-  const trimmed = stripNameParticles(name.trim());
-  if (!trimmed) return "unknown";
-  if (matchesCanonicalName(trimmed, ctx.characterName)) return "character";
-  if (matchesCanonicalName(trimmed, ctx.personaName)) return "persona";
+  const raw = name.trim();
+  if (!raw) return "unknown";
+
+  const exactCharacter = ctx.characterName.trim();
+  const exactPersona = ctx.personaName.trim();
+
+  if (raw === exactCharacter) return "character";
+  if (raw === exactPersona) return "persona";
   for (const known of ctx.knownSpeakerNames ?? []) {
-    if (matchesCanonicalName(trimmed, known)) return "supporting";
+    if (raw === known.trim()) return "supporting";
   }
+
+  const normalized = stripNameParticles(raw);
+  if (normalized !== raw) {
+    if (normalized === exactCharacter || matchesCanonicalName(normalized, ctx.characterName)) {
+      return "character";
+    }
+    if (normalized === exactPersona || matchesCanonicalName(normalized, ctx.personaName)) {
+      return "persona";
+    }
+    for (const known of ctx.knownSpeakerNames ?? []) {
+      if (normalized === known.trim() || matchesCanonicalName(normalized, known)) {
+        return "supporting";
+      }
+    }
+  }
+
+  if (matchesCanonicalName(raw, ctx.characterName)) return "character";
+  if (matchesCanonicalName(raw, ctx.personaName)) return "persona";
+  for (const known of ctx.knownSpeakerNames ?? []) {
+    if (matchesCanonicalName(raw, known)) return "supporting";
+  }
+
   return "unknown";
 }
 
-function resolveCanonicalDuoKissParticipant(
+function isConflictingKissIdentity(id: NameIdentity): boolean {
+  return id === "unknown" || id === "supporting";
+}
+
+function isCanonicalDuoPair(leftId: NameIdentity, rightId: NameIdentity): boolean {
+  return (
+    (leftId === "character" && rightId === "persona") ||
+    (leftId === "persona" && rightId === "character")
+  );
+}
+
+function collectKissCounterpartyTokens(clause: string): string[] {
+  const tokens = new Set<string>();
+  for (const match of clause.matchAll(/([\p{L}\p{N}·]{1,24})(?:과|와)/gu)) {
+    const token = match[1]?.trim();
+    if (token) tokens.add(token);
+  }
+  for (const match of clause.matchAll(/([\p{L}\p{N}·]{1,24})(?:에게|한테)/gu)) {
+    const token = match[1]?.trim();
+    if (token) tokens.add(token);
+  }
+  return [...tokens];
+}
+
+function collectKissParticipantEvidence(
   clause: string,
   sourceText: string,
   ctx: LdStrictSceneSemanticContext
-): "canonical_duo" | "non_canonical" | "ambiguous" {
+): KissParticipantEvidence {
   const hasChar = matchesCanonicalName(clause, ctx.characterName);
   const hasPersona = matchesCanonicalName(clause, ctx.personaName);
   const supportingInClause = (ctx.knownSpeakerNames ?? []).filter((name) =>
     matchesCanonicalName(clause, name)
   );
 
+  let explicitCanonicalPair = false;
+  let explicitConflictingCounterparty = false;
+
   for (const conjPair of clause.matchAll(
     /([\p{L}\p{N}·]{1,24})\s*(?:과|와)\s*([\p{L}\p{N}·]{1,24})/gu
   )) {
     const leftId = resolveNameIdentity(conjPair[1] ?? "", ctx);
     const rightId = resolveNameIdentity(conjPair[2] ?? "", ctx);
-    if (leftId === "unknown" && rightId === "unknown") {
-      continue;
+    if (isCanonicalDuoPair(leftId, rightId)) {
+      explicitCanonicalPair = true;
     }
-    if (
-      (leftId === "character" && rightId === "persona") ||
-      (leftId === "persona" && rightId === "character")
-    ) {
-      return "canonical_duo";
-    }
-    if (
-      (leftId === "character" && rightId === "supporting") ||
-      (leftId === "persona" && rightId === "supporting") ||
-      (leftId === "supporting" && (rightId === "character" || rightId === "persona"))
-    ) {
-      return "non_canonical";
+    if (isConflictingKissIdentity(leftId) || isConflictingKissIdentity(rightId)) {
+      explicitConflictingCounterparty = true;
     }
     if (
       (leftId === "character" || leftId === "persona") &&
-      rightId === "unknown"
+      isConflictingKissIdentity(rightId)
     ) {
-      return "non_canonical";
+      explicitConflictingCounterparty = true;
     }
     if (
       (rightId === "character" || rightId === "persona") &&
-      leftId === "unknown"
+      isConflictingKissIdentity(leftId)
     ) {
-      return "non_canonical";
+      explicitConflictingCounterparty = true;
     }
-    if (leftId === "unknown" || rightId === "unknown") {
-      return "ambiguous";
-    }
-  }
-
-  if (hasChar && hasPersona) {
-    return "canonical_duo";
   }
 
   const dative = clause.match(
@@ -133,68 +178,78 @@ function resolveCanonicalDuoKissParticipant(
   if (dative) {
     const fromId = resolveNameIdentity(dative[1] ?? "", ctx);
     const toId = resolveNameIdentity(dative[2] ?? "", ctx);
-    if (
-      (fromId === "character" && toId === "persona") ||
-      (fromId === "persona" && toId === "character")
-    ) {
-      return "canonical_duo";
+    if (isCanonicalDuoPair(fromId, toId)) {
+      explicitCanonicalPair = true;
     }
-    if (fromId === "supporting" || toId === "supporting") {
-      return "non_canonical";
+    if (isConflictingKissIdentity(fromId) || isConflictingKissIdentity(toId)) {
+      explicitConflictingCounterparty = true;
     }
-    if (fromId === "unknown" || toId === "unknown") {
-      return "ambiguous";
+  }
+
+  for (const token of collectKissCounterpartyTokens(clause)) {
+    const id = resolveNameIdentity(token, ctx);
+    if (isConflictingKissIdentity(id)) {
+      explicitConflictingCounterparty = true;
     }
   }
 
   if (supportingInClause.length > 0 && (hasChar || hasPersona)) {
-    return "non_canonical";
+    explicitConflictingCounterparty = true;
   }
 
-  if (/둘(?:은|이)/u.test(clause)) {
+  const duoShorthand = /둘(?:은|이)/u.test(clause);
+  const unboundPronounLead = UNBOUND_PRONOUN_LEAD.test(stripLeadingSceneBoundary(clause));
+
+  const namedParticipantInClause =
+    hasChar || hasPersona || supportingInClause.length > 0 || duoShorthand;
+  const implicitRegularDuo = !namedParticipantInClause;
+
+  if (duoShorthand) {
     const thirdInSource = (ctx.knownSpeakerNames ?? []).some((name) =>
       matchesCanonicalName(sourceText, name)
     );
     if (thirdInSource) {
-      return "ambiguous";
+      explicitConflictingCounterparty = true;
     }
-    return "canonical_duo";
   }
 
-  if (UNBOUND_PRONOUN_LEAD.test(stripLeadingSceneBoundary(clause))) {
+  return {
+    explicitCanonicalPair,
+    explicitConflictingCounterparty,
+    duoShorthand,
+    unboundPronounLead,
+    implicitRegularDuo,
+  };
+}
+
+function verdictFromKissParticipantEvidence(
+  evidence: KissParticipantEvidence
+): "canonical_duo" | "non_canonical" | "ambiguous" {
+  if (evidence.explicitConflictingCounterparty) {
+    return "non_canonical";
+  }
+  if (evidence.explicitCanonicalPair) {
+    return "canonical_duo";
+  }
+  if (evidence.unboundPronounLead) {
     return "ambiguous";
   }
-
-  const explicitWithCounterparty = clause.match(
-    /([\p{L}\p{N}·]{1,24})(?:과|와)\s*(?:.{0,48})(?:키스|입(?:을|술(?:을)?)\s*맞)/u
-  );
-  if (explicitWithCounterparty) {
-    const counterpartyId = resolveNameIdentity(explicitWithCounterparty[1] ?? "", ctx);
-    if (counterpartyId === "unknown" || counterpartyId === "supporting") {
-      return "non_canonical";
-    }
-  }
-
-  const explicitDativeCounterparty = clause.match(
-    /([\p{L}\p{N}·]{1,24})(?:에게|한테)\s*(?:.{0,48})(?:키스|입(?:을|술(?:을)?)\s*맞)/u
-  );
-  if (explicitDativeCounterparty) {
-    const counterpartyId = resolveNameIdentity(explicitDativeCounterparty[1] ?? "", ctx);
-    if (counterpartyId === "unknown" || counterpartyId === "supporting") {
-      return "non_canonical";
-    }
-  }
-
-  const namedParticipantInClause =
-    hasChar ||
-    hasPersona ||
-    supportingInClause.length > 0 ||
-    /둘(?:은|이)/u.test(clause);
-  if (!namedParticipantInClause) {
+  if (evidence.duoShorthand) {
     return "canonical_duo";
   }
-
+  if (evidence.implicitRegularDuo) {
+    return "canonical_duo";
+  }
   return "ambiguous";
+}
+
+function resolveCanonicalDuoKissParticipant(
+  clause: string,
+  sourceText: string,
+  ctx: LdStrictSceneSemanticContext
+): "canonical_duo" | "non_canonical" | "ambiguous" {
+  const evidence = collectKissParticipantEvidence(clause, sourceText, ctx);
+  return verdictFromKissParticipantEvidence(evidence);
 }
 
 /** Collect supporting cast names from grounded visual subjects — excludes character/persona. */

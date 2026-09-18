@@ -579,6 +579,18 @@ describe("chatImageLdStrictFallbackParity — subject vs object LD-K9–K12", ()
     });
     assert.equal(facts.adultMaleShirtlessContract, true);
   });
+
+  it("LD-K13 object-only prefix must not become inherited subject — main shirtless false", () => {
+    const facts = deriveLdStrictFallbackSceneFacts({
+      sceneSourceText: "태현을 바라보며 자신의 셔츠를 벗었다.",
+      adultGrounded: true,
+      characterName: "태현",
+      personaName: "유저",
+      characterGender: "male",
+      personaGender: "female",
+    });
+    assert.equal(facts.adultMaleShirtlessContract, false);
+  });
 });
 
 describe("chatImageLdStrictFallbackParity — unknown kiss counterparty LD-KISS-13–17", () => {
@@ -606,6 +618,74 @@ describe("chatImageLdStrictFallbackParity — unknown kiss counterparty LD-KISS-
       ldTier2("태현은 유저에게 짧게 키스했다.", true),
       /brief non-explicit affectionate kiss/i
     );
+  });
+});
+
+describe("chatImageLdStrictFallbackParity — evidence normalization LD-KISS-18–21", () => {
+  it("LD-KISS-18 exact canonical name ending in 이 — canonical duo kiss true", () => {
+    const tier2 = buildStrictLdDuoFallbackPrompt({
+      characterName: "신제이",
+      characterGender: "male",
+      personaName: "유저",
+      personaGender: "female",
+      subjects: [
+        {
+          key: "character",
+          name: "신제이",
+          gender: "male",
+          role: "character",
+          referenceImageUrl: "/c.webp",
+          savedAppearance: "",
+          appearanceMode: "image_only",
+        },
+        {
+          key: "persona",
+          name: "유저",
+          gender: "female",
+          role: "persona",
+          referenceImageUrl: "/p.webp",
+          savedAppearance: "",
+          appearanceMode: "image_only",
+        },
+      ],
+      sceneSourceText: "신제이와 유저는 짧게 키스했다.",
+      adultGrounded: true,
+    });
+    assert.match(tier2, /brief non-explicit affectionate kiss/i);
+  });
+
+  it("LD-KISS-19 duo shorthand with explicit unknown third party — false", () => {
+    assert.doesNotMatch(ldTier2("둘은 로코와 짧게 키스했다.", true), /brief non-explicit affectionate kiss/i);
+  });
+
+  it("LD-KISS-20 canonical names plus unknown third party — false", () => {
+    assert.doesNotMatch(
+      ldTier2("태현과 유저는 로코와 키스했다.", true),
+      /brief non-explicit affectionate kiss/i
+    );
+  });
+
+  it("LD-KISS-21 canonical names plus known supporting third party — false", () => {
+    const supportSubject = {
+      key: "roko",
+      name: "로코",
+      gender: "male" as const,
+      role: "support",
+      referenceImageUrl: "/r.webp",
+      savedAppearance: "",
+      appearanceMode: "image_only" as const,
+      sourceKind: "cast_member" as const,
+    };
+    const tier2 = buildStrictLdDuoFallbackPrompt({
+      characterName: "태현",
+      characterGender: "male",
+      personaName: "유저",
+      personaGender: "female",
+      subjects: [supportSubject],
+      sceneSourceText: "태현과 유저는 로코와 키스했다.",
+      adultGrounded: true,
+    });
+    assert.doesNotMatch(tier2, /brief non-explicit affectionate kiss/i);
   });
 });
 
