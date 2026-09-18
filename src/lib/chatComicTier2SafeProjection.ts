@@ -150,13 +150,13 @@ export function canonicalTier2SafePose(opts: {
   const hugging = /(?:껴안|포옹|안아|hug|embrace|closeness)/iu.test(haystack);
 
   if (bedroom && lying) {
-    return "same characters resting on the bed with modest covered clothing and calm expressions";
+    return "same characters resting on the bed with calm expressions";
   }
   if (bedroom) {
-    return "same characters in the bedroom with modest covered clothing and calm expressions";
+    return "same characters in the bedroom with calm expressions";
   }
   if (hugging) {
-    return "same characters sharing calm affectionate proximity with modest covered clothing";
+    return "same characters sharing calm affectionate proximity";
   }
   return "same cast in the same location with modest posture and readable expressions";
 }

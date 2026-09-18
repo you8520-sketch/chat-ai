@@ -77,6 +77,11 @@ export type SceneSpeakerContext = {
 
 export type ScenePanelCount = 2 | 3 | 4;
 
+/** Tier-2 panel clothing axis. Omitted panels default to modest_covered. */
+export type ScenePanelClothingCoverage =
+  | "modest_covered"
+  | "adult_male_character_shirtless_upper_torso";
+
 export type ScenePanel = {
   index: number;
   sourceEventIds: string[];
@@ -85,6 +90,8 @@ export type ScenePanel = {
   personaAction?: string;
   characterAction?: string;
   dialogue: SceneDialogue[];
+  /** Optional Tier-2 clothing coverage for this panel (canonical input; not inferred from raw text). */
+  clothingCoverage?: ScenePanelClothingCoverage;
 };
 
 // ---------------------------------------------------------------------------
