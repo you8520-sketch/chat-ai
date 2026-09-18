@@ -32,6 +32,7 @@ import {
 import {
   renderComicSafeStructureForTier2Prompt,
   renderTier2ComicGlobalClothingFooter,
+  renderTier2PanelClothingContract,
   type ComicSafeStructureProjection,
 } from "@/lib/chatComicSafeStructure";
 import type { ChatComicCompositionMode } from "@/lib/chatComicPanelSpec";
@@ -68,12 +69,16 @@ export type LdStrictFallbackSceneFacts = {
   safeBroadLocation: string;
   safeMood: string;
   safeComposition: string;
+  /** When true, coverage footer must not contradict the adult male shirtless contract. */
+  adultMaleShirtlessContract: boolean;
 };
 
 /** Derive same-scene facts from projected source for LD Tier-2 — not a new scene selector. */
 export function deriveLdStrictFallbackSceneFacts(opts: {
   sceneSourceText: string;
   adultGrounded?: boolean;
+  /** Required for adult male shirtless preservation — do not infer from raw keywords alone. */
+  characterGender?: ImagePromptGender;
 }): LdStrictFallbackSceneFacts {
   const raw = String(opts.sceneSourceText ?? "").trim();
   const projected = projectSceneBlockForSafeImageGeneration(raw, {
@@ -111,40 +116,52 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
     }
   }
 
-  let safeComposition = "";
-  if (rawHasKiss) {
-    safeComposition =
-      "same two characters with faces close in calm affectionate proximity, modest covered clothing, general-audience depiction";
-  } else if (rawHasHug) {
-    safeComposition =
-      "same two characters sharing calm affectionate proximity with modest covered clothing";
-  } else if (rawHasBedroom || rawHasLying) {
-    const compositionParts = ["same two characters"];
-    if (rawHasBedroom && rawHasLying) {
-      compositionParts.push(
-        "resting side by side on the bed with modest covered clothing or soft sheet coverage"
-      );
-    } else if (rawHasLying) {
-      compositionParts.push("resting together with modest covered clothing, preserving lying posture");
-    } else {
-      compositionParts.push("in the bedroom with modest covered clothing, preserving bed proximity");
-    }
-    if (opts.adultGrounded === true && rawHasShirtless) {
-      compositionParts.push(
-        "adult male bare upper torso framed from shoulders/chest upward with modest sheet coverage below"
-      );
-    }
-    if (rawHasShyMood) {
-      compositionParts.push("flushed or shy expressions");
-    }
-    if (rawHasMessyBed) {
-      compositionParts.push("gently rumpled bedding");
-    }
-    safeComposition = compositionParts.join(", ");
-  } else {
-    safeComposition =
-      "same two characters in the same location with modest posture and readable expressions";
+  const adultGrounded = opts.adultGrounded === true;
+  const adultMaleShirtlessContract =
+    adultGrounded && rawHasShirtless && opts.characterGender === "male";
+
+  const compositionParts = ["same two characters"];
+  if (rawHasBedroom && rawHasLying) {
+    compositionParts.push("resting side by side on the bed");
+  } else if (rawHasBedroom) {
+    compositionParts.push("in the bedroom with bed proximity preserved");
+  } else if (rawHasLying) {
+    compositionParts.push("resting together, preserving lying posture");
   }
+
+  if (rawHasKiss) {
+    compositionParts.push(
+      adultGrounded
+        ? "sharing a brief non-explicit affectionate kiss"
+        : "with faces close in calm affectionate proximity, general-audience depiction"
+    );
+  } else if (rawHasHug) {
+    compositionParts.push(
+      adultGrounded
+        ? "sharing a calm affectionate embrace"
+        : "sharing calm affectionate proximity"
+    );
+  }
+
+  if (adultMaleShirtlessContract) {
+    compositionParts.push(
+      renderTier2PanelClothingContract("adult_male_character_shirtless_upper_torso")
+    );
+  } else if (rawHasBedroom || rawHasLying) {
+    compositionParts.push("modest covered clothing or soft sheet coverage");
+  }
+
+  if (rawHasShyMood) {
+    compositionParts.push("flushed or shy expressions");
+  }
+  if (rawHasMessyBed) {
+    compositionParts.push("gently rumpled bedding");
+  }
+
+  const safeComposition =
+    compositionParts.length > 1
+      ? compositionParts.join(", ")
+      : "same two characters in the same location with modest posture and readable expressions";
 
   let safeMood = "warm, gentle emotional connection";
   if (rawHasShyMood) {
@@ -155,12 +172,13 @@ export function deriveLdStrictFallbackSceneFacts(opts: {
     safeMood = "soft intimate bedroom mood with gently disheveled bedding preserved from the source";
   }
 
-  return { safeBroadLocation, safeMood, safeComposition };
+  return { safeBroadLocation, safeMood, safeComposition, adultMaleShirtlessContract };
 }
 
 function resolveLdStrictFallbackSceneFacts(opts: {
   sceneSourceText?: string;
   adultGrounded?: boolean;
+  characterGender?: ImagePromptGender;
   safeBroadLocation?: string;
   safeMood?: string;
   safeComposition?: string;
@@ -170,8 +188,18 @@ function resolveLdStrictFallbackSceneFacts(opts: {
       ? deriveLdStrictFallbackSceneFacts({
           sceneSourceText: opts.sceneSourceText,
           adultGrounded: opts.adultGrounded,
+          characterGender: opts.characterGender,
         })
       : null;
+  const safeComposition =
+    opts.safeComposition?.trim() ||
+    derived?.safeComposition ||
+    "same two characters in the same location with modest posture and readable expressions";
+  const adultMaleShirtlessContract =
+    derived?.adultMaleShirtlessContract ??
+    safeComposition.includes(
+      renderTier2PanelClothingContract("adult_male_character_shirtless_upper_torso")
+    );
   return {
     safeBroadLocation:
       opts.safeBroadLocation?.trim() ||
@@ -179,11 +207,16 @@ function resolveLdStrictFallbackSceneFacts(opts: {
       "the same location as the approved safe source scene",
     safeMood:
       opts.safeMood?.trim() || derived?.safeMood || "warm, gentle emotional connection",
-    safeComposition:
-      opts.safeComposition?.trim() ||
-      derived?.safeComposition ||
-      "same two characters in the same location with modest posture and readable expressions",
+    safeComposition,
+    adultMaleShirtlessContract,
   };
+}
+
+function strictLdCoverageFooter(adultMaleShirtlessContract: boolean): string {
+  if (adultMaleShirtlessContract) {
+    return "Stricter coverage: preserve above-the-waist shirtless framing; persona remains modestly clothed.";
+  }
+  return "Stricter coverage: fully modest clothing or soft coverage.";
 }
 
 function formatStrictCastLine(member: ChatLdIllustrationCastMember, index: number): string {
@@ -233,7 +266,12 @@ export function buildStrictLdDuoFallbackPrompt(opts: {
   sceneSourceText?: string;
   adultGrounded?: boolean;
 }): string {
-  const { safeBroadLocation, safeMood, safeComposition } = resolveLdStrictFallbackSceneFacts(opts);
+  const adultGrounded = opts.adultGrounded ?? false;
+  const { safeBroadLocation, safeMood, safeComposition, adultMaleShirtlessContract } =
+    resolveLdStrictFallbackSceneFacts({
+      ...opts,
+      characterGender: opts.characterGender,
+    });
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
     renderChatImageVisualIdentity({
@@ -246,12 +284,12 @@ export function buildStrictLdDuoFallbackPrompt(opts: {
       personaName: opts.personaName,
       personaGender: opts.personaGender,
     }),
-    STRICT_SAFE_DEPICTION,
+    buildIllustrationSafeDepiction({ adultGrounded }),
     "STRICT PROVIDER-SAFE FALLBACK — same scene, non-sexual non-graphic general-audience depiction.",
     `Setting: ${safeBroadLocation}.`,
     `Mood: ${safeMood}.`,
     `Composition: ${safeComposition}.`,
-    "Stricter coverage: fully modest clothing or soft coverage.",
+    strictLdCoverageFooter(adultMaleShirtlessContract),
     "No speech bubbles, captions, blood, weapons, injury, or suggestive poses.",
     "Match reference identity and art style. Vertical 800×1200 composition.",
   ].join("\n");
@@ -267,6 +305,7 @@ export function buildStrictLdPartyFallbackPrompt(opts: {
   adultGrounded?: boolean;
 }): string {
   const count = opts.cast.length;
+  const adultGrounded = opts.adultGrounded ?? false;
   const { safeBroadLocation, safeMood, safeComposition } = resolveLdStrictFallbackSceneFacts(opts);
   const groupComposition = safeComposition.replace(
     /same two characters/giu,
@@ -288,7 +327,7 @@ export function buildStrictLdPartyFallbackPrompt(opts: {
         gender: member.gender,
       }))
     ),
-    STRICT_SAFE_DEPICTION,
+    buildIllustrationSafeDepiction({ adultGrounded }),
     "STRICT PROVIDER-SAFE FALLBACK — same scene, non-sexual non-graphic general-audience group depiction.",
     `Setting: ${safeBroadLocation}.`,
     `Mood: ${safeMood}.`,
