@@ -166,6 +166,47 @@ function writeMeta(
   );
 }
 
+/** Persist policy-disabled extraction so billing can distinguish not_expected from missing. */
+export function markMessageStatusMetaExtractionDisabled(
+  messageId: number,
+  generationScope: AssistantGenerationScope
+): void {
+  const db = getDb();
+  const record: StatusMetaRecord = {
+    meta: {
+      tableMarkdown: "",
+      datetime: "",
+      location: "",
+      relationship: "",
+      npcEmotion: "",
+      npcIntent: "",
+      nextObjective: "",
+      hiddenThought: "",
+      sceneSummary: "",
+    },
+    extractedAt: new Date().toISOString(),
+    source: "background-deepseek",
+    pending: false,
+    failed: false,
+    terminalReason: "extraction_disabled",
+    generationSequence: generationScope.generationSequence,
+    generationRequestId: generationScope.generationRequestId,
+  };
+  if (!isCurrentAssistantGeneration(generationScope, db)) {
+    console.info("STALE_GENERATION_RESULT_REJECTED", {
+      family: "status_meta",
+      messageId,
+      generationSequence: generationScope.generationSequence,
+      phase: "extraction_disabled_write",
+    });
+    return;
+  }
+  db.prepare("UPDATE messages SET status_meta=? WHERE id=?").run(
+    serializeStatusMetaRecord(record),
+    messageId
+  );
+}
+
 /** 재생성 시작 — 이전 status_meta 즉시 pending으로 교체 (폴링·SSR stale 방지) */
 export function markMessageStatusMetaPending(
   messageId: number,

@@ -408,7 +408,11 @@ import {
   sanitizeUsageForPublicReceipt,
   serializeUsageForPublicClient,
 } from "@/lib/billingReceiptAccess";
-import { scheduleStatusMetaExtraction, markMessageStatusMetaPending } from "@/lib/statusMeta/job";
+import {
+  scheduleStatusMetaExtraction,
+  markMessageStatusMetaPending,
+  markMessageStatusMetaExtractionDisabled,
+} from "@/lib/statusMeta/job";
 import {
   scheduleSuggestedRepliesExtraction,
   markMessageSuggestedRepliesIneligible,
@@ -5840,21 +5844,25 @@ export async function POST(req: Request) {
           });
         }
 
-        if (statusMetaEnabled && shouldCommitCanonicalTurnState(generationSemantics)) {
-          scheduleStatusMetaExtraction({
-            messageId: aiMessageId,
-            chatId: chatRef.id,
-            generationScope: postTurnGenerationScope,
-            charName: ch.name,
-            characterIdentity: backgroundCharacterIdentity,
-            personaName: personaDisplayName,
-            userPersona: backgroundPersonaIdentity,
-            userMessage: messageText,
-            assistantProse: savedText,
-            userNote: effectiveUserNote,
-            formatSpec: statusWindowPolicyRef?.formatSpec ?? null,
-            prefilledTableMarkdown: capturedStatusTable,
-          });
+        if (shouldCommitCanonicalTurnState(generationSemantics)) {
+          if (statusMetaEnabled) {
+            scheduleStatusMetaExtraction({
+              messageId: aiMessageId,
+              chatId: chatRef.id,
+              generationScope: postTurnGenerationScope,
+              charName: ch.name,
+              characterIdentity: backgroundCharacterIdentity,
+              personaName: personaDisplayName,
+              userPersona: backgroundPersonaIdentity,
+              userMessage: messageText,
+              assistantProse: savedText,
+              userNote: effectiveUserNote,
+              formatSpec: statusWindowPolicyRef?.formatSpec ?? null,
+              prefilledTableMarkdown: capturedStatusTable,
+            });
+          } else {
+            markMessageStatusMetaExtractionDisabled(aiMessageId, postTurnGenerationScope);
+          }
         }
 
         const suggestedRepliesEnabled =

@@ -153,6 +153,23 @@ export function resolveStatusMetaExpectation(input: {
 }): ResolvedAsyncFamilyExpectation {
   const family = "status_meta" as const;
 
+  if (input.record?.terminalReason === "extraction_disabled") {
+    if (input.statusMetaLedgerRowCount > 0) {
+      return {
+        family,
+        label: ASYNC_FAMILY_LABELS[family],
+        expectationState: "unverifiable",
+        skipReason: "extraction_disabled_with_physical_ledger_contradiction",
+      };
+    }
+    return {
+      family,
+      label: ASYNC_FAMILY_LABELS[family],
+      expectationState: "not_expected",
+      skipReason: "status_meta_extraction_disabled",
+    };
+  }
+
   if (
     input.record &&
     !input.record.pending &&

@@ -126,7 +126,7 @@ export function resolveClientStatusMetaFlags(opts: {
   statusMetaFailed: boolean;
 } {
   const rec = opts.statusRecord;
-  if (!rec) {
+  if (!rec || rec.terminalReason === "extraction_disabled") {
     return {
       statusMeta: null,
       statusMetaPending: false,
