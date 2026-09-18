@@ -129,6 +129,7 @@ import {
   buildStrictLdDuoFallbackPrompt,
   buildStrictLdPartyFallbackPrompt,
 } from "@/lib/chatImageStrictSafetyFallbackPrompt";
+import { applyCanonicalComicClothingCoverage } from "@/lib/chatComicClothingWriter";
 import { projectComicSafeStructureForTier2 } from "@/lib/chatComicSafeStructure";
 import {
   auditTier2ComicPrompt,
@@ -1301,7 +1302,11 @@ export async function POST(req: Request) {
     // source. The canonical plan is the fixed 4-panel structural reflow; the
     // provider prompt carries the full source text and the provider owns scene
     // selection. No Scene Planner / highlight / text-brief call.
-    const scenePlan = preflightPlan;
+    const { plan: scenePlan } = applyCanonicalComicClothingCoverage(preflightPlan, {
+      personaName: context.persona.name,
+      characterName: context.character.name,
+      knownSpeakerNames,
+    });
     castManifest = campaignId
       ? null
       : resolveGroundedCastManifest({

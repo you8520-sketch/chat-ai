@@ -277,6 +277,7 @@ jobs:
       - run: node --import tsx --test src/lib/chatImageCast.clientBoundary.test.ts
       - run: node --import tsx --test src/lib/chatComicSafeStructure.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatComicClothingCoverage.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatComicClothingWriter.test.ts
       - run: node --import tsx --test src/lib/chatComicTier2SafetyAudit.test.ts
       - run: node --import tsx --test src/lib/chatComicTextOverlay.test.ts
       - run: node --import tsx --test src/lib/openAiImageEdit.test.ts
