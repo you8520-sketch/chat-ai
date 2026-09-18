@@ -14,11 +14,16 @@ import {
 } from "./formatSpec";
 import { statusMetaHasDisplayContent } from "./render";
 import {
+  isStatusMetaExtractionDisabledRecord,
   parseStatusMetaRecord,
   serializeStatusMetaRecord,
   type StatusMeta,
   type StatusMetaRecord,
 } from "./types";
+
+/** SQL filter — extraction_disabled markers must not consume previous-meta lookup budget. */
+const PREVIOUS_STATUS_META_SQL_FILTER = `status_meta IS NOT NULL AND status_meta != ''
+       AND COALESCE(json_extract(status_meta, '$.terminalReason'), '') != 'extraction_disabled'`;
 
 const running = new Set<string>();
 const STALE_PENDING_MS = 90_000;
@@ -57,7 +62,7 @@ export function loadPreviousTurnStatusMeta(
       `SELECT id, content, model, usage, alternates, active_variant, request_id, generation_status, status_meta
        FROM messages
        WHERE chat_id=? AND role='assistant' AND (model IS NULL OR model != 'greeting')
-       AND status_meta IS NOT NULL AND status_meta != ''
+       AND ${PREVIOUS_STATUS_META_SQL_FILTER}
        ORDER BY id DESC LIMIT 12`
     )
     .all(chatId) as {
@@ -81,6 +86,7 @@ export function loadPreviousTurnStatusMeta(
       : null;
     if (
       record &&
+      !isStatusMetaExtractionDisabledRecord(record) &&
       !record.pending &&
       !record.failed &&
       statusMetaHasDisplayContent(record.meta, record.formatSpec)

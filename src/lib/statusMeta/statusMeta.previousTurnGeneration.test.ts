@@ -308,6 +308,66 @@ describe("status meta previous-turn generation continuity", () => {
     assert.equal(observedPreviousMeta?.sceneSummary?.includes("STALE_GEN1_META"), false);
   });
 
+  it("S9 — 12+ extraction_disabled markers do not exhaust previous lookup budget", () => {
+    seedChat();
+    insertAssistantMessage({
+      id: MSG_A,
+      content: "turn with real status meta",
+      alternates: "[]",
+      activeVariant: 0,
+      statusMeta: serializeStatusMetaRecord({
+        meta: {
+          tableMarkdown: "",
+          datetime: "14:30",
+          location: "카페",
+          relationship: "",
+          npcEmotion: "",
+          npcIntent: "",
+          nextObjective: "",
+          hiddenThought: "",
+          sceneSummary: "",
+        },
+        extractedAt: new Date().toISOString(),
+        source: "background-deepseek",
+        pending: false,
+        failed: false,
+        generationSequence: 0,
+      }),
+    });
+
+    for (let i = 0; i < 13; i++) {
+      insertAssistantMessage({
+        id: MSG_B + i,
+        content: `widget-on turn ${i}`,
+        alternates: "[]",
+        activeVariant: 0,
+        statusMeta: serializeStatusMetaRecord({
+          meta: {
+            tableMarkdown: "",
+            datetime: "",
+            location: "",
+            relationship: "",
+            npcEmotion: "",
+            npcIntent: "",
+            nextObjective: "",
+            hiddenThought: "",
+            sceneSummary: "",
+          },
+          extractedAt: new Date().toISOString(),
+          source: "background-deepseek",
+          pending: false,
+          failed: false,
+          terminalReason: "extraction_disabled",
+          generationSequence: 0,
+        }),
+      });
+    }
+
+    const previous = loadPreviousTurnStatusMeta(CHAT_ID);
+    assert.equal(previous?.datetime, "14:30");
+    assert.equal(previous?.location, "카페");
+  });
+
   it("IR5 — unscoped legacy status meta is not used as previousMeta", () => {
     seedChat();
     insertAssistantMessage({

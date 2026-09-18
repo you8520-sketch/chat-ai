@@ -119,6 +119,12 @@ export function normalizeStatusMeta(raw: unknown): StatusMeta {
 
 
 
+export function isStatusMetaExtractionDisabledRecord(
+  record: StatusMetaRecord | null | undefined
+): boolean {
+  return record?.terminalReason === "extraction_disabled";
+}
+
 export function parseStatusMetaRecord(raw: string | null | undefined): StatusMetaRecord | null {
 
   if (!raw?.trim()) return null;

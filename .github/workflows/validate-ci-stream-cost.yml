@@ -20,6 +20,8 @@ on:
       - "src/lib/statusMeta/types.ts"
       - "src/lib/statusMeta/job.ts"
       - "src/lib/statusMeta/displayPolicy.ts"
+      - "src/lib/statusMeta/statusMeta.previousTurnGeneration.test.ts"
+      - "src/app/api/chat/status-meta/route.ts"
       - "src/app/api/chat/route.ts"
 
 permissions:
@@ -65,3 +67,6 @@ jobs:
 
       - name: Status Meta async expectation (S1-S8)
         run: node --conditions=react-server --import tsx --test src/lib/asyncTurnCoverage.statusMetaExpectation.test.ts
+
+      - name: Status Meta previous-turn continuity (S9)
+        run: node --conditions=react-server --import tsx --test src/lib/statusMeta/statusMeta.previousTurnGeneration.test.ts

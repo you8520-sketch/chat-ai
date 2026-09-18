@@ -11,6 +11,7 @@ import {
   requeueStatusMetaExtractionIfNeeded,
 } from "@/lib/statusMeta/job";
 import { statusMetaHasDisplayContent } from "@/lib/statusMeta/render";
+import { isStatusMetaExtractionDisabledRecord } from "@/lib/statusMeta/types";
 
 export async function GET(req: Request) {
   const user = await getSessionUser();
@@ -39,6 +40,18 @@ export async function GET(req: Request) {
   let rawRecord = loadMessageStatusMeta(messageId);
   let record =
     activeScope && asyncRecordMatchesGenerationScope(rawRecord, activeScope) ? rawRecord : null;
+
+  if (record && isStatusMetaExtractionDisabledRecord(record)) {
+    return NextResponse.json({
+      messageId,
+      chatId: row.chat_id,
+      pending: false,
+      failed: false,
+      meta: null,
+      formatSpec: null,
+      extractedAt: null,
+    });
+  }
 
   if (
     record &&
