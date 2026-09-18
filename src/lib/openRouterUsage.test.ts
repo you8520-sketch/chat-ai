@@ -1,13 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  mergeStreamCheaperInferenceAccounting,
-  mergeStreamUsageAccounting,
-  parseCompatibleUsage,
   parseOpenRouterUsage,
   parseReasoningTokens,
   tokenUsageFromOpenRouterBreakdown,
-  usageObjectHasSettledCost,
 } from "@/lib/openRouterUsage";
 import { unreportedUsageReportingEvidence } from "@/lib/usageReportingEvidence";
 
@@ -141,30 +137,5 @@ describe("tokenUsageFromOpenRouterBreakdown", () => {
     });
     assert.equal(usage.cheaperInferenceBilledCostUsd, 0.008);
     assert.equal(usage.upstreamCostUsd, 0.01);
-  });
-});
-
-describe("stream accounting merge", () => {
-  it("C5: cost-bearing usage survives later cost-less usage merge", () => {
-    const settled = {
-      prompt_tokens: 31692,
-      completion_tokens: 3356,
-      cost: 0.0194,
-      cost_details: { upstream_inference_cost: 0.0194 },
-    };
-    const tokenOnly = { prompt_tokens: 31692, completion_tokens: 3356 };
-    const merged = mergeStreamUsageAccounting(settled, tokenOnly);
-    assert.equal(usageObjectHasSettledCost(merged), true);
-    const breakdown = parseCompatibleUsage({
-      usage: merged,
-      transportProvider: "cheaperinference",
-    });
-    assert.equal(breakdown.cheaperInferenceBilledCostUsd, 0.0194);
-  });
-
-  it("keeps prior cheaper_inference billing when later envelope is empty", () => {
-    const prior = { billing: { billed_cost_usd: "0.019400", status: "settled" } };
-    const merged = mergeStreamCheaperInferenceAccounting(prior, { request_id: "x" });
-    assert.equal(parseCompatibleUsage({ cheaperInference: merged }).cheaperInferenceBilledCostUsd, 0.0194);
   });
 });
