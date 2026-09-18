@@ -5,6 +5,7 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { describe, it } from "node:test";
 import {
+  BillingProductNotDeliveredError,
   CHAT_TURN_CHARGE_KIND,
   isChatBillingSettlementUniqueConflict,
   isRetryableSettlementContention,
@@ -326,8 +327,6 @@ describe("chatBillingSettlement — regeneration", () => {
     try {
       const db = createSettlementTestDb(dbPath);
       const assistantId = insertAssistant(db, 1, "req_regen_a");
-      db.prepare(`UPDATE messages SET request_id='req_regen_b' WHERE id=?`).run(assistantId);
-
       const first = settleChatTurnBillingExactlyOnce(db, {
         userId: 1,
         chatId: 1,
@@ -336,6 +335,7 @@ describe("chatBillingSettlement — regeneration", () => {
         requestedPoints: 100,
         reason: "regen A",
       });
+      db.prepare(`UPDATE messages SET request_id='req_regen_b' WHERE id=?`).run(assistantId);
       const second = settleChatTurnBillingExactlyOnce(db, {
         userId: 1,
         chatId: 1,
@@ -759,15 +759,20 @@ describe("chatBillingSettlement — guarded message update", () => {
         reason: "new regen",
       });
 
-      const stale = settleChatTurnBillingExactlyOnce(db, {
-        userId: 1,
-        chatId: 1,
-        requestId: "req_old_worker",
-        assistantMessageId: assistantId,
-        requestedPoints: 80,
-        reason: "stale worker",
-      });
-      assert.equal(stale.appliedNewCharge, true);
+      assert.throws(
+        () =>
+          settleChatTurnBillingExactlyOnce(db, {
+            userId: 1,
+            chatId: 1,
+            requestId: "req_old_worker",
+            assistantMessageId: assistantId,
+            requestedPoints: 80,
+            reason: "stale worker",
+          }),
+        BillingProductNotDeliveredError
+      );
+      assert.equal(countSettlements(db), 1);
+      assert.equal(countNegativeLogs(db), 1);
 
       const currentSlices = (
         db.prepare(`SELECT deduction_slices, request_id FROM messages WHERE id=?`).get(assistantId) as {

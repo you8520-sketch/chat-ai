@@ -468,9 +468,10 @@ export function maybeCreditCreatorReward(opts: {
   return reward;
 }
 
-/** 환불 시 크리에이터 적립 회수 */
-export function reverseCreatorRewardForMessage(messageId: number): void {
-  const db = getDb();
+function reverseCreatorRewardForMessageCore(
+  db: ReturnType<typeof getDb>,
+  messageId: number
+): void {
   const row = db
     .prepare(
       "SELECT id, creator_id, reward_amount FROM creator_earnings WHERE message_id=? AND reversed=0"
@@ -481,17 +482,23 @@ export function reverseCreatorRewardForMessage(messageId: number): void {
   const reward = roundAmount(row.reward_amount);
   if (reward <= 0) return;
 
-  db.transaction(() => {
-    db.prepare("UPDATE creator_earnings SET reversed=1 WHERE id=?").run(row.id);
-    db.prepare(
-      "UPDATE users SET creator_points = MAX(0, ROUND(creator_points - ?, 1)) WHERE id=?"
-    ).run(reward, row.creator_id);
-    db.prepare("INSERT INTO creator_point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
-      row.creator_id,
-      -reward,
-      `환불로 인한 수익 회수 (메시지 #${messageId})`
-    );
-  })();
+  db.prepare("UPDATE creator_earnings SET reversed=1 WHERE id=?").run(row.id);
+  db.prepare(
+    "UPDATE users SET creator_points = MAX(0, ROUND(creator_points - ?, 1)) WHERE id=?"
+  ).run(reward, row.creator_id);
+  db.prepare("INSERT INTO creator_point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
+    row.creator_id,
+    -reward,
+    `환불로 인한 수익 회수 (메시지 #${messageId})`
+  );
+}
+
+/** 환불 시 크리에이터 적립 회수 */
+export function reverseCreatorRewardForMessage(messageId: number): void {
+  const db = getDb();
+  const run = () => reverseCreatorRewardForMessageCore(db, messageId);
+  if (db.inTransaction) run();
+  else db.transaction(run)();
 }
 
 /** 크리에이터 포인트 → 유료 포인트 1:1 교환 */

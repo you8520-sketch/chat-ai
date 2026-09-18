@@ -18,27 +18,24 @@ import {
 } from "@/lib/episodicMemoryFacts";
 import { reconcileS4KnowledgeForVariantSwitch } from "@/lib/knowledgeTransferVariant";
 import { resolveCanonicalSourceUserMessageIdCore } from "@/lib/memory/memory-source-boundary";
+import {
+  isSuccessfulDurableGenerationStatus,
+  SUCCESSFUL_DURABLE_GENERATION_STATUSES,
+} from "@/lib/streamingPersistenceShared";
 
 /** Generation statuses that may anchor canonical derived state. */
-export const CANONICAL_DERIVED_STATE_GENERATION_STATUSES = [
-  "completed",
-  "ok",
-  "completed_with_postprocess_error",
-] as const;
+export const CANONICAL_DERIVED_STATE_GENERATION_STATUSES = SUCCESSFUL_DURABLE_GENERATION_STATUSES;
 
 /**
- * Only `completed`, `ok`, `completed_with_postprocess_error` may produce new
- * durable derived state (episodic facts, trigger events, future numeric state).
+ * Only successful durable generation statuses may produce new derived state
+ * (episodic facts, trigger events, future numeric state).
  * `interrupted` / `failed_partial` / `failed` / `generating` / `submitted`
  * must NOT advance derived state.
  */
 export function isCanonicalDerivedStateGenerationStatus(
   status: string | null | undefined
 ): boolean {
-  if (!status) return false;
-  return (CANONICAL_DERIVED_STATE_GENERATION_STATUSES as readonly string[]).includes(
-    status
-  );
+  return isSuccessfulDurableGenerationStatus(status);
 }
 
 /**
