@@ -1,0 +1,63 @@
+name: Validate memory episodic
+
+# Canonical CI for summary_seal_batch episodic extraction, same-source
+# replacement, and assistant-regen source-mutation invalidation.
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/validate-memory-episodic.yml"
+      - "src/lib/episodicMemoryFacts.ts"
+      - "src/lib/memory/memory-batch-source-guard.ts"
+      - "src/lib/memory/memory-episodic-extract.ts"
+      - "src/lib/memory/memory-episodic-hardening.test.ts"
+      - "src/lib/memory/memory-episodic-normalize.ts"
+      - "src/lib/memory/memory-episodic-ownership.test.ts"
+      - "src/lib/memory/memory-episodic-prompt.ts"
+      - "src/lib/memory/memory-episodic-types.ts"
+      - "src/lib/memory/memory-premerge-blockers.test.ts"
+      - "src/lib/memory/memory-regen-scope.test.ts"
+      - "src/lib/memory/memory-rolling-summary.ts"
+      - "src/lib/memory/memory-source-boundary.test.ts"
+      - "src/lib/memory/memory-source-boundary.ts"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - run: git diff --check
+
+      - run: npm run lint
+
+      - run: npm run typecheck:app
+
+      - name: Episodic hardening regression (E1–E14 / R1)
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-hardening.test.ts
+
+      - name: Episodic ownership decoupling
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-ownership.test.ts
+
+      - name: Assistant regen scope rebuild
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-regen-scope.test.ts
+
+      - name: Memory premerge blockers (source-mutation invalidation)
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-premerge-blockers.test.ts
+
+      - name: Memory source boundary stale guard
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-source-boundary.test.ts
