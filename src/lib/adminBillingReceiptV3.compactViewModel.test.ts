@@ -7,9 +7,12 @@ import {
 import {
   buildAdminReceiptCompactViewModel,
   resolveMainRpCostProvenanceLabel,
+  resolveMainRpDisplayEvidence,
   formatAdminBillingReceiptV3Text,
   formatAdminReceiptAuxiliaryCallOutcome,
 } from "@/lib/adminBillingReceiptV3Shared";
+import { resolveStatusMetaExpectation } from "@/lib/asyncTurnCoverage";
+import { buildAdminReceiptTurnSummary } from "@/lib/adminBillingReceiptTurnSummary";
 import type { Usage } from "@/lib/chatUsage";
 import type { ProviderCostLedgerRow } from "@/lib/providerCostLedger";
 import type { MemoryRelationshipTaskRecord } from "@/lib/memory/memoryRelationshipTask";
@@ -104,6 +107,27 @@ function findStatusWidgetAuxiliaryCall(
       call.label === "상태창 추출" ||
       call.label.includes("공유 초기")
   );
+}
+
+function mainLedgerRow(
+  usd: number,
+  overrides: Partial<ProviderCostLedgerRow> = {}
+): ProviderCostLedgerRow {
+  return {
+    event_key: "main-gen",
+    event_status: "settled",
+    family: "main_generation",
+    funding_class: "user_funded",
+    execution_phase: "main_generation",
+    actual_cost_usd: usd,
+    actual_cost_source: "cheaper_inference_usage_api",
+    exact: true,
+    incomplete: false,
+    generation_sequence: 1,
+    actual_model: "deepseek/deepseek-v4-pro",
+    requested_model: "deepseek/deepseek-v4-pro",
+    ...overrides,
+  } as unknown as ProviderCostLedgerRow;
 }
 
 function asyncLedgerRow(
@@ -560,10 +584,142 @@ describe("Admin Receipt compact — review blocker regression", () => {
   });
 });
 
+describe("Admin Receipt compact — main cost evidence consistency (P1–P5)", () => {
+  const MAIN_USD = 0.019189;
+  const LUNA_USD = 0.000984;
+
+  function catalogEstimateUsage(mainUsd = MAIN_USD) {
+    return baseUsage({
+      shadowPricing: {
+        ...baseUsage().shadowPricing!,
+        actualCostUsd: mainUsd,
+        actualCostSource: "live_catalog_estimated",
+        actualProviderCostKrw: Math.round(mainUsd * FX.effectiveKrwPerUsd * 10) / 10,
+      },
+      statusWidgetExtract: {
+        input: 400,
+        output: 120,
+        model: "gpt-5.6-luna",
+        modelLabel: "GPT-5.6 Luna (공유 초기: 상태창 + 추천입력)",
+        estimated: false,
+        apiRawCostKrw: 1,
+        callCount: 1,
+        postTurnSharedInitial: true,
+        actualProviderCostUsd: LUNA_USD,
+        actualCostSource: "cheaper_inference_billed",
+        actualCostCoverage: "complete",
+        actualProviderCostKrw: Math.round(LUNA_USD * FX.effectiveKrwPerUsd * 10) / 10,
+      },
+    });
+  }
+
+  it("P1 — ledger Usage API exact wins over sync catalog estimate provenance", () => {
+    const receipt = buildV3(catalogEstimateUsage(), {
+      ledgerRows: [
+        mainLedgerRow(MAIN_USD, { actual_cost_source: "cheaper_inference_usage_api" }),
+      ],
+    });
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    assert.equal(receipt.wholeTurn.mainExact, true);
+    assert.ok(Math.abs((vm.mainRp.costUsd ?? 0) - MAIN_USD) < 1e-9);
+    assert.equal(vm.mainRp.provenance, "cheaper_inference_usage_api");
+    assert.equal(vm.mainRp.provenanceLabel, "CI 실제 청구 원가");
+    assert.doesNotMatch(formatAdminBillingReceiptV3Text(receipt), /CI 할인 요율 추정 원가/);
+    assert.match(formatAdminBillingReceiptV3Text(receipt), /CI 실제 청구 원가/);
+  });
+
+  it("P2 — sync catalog estimate only when no exact ledger row", () => {
+    const receipt = buildV3(catalogEstimateUsage(), { ledgerRows: [] });
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    assert.equal(receipt.wholeTurn.mainExact, false);
+    assert.ok(Math.abs((vm.mainRp.costUsd ?? 0) - MAIN_USD) < 1e-9);
+    assert.equal(vm.mainRp.provenance, "live_catalog_estimated");
+    assert.equal(vm.mainRp.provenanceLabel, "CI 할인 요율 추정 원가");
+  });
+
+  it("P3 — ledger cheaper_inference_billed maps to CI 실제 청구 원가", () => {
+    const receipt = buildV3(catalogEstimateUsage(), {
+      ledgerRows: [
+        mainLedgerRow(MAIN_USD, { actual_cost_source: "cheaper_inference_billed" }),
+      ],
+    });
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    assert.equal(vm.mainRp.provenance, "cheaper_inference_billed");
+    assert.equal(vm.mainRp.provenanceLabel, "CI 실제 청구 원가");
+  });
+
+  it("P4 — provider_reported semantics preserved", () => {
+    const receipt = buildV3(
+      baseUsage({
+        shadowPricing: {
+          ...baseUsage().shadowPricing!,
+          actualCostSource: "provider_reported",
+          actualCostUsd: 0.02,
+        },
+      }),
+      { ledgerRows: [] }
+    );
+    const evidence = resolveMainRpDisplayEvidence(receipt);
+    assert.equal(evidence.provenance, "provider_reported");
+    assert.equal(evidence.provenanceLabel, "Provider 보고 원가");
+  });
+
+  it("P5 — Main exact + Luna exact known partial total unchanged", () => {
+    const receipt = buildV3(catalogEstimateUsage(), {
+      ledgerRows: [
+        mainLedgerRow(MAIN_USD, { actual_cost_source: "cheaper_inference_usage_api" }),
+      ],
+    });
+    const expectedPartial = MAIN_USD + LUNA_USD;
+    assert.ok(Math.abs(receipt.wholeTurn.knownProviderSpendUsd - expectedPartial) < 1e-9);
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    assert.ok(Math.abs((vm.knownTurnCostUsd ?? 0) - expectedPartial) < 1e-9);
+    assert.match(formatAdminBillingReceiptV3Text(receipt), /확정 원가 \(부분\)/);
+  });
+
+  it("production-equivalent shared initial + missing status meta record blocks margin via unverifiable", () => {
+    const receipt = buildV3(catalogEstimateUsage(), {
+      suggestedRepliesRecord: {
+        replies: [
+          { kind: "escalate", text: "a".repeat(72) },
+          { kind: "soften", text: "b".repeat(72) },
+          { kind: "pivot", text: "c".repeat(72) },
+        ],
+        extractedAt: new Date().toISOString(),
+        source: "background-deepseek",
+        pending: false,
+        failed: false,
+      },
+      statusMetaRecord: null,
+      memoryRelationshipTask: memoryTask("skipped", "shared_initial_satisfied"),
+      ledgerRows: [
+        mainLedgerRow(MAIN_USD, { actual_cost_source: "cheaper_inference_usage_api" }),
+      ],
+    });
+    const statusMeta = resolveStatusMetaExpectation({
+      record: null,
+      statusMetaLedgerRowCount: 0,
+    });
+    assert.equal(statusMeta.expectationState, "unverifiable");
+    assert.equal(statusMeta.skipReason, "missing_status_meta_record");
+    const statusMetaFamily = receipt.async.byFamily.find((f) => f.family === "status_meta");
+    assert.equal(statusMetaFamily?.expectationState, "unverifiable");
+    assert.equal(receipt.wholeTurn.mainExact, true);
+    const summary = buildAdminReceiptTurnSummary(receipt);
+    assert.equal(summary.marginPercent, null);
+    assert.match(summary.marginUnavailableReason ?? "", /Async 비용 검증 불가 \(Status Meta\)/);
+    assert.doesNotMatch(summary.marginUnavailableReason ?? "", /Main RP 실제 Provider 원가 미확정/);
+  });
+});
+
 describe("Admin Receipt compact — final semantic correction", () => {
   it("CI_BILLED_LABEL → CI 실제 청구 원가", () => {
     assert.equal(
       resolveMainRpCostProvenanceLabel("cheaper_inference_billed"),
+      "CI 실제 청구 원가"
+    );
+    assert.equal(
+      resolveMainRpCostProvenanceLabel("cheaper_inference_usage_api"),
       "CI 실제 청구 원가"
     );
   });

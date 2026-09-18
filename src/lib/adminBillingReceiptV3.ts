@@ -322,16 +322,31 @@ function resolveAsyncSection(input: {
 function resolveMainUsd(syncReceipt: AdminBillingReceiptV2): {
   usd: number | null;
   exact: boolean;
+  actualCostSource: string | null;
 } {
   const actual = syncReceipt.mainRp.actual;
   if (!actual || actual.exactness !== "settled") {
-    return { usd: null, exact: false };
+    return { usd: null, exact: false, actualCostSource: actual?.actualCostSource ?? null };
   }
   const usd = positiveUsdOrNull(actual.actualProviderCostUsd);
   if (usd == null) {
-    return { usd: null, exact: false };
+    return { usd: null, exact: false, actualCostSource: actual.actualCostSource ?? null };
   }
-  return { usd, exact: true };
+  return { usd, exact: true, actualCostSource: actual.actualCostSource ?? null };
+}
+
+function resolveMainCostSourceFromLedger(ledgerRows: ProviderCostLedgerRow[]): string | null {
+  const sources = new Set<string>();
+  for (const row of ledgerRows) {
+    if (row.execution_phase !== "main_generation") continue;
+    if (!isLedgerEventCostExact(row)) continue;
+    const usd = finiteUsd(row.actual_cost_usd);
+    if (!(usd > 0)) continue;
+    const source = row.actual_cost_source?.trim();
+    if (source) sources.add(source);
+  }
+  if (sources.size === 1) return [...sources][0] ?? null;
+  return null;
 }
 
 /**
@@ -343,6 +358,7 @@ function resolveMainUsd(syncReceipt: AdminBillingReceiptV2): {
 function resolveMainUsdFromLedger(ledgerRows: ProviderCostLedgerRow[]): {
   usd: number | null;
   exact: boolean;
+  actualCostSource: string | null;
 } | null {
   let sawMainRow = false;
   let usd = 0;
@@ -357,8 +373,14 @@ function resolveMainUsdFromLedger(ledgerRows: ProviderCostLedgerRow[]): {
     }
   }
   if (!sawMainRow) return null;
-  if (usd <= 0 || hasIncomplete) return { usd: null, exact: false };
-  return { usd, exact: true };
+  if (usd <= 0 || hasIncomplete) {
+    return { usd: null, exact: false, actualCostSource: null };
+  }
+  return {
+    usd,
+    exact: true,
+    actualCostSource: resolveMainCostSourceFromLedger(ledgerRows),
+  };
 }
 
 function resolveSyncUsd(syncReceipt: AdminBillingReceiptV2): {
@@ -501,6 +523,7 @@ export function buildAdminBillingReceiptV3ForMissingUsage(
       scope: "turn_attributable",
       coverage: "unverifiable",
       mainActualCostUsd: null,
+      mainActualCostSource: null,
       mainExact: false,
       syncActualCostUsd: null,
       syncExact: false,
@@ -599,6 +622,7 @@ export function buildAdminBillingReceiptV3(
       scope: "turn_attributable",
       coverage: wholeTurnCoverage,
       mainActualCostUsd: main.usd,
+      mainActualCostSource: main.actualCostSource,
       mainExact,
       syncActualCostUsd: sync.usd,
       syncExact,
