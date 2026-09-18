@@ -34,6 +34,7 @@ import {
   getAssistantSourceTurn,
   hasLaterMessageAfter,
   isCanonicalFrontierAssistantMessage,
+  resolveCanonicalVariantSwitchGate,
 } from "@/lib/rpDerivedStateLifecycle";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { scheduleMemoryUpdate } from "./memory-manager";
@@ -43,7 +44,11 @@ import { loadMemoryEligibleChatTurnsWithMessageIds } from "./memory-turn-loader"
 import {
   __setSummarizeTurnBatchCallerForTests,
   ensureSummaryBarrier,
+  isRollingSummaryBatchSealEligible,
   prepareNonBlockingSummaryForMainRp,
+  processRollingSummaryBatch,
+  scheduleDeferredBoundarySummaryAfterCanonFreeze,
+  scheduleSummaryCatchUpDurable,
 } from "./memory-rolling-summary";
 
 const BASE_CHAT = 944200;
@@ -275,7 +280,8 @@ describe("deferred rolling-summary seal + canonical frontier freeze", () => {
     assert.equal(pool, 5, "deferred boundary expands provider RAW pool to 5 exchanges");
 
     const prep = prepareNonBlockingSummaryForMainRp(prepOpts(chat, user, char, completedTurns));
-    assert.equal(prep.catchUpScheduled, true, "background catch-up starts at TURN 6");
+    assert.equal(prep.catchUpScheduled, false, "pre-bootstrap catch-up must not start before canon freeze");
+    assert.equal(prep.deferredBoundarySealPending, true);
 
     const firstRawPlayableTurn = completedTurns - pool + 1;
     const gap = resolveMemoryCoverageGap({ firstRawPlayableTurn, summarizedTurnCount: summarizedThrough });
@@ -336,9 +342,15 @@ describe("deferred rolling-summary seal + canonical frontier freeze", () => {
       summaryCalls += 1;
       return { text: MOCK_SUMMARY };
     });
-    // Turn 6 starts (raw pending state), catch-up seals 1~5 in background.
+    // Turn 6 starts (raw pending state); seal schedules only after canon freeze.
     const prep = prepareNonBlockingSummaryForMainRp(prepOpts(chat, user, char, 5));
-    assert.equal(prep.catchUpScheduled, true);
+    assert.equal(prep.catchUpScheduled, false);
+    assert.equal(prep.deferredBoundarySealPending, true);
+    const db = getDb();
+    db.prepare(
+      `INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`
+    ).run(chat, "user", "TURN 6 유저 입력");
+    scheduleDeferredBoundarySummaryAfterCanonFreeze(prepOpts(chat, user, char, 5));
     for (let i = 0; i < 60; i++) {
       if (
         listMemoryRecordsForChat(chat).filter((r) => !r.inactive).length > 0
@@ -469,6 +481,26 @@ describe("deferred rolling-summary seal + canonical frontier freeze", () => {
     );
   });
 
+  it("RACE I — does not reproduce production prep→bootstrap order (documents prior gap)", () => {
+    const { chat, user, char } = ids();
+    seed(chat, user, char);
+    const assistantIds = seedPlayableTurns(chat, user, char, 5);
+    const db = getDb();
+
+    const prep = prepareNonBlockingSummaryForMainRp(prepOpts(chat, user, char, 5));
+    assert.equal(prep.deferredBoundarySealPending, true);
+    assert.equal(prep.catchUpScheduled, false, "production prep runs before bootstrap — no pre-freeze schedule");
+
+    db.prepare(
+      `INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`
+    ).run(chat, "user", "TURN 6 유저 입력");
+    assert.equal(isCanonicalFrontierAssistantMessage(db, chat, assistantIds[4]!), false);
+
+    const turns = loadMemoryEligibleChatTurnsWithMessageIds(chat);
+    const turn5 = turns.find((t) => t.turnNumber === 5);
+    assert.equal(turn5?.assistant, `응답 5 대사`);
+  });
+
   it("RACE I — TURN 6 summary treats the final active TURN 5 variant as its only source", async () => {
     const { chat, user, char } = ids();
     seed(chat, user, char);
@@ -497,11 +529,23 @@ describe("deferred rolling-summary seal + canonical frontier freeze", () => {
       selectedGenerationSequence: null,
     });
 
-    // TURN 6 user persists → frontier frozen → summary source is immutable canonical content.
+    // TURN 6 user persists → frontier frozen → post-freeze catch-up seals B.
     db.prepare(
       `INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`
     ).run(chat, "user", "TURN 6 유저 입력");
     assert.equal(isCanonicalFrontierAssistantMessage(db, chat, assistantIds[4]!), false);
+
+    let summaryCalls = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      summaryCalls += 1;
+      return { text: MOCK_SUMMARY };
+    });
+    scheduleDeferredBoundarySummaryAfterCanonFreeze(prepOpts(chat, user, char, 5));
+    for (let i = 0; i < 60; i++) {
+      if (listMemoryRecordsForChat(chat).filter((r) => !r.inactive).length > 0) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    assert.equal(summaryCalls, 1);
 
     const turns = loadMemoryEligibleChatTurnsWithMessageIds(chat);
     const turn5 = turns.find((t) => t.turnNumber === 5);
@@ -582,6 +626,265 @@ describe("deferred rolling-summary seal + canonical frontier freeze", () => {
       }),
       0,
       "firstRawPlayableTurn (1) <= summarizedThrough (0) + 1"
+    );
+  });
+
+  it("RACE-J1 pre-bootstrap refusal — frontier batch not sealed before canon freeze", async () => {
+    const { chat, user, char } = ids();
+    seed(chat, user, char);
+    const assistantIds = seedPlayableTurns(chat, user, char, 5);
+    const db = getDb();
+    const variants = JSON.stringify([
+      { content: "응답 5 A", model: "test", usage: null, created_at: "" },
+      { content: "응답 5 B", model: "test", usage: null, created_at: "" },
+    ]);
+    db.prepare(`UPDATE messages SET alternates=?, active_variant=0 WHERE id=?`).run(
+      variants,
+      assistantIds[4]!
+    );
+
+    let summaryCalls = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      summaryCalls += 1;
+      return { text: MOCK_SUMMARY };
+    });
+
+    const prep = prepareNonBlockingSummaryForMainRp(prepOpts(chat, user, char, 5));
+    assert.equal(prep.catchUpScheduled, false);
+    assert.equal(prep.deferredBoundarySealPending, true);
+    assert.equal(isCanonicalFrontierAssistantMessage(db, chat, assistantIds[4]!), true);
+    assert.equal(
+      isRollingSummaryBatchSealEligible(chat, assistantIds[4]!),
+      false
+    );
+
+    const refused = await processRollingSummaryBatch(prepOpts(chat, user, char, 5));
+    assert.equal(refused, false);
+    assert.equal(summaryCalls, 0);
+    assert.equal(listMemoryRecordsForChat(chat).filter((r) => !r.inactive).length, 0);
+    assert.equal(resolveCanonicalVariantSwitchGate(db, chat, assistantIds[4]!).allowed, true);
+  });
+
+  it("RACE-J2 freeze then seal — post-bootstrap catch-up uses final variant B", async () => {
+    const { chat, user, char } = ids();
+    seed(chat, user, char);
+    const assistantIds = seedPlayableTurns(chat, user, char, 5);
+    const db = getDb();
+    const variants = [
+      { content: "응답 5 A", model: "test", usage: null, created_at: "" },
+      { content: "응답 5 B", model: "test", usage: null, created_at: "" },
+    ];
+    executeAtomicVariantSwitchCore(db, {
+      chatId: chat,
+      messageId: assistantIds[4]!,
+      content: "응답 5 B",
+      model: "test",
+      usageJson: null,
+      adultRouteMetaJson: "",
+      variantsJson: JSON.stringify(variants),
+      variantIndex: 1,
+      sourceTurn: getAssistantSourceTurn(db, chat, assistantIds[4]!) ?? 0,
+      characterId: char,
+      userId: user,
+      selectedFacts: [],
+      selectedRequestId: null,
+      selectedGenerationSequence: null,
+    });
+
+    db.prepare(
+      `INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`
+    ).run(chat, "user", "TURN 6 user");
+
+    assert.equal(resolveCanonicalVariantSwitchGate(db, chat, assistantIds[4]!).allowed, false);
+
+    let summaryCalls = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      summaryCalls += 1;
+      return { text: MOCK_SUMMARY };
+    });
+    scheduleDeferredBoundarySummaryAfterCanonFreeze(prepOpts(chat, user, char, 5));
+    for (let i = 0; i < 60; i++) {
+      if (listMemoryRecordsForChat(chat).filter((r) => !r.inactive).length > 0) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    assert.equal(summaryCalls, 1);
+    const turn5 = loadMemoryEligibleChatTurnsWithMessageIds(chat).find((t) => t.turnNumber === 5);
+    assert.equal(turn5?.assistant, "응답 5 B");
+  });
+
+  it("RACE-J3 abort before bootstrap — no seal until later freeze+schedule", async () => {
+    const { chat, user, char } = ids();
+    seed(chat, user, char);
+    const assistantIds = seedPlayableTurns(chat, user, char, 5);
+    const db = getDb();
+    const variants = [
+      { content: "응답 5 A", model: "test", usage: null, created_at: "" },
+      { content: "응답 5 B", model: "test", usage: null, created_at: "" },
+    ];
+    db.prepare(`UPDATE messages SET alternates=?, active_variant=0, content=? WHERE id=?`).run(
+      JSON.stringify(variants),
+      "응답 5 A",
+      assistantIds[4]!
+    );
+
+    let summaryCalls = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      summaryCalls += 1;
+      return { text: MOCK_SUMMARY };
+    });
+
+    prepareNonBlockingSummaryForMainRp(prepOpts(chat, user, char, 5));
+    assert.equal(await processRollingSummaryBatch(prepOpts(chat, user, char, 5)), false);
+    assert.equal(summaryCalls, 0);
+    assert.equal(listMemoryRecordsForChat(chat).filter((r) => !r.inactive).length, 0);
+
+    executeAtomicVariantSwitchCore(db, {
+      chatId: chat,
+      messageId: assistantIds[4]!,
+      content: "응답 5 B",
+      model: "test",
+      usageJson: null,
+      adultRouteMetaJson: "",
+      variantsJson: JSON.stringify(variants),
+      variantIndex: 1,
+      sourceTurn: getAssistantSourceTurn(db, chat, assistantIds[4]!) ?? 0,
+      characterId: char,
+      userId: user,
+      selectedFacts: [],
+      selectedRequestId: null,
+      selectedGenerationSequence: null,
+    });
+
+    db.prepare(
+      `INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`
+    ).run(chat, "user", "TURN 6 user");
+    scheduleDeferredBoundarySummaryAfterCanonFreeze(prepOpts(chat, user, char, 5));
+    for (let i = 0; i < 60; i++) {
+      if (listMemoryRecordsForChat(chat).filter((r) => !r.inactive).length > 0) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    assert.equal(summaryCalls, 1);
+    const turn5 = loadMemoryEligibleChatTurnsWithMessageIds(chat).find((t) => t.turnNumber === 5);
+    assert.equal(turn5?.assistant, "응답 5 B");
+  });
+
+  it("RACE-J4 concurrent ordering — canonical and summary source always match", async () => {
+    const orderA = ids();
+    seed(orderA.chat, orderA.user, orderA.char);
+    const idsA = seedPlayableTurns(orderA.chat, orderA.user, orderA.char, 5);
+    const dbA = getDb();
+    const variantsA = [
+      { content: "A prose", model: "test", usage: null, created_at: "" },
+      { content: "B prose", model: "test", usage: null, created_at: "" },
+    ];
+    executeAtomicVariantSwitchCore(dbA, {
+      chatId: orderA.chat,
+      messageId: idsA[4]!,
+      content: "B prose",
+      model: "test",
+      usageJson: null,
+      adultRouteMetaJson: "",
+      variantsJson: JSON.stringify(variantsA),
+      variantIndex: 1,
+      sourceTurn: getAssistantSourceTurn(dbA, orderA.chat, idsA[4]!) ?? 0,
+      characterId: orderA.char,
+      userId: orderA.user,
+      selectedFacts: [],
+      selectedRequestId: null,
+      selectedGenerationSequence: null,
+    });
+    dbA.prepare(
+      `INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`
+    ).run(orderA.chat, "user", "turn6");
+    let callsA = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      callsA += 1;
+      return { text: MOCK_SUMMARY };
+    });
+    assert.equal(
+      await processRollingSummaryBatch(prepOpts(orderA.chat, orderA.user, orderA.char, 5)),
+      true
+    );
+    assert.equal(callsA, 1);
+    const canonA = loadMemoryEligibleChatTurnsWithMessageIds(orderA.chat).find((t) => t.turnNumber === 5);
+    assert.equal(canonA?.assistant, "B prose");
+
+    const orderB = ids();
+    seed(orderB.chat, orderB.user, orderB.char);
+    const idsB = seedPlayableTurns(orderB.chat, orderB.user, orderB.char, 5);
+    const dbB = getDb();
+    dbB.prepare(`UPDATE messages SET content=?, alternates=?, active_variant=0 WHERE id=?`).run(
+      "A prose",
+      JSON.stringify(variantsA),
+      idsB[4]!
+    );
+    dbB.prepare(
+      `INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`
+    ).run(orderB.chat, "user", "turn6");
+    assert.equal(resolveCanonicalVariantSwitchGate(dbB, orderB.chat, idsB[4]!).allowed, false);
+    let callsB = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      callsB += 1;
+      return { text: MOCK_SUMMARY };
+    });
+    assert.equal(
+      await processRollingSummaryBatch(prepOpts(orderB.chat, orderB.user, orderB.char, 5)),
+      true
+    );
+    assert.equal(callsB, 1);
+    const canonB = loadMemoryEligibleChatTurnsWithMessageIds(orderB.chat).find((t) => t.turnNumber === 5);
+    assert.equal(canonB?.assistant, "A prose");
+  });
+
+  it("RACE-J5 backlog — immutable 1~5 batch seals pre-bootstrap via barrier", async () => {
+    const { chat, user, char } = ids();
+    seed(chat, user, char);
+    seedPlayableTurns(chat, user, char, 7);
+    let summaryCalls = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      summaryCalls += 1;
+      return { text: MOCK_SUMMARY };
+    });
+
+    const prep = prepareNonBlockingSummaryForMainRp(prepOpts(chat, user, char, 7));
+    assert.equal(prep.catchUpScheduled, true, "backlog >5 schedules pre-bootstrap catch-up");
+
+    const barrier = await ensureSummaryBarrier(prepOpts(chat, user, char, 7));
+    assert.equal(barrier.ok, true);
+    assert.ok(summaryCalls >= 1);
+    assert.equal(
+      resolveMemoryCoverageGap({
+        firstRawPlayableTurn: 7 - 5 + 1,
+        summarizedTurnCount: barrier.summarizedThrough,
+      }),
+      0
+    );
+  });
+
+  it("RACE-J6 regen at deferred frontier — zero summary until next canonical user progress", async () => {
+    const { chat, user, char } = ids();
+    seed(chat, user, char);
+    const assistantIds = seedPlayableTurns(chat, user, char, 5);
+    let summaryCalls = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      summaryCalls += 1;
+      return { text: MOCK_SUMMARY };
+    });
+
+    for (let i = 0; i < 3; i++) {
+      await scheduleMemoryUpdate({
+        ...scheduleMemoryOpts(chat, user, char),
+        assistantMessageId: assistantIds[4]!,
+        isRegenerate: true,
+        previousAssistantMessage: `regen${i}`,
+        assistantMessage: `regen${i + 1}`,
+      });
+    }
+    assert.equal(summaryCalls, 0);
+    assert.equal(listMemoryRecordsForChat(chat).filter((r) => !r.inactive).length, 0);
+    assert.equal(
+      resolveCanonicalVariantSwitchGate(getDb(), chat, assistantIds[4]!).allowed,
+      true
     );
   });
 });

@@ -157,6 +157,7 @@ import {
   ensureSummaryBarrier,
   getRollingSummaryContentionSnapshot,
   prepareNonBlockingSummaryForMainRp,
+  scheduleDeferredBoundarySummaryAfterCanonFreeze,
 } from "@/lib/memory/memory-rolling-summary";
 import { gateChatOnSummaryBarrier } from "@/lib/memory/memory-barrier-route-gate";
 import { auditTokenAccounting } from "@/lib/promptTokenAccounting";
@@ -1431,6 +1432,7 @@ export async function POST(req: Request) {
   const completedTurnsForMemoryCoverage = memoryFeatureOn
     ? memorySourceEligibleCompletedTurns
     : playableTurnCount;
+  let deferredBoundarySealPending = false;
 
   if (memoryFeatureOn) {
     phaseAudit?.mark("T4a_SUMMARY_PREP_START");
@@ -1446,6 +1448,7 @@ export async function POST(req: Request) {
     });
     phaseAudit?.mark("T4b_SUMMARY_PREP_DONE");
     effectiveSummarizedTurnCount = summaryPrep.summarizedThrough;
+    deferredBoundarySealPending = summaryPrep.deferredBoundarySealPending;
     // Summary lag already slipped past the deferred boundary (>RAW4+1): restore
     // RAW↔summary coverage with the existing barrier owner before Main RP runs.
     if (
@@ -2656,6 +2659,22 @@ export async function POST(req: Request) {
   persistenceDiag.userMessageSaved = bootstrapped.userMessageSaved;
   persistenceDiag.assistantPlaceholderCreated = bootstrapped.assistantPlaceholderCreated;
   persistenceDiag.reusedExisting = bootstrapped.reusedExisting;
+  if (
+    memoryFeatureOn &&
+    deferredBoundarySealPending &&
+    bootstrapped.userMessageSaved &&
+    regenerateMessageId == null
+  ) {
+    scheduleDeferredBoundarySummaryAfterCanonFreeze({
+      chatId: chatRef.id,
+      userId: user.id,
+      characterId: ch.id,
+      charName: ch.name,
+      tier: memoryTier,
+      memoryCapacity,
+      userPersona: personaDisplayName,
+    });
+  }
   if (regenerateMessageId != null) {
     const regenStatusPolicy = resolveStatusWindowPolicyFromSources({
       userNote: effectiveUserNote || undefined,
