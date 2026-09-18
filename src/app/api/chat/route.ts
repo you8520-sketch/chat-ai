@@ -43,6 +43,7 @@ import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputS
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
+import { scheduleMainGenerationCostUsageApiFallback } from "@/lib/cheaperInferenceMainCostFallback";
 import { recordMainGenerationProviderCost } from "@/lib/providerCostLedger";
 import {
   shouldPreparePublishedBillingFxSnapshot,
@@ -5825,6 +5826,19 @@ export async function POST(req: Request) {
               (mainCostErr as Error).message
             );
           }
+
+          scheduleMainGenerationCostUsageApiFallback({
+            provider: usageRecord.provider ?? billingProvider,
+            providerRequestId: primaryStage.providerRequestId,
+            model: primaryStage.responseModelId ?? primaryStage.model,
+            streamBilledCostUsd: primaryStage.cheaperInferenceBilledCostUsd,
+            outcome:
+              primaryStage.loopAborted || primaryStage.degenerationAborted
+                ? "failed_with_usage"
+                : "success",
+            requestStartedAtMs: requestStartedAt,
+            requestKind: "main-rp",
+          });
         }
 
         if (statusMetaEnabled && shouldCommitCanonicalTurnState(generationSemantics)) {

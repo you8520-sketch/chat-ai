@@ -1049,10 +1049,14 @@ export function upsertReconciledProviderCost(
              actual_cost_source = 'cheaper_inference_usage_api',
              event_status = 'settled',
              cost_krw = ?,
+             exchange_rate_krw_per_usd = CASE
+               WHEN exchange_rate_krw_per_usd IS NULL OR exchange_rate_krw_per_usd <= 0 THEN ?
+               ELSE exchange_rate_krw_per_usd
+             END,
              estimated = 0,
              completed_at = datetime('now')
        WHERE id = ?`
-    ).run(usd, promotedCostKrw, existing.id);
+    ).run(usd, promotedCostKrw, requestTimeFx, existing.id);
     return { outcome: exact ? "superseded" : "promoted", rowId: existing.id };
   }
 
