@@ -190,6 +190,15 @@ function insertPlayableTurns(count: number): number[] {
   return assistantIds;
 }
 
+/** Mirror production: batch 1~5 may seal only after the next canonical user row freezes TURN5. */
+function freezeDeferredBoundaryFrontier(chatId: number = CHAT): void {
+  getDb()
+    .prepare(
+      `INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`
+    )
+    .run(chatId, "user", "다음 턴 유저 입력");
+}
+
 async function assembleFinalMainRpEpisodic(opts: {
   completedTurns: number;
   currentUserMessage: string;
@@ -690,6 +699,7 @@ describe("regen summary-seal episodic batch replacement", () => {
   it("E1 initial success persists batch fact", async () => {
     seedBase();
     insertPlayableTurns(5);
+    freezeDeferredBoundaryFrontier();
     __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
     __setEpisodicExtractCallerForTests(async () => ({
       text: JSON.stringify({
