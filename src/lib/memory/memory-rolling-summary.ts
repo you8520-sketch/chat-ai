@@ -15,6 +15,7 @@ import {
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { isMemoryFeatureEnabled, isSummaryBarrierActive } from "./memory-feature";
+import { invalidateSummarySealBatchEpisodicFactsForSourceMutation } from "@/lib/episodicMemoryFacts";
 import { extractAndPersistEpisodicFactsForSealedBatch } from "./memory-episodic-extract";
 import { newBatchEndForStart, resolveNextBatchRange } from "./memory-summary-range";
 import {
@@ -1291,6 +1292,16 @@ export async function refreshRollingSummaryForRegeneratedAssistant(opts: {
     }
     return false;
   }
+
+  // Assistant content is already canonical when memory-manager invokes this path.
+  invalidateSummarySealBatchEpisodicFactsForSourceMutation(getDb(), {
+    chatId: opts.chatId,
+    affectedAssistantMessageIds: [opts.assistantMessageId],
+    affectedUserMessageIds:
+      target.userMessageId != null ? [target.userMessageId] : [],
+    batchStart,
+    batchEnd: record.turnEnd,
+  });
 
   return withRollingSummaryLock(
     opts.chatId,
