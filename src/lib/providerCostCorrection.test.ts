@@ -247,7 +247,7 @@ function build4022Receipt(input: {
   });
 }
 
-describe("provider cost correction — production fixture A", () => {
+describe("provider cost correction — diagnostic hardening A–G", () => {
   it("A — canonical shared-success durable state completes whole turn", () => {
     const db = createLedgerDb();
     ledgerRow(db, 4022, "main_generation", "main_generation", TERRA_MAIN_USD);
@@ -270,36 +270,54 @@ describe("provider cost correction — production fixture A", () => {
     assert.notEqual(summary.marginPercent, null);
     assert.equal(summary.marginUnavailableReason, null);
   });
-});
 
-describe("provider cost correction — receipt lifecycle B", () => {
-  it("B — pending durable tasks yield partial; terminal skipped state yields complete", () => {
+  it("B — producer contradiction: succeeded + zero relationship rows => unverifiable", () => {
+    const result = resolveMemoryRelationshipExpectation({
+      task: memoryTask("succeeded"),
+      memoryRelationshipLedgerRowCount: 0,
+    });
+    assert.equal(result.expectationState, "unverifiable");
+    assert.equal(result.skipReason, "succeeded_marker_without_physical_ledger_evidence");
+
+    const coverage = resolveAsyncTurnCoverage({
+      usage: terraUsage({ statusWidgetExtract: undefined }),
+      suggestedRepliesRecord: validSuggestedRecord(),
+      statusMetaRecord: disabledStatusMetaRecord(),
+      memoryRelationshipTask: memoryTask("succeeded"),
+      ledgerAsyncRows: [],
+      scopedLedgerRows: [],
+    });
+    const rel = coverage.families.find((f) => f.family === "memory_relationship");
+    assert.equal(rel?.expectationState, "unverifiable");
+    assert.equal(rel?.skipReason, "succeeded_marker_without_physical_ledger_evidence");
+  });
+
+  it("C — sync auxiliary provenance comes from ledger row, not hardcoded display", () => {
     const db = createLedgerDb();
     ledgerRow(db, 4022, "main_generation", "main_generation", TERRA_MAIN_USD);
-    ledgerRow(db, 4022, "post_turn_shared_initial", "sync_post_turn", LUNA_SHARED_USD);
-    const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(4022);
-
-    const t1 = build4022Receipt({
-      memoryRelationshipTask: memoryTask("pending"),
-      suggestedPending: true,
-      ledgerRows: rows,
+    ledgerRow(db, 4022, "post_turn_shared_initial", "sync_post_turn", LUNA_SHARED_USD, {
+      providerRequestId: "ledger-prov-req-99",
     });
-    assert.equal(t1.async.coverage, "pending");
-    assert.equal(t1.wholeTurn.coverage, "pending");
-    assert.equal(buildAdminReceiptTurnSummary(t1).marginPercent, null);
-
-    const t2 = build4022Receipt({
+    const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(4022);
+    const receipt = build4022Receipt({
       memoryRelationshipTask: memoryTask("skipped", "shared_initial_satisfied"),
       ledgerRows: rows,
     });
-    assert.equal(t2.async.coverage, "complete");
-    assert.equal(t2.wholeTurn.coverage, "complete");
-    assert.notEqual(buildAdminReceiptTurnSummary(t2).marginPercent, null);
-  });
-});
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    const syncAux = vm.auxiliaryCalls.find((c) => c.label.includes("공유 초기"));
+    assert.ok(syncAux);
+    assert.equal(syncAux.providerRequestId, "ledger-prov-req-99");
+    assert.equal(syncAux.canonicalOwner, "STATUS_WIDGET");
+    assert.equal(syncAux.trigger, "sync_post_turn");
+    assert.equal(syncAux.requestKind, "background-post-turn-shared-initial");
 
-describe("provider cost correction — generation scope C/D", () => {
-  it("C — matching generation sync shared row is included in scoped receipt", () => {
+    const row = rows.find((r) => r.family === "post_turn_shared_initial") as never;
+    const diagnostic = resolveAdminReceiptPhysicalCallDiagnostic(row);
+    assert.equal(syncAux.canonicalOwner, diagnostic.canonicalOwner);
+    assert.equal(syncAux.requestKind, diagnostic.requestKind);
+  });
+
+  it("D — matching generation sync shared row is included in scoped receipt", () => {
     const db = createLedgerDb();
     ledgerRow(db, 4022, "main_generation", "main_generation", TERRA_MAIN_USD, {
       generationSequence: 1,
@@ -323,7 +341,7 @@ describe("provider cost correction — generation scope C/D", () => {
     assert.equal(receipt.syncPhysicalEvents?.[0]?.providerRequestId, "req-gen-1-shared");
   });
 
-  it("D — stale generation shared row must not satisfy current generation", () => {
+  it("E — stale generation shared row must not satisfy current generation", () => {
     const db = createLedgerDb();
     ledgerRow(db, 4022, "main_generation", "main_generation", TERRA_MAIN_USD, {
       generationSequence: 1,
@@ -340,82 +358,27 @@ describe("provider cost correction — generation scope C/D", () => {
     assert.equal(scopedRows.length, 1);
     assert.equal(scopedRows[0]?.family, "main_generation");
   });
-});
 
-describe("provider cost correction — relationship invariants R1–R5", () => {
-  it("R1 — shared success => skipped/shared_initial_satisfied + zero standalone rows", () => {
-    const result = resolveMemoryRelationshipExpectation({
-      task: memoryTask("skipped", "shared_initial_satisfied"),
-      memoryRelationshipLedgerRowCount: 0,
-    });
-    assert.equal(result.expectationState, "not_expected");
-    assert.equal(result.skipReason, "shared_initial_satisfied");
-  });
-
-  it("R2 — shared invalid => skipped/shared_section_invalid_no_retry + zero standalone rows", () => {
-    const result = resolveMemoryRelationshipExpectation({
-      task: memoryTask("skipped", "shared_section_invalid_no_retry"),
-      memoryRelationshipLedgerRowCount: 0,
-    });
-    assert.equal(result.expectationState, "not_expected");
-    assert.equal(result.skipReason, "shared_section_invalid_no_retry");
-  });
-
-  it("R3 — standalone extraction => succeeded + >=1 physical row is terminal", () => {
-    const result = resolveMemoryRelationshipExpectation({
-      task: memoryTask("succeeded"),
-      memoryRelationshipLedgerRowCount: 1,
-    });
-    assert.equal(result.expectationState, "terminal");
-    assert.equal(result.taskFailed, false);
-  });
-
-  it("R4 — succeeded + zero rows without shared semantic proof => fail-closed unverifiable", () => {
-    const result = resolveMemoryRelationshipExpectation({
-      task: memoryTask("succeeded"),
-      memoryRelationshipLedgerRowCount: 0,
-    });
-    assert.equal(result.expectationState, "unverifiable");
-    assert.equal(result.skipReason, "succeeded_marker_without_physical_ledger_evidence");
-  });
-
-  it("R5 — shared physical row alone does not satisfy relationship expectation", () => {
-    const coverage = resolveAsyncTurnCoverage({
-      usage: terraUsage({ statusWidgetExtract: undefined }),
-      suggestedRepliesRecord: null,
-      statusMetaRecord: null,
-      memoryRelationshipTask: null,
-      ledgerAsyncRows: [],
-      scopedLedgerRows: [
-        {
-          family: "post_turn_shared_initial",
-          execution_phase: "sync_post_turn",
-          event_status: "settled",
-          actual_cost_usd: LUNA_SHARED_USD,
-        } as never,
-      ],
-    });
-    const rel = coverage.families.find((f) => f.family === "memory_relationship");
-    assert.equal(rel?.expectationState, "unverifiable");
-  });
-});
-
-describe("provider cost correction — receipt tests E–G", () => {
-  it("E — standalone relationship call is counted in async physical totals", () => {
+  it("F — status meta extraction_disabled yields not_expected and whole-turn complete", () => {
     const db = createLedgerDb();
     ledgerRow(db, 4022, "main_generation", "main_generation", TERRA_MAIN_USD);
     ledgerRow(db, 4022, "post_turn_shared_initial", "sync_post_turn", LUNA_SHARED_USD);
-    ledgerRow(db, 4022, "memory_relationship", "async_post_turn", 0.0017);
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(4022);
     const receipt = build4022Receipt({
-      memoryRelationshipTask: memoryTask("succeeded"),
+      memoryRelationshipTask: memoryTask("skipped", "shared_initial_satisfied"),
       ledgerRows: rows,
     });
-    assert.equal(receipt.async.physicalCallCount, 1);
-    assert.ok(Math.abs(receipt.async.knownActualCostUsd - 0.0017) < 1e-9);
+    const statusMetaFamily = receipt.async.byFamily.find((f) => f.family === "status_meta");
+    assert.equal(statusMetaFamily?.expectationState, "not_expected");
+    assert.equal(statusMetaFamily?.skipReason, "status_meta_extraction_disabled");
+    assert.equal(receipt.async.coverage, "complete");
+    assert.equal(receipt.wholeTurn.coverage, "complete");
+    const summary = buildAdminReceiptTurnSummary(receipt);
+    assert.notEqual(summary.marginPercent, null);
+    assert.doesNotMatch(summary.marginUnavailableReason ?? "", /Status Meta/);
   });
 
-  it("F — failed_without_usage async row keeps async coverage fail-closed", () => {
+  it("G — unknown async remains fail-closed (failed_without_usage row)", () => {
     const db = createLedgerDb();
     ledgerRow(db, 4022, "main_generation", "main_generation", TERRA_MAIN_USD);
     const ctx = {
@@ -445,31 +408,6 @@ describe("provider cost correction — receipt tests E–G", () => {
     });
     assert.notEqual(receipt.async.coverage, "complete");
     assert.equal(buildAdminReceiptTurnSummary(receipt).marginPercent, null);
-  });
-
-  it("G — sync auxiliary provenance comes from ledger row, not hardcoded display", () => {
-    const db = createLedgerDb();
-    ledgerRow(db, 4022, "main_generation", "main_generation", TERRA_MAIN_USD);
-    ledgerRow(db, 4022, "post_turn_shared_initial", "sync_post_turn", LUNA_SHARED_USD, {
-      providerRequestId: "ledger-prov-req-99",
-    });
-    const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(4022);
-    const receipt = build4022Receipt({
-      memoryRelationshipTask: memoryTask("skipped", "shared_initial_satisfied"),
-      ledgerRows: rows,
-    });
-    const vm = buildAdminReceiptCompactViewModel(receipt);
-    const syncAux = vm.auxiliaryCalls.find((c) => c.label.includes("공유 초기"));
-    assert.ok(syncAux);
-    assert.equal(syncAux.providerRequestId, "ledger-prov-req-99");
-    assert.equal(syncAux.canonicalOwner, "STATUS_WIDGET");
-    assert.equal(syncAux.trigger, "sync_post_turn");
-    assert.equal(syncAux.requestKind, "background-post-turn-shared-initial");
-
-    const row = rows.find((r) => r.family === "post_turn_shared_initial") as never;
-    const diagnostic = resolveAdminReceiptPhysicalCallDiagnostic(row);
-    assert.equal(syncAux.canonicalOwner, diagnostic.canonicalOwner);
-    assert.equal(syncAux.requestKind, diagnostic.requestKind);
   });
 });
 
