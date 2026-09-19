@@ -5,6 +5,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const PROD_TEST_PORT = process.env.PLAYWRIGHT_PROD_PORT ?? "3001";
 const PROD_TEST_BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${PROD_TEST_PORT}`;
+const PROD_TEST_READY_URL = new URL("/readyz", PROD_TEST_BASE_URL).toString();
 const PLAYWRIGHT_DATA_DIR =
   process.env.PLAYWRIGHT_DATA_DIR ?? path.join(os.tmpdir(), `habby-playwright-${process.pid}`);
 const PLAYWRIGHT_DATA_DIR_RESET_OWNED = "PLAYWRIGHT_DATA_DIR_RESET_OWNED";
@@ -56,7 +57,7 @@ export default defineConfig({
           PORT: PROD_TEST_PORT,
           NODE_ENV: "production",
         },
-        url: PROD_TEST_BASE_URL,
+        url: PROD_TEST_READY_URL,
         reuseExistingServer: false,
         timeout: 180_000,
       },
