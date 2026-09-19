@@ -13,9 +13,9 @@
 |-------|-----|
 | `HISTORY_MARKER_REMOVAL_LIVE_RUNTIME` | `9d8680cbadb85a6a5205655b07af1c6cd66ef27a` |
 | `PASSTHROUGH_LIVE_RUNTIME` | `5291c893e2af0d50b5171e98b4177d4cd1e05fec` |
-| `CURRENT_REPORT_HEAD` | `3951d4a18747d4ad7c76e465c842466480dc4308` (doc-only updates follow on branch) |
+| `CURRENT_REPORT_HEAD` | `a88d9fba` (this commit) |
 
-**Forensic SHAs preserved:** `ba9d3528`, `9d8680cb`, `31ffdaaf`, `3d4e6fe5`, `ad04557a`, `5291c893`, `702aee96`, `3951d4a1`
+**Forensic SHAs preserved:** `ba9d3528`, `9d8680cb`, `31ffdaaf`, `3d4e6fe5`, `ad04557a`, `5291c893`, `702aee96`, `3951d4a1`, `a88d9fba`
 
 ---
 
