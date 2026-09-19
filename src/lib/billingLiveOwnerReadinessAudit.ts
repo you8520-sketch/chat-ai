@@ -69,10 +69,6 @@ import {
   shouldWaiveTurnBilling,
   type BillingWaiverReason,
 } from "@/lib/points";
-import {
-  computeGemini37FlashUserChargePoints,
-  resolveGemini37FlashBilledOutputTokens,
-} from "@/lib/gemini37FlashPricing";
 import { resolveOpenRouterReasoningPointRates } from "@/lib/pointsReasoningMargins";
 import {
   computePublishedUserChargeWithSnapshot,
@@ -124,9 +120,10 @@ export const BILLING_LIVE_OWNER_MAP = {
     "shouldWaiveTurnBilling() + resolve*WaiverMinimumCharge() in points.ts (route.ts composes)",
   CURRENT_FX_SNAPSHOT_OWNER: "exchangeRate.ts (live); shadowBillingExchangeRate.ts (shadow/admin)",
   CURRENT_CARD_FEE_OWNER: "OVERSEAS_CARD_FEE_PERCENT in billingFxPolicy.ts (0.02)",
-  CURRENT_MODEL_PRICE_OWNER: "points.ts model-specific formulas + publishedModelPricing.ts (shadow)",
+  CURRENT_MODEL_PRICE_OWNER:
+    "pointsReasoningMargins.ts unified token-cost pricing + remaining legacy points.ts formulas + publishedModelPricing.ts",
   CURRENT_MODEL_SPECIAL_POLICY_OWNER:
-    "gemini37FlashPricing.ts, pointsReasoningMargins.ts unified reasoning, waiver minimum resolvers",
+    "pointsReasoningMargins.ts unified token-cost pricing + waiver minimum resolvers",
   CANDIDATE_NORMALIZED_USAGE_OWNER: "normalizeBillableUsage() in billingUsage.ts",
   CANDIDATE_TURN_BILLABLE_USAGE_OWNER: "resolveTurnBillableUsage() in turnBillableUsage.ts",
   CANDIDATE_PUBLISHED_CHARGE_OWNER: "computePublishedUserChargeWithSnapshot() in publishedUserCharge.ts",
@@ -1091,56 +1088,25 @@ function proveStealthFallbackSelection(ctx: PolicyProofContext): Record<string, 
   };
 }
 
-function proveG37DedicatedFormula(ctx: PolicyProofContext): Record<string, boolean | string | number> {
-  const fixture = ctx.fixturesById.get("A1-g37-normal")!;
-  const live = computeLiveChargeFromFixture(fixture);
-  const primaryStage = resolveFixtureBillableStages(fixture)[0];
-  const apiPromptTokens = primaryStage?.apiReportedInputTokens ?? primaryStage?.input ?? 0;
-  const billedOutputTokens = resolveGemini37FlashBilledOutputTokens({
-    completionTokens: primaryStage?.apiOutputTokens ?? primaryStage?.output ?? 0,
-    reasoningTokens: primaryStage?.apiReasoningOutputTokens ?? 0,
-  });
-  const canonicalExpectedPoints = computeGemini37FlashUserChargePoints({
-    inputTokens: apiPromptTokens,
-    billedOutputTokens,
-  });
-  return {
-    g37CanonicalExpectedPoints: canonicalExpectedPoints,
-    liveG37Points: live.totalPoints,
-    apiPromptTokens,
-    billedOutputTokens,
-  };
-}
-
 function proveUnifiedReasoningOwner(ctx: PolicyProofContext): Record<string, boolean | string | number> {
-  const g31Fixture = ctx.fixturesById.get("A1-g31-normal")!;
-  const opusFixture = ctx.fixturesById.get("A1-opus5-normal")!;
-  const g31Rates = resolveOpenRouterReasoningPointRates(
-    CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-    AUDIT_EFFECTIVE_KRW_PER_USD
-  );
-  const opusRates = resolveOpenRouterReasoningPointRates(
-    CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-    AUDIT_EFFECTIVE_KRW_PER_USD
-  );
-  const g31Live = computeLiveChargeFromFixture(g31Fixture).totalPoints;
-  const opusLive = computeLiveChargeFromFixture(opusFixture).totalPoints;
-  const g31Expected = computeUnifiedReasoningCanonicalExpectedPoints(
-    g31Fixture,
-    CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
-  );
-  const opusExpected = computeUnifiedReasoningCanonicalExpectedPoints(
-    opusFixture,
-    CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
-  );
-  return {
-    g31ReasoningRatesResolved: g31Rates != null ? 1 : 0,
-    opusReasoningRatesResolved: opusRates != null ? 1 : 0,
-    g31ExpectedPoints: g31Expected,
-    g31LivePoints: g31Live,
-    opusExpectedPoints: opusExpected,
-    opusLivePoints: opusLive,
-  };
+  const cases = [
+    ["g31", "A1-g31-normal", CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL],
+    ["opus", "A1-opus5-normal", CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL],
+    ["g37", "A1-g37-normal", CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL],
+    ["terra", "A1-terra-normal", CHEAPER_INFERENCE_GPT_56_TERRA_MODEL],
+  ] as const;
+
+  const proof: Record<string, boolean | string | number> = {};
+  for (const [key, fixtureId, modelId] of cases) {
+    const fixture = ctx.fixturesById.get(fixtureId)!;
+    const rates = resolveOpenRouterReasoningPointRates(modelId, AUDIT_EFFECTIVE_KRW_PER_USD);
+    const live = computeLiveChargeFromFixture(fixture).totalPoints;
+    const expected = computeUnifiedReasoningCanonicalExpectedPoints(fixture, modelId);
+    proof[`${key}ReasoningRatesResolved`] = rates != null ? 1 : 0;
+    proof[`${key}ExpectedPoints`] = expected;
+    proof[`${key}LivePoints`] = live;
+  }
+  return proof;
 }
 
 function evaluatePolicyBehavioralProof(
@@ -1195,14 +1161,16 @@ function evaluatePolicyBehavioralProof(
       return proof.selectedBillableStage === "fallback";
     case "stealth fallback OpenRouter-only stage selection":
       return proof.liveSelectedStageModel === OPENROUTER_GEMINI_36_FLASH_MODEL;
-    case "gemini37FlashPricing dedicated formula":
-      return proof.g37CanonicalExpectedPoints === proof.liveG37Points;
-    case "unified-reasoning margins (G31 CI, Opus5)":
+    case "unified token-cost pricing (G31 CI, Opus5, G37, Terra)":
       return (
         proof.g31ReasoningRatesResolved === 1 &&
         proof.opusReasoningRatesResolved === 1 &&
+        proof.g37ReasoningRatesResolved === 1 &&
+        proof.terraReasoningRatesResolved === 1 &&
         proof.g31ExpectedPoints === proof.g31LivePoints &&
-        proof.opusExpectedPoints === proof.opusLivePoints
+        proof.opusExpectedPoints === proof.opusLivePoints &&
+        proof.g37ExpectedPoints === proof.g37LivePoints &&
+        proof.terraExpectedPoints === proof.terraLivePoints
       );
     case "Qwen output-token pricing":
     case "Muse margin pricing":
@@ -1322,18 +1290,10 @@ const SPECIAL_POLICY_DEFINITIONS: PolicyDefinition[] = [
     prove: proveStealthFallbackSelection,
   },
   {
-    policy: "gemini37FlashPricing dedicated formula",
-    owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_SPECIAL_POLICY_OWNER,
-    reachableModel: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-    fixtureIds: ["A1-g37-normal"],
-    classification: "PHASE1_REQUIRED",
-    prove: proveG37DedicatedFormula,
-  },
-  {
-    policy: "unified-reasoning margins (G31 CI, Opus5)",
+    policy: "unified token-cost pricing (G31 CI, Opus5, G37, Terra)",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_SPECIAL_POLICY_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-    fixtureIds: ["A1-g31-normal", "A1-opus5-normal"],
+    fixtureIds: ["A1-g31-normal", "A1-opus5-normal", "A1-g37-normal", "A1-terra-normal"],
     classification: "PHASE1_REQUIRED",
     prove: proveUnifiedReasoningOwner,
   },
@@ -1787,12 +1747,12 @@ export function compareLiveVsCandidate(fixture: BillingParityFixture): ParityCom
 
 /** Frozen live totals — computed with installAuditLegacyFxForTest() at audit BASE. */
 export const FROZEN_LIVE_CHARGE_GOLDEN: Readonly<Record<BillingParityFixtureId, number>> = {
-  "A1-g37-normal": 35,
+  "A1-g37-normal": 40,
   "A1-g31-normal": 153,
   "A1-opus5-normal": 115,
   "A1-deepseek-normal": 16,
   "A1-g36-normal": 71,
-  "A1-terra-normal": 113,
+  "A1-terra-normal": 90,
   "A1-luna-normal": 4,
   "A1-deepseek-flash-normal": 6,
   "A1-opus45-normal": 284,
@@ -3137,10 +3097,7 @@ export function collectBillingReadinessHardGates(
       (entry) => entry.cutoverRequired && !entry.reachabilityOwner
     ).length;
     const unifiedRow = policyMatrix.find(
-      (row) => row.policy === "unified-reasoning margins (G31 CI, Opus5)"
-    );
-    const g37Row = policyMatrix.find(
-      (row) => row.policy === "gemini37FlashPricing dedicated formula"
+      (row) => row.policy === "unified token-cost pricing (G31 CI, Opus5, G37, Terra)"
     );
     const outputTokenRow = policyMatrix.find(
       (row) => row.policy === "output-token pricing (api vs savedText fallback)"
@@ -3177,7 +3134,6 @@ export function collectBillingReadinessHardGates(
       WAIVER_MINIMUM_RUNTIME_REACHABILITY_HARDCODED: false,
       WAIVER_MINIMUM_RUNTIME_REACHABLE: policyFacts.waiverMinimumRuntimeReachable ? 1 : 0,
       UNIFIED_REASONING_OWNER_MATCH: unifiedRow?.behavioralProofPasses === true ? 1 : 0,
-      G37_DEDICATED_OWNER_MATCH: g37Row?.behavioralProofPasses === true ? 1 : 0,
       OUTPUT_TOKEN_SOURCE_BEHAVIOR_PROVEN:
         outputTokenRow?.behavioralProofPasses === true ? 1 : 0,
       F4_REQUESTED_DELIVERED_IDENTITY_PROVEN:

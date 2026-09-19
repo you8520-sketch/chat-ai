@@ -59,9 +59,9 @@ function assistantUsage(
 }
 
 describe("modelPickerPreview V2", () => {
-  it("shows the canonical 3 in the default user picker preview", () => {
+  it("shows the canonical 4 in the default user picker preview", () => {
     const preview = buildModelPickerPreview({ messages: [] });
-    assert.equal(preview.models.length, 3);
+    assert.equal(preview.models.length, 4);
     assert.equal(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL),
       false
@@ -69,9 +69,8 @@ describe("modelPickerPreview V2", () => {
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL)
     );
-    assert.equal(
-      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL),
-      false
+    assert.ok(
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL)
     );
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL)
@@ -334,16 +333,17 @@ describe("modelPickerPreview V2", () => {
     assert.equal(preview.models[0]?.estimatedPoints ?? null, null);
   });
 
-  it("hides Terra from picker estimates so receipts do not skew DeepSeek", () => {
+  it("uses Terra receipts only for Terra estimates and keeps DeepSeek separate", () => {
     const preview = buildModelPickerPreview({
       messages: [assistantUsage(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, 1800)],
       modelIds: [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL],
     });
     const terra = preview.models.find((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL);
     const deepSeek = preview.models.find((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
-    assert.equal(terra?.supported, false);
-    assert.equal(terra?.estimatedPoints, null);
+    assert.equal(terra?.supported, true);
+    assert.ok((terra?.estimatedPoints ?? 0) > 0);
     assert.equal(deepSeek?.supported, true);
+    assert.notEqual(terra?.outputBasis, "unsupported");
   });
 
   it("retires Muse from active picker estimates while keeping historical parsing", () => {

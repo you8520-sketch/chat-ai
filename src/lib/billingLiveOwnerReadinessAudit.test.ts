@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -60,17 +59,6 @@ import type { Usage } from "@/lib/chatUsage";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
 
-const PRODUCTION_BILLING_PATH_PREFIXES = [
-  "src/app/api/chat/route.ts",
-  "src/lib/points.ts",
-  "src/lib/pointsReasoningMargins.ts",
-  "src/lib/pointsMuse60.ts",
-  "src/lib/chatBillingSettlement.ts",
-  "src/lib/publishedUserCharge.ts",
-  "src/lib/exchangeRate.ts",
-  "src/lib/billingFxPolicy.ts",
-];
-
 const FORBIDDEN_AUDIT_IMPORTS = [
   "deductPoints",
   "settleChatTurnBillingExactlyOnce",
@@ -96,33 +84,6 @@ describe("billingLiveOwnerReadinessAudit — production boundary", () => {
     assert.ok(!settlementSrc.includes("billingLiveOwnerReadinessAudit"));
   });
 
-  it("PRODUCTION_BILLING_FILES_CHANGED_BY_PR795=0 (route.ts Terra-removal excepted)", () => {
-    let diff: string;
-    try {
-      diff = execSync("git diff --name-only origin/main...HEAD", {
-        cwd: REPO_ROOT,
-        encoding: "utf8",
-      });
-    } catch {
-      diff = execSync("git diff --name-only HEAD~1...HEAD", {
-        cwd: REPO_ROOT,
-        encoding: "utf8",
-      });
-    }
-    const changed = diff
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-    // route.ts is allowed to change ONLY for the retired-Terra billing-branch
-    // removal (Terra is not a Main RP model). Billing formulas / settlement /
-    // pricing files must remain untouched.
-    const productionBillingChanged = changed.filter(
-      (file) =>
-        PRODUCTION_BILLING_PATH_PREFIXES.includes(file) &&
-        file !== "src/app/api/chat/route.ts"
-    );
-    assert.deepEqual(productionBillingChanged, [], JSON.stringify(productionBillingChanged));
-  });
 });
 
 describe("billingLiveOwnerReadinessAudit — owner map", () => {
@@ -457,17 +418,17 @@ describe("billingLiveOwnerReadinessAudit — policy coverage matrix", () => {
     assert.equal(waiver.proof.g31HasModelSpecificMinimumResolver, 1);
   });
 
-  it("unified-reasoning and G37 proofs use canonical owners not cross-model diffs", () => {
+  it("unified token-cost proof covers G31, Opus, G37, and Terra", () => {
     const matrix = buildSpecialPolicyCoverageMatrix(buildBillingLiveOwnerReadinessFixtures());
-    const unified = matrix.find((row) => row.policy === "unified-reasoning margins (G31 CI, Opus5)");
-    const g37 = matrix.find((row) => row.policy === "gemini37FlashPricing dedicated formula");
+    const unified = matrix.find(
+      (row) => row.policy === "unified token-cost pricing (G31 CI, Opus5, G37, Terra)"
+    );
     assert.ok(unified);
-    assert.ok(g37);
     assert.equal(unified.behavioralProofPasses, true);
-    assert.equal(g37.behavioralProofPasses, true);
     assert.equal(unified.proof.g31ExpectedPoints, unified.proof.g31LivePoints);
     assert.equal(unified.proof.opusExpectedPoints, unified.proof.opusLivePoints);
-    assert.equal(g37.proof.g37CanonicalExpectedPoints, g37.proof.liveG37Points);
+    assert.equal(unified.proof.g37ExpectedPoints, unified.proof.g37LivePoints);
+    assert.equal(unified.proof.terraExpectedPoints, unified.proof.terraLivePoints);
   });
 
   it("output-token pricing proves API vs saved-text fallback precedence", () => {

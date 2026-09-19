@@ -35,6 +35,5 @@ export function buildMessageReceiptSnapshot(usageRaw: string | null): string {
     apiContentOutputTokens: usage.apiContentOutputTokens,
     statusWidgetExtract: usage.statusWidgetExtract,
     mainApiRawCostKrw: usage.mainApiRawCostKrw,
-    gemini37FlashPricing: usage.gemini37FlashPricing,
   });
 }

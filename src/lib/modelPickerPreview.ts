@@ -6,6 +6,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   isCheaperInferenceGemini31ProModel,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
@@ -67,6 +68,7 @@ export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerAct
     [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]: 1500,
     [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: 1400,
     [CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL]: 1400,
+    [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL]: 1400,
   };
 
 /** Output-token band used when deriving low/high point labels. */
@@ -90,8 +92,8 @@ export function canonicalizePreviewModelId(
 ): SelectedAI | null {
   const raw = usage?.selectedAI || usage?.model || messageModel || "";
   if (!raw.trim()) return null;
-  // Retired Muse / hidden Terra samples must not skew DeepSeek picker estimates.
-  if (isMuseModel(raw) || isGpt56TerraModel(raw)) return null;
+  // Retired Muse samples must not skew active-model picker estimates.
+  if (isMuseModel(raw)) return null;
   const resolved = resolveSelectedAI(raw, raw);
   return isActivePickerModel(resolved) ? resolved : null;
 }

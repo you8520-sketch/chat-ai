@@ -84,17 +84,16 @@ const CHEAPER_INFERENCE_GEMINI_31_PRO_RATES: OpenRouterModelRates = {
 };
 
 /**
- * Cheaper Inference Gemini 3.7 Flash — site-stated list (do not retune).
- * Input $0.53 / cached input $0.02625 / output $2.63 per 1M.
- * Cache write was not listed on-site; catalog snapshot write is recorded separately.
+ * Cheaper Inference Gemini 3.7 Flash — current catalog fallback (2026-09-19).
+ * Live /models catalog remains authoritative when available.
  */
 const CHEAPER_INFERENCE_GEMINI_37_FLASH_RATES: OpenRouterModelRates = {
   family: "google",
   label: "Cheaper Inference · Google automatic cache",
-  inputUsdPerM: 0.53,
-  outputUsdPerM: 2.63,
-  cacheReadUsdPerM: 0.02625,
-  cacheWriteUsdPerM: 0.017708,
+  inputUsdPerM: 0.525,
+  outputUsdPerM: 2.625,
+  cacheReadUsdPerM: 0.0525,
+  cacheWriteUsdPerM: 0.525,
   cacheWriteMultiplier: 1,
   explicitCacheInjection: false,
 };
@@ -261,14 +260,14 @@ const SOLAR_PRO_3_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
-/** Cheaper Inference GPT-5.6 Terra — account catalog snapshot (2026-07-29). */
+/** GPT-5.6 Terra direct-list fallback (2026-09-19); live CI catalog wins when available. */
 const CHEAPER_INFERENCE_GPT_56_TERRA_RATES: OpenRouterModelRates = {
   family: "openai",
   label: "Cheaper Inference · OpenAI automatic cache",
-  inputUsdPerM: 2.5,
-  outputUsdPerM: 15,
-  cacheReadUsdPerM: 0.25,
-  cacheWriteUsdPerM: 2.5,
+  inputUsdPerM: 2,
+  outputUsdPerM: 12,
+  cacheReadUsdPerM: 0.2,
+  cacheWriteUsdPerM: 2,
   cacheWriteMultiplier: 1,
   explicitCacheInjection: false,
 };
