@@ -60,6 +60,14 @@ export type AdminBillingReceiptV3AsyncSection = {
     actualModel?: string | null;
     /** Requested model from the provider ledger. */
     requestedModel?: string | null;
+    canonicalOwner?: string | null;
+    requestKind?: string | null;
+    trigger?: string | null;
+    attempt?: number | null;
+    providerRequestId?: string | null;
+    costAttribution?: string | null;
+    inputTokens?: number | null;
+    outputTokens?: number | null;
   }>;
 };
 
@@ -203,6 +211,12 @@ export type AdminReceiptAuxiliaryCall = {
   costUsd: number | null;
   /** Cost provenance label when a cost is shown (kept separate from result). */
   costProvenanceLabel: string | null;
+  canonicalOwner?: string | null;
+  requestKind?: string | null;
+  trigger?: string | null;
+  attempt?: number | null;
+  providerRequestId?: string | null;
+  costAttribution?: string | null;
 };
 
 export type AdminReceiptMainRpCost = {
@@ -456,6 +470,14 @@ export function buildAdminReceiptCompactViewModel(
           ? syncSpend.actualProviderCostUsd
           : null,
       costProvenanceLabel: resolveMainRpCostProvenanceLabel(syncSpend.actualCostSource),
+      canonicalOwner: syncSpend.postTurnSharedInitial ? "STATUS_WIDGET" : "STATUS_WIDGET",
+      requestKind: syncSpend.postTurnSharedInitial
+        ? "background-post-turn-shared-initial"
+        : "background-status-widget-extract",
+      trigger: "sync_post_turn",
+      attempt: 1,
+      providerRequestId: null,
+      costAttribution: "whole_turn",
     });
   }
   for (const family of receipt.async.byFamily) {
@@ -476,6 +498,7 @@ export function buildAdminReceiptCompactViewModel(
     );
     const provenanceLabel =
       costSources.size === 1 ? resolveMainRpCostProvenanceLabel([...costSources][0]) : null;
+    const firstEvent = familyEvents?.[0];
     auxiliaryCalls.push({
       label: family.label,
       model,
@@ -483,6 +506,12 @@ export function buildAdminReceiptCompactViewModel(
       result,
       costUsd: family.knownActualCostUsd > 0 ? family.knownActualCostUsd : null,
       costProvenanceLabel: provenanceLabel,
+      canonicalOwner: firstEvent?.canonicalOwner ?? null,
+      requestKind: firstEvent?.requestKind ?? null,
+      trigger: firstEvent?.trigger ?? null,
+      attempt: firstEvent?.attempt ?? null,
+      providerRequestId: firstEvent?.providerRequestId ?? null,
+      costAttribution: firstEvent?.costAttribution ?? "turn_attributable_async",
     });
   }
 
