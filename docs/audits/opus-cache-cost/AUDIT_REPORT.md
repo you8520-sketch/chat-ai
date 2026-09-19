@@ -5,7 +5,7 @@
 **Date:** 2026-09-19
 **Method:** #962 head wire + post-fix live T1/T2/T3 (3 physical CI calls, 2026-09-19) + offline regression (HC-01..12).
 
-**PR head:** `31ffdaafb9c29ae107181ee766a9227135ec6082` · **live-tested runtime:** `9d8680cbadb85a6a5205655b07af1c6cd66ef27a` · **main:** `6ab52974c61e2fedc9c75af6de7094096e9117a2` (Railway production)
+**PR head:** `ad04557a` (passthrough patch) · **integration base:** `ad088282` (main / Railway production, PR #963 merged) · **live-tested runtime:** `9d8680cb` · **forensic SHAs preserved:** `ba9d3528`, `9d8680cb`, `31ffdaaf`, `3d4e6fe5`, `ad04557a`
 
 ---
 
