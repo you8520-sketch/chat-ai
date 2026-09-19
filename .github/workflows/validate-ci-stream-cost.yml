@@ -83,7 +83,7 @@ jobs:
 
       - name: Main RP proportional pricing + Terra selection regression
         run: >-
-          node --conditions=react-server --import tsx --test
+          node --conditions=react-server --import tsx --test --test-concurrency=1
           src/lib/points.gemini37Flash.test.ts
           src/lib/points.terra.test.ts
           src/lib/chatModels.terra.test.ts
