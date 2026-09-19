@@ -3,7 +3,9 @@
 **Branch:** `cursor/opus-cache-cost-forensics-163d`
 **PR:** #962 (evidence-backed minimal BUGFIX)
 **Date:** 2026-09-19
-**Method:** Current `main` code + live T1/T2/T3 evidence + offline regression (HC-01..12). **No new live provider calls in this patch.**
+**Method:** #962 head wire + post-fix live T1/T2/T3 (3 physical CI calls, 2026-09-19) + offline regression (HC-01..12).
+
+**PR head:** `9d8680cbadb85a6a5205655b07af1c6cd66ef27a` · **main:** `6ab52974c61e2fedc9c75af6de7094096e9117a2`
 
 ---
 
@@ -12,10 +14,11 @@
 | Label | Classification |
 |-------|----------------|
 | `SLIDING_RAW_HISTORY_CACHE_PREFIX` | **ROOT_CAUSE_CONFIRMED** |
-| `CURRENT_OPUS_GROWING_HISTORY_CACHE` | **ROOT_CAUSE_CONFIRMED** |
-| `CURRENT_OPUS_STATIC_PREFIX_CACHE` | **PLAUSIBLE_NOT_EXACT** (~17,357 read plateau T2/T3; local est. rules+char ≈13,701) |
+| `CURRENT_OPUS_GROWING_HISTORY_CACHE` | **POST_FIX_HISTORY_WRITE_PERSISTS** (wire fixed; provider write bucket unchanged) |
+| `CURRENT_OPUS_STATIC_PREFIX_CACHE` | **VERIFIED_WORKING** (17,357 read plateau T2/T3 post-fix) |
 | `CACHE_AFFINITY_CHURN` | **CONFIRMED_BY_DETERMINISTIC_INPUT_CHANGE** (first retained history hash shifts each turn) |
-| `CURRENT_OPUS_CACHE_HEALTH` | **PARTIAL_CACHE_CONFIRMED** (static read works; history cache write dead — until post-fix live verification) |
+| `CURRENT_OPUS_CACHE_HEALTH` | **PARTIAL_CACHE_ONLY** (wire 2-block ✓; economics unchanged vs pre-fix) |
+| `ROOT_CAUSE_FIXED` | **SYMPTOM_MITIGATED_ONLY** (dead history marker removed; provider write attribution unchanged) |
 | `HISTORICAL_OPUS_60K_INCIDENT` | **FAILURE_MODE_CONFIRMED** |
 | `HISTORICAL_CACHE_BYPASS_UNDERLYING_CAUSE` | **ROOT_CAUSE_UNCONFIRMED** |
 | `CURRENT_OPUS_PHYSICAL_PROMPT_DUPLICATION` | **NO_MATERIAL_DEFECT_FOUND** |
@@ -191,8 +194,43 @@ node --conditions=react-server --import tsx --test src/lib/openRouterCache.test.
 
 ---
 
+## Post-Fix Live Verification (2026-09-19, 3 calls)
+
+**Harness:** `buildContext → assemblePrimaryRpRequest → adaptCheaperInferenceChatBody` on PR head `9d8680cb` → direct CheaperInference fetch (NOT Railway `/api/chat`).
+
+| | T1 | T2 | T3 |
+|--|----|----|-----|
+| prompt | 45,114 | 40,705 | 36,296 |
+| standard | 673 | 673 | 673 |
+| read | 0 | **17,357** | **17,357** |
+| write | 44,441 | **22,675** | **18,266** |
+| output | 16 | 16 | 16 |
+| billed USD | $0.19151 | $0.10508 | $0.08634 |
+| wire cache_control | **2** | **2** | **2** |
+| history cache_control | **0** | **0** | **0** |
+| affinity | hit | hit | hit |
+
+**Total:** $0.382931 (pre-fix ref: $0.382812). Partition invariant holds all turns.
+
+**Write attribution (T2):** `write = prompt − read − standard = 22,675` — entire non-static-read suffix (dynamic + sliding history + tail) still billed as cache_write despite history marker removal. Magnitude tracks history size (T3 write shrinks with prompt). Classification: **provider suffix cache-write behavior unchanged**.
+
+**Caller inventory (production-reachable vs shape):**
+
+| Path | History shape | Production reachable | History cache post-fix |
+|------|---------------|----------------------|------------------------|
+| `/api/chat` → `streamOpenRouterAdultToClient` | BOUNDED_SLIDING | **YES** | removed (2 system blocks) |
+| `callOpenRouterAdult` (non-stream) | varies by caller | indirect | removed |
+| `narrativeLengthContinuation` → `callOpenRouterAdult` | caller-supplied | **NO** (`NARRATIVE_LENGTH_CONTINUATION_ENABLED=false`) |
+| `serverUnderLengthRecovery` → `callOpenRouterAdult` | caller-supplied | **NO** (`SERVER_UNDER_LENGTH_RECOVERY_ENABLED=false`) |
+
+`CURRENT_MAIN_STREAM_HISTORY_SHAPE = BOUNDED_SLIDING`  
+`CALL_OPENROUTER_ADULT_CONTINUATION_CALLER = PRESENT_BUT_PRODUCTION_UNREACHABLE_WHILE_LENGTH_SUPPLEMENT_DISABLED`
+
+---
+
 ## STOP
 
 - Draft PR #962 — **do not merge**
-- Post-fix live cache verification requires **separate approval**
-- No `x-ci-prompt-cache*` / session affinity added in this patch
+- Post-fix live: wire fix verified; **POST_FIX_HEALTHY not achieved** (write bucket unchanged)
+- No cleanup merge-candidate pass (live did not meet healthy shape criterion #5)
+- No `x-ci-prompt-cache*` / session affinity added
