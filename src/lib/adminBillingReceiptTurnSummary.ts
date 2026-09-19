@@ -1,6 +1,22 @@
 import type { AdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3Shared";
 import { formatPoints } from "@/lib/billingDisplay";
 
+function formatAsyncFamilyMarginBlocker(
+  family: AdminBillingReceiptV3["async"]["byFamily"][number]
+): string {
+  const state = family.expectationState;
+  const coverage = family.coverage;
+  const calls = family.physicalCallCount;
+  const parts = [family.label, state, `physical calls ${calls}`];
+  if (family.skipReason) parts.push(family.skipReason);
+  if (family.taskPending) parts.push("taskPending");
+  if (family.taskFailed) parts.push("taskFailed");
+  if (coverage === "partial" && family.incompletePhysicalCallCount > 0) {
+    parts.push(`incomplete ${family.incompletePhysicalCallCount}`);
+  }
+  return parts.join(" · ");
+}
+
 export const RECEIPT_BASIC_SUMMARY_OWNER = "adminBillingReceiptTurnSummary.ts";
 export const MARGIN_UNAVAILABLE_REASON_OWNER = "adminBillingReceiptTurnSummary.ts";
 
@@ -55,9 +71,22 @@ export function resolveWholeTurnMarginUnavailableReason(
     case "pending":
       reasons.push("Async 비용 처리 중");
       break;
-    case "partial":
-      reasons.push("Async 비용 부분 수집");
+    case "partial": {
+      const partialFamilies = receipt.async.byFamily.filter((family) => family.coverage === "partial");
+      const terminalZeroCallFamilies = receipt.async.byFamily.filter(
+        (family) => family.expectationState === "terminal" && family.physicalCallCount === 0
+      );
+      const blockers =
+        partialFamilies.length > 0
+          ? partialFamilies.map(formatAsyncFamilyMarginBlocker)
+          : terminalZeroCallFamilies.map(formatAsyncFamilyMarginBlocker);
+      if (blockers.length > 0) {
+        reasons.push(`Async 비용 부분 수집 (${blockers.join("; ")})`);
+      } else {
+        reasons.push("Async 비용 부분 수집");
+      }
       break;
+    }
     case "complete":
       break;
     default: {

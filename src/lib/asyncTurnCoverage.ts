@@ -75,13 +75,33 @@ export function isTurnAttributableAsyncFamily(
   );
 }
 
+/** Count scoped physical shared-initial rows (sync or async execution phase). */
+export function countPostTurnSharedInitialPhysicalRows(rows: ProviderCostLedgerRow[]): number {
+  return rows.filter(
+    (row) =>
+      row.family === "post_turn_shared_initial" &&
+      (row.execution_phase === "sync_post_turn" || row.execution_phase === "async_post_turn")
+  ).length;
+}
+
+/** Shared initial satisfied by usage flag and/or any scoped physical ledger row. */
+export function isPostTurnSharedInitialPhysicallySatisfied(input: {
+  usage: Usage;
+  sharedInitialPhysicalRowCount: number;
+}): boolean {
+  return (
+    input.usage.statusWidgetExtract?.postTurnSharedInitial === true ||
+    input.sharedInitialPhysicalRowCount > 0
+  );
+}
+
 /** Canonical async expectation owner — persisted state only, fail-closed. */
 export function resolveSuggestedRepliesExpectation(input: {
   usage: Usage;
   record: SuggestedRepliesRecord | null;
   repairLedgerRowCount: number;
-  /** Scoped async `post_turn_shared_initial` rows for this generation. */
-  sharedInitialRowCount?: number;
+  /** Scoped physical `post_turn_shared_initial` rows (sync + async). */
+  sharedInitialPhysicalRowCount?: number;
 }): ResolvedAsyncFamilyExpectation {
   const family = "suggested_replies_repair" as const;
   if (input.usage.htmlFlashOnly) {
@@ -93,9 +113,10 @@ export function resolveSuggestedRepliesExpectation(input: {
     };
   }
 
-  const syncExtract = input.usage.statusWidgetExtract;
-  const sharedSatisfied =
-    syncExtract?.postTurnSharedInitial === true || (input.sharedInitialRowCount ?? 0) > 0;
+  const sharedSatisfied = isPostTurnSharedInitialPhysicallySatisfied({
+    usage: input.usage,
+    sharedInitialPhysicalRowCount: input.sharedInitialPhysicalRowCount ?? 0,
+  });
   if (
     sharedSatisfied &&
     input.record &&
@@ -219,11 +240,22 @@ export function resolveStatusMetaExpectation(input: {
 export function resolveMemoryRelationshipExpectation(input: {
   task: MemoryRelationshipTaskRecord | null;
   memoryRelationshipLedgerRowCount: number;
+  /** Shared initial already owns the physical relationship inference for this turn. */
+  sharedInitialSatisfied?: boolean;
 }): ResolvedAsyncFamilyExpectation {
   const family = "memory_relationship" as const;
   const rowCount = input.memoryRelationshipLedgerRowCount;
+  const sharedInitialSatisfied = input.sharedInitialSatisfied === true;
 
   if (!input.task) {
+    if (sharedInitialSatisfied && rowCount === 0) {
+      return {
+        family,
+        label: ASYNC_FAMILY_LABELS[family],
+        expectationState: "not_expected",
+        skipReason: "post_turn_shared_initial_satisfied",
+      };
+    }
     return {
       family,
       label: ASYNC_FAMILY_LABELS[family],
@@ -262,6 +294,14 @@ export function resolveMemoryRelationshipExpectation(input: {
   }
 
   if (input.task.state === "succeeded") {
+    if (rowCount === 0 && sharedInitialSatisfied) {
+      return {
+        family,
+        label: ASYNC_FAMILY_LABELS[family],
+        expectationState: "not_expected",
+        skipReason: "post_turn_shared_initial_satisfied",
+      };
+    }
     return {
       family,
       label: ASYNC_FAMILY_LABELS[family],
@@ -293,6 +333,8 @@ export function resolveAsyncTurnCoverage(input: {
   statusMetaRecord: StatusMetaRecord | null;
   memoryRelationshipTask: MemoryRelationshipTaskRecord | null;
   ledgerAsyncRows: ProviderCostLedgerRow[];
+  /** Full scoped ledger rows — used to detect sync-phase shared initial evidence. */
+  scopedLedgerRows?: ProviderCostLedgerRow[];
   hasUnscopedLedgerRows?: boolean;
 }): AsyncTurnCoverageResult {
   const rowsByFamily = new Map<TurnAttributableAsyncFamily, ProviderCostLedgerRow[]>();
@@ -304,12 +346,20 @@ export function resolveAsyncTurnCoverage(input: {
     rowsByFamily.get(row.family)!.push(row);
   }
 
+  const sharedInitialPhysicalRowCount = countPostTurnSharedInitialPhysicalRows(
+    input.scopedLedgerRows ?? input.ledgerAsyncRows
+  );
+  const sharedInitialSatisfied = isPostTurnSharedInitialPhysicallySatisfied({
+    usage: input.usage,
+    sharedInitialPhysicalRowCount,
+  });
+
   const families = [
     resolveSuggestedRepliesExpectation({
       usage: input.usage,
       record: input.suggestedRepliesRecord,
       repairLedgerRowCount: rowsByFamily.get("suggested_replies_repair")!.length,
-      sharedInitialRowCount: rowsByFamily.get("post_turn_shared_initial")!.length,
+      sharedInitialPhysicalRowCount,
     }),
     resolveStatusMetaExpectation({
       record: input.statusMetaRecord,
@@ -318,6 +368,7 @@ export function resolveAsyncTurnCoverage(input: {
     resolveMemoryRelationshipExpectation({
       task: input.memoryRelationshipTask,
       memoryRelationshipLedgerRowCount: rowsByFamily.get("memory_relationship")!.length,
+      sharedInitialSatisfied,
     }),
   ];
 

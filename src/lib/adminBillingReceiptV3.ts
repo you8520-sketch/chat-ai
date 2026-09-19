@@ -22,6 +22,7 @@ import type {
   AdminBillingReceiptV3AsyncSection,
   AdminBillingReceiptV3WholeTurnCoverage,
 } from "@/lib/adminBillingReceiptV3Shared";
+import { resolveAdminReceiptPhysicalCallDiagnostic } from "@/lib/adminBillingReceiptProvenance";
 import {
   isLedgerEventCostCoverageIncomplete,
   isLedgerEventCostExact,
@@ -97,6 +98,31 @@ function filterAsyncLedgerRows(rows: ProviderCostLedgerRow[]): {
     relevant.push(row);
   }
   return { relevant, unexpected };
+}
+
+function mapAsyncLedgerEvents(rows: ProviderCostLedgerRow[]) {
+  return rows.map((row) => {
+    const provenance = resolveAdminReceiptPhysicalCallDiagnostic(row);
+    return {
+      eventKey: row.event_key,
+      family: row.family,
+      eventStatus: row.event_status,
+      actualCostUsd: row.actual_cost_usd,
+      actualCostSource: row.actual_cost_source,
+      exact: isLedgerEventCostExact(row),
+      incomplete: isLedgerEventCostCoverageIncomplete(row),
+      actualModel: row.actual_model?.trim() || null,
+      requestedModel: row.requested_model?.trim() || null,
+      canonicalOwner: provenance.canonicalOwner,
+      requestKind: provenance.requestKind,
+      trigger: provenance.trigger,
+      attempt: provenance.attempt,
+      providerRequestId: provenance.providerRequestId,
+      costAttribution: provenance.costAttribution,
+      inputTokens: row.input_tokens ?? null,
+      outputTokens: row.output_tokens ?? null,
+    };
+  });
 }
 
 function resolveFamilyCoverage(
@@ -183,6 +209,7 @@ function resolveAsyncSection(input: {
     statusMetaRecord: input.statusMetaRecord,
     memoryRelationshipTask: input.memoryRelationshipTask,
     ledgerAsyncRows: relevant,
+    scopedLedgerRows: input.ledgerRows,
     hasUnscopedLedgerRows: input.hasUnscopedLedgerRows === true,
   });
 
@@ -305,17 +332,7 @@ function resolveAsyncSection(input: {
     unexpectedRowCount: unexpected.length,
     unexpectedFamilies,
     byFamily,
-    events: relevant.map((row) => ({
-      eventKey: row.event_key,
-      family: row.family,
-      eventStatus: row.event_status,
-      actualCostUsd: row.actual_cost_usd,
-      actualCostSource: row.actual_cost_source,
-      exact: isLedgerEventCostExact(row),
-      incomplete: isLedgerEventCostCoverageIncomplete(row),
-      actualModel: row.actual_model?.trim() || null,
-      requestedModel: row.requested_model?.trim() || null,
-    })),
+    events: mapAsyncLedgerEvents(relevant),
   };
 }
 
@@ -499,17 +516,7 @@ export function buildAdminBillingReceiptV3ForMissingUsage(
         skipReason: undefined,
       };
     }),
-    events: relevant.map((row) => ({
-      eventKey: row.event_key,
-      family: row.family,
-      eventStatus: row.event_status,
-      actualCostUsd: row.actual_cost_usd,
-      actualCostSource: row.actual_cost_source,
-      exact: isLedgerEventCostExact(row),
-      incomplete: isLedgerEventCostCoverageIncomplete(row),
-      actualModel: row.actual_model?.trim() || null,
-      requestedModel: row.requested_model?.trim() || null,
-    })),
+    events: mapAsyncLedgerEvents(relevant),
   };
 
   return {
