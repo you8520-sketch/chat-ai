@@ -1,8 +1,8 @@
 /**
- * Main RP model retirement — canonical 4-model role invariant (§13/§15).
+ * Main RP model registry — canonical 3-model role invariant.
  *
  * ONE source of truth: MAIN_RP_MODEL_IDS / MAIN_RP_USER_SELECTABLE_OPTIONS.
- * Exactly 4 Main RP models; all others are MainRP=false (auxiliary/vision/
+ * Exactly 3 Main RP models; all others are MainRP=false (auxiliary/vision/
  * historical only). API=0.
  */
 import assert from "node:assert/strict";
@@ -31,21 +31,20 @@ import {
 
 const REPO_ROOT = resolve(process.cwd());
 
-describe("Main RP canonical 4-model registry", () => {
-  it("MAIN_RP_MODEL_COUNT=4 and picker count=4 (single source of truth)", () => {
-    assert.equal(MAIN_RP_MODEL_IDS.length, 4);
-    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 4);
-    assert.equal(SELECTED_AI_OPTIONS.length, 4);
-    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 4);
-    assert.equal(userSelectableAIOptionsForUser(false).length, 4);
-    assert.equal(userSelectableAIOptionsForUser(true).length, 4);
+describe("Main RP canonical 3-model registry", () => {
+  it("MAIN_RP_MODEL_COUNT=3 and picker count=3 (single source of truth)", () => {
+    assert.equal(MAIN_RP_MODEL_IDS.length, 3);
+    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 3);
+    assert.equal(SELECTED_AI_OPTIONS.length, 3);
+    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 3);
+    assert.equal(userSelectableAIOptionsForUser(false).length, 3);
+    assert.equal(userSelectableAIOptionsForUser(true).length, 3);
   });
 
-  it("canonical 4 are the exact expected ids and all selectable", () => {
+  it("canonical 3 are the exact expected ids and all selectable", () => {
     assert.deepEqual(
       [...MAIN_RP_MODEL_IDS].sort(),
       [
-        CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
         CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
         CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
         CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -65,6 +64,7 @@ describe("Main RP canonical 4-model registry", () => {
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       OPENROUTER_GEMINI_36_FLASH_MODEL,
       CLAUDE_OPUS_MODEL,
+      CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
     ];
     for (const modelId of retired) {
       assert.equal(isMainRpModel(modelId), false, modelId);
@@ -95,8 +95,6 @@ describe("Main RP canonical 4-model registry", () => {
       resolve(REPO_ROOT, "src/lib/chatModels.ts"),
       "utf8"
     );
-    // The ids must be derived (map) into MAIN_RP_MODEL_IDS from the canonical
-    // picker — not declared as a second literal array.
     const mapDecl = source.match(/MAIN_RP_MODEL_IDS[\s\S]*?MAIN_RP_USER_SELECTABLE_OPTIONS\.map/);
     assert.ok(mapDecl, "MAIN_RP_MODEL_IDS must be derived via .map from the canonical picker");
     assert.equal(
@@ -104,7 +102,6 @@ describe("Main RP canonical 4-model registry", () => {
       0,
       "MAIN_RP_MODEL_IDS must not be a literal array declaration"
     );
-    // SELECTED_AI_OPTIONS and USER_SELECTABLE_AI_OPTIONS are the same canonical array.
     assert.match(source, /SELECTED_AI_OPTIONS = MAIN_RP_USER_SELECTABLE_OPTIONS/);
     assert.match(source, /USER_SELECTABLE_AI_OPTIONS = MAIN_RP_USER_SELECTABLE_OPTIONS/);
   });
@@ -119,6 +116,9 @@ describe("Main RP canonical 4-model registry", () => {
     // @ts-expect-error — a retired model id must NOT be assignable to SelectedAI.
     const _retiredRejected: SelectedAI = CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
     void _retiredRejected;
+    // @ts-expect-error — Opus 5 retired from Main RP union.
+    const _opusRejected: SelectedAI = CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL;
+    void _opusRejected;
   });
 
   it("RETIRED_RP_ADAPTER_COUNT=0 / RETIRED_RP_CANARY_COUNT=0 / RETIRED_RP_ENV_FLAG_COUNT=0", () => {
@@ -138,6 +138,7 @@ describe("Main RP canonical 4-model registry", () => {
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       OPENROUTER_GEMINI_36_FLASH_MODEL,
       CLAUDE_OPUS_MODEL,
+      CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
     ];
     for (const list of [MAIN_RP_MODEL_IDS, [...MAIN_RP_USER_SELECTABLE_OPTIONS].map((o) => o.id)]) {
       for (const retired of retiredIds) {

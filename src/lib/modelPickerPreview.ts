@@ -3,7 +3,6 @@
  * Uses computeOpenRouterTurnCost from points.ts (env-aware rates).
  */
 import {
-  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -12,6 +11,7 @@ import {
   isGemini36FlashModel,
   isGpt56TerraModel,
   isMuseModel,
+  MAIN_RP_MODEL_IDS,
   resolveSelectedAI,
   USER_SELECTABLE_AI_OPTIONS,
   type SelectedAI,
@@ -48,15 +48,10 @@ export {
   modelPickerOptionLabel,
 } from "@/lib/modelPickerPreviewTypes";
 
-/** Active picker models — preview tuning scope for V2. */
-export const MODEL_PICKER_ACTIVE_MODEL_IDS = [
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-] as const satisfies readonly SelectedAI[];
+/** Active picker models — derived from canonical Main RP registry. */
+export const MODEL_PICKER_ACTIVE_MODEL_IDS = MAIN_RP_MODEL_IDS;
 
-export type ModelPickerActiveModelId = (typeof MODEL_PICKER_ACTIVE_MODEL_IDS)[number];
+export type ModelPickerActiveModelId = SelectedAI;
 
 export const MODEL_PICKER_OUTPUT_SAMPLE_LIMIT = 8;
 
@@ -70,7 +65,6 @@ export const MODEL_PICKER_FALLBACK_INPUT_TOKENS = 4000;
 export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerActiveModelId, number>> =
   {
     [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]: 1500,
-    [CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL]: 1400,
     [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: 1400,
     [CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL]: 1400,
   };

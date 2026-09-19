@@ -1099,7 +1099,7 @@ export function listModelCandidateFacts(): ModelCandidateFacts[] {
       modelId: opt.id,
       provider: opt.provider,
       displayLabel: opt.label,
-      productionUsage: "Main RP user-selectable (canonical 4)",
+      productionUsage: "Main RP user-selectable (canonical 3)",
       temperatureOwner: "openRouterClient.buildOpenRouterRequestBody + model-specific generation params",
       maxOutputOwner: "openRouterClient.resolveOpenRouterMaxTokens + targetResponseChars",
       estimatedInputUsdPerM: rates.inputUsdPerM,

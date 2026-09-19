@@ -1,14 +1,8 @@
 /**
  * Shared Novel Prose V2 — admin allowlist canary (default OFF, fail-closed).
  *
- * Exact canonical Main RP model IDs only:
- *   - deepseek-v4-pro-0813
- *   - claude-opus-5
- *   - gemini-3.1-pro-preview
- *   - gemini-3.7-flash
- *
- * Retired RP models (Luna, Gemini 3.6 Flash) are excluded — they are not Main
- * RP selectable.
+ * Exact canonical Main RP model IDs only (derived from MAIN_RP_MODEL_IDS).
+ * Retired RP models (Opus 5, Luna, Gemini 3.6 Flash, …) are excluded.
  *
  * Actual ON requires BOTH:
  *   SHARED_NOVEL_PROSE_V2_ENABLED=1 (or "true")
@@ -16,22 +10,12 @@
  *   AND modelId is one of the exact IDs above.
  */
 
-import {
-  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-} from "@/lib/chatModels";
+import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 
 const ENV_ENABLED = "SHARED_NOVEL_PROSE_V2_ENABLED";
 const ENV_USER_IDS = "SHARED_NOVEL_PROSE_V2_USER_IDS";
 
-export const SHARED_NOVEL_PROSE_V2_MODEL_IDS = [
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-] as const;
+export const SHARED_NOVEL_PROSE_V2_MODEL_IDS = [...MAIN_RP_MODEL_IDS] as const;
 
 const ALLOWED = new Set(
   SHARED_NOVEL_PROSE_V2_MODEL_IDS.map((id) => id.trim().toLowerCase())

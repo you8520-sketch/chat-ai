@@ -89,14 +89,14 @@ describe("sharedNovelProseV2 styles + resolver", () => {
     );
   });
 
-  it("gate ON → Legacy becomes PROSE_STYLE_SECTION_V2 for canonical 4 (retired excluded)", () => {
+  it("gate ON → Legacy becomes PROSE_STYLE_SECTION_V2 for canonical 3 (retired excluded)", () => {
     process.env.SHARED_NOVEL_PROSE_V2_ENABLED = "1";
     process.env.SHARED_NOVEL_PROSE_V2_USER_IDS = "1";
     assert.equal(
       resolveProseStyleSection(1, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
       PROSE_STYLE_SECTION_V2
     );
-    assert.equal(
+    assert.notEqual(
       resolveProseStyleSection(1, CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL),
       PROSE_STYLE_SECTION_V2
     );
