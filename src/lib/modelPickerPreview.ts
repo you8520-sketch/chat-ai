@@ -10,6 +10,7 @@ import {
   isCheaperInferenceGemini31ProModel,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
+  isGpt56TerraModel,
   isMuseModel,
   MAIN_RP_MODEL_IDS,
   resolveSelectedAI,
