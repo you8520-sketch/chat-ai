@@ -146,7 +146,9 @@ describe("LONG_HORIZON candidate starvation reproduction", () => {
       assert.equal(stages.PASSED_VALIDATION, true);
       assert.equal(stages.IN_FINAL_PROMPT, true, `T20 milestone must reach final prompt at T${currentTurn}`);
       assert.ok(
-        stages.lanes.includes("milestone") || stages.lanes.includes("relevance"),
+        stages.lanes.includes("milestone_critical") ||
+          stages.lanes.includes("milestone_important") ||
+          stages.lanes.includes("relevance"),
         "recovered via milestone or relevance lane"
       );
     });
@@ -284,6 +286,153 @@ describe("FABRICATED PAST negative fixture", () => {
   });
 });
 
+function insertDrinkPreferenceFixture(db: Database.Database): { t20Id: number; t140Id: number } {
+  db.prepare(
+    `INSERT INTO episodic_memory_facts
+      (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+     VALUES (1, 20, 'preference', 'user', 'favorite_drink', 'syrup_coffee', 'important',
+             '사용자는 커피에 시럽을 넣어 마신다.', '{}')`
+  ).run();
+  db.prepare(
+    `INSERT INTO episodic_memory_facts
+      (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+     VALUES (1, 140, 'preference', 'user', 'favorite_drink', 'black_coffee', 'normal',
+             '사용자는 블랙 커피만 마신다.', '{}')`
+  ).run();
+  insertFillerFacts(db, 1, 21, 119);
+  insertFillerFacts(db, 1, 141, 140);
+  const t20Id = (
+    db.prepare("SELECT id FROM episodic_memory_facts WHERE source_turn=20").get() as { id: number }
+  ).id;
+  const t140Id = (
+    db.prepare("SELECT id FROM episodic_memory_facts WHERE source_turn=140").get() as { id: number }
+  ).id;
+  return { t20Id, t140Id };
+}
+
+describe("STALE STATE resurrection — indirect query", () => {
+  it("must not inject T20 syrup as current truth when T140 black exists (message: 뭐 마실래?)", () => {
+    const db = createDb();
+    const { t20Id, t140Id } = insertDrinkPreferenceFixture(db);
+
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 300, currentUserMessage: "뭐 마실래?" },
+      recallEnv
+    );
+
+    const injectedT20 = recall.facts.some((f) => f.id === t20Id);
+    const injectedT140 = recall.facts.some((f) => f.id === t140Id);
+
+    assert.ok(
+      !injectedT20 || injectedT140,
+      "STALE_STATE_RESURRECTION: T20 syrup must not appear without T140 black"
+    );
+    assert.doesNotMatch(recall.promptBlock, /시럽을 넣어/);
+  });
+});
+
+describe("OLD-VALUE relevance trap", () => {
+  it("keyword 시럽 must not let obsolete T20 beat canonical T140 for same logical key", () => {
+    const db = createDb();
+    const { t20Id, t140Id } = insertDrinkPreferenceFixture(db);
+
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 300, currentUserMessage: "시럽" },
+      recallEnv
+    );
+
+    const injectedT20 = recall.facts.some((f) => f.id === t20Id);
+    const injectedT140 = recall.facts.some((f) => f.id === t140Id);
+
+    assert.ok(
+      !injectedT20 || injectedT140,
+      "obsolete T20 must not win relevance trap without latest T140"
+    );
+    if (injectedT140) {
+      assert.match(recall.promptBlock, /블랙 커피/);
+    }
+  });
+});
+
+describe("CRITICAL vs IMPORTANT milestone priority", () => {
+  it("T21 critical historical event survives 20 older important milestones", () => {
+    const db = createDb();
+    for (let turn = 1; turn <= 20; turn++) {
+      db.prepare(
+        `INSERT INTO episodic_memory_facts
+          (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+         VALUES (1, ?, 'relationship', 'user_char', 'scene_event', ?, 'important',
+                 ?, '{"memory_evidence_type":"explicit_scene_event"}')`
+      ).run(
+        turn,
+        `important_event_${turn}`,
+        `T${turn}에서 중요한 역사적 사건 ${turn}이 완료되었다.`
+      );
+    }
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 21, 'relationship', 'user_char', 'scene_event', 'critical_turning_point', 'critical',
+               'T21에서 결정적인 전환점 사건이 완료되었다.', '{"memory_evidence_type":"explicit_scene_event"}')`
+    ).run();
+    insertFillerFacts(db, 1, 22, 150);
+
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      {
+        chatId: 1,
+        currentTurn: 180,
+        currentUserMessage: "요즘 날씨 어때?",
+      },
+      recallEnv
+    );
+
+    assert.ok(
+      recall.facts.some((f) => f.source_turn === 21 && f.value === "critical_turning_point"),
+      "T21 critical milestone must reach final prompt despite 20 older important events"
+    );
+  });
+});
+
+describe("lane cap arbitration — no insertion-order ranking", () => {
+  it("merged candidates include milestone rows even when recent lane is full", () => {
+    const db = createDb();
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      sourceTurn: 5,
+      facts: [OLD_MILESTONE_T20],
+    });
+    insertFillerFacts(db, 1, 6, 200);
+
+    const { rows, laneById, stats } = fetchEpisodicMemoryCandidatesForDebug(
+      db,
+      { chatId: 1, currentTurn: 210, currentUserMessage: "우리 첫 밤" },
+      recallEnv
+    );
+
+    const milestoneId = (
+      db.prepare("SELECT id FROM episodic_memory_facts WHERE source_turn=5").get() as { id: number }
+    ).id;
+
+    assert.ok(rows.some((r) => r.id === milestoneId), "milestone row must survive merge without lane-order cap drop");
+    const milestoneLanes = laneById.get(milestoneId) ?? [];
+    assert.ok(
+      milestoneLanes.includes("milestone_critical") ||
+        milestoneLanes.includes("milestone_important"),
+      "T5 milestone provenance preserved"
+    );
+    assert.ok(stats.mergedCandidateCount <= 100, "merged cap respected");
+    const laneSum =
+      stats.laneCounts.recent +
+      stats.laneCounts.relevance +
+      stats.laneCounts.milestone_critical +
+      stats.laneCounts.milestone_important;
+    assert.ok(laneSum <= 100, "lane budgets sum within candidateLimit");
+  });
+});
+
 describe("state-like latest-wins at long horizon", () => {
   it("newer state overrides older keyword-relevant state", () => {
     const db = createDb();
@@ -379,8 +528,21 @@ describe("reset / regen stale-memory safety", () => {
 describe("performance benchmark — bounded multi-lane retrieval", () => {
   const sizes = [100, 300, 1000, 2000];
 
+  function explainRecentPlan(db: Database.Database): string {
+    return (
+      db
+        .prepare(
+          `EXPLAIN QUERY PLAN SELECT id FROM episodic_memory_facts
+           WHERE chat_id=1 ORDER BY source_turn DESC, id DESC LIMIT 55`
+        )
+        .all() as Array<{ detail: string }>
+    )
+      .map((row) => row.detail)
+      .join(" | ");
+  }
+
   for (const size of sizes) {
-    it(`size≈${size}: query count and merged candidates stay bounded`, () => {
+    it(`size≈${size}: query count, timing, and merged candidates stay bounded`, () => {
       const db = createDb();
       persistEpisodicMemoryFactsBestEffort(db, {
         chatId: 1,
@@ -389,6 +551,7 @@ describe("performance benchmark — bounded multi-lane retrieval", () => {
       });
       insertFillerFacts(db, 1, 21, size - 20);
 
+      const candidateStart = performance.now();
       const { stats } = fetchEpisodicMemoryCandidatesForDebug(
         db,
         {
@@ -398,7 +561,9 @@ describe("performance benchmark — bounded multi-lane retrieval", () => {
         },
         recallEnv
       );
+      const candidateMs = performance.now() - candidateStart;
 
+      const recallStart = performance.now();
       const recall = getEpisodicMemoryForPrompt(
         db,
         {
@@ -408,11 +573,17 @@ describe("performance benchmark — bounded multi-lane retrieval", () => {
         },
         recallEnv
       );
+      const recallMs = performance.now() - recallStart;
+
+      const recentPlan = explainRecentPlan(db);
 
       assert.ok(stats.queryCount <= 4, `query count bounded (got ${stats.queryCount})`);
       assert.ok(stats.mergedCandidateCount <= 100, "merged candidates capped at 100");
       assert.ok(recall.facts.length <= 8, "final facts capped at 8");
       assert.ok(recall.promptBlock.length <= 2000, "prompt block stays within practical budget");
+      assert.ok(candidateMs < 5000, `candidate fetch ${candidateMs.toFixed(1)}ms`);
+      assert.ok(recallMs < 5000, `full recall ${recallMs.toFixed(1)}ms`);
+      assert.match(recentPlan, /idx_episodic_memory_facts_chat_turn|USING INDEX/i);
     });
   }
 });
