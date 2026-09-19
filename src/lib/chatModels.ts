@@ -210,12 +210,11 @@ export type SelectedAIOptionMeta = {
 };
 
 /**
- * CANONICAL Main RP picker — ONE source of truth (product decision: exactly 3).
+ * CANONICAL Main RP picker — ONE source of truth.
  *
- * DeepSeek V4 Pro / Gemini 3.1 Pro Preview / Gemini 3.7 Flash.
- * Claude Opus 5 is retired from user Main RP (cache/economics root cause unconfirmed;
- * forensic harness on #962 branch only). All other models (Luna, Terra, DeepSeek Flash,
- * Gemini 3.6 Flash, old Opus slugs, Muse, Qwen, GLM, Kimi, …) are NOT Main RP.
+ * DeepSeek V4 Pro / Gemini 3.1 Pro Preview / Gemini 3.7 Flash / GPT-5.6 Terra.
+ * Claude Opus 5 remains retired from user Main RP. Luna, DeepSeek Flash,
+ * Gemini 3.6 Flash, old Opus slugs, Muse, Qwen, GLM, Kimi, … are NOT Main RP.
  * Their constants remain only for auxiliary/background use or historical receipt/billing.
  */
 export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
@@ -241,9 +240,16 @@ export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
     tier: "pro",
     hint: "Google",
   },
+  {
+    id: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+    label: GPT_56_TERRA_DISPLAY_NAME,
+    provider: "cheaperinference",
+    tier: "pro",
+    hint: "OpenAI · Thinking OFF",
+  },
 ] as const satisfies readonly SelectedAIOptionMeta[];
 
-/** SelectedAI is exactly the canonical 3 literal union — never widened to string. */
+/** SelectedAI is exactly the canonical Main RP literal union — never widened to string. */
 export type SelectedAI = (typeof MAIN_RP_USER_SELECTABLE_OPTIONS)[number]["id"];
 export type SelectedAITier = (typeof MAIN_RP_USER_SELECTABLE_OPTIONS)[number]["tier"];
 
@@ -251,7 +257,7 @@ export type SelectedAITier = (typeof MAIN_RP_USER_SELECTABLE_OPTIONS)[number]["t
 export const MAIN_RP_MODEL_IDS: readonly SelectedAI[] =
   MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.id);
 
-/** True only for the canonical 3 Main RP models. */
+/** True only for canonical Main RP models. */
 export function isMainRpModel(modelId: string): boolean {
   return MAIN_RP_MODEL_IDS.includes(modelId.trim().toLowerCase() as SelectedAI);
 }
@@ -263,10 +269,10 @@ export const SELECTED_AI_OPTIONS = MAIN_RP_USER_SELECTABLE_OPTIONS;
 export const DEFAULT_SELECTED_AI: SelectedAI =
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 
-/** Main RP picker — canonical 3만 (retired 모델 절대 재노출 금지). */
+/** Main RP picker — canonical registry only. */
 export const USER_SELECTABLE_AI_OPTIONS = MAIN_RP_USER_SELECTABLE_OPTIONS;
 
-/** Main RP picker — canonical 3만. Admin도 동일 (퇴역 모델 재노출 금지). */
+/** Main RP picker — canonical registry only. Admin도 동일. */
 export function userSelectableAIOptionsForUser(
   _isAdmin: boolean
 ): readonly SelectedAIOptionMeta[] {
@@ -542,7 +548,6 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "deepseek-v4-flash": DEFAULT_SELECTED_AI,
   "deepseek-v4-flash-0731": DEFAULT_SELECTED_AI,
   "gpt-5.6-luna": DEFAULT_SELECTED_AI,
-  "gpt-5.6-terra": DEFAULT_SELECTED_AI,
   /** Qwen 3.7 Max 제거 — 현재 기본 모델로 이전 */
   qwen: DEFAULT_SELECTED_AI,
   "qwen3.7-max": DEFAULT_SELECTED_AI,
