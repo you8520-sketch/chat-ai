@@ -4,13 +4,13 @@
 
 import { getDb } from "@/lib/db";
 import { activateSitePromotionCampaign } from "@/lib/sitePromotion";
+import { resolveSiteCampaignActivatedAt } from "@/lib/sitePromotionPolicy";
 import { ensureSitePromotionSchema } from "@/lib/sitePromotionSchema";
 
 export type OfficialProviderPromotion = {
   id: number;
   provider: string;
   modelId: string | null;
-  modelFamily: string | null;
   officialDiscountPct: number;
   officialStart: string;
   officialEnd: string;
@@ -26,7 +26,6 @@ export type OfficialProviderPromotion = {
 export type CreateOfficialProviderPromotionInput = {
   provider: string;
   modelId?: string | null;
-  modelFamily?: string | null;
   officialDiscountPct: number;
   officialStart: string;
   officialEnd: string;
@@ -47,7 +46,6 @@ function rowToPromotion(row: Record<string, unknown>): OfficialProviderPromotion
     id: Number(row.id),
     provider: String(row.provider),
     modelId: row.model_id ? String(row.model_id) : null,
-    modelFamily: row.model_family ? String(row.model_family) : null,
     officialDiscountPct: Number(row.official_discount_pct),
     officialStart: String(row.official_start),
     officialEnd: String(row.official_end),
@@ -67,20 +65,21 @@ export function createOfficialProviderPromotion(
   const db = getDb();
   ensureSitePromotionSchema(db);
   const modelId = normalizeModelId(input.modelId);
+  if (!modelId) {
+    throw new Error("official provider promotion requires exact model_id");
+  }
   const episodeKey =
-    input.episodeKey?.trim() ||
-    `${input.provider}:${modelId ?? input.modelFamily ?? "all"}:${input.officialStart}`;
+    input.episodeKey?.trim() || `${input.provider}:${modelId}:${input.officialStart}`;
   const result = db
     .prepare(
       `INSERT INTO official_provider_promotions
-         (provider, model_id, model_family, official_discount_pct, official_start, official_end,
+         (provider, model_id, official_discount_pct, official_start, official_end,
           source, provenance, verified_at, verified_by, status, episode_key)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)`
     )
     .run(
       input.provider.trim(),
       modelId,
-      input.modelFamily?.trim() || null,
       input.officialDiscountPct,
       input.officialStart,
       input.officialEnd,
@@ -92,13 +91,18 @@ export function createOfficialProviderPromotion(
     );
   const promotion = getOfficialProviderPromotion(Number(result.lastInsertRowid))!;
 
-  if (promotion.verifiedAt?.trim() && modelId) {
+  if (promotion.verifiedAt?.trim()) {
+    const activatedAt = resolveSiteCampaignActivatedAt(
+      promotion.verifiedAt,
+      promotion.officialStart
+    );
     activateSitePromotionCampaign(
       {
         id: promotion.id,
         provider: promotion.provider,
         modelId,
         officialDiscountPct: promotion.officialDiscountPct,
+        officialStart: promotion.officialStart,
         officialEnd: promotion.officialEnd,
         episodeKey: promotion.episodeKey,
         source: promotion.source,
@@ -106,7 +110,7 @@ export function createOfficialProviderPromotion(
         verifiedAt: promotion.verifiedAt,
       },
       modelId,
-      promotion.verifiedAt
+      activatedAt
     );
   }
 
@@ -133,12 +137,17 @@ export function updateOfficialProviderPromotionDiscount(
   ).run(officialDiscountPct, id);
   const promotion = getOfficialProviderPromotion(id);
   if (promotion?.verifiedAt?.trim() && promotion.modelId) {
+    const activatedAt = resolveSiteCampaignActivatedAt(
+      promotion.verifiedAt,
+      promotion.officialStart
+    );
     activateSitePromotionCampaign(
       {
         id: promotion.id,
         provider: promotion.provider,
         modelId: promotion.modelId,
         officialDiscountPct: promotion.officialDiscountPct,
+        officialStart: promotion.officialStart,
         officialEnd: promotion.officialEnd,
         episodeKey: promotion.episodeKey,
         source: promotion.source,
@@ -146,7 +155,7 @@ export function updateOfficialProviderPromotionDiscount(
         verifiedAt: promotion.verifiedAt,
       },
       promotion.modelId,
-      promotion.verifiedAt
+      activatedAt
     );
   }
   return promotion;

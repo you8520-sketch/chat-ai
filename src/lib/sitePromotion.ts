@@ -15,6 +15,7 @@ type VerifiedOfficialPromotion = {
   provider: string;
   modelId: string;
   officialDiscountPct: number;
+  officialStart: string;
   officialEnd: string;
   episodeKey: string;
   source: string;
@@ -151,6 +152,7 @@ function rowToVerifiedOfficial(row: Record<string, unknown>): VerifiedOfficialPr
     provider: String(row.provider),
     modelId: String(row.model_id),
     officialDiscountPct: Number(row.official_discount_pct),
+    officialStart: String(row.official_start),
     officialEnd: String(row.official_end),
     episodeKey: String(row.episode_key),
     source: String(row.source ?? ""),
@@ -170,7 +172,7 @@ function findActiveCampaignForModel(
 
   const row = db
     .prepare(
-      `SELECT c.*, o.provider, o.official_discount_pct, o.official_end, o.source,
+      `SELECT c.*, o.provider, o.official_discount_pct, o.official_start, o.official_end, o.source,
               o.provenance, o.verified_at, o.episode_key
        FROM site_promotion_campaigns c
        JOIN official_provider_promotions o ON o.id = c.official_promotion_id
@@ -250,20 +252,63 @@ export function buildSitePromotionSnapshot(
   };
 }
 
-/** UI copy for promotion badge/banner — reads canonical site promotion only. */
-export function formatSitePromotionUserLabel(promo: ActiveSitePromotion): {
+export type SitePromotionClientView = {
+  modelId: string;
+  siteDiscountPercent: number;
+  endsAt: string;
   title: string;
   subtitle: string;
+  detailLine: string;
   badge: string;
-} {
-  const endsDate = promo.endsAt.slice(0, 10).replace(/-/g, ".");
-  const verified = promo.verifiedAt != null && promo.verifiedAt.length > 0;
-  const providerLabel = promo.provider.charAt(0).toUpperCase() + promo.provider.slice(1);
+};
+
+function formatPromotionEndsDate(endsAtIso: string): string {
+  return endsAtIso.slice(0, 10).replace(/-/g, ".");
+}
+
+/** UI copy for promotion badge/banner — reads canonical site promotion only. */
+export function formatSitePromotionUserLabel(
+  promo: ActiveSitePromotion,
+  modelDisplayName?: string
+): Pick<SitePromotionClientView, "title" | "subtitle" | "detailLine" | "badge"> {
+  const pct = Math.round(promo.siteDiscountPercent);
+  const endsDate = formatPromotionEndsDate(promo.endsAt);
+  const label = modelDisplayName?.trim() || promo.provider;
   return {
-    title: verified
-      ? `${providerLabel} 기간 한정 모델 할인`
-      : `${providerLabel} 모델 할인`,
-    subtitle: `${Math.round(promo.siteDiscountPercent)}% 할인 · 자동 적용 · ${endsDate}까지`,
-    badge: `-${Math.round(promo.siteDiscountPercent)}%`,
+    title: `${label} 기간 한정 모델 할인`,
+    subtitle: `공식 프로모션 반영으로 7일간 모델 이용료 ${pct}% 할인`,
+    detailLine: `자동 적용 · ${endsDate}까지`,
+    badge: `-${pct}%`,
   };
+}
+
+export function toSitePromotionClientView(
+  promo: ActiveSitePromotion,
+  modelDisplayName?: string
+): SitePromotionClientView {
+  const copy = formatSitePromotionUserLabel(promo, modelDisplayName);
+  return {
+    modelId: promo.modelId,
+    siteDiscountPercent: promo.siteDiscountPercent,
+    endsAt: promo.endsAt,
+    ...copy,
+  };
+}
+
+/** Resolve active site promotions for model picker / chat notice surfaces. */
+export function resolveActiveSitePromotionsForModels(
+  modelIds: readonly string[],
+  nowIso = new Date().toISOString()
+): SitePromotionClientView[] {
+  const seen = new Set<string>();
+  const results: SitePromotionClientView[] = [];
+  for (const modelId of modelIds) {
+    const normalized = modelId.trim().toLowerCase();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    const promo = resolveActiveSitePromotion(normalized, nowIso);
+    if (!promo) continue;
+    results.push(toSitePromotionClientView(promo));
+  }
+  return results;
 }

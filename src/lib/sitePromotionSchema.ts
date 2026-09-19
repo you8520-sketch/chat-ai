@@ -12,7 +12,6 @@ export const OFFICIAL_PROVIDER_PROMOTIONS_DDL = `
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     provider TEXT NOT NULL,
     model_id TEXT,
-    model_family TEXT,
     official_discount_pct REAL NOT NULL,
     official_start TEXT NOT NULL,
     official_end TEXT NOT NULL,

@@ -45,6 +45,8 @@ import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import MessageVariantPicker from "@/components/MessageVariantPicker";
 import { shouldShowVariantPicker } from "@/lib/chatVariantPickerPolicy";
 import ChatToast from "@/components/ChatToast";
+import SitePromotionChatNotice from "@/components/SitePromotionChatNotice";
+import type { SitePromotionClientView } from "@/lib/sitePromotion";
 import CharacterAssetImage from "@/components/CharacterAssetImage";
 import GenerationPreparationIndicator from "@/components/GenerationPreparationIndicator";
 import {
@@ -321,13 +323,18 @@ function isChatFetchTimeout(e: unknown): boolean {
   return e instanceof DOMException && e.name === "TimeoutError";
 }
 
-/** Model option label — estimate-P preview temporarily hidden (will restore after accurate cost work). */
-function selectedAIOptionLabel(id: SelectedAI): string {
+/** Model option label — site promo badge from canonical active promotion only. */
+function selectedAIOptionLabel(
+  id: SelectedAI,
+  activeSitePromotionsByModelId: Record<string, SitePromotionClientView>
+): string {
+  const promoBadge = activeSitePromotionsByModelId[id]?.badge;
   const meta = selectedAIOptionMeta(id);
-  const badgeText =
+  const staticBadge =
     meta && "badge" in meta && typeof meta.badge === "string" && meta.badge
       ? meta.badge
       : "";
+  const badgeText = promoBadge || staticBadge;
   const badge = badgeText ? ` [${badgeText}]` : "";
   return `${selectedAILabel(id)}${badge}`;
 }
@@ -907,6 +914,7 @@ export default function ChatClient({
   initialAdultHandoffEnabled = false,
   initialSelectedAI,
   initialGlobalModelNotice = null,
+  initialActiveSitePromotions = [],
   initialTargetResponseChars,
   initialChatTitle = "",
   initialDisplayPrefs,
@@ -947,6 +955,8 @@ export default function ChatClient({
   initialSelectedAI: SelectedAI;
   /** 전역 모델 1회 안내 (SSR에서 consume) */
   initialGlobalModelNotice?: string | null;
+  /** Active verified site promotions for model picker badge + inline notice. */
+  initialActiveSitePromotions?: SitePromotionClientView[];
   initialTargetResponseChars: number;
   initialChatTitle?: string;
   initialDisplayPrefs?: ChatDisplayPrefs;
@@ -1204,6 +1214,15 @@ export default function ChatClient({
     () => userSelectableAIOptionsForUser(isAdmin),
     [isAdmin]
   );
+  const activeSitePromotionsByModelId = useMemo(() => {
+    const map: Record<string, SitePromotionClientView> = {};
+    for (const promo of initialActiveSitePromotions) {
+      map[promo.modelId.trim().toLowerCase()] = promo;
+    }
+    return map;
+  }, [initialActiveSitePromotions]);
+  const selectedModelSitePromotion =
+    activeSitePromotionsByModelId[selectedAI.trim().toLowerCase()] ?? null;
   const [userNote, setUserNote] = useState(initialUserNote);
   const [personas, setPersonas] = useState(initialPersonas);
   const [selectedPersonaId, setSelectedPersonaId] = useState(initialSelectedPersonaId);
@@ -5712,6 +5731,7 @@ export default function ChatClient({
         }
       >
         <FloatingPointsDeduction amount={floatDeductionAmount} trigger={floatDeductionTrigger} />
+        <SitePromotionChatNotice promotion={selectedModelSitePromotion} />
         <div className={`flex flex-wrap items-center gap-2 overflow-visible ${leftLayout ? "mb-1" : "mb-1"}`}>
           <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-zinc-400 sm:flex-none">
             <span className="shrink-0 font-semibold text-zinc-500">AI</span>
@@ -5723,7 +5743,7 @@ export default function ChatClient({
             >
               {selectableAIOptions.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {selectedAIOptionLabel(o.id as SelectedAI)}
+                  {selectedAIOptionLabel(o.id as SelectedAI, activeSitePromotionsByModelId)}
                 </option>
               ))}
             </select>

@@ -219,7 +219,44 @@ describe("procurement vs site promotion separation", () => {
     const second = resolveActiveSitePromotion(MODEL, "2026-09-03T00:00:00.000Z");
     assert.ok(second);
     assert.equal(second.activatedAt, first!.activatedAt);
-    assert.equal(second.siteDiscountPercent, 24);
+    assert.equal(second.siteDiscountPercent, 20);
+  });
+
+  it("future officialStart delays campaign activation until promo window opens", () => {
+    getDb().exec("DELETE FROM site_promotion_campaigns");
+    getDb().exec("DELETE FROM official_provider_promotions");
+    createOfficialProviderPromotion({
+      provider: "google",
+      modelId: MODEL,
+      officialDiscountPct: 50,
+      officialStart: "2026-10-01T00:00:00.000Z",
+      officialEnd: "2026-11-01T00:00:00.000Z",
+      verifiedAt: "2026-09-20T00:00:00.000Z",
+      episodeKey: "google:future-start",
+    });
+    const beforeStart = resolveActiveSitePromotion(MODEL, "2026-09-25T00:00:00.000Z");
+    assert.equal(beforeStart, null);
+    const atStart = resolveActiveSitePromotion(MODEL, "2026-10-02T00:00:00.000Z");
+    assert.ok(atStart);
+    assert.equal(atStart!.activatedAt, "2026-10-01T00:00:00.000Z");
+    assert.equal(atStart!.endsAt, "2026-10-08T00:00:00.000Z");
+  });
+
+  it("late verification uses verifiedAt when after officialStart", () => {
+    getDb().exec("DELETE FROM site_promotion_campaigns");
+    getDb().exec("DELETE FROM official_provider_promotions");
+    createOfficialProviderPromotion({
+      provider: "google",
+      modelId: MODEL,
+      officialDiscountPct: 50,
+      officialStart: "2026-09-01T00:00:00.000Z",
+      officialEnd: "2026-10-01T00:00:00.000Z",
+      verifiedAt: "2026-09-20T00:00:00.000Z",
+      episodeKey: "google:late-verify",
+    });
+    const promo = resolveActiveSitePromotion(MODEL, "2026-09-21T00:00:00.000Z");
+    assert.ok(promo);
+    assert.equal(promo!.activatedAt, "2026-09-20T00:00:00.000Z");
   });
 
   it("campaign activation T0 / first billing T+2 keeps timer based on T0", () => {

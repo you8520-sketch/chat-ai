@@ -7,7 +7,7 @@ import {
 } from "./points";
 import type { Usage } from "./chatUsage";
 import { reverseCreatorRewardForMessage } from "./creatorPoints";
-import { assessMessageForAutoRefund } from "./refundAutoValidation";
+import type { AutoRefundReason } from "./refundAutoValidation";
 import { assessCategoryForAutoRefund } from "./refundCategoryValidation";
 import {
   isReportRefundUiCategory,
@@ -284,12 +284,6 @@ function runRefundImmediateTransaction<T>(
   throw new Error("Refund contention retries exhausted");
 }
 
-function isReportRefundUniqueConflict(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  const msg = err.message.toLowerCase();
-  return msg.includes("unique constraint") || msg.includes("constraint failed");
-}
-
 function parseRefundAmount(msg: { usage: string | null }): number {
   if (!msg.usage) return 0;
   try {
@@ -339,8 +333,7 @@ export function processReportRefund(
   const previousAssistantContent = loadPreviousAssistantContent(chatId, messageId);
   const userMessage = loadPairedUserMessage(chatId, messageId);
 
-  try {
-    return runRefundImmediateTransaction(db, () => {
+  return runRefundImmediateTransaction(db, () => {
       const msg = loadMessageRefundContext(messageId, chatId);
 
       if (!msg) return { status: "rejected", message: "메시지를 찾을 수 없습니다." };
@@ -360,7 +353,7 @@ export function processReportRefund(
       const existing = db
         .prepare(
           `SELECT status FROM report_refunds
-           WHERE user_id = ? AND message_id = ?
+           WHERE user_id = ? AND message_id = ? AND status IN ('pending', 'approved')
            LIMIT 1`
         )
         .get(userId, messageId) as { status: string } | undefined;
@@ -494,12 +487,6 @@ export function processReportRefund(
           : "신고가 접수되었습니다. 관리자 확인 후 환불 여부가 결정됩니다.",
       };
     });
-  } catch (err) {
-    if (isReportRefundUniqueConflict(err)) {
-      return { status: "rejected", message: "이미 접수된 오류 신고입니다." };
-    }
-    throw err;
-  }
 }
 
 export type ReportRefundAdminRow = {
@@ -530,8 +517,10 @@ export type ReportRefundAdminDetail = ReportRefundAdminRow & {
   paired_user_content: string | null;
   character_id: number;
   character_name: string;
+  report_category: string;
   live_validation_summary: string;
   live_validation_reasons: string[];
+  live_validation_pass: boolean;
 };
 
 export function listReportRefundsForAdmin(
@@ -569,7 +558,8 @@ export function getReportRefundForAdmin(
   const row = db
     .prepare(
       `SELECT rr.id, rr.user_id, rr.chat_id, rr.message_id, rr.status, rr.refund_amount,
-              rr.validation_note, rr.receipt_snapshot, rr.auto_refund, rr.error_reasons, rr.created_at,
+              rr.validation_note, rr.receipt_snapshot, rr.auto_refund, rr.error_reasons,
+              rr.report_category, rr.created_at,
               u.nickname AS user_nickname, u.email AS user_email,
               m.content AS message_content, m.status AS message_status, m.model AS message_model,
               m.usage AS message_usage, m.deduction_slices, m.generation_status,
@@ -589,18 +579,49 @@ export function getReportRefundForAdmin(
     .get(reportRefundId) as ReportRefundAdminDetail | undefined;
 
   if (!row) return undefined;
-  const liveAssessment = assessMessageForAutoRefund({
-    content: row.message_content,
-    messageStatus: row.message_status,
-    previousAssistantContent: loadPreviousAssistantContent(row.chat_id, row.message_id),
-    userMessage: row.paired_user_content,
-  });
+
+  let usage: Usage | null = null;
+  if (row.message_usage) {
+    try {
+      usage = JSON.parse(row.message_usage) as Usage;
+    } catch {
+      usage = null;
+    }
+  }
+
+  const storedCategory = row.report_category?.trim() ?? "";
+  const category = isReportRefundUiCategory(storedCategory) ? storedCategory : null;
+  const liveAssessment = category
+    ? assessCategoryForAutoRefund({
+        category,
+        content: row.message_content,
+        messageStatus: row.message_status,
+        generationStatus: row.generation_status,
+        finishReason: usage?.finishReason ?? null,
+        usage,
+        previousAssistantContent: loadPreviousAssistantContent(row.chat_id, row.message_id),
+        userMessage: row.paired_user_content,
+        messageId: row.message_id,
+        chatId: row.chat_id,
+        userId: row.user_id,
+      })
+    : {
+        category: "other" as ReportRefundUiCategory,
+        isError: false,
+        reasons: [] as AutoRefundReason[],
+        summary: storedCategory
+          ? `unknown category (${storedCategory})`
+          : "category not recorded",
+      };
+
   return {
     ...row,
+    report_category: storedCategory,
     receipt_snapshot:
       row.receipt_snapshot?.trim() || buildMessageReceiptSnapshot(row.message_usage),
     live_validation_summary: liveAssessment.summary,
-    live_validation_reasons: liveAssessment.reasons,
+    live_validation_reasons: [...liveAssessment.reasons],
+    live_validation_pass: liveAssessment.isError,
   };
 }
 

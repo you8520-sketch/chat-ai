@@ -934,7 +934,8 @@ describe("refund report-path boundaries — fail-closed, no silent mint", () => 
     const chatId = Number(chatRow.lastInsertRowid);
     const msgRow = db
       .prepare(
-        "INSERT INTO messages (chat_id, role, content, status, usage, deduction_slices) VALUES (?, 'assistant', ?, 'error', ?, ?)"
+        `INSERT INTO messages (chat_id, role, content, status, generation_status, usage, deduction_slices)
+         VALUES (?, 'assistant', ?, 'error', 'interrupted', ?, ?)`
       )
       .run(chatId, "x", JSON.stringify({ cost: 200 }), JSON.stringify(deducted.slices));
     const messageId = Number(msgRow.lastInsertRowid);

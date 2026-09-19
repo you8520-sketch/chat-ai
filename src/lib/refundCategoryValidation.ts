@@ -8,11 +8,7 @@ import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
 import type { Usage } from "@/lib/chatUsage";
 import { isDegenerateOutput } from "@/lib/gibberishGuard";
 import { detectRpMetaLeakage } from "@/lib/narrativeRules";
-import {
-  assessMessageForAutoRefund,
-  hasRepeatedLongFormBlock,
-  type AutoRefundReason,
-} from "@/lib/refundAutoValidation";
+import { hasRepeatedLongFormBlock, type AutoRefundReason } from "@/lib/refundAutoValidation";
 import {
   formatReportRefundCategoryLabel,
   type ReportRefundUiCategory,
@@ -113,8 +109,6 @@ function mapReasonsToSummary(
   reasons: AutoRefundReason[]
 ): string {
   const label = formatReportRefundCategoryLabel(category);
-  const base = assessMessageForAutoRefund({ content: "" });
-  void base;
   const technical =
     reasons.length > 0
       ? reasons.join(", ")
@@ -205,10 +199,6 @@ export function assessCategoryForAutoRefund(input: {
       const _exhaustive: never = category;
       void _exhaustive;
     }
-  }
-
-  if (input.messageStatus === "error") {
-    if (!reasons.includes("api_error")) reasons.push("api_error");
   }
 
   const unique = [...new Set(reasons)];
