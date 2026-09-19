@@ -447,3 +447,12 @@ CI Opus 5 catalog: input $3.5/M · read $0.35/M · write $4.375/M · output $17.
 - No cleanup merge-candidate pass
 - Passthrough **query-parameter** patch implemented (offline regression only; **no live provider call**)
 - Provider call budget cumulative: **0** (post-fix 3-call harness remains last live evidence)
+- **Main integration (2026-09-19):** merged `ad088282` (PR #963 billing/procurement); zero file overlap; PC/HC + #963 billing regressions pass; `behind=0`
+
+### Next live cost budget (approval required — NOT executed)
+
+| Outcome | Approx total (2-call) |
+|---------|----------------------|
+| Expected healthy passthrough | ~$0.26 |
+| Expected no-effect (negative control) | ~$0.30 |
+| Hard safety ceiling (not target spend) | **$0.33** |
