@@ -21,9 +21,7 @@ import {
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   OPENROUTER_GEMINI_31_FLASH_MODEL,
 } from "@/lib/chatModels";
-import { logAuxProviderCall } from "@/lib/auxProviderProvenance";
 import { isMockApiMode } from "@/lib/mockApiMode";
-import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
 import {
   actionTypeLabelKo,
   isTrpgActionType,
@@ -1131,44 +1129,6 @@ function resolveCheaperInferenceReplySuggestionTransport(): {
   }
 }
 
-const TRPG_REPLY_SUGGESTION_REQUEST_KIND = "background-trpg-reply-suggestion";
-
-function recordTrpgReplySuggestionProviderCost(input: {
-  model: string;
-  inputTokens?: number;
-  outputTokens?: number;
-  providerRequestId?: string | null;
-  logicalRequestId: string;
-  attempt: number;
-  isRetry: boolean;
-}): void {
-  try {
-    recordBackgroundProviderCost({
-      provider: "cheaperinference",
-      model: input.model,
-      requestKind: TRPG_REPLY_SUGGESTION_REQUEST_KIND,
-      costCenter: "trpg",
-      inputTokens: input.inputTokens,
-      outputTokens: input.outputTokens,
-      providerRequestId: input.providerRequestId ?? undefined,
-      usageEstimated: true,
-      outcome: "success",
-    });
-  } catch (error) {
-    console.warn("[TRPG reply] cost record skipped:", (error as Error).message);
-  }
-  logAuxProviderCall({
-    auxOwner: "SUGGESTED_REPLIES",
-    model: input.model,
-    requestKind: TRPG_REPLY_SUGGESTION_REQUEST_KIND,
-    trigger: "async_post_turn",
-    requestId: input.logicalRequestId,
-    jobId: input.logicalRequestId,
-    attempt: input.attempt,
-    isRetry: input.isRetry,
-  });
-}
-
 function createEmptyProviderTelemetry(opts: {
   logicalRequestId: string;
   roundId?: number | null;
@@ -1334,14 +1294,6 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       telemetry.fallback_success = true;
       telemetry.backup_failure_class = null;
       logTrpgReplySuggestionProviderTelemetry(telemetry);
-      recordTrpgReplySuggestionProviderCost({
-        model: fallbackModel,
-        inputTokens: backupRead.inputTokens,
-        outputTokens: backupRead.outputTokens,
-        logicalRequestId: opts.logicalRequestId,
-        attempt: 2,
-        isRetry: true,
-      });
       return {
         text: backupRead.text,
         model: fallbackModel,
@@ -1420,14 +1372,6 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       telemetry.primary_failure_class = null;
       telemetry.semantic_failure_class = null;
       logTrpgReplySuggestionProviderTelemetry(telemetry);
-      recordTrpgReplySuggestionProviderCost({
-        model: primaryModel,
-        inputTokens: primaryRead.inputTokens,
-        outputTokens: primaryRead.outputTokens,
-        logicalRequestId: opts.logicalRequestId,
-        attempt: 1,
-        isRetry: false,
-      });
       return {
         text: primaryRead.text,
         model: primaryModel,

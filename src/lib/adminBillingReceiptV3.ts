@@ -81,6 +81,10 @@ function finiteUsd(value: unknown): number {
   return positiveUsdOrNull(value) ?? 0;
 }
 
+function filterSyncLedgerRows(rows: ProviderCostLedgerRow[]): ProviderCostLedgerRow[] {
+  return rows.filter((row) => row.execution_phase === "sync_post_turn");
+}
+
 function filterAsyncLedgerRows(rows: ProviderCostLedgerRow[]): {
   relevant: ProviderCostLedgerRow[];
   unexpected: ProviderCostLedgerRow[];
@@ -618,6 +622,8 @@ export function buildAdminBillingReceiptV3(
       ? Math.round(((deductedPoints - exactProviderSpendKrw!) / deductedPoints) * 100)
       : null;
 
+  const syncPhysicalEvents = mapAsyncLedgerEvents(filterSyncLedgerRows(input.ledgerRows));
+
   return {
     version: 3,
     assistantMessageId: input.assistantMessageId,
@@ -625,6 +631,7 @@ export function buildAdminBillingReceiptV3(
     mainRpOutputVisibleChars: input.mainRpOutputVisibleChars ?? null,
     syncReceipt,
     async: asyncSection,
+    syncPhysicalEvents,
     wholeTurn: {
       scope: "turn_attributable",
       coverage: wholeTurnCoverage,

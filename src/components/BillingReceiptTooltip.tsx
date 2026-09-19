@@ -28,6 +28,11 @@ import {
 } from "@/lib/adminBillingReceiptV3Shared";
 import type { AdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3Shared";
 import {
+  adminReceiptNeedsFollowUpFetch,
+  ADMIN_RECEIPT_FOLLOW_UP_DELAY_MS,
+  ADMIN_RECEIPT_FOLLOW_UP_MAX_ATTEMPTS,
+} from "@/lib/adminBillingReceiptRefetchPolicy";
+import {
   isGemini25ProModel,
   isGemini31ProModel,
   isGeminiProOpenRouterModel,
@@ -519,36 +524,63 @@ export default function BillingReceiptTooltip({
   const [v3Error, setV3Error] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const fetchGenerationRef = useRef(0);
+  const receiptRetryRef = useRef(0);
 
   useEffect(() => {
-    if (!open || !showFullReceipt || !messageId) return;
-    const generation = ++fetchGenerationRef.current;
-    setV3Loading(true);
-    setV3Error(null);
-    void fetch(`/api/chat/admin-billing-receipt?messageId=${messageId}`, {
-      cache: "no-store",
-    })
-      .then(async (res) => {
+    if (!open) {
+      receiptRetryRef.current = 0;
+      return;
+    }
+    if (!showFullReceipt || !messageId) return;
+
+    let cancelled = false;
+    receiptRetryRef.current = 0;
+
+    async function fetchReceipt(): Promise<AdminBillingReceiptV3 | null> {
+      const generation = ++fetchGenerationRef.current;
+      setV3Loading(true);
+      setV3Error(null);
+      try {
+        const res = await fetch(`/api/chat/admin-billing-receipt?messageId=${messageId}`, {
+          cache: "no-store",
+        });
         if (!res.ok) {
           const body = (await res.json().catch(() => null)) as { error?: string } | null;
           throw new Error(body?.error ?? `HTTP ${res.status}`);
         }
-        return res.json() as Promise<AdminBillingReceiptV3>;
-      })
-      .then((payload) => {
-        if (generation !== fetchGenerationRef.current) return;
+        const payload = (await res.json()) as AdminBillingReceiptV3;
+        if (generation !== fetchGenerationRef.current || cancelled) return null;
         setV3Receipt(payload);
-      })
-      .catch((error: Error) => {
-        if (generation !== fetchGenerationRef.current) return;
+        return payload;
+      } catch (error) {
+        if (generation !== fetchGenerationRef.current || cancelled) return null;
         setV3Receipt(null);
-        setV3Error(error.message);
-      })
-      .finally(() => {
-        if (generation === fetchGenerationRef.current) {
+        setV3Error(error instanceof Error ? error.message : String(error));
+        return null;
+      } finally {
+        if (generation === fetchGenerationRef.current && !cancelled) {
           setV3Loading(false);
         }
-      });
+      }
+    }
+
+    void (async () => {
+      let receipt = await fetchReceipt();
+      while (
+        !cancelled &&
+        adminReceiptNeedsFollowUpFetch(receipt) &&
+        receiptRetryRef.current < ADMIN_RECEIPT_FOLLOW_UP_MAX_ATTEMPTS
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, ADMIN_RECEIPT_FOLLOW_UP_DELAY_MS));
+        if (cancelled) return;
+        receiptRetryRef.current += 1;
+        receipt = await fetchReceipt();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, showFullReceipt, messageId]);
 
   useEffect(() => {

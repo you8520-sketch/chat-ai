@@ -240,22 +240,11 @@ export function resolveStatusMetaExpectation(input: {
 export function resolveMemoryRelationshipExpectation(input: {
   task: MemoryRelationshipTaskRecord | null;
   memoryRelationshipLedgerRowCount: number;
-  /** Shared initial already owns the physical relationship inference for this turn. */
-  sharedInitialSatisfied?: boolean;
 }): ResolvedAsyncFamilyExpectation {
   const family = "memory_relationship" as const;
   const rowCount = input.memoryRelationshipLedgerRowCount;
-  const sharedInitialSatisfied = input.sharedInitialSatisfied === true;
 
   if (!input.task) {
-    if (sharedInitialSatisfied && rowCount === 0) {
-      return {
-        family,
-        label: ASYNC_FAMILY_LABELS[family],
-        expectationState: "not_expected",
-        skipReason: "post_turn_shared_initial_satisfied",
-      };
-    }
     return {
       family,
       label: ASYNC_FAMILY_LABELS[family],
@@ -294,12 +283,12 @@ export function resolveMemoryRelationshipExpectation(input: {
   }
 
   if (input.task.state === "succeeded") {
-    if (rowCount === 0 && sharedInitialSatisfied) {
+    if (rowCount === 0) {
       return {
         family,
         label: ASYNC_FAMILY_LABELS[family],
-        expectationState: "not_expected",
-        skipReason: "post_turn_shared_initial_satisfied",
+        expectationState: "unverifiable",
+        skipReason: "succeeded_marker_without_physical_ledger_evidence",
       };
     }
     return {
@@ -349,10 +338,6 @@ export function resolveAsyncTurnCoverage(input: {
   const sharedInitialPhysicalRowCount = countPostTurnSharedInitialPhysicalRows(
     input.scopedLedgerRows ?? input.ledgerAsyncRows
   );
-  const sharedInitialSatisfied = isPostTurnSharedInitialPhysicallySatisfied({
-    usage: input.usage,
-    sharedInitialPhysicalRowCount,
-  });
 
   const families = [
     resolveSuggestedRepliesExpectation({
@@ -368,7 +353,6 @@ export function resolveAsyncTurnCoverage(input: {
     resolveMemoryRelationshipExpectation({
       task: input.memoryRelationshipTask,
       memoryRelationshipLedgerRowCount: rowsByFamily.get("memory_relationship")!.length,
-      sharedInitialSatisfied,
     }),
   ];
 
