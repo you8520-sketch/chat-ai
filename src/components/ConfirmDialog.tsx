@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 type Props = {
   open: boolean;
   title: string;
-  message: string;
+  message: string | ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
@@ -55,15 +55,15 @@ export default function ConfirmDialog({
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-desc"
-        className="w-full max-w-sm rounded-xl border border-white/10 bg-[#1a1a1a] p-5 shadow-2xl shadow-black/50"
+        className="w-full max-w-md rounded-xl border border-white/10 bg-[#1a1a1a] p-5 shadow-2xl shadow-black/50"
         onClick={(e) => e.stopPropagation()}
       >
         <p id="confirm-dialog-title" className="text-base font-bold text-white">
           {title}
         </p>
-        <p id="confirm-dialog-desc" className="mt-2 text-sm leading-relaxed text-zinc-400">
+        <div id="confirm-dialog-desc" className="mt-2 text-sm leading-relaxed text-zinc-400">
           {message}
-        </p>
+        </div>
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"

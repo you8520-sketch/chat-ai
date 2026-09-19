@@ -24,27 +24,23 @@ describe("CheaperInference Gemini 3.1 Pro Preview billing", () => {
     assert.equal(CHEAPER_INFERENCE_GEMINI_31_PRO_GROSS_MARGIN, 0.5);
   });
 
-  it("charges from provider-reported actual cost when available", () => {
-    const billing = computeOpenRouterTurnBilling({
+  it("does not pass provider-reported procurement cost through to user charge", () => {
+    const common = {
       modelId: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
       inputTokens: 200_000,
       outputTokens: 100_000,
       apiPromptTokens: 200_000,
       apiCompletionTokens: 100_000,
-      upstreamCostUsd: 0.123456,
+    };
+    const cheapUpstream = computeOpenRouterTurnBilling({
+      ...common,
+      upstreamCostUsd: 0.001,
     });
-    const rates = resolveOpenRouterReasoningPointRates(
-      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
-    );
-    assert.ok(rates);
-    assert.equal(
-      billing.total,
-      Math.ceil(
-        (0.123456 * rates.effectiveKrwPerUsd) /
-          (1 - CHEAPER_INFERENCE_GEMINI_31_PRO_GROSS_MARGIN) -
-          1e-9
-      )
-    );
+    const expensiveUpstream = computeOpenRouterTurnBilling({
+      ...common,
+      upstreamCostUsd: 0.5,
+    });
+    assert.equal(cheapUpstream.total, expensiveUpstream.total);
   });
 
   it("shows a stable 30%-to-0% market-price range", () => {

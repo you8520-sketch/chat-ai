@@ -15,7 +15,7 @@ import {
 } from "@/lib/points";
 
 describe("Cheaper Inference Qwen 3.8 Max billing", () => {
-  it("uses usage.cost / upstreamCostUsd at 55% gross margin and full completion_tokens", () => {
+  it("uses base published rates for user charge; upstream procurement cost ignored", () => {
     assert.equal(CHEAPER_INFERENCE_QWEN_38_MAX_GROSS_MARGIN, 0.55);
     const rates = resolveOpenRouterReasoningPointRates(
       CHEAPER_INFERENCE_QWEN_38_MAX_MODEL
@@ -24,10 +24,9 @@ describe("Cheaper Inference Qwen 3.8 Max billing", () => {
     assert.equal(rates.grossMargin, 0.55);
     assert.notEqual(rates.outputUsdPerMillion, 3.75);
 
-    const upstreamCostUsd = 0.012;
     const apiPromptTokens = 4_200;
     const apiCompletionTokens = 3_100;
-    const billing = computeTurnBilling({
+    const withUpstream = computeTurnBilling({
       provider: "cheaperinference",
       openRouterModelId: CHEAPER_INFERENCE_QWEN_38_MAX_MODEL,
       inputTokens: apiPromptTokens,
@@ -35,14 +34,20 @@ describe("Cheaper Inference Qwen 3.8 Max billing", () => {
       reasoningTokens: 0,
       apiPromptTokens,
       apiCompletionTokens,
-      upstreamCostUsd,
+      upstreamCostUsd: 0.012,
     });
-    const expected = Math.ceil(
-      (upstreamCostUsd * rates.effectiveKrwPerUsd) / (1 - 0.55) - 1e-9
-    );
-    assert.equal(billing.total, expected);
+    const withoutUpstream = computeTurnBilling({
+      provider: "cheaperinference",
+      openRouterModelId: CHEAPER_INFERENCE_QWEN_38_MAX_MODEL,
+      inputTokens: apiPromptTokens,
+      outputTokens: 1_800,
+      reasoningTokens: 0,
+      apiPromptTokens,
+      apiCompletionTokens,
+    });
+    assert.equal(withUpstream.total, withoutUpstream.total);
     assert.notEqual(
-      billing.total,
+      withUpstream.total,
       Math.ceil(apiCompletionTokens * OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN - 1e-9)
     );
 

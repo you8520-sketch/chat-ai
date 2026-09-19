@@ -16,6 +16,7 @@ import {
 } from "@/lib/billingDisplay";
 import { filterUsageBreakdownForReceipt } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
+import { buildPublicBillingReceipt } from "@/lib/publicBillingReceipt";
 import { AdminBillingReceiptV2Panel } from "@/components/AdminBillingReceiptV2Panel";
 import { AdminBillingReceiptV3Panel } from "@/components/AdminBillingReceiptV3Panel";
 import {
@@ -140,35 +141,55 @@ function ReceiptBody({
   );
 
   if (!showFullReceipt) {
+    const publicReceipt = buildPublicBillingReceipt(usage);
+    if (!publicReceipt) return null;
     return (
       <div className="space-y-1 text-[11px] leading-relaxed text-zinc-300">
         <p>
-          <span className="text-zinc-500">모델:</span> {receipt.modelLabel}
+          <span className="text-zinc-500">모델:</span> {publicReceipt.modelLabel}
+        </p>
+        {publicReceipt.responseCharCount > 0 && (
+          <p>
+            <span className="text-zinc-500">응답 글자 수:</span>{" "}
+            {publicReceipt.responseCharCount.toLocaleString()}자
+          </p>
+        )}
+        <p>
+          <span className="text-zinc-500">입력 토큰:</span>{" "}
+          {publicReceipt.inputTokens.toLocaleString()}
+          {publicReceipt.estimated ? " (추정)" : ""}
         </p>
         <p>
-          <span className="text-zinc-500">과금 기준 입력/출력:</span>{" "}
-          {receipt.inputTokens.toLocaleString()} / {receipt.outputTokens.toLocaleString()}
-          {receipt.estimated ? " (추정)" : ""}
+          <span className="text-zinc-500">출력 토큰:</span>{" "}
+          {publicReceipt.outputTokens.toLocaleString()}
         </p>
-        {usage.apiReasoningOutputTokens != null && usage.apiReasoningOutputTokens > 0 && (
-          <>
-            <p>
-              <span className="text-zinc-500">thinking:</span>{" "}
-              {usage.apiReasoningOutputTokens.toLocaleString()} tokens
-            </p>
-            <p>
-              <span className="text-zinc-500">output + thinking:</span>{" "}
-              {(usage.apiOutputTokens ?? 0).toLocaleString()} tokens
-            </p>
-          </>
+        {publicReceipt.reasoningTokens > 0 && (
+          <p>
+            <span className="text-zinc-500">추론 토큰:</span>{" "}
+            {publicReceipt.reasoningTokens.toLocaleString()}
+          </p>
         )}
-        {receipt.waived ? (
+        {publicReceipt.billingTypeLabel && (
+          <p>
+            <span className="text-zinc-500">과금 유형:</span> {publicReceipt.billingTypeLabel}
+          </p>
+        )}
+        {publicReceipt.siteDiscountPercent != null && publicReceipt.siteDiscountPoints != null && (
+          <p>
+            <span className="text-zinc-500">모델 할인:</span>{" "}
+            <span className="text-emerald-300/95">
+              -{publicReceipt.siteDiscountPercent}% (-{formatPoints(publicReceipt.siteDiscountPoints)} P)
+            </span>
+          </p>
+        )}
+        {publicReceipt.waived ? (
           <p className="font-semibold text-emerald-300/95">
-            <span className="text-zinc-500">포인트 차감:</span> 0 P (면제)
+            <span className="text-zinc-500">최종 차감:</span> 0 P (면제)
           </p>
         ) : (
           <p className="font-semibold text-zinc-100">
-            <span className="text-zinc-500">포인트 차감:</span> {formatPoints(receipt.totalCost)} P
+            <span className="text-zinc-500">최종 차감:</span>{" "}
+            {formatPoints(publicReceipt.finalChargePoints)} P
           </p>
         )}
       </div>

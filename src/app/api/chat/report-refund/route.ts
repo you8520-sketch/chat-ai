@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { processReportRefund } from "@/lib/refund";
+import { isReportRefundUiCategory } from "@/lib/reportRefundCategories";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -14,7 +15,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "messageId와 chatId가 필요합니다." }, { status: 400 });
   }
 
-  const result = processReportRefund(user.id, messageId, chatId);
+  const rawCategory = body.category ?? body.reportCategory ?? null;
+  const category = isReportRefundUiCategory(rawCategory) ? rawCategory : null;
+  const result = processReportRefund(user.id, messageId, chatId, category);
 
   if (result.status === "rejected") {
     return NextResponse.json({ error: result.message, status: result.status }, { status: 400 });

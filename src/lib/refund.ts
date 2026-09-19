@@ -5,8 +5,17 @@ import {
   type PointBalance,
   type PointType,
 } from "./points";
+import type { Usage } from "./chatUsage";
 import { reverseCreatorRewardForMessage } from "./creatorPoints";
 import { assessMessageForAutoRefund } from "./refundAutoValidation";
+import {
+  assessCategoryForAutoRefund,
+  type CategoryRefundAssessment,
+} from "./refundCategoryValidation";
+import {
+  isReportRefundUiCategory,
+  type ReportRefundUiCategory,
+} from "./reportRefundCategories";
 import { buildMessageReceiptSnapshot } from "./refundMessageReceipt";
 import { AUTO_REFUND_DAILY_LIMIT } from "./reportRefundPolicy";
 import { notifyReportResult } from "./userNotifications";
@@ -185,6 +194,7 @@ type MessageRefundContext = {
   deduction_slices: string | null;
   usage: string | null;
   status: string | null;
+  generation_status: string | null;
   created_at: string;
   user_id: number;
 };
@@ -197,7 +207,7 @@ function loadMessageRefundContext(
   return db
     .prepare(
       `SELECT m.id, m.chat_id, m.role, m.content, m.is_refunded, m.deduction_slices, m.usage,
-              m.status, m.created_at, c.user_id
+              m.status, m.generation_status, m.created_at, c.user_id
        FROM messages m
        JOIN chats c ON c.id = m.chat_id
        WHERE m.id = ? AND m.chat_id = ?`
@@ -260,11 +270,53 @@ function parseDeductionSlices(raw: string | null): DeductionSlice[] {
   }
 }
 
+function parseUsageJson(raw: string | null): Usage | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as Usage;
+  } catch {
+    return null;
+  }
+}
+
+function resolveRefundAssessment(input: {
+  category: ReportRefundUiCategory | null;
+  msg: MessageRefundContext;
+  chatId: number;
+  userId: number;
+  previousAssistantContent: string | null;
+  userMessage: string | null;
+}): CategoryRefundAssessment | ReturnType<typeof assessMessageForAutoRefund> {
+  if (input.category) {
+    const usage = parseUsageJson(input.msg.usage);
+    return assessCategoryForAutoRefund({
+      category: input.category,
+      content: input.msg.content,
+      messageStatus: input.msg.status,
+      generationStatus: input.msg.generation_status,
+      finishReason: usage?.finishReason ?? null,
+      usage,
+      previousAssistantContent: input.previousAssistantContent,
+      userMessage: input.userMessage,
+      messageId: input.msg.id,
+      chatId: input.chatId,
+      userId: input.userId,
+    });
+  }
+  return assessMessageForAutoRefund({
+    content: input.msg.content,
+    messageStatus: input.msg.status,
+    previousAssistantContent: input.previousAssistantContent,
+    userMessage: input.userMessage,
+  });
+}
+
 /** 오류 신고 — 결함 확인 시 하루 3회까지 자동 환불, 이후 관리자 검토 */
 export function processReportRefund(
   userId: number,
   messageId: number,
-  chatId: number
+  chatId: number,
+  category: ReportRefundUiCategory | null = null
 ): RefundProcessResult {
   const db = getDb();
   const msg = loadMessageRefundContext(messageId, chatId);
@@ -294,12 +346,23 @@ export function processReportRefund(
     return { status: "rejected", message: "이미 접수된 오류 신고입니다." };
   }
 
-  const assessment = assessMessageForAutoRefund({
-    content: msg.content,
-    messageStatus: msg.status,
+  const resolvedCategory =
+    category && isReportRefundUiCategory(category) ? category : null;
+  const assessment = resolveRefundAssessment({
+    category: resolvedCategory,
+    msg,
+    chatId,
+    userId,
     previousAssistantContent: loadPreviousAssistantContent(chatId, messageId),
     userMessage: loadPairedUserMessage(chatId, messageId),
   });
+  const refundAmount =
+    "partialRefundAmount" in assessment &&
+    assessment.partialRefundAmount != null &&
+    assessment.partialRefundAmount > 0 &&
+    assessment.partialRefundAmount < totalAmount
+      ? roundAmount(assessment.partialRefundAmount)
+      : totalAmount;
   const receiptSnapshot = buildMessageReceiptSnapshot(msg.usage);
   const slices = parseDeductionSlices(msg.deduction_slices);
   const autoRefundsToday = countAutoRefundsToday(userId);
@@ -315,22 +378,23 @@ export function processReportRefund(
       userId,
       messageId,
       slices,
-      totalAmount,
+      refundAmount,
       `오류 자동 환불 (메시지 #${messageId})`
     );
 
     db.prepare(
       `INSERT INTO report_refunds
-         (user_id, chat_id, message_id, status, refund_amount, validation_note, receipt_snapshot, auto_refund, error_reasons)
-       VALUES (?, ?, ?, 'approved', ?, ?, ?, 1, ?)`
+         (user_id, chat_id, message_id, status, refund_amount, validation_note, receipt_snapshot, auto_refund, error_reasons, report_category)
+       VALUES (?, ?, ?, 'approved', ?, ?, ?, 1, ?, ?)`
     ).run(
       userId,
       chatId,
       messageId,
-      totalAmount,
+      refundAmount,
       `자동 환불: ${assessment.summary}`,
       receiptSnapshot,
-      assessment.summary
+      assessment.summary,
+      resolvedCategory ?? ""
     );
 
     db.prepare(
@@ -347,7 +411,7 @@ export function processReportRefund(
       status: "approved",
       autoRefund: true,
       balance,
-      message: `오류가 확인되어 ${totalAmount.toLocaleString()}P가 자동 환불되었습니다. (오늘 ${autoRefundsToday + 1}/${AUTO_REFUND_DAILY_LIMIT}회)`,
+      message: `오류가 확인되어 ${refundAmount.toLocaleString()}P가 자동 환불되었습니다. (오늘 ${autoRefundsToday + 1}/${AUTO_REFUND_DAILY_LIMIT}회)`,
     };
   }
 
@@ -361,8 +425,8 @@ export function processReportRefund(
 
   db.prepare(
     `INSERT INTO report_refunds
-       (user_id, chat_id, message_id, status, refund_amount, validation_note, receipt_snapshot, auto_refund, error_reasons)
-     VALUES (?, ?, ?, 'pending', ?, ?, ?, 0, ?)`
+       (user_id, chat_id, message_id, status, refund_amount, validation_note, receipt_snapshot, auto_refund, error_reasons, report_category)
+     VALUES (?, ?, ?, 'pending', ?, ?, ?, 0, ?, ?)`
   ).run(
     userId,
     chatId,
@@ -370,7 +434,8 @@ export function processReportRefund(
     totalAmount,
     validationNote,
     receiptSnapshot,
-    assessment.summary
+    assessment.summary,
+    resolvedCategory ?? ""
   );
 
   db.prepare(
