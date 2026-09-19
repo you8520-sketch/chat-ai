@@ -8,81 +8,76 @@
 | Subproblem | Result |
 |---|---|
 | **Overall** | `USER_NOTE_PERSISTENT_INVARIANT = ROOT_CAUSE_FIXED` |
-| Focus injection path | `NO_MATERIAL_DEFECT_FOUND` (focus 1K always-on verified) |
-| Authority semantics gap (pre-patch) | `ROOT_CAUSE_FIXED` |
+| Circular dependency (#960 follow-up) | `CIRCULAR_DEPENDENCY = ROOT_CAUSE_FIXED` |
+| Focus injection path | `NO_MATERIAL_DEFECT_FOUND` |
+| Authority semantics gap | `ROOT_CAUSE_FIXED` |
 | User-agency precedence conflict | `ROOT_CAUSE_FIXED` |
-| Reference zone RAG | `NO_MATERIAL_DEFECT_FOUND` (by design, not every-turn) |
+| Empty mandatory-rules case | `ROOT_CAUSE_FIXED` (UNI-14) |
+
+## Dependency Graph
+
+### BEFORE (#960 head — cycle)
+
+```
+corePrompt.ts ──imports──> autoProgressionRules.ts
+autoProgressionRules.ts ──imports──> corePrompt.ts  (MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF)
+= circular dependency
+```
+
+### AFTER (amended)
+
+```
+userNoteMandatoryRulesPolicy.ts  (canonical constraint policy — dependency-neutral)
+    ├── corePrompt.ts
+    ├── noGodmodding.ts
+    └── autoProgressionRules.ts
+
+corePrompt.ts ──imports──> autoProgressionRules.ts  (pre-existing, unchanged)
+autoProgressionRules.ts -X-> corePrompt.ts  (cycle removed)
+```
+
+## Policy Owner After
+
+**File:** `src/lib/userNoteMandatoryRulesPolicy.ts`
+
+| Constant | Role |
+|---|---|
+| `MANDATORY_RULES_PERSISTENT_CONSTRAINT_SEMANTIC` | Full persistent-constraint semantics (identity-and-rules) |
+| `MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF` | Mode-owner short-ref (subject = 권한) |
+| `MANDATORY_RULES_BOUNDED_ROLE_DIRECTION_PRECEDENCE` | Standard interactive role/direction update bound |
+
+## Short-Ref Before / After
+
+**Before (ambiguous direction):**
+> `[MANDATORY_RULES]에 명시된 고정·지속·금지 조건은 본 권한 범위를 넘어서지 않는다.`
+
+**After (positive, 권한 as subject, scoped when absent):**
+> `이 집필/공동서술 권한은 [MANDATORY_RULES]가 있는 경우, 그 안에 명시된 고정·지속·금지 조건 안에서 행사하며, 그 조건을 변경하지 않는다.`
+
+Role/direction precedence similarly scoped: `…[MANDATORY_RULES]가 있는 경우…`
 
 ## Root Cause
 
-**B + C confirmed (deterministic prompt audit):**
+- **B + C:** Missing persistent-precedence contract; unconditional role/direction updates.
+- **Follow-up:** Import cycle from placing short-ref in `corePrompt` while `corePrompt` already imports `autoProgressionRules`.
 
-- **B (AUTHORITY):** `[MANDATORY_RULES]` rendered user focus text but had no formal persistent-precedence contract.
-- **C (OWNER CONFLICT):** Standard user-agency line allowed unconditional role/direction updates from latest input, without bounding against `[MANDATORY_RULES]`.
+## Proof
 
-Not A (injection missing) — focus zone reaches `identity-and-rules` every turn.  
-Not E (adapter-only) — all four Main RP models share OpenRouter assembly path; fix is canonical-owner level.
+- UNI-01..14 (`userNotePersistentInvariant.test.ts`)
+- userAgencyRoleBindingP0, userAgencyRuntime, autoProgression.prompt
+- SCOPE-1..12, episodic hardening, post-turn prompt regression
+- `git diff --check`, lint, typecheck:app, build
 
-## Owner Map
+## CI / Workflow Trigger Finding
 
-| Responsibility | Owner |
-|---|---|
-| USER NOTE STORAGE | `chats.user_note` / `users.user_note`; zones via `USER_NOTE_ZONE_SEPARATOR` |
-| FOCUS/REFERENCE SPLIT | `splitUserNotePromptZones()` — `userNoteStatusWindow.ts` |
-| PERSISTENT CONSTRAINT SEMANTICS | `MANDATORY_RULES_PERSISTENT_CONSTRAINT_SEMANTIC` — `corePrompt.ts` |
-| USER PERSONA | `[USER_PERSONA]` in `buildIdentityAndRulesBlock()` |
-| CURRENT ROLE/DIRECTION | Collaborative interactive owner — `noGodmodding.ts` |
-| STANDARD USER AGENCY | `[USER CONTROL — COLLABORATIVE INTERACTIVE]` |
-| AUTO PROGRESSION | `[AUTO PROGRESSION — AI-FOCAL CO-NARRATION]` + short ref |
-| OOC CO-NARRATION | `[USER CONTROL MODE - LIMITED CO-NARRATION]` + short ref |
-| CURRENT-TURN DELEGATION | `[USER AUTHORING — CURRENT-TURN OOC DELEGATION]` + short ref |
-| REGEN | `buildRegenerateSystemDirective()` — reuses same identity owner |
-| MODEL ADAPTERS | Shared OpenRouter path; no model-specific role-lock patches |
-
-## Authority Precedence
-
-### Before
-
-1. Latest user input could update role/direction unconditionally (user-agency owner).
-2. `[MANDATORY_RULES]` = raw user text only.
-
-### After
-
-1. Explicit fixed/persistent/prohibited conditions in `[MANDATORY_RULES]` remain until User Note updated.
-2. History, memory, scene, inference interpreted **within** those constraints.
-3. Role/direction updates bounded: latest input applies **only within** `[MANDATORY_RULES]`.
-4. Auto/delegation/co-narration: compact short-ref to mandatory bounds (no duplicated full semantic body).
-
-## Patch (canonical owners only)
-
-**Added once:** `MANDATORY_RULES_PERSISTENT_CONSTRAINT_SEMANTIC` appended under focus rules in `buildIdentityAndRulesBlock()`.
-
-**Replaced:** unconditional role-direction precedence sentence in `COLLABORATIVE_INTERACTIVE_OWNER_BLOCK`.
-
-**Short-ref added:** `MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF` in auto progression, OOC delegation, limited co-narration owners.
-
-**Removed:** Nothing deleted; conflicting precedence sentence replaced in place.
-
-## Focus vs Reference
-
-| Zone | Max | Behavior |
-|---|---|---|
-| Focus (고집중) | 1,000 | Every turn → `[MANDATORY_RULES]` |
-| Reference (확장) | 9,000 | Keyword RAG → `user-note-reference` (UNI-07) |
-
-UI microcopy clarified: focus = always-on; reference = keyword-relevant only.
+PR #960 amended files (`corePrompt.ts`, `noGodmodding.ts`, `autoProgressionRules.ts`, `userNoteMandatoryRulesPolicy.ts`) are **not** in any workflow `pull_request.paths` filter (e.g. `validate-post-turn-luna-owner.yml`, `validate-memory-episodic.yml`). **0 GitHub Actions checks expected** unless workflow path lists are expanded separately — not modified in this PR.
 
 ## Provider Call Delta
 
 **+0**
 
-## Proof
+## Follow-ups (out of scope)
 
-- `src/lib/userNotePersistentInvariant.test.ts` — UNI-01..13
-- `userAgencyRoleBindingP0.test.ts`, `userAgencyRuntime.test.ts`, `autoProgression.prompt.test.ts`
-- #958 SCOPE regression unchanged
-
-## Follow-ups
-
-- Historical top/bottom role-event continuity (separate task)
-- Controlled live extractor salience eval (#959 follow-up)
+- Historical top/bottom role-event continuity
+- Controlled live extractor salience eval
+- Retrieval V2

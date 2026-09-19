@@ -4,11 +4,12 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { buildIdentityAndRulesBlock } from "@/lib/corePrompt";
 import {
-  buildIdentityAndRulesBlock,
   MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF,
+  MANDATORY_RULES_BOUNDED_ROLE_DIRECTION_PRECEDENCE,
   MANDATORY_RULES_PERSISTENT_CONSTRAINT_SEMANTIC,
-} from "@/lib/corePrompt";
+} from "@/lib/userNoteMandatoryRulesPolicy";
 import { AUTO_PROGRESSION_BLOCK_TITLE } from "@/lib/autoProgressionRules";
 import {
   buildNoGodmoddingBlock,
@@ -269,12 +270,35 @@ describe("UNI — User Note persistent invariant (focus zone)", () => {
     assert.match(identity, /memory.*제약 안에서|memory, current scene/);
     assert.match(built.systemPrompt, /바텀 포지션/);
   });
+
+  it("UNI-14 NO MANDATORY RULES: empty focus — no phantom constraint, role update allowed", () => {
+    const built = buildBase({
+      userNote: "",
+      currentUserMessage: "*[B]가 [A]에게 물건을 건넨다.*",
+    });
+    const identity = identityBlock(built);
+    assert.equal(identity.includes("[MANDATORY_RULES]"), false);
+    assert.equal(
+      identity.includes(MANDATORY_RULES_PERSISTENT_CONSTRAINT_SEMANTIC),
+      false
+    );
+
+    const owner = ownerBlock(built);
+    assert.ok(owner.includes(MANDATORY_RULES_BOUNDED_ROLE_DIRECTION_PRECEDENCE));
+    assert.match(owner, /\[MANDATORY_RULES\]가 있는 경우/);
+    assert.doesNotMatch(owner, /top|bottom|리버스|탑 포지션/i);
+    assert.equal(owner.includes(MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF), false);
+    assert.doesNotMatch(
+      owner,
+      /역할·대상·방향 전환을 명시하면 가장 최신 입력의 관계를 기준으로 갱신/
+    );
+  });
 });
 
 describe("UNI — owner conflict replacement", () => {
-  it("standard owner role-direction precedence is bounded by MANDATORY_RULES", () => {
+  it("standard owner role-direction precedence is bounded by MANDATORY_RULES when present", () => {
     const owner = buildNoGodmoddingBlock(ai, user, "standard");
-    assert.match(owner, /\[MANDATORY_RULES\].*고정·지속·금지/);
+    assert.ok(owner.includes(MANDATORY_RULES_BOUNDED_ROLE_DIRECTION_PRECEDENCE));
     assert.doesNotMatch(
       owner,
       /역할·대상·방향 전환을 명시하면 가장 최신 입력의 관계를 기준으로 갱신/

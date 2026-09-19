@@ -43,7 +43,7 @@ const B_ACTION_STAYS = "시작하거나 완료한 행동은 [B]의 행동으로 
 const A_REACTS = "반응·대응·대사·직접 결과를 이어간다";
 const RESPONSE_POINT = "[B]가 이어갈 반응점으로 둔다";
 const CURRENT_INPUT_PRECEDENCE =
-  "현재 입력이 역할·대상·방향을 갱신할 때는 [MANDATORY_RULES]의 명시적 고정·지속·금지 조건 안에서만";
+  "현재 입력이 역할·대상·방향을 갱신할 때는 [MANDATORY_RULES]가 있는 경우 그 안의 명시적 고정·지속·금지 조건 안에서만";
 const CO_TITLE = "[USER CONTROL MODE - LIMITED CO-NARRATION]";
 
 function assertIncludes(text: string, needle: string, msg?: string): void {
