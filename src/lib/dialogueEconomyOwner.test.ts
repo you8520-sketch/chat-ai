@@ -39,18 +39,12 @@ import {
 } from "@/lib/webnovelOutputFormat";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
 import { COLLABORATIVE_INTERACTIVE_OWNER_BLOCK } from "@/lib/noGodmodding";
-import {
-  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  MAIN_RP_MODEL_IDS,
-} from "@/lib/chatModels";
+import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 
 const DIALOGUE_ECONOMY_MARKER = "하나의 충분한 발화로 묶는다";
 const DIALOGUE_ECONOMY_MARKER_RE = /하나의 충분한 발화로 묶는다/;
 
-/** Canonical 4 Main RP models — from the single source of truth. */
+/** Canonical Main RP models — from the single source of truth. */
 const PRODUCTION_SELECTABLE_MODELS: readonly string[] = MAIN_RP_MODEL_IDS;
 
 function forceProdEnv() {
