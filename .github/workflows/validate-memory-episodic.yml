@@ -11,6 +11,7 @@ on:
       - "src/lib/memory/memory-batch-source-guard.ts"
       - "src/lib/memory/memory-episodic-extract.ts"
       - "src/lib/memory/memory-episodic-hardening.test.ts"
+      - "src/lib/memory/memory-episodic-long-horizon.test.ts"
       - "src/lib/memory/memory-episodic-normalize.ts"
       - "src/lib/memory/memory-episodic-ownership.test.ts"
       - "src/lib/memory/memory-episodic-prompt.ts"
@@ -50,6 +51,9 @@ jobs:
       - run: npm run lint
 
       - run: npm run typecheck:app
+
+      - name: Episodic long-horizon regression
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-long-horizon.test.ts
 
       - name: Episodic hardening regression (E1–E14 / R1)
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-hardening.test.ts

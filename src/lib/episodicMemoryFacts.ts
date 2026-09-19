@@ -17,6 +17,7 @@ import {
 import { EPISODIC_RETRIEVED_EVENT_INTERPRETATION_LINES } from "@/lib/historicalTruthPolicy";
 import {
   classifyEpisodicFactTemporalNature,
+  COMPLETED_SCENE_EVENT_ATTRIBUTES,
   isClearlyTemporaryEpisodicFact,
 } from "@/lib/episodicMemoryTemporal";
 import {
@@ -102,6 +103,17 @@ export type EpisodicMemoryDebugFact = EpisodicMemoryFactRecord & {
 const EPISODIC_MEMORY_PROMPT_MAX_FACTS = 8;
 const EPISODIC_MEMORY_PROMPT_MAX_CHARS = 1000;
 const EPISODIC_MEMORY_CANDIDATE_LIMIT = 100;
+/** Lane weight budget (sums to EPISODIC_MEMORY_CANDIDATE_LIMIT — no post-merge slice). */
+const EPISODIC_MEMORY_LANE_RECENT_WEIGHT = 55;
+const EPISODIC_MEMORY_LANE_RELEVANCE_WEIGHT = 25;
+const EPISODIC_MEMORY_LANE_MILESTONE_CRITICAL_WEIGHT = 10;
+const EPISODIC_MEMORY_LANE_MILESTONE_IMPORTANT_WEIGHT = 10;
+/** Extra milestone rows fetched before historical_event JS filter. */
+const EPISODIC_MEMORY_MILESTONE_FETCH_MULTIPLIER = 2;
+/** Max state-like logical keys reconciled against global latest within boundary. */
+const EPISODIC_MEMORY_STATE_RECONCILE_MAX_KEYS = 25;
+/** Per logical-key latest lookup — only the canonical newest row (no backward search). */
+const EPISODIC_MEMORY_STATE_RECONCILE_PER_KEY_LIMIT = 1;
 /** RAW4 keeps N-3..N; recall starts at N-4 (= minAgeTurns 5 when currentTurn=N+1). */
 const EPISODIC_MEMORY_DEFAULT_MIN_AGE_TURNS = 5;
 const DYNAMIC_MEMORY_TOTAL_MAX_CHARS = 2500;
@@ -499,6 +511,37 @@ export function detectEpisodicMemoryContamination(
     if (pattern.test(text)) return reason;
   }
   return null;
+}
+
+/** Canonical retrieval guard — shared by initial candidates and state-reconciliation replacements. */
+export function evaluateEpisodicRetrievalGuard(
+  row: EpisodicMemoryFactRecord
+): { allowed: boolean; blockedReason: string | null } {
+  const structurallyValid =
+    sanitizeEpisodicExtractedFacts([
+      {
+        category: row.category,
+        subject: row.subject,
+        attribute: row.attribute,
+        value: row.value,
+        importance: row.importance,
+        fact_text: row.fact_text,
+      },
+    ]).length === 1;
+  if (!structurallyValid) {
+    return { allowed: false, blockedReason: "invalid_fact_schema" };
+  }
+
+  let blockedReason = detectEpisodicMemoryContamination(row);
+  if (!blockedReason) blockedReason = detectRelationshipLedgerOwnedFact(row);
+  if (!blockedReason && isClearlyTemporaryEpisodicFact(row)) {
+    blockedReason = "clearly_temporary";
+  }
+  if (!blockedReason) blockedReason = detectAbstractPsychologicalInference(row);
+  if (!blockedReason) blockedReason = detectUnverifiedCanonicalization(row);
+  if (!blockedReason) blockedReason = detectUnsupportedEvidenceFact(row);
+
+  return { allowed: blockedReason == null, blockedReason };
 }
 
 function filterContaminatedFactsForSave(facts: EpisodicExtractedFact[]): EpisodicExtractedFact[] {
@@ -1278,6 +1321,579 @@ function higherPriorityDynamicTextLength(input: GetEpisodicMemoryForPromptInput)
   ].reduce((sum, text) => sum + (text?.length ?? 0), 0);
 }
 
+export type EpisodicCandidateLane =
+  | "recent"
+  | "relevance"
+  | "milestone_critical"
+  | "milestone_important";
+
+export type EpisodicCandidateFetchStats = {
+  queryCount: number;
+  rowsFetched: number;
+  mergedCandidateCount: number;
+  laneCounts: Record<EpisodicCandidateLane, number>;
+  stateReconcileQueryCount?: number;
+  stateReconcileKeysDiscovered?: number;
+  stateReconcileKeysReconciled?: number;
+  stateReconcileKeysDroppedDueToCap?: number;
+  stateReconcileKeysOmittedBlockedLatest?: number;
+};
+
+export type EpisodicStateReconcileStats = {
+  queryCount: number;
+  rowsFetched: number;
+  keysDiscovered: number;
+  keysReconciled: number;
+  keysDroppedDueToCap: number;
+  keysOmittedBlockedLatest: number;
+  keysOmittedRawWindow: number;
+};
+
+export type EpisodicLaneBudgets = {
+  recent: number;
+  relevance: number;
+  milestoneCritical: number;
+  milestoneImportant: number;
+  milestoneCriticalFetch: number;
+  milestoneImportantFetch: number;
+};
+
+const EPISODIC_CANDIDATE_SELECT_COLUMNS = `id, chat_id, character_id, user_id, source_turn, source_user_message_id,
+                category, subject, attribute, value, importance, fact_text, metadata, created_at`;
+
+/** Canonical eligibility scope — base (freshness) and recall-eligible (minAge) from one owner. */
+export type EpisodicCandidateScope = {
+  chatId: number;
+  currentTurn: number | null;
+  minAgeTurns: number;
+  /** Rows with source_turn > recallCutoffTurn are owned by recent RAW, not episodic recall. */
+  recallCutoffTurn: number | null;
+  /** Base/canonical boundary: chat scope, reset, source_turn < currentTurn (no minAge). */
+  baseWhere: string[];
+  baseParams: Array<number | string>;
+  /** Recall-eligible boundary: base + source_turn <= currentTurn - minAgeTurns. */
+  recallWhere: string[];
+  recallParams: Array<number | string>;
+};
+
+/** Candidate-discovery priority hint only — not exhaustive historical_event definition. */
+const MILESTONE_HISTORICAL_ATTRIBUTE_IN_SQL = [...COMPLETED_SCENE_EVENT_ATTRIBUTES]
+  .map((attribute) => `'${attribute}'`)
+  .join(", ");
+const MILESTONE_HISTORICAL_FETCH_ORDER_SQL = `CASE WHEN attribute IN (${MILESTONE_HISTORICAL_ATTRIBUTE_IN_SQL}) THEN 0 ELSE 1 END, source_turn ASC, id ASC`;
+
+type EpisodicCandidateFetchInput = {
+  scope: EpisodicCandidateScope;
+  candidateLimit: number;
+  currentUserMessage?: string | null;
+};
+
+function episodicLogicalKey(
+  row: Pick<EpisodicMemoryFactRecord, "category" | "subject" | "attribute">
+): string {
+  return `${row.category}:${row.subject}:${row.attribute}`;
+}
+
+/** Apportion lane SQL LIMIT budgets; every value >= 0 and sum <= candidateLimit. */
+export function resolveEpisodicLaneBudgets(candidateLimit: number): EpisodicLaneBudgets {
+  const limit = Math.max(0, Math.trunc(candidateLimit));
+  const totalWeight =
+    EPISODIC_MEMORY_LANE_RECENT_WEIGHT +
+    EPISODIC_MEMORY_LANE_RELEVANCE_WEIGHT +
+    EPISODIC_MEMORY_LANE_MILESTONE_CRITICAL_WEIGHT +
+    EPISODIC_MEMORY_LANE_MILESTONE_IMPORTANT_WEIGHT;
+
+  let recent = Math.floor((EPISODIC_MEMORY_LANE_RECENT_WEIGHT * limit) / totalWeight);
+  let relevance = Math.floor((EPISODIC_MEMORY_LANE_RELEVANCE_WEIGHT * limit) / totalWeight);
+  let milestoneCritical = Math.floor(
+    (EPISODIC_MEMORY_LANE_MILESTONE_CRITICAL_WEIGHT * limit) / totalWeight
+  );
+  let milestoneImportant = Math.floor(
+    (EPISODIC_MEMORY_LANE_MILESTONE_IMPORTANT_WEIGHT * limit) / totalWeight
+  );
+
+  const addRemainder = () => {
+    let allocated = recent + relevance + milestoneCritical + milestoneImportant;
+    let remainder = limit - allocated;
+    const priority: Array<keyof Pick<EpisodicLaneBudgets, "recent" | "relevance" | "milestoneCritical" | "milestoneImportant">> = [
+      "recent",
+      "relevance",
+      "milestoneCritical",
+      "milestoneImportant",
+    ];
+    while (remainder > 0) {
+      for (const lane of priority) {
+        if (remainder <= 0) break;
+        if (lane === "recent") recent += 1;
+        else if (lane === "relevance") relevance += 1;
+        else if (lane === "milestoneCritical") milestoneCritical += 1;
+        else milestoneImportant += 1;
+        remainder -= 1;
+      }
+    }
+  };
+
+  const trimOverflow = () => {
+    const trimOrder: Array<keyof Pick<EpisodicLaneBudgets, "milestoneImportant" | "relevance" | "milestoneCritical" | "recent">> = [
+      "milestoneImportant",
+      "relevance",
+      "milestoneCritical",
+      "recent",
+    ];
+    while (recent + relevance + milestoneCritical + milestoneImportant > limit) {
+      let trimmed = false;
+      for (const lane of trimOrder) {
+        if (recent + relevance + milestoneCritical + milestoneImportant <= limit) break;
+        if (lane === "milestoneImportant" && milestoneImportant > 0) {
+          milestoneImportant -= 1;
+          trimmed = true;
+        } else if (lane === "relevance" && relevance > 0) {
+          relevance -= 1;
+          trimmed = true;
+        } else if (lane === "milestoneCritical" && milestoneCritical > 0) {
+          milestoneCritical -= 1;
+          trimmed = true;
+        } else if (lane === "recent" && recent > 0) {
+          recent -= 1;
+          trimmed = true;
+        }
+      }
+      if (!trimmed) break;
+    }
+  };
+
+  addRemainder();
+  trimOverflow();
+
+  recent = Math.max(0, recent);
+  relevance = Math.max(0, relevance);
+  milestoneCritical = Math.max(0, milestoneCritical);
+  milestoneImportant = Math.max(0, milestoneImportant);
+
+  return {
+    recent,
+    relevance,
+    milestoneCritical,
+    milestoneImportant,
+    milestoneCriticalFetch:
+      milestoneCritical > 0
+        ? Math.max(milestoneCritical, milestoneCritical * EPISODIC_MEMORY_MILESTONE_FETCH_MULTIPLIER)
+        : 0,
+    milestoneImportantFetch:
+      milestoneImportant > 0
+        ? Math.max(
+            milestoneImportant,
+            milestoneImportant * EPISODIC_MEMORY_MILESTONE_FETCH_MULTIPLIER
+          )
+        : 0,
+  };
+}
+
+function appendEpisodicScopeIdentityFilters(
+  db: Database.Database,
+  input: GetEpisodicMemoryForPromptInput,
+  where: string[],
+  params: Array<number | string>,
+  chatId: number
+): void {
+  where.push("chat_id = ?");
+  params.push(chatId);
+  if (input.characterId != null && Number.isFinite(input.characterId)) {
+    where.push("(character_id IS NULL OR character_id = ?)");
+    params.push(Math.trunc(input.characterId));
+  }
+  if (input.userId != null && Number.isFinite(input.userId)) {
+    where.push("(user_id IS NULL OR user_id = ?)");
+    params.push(Math.trunc(input.userId));
+  }
+  const boundary = getMemorySourceBoundaryCore(db, chatId);
+  if (boundary.resetAfterMessageId != null) {
+    where.push("source_user_message_id IS NOT NULL AND source_user_message_id > ?");
+    params.push(boundary.resetAfterMessageId);
+  }
+}
+
+/** Single owner deriving base (canonical freshness) and recall-eligible (minAge) boundaries. */
+export function buildEpisodicCandidateScope(
+  db: Database.Database,
+  input: GetEpisodicMemoryForPromptInput,
+  env = process.env
+): EpisodicCandidateScope | null {
+  const chatId = finitePositiveInt(input.chatId);
+  if (!chatId) return null;
+
+  const currentTurn =
+    input.currentTurn != null && Number.isFinite(input.currentTurn)
+      ? Math.trunc(input.currentTurn)
+      : null;
+  const minAgeTurns = Math.max(
+    0,
+    Math.min(100, Math.trunc(input.minAgeTurns ?? resolveEpisodicMemoryMinAgeTurns(env)))
+  );
+
+  const baseWhere: string[] = [];
+  const baseParams: Array<number | string> = [];
+  appendEpisodicScopeIdentityFilters(db, input, baseWhere, baseParams, chatId);
+  if (currentTurn != null) {
+    baseWhere.push("source_turn < ?");
+    baseParams.push(currentTurn);
+  }
+
+  const recallWhere = [...baseWhere];
+  const recallParams = [...baseParams];
+  if (currentTurn != null && minAgeTurns > 0) {
+    recallWhere.push("source_turn <= ?");
+    recallParams.push(currentTurn - minAgeTurns);
+  }
+
+  const recallCutoffTurn =
+    currentTurn != null && minAgeTurns > 0 ? currentTurn - minAgeTurns : null;
+
+  return {
+    chatId,
+    currentTurn,
+    minAgeTurns,
+    recallCutoffTurn,
+    baseWhere,
+    baseParams,
+    recallWhere,
+    recallParams,
+  };
+}
+
+function isLatestStateInRawWindow(
+  scope: EpisodicCandidateScope,
+  sourceTurn: number
+): boolean {
+  return scope.recallCutoffTurn != null && sourceTurn > scope.recallCutoffTurn;
+}
+
+function isStateLikeForGlobalReconciliation(row: EpisodicMemoryFactRecord): boolean {
+  const nature = classifyEpisodicFactTemporalNature(row);
+  return nature !== "historical_event" && nature !== "clearly_temporary";
+}
+
+function filterHistoricalMilestoneRows(
+  rows: EpisodicMemoryFactRecord[],
+  keepLimit: number
+): EpisodicMemoryFactRecord[] {
+  const historical = rows.filter(
+    (row) => classifyEpisodicFactTemporalNature(row) === "historical_event"
+  );
+  const critical = historical.filter((row) => row.importance === "critical");
+  const important = historical.filter((row) => row.importance === "important");
+  const normal = historical.filter((row) => row.importance === "normal");
+  return [...critical, ...important, ...normal].slice(0, keepLimit);
+}
+
+function fetchLatestBoundedStateRowForKey(
+  db: Database.Database,
+  scope: EpisodicCandidateScope,
+  category: string,
+  subject: string,
+  attribute: string
+): EpisodicMemoryFactRecord | null {
+  const row = db
+    .prepare(
+      `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+         FROM episodic_memory_facts
+         WHERE ${scope.baseWhere.join(" AND ")}
+           AND category = ? AND subject = ? AND attribute = ?
+         ORDER BY source_turn DESC, id DESC
+         LIMIT ?`
+    )
+    .get(
+      ...scope.baseParams,
+      category,
+      subject,
+      attribute,
+      EPISODIC_MEMORY_STATE_RECONCILE_PER_KEY_LIMIT
+    ) as EpisodicMemoryFactRecord | undefined;
+  return row ? attachStoredEvidenceType(row) : null;
+}
+
+/** Replace stale state-like candidates with guard-checked latest canonical row within boundary. */
+export function reconcileGlobalStateLikeFacts(
+  db: Database.Database,
+  scope: EpisodicCandidateScope,
+  rows: EpisodicMemoryFactRecord[]
+): { rows: EpisodicMemoryFactRecord[]; stats: EpisodicStateReconcileStats } {
+  const stateKeys = [
+    ...new Set(rows.filter(isStateLikeForGlobalReconciliation).map(episodicLogicalKey)),
+  ];
+  const keysDiscovered = stateKeys.length;
+  if (keysDiscovered === 0) {
+    return {
+      rows,
+      stats: {
+        queryCount: 0,
+        rowsFetched: 0,
+        keysDiscovered: 0,
+        keysReconciled: 0,
+        keysDroppedDueToCap: 0,
+        keysOmittedBlockedLatest: 0,
+        keysOmittedRawWindow: 0,
+      },
+    };
+  }
+
+  const keysToReconcile = stateKeys.slice(0, EPISODIC_MEMORY_STATE_RECONCILE_MAX_KEYS);
+  const keysDroppedDueToCap = keysDiscovered - keysToReconcile.length;
+  const latestAllowedByKey = new Map<string, EpisodicMemoryFactRecord>();
+  let queryCount = 0;
+  let rowsFetched = 0;
+  let keysOmittedBlockedLatest = 0;
+  let keysOmittedRawWindow = 0;
+
+  for (const key of keysToReconcile) {
+    const parts = key.split(":");
+    if (parts.length !== 3) continue;
+    const latest = fetchLatestBoundedStateRowForKey(
+      db,
+      scope,
+      parts[0]!,
+      parts[1]!,
+      parts[2]!
+    );
+    queryCount += 1;
+    if (!latest) continue;
+    rowsFetched += 1;
+    if (!isStateLikeForGlobalReconciliation(latest)) continue;
+    if (isLatestStateInRawWindow(scope, latest.source_turn)) {
+      keysOmittedRawWindow += 1;
+      continue;
+    }
+    const guard = evaluateEpisodicRetrievalGuard(latest);
+    if (!guard.allowed) {
+      keysOmittedBlockedLatest += 1;
+      continue;
+    }
+    latestAllowedByKey.set(key, latest);
+  }
+
+  const reconciledKeySet = new Set(keysToReconcile);
+  const result: EpisodicMemoryFactRecord[] = [];
+  const emittedStateKeys = new Set<string>();
+
+  for (const row of rows) {
+    if (!isStateLikeForGlobalReconciliation(row)) {
+      result.push(row);
+      continue;
+    }
+    const key = episodicLogicalKey(row);
+    if (!reconciledKeySet.has(key)) continue;
+    if (emittedStateKeys.has(key)) continue;
+    emittedStateKeys.add(key);
+    const latest = latestAllowedByKey.get(key);
+    if (latest) {
+      result.push(latest);
+    }
+  }
+
+  return {
+    rows: result,
+    stats: {
+      queryCount,
+      rowsFetched,
+      keysDiscovered,
+      keysReconciled: latestAllowedByKey.size,
+      keysDroppedDueToCap,
+      keysOmittedBlockedLatest,
+      keysOmittedRawWindow,
+    },
+  };
+}
+
+function mergeEpisodicCandidatesById(
+  lanes: Array<{ lane: EpisodicCandidateLane; rows: EpisodicMemoryFactRecord[] }>
+): { rows: EpisodicMemoryFactRecord[]; laneById: Map<number, EpisodicCandidateLane[]> } {
+  const byId = new Map<number, EpisodicMemoryFactRecord>();
+  const laneById = new Map<number, EpisodicCandidateLane[]>();
+  for (const { lane, rows } of lanes) {
+    for (const row of rows) {
+      if (!byId.has(row.id)) byId.set(row.id, row);
+      const provenance = laneById.get(row.id) ?? [];
+      if (!provenance.includes(lane)) provenance.push(lane);
+      laneById.set(row.id, provenance);
+    }
+  }
+  return { rows: [...byId.values()], laneById };
+}
+
+function fetchEpisodicMemoryCandidateRows(
+  db: Database.Database,
+  input: EpisodicCandidateFetchInput
+): { rows: EpisodicMemoryFactRecord[]; stats: EpisodicCandidateFetchStats; laneById: Map<number, EpisodicCandidateLane[]> } {
+  const recallWhereClause = input.scope.recallWhere.join(" AND ");
+  const budgets = resolveEpisodicLaneBudgets(input.candidateLimit);
+  let queryCount = 0;
+  let rowsFetched = 0;
+
+  let recentRows: EpisodicMemoryFactRecord[] = [];
+  if (budgets.recent > 0) {
+    recentRows = (db
+      .prepare(
+        `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+           FROM episodic_memory_facts
+           WHERE ${recallWhereClause}
+           ORDER BY source_turn DESC, id DESC
+           LIMIT ?`
+      )
+      .all(...input.scope.recallParams, budgets.recent) as EpisodicMemoryFactRecord[]).map(
+      attachStoredEvidenceType
+    );
+    queryCount += 1;
+    rowsFetched += recentRows.length;
+  }
+
+  const minRecentTurn =
+    recentRows.length > 0 ? Math.min(...recentRows.map((row) => row.source_turn)) : null;
+
+  const tokens = tokenizeForSimpleBoost(input.currentUserMessage ?? "").slice(0, 5);
+  let relevanceRows: EpisodicMemoryFactRecord[] = [];
+  if (tokens.length > 0 && budgets.relevance > 0) {
+    const relevanceWhere = [...input.scope.recallWhere];
+    const relevanceParams = [...input.scope.recallParams];
+    if (minRecentTurn != null) {
+      relevanceWhere.push("source_turn < ?");
+      relevanceParams.push(minRecentTurn);
+    }
+    const tokenClauses = tokens.map(
+      () =>
+        "(LOWER(fact_text) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(attribute) LIKE ? OR LOWER(value) LIKE ?)"
+    );
+    relevanceWhere.push(`(${tokenClauses.join(" OR ")})`);
+    for (const token of tokens) {
+      const pattern = `%${token.toLowerCase()}%`;
+      relevanceParams.push(pattern, pattern, pattern, pattern);
+    }
+    relevanceRows = (db
+      .prepare(
+        `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+           FROM episodic_memory_facts
+           WHERE ${relevanceWhere.join(" AND ")}
+           ORDER BY source_turn DESC, id DESC
+           LIMIT ?`
+      )
+      .all(...relevanceParams, budgets.relevance) as EpisodicMemoryFactRecord[]).map(
+      attachStoredEvidenceType
+    );
+    queryCount += 1;
+    rowsFetched += relevanceRows.length;
+  }
+
+  let milestoneCriticalRaw: EpisodicMemoryFactRecord[] = [];
+  if (budgets.milestoneCriticalFetch > 0) {
+    milestoneCriticalRaw = (db
+      .prepare(
+        `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+           FROM episodic_memory_facts
+           WHERE ${recallWhereClause}
+             AND importance = 'critical'
+           ORDER BY ${MILESTONE_HISTORICAL_FETCH_ORDER_SQL}
+           LIMIT ?`
+      )
+      .all(...input.scope.recallParams, budgets.milestoneCriticalFetch) as EpisodicMemoryFactRecord[]).map(
+      attachStoredEvidenceType
+    );
+    queryCount += 1;
+    rowsFetched += milestoneCriticalRaw.length;
+  }
+
+  let milestoneImportantRaw: EpisodicMemoryFactRecord[] = [];
+  if (budgets.milestoneImportantFetch > 0) {
+    milestoneImportantRaw = (db
+      .prepare(
+        `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+           FROM episodic_memory_facts
+           WHERE ${recallWhereClause}
+             AND importance = 'important'
+           ORDER BY ${MILESTONE_HISTORICAL_FETCH_ORDER_SQL}
+           LIMIT ?`
+      )
+      .all(...input.scope.recallParams, budgets.milestoneImportantFetch) as EpisodicMemoryFactRecord[]).map(
+      attachStoredEvidenceType
+    );
+    queryCount += 1;
+    rowsFetched += milestoneImportantRaw.length;
+  }
+
+  const milestoneCriticalRows = filterHistoricalMilestoneRows(
+    milestoneCriticalRaw,
+    budgets.milestoneCritical
+  );
+  const milestoneImportantRows = filterHistoricalMilestoneRows(
+    milestoneImportantRaw,
+    budgets.milestoneImportant
+  );
+
+  const merged = mergeEpisodicCandidatesById([
+    { lane: "recent", rows: recentRows },
+    { lane: "relevance", rows: relevanceRows },
+    { lane: "milestone_critical", rows: milestoneCriticalRows },
+    { lane: "milestone_important", rows: milestoneImportantRows },
+  ]);
+
+  return {
+    rows: merged.rows,
+    laneById: merged.laneById,
+    stats: {
+      queryCount,
+      rowsFetched,
+      mergedCandidateCount: merged.rows.length,
+      laneCounts: {
+        recent: recentRows.length,
+        relevance: relevanceRows.length,
+        milestone_critical: milestoneCriticalRows.length,
+        milestone_important: milestoneImportantRows.length,
+      },
+    },
+  };
+}
+
+/** Test/diagnostic helper — bounded multi-lane candidate fetch without ranking/budget. */
+export function fetchEpisodicMemoryCandidatesForDebug(
+  db: Database.Database,
+  input: GetEpisodicMemoryForPromptInput,
+  env = process.env
+): {
+  rows: EpisodicMemoryFactRecord[];
+  stats: EpisodicCandidateFetchStats;
+  laneById: Map<number, EpisodicCandidateLane[]>;
+} {
+  const emptyStats: EpisodicCandidateFetchStats = {
+    queryCount: 0,
+    rowsFetched: 0,
+    mergedCandidateCount: 0,
+    laneCounts: {
+      recent: 0,
+      relevance: 0,
+      milestone_critical: 0,
+      milestone_important: 0,
+    },
+  };
+
+  if (!episodicMemoryRecallEnabled(env)) {
+    return { rows: [], stats: emptyStats, laneById: new Map() };
+  }
+
+  const scope = buildEpisodicCandidateScope(db, input, env);
+  if (!scope) {
+    return { rows: [], stats: emptyStats, laneById: new Map() };
+  }
+
+  const candidateLimit = Math.max(
+    1,
+    Math.min(500, Math.trunc(input.candidateLimit ?? EPISODIC_MEMORY_CANDIDATE_LIMIT))
+  );
+
+  return fetchEpisodicMemoryCandidateRows(db, {
+    scope,
+    candidateLimit,
+    currentUserMessage: input.currentUserMessage,
+  });
+}
+
 function compareFactsForPrompt(
   a: EpisodicMemoryFactRecord,
   b: EpisodicMemoryFactRecord,
@@ -1426,57 +2042,15 @@ export function getEpisodicMemoryForPrompt(
         Math.trunc(input.dynamicMemoryTotalMaxChars ?? resolveDynamicMemoryTotalMaxChars(env))
       )
     );
-    const minAgeTurns = Math.max(
-      0,
-      Math.min(
-        100,
-        Math.trunc(input.minAgeTurns ?? resolveEpisodicMemoryMinAgeTurns(env))
-      )
-    );
+    const scope = buildEpisodicCandidateScope(db, input, env);
+    if (!scope) return { facts: [], promptBlock: "", debug: [] };
 
-    const where: string[] = ["chat_id = ?"];
-    const params: Array<number | string> = [chatId];
-    if (input.characterId != null && Number.isFinite(input.characterId)) {
-      where.push("(character_id IS NULL OR character_id = ?)");
-      params.push(Math.trunc(input.characterId));
-    }
-    if (input.userId != null && Number.isFinite(input.userId)) {
-      where.push("(user_id IS NULL OR user_id = ?)");
-      params.push(Math.trunc(input.userId));
-    }
-    const boundary = getMemorySourceBoundaryCore(db, chatId);
-    if (boundary.resetAfterMessageId != null) {
-      where.push("source_user_message_id IS NOT NULL AND source_user_message_id > ?");
-      params.push(boundary.resetAfterMessageId);
-    }
-    if (currentTurn != null) {
-      where.push("source_turn < ?");
-      params.push(currentTurn);
-      if (minAgeTurns > 0) {
-        where.push("source_turn <= ?");
-        params.push(currentTurn - minAgeTurns);
-      }
-    }
+    const { rows } = fetchEpisodicMemoryCandidateRows(db, {
+      scope,
+      candidateLimit,
+      currentUserMessage: input.currentUserMessage,
+    });
 
-    const rows = (db
-      .prepare(
-        `SELECT id, chat_id, character_id, user_id, source_turn, source_user_message_id,
-                category, subject, attribute, value, importance, fact_text, metadata, created_at
-         FROM episodic_memory_facts
-         WHERE ${where.join(" AND ")}
-         ORDER BY source_turn DESC, id DESC
-         LIMIT ?`
-      )
-      .all(...params, candidateLimit) as EpisodicMemoryFactRecord[]).map(attachStoredEvidenceType);
-
-    const validRows = rows.filter((row) => sanitizeEpisodicExtractedFacts([{
-      category: row.category,
-      subject: row.subject,
-      attribute: row.attribute,
-      value: row.value,
-      importance: row.importance,
-      fact_text: row.fact_text,
-    }]).length === 1);
     const uncontaminatedRows: EpisodicMemoryFactRecord[] = [];
     let blockedContaminatedCount = 0;
     let blockedLedgerOwnedCount = 0;
@@ -1484,12 +2058,22 @@ export function getEpisodicMemoryForPrompt(
     let blockedUnsupportedEvidenceCount = 0;
     let blockedPsychologicalCount = 0;
     let temporarySkippedCount = 0;
-    for (const row of validRows) {
-      const blockedReason = detectEpisodicMemoryContamination(row);
-      if (blockedReason) {
-        blockedContaminatedCount += 1;
+    for (const row of rows) {
+      const guard = evaluateEpisodicRetrievalGuard(row);
+      if (guard.allowed) {
+        uncontaminatedRows.push(row);
+        continue;
+      }
+      const blockedReason = guard.blockedReason;
+      if (blockedReason === "invalid_fact_schema") continue;
+      if (blockedReason === "clearly_temporary") {
+        temporarySkippedCount += 1;
+        continue;
+      }
+      if (blockedReason === "abstract_psychological_inference") {
+        blockedPsychologicalCount += 1;
         if (process.env.NODE_ENV !== "production") {
-          console.info("[EpisodicMemory] blocked contaminated retrieved fact:", {
+          console.info("[EpisodicMemory] blocked abstract psychological inference fact:", {
             chat_id: chatId,
             id: row.id,
             source_turn: row.source_turn,
@@ -1504,50 +2088,50 @@ export function getEpisodicMemoryForPrompt(
         }
         continue;
       }
-      const ledgerOwnedReason = detectRelationshipLedgerOwnedFact(row);
-      if (ledgerOwnedReason) {
+      if (
+        blockedReason === "relationship_ledger_promise" ||
+        blockedReason === "relationship_ledger_item"
+      ) {
         blockedLedgerOwnedCount += 1;
         continue;
       }
-      // Exclude clearly momentary states before latest-wins / ranking / budget.
-      // Recent raw history owns current emotion/pose/action; DB rows stay (no migration).
-      if (isClearlyTemporaryEpisodicFact(row)) {
-        temporarySkippedCount += 1;
-        continue;
-      }
-      const psychologicalReason = detectAbstractPsychologicalInference(row);
-      if (psychologicalReason) {
-        blockedPsychologicalCount += 1;
-        if (process.env.NODE_ENV !== "production") {
-          console.info("[EpisodicMemory] blocked abstract psychological inference fact:", {
-            chat_id: chatId,
-            id: row.id,
-            source_turn: row.source_turn,
-            category: row.category,
-            subject: row.subject,
-            attribute: row.attribute,
-            value: row.value,
-            importance: row.importance,
-            fact_text: row.fact_text,
-            blocked_reason: psychologicalReason,
-          });
-        }
-        continue;
-      }
-      const unverifiedReason = detectUnverifiedCanonicalization(row);
-      if (unverifiedReason) {
+      if (
+        blockedReason === "unverified_canonicalization" ||
+        blockedReason === "unattributed_character_claim"
+      ) {
         blockedUnverifiedCount += 1;
         continue;
       }
-      const unsupportedEvidenceReason = detectUnsupportedEvidenceFact(row);
-      if (unsupportedEvidenceReason) {
+      if (
+        blockedReason === "higher_authority_canon_source" ||
+        blockedReason === "unsupported_explicit_user_statement"
+      ) {
         blockedUnsupportedEvidenceCount += 1;
         continue;
       }
-      uncontaminatedRows.push(row);
+      blockedContaminatedCount += 1;
+      if (process.env.NODE_ENV !== "production") {
+        console.info("[EpisodicMemory] blocked contaminated retrieved fact:", {
+          chat_id: chatId,
+          id: row.id,
+          source_turn: row.source_turn,
+          category: row.category,
+          subject: row.subject,
+          attribute: row.attribute,
+          value: row.value,
+          importance: row.importance,
+          fact_text: row.fact_text,
+          blocked_reason: blockedReason,
+        });
+      }
     }
-    const resolved = resolveLatestFactsByLogicalKey(uncontaminatedRows);
-    const skippedConflictFactsCount = Math.max(0, uncontaminatedRows.length - resolved.length);
+    const { rows: stateReconciledRows, stats: stateReconcileStats } = reconcileGlobalStateLikeFacts(
+      db,
+      scope,
+      uncontaminatedRows
+    );
+    const resolved = resolveLatestFactsByLogicalKey(stateReconciledRows);
+    const skippedConflictFactsCount = Math.max(0, stateReconciledRows.length - resolved.length);
     const currentMessage = input.currentUserMessage ?? "";
     const debugById = new Map<number, EpisodicMemorySelectionDebug>();
     for (const fact of resolved) {
