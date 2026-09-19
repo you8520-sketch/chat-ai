@@ -1,8 +1,8 @@
 /**
- * Main RP model registry — canonical 3-model role invariant.
+ * Main RP model registry — canonical 4-model role invariant.
  *
  * ONE source of truth: MAIN_RP_MODEL_IDS / MAIN_RP_USER_SELECTABLE_OPTIONS.
- * Exactly 3 Main RP models; all others are MainRP=false (auxiliary/vision/
+ * Exactly 4 Main RP models; all others are MainRP=false (auxiliary/vision/
  * historical only). API=0.
  */
 import assert from "node:assert/strict";
@@ -31,24 +31,24 @@ import {
 
 const REPO_ROOT = resolve(process.cwd());
 
-describe("Main RP canonical 3-model registry", () => {
-  it("MAIN_RP_MODEL_COUNT=3 and picker count=3 (single source of truth)", () => {
-    assert.equal(MAIN_RP_MODEL_IDS.length, 3);
-    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 3);
-    assert.equal(SELECTED_AI_OPTIONS.length, 3);
-    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 3);
-    assert.equal(userSelectableAIOptionsForUser(false).length, 3);
-    assert.equal(userSelectableAIOptionsForUser(true).length, 3);
+describe("Main RP canonical 4-model registry", () => {
+  it("MAIN_RP_MODEL_COUNT=4 and picker count=4 (single source of truth)", () => {
+    assert.equal(MAIN_RP_MODEL_IDS.length, 4);
+    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 4);
+    assert.equal(SELECTED_AI_OPTIONS.length, 4);
+    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 4);
+    assert.equal(userSelectableAIOptionsForUser(false).length, 4);
+    assert.equal(userSelectableAIOptionsForUser(true).length, 4);
   });
 
-  it("canonical 3 are the exact expected ids and all selectable", () => {
+  it("canonical 4 are the exact expected ids and all selectable", () => {
     assert.deepEqual(
       [...MAIN_RP_MODEL_IDS].sort(),
       [
         CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
         CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
         CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-      ].sort()
+        ].sort()
     );
     for (const modelId of MAIN_RP_MODEL_IDS) {
       assert.equal(isMainRpModel(modelId), true, modelId);
