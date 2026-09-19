@@ -418,17 +418,17 @@ describe("billingLiveOwnerReadinessAudit — policy coverage matrix", () => {
     assert.equal(waiver.proof.g31HasModelSpecificMinimumResolver, 1);
   });
 
-  it("unified-reasoning and G37 proofs use canonical owners not cross-model diffs", () => {
+  it("unified token-cost proof covers G31, Opus, G37, and Terra", () => {
     const matrix = buildSpecialPolicyCoverageMatrix(buildBillingLiveOwnerReadinessFixtures());
-    const unified = matrix.find((row) => row.policy === "unified-reasoning margins (G31 CI, Opus5)");
-    const g37 = matrix.find((row) => row.policy === "gemini37FlashPricing dedicated formula");
+    const unified = matrix.find(
+      (row) => row.policy === "unified token-cost pricing (G31 CI, Opus5, G37, Terra)"
+    );
     assert.ok(unified);
-    assert.ok(g37);
     assert.equal(unified.behavioralProofPasses, true);
-    assert.equal(g37.behavioralProofPasses, true);
     assert.equal(unified.proof.g31ExpectedPoints, unified.proof.g31LivePoints);
     assert.equal(unified.proof.opusExpectedPoints, unified.proof.opusLivePoints);
-    assert.equal(g37.proof.g37CanonicalExpectedPoints, g37.proof.liveG37Points);
+    assert.equal(unified.proof.g37ExpectedPoints, unified.proof.g37LivePoints);
+    assert.equal(unified.proof.terraExpectedPoints, unified.proof.terraLivePoints);
   });
 
   it("output-token pricing proves API vs saved-text fallback precedence", () => {
