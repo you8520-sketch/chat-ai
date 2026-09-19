@@ -141,9 +141,9 @@ describe("postTurnSharedInitialWidgetOutcome", () => {
       JSON.stringify({
         suggestedReplies: {
           items: [
-            { kind: "escalate", text: padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\"") },
-            { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\"") },
-            { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\"") },
+            { kind: "natural", text: padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\"") },
+            { kind: "twist", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\"") },
+            { kind: "banter", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\"") },
           ],
         },
       }),
