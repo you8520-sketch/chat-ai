@@ -91,7 +91,6 @@ import { createStreamPostprocessHeartbeat } from "@/lib/streamPostprocessHeartbe
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isCheaperInferenceModel, isCheaperInferenceQwen38MaxModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
 import { resolveDeepSeekAdultHandoffTrueOff } from "@/lib/cheaperInferenceConfig";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
-import type { Gemini37FlashPricingBreakdown } from "@/lib/gemini37FlashPricing";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward, paidCreatorRewardSpend } from "@/lib/creatorPoints";
 import { TurnApiBudget, NARRATIVE_LENGTH_CONTINUATION_ENABLED } from "@/lib/turnApiBudget";
@@ -4217,7 +4216,6 @@ export async function POST(req: Request) {
           coldStartShieldApplied?: boolean;
           uncappedChargePoints?: number;
           coldStartCostFloorPoints?: number;
-          gemini37FlashPricing?: Gemini37FlashPricingBreakdown;
           sitePromotion?: Usage["sitePromotion"];
         };
 
@@ -4826,9 +4824,6 @@ export async function POST(req: Request) {
                     }
                   : {}),
               } ),
-          ...(billing.gemini37FlashPricing
-            ? { gemini37FlashPricing: billing.gemini37FlashPricing }
-            : {}),
           ...(billing.coldStartShieldApplied
             ? {
                 coldStartShieldApplied: true,
