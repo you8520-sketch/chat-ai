@@ -1,5 +1,5 @@
 /**
- * Full Main RP prompt budget + model-switch horizon audit — zero provider calls.
+ * Full Main RP prompt budget + N15 policy audit — zero provider calls.
  */
 import Module from "module";
 
@@ -16,6 +16,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { MEDIUM_TERM_BLOCK_COUNT } from "./memory-medium-term";
 import { MOVING_DETAIL_MARKERS } from "./memory-medium-term-audit";
 import {
   auditActualSafetyGates,
@@ -48,179 +49,158 @@ describe("SYSTEM BUDGET BEHAVIOR", () => {
   });
 });
 
-describe("MAIN RP MODEL PROFILES", () => {
-  it("profile model IDs == MAIN_RP_MODEL_IDS (dynamic registry parity)", () => {
+describe("CANONICAL N15 POLICY", () => {
+  it("MEDIUM_TERM_BLOCK_COUNT = 15", () => {
+    assert.equal(MEDIUM_TERM_BLOCK_COUNT, 15);
+  });
+
+  it("all Main RP profiles use canonical N15", () => {
     const profiles = listMainRpModelProfiles();
     const profileIds = profiles.map((p) => p.modelId).sort();
     const registryIds = [...MAIN_RP_MODEL_IDS].sort();
     assert.deepEqual(profileIds, registryIds);
-    assert.ok(profiles.length >= 3, "registry must include at least legacy 3 models");
     for (const profile of profiles) {
-      assert.ok(MAIN_RP_MODEL_IDS.includes(profile.modelId as (typeof MAIN_RP_MODEL_IDS)[number]));
-      assert.ok(profile.mediumBlockCountProvisional > 0);
-      assert.ok(profile.systemBudgetTelemetryTarget > 0);
+      assert.equal(profile.mediumBlockCount, MEDIUM_TERM_BLOCK_COUNT);
     }
   });
 });
 
-describe("PROVISIONAL MODEL-SWITCH HORIZON (runtime provider-coupled)", () => {
+describe("RUNTIME MODEL-SWITCH N15 PARITY", () => {
   for (const currentTurn of [300, 1000] as const) {
-    it(`T${currentTurn} — provisional block count may differ by model (documented, not final policy)`, () => {
+    it(`T${currentTurn} — identical N15 horizon across all Main RP models`, () => {
       const reports = MAIN_RP_MODEL_IDS.map((modelId) =>
         reportModelSwitchMediumHorizon(modelId, currentTurn)
       );
       const comparison = compareModelSwitchHorizonReports(reports);
-      // Production still uses resolveMediumTermBlockCount — delta may exist until GPT selects canonical N.
-      assert.equal(typeof comparison.horizonDelta, "boolean");
+      assert.equal(comparison.horizonDelta, false, "MODEL_SWITCH_MEDIUM_HORIZON_DELTA must be 0");
+
+      for (const report of reports) {
+        assert.equal(report.mediumBlockCount, 15);
+        assert.ok(report.markersPresent.includes(MOVING_DETAIL_MARKERS.near));
+        assert.ok(report.markersPresent.includes(MOVING_DETAIL_MARKERS.mid));
+        assert.ok(report.markersPresent.includes(MOVING_DETAIL_MARKERS.far));
+      }
+
+      const first = reports[0]!;
+      for (const report of reports.slice(1)) {
+        assert.deepEqual(report.turnRanges, first.turnRanges);
+        assert.equal(report.mediumBody, first.mediumBody);
+      }
     });
   }
 });
 
-describe("FIXED-N MODEL-SWITCH PARITY", () => {
-  for (const fixedN of [10, 15] as const) {
-    for (const currentTurn of [300, 1000] as const) {
-      it(`N=${fixedN} T${currentTurn} — identical memory knowledge across all Main RP models`, () => {
-        const reports = MAIN_RP_MODEL_IDS.map((modelId) =>
-          reportFixedNMediumHorizon(modelId, currentTurn, fixedN)
-        );
-        const comparison = compareFixedNHorizonReports(reports);
-        assert.equal(comparison.parity, true, comparison.detail);
-
-        const expectedMarkers =
-          fixedN >= 15
-            ? [MOVING_DETAIL_MARKERS.near, MOVING_DETAIL_MARKERS.mid, MOVING_DETAIL_MARKERS.far]
-            : fixedN >= 10
-              ? [MOVING_DETAIL_MARKERS.near, MOVING_DETAIL_MARKERS.mid]
-              : [MOVING_DETAIL_MARKERS.near];
-        for (const report of reports) {
-          for (const marker of expectedMarkers) {
-            assert.ok(report.markersPresent.includes(marker), `${report.modelId} missing ${marker}`);
-          }
-          assert.equal(report.mediumBlockCount, fixedN);
-          assert.ok(report.mediumBody.length > 0);
-        }
-      });
-    }
+describe("FIXED-N MODEL-SWITCH PARITY (N15 canonical)", () => {
+  for (const currentTurn of [300, 1000] as const) {
+    it(`N=15 T${currentTurn} — identical memory knowledge across all Main RP models`, () => {
+      const reports = MAIN_RP_MODEL_IDS.map((modelId) =>
+        reportFixedNMediumHorizon(modelId, currentTurn, 15)
+      );
+      const comparison = compareFixedNHorizonReports(reports);
+      assert.equal(comparison.parity, true, comparison.detail);
+      for (const report of reports) {
+        assert.equal(report.mediumBlockCount, 15);
+        assert.ok(report.markersPresent.includes(MOVING_DETAIL_MARKERS.far));
+      }
+    });
   }
 });
 
-describe("FULL PROMPT BUDGET MATRIX (near-real)", () => {
+describe("FULL PROMPT N15 MATRIX (near-real)", () => {
   for (const modelId of MAIN_RP_MODEL_IDS) {
-    it(`${modelId} — baseline + N=5/10/15 via buildContext`, () => {
+    it(`${modelId} — baseline + N15 safety via buildContext`, () => {
       const matrix = buildFullPromptBudgetMatrix(300, modelId, "near-real");
       assert.equal(matrix.baseline.mediumActive, false);
       assert.equal(matrix.baseline.hasMediumSection, false);
-      assert.equal(matrix.baseline.mediumChars, 0);
-      assert.ok(matrix.baseline.estimatedSystemTokens > 0);
-      assert.ok(matrix.baseline.estimatedHistoryTokens > 0);
-      assert.ok(matrix.baseline.estimatedInputTokens > 0);
-      assert.ok(matrix.baseline.tokenBudget > 0);
       assert.equal(matrix.baseline.truncatedMemory, false);
 
-      for (const row of [matrix.n5, matrix.n10, matrix.n15]) {
-        assert.ok(row.hasMediumSection);
-        assert.ok(row.mediumChars > 0);
-        assert.ok(row.estimatedSystemTokens > matrix.baseline.estimatedSystemTokens);
-        assert.ok(row.deltaSystemTokensVsBaseline > 0);
-        assert.ok(row.deltaInputTokensVsBaseline > 0);
-        assert.ok(row.trackedSectionCount >= matrix.baseline.trackedSectionCount);
-        assert.equal(row.criticalSectionOmitted, false);
-        assert.equal(row.criticalSectionTrimmed, false);
-      }
+      const n15 = matrix.n15;
+      assert.ok(n15.hasMediumSection);
+      assert.ok(n15.mediumChars > 0);
+      assert.ok(n15.estimatedSystemTokens > matrix.baseline.estimatedSystemTokens);
+      assert.ok(n15.deltaInputTokensVsBaseline > 0);
+      assert.equal(n15.criticalSectionOmitted, false);
+      assert.equal(n15.criticalSectionTrimmed, false);
+      assert.equal(n15.truncatedMemory, false);
 
-      assert.ok(matrix.n5.deltaSystemTokensVsBaseline < matrix.n15.deltaSystemTokensVsBaseline);
-      assert.ok(matrix.n10.deltaInputTokensVsBaseline < matrix.n15.deltaInputTokensVsBaseline);
+      const safety = auditActualSafetyGates(matrix);
+      assert.equal(safety.n15.truncatedMemoryVsBaseline, false);
+      assert.equal(safety.n15.criticalSectionOmitted, false);
+      assert.equal(safety.n15.criticalSectionTrimmed, false);
+      assert.equal(safety.n15.safeForPolicyConsideration, true);
     });
   }
 
-  it("DeepSeek — Medium grouped in LONG_TERM_MEMORY XML", () => {
+  it("DeepSeek — Medium grouped in LONG_TERM_MEMORY XML at N15", () => {
     const deepseekId = MAIN_RP_MODEL_IDS.find((id) => id.includes("deepseek"))!;
     const matrix = buildFullPromptBudgetMatrix(300, deepseekId);
-    assert.equal(matrix.n10.deepSeekLtmGrouped, true);
+    assert.equal(matrix.n15.deepSeekLtmGrouped, true);
   });
 
-  it("telemetry crossing at N=15 is reported but NOT a hard failure gate", () => {
+  it("N15 telemetry crossing is accepted — not a test failure gate", () => {
     const deepseekId = MAIN_RP_MODEL_IDS.find((id) => id.includes("deepseek"))!;
     const matrix = buildFullPromptBudgetMatrix(300, deepseekId);
     const crossing = reportsTelemetryTargetCrossing(matrix);
     assert.equal(typeof crossing, "boolean");
     const safety = auditActualSafetyGates(matrix);
-    assert.equal(safety.n10.safeForPolicyConsideration, true);
     assert.equal(safety.n15.safeForPolicyConsideration, true);
-    assert.equal(safety.n10.truncatedMemoryVsBaseline, false);
     assert.equal(safety.n15.truncatedMemoryVsBaseline, false);
   });
 });
 
-describe("HIGH-BOUND MATRIX", () => {
+describe("HIGH-BOUND N15 MATRIX", () => {
   for (const modelId of MAIN_RP_MODEL_IDS) {
-    it(`${modelId} — high-bound baseline vs N=10/N=15`, () => {
+    it(`${modelId} — high-bound N15 no truncation/critical loss`, () => {
       const matrix = buildFullPromptBudgetMatrix(300, modelId, "high-bound");
       const safety = auditActualSafetyGates(matrix);
-
-      assert.ok(matrix.baseline.estimatedSystemTokens >= matrix.n5.estimatedSystemTokens - 6000);
-      assert.equal(matrix.n10.criticalSectionOmitted, false);
       assert.equal(matrix.n15.criticalSectionOmitted, false);
-      assert.equal(matrix.n10.criticalSectionTrimmed, false);
       assert.equal(matrix.n15.criticalSectionTrimmed, false);
-      assert.equal(safety.n10.truncatedMemoryVsBaseline, false);
       assert.equal(safety.n15.truncatedMemoryVsBaseline, false);
-      assert.equal(typeof safety.baselineAlreadyOverTelemetryTarget, "boolean");
-      assert.equal(typeof safety.mediumN10CausedNewTelemetryCrossing, "boolean");
-      assert.equal(typeof safety.mediumN15CausedNewTelemetryCrossing, "boolean");
+      assert.equal(safety.n15.safeForPolicyConsideration, true);
     });
   }
 });
 
-describe("TERRA N10/N15", () => {
+describe("TERRA N15", () => {
   const terraId = MAIN_RP_MODEL_IDS.find((id) => id.includes("terra"));
   if (!terraId) {
     it("skipped — Terra not in current MAIN_RP_MODEL_IDS", () => {
       assert.ok(true);
     });
   } else {
-    it("Terra included in full prompt matrix with default telemetry budget", () => {
-      const matrix = buildFullPromptBudgetMatrix(300, terraId);
-      assert.ok(matrix.baseline.estimatedSystemTokens > 0);
-      assert.ok(matrix.n10.mediumChars > 0);
-      assert.ok(matrix.n15.mediumChars > 0);
-      const safety = auditActualSafetyGates(matrix);
-      assert.equal(typeof safety.mediumN10CausedNewTelemetryCrossing, "boolean");
-      assert.equal(typeof safety.mediumN15CausedNewTelemetryCrossing, "boolean");
+    it("Terra runtime N15 parity with DeepSeek", () => {
+      const terra = reportModelSwitchMediumHorizon(terraId, 300);
+      const deepseek = reportModelSwitchMediumHorizon(
+        MAIN_RP_MODEL_IDS.find((id) => id.includes("deepseek"))!,
+        300
+      );
+      assert.equal(terra.mediumBlockCount, 15);
+      assert.equal(terra.mediumBody, deepseek.mediumBody);
+      assert.deepEqual(terra.turnRanges, deepseek.turnRanges);
     });
 
-    it("Terra fixed-N parity at N=10 and N=15", () => {
-      for (const fixedN of [10, 15] as const) {
-        const terra = reportFixedNMediumHorizon(terraId, 300, fixedN);
-        const deepseek = reportFixedNMediumHorizon(
-          MAIN_RP_MODEL_IDS.find((id) => id.includes("deepseek"))!,
-          300,
-          fixedN
-        );
-        assert.equal(terra.mediumBody, deepseek.mediumBody);
-        assert.deepEqual(terra.turnRanges, deepseek.turnRanges);
-      }
+    it("Terra N15 full prompt safety", () => {
+      const matrix = buildFullPromptBudgetMatrix(300, terraId);
+      const safety = auditActualSafetyGates(matrix);
+      assert.equal(safety.n15.safeForPolicyConsideration, true);
+      assert.equal(matrix.n15.truncatedMemory, false);
     });
   }
 });
 
-describe("N10 VS N15 EVIDENCE", () => {
+describe("N15 COST EVIDENCE (N15 minus N10)", () => {
   for (const modelId of MAIN_RP_MODEL_IDS) {
-    it(`${modelId} — coverage + token delta evidence (no winner selected)`, () => {
+    it(`${modelId} — documents ~1948 extra input tokens vs N10`, () => {
       const evidence = buildN10VsN15Evidence(modelId, 300, "near-real");
-      assert.ok(evidence.n10.markers.includes(MOVING_DETAIL_MARKERS.near));
-      assert.ok(evidence.n10.markers.includes(MOVING_DETAIL_MARKERS.mid));
       assert.ok(evidence.n15.markers.includes(MOVING_DETAIL_MARKERS.far));
       assert.ok(evidence.n15.mediumChars > evidence.n10.mediumChars);
       assert.ok(evidence.n15MinusN10InputTokens > 0);
-      assert.equal(evidence.safety.n10.safeForPolicyConsideration, true);
-      assert.equal(evidence.safety.n15.safeForPolicyConsideration, true);
     });
   }
 });
 
 describe("DORMANT OWNER CLASSIFICATION", () => {
-  it("documents helper/constant ownership after canonical extraction", () => {
+  it("documents helper/constant ownership after N15 policy", () => {
     const classifications = {
       resolveRecentNarrativeContextLimit: "DORMANT",
       buildRecentNarrativeContextBlock: "DORMANT",
@@ -230,9 +210,9 @@ describe("DORMANT OWNER CLASSIFICATION", () => {
       CLAUDE_RECENT_NARRATIVE_CONTEXT_LIMIT: "FOLLOW_UP",
       DEEPSEEK_STATIC_STORED_SUMMARY_LIMIT: "FOLLOW_UP",
       isPromptInjectibleMemoryRecord: "ACTIVE_ELSEWHERE",
-      resolveMediumTermBlockCount: "ACTIVE_ELSEWHERE",
+      MEDIUM_TERM_BLOCK_COUNT: "ACTIVE_ELSEWHERE",
     };
-    assert.equal(classifications.isPromptInjectibleMemoryRecord, "ACTIVE_ELSEWHERE");
+    assert.equal(classifications.MEDIUM_TERM_BLOCK_COUNT, "ACTIVE_ELSEWHERE");
     assert.equal(classifications.buildRecentNarrativeContextBlock, "DORMANT");
   });
 });

@@ -29,9 +29,9 @@ import {
   compactCurrentMemory,
 } from "./memory-rolling-summary";
 import {
+  MEDIUM_TERM_BLOCK_COUNT,
   buildMediumTermMemoryBlock,
   buildMediumTermMemoryBlockForProjection,
-  listMediumTermEligibleRecords,
   measureMediumGlobalLiteralDuplicateChars,
   rawOwnedTurnStart,
   shouldInjectMediumTermMemory,
@@ -47,7 +47,10 @@ import {
   updateMemoryRecordById,
 } from "./memory-turn-summary";
 import { buildContext } from "@/services/contextBuilder";
-import { rebuildLorebookFromRecords } from "./memory-turn-summary";
+import {
+  listPromptInjectibleMemoryRecords,
+  rebuildLorebookFromRecords,
+} from "./memory-turn-summary";
 import { emergencyFallbackTrimLorebookSync } from "./memory-global-projection";
 
 const CHAT = 996001;
@@ -245,8 +248,13 @@ describe("MEDIUM ACTIVATION", () => {
     assert.ok(injection.mediumTermText.includes("NEAR_MEDIUM_DETAIL"));
     assert.ok(
       injection.mediumTermText.includes("MID_MEDIUM_DETAIL"),
-      "N=10 block count must recover mid-horizon detail at T300"
+      "N=15 must recover mid-horizon detail at T300"
     );
+    assert.ok(
+      injection.mediumTermText.includes("FAR_MEDIUM_DETAIL"),
+      "N=15 must recover far-horizon detail at T300"
+    );
+    assert.equal(MEDIUM_TERM_BLOCK_COUNT, 15);
     assert.equal(injection.text.includes("NEAR_MEDIUM_DETAIL"), false);
     assert.equal(
       measureMediumGlobalLiteralDuplicateChars(injection.mediumTermText, injection.text),
@@ -346,7 +354,7 @@ describe("MEDIUM READER", () => {
       branchId: "branch-x",
     });
 
-    const eligible = listMediumTermEligibleRecords(CHAT, { excludeTurnStartGte: 100 });
+    const eligible = listPromptInjectibleMemoryRecords(CHAT, { excludeTurnStartGte: 100 });
     assert.equal(eligible.some((r) => r.summary.includes("INACTIVE_ROW")), false);
     assert.equal(eligible.some((r) => r.summary.includes("NONCANON_ROW")), false);
     assert.equal(eligible.some((r) => r.summary.includes("CLOSED_BRANCH")), false);

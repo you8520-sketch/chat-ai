@@ -22,7 +22,7 @@ import {
   MOVING_DETAIL_MARKERS,
   simulateMovingHorizonCoverage,
 } from "./memory-medium-term-audit";
-import { resolveMediumTermBlockCount } from "./memory-medium-term";
+import { MEDIUM_TERM_BLOCK_COUNT } from "./memory-medium-term";
 
 export type AuditFixtureKind = "near-real" | "high-bound";
 
@@ -32,7 +32,7 @@ export type MainRpModelProfile = {
   provider: ReturnType<typeof selectedAIProvider>;
   /** Production route maps cheaperinference → openrouter for contextTrack/memory paths. */
   contextProvider: "gemini" | "openrouter" | "openai";
-  mediumBlockCountProvisional: number;
+  mediumBlockCount: number;
   systemBudgetTelemetryTarget: number;
 };
 
@@ -52,7 +52,7 @@ export function listMainRpModelProfiles(): MainRpModelProfile[] {
       label: option.label,
       provider: option.provider,
       contextProvider,
-      mediumBlockCountProvisional: resolveMediumTermBlockCount(option.id, contextProvider),
+      mediumBlockCount: MEDIUM_TERM_BLOCK_COUNT,
       systemBudgetTelemetryTarget:
         MODEL_SYSTEM_BUDGETS[option.id] ?? MODEL_SYSTEM_BUDGETS.default ?? 28_000,
     };
@@ -353,13 +353,12 @@ function markersInMediumText(mediumText: string): string[] {
   return markers;
 }
 
-/** Provisional runtime block count — provider-coupled, not final policy. */
+/** Runtime Medium horizon — canonical N15 for all Main RP models. */
 export function reportModelSwitchMediumHorizon(
   modelId: string,
   currentTurn: number
 ): ModelSwitchHorizonReport {
-  const contextProvider = resolveAuditContextProvider(modelId);
-  const blockCount = resolveMediumTermBlockCount(modelId, contextProvider) as RingSize;
+  const blockCount = MEDIUM_TERM_BLOCK_COUNT as RingSize;
   const coverage = simulateMovingHorizonCoverage(currentTurn, blockCount, { mediumActive: true });
   const mediumText = assembleMovingMediumRingText(currentTurn, blockCount);
   return {

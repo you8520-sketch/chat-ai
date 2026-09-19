@@ -22,7 +22,6 @@ import {
 } from "@/lib/test/isolatedTestDatabase";
 import {
   buildMediumTermMemoryBlock,
-  listMediumTermEligibleRecords,
   rawOwnedTurnStart,
 } from "./memory-medium-term";
 import { upsertSummaryRowCore } from "./memory-summary-persist";
@@ -238,7 +237,7 @@ describe("MEDIUM ELIGIBILITY PARITY", () => {
     const globalIds = listPromptInjectibleMemoryRecords(CHAT, { excludeTurnStartGte: cutoff }).map(
       (r) => r.id
     );
-    const mediumIds = listMediumTermEligibleRecords(CHAT, { excludeTurnStartGte: cutoff }).map(
+    const mediumIds = listPromptInjectibleMemoryRecords(CHAT, { excludeTurnStartGte: cutoff }).map(
       (r) => r.id
     );
     assert.deepEqual(mediumIds, globalIds);

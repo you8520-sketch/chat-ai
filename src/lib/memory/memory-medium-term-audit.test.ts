@@ -17,12 +17,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { RAW_HISTORY_COMPLETE_EXCHANGES } from "@/lib/hybridMemory";
-import {
-  MEDIUM_TERM_BLOCK_COUNT_CLAUDE,
-  MEDIUM_TERM_BLOCK_COUNT_DEEPSEEK,
-  MEDIUM_TERM_BLOCK_COUNT_GEMINI,
-  shouldInjectMediumTermMemory,
-} from "./memory-medium-term";
+import { MEDIUM_TERM_BLOCK_COUNT, shouldInjectMediumTermMemory } from "./memory-medium-term";
 import {
   MOVING_DETAIL_MARKERS,
   MOVING_MAJOR_MARKERS,
@@ -63,13 +58,12 @@ describe("DORMANT HELPER AUDIT", () => {
     assert.match(builder, /medium-term-memory/);
   });
 
-  it("Medium block count policy owner is separate from dormant Recent Narrative Context", () => {
-    assert.equal(MEDIUM_TERM_BLOCK_COUNT_GEMINI, 15);
-    assert.equal(MEDIUM_TERM_BLOCK_COUNT_DEEPSEEK, 10);
-    assert.equal(MEDIUM_TERM_BLOCK_COUNT_CLAUDE, 5);
+  it("Medium block count policy owner is canonical N15 — separate from dormant Recent Narrative Context", () => {
+    assert.equal(MEDIUM_TERM_BLOCK_COUNT, 15);
     const mediumTerm = readFileSync("src/lib/memory/memory-medium-term.ts", "utf8");
-    assert.match(mediumTerm, /MEDIUM_TERM_BLOCK_COUNT_/);
-    assert.match(mediumTerm, /resolveMediumTermBlockCount/);
+    assert.match(mediumTerm, /MEDIUM_TERM_BLOCK_COUNT\s*=\s*15/);
+    assert.doesNotMatch(mediumTerm, /resolveMediumTermBlockCount/);
+    assert.doesNotMatch(mediumTerm, /MEDIUM_TERM_BLOCK_COUNT_GEMINI/);
   });
 });
 
@@ -230,14 +224,19 @@ describe("SEMANTIC RETRIEVAL GAP", () => {
 });
 
 describe("IMPLEMENTATION GATE", () => {
-  it("moving-window gap confirmed and Medium recovers compact-induced loss", () => {
+  it("moving-window gap confirmed and Medium N15 recovers near+mid+far", () => {
     assert.equal(RAW_HISTORY_COMPLETE_EXCHANGES, 4);
-    const withoutMedium = simulateMovingHorizonCoverage(300, 10, { mediumActive: false });
+    const withoutMedium = simulateMovingHorizonCoverage(300, MEDIUM_TERM_BLOCK_COUNT, {
+      mediumActive: false,
+    });
     assert.equal(withoutMedium.nearPresent, false);
     assert.equal(withoutMedium.midPresent, false);
-    const withMedium = simulateMovingHorizonCoverage(300, 10, { mediumActive: true });
+    assert.equal(withoutMedium.farPresent, false);
+    const withMedium = simulateMovingHorizonCoverage(300, MEDIUM_TERM_BLOCK_COUNT, {
+      mediumActive: true,
+    });
     assert.equal(withMedium.nearPresent, true);
     assert.equal(withMedium.midPresent, true);
-    assert.equal(withMedium.farPresent, false);
+    assert.equal(withMedium.farPresent, true);
   });
 });

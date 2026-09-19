@@ -1,4 +1,3 @@
-import { isDeepSeekModelId, resolveContextTrack } from "@/lib/contextTrack";
 import type { GlobalProjectionKind } from "./memory-global-projection";
 import { RAW_HISTORY_COMPLETE_EXCHANGES, ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import {
@@ -8,13 +7,10 @@ import {
 } from "./memory-turn-summary";
 
 /**
- * Medium-term ring block counts — PROVISIONAL policy candidates.
- * Horizon semantics are model-neutral; values originated from dormant context-track limits.
- * GPT/user selects final N after full-prompt budget evidence — do not treat as proven policy.
+ * Canonical Medium-term horizon — 15 sealed 5-turn summary blocks (≈ recent 75 turns).
+ * Model-neutral: all Main RP models use the same block count when Medium is active.
  */
-export const MEDIUM_TERM_BLOCK_COUNT_GEMINI = 15;
-export const MEDIUM_TERM_BLOCK_COUNT_DEEPSEEK = 10;
-export const MEDIUM_TERM_BLOCK_COUNT_CLAUDE = 5;
+export const MEDIUM_TERM_BLOCK_COUNT = 15;
 
 export type MediumTermTurnRange = {
   turnStart: number;
@@ -55,33 +51,11 @@ export function shouldInjectMediumTermMemory(projectionKind: GlobalProjectionKin
   }
 }
 
-/** @deprecated use listPromptInjectibleMemoryRecords — alias for Medium parity tests. */
-export function listMediumTermEligibleRecords(
-  chatId: number,
-  opts?: {
-    excludeTurnStartGte?: number;
-    excludeAssistantMessageId?: number | null;
-  }
-): MemoryRecordView[] {
-  return listPromptInjectibleMemoryRecords(chatId, opts);
-}
-
 export function rawOwnedTurnStart(
   currentTurn: number,
   rawExchanges = RAW_HISTORY_COMPLETE_EXCHANGES
 ): number {
   return Math.max(1, currentTurn - rawExchanges + 1);
-}
-
-/** Provider adapter — applies provisional block-count candidates per model family. */
-export function resolveMediumTermBlockCount(
-  modelId?: string | null,
-  provider?: "gemini" | "openrouter" | "openai"
-): number {
-  if (isDeepSeekModelId(modelId ?? "")) return MEDIUM_TERM_BLOCK_COUNT_DEEPSEEK;
-  return resolveContextTrack(modelId, provider) === "gemini-bulk"
-    ? MEDIUM_TERM_BLOCK_COUNT_GEMINI
-    : MEDIUM_TERM_BLOCK_COUNT_CLAUDE;
 }
 
 function formatMediumTermBlock(record: MemoryRecordView): string {

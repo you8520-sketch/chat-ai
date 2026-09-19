@@ -54,8 +54,8 @@ import {
 } from "@/lib/contextTrack";
 import { buildRecentNarrativeContextBlock } from "./memory-narrative-context";
 import {
+  MEDIUM_TERM_BLOCK_COUNT,
   buildMediumTermMemoryBlockForProjection,
-  resolveMediumTermBlockCount,
 } from "./memory-medium-term";
 import type { MemoryInjection, MemorySnapshot, MemoryTier } from "./memory-types";
 
@@ -234,7 +234,7 @@ export async function buildMemoryContextForPreview(opts: {
 
   const mediumTerm = buildMediumTermMemoryBlockForProjection({
     chatId: opts.chatId,
-    blockCount: resolveMediumTermBlockCount(opts.modelId, opts.provider),
+    blockCount: MEDIUM_TERM_BLOCK_COUNT,
     excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
     projectionKind: resolved.projectionKind,
   });
@@ -309,7 +309,7 @@ export async function buildMemoryContextForChat(opts: {
 
   const mediumTerm = buildMediumTermMemoryBlockForProjection({
     chatId: opts.chatId,
-    blockCount: resolveMediumTermBlockCount(opts.modelId, opts.provider),
+    blockCount: MEDIUM_TERM_BLOCK_COUNT,
     excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
     projectionKind: resolved.projectionKind,
   });
