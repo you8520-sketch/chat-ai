@@ -2,16 +2,16 @@ import { isDeepSeekModelId, resolveContextTrack } from "@/lib/contextTrack";
 import type { GlobalProjectionKind } from "./memory-global-projection";
 import { RAW_HISTORY_COMPLETE_EXCHANGES, ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import {
-  isEmptyOocScope,
-  lorebookTextFromScopes,
-  scopesInjectedIntoPrompt,
-} from "./memory-summary-scope";
-import {
-  listMemoryRecordsForChat,
+  listPromptInjectibleMemoryRecords,
+  resolvePromptInjectibleMemoryRecordBody,
   type MemoryRecordView,
 } from "./memory-turn-summary";
 
-/** Medium-term ring block counts — canonical policy owner (Main RP). */
+/**
+ * Medium-term ring block counts — PROVISIONAL policy candidates.
+ * Horizon semantics are model-neutral; values originated from dormant context-track limits.
+ * GPT/user selects final N after full-prompt budget evidence — do not treat as proven policy.
+ */
 export const MEDIUM_TERM_BLOCK_COUNT_GEMINI = 15;
 export const MEDIUM_TERM_BLOCK_COUNT_DEEPSEEK = 10;
 export const MEDIUM_TERM_BLOCK_COUNT_CLAUDE = 5;
@@ -55,22 +55,7 @@ export function shouldInjectMediumTermMemory(projectionKind: GlobalProjectionKin
   }
 }
 
-function isMediumTermEligibleRecord(record: MemoryRecordView): boolean {
-  if (record.inactive) return false;
-  const text = lorebookTextFromScopes(record.scopes, { branchStatus: record.branchStatus });
-  if (!text.trim()) {
-    return (
-      scopesInjectedIntoPrompt(record.summaryKind) &&
-      !(record.summaryKind === "branch_canon" && record.branchStatus === "closed") &&
-      !isEmptyOocScope(record.summaryKind) &&
-      !!record.summary.trim() &&
-      record.summaryKind !== "noncanon"
-    );
-  }
-  return true;
-}
-
-/** Canonical medium-term source rows — same eligibility as Global rebuild. */
+/** @deprecated use listPromptInjectibleMemoryRecords — alias for Medium parity tests. */
 export function listMediumTermEligibleRecords(
   chatId: number,
   opts?: {
@@ -78,17 +63,7 @@ export function listMediumTermEligibleRecords(
     excludeAssistantMessageId?: number | null;
   }
 ): MemoryRecordView[] {
-  let records = listMemoryRecordsForChat(chatId).filter(isMediumTermEligibleRecord);
-  const cutoff = opts?.excludeTurnStartGte;
-  if (cutoff != null && cutoff > 0) {
-    records = records.filter((record) => record.turnStart < cutoff);
-  }
-  if (opts?.excludeAssistantMessageId != null) {
-    records = records.filter(
-      (record) => record.assistantMessageId !== opts.excludeAssistantMessageId
-    );
-  }
-  return records;
+  return listPromptInjectibleMemoryRecords(chatId, opts);
 }
 
 export function rawOwnedTurnStart(
@@ -98,6 +73,7 @@ export function rawOwnedTurnStart(
   return Math.max(1, currentTurn - rawExchanges + 1);
 }
 
+/** Provider adapter — applies provisional block-count candidates per model family. */
 export function resolveMediumTermBlockCount(
   modelId?: string | null,
   provider?: "gemini" | "openrouter" | "openai"
@@ -109,9 +85,7 @@ export function resolveMediumTermBlockCount(
 }
 
 function formatMediumTermBlock(record: MemoryRecordView): string {
-  const body =
-    lorebookTextFromScopes(record.scopes, { branchStatus: record.branchStatus }) ||
-    record.summary.trim();
+  const body = resolvePromptInjectibleMemoryRecordBody(record);
   return `[최근 기억 · T${record.turnStart}–${record.turnEnd}]\n${body}`;
 }
 
@@ -125,7 +99,7 @@ export function buildMediumTermMemoryBlock(opts: {
   excludeTurnStartGte?: number;
   excludeAssistantMessageId?: number | null;
 }): MediumTermMemoryAssembly {
-  const eligible = listMediumTermEligibleRecords(opts.chatId, {
+  const eligible = listPromptInjectibleMemoryRecords(opts.chatId, {
     excludeTurnStartGte: opts.excludeTurnStartGte,
     excludeAssistantMessageId: opts.excludeAssistantMessageId,
   });
