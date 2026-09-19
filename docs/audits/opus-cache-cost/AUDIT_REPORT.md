@@ -5,7 +5,17 @@
 **Date:** 2026-09-19
 **Method:** #962 head wire + post-fix live T1/T2/T3 (3 physical CI calls, 2026-09-19) + offline regression (HC-01..12).
 
-**PR head:** `ad04557a` (passthrough patch) · **integration base:** `ad088282` (main / Railway production, PR #963 merged) · **live-tested runtime:** `9d8680cb` · **forensic SHAs preserved:** `ba9d3528`, `9d8680cb`, `31ffdaaf`, `3d4e6fe5`, `ad04557a`
+**PR head:** `ad04557a` (passthrough patch) · **integration base:** `ad088282` (main / Railway production, PR #963 merged)
+
+**Runtime SHAs (separate — do not conflate):**
+
+| Label | SHA |
+|-------|-----|
+| `HISTORY_MARKER_REMOVAL_LIVE_RUNTIME` | `9d8680cbadb85a6a5205655b07af1c6cd66ef27a` |
+| `PASSTHROUGH_LIVE_RUNTIME` | `5291c893e2af0d50b5171e98b4177d4cd1e05fec` |
+| `CURRENT_REPORT_HEAD` | `702aee96bd9a019d012d294657551e4200596d9c` (doc-only updates follow on branch) |
+
+**Forensic SHAs preserved:** `ba9d3528`, `9d8680cb`, `31ffdaaf`, `3d4e6fe5`, `ad04557a`, `5291c893`, `702aee96`
 
 ---
 
@@ -34,6 +44,16 @@
 | `CURRENT_OPUS_BILLING_CONTRACT` | **UNVERIFIED_PRODUCTION_ENV_VALUE_REDACTED** |
 | `OPUS_PUBLIC_EXPOSURE_GUARD` | **REMOVED_WITHOUT_CACHE_ROOT_CAUSE_PROOF** |
 | `MERGE #962` | **NO** (wire fix alone does not restore end-to-end economics) |
+| `PASSTHROUGH_T1_ALL_STANDARD` | **OBSERVED** |
+| `PASSTHROUGH_T1_CACHE_CREATION` | **NONE_REPORTED** |
+| `PASSTHROUGH_T2_WARM_SUFFIX_IMPROVEMENT` | **NOT_OBSERVED** |
+| `PASSTHROUGH_T2_CACHE_LINEAGE` | **UNPROVEN** |
+| `PASSTHROUGH_PROVIDER_BEHAVIOR` | **INCONCLUSIVE_CACHE_LINEAGE** |
+| `PASSTHROUGH_RUNTIME_PATCH` | **NOT_MERGE_READY** |
+| `PRIOR_CACHE_WITHIN_TTL` (5-min default) | **NO** |
+| `PASSTHROUGH_T2_PRIOR_CACHE_CONTAMINATION` | **UNCONFIRMED** |
+| `LOCAL_FORENSICS_PROVIDER_ROUTE_LIMIT` | **CONFIRMED** |
+| `UPSTREAM_IMPLICIT_CACHE_CAUSALITY` | **SUPPORTED** (warm suffix shape; not end-to-end root cause) |
 
 ---
 
@@ -442,36 +462,200 @@ CI Opus 5 catalog: input $3.5/M · read $0.35/M · write $4.375/M · output $17.
 ## STOP
 
 - Draft PR #962 — **do not merge**
-- App wire root cause **fixed**; end-to-end cost root cause **supported but unconfirmed**
+- App wire root cause **fixed**; end-to-end cost root cause **ROOT_CAUSE_UNCONFIRMED**
 - Post-fix live: wire fix verified; **POST_FIX_HEALTHY not achieved** (write bucket unchanged)
+- Passthrough live: T1 all-standard / zero cache reported; T2 warm suffix unchanged; **lineage UNPROVEN**
+- Passthrough runtime patch **`NOT_MERGE_READY`** — preserve live-tested `5291c893` until lineage/support resolved
 - No cleanup merge-candidate pass
-- Passthrough **query-parameter** patch implemented (offline regression only; **no live provider call**)
-- Provider call budget cumulative: **0** (post-fix 3-call harness remains last live evidence)
-- **Main integration (2026-09-19):** merged `ad088282` (PR #963 billing/procurement); zero file overlap; PC/HC + #963 billing regressions pass; `behind=0`
+- **This investigation:** provider calls = **0** (read-only CI usage API + offline prefix reconstruction)
+- **Main integration (2026-09-19):** merged `ad088282` (PR #963 billing/procurement); zero file overlap; `behind=0`
 
 ### Passthrough live discriminator (2026-09-19, 2 calls, runtime `5291c893`)
 
 | | T1 (cold) | T2 (warm) |
 |--|-----------|-----------|
-| Query | `x-ci-prompt-cache=passthrough` | same |
+| Query param | `?x-ci-prompt-cache=passthrough` | same |
+| `created_at` (CI usage API) | 2026-09-19T07:06:53Z | 2026-09-19T07:08:21Z |
+| Δ prior turn | — | **88 s** after T1 |
 | prompt | 45,117 | 40,708 |
 | standard | **45,117** | **674** |
 | read | 0 | **17,357** |
 | write | **0** | **22,677** |
 | USD | $0.15819 | $0.105092 |
+| `provider_attempt_count` | **4** | 1 |
+| `cache_reporting_state` | zero | hit |
+| wire cache_control blocks | 2 (systemRules + characterSettings) | 2 |
 | **Total** | | **$0.263282** |
 
 Baseline (no passthrough, post-fix): T2 write=22,675 / standard=673 / read=17,357 / $0.10508.
 
-**Result:** `PASSTHROUGH_PROVIDER_BEHAVIOR = NO_EFFECT` on warm T2 primary discriminator. T1 cold anomaly: entire prompt standard (write=0) vs baseline write=44,441 — does not fix warm suffix attribution.
+**Do not classify as `NO_EFFECT`.** T1 materially changed vs baseline (write 44,441→0; entire prompt standard). T2 warm suffix buckets match baseline within noise, but **T2 `cache_read=17,357` cannot be attributed to T1** because T1 reported `cache_creation=0`.
 
 | Classification | Value |
 |----------------|-------|
-| `CI_GATEWAY_EXTRA_BREAKPOINT_CAUSALITY` | **NOT_CONFIRMED_BY_PASSTHROUGH** |
+| `PASSTHROUGH_T1_ALL_STANDARD` | **OBSERVED** |
+| `PASSTHROUGH_T1_CACHE_CREATION` | **NONE_REPORTED** |
+| `PASSTHROUGH_T2_WARM_SUFFIX_IMPROVEMENT` | **NOT_OBSERVED** |
+| `PASSTHROUGH_T2_CACHE_LINEAGE` | **UNPROVEN** |
+| `PASSTHROUGH_PROVIDER_BEHAVIOR` | **INCONCLUSIVE_CACHE_LINEAGE** |
+| `CI_GATEWAY_EXTRA_BREAKPOINT_CAUSALITY` | **UNCONFIRMED** |
+| `UPSTREAM_IMPLICIT_CACHE_CAUSALITY` | **SUPPORTED** (T2 warm shape ≡ post-fix baseline; suffix write persists) |
 | `END_TO_END_OPUS_CACHE_COST_ROOT_CAUSE` | **ROOT_CAUSE_UNCONFIRMED** |
 | `CURRENT_OPUS_CACHE_HEALTH` | **PARTIAL_CACHE_ONLY** |
+| `PASSTHROUGH_RUNTIME_PATCH` | **NOT_MERGE_READY** |
 
-Artifacts: `/opt/cursor/artifacts/opus-passthrough-live-verify-report.json`
+Artifacts: `/opt/cursor/artifacts/opus-passthrough-live-verify-report.json`, `/opt/cursor/artifacts/opus-full-timeline-usage-api.json`, `/opt/cursor/artifacts/opus-prefix-lineage-matrix.json`
+
+---
+
+## Passthrough Root-Cause Investigation (2026-09-19, provider calls = 0)
+
+Re-analysis of existing live artifacts + read-only CI `GET /v1/usage/requests`. No new provider calls, no runtime patch, no merge.
+
+### CURRENT STATE (verified 2026-09-19)
+
+| Field | Expected | Actual |
+|-------|----------|--------|
+| Repo | `you8520-sketch/chat-ai` | ✓ |
+| PR #962 | OPEN, DRAFT, not merged | ✓ OPEN DRAFT MERGEABLE |
+| Report head | `702aee96…` | ✓ (this doc update follows) |
+| Passthrough live runtime | `5291c893…` | ✓ |
+| Main / Railway | `ad088282…` | ✓ |
+| Branch vs main | ahead 9, behind 0 | ✓ |
+
+### LIVE REQUEST TIMELINE (all 8 Opus forensic calls, sorted by `created_at`)
+
+Source: CI usage API (`limit=100`) cross-checked with harness artifacts. Only these 8 `claude-opus-5` rows exist in workspace history.
+
+| # | Run | Turn | Request ID | `created_at` | Runtime | Query cache | prompt | standard | read | write | USD | attempts | cache_state |
+|---|-----|------|------------|--------------|---------|-------------|--------|----------|------|-------|-----|----------|-------------|
+| 1 | pre-fix | T1 | `a38bd8ab…` | 05:29:01Z | `6ab52974` | (none) | 45110 | 669 | 0 | 44441 | 0.191496 | 1 | zero |
+| 2 | pre-fix | T2 | `a5f5e7c2…` | 05:29:51Z | `6ab52974` | (none) | 40695 | 669 | 17357 | 22669 | 0.105040 | 1 | hit |
+| 3 | pre-fix | T3 | `0ae750bf…` | 05:30:41Z | `6ab52974` | (none) | 36280 | 669 | 17357 | 18254 | 0.086276 | 1 | hit |
+| 4 | post-fix | T1 | `5be5af0b…` | 06:13:33Z | `9d8680cb` | (none) | 45114 | 673 | 0 | 44441 | 0.191510 | 1 | zero |
+| 5 | post-fix | T2 | `98989b8b…` | 06:14:28Z | `9d8680cb` | (none) | 40705 | 673 | 17357 | 22675 | 0.105080 | 1 | hit |
+| 6 | post-fix | T3 | `cfe23a66…` | 06:15:24Z | `9d8680cb` | (none) | 36296 | 673 | 17357 | 18266 | 0.086341 | 1 | hit |
+| 7 | passthrough | T1 | `0d8ba895…` | 07:06:53Z | `5291c893` | passthrough | 45117 | **45117** | 0 | **0** | 0.158190 | **4** | zero |
+| 8 | passthrough | T2 | `83a65180…` | 07:08:21Z | `5291c893` | passthrough | 40708 | 674 | 17357 | 22677 | 0.105092 | 1 | hit |
+
+Inter-turn gaps: pre/post sequences ≈50 s; passthrough T1→T2 = **88 s**.
+
+### TTL OVERLAP AUDIT (Anthropic default ephemeral = 5 minutes)
+
+For each prior cache-producing request vs passthrough T2 (`07:08:21Z`):
+
+| Prior request | `created_at` | Δ to passthrough T2 | write | P1+P2 prefix match | Within 5-min TTL? |
+|---------------|--------------|---------------------|-------|--------------------|-------------------|
+| pre-fix T1 | 05:29:01Z | 5960 s (~99 min) | 44441 | YES | **NO** |
+| pre-fix T2 | 05:29:51Z | 5910 s | 22669 | YES (static) | **NO** |
+| pre-fix T3 | 05:30:41Z | 5861 s | 18254 | YES (static) | **NO** |
+| post-fix T1 | 06:13:33Z | 3289 s (~55 min) | 44441 | YES | **NO** |
+| post-fix T2 | 06:14:28Z | 3234 s | 22675 | YES (static) | **NO** |
+| post-fix T3 | 06:15:24Z | 3177 s (~53 min) | 18266 | YES (static) | **NO** |
+| passthrough T1 | 07:06:53Z | **88 s** | **0** | YES | YES — but **no reported cache write** |
+
+`PRIOR_CACHE_WITHIN_TTL` (5-min default) = **NO** for any prior request with reported cache creation.
+
+`PASSTHROUGH_T2_PRIOR_CACHE_CONTAMINATION` (5-min TTL, prefix equality required) = **UNCONFIRMED** — P1/P2/P3 match post-fix T1 cache producer, but that entry is **3177–3289 s stale** (>5 min). Cannot prove reuse without knowing actual TTL (1h TTL would not be ruled out; TTL duration **UNVERIFIED**).
+
+### PREFIX LINEAGE MATRIX (offline fixture reconstruction)
+
+Source: `/opt/cursor/artifacts/opus-prefix-lineage-matrix.json` — semantic content hashes, excluding `cache_control` metadata.
+
+| Prefix | Definition | Stable all runs? |
+|--------|------------|------------------|
+| P1 | systemRules | **YES** — `67cbfa16…` |
+| P2 | systemRules + characterSettings | **YES** — static combined `559d59eb50280cb2` |
+| P3 | P2 + dynamic | **YES** |
+| P4 | P3 + legacy history through breakpoint index 10 | NO — turns differ |
+| P5 | P3 + full history prefix | NO — turns differ |
+
+**Passthrough T2 vs post-fix T2:** P1/P2/P3 **equal**; P5 **equal**; `fullSemanticPayload` **equal**. Confirms same fixture family and warm-turn payload parity.
+
+**Passthrough T2 vs cache producers (pre-fix T1, post-fix T1):** P1/P2/P3 **equal**; P4/P5 differ (expected — T1 cold turn).
+
+### PASSTHROUGH T1 ZERO-WRITE ANALYSIS
+
+Wire (preflight + live, runtime `5291c893`):
+
+- Fetch URL: `…/v1/chat/completions?x-ci-prompt-cache=passthrough` (**query param**, not HTTP header)
+- Request headers: `Content-Type`, `Authorization` only
+- `cache_control` blocks: **2** at systemRules + characterSettings
+- History `cache_control`: **0**
+- `session_id`: stripped on adapt
+
+Observed usage: prompt 45,117 = standard 45,117; read 0; write 0; billed $0.158190 (standard-input pricing for entire prompt).
+
+| Candidate | Classification | Notes |
+|-----------|----------------|-------|
+| A. CI OpenAI-compatible translation dropped/ignored caller `cache_control` | **SUPPORTED** | T1 all-standard despite 2 explicit blocks |
+| B. Upstream did not create cache despite markers | **SUPPORTED** | Consistent with zero write/read |
+| C. Implicit-cache path with different reporting semantics | **UNCONFIRMED** | No route/provider fields available |
+| D. Passthrough changed effective cache translation vs baseline | **SUPPORTED** | Baseline T1 write=44,441; passthrough T1 write=0 |
+| E. Usage under-reports cache creation consumed by T2 | **UNCONFIRMED** | T1 `provider_attempt_count=4` (only passthrough T1); possible hidden attempts — not provable from artifacts |
+
+### PASSTHROUGH T2 CACHE SOURCE ANALYSIS
+
+Question: where could `read=17,357` come from?
+
+| # | Source | Support | Reason |
+|---|--------|---------|--------|
+| 1 | T1-created cache | **CONTRADICTED** (reported) / **UNCONFIRMED** (hidden) | T1 usage reports write=0; 4 provider attempts leave retry cache creation plausible but unproven |
+| 2 | Pre-existing cache from earlier forensic run | **CONTRADICTED** @ 5-min TTL | Nearest producer post-fix T1 @ 3289 s; P1+P2 match but TTL expired at default 5 min |
+| 3 | Upstream implicit / automatic cache on T2 | **SUPPORTED** | T2 write≈22,677 + standard≈674 mirrors post-fix warm T2 exactly; suffix still cache-write-priced |
+| 4 | CI hidden/gateway cache | **UNCONFIRMED** | `route`/`serving_provider` always null in usage API |
+| 5 | Usage reporting artifact | **UNCONFIRMED** | Raw live response ≡ usage API for all 8 requests |
+
+**Best-supported explanation (still not root-cause confirmed):** T2 warm suffix behavior matches post-fix baseline (implicit/gateway suffix cache-write path). T2 `cache_read=17,357` **lineage is UNPROVEN** — not attributable to T1 reported usage, and not attributable to prior forensic cache under 5-min TTL.
+
+### PROVIDER OBSERVABILITY LIMIT
+
+CI `GET /v1/usage/requests` **does expose:** `request_id`, `created_at`, `model`, `endpoint`, `prompt_tokens`, `cache_read_input_tokens`, `cache_write_input_tokens`, `billed_cost_usd`, `provider_attempt_count`, `cache_reporting_state`, `status`.
+
+**Does not expose:** effective `prompt_cache_mode`, per-request query params, forwarded Anthropic wire, private serving route. Schema documents `route` and `serving_provider` as **always null** (withdrawn).
+
+`LOCAL_FORENSICS_PROVIDER_ROUTE_LIMIT` = **CONFIRMED**
+
+### SUPPORT EVIDENCE PACKET (draft — not sent)
+
+**Model:** `claude-opus-5` · **Endpoint:** `POST /v1/chat/completions` · **Query:** `?x-ci-prompt-cache=passthrough`
+
+**Caller cache controls:** 2 explicit blocks (systemRules + characterSettings); 0 history breakpoint.
+
+| | T1 | T2 |
+|--|----|----|
+| Request ID | `0d8ba895-22b4-4ddd-920f-2d5d10abbf26` | `83a65180-e5df-48e4-bdb5-f70ab4973b71` |
+| Time | 2026-09-19T07:06:53Z | 2026-09-19T07:08:21Z (+88 s) |
+| prompt / standard / read / write | 45117 / 45117 / 0 / 0 | 40708 / 674 / 17357 / 22677 |
+| billed USD | $0.158190 | $0.105092 |
+| provider_attempt_count | 4 | 1 |
+
+**Questions for CheaperInference:**
+
+1. Was `?x-ci-prompt-cache=passthrough` effective for both request IDs?
+2. What effective API-key `prompt_cache_mode` was applied?
+3. Were caller-supplied `cache_control` blocks forwarded/translated to the upstream Anthropic request?
+4. Why did T1 report zero cache creation despite two caller cache controls (entire prompt standard)?
+5. How did T2 obtain `cache_read=17,357` when T1 reported `cache_creation=0`?
+6. Did T2 reuse a cache entry from an earlier request with the same P1+P2 prefix (post-fix T1 @ 3289 s earlier)?
+7. Was any provider/implicit automatic cache breakpoint applied on T2?
+8. On `/v1/chat/completions`, is there a supported way to cache only caller explicit static breakpoints while leaving growing conversation uncached?
+9. If not, is `/v1/messages` the recommended endpoint for explicit Anthropic cache-control ownership?
+10. Does passthrough override API-key `prompt_cache_mode` request-by-request?
+
+### FUTURE CLEAN-ROOM EXPERIMENT (design only — not executed)
+
+Requirements: never-before-used static prefix fingerprint; identical P1/P2/P3 in T1+T2; no shared prior prefix; `max_tokens=16`; retry/fallback/continuation/recovery=0; T1 → 50 s → T2.
+
+| Outcome | Interpretation |
+|---------|----------------|
+| CASE A: T1 static write only; T2 static read; history standard | `EXPLICIT_STATIC_CACHE_WORKS` |
+| CASE B: T1 all standard; T2 all standard | `PASSTHROUGH_DOES_NOT_ENABLE_CALLER_EXPLICIT_CACHE_ON_THIS_PATH` |
+| CASE C: T1 all standard; T2 read + growing write | `UPSTREAM_OR_GATEWAY_IMPLICIT_AUTOMATIC_CACHE_STRONGLY_SUPPORTED` |
+
+### NATIVE `/v1/messages` OPTION (research only)
+
+CheaperInference exposes `POST /v1/messages` (native Anthropic transport). If OpenAI-compatible `/v1/chat/completions` cannot provide caller-owned static explicit cache + uncached sliding history, classify native Messages for Opus as **`ARCHITECTURE_OPTION`**. Not implemented in #962. Future transport change requires: stream format, usage parsing, thinking fields, error envelopes, max_tokens, billing evidence, retry/fallback, safety, all Main RP caller audit.
 
 ### Next live cost budget (future experiments)
 
