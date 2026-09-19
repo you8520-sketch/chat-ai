@@ -5,25 +5,31 @@
 **Date:** 2026-09-19
 **Method:** #962 head wire + post-fix live T1/T2/T3 (3 physical CI calls, 2026-09-19) + offline regression (HC-01..12).
 
-**PR head:** `9d8680cbadb85a6a5205655b07af1c6cd66ef27a` · **main:** `6ab52974c61e2fedc9c75af6de7094096e9117a2`
+**PR head:** `31ffdaafb9c29ae107181ee766a9227135ec6082` · **live-tested runtime:** `9d8680cbadb85a6a5205655b07af1c6cd66ef27a` · **main:** `6ab52974c61e2fedc9c75af6de7094096e9117a2` (Railway production)
 
 ---
 
-## Final Classifications (separated)
+## Final Classifications (separated layers)
 
 | Label | Classification |
 |-------|----------------|
-| `SLIDING_RAW_HISTORY_CACHE_PREFIX` | **ROOT_CAUSE_CONFIRMED** |
-| `CURRENT_OPUS_GROWING_HISTORY_CACHE` | **POST_FIX_HISTORY_WRITE_PERSISTS** (wire fixed; provider write bucket unchanged) |
+| `APP_WIRE_ROOT_CAUSE` | **FIXED** (history `cache_control` removed; live wire 2 blocks / 0 history markers) |
+| `END_TO_END_OPUS_CACHE_COST_ROOT_CAUSE` | **SUPPORTED** (CI/gateway parallel cache policy; not CONFIRMED without passthrough live experiment or API-key mode proof) |
+| `SLIDING_RAW_HISTORY_CACHE_PREFIX` | **ROOT_CAUSE_CONFIRMED** (app-layer dead history marker) |
+| `CURRENT_OPUS_GROWING_HISTORY_CACHE` | **POST_FIX_HISTORY_WRITE_PERSISTS** (provider write bucket unchanged after wire fix) |
 | `CURRENT_OPUS_STATIC_PREFIX_CACHE` | **VERIFIED_WORKING** (17,357 read plateau T2/T3 post-fix) |
-| `CACHE_AFFINITY_CHURN` | **CONFIRMED_BY_DETERMINISTIC_INPUT_CHANGE** (first retained history hash shifts each turn) |
-| `CURRENT_OPUS_CACHE_HEALTH` | **PARTIAL_CACHE_ONLY** (wire 2-block ✓; economics unchanged vs pre-fix) |
-| `ROOT_CAUSE_FIXED` | **SYMPTOM_MITIGATED_ONLY** (dead history marker removed; provider write attribution unchanged) |
+| `CACHE_AFFINITY_CHURN` | **NOT_CONFIRMED** (input fingerprint shifts each turn, but post-fix affinity = hit all turns) |
+| `LIVE_CACHE_AFFINITY` | **HIT_T1_T2_T3** (post-fix; pre-fix was NEW all turns) |
+| `CURRENT_OPUS_CACHE_HEALTH` | **PARTIAL_CACHE_ONLY** (static read ✓; suffix still cache_write-priced) |
+| `USAGE_NORMALIZER_MISCLASSIFICATION` | **NO** (raw CI usage API ≡ normalized) |
+| `CI_API_KEY_PROMPT_CACHE_MODE` | **UNVERIFIED_ACCOUNT_SETTING** (`GET /v1/keys` → 403, scope `account:read` missing) |
+| `PARALLEL_CACHE_POLICY_OWNER` | **CONFIRMED** (app explicit cache + CI gateway + usage/billing reporting) |
 | `HISTORICAL_OPUS_60K_INCIDENT` | **FAILURE_MODE_CONFIRMED** |
 | `HISTORICAL_CACHE_BYPASS_UNDERLYING_CAUSE` | **ROOT_CAUSE_UNCONFIRMED** |
 | `CURRENT_OPUS_PHYSICAL_PROMPT_DUPLICATION` | **NO_MATERIAL_DEFECT_FOUND** |
 | `CURRENT_OPUS_BILLING_CONTRACT` | **UNVERIFIED_PRODUCTION_ENV_VALUE_REDACTED** |
 | `OPUS_PUBLIC_EXPOSURE_GUARD` | **REMOVED_WITHOUT_CACHE_ROOT_CAUSE_PROOF** |
+| `MERGE #962` | **NO** (wire fix alone does not restore end-to-end economics) |
 
 ---
 
@@ -228,9 +234,207 @@ node --conditions=react-server --import tsx --test src/lib/openRouterCache.test.
 
 ---
 
+## Post-Fix Root-Cause Investigation (2026-09-19, provider call budget = 0)
+
+Re-analysis of existing live artifacts only. No new provider calls, no code patch.
+
+### RAW LIVE USAGE ATTRIBUTION (post-fix T1/T2/T3)
+
+Source: `/opt/cursor/artifacts/opus-postfix-live-verify-report.json` + CI `GET /v1/usage/requests` read-only attribution (`opus-usage-api-attribution.json`).
+
+| | T1 | T2 | T3 |
+|--|----|----|-----|
+| `prompt_tokens` | 45,114 | 40,705 | 36,296 |
+| `cache_read_input_tokens` (raw) | 0 | **17,357** | **17,357** |
+| `cache_write_input_tokens` (raw) | 44,441 | **22,675** | **18,266** |
+| implied standard (raw) | 673 | 673 | 673 |
+| `billed_cost_usd` (raw) | 0.191510 | 0.105080 | 0.086341 |
+| pre-fix T2/T3 reference | — | read 17,357 / write 22,669 | read 17,357 / write 18,254 |
+
+**Pre vs post delta:** wire cache blocks 3→2, history markers 1→0; usage shape unchanged within noise (+6 / +12 write tokens).
+
+**Write attribution shape (T2):** `write ≈ prompt − read − standard` → entire non-static-read suffix (dynamic + sliding history) billed as `cache_write_input_tokens`; `standard ≈ 673` tracks current-user tail only.
+
+### RESPONSE CACHE METADATA
+
+| Field | T1 | T2 | T3 |
+|-------|----|----|-----|
+| `x-ci-request-id` / `x-cheaper-inference-request-id` | 5be5af0b… | 98989b8b… | cfe23a66… |
+| `x-ci-prompt-cache-affinity` | **hit** | **hit** | **hit** |
+| `x-ci-prompt-cache` (response) | null | null | null |
+| `x-ci-prompt-cache-scope` | null | null | null |
+| `x-ci-prompt-cache-session` | null | null | null |
+| `x-ci-cache` | absent | absent | absent |
+| `x-ci-techniques` | absent | absent | absent |
+| `x-ci-tokens-saved` | absent | absent | absent |
+| `x-ci-saved-usd` | absent | absent | absent |
+| `x-ci-discount-percent` | absent | absent | absent |
+
+Pre-fix reference (`opus-live-cache-verify-report.json`): affinity = **new** all turns despite identical static fingerprint (`559d59eb50280cb2`). Post-fix affinity = **hit** all turns. Input-side `firstRetainedHistoryHash` shifts each turn in both runs — insufficient alone to prove provider affinity churn.
+
+### APP CACHE POLICY OWNER (#962 head)
+
+Production path: `assemblePrimaryRpRequest` → `applyCacheAndPrefillForTransport` → `applyAnthropicCacheAndPrefill` → `adaptCheaperInferenceChatBody` → `buildCheaperInferenceHeaders`.
+
+| Question | Answer (code + live wire proof) |
+|----------|--------------------------------|
+| A. App sends `x-ci-prompt-cache`? | **NO** — `buildCheaperInferenceHeaders()` emits only `Content-Type` + `Authorization` |
+| B. App sends `x-ci-prompt-cache-scope`? | **NO** |
+| C. App sends `x-ci-prompt-cache-session`? | **NO** |
+| D. App sends `prompt_cache_key`? | **NO** — not present anywhere in `src/` |
+| E. OpenRouter `session_id` stripped on CI adapt? | **YES** — `adaptCheaperInferenceChatBody` deletes `session_id` |
+
+**App explicit cache layout (post-fix, live-verified):**
+
+```
+system[rules + cache_control]
+system[character + cache_control]
+system[dynamic — no cache]
+history messages — no cache_control
+current user — no cache_control
+```
+
+Wire: **2** `cache_control` blocks, **0** history markers (preflight + live T1/T2/T3).
+
+### CI / GATEWAY CACHE POLICY OWNER (CheaperInference OpenAPI 2026-09-19)
+
+Source: `https://api.cheaperinference.com/openapi.json` — parameter `x-ci-prompt-cache` **`in: header`** (not query).
+
+| Value | Documented meaning |
+|-------|-------------------|
+| `passthrough` | Default (or API key `prompt_cache_mode`). Forwards request unchanged re cache-control. |
+| `on` | Additionally adds provider cache breakpoints. For Claude: unmarked requests cache shared system/tools prefix **and growing conversation**; caller-supplied cache controls preserved. |
+| `off` | Removes explicit cache controls; disables sticky affinity for this request. Does **not** disable provider implicit caching. |
+
+Related headers: `x-ci-prompt-cache-scope` (`session`/`user`/`org`), `x-ci-prompt-cache-session` (stable session id; falls back to body `prompt_cache_key`, then tools/first system/first message).
+
+**Effective mode when header absent:** OpenAPI states default = `passthrough` **or** the API key's `prompt_cache_mode`. Which wins when they differ is not separately documented; cannot infer `on` without account evidence.
+
+### ANTHROPIC OFFICIAL SEMANTICS (current docs)
+
+Source: Anthropic prompt caching docs (2026).
+
+| Field | Meaning |
+|-------|---------|
+| `cache_read_input_tokens` | Tokens served from existing cache entries (before breakpoints) |
+| `cache_creation_input_tokens` | Tokens written to cache on this request |
+| `input_tokens` | Tokens **after the last cache breakpoint** — uncached, standard-priced |
+
+Identity: `total_input = cache_read + cache_creation + input_tokens`.
+
+**Contract conflict:** Post-fix wire has last explicit breakpoints at characterSettings (2 blocks). Per Anthropic contract, dynamic + history + current user should appear primarily in `input_tokens` (standard). Observed post-fix T2/T3: `standard ≈ 673` (current user only), `write ≈ 22K/18K` (dynamic + history). **Conflicts with Anthropic explicit-breakpoint semantics** if no additional breakpoint exists downstream.
+
+**Not re-investigating hidden app history markers** — live preflight already proved `historyCacheControlCount = 0`.
+
+### USAGE NORMALIZER PARITY
+
+Dataflow: raw CI response `usage` → `parseCompatibleUsage` / `parseOpenRouterUsage` → harness report → CI `GET /v1/usage/requests` billing row.
+
+| Turn | raw `cache_read` | raw `cache_write` | raw implied standard | normalized match? |
+|------|------------------|-------------------|----------------------|-------------------|
+| T1 | 0 | 44,441 | 673 | ✓ |
+| T2 | 17,357 | 22,675 | 673 | ✓ |
+| T3 | 17,357 | 18,266 | 673 | ✓ |
+
+`USAGE_NORMALIZER_MISCLASSIFICATION = NO`. Provider raw fields are authoritative; investigation proceeds on gateway/upstream cache policy.
+
+### API KEY EFFECTIVE MODE
+
+Attempted: `GET /v1/keys` with inference-scoped key → **403** (`account:read` scope required). `ApiKeySummary` schema in OpenAPI does not expose `prompt_cache_mode`.
+
+`CI_API_KEY_PROMPT_CACHE_MODE = UNVERIFIED_ACCOUNT_SETTING` — not inferred as `on`.
+
+### ROOT CAUSE CANDIDATES
+
+| Candidate | Classification | Evidence |
+|-----------|----------------|----------|
+| A. `CI_GATEWAY_AUTO_BREAKPOINT` | **SUPPORTED** | OpenAPI `on` mode documents Claude growing-conversation cache; write magnitude ≈ dynamic+history; standard ≈ current user only; behavior unchanged after app history marker removal |
+| B. `CI_OPENAI_TO_ANTHROPIC_TRANSLATION` | **SUPPORTED** | Path is `/v1/chat/completions` OpenAI-compatible; translation layer may apply provider cache policy beyond caller markers |
+| C. `USAGE_NORMALIZER_MISCLASSIFICATION` | **CONTRADICTED** | Raw CI usage API ≡ normalized values |
+| D. `ANTHROPIC_UPSTREAM_IMPLICIT_CACHE` | **UNCONFIRMED** | No direct upstream Anthropic response in artifacts; cannot isolate from CI layer |
+| Effective mode = API key `on` | **UNCONFIRMED** | Key settings unreadable; behavior consistent with `on` but also with gateway translation |
+
+**Most supported root cause:** parallel CI/gateway cache augmentation (candidate A, possibly via unverified API-key `prompt_cache_mode=on`) — **not** residual app history markers.
+
+### PARALLEL CACHE POLICY OWNER MAP
+
+| Owner | Controls | Post-fix state |
+|-------|----------|----------------|
+| App explicit `cache_control` | systemRules + characterSettings breakpoints | 2 blocks, live-verified |
+| CI gateway `x-ci-prompt-cache` / key default | May add growing-conversation breakpoints (`on`) or passthrough | **Not sent**; effective mode unverified |
+| CI sticky affinity | `x-ci-prompt-cache-affinity`, session scope | Responding `hit` post-fix |
+| Anthropic upstream | Breakpoint semantics, implicit cache | Usage shape suggests extra breakpoint beyond app’s last marker |
+| Usage reporting | `cache_read/write_input_tokens`, billing | Raw from CI; matches normalizer |
+| Billing | `billed_cost_usd` on usage API | Authoritative for cost |
+
+`PARALLEL_CACHE_POLICY_OWNER = CONFIRMED` — app and CI/gateway both influence cache decisions independently.
+
+### PROPOSED MINIMAL PATCH (design only — NOT implemented)
+
+**Goal:** Preserve app 2-block static cache (17,357 read benefit); disable CI gateway growing-conversation augmentation.
+
+**Do NOT use `x-ci-prompt-cache: off`** — removes caller explicit cache controls, would forfeit static prefix cache.
+
+**Candidate:** Send **`x-ci-prompt-cache: passthrough`** as **request header** on CI Opus Main RP path only (`buildCheaperInferenceHeaders` or transport-scoped wrapper in `resolveCompatibleTransport` / `assemblePrimaryRpRequest`).
+
+Desired effective policy:
+
+```
+CI gateway: passthrough (no extra breakpoints)
+App: systemRules cached, characterSettings cached, dynamic uncached,
+     bounded sliding history uncached, current user uncached
+```
+
+**Scope:** Claude Opus Main RP via CheaperInference only. No global CI behavior change; no DeepSeek/Gemini/Qwen/TRPG/image paths until separate evidence.
+
+**Implementation note:** OpenAPI specifies header location (`in: header`); do not implement as query parameter.
+
+### EXPECTED PRE/POST ECONOMICS (estimate, not billed)
+
+CI Opus 5 catalog: input $3.5/M · read $0.35/M · write $4.375/M · output $17.5/M
+
+**Current post-fix T2 (observed):** ~$0.10508
+**If passthrough removes suffix cache-write (T2 warm, write→0):**
+
+- read 17,357 × $0.35/M + standard ~23,348 × $3.5/M + output 16 × $17.5/M ≈ **$0.088** (~16% input savings vs current T2)
+- Aligns with offline HC economics estimate (~18% at T2 reference fixture)
+
+**2-call cold/warm sequence (approval required, not executed):** same fixture, `max_tokens=16`, retry/fallback/continuation/recovery = 0, explicit `x-ci-prompt-cache: passthrough`. Expected warm: `cacheRead ≈ 17,357`, `cacheWrite ≈ 0`, `standardInput ≈ dynamic + history + current user`.
+
+### NEXT LIVE EXPERIMENT (approval required — NOT executed this task)
+
+1. Patch `buildCheaperInferenceHeaders` (Opus Main RP scope only) with `x-ci-prompt-cache: passthrough`
+2. 2-call sequence (cold T1 + warm T2) — budget ~$0.28 conservative ceiling
+3. Compare usage shape vs post-fix baseline above
+4. If write bucket collapses to ≈0 on warm turn, upgrade `END_TO_END_OPUS_CACHE_COST_ROOT_CAUSE` to **CONFIRMED**
+
+### SYSTEM DELTA (investigation outcome)
+
+**BEFORE (problem boundary)**
+
+- App emitted dead history cache marker (fixed in #962)
+- CI gateway effective cache mode uncontrolled / unverified
+- Provider bills suffix as cache_write despite app uncached history
+
+**PROPOSED AFTER (not implemented)**
+
+- App keeps 2-block static cache
+- CI gateway explicitly passthrough on Opus Main RP
+- Suffix repriced as standard input on warm turns
+
+**PRESERVED:** static 17,357 read benefit, all prompt/history/memory semantics
+
+**REGRESSION RISKS:** passthrough might not override key-level `on` if precedence differs; must verify live. `off` would destroy static cache — excluded.
+
+**PROOF REQUIRED:** approved 2-call passthrough experiment
+
+---
+
 ## STOP
 
 - Draft PR #962 — **do not merge**
+- App wire root cause **fixed**; end-to-end cost root cause **supported but unconfirmed**
 - Post-fix live: wire fix verified; **POST_FIX_HEALTHY not achieved** (write bucket unchanged)
-- No cleanup merge-candidate pass (live did not meet healthy shape criterion #5)
-- No `x-ci-prompt-cache*` / session affinity added
+- No cleanup merge-candidate pass
+- No passthrough patch implemented (design only)
+- Provider call budget this investigation: **0**
