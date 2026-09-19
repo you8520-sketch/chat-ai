@@ -210,12 +210,13 @@ export type SelectedAIOptionMeta = {
 };
 
 /**
- * CANONICAL Main RP picker — ONE source of truth (product decision: exactly 4).
+ * CANONICAL Main RP picker — ONE source of truth (product decision: exactly 3).
  *
- * DeepSeek V4 Pro / Claude Opus 5 / Gemini 3.1 Pro Preview / Gemini 3.7 Flash.
- * All other models (Luna, Terra, DeepSeek Flash, Gemini 3.6 Flash, old Opus,
- * Muse, Qwen, GLM, Kimi, …) are NOT Main RP. Their constants remain only for
- * auxiliary/background use or historical receipt/billing read compatibility.
+ * DeepSeek V4 Pro / Gemini 3.1 Pro Preview / Gemini 3.7 Flash.
+ * Claude Opus 5 is retired from user Main RP (cache/economics root cause unconfirmed;
+ * forensic harness on #962 branch only). All other models (Luna, Terra, DeepSeek Flash,
+ * Gemini 3.6 Flash, old Opus slugs, Muse, Qwen, GLM, Kimi, …) are NOT Main RP.
+ * Their constants remain only for auxiliary/background use or historical receipt/billing.
  */
 export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
   {
@@ -225,13 +226,6 @@ export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
     tier: "pro",
     hint: "Reasoning",
     recommended: true,
-  },
-  {
-    id: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-    label: CLAUDE_OPUS_5_DISPLAY_NAME,
-    provider: "cheaperinference",
-    tier: "pro",
-    hint: "Anthropic",
   },
   {
     id: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
@@ -249,7 +243,7 @@ export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
   },
 ] as const satisfies readonly SelectedAIOptionMeta[];
 
-/** SelectedAI is exactly the canonical 4 literal union — never widened to string. */
+/** SelectedAI is exactly the canonical 3 literal union — never widened to string. */
 export type SelectedAI = (typeof MAIN_RP_USER_SELECTABLE_OPTIONS)[number]["id"];
 export type SelectedAITier = (typeof MAIN_RP_USER_SELECTABLE_OPTIONS)[number]["tier"];
 
@@ -257,7 +251,7 @@ export type SelectedAITier = (typeof MAIN_RP_USER_SELECTABLE_OPTIONS)[number]["t
 export const MAIN_RP_MODEL_IDS: readonly SelectedAI[] =
   MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.id);
 
-/** True only for the canonical 4 Main RP models. */
+/** True only for the canonical 3 Main RP models. */
 export function isMainRpModel(modelId: string): boolean {
   return MAIN_RP_MODEL_IDS.includes(modelId.trim().toLowerCase() as SelectedAI);
 }
@@ -269,10 +263,10 @@ export const SELECTED_AI_OPTIONS = MAIN_RP_USER_SELECTABLE_OPTIONS;
 export const DEFAULT_SELECTED_AI: SelectedAI =
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 
-/** Main RP picker — canonical 4만 (retired 모델 절대 재노출 금지). */
+/** Main RP picker — canonical 3만 (retired 모델 절대 재노출 금지). */
 export const USER_SELECTABLE_AI_OPTIONS = MAIN_RP_USER_SELECTABLE_OPTIONS;
 
-/** Main RP picker — canonical 4만. Admin도 동일 (퇴역 모델 재노출 금지). */
+/** Main RP picker — canonical 3만. Admin도 동일 (퇴역 모델 재노출 금지). */
 export function userSelectableAIOptionsForUser(
   _isAdmin: boolean
 ): readonly SelectedAIOptionMeta[] {
@@ -284,7 +278,7 @@ export function isUserSelectableAI(modelId: string, _isAdmin: boolean): boolean 
 }
 
 export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
-  // Canonical 4만 Main RP — 퇴역 모델은 resolveSelectedAI에서 기본 모델로 이전.
+  // Canonical 3만 Main RP — 퇴역 모델은 resolveSelectedAI에서 기본 모델로 이전.
   return id;
 }
 
@@ -533,10 +527,12 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "google/gemini-3.6-flash": DEFAULT_SELECTED_AI,
   "google/gemini-3.1-pro-preview": DEFAULT_SELECTED_AI,
   masterpiece: DEFAULT_SELECTED_AI,
-  [CLAUDE_OPUS_MODEL_LEGACY]: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-  "claude-opus": CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-  "anthropic/claude-opus-latest": CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-  "anthropic/claude-opus-4.5": CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  /** Claude Opus family retired from Main RP — lazy remap to default (not Opus 5). */
+  [CLAUDE_OPUS_MODEL_LEGACY]: DEFAULT_SELECTED_AI,
+  "claude-opus": DEFAULT_SELECTED_AI,
+  "anthropic/claude-opus-latest": DEFAULT_SELECTED_AI,
+  "anthropic/claude-opus-4.5": DEFAULT_SELECTED_AI,
+  [CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL]: DEFAULT_SELECTED_AI,
   deepseek: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-v4-pro-0813": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
@@ -599,6 +595,9 @@ export function resolveSelectedAI(value: unknown, fallback?: string): SelectedAI
 
 /** UI·영수증 표시용 — retired 모델도 historical receipt 라벨 유지 */
 export function selectedAILabel(id: string): string {
+  if (isCheaperInferenceClaudeOpus5Model(id)) {
+    return CLAUDE_OPUS_5_DISPLAY_NAME;
+  }
   if (isCheaperInferenceDeepSeekV4FlashModel(id)) {
     return DEEPSEEK_V4_FLASH_DISPLAY_NAME;
   }

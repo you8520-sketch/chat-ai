@@ -176,7 +176,7 @@ describe("P1 — canonical common dialogue-economy owner", () => {
   });
 });
 
-describe("P1 — canonical 4 length owner (no retired terminal contract)", () => {
+describe("P1 — canonical Main RP length owner (no retired terminal contract)", () => {
   it("§12/§16 — every canonical model ends its user tail with the generic length owner", () => {
     forceProdEnv();
     for (const modelId of PRODUCTION_SELECTABLE_MODELS) {

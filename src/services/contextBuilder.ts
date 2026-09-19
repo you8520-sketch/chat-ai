@@ -991,7 +991,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   // Main RP terminal length owner lives on the user tail (appendCompactTerminalLengthToUserTurn).
-  // Luna/Terra RP adapters retired — canonical 4 models use the generic USER_TAIL owner.
+  // Luna/Terra RP adapters retired — canonical Main RP models use the generic USER_TAIL owner.
 
   if (needsUserInputParsingGuide(input)) {
     pushSection(

@@ -7,7 +7,7 @@
  *   3. VNext public rollout never applies to Muse
  *   4. otherwise → Legacy (undefined)
  *
- * Shared Novel Prose V2 (admin allowlist, canonical 4 Main RP models).
+ * Shared Novel Prose V2 (admin allowlist, canonical Main RP models).
  *   After the base route is chosen, if V2 gate is ON, swap to the V2 body for
  *   that same route family. Gate OFF → byte-identical to prior assembly.
  *

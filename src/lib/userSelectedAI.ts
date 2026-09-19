@@ -139,10 +139,7 @@ export function getUserSelectedAI(db: Database.Database, userId: number): Select
   return ensureUserSelectedAI(db, userId).selectedAI;
 }
 
-/**
- * User-chat / picker display model. Remaps disabled Opus 5 at request time
- * without overwriting users.selected_ai.
- */
+/** User-chat / picker display model — uses ensureUserSelectedAI lazy remap. */
 export function getUserChatSelectedAI(
   db: Database.Database,
   userId: number

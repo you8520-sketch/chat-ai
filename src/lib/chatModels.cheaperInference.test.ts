@@ -18,17 +18,18 @@ import {
   selectedAIProvider,
 } from "./chatModels";
 
-test("Claude Opus 5 is a canonical-selectable Cheaper Inference model", () => {
+test("Claude Opus 5 stays Cheaper Inference but is retired from Main RP picker", () => {
   assert.equal(
     USER_SELECTABLE_AI_OPTIONS.some(
       (option) => option.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
     ),
-    true
+    false
   );
-  assert.ok(
+  assert.equal(
     SELECTED_AI_OPTIONS.some(
       (option) => option.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
-    )
+    ),
+    false
   );
   assert.equal(
     selectedAIProvider(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL),
@@ -37,7 +38,7 @@ test("Claude Opus 5 is a canonical-selectable Cheaper Inference model", () => {
   assert.equal(selectedAILabel(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), "Claude Opus 5");
   assert.equal(
     resolveSelectedAI(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL),
-    CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
+    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
   );
   assert.equal(isAnthropicModel(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), true);
   assert.equal(isCheaperInferenceModel(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), true);
