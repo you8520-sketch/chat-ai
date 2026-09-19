@@ -77,13 +77,13 @@ describe("buildNoGodmoddingBlock", () => {
     );
   });
 
-  it("coNarration merges user-control + 유저 대사 + possession", () => {
+  it("coNarration merges user-control + 유저 대사 + possession without duplicate truth body", () => {
     const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "coNarration");
     assert.match(block, /\[USER CONTROL MODE - LIMITED CO-NARRATION\]/);
     assert.match(block, /7\. 유저 대사: co-narration/);
     assert.match(block, /\[possession_mode\]/);
-    assert.match(block, /\[NO FALSE SHARED MEMORY\]/);
-    assert.equal(block.includes(NO_FALSE_SHARED_MEMORY_RULE), true);
+    assert.doesNotMatch(block, /\[NO FALSE SHARED MEMORY\]/);
+    assert.doesNotMatch(block, /\[HISTORICAL TRUTH — CANONICAL MEMORY\]/);
   });
 
   it("currentTurnDelegated is a scoped owner, not coNarration", () => {

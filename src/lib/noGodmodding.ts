@@ -1,4 +1,5 @@
 import { buildAutoProgressionUserControlBlock } from "@/lib/autoProgressionRules";
+import { HISTORICAL_TRUTH_POLICY_SHORT_REF } from "@/lib/historicalTruthPolicy";
 import {
   MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF,
   MANDATORY_RULES_BOUNDED_ROLE_DIRECTION_PRECEDENCE,
@@ -20,10 +21,9 @@ export type UserAgencyRuleOptions = {
   autoContinueExpanded?: boolean;
 };
 
-/** Examples removed (static dedup) — rule meaning unchanged. */
+/** @deprecated Full semantics moved to HISTORICAL_TRUTH_POLICY_BLOCK — short ref only. */
 export const NO_FALSE_SHARED_MEMORY_RULE = `[NO FALSE SHARED MEMORY]
-실제 최근 대화, 장기기억, 에피소드 기억, 캐릭터 정본, 유저 페르소나에 없는 일을 "전에 말했잖아", "네가 약속했잖아", "그때 우리", "예전에 네가"처럼 이미 있었던 공유 기억으로 쓰지 않는다.
-불확실하면 질문, 관찰, 추측, 새 발견으로 처리한다.`;
+${HISTORICAL_TRUTH_POLICY_SHORT_REF}`;
 
 /**
  * @deprecated Nested interactive reinforcement — superseded by
@@ -127,9 +127,7 @@ ${CO_NARRATION_ON_LINE}
 
 ${MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF}
 
-${POSSESSION_MODE_HINT}
-
-${NO_FALSE_SHARED_MEMORY_RULE}`;
+${POSSESSION_MODE_HINT}`;
 }
 
 export const CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE =

@@ -5,7 +5,6 @@
 
 import type { ChatMsg } from "@/lib/ai";
 import { AUTO_PROGRESSION_SCENE_USER_CONTROL } from "@/lib/autoProgressionRules";
-import { NO_FALSE_SHARED_MEMORY_RULE } from "@/lib/noGodmodding";
 import type {
   SceneDirectiveMode,
   SceneProgressionType,
@@ -974,7 +973,6 @@ export function renderSceneDirectiveV2ForPrompt(directive: SceneDirectiveV2): st
     } else {
       lines.push("다인물: 존재하지 않는 NPC를 추가해 대화량을 채우지 않는다.");
     }
-    lines.push(NO_FALSE_SHARED_MEMORY_RULE);
   }
 
   if (directive.dialoguePressure === "none") {

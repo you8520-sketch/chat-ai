@@ -34,6 +34,7 @@ export const EPISODIC_FACTS_EXTRACT_INSTRUCTIONS = `Structured facts for long-te
   - {"category":"character","subject":"enoch","attribute":"action","value":"locked_door","importance":"important","fact_text":"에녹은 유저가 떠나려 하자 문을 잠그고 남으라고 요구했다.","evidence_type":"explicit_scene_event"}
   - {"category":"character","subject":"user","attribute":"response","value":"refused","importance":"important","fact_text":"유저는 에녹의 요구를 거절했다.","evidence_type":"explicit_scene_event"}
   - {"category":"relationship","subject":"enoch_user","attribute":"relationship_status","value":"lovers","importance":"important","fact_text":"에녹과 유저는 서로 연인이 되기로 명시적으로 합의했다.","evidence_type":"explicit_scene_event"}
+  - {"category":"relationship","subject":"a_b","attribute":"scene_event","value":"a_led_b_followed","importance":"important","fact_text":"그 장면에서 A는 주도적으로 진행했고 B는 따랐다.","evidence_type":"explicit_scene_event"}
   - {"category":"preference","subject":"user","attribute":"roleplay_preference","value":"consensual_control","importance":"important","fact_text":"사용자는 상호 합의된 통제 역할극을 선호한다고 명시했다.","evidence_type":"explicit_user_statement"}
 - If uncertain, omit it. If none, output exactly "extracted_facts": []. Maximum 3 facts.
 - NEVER generate source_turn, id, uuid, or timestamp.`;

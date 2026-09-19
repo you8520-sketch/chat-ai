@@ -11,6 +11,10 @@ import {
   containsTrapPhrases,
 } from "@/lib/museExampleDialogBoundary";
 import {
+  HISTORICAL_TRUTH_POLICY_BLOCK,
+  HISTORICAL_TRUTH_POLICY_SECTION_ID,
+} from "@/lib/historicalTruthPolicy";
+import {
   UNKNOWN_INFORMATION_TRUTH_GUARD_BLOCK,
   UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID,
 } from "@/lib/unknownInformationTruthGuard";
@@ -623,6 +627,14 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         contentKind: input.contentKind,
       }
     ),
+    isOpenRouter ? "cacheRules" : "dynamic"
+  );
+
+  pushSection(
+    HISTORICAL_TRUTH_POLICY_SECTION_ID,
+    "[0a1] Historical truth (canonical memory)",
+    "systemRules",
+    HISTORICAL_TRUTH_POLICY_BLOCK,
     isOpenRouter ? "cacheRules" : "dynamic"
   );
 
