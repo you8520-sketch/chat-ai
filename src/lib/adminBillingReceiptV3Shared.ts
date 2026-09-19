@@ -60,6 +60,14 @@ export type AdminBillingReceiptV3AsyncSection = {
     actualModel?: string | null;
     /** Requested model from the provider ledger. */
     requestedModel?: string | null;
+    canonicalOwner?: string | null;
+    requestKind?: string | null;
+    trigger?: string | null;
+    attempt?: number | null;
+    providerRequestId?: string | null;
+    costAttribution?: string | null;
+    inputTokens?: number | null;
+    outputTokens?: number | null;
   }>;
 };
 
@@ -103,6 +111,8 @@ export type AdminBillingReceiptV3 = {
   forensic?: AdminBillingForensicMetadata;
   /** Admin-only widget extract diagnostics — projected from Usage at build time. */
   statusWidgetExtractDiagnostics?: Usage["statusWidgetExtractDiagnostics"];
+  /** Scoped sync_post_turn physical provider rows — canonical provenance source. */
+  syncPhysicalEvents?: AdminBillingReceiptV3AsyncSection["events"];
 };
 
 /**
@@ -203,6 +213,12 @@ export type AdminReceiptAuxiliaryCall = {
   costUsd: number | null;
   /** Cost provenance label when a cost is shown (kept separate from result). */
   costProvenanceLabel: string | null;
+  canonicalOwner?: string | null;
+  requestKind?: string | null;
+  trigger?: string | null;
+  attempt?: number | null;
+  providerRequestId?: string | null;
+  costAttribution?: string | null;
 };
 
 export type AdminReceiptMainRpCost = {
@@ -445,17 +461,33 @@ export function buildAdminReceiptCompactViewModel(
     const widgetLabel =
       syncSpend.groupLabel?.trim() ||
       (syncSpend.postTurnSharedInitial ? "공유 초기 (상태창 + 추천입력)" : "상태창 위젯");
+    const syncLedgerEvent = receipt.syncPhysicalEvents?.[0] ?? null;
     auxiliaryCalls.push({
       label: widgetLabel,
-      model: syncSpend.modelLabel ?? syncSpend.model ?? null,
+      model:
+        syncLedgerEvent?.actualModel ??
+        syncLedgerEvent?.requestedModel ??
+        syncSpend.modelLabel ??
+        syncSpend.model ??
+        null,
       calls: syncSpend.callCount ?? 1,
       result: widgetOutcome.callResult,
       extractionResult: widgetOutcome.extractionResult,
       costUsd:
-        syncSpend.actualProviderCostUsd != null && syncSpend.actualProviderCostUsd > 0
-          ? syncSpend.actualProviderCostUsd
-          : null,
-      costProvenanceLabel: resolveMainRpCostProvenanceLabel(syncSpend.actualCostSource),
+        syncLedgerEvent?.actualCostUsd != null && syncLedgerEvent.actualCostUsd > 0
+          ? syncLedgerEvent.actualCostUsd
+          : syncSpend.actualProviderCostUsd != null && syncSpend.actualProviderCostUsd > 0
+            ? syncSpend.actualProviderCostUsd
+            : null,
+      costProvenanceLabel: resolveMainRpCostProvenanceLabel(
+        syncLedgerEvent?.actualCostSource ?? syncSpend.actualCostSource
+      ),
+      canonicalOwner: syncLedgerEvent?.canonicalOwner ?? null,
+      requestKind: syncLedgerEvent?.requestKind ?? null,
+      trigger: syncLedgerEvent?.trigger ?? null,
+      attempt: syncLedgerEvent?.attempt ?? null,
+      providerRequestId: syncLedgerEvent?.providerRequestId ?? null,
+      costAttribution: syncLedgerEvent?.costAttribution ?? null,
     });
   }
   for (const family of receipt.async.byFamily) {
@@ -476,6 +508,7 @@ export function buildAdminReceiptCompactViewModel(
     );
     const provenanceLabel =
       costSources.size === 1 ? resolveMainRpCostProvenanceLabel([...costSources][0]) : null;
+    const firstEvent = familyEvents?.[0];
     auxiliaryCalls.push({
       label: family.label,
       model,
@@ -483,6 +516,12 @@ export function buildAdminReceiptCompactViewModel(
       result,
       costUsd: family.knownActualCostUsd > 0 ? family.knownActualCostUsd : null,
       costProvenanceLabel: provenanceLabel,
+      canonicalOwner: firstEvent?.canonicalOwner ?? null,
+      requestKind: firstEvent?.requestKind ?? null,
+      trigger: firstEvent?.trigger ?? null,
+      attempt: firstEvent?.attempt ?? null,
+      providerRequestId: firstEvent?.providerRequestId ?? null,
+      costAttribution: firstEvent?.costAttribution ?? "turn_attributable_async",
     });
   }
 
