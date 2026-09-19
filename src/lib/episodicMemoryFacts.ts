@@ -102,6 +102,14 @@ export type EpisodicMemoryDebugFact = EpisodicMemoryFactRecord & {
 const EPISODIC_MEMORY_PROMPT_MAX_FACTS = 8;
 const EPISODIC_MEMORY_PROMPT_MAX_CHARS = 1000;
 const EPISODIC_MEMORY_CANDIDATE_LIMIT = 100;
+/** Lane A — recent continuity window (bounded, not full recent-only retrieval). */
+const EPISODIC_MEMORY_LANE_RECENT_LIMIT = 60;
+/** Lane B — keyword-relevant older facts outside the recent lane tail. */
+const EPISODIC_MEMORY_LANE_RELEVANCE_LIMIT = 25;
+/** Lane C — oldest critical/important milestones (origin / durable history). */
+const EPISODIC_MEMORY_LANE_MILESTONE_LIMIT = 20;
+/** Lane D — durable state rows matched by current-message subject/attribute hints. */
+const EPISODIC_MEMORY_LANE_STATE_LIMIT = 15;
 /** RAW4 keeps N-3..N; recall starts at N-4 (= minAgeTurns 5 when currentTurn=N+1). */
 const EPISODIC_MEMORY_DEFAULT_MIN_AGE_TURNS = 5;
 const DYNAMIC_MEMORY_TOTAL_MAX_CHARS = 2500;
@@ -1278,6 +1286,263 @@ function higherPriorityDynamicTextLength(input: GetEpisodicMemoryForPromptInput)
   ].reduce((sum, text) => sum + (text?.length ?? 0), 0);
 }
 
+export type EpisodicCandidateLane = "recent" | "relevance" | "milestone" | "state";
+
+export type EpisodicCandidateFetchStats = {
+  queryCount: number;
+  rowsFetched: number;
+  mergedCandidateCount: number;
+  laneCounts: Record<EpisodicCandidateLane, number>;
+};
+
+const EPISODIC_CANDIDATE_SELECT_COLUMNS = `id, chat_id, character_id, user_id, source_turn, source_user_message_id,
+                category, subject, attribute, value, importance, fact_text, metadata, created_at`;
+
+type EpisodicCandidateFetchInput = {
+  where: string[];
+  params: Array<number | string>;
+  candidateLimit: number;
+  currentUserMessage?: string | null;
+};
+
+function mergeEpisodicCandidatesById(
+  lanes: Array<{ lane: EpisodicCandidateLane; rows: EpisodicMemoryFactRecord[] }>
+): { rows: EpisodicMemoryFactRecord[]; laneById: Map<number, EpisodicCandidateLane[]> } {
+  const byId = new Map<number, EpisodicMemoryFactRecord>();
+  const laneById = new Map<number, EpisodicCandidateLane[]>();
+  for (const { lane, rows } of lanes) {
+    for (const row of rows) {
+      if (!byId.has(row.id)) byId.set(row.id, row);
+      const provenance = laneById.get(row.id) ?? [];
+      if (!provenance.includes(lane)) provenance.push(lane);
+      laneById.set(row.id, provenance);
+    }
+  }
+  return { rows: [...byId.values()], laneById };
+}
+
+function fetchEpisodicMemoryCandidateRows(
+  db: Database.Database,
+  input: EpisodicCandidateFetchInput
+): { rows: EpisodicMemoryFactRecord[]; stats: EpisodicCandidateFetchStats; laneById: Map<number, EpisodicCandidateLane[]> } {
+  const whereClause = input.where.join(" AND ");
+  const laneRecentLimit = Math.min(EPISODIC_MEMORY_LANE_RECENT_LIMIT, input.candidateLimit);
+  const maxMerged = input.candidateLimit;
+  let queryCount = 0;
+  let rowsFetched = 0;
+
+  const recentRows = (db
+    .prepare(
+      `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+         FROM episodic_memory_facts
+         WHERE ${whereClause}
+         ORDER BY source_turn DESC, id DESC
+         LIMIT ?`
+    )
+    .all(...input.params, laneRecentLimit) as EpisodicMemoryFactRecord[]).map(attachStoredEvidenceType);
+  queryCount += 1;
+  rowsFetched += recentRows.length;
+
+  const minRecentTurn =
+    recentRows.length > 0 ? Math.min(...recentRows.map((row) => row.source_turn)) : null;
+
+  const tokens = tokenizeForSimpleBoost(input.currentUserMessage ?? "").slice(0, 5);
+  let relevanceRows: EpisodicMemoryFactRecord[] = [];
+  if (tokens.length > 0) {
+    const relevanceWhere = [...input.where];
+    const relevanceParams = [...input.params];
+    if (minRecentTurn != null) {
+      relevanceWhere.push("source_turn < ?");
+      relevanceParams.push(minRecentTurn);
+    }
+    const tokenClauses = tokens.map(
+      () =>
+        "(LOWER(fact_text) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(attribute) LIKE ? OR LOWER(value) LIKE ?)"
+    );
+    relevanceWhere.push(`(${tokenClauses.join(" OR ")})`);
+    for (const token of tokens) {
+      const pattern = `%${token.toLowerCase()}%`;
+      relevanceParams.push(pattern, pattern, pattern, pattern);
+    }
+    relevanceRows = (db
+      .prepare(
+        `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+           FROM episodic_memory_facts
+           WHERE ${relevanceWhere.join(" AND ")}
+           ORDER BY source_turn DESC, id DESC
+           LIMIT ?`
+      )
+      .all(...relevanceParams, EPISODIC_MEMORY_LANE_RELEVANCE_LIMIT) as EpisodicMemoryFactRecord[]).map(
+      attachStoredEvidenceType
+    );
+    queryCount += 1;
+    rowsFetched += relevanceRows.length;
+  }
+
+  const milestoneRows = (db
+    .prepare(
+      `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+         FROM episodic_memory_facts
+         WHERE ${whereClause} AND importance IN ('critical', 'important')
+         ORDER BY source_turn ASC, id ASC
+         LIMIT ?`
+    )
+    .all(...input.params, EPISODIC_MEMORY_LANE_MILESTONE_LIMIT) as EpisodicMemoryFactRecord[]).map(
+    attachStoredEvidenceType
+  );
+  queryCount += 1;
+  rowsFetched += milestoneRows.length;
+
+  let stateRows: EpisodicMemoryFactRecord[] = [];
+  if (tokens.length > 0) {
+    const stateWhere = [...input.where, "category IN ('preference', 'rule', 'quest')"];
+    const stateParams = [...input.params];
+    const stateClauses = tokens.map(
+      () => "(LOWER(subject) LIKE ? OR LOWER(attribute) LIKE ? OR LOWER(fact_text) LIKE ?)"
+    );
+    stateWhere.push(`(${stateClauses.join(" OR ")})`);
+    for (const token of tokens) {
+      const pattern = `%${token.toLowerCase()}%`;
+      stateParams.push(pattern, pattern, pattern);
+    }
+    const stateCandidates = (db
+      .prepare(
+        `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+           FROM episodic_memory_facts
+           WHERE ${stateWhere.join(" AND ")}
+           ORDER BY source_turn DESC, id DESC
+           LIMIT ?`
+      )
+      .all(...stateParams, EPISODIC_MEMORY_LANE_STATE_LIMIT * 3) as EpisodicMemoryFactRecord[]).map(
+      attachStoredEvidenceType
+    );
+    queryCount += 1;
+    rowsFetched += stateCandidates.length;
+
+    const latestByKey = new Map<string, EpisodicMemoryFactRecord>();
+    for (const row of stateCandidates) {
+      const key = `${row.category}:${row.subject}:${row.attribute}`;
+      const prev = latestByKey.get(key);
+      if (
+        !prev ||
+        row.source_turn > prev.source_turn ||
+        (row.source_turn === prev.source_turn && row.id > prev.id)
+      ) {
+        latestByKey.set(key, row);
+      }
+    }
+    stateRows = [...latestByKey.values()]
+      .sort((a, b) => b.source_turn - a.source_turn || b.id - a.id)
+      .slice(0, EPISODIC_MEMORY_LANE_STATE_LIMIT);
+  }
+
+  const merged = mergeEpisodicCandidatesById([
+    { lane: "recent", rows: recentRows },
+    { lane: "relevance", rows: relevanceRows },
+    { lane: "milestone", rows: milestoneRows },
+    { lane: "state", rows: stateRows },
+  ]);
+  const cappedRows = merged.rows.slice(0, maxMerged);
+
+  return {
+    rows: cappedRows,
+    laneById: merged.laneById,
+    stats: {
+      queryCount,
+      rowsFetched,
+      mergedCandidateCount: cappedRows.length,
+      laneCounts: {
+        recent: recentRows.length,
+        relevance: relevanceRows.length,
+        milestone: milestoneRows.length,
+        state: stateRows.length,
+      },
+    },
+  };
+}
+
+/** Test/diagnostic helper — bounded multi-lane candidate fetch without ranking/budget. */
+export function fetchEpisodicMemoryCandidatesForDebug(
+  db: Database.Database,
+  input: GetEpisodicMemoryForPromptInput,
+  env = process.env
+): {
+  rows: EpisodicMemoryFactRecord[];
+  stats: EpisodicCandidateFetchStats;
+  laneById: Map<number, EpisodicCandidateLane[]>;
+} {
+  if (!episodicMemoryRecallEnabled(env)) {
+    return {
+      rows: [],
+      stats: {
+        queryCount: 0,
+        rowsFetched: 0,
+        mergedCandidateCount: 0,
+        laneCounts: { recent: 0, relevance: 0, milestone: 0, state: 0 },
+      },
+      laneById: new Map(),
+    };
+  }
+
+  const chatId = finitePositiveInt(input.chatId);
+  if (!chatId) {
+    return {
+      rows: [],
+      stats: {
+        queryCount: 0,
+        rowsFetched: 0,
+        mergedCandidateCount: 0,
+        laneCounts: { recent: 0, relevance: 0, milestone: 0, state: 0 },
+      },
+      laneById: new Map(),
+    };
+  }
+
+  const currentTurn =
+    input.currentTurn != null && Number.isFinite(input.currentTurn)
+      ? Math.trunc(input.currentTurn)
+      : null;
+  const candidateLimit = Math.max(
+    1,
+    Math.min(500, Math.trunc(input.candidateLimit ?? EPISODIC_MEMORY_CANDIDATE_LIMIT))
+  );
+  const minAgeTurns = Math.max(
+    0,
+    Math.min(100, Math.trunc(input.minAgeTurns ?? resolveEpisodicMemoryMinAgeTurns(env)))
+  );
+
+  const where: string[] = ["chat_id = ?"];
+  const params: Array<number | string> = [chatId];
+  if (input.characterId != null && Number.isFinite(input.characterId)) {
+    where.push("(character_id IS NULL OR character_id = ?)");
+    params.push(Math.trunc(input.characterId));
+  }
+  if (input.userId != null && Number.isFinite(input.userId)) {
+    where.push("(user_id IS NULL OR user_id = ?)");
+    params.push(Math.trunc(input.userId));
+  }
+  const boundary = getMemorySourceBoundaryCore(db, chatId);
+  if (boundary.resetAfterMessageId != null) {
+    where.push("source_user_message_id IS NOT NULL AND source_user_message_id > ?");
+    params.push(boundary.resetAfterMessageId);
+  }
+  if (currentTurn != null) {
+    where.push("source_turn < ?");
+    params.push(currentTurn);
+    if (minAgeTurns > 0) {
+      where.push("source_turn <= ?");
+      params.push(currentTurn - minAgeTurns);
+    }
+  }
+
+  return fetchEpisodicMemoryCandidateRows(db, {
+    where,
+    params,
+    candidateLimit,
+    currentUserMessage: input.currentUserMessage,
+  });
+}
+
 function compareFactsForPrompt(
   a: EpisodicMemoryFactRecord,
   b: EpisodicMemoryFactRecord,
@@ -1458,16 +1723,12 @@ export function getEpisodicMemoryForPrompt(
       }
     }
 
-    const rows = (db
-      .prepare(
-        `SELECT id, chat_id, character_id, user_id, source_turn, source_user_message_id,
-                category, subject, attribute, value, importance, fact_text, metadata, created_at
-         FROM episodic_memory_facts
-         WHERE ${where.join(" AND ")}
-         ORDER BY source_turn DESC, id DESC
-         LIMIT ?`
-      )
-      .all(...params, candidateLimit) as EpisodicMemoryFactRecord[]).map(attachStoredEvidenceType);
+    const { rows } = fetchEpisodicMemoryCandidateRows(db, {
+      where,
+      params,
+      candidateLimit,
+      currentUserMessage: input.currentUserMessage,
+    });
 
     const validRows = rows.filter((row) => sanitizeEpisodicExtractedFacts([{
       category: row.category,
