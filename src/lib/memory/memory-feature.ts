@@ -48,9 +48,11 @@ export function emptyMemoryInjection(
 ): import("./memory-types").MemoryInjection {
   return {
     text: "",
+    mediumTermText: "",
     archiveText: "",
     pinnedChars: 0,
     recentChars: 0,
+    mediumTermChars: 0,
     archiveChars: 0,
     archiveIncluded: false,
     usedChars: 0,

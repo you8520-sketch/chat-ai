@@ -679,7 +679,20 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const privateSpeechControlBlock = input.privateSpeechControlBlock?.trim() ?? "";
   const sceneDirectiveBlock = input.sceneDirectiveBlock?.trim() ?? "";
   let memory = sanitizeRuntimePromptSource(input.longTermMemory);
+  const mediumTermMemory = sanitizeRuntimePromptSource(input.mediumTermMemoryBlock);
   const memoryMeta = sanitizeRuntimePromptSource(input.memoryMeta);
+
+  const pushMediumTermMemory = () => {
+    if (!mediumTermMemory) return;
+    pushSection(
+      "medium-term-memory",
+      "[2z] Medium-term memory",
+      "memory",
+      mediumTermMemory,
+      "dynamic",
+      undefined
+    );
+  };
 
   const pushCurrentMemory = (includeRelationshipMeta: boolean) => {
     if (!memory && !(includeRelationshipMeta && memoryMeta)) return;
@@ -1027,6 +1040,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const pushVolatileContextSections = () => {
     pushArchiveMemory();
     if (memoryFeatureOn) {
+      pushMediumTermMemory();
       pushCurrentMemory(false);
     }
     pushEpisodicMemory();
