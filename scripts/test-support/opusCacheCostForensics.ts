@@ -387,3 +387,54 @@ export function parseUsagePartitionSample(): {
     invariantHolds,
   };
 }
+
+/** Live warm-turn reference (LIVE-T2/T3) — deterministic input-cost comparison only. */
+export type WarmTurnPatchEconomics = {
+  turnLabel: string;
+  currentInputUsd: number;
+  patchInputUsd: number;
+  savingsPct: number;
+};
+
+export function computeWarmTurnPatchEconomics(): WarmTurnPatchEconomics[] {
+  const modelId = FORENSICS_OPUS_MODEL;
+  const rows = [
+    {
+      turnLabel: "LIVE-T2",
+      cacheReadTokens: 17_357,
+      cacheWriteTokens: 22_669,
+      standardInputTokens: 669,
+    },
+    {
+      turnLabel: "LIVE-T3",
+      cacheReadTokens: 17_357,
+      cacheWriteTokens: 18_254,
+      standardInputTokens: 669,
+    },
+  ] as const;
+
+  return rows.map((row) => {
+    const currentInputUsd = openRouterUsdCostFromRates({
+      promptTokens: row.cacheReadTokens + row.cacheWriteTokens + row.standardInputTokens,
+      outputTokens: 0,
+      cacheReadTokens: row.cacheReadTokens,
+      cacheWriteTokens: row.cacheWriteTokens,
+      modelId,
+    }).usdCost;
+    const patchInputUsd = openRouterUsdCostFromRates({
+      promptTokens: row.cacheReadTokens + row.standardInputTokens + row.cacheWriteTokens,
+      outputTokens: 0,
+      cacheReadTokens: row.cacheReadTokens,
+      cacheWriteTokens: 0,
+      modelId,
+    }).usdCost;
+    const savingsPct =
+      currentInputUsd > 0 ? ((currentInputUsd - patchInputUsd) / currentInputUsd) * 100 : 0;
+    return {
+      turnLabel: row.turnLabel,
+      currentInputUsd,
+      patchInputUsd,
+      savingsPct,
+    };
+  });
+}

@@ -45,9 +45,9 @@ describe("Opus cache/cost forensics (OC-01..20, test-support)", () => {
     assert.equal(report.sectionDiff.opusOnly.length, 0);
   });
 
-  it("OC-02 [OFFLINE_PROOF]: CI Opus wire has exactly 3 cache_control blocks", () => {
+  it("OC-02 [OFFLINE_PROOF]: CI Opus wire has exactly 2 cache_control blocks (system only)", () => {
     const report = diagnoseSameSnapshot(buildLikeScaleSnapshot());
-    assert.equal(report.opus.payload.cacheControlBlocks, 3);
+    assert.equal(report.opus.payload.cacheControlBlocks, 2);
     assert.equal(report.opus.payload.hasAssistantPrefill, false);
   });
 
@@ -86,9 +86,11 @@ describe("Opus cache/cost forensics (OC-01..20, test-support)", () => {
     assert.equal(rows[0]!.cachePrefix.combinedFingerprint16, rows[1]!.cachePrefix.combinedFingerprint16);
   });
 
-  it("OC-07 [OFFLINE_PROOF]: growing history increases cached prefix chars T2→T3", () => {
+  it("OC-07 [OFFLINE_PROOF]: sequential turns shift history; legacy breakpoint index still resolves", () => {
     const rows = simulateSequentialTurns();
     assert.ok(rows[2]!.assembledChars.historyPrefix >= rows[1]!.assembledChars.historyPrefix);
+    assert.ok(rows[1]!.wire.historyBreakpointIndex != null);
+    assert.equal(rows[1]!.wire.cacheControlBlockCount, 2);
   });
 
   it("OC-08 [OFFLINE_PROOF]: regen session_id differs pre-adapt, stripped on CI wire", () => {

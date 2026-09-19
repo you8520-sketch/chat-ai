@@ -287,7 +287,11 @@ export function trimHistoryToBudget(
   return alignHistoryPrefixDrop(history, kept, floorMessages);
 }
 
-/** Prefix drop — chunk 단위(10msg)로 잘라 Anthropic history cache prefix 안정화 (floor 침범 금지) */
+/**
+ * Prefix drop — chunk 단위(10msg)로 trim head 정렬 (floor 침범 금지).
+ * Was intended for Anthropic history cache prefix stability; ineffective for Main RP
+ * bounded sliding RAW pool (OBSOLETE_FOR_MAIN_RP — kept for trim alignment).
+ */
 function alignHistoryPrefixDrop(
   full: ChatMsg[],
   kept: ChatMsg[],

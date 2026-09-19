@@ -73,8 +73,6 @@ import { logOpenRouterCacheStabilityCheck } from "@/lib/openRouterCacheStability
 import { logCharsPerTokenDiagnostic, logBannedVerbCheck, logHanjaLeakCheck, logLengthDiagnosticV2 } from "@/lib/lengthDiagnosticV2";
 import {
   buildOpenRouterCachedSystemContent,
-  HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES,
-  resolveHistoryCacheBreakpointIndex,
   wrapTextAsCachedContentBlock,
   type OpenRouterSystemSplit,
 } from "@/lib/openRouterCache";
@@ -868,27 +866,15 @@ export function buildOpenRouterMessages(
  * 캐싱 (OpenRouter 규격):
  * 1. system — string content → [{ type:"text", text, cache_control:{ type:"ephemeral" } }]
  *    systemSplit 경로는 buildOpenRouterCachedSystemContent에서 이미 블록별 cache_control 적용.
- * 2. history — 마지막 user 턴 직전 메시지(뒤에서 2번째)에 동일 cache_control 적용 →
- *    과거 대화 prefix 전체가 캐시 breakpoint로 묶여 cache_read 90% 할인.
+ * 2. history — **not cached**. Main RP uses a bounded sliding RAW suffix; the cumulative
+ *    prefix before any history breakpoint changes every turn, so history cache_control would
+ *    only produce dead cache-writes. Only genuinely stable prefixes (systemRules +
+ *    characterSettings) are cache owners.
  *
  * 프리필: 마지막 user 메시지 뒤에 캐릭터 이름만 assistant content로 붙인다 (조사·공백 없음).
  *
  * Anthropic 모델이 아니면 messages를 그대로 반환한다 (Gemini 등 무영향).
  */
-function applyCacheControlToMessageContent(
-  content: string | OpenRouterContentBlock[]
-): OpenRouterContentBlock[] {
-  const text = flattenOpenRouterMessageContent(content);
-  if (!text.trim()) {
-    return typeof content === "string" ? [] : content;
-  }
-  if (Array.isArray(content)) {
-    const hasCache = content.some((b) => b.cache_control?.type === "ephemeral");
-    if (hasCache) return content;
-  }
-  return wrapTextAsCachedContentBlock(text);
-}
-
 export function applyAnthropicCacheAndPrefill(
   messages: OpenRouterChatMessage[],
   modelId: string,
@@ -915,18 +901,6 @@ export function applyAnthropicCacheAndPrefill(
     return m;
   });
 
-  const historyBreakpointIdx = resolveHistoryCacheBreakpointIndex(transformed);
-  if (historyBreakpointIdx != null) {
-    transformed = transformed.map((m, i) => {
-      if (i !== historyBreakpointIdx) return m;
-      if (m.role === "system") return m;
-      return {
-        ...m,
-        content: applyCacheControlToMessageContent(m.content),
-      };
-    });
-  }
-
   // charName = DB 캐릭터명(ch.name)만 — buildClaudePrefill 내부에서 (이름) 추출
   // recovery: 미완 문장 tail prefill (캐릭터명 prefill과 상호 배타)
   if (opts?.skipAssistantPrefill) {
@@ -944,19 +918,11 @@ export function applyAnthropicCacheAndPrefill(
       systemMsg && Array.isArray(systemMsg.content)
         ? systemMsg.content.filter((b) => b.cache_control?.type === "ephemeral").length
         : 0;
-    const historyMsg =
-      historyBreakpointIdx != null ? transformed[historyBreakpointIdx] : undefined;
-    const historyCached =
-      historyMsg && Array.isArray(historyMsg.content)
-        ? historyMsg.content.some((b) => b.cache_control?.type === "ephemeral")
-        : false;
     console.log("[OPENROUTER ANTHROPIC]", {
       model: modelId,
       cachedSystemBlocks,
-      historyCacheBreakpointIndex: historyBreakpointIdx,
-      historyCacheTailExclude: HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES,
-      historyRole: historyMsg?.role,
-      historyCached,
+      historyCacheBreakpointIndex: null,
+      historyCached: false,
       cachedBlocksTotal: countCachedContentBlocks(transformed),
       prefillPreview: prefill.slice(0, 60),
     });
@@ -1156,7 +1122,7 @@ function requestBodyKeyDiff(
  * Shared primary RP wire assembler (production stream + parity harness).
  * Builds messages via buildOpenRouterMessages, then OpenRouter request body,
  * then CheaperInference adaptation when transport is cheaperinference.
- * Cheaper Inference Anthropic also gets history cache_control (no assistant prefill).
+ * Cheaper Inference Anthropic gets system cache breakpoints only (no assistant prefill).
  * Does not require API credentials — credentialed transport is resolved at fetch time.
  */
 export function assemblePrimaryRpRequest(opts: {
@@ -1284,7 +1250,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   const skipAssistantPrefill = messageOpts?.skipAssistantPrefill === true;
 
     // Claude(Anthropic): system 블록 캐싱 + assistant prefill (그 외 모델은 no-op)
-    // Cheaper Inference Anthropic은 history cache breakpoint만 적용한다.
+    // Cheaper Inference Anthropic은 system cache breakpoint만 적용한다 (history는 sliding suffix).
     // assistant prefill은 OpenRouter Claude 전용이며 CI Opus thinking/output을 바꾸지 않는다.
     const { messages, prefill } = applyCacheAndPrefillForTransport(
       transport,
