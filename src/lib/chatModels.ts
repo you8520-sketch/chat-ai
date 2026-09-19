@@ -284,7 +284,7 @@ export function isUserSelectableAI(modelId: string, _isAdmin: boolean): boolean 
 }
 
 export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
-  // Canonical 3만 Main RP — 퇴역 모델은 resolveSelectedAI에서 기본 모델로 이전.
+  // Canonical Main RP registry only — retired models are remapped in resolveSelectedAI.
   return id;
 }
 
