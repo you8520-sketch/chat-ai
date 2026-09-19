@@ -1,5 +1,5 @@
 /**
- * Global Current Memory owner bugfix regressions — zero provider calls.
+ * Global Current Memory correction-pass regressions — zero provider calls in tests.
  */
 import Module from "module";
 
@@ -22,18 +22,10 @@ import {
 } from "@/lib/test/isolatedTestDatabase";
 import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
 import { ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
-import {
-  OVERFLOW_AUDIT_MARKERS,
-  buildOverflowSummaryFixture,
-  detectOverflowMarkers,
-  joinOverflowBlocks,
-} from "./memory-architecture-audit";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
+import { emergencyFallbackTrimLorebookSync, isMechanicalEmergencyTrim } from "./memory-global-projection";
 import { trimLorebookToBudgetSync } from "./memory-lorebook-fit";
-import {
-  resolveGlobalCurrentMemory,
-  resolveLorebookFromRecordsSync,
-} from "./memory-lorebook-resolve";
+import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
 import {
   __setCompactCurrentMemoryTestOverride,
   compactCurrentMemory,
@@ -46,11 +38,16 @@ import {
   updateMemoryRecordById,
 } from "./memory-turn-summary";
 import { invalidateDerivedMemoryGeneration } from "./memory-source-boundary";
-import { persistValidatedSummaryBatch } from "./memory-summary-persist";
+import { upsertSummaryRowCore } from "./memory-summary-persist";
+import { formatMemoryBlock } from "./memory-turn-summary";
 
 const CHAT = 994001;
 const USER = 994002;
 const CHAR = 994003;
+
+const OLD_MAJOR = "OLD_MAJOR_EVENT";
+const MID_MAJOR = "MID_MAJOR_EVENT";
+const RECENT_MAJOR = "RECENT_MAJOR_EVENT";
 
 function cleanup(): void {
   const db = getDb();
@@ -77,14 +74,28 @@ function seedChat(): void {
   getOrCreateChatMemory(CHAT, USER, CHAR, "free");
 }
 
-function insertOverflowFixture(): void {
-  const blocks = buildOverflowSummaryFixture({ blockCount: 28 });
+function padBody(marker: string, chars = 480): string {
+  let body = `${marker} → major story beat → consequence`;
+  while (body.length < chars) body += ` → ${marker}_PAD`;
+  return body.slice(0, chars);
+}
+
+function insertGlobalCoverageFixture(): void {
   const db = getDb();
-  for (const block of blocks) {
+  const markers = [
+    { turnStart: 16, turnEnd: 20, marker: OLD_MAJOR },
+    { turnStart: 146, turnEnd: 150, marker: MID_MAJOR },
+    { turnStart: 286, turnEnd: 290, marker: RECENT_MAJOR },
+  ];
+  for (let i = 0; i < 60; i++) {
+    const turnStart = i * ROLLING_SUMMARY_INTERVAL + 1;
+    const turnEnd = turnStart + ROLLING_SUMMARY_INTERVAL - 1;
+    const tagged = markers.find((m) => m.turnStart === turnStart);
+    const marker = tagged?.marker ?? `FILLER_${i}`;
     db.prepare(
       `INSERT INTO chat_turn_summaries (chat_id, turn_number, turn_end, summary, summary_kind)
        VALUES (?,?,?,?,?)`
-    ).run(CHAT, block.turnStart, block.turnEnd, block.body, "main_canon");
+    ).run(CHAT, turnStart, turnEnd, padBody(marker), "main_canon");
   }
 }
 
@@ -93,74 +104,207 @@ function extractPromptRecent(injectionText: string): string {
   return match?.[1]?.trim() ?? injectionText;
 }
 
+async function commitGlobalCompact(rebuilt: string): Promise<string> {
+  __setCompactCurrentMemoryTestOverride(async (input, maxChars) => {
+    assert.ok(input.includes(OLD_MAJOR));
+    assert.ok(input.includes(MID_MAJOR));
+    assert.ok(input.includes(RECENT_MAJOR));
+    return `${OLD_MAJOR} → ${MID_MAJOR} → ${RECENT_MAJOR} → global fold`
+      .padEnd(Math.min(maxChars, 9000), ".")
+      .slice(0, maxChars);
+  });
+  const compacted = await compactCurrentMemory(rebuilt, MEMORY_CAPACITY_FIXED);
+  updateChatMemory(CHAT, USER, CHAR, { recent_summary: compacted, membership_tier: "free" });
+  return compacted;
+}
+
 before(() => installIsolatedTestDatabase());
 after(() => uninstallIsolatedTestDatabase());
 
-describe("GLOBAL CURRENT MEMORY OWNER BUGFIX", () => {
+describe("GLOBAL COVERAGE REGRESSION", () => {
+  beforeEach(seedChat);
+
+  it("reproduces recent-only failure mode on mechanical trim without compact projection", () => {
+    insertGlobalCoverageFixture();
+    const rebuilt = rebuildLorebookFromRecords(CHAT);
+    assert.ok(rebuilt.length > MEMORY_CAPACITY_FIXED);
+    const mechanical = emergencyFallbackTrimLorebookSync(rebuilt, MEMORY_CAPACITY_FIXED);
+    assert.ok(mechanical.includes(RECENT_MAJOR));
+    assert.equal(mechanical.includes(OLD_MAJOR), false);
+    assert.ok(isMechanicalEmergencyTrim(rebuilt, mechanical, MEMORY_CAPACITY_FIXED));
+  });
+
+  it("whole-history compact projection retains OLD/MID/RECENT in Main RP prompt", async () => {
+    insertGlobalCoverageFixture();
+    const rebuilt = rebuildLorebookFromRecords(CHAT);
+    const compacted = await commitGlobalCompact(rebuilt);
+
+    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED, {
+      storedRecentSummary: compacted,
+    });
+    assert.equal(resolved.projectionKind, "global_compact");
+    assert.equal(resolved.source, "chat_memories_recent_summary");
+    assert.equal(resolved.text, compacted);
+
+    const injection = await buildMemoryContextForChat({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      memoryCapacity: MEMORY_CAPACITY_FIXED,
+      userMessage: "continue",
+    });
+    const prompt = extractPromptRecent(injection.text);
+    assert.ok(prompt.includes(OLD_MAJOR));
+    assert.ok(prompt.includes(MID_MAJOR));
+    assert.ok(prompt.includes(RECENT_MAJOR));
+    assert.equal(prompt, compacted.trim());
+  });
+});
+
+describe("GLOBAL OWNER + FRESHNESS", () => {
   beforeEach(() => {
     seedChat();
     __setCompactCurrentMemoryTestOverride(null);
   });
 
-  after(() => {
-    __setCompactCurrentMemoryTestOverride(null);
-    cleanup();
-  });
+  after(() => __setCompactCurrentMemoryTestOverride(null));
 
-  it("A: write/read owner unified — prompt uses chat_turn_summaries rebuild, not stale compact blob", async () => {
-    insertOverflowFixture();
-    const rebuilt = rebuildLorebookFromRecords(CHAT);
-    assert.ok(rebuilt.length > MEMORY_CAPACITY_FIXED);
-
-    __setCompactCurrentMemoryTestOverride(async (_input, maxChars) =>
-      `${OVERFLOW_AUDIT_MARKERS.COMPRESSED_ONLY} → stale compact`.padEnd(maxChars, "x").slice(0, maxChars)
-    );
-    const staleCompact = await compactCurrentMemory(rebuilt, MEMORY_CAPACITY_FIXED);
-    updateChatMemory(CHAT, USER, CHAR, { recent_summary: staleCompact, membership_tier: "free" });
-
-    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED, {
-      storedRecentSummary: staleCompact,
-    });
-    assert.equal(resolved.source, "chat_turn_summaries");
-    assert.notEqual(resolved.text, staleCompact.trim());
-
+  it("write/read parity — stored compact equals prompt projection", async () => {
+    insertGlobalCoverageFixture();
+    const compacted = await commitGlobalCompact(rebuildLorebookFromRecords(CHAT));
+    const stored = getOrCreateChatMemory(CHAT, USER, CHAR, "free").recent_summary;
+    assert.equal(stored.trim(), compacted.trim());
     const injection = await buildMemoryContextForChat({
       chatId: CHAT,
       userId: USER,
       characterId: CHAR,
       tier: "free",
       memoryCapacity: MEMORY_CAPACITY_FIXED,
-      userMessage: "continue",
+      userMessage: "x",
     });
-    const promptRecent = extractPromptRecent(injection.text);
-    assert.ok(!promptRecent.includes(OVERFLOW_AUDIT_MARKERS.COMPRESSED_ONLY));
-    assert.ok(promptRecent.includes(OVERFLOW_AUDIT_MARKERS.RECENT));
+    assert.equal(extractPromptRecent(injection.text), compacted.trim());
   });
 
-  it("B: overflow keeps RECENT and drops OLD (prefer-recent block trim)", () => {
-    insertOverflowFixture();
-    const rebuilt = rebuildLorebookFromRecords(CHAT);
-    const trimmed = trimLorebookToBudgetSync(rebuilt, MEMORY_CAPACITY_FIXED);
-    const markers = detectOverflowMarkers(trimmed);
-    assert.ok(markers.recent, "RECENT_MARKER retained");
-    assert.equal(markers.old, false, "OLD_MARKER dropped under prefer-recent overflow");
+  it("record edit invalidates stale compact projection", async () => {
+    insertGlobalCoverageFixture();
+    await commitGlobalCompact(rebuildLorebookFromRecords(CHAT));
+    const row = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 16)!;
+    updateMemoryRecordById(
+      CHAT,
+      row.id,
+      `${OLD_MAJOR}_EDITED body with enough length to pass validation checks here and padding.`
+    );
+    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED, {
+      storedRecentSummary: getOrCreateChatMemory(CHAT, USER, CHAR, "free").recent_summary,
+    });
+    assert.equal(resolved.projectionKind, "failure_fallback");
+    assert.equal(resolved.needsBackgroundCompact, true);
   });
 
-  it("C: arrow-less >10K never yields empty Current Memory", () => {
+  it("delete/inactivate invalidates compact projection freshness", async () => {
+    insertGlobalCoverageFixture();
+    await commitGlobalCompact(rebuildLorebookFromRecords(CHAT));
+    const row = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 286)!;
+    markMemoryRecordInactive(CHAT, row.id);
+    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED, {
+      storedRecentSummary: getOrCreateChatMemory(CHAT, USER, CHAR, "free").recent_summary,
+    });
+    assert.notEqual(resolved.projectionKind, "global_compact");
+  });
+
+  it("reset epoch bump alone does not serve stale compact when records unchanged", async () => {
+    insertGlobalCoverageFixture();
+    const compacted = await commitGlobalCompact(rebuildLorebookFromRecords(CHAT));
+    invalidateDerivedMemoryGeneration(CHAT);
+    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED, {
+      storedRecentSummary: compacted,
+    });
+    assert.equal(resolved.projectionKind, "global_compact");
+  });
+
+  it("below 10K uses exact rebuild fidelity", () => {
+    getDb()
+      .prepare(
+        `INSERT INTO chat_turn_summaries (chat_id, turn_number, turn_end, summary, summary_kind)
+         VALUES (?,?,?,?,?)`
+      )
+      .run(
+        CHAT,
+        1,
+        5,
+        "SMALL_CHAT_MARKER body with enough length to pass validation checks here and padding.",
+        "main_canon"
+      );
+    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED);
+    assert.equal(resolved.projectionKind, "exact");
+    assert.match(resolved.text, /SMALL_CHAT_MARKER/);
+  });
+
+  it("arrow-less overflow never returns empty (failure fallback only)", () => {
     const blob = Array.from({ length: 40 }, (_, i) =>
       `[${i * 5 + 1}~${i * 5 + 5}턴] ${"화살표없는요약 ".repeat(40)}${i}`
     ).join("\n\n");
-    assert.ok(blob.length > MEMORY_CAPACITY_FIXED);
     const trimmed = trimLorebookToBudgetSync(blob, MEMORY_CAPACITY_FIXED);
-    assert.ok(trimmed.length > 0, "non-empty overflow trim");
+    assert.ok(trimmed.length > 0);
     assert.ok(trimmed.length <= MEMORY_CAPACITY_FIXED);
   });
+});
 
-  it("D: user whole-Current-Memory edit appears in next Main RP prompt", async () => {
-    insertOverflowFixture();
-    const userMarker = "USER_WHOLE_EDIT_MARKER_42";
-    const edited = `[1~5턴] ${userMarker} → edited whole memory body`;
-    await updateLorebookForChat(CHAT, USER, CHAR, edited, "free", MEMORY_CAPACITY_FIXED);
+describe("WHOLE-MEMORY EDIT PROVENANCE", () => {
+  beforeEach(seedChat);
+
+  it("free-form updateLorebook preserves canonical 5-turn ledger rows", async () => {
+    const db = getDb();
+    upsertSummaryRowCore({
+      chatId: CHAT,
+      turnStart: 1,
+      turnEnd: 5,
+      assistantMessageId: 101,
+      summary: padBody("LEDGER_BLOCK_1"),
+      summaryKind: "main_canon",
+      userEdited: false,
+      sourceStartUserMessageId: 1001,
+      sourceEndUserMessageId: 1002,
+    });
+    upsertSummaryRowCore({
+      chatId: CHAT,
+      turnStart: 6,
+      turnEnd: 10,
+      assistantMessageId: 102,
+      summary: padBody("LEDGER_BLOCK_2"),
+      summaryKind: "branch_canon",
+      branchStatus: "active",
+      branchId: "branch-a",
+      userEdited: false,
+      sourceStartUserMessageId: 2001,
+      sourceEndUserMessageId: 2002,
+    });
+
+    const before = listMemoryRecordsForChat(CHAT);
+    assert.equal(before.filter((r) => !r.inactive).length, 2);
+
+    __setCompactCurrentMemoryTestOverride(async (input, max) => input.slice(0, max));
+    await updateLorebookForChat(
+      CHAT,
+      USER,
+      CHAR,
+      "FREE_FORM_USER_GLOBAL_EDIT without turn headers",
+      "free",
+      MEMORY_CAPACITY_FIXED
+    );
+
+    const after = listMemoryRecordsForChat(CHAT);
+    assert.equal(after.filter((r) => !r.inactive).length, 2);
+    assert.equal(after.filter((r) => r.inactive).length, 0);
+    const sourceRow = db
+      .prepare(
+        `SELECT source_start_user_message_id FROM chat_turn_summaries
+         WHERE chat_id=? AND turn_number=1 AND COALESCE(inactive,0)=0`
+      )
+      .get(CHAT) as { source_start_user_message_id: number | null };
+    assert.equal(sourceRow.source_start_user_message_id, 1001);
+    assert.ok(after.some((r) => r.branchId === "branch-a"));
 
     const injection = await buildMemoryContextForChat({
       chatId: CHAT,
@@ -170,119 +314,36 @@ describe("GLOBAL CURRENT MEMORY OWNER BUGFIX", () => {
       memoryCapacity: MEMORY_CAPACITY_FIXED,
       userMessage: "continue",
     });
-    assert.match(extractPromptRecent(injection.text), new RegExp(userMarker));
+    assert.match(extractPromptRecent(injection.text), /FREE_FORM_USER_GLOBAL_EDIT/);
   });
 
-  it("E: regen invalidates derived projection via epoch — stale compact not read", async () => {
-    insertOverflowFixture();
-    invalidateDerivedMemoryGeneration(CHAT);
-    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED);
-    assert.equal(resolved.source, "chat_turn_summaries");
-    assert.ok(resolved.text.includes(OVERFLOW_AUDIT_MARKERS.RECENT));
-  });
-
-  it("F: record edit changes prompt projection from canonical records", async () => {
-    getDb()
-      .prepare(
-        `INSERT INTO chat_turn_summaries (chat_id, turn_number, turn_end, summary, summary_kind)
-         VALUES (?,?,?,?,?)`
-      )
-      .run(
-        CHAT,
-        1,
-        5,
-        "ORIGINAL_MARKER body with enough length to pass validation checks here and additional narrative padding.",
-        "main_canon"
-      );
-
-    const before = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED).text;
-    assert.match(before, /ORIGINAL_MARKER/);
-
-    const row = listMemoryRecordsForChat(CHAT)[0]!;
-    const edited = updateMemoryRecordById(
-      CHAT,
-      row.id,
-      "EDITED_MARKER body with enough length to pass validation checks here and additional narrative padding."
-    );
-    assert.ok(edited, "record edit must persist");
-
-    const after = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED).text;
-    assert.match(after, /EDITED_MARKER/);
-    assert.doesNotMatch(after, /ORIGINAL_MARKER/);
-  });
-
-  it("G: record delete/inactivate removes content from prompt projection", () => {
-    getDb()
-      .prepare(
-        `INSERT INTO chat_turn_summaries (chat_id, turn_number, turn_end, summary, summary_kind)
-         VALUES (?,?,?,?,?)`
-      )
-      .run(
-        CHAT,
-        1,
-        5,
-        "DELETE_ME_MARKER body with enough length to pass validation checks here.",
-        "main_canon"
-      );
-    const row = listMemoryRecordsForChat(CHAT)[0]!;
-    markMemoryRecordInactive(CHAT, row.id);
-    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED);
-    assert.equal(resolved.text.trim(), "");
-  });
-
-  it("H: reset epoch bump preserves rebuild path as canonical owner", () => {
-    insertOverflowFixture();
-    invalidateDerivedMemoryGeneration(CHAT);
-    const mem = getOrCreateChatMemory(CHAT, USER, CHAR, "free");
-    assert.ok((mem.memory_epoch ?? 0) >= 1);
-    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED);
-    assert.equal(resolved.source, "chat_turn_summaries");
-  });
-
-  it("I: new seal after overflow uses rebuild mirror without LLM compact write", async () => {
-    insertOverflowFixture();
-    let compactCalls = 0;
-    __setCompactCurrentMemoryTestOverride(async (input) => {
-      compactCalls += 1;
-      return input.slice(0, MEMORY_CAPACITY_FIXED);
-    });
-
-    const persisted = persistValidatedSummaryBatch({
+  it("destructive ledger sync would collapse spans — documented anti-pattern", () => {
+    const db = getDb();
+    upsertSummaryRowCore({
       chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
-      turnStart: 141,
-      turnEnd: 145,
-      assistantMessageId: null,
-      summary:
-        "NEW_SEAL_MARKER body with enough length to pass validation checks here and additional narrative padding for seal.",
+      turnStart: 1,
+      turnEnd: 5,
+      assistantMessageId: 101,
+      summary: padBody("KEEP_ME"),
       summaryKind: "main_canon",
-      playableTurnCount: 145,
+      sourceStartUserMessageId: 42,
+      sourceEndUserMessageId: 43,
     });
-    assert.equal(persisted.ok, true);
-    assert.equal(compactCalls, 0, "seal path must not invoke provider compact");
-
-    const mem = getOrCreateChatMemory(CHAT, USER, CHAR, "free");
-    assert.ok(!mem.recent_summary.includes(OVERFLOW_AUDIT_MARKERS.COMPRESSED_ONLY));
-    assert.ok(resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED).text.includes("NEW_SEAL_MARKER"));
-  });
-
-  it("below 10K keeps full per-record fidelity without compaction", () => {
-    getDb()
-      .prepare(
-        `INSERT INTO chat_turn_summaries (chat_id, turn_number, turn_end, summary, summary_kind)
-         VALUES (?,?,?,?,?)`
-      )
-      .run(
-        CHAT,
-        1,
-        5,
-        "SMALL_CHAT_MARKER body with enough length to pass validation checks here.",
-        "main_canon"
-      );
-    const resolved = resolveLorebookFromRecordsSync(CHAT, MEMORY_CAPACITY_FIXED);
-    assert.equal(resolved.overBudget, false);
-    assert.match(resolved.text, /SMALL_CHAT_MARKER/);
+    db.prepare(
+      `UPDATE chat_turn_summaries SET inactive=1 WHERE chat_id=? AND COALESCE(inactive,0)=0`
+    ).run(CHAT);
+    upsertSummaryRowCore({
+      chatId: CHAT,
+      turnStart: 301,
+      turnEnd: 305,
+      assistantMessageId: null,
+      summary: "collapsed free-form global with enough length to pass validation checks here.",
+      summaryKind: "main_canon",
+      userEdited: true,
+    });
+    const rows = listMemoryRecordsForChat(CHAT);
+    assert.equal(rows.filter((r) => !r.inactive).length, 1);
+    assert.equal(rows.filter((r) => r.inactive).length, 1);
+    assert.equal(rows.find((r) => !r.inactive)?.turnStart, 301);
   });
 });

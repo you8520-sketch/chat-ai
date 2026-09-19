@@ -37,12 +37,9 @@ import { resolveOocSceneRenderIntent } from "@/lib/oocSceneRender";
 import { syncMemoryEligibleTurnCount } from "./memory-reconcile";
 import { reconcileSharedEpisodicFactsForTurn } from "./memory-episodic-shared";
 import { buildMemoryContext } from "./memory-injector";
-import { trimLorebookToBudgetSync } from "./memory-lorebook-fit";
-import {
-  resolveGlobalCurrentMemory,
-  resolveLorebookFromRecordsSync,
-} from "./memory-lorebook-resolve";
-import { syncUserEditedLorebookToCanonicalRecords } from "./memory-lorebook-user-edit";
+import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
+import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
+import { rebuildLorebookFromRecords } from "./memory-turn-summary";
 import { isGeminiIsolationMode } from "@/lib/geminiIsolationMode";
 import { emptyMemoryInjection, isMemoryFeatureEnabled } from "./memory-feature";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
@@ -90,9 +87,7 @@ export function scheduleBackgroundLorebookMaintenance(opts: {
       let archiveCompressed = false;
       let recentCompressed = false;
 
-      const resolved = resolveGlobalCurrentMemory(opts.chatId, budget.lorebook, {
-        storedRecentSummary: recentSummary,
-      });
+      const rebuilt = rebuildLorebookFromRecords(opts.chatId).trim();
       if (lorebookMaintenanceDefer) {
         await lorebookMaintenanceDefer;
       }
@@ -105,9 +100,22 @@ export function scheduleBackgroundLorebookMaintenance(opts: {
       ) {
         return;
       }
-      if (resolved.text && resolved.text !== recentSummary) {
-        recentSummary = resolved.text;
-        recentCompressed = true;
+
+      if (rebuilt.length <= budget.lorebook) {
+        if (rebuilt && rebuilt !== recentSummary) {
+          recentSummary = rebuilt;
+          recentCompressed = true;
+        }
+      } else {
+        const compacted = await ensureLorebookWithinBudget(
+          rebuilt,
+          budget.lorebook,
+          opts.turnTrace
+        );
+        if (compacted.text && compacted.text !== recentSummary) {
+          recentSummary = compacted.text;
+          recentCompressed = true;
+        }
       }
 
       if (archiveSummary.length > budget.archive) {
@@ -251,7 +259,7 @@ export async function buildMemoryContextForChat(opts: {
       ? trimLorebookToBudgetSync(archiveSummary, budget.archive)
       : archiveSummary;
 
-  if (resolved.overBudget || archiveSummary.length > budget.archive) {
+  if (resolved.needsBackgroundCompact || archiveSummary.length > budget.archive) {
     scheduleBackgroundLorebookMaintenance({
       chatId: opts.chatId,
       userId: opts.userId,
@@ -260,7 +268,11 @@ export async function buildMemoryContextForChat(opts: {
       memoryCapacity: opts.memoryCapacity,
       turnTrace: opts.turnTrace,
     });
-  } else if (resolved.text && resolved.text !== memory.recent_summary?.trim()) {
+  } else if (
+    resolved.projectionKind === "exact" &&
+    resolved.text &&
+    resolved.text !== memory.recent_summary?.trim()
+  ) {
     updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
       recent_summary: resolved.text,
       membership_tier: opts.tier,
@@ -548,7 +560,7 @@ export function getMemorySnapshot(
   };
 }
 
-/** 유저가 패널에서 현재기억 본문을 직접 수정 — canonical records + mirror sync */
+/** 유저가 패널에서 Global Current Memory 본문을 직접 수정 — projection layer only */
 export async function updateLorebookForChat(
   chatId: number,
   userId: number,
@@ -561,18 +573,9 @@ export async function updateLorebookForChat(
     return getMemorySnapshot(chatId, userId, characterId, tier, memoryCapacity);
   }
   const budget = resolveMemoryBudgetFromCapacity(memoryCapacity).lorebook;
-  const fitted = trimLorebookToBudgetSync(lorebook, budget);
-  const db = getDb();
-  const playableTurnCount = countMemoryEligibleCompletedTurnsCore(db, chatId);
-  const synced = syncUserEditedLorebookToCanonicalRecords({
-    chatId,
-    lorebook: fitted,
-    playableTurnCount,
-  });
-  const mirror = resolveGlobalCurrentMemory(chatId, budget, { storedRecentSummary: fitted }).text;
+  const { text: fitted } = await ensureLorebookWithinBudget(lorebook, budget);
   updateChatMemory(chatId, userId, characterId, {
-    recent_summary: mirror || fitted,
-    summarized_turn_count: synced.summarizedTurnCount,
+    recent_summary: fitted,
     membership_tier: tier,
   });
   invalidateDerivedMemoryGeneration(chatId);

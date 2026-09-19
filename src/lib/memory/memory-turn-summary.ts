@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db";
+import { refreshGlobalMemoryMirrorFromRecords } from "./memory-global-projection";
 import {
   resolveRecordSpan,
 } from "./memory-summary-range";
@@ -236,6 +237,8 @@ export function updateMemoryRecordById(
     `UPDATE chat_turn_summaries SET summary=?, summary_kind='main_canon', user_edited=1, updated_at=datetime('now') WHERE id=?`
   ).run(text, recordId);
 
+  refreshGlobalMemoryMirrorFromRecords(chatId);
+
   const updated = db
     .prepare(`${selectSql()} WHERE id=?`)
     .get(recordId) as MemoryRecordRow;
@@ -251,6 +254,9 @@ export function markMemoryRecordInactive(chatId: number, recordId: number): bool
       `UPDATE chat_turn_summaries SET inactive=1, updated_at=datetime('now') WHERE id=? AND chat_id=?`
     )
     .run(recordId, chatId);
+  if (info.changes > 0) {
+    refreshGlobalMemoryMirrorFromRecords(chatId);
+  }
   return info.changes > 0;
 }
 
