@@ -1,4 +1,4 @@
-import { MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF } from "@/lib/corePrompt";
+import { MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF } from "@/lib/userNoteMandatoryRulesPolicy";
 
 /**
  * Authoritative auto-progression rules (single owner).

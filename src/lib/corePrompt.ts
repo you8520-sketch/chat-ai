@@ -2,6 +2,7 @@ import {
   AUTO_PROGRESSION_CORE_ROLE,
   AUTO_PROGRESSION_IDENTITY_PREAMBLE,
 } from "@/lib/autoProgressionRules";
+import { MANDATORY_RULES_PERSISTENT_CONSTRAINT_SEMANTIC } from "@/lib/userNoteMandatoryRulesPolicy";
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import type { CharacterGender } from "@/lib/characterGender";
 import type { ResolvedStatusWindow } from "@/lib/statusWindow";
@@ -135,14 +136,6 @@ export function buildClaudeOpusNarrativeForcingTail(): string {
 
 export const IDENTITY_PREAMBLE =
   "The following defines the USER's roleplay persona (the human player character — NOT the AI character you play). Obey [USER_PERSONA] for how the user character speaks and behaves when referenced.";
-
-/** Canonical persistent-constraint semantics — owned once in identity-and-rules / mandatory rules. */
-export const MANDATORY_RULES_PERSISTENT_CONSTRAINT_SEMANTIC =
-  "위 조건 중 명시적으로 고정·지속·금지된 항목은 User Note를 수정하기 전까지 현재 장면의 지속 제약으로 유지한다. history, memory, current scene, model inference는 그 제약 안에서 해석한다.";
-
-/** Compact cross-reference for mode-specific owners — do not duplicate full semantic body. */
-export const MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF =
-  "[MANDATORY_RULES]에 명시된 고정·지속·금지 조건은 본 권한 범위를 넘어서지 않는다.";
 
 function buildIdentityPreamble(opts: {
   impersonationOn: boolean;
