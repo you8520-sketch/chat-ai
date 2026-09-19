@@ -3,10 +3,13 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 
 import {
+  buildEpisodicCandidateScope,
   ensureEpisodicMemoryFactsTable,
   fetchEpisodicMemoryCandidatesForDebug,
   getEpisodicMemoryForPrompt,
   persistEpisodicMemoryFactsBestEffort,
+  reconcileGlobalStateLikeFacts,
+  resolveEpisodicLaneBudgets,
 } from "@/lib/episodicMemoryFacts";
 import type { ExtractedStatusFact } from "@/lib/statusWidget/types";
 
@@ -309,6 +312,188 @@ function insertDrinkPreferenceFixture(db: Database.Database): { t20Id: number; t
   ).id;
   return { t20Id, t140Id };
 }
+
+describe("STATE_RECONCILIATION guard closure", () => {
+  it("blocked latest T140 is not injected and stale T20 is not used as fallback", () => {
+    const db = createDb();
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 20, 'preference', 'user', 'favorite_drink', 'syrup_coffee', 'important',
+               '사용자는 커피에 시럽을 넣어 마신다.', '{}')`
+    ).run();
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 140, 'preference', 'user', 'favorite_drink', 'awakening_in_progress', 'normal',
+               '렌의 각성은 현재 진행 중이다.', '{}')`
+    ).run();
+    insertFillerFacts(db, 1, 21, 119);
+    insertFillerFacts(db, 1, 141, 140);
+
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 300, currentUserMessage: "커피" },
+      recallEnv
+    );
+
+    assert.doesNotMatch(recall.promptBlock, /각성은 현재 진행/);
+    assert.doesNotMatch(recall.promptBlock, /시럽을 넣어/);
+    assert.ok(
+      !recall.facts.some((f) => f.attribute === "favorite_drink"),
+      "logical key omitted when latest canonical row fails guards"
+    );
+  });
+});
+
+describe("BLOCKED-LATEST no-fallback", () => {
+  it("drops logical key when latest is guard-blocked even if older row was valid", () => {
+    const db = createDb();
+    const { t20Id, t140Id } = insertDrinkPreferenceFixture(db);
+    db.prepare(
+      `UPDATE episodic_memory_facts SET fact_text='렌의 각성은 현재 진행 중이다.', value='awakening_in_progress'
+       WHERE id=?`
+    ).run(t140Id);
+
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 300, currentUserMessage: "커피" },
+      recallEnv
+    );
+
+    assert.ok(!recall.facts.some((f) => f.id === t20Id), "must not fall back to older T20");
+    assert.ok(!recall.facts.some((f) => f.id === t140Id), "blocked latest must not inject");
+    assert.doesNotMatch(recall.promptBlock, /시럽|각성|블랙/);
+  });
+});
+
+describe("STATE reconcile query bound", () => {
+  it("single key with 500 versions returns at most 1 row per lookup", () => {
+    const db = createDb();
+    const insert = db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, ?, 'preference', 'user', 'favorite_drink', ?, 'normal', ?, '{}')`
+    );
+    for (let turn = 1; turn <= 500; turn++) {
+      insert.run(turn, `v${turn}`, `사용자는 음료 선호 버전 ${turn}번을 꾸준히 마셨다.`);
+    }
+
+    const scope = buildEpisodicCandidateScope(
+      db,
+      { chatId: 1, currentTurn: 510 },
+      recallEnv
+    );
+    assert.ok(scope);
+    const candidate = db
+      .prepare(
+        "SELECT * FROM episodic_memory_facts WHERE source_turn=20 AND chat_id=1"
+      )
+      .get() as { id: number; category: string; subject: string; attribute: string };
+
+    const { stats } = reconcileGlobalStateLikeFacts(db, scope!, [
+      {
+        ...candidate,
+        chat_id: 1,
+        character_id: null,
+        user_id: null,
+        source_user_message_id: null,
+        importance: "important",
+        metadata: "{}",
+        created_at: "",
+        fact_text: "사용자는 음료 선호 버전 20번을 꾸준히 마셨다.",
+        value: "v20",
+      },
+    ]);
+
+    assert.equal(stats.rowsFetched, 1);
+    assert.equal(stats.queryCount, 1);
+    assert.equal(stats.keysReconciled, 1);
+  });
+});
+
+describe("candidateLimit lane budget safety", () => {
+  const spotLimits = [1, 2, 3, 4, 5, 10, 100, 500];
+
+  for (const limit of spotLimits) {
+    it(`candidateLimit=${limit}: non-negative lane budgets sum <= limit`, () => {
+      const budgets = resolveEpisodicLaneBudgets(limit);
+      assert.ok(budgets.recent >= 0);
+      assert.ok(budgets.relevance >= 0);
+      assert.ok(budgets.milestoneCritical >= 0);
+      assert.ok(budgets.milestoneImportant >= 0);
+      assert.ok(budgets.milestoneCriticalFetch >= 0);
+      assert.ok(budgets.milestoneImportantFetch >= 0);
+      const sum = budgets.recent + budgets.relevance + budgets.milestoneCritical + budgets.milestoneImportant;
+      assert.ok(sum <= limit, `sum ${sum} <= ${limit}`);
+      if (limit >= 1) assert.ok(budgets.recent >= 1, "limit>=1 funds recent lane");
+    });
+  }
+
+  it("property: all candidateLimit 1..500 stay safe", () => {
+    for (let limit = 1; limit <= 500; limit++) {
+      const budgets = resolveEpisodicLaneBudgets(limit);
+      const sum =
+        budgets.recent + budgets.relevance + budgets.milestoneCritical + budgets.milestoneImportant;
+      assert.ok(budgets.recent >= 0);
+      assert.ok(budgets.relevance >= 0);
+      assert.ok(budgets.milestoneCritical >= 0);
+      assert.ok(budgets.milestoneImportant >= 0);
+      assert.ok(sum <= limit);
+    }
+  });
+});
+
+describe("candidateLimit=1 bounded recent lane", () => {
+  it("returns exactly one recent row from hundreds in DB", () => {
+    const db = createDb();
+    insertFillerFacts(db, 1, 1, 400);
+
+    const { rows, stats } = fetchEpisodicMemoryCandidatesForDebug(
+      db,
+      { chatId: 1, currentTurn: 410, candidateLimit: 1 },
+      recallEnv
+    );
+
+    assert.equal(stats.laneCounts.recent, 1);
+    assert.ok(rows.length <= 1);
+    assert.equal(rows.length, 1);
+  });
+});
+
+describe("STATE reconcile key cap", () => {
+  it("drops unreconciled state keys beyond max key cap", () => {
+    const db = createDb();
+    const insert = db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, ?, 'preference', ?, 'favorite_drink', ?, 'important', ?, '{}')`
+    );
+    const candidates = [];
+    for (let i = 1; i <= 30; i++) {
+      insert.run(i, `user_${i}`, `drink_${i}`, `사용자 ${i}는 음료 ${i}번을 꾸준히 좋아한다.`);
+      candidates.push(
+        db.prepare("SELECT * FROM episodic_memory_facts WHERE source_turn=?").get(i)
+      );
+    }
+
+    const scope = buildEpisodicCandidateScope(db, { chatId: 1, currentTurn: 40 }, recallEnv);
+    assert.ok(scope);
+    const { rows, stats } = reconcileGlobalStateLikeFacts(
+      db,
+      scope!,
+      candidates as never[]
+    );
+
+    assert.equal(stats.keysDiscovered, 30);
+    assert.ok(stats.keysDroppedDueToCap >= 5);
+    assert.ok(stats.keysReconciled <= 25);
+    assert.ok(
+      !rows.some((r) => r.subject === "user_30"),
+      "unreconciled stale state key must not pass through"
+    );
+  });
+});
 
 describe("STALE STATE resurrection — indirect query", () => {
   it("must not inject T20 syrup as current truth when T140 black exists (message: 뭐 마실래?)", () => {
