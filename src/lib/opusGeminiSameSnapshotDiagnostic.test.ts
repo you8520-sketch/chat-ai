@@ -65,17 +65,16 @@ describe("same-snapshot Opus vs Gemini diagnostic", () => {
     assert.deepEqual(report.opus.outputConfig, { effort: "low" });
     assert.equal(report.opus.reasoningEffort, "low");
     assert.equal(report.opus.payload.hasAssistantPrefill, false);
-    // CI Opus: 2 system cache blocks + 1 history breakpoint. Gemini keeps system only.
-    assert.ok(
-      report.opus.payload.cacheControlBlocks >= 3,
-      `opus cache blocks ${report.opus.payload.cacheControlBlocks}`
-    );
+    // CI Opus: 2 system cache blocks only (history uncached — sliding RAW suffix).
     assert.ok(report.gemini.payload.cacheControlBlocks >= 2);
-    assert.equal(report.opus.payload.cacheControlBlocks, 3);
-    assert.ok(report.opus.payload.cacheControlBlocks > report.gemini.payload.cacheControlBlocks);
+    assert.equal(report.opus.payload.cacheControlBlocks, 2);
+    assert.equal(
+      report.opus.payload.cacheControlBlocks,
+      report.gemini.payload.cacheControlBlocks
+    );
   });
 
-  it("CI Opus history cache_control is a single block and survives a second overlay", () => {
+  it("CI Opus has no history cache_control; system blocks survive a second overlay", () => {
     const snapshot = buildLikeScaleSnapshot();
     const built = buildContext({
       ...snapshot,
@@ -122,10 +121,9 @@ describe("same-snapshot Opus vs Gemini diagnostic", () => {
 
     const a = inspect(first);
     const b = inspect(second);
-    assert.equal(a.total, 3);
+    assert.equal(a.total, 2);
     assert.equal(a.system, 2);
-    assert.equal(a.historyCachedMessages.length, 1);
-    assert.equal(a.historyCachedMessages[0]?.n, 1);
+    assert.equal(a.historyCachedMessages.length, 0);
     assert.deepEqual(b, a);
   });
 });

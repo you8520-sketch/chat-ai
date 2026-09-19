@@ -13,7 +13,10 @@ export type OpenRouterSystemSplit = {
 
 export const ANTHROPIC_EPHEMERAL_CACHE = { type: "ephemeral" as const };
 
-/** 히스토리 캐시 breakpoint — 마지막 user 직전 N개 메시지는 비캐시 tail (2~3턴 분량) */
+/**
+ * Legacy history cache tail exclude — diagnostic / test-only.
+ * Main RP no longer emits history cache_control (bounded sliding RAW suffix).
+ */
 export const HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES = 3;
 
 /** OpenRouter Anthropic — 단일 텍스트 → cache_control 블록 배열 */
@@ -30,9 +33,10 @@ export function wrapTextAsCachedContentBlock(text: string): OpenRouterContentBlo
 }
 
 /**
- * History cache breakpoint — messages[0]=system.
- * Marks the last message of the *stable* past block; latest HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES
- * before the final user turn stay uncached so minor tail edits don't bust the long prefix.
+ * Legacy history cache breakpoint resolver — diagnostic / test-only.
+ * Main RP wire no longer applies cache_control at this index (sliding RAW suffix).
+ * Kept to prove structural conflict: index resolves on assembled messages but caching it
+ * would write a prefix that the next shifted-head turn cannot reuse.
  */
 export function resolveHistoryCacheBreakpointIndex(messages: { role: string }[]): number | null {
   if (messages.length < 3) return null;
