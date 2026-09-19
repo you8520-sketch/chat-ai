@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-19T08:13:54.939Z",
+  "generatedAt": "2026-09-19T08:14:58.745Z",
   "audit": "gemini-37-prefix-cache-eligibility-offline",
   "fixture": "gemini-37-flash-growing-history T1-T3 (canned assistant from t*-raw.txt)",
   "thresholdTokens": 4096,
@@ -117,7 +117,7 @@
         "totalPromptTokensB": 13966
       }
     ],
-    "stablePrefixBeforeBreakTokens": 5625,
+    "stablePrefixBeforeBreakTokens": 7592,
     "firstVolatileBreakOwner": "history-message-1:user",
     "firstVolatileBreakLabel": null,
     "firstDifferingMessageIndexT1T2": 1,
@@ -238,7 +238,7 @@
         "totalPromptTokensB": 13966
       }
     ],
-    "stablePrefixBeforeBreakTokens": 5625,
+    "stablePrefixBeforeBreakTokens": 7592,
     "firstVolatileBreakOwner": "history-message-1:user",
     "firstVolatileBreakLabel": null,
     "firstDifferingMessageIndexT1T2": 1,

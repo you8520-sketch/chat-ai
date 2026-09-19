@@ -336,7 +336,7 @@ function analyzeMode(geminiStaticDynamicMode: boolean) {
       staticEstimatedTokens: t.staticSplit?.staticEstimatedTokens ?? null,
     })),
     pairMetrics,
-    stablePrefixBeforeBreakTokens: stableSystemPrefixTokens(turns[1]!.trackedSections),
+    stablePrefixBeforeBreakTokens: stablePrefixTokens,
     firstVolatileBreakOwner:
       t2Pair.firstDifferingSection.id ??
       (t2Pair.firstDifferingMessageIndex >= 0
