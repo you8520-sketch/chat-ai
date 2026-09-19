@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -59,17 +58,6 @@ import { assertNoInternalEconomics } from "@/lib/publicUsageEconomicsBoundary";
 import type { Usage } from "@/lib/chatUsage";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
-
-const PRODUCTION_BILLING_PATH_PREFIXES = [
-  "src/app/api/chat/route.ts",
-  "src/lib/points.ts",
-  "src/lib/pointsReasoningMargins.ts",
-  "src/lib/pointsMuse60.ts",
-  "src/lib/chatBillingSettlement.ts",
-  "src/lib/publishedUserCharge.ts",
-  "src/lib/exchangeRate.ts",
-  "src/lib/billingFxPolicy.ts",
-];
 
 const FORBIDDEN_AUDIT_IMPORTS = [
   "deductPoints",
