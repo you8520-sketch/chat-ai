@@ -48,10 +48,10 @@ test("GPT-5.6 Luna uses the Cheaper Inference catalog rates", () => {
 
 test("GPT-5.6 Terra uses the Cheaper Inference catalog rates", () => {
   const rates = resolveOpenRouterModelRates("gpt-5.6-terra");
-  assert.equal(rates.inputUsdPerM, 2.5);
-  assert.equal(rates.cacheReadUsdPerM, 0.25);
-  assert.equal(rates.cacheWriteUsdPerM, 2.5);
-  assert.equal(rates.outputUsdPerM, 15);
+  assert.equal(rates.inputUsdPerM, 2);
+  assert.equal(rates.cacheReadUsdPerM, 0.2);
+  assert.equal(rates.cacheWriteUsdPerM, 2);
+  assert.equal(rates.outputUsdPerM, 12);
 });
 
 test("DeepSeek V4 Pro uses the Cheaper Inference catalog rates", () => {
@@ -87,13 +87,13 @@ test("Gemini 3.1 Pro uses fallback rates and accepts live refreshes", () => {
   clearCheaperInferenceCatalogPricingForTest();
 });
 
-test("Gemini 3.7 Flash uses the site-stated Cheaper Inference rates", () => {
+test("Gemini 3.7 Flash uses the current Cheaper Inference fallback rates", () => {
   clearCheaperInferenceCatalogPricingForTest();
   const rates = resolveOpenRouterModelRates("gemini-3.7-flash");
-  assert.equal(rates.inputUsdPerM, 0.53);
-  assert.equal(rates.cacheReadUsdPerM, 0.02625);
-  assert.equal(rates.cacheWriteUsdPerM, 0.017708);
-  assert.equal(rates.outputUsdPerM, 2.63);
+  assert.equal(rates.inputUsdPerM, 0.525);
+  assert.equal(rates.cacheReadUsdPerM, 0.0525);
+  assert.equal(rates.cacheWriteUsdPerM, 0.525);
+  assert.equal(rates.outputUsdPerM, 2.625);
   clearCheaperInferenceCatalogPricingForTest();
 });
 
