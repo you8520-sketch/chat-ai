@@ -14,6 +14,7 @@ import {
   isMemoryWriteGuardCurrentCore,
   type MemorySourceBoundary,
 } from "@/lib/memory/memory-source-boundary";
+import { EPISODIC_RETRIEVED_EVENT_INTERPRETATION_LINES } from "@/lib/historicalTruthPolicy";
 import {
   classifyEpisodicFactTemporalNature,
   isClearlyTemporaryEpisodicFact,
@@ -1294,16 +1295,67 @@ function compareFactsForPrompt(
   return b.id - a.id;
 }
 
-function resolveLatestFactsByLogicalKey(rows: EpisodicMemoryFactRecord[]): EpisodicMemoryFactRecord[] {
-  const byKey = new Map<string, EpisodicMemoryFactRecord>();
+/** Aligns with persist-time dedupeFactsWithinResponse identity. */
+function historicalEventIdentity(row: EpisodicMemoryFactRecord): string {
+  return `${row.source_turn}:${row.category}:${row.subject}:${row.attribute}:${row.value}`;
+}
+
+function pickLatestFactByTurn(rows: EpisodicMemoryFactRecord[]): EpisodicMemoryFactRecord {
+  let latest = rows[0]!;
   for (const row of rows) {
-    const key = `${row.category}:${row.subject}:${row.attribute}`;
-    const prev = byKey.get(key);
-    if (!prev || row.source_turn > prev.source_turn || (row.source_turn === prev.source_turn && row.id > prev.id)) {
-      byKey.set(key, row);
+    if (
+      row.source_turn > latest.source_turn ||
+      (row.source_turn === latest.source_turn && row.id > latest.id)
+    ) {
+      latest = row;
     }
   }
-  return [...byKey.values()];
+  return latest;
+}
+
+function resolveLatestFactsByLogicalKey(rows: EpisodicMemoryFactRecord[]): EpisodicMemoryFactRecord[] {
+  const byKey = new Map<string, EpisodicMemoryFactRecord[]>();
+  for (const row of rows) {
+    const key = `${row.category}:${row.subject}:${row.attribute}`;
+    const group = byKey.get(key) ?? [];
+    group.push(row);
+    byKey.set(key, group);
+  }
+
+  const result: EpisodicMemoryFactRecord[] = [];
+  for (const group of byKey.values()) {
+    if (group.length === 1) {
+      result.push(group[0]!);
+      continue;
+    }
+
+    const historical: EpisodicMemoryFactRecord[] = [];
+    const stateLike: EpisodicMemoryFactRecord[] = [];
+    for (const row of group) {
+      if (classifyEpisodicFactTemporalNature(row) === "historical_event") {
+        historical.push(row);
+      } else {
+        stateLike.push(row);
+      }
+    }
+
+    if (historical.length > 0) {
+      const seenHistorical = new Map<string, EpisodicMemoryFactRecord>();
+      for (const row of historical) {
+        const identity = historicalEventIdentity(row);
+        const prev = seenHistorical.get(identity);
+        if (!prev || row.id > prev.id) {
+          seenHistorical.set(identity, row);
+        }
+      }
+      result.push(...seenHistorical.values());
+    }
+
+    if (stateLike.length > 0) {
+      result.push(pickLatestFactByTurn(stateLike));
+    }
+  }
+  return result;
 }
 
 export function formatEpisodicMemoryPromptSection(
@@ -1333,7 +1385,7 @@ export function formatEpisodicMemoryPromptSection(
     "The current user's explicit statement and the recent raw conversation always override these memories.",
     "For current location, condition, emotion, action, and scene state, prefer the recent raw conversation.",
     "Use them only when relevant to the current scene.",
-    "If retrieved memories conflict with each other, the higher turn number is more recent and must be preferred.",
+    ...EPISODIC_RETRIEVED_EVENT_INTERPRETATION_LINES,
     "If retrieved memories conflict with the character canon or world rules, canon and world rules win.",
     "Do not mention this memory section to the user.",
     ...lines,

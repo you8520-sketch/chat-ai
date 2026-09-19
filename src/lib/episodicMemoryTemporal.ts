@@ -43,7 +43,17 @@ type TemporalFactInput = {
   attribute?: string | null;
   value?: string | null;
   fact_text?: string | null;
+  evidence_type?: string | null;
 };
+
+/** Completed scene events — distinct source turns must not collapse under latest-wins. */
+export const COMPLETED_SCENE_EVENT_ATTRIBUTES = new Set<string>([
+  "action",
+  "response",
+  "scene_event",
+  "encounter_event",
+  "role_direction",
+]);
 
 /**
  * Completed past event / transition narrative — preserve even if attribute is
@@ -108,6 +118,16 @@ export function classifyEpisodicFactTemporalNature(
   }
 
   if (looksLikeCompletedHistoricalEvent(factText)) return "historical_event";
+
+  const evidenceType = String(fact.evidence_type ?? "")
+    .trim()
+    .toLowerCase();
+  if (
+    evidenceType === "explicit_scene_event" &&
+    COMPLETED_SCENE_EVENT_ATTRIBUTES.has(attribute)
+  ) {
+    return "historical_event";
+  }
 
   if (category === "preference" || category === "rule" || category === "quest") {
     return "durable";

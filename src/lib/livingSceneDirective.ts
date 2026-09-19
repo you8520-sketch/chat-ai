@@ -7,7 +7,6 @@
 
 import type { ChatMsg } from "@/lib/ai";
 import { AUTO_PROGRESSION_SCENE_USER_CONTROL } from "@/lib/autoProgressionRules";
-import { NO_FALSE_SHARED_MEMORY_RULE } from "@/lib/noGodmodding";
 import type {
   SceneDirectiveMode,
   SceneUserControl,
@@ -519,7 +518,6 @@ export function renderLivingSceneDirectiveForPrompt(
     directive.mode === "auto_progression"
       ? "다인물 대화·판단·갈등·협력. [B] 내면 시점 금지."
       : "",
-    directive.mode === "auto_progression" ? NO_FALSE_SHARED_MEMORY_RULE : "",
     "트리거 우선. 별도 사건 금지.",
   ]
     .filter(Boolean)

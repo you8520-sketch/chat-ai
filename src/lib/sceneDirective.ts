@@ -1,6 +1,5 @@
 import type { ChatMsg } from "@/lib/ai";
 import { AUTO_PROGRESSION_SCENE_USER_CONTROL } from "@/lib/autoProgressionRules";
-import { NO_FALSE_SHARED_MEMORY_RULE } from "@/lib/noGodmodding";
 import type { SceneProgressionHistoryEntry } from "@/lib/sceneProgressionState";
 import type { ContentKind } from "@/lib/simulationMode";
 
@@ -1295,7 +1294,6 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
     primaryFocusLine ?? "",
     `유저 조종: ${USER_CONTROL_LABELS[directive.userControl]}`,
     directive.mode === "auto_progression" ? AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE : "",
-    directive.mode === "auto_progression" ? NO_FALSE_SHARED_MEMORY_RULE : "",
     "트리거된 사건 지시가 있으면 이번 턴 장면 지시보다 우선한다.",
   ]
     .filter(Boolean)

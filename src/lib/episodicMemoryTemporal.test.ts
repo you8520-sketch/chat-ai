@@ -148,6 +148,19 @@ describe("classifyEpisodicFactTemporalNature", () => {
     }
   });
 
+  it("marks explicit_scene_event scene_event with completed morphology as historical_event", () => {
+    assert.equal(
+      classifyEpisodicFactTemporalNature({
+        category: "relationship",
+        attribute: "scene_event",
+        value: "a_led_b",
+        fact_text: "그 장면에서 A가 B에게 구체적인 지시를 내렸고 B가 이를 따랐다.",
+        evidence_type: "explicit_scene_event",
+      }),
+      "historical_event"
+    );
+  });
+
   it("marks preference facts as durable and unknown otherwise", () => {
     assert.equal(
       classifyEpisodicFactTemporalNature({
