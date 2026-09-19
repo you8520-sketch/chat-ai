@@ -7,6 +7,11 @@ const reportToolbarBtn =
   "flex h-8 w-8 items-center justify-center rounded-lg text-rose-400/90 transition hover:bg-white/[0.08] hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-30";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { AUTO_REFUND_DAILY_LIMIT } from "@/lib/reportRefundPolicy";
+import {
+  REPORT_REFUND_UI_CATEGORIES,
+  REPORT_REFUND_CATEGORY_LABELS,
+  type ReportRefundUiCategory,
+} from "@/lib/reportRefundCategories";
 
 export type ReportRefundSubmitResult = {
   status: "pending" | "approved";
@@ -34,15 +39,16 @@ export default function ReportRefundButton({
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [category, setCategory] = useState<ReportRefundUiCategory | null>(null);
 
-  async function submitReport() {
+  async function submitReport(selectedCategory: ReportRefundUiCategory) {
     if (busy || isRefunded || isReportPending || disabled || messageId <= 0 || chatId <= 0) return;
     setBusy(true);
     try {
       const res = await fetch("/api/chat/report-refund", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageId, chatId }),
+        body: JSON.stringify({ messageId, chatId, category: selectedCategory }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -86,12 +92,44 @@ export default function ReportRefundButton({
         <ConfirmDialog
           open
           title="오류 신고"
-          message={`해당 AI 응답에 오류(짧은 출력·중복·비정상 등)가 있나요? 확인되면 하루 ${AUTO_REFUND_DAILY_LIMIT}회까지 자동 환불됩니다. 한도를 넘기면 관리자 확인 후 환불 여부가 결정됩니다.`}
+          message={
+            <div className="space-y-3 text-left text-sm text-zinc-300">
+              <p>
+                해당 AI 응답의 문제 유형을 선택해 주세요. 서버에서 확인되면 하루 {AUTO_REFUND_DAILY_LIMIT}회까지
+                자동 환불됩니다. 한도를 넘기면 관리자 확인 후 환불 여부가 결정됩니다.
+              </p>
+              <fieldset className="space-y-1.5">
+                <legend className="mb-1 text-xs font-medium text-zinc-400">문제 유형</legend>
+                {REPORT_REFUND_UI_CATEGORIES.map((value) => (
+                  <label
+                    key={value}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 hover:bg-white/5"
+                  >
+                    <input
+                      type="radio"
+                      name={`report-category-${messageId}`}
+                      value={value}
+                      checked={category === value}
+                      onChange={() => setCategory(value)}
+                      className="accent-rose-400"
+                    />
+                    <span>{REPORT_REFUND_CATEGORY_LABELS[value]}</span>
+                  </label>
+                ))}
+              </fieldset>
+            </div>
+          }
           confirmLabel="신고하기"
-          onCancel={() => setConfirmOpen(false)}
-          onConfirm={() => {
+          confirmDisabled={category == null}
+          onCancel={() => {
             setConfirmOpen(false);
-            void submitReport();
+            setCategory(null);
+          }}
+          onConfirm={() => {
+            if (!category) return;
+            setConfirmOpen(false);
+            void submitReport(category);
+            setCategory(null);
           }}
         />
       )}

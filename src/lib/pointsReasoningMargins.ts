@@ -27,6 +27,15 @@ import {
 } from "./chatModels";
 import { getEffectiveKrwPerUsd } from "./exchangeRate";
 import { resolveCheaperInferenceCatalogPricing } from "./cheaperInferenceCatalogPricing";
+import {
+  applySitePromotionToCharge,
+  type SitePromotionChargeAdjustment,
+} from "./sitePromotionPolicy";
+import {
+  buildSitePromotionSnapshot,
+  resolveActiveSitePromotion,
+  type SitePromotionSnapshot,
+} from "./sitePromotion";
 import * as core from "./pointsMuse60";
 
 /** Standard, non-cache OpenRouter prices per 1M tokens. */
@@ -218,40 +227,36 @@ function withLiveCheaperInferenceCatalogPricing(
   };
 }
 
+/**
+ * Normal user base charge rates.
+ * CI current/effective catalog = normal procurement cost → target gross margin.
+ * CI reference/discountPercent are not site promotions (no badge/receipt row).
+ * Priority: authoritative upstream billed cost → live CI catalog → baked-in fallback.
+ */
 function resolveReasoningTokenPricing(modelId: string): ReasoningTokenPricing | null {
   if (isCheaperInferenceClaudeOpus5Model(modelId)) {
     return CHEAPER_INFERENCE_CLAUDE_OPUS_5_PRICING;
   }
   if (isMuseModel(modelId)) return MUSE_PRICING;
   if (isCheaperInferenceDeepSeekV4ProModel(modelId)) {
-    return withLiveCheaperInferenceCatalogPricing(
-      CHEAPER_INFERENCE_DEEPSEEK_PRICING
-    );
+    return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_DEEPSEEK_PRICING);
   }
   if (isCheaperInferenceDeepSeekV4FlashModel(modelId)) {
-    return withLiveCheaperInferenceCatalogPricing(
-      CHEAPER_INFERENCE_DEEPSEEK_FLASH_PRICING
-    );
+    return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_DEEPSEEK_FLASH_PRICING);
   }
   if (isDeepSeekV4ProModel(modelId)) return DEEPSEEK_PRICING;
   if (isGemini36FlashModel(modelId)) return GEMINI_36_PRICING;
   if (isGpt56TerraModel(modelId)) {
-    return withLiveCheaperInferenceCatalogPricing(
-      CHEAPER_INFERENCE_TERRA_PRICING
-    );
+    return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_TERRA_PRICING);
   }
   if (isGpt56LunaModel(modelId)) {
     return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_LUNA_PRICING);
   }
   if (isCheaperInferenceGemini31ProModel(modelId)) {
-    return withLiveCheaperInferenceCatalogPricing(
-      CHEAPER_INFERENCE_GEMINI_31_PRO_PRICING
-    );
+    return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_GEMINI_31_PRO_PRICING);
   }
   if (isCheaperInferenceQwen38MaxModel(modelId)) {
-    return withLiveCheaperInferenceCatalogPricing(
-      CHEAPER_INFERENCE_QWEN_38_MAX_PRICING
-    );
+    return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_QWEN_38_MAX_PRICING);
   }
   return null;
 }
@@ -364,7 +369,7 @@ const MARKET_PREVIEW_DIRECT_RATES: Record<
 /**
  * Stable model-picker estimate for market-priced CheaperInference models.
  * discount=0.15 is the fixed midpoint; 0.30/0 are the stable low/high bounds.
- * Actual turn billing continues to use the live authenticated catalog snapshot.
+ * Actual turn billing uses live CI current rates (or upstream cost when reported).
  */
 export function computeCheaperInferenceMarketPreviewCost(
   inputTokens: number,
@@ -529,9 +534,34 @@ export function explainOpenRouterGeminiTurnCost(
   return reasoningCostBreakdown(modelId, inputTokens, outputTokens, 0);
 }
 
+export type TurnBillingSitePromotion = SitePromotionSnapshot;
+
+function applySitePromotionToTurnBilling(
+  modelId: string,
+  baseCost: number
+): {
+  total: number;
+  sitePromotion?: TurnBillingSitePromotion;
+} {
+  const promo = resolveActiveSitePromotion(modelId);
+  if (!promo || baseCost <= 0) {
+    return { total: baseCost };
+  }
+  const adjustment: SitePromotionChargeAdjustment = applySitePromotionToCharge(
+    baseCost,
+    promo.siteDiscountPercent
+  );
+  return {
+    total: adjustment.finalChargePoints,
+    sitePromotion: buildSitePromotionSnapshot(adjustment, promo),
+  };
+}
+
 export function computeOpenRouterTurnBilling(
   opts: Parameters<typeof core.computeOpenRouterTurnBilling>[0]
-): ReturnType<typeof core.computeOpenRouterTurnBilling> {
+): ReturnType<typeof core.computeOpenRouterTurnBilling> & {
+  sitePromotion?: TurnBillingSitePromotion;
+} {
   if (!isUnifiedReasoningTokenModel(opts.modelId)) {
     return core.computeOpenRouterTurnBilling(opts);
   }
@@ -557,8 +587,7 @@ export function computeOpenRouterTurnBilling(
   const baseCost =
     upstreamCostUsd != null && rates
       ? ceilFractional(
-          (upstreamCostUsd * rates.effectiveKrwPerUsd) /
-            (1 - rates.grossMargin)
+          (upstreamCostUsd * rates.effectiveKrwPerUsd) / (1 - rates.grossMargin)
         )
       : computeReasoningPointCost(
           opts.modelId,
@@ -568,19 +597,21 @@ export function computeOpenRouterTurnBilling(
           cacheReadTokens,
           cacheWriteTokens
         ).total;
+  const promoted = applySitePromotionToTurnBilling(opts.modelId, baseCost);
 
   return {
     modelId: opts.modelId,
     baseCost,
     contextSurcharge: 0,
     multiplier: 1,
-    total: baseCost,
+    total: promoted.total,
     cacheReadTokens,
     cacheWriteTokens,
     standardInputTokens: Math.max(
       0,
       billedInputTokens - cacheReadTokens - cacheWriteTokens
     ),
+    ...(promoted.sitePromotion ? { sitePromotion: promoted.sitePromotion } : {}),
   };
 }
 

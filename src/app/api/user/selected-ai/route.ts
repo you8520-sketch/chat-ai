@@ -5,9 +5,11 @@ import { isAdminUser } from "@/lib/isAdminUser";
 import {
   isUserSelectableAI,
   isValidSelectedAI,
+  MAIN_RP_MODEL_IDS,
   selectedAILabel,
   type SelectedAI,
 } from "@/lib/chatModels";
+import { resolveActiveSitePromotionsForModels } from "@/lib/sitePromotion";
 import {
   consumeSelectedAiEntryNotice,
   getUserChatSelectedAI,
@@ -39,18 +41,30 @@ export async function GET(req: Request) {
       isFirstChatVisitEver: chatCount <= 1,
       isAdmin,
     });
+    const activeSitePromotions = resolveActiveSitePromotionsForModels(
+      MAIN_RP_MODEL_IDS,
+      new Date().toISOString(),
+      selectedAILabel
+    );
     return Response.json({
       selectedAI,
       label: selectedAILabel(selectedAI),
       notice,
       noticeKind: kind,
+      activeSitePromotions,
     });
   }
 
   const selectedAI = getUserChatSelectedAI(db, user.id);
+  const activeSitePromotions = resolveActiveSitePromotionsForModels(
+    MAIN_RP_MODEL_IDS,
+    new Date().toISOString(),
+    selectedAILabel
+  );
   return Response.json({
     selectedAI,
     label: selectedAILabel(selectedAI),
+    activeSitePromotions,
   });
 }
 

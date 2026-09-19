@@ -23,6 +23,7 @@ import { ensureCharacterClicksTable } from "@/lib/characterClicks";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import { inferAdultStatusFromLegacyText } from "@/lib/adultSceneRouting";
 import { ensureRpNumericStateTables } from "@/lib/rpNumericState/persistence";
+import { ensureSitePromotionSchema } from "@/lib/sitePromotionSchema";
 import { ensureTrpgTables } from "@/lib/trpg/schema";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
 import { dropLastCompressedAtColumnOnce } from "@/lib/memory/last-compressed-at-column-retirement";
@@ -809,6 +810,8 @@ function migrate(db: Database.Database) {
   addColumn("report_refunds", "receipt_snapshot", "TEXT NOT NULL DEFAULT ''");
   addColumn("report_refunds", "auto_refund", "INTEGER NOT NULL DEFAULT 0");
   addColumn("report_refunds", "error_reasons", "TEXT NOT NULL DEFAULT ''");
+  addColumn("report_refunds", "report_category", "TEXT NOT NULL DEFAULT ''");
+  ensureSitePromotionSchema(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_personas (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -4218,6 +4218,7 @@ export async function POST(req: Request) {
           uncappedChargePoints?: number;
           coldStartCostFloorPoints?: number;
           gemini37FlashPricing?: Gemini37FlashPricingBreakdown;
+          sitePromotion?: Usage["sitePromotion"];
         };
 
         if (htmlFlashOnlyTurn) {
@@ -4752,6 +4753,7 @@ export async function POST(req: Request) {
           selectedAI: receiptFields.selectedAI,
           cost,
           baseCost: mainBillingCost,
+          ...(billing.sitePromotion ? { sitePromotion: billing.sitePromotion } : {}),
           modelLabel: usageModelLabel,
           estimated:
             htmlFlashOnlyTurn

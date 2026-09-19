@@ -907,7 +907,12 @@ describe("refund report-path boundaries — fail-closed, no silent mint", () => 
     const graph = createRefundMessageGraph("noslice", { slices: null, cost: 200 });
     try {
       const txBefore = userLots(graph.user.id).length;
-      const result = processReportRefund(graph.user.id, graph.messageId, graph.chatId);
+      const result = processReportRefund(
+        graph.user.id,
+        graph.messageId,
+        graph.chatId,
+        "incomplete_output"
+      );
       assert.equal(result.status, "pending", "fail-closed to manual review, not auto-approved");
       assert.equal(userLots(graph.user.id).length, txBefore, "no lot minted by the report path");
       assert.equal(getPointBalance(graph.user.id).total, 0);
@@ -929,17 +934,18 @@ describe("refund report-path boundaries — fail-closed, no silent mint", () => 
     const chatId = Number(chatRow.lastInsertRowid);
     const msgRow = db
       .prepare(
-        "INSERT INTO messages (chat_id, role, content, status, usage, deduction_slices) VALUES (?, 'assistant', ?, 'error', ?, ?)"
+        `INSERT INTO messages (chat_id, role, content, status, generation_status, usage, deduction_slices)
+         VALUES (?, 'assistant', ?, 'error', 'interrupted', ?, ?)`
       )
       .run(chatId, "x", JSON.stringify({ cost: 200 }), JSON.stringify(deducted.slices));
     const messageId = Number(msgRow.lastInsertRowid);
     try {
-      const first = processReportRefund(graphUser.id, messageId, chatId);
+      const first = processReportRefund(graphUser.id, messageId, chatId, "incomplete_output");
       assert.equal(first.status, "approved", "first error report auto-approves with intact slices");
       const txAfterFirst = userLots(graphUser.id).length;
       const balanceAfterFirst = getPointBalance(graphUser.id).total;
 
-      const second = processReportRefund(graphUser.id, messageId, chatId);
+      const second = processReportRefund(graphUser.id, messageId, chatId, "incomplete_output");
       assert.equal(second.status, "rejected", "double refund rejected by existing guards");
       assert.equal(userLots(graphUser.id).length, txAfterFirst, "no lots created by the second call");
       assert.equal(getPointBalance(graphUser.id).total, balanceAfterFirst, "balance unchanged");
