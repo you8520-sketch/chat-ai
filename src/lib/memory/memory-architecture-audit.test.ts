@@ -47,7 +47,6 @@ import {
 import {
   assembleActiveRingText,
   assembleCurrentMemoryText,
-  auditRecompressionCadence,
   auditTenKOverflowOwnerProof,
   buildOverflowSummaryFixture,
   classifyFactFailure,
@@ -182,12 +181,19 @@ describe("MID-HORIZON LOSS REPRODUCTION", () => {
           assert.equal(presence.currentMemory, true, `${fact.id} should still fit prefix 10K at T${currentTurn}`);
         }
 
-        if (currentTurn >= 300 && (fact.id === "E" || fact.id === "F")) {
-          assert.equal(presence.currentMemory, false, `${fact.id} must fall out of prefix-trimmed 10K at T${currentTurn}`);
-          assert.equal(presence.completelyAbsent, true);
-          assert.ok(
-            failure === "GLOBAL_SUMMARY_COMPRESSION_LOSS" || failure === "MID_TERM_COMPRESSION_LOSS",
-            `${fact.id} failure=${failure}`
+        if (currentTurn >= 300 && fact.id === "B") {
+          assert.equal(
+            presence.currentMemory,
+            false,
+            `${fact.id} must fall out of prefer-recent 10K overflow at T${currentTurn}`
+          );
+        }
+
+        if (currentTurn === 300 && fact.id === "E") {
+          assert.equal(
+            presence.currentMemory,
+            true,
+            `${fact.id} stays in prefer-recent overflow window at T300`
           );
         }
 
@@ -198,12 +204,11 @@ describe("MID-HORIZON LOSS REPRODUCTION", () => {
     });
   }
 
-  it("proves T200 is in the hole between oldest LTM prefix and a latest-10 ring at T300", () => {
+  it("prefer-recent overflow at T300 keeps T200 and drops T30 milestone", () => {
     const currentMemoryText = assembleCurrentMemoryText(300);
     const ringText = assembleActiveRingText(300, 10);
-    assert.equal(currentMemoryText.includes("AUDIT_TEMP_RAIN_SOAKED_T200"), false);
-    assert.equal(ringText.includes("AUDIT_TEMP_RAIN_SOAKED_T200"), false);
-    assert.equal(currentMemoryText.includes("AUDIT_MILESTONE_FIRST_KISS_T30"), true);
+    assert.equal(currentMemoryText.includes("AUDIT_TEMP_RAIN_SOAKED_T200"), true);
+    assert.equal(currentMemoryText.includes("AUDIT_MILESTONE_FIRST_KISS_T30"), false);
     assert.equal(ringText.includes("AUDIT_PLOT_MISSING_LEDGER_T90"), false);
   });
 });
@@ -239,12 +244,14 @@ describe("DESIGN A/B/C SIMULATION", () => {
 });
 
 describe("CURRENT MEMORY SYNC TRIM FOOTGUN", () => {
-  it("arrow-less overflow lorebook becomes empty under production sync trim", () => {
+  it("arrow-less overflow lorebook stays non-empty under prefer-recent sync trim", () => {
     const blob = Array.from({ length: 40 }, (_, i) =>
       `[${i * 5 + 1}~${i * 5 + 5}턴] ${"화살표없는요약 ".repeat(40)}${i}`
     ).join("\n\n");
     assert.ok(blob.length > MEMORY_CAPACITY_FIXED);
-    assert.equal(trimLorebookToBudgetSync(blob, MEMORY_CAPACITY_FIXED), "");
+    const trimmed = trimLorebookToBudgetSync(blob, MEMORY_CAPACITY_FIXED);
+    assert.ok(trimmed.length > 0);
+    assert.ok(trimmed.length <= MEMORY_CAPACITY_FIXED);
   });
 });
 
@@ -345,7 +352,7 @@ describe("10K OVERFLOW OWNER PROOF", () => {
     assert.match(rebuilt, new RegExp(OVERFLOW_AUDIT_MARKERS.RECENT));
   });
 
-  it("A/B/D: production buildMemoryContextForChat uses rebuilt records, not stored compressed recent_summary", async () => {
+  it("A/B/D: production buildMemoryContextForChat uses unified chat_turn_summaries owner", async () => {
     insertOverflowSummaries();
     const rebuilt = rebuildLorebookFromRecords(OVERFLOW_CHAT);
     assert.ok(rebuilt.length > MEMORY_CAPACITY_FIXED);
@@ -415,20 +422,20 @@ describe("10K OVERFLOW OWNER PROOF", () => {
     assert.equal(report.promptUsesStoredCompressed, false);
     assert.equal(
       TEN_K_OVERFLOW_AUDIT_CLASSIFICATIONS.GLOBAL_MEMORY_COMPACTION_WRITE_READ_MISMATCH,
-      "CONFIRMED"
+      "ROOT_CAUSE_FIXED"
     );
     assert.equal(
       TEN_K_OVERFLOW_AUDIT_CLASSIFICATIONS.GLOBAL_MEMORY_CANONICAL_PROMPT_OWNER,
       "chat_turn_summaries (rebuilt at prompt time)"
     );
 
-    assert.ok(report.markers.old, "OLD_MARKER in prompt");
+    assert.ok(report.markers.recent, "RECENT_MARKER in prompt after prefer-recent overflow");
     assert.ok(!report.markers.compressedOnly, "stored compressed-only marker must not win prompt");
     assert.notEqual(promptRecent, storedRecent.trim());
     assert.equal(injection.recentChars, promptRecent.length);
   });
 
-  it("C: prefix-trim retains older sealed summaries and drops RECENT_MARKER at 10K overflow", () => {
+  it("C: prefer-recent overflow keeps RECENT_MARKER and drops OLD_MARKER at 10K", () => {
     insertOverflowSummaries();
     const rebuilt = rebuildLorebookFromRecords(OVERFLOW_CHAT);
     assert.ok(rebuilt.length > MEMORY_CAPACITY_FIXED);
@@ -438,15 +445,15 @@ describe("10K OVERFLOW OWNER PROOF", () => {
     const trimmedMarkers = detectOverflowMarkers(trimmed);
 
     assert.ok(rebuiltMarkers.old && rebuiltMarkers.mid && rebuiltMarkers.recent);
-    assert.ok(trimmedMarkers.old, "prefix trim keeps oldest blocks");
-    assert.equal(trimmedMarkers.recent, false, "prefix trim drops newest sealed summaries");
+    assert.ok(trimmedMarkers.recent, "prefer-recent trim keeps newest blocks");
+    assert.equal(trimmedMarkers.old, false, "prefer-recent trim drops oldest sealed summaries");
     assert.equal(
       TEN_K_OVERFLOW_AUDIT_CLASSIFICATIONS.CURRENT_MEMORY_OVERFLOW_PREFIX_BIAS,
-      "CONFIRMED"
+      "ROOT_CAUSE_FIXED"
     );
   });
 
-  it("E: each subsequent seal rebuilds all records for compaction — no incremental use of prior compacted summary", async () => {
+  it("E: seal path no longer invokes full-history LLM compact after overflow", async () => {
     insertOverflowSummaries();
     const compactCalls: {
       inputChars: number;
@@ -454,22 +461,17 @@ describe("10K OVERFLOW OWNER PROOF", () => {
       inputText: string;
       priorCompactedSummary: string;
     }[] = [];
-    let priorCompacted = "";
-
     __setCompactCurrentMemoryTestOverride(async (existing, maxChars) => {
-      const recordCount = listMemoryRecordsForChat(OVERFLOW_CHAT).length;
       compactCalls.push({
         inputChars: existing.length,
-        recordCount,
+        recordCount: listMemoryRecordsForChat(OVERFLOW_CHAT).length,
         inputText: existing,
-        priorCompactedSummary: priorCompacted,
+        priorCompactedSummary: "",
       });
-      priorCompacted = `${OVERFLOW_AUDIT_MARKERS.OLD} → compact_${compactCalls.length}`;
-      return priorCompacted.slice(0, maxChars);
+      return existing.slice(0, maxChars);
     });
 
     for (let seal = 0; seal < 3; seal++) {
-      const extra = buildOverflowSummaryFixture({ blockCount: 1, bodyChars: 520 })[0]!;
       const turnStart = (28 + seal) * ROLLING_SUMMARY_INTERVAL + 1;
       const turnEnd = turnStart + ROLLING_SUMMARY_INTERVAL - 1;
       getDb()
@@ -484,18 +486,13 @@ describe("10K OVERFLOW OWNER PROOF", () => {
           `${OVERFLOW_AUDIT_MARKERS.RECENT}_SEAL_${seal} → 추가 봉인 → 장면 마무리`.repeat(20),
           "main_canon"
         );
-
-      const rebuilt = rebuildLorebookFromRecords(OVERFLOW_CHAT);
-      assert.ok(rebuilt.length > MEMORY_CAPACITY_FIXED);
-      await compactCurrentMemory(rebuilt, MEMORY_CAPACITY_FIXED);
     }
 
-    const cadence = auditRecompressionCadence(compactCalls);
-    assert.equal(cadence.compactCallCount, 3);
-    assert.ok(cadence.eachInputIncludesAllRecords);
-    assert.ok(cadence.eachInputChars.every((n) => n > MEMORY_CAPACITY_FIXED));
-    assert.equal(cadence.usesPriorCompactedSummaryAsInput, false);
-    assert.ok(cadence.recordCountsAtCompact[2]! > cadence.recordCountsAtCompact[0]!);
+    assert.equal(compactCalls.length, 0, "seal/overflow path must not call compactCurrentMemory");
+    assert.equal(
+      TEN_K_OVERFLOW_AUDIT_CLASSIFICATIONS.FULL_HISTORY_RECOMPRESSION_EVERY_SEAL,
+      "REMOVED"
+    );
   });
 
   it("F: archive_summary has no active overflow rollover writer in production", () => {

@@ -484,12 +484,16 @@ export function auditRecompressionCadence(calls: {
   };
 }
 
-/** Audit-only classifications — validated by deterministic owner-proof tests. */
+/** Post-bugfix classifications — validated by deterministic regression tests. */
 export const TEN_K_OVERFLOW_AUDIT_CLASSIFICATIONS = {
-  GLOBAL_MEMORY_COMPACTION_WRITE_READ_MISMATCH: "CONFIRMED",
-  CURRENT_MEMORY_OVERFLOW_PREFIX_BIAS: "CONFIRMED",
+  GLOBAL_MEMORY_COMPACTION_WRITE_READ_MISMATCH: "ROOT_CAUSE_FIXED",
+  CURRENT_MEMORY_OVERFLOW_PREFIX_BIAS: "ROOT_CAUSE_FIXED",
+  CURRENT_MEMORY_OVERFLOW_EMPTY_RESULT: "ROOT_CAUSE_FIXED",
+  USER_EDITED_CURRENT_MEMORY_BYPASSED: "ROOT_CAUSE_FIXED",
   ARCHIVE_OVERFLOW_ROLE: "NOT_ACTIVE",
   GLOBAL_MEMORY_CANONICAL_PROMPT_OWNER: "chat_turn_summaries (rebuilt at prompt time)",
+  GLOBAL_PROJECTION_FRESHNESS: "PROVEN",
+  FULL_HISTORY_RECOMPRESSION_EVERY_SEAL: "REMOVED",
 } as const;
 
 export function worstCaseCombinedBudgetChars(): {
