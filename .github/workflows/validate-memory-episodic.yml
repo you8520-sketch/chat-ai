@@ -19,6 +19,9 @@ on:
       - "src/lib/memory/memory-medium-term.test.ts"
       - "src/lib/memory/memory-medium-term-audit.ts"
       - "src/lib/memory/memory-medium-term-audit.test.ts"
+      - "src/lib/memory/memory-medium-term-prompt-budget-audit.ts"
+      - "src/lib/memory/memory-medium-term-prompt-budget-audit.test.ts"
+      - "src/lib/memory/memory-prompt-injectible-parity.test.ts"
       - "src/lib/memory/memory-feature.ts"
       - "src/lib/memory/memory-injector.ts"
       - "src/lib/memory/memory-types.ts"
@@ -99,4 +102,4 @@ jobs:
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-shared-initial.test.ts
 
       - name: Medium-term cascaded memory audit + reader
-        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-medium-term.test.ts src/lib/memory/memory-medium-term-audit.test.ts
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-medium-term.test.ts src/lib/memory/memory-medium-term-audit.test.ts src/lib/memory/memory-medium-term-prompt-budget-audit.test.ts src/lib/memory/memory-prompt-injectible-parity.test.ts
