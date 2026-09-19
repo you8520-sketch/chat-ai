@@ -145,8 +145,7 @@ describe("liveBillingCutoverReadiness — production boundary", () => {
     const dispatch = auditModelBillingDispatchFromFixtures();
     assert.equal(dispatch.gemini31UsesUnifiedReasoningBranch, true);
     assert.equal(dispatch.opus5UsesUnifiedReasoningBranch, true);
-    assert.equal(dispatch.gemini37UsesUnifiedReasoningBranch, false);
-    assert.equal(dispatch.gemini37HasGemini37FlashPricingBreakdown, true);
+    assert.equal(dispatch.gemini37UsesUnifiedReasoningBranch, true);
   });
 
   it("live billing entrypoint constants match runtime chain", () => {
@@ -204,6 +203,7 @@ describe("liveBillingCutoverReadiness — reachability", () => {
     assert.equal(g31.productReachability, "unknown");
     assert.equal(g31.readinessCell, "UNKNOWN");
     assert.equal(g37.productReachability, "unknown");
+    assert.equal(g37.pricingCoverage, "supported");
     assert.equal(g37.readinessCell, "UNKNOWN");
   });
 

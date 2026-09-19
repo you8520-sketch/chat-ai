@@ -34,7 +34,7 @@ import {
   simulateGemini37PolicyRow,
 } from "@/lib/gemini37PricingPolicy";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
-import { computeTurnBilling } from "@/lib/points";
+import { computeTurnBilling, resolveOpenRouterReasoningPointRates } from "@/lib/points";
 import { normalizeBillableUsage } from "@/lib/shadowPricing";
 import {
   peekShadowBillingFxDailySnapshot,
@@ -119,7 +119,6 @@ export type ModelBillingDispatchAudit = {
   gemini37UsesUnifiedReasoningBranch: boolean;
   gemini31UsesUnifiedReasoningBranch: boolean;
   opus5UsesUnifiedReasoningBranch: boolean;
-  gemini37HasGemini37FlashPricingBreakdown: boolean;
 };
 
 export type IdempotencyAudit = {
@@ -203,7 +202,7 @@ export const EXPECTED_MODEL_CUTOVER_CLASS: Record<string, ModelCutoverClassifica
 };
 
 export const G37_LIVE_FORMULA_OWNER =
-  "pointsReasoningMargins.ts → not unified → pointsMuse60.ts → points.ts → gemini37FlashPricing.ts (computeGemini37FlashUserChargePoints)";
+  "pointsReasoningMargins.ts → unified reasoning branch (computeReasoningPointCost / computeOpenRouterTurnBilling)";
 export const G31_LIVE_FORMULA_OWNER =
   "pointsReasoningMargins.ts → unified reasoning branch (computeReasoningPointCost / computeOpenRouterTurnBilling)";
 export const OPUS5_LIVE_FORMULA_OWNER =
@@ -287,10 +286,9 @@ export function auditBillingOwnersFromSource(): BillingOwnerSourceAudit {
     wrapperChainVerified,
     modelFormulaOwnerAuditComplete:
       wrapperChainVerified &&
-      !dispatch.gemini37UsesUnifiedReasoningBranch &&
+      dispatch.gemini37UsesUnifiedReasoningBranch &&
       dispatch.gemini31UsesUnifiedReasoningBranch &&
-      dispatch.opus5UsesUnifiedReasoningBranch &&
-      dispatch.gemini37HasGemini37FlashPricingBreakdown,
+      dispatch.opus5UsesUnifiedReasoningBranch,
     ownerAuditSelfAssertionOnly: false,
   };
 }
@@ -316,12 +314,15 @@ export function auditModelBillingDispatchFromFixtures(): ModelBillingDispatchAud
     openRouterModelId: OPUS5_MODEL_ID,
   });
   return {
-    gemini37UsesUnifiedReasoningBranch: g37.gemini37FlashPricing == null,
-    gemini37HasGemini37FlashPricingBreakdown: g37.gemini37FlashPricing != null,
+    gemini37UsesUnifiedReasoningBranch:
+      resolveOpenRouterReasoningPointRates("gemini-3.7-flash") != null &&
+      g37.modelId === "gemini-3.7-flash",
     gemini31UsesUnifiedReasoningBranch:
-      g31.gemini37FlashPricing == null && g31.modelId === GEMINI31_MODEL_ID,
+      resolveOpenRouterReasoningPointRates(GEMINI31_MODEL_ID) != null &&
+      g31.modelId === GEMINI31_MODEL_ID,
     opus5UsesUnifiedReasoningBranch:
-      opus.gemini37FlashPricing == null && opus.modelId === OPUS5_MODEL_ID,
+      resolveOpenRouterReasoningPointRates(OPUS5_MODEL_ID) != null &&
+      opus.modelId === OPUS5_MODEL_ID,
   };
 }
 
@@ -366,7 +367,7 @@ export function documentPromptAssemblyComponentBudgets(): {
 export function assessGemini31Above200kReachability(): DimensionAssessment {
   const budgets = documentPromptAssemblyComponentBudgets();
   return {
-    pricingCoverage: "unsupported",
+    pricingCoverage: "supported",
     productReachability: "unknown",
     effectiveCurrentProductBlocker: "unknown",
     readinessCell: "UNKNOWN",
@@ -404,19 +405,19 @@ export function assessGemini31CacheReachability(): DimensionAssessment {
 
 export function assessGemini37CacheReachability(): DimensionAssessment {
   return {
-    pricingCoverage: "unsupported",
+    pricingCoverage: "supported",
     productReachability: "unknown",
     effectiveCurrentProductBlocker: "unknown",
     readinessCell: "UNKNOWN",
     evidenceChain: [
       "Model: gemini-3.7-flash (Cheaper Inference)",
       "Request: no Anthropic cache_control (Gemini is non-Anthropic in applyAnthropicCacheAndPrefill)",
-      "Legacy user charge: gemini37FlashPricing.ts explicitly excludes cache from user price",
+      "User charge: pointsReasoningMargins.ts unified token-cost owner consumes reported cache tokens",
       "Usage parser: openRouterUsage.ts may parse provider-reported cache tokens",
       "No production fixture proving cacheReadTokens > 0 on G37 CI turns",
     ],
     notes:
-      "Provider may report implicit cache usage, but no proven production request→usage→billing cache path for G37 under current product.",
+      "Pricing supports reported cache usage; production-path cache activity remains unproven end-to-end, so reachability stays unknown.",
     basis: "SOURCE_AUDIT",
   };
 }

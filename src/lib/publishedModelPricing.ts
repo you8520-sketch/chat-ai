@@ -153,12 +153,15 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "gpt-5.6-terra": {
     modelId: "gpt-5.6-terra",
-    billingReferenceInputUsdPerMillion: 2.5,
-    billingReferenceOutputUsdPerMillion: 15,
+    billingReferenceInputUsdPerMillion: 2,
+    billingReferenceOutputUsdPerMillion: 12,
+    billingReferenceCacheReadUsdPerMillion: 0.2,
+    billingReferenceCacheWriteUsdPerMillion: 2,
     targetMargin: 0.3,
     minimumMarginFloor: 0.15,
-    pricingVersion: 1,
-    publishedAt: "2026-08-28T00:00:00.000Z",
+    pricingVersion: 2,
+    publishedAt: "2026-09-19T00:00:00.000Z",
+    marketBenchmark: { outputChars: 6025, points: 253 },
   },
 };
 

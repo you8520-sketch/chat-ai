@@ -49,17 +49,17 @@ describe("Terra admin receipt parity", () => {
       CHEAPER_INFERENCE_GPT_56_TERRA_MODEL
     );
     assert.equal(rates.family, "openai");
-    assert.equal(rates.inputUsdPerM, 2.5);
-    assert.equal(rates.outputUsdPerM, 15);
-    assert.equal(rates.cacheReadUsdPerM, 0.25);
-    assert.equal(rates.cacheWriteUsdPerM, 2.5);
+    assert.equal(rates.inputUsdPerM, 2);
+    assert.equal(rates.outputUsdPerM, 12);
+    assert.equal(rates.cacheReadUsdPerM, 0.2);
+    assert.equal(rates.cacheWriteUsdPerM, 2);
     assert.match(
       resolveOpenRouterRateSummary(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL),
-      /\$2\.5\/M/
+      /\$2\/M/
     );
     assert.match(
       resolveOpenRouterRateSummary(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL),
-      /\$15\/M/
+      /\$12\/M/
     );
   });
 
@@ -72,7 +72,7 @@ describe("Terra admin receipt parity", () => {
     });
     assert.ok(info);
     assert.match(info!.cacheWriteLine ?? "", /캐시 저장 · 입력과 동일 단가/);
-    assert.match(info!.rateSummary, /캐시쓰기 \$2\.5\/M/);
+    assert.match(info!.rateSummary, /캐시쓰기 \$2\/M/);
   });
 
   it("exposes raw cost and main RP cost parts for CheaperInference usage", () => {

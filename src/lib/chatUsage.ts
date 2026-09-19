@@ -1,5 +1,4 @@
 import type { BillingWaiverReason } from "@/lib/points";
-import type { Gemini37FlashPricingBreakdown } from "@/lib/gemini37FlashPricing";
 
 /** Admin-only — canonical billing contract dispatch metadata (never public receipt). */
 export type UsageBillingContractAdmin = {
@@ -85,8 +84,6 @@ export type Usage = {
     currentUser: number;
     total: number;
   };
-  /** Gemini 3.7 Flash — admin receipt breakdown (user price ignores cache/upstream). */
-  gemini37FlashPricing?: Gemini37FlashPricingBreakdown;
   /**
    * Site promotion charge snapshot — public receipt may show discount row only when present.
    * Never derived from CheaperInference catalog discount.
