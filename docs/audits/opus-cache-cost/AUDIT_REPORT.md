@@ -13,17 +13,21 @@
 
 | Label | Classification |
 |-------|----------------|
-| `APP_WIRE_ROOT_CAUSE` | **FIXED** (history `cache_control` removed; live wire 2 blocks / 0 history markers) |
-| `END_TO_END_OPUS_CACHE_COST_ROOT_CAUSE` | **SUPPORTED** (CI/gateway parallel cache policy; not CONFIRMED without passthrough live experiment or API-key mode proof) |
+| `APP_HISTORY_BREAKPOINT_DEFECT` | **FIXED** |
+| `APP_CACHE_POLICY_WIRE` | **VERIFIED_2_STATIC_BREAKPOINTS** |
+| `APP_WIRE_ROOT_CAUSE` | **FIXED** (alias — history `cache_control` removed) |
+| `MULTI_LAYER_CACHE_POLICY_CONTROL` | **CONFIRMED** (app + CI gateway + upstream + usage/billing layers) |
+| `CI_GATEWAY_EXTRA_BREAKPOINT_CAUSALITY` | **SUPPORTED_PENDING_LIVE_DISCRIMINATOR** |
+| `END_TO_END_OPUS_CACHE_COST_ROOT_CAUSE` | **SUPPORTED_NOT_CONFIRMED** |
 | `SLIDING_RAW_HISTORY_CACHE_PREFIX` | **ROOT_CAUSE_CONFIRMED** (app-layer dead history marker) |
 | `CURRENT_OPUS_GROWING_HISTORY_CACHE` | **POST_FIX_HISTORY_WRITE_PERSISTS** (provider write bucket unchanged after wire fix) |
 | `CURRENT_OPUS_STATIC_PREFIX_CACHE` | **VERIFIED_WORKING** (17,357 read plateau T2/T3 post-fix) |
 | `CACHE_AFFINITY_CHURN` | **NOT_CONFIRMED** (input fingerprint shifts each turn, but post-fix affinity = hit all turns) |
-| `LIVE_CACHE_AFFINITY` | **HIT_T1_T2_T3** (post-fix; pre-fix was NEW all turns) |
+| `LIVE_CACHE_AFFINITY` | **HIT_T1_T2_T3** (routing/stickiness evidence — **not** equivalent to cache_read hit; T1 cacheRead=0) |
 | `CURRENT_OPUS_CACHE_HEALTH` | **PARTIAL_CACHE_ONLY** (static read ✓; suffix still cache_write-priced) |
 | `USAGE_NORMALIZER_MISCLASSIFICATION` | **NO** (raw CI usage API ≡ normalized) |
 | `CI_API_KEY_PROMPT_CACHE_MODE` | **UNVERIFIED_ACCOUNT_SETTING** (`GET /v1/keys` → 403, scope `account:read` missing) |
-| `PARALLEL_CACHE_POLICY_OWNER` | **CONFIRMED** (app explicit cache + CI gateway + usage/billing reporting) |
+| `API_KEY_PROMPT_CACHE_MODE` | **UNVERIFIED** (alias of `CI_API_KEY_PROMPT_CACHE_MODE`) |
 | `HISTORICAL_OPUS_60K_INCIDENT` | **FAILURE_MODE_CONFIRMED** |
 | `HISTORICAL_CACHE_BYPASS_UNDERLYING_CAUSE` | **ROOT_CAUSE_UNCONFIRMED** |
 | `CURRENT_OPUS_PHYSICAL_PROMPT_DUPLICATION` | **NO_MATERIAL_DEFECT_FOUND** |
@@ -296,19 +300,21 @@ current user — no cache_control
 
 Wire: **2** `cache_control` blocks, **0** history markers (preflight + live T1/T2/T3).
 
-### CI / GATEWAY CACHE POLICY OWNER (CheaperInference OpenAPI 2026-09-19)
+### CI / GATEWAY CACHE POLICY OWNER (CheaperInference API reference 2026-09-19)
 
-Source: `https://api.cheaperinference.com/openapi.json` — parameter `x-ci-prompt-cache` **`in: header`** (not query).
+Source: `https://www.cheaperinference.com/api-reference` — `POST /v1/chat/completions` **query parameters** (machine-readable OpenAPI at `/api/openapi.json` may lag; official customer docs list query params).
 
-| Value | Documented meaning |
-|-------|-------------------|
-| `passthrough` | Default (or API key `prompt_cache_mode`). Forwards request unchanged re cache-control. |
-| `on` | Additionally adds provider cache breakpoints. For Claude: unmarked requests cache shared system/tools prefix **and growing conversation**; caller-supplied cache controls preserved. |
-| `off` | Removes explicit cache controls; disables sticky affinity for this request. Does **not** disable provider implicit caching. |
+| Query param | Value | Documented meaning |
+|-------------|-------|-------------------|
+| `x-ci-prompt-cache` | `passthrough` | Default (or API key `prompt_cache_mode`). Forwards request unchanged re cache-control. |
+| | `on` | Additionally marks prefix cacheable for Anthropic (`claude-*`); may add growing-conversation cache. |
+| | `off` | Disables sticky affinity; removes explicit cache controls — **not used** (would forfeit app static cache). |
+| `x-ci-prompt-cache-scope` | `session`/`user`/`org` | Sticky-affinity scope (not sent by app). |
+| `x-ci-prompt-cache-session` | string | Session id when scope=session (not sent by app). |
 
-Related headers: `x-ci-prompt-cache-scope` (`session`/`user`/`org`), `x-ci-prompt-cache-session` (stable session id; falls back to body `prompt_cache_key`, then tools/first system/first message).
+**Effective mode when query absent:** default = `passthrough` **or** API key `prompt_cache_mode` — precedence when they differ is undocumented; key mode **UNVERIFIED**.
 
-**Effective mode when header absent:** OpenAPI states default = `passthrough` **or** the API key's `prompt_cache_mode`. Which wins when they differ is not separately documented; cannot infer `on` without account evidence.
+**Correction:** prior audit incorrectly described `x-ci-prompt-cache` as an HTTP **header**. Current official contract is a **query parameter** on the canonical base endpoint.
 
 ### ANTHROPIC OFFICIAL SEMANTICS (current docs)
 
@@ -361,33 +367,36 @@ Attempted: `GET /v1/keys` with inference-scoped key → **403** (`account:read` 
 | Owner | Controls | Post-fix state |
 |-------|----------|----------------|
 | App explicit `cache_control` | systemRules + characterSettings breakpoints | 2 blocks, live-verified |
-| CI gateway `x-ci-prompt-cache` / key default | May add growing-conversation breakpoints (`on`) or passthrough | **Not sent**; effective mode unverified |
+| CI gateway `x-ci-prompt-cache` query / key default | May add growing-conversation breakpoints (`on`) or passthrough | **Post-fix patch: Opus Main RP sends `?x-ci-prompt-cache=passthrough`** (offline only; live unverified) |
 | CI sticky affinity | `x-ci-prompt-cache-affinity`, session scope | Responding `hit` post-fix |
 | Anthropic upstream | Breakpoint semantics, implicit cache | Usage shape suggests extra breakpoint beyond app’s last marker |
 | Usage reporting | `cache_read/write_input_tokens`, billing | Raw from CI; matches normalizer |
 | Billing | `billed_cost_usd` on usage API | Authoritative for cost |
 
-`PARALLEL_CACHE_POLICY_OWNER = CONFIRMED` — app and CI/gateway both influence cache decisions independently.
+`MULTI_LAYER_CACHE_POLICY_CONTROL = CONFIRMED` — structural fact: app, CI gateway, upstream, usage, and billing are separate layers.
 
-### PROPOSED MINIMAL PATCH (design only — NOT implemented)
+`CI_GATEWAY_EXTRA_BREAKPOINT_CAUSALITY = SUPPORTED_PENDING_LIVE_DISCRIMINATOR` — post-fix live usage shape consistent with gateway augmentation, but causality not confirmed until passthrough live experiment.
 
-**Goal:** Preserve app 2-block static cache (17,357 read benefit); disable CI gateway growing-conversation augmentation.
+### MINIMAL PATCH (implemented offline — live unverified)
 
-**Do NOT use `x-ci-prompt-cache: off`** — removes caller explicit cache controls, would forfeit static prefix cache.
+**Goal:** Preserve app 2-block static cache; pin CI gateway request mode to passthrough.
 
-**Candidate:** Send **`x-ci-prompt-cache: passthrough`** as **request header** on CI Opus Main RP path only (`buildCheaperInferenceHeaders` or transport-scoped wrapper in `resolveCompatibleTransport` / `assemblePrimaryRpRequest`).
+**Do NOT use `x-ci-prompt-cache=off`** — removes caller explicit cache controls.
+
+**Implemented:** `resolveCheaperInferenceMainRpOpusFetchUrl()` + `resolveMainRpProviderFetchUrl()` append **`?x-ci-prompt-cache=passthrough`** query parameter on CI Claude Opus 5 Main RP fetch URL only. **Not** added to HTTP headers.
+
+Canonical base endpoint unchanged: `https://api.cheaperinference.com/v1/chat/completions`
 
 Desired effective policy:
 
 ```
-CI gateway: passthrough (no extra breakpoints)
-App: systemRules cached, characterSettings cached, dynamic uncached,
-     bounded sliding history uncached, current user uncached
+CI gateway request: ?x-ci-prompt-cache=passthrough
+App: systemRules cached, characterSettings cached, dynamic/history/current user uncached
 ```
 
-**Scope:** Claude Opus Main RP via CheaperInference only. No global CI behavior change; no DeepSeek/Gemini/Qwen/TRPG/image paths until separate evidence.
+**Scope:** CI Opus Main RP (`streamOpenRouterAdult`, `callOpenRouterAdult`, `assemblePrimaryRpRequest`). DeepSeek/Gemini/Qwen/OpenRouter/TRPG unchanged (PC-06..09).
 
-**Implementation note:** OpenAPI specifies header location (`in: header`); do not implement as query parameter.
+**Regression:** PC-01..12 offline; HC-01..12 preserved.
 
 ### EXPECTED PRE/POST ECONOMICS (estimate, not billed)
 
@@ -403,10 +412,10 @@ CI Opus 5 catalog: input $3.5/M · read $0.35/M · write $4.375/M · output $17.
 
 ### NEXT LIVE EXPERIMENT (approval required — NOT executed this task)
 
-1. Patch `buildCheaperInferenceHeaders` (Opus Main RP scope only) with `x-ci-prompt-cache: passthrough`
+1. Deploy passthrough query patch (already in #962 head — offline only so far)
 2. 2-call sequence (cold T1 + warm T2) — budget ~$0.28 conservative ceiling
 3. Compare usage shape vs post-fix baseline above
-4. If write bucket collapses to ≈0 on warm turn, upgrade `END_TO_END_OPUS_CACHE_COST_ROOT_CAUSE` to **CONFIRMED**
+4. If write bucket collapses to ≈0 on warm turn, upgrade `CI_GATEWAY_EXTRA_BREAKPOINT_CAUSALITY` and `END_TO_END_OPUS_CACHE_COST_ROOT_CAUSE` to **CONFIRMED**
 
 ### SYSTEM DELTA (investigation outcome)
 
@@ -436,5 +445,5 @@ CI Opus 5 catalog: input $3.5/M · read $0.35/M · write $4.375/M · output $17.
 - App wire root cause **fixed**; end-to-end cost root cause **supported but unconfirmed**
 - Post-fix live: wire fix verified; **POST_FIX_HEALTHY not achieved** (write bucket unchanged)
 - No cleanup merge-candidate pass
-- No passthrough patch implemented (design only)
-- Provider call budget this investigation: **0**
+- Passthrough **query-parameter** patch implemented (offline regression only; **no live provider call**)
+- Provider call budget cumulative: **0** (post-fix 3-call harness remains last live evidence)

@@ -49,6 +49,7 @@ import {
   assertCheaperInferenceEndpoint,
   buildCheaperInferenceHeaders,
   resolveCheaperInferenceApiKey,
+  resolveCheaperInferenceMainRpOpusFetchUrl,
 } from "@/lib/cheaperInferenceConfig";
 import { estimateTokens, type ChatMsg, type StageUsage, type TokenUsage } from "@/lib/ai";
 import type { ContentKind } from "@/lib/simulationMode";
@@ -1049,6 +1050,17 @@ type CompatibleTransport = {
   headers: Record<string, string>;
 };
 
+/** Single canonical owner for Main RP provider fetch URL (CI Opus passthrough query). */
+export function resolveMainRpProviderFetchUrl(
+  transport: CompatibleTransport,
+  modelId: string
+): string {
+  if (transport.provider !== "cheaperinference") {
+    return transport.endpoint;
+  }
+  return resolveCheaperInferenceMainRpOpusFetchUrl(modelId);
+}
+
 function resolveCompatibleTransport(messageOpts?: OpenRouterMessageOpts): CompatibleTransport {
   if (messageOpts?.transportProvider === "cheaperinference") {
     let key: string;
@@ -1145,7 +1157,7 @@ export function assemblePrimaryRpRequest(opts: {
     label: provider === "cheaperinference" ? "CheaperInference" : "OpenRouter",
     endpoint:
       provider === "cheaperinference"
-        ? CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL
+        ? resolveCheaperInferenceMainRpOpusFetchUrl(modelId)
         : OPENROUTER_CHAT_COMPLETIONS_URL,
     headers: {},
   };
@@ -1214,10 +1226,15 @@ export async function* streamOpenRouterAdult(
   const billingModelId = normalizeOpenRouterModelId(modelId);
   const apiModelId = billingModelId;
   const transport = resolveCompatibleTransport(messageOpts);
+  const fetchEndpoint = resolveMainRpProviderFetchUrl(transport, apiModelId);
   console.log(`[${transport.label}] streaming request`, {
     model: apiModelId,
     billingModel: billingModelId,
-    endpoint: transport.endpoint,
+    endpoint: fetchEndpoint,
+    gatewayPromptCacheMode:
+      transport.provider === "cheaperinference" && fetchEndpoint.includes("x-ci-prompt-cache=")
+        ? "passthrough"
+        : undefined,
     historyMessages: history.length,
     novelMode: messageOpts?.novelMode === true,
   });
@@ -1322,16 +1339,16 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
         const failover = await executeDeepSeekWithProviderFailover({
           routeKind: deepSeekRouteKind,
           logicalModel: deepSeekLogical,
-          primary: {
-            endpoint: transport.endpoint,
-            headers: transport.headers,
-            body: requestBody as Record<string, unknown>,
-          },
-          backupBody: adaptOpenRouterDeepSeekBackupBody(
-            requestBodyBeforeAdapt,
-            resolveDeepSeekBackupModelId(deepSeekLogical)
-          ),
-          stream: true,
+            primary: {
+              endpoint: fetchEndpoint,
+              headers: transport.headers,
+              body: requestBody as Record<string, unknown>,
+            },
+            backupBody: adaptOpenRouterDeepSeekBackupBody(
+              requestBodyBeforeAdapt,
+              resolveDeepSeekBackupModelId(deepSeekLogical)
+            ),
+            stream: true,
           ourRequestId: messageOpts?.requestId,
         });
         res = failover.response;
@@ -1353,7 +1370,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     } else {
       messageOpts?.phaseAudit?.mark("T10_PROVIDER_FETCH_START");
       res = await fetchOpenRouterChatCompletion(
-        transport.endpoint,
+        fetchEndpoint,
         transport.headers,
         requestBody as Record<string, unknown>,
         240_000
@@ -2194,10 +2211,16 @@ export async function callOpenRouterAdult(
   const billingModelId = normalizeOpenRouterModelId(modelId);
   const apiModelId = billingModelId;
   const transport = resolveCompatibleTransport(messageOpts);
+  const fetchEndpoint = resolveMainRpProviderFetchUrl(transport, apiModelId);
   console.log(`[${transport.label}] generate request`, {
     model: apiModelId,
     billingModel: billingModelId,
     stream: false,
+    endpoint: fetchEndpoint,
+    gatewayPromptCacheMode:
+      transport.provider === "cheaperinference" && fetchEndpoint.includes("x-ci-prompt-cache=")
+        ? "passthrough"
+        : undefined,
   });
 
   const baseMessages = buildOpenRouterMessages(system, history, messageOpts);
@@ -2278,7 +2301,7 @@ export async function callOpenRouterAdult(
             routeKind: generateRouteKind,
             logicalModel: generateLogical,
             primary: {
-              endpoint: transport.endpoint,
+              endpoint: fetchEndpoint,
               headers: transport.headers,
               body: requestBody as Record<string, unknown>,
             },
@@ -2307,7 +2330,7 @@ export async function callOpenRouterAdult(
         }
       } else {
         res = await fetchOpenRouterChatCompletion(
-          transport.endpoint,
+          fetchEndpoint,
           transport.headers,
           requestBody as Record<string, unknown>,
           120_000
