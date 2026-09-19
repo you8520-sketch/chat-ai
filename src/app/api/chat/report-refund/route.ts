@@ -16,8 +16,11 @@ export async function POST(req: Request) {
   }
 
   const rawCategory = body.category ?? body.reportCategory ?? null;
-  const category = isReportRefundUiCategory(rawCategory) ? rawCategory : null;
-  const result = processReportRefund(user.id, messageId, chatId, category);
+  if (!isReportRefundUiCategory(rawCategory)) {
+    return NextResponse.json({ error: "유효한 신고 유형(category)이 필요합니다." }, { status: 400 });
+  }
+
+  const result = processReportRefund(user.id, messageId, chatId, rawCategory);
 
   if (result.status === "rejected") {
     return NextResponse.json({ error: result.message, status: result.status }, { status: 400 });

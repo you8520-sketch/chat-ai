@@ -5,14 +5,22 @@
 
 import { getDb } from "@/lib/db";
 import {
-  listActiveOfficialPromotionsForModel,
-  type OfficialProviderPromotion,
-} from "@/lib/officialProviderPromotion";
-import {
   computeSiteCampaignEndsAt,
   computeSiteDiscountPercent,
 } from "@/lib/sitePromotionPolicy";
 import { ensureSitePromotionSchema } from "@/lib/sitePromotionSchema";
+
+type VerifiedOfficialPromotion = {
+  id: number;
+  provider: string;
+  modelId: string;
+  officialDiscountPct: number;
+  officialEnd: string;
+  episodeKey: string;
+  source: string;
+  provenance: string;
+  verifiedAt: string;
+};
 
 export type SitePromotionCampaign = {
   id: number;
@@ -82,13 +90,22 @@ function findCampaignByEpisode(
   return row ? rowToCampaign(row) : null;
 }
 
-function upsertCampaignForOfficialPromotion(
-  official: OfficialProviderPromotion,
+/** Explicit activation writer — sets campaign timer at activation time (never on billing read). */
+export function activateSitePromotionCampaign(
+  official: VerifiedOfficialPromotion,
   modelId: string,
-  nowIso: string
+  activatedAtIso = new Date().toISOString()
 ): SitePromotionCampaign {
   const db = getDb();
+  ensureSitePromotionSchema(db);
   const normalizedModelId = modelId.trim().toLowerCase();
+  if (!normalizedModelId) {
+    throw new Error("site promotion activation requires exact model_id");
+  }
+  if (!official.verifiedAt?.trim()) {
+    throw new Error("site promotion activation requires verified official promotion");
+  }
+
   const episodeKey = official.episodeKey;
   const existing = findCampaignByEpisode(episodeKey, normalizedModelId);
   const siteDiscountPercent = computeSiteDiscountPercent(official.officialDiscountPct);
@@ -103,8 +120,11 @@ function upsertCampaignForOfficialPromotion(
     };
   }
 
-  const activatedAt = nowIso;
-  const endsAt = computeSiteCampaignEndsAt(activatedAt, official.officialEnd, Date.parse(nowIso));
+  const endsAt = computeSiteCampaignEndsAt(
+    activatedAtIso,
+    official.officialEnd,
+    Date.parse(activatedAtIso)
+  );
   const result = db
     .prepare(
       `INSERT INTO site_promotion_campaigns
@@ -115,7 +135,7 @@ function upsertCampaignForOfficialPromotion(
       official.id,
       normalizedModelId,
       siteDiscountPercent,
-      activatedAt,
+      activatedAtIso,
       endsAt,
       episodeKey
     );
@@ -125,22 +145,66 @@ function upsertCampaignForOfficialPromotion(
   return rowToCampaign(row);
 }
 
-/** Resolve active site promotion for billing/UI — restart-safe via DB campaigns. */
-export function resolveActiveSitePromotion(
+function rowToVerifiedOfficial(row: Record<string, unknown>): VerifiedOfficialPromotion {
+  return {
+    id: Number(row.official_promotion_id ?? row.id),
+    provider: String(row.provider),
+    modelId: String(row.model_id),
+    officialDiscountPct: Number(row.official_discount_pct),
+    officialEnd: String(row.official_end),
+    episodeKey: String(row.episode_key),
+    source: String(row.source ?? ""),
+    provenance: String(row.provenance ?? ""),
+    verifiedAt: String(row.verified_at),
+  };
+}
+
+function findActiveCampaignForModel(
   modelId: string,
-  nowIso = new Date().toISOString()
-): ActiveSitePromotion | null {
+  nowIso: string
+): { campaign: SitePromotionCampaign; official: VerifiedOfficialPromotion } | null {
   const db = getDb();
   ensureSitePromotionSchema(db);
   const normalizedModelId = modelId.trim().toLowerCase();
   if (!normalizedModelId) return null;
 
-  const officialPromos = listActiveOfficialPromotionsForModel(normalizedModelId, nowIso);
-  if (officialPromos.length === 0) return null;
+  const row = db
+    .prepare(
+      `SELECT c.*, o.provider, o.official_discount_pct, o.official_end, o.source,
+              o.provenance, o.verified_at, o.episode_key
+       FROM site_promotion_campaigns c
+       JOIN official_provider_promotions o ON o.id = c.official_promotion_id
+       WHERE lower(c.model_id) = ?
+         AND o.status = 'active'
+         AND o.verified_at IS NOT NULL
+         AND o.official_start <= ?
+         AND o.official_end > ?
+         AND c.activated_at <= ?
+         AND c.ends_at > ?
+       ORDER BY c.id DESC
+       LIMIT 1`
+    )
+    .get(normalizedModelId, nowIso, nowIso, nowIso, nowIso) as
+    | Record<string, unknown>
+    | undefined;
 
-  const official = officialPromos[0];
-  const campaign = upsertCampaignForOfficialPromotion(official, normalizedModelId, nowIso);
+  if (!row || !row.verified_at) return null;
 
+  return {
+    campaign: rowToCampaign(row),
+    official: rowToVerifiedOfficial(row),
+  };
+}
+
+/** Pure read: resolve active site promotion for billing/UI from persisted campaigns only. */
+export function resolveActiveSitePromotion(
+  modelId: string,
+  nowIso = new Date().toISOString()
+): ActiveSitePromotion | null {
+  const match = findActiveCampaignForModel(modelId, nowIso);
+  if (!match) return null;
+
+  const { campaign, official } = match;
   const nowMs = Date.parse(nowIso);
   const endsMs = Date.parse(campaign.endsAt);
   if (!Number.isFinite(endsMs) || nowMs >= endsMs) return null;
@@ -148,7 +212,7 @@ export function resolveActiveSitePromotion(
   return {
     campaignId: campaign.id,
     officialPromotionId: official.id,
-    modelId: normalizedModelId,
+    modelId: campaign.modelId,
     siteDiscountPercent: campaign.siteDiscountPercent,
     activatedAt: campaign.activatedAt,
     endsAt: campaign.endsAt,

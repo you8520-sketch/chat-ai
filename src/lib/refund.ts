@@ -8,10 +8,7 @@ import {
 import type { Usage } from "./chatUsage";
 import { reverseCreatorRewardForMessage } from "./creatorPoints";
 import { assessMessageForAutoRefund } from "./refundAutoValidation";
-import {
-  assessCategoryForAutoRefund,
-  type CategoryRefundAssessment,
-} from "./refundCategoryValidation";
+import { assessCategoryForAutoRefund } from "./refundCategoryValidation";
 import {
   isReportRefundUiCategory,
   type ReportRefundUiCategory,
@@ -124,6 +121,54 @@ export function checkRefundSlicesIntegrity(
   return { ok: true };
 }
 
+function refundMessageDeductionCore(
+  db: ReturnType<typeof getDb>,
+  userId: number,
+  messageId: number,
+  slices: DeductionSlice[],
+  totalAmount: number,
+  reason: string
+): void {
+  try {
+    ensureChatBillingSettlementSchema(db);
+  } catch {
+    // Legacy/partial schemas: the reversal below still proceeds.
+  }
+  if (slices.length === 0) {
+    throw new RefundIntegrityError(
+      "refund integrity failure: no deduction slices (no silent fresh-credit mint)"
+    );
+  }
+  for (const slice of slices) {
+    restoreSlice(userId, slice, db);
+  }
+
+  db.prepare("INSERT INTO point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
+    userId,
+    roundAmount(totalAmount),
+    reason
+  );
+
+  db.prepare("UPDATE messages SET is_refunded = 1 WHERE id = ?").run(messageId);
+  const requestIdRow = db
+    .prepare("SELECT request_id FROM messages WHERE id = ?")
+    .get(messageId) as { request_id: string | null } | undefined;
+  const refundedRequestId = requestIdRow?.request_id?.trim() || null;
+  if (refundedRequestId) {
+    db.prepare(
+      `UPDATE chat_billing_settlements
+          SET refunded_at = datetime('now')
+        WHERE assistant_message_id = ?
+          AND request_id = ?
+          AND charge_kind = ?`
+    ).run(messageId, refundedRequestId, CHAT_TURN_CHARGE_KIND);
+  }
+  reverseCreatorRewardForMessage(messageId);
+  db.prepare(
+    "UPDATE users SET points = (SELECT COALESCE(SUM(remaining_amount), 0) FROM point_transactions WHERE user_id = ? AND remaining_amount > 0 AND expires_at > datetime('now')) WHERE id = ?"
+  ).run(userId, userId);
+}
+
 export function refundMessageDeduction(
   userId: number,
   messageId: number,
@@ -132,56 +177,9 @@ export function refundMessageDeduction(
   reason: string
 ): PointBalance {
   const db = getDb();
-  try {
-    // Additive refund marker support (idempotent, non-destructive).
-    ensureChatBillingSettlementSchema(db);
-  } catch {
-    // Legacy/partial schemas: the reversal below still proceeds.
-  }
   db.transaction(() => {
-    if (slices.length === 0) {
-      // Exact-reversal contract: without source slices there is nothing to
-      // reverse. Never mint fresh credit here — callers fail-closed to
-      // pending/manual review via checkRefundSlicesIntegrity().
-      throw new RefundIntegrityError(
-        "refund integrity failure: no deduction slices (no silent fresh-credit mint)"
-      );
-    }
-    for (const slice of slices) {
-      restoreSlice(userId, slice, db);
-    }
-
-    db.prepare("INSERT INTO point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
-      userId,
-      roundAmount(totalAmount),
-      reason
-    );
-
-    db.prepare("UPDATE messages SET is_refunded = 1 WHERE id = ?").run(messageId);
-    // Canonical refund projection: mark the charge event of the generation that
-    // is current at refund time, identified by the settlement's existing
-    // (assistant_message_id, request_id) identity. This keeps the refund tied to
-    // the exact generation even if the message is regenerated later (which
-    // resets is_refunded).
-    const requestIdRow = db
-      .prepare("SELECT request_id FROM messages WHERE id = ?")
-      .get(messageId) as { request_id: string | null } | undefined;
-    const refundedRequestId = requestIdRow?.request_id?.trim() || null;
-    if (refundedRequestId) {
-      db.prepare(
-        `UPDATE chat_billing_settlements
-            SET refunded_at = datetime('now')
-          WHERE assistant_message_id = ?
-            AND request_id = ?
-            AND charge_kind = ?`
-      ).run(messageId, refundedRequestId, CHAT_TURN_CHARGE_KIND);
-    }
-    reverseCreatorRewardForMessage(messageId);
-    db.prepare(
-      "UPDATE users SET points = (SELECT COALESCE(SUM(remaining_amount), 0) FROM point_transactions WHERE user_id = ? AND remaining_amount > 0 AND expires_at > datetime('now')) WHERE id = ?"
-    ).run(userId, userId);
+    refundMessageDeductionCore(db, userId, messageId, slices, totalAmount, reason);
   })();
-
   return getPointBalance(userId);
 }
 
@@ -239,8 +237,7 @@ function loadPairedUserMessage(chatId: number, messageId: number): string | null
   return row?.content ?? null;
 }
 
-function countAutoRefundsToday(userId: number): number {
-  const db = getDb();
+function countAutoRefundsTodayInTxn(db: ReturnType<typeof getDb>, userId: number): number {
   const row = db
     .prepare(
       `SELECT COUNT(*) AS c FROM report_refunds
@@ -249,6 +246,48 @@ function countAutoRefundsToday(userId: number): number {
     )
     .get(userId) as { c: number };
   return row?.c ?? 0;
+}
+
+function isRetryableRefundContention(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return msg.includes("database is locked") || msg.includes("sqlite_busy");
+}
+
+function runRefundImmediateTransaction<T>(
+  db: ReturnType<typeof getDb>,
+  fn: () => T
+): T {
+  const maxAttempts = 8;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const result = fn();
+      db.exec("COMMIT");
+      return result;
+    } catch (err) {
+      lastError = err;
+      try {
+        db.exec("ROLLBACK");
+      } catch {
+        // Connection may already be rolled back on driver contention errors.
+      }
+      if (isRetryableRefundContention(err) && attempt < maxAttempts) {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10 * attempt);
+        continue;
+      }
+      throw err;
+    }
+  }
+  if (lastError instanceof Error) throw lastError;
+  throw new Error("Refund contention retries exhausted");
+}
+
+function isReportRefundUniqueConflict(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return msg.includes("unique constraint") || msg.includes("constraint failed");
 }
 
 function parseRefundAmount(msg: { usage: string | null }): number {
@@ -279,191 +318,188 @@ function parseUsageJson(raw: string | null): Usage | null {
   }
 }
 
-function resolveRefundAssessment(input: {
-  category: ReportRefundUiCategory | null;
-  msg: MessageRefundContext;
-  chatId: number;
-  userId: number;
-  previousAssistantContent: string | null;
-  userMessage: string | null;
-}): CategoryRefundAssessment | ReturnType<typeof assessMessageForAutoRefund> {
-  if (input.category) {
-    const usage = parseUsageJson(input.msg.usage);
-    return assessCategoryForAutoRefund({
-      category: input.category,
-      content: input.msg.content,
-      messageStatus: input.msg.status,
-      generationStatus: input.msg.generation_status,
-      finishReason: usage?.finishReason ?? null,
-      usage,
-      previousAssistantContent: input.previousAssistantContent,
-      userMessage: input.userMessage,
-      messageId: input.msg.id,
-      chatId: input.chatId,
-      userId: input.userId,
-    });
-  }
-  return assessMessageForAutoRefund({
-    content: input.msg.content,
-    messageStatus: input.msg.status,
-    previousAssistantContent: input.previousAssistantContent,
-    userMessage: input.userMessage,
-  });
-}
-
 /** 오류 신고 — 결함 확인 시 하루 3회까지 자동 환불, 이후 관리자 검토 */
 export function processReportRefund(
   userId: number,
   messageId: number,
   chatId: number,
-  category: ReportRefundUiCategory | null = null
+  category: ReportRefundUiCategory
 ): RefundProcessResult {
+  if (!isReportRefundUiCategory(category)) {
+    return { status: "rejected", message: "유효한 신고 유형이 필요합니다." };
+  }
+
   const db = getDb();
-  const msg = loadMessageRefundContext(messageId, chatId);
-
-  if (!msg) return { status: "rejected", message: "메시지를 찾을 수 없습니다." };
-  if (msg.user_id !== userId) return { status: "rejected", message: "권한이 없습니다." };
-  if (msg.role !== "assistant") return { status: "rejected", message: "AI 응답만 신고할 수 있습니다." };
-  if (msg.is_refunded) return { status: "rejected", message: "이미 환불된 메시지입니다." };
-
-  const totalAmount = parseRefundAmount(msg);
-  if (totalAmount <= 0) {
-    return { status: "rejected", message: "환불할 포인트 내역이 없습니다." };
+  try {
+    db.pragma("busy_timeout = 5000");
+  } catch {
+    // Some remote drivers may reject pragma mutation.
   }
 
-  const existing = db
-    .prepare(
-      `SELECT status FROM report_refunds
-       WHERE user_id = ? AND message_id = ?
-       ORDER BY id DESC LIMIT 1`
-    )
-    .get(userId, messageId) as { status: string } | undefined;
+  const previousAssistantContent = loadPreviousAssistantContent(chatId, messageId);
+  const userMessage = loadPairedUserMessage(chatId, messageId);
 
-  if (existing?.status === "approved") {
-    return { status: "rejected", message: "이미 환불 처리된 신고입니다." };
+  try {
+    return runRefundImmediateTransaction(db, () => {
+      const msg = loadMessageRefundContext(messageId, chatId);
+
+      if (!msg) return { status: "rejected", message: "메시지를 찾을 수 없습니다." };
+      if (msg.user_id !== userId) return { status: "rejected", message: "권한이 없습니다." };
+      if (msg.role !== "assistant") {
+        return { status: "rejected", message: "AI 응답만 신고할 수 있습니다." };
+      }
+      if (msg.is_refunded) {
+        return { status: "rejected", message: "이미 환불된 메시지입니다." };
+      }
+
+      const totalAmount = parseRefundAmount(msg);
+      if (totalAmount <= 0) {
+        return { status: "rejected", message: "환불할 포인트 내역이 없습니다." };
+      }
+
+      const existing = db
+        .prepare(
+          `SELECT status FROM report_refunds
+           WHERE user_id = ? AND message_id = ?
+           LIMIT 1`
+        )
+        .get(userId, messageId) as { status: string } | undefined;
+
+      if (existing?.status === "approved") {
+        return { status: "rejected", message: "이미 환불 처리된 신고입니다." };
+      }
+      if (existing?.status === "pending") {
+        return { status: "rejected", message: "이미 접수된 오류 신고입니다." };
+      }
+
+      const usage = parseUsageJson(msg.usage);
+      const assessment = assessCategoryForAutoRefund({
+        category,
+        content: msg.content,
+        messageStatus: msg.status,
+        generationStatus: msg.generation_status,
+        finishReason: usage?.finishReason ?? null,
+        usage,
+        previousAssistantContent,
+        userMessage,
+        messageId: msg.id,
+        chatId,
+        userId,
+      });
+      const refundAmount =
+        assessment.partialRefundAmount != null &&
+        assessment.partialRefundAmount > 0 &&
+        assessment.partialRefundAmount < totalAmount
+          ? roundAmount(assessment.partialRefundAmount)
+          : totalAmount;
+      const receiptSnapshot = buildMessageReceiptSnapshot(msg.usage);
+      const slices = parseDeductionSlices(msg.deduction_slices);
+      const autoRefundsToday = countAutoRefundsTodayInTxn(db, userId);
+      const sliceIntegrity = checkRefundSlicesIntegrity(userId, slices);
+      const canAutoRefund =
+        assessment.isError &&
+        autoRefundsToday < AUTO_REFUND_DAILY_LIMIT &&
+        sliceIntegrity.ok;
+
+      if (canAutoRefund) {
+        refundMessageDeductionCore(
+          db,
+          userId,
+          messageId,
+          slices,
+          refundAmount,
+          `오류 자동 환불 (메시지 #${messageId})`
+        );
+
+        db.prepare(
+          `INSERT INTO report_refunds
+             (user_id, chat_id, message_id, status, refund_amount, validation_note, receipt_snapshot, auto_refund, error_reasons, report_category)
+           VALUES (?, ?, ?, 'approved', ?, ?, ?, 1, ?, ?)`
+        ).run(
+          userId,
+          chatId,
+          messageId,
+          refundAmount,
+          `자동 환불: ${assessment.summary}`,
+          receiptSnapshot,
+          assessment.summary,
+          category
+        );
+
+        db.prepare(
+          "INSERT INTO reports (user_id, chat_id, message_id, content, reason) VALUES (?,?,?,?,?)"
+        ).run(
+          userId,
+          chatId,
+          messageId,
+          msg.content.slice(0, 2000),
+          `오류 자동 환불 — ${assessment.summary}`
+        );
+
+        return {
+          status: "approved",
+          autoRefund: true,
+          balance: getPointBalance(userId),
+          message: `오류가 확인되어 ${refundAmount.toLocaleString()}P가 자동 환불되었습니다. (오늘 ${autoRefundsToday + 1}/${AUTO_REFUND_DAILY_LIMIT}회)`,
+        };
+      }
+
+      const validationNote = !sliceIntegrity.ok
+        ? `원본 차감 내역 확인 필요 (${sliceIntegrity.reason}) — 관리자 검토 (${assessment.summary})`
+        : assessment.isError
+          ? autoRefundsToday >= AUTO_REFUND_DAILY_LIMIT
+            ? `일일 자동 환불 한도(${AUTO_REFUND_DAILY_LIMIT}회) 초과 — 관리자 검토 (${assessment.summary})`
+            : `관리자 검토 (${assessment.summary})`
+          : "관리자 검토";
+
+      db.prepare(
+        `INSERT INTO report_refunds
+           (user_id, chat_id, message_id, status, refund_amount, validation_note, receipt_snapshot, auto_refund, error_reasons, report_category)
+         VALUES (?, ?, ?, 'pending', ?, ?, ?, 0, ?, ?)`
+      ).run(
+        userId,
+        chatId,
+        messageId,
+        totalAmount,
+        validationNote,
+        receiptSnapshot,
+        assessment.summary,
+        category
+      );
+
+      db.prepare(
+        "INSERT INTO reports (user_id, chat_id, message_id, content, reason) VALUES (?,?,?,?,?)"
+      ).run(
+        userId,
+        chatId,
+        messageId,
+        msg.content.slice(0, 2000),
+        assessment.isError
+          ? `오류 신고 — ${assessment.summary}`
+          : "오류 신고 — 관리자 검토"
+      );
+
+      if (assessment.isError && autoRefundsToday >= AUTO_REFUND_DAILY_LIMIT) {
+        return {
+          status: "pending",
+          dailyLimitExceeded: true,
+          message: `오늘 자동 환불 한도(${AUTO_REFUND_DAILY_LIMIT}회)를 사용했습니다. 관리자 확인 후 환불 여부가 결정됩니다.`,
+        };
+      }
+
+      return {
+        status: "pending",
+        message: assessment.isError
+          ? "오류 신고가 접수되었습니다. 관리자 확인 후 환불 여부가 결정됩니다."
+          : "신고가 접수되었습니다. 관리자 확인 후 환불 여부가 결정됩니다.",
+      };
+    });
+  } catch (err) {
+    if (isReportRefundUniqueConflict(err)) {
+      return { status: "rejected", message: "이미 접수된 오류 신고입니다." };
+    }
+    throw err;
   }
-  if (existing?.status === "pending") {
-    return { status: "rejected", message: "이미 접수된 오류 신고입니다." };
-  }
-
-  const resolvedCategory =
-    category && isReportRefundUiCategory(category) ? category : null;
-  const assessment = resolveRefundAssessment({
-    category: resolvedCategory,
-    msg,
-    chatId,
-    userId,
-    previousAssistantContent: loadPreviousAssistantContent(chatId, messageId),
-    userMessage: loadPairedUserMessage(chatId, messageId),
-  });
-  const refundAmount =
-    "partialRefundAmount" in assessment &&
-    assessment.partialRefundAmount != null &&
-    assessment.partialRefundAmount > 0 &&
-    assessment.partialRefundAmount < totalAmount
-      ? roundAmount(assessment.partialRefundAmount)
-      : totalAmount;
-  const receiptSnapshot = buildMessageReceiptSnapshot(msg.usage);
-  const slices = parseDeductionSlices(msg.deduction_slices);
-  const autoRefundsToday = countAutoRefundsToday(userId);
-  // Exact-reversal gate: auto-approve only when the reversal source is
-  // intact. Missing slices/rows fail-closed to pending/manual review —
-  // never auto-mint fresh credit.
-  const sliceIntegrity = checkRefundSlicesIntegrity(userId, slices);
-  const canAutoRefund =
-    assessment.isError && autoRefundsToday < AUTO_REFUND_DAILY_LIMIT && sliceIntegrity.ok;
-
-  if (canAutoRefund) {
-    const balance = refundMessageDeduction(
-      userId,
-      messageId,
-      slices,
-      refundAmount,
-      `오류 자동 환불 (메시지 #${messageId})`
-    );
-
-    db.prepare(
-      `INSERT INTO report_refunds
-         (user_id, chat_id, message_id, status, refund_amount, validation_note, receipt_snapshot, auto_refund, error_reasons, report_category)
-       VALUES (?, ?, ?, 'approved', ?, ?, ?, 1, ?, ?)`
-    ).run(
-      userId,
-      chatId,
-      messageId,
-      refundAmount,
-      `자동 환불: ${assessment.summary}`,
-      receiptSnapshot,
-      assessment.summary,
-      resolvedCategory ?? ""
-    );
-
-    db.prepare(
-      "INSERT INTO reports (user_id, chat_id, message_id, content, reason) VALUES (?,?,?,?,?)"
-    ).run(
-      userId,
-      chatId,
-      messageId,
-      msg.content.slice(0, 2000),
-      `오류 자동 환불 — ${assessment.summary}`
-    );
-
-    return {
-      status: "approved",
-      autoRefund: true,
-      balance,
-      message: `오류가 확인되어 ${refundAmount.toLocaleString()}P가 자동 환불되었습니다. (오늘 ${autoRefundsToday + 1}/${AUTO_REFUND_DAILY_LIMIT}회)`,
-    };
-  }
-
-  const validationNote = !sliceIntegrity.ok
-    ? `원본 차감 내역 확인 필요 (${sliceIntegrity.reason}) — 관리자 검토 (${assessment.summary})`
-    : assessment.isError
-      ? autoRefundsToday >= AUTO_REFUND_DAILY_LIMIT
-        ? `일일 자동 환불 한도(${AUTO_REFUND_DAILY_LIMIT}회) 초과 — 관리자 검토 (${assessment.summary})`
-        : `관리자 검토 (${assessment.summary})`
-      : "관리자 검토";
-
-  db.prepare(
-    `INSERT INTO report_refunds
-       (user_id, chat_id, message_id, status, refund_amount, validation_note, receipt_snapshot, auto_refund, error_reasons, report_category)
-     VALUES (?, ?, ?, 'pending', ?, ?, ?, 0, ?, ?)`
-  ).run(
-    userId,
-    chatId,
-    messageId,
-    totalAmount,
-    validationNote,
-    receiptSnapshot,
-    assessment.summary,
-    resolvedCategory ?? ""
-  );
-
-  db.prepare(
-    "INSERT INTO reports (user_id, chat_id, message_id, content, reason) VALUES (?,?,?,?,?)"
-  ).run(
-    userId,
-    chatId,
-    messageId,
-    msg.content.slice(0, 2000),
-    assessment.isError
-      ? `오류 신고 — ${assessment.summary}`
-      : "오류 신고 — 관리자 검토"
-  );
-
-  if (assessment.isError && autoRefundsToday >= AUTO_REFUND_DAILY_LIMIT) {
-    return {
-      status: "pending",
-      dailyLimitExceeded: true,
-      message: `오늘 자동 환불 한도(${AUTO_REFUND_DAILY_LIMIT}회)를 사용했습니다. 관리자 확인 후 환불 여부가 결정됩니다.`,
-    };
-  }
-
-  return {
-    status: "pending",
-    message: assessment.isError
-      ? "오류 신고가 접수되었습니다. 관리자 확인 후 환불 여부가 결정됩니다."
-      : "신고가 접수되었습니다. 관리자 확인 후 환불 여부가 결정됩니다.",
-  };
 }
 
 export type ReportRefundAdminRow = {
@@ -574,93 +610,98 @@ export function reviewReportRefund(
   adminNote = ""
 ): { ok: true; balance?: PointBalance } | { ok: false; error: string; status?: number } {
   const db = getDb();
-
-  const row = db
-    .prepare(
-      `SELECT rr.id, rr.user_id, rr.chat_id, rr.message_id, rr.status, rr.refund_amount,
-              m.is_refunded, m.deduction_slices, m.usage, m.role
-       FROM report_refunds rr
-       JOIN messages m ON m.id = rr.message_id AND m.chat_id = rr.chat_id
-       WHERE rr.id = ?`
-    )
-    .get(reportRefundId) as
-    | {
-        id: number;
-        user_id: number;
-        chat_id: number;
-        message_id: number;
-        status: string;
-        refund_amount: number;
-        is_refunded: number;
-        deduction_slices: string | null;
-        usage: string | null;
-        role: string;
-      }
-    | undefined;
-
-  if (!row) return { ok: false, error: "신고 내역을 찾을 수 없습니다.", status: 404 };
-  if (row.status !== "pending") {
-    return { ok: false, error: "이미 처리된 신고입니다.", status: 400 };
+  try {
+    db.pragma("busy_timeout = 5000");
+  } catch {
+    // Some remote drivers may reject pragma mutation.
   }
 
-  if (action === "reject") {
+  return runRefundImmediateTransaction(db, () => {
+    const row = db
+      .prepare(
+        `SELECT rr.id, rr.user_id, rr.chat_id, rr.message_id, rr.status, rr.refund_amount,
+                m.is_refunded, m.deduction_slices, m.usage, m.role
+         FROM report_refunds rr
+         JOIN messages m ON m.id = rr.message_id AND m.chat_id = rr.chat_id
+         WHERE rr.id = ?`
+      )
+      .get(reportRefundId) as
+      | {
+          id: number;
+          user_id: number;
+          chat_id: number;
+          message_id: number;
+          status: string;
+          refund_amount: number;
+          is_refunded: number;
+          deduction_slices: string | null;
+          usage: string | null;
+          role: string;
+        }
+      | undefined;
+
+    if (!row) return { ok: false, error: "신고 내역을 찾을 수 없습니다.", status: 404 };
+    if (row.status !== "pending") {
+      return { ok: false, error: "이미 처리된 신고입니다.", status: 400 };
+    }
+
+    if (action === "reject") {
+      db.prepare(
+        "UPDATE report_refunds SET status = 'rejected', validation_note = ? WHERE id = ?"
+      ).run(adminNote.trim() || "관리자 반려", reportRefundId);
+      notifyReportResult(db, {
+        userId: row.user_id,
+        reportId: reportRefundId,
+        approved: false,
+        body: `신고하신 AI 응답은 환불 대상에서 제외되었습니다.${adminNote.trim() ? ` 사유: ${adminNote.trim()}` : ""}`,
+        url: `/chat/${row.chat_id}`,
+      });
+      return { ok: true };
+    }
+
+    if (row.is_refunded) {
+      db.prepare(
+        "UPDATE report_refunds SET status = 'rejected', validation_note = ? WHERE id = ?"
+      ).run("이미 환불된 메시지", reportRefundId);
+      return { ok: false, error: "이미 환불된 메시지입니다.", status: 400 };
+    }
+
+    if (row.role !== "assistant") {
+      return { ok: false, error: "AI 응답만 환불할 수 있습니다.", status: 400 };
+    }
+
+    const totalAmount = parseRefundAmount({ usage: row.usage });
+    const amount = totalAmount > 0 ? totalAmount : row.refund_amount;
+    const slices = parseDeductionSlices(row.deduction_slices);
+
+    const sliceIntegrity = checkRefundSlicesIntegrity(row.user_id, slices);
+    if (!sliceIntegrity.ok) {
+      return { ok: false, error: sliceIntegrity.reason, status: 400 };
+    }
+
+    refundMessageDeductionCore(
+      db,
+      row.user_id,
+      row.message_id,
+      slices,
+      amount,
+      `오류 신고 환불 (메시지 #${row.message_id})`
+    );
+
     db.prepare(
-      "UPDATE report_refunds SET status = 'rejected', validation_note = ? WHERE id = ?"
-    ).run(adminNote.trim() || "관리자 반려", reportRefundId);
+      "UPDATE report_refunds SET status = 'approved', validation_note = ? WHERE id = ?"
+    ).run(adminNote.trim() || "관리자 승인 환불", reportRefundId);
+
     notifyReportResult(db, {
       userId: row.user_id,
       reportId: reportRefundId,
-      approved: false,
-      body: `신고하신 AI 응답은 환불 대상에서 제외되었습니다.${adminNote.trim() ? ` 사유: ${adminNote.trim()}` : ""}`,
+      approved: true,
+      body: `신고하신 AI 응답이 승인되어 ${amount.toLocaleString()}P가 환불되었습니다.`,
       url: `/chat/${row.chat_id}`,
     });
-    return { ok: true };
-  }
 
-  if (row.is_refunded) {
-    db.prepare(
-      "UPDATE report_refunds SET status = 'rejected', validation_note = ? WHERE id = ?"
-    ).run("이미 환불된 메시지", reportRefundId);
-    return { ok: false, error: "이미 환불된 메시지입니다.", status: 400 };
-  }
-
-  if (row.role !== "assistant") {
-    return { ok: false, error: "AI 응답만 환불할 수 있습니다.", status: 400 };
-  }
-
-  const totalAmount = parseRefundAmount({ usage: row.usage });
-  const amount = totalAmount > 0 ? totalAmount : row.refund_amount;
-  const slices = parseDeductionSlices(row.deduction_slices);
-
-  // Exact-reversal gate: even an explicit admin approval cannot mint fresh
-  // credit without a reversal source. Keep the report pending for
-  // investigation instead of fabricating lots.
-  const sliceIntegrity = checkRefundSlicesIntegrity(row.user_id, slices);
-  if (!sliceIntegrity.ok) {
-    return { ok: false, error: sliceIntegrity.reason, status: 400 };
-  }
-
-  const balance = refundMessageDeduction(
-    row.user_id,
-    row.message_id,
-    slices,
-    amount,
-    `오류 신고 환불 (메시지 #${row.message_id})`
-  );
-
-  db.prepare(
-    "UPDATE report_refunds SET status = 'approved', validation_note = ? WHERE id = ?"
-  ).run(adminNote.trim() || "관리자 승인 환불", reportRefundId);
-
-  notifyReportResult(db, {
-    userId: row.user_id,
-    reportId: reportRefundId,
-    approved: true,
-    body: `신고하신 AI 응답이 승인되어 ${amount.toLocaleString()}P가 환불되었습니다.`,
-    url: `/chat/${row.chat_id}`,
+    return { ok: true, balance: getPointBalance(row.user_id) };
   });
-
-  return { ok: true, balance };
 }
 
 export function getReportStatusesForMessages(

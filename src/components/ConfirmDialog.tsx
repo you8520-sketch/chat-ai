@@ -10,6 +10,7 @@ type Props = {
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -21,6 +22,7 @@ export default function ConfirmDialog({
   confirmLabel = "확인",
   cancelLabel = "취소",
   danger = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }: Props) {
@@ -75,8 +77,9 @@ export default function ConfirmDialog({
           <button
             type="button"
             autoFocus
+            disabled={confirmDisabled}
             onClick={onConfirm}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
+            className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 ${
               danger
                 ? "bg-rose-600 hover:bg-rose-500"
                 : "bg-violet-600 hover:bg-violet-500"

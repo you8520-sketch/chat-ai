@@ -26,6 +26,7 @@ import {
   resolveSelectedAI,
 } from "./chatModels";
 import { getEffectiveKrwPerUsd } from "./exchangeRate";
+import { resolveCheaperInferenceCatalogPricing } from "./cheaperInferenceCatalogPricing";
 import {
   applySitePromotionToCharge,
   type SitePromotionChargeAdjustment,
@@ -212,10 +213,25 @@ const CHEAPER_INFERENCE_QWEN_38_MAX_PRICING: ReasoningTokenPricing = {
   grossMargin: CHEAPER_INFERENCE_QWEN_38_MAX_GROSS_MARGIN,
 };
 
+function withLiveCheaperInferenceCatalogPricing(
+  fallback: ReasoningTokenPricing
+): ReasoningTokenPricing {
+  const live = resolveCheaperInferenceCatalogPricing(fallback.modelId);
+  if (!live) return fallback;
+  return {
+    ...fallback,
+    inputUsdPerMillion: live.inputUsdPerMillion,
+    cacheReadUsdPerMillion: live.cacheReadUsdPerMillion,
+    cacheWriteUsdPerMillion: live.cacheWriteUsdPerMillion,
+    outputUsdPerMillion: live.outputUsdPerMillion,
+  };
+}
+
 /**
- * Base user model charge rates — hardcoded published constants only.
- * CI live catalog current/reference/discountPercent must NOT affect user pricing.
- * Procurement cost uses resolveProcurementCostFromCatalog (shadow/admin path).
+ * Normal user base charge rates.
+ * CI current/effective catalog = normal procurement cost → target gross margin.
+ * CI reference/discountPercent are not site promotions (no badge/receipt row).
+ * Priority: authoritative upstream billed cost → live CI catalog → baked-in fallback.
  */
 function resolveReasoningTokenPricing(modelId: string): ReasoningTokenPricing | null {
   if (isCheaperInferenceClaudeOpus5Model(modelId)) {
@@ -223,24 +239,24 @@ function resolveReasoningTokenPricing(modelId: string): ReasoningTokenPricing | 
   }
   if (isMuseModel(modelId)) return MUSE_PRICING;
   if (isCheaperInferenceDeepSeekV4ProModel(modelId)) {
-    return CHEAPER_INFERENCE_DEEPSEEK_PRICING;
+    return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_DEEPSEEK_PRICING);
   }
   if (isCheaperInferenceDeepSeekV4FlashModel(modelId)) {
-    return CHEAPER_INFERENCE_DEEPSEEK_FLASH_PRICING;
+    return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_DEEPSEEK_FLASH_PRICING);
   }
   if (isDeepSeekV4ProModel(modelId)) return DEEPSEEK_PRICING;
   if (isGemini36FlashModel(modelId)) return GEMINI_36_PRICING;
   if (isGpt56TerraModel(modelId)) {
-    return CHEAPER_INFERENCE_TERRA_PRICING;
+    return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_TERRA_PRICING);
   }
   if (isGpt56LunaModel(modelId)) {
-    return CHEAPER_INFERENCE_LUNA_PRICING;
+    return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_LUNA_PRICING);
   }
   if (isCheaperInferenceGemini31ProModel(modelId)) {
-    return CHEAPER_INFERENCE_GEMINI_31_PRO_PRICING;
+    return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_GEMINI_31_PRO_PRICING);
   }
   if (isCheaperInferenceQwen38MaxModel(modelId)) {
-    return CHEAPER_INFERENCE_QWEN_38_MAX_PRICING;
+    return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_QWEN_38_MAX_PRICING);
   }
   return null;
 }
@@ -353,7 +369,7 @@ const MARKET_PREVIEW_DIRECT_RATES: Record<
 /**
  * Stable model-picker estimate for market-priced CheaperInference models.
  * discount=0.15 is the fixed midpoint; 0.30/0 are the stable low/high bounds.
- * Actual turn billing uses base published constants; CI catalog is procurement-only.
+ * Actual turn billing uses live CI current rates (or upstream cost when reported).
  */
 export function computeCheaperInferenceMarketPreviewCost(
   inputTokens: number,
@@ -560,14 +576,27 @@ export function computeOpenRouterTurnBilling(
     opts.apiCompletionTokens,
     opts.outputTokens + (opts.reasoningTokens ?? 0)
   );
-  const baseCost = computeReasoningPointCost(
-    opts.modelId,
-    billedInputTokens,
-    billedCompletionTokens,
-    0,
-    cacheReadTokens,
-    cacheWriteTokens
-  ).total;
+  const rates = resolveOpenRouterReasoningPointRates(opts.modelId);
+  const upstreamCostUsd =
+    isCheaperInferenceModel(opts.modelId) &&
+    typeof opts.upstreamCostUsd === "number" &&
+    Number.isFinite(opts.upstreamCostUsd) &&
+    opts.upstreamCostUsd > 0
+      ? opts.upstreamCostUsd
+      : null;
+  const baseCost =
+    upstreamCostUsd != null && rates
+      ? ceilFractional(
+          (upstreamCostUsd * rates.effectiveKrwPerUsd) / (1 - rates.grossMargin)
+        )
+      : computeReasoningPointCost(
+          opts.modelId,
+          billedInputTokens,
+          billedCompletionTokens,
+          0,
+          cacheReadTokens,
+          cacheWriteTokens
+        ).total;
   const promoted = applySitePromotionToTurnBilling(opts.modelId, baseCost);
 
   return {

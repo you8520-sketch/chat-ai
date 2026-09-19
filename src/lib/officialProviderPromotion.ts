@@ -3,6 +3,7 @@
  */
 
 import { getDb } from "@/lib/db";
+import { activateSitePromotionCampaign } from "@/lib/sitePromotion";
 import { ensureSitePromotionSchema } from "@/lib/sitePromotionSchema";
 
 export type OfficialProviderPromotion = {
@@ -89,10 +90,27 @@ export function createOfficialProviderPromotion(
       input.verifiedBy ?? null,
       episodeKey
     );
-  const row = db
-    .prepare("SELECT * FROM official_provider_promotions WHERE id = ?")
-    .get(Number(result.lastInsertRowid)) as Record<string, unknown>;
-  return rowToPromotion(row);
+  const promotion = getOfficialProviderPromotion(Number(result.lastInsertRowid))!;
+
+  if (promotion.verifiedAt?.trim() && modelId) {
+    activateSitePromotionCampaign(
+      {
+        id: promotion.id,
+        provider: promotion.provider,
+        modelId,
+        officialDiscountPct: promotion.officialDiscountPct,
+        officialEnd: promotion.officialEnd,
+        episodeKey: promotion.episodeKey,
+        source: promotion.source,
+        provenance: promotion.provenance,
+        verifiedAt: promotion.verifiedAt,
+      },
+      modelId,
+      promotion.verifiedAt
+    );
+  }
+
+  return promotion;
 }
 
 export function getOfficialProviderPromotion(id: number): OfficialProviderPromotion | null {
@@ -113,11 +131,29 @@ export function updateOfficialProviderPromotionDiscount(
   db.prepare(
     "UPDATE official_provider_promotions SET official_discount_pct = ? WHERE id = ? AND status = 'active'"
   ).run(officialDiscountPct, id);
-  return getOfficialProviderPromotion(id);
+  const promotion = getOfficialProviderPromotion(id);
+  if (promotion?.verifiedAt?.trim() && promotion.modelId) {
+    activateSitePromotionCampaign(
+      {
+        id: promotion.id,
+        provider: promotion.provider,
+        modelId: promotion.modelId,
+        officialDiscountPct: promotion.officialDiscountPct,
+        officialEnd: promotion.officialEnd,
+        episodeKey: promotion.episodeKey,
+        source: promotion.source,
+        provenance: promotion.provenance,
+        verifiedAt: promotion.verifiedAt,
+      },
+      promotion.modelId,
+      promotion.verifiedAt
+    );
+  }
+  return promotion;
 }
 
-/** Active verified official promotions for a model at a point in time. */
-export function listActiveOfficialPromotionsForModel(
+/** Verified, exact-model official promotions eligible for charge (campaign must exist separately). */
+export function listChargeEligibleOfficialPromotionsForModel(
   modelId: string,
   nowIso = new Date().toISOString()
 ): OfficialProviderPromotion[] {
@@ -128,11 +164,21 @@ export function listActiveOfficialPromotionsForModel(
     .prepare(
       `SELECT * FROM official_provider_promotions
        WHERE status = 'active'
+         AND verified_at IS NOT NULL
          AND official_start <= ?
          AND official_end > ?
-         AND (model_id IS NULL OR lower(model_id) = ?)
+         AND model_id IS NOT NULL
+         AND lower(model_id) = ?
        ORDER BY id DESC`
     )
     .all(nowIso, nowIso, normalized) as Record<string, unknown>[];
   return rows.map(rowToPromotion);
+}
+
+/** @deprecated Use listChargeEligibleOfficialPromotionsForModel — exact model_id only, verified required. */
+export function listActiveOfficialPromotionsForModel(
+  modelId: string,
+  nowIso = new Date().toISOString()
+): OfficialProviderPromotion[] {
+  return listChargeEligibleOfficialPromotionsForModel(modelId, nowIso);
 }

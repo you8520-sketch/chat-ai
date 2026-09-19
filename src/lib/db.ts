@@ -811,6 +811,10 @@ function migrate(db: Database.Database) {
   addColumn("report_refunds", "auto_refund", "INTEGER NOT NULL DEFAULT 0");
   addColumn("report_refunds", "error_reasons", "TEXT NOT NULL DEFAULT ''");
   addColumn("report_refunds", "report_category", "TEXT NOT NULL DEFAULT ''");
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_report_refunds_user_message
+      ON report_refunds(user_id, message_id);
+  `);
   ensureSitePromotionSchema(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_personas (

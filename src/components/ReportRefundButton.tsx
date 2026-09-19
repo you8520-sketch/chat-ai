@@ -39,7 +39,7 @@ export default function ReportRefundButton({
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [category, setCategory] = useState<ReportRefundUiCategory>("under_length");
+  const [category, setCategory] = useState<ReportRefundUiCategory | null>(null);
 
   async function submitReport(selectedCategory: ReportRefundUiCategory) {
     if (busy || isRefunded || isReportPending || disabled || messageId <= 0 || chatId <= 0) return;
@@ -120,10 +120,16 @@ export default function ReportRefundButton({
             </div>
           }
           confirmLabel="신고하기"
-          onCancel={() => setConfirmOpen(false)}
+          confirmDisabled={category == null}
+          onCancel={() => {
+            setConfirmOpen(false);
+            setCategory(null);
+          }}
           onConfirm={() => {
+            if (!category) return;
             setConfirmOpen(false);
             void submitReport(category);
+            setCategory(null);
           }}
         />
       )}

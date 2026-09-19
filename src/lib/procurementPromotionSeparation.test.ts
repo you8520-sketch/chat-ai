@@ -28,7 +28,9 @@ import { buildPublicBillingReceipt } from "@/lib/publicBillingReceipt";
 import type { Usage } from "@/lib/chatUsage";
 
 const MODEL = CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL;
+const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 const FX = 1530;
+const MARGIN = 0.5;
 
 function seedCatalog(input: {
   currentIn: number;
@@ -52,13 +54,25 @@ function seedCatalog(input: {
   return catalog;
 }
 
+function expectedBaseChargeFromCurrentRates(
+  inputTokens: number,
+  outputTokens: number,
+  inputUsdPerMillion: number,
+  outputUsdPerMillion: number
+): number {
+  const rawUsd =
+    (inputTokens * inputUsdPerMillion + outputTokens * outputUsdPerMillion) / 1_000_000;
+  const rawKrw = rawUsd * FX;
+  return Math.ceil(rawKrw / (1 - MARGIN) - 1e-9);
+}
+
 before(() => {
   installIsolatedTestDatabase();
   getDb();
 });
 
 describe("procurement vs site promotion separation", () => {
-  it("A: CI reference=100 current=60 discountPercent=40 → procurement=60, no site promo, no user discount", () => {
+  it("A: CI reference=100 current=60 discountPercent=40 → procurement=60, user base follows margin, no site promo", () => {
     const catalog = seedCatalog({
       currentIn: 60,
       currentOut: 60,
@@ -81,8 +95,8 @@ describe("procurement vs site promotion separation", () => {
 
     const rates = resolveOpenRouterReasoningPointRates(MODEL, FX);
     assert.ok(rates);
-    assert.equal(rates.inputUsdPerMillion, 1.4);
-    assert.notEqual(rates.inputUsdPerMillion, 60);
+    assert.equal(rates.inputUsdPerMillion, 60);
+    assert.equal(rates.outputUsdPerMillion, 60);
 
     const billing = computeOpenRouterTurnBilling({
       modelId: MODEL,
@@ -90,27 +104,27 @@ describe("procurement vs site promotion separation", () => {
       outputTokens: 2_000,
       apiPromptTokens: 10_000,
       apiCompletionTokens: 2_000,
-      upstreamCostUsd: 0.05,
     });
     assert.equal(billing.sitePromotion, undefined);
-    const withoutUpstream = computeOpenRouterTurnBilling({
-      modelId: MODEL,
-      inputTokens: 10_000,
-      outputTokens: 2_000,
-      apiPromptTokens: 10_000,
-      apiCompletionTokens: 2_000,
+    const expected = expectedBaseChargeFromCurrentRates(10_000, 2_000, 60, 60);
+    assert.equal(billing.baseCost, expected);
+    assert.equal(billing.total, expected);
+
+    const receipt = buildPublicBillingReceipt({
+      input: 10_000,
+      output: 2_000,
+      model: MODEL,
+      route: "safe",
+      cost: billing.total,
+      savedOutputChars: 1000,
+      breakdown: [],
     });
-    assert.equal(billing.total, withoutUpstream.total);
+    assert.ok(receipt);
+    assert.equal(receipt.siteDiscountPercent, null);
   });
 
-  it("B: CI current 60→55→63 changes procurement only, site promo inactive", () => {
-    const baseBilling = computeOpenRouterTurnBilling({
-      modelId: MODEL,
-      inputTokens: 5_000,
-      outputTokens: 1_000,
-      apiPromptTokens: 5_000,
-      apiCompletionTokens: 1_000,
-    });
+  it("B: CI current 60→55→63 changes normal user base charge; site promo stays inactive", () => {
+    const totals: number[] = [];
     for (const current of [60, 55, 63]) {
       seedCatalog({
         currentIn: current,
@@ -134,9 +148,15 @@ describe("procurement vs site promotion separation", () => {
         apiPromptTokens: 5_000,
         apiCompletionTokens: 1_000,
       });
-      assert.equal(billing.total, baseBilling.total);
+      totals.push(billing.total);
       assert.equal(billing.sitePromotion, undefined);
+      assert.equal(
+        billing.baseCost,
+        expectedBaseChargeFromCurrentRates(5_000, 1_000, current, current)
+      );
     }
+    assert.notEqual(totals[0], totals[1]);
+    assert.notEqual(totals[1], totals[2]);
   });
 
   it("C: official 50% → site policy 30%", () => {
@@ -202,46 +222,42 @@ describe("procurement vs site promotion separation", () => {
     assert.equal(second.siteDiscountPercent, 24);
   });
 
-  it("G: billing snapshot preserves historical discount after promo ends", () => {
-    const snapshot = {
-      baseUserChargePoints: 100,
-      siteDiscountPercent: 30,
-      siteDiscountPoints: 30,
-      finalChargePoints: 70,
-      campaignId: 1,
-      officialPromotionId: 1,
-      episodeKey: "ep",
-      provider: "google",
-      source: "admin",
-      provenance: "test",
-      appliedAt: "2026-09-01T00:00:00.000Z",
-    };
-    const usage: Usage = {
-      input: 100,
-      output: 200,
-      model: MODEL,
-      route: "safe",
-      cost: 70,
-      savedOutputChars: 1200,
-      apiInputTokens: 100,
-      apiOutputTokens: 200,
-      sitePromotion: snapshot,
-      breakdown: [],
-    };
-    const receipt = buildPublicBillingReceipt(usage);
-    assert.ok(receipt);
-    assert.equal(receipt.siteDiscountPercent, 30);
-    assert.equal(receipt.finalChargePoints, 70);
-  });
-
-  it("active official promo applies site discount once on base user charge", () => {
+  it("campaign activation T0 / first billing T+2 keeps timer based on T0", () => {
+    const t0 = "2026-09-01T00:00:00.000Z";
     createOfficialProviderPromotion({
       provider: "google",
       modelId: MODEL,
       officialDiscountPct: 50,
-      officialStart: "2026-09-01T00:00:00.000Z",
+      officialStart: t0,
       officialEnd: "2026-10-01T00:00:00.000Z",
-      verifiedAt: "2026-09-01T00:00:00.000Z",
+      verifiedAt: t0,
+      episodeKey: "google:timer-t0",
+    });
+    const t2 = "2026-09-03T00:00:00.000Z";
+    const promoAtBilling = resolveActiveSitePromotion(MODEL, t2);
+    assert.ok(promoAtBilling);
+    assert.equal(promoAtBilling.activatedAt, t0);
+    const ageMs = Date.parse(t2) - Date.parse(promoAtBilling.activatedAt);
+    assert.equal(Math.round(ageMs / (24 * 60 * 60 * 1000)), 2);
+  });
+
+  it("explicit verified official promo 50% → normal base then site 30%", () => {
+    seedCatalog({
+      currentIn: 1.4,
+      currentOut: 8.4,
+      referenceIn: 2,
+      referenceOut: 12,
+      discountPercent: 30,
+    });
+    const promoStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const promoEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    createOfficialProviderPromotion({
+      provider: "google",
+      modelId: MODEL,
+      officialDiscountPct: 50,
+      officialStart: promoStart,
+      officialEnd: promoEnd,
+      verifiedAt: promoStart,
       episodeKey: "google:active-billing",
     });
     const billing = computeOpenRouterTurnBilling({
@@ -257,7 +273,45 @@ describe("procurement vs site promotion separation", () => {
     assert.equal(billing.sitePromotion!.finalChargePoints, billing.total);
   });
 
-  it("H: without site promotion user charge unchanged from base", () => {
+  it("model-specific promo: Gemini eligible, DeepSeek/Claude not", () => {
+    const promoStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const promoEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    createOfficialProviderPromotion({
+      provider: "google",
+      modelId: MODEL,
+      officialDiscountPct: 50,
+      officialStart: promoStart,
+      officialEnd: promoEnd,
+      verifiedAt: promoStart,
+      episodeKey: "google:scope-gemini",
+    });
+    assert.ok(resolveActiveSitePromotion(MODEL));
+    assert.equal(resolveActiveSitePromotion(DEEPSEEK), null);
+    assert.equal(resolveActiveSitePromotion("anthropic/claude-opus-4"), null);
+  });
+
+  it("unverified promo does not change charge", () => {
+    const db = getDb();
+    db.exec("DELETE FROM site_promotion_campaigns");
+    db.exec("DELETE FROM official_provider_promotions");
+    db.prepare(
+      `INSERT INTO official_provider_promotions
+         (provider, model_id, official_discount_pct, official_start, official_end, status, episode_key)
+       VALUES ('google', ?, 50, '2026-09-01T00:00:00.000Z', '2026-10-01T00:00:00.000Z', 'active', 'unverified-only')`
+    ).run(MODEL);
+    assert.equal(resolveActiveSitePromotion(MODEL), null);
+    const billing = computeOpenRouterTurnBilling({
+      modelId: MODEL,
+      inputTokens: 5_000,
+      outputTokens: 1_000,
+      apiPromptTokens: 5_000,
+      apiCompletionTokens: 1_000,
+    });
+    assert.equal(billing.sitePromotion, undefined);
+    assert.equal(billing.baseCost, billing.total);
+  });
+
+  it("H: CI discountPercent 70% does not create user site promo row", () => {
     seedCatalog({
       currentIn: 0.5,
       currentOut: 2,
@@ -266,13 +320,13 @@ describe("procurement vs site promotion separation", () => {
       discountPercent: 75,
     });
     const billing = computeOpenRouterTurnBilling({
-      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      modelId: DEEPSEEK,
       inputTokens: 8_000,
       outputTokens: 1_500,
       apiPromptTokens: 8_000,
       apiCompletionTokens: 1_500,
     });
-    assert.equal(billing.baseCost, billing.total);
     assert.equal(billing.sitePromotion, undefined);
+    assert.equal(billing.baseCost, billing.total);
   });
 });

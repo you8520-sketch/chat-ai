@@ -163,12 +163,10 @@ function ReceiptBody({
           <span className="text-zinc-500">출력 토큰:</span>{" "}
           {publicReceipt.outputTokens.toLocaleString()}
         </p>
-        {publicReceipt.reasoningTokens > 0 && (
-          <p>
-            <span className="text-zinc-500">추론 토큰:</span>{" "}
-            {publicReceipt.reasoningTokens.toLocaleString()}
-          </p>
-        )}
+        <p>
+          <span className="text-zinc-500">추론 토큰:</span>{" "}
+          {publicReceipt.reasoningTokens.toLocaleString()}
+        </p>
         {publicReceipt.billingTypeLabel && (
           <p>
             <span className="text-zinc-500">과금 유형:</span> {publicReceipt.billingTypeLabel}
