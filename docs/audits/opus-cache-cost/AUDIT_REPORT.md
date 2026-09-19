@@ -449,7 +449,31 @@ CI Opus 5 catalog: input $3.5/M · read $0.35/M · write $4.375/M · output $17.
 - Provider call budget cumulative: **0** (post-fix 3-call harness remains last live evidence)
 - **Main integration (2026-09-19):** merged `ad088282` (PR #963 billing/procurement); zero file overlap; PC/HC + #963 billing regressions pass; `behind=0`
 
-### Next live cost budget (approval required — NOT executed)
+### Passthrough live discriminator (2026-09-19, 2 calls, runtime `5291c893`)
+
+| | T1 (cold) | T2 (warm) |
+|--|-----------|-----------|
+| Query | `x-ci-prompt-cache=passthrough` | same |
+| prompt | 45,117 | 40,708 |
+| standard | **45,117** | **674** |
+| read | 0 | **17,357** |
+| write | **0** | **22,677** |
+| USD | $0.15819 | $0.105092 |
+| **Total** | | **$0.263282** |
+
+Baseline (no passthrough, post-fix): T2 write=22,675 / standard=673 / read=17,357 / $0.10508.
+
+**Result:** `PASSTHROUGH_PROVIDER_BEHAVIOR = NO_EFFECT` on warm T2 primary discriminator. T1 cold anomaly: entire prompt standard (write=0) vs baseline write=44,441 — does not fix warm suffix attribution.
+
+| Classification | Value |
+|----------------|-------|
+| `CI_GATEWAY_EXTRA_BREAKPOINT_CAUSALITY` | **NOT_CONFIRMED_BY_PASSTHROUGH** |
+| `END_TO_END_OPUS_CACHE_COST_ROOT_CAUSE` | **ROOT_CAUSE_UNCONFIRMED** |
+| `CURRENT_OPUS_CACHE_HEALTH` | **PARTIAL_CACHE_ONLY** |
+
+Artifacts: `/opt/cursor/artifacts/opus-passthrough-live-verify-report.json`
+
+### Next live cost budget (future experiments)
 
 | Outcome | Approx total (2-call) |
 |---------|----------------------|
