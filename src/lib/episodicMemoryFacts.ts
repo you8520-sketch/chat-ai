@@ -17,6 +17,7 @@ import {
 import { EPISODIC_RETRIEVED_EVENT_INTERPRETATION_LINES } from "@/lib/historicalTruthPolicy";
 import {
   classifyEpisodicFactTemporalNature,
+  COMPLETED_SCENE_EVENT_ATTRIBUTES,
   isClearlyTemporaryEpisodicFact,
 } from "@/lib/episodicMemoryTemporal";
 import {
@@ -1345,6 +1346,7 @@ export type EpisodicStateReconcileStats = {
   keysReconciled: number;
   keysDroppedDueToCap: number;
   keysOmittedBlockedLatest: number;
+  keysOmittedRawWindow: number;
 };
 
 export type EpisodicLaneBudgets = {
@@ -1359,14 +1361,26 @@ export type EpisodicLaneBudgets = {
 const EPISODIC_CANDIDATE_SELECT_COLUMNS = `id, chat_id, character_id, user_id, source_turn, source_user_message_id,
                 category, subject, attribute, value, importance, fact_text, metadata, created_at`;
 
-/** Canonical eligibility scope for episodic candidate retrieval (single owner). */
+/** Canonical eligibility scope — base (freshness) and recall-eligible (minAge) from one owner. */
 export type EpisodicCandidateScope = {
   chatId: number;
-  where: string[];
-  params: Array<number | string>;
   currentTurn: number | null;
   minAgeTurns: number;
+  /** Rows with source_turn > recallCutoffTurn are owned by recent RAW, not episodic recall. */
+  recallCutoffTurn: number | null;
+  /** Base/canonical boundary: chat scope, reset, source_turn < currentTurn (no minAge). */
+  baseWhere: string[];
+  baseParams: Array<number | string>;
+  /** Recall-eligible boundary: base + source_turn <= currentTurn - minAgeTurns. */
+  recallWhere: string[];
+  recallParams: Array<number | string>;
 };
+
+const MILESTONE_HISTORICAL_ATTRIBUTE_IN_SQL = [...COMPLETED_SCENE_EVENT_ATTRIBUTES]
+  .map((attribute) => `'${attribute}'`)
+  .join(", ");
+const MILESTONE_EXCLUDE_STATE_LIKE_CATEGORY_SQL = `category NOT IN ('preference', 'rule', 'quest')`;
+const MILESTONE_HISTORICAL_FETCH_ORDER_SQL = `CASE WHEN attribute IN (${MILESTONE_HISTORICAL_ATTRIBUTE_IN_SQL}) THEN 0 ELSE 1 END, source_turn ASC, id ASC`;
 
 type EpisodicCandidateFetchInput = {
   scope: EpisodicCandidateScope;
@@ -1475,7 +1489,31 @@ export function resolveEpisodicLaneBudgets(candidateLimit: number): EpisodicLane
   };
 }
 
-/** Single owner for chat/character/user/reset/minAge candidate eligibility. */
+function appendEpisodicScopeIdentityFilters(
+  db: Database.Database,
+  input: GetEpisodicMemoryForPromptInput,
+  where: string[],
+  params: Array<number | string>,
+  chatId: number
+): void {
+  where.push("chat_id = ?");
+  params.push(chatId);
+  if (input.characterId != null && Number.isFinite(input.characterId)) {
+    where.push("(character_id IS NULL OR character_id = ?)");
+    params.push(Math.trunc(input.characterId));
+  }
+  if (input.userId != null && Number.isFinite(input.userId)) {
+    where.push("(user_id IS NULL OR user_id = ?)");
+    params.push(Math.trunc(input.userId));
+  }
+  const boundary = getMemorySourceBoundaryCore(db, chatId);
+  if (boundary.resetAfterMessageId != null) {
+    where.push("source_user_message_id IS NOT NULL AND source_user_message_id > ?");
+    params.push(boundary.resetAfterMessageId);
+  }
+}
+
+/** Single owner deriving base (canonical freshness) and recall-eligible (minAge) boundaries. */
 export function buildEpisodicCandidateScope(
   db: Database.Database,
   input: GetEpisodicMemoryForPromptInput,
@@ -1493,31 +1531,41 @@ export function buildEpisodicCandidateScope(
     Math.min(100, Math.trunc(input.minAgeTurns ?? resolveEpisodicMemoryMinAgeTurns(env)))
   );
 
-  const where: string[] = ["chat_id = ?"];
-  const params: Array<number | string> = [chatId];
-  if (input.characterId != null && Number.isFinite(input.characterId)) {
-    where.push("(character_id IS NULL OR character_id = ?)");
-    params.push(Math.trunc(input.characterId));
-  }
-  if (input.userId != null && Number.isFinite(input.userId)) {
-    where.push("(user_id IS NULL OR user_id = ?)");
-    params.push(Math.trunc(input.userId));
-  }
-  const boundary = getMemorySourceBoundaryCore(db, chatId);
-  if (boundary.resetAfterMessageId != null) {
-    where.push("source_user_message_id IS NOT NULL AND source_user_message_id > ?");
-    params.push(boundary.resetAfterMessageId);
-  }
+  const baseWhere: string[] = [];
+  const baseParams: Array<number | string> = [];
+  appendEpisodicScopeIdentityFilters(db, input, baseWhere, baseParams, chatId);
   if (currentTurn != null) {
-    where.push("source_turn < ?");
-    params.push(currentTurn);
-    if (minAgeTurns > 0) {
-      where.push("source_turn <= ?");
-      params.push(currentTurn - minAgeTurns);
-    }
+    baseWhere.push("source_turn < ?");
+    baseParams.push(currentTurn);
   }
 
-  return { chatId, where, params, currentTurn, minAgeTurns };
+  const recallWhere = [...baseWhere];
+  const recallParams = [...baseParams];
+  if (currentTurn != null && minAgeTurns > 0) {
+    recallWhere.push("source_turn <= ?");
+    recallParams.push(currentTurn - minAgeTurns);
+  }
+
+  const recallCutoffTurn =
+    currentTurn != null && minAgeTurns > 0 ? currentTurn - minAgeTurns : null;
+
+  return {
+    chatId,
+    currentTurn,
+    minAgeTurns,
+    recallCutoffTurn,
+    baseWhere,
+    baseParams,
+    recallWhere,
+    recallParams,
+  };
+}
+
+function isLatestStateInRawWindow(
+  scope: EpisodicCandidateScope,
+  sourceTurn: number
+): boolean {
+  return scope.recallCutoffTurn != null && sourceTurn > scope.recallCutoffTurn;
 }
 
 function isStateLikeForGlobalReconciliation(row: EpisodicMemoryFactRecord): boolean {
@@ -1549,13 +1597,13 @@ function fetchLatestBoundedStateRowForKey(
     .prepare(
       `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
          FROM episodic_memory_facts
-         WHERE ${scope.where.join(" AND ")}
+         WHERE ${scope.baseWhere.join(" AND ")}
            AND category = ? AND subject = ? AND attribute = ?
          ORDER BY source_turn DESC, id DESC
          LIMIT ?`
     )
     .get(
-      ...scope.params,
+      ...scope.baseParams,
       category,
       subject,
       attribute,
@@ -1584,6 +1632,7 @@ export function reconcileGlobalStateLikeFacts(
         keysReconciled: 0,
         keysDroppedDueToCap: 0,
         keysOmittedBlockedLatest: 0,
+        keysOmittedRawWindow: 0,
       },
     };
   }
@@ -1594,6 +1643,7 @@ export function reconcileGlobalStateLikeFacts(
   let queryCount = 0;
   let rowsFetched = 0;
   let keysOmittedBlockedLatest = 0;
+  let keysOmittedRawWindow = 0;
 
   for (const key of keysToReconcile) {
     const parts = key.split(":");
@@ -1609,6 +1659,10 @@ export function reconcileGlobalStateLikeFacts(
     if (!latest) continue;
     rowsFetched += 1;
     if (!isStateLikeForGlobalReconciliation(latest)) continue;
+    if (isLatestStateInRawWindow(scope, latest.source_turn)) {
+      keysOmittedRawWindow += 1;
+      continue;
+    }
     const guard = evaluateEpisodicRetrievalGuard(latest);
     if (!guard.allowed) {
       keysOmittedBlockedLatest += 1;
@@ -1645,6 +1699,7 @@ export function reconcileGlobalStateLikeFacts(
       keysReconciled: latestAllowedByKey.size,
       keysDroppedDueToCap,
       keysOmittedBlockedLatest,
+      keysOmittedRawWindow,
     },
   };
 }
@@ -1669,7 +1724,7 @@ function fetchEpisodicMemoryCandidateRows(
   db: Database.Database,
   input: EpisodicCandidateFetchInput
 ): { rows: EpisodicMemoryFactRecord[]; stats: EpisodicCandidateFetchStats; laneById: Map<number, EpisodicCandidateLane[]> } {
-  const whereClause = input.scope.where.join(" AND ");
+  const recallWhereClause = input.scope.recallWhere.join(" AND ");
   const budgets = resolveEpisodicLaneBudgets(input.candidateLimit);
   let queryCount = 0;
   let rowsFetched = 0;
@@ -1680,11 +1735,11 @@ function fetchEpisodicMemoryCandidateRows(
       .prepare(
         `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
            FROM episodic_memory_facts
-           WHERE ${whereClause}
+           WHERE ${recallWhereClause}
            ORDER BY source_turn DESC, id DESC
            LIMIT ?`
       )
-      .all(...input.scope.params, budgets.recent) as EpisodicMemoryFactRecord[]).map(
+      .all(...input.scope.recallParams, budgets.recent) as EpisodicMemoryFactRecord[]).map(
       attachStoredEvidenceType
     );
     queryCount += 1;
@@ -1697,8 +1752,8 @@ function fetchEpisodicMemoryCandidateRows(
   const tokens = tokenizeForSimpleBoost(input.currentUserMessage ?? "").slice(0, 5);
   let relevanceRows: EpisodicMemoryFactRecord[] = [];
   if (tokens.length > 0 && budgets.relevance > 0) {
-    const relevanceWhere = [...input.scope.where];
-    const relevanceParams = [...input.scope.params];
+    const relevanceWhere = [...input.scope.recallWhere];
+    const relevanceParams = [...input.scope.recallParams];
     if (minRecentTurn != null) {
       relevanceWhere.push("source_turn < ?");
       relevanceParams.push(minRecentTurn);
@@ -1733,11 +1788,13 @@ function fetchEpisodicMemoryCandidateRows(
       .prepare(
         `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
            FROM episodic_memory_facts
-           WHERE ${whereClause} AND importance = 'critical'
-           ORDER BY source_turn ASC, id ASC
+           WHERE ${recallWhereClause}
+             AND importance = 'critical'
+             AND ${MILESTONE_EXCLUDE_STATE_LIKE_CATEGORY_SQL}
+           ORDER BY ${MILESTONE_HISTORICAL_FETCH_ORDER_SQL}
            LIMIT ?`
       )
-      .all(...input.scope.params, budgets.milestoneCriticalFetch) as EpisodicMemoryFactRecord[]).map(
+      .all(...input.scope.recallParams, budgets.milestoneCriticalFetch) as EpisodicMemoryFactRecord[]).map(
       attachStoredEvidenceType
     );
     queryCount += 1;
@@ -1750,11 +1807,13 @@ function fetchEpisodicMemoryCandidateRows(
       .prepare(
         `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
            FROM episodic_memory_facts
-           WHERE ${whereClause} AND importance = 'important'
-           ORDER BY source_turn ASC, id ASC
+           WHERE ${recallWhereClause}
+             AND importance = 'important'
+             AND ${MILESTONE_EXCLUDE_STATE_LIKE_CATEGORY_SQL}
+           ORDER BY ${MILESTONE_HISTORICAL_FETCH_ORDER_SQL}
            LIMIT ?`
       )
-      .all(...input.scope.params, budgets.milestoneImportantFetch) as EpisodicMemoryFactRecord[]).map(
+      .all(...input.scope.recallParams, budgets.milestoneImportantFetch) as EpisodicMemoryFactRecord[]).map(
       attachStoredEvidenceType
     );
     queryCount += 1;

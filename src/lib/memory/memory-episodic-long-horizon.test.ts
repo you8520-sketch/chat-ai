@@ -10,6 +10,7 @@ import {
   persistEpisodicMemoryFactsBestEffort,
   reconcileGlobalStateLikeFacts,
   resolveEpisodicLaneBudgets,
+  resolveEpisodicMemoryMinAgeTurns,
 } from "@/lib/episodicMemoryFacts";
 import type { ExtractedStatusFact } from "@/lib/statusWidget/types";
 
@@ -31,6 +32,13 @@ const recallEnv = {
   MEMORY_FEATURE_ENABLED: "1",
   EPISODIC_MEMORY_RECALL_ENABLED: "1",
   EPISODIC_MEMORY_MIN_AGE_TURNS: "0",
+} as NodeJS.ProcessEnv;
+
+/** Production-parity recall: no minAge override → code default 5. */
+const productionRecallEnv = {
+  NODE_ENV: "development",
+  MEMORY_FEATURE_ENABLED: "1",
+  EPISODIC_MEMORY_RECALL_ENABLED: "1",
 } as NodeJS.ProcessEnv;
 
 /** Old critical milestone at T20 — the starvation victim in long chats. */
@@ -771,6 +779,323 @@ describe("performance benchmark — bounded multi-lane retrieval", () => {
       assert.match(recentPlan, /idx_episodic_memory_facts_chat_turn|USING INDEX/i);
     });
   }
+});
+
+describe("PRODUCTION minAge parity", () => {
+  it("default minAge is 5 when env override absent", () => {
+    assert.equal(resolveEpisodicMemoryMinAgeTurns(productionRecallEnv), 5);
+  });
+});
+
+describe("RECENT_RAW_STATE_SHADOWING — production minAge=5", () => {
+  it("T20 syrup must not inject when T299 black owns RAW window at currentTurn=301", () => {
+    const db = createDb();
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 20, 'preference', 'user', 'favorite_drink', 'syrup_coffee', 'important',
+               '사용자는 커피에 시럽을 넣어 마신다.', '{}')`
+    ).run();
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 299, 'preference', 'user', 'favorite_drink', 'black_coffee', 'normal',
+               '사용자는 블랙 커피만 마신다.', '{}')`
+    ).run();
+    insertFillerFacts(db, 1, 21, 278);
+    insertFillerFacts(db, 1, 300, 1);
+
+    const t20Id = (
+      db.prepare("SELECT id FROM episodic_memory_facts WHERE source_turn=20").get() as { id: number }
+    ).id;
+    const t299Id = (
+      db.prepare("SELECT id FROM episodic_memory_facts WHERE source_turn=299").get() as { id: number }
+    ).id;
+
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 301, currentUserMessage: "커피" },
+      productionRecallEnv
+    );
+
+    assert.ok(!recall.facts.some((f) => f.id === t20Id), "T20 syrup must not inject via relevance");
+    assert.ok(!recall.facts.some((f) => f.id === t299Id), "T299 black must not inject via episodic");
+    assert.ok(
+      !recall.facts.some((f) => f.attribute === "favorite_drink"),
+      "logical key omitted — RAW owns recent canonical state"
+    );
+    assert.doesNotMatch(recall.promptBlock, /시럽|블랙/);
+  });
+});
+
+describe("RAW-window blocked-latest safety — production minAge=5", () => {
+  it("guard-blocked newer row in RAW window prevents older stale resurrection", () => {
+    const db = createDb();
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 20, 'preference', 'user', 'favorite_drink', 'syrup_coffee', 'important',
+               '사용자는 커피에 시럽을 넣어 마신다.', '{}')`
+    ).run();
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 299, 'preference', 'user', 'favorite_drink', 'awakening_in_progress', 'normal',
+               '렌의 각성은 현재 진행 중이다.', '{}')`
+    ).run();
+    insertFillerFacts(db, 1, 21, 278);
+    insertFillerFacts(db, 1, 300, 1);
+
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 301, currentUserMessage: "커피" },
+      productionRecallEnv
+    );
+
+    assert.doesNotMatch(recall.promptBlock, /시럽|각성/);
+    assert.ok(
+      !recall.facts.some((f) => f.attribute === "favorite_drink"),
+      "newer canonical row in RAW window blocks older candidate even when guard-blocked"
+    );
+  });
+});
+
+describe("RESET + RAW-window freshness — production minAge=5", () => {
+  it("pre-reset state cannot suppress post-reset current state inside RAW window", () => {
+    const db = createDb();
+    db.prepare(
+      `INSERT INTO chat_memories (chat_id, memory_reset_after_message_id, memory_epoch)
+       VALUES (1, 50, 1)`
+    ).run();
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, source_user_message_id, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 10, 10, 'preference', 'user', 'favorite_drink', 'pre_reset_drink', 'important',
+               '리셋 이전 음료 선호.', '{}')`
+    ).run();
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, source_user_message_id, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 295, 295, 'preference', 'user', 'favorite_drink', 'post_reset_drink', 'normal',
+               '리셋 이후 블랙 커피 선호.', '{}')`
+    ).run();
+    insertFillerFacts(db, 1, 296, 4);
+
+    const preResetId = (
+      db.prepare("SELECT id FROM episodic_memory_facts WHERE value='pre_reset_drink'").get() as {
+        id: number;
+      }
+    ).id;
+
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 301, currentUserMessage: "음료" },
+      productionRecallEnv
+    );
+
+    assert.ok(!recall.facts.some((f) => f.id === preResetId), "pre-reset row must not resurrect");
+    assert.ok(
+      !recall.facts.some((f) => f.attribute === "favorite_drink"),
+      "post-reset RAW-owned state must not inject via episodic either"
+    );
+  });
+});
+
+describe("MILESTONE post-filter starvation — nonhistorical-critical crowding", () => {
+  it("T21 critical historical scene_event survives 20 critical state-like rows", () => {
+    const db = createDb();
+    for (let turn = 1; turn <= 20; turn++) {
+      db.prepare(
+        `INSERT INTO episodic_memory_facts
+          (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+         VALUES (1, ?, 'preference', 'user', ?, ?, 'critical',
+                 ?, '{}')`
+      ).run(
+        turn,
+        `state_key_${turn}`,
+        `state_value_${turn}`,
+        `T${turn}에서 중요한 상태 선호 ${turn}이 기록되었다.`
+      );
+    }
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 21, 'relationship', 'user_char', 'scene_event', 'critical_turning_point', 'critical',
+               'T21에서 결정적인 전환점 사건이 완료되었다.', '{"memory_evidence_type":"explicit_scene_event"}')`
+    ).run();
+    insertFillerFacts(db, 1, 22, 150);
+
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      {
+        chatId: 1,
+        currentTurn: 180,
+        currentUserMessage: "요즘 날씨 어때?",
+      },
+      recallEnv
+    );
+
+    assert.ok(
+      recall.facts.some((f) => f.source_turn === 21 && f.value === "critical_turning_point"),
+      "T21 critical historical milestone must remain reachable despite 20 critical state-like rows"
+    );
+  });
+});
+
+function explainStateLookupPlan(
+  db: Database.Database,
+  scope: NonNullable<ReturnType<typeof buildEpisodicCandidateScope>>
+): string {
+  return (
+    db
+      .prepare(
+        `EXPLAIN QUERY PLAN
+         SELECT id FROM episodic_memory_facts
+         WHERE ${scope.baseWhere.join(" AND ")}
+           AND category = ? AND subject = ? AND attribute = ?
+         ORDER BY source_turn DESC, id DESC
+         LIMIT 1`
+      )
+      .all(...scope.baseParams, "preference", "user", "favorite_drink") as Array<{ detail: string }>
+  )
+    .map((row) => row.detail)
+    .join(" | ");
+}
+
+describe("STATE lookup query plan — honest classification", () => {
+  it("records EXPLAIN QUERY PLAN for per-key state reconciliation lookup", () => {
+    const db = createDb();
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 10, 'preference', 'user', 'favorite_drink', 'tea', 'normal', 'tea', '{}')`
+    ).run();
+
+    const scope = buildEpisodicCandidateScope(
+      db,
+      { chatId: 1, currentTurn: 20 },
+      productionRecallEnv
+    );
+    assert.ok(scope);
+    const plan = explainStateLookupPlan(db, scope!);
+    assert.ok(plan.length > 0, "query plan captured");
+    assert.match(plan, /idx_episodic_memory_facts|SEARCH|SCAN/i);
+  });
+});
+
+describe("STATE lookup stress — bounded result rows", () => {
+  it("A: 1 key × 500 versions — result rows bounded, reconciliation fast", () => {
+    const db = createDb();
+    const insert = db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, ?, 'preference', 'user', 'favorite_drink', ?, 'normal', ?, '{}')`
+    );
+    for (let turn = 1; turn <= 500; turn++) {
+      insert.run(turn, `v${turn}`, `version ${turn}`);
+    }
+
+    const scope = buildEpisodicCandidateScope(db, { chatId: 1, currentTurn: 510 }, productionRecallEnv);
+    assert.ok(scope);
+    const candidate = db
+      .prepare("SELECT * FROM episodic_memory_facts WHERE source_turn=20 AND chat_id=1")
+      .get() as Record<string, unknown>;
+
+    const start = performance.now();
+    const { stats } = reconcileGlobalStateLikeFacts(db, scope!, [
+      {
+        ...candidate,
+        chat_id: 1,
+        character_id: null,
+        user_id: null,
+        source_user_message_id: null,
+        importance: "important",
+        metadata: "{}",
+        created_at: "",
+        fact_text: "version 20",
+        value: "v20",
+      },
+    ] as never[]);
+    const elapsedMs = performance.now() - start;
+
+    assert.equal(stats.rowsFetched, 1, "STATE_RECONCILIATION_RESULT_BOUND = YES");
+    assert.equal(stats.queryCount, 1);
+    assert.ok(elapsedMs < 5000, `reconciliation ${elapsedMs.toFixed(1)}ms`);
+  });
+
+  it("B: latest matching version far behind thousands of unrelated rows", () => {
+    const db = createDb();
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 5, 'preference', 'user', 'favorite_drink', 'target', 'important', 'target drink', '{}')`
+    ).run();
+    insertFillerFacts(db, 1, 6, 3000);
+
+    const scope = buildEpisodicCandidateScope(db, { chatId: 1, currentTurn: 3010 }, productionRecallEnv);
+    assert.ok(scope);
+    const candidate = db
+      .prepare("SELECT * FROM episodic_memory_facts WHERE source_turn=5")
+      .get() as Record<string, unknown>;
+
+    const recallStart = performance.now();
+    const { stats } = reconcileGlobalStateLikeFacts(db, scope!, [candidate] as never[]);
+    const recallMs = performance.now() - recallStart;
+    const plan = explainStateLookupPlan(db, scope!);
+
+    assert.equal(stats.rowsFetched, 1);
+    assert.ok(recallMs < 5000, `reconciliation ${recallMs.toFixed(1)}ms`);
+    assert.ok(plan.length > 0);
+  });
+
+  it("C: 25 keys × multiple versions — capped reconciliation", () => {
+    const db = createDb();
+    const insert = db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, ?, 'preference', ?, 'favorite_drink', ?, 'important', ?, '{}')`
+    );
+    const candidates = [];
+    for (let i = 1; i <= 25; i++) {
+      for (let v = 0; v < 5; v++) {
+        const turn = i * 10 + v;
+        insert.run(
+          turn,
+          `user_${i}`,
+          `drink_${i}_v${v}`,
+          `사용자 ${i}는 음료 선호 버전 ${turn}번을 꾸준히 마신다.`
+        );
+      }
+      candidates.push(
+        db.prepare("SELECT * FROM episodic_memory_facts WHERE subject=? ORDER BY source_turn ASC LIMIT 1").get(
+          `user_${i}`
+        )
+      );
+    }
+
+    const scope = buildEpisodicCandidateScope(db, { chatId: 1, currentTurn: 400 }, productionRecallEnv);
+    assert.ok(scope);
+
+    const reconcileStart = performance.now();
+    const { stats } = reconcileGlobalStateLikeFacts(db, scope!, candidates as never[]);
+    const reconcileMs = performance.now() - reconcileStart;
+
+    const recallStart = performance.now();
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 400, currentUserMessage: "음료" },
+      productionRecallEnv
+    );
+    const recallMs = performance.now() - recallStart;
+
+    assert.equal(stats.keysDiscovered, 25);
+    assert.equal(stats.keysReconciled, 25);
+    assert.equal(stats.queryCount, 25);
+    assert.equal(stats.rowsFetched, 25);
+    assert.ok(reconcileMs < 5000);
+    assert.ok(recallMs < 5000);
+    assert.ok(recall.facts.length <= 8);
+  });
 });
 
 describe("recent-memory behavior unchanged", () => {
