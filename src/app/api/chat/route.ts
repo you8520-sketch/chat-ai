@@ -4934,6 +4934,9 @@ export async function POST(req: Request) {
         let deferPostTurnShared = false;
         const shareEpisodicInSharedInitial = shouldRequestEpisodicInSharedInitial({
           userMessage: messageText,
+          db,
+          chatId: chatRef.id,
+          sourceUserMessageId: userMessageId,
         });
         const suggestedRepliesEligibleForCoalesce =
           body.suggestedRepliesEnabled !== false &&

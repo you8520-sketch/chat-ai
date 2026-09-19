@@ -293,6 +293,71 @@ export function classifyMemoryBatchScopes(
   };
 }
 
+export type EpisodicTurnEligibility = {
+  eligible: boolean;
+  scopeClass: TurnScopeClass;
+};
+
+/** Minimal memory-record snapshot for branch-state resolution (avoids circular imports). */
+export type EpisodicMemoryRecordSnapshot = {
+  turnStart: number;
+  summaryKind: MemorySummaryScope;
+  branchStatus: BranchStatus | null;
+  inactive: boolean;
+};
+
+function turnScopeOpensBranchState(scopeClass: TurnScopeClass): boolean {
+  return scopeClass === "meaningful_noncanon" || scopeClass === "branch_continue";
+}
+
+function turnScopeClosesBranchState(scopeClass: TurnScopeClass): boolean {
+  return scopeClass === "branch_close" || scopeClass === "main_adopt";
+}
+
+/**
+ * Propagate branch/noncanon state across prior user messages (same semantics as
+ * rolling-summary `previousWasNoncanonOrBranch`, extended to unsealed turns).
+ */
+export function resolvePreviousWasNoncanonOrBranchState(
+  priorUserMessages: string[],
+  sealedNoncanonOrBranchFromMemory = false
+): boolean {
+  let state = sealedNoncanonOrBranchFromMemory;
+  for (const msg of priorUserMessages) {
+    const cls = classifyMemoryTurnScope(msg, { previousWasNoncanonOrBranch: state });
+    if (turnScopeOpensBranchState(cls)) state = true;
+    if (turnScopeClosesBranchState(cls)) state = false;
+  }
+  return state;
+}
+
+/** Sealed memory rows before a turn that imply active branch/noncanon context. */
+export function resolveSealedNoncanonOrBranchFromMemoryRecords(
+  records: EpisodicMemoryRecordSnapshot[],
+  beforeTurnNumber?: number
+): boolean {
+  return records.some(
+    (r) =>
+      !r.inactive &&
+      (beforeTurnNumber == null || r.turnStart < beforeTurnNumber) &&
+      (r.summaryKind === "noncanon" ||
+        (r.summaryKind === "branch_canon" && r.branchStatus === "active"))
+  );
+}
+
+/**
+ * Single-turn episodic eligibility — same contract as selectEpisodicEligibleTurnEntries.
+ * Main canonical + durable preference only.
+ */
+export function resolveEpisodicTurnEligibility(
+  userMessage: string,
+  opts?: { previousWasNoncanonOrBranch?: boolean }
+): EpisodicTurnEligibility {
+  const scopeClass = classifyMemoryTurnScope(userMessage, opts);
+  const eligible = scopeClass === "main_rp" || scopeClass === "preference";
+  return { eligible, scopeClass };
+}
+
 /** Main canonical + durable preference turns only — reuse summary scope owner for episodic input. */
 export function selectEpisodicEligibleTurnEntries(
   entries: Array<{ turnIndex: number; turn: DialogueTurn; userMessageId?: number | null }>,

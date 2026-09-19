@@ -6,6 +6,7 @@ import type {
   EpisodicFactEvidenceType,
   EpisodicFactImportance,
 } from "@/lib/memory/memory-episodic-types";
+import { resolveEpisodicEligibilityForSourceUserMessage } from "@/lib/memory/memory-episodic-eligibility";
 import { isMemoryFeatureEnabledIn } from "@/lib/memory/memory-feature";
 import {
   getMemorySourceBoundaryCore,
@@ -813,6 +814,20 @@ export function persistEpisodicMemoryFactsCore(
     return 0;
   }
 
+  const replaceTurn = shouldReplaceSourceTurn(input) && !input.replaceSummarySealBatch;
+  let scopeIneligible = false;
+  if (typeof sourceUserText === "string" && sourceUserText.trim()) {
+    scopeIneligible = !resolveEpisodicEligibilityForSourceUserMessage(db, {
+      chatId,
+      sourceUserMessageId,
+      sourceUserText,
+    }).eligible;
+    // Block new inserts on ineligible turns; regen replace may still DELETE stale rows.
+    if (scopeIneligible && !replaceTurn) {
+      return 0;
+    }
+  }
+
   const assistantMessageId = metadataAssistantMessageId(input.metadata);
   const requestId = metadataRequestId(input.metadata);
 
@@ -828,8 +843,6 @@ export function persistEpisodicMemoryFactsCore(
       .get(chatId, assistantMessageId, requestId) as { c: number };
     if (existing.c > 0) return 0;
   }
-
-  const replaceTurn = shouldReplaceSourceTurn(input) && !input.replaceSummarySealBatch;
   if (input.replaceSummarySealBatch) {
     db.prepare(
       `DELETE FROM episodic_memory_facts
@@ -870,6 +883,7 @@ export function persistEpisodicMemoryFactsCore(
     )
   );
   if (facts.length === 0) return 0;
+  if (scopeIneligible) return 0;
 
   const insert = db.prepare(`
     INSERT INTO episodic_memory_facts

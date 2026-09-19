@@ -11,12 +11,22 @@ import {
 import { sanitizeEpisodicExtractedFacts } from "./memory-episodic-normalize";
 import type { EpisodicExtractedFact } from "./memory-episodic-types";
 import { isMemoryFeatureEnabled } from "./memory-feature";
+import { resolveEpisodicTurnEligibility, type TurnScopeClass } from "./memory-summary-scope";
+import {
+  resolveEpisodicEligibilityForSourceUserMessage,
+  type EpisodicEligibilityResolution,
+} from "./memory-episodic-eligibility";
 import {
   getMemorySourceBoundaryCore,
   isMemoryWriteGuardCurrentCore,
   type MemorySourceBoundary,
 } from "./memory-source-boundary";
 import { resolveMemorySourceTurnIdentityCore } from "./memory-turn-loader";
+
+export {
+  resolveEpisodicEligibilityForSourceUserMessage,
+  type EpisodicEligibilityResolution,
+} from "./memory-episodic-eligibility";
 
 export const SHARED_EPISODIC_EXTRACTION = "shared_initial_per_turn" as const;
 export const EPISODIC_FACTS_MAX_PER_SHARED_TURN = 3;
@@ -36,11 +46,40 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 export function shouldRequestEpisodicInSharedInitial(opts: {
   userMessage: string;
   memoryFeatureEnabled?: boolean;
+  /** When provided, memory-scope owner resolves branch/noncanon eligibility. */
+  db?: Database.Database;
+  chatId?: number;
+  sourceUserMessageId?: number | null;
+  /** Test-only override when db/chatId omitted. */
+  previousWasNoncanonOrBranch?: boolean;
 }): boolean {
   if (opts.memoryFeatureEnabled === false) return false;
   if (!isMemoryFeatureEnabled() && opts.memoryFeatureEnabled !== true) return false;
   if (resolveOocSceneRenderIntent(opts.userMessage)) return false;
-  return true;
+
+  if (opts.db != null && opts.chatId != null) {
+    return resolveEpisodicEligibilityForSourceUserMessage(opts.db, {
+      chatId: opts.chatId,
+      sourceUserMessageId: opts.sourceUserMessageId ?? null,
+      sourceUserText: opts.userMessage,
+    }).eligible;
+  }
+
+  return resolveEpisodicTurnEligibility(opts.userMessage, {
+    previousWasNoncanonOrBranch: opts.previousWasNoncanonOrBranch ?? false,
+  }).eligible;
+}
+
+export function isUserTurnEpisodicallyEligible(
+  resolution: EpisodicEligibilityResolution
+): boolean {
+  return resolution.eligible;
+}
+
+export function episodicIneligibleScopeClass(
+  resolution: EpisodicEligibilityResolution
+): TurnScopeClass | null {
+  return resolution.eligible ? null : resolution.scopeClass;
 }
 
 /** Strict JSON schema fragment for episodic.extracted_facts items (memory-owned contract). */
@@ -170,6 +209,38 @@ export function reconcileSharedEpisodicFactsForTurn(
 
   const isRegeneration = input.isRegeneration;
   const episodic = input.episodic;
+
+  const scopeEligibility = resolveEpisodicEligibilityForSourceUserMessage(db, {
+    chatId: input.chatId,
+    sourceUserMessageId: identity.sourceUserMessageId ?? input.sourceUserMessageId ?? null,
+    sourceUserText: input.sourceUserText,
+  });
+  if (!scopeEligibility.eligible) {
+    if (isRegeneration) {
+      const reconcileInput: ReconcileEpisodicMemoryFactsInput = {
+        chatId: input.chatId,
+        userId: input.userId,
+        characterId: input.characterId,
+        sourceTurn: identity.memoryTurnNumber,
+        sourceUserMessageId: identity.sourceUserMessageId ?? input.sourceUserMessageId,
+        sourceUserText: input.sourceUserText,
+        boundarySnapshot: boundary,
+        facts: [],
+        isRegeneration: true,
+        metadata: {
+          extraction: SHARED_EPISODIC_EXTRACTION,
+          assistant_message_id: input.assistantMessageId,
+          ...(input.requestId ? { request_id: input.requestId } : {}),
+          ...(input.generationSequence != null
+            ? { generation_sequence: input.generationSequence }
+            : {}),
+        },
+      };
+      const result = reconcileEpisodicMemoryFactsForGeneration(db, reconcileInput);
+      return { ...result, skipped: false };
+    }
+    return { replaced: false, inserted: 0, skipped: true };
+  }
 
   if (!isRegeneration) {
     if (!episodic.present || !episodic.valid) {
