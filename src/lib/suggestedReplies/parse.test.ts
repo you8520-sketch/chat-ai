@@ -8,7 +8,7 @@ import {
   parseSuggestedRepliesFromModelText,
   parseSuggestedRepliesRecord,
   resolveClientSuggestedReplies,
-  shouldEnsureSuggestedRepliesExtraction,
+  storedRepliesHaveStaleLegacyKinds,
   suggestedReplyCharCount,
 } from "./parse";
 import { SUGGESTED_REPLY_MAX_CHARS, SUGGESTED_REPLY_MIN_CHARS, suggestedReplyKindMeta } from "./types";
@@ -191,75 +191,62 @@ describe("client suggested-replies poll / bar", () => {
   });
 });
 
-describe("shouldEnsureSuggestedRepliesExtraction", () => {
-  const extractedAt = "2026-01-01T00:00:00.000Z";
-
-  it("starts extraction when the last assistant has no stored JSON", () => {
-    assert.equal(shouldEnsureSuggestedRepliesExtraction(null), true);
-  });
-
-  it("does not restart a fresh pending job", () => {
+describe("legacy explicit kinds fail closed", () => {
+  it("detects stale escalate/soften/pivot kinds", () => {
     assert.equal(
-      shouldEnsureSuggestedRepliesExtraction(
-        {
-          replies: [],
-          extractedAt: "2026-01-01T00:00:30.000Z",
-          source: "post-turn-shared",
-          pending: true,
-        },
-        Date.parse("2026-01-01T00:01:00.000Z")
-      ),
-      false
-    );
-  });
-
-  it("restarts a pending job after 90s", () => {
-    assert.equal(
-      shouldEnsureSuggestedRepliesExtraction(
-        {
-          replies: [],
-          extractedAt,
-          source: "post-turn-shared",
-          pending: true,
-        },
-        Date.parse("2026-01-01T00:02:00.000Z")
-      ),
+      storedRepliesHaveStaleLegacyKinds([
+        { kind: "escalate", text: padReply("*맞서며* \"그만.\" ", 60) },
+        { kind: "soften", text: padReply("*달래며* \"괜찮아.\" ", 60) },
+        { kind: "pivot", text: padReply("*돌아서며* \"다른 얘기.\" ", 60) },
+      ]),
       true
     );
   });
 
-  it("retries a failed job after 15s, not immediately", () => {
-    const failed = {
-      replies: [] as [],
-      extractedAt,
-      source: "post-turn-shared" as const,
-      failed: true,
-    };
-    assert.equal(
-      shouldEnsureSuggestedRepliesExtraction(failed, Date.parse("2026-01-01T00:00:10.000Z")),
-      false
-    );
-    assert.equal(
-      shouldEnsureSuggestedRepliesExtraction(failed, Date.parse("2026-01-01T00:00:16.000Z")),
-      true
-    );
+  it("does not relabel legacy explicit kinds under natural/twist/banter", () => {
+    const raw = JSON.stringify({
+      replies: [
+        { kind: "escalate", text: padReply("*맞서며* \"강하게 맞서는 답변입니다.\" ", 72) },
+        { kind: "soften", text: padReply("*달래며* \"달래는 답변입니다.\" ", 72) },
+        { kind: "pivot", text: padReply("*돌아서며* \"장면 전환 답변입니다.\" ", 72) },
+      ],
+      extractedAt: new Date().toISOString(),
+      source: "post-turn-shared",
+      pending: false,
+      failed: false,
+    });
+    const record = parseSuggestedRepliesRecord(raw);
+    assert.equal(record?.failed, true);
+    assert.equal(record?.noRetry, true);
+    assert.deepEqual(record?.replies, []);
+
+    const client = resolveClientSuggestedReplies(record);
+    assert.deepEqual(client.suggestedReplies, []);
+    assert.equal(client.suggestedRepliesFailed, true);
+    assert.equal(clientNeedsSuggestedRepliesPoll(client), false);
+    assert.equal(clientShouldShowSuggestedRepliesBar(client), false);
   });
 
-  it("leaves a completed three-reply record alone", () => {
+  it("string-only legacy rows still map by index", () => {
     const replies = [
-      { kind: "natural" as const, text: "a".repeat(60) },
-      { kind: "twist" as const, text: "b".repeat(60) },
-      { kind: "banter" as const, text: "c".repeat(60) },
+      padReply("*한 걸음* \"자연스럽게.\" ", 60),
+      padReply("*고개를 돌리며* \"각도 전환.\" ", 60),
+      padReply("*웃으며* \"드립 한 방.\" ", 60),
     ];
-    assert.equal(
-      shouldEnsureSuggestedRepliesExtraction({
+    const record = parseSuggestedRepliesRecord(
+      JSON.stringify({
         replies,
-        extractedAt,
+        extractedAt: new Date().toISOString(),
         source: "post-turn-shared",
-        pending: false,
-        failed: false,
-      }),
-      false
+      })
+    );
+    assert.deepEqual(
+      normalizeSuggestedReplies(record?.replies),
+      [
+        { kind: "natural", text: replies[0] },
+        { kind: "twist", text: replies[1] },
+        { kind: "banter", text: replies[2] },
+      ]
     );
   });
 });

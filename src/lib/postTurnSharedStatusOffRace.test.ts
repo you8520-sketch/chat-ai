@@ -1,6 +1,6 @@
 /**
- * Status-OFF deferred shared owner race — GET /suggested-replies must not
- * requeue a standalone Luna extract before the route's post-SSE shared call.
+ * Status-OFF deferred shared owner — GET /suggested-replies is read-only;
+ * generation is owned by the post-SSE shared inference path.
  */
 
 import assert from "node:assert/strict";
@@ -13,10 +13,9 @@ import { resolveActiveAssistantGenerationScope } from "@/lib/assistantGeneration
 import {
   loadMessageSuggestedReplies,
   markMessageSuggestedRepliesPending,
-  requeueSuggestedRepliesExtractionIfNeeded,
   scheduleSuggestedRepliesExtraction,
 } from "@/lib/suggestedReplies/job";
-import { shouldEnsureSuggestedRepliesExtraction } from "@/lib/suggestedReplies/parse";
+import { resolveClientSuggestedReplies } from "@/lib/suggestedReplies/parse";
 
 const CHAT_ID = 88001;
 const USER_ID = 88002;
@@ -44,18 +43,22 @@ function seedAssistantMessage(): void {
   db.prepare("UPDATE messages SET suggested_replies_json=NULL WHERE id=?").run(MSG_ID);
 }
 
-describe("status-OFF deferred shared owner — suggested replies GET race", () => {
+describe("status-OFF deferred shared owner — suggested replies read path", () => {
   before(() => {
     installIsolatedTestDatabase();
   });
 
-  it("without pending reservation, null record is eligible for GET requeue", () => {
-    seedAssistantMessage();
-    assert.equal(loadMessageSuggestedReplies(MSG_ID), null);
-    assert.equal(shouldEnsureSuggestedRepliesExtraction(null), true);
+  it("GET route is pure read — no requeue or extraction eligibility helpers", () => {
+    const getRoute = readFileSync(
+      join(process.cwd(), "src/app/api/chat/suggested-replies/route.ts"),
+      "utf8"
+    );
+    assert.doesNotMatch(getRoute, /requeueSuggestedRepliesExtractionIfNeeded/);
+    assert.doesNotMatch(getRoute, /shouldEnsureSuggestedRepliesExtraction/);
+    assert.match(getRoute, /Pure read\/poll/);
   });
 
-  it("standalone suggestions job makes exactly one provider call when shared budget not consumed", async () => {
+  it("greeting standalone extract makes exactly one provider call when shared budget not consumed", async () => {
     seedAssistantMessage();
     const scope = resolveActiveAssistantGenerationScope(MSG_ID);
     assert.ok(scope);
@@ -77,7 +80,7 @@ describe("status-OFF deferred shared owner — suggested replies GET race", () =
     assert.equal(providerCalls, 1);
   });
 
-  it("pending reservation before SSE done blocks GET requeue standalone extract", () => {
+  it("pending reservation before SSE done exposes read-only poll state", () => {
     seedAssistantMessage();
     const scope = resolveActiveAssistantGenerationScope(MSG_ID);
     assert.ok(scope);
@@ -86,10 +89,12 @@ describe("status-OFF deferred shared owner — suggested replies GET race", () =
     const record = loadMessageSuggestedReplies(MSG_ID);
     assert.equal(record?.pending, true);
     assert.equal(record?.generationSequence, scope.generationSequence);
-    assert.equal(shouldEnsureSuggestedRepliesExtraction(record), false);
+
+    const client = resolveClientSuggestedReplies(record);
+    assert.equal(client.suggestedRepliesPending, true);
+    assert.deepEqual(client.suggestedReplies, []);
 
     let providerCalls = 0;
-    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
     scheduleSuggestedRepliesExtraction({
       messageId: MSG_ID,
       chatId: CHAT_ID,
@@ -114,6 +119,19 @@ describe("status-OFF deferred shared owner — suggested replies GET race", () =
       route,
       /else if \(deferPostTurnShared\) \{[\s\S]*markMessageSuggestedRepliesPending\(aiMessageId, postTurnGenerationScope\)/,
       "status-OFF must persist generation-scoped pending before SSE done"
+    );
+  });
+
+  it("status-OFF branch defers shared provider past SSE done", () => {
+    const route = readFileSync(join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
+    const marker = "} else if (isMemoryFeatureEnabled() || suggestedRepliesGenerationEligible) {";
+    const start = route.indexOf(marker);
+    assert.ok(start > 0);
+    const end = route.indexOf("if (visualPolicy.hair", start);
+    assert.ok(end > start);
+    assert.doesNotMatch(
+      route.slice(start, end),
+      /await runPostTurnRelationshipOnlyInitial/
     );
   });
 });

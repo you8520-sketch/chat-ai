@@ -37,7 +37,8 @@ import { ensureAdminFinanceTables } from "@/lib/adminFinance";
 import { resolveAsyncTurnCoverage, resolveMemoryRelationshipExpectation, resolveSuggestedRepliesExpectation } from "@/lib/asyncTurnCoverage";
 import { buildAdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3";
 import type { Usage } from "@/lib/chatUsage";
-import { markMessageSuggestedRepliesIneligible, markMessageSuggestedRepliesPending, loadMessageSuggestedReplies, scheduleSuggestedRepliesExtraction, isSuggestedRepliesJobRunning, requeueSuggestedRepliesExtractionIfNeeded } from "@/lib/suggestedReplies/job";
+import { markMessageSuggestedRepliesIneligible, markMessageSuggestedRepliesPending, loadMessageSuggestedReplies, scheduleSuggestedRepliesExtraction, isSuggestedRepliesJobRunning } from "@/lib/suggestedReplies/job";
+import { resolveClientSuggestedReplies } from "@/lib/suggestedReplies/parse";
 import { markMessageStatusMetaPending, loadMessageStatusMeta, scheduleStatusMetaExtraction, isStatusMetaJobRunning, requeueStatusMetaExtractionIfNeeded } from "@/lib/statusMeta/job";
 import { SUGGESTED_REPLY_KINDS } from "@/lib/suggestedReplies/types";
 import { bootstrapStreamingTurn } from "@/lib/streamingPersistence";
@@ -298,7 +299,6 @@ describe("generation-scoped async provenance", () => {
       ).length,
       1
     );
-    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
   });
 
   it("G1 — initial generation ledger stays on generation 0", () => {
@@ -667,7 +667,7 @@ describe("generation-scoped async provenance", () => {
     assert.ok(!record?.replies.some((r) => r.text.startsWith("LATE")));
   });
 
-  it("Q1 — old-generation stale pending suggested replies is not requeued", () => {
+  it("Q1 — old-generation stale pending suggested replies are ignored at read boundary", () => {
     seedMessage(
       JSON.stringify([
         { content: "gen0", model: "m", usage: null, created_at: "", generationSequence: 0 },
@@ -679,7 +679,7 @@ describe("generation-scoped async provenance", () => {
     const staleGen0 = {
       replies: [],
       extractedAt: new Date(Date.now() - 120_000).toISOString(),
-      source: "background-deepseek" as const,
+      source: "post-turn-shared" as const,
       pending: true,
       failed: false,
       generationSequence: 0,
@@ -688,7 +688,10 @@ describe("generation-scoped async provenance", () => {
       serializeSuggestedRepliesRecord(staleGen0),
       MSG_ID
     );
-    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
+    const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(activeScope);
+    assert.equal(activeScope.generationSequence, 1);
+    assert.notEqual(loadMessageSuggestedReplies(MSG_ID)?.generationSequence, activeScope.generationSequence);
   });
 
   it("Q1 — old-generation stale pending status meta is not requeued", () => {
@@ -715,7 +718,7 @@ describe("generation-scoped async provenance", () => {
     assert.equal(requeueStatusMetaExtractionIfNeeded(MSG_ID), false);
   });
 
-  it("Q2 — current-generation stale pending is requeued", () => {
+  it("Q2 — current-generation stale pending suggestions stay read-only until server completes", () => {
     seedRegenHarness();
     startRegenHarness();
     const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
@@ -724,7 +727,7 @@ describe("generation-scoped async provenance", () => {
     const staleGen1 = {
       replies: [],
       extractedAt: new Date(Date.now() - 120_000).toISOString(),
-      source: "background-deepseek" as const,
+      source: "post-turn-shared" as const,
       pending: true,
       failed: false,
       generationSequence: activeScope.generationSequence,
@@ -734,7 +737,9 @@ describe("generation-scoped async provenance", () => {
       serializeSuggestedRepliesRecord(staleGen1),
       MSG_ID
     );
-    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), true);
+    const client = resolveClientSuggestedReplies(loadMessageSuggestedReplies(MSG_ID));
+    assert.equal(client.suggestedRepliesPending, true);
+    assert.deepEqual(client.suggestedReplies, []);
 
     const staleStatusGen1 = {
       meta: validStatusMeta("pending"),
@@ -797,8 +802,6 @@ describe("generation-scoped async provenance", () => {
     assert.equal(terminal?.noRetry, true);
     assert.equal(terminal?.generationSequence, activeScope.generationSequence);
 
-    // A reconnect long after a Railway restart enters the same production
-    // requeue owner, but the record is already terminal and budget-spent.
     getDb().prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
       serializeSuggestedRepliesRecord({
         ...terminal!,
@@ -807,7 +810,6 @@ describe("generation-scoped async provenance", () => {
       MSG_ID
     );
 
-    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
     assert.equal(providerCalls, 0);
     assert.equal(loadMessageSuggestedReplies(MSG_ID)?.generationSequence, activeScope.generationSequence);
     assert.equal(
@@ -842,7 +844,6 @@ describe("generation-scoped async provenance", () => {
       getDb()
     );
     getDb().prepare("UPDATE messages SET suggested_replies_json=NULL WHERE id=?").run(MSG_ID);
-    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
     assert.equal(
       listProviderCostEventsForAssistantGeneration(MSG_ID, activeScope.generationSequence).length,
       1
@@ -878,7 +879,9 @@ describe("generation-scoped async provenance", () => {
     assert.equal(record?.noRetry, true);
     assert.equal(record?.terminalReason, "original_turn_ineligible");
     assert.equal(record?.generationSequence, activeScope.generationSequence);
-    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
+    const client = resolveClientSuggestedReplies(record);
+    assert.equal(client.suggestedRepliesFailed, true);
+    assert.equal(client.suggestedRepliesRequested, false);
     const expectation = resolveSuggestedRepliesExpectation({
       usage: {} as Usage,
       record,

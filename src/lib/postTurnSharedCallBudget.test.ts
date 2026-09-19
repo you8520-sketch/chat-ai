@@ -87,9 +87,9 @@ function sharedResponse(opts: {
     statusWidget: { character_values: characterValues },
     suggestedReplies: {
       items: [
-        { kind: "escalate", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
-        { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
-        { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
+        { kind: "natural", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
+        { kind: "twist", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
+        { kind: "banter", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
       ],
     },
     relationship: opts.relationship,
@@ -489,9 +489,9 @@ describe("relationship section parse evidence", () => {
         statusWidget: { character_values: { 장소: "복도" } },
         suggestedReplies: {
           items: [
-            { kind: "escalate", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
-            { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
-            { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
+            { kind: "natural", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
+            { kind: "twist", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
+            { kind: "banter", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
           ],
         },
         relationship: { items: 42 },
@@ -550,9 +550,9 @@ describe("relationship-only canonical shared owner", () => {
           relationship: { items: ["렌: 검"], itemsRemove: [], promisesAdd: [], promisesRemove: [] },
           suggestedReplies: {
             items: [
-              { kind: "escalate", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
-              { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
-              { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
+              { kind: "natural", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
+              { kind: "twist", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
+              { kind: "banter", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
             ],
           },
         }),
@@ -654,9 +654,9 @@ describe("consumer combination physical-call matrix", () => {
               ? {
                   suggestedReplies: {
                     items: [
-                      { kind: "escalate", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
-                      { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
-                      { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
+                      { kind: "natural", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
+                      { kind: "twist", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
+                      { kind: "banter", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
                     ],
                   },
                 }
@@ -748,9 +748,9 @@ describe("status-OFF suggestions-only context", () => {
         text: JSON.stringify({
           suggestedReplies: {
             items: [
-              { kind: "escalate", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
-              { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
-              { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
+              { kind: "natural", text: padReply("*목소리를 낮추며* \"그만 숨기고 말할게.\" ") },
+              { kind: "twist", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ") },
+              { kind: "banter", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ") },
             ],
           },
         }),
@@ -834,9 +834,12 @@ describe("status-OFF lifecycle guardrail", () => {
     const route = readFileSync(join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
     assert.match(route, /deferPostTurnShared = true;/);
     assert.match(route, /if \(deferPostTurnShared\) \{/);
-    const marker = "} else if (isMemoryFeatureEnabled() || suggestedRepliesEligibleForCoalesce) {";
+    const marker = "} else if (isMemoryFeatureEnabled() || suggestedRepliesGenerationEligible) {";
     const start = route.indexOf(marker);
-    assert.ok(start > 0, "status-OFF branch present");
+    assert.ok(
+      start > 0,
+      "status-OFF deferred branch uses isMemoryFeatureEnabled() or suggestedRepliesGenerationEligible"
+    );
     const end = route.indexOf("if (visualPolicy.hair", start);
     assert.ok(end > start);
     assert.doesNotMatch(

@@ -20,7 +20,6 @@ import {
   parseSuggestedRepliesRecord,
   resolveClientSuggestedReplies,
   serializeSuggestedRepliesRecord,
-  shouldEnsureSuggestedRepliesExtraction,
 } from "@/lib/suggestedReplies/parse";
 import { SUGGESTED_REPLY_KINDS, type SuggestedReplyItem } from "@/lib/suggestedReplies/types";
 
@@ -125,26 +124,29 @@ describe("suggested replies generation vs presentation", () => {
     const clientFields = resolveClientSuggestedReplies(loadMessageSuggestedReplies(MSG_ID));
     assert.equal(clientFields.suggestedRepliesPending, false);
     assert.deepEqual(clientFields.suggestedReplies, replies);
-    assert.equal(shouldEnsureSuggestedRepliesExtraction(loadMessageSuggestedReplies(MSG_ID)), false);
   });
 
-  it("C — GET route is pure read (no requeue import)", () => {
+  it("C — GET route and job module are read-only (no requeue system)", () => {
     const getRoute = readFileSync(
       join(process.cwd(), "src/app/api/chat/suggested-replies/route.ts"),
       "utf8"
     );
+    const jobSource = readFileSync(join(process.cwd(), "src/lib/suggestedReplies/job.ts"), "utf8");
     assert.doesNotMatch(getRoute, /requeueSuggestedRepliesExtractionIfNeeded/);
     assert.doesNotMatch(getRoute, /shouldEnsureSuggestedRepliesExtraction/);
+    assert.doesNotMatch(jobSource, /requeueSuggestedRepliesExtractionIfNeeded/);
+    assert.doesNotMatch(jobSource, /shouldEnsureSuggestedRepliesExtraction/);
     assert.match(getRoute, /Pure read\/poll/);
   });
 
-  it("C — repeated toggle simulation does not enqueue standalone extract on stale GET", () => {
+  it("C — pending reservation exposes poll-only client state", () => {
     seedAssistantMessage();
     const scope = resolveActiveAssistantGenerationScope(MSG_ID);
     assert.ok(scope);
     markMessageSuggestedRepliesPending(MSG_ID, scope);
-    const record = loadMessageSuggestedReplies(MSG_ID);
-    assert.equal(shouldEnsureSuggestedRepliesExtraction(record), false);
+    const client = resolveClientSuggestedReplies(loadMessageSuggestedReplies(MSG_ID));
+    assert.equal(client.suggestedRepliesPending, true);
+    assert.deepEqual(client.suggestedReplies, []);
   });
 
   it("G — regen pending clears prior generation suggestions scope", () => {

@@ -44,6 +44,18 @@ function isSuggestedReplyKind(value: unknown): value is SuggestedReplyKind {
   return value === "natural" || value === "twist" || value === "banter";
 }
 
+/** Explicit non-canonical kinds (e.g. escalate/soften/pivot) must not be relabeled. */
+export function storedRepliesHaveStaleLegacyKinds(raw: unknown): boolean {
+  if (!Array.isArray(raw)) return false;
+  for (const item of raw) {
+    if (typeof item === "string") continue;
+    if (!item || typeof item !== "object") continue;
+    const kind = (item as { kind?: unknown }).kind;
+    if (typeof kind === "string" && !isSuggestedReplyKind(kind)) return true;
+  }
+  return false;
+}
+
 function parseRawItem(raw: unknown): { kind: SuggestedReplyKind | null; text: unknown } | null {
   if (typeof raw === "string") {
     return { kind: null, text: raw };
@@ -52,6 +64,9 @@ function parseRawItem(raw: unknown): { kind: SuggestedReplyKind | null; text: un
   const obj = raw as { kind?: unknown; text?: unknown; reply?: unknown };
   const text = typeof obj.text === "string" ? obj.text : obj.reply;
   if (typeof text !== "string") return null;
+  if (typeof obj.kind === "string" && !isSuggestedReplyKind(obj.kind)) {
+    return null;
+  }
   return {
     kind: isSuggestedReplyKind(obj.kind) ? obj.kind : null,
     text,
@@ -132,9 +147,10 @@ function coerceStoredReplies(raw: unknown): SuggestedReplyItem[] {
       if (!item || typeof item !== "object") return null;
       const obj = item as { kind?: unknown; text?: unknown };
       if (typeof obj.text !== "string") return null;
-      const kind = isSuggestedReplyKind(obj.kind)
-        ? obj.kind
-        : SUGGESTED_REPLY_KINDS[index];
+      if (typeof obj.kind === "string" && !isSuggestedReplyKind(obj.kind)) {
+        return null;
+      }
+      const kind = isSuggestedReplyKind(obj.kind) ? obj.kind : SUGGESTED_REPLY_KINDS[index];
       return kind ? { kind, text: obj.text } : null;
     })
     .filter((item): item is SuggestedReplyItem => item != null);
@@ -150,21 +166,16 @@ export function parseSuggestedRepliesRecord(
       items?: unknown;
     };
     if (!parsed || typeof parsed !== "object") return null;
-    const replies = coerceStoredReplies(parsed.items ?? parsed.replies);
+
+    const rawReplies = parsed.items ?? parsed.replies;
     const source: SuggestedRepliesRecordSource =
       parsed.source === "standalone-extract"
         ? "standalone-extract"
         : "post-turn-shared";
-    return {
-      replies,
+
+    const baseFields = {
       extractedAt: typeof parsed.extractedAt === "string" ? parsed.extractedAt : "",
       source,
-      pending: parsed.pending === true,
-      failed: parsed.failed === true,
-      ...(parsed.noRetry === true ? { noRetry: true } : {}),
-      ...(parsed.terminalReason === "original_turn_ineligible"
-        ? { terminalReason: parsed.terminalReason }
-        : {}),
       generationSequence:
         typeof parsed.generationSequence === "number" &&
         Number.isInteger(parsed.generationSequence) &&
@@ -177,6 +188,28 @@ export function parseSuggestedRepliesRecord(
           : parsed.generationRequestId === null
             ? null
             : undefined,
+    };
+
+    if (storedRepliesHaveStaleLegacyKinds(rawReplies)) {
+      return {
+        replies: [],
+        ...baseFields,
+        pending: false,
+        failed: true,
+        noRetry: true,
+      };
+    }
+
+    const replies = coerceStoredReplies(rawReplies);
+    return {
+      replies,
+      ...baseFields,
+      pending: parsed.pending === true,
+      failed: parsed.failed === true,
+      ...(parsed.noRetry === true ? { noRetry: true } : {}),
+      ...(parsed.terminalReason === "original_turn_ineligible"
+        ? { terminalReason: parsed.terminalReason }
+        : {}),
     };
   } catch {
     return null;
@@ -209,7 +242,7 @@ export function resolveClientSuggestedReplies(
   };
 }
 
-/** Last assistant with no stored replies still needs a GET (starts Flash extraction). */
+/** Poll GET while the server post-turn owner is still writing (read-only). */
 export function clientNeedsSuggestedRepliesPoll(
   fields: SuggestedRepliesClientFields
 ): boolean {
@@ -220,7 +253,7 @@ export function clientNeedsSuggestedRepliesPoll(
   return true;
 }
 
-/** Show the bar for ready replies, in-flight jobs, or missing records (about to poll). */
+/** Show the bar for ready replies or in-flight server generation (pending poll). */
 export function clientShouldShowSuggestedRepliesBar(
   fields: SuggestedRepliesClientFields
 ): boolean {
@@ -229,27 +262,4 @@ export function clientShouldShowSuggestedRepliesBar(
     return false;
   }
   return true;
-}
-
-const STALE_PENDING_MS = 90_000;
-const STALE_FAILED_MS = 15_000;
-
-/** @deprecated GET is read-only; retained for tests documenting legacy requeue eligibility. */
-export function shouldEnsureSuggestedRepliesExtraction(
-  record: SuggestedRepliesRecord | null,
-  nowMs = Date.now()
-): boolean {
-  if (!record) return true;
-  if (record.noRetry === true || record.terminalReason === "original_turn_ineligible") {
-    return false;
-  }
-  if (suggestedRepliesHaveContent(record.replies)) return false;
-  if (record.pending === true) {
-    if (!record.extractedAt) return false;
-    return nowMs - new Date(record.extractedAt).getTime() >= STALE_PENDING_MS;
-  }
-  if (record.failed === true) {
-    return nowMs - new Date(record.extractedAt || 0).getTime() >= STALE_FAILED_MS;
-  }
-  return false;
 }

@@ -35,7 +35,6 @@ import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
 import {
   loadMessageSuggestedReplies,
   markMessageSuggestedRepliesPending,
-  requeueSuggestedRepliesExtractionIfNeeded,
 } from "@/lib/suggestedReplies/job";
 import {
   loadMessageStatusMeta,
@@ -286,7 +285,7 @@ describe("client async record read boundaries", () => {
     assert.equal(status.statusMetaPending, true);
   });
 
-  it("CR7 — historical mismatch does not requeue provider extraction", () => {
+  it("CR7 — historical mismatch does not surface stale-generation suggested replies", () => {
     seedTwoVariantMessage(0);
     const db = getDb();
     db.prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
@@ -311,7 +310,11 @@ describe("client async record read boundaries", () => {
       }),
       MSG_ID
     );
-    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
+    const scope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(scope);
+    assert.equal(scope.generationSequence, 0);
+    const { suggestedRepliesRecord } = resolveClientAsyncRecordsFromMessageRow(loadMessageRow());
+    assert.equal(suggestedRepliesRecord, null);
     assert.equal(requeueStatusMetaExtractionIfNeeded(MSG_ID), false);
   });
 });
