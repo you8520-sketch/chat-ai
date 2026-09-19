@@ -1,0 +1,274 @@
+{
+  "generatedAt": "2026-09-19T08:13:54.939Z",
+  "audit": "gemini-37-prefix-cache-eligibility-offline",
+  "fixture": "gemini-37-flash-growing-history T1-T3 (canned assistant from t*-raw.txt)",
+  "thresholdTokens": 4096,
+  "currentProductionMode": {
+    "geminiStaticDynamicMode": false,
+    "turns": [
+      {
+        "turn": 1,
+        "systemTokens": 7592,
+        "promptTokens": 8698,
+        "historyMessageCount": 1,
+        "sectionIds": [
+          "openrouter-korean-prose-top",
+          "runtime-prompt-contamination-guard",
+          "no-godmodding",
+          "rule-historical-truth-canonical-memory",
+          "character-core-identity",
+          "identity-and-rules",
+          "prose-style-xml-bundle",
+          "rule-output-layout-recency",
+          "user-persona-reference-owner",
+          "narrative-pov-owner"
+        ],
+        "staticFingerprint": null,
+        "staticEstimatedTokens": null
+      },
+      {
+        "turn": 2,
+        "systemTokens": 7592,
+        "promptTokens": 11050,
+        "historyMessageCount": 3,
+        "sectionIds": [
+          "openrouter-korean-prose-top",
+          "runtime-prompt-contamination-guard",
+          "no-godmodding",
+          "rule-historical-truth-canonical-memory",
+          "character-core-identity",
+          "identity-and-rules",
+          "prose-style-xml-bundle",
+          "rule-output-layout-recency",
+          "user-persona-reference-owner",
+          "narrative-pov-owner"
+        ],
+        "staticFingerprint": null,
+        "staticEstimatedTokens": null
+      },
+      {
+        "turn": 3,
+        "systemTokens": 7592,
+        "promptTokens": 13966,
+        "historyMessageCount": 5,
+        "sectionIds": [
+          "openrouter-korean-prose-top",
+          "runtime-prompt-contamination-guard",
+          "no-godmodding",
+          "rule-historical-truth-canonical-memory",
+          "character-core-identity",
+          "identity-and-rules",
+          "prose-style-xml-bundle",
+          "rule-output-layout-recency",
+          "user-persona-reference-owner",
+          "narrative-pov-owner"
+        ],
+        "staticFingerprint": null,
+        "staticEstimatedTokens": null
+      }
+    ],
+    "pairMetrics": [
+      {
+        "pair": "T1-T2",
+        "fullCommonPrefixChars": 8456,
+        "fullCommonPrefixTokens": 7611,
+        "systemCommonPrefixChars": 8435,
+        "systemCommonPrefixTokens": 7592,
+        "firstDifferingMessageIndex": 1,
+        "firstDifferingMessageRole": "user",
+        "firstDifferingSection": {
+          "index": -1,
+          "id": null,
+          "label": null
+        },
+        "totalPromptTokensA": 8698,
+        "totalPromptTokensB": 11050
+      },
+      {
+        "pair": "T2-T3",
+        "fullCommonPrefixChars": 11082,
+        "fullCommonPrefixTokens": 9974,
+        "systemCommonPrefixChars": 8435,
+        "systemCommonPrefixTokens": 7592,
+        "firstDifferingMessageIndex": 3,
+        "firstDifferingMessageRole": "user",
+        "firstDifferingSection": {
+          "index": -1,
+          "id": null,
+          "label": null
+        },
+        "totalPromptTokensA": 11050,
+        "totalPromptTokensB": 13966
+      },
+      {
+        "pair": "T1-T3",
+        "fullCommonPrefixChars": 8456,
+        "fullCommonPrefixTokens": 7611,
+        "systemCommonPrefixChars": 8435,
+        "systemCommonPrefixTokens": 7592,
+        "firstDifferingMessageIndex": 1,
+        "firstDifferingMessageRole": "user",
+        "firstDifferingSection": {
+          "index": -1,
+          "id": null,
+          "label": null
+        },
+        "totalPromptTokensA": 8698,
+        "totalPromptTokensB": 13966
+      }
+    ],
+    "stablePrefixBeforeBreakTokens": 5625,
+    "firstVolatileBreakOwner": "history-message-1:user",
+    "firstVolatileBreakLabel": null,
+    "firstDifferingMessageIndexT1T2": 1,
+    "cacheEligibility": "ELIGIBLE",
+    "staticFingerprintStableT1T3": null
+  },
+  "offlineStaticDynamicMode": {
+    "geminiStaticDynamicMode": true,
+    "turns": [
+      {
+        "turn": 1,
+        "systemTokens": 7592,
+        "promptTokens": 8698,
+        "historyMessageCount": 1,
+        "sectionIds": [
+          "openrouter-korean-prose-top",
+          "runtime-prompt-contamination-guard",
+          "no-godmodding",
+          "rule-historical-truth-canonical-memory",
+          "character-core-identity",
+          "identity-and-rules",
+          "prose-style-xml-bundle",
+          "rule-output-layout-recency",
+          "user-persona-reference-owner",
+          "narrative-pov-owner"
+        ],
+        "staticFingerprint": "b1e1bffe0983c9fb",
+        "staticEstimatedTokens": 148332
+      },
+      {
+        "turn": 2,
+        "systemTokens": 7592,
+        "promptTokens": 11050,
+        "historyMessageCount": 3,
+        "sectionIds": [
+          "openrouter-korean-prose-top",
+          "runtime-prompt-contamination-guard",
+          "no-godmodding",
+          "rule-historical-truth-canonical-memory",
+          "character-core-identity",
+          "identity-and-rules",
+          "prose-style-xml-bundle",
+          "rule-output-layout-recency",
+          "user-persona-reference-owner",
+          "narrative-pov-owner"
+        ],
+        "staticFingerprint": "b1e1bffe0983c9fb",
+        "staticEstimatedTokens": 148332
+      },
+      {
+        "turn": 3,
+        "systemTokens": 7592,
+        "promptTokens": 13966,
+        "historyMessageCount": 5,
+        "sectionIds": [
+          "openrouter-korean-prose-top",
+          "runtime-prompt-contamination-guard",
+          "no-godmodding",
+          "rule-historical-truth-canonical-memory",
+          "character-core-identity",
+          "identity-and-rules",
+          "prose-style-xml-bundle",
+          "rule-output-layout-recency",
+          "user-persona-reference-owner",
+          "narrative-pov-owner"
+        ],
+        "staticFingerprint": "b1e1bffe0983c9fb",
+        "staticEstimatedTokens": 148332
+      }
+    ],
+    "pairMetrics": [
+      {
+        "pair": "T1-T2",
+        "fullCommonPrefixChars": 8456,
+        "fullCommonPrefixTokens": 7611,
+        "systemCommonPrefixChars": 8435,
+        "systemCommonPrefixTokens": 7592,
+        "firstDifferingMessageIndex": 1,
+        "firstDifferingMessageRole": "user",
+        "firstDifferingSection": {
+          "index": -1,
+          "id": null,
+          "label": null
+        },
+        "totalPromptTokensA": 8698,
+        "totalPromptTokensB": 11050
+      },
+      {
+        "pair": "T2-T3",
+        "fullCommonPrefixChars": 11082,
+        "fullCommonPrefixTokens": 9974,
+        "systemCommonPrefixChars": 8435,
+        "systemCommonPrefixTokens": 7592,
+        "firstDifferingMessageIndex": 3,
+        "firstDifferingMessageRole": "user",
+        "firstDifferingSection": {
+          "index": -1,
+          "id": null,
+          "label": null
+        },
+        "totalPromptTokensA": 11050,
+        "totalPromptTokensB": 13966
+      },
+      {
+        "pair": "T1-T3",
+        "fullCommonPrefixChars": 8456,
+        "fullCommonPrefixTokens": 7611,
+        "systemCommonPrefixChars": 8435,
+        "systemCommonPrefixTokens": 7592,
+        "firstDifferingMessageIndex": 1,
+        "firstDifferingMessageRole": "user",
+        "firstDifferingSection": {
+          "index": -1,
+          "id": null,
+          "label": null
+        },
+        "totalPromptTokensA": 8698,
+        "totalPromptTokensB": 13966
+      }
+    ],
+    "stablePrefixBeforeBreakTokens": 5625,
+    "firstVolatileBreakOwner": "history-message-1:user",
+    "firstVolatileBreakLabel": null,
+    "firstDifferingMessageIndexT1T2": 1,
+    "cacheEligibility": "ELIGIBLE",
+    "staticFingerprintStableT1T3": true
+  },
+  "comparisonTable": {
+    "stablePrefixTokensT1T2": {
+      "currentFalse": 7592,
+      "offlineTrue": 7592
+    },
+    "meets4096": {
+      "currentFalse": true,
+      "offlineTrue": true
+    },
+    "firstVolatileBreak": {
+      "currentFalse": "history-message-1:user",
+      "offlineTrue": "history-message-1:user"
+    },
+    "staticFingerprintStableT1T3": {
+      "currentFalse": "N/A",
+      "offlineTrue": true
+    },
+    "sectionParityT2": {
+      "missingSections": [],
+      "duplicatedSections": [],
+      "extraSections": [],
+      "semanticParity": true
+    }
+  },
+  "decisionCase": "CASE_B",
+  "providerGenerationCalls": 0
+}

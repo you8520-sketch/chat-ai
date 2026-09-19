@@ -144,7 +144,6 @@ async function main() {
   const out = {
     generatedAt: new Date().toISOString(),
     audit: "main-rp-cache-health-read-only",
-    mainShaExpected: "0ea67e9b570dc22084d25561928335a732ad3636",
     query: {
       startAt,
       endAt,
@@ -160,17 +159,6 @@ async function main() {
   writeFileSync(
     "docs/audits/main-rp-cache-health-2026-09-19/ci-usage-snapshot.json",
     JSON.stringify(out, null, 2)
-  );
-
-  writeFileSync(
-    "docs/audits/main-rp-cache-health-2026-09-19/ci-usage-rows.json",
-    JSON.stringify(
-      Object.fromEntries(
-        MODELS.map((m) => [m, summarize(byModel[m] ?? [], startAt, endAt).allRows])
-      ),
-      null,
-      2
-    )
   );
 
   console.log(
