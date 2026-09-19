@@ -1,16 +1,22 @@
 # Episodic Capture Quality Audit
 
 **Base commit:** `d20d4a21b55ca0024a6b01b53d0dc8e9f502b1a7` (#958 merged)  
-**Branch:** `cursor/episodic-capture-quality-audit-163d`  
-**Classification:** `EPISODIC_CAPTURE_QUALITY = ROOT_CAUSE_FIXED` (prompt dialogue gate only; runtime pipeline unchanged)
+**Branch:** `cursor/episodic-capture-quality-audit-163d`
 
-Cursor does **not** assign final quality scores. See `benchmark-matrix.json` for fixture artifacts.
+## Classification
+
+| Subproblem | Classification |
+|---|---|
+| **Overall** | `EPISODIC_CAPTURE_QUALITY = ROOT_CAUSE_UNCONFIRMED` |
+| Consequential utterance prompt gate (CQ-09/10/11) | `CONSEQUENTIAL_UTTERANCE_PROMPT_GATE = ROOT_CAUSE_FIXED` |
+| Runtime pipeline for golden facts | `EPISODIC_RUNTIME_PIPELINE_FOR_GOLDEN_FACTS = NO_MATERIAL_DEFECT_FOUND` |
+| Real model salience / top-3 selection | `REAL_MODEL_SALIENCE_SELECTION = ROOT_CAUSE_UNCONFIRMED` |
+
+Cursor does **not** assign final quality scores. Human-readable evidence: this report + deterministic fixtures in `memory-episodic-capture-quality-benchmark.test.ts`.
 
 ---
 
-## BEFORE
-
-### Capture Owner Map
+## Capture Owner Map
 
 | Responsibility | Canonical Owner | Location |
 |---|---|---|
@@ -33,7 +39,7 @@ Shared Initial wrapper (`buildSharedInitialEpisodicSectionInstructions`) reuses 
 ## Benchmark Matrix CQ-01..25
 
 Deterministic fixtures: `src/lib/memory/memory-episodic-capture-quality-benchmark.test.ts`  
-Artifact: `docs/audits/episodic-capture-quality/benchmark-matrix.json`
+Matrix is computed in test memory only — **tests must not write tracked files**.
 
 | ID | Runtime (golden output) | Prompt-level risk |
 |---|---|---|
@@ -61,7 +67,7 @@ Artifact: `docs/audits/episodic-capture-quality/benchmark-matrix.json`
 | CQ-22 Canon repeat | EXPECTED_OMIT | — |
 | CQ-23 Repeated fact | NONE | CONSOLIDATION follow-up |
 | CQ-24 Changed fact | NONE | CONSOLIDATION follow-up |
-| CQ-25 Overloaded turn | CAPACITY_RANKING_LOSS by design | order-dependent max-3 |
+| CQ-25 Overloaded turn | CAPACITY_RANKING_LOSS (handcrafted order) | — |
 
 ---
 
@@ -72,49 +78,39 @@ Artifact: `docs/audits/episodic-capture-quality/benchmark-matrix.json`
 - **CQ-09, CQ-10, CQ-11:** Pre-patch prompt L26 limited dialogue capture to decision/rule/boundary/preference/disclosure. Consequential evaluations, insults/praise, and nicknames did not fit → model guidance gap, not runtime rejection.
 - **Patch applied:** Rewrote dialogue rule in canonical owner to store historical significance of consequential speech without raw quote dumps.
 
-### Schema Losses
+### Schema / Validation
 
-- None for golden MUST CAPTURE fixtures. Shared Initial requires `evidence_type`; sanitize enforces Korean sentence, snake_case, concise value.
+- Golden MUST CAPTURE fixtures pass sanitize and save filters.
+- CQ-19 psych inference and CQ-20/21 ledger ownership correctly blocked at validation.
 
-### Validation Losses
+### CQ-25 — Evidence Boundary
 
-- **CQ-19:** `detectAbstractPsychologicalInference` correctly blocks one-scene personality labels.
-- **CQ-20/CQ-21:** Relationship Ledger boundary correctly blocks promises and item ownership.
+**Proves (deterministic, handcrafted golden order):**
 
-### Capacity / Ranking Losses
+- `MAX3_RUNTIME_CAP = VERIFIED` — cap enforced at persist summary
+- `MODEL_OUTPUT_ORDER_PRESERVED = VERIFIED` — first 3 of 6 golden facts survive in fixture order
 
-- **CQ-25:** Runtime preserves **model output order**, not importance rank. First 3 of 6 golden facts survive: `real_name`, `relationship_status`, `betrayal_event`. Evaluation + location drop. No importance sort at save — by design; model must order highest-salience first.
-- Max=3 enforced at 4 layers (schema, prompt, sanitize, persist dedupe) — intentional layered defense, duplicate owners but consistent cap.
+**Does NOT prove:**
+
+- `REAL_MODEL_SALIENCE_ORDERING` — no live extractor eval
+- `REAL_MODEL_TOP3_SELECTION_QUALITY` — golden facts were pre-sorted by design
+
+**Conclusion:** max=3 runtime behavior works as designed. Current deterministic evidence does **not** prove real extractor salience ordering. No basis to change max=3; live extractor quality remains a future controlled-eval item.
 
 ### Consolidation
 
-- Prompt: "Extract ONLY NEW or CHANGED" — **prompt-only**.
-- Write path: **no merge**; repeated `cat:subj:attr` across turns accumulates multiple DB rows (CQ-23/CQ-24 test proves 2 rows).
-- Recall: `resolveLatestFactsByLogicalKey` dedupes by `cat:subj:attr` (value omitted) — latest turn wins at retrieval.
-- **Follow-up:** Retrieval V2 / Memory Consolidation (architecture-sized).
+- Prompt "NEW or CHANGED" is **prompt-only**; write path accumulates duplicates; recall latest-wins by `cat:subj:attr`.
+- **Follow-up:** Retrieval V2 / Memory Consolidation.
 
 ### Importance Rubric
 
-- No semantic rubric in prompt — enum only (`critical | important | normal`).
-- Recall uses `IMPORTANCE_RANK` for injection ordering only.
-- Benchmark did not prove importance misassignment at runtime with golden outputs → **no rubric change** (per patch policy).
-
-### Distinctive Utterance
-
-- Runtime accepts well-formed historical-significance facts (CQ-09 golden passes all filters).
-- Root cause was prompt dialogue blanket exclusion → fixed in canonical owner.
-
-### Max-3
-
-- Sufficient when model orders salient facts first.
-- CQ-25 loses 3 lower-priority candidates when model emits 6 in salience order — acceptable.
-- No increase to 5/10 — not proven necessary; would increase provider output tokens.
+- Enum only in prompt; no semantic rubric. No proven misassignment with golden outputs → no change.
 
 ---
 
-## Proposed Patch (applied)
+## Patch Applied (preserved)
 
-**File:** `src/lib/memory/memory-episodic-prompt.ts`
+**File:** `src/lib/memory/memory-episodic-prompt.ts` — single rule replacement in `EPISODIC_FACTS_EXTRACT_INSTRUCTIONS`.
 
 **Removed:**
 ```
@@ -126,48 +122,32 @@ Dialogue is only saved when it produces a durable decision, rule, boundary, pref
 Do not store raw dialogue quotes, promises, or item-ledger data. When consequential speech (evaluation, insult, praise, nickname, confession, rejection, boundary statement, or shared phrase) materially affects future relationship continuity, record the historical significance in fact_text—not the full quote unless a very short distinctive phrase aids recall.
 ```
 
-### Removed / Consolidated Prompt Rules
+No new prompt sections or exception sentences added.
 
-- Consolidated dialogue restriction into single rule covering both prohibition (raw quotes) and allowance (historical significance).
+---
 
-### Preserved
+## Artifact Writer / Reader Proof
 
-- #958 noncanon eligibility gates
-- Relationship Ledger ownership boundary
-- Canon / unverified claim attribution rules
-- Max 3 facts per turn
-- No raw dialogue dump policy
-- Shared Initial physical calls +0
-- No DB migration
+| Path | Writer | Runtime/tooling reader |
+|---|---|---|
+| `benchmark-matrix.json` | ~~test `writeFileSync`~~ **removed** | **None** — grep shows references only in deleted test + old report text |
+| `AUDIT_REPORT.md` | human audit doc | none |
+| `memory-episodic-capture-quality-benchmark.test.ts` | fixtures + in-memory matrix | test-only |
+
+**Principle:** test execution must not modify tracked source/artifact files.
 
 ---
 
 ## Provider Call Delta
 
-**+0** — audit used deterministic fixtures only; no live Shared Initial or standalone episodic calls.
-
----
-
-## Regression Risks
-
-- Model may over-capture conversational filler if it misinterprets "consequential speech" — mitigated by existing omit rules (L29) and "If uncertain, omit it."
-- Prompt token delta trivial (~+40 tokens in system instructions).
-
----
-
-## Proof
-
-- `memory-episodic-capture-quality-benchmark.test.ts` — CQ-01..25 pipeline traces
-- `memory-episodic-scope-regression.test.ts` — #958 scope intact
-- `npm run lint`, `npm run typecheck:app`, `npm run build`
-- Episodic test suite
+**+0** — deterministic fixtures only.
 
 ---
 
 ## Separate Follow-ups
 
-- User Note top/bottom hard invariant
+- Controlled live extractor salience eval
+- Importance semantic rubric
 - Cross-turn write-path consolidation
-- Importance semantic rubric (if live eval proves misassignment)
-- Retrieval V2 / temporal fact invalidation
-- Dedupe key alignment (sanitize includes fact_text; persist omits it)
+- User Note hard invariant
+- Retrieval V2

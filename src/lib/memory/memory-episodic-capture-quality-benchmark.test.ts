@@ -18,8 +18,6 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { writeFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import {
@@ -700,14 +698,21 @@ describe("episodic capture quality benchmark CQ-01..25", () => {
     });
   }
 
-  it("CQ-25 max-3 preserves first three in model output order (no importance sort)", () => {
+  it("CQ-25 verifies max-3 runtime cap preserves first three in handcrafted golden order", () => {
     const cq = CQ_BENCHMARK_CASES.find((c) => c.id === "CQ-25");
     assert.ok(cq);
     const summary = summarizeEpisodicFactPersistCandidates(cq.goldenFacts);
     assert.equal(summary.insertableCount, EPISODIC_FACTS_MAX_PER_SHARED_TURN);
+    // Golden facts are pre-sorted by salience for fixture design; this proves
+    // MAX3_RUNTIME_CAP + MODEL_OUTPUT_ORDER_PRESERVED only — not real extractor ordering.
     assert.deepEqual(
       summary.insertable.map((f) => f.attribute),
       ["real_name", "relationship_status", "betrayal_event"]
+    );
+    assert.equal(
+      summary.insertable.length,
+      EPISODIC_FACTS_MAX_PER_SHARED_TURN,
+      "runtime does not importance-sort before cap"
     );
   });
 
@@ -749,50 +754,11 @@ describe("episodic capture quality benchmark CQ-01..25", () => {
     );
   });
 
-  it("writes benchmark matrix artifact for external evaluation", () => {
-    const reportDir = join(process.cwd(), "docs", "audits", "episodic-capture-quality");
-    mkdirSync(reportDir, { recursive: true });
-
-    const payload = {
-      generated_at: new Date().toISOString(),
-      main_commit: "d20d4a21b55ca0024a6b01b53d0dc8e9f502b1a7",
-      canonical_extraction_owner: "EPISODIC_FACTS_EXTRACT_INSTRUCTIONS",
-      max_facts_per_turn: EPISODIC_FACTS_MAX_PER_SHARED_TURN,
-      note: "Cursor does not assign quality scores. Evaluate required/forbidden concepts externally.",
-      cases: CQ_BENCHMARK_CASES.map((cq) => {
-        const traces = traceEpisodicCapturePipeline(cq.goldenFacts, {
-          sourceUserText: cq.sourceUserText,
-        });
-        return {
-          id: cq.id,
-          title: cq.title,
-          scenario: cq.scenario,
-          required_concepts: cq.requiredConcepts,
-          forbidden_concepts: cq.forbiddenConcepts,
-          golden_fact_count: cq.goldenFacts.length,
-          prompt_level_risk: cq.promptLevelRisk ?? null,
-          prompt_risk_reason: cq.promptRiskReason ?? null,
-          runtime_failure_class: classifyRuntimeFailure(cq, traces),
-          pipeline_stages: traces.map((t) => ({
-            stage: t.stage,
-            count: t.count,
-            dropped: t.dropped ?? 0,
-            note: t.note ?? null,
-            fact_keys: t.facts.map(
-              (f) => `${f.category}:${f.subject}:${f.attribute}:${f.value}`
-            ),
-          })),
-        };
-      }),
-      matrix,
-    };
-
-    writeFileSync(
-      join(reportDir, "benchmark-matrix.json"),
-      `${JSON.stringify(payload, null, 2)}\n`,
-      "utf8"
-    );
-    assert.ok(matrix.length >= 25);
+  it("in-memory matrix captures all CQ cases (no filesystem artifacts)", () => {
+    assert.equal(matrix.length, CQ_BENCHMARK_CASES.length);
+    for (const entry of matrix) {
+      assert.ok(entry.pipeline.length >= 4, `${entry.id}: pipeline stages traced`);
+    }
   });
 });
 
