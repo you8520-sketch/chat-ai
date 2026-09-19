@@ -5,17 +5,14 @@ import { assertMessageAccess } from "@/lib/chatAccess";
 import {
   normalizeMessageVariants,
   serializeVariantsForClient,
-  variantToRowFields,
 } from "@/lib/messageAlternates";
 import {
   keepInternalAdultRoutingForUser,
   serializeUsageForPublicClient,
 } from "@/lib/billingReceiptAccess";
-import { serializeStatusWidgetValuesJson } from "@/lib/statusWidget";
 import { evaluateStatusWidgetTriggersBestEffort } from "@/lib/statusWidgetTriggers";
 import {
-  executeAtomicVariantSwitchCore,
-  getAssistantSourceTurn,
+  executeAtomicNonnumericVariantSwitch,
   hasLaterCanonicalTurn,
   resolveCanonicalVariantSwitchGate,
 } from "@/lib/rpDerivedStateLifecycle";
@@ -121,22 +118,6 @@ export async function PATCH(req: Request) {
   }
 
   const fromVariant = activeVariant;
-  const fields = variantToRowFields(variants, variantIndex);
-  const selectedVariant = variants[variantIndex];
-  const selectedAdultRouteMetaJson = selectedVariant?.usage?.adultRouting
-    ? JSON.stringify(selectedVariant.usage.adultRouting)
-    : "";
-  const hasVariantStatusSnapshot = Object.prototype.hasOwnProperty.call(
-    selectedVariant ?? {},
-    "statusWidgetValues"
-  );
-  const selectedStatusWidgetValuesJson = hasVariantStatusSnapshot
-    ? selectedVariant?.statusWidgetValues
-      ? serializeStatusWidgetValuesJson(selectedVariant.statusWidgetValues)
-      : ""
-    : undefined;
-
-  const sourceTurn = getAssistantSourceTurn(db, msg.chat_id, messageId);
 
   try {
     assertS4VariantSwitchAllowed(
@@ -293,27 +274,35 @@ export async function PATCH(req: Request) {
     });
   }
 
-  // ─── Nonnumeric path — canonical frontier only (historical raw UPDATE removed) ───
+  // ─── Nonnumeric path — BEGIN IMMEDIATE txn-local frontier authority ───
+  let nonnumericResult: ReturnType<typeof executeAtomicNonnumericVariantSwitch>;
   try {
-    executeAtomicVariantSwitchCore(db, {
+    nonnumericResult = executeAtomicNonnumericVariantSwitch(db, {
       chatId: msg.chat_id,
-      messageId,
-      content: fields.content,
-      model: fields.model,
-      usageJson: fields.usage,
-      adultRouteMetaJson: selectedAdultRouteMetaJson,
-      variantsJson: JSON.stringify(variants),
-      variantIndex,
-      statusWidgetValuesJson: selectedStatusWidgetValuesJson,
-      statusWidgetTurnActive: selectedVariant?.statusWidgetTurnActive,
-      sourceTurn: sourceTurn ?? 0,
       characterId: msg.character_id,
       userId: msg.user_id,
-      selectedFacts: selectedVariant?.statusWidgetValues?.extracted_facts ?? [],
-      selectedRequestId: selectedVariant?.requestId ?? null,
-      selectedGenerationSequence: selectedVariant?.generationSequence ?? null,
+      messageId,
+      variantIndex,
     });
   } catch (e) {
+    if (e instanceof NumericVariantFrontierMovedError) {
+      return NextResponse.json(
+        {
+          error: "이후 입력이 있어 이 답변의 버전을 바꿀 수 없습니다. 새로고침 후 다시 시도해 주세요.",
+          code: e.code,
+        },
+        { status: 409 }
+      );
+    }
+    if (e instanceof NumericHistoricalVariantReplayUnsupportedError) {
+      return NextResponse.json(
+        {
+          error: "이후 대화가 있는 과거 턴의 버전 전환은 지원하지 않습니다.",
+          code: e.code,
+        },
+        { status: 409 }
+      );
+    }
     if (e instanceof S4VariantProvenanceInvalidError) {
       return NextResponse.json(
         {
@@ -324,7 +313,7 @@ export async function PATCH(req: Request) {
       );
     }
     console.error(
-      "[DerivedState] atomic variant switch core failed:",
+      "[DerivedState] atomic nonnumeric variant switch failed:",
       (e as Error).message
     );
     return NextResponse.json(
@@ -333,47 +322,53 @@ export async function PATCH(req: Request) {
     );
   }
 
-  recordPreferenceEvent({
-    userId: user.id,
-    chatId: msg.chat_id,
-    messageId,
-    eventType: PREFERENCE_EVENT.VARIANT_SWITCH,
-    payload: { from: fromVariant, to: variantIndex },
-  });
-  enqueueScoreRecompute(messageId);
+  const responseVariants = nonnumericResult.canonicalVariants;
+  const responseActive = nonnumericResult.activeVariant;
+  const responseSelected = responseVariants[responseActive]!;
 
-  if (
-    sourceTurn != null &&
-    selectedVariant?.statusWidgetValues &&
-    Object.keys(selectedVariant.statusWidgetValues.character ?? {}).length > 0
-  ) {
-    try {
-      evaluateStatusWidgetTriggersBestEffort(db, {
-        chatId: msg.chat_id,
-        characterId: msg.character_id,
-        sourceTurn,
-        statusValues: selectedVariant.statusWidgetValues,
-        sourceMessageId: messageId,
-        requestId: selectedVariant?.requestId ?? null,
-        generationSequence: selectedVariant?.generationSequence ?? null,
-      });
-    } catch (e) {
-      console.error(
-        "[StatusTrigger] post-commit variant trigger re-evaluation failed:",
-        (e as Error).message
-      );
+  if (nonnumericResult.kind === "APPLIED") {
+    recordPreferenceEvent({
+      userId: user.id,
+      chatId: msg.chat_id,
+      messageId,
+      eventType: PREFERENCE_EVENT.VARIANT_SWITCH,
+      payload: { from: fromVariant, to: responseActive },
+    });
+    enqueueScoreRecompute(messageId);
+
+    const canonicalStatusForTriggers = responseSelected.statusWidgetValues;
+    if (
+      nonnumericResult.sourceTurn != null &&
+      canonicalStatusForTriggers &&
+      Object.keys(canonicalStatusForTriggers.character ?? {}).length > 0
+    ) {
+      try {
+        evaluateStatusWidgetTriggersBestEffort(db, {
+          chatId: msg.chat_id,
+          characterId: msg.character_id,
+          sourceTurn: nonnumericResult.sourceTurn,
+          statusValues: canonicalStatusForTriggers,
+          sourceMessageId: messageId,
+          requestId: nonnumericResult.selectedRequestId,
+          generationSequence: nonnumericResult.selectedGenerationSequence,
+        });
+      } catch (e) {
+        console.error(
+          "[StatusTrigger] post-commit variant trigger re-evaluation failed:",
+          (e as Error).message
+        );
+      }
     }
   }
 
-  const selected = variants[variantIndex];
   return NextResponse.json({
     ok: true,
-    ...serializeVariantsForClient(variants, variantIndex, {
+    ...serializeVariantsForClient(responseVariants, responseActive, {
       keepInternalAdultRouting,
     }),
-    content: selected.content,
-    usage: selected.usage
-      ? serializeUsageForPublicClient(selected.usage, {
+    content: responseSelected.content,
+    usage: responseSelected.usage
+      ? serializeUsageForPublicClient(responseSelected.usage, {
           keepInternal: keepInternalAdultRouting,
         })
       : null,

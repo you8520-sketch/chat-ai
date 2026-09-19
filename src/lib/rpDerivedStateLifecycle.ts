@@ -130,7 +130,10 @@ export type CanonicalVariantSwitchGate =
   | { allowed: true }
   | { allowed: false; code: string; error: string };
 
-/** Single server authority — only the canonical frontier assistant may switch variants. */
+/**
+ * Route-level fast rejection (409 UX). Non-authoritative — production mutation
+ * authority is executeAtomicNonnumericVariantSwitch / executeAtomicNumericVariantSwitch.
+ */
 export function resolveCanonicalVariantSwitchGate(
   db: Database.Database,
   chatId: number,
@@ -390,9 +393,18 @@ export function executeVariantSwitchMutationCore(
   });
 }
 
+export {
+  executeAtomicNonnumericVariantSwitch,
+  type AtomicNonnumericVariantSwitchApplied,
+  type AtomicNonnumericVariantSwitchIdempotent,
+  type AtomicNonnumericVariantSwitchInput,
+  type AtomicNonnumericVariantSwitchResult,
+} from "./nonnumericVariantSwitchAtomic";
+
 /**
  * Nonnumeric latest-variant switch wrapper. Owns a deferred transaction.
- * Behavior equivalent to pre-B1-D2 atomic core.
+ * Does NOT recheck canonical frontier — prefer executeAtomicNonnumericVariantSwitch
+ * for production paths (BEGIN IMMEDIATE + txn-local frontier authority).
  */
 export function executeAtomicVariantSwitchCore(
   db: Database.Database,

@@ -6,8 +6,7 @@ import {
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
 import {
-  executeAtomicVariantSwitchCore,
-  getAssistantSourceTurn,
+  executeAtomicNonnumericVariantSwitch,
   resolveCanonicalVariantSwitchGate,
 } from "@/lib/rpDerivedStateLifecycle";
 import { assertS4VariantSwitchAllowed } from "@/lib/knowledgeTransferVariant";
@@ -148,22 +147,14 @@ describe("FREEZE-H canonical variant mutation gate", () => {
     const gate = resolveCanonicalVariantSwitchGate(db, chat, turn5.assistantId);
     assert.equal(gate.allowed, true);
 
-    executeAtomicVariantSwitchCore(db, {
+    const result = executeAtomicNonnumericVariantSwitch(db, {
       chatId: chat,
-      messageId: turn5.assistantId,
-      content: "assistant B turn 5",
-      model: "test",
-      usageJson: null,
-      adultRouteMetaJson: "",
-      variantsJson: JSON.stringify(variants),
-      variantIndex: 1,
-      sourceTurn: getAssistantSourceTurn(db, chat, turn5.assistantId) ?? 0,
       characterId: char,
       userId: user,
-      selectedFacts: [],
-      selectedRequestId: null,
-      selectedGenerationSequence: null,
+      messageId: turn5.assistantId,
+      variantIndex: 1,
     });
+    assert.equal(result.kind, "APPLIED");
 
     const after = readAssistantRow(db, turn5.assistantId);
     assert.equal(after.content, "assistant B turn 5");
