@@ -48,7 +48,8 @@ describe("Main RP canonical 4-model registry", () => {
         CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
         CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
         CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-        ].sort()
+        CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+      ].sort()
     );
     for (const modelId of MAIN_RP_MODEL_IDS) {
       assert.equal(isMainRpModel(modelId), true, modelId);
