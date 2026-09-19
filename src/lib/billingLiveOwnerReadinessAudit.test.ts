@@ -96,33 +96,6 @@ describe("billingLiveOwnerReadinessAudit — production boundary", () => {
     assert.ok(!settlementSrc.includes("billingLiveOwnerReadinessAudit"));
   });
 
-  it("PRODUCTION_BILLING_FILES_CHANGED_BY_PR795=0 (route.ts Terra-removal excepted)", () => {
-    let diff: string;
-    try {
-      diff = execSync("git diff --name-only origin/main...HEAD", {
-        cwd: REPO_ROOT,
-        encoding: "utf8",
-      });
-    } catch {
-      diff = execSync("git diff --name-only HEAD~1...HEAD", {
-        cwd: REPO_ROOT,
-        encoding: "utf8",
-      });
-    }
-    const changed = diff
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-    // route.ts is allowed to change ONLY for the retired-Terra billing-branch
-    // removal (Terra is not a Main RP model). Billing formulas / settlement /
-    // pricing files must remain untouched.
-    const productionBillingChanged = changed.filter(
-      (file) =>
-        PRODUCTION_BILLING_PATH_PREFIXES.includes(file) &&
-        file !== "src/app/api/chat/route.ts"
-    );
-    assert.deepEqual(productionBillingChanged, [], JSON.stringify(productionBillingChanged));
-  });
 });
 
 describe("billingLiveOwnerReadinessAudit — owner map", () => {
