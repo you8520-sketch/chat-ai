@@ -44,6 +44,10 @@ import {
   stripOocFromMemorySummary,
 } from "./memory-ooc-filter";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
+import {
+  buildGlobalSummarySourceFingerprintFromText,
+  canCommitGlobalSummaryProjection,
+} from "./memory-global-source-fingerprint";
 import type { MemoryTier } from "./memory-types";
 import {
   buildEmptyOocBatchPlaceholder,
@@ -1086,6 +1090,7 @@ async function persistComposedBatchScopes(opts: {
     return true;
   }
   let currentMemory = rebuildLorebookFromRecords(opts.chatId);
+  const sourceFingerprintBefore = buildGlobalSummarySourceFingerprintFromText(currentMemory);
   if (currentMemory.length > lorebookBudget) {
     try {
       const compacted = await compactCurrentMemory(
@@ -1097,9 +1102,11 @@ async function persistComposedBatchScopes(opts: {
         const compactedText = compacted;
         const compactCommitted = db.transaction(() => {
           if (
-            !isMemoryWriteGuardCurrentCore(db, {
+            !canCommitGlobalSummaryProjection({
+              db,
               chatId: opts.chatId,
-              snapshot: opts.boundarySnapshot,
+              boundarySnapshot: opts.boundarySnapshot,
+              sourceFingerprintBefore,
               sourceUserMessageIds: opts.sourceUserMessageIds,
             })
           ) {

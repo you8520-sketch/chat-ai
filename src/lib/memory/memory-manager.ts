@@ -38,6 +38,10 @@ import { syncMemoryEligibleTurnCount } from "./memory-reconcile";
 import { reconcileSharedEpisodicFactsForTurn } from "./memory-episodic-shared";
 import { buildMemoryContext } from "./memory-injector";
 import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
+import {
+  buildGlobalSummarySourceFingerprintFromText,
+  canCommitGlobalSummaryProjection,
+} from "./memory-global-source-fingerprint";
 import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
 import { rebuildLorebookFromRecords } from "./memory-turn-summary";
 import { isGeminiIsolationMode } from "@/lib/geminiIsolationMode";
@@ -88,6 +92,7 @@ export function scheduleBackgroundLorebookMaintenance(opts: {
       let recentCompressed = false;
 
       const rebuilt = rebuildLorebookFromRecords(opts.chatId).trim();
+      const sourceFingerprintBefore = buildGlobalSummarySourceFingerprintFromText(rebuilt);
       if (lorebookMaintenanceDefer) {
         await lorebookMaintenanceDefer;
       }
@@ -127,6 +132,17 @@ export function scheduleBackgroundLorebookMaintenance(opts: {
       }
 
       if (recentCompressed || archiveCompressed) {
+        if (
+          recentCompressed &&
+          !canCommitGlobalSummaryProjection({
+            db,
+            chatId: opts.chatId,
+            boundarySnapshot,
+            sourceFingerprintBefore,
+          })
+        ) {
+          return;
+        }
         if (
           !isMemoryWriteGuardCurrentCore(db, {
             chatId: opts.chatId,

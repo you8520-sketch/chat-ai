@@ -388,6 +388,9 @@ export function promoteRecordsToBranchCanon(opts: {
     );
     n++;
   }
+  if (n > 0) {
+    refreshGlobalMemoryMirrorFromRecords(opts.chatId);
+  }
   return n;
 }
 
@@ -642,6 +645,7 @@ export function reopenClosedBranchCanon(opts: {
     console.info(
       `[memory] reopen branch chat=${opts.chatId} branchId=${result.branchId} source=${opts.source} rows=${result.reopenedRowIds.length} closedOther=${result.closedOtherRowIds.length}`
     );
+    refreshGlobalMemoryMirrorFromRecords(opts.chatId);
   }
 
   return result;
@@ -713,7 +717,11 @@ export function closeActiveBranchCanon(
   control?: BranchControlSource | null
 ): number {
   const db = getDb();
-  return db.transaction(() => closeActiveBranchCanonCore(chatId, control)).immediate();
+  const n = db.transaction(() => closeActiveBranchCanonCore(chatId, control)).immediate();
+  if (n > 0) {
+    refreshGlobalMemoryMirrorFromRecords(chatId);
+  }
+  return n;
 }
 
 export function adoptBranchToMainCanon(opts: {
@@ -746,6 +754,7 @@ export function adoptBranchToMainCanon(opts: {
       branch_status='closed', promoted_by=?, promoted_at=?, updated_at=datetime('now')
      WHERE id=?`
   ).run(text, encodeScopePayload(payload), opts.promotedBy, now, opts.recordId);
+  refreshGlobalMemoryMirrorFromRecords(opts.chatId);
   return true;
 }
 
