@@ -33,6 +33,7 @@ import {
 import { listClosedBranchIdsFromRecords } from "./memory-shadow-state";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 import { loadMemoryEligibleChatTurnsWithMessageIds, loadChatTurnsWithMessageIds } from "./memory-turn-loader";
+import { isCanonicalFrontierAssistantMessage } from "@/lib/rpDerivedStateLifecycle";
 import {
   getMemorySourceBoundary,
   isMemoryWriteGuardCurrentCore,
@@ -1244,9 +1245,15 @@ export async function refreshRollingSummaryForRegeneratedAssistant(opts: {
   }
   const summarized = memory.summarized_turn_count ?? 0;
   if (!record || record.inactive) {
+    // Deferred seal — the target turn's batch is not sealed yet, so the frontier
+    // regen must NOT trigger a summary provider call (or repeat per regen). The
+    // pending batch is sealed by the next request-start catch-up owner, which
+    // reads the final active-variant content after the canon freeze.
     if (shouldTriggerRollingSummary(eligibleCount, summarized)) {
-      void processRollingSummaryBatch(opts).catch((e) => {
-        console.warn("[memory] regen seal pending batch failed:", (e as Error).message);
+      console.info("MEMORY_SUMMARY_REGEN_PENDING_SEAL_DEFERRED", {
+        chat_id: opts.chatId,
+        assistant_message_id: opts.assistantMessageId,
+        batch_start: batchStart,
       });
     }
     return false;
@@ -1387,6 +1394,18 @@ export async function processRollingSummaryBatch(opts: {
         return false;
       }
 
+      const batchEndAssistantId =
+        batchMeta[batchMeta.length - 1]?.assistantMessageId ?? null;
+      if (!isRollingSummaryBatchSealEligible(opts.chatId, batchEndAssistantId)) {
+        console.info("MEMORY_SUMMARY_WAITING_FOR_CANON_FREEZE", {
+          chat_id: opts.chatId,
+          batch_start: batchStart,
+          batch_end: endTurn,
+          batch_end_assistant_message_id: batchEndAssistantId,
+        });
+        return false;
+      }
+
       // Re-check after lock + load (another worker may have just persisted)
       const latest = listMemoryRecordsForChat(opts.chatId);
       if (latest.some((r) => !r.inactive && r.turnStart === batchStart)) {
@@ -1433,7 +1452,7 @@ export async function processRollingSummaryBatch(opts: {
         return false;
       }
 
-      const lastAssistantId = batchMeta[batchMeta.length - 1]?.assistantMessageId ?? null;
+      const lastAssistantId = batchEndAssistantId;
       return persistComposedBatchScopes({
         chatId: opts.chatId,
         userId: opts.userId,
@@ -1578,7 +1597,19 @@ export type NonBlockingSummaryPrepResult = {
   unsummarizedTurns: number;
   pendingRange: string | null;
   catchUpScheduled: boolean;
+  /** unsummarized == RAW4+1 at deferred boundary — seal waits for canonical freeze. */
+  deferredBoundarySealPending: boolean;
 };
+
+/** Batch may seal only after its ending assistant is no longer the mutable canonical frontier. */
+export function isRollingSummaryBatchSealEligible(
+  chatId: number,
+  batchEndAssistantMessageId: number | null
+): boolean {
+  if (batchEndAssistantMessageId == null) return true;
+  const db = getDb();
+  return !isCanonicalFrontierAssistantMessage(db, chatId, batchEndAssistantMessageId);
+}
 
 /** Read committed summary frontier — no LLM, no await. */
 export function resolveCommittedSummaryFrontier(
@@ -1661,6 +1692,7 @@ export function prepareNonBlockingSummaryForMainRp(opts: {
       unsummarizedTurns: opts.completedTurns,
       pendingRange: null,
       catchUpScheduled: false,
+      deferredBoundarySealPending: false,
     };
   }
 
@@ -1669,12 +1701,25 @@ export function prepareNonBlockingSummaryForMainRp(opts: {
     opts.completedTurns
   );
   const unsummarizedTurns = Math.max(0, opts.completedTurns - summarizedThrough);
-  const needsCatchUp = unsummarizedTurns > RAW_HISTORY_COMPLETE_EXCHANGES;
+  const deferredBoundarySealPending =
+    unsummarizedTurns === RAW_HISTORY_COMPLETE_EXCHANGES + 1;
+  const backlogCatchUp = unsummarizedTurns > RAW_HISTORY_COMPLETE_EXCHANGES + 1;
+  const hasPendingSummary = unsummarizedTurns > RAW_HISTORY_COMPLETE_EXCHANGES;
   const next = resolveNextBatchRange(summarizedThrough, opts.completedTurns);
   const pendingRange =
-    needsCatchUp && next ? `${next.turnStart}~${next.turnEnd}` : null;
+    hasPendingSummary && next ? `${next.turnStart}~${next.turnEnd}` : null;
 
-  if (needsCatchUp) {
+  if (deferredBoundarySealPending) {
+    console.info("MEMORY_SUMMARY_DEFERRED_UNTIL_CANON_FREEZE", {
+      chat_id: opts.chatId,
+      summarized_through: summarizedThrough,
+      completed_turns: opts.completedTurns,
+      unsummarized: unsummarizedTurns,
+      pending_range: pendingRange,
+    });
+  }
+
+  if (backlogCatchUp) {
     console.info("MEMORY_SUMMARY_CATCHUP_SCHEDULED", {
       chat_id: opts.chatId,
       summarized_through: summarizedThrough,
@@ -1684,7 +1729,7 @@ export function prepareNonBlockingSummaryForMainRp(opts: {
     });
   }
 
-  const catchUpScheduled = needsCatchUp
+  const catchUpScheduled = backlogCatchUp
     ? scheduleSummaryCatchUpDurable({
         chatId: opts.chatId,
         userId: opts.userId,
@@ -1707,7 +1752,25 @@ export function prepareNonBlockingSummaryForMainRp(opts: {
     unsummarizedTurns,
     pendingRange,
     catchUpScheduled,
+    deferredBoundarySealPending,
   };
+}
+
+/** After canonical freeze (next user row persisted), seal the deferred 1~5 batch. */
+export function scheduleDeferredBoundarySummaryAfterCanonFreeze(opts: {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  charName: string;
+  characterIdentity?: string | null;
+  tier: MemoryTier;
+  memoryCapacity: number;
+  userPersona?: string | null;
+  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+}): boolean {
+  if (!isMemoryFeatureEnabled()) return false;
+  console.info("MEMORY_SUMMARY_CATCHUP_AFTER_CANON_FREEZE", { chat_id: opts.chatId });
+  return scheduleSummaryCatchUpDurable({ ...opts, maxRounds: 1 });
 }
 
 /** Await/coalesce pending summary seals before main-model context assembly. */

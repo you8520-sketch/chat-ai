@@ -5,11 +5,11 @@ import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
 import type { Route } from "@/lib/ai";
 import {
   catchUpRollingSummaries,
-  processRollingSummaryBatch,
   refreshRollingSummaryForRegeneratedAssistant,
   regenerateMemoryRecordBatch,
   scheduleCharacterRollingSummary,
   shouldTriggerRollingSummary,
+  summarySealAtTurn,
   turnsUntilNextSummary,
 } from "./memory-rolling-summary";
 import {
@@ -481,19 +481,16 @@ export async function scheduleMemoryUpdate(opts: {
     });
     const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
     const summarized = memory.summarized_turn_count ?? 0;
+    // Deferred seal — a regen at the canonical frontier must not seal the pending
+    // batch (each regen would fire a summary provider call). Sealed-batch rebuild
+    // stays inside refreshRollingSummaryForRegeneratedAssistant; the pending batch
+    // is sealed by the next request-start catch-up owner instead.
     if (shouldTriggerRollingSummary(eligibleCount, summarized)) {
-      void processRollingSummaryBatch({
-        chatId: opts.chatId,
-        userId: opts.userId,
-        characterId: opts.characterId,
-        charName: opts.relationshipNames.charName,
-        tier: opts.tier,
-        memoryCapacity: opts.memoryCapacity,
-        characterIdentity: opts.characterIdentity,
-        userPersona: opts.userPersona,
-        turnTrace: opts.turnTrace,
-      }).catch((e) => {
-        console.warn("[memory] regen rolling summary seal failed:", (e as Error).message);
+      console.info("MEMORY_SUMMARY_REGEN_SEAL_DEFERRED", {
+        chat_id: opts.chatId,
+        assistant_message_id: opts.assistantMessageId,
+        eligible_turns: eligibleCount,
+        summarized_through: summarized,
       });
     }
     return;
@@ -527,19 +524,16 @@ export async function scheduleMemoryUpdate(opts: {
   const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
   const summarized = memory.summarized_turn_count ?? 0;
 
+  // Deferred seal — post-turn does NOT seal the just-completed 5-turn window:
+  // the canonical frontier assistant stays regen/variant-mutable and unsummarized.
+  // The next request-start owner (prepareNonBlockingSummaryForMainRp catch-up)
+  // seals it in background while Main RP proceeds on unsummarized RAW.
   if (shouldTriggerRollingSummary(count, summarized)) {
-    void processRollingSummaryBatch({
-      chatId: opts.chatId,
-      userId: opts.userId,
-      characterId: opts.characterId,
-      charName: opts.relationshipNames.charName,
-      tier: opts.tier,
-      memoryCapacity: opts.memoryCapacity,
-      characterIdentity: opts.characterIdentity,
-      userPersona: opts.userPersona,
-      turnTrace: opts.turnTrace,
-    }).catch((e) => {
-      console.warn("[memory] rolling summary after turn failed:", (e as Error).message);
+    console.info("MEMORY_SUMMARY_SEAL_DEFERRED", {
+      chat_id: opts.chatId,
+      eligible_turns: count,
+      summarized_through: summarized,
+      seal_at_turn: summarySealAtTurn(summarized),
     });
   }
 }

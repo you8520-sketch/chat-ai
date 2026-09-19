@@ -154,9 +154,12 @@ import {
   scheduleMemoryUpdate,
 } from "@/lib/memory/memory-manager";
 import {
+  ensureSummaryBarrier,
   getRollingSummaryContentionSnapshot,
   prepareNonBlockingSummaryForMainRp,
+  scheduleDeferredBoundarySummaryAfterCanonFreeze,
 } from "@/lib/memory/memory-rolling-summary";
+import { gateChatOnSummaryBarrier } from "@/lib/memory/memory-barrier-route-gate";
 import { auditTokenAccounting } from "@/lib/promptTokenAccounting";
 import { RAW_HISTORY_COMPLETE_EXCHANGES } from "@/lib/memory/memory-constants";
 import {
@@ -170,6 +173,7 @@ import {
   trimProviderHistoryToBudget,
 } from "@/lib/providerHistoryPolicy";
 import {
+  DEFERRED_SUMMARY_RAW_COVERAGE_EXCHANGES,
   resolveProviderRawPoolExchangeCount,
   resolveProviderRawTrimFloorExchanges,
   resolveSummaryHealthState,
@@ -1428,6 +1432,7 @@ export async function POST(req: Request) {
   const completedTurnsForMemoryCoverage = memoryFeatureOn
     ? memorySourceEligibleCompletedTurns
     : playableTurnCount;
+  let deferredBoundarySealPending = false;
 
   if (memoryFeatureOn) {
     phaseAudit?.mark("T4a_SUMMARY_PREP_START");
@@ -1443,8 +1448,44 @@ export async function POST(req: Request) {
     });
     phaseAudit?.mark("T4b_SUMMARY_PREP_DONE");
     effectiveSummarizedTurnCount = summaryPrep.summarizedThrough;
+    deferredBoundarySealPending = summaryPrep.deferredBoundarySealPending;
+    // Summary lag already slipped past the deferred boundary (>RAW4+1): restore
+    // RAW↔summary coverage with the existing barrier owner before Main RP runs.
+    if (
+      Math.max(0, completedTurnsForMemoryCoverage - effectiveSummarizedTurnCount) >
+      RAW_HISTORY_COMPLETE_EXCHANGES + 1
+    ) {
+      const barrier = await ensureSummaryBarrier({
+        chatId: chat.id,
+        userId: user.id,
+        characterId: ch.id,
+        charName: ch.name,
+        tier: memoryTier,
+        memoryCapacity,
+        userPersona: personaDisplayName,
+        completedTurns: completedTurnsForMemoryCoverage,
+      });
+      const barrierGate = gateChatOnSummaryBarrier(barrier);
+      if (!barrierGate.proceed) {
+        console.warn("MEMORY_SUMMARY_BARRIER_INCOMPLETE", {
+          chat_id: chat.id,
+          reason: barrierGate.response.body.code,
+          pending_range: barrierGate.response.body.pendingRange,
+          summarized_through: effectiveSummarizedTurnCount,
+          raw_trim_floor: DEFERRED_SUMMARY_RAW_COVERAGE_EXCHANGES,
+        });
+        return Response.json(barrierGate.response.body, {
+          status: barrierGate.response.status,
+        });
+      }
+      effectiveSummarizedTurnCount = barrierGate.summarizedThrough;
+    }
   }
 
+  const unsummarizedTurnsAtPrep = Math.max(
+    0,
+    completedTurnsForMemoryCoverage - effectiveSummarizedTurnCount
+  );
   const providerRawPoolExchangeCount = memoryFeatureOn
     ? resolveProviderRawPoolExchangeCount({
         memoryFeatureEnabled: true,
@@ -1452,7 +1493,9 @@ export async function POST(req: Request) {
         summarizedTurnCount: effectiveSummarizedTurnCount,
       })
     : RAW_HISTORY_COMPLETE_EXCHANGES;
-  const providerRawTrimFloor = RAW_HISTORY_COMPLETE_EXCHANGES;
+  const providerRawTrimFloor = memoryFeatureOn
+    ? resolveProviderRawTrimFloorExchanges(unsummarizedTurnsAtPrep)
+    : RAW_HISTORY_COMPLETE_EXCHANGES;
   const summaryHealthState = memoryFeatureOn
     ? resolveSummaryHealthState({
         completedTurns: completedTurnsForMemoryCoverage,
@@ -2616,6 +2659,22 @@ export async function POST(req: Request) {
   persistenceDiag.userMessageSaved = bootstrapped.userMessageSaved;
   persistenceDiag.assistantPlaceholderCreated = bootstrapped.assistantPlaceholderCreated;
   persistenceDiag.reusedExisting = bootstrapped.reusedExisting;
+  if (
+    memoryFeatureOn &&
+    deferredBoundarySealPending &&
+    bootstrapped.userMessageSaved &&
+    regenerateMessageId == null
+  ) {
+    scheduleDeferredBoundarySummaryAfterCanonFreeze({
+      chatId: chatRef.id,
+      userId: user.id,
+      characterId: ch.id,
+      charName: ch.name,
+      tier: memoryTier,
+      memoryCapacity,
+      userPersona: personaDisplayName,
+    });
+  }
   if (regenerateMessageId != null) {
     const regenStatusPolicy = resolveStatusWindowPolicyFromSources({
       userNote: effectiveUserNote || undefined,

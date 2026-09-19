@@ -5,20 +5,16 @@ import { assertMessageAccess } from "@/lib/chatAccess";
 import {
   normalizeMessageVariants,
   serializeVariantsForClient,
-  variantToRowFields,
 } from "@/lib/messageAlternates";
 import {
   keepInternalAdultRoutingForUser,
   serializeUsageForPublicClient,
 } from "@/lib/billingReceiptAccess";
-import { serializeStatusWidgetValuesJson } from "@/lib/statusWidget";
 import { evaluateStatusWidgetTriggersBestEffort } from "@/lib/statusWidgetTriggers";
 import {
-  executeAtomicVariantSwitchCore,
-  getAssistantSourceTurn,
+  executeAtomicNonnumericVariantSwitch,
   hasLaterCanonicalTurn,
-  isCanonicalFrontierAssistantMessage,
-  isLatestCanonicalAssistantMessage,
+  resolveCanonicalVariantSwitchGate,
 } from "@/lib/rpDerivedStateLifecycle";
 import {
   assertS4VariantSwitchAllowed,
@@ -122,23 +118,6 @@ export async function PATCH(req: Request) {
   }
 
   const fromVariant = activeVariant;
-  const fields = variantToRowFields(variants, variantIndex);
-  const selectedVariant = variants[variantIndex];
-  const selectedAdultRouteMetaJson = selectedVariant?.usage?.adultRouting
-    ? JSON.stringify(selectedVariant.usage.adultRouting)
-    : "";
-  const hasVariantStatusSnapshot = Object.prototype.hasOwnProperty.call(
-    selectedVariant ?? {},
-    "statusWidgetValues"
-  );
-  const selectedStatusWidgetValuesJson = hasVariantStatusSnapshot
-    ? selectedVariant?.statusWidgetValues
-      ? serializeStatusWidgetValuesJson(selectedVariant.statusWidgetValues)
-      : ""
-    : undefined;
-
-  const sourceTurn = getAssistantSourceTurn(db, msg.chat_id, messageId);
-  const isLatest = isLatestCanonicalAssistantMessage(db, msg.chat_id, messageId);
 
   try {
     assertS4VariantSwitchAllowed(
@@ -160,27 +139,16 @@ export async function PATCH(req: Request) {
     throw e;
   }
 
+  const variantGate = resolveCanonicalVariantSwitchGate(db, msg.chat_id, messageId);
+  if (!variantGate.allowed) {
+    return NextResponse.json(
+      { error: variantGate.error, code: variantGate.code },
+      { status: 409 }
+    );
+  }
+
   // ─── Numeric-enabled path (B1-D2) ───
   if (numericEligible) {
-    if (hasLaterCanonicalTurn(db, msg.chat_id, messageId)) {
-      return NextResponse.json(
-        {
-          error: "이후 대화가 있는 과거 턴의 버전 전환은 지원하지 않습니다.",
-          code: "numeric_state_historical_variant_replay_unsupported",
-        },
-        { status: 409 }
-      );
-    }
-    if (!isCanonicalFrontierAssistantMessage(db, msg.chat_id, messageId)) {
-      return NextResponse.json(
-        {
-          error: "이후 입력이 있어 이 답변의 버전을 바꿀 수 없습니다. 새로고침 후 다시 시도해 주세요.",
-          code: "variant_switch_frontier_moved",
-        },
-        { status: 409 }
-      );
-    }
-
     let atomicResult: ReturnType<typeof executeAtomicNumericVariantSwitch>;
     try {
       atomicResult = executeAtomicNumericVariantSwitch(db, {
@@ -306,70 +274,83 @@ export async function PATCH(req: Request) {
     });
   }
 
-  // ─── Nonnumeric path (unchanged behavior) ───
-  if (isLatest) {
-    try {
-      executeAtomicVariantSwitchCore(db, {
-        chatId: msg.chat_id,
-        messageId,
-        content: fields.content,
-        model: fields.model,
-        usageJson: fields.usage,
-        adultRouteMetaJson: selectedAdultRouteMetaJson,
-        variantsJson: JSON.stringify(variants),
-        variantIndex,
-        statusWidgetValuesJson: selectedStatusWidgetValuesJson,
-        statusWidgetTurnActive: selectedVariant?.statusWidgetTurnActive,
-        sourceTurn: sourceTurn ?? 0,
-        characterId: msg.character_id,
-        userId: msg.user_id,
-        selectedFacts: selectedVariant?.statusWidgetValues?.extracted_facts ?? [],
-        selectedRequestId: selectedVariant?.requestId ?? null,
-        selectedGenerationSequence: selectedVariant?.generationSequence ?? null,
-      });
-    } catch (e) {
-      if (e instanceof S4VariantProvenanceInvalidError) {
-        return NextResponse.json(
-          {
-            error: "선택한 버전의 S4 출처 정보가 유효하지 않습니다.",
-            code: e.code,
-          },
-          { status: 409 }
-        );
-      }
-      console.error(
-        "[DerivedState] atomic variant switch core failed:",
-        (e as Error).message
-      );
+  // ─── Nonnumeric path — BEGIN IMMEDIATE txn-local frontier authority ───
+  let nonnumericResult: ReturnType<typeof executeAtomicNonnumericVariantSwitch>;
+  try {
+    nonnumericResult = executeAtomicNonnumericVariantSwitch(db, {
+      chatId: msg.chat_id,
+      characterId: msg.character_id,
+      userId: msg.user_id,
+      messageId,
+      variantIndex,
+    });
+  } catch (e) {
+    if (e instanceof NumericVariantFrontierMovedError) {
       return NextResponse.json(
-        { error: "버전 전환 중 오류가 발생했습니다." },
-        { status: 500 }
+        {
+          error: "이후 입력이 있어 이 답변의 버전을 바꿀 수 없습니다. 새로고침 후 다시 시도해 주세요.",
+          code: e.code,
+        },
+        { status: 409 }
       );
     }
+    if (e instanceof NumericHistoricalVariantReplayUnsupportedError) {
+      return NextResponse.json(
+        {
+          error: "이후 대화가 있는 과거 턴의 버전 전환은 지원하지 않습니다.",
+          code: e.code,
+        },
+        { status: 409 }
+      );
+    }
+    if (e instanceof S4VariantProvenanceInvalidError) {
+      return NextResponse.json(
+        {
+          error: "선택한 버전의 S4 출처 정보가 유효하지 않습니다.",
+          code: e.code,
+        },
+        { status: 409 }
+      );
+    }
+    console.error(
+      "[DerivedState] atomic nonnumeric variant switch failed:",
+      (e as Error).message
+    );
+    return NextResponse.json(
+      { error: "버전 전환 중 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
 
+  const responseVariants = nonnumericResult.canonicalVariants;
+  const responseActive = nonnumericResult.activeVariant;
+  const responseSelected = responseVariants[responseActive]!;
+
+  if (nonnumericResult.kind === "APPLIED") {
     recordPreferenceEvent({
       userId: user.id,
       chatId: msg.chat_id,
       messageId,
       eventType: PREFERENCE_EVENT.VARIANT_SWITCH,
-      payload: { from: fromVariant, to: variantIndex },
+      payload: { from: fromVariant, to: responseActive },
     });
     enqueueScoreRecompute(messageId);
 
+    const canonicalStatusForTriggers = responseSelected.statusWidgetValues;
     if (
-      sourceTurn != null &&
-      selectedVariant?.statusWidgetValues &&
-      Object.keys(selectedVariant.statusWidgetValues.character ?? {}).length > 0
+      nonnumericResult.sourceTurn != null &&
+      canonicalStatusForTriggers &&
+      Object.keys(canonicalStatusForTriggers.character ?? {}).length > 0
     ) {
       try {
         evaluateStatusWidgetTriggersBestEffort(db, {
           chatId: msg.chat_id,
           characterId: msg.character_id,
-          sourceTurn,
-          statusValues: selectedVariant.statusWidgetValues,
+          sourceTurn: nonnumericResult.sourceTurn,
+          statusValues: canonicalStatusForTriggers,
           sourceMessageId: messageId,
-          requestId: selectedVariant?.requestId ?? null,
-          generationSequence: selectedVariant?.generationSequence ?? null,
+          requestId: nonnumericResult.selectedRequestId,
+          generationSequence: nonnumericResult.selectedGenerationSequence,
         });
       } catch (e) {
         console.error(
@@ -378,71 +359,16 @@ export async function PATCH(req: Request) {
         );
       }
     }
-  } else {
-    try {
-      db.transaction(() => {
-        if (selectedStatusWidgetValuesJson !== undefined) {
-          db.prepare(
-            "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=?, status_widget_values_json=?, status_widget_turn_active=? WHERE id=?"
-          ).run(
-            fields.content,
-            fields.model,
-            fields.usage,
-            selectedAdultRouteMetaJson,
-            JSON.stringify(variants),
-            variantIndex,
-            selectedStatusWidgetValuesJson,
-            selectedVariant?.statusWidgetTurnActive ? 1 : 0,
-            messageId
-          );
-        } else {
-          db.prepare(
-            "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=? WHERE id=?"
-          ).run(
-            fields.content,
-            fields.model,
-            fields.usage,
-            selectedAdultRouteMetaJson,
-            JSON.stringify(variants),
-            variantIndex,
-            messageId
-          );
-        }
-      })();
-    } catch (e) {
-      console.error(
-        "[DerivedState] historical variant switch update failed:",
-        (e as Error).message
-      );
-      return NextResponse.json(
-        { error: "버전 전환 중 오류가 발생했습니다." },
-        { status: 500 }
-      );
-    }
-
-    recordPreferenceEvent({
-      userId: user.id,
-      chatId: msg.chat_id,
-      messageId,
-      eventType: PREFERENCE_EVENT.VARIANT_SWITCH,
-      payload: { from: fromVariant, to: variantIndex },
-    });
-    enqueueScoreRecompute(messageId);
-
-    console.warn(
-      "[DerivedState] HISTORICAL_VARIANT_DERIVED_STATE_REPLAY_UNSUPPORTED — historical variant switch; downstream derived-state replay not performed"
-    );
   }
 
-  const selected = variants[variantIndex];
   return NextResponse.json({
     ok: true,
-    ...serializeVariantsForClient(variants, variantIndex, {
+    ...serializeVariantsForClient(responseVariants, responseActive, {
       keepInternalAdultRouting,
     }),
-    content: selected.content,
-    usage: selected.usage
-      ? serializeUsageForPublicClient(selected.usage, {
+    content: responseSelected.content,
+    usage: responseSelected.usage
+      ? serializeUsageForPublicClient(responseSelected.usage, {
           keepInternal: keepInternalAdultRouting,
         })
       : null,

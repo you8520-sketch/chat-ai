@@ -16,6 +16,7 @@ import {
   isLatestCanonicalAssistantMessage,
   getLatestCanonicalAssistantMessageId,
   getAssistantSourceTurn,
+  resolveCanonicalVariantSwitchGate,
 } from "@/lib/rpDerivedStateLifecycle";
 import type { ExtractedStatusFact } from "@/lib/statusWidget/types";
 
@@ -220,7 +221,7 @@ describe("Phase B0 — variant switch + historical replay boundary (V1-V5)", () 
     assert.ok(true);
   });
 
-  it("V5 historical switch → no fake full-replay claim; diagnostic unsupported", () => {
+  it("V5 historical switch → server rejects via canonical variant gate (409 contract)", () => {
     const db = makeDb();
     const a = insertAssistant(db, 1, "completed");
     const later = insertAssistant(db, 1, "completed");
@@ -228,10 +229,9 @@ describe("Phase B0 — variant switch + historical replay boundary (V1-V5)", () 
     assert.equal(hasLaterCanonicalTurn(db, 1, a), true, "later canonical turn exists");
     assert.equal(isLatestCanonicalAssistantMessage(db, 1, a), false, "a is not latest");
     assert.equal(getLatestCanonicalAssistantMessageId(db, 1), later);
-    // Historical switch: B0 does not replay; the variant route logs
-    // HISTORICAL_VARIANT_DERIVED_STATE_REPLAY_UNSUPPORTED and only updates
-    // the display snapshot. This test asserts the helper boundary used by
-    // the route to decide.
+    const gate = resolveCanonicalVariantSwitchGate(db, 1, a);
+    assert.equal(gate.allowed, false);
+    assert.equal(gate.code, "numeric_state_historical_variant_replay_unsupported");
     assert.equal(isLatestCanonicalAssistantMessage(db, 1, later), true);
   });
 });

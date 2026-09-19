@@ -43,6 +43,7 @@ import OocCanonAdoptionCard from "@/components/OocCanonAdoptionCard";
 import ReportRefundButton from "@/components/ReportRefundButton";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import MessageVariantPicker from "@/components/MessageVariantPicker";
+import { shouldShowVariantPicker } from "@/lib/chatVariantPickerPolicy";
 import ChatToast from "@/components/ChatToast";
 import CharacterAssetImage from "@/components/CharacterAssetImage";
 import GenerationPreparationIndicator from "@/components/GenerationPreparationIndicator";
@@ -4727,15 +4728,21 @@ export default function ChatClient({
     }
   ) {
     if (opts.isEditing || opts.isCurrentTurnVisualRevealPending) return null;
-    const variantPicker =
-      opts.showToolbar && (m.variantCount ?? 0) > 1 ? (
-        <MessageVariantPicker
-          variantCount={m.variantCount ?? 1}
-          activeVariant={m.activeVariant ?? 0}
-          disabled={loading}
-          onSelect={(idx) => switchVariant(m.id!, i, idx)}
-        />
-      ) : null;
+    const variantPicker = shouldShowVariantPicker({
+      showToolbar: opts.showToolbar,
+      role: m.role,
+      variantCount: m.variantCount ?? 1,
+      canonAdopted: m.canonAdopted,
+      messageIndex: i,
+      messages,
+    }) ? (
+      <MessageVariantPicker
+        variantCount={m.variantCount ?? 1}
+        activeVariant={m.activeVariant ?? 0}
+        disabled={loading}
+        onSelect={(idx) => switchVariant(m.id!, i, idx)}
+      />
+    ) : null;
 
     const showReportRefund = shouldShowReportRefundButton(m);
     const reportRefundPending = m.reportStatus === "pending";

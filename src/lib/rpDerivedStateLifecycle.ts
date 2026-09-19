@@ -126,6 +126,37 @@ export function isCanonicalFrontierAssistantMessage(
   return !hasLaterMessageAfter(db, chatId, assistantMessageId);
 }
 
+export type CanonicalVariantSwitchGate =
+  | { allowed: true }
+  | { allowed: false; code: string; error: string };
+
+/**
+ * Route-level fast rejection (409 UX). Non-authoritative — production mutation
+ * authority is executeAtomicNonnumericVariantSwitch / executeAtomicNumericVariantSwitch.
+ */
+export function resolveCanonicalVariantSwitchGate(
+  db: Database.Database,
+  chatId: number,
+  assistantMessageId: number
+): CanonicalVariantSwitchGate {
+  if (hasLaterCanonicalTurn(db, chatId, assistantMessageId)) {
+    return {
+      allowed: false,
+      code: "numeric_state_historical_variant_replay_unsupported",
+      error: "이후 대화가 있는 과거 턴의 버전 전환은 지원하지 않습니다.",
+    };
+  }
+  if (!isCanonicalFrontierAssistantMessage(db, chatId, assistantMessageId)) {
+    return {
+      allowed: false,
+      code: "variant_switch_frontier_moved",
+      error:
+        "이후 입력이 있어 이 답변의 버전을 바꿀 수 없습니다. 새로고침 후 다시 시도해 주세요.",
+    };
+  }
+  return { allowed: true };
+}
+
 /**
  * Logical source-turn number for an assistant message = count of non-greeting
  * assistant messages with id <= this message. Used to re-evaluate triggers
@@ -362,9 +393,18 @@ export function executeVariantSwitchMutationCore(
   });
 }
 
+export {
+  executeAtomicNonnumericVariantSwitch,
+  type AtomicNonnumericVariantSwitchApplied,
+  type AtomicNonnumericVariantSwitchIdempotent,
+  type AtomicNonnumericVariantSwitchInput,
+  type AtomicNonnumericVariantSwitchResult,
+} from "./nonnumericVariantSwitchAtomic";
+
 /**
  * Nonnumeric latest-variant switch wrapper. Owns a deferred transaction.
- * Behavior equivalent to pre-B1-D2 atomic core.
+ * Does NOT recheck canonical frontier — prefer executeAtomicNonnumericVariantSwitch
+ * for production paths (BEGIN IMMEDIATE + txn-local frontier authority).
  */
 export function executeAtomicVariantSwitchCore(
   db: Database.Database,

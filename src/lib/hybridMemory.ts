@@ -159,9 +159,21 @@ export function resolveProviderRawPoolExchangeCount(opts: {
   return Math.min(unsummarizedTurns, completedTurns);
 }
 
-/** Trim floor for provider RAW — always RAW4; must not scale with unsummarized backlog. */
-export function resolveProviderRawTrimFloorExchanges(): number {
-  return RAW_HISTORY_COMPLETE_EXCHANGES;
+/**
+ * Deferred-seal coverage floor — one extra exchange beyond RAW4, hard-capped.
+ * unsummarized <= RAW4 keeps RAW4; the exact deferred boundary (== RAW4+1) and any
+ * barrier-lagged backlog raise the floor to RAW4+1 so the unsummarized suffix keeps
+ * complete RAW coverage without waiting for the summary. NEVER scales with backlog.
+ */
+export const DEFERRED_SUMMARY_RAW_COVERAGE_EXCHANGES = RAW_HISTORY_COMPLETE_EXCHANGES + 1;
+
+/** Trim floor for provider RAW — RAW4 normally; bounded RAW5 at deferred-seal boundary. */
+export function resolveProviderRawTrimFloorExchanges(unsummarizedTurns?: number): number {
+  const unsummarized = normalizeNonNegativeInteger(unsummarizedTurns);
+  if (unsummarized <= RAW_HISTORY_COMPLETE_EXCHANGES) {
+    return RAW_HISTORY_COMPLETE_EXCHANGES;
+  }
+  return Math.min(DEFERRED_SUMMARY_RAW_COVERAGE_EXCHANGES, unsummarized);
 }
 
 export type SummaryHealthState =

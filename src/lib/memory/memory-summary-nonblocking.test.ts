@@ -243,7 +243,8 @@ describe("Phase 3-A non-blocking summary", () => {
     const rpElapsed = Date.now() - rpStart;
 
     assert.ok(rpElapsed < 500, `RP prep blocked ${rpElapsed}ms`);
-    assert.equal(prep.catchUpScheduled, true);
+    assert.equal(prep.catchUpScheduled, false);
+    assert.equal(prep.deferredBoundarySealPending, true);
   });
 
   it("TEST 3 — summary failure: prep succeeds; catch-up returns false without throwing", async () => {
@@ -256,13 +257,10 @@ describe("Phase 3-A non-blocking summary", () => {
 
     const prep = prepareNonBlockingSummaryForMainRp(prepOpts(chat, user, char, 5));
     assert.equal(prep.summarizedThrough, 0);
-    assert.equal(prep.catchUpScheduled, true);
-
-    for (let i = 0; i < 40 && isRollingSummaryInFlight(chat); i++) {
-      await new Promise((r) => setTimeout(r, 50));
-    }
-    assert.equal(listMemoryRecordsForChat(chat).filter((r) => !r.inactive).length, 0);
+    assert.equal(prep.catchUpScheduled, false);
+    assert.equal(prep.deferredBoundarySealPending, true);
     assert.equal(isRollingSummaryInFlight(chat), false);
+    assert.equal(listMemoryRecordsForChat(chat).filter((r) => !r.inactive).length, 0);
   });
 
   it("TEST 4 — unsummarized raw source retained; provider injection bounded by budget", () => {
@@ -305,6 +303,11 @@ describe("Phase 3-A non-blocking summary", () => {
     const { chat, user, char } = ids();
     seed(chat, user, char);
     seedPlayableTurns(chat, user, char, 5);
+    getDb()
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`
+      )
+      .run(chat, "user", "turn6 freeze");
     let calls = 0;
     __setSummarizeTurnBatchCallerForTests(async () => {
       calls += 1;
