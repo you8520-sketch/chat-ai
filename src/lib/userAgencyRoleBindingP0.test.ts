@@ -43,7 +43,7 @@ const B_ACTION_STAYS = "시작하거나 완료한 행동은 [B]의 행동으로 
 const A_REACTS = "반응·대응·대사·직접 결과를 이어간다";
 const RESPONSE_POINT = "[B]가 이어갈 반응점으로 둔다";
 const CURRENT_INPUT_PRECEDENCE =
-  "현재 입력이 역할·대상·방향 전환을 명시하면 가장 최신 입력의 관계를 기준으로 갱신한다";
+  "현재 입력이 역할·대상·방향을 갱신할 때는 [MANDATORY_RULES]가 있는 경우 그 안의 명시적 고정·지속·금지 조건 안에서만";
 const CO_TITLE = "[USER CONTROL MODE - LIMITED CO-NARRATION]";
 
 function assertIncludes(text: string, needle: string, msg?: string): void {
@@ -116,10 +116,10 @@ describe("P0 — current-turn role binding / user agency (common standard owner)
     assertIncludes(owner, CURRENT_INPUT_PRECEDENCE);
   });
 
-  it("I — explicit role switch allowed (role binding ≠ role lock)", () => {
+  it("I — explicit role switch allowed within mandatory bounds (role binding ≠ role lock)", () => {
     const owner = buildNoGodmoddingBlock(ai, user, "standard");
     assertIncludes(owner, CURRENT_INPUT_PRECEDENCE);
-    assertIncludes(owner, "역할·대상·방향 전환");
+    assertIncludes(owner, "역할·대상·방향을 갱신");
   });
 
   it("J — standard response-point: no new B choice invented", () => {

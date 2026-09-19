@@ -90,7 +90,7 @@ export default function UserNoteSplitEditor({
             ) : (
               <>
                 <span className="text-amber-100/85">
-                  규칙(OOC)등 AI가 반드시 기억해야할 고정 규칙이나 설정.
+                  매 턴 항상 적용되는 신원·고정 규칙·금지·핵심 설정 (OOC 포함).
                 </span>
                 <span className="block mt-0.5 text-amber-400/80">
                   수정 후 「저장」으로 이 대화방에 적용합니다.
@@ -127,7 +127,7 @@ export default function UserNoteSplitEditor({
         <div>
           <p className="text-[11px] font-bold text-violet-100">유저노트 확장구간</p>
           <p className="mt-0.5 text-[10px] leading-relaxed text-zinc-400">
-            세계관·NPC·사건 등
+            세계관·NPC·사건 등 — 관련 키워드가 있을 때만 참조 (매 턴 전량 주입 아님)
             <span className="block mt-0.5 text-violet-200/80">확장구간의 내용은 이 대화방에 저장됩니다.</span>
           </p>
         </div>

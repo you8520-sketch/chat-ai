@@ -2,6 +2,7 @@ import {
   AUTO_PROGRESSION_CORE_ROLE,
   AUTO_PROGRESSION_IDENTITY_PREAMBLE,
 } from "@/lib/autoProgressionRules";
+import { MANDATORY_RULES_PERSISTENT_CONSTRAINT_SEMANTIC } from "@/lib/userNoteMandatoryRulesPolicy";
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import type { CharacterGender } from "@/lib/characterGender";
 import type { ResolvedStatusWindow } from "@/lib/statusWindow";
@@ -179,7 +180,11 @@ export function buildIdentityAndRulesBlock(
     }),
   ];
   if (personaText) parts.push(`[USER_PERSONA]\n${personaText}`);
-  if (rulesText) parts.push(`[MANDATORY_RULES]\n${rulesText}`);
+  if (rulesText) {
+    parts.push(
+      `[MANDATORY_RULES]\n${rulesText}\n\n${MANDATORY_RULES_PERSISTENT_CONSTRAINT_SEMANTIC}`
+    );
+  }
   return `[IDENTITY_AND_RULES]\n\n${parts.join("\n\n")}`;
 }
 
