@@ -155,7 +155,42 @@ Tracked **system sections are byte-identical** T1→T2→T3 (no differing sectio
 | `COMMON_PREFIX_BELOW_CACHE_ELIGIBILITY_THRESHOLD` | **CONTRADICTED** — measured T1–T2 wire prefix 7,611 tokens |
 | Prior label “threshold not met” | **Withdrawn** — total input length ≠ stable common prefix length |
 
-**Decision matrix:** **CASE B** — prefix ≥ 4096 on production assembly, yet recent live usage shows cache_read = 0. Prompt layout alone is **insufficient** to explain missing cache.
+**Offline decision matrix:** **CASE B (weakened)** — prefix ≥ 4096 on production assembly, yet recent aggregate usage shows cache_read = 0.
+
+**Live discriminator (2026-09-19):** **CASE B (confirmed)** — see [G37 LIVE CACHE DISCRIMINATOR](#g37-live-cache-discriminator).
+
+---
+
+## DORMANT 148K TOKEN ANOMALY
+
+Offline `geminiStaticDynamicMode: true` artifact showed `staticEstimatedTokens ≈ 148,332` while `systemTokens = 7,592`.
+
+| Check | Finding |
+|-------|---------|
+| `GEMINI_IMPLICIT_CACHE_INPUT_THRESHOLD` | `32_768` in `contextTrack.ts` |
+| `GEMINI_STATIC_CACHE_MIN_TOKENS` | `32_768` — used by `finalizeGeminiStaticCache` |
+| `isGeminiExplicitCacheEnabled()` | Default **on** (`GEMINI_EXPLICIT_CACHE !== "0"`) |
+| `finalizeGeminiStaticCache` | When explicit-cache path active, calls `buildStableSessionPadding` to pad static block toward 32k+512 |
+| CI Main RP wire (`geminiStaticDynamicMode: false`) | **Does not** send padded static block — split is internal only |
+
+**Classification:**
+
+- `DORMANT_STATIC_DYNAMIC_TOKEN_ESTIMATE` = **INVALID_FOR_CURRENT_CI_MAIN_RP_COMPARISON**
+- `LEGACY_GEMINI_32K_THRESHOLD` = **STALE_FOLLOW_UP**
+
+The 148k figure is an offline estimate artifact of dormant explicit-cache padding logic (legacy 32k minimum), not a production CI wire token count. Current `false`-mode prefix proof remains independent and valid.
+
+### Legacy 32k constant readers (no patch in this PR)
+
+| Reader | Classification |
+|--------|----------------|
+| `contextTrack.ts` (definition) | **FOLLOW_UP** |
+| `geminiStaticDynamicContext.ts` (`finalizeGeminiStaticCache`) | **FOLLOW_UP** |
+| `geminiCacheBulk.ts` (`buildStableSessionPadding`) | **KEEP** (native explicit cache) |
+| `geminiExplicitCache.ts` | **KEEP** |
+| `contextBuilder.ts` (threshold logging only) | **FOLLOW_UP** — not active CI cache eligibility owner |
+
+Current Google Gemini 3.7/3.1 implicit-cache documentation minimum: **4,096 tokens** (distinct from repo 32k constants).
 
 ---
 
@@ -186,6 +221,90 @@ Artifact: `g37-prefix-eligibility-offline.json`
 
 ---
 
+## G37 LIVE CACHE DISCRIMINATOR
+
+**Date:** 2026-09-19 · **Script:** `scripts/gemini37-live-cache-discriminator.ts` · **Artifact:** `g37-live-cache-discriminator.json`
+
+Production path · `geminiStaticDynamicMode: false` · max_tokens = 16 · reasoning_effort = low · 50s warm interval · **2 customer generation requests**.
+
+### Live preflight (unique cold prefix)
+
+| Item | Value |
+|------|-------|
+| Audit marker | `[CACHE AUDIT FIXTURE — inert metadata: g37-live-disc-2026-09-19-37a38dd1c5a0d209]` |
+| T1–T2 common prefix (estimated) | **7,686 tokens** |
+| ≥ 4096 | **YES** |
+| Source main SHA | `15bb412e7e8b844f4c0900fa6214b86b721d5457` |
+
+### T1
+
+| Field | Value |
+|-------|------:|
+| request_id | `88a32fe7-d99a-4dd9-b398-0398aa9876a9` |
+| timestamp | `2026-09-19T08:20:29.497097+00:00` |
+| model | `gemini-3.7-flash` |
+| prompt_tokens | 4,926 |
+| standard_input_tokens | 4,926 |
+| cache_read_input_tokens | **0** |
+| cache_write_input_tokens | 0 |
+| completion_tokens | 1 |
+| billed_cost_usd | 0.002589 |
+| provider_attempt_count | **1** |
+| cache_reporting_state | unknown |
+| routing_overhead_ms | 1,466 |
+| time_to_response_headers_ms | 2,288 |
+| partition (prompt = std + read + write) | **OK** |
+
+### T1 hard gate
+
+**PASS** — `provider_attempt_count === 1` · model match · cost ≤ $0.01 · accounting OK.
+
+### T2 (after 50s warm interval)
+
+| Field | Value |
+|-------|------:|
+| request_id | `8d639ee1-10d3-49bd-aea1-16e9a3741691` |
+| timestamp | `2026-09-19T08:21:22.649558+00:00` |
+| prompt_tokens | 4,960 |
+| standard_input_tokens | 4,960 |
+| cache_read_input_tokens | **0** |
+| cache_write_input_tokens | 0 |
+| completion_tokens | 12 |
+| billed_cost_usd | 0.002636 |
+| provider_attempt_count | **1** |
+| T1→T2 actual common prefix (estimated) | 7,686 tokens |
+
+### Cache bucket comparison
+
+| Turn | prompt | standard | cache_read | cache_write |
+|------|-------:|---------:|-----------:|------------:|
+| T1 | 4,926 | 4,926 | 0 | 0 |
+| T2 | 4,960 | 4,960 | 0 | 0 |
+
+T1 cold (expected). T2 warm interval elapsed with stable prefix ≥ 4096 (local estimate) — **no implicit cache read observed**.
+
+### Cost
+
+| | USD |
+|--|----:|
+| T1 | 0.002589 |
+| T2 | 0.002636 |
+| **Cumulative** | **0.005225** (≤ $0.02 ceiling) |
+
+### Live result classification — **CASE B**
+
+| Label | Value |
+|-------|-------|
+| `G37_LIVE_CACHE_DISCRIMINATOR` | **CLEAN_TWO_CALL** |
+| `G37_CURRENT_IMPLICIT_CACHE_FUNCTIONALITY` | **ELIGIBLE_PREFIX_BUT_NO_IMPLICIT_HIT** |
+| `G37_ELIGIBLE_PREFIX_LIVE_CACHE` | **NOT CONFIRMED** (T2 cache_read = 0) |
+| `APP_PREFIX_LAYOUT_ROOT_CAUSE` | **CONTRADICTED** |
+| `CI_OR_GOOGLE_IMPLICIT_CACHE_SEMANTICS` | **PRIMARY_UNCONFIRMED_OWNER** |
+
+Prompt layout is **not** sufficient to explain zero cache. Next owner: CI routing / Google implicit-cache semantics / cache reporting (`cache_reporting_state: unknown`).
+
+---
+
 ## SYSTEM DELTA
 
 | | |
@@ -193,8 +312,10 @@ Artifact: `g37-prefix-eligibility-offline.json`
 | **BEFORE (#966 v1)** | Over-broad causal labels; full raw telemetry in git; stale `mainShaExpected`; equated CI rows to client HTTP count |
 | **OBSERVED** | DeepSeek cache works at scale; G31/G37 hits exist historically; G37 recent prod all zero |
 | **PROVEN (offline)** | G37 production prompt T1–T2 common prefix **≥ 4096 tokens**; system sections stable; static/dynamic does not change wire prefix |
-| **NOT PROVEN** | Why G37 recent cache_read=0 despite eligible prefix; DeepSeek 7d hit-rate drop cause; G31 current health (no traffic) |
-| **FIX CANDIDATE** | None from this audit — CASE B → provider/routing/semantics investigation first |
+| **PROVEN (live 2-call)** | Clean T1/T2 (`provider_attempt_count = 1` each) · prefix eligible · **T2 cache_read = 0** → layout root cause **contradicted** |
+| **NOT PROVEN** | Exact CI/Google implicit-cache miss mechanism; DeepSeek 7d hit-rate drop cause; G31 current health (no traffic) |
+| **AFTER** | `APP_PREFIX_LAYOUT_ROOT_CAUSE = CONTRADICTED` · primary owner → **CI/Google implicit-cache semantics** |
+| **FIX CANDIDATE** | None — no prompt/cache runtime patch from this evidence |
 
 ---
 
@@ -202,15 +323,8 @@ Artifact: `g37-prefix-eligibility-offline.json`
 
 | Question | Answer |
 |----------|--------|
-| Paid G37 probe required? | **YES** (if root cause still needed) — prefix eligibility alone does not explain zero recent cache |
+| Paid G37 probe required? | **DONE** (2-call discriminator executed) — further investigation is CI/provider support, not another prefix probe |
 | Runtime patch required now? | **NO** |
-
-**Future G37 probe design (proposal only):**
-
-- T1 cold → controlled interval → T2 warm
-- Same deterministic fixture · stable prefix · no app retry/fallback/continuation
-- Hard gate: T1 `provider_attempt_count === 1` else **STOP_INTERNAL_PROVIDER_ATTEMPT_CONFOUND** — do not run T2
-- Requires separate approval before paid generation
 
 ---
 
@@ -230,9 +344,12 @@ GEMINI37_RECENT_7D_CACHE_HEALTH        = NOT_OBSERVED
 GEMINI37_CACHE_HEALTH                  = NOT_OBSERVED_RECENTLY
 
 G37_CURRENT_PREFIX_CACHE_ELIGIBILITY   = ELIGIBLE
-G37_PREFIX_LAYOUT_ROOT_CAUSE           = WEAKENED
+G37_LIVE_CACHE_DISCRIMINATOR           = CLEAN_TWO_CALL
+G37_CURRENT_IMPLICIT_CACHE_FUNCTIONALITY = ELIGIBLE_PREFIX_BUT_NO_IMPLICIT_HIT
+APP_PREFIX_LAYOUT_ROOT_CAUSE           = CONTRADICTED
+CI_OR_GOOGLE_IMPLICIT_CACHE_SEMANTICS  = PRIMARY_UNCONFIRMED_OWNER
 
-NEW_PROVIDER_GENERATION_CALLS          = 0
+CLIENT_GENERATION_REQUESTS             = 2
 RUNTIME_CHANGE                         = 0
 AUDIT_TOOLING_CHANGE                   = YES
 MERGE                                  = NO
@@ -246,5 +363,7 @@ MERGE                                  = NO
 |------|---------|
 | `ci-usage-snapshot.json` | Aggregated 30d CI usage metrics |
 | `g37-prefix-eligibility-offline.json` | Offline prefix / eligibility proof |
+| `g37-live-cache-discriminator.json` | Live T1/T2 cache discriminator (2 sanitized usage rows) |
 | `scripts/main-rp-cache-health-readonly.ts` | Reproducible usage API collector |
 | `scripts/gemini37-prefix-cache-eligibility-audit.ts` | Offline G37 prefix audit |
+| `scripts/gemini37-live-cache-discriminator.ts` | Live G37 cache discriminator |

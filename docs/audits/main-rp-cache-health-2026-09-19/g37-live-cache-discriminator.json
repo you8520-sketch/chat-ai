@@ -1,0 +1,128 @@
+{
+  "generatedAt": "2026-09-19T08:21:25.742Z",
+  "audit": "g37-live-cache-discriminator",
+  "sourceMainSha": "15bb412e7e8b844f4c0900fa6214b86b721d5457",
+  "runtimeSha": "675712977eb73d73ddb908a0257babd752d7df9e",
+  "preflight": {
+    "auditMarker": "[CACHE AUDIT FIXTURE — inert metadata: g37-live-disc-2026-09-19-37a38dd1c5a0d209]",
+    "auditMarkerSha256": "13eedb97dacf17e9986c2c605da04530fc3c1835291246c5caff4f3c65778206",
+    "t1T2CommonPrefixChars": 8539,
+    "t1T2CommonPrefixTokens": 7686,
+    "meets4096": true,
+    "model": "gemini-3.7-flash",
+    "geminiStaticDynamicMode": false,
+    "maxTokens": 16,
+    "reasoningEffort": "low",
+    "runtimeSha": "675712977eb73d73ddb908a0257babd752d7df9e",
+    "sourceMainSha": "15bb412e7e8b844f4c0900fa6214b86b721d5457"
+  },
+  "warmWaitMs": 50000,
+  "t1": {
+    "timestamp": "2026-09-19T08:20:29.226Z",
+    "responseId": "zkWuaq7EN9a__uMPgtaZ0Qo",
+    "httpStatus": 200,
+    "resolvedModel": "gemini-3.7-flash",
+    "promptTokens": 4926,
+    "standardInputTokens": 4926,
+    "cacheReadInputTokens": 0,
+    "cacheWriteInputTokens": 0,
+    "completionTokens": 1,
+    "reasoningTokens": 0,
+    "billedCostUsd": 0.002589,
+    "cacheReportingEvidence": {
+      "cacheRead": "unreported",
+      "cacheWrite": "unreported",
+      "reasoning": "unreported"
+    },
+    "timeToResponseHeadersMs": 2694,
+    "reasoningEffort": "low",
+    "maxTokens": 16,
+    "partitionOk": true,
+    "assistantChars": 1,
+    "usageApiRow": {
+      "request_id": "88a32fe7-d99a-4dd9-b398-0398aa9876a9",
+      "created_at": "2026-09-19T08:20:29.497097+00:00",
+      "model": "gemini-3.7-flash",
+      "status": "settled",
+      "prompt_tokens": 4926,
+      "completion_tokens": 1,
+      "cache_read_input_tokens": 0,
+      "cache_write_input_tokens": 0,
+      "standard_input_tokens": 4926,
+      "billed_cost_usd": 0.002589,
+      "provider_attempt_count": 1,
+      "cache_reporting_state": "unknown",
+      "routing_overhead_ms": 1466,
+      "time_to_response_headers_ms": 2288
+    },
+    "hardGate": {
+      "pass": true,
+      "classification": "PASS",
+      "reasons": [],
+      "providerAttemptCount": 1
+    }
+  },
+  "t2": {
+    "timestamp": "2026-09-19T08:21:22.389Z",
+    "responseId": "BEauau20AdnT_uMPvamu0QE",
+    "httpStatus": 200,
+    "resolvedModel": "gemini-3.7-flash",
+    "promptTokens": 4960,
+    "standardInputTokens": 4960,
+    "cacheReadInputTokens": 0,
+    "cacheWriteInputTokens": 0,
+    "completionTokens": 12,
+    "reasoningTokens": 0,
+    "billedCostUsd": 0.002636,
+    "cacheReportingEvidence": {
+      "cacheRead": "unreported",
+      "cacheWrite": "unreported",
+      "reasoning": "unreported"
+    },
+    "timeToResponseHeadersMs": 3072,
+    "reasoningEffort": "low",
+    "maxTokens": 16,
+    "partitionOk": true,
+    "assistantChars": 16,
+    "usageApiRow": {
+      "request_id": "8d639ee1-10d3-49bd-aea1-16e9a3741691",
+      "created_at": "2026-09-19T08:21:22.649558+00:00",
+      "model": "gemini-3.7-flash",
+      "status": "settled",
+      "prompt_tokens": 4960,
+      "completion_tokens": 12,
+      "cache_read_input_tokens": 0,
+      "cache_write_input_tokens": 0,
+      "standard_input_tokens": 4960,
+      "billed_cost_usd": 0.002636,
+      "provider_attempt_count": 1,
+      "cache_reporting_state": "unknown",
+      "routing_overhead_ms": 1278,
+      "time_to_response_headers_ms": 2830
+    },
+    "t1T2ActualCommonPrefixTokens": 7686
+  },
+  "cost": {
+    "t1Usd": 0.002589,
+    "t2Usd": 0.002636,
+    "cumulativeUsd": 0.0052250000000000005,
+    "withinCeiling": true
+  },
+  "classification": {
+    "caseId": "B",
+    "g37LiveDiscriminator": "CLEAN_TWO_CALL",
+    "g37ImplicitCache": "ELIGIBLE_PREFIX_BUT_NO_IMPLICIT_HIT",
+    "appPrefixLayout": "CONTRADICTED",
+    "ciOrGoogleSemantics": "PRIMARY_UNCONFIRMED_OWNER"
+  },
+  "finalLabels": {
+    "G37_CURRENT_PREFIX_CACHE_ELIGIBILITY": "ELIGIBLE",
+    "G37_LIVE_CACHE_DISCRIMINATOR": "CLEAN_TWO_CALL",
+    "G37_CURRENT_IMPLICIT_CACHE_FUNCTIONALITY": "ELIGIBLE_PREFIX_BUT_NO_IMPLICIT_HIT",
+    "APP_PREFIX_LAYOUT_ROOT_CAUSE": "CONTRADICTED",
+    "CI_OR_GOOGLE_IMPLICIT_CACHE_SEMANTICS": "PRIMARY_UNCONFIRMED_OWNER",
+    "CLIENT_GENERATION_REQUESTS": 2,
+    "RUNTIME_CHANGE": 0,
+    "MERGE": "NO"
+  }
+}
