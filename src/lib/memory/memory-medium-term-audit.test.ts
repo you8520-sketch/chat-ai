@@ -16,24 +16,25 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
-import {
-  GEMINI_RECENT_NARRATIVE_CONTEXT_LIMIT,
-  CLAUDE_RECENT_NARRATIVE_CONTEXT_LIMIT,
-  DEEPSEEK_STATIC_STORED_SUMMARY_LIMIT,
-} from "@/lib/contextTrack";
 import { RAW_HISTORY_COMPLETE_EXCHANGES } from "@/lib/hybridMemory";
 import {
-  CHRONO_MINI_ARC_FACTS,
-  CHRONO_ANCHOR_FACTS,
-  assembleChronoGlobalMemoryText,
-  assembleChronoMediumRingText,
-  buildChronologyAuditHistory,
-  classifyFactLayer,
-  designAMediumGlobalDuplicateChars,
+  MEDIUM_TERM_BLOCK_COUNT_CLAUDE,
+  MEDIUM_TERM_BLOCK_COUNT_DEEPSEEK,
+  MEDIUM_TERM_BLOCK_COUNT_GEMINI,
+  shouldInjectMediumTermMemory,
+} from "./memory-medium-term";
+import {
+  MOVING_DETAIL_MARKERS,
+  MOVING_MAJOR_MARKERS,
+  assembleMovingGlobalCompactStub,
+  assembleMovingMediumRingText,
+  buildMovingHorizonAuditHistory,
   estimateGlobalCompactionInputAtTurn,
   estimatePromptBudgetAtTurn,
+  expectedMovingDetailPresence,
   globalMajorEventCoverage,
-  simulateMediumDesignComparison,
+  movingDetailTurns,
+  simulateMovingHorizonCoverage,
 } from "./memory-medium-term-audit";
 import { buildRecentNarrativeContextBlock, buildStoredHistoryStaticBlock } from "./memory-narrative-context";
 import {
@@ -62,109 +63,103 @@ describe("DORMANT HELPER AUDIT", () => {
     assert.match(builder, /medium-term-memory/);
   });
 
-  it("documents model-specific stored-summary limits origin", () => {
-    assert.equal(GEMINI_RECENT_NARRATIVE_CONTEXT_LIMIT, 15);
-    assert.equal(DEEPSEEK_STATIC_STORED_SUMMARY_LIMIT, 10);
-    assert.equal(CLAUDE_RECENT_NARRATIVE_CONTEXT_LIMIT, 5);
+  it("Medium block count policy owner is separate from dormant Recent Narrative Context", () => {
+    assert.equal(MEDIUM_TERM_BLOCK_COUNT_GEMINI, 15);
+    assert.equal(MEDIUM_TERM_BLOCK_COUNT_DEEPSEEK, 10);
+    assert.equal(MEDIUM_TERM_BLOCK_COUNT_CLAUDE, 5);
+    const mediumTerm = readFileSync("src/lib/memory/memory-medium-term.ts", "utf8");
+    assert.match(mediumTerm, /MEDIUM_TERM_BLOCK_COUNT_/);
+    assert.match(mediumTerm, /resolveMediumTermBlockCount/);
   });
 });
 
-describe("MID-HORIZON LOSS REPRODUCTION", () => {
-  const inspectTurns = [80, 120, 300, 1000] as const;
+describe("MEDIUM ACTIVATION MATRIX", () => {
+  it("exact / failure_fallback / stored_fallback / manual_global → OFF", () => {
+    assert.equal(shouldInjectMediumTermMemory("exact"), false);
+    assert.equal(shouldInjectMediumTermMemory("failure_fallback"), false);
+    assert.equal(shouldInjectMediumTermMemory("stored_fallback"), false);
+    assert.equal(shouldInjectMediumTermMemory("manual_global"), false);
+  });
 
-  for (const currentTurn of inspectTurns) {
-    it(`T${currentTurn} — mini-arc markers present in medium ring, may drop from global overflow`, () => {
-      const medium = assembleChronoMediumRingText(currentTurn, 10);
-      const global = assembleChronoGlobalMemoryText(currentTurn);
-      const stored = buildChronologyAuditHistory(currentTurn);
-      const arcAbsentFromBoth: string[] = [];
+  it("global_compact → ON", () => {
+    assert.equal(shouldInjectMediumTermMemory("global_compact"), true);
+  });
+});
 
-      for (const fact of CHRONO_MINI_ARC_FACTS) {
-        if (fact.turn >= currentTurn) continue;
-        const layer = classifyFactLayer(fact.marker, fact.turn, currentTurn, {
-          mediumText: medium,
-          globalText: global,
+describe("MOVING MID-HORIZON REPRODUCTION", () => {
+  for (const currentTurn of [300, 1000] as const) {
+    describe(`T${currentTurn}`, () => {
+      it("WITHOUT Medium — compact Global drops all moving details", () => {
+        const report = simulateMovingHorizonCoverage(currentTurn, 10, { mediumActive: false });
+        assert.equal(report.globalHasNear, false);
+        assert.equal(report.globalHasMid, false);
+        assert.equal(report.globalHasFar, false);
+        assert.equal(report.nearPresent, false);
+        assert.equal(report.midPresent, false);
+        assert.equal(report.farPresent, false);
+        const stored = buildMovingHorizonAuditHistory(currentTurn);
+        assert.ok(stored.includes(MOVING_DETAIL_MARKERS.near));
+        assert.ok(stored.includes(MOVING_DETAIL_MARKERS.mid));
+        assert.ok(stored.includes(MOVING_DETAIL_MARKERS.far));
+      });
+
+      for (const ringN of [5, 10, 15] as const) {
+        it(`WITH Medium N=${ringN} — recovers expected moving details`, () => {
+          const report = simulateMovingHorizonCoverage(currentTurn, ringN, { mediumActive: true });
+          assert.equal(report.nearPresent, expectedMovingDetailPresence(ringN, "near"));
+          assert.equal(report.midPresent, expectedMovingDetailPresence(ringN, "mid"));
+          assert.equal(report.farPresent, expectedMovingDetailPresence(ringN, "far"));
+          assert.equal(report.mediumGlobalLiteralDuplicateChars, 0);
         });
-        if (layer === "ABSENT") arcAbsentFromBoth.push(fact.marker);
       }
 
-      if (currentTurn <= 120) {
-        assert.equal(arcAbsentFromBoth.length, 0, "short horizon keeps arc in medium or global");
-      }
-
-      if (currentTurn >= 300) {
-        assert.equal(
-          global.includes("OLD_MAJOR_MILESTONE"),
-          false,
-          "global emergency trim drops old milestone at T300+"
-        );
-        assert.ok(
-          stored.includes("ARC_T45_SMALL_EVENT") && stored.includes("ARC_T70_DIRECTION_CHANGE"),
-          "stored 5-turn records still retain full mini-arc at T300+"
-        );
-        assert.ok(
-          arcAbsentFromBoth.length > 0,
-          "long horizon loses mid-arc from RAW+Global+default medium ring"
-        );
-      }
+      it("detail turns follow relative age, not hard-coded absolute turns", () => {
+        const turns = movingDetailTurns(currentTurn);
+        assert.equal(turns.near, currentTurn - 20);
+        assert.equal(turns.mid, currentTurn - 40);
+        assert.equal(turns.far, currentTurn - 70);
+      });
     });
   }
-
-  it("confirms mid-horizon narrative gap at T300", () => {
-    const medium = assembleChronoMediumRingText(300, 10);
-    const global = assembleChronoGlobalMemoryText(300);
-    const stored = buildChronologyAuditHistory(300);
-    const oldMilestone = CHRONO_ANCHOR_FACTS.find((f) => f.marker === "OLD_MAJOR_MILESTONE")!;
-    const layer = classifyFactLayer(oldMilestone.marker, oldMilestone.turn, 300, {
-      mediumText: medium,
-      globalText: global,
-    });
-    assert.equal(layer, "ABSENT");
-    assert.ok(stored.includes("OLD_MAJOR_MILESTONE"), "canonical stored records still own old milestone");
-    assert.ok(
-      assembleChronoMediumRingText(80, 10).includes("ARC_T55_REASON_REVEALED"),
-      "medium ring surfaces mid-arc when inside N-block window"
-    );
-  });
 });
 
-describe("N=5/10/15 COMPARISON", () => {
-  for (const n of [5, 10, 15] as const) {
-    it(`T300 ring N=${n} coverage and budget evidence`, () => {
-      const report = simulateMediumDesignComparison(300, n);
-      assert.equal(report.ringN, n);
+describe("N=5/10/15 ACTUAL COVERAGE", () => {
+  for (const ringN of [5, 10, 15] as const) {
+    it(`T300 N=${ringN} — turn horizon and budget evidence`, () => {
+      const report = simulateMovingHorizonCoverage(300, ringN, { mediumActive: true });
       assert.ok(report.mediumChars > 0);
-      assert.ok(report.globalChars <= 10_000);
-      assert.ok(report.arcMarkersInMedium.length >= report.arcMarkersInMedium.length);
-      if (n === 5) assert.ok(report.mediumChars < report.mediumTokens * 2);
+      assert.ok(report.globalChars > 0);
+      assert.equal(report.mediumGlobalLiteralDuplicateChars, 0);
+      const budget = estimatePromptBudgetAtTurn(300, ringN);
+      assert.ok(budget.totalTokens < 40_000);
     });
   }
 });
 
-describe("SOURCE RANGE OWNERSHIP", () => {
-  it("Design A duplicate chars — semantic overlap allowed, literal dup reported", () => {
-    const dup = designAMediumGlobalDuplicateChars(300, 10);
-    assert.ok(dup >= 0);
-    const sim = simulateMediumDesignComparison(300, 10);
-    assert.ok(sim.mediumGlobalRangeOverlaps > 0, "medium ranges overlap global source ranges by design A");
-  });
-});
-
-describe("GLOBAL COVERAGE PRESERVED", () => {
-  it("healthy global retains OLD/MID/RECENT markers in audit simulation below overflow", () => {
-    const global = assembleChronoGlobalMemoryText(80);
+describe("GLOBAL COMPACT OVERLAP", () => {
+  it("healthy global_compact stub retains OLD/MID/RECENT majors", () => {
+    const global = assembleMovingGlobalCompactStub(300);
     const coverage = globalMajorEventCoverage(global);
-    assert.ok(coverage.old || global.includes("OLD_MAJOR_MILESTONE"));
+    assert.ok(coverage.old);
+    assert.ok(coverage.mid);
+    assert.ok(coverage.recent);
+    assert.equal(global.includes(MOVING_DETAIL_MARKERS.near), false);
+  });
+
+  it("Medium restores granular details without literal body duplication", () => {
+    const report = simulateMovingHorizonCoverage(300, 10, { mediumActive: true });
+    assert.equal(report.mediumGlobalLiteralDuplicateChars, 0);
   });
 });
 
 describe("PROMPT TOKEN DELTA", () => {
-  it("reports bounded additive medium budget at T300 N=10", () => {
-    const budget = estimatePromptBudgetAtTurn(300, 10);
-    assert.ok(budget.mediumChars > 0);
-    assert.ok(budget.globalChars <= 10_000);
-    assert.ok(budget.totalTokens > budget.globalTokens);
-    assert.ok(budget.totalTokens < 40_000);
+  it("global_compact path — bounded additive medium budget at T300 N=10", () => {
+    const withMedium = estimatePromptBudgetAtTurn(300, 10, { mediumActive: true });
+    const withoutMedium = estimatePromptBudgetAtTurn(300, 10, { mediumActive: false });
+    assert.ok(withMedium.mediumChars > 0);
+    assert.equal(withoutMedium.mediumChars, 0);
+    assert.ok(withMedium.totalTokens > withoutMedium.totalTokens);
+    assert.ok(withMedium.totalTokens < 40_000);
   });
 });
 
@@ -235,20 +230,14 @@ describe("SEMANTIC RETRIEVAL GAP", () => {
 });
 
 describe("IMPLEMENTATION GATE", () => {
-  it("gate conditions satisfied for minimal medium reader", () => {
+  it("moving-window gap confirmed and Medium recovers compact-induced loss", () => {
     assert.equal(RAW_HISTORY_COMPLETE_EXCHANGES, 4);
-    const gapAt300 = classifyFactLayer("OLD_MAJOR_MILESTONE", 20, 300, {
-      mediumText: assembleChronoMediumRingText(300, 10),
-      globalText: assembleChronoGlobalMemoryText(300),
-    });
-    assert.equal(gapAt300, "ABSENT");
-    assert.ok(
-      buildChronologyAuditHistory(300).includes("OLD_MAJOR_MILESTONE"),
-      "stored summaries still own dropped global fact"
-    );
-    assert.ok(
-      assembleChronoMediumRingText(80, 10).includes("ARC_T55_REASON_REVEALED"),
-      "medium reader can surface stored mid-arc inside ring window"
-    );
+    const withoutMedium = simulateMovingHorizonCoverage(300, 10, { mediumActive: false });
+    assert.equal(withoutMedium.nearPresent, false);
+    assert.equal(withoutMedium.midPresent, false);
+    const withMedium = simulateMovingHorizonCoverage(300, 10, { mediumActive: true });
+    assert.equal(withMedium.nearPresent, true);
+    assert.equal(withMedium.midPresent, true);
+    assert.equal(withMedium.farPresent, false);
   });
 });

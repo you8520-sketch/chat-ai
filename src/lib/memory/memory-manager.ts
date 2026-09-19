@@ -54,7 +54,7 @@ import {
 } from "@/lib/contextTrack";
 import { buildRecentNarrativeContextBlock } from "./memory-narrative-context";
 import {
-  buildMediumTermMemoryBlock,
+  buildMediumTermMemoryBlockForProjection,
   resolveMediumTermBlockCount,
 } from "./memory-medium-term";
 import type { MemoryInjection, MemorySnapshot, MemoryTier } from "./memory-types";
@@ -232,10 +232,11 @@ export async function buildMemoryContextForPreview(opts: {
       ? trimLorebookToBudgetSync(archiveSummary, budget.archive)
       : archiveSummary;
 
-  const mediumTerm = buildMediumTermMemoryBlock({
+  const mediumTerm = buildMediumTermMemoryBlockForProjection({
     chatId: opts.chatId,
     blockCount: resolveMediumTermBlockCount(opts.modelId, opts.provider),
     excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
+    projectionKind: resolved.projectionKind,
   });
 
   return buildMemoryContext({
@@ -306,10 +307,11 @@ export async function buildMemoryContextForChat(opts: {
     });
   }
 
-  const mediumTerm = buildMediumTermMemoryBlock({
+  const mediumTerm = buildMediumTermMemoryBlockForProjection({
     chatId: opts.chatId,
     blockCount: resolveMediumTermBlockCount(opts.modelId, opts.provider),
     excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
+    projectionKind: resolved.projectionKind,
   });
 
   return buildMemoryContext({

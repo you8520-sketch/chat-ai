@@ -1,4 +1,5 @@
-import { resolveRecentNarrativeContextLimit } from "@/lib/contextTrack";
+import { isDeepSeekModelId, resolveContextTrack } from "@/lib/contextTrack";
+import type { GlobalProjectionKind } from "./memory-global-projection";
 import { RAW_HISTORY_COMPLETE_EXCHANGES, ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import {
   isEmptyOocScope,
@@ -9,6 +10,11 @@ import {
   listMemoryRecordsForChat,
   type MemoryRecordView,
 } from "./memory-turn-summary";
+
+/** Medium-term ring block counts — canonical policy owner (Main RP). */
+export const MEDIUM_TERM_BLOCK_COUNT_GEMINI = 15;
+export const MEDIUM_TERM_BLOCK_COUNT_DEEPSEEK = 10;
+export const MEDIUM_TERM_BLOCK_COUNT_CLAUDE = 5;
 
 export type MediumTermTurnRange = {
   turnStart: number;
@@ -21,6 +27,33 @@ export type MediumTermMemoryAssembly = {
   chars: number;
   turnRanges: MediumTermTurnRange[];
 };
+
+const EMPTY_MEDIUM_TERM: MediumTermMemoryAssembly = {
+  text: "",
+  blockCount: 0,
+  chars: 0,
+  turnRanges: [],
+};
+
+/**
+ * Canonical Medium-term activation owner.
+ * Medium recovers chronological resolution lost by Global compaction — not duplicate exact rebuilds.
+ */
+export function shouldInjectMediumTermMemory(projectionKind: GlobalProjectionKind): boolean {
+  switch (projectionKind) {
+    case "global_compact":
+      return true;
+    case "exact":
+    case "failure_fallback":
+    case "stored_fallback":
+    case "manual_global":
+      return false;
+    default: {
+      const _exhaustive: never = projectionKind;
+      return _exhaustive;
+    }
+  }
+}
 
 function isMediumTermEligibleRecord(record: MemoryRecordView): boolean {
   if (record.inactive) return false;
@@ -69,7 +102,10 @@ export function resolveMediumTermBlockCount(
   modelId?: string | null,
   provider?: "gemini" | "openrouter" | "openai"
 ): number {
-  return resolveRecentNarrativeContextLimit(modelId, provider);
+  if (isDeepSeekModelId(modelId ?? "")) return MEDIUM_TERM_BLOCK_COUNT_DEEPSEEK;
+  return resolveContextTrack(modelId, provider) === "gemini-bulk"
+    ? MEDIUM_TERM_BLOCK_COUNT_GEMINI
+    : MEDIUM_TERM_BLOCK_COUNT_CLAUDE;
 }
 
 function formatMediumTermBlock(record: MemoryRecordView): string {
@@ -94,7 +130,7 @@ export function buildMediumTermMemoryBlock(opts: {
     excludeAssistantMessageId: opts.excludeAssistantMessageId,
   });
   if (eligible.length === 0 || opts.blockCount <= 0) {
-    return { text: "", blockCount: 0, chars: 0, turnRanges: [] };
+    return EMPTY_MEDIUM_TERM;
   }
 
   const ring = eligible.slice(-Math.min(opts.blockCount, eligible.length));
@@ -108,6 +144,20 @@ export function buildMediumTermMemoryBlock(opts: {
       turnEnd: record.turnEnd,
     })),
   };
+}
+
+/** Activation-gated assembly — single entry for memory-manager paths. */
+export function buildMediumTermMemoryBlockForProjection(opts: {
+  chatId: number;
+  blockCount: number;
+  excludeTurnStartGte?: number;
+  excludeAssistantMessageId?: number | null;
+  projectionKind: GlobalProjectionKind;
+}): MediumTermMemoryAssembly {
+  if (!shouldInjectMediumTermMemory(opts.projectionKind)) {
+    return EMPTY_MEDIUM_TERM;
+  }
+  return buildMediumTermMemoryBlock(opts);
 }
 
 /** Literal duplicate chars when medium block bodies appear verbatim inside Global text. */

@@ -20,15 +20,23 @@ import {
   installIsolatedTestDatabase,
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
+import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
 import { RAW_HISTORY_COMPLETE_EXCHANGES, ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
-import { buildMemoryContextForChat } from "./memory-manager";
+import { buildMemoryContextForChat, updateLorebookForChat } from "./memory-manager";
+import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
+import {
+  __setCompactCurrentMemoryTestOverride,
+  compactCurrentMemory,
+} from "./memory-rolling-summary";
 import {
   buildMediumTermMemoryBlock,
+  buildMediumTermMemoryBlockForProjection,
   listMediumTermEligibleRecords,
   measureMediumGlobalLiteralDuplicateChars,
   rawOwnedTurnStart,
+  shouldInjectMediumTermMemory,
 } from "./memory-medium-term";
-import { getOrCreateChatMemory } from "./memory-db";
+import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { upsertSummaryRowCore } from "./memory-summary-persist";
 import {
   closeActiveBranchCanon,
@@ -39,6 +47,8 @@ import {
   updateMemoryRecordById,
 } from "./memory-turn-summary";
 import { buildContext } from "@/services/contextBuilder";
+import { rebuildLorebookFromRecords } from "./memory-turn-summary";
+import { emergencyFallbackTrimLorebookSync } from "./memory-global-projection";
 
 const CHAT = 996001;
 const USER = 996002;
@@ -87,15 +97,203 @@ function insertBlocks(count: number): void {
   }
 }
 
+function insertMovingHorizonFixture(currentTurn: number): void {
+  const db = getDb();
+  const summarizedThrough =
+    Math.floor((currentTurn - 1) / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL;
+  const detailTurns = {
+    near: currentTurn - 20,
+    mid: currentTurn - 40,
+    far: currentTurn - 70,
+  };
+  for (
+    let start = 1;
+    start + ROLLING_SUMMARY_INTERVAL - 1 <= summarizedThrough;
+    start += ROLLING_SUMMARY_INTERVAL
+  ) {
+    const turnEnd = start + ROLLING_SUMMARY_INTERVAL - 1;
+    let marker = `FILLER_${start}`;
+    if (start === 16) marker = "OLD_MAJOR_EVENT";
+    if (detailTurns.near >= start && detailTurns.near <= turnEnd) marker = "NEAR_MEDIUM_DETAIL";
+    if (detailTurns.mid >= start && detailTurns.mid <= turnEnd) marker = "MID_MEDIUM_DETAIL";
+    if (detailTurns.far >= start && detailTurns.far <= turnEnd) marker = "FAR_MEDIUM_DETAIL";
+    const recentAnchor = Math.max(21, currentTurn - 15);
+    const recentStart =
+      Math.floor((recentAnchor - 1) / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL + 1;
+    if (start === recentStart) marker = "RECENT_MAJOR_EVENT";
+    db.prepare(
+      `INSERT INTO chat_turn_summaries (chat_id, turn_number, turn_end, summary, summary_kind)
+       VALUES (?,?,?,?,?)`
+    ).run(CHAT, start, turnEnd, padBody(marker), "main_canon");
+  }
+}
+
 before(() => installIsolatedTestDatabase());
 after(() => uninstallIsolatedTestDatabase());
 
 beforeEach(() => {
   seedChat();
   process.env.MEMORY_FEATURE_ENABLED = "1";
+  __setCompactCurrentMemoryTestOverride(null);
 });
 
 afterEach(cleanup);
+
+describe("EXACT GLOBAL DUPLICATION REPRODUCTION", () => {
+  it("pre-fix: unconditional medium duplicates exact global bodies — CONFIRMED", () => {
+    insertBlocks(10);
+    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED);
+    assert.equal(resolved.projectionKind, "exact");
+    const medium = buildMediumTermMemoryBlock({
+      chatId: CHAT,
+      blockCount: 5,
+      excludeTurnStartGte: 100,
+    });
+    const dup = measureMediumGlobalLiteralDuplicateChars(medium.text, resolved.text);
+    assert.ok(dup > 0, "MEDIUM_EXACT_GLOBAL_DUPLICATION = CONFIRMED pre-fix");
+  });
+
+  it("post-fix: exact path — zero medium injection and zero prompt delta", async () => {
+    insertBlocks(10);
+    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED);
+    assert.equal(resolved.projectionKind, "exact");
+
+    const injection = await buildMemoryContextForChat({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      memoryCapacity: MEMORY_CAPACITY_FIXED,
+      userMessage: "continue",
+    });
+    assert.equal(injection.mediumTermText, "");
+    assert.equal(
+      measureMediumGlobalLiteralDuplicateChars(injection.mediumTermText, injection.text),
+      0
+    );
+
+    const built = buildContext({
+      charName: "MediumChar",
+      chunks: [],
+      userNickname: "User",
+      shortTermHistory: [{ role: "user", content: "hi" }],
+      currentUserMessage: "next",
+      nsfw: false,
+      provider: "openrouter",
+      longTermMemory: injection.text,
+      mediumTermMemoryBlock: injection.mediumTermText,
+    });
+    const ids = built.meta.trackedSections?.map((section) => section.id) ?? [];
+    assert.equal(ids.includes("medium-term-memory"), false);
+  });
+});
+
+describe("MEDIUM ACTIVATION", () => {
+  it("failure_fallback — medium OFF (prefer-recent emergency window already owns recent blocks)", async () => {
+    insertBlocks(60);
+    const rebuilt = rebuildLorebookFromRecords(CHAT);
+    const fallback = emergencyFallbackTrimLorebookSync(rebuilt, MEMORY_CAPACITY_FIXED);
+    updateChatMemory(CHAT, USER, CHAR, { recent_summary: fallback, membership_tier: "free" });
+    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED, {
+      storedRecentSummary: fallback,
+    });
+    assert.equal(resolved.projectionKind, "failure_fallback");
+    assert.equal(shouldInjectMediumTermMemory(resolved.projectionKind), false);
+
+    const injection = await buildMemoryContextForChat({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      memoryCapacity: MEMORY_CAPACITY_FIXED,
+      userMessage: "continue",
+    });
+    assert.equal(injection.mediumTermText, "");
+  });
+
+  it("global_compact — medium ON and recovers moving details", async () => {
+    insertMovingHorizonFixture(300);
+    const rebuilt = rebuildLorebookFromRecords(CHAT);
+    __setCompactCurrentMemoryTestOverride(async (_input, maxChars) =>
+      [
+        "OLD_MAJOR_EVENT preserved",
+        "MID_MAJOR_EVENT preserved",
+        "RECENT_MAJOR_EVENT preserved",
+        "compressed fold without granular near/mid/far chronological details",
+      ]
+        .join(" → ")
+        .slice(0, maxChars)
+    );
+    const compacted = await compactCurrentMemory(rebuilt, MEMORY_CAPACITY_FIXED);
+    updateChatMemory(CHAT, USER, CHAR, { recent_summary: compacted, membership_tier: "free" });
+
+    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED, {
+      storedRecentSummary: compacted,
+    });
+    assert.equal(resolved.projectionKind, "global_compact");
+
+    const injection = await buildMemoryContextForChat({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      memoryCapacity: MEMORY_CAPACITY_FIXED,
+      userMessage: "continue",
+      modelId: "deepseek/deepseek-v4-pro",
+      provider: "openrouter",
+    });
+    assert.ok(injection.mediumTermText.includes("NEAR_MEDIUM_DETAIL"));
+    assert.ok(
+      injection.mediumTermText.includes("MID_MEDIUM_DETAIL"),
+      "N=10 block count must recover mid-horizon detail at T300"
+    );
+    assert.equal(injection.text.includes("NEAR_MEDIUM_DETAIL"), false);
+    assert.equal(
+      measureMediumGlobalLiteralDuplicateChars(injection.mediumTermText, injection.text),
+      0
+    );
+  });
+});
+
+describe("MANUAL GLOBAL INTERACTION", () => {
+  it("manual_global — medium OFF; does not reintroduce ledger ORIGINAL_DETAIL", async () => {
+    upsertSummaryRowCore({
+      chatId: CHAT,
+      turnStart: 1,
+      turnEnd: 5,
+      assistantMessageId: 1,
+      summary: padBody("ORIGINAL_DETAIL"),
+      summaryKind: "main_canon",
+    });
+    __setCompactCurrentMemoryTestOverride(async (input, max) => input.slice(0, max));
+    await updateLorebookForChat(
+      CHAT,
+      USER,
+      CHAR,
+      "USER_EDITED_GLOBAL removed ledger fact",
+      "free",
+      MEMORY_CAPACITY_FIXED
+    );
+    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED, {
+      storedRecentSummary: getOrCreateChatMemory(CHAT, USER, CHAR, "free").recent_summary,
+    });
+    assert.equal(resolved.projectionKind, "manual_global");
+
+    const injection = await buildMemoryContextForChat({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      memoryCapacity: MEMORY_CAPACITY_FIXED,
+      userMessage: "continue",
+    });
+    assert.equal(injection.mediumTermText, "");
+    assert.match(injection.text, /USER_EDITED_GLOBAL removed ledger fact/);
+    assert.equal(/\bORIGINAL_DETAIL\b/.test(injection.text), false);
+    assert.equal(injection.mediumTermText.includes("ORIGINAL_DETAIL"), false);
+    assert.ok(listMemoryRecordsForChat(CHAT).some((r) => r.summary.includes("ORIGINAL_DETAIL")));
+  });
+});
 
 describe("MEDIUM READER", () => {
   it("uses canonical record filters and chronological block format", () => {
@@ -109,7 +307,6 @@ describe("MEDIUM READER", () => {
     assert.equal(medium.blockCount, 5);
     assert.match(medium.text, /\[최근 기억 · T46–50\]/);
     assert.match(medium.text, /BLOCK_46/);
-    // Partial overlap with RAW is intentional — 56–60 block stays when turnStart < cutoff.
     assert.match(medium.text, /BLOCK_56/);
     assert.doesNotMatch(medium.text, /BLOCK_61/);
     for (const range of medium.turnRanges) {
@@ -155,7 +352,25 @@ describe("MEDIUM READER", () => {
     assert.equal(eligible.some((r) => r.summary.includes("CLOSED_BRANCH")), false);
   });
 
-  it("respects RAW overlap cutoff at seal boundary", () => {
+  it("buildMediumTermMemoryBlockForProjection respects activation owner", () => {
+    insertBlocks(8);
+    const exact = buildMediumTermMemoryBlockForProjection({
+      chatId: CHAT,
+      blockCount: 5,
+      projectionKind: "exact",
+    });
+    assert.equal(exact.text, "");
+    const compact = buildMediumTermMemoryBlockForProjection({
+      chatId: CHAT,
+      blockCount: 5,
+      projectionKind: "global_compact",
+    });
+    assert.ok(compact.text.includes("[최근 기억 · T"));
+  });
+});
+
+describe("RAW MEDIUM PARTIAL OVERLAP", () => {
+  it("INTENTIONAL_BOUNDED — one block may straddle RAW seal with turnStart < cutoff", () => {
     insertBlocks(20);
     const currentTurn = 62;
     const cutoff = rawOwnedTurnStart(currentTurn);
@@ -165,24 +380,36 @@ describe("MEDIUM READER", () => {
       blockCount: 10,
       excludeTurnStartGte: cutoff,
     });
-    assert.ok(medium.turnRanges.every((r) => r.turnStart < cutoff));
-    assert.ok(medium.text.includes("BLOCK_56"), "partial-overlap block 56–60 remains");
-    assert.equal(medium.text.includes("BLOCK_61"), false, "blocks starting at RAW turn are excluded");
+    const overlapping = medium.turnRanges.filter(
+      (range) => range.turnStart < cutoff && range.turnEnd >= cutoff
+    );
+    assert.equal(overlapping.length, 1);
+    assert.equal(overlapping[0]!.turnStart, 56);
+    assert.equal(overlapping[0]!.turnEnd, 60);
+    assert.ok(medium.text.includes("BLOCK_56"));
+    assert.equal(medium.text.includes("BLOCK_61"), false);
   });
 });
 
 describe("MEDIUM PROMPT INJECTION", () => {
-  it("injects medium-term section in Main RP context assembly", async () => {
-    insertBlocks(8);
+  it("global_compact injects medium-term section in Main RP context assembly", async () => {
+    insertMovingHorizonFixture(300);
+    const rebuilt = rebuildLorebookFromRecords(CHAT);
+    __setCompactCurrentMemoryTestOverride(async (_input, maxChars) =>
+      "OLD_MAJOR_EVENT → RECENT_MAJOR_EVENT compact fold".slice(0, maxChars)
+    );
+    const compacted = await compactCurrentMemory(rebuilt, MEMORY_CAPACITY_FIXED);
+    updateChatMemory(CHAT, USER, CHAR, { recent_summary: compacted, membership_tier: "free" });
+
     const injection = await buildMemoryContextForChat({
       chatId: CHAT,
       userId: USER,
       characterId: CHAR,
       tier: "free",
-      memoryCapacity: 10_000,
+      memoryCapacity: MEMORY_CAPACITY_FIXED,
       userMessage: "continue",
       provider: "openrouter",
-      excludeSummaryTurnStartGte: rawOwnedTurnStart(42),
+      excludeSummaryTurnStartGte: rawOwnedTurnStart(300),
     });
     assert.ok(injection.mediumTermText.includes("[최근 기억 · T"));
 
@@ -200,6 +427,24 @@ describe("MEDIUM PROMPT INJECTION", () => {
     const ids = built.meta.trackedSections?.map((section) => section.id) ?? [];
     assert.ok(ids.includes("medium-term-memory"));
     assert.match(built.systemPrompt, /\[최근 기억 · T/);
+  });
+
+  it("DeepSeek — medium routes through existing LTM XML group", () => {
+    const built = buildContext({
+      charName: "MediumChar",
+      chunks: [],
+      userNickname: "User",
+      shortTermHistory: [{ role: "user", content: "hi" }],
+      currentUserMessage: "next",
+      nsfw: false,
+      provider: "openrouter",
+      modelId: "deepseek/deepseek-v4-pro",
+      longTermMemory: "GLOBAL_COMPACT_STUB",
+      mediumTermMemoryBlock: "[최근 기억 · T276–280]\nNEAR_MEDIUM_DETAIL body",
+    });
+    assert.match(built.systemPrompt, /<LONG_TERM_MEMORY>/);
+    assert.match(built.systemPrompt, /NEAR_MEDIUM_DETAIL/);
+    assert.match(built.systemPrompt, /GLOBAL_COMPACT_STUB/);
   });
 });
 
@@ -238,7 +483,7 @@ describe("MEDIUM LIFECYCLE PARITY", () => {
 });
 
 describe("MEDIUM GLOBAL OVERLAP", () => {
-  it("Design A — literal duplicate chars are bounded when Global is compact", () => {
+  it("global_compact — literal duplicate chars are zero against compact Global", () => {
     insertBlocks(30);
     const medium = buildMediumTermMemoryBlock({
       chatId: CHAT,

@@ -690,7 +690,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "memory",
       mediumTermMemory,
       "dynamic",
-      undefined
+      deepSeekXmlMode ? "ltm" : undefined
     );
   };
 
