@@ -1,14 +1,17 @@
 import { compactCurrentMemory } from "./memory-rolling-summary";
+import { clampLorebookPreferRecentChars } from "./memory-lorebook-trim";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import { isGeminiIsolationMode } from "@/lib/geminiIsolationMode";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 
-/** LLM 없이 프롬프트·UI용 — 구절 경계에서 잘라 상한 맞춤 */
+/** LLM 없이 프롬프트·UI용 — 최신 블록 우선, 비어 있지 않게 유지 */
 export function trimLorebookToBudgetSync(text: string, maxChars: number): string {
   const trimmed = text.trim();
   if (!trimmed || maxChars <= 0) return "";
   if (trimmed.length <= maxChars) return trimmed;
-  return clampMemoryRecordSummary(trimmed, maxChars, 0);
+  const { text: fitted } = clampLorebookPreferRecentChars(trimmed, maxChars);
+  if (fitted.trim()) return fitted;
+  return trimmed.slice(0, maxChars).trimEnd() || trimmed.slice(0, maxChars);
 }
 
 /** 용량 초과 시 블록 삭제 대신 Flash로 전체 재압축 */

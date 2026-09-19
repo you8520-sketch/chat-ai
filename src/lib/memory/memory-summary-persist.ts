@@ -41,7 +41,8 @@ export type PersistSummaryBatchResult =
   | { ok: true; reason: "SUMMARY_SUCCESS"; record: MemoryRecordView; summarizedTurnCount: number }
   | { ok: false; reason: SummaryReasonCode; error?: string };
 
-function upsertRowInTx(opts: {
+/** @internal shared by persist + user whole-memory edit sync */
+export function upsertSummaryRowCore(opts: {
   chatId: number;
   turnStart: number;
   turnEnd: number;
@@ -206,7 +207,7 @@ export function persistValidatedSummaryBatch(opts: {
         throw Object.assign(new Error("SUMMARY_BATCH_GAP"), { code: "SUMMARY_BATCH_GAP" as const });
       }
 
-      upsertRowInTx({
+      upsertSummaryRowCore({
         chatId: opts.chatId,
         turnStart: opts.turnStart,
         turnEnd,

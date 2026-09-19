@@ -1085,41 +1085,7 @@ async function persistComposedBatchScopes(opts: {
   ) {
     return true;
   }
-  let currentMemory = rebuildLorebookFromRecords(opts.chatId);
-  if (currentMemory.length > lorebookBudget) {
-    try {
-      const compacted = await compactCurrentMemory(
-        currentMemory,
-        lorebookBudget,
-        opts.turnTrace
-      );
-      if (compacted.trim()) {
-        const compactedText = compacted;
-        const compactCommitted = db.transaction(() => {
-          if (
-            !isMemoryWriteGuardCurrentCore(db, {
-              chatId: opts.chatId,
-              snapshot: opts.boundarySnapshot,
-              sourceUserMessageIds: opts.sourceUserMessageIds,
-            })
-          ) {
-            return false;
-          }
-          updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-            recent_summary: compactedText,
-            membership_tier: opts.tier,
-          });
-          return true;
-        }).immediate();
-        if (compactCommitted) currentMemory = compactedText;
-      }
-    } catch (e) {
-      console.warn(
-        `[memory] lorebook compact skipped after ${opts.logLabel} — keeping prior text:`,
-        (e as Error).message
-      );
-    }
-  }
+  const currentMemory = rebuildLorebookFromRecords(opts.chatId);
 
   console.info(
     `[memory] ${opts.logLabel} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} (${opts.composed.displaySummary.length}ch → lorebook ${currentMemory.length}/${lorebookBudget}ch) reason=${opts.composed.reasonTag} mainCalls=${opts.composed.mainModelCalls}`
