@@ -34,6 +34,20 @@ on:
       - "src/lib/refund.ts"
       - "src/lib/creatorPoints.ts"
       - "src/lib/pointPolicyUnification.test.ts"
+      - "src/lib/points.ts"
+      - "src/lib/pointsReasoningMargins.ts"
+      - "src/lib/points.gemini37Flash.test.ts"
+      - "src/lib/points.terra.test.ts"
+      - "src/lib/chatModels.ts"
+      - "src/lib/chatModels.terra.test.ts"
+      - "src/lib/mainRpModelRegistry.test.ts"
+      - "src/lib/modelPickerPreview.ts"
+      - "src/lib/modelPickerPreview.test.ts"
+      - "src/lib/cheaperInferenceConfig.ts"
+      - "src/lib/cheaperInferenceConfig.test.ts"
+      - "src/lib/openRouterModelPricing.ts"
+      - "src/lib/gemini37FlashPricing.ts"
+      - "src/lib/gemini37FlashPricingTelemetry.ts"
 
 permissions:
   contents: read
@@ -66,6 +80,16 @@ jobs:
 
       - name: CheaperInference synthetic exact-cost compatibility (not Main live contract)
         run: node --conditions=react-server --import tsx --test src/lib/openRouterAdult.ciStreamCost.test.ts
+
+      - name: Main RP proportional pricing + Terra selection regression
+        run: >-
+          node --conditions=react-server --import tsx --test
+          src/lib/points.gemini37Flash.test.ts
+          src/lib/points.terra.test.ts
+          src/lib/chatModels.terra.test.ts
+          src/lib/mainRpModelRegistry.test.ts
+          src/lib/modelPickerPreview.test.ts
+          src/lib/cheaperInferenceConfig.test.ts
 
       - name: Provider cost ledger single owner
         run: node --conditions=react-server --import tsx --test src/lib/providerCostSingleOwner.test.ts
