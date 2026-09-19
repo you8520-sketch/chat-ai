@@ -3097,10 +3097,7 @@ export function collectBillingReadinessHardGates(
       (entry) => entry.cutoverRequired && !entry.reachabilityOwner
     ).length;
     const unifiedRow = policyMatrix.find(
-      (row) => row.policy === "unified-reasoning margins (G31 CI, Opus5)"
-    );
-    const g37Row = policyMatrix.find(
-      (row) => row.policy === "gemini37FlashPricing dedicated formula"
+      (row) => row.policy === "unified token-cost pricing (G31 CI, Opus5, G37, Terra)"
     );
     const outputTokenRow = policyMatrix.find(
       (row) => row.policy === "output-token pricing (api vs savedText fallback)"
@@ -3137,7 +3134,6 @@ export function collectBillingReadinessHardGates(
       WAIVER_MINIMUM_RUNTIME_REACHABILITY_HARDCODED: false,
       WAIVER_MINIMUM_RUNTIME_REACHABLE: policyFacts.waiverMinimumRuntimeReachable ? 1 : 0,
       UNIFIED_REASONING_OWNER_MATCH: unifiedRow?.behavioralProofPasses === true ? 1 : 0,
-      G37_DEDICATED_OWNER_MATCH: g37Row?.behavioralProofPasses === true ? 1 : 0,
       OUTPUT_TOKEN_SOURCE_BEHAVIOR_PROVEN:
         outputTokenRow?.behavioralProofPasses === true ? 1 : 0,
       F4_REQUESTED_DELIVERED_IDENTITY_PROVEN:
