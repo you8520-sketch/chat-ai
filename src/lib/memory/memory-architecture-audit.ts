@@ -3,7 +3,6 @@
  * Does not inject, persist, or call providers.
  * Production Main RP wiring is intentionally unchanged.
  */
-import { estimateTokens } from "@/lib/tokenEstimate";
 import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
 import { RAW_HISTORY_COMPLETE_EXCHANGES, ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import { trimLorebookToBudgetSync } from "./memory-lorebook-fit";
@@ -87,25 +86,6 @@ export type MemoryFailureType =
 
 export type RingSize = 5 | 10 | 15;
 
-export type DesignSimulation = {
-  design: "A" | "B" | "C";
-  ringN: RingSize | 0;
-  coveredTurnHorizon: string;
-  rawTurns: number;
-  ringChars: number;
-  ringTokens: number;
-  currentMemoryChars: number;
-  currentMemoryTokens: number;
-  currentMemoryCharsRemovedForOwnership: number;
-  archiveChars: number;
-  episodicChars: number;
-  netPromptDeltaVsA: number;
-  duplicateChars: number;
-  deepSeekPromptEstimate: number;
-  gemini31PromptEstimate: number;
-  gemini37PromptEstimate: number;
-};
-
 function padSummary(marker: string, turnStart: number, turnEnd: number): string {
   const clauses = [
     `${marker} ${turnStart}~${turnEnd}구간에서 사건이 발생했다`,
@@ -145,7 +125,7 @@ export function rawOwnedTurnStart(currentTurn: number, rawExchanges = RAW_HISTOR
   return Math.max(1, currentTurn - rawExchanges + 1);
 }
 
-/** Production sync trim: prefix clamp of concatenated lorebook (not prefer-recent). */
+/** Models emergency prefer-recent failure fallback — not healthy whole-history Global Summary. */
 export function assembleCurrentMemoryText(
   currentTurn: number,
   opts?: { excludeTurnStartGte?: number; excludeNewestSealedCount?: number }
@@ -161,6 +141,7 @@ export function assembleCurrentMemoryText(
   return trimLorebookToBudgetSync(rebuilt, MEMORY_CAPACITY_FIXED);
 }
 
+/** Future Medium-Term ring helper — audit-only, not production Main RP. */
 export function assembleActiveRingText(currentTurn: number, n: RingSize): string {
   const rawStart = rawOwnedTurnStart(currentTurn);
   const summarizedThrough = Math.floor((currentTurn - 1) / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL;
@@ -231,94 +212,6 @@ export function classifyFactFailure(
   return "PROMPT_BUDGET_LOSS";
 }
 
-function sharedFixedLayerTokens(): number {
-  const userNoteFocus = 1_000;
-  const userNoteReference = 2_500;
-  const relationshipWorst = 2_000;
-  const episodicWorst = 1_000;
-  const archiveWorst = 3_000;
-  const characterCanonWorst = 8_000;
-  const lorebookKeywordWorst = 2_000;
-  return estimateTokens(
-    "x".repeat(
-      userNoteFocus +
-        userNoteReference +
-        relationshipWorst +
-        episodicWorst +
-        archiveWorst +
-        characterCanonWorst +
-        lorebookKeywordWorst
-    )
-  );
-}
-
-export function simulateDesign(
-  design: "A" | "B" | "C",
-  currentTurn: number,
-  ringN: RingSize = 5
-): DesignSimulation {
-  const rawTurns = RAW_HISTORY_COMPLETE_EXCHANGES;
-  const designAMemory = assembleCurrentMemoryText(currentTurn);
-  const ringText = design === "A" ? "" : assembleActiveRingText(currentTurn, ringN);
-  const ownedMemory =
-    design === "A"
-      ? designAMemory
-      : assembleCurrentMemoryText(currentTurn, { excludeNewestSealedCount: ringN });
-  const cascadeChars = design === "C" ? Math.min(2_000, ownedMemory.length) : 0;
-  const currentMemoryCharsRemovedForOwnership = Math.max(0, designAMemory.length - ownedMemory.length);
-  const duplicateChars = ringOverlapChars(designAMemory, ringText);
-  const ringChars = ringText.length;
-  const currentMemoryChars = ownedMemory.length + cascadeChars;
-  const episodicChars = 1_000;
-  const archiveChars = 0;
-  const netPromptDeltaVsA = ringChars + currentMemoryChars - designAMemory.length - duplicateChars;
-  const combinedMemoryChars = ringChars + currentMemoryChars + archiveChars + episodicChars;
-  const modelEstimate = estimateTokens("x".repeat(combinedMemoryChars)) + sharedFixedLayerTokens();
-
-  const newestRingStart = Math.max(
-    1,
-    Math.floor((currentTurn - 1) / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL -
-      ringN * ROLLING_SUMMARY_INTERVAL +
-      1
-  );
-
-  return {
-    design,
-    ringN: design === "A" ? 0 : ringN,
-    coveredTurnHorizon:
-      design === "A"
-        ? `RAW ${rawTurns} + prefix-trimmed Current Memory`
-        : `RAW ${rawTurns} + ring ${newestRingStart}~ + older-only Current Memory`,
-    rawTurns,
-    ringChars,
-    ringTokens: estimateTokens(ringText || " "),
-    currentMemoryChars,
-    currentMemoryTokens: estimateTokens(ownedMemory || " "),
-    currentMemoryCharsRemovedForOwnership,
-    archiveChars,
-    episodicChars,
-    netPromptDeltaVsA,
-    duplicateChars,
-    deepSeekPromptEstimate: modelEstimate,
-    gemini31PromptEstimate: modelEstimate,
-    gemini37PromptEstimate: modelEstimate,
-  };
-}
-
-function ringOverlapChars(currentMemory: string, ringText: string): number {
-  if (!currentMemory || !ringText) return 0;
-  let overlap = 0;
-  for (const fact of MID_HORIZON_FACTS) {
-    if (currentMemory.includes(fact.marker) && ringText.includes(fact.marker)) {
-      overlap += fact.marker.length;
-    }
-  }
-  for (const range of ringText.match(/\[\d+~\d+턴\]/g) ?? []) {
-    if (currentMemory.includes(range)) overlap += range.length;
-  }
-  return overlap;
-}
-
 export const OVERFLOW_AUDIT_MARKERS = {
   OLD: "OLD_MARKER",
   MID: "MID_MARKER",
@@ -346,7 +239,7 @@ export type TenKOverflowOwnerReport = {
   promptUsesStoredCompressed: boolean;
 };
 
-/** Deterministic >10K fixture bodies — arrow-connected for production sync trim. */
+/** Deterministic >10K fixture bodies — arrow-connected for emergency sync trim. */
 export function buildOverflowSummaryBody(marker: string, targetChars = 480): string {
   let body = `${marker} 구간 사건 시작 → 인물 반응 → 관계 변화`;
   while (body.length < targetChars) {
@@ -446,97 +339,5 @@ export function auditTenKOverflowOwnerProof(input: {
     canonicalSource,
     storedRecentDiffersFromRebuilt,
     promptUsesStoredCompressed,
-  };
-}
-
-export type RecompressionCadenceReport = {
-  sealCount: number;
-  compactCallCount: number;
-  eachInputIncludesAllRecords: boolean;
-  eachInputChars: number[];
-  recordCountsAtCompact: number[];
-  usesPriorCompactedSummaryAsInput: boolean;
-};
-
-export function auditRecompressionCadence(calls: {
-  inputChars: number;
-  recordCount: number;
-  inputText: string;
-  priorCompactedSummary: string;
-}[]): RecompressionCadenceReport {
-  const compactCallCount = calls.length;
-  const eachInputChars = calls.map((c) => c.inputChars);
-  const recordCountsAtCompact = calls.map((c) => c.recordCount);
-  const eachInputIncludesAllRecords =
-    compactCallCount === 0 ||
-    recordCountsAtCompact.every((count, i) => i === 0 || count >= recordCountsAtCompact[i - 1]!);
-  const usesPriorCompactedSummaryAsInput =
-    compactCallCount > 1 &&
-    calls.slice(1).some((c) => c.priorCompactedSummary && c.inputText.includes(c.priorCompactedSummary.slice(0, 200)));
-
-  return {
-    sealCount: compactCallCount,
-    compactCallCount,
-    eachInputIncludesAllRecords,
-    eachInputChars,
-    recordCountsAtCompact,
-    usesPriorCompactedSummaryAsInput,
-  };
-}
-
-/** Post-bugfix classifications — validated by deterministic regression tests. */
-export const TEN_K_OVERFLOW_AUDIT_CLASSIFICATIONS = {
-  GLOBAL_MEMORY_COMPACTION_WRITE_READ_MISMATCH: "ROOT_CAUSE_FIXED",
-  CURRENT_MEMORY_OVERFLOW_PREFIX_BIAS: "ROOT_CAUSE_FIXED",
-  CURRENT_MEMORY_OVERFLOW_EMPTY_RESULT: "ROOT_CAUSE_FIXED",
-  USER_EDITED_CURRENT_MEMORY_BYPASSED: "ROOT_CAUSE_FIXED",
-  ARCHIVE_OVERFLOW_ROLE: "NOT_ACTIVE",
-  GLOBAL_MEMORY_CANONICAL_PROMPT_OWNER: "chat_turn_summaries (rebuilt at prompt time)",
-  GLOBAL_PROJECTION_FRESHNESS: "PROVEN",
-  FULL_HISTORY_RECOMPRESSION_EVERY_SEAL: "REMOVED",
-} as const;
-
-export function worstCaseCombinedBudgetChars(): {
-  rawChars: number;
-  currentMemoryChars: number;
-  archiveChars: number;
-  episodicChars: number;
-  relationshipChars: number;
-  lorebookChars: number;
-  userNoteChars: number;
-  characterCanonChars: number;
-  totalChars: number;
-  totalTokens: number;
-  singleGlobalBudgetOwner: false;
-} {
-  const rawChars = 10_000;
-  const currentMemoryChars = MEMORY_CAPACITY_FIXED;
-  const archiveChars = 3_000;
-  const episodicChars = 1_000;
-  const relationshipChars = 2_000;
-  const lorebookChars = 4_000;
-  const userNoteChars = 1_000 + 2_500;
-  const characterCanonChars = 12_000;
-  const totalChars =
-    rawChars +
-    currentMemoryChars +
-    archiveChars +
-    episodicChars +
-    relationshipChars +
-    lorebookChars +
-    userNoteChars +
-    characterCanonChars;
-  return {
-    rawChars,
-    currentMemoryChars,
-    archiveChars,
-    episodicChars,
-    relationshipChars,
-    lorebookChars,
-    userNoteChars,
-    characterCanonChars,
-    totalChars,
-    totalTokens: estimateTokens("x".repeat(totalChars)),
-    singleGlobalBudgetOwner: false,
   };
 }
