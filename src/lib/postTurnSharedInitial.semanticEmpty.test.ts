@@ -94,9 +94,9 @@ function placeholderLiteralJson(input: PostTurnSharedInitialInput): string {
   if (input.includeSuggestions) {
     root.suggestedReplies = {
       items: [
-        { kind: "escalate", text: padReply("*손을 잡으며* \"조금 더 솔직히 말해볼까?\"") },
-        { kind: "soften", text: padReply("*미소 지으며* \"괜찮아, 천천히 이야기하자.\"") },
-        { kind: "pivot", text: padReply("*창밖을 보며* \"잠깐, 다른 이야기 하나 할게.\"") },
+        { kind: "natural", text: padReply("*손을 잡으며* \"조금 더 솔직히 말해볼까?\"") },
+        { kind: "twist", text: padReply("*미소 지으며* \"괜찮아, 천천히 이야기하자.\"") },
+        { kind: "banter", text: padReply("*창밖을 보며* \"잠깐, 다른 이야기 하나 할게.\"") },
       ],
     };
   }
@@ -131,9 +131,9 @@ function validJson(input: PostTurnSharedInitialInput): string {
   if (input.includeSuggestions) {
     root.suggestedReplies = {
       items: [
-        { kind: "escalate", text: padReply("*손을 잡으며* \"조금 더 솔직히 말해볼까?\"") },
-        { kind: "soften", text: padReply("*미소 지으며* \"괜찮아, 천천히 이야기하자.\"") },
-        { kind: "pivot", text: padReply("*창밖을 보며* \"잠깐, 다른 이야기 하나 할게.\"") },
+        { kind: "natural", text: padReply("*손을 잡으며* \"조금 더 솔직히 말해볼까?\"") },
+        { kind: "twist", text: padReply("*미소 지으며* \"괜찮아, 천천히 이야기하자.\"") },
+        { kind: "banter", text: padReply("*창밖을 보며* \"잠깐, 다른 이야기 하나 할게.\"") },
       ],
     };
   }

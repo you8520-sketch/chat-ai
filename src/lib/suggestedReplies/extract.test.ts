@@ -11,9 +11,9 @@ describe("suggested replies extract prompt", () => {
     const system = suggestedRepliesExtractSystemForTest();
     assert.match(system, /Exactly 3 objects/);
     assert.match(system, new RegExp(`${SUGGESTED_REPLY_MIN_CHARS}–${SUGGESTED_REPLY_MAX_CHARS}`));
-    assert.match(system, /kind": "escalate"/);
-    assert.match(system, /kind": "soften"/);
-    assert.match(system, /kind": "pivot"/);
+    assert.match(system, /kind": "natural"/);
+    assert.match(system, /kind": "twist"/);
+    assert.match(system, /kind": "banter"/);
     assert.match(system, /USER persona/);
   });
 

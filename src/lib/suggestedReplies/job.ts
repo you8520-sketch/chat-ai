@@ -9,14 +9,14 @@ import { extractSuggestedRepliesFromTurn } from "./extract";
 import {
   parseSuggestedRepliesRecord,
   serializeSuggestedRepliesRecord,
-  shouldEnsureSuggestedRepliesExtraction,
   suggestedRepliesHaveContent,
 } from "./parse";
-import type { SuggestedRepliesRecord, SuggestedReplyItem } from "./types";
-import { listProviderCostEventsForAssistantGeneration } from "@/lib/providerCostLedger";
-
+import type {
+  SuggestedRepliesRecord,
+  SuggestedRepliesRecordSource,
+  SuggestedReplyItem,
+} from "./types";
 const running = new Set<string>();
-const STALE_PENDING_MS = 90_000;
 const EXTRACT_MAX_ATTEMPTS = 1;
 
 function isJobRunning(scope: AssistantGenerationScope): boolean {
@@ -33,23 +33,6 @@ export function resolveSuggestedRepliesExtractMaxAttempts(
   return postTurnPhysicalAttemptConsumed ? 0 : EXTRACT_MAX_ATTEMPTS;
 }
 
-function generationHasDurablePostTurnAttempt(scope: AssistantGenerationScope): boolean {
-  try {
-    return listProviderCostEventsForAssistantGeneration(
-      scope.assistantMessageId,
-      scope.generationSequence
-    ).some((row) =>
-      row.family === "post_turn_shared_initial" ||
-      row.family === "status_widget_extract" ||
-      row.family === "suggested_replies_repair" ||
-      row.family === "memory_relationship"
-    );
-  } catch (error) {
-    console.warn("[SUGGESTED-REPLIES] provider budget lookup failed", (error as Error).message);
-    return true;
-  }
-}
-
 export function loadMessageSuggestedReplies(messageId: number): SuggestedRepliesRecord | null {
   const db = getDb();
   const row = db
@@ -58,21 +41,16 @@ export function loadMessageSuggestedReplies(messageId: number): SuggestedReplies
   return parseSuggestedRepliesRecord(row?.suggested_replies_json ?? null);
 }
 
-export function isSuggestedRepliesRecordStalePending(
-  record: SuggestedRepliesRecord | null,
-  nowMs = Date.now()
-): boolean {
-  if (!record?.pending || !record.extractedAt) return false;
-  const age = nowMs - new Date(record.extractedAt).getTime();
-  return age >= STALE_PENDING_MS;
-}
-
-function writePending(messageId: number, scope: AssistantGenerationScope): void {
+function writePending(
+  messageId: number,
+  scope: AssistantGenerationScope,
+  source: SuggestedRepliesRecordSource = "post-turn-shared"
+): void {
   const db = getDb();
   const pending: SuggestedRepliesRecord = {
     replies: [],
     extractedAt: new Date().toISOString(),
-    source: "background-deepseek",
+    source,
     pending: true,
     failed: false,
     generationSequence: scope.generationSequence,
@@ -99,7 +77,8 @@ function writeReplies(
   replies: SuggestedReplyItem[],
   failed = false,
   noRetry = false,
-  terminalReason?: SuggestedRepliesRecord["terminalReason"]
+  terminalReason?: SuggestedRepliesRecord["terminalReason"],
+  source: SuggestedRepliesRecordSource = "post-turn-shared"
 ): void {
   const db = getDb();
   if (!isCurrentAssistantGeneration(scope, db)) {
@@ -114,7 +93,7 @@ function writeReplies(
   const record: SuggestedRepliesRecord = {
     replies,
     extractedAt: new Date().toISOString(),
-    source: "background-deepseek",
+    source,
     pending: false,
     failed,
     ...(noRetry ? { noRetry: true } : {}),
@@ -244,12 +223,15 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   __testExtract?: (attempt: number) => Promise<SuggestedReplyItem[]>;
 }): void {
   const physicalAttemptConsumed = opts.sharedInitialAttemptConsumed ?? false;
+  const recordSource: SuggestedRepliesRecordSource = physicalAttemptConsumed
+    ? "post-turn-shared"
+    : "standalone-extract";
   if (physicalAttemptConsumed) {
     const replies = suggestedRepliesHaveContent(opts.prefetchedReplies)
       ? opts.prefetchedReplies!
       : [];
     try {
-      writeReplies(opts.messageId, opts.generationScope, replies, replies.length === 0, true);
+      writeReplies(opts.messageId, opts.generationScope, replies, replies.length === 0, true, undefined, recordSource);
     } catch (error) {
       console.error(
         "[SUGGESTED-REPLIES-ERROR] terminal shared write failed",
@@ -263,7 +245,7 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   running.add(jobKey);
 
   try {
-    writePending(opts.messageId, opts.generationScope);
+    writePending(opts.messageId, opts.generationScope, recordSource);
   } catch (e) {
     console.error("[SUGGESTED-REPLIES-ERROR] pending write failed", (e as Error).message);
   }
@@ -277,7 +259,9 @@ export function scheduleSuggestedRepliesExtraction(opts: {
         opts.generationScope,
         replies,
         !ok,
-        opts.sharedInitialAttemptConsumed === true
+        opts.sharedInitialAttemptConsumed === true,
+        undefined,
+        recordSource
       );
       if (!ok) {
         console.error("[SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies", {
@@ -293,7 +277,9 @@ export function scheduleSuggestedRepliesExtraction(opts: {
           opts.generationScope,
           [],
           true,
-          opts.sharedInitialAttemptConsumed === true
+          opts.sharedInitialAttemptConsumed === true,
+          undefined,
+          recordSource
         );
       } catch (writeErr) {
         console.error(
@@ -307,59 +293,33 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   })();
 }
 
-export function requeueSuggestedRepliesExtractionIfNeeded(messageId: number): boolean {
-  const generationScope = resolveActiveAssistantGenerationScope(messageId);
-  if (!generationScope) return false;
-
-  const record = loadMessageSuggestedReplies(messageId);
-  if (record?.noRetry === true) return false;
-  if (!shouldEnsureSuggestedRepliesExtraction(record)) return false;
-  if (record && record.generationSequence != null && record.generationSequence !== generationScope.generationSequence) {
-    return false;
-  }
-  if (generationHasDurablePostTurnAttempt(generationScope)) return false;
-  if (isJobRunning(generationScope)) return true;
-
+/** Greeting bootstrap — standalone extract (no shared post-turn owner on chat create). */
+export function scheduleGreetingSuggestedRepliesExtraction(messageId: number, chatId: number): void {
   const db = getDb();
   const row = db
     .prepare(
-      `SELECT m.id, m.chat_id, m.content, m.user_message_id, c.selected_persona_id,
-              ch.name AS char_name
+      `SELECT m.content, c.selected_persona_id, ch.name AS char_name
        FROM messages m
        JOIN chats c ON c.id = m.chat_id
        JOIN characters ch ON ch.id = c.character_id
-       WHERE m.id=? AND m.role='assistant'`
+       WHERE m.id=? AND m.chat_id=? AND m.role='assistant'`
     )
-    .get(messageId) as
+    .get(messageId, chatId) as
     | {
-        id: number;
-        chat_id: number;
         content: string;
-        user_message_id: number | null;
         selected_persona_id: number | null;
         char_name: string;
       }
     | undefined;
+  if (!row?.content?.trim()) return;
 
-  if (!row) return false;
-
-  let userMessage = "";
-  if (row.user_message_id) {
-    const userRow = db
-      .prepare("SELECT content FROM messages WHERE id=?")
-      .get(row.user_message_id) as { content: string } | undefined;
-    userMessage = userRow?.content ?? "";
-  }
-  if (!userMessage.trim()) {
-    const prevUser = db
-      .prepare(
-        `SELECT content FROM messages
-         WHERE chat_id=? AND role='user' AND id < ?
-         ORDER BY id DESC LIMIT 1`
-      )
-      .get(row.chat_id, messageId) as { content: string } | undefined;
-    userMessage = prevUser?.content ?? "";
-  }
+  const generationScope =
+    resolveActiveAssistantGenerationScope(messageId) ??
+    ({
+      assistantMessageId: messageId,
+      generationSequence: 0,
+      generationRequestId: null,
+    } satisfies AssistantGenerationScope);
 
   let personaName = "유저";
   let personaDescription: string | null = null;
@@ -377,24 +337,15 @@ export function requeueSuggestedRepliesExtractionIfNeeded(messageId: number): bo
     }
   }
 
-  console.info("[SUGGESTED-REPLIES] requeue extraction", {
-    messageId,
-    chatId: row.chat_id,
-    reason: record ? "stale" : "missing",
-    wasFailed: record?.failed === true,
-    wasStalePending: record?.pending === true,
-  });
-
   scheduleSuggestedRepliesExtraction({
     messageId,
-    chatId: row.chat_id,
+    chatId,
     generationScope,
     charName: row.char_name,
     personaName,
     personaDescription,
     personaSpeechExamples,
-    userMessage,
+    userMessage: "",
     assistantProse: row.content,
   });
-  return true;
 }

@@ -332,9 +332,9 @@ describe("DeepSeek regen turn observability — production-path fixtures", () =>
     const receipt = buildRegenReceipt(usage, [mainLedgerRow(), syncSharedInitialLedgerRow()], {
       suggestedRepliesRecord: {
         replies: [
-          { kind: "escalate" as const, text: "*소매를 잡으며* \"그걸 지금 말이라고 해?\" ".padEnd(72, "가") },
-          { kind: "soften" as const, text: "*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ".padEnd(72, "가") },
-          { kind: "pivot" as const, text: "*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ".padEnd(72, "가") },
+          { kind: "natural" as const, text: "*소매를 잡으며* \"그걸 지금 말이라고 해?\" ".padEnd(72, "가") },
+          { kind: "twist" as const, text: "*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ".padEnd(72, "가") },
+          { kind: "banter" as const, text: "*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ".padEnd(72, "가") },
         ],
         extractedAt: new Date().toISOString(),
         source: "background-deepseek",

@@ -76,9 +76,9 @@ function makeSharedResponseJson(
     statusWidget: buildCombinedWidgetJson(characterWidget, userWidget),
     suggestedReplies: {
       items: [
-        { kind: "escalate", text: padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72) },
-        { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ", 72) },
-        { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ", 72) },
+        { kind: "natural", text: padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72) },
+        { kind: "twist", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ", 72) },
+        { kind: "banter", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ", 72) },
       ],
     },
   });
@@ -221,9 +221,9 @@ describe("shared initial call graph", () => {
         statusWidget: { character_values: {}, user_values: {} },
         suggestedReplies: {
           items: [
-            { kind: "escalate", text: padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72) },
-            { kind: "soften", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ", 72) },
-            { kind: "pivot", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ", 72) },
+            { kind: "natural", text: padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72) },
+            { kind: "twist", text: padReply("*숨을 고르며* \"일단 여기 앉아서 천천히 얘기하자.\" ", 72) },
+            { kind: "banter", text: padReply("*창밖을 가리키며* \"저기 새로 생긴 카페, 같이 가볼래?\" ", 72) },
           ],
         },
       })
