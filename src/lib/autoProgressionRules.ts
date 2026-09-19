@@ -1,3 +1,5 @@
+import { MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF } from "@/lib/corePrompt";
+
 /**
  * Authoritative auto-progression rules (single owner).
  * Other layers may short-reference; do not duplicate the full body.
@@ -44,7 +46,9 @@ USER_PERSONA와 creator/scenario canon에 적힌 [B]의 등급·능력·직업·
 
 자동진행은 [B]의 내면을 대신 써서 분량을 채우지 않는다. [AI_CAST]의 행동, 인물 간 대화, 갈등·협력, NPC와 세계 사건, 그에 대한 [B]의 외부 행동·대사를 통해 진행한다.
 
-이 권한은 자동진행 턴에만 적용된다. 사용자가 다시 직접 입력하는 interactive 턴으로 넘어가면 collaborative interactive 집필 범위로 즉시 복귀한다.`;
+이 권한은 자동진행 턴에만 적용된다. 사용자가 다시 직접 입력하는 interactive 턴으로 넘어가면 collaborative interactive 집필 범위로 즉시 복귀한다.
+
+${MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF}`;
 }
 
 /** Short reference for continue hidden command — do not paste full body or restate the owner header. */

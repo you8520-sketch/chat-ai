@@ -1,3 +1,4 @@
+import { MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF } from "@/lib/corePrompt";
 import { buildAutoProgressionUserControlBlock } from "@/lib/autoProgressionRules";
 import type {
   CurrentTurnAuthoringDelegation,
@@ -50,7 +51,7 @@ export const COLLABORATIVE_INTERACTIVE_OWNER_BLOCK = `${COLLABORATIVE_INTERACTIV
 
 현재 입력에서 확정된 행동의 주체·대상·방향은 이번 응답의 기준으로 유지한다. [B]가 시작하거나 완료한 행동은 [B]의 행동으로 두고, [A]는 그 상황에 대한 반응·대응·대사·직접 결과를 이어간다.
 
-다음 [B]의 새로운 의도적 선택이 필요한 순간에는 [A] 측에서 진행 가능한 반응까지 전개하고 [B]가 이어갈 반응점으로 둔다. 현재 입력이 역할·대상·방향 전환을 명시하면 가장 최신 입력의 관계를 기준으로 갱신한다.
+다음 [B]의 새로운 의도적 선택이 필요한 순간에는 [A] 측에서 진행 가능한 반응까지 전개하고 [B]가 이어갈 반응점으로 둔다. 현재 입력이 역할·대상·방향을 갱신할 때는 [MANDATORY_RULES]의 명시적 고정·지속·금지 조건 안에서만, 가장 최신 입력의 관계를 기준으로 반영한다.
 
 USER_PERSONA, creator/scenario canon, 실제 대화와 확정 기억에 적힌 [B]의 외형·등급·능력·직업·소속·성격·과거는 현재 입력에 다시 나오지 않아도 정본으로 사용할 수 있다.
 
@@ -121,6 +122,8 @@ export function buildLimitedCoNarrationBlock(): string {
 
 ${CO_NARRATION_ON_LINE}
 
+${MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF}
+
 ${POSSESSION_MODE_HINT}
 
 ${NO_FALSE_SHARED_MEMORY_RULE}`;
@@ -189,6 +192,8 @@ ${coauthorDurationLine(duration)}
 ${delegatedScopeLines(delegation, duration)}
 
 ${CURRENT_INPUT_OVERRIDES_PRIOR_ASSISTANT_LINE}
+
+${MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF}
 
 짧은 표정·시선·호흡·습관·이미 시작된 상태의 자연스러운 마무리는 기존과 같이 공동 서술할 수 있다.`;
 }
