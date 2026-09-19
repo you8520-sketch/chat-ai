@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 
 import {
   buildEpisodicCandidateScope,
+  classifyEpisodicFactTemporalNature,
   ensureEpisodicMemoryFactsTable,
   fetchEpisodicMemoryCandidatesForDebug,
   getEpisodicMemoryForPrompt,
@@ -897,6 +898,102 @@ describe("RESET + RAW-window freshness — production minAge=5", () => {
     assert.ok(
       !recall.facts.some((f) => f.attribute === "favorite_drink"),
       "post-reset RAW-owned state must not inject via episodic either"
+    );
+  });
+});
+
+/** Exact classifier probe — canonical owner must recognize completed mission abort. */
+const QUEST_ABORT_CLASSIFIER_ROW = {
+  category: "quest",
+  subject: "mission",
+  attribute: "mission_status",
+  value: "aborted",
+  importance: "critical" as const,
+  fact_text: "임무를 중단했다.",
+};
+
+/** Persisted fixture text — schema-valid (≥10 Hangul) while preserving abort semantics. */
+const QUEST_ABORT_FIXTURE_TEXT = "작전 도중에 임무를 중단했다.";
+
+describe("MILESTONE SQL semantic owner conflict", () => {
+  it("canonical classifier marks quest mission abort as historical_event", () => {
+    assert.equal(
+      classifyEpisodicFactTemporalNature(QUEST_ABORT_CLASSIFIER_ROW),
+      "historical_event"
+    );
+  });
+
+  it("quest historical_event reaches milestone lane without category SQL exclusion", () => {
+    const db = createDb();
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 20, 'quest', 'mission', 'mission_status', 'aborted', 'critical',
+               ?, '{"memory_evidence_type":"explicit_scene_event"}')`
+    ).run(QUEST_ABORT_FIXTURE_TEXT);
+    insertFillerFacts(db, 1, 21, 150);
+
+    const targetId = (
+      db.prepare("SELECT id FROM episodic_memory_facts WHERE source_turn=20").get() as { id: number }
+    ).id;
+
+    const candidates = fetchEpisodicMemoryCandidatesForDebug(
+      db,
+      {
+        chatId: 1,
+        currentTurn: 180,
+        currentUserMessage: "요즘 날씨 어때?",
+      },
+      recallEnv
+    );
+    const milestoneLanes = candidates.laneById.get(targetId) ?? [];
+    assert.ok(
+      milestoneLanes.includes("milestone_critical"),
+      "MILESTONE_SQL_SEMANTIC_OWNER_CONFLICT: quest category must not block milestone SQL fetch"
+    );
+
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      {
+        chatId: 1,
+        currentTurn: 180,
+        currentUserMessage: "요즘 날씨 어때?",
+      },
+      recallEnv
+    );
+    assert.ok(
+      recall.facts.some((f) => f.id === targetId),
+      "quest historical_event must reach final prompt via milestone lane"
+    );
+    assert.match(recall.promptBlock, /임무를 중단/);
+  });
+});
+
+describe("UNKNOWN-ATTRIBUTE historical recall", () => {
+  it("mission_status attribute outside COMPLETED_SCENE_EVENT_ATTRIBUTES still recalls when classifier says historical_event", () => {
+    const db = createDb();
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 20, 'quest', 'mission', 'mission_status', 'aborted', 'critical',
+               ?, '{"memory_evidence_type":"explicit_scene_event"}')`
+    ).run(QUEST_ABORT_FIXTURE_TEXT);
+    insertFillerFacts(db, 1, 21, 150);
+
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      {
+        chatId: 1,
+        currentTurn: 180,
+        currentUserMessage: "오늘 하루 어땠어?",
+      },
+      recallEnv
+    );
+
+    assert.equal(classifyEpisodicFactTemporalNature(QUEST_ABORT_CLASSIFIER_ROW), "historical_event");
+    assert.ok(
+      recall.facts.some((f) => f.source_turn === 20 && f.value === "aborted"),
+      "unknown-attribute historical row must remain eligible for long-horizon recall"
     );
   });
 });

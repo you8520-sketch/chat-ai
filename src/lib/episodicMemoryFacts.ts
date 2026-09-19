@@ -1376,10 +1376,10 @@ export type EpisodicCandidateScope = {
   recallParams: Array<number | string>;
 };
 
+/** Candidate-discovery priority hint only — not exhaustive historical_event definition. */
 const MILESTONE_HISTORICAL_ATTRIBUTE_IN_SQL = [...COMPLETED_SCENE_EVENT_ATTRIBUTES]
   .map((attribute) => `'${attribute}'`)
   .join(", ");
-const MILESTONE_EXCLUDE_STATE_LIKE_CATEGORY_SQL = `category NOT IN ('preference', 'rule', 'quest')`;
 const MILESTONE_HISTORICAL_FETCH_ORDER_SQL = `CASE WHEN attribute IN (${MILESTONE_HISTORICAL_ATTRIBUTE_IN_SQL}) THEN 0 ELSE 1 END, source_turn ASC, id ASC`;
 
 type EpisodicCandidateFetchInput = {
@@ -1790,7 +1790,6 @@ function fetchEpisodicMemoryCandidateRows(
            FROM episodic_memory_facts
            WHERE ${recallWhereClause}
              AND importance = 'critical'
-             AND ${MILESTONE_EXCLUDE_STATE_LIKE_CATEGORY_SQL}
            ORDER BY ${MILESTONE_HISTORICAL_FETCH_ORDER_SQL}
            LIMIT ?`
       )
@@ -1809,7 +1808,6 @@ function fetchEpisodicMemoryCandidateRows(
            FROM episodic_memory_facts
            WHERE ${recallWhereClause}
              AND importance = 'important'
-             AND ${MILESTONE_EXCLUDE_STATE_LIKE_CATEGORY_SQL}
            ORDER BY ${MILESTONE_HISTORICAL_FETCH_ORDER_SQL}
            LIMIT ?`
       )
