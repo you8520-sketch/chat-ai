@@ -3,7 +3,7 @@
 **Branch:** `cursor/opus-cache-cost-forensics-163d`
 **PR:** #962 (evidence-backed minimal BUGFIX)
 **Date:** 2026-09-19
-**Method:** #962 head wire + post-fix live T1/T2/T3 (3 physical CI calls, 2026-09-19) + offline regression (HC-01..12).
+**Method:** #962 head wire + post-fix live T1/T2/T3 (3 customer HTTP requests, 2026-09-19) + offline regression (HC-01..12). Request-layer counts are tracked separately from CI `provider_attempt_count` (see Attempt Topology).
 
 **PR head:** `ad04557a` (passthrough patch) · **integration base:** `ad088282` (main / Railway production, PR #963 merged)
 
@@ -13,9 +13,9 @@
 |-------|-----|
 | `HISTORY_MARKER_REMOVAL_LIVE_RUNTIME` | `9d8680cbadb85a6a5205655b07af1c6cd66ef27a` |
 | `PASSTHROUGH_LIVE_RUNTIME` | `5291c893e2af0d50b5171e98b4177d4cd1e05fec` |
-| `CURRENT_REPORT_HEAD` | `702aee96bd9a019d012d294657551e4200596d9c` (doc-only updates follow on branch) |
+| `CURRENT_REPORT_HEAD` | `3951d4a18747d4ad7c76e465c842466480dc4308` (doc-only updates follow on branch) |
 
-**Forensic SHAs preserved:** `ba9d3528`, `9d8680cb`, `31ffdaaf`, `3d4e6fe5`, `ad04557a`, `5291c893`, `702aee96`
+**Forensic SHAs preserved:** `ba9d3528`, `9d8680cb`, `31ffdaaf`, `3d4e6fe5`, `ad04557a`, `5291c893`, `702aee96`, `3951d4a1`
 
 ---
 
@@ -44,14 +44,25 @@
 | `CURRENT_OPUS_BILLING_CONTRACT` | **UNVERIFIED_PRODUCTION_ENV_VALUE_REDACTED** |
 | `OPUS_PUBLIC_EXPOSURE_GUARD` | **REMOVED_WITHOUT_CACHE_ROOT_CAUSE_PROOF** |
 | `MERGE #962` | **NO** (wire fix alone does not restore end-to-end economics) |
+| `APP_EXPLICIT_CACHE_TTL` | **5_MIN_DEFAULT** (`ANTHROPIC_EPHEMERAL_CACHE = { type: "ephemeral" }`; no `ttl:"1h"`) |
+| `PRIOR_53_MIN_APP_EXPLICIT_CACHE_REUSE` | **CONTRADICTED_BY_APP_TTL** (does not rule out CI/provider implicit TTL) |
+| `CLIENT_HTTP_REQUEST_COUNT_PASSTHROUGH` | **2** |
+| `APP_RETRY_FALLBACK_COUNT` | **0** |
+| `CI_PROVIDER_ATTEMPT_COUNT_PASSTHROUGH` | **5** (T1=4, T2=1) |
+| `INTERNAL_PROVIDER_ATTEMPTS_PRESENT` | **CONFIRMED** (passthrough T1 only) |
 | `PASSTHROUGH_T1_ALL_STANDARD` | **OBSERVED** |
-| `PASSTHROUGH_T1_CACHE_CREATION` | **NONE_REPORTED** |
+| `PASSTHROUGH_T1_SUCCESSFUL_USAGE_CACHE_CREATION` | **NONE_REPORTED** |
+| `PASSTHROUGH_T1_INTERNAL_ATTEMPT_CACHE_SIDE_EFFECT` | **UNCONFIRMED** |
+| `PASSTHROUGH_T1_CACHE_LINEAGE` | **CONFOUNDED_BY_INTERNAL_PROVIDER_ATTEMPTS** |
 | `PASSTHROUGH_T2_WARM_SUFFIX_IMPROVEMENT` | **NOT_OBSERVED** |
 | `PASSTHROUGH_T2_CACHE_LINEAGE` | **UNPROVEN** |
+| `T1_INTERNAL_ATTEMPT_SEED` | **SUPPORTED_POSSIBILITY** (unconfirmed) |
+| `PASSTHROUGH_EXPERIMENT_VALIDITY` | **CONFOUNDED_BY_T1_PROVIDER_ATTEMPTS** |
 | `PASSTHROUGH_PROVIDER_BEHAVIOR` | **INCONCLUSIVE_CACHE_LINEAGE** |
 | `PASSTHROUGH_RUNTIME_PATCH` | **NOT_MERGE_READY** |
 | `PRIOR_CACHE_WITHIN_TTL` (5-min default) | **NO** |
 | `PASSTHROUGH_T2_PRIOR_CACHE_CONTAMINATION` | **UNCONFIRMED** |
+| `INTERNAL_ATTEMPT_CACHE_SIDE_EFFECT` | **UNCONFIRMED** |
 | `LOCAL_FORENSICS_PROVIDER_ROUTE_LIMIT` | **CONFIRMED** |
 | `UPSTREAM_IMPLICIT_CACHE_CAUSALITY` | **SUPPORTED** (warm suffix shape; not end-to-end root cause) |
 
@@ -464,13 +475,23 @@ CI Opus 5 catalog: input $3.5/M · read $0.35/M · write $4.375/M · output $17.
 - Draft PR #962 — **do not merge**
 - App wire root cause **fixed**; end-to-end cost root cause **ROOT_CAUSE_UNCONFIRMED**
 - Post-fix live: wire fix verified; **POST_FIX_HEALTHY not achieved** (write bucket unchanged)
-- Passthrough live: T1 all-standard / zero cache reported; T2 warm suffix unchanged; **lineage UNPROVEN**
-- Passthrough runtime patch **`NOT_MERGE_READY`** — preserve live-tested `5291c893` until lineage/support resolved
+- Passthrough live: customer requests=2, CI provider attempts=5; T1 all-standard / zero cache reported / **4 internal attempts**; T2 warm suffix unchanged; **lineage UNPROVEN / CONFOUNDED**
+- Passthrough runtime patch **`NOT_MERGE_READY`** — desired static-only caching not proven; T1 confounded; preserve live-tested `5291c893` until support/lineage resolved
 - No cleanup merge-candidate pass
-- **This investigation:** provider calls = **0** (read-only CI usage API + offline prefix reconstruction)
+- **This investigation:** **0 new customer HTTP requests** (read-only CI usage API + offline reconstruction)
 - **Main integration (2026-09-19):** merged `ad088282` (PR #963 billing/procurement); zero file overlap; `behind=0`
 
-### Passthrough live discriminator (2026-09-19, 2 calls, runtime `5291c893`)
+### Passthrough live discriminator (2026-09-19, runtime `5291c893`)
+
+**Layered request counts (do not conflate):**
+
+| Layer | Passthrough experiment |
+|-------|------------------------|
+| `CLIENT_HTTP_REQUEST_COUNT` | **2** (T1 + T2) |
+| `APP_RETRY_FALLBACK_COUNT` | **0** (harness verified) |
+| `CI_PROVIDER_ATTEMPT_COUNT` | **5** (T1=**4**, T2=1) |
+
+Do **not** describe this only as “physical provider calls = 2”. Use: **customer-facing requests = 2**; **CI-reported provider attempts = 5**. Cache side effects across internal attempts are **UNCONFIRMED**.
 
 | | T1 (cold) | T2 (warm) |
 |--|-----------|-----------|
@@ -485,18 +506,20 @@ CI Opus 5 catalog: input $3.5/M · read $0.35/M · write $4.375/M · output $17.
 | `provider_attempt_count` | **4** | 1 |
 | `cache_reporting_state` | zero | hit |
 | wire cache_control blocks | 2 (systemRules + characterSettings) | 2 |
-| **Total** | | **$0.263282** |
+| **Total billed** | | **$0.263282** |
 
 Baseline (no passthrough, post-fix): T2 write=22,675 / standard=673 / read=17,357 / $0.10508.
 
-**Do not classify as `NO_EFFECT`.** T1 materially changed vs baseline (write 44,441→0; entire prompt standard). T2 warm suffix buckets match baseline within noise, but **T2 `cache_read=17,357` cannot be attributed to T1** because T1 reported `cache_creation=0`.
+**Do not classify as `NO_EFFECT`.** T1 materially changed vs baseline (write 44,441→0; entire prompt standard). T2 warm suffix buckets match baseline within noise. T2 `cache_read=17,357` lineage **UNPROVEN** — final T1 settled usage reports `cache_creation=0`, but T1 had **4 internal provider attempts** (`PASSTHROUGH_T1_CACHE_LINEAGE = CONFOUNDED_BY_INTERNAL_PROVIDER_ATTEMPTS`).
 
 | Classification | Value |
 |----------------|-------|
 | `PASSTHROUGH_T1_ALL_STANDARD` | **OBSERVED** |
-| `PASSTHROUGH_T1_CACHE_CREATION` | **NONE_REPORTED** |
+| `PASSTHROUGH_T1_SUCCESSFUL_USAGE_CACHE_CREATION` | **NONE_REPORTED** |
+| `PASSTHROUGH_T1_INTERNAL_ATTEMPT_CACHE_SIDE_EFFECT` | **UNCONFIRMED** |
 | `PASSTHROUGH_T2_WARM_SUFFIX_IMPROVEMENT` | **NOT_OBSERVED** |
 | `PASSTHROUGH_T2_CACHE_LINEAGE` | **UNPROVEN** |
+| `PASSTHROUGH_EXPERIMENT_VALIDITY` | **CONFOUNDED_BY_T1_PROVIDER_ATTEMPTS** |
 | `PASSTHROUGH_PROVIDER_BEHAVIOR` | **INCONCLUSIVE_CACHE_LINEAGE** |
 | `CI_GATEWAY_EXTRA_BREAKPOINT_CAUSALITY` | **UNCONFIRMED** |
 | `UPSTREAM_IMPLICIT_CACHE_CAUSALITY` | **SUPPORTED** (T2 warm shape ≡ post-fix baseline; suffix write persists) |
@@ -504,7 +527,7 @@ Baseline (no passthrough, post-fix): T2 write=22,675 / standard=673 / read=17,35
 | `CURRENT_OPUS_CACHE_HEALTH` | **PARTIAL_CACHE_ONLY** |
 | `PASSTHROUGH_RUNTIME_PATCH` | **NOT_MERGE_READY** |
 
-Artifacts: `/opt/cursor/artifacts/opus-passthrough-live-verify-report.json`, `/opt/cursor/artifacts/opus-full-timeline-usage-api.json`, `/opt/cursor/artifacts/opus-prefix-lineage-matrix.json`
+Artifacts: `/opt/cursor/artifacts/opus-passthrough-live-verify-report.json`, `/opt/cursor/artifacts/opus-full-timeline-usage-api.json`, `/opt/cursor/artifacts/opus-prefix-lineage-matrix.json`, `/opt/cursor/artifacts/opus-attempt-topology.json`
 
 ---
 
@@ -518,7 +541,7 @@ Re-analysis of existing live artifacts + read-only CI `GET /v1/usage/requests`. 
 |-------|----------|--------|
 | Repo | `you8520-sketch/chat-ai` | ✓ |
 | PR #962 | OPEN, DRAFT, not merged | ✓ OPEN DRAFT MERGEABLE |
-| Report head | `702aee96…` | ✓ (this doc update follows) |
+| Report head | `3951d4a1…` | ✓ (this doc update follows) |
 | Passthrough live runtime | `5291c893…` | ✓ |
 | Main / Railway | `ad088282…` | ✓ |
 | Branch vs main | ahead 9, behind 0 | ✓ |
@@ -540,7 +563,51 @@ Source: CI usage API (`limit=100`) cross-checked with harness artifacts. Only th
 
 Inter-turn gaps: pre/post sequences ≈50 s; passthrough T1→T2 = **88 s**.
 
-### TTL OVERLAP AUDIT (Anthropic default ephemeral = 5 minutes)
+### COMPLETE ATTEMPT TOPOLOGY (CI usage API, all 8 requests)
+
+Source: `/opt/cursor/artifacts/opus-attempt-topology.json`. CI docs describe `routing_overhead_ms` as including routing and prior attempts before successful provider dispatch — multiple internal attempts are **strongly indicated** but per-attempt cache side effects are **UNCONFIRMED**.
+
+| Experiment | Turn | Request ID | `created_at` | Runtime | attempts | routing_oh_ms | ttf_headers_ms | model_ttf_headers_ms | total_lat_ms | cache_state | prompt | std | read | write | USD |
+|------------|------|------------|--------------|---------|----------|---------------|----------------|----------------------|--------------|-------------|--------|-----|------|-------|-----|
+| pre-fix | T1 | `a38bd8ab…` | 05:29:01Z | `6ab52974` | 1 | 1280 | 3892 | 2612 | 3947 | zero | 45110 | 669 | 0 | 44441 | 0.191496 |
+| pre-fix | T2 | `a5f5e7c2…` | 05:29:51Z | `6ab52974` | 1 | 1792 | 4163 | 2371 | 4210 | hit | 40695 | 669 | 17357 | 22669 | 0.105040 |
+| pre-fix | T3 | `0ae750bf…` | 05:30:41Z | `6ab52974` | 1 | 4649 | 7595 | 2946 | 7655 | hit | 36280 | 669 | 17357 | 18254 | 0.086276 |
+| history-marker-removal | T1 | `5be5af0b…` | 06:13:33Z | `9d8680cb` | 1 | 2240 | 4396 | 2156 | 4453 | zero | 45114 | 673 | 0 | 44441 | 0.191510 |
+| history-marker-removal | T2 | `98989b8b…` | 06:14:28Z | `9d8680cb` | 1 | 669 | 6083 | 5414 | 6153 | hit | 40705 | 673 | 17357 | 22675 | 0.105080 |
+| history-marker-removal | T3 | `cfe23a66…` | 06:15:24Z | `9d8680cb` | 1 | 679 | 4667 | 3988 | 4731 | hit | 36296 | 673 | 17357 | 18266 | 0.086341 |
+| passthrough | T1 | `0d8ba895…` | 07:06:53Z | `5291c893` | **4** | **35139** | 36648 | 1509 | 36971 | zero | 45117 | 45117 | 0 | **0** | 0.158190 |
+| passthrough | T2 | `83a65180…` | 07:08:21Z | `5291c893` | 1 | 2932 | 8458 | 5526 | 8529 | hit | 40708 | 674 | 17357 | 22677 | 0.105092 |
+
+**Was passthrough T1 `attempt_count=4` unique?** **YES** — all other T1 cold turns (pre-fix, history-marker-removal) report `provider_attempt_count=1`.
+
+**Correlation (observational only — not causal proof):**
+
+| T1 experiment | attempts | cache_write | routing_overhead_ms | total_latency_ms |
+|---------------|----------|-------------|---------------------|------------------|
+| pre-fix | 1 | 44441 | 1280 | 3947 |
+| history-marker-removal | 1 | 44441 | 2240 | 4453 |
+| passthrough | **4** | **0** | **35139** | **36971** |
+
+High attempt count on passthrough T1 co-occurs with zero cache reporting and ~15–27× higher routing overhead vs other T1s. Do **not** infer which providers failed, whether attempts reached Anthropic, or whether superseded attempts wrote cache.
+
+### APP EXPLICIT CACHE TTL
+
+App code (`src/lib/openRouterCache.ts`):
+
+```typescript
+export const ANTHROPIC_EPHEMERAL_CACHE = { type: "ephemeral" as const };
+```
+
+No `ttl: "1h"` is emitted on app cache blocks. Anthropic contract: `ephemeral` without explicit `ttl` defaults to **5 minutes**.
+
+| Label | Classification |
+|-------|----------------|
+| `APP_EXPLICIT_CACHE_TTL` | **5_MIN_DEFAULT** |
+| `PRIOR_53_MIN_APP_EXPLICIT_CACHE_REUSE` | **CONTRADICTED_BY_APP_TTL** |
+
+This does **not** rule out CI implicit cache, provider automatic cache, or gateway-controlled TTL with different lifetime.
+
+### TTL OVERLAP AUDIT (app explicit cache = 5 minutes)
 
 For each prior cache-producing request vs passthrough T2 (`07:08:21Z`):
 
@@ -556,7 +623,7 @@ For each prior cache-producing request vs passthrough T2 (`07:08:21Z`):
 
 `PRIOR_CACHE_WITHIN_TTL` (5-min default) = **NO** for any prior request with reported cache creation.
 
-`PASSTHROUGH_T2_PRIOR_CACHE_CONTAMINATION` (5-min TTL, prefix equality required) = **UNCONFIRMED** — P1/P2/P3 match post-fix T1 cache producer, but that entry is **3177–3289 s stale** (>5 min). Cannot prove reuse without knowing actual TTL (1h TTL would not be ruled out; TTL duration **UNVERIFIED**).
+`PASSTHROUGH_T2_PRIOR_CACHE_CONTAMINATION` (app explicit 5-min TTL) = **UNCONFIRMED** — P1/P2/P3 match post-fix T1 cache producer, but that entry is **3177–3289 s stale** (>5 min app TTL). **`PRIOR_53_MIN_APP_EXPLICIT_CACHE_REUSE` = CONTRADICTED_BY_APP_TTL**. Does not rule out CI/provider implicit cache with different lifetime.
 
 ### PREFIX LINEAGE MATRIX (offline fixture reconstruction)
 
@@ -592,7 +659,18 @@ Observed usage: prompt 45,117 = standard 45,117; read 0; write 0; billed $0.1581
 | B. Upstream did not create cache despite markers | **SUPPORTED** | Consistent with zero write/read |
 | C. Implicit-cache path with different reporting semantics | **UNCONFIRMED** | No route/provider fields available |
 | D. Passthrough changed effective cache translation vs baseline | **SUPPORTED** | Baseline T1 write=44,441; passthrough T1 write=0 |
-| E. Usage under-reports cache creation consumed by T2 | **UNCONFIRMED** | T1 `provider_attempt_count=4` (only passthrough T1); possible hidden attempts — not provable from artifacts |
+| E. Final settled usage under-reports cache from prior internal attempts | **UNCONFIRMED** | T1 `provider_attempt_count=4`; do not assume cache token fields aggregate all four attempts |
+
+### PASSTHROUGH T1 INTERNAL ATTEMPT ANALYSIS
+
+| Label | Classification |
+|-------|----------------|
+| `INTERNAL_PROVIDER_ATTEMPTS_PRESENT` | **CONFIRMED** (T1 attempts=4; unique among all T1s) |
+| `PASSTHROUGH_T1_SUCCESSFUL_USAGE_CACHE_CREATION` | **NONE_REPORTED** (read=0, write=0, standard=45117) |
+| `PASSTHROUGH_T1_INTERNAL_ATTEMPT_CACHE_SIDE_EFFECT` | **UNCONFIRMED** |
+| `PASSTHROUGH_T1_CACHE_LINEAGE` | **CONFOUNDED_BY_INTERNAL_PROVIDER_ATTEMPTS** |
+
+Do **not** assume `cache_read_input_tokens` / `cache_write_input_tokens` on the settled row reflect all four internal attempts.
 
 ### PASSTHROUGH T2 CACHE SOURCE ANALYSIS
 
@@ -600,13 +678,18 @@ Question: where could `read=17,357` come from?
 
 | # | Source | Support | Reason |
 |---|--------|---------|--------|
-| 1 | T1-created cache | **CONTRADICTED** (reported) / **UNCONFIRMED** (hidden) | T1 usage reports write=0; 4 provider attempts leave retry cache creation plausible but unproven |
-| 2 | Pre-existing cache from earlier forensic run | **CONTRADICTED** @ 5-min TTL | Nearest producer post-fix T1 @ 3289 s; P1+P2 match but TTL expired at default 5 min |
-| 3 | Upstream implicit / automatic cache on T2 | **SUPPORTED** | T2 write≈22,677 + standard≈674 mirrors post-fix warm T2 exactly; suffix still cache-write-priced |
-| 4 | CI hidden/gateway cache | **UNCONFIRMED** | `route`/`serving_provider` always null in usage API |
-| 5 | Usage reporting artifact | **UNCONFIRMED** | Raw live response ≡ usage API for all 8 requests |
+| A | Cache from final successful T1 attempt | **WEAK / UNSUPPORTED** | Final settled T1 usage: write=0 |
+| B | Cache side effect from one of T1's prior internal attempts | **SUPPORTED_POSSIBILITY** / **UNCONFIRMED** | T1 attempts=4; cache fields may reflect final attempt only |
+| C | 53-minute-old app explicit cache (post-fix T1) | **CONTRADICTED_BY_APP_TTL** | App emits 5-min default ephemeral; Δ=3289 s |
+| D | CI/provider implicit automatic cache on T2 | **SUPPORTED** | T2 warm shape ≡ post-fix baseline |
+| E | Longer-lived gateway/provider implicit cache | **UNCONFIRMED** | No TTL observability for non-app layers |
+| F | Usage reporting artifact | **UNCONFIRMED** | Raw live response ≡ usage API |
 
-**Best-supported explanation (still not root-cause confirmed):** T2 warm suffix behavior matches post-fix baseline (implicit/gateway suffix cache-write path). T2 `cache_read=17,357` **lineage is UNPROVEN** — not attributable to T1 reported usage, and not attributable to prior forensic cache under 5-min TTL.
+**Recommended classifications:**
+
+- `PASSTHROUGH_T2_CACHE_LINEAGE` = **UNPROVEN**
+- `T1_INTERNAL_ATTEMPT_SEED` = **SUPPORTED_POSSIBILITY** (unconfirmed)
+- `UPSTREAM_OR_GATEWAY_IMPLICIT_CACHE` = **SUPPORTED**
 
 ### PROVIDER OBSERVABILITY LIMIT
 
@@ -620,38 +703,54 @@ CI `GET /v1/usage/requests` **does expose:** `request_id`, `created_at`, `model`
 
 **Model:** `claude-opus-5` · **Endpoint:** `POST /v1/chat/completions` · **Query:** `?x-ci-prompt-cache=passthrough`
 
-**Caller cache controls:** 2 explicit blocks (systemRules + characterSettings); 0 history breakpoint.
+**Caller cache controls:** 2 explicit blocks (systemRules + characterSettings); 0 history breakpoint. No API secrets or prompt bodies included.
 
 | | T1 | T2 |
 |--|----|----|
 | Request ID | `0d8ba895-22b4-4ddd-920f-2d5d10abbf26` | `83a65180-e5df-48e4-bdb5-f70ab4973b71` |
 | Time | 2026-09-19T07:06:53Z | 2026-09-19T07:08:21Z (+88 s) |
+| Customer HTTP requests | 1 | 1 |
+| `provider_attempt_count` | **4** | 1 |
 | prompt / standard / read / write | 45117 / 45117 / 0 / 0 | 40708 / 674 / 17357 / 22677 |
 | billed USD | $0.158190 | $0.105092 |
-| provider_attempt_count | 4 | 1 |
 
-**Questions for CheaperInference:**
+**Priority questions for CheaperInference (attempt semantics — ask first):**
 
-1. Was `?x-ci-prompt-cache=passthrough` effective for both request IDs?
-2. What effective API-key `prompt_cache_mode` was applied?
-3. Were caller-supplied `cache_control` blocks forwarded/translated to the upstream Anthropic request?
-4. Why did T1 report zero cache creation despite two caller cache controls (entire prompt standard)?
-5. How did T2 obtain `cache_read=17,357` when T1 reported `cache_creation=0`?
-6. Did T2 reuse a cache entry from an earlier request with the same P1+P2 prefix (post-fix T1 @ 3289 s earlier)?
-7. Was any provider/implicit automatic cache breakpoint applied on T2?
-8. On `/v1/chat/completions`, is there a supported way to cache only caller explicit static breakpoints while leaving growing conversation uncached?
-9. If not, is `/v1/messages` the recommended endpoint for explicit Anthropic cache-control ownership?
-10. Does passthrough override API-key `prompt_cache_mode` request-by-request?
+1. For request `0d8ba895-22b4-4ddd-920f-2d5d10abbf26` (`provider_attempt_count=4`): does this mean four upstream provider dispatch attempts occurred inside this single customer request?
+2. Are `cache_read_input_tokens` and `cache_write_input_tokens` reported only for the successful/final attempt, or aggregated across all provider attempts?
+3. Can a failed or superseded prior provider attempt create Anthropic/provider prompt-cache state that a later request can reuse?
+4. If such a prior attempt creates cache state, is that cache creation included in the final settled request's `cache_write_input_tokens`?
+
+**Existing policy / behavior questions:**
+
+5. Was `?x-ci-prompt-cache=passthrough` effective for both request IDs?
+6. What effective API-key `prompt_cache_mode` was applied?
+7. Were the two caller `cache_control` blocks forwarded upstream?
+8. Why did T1 report read=0 / write=0 despite two explicit caller breakpoints (entire prompt standard)?
+9. Why did T2, 88 seconds later, report read=17,357 / write=22,677?
+10. Was automatic/implicit prompt caching active?
+11. Can `/v1/chat/completions` support caller-owned static explicit caching + uncached growing conversation?
+12. If not, should Claude Opus use `/v1/messages` for precise cache-control ownership?
+13. Does request-level passthrough override an API-key `prompt_cache_mode` setting?
 
 ### FUTURE CLEAN-ROOM EXPERIMENT (design only — not executed)
 
-Requirements: never-before-used static prefix fingerprint; identical P1/P2/P3 in T1+T2; no shared prior prefix; `max_tokens=16`; retry/fallback/continuation/recovery=0; T1 → 50 s → T2.
+**Gate:** Do not execute until CheaperInference support response is reviewed.
+
+Requirements: never-before-used static prefix fingerprint; identical P1/P2/P3 in T1+T2; no shared prior prefix; `max_tokens=16`; app retry/fallback/continuation/recovery=0; T1 → inspect usage API → 50 s → T2.
+
+**NEW HARD GATE after T1:** inspect `provider_attempt_count` on T1 usage row.
+
+- If `provider_attempt_count != 1` → **`STOP_INTERNAL_PROVIDER_ATTEMPT_CONFOUND`** — do **not** execute T2.
+- Prevents another ambiguous T1→T2 cache lineage.
+
+If T1 `provider_attempt_count=1`:
 
 | Outcome | Interpretation |
 |---------|----------------|
 | CASE A: T1 static write only; T2 static read; history standard | `EXPLICIT_STATIC_CACHE_WORKS` |
-| CASE B: T1 all standard; T2 all standard | `PASSTHROUGH_DOES_NOT_ENABLE_CALLER_EXPLICIT_CACHE_ON_THIS_PATH` |
-| CASE C: T1 all standard; T2 read + growing write | `UPSTREAM_OR_GATEWAY_IMPLICIT_AUTOMATIC_CACHE_STRONGLY_SUPPORTED` |
+| CASE B: T1 all standard; T2 all standard | `PASSTHROUGH_CALLER_CACHE_CONTROL_NOT_EFFECTIVE` |
+| CASE C: T1 all standard; T2 read + growing write | `IMPLICIT_AUTOMATIC_CACHE_STRONGLY_SUPPORTED` |
 
 ### NATIVE `/v1/messages` OPTION (research only)
 
