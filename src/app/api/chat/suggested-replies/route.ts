@@ -5,16 +5,13 @@ import {
   asyncRecordMatchesGenerationScope,
   resolveActiveAssistantGenerationScope,
 } from "@/lib/assistantGenerationScope";
-import {
-  loadMessageSuggestedReplies,
-  requeueSuggestedRepliesExtractionIfNeeded,
-} from "@/lib/suggestedReplies/job";
+import { loadMessageSuggestedReplies } from "@/lib/suggestedReplies/job";
 import {
   normalizeSuggestedReplies,
-  shouldEnsureSuggestedRepliesExtraction,
   suggestedRepliesHaveContent,
 } from "@/lib/suggestedReplies/parse";
 
+/** Pure read/poll — never starts provider inference. */
 export async function GET(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
@@ -41,16 +38,9 @@ export async function GET(req: Request) {
   }
 
   const activeScope = resolveActiveAssistantGenerationScope(messageId);
-  let rawRecord = loadMessageSuggestedReplies(messageId);
-  let record =
+  const rawRecord = loadMessageSuggestedReplies(messageId);
+  const record =
     activeScope && asyncRecordMatchesGenerationScope(rawRecord, activeScope) ? rawRecord : null;
-
-  if (shouldEnsureSuggestedRepliesExtraction(record)) {
-    requeueSuggestedRepliesExtractionIfNeeded(messageId);
-    rawRecord = loadMessageSuggestedReplies(messageId);
-    record =
-      activeScope && asyncRecordMatchesGenerationScope(rawRecord, activeScope) ? rawRecord : null;
-  }
 
   const replies = normalizeSuggestedReplies(record);
   const hasContent = suggestedRepliesHaveContent(replies);

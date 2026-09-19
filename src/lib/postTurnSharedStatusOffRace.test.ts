@@ -108,7 +108,7 @@ describe("status-OFF deferred shared owner — suggested replies GET race", () =
     assert.equal(loadMessageSuggestedReplies(MSG_ID)?.noRetry, true);
   });
 
-  it("route reserves pending when deferPostTurnShared && suggestedRepliesEnabled", () => {
+  it("route reserves pending when deferPostTurnShared && generation eligible", () => {
     const route = readFileSync(join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
     assert.match(
       route,

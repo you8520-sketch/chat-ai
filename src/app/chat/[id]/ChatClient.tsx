@@ -3925,7 +3925,6 @@ export default function ChatClient({
           userNote,
           selectedPersonaId,
           targetResponseChars,
-          suggestedRepliesEnabled: displayPrefsRef.current.showSuggestedReplies,
         }),
       });
 
@@ -4065,7 +4064,6 @@ export default function ChatClient({
           userNote,
           selectedPersonaId,
           targetResponseChars,
-          suggestedRepliesEnabled: displayPrefsRef.current.showSuggestedReplies,
         }),
       });
 
@@ -4246,8 +4244,8 @@ export default function ChatClient({
         statusWidgetValues: null,
         statusWidgetTurnActive: statusWidgetActive,
         suggestedReplies: [],
-        suggestedRepliesPending: displayPrefsRef.current.showSuggestedReplies,
-        suggestedRepliesRequested: displayPrefsRef.current.showSuggestedReplies,
+        suggestedRepliesPending: true,
+        suggestedRepliesRequested: true,
         suggestedRepliesFailed: false,
       };
       const userIdx = regenIndex - 1;
@@ -4311,7 +4309,6 @@ export default function ChatClient({
           userNote,
           selectedPersonaId,
           targetResponseChars,
-          suggestedRepliesEnabled: displayPrefsRef.current.showSuggestedReplies,
         }),
       });
 
@@ -4864,30 +4861,9 @@ export default function ChatClient({
   }, [handleDisplayPrefsChange]);
 
   const handleSuggestedRepliesToggle = useCallback(() => {
-    const nextOn = !displayPrefsRef.current.showSuggestedReplies;
     handleDisplayPrefsChange({
       ...displayPrefsRef.current,
-      showSuggestedReplies: nextOn,
-    });
-    if (!nextOn) return;
-    setMessages((prev) => {
-      for (let i = prev.length - 1; i >= 0; i--) {
-        const m = prev[i]!;
-        if (m.role !== "assistant" || m.id == null) continue;
-        if (suggestedRepliesHaveContent(m.suggestedReplies)) return prev;
-        suggestedRepliesPollStartedRef.current.delete(m.id);
-        return prev.map((row) =>
-          row.id === m.id
-            ? {
-                ...row,
-                suggestedRepliesPending: true,
-                suggestedRepliesRequested: true,
-                suggestedRepliesFailed: false,
-              }
-            : row
-        );
-      }
-      return prev;
+      showSuggestedReplies: !displayPrefsRef.current.showSuggestedReplies,
     });
   }, [handleDisplayPrefsChange]);
 

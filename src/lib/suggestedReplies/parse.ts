@@ -6,6 +6,7 @@ import {
   SUGGESTED_REPLY_MIN_CHARS,
   type SuggestedRepliesClientFields,
   type SuggestedRepliesRecord,
+  type SuggestedRepliesRecordSource,
   type SuggestedReplyItem,
   type SuggestedReplyKind,
 } from "./types";
@@ -40,11 +41,7 @@ function dedupeKey(text: string): string {
 }
 
 function isSuggestedReplyKind(value: unknown): value is SuggestedReplyKind {
-  return (
-    value === "escalate" ||
-    value === "soften" ||
-    value === "pivot"
-  );
+  return value === "natural" || value === "twist" || value === "banter";
 }
 
 function parseRawItem(raw: unknown): { kind: SuggestedReplyKind | null; text: unknown } | null {
@@ -154,10 +151,14 @@ export function parseSuggestedRepliesRecord(
     };
     if (!parsed || typeof parsed !== "object") return null;
     const replies = coerceStoredReplies(parsed.items ?? parsed.replies);
+    const source: SuggestedRepliesRecordSource =
+      parsed.source === "standalone-extract"
+        ? "standalone-extract"
+        : "post-turn-shared";
     return {
       replies,
       extractedAt: typeof parsed.extractedAt === "string" ? parsed.extractedAt : "",
-      source: "background-deepseek",
+      source,
       pending: parsed.pending === true,
       failed: parsed.failed === true,
       ...(parsed.noRetry === true ? { noRetry: true } : {}),
@@ -203,7 +204,7 @@ export function resolveClientSuggestedReplies(
   return {
     suggestedReplies: has ? normalized : [],
     suggestedRepliesPending: pending,
-    suggestedRepliesRequested: true,
+    suggestedRepliesRequested: record.terminalReason !== "original_turn_ineligible",
     suggestedRepliesFailed: failed,
   };
 }
@@ -233,12 +234,15 @@ export function clientShouldShowSuggestedRepliesBar(
 const STALE_PENDING_MS = 90_000;
 const STALE_FAILED_MS = 15_000;
 
-/** Missing JSON, stale pending, or stale failed — start/retry Flash extraction. */
+/** @deprecated GET is read-only; retained for tests documenting legacy requeue eligibility. */
 export function shouldEnsureSuggestedRepliesExtraction(
   record: SuggestedRepliesRecord | null,
   nowMs = Date.now()
 ): boolean {
   if (!record) return true;
+  if (record.noRetry === true || record.terminalReason === "original_turn_ineligible") {
+    return false;
+  }
   if (suggestedRepliesHaveContent(record.replies)) return false;
   if (record.pending === true) {
     if (!record.extractedAt) return false;

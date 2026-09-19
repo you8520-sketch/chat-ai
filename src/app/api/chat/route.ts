@@ -4938,8 +4938,7 @@ export async function POST(req: Request) {
           chatId: chatRef.id,
           sourceUserMessageId: userMessageId,
         });
-        const suggestedRepliesEligibleForCoalesce =
-          body.suggestedRepliesEnabled !== false &&
+        const suggestedRepliesGenerationEligible =
           !htmlFlashOnlyTurn &&
           !oocSceneRenderTurn &&
           Boolean(savedText.trim());
@@ -4969,7 +4968,7 @@ export async function POST(req: Request) {
             userId: user.id,
             characterId: ch.id,
             coalesceSuggestedReplies:
-              suggestedRepliesEligibleForCoalesce &&
+              suggestedRepliesGenerationEligible &&
               isStatusWidgetContextSafeForSuggestedRepliesCoalesce(statusWidgetTurn),
             // Whole-turn owner: also carry the durable relationship delta in the
             // same Luna inference when memory is enabled.
@@ -5026,7 +5025,7 @@ export async function POST(req: Request) {
               };
             }
           }
-        } else if (isMemoryFeatureEnabled() || suggestedRepliesEligibleForCoalesce) {
+        } else if (isMemoryFeatureEnabled() || suggestedRepliesGenerationEligible) {
           // Status widget OFF: do NOT await a provider call before SSE done.
           // The canonical shared owner runs post-final (background) for the
           // remaining active consumers.
@@ -5936,13 +5935,8 @@ export async function POST(req: Request) {
           }
         }
 
-        const suggestedRepliesEnabled =
-          body.suggestedRepliesEnabled !== false &&
-          !htmlFlashOnlyTurn &&
-          !oocSceneRenderTurn &&
-          Boolean(savedText.trim());
-        const scheduleRepliesIfEnabled = () => {
-          if (!suggestedRepliesEnabled) return;
+        const scheduleRepliesIfEligible = () => {
+          if (!suggestedRepliesGenerationEligible) return;
           const prefetchedReplies = resolvePrefetchedSuggestedReplies({
             prefetched: widgetPrefetchedSuggestedReplies,
             prefetchAssistantProseHash: widgetPrefetchedSuggestedRepliesAssistantProseHash,
@@ -5963,16 +5957,16 @@ export async function POST(req: Request) {
             sharedInitialAttemptConsumed: widgetPostTurnPhysicalAttempted,
           });
         };
-        if (!suggestedRepliesEnabled) {
+        if (!suggestedRepliesGenerationEligible) {
           markMessageSuggestedRepliesIneligible(aiMessageId, postTurnGenerationScope);
         } else if (deferPostTurnShared) {
           // Status OFF: SSE done precedes the deferred shared owner. Reserve a
           // generation-scoped pending row before the client can poll GET
-          // /suggested-replies and requeue a standalone Luna extract.
+          // /suggested-replies while the background shared job runs.
           markMessageSuggestedRepliesPending(aiMessageId, postTurnGenerationScope);
         }
         // status OFF defers to the post-final background shared call.
-        if (statusWidgetActive) scheduleRepliesIfEnabled();
+        if (statusWidgetActive) scheduleRepliesIfEligible();
 
         if (rpDiagnosticCanary && rpDiagnosticEnablesPipelineCapture(rpDiagnosticCanary.variant)) {
           const providerRawMerged = rawStreamTextRef || fullText;
@@ -6057,7 +6051,7 @@ export async function POST(req: Request) {
             : {}),
           memoryUpdated: true,
           statusMetaPending: statusMetaEnabled,
-          suggestedRepliesPending: suggestedRepliesEnabled,
+          suggestedRepliesPending: suggestedRepliesGenerationEligible,
           statusWidgetActive,
           statusWidgetTurnActive: statusWidgetActive,
           statusWidgetValues: statusWidgetValuesPayload
@@ -6157,7 +6151,7 @@ export async function POST(req: Request) {
                   userMessage: messageText,
                   assistantProse: savedText,
                   primaryModelId: BACKGROUND_OPENROUTER_MODEL,
-                  includeSuggestions: suggestedRepliesEnabled,
+                  includeSuggestions: suggestedRepliesGenerationEligible,
                   includeRelationship: isMemoryFeatureEnabled(),
                   includeEpisodic: shareEpisodicInSharedInitial,
                   userPersona: backgroundPersonaIdentity,
@@ -6178,7 +6172,7 @@ export async function POST(req: Request) {
                   widgetSharedRelationshipUsable = true;
                   widgetSharedRelationshipDelta = rel.delta;
                 }
-                if (suggestedRepliesEnabled && sharedConsumers.parsed?.suggestedRepliesOk) {
+                if (suggestedRepliesGenerationEligible && sharedConsumers.parsed?.suggestedRepliesOk) {
                   widgetPrefetchedSuggestedReplies = sharedConsumers.parsed.suggestedReplies;
                   widgetPrefetchedSuggestedRepliesAssistantProseHash =
                     hashAssistantProseForSuggestionPrefetch(savedText);
@@ -6187,7 +6181,7 @@ export async function POST(req: Request) {
                   widgetSharedEpisodic = sharedConsumers.parsed.episodic;
                 }
               }
-              scheduleRepliesIfEnabled();
+              scheduleRepliesIfEligible();
             }
 
             if (shouldCommitCanonicalTurnState(generationSemantics)) {

@@ -11,9 +11,9 @@ const EXTRACT_SYSTEM = `You write the USER's next roleplay turn as JSON only. No
 Return exactly:
 {
   "items": [
-    { "kind": "escalate", "text": "..." },
-    { "kind": "soften", "text": "..." },
-    { "kind": "pivot", "text": "..." }
+    { "kind": "natural", "text": "..." },
+    { "kind": "twist", "text": "..." },
+    { "kind": "banter", "text": "..." }
   ]
 }
 
@@ -23,10 +23,10 @@ Rules:
 - Each "text" MUST be 50–200 characters including spaces and punctuation.
 - Mix spoken dialogue AND stage direction in every text. Stage direction uses *...* or (...). Dialogue is the user's spoken lines without a name prefix.
 - Write as the USER persona. Match their personality, gender, and speech style (반말 vs 존댓말, quirks, rhythm). If speech examples are given, imitate them.
-- Kinds — three DIFFERENT scene directions, not three flavors of the same fight:
-  - escalate: confront, refuse, or raise tension.
-  - soften: soothe, concede a step, or close distance so the relationship can continue.
-  - pivot: change topic, place, or action so the scene can go somewhere else.
+- Kinds — three DIFFERENT intents/actions, not three phrasings of the same move:
+  - natural: the most natural next user turn for this scene, relationship, and persona voice.
+  - twist: plausible but non-obvious — witty angle, unexpected question, action shift, counter-offer, or negotiation.
+  - banter: playful, teasing, dry, or sarcastic while staying in persona voice and the current scene.
 - Do not write as the character/NPC. Do not continue the assistant's last line in the NPC's voice.
 - If there is no prior user message, the assistant text is the opening greeting. Write the USER's first roleplay turn into that scene.
 - No OOC, no meta commentary, no numbering, no titles inside "text".

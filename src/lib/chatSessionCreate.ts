@@ -11,7 +11,7 @@ import {
   resolveRpDiagnosticCanary,
   resolveRpDiagnosticGreeting,
 } from "@/lib/rpDiagnosticCanary";
-import { requeueSuggestedRepliesExtractionIfNeeded } from "@/lib/suggestedReplies/job";
+import { scheduleGreetingSuggestedRepliesExtraction } from "@/lib/suggestedReplies/job";
 
 export type CreateChatSessionInput = {
   userId: number;
@@ -83,7 +83,7 @@ export function createChatSession(input: CreateChatSessionInput): number {
       .run(chatId, "assistant", greetingForInsert, "greeting");
     const greetingMessageId = Number(greetingInfo.lastInsertRowid);
     if (Number.isFinite(greetingMessageId) && greetingMessageId > 0) {
-      requeueSuggestedRepliesExtractionIfNeeded(greetingMessageId);
+      scheduleGreetingSuggestedRepliesExtraction(greetingMessageId, chatId);
     }
   }
 

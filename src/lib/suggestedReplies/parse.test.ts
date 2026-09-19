@@ -19,13 +19,13 @@ function padReply(seed: string, length: number): string {
 }
 
 describe("suggested reply kinds", () => {
-  it("labels escalate, soften, and pivot with short Korean hints", () => {
-    assert.equal(suggestedReplyKindMeta("escalate").label, "갈등 고조");
-    assert.equal(suggestedReplyKindMeta("soften").label, "달래기");
-    assert.equal(suggestedReplyKindMeta("pivot").label, "국면 전환");
-    assert.match(suggestedReplyKindMeta("escalate").hint, /긴장/);
-    assert.match(suggestedReplyKindMeta("soften").hint, /물러서/);
-    assert.match(suggestedReplyKindMeta("pivot").hint, /다른 길/);
+  it("labels natural, twist, and banter with short Korean hints", () => {
+    assert.equal(suggestedReplyKindMeta("natural").label, "정석");
+    assert.equal(suggestedReplyKindMeta("twist").label, "한 수");
+    assert.equal(suggestedReplyKindMeta("banter").label, "드립");
+    assert.match(suggestedReplyKindMeta("natural").hint, /자연/);
+    assert.match(suggestedReplyKindMeta("twist").hint, /각도/);
+    assert.match(suggestedReplyKindMeta("banter").hint, /재치/);
   });
 });
 
@@ -56,9 +56,9 @@ describe("normalizeSuggestedReplies", () => {
       padReply("*손목을 붙잡으며* \"도망칠 생각이면 말해.\" ", 80),
     ];
     assert.deepEqual(normalizeSuggestedReplies({ replies }), [
-      { kind: "escalate", text: replies[0] },
-      { kind: "soften", text: replies[1] },
-      { kind: "pivot", text: replies[2] },
+      { kind: "natural", text: replies[0] },
+      { kind: "twist", text: replies[1] },
+      { kind: "banter", text: replies[2] },
     ]);
   });
 
@@ -71,22 +71,22 @@ describe("normalizeSuggestedReplies", () => {
     );
   });
 
-  it("reorders typed items onto escalate / soften / pivot", () => {
-    const escalate = padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72);
-    const soften = padReply("(한숨을 삼키고) \"잠깐만, 나도 좀 쉬자.\" ", 72);
-    const pivot = padReply("*창가 쪽으로 몸을 돌리며* \"일단 밖으로 나가.\" ", 72);
+  it("reorders typed items onto natural / twist / banter", () => {
+    const natural = padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72);
+    const twist = padReply("(한숨을 삼키고) \"잠깐만, 나도 좀 쉬자.\" ", 72);
+    const banter = padReply("*창가 쪽으로 몸을 돌리며* \"일단 밖으로 나가.\" ", 72);
     assert.deepEqual(
       normalizeSuggestedReplies({
         items: [
-          { kind: "pivot", text: pivot },
-          { kind: "escalate", text: escalate },
-          { kind: "soften", text: soften },
+          { kind: "banter", text: banter },
+          { kind: "natural", text: natural },
+          { kind: "twist", text: twist },
         ],
       }),
       [
-        { kind: "escalate", text: escalate },
-        { kind: "soften", text: soften },
-        { kind: "pivot", text: pivot },
+        { kind: "natural", text: natural },
+        { kind: "twist", text: twist },
+        { kind: "banter", text: banter },
       ]
     );
   });
@@ -94,20 +94,20 @@ describe("normalizeSuggestedReplies", () => {
 
 describe("parseSuggestedRepliesFromModelText", () => {
   it("reads fenced JSON items", () => {
-    const escalate = padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72);
-    const soften = padReply("(한숨을 삼키고) \"좋아, 일단 앉아.\" ", 72);
-    const pivot = padReply("*문을 가리키며* \"여기서 말 말고 나가서 하자.\" ", 72);
+    const natural = padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72);
+    const twist = padReply("(한숨을 삼키고) \"좋아, 일단 앉아.\" ", 72);
+    const banter = padReply("*문을 가리키며* \"여기서 말 말고 나가서 하자.\" ", 72);
     const text = `\`\`\`json\n${JSON.stringify({
       items: [
-        { kind: "escalate", text: escalate },
-        { kind: "soften", text: soften },
-        { kind: "pivot", text: pivot },
+        { kind: "natural", text: natural },
+        { kind: "twist", text: twist },
+        { kind: "banter", text: banter },
       ],
     })}\n\`\`\``;
     assert.deepEqual(parseSuggestedRepliesFromModelText(text), [
-      { kind: "escalate", text: escalate },
-      { kind: "soften", text: soften },
-      { kind: "pivot", text: pivot },
+      { kind: "natural", text: natural },
+      { kind: "twist", text: twist },
+      { kind: "banter", text: banter },
     ]);
   });
 });
@@ -117,7 +117,7 @@ describe("resolveClientSuggestedReplies", () => {
     const fields = resolveClientSuggestedReplies({
       replies: [],
       extractedAt: "2026-01-01T00:00:00.000Z",
-      source: "background-deepseek",
+      source: "post-turn-shared",
       pending: true,
     });
     assert.deepEqual(fields.suggestedReplies, []);
@@ -176,9 +176,9 @@ describe("client suggested-replies poll / bar", () => {
 
   it("does not poll when three replies are already present", () => {
     const replies = [
-      { kind: "escalate" as const, text: "a".repeat(60) },
-      { kind: "soften" as const, text: "b".repeat(60) },
-      { kind: "pivot" as const, text: "c".repeat(60) },
+      { kind: "natural" as const, text: "a".repeat(60) },
+      { kind: "twist" as const, text: "b".repeat(60) },
+      { kind: "banter" as const, text: "c".repeat(60) },
     ];
     const fields = {
       suggestedReplies: replies,
@@ -204,7 +204,7 @@ describe("shouldEnsureSuggestedRepliesExtraction", () => {
         {
           replies: [],
           extractedAt: "2026-01-01T00:00:30.000Z",
-          source: "background-deepseek",
+          source: "post-turn-shared",
           pending: true,
         },
         Date.parse("2026-01-01T00:01:00.000Z")
@@ -219,7 +219,7 @@ describe("shouldEnsureSuggestedRepliesExtraction", () => {
         {
           replies: [],
           extractedAt,
-          source: "background-deepseek",
+          source: "post-turn-shared",
           pending: true,
         },
         Date.parse("2026-01-01T00:02:00.000Z")
@@ -232,7 +232,7 @@ describe("shouldEnsureSuggestedRepliesExtraction", () => {
     const failed = {
       replies: [] as [],
       extractedAt,
-      source: "background-deepseek" as const,
+      source: "post-turn-shared" as const,
       failed: true,
     };
     assert.equal(
@@ -247,15 +247,15 @@ describe("shouldEnsureSuggestedRepliesExtraction", () => {
 
   it("leaves a completed three-reply record alone", () => {
     const replies = [
-      { kind: "escalate" as const, text: "a".repeat(60) },
-      { kind: "soften" as const, text: "b".repeat(60) },
-      { kind: "pivot" as const, text: "c".repeat(60) },
+      { kind: "natural" as const, text: "a".repeat(60) },
+      { kind: "twist" as const, text: "b".repeat(60) },
+      { kind: "banter" as const, text: "c".repeat(60) },
     ];
     assert.equal(
       shouldEnsureSuggestedRepliesExtraction({
         replies,
         extractedAt,
-        source: "background-deepseek",
+        source: "post-turn-shared",
         pending: false,
         failed: false,
       }),

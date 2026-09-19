@@ -6,7 +6,7 @@ export const SUGGESTED_REPLY_COUNT = 3;
 
 export const SUGGESTED_REPLIES_REQUEST_KIND = "background-suggested-replies-extract";
 
-export const SUGGESTED_REPLY_KINDS = ["escalate", "soften", "pivot"] as const;
+export const SUGGESTED_REPLY_KINDS = ["natural", "twist", "banter"] as const;
 export type SuggestedReplyKind = (typeof SUGGESTED_REPLY_KINDS)[number];
 
 export type SuggestedReplyItem = {
@@ -25,12 +25,21 @@ export type SuggestedReplyKindMeta = {
 
 export function suggestedReplyKindMeta(kind: SuggestedReplyKind): SuggestedReplyKindMeta {
   switch (kind) {
-    case "escalate":
-      return { label: "갈등 고조", hint: "맞서거나 날을 세워 긴장을 올립니다." };
-    case "soften":
-      return { label: "달래기", hint: "한 발 물러서거나 사이를 풀어 갑니다." };
-    case "pivot":
-      return { label: "국면 전환", hint: "화제·장소·행동을 바꿔 다른 길로 밉니다." };
+    case "natural":
+      return {
+        label: "정석",
+        hint: "지금 장면과 관계를 자연스럽게 이어가는 다음 반응.",
+      };
+    case "twist":
+      return {
+        label: "한 수",
+        hint: "개연성은 유지하되 뻔하지 않게 각도를 바꾸는 반응.",
+      };
+    case "banter":
+      return {
+        label: "드립",
+        hint: "페르소나 말투를 유지한 재치·장난·빈정거림.",
+      };
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;
@@ -38,10 +47,12 @@ export function suggestedReplyKindMeta(kind: SuggestedReplyKind): SuggestedReply
   }
 }
 
+export type SuggestedRepliesRecordSource = "post-turn-shared" | "standalone-extract";
+
 export type SuggestedRepliesRecord = {
   replies: SuggestedReplyItem[];
   extractedAt: string;
-  source: "background-deepseek";
+  source: SuggestedRepliesRecordSource;
   pending?: boolean;
   failed?: boolean;
   /** This generation already spent its shared physical-call budget. */

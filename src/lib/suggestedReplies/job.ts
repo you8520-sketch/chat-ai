@@ -12,7 +12,11 @@ import {
   shouldEnsureSuggestedRepliesExtraction,
   suggestedRepliesHaveContent,
 } from "./parse";
-import type { SuggestedRepliesRecord, SuggestedReplyItem } from "./types";
+import type {
+  SuggestedRepliesRecord,
+  SuggestedRepliesRecordSource,
+  SuggestedReplyItem,
+} from "./types";
 import { listProviderCostEventsForAssistantGeneration } from "@/lib/providerCostLedger";
 
 const running = new Set<string>();
@@ -67,12 +71,16 @@ export function isSuggestedRepliesRecordStalePending(
   return age >= STALE_PENDING_MS;
 }
 
-function writePending(messageId: number, scope: AssistantGenerationScope): void {
+function writePending(
+  messageId: number,
+  scope: AssistantGenerationScope,
+  source: SuggestedRepliesRecordSource = "post-turn-shared"
+): void {
   const db = getDb();
   const pending: SuggestedRepliesRecord = {
     replies: [],
     extractedAt: new Date().toISOString(),
-    source: "background-deepseek",
+    source,
     pending: true,
     failed: false,
     generationSequence: scope.generationSequence,
@@ -99,7 +107,8 @@ function writeReplies(
   replies: SuggestedReplyItem[],
   failed = false,
   noRetry = false,
-  terminalReason?: SuggestedRepliesRecord["terminalReason"]
+  terminalReason?: SuggestedRepliesRecord["terminalReason"],
+  source: SuggestedRepliesRecordSource = "post-turn-shared"
 ): void {
   const db = getDb();
   if (!isCurrentAssistantGeneration(scope, db)) {
@@ -114,7 +123,7 @@ function writeReplies(
   const record: SuggestedRepliesRecord = {
     replies,
     extractedAt: new Date().toISOString(),
-    source: "background-deepseek",
+    source,
     pending: false,
     failed,
     ...(noRetry ? { noRetry: true } : {}),
@@ -244,12 +253,15 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   __testExtract?: (attempt: number) => Promise<SuggestedReplyItem[]>;
 }): void {
   const physicalAttemptConsumed = opts.sharedInitialAttemptConsumed ?? false;
+  const recordSource: SuggestedRepliesRecordSource = physicalAttemptConsumed
+    ? "post-turn-shared"
+    : "standalone-extract";
   if (physicalAttemptConsumed) {
     const replies = suggestedRepliesHaveContent(opts.prefetchedReplies)
       ? opts.prefetchedReplies!
       : [];
     try {
-      writeReplies(opts.messageId, opts.generationScope, replies, replies.length === 0, true);
+      writeReplies(opts.messageId, opts.generationScope, replies, replies.length === 0, true, undefined, recordSource);
     } catch (error) {
       console.error(
         "[SUGGESTED-REPLIES-ERROR] terminal shared write failed",
@@ -263,7 +275,7 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   running.add(jobKey);
 
   try {
-    writePending(opts.messageId, opts.generationScope);
+    writePending(opts.messageId, opts.generationScope, recordSource);
   } catch (e) {
     console.error("[SUGGESTED-REPLIES-ERROR] pending write failed", (e as Error).message);
   }
@@ -277,7 +289,9 @@ export function scheduleSuggestedRepliesExtraction(opts: {
         opts.generationScope,
         replies,
         !ok,
-        opts.sharedInitialAttemptConsumed === true
+        opts.sharedInitialAttemptConsumed === true,
+        undefined,
+        recordSource
       );
       if (!ok) {
         console.error("[SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies", {
@@ -293,7 +307,9 @@ export function scheduleSuggestedRepliesExtraction(opts: {
           opts.generationScope,
           [],
           true,
-          opts.sharedInitialAttemptConsumed === true
+          opts.sharedInitialAttemptConsumed === true,
+          undefined,
+          recordSource
         );
       } catch (writeErr) {
         console.error(
@@ -307,6 +323,64 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   })();
 }
 
+/** Greeting bootstrap — standalone extract (no shared post-turn owner on chat create). */
+export function scheduleGreetingSuggestedRepliesExtraction(messageId: number, chatId: number): void {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT m.content, c.selected_persona_id, ch.name AS char_name
+       FROM messages m
+       JOIN chats c ON c.id = m.chat_id
+       JOIN characters ch ON ch.id = c.character_id
+       WHERE m.id=? AND m.chat_id=? AND m.role='assistant'`
+    )
+    .get(messageId, chatId) as
+    | {
+        content: string;
+        selected_persona_id: number | null;
+        char_name: string;
+      }
+    | undefined;
+  if (!row?.content?.trim()) return;
+
+  const generationScope =
+    resolveActiveAssistantGenerationScope(messageId) ??
+    ({
+      assistantMessageId: messageId,
+      generationSequence: 0,
+      generationRequestId: null,
+    } satisfies AssistantGenerationScope);
+
+  let personaName = "유저";
+  let personaDescription: string | null = null;
+  let personaSpeechExamples: string | null = null;
+  if (row.selected_persona_id) {
+    const persona = db
+      .prepare("SELECT name, description, speech_examples FROM user_personas WHERE id=?")
+      .get(row.selected_persona_id) as
+      | { name: string; description: string; speech_examples: string }
+      | undefined;
+    if (persona) {
+      personaName = persona.name?.trim() || personaName;
+      personaDescription = persona.description ?? null;
+      personaSpeechExamples = persona.speech_examples ?? null;
+    }
+  }
+
+  scheduleSuggestedRepliesExtraction({
+    messageId,
+    chatId,
+    generationScope,
+    charName: row.char_name,
+    personaName,
+    personaDescription,
+    personaSpeechExamples,
+    userMessage: "",
+    assistantProse: row.content,
+  });
+}
+
+/** @deprecated GET is read-only; retained for legacy callers/tests only. */
 export function requeueSuggestedRepliesExtractionIfNeeded(messageId: number): boolean {
   const generationScope = resolveActiveAssistantGenerationScope(messageId);
   if (!generationScope) return false;

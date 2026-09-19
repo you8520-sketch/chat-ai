@@ -9,10 +9,14 @@ import { collectWidgetJsonKeys } from "@/lib/statusWidget/prompt";
 import type { PostTurnSharedInitialInput, PostTurnSharedInitialMode } from "./types";
 
 const SHARED_SUGGESTIONS_OUTPUT_RULES = `SUGGESTED REPLIES section — write the USER's next roleplay turn options.
-Return in suggestedReplies.items exactly 3 objects: escalate, soften, pivot (one each).
+Return in suggestedReplies.items exactly 3 objects: natural, twist, banter (one each).
 Korean only in text; each text 50–200 characters; mix dialogue and *stage direction*.
 Write as the USER persona named in [USER] — match voice from [SUGGESTED REPLIES VOICE CONTEXT] when provided.
 Do not write as the character/NPC.
+Kinds must differ in intent/action, not just tone:
+- natural: the most natural next user turn for this scene, relationship, and persona voice.
+- twist: plausible but non-obvious — witty angle, unexpected question, action shift, counter-offer, or negotiation.
+- banter: playful, teasing, dry, or sarcastic while staying in persona voice and the current scene.
 Use [SUGGESTED REPLIES VOICE CONTEXT] only for suggestedReplies voice/style — never as evidence for statusWidget field values.`;
 
 const SHARED_RELATIONSHIP_OUTPUT_RULES = `RELATIONSHIP section — durable relationship memory only, from this turn's prose.
