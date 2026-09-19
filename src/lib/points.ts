@@ -1944,7 +1944,6 @@ export function computeTurnBilling(opts: {
   contextSurcharge: number;
   multiplier: number;
   total: number;
-  gemini37FlashPricing?: Gemini37FlashPricingBreakdown;
 } {
   if (
     opts.provider === "openrouter" ||
