@@ -33,6 +33,7 @@ export function buildMemoryContext(opts: {
   userMessage: string;
   tier?: MemoryTier;
   memoryCapacity: number;
+  mediumTermText?: string;
   /** Gemini bulk — archive를 관련성 무관 항상 주입 */
   includeArchiveAlways?: boolean;
   /** DeepSeek — 요약본이 raw history와 겹칠 때 환각 방지 헤더 */
@@ -42,6 +43,7 @@ export function buildMemoryContext(opts: {
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity);
 
   const recent = opts.memory.recent_summary?.trim() ?? "";
+  const mediumTerm = opts.mediumTermText?.trim() ?? "";
 
   let archive = "";
   let archiveIncluded = false;
@@ -80,9 +82,11 @@ ${recent}`
 
   return {
     text: parts.join("\n\n"),
+    mediumTermText: mediumTerm,
     archiveText: archiveIncluded ? archive : "",
     pinnedChars: 0,
     recentChars: recent.length,
+    mediumTermChars: mediumTerm.length,
     archiveChars: archive.length,
     archiveIncluded,
     usedChars,

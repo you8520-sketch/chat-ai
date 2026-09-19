@@ -53,6 +53,10 @@ import {
   shouldIncludeArchiveAlways,
 } from "@/lib/contextTrack";
 import { buildRecentNarrativeContextBlock } from "./memory-narrative-context";
+import {
+  MEDIUM_TERM_BLOCK_COUNT,
+  buildMediumTermMemoryBlockForProjection,
+} from "./memory-medium-term";
 import type { MemoryInjection, MemorySnapshot, MemoryTier } from "./memory-types";
 
 export type { MemoryTier, MemoryInjection, MemorySnapshot } from "./memory-types";
@@ -228,6 +232,13 @@ export async function buildMemoryContextForPreview(opts: {
       ? trimLorebookToBudgetSync(archiveSummary, budget.archive)
       : archiveSummary;
 
+  const mediumTerm = buildMediumTermMemoryBlockForProjection({
+    chatId: opts.chatId,
+    blockCount: MEDIUM_TERM_BLOCK_COUNT,
+    excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
+    projectionKind: resolved.projectionKind,
+  });
+
   return buildMemoryContext({
     memory: {
       recent_summary: recentForPrompt,
@@ -237,6 +248,7 @@ export async function buildMemoryContextForPreview(opts: {
     userMessage: opts.userMessage,
     tier: opts.tier,
     memoryCapacity: opts.memoryCapacity,
+    mediumTermText: mediumTerm.text,
     includeArchiveAlways: shouldIncludeArchiveAlways(opts.modelId, opts.provider),
     pastEventSummaryDedupe: opts.pastEventSummaryDedupe === true,
   });
@@ -295,6 +307,13 @@ export async function buildMemoryContextForChat(opts: {
     });
   }
 
+  const mediumTerm = buildMediumTermMemoryBlockForProjection({
+    chatId: opts.chatId,
+    blockCount: MEDIUM_TERM_BLOCK_COUNT,
+    excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
+    projectionKind: resolved.projectionKind,
+  });
+
   return buildMemoryContext({
     memory: {
       ...memory,
@@ -304,6 +323,7 @@ export async function buildMemoryContextForChat(opts: {
     userMessage: opts.userMessage,
     tier: opts.tier,
     memoryCapacity: opts.memoryCapacity,
+    mediumTermText: mediumTerm.text,
     includeArchiveAlways: shouldIncludeArchiveAlways(opts.modelId, opts.provider),
     pastEventSummaryDedupe: opts.pastEventSummaryDedupe === true,
   });

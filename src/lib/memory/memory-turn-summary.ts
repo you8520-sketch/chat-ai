@@ -147,41 +147,65 @@ function selectSql(): string {
        FROM chat_turn_summaries`;
 }
 
+/** Canonical prompt-injectible row predicate — Global rebuild + Medium share this owner. */
+export function isPromptInjectibleMemoryRecord(record: MemoryRecordView): boolean {
+  if (record.inactive) return false;
+  const scopedText = lorebookTextFromScopes(record.scopes, { branchStatus: record.branchStatus });
+  if (scopedText.trim()) return true;
+  return (
+    scopesInjectedIntoPrompt(record.summaryKind) &&
+    !(record.summaryKind === "branch_canon" && record.branchStatus === "closed") &&
+    !isEmptyOocScope(record.summaryKind) &&
+    !!record.summary.trim() &&
+    record.summaryKind !== "noncanon"
+  );
+}
+
+/** Canonical injectible body — matches rebuildLorebookFromRecords rendering. */
+export function resolvePromptInjectibleMemoryRecordBody(record: MemoryRecordView): string {
+  const scopedBody = lorebookTextFromScopes(record.scopes, { branchStatus: record.branchStatus });
+  if (scopedBody.trim()) return scopedBody.trim();
+  if (
+    scopesInjectedIntoPrompt(record.summaryKind) &&
+    record.summaryKind !== "noncanon" &&
+    !(record.summaryKind === "branch_canon" && record.branchStatus === "closed")
+  ) {
+    return record.summary.trim();
+  }
+  return "";
+}
+
+/**
+ * Canonical prompt-injectible record list for Global + Medium.
+ * Optional RAW cutoff uses turnStart < excludeTurnStartGte (partial overlap preserved).
+ */
+export function listPromptInjectibleMemoryRecords(
+  chatId: number,
+  opts?: { excludeTurnStartGte?: number; excludeAssistantMessageId?: number | null }
+): MemoryRecordView[] {
+  let records = listMemoryRecordsForChat(chatId).filter(isPromptInjectibleMemoryRecord);
+  const cutoff = opts?.excludeTurnStartGte;
+  if (cutoff != null && cutoff > 0) {
+    records = records.filter((record) => record.turnStart < cutoff);
+  }
+  if (opts?.excludeAssistantMessageId != null) {
+    records = records.filter(
+      (record) => record.assistantMessageId !== opts.excludeAssistantMessageId
+    );
+  }
+  return records;
+}
+
 /** Injected lorebook — main_canon + active branch_canon + preference only. */
 export function rebuildLorebookFromRecords(
   chatId: number,
   opts?: { excludeTurnStartGte?: number }
 ): string {
-  let records = listMemoryRecordsForChat(chatId).filter((r) => {
-    if (r.inactive) return false;
-    const text = lorebookTextFromScopes(r.scopes, { branchStatus: r.branchStatus });
-    if (!text.trim()) {
-      // Legacy single-field rows
-      return scopesInjectedIntoPrompt(r.summaryKind) &&
-        !(r.summaryKind === "branch_canon" && r.branchStatus === "closed") &&
-        !isEmptyOocScope(r.summaryKind) &&
-        !!r.summary.trim() &&
-        r.summaryKind !== "noncanon";
-    }
-    return true;
-  });
-  const cutoff = opts?.excludeTurnStartGte;
-  if (cutoff != null && cutoff > 0) {
-    // Drop summaries whose playable span starts at/after first verbatim RAW turn.
-    // Partial overlap (e.g. 1~5 summary + RAW 2~5) keeps turn-1 facts in LTM.
-    records = records.filter((r) => r.turnStart < cutoff);
-  }
-  return records
-    .map((r) => {
-      const body =
-        lorebookTextFromScopes(r.scopes, { branchStatus: r.branchStatus }) ||
-        (scopesInjectedIntoPrompt(r.summaryKind) &&
-        r.summaryKind !== "noncanon" &&
-        !(r.summaryKind === "branch_canon" && r.branchStatus === "closed")
-          ? r.summary
-          : "");
-      if (!body.trim()) return "";
-      return formatMemoryBlock(r.turnStart, r.turnEnd, body);
+  return listPromptInjectibleMemoryRecords(chatId, opts)
+    .map((record) => {
+      const body = resolvePromptInjectibleMemoryRecordBody(record);
+      if (!body) return "";
+      return formatMemoryBlock(record.turnStart, record.turnEnd, body);
     })
     .filter(Boolean)
     .join("\n\n");

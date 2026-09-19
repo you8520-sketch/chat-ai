@@ -34,10 +34,13 @@ export type MemoryBufferRow = {
 export type MemoryInjection = {
   /** [현재기억] — recent_summary / lorebook UI 본문 */
   text: string;
+  /** [중기 기억] — recent sealed chat_turn_summaries blocks outside RAW */
+  mediumTermText: string;
   /** [과거 기억] — archive_summary (프롬프트 identity/rules 아래 별도 주입) */
   archiveText: string;
   pinnedChars: number;
   recentChars: number;
+  mediumTermChars: number;
   archiveChars: number;
   archiveIncluded: boolean;
   usedChars: number;

@@ -55,6 +55,8 @@ export type ContextBuildInput = {
   privatePersonaSecretNarrationBlock?: string | null;
   userNote?: string | null;
   longTermMemory?: string | null;
+  /** Medium-term sealed summary blocks outside RAW */
+  mediumTermMemoryBlock?: string | null;
   /** archive_summary — identity/rules 아래 별도 주입 */
   archiveMemory?: string | null;
   shortTermHistory: ChatMsg[];

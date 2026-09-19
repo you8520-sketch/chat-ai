@@ -231,7 +231,7 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
           trimmedHistoryForLorebook
         ),
       })
-    : { text: "", archiveText: "" };
+    : { text: "", mediumTermText: "", archiveText: "" };
 
   const characterGenres = sanitizeCharacterGenres(
     (() => {
@@ -298,6 +298,7 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
       userPersona: userPersonaPrompt,
       userNote: userNotePrompt,
       longTermMemory: memoryFeatureOn ? memoryInjection.text : "",
+      mediumTermMemoryBlock: memoryFeatureOn ? memoryInjection.mediumTermText : "",
       archiveMemory: memoryFeatureOn ? memoryInjection.archiveText : "",
       shortTermHistory: recentHistoryFull,
       currentUserMessage: "",
