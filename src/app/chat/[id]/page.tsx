@@ -30,6 +30,11 @@ import { collectStaleOocAdoptionIds, readOocSceneClientFlags } from "@/lib/oocSc
 import ChatClient from "./ChatClient";
 
 import { consumeSelectedAiEntryNotice } from "@/lib/userSelectedAI";
+import {
+  MAIN_RP_MODEL_IDS,
+  selectedAILabel,
+} from "@/lib/chatModels";
+import { resolveActiveSitePromotionsForModels } from "@/lib/sitePromotion";
 
 import { ensureDefaultPublicPersona, validatePersonaSelection } from "@/lib/userPersonas";
 import { listUserNotePresets } from "@/lib/userNotePresets";
@@ -506,6 +511,12 @@ export default async function ChatPage({
     isAdmin,
   });
 
+  const initialActiveSitePromotions = resolveActiveSitePromotionsForModels(
+    MAIN_RP_MODEL_IDS,
+    new Date().toISOString(),
+    selectedAILabel
+  );
+
   const isSimulation = c.content_kind === "simulation";
   const initialNarrativePov = resolveNarrativePov({
     mode: chat.narrative_pov,
@@ -549,6 +560,7 @@ export default async function ChatPage({
       initialAdultHandoffEnabled={!!chat.adult_handoff_enabled}
       initialSelectedAI={globalModelEntry.selectedAI}
       initialGlobalModelNotice={globalModelEntry.notice}
+      initialActiveSitePromotions={initialActiveSitePromotions}
       initialTargetResponseChars={userChatPrefs.targetResponseChars}
       initialChatTitle={chat?.title ?? ""}
       initialDisplayPrefs={userChatPrefs.displayPrefs}

@@ -31,8 +31,10 @@ type ReportDetail = ReportRow & {
   paired_user_content: string | null;
   character_id: number;
   character_name: string;
+  report_category: string;
   live_validation_summary: string;
   live_validation_reasons: string[];
+  live_validation_pass: boolean;
 };
 
 function prettyJson(raw: string | null): string {
@@ -251,15 +253,25 @@ export default function AdminReportRefundsClient() {
                         <p>생성 상태: {details[row.id].generation_status || details[row.id].message_status || "기록 없음"}</p>
                         <p>출력 길이: {details[row.id].output_char_count.toLocaleString()}자</p>
                       </div>
+                      {details[row.id].report_category && (
+                        <p className="text-xs text-zinc-400">
+                          신고 유형:{" "}
+                          <span className="text-zinc-200">{details[row.id].report_category}</span>
+                        </p>
+                      )}
                       <p
                         className={`rounded-lg px-3 py-2 text-xs ${
-                          details[row.id].live_validation_reasons.length > 0
-                            ? "bg-rose-500/10 text-rose-300"
+                          details[row.id].live_validation_pass
+                            ? "bg-emerald-500/10 text-emerald-300"
                             : "bg-zinc-500/10 text-zinc-400"
                         }`}
                       >
-                        현재 자동 진단:{" "}
-                        {details[row.id].live_validation_summary || "자동 감지된 결함 없음"}
+                        카테고리 검증:{" "}
+                        {details[row.id].live_validation_pass ? "PASS" : "FAIL"} —{" "}
+                        {details[row.id].live_validation_summary || "근거 미확인"}
+                        {details[row.id].live_validation_reasons.length > 0
+                          ? ` (${details[row.id].live_validation_reasons.join(", ")})`
+                          : ""}
                       </p>
 
                       <section>

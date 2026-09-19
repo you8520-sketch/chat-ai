@@ -391,7 +391,7 @@ describe("refund → monthly finance projection", () => {
     insertNativeSettlement({ userId, chatId, requestId: "req-R7", messageId, slices, at });
 
     refundMessageDeduction(userId, messageId, slices, 500, "r7 refund");
-    const second = processReportRefund(userId, messageId, chatId);
+    const second = processReportRefund(userId, messageId, chatId, "under_length");
     assert.equal(second.status, "rejected");
 
     const after = buildAdminFinanceSummary(getDb(), month);

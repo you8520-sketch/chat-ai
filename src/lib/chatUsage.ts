@@ -87,6 +87,23 @@ export type Usage = {
   };
   /** Gemini 3.7 Flash — admin receipt breakdown (user price ignores cache/upstream). */
   gemini37FlashPricing?: Gemini37FlashPricingBreakdown;
+  /**
+   * Site promotion charge snapshot — public receipt may show discount row only when present.
+   * Never derived from CheaperInference catalog discount.
+   */
+  sitePromotion?: {
+    baseUserChargePoints: number;
+    siteDiscountPercent: number;
+    siteDiscountPoints: number;
+    finalChargePoints: number;
+    campaignId: number;
+    officialPromotionId: number;
+    episodeKey: string;
+    provider: string;
+    source: string;
+    provenance: string;
+    appliedAt: string;
+  };
   /** OpenRouter API 원가 (KRW, 마진 전) */
   apiRawCostKrw?: number;
   /** 공급자 실비 또는 해당 턴의 카탈로그 요율 추정 구분 */
