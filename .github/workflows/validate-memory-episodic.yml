@@ -11,6 +11,15 @@ on:
       - "src/lib/memory/memory-batch-source-guard.ts"
       - "src/lib/memory/memory-episodic-extract.ts"
       - "src/lib/memory/memory-episodic-hardening.test.ts"
+      - "src/lib/memory/memory-architecture-audit.ts"
+      - "src/lib/memory/memory-architecture-audit.test.ts"
+      - "src/lib/memory/memory-global-current-memory.test.ts"
+      - "src/lib/memory/memory-global-compact-race.test.ts"
+      - "src/lib/memory/memory-global-projection.ts"
+      - "src/lib/memory/memory-global-source-fingerprint.ts"
+      - "src/lib/memory/memory-lorebook-resolve.ts"
+      - "src/lib/memory/memory-turn-summary.ts"
+      - "src/lib/memory/memory-lorebook-fit.ts"
       - "src/lib/memory/memory-episodic-long-horizon.test.ts"
       - "src/lib/memory/memory-episodic-normalize.ts"
       - "src/lib/memory/memory-episodic-ownership.test.ts"
@@ -51,6 +60,12 @@ jobs:
       - run: npm run lint
 
       - run: npm run typecheck:app
+
+      - name: Memory architecture audit
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-architecture-audit.test.ts
+
+      - name: Global Current Memory owner bugfix regressions
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-global-current-memory.test.ts
 
       - name: Episodic long-horizon regression
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-long-horizon.test.ts

@@ -39,9 +39,11 @@ import { reconcileSharedEpisodicFactsForTurn } from "./memory-episodic-shared";
 import { buildMemoryContext } from "./memory-injector";
 import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
 import {
-  resolveLorebookFromRecords,
-  resolveLorebookFromRecordsSync,
-} from "./memory-lorebook-resolve";
+  buildGlobalSummarySourceFingerprintFromText,
+  canCommitGlobalSummaryProjection,
+} from "./memory-global-source-fingerprint";
+import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
+import { rebuildLorebookFromRecords } from "./memory-turn-summary";
 import { isGeminiIsolationMode } from "@/lib/geminiIsolationMode";
 import { emptyMemoryInjection, isMemoryFeatureEnabled } from "./memory-feature";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
@@ -89,11 +91,8 @@ export function scheduleBackgroundLorebookMaintenance(opts: {
       let archiveCompressed = false;
       let recentCompressed = false;
 
-      const resolved = await resolveLorebookFromRecords(
-        opts.chatId,
-        budget.lorebook,
-        opts.turnTrace
-      );
+      const rebuilt = rebuildLorebookFromRecords(opts.chatId).trim();
+      const sourceFingerprintBefore = buildGlobalSummarySourceFingerprintFromText(rebuilt);
       if (lorebookMaintenanceDefer) {
         await lorebookMaintenanceDefer;
       }
@@ -106,36 +105,44 @@ export function scheduleBackgroundLorebookMaintenance(opts: {
       ) {
         return;
       }
-      if (resolved.text) {
-        if (resolved.text !== recentSummary) {
-          recentSummary = resolved.text;
+
+      if (rebuilt.length <= budget.lorebook) {
+        if (rebuilt && rebuilt !== recentSummary) {
+          recentSummary = rebuilt;
           recentCompressed = true;
         }
       } else {
-        const { text: fittedRecent, compressed } = await ensureLorebookWithinBudget(
-          recentSummary,
+        const compacted = await ensureLorebookWithinBudget(
+          rebuilt,
           budget.lorebook,
           opts.turnTrace
         );
-        if (compressed) {
-          recentSummary = fittedRecent;
+        if (compacted.text && compacted.text !== recentSummary) {
+          recentSummary = compacted.text;
           recentCompressed = true;
         }
       }
 
       if (archiveSummary.length > budget.archive) {
-        const { text: fittedArchive, compressed } = await ensureLorebookWithinBudget(
-          archiveSummary,
-          budget.archive,
-          opts.turnTrace
-        );
-        if (compressed) {
+        const fittedArchive = trimLorebookToBudgetSync(archiveSummary, budget.archive);
+        if (fittedArchive !== archiveSummary) {
           archiveSummary = fittedArchive;
           archiveCompressed = true;
         }
       }
 
       if (recentCompressed || archiveCompressed) {
+        if (
+          recentCompressed &&
+          !canCommitGlobalSummaryProjection({
+            db,
+            chatId: opts.chatId,
+            boundarySnapshot,
+            sourceFingerprintBefore,
+          })
+        ) {
+          return;
+        }
         if (
           !isMemoryWriteGuardCurrentCore(db, {
             chatId: opts.chatId,
@@ -210,12 +217,12 @@ export async function buildMemoryContextForPreview(opts: {
 
   const memory = getChatMemoryRow(opts.chatId);
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity);
-  const rebuilt = resolveLorebookFromRecordsSync(opts.chatId, budget.lorebook, {
+  const resolved = resolveGlobalCurrentMemory(opts.chatId, budget.lorebook, {
     excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
+    storedRecentSummary: memory?.recent_summary,
   });
-  const recentSummary = rebuilt.text || memory?.recent_summary?.trim() || "";
+  const recentForPrompt = resolved.text;
   const archiveSummary = memory?.archive_summary?.trim() ?? "";
-  const recentForPrompt = trimLorebookToBudgetSync(recentSummary, budget.lorebook);
   const archiveForPrompt =
     archiveSummary.length > budget.archive
       ? trimLorebookToBudgetSync(archiveSummary, budget.archive)
@@ -257,19 +264,18 @@ export async function buildMemoryContextForChat(opts: {
   const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity);
 
-  const rebuilt = resolveLorebookFromRecordsSync(opts.chatId, budget.lorebook, {
+  const resolved = resolveGlobalCurrentMemory(opts.chatId, budget.lorebook, {
     excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
+    storedRecentSummary: memory.recent_summary,
   });
-  let recentSummary = rebuilt.text || memory.recent_summary?.trim() || "";
-  let archiveSummary = memory.archive_summary?.trim() ?? "";
-
-  const recentForPrompt = trimLorebookToBudgetSync(recentSummary, budget.lorebook);
+  const archiveSummary = memory.archive_summary?.trim() ?? "";
+  const recentForPrompt = resolved.text;
   const archiveForPrompt =
     archiveSummary.length > budget.archive
       ? trimLorebookToBudgetSync(archiveSummary, budget.archive)
       : archiveSummary;
 
-  if (rebuilt.overBudget || recentSummary.length > budget.lorebook || archiveSummary.length > budget.archive) {
+  if (resolved.needsBackgroundCompact || archiveSummary.length > budget.archive) {
     scheduleBackgroundLorebookMaintenance({
       chatId: opts.chatId,
       userId: opts.userId,
@@ -278,9 +284,13 @@ export async function buildMemoryContextForChat(opts: {
       memoryCapacity: opts.memoryCapacity,
       turnTrace: opts.turnTrace,
     });
-  } else if (rebuilt.text && rebuilt.text !== memory.recent_summary?.trim()) {
+  } else if (
+    resolved.projectionKind === "exact" &&
+    resolved.text &&
+    resolved.text !== memory.recent_summary?.trim()
+  ) {
     updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-      recent_summary: rebuilt.text,
+      recent_summary: resolved.text,
       membership_tier: opts.tier,
     });
   }
@@ -566,7 +576,7 @@ export function getMemorySnapshot(
   };
 }
 
-/** 유저가 패널에서 현재기억 본문을 직접 수정 — 초과 시 Flash 압축 */
+/** 유저가 패널에서 Global Current Memory 본문을 직접 수정 — projection layer only */
 export async function updateLorebookForChat(
   chatId: number,
   userId: number,

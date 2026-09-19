@@ -166,8 +166,9 @@ export async function GET(req: Request) {
   const snapshot = getMemorySnapshot(chatId, user.id, chat.character_id, tier, memoryCapacity);
   const lorebookBudget = resolveMemoryBudgetFromCapacity(memoryCapacity).lorebook;
   const displayLorebook =
-    resolveLorebookFromRecordsSync(chatId, lorebookBudget).text ||
-    snapshot.lorebook.trim();
+    resolveLorebookFromRecordsSync(chatId, lorebookBudget, {
+      storedRecentSummary: memRow.recent_summary,
+    }).text || snapshot.lorebook.trim();
   const displayText = displayLorebook.trim();
 
   const displayMeta = { ...meta, currentLocation: undefined };

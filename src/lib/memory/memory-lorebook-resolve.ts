@@ -1,25 +1,134 @@
-import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
+import { getChatMemoryRow } from "./memory-db";
+import {
+  emergencyFallbackTrimLorebookSync,
+  isGlobalCompactProjectionFresh,
+  isManualGlobalProjectionFresh,
+} from "./memory-global-projection";
 import { rebuildLorebookFromRecords } from "./memory-turn-summary";
+import type { GlobalProjectionKind } from "./memory-global-projection";
 
-/** 패널·프롬프트 조립 — LLM 대기 없이 기록 재조립 + 동기 trim */
+export type GlobalCurrentMemorySource = "chat_turn_summaries" | "chat_memories_recent_summary";
+
+export type GlobalCurrentMemoryResolution = {
+  text: string;
+  overBudget: boolean;
+  source: GlobalCurrentMemorySource;
+  projectionKind: GlobalProjectionKind;
+  rebuiltChars: number;
+  storedRecentSummaryChars: number;
+  needsBackgroundCompact: boolean;
+};
+
+/**
+ * Canonical Global Current Memory resolver.
+ * Granular source: chat_turn_summaries.
+ * Overflow Global projection: chat_memories.recent_summary when fresh whole-history compact.
+ * Emergency fallback: prefer-recent mechanical trim (not healthy Global semantics).
+ */
+export function resolveGlobalCurrentMemory(
+  chatId: number,
+  maxChars: number,
+  opts?: { excludeTurnStartGte?: number; storedRecentSummary?: string }
+): GlobalCurrentMemoryResolution {
+  const rebuilt = rebuildLorebookFromRecords(chatId, opts).trim();
+  const stored = opts?.storedRecentSummary?.trim() ?? "";
+  const storedRecentSummaryChars = stored.length;
+  const rebuiltChars = rebuilt.length;
+
+  if (!rebuilt) {
+    const text =
+      stored.length > maxChars ? emergencyFallbackTrimLorebookSync(stored, maxChars) : stored;
+    return {
+      text,
+      overBudget: stored.length > maxChars,
+      source: "chat_memories_recent_summary",
+      projectionKind: stored ? "stored_fallback" : "exact",
+      rebuiltChars: 0,
+      storedRecentSummaryChars,
+      needsBackgroundCompact: false,
+    };
+  }
+
+  if (rebuilt.length <= maxChars) {
+    if (isManualGlobalProjectionFresh(chatId, rebuilt, stored, maxChars)) {
+      return {
+        text: stored,
+        overBudget: false,
+        source: "chat_memories_recent_summary",
+        projectionKind: "manual_global",
+        rebuiltChars,
+        storedRecentSummaryChars,
+        needsBackgroundCompact: false,
+      };
+    }
+    return {
+      text: rebuilt,
+      overBudget: false,
+      source: "chat_turn_summaries",
+      projectionKind: "exact",
+      rebuiltChars,
+      storedRecentSummaryChars,
+      needsBackgroundCompact: false,
+    };
+  }
+
+  if (isGlobalCompactProjectionFresh(chatId, rebuilt, stored, maxChars)) {
+    return {
+      text: stored,
+      overBudget: true,
+      source: "chat_memories_recent_summary",
+      projectionKind: "global_compact",
+      rebuiltChars,
+      storedRecentSummaryChars,
+      needsBackgroundCompact: false,
+    };
+  }
+
+  if (isManualGlobalProjectionFresh(chatId, rebuilt, stored, maxChars)) {
+    return {
+      text: stored,
+      overBudget: true,
+      source: "chat_memories_recent_summary",
+      projectionKind: "manual_global",
+      rebuiltChars,
+      storedRecentSummaryChars,
+      needsBackgroundCompact: false,
+    };
+  }
+
+  return {
+    text: emergencyFallbackTrimLorebookSync(rebuilt, maxChars),
+    overBudget: true,
+    source: "chat_turn_summaries",
+    projectionKind: "failure_fallback",
+    rebuiltChars,
+    storedRecentSummaryChars,
+    needsBackgroundCompact: true,
+  };
+}
+
+/** 패널·프롬프트 조립 — 기록 재조립 + Global projection / emergency fallback */
 export function resolveLorebookFromRecordsSync(
   chatId: number,
   maxChars: number,
-  opts?: { excludeTurnStartGte?: number }
+  opts?: { excludeTurnStartGte?: number; storedRecentSummary?: string }
 ): { text: string; overBudget: boolean } {
-  const rebuilt = rebuildLorebookFromRecords(chatId, opts).trim();
-  if (!rebuilt) return { text: "", overBudget: false };
-  if (rebuilt.length <= maxChars) return { text: rebuilt, overBudget: false };
-  return { text: trimLorebookToBudgetSync(rebuilt, maxChars), overBudget: true };
+  const resolved = resolveGlobalCurrentMemory(chatId, maxChars, opts);
+  return { text: resolved.text, overBudget: resolved.overBudget };
 }
 
-/** DB 기록을 시간순으로 이어 붙이고, 설정 상한 초과 시에만 압축 */
+/** Async resolve — mirrors sync path; background compact handled separately. */
 export async function resolveLorebookFromRecords(
   chatId: number,
   maxChars: number,
-  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace
+  _turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace
 ): Promise<{ text: string; compressed: boolean }> {
-  const rebuilt = rebuildLorebookFromRecords(chatId).trim();
-  if (!rebuilt) return { text: "", compressed: false };
-  return ensureLorebookWithinBudget(rebuilt, maxChars, turnTrace);
+  const memory = getChatMemoryRow(chatId);
+  const resolved = resolveGlobalCurrentMemory(chatId, maxChars, {
+    storedRecentSummary: memory?.recent_summary,
+  });
+  return {
+    text: resolved.text,
+    compressed: resolved.projectionKind === "global_compact" || resolved.projectionKind === "failure_fallback",
+  };
 }
