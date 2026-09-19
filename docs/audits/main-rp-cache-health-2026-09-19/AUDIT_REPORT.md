@@ -17,19 +17,36 @@
 | Opus 5 | Retired (#965) — out of scope |
 | PR #962 | Frozen — not modified |
 
-**PR scope label:** `RUNTIME_CHANGE = 0` · `AUDIT_TOOLING_CHANGE = YES` (read-only collector + offline prefix scripts; not docs-only).
+**PR scope label:** `RUNTIME_CHANGE = 0` · `AUDIT_TOOLING_CHANGE = YES` (one reusable read-only collector; compact audit artifacts).
 
 ---
 
-## PR SCOPE CORRECTION
+## FINAL PR FILE SET
 
-#966 adds durable audit artifacts and **read-only tooling**, not runtime behavior:
+| File | Status |
+|------|--------|
+| `AUDIT_REPORT.md` | **KEEP** |
+| `ci-usage-snapshot.json` | **KEEP** (aggregates only) |
+| `g37-prefix-eligibility-offline.json` | **KEEP** (offline prefix proof) |
+| `g37-live-cache-discriminator.json` | **KEEP** (2 sanitized live rows) |
+| `g37-no-cache-pricing-safety.json` | **KEEP** (margin distribution + worst rows) |
+| `scripts/main-rp-cache-health-readonly.ts` | **KEEP** (reusable usage/catalog GET) |
 
-- `AUDIT_REPORT.md`
-- `ci-usage-snapshot.json` (aggregates only)
-- `scripts/main-rp-cache-health-readonly.ts`
-- `scripts/gemini37-prefix-cache-eligibility-audit.ts`
-- `g37-prefix-eligibility-offline.json`
+No full raw usage dump · no credentials · no prompt bodies.
+
+---
+
+## REMOVED FORENSIC SCAFFOLD
+
+One-off investigative scripts **removed** from final PR (durable measurements preserved in JSON artifacts above):
+
+| Script | Classification |
+|--------|----------------|
+| `scripts/gemini37-live-cache-discriminator.ts` | **SAFE_TO_DELETE_FROM_FINAL_PR** — paid probe complete |
+| `scripts/gemini37-prefix-cache-eligibility-audit.ts` | **SAFE_TO_DELETE_FROM_FINAL_PR** — offline proof in JSON |
+| `scripts/g37-no-cache-pricing-safety-audit.ts` | **SAFE_TO_DELETE_FROM_FINAL_PR** — economics in JSON |
+
+`ONE_OFF_FORENSIC_SCAFFOLD` = **REMOVED**
 
 ---
 
@@ -305,26 +322,129 @@ Prompt layout is **not** sufficient to explain zero cache. Next owner: CI routin
 
 ---
 
+## G37 CACHE FINAL CONCLUSION
+
+Cache optimization work can **stop** without a runtime patch:
+
+| Label | Value |
+|-------|-------|
+| `G37_CACHE_FUNCTIONALITY` | **HISTORICALLY_CONFIRMED** |
+| `G37_CURRENT_PREFIX_CACHE_ELIGIBILITY` | **ELIGIBLE** |
+| `G37_CURRENT_IMPLICIT_CACHE_HIT` | **NOT_OBSERVED_IN_CLEAN_TWO_CALL** |
+| `APP_PREFIX_LAYOUT_ROOT_CAUSE` | **CONTRADICTED** |
+| `CI_OR_GOOGLE_IMPLICIT_CACHE_SEMANTICS` | **PRIMARY_UNCONFIRMED_OWNER** |
+
+Implicit cache is **not reliable** today; cache miss does not block closing the audit. Follow-up is CI/provider support inquiry — not app prompt reordering.
+
+---
+
+## CURRENT G37 PRICING OWNER
+
+**Owner:** `src/lib/gemini37FlashPricing.ts` · `computeGemini37FlashUserChargePoints`
+
+Confirmed defaults (no `GEMINI37_*` Railway overrides in repo env):
+
+| Parameter | Value |
+|-----------|------:|
+| basePoints | 35 |
+| includedInputTokens | 25,000 |
+| inputStepTokens / inputStepPoints | 10,000 / 1 |
+| outputTier2500 … 9000 | 0 / 25 / 30 / 40 / 50 |
+| longContextThresholdTokens | 75,000 |
+
+**Cache-independent invariant confirmed:** user P depends only on `prompt_tokens` + billed output tokens — never `cacheRead` / `cacheWrite` / `standardInput` / `upstreamCostUsd`.
+
+---
+
+## NO-CACHE PRODUCTION SAMPLE
+
+Read-only CI usage API · `cache_read_input_tokens = 0` · settled rows · **0 generation calls**.
+
+| Window | Sample count |
+|--------|-------------:|
+| 30-day | 376 |
+| 7-day (recent) | 46 |
+
+Artifact: `g37-no-cache-pricing-safety.json` (hashed request ids only; no full raw dump).
+
+---
+
+## NO-CACHE MARGIN DISTRIBUTION
+
+FX: billing snapshot at audit time (`resolveBillingExchangeRateSnapshot`); stress uses same fallback policy when API unavailable (`EXCHANGE_RATE_FALLBACK_KRW` + overseas card fee). Site promotion **not** applied — base pricing only (#963 owners preserved).
+
+### 30-day no-cache (n=376)
+
+| Metric | Actual FX |
+|--------|----------:|
+| Minimum margin | 20.9% |
+| P5 | 48.0% |
+| P10 | 55.4% |
+| Median | 77.7% |
+| Weighted aggregate | 76.8% |
+| Below 0% | 0 (0%) |
+| Below 50% | **21 (5.6%)** |
+| Below 55% | 34 (9.0%) |
+| Below 60% | 45 (12.0%) |
+
+**Worst shape (30d):** ~24k input · ~2.1k output · user P = 35 (base only) · procurement ≈ ₩27.7 · margin **20.9%** · `provider_attempt_count = 2`.
+
+### 7-day no-cache (n=46, recent)
+
+| Metric | Actual FX |
+|--------|----------:|
+| Minimum margin | **52.6%** |
+| Median | 68.6% |
+| Below 50% | **0 (0%)** |
+
+Recent production no-cache economics are within floor; 30d tail includes long-input / multi-attempt outliers.
+
+---
+
+## HISTORICAL COLD FIXTURE UNDER CURRENT PRICING
+
+Fixture: `docs/audits/gemini-37-flash-pricing/RUNTIME.json` T1–T10 (all `cacheRead = 0`). **Not current production distribution.**
+
+| Turn | Input | Output | Current P | Margin (current formula) |
+|------|------:|-------:|----------:|-------------------------:|
+| T1 | 4,312 | 1,613 | 35 | 71.7% |
+| T6 | 17,256 | 2,400 | 35 | **32.9%** |
+| T8 | 22,647 | 3,853 | 60 | **43.8%** |
+| T10 | 30,477 | 4,434 | 66 | 54.5% |
+
+Rolling margin under current pricing: **60.2%**. High-input turns at base P remain the stress shape.
+
+---
+
+## SITE PROMOTION SEPARATION
+
+This audit reports **base pricing margin only** (`userPointsBeforeSitePromotion`). CI catalog discount ≠ site promotion. #963 promotion/receipt owners unchanged.
+
+---
+
 ## SYSTEM DELTA
 
 | | |
 |--|--|
-| **BEFORE (#966 v1)** | Over-broad causal labels; full raw telemetry in git; stale `mainShaExpected`; equated CI rows to client HTTP count |
-| **OBSERVED** | DeepSeek cache works at scale; G31/G37 hits exist historically; G37 recent prod all zero |
-| **PROVEN (offline)** | G37 production prompt T1–T2 common prefix **≥ 4096 tokens**; system sections stable; static/dynamic does not change wire prefix |
-| **PROVEN (live 2-call)** | Clean T1/T2 (`provider_attempt_count = 1` each) · prefix eligible · **T2 cache_read = 0** → layout root cause **contradicted** |
-| **NOT PROVEN** | Exact CI/Google implicit-cache miss mechanism; DeepSeek 7d hit-rate drop cause; G31 current health (no traffic) |
-| **AFTER** | `APP_PREFIX_LAYOUT_ROOT_CAUSE = CONTRADICTED` · primary owner → **CI/Google implicit-cache semantics** |
-| **FIX CANDIDATE** | None — no prompt/cache runtime patch from this evidence |
+| **BEFORE** | Over-broad cache causal labels; 31k-line raw telemetry in git; one-off forensic scripts; no no-cache economics proof |
+| **PROBLEM** | G37 implicit cache unreliable; unclear whether no-cache turns still meet margin floor |
+| **AFTER** | Compact audit PR; cache root cause → CI/Google semantics; pricing safety evidence recorded |
+| **REMOVED** | 3 one-off forensic scripts; full raw usage dump |
+| **PRESERVED** | Cache conclusions; offline prefix proof; live 2-row discriminator; no-cache margin distribution; reusable collector |
+| **REGRESSION RISKS** | None — no runtime/source changes |
+| **PROOF** | Live CASE B + 376-row no-cache margin sample + historical fixture repricing |
 
 ---
 
-## NEXT STEP
+## NEXT STEP (separate follow-ups)
 
-| Question | Answer |
-|----------|--------|
-| Paid G37 probe required? | **DONE** (2-call discriminator executed) — further investigation is CI/provider support, not another prefix probe |
-| Runtime patch required now? | **NO** |
+| Item | Owner |
+|------|-------|
+| CI/Google implicit-cache support inquiry | External |
+| Legacy 32k Gemini threshold cleanup | **STALE_FOLLOW_UP** |
+| G37 pricing adjustment (if required) | **Separate PR** — only if margin follow-up confirms |
+| Admin cache/margin telemetry | Product |
+| Memory Long-Horizon Episodic Retrieval V2 | Memory track |
 
 ---
 
@@ -339,31 +459,24 @@ GEMINI31_CACHE_FUNCTIONALITY           = CONFIRMED_HISTORICALLY
 GEMINI31_30D_CACHE_HEALTH              = PARTIAL
 GEMINI31_RECENT_7D_CACHE_HEALTH        = INSUFFICIENT_NO_TRAFFIC
 
-GEMINI37_CACHE_FUNCTIONALITY           = CONFIRMED_HISTORICALLY
+G37_CACHE_FUNCTIONALITY                = HISTORICALLY_CONFIRMED
 GEMINI37_RECENT_7D_CACHE_HEALTH        = NOT_OBSERVED
-GEMINI37_CACHE_HEALTH                  = NOT_OBSERVED_RECENTLY
 
 G37_CURRENT_PREFIX_CACHE_ELIGIBILITY   = ELIGIBLE
 G37_LIVE_CACHE_DISCRIMINATOR           = CLEAN_TWO_CALL
-G37_CURRENT_IMPLICIT_CACHE_FUNCTIONALITY = ELIGIBLE_PREFIX_BUT_NO_IMPLICIT_HIT
+G37_CURRENT_IMPLICIT_CACHE_HIT         = NOT_OBSERVED_IN_CLEAN_TWO_CALL
+G37_ELIGIBLE_PREFIX_BUT_NO_IMPLICIT_HIT = CONFIRMED
 APP_PREFIX_LAYOUT_ROOT_CAUSE           = CONTRADICTED
 CI_OR_GOOGLE_IMPLICIT_CACHE_SEMANTICS  = PRIMARY_UNCONFIRMED_OWNER
 
-CLIENT_GENERATION_REQUESTS             = 2
+G37_NO_CACHE_PRICING_SAFETY            = FOLLOW_UP_REQUIRED
+ONE_OFF_FORENSIC_SCAFFOLD              = REMOVED
+LEGACY_GEMINI_32K_THRESHOLD            = STALE_FOLLOW_UP
+
+NEW_PROVIDER_GENERATION_CALLS          = 0
 RUNTIME_CHANGE                         = 0
 AUDIT_TOOLING_CHANGE                   = YES
 MERGE                                  = NO
 ```
 
----
-
-## ARTIFACTS
-
-| File | Purpose |
-|------|---------|
-| `ci-usage-snapshot.json` | Aggregated 30d CI usage metrics |
-| `g37-prefix-eligibility-offline.json` | Offline prefix / eligibility proof |
-| `g37-live-cache-discriminator.json` | Live T1/T2 cache discriminator (2 sanitized usage rows) |
-| `scripts/main-rp-cache-health-readonly.ts` | Reproducible usage API collector |
-| `scripts/gemini37-prefix-cache-eligibility-audit.ts` | Offline G37 prefix audit |
-| `scripts/gemini37-live-cache-discriminator.ts` | Live G37 cache discriminator |
+**Pricing safety note:** 30d no-cache sample has 21/376 rows below 50% margin floor (long-input base-P tail); 7d recent min margin 52.6% with 0 below 50%. Pricing change is **out of scope** for #966 — separate PR if follow-up confirms adjustment needed.

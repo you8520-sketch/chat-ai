@@ -1,0 +1,417 @@
+{
+  "generatedAt": "2026-09-19T08:29:48.470Z",
+  "audit": "g37-no-cache-pricing-safety",
+  "providerGenerationCalls": 0,
+  "pricingOwner": "src/lib/gemini37FlashPricing.ts",
+  "pricingConfig": {
+    "basePoints": 35,
+    "includedInputTokens": 25000,
+    "inputStepTokens": 10000,
+    "inputStepPoints": 1,
+    "outputTier2500": 0,
+    "outputTier4000": 25,
+    "outputTier5500": 30,
+    "outputTier7000": 40,
+    "outputTier9000": 50,
+    "outputOver9000StepTokens": 1500,
+    "outputOver9000StepPoints": 10,
+    "longContextThresholdTokens": 75000,
+    "longContextStepTokens": 10000,
+    "longContextStepPoints": 15
+  },
+  "cacheIndependentPricing": {
+    "confirmed": true,
+    "note": "User P uses prompt_tokens + billedOutputTokens only; never cacheRead/cacheWrite/standard/upstreamCostUsd"
+  },
+  "fx": {
+    "actual": {
+      "mode": "daily_kst",
+      "dateKey": "2026-09-19",
+      "usdToKrw": 1500,
+      "effectiveKrwPerUsd": 1530,
+      "source": "fallback",
+      "label": "actual_billing_snapshot"
+    },
+    "stress": {
+      "fallbackUsdKrw": 1500,
+      "effectiveKrwPerUsd": 1530,
+      "label": "stress_fallback_policy"
+    }
+  },
+  "sitePromotion": {
+    "appliedInThisAudit": false,
+    "note": "Base pricing margin only; site promotion reported separately per #963 owners"
+  },
+  "productionNoCache": {
+    "window30d": {
+      "paginationComplete": true,
+      "pagesScanned": 66,
+      "label": "30d_no_cache",
+      "sampleCount": 376,
+      "distributionActualFx": {
+        "sampleCount": 376,
+        "minimum": 20.9,
+        "p5": 48,
+        "p10": 55.4,
+        "median": 77.7,
+        "weightedAggregateMarginPct": 76.8,
+        "below0Pct": {
+          "count": 0,
+          "pct": 0
+        },
+        "below50Pct": {
+          "count": 21,
+          "pct": 5.6
+        },
+        "below55Pct": {
+          "count": 34,
+          "pct": 9
+        },
+        "below60Pct": {
+          "count": 45,
+          "pct": 12
+        }
+      },
+      "distributionStressFx": {
+        "sampleCount": 376,
+        "minimum": 20.9,
+        "p5": 48,
+        "p10": 55.4,
+        "median": 77.7,
+        "weightedAggregateMarginPct": 76.8,
+        "below0Pct": {
+          "count": 0,
+          "pct": 0
+        },
+        "below50Pct": {
+          "count": 21,
+          "pct": 5.6
+        },
+        "below55Pct": {
+          "count": 34,
+          "pct": 9
+        },
+        "below60Pct": {
+          "count": 45,
+          "pct": 12
+        }
+      },
+      "worstRows": [
+        {
+          "requestHash": "3236cb0e73d79544",
+          "created_at": "2026-09-09T08:46:20.136223+00:00",
+          "prompt_tokens": 23915,
+          "completion_tokens": 2103,
+          "cache_read": 0,
+          "cache_write": 0,
+          "billed_cost_usd": 0.018076,
+          "provider_attempt_count": 2,
+          "userPoints": 35,
+          "procurementCostKrwActual": 27.7,
+          "basePricingMarginPctActual": 20.9,
+          "basePricingMarginPctStress": 20.9
+        },
+        {
+          "requestHash": "2d893afc8bc3d1e1",
+          "created_at": "2026-09-01T06:53:20.752201+00:00",
+          "prompt_tokens": 26395,
+          "completion_tokens": 1678,
+          "cache_read": 0,
+          "cache_write": 0,
+          "billed_cost_usd": 0.018263,
+          "provider_attempt_count": 1,
+          "userPoints": 36,
+          "procurementCostKrwActual": 27.9,
+          "basePricingMarginPctActual": 22.5,
+          "basePricingMarginPctStress": 22.5
+        },
+        {
+          "requestHash": "f908563c84260043",
+          "created_at": "2026-09-01T08:15:01.655695+00:00",
+          "prompt_tokens": 24990,
+          "completion_tokens": 1735,
+          "cache_read": 0,
+          "cache_write": 0,
+          "billed_cost_usd": 0.017675,
+          "provider_attempt_count": 1,
+          "userPoints": 35,
+          "procurementCostKrwActual": 27,
+          "basePricingMarginPctActual": 22.9,
+          "basePricingMarginPctStress": 22.9
+        },
+        {
+          "requestHash": "834b130177996285",
+          "created_at": "2026-09-01T06:59:11.9034+00:00",
+          "prompt_tokens": 25324,
+          "completion_tokens": 1489,
+          "cache_read": 0,
+          "cache_write": 0,
+          "billed_cost_usd": 0.017204,
+          "provider_attempt_count": 2,
+          "userPoints": 36,
+          "procurementCostKrwActual": 26.3,
+          "basePricingMarginPctActual": 26.9,
+          "basePricingMarginPctStress": 26.9
+        },
+        {
+          "requestHash": "3dca9d4b4f1af3db",
+          "created_at": "2026-08-29T11:54:11.401299+00:00",
+          "prompt_tokens": 18043,
+          "completion_tokens": 1753,
+          "cache_read": 0,
+          "cache_write": 0,
+          "billed_cost_usd": 0.014075,
+          "provider_attempt_count": 1,
+          "userPoints": 35,
+          "procurementCostKrwActual": 21.5,
+          "basePricingMarginPctActual": 38.6,
+          "basePricingMarginPctStress": 38.6
+        }
+      ]
+    },
+    "window7d": {
+      "label": "7d_no_cache",
+      "sampleCount": 46,
+      "distributionActualFx": {
+        "sampleCount": 46,
+        "minimum": 52.6,
+        "p5": 53.1,
+        "p10": 57.7,
+        "median": 68.6,
+        "weightedAggregateMarginPct": 68.4,
+        "below0Pct": {
+          "count": 0,
+          "pct": 0
+        },
+        "below50Pct": {
+          "count": 0,
+          "pct": 0
+        },
+        "below55Pct": {
+          "count": 4,
+          "pct": 8.7
+        },
+        "below60Pct": {
+          "count": 8,
+          "pct": 17.4
+        }
+      },
+      "distributionStressFx": {
+        "sampleCount": 46,
+        "minimum": 52.6,
+        "p5": 53.1,
+        "p10": 57.7,
+        "median": 68.6,
+        "weightedAggregateMarginPct": 68.4,
+        "below0Pct": {
+          "count": 0,
+          "pct": 0
+        },
+        "below50Pct": {
+          "count": 0,
+          "pct": 0
+        },
+        "below55Pct": {
+          "count": 4,
+          "pct": 8.7
+        },
+        "below60Pct": {
+          "count": 8,
+          "pct": 17.4
+        }
+      },
+      "worstRows": [
+        {
+          "requestHash": "c212e0d9f5fc2fbe",
+          "created_at": "2026-09-17T09:28:18.128526+00:00",
+          "prompt_tokens": 9415,
+          "completion_tokens": 2262,
+          "cache_read": 0,
+          "cache_write": 0,
+          "billed_cost_usd": 0.010881,
+          "provider_attempt_count": 3,
+          "userPoints": 35,
+          "procurementCostKrwActual": 16.6,
+          "basePricingMarginPctActual": 52.6,
+          "basePricingMarginPctStress": 52.6
+        },
+        {
+          "requestHash": "429c78b8a83af899",
+          "created_at": "2026-09-17T10:24:12.790817+00:00",
+          "prompt_tokens": 8727,
+          "completion_tokens": 2368,
+          "cache_read": 0,
+          "cache_write": 0,
+          "billed_cost_usd": 0.010798,
+          "provider_attempt_count": 3,
+          "userPoints": 35,
+          "procurementCostKrwActual": 16.5,
+          "basePricingMarginPctActual": 52.9,
+          "basePricingMarginPctStress": 52.9
+        },
+        {
+          "requestHash": "369ad582275c7b63",
+          "created_at": "2026-09-17T10:16:38.338073+00:00",
+          "prompt_tokens": 10686,
+          "completion_tokens": 1946,
+          "cache_read": 0,
+          "cache_write": 0,
+          "billed_cost_usd": 0.010719,
+          "provider_attempt_count": 3,
+          "userPoints": 35,
+          "procurementCostKrwActual": 16.4,
+          "basePricingMarginPctActual": 53.1,
+          "basePricingMarginPctStress": 53.1
+        },
+        {
+          "requestHash": "dfb3a92d596b33f6",
+          "created_at": "2026-09-17T10:15:56.251866+00:00",
+          "prompt_tokens": 8298,
+          "completion_tokens": 2391,
+          "cache_read": 0,
+          "cache_write": 0,
+          "billed_cost_usd": 0.010633,
+          "provider_attempt_count": 3,
+          "userPoints": 35,
+          "procurementCostKrwActual": 16.3,
+          "basePricingMarginPctActual": 53.4,
+          "basePricingMarginPctStress": 53.4
+        },
+        {
+          "requestHash": "788e8c259724db11",
+          "created_at": "2026-09-17T10:23:33.566293+00:00",
+          "prompt_tokens": 6299,
+          "completion_tokens": 2418,
+          "cache_read": 0,
+          "cache_write": 0,
+          "billed_cost_usd": 0.009655,
+          "provider_attempt_count": 3,
+          "userPoints": 35,
+          "procurementCostKrwActual": 14.8,
+          "basePricingMarginPctActual": 57.7,
+          "basePricingMarginPctStress": 57.7
+        }
+      ]
+    }
+  },
+  "historicalColdFixture": {
+    "fixture": "gemini-37-flash-pricing/RUNTIME.json T1-T10",
+    "note": "Historical stress fixture only — not current production distribution",
+    "turns": [
+      {
+        "turn": "T1",
+        "inputTokens": 4312,
+        "outputTokens": 1613,
+        "cacheRead": 0,
+        "billedCostUsd": 0.006499,
+        "currentUserPoints": 35,
+        "historicalMainUserCharge": 45,
+        "actualFxMarginPct": 71.7,
+        "stressFxMarginPct": 71.7
+      },
+      {
+        "turn": "T2",
+        "inputTokens": 5956,
+        "outputTokens": 2086,
+        "cacheRead": 0,
+        "billedCostUsd": 0.008603,
+        "currentUserPoints": 35,
+        "historicalMainUserCharge": 45,
+        "actualFxMarginPct": 62.3,
+        "stressFxMarginPct": 62.3
+      },
+      {
+        "turn": "T3",
+        "inputTokens": 8051,
+        "outputTokens": 2790,
+        "cacheRead": 0,
+        "billedCostUsd": 0.011551,
+        "currentUserPoints": 60,
+        "historicalMainUserCharge": 60,
+        "actualFxMarginPct": 70.5,
+        "stressFxMarginPct": 70.5
+      },
+      {
+        "turn": "T4",
+        "inputTokens": 10873,
+        "outputTokens": 3515,
+        "cacheRead": 0,
+        "billedCostUsd": 0.013335,
+        "currentUserPoints": 60,
+        "historicalMainUserCharge": 60,
+        "actualFxMarginPct": 66,
+        "stressFxMarginPct": 66
+      },
+      {
+        "turn": "T5",
+        "inputTokens": 14397,
+        "outputTokens": 2844,
+        "cacheRead": 0,
+        "billedCostUsd": 0.011819,
+        "currentUserPoints": 60,
+        "historicalMainUserCharge": 60,
+        "actualFxMarginPct": 69.8,
+        "stressFxMarginPct": 69.8
+      },
+      {
+        "turn": "T6",
+        "inputTokens": 17256,
+        "outputTokens": 2400,
+        "cacheRead": 0,
+        "billedCostUsd": 0.01536,
+        "currentUserPoints": 35,
+        "historicalMainUserCharge": 45,
+        "actualFxMarginPct": 32.9,
+        "stressFxMarginPct": 32.9
+      },
+      {
+        "turn": "T7",
+        "inputTokens": 19667,
+        "outputTokens": 2972,
+        "cacheRead": 0,
+        "billedCostUsd": 0.011711,
+        "currentUserPoints": 60,
+        "historicalMainUserCharge": 60,
+        "actualFxMarginPct": 70.2,
+        "stressFxMarginPct": 70.2
+      },
+      {
+        "turn": "T8",
+        "inputTokens": 22647,
+        "outputTokens": 3853,
+        "cacheRead": 0,
+        "billedCostUsd": 0.022004,
+        "currentUserPoints": 60,
+        "historicalMainUserCharge": 60,
+        "actualFxMarginPct": 43.8,
+        "stressFxMarginPct": 43.8
+      },
+      {
+        "turn": "T9",
+        "inputTokens": 26517,
+        "outputTokens": 3945,
+        "cacheRead": 0,
+        "billedCostUsd": 0.017857,
+        "currentUserPoints": 61,
+        "historicalMainUserCharge": 65,
+        "actualFxMarginPct": 55.2,
+        "stressFxMarginPct": 55.2
+      },
+      {
+        "turn": "T10",
+        "inputTokens": 30477,
+        "outputTokens": 4434,
+        "cacheRead": 0,
+        "billedCostUsd": 0.019613,
+        "currentUserPoints": 66,
+        "historicalMainUserCharge": 75,
+        "actualFxMarginPct": 54.5,
+        "stressFxMarginPct": 54.5
+      }
+    ],
+    "rollingMarginPctUnderCurrentPricing": 60.2
+  },
+  "classification": {
+    "G37_NO_CACHE_PRICING_SAFETY": "FOLLOW_UP_REQUIRED"
+  }
+}
