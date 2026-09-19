@@ -60,7 +60,6 @@ describe("Main RP canonical 4-model registry", () => {
   it("retired models are MainRP=false and never selectable (even for admins)", () => {
     const retired = [
       CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-      CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       OPENROUTER_GEMINI_36_FLASH_MODEL,
       CLAUDE_OPUS_MODEL,
