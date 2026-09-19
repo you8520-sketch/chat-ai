@@ -9,6 +9,9 @@ import {
   computeSiteDiscountPercent,
 } from "@/lib/sitePromotionPolicy";
 import { ensureSitePromotionSchema } from "@/lib/sitePromotionSchema";
+import type { SitePromotionClientView } from "@/lib/sitePromotionClientView";
+
+export type { SitePromotionClientView } from "@/lib/sitePromotionClientView";
 
 type VerifiedOfficialPromotion = {
   id: number;
@@ -252,16 +255,6 @@ export function buildSitePromotionSnapshot(
   };
 }
 
-export type SitePromotionClientView = {
-  modelId: string;
-  siteDiscountPercent: number;
-  endsAt: string;
-  title: string;
-  subtitle: string;
-  detailLine: string;
-  badge: string;
-};
-
 function formatPromotionEndsDate(endsAtIso: string): string {
   return endsAtIso.slice(0, 10).replace(/-/g, ".");
 }
@@ -276,8 +269,8 @@ export function formatSitePromotionUserLabel(
   const label = modelDisplayName?.trim() || promo.provider;
   return {
     title: `${label} 기간 한정 모델 할인`,
-    subtitle: `공식 프로모션 반영으로 7일간 모델 이용료 ${pct}% 할인`,
-    detailLine: `자동 적용 · ${endsDate}까지`,
+    subtitle: `기간 한정 모델 이용료 ${pct}% 할인`,
+    detailLine: `공식 프로모션 반영 · 자동 적용 · ${endsDate}까지`,
     badge: `-${pct}%`,
   };
 }
@@ -298,7 +291,8 @@ export function toSitePromotionClientView(
 /** Resolve active site promotions for model picker / chat notice surfaces. */
 export function resolveActiveSitePromotionsForModels(
   modelIds: readonly string[],
-  nowIso = new Date().toISOString()
+  nowIso = new Date().toISOString(),
+  modelDisplayName?: (modelId: string) => string
 ): SitePromotionClientView[] {
   const seen = new Set<string>();
   const results: SitePromotionClientView[] = [];
@@ -308,7 +302,9 @@ export function resolveActiveSitePromotionsForModels(
     seen.add(normalized);
     const promo = resolveActiveSitePromotion(normalized, nowIso);
     if (!promo) continue;
-    results.push(toSitePromotionClientView(promo));
+    results.push(
+      toSitePromotionClientView(promo, modelDisplayName?.(normalized) ?? modelDisplayName?.(modelId))
+    );
   }
   return results;
 }

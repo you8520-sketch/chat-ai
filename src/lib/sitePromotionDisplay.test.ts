@@ -146,7 +146,9 @@ describe("site promotion display single source", () => {
     assert.ok(manual);
     assert.equal(manual.title, "Manual admin notice");
     assert.ok(resolveActiveSitePromotion(MODEL));
-    assert.match(formatSitePromotionUserLabel(resolveActiveSitePromotion(MODEL)!).subtitle, /30%/);
+    const copy = formatSitePromotionUserLabel(resolveActiveSitePromotion(MODEL)!, "Gemini");
+    assert.match(copy.subtitle, /30%/);
+    assert.doesNotMatch(copy.subtitle, /7일/);
   });
 });
 

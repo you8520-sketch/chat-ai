@@ -1,6 +1,9 @@
 "use client";
 
-import type { SitePromotionClientView } from "@/lib/sitePromotion";
+import {
+  isSitePromotionClientViewActive,
+  type SitePromotionClientView,
+} from "@/lib/sitePromotionClientView";
 
 type Props = {
   promotion: SitePromotionClientView | null;
@@ -8,7 +11,7 @@ type Props = {
 
 /** Inline chat notice for active verified site promotions — not the home popup notice owner. */
 export default function SitePromotionChatNotice({ promotion }: Props) {
-  if (!promotion) return null;
+  if (!isSitePromotionClientViewActive(promotion)) return null;
 
   return (
     <div

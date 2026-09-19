@@ -46,7 +46,8 @@ import MessageVariantPicker from "@/components/MessageVariantPicker";
 import { shouldShowVariantPicker } from "@/lib/chatVariantPickerPolicy";
 import ChatToast from "@/components/ChatToast";
 import SitePromotionChatNotice from "@/components/SitePromotionChatNotice";
-import type { SitePromotionClientView } from "@/lib/sitePromotion";
+import type { SitePromotionClientView } from "@/lib/sitePromotionClientView";
+import { useSitePromotionClientViews } from "@/lib/useSitePromotionClientViews";
 import CharacterAssetImage from "@/components/CharacterAssetImage";
 import GenerationPreparationIndicator from "@/components/GenerationPreparationIndicator";
 import {
@@ -1214,13 +1215,8 @@ export default function ChatClient({
     () => userSelectableAIOptionsForUser(isAdmin),
     [isAdmin]
   );
-  const activeSitePromotionsByModelId = useMemo(() => {
-    const map: Record<string, SitePromotionClientView> = {};
-    for (const promo of initialActiveSitePromotions) {
-      map[promo.modelId.trim().toLowerCase()] = promo;
-    }
-    return map;
-  }, [initialActiveSitePromotions]);
+  const { activeByModelId: activeSitePromotionsByModelId, replacePromotions } =
+    useSitePromotionClientViews(initialActiveSitePromotions);
   const selectedModelSitePromotion =
     activeSitePromotionsByModelId[selectedAI.trim().toLowerCase()] ?? null;
   const [userNote, setUserNote] = useState(initialUserNote);
@@ -1905,11 +1901,21 @@ export default function ChatClient({
     const sync = () => {
       void fetch("/api/user/selected-ai")
         .then((r) => (r.ok ? r.json() : null))
-        .then((data: { selectedAI?: SelectedAI } | null) => {
-          if (data?.selectedAI && data.selectedAI !== selectedAIRef.current) {
-            setSelectedAI(data.selectedAI);
+        .then(
+          (
+            data: {
+              selectedAI?: SelectedAI;
+              activeSitePromotions?: SitePromotionClientView[];
+            } | null
+          ) => {
+            if (data?.selectedAI && data.selectedAI !== selectedAIRef.current) {
+              setSelectedAI(data.selectedAI);
+            }
+            if (Array.isArray(data?.activeSitePromotions)) {
+              replacePromotions(data.activeSitePromotions);
+            }
           }
-        })
+        )
         .catch(() => {});
     };
     const onVis = () => {
@@ -1921,7 +1927,7 @@ export default function ChatClient({
       window.removeEventListener("focus", sync);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, []);
+  }, [replacePromotions]);
 
   const clientMaxMessageId = useMemo(
     () => messages.reduce((max, m) => (m.id != null && m.id > max ? m.id : max), 0),

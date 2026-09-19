@@ -34,11 +34,7 @@ import {
   MAIN_RP_MODEL_IDS,
   selectedAILabel,
 } from "@/lib/chatModels";
-import {
-  resolveActiveSitePromotion,
-  toSitePromotionClientView,
-  type SitePromotionClientView,
-} from "@/lib/sitePromotion";
+import { resolveActiveSitePromotionsForModels } from "@/lib/sitePromotion";
 
 import { ensureDefaultPublicPersona, validatePersonaSelection } from "@/lib/userPersonas";
 import { listUserNotePresets } from "@/lib/userNotePresets";
@@ -515,14 +511,11 @@ export default async function ChatPage({
     isAdmin,
   });
 
-  const initialActiveSitePromotions: SitePromotionClientView[] = [];
-  for (const modelId of MAIN_RP_MODEL_IDS) {
-    const promo = resolveActiveSitePromotion(modelId);
-    if (!promo) continue;
-    initialActiveSitePromotions.push(
-      toSitePromotionClientView(promo, selectedAILabel(modelId))
-    );
-  }
+  const initialActiveSitePromotions = resolveActiveSitePromotionsForModels(
+    MAIN_RP_MODEL_IDS,
+    new Date().toISOString(),
+    selectedAILabel
+  );
 
   const isSimulation = c.content_kind === "simulation";
   const initialNarrativePov = resolveNarrativePov({
