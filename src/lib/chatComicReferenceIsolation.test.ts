@@ -92,8 +92,8 @@ test("PROMPT-BIND-1..2: primary and Tier-2 retain template and identity slot bin
     personaName: "렌", personaGender: "male", subjects: pack.subjects,
     safeStructure: projectComicSafeStructureForTier2(scenePlan, { personaVisible: true }),
   });
-  assert.match(pack.prompt, /Reference image 1 is LAYOUT AND FINISH ONLY/);
-  assert.match(tier2, /Reference image 1 is LAYOUT AND FINISH ONLY/);
+  assert.match(pack.prompt, /Reference image 1 is layout, gutters, and panel structure ONLY/);
+  assert.match(tier2, /Reference image 1 is layout, gutters, and panel structure ONLY/);
   assert.match(pack.prompt, /Image 2/);
   assert.match(pack.prompt, /Image 3/);
   assert.match(tier2, /Image 2/);

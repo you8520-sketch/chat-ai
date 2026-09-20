@@ -73,14 +73,14 @@ describe("chatImagePromptIdentityBinding — duo canonical namespace (visual)", 
     assert.equal(audit.speechOwnerConflictCount, 0);
     assert.ok(countProviderPromptReadableDialogue(prompt) >= 1);
 
-    assert.match(prompt, /Reference image 1 is LAYOUT AND FINISH ONLY/i);
+    assert.match(prompt, /Reference image 1 is layout, gutters, and panel structure ONLY/i);
     assert.match(prompt, /\[SUBJECT A — CHAT CHARACTER: 태형\]/);
     assert.match(prompt, /\[SUBJECT B — USER PERSONA: 렌\]/);
     assert.match(prompt, /Reference: Image 2 belongs ONLY to 태형/);
     assert.match(prompt, /Reference: Image 3 belongs ONLY to 렌/);
     assert.match(prompt, /A = chat character \(태형\)/);
     assert.match(prompt, /B = user persona \(렌\)/);
-    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+    assert.match(prompt, /RENDER THE COMPLETE COMIC PAGE WITH READABLE KOREAN TEXT/);
     assert.match(prompt, /Speech bubble \(/);
     assert.match(prompt, /같이 갈래\?/);
     assert.match(prompt, /그래\./);

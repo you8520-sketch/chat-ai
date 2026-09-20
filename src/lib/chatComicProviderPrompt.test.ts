@@ -252,6 +252,6 @@ describe("cast-aware comic provider prompt regressions CAST-P1–P5", () => {
       plan,
     });
     assert.ok(prompt.includes("안녕."));
-    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+    assert.match(prompt, /RENDER THE COMPLETE COMIC PAGE WITH READABLE KOREAN TEXT/);
   });
 });

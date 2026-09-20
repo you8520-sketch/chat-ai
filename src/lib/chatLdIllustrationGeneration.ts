@@ -41,6 +41,9 @@ export const CHAT_LD_ILLUSTRATION_TEMPLATE_ID = "current_turn_ld_illustration" a
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_NAME = "현재 턴 2:3 LD 일러스트";
 export const CHAT_LD_ILLUSTRATION_OUTPUT_SIZE = "800x1200" as const;
 export const CHAT_LD_ILLUSTRATION_QUALITY = "medium" as const;
+/** Product/format framing only — art style is owned by renderChatImageStyleFidelityContract. */
+export const CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING =
+  "Create one vertical 2:3 character illustration, not a comic page.";
 /**
  * Base chat-room price for 1:1 and TRPG party shots alike. The final required
  * points are computed by the canonical pricing owner
@@ -160,7 +163,7 @@ function buildPartyIllustrationPrompt(opts: {
     adultGrounded: opts.adultGrounded ?? false,
   };
   return [
-    "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
+    CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING,
     `This is a TRPG party group illustration. Show ALL ${count} listed ${peopleWord(count)} together in a single scene. Count the people: ${count}. Do not omit anyone.`,
     "CAST (roster — every listed person must appear):",
     ...opts.cast.map((member, index) => formatCastLine(member, index)),
@@ -177,7 +180,6 @@ function buildPartyIllustrationPrompt(opts: {
     ),
     buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
     "Depict the selected important visual moment below as one cinematic, emotionally accurate group scene, posing each listed person as that moment requires.",
-    "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
     "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
     `Show exactly these ${count} ${peopleWord(count)}. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.`,
@@ -269,7 +271,7 @@ export function buildChatLdIllustrationPrompt(opts: {
     ? "Depict the approved scene plan below as one cinematic, emotionally accurate scene."
     : "Depict the selected important visual moment below as one cinematic, emotionally accurate scene.";
   return [
-    "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
+    CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING,
     renderChatImageVisualIdentity({
       subjects: defaultLdDuoSubjects(opts),
       hasTemplate: false,
@@ -282,7 +284,6 @@ export function buildChatLdIllustrationPrompt(opts: {
     }),
     buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
     directInstruction,
-    "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
     "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
     "Show exactly these two people. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.",
@@ -387,7 +388,7 @@ export function buildLdSceneGenerationPlan(opts: {
     });
     const selected = bound.selected;
     const prompt = [
-      "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
+      CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING,
       renderApprovedCastManifest({
         manifest: opts.castManifest!,
         selected,
@@ -404,7 +405,6 @@ export function buildLdSceneGenerationPlan(opts: {
       approvedScene
         ? "Depict the approved scene plan below as one cinematic scene."
         : "Depict the selected important visual moment below as one cinematic scene.",
-      "Match the drawing style of the supplied identity references. Harmonize style, not identity.",
       "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
       selected.length === 1
         ? "Show exactly this one selected person. Do not add extras, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks."

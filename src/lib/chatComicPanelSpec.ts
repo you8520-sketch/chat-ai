@@ -538,9 +538,9 @@ export function renderChatComicPanelSpecVisualSection(
           panel.narrationBoxNeeded
             ? "Blank narration box: include only when this beat needs context; leave its interior empty."
             : "Blank narration box: not required for this beat.",
-          "Draw natural white manga/manhwa speech balloons with black outlines in appropriate negative space.",
+          "Draw natural white comic speech balloons with black outlines in appropriate negative space.",
           "Aim each balloon tail naturally toward the actual speaker; do not cover faces, eyes, hands, or important actions.",
-          "Add blank narration boxes and decorative manga/manhwa effects only when they support the beat.",
+          "Add blank narration boxes and decorative comic effects only when they support the beat.",
           "Do not use fixed pixel coordinates or repeat an identical seated composition.",
           "Render no readable letters, dialogue, captions, placeholder words, random symbols, or gibberish.",
           `Must avoid: ${panel.mustAvoid.join("; ")}`,
@@ -583,7 +583,7 @@ export function renderChatComicPanelSpecVisualSection(
     "Global must avoid:",
     ...spec.globalMustAvoid.map((rule) => `- ${rule}`),
     compositionMode === "blank_balloon_hybrid"
-      ? "The provider owns panel composition, camera, character staging, facial reactions, blank balloon geometry, balloon tails, narration-box geometry, and decorative manga effects. The server adds glyphs only inside provider-created blank interiors."
+      ? "The provider owns panel composition, camera, character staging, facial reactions, blank balloon geometry, balloon tails, narration-box geometry, and decorative comic effects. The server adds glyphs only inside provider-created blank interiors."
       : "Text will be added later by server overlay — image must contain zero readable text.",
   ]
     .filter(Boolean)
@@ -608,7 +608,7 @@ export function buildChatComicPanelSpecVisualSection(opts: {
 }
 
 /**
- * FULL PROVIDER-RENDERED manhwa section — the provider draws the complete comic
+ * FULL PROVIDER-RENDERED comic section — the provider draws the complete comic
  * page including readable Korean dialogue, narration, and SFX. The planner
  * passes beat, speaker ownership, and exact approved text only; GPT owns pose,
  * camera, balloon geometry, tail geometry, and negative-space arrangement.
@@ -642,7 +642,7 @@ export function renderChatComicPanelSpecFullProviderSection(
   );
 
   const header: string[] = [
-    "COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE",
+    "COMIC PANEL SPEC — FULL PROVIDER-RENDERED COMIC PAGE",
     `Format: ${spec.format} (${spec.panelCount} panels)`,
     `Layout: ${spec.layout}`,
     `Staging: ${staging}`,
@@ -703,7 +703,7 @@ export function renderChatComicPanelSpecFullProviderSection(
     "Global must avoid:",
     ...spec.globalMustAvoid.map((rule) => `- ${rule}`),
     renderComicNarrationProviderContract(),
-    "The provider owns pose, camera angle, balloon position/size/tails, negative-space arrangement, and manga effects. The planner supplies only the beat and the exact approved Korean text.",
+    "The provider owns pose, camera angle, balloon position/size/tails, negative-space arrangement, and decorative comic effects. The planner supplies only the beat and the exact approved Korean text.",
   ]
     .filter(Boolean)
     .join("\n\n");

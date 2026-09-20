@@ -81,7 +81,7 @@ describe("production comic simplification — full source reaches provider promp
     assert.doesNotMatch(prompt, /DIALOGUE CANDIDATES/);
     assert.doesNotMatch(prompt, /NARRATION CANDIDATES/);
     assert.doesNotMatch(prompt, /AUTO PANEL RECOMMENDATION/);
-    assert.doesNotMatch(prompt, /COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE/);
+    assert.doesNotMatch(prompt, /COMIC PANEL SPEC — FULL PROVIDER-RENDERED COMIC PAGE/);
   });
 
   it("SOURCE-4 fixed 4-panel output size and no auto-panel claim", () => {

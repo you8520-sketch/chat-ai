@@ -6,6 +6,7 @@
 import {
   CHAT_COMIC_MOODS,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+  chatComicPageProductFraming,
   type ChatComicMood,
   type ChatComicPanelCount,
 } from "@/lib/chatComicGenerationConstants";
@@ -22,6 +23,7 @@ import {
   type ChatImageCastGroundedSubject,
 } from "@/lib/chatImageCastManifest";
 import {
+  CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING,
   type ChatLdIllustrationCastMember,
 } from "@/lib/chatLdIllustrationGeneration";
 import { genderWordForImagePrompt } from "@/lib/chatImageGender";
@@ -304,7 +306,7 @@ export function buildStrictLdDuoFallbackPrompt(opts: {
   const { safeBroadLocation, safeMood, safeComposition, adultMaleShirtlessContract } =
     resolveLdStrictFallbackSceneFacts(opts);
   return [
-    "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
+    CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING,
     renderChatImageVisualIdentity({
       subjects: subjectsForStrictFallback(opts.subjects),
       hasTemplate: false,
@@ -322,7 +324,7 @@ export function buildStrictLdDuoFallbackPrompt(opts: {
     `Composition: ${safeComposition}.`,
     strictLdCoverageFooter(adultMaleShirtlessContract),
     "No speech bubbles, captions, blood, weapons, injury, or suggestive poses.",
-    "Match reference identity and art style. Vertical 800×1200 composition.",
+    "Vertical 800×1200 composition.",
   ].join("\n");
 }
 
@@ -342,7 +344,7 @@ export function buildStrictLdPartyFallbackPrompt(opts: {
     `same ${count} listed characters`
   );
   return [
-    "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
+    CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING,
     `TRPG party group illustration — show ALL ${count} listed people together.`,
     "CAST:",
     ...opts.cast.map((member, index) => formatStrictCastLine(member, index)),
@@ -364,7 +366,7 @@ export function buildStrictLdPartyFallbackPrompt(opts: {
     `Composition: ${groupComposition}.`,
     "Group mid-shot; every listed face visible; stricter modest coverage throughout.",
     "No combat action, blood, weapons in use, speech bubbles, or suggestive poses.",
-    "Match reference identities and art style. Vertical 800×1200 composition.",
+    "Vertical 800×1200 composition.",
   ].join("\n");
 }
 
@@ -410,8 +412,8 @@ export function buildStrictComicFallbackPrompt(opts: {
   const fullProvider = compositionMode === "full_provider_rendered";
   const compositionLine = hybrid
     ? [
-        "GPT IS COMIC DIRECTOR — create the complete comic artwork: panel composition, camera direction, character staging, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative manga/manhwa effects.",
-        "Draw natural white manga/manhwa speech balloons with black outlines in visually appropriate negative space. Tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text.",
+        "GPT IS COMIC DIRECTOR — create the complete comic artwork: panel composition, camera direction, character staging, facial reactions, blank speech balloons, natural balloon tails, blank narration boxes where needed, and decorative comic effects.",
+        "Draw natural white comic speech balloons with black outlines in visually appropriate negative space. Tails must naturally point toward the actual speaker. Do not cover faces, eyes, hands, or important actions. Leave sufficient empty interior space for later Korean text.",
         "Blank narration boxes only where the beat needs context, with empty interiors. Render no readable letters, dialogue, captions, placeholder words, random symbols, or gibberish anywhere in the image.",
         ...(opts.balloonSlots?.length
           ? renderComicStrictBalloonSlotMetadata(opts.balloonSlots).split("\n")
@@ -419,7 +421,7 @@ export function buildStrictComicFallbackPrompt(opts: {
       ]
     : fullProvider
       ? [
-          "RENDER THE COMPLETE MANHWA PAGE — the image is the final comic; no server text is added later.",
+          "RENDER THE COMPLETE COMIC PAGE — the image is the final comic; no server text is added later.",
           "Readable Korean speech bubbles are allowed for the approved safe dialogue listed below. Do not invent replacement dialogue.",
           "Make balloon tails point toward the actual speaker. Do not cover faces, eyes, hands, or important actions as much as possible. Vary shot distance across the page.",
           "If a panel has no approved dialogue, keep it a silent visual panel.",
@@ -427,8 +429,7 @@ export function buildStrictComicFallbackPrompt(opts: {
         ]
       : ["VISUAL LAYER ONLY — zero speech bubbles, captions, SFX, or readable letters in the image. Text is added later by server overlay."];
   return [
-    `Create one polished Korean manhwa-style page with exactly ${opts.panelCount} wide horizontal panels stacked vertically.`,
-    "Reference image 1 is LAYOUT AND FINISH ONLY.",
+    chatComicPageProductFraming(opts.panelCount),
     `Layout reference: ${CHAT_COMIC_TEMPLATE_PREVIEW_URL}`,
     castBlock,
     renderChatImageVisualIdentity({ subjects: strictSubjects, hasTemplate: true }),
