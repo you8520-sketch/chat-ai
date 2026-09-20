@@ -790,6 +790,39 @@ export function readProviderCostEventByProviderRequestId(
   return rows[0] ?? null;
 }
 
+/** Narrow admin forensic scan — bounded created_at + exact token identity. */
+export function listProviderCostEventsInCreatedAtRange(
+  opts: {
+    provider: string;
+    createdAtFrom: string;
+    createdAtTo: string;
+    outputTokens: number;
+    inputTokens: number;
+  },
+  db: Database.Database = getDb()
+): ProviderCostLedgerRow[] {
+  ensureProviderCostLedgerSchema(db);
+  const provider = opts.provider.trim().toLowerCase();
+  if (!provider) return [];
+  return db
+    .prepare(
+      `SELECT * FROM api_cost_ledger
+       WHERE provider = ?
+         AND datetime(created_at) >= datetime(?)
+         AND datetime(created_at) <= datetime(?)
+         AND output_tokens = ?
+         AND input_tokens = ?
+       ORDER BY id ASC`
+    )
+    .all(
+      provider,
+      opts.createdAtFrom,
+      opts.createdAtTo,
+      opts.outputTokens,
+      opts.inputTokens
+    ) as ProviderCostLedgerRow[];
+}
+
 /** Canonical feature/cost-center vocabulary for AI spend attribution. */
 export type ProviderCostCenter =
   | "chat_turn"

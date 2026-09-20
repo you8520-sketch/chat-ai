@@ -10,7 +10,17 @@ import {
   formatFinanceMarginRate,
   formatFinanceNetProfit,
 } from "@/lib/adminFinanceMarginDisplay";
-import type { AdminProviderRequestForensicRecord } from "@/lib/adminProviderRequestLookup";
+import type {
+  AdminHistoricalCorrelationCandidate,
+  AdminHistoricalCorrelationState,
+  AdminProviderRequestForensicRecord,
+} from "@/lib/adminProviderRequestLookup";
+import {
+  BROADER_CORRELATION_WINDOW_SECONDS,
+  DEFAULT_CORRELATION_WINDOW_SECONDS,
+  LEDGER_CREATED_AT_SEMANTICS,
+  LEDGER_INPUT_TOKEN_SEMANTICS,
+} from "@/lib/adminProviderRequestLookup";
 
 function won(value: number) {
   return `${Math.round(value).toLocaleString()}원`;
@@ -81,6 +91,29 @@ export default function AdminFinanceClient({
   const [providerRequestMatchingRowCount, setProviderRequestMatchingRowCount] = useState(0);
   const [providerRequestDuplicateDetected, setProviderRequestDuplicateDetected] = useState(false);
   const [providerRequestLookupSearched, setProviderRequestLookupSearched] = useState(false);
+  const [correlationForm, setCorrelationForm] = useState({
+    provider: "cheaperinference",
+    model: "gpt-5.6-luna",
+    requestedAtUtc: "",
+    durationMs: "",
+    originalInputTokens: "",
+    sentToModelTokens: "",
+    outputTokens: "",
+    windowSeconds: String(DEFAULT_CORRELATION_WINDOW_SECONDS),
+  });
+  const [correlationLoading, setCorrelationLoading] = useState(false);
+  const [correlationError, setCorrelationError] = useState("");
+  const [correlationState, setCorrelationState] = useState<AdminHistoricalCorrelationState | null>(
+    null
+  );
+  const [correlationCandidates, setCorrelationCandidates] = useState<
+    AdminHistoricalCorrelationCandidate[]
+  >([]);
+  const [correlationExpectedCompletionUtc, setCorrelationExpectedCompletionUtc] = useState("");
+  const [correlationWindowSeconds, setCorrelationWindowSeconds] = useState(
+    DEFAULT_CORRELATION_WINDOW_SECONDS
+  );
+  const [correlationSearched, setCorrelationSearched] = useState(false);
 
   async function loadMonth(monthKey: string) {
     const res = await fetch(`/api/admin/finance?month=${encodeURIComponent(monthKey)}`);
@@ -132,6 +165,79 @@ export default function AdminFinanceClient({
       setProviderRequestLookupError("조회하지 못했습니다.");
     } finally {
       setProviderRequestLookupLoading(false);
+    }
+  }
+
+  async function correlateHistoricalLedger(useBroaderWindow = false) {
+    const durationMs = Number(correlationForm.durationMs);
+    const originalInputTokens = Number(correlationForm.originalInputTokens);
+    const sentToModelTokens = Number(correlationForm.sentToModelTokens);
+    const outputTokens = Number(correlationForm.outputTokens);
+    const windowSeconds = useBroaderWindow
+      ? BROADER_CORRELATION_WINDOW_SECONDS
+      : Number(correlationForm.windowSeconds) || DEFAULT_CORRELATION_WINDOW_SECONDS;
+
+    if (!correlationForm.requestedAtUtc.trim()) {
+      setCorrelationError("requestedAtUtc를 입력하세요.");
+      setCorrelationState(null);
+      setCorrelationCandidates([]);
+      setCorrelationSearched(false);
+      return;
+    }
+    if (!Number.isFinite(durationMs) || durationMs < 0) {
+      setCorrelationError("durationMs를 입력하세요.");
+      return;
+    }
+    if (
+      !Number.isFinite(originalInputTokens) ||
+      !Number.isFinite(sentToModelTokens) ||
+      !Number.isFinite(outputTokens)
+    ) {
+      setCorrelationError("토큰 필드를 입력하세요.");
+      return;
+    }
+
+    setCorrelationLoading(true);
+    setCorrelationError("");
+    setCorrelationState(null);
+    setCorrelationCandidates([]);
+    setCorrelationExpectedCompletionUtc("");
+    setCorrelationSearched(false);
+    try {
+      const res = await fetch("/api/admin/finance/provider-request/correlate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: correlationForm.provider.trim() || "cheaperinference",
+          model: correlationForm.model.trim(),
+          requestedAtUtc: correlationForm.requestedAtUtc.trim(),
+          durationMs,
+          originalInputTokens,
+          sentToModelTokens,
+          outputTokens,
+          windowSeconds,
+        }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        state?: AdminHistoricalCorrelationState;
+        candidates?: AdminHistoricalCorrelationCandidate[];
+        expectedCompletionUtc?: string;
+        windowSeconds?: number;
+      };
+      if (!res.ok) {
+        setCorrelationError(data.error || "상관 조회하지 못했습니다.");
+        return;
+      }
+      setCorrelationSearched(true);
+      setCorrelationState(data.state ?? null);
+      setCorrelationCandidates(data.candidates ?? []);
+      setCorrelationExpectedCompletionUtc(data.expectedCompletionUtc ?? "");
+      setCorrelationWindowSeconds(data.windowSeconds ?? windowSeconds);
+    } catch {
+      setCorrelationError("상관 조회하지 못했습니다.");
+    } finally {
+      setCorrelationLoading(false);
     }
   }
 
@@ -332,6 +438,150 @@ export default function AdminFinanceClient({
         {providerRequestLookupSearched && !providerRequestLookupResult && !providerRequestLookupError && (
           <p className="mt-3 text-sm text-zinc-500">조회 결과 없음</p>
         )}
+
+        <div className="mt-8 border-t border-cyan-500/20 pt-6">
+          <h3 className="font-bold">Historical Ledger Correlation</h3>
+          <p className="mt-1 text-xs text-zinc-500">
+            Provider dashboard 타이밍·토큰으로 canonical ledger 후보를 좁힙니다. Request ID가
+            없거나 ledger에 없을 때 보조 조회입니다. ledger input ={" "}
+            <code className="text-zinc-400">{LEDGER_INPUT_TOKEN_SEMANTICS}</code>, created_at ≈{" "}
+            <code className="text-zinc-400">{LEDGER_CREATED_AT_SEMANTICS}</code>.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ["provider", "Provider", "cheaperinference"],
+              ["model", "Model", "gpt-5.6-luna"],
+              ["requestedAtUtc", "requestedAtUtc (ISO)", "2026-09-19T13:42:44.316Z"],
+              ["durationMs", "durationMs", "12970"],
+              ["originalInputTokens", "Original input tokens", "6564"],
+              ["sentToModelTokens", "Sent to model tokens", "8553"],
+              ["outputTokens", "Output tokens", "1655"],
+              ["windowSeconds", `Window ±seconds (max ${BROADER_CORRELATION_WINDOW_SECONDS})`, String(DEFAULT_CORRELATION_WINDOW_SECONDS)],
+            ].map(([key, label, placeholder]) => (
+              <label key={key} className="text-sm">
+                <span className="font-semibold">{label}</span>
+                <input
+                  type="text"
+                  value={correlationForm[key as keyof typeof correlationForm]}
+                  onChange={(event) =>
+                    setCorrelationForm((prev) => ({ ...prev, [key]: event.target.value }))
+                  }
+                  placeholder={placeholder}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#151821] px-3 py-2 font-mono text-xs"
+                />
+              </label>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => void correlateHistoricalLedger(false)}
+              disabled={correlationLoading}
+              className="rounded-xl border border-cyan-500/30 bg-cyan-950/40 px-5 py-2.5 text-sm font-bold disabled:opacity-50"
+            >
+              {correlationLoading ? "상관 조회 중…" : "상관 조회"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void correlateHistoricalLedger(true)}
+              disabled={correlationLoading}
+              className="rounded-xl border border-amber-500/30 bg-amber-950/30 px-5 py-2.5 text-sm font-bold disabled:opacity-50"
+            >
+              ±{BROADER_CORRELATION_WINDOW_SECONDS}s 수동 fallback
+            </button>
+          </div>
+          {correlationError && (
+            <p className="mt-3 text-sm text-amber-300/90">{correlationError}</p>
+          )}
+          {correlationSearched && correlationState && (
+            <div className="mt-4 space-y-4">
+              <p className="text-sm">
+                <span className="font-bold">State:</span>{" "}
+                <code className="text-cyan-300">{correlationState}</code>
+                {" · "}
+                expected completion{" "}
+                <code className="text-zinc-400">{correlationExpectedCompletionUtc}</code>
+                {" · "}
+                window ±{correlationWindowSeconds}s
+              </p>
+              {correlationState === "NO_CANDIDATE" && (
+                <p className="text-sm text-zinc-400">
+                  bounded window 내 canonical ledger 후보 없음 — 외부 호출 감사는 다음 단계.
+                </p>
+              )}
+              {correlationCandidates.map((candidate, index) => (
+                <article
+                  key={candidate.event.id}
+                  className="rounded-xl border border-white/10 bg-[#151821] p-4"
+                >
+                  <p className="text-xs font-bold text-zinc-400">
+                    Candidate {index + 1} · owner interpretation:{" "}
+                    <code className="text-amber-200">{candidate.ownerInterpretation}</code>
+                  </p>
+                  <p className="mt-2 text-sm font-bold">Correlation evidence:</p>
+                  <ul className="mt-1 list-inside list-disc text-xs text-zinc-400">
+                    <li>provider: {candidate.evidence.providerMatch ? "exact" : "mismatch"}</li>
+                    <li>model: {candidate.evidence.modelMatch ? "exact" : "mismatch"}</li>
+                    <li>
+                      completion time:{" "}
+                      {candidate.evidence.timeMatch
+                        ? `within ${((candidate.evidence.timeDeltaMs ?? 0) / 1000).toFixed(1)}s`
+                        : "outside window"}
+                    </li>
+                    <li>
+                      output tokens:{" "}
+                      {candidate.evidence.outputTokensMatch ? "exact" : "mismatch"}
+                    </li>
+                    <li>input tokens: {candidate.evidence.inputTokenMatchType.replace(/_/g, " ")}</li>
+                    <li>
+                      provider request id:{" "}
+                      {candidate.evidence.providerRequestIdPresent ? "present" : "missing"}
+                    </li>
+                    <li>
+                      linkage:{" "}
+                      {candidate.evidence.turnLinked
+                        ? `turn-linked · message ${candidate.evidence.assistantMessageId}`
+                        : "background (assistant_message_id=null)"}
+                    </li>
+                  </ul>
+                  <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                      <dt className="text-zinc-500">requestKind</dt>
+                      <dd className="font-mono text-xs">{candidate.event.requestKind}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-zinc-500">createdAt</dt>
+                      <dd className="font-mono text-xs">{candidate.event.createdAt}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-zinc-500">Tokens (in / out)</dt>
+                      <dd>
+                        {candidate.event.inputTokens.toLocaleString()} /{" "}
+                        {candidate.event.outputTokens.toLocaleString()}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-zinc-500">Actual cost</dt>
+                      <dd>
+                        {candidate.event.actualCostUsd != null
+                          ? `$${candidate.event.actualCostUsd.toFixed(6)}`
+                          : "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-zinc-500">Ledger id</dt>
+                      <dd className="font-mono text-xs">{candidate.event.id}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-zinc-500">Canonical owner</dt>
+                      <dd>{candidate.event.canonicalOwner}</dd>
+                    </div>
+                  </dl>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
