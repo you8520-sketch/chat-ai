@@ -56,6 +56,7 @@ const KNOWN_OTHER_ASYNC_REQUEST_KINDS: ReadonlyArray<RegExp> = [
   /trpg-mechanics-referee/i,
   /trpg-scenario-draft/i,
   /trpg-sandbox-blueprint/i,
+  /background-trpg-reply-suggestion/i,
 ];
 
 const LEDGER_FAMILY_OWNER_RULES: ReadonlyArray<readonly [RegExp, AuxProviderOwner]> = [

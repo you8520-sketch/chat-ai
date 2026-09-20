@@ -23,6 +23,12 @@ import {
 } from "@/lib/chatModels";
 import { isMockApiMode } from "@/lib/mockApiMode";
 import {
+  buildAuxProviderCallLogInput,
+  logAuxProviderCall,
+} from "@/lib/auxProviderProvenance";
+import { parseCompatibleUsage } from "@/lib/openRouterUsage";
+import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
+import {
   actionTypeLabelKo,
   isTrpgActionType,
   isTrpgVisibleActionType,
@@ -67,6 +73,79 @@ export const TRPG_REPLY_SUGGESTION_PRIMARY_COMPLETION_MS = 10_000;
 export const TRPG_REPLY_SUGGESTION_BACKUP_COMPLETION_MS = 30_000;
 export const TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER = "cheaperinference" as const;
 export const TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER = "openrouter" as const;
+/** Canonical api_cost_ledger request_kind for TRPG reply suggestion physical calls. */
+export const TRPG_REPLY_SUGGESTION_REQUEST_KIND = "background-trpg-reply-suggestion" as const;
+
+type TrpgReplySuggestionTransportProvider =
+  | typeof TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER
+  | typeof TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER;
+
+type TrpgReplySuggestionPhysicalCostOutcome =
+  | "success"
+  | "failed_without_usage"
+  | "failed_with_usage";
+
+function resolveTrpgReplySuggestionProviderRequestId(res: Response): string | null {
+  return (
+    res.headers.get("x-request-id")?.trim() ||
+    res.headers.get("x-openrouter-request-id")?.trim() ||
+    null
+  );
+}
+
+function recordTrpgReplySuggestionPhysicalCost(opts: {
+  provider: TrpgReplySuggestionTransportProvider;
+  model: string;
+  logicalRequestId: string;
+  attemptOrdinal: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  cheaperInferenceBilledCostUsd?: number;
+  upstreamCostUsd?: number;
+  providerRequestId?: string | null;
+  httpStatus?: number | null;
+  outcome: TrpgReplySuggestionPhysicalCostOutcome;
+  usageEstimated?: boolean;
+}): void {
+  const hasExactCost =
+    opts.cheaperInferenceBilledCostUsd != null &&
+    Number.isFinite(opts.cheaperInferenceBilledCostUsd) &&
+    opts.cheaperInferenceBilledCostUsd > 0;
+  try {
+    recordBackgroundProviderCost({
+      provider: opts.provider,
+      model: opts.model,
+      requestKind: TRPG_REPLY_SUGGESTION_REQUEST_KIND,
+      costCenter: "trpg",
+      inputTokens: opts.inputTokens,
+      outputTokens: opts.outputTokens,
+      cheaperInferenceBilledCostUsd: opts.cheaperInferenceBilledCostUsd,
+      upstreamCostUsd: opts.upstreamCostUsd,
+      usageEstimated: opts.usageEstimated ?? (opts.outcome !== "success" || !hasExactCost),
+      providerRequestId: opts.providerRequestId ?? null,
+      httpStatus: opts.httpStatus ?? null,
+      outcome: opts.outcome,
+      jobAttemptOrdinal: opts.attemptOrdinal,
+      persistInTests: Boolean(process.env.NODE_TEST_CONTEXT),
+    });
+    logAuxProviderCall(
+      buildAuxProviderCallLogInput({
+        model: opts.model,
+        messages: [],
+        requestKind: TRPG_REPLY_SUGGESTION_REQUEST_KIND,
+        jobId: opts.logicalRequestId,
+        ledgerContext: {
+          family: "background",
+          executionPhase: "async_post_turn",
+          generationRequestId: opts.logicalRequestId,
+          jobAttemptOrdinal: opts.attemptOrdinal,
+        },
+      })
+    );
+  } catch (error) {
+    console.warn("[TRPG reply] cost record skipped:", (error as Error).message);
+  }
+}
 
 /** Deadlines consumed by executeTrpgReplySuggestionProviderRound (CI Luna primary / OR DeepSeek fallback). */
 export function resolveTrpgReplySuggestionProviderDeadlines(): {
@@ -988,15 +1067,22 @@ function classifyTrpgReplyCaughtTransportFailure(
   });
 }
 
-async function readProviderCompletionResponse(res: Response): Promise<{
+async function readProviderCompletionResponse(
+  res: Response,
+  transportProvider: TrpgReplySuggestionTransportProvider
+): Promise<{
   text: string;
   inputTokens?: number;
   outputTokens?: number;
+  cheaperInferenceBilledCostUsd?: number;
+  upstreamCostUsd?: number;
+  providerRequestId: string | null;
   shape: TrpgReplyBackupResponseShape;
 }> {
   let data: {
     choices?: { finish_reason?: unknown; message?: { content?: unknown; reasoning_content?: unknown } }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number };
+    cheaper_inference?: { billing?: { billed_cost_usd?: unknown }; billed_cost_usd?: unknown };
   };
   try {
     data = (await res.json()) as typeof data;
@@ -1004,22 +1090,35 @@ async function readProviderCompletionResponse(res: Response): Promise<{
     throw new TrpgMalformedProviderResponseError();
   }
   const shape = extractReplySuggestionResponseShape(data);
+  const parsedUsage = parseCompatibleUsage({
+    usage: data.usage,
+    cheaperInference: data.cheaper_inference,
+    headers: res.headers,
+    transportProvider,
+  });
   return {
     text: extractReplySuggestionCompletionText(data),
-    inputTokens: Number(data.usage?.prompt_tokens ?? 0) || undefined,
-    outputTokens: Number(data.usage?.completion_tokens ?? 0) || undefined,
+    inputTokens: parsedUsage.promptTokens || undefined,
+    outputTokens: parsedUsage.completionTokens || undefined,
+    cheaperInferenceBilledCostUsd: parsedUsage.cheaperInferenceBilledCostUsd,
+    upstreamCostUsd: parsedUsage.upstreamCostUsd,
+    providerRequestId: resolveTrpgReplySuggestionProviderRequestId(res),
     shape,
   };
 }
 
 async function readValidatedProviderCompletion(
-  res: Response
+  res: Response,
+  transportProvider: TrpgReplySuggestionTransportProvider
 ): Promise<
   | {
       ok: true;
       text: string;
       inputTokens?: number;
       outputTokens?: number;
+      cheaperInferenceBilledCostUsd?: number;
+      upstreamCostUsd?: number;
+      providerRequestId: string | null;
       shape: TrpgReplyBackupResponseShape;
       parseStage: TrpgReplyFallbackParseStage;
     }
@@ -1033,18 +1132,16 @@ async function readValidatedProviderCompletion(
       ok: false;
       malformedProviderResponse: false;
       semanticFailureClass: Exclude<TrpgReplySemanticFailureClass, null>;
+      inputTokens?: number;
+      outputTokens?: number;
+      providerRequestId?: string | null;
       shape: TrpgReplyBackupResponseShape;
       parseStage: TrpgReplyFallbackParseStage;
     }
 > {
-  let completion: {
-    text: string;
-    inputTokens?: number;
-    outputTokens?: number;
-    shape: TrpgReplyBackupResponseShape;
-  };
+  let completion: Awaited<ReturnType<typeof readProviderCompletionResponse>>;
   try {
-    completion = await readProviderCompletionResponse(res);
+    completion = await readProviderCompletionResponse(res, transportProvider);
   } catch (error) {
     if (error instanceof TrpgMalformedProviderResponseError) {
       return {
@@ -1069,6 +1166,9 @@ async function readValidatedProviderCompletion(
       text: completion.text,
       inputTokens: completion.inputTokens,
       outputTokens: completion.outputTokens,
+      cheaperInferenceBilledCostUsd: completion.cheaperInferenceBilledCostUsd,
+      upstreamCostUsd: completion.upstreamCostUsd,
+      providerRequestId: completion.providerRequestId,
       shape: completion.shape,
       parseStage,
     };
@@ -1077,6 +1177,9 @@ async function readValidatedProviderCompletion(
     ok: false,
     malformedProviderResponse: false,
     semanticFailureClass: validated.semanticFailureClass,
+    inputTokens: completion.inputTokens,
+    outputTokens: completion.outputTokens,
+    providerRequestId: completion.providerRequestId,
     shape: completion.shape,
     parseStage,
   };
@@ -1210,6 +1313,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
     resolveTrpgReplySuggestionProviderDeadlines();
   const fetchCompletion = opts.deps?.fetchCompletion ?? fetchDeepSeekNonStreamCompletion;
   const notifyProviderTelemetry = opts.onProviderTelemetry;
+  let primaryPhysicalAttemptMade = false;
 
   const attemptOpenRouterFallback = async (reason: {
     primaryFailureClass: string;
@@ -1251,6 +1355,14 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       telemetry.fallback_latency_ms = backupResult.latencyMs;
       if (!backupResult.response.ok) {
         const errText = await backupResult.response.text();
+        recordTrpgReplySuggestionPhysicalCost({
+          provider: TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER,
+          model: fallbackModel,
+          logicalRequestId: opts.logicalRequestId,
+          attemptOrdinal: primaryPhysicalAttemptMade ? 2 : 1,
+          httpStatus: backupResult.response.status,
+          outcome: "failed_without_usage",
+        });
         telemetry.fallback_success = false;
         telemetry.backup_failure_class = `http_${backupResult.response.status}`;
         applyBackupResponseTelemetry(telemetry, {
@@ -1269,13 +1381,26 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
           onProviderTelemetry: notifyProviderTelemetry,
         });
       }
-      const backupRead = await readValidatedProviderCompletion(backupResult.response);
+      const backupRead = await readValidatedProviderCompletion(
+        backupResult.response,
+        TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER
+      );
       applyBackupResponseTelemetry(telemetry, {
         status: backupResult.response.status,
         shape: backupRead.shape,
         parseStage: backupRead.parseStage,
       });
       if (!backupRead.ok) {
+        recordTrpgReplySuggestionPhysicalCost({
+          provider: TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER,
+          model: fallbackModel,
+          logicalRequestId: opts.logicalRequestId,
+          attemptOrdinal: primaryPhysicalAttemptMade ? 2 : 1,
+          inputTokens: backupRead.malformedProviderResponse ? undefined : backupRead.inputTokens,
+          outputTokens: backupRead.malformedProviderResponse ? undefined : backupRead.outputTokens,
+          httpStatus: backupResult.response.status,
+          outcome: backupRead.malformedProviderResponse ? "failed_without_usage" : "failed_with_usage",
+        });
         telemetry.fallback_success = false;
         telemetry.backup_failure_class = backupRead.malformedProviderResponse
           ? "malformed_provider_response"
@@ -1291,6 +1416,19 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
           onProviderTelemetry: notifyProviderTelemetry,
         });
       }
+      recordTrpgReplySuggestionPhysicalCost({
+        provider: TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER,
+        model: fallbackModel,
+        logicalRequestId: opts.logicalRequestId,
+        attemptOrdinal: primaryPhysicalAttemptMade ? 2 : 1,
+        inputTokens: backupRead.inputTokens,
+        outputTokens: backupRead.outputTokens,
+        cheaperInferenceBilledCostUsd: backupRead.cheaperInferenceBilledCostUsd,
+        upstreamCostUsd: backupRead.upstreamCostUsd,
+        providerRequestId: backupRead.providerRequestId,
+        httpStatus: backupResult.response.status,
+        outcome: "success",
+      });
       telemetry.fallback_success = true;
       telemetry.backup_failure_class = null;
       logTrpgReplySuggestionProviderTelemetry(telemetry);
@@ -1331,6 +1469,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
   telemetry.provider_attempt_count = 1;
   const primaryStartedAt = Date.now();
   try {
+    primaryPhysicalAttemptMade = true;
     const primaryResult = await fetchCompletion({
       request: {
         endpoint: primaryTransport.endpoint,
@@ -1348,6 +1487,14 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       const classified = classifyTrpgReplySuggestionTransportFailure({
         httpStatus: primaryResult.response.status,
         error: errText,
+      });
+      recordTrpgReplySuggestionPhysicalCost({
+        provider: TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER,
+        model: primaryModel,
+        logicalRequestId: opts.logicalRequestId,
+        attemptOrdinal: 1,
+        httpStatus: primaryResult.response.status,
+        outcome: "failed_without_usage",
       });
       if (!classified.failover) {
         logTrpgReplySuggestionProviderTelemetry({
@@ -1367,8 +1514,24 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       return { ...fallback, telemetry };
     }
 
-    const primaryRead = await readValidatedProviderCompletion(primaryResult.response);
+    const primaryRead = await readValidatedProviderCompletion(
+      primaryResult.response,
+      TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER
+    );
     if (primaryRead.ok) {
+      recordTrpgReplySuggestionPhysicalCost({
+        provider: TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER,
+        model: primaryModel,
+        logicalRequestId: opts.logicalRequestId,
+        attemptOrdinal: 1,
+        inputTokens: primaryRead.inputTokens,
+        outputTokens: primaryRead.outputTokens,
+        cheaperInferenceBilledCostUsd: primaryRead.cheaperInferenceBilledCostUsd,
+        upstreamCostUsd: primaryRead.upstreamCostUsd,
+        providerRequestId: primaryRead.providerRequestId,
+        httpStatus: primaryResult.response.status,
+        outcome: "success",
+      });
       telemetry.primary_failure_class = null;
       telemetry.semantic_failure_class = null;
       logTrpgReplySuggestionProviderTelemetry(telemetry);
@@ -1381,6 +1544,17 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       };
     }
 
+    recordTrpgReplySuggestionPhysicalCost({
+      provider: TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER,
+      model: primaryModel,
+      logicalRequestId: opts.logicalRequestId,
+      attemptOrdinal: 1,
+      inputTokens: primaryRead.malformedProviderResponse ? undefined : primaryRead.inputTokens,
+      outputTokens: primaryRead.malformedProviderResponse ? undefined : primaryRead.outputTokens,
+      providerRequestId: primaryRead.malformedProviderResponse ? null : primaryRead.providerRequestId,
+      httpStatus: primaryResult.response.status,
+      outcome: primaryRead.malformedProviderResponse ? "failed_without_usage" : "failed_with_usage",
+    });
     const fallback = await attemptOpenRouterFallback({
       primaryFailureClass: primaryRead.malformedProviderResponse
         ? "malformed_provider_response"
@@ -1416,6 +1590,14 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       telemetry.primary_timeout_stage = timeoutObs.primary_timeout_stage;
     }
     if (!classified.failover) {
+      recordTrpgReplySuggestionPhysicalCost({
+        provider: TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER,
+        model: primaryModel,
+        logicalRequestId: opts.logicalRequestId,
+        attemptOrdinal: 1,
+        httpStatus: classified.httpStatus,
+        outcome: "failed_without_usage",
+      });
       telemetry.primary_failure_class = classified.failureClass;
       notifyProviderTelemetry?.(telemetry);
       logTrpgReplySuggestionProviderTelemetry(telemetry);
@@ -1424,6 +1606,14 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
         telemetry
       );
     }
+    recordTrpgReplySuggestionPhysicalCost({
+      provider: TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER,
+      model: primaryModel,
+      logicalRequestId: opts.logicalRequestId,
+      attemptOrdinal: 1,
+      httpStatus: classified.httpStatus,
+      outcome: "failed_without_usage",
+    });
     const fallback = await attemptOpenRouterFallback({
       primaryFailureClass: classified.failureClass,
       semanticFailureClass: null,
