@@ -41,20 +41,13 @@ export default function UserNoteSplitEditor({
 }: UserNoteSplitEditorProps) {
   const canEditFocus = editingFocus ?? editing;
   const { body } = parseUserNoteCombined(userNote);
-  const { focusBody, focusBodyMax } = splitUserNoteBodyForEditor(
-    body,
-    widgetReservedChars,
-    focusMaxChars
-  );
+  const { focusBody, focusBodyMax, storedFocusChars, overCurrentPlanLimit } =
+    splitUserNoteBodyForEditor(body, widgetReservedChars, focusMaxChars);
   const { focusChars } = userNoteZoneBreakdown(body, widgetReservedChars, focusMaxChars);
 
   const defaultBody = defaultUserNote.trim()
     ? parseUserNoteCombined(defaultUserNote).body || defaultUserNote.trim()
     : "";
-
-  const updateFocus = (next: string) => {
-    onUserNoteChange(next.slice(0, focusBodyMax));
-  };
 
   const focusPlaceholder = defaultBody ? defaultBody.slice(0, focusBodyMax) : "";
 
@@ -64,7 +57,7 @@ export default function UserNoteSplitEditor({
         <div>
           <p className="text-[11px] font-bold text-amber-200">중요 기억 · 고집중</p>
           <p className="mt-0.5 text-[10px] leading-relaxed">
-            매 턴 전량 주입 · 최대 {focusBodyMax.toLocaleString()}자
+            매 턴 전량 주입 · 현재 요금제 최대 {focusBodyMax.toLocaleString()}자
           </p>
         </div>
         {canEditFocus ? (
@@ -73,15 +66,23 @@ export default function UserNoteSplitEditor({
             rows={focusRows}
             value={focusBody}
             placeholder={focusPlaceholder}
-            maxLength={focusBodyMax}
-            onChange={(e) => updateFocus(e.target.value)}
+            onChange={(e) => onUserNoteChange(e.target.value)}
           />
         ) : (
           <div className={readOnlyBoxClass}>{focusBody || "—"}</div>
         )}
-        <p className="text-[10px] text-amber-200/80">
+        <p
+          className={`text-[10px] ${overCurrentPlanLimit ? "text-rose-300" : "text-amber-200/80"}`}
+        >
           {focusChars.toLocaleString()} / {focusBodyMax.toLocaleString()}자
+          {overCurrentPlanLimit ? " · 현재 요금제 한도 초과 (저장하려면 줄여 주세요)" : ""}
         </p>
+        {storedFocusChars > focusBodyMax ? (
+          <p className="text-[10px] text-rose-300/90">
+            저장된 {storedFocusChars.toLocaleString()}자 중 현재 요금제로는 앞{" "}
+            {focusBodyMax.toLocaleString()}자만 주입됩니다.
+          </p>
+        ) : null}
         {focusFooter}
       </section>
 

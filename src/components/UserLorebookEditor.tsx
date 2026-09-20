@@ -8,12 +8,16 @@ import {
   parseKeywordField,
 } from "@/lib/keywordLorebooks";
 import type { SubscriptionMemoryCapability } from "@/lib/subscriptionMemoryCapability";
-import type { UserLorebookStoredEntry } from "@/lib/userLorebook";
+import type {
+  UserLorebookEntryEffectiveState,
+  UserLorebookStoredEntry,
+} from "@/lib/userLorebook";
 import LorebookKeywordInput from "@/components/LorebookKeywordInput";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 type LorebookView = {
   entries: UserLorebookStoredEntry[];
+  entryEffectiveStates?: UserLorebookEntryEffectiveState[];
   capability: SubscriptionMemoryCapability;
   effectiveActiveEntryCount: number;
   effectiveActiveContentChars: number;
@@ -46,6 +50,9 @@ export default function UserLorebookEditor({
   const [capability, setCapability] = useState<SubscriptionMemoryCapability | null>(null);
   const [effectiveActiveEntryCount, setEffectiveActiveEntryCount] = useState(0);
   const [effectiveActiveContentChars, setEffectiveActiveContentChars] = useState(0);
+  const [entryEffectiveStates, setEntryEffectiveStates] = useState<UserLorebookEntryEffectiveState[]>(
+    []
+  );
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -62,6 +69,7 @@ export default function UserLorebookEditor({
       setCapability(lorebook.capability);
       setEffectiveActiveEntryCount(lorebook.effectiveActiveEntryCount);
       setEffectiveActiveContentChars(lorebook.effectiveActiveContentChars);
+      setEntryEffectiveStates(lorebook.entryEffectiveStates ?? []);
     } catch (e) {
       setMessage((e as Error).message);
     } finally {
@@ -98,6 +106,7 @@ export default function UserLorebookEditor({
       setCapability(lorebook.capability);
       setEffectiveActiveEntryCount(lorebook.effectiveActiveEntryCount);
       setEffectiveActiveContentChars(lorebook.effectiveActiveContentChars);
+      setEntryEffectiveStates(lorebook.entryEffectiveStates ?? []);
       setMessage("내 로어북이 저장되었습니다.");
       window.setTimeout(() => setMessage(""), 2500);
     } catch (e) {
@@ -130,7 +139,16 @@ export default function UserLorebookEditor({
       {message ? <p className="text-[10px] text-violet-300/90">{message}</p> : null}
 
       <div className="space-y-3">
-        {entries.map((entry, index) => (
+        {entries.map((entry, index) => {
+          const effectiveState = entryEffectiveStates[index];
+          const inactiveLabel =
+            effectiveState?.inactiveReason === "entry_count_cap" ||
+            effectiveState?.inactiveReason === "content_cap"
+              ? "현재 요금제 한도로 비활성"
+              : effectiveState?.inactiveReason === "disabled"
+                ? "사용자 비활성"
+                : null;
+          return (
           <div key={index} className={cn(studioSurface.card, "space-y-2 p-3")}>
             <div className="flex items-center justify-between gap-2">
               <label className="flex items-center gap-2 text-[11px] text-zinc-300">
@@ -146,6 +164,9 @@ export default function UserLorebookEditor({
                 />
                 활성
               </label>
+              {entry.enabled && inactiveLabel ? (
+                <span className="text-[10px] text-rose-300/90">{inactiveLabel}</span>
+              ) : null}
               <button
                 type="button"
                 className="text-[10px] text-red-300 hover:text-red-200"
@@ -179,7 +200,8 @@ export default function UserLorebookEditor({
               {parseKeywordField(entry.keywords).length}/{LOREBOOK_KEYWORDS_PER_ENTRY}
             </p>
           </div>
-        ))}
+        );
+        })}
       </div>
 
       <div className="flex flex-wrap gap-2">

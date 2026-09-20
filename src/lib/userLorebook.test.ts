@@ -34,7 +34,6 @@ import {
 } from "@/lib/subscriptionMemoryCapability";
 import {
   applyUserLorebookTurnInjectionBudget,
-  extractLorebookBlockContents,
   getOrCreateUserLorebookForChat,
   loadUserLorebookPromptBlockFromActivation,
   saveUserLorebookEntries,
@@ -118,6 +117,18 @@ describe("subscription memory capability", () => {
     } as never);
     assert.deepEqual(expired, FREE_CAPABILITY);
 
+    const futureNoPlan = resolveSubscriptionMemoryCapability({
+      sub_until: new Date(Date.now() + 86_400_000).toISOString(),
+      sub_plan: null,
+    } as never);
+    assert.deepEqual(futureNoPlan, FREE_CAPABILITY);
+
+    const futureInvalidPlan = resolveSubscriptionMemoryCapability({
+      sub_until: new Date(Date.now() + 86_400_000).toISOString(),
+      sub_plan: "trial",
+    } as never);
+    assert.deepEqual(futureInvalidPlan, FREE_CAPABILITY);
+
     assert.equal(
       isSubscribed({ sub_until: new Date(Date.now() - 1).toISOString() } as never),
       false
@@ -182,11 +193,16 @@ describe("shared activation engine", () => {
     const activation = buildLorebookActivationText({
       currentUserMessage: "hello CREATOR_KW SHARED_KW world",
     });
+    const creatorExclude = new Set<string>();
     const creator = loadKeywordLorebookPromptBlockFromActivation(
       db,
       CREATOR_LOREBOOK,
       activation,
-      { chatId: CHAT, currentTurn: 1 }
+      {
+        chatId: CHAT,
+        currentTurn: 1,
+        onMatch: (match) => creatorExclude.add(match.content.trim()),
+      }
     );
     const user = loadUserLorebookPromptBlockFromActivation(db, {
       chatId: CHAT,
@@ -194,7 +210,7 @@ describe("shared activation engine", () => {
       capability: FREE_CAPABILITY,
       activation,
       currentTurn: 1,
-      excludeContents: extractLorebookBlockContents(creator),
+      excludeContents: creatorExclude,
     });
     assert.match(creator, /CREATOR_CONTENT/);
     assert.match(user, /USER_LORE_BODY/);

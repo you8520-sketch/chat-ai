@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { USER_NOTE_FOCUS_MAX } from "@/lib/persona";
-import { extractFocusZoneNote } from "@/lib/userNoteStatusWindow";
+import { resolveEffectiveFocusForPrompt } from "@/lib/userNoteStatusWindow";
 import {
   resolveUserImpersonationAllowance,
   resolveUserImpersonationFromNote,
@@ -58,7 +58,7 @@ describe("resolveUserImpersonationAllowance", () => {
     const referenceOnly = `${focusPad}\n(OOC: 유저 사칭 허용)`;
     assert.equal(
       resolveUserImpersonationAllowance({
-        userNote: extractFocusZoneNote(referenceOnly),
+        userNote: resolveEffectiveFocusForPrompt(referenceOnly, USER_NOTE_FOCUS_MAX),
       }),
       false
     );

@@ -31,9 +31,7 @@ import {
   userNoteZoneBreakdown,
   validateUserNoteCombined,
   validateUserNoteFocusPreset,
-  extractFocusZoneNote,
-  mergePresetFocusIntoChatNote,
-  replaceFocusZoneInNote,
+  readStoredFocus,
 } from "@/lib/userNoteStatusWindow";
 import {
   ChatSettingsRailIcon,
@@ -719,8 +717,8 @@ function NoteSection({
   const [noteActionMsg, setNoteActionMsg] = useState("");
   const prevChatIdRef = useRef(chatId);
 
-  const savedFocus = extractFocusZoneNote(userNote, focusMaxChars);
-  const draftFocus = extractFocusZoneNote(noteDraft, focusMaxChars);
+  const savedFocus = readStoredFocus(userNote);
+  const draftFocus = readStoredFocus(noteDraft);
   const focusDirty = draftFocus !== savedFocus;
 
   useEffect(() => {
@@ -737,8 +735,8 @@ function NoteSection({
   }, [chatId, userNote, focusDirty]);
 
   function loadPreset(preset: UserNotePresetItem, skipConfirm = false) {
-    const currentFocus = extractFocusZoneNote(noteDraft, focusMaxChars).trim();
-    const incomingFocus = extractFocusZoneNote(preset.content, focusMaxChars).trim();
+    const currentFocus = readStoredFocus(noteDraft).trim();
+    const incomingFocus = readStoredFocus(preset.content).trim();
     if (
       !skipConfirm &&
       currentFocus &&
@@ -747,8 +745,7 @@ function NoteSection({
     ) {
       return;
     }
-    const merged = mergePresetFocusIntoChatNote(preset.content, noteDraft);
-    setNoteDraft(merged);
+    setNoteDraft(readStoredFocus(preset.content));
     setLinkedPresetId(preset.id);
     setNoteActionMsg(`「${preset.title}」을(를) 불러왔습니다. 「저장」으로 적용하세요.`);
   }
@@ -769,8 +766,8 @@ function NoteSection({
   }
 
   async function saveFocusToRoom() {
-    const merged = replaceFocusZoneInNote(userNote, noteDraft);
-    const focusCheck = validateUserNoteFocusPreset(extractFocusZoneNote(merged), focusMaxChars);
+    const merged = readStoredFocus(noteDraft);
+    const focusCheck = validateUserNoteFocusPreset(merged, focusMaxChars);
     if (!focusCheck.ok) {
       setNoteActionMsg(focusCheck.error);
       return;

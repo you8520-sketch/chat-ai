@@ -5,7 +5,7 @@ import {
   type UserNotePresetItem,
 } from "@/lib/userNotePresetTypes";
 import {
-  extractFocusZoneNote,
+  readStoredFocus,
   validateUserNoteFocusPreset,
 } from "@/lib/userNoteStatusWindow";
 
@@ -24,7 +24,7 @@ export function listUserNotePresets(userId: number): UserNotePresetItem[] {
     .all(userId) as UserNotePresetItem[];
   return rows.map((row) => ({
     ...row,
-    content: extractFocusZoneNote(row.content),
+    content: readStoredFocus(row.content),
   }));
 }
 
@@ -58,7 +58,7 @@ export function ensureLegacyUserNotePreset(userId: number): void {
   db.prepare("INSERT INTO user_note_presets (user_id, title, content) VALUES (?,?,?)").run(
     userId,
     "기본",
-    extractFocusZoneNote(content)
+    readStoredFocus(content)
   );
 }
 
@@ -75,7 +75,7 @@ export function validateNotePresetInput(
 }
 
 function normalizePresetContent(content: string): string {
-  return extractFocusZoneNote(content).trim();
+  return readStoredFocus(content);
 }
 
 export function createUserNotePreset(

@@ -2,13 +2,15 @@ import type Database from "better-sqlite3";
 
 import {
   LOREBOOK_CONTENT_MAX,
+  LOREBOOK_ENTRY_MAX,
   LOREBOOK_KEYWORDS_PER_ENTRY,
+  KEYWORD_FIELD_SPLIT,
   buildKeywordLorebookPromptBlock,
   ensureLorebookActiveEntriesTable,
   loadCarryoverLorebookMatches,
+  lorebookEntryKey,
   matchKeywordLorebookEntryDetails,
   mergeMatches,
-  normalizeLorebookEntries,
   parseStoredLorebookEntries,
   saveActiveLorebookMatches,
   serializeLorebookEntries,
@@ -30,12 +32,18 @@ export type UserLorebookEntryInput = {
   enabled?: boolean;
 };
 
+export type UserLorebookEntryEffectiveState = {
+  effectiveActive: boolean;
+  inactiveReason?: "disabled" | "entry_count_cap" | "content_cap";
+};
+
 export type UserLorebookView = {
   id: number;
   chatId: number;
   userId: number;
   name: string;
   entries: UserLorebookStoredEntry[];
+  entryEffectiveStates: UserLorebookEntryEffectiveState[];
   capability: SubscriptionMemoryCapability;
   effectiveActiveEntryCount: number;
   effectiveActiveContentChars: number;
@@ -60,7 +68,50 @@ export function ensureUserLorebookSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_keyword_lorebooks_user_chat
       ON keyword_lorebooks(scope, chat_id, creator_id);
   `);
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_keyword_lorebooks_one_user_chat_per_chat
+      ON keyword_lorebooks(chat_id)
+      WHERE scope = 'user_chat' AND chat_id IS NOT NULL;
+  `);
   ensureLorebookActiveEntriesTable(db);
+}
+
+function normalizeKeywordsField(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((k) => String(k).trim()).filter(Boolean).slice(0, LOREBOOK_KEYWORDS_PER_ENTRY);
+  }
+  return String(raw ?? "")
+    .split(KEYWORD_FIELD_SPLIT)
+    .map((k) => k.trim())
+    .filter(Boolean)
+    .slice(0, LOREBOOK_KEYWORDS_PER_ENTRY);
+}
+
+export function computeUserLorebookEntryEffectiveStates(
+  entries: readonly UserLorebookStoredEntry[],
+  capability: SubscriptionMemoryCapability
+): UserLorebookEntryEffectiveState[] {
+  const states: UserLorebookEntryEffectiveState[] = [];
+  let activeCount = 0;
+  let contentChars = 0;
+  for (const entry of entries) {
+    if (entry.enabled === false) {
+      states.push({ effectiveActive: false, inactiveReason: "disabled" });
+      continue;
+    }
+    if (activeCount >= capability.userLorebookActiveEntryMax) {
+      states.push({ effectiveActive: false, inactiveReason: "entry_count_cap" });
+      continue;
+    }
+    if (contentChars + entry.content.length > capability.userLorebookActiveContentMaxChars) {
+      states.push({ effectiveActive: false, inactiveReason: "content_cap" });
+      continue;
+    }
+    states.push({ effectiveActive: true });
+    activeCount += 1;
+    contentChars += entry.content.length;
+  }
+  return states;
 }
 
 export function parseStoredUserLorebookEntries(json: string): UserLorebookStoredEntry[] {
@@ -108,24 +159,27 @@ export function normalizeUserLorebookEntries(
   if (!Array.isArray(raw)) {
     return { ok: false, error: "내 로어북 항목 형식이 올바르지 않습니다." };
   }
-  const normalized = normalizeLorebookEntries(
-    raw.map((item) => {
-      if (!item || typeof item !== "object") return item;
-      const record = item as UserLorebookEntryInput;
-      return {
-        keywords: record.keywords,
-        content: record.content,
-      };
-    })
-  );
-  if (!normalized.ok) return normalized;
-  const enabledFlags = raw.map((item) =>
-    item && typeof item === "object" && (item as UserLorebookEntryInput).enabled === false ? false : true
-  );
-  const entries = normalized.entries.map((entry, index) => ({
-    ...entry,
-    enabled: enabledFlags[index] ?? true,
-  }));
+  if (raw.length > LOREBOOK_ENTRY_MAX) {
+    return { ok: false, error: `로어북 항목은 최대 ${LOREBOOK_ENTRY_MAX}개까지 등록할 수 있습니다.` };
+  }
+
+  const entries: UserLorebookStoredEntry[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const item = raw[i];
+    if (!item || typeof item !== "object") continue;
+    const record = item as UserLorebookEntryInput;
+    const enabled = record.enabled !== false;
+    const keywords = normalizeKeywordsField(record.keywords);
+    const content = String(record.content ?? "").trim().slice(0, LOREBOOK_CONTENT_MAX);
+    if (keywords.length === 0 && !content) continue;
+    if (keywords.length === 0) {
+      return { ok: false, error: `${i + 1}번째 항목의 키워드를 입력해 주세요.` };
+    }
+    if (!content) {
+      return { ok: false, error: `${i + 1}번째 항목의 내용을 입력해 주세요.` };
+    }
+    entries.push({ keywords, content, enabled });
+  }
   return { ok: true, entries };
 }
 
@@ -201,6 +255,23 @@ export function getOrCreateUserLorebookForChat(
   const existing = getUserLorebookRowForChat(db, chatId, userId);
   if (existing) return existing;
 
+  const byChatScope = db
+    .prepare(
+      `SELECT id, entries_json, name FROM keyword_lorebooks
+       WHERE scope=? AND chat_id=? AND creator_id=?`
+    )
+    .get(LOREBOOK_SCOPE_USER_CHAT, chatId, userId) as
+    | { id: number; entries_json: string; name: string }
+    | undefined;
+  if (byChatScope) {
+    db.prepare(`UPDATE chats SET user_lorebook_id=? WHERE id=? AND user_id=?`).run(
+      byChatScope.id,
+      chatId,
+      userId
+    );
+    return byChatScope;
+  }
+
   const insert = db
     .prepare(
       `INSERT INTO keyword_lorebooks (creator_id, name, summary, entries_json, scope, chat_id)
@@ -225,12 +296,14 @@ export function loadUserLorebookView(
   const row = getOrCreateUserLorebookForChat(db, chatId, userId);
   const entries = parseStoredUserLorebookEntries(row.entries_json);
   const effective = selectEffectiveActiveUserLorebookEntries(entries, capability);
+  const entryEffectiveStates = computeUserLorebookEntryEffectiveStates(entries, capability);
   return {
     id: row.id,
     chatId,
     userId,
     name: row.name,
     entries,
+    entryEffectiveStates,
     capability,
     effectiveActiveEntryCount: effective.length,
     effectiveActiveContentChars: effective.reduce((sum, entry) => sum + entry.content.length, 0),
@@ -244,6 +317,11 @@ export function saveUserLorebookEntries(
   entries: UserLorebookStoredEntry[]
 ): void {
   const row = getOrCreateUserLorebookForChat(db, chatId, userId);
+  ensureLorebookActiveEntriesTable(db);
+  db.prepare(`DELETE FROM lorebook_active_entries WHERE chat_id=? AND lorebook_id=?`).run(
+    chatId,
+    row.id
+  );
   db.prepare(
     `UPDATE keyword_lorebooks SET entries_json=?, updated_at=datetime('now') WHERE id=? AND scope=? AND chat_id=? AND creator_id=?`
   ).run(serializeUserLorebookEntries(entries), row.id, LOREBOOK_SCOPE_USER_CHAT, chatId, userId);
@@ -307,6 +385,7 @@ export function loadUserLorebookPromptBlockFromActivation(
 
   const stored = parseStoredUserLorebookEntries(row.entries_json);
   const activeEntries = selectEffectiveActiveUserLorebookEntries(stored, opts.capability);
+  const validEntryKeys = new Set(activeEntries.map((entry) => lorebookEntryKey(entry)));
   const direct = matchKeywordLorebookEntryDetails(activeEntries, opts.activation);
   const carryover =
     opts.currentTurn != null
@@ -314,7 +393,7 @@ export function loadUserLorebookPromptBlockFromActivation(
           chatId: opts.chatId,
           lorebookId: row.id,
           currentTurn: opts.currentTurn,
-        })
+        }).filter((match) => validEntryKeys.has(match.entryKey))
       : [];
   const merged = mergeMatches(direct, carryover);
 
@@ -335,18 +414,6 @@ export function loadUserLorebookPromptBlockFromActivation(
   );
   for (const match of budgeted) opts.onMatch?.(match);
   return buildUserLorebookPromptBlock(budgeted.map((match) => match.content));
-}
-
-/** Extract creator lorebook contents for exact-content dedupe (creator wins). */
-export function extractLorebookBlockContents(block: string): Set<string> {
-  const contents = new Set<string>();
-  if (!block.trim()) return contents;
-  const body = block.replace(/^\[[^\]]+\]\s*/u, "").trim();
-  for (const part of body.split(/\n\n+/)) {
-    const trimmed = part.trim();
-    if (trimmed) contents.add(trimmed);
-  }
-  return contents;
 }
 
 export { buildKeywordLorebookPromptBlock, parseStoredLorebookEntries, serializeLorebookEntries };

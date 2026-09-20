@@ -33,7 +33,12 @@ import StatusWidgetEditor from "@/components/StatusWidgetEditor";
 import ShareLinkBox from "@/components/ShareLinkBox";
 import PersonaAvatar from "@/components/PersonaAvatar";
 import PersonaImageEditor from "@/components/PersonaImageEditor";
-import { validateUserNoteCombined, userNoteCombinedCharCount, parseUserNoteCombined, extractFocusZoneNote, validateUserNoteFocusPreset } from "@/lib/userNoteStatusWindow";
+import {
+  readStoredFocus,
+  userNoteCombinedCharCount,
+  parseUserNoteCombined,
+  validateUserNoteFocusPreset,
+} from "@/lib/userNoteStatusWindow";
 import type { StatusWidgetPresetItem } from "@/lib/statusWidgetPresetTypes";
 import { STATUS_WIDGET_PRESET_TITLE_MAX } from "@/lib/statusWidgetPresetTypes";
 import {
@@ -565,7 +570,7 @@ export default function PersonaClient({
   }
 
   async function saveNotePreset() {
-    const focusContent = extractFocusZoneNote(noteDraftContent);
+    const focusContent = readStoredFocus(noteDraftContent);
     const noteCheck = validateUserNoteFocusPreset(focusContent, focusMaxChars);
     if (!noteCheck.ok) {
       setError(noteCheck.error);
@@ -1027,7 +1032,7 @@ export default function PersonaClient({
             />
             <p className={studioType.caption}>
               {(() => {
-                const parsed = parseUserNoteCombined(extractFocusZoneNote(noteDraftContent));
+                const parsed = parseUserNoteCombined(readStoredFocus(noteDraftContent));
                 return userNoteCombinedCharCount(parsed.body, parsed.statusTemplate).toLocaleString();
               })()}{" "}
               / {focusMaxChars.toLocaleString()}자 (고집중)

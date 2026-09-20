@@ -22,11 +22,20 @@ const SUBSCRIBED_CAPABILITY: SubscriptionMemoryCapability = {
   userLorebookTurnInjectMaxChars: 4_000,
 };
 
+const VALID_SUBSCRIPTION_PLANS = new Set(["basic", "pro"]);
+
+export function hasValidSubscriptionPlan(
+  user: Pick<User, "sub_plan"> | null | undefined
+): boolean {
+  const plan = user?.sub_plan?.trim().toLowerCase() ?? "";
+  return VALID_SUBSCRIPTION_PLANS.has(plan);
+}
+
 /** Canonical subscription memory capability — do not scatter tier checks elsewhere. */
 export function resolveSubscriptionMemoryCapability(
-  user: Pick<User, "sub_until"> | null | undefined
+  user: Pick<User, "sub_until" | "sub_plan"> | null | undefined
 ): SubscriptionMemoryCapability {
-  if (user && isSubscribed(user as User)) {
+  if (user && isSubscribed(user as User) && hasValidSubscriptionPlan(user)) {
     return SUBSCRIBED_CAPABILITY;
   }
   return FREE_CAPABILITY;

@@ -1,5 +1,5 @@
 import { extractOocSnippets } from "@/lib/userImpersonationPolicy";
-import { extractFocusZoneNote, parseUserNoteCombined } from "@/lib/userNoteStatusWindow";
+import { parseUserNoteCombined, readStoredFocus } from "@/lib/userNoteStatusWindow";
 import { RP_STOP_OR_FLASH_ONLY } from "@/lib/oocHtmlTurnPatterns";
 import { stripLeakedDocumentMarkup } from "@/lib/chatHtmlSanitize";
 import {
@@ -1293,7 +1293,7 @@ export function resolveHtmlVisualCardPolicyFromSources(sources: {
   }
 
   const noteBody = parseUserNoteCombined(noteText).body;
-  const noteFocus = extractFocusZoneNote(noteText);
+  const noteFocus = readStoredFocus(noteText);
 
   const notePersonaStanding = sources.statusWidgetActive
     ? false
