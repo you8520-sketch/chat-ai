@@ -24,7 +24,8 @@ export async function GET(_req: Request, { params }: Params) {
   const row = db
     .prepare(
       `SELECT id, creator_id, name, summary, entries_json, created_at, updated_at
-       FROM keyword_lorebooks WHERE id = ? AND creator_id = ?`
+       FROM keyword_lorebooks
+       WHERE id = ? AND creator_id = ? AND COALESCE(scope, 'creator') = 'creator'`
     )
     .get(id, user.id) as KeywordLorebookRow | undefined;
 

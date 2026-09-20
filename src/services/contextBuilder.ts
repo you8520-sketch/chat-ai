@@ -77,10 +77,6 @@ import {
 } from "@/lib/corePrompt";
 import { splitUserNotePromptZones } from "@/lib/userNoteStatusWindow";
 import {
-  buildReferenceUserNotePromptBlock,
-  selectReferenceUserNoteForInjection,
-} from "@/lib/userNoteReferenceInjector";
-import {
   resolveStatusWindowPolicyFromSources,
   stripRedundantStatusWindowFromSource,
   modelPlainStatusEveryTurnActive,
@@ -434,22 +430,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     userMessage: input.currentUserMessage,
     markdownStatusWindowActive: markdownPipeTableStatusWindowActive(statusWindowPolicy),
   });
-  const { mandatory: mandatoryUserRulesRaw, reference: referenceUserNoteRaw } =
-    splitUserNotePromptZones(rawNote);
+  const focusMaxChars = input.focusMaxChars ?? 1_000;
+  const { mandatory: mandatoryUserRulesRaw } = splitUserNotePromptZones(
+    rawNote,
+    0,
+    focusMaxChars
+  );
   let mandatoryUserRules = stripRedundantStatusWindowFromSource(
     mandatoryUserRulesRaw,
     statusWindowPolicy
   );
-  let referenceUserNote = stripRedundantStatusWindowFromSource(
-    referenceUserNoteRaw,
-    statusWindowPolicy
-  );
+  const userLorebookBlock = sanitizeRuntimePromptSource(input.userLorebookBlock);
   mandatoryUserRules = stripRedundantHtmlVisualCardFromSource(
     mandatoryUserRules,
-    htmlVisualCardPolicy
-  );
-  referenceUserNote = stripRedundantHtmlVisualCardFromSource(
-    referenceUserNote,
     htmlVisualCardPolicy
   );
   let personaForIdentity = persona
@@ -464,7 +457,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   if (isOpenRouter) {
     mandatoryUserRules = sanitizePrimaryModelContextSource(mandatoryUserRules);
-    referenceUserNote = sanitizePrimaryModelContextSource(referenceUserNote);
     if (personaForIdentity) {
       personaForIdentity = sanitizePrimaryModelContextSource(personaForIdentity);
     }
@@ -820,25 +812,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   };
 
-  const pushReferenceUserNote = () => {
-    if (!referenceUserNote) return;
-    const recentContextForNoteRag = input.shortTermHistory
-      .slice(-4)
-      .map((m) => m.content?.trim() ?? "")
-      .filter(Boolean)
-      .join("\n");
-    const injected = selectReferenceUserNoteForInjection({
-      reference: referenceUserNote,
-      userMessage: input.currentUserMessage,
-      recentContext: recentContextForNoteRag,
-    });
-    const block = buildReferenceUserNotePromptBlock(injected);
-    if (!block) return;
+  const pushUserLorebook = () => {
+    if (!userLorebookBlock) return;
     pushSection(
-      "user-note-reference",
-      "[5] User Note (reference · RAG)",
+      "user-lorebook",
+      "[5] User Lorebook",
       "userNote",
-      block,
+      userLorebookBlock,
       "dynamic"
     );
   };
@@ -1032,7 +1012,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   const pushRagContextSections = () => {
-    pushReferenceUserNote();
+    pushUserLorebook();
     pushKeywordLorebook();
   };
 
@@ -1049,7 +1029,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       pushRelationshipMeta();
       pushRagContextSections();
     } else if (!isGeminiBulk) {
-      pushReferenceUserNote();
+      pushUserLorebook();
     }
     pushSceneDirective();
   };

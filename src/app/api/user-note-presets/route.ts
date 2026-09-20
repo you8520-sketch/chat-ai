@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
+import { resolveSubscriptionMemoryCapability } from "@/lib/subscriptionMemoryCapability";
 import {
   createUserNotePreset,
   listUserNotePresets,
@@ -22,12 +23,13 @@ export async function POST(req: Request) {
   const body = await req.json();
   const title = sanitizeNotePresetTitle(String(body.title ?? ""));
   const content = String(body.content ?? "").trim();
-  const check = validateNotePresetInput(title, content);
+  const focusMaxChars = resolveSubscriptionMemoryCapability(user).focusMaxChars;
+  const check = validateNotePresetInput(title, content, focusMaxChars);
   if (!check.ok) {
     return NextResponse.json({ error: check.error }, { status: 400 });
   }
 
-  const preset = createUserNotePreset(user.id, title, content);
+  const preset = createUserNotePreset(user.id, title, content, focusMaxChars);
   if (!preset) {
     return NextResponse.json({ error: "저장에 실패했습니다." }, { status: 400 });
   }

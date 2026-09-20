@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { parseAdultHandoffEnabled } from "@/lib/chatAdultHandoff";
 import { effectiveIsAdult } from "@/lib/adultVerification";
 import { normalizeTargetResponseChars } from "@/lib/responseLength";
+import { resolveSubscriptionMemoryCapability } from "@/lib/subscriptionMemoryCapability";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
 import { resolveNarrativePov } from "@/lib/narrativePov";
@@ -121,9 +122,14 @@ export async function PATCH(req: Request) {
     return Response.json({ error: widgetBudgetCheck.error }, { status: 400 });
   }
 
+  const memoryCapability = resolveSubscriptionMemoryCapability(user);
   const note = typeof userNote === "string" ? userNote.trim() : undefined;
   if (note !== undefined) {
-    const noteCheck = validateUserNoteCombined(note, widgetReservedBreakdown.totalReservedChars);
+    const noteCheck = validateUserNoteCombined(
+      note,
+      widgetReservedBreakdown.totalReservedChars,
+      memoryCapability.focusMaxChars
+    );
     if (!noteCheck.ok) {
       return Response.json({ error: noteCheck.error }, { status: 400 });
     }

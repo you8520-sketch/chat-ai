@@ -257,6 +257,11 @@ import {
   buildLorebookActivationText,
   loadKeywordLorebookPromptBlockFromActivation,
 } from "@/lib/keywordLorebooks";
+import { resolveSubscriptionMemoryCapability } from "@/lib/subscriptionMemoryCapability";
+import {
+  extractLorebookBlockContents,
+  loadUserLorebookPromptBlockFromActivation,
+} from "@/lib/userLorebook";
 import { loadGlobalLorebookPromptBlock } from "@/lib/globalLorebook";
 import { resolveHtmlVisualCardPolicyFromSources, resolveHtmlFlashPlacement, htmlPolicyReplacesMarkdownStatus, applyChatOocExclusiveHtmlPolicy, oocFlashHtmlMustBeRejected, isOocCreativeHtmlRichEnough } from "@/lib/htmlVisualCardPolicy";
 import {
@@ -825,6 +830,8 @@ export async function POST(req: Request) {
     });
   }
 
+  const memoryCapability = resolveSubscriptionMemoryCapability(user);
+
   if (userNoteInput !== undefined) {
     const widgetReserved = resolveStatusWidgetReservedChars({
       characterWidgetJson: (ch as { status_widget_json?: string }).status_widget_json,
@@ -835,7 +842,11 @@ export async function POST(req: Request) {
       characterAllowUserOverride:
         (ch as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0,
     });
-    const noteCheck = validateUserNoteCombined(userNoteInput, widgetReserved);
+    const noteCheck = validateUserNoteCombined(
+      userNoteInput,
+      widgetReserved,
+      memoryCapability.focusMaxChars
+    );
     if (!noteCheck.ok) {
       return Response.json({ error: noteCheck.error }, { status: 400 });
     }
@@ -883,7 +894,10 @@ export async function POST(req: Request) {
     (chat.user_note?.trim() || userNoteRow.user_note?.trim()) ?? "";
   const personaDescription = toPublicPersonaDescription(selectedPersona?.description ?? "");
   const personaDisplayName = selectedPersona?.name?.trim() || user.nickname;
-  const userNotePrompt = formatUserNoteForPrompt(effectiveUserNote);
+  const userNotePrompt = formatUserNoteForPrompt(
+    effectiveUserNote,
+    memoryCapability.focusMaxChars
+  );
   const oocUserImpersonationAllowed = resolveUserImpersonationAllowance({
     personaDescription,
     userNote: extractFocusZoneNote(effectiveUserNote),
@@ -1745,6 +1759,16 @@ export async function POST(req: Request) {
     console.warn("[Lorebook] activated entries:", activatedKeywordLorebookMatches);
   }
 
+  const creatorContentsForDedupe = extractLorebookBlockContents(keywordLorebookBlock);
+  const userLorebookBlock = loadUserLorebookPromptBlockFromActivation(db, {
+    chatId: chat.id,
+    userId: user.id,
+    capability: memoryCapability,
+    activation: lorebookActivation,
+    currentTurn: playableTurnCount + 1,
+    excludeContents: creatorContentsForDedupe,
+  });
+
   const statusWindowPolicyForHtml = resolveStatusWindowPolicyFromSources({
     userNote: effectiveUserNote || undefined,
     userPersona: userPersonaPrompt ?? undefined,
@@ -2216,6 +2240,8 @@ export async function POST(req: Request) {
       : sceneDirectiveBlock,
     scenePacingPromptOwner: scenePacingOwner,
     keywordLorebookBlock: keywordLorebookBlock || undefined,
+    userLorebookBlock: userLorebookBlock || undefined,
+    focusMaxChars: memoryCapability.focusMaxChars,
     globalLorebookBlock: globalLorebookBlock || undefined,
     canonInjectionPolicy: canonInjectionPolicy,
     canonPlan: canonLazyCompileResult?.plan ?? null,
