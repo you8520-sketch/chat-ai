@@ -20,7 +20,7 @@ import {
   DEFAULT_CORRELATION_WINDOW_SECONDS,
   LEDGER_CREATED_AT_SEMANTICS,
   LEDGER_INPUT_TOKEN_SEMANTICS,
-} from "@/lib/adminProviderRequestLookup";
+} from "@/lib/adminProviderRequestLookupShared";
 
 function won(value: number) {
   return `${Math.round(value).toLocaleString()}원`;

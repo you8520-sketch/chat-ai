@@ -10,24 +10,19 @@ import {
   type ProviderCostLedgerRow,
 } from "@/lib/providerCostLedger";
 
-/**
- * Proven at current main and deployed SHA 7060e8b3:
- * parseCompatibleUsage → usage.prompt_tokens → resolvedInputTokens → input_tokens.
- * CheaperInference dashboard "Sent to model" aligns with provider usage prompt_tokens.
- * Dashboard "Original input" is NOT persisted to api_cost_ledger.input_tokens.
- */
-export const LEDGER_INPUT_TOKEN_SEMANTICS = "SENT_TO_MODEL" as const;
+import {
+  BROADER_CORRELATION_WINDOW_SECONDS,
+  DEFAULT_CORRELATION_WINDOW_SECONDS,
+  LEDGER_CREATED_AT_SEMANTICS,
+  LEDGER_INPUT_TOKEN_SEMANTICS,
+} from "@/lib/adminProviderRequestLookupShared";
 
-/**
- * Proven for message-independent background path (recordBackgroundProviderCost):
- * HTTP response returns → startProviderCostAttempt INSERT (created_at=now) → finalize.
- * created_at is set at post-response write time (≈ completion), not request start.
- * completed_at is also set on finalize; correlation uses created_at per code path.
- */
-export const LEDGER_CREATED_AT_SEMANTICS = "COMPLETION_TIME" as const;
-
-export const DEFAULT_CORRELATION_WINDOW_SECONDS = 15;
-export const BROADER_CORRELATION_WINDOW_SECONDS = 120;
+export {
+  BROADER_CORRELATION_WINDOW_SECONDS,
+  DEFAULT_CORRELATION_WINDOW_SECONDS,
+  LEDGER_CREATED_AT_SEMANTICS,
+  LEDGER_INPUT_TOKEN_SEMANTICS,
+} from "@/lib/adminProviderRequestLookupShared";
 
 /** Canonical ledger evidence for one physical provider request — no prompt/content fields. */
 export type AdminProviderRequestForensicRecord = {
