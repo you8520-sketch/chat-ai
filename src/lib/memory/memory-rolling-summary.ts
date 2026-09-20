@@ -1032,6 +1032,16 @@ async function persistComposedBatchScopes(opts: {
     promotedAt: opts.composed.promotedAt,
   };
 
+  const memoryBeforePersist = getChatMemoryRow(opts.chatId);
+  const checkpointBeforePersist = memoryBeforePersist
+    ? readGlobalCheckpointSnapshot(memoryBeforePersist)
+    : readGlobalCheckpointSnapshot({
+        recent_summary: "",
+        global_projection_kind: null,
+        global_source_fingerprint: null,
+        global_covered_through_turn: null,
+      } as ChatMemoryRow);
+
   const persisted = persistValidatedSummaryBatch({
     chatId: opts.chatId,
     userId: opts.userId,
@@ -1077,15 +1087,6 @@ async function persistComposedBatchScopes(opts: {
   }
 
   const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
-  const memoryBefore = getChatMemoryRow(opts.chatId);
-  const checkpointBeforePersist = memoryBefore
-    ? readGlobalCheckpointSnapshot(memoryBefore)
-    : readGlobalCheckpointSnapshot({
-        recent_summary: "",
-        global_projection_kind: null,
-        global_source_fingerprint: null,
-        global_covered_through_turn: null,
-      } as ChatMemoryRow);
 
   const compactResult = await executeGlobalLorebookCompaction({
     chatId: opts.chatId,

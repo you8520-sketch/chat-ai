@@ -2,13 +2,11 @@ import type Database from "better-sqlite3";
 
 import { getDb } from "@/lib/db";
 import type { ChatMemoryRow } from "./memory-types";
-import { getChatMemoryRow } from "./memory-db";
 import {
   buildGlobalSummarySourceFingerprint,
   buildGlobalSummarySourceFingerprintFromText,
 } from "./memory-global-source-fingerprint";
 import { calcUsedChars } from "./memory-used-chars";
-import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import {
   formatMemoryBlock,
   listPromptInjectibleMemoryRecords,
@@ -85,19 +83,99 @@ export function clearGlobalCheckpointMetadata(chatId: number): void {
   clearGlobalCheckpointMetadataCore(getDb(), chatId);
 }
 
+/** Upper turn boundary of canonical Global prompt-injectible source — max turnEnd, not contiguous. */
 export function resolveCanonicalCompactFrontier(
   chatId: number,
-  playableTurnCount?: number
+  _playableTurnCount?: number
 ): number {
-  const records = listPromptInjectibleMemoryRecords(chatId);
-  const inferredHigh = records.reduce((max, record) => Math.max(max, record.turnEnd), 0);
-  const summarized = getChatMemoryRow(chatId)?.summarized_turn_count ?? 0;
-  const turnCount = Math.max(
-    playableTurnCount ?? 0,
-    summarized,
-    inferredHigh
+  return listPromptInjectibleMemoryRecords(chatId).reduce(
+    (max, record) => Math.max(max, record.turnEnd),
+    0
   );
-  return highestContiguousCompletedTurn(records, turnCount);
+}
+
+export function isHealthyDurableGlobalCompactCheckpoint(
+  chatId: number,
+  checkpoint: GlobalCheckpointSnapshot
+): boolean {
+  if (checkpoint.projectionKind !== "global_compact") return false;
+  if (!checkpoint.compactText.trim()) return false;
+  if (!checkpoint.sourceFingerprint) return false;
+  if (checkpoint.coveredThroughTurn == null || checkpoint.coveredThroughTurn <= 0) {
+    return false;
+  }
+  return (
+    buildPrefixFingerprintThroughTurn(chatId, checkpoint.coveredThroughTurn) ===
+    checkpoint.sourceFingerprint
+  );
+}
+
+export function canPreserveHealthyCheckpointOnPureAppend(opts: {
+  chatId: number;
+  checkpointBefore: GlobalCheckpointSnapshot;
+  turnStart: number;
+}): boolean {
+  const { chatId, checkpointBefore, turnStart } = opts;
+  if (!isHealthyDurableGlobalCompactCheckpoint(chatId, checkpointBefore)) return false;
+  if (checkpointBefore.coveredThroughTurn == null) return false;
+  if (turnStart <= checkpointBefore.coveredThroughTurn) return false;
+  return (
+    buildPrefixFingerprintThroughTurn(chatId, checkpointBefore.coveredThroughTurn) ===
+    checkpointBefore.sourceFingerprint
+  );
+}
+
+export type CheckpointProjectionState =
+  | "no_projection"
+  | "derived_compact"
+  | "manual_global"
+  | "invalid_mixed";
+
+/** Pure invariant helper — States A/B/C only; mixed combinations are invalid. */
+export function classifyCheckpointProjectionState(
+  row: Pick<
+    ChatMemoryRow,
+    | "recent_summary"
+    | "global_projection_kind"
+    | "global_source_fingerprint"
+    | "global_covered_through_turn"
+  >,
+  opts?: { chatId?: number }
+): CheckpointProjectionState {
+  const kind = row.global_projection_kind;
+  const fingerprint = row.global_source_fingerprint?.trim() || null;
+  const coveredThrough =
+    row.global_covered_through_turn != null &&
+    Number.isFinite(row.global_covered_through_turn) &&
+    row.global_covered_through_turn > 0
+      ? Math.floor(row.global_covered_through_turn)
+      : null;
+  const recent = row.recent_summary?.trim() ?? "";
+
+  if (kind == null && fingerprint == null && coveredThrough == null) {
+    return "no_projection";
+  }
+  if (kind === "manual_global" && fingerprint == null && coveredThrough == null) {
+    return "manual_global";
+  }
+  if (
+    kind === "global_compact" &&
+    fingerprint != null &&
+    coveredThrough != null &&
+    recent.length > 0
+  ) {
+    if (opts?.chatId != null) {
+      const rebuilt = rebuildLorebookFromRecords(opts.chatId).trim();
+      if (rebuilt && recent === rebuilt) {
+        return "invalid_mixed";
+      }
+      if (!isHealthyDurableGlobalCompactCheckpoint(opts.chatId, readGlobalCheckpointSnapshot(row))) {
+        return "invalid_mixed";
+      }
+    }
+    return "derived_compact";
+  }
+  return "invalid_mixed";
 }
 
 export function buildCanonicalDeltaSourceAfterCheckpoint(

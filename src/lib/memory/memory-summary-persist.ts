@@ -24,6 +24,11 @@ import {
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
 import {
+  canPreserveHealthyCheckpointOnPureAppend,
+  clearGlobalCheckpointMetadataSql,
+  readGlobalCheckpointSnapshot,
+} from "./memory-global-checkpoint";
+import {
   encodeScopePayload,
   isEmptyOocScope,
   normalizeSummaryScope,
@@ -267,10 +272,6 @@ export function persistValidatedSummaryBatch(opts: {
 
       const after = listMemoryRecordsForChat(opts.chatId);
       const contiguous = highestContiguousCompletedTurn(after, opts.playableTurnCount);
-      const recent =
-        opts.recentSummaryOverride?.trim() ||
-        rebuildLorebookFromRecords(opts.chatId) ||
-        "";
 
       const current = getOrCreateChatMemory(
         opts.chatId,
@@ -278,19 +279,58 @@ export function persistValidatedSummaryBatch(opts: {
         opts.characterId,
         opts.tier
       );
-      const used = calcUsedChars({
-        recent_summary: recent,
-        archive_summary: current.archive_summary,
-      });
+      const checkpointBefore = readGlobalCheckpointSnapshot(current);
 
-      db.prepare(
-        `UPDATE chat_memories SET
-          recent_summary=?,
-          used_chars=?,
-          summarized_turn_count=?,
-          updated_at=datetime('now')
-         WHERE chat_id=?`
-      ).run(recent, used, contiguous, opts.chatId);
+      const isIdempotentEmptyOocReseal =
+        !!existingSame &&
+        isEmptyOocScope(existingSame.summaryKind) &&
+        validated.kind === "empty_ooc" &&
+        !opts.userEdited;
+      const isHistoricalMutation =
+        (!!existingSame && !isIdempotentEmptyOocReseal) ||
+        !!opts.inactive ||
+        (opts.pendingBranchControlOps?.length ?? 0) > 0;
+
+      const preserveHealthyCheckpoint =
+        !opts.recentSummaryOverride?.trim() &&
+        !isHistoricalMutation &&
+        canPreserveHealthyCheckpointOnPureAppend({
+          chatId: opts.chatId,
+          checkpointBefore,
+          turnStart: opts.turnStart,
+        });
+
+      if (preserveHealthyCheckpoint) {
+        const used = calcUsedChars({
+          recent_summary: checkpointBefore.compactText,
+          archive_summary: current.archive_summary,
+        });
+        db.prepare(
+          `UPDATE chat_memories SET
+            used_chars=?,
+            summarized_turn_count=?,
+            updated_at=datetime('now')
+           WHERE chat_id=?`
+        ).run(used, contiguous, opts.chatId);
+      } else {
+        const recent =
+          opts.recentSummaryOverride?.trim() ||
+          rebuildLorebookFromRecords(opts.chatId) ||
+          "";
+        const used = calcUsedChars({
+          recent_summary: recent,
+          archive_summary: current.archive_summary,
+        });
+        db.prepare(
+          `UPDATE chat_memories SET
+            recent_summary=?,
+            used_chars=?,
+            summarized_turn_count=?,
+            ${clearGlobalCheckpointMetadataSql()},
+            updated_at=datetime('now')
+           WHERE chat_id=?`
+        ).run(recent, used, contiguous, opts.chatId);
+      }
 
       const row = after.find((r) => r.turnStart === opts.turnStart);
       if (!row) {
@@ -375,6 +415,7 @@ export function reconcileSummarizedTurnCountFromTable(opts: {
         recent_summary=?,
         used_chars=?,
         summarized_turn_count=?,
+        ${clearGlobalCheckpointMetadataSql()},
         updated_at=datetime('now')
        WHERE chat_id=?`
     ).run(recent, used, contiguous, opts.chatId);

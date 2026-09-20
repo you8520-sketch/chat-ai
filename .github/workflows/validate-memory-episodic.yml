@@ -18,6 +18,8 @@ on:
       - "src/lib/memory/memory-global-checkpoint.ts"
       - "src/lib/memory/memory-global-compaction-execution.ts"
       - "src/lib/memory/memory-global-checkpoint-lifecycle.test.ts"
+      - "src/lib/memory/memory-global-checkpoint-persist.test.ts"
+      - "src/lib/memory/memory-summary-persist.ts"
       - "src/lib/memory/memory-medium-term.ts"
       - "src/lib/memory/memory-medium-term.test.ts"
       - "src/lib/memory/memory-medium-term-audit.ts"

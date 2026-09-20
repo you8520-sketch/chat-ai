@@ -88,26 +88,35 @@ export function resolveGlobalCurrentMemory(
     };
   }
 
-  const durableCompact =
-    memoryRow?.global_projection_kind === "global_compact" &&
-    memoryRow.global_source_fingerprint &&
-    memoryRow.global_covered_through_turn != null &&
-    memoryRow.global_covered_through_turn > 0 &&
-    buildPrefixFingerprintThroughTurn(chatId, memoryRow.global_covered_through_turn) ===
-      memoryRow.global_source_fingerprint.trim();
+  if (memoryRow?.global_projection_kind === "global_compact") {
+    const durableValid =
+      !!memoryRow.global_source_fingerprint &&
+      memoryRow.global_covered_through_turn != null &&
+      memoryRow.global_covered_through_turn > 0 &&
+      buildPrefixFingerprintThroughTurn(chatId, memoryRow.global_covered_through_turn) ===
+        memoryRow.global_source_fingerprint.trim() &&
+      isGlobalCompactProjectionFresh(chatId, rebuilt, stored, maxChars);
 
-  if (
-    durableCompact &&
-    isGlobalCompactProjectionFresh(chatId, rebuilt, stored, maxChars)
-  ) {
+    if (durableValid) {
+      return {
+        text: stored,
+        overBudget: true,
+        source: "chat_memories_recent_summary",
+        projectionKind: "global_compact",
+        rebuiltChars,
+        storedRecentSummaryChars,
+        needsBackgroundCompact: false,
+      };
+    }
+
     return {
-      text: stored,
+      text: emergencyFallbackTrimLorebookSync(rebuilt, maxChars),
       overBudget: true,
-      source: "chat_memories_recent_summary",
-      projectionKind: "global_compact",
+      source: "chat_turn_summaries",
+      projectionKind: "failure_fallback",
       rebuiltChars,
       storedRecentSummaryChars,
-      needsBackgroundCompact: false,
+      needsBackgroundCompact: true,
     };
   }
 
