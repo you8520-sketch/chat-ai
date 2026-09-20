@@ -63,6 +63,8 @@ jobs:
     timeout-minutes: 15
     env:
       REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      SESSION_SECRET: "ci-build-session-secret-not-for-production-0123456789"
+      WITHDRAWAL_ENCRYPTION_KEY: "ci-build-withdrawal-key-not-for-production-0123456789"
 
     steps:
       - uses: actions/checkout@v4
