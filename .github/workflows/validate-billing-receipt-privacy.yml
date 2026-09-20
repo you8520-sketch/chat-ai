@@ -13,6 +13,8 @@ on:
       - "src/components/MessageBubbleToolbar.tsx"
       - "src/app/api/chat/admin-billing-receipt/**"
       - "src/lib/adminProviderRequestLookup.ts"
+      - "src/lib/adminProviderRequestLookupShared.ts"
+      - "src/app/admin/finance/AdminFinanceClient.tsx"
       - "src/lib/adminProviderRequestLookup.test.ts"
       - "src/app/api/admin/finance/provider-request/**"
 
