@@ -554,6 +554,81 @@ function summarizeBoundEyeTraits(raw: string): string[] {
   return parts;
 }
 
+const NUMERIC_HEIGHT_CM_MIN = 120;
+const NUMERIC_HEIGHT_CM_MAX = 250;
+
+const LABELED_NUMERIC_HEIGHT_CM_RE =
+  /(?:신장|키|height)\s*[:：]?\s*(\d{2,3})\s*cm\b/i;
+const BARE_NUMERIC_HEIGHT_CM_RE = /\b(\d{2,3})\s*cm\b/i;
+
+/** Explicit numeric height (cm) from saved visual text — no inference from prose or references. */
+export function parseNumericHeightCm(source: unknown): number | null {
+  const text = String(source ?? "").trim();
+  if (!text) return null;
+
+  const labeled = text.match(LABELED_NUMERIC_HEIGHT_CM_RE);
+  if (labeled?.[1]) {
+    const cm = Number(labeled[1]);
+    if (cm >= NUMERIC_HEIGHT_CM_MIN && cm <= NUMERIC_HEIGHT_CM_MAX) return cm;
+    return null;
+  }
+
+  const bare = text.match(BARE_NUMERIC_HEIGHT_CM_RE);
+  if (bare?.[1]) {
+    const cm = Number(bare[1]);
+    if (cm >= NUMERIC_HEIGHT_CM_MIN && cm <= NUMERIC_HEIGHT_CM_MAX) return cm;
+  }
+  return null;
+}
+
+function resolveSubjectNumericHeight(subject: ChatImageVisualSubject): number | null {
+  if (subject.appearanceMode !== "image_plus_saved") return null;
+  const raw = String(subject.savedAppearance ?? "").trim();
+  if (!raw) return null;
+  return parseNumericHeightCm(raw);
+}
+
+/** Cross-subject relative body stature — numeric saved height only; not screen position. */
+export function renderCrossSubjectRelativeStature(
+  subjects: readonly ChatImageVisualSubject[]
+): string {
+  const entries = subjects.flatMap((subject, index) => {
+    const cm = resolveSubjectNumericHeight(subject);
+    if (cm == null) return [];
+    return [
+      {
+        name: subject.name.trim() || `person ${index + 1}`,
+        letter: subjectLetter(index),
+        cm,
+      },
+    ];
+  });
+  if (entries.length < 2) return "";
+
+  const relationLines: string[] = [];
+  for (let i = 0; i < entries.length; i++) {
+    for (let j = i + 1; j < entries.length; j++) {
+      const left = entries[i]!;
+      const right = entries[j]!;
+      if (left.cm === right.cm) continue;
+      const taller = left.cm > right.cm ? left : right;
+      const shorter = left.cm > right.cm ? right : left;
+      const diff = taller.cm - shorter.cm;
+      relationLines.push(
+        `- ${taller.name} (SUBJECT ${taller.letter}, ${taller.cm} cm) is taller than ${shorter.name} (SUBJECT ${shorter.letter}, ${shorter.cm} cm) by approximately ${diff} cm.`
+      );
+    }
+  }
+  if (!relationLines.length) return "";
+
+  return [
+    "CROSS-SUBJECT RELATIVE STATURE — body proportions (not screen position):",
+    ...relationLines,
+    "Preserve believable relative body stature and proportions when both subjects are visible in comparable posture.",
+    "Do NOT require the taller subject's head to appear higher on the canvas — sitting, leaning, bending, perspective, and camera distance may change on-screen placement.",
+  ].join("\n");
+}
+
 /** Cross-subject immutable eye trait isolation — prevents eye-color bleed between subjects. */
 export function renderCrossSubjectTraitIsolation(
   subjects: readonly ChatImageVisualSubject[]
@@ -747,6 +822,7 @@ export function renderChatImageVisualIdentity(opts: {
     (subject) => subject.referenceIndex != null
   ).length;
   const traitIsolation = renderCrossSubjectTraitIsolation(opts.subjects);
+  const relativeStature = renderCrossSubjectRelativeStature(opts.subjects);
   return [
     "SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.",
     ...opts.subjects.map((subject, index) =>
@@ -758,6 +834,7 @@ export function renderChatImageVisualIdentity(opts: {
     }),
     renderChatImageIdentityContract({ hasTemplate: opts.hasTemplate }),
     traitIsolation,
+    relativeStature,
   ]
     .filter(Boolean)
     .join("\n\n");
