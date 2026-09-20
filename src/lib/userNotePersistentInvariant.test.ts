@@ -166,19 +166,18 @@ describe("UNI — User Note persistent invariant (focus zone)", () => {
     assert.ok(identityBlock(built).includes(FOCUS_ROLE_INVARIANT));
   });
 
-  it("UNI-07 REFERENCE ZONE ONLY: documents RAG behavior without false hard guarantee", () => {
-    const note = referenceOnlyNote(FOCUS_ROLE_INVARIANT);
-    assert.ok(note.includes(USER_NOTE_ZONE_SEPARATOR));
+  it("UNI-07 LEGACY REFERENCE ZONE: expansion text is not injected after retirement", () => {
+    const note = `${USER_NOTE_ZONE_SEPARATOR}${FOCUS_ROLE_INVARIANT}`;
     const built = buildBase({
       userNote: note,
       currentUserMessage: "오늘 날씨 좋다.",
     });
     const identity = identityBlock(built);
     assert.equal(identity.includes(FOCUS_ROLE_INVARIANT), false);
-    const reference = sectionText(built, "user-note-reference");
-    if (reference.trim()) {
-      assert.match(reference, /확장구간|키워드/);
-    }
+    assert.equal(sectionText(built, "user-lorebook"), "");
+    assert.ok(
+      !(built.meta?.trackedSections ?? []).some((section) => section.id === "user-note-reference")
+    );
   });
 
   it("UNI-08 DESCRIPTIVE FACT: semantic targets explicit fixed/prohibited only", () => {

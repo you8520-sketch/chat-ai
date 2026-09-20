@@ -58,10 +58,9 @@ describe("OpenRouter cache boundaries", () => {
       currentUserMessage: "hello 엘라라",
       nsfw: true,
       longTermMemory: "They met yesterday.",
-      userNote: mergeUserNoteBodyFromEditor(
-        "x".repeat(500),
-        "NPC 엘라라는 마법사다.\n\nreference tail for creator"
-      ),
+      userNote: mergeUserNoteBodyFromEditor("x".repeat(500)),
+      userLorebookBlock:
+        "[USER LOREBOOK - 개인 키워드 매칭, 원문 그대로 적용]\nNPC 엘라라는 마법사다.\n\nreference tail for creator",
       modelId: OPENROUTER_QWEN_37_MAX_MODEL,
       provider: "openrouter",
     });
@@ -70,15 +69,15 @@ describe("OpenRouter cache boundaries", () => {
     assert.ok(split);
 
     assert.match(split!.characterSettingsBlock, /\[NARRATION REGISTER\]/);
-    assert.match(split!.dynamicBlock, /유저노트 확장구간/);
-    assert.doesNotMatch(split!.characterSettingsBlock, /유저노트 확장구간/);
+    assert.match(split!.dynamicBlock, /\[USER LOREBOOK/);
+    assert.doesNotMatch(split!.characterSettingsBlock, /\[USER LOREBOOK/);
 
     const blocks = buildOpenRouterCachedSystemContent(split!);
     assert.equal(blocks[0]?.cache_control?.type, "ephemeral");
     assert.equal(blocks[1]?.cache_control?.type, "ephemeral");
     assert.equal(blocks[2]?.cache_control, undefined);
     assert.match(blocks[1]!.text, /\[NARRATION REGISTER\]/);
-    assert.match(blocks[2]!.text, /유저노트 확장구간/);
+    assert.match(blocks[2]!.text, /\[USER LOREBOOK/);
   });
 
   it("orders prose before volatile user-note RAG and memory in assembly", () => {
@@ -91,18 +90,17 @@ describe("OpenRouter cache boundaries", () => {
       nsfw: true,
       longTermMemory: "They met yesterday.",
       memoryMeta: "Relationship: close friends.",
-      userNote: mergeUserNoteBodyFromEditor(
-        "x".repeat(500),
-        "NPC 엘라라는 마법사다.\n\nreference tail for creator"
-      ),
+      userNote: mergeUserNoteBodyFromEditor("x".repeat(500)),
+      userLorebookBlock:
+        "[USER LOREBOOK - 개인 키워드 매칭, 원문 그대로 적용]\nNPC 엘라라는 마법사다.",
       modelId: OPENROUTER_QWEN_37_MAX_MODEL,
       provider: "openrouter",
     });
 
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
-    assert.ok(sectionOrder(ids, "prose-style-xml-bundle") < sectionOrder(ids, "user-note-reference"));
+    assert.ok(sectionOrder(ids, "prose-style-xml-bundle") < sectionOrder(ids, "user-lorebook"));
     assert.ok(sectionOrder(ids, "current-memory") < sectionOrder(ids, "relationship-meta"));
-    assert.ok(sectionOrder(ids, "relationship-meta") < sectionOrder(ids, "user-note-reference"));
+    assert.ok(sectionOrder(ids, "relationship-meta") < sectionOrder(ids, "user-lorebook"));
   });
 
   it("characterSettingsBlock includes substantial prose policy tokens", () => {

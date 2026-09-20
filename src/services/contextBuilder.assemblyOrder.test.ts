@@ -61,10 +61,9 @@ describe("buildContext — persona-before-prose assembly order", () => {
       sceneDirectiveBlock: "[이번 턴 장면 지시 - 비공개]\n모드: 일반 RP\n전개 방향: 관계 변화",
       episodicMemoryBlock: "[EPISODIC MEMORY - RETRIEVED FACTS]\n- [T4] 사용자는 커피를 좋아한다.",
       memoryMeta: "Relationship: close friends.",
-      userNote: mergeUserNoteBodyFromEditor(
-        "x".repeat(500),
-        "NPC 엘라라는 마법사다.\n\nreference tail for creator"
-      ),
+      userNote: mergeUserNoteBodyFromEditor("x".repeat(500)),
+      userLorebookBlock:
+        "[USER LOREBOOK - 개인 키워드 매칭, 원문 그대로 적용]\nNPC 엘라라는 마법사다.\n\nreference tail for creator",
       modelId: OPENROUTER_QWEN_37_MAX_MODEL,
       provider: "openrouter",
       currentUserMessage: "hello 엘라라",
@@ -100,10 +99,10 @@ describe("buildContext — persona-before-prose assembly order", () => {
     );
     assert.ok(
       sectionOrder(ids, "relationship-meta") <
-        sectionOrder(ids, "user-note-reference")
+        sectionOrder(ids, "user-lorebook")
     );
     assert.ok(
-      sectionOrder(ids, "user-note-reference") <
+      sectionOrder(ids, "user-lorebook") <
         sectionOrder(ids, "rule-output-layout-recency")
     );
     assert.ok(

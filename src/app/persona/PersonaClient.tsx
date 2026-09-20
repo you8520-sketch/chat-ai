@@ -105,6 +105,22 @@ export default function PersonaClient({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [widgetSharePath, setWidgetSharePath] = useState<string | null>(null);
+  const [focusMaxChars, setFocusMaxChars] = useState(USER_NOTE_FOCUS_MAX);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data: { user?: { memoryCapability?: { focusMaxChars?: number } } }) => {
+        if (cancelled) return;
+        const next = data.user?.memoryCapability?.focusMaxChars;
+        if (typeof next === "number" && next > 0) setFocusMaxChars(next);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setPersonas(initialPersonas);
@@ -550,7 +566,7 @@ export default function PersonaClient({
 
   async function saveNotePreset() {
     const focusContent = extractFocusZoneNote(noteDraftContent);
-    const noteCheck = validateUserNoteFocusPreset(focusContent);
+    const noteCheck = validateUserNoteFocusPreset(focusContent, focusMaxChars);
     if (!noteCheck.ok) {
       setError(noteCheck.error);
       return;
@@ -954,7 +970,7 @@ export default function PersonaClient({
                       {parsed.body.trim() || "(내용 없음)"}
                     </p>
                     <p className="mt-1 text-[10px] text-zinc-600">
-                      {chars.toLocaleString()} / {USER_NOTE_FOCUS_MAX.toLocaleString()}자
+                      {chars.toLocaleString()} / {focusMaxChars.toLocaleString()}자
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1.5">
@@ -1005,6 +1021,7 @@ export default function PersonaClient({
               userNote={noteDraftContent}
               onUserNoteChange={setNoteDraftContent}
               focusOnly
+              focusMaxChars={focusMaxChars}
               focusRows={5}
               textareaClassName={studioTextareaClass}
             />
@@ -1013,7 +1030,7 @@ export default function PersonaClient({
                 const parsed = parseUserNoteCombined(extractFocusZoneNote(noteDraftContent));
                 return userNoteCombinedCharCount(parsed.body, parsed.statusTemplate).toLocaleString();
               })()}{" "}
-              / {USER_NOTE_FOCUS_MAX.toLocaleString()}자 (고집중)
+              / {focusMaxChars.toLocaleString()}자 (고집중)
             </p>
             <div className="flex gap-2">
               <button

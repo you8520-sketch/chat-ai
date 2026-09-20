@@ -1288,6 +1288,23 @@ export default function ChatClient({
     ]
   );
 
+  const [focusMaxChars, setFocusMaxChars] = useState(1_000);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data: { user?: { memoryCapability?: { focusMaxChars?: number } } }) => {
+        if (cancelled) return;
+        const next = data.user?.memoryCapability?.focusMaxChars;
+        if (typeof next === "number" && next > 0) setFocusMaxChars(next);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const chatStatusFormatSpec = useMemo(
     () => resolveUserNoteStatusWindowPolicy(userNote).formatSpec,
     [userNote]
@@ -1383,7 +1400,11 @@ export default function ChatClient({
       }
 
       const savePromise = (async () => {
-        const noteCheck = validateUserNoteCombined(userNoteRef.current, widgetReservedChars);
+        const noteCheck = validateUserNoteCombined(
+          userNoteRef.current,
+          widgetReservedChars,
+          focusMaxChars
+        );
         if (!noteCheck.ok) {
           setToastMsg(noteCheck.error);
           const persisted = lastPersistedRoomSettingsRef.current;
@@ -1468,7 +1489,7 @@ export default function ChatClient({
         }
       }
     },
-    [chatId, widgetReservedChars]
+    [chatId, widgetReservedChars, focusMaxChars]
   );
 
   const flushChatSettings = useCallback(async (): Promise<boolean> => {
@@ -1484,7 +1505,7 @@ export default function ChatClient({
 
   const saveUserNote = useCallback(
     async (note: string): Promise<boolean> => {
-      const noteCheck = validateUserNoteCombined(note, widgetReservedChars);
+      const noteCheck = validateUserNoteCombined(note, widgetReservedChars, focusMaxChars);
       if (!noteCheck.ok) {
         setToastMsg(noteCheck.error);
         return false;
@@ -1518,7 +1539,7 @@ export default function ChatClient({
         endSettingsSave();
       }
     },
-    [chatId, chatTitle, widgetReservedChars]
+    [chatId, chatTitle, widgetReservedChars, focusMaxChars]
   );
 
   const toggleAdultHandoff = useCallback(async () => {
