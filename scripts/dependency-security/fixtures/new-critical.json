@@ -1,0 +1,18 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "next": {
+      "name": "next",
+      "severity": "critical",
+      "via": [
+        {
+          "source": 1193733,
+          "name": "next",
+          "url": "https://github.com/advisories/GHSA-2xp9-vwfh-vxw4",
+          "severity": "critical",
+          "range": ">=10.0.0 <15.5.24"
+        }
+      ]
+    }
+  }
+}
