@@ -13,6 +13,8 @@ on:
       - "src/lib/providerCostReconciliation.targeted.test.ts"
       - "src/lib/providerCostLedger.ts"
       - "src/lib/adminProviderRequestLookup.ts"
+      - "src/lib/adminProviderRequestLookupShared.ts"
+      - "src/app/admin/finance/AdminFinanceClient.tsx"
       - "src/lib/adminProviderRequestLookup.test.ts"
       - "src/app/api/admin/finance/provider-request/**"
       - "src/lib/adminBillingReceiptV3.ts"
@@ -77,6 +79,9 @@ jobs:
       - run: npm run lint
 
       - run: npm run typecheck:app
+
+      - name: Production build boundary
+        run: npm run build
 
       - name: CheaperInference compatible usage (stream + non-stream)
         run: node --conditions=react-server --import tsx --test src/lib/openRouterAdult.compatibleUsage.test.ts
