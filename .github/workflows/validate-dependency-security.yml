@@ -1,0 +1,29 @@
+name: Validate dependency security
+
+on:
+  pull_request:
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/validate-dependency-security.yml"
+      - "scripts/dependency-security/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: node --import tsx --test scripts/dependency-security/checkProductionNpmAudit.test.ts
+      - name: Check production npm audit against baseline
+        run: |
+          npm audit --omit=dev --json > /tmp/production-audit.json || true
+          node --import tsx scripts/dependency-security/checkProductionNpmAudit.ts /tmp/production-audit.json

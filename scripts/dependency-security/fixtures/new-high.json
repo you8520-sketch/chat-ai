@@ -1,0 +1,31 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "nanoid": {
+      "name": "nanoid",
+      "severity": "high",
+      "via": [
+        {
+          "source": 1138811,
+          "name": "nanoid",
+          "url": "https://github.com/advisories/GHSA-28wg-ghj8-5hjv",
+          "severity": "high",
+          "range": "<3.3.16"
+        }
+      ]
+    },
+    "example-pkg": {
+      "name": "example-pkg",
+      "severity": "high",
+      "via": [
+        {
+          "source": 9999999,
+          "name": "example-pkg",
+          "url": "https://github.com/advisories/GHSA-newhigh-aaaa-bbbb",
+          "severity": "high",
+          "range": "<1.0.0"
+        }
+      ]
+    }
+  }
+}
