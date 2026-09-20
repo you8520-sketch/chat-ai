@@ -10,6 +10,7 @@ import {
   formatFinanceMarginRate,
   formatFinanceNetProfit,
 } from "@/lib/adminFinanceMarginDisplay";
+import type { AdminProviderRequestForensicRecord } from "@/lib/adminProviderRequestLookup";
 
 function won(value: number) {
   return `${Math.round(value).toLocaleString()}원`;
@@ -72,6 +73,12 @@ export default function AdminFinanceClient({
   const [form, setForm] = useState(initialSummary.adjustments);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [providerRequestIdQuery, setProviderRequestIdQuery] = useState("");
+  const [providerRequestLookupLoading, setProviderRequestLookupLoading] = useState(false);
+  const [providerRequestLookupError, setProviderRequestLookupError] = useState("");
+  const [providerRequestLookupResult, setProviderRequestLookupResult] =
+    useState<AdminProviderRequestForensicRecord | null>(null);
+  const [providerRequestLookupSearched, setProviderRequestLookupSearched] = useState(false);
 
   async function loadMonth(monthKey: string) {
     const res = await fetch(`/api/admin/finance?month=${encodeURIComponent(monthKey)}`);
@@ -79,6 +86,43 @@ export default function AdminFinanceClient({
     if (!res.ok) return setMessage(data.error || "불러오지 못했습니다.");
     setSummary(data.summary);
     setForm(data.summary.adjustments);
+  }
+
+  async function lookupProviderRequest() {
+    const trimmed = providerRequestIdQuery.trim();
+    if (!trimmed) {
+      setProviderRequestLookupError("Provider Request ID를 입력하세요.");
+      setProviderRequestLookupResult(null);
+      setProviderRequestLookupSearched(false);
+      return;
+    }
+    setProviderRequestLookupLoading(true);
+    setProviderRequestLookupError("");
+    setProviderRequestLookupResult(null);
+    setProviderRequestLookupSearched(false);
+    try {
+      const res = await fetch(
+        `/api/admin/finance/provider-request?providerRequestId=${encodeURIComponent(trimmed)}`
+      );
+      const data = (await res.json()) as {
+        error?: string;
+        found?: boolean;
+        event?: AdminProviderRequestForensicRecord | null;
+      };
+      if (!res.ok) {
+        setProviderRequestLookupError(data.error || "조회하지 못했습니다.");
+        return;
+      }
+      setProviderRequestLookupSearched(true);
+      setProviderRequestLookupResult(data.found ? (data.event ?? null) : null);
+      if (!data.found) {
+        setProviderRequestLookupError("canonical ledger에 해당 Request ID가 없습니다.");
+      }
+    } catch {
+      setProviderRequestLookupError("조회하지 못했습니다.");
+    } finally {
+      setProviderRequestLookupLoading(false);
+    }
   }
 
   async function save() {
@@ -168,6 +212,108 @@ export default function AdminFinanceClient({
             </article>
           );
         })}
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-cyan-500/20 bg-cyan-950/10 p-5">
+        <h2 className="font-bold">Provider Request ID 조회</h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          canonical <code className="text-zinc-400">api_cost_ledger</code>에서 정확한 Request ID로
+          owner·원가·provenance를 조회합니다. 프롬프트·메시지 본문은 포함하지 않습니다.
+        </p>
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <label className="min-w-[min(100%,28rem)] flex-1 text-sm">
+            <span className="font-semibold">Provider Request ID</span>
+            <input
+              type="text"
+              value={providerRequestIdQuery}
+              onChange={(event) => setProviderRequestIdQuery(event.target.value)}
+              placeholder="db55b018-5ee0-4975-8bc7-dde23689c438"
+              className="mt-1 w-full rounded-xl border border-white/10 bg-[#151821] px-3 py-2 font-mono text-xs"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => void lookupProviderRequest()}
+            disabled={providerRequestLookupLoading}
+            className="rounded-xl border border-cyan-500/30 bg-cyan-950/40 px-5 py-2.5 text-sm font-bold disabled:opacity-50"
+          >
+            {providerRequestLookupLoading ? "조회 중…" : "조회"}
+          </button>
+        </div>
+        {providerRequestLookupError && (
+          <p className="mt-3 text-sm text-amber-300/90">{providerRequestLookupError}</p>
+        )}
+        {providerRequestLookupResult && (
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <dt className="text-zinc-500">Owner / requestKind</dt>
+              <dd className="mt-1 font-bold">
+                {providerRequestLookupResult.canonicalOwner}
+                <span className="mt-1 block font-mono text-xs font-normal text-zinc-400">
+                  {providerRequestLookupResult.requestKind}
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">Model</dt>
+              <dd className="mt-1 font-bold">
+                {providerRequestLookupResult.actualModel ?? providerRequestLookupResult.model}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">Tokens (in / out)</dt>
+              <dd className="mt-1 font-bold">
+                {providerRequestLookupResult.inputTokens.toLocaleString()} /{" "}
+                {providerRequestLookupResult.outputTokens.toLocaleString()}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">Actual cost</dt>
+              <dd className="mt-1 font-bold">
+                {providerRequestLookupResult.actualCostUsd != null
+                  ? `$${providerRequestLookupResult.actualCostUsd.toFixed(6)}`
+                  : "—"}
+                {providerRequestLookupResult.actualCostSource && (
+                  <span className="mt-1 block text-xs font-normal text-zinc-500">
+                    {providerRequestLookupResult.actualCostSource}
+                  </span>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">Timestamp</dt>
+              <dd className="mt-1 font-bold">{providerRequestLookupResult.createdAt}</dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">Linkage</dt>
+              <dd className="mt-1 font-bold">
+                {providerRequestLookupResult.turnLinked
+                  ? `Turn-linked · message ${providerRequestLookupResult.assistantMessageId}`
+                  : "Background (assistant_message_id=null)"}
+                {providerRequestLookupResult.chatId != null && (
+                  <span className="mt-1 block text-xs font-normal text-zinc-500">
+                    chat {providerRequestLookupResult.chatId}
+                    {providerRequestLookupResult.generationSequence != null
+                      ? ` · gen ${providerRequestLookupResult.generationSequence}`
+                      : ""}
+                  </span>
+                )}
+              </dd>
+            </div>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <dt className="text-zinc-500">Ledger</dt>
+              <dd className="mt-1 font-mono text-xs text-zinc-400">
+                id={providerRequestLookupResult.id} · family={providerRequestLookupResult.family ?? "—"} ·
+                phase={providerRequestLookupResult.executionPhase ?? "—"} · status=
+                {providerRequestLookupResult.eventStatus ?? "—"} · attribution=
+                {providerRequestLookupResult.costAttribution}
+              </dd>
+            </div>
+          </dl>
+        )}
+        {providerRequestLookupSearched && !providerRequestLookupResult && !providerRequestLookupError && (
+          <p className="mt-3 text-sm text-zinc-500">조회 결과 없음</p>
+        )}
       </section>
 
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">

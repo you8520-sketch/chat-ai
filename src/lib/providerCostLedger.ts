@@ -752,6 +752,32 @@ export function readProviderCostEventByKey(
   return row ?? null;
 }
 
+const DEFAULT_FORENSIC_PROVIDER = "cheaperinference";
+
+/**
+ * Exact lookup by billing identity (provider, provider_request_id).
+ * Returns one canonical row — never aggregates or sums duplicates.
+ */
+export function readProviderCostEventByProviderRequestId(
+  providerRequestId: string,
+  provider: string = DEFAULT_FORENSIC_PROVIDER,
+  db: Database.Database = getDb()
+): ProviderCostLedgerRow | null {
+  ensureProviderCostLedgerSchema(db);
+  const trimmedId = providerRequestId.trim();
+  const trimmedProvider = provider.trim().toLowerCase();
+  if (!trimmedId || !trimmedProvider) return null;
+  const row = db
+    .prepare(
+      `SELECT * FROM api_cost_ledger
+       WHERE provider = ? AND provider_request_id = ?
+       ORDER BY id ASC
+       LIMIT 1`
+    )
+    .get(trimmedProvider, trimmedId) as ProviderCostLedgerRow | undefined;
+  return row ?? null;
+}
+
 /** Canonical feature/cost-center vocabulary for AI spend attribution. */
 export type ProviderCostCenter =
   | "chat_turn"
