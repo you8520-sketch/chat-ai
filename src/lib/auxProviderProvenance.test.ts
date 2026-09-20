@@ -64,6 +64,7 @@ describe("auxiliary provider-call provenance owner map", () => {
       "trpg-mechanics-referee",
       "trpg-scenario-draft",
       "trpg-sandbox-blueprint",
+      "background-trpg-reply-suggestion",
     ]) {
       assert.equal(resolveAuxProviderOwner({ requestKind: kind }), "OTHER_ASYNC", kind);
     }

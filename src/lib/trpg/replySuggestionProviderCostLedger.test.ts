@@ -23,6 +23,11 @@ import { createTrpgCampaign, saveTrpgSheet, EVEN_STATS } from "./engineCreate";
 import { startTrpgCampaign, type TrpgEngineDeps } from "./engineAdvance";
 import { fetchDeepSeekNonStreamCompletion } from "@/lib/deepseekProviderFailover";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
+import {
+  auxPromptFingerprint,
+  buildAuxProviderCallLogInput,
+  resolveAuxProviderOwner,
+} from "@/lib/auxProviderProvenance";
 
 const CI_URL = "https://api.cheaperinference.com/v1/chat/completions";
 const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -234,10 +239,13 @@ describe("trpg reply suggestion provider cost ledger", () => {
     });
 
     const rows = listLedgerRows();
-    assert.equal(rows.length, 1);
+    assert.equal(rows.length, 2);
     assert.equal(rows[0]!.provider, "cheaperinference");
     assert.equal(rows[0]!.event_status, "failed_without_usage");
     assert.equal(rows[0]!.attempt_ordinal, 1);
+    assert.equal(rows[1]!.provider, "openrouter");
+    assert.equal(rows[1]!.event_status, "failed_without_usage");
+    assert.equal(rows[1]!.attempt_ordinal, 2);
   });
 
   it("D: provider response with billed cost preserves exact cost fields", async () => {
@@ -349,6 +357,122 @@ describe("trpg reply suggestion provider cost ledger", () => {
     const rows = listLedgerRows();
     assert.equal(rows.length, 1);
     assert.ok(Math.abs((rows[0]!.actual_cost_usd ?? 0) - 0.001) < 1e-9);
+  });
+
+  it("I: primary failure + fallback transport timeout records both physical attempts", async () => {
+    let calls = 0;
+    const fetchMock: typeof fetchDeepSeekNonStreamCompletion = async (opts) => {
+      calls += 1;
+      if (opts.request.endpoint === CI_URL) {
+        return {
+          response: new Response("upstream down", { status: 503 }),
+          latencyMs: 1,
+        };
+      }
+      throw Object.assign(new Error("The operation was aborted due to timeout"), {
+        name: "TimeoutError",
+      });
+    };
+
+    await withKeys(async () => {
+      await assert.rejects(() =>
+        executeTrpgReplySuggestionProviderRound({
+          system: "sys",
+          user: "user",
+          logicalRequestId: "logical-i",
+          deps: { fetchCompletion: fetchMock },
+        })
+      );
+    });
+
+    assert.equal(calls, 2);
+    const rows = listLedgerRows();
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0]!.provider, "cheaperinference");
+    assert.equal(rows[0]!.event_status, "failed_without_usage");
+    assert.equal(rows[0]!.attempt_ordinal, 1);
+    assert.equal(rows[1]!.provider, "openrouter");
+    assert.equal(rows[1]!.event_status, "failed_without_usage");
+    assert.equal(rows[1]!.attempt_ordinal, 2);
+  });
+
+  it("J: fallback-only transport timeout records one openrouter row at ordinal 1", async () => {
+    let calls = 0;
+    const fetchMock: typeof fetchDeepSeekNonStreamCompletion = async (opts) => {
+      calls += 1;
+      assert.equal(opts.request.endpoint, OR_URL);
+      throw Object.assign(new Error("The operation was aborted due to timeout"), {
+        name: "TimeoutError",
+      });
+    };
+
+    const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
+    delete process.env.CHEAPER_INFERENCE_API_KEY;
+    process.env.OPENROUTER_API_KEY = "test-or";
+    try {
+      await assert.rejects(() =>
+        executeTrpgReplySuggestionProviderRound({
+          system: "sys",
+          user: "user",
+          logicalRequestId: "logical-j",
+          deps: { fetchCompletion: fetchMock },
+        })
+      );
+    } finally {
+      if (previousCi == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = previousCi;
+    }
+
+    assert.equal(calls, 1);
+    const rows = listLedgerRows();
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]!.provider, "openrouter");
+    assert.equal(rows[0]!.event_status, "failed_without_usage");
+    assert.equal(rows[0]!.attempt_ordinal, 1);
+  });
+
+  it("K: aux owner precedence maps TRPG reply suggestion to OTHER_ASYNC, not SUGGESTED_REPLIES", () => {
+    assert.equal(
+      resolveAuxProviderOwner({ requestKind: TRPG_REPLY_SUGGESTION_REQUEST_KIND }),
+      "OTHER_ASYNC"
+    );
+    assert.equal(
+      resolveAuxProviderOwner({ requestKind: "background-suggested-replies-extract" }),
+      "SUGGESTED_REPLIES"
+    );
+    assert.equal(resolveAuxProviderOwner({ requestKind: "trpg-reply-suggestion" }), "SUGGESTED_REPLIES");
+  });
+
+  it("L: provenance prompt fingerprint reflects distinct TRPG payloads without logging raw prompt", () => {
+    const promptA = [
+      { role: "system", content: "TRPG system prompt alpha" },
+      { role: "user", content: "TRPG user prompt alpha" },
+    ];
+    const promptB = [
+      { role: "system", content: "TRPG system prompt beta" },
+      { role: "user", content: "TRPG user prompt beta" },
+    ];
+    const fingerprintA = auxPromptFingerprint(TRPG_REPLY_SUGGESTION_MODEL, promptA);
+    const fingerprintB = auxPromptFingerprint(TRPG_REPLY_SUGGESTION_MODEL, promptB);
+    assert.notEqual(fingerprintA, fingerprintB);
+
+    const provenancePayload = buildAuxProviderCallLogInput({
+      model: TRPG_REPLY_SUGGESTION_MODEL,
+      messages: promptA,
+      requestKind: TRPG_REPLY_SUGGESTION_REQUEST_KIND,
+      jobId: "logical-l",
+      ledgerContext: {
+        family: "background",
+        executionPhase: "async_post_turn",
+        generationRequestId: "logical-l",
+        jobAttemptOrdinal: 1,
+      },
+    });
+    const serialized = JSON.stringify(provenancePayload);
+    assert.equal(provenancePayload.promptFingerprint, fingerprintA);
+    assert.equal(provenancePayload.auxOwner, "OTHER_ASYNC");
+    assert.doesNotMatch(serialized, /TRPG system prompt alpha/);
+    assert.doesNotMatch(serialized, /TRPG user prompt alpha/);
   });
 
   it("H: output parsing remains unchanged for successful provider completion", async () => {

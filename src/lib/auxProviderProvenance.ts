@@ -41,6 +41,7 @@ const REQUEST_KIND_OWNER_RULES: ReadonlyArray<readonly [RegExp, AuxProviderOwner
   [/background-post-turn-shared-initial/i, "STATUS_WIDGET"],
   [/background-status-meta-extract/i, "STATUS_META"],
   [/background-suggested-replies-extract/i, "SUGGESTED_REPLIES"],
+  [/background-trpg-reply-suggestion/i, "OTHER_ASYNC"],
   [/reply-suggestion/i, "SUGGESTED_REPLIES"],
   [/background-episodic-extract/i, "EPISODIC_MEMORY"],
   [/relationship|memory-regen-extract/i, "RELATIONSHIP_MEMORY"],
@@ -56,7 +57,6 @@ const KNOWN_OTHER_ASYNC_REQUEST_KINDS: ReadonlyArray<RegExp> = [
   /trpg-mechanics-referee/i,
   /trpg-scenario-draft/i,
   /trpg-sandbox-blueprint/i,
-  /background-trpg-reply-suggestion/i,
 ];
 
 const LEDGER_FAMILY_OWNER_RULES: ReadonlyArray<readonly [RegExp, AuxProviderOwner]> = [
