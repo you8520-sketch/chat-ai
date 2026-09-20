@@ -1,0 +1,145 @@
+{
+  "fx": {
+    "usdToKrw": 1530,
+    "effectiveKrwPerUsd": 1560.6,
+    "overseasFeeRate": 0.02
+  },
+  "candidate": {
+    "modelId": "deepseek-v4.1-flash",
+    "billingReferenceInputUsdPerMillion": 0.3,
+    "billingReferenceOutputUsdPerMillion": 1.2,
+    "billingReferenceCacheReadUsdPerMillion": 0.006,
+    "targetMargin": 0.6,
+    "pricingVersion": 0,
+    "publishedAt": "2026-09-20T00:00:00.000Z",
+    "note": "PREFLIGHT_CANDIDATE_ONLY — not in publishedModelPricing catalog"
+  },
+  "ciSnapshots": {
+    "v41Flash": {
+      "observedAt": "2026-09-20T00:00:00.000Z",
+      "listInputUsdPerMillion": 0.3,
+      "listOutputUsdPerMillion": 1.2,
+      "currentInputUsdPerMillion": 0.120853,
+      "currentOutputUsdPerMillion": 0.483412,
+      "currentCacheReadUsdPerMillion": 0.002417,
+      "discountPercent": 59.72,
+      "contextLength": 1048576,
+      "maxOutputTokens": 384000,
+      "source": "cheaperinference.com/v1/models"
+    },
+    "v4Pro0813": {
+      "observedAt": "2026-09-20T00:00:00.000Z",
+      "listInputUsdPerMillion": 0.66,
+      "listOutputUsdPerMillion": 1.98,
+      "currentInputUsdPerMillion": 0.442418,
+      "currentOutputUsdPerMillion": 1.327256,
+      "currentCacheReadUsdPerMillion": 0.003661,
+      "discountPercent": 32.97,
+      "source": "cheaperinference.com/v1/models"
+    },
+    "legacy0731": {
+      "observedAt": "2026-09-20T00:00:00.000Z",
+      "listInputUsdPerMillion": 0.076,
+      "listOutputUsdPerMillion": 0.153,
+      "currentInputUsdPerMillion": 0.032227,
+      "currentOutputUsdPerMillion": 0.064454,
+      "discountPercent": 57.6,
+      "maxOutputTokens": 65536,
+      "source": "cheaperinference.com/v1/models",
+      "note": "Legacy id — distinct from deepseek-v4.1-flash; do not overwrite"
+    }
+  },
+  "rows": [
+    {
+      "shape": "NORMAL",
+      "referencePeakRawKrw": 22,
+      "candidateBaseP": 55,
+      "ciProcurementKrw": 8.9,
+      "candidateRealizedMargin": 0.8,
+      "v4ProPeakBaseP": 180,
+      "flashToProPriceRatio": 0.3
+    },
+    {
+      "shape": "MEMORY_HEAVY",
+      "referencePeakRawKrw": 2.5,
+      "candidateBaseP": 7,
+      "ciProcurementKrw": 1,
+      "candidateRealizedMargin": 0.9,
+      "v4ProPeakBaseP": 18,
+      "flashToProPriceRatio": 0.4
+    },
+    {
+      "shape": "BOUNDED_STRESS",
+      "referencePeakRawKrw": 46.8,
+      "candidateBaseP": 117,
+      "ciProcurementKrw": 18.9,
+      "candidateRealizedMargin": 0.8,
+      "v4ProPeakBaseP": 392,
+      "flashToProPriceRatio": 0.3
+    }
+  ],
+  "legacyAliasMap": [
+    {
+      "id": "deepseek-v4-flash-0731",
+      "classification": "KEEP",
+      "notes": "Background/TRPG/wire canonical until explicit migration; CI catalog distinct from v4.1-flash"
+    },
+    {
+      "id": "deepseek-v4-flash",
+      "classification": "MIGRATE",
+      "notes": "Legacy alias → 0731 on wire; official routes to V4.1-Flash at Flash price — new user-facing id should be deepseek-v4.1-flash not 0731"
+    },
+    {
+      "id": "deepseek/deepseek-v4-flash-0731",
+      "classification": "KEEP",
+      "notes": "OR backup slug; Flash logical backup uses Gemini 3.1 Flash-Lite in failover"
+    },
+    {
+      "id": "deepseek-v4.1-flash",
+      "classification": "FOLLOW-UP",
+      "notes": "CI catalog present; not yet in chatModels registry or picker"
+    },
+    {
+      "id": "deepseek-flash",
+      "classification": "FOLLOW-UP",
+      "notes": "Official API name; map at transport layer if direct DeepSeek API used"
+    }
+  ],
+  "deadSystemAudit": [
+    {
+      "item": "deepseek-v4-flash-0731 published v1 row (0.098/0.196)",
+      "verdict": "KEEP",
+      "reason": "Still used by background paths; distinct CI pricing from v4.1-flash"
+    },
+    {
+      "item": "pointsReasoningMargins CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_* constants",
+      "verdict": "KEEP",
+      "reason": "Live fallback for 0731 background until migration plan"
+    },
+    {
+      "item": "LEGACY_TO_SELECTED deepseek-v4-flash → DEFAULT_SELECTED_AI (Pro)",
+      "verdict": "KEEP",
+      "reason": "Prevents accidental Main RP Flash selection via legacy id"
+    },
+    {
+      "item": "openRouterModelPricing CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_RATES",
+      "verdict": "FOLLOW-UP",
+      "reason": "Stale vs v4.1-flash CI snapshot; update only after identity cutover design"
+    },
+    {
+      "item": "publishedModelPricing deepseek-v4-flash-0731 v1",
+      "verdict": "FOLLOW-UP",
+      "reason": "Do not repurpose for v4.1-flash; add new row on cutover"
+    }
+  ],
+  "regressionGates": [
+    "V4 Pro routing unchanged (deepseek-v4-pro-0813 Main RP default)",
+    "V4 Pro billing unchanged (published v2 0.66/1.98 + live CI overlay)",
+    "deepseekProviderFailover Main RP single-attempt policy unchanged",
+    "official/site promotions unchanged",
+    "Regen uses deliveredModelId + selectedAI without model switch",
+    "Flash procurement discount must not move BASE (stable-reference policy)",
+    "Returned responseModelId vs requested mismatch must surface in ledger actual_model",
+    "deepseek-v4.1-flash must not alias-overwrite deepseek-v4-flash-0731"
+  ]
+}

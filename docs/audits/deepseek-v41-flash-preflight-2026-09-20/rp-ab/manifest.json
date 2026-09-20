@@ -1,0 +1,27 @@
+{
+  "generatedAt": "2026-09-20T15:38:21.009Z",
+  "fixtures": [
+    {
+      "id": "F_speech_lock",
+      "label": "character speech lock"
+    },
+    {
+      "id": "G_long_memory",
+      "label": "긴 context memory"
+    },
+    {
+      "id": "H_long_output",
+      "label": "2500/3500자 장문"
+    },
+    {
+      "id": "I_regen",
+      "label": "regeneration"
+    },
+    {
+      "id": "J_adult_fixture",
+      "label": "adult-mode 허용 범위 fixture"
+    }
+  ],
+  "plannedCalls": 10,
+  "estimatedCostUsd": 0.12
+}
