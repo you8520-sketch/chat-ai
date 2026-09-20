@@ -12,6 +12,9 @@ on:
       - "src/lib/providerCostReconciliation.ts"
       - "src/lib/providerCostReconciliation.targeted.test.ts"
       - "src/lib/providerCostLedger.ts"
+      - "src/lib/auxProviderProvenance.ts"
+      - "src/lib/trpg/replySuggestions.ts"
+      - "src/lib/trpg/replySuggestionProviderCostLedger.test.ts"
       - "src/lib/adminProviderRequestLookup.ts"
       - "src/lib/adminProviderRequestLookupShared.ts"
       - "src/app/admin/finance/AdminFinanceClient.tsx"
@@ -103,6 +106,9 @@ jobs:
 
       - name: Provider cost ledger single owner
         run: node --conditions=react-server --import tsx --test src/lib/providerCostSingleOwner.test.ts
+
+      - name: TRPG reply suggestion provider cost ledger (A-H)
+        run: node --conditions=react-server --import tsx --test src/lib/trpg/replySuggestionProviderCostLedger.test.ts
 
       - name: Targeted Usage API reconciliation (T1-T11)
         run: node --conditions=react-server --import tsx --test src/lib/providerCostReconciliation.targeted.test.ts
