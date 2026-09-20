@@ -355,6 +355,9 @@ export function ensureMemoryResetBoundaryColumns(
   };
   addColumn("chat_memories", "memory_reset_after_message_id", "INTEGER");
   addColumn("chat_memories", "memory_epoch", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("chat_memories", "global_projection_kind", "TEXT");
+  addColumn("chat_memories", "global_source_fingerprint", "TEXT");
+  addColumn("chat_memories", "global_covered_through_turn", "INTEGER");
   addColumn("chat_turn_summaries", "source_start_user_message_id", "INTEGER");
   addColumn("chat_turn_summaries", "source_end_user_message_id", "INTEGER");
   addColumn("chat_turn_summaries", "turn_end", "INTEGER");

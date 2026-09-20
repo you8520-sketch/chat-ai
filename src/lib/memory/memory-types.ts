@@ -13,6 +13,9 @@ export type ChatMemoryRow = {
   summarized_turn_count: number;
   memory_reset_after_message_id: number | null;
   memory_epoch: number;
+  global_projection_kind: string | null;
+  global_source_fingerprint: string | null;
+  global_covered_through_turn: number | null;
   created_at: string;
   updated_at: string;
 };

@@ -410,10 +410,15 @@ describe("10K OVERFLOW OWNER PROOF", () => {
     assert.equal(resolved.needsBackgroundCompact, true);
   });
 
-  it("E: post-seal overflow retains full-history compact hook in rolling-summary", () => {
+  it("E: post-seal overflow delegates to the canonical Global compaction executor", () => {
     const rolling = readFileSync("src/lib/memory/memory-rolling-summary.ts", "utf8");
-    assert.match(rolling, /if \(currentMemory\.length > lorebookBudget\)/);
-    assert.match(rolling, /compactCurrentMemory\(/);
+    const execution = readFileSync(
+      "src/lib/memory/memory-global-compaction-execution.ts",
+      "utf8"
+    );
+    assert.match(rolling, /executeGlobalLorebookCompaction\(/);
+    assert.match(execution, /compactCurrentMemory\(plan\.compactInput/);
+    assert.match(execution, /mode: "full_rebuild"/);
   });
 
   it("F: archive_summary has no active overflow rollover writer in production", () => {

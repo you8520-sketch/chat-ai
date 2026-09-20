@@ -43,12 +43,10 @@ import {
   isTurnEligibleForMemoryRecord,
   stripOocFromMemorySummary,
 } from "./memory-ooc-filter";
-import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
-import {
-  buildGlobalSummarySourceFingerprintFromText,
-  canCommitGlobalSummaryProjection,
-} from "./memory-global-source-fingerprint";
-import type { MemoryTier } from "./memory-types";
+import { getChatMemoryRow, getOrCreateChatMemory, updateChatMemory } from "./memory-db";
+import { readGlobalCheckpointSnapshot } from "./memory-global-checkpoint";
+import { executeGlobalLorebookCompaction } from "./memory-global-compaction-execution";
+import type { ChatMemoryRow, MemoryTier } from "./memory-types";
 import {
   buildEmptyOocBatchPlaceholder,
   earliestMissingBatchStart,
@@ -1034,6 +1032,16 @@ async function persistComposedBatchScopes(opts: {
     promotedAt: opts.composed.promotedAt,
   };
 
+  const memoryBeforePersist = getChatMemoryRow(opts.chatId);
+  const checkpointBeforePersist = memoryBeforePersist
+    ? readGlobalCheckpointSnapshot(memoryBeforePersist)
+    : readGlobalCheckpointSnapshot({
+        recent_summary: "",
+        global_projection_kind: null,
+        global_source_fingerprint: null,
+        global_covered_through_turn: null,
+      } as ChatMemoryRow);
+
   const persisted = persistValidatedSummaryBatch({
     chatId: opts.chatId,
     userId: opts.userId,
@@ -1079,57 +1087,25 @@ async function persistComposedBatchScopes(opts: {
   }
 
   const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
-  const db = getDb();
-  if (
-    !isMemoryWriteGuardCurrentCore(db, {
-      chatId: opts.chatId,
-      snapshot: opts.boundarySnapshot,
-      sourceUserMessageIds: opts.sourceUserMessageIds,
-    })
-  ) {
-    return true;
-  }
-  let currentMemory = rebuildLorebookFromRecords(opts.chatId);
-  const sourceFingerprintBefore = buildGlobalSummarySourceFingerprintFromText(currentMemory);
-  if (currentMemory.length > lorebookBudget) {
-    try {
-      const compacted = await compactCurrentMemory(
-        currentMemory,
-        lorebookBudget,
-        opts.turnTrace
-      );
-      if (compacted.trim()) {
-        const compactedText = compacted;
-        const compactCommitted = db.transaction(() => {
-          if (
-            !canCommitGlobalSummaryProjection({
-              db,
-              chatId: opts.chatId,
-              boundarySnapshot: opts.boundarySnapshot,
-              sourceFingerprintBefore,
-              sourceUserMessageIds: opts.sourceUserMessageIds,
-            })
-          ) {
-            return false;
-          }
-          updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-            recent_summary: compactedText,
-            membership_tier: opts.tier,
-          });
-          return true;
-        }).immediate();
-        if (compactCommitted) currentMemory = compactedText;
-      }
-    } catch (e) {
-      console.warn(
-        `[memory] lorebook compact skipped after ${opts.logLabel} — keeping prior text:`,
-        (e as Error).message
-      );
-    }
-  }
+
+  const compactResult = await executeGlobalLorebookCompaction({
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    tier: opts.tier,
+    memoryCapacity: opts.memoryCapacity,
+    boundarySnapshot: opts.boundarySnapshot,
+    sourceUserMessageIds: opts.sourceUserMessageIds,
+    checkpointBeforePersist,
+    playableTurnCount: opts.playableCount,
+    turnTrace: opts.turnTrace,
+    trigger: "post_seal",
+  });
+
+  const currentMemory = getChatMemoryRow(opts.chatId)?.recent_summary ?? rebuildLorebookFromRecords(opts.chatId);
 
   console.info(
-    `[memory] ${opts.logLabel} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} (${opts.composed.displaySummary.length}ch → lorebook ${currentMemory.length}/${lorebookBudget}ch) reason=${opts.composed.reasonTag} mainCalls=${opts.composed.mainModelCalls}`
+    `[memory] ${opts.logLabel} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} (${opts.composed.displaySummary.length}ch → lorebook ${currentMemory.length}/${lorebookBudget}ch compact=${compactResult.mode} reason=${opts.composed.reasonTag} mainCalls=${opts.composed.mainModelCalls}`
   );
 
   return true;

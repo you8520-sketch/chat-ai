@@ -38,12 +38,9 @@ import { syncMemoryEligibleTurnCount } from "./memory-reconcile";
 import { reconcileSharedEpisodicFactsForTurn } from "./memory-episodic-shared";
 import { buildMemoryContext } from "./memory-injector";
 import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
-import {
-  buildGlobalSummarySourceFingerprintFromText,
-  canCommitGlobalSummaryProjection,
-} from "./memory-global-source-fingerprint";
+import { commitManualGlobalCheckpointCore } from "./memory-global-checkpoint";
+import { executeGlobalLorebookCompaction } from "./memory-global-compaction-execution";
 import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
-import { rebuildLorebookFromRecords } from "./memory-turn-summary";
 import { isGeminiIsolationMode } from "@/lib/geminiIsolationMode";
 import { emptyMemoryInjection, isMemoryFeatureEnabled } from "./memory-feature";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
@@ -95,36 +92,27 @@ export function scheduleBackgroundLorebookMaintenance(opts: {
       let archiveCompressed = false;
       let recentCompressed = false;
 
-      const rebuilt = rebuildLorebookFromRecords(opts.chatId).trim();
-      const sourceFingerprintBefore = buildGlobalSummarySourceFingerprintFromText(rebuilt);
       if (lorebookMaintenanceDefer) {
         await lorebookMaintenanceDefer;
       }
-      if (
-        !isMemoryWriteGuardCurrentCore(db, {
-          chatId: opts.chatId,
-          snapshot: boundarySnapshot,
-          sourceUserMessageIds: [],
-        })
-      ) {
-        return;
-      }
 
-      if (rebuilt.length <= budget.lorebook) {
-        if (rebuilt && rebuilt !== recentSummary) {
-          recentSummary = rebuilt;
-          recentCompressed = true;
-        }
-      } else {
-        const compacted = await ensureLorebookWithinBudget(
-          rebuilt,
-          budget.lorebook,
-          opts.turnTrace
-        );
-        if (compacted.text && compacted.text !== recentSummary) {
-          recentSummary = compacted.text;
-          recentCompressed = true;
-        }
+      const compactResult = await executeGlobalLorebookCompaction({
+        chatId: opts.chatId,
+        userId: opts.userId,
+        characterId: opts.characterId,
+        tier: opts.tier,
+        memoryCapacity: opts.memoryCapacity,
+        boundarySnapshot,
+        sourceUserMessageIds: [],
+        turnTrace: opts.turnTrace,
+        trigger: "background",
+      });
+      if (compactResult.committed && compactResult.mode !== "none") {
+        recentCompressed = true;
+        recentSummary = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier).recent_summary;
+      } else if (compactResult.mode === "none" && compactResult.committed) {
+        recentSummary = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier).recent_summary;
+        recentCompressed = recentSummary.trim() !== (memory.recent_summary?.trim() ?? "");
       }
 
       if (archiveSummary.length > budget.archive) {
@@ -135,18 +123,7 @@ export function scheduleBackgroundLorebookMaintenance(opts: {
         }
       }
 
-      if (recentCompressed || archiveCompressed) {
-        if (
-          recentCompressed &&
-          !canCommitGlobalSummaryProjection({
-            db,
-            chatId: opts.chatId,
-            boundarySnapshot,
-            sourceFingerprintBefore,
-          })
-        ) {
-          return;
-        }
+      if (archiveCompressed) {
         if (
           !isMemoryWriteGuardCurrentCore(db, {
             chatId: opts.chatId,
@@ -610,10 +587,17 @@ export async function updateLorebookForChat(
   }
   const budget = resolveMemoryBudgetFromCapacity(memoryCapacity).lorebook;
   const { text: fitted } = await ensureLorebookWithinBudget(lorebook, budget);
-  updateChatMemory(chatId, userId, characterId, {
-    recent_summary: fitted,
-    membership_tier: tier,
-  });
+  const memory = getOrCreateChatMemory(chatId, userId, characterId, tier);
+  getDb()
+    .transaction(() => {
+      commitManualGlobalCheckpointCore(getDb(), {
+        chatId,
+        manualText: fitted,
+        archiveSummary: memory.archive_summary ?? "",
+      });
+      return true;
+    })
+    .immediate();
   invalidateDerivedMemoryGeneration(chatId);
   return getMemorySnapshot(chatId, userId, characterId, tier, memoryCapacity);
 }
