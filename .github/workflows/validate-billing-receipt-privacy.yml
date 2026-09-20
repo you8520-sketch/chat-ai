@@ -12,6 +12,9 @@ on:
       - "src/components/BillingReceiptTooltip.test.ts"
       - "src/components/MessageBubbleToolbar.tsx"
       - "src/app/api/chat/admin-billing-receipt/**"
+      - "src/lib/adminProviderRequestLookup.ts"
+      - "src/lib/adminProviderRequestLookup.test.ts"
+      - "src/app/api/admin/finance/provider-request/**"
 
 permissions:
   contents: read
@@ -41,3 +44,6 @@ jobs:
 
       - name: Admin billing receipt route authorization
         run: node --conditions=react-server --import tsx --test src/app/api/chat/admin-billing-receipt/route.test.ts
+
+      - name: Admin provider request forensic route authorization
+        run: node --conditions=react-server --import tsx --test src/app/api/admin/finance/provider-request/route.test.ts
