@@ -46,10 +46,6 @@ import {
 import { getChatMemoryRow, getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { readGlobalCheckpointSnapshot } from "./memory-global-checkpoint";
 import { executeGlobalLorebookCompaction } from "./memory-global-compaction-execution";
-import {
-  buildGlobalSummarySourceFingerprintFromText,
-  canCommitGlobalSummaryProjection,
-} from "./memory-global-source-fingerprint";
 import type { ChatMemoryRow, MemoryTier } from "./memory-types";
 import {
   buildEmptyOocBatchPlaceholder,
