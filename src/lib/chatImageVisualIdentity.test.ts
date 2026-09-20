@@ -330,7 +330,7 @@ describe("chat image visual identity", () => {
 
     assert.match(prompt, /IDENTITY OWNERSHIP IS STRICT/);
     assert.match(prompt, /NEVER transfer between subjects/);
-    assert.match(prompt, /Unify art style, not identity/);
+    assert.match(prompt, /STYLE FIDELITY — rendering technique must follow the supplied character identity reference images/);
     assert.match(prompt, /GENDER LOCK/);
     assert.deepEqual(referenceUrls, [
       "/synthetic/character-a-primary.webp",

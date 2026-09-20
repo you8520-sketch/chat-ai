@@ -108,7 +108,10 @@ test("REF-BIND / PROMPT-BIND primary + Tier-2: actual multipart request preserve
     }
     assert.equal(captured.length, 2, "MAX_PROVIDER_ATTEMPTS = 2");
     for (const [attemptIndex, request] of captured.entries()) {
-      assert.match(request.fields.prompt, /Reference image 1 is LAYOUT AND FINISH ONLY/);
+      assert.match(
+        request.fields.prompt,
+        /Reference image 1 is layout, gutters, and panel structure ONLY/
+      );
       assert.match(request.fields.prompt, /Image 2/);
       assert.match(request.fields.prompt, /Image 3/);
       assert.deepEqual(request.names, ["reference-1.webp", "reference-2.webp", "reference-3.webp"]);

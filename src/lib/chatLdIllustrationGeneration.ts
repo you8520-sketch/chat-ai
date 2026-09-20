@@ -177,7 +177,6 @@ function buildPartyIllustrationPrompt(opts: {
     ),
     buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
     "Depict the selected important visual moment below as one cinematic, emotionally accurate group scene, posing each listed person as that moment requires.",
-    "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
     "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
     `Show exactly these ${count} ${peopleWord(count)}. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.`,
@@ -282,7 +281,6 @@ export function buildChatLdIllustrationPrompt(opts: {
     }),
     buildIllustrationSafeDepiction({ adultGrounded: opts.adultGrounded ?? false }),
     directInstruction,
-    "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
     "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
     "Show exactly these two people. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.",
@@ -404,7 +402,6 @@ export function buildLdSceneGenerationPlan(opts: {
       approvedScene
         ? "Depict the approved scene plan below as one cinematic scene."
         : "Depict the selected important visual moment below as one cinematic scene.",
-      "Match the drawing style of the supplied identity references. Harmonize style, not identity.",
       "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
       selected.length === 1
         ? "Show exactly this one selected person. Do not add extras, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks."

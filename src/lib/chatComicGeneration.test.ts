@@ -86,7 +86,7 @@ describe("chatComicGeneration", () => {
     assert.match(prompt, /IDENTITY OWNERSHIP IS STRICT/);
     assert.doesNotMatch(prompt, /STRICT CLOSED TEXT WHITELIST/);
     assert.match(prompt, /GENDER LOCK/);
-    assert.match(prompt, /LAYOUT AND FINISH ONLY/);
+    assert.match(prompt, /Reference image 1 is layout, gutters, and panel structure ONLY/);
     assert.doesNotMatch(prompt, /Original prose context/);
     assert.doesNotMatch(prompt, /SOURCE PROSE/);
     assert.doesNotMatch(prompt, /Preserve each person's hair color, eye color/);

@@ -322,7 +322,7 @@ export function buildStrictLdDuoFallbackPrompt(opts: {
     `Composition: ${safeComposition}.`,
     strictLdCoverageFooter(adultMaleShirtlessContract),
     "No speech bubbles, captions, blood, weapons, injury, or suggestive poses.",
-    "Match reference identity and art style. Vertical 800×1200 composition.",
+    "Vertical 800×1200 composition.",
   ].join("\n");
 }
 
@@ -364,7 +364,7 @@ export function buildStrictLdPartyFallbackPrompt(opts: {
     `Composition: ${groupComposition}.`,
     "Group mid-shot; every listed face visible; stricter modest coverage throughout.",
     "No combat action, blood, weapons in use, speech bubbles, or suggestive poses.",
-    "Match reference identities and art style. Vertical 800×1200 composition.",
+    "Vertical 800×1200 composition.",
   ].join("\n");
 }
 
@@ -428,7 +428,6 @@ export function buildStrictComicFallbackPrompt(opts: {
       : ["VISUAL LAYER ONLY — zero speech bubbles, captions, SFX, or readable letters in the image. Text is added later by server overlay."];
   return [
     `Create one polished Korean manhwa-style page with exactly ${opts.panelCount} wide horizontal panels stacked vertically.`,
-    "Reference image 1 is LAYOUT AND FINISH ONLY.",
     `Layout reference: ${CHAT_COMIC_TEMPLATE_PREVIEW_URL}`,
     castBlock,
     renderChatImageVisualIdentity({ subjects: strictSubjects, hasTemplate: true }),

@@ -573,6 +573,41 @@ export function buildPartyIllustrationReferencePlan(
   };
 }
 
+/** Canonical style/rendering fidelity contract — single owner for LD, comic, TR, and strict fallback. */
+export function renderChatImageStyleFidelityContract(opts: {
+  hasTemplate: boolean;
+  subjectCount?: number;
+}): string {
+  const subjectCount = Math.max(0, opts.subjectCount ?? 0);
+  const multiSubject = subjectCount !== 1;
+  const lines = [
+    "STYLE FIDELITY — rendering technique must follow the supplied character identity reference images, not a generic stock illustration or default model look.",
+    "Derive line weight, line quality, coloring method, shading, facial rendering, and overall finish directly from the subject reference images.",
+    "Each subject reference is both an identity anchor and a style anchor for that character's rendering.",
+  ];
+  if (opts.hasTemplate) {
+    lines.push(
+      "Reference image 1 is layout, gutters, and panel structure ONLY.",
+      "Do NOT copy the template sample figures, their faces, hair, bodies, or stock finish as the art style.",
+      "Use subject identity references (reference image 2 and onward) as the authoritative art-style source for character rendering."
+    );
+  } else {
+    lines.push(
+      "Each numbered reference image maps 1:1 to exactly one listed subject. Do not reuse a photo for anyone else."
+    );
+  }
+  if (multiSubject) {
+    lines.push(
+      "When multiple subject references differ stylistically, converge on one coherent finish derived from those references — never replace reference-derived style with a generic polished default."
+    );
+  } else if (subjectCount === 1) {
+    lines.push(
+      "Match the listed subject reference rendering as closely as possible. Do not substitute a generic polished illustration look."
+    );
+  }
+  return lines.join("\n");
+}
+
 export function renderChatImageIdentityContract(opts: {
   hasTemplate: boolean;
 }): string {
@@ -582,7 +617,7 @@ export function renderChatImageIdentityContract(opts: {
         "It is NEVER a character identity source.",
         "Do not copy hair, eyes, iris, pupils, clothes, or face from the template onto any subject.",
       ].join(" ")
-    : "Each numbered reference image maps 1:1 to exactly one listed subject. Do not reuse a photo for anyone else.";
+    : "";
 
   return [
     "IDENTITY OWNERSHIP IS STRICT.",
@@ -591,27 +626,35 @@ export function renderChatImageIdentityContract(opts: {
     "NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.",
     "Do not average or homogenize identities even when both subjects look similar.",
     "Do not assume that a visually striking feature belongs to every person.",
-    "A trait appearing in one subject's reference is NOT a global style property.",
+    "A trait appearing in one subject's reference is NOT a global identity property for other subjects.",
     "Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.",
     "Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.",
     "A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.",
-    "STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.",
-    "Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.",
-    "Template or another person's appearance must never be treated as a style characteristic.",
-    "PRIORITY: 1) explicit generation product option (pose, expression, temporary costume/prop); 2) this subject's stable saved identity only when IMAGE_PLUS_SAVED; 3) this subject's own reference image; 4) template styling/composition.",
+    "IDENTITY may NOT be harmonized globally. Style rendering follows the STYLE FIDELITY contract above.",
+    "Template or another person's appearance must never be treated as an identity source.",
+    "PRIORITY: 1) explicit generation product option (pose, expression, temporary costume/prop); 2) this subject's stable saved identity only when IMAGE_PLUS_SAVED; 3) this subject's own reference image; 4) template layout/composition only when a template is present.",
     "Product options may add a temporary prop or costume. They must not rewrite hair color, eye/iris/pupil color, or face identity.",
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function renderChatImageVisualIdentity(opts: {
   subjects: readonly ChatImageVisualSubject[];
   hasTemplate: boolean;
 }): string {
+  const referencedSubjects = opts.subjects.filter(
+    (subject) => subject.referenceIndex != null
+  ).length;
   return [
     "SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.",
     ...opts.subjects.map((subject, index) =>
       renderChatImageSubjectManifest(subject, index)
     ),
+    renderChatImageStyleFidelityContract({
+      hasTemplate: opts.hasTemplate,
+      subjectCount: referencedSubjects,
+    }),
     renderChatImageIdentityContract({ hasTemplate: opts.hasTemplate }),
   ].join("\n\n");
 }
