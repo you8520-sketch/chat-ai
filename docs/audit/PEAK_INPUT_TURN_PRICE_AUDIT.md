@@ -1,159 +1,200 @@
-# Peak Input Pressure + Paid-Memory Turn Price Audit
+# Peak Input Pressure + Paid-Memory Turn Price Audit (CORRECTION PASS)
 
 ## PRODUCTION DEPLOYMENT
-- Railway deployment: `1c3185ff-1434-4c14-a1d3-c6914016d16b`
+- Railway deployment: `2bc05e11-aa66-466d-a5f4-1bf8c549c398`
 - Railway status: SUCCESS
-- Production SHA: `d593069fdaf476bfb6d547d675034925e8175e96`
-- Origin main (latest fetch): `73d563496eb6183cbc8bfdf514882cdcacee8d9c`
+- Production SHA: `bfb097470df6ae0df03611f716330c9413218484`
+- Origin main (latest fetch): `bfb097470df6ae0df03611f716330c9413218484`
+- PR_BEHIND_MAIN = 0
 
-## PRODUCT MODEL
-- SUBSCRIPTION_PRODUCT_TYPE = MONTHLY_MEMORY_ADDON_PLUS_USAGE_BILLING
-- NORMAL_USAGE_BILLING = CONTINUES
-- Memory add-on expands Focus/User Lorebook/Global; does NOT unlimit Main RP turns.
+## LOAD CLASSES
+- **NORMAL** — realistic ordinary RP
+- **MEMORY_PEAK** — subscription memory tiers max + realistic-heavy Creator (~3 entries via production matcher)
+- **ABSOLUTE_VALID_STRESS** — every server-valid variable-size owner stressed through production paths
 
-## OWNER MAP
-- **finalContextBuilder**: src/services/contextBuilder.ts — buildContext()
-- **systemMessages**: buildContext pushSection trackedSections
-- **historyMessages**: buildContext shortTermHistory → trim → history
-- **currentUserTurn**: buildContext currentUserMessage + adapters
-- **modelAdapter**: OpenRouter split / DeepSeek XML / Gemini bulk in contextBuilder
-- **focusInjection**: userNote + focusMaxChars via splitUserNotePromptZones
-- **creatorLorebook**: keywordLorebookBlock → keyword-lorebook or dynamic lore prefix
-- **userLorebook**: userLorebookBlock → user-lorebook section
-- **globalMemory**: longTermMemory → current-memory section
-- **mediumMemory**: mediumTermMemoryBlock → medium-term-memory section
-- **episodicMemory**: episodicMemoryBlock → episodic-memory-retrieved-facts
-- **relationshipMemory**: memoryMeta → relationship-meta or bundled in current-memory
-- **rawHistory**: shortTermHistory RAW4 in buildContext
-- **historyTrimming**: trimHistoryToBudget / trimProviderHistoryToBudget
-- **systemBudgetTelemetry**: MODEL_SYSTEM_BUDGETS → meta.tokenBudget (soft telemetry)
-- **localTokenEstimate**: estimateTokens() — LOCAL_ESTIMATED_TOKENS diagnostic
-- **providerPromptTokens**: Provider usage.prompt_tokens — canonical when request exists
-- **serializedWireRequest**: route OpenRouter/Gemini wire builders post-buildContext
-- **cacheTelemetry**: usage cache_read/write fields + openRouterSystemSplit
-- **mainRpModels**: chatModels.MAIN_RP_MODEL_IDS
-- **usagePointCharge**: points.computeOpenRouterTurnCost
-- **rawProviderCost**: openRouterModelPricing.openRouterUsdCostFromRates
-- **fx**: exchangeRate.resolveBillingExchangeRateSnapshot
-- **globalCompaction**: memory-global-compaction-execution + ai.resolveBackgroundPrimaryModelId
+## CREATOR LOREBOOK — PRODUCT MODEL (CURRENT vs TARGET)
+- MODEL_MISMATCH = YES
+- CURRENT attach: characters.lorebook_id INTEGER — single FK, exactly 0 or 1 keyword_lorebooks row
+- CURRENT unit: keyword_lorebooks row = named container; entries_json holds up to LOREBOOK_ENTRY_MAX (100) keyword→content entries
+- CURRENT per-turn inject cap: NONE — all uniquely matched entries joined without char/token budget
+- CURRENT theoretical max inject (no cap): 80000 chars
+- TARGET attach max: 20 lorebooks/character
+- TARGET unit: One lorebook = one 800-char content block + up to 10 keywords (NOT multi-entry container)
+- TARGET per-turn inject: Separate PER-TURN INJECTION BUDGET owner — keyword hit + carryover only; must NOT inject all 20×800 every turn
+- TARGET theoretical max if all hit (no cap): 16000 chars
+- Required schema deltas:
+  - Replace characters.lorebook_id single FK with character_lorebook_attachments(character_id, lorebook_id) max 20
+  - Migrate keyword_lorebooks creator scope: one content block + keywords per row (drop multi-entry entries_json OR enforce max 1 entry)
+  - Add creator lorebook per-turn injection budget constant + apply* budget function (mirror userLorebook applyUserLorebookTurnInjectionBudget)
 
-## MAIN RP MODEL REGISTRY
-- deepseek-v4-pro-0813 (DeepSeek V4 Pro)
-- gemini-3.1-pro-preview (Gemini 3.1 Pro Preview)
-- gemini-3.7-flash (Gemini 3.7 Flash)
-- gpt-5.6-terra (GPT-5.6 Terra)
+## CREATOR LOREBOOK CONTRACT (current main path)
+- CREATOR_LOREBOOK_TURN_INJECT_CAP = NONE
+- Path: entries_json → parseStoredLorebookEntries → matchKeywordLorebookEntryDetails → mergeMatches → buildKeywordLorebookPromptBlock → route loadKeywordLorebookPromptBlockFromActivation → buildContext keywordLorebookBlock
+- Carryover: mergeMatches dedupes by content; carryover TTL rows cannot introduce content absent from stored entries; max unique injected contents ≤ LOREBOOK_ENTRY_MAX matched entries
 
-## ABSOLUTE MAX INPUT TABLE
-| MODEL | FREE | PAID | G15 | G20 | G15≥28K | G15≥40K | G15≥50K | G15≥60K | stage |
-|---|---:|---:|---:|---:|---|---|---|---:|---|
-| deepseek-v4-pro-0813 | 41067 | 43317 | 47911 | 52505 | Y | Y | N | N | T2000/PEAK_MEMORY |
-| gemini-3.1-pro-preview | 40819 | 43069 | 47663 | 52256 | Y | Y | N | N | T2000/PEAK_MEMORY |
-| gemini-3.7-flash | 40543 | 42793 | 47386 | 51980 | Y | Y | N | N | T2000/PEAK_MEMORY |
-| gpt-5.6-terra | 40543 | 42793 | 47386 | 51980 | Y | Y | N | N | T2000/PEAK_MEMORY |
+## TABLE A — MEMORY PRODUCT (T2000 MEMORY_PEAK, realistic Creator)
+| Model | Free | Paid | Global15 | Δ input Paid | Δ input G15 | Δ P Paid | Δ P G15 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| deepseek-v4-pro-0813 | 39330 | 40230 | 44823 | 900 | 4593 | 1 | 6 |
+| gemini-3.1-pro-preview | 39081 | 39981 | 44575 | 900 | 4594 | 4 | 19 |
+| gemini-3.7-flash | 38805 | 39705 | 44298 | 900 | 4593 | 2 | 8 |
+| gpt-5.6-terra | 38805 | 39705 | 44298 | 900 | 4593 | 5 | 28 |
 
-## 28K / 40K / 50K / 60K BANDS
+## TABLE B — CURRENT CONTAINER ENTRY STRESS (1 attached lorebook, N entries — NOT target 20 lorebooks)
+| Model | 1-entry P | 10 | 25 | 50 | 100 entries P |
+|---|---:|---:|---:|---:|---:|
+| deepseek-v4-pro-0813 | 60 | 68 | 83 | 107 | 155 |
+| gemini-3.1-pro-preview | 240 | 267 | 314 | 391 | 545 |
+| gemini-3.7-flash | 95 | 106 | 125 | 158 | 222 |
+| gpt-5.6-terra | 340 | 380 | 446 | 557 | 777 |
+
+## TABLE B′ — TARGET ATTACHED LOREBOOK UNITS (forensic ref, max 20 units, no injection cap)
+| Model | 1 unit P | 5 | 10 | 15 | 20 units P |
+|---|---:|---:|---:|---:|---:|
+| deepseek-v4-pro-0813 | 60 | 64 | 68 | 73 | 78 |
+| gemini-3.1-pro-preview | 240 | 252 | 267 | 283 | 298 |
+| gemini-3.7-flash | 95 | 100 | 106 | 113 | 119 |
+| gpt-5.6-terra | 340 | 358 | 380 | 402 | 424 |
+
+## TABLE C — ABSOLUTE VALID STRESS (T2000, PAID_GLOBAL15, 100 container entries on current main)
+| Model | Total input | 60K+ | 80K+ | 100K+ | P charge | Root cause |
+|---|---:|---|---|---|---:|---|
+| deepseek-v4-pro-0813 | 115596 | Y | Y | Y | 162 | OTHER |
+| gemini-3.1-pro-preview | 115347 | Y | Y | Y | 569 | OTHER |
+| gemini-3.7-flash | 115071 | Y | Y | Y | 232 | OTHER |
+| gpt-5.6-terra | 115071 | Y | Y | Y | 810 | OTHER |
+
+## MEMORY_PEAK MAX INPUT (realistic Creator — NOT absolute max)
+| MODEL | FREE | PAID | G15 | G20 | G15≥60K | stage |
+|---|---:|---:|---:|---:|---:|---|
+| deepseek-v4-pro-0813 | 39330 | 40230 | 44823 | 49417 | N | T2000/MEMORY_PEAK |
+| gemini-3.1-pro-preview | 39081 | 39981 | 44575 | 49168 | N | T2000/MEMORY_PEAK |
+| gemini-3.7-flash | 38805 | 39705 | 44298 | 48892 | N | T2000/MEMORY_PEAK |
+| gpt-5.6-terra | 38805 | 39705 | 44298 | 48892 | N | T2000/MEMORY_PEAK |
+
+## ABSOLUTE VALID MAX INPUT
+- deepseek-v4-pro-0813: FREE=110102 PAID=111002 G15=115596 first60K@creator25 first100K@creator100
+- gemini-3.1-pro-preview: FREE=109854 PAID=110754 G15=115347 first60K@creator25 first100K@creator100
+- gemini-3.7-flash: FREE=109577 PAID=110477 G15=115071 first60K@creator25 first100K@creator100
+- gpt-5.6-terra: FREE=109577 PAID=110477 G15=115071 first60K@creator25 first100K@creator100
+
+## INPUT BANDS — MEMORY_PEAK matrix
 - UNDER_28K: 0 fixtures
-- 28K_TO_40K: 43 fixtures
-- 40K_TO_50K: 73 fixtures
-- 50K_TO_60K: 12 fixtures
-- 60K_OR_MORE: 0 fixtures
-- worst overall: deepseek-v4-pro-0813 PAID_GLOBAL_20K_REFERENCE T2000 PEAK_MEMORY = 52505 tokens (50K_TO_60K)
+- 28K_TO_40K: 77 fixtures
+- 40K_TO_50K: 51 fixtures
+- 50K_TO_60K: 0 fixtures
+- 60K_TO_80K: 0 fixtures
+- 80K_TO_100K: 0 fixtures
+- 100K_OR_MORE: 0 fixtures
+## INPUT BANDS — ABSOLUTE_VALID_STRESS matrix
+- UNDER_28K: 0 fixtures
+- 28K_TO_40K: 8 fixtures
+- 40K_TO_50K: 16 fixtures
+- 50K_TO_60K: 16 fixtures
+- 60K_TO_80K: 20 fixtures
+- 80K_TO_100K: 4 fixtures
+- 100K_OR_MORE: 16 fixtures
 
-## SIXTY-K ROOT CAUSE
-- No legitimate fixture reached 60K+ LOCAL_ESTIMATED_TOKENS.
+## GLOBAL15 ATTRIBUTION (stable vs Creator size — sample Creator100 MEMORY_PEAK)
+- deepseek-v4-pro-0813: GLOBAL15_INPUT_DELTA_VS_PAID=4593 GLOBAL15_P_DELTA=6
+- gemini-3.1-pro-preview: GLOBAL15_INPUT_DELTA_VS_PAID=4594 GLOBAL15_P_DELTA=20
+- gemini-3.7-flash: GLOBAL15_INPUT_DELTA_VS_PAID=4593 GLOBAL15_P_DELTA=8
+- gpt-5.6-terra: GLOBAL15_INPUT_DELTA_VS_PAID=4593 GLOBAL15_P_DELTA=28
 
-## INPUT AMPLIFICATION (T2000 PEAK)
-- deepseek-v4-pro-0813: PAID_CURRENT=1.055x GLOBAL15=1.106x
-- gemini-3.1-pro-preview: PAID_CURRENT=1.055x GLOBAL15=1.107x
-- gemini-3.7-flash: PAID_CURRENT=1.055x GLOBAL15=1.107x
-- gpt-5.6-terra: PAID_CURRENT=1.055x GLOBAL15=1.107x
-
-## TURN PRICE AMPLIFICATION (T2000 PEAK, output=3200 canonical)
-- deepseek-v4-pro-0813: PAID_CURRENT=1.048x GLOBAL15=1.091x (Δ9.1%)
-- gemini-3.1-pro-preview: PAID_CURRENT=1.040x GLOBAL15=1.077x (Δ7.7%)
-- gemini-3.7-flash: PAID_CURRENT=1.040x GLOBAL15=1.078x (Δ7.8%)
-- gpt-5.6-terra: PAID_CURRENT=1.040x GLOBAL15=1.076x (Δ7.6%)
-
-## MEMORY COST PASS-THROUGH (GLOBAL15 vs PAID_CURRENT, T2000 PEAK)
-- deepseek-v4-pro-0813: FULLY_RECOVERED
-- gemini-3.1-pro-preview: FULLY_RECOVERED
-- gemini-3.7-flash: FULLY_RECOVERED
-- gpt-5.6-terra: FULLY_RECOVERED
-
-## DUPLICATION / OVERLAP (PAID_CURRENT peak samples)
-- DUPLICATE_PROMPT_BLOAT = NO (0 fixtures flagged)
-
-## POINT TOP-UP ECONOMICS — SECONDARY (SIMULATION ONLY)
-| KRW | normal P | subscriber P | bonus P |
-|---:|---:|---:|---:|
-| 5000 | 5000 | 5250 | 250 |
-| 10000 | 10000 | 10500 | 500 |
-| 30000 | 31500 | 33000 | 1500 |
-| 50000 | 52500 | 55000 | 2500 |
-| 100000 | 107000 | 112000 | 5000 |
+## GLOBAL MAINTENANCE
+- GLOBAL_MAINTENANCE_COST = APPROXIMATE_FORENSIC_ONLY
 
 ## FINAL CLASSIFICATION
-- PRODUCTION_SHA = d593069fdaf476bfb6d547d675034925e8175e96
-- AUDIT_TOKEN_MODE = REAL_ASSEMBLY_LOCAL_ESTIMATE
-- PROVIDER_CALIBRATION = INSUFFICIENT_DATA
-- COMPETITOR_BENCHMARK = NOT_PERFORMED_IN_THIS_AUDIT
-- POINT_TOPUP_SUBSCRIBER_BONUS = SIMULATION_ONLY
+- PRODUCTION_SHA = bfb097470df6ae0df03611f716330c9413218484
+- PR_BEHIND_MAIN = 0
+- ROOT_CLASSIFICATION = ABSOLUTE_MAX_UNBOUNDED
+- CREATOR_LOREBOOK_TURN_INJECT_CAP = NONE
+- CURRENT_USER_TURN_MAX = 1500
+- GLOBAL_MAINTENANCE_COST = APPROXIMATE_FORENSIC_ONLY
 - PROVIDER_GENERATION_CALLS = 0
 - RUNTIME_CHANGE = NO
 - MERGE = NO
-- MAX_FREE_INPUT_deepseek-v4-pro-0813 = 41067
-- MAX_PAID_CURRENT_INPUT_deepseek-v4-pro-0813 = 43317
-- MAX_PAID_GLOBAL15_INPUT_deepseek-v4-pro-0813 = 47911
-- MAX_PAID_GLOBAL20_INPUT_deepseek-v4-pro-0813 = 52505
-- PAID_CURRENT_INPUT_AMPLIFICATION_deepseek-v4-pro-0813 = 1.0548
-- GLOBAL15_INPUT_AMPLIFICATION_deepseek-v4-pro-0813 = 1.1061
-- PAID_CURRENT_TURN_PRICE_AMPLIFICATION_deepseek-v4-pro-0813 = 1.0476
-- GLOBAL15_TURN_PRICE_AMPLIFICATION_deepseek-v4-pro-0813 = 1.0909
-- PAID_CURRENT_PEAK_TURN_P_deepseek-v4-pro-0813 = 66
-- GLOBAL15_PEAK_TURN_P_deepseek-v4-pro-0813 = 72
-- GLOBAL15_P_DELTA_PERCENT_deepseek-v4-pro-0813 = 9.09
-- LONG_RP_PRICE_DRIFT_T100_TO_T2000_deepseek-v4-pro-0813 = 1.54%
-- MEMORY_INCREMENTAL_COST_RECOVERY_deepseek-v4-pro-0813 = FULLY_RECOVERED
-- MAX_FREE_INPUT_gemini-3.1-pro-preview = 40819
-- MAX_PAID_CURRENT_INPUT_gemini-3.1-pro-preview = 43069
-- MAX_PAID_GLOBAL15_INPUT_gemini-3.1-pro-preview = 47663
-- MAX_PAID_GLOBAL20_INPUT_gemini-3.1-pro-preview = 52256
-- PAID_CURRENT_INPUT_AMPLIFICATION_gemini-3.1-pro-preview = 1.0551
-- GLOBAL15_INPUT_AMPLIFICATION_gemini-3.1-pro-preview = 1.1067
-- PAID_CURRENT_TURN_PRICE_AMPLIFICATION_gemini-3.1-pro-preview = 1.0402
-- GLOBAL15_TURN_PRICE_AMPLIFICATION_gemini-3.1-pro-preview = 1.0772
-- PAID_CURRENT_PEAK_TURN_P_gemini-3.1-pro-preview = 259
-- GLOBAL15_PEAK_TURN_P_gemini-3.1-pro-preview = 279
-- GLOBAL15_P_DELTA_PERCENT_gemini-3.1-pro-preview = 7.72
-- LONG_RP_PRICE_DRIFT_T100_TO_T2000_gemini-3.1-pro-preview = 1.57%
-- MEMORY_INCREMENTAL_COST_RECOVERY_gemini-3.1-pro-preview = FULLY_RECOVERED
-- MAX_FREE_INPUT_gemini-3.7-flash = 40543
-- MAX_PAID_CURRENT_INPUT_gemini-3.7-flash = 42793
-- MAX_PAID_GLOBAL15_INPUT_gemini-3.7-flash = 47386
-- MAX_PAID_GLOBAL20_INPUT_gemini-3.7-flash = 51980
-- PAID_CURRENT_INPUT_AMPLIFICATION_gemini-3.7-flash = 1.0555
-- GLOBAL15_INPUT_AMPLIFICATION_gemini-3.7-flash = 1.1073
-- PAID_CURRENT_TURN_PRICE_AMPLIFICATION_gemini-3.7-flash = 1.0404
-- GLOBAL15_TURN_PRICE_AMPLIFICATION_gemini-3.7-flash = 1.0777
-- PAID_CURRENT_PEAK_TURN_P_gemini-3.7-flash = 103
-- GLOBAL15_PEAK_TURN_P_gemini-3.7-flash = 111
-- GLOBAL15_P_DELTA_PERCENT_gemini-3.7-flash = 7.77
-- LONG_RP_PRICE_DRIFT_T100_TO_T2000_gemini-3.7-flash = 1.98%
-- MEMORY_INCREMENTAL_COST_RECOVERY_gemini-3.7-flash = FULLY_RECOVERED
-- MAX_FREE_INPUT_gpt-5.6-terra = 40543
-- MAX_PAID_CURRENT_INPUT_gpt-5.6-terra = 42793
-- MAX_PAID_GLOBAL15_INPUT_gpt-5.6-terra = 47386
-- MAX_PAID_GLOBAL20_INPUT_gpt-5.6-terra = 51980
-- PAID_CURRENT_INPUT_AMPLIFICATION_gpt-5.6-terra = 1.0555
-- GLOBAL15_INPUT_AMPLIFICATION_gpt-5.6-terra = 1.1073
-- PAID_CURRENT_TURN_PRICE_AMPLIFICATION_gpt-5.6-terra = 1.0395
-- GLOBAL15_TURN_PRICE_AMPLIFICATION_gpt-5.6-terra = 1.0761
-- PAID_CURRENT_PEAK_TURN_P_gpt-5.6-terra = 368
-- GLOBAL15_PEAK_TURN_P_gpt-5.6-terra = 396
-- GLOBAL15_P_DELTA_PERCENT_gpt-5.6-terra = 7.61
-- LONG_RP_PRICE_DRIFT_T100_TO_T2000_gpt-5.6-terra = 1.66%
-- MEMORY_INCREMENTAL_COST_RECOVERY_gpt-5.6-terra = FULLY_RECOVERED
-- ANY_GLOBAL15_60K_PLUS = NO
-- ANY_GLOBAL20_60K_PLUS = NO
-- GLOBAL15_CRITICAL_CONTEXT_LOSS = NO
-- DUPLICATE_PROMPT_BLOAT = NO
+- MEMORY_PEAK_FREE_MAX_INPUT_deepseek-v4-pro-0813 = 39330
+- MEMORY_PEAK_PAID_CURRENT_MAX_INPUT_deepseek-v4-pro-0813 = 40230
+- MEMORY_PEAK_PAID_GLOBAL15_MAX_INPUT_deepseek-v4-pro-0813 = 44823
+- MEMORY_PEAK_GLOBAL15_60K_PLUS_deepseek-v4-pro-0813 = NO
+- ABSOLUTE_VALID_FREE_MAX_INPUT_deepseek-v4-pro-0813 = 110102
+- ABSOLUTE_VALID_PAID_CURRENT_MAX_INPUT_deepseek-v4-pro-0813 = 111002
+- ABSOLUTE_VALID_PAID_GLOBAL15_MAX_INPUT_deepseek-v4-pro-0813 = 115596
+- ABSOLUTE_VALID_GLOBAL15_60K_PLUS_deepseek-v4-pro-0813 = YES
+- ABSOLUTE_VALID_GLOBAL15_80K_PLUS_deepseek-v4-pro-0813 = YES
+- ABSOLUTE_VALID_GLOBAL15_100K_PLUS_deepseek-v4-pro-0813 = YES
+- CREATOR_MATCHES_FIRST_60K_deepseek-v4-pro-0813 = 25
+- CREATOR_MATCHES_FIRST_100K_deepseek-v4-pro-0813 = 100
+- CREATOR_1_ENTRY_P_deepseek-v4-pro-0813 = 60
+- CREATOR_10_ENTRY_P_deepseek-v4-pro-0813 = 68
+- CREATOR_25_ENTRY_P_deepseek-v4-pro-0813 = 83
+- CREATOR_50_ENTRY_P_deepseek-v4-pro-0813 = 107
+- CREATOR_100_ENTRY_P_deepseek-v4-pro-0813 = 155
+- GLOBAL15_ATTRIBUTABLE_INPUT_DELTA_deepseek-v4-pro-0813 = 4593
+- GLOBAL15_ATTRIBUTABLE_P_DELTA_deepseek-v4-pro-0813 = 6
+- NO_DETECTED_MEDIUM_GLOBAL_LITERAL_BLOAT_deepseek-v4-pro-0813 = YES
+- MEMORY_COST_RECOVERY_CLAIM_deepseek-v4-pro-0813 = NOMINAL_POINT_DELTA_COVERS_RAW_KRW_DELTA
+- MEMORY_PEAK_FREE_MAX_INPUT_gemini-3.1-pro-preview = 39081
+- MEMORY_PEAK_PAID_CURRENT_MAX_INPUT_gemini-3.1-pro-preview = 39981
+- MEMORY_PEAK_PAID_GLOBAL15_MAX_INPUT_gemini-3.1-pro-preview = 44575
+- MEMORY_PEAK_GLOBAL15_60K_PLUS_gemini-3.1-pro-preview = NO
+- ABSOLUTE_VALID_FREE_MAX_INPUT_gemini-3.1-pro-preview = 109854
+- ABSOLUTE_VALID_PAID_CURRENT_MAX_INPUT_gemini-3.1-pro-preview = 110754
+- ABSOLUTE_VALID_PAID_GLOBAL15_MAX_INPUT_gemini-3.1-pro-preview = 115347
+- ABSOLUTE_VALID_GLOBAL15_60K_PLUS_gemini-3.1-pro-preview = YES
+- ABSOLUTE_VALID_GLOBAL15_80K_PLUS_gemini-3.1-pro-preview = YES
+- ABSOLUTE_VALID_GLOBAL15_100K_PLUS_gemini-3.1-pro-preview = YES
+- CREATOR_MATCHES_FIRST_60K_gemini-3.1-pro-preview = 25
+- CREATOR_MATCHES_FIRST_100K_gemini-3.1-pro-preview = 100
+- CREATOR_1_ENTRY_P_gemini-3.1-pro-preview = 240
+- CREATOR_10_ENTRY_P_gemini-3.1-pro-preview = 267
+- CREATOR_25_ENTRY_P_gemini-3.1-pro-preview = 314
+- CREATOR_50_ENTRY_P_gemini-3.1-pro-preview = 391
+- CREATOR_100_ENTRY_P_gemini-3.1-pro-preview = 545
+- GLOBAL15_ATTRIBUTABLE_INPUT_DELTA_gemini-3.1-pro-preview = 4594
+- GLOBAL15_ATTRIBUTABLE_P_DELTA_gemini-3.1-pro-preview = 19
+- NO_DETECTED_MEDIUM_GLOBAL_LITERAL_BLOAT_gemini-3.1-pro-preview = YES
+- MEMORY_COST_RECOVERY_CLAIM_gemini-3.1-pro-preview = NOMINAL_POINT_DELTA_COVERS_RAW_KRW_DELTA
+- MEMORY_PEAK_FREE_MAX_INPUT_gemini-3.7-flash = 38805
+- MEMORY_PEAK_PAID_CURRENT_MAX_INPUT_gemini-3.7-flash = 39705
+- MEMORY_PEAK_PAID_GLOBAL15_MAX_INPUT_gemini-3.7-flash = 44298
+- MEMORY_PEAK_GLOBAL15_60K_PLUS_gemini-3.7-flash = NO
+- ABSOLUTE_VALID_FREE_MAX_INPUT_gemini-3.7-flash = 109577
+- ABSOLUTE_VALID_PAID_CURRENT_MAX_INPUT_gemini-3.7-flash = 110477
+- ABSOLUTE_VALID_PAID_GLOBAL15_MAX_INPUT_gemini-3.7-flash = 115071
+- ABSOLUTE_VALID_GLOBAL15_60K_PLUS_gemini-3.7-flash = YES
+- ABSOLUTE_VALID_GLOBAL15_80K_PLUS_gemini-3.7-flash = YES
+- ABSOLUTE_VALID_GLOBAL15_100K_PLUS_gemini-3.7-flash = YES
+- CREATOR_MATCHES_FIRST_60K_gemini-3.7-flash = 25
+- CREATOR_MATCHES_FIRST_100K_gemini-3.7-flash = 100
+- CREATOR_1_ENTRY_P_gemini-3.7-flash = 95
+- CREATOR_10_ENTRY_P_gemini-3.7-flash = 106
+- CREATOR_25_ENTRY_P_gemini-3.7-flash = 125
+- CREATOR_50_ENTRY_P_gemini-3.7-flash = 158
+- CREATOR_100_ENTRY_P_gemini-3.7-flash = 222
+- GLOBAL15_ATTRIBUTABLE_INPUT_DELTA_gemini-3.7-flash = 4593
+- GLOBAL15_ATTRIBUTABLE_P_DELTA_gemini-3.7-flash = 8
+- NO_DETECTED_MEDIUM_GLOBAL_LITERAL_BLOAT_gemini-3.7-flash = YES
+- MEMORY_COST_RECOVERY_CLAIM_gemini-3.7-flash = NOMINAL_POINT_DELTA_COVERS_RAW_KRW_DELTA
+- MEMORY_PEAK_FREE_MAX_INPUT_gpt-5.6-terra = 38805
+- MEMORY_PEAK_PAID_CURRENT_MAX_INPUT_gpt-5.6-terra = 39705
+- MEMORY_PEAK_PAID_GLOBAL15_MAX_INPUT_gpt-5.6-terra = 44298
+- MEMORY_PEAK_GLOBAL15_60K_PLUS_gpt-5.6-terra = NO
+- ABSOLUTE_VALID_FREE_MAX_INPUT_gpt-5.6-terra = 109577
+- ABSOLUTE_VALID_PAID_CURRENT_MAX_INPUT_gpt-5.6-terra = 110477
+- ABSOLUTE_VALID_PAID_GLOBAL15_MAX_INPUT_gpt-5.6-terra = 115071
+- ABSOLUTE_VALID_GLOBAL15_60K_PLUS_gpt-5.6-terra = YES
+- ABSOLUTE_VALID_GLOBAL15_80K_PLUS_gpt-5.6-terra = YES
+- ABSOLUTE_VALID_GLOBAL15_100K_PLUS_gpt-5.6-terra = YES
+- CREATOR_MATCHES_FIRST_60K_gpt-5.6-terra = 25
+- CREATOR_MATCHES_FIRST_100K_gpt-5.6-terra = 100
+- CREATOR_1_ENTRY_P_gpt-5.6-terra = 340
+- CREATOR_10_ENTRY_P_gpt-5.6-terra = 380
+- CREATOR_25_ENTRY_P_gpt-5.6-terra = 446
+- CREATOR_50_ENTRY_P_gpt-5.6-terra = 557
+- CREATOR_100_ENTRY_P_gpt-5.6-terra = 777
+- GLOBAL15_ATTRIBUTABLE_INPUT_DELTA_gpt-5.6-terra = 4593
+- GLOBAL15_ATTRIBUTABLE_P_DELTA_gpt-5.6-terra = 28
+- NO_DETECTED_MEDIUM_GLOBAL_LITERAL_BLOAT_gpt-5.6-terra = YES
+- MEMORY_COST_RECOVERY_CLAIM_gpt-5.6-terra = NOMINAL_POINT_DELTA_COVERS_RAW_KRW_DELTA

@@ -28,11 +28,18 @@ import {
   buildAbsoluteMaxInputTable,
   buildInputAmplificationTable,
   buildTurnPriceRow,
+  buildCreatorLorebookBlockThroughProductionPath,
+  buildVariableSizeOwnerMap,
   classifyInputPressureBand,
   classifyInputThresholds,
   clearPaidMemoryAuditRowCache,
   computePaidMemoryDeltas,
+  CREATOR_LOREBOOK_PRODUCTION_CONTRACT,
+  CREATOR_LOREBOOK_PRODUCT_MODEL,
   generatePaidMemoryAuditReport,
+  TARGET_CREATOR_LOREBOOK_LIMITS,
+  proveCreatorCarryoverCannotExceedStoredUnique,
+  PRODUCTION_SHA_CORRECTION,
   simulateGlobalMaintenanceLifecycle,
 } from "./paid-memory-prompt-cost-audit";
 
@@ -50,12 +57,14 @@ describe("peak input pressure + turn price audit", () => {
     assert.equal(PRODUCT_MODEL.normalUsageBilling, "CONTINUES");
   });
 
-  it("classifies input pressure bands", () => {
+  it("classifies input pressure bands including 80K/100K", () => {
     assert.equal(classifyInputPressureBand(20_000), "UNDER_28K");
     assert.equal(classifyInputPressureBand(30_000), "28K_TO_40K");
     assert.equal(classifyInputPressureBand(45_000), "40K_TO_50K");
     assert.equal(classifyInputPressureBand(55_000), "50K_TO_60K");
-    assert.equal(classifyInputPressureBand(65_000), "60K_OR_MORE");
+    assert.equal(classifyInputPressureBand(65_000), "60K_TO_80K");
+    assert.equal(classifyInputPressureBand(85_000), "80K_TO_100K");
+    assert.equal(classifyInputPressureBand(105_000), "100K_OR_MORE");
     const t = classifyInputThresholds(45_000);
     assert.equal(t.crossed28k, true);
     assert.equal(t.crossed40k, true);
@@ -94,13 +103,13 @@ describe("peak input pressure + turn price audit", () => {
       modelId,
       config: configById("FREE_CURRENT"),
       currentTurn: 2000,
-      load: "PEAK_MEMORY",
+      load: "MEMORY_PEAK",
     });
     const paid = assemblePaidMemoryPromptRow({
       modelId,
       config: configById("PAID_CURRENT"),
       currentTurn: 2000,
-      load: "PEAK_MEMORY",
+      load: "MEMORY_PEAK",
     });
     assert.ok(paid.localEstimatedTokensTotal >= free.localEstimatedTokensTotal);
     assert.ok(paid.userLorebookChars >= free.userLorebookChars);
@@ -113,13 +122,13 @@ describe("peak input pressure + turn price audit", () => {
       modelId,
       config: configById("PAID_CURRENT"),
       currentTurn: 2000,
-      load: "PEAK_MEMORY",
+      load: "MEMORY_PEAK",
     });
     const g15 = assemblePaidMemoryPromptRow({
       modelId,
       config: configById("PAID_GLOBAL_15K"),
       currentTurn: 2000,
-      load: "PEAK_MEMORY",
+      load: "MEMORY_PEAK",
     });
     assert.equal(g15.criticalSectionOmitted, false);
     assert.equal(g15.mediumPresent, paid.mediumPresent);
@@ -133,14 +142,14 @@ describe("peak input pressure + turn price audit", () => {
       modelId,
       configId: "FREE_CURRENT",
       currentTurn: 2000,
-      load: "PEAK_MEMORY",
+      load: "MEMORY_PEAK",
       outputPresetChars: AUDIT_OUTPUT_PRESET_CHARS.canonical,
     });
     const paidPrice = buildTurnPriceRow({
       modelId,
       configId: "PAID_CURRENT",
       currentTurn: 2000,
-      load: "PEAK_MEMORY",
+      load: "MEMORY_PEAK",
       outputPresetChars: AUDIT_OUTPUT_PRESET_CHARS.canonical,
     });
     assert.ok(paidPrice.pCharge >= freePrice.pCharge);
@@ -167,7 +176,7 @@ describe("peak input pressure + turn price audit", () => {
   it("input amplification ratio at T2000 peak", () => {
     clearPaidMemoryAuditRowCache();
     const modelId = MAIN_RP_MODEL_IDS[0]!;
-    const amp = buildInputAmplificationTable(modelId, 2000, "PEAK_MEMORY");
+    const amp = buildInputAmplificationTable(modelId, 2000, "MEMORY_PEAK");
     assert.ok(amp.paidCurrentRatio >= 1);
     assert.ok(amp.global15Ratio >= 1);
   });
@@ -179,9 +188,9 @@ describe("peak input pressure + turn price audit", () => {
       modelId,
       config: configById("PAID_CURRENT"),
       currentTurn: 1000,
-      load: "PEAK_MEMORY",
+      load: "MEMORY_PEAK",
     });
-    assert.ok(["YES", "NO"].includes(dup.duplicatePromptBloat));
+    assert.ok(["YES", "NO"].includes(dup.noDetectedMediumGlobalLiteralBloat));
   });
 
   it("global maintenance simulation models incremental overflow", () => {
@@ -190,23 +199,49 @@ describe("peak input pressure + turn price audit", () => {
     assert.ok(t2000);
     assert.ok(t2000!.rebuiltSourceChars > 10_000);
   });
+
+  it("documents current vs target Creator Lorebook product model mismatch", () => {
+    assert.equal(CREATOR_LOREBOOK_PRODUCT_MODEL.mismatch, true);
+    assert.equal(TARGET_CREATOR_LOREBOOK_LIMITS.characterAttachMax, 20);
+    assert.match(CREATOR_LOREBOOK_PRODUCT_MODEL.current.characterAttach, /single FK/);
+    assert.match(CREATOR_LOREBOOK_PRODUCT_MODEL.target.lorebookUnit, /one 800-char/);
+    assert.equal(CREATOR_LOREBOOK_PRODUCTION_CONTRACT.turnInjectCap, "NONE");
+  });
+
+  it("current container entry stress uses production matcher (not target attach semantics)", () => {
+    const block100 = buildCreatorLorebookBlockThroughProductionPath({ matchCount: 100 });
+    assert.equal(block100.matchedCount, 100);
+    assert.ok(block100.injectedChars >= 100 * 700);
+    const carry = proveCreatorCarryoverCannotExceedStoredUnique();
+    assert.equal(carry.carryoverCannotExceedDirectUnique, true);
+  });
+
+  it("variable-size owner map documents creator lorebook separately from activation scan", () => {
+    const map = buildVariableSizeOwnerMap();
+    const creator = map.find((r) => r.owner.includes("Creator"));
+    assert.ok(creator);
+    assert.match(creator!.perTurnInjectionMax, /NONE/);
+  });
 });
 
 describe("full audit report smoke", () => {
-  it("generates report with zero provider calls", { timeout: 900_000 }, () => {
+  it("generates correction-pass report with zero provider calls", { timeout: 1_800_000 }, () => {
     clearPaidMemoryAuditRowCache();
-    const report = generatePaidMemoryAuditReport("d593069fdaf476bfb6d547d675034925e8175e96", {
-      originMainSha: "73d563496eb6183cbc8bfdf514882cdcacee8d9c",
+    const report = generatePaidMemoryAuditReport(PRODUCTION_SHA_CORRECTION, {
+      originMainSha: PRODUCTION_SHA_CORRECTION,
+      prBehindMain: 0,
     });
     assert.equal(report.providerGenerationCalls, 0);
     assert.equal(report.runtimeChange, "NO");
-    assert.equal(report.competitorBenchmark, "NOT_PERFORMED_IN_THIS_AUDIT");
+    assert.equal(report.auditPass, "AUDIT_CORRECTION");
+    assert.equal(report.prBehindMain, 0);
     assert.equal(report.matrix.length, MAIN_RP_MODEL_IDS.length * 4 * 4 * 2);
-    assert.equal(report.absoluteMaxTable.length, MAIN_RP_MODEL_IDS.length);
-    assert.ok(report.primaryDecisionTable.length > 0);
-    assert.ok(report.turnPriceMatrix.length > 0);
+    assert.equal(report.memoryPeakMaxInputTable.length, MAIN_RP_MODEL_IDS.length);
+    assert.equal(report.tableBCreatorStress.length, MAIN_RP_MODEL_IDS.length * 4 * 5);
+    assert.ok(report.tableCAbsoluteValidStress.some((r) => r.creatorMatchCount === 100));
     for (const modelId of MAIN_RP_MODEL_IDS) {
       assert.ok(report.summaryByModel[modelId]);
+      assert.ok(report.summaryByModel[modelId]!.creator100EntryP >= report.summaryByModel[modelId]!.creator1EntryP);
     }
   });
 });

@@ -16,8 +16,8 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
   return originalLoad(request, parent, isMain);
 } as typeof Module._load;
 
-const PRODUCTION_SHA = "d593069fdaf476bfb6d547d675034925e8175e96";
-const ORIGIN_MAIN_SHA = "73d563496eb6183cbc8bfdf514882cdcacee8d9c";
+const PRODUCTION_SHA = "bfb097470df6ae0df03611f716330c9413218484";
+const ORIGIN_MAIN_SHA = "bfb097470df6ae0df03611f716330c9413218484";
 
 async function main() {
   const { loadEnvLocal } = await import("./load-env-local");
@@ -31,6 +31,7 @@ async function main() {
 
   const report = generatePaidMemoryAuditReport(PRODUCTION_SHA, {
     originMainSha: ORIGIN_MAIN_SHA,
+    prBehindMain: 0,
   });
   const markdown = formatPaidMemoryAuditMarkdown(report);
   const outDir = path.join(process.cwd(), "docs", "audit");
@@ -42,12 +43,13 @@ async function main() {
   console.log(`Wrote ${jsonPath}`);
   console.log(`Wrote ${mdPath}`);
   console.log(`PROVIDER_GENERATION_CALLS=${report.providerGenerationCalls}`);
+  console.log(`ROOT_CLASSIFICATION=${report.rootClassification}`);
   console.log(`MATRIX_ROWS=${report.matrix.length}`);
   for (const modelId of report.mainRpModels) {
     const s = report.summaryByModel[modelId];
     if (!s) continue;
     console.log(
-      `${modelId}: MAX_PAID=${s.maxPaidCurrentInput} MAX_G15=${s.maxPaidGlobal15Input} TURN_AMP=${s.paidCurrentTurnPriceAmplification.toFixed(3)}x G15_AMP=${s.global15TurnPriceAmplification.toFixed(3)}x`
+      `${modelId}: MEMORY_PEAK_G15=${s.memoryPeakPaidGlobal15MaxInput} ABS_VALID_G15=${s.absoluteValidPaidGlobal15MaxInput} CREATOR100_P=${s.creator100EntryP}`
     );
   }
 }

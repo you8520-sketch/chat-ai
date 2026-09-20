@@ -15,15 +15,35 @@ import {
   selectedAIProvider,
   type SelectedAI,
 } from "@/lib/chatModels";
+import { CHAT_MESSAGE_MAX } from "@/lib/chatModels";
+import { AI_LEARNING_LIMIT } from "@/lib/characterFormLimits";
 import { resolveEpisodicMemoryMaxChars } from "@/lib/episodicMemoryFacts";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
-import { buildUserLorebookPromptBlock } from "@/lib/userLorebook";
+import { resolveMaxPayloadInputTokens } from "@/lib/contextTrack";
+import {
+  buildLorebookActivationText,
+  buildKeywordLorebookPromptBlock,
+  LOREBOOK_CONTENT_MAX,
+  LOREBOOK_ENTRY_MAX,
+  LOREBOOK_KEYWORDS_PER_ENTRY,
+  LOREBOOK_ACTIVATION_MAX_CHARS,
+  matchKeywordLorebookEntryDetails,
+  mergeMatches,
+  type KeywordLorebookEntry,
+  type KeywordLorebookMatch,
+} from "@/lib/keywordLorebooks";
+import {
+  applyUserLorebookTurnInjectionBudget,
+  buildUserLorebookPromptBlock,
+  selectEffectiveActiveUserLorebookEntries,
+  type UserLorebookStoredEntry,
+} from "@/lib/userLorebook";
 import {
   computeOpenRouterTurnCost,
   openRouterInputTokenSurchargeKrw,
   resolveOpenRouterReasoningPointRates,
 } from "@/lib/points";
-import { PERSONA_CONTENT_MAX } from "@/lib/persona";
+import { PERSONA_CONTENT_MAX, USER_NOTE_FOCUS_MAX } from "@/lib/persona";
 import {
   openRouterUsdCostFromRates,
   resolveOpenRouterModelRates,
@@ -69,10 +89,92 @@ export type PaidMemoryConfigId =
   | "PAID_GLOBAL_20K_REFERENCE";
 
 export type HistoryStage = 100 | 300 | 1000 | 2000;
-export type LoadLevel = "NORMAL" | "PEAK_MEMORY";
+/** NORMAL = realistic RP; MEMORY_PEAK = subscription memory tiers max + realistic-heavy Creator; ABSOLUTE_VALID_STRESS = all canonical variable owners at server-valid max. */
+export type LoadLevel = "NORMAL" | "MEMORY_PEAK" | "ABSOLUTE_VALID_STRESS";
 
 export const PAID_MEMORY_HISTORY_STAGES: readonly HistoryStage[] = [100, 300, 1000, 2000];
-export const PAID_MEMORY_LOAD_LEVELS: readonly LoadLevel[] = ["NORMAL", "PEAK_MEMORY"];
+export const PAID_MEMORY_LOAD_LEVELS: readonly LoadLevel[] = [
+  "NORMAL",
+  "MEMORY_PEAK",
+  "ABSOLUTE_VALID_STRESS",
+];
+/**
+ * CURRENT production stress: matched entries inside ONE attached keyword_lorebooks container.
+ * NOT the target "N lorebooks attached per character" model — see CREATOR_LOREBOOK_PRODUCT_MODEL.
+ */
+export const CURRENT_CONTAINER_ENTRY_STRESS_COUNTS = [1, 10, 25, 50, 100] as const;
+export type CurrentContainerEntryStressCount = (typeof CURRENT_CONTAINER_ENTRY_STRESS_COUNTS)[number];
+
+/** @deprecated Use CURRENT_CONTAINER_ENTRY_STRESS_COUNTS — old name implied target attach count. */
+export const CREATOR_STRESS_MATCH_COUNTS = CURRENT_CONTAINER_ENTRY_STRESS_COUNTS;
+/** @deprecated Use CurrentContainerEntryStressCount */
+export type CreatorStressMatchCount = CurrentContainerEntryStressCount;
+
+/** TARGET product forensic reference: independent lorebook units attached per character (not yet in schema). */
+export const TARGET_ATTACHED_LOREBOOK_STRESS_COUNTS = [1, 5, 10, 15, 20] as const;
+export type TargetAttachedLorebookStressCount = (typeof TARGET_ATTACHED_LOREBOOK_STRESS_COUNTS)[number];
+
+/** Realistic-heavy Creator fixture for MEMORY_PEAK — ~3 container entries via production matcher. */
+export const MEMORY_PEAK_REALISTIC_CREATOR_MATCH_COUNT = 3;
+
+/** Target product limits — design intent; NOT current production owners. */
+export const TARGET_CREATOR_LOREBOOK_LIMITS = {
+  characterAttachMax: 20,
+  lorebookContentMaxChars: LOREBOOK_CONTENT_MAX,
+  lorebookKeywordsMax: LOREBOOK_KEYWORDS_PER_ENTRY,
+  /** Required future owner: caps total chars/units injected per turn (storage attach ≠ injection). */
+  perTurnInjectionBudgetOwner: "REQUIRED_NOT_IMPLEMENTED",
+} as const;
+
+/**
+ * CURRENT main vs TARGET Creator Lorebook product model.
+ * Mismatch: do NOT treat LOREBOOK_ENTRY_MAX (100) as "20 lorebooks per character".
+ */
+export const CREATOR_LOREBOOK_PRODUCT_MODEL = {
+  mismatch: true as const,
+  current: {
+    characterAttach: "characters.lorebook_id INTEGER — single FK, exactly 0 or 1 keyword_lorebooks row",
+    lorebookUnit: "keyword_lorebooks row = named container; entries_json holds up to LOREBOOK_ENTRY_MAX (100) keyword→content entries",
+    entryContentMaxChars: LOREBOOK_CONTENT_MAX,
+    keywordsPerEntry: LOREBOOK_KEYWORDS_PER_ENTRY,
+    perTurnInjectionCap: "NONE — all uniquely matched entries joined without char/token budget",
+    activationScanCap: LOREBOOK_ACTIVATION_MAX_CHARS,
+    activationOwner: "loadKeywordLorebookPromptBlockFromActivation → matchKeywordLorebookEntryDetails → mergeMatches → buildKeywordLorebookPromptBlock",
+    ui: "CreateCharacter: single <select> lorebook_id; CreateKeywordLorebook: multi-entry editor inside one container",
+    api: "POST /api/lorebooks with entries[]; character save validates single lorebook_id ownership",
+    theoreticalMaxInjectCharsNoCap: LOREBOOK_ENTRY_MAX * LOREBOOK_CONTENT_MAX,
+  },
+  target: {
+    characterAttachMax: TARGET_CREATOR_LOREBOOK_LIMITS.characterAttachMax,
+    lorebookUnit: "One lorebook = one 800-char content block + up to 10 keywords (NOT multi-entry container)",
+    lorebookContentMaxChars: TARGET_CREATOR_LOREBOOK_LIMITS.lorebookContentMaxChars,
+    keywordsPerLorebook: TARGET_CREATOR_LOREBOOK_LIMITS.lorebookKeywordsMax,
+    perTurnInjectionCap: "Separate PER-TURN INJECTION BUDGET owner — keyword hit + carryover only; must NOT inject all 20×800 every turn",
+    storageVsInjection: "Character may store/attach 20 lorebooks; injection budget is a different responsibility",
+    theoreticalMaxStorageChars: TARGET_CREATOR_LOREBOOK_LIMITS.characterAttachMax * LOREBOOK_CONTENT_MAX,
+    theoreticalMaxInjectIfAllHitAndNoCap:
+      TARGET_CREATOR_LOREBOOK_LIMITS.characterAttachMax * LOREBOOK_CONTENT_MAX,
+  },
+  requiredDeltas: {
+    schema: [
+      "Replace characters.lorebook_id single FK with character_lorebook_attachments(character_id, lorebook_id) max 20",
+      "Migrate keyword_lorebooks creator scope: one content block + keywords per row (drop multi-entry entries_json OR enforce max 1 entry)",
+      "Add creator lorebook per-turn injection budget constant + apply* budget function (mirror userLorebook applyUserLorebookTurnInjectionBudget)",
+    ],
+    api: [
+      "Character save: accept lorebook_ids[] capped at 20 instead of single lorebook_id",
+      "Chat activation: load all attached lorebooks, match each unit, merge, then apply per-turn injection budget",
+    ],
+    ui: [
+      "CreateCharacter: multi-select up to 20 lorebooks (not single select)",
+      "CreateKeywordLorebook: one content + keywords per lorebook (not entry list inside container)",
+    ],
+    testDataCleanup: "Test-site seed rows using multi-entry containers can be flattened or re-seeded; no legacy compatibility layer required",
+  },
+} as const;
+
+export const PRODUCTION_SHA_CORRECTION = "bfb097470df6ae0df03611f716330c9413218484";
+export const RAILWAY_DEPLOYMENT_CORRECTION = "2bc05e11-aa66-466d-a5f4-1bf8c549c398";
 
 export const GLOBAL_SOURCE_MARKERS = {
   OLD_IDENTITY_FACT: "OLD_IDENTITY_FACT",
@@ -200,10 +302,14 @@ export type InputPressureBand =
   | "28K_TO_40K"
   | "40K_TO_50K"
   | "50K_TO_60K"
-  | "60K_OR_MORE";
+  | "60K_TO_80K"
+  | "80K_TO_100K"
+  | "100K_OR_MORE";
 
 export function classifyInputPressureBand(tokens: number): InputPressureBand {
-  if (tokens >= 60_000) return "60K_OR_MORE";
+  if (tokens >= 100_000) return "100K_OR_MORE";
+  if (tokens >= 80_000) return "80K_TO_100K";
+  if (tokens >= 60_000) return "60K_TO_80K";
   if (tokens >= 50_000) return "50K_TO_60K";
   if (tokens >= 40_000) return "40K_TO_50K";
   if (tokens >= 28_000) return "28K_TO_40K";
@@ -215,12 +321,339 @@ export function classifyInputThresholds(tokens: number): {
   crossed40k: boolean;
   crossed50k: boolean;
   crossed60k: boolean;
+  crossed80k: boolean;
+  crossed100k: boolean;
 } {
   return {
     crossed28k: tokens >= 28_000,
     crossed40k: tokens >= 40_000,
     crossed50k: tokens >= 50_000,
     crossed60k: tokens >= 60_000,
+    crossed80k: tokens >= 80_000,
+    crossed100k: tokens >= 100_000,
+  };
+}
+
+export type VariableOwnerLimitKind =
+  | "STORAGE_MAX"
+  | "ACTIVATION_MAX"
+  | "PER_TURN_INJECTION_MAX"
+  | "FINAL_ASSEMBLY_MAX"
+  | "HARD_TRIM_OWNER"
+  | "HISTORY_ONLY"
+  | "SOFT_TELEMETRY_ONLY"
+  | "UNKNOWN"
+  | "NO_LIMIT";
+
+export type VariableSizeOwnerRow = {
+  owner: string;
+  storageMax: string;
+  activationMax: string;
+  perTurnInjectionMax: string;
+  finalAssemblyMax: string;
+  classification: VariableOwnerLimitKind;
+  notes: string;
+};
+
+/** Code-inspected variable-size prompt owners — storage max ≠ injection max. */
+export function buildVariableSizeOwnerMap(): VariableSizeOwnerRow[] {
+  return [
+    {
+      owner: "Creator Keyword Lorebook (CURRENT main)",
+      storageMax: `1 attached container × up to ${LOREBOOK_ENTRY_MAX} entries × ${LOREBOOK_CONTENT_MAX} chars (NOT target 20 lorebooks/character)`,
+      activationMax: `${LOREBOOK_ACTIVATION_MAX_CHARS} chars (source scan, not injection)`,
+      perTurnInjectionMax: "NONE — all uniquely matched container entries joined",
+      finalAssemblyMax: "NO_LIMIT on current main",
+      classification: "NO_LIMIT",
+      notes:
+        "CURRENT: characters.lorebook_id → single keyword_lorebooks.entries_json[] → match → inject. TARGET: 20 independent lorebook units + PER-TURN INJECTION BUDGET (not implemented).",
+    },
+    {
+      owner: "Creator Keyword Lorebook (TARGET product)",
+      storageMax: `${TARGET_CREATOR_LOREBOOK_LIMITS.characterAttachMax} lorebooks × ${LOREBOOK_CONTENT_MAX} chars`,
+      activationMax: "keyword hit + carryover per lorebook unit",
+      perTurnInjectionMax: "REQUIRED — separate budget owner (storage attach ≠ injection)",
+      finalAssemblyMax: "HARD_TRIM_OWNER (future)",
+      classification: "UNKNOWN",
+      notes: "Target model not in schema; #985 audits current path + target forensic reference only",
+    },
+    {
+      owner: "User Lorebook",
+      storageMax: `${LOREBOOK_ENTRY_MAX} entries × ${LOREBOOK_CONTENT_MAX} chars stored`,
+      activationMax: `active entry/content caps via subscriptionMemoryCapability`,
+      perTurnInjectionMax: `userLorebookTurnInjectMaxChars (FREE 2500 / PAID 4000)`,
+      finalAssemblyMax: "HARD_TRIM_OWNER via applyUserLorebookTurnInjectionBudget",
+      classification: "HARD_TRIM_OWNER",
+      notes: "Real matcher: selectEffectiveActive → match → mergeMatches → turn inject budget",
+    },
+    {
+      owner: "Focus (userNote)",
+      storageMax: `${USER_NOTE_FOCUS_MAX} chars stored (USER_NOTE_FOCUS_MAX)`,
+      activationMax: "N/A — always injected when present",
+      perTurnInjectionMax: "focusMaxChars (FREE 1000 / PAID 2000)",
+      finalAssemblyMax: "splitUserNotePromptZones truncates focus zone",
+      classification: "HARD_TRIM_OWNER",
+      notes: "",
+    },
+    {
+      owner: "Global long-term memory",
+      storageMax: `MEMORY_CAPACITY_FIXED ${MEMORY_CAPACITY_FIXED} (prod); audit sim 15K/20K`,
+      activationMax: "trimLorebookToBudgetSync at capacity",
+      perTurnInjectionMax: "same as stored compact capacity",
+      finalAssemblyMax: "HARD_TRIM_OWNER",
+      classification: "HARD_TRIM_OWNER",
+      notes: "",
+    },
+    {
+      owner: "Medium-term memory",
+      storageMax: `N${MEDIUM_TERM_BLOCK_COUNT} ring blocks`,
+      activationMax: "assembled ring text",
+      perTurnInjectionMax: "full ring inject",
+      finalAssemblyMax: "UNKNOWN",
+      classification: "UNKNOWN",
+      notes: "",
+    },
+    {
+      owner: "Episodic memory",
+      storageMax: "resolveEpisodicMemoryMaxChars(env)",
+      activationMax: "retrieval budget",
+      perTurnInjectionMax: "retrieved block chars",
+      finalAssemblyMax: "UNKNOWN",
+      classification: "UNKNOWN",
+      notes: "",
+    },
+    {
+      owner: "Relationship memory",
+      storageMax: "JSON meta block",
+      activationMax: "bundled or separate section",
+      perTurnInjectionMax: "fixture-dependent",
+      finalAssemblyMax: "UNKNOWN",
+      classification: "UNKNOWN",
+      notes: "",
+    },
+    {
+      owner: "Character identity/personality/world",
+      storageMax: `AI_LEARNING_LIMIT ${AI_LEARNING_LIMIT} substantive chars (world+systemPrompt+speech)`,
+      activationMax: "canon plan ACTIVE selection budget",
+      perTurnInjectionMax: "chunk assembly",
+      finalAssemblyMax: "UNKNOWN",
+      classification: "UNKNOWN",
+      notes: "ABSOLUTE_VALID_STRESS distributes AI_LEARNING_LIMIT across identity/personality/world chunks",
+    },
+    {
+      owner: "Persona",
+      storageMax: `${PERSONA_CONTENT_MAX} chars`,
+      activationMax: "always injected",
+      perTurnInjectionMax: `${PERSONA_CONTENT_MAX} chars`,
+      finalAssemblyMax: "HARD_TRIM_OWNER at storage max",
+      classification: "HARD_TRIM_OWNER",
+      notes: "",
+    },
+    {
+      owner: "Current user message",
+      storageMax: `${CHAT_MESSAGE_MAX} chars (CHAT_MESSAGE_MAX)`,
+      activationMax: "always current turn",
+      perTurnInjectionMax: `${CHAT_MESSAGE_MAX} chars`,
+      finalAssemblyMax: "HARD_TRIM_OWNER",
+      classification: "HARD_TRIM_OWNER",
+      notes: "",
+    },
+    {
+      owner: "RAW/history",
+      storageMax: "unbounded stored messages",
+      activationMax: "resolveHistoryTokenBudget",
+      perTurnInjectionMax: "history trim budget",
+      finalAssemblyMax: "HISTORY_ONLY",
+      classification: "HISTORY_ONLY",
+      notes: "OpenRouter Creator/User lore prefix prepended to user turn — not history-trimmed",
+    },
+    {
+      owner: "Final payload",
+      storageMax: "N/A",
+      activationMax: "N/A",
+      perTurnInjectionMax: "resolveMaxPayloadInputTokens → Number.MAX_SAFE_INTEGER",
+      finalAssemblyMax: "NO_LIMIT",
+      classification: "NO_LIMIT",
+      notes: "",
+    },
+    {
+      owner: "MODEL_SYSTEM_BUDGETS telemetry",
+      storageMax: "N/A",
+      activationMax: "28K default telemetry target",
+      perTurnInjectionMax: "SOFT — meta.tokenBudget, not hard reject",
+      finalAssemblyMax: "SOFT_TELEMETRY_ONLY",
+      classification: "SOFT_TELEMETRY_ONLY",
+      notes: "Not a hard context limit",
+    },
+  ];
+}
+
+export const CREATOR_LOREBOOK_PRODUCTION_CONTRACT = {
+  path: [
+    "entries_json",
+    "parseStoredLorebookEntries",
+    "matchKeywordLorebookEntryDetails",
+    "mergeMatches",
+    "buildKeywordLorebookPromptBlock",
+    "route loadKeywordLorebookPromptBlockFromActivation",
+    "buildContext keywordLorebookBlock",
+  ],
+  turnInjectCap: "NONE" as const,
+  activationScanCap: LOREBOOK_ACTIVATION_MAX_CHARS,
+  storageEntryMax: LOREBOOK_ENTRY_MAX,
+  storageContentMax: LOREBOOK_CONTENT_MAX,
+};
+
+const CREATOR_ACTIVATION_KEYWORD = "AUDITLORE";
+
+function buildUniqueCreatorEntryContent(index: number, targetLen = LOREBOOK_CONTENT_MAX): string {
+  const prefix = `CREATOR_LB_${String(index).padStart(3, "0")}_`;
+  return padToChars(`${prefix}크리에이터 로어북 항목 ${index}`, targetLen);
+}
+
+/** CURRENT production path: N entries inside one attached keyword_lorebooks container. */
+export function buildCreatorContainerStressEntries(
+  entryCount: number,
+  keyword = CREATOR_ACTIVATION_KEYWORD
+): KeywordLorebookEntry[] {
+  const count = Math.max(0, Math.min(entryCount, LOREBOOK_ENTRY_MAX));
+  const entries: KeywordLorebookEntry[] = [];
+  for (let i = 0; i < count; i++) {
+    entries.push({
+      keywords: [keyword, `aux_${i}`],
+      content: buildUniqueCreatorEntryContent(i),
+    });
+  }
+  return entries;
+}
+
+/** @deprecated Use buildCreatorContainerStressEntries */
+export function buildCreatorStressEntries(
+  matchCount: number,
+  keyword = CREATOR_ACTIVATION_KEYWORD
+): KeywordLorebookEntry[] {
+  return buildCreatorContainerStressEntries(matchCount, keyword);
+}
+
+/**
+ * TARGET product forensic: N independent lorebook units (each = 1×800 chars + keywords).
+ * Uses same matcher/join path as current main; differs only in product semantics and attach cap (20).
+ */
+export function buildTargetAttachedLorebookUnits(
+  lorebookCount: number,
+  keyword = CREATOR_ACTIVATION_KEYWORD
+): KeywordLorebookEntry[] {
+  const count = Math.max(
+    0,
+    Math.min(lorebookCount, TARGET_CREATOR_LOREBOOK_LIMITS.characterAttachMax)
+  );
+  return buildCreatorContainerStressEntries(count, keyword);
+}
+
+export function buildTargetAttachedLorebookStressBlock(opts: {
+  lorebookCount: number;
+  currentUserMessage?: string;
+  recentMessages?: Array<{ role: "user" | "assistant"; content: string }>;
+}): { block: string; matchedUnitCount: number; injectedChars: number } {
+  const result = buildCreatorLorebookBlockThroughProductionPath({
+    matchCount: opts.lorebookCount,
+    currentUserMessage: opts.currentUserMessage,
+    recentMessages: opts.recentMessages,
+  });
+  return {
+    block: result.block,
+    matchedUnitCount: result.matchedCount,
+    injectedChars: result.injectedChars,
+  };
+}
+
+export function buildCreatorLorebookBlockThroughProductionPath(opts: {
+  matchCount: number;
+  currentUserMessage?: string;
+  recentMessages?: Array<{ role: "user" | "assistant"; content: string }>;
+  carryover?: KeywordLorebookMatch[];
+}): { block: string; matchedCount: number; injectedChars: number; matches: KeywordLorebookMatch[] } {
+  const entries = buildCreatorContainerStressEntries(opts.matchCount);
+  const activation = buildLorebookActivationText({
+    currentUserMessage:
+      opts.currentUserMessage ?? `${CREATOR_ACTIVATION_KEYWORD} continue the scene — audit fixture user turn`,
+    recentMessages: opts.recentMessages,
+  });
+  const direct = matchKeywordLorebookEntryDetails(entries, {
+    currentUserText: activation.currentUserText,
+    recentRawText: activation.recentRawText,
+  });
+  const merged = mergeMatches(direct, opts.carryover ?? []);
+  const block = buildKeywordLorebookPromptBlock(merged.map((m) => m.content));
+  const bodyChars = merged.reduce((sum, m) => sum + m.content.length, 0);
+  return {
+    block,
+    matchedCount: merged.length,
+    injectedChars: bodyChars,
+    matches: merged,
+  };
+}
+
+export function proveCreatorCarryoverCannotExceedStoredUnique(): {
+  directMaxUniqueContents: number;
+  mergedWithCarryoverCount: number;
+  carryoverCannotExceedDirectUnique: boolean;
+  detail: string;
+} {
+  const entries = buildCreatorContainerStressEntries(LOREBOOK_ENTRY_MAX);
+  const activation = buildLorebookActivationText({
+    currentUserMessage: `${CREATOR_ACTIVATION_KEYWORD} carryover stress`,
+  });
+  const direct = matchKeywordLorebookEntryDetails(entries, {
+    currentUserText: activation.currentUserText,
+    recentRawText: activation.recentRawText,
+  });
+  const carryover = direct.map((m) => ({
+    ...m,
+    source: "carryover" as const,
+    carryoverTurnsRemaining: 2,
+  }));
+  const merged = mergeMatches(direct, carryover);
+  return {
+    directMaxUniqueContents: direct.length,
+    mergedWithCarryoverCount: merged.length,
+    carryoverCannotExceedDirectUnique: merged.length === direct.length,
+    detail:
+      "mergeMatches dedupes by content; carryover TTL rows cannot introduce content absent from stored entries; max unique injected contents ≤ LOREBOOK_ENTRY_MAX matched entries",
+  };
+}
+
+function buildUserLorebookBlockThroughMatcher(opts: {
+  capability: SubscriptionMemoryCapability;
+  load: LoadLevel;
+  activation: { currentUserText: string; recentRawText?: string };
+}): { block: string; injectedChars: number; matchedCount: number } {
+  const maxEntries =
+    opts.load === "ABSOLUTE_VALID_STRESS"
+      ? opts.capability.userLorebookActiveEntryMax
+      : opts.load === "MEMORY_PEAK"
+        ? Math.min(opts.capability.userLorebookActiveEntryMax, 25)
+        : 5;
+  const keyword = "ULOREKEY";
+  const stored: UserLorebookStoredEntry[] = [];
+  for (let i = 0; i < maxEntries; i++) {
+    stored.push({
+      keywords: [keyword, `uk_${i}`],
+      content: buildUniqueCreatorEntryContent(i + 1000, LOREBOOK_CONTENT_MAX),
+      enabled: true,
+    });
+  }
+  const active = selectEffectiveActiveUserLorebookEntries(stored, opts.capability);
+  const direct = matchKeywordLorebookEntryDetails(active, opts.activation);
+  const budgeted = applyUserLorebookTurnInjectionBudget(
+    direct,
+    opts.capability.userLorebookTurnInjectMaxChars
+  );
+  const block = buildUserLorebookPromptBlock(budgeted.map((m) => m.content));
+  return {
+    block,
+    injectedChars: budgeted.reduce((s, m) => s + m.content.length, 0),
+    matchedCount: budgeted.length,
   };
 }
 
@@ -277,30 +710,10 @@ export function buildGlobalMemoryFixture(currentTurn: number, globalCapacity: nu
   return trimLorebookToBudgetSync(full, globalCapacity);
 }
 
-function buildUserLorebookFixture(injectMaxChars: number, load: LoadLevel): string {
-  const target = load === "PEAK_MEMORY" ? injectMaxChars : Math.floor(injectMaxChars * 0.55);
-  const entries = [
-    "유저 로어북: 검은 코트를 입은 남자는 과거 동맹이었다.",
-    "유저 로어북: 카페 '별빛'은 두 사람의 비밀 만남 장소다.",
-    "유저 로어북: 약속 — 다음 보름달에 고백한다.",
-  ];
-  let combined = entries.join("\n\n");
-  combined = padToChars(combined, target);
-  return buildUserLorebookPromptBlock([combined]);
-}
-
-function buildCreatorLorebookFixture(load: LoadLevel): string {
-  const target = load === "PEAK_MEMORY" ? 1_800 : 900;
-  const body = padToChars(
-    "크리에이터 로어북: 폐역 지하 통로는 밀수 조직의 거점이다.",
-    target
-  );
-  return `[KEYWORD LOREBOOK - 최근 visible 대화/현재 입력 키워드 매칭, 원문 그대로 적용]\n${body}`;
-}
-
 function buildEpisodicFixture(load: LoadLevel): string {
   const max = resolveEpisodicMemoryMaxChars({} as NodeJS.ProcessEnv);
-  const target = load === "PEAK_MEMORY" ? max : Math.floor(max * 0.6);
+  const target =
+    load === "ABSOLUTE_VALID_STRESS" || load === "MEMORY_PEAK" ? max : Math.floor(max * 0.6);
   return padToChars(
     "[Episodic memory]\n- T120 setting/abandoned_station: 폭우가 쏟아지는 폐역 안으로 피신했다.",
     target
@@ -308,7 +721,7 @@ function buildEpisodicFixture(load: LoadLevel): string {
 }
 
 function buildRelationshipFixture(load: LoadLevel): string {
-  const target = load === "PEAK_MEMORY" ? 2_400 : 1_200;
+  const target = load === "NORMAL" ? 1_200 : 2_400;
   return padToChars(
     '{"honorifics":{"user_to_char":"너","char_to_user":"오빠"},"promises":["약속_ledger"],"items":["커피잔"]}',
     target
@@ -322,7 +735,19 @@ function fixtureSizes(load: LoadLevel, capability: SubscriptionMemoryCapability)
   userPersona: number;
   focus: number;
 } {
-  if (load === "PEAK_MEMORY") {
+  if (load === "ABSOLUTE_VALID_STRESS") {
+    const identity = Math.floor(AI_LEARNING_LIMIT * 0.55);
+    const personality = Math.floor(AI_LEARNING_LIMIT * 0.25);
+    const world = Math.max(0, AI_LEARNING_LIMIT - identity - personality);
+    return {
+      canonIdentity: identity,
+      canonPersonality: personality,
+      canonWorld: world,
+      userPersona: PERSONA_CONTENT_MAX,
+      focus: capability.focusMaxChars,
+    };
+  }
+  if (load === "MEMORY_PEAK") {
     return {
       canonIdentity: 6_000,
       canonPersonality: 2_400,
@@ -340,16 +765,51 @@ function fixtureSizes(load: LoadLevel, capability: SubscriptionMemoryCapability)
   };
 }
 
+function resolveCreatorMatchCount(load: LoadLevel, creatorMatchCount?: number): number {
+  if (creatorMatchCount != null) return Math.max(1, Math.min(creatorMatchCount, LOREBOOK_ENTRY_MAX));
+  if (load === "ABSOLUTE_VALID_STRESS") return LOREBOOK_ENTRY_MAX;
+  if (load === "MEMORY_PEAK") return MEMORY_PEAK_REALISTIC_CREATOR_MATCH_COUNT;
+  return 1;
+}
+
+function buildCurrentUserMessage(load: LoadLevel): string {
+  const base = `${CREATOR_ACTIVATION_KEYWORD} continue the scene — audit fixture user turn`;
+  if (load === "ABSOLUTE_VALID_STRESS") {
+    return padToChars(base, CHAT_MESSAGE_MAX);
+  }
+  return base;
+}
+
 export function buildPaidMemoryAuditInput(opts: {
   modelId: string;
   config: PaidMemoryConfig;
   currentTurn: HistoryStage;
   load: LoadLevel;
+  creatorMatchCount?: number;
 }): ContextBuildInput {
   const { capability } = opts.config;
   const sizes = fixtureSizes(opts.load, capability);
   const mediumRingN = MEDIUM_TERM_BLOCK_COUNT as RingSize;
   const mediumText = assembleMovingMediumRingText(opts.currentTurn, mediumRingN);
+  const currentUserMessage = buildCurrentUserMessage(opts.load);
+  const activation = buildLorebookActivationText({
+    currentUserMessage,
+    recentMessages: buildRaw4History(),
+  });
+  const creatorCount = resolveCreatorMatchCount(opts.load, opts.creatorMatchCount);
+  const creator = buildCreatorLorebookBlockThroughProductionPath({
+    matchCount: creatorCount,
+    currentUserMessage,
+    recentMessages: buildRaw4History(),
+  });
+  const userLore = buildUserLorebookBlockThroughMatcher({
+    capability,
+    load: opts.load,
+    activation: {
+      currentUserText: activation.currentUserText,
+      recentRawText: activation.recentRawText,
+    },
+  });
 
   const chunk = (category: CharacterChunk["category"], content: string): CharacterChunk => ({
     id: `audit-${category}`,
@@ -379,10 +839,10 @@ export function buildPaidMemoryAuditInput(opts: {
     userPersona: padToChars("User persona block for audit fixture.", sizes.userPersona),
     userNote: padToChars("Focus user note — audit fixture.", sizes.focus),
     focusMaxChars: capability.focusMaxChars,
-    userLorebookBlock: buildUserLorebookFixture(capability.userLorebookTurnInjectMaxChars, opts.load),
-    keywordLorebookBlock: buildCreatorLorebookFixture(opts.load),
+    userLorebookBlock: userLore.block,
+    keywordLorebookBlock: creator.block,
     shortTermHistory: buildRaw4History(),
-    currentUserMessage: "continue the scene — audit fixture user turn",
+    currentUserMessage,
     nsfw: false,
     provider: resolveAuditContextProvider(opts.modelId),
     modelId: opts.modelId,
@@ -421,6 +881,10 @@ export type PromptAssemblyRow = {
   crossed40k: boolean;
   crossed50k: boolean;
   crossed60k: boolean;
+  crossed80k: boolean;
+  crossed100k: boolean;
+  creatorMatchCount?: number;
+  creatorInjectedChars?: number;
   historyCountBeforeTrim: number;
   historyCountAfterTrim: number;
   trimmedHistoryMessages: number;
@@ -448,7 +912,8 @@ export type DuplicationAudit = {
   configId: PaidMemoryConfigId;
   currentTurn: HistoryStage;
   load: LoadLevel;
-  duplicatePromptBloat: "YES" | "NO";
+  /** Narrow: Medium↔Global literal overlap only — NOT whole-prompt duplicate audit. */
+  noDetectedMediumGlobalLiteralBloat: "YES" | "NO";
   mediumGlobalLiteralDuplicateChars: number;
   relationshipBundledInGlobal: boolean;
   classification: Array<
@@ -473,28 +938,132 @@ export type SixtyKRootCause = {
     pctOfTotal: number;
   }>;
   primaryCause:
+    | "CREATOR_LOREBOOK_UNBOUNDED"
     | "EXPECTED_CAPACITY_SUM"
     | "DUPLICATE_INJECTION"
     | "HISTORY_NOT_TRIMMED"
     | "MODEL_ADAPTER_OVERHEAD"
     | "SYSTEM_PROMPT_OVERHEAD"
     | "MEMORY_LAYER_OVERLAP"
+    | "SUBSCRIPTION_MEMORY_CAPACITY"
+    | "CHARACTER_CANON"
+    | "RAW_HISTORY"
     | "OTHER";
   detail: string;
 };
 
-export type AbsoluteMaxInputRow = {
+export type MemoryPeakMaxInputRow = {
   modelId: string;
   freeMaxInput: number;
   paidCurrentMaxInput: number;
   paidGlobal15MaxInput: number;
   paidGlobal20MaxInput: number;
+  memoryPeakGlobal15Gte60k: boolean;
+  maxStage: HistoryStage;
+  maxLoad: LoadLevel;
+};
+
+/** @deprecated Use memoryPeakMaxInputTable — retained for JSON compat. */
+export type AbsoluteMaxInputRow = MemoryPeakMaxInputRow & {
   global15Gte28k: boolean;
   global15Gte40k: boolean;
   global15Gte50k: boolean;
   global15Gte60k: boolean;
-  maxStage: HistoryStage;
-  maxLoad: LoadLevel;
+};
+
+export type AbsoluteValidMaxInputRow = {
+  modelId: string;
+  freeMaxInput: number;
+  paidCurrentMaxInput: number;
+  paidGlobal15MaxInput: number;
+  absoluteValidGlobal15Gte60k: boolean;
+  absoluteValidGlobal15Gte80k: boolean;
+  absoluteValidGlobal15Gte100k: boolean;
+  firstCreatorMatchCrossing60k: CreatorStressMatchCount | null;
+  firstCreatorMatchCrossing100k: CreatorStressMatchCount | null;
+};
+
+export type CreatorStressRow = {
+  modelId: string;
+  configId: PaidMemoryConfigId;
+  /** CURRENT main: matched entries inside one attached container — NOT target lorebook attach count. */
+  stressModel: "CURRENT_CONTAINER_ENTRY";
+  containerEntryMatchCount: CurrentContainerEntryStressCount;
+  /** @deprecated Use containerEntryMatchCount */
+  creatorMatchCount: CurrentContainerEntryStressCount;
+  inputTokens: number;
+  pCharge: number;
+  rawKrwNoCache: number;
+  pAmplificationVsCreator1: number;
+  creatorInjectedChars: number;
+  global15InputDeltaVsPaidCurrent: number;
+  global15PDeltaVsPaidCurrent: number;
+};
+
+/** TARGET product forensic — N independent lorebook units (1×800 chars each); schema not yet implemented. */
+export type TargetAttachedLorebookStressRow = {
+  modelId: string;
+  configId: PaidMemoryConfigId;
+  stressModel: "TARGET_ATTACHED_LOREBOOK_UNIT";
+  attachedLorebookCount: TargetAttachedLorebookStressCount;
+  inputTokens: number;
+  pCharge: number;
+  injectedChars: number;
+  pAmplificationVs1Unit: number;
+  perTurnInjectionCapApplied: false;
+};
+
+export type AbsoluteValidStressRow = {
+  modelId: string;
+  configId: PaidMemoryConfigId;
+  creatorMatchCount: CreatorStressMatchCount;
+  localSystemTokens: number;
+  localHistoryTokens: number;
+  localUserTurnTokens: number;
+  totalInputTokens: number;
+  serializedRequestChars: number;
+  serializedRequestTokensEst: number;
+  crossed60k: boolean;
+  crossed80k: boolean;
+  crossed100k: boolean;
+  historyTrimmedMessages: number;
+  criticalSectionLoss: boolean;
+  pCharge: number;
+  primaryRootCause:
+    | "CREATOR_LOREBOOK_UNBOUNDED"
+    | "SUBSCRIPTION_MEMORY_CAPACITY"
+    | "SYSTEM_PROMPT"
+    | "CHARACTER_CANON"
+    | "RAW_HISTORY"
+    | "MEMORY_LAYER_DUPLICATION"
+    | "OTHER";
+};
+
+export type MemoryProductTableRow = {
+  modelId: string;
+  freeRealisticInput: number;
+  paidCurrentRealisticInput: number;
+  paidGlobal15RealisticInput: number;
+  deltaInputPaidVsFree: number;
+  deltaInputGlobal15VsPaid: number;
+  deltaPPaidVsFree: number;
+  deltaPGlobal15VsPaid: number;
+};
+
+export type OpenRouterPrefixAudit = {
+  modelId: string;
+  creatorInDynamicLorePrefix: boolean;
+  creatorRemovedByHistoryTrim: boolean;
+  dynamicLorePrefixChars: number;
+  detail: string;
+};
+
+export type PayloadCapAudit = {
+  resolveMaxPayloadInputTokens: number;
+  modelSystemBudgetTelemetry: string;
+  historyTokenBudget: "HISTORY_ONLY";
+  finalPayloadClassification: "NO_LIMIT";
+  telemetry28kClassification: "SOFT_TELEMETRY";
 };
 
 export type PrimaryDecisionRow = {
@@ -571,9 +1140,9 @@ export type ExpensiveTurnBoundaryRow = {
 };
 
 export type MemoryCostPassThrough =
-  | "FULLY_RECOVERED"
-  | "PARTIALLY_RECOVERED"
-  | "NOT_RECOVERED";
+  | "NOMINAL_POINT_DELTA_COVERS_RAW_KRW_DELTA"
+  | "PARTIALLY_COVERS_RAW_KRW_DELTA"
+  | "NOMINAL_POINT_DELTA_BELOW_RAW_KRW_DELTA";
 
 export type MemoryCostPassThroughRow = {
   modelId: string;
@@ -626,8 +1195,9 @@ function rowCacheKey(opts: {
   config: PaidMemoryConfig;
   currentTurn: HistoryStage;
   load: LoadLevel;
+  creatorMatchCount?: number;
 }): string {
-  return `${opts.modelId}|${opts.config.id}|${opts.currentTurn}|${opts.load}`;
+  return `${opts.modelId}|${opts.config.id}|${opts.currentTurn}|${opts.load}|${opts.creatorMatchCount ?? "default"}`;
 }
 
 export function clearPaidMemoryAuditRowCache(): void {
@@ -676,11 +1246,18 @@ export function assemblePaidMemoryPromptRow(opts: {
   config: PaidMemoryConfig;
   currentTurn: HistoryStage;
   load: LoadLevel;
+  creatorMatchCount?: number;
 }): PromptAssemblyRow {
   const cached = rowCache.get(rowCacheKey(opts));
   if (cached) return cached;
 
   const input = buildPaidMemoryAuditInput(opts);
+  const creatorCount = resolveCreatorMatchCount(opts.load, opts.creatorMatchCount);
+  const creatorInject = buildCreatorLorebookBlockThroughProductionPath({
+    matchCount: creatorCount,
+    currentUserMessage: input.currentUserMessage,
+    recentMessages: input.shortTermHistory,
+  });
   const built = buildContext(input);
   const sections = built.meta.trackedSections ?? [];
   const sectionById = new Map(sections.map((s) => [s.id, s]));
@@ -742,6 +1319,8 @@ export function assemblePaidMemoryPromptRow(opts: {
     serializedRequestTokensEst: estimateTokens(serialized),
     inputPressureBand: classifyInputPressureBand(totalInput),
     ...thresholds,
+    creatorMatchCount: creatorCount,
+    creatorInjectedChars: creatorInject.injectedChars,
     historyCountBeforeTrim: historyBefore,
     historyCountAfterTrim: historyAfter,
     trimmedHistoryMessages: Math.max(0, historyBefore - historyAfter),
@@ -786,22 +1365,21 @@ export function auditDuplicationOverlap(opts: {
   if (mediumGlobalDup > 200) classification.push("MEMORY_LAYER_OVERLAP");
   if (relationshipBundled) classification.push("DUPLICATE_INJECTION");
 
-  const duplicatePromptBloat =
-    mediumGlobalDup > 500 || relationshipBundled ? "YES" : "NO";
+  const bloatDetected = mediumGlobalDup > 500 || relationshipBundled;
 
   return {
     modelId: opts.modelId,
     configId: opts.config.id,
     currentTurn: opts.currentTurn,
     load: opts.load,
-    duplicatePromptBloat,
+    noDetectedMediumGlobalLiteralBloat: bloatDetected ? "NO" : "YES",
     mediumGlobalLiteralDuplicateChars: mediumGlobalDup,
     relationshipBundledInGlobal: relationshipBundled,
     classification: classification.length > 0 ? classification : ["EXPECTED_CAPACITY_SUM"],
     detail:
-      duplicatePromptBloat === "YES"
+      bloatDetected
         ? `medium↔global literal dup=${mediumGlobalDup} chars; relationshipBundled=${relationshipBundled}`
-        : "No evidence of unintended duplicate injection beyond complementary memory layers",
+        : "Medium↔Global literal overlap audit only — Creator/User/Focus/RAW/Global/Episodic not fully audited for duplicate bloat",
   };
 }
 
@@ -848,17 +1426,18 @@ function configById(id: PaidMemoryConfigId): PaidMemoryConfig {
   return PAID_MEMORY_CONFIGS.find((c) => c.id === id)!;
 }
 
-export function buildAbsoluteMaxInputTable(modelId: string): AbsoluteMaxInputRow {
+export function buildMemoryPeakMaxInputTable(modelId: string): MemoryPeakMaxInputRow {
   let freeMax = 0;
   let paidMax = 0;
   let g15Max = 0;
   let g20Max = 0;
   let maxStage: HistoryStage = 100;
   let maxLoad: LoadLevel = "NORMAL";
+  const memoryLoads: LoadLevel[] = ["NORMAL", "MEMORY_PEAK"];
 
   for (const config of PAID_MEMORY_CONFIGS) {
     for (const turn of PAID_MEMORY_HISTORY_STAGES) {
-      for (const load of PAID_MEMORY_LOAD_LEVELS) {
+      for (const load of memoryLoads) {
         const row = assemblePaidMemoryPromptRow({ modelId, config, currentTurn: turn, load });
         if (config.id === "FREE_CURRENT") freeMax = Math.max(freeMax, row.localEstimatedTokensTotal);
         if (config.id === "PAID_CURRENT") paidMax = Math.max(paidMax, row.localEstimatedTokensTotal);
@@ -882,12 +1461,306 @@ export function buildAbsoluteMaxInputTable(modelId: string): AbsoluteMaxInputRow
     paidCurrentMaxInput: paidMax,
     paidGlobal15MaxInput: g15Max,
     paidGlobal20MaxInput: g20Max,
-    global15Gte28k: g15Max >= 28_000,
-    global15Gte40k: g15Max >= 40_000,
-    global15Gte50k: g15Max >= 50_000,
-    global15Gte60k: g15Max >= 60_000,
+    memoryPeakGlobal15Gte60k: g15Max >= 60_000,
     maxStage,
     maxLoad,
+  };
+}
+
+/** @deprecated alias */
+export function buildAbsoluteMaxInputTable(modelId: string): AbsoluteMaxInputRow {
+  const peak = buildMemoryPeakMaxInputTable(modelId);
+  return {
+    ...peak,
+    global15Gte28k: peak.paidGlobal15MaxInput >= 28_000,
+    global15Gte40k: peak.paidGlobal15MaxInput >= 40_000,
+    global15Gte50k: peak.paidGlobal15MaxInput >= 50_000,
+    global15Gte60k: peak.memoryPeakGlobal15Gte60k,
+  };
+}
+
+export function buildAbsoluteValidMaxInputTable(modelId: string): AbsoluteValidMaxInputRow {
+  let freeMax = 0;
+  let paidMax = 0;
+  let g15Max = 0;
+  let first60: CreatorStressMatchCount | null = null;
+  let first100: CreatorStressMatchCount | null = null;
+  let g15Gte80 = false;
+  let g15Gte100 = false;
+
+  for (const config of PAID_MEMORY_CONFIGS) {
+    for (const creatorCount of CREATOR_STRESS_MATCH_COUNTS) {
+      const row = assemblePaidMemoryPromptRow({
+        modelId,
+        config,
+        currentTurn: 2000,
+        load: "ABSOLUTE_VALID_STRESS",
+        creatorMatchCount: creatorCount,
+      });
+      if (config.id === "FREE_CURRENT") freeMax = Math.max(freeMax, row.localEstimatedTokensTotal);
+      if (config.id === "PAID_CURRENT") paidMax = Math.max(paidMax, row.localEstimatedTokensTotal);
+      if (config.id === "PAID_GLOBAL_15K") {
+        g15Max = Math.max(g15Max, row.localEstimatedTokensTotal);
+        g15Gte80 = g15Gte80 || row.crossed80k;
+        g15Gte100 = g15Gte100 || row.crossed100k;
+        if (first60 == null && row.crossed60k) first60 = creatorCount;
+        if (first100 == null && row.crossed100k) first100 = creatorCount;
+      }
+    }
+  }
+
+  return {
+    modelId,
+    freeMaxInput: freeMax,
+    paidCurrentMaxInput: paidMax,
+    paidGlobal15MaxInput: g15Max,
+    absoluteValidGlobal15Gte60k: g15Max >= 60_000,
+    absoluteValidGlobal15Gte80k: g15Gte80,
+    absoluteValidGlobal15Gte100k: g15Gte100,
+    firstCreatorMatchCrossing60k: first60,
+    firstCreatorMatchCrossing100k: first100,
+  };
+}
+
+export function buildMemoryProductTable(modelId: string): MemoryProductTableRow {
+  const free = assemblePaidMemoryPromptRow({
+    modelId,
+    config: configById("FREE_CURRENT"),
+    currentTurn: 2000,
+    load: "MEMORY_PEAK",
+  });
+  const paid = assemblePaidMemoryPromptRow({
+    modelId,
+    config: configById("PAID_CURRENT"),
+    currentTurn: 2000,
+    load: "MEMORY_PEAK",
+  });
+  const g15 = assemblePaidMemoryPromptRow({
+    modelId,
+    config: configById("PAID_GLOBAL_15K"),
+    currentTurn: 2000,
+    load: "MEMORY_PEAK",
+  });
+  const freeP = computeUserPointCharge(modelId, free.localEstimatedTokensTotal, UNIFIED_TIER_AIM_CHARS);
+  const paidP = computeUserPointCharge(modelId, paid.localEstimatedTokensTotal, UNIFIED_TIER_AIM_CHARS);
+  const g15P = computeUserPointCharge(modelId, g15.localEstimatedTokensTotal, UNIFIED_TIER_AIM_CHARS);
+  return {
+    modelId,
+    freeRealisticInput: free.localEstimatedTokensTotal,
+    paidCurrentRealisticInput: paid.localEstimatedTokensTotal,
+    paidGlobal15RealisticInput: g15.localEstimatedTokensTotal,
+    deltaInputPaidVsFree: paid.localEstimatedTokensTotal - free.localEstimatedTokensTotal,
+    deltaInputGlobal15VsPaid: g15.localEstimatedTokensTotal - paid.localEstimatedTokensTotal,
+    deltaPPaidVsFree: paidP - freeP,
+    deltaPGlobal15VsPaid: g15P - paidP,
+  };
+}
+
+export function buildCreatorStressTable(modelId: string): CreatorStressRow[] {
+  const rows: CreatorStressRow[] = [];
+  const baseline = new Map<PaidMemoryConfigId, number>();
+  const baselineP = new Map<PaidMemoryConfigId, number>();
+
+  for (const config of PAID_MEMORY_CONFIGS) {
+    const row = assemblePaidMemoryPromptRow({
+      modelId,
+      config,
+      currentTurn: 2000,
+      load: "MEMORY_PEAK",
+      creatorMatchCount: 1,
+    });
+    baseline.set(config.id, row.localEstimatedTokensTotal);
+    baselineP.set(config.id, computeUserPointCharge(modelId, row.localEstimatedTokensTotal, UNIFIED_TIER_AIM_CHARS));
+  }
+
+  for (const config of PAID_MEMORY_CONFIGS) {
+    for (const entryCount of CURRENT_CONTAINER_ENTRY_STRESS_COUNTS) {
+      const row = assemblePaidMemoryPromptRow({
+        modelId,
+        config,
+        currentTurn: 2000,
+        load: "MEMORY_PEAK",
+        creatorMatchCount: entryCount,
+      });
+      const pCharge = computeUserPointCharge(modelId, row.localEstimatedTokensTotal, UNIFIED_TIER_AIM_CHARS);
+      const raw = computeRawProviderCost({
+        modelId,
+        configId: config.id,
+        inputTokens: row.localEstimatedTokensTotal,
+        outputPresetChars: UNIFIED_TIER_AIM_CHARS,
+        scenario: "NO_CACHE",
+      }).rawKrw;
+      const baseP = baselineP.get(config.id) ?? pCharge;
+      const paidCurrentInput =
+        config.id === "PAID_CURRENT"
+          ? row.localEstimatedTokensTotal
+          : assemblePaidMemoryPromptRow({
+              modelId,
+              config: configById("PAID_CURRENT"),
+              currentTurn: 2000,
+              load: "MEMORY_PEAK",
+              creatorMatchCount: entryCount,
+            }).localEstimatedTokensTotal;
+      const g15Input =
+        config.id === "PAID_GLOBAL_15K"
+          ? row.localEstimatedTokensTotal
+          : assemblePaidMemoryPromptRow({
+              modelId,
+              config: configById("PAID_GLOBAL_15K"),
+              currentTurn: 2000,
+              load: "MEMORY_PEAK",
+              creatorMatchCount: entryCount,
+            }).localEstimatedTokensTotal;
+      const g15P =
+        config.id === "PAID_GLOBAL_15K"
+          ? pCharge
+          : computeUserPointCharge(modelId, g15Input, UNIFIED_TIER_AIM_CHARS);
+      const paidP =
+        config.id === "PAID_CURRENT"
+          ? pCharge
+          : computeUserPointCharge(modelId, paidCurrentInput, UNIFIED_TIER_AIM_CHARS);
+      rows.push({
+        modelId,
+        configId: config.id,
+        stressModel: "CURRENT_CONTAINER_ENTRY",
+        containerEntryMatchCount: entryCount,
+        creatorMatchCount: entryCount,
+        inputTokens: row.localEstimatedTokensTotal,
+        pCharge,
+        rawKrwNoCache: raw,
+        pAmplificationVsCreator1: baseP > 0 ? pCharge / baseP : 1,
+        creatorInjectedChars: row.creatorInjectedChars ?? 0,
+        global15InputDeltaVsPaidCurrent: g15Input - paidCurrentInput,
+        global15PDeltaVsPaidCurrent: g15P - paidP,
+      });
+    }
+  }
+  return rows;
+}
+
+/** TARGET product forensic — independent lorebook units (max 20); no per-turn injection cap applied. */
+export function buildTargetAttachedLorebookStressTable(modelId: string): TargetAttachedLorebookStressRow[] {
+  const rows: TargetAttachedLorebookStressRow[] = [];
+  const config = configById("PAID_CURRENT");
+  const baseline = assemblePaidMemoryPromptRow({
+    modelId,
+    config,
+    currentTurn: 2000,
+    load: "MEMORY_PEAK",
+    creatorMatchCount: 1,
+  });
+  const baselineP = computeUserPointCharge(modelId, baseline.localEstimatedTokensTotal, UNIFIED_TIER_AIM_CHARS);
+
+  for (const unitCount of TARGET_ATTACHED_LOREBOOK_STRESS_COUNTS) {
+    const row = assemblePaidMemoryPromptRow({
+      modelId,
+      config,
+      currentTurn: 2000,
+      load: "MEMORY_PEAK",
+      creatorMatchCount: unitCount,
+    });
+    const pCharge = computeUserPointCharge(modelId, row.localEstimatedTokensTotal, UNIFIED_TIER_AIM_CHARS);
+    rows.push({
+      modelId,
+      configId: config.id,
+      stressModel: "TARGET_ATTACHED_LOREBOOK_UNIT",
+      attachedLorebookCount: unitCount,
+      inputTokens: row.localEstimatedTokensTotal,
+      pCharge,
+      injectedChars: row.creatorInjectedChars ?? 0,
+      pAmplificationVs1Unit: baselineP > 0 ? pCharge / baselineP : 1,
+      perTurnInjectionCapApplied: false,
+    });
+  }
+  return rows;
+}
+
+function classifyAbsoluteStressRootCause(row: PromptAssemblyRow): AbsoluteValidStressRow["primaryRootCause"] {
+  const creatorSection = row.sectionInventory.find((s) => s.id === "keyword-lorebook");
+  const creatorShare = creatorSection?.pctOfTotalInput ?? 0;
+  const globalSection = row.sectionInventory.find((s) => s.id === "current-memory");
+  const globalShare = globalSection?.pctOfTotalInput ?? 0;
+  if (creatorShare >= 35) return "CREATOR_LOREBOOK_UNBOUNDED";
+  if (globalShare >= 25) return "SUBSCRIPTION_MEMORY_CAPACITY";
+  if (row.rawHistoryTokens > row.localEstimatedTokensTotal * 0.25) return "RAW_HISTORY";
+  const systemShare = row.sectionInventory
+    .filter((s) => s.category === "systemRules")
+    .reduce((s, r) => s + r.pctOfTotalInput, 0);
+  if (systemShare >= 40) return "SYSTEM_PROMPT";
+  const canonShare = row.sectionInventory
+    .filter((s) => s.id.includes("character") || s.id.includes("identity"))
+    .reduce((s, r) => s + r.pctOfTotalInput, 0);
+  if (canonShare >= 30) return "CHARACTER_CANON";
+  return "OTHER";
+}
+
+export function buildAbsoluteValidStressTable(modelId: string): AbsoluteValidStressRow[] {
+  const rows: AbsoluteValidStressRow[] = [];
+  for (const config of PAID_MEMORY_CONFIGS) {
+    for (const creatorCount of CREATOR_STRESS_MATCH_COUNTS) {
+      const row = assemblePaidMemoryPromptRow({
+        modelId,
+        config,
+        currentTurn: 2000,
+        load: "ABSOLUTE_VALID_STRESS",
+        creatorMatchCount: creatorCount,
+      });
+      rows.push({
+        modelId,
+        configId: config.id,
+        creatorMatchCount: creatorCount,
+        localSystemTokens: row.localSystemTokens,
+        localHistoryTokens: row.localHistoryTokens,
+        localUserTurnTokens: row.localUserTurnTokens,
+        totalInputTokens: row.localEstimatedTokensTotal,
+        serializedRequestChars: row.serializedRequestChars,
+        serializedRequestTokensEst: row.serializedRequestTokensEst,
+        crossed60k: row.crossed60k,
+        crossed80k: row.crossed80k,
+        crossed100k: row.crossed100k,
+        historyTrimmedMessages: row.trimmedHistoryMessages,
+        criticalSectionLoss: row.criticalSectionOmitted,
+        pCharge: computeUserPointCharge(modelId, row.localEstimatedTokensTotal, UNIFIED_TIER_AIM_CHARS),
+        primaryRootCause: classifyAbsoluteStressRootCause(row),
+      });
+    }
+  }
+  return rows;
+}
+
+export function auditOpenRouterCreatorPrefix(modelId: string): OpenRouterPrefixAudit {
+  const input = buildPaidMemoryAuditInput({
+    modelId,
+    config: configById("PAID_CURRENT"),
+    currentTurn: 1000,
+    load: "ABSOLUTE_VALID_STRESS",
+    creatorMatchCount: 10,
+  });
+  const built = buildContext(input);
+  const prefix = built.openRouterDynamicLorePrefix ?? "";
+  const creatorSnippet = input.keywordLorebookBlock?.slice(0, 40) ?? "";
+  const inPrefix = creatorSnippet.length > 0 && prefix.includes(creatorSnippet.slice(0, 20));
+  const userTurn = built.history[built.history.length - 1]?.content ?? "";
+  const creatorInUserTurn = creatorSnippet.length > 0 && userTurn.includes(creatorSnippet.slice(0, 20));
+  const isOpenRouter = resolveAuditContextProvider(modelId) === "openrouter";
+  return {
+    modelId,
+    creatorInDynamicLorePrefix: isOpenRouter ? creatorInUserTurn || inPrefix : false,
+    creatorRemovedByHistoryTrim: false,
+    dynamicLorePrefixChars: prefix.length,
+    detail: isOpenRouter
+      ? "OpenRouter: keywordLorebookBlock → dynamicLorebookParts → openRouterDynamicLorePrefix prepended to user turn; history trim does not remove user-turn prefix"
+      : "Non-OpenRouter: keyword lorebook injected as system section keyword-lorebook",
+  };
+}
+
+export function auditPayloadCaps(modelId: string): PayloadCapAudit {
+  return {
+    resolveMaxPayloadInputTokens: resolveMaxPayloadInputTokens(modelId),
+    modelSystemBudgetTelemetry: String(MODEL_SYSTEM_BUDGETS[modelId] ?? MODEL_SYSTEM_BUDGETS.default ?? 28_000),
+    historyTokenBudget: "HISTORY_ONLY",
+    finalPayloadClassification: "NO_LIMIT",
+    telemetry28kClassification: "SOFT_TELEMETRY",
   };
 }
 
@@ -994,19 +1867,20 @@ export function classifyMemoryCostPassThrough(opts: {
   rawKrwDelta: number;
   pDelta: number;
 }): MemoryCostPassThrough {
-  if (opts.pDelta <= 0 && opts.rawKrwDelta > 0) return "NOT_RECOVERED";
-  if (opts.rawKrwDelta <= 0) return "FULLY_RECOVERED";
+  if (opts.pDelta <= 0 && opts.rawKrwDelta > 0) return "NOMINAL_POINT_DELTA_BELOW_RAW_KRW_DELTA";
+  if (opts.rawKrwDelta <= 0) return "NOMINAL_POINT_DELTA_COVERS_RAW_KRW_DELTA";
   const ratio = opts.pDelta / opts.rawKrwDelta;
-  if (ratio >= 0.85) return "FULLY_RECOVERED";
-  if (ratio >= 0.35) return "PARTIALLY_RECOVERED";
-  return "NOT_RECOVERED";
+  if (ratio >= 0.85) return "NOMINAL_POINT_DELTA_COVERS_RAW_KRW_DELTA";
+  if (ratio >= 0.35) return "PARTIALLY_COVERS_RAW_KRW_DELTA";
+  return "NOMINAL_POINT_DELTA_BELOW_RAW_KRW_DELTA";
 }
 
 export function buildPrimaryDecisionTable(modelId: string): PrimaryDecisionRow[] {
   const rows: PrimaryDecisionRow[] = [];
+  const loads: LoadLevel[] = ["NORMAL", "MEMORY_PEAK"];
   for (const config of PAID_MEMORY_CONFIGS) {
     for (const turn of PAID_MEMORY_HISTORY_STAGES) {
-      for (const load of PAID_MEMORY_LOAD_LEVELS) {
+      for (const load of loads) {
         const row = assemblePaidMemoryPromptRow({ modelId, config, currentTurn: turn, load });
         const freeRow = assemblePaidMemoryPromptRow({
           modelId,
@@ -1057,8 +1931,9 @@ export function buildPrimaryDecisionTable(modelId: string): PrimaryDecisionRow[]
 
 export function buildTurnPriceAmplificationTable(modelId: string): TurnPriceAmplificationRow[] {
   const rows: TurnPriceAmplificationRow[] = [];
+  const loads: LoadLevel[] = ["NORMAL", "MEMORY_PEAK"];
   for (const turn of PAID_MEMORY_HISTORY_STAGES) {
-    for (const load of PAID_MEMORY_LOAD_LEVELS) {
+    for (const load of loads) {
       for (const output of AUDIT_OUTPUT_PRESETS) {
         const freeP = computeUserPointCharge(
           modelId,
@@ -1177,8 +2052,8 @@ export function buildExpensiveTurnBoundary(modelId: string): ExpensiveTurnBounda
     cheapestNormalCurrent: pick("FREE_CURRENT", "NORMAL", 100),
     normalPaidCurrent: pick("PAID_CURRENT", "NORMAL", 1000),
     normalPaidGlobal15: pick("PAID_GLOBAL_15K", "NORMAL", 1000),
-    peakPaidCurrent: pick("PAID_CURRENT", "PEAK_MEMORY", 2000),
-    peakPaidGlobal15: pick("PAID_GLOBAL_15K", "PEAK_MEMORY", 2000),
+    peakPaidCurrent: pick("PAID_CURRENT", "MEMORY_PEAK", 2000),
+    peakPaidGlobal15: pick("PAID_GLOBAL_15K", "MEMORY_PEAK", 2000),
     maxObserved,
   };
 }
@@ -1194,7 +2069,7 @@ export function buildLongRpPriceDrift(modelId: string): LongRpPriceDriftRow[] {
             modelId,
             config,
             currentTurn: turn,
-            load: "PEAK_MEMORY",
+            load: "MEMORY_PEAK",
           }).localEstimatedTokensTotal,
           output
         );
@@ -1241,7 +2116,9 @@ export function summarizeInputBands(matrix: PromptAssemblyRow[]): InputBandSumma
     "28K_TO_40K",
     "40K_TO_50K",
     "50K_TO_60K",
-    "60K_OR_MORE",
+    "60K_TO_80K",
+    "80K_TO_100K",
+    "100K_OR_MORE",
   ];
   return bands.map((band) => ({ band, fixtureCount: counts.get(band) ?? 0 }));
 }
@@ -1257,7 +2134,7 @@ export type CacheBoundaryAudit = {
   userLorebookInDynamic: boolean;
 };
 
-export function auditCacheBoundary(modelId: string, load: LoadLevel = "PEAK_MEMORY"): CacheBoundaryAudit {
+export function auditCacheBoundary(modelId: string, load: LoadLevel = "MEMORY_PEAK"): CacheBoundaryAudit {
   const config = PAID_MEMORY_CONFIGS.find((c) => c.id === "PAID_CURRENT")!;
   const built = buildContext(
     buildPaidMemoryAuditInput({ modelId, config, currentTurn: 1000, load })
@@ -1574,7 +2451,7 @@ export function buildDecisionTable(modelId: string): DecisionTableRow[] {
       modelId,
       config,
       currentTurn: 2000,
-      load: "PEAK_MEMORY",
+      load: "MEMORY_PEAK",
     });
     const normal = assemblePaidMemoryPromptRow({
       modelId,
@@ -1586,7 +2463,7 @@ export function buildDecisionTable(modelId: string): DecisionTableRow[] {
       modelId,
       config: free,
       currentTurn: 2000,
-      load: "PEAK_MEMORY",
+      load: "MEMORY_PEAK",
     });
     const peakCost = computeRawProviderCost({
       modelId,
@@ -1635,17 +2512,17 @@ export function buildDecisionTable(modelId: string): DecisionTableRow[] {
       criticalLossPeak: peak.criticalSectionOmitted,
       perTurnRawCostDeltaKrwVsFree: peakCost - freePeakCost,
       turn100RawDeltaKrw:
-        cumulativeTurnCost(modelId, config, [100], "PEAK_MEMORY") -
-        cumulativeTurnCost(modelId, free, [100], "PEAK_MEMORY"),
+        cumulativeTurnCost(modelId, config, [100], "MEMORY_PEAK") -
+        cumulativeTurnCost(modelId, free, [100], "MEMORY_PEAK"),
       turn500RawDeltaKrw:
-        cumulativeTurnCost(modelId, config, [100, 300], "PEAK_MEMORY") -
-        cumulativeTurnCost(modelId, free, [100, 300], "PEAK_MEMORY"),
+        cumulativeTurnCost(modelId, config, [100, 300], "MEMORY_PEAK") -
+        cumulativeTurnCost(modelId, free, [100, 300], "MEMORY_PEAK"),
       turn1000RawDeltaKrw:
-        cumulativeTurnCost(modelId, config, [100, 300, 1000], "PEAK_MEMORY") -
-        cumulativeTurnCost(modelId, free, [100, 300, 1000], "PEAK_MEMORY"),
+        cumulativeTurnCost(modelId, config, [100, 300, 1000], "MEMORY_PEAK") -
+        cumulativeTurnCost(modelId, free, [100, 300, 1000], "MEMORY_PEAK"),
       turn2000RawDeltaKrw:
-        cumulativeTurnCost(modelId, config, [100, 300, 1000, 2000], "PEAK_MEMORY") -
-        cumulativeTurnCost(modelId, free, [100, 300, 1000, 2000], "PEAK_MEMORY"),
+        cumulativeTurnCost(modelId, config, [100, 300, 1000, 2000], "MEMORY_PEAK") -
+        cumulativeTurnCost(modelId, free, [100, 300, 1000, 2000], "MEMORY_PEAK"),
       globalMaintenanceDeltaKrw: maintDelta,
       userPointChargeDelta: userPeak - freeUserPeak,
       marginDeltaPctPoints:
@@ -1679,13 +2556,13 @@ export function computePaidMemoryDeltas(modelId: string): PaidMemoryDeltaPair[] 
       modelId,
       config: fromCfg,
       currentTurn: 2000,
-      load: "PEAK_MEMORY",
+      load: "MEMORY_PEAK",
     });
     const toRow = assemblePaidMemoryPromptRow({
       modelId,
       config: toCfg,
       currentTurn: 2000,
-      load: "PEAK_MEMORY",
+      load: "MEMORY_PEAK",
     });
     const fromCost = computeRawProviderCost({
       modelId,
@@ -1715,8 +2592,10 @@ export function computePaidMemoryDeltas(modelId: string): PaidMemoryDeltaPair[] 
 
 export type PaidMemoryAuditReport = {
   classification: typeof AUDIT_CODE_CLASSIFICATION;
+  auditPass: "AUDIT_CORRECTION";
   productionSha: string;
   originMainSha: string;
+  prBehindMain: number;
   railwayDeployment: string;
   railwayStatus: string;
   productModel: typeof PRODUCT_MODEL;
@@ -1726,10 +2605,25 @@ export type PaidMemoryAuditReport = {
   competitorBenchmark: "NOT_PERFORMED_IN_THIS_AUDIT";
   mainRpModels: readonly string[];
   fxSnapshot: ReturnType<typeof resolveBillingExchangeRateSnapshot>;
+  variableSizeOwnerMap: VariableSizeOwnerRow[];
+  creatorLorebookContract: typeof CREATOR_LOREBOOK_PRODUCTION_CONTRACT;
+  creatorLorebookProductModel: typeof CREATOR_LOREBOOK_PRODUCT_MODEL;
+  creatorCarryoverProof: ReturnType<typeof proveCreatorCarryoverCannotExceedStoredUnique>;
+  payloadCapAudit: Record<string, PayloadCapAudit>;
+  openRouterPrefixAudits: OpenRouterPrefixAudit[];
   matrix: PromptAssemblyRow[];
+  memoryPeakMaxInputTable: MemoryPeakMaxInputRow[];
+  absoluteValidMaxInputTable: AbsoluteValidMaxInputRow[];
+  /** @deprecated alias of memoryPeakMaxInputTable */
   absoluteMaxTable: AbsoluteMaxInputRow[];
+  tableAMemoryProduct: MemoryProductTableRow[];
+  tableBCreatorStress: CreatorStressRow[];
+  tableBTargetAttachedLorebookStress: TargetAttachedLorebookStressRow[];
+  tableCAbsoluteValidStress: AbsoluteValidStressRow[];
   inputBandSummary: InputBandSummary[];
+  absoluteValidInputBandSummary: InputBandSummary[];
   sixtyKRootCauses: SixtyKRootCause[];
+  hundredKRootCauses: SixtyKRootCause[];
   duplicationAudits: DuplicationAudit[];
   primaryDecisionTable: PrimaryDecisionRow[];
   turnPriceMatrix: TurnPriceRow[];
@@ -1741,6 +2635,7 @@ export type PaidMemoryAuditReport = {
   decisionTables: Record<string, DecisionTableRow[]>;
   deltas: Record<string, PaidMemoryDeltaPair[]>;
   cacheBoundaries: CacheBoundaryAudit[];
+  globalMaintenanceClassification: "APPROXIMATE_FORENSIC_ONLY";
   globalMaintenance: GlobalMaintenanceSimulation[];
   fullRebuildExceptions: FullRebuildExceptionCost[];
   pointTopUpEconomics: PointTopUpEconomicsRow[];
@@ -1748,10 +2643,19 @@ export type PaidMemoryAuditReport = {
   summaryByModel: Record<
     string,
     {
-      maxFreeInput: number;
-      maxPaidCurrentInput: number;
-      maxPaidGlobal15Input: number;
-      maxPaidGlobal20Input: number;
+      memoryPeakFreeMaxInput: number;
+      memoryPeakPaidCurrentMaxInput: number;
+      memoryPeakPaidGlobal15MaxInput: number;
+      memoryPeakPaidGlobal20MaxInput: number;
+      memoryPeakGlobal15Gte60k: boolean;
+      absoluteValidFreeMaxInput: number;
+      absoluteValidPaidCurrentMaxInput: number;
+      absoluteValidPaidGlobal15MaxInput: number;
+      absoluteValidGlobal15Gte60k: boolean;
+      absoluteValidGlobal15Gte80k: boolean;
+      absoluteValidGlobal15Gte100k: boolean;
+      firstCreatorMatchCrossing60k: CreatorStressMatchCount | null;
+      firstCreatorMatchCrossing100k: CreatorStressMatchCount | null;
       paidCurrentInputAmplification: number;
       global15InputAmplification: number;
       paidCurrentTurnPriceAmplification: number;
@@ -1759,44 +2663,78 @@ export type PaidMemoryAuditReport = {
       paidCurrentPeakP: number;
       global15PeakP: number;
       global15PDeltaPercent: number;
+      global15AttributableInputDelta: number;
+      global15AttributablePDelta: number;
+      creator1EntryP: number;
+      creator10EntryP: number;
+      creator25EntryP: number;
+      creator50EntryP: number;
+      creator100EntryP: number;
       longRpPriceDriftT100ToT2000: number;
-      memoryIncrementalCostRecovery: MemoryCostPassThrough;
-      global15Gte60k: boolean;
-      global20Gte60k: boolean;
+      memoryCostRecoveryClaim: MemoryCostPassThrough;
+      noDetectedMediumGlobalLiteralBloat: "YES" | "NO";
     }
   >;
-  worstFixture: PromptAssemblyRow | null;
+  worstMemoryPeakFixture: PromptAssemblyRow | null;
+  worstAbsoluteValidFixture: PromptAssemblyRow | null;
   worstPaidGlobal15: PromptAssemblyRow | null;
   worstPaidCurrent: PromptAssemblyRow | null;
+  rootClassification: "AUDIT_CORRECTED" | "ABSOLUTE_MAX_UNBOUNDED";
   providerGenerationCalls: 0;
   runtimeChange: "NO";
   pricingChange: "NO";
   billingChange: "NO";
   pointTopupSubscriberBonus: "SIMULATION_ONLY";
+  currentUserTurnMax: number | "UNBOUNDED / NO_CANONICAL_LIMIT";
 };
 
 export function generatePaidMemoryAuditReport(
   productionSha: string,
-  opts?: { originMainSha?: string }
+  opts?: { originMainSha?: string; prBehindMain?: number }
 ): PaidMemoryAuditReport {
   clearPaidMemoryAuditRowCache();
   const env = process.env as Record<string, string | undefined>;
   const prevEnv = env.NODE_ENV;
   env.NODE_ENV = "production";
 
+  const memoryProductLoads: LoadLevel[] = ["NORMAL", "MEMORY_PEAK"];
+
   try {
     const matrix: PromptAssemblyRow[] = [];
     for (const modelId of MAIN_RP_MODEL_IDS) {
       for (const config of PAID_MEMORY_CONFIGS) {
         for (const currentTurn of PAID_MEMORY_HISTORY_STAGES) {
-          for (const load of PAID_MEMORY_LOAD_LEVELS) {
+          for (const load of memoryProductLoads) {
             matrix.push(assemblePaidMemoryPromptRow({ modelId, config, currentTurn, load }));
           }
         }
       }
     }
 
-    const absoluteMaxTable = MAIN_RP_MODEL_IDS.map(buildAbsoluteMaxInputTable);
+    const memoryPeakMaxInputTable = MAIN_RP_MODEL_IDS.map(buildMemoryPeakMaxInputTable);
+    const absoluteMaxTable = memoryPeakMaxInputTable.map((peak) => ({
+      ...peak,
+      global15Gte28k: peak.paidGlobal15MaxInput >= 28_000,
+      global15Gte40k: peak.paidGlobal15MaxInput >= 40_000,
+      global15Gte50k: peak.paidGlobal15MaxInput >= 50_000,
+      global15Gte60k: peak.memoryPeakGlobal15Gte60k,
+    }));
+    const absoluteValidMaxInputTable = MAIN_RP_MODEL_IDS.map(buildAbsoluteValidMaxInputTable);
+    const tableAMemoryProduct = MAIN_RP_MODEL_IDS.map(buildMemoryProductTable);
+    const tableBCreatorStress = MAIN_RP_MODEL_IDS.flatMap(buildCreatorStressTable);
+    const tableBTargetAttachedLorebookStress = MAIN_RP_MODEL_IDS.flatMap(
+      buildTargetAttachedLorebookStressTable
+    );
+    const tableCAbsoluteValidStress = MAIN_RP_MODEL_IDS.flatMap(buildAbsoluteValidStressTable);
+    const absoluteValidMatrix = tableCAbsoluteValidStress.map((r) =>
+      assemblePaidMemoryPromptRow({
+        modelId: r.modelId,
+        config: configById(r.configId),
+        currentTurn: 2000,
+        load: "ABSOLUTE_VALID_STRESS",
+        creatorMatchCount: r.creatorMatchCount,
+      })
+    );
     const primaryDecisionTable = MAIN_RP_MODEL_IDS.flatMap(buildPrimaryDecisionTable);
     const turnPriceMatrix: TurnPriceRow[] = [];
     const inputAmplification: InputAmplificationRow[] = [];
@@ -1817,7 +2755,7 @@ export function generatePaidMemoryAuditReport(
       longRpPriceDrift.push(...buildLongRpPriceDrift(modelId));
 
       for (const turn of PAID_MEMORY_HISTORY_STAGES) {
-        for (const load of PAID_MEMORY_LOAD_LEVELS) {
+        for (const load of memoryProductLoads) {
           inputAmplification.push(buildInputAmplificationTable(modelId, turn, load));
           duplicationAudits.push(
             auditDuplicationOverlap({
@@ -1876,10 +2814,12 @@ export function generatePaidMemoryAuditReport(
         }
       }
 
-      const abs = absoluteMaxTable.find((r) => r.modelId === modelId)!;
-      const amp = buildInputAmplificationTable(modelId, 2000, "PEAK_MEMORY");
+      const peak = memoryPeakMaxInputTable.find((r) => r.modelId === modelId)!;
+      const absValid = absoluteValidMaxInputTable.find((r) => r.modelId === modelId)!;
+      const tableA = tableAMemoryProduct.find((r) => r.modelId === modelId)!;
+      const amp = buildInputAmplificationTable(modelId, 2000, "MEMORY_PEAK");
       const tpa = turnPriceAmplification.find(
-        (r) => r.modelId === modelId && r.currentTurn === 2000 && r.load === "PEAK_MEMORY" && r.outputPresetChars === AUDIT_OUTPUT_PRESET_CHARS.canonical
+        (r) => r.modelId === modelId && r.currentTurn === 2000 && r.load === "MEMORY_PEAK" && r.outputPresetChars === AUDIT_OUTPUT_PRESET_CHARS.canonical
       )!;
       const drift = longRpPriceDrift.find(
         (r) =>
@@ -1891,14 +2831,34 @@ export function generatePaidMemoryAuditReport(
         (r) =>
           r.modelId === modelId &&
           r.currentTurn === 2000 &&
-          r.load === "PEAK_MEMORY" &&
+          r.load === "MEMORY_PEAK" &&
           r.outputPresetChars === AUDIT_OUTPUT_PRESET_CHARS.canonical
       )!;
+      const creatorP = (count: CreatorStressMatchCount) =>
+        tableBCreatorStress.find(
+          (r) => r.modelId === modelId && r.configId === "PAID_CURRENT" && r.creatorMatchCount === count
+        )?.pCharge ?? 0;
+      const dupNo = duplicationAudits.some(
+        (d) =>
+          d.modelId === modelId &&
+          d.currentTurn === 2000 &&
+          d.load === "MEMORY_PEAK" &&
+          d.noDetectedMediumGlobalLiteralBloat === "NO"
+      );
       summaryByModel[modelId] = {
-        maxFreeInput: abs.freeMaxInput,
-        maxPaidCurrentInput: abs.paidCurrentMaxInput,
-        maxPaidGlobal15Input: abs.paidGlobal15MaxInput,
-        maxPaidGlobal20Input: abs.paidGlobal20MaxInput,
+        memoryPeakFreeMaxInput: peak.freeMaxInput,
+        memoryPeakPaidCurrentMaxInput: peak.paidCurrentMaxInput,
+        memoryPeakPaidGlobal15MaxInput: peak.paidGlobal15MaxInput,
+        memoryPeakPaidGlobal20MaxInput: peak.paidGlobal20MaxInput,
+        memoryPeakGlobal15Gte60k: peak.memoryPeakGlobal15Gte60k,
+        absoluteValidFreeMaxInput: absValid.freeMaxInput,
+        absoluteValidPaidCurrentMaxInput: absValid.paidCurrentMaxInput,
+        absoluteValidPaidGlobal15MaxInput: absValid.paidGlobal15MaxInput,
+        absoluteValidGlobal15Gte60k: absValid.absoluteValidGlobal15Gte60k,
+        absoluteValidGlobal15Gte80k: absValid.absoluteValidGlobal15Gte80k,
+        absoluteValidGlobal15Gte100k: absValid.absoluteValidGlobal15Gte100k,
+        firstCreatorMatchCrossing60k: absValid.firstCreatorMatchCrossing60k,
+        firstCreatorMatchCrossing100k: absValid.firstCreatorMatchCrossing100k,
         paidCurrentInputAmplification: amp.paidCurrentRatio,
         global15InputAmplification: amp.global15Ratio,
         paidCurrentTurnPriceAmplification: tpa.paidCurrentAmplification,
@@ -1906,20 +2866,37 @@ export function generatePaidMemoryAuditReport(
         paidCurrentPeakP: tpa.paidCurrentP,
         global15PeakP: tpa.paidGlobal15P,
         global15PDeltaPercent: tpa.global15PDeltaPercent,
+        global15AttributableInputDelta: tableA.deltaInputGlobal15VsPaid,
+        global15AttributablePDelta: tableA.deltaPGlobal15VsPaid,
+        creator1EntryP: creatorP(1),
+        creator10EntryP: creatorP(10),
+        creator25EntryP: creatorP(25),
+        creator50EntryP: creatorP(50),
+        creator100EntryP: creatorP(100),
         longRpPriceDriftT100ToT2000: drift.driftPercentT100ToT2000,
-        memoryIncrementalCostRecovery: pass.recovery,
-        global15Gte60k: abs.global15Gte60k,
-        global20Gte60k: abs.paidGlobal20MaxInput >= 60_000,
+        memoryCostRecoveryClaim: pass.recovery,
+        noDetectedMediumGlobalLiteralBloat: dupNo ? "NO" : "YES",
       };
     }
 
-    const sixtyKRootCauses = matrix
+    const sixtyKRootCauses = absoluteValidMatrix
       .filter((r) => r.crossed60k)
       .map(analyzeSixtyKRootCause)
       .filter((r): r is SixtyKRootCause => r != null);
 
-    const worstFixture =
+    const hundredKRootCauses = absoluteValidMatrix
+      .filter((r) => r.crossed100k)
+      .map(analyzeSixtyKRootCause)
+      .filter((r): r is SixtyKRootCause => r != null);
+
+    const worstMemoryPeakFixture =
       matrix.reduce<PromptAssemblyRow | null>(
+        (best, row) =>
+          !best || row.localEstimatedTokensTotal > best.localEstimatedTokensTotal ? row : best,
+        null
+      );
+    const worstAbsoluteValidFixture =
+      absoluteValidMatrix.reduce<PromptAssemblyRow | null>(
         (best, row) =>
           !best || row.localEstimatedTokensTotal > best.localEstimatedTokensTotal ? row : best,
         null
@@ -1941,11 +2918,19 @@ export function generatePaidMemoryAuditReport(
           null
         );
 
+    const anyAbsolute100k = absoluteValidMaxInputTable.some((r) => r.absoluteValidGlobal15Gte100k);
+    const rootClassification: PaidMemoryAuditReport["rootClassification"] =
+      anyAbsolute100k || CREATOR_LOREBOOK_PRODUCTION_CONTRACT.turnInjectCap === "NONE"
+        ? "ABSOLUTE_MAX_UNBOUNDED"
+        : "AUDIT_CORRECTED";
+
     return {
       classification: AUDIT_CODE_CLASSIFICATION,
+      auditPass: "AUDIT_CORRECTION",
       productionSha,
       originMainSha: opts?.originMainSha ?? productionSha,
-      railwayDeployment: "1c3185ff-1434-4c14-a1d3-c6914016d16b",
+      prBehindMain: opts?.prBehindMain ?? 0,
+      railwayDeployment: RAILWAY_DEPLOYMENT_CORRECTION,
       railwayStatus: "SUCCESS",
       productModel: PRODUCT_MODEL,
       assemblySource: "PRODUCTION_BUILD_CONTEXT",
@@ -1954,10 +2939,24 @@ export function generatePaidMemoryAuditReport(
       competitorBenchmark: "NOT_PERFORMED_IN_THIS_AUDIT",
       mainRpModels: MAIN_RP_MODEL_IDS,
       fxSnapshot: resolveBillingExchangeRateSnapshot(),
+      variableSizeOwnerMap: buildVariableSizeOwnerMap(),
+      creatorLorebookContract: CREATOR_LOREBOOK_PRODUCTION_CONTRACT,
+      creatorLorebookProductModel: CREATOR_LOREBOOK_PRODUCT_MODEL,
+      creatorCarryoverProof: proveCreatorCarryoverCannotExceedStoredUnique(),
+      payloadCapAudit: Object.fromEntries(MAIN_RP_MODEL_IDS.map((id) => [id, auditPayloadCaps(id)])),
+      openRouterPrefixAudits: MAIN_RP_MODEL_IDS.map((id) => auditOpenRouterCreatorPrefix(id)),
       matrix,
+      memoryPeakMaxInputTable,
+      absoluteValidMaxInputTable,
       absoluteMaxTable,
+      tableAMemoryProduct,
+      tableBCreatorStress,
+      tableBTargetAttachedLorebookStress,
+      tableCAbsoluteValidStress,
       inputBandSummary: summarizeInputBands(matrix),
+      absoluteValidInputBandSummary: summarizeInputBands(absoluteValidMatrix),
       sixtyKRootCauses,
+      hundredKRootCauses,
       duplicationAudits,
       primaryDecisionTable,
       turnPriceMatrix,
@@ -1969,6 +2968,7 @@ export function generatePaidMemoryAuditReport(
       decisionTables,
       deltas,
       cacheBoundaries: MAIN_RP_MODEL_IDS.map((id) => auditCacheBoundary(id)),
+      globalMaintenanceClassification: "APPROXIMATE_FORENSIC_ONLY",
       globalMaintenance: [
         ...simulateGlobalMaintenanceLifecycle(MEMORY_CAPACITY_FIXED),
         ...simulateGlobalMaintenanceLifecycle(15_000),
@@ -1980,14 +2980,17 @@ export function generatePaidMemoryAuditReport(
         MAIN_RP_MODEL_IDS.map((id) => [id, classifyUserPointChargeInputSensitivity(id)])
       ),
       summaryByModel,
-      worstFixture,
+      worstMemoryPeakFixture,
+      worstAbsoluteValidFixture,
       worstPaidGlobal15,
       worstPaidCurrent,
+      rootClassification,
       providerGenerationCalls: 0,
       runtimeChange: "NO",
       pricingChange: "NO",
       billingChange: "NO",
       pointTopupSubscriberBonus: "SIMULATION_ONLY",
+      currentUserTurnMax: CHAT_MESSAGE_MAX,
     };
   } finally {
     if (prevEnv === undefined) delete env.NODE_ENV;
@@ -1997,131 +3000,158 @@ export function generatePaidMemoryAuditReport(
 
 export function formatPaidMemoryAuditMarkdown(report: PaidMemoryAuditReport): string {
   const lines: string[] = [];
-  lines.push("# Peak Input Pressure + Paid-Memory Turn Price Audit");
+  lines.push("# Peak Input Pressure + Paid-Memory Turn Price Audit (CORRECTION PASS)");
   lines.push("");
   lines.push("## PRODUCTION DEPLOYMENT");
   lines.push(`- Railway deployment: \`${report.railwayDeployment}\``);
   lines.push(`- Railway status: ${report.railwayStatus}`);
   lines.push(`- Production SHA: \`${report.productionSha}\``);
   lines.push(`- Origin main (latest fetch): \`${report.originMainSha}\``);
+  lines.push(`- PR_BEHIND_MAIN = ${report.prBehindMain}`);
   lines.push("");
-  lines.push("## PRODUCT MODEL");
-  lines.push(`- SUBSCRIPTION_PRODUCT_TYPE = ${report.productModel.subscriptionType}`);
-  lines.push(`- NORMAL_USAGE_BILLING = ${report.productModel.normalUsageBilling}`);
-  lines.push("- Memory add-on expands Focus/User Lorebook/Global; does NOT unlimit Main RP turns.");
+  lines.push("## LOAD CLASSES");
+  lines.push("- **NORMAL** — realistic ordinary RP");
+  lines.push("- **MEMORY_PEAK** — subscription memory tiers max + realistic-heavy Creator (~3 entries via production matcher)");
+  lines.push("- **ABSOLUTE_VALID_STRESS** — every server-valid variable-size owner stressed through production paths");
   lines.push("");
-  lines.push("## OWNER MAP");
-  for (const [k, v] of Object.entries(OWNER_MAP)) {
-    lines.push(`- **${k}**: ${v}`);
+  lines.push("## CREATOR LOREBOOK — PRODUCT MODEL (CURRENT vs TARGET)");
+  lines.push(`- MODEL_MISMATCH = ${report.creatorLorebookProductModel.mismatch ? "YES" : "NO"}`);
+  lines.push(`- CURRENT attach: ${report.creatorLorebookProductModel.current.characterAttach}`);
+  lines.push(`- CURRENT unit: ${report.creatorLorebookProductModel.current.lorebookUnit}`);
+  lines.push(`- CURRENT per-turn inject cap: ${report.creatorLorebookProductModel.current.perTurnInjectionCap}`);
+  lines.push(`- CURRENT theoretical max inject (no cap): ${report.creatorLorebookProductModel.current.theoreticalMaxInjectCharsNoCap} chars`);
+  lines.push(`- TARGET attach max: ${report.creatorLorebookProductModel.target.characterAttachMax} lorebooks/character`);
+  lines.push(`- TARGET unit: ${report.creatorLorebookProductModel.target.lorebookUnit}`);
+  lines.push(`- TARGET per-turn inject: ${report.creatorLorebookProductModel.target.perTurnInjectionCap}`);
+  lines.push(`- TARGET theoretical max if all hit (no cap): ${report.creatorLorebookProductModel.target.theoreticalMaxInjectIfAllHitAndNoCap} chars`);
+  lines.push("- Required schema deltas:");
+  for (const d of report.creatorLorebookProductModel.requiredDeltas.schema) {
+    lines.push(`  - ${d}`);
   }
   lines.push("");
-  lines.push("## MAIN RP MODEL REGISTRY");
-  for (const profile of listMainRpModelProfiles()) {
-    lines.push(`- ${profile.modelId} (${profile.label})`);
-  }
+  lines.push(`## CREATOR LOREBOOK CONTRACT (current main path)`);
+  lines.push(`- CREATOR_LOREBOOK_TURN_INJECT_CAP = ${report.creatorLorebookContract.turnInjectCap}`);
+  lines.push(`- Path: ${report.creatorLorebookContract.path.join(" → ")}`);
+  lines.push(`- Carryover: ${report.creatorCarryoverProof.detail}`);
   lines.push("");
-  lines.push("## ABSOLUTE MAX INPUT TABLE");
-  lines.push("| MODEL | FREE | PAID | G15 | G20 | G15≥28K | G15≥40K | G15≥50K | G15≥60K | stage |");
-  lines.push("|---|---:|---:|---:|---:|---|---|---|---:|---|");
-  for (const row of report.absoluteMaxTable) {
+  lines.push("## TABLE A — MEMORY PRODUCT (T2000 MEMORY_PEAK, realistic Creator)");
+  lines.push("| Model | Free | Paid | Global15 | Δ input Paid | Δ input G15 | Δ P Paid | Δ P G15 |");
+  lines.push("|---|---:|---:|---:|---:|---:|---:|---:|");
+  for (const row of report.tableAMemoryProduct) {
     lines.push(
-      `| ${row.modelId} | ${row.freeMaxInput} | ${row.paidCurrentMaxInput} | ${row.paidGlobal15MaxInput} | ${row.paidGlobal20MaxInput} | ${row.global15Gte28k ? "Y" : "N"} | ${row.global15Gte40k ? "Y" : "N"} | ${row.global15Gte50k ? "Y" : "N"} | ${row.global15Gte60k ? "Y" : "N"} | T${row.maxStage}/${row.maxLoad} |`
+      `| ${row.modelId} | ${row.freeRealisticInput} | ${row.paidCurrentRealisticInput} | ${row.paidGlobal15RealisticInput} | ${row.deltaInputPaidVsFree} | ${row.deltaInputGlobal15VsPaid} | ${row.deltaPPaidVsFree} | ${row.deltaPGlobal15VsPaid} |`
     );
   }
   lines.push("");
-  lines.push("## 28K / 40K / 50K / 60K BANDS");
+  lines.push("## TABLE B — CURRENT CONTAINER ENTRY STRESS (1 attached lorebook, N entries — NOT target 20 lorebooks)");
+  lines.push("| Model | 1-entry P | 10 | 25 | 50 | 100 entries P |");
+  lines.push("|---|---:|---:|---:|---:|---:|");
+  for (const modelId of report.mainRpModels) {
+    const s = report.summaryByModel[modelId];
+    if (!s) continue;
+    lines.push(
+      `| ${modelId} | ${s.creator1EntryP} | ${s.creator10EntryP} | ${s.creator25EntryP} | ${s.creator50EntryP} | ${s.creator100EntryP} |`
+    );
+  }
+  lines.push("");
+  lines.push("## TABLE B′ — TARGET ATTACHED LOREBOOK UNITS (forensic ref, max 20 units, no injection cap)");
+  lines.push("| Model | 1 unit P | 5 | 10 | 15 | 20 units P |");
+  lines.push("|---|---:|---:|---:|---:|---:|");
+  for (const modelId of report.mainRpModels) {
+    const pick = (n: TargetAttachedLorebookStressCount) =>
+      report.tableBTargetAttachedLorebookStress.find(
+        (r) => r.modelId === modelId && r.attachedLorebookCount === n
+      )?.pCharge ?? 0;
+    lines.push(`| ${modelId} | ${pick(1)} | ${pick(5)} | ${pick(10)} | ${pick(15)} | ${pick(20)} |`);
+  }
+  lines.push("");
+  lines.push("## TABLE C — ABSOLUTE VALID STRESS (T2000, PAID_GLOBAL15, 100 container entries on current main)");
+  lines.push("| Model | Total input | 60K+ | 80K+ | 100K+ | P charge | Root cause |");
+  lines.push("|---|---:|---|---|---|---:|---|");
+  for (const modelId of report.mainRpModels) {
+    const row = report.tableCAbsoluteValidStress.find(
+      (r) => r.modelId === modelId && r.configId === "PAID_GLOBAL_15K" && r.creatorMatchCount === 100
+    );
+    if (!row) continue;
+    lines.push(
+      `| ${modelId} | ${row.totalInputTokens} | ${row.crossed60k ? "Y" : "N"} | ${row.crossed80k ? "Y" : "N"} | ${row.crossed100k ? "Y" : "N"} | ${row.pCharge} | ${row.primaryRootCause} |`
+    );
+  }
+  lines.push("");
+  lines.push("## MEMORY_PEAK MAX INPUT (realistic Creator — NOT absolute max)");
+  lines.push("| MODEL | FREE | PAID | G15 | G20 | G15≥60K | stage |");
+  lines.push("|---|---:|---:|---:|---:|---:|---|");
+  for (const row of report.memoryPeakMaxInputTable) {
+    lines.push(
+      `| ${row.modelId} | ${row.freeMaxInput} | ${row.paidCurrentMaxInput} | ${row.paidGlobal15MaxInput} | ${row.paidGlobal20MaxInput} | ${row.memoryPeakGlobal15Gte60k ? "Y" : "N"} | T${row.maxStage}/${row.maxLoad} |`
+    );
+  }
+  lines.push("");
+  lines.push("## ABSOLUTE VALID MAX INPUT");
+  for (const row of report.absoluteValidMaxInputTable) {
+    lines.push(
+      `- ${row.modelId}: FREE=${row.freeMaxInput} PAID=${row.paidCurrentMaxInput} G15=${row.paidGlobal15MaxInput} first60K@creator${row.firstCreatorMatchCrossing60k ?? "none"} first100K@creator${row.firstCreatorMatchCrossing100k ?? "none"}`
+    );
+  }
+  lines.push("");
+  lines.push("## INPUT BANDS — MEMORY_PEAK matrix");
   for (const band of report.inputBandSummary) {
     lines.push(`- ${band.band}: ${band.fixtureCount} fixtures`);
   }
-  if (report.worstFixture) {
+  lines.push("## INPUT BANDS — ABSOLUTE_VALID_STRESS matrix");
+  for (const band of report.absoluteValidInputBandSummary) {
+    lines.push(`- ${band.band}: ${band.fixtureCount} fixtures`);
+  }
+  lines.push("");
+  lines.push("## GLOBAL15 ATTRIBUTION (stable vs Creator size — sample Creator100 MEMORY_PEAK)");
+  for (const modelId of report.mainRpModels) {
+    const row = report.tableBCreatorStress.find(
+      (r) => r.modelId === modelId && r.configId === "PAID_GLOBAL_15K" && r.creatorMatchCount === 100
+    );
+    if (!row) continue;
     lines.push(
-      `- worst overall: ${report.worstFixture.modelId} ${report.worstFixture.configId} T${report.worstFixture.currentTurn} ${report.worstFixture.load} = ${report.worstFixture.localEstimatedTokensTotal} tokens (${report.worstFixture.inputPressureBand})`
+      `- ${modelId}: GLOBAL15_INPUT_DELTA_VS_PAID=${row.global15InputDeltaVsPaidCurrent} GLOBAL15_P_DELTA=${row.global15PDeltaVsPaidCurrent}`
     );
   }
   lines.push("");
-  lines.push("## SIXTY-K ROOT CAUSE");
-  if (report.sixtyKRootCauses.length === 0) {
-    lines.push("- No legitimate fixture reached 60K+ LOCAL_ESTIMATED_TOKENS.");
-  } else {
-    for (const cause of report.sixtyKRootCauses) {
-      lines.push(
-        `- ${cause.modelId} ${cause.configId} T${cause.currentTurn} ${cause.load}: ${cause.primaryCause} — ${cause.detail}`
-      );
-    }
-  }
-  lines.push("");
-  lines.push("## INPUT AMPLIFICATION (T2000 PEAK)");
-  for (const modelId of report.mainRpModels) {
-    const s = report.summaryByModel[modelId];
-    if (!s) continue;
-    lines.push(
-      `- ${modelId}: PAID_CURRENT=${s.paidCurrentInputAmplification.toFixed(3)}x GLOBAL15=${s.global15InputAmplification.toFixed(3)}x`
-    );
-  }
-  lines.push("");
-  lines.push("## TURN PRICE AMPLIFICATION (T2000 PEAK, output=3200 canonical)");
-  for (const modelId of report.mainRpModels) {
-    const s = report.summaryByModel[modelId];
-    if (!s) continue;
-    lines.push(
-      `- ${modelId}: PAID_CURRENT=${s.paidCurrentTurnPriceAmplification.toFixed(3)}x GLOBAL15=${s.global15TurnPriceAmplification.toFixed(3)}x (Δ${s.global15PDeltaPercent.toFixed(1)}%)`
-    );
-  }
-  lines.push("");
-  lines.push("## MEMORY COST PASS-THROUGH (GLOBAL15 vs PAID_CURRENT, T2000 PEAK)");
-  for (const modelId of report.mainRpModels) {
-    const s = report.summaryByModel[modelId];
-    if (!s) continue;
-    lines.push(`- ${modelId}: ${s.memoryIncrementalCostRecovery}`);
-  }
-  lines.push("");
-  lines.push("## DUPLICATION / OVERLAP (PAID_CURRENT peak samples)");
-  const dupYes = report.duplicationAudits.filter((d) => d.duplicatePromptBloat === "YES");
-  lines.push(`- DUPLICATE_PROMPT_BLOAT = ${dupYes.length > 0 ? "YES" : "NO"} (${dupYes.length} fixtures flagged)`);
-  lines.push("");
-  lines.push("## POINT TOP-UP ECONOMICS — SECONDARY (SIMULATION ONLY)");
-  lines.push("| KRW | normal P | subscriber P | bonus P |");
-  lines.push("|---:|---:|---:|---:|");
-  for (const row of report.pointTopUpEconomics) {
-    lines.push(`| ${row.krwPaid} | ${row.normalCreditsP} | ${row.subscriberCreditsP} | ${row.subscriberBonusP} |`);
-  }
+  lines.push("## GLOBAL MAINTENANCE");
+  lines.push(`- GLOBAL_MAINTENANCE_COST = ${report.globalMaintenanceClassification}`);
   lines.push("");
   lines.push("## FINAL CLASSIFICATION");
   lines.push(`- PRODUCTION_SHA = ${report.productionSha}`);
-  lines.push(`- AUDIT_TOKEN_MODE = ${report.tokenMode}`);
-  lines.push(`- PROVIDER_CALIBRATION = ${report.providerCalibration}`);
-  lines.push(`- COMPETITOR_BENCHMARK = ${report.competitorBenchmark}`);
-  lines.push(`- POINT_TOPUP_SUBSCRIBER_BONUS = ${report.pointTopupSubscriberBonus}`);
+  lines.push(`- PR_BEHIND_MAIN = ${report.prBehindMain}`);
+  lines.push(`- ROOT_CLASSIFICATION = ${report.rootClassification}`);
+  lines.push(`- CREATOR_LOREBOOK_TURN_INJECT_CAP = ${report.creatorLorebookContract.turnInjectCap}`);
+  lines.push(`- CURRENT_USER_TURN_MAX = ${report.currentUserTurnMax}`);
+  lines.push(`- GLOBAL_MAINTENANCE_COST = ${report.globalMaintenanceClassification}`);
   lines.push(`- PROVIDER_GENERATION_CALLS = ${report.providerGenerationCalls}`);
   lines.push(`- RUNTIME_CHANGE = ${report.runtimeChange}`);
   lines.push(`- MERGE = NO`);
   for (const modelId of report.mainRpModels) {
     const s = report.summaryByModel[modelId];
     if (!s) continue;
-    lines.push(`- MAX_FREE_INPUT_${modelId} = ${s.maxFreeInput}`);
-    lines.push(`- MAX_PAID_CURRENT_INPUT_${modelId} = ${s.maxPaidCurrentInput}`);
-    lines.push(`- MAX_PAID_GLOBAL15_INPUT_${modelId} = ${s.maxPaidGlobal15Input}`);
-    lines.push(`- MAX_PAID_GLOBAL20_INPUT_${modelId} = ${s.maxPaidGlobal20Input}`);
-    lines.push(`- PAID_CURRENT_INPUT_AMPLIFICATION_${modelId} = ${s.paidCurrentInputAmplification.toFixed(4)}`);
-    lines.push(`- GLOBAL15_INPUT_AMPLIFICATION_${modelId} = ${s.global15InputAmplification.toFixed(4)}`);
-    lines.push(`- PAID_CURRENT_TURN_PRICE_AMPLIFICATION_${modelId} = ${s.paidCurrentTurnPriceAmplification.toFixed(4)}`);
-    lines.push(`- GLOBAL15_TURN_PRICE_AMPLIFICATION_${modelId} = ${s.global15TurnPriceAmplification.toFixed(4)}`);
-    lines.push(`- PAID_CURRENT_PEAK_TURN_P_${modelId} = ${s.paidCurrentPeakP}`);
-    lines.push(`- GLOBAL15_PEAK_TURN_P_${modelId} = ${s.global15PeakP}`);
-    lines.push(`- GLOBAL15_P_DELTA_PERCENT_${modelId} = ${s.global15PDeltaPercent.toFixed(2)}`);
-    lines.push(`- LONG_RP_PRICE_DRIFT_T100_TO_T2000_${modelId} = ${s.longRpPriceDriftT100ToT2000.toFixed(2)}%`);
-    lines.push(`- MEMORY_INCREMENTAL_COST_RECOVERY_${modelId} = ${s.memoryIncrementalCostRecovery}`);
+    lines.push(`- MEMORY_PEAK_FREE_MAX_INPUT_${modelId} = ${s.memoryPeakFreeMaxInput}`);
+    lines.push(`- MEMORY_PEAK_PAID_CURRENT_MAX_INPUT_${modelId} = ${s.memoryPeakPaidCurrentMaxInput}`);
+    lines.push(`- MEMORY_PEAK_PAID_GLOBAL15_MAX_INPUT_${modelId} = ${s.memoryPeakPaidGlobal15MaxInput}`);
+    lines.push(`- MEMORY_PEAK_GLOBAL15_60K_PLUS_${modelId} = ${s.memoryPeakGlobal15Gte60k ? "YES" : "NO"}`);
+    lines.push(`- ABSOLUTE_VALID_FREE_MAX_INPUT_${modelId} = ${s.absoluteValidFreeMaxInput}`);
+    lines.push(`- ABSOLUTE_VALID_PAID_CURRENT_MAX_INPUT_${modelId} = ${s.absoluteValidPaidCurrentMaxInput}`);
+    lines.push(`- ABSOLUTE_VALID_PAID_GLOBAL15_MAX_INPUT_${modelId} = ${s.absoluteValidPaidGlobal15MaxInput}`);
+    lines.push(`- ABSOLUTE_VALID_GLOBAL15_60K_PLUS_${modelId} = ${s.absoluteValidGlobal15Gte60k ? "YES" : "NO"}`);
+    lines.push(`- ABSOLUTE_VALID_GLOBAL15_80K_PLUS_${modelId} = ${s.absoluteValidGlobal15Gte80k ? "YES" : "NO"}`);
+    lines.push(`- ABSOLUTE_VALID_GLOBAL15_100K_PLUS_${modelId} = ${s.absoluteValidGlobal15Gte100k ? "YES" : "NO"}`);
+    lines.push(`- CREATOR_MATCHES_FIRST_60K_${modelId} = ${s.firstCreatorMatchCrossing60k ?? "none"}`);
+    lines.push(`- CREATOR_MATCHES_FIRST_100K_${modelId} = ${s.firstCreatorMatchCrossing100k ?? "none"}`);
+    lines.push(`- CREATOR_1_ENTRY_P_${modelId} = ${s.creator1EntryP}`);
+    lines.push(`- CREATOR_10_ENTRY_P_${modelId} = ${s.creator10EntryP}`);
+    lines.push(`- CREATOR_25_ENTRY_P_${modelId} = ${s.creator25EntryP}`);
+    lines.push(`- CREATOR_50_ENTRY_P_${modelId} = ${s.creator50EntryP}`);
+    lines.push(`- CREATOR_100_ENTRY_P_${modelId} = ${s.creator100EntryP}`);
+    lines.push(`- GLOBAL15_ATTRIBUTABLE_INPUT_DELTA_${modelId} = ${s.global15AttributableInputDelta}`);
+    lines.push(`- GLOBAL15_ATTRIBUTABLE_P_DELTA_${modelId} = ${s.global15AttributablePDelta}`);
+    lines.push(`- NO_DETECTED_MEDIUM_GLOBAL_LITERAL_BLOAT_${modelId} = ${s.noDetectedMediumGlobalLiteralBloat}`);
+    lines.push(`- MEMORY_COST_RECOVERY_CLAIM_${modelId} = ${s.memoryCostRecoveryClaim}`);
   }
-  const anyG15_60k = report.absoluteMaxTable.some((r) => r.global15Gte60k);
-  const anyG20_60k = report.absoluteMaxTable.some((r) => r.paidGlobal20MaxInput >= 60_000);
-  lines.push(`- ANY_GLOBAL15_60K_PLUS = ${anyG15_60k ? "YES" : "NO"}`);
-  lines.push(`- ANY_GLOBAL20_60K_PLUS = ${anyG20_60k ? "YES" : "NO"}`);
-  lines.push(
-    `- GLOBAL15_CRITICAL_CONTEXT_LOSS = ${report.worstPaidGlobal15?.criticalSectionOmitted ? "YES" : "NO"}`
-  );
-  lines.push(
-    `- DUPLICATE_PROMPT_BLOAT = ${report.duplicationAudits.some((d) => d.duplicatePromptBloat === "YES") ? "YES" : "NO"}`
-  );
 
   return lines.join("\n");
 }
