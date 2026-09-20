@@ -50,6 +50,7 @@ import {
 import { adaptCheaperInferenceChatBody } from "../src/lib/cheaperInferenceConfig";
 import { OPENROUTER_CHAT_COMPLETIONS_URL } from "../src/lib/openRouterConfig";
 import type { ChatMsg } from "../src/lib/ai";
+import { exitIfBenchmarkCheaperInferenceApiKeyMissing } from "./lib/benchmarkCheaperInferenceCredential";
 
 const OUT_DIR = process.env.SCREENING_OUT_DIR || "data";
 const FIXTURE_PATH =
@@ -441,7 +442,8 @@ async function callOnce(
   transportProvider: "openrouter" | "cheaperinference",
   system: string,
   history: ChatMsg[],
-  targetResponseChars: number
+  targetResponseChars: number,
+  benchmarkKey: string
 ) {
   const t0 = performance.now();
   const stream = streamOpenRouterAdult(
@@ -453,6 +455,8 @@ async function callOnce(
       transportProvider,
       allowOpenRouterUnderLengthRecovery: false,
       allowEmptyStreamFallback: false,
+      cheaperInferenceApiKeyOverride:
+        transportProvider === "cheaperinference" ? benchmarkKey : undefined,
     },
     {
       requestKind: "snpv2-transport7-primary",
@@ -507,6 +511,7 @@ function sectionDiff(a: string, b: string): string {
 
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
+  const benchmarkKey = exitIfBenchmarkCheaperInferenceApiKeyMissing("SNPV2_STATUS");
   const fixture = loadFixture();
   const rawPath = `${OUT_DIR}/shared-novel-prose-v2-luna-gemini-deepseek-raw.txt`;
   const metaPath = `${OUT_DIR}/shared-novel-prose-v2-luna-gemini-deepseek-metadata.json`;
@@ -568,7 +573,8 @@ async function main() {
         built.transport.transportProvider,
         built.system,
         built.history,
-        fixture.targetResponseChars
+        fixture.targetResponseChars,
+        benchmarkKey
       );
       text = out.text;
       usage = out.usage;

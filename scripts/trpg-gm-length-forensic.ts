@@ -26,6 +26,7 @@ import { parseTrpgGmOutput } from "../src/lib/trpg/gmPrompt";
 import { isTrpgGmStructuredShape, parseTrpgGmStructuredJson } from "../src/lib/trpg/gmStructuredOutput";
 import { reviewGmForwardMotionQuality } from "../src/lib/trpg/gmResolutionProbe";
 import { TRPG_GM_MODEL } from "../src/lib/trpg/types";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 
 type FixtureAction = {
   participantId: number;
@@ -169,6 +170,7 @@ async function runFixture(opts: {
   gm: GmPromptModule;
   budget: BudgetModule;
   outDir: string;
+  benchmarkKey: string;
 }) {
   delete process.env.MOCK_MODE;
   const user = buildUserBlock(opts.gm, opts.actions);
@@ -178,6 +180,7 @@ async function runFixture(opts: {
     system: opts.gm.TRPG_GM_SYSTEM,
     user,
     timeoutMs: 180_000,
+    cheaperInferenceApiKeyOverride: opts.benchmarkKey,
   });
 
   const raw = result.text;
@@ -231,9 +234,10 @@ async function runFixture(opts: {
 
 async function main() {
   const label = parseLabel(process.argv);
-  const key = process.env.CHEAPER_INFERENCE_API_KEY?.trim();
-  if (!key || key.startsWith("your_")) {
-    console.error("GEMINI_FORENSIC_SKIPPED=true (no CHEAPER_INFERENCE_API_KEY)");
+  const benchmarkKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!benchmarkKey) {
+    console.error("GEMINI_FORENSIC_SKIPPED=true (no CHEAPER_INFERENCE_BENCHMARK_API_KEY)");
+    console.log("provider calls=0");
     process.exit(0);
   }
 
@@ -262,6 +266,7 @@ async function main() {
       gm,
       budget,
       outDir,
+      benchmarkKey,
     });
     results.push(row);
     console.info(JSON.stringify(row));

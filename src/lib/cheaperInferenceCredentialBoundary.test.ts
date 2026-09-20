@@ -207,6 +207,254 @@ test("H missing benchmark key exits NOT_RUN before transport for luna micro benc
   }
 });
 
+test("J manual Main RP harness: production key present, benchmark absent => provider HTTP 0", () => {
+  const prevProd = process.env.CHEAPER_INFERENCE_API_KEY;
+  const prevBench = process.env.CHEAPER_INFERENCE_BENCHMARK_API_KEY;
+  const prevAllow = process.env.LUNA_MINIMAL_CORE_V1_ALLOW_API;
+  process.env.CHEAPER_INFERENCE_API_KEY = PROD_FIXTURE;
+  delete process.env.CHEAPER_INFERENCE_BENCHMARK_API_KEY;
+  process.env.LUNA_MINIMAL_CORE_V1_ALLOW_API = "1";
+  const result = spawnSync(
+    "node",
+    ["--conditions=react-server", "--import", "tsx", "scripts/luna-minimal-core-v1-gate.ts"],
+    {
+      cwd: process.cwd(),
+      env: process.env,
+      encoding: "utf8",
+      timeout: 120_000,
+    }
+  );
+  try {
+    assert.equal(result.status, 0);
+    const out = `${result.stdout}\n${result.stderr}`;
+    assert.match(out, /NOT_RUN.*CHEAPER_INFERENCE_BENCHMARK_API_KEY/);
+    assert.match(out, /provider calls=0/);
+    assert.doesNotMatch(out, new RegExp(PROD_FIXTURE));
+  } finally {
+    restoreEnv("CHEAPER_INFERENCE_API_KEY", prevProd);
+    restoreEnv("CHEAPER_INFERENCE_BENCHMARK_API_KEY", prevBench);
+    restoreEnv("LUNA_MINIMAL_CORE_V1_ALLOW_API", prevAllow);
+  }
+});
+
+async function loadStreamOpenRouterAdultModule() {
+  const Module = await import("module");
+  const originalLoad = (Module.default as unknown as { _load: typeof Module._load })._load;
+  (Module.default as unknown as { _load: typeof Module._load })._load = function (
+    request: string,
+    parent: NodeModule,
+    isMain: boolean
+  ) {
+    if (request === "server-only") return {};
+    return originalLoad.call(this, request, parent, isMain);
+  } as typeof Module._load;
+  return import("./openRouterAdult");
+}
+
+function mockStreamFetchCaptureAuth(): {
+  restore: () => void;
+  authHeaders: () => string[];
+} {
+  const previousFetch = globalThis.fetch;
+  const headers: string[] = [];
+  globalThis.fetch = (async (_input, init) => {
+    const h = init?.headers;
+    if (h instanceof Headers) headers.push(h.get("Authorization") ?? "");
+    else if (h && typeof h === "object") {
+      headers.push(String((h as Record<string, string>).Authorization ?? ""));
+    }
+    const sse = 'data: {"choices":[{"delta":{"content":"ok"}}]}\n\ndata: [DONE]\n\n';
+    return new Response(sse, {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+    });
+  }) as typeof fetch;
+  return {
+    restore: () => {
+      globalThis.fetch = previousFetch;
+    },
+    authHeaders: () => headers,
+  };
+}
+
+test("K explicit CI override on compatible streaming transport uses benchmark Authorization", async () => {
+  const prevProd = process.env.CHEAPER_INFERENCE_API_KEY;
+  process.env.CHEAPER_INFERENCE_API_KEY = PROD_FIXTURE;
+  const mock = mockStreamFetchCaptureAuth();
+  try {
+    const { streamOpenRouterAdult } = await loadStreamOpenRouterAdultModule();
+    const stream = streamOpenRouterAdult(
+      "system",
+      [{ role: "user", content: "hello" }],
+      "deepseek-v4-pro-0813",
+      800,
+      {
+        transportProvider: "cheaperinference",
+        cheaperInferenceApiKeyOverride: BENCHMARK_FIXTURE,
+        allowOpenRouterUnderLengthRecovery: false,
+      },
+      { requestKind: "credential-boundary-k", chargeTurnBudget: false }
+    );
+    for await (const _chunk of stream) {
+      /* drain */
+    }
+    const providerAuths = mock.authHeaders().filter((h) => h.startsWith("Bearer "));
+    assert.ok(providerAuths.length >= 1);
+    assert.equal(providerAuths[0], `Bearer ${BENCHMARK_FIXTURE}`);
+  } finally {
+    mock.restore();
+    restoreEnv("CHEAPER_INFERENCE_API_KEY", prevProd);
+  }
+});
+
+test("L production compatible streaming transport without override uses production resolver", async () => {
+  const prevProd = process.env.CHEAPER_INFERENCE_API_KEY;
+  process.env.CHEAPER_INFERENCE_API_KEY = PROD_FIXTURE;
+  const mock = mockStreamFetchCaptureAuth();
+  try {
+    const { streamOpenRouterAdult } = await loadStreamOpenRouterAdultModule();
+    const stream = streamOpenRouterAdult(
+      "system",
+      [{ role: "user", content: "hello" }],
+      "deepseek-v4-pro-0813",
+      800,
+      {
+        transportProvider: "cheaperinference",
+        allowOpenRouterUnderLengthRecovery: false,
+      },
+      { requestKind: "credential-boundary-l", chargeTurnBudget: false }
+    );
+    for await (const _chunk of stream) {
+      /* drain */
+    }
+    const providerAuths = mock.authHeaders().filter((h) => h.startsWith("Bearer "));
+    assert.ok(providerAuths.length >= 1);
+    assert.equal(providerAuths[0], `Bearer ${PROD_FIXTURE}`);
+  } finally {
+    mock.restore();
+    restoreEnv("CHEAPER_INFERENCE_API_KEY", prevProd);
+  }
+});
+
+test("M CI primary explicit override with OpenRouter failover keeps backup on OPENROUTER_API_KEY", async () => {
+  const prevProd = process.env.CHEAPER_INFERENCE_API_KEY;
+  const prevOr = process.env.OPENROUTER_API_KEY;
+  process.env.CHEAPER_INFERENCE_API_KEY = PROD_FIXTURE;
+  process.env.OPENROUTER_API_KEY = "openrouter-fixture";
+  const auths: string[] = [];
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = (async (_input, init) => {
+    const h = init?.headers;
+    if (h instanceof Headers) auths.push(h.get("Authorization") ?? "");
+    else if (h && typeof h === "object") {
+      auths.push(String((h as Record<string, string>).Authorization ?? ""));
+    }
+    if (auths.length === 1) {
+      return new Response("upstream error", { status: 503 });
+    }
+    return new Response(
+      JSON.stringify({
+        model: "deepseek/deepseek-v4-pro",
+        choices: [{ message: { content: "backup ok" }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  }) as typeof fetch;
+  try {
+    const { executeDeepSeekWithProviderFailover } = await import("./deepseekProviderFailover");
+    const result = await executeDeepSeekWithProviderFailover({
+      routeKind: "background_flash",
+      logicalModel: "deepseek-v4-pro-0813",
+      primary: {
+        endpoint: "https://api.cheaperinference.com/v1/chat/completions",
+        headers: { Authorization: `Bearer ${BENCHMARK_FIXTURE}`, "Content-Type": "application/json" },
+        body: { model: "deepseek-v4-pro-0813", messages: [{ role: "user", content: "hi" }] },
+      },
+      backupBody: {
+        model: "deepseek/deepseek-v4-pro",
+        messages: [{ role: "user", content: "hi" }],
+      },
+      stream: false,
+    });
+    assert.equal(result.usedProvider, "openrouter");
+    assert.equal(auths[0], `Bearer ${BENCHMARK_FIXTURE}`);
+    assert.equal(auths[1], "Bearer openrouter-fixture");
+    assert.notEqual(auths[1], `Bearer ${BENCHMARK_FIXTURE}`);
+  } finally {
+    globalThis.fetch = previousFetch;
+    restoreEnv("CHEAPER_INFERENCE_API_KEY", prevProd);
+    restoreEnv("OPENROUTER_API_KEY", prevOr);
+  }
+});
+
+test("N direct diagnostic script: production key present, benchmark absent => provider HTTP 0", () => {
+  const prevProd = process.env.CHEAPER_INFERENCE_API_KEY;
+  const prevBench = process.env.CHEAPER_INFERENCE_BENCHMARK_API_KEY;
+  process.env.CHEAPER_INFERENCE_API_KEY = PROD_FIXTURE;
+  delete process.env.CHEAPER_INFERENCE_BENCHMARK_API_KEY;
+  const result = spawnSync(
+    "node",
+    [
+      "--conditions=react-server",
+      "--import",
+      "tsx",
+      "scripts/diagnose-opus-fresh-cache-t789.ts",
+    ],
+    {
+      cwd: process.cwd(),
+      env: { ...process.env, NODE_TEST_CONTEXT: "1" },
+      encoding: "utf8",
+      timeout: 120_000,
+    }
+  );
+  try {
+    assert.equal(result.status, 0);
+    const out = `${result.stdout}\n${result.stderr}`;
+    assert.match(out, /DIAG_STATUS.*CHEAPER_INFERENCE_BENCHMARK_API_KEY/);
+    assert.match(out, /provider calls=0/);
+    assert.doesNotMatch(out, new RegExp(PROD_FIXTURE));
+  } finally {
+    restoreEnv("CHEAPER_INFERENCE_API_KEY", prevProd);
+    restoreEnv("CHEAPER_INFERENCE_BENCHMARK_API_KEY", prevBench);
+  }
+});
+
+test("O Luna/Terra harness: production key present, benchmark absent => provider HTTP 0", () => {
+  const prevProd = process.env.CHEAPER_INFERENCE_API_KEY;
+  const prevBench = process.env.CHEAPER_INFERENCE_BENCHMARK_API_KEY;
+  const prevAllow = process.env.WORLD_MOTION_V1_1_ALLOW_API;
+  process.env.CHEAPER_INFERENCE_API_KEY = PROD_FIXTURE;
+  delete process.env.CHEAPER_INFERENCE_BENCHMARK_API_KEY;
+  process.env.WORLD_MOTION_V1_1_ALLOW_API = "1";
+  const result = spawnSync(
+    "node",
+    [
+      "--conditions=react-server",
+      "--import",
+      "tsx",
+      "scripts/world-motion-v1_1-weighted-rotation-gate.ts",
+    ],
+    {
+      cwd: process.cwd(),
+      env: process.env,
+      encoding: "utf8",
+      timeout: 120_000,
+    }
+  );
+  try {
+    assert.equal(result.status, 0);
+    const out = `${result.stdout}\n${result.stderr}`;
+    assert.match(out, /NOT_RUN.*CHEAPER_INFERENCE_BENCHMARK_API_KEY/);
+    assert.match(out, /provider calls=0/);
+    assert.doesNotMatch(out, new RegExp(PROD_FIXTURE));
+  } finally {
+    restoreEnv("CHEAPER_INFERENCE_API_KEY", prevProd);
+    restoreEnv("CHEAPER_INFERENCE_BENCHMARK_API_KEY", prevBench);
+    restoreEnv("WORLD_MOTION_V1_1_ALLOW_API", prevAllow);
+  }
+});
+
 test("I transport errors do not echo credential fixture values", async () => {
   const prevProd = process.env.CHEAPER_INFERENCE_API_KEY;
   process.env.CHEAPER_INFERENCE_API_KEY = PROD_FIXTURE;

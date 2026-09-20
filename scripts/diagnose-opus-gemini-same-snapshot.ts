@@ -26,6 +26,7 @@ import {
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   buildCheaperInferenceHeaders,
 } from "../src/lib/cheaperInferenceConfig";
+import { exitIfBenchmarkCheaperInferenceApiKeyMissing } from "./lib/benchmarkCheaperInferenceCredential";
 import { parseOpenRouterUsage } from "../src/lib/openRouterUsage";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "../src/lib/responseLengthConstants";
 
@@ -42,9 +43,12 @@ function redact(value: unknown): unknown {
   return value;
 }
 
-async function liveProbe(modelId: string, snapshot: ReturnType<typeof buildLikeScaleSnapshot>) {
-  const key = process.env.CHEAPER_INFERENCE_API_KEY?.trim();
-  if (!key) throw new Error("CHEAPER_INFERENCE_API_KEY missing");
+async function liveProbe(
+  modelId: string,
+  snapshot: ReturnType<typeof buildLikeScaleSnapshot>,
+  benchmarkKey: string
+) {
+  const key = benchmarkKey;
 
   const built = buildContext({
     ...snapshot,
@@ -176,9 +180,10 @@ async function main() {
   const report = diagnoseSameSnapshot(snapshot);
   let live: Record<string, unknown> | undefined;
   if (LIVE) {
+    const benchmarkKey = exitIfBenchmarkCheaperInferenceApiKeyMissing("DIAG_STATUS");
     live = {
-      gemini: await liveProbe("gemini-3.1-pro-preview", snapshot),
-      opus: await liveProbe("claude-opus-5", snapshot),
+      gemini: await liveProbe("gemini-3.1-pro-preview", snapshot, benchmarkKey),
+      opus: await liveProbe("claude-opus-5", snapshot, benchmarkKey),
     };
   }
   const text = formatReport(report, live);

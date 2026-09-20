@@ -28,7 +28,12 @@ import {
   resolveProviderRawPoolExchangeCount,
 } from "../src/lib/hybridMemory";
 import { estimateTokens } from "../src/lib/tokenEstimate";
-import { adaptCheaperInferenceChatBody } from "../src/lib/cheaperInferenceConfig";
+import {
+  adaptCheaperInferenceChatBody,
+  buildCheaperInferenceHeaders,
+  CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+} from "../src/lib/cheaperInferenceConfig";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 import {
   auditTokenAccounting,
   formatTokenAccountingAudit,
@@ -202,18 +207,15 @@ async function maybeSampleProviderTokens(wireJson: string): Promise<{
   prompt_tokens: number | null;
   cached_tokens: number | null;
 }> {
-  const key = process.env.CHEAPER_INFERENCE_API_KEY?.trim();
+  const key = resolveBenchmarkCheaperInferenceApiKey();
   if (!key) return { prompt_tokens: null, cached_tokens: null };
   try {
     const body = JSON.parse(wireJson) as Record<string, unknown>;
     body.stream = false;
     body.max_tokens = 64;
-    const res = await fetch("https://api.cheaperinference.com/v1/chat/completions", {
+    const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
+      headers: buildCheaperInferenceHeaders(key),
       body: JSON.stringify(body),
     });
     if (!res.ok) return { prompt_tokens: null, cached_tokens: null };
