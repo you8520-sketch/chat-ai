@@ -3,25 +3,20 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import StudioButton from "@/components/studio/StudioButton";
-import StudioCard from "@/components/studio/StudioCard";
 import { StudioBackLink } from "@/components/studio/StudioEmptyState";
 import { StudioInput, StudioTextarea } from "@/components/studio/StudioInput";
 import StudioSaveBar from "@/components/studio/StudioSaveBar";
 import {
   LOREBOOK_CONTENT_MAX,
-  LOREBOOK_ENTRY_MAX,
   LOREBOOK_KEYWORDS_PER_ENTRY,
   LOREBOOK_NAME_LIMIT,
   LOREBOOK_SUMMARY_LIMIT,
   parseKeywordField,
-  type KeywordLorebookEntryInput,
 } from "@/lib/keywordLorebooks";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 const FORM_ID = "studio-lorebook-form";
 const keywordSeparator = "│";
-
-const emptyEntry = (): KeywordLorebookEntryInput => ({ keywords: "", content: "" });
 
 type Props = {
   lorebookId?: number;
@@ -97,7 +92,7 @@ function KeywordInput({
       </div>
       <div className="mt-2 flex items-center justify-between gap-3">
         <span className={studioType.helper}>
-          등록한 키워드가 대화에 나오면 이 항목이 활성화됩니다.
+          등록한 키워드가 대화에 나오면 이 로어북이 활성화됩니다.
         </span>
         <span className={studioType.counter}>
           {keywords.length} / {LOREBOOK_KEYWORDS_PER_ENTRY}
@@ -112,7 +107,8 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
   const isEdit = lorebookId != null;
   const [name, setName] = useState("");
   const [summary, setSummary] = useState("");
-  const [entries, setEntries] = useState<KeywordLorebookEntryInput[]>([emptyEntry()]);
+  const [keywords, setKeywords] = useState("");
+  const [content, setContent] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [bootLoading, setBootLoading] = useState(isEdit);
@@ -131,8 +127,8 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
         if (cancelled) return;
         setName(data.lorebook?.name ?? "");
         setSummary(data.lorebook?.summary ?? "");
-        const loaded = Array.isArray(data.entries) ? data.entries : [];
-        setEntries(loaded.length > 0 ? loaded : [emptyEntry()]);
+        setKeywords(String(data.keywords ?? ""));
+        setContent(String(data.content ?? ""));
       } catch {
         if (!cancelled) setError("불러오는 중 오류가 발생했습니다.");
       } finally {
@@ -144,19 +140,6 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
     };
   }, [isEdit, lorebookId]);
 
-  function updateEntry(index: number, patch: Partial<KeywordLorebookEntryInput>) {
-    setEntries((prev) => prev.map((e, i) => (i === index ? { ...e, ...patch } : e)));
-  }
-
-  function addEntry() {
-    if (entries.length >= LOREBOOK_ENTRY_MAX) return;
-    setEntries((prev) => [...prev, emptyEntry()]);
-  }
-
-  function removeEntry(index: number) {
-    setEntries((prev) => (prev.length <= 1 ? [emptyEntry()] : prev.filter((_, i) => i !== index)));
-  }
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -165,7 +148,7 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
       const res = await fetch(isEdit ? `/api/lorebooks/${lorebookId}` : "/api/lorebooks", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, summary, entries }),
+        body: JSON.stringify({ name, summary, keywords, content }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -187,8 +170,6 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
     );
   }
 
-  const filledCount = entries.filter((e) => e.keywords.trim() || e.content.trim()).length;
-
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 pb-32 sm:py-8">
       <StudioBackLink href="/studio?tab=lorebooks">← 제작 · 로어북</StudioBackLink>
@@ -197,13 +178,11 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
         {isEdit ? "로어북 수정" : "로어북 제작"}
       </h1>
       <p className={`${studioType.helper} mt-2`}>
-        유저 입력에 등록한 키워드가 포함되면 해당 내용이 프롬프트에{" "}
-        <b className="font-semibold text-zinc-200">번역 없이</b> 그대로 주입됩니다. 키워드는
-        항목마다 최대 {LOREBOOK_KEYWORDS_PER_ENTRY}개까지 등록할 수 있어요.
+        하나의 로어북은 키워드와 내용 1세트입니다. 유저 입력에 키워드가 포함되면 내용이{" "}
+        <b className="font-semibold text-zinc-200">번역 없이</b> 프롬프트에 주입됩니다.
       </p>
       <p className={`${studioType.caption} mt-1`}>
-        예: <span className="text-zinc-300">카드, 동료, 제이</span>처럼 키워드를 하나씩 입력하고
-        Enter를 누르세요.
+        내용 최대 {LOREBOOK_CONTENT_MAX}자 · 키워드 최대 {LOREBOOK_KEYWORDS_PER_ENTRY}개
       </p>
 
       <form id={FORM_ID} onSubmit={submit} className="mt-8 space-y-6">
@@ -224,69 +203,18 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
         />
 
         <div>
-          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <p className={studioType.label}>항목</p>
-              <p className={studioType.helper}>
-                항목 내용 {LOREBOOK_CONTENT_MAX}자 · 최대 {LOREBOOK_ENTRY_MAX}개
-              </p>
-            </div>
-            <p className={studioType.counter}>
-              {filledCount} / {LOREBOOK_ENTRY_MAX}
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {entries.map((entry, index) => (
-              <StudioCard
-                key={index}
-                title={`#${index + 1}`}
-                trailing={
-                  <StudioButton
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeEntry(index)}
-                    className="text-zinc-400 hover:text-rose-300"
-                  >
-                    삭제
-                  </StudioButton>
-                }
-              >
-                <div>
-                  <p className={studioType.label}>활성화 키워드</p>
-                  <KeywordInput
-                    value={entry.keywords}
-                    onChange={(next) => updateEntry(index, { keywords: next })}
-                  />
-                </div>
-                <StudioTextarea
-                  label="내용"
-                  rows={4}
-                  placeholder="키워드가 유저 입력에 포함되면 주입할 설정·설명"
-                  value={entry.content}
-                  counter={{ now: entry.content.length, max: LOREBOOK_CONTENT_MAX }}
-                  onChange={(e) =>
-                    updateEntry(index, {
-                      content: e.target.value.slice(0, LOREBOOK_CONTENT_MAX),
-                    })
-                  }
-                />
-              </StudioCard>
-            ))}
-          </div>
-
-          {entries.length < LOREBOOK_ENTRY_MAX && (
-            <StudioButton
-              type="button"
-              variant="secondary"
-              onClick={addEntry}
-              className="mt-3 w-full border-dashed"
-            >
-              + 항목 추가
-            </StudioButton>
-          )}
+          <p className={studioType.label}>활성화 키워드 *</p>
+          <KeywordInput value={keywords} onChange={setKeywords} />
         </div>
+
+        <StudioTextarea
+          label="내용 *"
+          rows={6}
+          placeholder="키워드가 유저 입력에 포함되면 주입할 설정·설명"
+          value={content}
+          counter={{ now: content.length, max: LOREBOOK_CONTENT_MAX }}
+          onChange={(e) => setContent(e.target.value.slice(0, LOREBOOK_CONTENT_MAX))}
+        />
 
         <StudioButton href="/create" variant="secondary">
           캐릭터 제작으로

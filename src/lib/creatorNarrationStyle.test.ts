@@ -73,7 +73,7 @@ describe("creatorNarrationStyle", () => {
       },
       assets: [],
       selectedWorldRef: "",
-      selectedLorebookId: "",
+      selectedLorebookIds: [],
     } as CharacterCreateDraft;
     assert.equal(draftNarrationStyleInstructions(legacy), "");
   });
@@ -107,7 +107,7 @@ describe("creatorNarrationStyle", () => {
       },
       assets: [],
       selectedWorldRef: "",
-      selectedLorebookId: "",
+      selectedLorebookIds: [],
     } as CharacterCreateDraft;
     assert.equal(draftNarrationStyleInstructions(draft), "짧은 문장 위주");
   });

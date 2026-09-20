@@ -15,6 +15,7 @@ import { listCharacterStatusWidgetTriggers } from "@/lib/statusWidgetTriggers";
 import type { SimulationImportSnapshot } from "@/lib/simulationMode";
 import { parseSimulationVisualSubjectsJson } from "@/lib/simulationVisualSubjects";
 import { parseVisualSubjectsJson } from "@/lib/visualSubjects";
+import { listCharacterCreatorLorebookAttachmentIds } from "@/lib/creatorLorebook";
 import { deriveCharacterWorldSourceKind } from "@/lib/worldPermissions";
 
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -165,7 +166,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     world_id: c.world_id,
     source_world_share_id: c.source_world_share_id,
     world_source_kind: worldSourceKind,
-    lorebook_id: c.lorebook_id,
+    lorebook_ids: listCharacterCreatorLorebookAttachmentIds(db, c.id),
     status_window_prompt: c.status_window_prompt ?? "",
     status_widget_json: c.status_widget_json ?? "",
     status_widget_triggers: statusWidgetTriggers,

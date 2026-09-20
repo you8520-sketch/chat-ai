@@ -48,6 +48,7 @@ import {
   savedShareWorldLibraryRef,
   worldLibraryRef,
 } from "@/lib/worlds";
+import { CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT } from "@/lib/creatorLorebook";
 import type { KeywordLorebookListItem } from "@/lib/keywordLorebooks";
 import GenrePicker from "@/components/GenrePicker";
 import ToggleSwitch from "@/components/ToggleSwitch";
@@ -211,7 +212,7 @@ export default function CreateCharacter({
   const [savedLorebooks, setSavedLorebooks] = useState<
     KeywordLorebookListItem[]
   >([]);
-  const [selectedLorebookId, setSelectedLorebookId] = useState<number | "">("");
+  const [selectedLorebookIds, setSelectedLorebookIds] = useState<number[]>([]);
   const [lorebooksLoading, setLorebooksLoading] = useState(true);
   const [editLoading, setEditLoading] = useState(isEditMode);
   const [editLoadError, setEditLoadError] = useState("");
@@ -274,7 +275,7 @@ export default function CreateCharacter({
       gender: input.gender,
       world_id: selectedWorldRef.startsWith("world:") ? selectedWorldRef.slice(6) : "",
       world_borrow_id: selectedWorldRef.startsWith("borrow:") ? selectedWorldRef.slice(7) : "",
-      lorebook_id: selectedLorebookId === "" ? "" : Number(selectedLorebookId),
+      lorebook_ids: selectedLorebookIds,
       narration_style_instructions: input.narration_style_instructions,
     });
   }
@@ -286,7 +287,7 @@ export default function CreateCharacter({
       assets,
       visualSubjects,
       selectedWorldRef,
-      selectedLorebookId,
+      selectedLorebookIds,
       pageTab,
       simulationImports,
     };
@@ -328,7 +329,13 @@ export default function CreateCharacter({
           ? `world:${draft.selectedWorldId}`
           : "")
     );
-    setSelectedLorebookId(draft.selectedLorebookId);
+    setSelectedLorebookIds(
+      Array.isArray(draft.selectedLorebookIds)
+        ? draft.selectedLorebookIds
+        : draft.selectedLorebookId !== "" && draft.selectedLorebookId != null
+          ? [Number(draft.selectedLorebookId)]
+          : []
+    );
     setPageTab(
       draft.pageTab === "preview"
         ? "preview"
@@ -705,7 +712,13 @@ export default function CreateCharacter({
         );
         setWorldSourceKind((data.world_source_kind as CharacterWorldSourceKind | undefined) ?? null);
         setWorldDetach(false);
-        setSelectedLorebookId(data.lorebook_id ?? "");
+        setSelectedLorebookIds(
+          Array.isArray(data.lorebook_ids)
+            ? data.lorebook_ids.map(Number).filter((id: number) => Number.isFinite(id) && id > 0)
+            : data.lorebook_id != null && data.lorebook_id !== ""
+              ? [Number(data.lorebook_id)]
+              : []
+        );
         editPromptBaselineRef.current = JSON.stringify({
           name: String(data.name ?? "").trim(),
           content_kind: data.content_kind === "simulation" ? "simulation" : "character",
@@ -726,7 +739,7 @@ export default function CreateCharacter({
             : [],
           gender: data.gender ?? "",
           world_id: data.world_id ?? "",
-          lorebook_id: data.lorebook_id ?? "",
+          lorebook_ids: Array.isArray(data.lorebook_ids) ? data.lorebook_ids : [],
           narration_style_instructions: data.narration_style_instructions ?? "",
         });
         const parsedWidget = parseStatusWidgetJson(data.status_widget_json);
@@ -1055,8 +1068,7 @@ export default function CreateCharacter({
       world_detach: worldDetach && selectedWorldRef === "",
       world_id: worldSelection.worldId,
       world_borrow_id: worldSelection.borrowId,
-      lorebook_id:
-        selectedLorebookId === "" ? undefined : selectedLorebookId,
+      lorebook_ids: selectedLorebookIds,
     };
     const canUseFastEditSave = promptUnchangedForEdit;
 
@@ -1720,43 +1732,79 @@ export default function CreateCharacter({
               <div>
                 <label className={label}>키워드 로어북</label>
                 <p className="mb-2 text-xs text-zinc-400">
-                  유저 입력에 키워드가 포함되면 해당 항목 내용이 번역 없이
-                  프롬프트에 주입됩니다.
+                  유저 입력에 키워드가 포함되면 해당 로어북 내용이 번역 없이 프롬프트에
+                  주입됩니다. 캐릭터당 최대 {CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT}개까지 연결할
+                  수 있습니다.
                 </p>
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <select
-                    className={selectCls}
-                    value={selectedLorebookId}
-                    disabled={lorebooksLoading}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setSelectedLorebookId(v === "" ? "" : Number(v));
-                    }}
-                  >
-                    <option value="">연결 안 함</option>
-                    {savedLorebooks.map((lb) => (
-                      <option key={lb.id} value={lb.id}>
-                        {lb.name}
-                        {lb.summary ? ` — ${lb.summary}` : ""} ({lb.entryCount}
-                        항목)
-                      </option>
-                    ))}
-                  </select>
-                  {!lorebooksLoading && savedLorebooks.length === 0 && (
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs text-zinc-500">
+                    선택 {selectedLorebookIds.length} / {CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT}
+                  </span>
+                  {!lorebooksLoading && savedLorebooks.length === 0 ? (
                     <Link
                       href="/lorebook/create"
                       className="text-xs text-zinc-300 hover:underline"
                     >
                       로어북 먼저 만들기
                     </Link>
-                  )}
-                  {savedLorebooks.length > 0 && (
+                  ) : (
                     <Link
                       href="/lorebook"
                       className="text-xs text-zinc-500 hover:text-zinc-300"
                     >
                       관리
                     </Link>
+                  )}
+                </div>
+                <div className="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-white/10 bg-[#161922] p-3">
+                  {lorebooksLoading ? (
+                    <p className="text-xs text-zinc-500">불러오는 중...</p>
+                  ) : savedLorebooks.length === 0 ? (
+                    <p className="text-xs text-zinc-500">등록된 로어북이 없습니다.</p>
+                  ) : (
+                    savedLorebooks.map((lb) => {
+                      const checked = selectedLorebookIds.includes(lb.id);
+                      const atLimit =
+                        !checked &&
+                        selectedLorebookIds.length >= CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT;
+                      return (
+                        <label
+                          key={lb.id}
+                          className={cn(
+                            "flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 text-sm",
+                            checked
+                              ? "border-violet-500/40 bg-violet-500/10 text-zinc-100"
+                              : "border-white/5 text-zinc-300 hover:border-white/15",
+                            atLimit && "cursor-not-allowed opacity-50"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-1"
+                            checked={checked}
+                            disabled={atLimit}
+                            onChange={(e) => {
+                              setSelectedLorebookIds((prev) => {
+                                if (e.target.checked) {
+                                  if (prev.includes(lb.id)) return prev;
+                                  if (prev.length >= CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT) {
+                                    return prev;
+                                  }
+                                  return [...prev, lb.id];
+                                }
+                                return prev.filter((id) => id !== lb.id);
+                              });
+                            }}
+                          />
+                          <span>
+                            <span className="font-medium">{lb.name}</span>
+                            {lb.summary ? (
+                              <span className="text-zinc-500"> — {lb.summary}</span>
+                            ) : null}
+                          </span>
+                        </label>
+                      );
+                    })
                   )}
                 </div>
               </div>
