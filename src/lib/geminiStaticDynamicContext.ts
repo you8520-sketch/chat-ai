@@ -23,7 +23,7 @@ const STATIC_SECTION_IDS = new Set([
 const VOLATILE_SECTION_IDS = new Set([
   "current-memory",
   "relationship-meta",
-  "user-note-reference",
+  "user-lorebook",
 ]);
 
 export function isVolatilePromptSectionId(id: string): boolean {

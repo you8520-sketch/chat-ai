@@ -64,13 +64,14 @@ export function ensureLegacyUserNotePreset(userId: number): void {
 
 export function validateNotePresetInput(
   title: string,
-  content: string
+  content: string,
+  focusMaxChars?: number
 ): { ok: true } | { ok: false; error: string } {
   const trimmedTitle = sanitizeNotePresetTitle(title);
   if (!trimmedTitle) {
     return { ok: false, error: "유저 노트 제목을 입력하세요." };
   }
-  return validateUserNoteFocusPreset(content);
+  return validateUserNoteFocusPreset(content, focusMaxChars);
 }
 
 function normalizePresetContent(content: string): string {
@@ -80,9 +81,10 @@ function normalizePresetContent(content: string): string {
 export function createUserNotePreset(
   userId: number,
   title: string,
-  content: string
+  content: string,
+  focusMaxChars?: number
 ): UserNotePresetItem | null {
-  const check = validateNotePresetInput(title, content);
+  const check = validateNotePresetInput(title, content, focusMaxChars);
   if (!check.ok) return null;
   const db = getDb();
   const info = db
@@ -94,13 +96,14 @@ export function createUserNotePreset(
 export function updateUserNotePreset(
   userId: number,
   presetId: number,
-  patch: { title?: string; content?: string }
+  patch: { title?: string; content?: string },
+  focusMaxChars?: number
 ): UserNotePresetItem | null {
   const prev = getUserNotePresetById(userId, presetId);
   if (!prev) return null;
   const nextTitle = patch.title != null ? sanitizeNotePresetTitle(patch.title) : prev.title;
   const nextContent = patch.content != null ? normalizePresetContent(patch.content) : prev.content;
-  const check = validateNotePresetInput(nextTitle, nextContent);
+  const check = validateNotePresetInput(nextTitle, nextContent, focusMaxChars);
   if (!check.ok) return null;
   getDb()
     .prepare("UPDATE user_note_presets SET title=?, content=? WHERE id=? AND user_id=?")

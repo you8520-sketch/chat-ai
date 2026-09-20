@@ -7,7 +7,7 @@ export type OpenRouterSystemSplit = {
   systemRulesBlock: string;
   /** [2] Character Critical + [6] 로어북 + [1.4] prose + [1.45] handoff (캐시 breakpoint 2) */
   characterSettingsBlock: string;
-  /** 유저노트 확장 RAG · memory · tail — 매 턴 변동 (비캐시, breakpoint 2 아래) */
+  /** User Lorebook · memory · tail — 매 턴 변동 (비캐시, breakpoint 2 아래) */
   dynamicBlock: string;
 };
 

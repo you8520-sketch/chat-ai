@@ -1,0 +1,35 @@
+import type { User } from "@/lib/auth-types";
+import { isSubscribed } from "@/lib/auth-types";
+
+export type SubscriptionMemoryCapability = {
+  focusMaxChars: number;
+  userLorebookActiveEntryMax: number;
+  userLorebookActiveContentMaxChars: number;
+  userLorebookTurnInjectMaxChars: number;
+};
+
+const FREE_CAPABILITY: SubscriptionMemoryCapability = {
+  focusMaxChars: 1_000,
+  userLorebookActiveEntryMax: 10,
+  userLorebookActiveContentMaxChars: 5_000,
+  userLorebookTurnInjectMaxChars: 2_500,
+};
+
+const SUBSCRIBED_CAPABILITY: SubscriptionMemoryCapability = {
+  focusMaxChars: 2_000,
+  userLorebookActiveEntryMax: 50,
+  userLorebookActiveContentMaxChars: 20_000,
+  userLorebookTurnInjectMaxChars: 4_000,
+};
+
+/** Canonical subscription memory capability — do not scatter tier checks elsewhere. */
+export function resolveSubscriptionMemoryCapability(
+  user: Pick<User, "sub_until"> | null | undefined
+): SubscriptionMemoryCapability {
+  if (user && isSubscribed(user as User)) {
+    return SUBSCRIBED_CAPABILITY;
+  }
+  return FREE_CAPABILITY;
+}
+
+export { FREE_CAPABILITY, SUBSCRIBED_CAPABILITY };

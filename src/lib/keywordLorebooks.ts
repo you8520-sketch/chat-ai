@@ -377,7 +377,7 @@ export function saveActiveLorebookMatches(
   }
 }
 
-function mergeMatches(direct: KeywordLorebookMatch[], carryover: KeywordLorebookMatch[]): KeywordLorebookMatch[] {
+export function mergeMatches(direct: KeywordLorebookMatch[], carryover: KeywordLorebookMatch[]): KeywordLorebookMatch[] {
   const merged: KeywordLorebookMatch[] = [];
   const seen = new Set<string>();
   for (const match of [...direct, ...carryover]) {
