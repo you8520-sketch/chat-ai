@@ -12,7 +12,8 @@ export type ParsedEyeTraits = {
   negatives: string[];
 };
 
-const ALREADY_NORMALIZED = /^Eyes \(explicit iris\/pupil ownership\):/m;
+const ALREADY_NORMALIZED =
+  /(?:^Eyes \(explicit iris\/pupil ownership\):|^Immutable eye traits for .+ \(exclusive — do not transfer to other subjects\):)/m;
 
 const KO_COLOR = [
   [/다크\s*그레이|어두운\s*회(?:색)?/i, "dark gray"],
@@ -249,18 +250,27 @@ function renderEyeTraitPromptLines(traits: ParsedEyeTraits): string[] {
   return lines;
 }
 
-export function normalizeSavedAppearanceForProvider(raw: string): string {
+export function normalizeSavedAppearanceForProvider(
+  raw: string,
+  opts?: { subjectName?: string }
+): string {
   const text = String(raw ?? "")
     .replace(/\r\n?/g, "\n")
     .trim();
   if (!text) return "";
   if (ALREADY_NORMALIZED.test(text)) return text;
 
+  const subjectName = String(opts?.subjectName ?? "").trim();
   const traits = extractEyeTraits(text);
-  const eyeLines = renderEyeTraitPromptLines(traits);
+  const eyeLines = renderEyeTraitPromptLines(traits).map((line) =>
+    subjectName ? `${subjectName} ONLY — ${line}` : line
+  );
   if (eyeLines.length === 0) return text;
 
   const body = stripEyePhrases(text);
-  const eyeBlock = ["Eyes (explicit iris/pupil ownership):", ...eyeLines].join("\n");
+  const eyeHeader = subjectName
+    ? `Immutable eye traits for ${subjectName} (exclusive — do not transfer to other subjects):`
+    : "Eyes (explicit iris/pupil ownership):";
+  const eyeBlock = [eyeHeader, ...eyeLines].join("\n");
   return body ? `${eyeBlock}\n${body}` : eyeBlock;
 }
