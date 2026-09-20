@@ -120,6 +120,17 @@ describe("Creator/User lorebook API scope isolation", () => {
   });
 });
 
+describe("User Lorebook server validation", () => {
+  it("rejects entry content over the shared 800-char limit instead of truncating", () => {
+    const normalized = normalizeUserLorebookEntries([
+      { keywords: "TOO_LONG", content: "x".repeat(801), enabled: true },
+    ]);
+    assert.equal(normalized.ok, false);
+    if (normalized.ok) return;
+    assert.match(normalized.error, /800/);
+  });
+});
+
 describe("User Lorebook normalization enabled index", () => {
   it("preserves enabled flags when blank rows are skipped", () => {
     const normalized = normalizeUserLorebookEntries([
