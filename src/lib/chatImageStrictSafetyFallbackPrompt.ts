@@ -28,6 +28,7 @@ import {
 } from "@/lib/chatLdIllustrationGeneration";
 import { genderWordForImagePrompt } from "@/lib/chatImageGender";
 import {
+  prepareSubjectsForStrictFallback,
   renderChatImageVisualIdentity,
   type ChatImageVisualSubject,
 } from "@/lib/chatImageVisualIdentity";
@@ -58,17 +59,6 @@ import {
   projectSceneBlockForSafeImageGeneration,
 } from "@/lib/chatImageSafeVisualProjection";
 import type { ContentKind } from "@/lib/simulationMode";
-
-/** Tier-2 uses reference identity only — omit untrusted freeform saved appearance prose. */
-function subjectsForStrictFallback(
-  subjects: readonly ChatImageVisualSubject[]
-): ChatImageVisualSubject[] {
-  return subjects.map((subject) => ({
-    ...subject,
-    savedAppearance: "",
-    appearanceMode: subject.referenceImageUrl ? "image_only" : subject.appearanceMode,
-  }));
-}
 
 /** Tier 2 always uses base safe depiction — never adult-grounded allowance. */
 export const STRICT_SAFE_DEPICTION = buildIllustrationSafeDepiction({ adultGrounded: false });
@@ -308,7 +298,7 @@ export function buildStrictLdDuoFallbackPrompt(opts: {
   return [
     CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING,
     renderChatImageVisualIdentity({
-      subjects: subjectsForStrictFallback(opts.subjects),
+      subjects: prepareSubjectsForStrictFallback(opts.subjects),
       hasTemplate: false,
     }),
     buildChatImagePairGenderLock({
@@ -349,7 +339,7 @@ export function buildStrictLdPartyFallbackPrompt(opts: {
     "CAST:",
     ...opts.cast.map((member, index) => formatStrictCastLine(member, index)),
     renderChatImageVisualIdentity({
-      subjects: subjectsForStrictFallback(opts.subjects),
+      subjects: prepareSubjectsForStrictFallback(opts.subjects),
       hasTemplate: false,
     }),
     buildImageGenderLockPrompt(
@@ -389,7 +379,7 @@ export function buildStrictComicFallbackPrompt(opts: {
   /** Structural blank-balloon slot metadata for hybrid Tier-2 (text-free, provider-safe). */
   balloonSlots?: ReadonlyArray<{ panelIndex: number; slots: ComicBalloonSlotMetadata[] }>;
 }): string {
-  const strictSubjects = subjectsForStrictFallback(opts.subjects);
+  const strictSubjects = prepareSubjectsForStrictFallback(opts.subjects);
   const castCount =
     opts.castManifest && opts.castSelected?.length
       ? opts.castSelected.length
@@ -465,7 +455,7 @@ export function buildStrictSdFallbackPrompt(opts: {
   subjects: readonly ChatImageVisualSubject[];
   moodLabel?: string;
 }): string {
-  const strictSubjects = subjectsForStrictFallback(opts.subjects);
+  const strictSubjects = prepareSubjectsForStrictFallback(opts.subjects);
   return [
     "Create one polished chibi SD duo illustration inside a decorative gift box frame.",
     renderChatImageVisualIdentity({ subjects: strictSubjects, hasTemplate: true }),
@@ -505,7 +495,7 @@ export function buildStrictCoupleStampFallbackPrompt(opts: {
   personaGender: ImagePromptGender;
   subjects: readonly ChatImageVisualSubject[];
 }): string {
-  const strictSubjects = subjectsForStrictFallback(opts.subjects);
+  const strictSubjects = prepareSubjectsForStrictFallback(opts.subjects);
   return [
     "Create one polished couple stamp / sticker illustration of two chibi characters.",
     renderChatImageVisualIdentity({ subjects: strictSubjects, hasTemplate: true }),
@@ -528,7 +518,7 @@ export function buildStrictEmoticonFallbackPrompt(opts: {
   personaGender: ImagePromptGender;
   subjects: readonly ChatImageVisualSubject[];
 }): string {
-  const strictSubjects = subjectsForStrictFallback(opts.subjects);
+  const strictSubjects = prepareSubjectsForStrictFallback(opts.subjects);
   return [
     "Create one polished emoticon / sticker sheet with cute chibi expressions.",
     renderChatImageVisualIdentity({ subjects: strictSubjects, hasTemplate: true }),

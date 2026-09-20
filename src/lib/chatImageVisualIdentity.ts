@@ -225,6 +225,49 @@ export function clipSavedAppearanceForPrompt(
     .slice(0, CHAT_IMAGE_SAVED_APPEARANCE_PROMPT_MAX);
 }
 
+function isTrustedStrictFallbackAppearanceSource(
+  subject: ChatImageVisualSubject
+): boolean {
+  return (
+    subject.sourceKind === "persona" ||
+    subject.sourceKind === "main_character" ||
+    subject.trustedSavedAppearance === true
+  );
+}
+
+/**
+ * Tier-2 strict fallback keeps provider-safe immutable visual traits from
+ * server-trusted sources only — not raw scene prose or client-injected text.
+ */
+export function clipSavedAppearanceForStrictFallback(
+  subject: ChatImageVisualSubject
+): string {
+  const raw = String(subject.savedAppearance ?? "").trim();
+  if (!raw || !isTrustedStrictFallbackAppearanceSource(subject)) return "";
+  const visualOnly = extractVisualAppearance(raw) || raw;
+  return clipSavedAppearanceForPrompt(normalizeSavedAppearanceForProvider(visualOnly));
+}
+
+/** Canonical strict-fallback subject prep — preserves trusted immutable traits. */
+export function prepareSubjectsForStrictFallback(
+  subjects: readonly ChatImageVisualSubject[]
+): ChatImageVisualSubject[] {
+  return subjects.map((subject) => {
+    const strictSaved = clipSavedAppearanceForStrictFallback(subject);
+    const hasReference = Boolean(String(subject.referenceImageUrl ?? "").trim());
+    return {
+      ...subject,
+      savedAppearance: strictSaved,
+      appearanceMode:
+        strictSaved && hasReference
+          ? "image_plus_saved"
+          : hasReference
+            ? "image_only"
+            : subject.appearanceMode,
+    };
+  });
+}
+
 export function previewVisualAppearance(
   text: string,
   max = CHAT_IMAGE_APPEARANCE_PREVIEW_MAX
@@ -598,7 +641,8 @@ export function renderChatImageStyleFidelityContract(opts: {
   }
   if (multiSubject) {
     lines.push(
-      "When multiple subject references differ stylistically, converge on one coherent finish derived from those references — never replace reference-derived style with a generic polished default."
+      "When multiple subject references differ stylistically, converge on one coherent finish derived from those references — never replace reference-derived style with a generic polished default.",
+      "When converging finish, preserve each subject's immutable identity traits from their SUBJECT identity block (iris, pupil, hair, face marks) — do not average or drop them."
     );
   } else if (subjectCount === 1) {
     lines.push(
