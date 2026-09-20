@@ -1,0 +1,25 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "postcss": {
+      "name": "postcss",
+      "severity": "high",
+      "via": [
+        {
+          "source": 1124252,
+          "name": "postcss",
+          "url": "https://github.com/advisories/GHSA-6g55-p6wh-862q",
+          "severity": "high",
+          "range": "<=8.5.11"
+        },
+        {
+          "source": 1139510,
+          "name": "postcss",
+          "url": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+          "severity": "high",
+          "range": "<=8.5.17"
+        }
+      ]
+    }
+  }
+}
