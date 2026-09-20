@@ -1,0 +1,54 @@
+name: Validate runtime image
+
+on:
+  pull_request:
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "railway.toml"
+      - "nixpacks.toml"
+      - "server.js"
+      - "scripts/runtime-image/**"
+      - ".github/workflows/validate-runtime-image.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SESSION_SECRET: "01234567890123456789012345678901"
+      WITHDRAWAL_ENCRYPTION_KEY: "01234567890123456789012345678901"
+      DISABLE_PAYOUT_SCHEDULER: "1"
+      DISABLE_FINANCE_SCHEDULER: "1"
+      DISABLE_DERIVED_CACHE_WORKER: "1"
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      DISABLE_WEB_PUSH: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+      - run: npm run lint
+      - run: node --import tsx --test scripts/runtime-image/verifyPrunedRuntimeTree.test.ts
+      - run: npm run build
+      - name: Measure runtime tree before prune
+        run: |
+          echo "BEFORE packages=$(ls -1 node_modules | wc -l)"
+          du -sh node_modules
+      - run: npm prune --omit=dev
+      - name: Verify pruned runtime tree
+        run: node --import tsx scripts/runtime-image/verifyPrunedRuntimeTree.ts
+      - name: Production boot smoke (/health)
+        run: node --import tsx scripts/runtime-image/productionBootSmoke.ts
+      - name: Custom-server boot import boundary
+        run: node --import tsx --test --test-concurrency=1 src/lib/customServerBootImportBoundary.test.ts
+      - name: Check production npm audit against baseline
+        run: |
+          npm audit --omit=dev --json > /tmp/production-audit.json || true
+          node --import tsx scripts/dependency-security/checkProductionNpmAudit.ts /tmp/production-audit.json
