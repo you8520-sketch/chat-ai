@@ -140,6 +140,15 @@ describe("chatImageEyeTraits", () => {
     assert.doesNotMatch(normalized, /dark\/black/);
   });
 
+  it("EYE_SUBJECT_BIND prefixes immutable eye traits with subject name", () => {
+    const normalized = normalizeSavedAppearanceForProvider("검은눈동자 붉은 동공", {
+      subjectName: "리프트",
+    });
+    assert.match(normalized, /Immutable eye traits for 리프트/);
+    assert.match(normalized, /리프트 ONLY — Pupil color: red/);
+    assert.match(normalized, /리프트 ONLY — Iris color: black/);
+  });
+
   it("EYE_BULLET_RESIDUE strips punctuation-only bullets after eye phrase removal", () => {
     const input = "- black hair\n- black pupils, red irises\n- white shirt";
     const normalized = normalizeSavedAppearanceForProvider(input);

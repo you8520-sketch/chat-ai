@@ -1,5 +1,8 @@
 import type { ImagePromptGender } from "@/lib/chatImageGeneration";
-import { normalizeSavedAppearanceForProvider } from "@/lib/chatImageEyeTraits";
+import {
+  normalizeSavedAppearanceForProvider,
+  parseEyeTraitsFromClause,
+} from "@/lib/chatImageEyeTraits";
 
 export const CHAT_IMAGE_VISUAL_APPEARANCE_EXTRACT_MAX = 1_600;
 export const CHAT_IMAGE_SAVED_APPEARANCE_PROMPT_MAX = 700;
@@ -245,7 +248,10 @@ export function clipSavedAppearanceForStrictFallback(
   const raw = String(subject.savedAppearance ?? "").trim();
   if (!raw || !isTrustedStrictFallbackAppearanceSource(subject)) return "";
   const visualOnly = extractVisualAppearance(raw) || raw;
-  return clipSavedAppearanceForPrompt(normalizeSavedAppearanceForProvider(visualOnly));
+  const subjectName = subject.name.trim() || subject.key;
+  return clipSavedAppearanceForPrompt(
+    normalizeSavedAppearanceForProvider(visualOnly, { subjectName })
+  );
 }
 
 /** Canonical strict-fallback subject prep — preserves trusted immutable traits. */
@@ -530,6 +536,49 @@ function formatSavedAppearanceLines(appearance: string): string {
     .join("\n");
 }
 
+function summarizeBoundEyeTraits(raw: string): string[] {
+  const traits = parseEyeTraitsFromClause(raw);
+  const parts: string[] = [];
+  if (traits.heterochromia) {
+    parts.push(`heterochromia ${traits.heterochromia}`);
+  } else {
+    if (traits.irisColor) parts.push(`iris ${traits.irisColor}`);
+    if (traits.pupilColor) parts.push(`pupil ${traits.pupilColor}`);
+  }
+  if (traits.pupilShape) parts.push(`pupil shape ${traits.pupilShape}`);
+  return parts;
+}
+
+/** Cross-subject immutable eye trait isolation — prevents eye-color bleed between subjects. */
+export function renderCrossSubjectTraitIsolation(
+  subjects: readonly ChatImageVisualSubject[]
+): string {
+  const entries = subjects.flatMap((subject, index) => {
+    if (subject.appearanceMode !== "image_plus_saved") return [];
+    const raw = String(subject.savedAppearance ?? "").trim();
+    if (!raw) return [];
+    const parts = summarizeBoundEyeTraits(raw);
+    if (!parts.length) return [];
+    return [
+      {
+        name: subject.name.trim() || `person ${index + 1}`,
+        letter: subjectLetter(index),
+        parts,
+      },
+    ];
+  });
+  if (entries.length < 2) return "";
+  return [
+    "CROSS-SUBJECT IMMUTABLE TRAIT ISOLATION — exclusive eye ownership:",
+    ...entries.map(
+      (entry) =>
+        `- ${entry.name} (SUBJECT ${entry.letter}): ${entry.parts.join("; ")}.`
+    ),
+    "Never swap, merge, or duplicate these eye traits onto any other subject.",
+    "A striking eye color in one subject's block or reference is NOT a page-wide default.",
+  ].join("\n");
+}
+
 export function renderChatImageSubjectManifest(
   subject: ChatImageVisualSubject,
   index: number
@@ -544,7 +593,9 @@ export function renderChatImageSubjectManifest(
   const aliasLine = aliases.length ? `Also known as: ${aliases.join(", ")}.` : "";
   const hasReference = subject.referenceIndex != null;
   const saved = clipSavedAppearanceForPrompt(
-    normalizeSavedAppearanceForProvider(subject.savedAppearance ?? "")
+    normalizeSavedAppearanceForProvider(subject.savedAppearance ?? "", {
+      subjectName: name,
+    })
   );
   const useSaved = subject.appearanceMode === "image_plus_saved" && Boolean(saved);
   const reference = hasReference
@@ -690,6 +741,7 @@ export function renderChatImageVisualIdentity(opts: {
   const referencedSubjects = opts.subjects.filter(
     (subject) => subject.referenceIndex != null
   ).length;
+  const traitIsolation = renderCrossSubjectTraitIsolation(opts.subjects);
   return [
     "SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.",
     ...opts.subjects.map((subject, index) =>
@@ -700,7 +752,10 @@ export function renderChatImageVisualIdentity(opts: {
       subjectCount: referencedSubjects,
     }),
     renderChatImageIdentityContract({ hasTemplate: opts.hasTemplate }),
-  ].join("\n\n");
+    traitIsolation,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 export function describeReferenceOrder(
