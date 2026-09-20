@@ -1,0 +1,42 @@
+{
+  "retrievedAt": "2026-09-20",
+  "verifiedAt": "2026-09-20T12:58:00.000Z",
+  "endpoint": "GET https://api.cheaperinference.com/v1/models",
+  "evidenceKind": "cheaperinference_public_model_catalog",
+  "notes": "Authoritative provider context windows for Main RP outbound model IDs. context_length is the catalog field name (not context_window). Terra owned_by OpenAI — cross-check CI catalog vs production assembly resolveMaxPayloadInputTokens (unbounded telemetry only).",
+  "models": {
+    "deepseek-v4-pro-0813": {
+      "providerModelId": "deepseek-v4-pro-0813",
+      "providerContextWindowTokens": 1048576,
+      "providerMaxOutputTokens": 384000,
+      "provider": "DeepSeek",
+      "ownedBy": "DeepSeek",
+      "pricingSource": "catalog"
+    },
+    "gemini-3.1-pro-preview": {
+      "providerModelId": "gemini-3.1-pro-preview",
+      "providerContextWindowTokens": 1000000,
+      "providerMaxOutputTokens": 32768,
+      "provider": "Google",
+      "ownedBy": "Google",
+      "pricingSource": "catalog"
+    },
+    "gemini-3.7-flash": {
+      "providerModelId": "gemini-3.7-flash",
+      "providerContextWindowTokens": 1048576,
+      "providerMaxOutputTokens": 65536,
+      "provider": "Google",
+      "ownedBy": "Google",
+      "pricingSource": "catalog"
+    },
+    "gpt-5.6-terra": {
+      "providerModelId": "gpt-5.6-terra",
+      "providerContextWindowTokens": 1050000,
+      "providerMaxOutputTokens": 128000,
+      "provider": "OpenAI",
+      "ownedBy": "OpenAI",
+      "pricingSource": "catalog",
+      "openAiCatalogNote": "CheaperInference catalog lists provider=OpenAI owned_by=OpenAI; no separate OpenAI models API call in this audit (PROVIDER_GENERATION_CALLS=0)."
+    }
+  }
+}

@@ -16,13 +16,8 @@ import {
   isCheaperInferenceGemini37FlashModel,
   isDeepSeekV4ProModel,
   isGemini31ProModel,
-  isGpt56TerraModel,
 } from "@/lib/chatModels";
-import {
-  DEEPSEEK_MAX_PAYLOAD_INPUT_TOKENS,
-  HISTORY_TOKEN_BUDGET,
-  resolveMaxPayloadInputTokens,
-} from "@/lib/contextTrack";
+import { HISTORY_TOKEN_BUDGET } from "@/lib/contextTrack";
 import { resolveEpisodicMemoryMaxChars } from "@/lib/episodicMemoryFacts";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { USER_NOTE_FOCUS_MAX } from "@/lib/persona";
@@ -34,15 +29,34 @@ import {
   explainOpenRouterGeminiTurnCost,
 } from "@/lib/points";
 import type { TrackedPromptSection } from "@/services/promptAudit";
-import { GEMINI31_V1_PUBLISHED } from "@/lib/premiumPricingCalibration";
 import { buildContext } from "@/services/contextBuilder";
 import type { ContextBuildInput } from "@/types";
-import { MODEL_SYSTEM_BUDGETS } from "@/types";
 import {
   applyUserLorebookTurnInjectionBudget,
   buildUserLorebookPromptBlock,
   type UserLorebookStoredEntry,
 } from "@/lib/userLorebook";
+import {
+  buildBillingOwnerMap,
+  buildForensicModelHeadroomRowFromProviderEvidence,
+  buildMarginMatrixRow,
+  buildPaidMarginMatrix,
+  buildProviderContextEvidenceTable,
+  decideImplementationRecommendationFromGates,
+  evaluateAuditGates,
+  implementationDecisionLabel,
+  IMPLEMENTATION_SAFE_LABEL,
+  MIN_PROVIDER_HEADROOM_TOKENS,
+  PRODUCT_MARGIN_REFERENCE,
+  PROVIDER_CONTEXT_UNKNOWN,
+  resolveAuditProviderContextCeiling,
+  resolveProviderContextEvidence,
+  type AuditGateEvaluation,
+  type AuditGateStatus,
+  type BillingOwnerRow,
+  type MarginMatrixRow,
+  type ProviderContextEvidenceRow,
+} from "./forensic-memory-cost-audit-evidence";
 import {
   FREE_CAPABILITY,
   SUBSCRIBED_CAPABILITY,
@@ -139,6 +153,7 @@ export type ForensicModelHeadroomRow = {
   loadClass: AuditLoadClass;
   matrix: AuditMatrixCondition;
   estimatedInputTokens: number;
+  /** Provider catalog context_length — NOT production assembly payload limit. */
   contextPayloadCeiling: number;
   ceilingSource: string;
   remainingHeadroom: number;
@@ -146,6 +161,10 @@ export type ForensicModelHeadroomRow = {
   historyTrimmedByGlobalIncrease: boolean;
   telemetrySystemBudget: number;
   telemetryHeadroom: number;
+  providerContextWindowTokens: number | typeof PROVIDER_CONTEXT_UNKNOWN;
+  providerMaxOutputTokens: number | typeof PROVIDER_CONTEXT_UNKNOWN;
+  providerEvidenceSource: string;
+  productionAssemblyPayloadLimit: number;
 };
 
 export type ForensicCostRow = {
@@ -297,9 +316,10 @@ export function buildMemoryOwnerMap(): MemoryOwnerMapRow[] {
     },
     {
       responsibility: "model-specific maximum input/payload owner",
-      canonicalOwner: "resolveMaxPayloadInputTokens (unbounded) + provider catalog refs",
-      location: "src/lib/contextTrack.ts + premiumPricingCalibration",
-      value: `resolveMaxPayloadInputTokens→MAX_SAFE_INTEGER; DeepSeek ref=${DEEPSEEK_MAX_PAYLOAD_INPUT_TOKENS}; Gemini31 published=${GEMINI31_V1_PUBLISHED.publishedBaseTierMaxPromptTokens}`,
+      canonicalOwner: "resolveMaxPayloadInputTokens (production assembly) + CheaperInference catalog context_length (provider ceiling)",
+      location: "src/lib/contextTrack.ts + forensic-memory-cost-audit-evidence fixture",
+      value:
+        "Production assembly: resolveMaxPayloadInputTokens→MAX_SAFE_INTEGER (telemetry-only). Provider ceiling: verified GET /v1/models context_length per Main RP model (separate field).",
       tierDependent: false,
     },
     {
@@ -731,38 +751,16 @@ export function runForensicAssembly(opts: {
   };
 }
 
+/** @deprecated Use resolveAuditProviderContextCeiling — provider ceiling, not assembly limit. */
 export function resolveAuditModelContextCeiling(modelId: string): {
   ceiling: number;
   source: string;
 } {
-  if (isDeepSeekV4ProModel(modelId)) {
-    return {
-      ceiling: DEEPSEEK_MAX_PAYLOAD_INPUT_TOKENS,
-      source: "DEEPSEEK_MAX_PAYLOAD_INPUT_TOKENS (contextTrack.ts reference)",
-    };
+  const { ceiling, source } = resolveAuditProviderContextCeiling(modelId);
+  if (ceiling === PROVIDER_CONTEXT_UNKNOWN) {
+    return { ceiling: Number.NaN, source };
   }
-  if (isGemini31ProModel(modelId)) {
-    return {
-      ceiling: GEMINI31_V1_PUBLISHED.publishedBaseTierMaxPromptTokens ?? 200_000,
-      source: "GEMINI31_V1_PUBLISHED.publishedBaseTierMaxPromptTokens",
-    };
-  }
-  if (isCheaperInferenceGemini37FlashModel(modelId)) {
-    return {
-      ceiling: GEMINI31_V1_PUBLISHED.publishedBaseTierMaxPromptTokens ?? 200_000,
-      source: "Catalog base-tier pattern (200k) — no separate G37 constant in repo",
-    };
-  }
-  if (isGpt56TerraModel(modelId)) {
-    return {
-      ceiling: resolveMaxPayloadInputTokens(modelId),
-      source: "resolveMaxPayloadInputTokens (unbounded in production assembly)",
-    };
-  }
-  return {
-    ceiling: resolveMaxPayloadInputTokens(modelId),
-    source: "resolveMaxPayloadInputTokens default",
-  };
+  return { ceiling, source };
 }
 
 function roundCostIntermediate(n: number): number {
@@ -825,24 +823,7 @@ export function buildForensicModelHeadroomRow(
   assembly: ForensicAssemblyResult,
   baselineHistoryCount?: number
 ): ForensicModelHeadroomRow {
-  const { ceiling, source } = resolveAuditModelContextCeiling(assembly.modelId);
-  const telemetryBudget =
-    MODEL_SYSTEM_BUDGETS[assembly.modelId] ?? MODEL_SYSTEM_BUDGETS.default ?? 28_000;
-  const finiteCeiling = Number.isFinite(ceiling) && ceiling < Number.MAX_SAFE_INTEGER;
-  return {
-    modelId: assembly.modelId,
-    loadClass: assembly.loadClass,
-    matrix: assembly.matrix,
-    estimatedInputTokens: assembly.estimatedInputTokens,
-    contextPayloadCeiling: ceiling,
-    ceilingSource: source,
-    remainingHeadroom: finiteCeiling ? ceiling - assembly.estimatedInputTokens : Number.MAX_SAFE_INTEGER,
-    historyMessages: assembly.historyMessageCount,
-    historyTrimmedByGlobalIncrease:
-      baselineHistoryCount != null && assembly.historyMessageCount < baselineHistoryCount,
-    telemetrySystemBudget: telemetryBudget,
-    telemetryHeadroom: telemetryBudget - assembly.estimatedSystemTokens,
-  };
+  return buildForensicModelHeadroomRowFromProviderEvidence(assembly, baselineHistoryCount);
 }
 
 export function runForensicMatrixSnapshot(opts: {
@@ -928,19 +909,50 @@ export function classifyStaleAuditArtifacts(): StaleArtifactRow[] {
 }
 
 export function decideImplementationRecommendation(opts: {
-  memoryHeavyPeakInputTokens: number;
-  boundedStressPeakInputTokens: number;
-  minHeadroomAcrossModels: number;
-  global15PointsDeltaMax: number;
+  boundedStressPaid15Assemblies: ForensicAssemblyResult[];
+  paid10Assemblies: ForensicAssemblyResult[];
+  paid15Assemblies: ForensicAssemblyResult[];
+  free10Assemblies: ForensicAssemblyResult[];
+  marginRows: MarginMatrixRow[];
   historyTrimOffsetObserved: boolean;
-  freeTierAffected: boolean;
 }): ImplementationDecision {
-  if (opts.freeTierAffected) return "D";
-  if (opts.historyTrimOffsetObserved) return "C";
-  if (opts.minHeadroomAcrossModels < 5_000) return "B";
-  if (opts.boundedStressPeakInputTokens > 115_000) return "C";
-  if (opts.global15PointsDeltaMax > 500) return "B";
-  return "A";
+  return decideImplementationRecommendationFromGates(evaluateAuditGates(opts));
+}
+
+/** Full gate evaluation for audit report (CONTEXT / FREE / HISTORY / BILLING / OWNER). */
+export function evaluateForensicAuditGates(opts: {
+  boundedStressPaid15Assemblies: ForensicAssemblyResult[];
+  paid10Assemblies: ForensicAssemblyResult[];
+  paid15Assemblies: ForensicAssemblyResult[];
+  free10Assemblies: ForensicAssemblyResult[];
+  marginRows: MarginMatrixRow[];
+  historyTrimOffsetObserved: boolean;
+}): AuditGateEvaluation {
+  return evaluateAuditGates(opts);
+}
+
+export function buildForensicMarginMatrixForLoadClass(
+  loadClass: AuditLoadClass,
+  outputTokens: number
+): MarginMatrixRow[] {
+  const paid10ByModel = new Map<string, ForensicAssemblyResult>();
+  const paid15ByModel = new Map<string, ForensicAssemblyResult>();
+  for (const modelId of MAIN_RP_MODEL_IDS) {
+    paid10ByModel.set(
+      modelId,
+      runForensicAssembly({ modelId, loadClass, matrix: "PAID_CURRENT" })
+    );
+    paid15ByModel.set(
+      modelId,
+      runForensicAssembly({ modelId, loadClass, matrix: "PAID_GLOBAL15_SIMULATION" })
+    );
+  }
+  return buildPaidMarginMatrix({
+    loadClass,
+    paid10ByModel,
+    paid15ByModel,
+    outputTokens,
+  });
 }
 
 /** Aggregate peak tokens across Main RP models for a load class (PAID_CURRENT). */
@@ -978,5 +990,24 @@ export function verifyMainHeadIncludesPr987(): {
   };
 }
 
-export { RAW_HISTORY_COMPLETE_EXCHANGES };
-export { resolveAuditContextProvider };
+export {
+  RAW_HISTORY_COMPLETE_EXCHANGES,
+  resolveAuditContextProvider,
+  buildBillingOwnerMap,
+  buildMarginMatrixRow,
+  buildProviderContextEvidenceTable,
+  implementationDecisionLabel,
+  IMPLEMENTATION_SAFE_LABEL,
+  MIN_PROVIDER_HEADROOM_TOKENS,
+  PRODUCT_MARGIN_REFERENCE,
+  PROVIDER_CONTEXT_UNKNOWN,
+  resolveAuditProviderContextCeiling,
+  resolveProviderContextEvidence,
+};
+export type {
+  AuditGateEvaluation,
+  AuditGateStatus,
+  BillingOwnerRow,
+  MarginMatrixRow,
+  ProviderContextEvidenceRow,
+};
