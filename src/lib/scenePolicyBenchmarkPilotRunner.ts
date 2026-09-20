@@ -297,10 +297,18 @@ function assertPilotModelPayload(payload: BenchmarkArmPayload, pilotModelId: str
   }
 }
 
-/** Single CheaperInference HTTP call — no retry, no fallback. */
-export async function invokeBenchmarkProviderCall(input: {
+export type BenchmarkProviderInvokeInput = {
   requestBody: Record<string, unknown>;
   pilotModelId: string;
+};
+
+export type BenchmarkProviderInvoke = (
+  input: BenchmarkProviderInvokeInput
+) => ReturnType<typeof invokeBenchmarkProviderCall>;
+
+/** Single CheaperInference HTTP call — no retry, no fallback. */
+export async function invokeBenchmarkProviderCall(input: BenchmarkProviderInvokeInput & {
+  cheaperInferenceApiKey: string;
 }): Promise<{
   httpStatus: number;
   latencyMs: number;
@@ -322,7 +330,7 @@ export async function invokeBenchmarkProviderCall(input: {
   const started = Date.now();
   const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
     method: "POST",
-    headers: buildCheaperInferenceHeaders(),
+    headers: buildCheaperInferenceHeaders(input.cheaperInferenceApiKey),
     body: JSON.stringify(input.requestBody),
     signal: AbortSignal.timeout(10 * 60 * 1000),
   });
@@ -447,9 +455,9 @@ export async function runScenePolicyPilot(input: {
   samples: PilotLogicalSample[];
   planningUpstreamUsdEstimate: number;
   completeStatus: PilotRunResult["status"];
-  invokeProvider?: typeof invokeBenchmarkProviderCall;
+  invokeProvider: BenchmarkProviderInvoke;
 }): Promise<PilotRunResult> {
-  const invoke = input.invokeProvider ?? invokeBenchmarkProviderCall;
+  const invoke = input.invokeProvider;
   const pilotModel = getBenchmarkPilotModelDescriptor();
   const samples = input.samples;
   const planningUsd = input.planningUpstreamUsdEstimate;
@@ -681,7 +689,7 @@ export async function runScenePolicyPilot(input: {
 export async function runMinimalScenePolicyPilot(input: {
   pilotBaselineSha: string;
   mainSyncSha: string;
-  invokeProvider?: typeof invokeBenchmarkProviderCall;
+  invokeProvider: BenchmarkProviderInvoke;
 }): Promise<PilotRunResult> {
   const minimal = computeExecutionMatrix().plans.find((p) => p.name === "MINIMAL")!;
   return runScenePolicyPilot({
@@ -695,7 +703,7 @@ export async function runMinimalScenePolicyPilot(input: {
 export async function runTargetedReconvergencePilot(input: {
   pilotBaselineSha: string;
   mainSyncSha: string;
-  invokeProvider?: typeof invokeBenchmarkProviderCall;
+  invokeProvider: BenchmarkProviderInvoke;
 }): Promise<PilotRunResult> {
   const samples = deriveTargetedReconvergencePilotSamples();
   const minimal = computeExecutionMatrix().plans.find((p) => p.name === "MINIMAL")!;
@@ -712,7 +720,7 @@ export async function runR5VariancePilot(input: {
   pilotBaselineSha: string;
   mainSyncSha: string;
   repeatCount?: number;
-  invokeProvider?: typeof invokeBenchmarkProviderCall;
+  invokeProvider: BenchmarkProviderInvoke;
 }): Promise<PilotRunResult & { suspicionSummary?: R5BoundarySuspicionSummary; violationSummary?: R5BoundarySuspicionSummary }> {
   const repeatCount = input.repeatCount ?? R5_VARIANCE_DEFAULT_REPEAT;
   const cost = estimateR5VariancePilotCost(repeatCount);

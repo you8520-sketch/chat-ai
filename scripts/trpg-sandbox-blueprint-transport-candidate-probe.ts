@@ -10,8 +10,8 @@ import { buildTrpgScenarioDraftRequestBody } from "../src/lib/trpg/scenarioDraft
 import {
   buildCheaperInferenceHeaders,
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
-  resolveCheaperInferenceApiKey,
 } from "../src/lib/cheaperInferenceConfig";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 import {
   adaptOpenRouterDeepSeekBackupBody,
   executeDeepSeekBackgroundWithProviderFailover,
@@ -47,7 +47,8 @@ const CANDIDATES: Record<string, { primaryMs: number; backupMs: number }> = {
 async function runFixture(
   fixture: (typeof FIXTURES)[number],
   candidate: { primaryMs: number; backupMs: number },
-  runIndex: number
+  runIndex: number,
+  benchmarkApiKey: string
 ) {
   const system = buildSandboxDirectorSystemPrompt();
   const user = buildSandboxDirectorUserPrompt({
@@ -65,7 +66,7 @@ async function runFixture(
     const failover = await executeDeepSeekBackgroundWithProviderFailover({
       primary: {
         endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
-        headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
+        headers: buildCheaperInferenceHeaders(benchmarkApiKey),
         body,
       },
       backupBody: adaptOpenRouterDeepSeekBackupBody(body, resolveDeepSeekBackupModelId("flash")),
@@ -102,6 +103,12 @@ async function runFixture(
 }
 
 async function main() {
+  const benchmarkKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!benchmarkKey) {
+    console.log("PROBE_STATUS=NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+    console.log("provider calls=0");
+    process.exit(0);
+  }
   const label = process.argv[2]?.toUpperCase() ?? "C1";
   const candidate = CANDIDATES[label];
   if (!candidate) {
@@ -112,7 +119,7 @@ async function main() {
   for (const fixture of FIXTURES) {
     for (let i = 0; i < fixture.repeats; i++) {
       console.info(`[candidate-probe] ${label} ${fixture.id} run ${i}`);
-      results.push(await runFixture(fixture, candidate, i));
+      results.push(await runFixture(fixture, candidate, i, benchmarkKey));
     }
   }
   const latencies = results.filter((r) => r.success).map((r) => r.totalMs).sort((a, b) => a - b);

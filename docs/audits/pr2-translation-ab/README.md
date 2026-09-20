@@ -3,7 +3,7 @@
 Run only with explicit opt-in:
 
 ```bash
-RUN_REAL_TRANSLATION_AB=1 CHEAPER_INFERENCE_API_KEY=... npx tsx scripts/bench-pr2-translation-ab.ts
+RUN_REAL_TRANSLATION_AB=1 CHEAPER_INFERENCE_BENCHMARK_API_KEY=... npx tsx scripts/bench-pr2-translation-ab.ts
 ```
 
 For provider-purity runs, keep `OPENROUTER_API_KEY` empty.

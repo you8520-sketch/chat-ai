@@ -22,6 +22,7 @@ import {
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   buildCheaperInferenceHeaders,
 } from "../src/lib/cheaperInferenceConfig";
+import { exitIfBenchmarkCheaperInferenceApiKeyMissing } from "./lib/benchmarkCheaperInferenceCredential";
 import { parseOpenRouterUsage } from "../src/lib/openRouterUsage";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "../src/lib/responseLengthConstants";
 import { CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL } from "../src/lib/chatModels";
@@ -157,8 +158,7 @@ function classify(sets: Array<{ turns: Array<Record<string, unknown>> }>): "A" |
 
 async function main() {
   process.env.NODE_TEST_CONTEXT = process.env.NODE_TEST_CONTEXT || "1";
-  const key = process.env.CHEAPER_INFERENCE_API_KEY?.trim();
-  if (!key) throw new Error("CHEAPER_INFERENCE_API_KEY missing");
+  const key = exitIfBenchmarkCheaperInferenceApiKeyMissing("DIAG_STATUS");
 
   const sets: Array<{ set: number; salt: string; turns: Array<Record<string, unknown>> }> = [];
   for (let setIdx = 1; setIdx <= SETS; setIdx++) {

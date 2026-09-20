@@ -15,6 +15,12 @@ on:
       - "scripts/bench-pr2-translation-ab.ts"
       - "scripts/bench-pr2-translation-ab.failure-resilience.test.ts"
       - "scripts/lib/pr2TranslationAbHarness.ts"
+      - "scripts/lib/benchmarkCheaperInferenceCredential.ts"
+      - "scripts/lib/benchmarkCheaperInferenceCredential.test.ts"
+      - "src/lib/cheaperInferenceCredentialBoundary.test.ts"
+      - "src/lib/openRouterAdult.ts"
+      - "src/lib/openRouterCompletion.ts"
+      - "src/lib/cheaperInferenceConfig.ts"
       - ".github/workflows/validate-derived-cache.yml"
 
 permissions:
@@ -42,3 +48,5 @@ jobs:
       - run: node --conditions=react-server --import tsx --test src/lib/promptTranslation.test.ts
       - run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/worldShares.borrow.test.ts
       - run: node --import tsx --test src/components/studioWorldActions.regression.test.ts
+      - run: node --conditions=react-server --import tsx --test scripts/lib/benchmarkCheaperInferenceCredential.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/cheaperInferenceCredentialBoundary.test.ts

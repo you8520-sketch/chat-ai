@@ -19,6 +19,7 @@ import { resolve } from "path";
 import { performance } from "perf_hooks";
 import Database from "better-sqlite3";
 import { loadEnvLocal } from "./load-env-local";
+import { exitIfBenchmarkCheaperInferenceApiKeyMissing } from "./lib/benchmarkCheaperInferenceCredential";
 import { CHEAPER_INFERENCE_GPT_56_TERRA_MODEL } from "../src/lib/chatModels";
 import {
   CHEAPER_INFERENCE_BASE_URL,
@@ -365,7 +366,12 @@ function auditPayload(
   return { audit, hardFail, adapted };
 }
 
-async function callScene(scene: typeof SCENE_A, system: string, history: ChatMsg[]) {
+async function callScene(
+  scene: typeof SCENE_A,
+  system: string,
+  history: ChatMsg[],
+  benchmarkKey: string
+) {
   const t0 = performance.now();
   const result = await streamOpenRouterAdultToClient(
     () => {},
@@ -380,6 +386,7 @@ async function callScene(scene: typeof SCENE_A, system: string, history: ChatMsg
       maxTokensOverride: TERRA_MAX_OUTPUT_TOKENS,
       charName: "에녹",
       personaName: "유저",
+      cheaperInferenceApiKeyOverride: benchmarkKey,
     }
   );
   const latencyMs = Math.round(performance.now() - t0);
@@ -402,9 +409,7 @@ async function callScene(scene: typeof SCENE_A, system: string, history: ChatMsg
 
 async function main() {
   mkdirSync(OUT, { recursive: true });
-  if (!process.env.CHEAPER_INFERENCE_API_KEY?.trim()) {
-    throw new Error("CHEAPER_INFERENCE_API_KEY missing in env");
-  }
+  const benchmarkKey = exitIfBenchmarkCheaperInferenceApiKeyMissing("TERRA_OWNER_STATUS");
   console.log(
     JSON.stringify({
       phase: "start",
@@ -450,7 +455,7 @@ async function main() {
     }
 
     console.log(JSON.stringify({ phase: "call-start", scene: scene.id }));
-    const call = await callScene(scene, built.system, built.history);
+    const call = await callScene(scene, built.system, built.history, benchmarkKey);
 
     const providerRaw = call.providerRaw;
     const finalText = call.finalText;

@@ -1,6 +1,6 @@
 /**
  * Execute MINIMAL 26-call scene policy provider pilot.
- * Requires CHEAPER_INFERENCE_API_KEY. No billing, DB, retry, or fallback.
+ * Requires CHEAPER_INFERENCE_BENCHMARK_API_KEY. No billing, DB, retry, or fallback.
  *
  *   node --conditions=react-server --import tsx scripts/scene-policy-benchmark-pilot-run.ts
  */
@@ -12,8 +12,10 @@ import { loadEnvLocal } from "./load-env-local";
 import {
   assertMinimalPlanExpected,
   deriveMinimalPilotSamples,
+  invokeBenchmarkProviderCall,
   runMinimalScenePolicyPilot,
 } from "../src/lib/scenePolicyBenchmarkPilotRunner";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 
 loadEnvLocal();
 
@@ -22,6 +24,13 @@ const PILOT_BASELINE_SHA = execSync("git rev-parse HEAD", { encoding: "utf8" }).
 const MAIN_SYNC_SHA = execSync("git rev-parse origin/main", { encoding: "utf8" }).trim();
 
 async function main() {
+  const benchmarkKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!benchmarkKey) {
+    console.log("PILOT_STATUS=NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+    console.log("provider calls=0");
+    process.exit(0);
+  }
+
   const plan = assertMinimalPlanExpected();
   const samples = deriveMinimalPilotSamples();
   console.log("PILOT_BASELINE_SHA", PILOT_BASELINE_SHA);
@@ -32,6 +41,8 @@ async function main() {
   const result = await runMinimalScenePolicyPilot({
     pilotBaselineSha: PILOT_BASELINE_SHA,
     mainSyncSha: MAIN_SYNC_SHA,
+    invokeProvider: (input) =>
+      invokeBenchmarkProviderCall({ ...input, cheaperInferenceApiKey: benchmarkKey }),
   });
 
   fs.mkdirSync(OUT_DIR, { recursive: true });

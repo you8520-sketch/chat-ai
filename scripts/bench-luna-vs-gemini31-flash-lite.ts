@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
  * Exploratory micro-bench: GPT-5.6 Luna vs Gemini 3.1 Flash-Lite (CheaperInference).
- * Requires RUN_REAL_LUNA_GEMINI_MICRO=1 and CHEAPER_INFERENCE_API_KEY.
+ * Requires RUN_REAL_LUNA_GEMINI_MICRO=1 and CHEAPER_INFERENCE_BENCHMARK_API_KEY.
  * Does NOT change production defaults or model registry.
  */
 import Module from "module";
@@ -20,8 +20,11 @@ import {
   adaptCheaperInferenceChatBody,
   assertCheaperInferenceEndpoint,
   buildCheaperInferenceHeaders,
-  resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
+import {
+  resolveBenchmarkCheaperInferenceApiKey,
+  sanitizeBenchmarkCredentialText,
+} from "./lib/benchmarkCheaperInferenceCredential";
 import { parseOpenRouterUsage } from "@/lib/openRouterUsage";
 import { estimateTokens } from "@/lib/tokenEstimate";
 
@@ -214,11 +217,12 @@ function countOccurrences(text: string, token: string): number {
 }
 
 function sanitizeErrorMessage(message: string): string {
-  return message
-    .replace(/sk-[a-zA-Z0-9_-]+/g, "sk-[REDACTED]")
-    .replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]")
-    .replace(/CHEAPER_INFERENCE_API_KEY=\S+/gi, "CHEAPER_INFERENCE_API_KEY=[REDACTED]")
-    .replace(/OPENROUTER_API_KEY=\S+/gi, "OPENROUTER_API_KEY=[REDACTED]");
+  return sanitizeBenchmarkCredentialText(
+    message
+      .replace(/sk-[a-zA-Z0-9_-]+/g, "sk-[REDACTED]")
+      .replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]")
+      .replace(/OPENROUTER_API_KEY=\S+/gi, "OPENROUTER_API_KEY=[REDACTED]")
+  );
 }
 
 function captureError(error: unknown): {
@@ -322,7 +326,11 @@ async function callCheaperInferenceTranslation(
   providerReportedCostUsd: number | null;
 }> {
   assertCheaperInferenceEndpoint(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL);
-  const headers = buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey());
+  const benchmarkKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!benchmarkKey) {
+    throw new Error("NO_BENCHMARK_CHEAPER_INFERENCE_KEY");
+  }
+  const headers = buildCheaperInferenceHeaders(benchmarkKey);
   const baseBody = {
     model,
     messages: [
@@ -427,8 +435,8 @@ async function runMicroBenchmark(): Promise<void> {
     process.exit(0);
   }
 
-  if (!process.env.CHEAPER_INFERENCE_API_KEY?.trim()) {
-    console.log("MICRO_STATUS=NOT_RUN — missing CHEAPER_INFERENCE_API_KEY");
+  if (!resolveBenchmarkCheaperInferenceApiKey()) {
+    console.log("MICRO_STATUS=NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
     console.log("REAL_PROVIDER_CALLS=0");
     process.exit(0);
   }

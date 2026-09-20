@@ -16,6 +16,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { loadEnvLocal } from "./load-env-local";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 
 loadEnvLocal();
 if (!process.env.NODE_ENV) {
@@ -225,7 +226,10 @@ function classifyStreamCapture(opts: {
   return { invalid, reasons };
 }
 
-async function streamCi(body: Record<string, unknown>) {
+async function streamCi(
+  body: Record<string, unknown>,
+  benchmarkApiKey: string
+) {
   const {
     CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
     buildCheaperInferenceHeaders,
@@ -242,7 +246,7 @@ async function streamCi(body: Record<string, unknown>) {
   try {
     const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
       method: "POST",
-      headers: buildCheaperInferenceHeaders(),
+      headers: buildCheaperInferenceHeaders(benchmarkApiKey),
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -448,6 +452,13 @@ async function assemble(opts: {
 }
 
 async function main() {
+  const benchmarkKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!benchmarkKey) {
+    console.log("SMOKE_STATUS=NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+    console.log("provider calls=0");
+    process.exit(0);
+  }
+
   mkdirSync(OUT_ROOT, { recursive: true });
   mkdirSync(DOCS, { recursive: true });
   const { resolveOpenRouterModelRates } = await import(
@@ -519,7 +530,10 @@ async function main() {
           pov_owner_present: assembled.povOwnerPresent,
         });
         apiCalls += 1;
-        let resp = await streamCi(assembled.requestBody as Record<string, unknown>);
+        let resp = await streamCi(
+          assembled.requestBody as Record<string, unknown>,
+          benchmarkKey
+        );
         // No retry / continuation / recovery (budget policy).
         const capture = classifyStreamCapture({
           httpStatus: resp.http_status,

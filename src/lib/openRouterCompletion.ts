@@ -222,6 +222,8 @@ export async function callOpenRouterCompletion(opts: {
   jobId?: string | null;
   /** When set, adds response_format to the wire body (CheaperInference forwards it). */
   responseFormat?: OpenRouterCompletionResponseFormat;
+  /** Explicit CheaperInference credential; production resolver used when omitted. */
+  cheaperInferenceApiKeyOverride?: string;
 }): Promise<{ text: string; usage: OpenRouterCompletionUsage }> {
   const rawModel = opts.model.trim();
   const useCheaperInference = isCheaperInferenceModel(rawModel);
@@ -262,7 +264,7 @@ export async function callOpenRouterCompletion(opts: {
   }
 
   const key = useCheaperInference
-    ? resolveCheaperInferenceApiKey()
+    ? opts.cheaperInferenceApiKeyOverride?.trim() || resolveCheaperInferenceApiKey()
     : resolveOpenRouterApiKey();
   const endpoint = useCheaperInference
     ? CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL

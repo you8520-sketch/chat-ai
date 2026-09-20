@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
  * Production-path Gemini 3.7 Flash Bot contract probe.
- * Requires RUN_TRPG_BOT_G37_PROBE=1 and CHEAPER_INFERENCE_API_KEY.
+ * Requires RUN_TRPG_BOT_G37_PROBE=1 and CHEAPER_INFERENCE_BENCHMARK_API_KEY.
  */
 import Module from "module";
 
@@ -18,8 +18,8 @@ import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
 import {
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   buildCheaperInferenceHeaders,
-  resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 import { buildTrpgBotActionUserBlock, TRPG_BOT_SYSTEM } from "@/lib/trpg/botActions";
 import { parseTrpgBotAction, TRPG_BOT_ACTION_TYPE_OPEN, TRPG_BOT_INTENT_OPEN } from "@/lib/trpg/botActionParse";
 import { adaptTrpgBotChatBody, trpgProviderRequestContract } from "@/lib/trpg/gmClient";
@@ -128,7 +128,7 @@ function buildUser(f: Fixture): string {
   });
 }
 
-async function probeFixture(f: Fixture) {
+async function probeFixture(f: Fixture, benchmarkApiKey: string) {
   const user = buildUser(f);
   const model = resolveTrpgCheaperInferenceModel(TRPG_BOT_MODEL);
   const body = adaptTrpgBotChatBody({
@@ -145,7 +145,7 @@ async function probeFixture(f: Fixture) {
   const started = Date.now();
   const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
     method: "POST",
-    headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
+    headers: buildCheaperInferenceHeaders(benchmarkApiKey),
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(120_000),
   });
@@ -194,11 +194,17 @@ async function main() {
     console.error("Set RUN_TRPG_BOT_G37_PROBE=1");
     process.exit(2);
   }
+  const benchmarkKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!benchmarkKey) {
+    console.log("PROBE_STATUS=NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+    console.log("provider calls=0");
+    process.exit(0);
+  }
   assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
   const samples = [];
   for (const f of FIXTURES) {
     console.info(`[probe] ${f.id} ${f.character} ${f.scenario}`);
-    samples.push(await probeFixture(f));
+    samples.push(await probeFixture(f, benchmarkKey));
   }
   const latencies = samples.map((s) => s.latencyMs);
   const inputTokens = samples.map((s) => s.inputTokens).filter((v): v is number => v != null);
