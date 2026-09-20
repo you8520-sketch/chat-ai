@@ -5,6 +5,7 @@
 import { writeFileSync } from "node:fs";
 import { buildTrpgGmUserBlock, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "../src/lib/trpg/gmPrompt";
 import { callTrpgGm } from "../src/lib/trpg/gmCall";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 import {
   applyLocalSceneProgressDelta,
   emptyLocalSceneProgress,
@@ -79,8 +80,10 @@ function scoreCase(text: string, probe: ProbeCase, runIndex: number) {
 }
 
 async function main() {
-  if (!process.env.CHEAPER_INFERENCE_API_KEY?.trim()) {
-    console.error("CHEAPER_INFERENCE_API_KEY not configured — skipping real provider probe");
+  const benchmarkKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!benchmarkKey) {
+    console.error("NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+    console.log("provider calls=0");
     process.exit(0);
   }
 
@@ -116,6 +119,7 @@ async function main() {
         system: TRPG_GM_SYSTEM,
         user,
         timeoutMs: 90_000,
+        cheaperInferenceApiKeyOverride: benchmarkKey,
       });
       const scored = scoreCase(result.text, probe, run);
       (results.runs as unknown[]).push({

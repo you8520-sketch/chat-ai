@@ -12,9 +12,11 @@ import { loadEnvLocal } from "./load-env-local";
 import {
   buildGptEvaluationArtifact,
   deriveTargetedReconvergencePilotSamples,
+  invokeBenchmarkProviderCall,
   runTargetedReconvergencePilot,
   type PilotCaptureRecord,
 } from "../src/lib/scenePolicyBenchmarkPilotRunner";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 
 loadEnvLocal();
 
@@ -24,6 +26,13 @@ const PILOT_BASELINE_SHA = execSync("git rev-parse HEAD", { encoding: "utf8" }).
 const MAIN_SYNC_SHA = execSync("git rev-parse origin/main", { encoding: "utf8" }).trim();
 
 async function main() {
+  const benchmarkKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!benchmarkKey) {
+    console.log("PILOT_STATUS=NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+    console.log("provider calls=0");
+    process.exit(0);
+  }
+
   if (!fs.existsSync(BASELINE_PATH)) {
     throw new Error(`missing baseline pilot at ${BASELINE_PATH}`);
   }
@@ -36,6 +45,8 @@ async function main() {
   const result = await runTargetedReconvergencePilot({
     pilotBaselineSha: PILOT_BASELINE_SHA,
     mainSyncSha: MAIN_SYNC_SHA,
+    invokeProvider: (input) =>
+      invokeBenchmarkProviderCall({ ...input, cheaperInferenceApiKey: benchmarkKey }),
   });
 
   fs.mkdirSync(OUT_DIR, { recursive: true });

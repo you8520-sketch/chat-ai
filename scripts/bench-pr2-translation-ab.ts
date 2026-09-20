@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
  * PR-2 translation A/B harness — Luna vs DeepSeek V4 Flash.
- * Requires RUN_REAL_TRANSLATION_AB=1 and CHEAPER_INFERENCE_API_KEY.
+ * Requires RUN_REAL_TRANSLATION_AB=1 and CHEAPER_INFERENCE_BENCHMARK_API_KEY.
  * Does NOT change production defaults.
  */
 import Module from "module";
@@ -21,6 +21,7 @@ import {
   runTranslationAbBenchmark,
   validateF12SourceChars,
 } from "./lib/pr2TranslationAbHarness";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 
 async function main() {
   validateF12SourceChars();
@@ -55,8 +56,9 @@ async function main() {
     console.log("provider calls=0");
     process.exit(0);
   }
-  if (!process.env.CHEAPER_INFERENCE_API_KEY?.trim()) {
-    console.log("AB_STATUS=NOT_RUN — missing CHEAPER_INFERENCE_API_KEY");
+  const benchmarkKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!benchmarkKey) {
+    console.log("AB_STATUS=NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
     console.log("provider calls=0");
     process.exit(0);
   }
@@ -73,7 +75,10 @@ async function main() {
     audit,
     lunaModel: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
     flashModel: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-    callPromptTranslation,
+    callPromptTranslation: (system, history, modelId) =>
+      callPromptTranslation(system, history, modelId, {
+        cheaperInferenceApiKeyOverride: benchmarkKey,
+      }),
     promptTranslation,
     harnessHead,
   });

@@ -514,6 +514,7 @@ function sanitizeErrorMessage(message: string): string {
   return message
     .replace(/sk-[a-zA-Z0-9_-]+/g, "sk-[REDACTED]")
     .replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]")
+    .replace(/CHEAPER_INFERENCE_BENCHMARK_API_KEY=\S+/gi, "CHEAPER_INFERENCE_BENCHMARK_API_KEY=[REDACTED]")
     .replace(/CHEAPER_INFERENCE_API_KEY=\S+/gi, "CHEAPER_INFERENCE_API_KEY=[REDACTED]")
     .replace(/OPENROUTER_API_KEY=\S+/gi, "OPENROUTER_API_KEY=[REDACTED]");
 }

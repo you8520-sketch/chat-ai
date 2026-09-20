@@ -157,6 +157,7 @@ export async function callTrpgAuthoringModel(opts: {
   temperature?: number;
   kind?: TrpgAuthoringKind;
   stage?: TrpgAuthoringStage;
+  cheaperInferenceApiKeyOverride?: string;
 }): Promise<TrpgAuthoringCallResult> {
   const started = Date.now();
   const model = TRPG_SCENARIO_DRAFT_MODEL;
@@ -173,10 +174,12 @@ export async function callTrpgAuthoringModel(opts: {
     kind: opts.kind ?? "scenario_draft",
     stage: opts.stage ?? "primary",
   });
+  const ciKey =
+    opts.cheaperInferenceApiKeyOverride?.trim() || resolveCheaperInferenceApiKey();
   const failover = await executeDeepSeekBackgroundWithProviderFailover({
     primary: {
       endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
-      headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
+      headers: buildCheaperInferenceHeaders(ciKey),
       body,
     },
     timeoutMs: opts.timeoutMs ?? 90_000,

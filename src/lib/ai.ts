@@ -386,11 +386,15 @@ async function callGeminiOnce(
     ledgerContext?: ProviderCostLedgerContext;
     jobId?: string | null;
     responseFormat?: import("@/lib/openRouterCompletion").OpenRouterCompletionResponseFormat;
+    cheaperInferenceApiKeyOverride?: string;
   }
 ): Promise<{ text: string; usage: TokenUsage }> {
   if (
     isCheaperInferenceModel(modelId)
-      ? !process.env.CHEAPER_INFERENCE_API_KEY?.trim()
+      ? !(
+          opts?.cheaperInferenceApiKeyOverride?.trim() ||
+          process.env.CHEAPER_INFERENCE_API_KEY?.trim()
+        )
       : !process.env.OPENROUTER_API_KEY?.trim()
   ) {
     throw new Error(
@@ -449,6 +453,7 @@ async function callGeminiOnce(
     ledgerContext: opts?.ledgerContext,
     jobId: opts?.jobId ?? null,
     responseFormat: opts?.responseFormat,
+    cheaperInferenceApiKeyOverride: opts?.cheaperInferenceApiKeyOverride,
   });
 }
 
@@ -465,12 +470,13 @@ export async function callPromptTranslation(
   system: string,
   history: ChatMsg[],
   modelId: string,
-  opts?: { jobId?: string | null }
+  opts?: { jobId?: string | null; cheaperInferenceApiKeyOverride?: string }
 ): Promise<{ text: string; usage: TokenUsage }> {
   return callGeminiOnce(system, history, modelId, {
     requestKind: PROMPT_TRANSLATION_REQUEST_KIND,
     maxTokens: TRANSLATION_MAX_OUTPUT_TOKENS,
     jobId: opts?.jobId ?? null,
+    cheaperInferenceApiKeyOverride: opts?.cheaperInferenceApiKeyOverride,
   });
 }
 

@@ -23,6 +23,7 @@ import { resolve } from "path";
 import { performance } from "perf_hooks";
 import Database from "better-sqlite3";
 import { loadEnvLocal } from "./load-env-local";
+import { exitIfBenchmarkCheaperInferenceApiKeyMissing } from "./lib/benchmarkCheaperInferenceCredential";
 import {
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
@@ -652,7 +653,8 @@ function measureRpBody(text: string) {
 async function callScene(
   label: string,
   scene: typeof SCENE_A,
-  fixture: ReturnType<typeof loadEnoch>
+  fixture: ReturnType<typeof loadEnoch>,
+  benchmarkKey: string
 ) {
   const built = buildPayload(fixture, {
     modelId: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
@@ -674,6 +676,7 @@ async function callScene(
       maxTokensOverride: TERRA_MAX_OUTPUT_TOKENS,
       charName: "에녹",
       personaName: "유저",
+      cheaperInferenceApiKeyOverride: benchmarkKey,
     }
   );
   const latencyMs = Math.round(performance.now() - t0);
@@ -753,9 +756,7 @@ async function callScene(
 
 async function main() {
   mkdirSync(OUT, { recursive: true });
-  if (!process.env.CHEAPER_INFERENCE_API_KEY?.trim()) {
-    throw new Error("CHEAPER_INFERENCE_API_KEY missing");
-  }
+  const benchmarkKey = exitIfBenchmarkCheaperInferenceApiKeyMissing("TERRA_VALIDATION_STATUS");
   const fixture = loadEnoch();
 
   console.log(JSON.stringify({ phase: "cross-model-start" }));
@@ -819,7 +820,7 @@ async function main() {
   const liveResults = [];
   for (const item of liveLabels) {
     console.log(JSON.stringify({ phase: "call-start", label: item.label }));
-    const r = await callScene(item.label, item.scene, fixture);
+    const r = await callScene(item.label, item.scene, fixture, benchmarkKey);
     liveResults.push(r);
     console.log(
       JSON.stringify({

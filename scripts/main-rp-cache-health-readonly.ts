@@ -3,6 +3,7 @@
  * provider generation calls = 0
  */
 import { writeFileSync } from "node:fs";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 
 const MODELS = [
   "deepseek-v4-pro-0813",
@@ -10,10 +11,11 @@ const MODELS = [
   "gemini-3.7-flash",
 ];
 
-const key = process.env.CHEAPER_INFERENCE_API_KEY?.trim();
+const key = resolveBenchmarkCheaperInferenceApiKey();
 if (!key) {
-  console.error("NO_CHEAPER_INFERENCE_KEY");
-  process.exit(1);
+  console.error("NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+  console.log("provider calls=0");
+  process.exit(0);
 }
 
 type Row = Record<string, unknown>;

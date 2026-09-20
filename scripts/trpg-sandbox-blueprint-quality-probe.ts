@@ -16,6 +16,7 @@ import {
   summarizeSandboxBlueprintProbeRuns,
   type SandboxBlueprintProbeRunRecord,
 } from "../src/lib/trpg/sandboxBlueprintProbeMetrics";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 
 type WorldFixture = {
   id: string;
@@ -198,7 +199,7 @@ function agencyHeuristic(plan: NonNullable<ReturnType<typeof parseTrpgScenarioPl
   return { railroad, agency: agency && !railroad };
 }
 
-async function runWorld(world: WorldFixture, runIndex: number) {
+async function runWorld(world: WorldFixture, runIndex: number, benchmarkKey: string) {
   const system = buildSandboxDirectorSystemPrompt();
   const user = buildSandboxDirectorUserPrompt({
     worldName: world.worldName,
@@ -227,6 +228,7 @@ async function runWorld(world: WorldFixture, runIndex: number) {
           temperature: call.temperature,
           kind: "sandbox_blueprint",
           stage: call.stage,
+          cheaperInferenceApiKeyOverride: benchmarkKey,
         });
         latencyMs += response.latencyMs;
         inputTokens += response.usage?.inputTokens ?? 0;
@@ -299,9 +301,11 @@ async function runWorld(world: WorldFixture, runIndex: number) {
 }
 
 async function main() {
-  if (!process.env.CHEAPER_INFERENCE_API_KEY?.trim()) {
-    console.error("CHEAPER_INFERENCE_API_KEY required");
-    process.exit(1);
+  const benchmarkKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!benchmarkKey) {
+    console.error("NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+    console.log("provider calls=0");
+    process.exit(0);
   }
 
   const outDir =
@@ -318,12 +322,12 @@ async function main() {
 
   const runs: SandboxBlueprintProbeRunRecord[] = [];
   for (const world of WORLDS) {
-    runs.push(await runWorld(world, 0));
+    runs.push(await runWorld(world, 0, benchmarkKey));
   }
   for (const category of ["apocalypse survival", "open exploration"] as const) {
     const world = WORLDS.find((w) => w.category === category)!;
-    runs.push(await runWorld(world, 1));
-    runs.push(await runWorld(world, 2));
+    runs.push(await runWorld(world, 1, benchmarkKey));
+    runs.push(await runWorld(world, 2, benchmarkKey));
   }
 
   const summary = summarizeSandboxBlueprintProbeRuns(runs, {

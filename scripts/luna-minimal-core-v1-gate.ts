@@ -46,6 +46,7 @@ import { stripStatusWidgetFromAssistantProse } from "../src/lib/statusWidget/pro
 import { buildCompactTerminalLengthAbsoluteTail } from "../src/lib/responseLength";
 import { buildCompactTerminalLayoutRecencyLine } from "../src/lib/webnovelOutputFormat";
 import { buildSceneDirective, renderSceneDirectiveForPrompt } from "../src/lib/sceneDirective";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 import {
   detectRpMetaLeakage,
   RP_META_LEAK_RECOVERY_USER_TAIL,
@@ -387,7 +388,8 @@ function appendRecoveryTail(history: Array<{ role: string; content: string }>) {
 async function callOnce(
   arm: ReturnType<typeof buildWire>,
   wireHistory: Array<{ role: string; content: string }>,
-  callTag: string
+  callTag: string,
+  benchmarkKey: string
 ) {
   const startedAt = performance.now();
   const stream = streamOpenRouterAdult(
@@ -395,7 +397,11 @@ async function callOnce(
     wireHistory,
     arm.resolved,
     arm.fx.targetResponseChars,
-    { ...arm.messageOpts, sessionId: `${arm.messageOpts.sessionId}-${callTag}` },
+    {
+      ...arm.messageOpts,
+      sessionId: `${arm.messageOpts.sessionId}-${callTag}`,
+      cheaperInferenceApiKeyOverride: benchmarkKey,
+    },
     { requestKind: `lmcv1-${callTag}`, chargeTurnBudget: false }
   );
   let text = "";
@@ -411,7 +417,11 @@ async function callOnce(
   };
 }
 
-async function callWithLeakGate(arm: ReturnType<typeof buildWire>, callId: string) {
+async function callWithLeakGate(
+  arm: ReturnType<typeof buildWire>,
+  callId: string,
+  benchmarkKey: string
+) {
   const attempts: Array<{
     attempt: number;
     leakageStatus: "PASS" | "FAILURE";
@@ -422,7 +432,7 @@ async function callWithLeakGate(arm: ReturnType<typeof buildWire>, callId: strin
   }> = [];
   let history = arm.wireHistory;
   for (let i = 0; i < 2; i++) {
-    const res = await callOnce(arm, history, `${callId}-A${i + 1}`);
+    const res = await callOnce(arm, history, `${callId}-A${i + 1}`, benchmarkKey);
     const prose = stripStatusWidgetFromAssistantProse(res.text);
     const leak = detectRpMetaLeakage(prose);
     attempts.push({
@@ -440,6 +450,12 @@ async function callWithLeakGate(arm: ReturnType<typeof buildWire>, callId: strin
 }
 
 async function main() {
+  if (ALLOW_API && !resolveBenchmarkCheaperInferenceApiKey()) {
+    console.log("NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+    console.log("provider calls=0");
+    process.exit(0);
+  }
+
   mkdirSync(OUT, { recursive: true });
   forceTestEnv();
 
@@ -506,8 +522,18 @@ async function main() {
     return;
   }
 
-  if (!process.env.CHEAPER_INFERENCE_API_KEY?.trim()) {
-    throw new Error("CHEAPER_INFERENCE_API_KEY missing");
+  const benchmarkKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!benchmarkKey) {
+    lines.push(
+      "## Status",
+      "officialStatus=NOT_RUN_BENCHMARK_KEY_MISSING",
+      "apiCallsExecuted=0",
+      "provider calls=0"
+    );
+    writeFileSync(REVIEW_PATH, lines.join("\n"), "utf8");
+    console.log("NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+    console.log("provider calls=0");
+    return;
   }
 
   type Result = Awaited<ReturnType<typeof callWithLeakGate>> & {
@@ -526,7 +552,7 @@ async function main() {
   for (const gateId of ["Q1", "S1", "M1", "U1"] as GateFixtureId[]) {
     const arm = arms.get(gateId)!;
     console.log(`CALL ${gateId}-MINIMAL_CORE_V1...`);
-    const out = await callWithLeakGate(arm, `${gateId}-MINIMAL_CORE_V1`);
+    const out = await callWithLeakGate(arm, `${gateId}-MINIMAL_CORE_V1`, benchmarkKey);
     apiCalls += out.attempts.length;
 
     const prose = out.prose;

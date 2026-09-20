@@ -10,9 +10,11 @@ import path from "node:path";
 import { loadEnvLocal } from "./load-env-local";
 import {
   estimateR5VariancePilotCost,
+  invokeBenchmarkProviderCall,
   R5_VARIANCE_DEFAULT_REPEAT,
   runR5VariancePilot,
 } from "../src/lib/scenePolicyBenchmarkPilotRunner";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 
 loadEnvLocal();
 
@@ -21,6 +23,13 @@ const PILOT_BASELINE_SHA = execSync("git rev-parse HEAD", { encoding: "utf8" }).
 const MAIN_SYNC_SHA = execSync("git rev-parse origin/main", { encoding: "utf8" }).trim();
 
 async function main() {
+  const benchmarkKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!benchmarkKey) {
+    console.log("PILOT_STATUS=NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+    console.log("provider calls=0");
+    process.exit(0);
+  }
+
   const costPlan = estimateR5VariancePilotCost(R5_VARIANCE_DEFAULT_REPEAT);
   console.log("R5 variance cost plan", costPlan);
   console.log("PILOT_BASELINE_SHA", PILOT_BASELINE_SHA);
@@ -29,6 +38,8 @@ async function main() {
     pilotBaselineSha: PILOT_BASELINE_SHA,
     mainSyncSha: MAIN_SYNC_SHA,
     repeatCount: R5_VARIANCE_DEFAULT_REPEAT,
+    invokeProvider: (input) =>
+      invokeBenchmarkProviderCall({ ...input, cheaperInferenceApiKey: benchmarkKey }),
   });
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
