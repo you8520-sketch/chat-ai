@@ -12,7 +12,8 @@ export type ParsedEyeTraits = {
   negatives: string[];
 };
 
-const ALREADY_NORMALIZED = /^Eyes \(explicit iris\/pupil ownership\):/m;
+const ALREADY_NORMALIZED =
+  /(?:^Eyes \(explicit iris\/pupil ownership\):|^Immutable eye traits for .+ \(exclusive — do not transfer to other subjects\):)/m;
 
 const KO_COLOR = [
   [/다크\s*그레이|어두운\s*회(?:색)?/i, "dark gray"],

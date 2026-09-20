@@ -149,6 +149,46 @@ describe("chatImageEyeTraits", () => {
     assert.match(normalized, /리프트 ONLY — Iris color: black/);
   });
 
+  it("EYE-IDEMPOTENT-1 black pupils red irises survives second normalize", () => {
+    const first = normalizeSavedAppearanceForProvider("black pupils, red irises", {
+      subjectName: "에단",
+    });
+    const second = normalizeSavedAppearanceForProvider(first, { subjectName: "에단" });
+    assert.equal(first, second);
+    assert.match(first, /에단 ONLY — Iris color: red/);
+    assert.match(first, /에단 ONLY — Pupil color: black/);
+    assert.doesNotMatch(first, /에단 ONLY — Pupil color: red/);
+  });
+
+  it("EYE-IDEMPOTENT-2 black irises red pupils survives second normalize", () => {
+    const first = normalizeSavedAppearanceForProvider("black irises, red pupils", {
+      subjectName: "리프트",
+    });
+    const second = normalizeSavedAppearanceForProvider(first, { subjectName: "리프트" });
+    assert.equal(first, second);
+    assert.match(first, /리프트 ONLY — Iris color: black/);
+    assert.match(first, /리프트 ONLY — Pupil color: red/);
+    assert.doesNotMatch(first, /리프트 ONLY — Iris color: red/);
+  });
+
+  it("EYE-IDEMPOTENT-3 heterochromia survives second normalize", () => {
+    const first = normalizeSavedAppearanceForProvider("left blue / right green irises", {
+      subjectName: "A",
+    });
+    const second = normalizeSavedAppearanceForProvider(first, { subjectName: "A" });
+    assert.equal(first, second);
+    assert.match(second, /Heterochromia: left blue, right green/);
+  });
+
+  it("EYE-IDEMPOTENT-4 pupil shape survives second normalize", () => {
+    const first = normalizeSavedAppearanceForProvider("gold irises vertical slit pupil", {
+      subjectName: "B",
+    });
+    const second = normalizeSavedAppearanceForProvider(first, { subjectName: "B" });
+    assert.equal(first, second);
+    assert.match(second, /Pupil shape: vertical slit/);
+  });
+
   it("EYE_BULLET_RESIDUE strips punctuation-only bullets after eye phrase removal", () => {
     const input = "- black hair\n- black pupils, red irises\n- white shirt";
     const normalized = normalizeSavedAppearanceForProvider(input);

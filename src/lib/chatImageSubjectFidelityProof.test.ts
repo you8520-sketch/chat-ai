@@ -150,8 +150,11 @@ describe("chatImageSubjectFidelity — deterministic reproduction", () => {
     const blockA = subjectManifestBlock(prompt, "A");
     const blockB = subjectManifestBlock(prompt, "B");
     assert.match(blockB, /UserPersona ONLY — Pupil color: red/i);
+    assert.match(blockB, /UserPersona ONLY — Iris color: black/i);
     assert.match(blockA, /CharacterA ONLY — Iris color: red/i);
     assert.match(blockA, /CharacterA ONLY — Pupil color: black/i);
+    assert.doesNotMatch(blockA, /CharacterA ONLY — Pupil color: red/i);
+    assert.doesNotMatch(blockB, /UserPersona ONLY — Iris color: red/i);
     assert.doesNotMatch(blockA, /UserPersona ONLY/);
     assert.doesNotMatch(blockB, /CharacterA ONLY — Iris color: red/);
     assert.doesNotMatch(blockB, /CharacterA ONLY — Pupil color: black/);

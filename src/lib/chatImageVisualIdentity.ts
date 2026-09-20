@@ -239,8 +239,8 @@ function isTrustedStrictFallbackAppearanceSource(
 }
 
 /**
- * Tier-2 strict fallback keeps provider-safe immutable visual traits from
- * server-trusted sources only — not raw scene prose or client-injected text.
+ * Tier-2 strict fallback keeps sanitized raw visual description only.
+ * Normalization/rendering is owned exclusively by renderChatImageSubjectManifest.
  */
 export function clipSavedAppearanceForStrictFallback(
   subject: ChatImageVisualSubject
@@ -248,10 +248,7 @@ export function clipSavedAppearanceForStrictFallback(
   const raw = String(subject.savedAppearance ?? "").trim();
   if (!raw || !isTrustedStrictFallbackAppearanceSource(subject)) return "";
   const visualOnly = extractVisualAppearance(raw) || raw;
-  const subjectName = subject.name.trim() || subject.key;
-  return clipSavedAppearanceForPrompt(
-    normalizeSavedAppearanceForProvider(visualOnly, { subjectName })
-  );
+  return clipSavedAppearanceForPrompt(visualOnly);
 }
 
 /** Canonical strict-fallback subject prep — preserves trusted immutable traits. */
