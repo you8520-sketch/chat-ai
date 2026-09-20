@@ -37,6 +37,7 @@
     "react-dom": "^19.1.0",
     "server-only": "^0.0.1",
     "sharp": "^0.35.4",
+    "tsx": "^4.22.4",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
@@ -52,7 +53,6 @@
     "@types/web-push": "^3.6.4",
     "jsdom": "25.0.1",
     "tailwindcss": "^4.1.7",
-    "tsx": "^4.22.4",
     "typescript": "^5"
   },
   "overrides": {
