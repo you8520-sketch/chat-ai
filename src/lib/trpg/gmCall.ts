@@ -183,17 +183,25 @@ function usageFromResponse(
   };
 }
 
+function resolveTrpgCheaperInferenceCredential(override?: string): string {
+  const explicit = override?.trim();
+  return explicit || resolveCheaperInferenceApiKey();
+}
+
 async function postTrpgChat(opts: {
   model: string;
   body: Record<string, unknown>;
   timeoutMs: number;
   role: "gm" | "bot";
+  cheaperInferenceApiKeyOverride?: string;
 }): Promise<{ text: string; usage?: TrpgModelUsage; elapsedMs: number; reasoningTokens: number | "unavailable" }> {
   const contract = trpgProviderRequestContract(opts.body);
   console.info(`[TRPG][${opts.role}] request_contract`, contract);
   const started = Date.now();
   const serializedBody = JSON.stringify(opts.body);
-  const headers = buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey());
+  const headers = buildCheaperInferenceHeaders(
+    resolveTrpgCheaperInferenceCredential(opts.cheaperInferenceApiKeyOverride)
+  );
   const maxAttempts = maxProviderAttempts(opts.role);
   try {
     let previousHttpStatus: number | undefined;
@@ -384,6 +392,7 @@ async function postTrpgGmStream(opts: {
   body: Record<string, unknown>;
   timeoutMs: number;
   callbacks?: TrpgGmStreamCallbacks;
+  cheaperInferenceApiKeyOverride?: string;
 }): Promise<{
   text: string;
   usage?: TrpgModelUsage;
@@ -404,7 +413,9 @@ async function postTrpgGmStream(opts: {
   };
   opts.callbacks?.onProviderTimings?.({ ...timings });
   const serializedBody = JSON.stringify(opts.body);
-  const headers = buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey());
+  const headers = buildCheaperInferenceHeaders(
+    resolveTrpgCheaperInferenceCredential(opts.cheaperInferenceApiKeyOverride)
+  );
   const maxAttempts = GM_MAX_PROVIDER_ATTEMPTS;
   try {
     let previousHttpStatus: number | undefined;
@@ -518,6 +529,7 @@ export async function callTrpgGm(opts: {
   user: string;
   timeoutMs?: number;
   stream?: TrpgGmStreamCallbacks;
+  cheaperInferenceApiKeyOverride?: string;
 }): Promise<TrpgGmCallResult> {
   if (isMockApiMode()) {
     const timings = simulateMockGmStream(MOCK_GM, opts.stream);
@@ -540,6 +552,7 @@ export async function callTrpgGm(opts: {
     body,
     timeoutMs: opts.timeoutMs ?? GM_PROVIDER_TIMEOUT_MS,
     callbacks: opts.stream,
+    cheaperInferenceApiKeyOverride: opts.cheaperInferenceApiKeyOverride,
   });
   recordTrpgProviderCost("background-trpg-gm", model, result.usage);
   return {

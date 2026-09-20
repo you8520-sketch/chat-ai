@@ -568,6 +568,8 @@ export type OpenRouterMessageOpts = {
   allowOpenRouterUnderLengthRecovery?: boolean;
   /** OpenAI-compatible HTTP transport used by the primary RP stream. */
   transportProvider?: "openrouter" | "cheaperinference";
+  /** Explicit CheaperInference credential; production resolver used when omitted. */
+  cheaperInferenceApiKeyOverride?: string;
   /**
    * Non-DeepSeek → DeepSeek0813 adult-handoff TRUE-OFF only.
    * Must not be set for native/user-selected DeepSeek.
@@ -1085,15 +1087,20 @@ type CompatibleTransport = {
 
 function resolveCompatibleTransport(messageOpts?: OpenRouterMessageOpts): CompatibleTransport {
   if (messageOpts?.transportProvider === "cheaperinference") {
+    const explicit = messageOpts.cheaperInferenceApiKeyOverride?.trim();
     let key: string;
-    try {
-      key = resolveCheaperInferenceApiKey();
-    } catch {
-      throw new OpenRouterApiError({
-        message:
-          "Cheaper Inference API 키가 설정되지 않았습니다. " +
-          "Railway Variables에 CHEAPER_INFERENCE_API_KEY를 등록해 주세요.",
-      });
+    if (explicit) {
+      key = explicit;
+    } else {
+      try {
+        key = resolveCheaperInferenceApiKey();
+      } catch {
+        throw new OpenRouterApiError({
+          message:
+            "Cheaper Inference API 키가 설정되지 않았습니다. " +
+            "Railway Variables에 CHEAPER_INFERENCE_API_KEY를 등록해 주세요.",
+        });
+      }
     }
     assertCheaperInferenceEndpoint(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL);
     return {

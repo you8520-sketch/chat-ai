@@ -7,6 +7,19 @@ export function resolveBenchmarkCheaperInferenceApiKey(): string | null {
   return key || null;
 }
 
+/** Exit 0 with NOT_RUN when benchmark key is absent; never reads production key. */
+export function exitIfBenchmarkCheaperInferenceApiKeyMissing(
+  statusLabel = "NOT_RUN"
+): string {
+  const key = resolveBenchmarkCheaperInferenceApiKey();
+  if (!key) {
+    console.log(`${statusLabel} — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY`);
+    console.log("provider calls=0");
+    process.exit(0);
+  }
+  return key;
+}
+
 /** Sanitize log/error text that may echo benchmark env assignments. */
 export function sanitizeBenchmarkCredentialText(text: string): string {
   return text
