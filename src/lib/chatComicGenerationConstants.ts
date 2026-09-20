@@ -11,6 +11,11 @@ export const CHAT_COMIC_TEMPLATE_NAME = "3~4컷 가로 만화";
 export const CHAT_COMIC_TEMPLATE_PREVIEW_URL =
   "/image-templates/comic-vertical-sample-hq.webp";
 
+/** Product/format framing only — art style is owned by renderChatImageStyleFidelityContract. */
+export function chatComicPageProductFraming(panelCount: number): string {
+  return `Create one comic page with exactly ${panelCount} wide horizontal panels stacked vertically.`;
+}
+
 /** Soft guardrail for pasted prose — selected-turn summaries are not truncated. */
 export const CHAT_COMIC_MAX_INPUT_CHARS = 4_000;
 export const CHAT_COMIC_IMAGE_OUTPUT_SIZE = "1008x1408" as const;

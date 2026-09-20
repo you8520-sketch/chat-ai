@@ -75,10 +75,10 @@ describe("chatComicGeneration", () => {
       mood: "lovely",
       plan: SAMPLE_PLAN,
     });
-    assert.match(prompt, /COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE/);
+    assert.match(prompt, /COMIC PANEL SPEC — FULL PROVIDER-RENDERED COMIC PAGE/);
     assert.match(prompt, /\[Panel 1/);
     assert.match(prompt, /Hero focus:/);
-    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+    assert.match(prompt, /RENDER THE COMPLETE COMIC PAGE WITH READABLE KOREAN TEXT/);
     assert.match(prompt, /Continuity rules:/);
     assert.doesNotMatch(prompt, /VISUAL LAYER ONLY/);
     assert.doesNotMatch(prompt, /server overlay/i);
@@ -113,7 +113,7 @@ describe("chatComicGeneration", () => {
       personaGender: "male",
       plan: silent,
     });
-    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+    assert.match(prompt, /RENDER THE COMPLETE COMIC PAGE WITH READABLE KOREAN TEXT/);
     assert.doesNotMatch(prompt, /Speech bubble \(/);
     assert.doesNotMatch(prompt, /STRICT CLOSED TEXT WHITELIST/);
     const audit = auditProviderPromptFullComic({ prompt, plan: silent });
@@ -150,7 +150,7 @@ describe("chatComicGeneration", () => {
     const byDefault = buildChatComicImagePrompt(base);
     const explicit = buildChatComicImagePrompt({ ...base, compositionMode: "full_provider_rendered" });
     assert.equal(byDefault, explicit);
-    assert.match(byDefault, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+    assert.match(byDefault, /RENDER THE COMPLETE COMIC PAGE WITH READABLE KOREAN TEXT/);
     assert.doesNotMatch(byDefault, /VISUAL LAYER ONLY/);
     assert.doesNotMatch(byDefault, /blank speech balloons/i);
     assert.doesNotMatch(byDefault, /server overlay/i);
@@ -269,7 +269,7 @@ describe("chatComicGeneration", () => {
       personaGender: "male",
       plan: narrationPlan,
     });
-    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+    assert.match(prompt, /RENDER THE COMPLETE COMIC PAGE WITH READABLE KOREAN TEXT/);
     assert.match(prompt, /Use narration sparingly/i);
     assert.match(prompt, /Narration box \(very short, read clearly\)/);
     const narrationText = prompt.match(/Narration box \(very short, read clearly\): "([^"]+)"/)?.[1] ?? "";

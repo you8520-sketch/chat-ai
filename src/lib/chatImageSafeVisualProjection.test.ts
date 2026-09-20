@@ -166,7 +166,7 @@ describe("chatImageSafeVisualProjection", () => {
     // backstop). Raw scene prose block must still be absent.
     assert.ok(prompt.includes("성관계를 한다"), "approved dialogue reaches the full-provider prompt");
     assert.equal(scenePlanHasRawChatLeak(prompt), false);
-    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+    assert.match(prompt, /RENDER THE COMPLETE COMIC PAGE WITH READABLE KOREAN TEXT/);
   });
 
   it("LD prompt uses safe projection for raw turn prose", () => {

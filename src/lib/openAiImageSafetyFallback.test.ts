@@ -350,7 +350,7 @@ describe("openAiImageSafetyFallback orchestration", () => {
       ],
       compositionMode: "full_provider_rendered",
     });
-    assert.match(primaryPrompt, /RENDER THE COMPLETE MANHWA PAGE/);
+    assert.match(primaryPrompt, /RENDER THE COMPLETE COMIC PAGE/);
     assert.doesNotMatch(primaryPrompt, /added later by server overlay/i);
     await withMockFetch(async (counter) => {
       globalThis.fetch = async () => {
@@ -843,7 +843,7 @@ describe("strict safety fallback prompts", () => {
         ],
       },
     });
-    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE/);
+    assert.match(prompt, /RENDER THE COMPLETE COMIC PAGE/);
     assert.match(prompt, /오늘은 날씨가 참 좋네\./);
     assert.doesNotMatch(prompt, /VISUAL LAYER ONLY/);
     assert.doesNotMatch(prompt, /Text is added later by server overlay/);
@@ -864,7 +864,7 @@ describe("strict safety fallback prompts", () => {
     assert.doesNotMatch(prompt, /added later by server overlay/i);
     assert.doesNotMatch(prompt, /server overlay/i);
     assert.doesNotMatch(prompt, /VISUAL LAYER ONLY/i);
-    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE/);
+    assert.match(prompt, /RENDER THE COMPLETE COMIC PAGE/);
     assert.match(prompt, /no server text is added later/i);
   });
 

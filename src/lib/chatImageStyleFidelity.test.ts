@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { buildChatComicGenerationPlan } from "@/lib/chatComicGeneration";
+import { chatComicPageProductFraming } from "@/lib/chatComicGenerationConstants";
 import { buildDeterministicScenePlan, buildSceneSourceMessages } from "@/lib/chatImageScenePlan";
 import {
   buildStrictComicFallbackPrompt,
@@ -11,6 +12,7 @@ import {
 import {
   buildChatLdIllustrationPrompt,
   buildLdDuoGenerationPlan,
+  CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING,
 } from "@/lib/chatLdIllustrationGeneration";
 import { renderChatImageStyleFidelityContract } from "@/lib/chatImageVisualIdentity";
 import { syntheticLdDuoPlan } from "@/lib/chatImageVisualIdentity.fixtures";
@@ -18,6 +20,12 @@ import { syntheticLdDuoPlan } from "@/lib/chatImageVisualIdentity.fixtures";
 const STYLE_MARKER = /STYLE FIDELITY — rendering technique must follow the supplied character identity reference images/;
 const GENERIC_DEFAULT_GUARD = /not a generic stock illustration or default model look/;
 const TEMPLATE_STYLE_GUARD = /Use subject identity references \(reference image 2 and onward\) as the authoritative art-style source/;
+const TEMPLATE_LAYOUT_GUARD = /Reference image 1 is layout, gutters, and panel structure ONLY/;
+const LD_ROUTE_STYLE_CONFLICT =
+  /Create one polished vertical 2:3 Korean character illustration, not a comic page/;
+const COMIC_ROUTE_STYLE_CONFLICT =
+  /Create one polished Korean manhwa-style page with exactly \d+ wide horizontal panels stacked vertically/;
+const SUBJECT_STYLE_ANCHOR = /Each subject reference is both an identity anchor and a style anchor/;
 
 const DUO_SUBJECTS = [
   {
@@ -48,8 +56,8 @@ function comicPlan() {
   const source = buildSceneSourceMessages([
     { role: "assistant", content: "태현과 유저가 카페에서 대화한다." },
   ]);
-  const plan = buildDeterministicScenePlan(source);
-  return buildChatComicGenerationPlan({
+  const scenePlan = buildDeterministicScenePlan(source);
+  const generation = buildChatComicGenerationPlan({
     characterName: "태현",
     characterGender: "male",
     personaName: "유저",
@@ -61,9 +69,10 @@ function comicPlan() {
     personaSavedAppearance: "",
     personaAppearanceMode: "image_only",
     mood: "comic",
-    plan,
+    plan: scenePlan,
     fullSourceDirectText: "태현과 유저가 카페에서 대화한다.",
   });
+  return { ...generation, scenePlan };
 }
 
 describe("chatImageStyleFidelity — canonical owner", () => {
@@ -96,10 +105,6 @@ describe("chatImageStyleFidelity — canonical owner", () => {
   });
 
   it("STYLE-OWNER-4 comic strict fallback includes style fidelity contract", () => {
-    const source = buildSceneSourceMessages([
-      { role: "assistant", content: "태현과 유저가 카페에서 대화한다." },
-    ]);
-    const plan = buildDeterministicScenePlan(source);
     const prompt = buildStrictComicFallbackPrompt({
       panelCount: 4,
       characterName: "태현",
@@ -108,7 +113,6 @@ describe("chatImageStyleFidelity — canonical owner", () => {
       personaGender: "female",
       subjects: DUO_SUBJECTS,
       compositionMode: "full_provider_rendered",
-      plan,
     });
     assert.match(prompt, STYLE_MARKER);
     assert.match(prompt, TEMPLATE_STYLE_GUARD);
@@ -162,6 +166,101 @@ describe("chatImageStyleFidelity — canonical owner", () => {
     });
     assert.match(prompt, STYLE_MARKER);
     assert.doesNotMatch(prompt, /Match the drawing style, line quality/);
+  });
+
+  it("STYLE-FINAL-1 LD duo primary — canonical owner, no route-level generic style cue", () => {
+    const { prompt } = syntheticLdDuoPlan();
+    assert.match(prompt, STYLE_MARKER);
+    assert.match(prompt, SUBJECT_STYLE_ANCHOR);
+    assert.match(prompt, new RegExp(CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.doesNotMatch(prompt, LD_ROUTE_STYLE_CONFLICT);
+  });
+
+  it("STYLE-FINAL-2 LD strict — canonical owner, no route-level generic style cue", () => {
+    const prompt = buildStrictLdDuoFallbackPrompt({
+      characterName: "태현",
+      characterGender: "male",
+      personaName: "유저",
+      personaGender: "female",
+      subjects: DUO_SUBJECTS,
+      sceneSourceText: "카페에서 대화한다.",
+      adultGrounded: true,
+    });
+    assert.match(prompt, STYLE_MARKER);
+    assert.ok(prompt.includes(CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING));
+    assert.doesNotMatch(prompt, LD_ROUTE_STYLE_CONFLICT);
+  });
+
+  it("STYLE-FINAL-3 TR party LD primary — canonical owner, no route-level generic style cue", () => {
+    const prompt = buildChatLdIllustrationPrompt({
+      characterName: "태현",
+      characterGender: "male",
+      personaName: "유저",
+      personaGender: "female",
+      currentTurn: "fallback",
+      cast: [
+        { name: "태현", gender: "male", role: "player 1", referenceIndex: 1 },
+        { name: "유저", gender: "female", role: "player 2", referenceIndex: 2 },
+      ],
+      fullSource: "던전에서 전투한다.",
+    });
+    assert.match(prompt, STYLE_MARKER);
+    assert.ok(prompt.includes(CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING));
+    assert.doesNotMatch(prompt, LD_ROUTE_STYLE_CONFLICT);
+  });
+
+  it("STYLE-FINAL-4 TR party LD strict — canonical owner, no route-level generic style cue", () => {
+    const prompt = buildStrictLdPartyFallbackPrompt({
+      cast: [
+        { name: "태현", gender: "male", role: "player 1", referenceIndex: 1 },
+        { name: "유저", gender: "female", role: "player 2", referenceIndex: 2 },
+      ],
+      subjects: DUO_SUBJECTS,
+      sceneSourceText: "던전에서 전투한다.",
+      adultGrounded: false,
+    });
+    assert.match(prompt, STYLE_MARKER);
+    assert.ok(prompt.includes(CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING));
+    assert.doesNotMatch(prompt, LD_ROUTE_STYLE_CONFLICT);
+  });
+
+  it("STYLE-FINAL-5 comic primary — canonical owner, no route-level manhwa style cue", () => {
+    const { prompt, scenePlan } = comicPlan();
+    assert.match(prompt, STYLE_MARKER);
+    assert.match(prompt, TEMPLATE_STYLE_GUARD);
+    assert.ok(prompt.includes(chatComicPageProductFraming(scenePlan.panels.length)));
+    assert.doesNotMatch(prompt, COMIC_ROUTE_STYLE_CONFLICT);
+  });
+
+  it("STYLE-FINAL-6 comic strict — canonical owner, no route-level manhwa style cue", () => {
+    const prompt = buildStrictComicFallbackPrompt({
+      panelCount: 4,
+      characterName: "태현",
+      characterGender: "male",
+      personaName: "유저",
+      personaGender: "female",
+      subjects: DUO_SUBJECTS,
+      compositionMode: "full_provider_rendered",
+    });
+    assert.match(prompt, STYLE_MARKER);
+    assert.match(prompt, TEMPLATE_STYLE_GUARD);
+    assert.ok(prompt.includes(chatComicPageProductFraming(4)));
+    assert.doesNotMatch(prompt, COMIC_ROUTE_STYLE_CONFLICT);
+  });
+
+  it("STYLE-FINAL-7 comic template remains layout-only in style contract", () => {
+    const { prompt } = comicPlan();
+    assert.match(prompt, TEMPLATE_LAYOUT_GUARD);
+    assert.match(prompt, /Do NOT copy the template sample figures/);
+    assert.doesNotMatch(prompt, /stock finish as the art style.*manhwa|manhwa-style page/i);
+  });
+
+  it("STYLE-FINAL-8 comic output preserves panel count, speech balloon, and Korean text semantics", () => {
+    const { prompt, scenePlan } = comicPlan();
+    assert.ok(prompt.includes(chatComicPageProductFraming(scenePlan.panels.length)));
+    assert.match(prompt, /RENDER THE COMPLETE COMIC PAGE WITH READABLE KOREAN TEXT/);
+    assert.match(prompt, /Make balloon tails point toward the actual speaker/);
+    assert.match(prompt, /readable Korean SFX/i);
   });
 
   it("STYLE-OWNER-7 route parity — LD duo and comic share style owner export", () => {

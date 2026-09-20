@@ -41,6 +41,9 @@ export const CHAT_LD_ILLUSTRATION_TEMPLATE_ID = "current_turn_ld_illustration" a
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_NAME = "현재 턴 2:3 LD 일러스트";
 export const CHAT_LD_ILLUSTRATION_OUTPUT_SIZE = "800x1200" as const;
 export const CHAT_LD_ILLUSTRATION_QUALITY = "medium" as const;
+/** Product/format framing only — art style is owned by renderChatImageStyleFidelityContract. */
+export const CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING =
+  "Create one vertical 2:3 character illustration, not a comic page.";
 /**
  * Base chat-room price for 1:1 and TRPG party shots alike. The final required
  * points are computed by the canonical pricing owner
@@ -160,7 +163,7 @@ function buildPartyIllustrationPrompt(opts: {
     adultGrounded: opts.adultGrounded ?? false,
   };
   return [
-    "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
+    CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING,
     `This is a TRPG party group illustration. Show ALL ${count} listed ${peopleWord(count)} together in a single scene. Count the people: ${count}. Do not omit anyone.`,
     "CAST (roster — every listed person must appear):",
     ...opts.cast.map((member, index) => formatCastLine(member, index)),
@@ -268,7 +271,7 @@ export function buildChatLdIllustrationPrompt(opts: {
     ? "Depict the approved scene plan below as one cinematic, emotionally accurate scene."
     : "Depict the selected important visual moment below as one cinematic, emotionally accurate scene.";
   return [
-    "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
+    CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING,
     renderChatImageVisualIdentity({
       subjects: defaultLdDuoSubjects(opts),
       hasTemplate: false,
@@ -385,7 +388,7 @@ export function buildLdSceneGenerationPlan(opts: {
     });
     const selected = bound.selected;
     const prompt = [
-      "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
+      CHAT_LD_ILLUSTRATION_PRODUCT_FRAMING,
       renderApprovedCastManifest({
         manifest: opts.castManifest!,
         selected,

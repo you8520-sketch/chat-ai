@@ -80,7 +80,7 @@ describe("chatImagePromptIdentityBinding — duo canonical namespace (visual)", 
     assert.match(prompt, /Reference: Image 3 belongs ONLY to 렌/);
     assert.match(prompt, /A = chat character \(태형\)/);
     assert.match(prompt, /B = user persona \(렌\)/);
-    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+    assert.match(prompt, /RENDER THE COMPLETE COMIC PAGE WITH READABLE KOREAN TEXT/);
     assert.match(prompt, /Speech bubble \(/);
     assert.match(prompt, /같이 갈래\?/);
     assert.match(prompt, /그래\./);

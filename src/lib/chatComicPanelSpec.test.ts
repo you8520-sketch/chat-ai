@@ -107,8 +107,8 @@ describe("chatComicPanelSpec compiler", () => {
     assert.match(prompt, /COMIC PANEL SPEC/);
     assert.match(prompt, /\[Panel 1 — Opening beat\]/);
     assert.doesNotMatch(prompt, /APPROVED SCENE PLAN/);
-    assert.match(prompt, /COMIC PANEL SPEC — FULL PROVIDER-RENDERED MANHWA PAGE/);
-    assert.match(prompt, /RENDER THE COMPLETE MANHWA PAGE WITH READABLE KOREAN TEXT/);
+    assert.match(prompt, /COMIC PANEL SPEC — FULL PROVIDER-RENDERED COMIC PAGE/);
+    assert.match(prompt, /RENDER THE COMPLETE COMIC PAGE WITH READABLE KOREAN TEXT/);
     assert.doesNotMatch(prompt, /VISUAL LAYER ONLY/);
     assert.doesNotMatch(prompt, /STRICT CLOSED TEXT WHITELIST/);
     assert.doesNotMatch(prompt, /romantic-comedy timing/i);

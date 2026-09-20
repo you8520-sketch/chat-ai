@@ -29,7 +29,7 @@ export const TIER2_EMOTIONAL_DISTRESS_POSITIVE =
 
 /** Canonical positive-only Tier-2 comic safe depiction contract. */
 export const COMIC_TIER2_POSITIVE_SAFE_DEPICTION =
-  "GENERAL-AUDIENCE VISUAL CONTRACT — family-safe manhwa depiction suitable for all ages. Every character remains fully clothed or modestly covered. Use ordinary resting, sitting, standing, or conversational body language. Preserve cast identity, location continuity, and emotional tone. Calm affectionate closeness is allowed.";
+  "GENERAL-AUDIENCE VISUAL CONTRACT — family-safe comic depiction suitable for all ages. Every character remains fully clothed or modestly covered. Use ordinary resting, sitting, standing, or conversational body language. Preserve cast identity, location continuity, and emotional tone. Calm affectionate closeness is allowed.";
 
 function tier2PositiveSubstitute(
   categories: readonly SafeVisualReasonCategory[],

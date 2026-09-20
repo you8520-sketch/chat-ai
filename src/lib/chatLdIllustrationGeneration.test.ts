@@ -86,7 +86,7 @@ describe("chatLdIllustrationGeneration", () => {
       personaGender: "male",
       currentTurn: "Setting: 식당\nActions: 렌이 태형에게 깻잎을 먹여준다.",
     });
-    assert.match(prompt, /Create one polished vertical 2:3 Korean character illustration, not a comic page/);
+    assert.match(prompt, /Create one vertical 2:3 character illustration, not a comic page/);
     assert.match(prompt, /Do not render speech bubbles, captions, subtitles, or readable dialogue text/);
     assert.doesNotMatch(prompt, /컷만화|4-panel|manhwa page/);
     assert.doesNotMatch(prompt, /APPROVED SCENE PLAN/);
