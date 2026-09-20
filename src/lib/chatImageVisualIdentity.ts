@@ -77,8 +77,98 @@ export function isChatImageAppearanceMode(
   return value === "image_only" || value === "image_plus_saved";
 }
 
+const NUMERIC_HEIGHT_CM_MIN = 120;
+const NUMERIC_HEIGHT_CM_MAX = 250;
+
+const STANDALONE_BARE_HEIGHT_CLAUSE_RE = /^(?:[-*]\s*)?(\d{2,3})\s*cm\.?$/i;
+
+const LABELED_HEIGHT_IN_CLAUSE_RE =
+  /(?:신장|키|height)\s*[:：]?\s*(\d{2,3})\s*cm\b/i;
+
+/** Disqualifies cm tokens that belong to non-stature measurements (waist, weapon length, etc.). */
+const NON_STATURE_MEASUREMENT_PREFIX_RE =
+  /(?:허리|어깨(?:너비)?|검\s*길이|날개\s*길이|소매|바지(?:\s*기장)?|기장|둘레|너비|width|waist|shoulder|blade|wing|sleeve|length\s+of)/i;
+
+function normalizeHeightClauseSegment(segment: string): string {
+  return segment.trim().replace(/^[-*]\s*/, "");
+}
+
+function parsePlausibleHeightCm(value: string): number | null {
+  const cm = Number(value);
+  if (!Number.isInteger(cm) || cm < NUMERIC_HEIGHT_CM_MIN || cm > NUMERIC_HEIGHT_CM_MAX) {
+    return null;
+  }
+  return cm;
+}
+
+/** Canonical explicit numeric height evidence for one clause/segment. */
+export function parseExplicitHeightCmFromClause(segment: string): number | null {
+  const clause = normalizeHeightClauseSegment(segment);
+  if (!clause) return null;
+
+  const labeled = clause.match(LABELED_HEIGHT_IN_CLAUSE_RE);
+  if (labeled?.[1]) {
+    return parsePlausibleHeightCm(labeled[1]);
+  }
+
+  if (NON_STATURE_MEASUREMENT_PREFIX_RE.test(clause)) {
+    return null;
+  }
+
+  const standalone = clause.match(STANDALONE_BARE_HEIGHT_CLAUSE_RE);
+  if (standalone?.[1]) {
+    return parsePlausibleHeightCm(standalone[1]);
+  }
+
+  return null;
+}
+
+export function isExplicitNumericHeightClause(segment: string): boolean {
+  return parseExplicitHeightCmFromClause(segment) != null;
+}
+
+/** Explicit numeric stature (cm) from saved visual text — shared with visual extraction. */
+export function parseNumericHeightCm(source: unknown): number | null {
+  const normalized = String(source ?? "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+  if (!normalized) return null;
+
+  const segments = normalized
+    .split(CLAUSE_SPLIT)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  let labeledHeight: number | null = null;
+  let bareHeight: number | null = null;
+
+  for (const segment of segments) {
+    const clause = normalizeHeightClauseSegment(segment);
+    const labeled = clause.match(LABELED_HEIGHT_IN_CLAUSE_RE);
+    if (labeled?.[1]) {
+      const cm = parsePlausibleHeightCm(labeled[1]);
+      if (cm != null) labeledHeight = cm;
+      continue;
+    }
+    if (NON_STATURE_MEASUREMENT_PREFIX_RE.test(clause)) continue;
+    const standalone = clause.match(STANDALONE_BARE_HEIGHT_CLAUSE_RE);
+    if (standalone?.[1]) {
+      const cm = parsePlausibleHeightCm(standalone[1]);
+      if (cm != null) bareHeight = cm;
+    }
+  }
+
+  if (labeledHeight != null) return labeledHeight;
+  if (bareHeight != null) return bareHeight;
+
+  // Single-segment sources that did not split (e.g. compact prose) — one final clause pass.
+  return parseExplicitHeightCmFromClause(normalized);
+}
+
 function clauseLooksVisual(segment: string): boolean {
   if (/\bnot\s+visual\s+appearance\b/i.test(segment)) return false;
+  if (isExplicitNumericHeightClause(segment)) return true;
   return VISUAL_PHRASE.test(segment) || SHORT_KO_VISUAL_RE.test(segment);
 }
 
@@ -554,33 +644,6 @@ function summarizeBoundEyeTraits(raw: string): string[] {
   return parts;
 }
 
-const NUMERIC_HEIGHT_CM_MIN = 120;
-const NUMERIC_HEIGHT_CM_MAX = 250;
-
-const LABELED_NUMERIC_HEIGHT_CM_RE =
-  /(?:신장|키|height)\s*[:：]?\s*(\d{2,3})\s*cm\b/i;
-const BARE_NUMERIC_HEIGHT_CM_RE = /\b(\d{2,3})\s*cm\b/i;
-
-/** Explicit numeric height (cm) from saved visual text — no inference from prose or references. */
-export function parseNumericHeightCm(source: unknown): number | null {
-  const text = String(source ?? "").trim();
-  if (!text) return null;
-
-  const labeled = text.match(LABELED_NUMERIC_HEIGHT_CM_RE);
-  if (labeled?.[1]) {
-    const cm = Number(labeled[1]);
-    if (cm >= NUMERIC_HEIGHT_CM_MIN && cm <= NUMERIC_HEIGHT_CM_MAX) return cm;
-    return null;
-  }
-
-  const bare = text.match(BARE_NUMERIC_HEIGHT_CM_RE);
-  if (bare?.[1]) {
-    const cm = Number(bare[1]);
-    if (cm >= NUMERIC_HEIGHT_CM_MIN && cm <= NUMERIC_HEIGHT_CM_MAX) return cm;
-  }
-  return null;
-}
-
 function resolveSubjectNumericHeight(subject: ChatImageVisualSubject): number | null {
   if (subject.appearanceMode !== "image_plus_saved") return null;
   const raw = String(subject.savedAppearance ?? "").trim();
@@ -625,7 +688,7 @@ export function renderCrossSubjectRelativeStature(
     "CROSS-SUBJECT RELATIVE STATURE — body proportions (not screen position):",
     ...relationLines,
     "Preserve believable relative body stature and proportions when both subjects are visible in comparable posture.",
-    "Do NOT require the taller subject's head to appear higher on the canvas — sitting, leaning, bending, perspective, and camera distance may change on-screen placement.",
+    "Let on-screen vertical placement follow pose, sitting, leaning, bending, perspective, and camera distance while preserving believable relative body stature.",
   ].join("\n");
 }
 

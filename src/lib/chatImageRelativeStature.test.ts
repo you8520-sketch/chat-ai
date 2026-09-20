@@ -14,6 +14,8 @@ import {
   prepareSubjectsForStrictFallback,
   renderChatImageVisualIdentity,
   renderCrossSubjectRelativeStature,
+  resolveCharacterSavedAppearance,
+  resolvePersonaSavedAppearance,
   type ChatImageVisualSubject,
 } from "@/lib/chatImageVisualIdentity";
 import {
@@ -95,7 +97,7 @@ describe("chatImageRelativeStature — cross-subject numeric height owner", () =
     assert.doesNotMatch(prompt, /head must always be above/i);
     assert.match(
       prompt,
-      /Do NOT require the taller subject's head to appear higher on the canvas/i
+      /Let on-screen vertical placement follow pose, sitting, leaning, bending, perspective, and camera distance while preserving believable relative body stature/i
     );
   });
 
@@ -221,6 +223,9 @@ describe("chatImageRelativeStature — cross-subject numeric height owner", () =
     assert.equal(parseNumericHeightCm("height 180 cm"), 180);
     assert.equal(parseNumericHeightCm("height: 180cm"), 180);
     assert.equal(parseNumericHeightCm("커 보인다"), null);
+    assert.equal(parseNumericHeightCm("허리 188cm"), null);
+    assert.equal(parseNumericHeightCm("검 길이 180cm"), null);
+    assert.equal(parseNumericHeightCm("검 길이 180cm, 신장 188cm"), 188);
   });
 
   it("structural probe — renderChatImageVisualIdentity includes stature block", () => {
@@ -228,5 +233,75 @@ describe("chatImageRelativeStature — cross-subject numeric height owner", () =
     const identity = renderChatImageVisualIdentity({ subjects, hasTemplate: false });
     assert.match(identity, /CROSS-SUBJECT RELATIVE STATURE/);
     assert.match(identity, /by approximately 8 cm/);
+  });
+});
+
+describe("chatImageHeightPath — production resolver parity", () => {
+  it("HEIGHT-PATH-1 bare 188cm survives persona resolver path", () => {
+    const resolved = resolvePersonaSavedAppearance("188cm");
+    assert.match(resolved, /188\s*cm/i);
+    assert.equal(parseNumericHeightCm(resolved), 188);
+  });
+
+  it("HEIGHT-PATH-2 신장 188cm survives persona resolver path", () => {
+    const resolved = resolvePersonaSavedAppearance("신장 188cm");
+    assert.match(resolved, /188\s*cm/i);
+    assert.equal(parseNumericHeightCm(resolved), 188);
+  });
+
+  it("HEIGHT-PATH-3 height: 188cm survives persona resolver path", () => {
+    const resolved = resolvePersonaSavedAppearance("height: 188cm");
+    assert.match(resolved, /188\s*cm/i);
+    assert.equal(parseNumericHeightCm(resolved), 188);
+  });
+
+  it("HEIGHT-PATH-4 허리 188cm is NOT height evidence", () => {
+    assert.equal(resolvePersonaSavedAppearance("허리 188cm"), "");
+    assert.equal(parseNumericHeightCm("허리 188cm"), null);
+  });
+
+  it("HEIGHT-PATH-5 검 길이 180cm is NOT height evidence", () => {
+    assert.equal(resolvePersonaSavedAppearance("검 길이 180cm"), "");
+    assert.equal(parseNumericHeightCm("검 길이 180cm"), null);
+  });
+
+  it("HEIGHT-PATH-6 production-like 180/188 resolver → final stature relation", () => {
+    const characterSaved = resolveCharacterSavedAppearance({
+      appearanceRaw: "검은 머리, 키 180cm",
+    });
+    const personaSaved = resolvePersonaSavedAppearance(
+      "검은 머리, 붉은 동공, 188cm"
+    );
+    assert.match(characterSaved, /180\s*cm/i);
+    assert.match(personaSaved, /188\s*cm/i);
+
+    const subjects = bindChatImageReferencePack({
+      subjectsInImageOrder: buildChatDuoVisualSubjects({
+        characterName: "에단",
+        characterGender: "male",
+        characterImageUrl: "/c.webp",
+        characterSavedAppearance: characterSaved,
+        characterAppearanceMode: "image_plus_saved",
+        personaName: "리프트",
+        personaGender: "female",
+        personaImageUrl: "/p.webp",
+        personaSavedAppearance: personaSaved,
+        personaAppearanceMode: "image_plus_saved",
+      }),
+    }).subjects;
+
+    const identity = renderChatImageVisualIdentity({ subjects, hasTemplate: false });
+    assert.match(
+      identity,
+      /리프트 \(SUBJECT B, 188 cm\) is taller than 에단 \(SUBJECT A, 180 cm\) by approximately 8 cm/
+    );
+  });
+
+  it("HEIGHT-PATH-7 labeled height wins over unrelated cm measurement", () => {
+    assert.equal(parseNumericHeightCm("체격은 마른 편. 신장 188cm."), 188);
+    assert.equal(parseNumericHeightCm("검 길이 180cm, 신장 188cm"), 188);
+    const resolved = resolvePersonaSavedAppearance("검 길이 180cm, 신장 188cm");
+    assert.match(resolved, /신장 188cm/);
+    assert.doesNotMatch(resolved, /검 길이 180cm/);
   });
 });
