@@ -21,9 +21,10 @@ import {
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
 import {
-  buildLorebookActivationText,
-  loadKeywordLorebookPromptBlockFromActivation,
-} from "@/lib/keywordLorebooks";
+  ensureCreatorLorebookSchema,
+  loadAttachedCreatorLorebooksPromptBlockFromActivation,
+} from "@/lib/creatorLorebook";
+import { buildLorebookActivationText } from "@/lib/keywordLorebooks";
 import {
   FREE_CAPABILITY,
   SUBSCRIBED_CAPABILITY,
@@ -49,7 +50,9 @@ const USER_CHAT_LOREBOOK = 992005;
 
 function seed(): void {
   const db = getDb();
+  ensureCreatorLorebookSchema(db);
   db.prepare(`DELETE FROM _schema_flags WHERE key='user_note_reference_zone_cleanup_v1'`).run();
+  db.prepare("DELETE FROM character_lorebook_attachments WHERE character_id=?").run(CHAR);
   db.prepare("DELETE FROM lorebook_active_entries WHERE chat_id=?").run(CHAT);
   db.prepare("DELETE FROM keyword_lorebooks WHERE creator_id=? OR chat_id=? OR id=?").run(
     USER,
@@ -64,11 +67,7 @@ function seed(): void {
   db.prepare(
     `INSERT INTO users (id, email, nickname, pw_hash, sub_until, sub_plan) VALUES (?,?,?,?,?,?)`
   ).run(USER, `ulc-${USER}@test.local`, "ulc-user", "x", null, null);
-  db.prepare(`INSERT INTO characters (id, name, lorebook_id) VALUES (?,?,?)`).run(
-    CHAR,
-    "Char",
-    CREATOR_LOREBOOK
-  );
+  db.prepare(`INSERT INTO characters (id, name, lorebook_id) VALUES (?,?,NULL)`).run(CHAR, "Char");
   db.prepare(`INSERT INTO chats (id, user_id, character_id, mode, user_note) VALUES (?,?,?,'safe','')`).run(
     CHAT,
     USER,
@@ -88,6 +87,10 @@ function seed(): void {
     CHAT
   );
   db.prepare(`UPDATE chats SET user_lorebook_id=? WHERE id=?`).run(USER_CHAT_LOREBOOK, CHAT);
+  db.prepare(
+    `INSERT INTO character_lorebook_attachments (character_id, lorebook_id, position)
+     VALUES (?, ?, 0)`
+  ).run(CHAR, CREATOR_LOREBOOK);
 }
 
 before(() => installIsolatedTestDatabase());
@@ -218,7 +221,7 @@ describe("multiline creator-wins dedupe", () => {
     ]);
     const activation = buildLorebookActivationText({ currentUserMessage: "hello ML" });
     const creatorExclude = new Set<string>();
-    loadKeywordLorebookPromptBlockFromActivation(db, CREATOR_LOREBOOK, activation, {
+    loadAttachedCreatorLorebooksPromptBlockFromActivation(db, CHAR, activation, {
       chatId: CHAT,
       currentTurn: 1,
       onMatch: (match) => creatorExclude.add(match.content.trim()),

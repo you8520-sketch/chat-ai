@@ -15,6 +15,7 @@ import { listCharacterStatusWidgetTriggers } from "@/lib/statusWidgetTriggers";
 import type { SimulationImportSnapshot } from "@/lib/simulationMode";
 import { parseSimulationVisualSubjectsJson } from "@/lib/simulationVisualSubjects";
 import { parseVisualSubjectsJson } from "@/lib/visualSubjects";
+import { listCharacterCreatorLorebookAttachmentIds } from "@/lib/creatorLorebook";
 import { deriveCharacterWorldSourceKind } from "@/lib/worldPermissions";
 
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -48,7 +49,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
   const db = getDb();
   const c = db
     .prepare(
-      `SELECT id, name, tagline, description, greeting, system_prompt, world, world_id, source_world_share_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json,
+      `SELECT id, name, tagline, description, greeting, system_prompt, world, world_id, source_world_share_id, example_dialog, status_window_prompt, status_widget_json,
               genres, tags, nsfw, emoji, hue, audience, gender, visibility, assets, recommended_writing_style, narration_style_instructions, comments_enabled, creator_comment, appearance_raw, appearance_compiled,
               content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed, participant_min_age,
               COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json, creator_id
@@ -64,7 +65,6 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     world: string;
     world_id: number | null;
     source_world_share_id: number | null;
-    lorebook_id: number | null;
     example_dialog: string;
     status_window_prompt: string;
     status_widget_json: string;
@@ -165,7 +165,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     world_id: c.world_id,
     source_world_share_id: c.source_world_share_id,
     world_source_kind: worldSourceKind,
-    lorebook_id: c.lorebook_id,
+    lorebook_ids: listCharacterCreatorLorebookAttachmentIds(db, c.id),
     status_window_prompt: c.status_window_prompt ?? "",
     status_widget_json: c.status_widget_json ?? "",
     status_widget_triggers: statusWidgetTriggers,

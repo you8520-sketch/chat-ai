@@ -21,8 +21,11 @@ import {
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
 import {
+  ensureCreatorLorebookSchema,
+  loadAttachedCreatorLorebooksPromptBlockFromActivation,
+} from "@/lib/creatorLorebook";
+import {
   buildLorebookActivationText,
-  loadKeywordLorebookPromptBlockFromActivation,
   matchKeywordLorebookEntryDetails,
 } from "@/lib/keywordLorebooks";
 import { buildContext } from "@/services/contextBuilder";
@@ -53,7 +56,9 @@ const CREATOR_LOREBOOK = 991004;
 
 function seed(): void {
   const db = getDb();
+  ensureCreatorLorebookSchema(db);
   db.prepare(`DELETE FROM _schema_flags WHERE key='user_note_reference_zone_cleanup_v1'`).run();
+  db.prepare("DELETE FROM character_lorebook_attachments WHERE character_id=?").run(CHAR);
   db.prepare("DELETE FROM lorebook_active_entries WHERE chat_id=?").run(CHAT);
   db.prepare("DELETE FROM keyword_lorebooks WHERE creator_id=? OR chat_id=?").run(USER, CHAT);
   db.prepare("DELETE FROM chat_turn_summaries WHERE chat_id=?").run(CHAT);
@@ -69,7 +74,7 @@ function seed(): void {
     null,
     null
   );
-  db.prepare(`INSERT INTO characters (id, name, lorebook_id) VALUES (?,?,?)`).run(CHAR, "Char", CREATOR_LOREBOOK);
+  db.prepare(`INSERT INTO characters (id, name, lorebook_id) VALUES (?,?,NULL)`).run(CHAR, "Char");
   db.prepare(`INSERT INTO chats (id, user_id, character_id, mode, user_note) VALUES (?,?,?,'safe',?)`).run(
     CHAT,
     USER,
@@ -84,6 +89,10 @@ function seed(): void {
     USER,
     JSON.stringify([{ keywords: ["CREATOR_KW"], content: "CREATOR_CONTENT" }])
   );
+  db.prepare(
+    `INSERT INTO character_lorebook_attachments (character_id, lorebook_id, position)
+     VALUES (?, ?, 0)`
+  ).run(CHAR, CREATOR_LOREBOOK);
 }
 
 function entry(content: string, keywords: string[], enabled = true): UserLorebookStoredEntry {
@@ -194,16 +203,11 @@ describe("shared activation engine", () => {
       currentUserMessage: "hello CREATOR_KW SHARED_KW world",
     });
     const creatorExclude = new Set<string>();
-    const creator = loadKeywordLorebookPromptBlockFromActivation(
-      db,
-      CREATOR_LOREBOOK,
-      activation,
-      {
-        chatId: CHAT,
-        currentTurn: 1,
-        onMatch: (match) => creatorExclude.add(match.content.trim()),
-      }
-    );
+    const creator = loadAttachedCreatorLorebooksPromptBlockFromActivation(db, CHAR, activation, {
+      chatId: CHAT,
+      currentTurn: 1,
+      onMatch: (match) => creatorExclude.add(match.content.trim()),
+    });
     const user = loadUserLorebookPromptBlockFromActivation(db, {
       chatId: CHAT,
       userId: USER,
@@ -275,7 +279,7 @@ describe("carryover isolation", () => {
     const userBook = getOrCreateUserLorebookForChat(db, CHAT, USER);
     saveUserLorebookEntries(db, CHAT, USER, [entry("USER_A_BODY", ["KW_A"])]);
     const activation = buildLorebookActivationText({ currentUserMessage: "KW_A" });
-    loadKeywordLorebookPromptBlockFromActivation(db, CREATOR_LOREBOOK, activation, {
+    loadAttachedCreatorLorebooksPromptBlockFromActivation(db, CHAR, activation, {
       chatId: CHAT,
       currentTurn: 2,
     });

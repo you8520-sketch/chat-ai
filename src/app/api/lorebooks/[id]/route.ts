@@ -2,12 +2,17 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import {
+  clearCreatorScopeCarryoverForLorebook,
+  creatorLorebookEntryCount,
+  deleteCreatorLorebookForOwner,
+  normalizeCreatorLorebookUnit,
+  parseCreatorLorebookUnitEntry,
+  serializeCreatorLorebookUnit,
+} from "@/lib/creatorLorebook";
+import {
   LOREBOOK_NAME_LIMIT,
   LOREBOOK_SUMMARY_LIMIT,
-  normalizeLorebookEntries,
-  parseStoredLorebookEntries,
   rowToLorebookListItem,
-  serializeLorebookEntries,
   type KeywordLorebookRow,
 } from "@/lib/keywordLorebooks";
 
@@ -31,12 +36,14 @@ export async function GET(_req: Request, { params }: Params) {
 
   if (!row) return NextResponse.json({ error: "로어북을 찾을 수 없습니다." }, { status: 404 });
 
+  const entry = parseCreatorLorebookUnitEntry(row.entries_json);
   return NextResponse.json({
-    lorebook: rowToLorebookListItem(row),
-    entries: parseStoredLorebookEntries(row.entries_json).map((e) => ({
-      keywords: e.keywords.join("│"),
-      content: e.content,
-    })),
+    lorebook: {
+      ...rowToLorebookListItem(row),
+      entryCount: creatorLorebookEntryCount(row.entries_json),
+    },
+    keywords: entry?.keywords.join("│") ?? "",
+    content: entry?.content ?? "",
   });
 }
 
@@ -62,7 +69,10 @@ export async function PUT(req: Request, { params }: Params) {
   const b = await req.json();
   const name = String(b.name ?? "").trim().slice(0, LOREBOOK_NAME_LIMIT);
   const summary = String(b.summary ?? "").trim().slice(0, LOREBOOK_SUMMARY_LIMIT);
-  const normalized = normalizeLorebookEntries(b.entries);
+  const normalized = normalizeCreatorLorebookUnit({
+    keywords: b.keywords,
+    content: b.content,
+  });
 
   if (!name) return NextResponse.json({ error: "로어북 이름을 입력해 주세요." }, { status: 400 });
   if (!normalized.ok) return NextResponse.json({ error: normalized.error }, { status: 400 });
@@ -70,7 +80,8 @@ export async function PUT(req: Request, { params }: Params) {
   db.prepare(
     `UPDATE keyword_lorebooks SET name = ?, summary = ?, entries_json = ?, updated_at = datetime('now')
      WHERE id = ? AND creator_id = ? AND COALESCE(scope, 'creator') = 'creator'`
-  ).run(name, summary, serializeLorebookEntries(normalized.entries), id, user.id);
+  ).run(name, summary, serializeCreatorLorebookUnit(normalized.entry), id, user.id);
+  clearCreatorScopeCarryoverForLorebook(db, id);
 
   const row = db
     .prepare(
@@ -78,7 +89,15 @@ export async function PUT(req: Request, { params }: Params) {
     )
     .get(id) as KeywordLorebookRow;
 
-  return NextResponse.json({ ok: true, lorebook: rowToLorebookListItem(row), entries: normalized.entries });
+  return NextResponse.json({
+    ok: true,
+    lorebook: {
+      ...rowToLorebookListItem(row),
+      entryCount: 1,
+    },
+    keywords: normalized.entry.keywords.join("│"),
+    content: normalized.entry.content,
+  });
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
@@ -89,17 +108,10 @@ export async function DELETE(_req: Request, { params }: Params) {
   if (!Number.isFinite(id)) return NextResponse.json({ error: "잘못된 ID입니다." }, { status: 400 });
 
   const db = getDb();
-  const info = db
-    .prepare(
-      `DELETE FROM keyword_lorebooks
-       WHERE id = ? AND creator_id = ? AND COALESCE(scope, 'creator') = 'creator'`
-    )
-    .run(id, user.id);
-  if (info.changes === 0) {
+  const deleted = deleteCreatorLorebookForOwner(db, id, user.id);
+  if (!deleted) {
     return NextResponse.json({ error: "로어북을 찾을 수 없습니다." }, { status: 404 });
   }
-
-  db.prepare("UPDATE characters SET lorebook_id = NULL WHERE lorebook_id = ? AND creator_id = ?").run(id, user.id);
 
   return NextResponse.json({ ok: true });
 }

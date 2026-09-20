@@ -253,10 +253,8 @@ import {
 } from "@/lib/sceneProgressionState";
 import { deriveGenerationPreparationUi } from "@/lib/generationPreparationUi";
 import { isMeteredReceiptProvider, stealthReceiptModelFields } from "@/lib/billingDisplay";
-import {
-  buildLorebookActivationText,
-  loadKeywordLorebookPromptBlockFromActivation,
-} from "@/lib/keywordLorebooks";
+import { loadAttachedCreatorLorebooksPromptBlockFromActivation } from "@/lib/creatorLorebook";
+import { buildLorebookActivationText } from "@/lib/keywordLorebooks";
 import { resolveSubscriptionMemoryCapability } from "@/lib/subscriptionMemoryCapability";
 import { loadUserLorebookPromptBlockFromActivation } from "@/lib/userLorebook";
 import { loadGlobalLorebookPromptBlock } from "@/lib/globalLorebook";
@@ -1750,9 +1748,9 @@ export async function POST(req: Request) {
     carryoverTurnsRemaining?: number;
   }> = [];
   const creatorContentsForDedupe = new Set<string>();
-  const keywordLorebookBlock = loadKeywordLorebookPromptBlockFromActivation(
+  const keywordLorebookBlock = loadAttachedCreatorLorebooksPromptBlockFromActivation(
     db,
-    (ch as { lorebook_id?: number | null }).lorebook_id,
+    ch.id,
     lorebookActivation,
     {
       chatId: chat.id,

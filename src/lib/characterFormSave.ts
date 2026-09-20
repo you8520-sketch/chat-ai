@@ -103,6 +103,11 @@ import {
   resolveParticipantMinAgeForSave,
   validateNsfwParticipantAgeContract,
 } from "@/lib/participantMinAge";
+import {
+  normalizeCreatorLorebookIds,
+  replaceCharacterCreatorLorebookAttachments,
+  validateCreatorLorebookAttachmentIds,
+} from "@/lib/creatorLorebook";
 
 import {
   AI_LEARNING_LIMIT,
@@ -134,7 +139,7 @@ export type ParsedCharacterForm = {
   world: string;
   worldId: number | null;
   sourceWorldShareId: number | null;
-  lorebookId: number | null;
+  lorebookIds: number[];
   statusWindowPrompt: string;
   statusWidgetJson: string;
   statusWidgetTriggers: StatusWidgetTriggerInput[];
@@ -500,22 +505,10 @@ export function parseCharacterFormBody(
     sourceWorldShareId = existingCharacter.sourceWorldShareId;
   }
 
-  let lorebookId: number | null = null;
-  const rawLorebookId = b.lorebook_id ?? b.lorebookId;
-  if (rawLorebookId != null && rawLorebookId !== "") {
-    lorebookId = Number(rawLorebookId);
-    if (!Number.isFinite(lorebookId) || lorebookId <= 0) {
-      return { ok: false, error: "잘못된 로어북 ID입니다.", status: 400 };
-    }
-  }
-
-  if (lorebookId != null) {
-    const lorebookRow = db
-      .prepare("SELECT id FROM keyword_lorebooks WHERE id = ? AND creator_id = ?")
-      .get(lorebookId, user.id) as { id: number } | undefined;
-    if (!lorebookRow) {
-      return { ok: false, error: "선택한 로어북을 찾을 수 없습니다.", status: 404 };
-    }
+  const lorebookIds = normalizeCreatorLorebookIds(b.lorebook_ids ?? b.lorebookIds);
+  const lorebookValidation = validateCreatorLorebookAttachmentIds(db, user.id, lorebookIds);
+  if (!lorebookValidation.ok) {
+    return { ok: false, error: lorebookValidation.error, status: lorebookValidation.status };
   }
 
   if (contentKind === "simulation" && !world.trim()) {
@@ -646,7 +639,7 @@ export function parseCharacterFormBody(
       world,
       worldId,
       sourceWorldShareId,
-      lorebookId,
+      lorebookIds,
       statusWindowPrompt,
       statusWidgetJson,
       statusWidgetTriggers: parsedTriggers.triggers,
@@ -966,7 +959,7 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       data.world,
       data.worldId,
       data.sourceWorldShareId,
-      data.lorebookId,
+      null,
       data.exampleDialog,
       data.statusWindowPrompt,
       data.statusWidgetJson,
@@ -1009,6 +1002,7 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
     );
 
   const characterId = Number(info.lastInsertRowid);
+  replaceCharacterCreatorLorebookAttachments(db, characterId, data.lorebookIds);
   db.prepare(
     `UPDATE characters
      SET adult_dialogue_profile=?, adult_status=?, adult_consent_modes_json=?, participant_min_age=?
@@ -1208,7 +1202,7 @@ export async function updateCharacterFromForm(
     data.world,
     data.worldId,
     data.sourceWorldShareId,
-    data.lorebookId,
+    null,
     data.exampleDialog,
     data.statusWindowPrompt,
     data.statusWidgetJson,
@@ -1267,6 +1261,7 @@ export async function updateCharacterFromForm(
     data.participantMinAge,
     characterId
   );
+  replaceCharacterCreatorLorebookAttachments(db, characterId, data.lorebookIds);
   saveCharacterStatusWidgetTriggers(
     db,
     characterId,

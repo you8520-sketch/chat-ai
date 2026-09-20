@@ -54,7 +54,9 @@ export type CharacterCreateDraft = {
   selectedWorldRef: string;
   /** @deprecated legacy draft field */
   selectedWorldId?: number | "";
-  selectedLorebookId: number | "";
+  selectedLorebookIds: number[];
+  /** @deprecated legacy draft field — migrated to selectedLorebookIds on load */
+  selectedLorebookId?: number | "";
   /** @deprecated legacy draft field — ignored */
   statusWindowSystemEnabled?: boolean;
   pageTab?: "create" | "preview" | "widget" | "publish";
