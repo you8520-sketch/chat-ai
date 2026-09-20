@@ -46,4 +46,4 @@ jobs:
         run: node --conditions=react-server --import tsx --test src/app/api/chat/admin-billing-receipt/route.test.ts
 
       - name: Admin provider request forensic route authorization
-        run: node --conditions=react-server --import tsx --test src/app/api/admin/finance/provider-request/route.test.ts
+        run: node --conditions=react-server --import tsx --test src/app/api/admin/finance/provider-request/route.test.ts src/app/api/admin/finance/provider-request/correlate/route.test.ts
