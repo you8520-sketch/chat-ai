@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "description": "Accepted unresolved production HIGH npm audit advisories on main. Do not baseline CRITICAL. Review when upgrading Next major or postcss chain is fixed.",
+  "acceptedHigh": [
+    {
+      "id": "GHSA-28wg-ghj8-5hjv",
+      "source": 1138811,
+      "package": "nanoid",
+      "url": "https://github.com/advisories/GHSA-28wg-ghj8-5hjv",
+      "vulnerableRange": "<3.3.16",
+      "note": "Transitive via next/postcss; internal ID generation only; Next 16 follow-up"
+    },
+    {
+      "id": "GHSA-2v37-7h3g-55p8",
+      "source": 1139427,
+      "package": "nanoid",
+      "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8",
+      "vulnerableRange": "<3.3.18",
+      "note": "Transitive via next/postcss; internal ID generation only; Next 16 follow-up"
+    },
+    {
+      "id": "GHSA-6g55-p6wh-862q",
+      "source": 1124252,
+      "package": "postcss",
+      "url": "https://github.com/advisories/GHSA-6g55-p6wh-862q",
+      "vulnerableRange": "<=8.5.11",
+      "note": "Bundled postcss@8.4.31 in next; BUILD_TIME_ONLY; Next 16 follow-up"
+    },
+    {
+      "id": "GHSA-r28c-9q8g-f849",
+      "source": 1139510,
+      "package": "postcss",
+      "url": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+      "vulnerableRange": "<=8.5.17",
+      "note": "Bundled postcss@8.4.31 in next; BUILD_TIME_ONLY; Next 16 follow-up"
+    }
+  ]
+}

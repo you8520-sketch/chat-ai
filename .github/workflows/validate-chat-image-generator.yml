@@ -3,6 +3,8 @@ name: Validate chat image generator
 on:
   pull_request:
     paths:
+      - "package.json"
+      - "package-lock.json"
       - "src/app/api/chat/image-generation/**"
       - "src/app/api/chat/comic-generation/**"
       - "src/app/api/chat/image-album/**"
