@@ -170,13 +170,19 @@ export function normalizeUserLorebookEntries(
     const record = item as UserLorebookEntryInput;
     const enabled = record.enabled !== false;
     const keywords = normalizeKeywordsField(record.keywords);
-    const content = String(record.content ?? "").trim().slice(0, LOREBOOK_CONTENT_MAX);
+    const content = String(record.content ?? "").trim();
     if (keywords.length === 0 && !content) continue;
     if (keywords.length === 0) {
       return { ok: false, error: `${i + 1}번째 항목의 키워드를 입력해 주세요.` };
     }
     if (!content) {
       return { ok: false, error: `${i + 1}번째 항목의 내용을 입력해 주세요.` };
+    }
+    if (content.length > LOREBOOK_CONTENT_MAX) {
+      return {
+        ok: false,
+        error: `${i + 1}번째 항목 내용은 ${LOREBOOK_CONTENT_MAX}자 이하여야 합니다.`,
+      };
     }
     entries.push({ keywords, content, enabled });
   }
