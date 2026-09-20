@@ -15,6 +15,9 @@ Module._load = function (request, parent, isMain) {
 import fs from "node:fs";
 import path from "node:path";
 import { loadEnvLocal } from "./load-env-local";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
+
+let activeBenchmarkCheaperInferenceApiKey: string | null = null;
 import { buildContext } from "../src/services/contextBuilder";
 import { assemblePrimaryRpRequest } from "../src/lib/openRouterAdult";
 import {
@@ -298,7 +301,7 @@ async function callCiStream(requestBody: Record<string, unknown>) {
   let ttftMs: number | null = null;
   const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
     method: "POST",
-    headers: buildCheaperInferenceHeaders(),
+    headers: buildCheaperInferenceHeaders(activeBenchmarkCheaperInferenceApiKey!),
     body: JSON.stringify(requestBody),
     signal: AbortSignal.timeout(12 * 60 * 1000),
   });
@@ -445,9 +448,14 @@ function buildCachedRecordFromMeta(
 }
 
 async function main() {
+  activeBenchmarkCheaperInferenceApiKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!activeBenchmarkCheaperInferenceApiKey) {
+    console.log("AB_STATUS=NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+    console.log("provider calls=0");
+    process.exit(0);
+  }
+
   fs.mkdirSync(OUT_DIR, { recursive: true });
-  const key = process.env.CHEAPER_INFERENCE_API_KEY?.trim();
-  if (!key) throw new Error("CHEAPER_INFERENCE_API_KEY required");
 
   const parityReports: Record<string, ReturnType<typeof compareLayoutAbPayloadParity>> = {};
   const contexts: Record<string, { wireBody: Record<string, unknown> }> = {};

@@ -21,6 +21,9 @@ import {
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   buildCheaperInferenceHeaders,
 } from "../src/lib/cheaperInferenceConfig";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
+
+let activeBenchmarkCheaperInferenceApiKey: string | null = null;
 import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "../src/lib/chatModels";
 import { GEMINI31_USER_AGENCY_SUPPLEMENT_TITLE } from "../src/lib/gemini31UserAgencyAdapter";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "../src/lib/responseLengthConstants";
@@ -189,7 +192,7 @@ async function callOnce(requestBody: Record<string, unknown>) {
   let ttftMs: number | null = null;
   const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
     method: "POST",
-    headers: buildCheaperInferenceHeaders(),
+    headers: buildCheaperInferenceHeaders(activeBenchmarkCheaperInferenceApiKey!),
     body: JSON.stringify(requestBody),
     signal: AbortSignal.timeout(10 * 60 * 1000),
   });
@@ -507,8 +510,11 @@ function markdownTable(rows: TurnRow[]) {
 }
 
 async function main() {
-  if (!process.env.CHEAPER_INFERENCE_API_KEY) {
-    throw new Error("CHEAPER_INFERENCE_API_KEY is required");
+  activeBenchmarkCheaperInferenceApiKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!activeBenchmarkCheaperInferenceApiKey) {
+    console.log("BENCH_STATUS=NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+    console.log("provider calls=0");
+    process.exit(0);
   }
 
   const recorded = loadRecordedT1T10();

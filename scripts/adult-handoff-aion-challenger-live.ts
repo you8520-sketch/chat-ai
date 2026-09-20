@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadEnvLocal } from "./load-env-local";
+import { resolveBenchmarkCheaperInferenceApiKey } from "./lib/benchmarkCheaperInferenceCredential";
 
 loadEnvLocal();
 if (!process.env.NODE_ENV) {
@@ -505,6 +506,13 @@ function buildSourceHistory(source: SourceDef): {
 }
 
 async function main() {
+  const benchmarkKey = resolveBenchmarkCheaperInferenceApiKey();
+  if (!benchmarkKey) {
+    console.log("SMOKE_STATUS=NOT_RUN — missing CHEAPER_INFERENCE_BENCHMARK_API_KEY");
+    console.log("provider calls=0");
+    process.exit(0);
+  }
+
   mkdirSync(OUT_ROOT, { recursive: true });
   mkdirSync(DOCS, { recursive: true });
 
@@ -598,7 +606,7 @@ async function main() {
     apiCalls += 1;
     const resp = await streamProvider(
       CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
-      buildCheaperInferenceHeaders(),
+      buildCheaperInferenceHeaders(benchmarkKey),
       aion.requestBody
     );
 
