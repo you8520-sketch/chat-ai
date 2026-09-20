@@ -20,6 +20,7 @@ import { LOREBOOK_SCOPE_CREATOR, LOREBOOK_SCOPE_USER_CHAT } from "@/lib/userLore
 
 export const CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT = 20;
 export const CREATOR_LOREBOOK_TURN_INJECT_MAX_CHARS = 4000;
+export const CREATOR_LOREBOOK_MIGRATION_FLAG = "creator_lorebook_attachments_v1";
 
 export type CreatorLorebookAttachmentRow = {
   character_id: number;
@@ -43,12 +44,48 @@ export type CreatorLorebookMigrationAudit = {
   entryCountDistribution: Record<string, number>;
   maxEntriesInAttachedContainer: number;
   charactersExceedingAttachLimitAfterFlatten: number[];
+  invalidLegacyReferences: number;
+  multiEntryCreatorRows: number;
 };
+
+export class CreatorLorebookMigrationError extends Error {
+  readonly code: string;
+
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = "CreatorLorebookMigrationError";
+    this.code = code;
+  }
+}
+
+export class CreatorUnitInvariantViolationError extends Error {
+  readonly entryCount: number;
+
+  constructor(entryCount: number) {
+    super(`CREATOR_UNIT_INVARIANT_VIOLATION: creator lorebook has ${entryCount} entries`);
+    this.name = "CreatorUnitInvariantViolationError";
+    this.entryCount = entryCount;
+  }
+}
 
 const SOURCE_PRIORITY: Record<LorebookActivationSource, number> = {
   current_user: 0,
   recent_raw: 1,
   carryover: 2,
+};
+
+type LegacyCreatorLorebookRow = {
+  id: number;
+  creator_id: number;
+  name: string;
+  summary: string;
+  entries_json: string;
+};
+
+type LegacyCharacterRow = {
+  id: number;
+  creator_id: number | null;
+  lorebook_id: number;
 };
 
 function tableExists(db: Database.Database, table: string): boolean {
@@ -63,7 +100,7 @@ function tableHasColumn(db: Database.Database, table: string, column: string): b
   return rows.some((row) => row.name === column);
 }
 
-function schemaFlagApplied(db: Database.Database, key: string): boolean {
+export function schemaFlagApplied(db: Database.Database, key: string): boolean {
   if (!tableExists(db, "_schema_flags")) return false;
   return Boolean(db.prepare("SELECT 1 AS ok FROM _schema_flags WHERE key=?").get(key));
 }
@@ -89,8 +126,19 @@ function normalizeKeywordsField(raw: unknown): string[] {
     .slice(0, LOREBOOK_KEYWORDS_PER_ENTRY);
 }
 
+export function classifyCreatorLorebookEntryCount(entriesJson: string): "empty" | "single" | "multi" {
+  const count = parseStoredLorebookEntries(entriesJson).length;
+  if (count === 0) return "empty";
+  if (count === 1) return "single";
+  return "multi";
+}
+
 export function parseCreatorLorebookUnitEntry(entriesJson: string): KeywordLorebookEntry | null {
   const entries = parseStoredLorebookEntries(entriesJson);
+  if (entries.length === 0) return null;
+  if (entries.length > 1) {
+    throw new CreatorUnitInvariantViolationError(entries.length);
+  }
   return entries[0] ?? null;
 }
 
@@ -136,6 +184,112 @@ export function normalizeCreatorLorebookIds(raw: unknown): number[] {
     ids.push(id);
   }
   return ids;
+}
+
+function listCreatorScopeLorebookIds(db: Database.Database): number[] {
+  const rows = db
+    .prepare(
+      `SELECT id FROM keyword_lorebooks
+       WHERE COALESCE(scope, ?) = ?`
+    )
+    .all(LOREBOOK_SCOPE_CREATOR, LOREBOOK_SCOPE_CREATOR) as Array<{ id: number }>;
+  return rows.map((row) => row.id);
+}
+
+function isCreatorScopeLorebookId(db: Database.Database, lorebookId: number): boolean {
+  const row = db
+    .prepare(
+      `SELECT id FROM keyword_lorebooks
+       WHERE id=? AND COALESCE(scope, ?) = ?`
+    )
+    .get(lorebookId, LOREBOOK_SCOPE_CREATOR, LOREBOOK_SCOPE_CREATOR) as { id: number } | undefined;
+  return Boolean(row);
+}
+
+export function clearCreatorScopeCarryoverForChat(
+  db: Database.Database,
+  chatId: number,
+  lorebookId: number
+): void {
+  if (!isCreatorScopeLorebookId(db, lorebookId)) return;
+  ensureLorebookActiveEntriesTable(db);
+  db.prepare("DELETE FROM lorebook_active_entries WHERE chat_id=? AND lorebook_id=?").run(
+    chatId,
+    lorebookId
+  );
+}
+
+export function clearCreatorScopeCarryoverForLorebook(
+  db: Database.Database,
+  lorebookId: number
+): void {
+  if (!isCreatorScopeLorebookId(db, lorebookId)) return;
+  ensureLorebookActiveEntriesTable(db);
+  db.prepare("DELETE FROM lorebook_active_entries WHERE lorebook_id=?").run(lorebookId);
+}
+
+function clearDetachedCreatorCarryoverForCharacter(
+  db: Database.Database,
+  characterId: number,
+  detachedCreatorLorebookIds: readonly number[]
+): void {
+  if (detachedCreatorLorebookIds.length === 0) return;
+  ensureLorebookActiveEntriesTable(db);
+  if (!tableExists(db, "chats")) return;
+
+  const chatRows = db
+    .prepare("SELECT id FROM chats WHERE character_id=?")
+    .all(characterId) as Array<{ id: number }>;
+  if (chatRows.length === 0) return;
+
+  const scopedDetached = detachedCreatorLorebookIds.filter((id) =>
+    isCreatorScopeLorebookId(db, id)
+  );
+  if (scopedDetached.length === 0) return;
+
+  const placeholders = scopedDetached.map(() => "?").join(",");
+  const deleteStmt = db.prepare(
+    `DELETE FROM lorebook_active_entries
+     WHERE chat_id=?
+       AND lorebook_id IN (${placeholders})
+       AND lorebook_id IN (
+         SELECT id FROM keyword_lorebooks WHERE COALESCE(scope, ?) = ?
+       )`
+  );
+  for (const chat of chatRows) {
+    deleteStmt.run(chat.id, ...scopedDetached, LOREBOOK_SCOPE_CREATOR, LOREBOOK_SCOPE_CREATOR);
+  }
+}
+
+export function clearStaleCreatorScopeCarryoverForChat(
+  db: Database.Database,
+  chatId: number,
+  attachedCreatorLorebookIds: readonly number[]
+): void {
+  ensureLorebookActiveEntriesTable(db);
+  const creatorScopeSubquery = `SELECT id FROM keyword_lorebooks WHERE COALESCE(scope, ?) = ?`;
+
+  if (attachedCreatorLorebookIds.length === 0) {
+    db.prepare(
+      `DELETE FROM lorebook_active_entries
+       WHERE chat_id=?
+         AND lorebook_id IN (${creatorScopeSubquery})`
+    ).run(chatId, LOREBOOK_SCOPE_CREATOR, LOREBOOK_SCOPE_CREATOR);
+    return;
+  }
+
+  const placeholders = attachedCreatorLorebookIds.map(() => "?").join(",");
+  db.prepare(
+    `DELETE FROM lorebook_active_entries
+     WHERE chat_id=?
+       AND lorebook_id IN (${creatorScopeSubquery})
+       AND lorebook_id NOT IN (${placeholders})`
+  ).run(
+    chatId,
+    LOREBOOK_SCOPE_CREATOR,
+    LOREBOOK_SCOPE_CREATOR,
+    ...attachedCreatorLorebookIds
+  );
 }
 
 export function validateCreatorLorebookAttachmentIds(
@@ -193,6 +347,10 @@ export function replaceCharacterCreatorLorebookAttachments(
   lorebookIds: readonly number[]
 ): void {
   ensureCreatorLorebookSchema(db);
+  const oldAttachmentIds = listCharacterCreatorLorebookAttachmentIds(db, characterId);
+  const newAttachmentSet = new Set(lorebookIds);
+  const detachedIds = oldAttachmentIds.filter((id) => !newAttachmentSet.has(id));
+
   const tx = db.transaction(() => {
     db.prepare("DELETE FROM character_lorebook_attachments WHERE character_id=?").run(characterId);
     const insert = db.prepare(
@@ -202,6 +360,7 @@ export function replaceCharacterCreatorLorebookAttachments(
     lorebookIds.forEach((lorebookId, position) => {
       insert.run(characterId, lorebookId, position);
     });
+    clearDetachedCreatorCarryoverForCharacter(db, characterId, detachedIds);
   });
   tx();
 }
@@ -211,7 +370,9 @@ export function deleteCharacterCreatorLorebookAttachments(
   characterId: number
 ): void {
   if (!tableExists(db, "character_lorebook_attachments")) return;
+  const oldIds = listCharacterCreatorLorebookAttachmentIds(db, characterId);
   db.prepare("DELETE FROM character_lorebook_attachments WHERE character_id=?").run(characterId);
+  clearDetachedCreatorCarryoverForCharacter(db, characterId, oldIds);
 }
 
 export function deleteCreatorLorebookAttachmentsForLorebook(
@@ -222,24 +383,21 @@ export function deleteCreatorLorebookAttachmentsForLorebook(
   db.prepare("DELETE FROM character_lorebook_attachments WHERE lorebook_id=?").run(lorebookId);
 }
 
+/** @deprecated use clearCreatorScopeCarryoverForChat */
 export function clearCreatorLorebookCarryoverForChat(
   db: Database.Database,
   chatId: number,
   lorebookId: number
 ): void {
-  ensureLorebookActiveEntriesTable(db);
-  db.prepare("DELETE FROM lorebook_active_entries WHERE chat_id=? AND lorebook_id=?").run(
-    chatId,
-    lorebookId
-  );
+  clearCreatorScopeCarryoverForChat(db, chatId, lorebookId);
 }
 
+/** @deprecated use clearCreatorScopeCarryoverForLorebook */
 export function clearCreatorLorebookCarryoverForLorebook(
   db: Database.Database,
   lorebookId: number
 ): void {
-  ensureLorebookActiveEntriesTable(db);
-  db.prepare("DELETE FROM lorebook_active_entries WHERE lorebook_id=?").run(lorebookId);
+  clearCreatorScopeCarryoverForLorebook(db, lorebookId);
 }
 
 export function sortCreatorLorebookMatchesByPriority(
@@ -343,9 +501,8 @@ export function loadAttachedCreatorLorebooksPromptBlockFromActivation(
   }
 ): string {
   const attached = loadAttachedCreatorLorebooks(db, characterId);
-  if (attached.length === 0) return "";
+  const attachedLorebookIds = attached.map((item) => item.lorebookId);
 
-  const attachedLorebookIds = new Set(attached.map((item) => item.lorebookId));
   const directMatches: CreatorLorebookMatch[] = [];
   for (const item of attached) {
     const hits = matchKeywordLorebookEntryDetails([item.entry], activation);
@@ -387,16 +544,7 @@ export function loadAttachedCreatorLorebooksPromptBlockFromActivation(
         ttlTurns: opts.ttlTurns ?? LOREBOOK_ACTIVE_ENTRY_TTL_TURNS,
       });
     }
-
-    const staleRows = db
-      .prepare(
-        `SELECT DISTINCT lorebook_id FROM lorebook_active_entries
-         WHERE chat_id=? AND lorebook_id NOT IN (${[...attachedLorebookIds].map(() => "?").join(",") || "NULL"})`
-      )
-      .all(opts.chatId, ...attachedLorebookIds) as Array<{ lorebook_id: number }>;
-    for (const row of staleRows) {
-      clearCreatorLorebookCarryoverForChat(db, opts.chatId, row.lorebook_id);
-    }
+    clearStaleCreatorScopeCarryoverForChat(db, opts.chatId, attachedLorebookIds);
   }
 
   const merged = sortCreatorLorebookMatchesByPriority([
@@ -415,40 +563,79 @@ export function loadAttachedCreatorLorebooksPromptBlockFromActivation(
   return buildCreatorLorebookPromptBlock(budgeted.map((match) => match.content));
 }
 
-export function auditExistingCreatorContainerData(db: Database.Database): CreatorLorebookMigrationAudit {
+function loadLegacyCreatorLorebooks(db: Database.Database): LegacyCreatorLorebookRow[] {
   const hasScope = tableHasColumn(db, "keyword_lorebooks", "scope");
-  const containers = (
+  return (
     hasScope
       ? db
           .prepare(
-            `SELECT id, entries_json FROM keyword_lorebooks
-             WHERE COALESCE(scope, ?) = ?`
+            `SELECT id, creator_id, name, summary, entries_json
+             FROM keyword_lorebooks
+             WHERE COALESCE(scope, ?) = ?
+             ORDER BY id ASC`
           )
           .all(LOREBOOK_SCOPE_CREATOR, LOREBOOK_SCOPE_CREATOR)
-      : db.prepare(`SELECT id, entries_json FROM keyword_lorebooks`).all()
-  ) as Array<{ id: number; entries_json: string }>;
+      : db
+          .prepare(
+            `SELECT id, creator_id, name, summary, entries_json
+             FROM keyword_lorebooks
+             ORDER BY id ASC`
+          )
+          .all()
+  ) as LegacyCreatorLorebookRow[];
+}
 
+function loadLegacyAttachedCharacters(db: Database.Database): LegacyCharacterRow[] {
+  if (!tableHasColumn(db, "characters", "lorebook_id")) return [];
+  const hasCreatorId = tableHasColumn(db, "characters", "creator_id");
+  return db
+    .prepare(
+      hasCreatorId
+        ? `SELECT id, creator_id, lorebook_id FROM characters WHERE lorebook_id IS NOT NULL ORDER BY id ASC`
+        : `SELECT id, NULL AS creator_id, lorebook_id FROM characters WHERE lorebook_id IS NOT NULL ORDER BY id ASC`
+    )
+    .all() as LegacyCharacterRow[];
+}
+
+function flattenUnitName(baseName: string, index: number): string {
+  if (index === 0) return baseName.slice(0, 40);
+  return `${baseName} #${index + 1}`.slice(0, 40);
+}
+
+export function auditExistingCreatorContainerData(db: Database.Database): CreatorLorebookMigrationAudit {
+  const containers = loadLegacyCreatorLorebooks(db);
   const distribution: Record<string, number> = {};
   let maxEntriesInAttachedContainer = 0;
+  let multiEntryCreatorRows = 0;
+
+  const flattenUnitCounts = new Map<number, number>();
   for (const row of containers) {
     const count = parseStoredLorebookEntries(row.entries_json).length;
     const key = String(count);
     distribution[key] = (distribution[key] ?? 0) + 1;
+    if (count > 1) multiEntryCreatorRows += 1;
+    flattenUnitCounts.set(row.id, Math.max(count, 1));
   }
 
-  const attachedCharacters = db
-    .prepare(
-      `SELECT id, lorebook_id FROM characters
-       WHERE lorebook_id IS NOT NULL`
-    )
-    .all() as Array<{ id: number; lorebook_id: number }>;
-
+  const attachedCharacters = loadLegacyAttachedCharacters(db);
   const exceeding: number[] = [];
+  let invalidLegacyReferences = 0;
+  const lorebookById = new Map(containers.map((row) => [row.id, row]));
+
   for (const character of attachedCharacters) {
-    const row = containers.find((container) => container.id === character.lorebook_id);
-    const entryCount = row ? parseStoredLorebookEntries(row.entries_json).length : 0;
+    const lorebook = lorebookById.get(character.lorebook_id);
+    if (!lorebook) {
+      invalidLegacyReferences += 1;
+      continue;
+    }
+    if (character.creator_id != null && character.creator_id !== lorebook.creator_id) {
+      invalidLegacyReferences += 1;
+      continue;
+    }
+    const entryCount = parseStoredLorebookEntries(lorebook.entries_json).length;
+    const unitCount = entryCount === 0 ? 0 : Math.max(entryCount, 1);
     maxEntriesInAttachedContainer = Math.max(maxEntriesInAttachedContainer, entryCount);
-    if (entryCount > CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT) {
+    if (unitCount > CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT) {
       exceeding.push(character.id);
     }
   }
@@ -459,87 +646,130 @@ export function auditExistingCreatorContainerData(db: Database.Database): Creato
     entryCountDistribution: distribution,
     maxEntriesInAttachedContainer,
     charactersExceedingAttachLimitAfterFlatten: exceeding,
+    invalidLegacyReferences,
+    multiEntryCreatorRows,
   };
 }
 
-function migrateLegacyCharacterLorebookAttachments(db: Database.Database): void {
-  if (!tableHasColumn(db, "characters", "lorebook_id")) return;
+function preflightCreatorLorebookMigration(db: Database.Database): {
+  lorebooks: LegacyCreatorLorebookRow[];
+  attachedCharacters: LegacyCharacterRow[];
+  plannedUnitCounts: Map<number, number>;
+} {
+  const lorebooks = loadLegacyCreatorLorebooks(db);
+  const attachedCharacters = loadLegacyAttachedCharacters(db);
+  const lorebookById = new Map(lorebooks.map((row) => [row.id, row]));
+  const plannedUnitCounts = new Map<number, number>();
 
-  const audit = auditExistingCreatorContainerData(db);
-  if (audit.charactersExceedingAttachLimitAfterFlatten.length > 0) {
-    console.error(
-      "[CreatorLorebook] migration blocked: characters would exceed attach limit after flatten:",
-      audit.charactersExceedingAttachLimitAfterFlatten
-    );
-    return;
+  for (const row of lorebooks) {
+    const entryCount = parseStoredLorebookEntries(row.entries_json).length;
+    plannedUnitCounts.set(row.id, entryCount === 0 ? 0 : Math.max(entryCount, 1));
   }
 
-  const hasCreatorId = tableHasColumn(db, "characters", "creator_id");
-  const attachedCharacters = db
-    .prepare(
-      hasCreatorId
-        ? `SELECT id, creator_id, lorebook_id FROM characters WHERE lorebook_id IS NOT NULL`
-        : `SELECT id, NULL AS creator_id, lorebook_id FROM characters WHERE lorebook_id IS NOT NULL`
-    )
-    .all() as Array<{ id: number; creator_id: number | null; lorebook_id: number }>;
+  for (const character of attachedCharacters) {
+    const lorebook = lorebookById.get(character.lorebook_id);
+    if (!lorebook) {
+      throw new CreatorLorebookMigrationError(
+        `character ${character.id} references missing lorebook ${character.lorebook_id}`,
+        "LEGACY_MISSING_LOREBOOK"
+      );
+    }
+    if (character.creator_id != null && character.creator_id !== lorebook.creator_id) {
+      throw new CreatorLorebookMigrationError(
+        `character ${character.id} lorebook ${character.lorebook_id} creator mismatch`,
+        "LEGACY_CREATOR_MISMATCH"
+      );
+    }
+    const unitCount = plannedUnitCounts.get(lorebook.id) ?? 0;
+    if (unitCount > CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT) {
+      throw new CreatorLorebookMigrationError(
+        `character ${character.id} would exceed attach limit after flatten (${unitCount})`,
+        "LEGACY_ATTACH_LIMIT_EXCEEDED"
+      );
+    }
+  }
+
+  return { lorebooks, attachedCharacters, plannedUnitCounts };
+}
+
+function flattenCreatorLibraryOnce(
+  db: Database.Database,
+  lorebooks: readonly LegacyCreatorLorebookRow[]
+): Map<number, number[]> {
+  const mapping = new Map<number, number[]>();
+  const updateRow = db.prepare(
+    `UPDATE keyword_lorebooks
+     SET entries_json=?, updated_at=datetime('now')
+     WHERE id=? AND COALESCE(scope, ?) = ?`
+  );
+  const insertRow = db.prepare(
+    `INSERT INTO keyword_lorebooks (creator_id, name, summary, entries_json, scope, updated_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now'))`
+  );
+
+  for (const row of lorebooks) {
+    const entries = parseStoredLorebookEntries(row.entries_json);
+    if (entries.length <= 1) {
+      mapping.set(row.id, entries.length === 1 ? [row.id] : []);
+      continue;
+    }
+
+    updateRow.run(
+      serializeLorebookEntries([entries[0]!]),
+      row.id,
+      LOREBOOK_SCOPE_CREATOR,
+      LOREBOOK_SCOPE_CREATOR
+    );
+    const unitIds = [row.id];
+    for (let index = 1; index < entries.length; index++) {
+      const info = insertRow.run(
+        row.creator_id,
+        flattenUnitName(row.name, index),
+        row.summary,
+        serializeLorebookEntries([entries[index]!]),
+        LOREBOOK_SCOPE_CREATOR
+      );
+      unitIds.push(Number(info.lastInsertRowid));
+    }
+    mapping.set(row.id, unitIds);
+  }
+
+  return mapping;
+}
+
+function migrateCharacterAttachmentsFromLegacyFk(
+  db: Database.Database,
+  attachedCharacters: readonly LegacyCharacterRow[],
+  flattenMap: ReadonlyMap<number, number[]>
+): void {
+  const deleteAttachments = db.prepare(
+    "DELETE FROM character_lorebook_attachments WHERE character_id=?"
+  );
+  const insertAttachment = db.prepare(
+    `INSERT INTO character_lorebook_attachments (character_id, lorebook_id, position)
+     VALUES (?, ?, ?)`
+  );
+  const clearLegacyFk = db.prepare("UPDATE characters SET lorebook_id=NULL WHERE id=?");
+
+  for (const character of attachedCharacters) {
+    deleteAttachments.run(character.id);
+    const unitIds = flattenMap.get(character.lorebook_id) ?? [];
+    unitIds.forEach((lorebookId, position) => {
+      insertAttachment.run(character.id, lorebookId, position);
+    });
+    clearLegacyFk.run(character.id);
+  }
+}
+
+export function migrateCreatorLorebookLegacyState(db: Database.Database): void {
+  if (schemaFlagApplied(db, CREATOR_LOREBOOK_MIGRATION_FLAG)) return;
+
+  const preflight = preflightCreatorLorebookMigration(db);
 
   const tx = db.transaction(() => {
-    for (const character of attachedCharacters) {
-      const lorebook = db
-        .prepare(
-          `SELECT id, creator_id, name, summary, entries_json
-           FROM keyword_lorebooks
-           WHERE id=? AND COALESCE(scope, ?) = ?`
-        )
-        .get(character.lorebook_id, LOREBOOK_SCOPE_CREATOR, LOREBOOK_SCOPE_CREATOR) as
-        | {
-            id: number;
-            creator_id: number;
-            name: string;
-            summary: string;
-            entries_json: string;
-          }
-        | undefined;
-
-      db.prepare("DELETE FROM character_lorebook_attachments WHERE character_id=?").run(character.id);
-
-      if (!lorebook || character.creator_id !== lorebook.creator_id) {
-        db.prepare("UPDATE characters SET lorebook_id=NULL WHERE id=?").run(character.id);
-        continue;
-      }
-
-      const entries = parseStoredLorebookEntries(lorebook.entries_json);
-      if (entries.length === 0) {
-        db.prepare("UPDATE characters SET lorebook_id=NULL WHERE id=?").run(character.id);
-        continue;
-      }
-
-      const insertAttachment = db.prepare(
-        `INSERT INTO character_lorebook_attachments (character_id, lorebook_id, position)
-         VALUES (?, ?, ?)`
-      );
-
-      if (entries.length === 1) {
-        insertAttachment.run(character.id, lorebook.id, 0);
-      } else {
-        const insertLorebook = db.prepare(
-          `INSERT INTO keyword_lorebooks (creator_id, name, summary, entries_json, scope, updated_at)
-           VALUES (?, ?, ?, ?, ?, datetime('now'))`
-        );
-        entries.forEach((entry, index) => {
-          const info = insertLorebook.run(
-            lorebook.creator_id,
-            `${lorebook.name} #${index + 1}`.slice(0, 40),
-            lorebook.summary,
-            serializeLorebookEntries([entry]),
-            LOREBOOK_SCOPE_CREATOR
-          );
-          insertAttachment.run(character.id, Number(info.lastInsertRowid), index);
-        });
-      }
-
-      db.prepare("UPDATE characters SET lorebook_id=NULL WHERE id=?").run(character.id);
-    }
+    const flattenMap = flattenCreatorLibraryOnce(db, preflight.lorebooks);
+    migrateCharacterAttachmentsFromLegacyFk(db, preflight.attachedCharacters, flattenMap);
+    markSchemaFlag(db, CREATOR_LOREBOOK_MIGRATION_FLAG);
   });
   tx();
 }
@@ -557,16 +787,12 @@ export function ensureCreatorLorebookSchema(db: Database.Database): void {
       ON character_lorebook_attachments(lorebook_id, character_id);
   `);
 
-  const migrationKey = "creator_lorebook_attachments_v1";
-  if (schemaFlagApplied(db, migrationKey)) return;
-
-  migrateLegacyCharacterLorebookAttachments(db);
-  markSchemaFlag(db, migrationKey);
+  migrateCreatorLorebookLegacyState(db);
 }
 
 export function creatorLorebookEntryCount(entriesJson: string): number {
-  const entries = parseStoredLorebookEntries(entriesJson);
-  return entries.length > 0 ? 1 : 0;
+  const state = classifyCreatorLorebookEntryCount(entriesJson);
+  return state === "single" ? 1 : 0;
 }
 
 export function isAttachableCreatorLorebookScope(scope: string | null | undefined): boolean {

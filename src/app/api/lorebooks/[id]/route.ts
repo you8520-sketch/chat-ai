@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import {
-  clearCreatorLorebookCarryoverForLorebook,
+  clearCreatorScopeCarryoverForLorebook,
   creatorLorebookEntryCount,
   deleteCreatorLorebookAttachmentsForLorebook,
   normalizeCreatorLorebookUnit,
@@ -81,7 +81,7 @@ export async function PUT(req: Request, { params }: Params) {
     `UPDATE keyword_lorebooks SET name = ?, summary = ?, entries_json = ?, updated_at = datetime('now')
      WHERE id = ? AND creator_id = ? AND COALESCE(scope, 'creator') = 'creator'`
   ).run(name, summary, serializeCreatorLorebookUnit(normalized.entry), id, user.id);
-  clearCreatorLorebookCarryoverForLorebook(db, id);
+  clearCreatorScopeCarryoverForLorebook(db, id);
 
   const row = db
     .prepare(
@@ -119,7 +119,7 @@ export async function DELETE(_req: Request, { params }: Params) {
   }
 
   deleteCreatorLorebookAttachmentsForLorebook(db, id);
-  clearCreatorLorebookCarryoverForLorebook(db, id);
+  clearCreatorScopeCarryoverForLorebook(db, id);
 
   return NextResponse.json({ ok: true });
 }
