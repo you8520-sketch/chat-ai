@@ -8,6 +8,20 @@
 
 ---
 
+## PROVIDER PRICING SEMANTICS PASS (2026-09-20)
+
+Follow-on read-only audit: **`docs/audits/billing-provider-pricing-semantics-2026-09-20/AUDIT_REPORT.md`**
+
+| Finding | Impact on #991 cutover |
+|---|---|
+| `CI list = undiscounted list` **fails for G37** (CI list = Standard 0.75/3.75; published ref = Flex/Batch 0.375/1.875) | Stable-reference BASE for G37 remains **STOP** |
+| G37 published row provenance **UNCLEAR** | Do not promote published v2 G37 live |
+| DeepSeek published ref = **off-peak**; policy baseline = **peak** | DeepSeek cutover needs policy review |
+| `DELIVERED_MODEL_RUNTIME_UNVERIFIED` | No production identity claims |
+| Classification | **`BLOCKED_BY_PROVIDER_IDENTITY`** |
+
+---
+
 ## CORRECTION PASS (PR #991 exact-head review)
 
 ### Confirmed audit bug (fixed in this pass)
