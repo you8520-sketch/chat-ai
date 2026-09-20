@@ -115,15 +115,14 @@ function markSchemaFlag(db: Database.Database, key: string): void {
   db.prepare("INSERT OR IGNORE INTO _schema_flags (key) VALUES (?)").run(key);
 }
 
-function normalizeKeywordsField(raw: unknown): string[] {
+function parseCreatorLorebookKeywordsRaw(raw: unknown): string[] {
   if (Array.isArray(raw)) {
-    return raw.map((k) => String(k).trim()).filter(Boolean).slice(0, LOREBOOK_KEYWORDS_PER_ENTRY);
+    return raw.map((k) => String(k).trim()).filter(Boolean);
   }
   return String(raw ?? "")
     .split(/[|│｜]/)
     .map((k) => k.trim())
-    .filter(Boolean)
-    .slice(0, LOREBOOK_KEYWORDS_PER_ENTRY);
+    .filter(Boolean);
 }
 
 export function classifyCreatorLorebookEntryCount(entriesJson: string): "empty" | "single" | "multi" {
@@ -152,10 +151,16 @@ export function normalizeCreatorLorebookUnit(
   if (Array.isArray(record.entries)) {
     return { ok: false, error: "제작자 로어북은 항목 1개만 등록할 수 있습니다." };
   }
-  const keywords = normalizeKeywordsField(record.keywords);
+  const keywords = parseCreatorLorebookKeywordsRaw(record.keywords);
   const content = String(record.content ?? "").trim();
   if (keywords.length === 0) {
     return { ok: false, error: "활성화 키워드를 1개 이상 입력해 주세요." };
+  }
+  if (keywords.length > LOREBOOK_KEYWORDS_PER_ENTRY) {
+    return {
+      ok: false,
+      error: `키워드는 최대 ${LOREBOOK_KEYWORDS_PER_ENTRY}개까지 등록할 수 있습니다.`,
+    };
   }
   if (!content) {
     return { ok: false, error: "로어북 내용을 입력해 주세요." };
@@ -381,6 +386,33 @@ export function deleteCreatorLorebookAttachmentsForLorebook(
 ): void {
   if (!tableExists(db, "character_lorebook_attachments")) return;
   db.prepare("DELETE FROM character_lorebook_attachments WHERE lorebook_id=?").run(lorebookId);
+}
+
+export function deleteCreatorLorebookForOwner(
+  db: Database.Database,
+  lorebookId: number,
+  creatorId: number
+): boolean {
+  const existing = db
+    .prepare(
+      `SELECT id FROM keyword_lorebooks
+       WHERE id=? AND creator_id=? AND COALESCE(scope, ?)=?`
+    )
+    .get(lorebookId, creatorId, LOREBOOK_SCOPE_CREATOR, LOREBOOK_SCOPE_CREATOR) as
+    | { id: number }
+    | undefined;
+  if (!existing) return false;
+
+  const tx = db.transaction(() => {
+    clearCreatorScopeCarryoverForLorebook(db, lorebookId);
+    deleteCreatorLorebookAttachmentsForLorebook(db, lorebookId);
+    db.prepare(
+      `DELETE FROM keyword_lorebooks
+       WHERE id=? AND creator_id=? AND COALESCE(scope, ?)=?`
+    ).run(lorebookId, creatorId, LOREBOOK_SCOPE_CREATOR, LOREBOOK_SCOPE_CREATOR);
+  });
+  tx();
+  return true;
 }
 
 /** @deprecated use clearCreatorScopeCarryoverForChat */

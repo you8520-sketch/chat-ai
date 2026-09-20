@@ -10,6 +10,7 @@ import {
   CREATOR_LOREBOOK_TURN_INJECT_MAX_CHARS,
   CreatorLorebookMigrationError,
   CreatorUnitInvariantViolationError,
+  deleteCreatorLorebookForOwner,
   applyCreatorLorebookTurnInjectionBudget,
   buildCreatorLorebookPromptBlock,
   classifyCreatorLorebookEntryCount,
@@ -29,6 +30,7 @@ import {
   type CreatorLorebookMatch,
 } from "@/lib/creatorLorebook";
 import {
+  LOREBOOK_KEYWORDS_PER_ENTRY,
   buildLorebookActivationText,
   ensureLorebookActiveEntriesTable,
   matchKeywordLorebookEntryDetails,
@@ -149,6 +151,48 @@ function activeRows(db: Database.Database, chatId: number) {
     .prepare(`SELECT lorebook_id, content, keyword FROM lorebook_active_entries WHERE chat_id=? ORDER BY lorebook_id`)
     .all(chatId) as Array<{ lorebook_id: number; content: string; keyword: string }>;
 }
+
+describe("creator keyword validation", () => {
+  it("CREATOR_KEYWORDS_10_ACCEPTED via delimiter string", () => {
+    const keywords = Array.from({ length: 10 }, (_, i) => `KW${i}`).join("│");
+    const normalized = normalizeCreatorLorebookUnit({ keywords, content: "body" });
+    assert.equal(normalized.ok, true);
+    if (normalized.ok) assert.equal(normalized.entry.keywords.length, 10);
+  });
+
+  it("CREATOR_KEYWORDS_10_ACCEPTED via array input", () => {
+    const keywords = Array.from({ length: 10 }, (_, i) => `KW${i}`);
+    const normalized = normalizeCreatorLorebookUnit({ keywords, content: "body" });
+    assert.equal(normalized.ok, true);
+    if (normalized.ok) assert.equal(normalized.entry.keywords.length, 10);
+  });
+
+  it("CREATOR_KEYWORDS_11_REJECTED via delimiter string", () => {
+    const keywords = Array.from({ length: 11 }, (_, i) => `KW${i}`).join("│");
+    const normalized = normalizeCreatorLorebookUnit({ keywords, content: "body" });
+    assert.equal(normalized.ok, false);
+    if (!normalized.ok) {
+      assert.match(normalized.error, new RegExp(String(LOREBOOK_KEYWORDS_PER_ENTRY)));
+    }
+  });
+
+  it("CREATOR_KEYWORDS_11_REJECTED via array input", () => {
+    const keywords = Array.from({ length: 11 }, (_, i) => `KW${i}`);
+    const normalized = normalizeCreatorLorebookUnit({ keywords, content: "body" });
+    assert.equal(normalized.ok, false);
+  });
+
+  it("CREATOR_KEYWORDS_11_STORED_AS_10 = NO", () => {
+    const db = makeDb();
+    const keywords = Array.from({ length: 11 }, (_, i) => `KW${i}`);
+    const normalized = normalizeCreatorLorebookUnit({ keywords, content: "body" });
+    assert.equal(normalized.ok, false);
+    const count = db
+      .prepare(`SELECT COUNT(*) AS c FROM keyword_lorebooks WHERE creator_id=?`)
+      .get(CREATOR) as { c: number };
+    assert.equal(count.c, 0);
+  });
+});
 
 describe("creator lorebook unit model", () => {
   it("accepts single content + keywords", () => {
@@ -385,6 +429,52 @@ describe("TTL attachment filtering", () => {
     ).run(CHAT, a, CHAT, b);
     attach(db, []);
     assert.equal(activeRows(db, CHAT).length, 0);
+  });
+});
+
+describe("DELETE lifecycle", () => {
+  it("DELETE_CLEARS_CREATOR_TTL and preserves User Lorebook TTL", () => {
+    const db = makeDb();
+    const creatorId = insertCreatorLorebook(db, { content: "CREATOR_BODY", keywords: ["CREATOR_KW"] });
+    attach(db, [creatorId]);
+
+    db.prepare(
+      `INSERT INTO keyword_lorebooks (id, creator_id, name, summary, entries_json, scope, chat_id)
+       VALUES (?, ?, 'user', '', ?, ?, ?)`
+    ).run(
+      USER_CHAT_LOREBOOK,
+      CREATOR,
+      serializeLorebookEntries([{ keywords: ["USER_KW"], content: "USER_BODY" }]),
+      LOREBOOK_SCOPE_USER_CHAT,
+      CHAT
+    );
+
+    db.prepare(
+      `INSERT INTO lorebook_active_entries
+       (chat_id, lorebook_id, entry_key, content, keyword, last_source, last_turn, expires_after_turn)
+       VALUES (?, ?, 'creator_entry', 'CREATOR_BODY', 'CREATOR_KW', 'recent_raw', 1, 5),
+              (?, ?, 'user_entry', 'USER_BODY', 'USER_KW', 'recent_raw', 1, 5)`
+    ).run(CHAT, creatorId, CHAT, USER_CHAT_LOREBOOK);
+
+    const deleted = deleteCreatorLorebookForOwner(db, creatorId, CREATOR);
+    assert.equal(deleted, true);
+
+    const creatorRow = db
+      .prepare(`SELECT id FROM keyword_lorebooks WHERE id=?`)
+      .get(creatorId);
+    assert.equal(creatorRow, undefined);
+    assert.equal(listCharacterCreatorLorebookAttachmentIds(db, CHARACTER).length, 0);
+
+    const creatorTtl = db
+      .prepare(`SELECT COUNT(*) AS c FROM lorebook_active_entries WHERE chat_id=? AND lorebook_id=?`)
+      .get(CHAT, creatorId) as { c: number };
+    assert.equal(creatorTtl.c, 0);
+
+    const userRow = db
+      .prepare(`SELECT content, keyword FROM lorebook_active_entries WHERE chat_id=? AND lorebook_id=?`)
+      .get(CHAT, USER_CHAT_LOREBOOK) as { content: string; keyword: string };
+    assert.equal(userRow.content, "USER_BODY");
+    assert.equal(userRow.keyword, "USER_KW");
   });
 });
 

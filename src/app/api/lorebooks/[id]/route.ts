@@ -4,7 +4,7 @@ import { getDb } from "@/lib/db";
 import {
   clearCreatorScopeCarryoverForLorebook,
   creatorLorebookEntryCount,
-  deleteCreatorLorebookAttachmentsForLorebook,
+  deleteCreatorLorebookForOwner,
   normalizeCreatorLorebookUnit,
   parseCreatorLorebookUnitEntry,
   serializeCreatorLorebookUnit,
@@ -108,18 +108,10 @@ export async function DELETE(_req: Request, { params }: Params) {
   if (!Number.isFinite(id)) return NextResponse.json({ error: "잘못된 ID입니다." }, { status: 400 });
 
   const db = getDb();
-  const info = db
-    .prepare(
-      `DELETE FROM keyword_lorebooks
-       WHERE id = ? AND creator_id = ? AND COALESCE(scope, 'creator') = 'creator'`
-    )
-    .run(id, user.id);
-  if (info.changes === 0) {
+  const deleted = deleteCreatorLorebookForOwner(db, id, user.id);
+  if (!deleted) {
     return NextResponse.json({ error: "로어북을 찾을 수 없습니다." }, { status: 404 });
   }
-
-  deleteCreatorLorebookAttachmentsForLorebook(db, id);
-  clearCreatorScopeCarryoverForLorebook(db, id);
 
   return NextResponse.json({ ok: true });
 }
