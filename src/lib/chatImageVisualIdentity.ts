@@ -78,6 +78,7 @@ export function isChatImageAppearanceMode(
 }
 
 function clauseLooksVisual(segment: string): boolean {
+  if (/\bnot\s+visual\s+appearance\b/i.test(segment)) return false;
   return VISUAL_PHRASE.test(segment) || SHORT_KO_VISUAL_RE.test(segment);
 }
 
@@ -245,9 +246,12 @@ function isTrustedStrictFallbackAppearanceSource(
 export function clipSavedAppearanceForStrictFallback(
   subject: ChatImageVisualSubject
 ): string {
+  if (subject.appearanceMode !== "image_plus_saved") return "";
+  if (!isTrustedStrictFallbackAppearanceSource(subject)) return "";
   const raw = String(subject.savedAppearance ?? "").trim();
-  if (!raw || !isTrustedStrictFallbackAppearanceSource(subject)) return "";
-  const visualOnly = extractVisualAppearance(raw) || raw;
+  if (!raw) return "";
+  const visualOnly = extractVisualAppearance(raw);
+  if (!visualOnly) return "";
   return clipSavedAppearanceForPrompt(visualOnly);
 }
 
@@ -258,15 +262,19 @@ export function prepareSubjectsForStrictFallback(
   return subjects.map((subject) => {
     const strictSaved = clipSavedAppearanceForStrictFallback(subject);
     const hasReference = Boolean(String(subject.referenceImageUrl ?? "").trim());
+    const originalMode = subject.appearanceMode;
+    let appearanceMode: ChatImageAppearanceMode;
+    if (originalMode === "image_plus_saved" && strictSaved && hasReference) {
+      appearanceMode = "image_plus_saved";
+    } else if (hasReference) {
+      appearanceMode = "image_only";
+    } else {
+      appearanceMode = subject.appearanceMode;
+    }
     return {
       ...subject,
       savedAppearance: strictSaved,
-      appearanceMode:
-        strictSaved && hasReference
-          ? "image_plus_saved"
-          : hasReference
-            ? "image_only"
-            : subject.appearanceMode,
+      appearanceMode,
     };
   });
 }
