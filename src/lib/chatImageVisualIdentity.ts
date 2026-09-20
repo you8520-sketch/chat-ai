@@ -1,5 +1,8 @@
 import type { ImagePromptGender } from "@/lib/chatImageGeneration";
-import { normalizeSavedAppearanceForProvider } from "@/lib/chatImageEyeTraits";
+import {
+  normalizeSavedAppearanceForProvider,
+  parseEyeTraitsFromClause,
+} from "@/lib/chatImageEyeTraits";
 
 export const CHAT_IMAGE_VISUAL_APPEARANCE_EXTRACT_MAX = 1_600;
 export const CHAT_IMAGE_SAVED_APPEARANCE_PROMPT_MAX = 700;
@@ -74,7 +77,98 @@ export function isChatImageAppearanceMode(
   return value === "image_only" || value === "image_plus_saved";
 }
 
+const NUMERIC_HEIGHT_CM_MIN = 120;
+const NUMERIC_HEIGHT_CM_MAX = 250;
+
+const STANDALONE_BARE_HEIGHT_CLAUSE_RE = /^(?:[-*]\s*)?(\d{2,3})\s*cm\.?$/i;
+
+const LABELED_HEIGHT_IN_CLAUSE_RE =
+  /(?:신장|키|height)\s*[:：]?\s*(\d{2,3})\s*cm\b/i;
+
+/** Disqualifies cm tokens that belong to non-stature measurements (waist, weapon length, etc.). */
+const NON_STATURE_MEASUREMENT_PREFIX_RE =
+  /(?:허리|어깨(?:너비)?|검\s*길이|날개\s*길이|소매|바지(?:\s*기장)?|기장|둘레|너비|width|waist|shoulder|blade|wing|sleeve|length\s+of)/i;
+
+function normalizeHeightClauseSegment(segment: string): string {
+  return segment.trim().replace(/^[-*]\s*/, "");
+}
+
+function parsePlausibleHeightCm(value: string): number | null {
+  const cm = Number(value);
+  if (!Number.isInteger(cm) || cm < NUMERIC_HEIGHT_CM_MIN || cm > NUMERIC_HEIGHT_CM_MAX) {
+    return null;
+  }
+  return cm;
+}
+
+/** Canonical explicit numeric height evidence for one clause/segment. */
+export function parseExplicitHeightCmFromClause(segment: string): number | null {
+  const clause = normalizeHeightClauseSegment(segment);
+  if (!clause) return null;
+
+  const labeled = clause.match(LABELED_HEIGHT_IN_CLAUSE_RE);
+  if (labeled?.[1]) {
+    return parsePlausibleHeightCm(labeled[1]);
+  }
+
+  if (NON_STATURE_MEASUREMENT_PREFIX_RE.test(clause)) {
+    return null;
+  }
+
+  const standalone = clause.match(STANDALONE_BARE_HEIGHT_CLAUSE_RE);
+  if (standalone?.[1]) {
+    return parsePlausibleHeightCm(standalone[1]);
+  }
+
+  return null;
+}
+
+export function isExplicitNumericHeightClause(segment: string): boolean {
+  return parseExplicitHeightCmFromClause(segment) != null;
+}
+
+/** Explicit numeric stature (cm) from saved visual text — shared with visual extraction. */
+export function parseNumericHeightCm(source: unknown): number | null {
+  const normalized = String(source ?? "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+  if (!normalized) return null;
+
+  const segments = normalized
+    .split(CLAUSE_SPLIT)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  let labeledHeight: number | null = null;
+  let bareHeight: number | null = null;
+
+  for (const segment of segments) {
+    const clause = normalizeHeightClauseSegment(segment);
+    const labeled = clause.match(LABELED_HEIGHT_IN_CLAUSE_RE);
+    if (labeled?.[1]) {
+      const cm = parsePlausibleHeightCm(labeled[1]);
+      if (cm != null) labeledHeight = cm;
+      continue;
+    }
+    if (NON_STATURE_MEASUREMENT_PREFIX_RE.test(clause)) continue;
+    const standalone = clause.match(STANDALONE_BARE_HEIGHT_CLAUSE_RE);
+    if (standalone?.[1]) {
+      const cm = parsePlausibleHeightCm(standalone[1]);
+      if (cm != null) bareHeight = cm;
+    }
+  }
+
+  if (labeledHeight != null) return labeledHeight;
+  if (bareHeight != null) return bareHeight;
+
+  // Single-segment sources that did not split (e.g. compact prose) — one final clause pass.
+  return parseExplicitHeightCmFromClause(normalized);
+}
+
 function clauseLooksVisual(segment: string): boolean {
+  if (/\bnot\s+visual\s+appearance\b/i.test(segment)) return false;
+  if (isExplicitNumericHeightClause(segment)) return true;
   return VISUAL_PHRASE.test(segment) || SHORT_KO_VISUAL_RE.test(segment);
 }
 
@@ -223,6 +317,56 @@ export function clipSavedAppearanceForPrompt(
     .replace(/\n{3,}/g, "\n\n")
     .trim()
     .slice(0, CHAT_IMAGE_SAVED_APPEARANCE_PROMPT_MAX);
+}
+
+function isTrustedStrictFallbackAppearanceSource(
+  subject: ChatImageVisualSubject
+): boolean {
+  return (
+    subject.sourceKind === "persona" ||
+    subject.sourceKind === "main_character" ||
+    subject.trustedSavedAppearance === true
+  );
+}
+
+/**
+ * Tier-2 strict fallback keeps sanitized raw visual description only.
+ * Normalization/rendering is owned exclusively by renderChatImageSubjectManifest.
+ */
+export function clipSavedAppearanceForStrictFallback(
+  subject: ChatImageVisualSubject
+): string {
+  if (subject.appearanceMode !== "image_plus_saved") return "";
+  if (!isTrustedStrictFallbackAppearanceSource(subject)) return "";
+  const raw = String(subject.savedAppearance ?? "").trim();
+  if (!raw) return "";
+  const visualOnly = extractVisualAppearance(raw);
+  if (!visualOnly) return "";
+  return clipSavedAppearanceForPrompt(visualOnly);
+}
+
+/** Canonical strict-fallback subject prep — preserves trusted immutable traits. */
+export function prepareSubjectsForStrictFallback(
+  subjects: readonly ChatImageVisualSubject[]
+): ChatImageVisualSubject[] {
+  return subjects.map((subject) => {
+    const strictSaved = clipSavedAppearanceForStrictFallback(subject);
+    const hasReference = Boolean(String(subject.referenceImageUrl ?? "").trim());
+    const originalMode = subject.appearanceMode;
+    let appearanceMode: ChatImageAppearanceMode;
+    if (originalMode === "image_plus_saved" && strictSaved && hasReference) {
+      appearanceMode = "image_plus_saved";
+    } else if (hasReference) {
+      appearanceMode = "image_only";
+    } else {
+      appearanceMode = subject.appearanceMode;
+    }
+    return {
+      ...subject,
+      savedAppearance: strictSaved,
+      appearanceMode,
+    };
+  });
 }
 
 export function previewVisualAppearance(
@@ -487,6 +631,97 @@ function formatSavedAppearanceLines(appearance: string): string {
     .join("\n");
 }
 
+function summarizeBoundEyeTraits(raw: string): string[] {
+  const traits = parseEyeTraitsFromClause(raw);
+  const parts: string[] = [];
+  if (traits.heterochromia) {
+    parts.push(`heterochromia ${traits.heterochromia}`);
+  } else {
+    if (traits.irisColor) parts.push(`iris ${traits.irisColor}`);
+    if (traits.pupilColor) parts.push(`pupil ${traits.pupilColor}`);
+  }
+  if (traits.pupilShape) parts.push(`pupil shape ${traits.pupilShape}`);
+  return parts;
+}
+
+function resolveSubjectNumericHeight(subject: ChatImageVisualSubject): number | null {
+  if (subject.appearanceMode !== "image_plus_saved") return null;
+  const raw = String(subject.savedAppearance ?? "").trim();
+  if (!raw) return null;
+  return parseNumericHeightCm(raw);
+}
+
+/** Cross-subject relative body stature — numeric saved height only; not screen position. */
+export function renderCrossSubjectRelativeStature(
+  subjects: readonly ChatImageVisualSubject[]
+): string {
+  const entries = subjects.flatMap((subject, index) => {
+    const cm = resolveSubjectNumericHeight(subject);
+    if (cm == null) return [];
+    return [
+      {
+        name: subject.name.trim() || `person ${index + 1}`,
+        letter: subjectLetter(index),
+        cm,
+      },
+    ];
+  });
+  if (entries.length < 2) return "";
+
+  const relationLines: string[] = [];
+  for (let i = 0; i < entries.length; i++) {
+    for (let j = i + 1; j < entries.length; j++) {
+      const left = entries[i]!;
+      const right = entries[j]!;
+      if (left.cm === right.cm) continue;
+      const taller = left.cm > right.cm ? left : right;
+      const shorter = left.cm > right.cm ? right : left;
+      const diff = taller.cm - shorter.cm;
+      relationLines.push(
+        `- ${taller.name} (SUBJECT ${taller.letter}, ${taller.cm} cm) is taller than ${shorter.name} (SUBJECT ${shorter.letter}, ${shorter.cm} cm) by approximately ${diff} cm.`
+      );
+    }
+  }
+  if (!relationLines.length) return "";
+
+  return [
+    "CROSS-SUBJECT RELATIVE STATURE — body proportions (not screen position):",
+    ...relationLines,
+    "Preserve believable relative body stature and proportions when both subjects are visible in comparable posture.",
+    "Let on-screen vertical placement follow pose, sitting, leaning, bending, perspective, and camera distance while preserving believable relative body stature.",
+  ].join("\n");
+}
+
+/** Cross-subject immutable eye trait isolation — prevents eye-color bleed between subjects. */
+export function renderCrossSubjectTraitIsolation(
+  subjects: readonly ChatImageVisualSubject[]
+): string {
+  const entries = subjects.flatMap((subject, index) => {
+    if (subject.appearanceMode !== "image_plus_saved") return [];
+    const raw = String(subject.savedAppearance ?? "").trim();
+    if (!raw) return [];
+    const parts = summarizeBoundEyeTraits(raw);
+    if (!parts.length) return [];
+    return [
+      {
+        name: subject.name.trim() || `person ${index + 1}`,
+        letter: subjectLetter(index),
+        parts,
+      },
+    ];
+  });
+  if (entries.length < 2) return "";
+  return [
+    "CROSS-SUBJECT IMMUTABLE TRAIT ISOLATION — exclusive eye ownership:",
+    ...entries.map(
+      (entry) =>
+        `- ${entry.name} (SUBJECT ${entry.letter}): ${entry.parts.join("; ")}.`
+    ),
+    "Never swap, merge, or duplicate these eye traits onto any other subject.",
+    "A striking eye color in one subject's block or reference is NOT a page-wide default.",
+  ].join("\n");
+}
+
 export function renderChatImageSubjectManifest(
   subject: ChatImageVisualSubject,
   index: number
@@ -501,7 +736,9 @@ export function renderChatImageSubjectManifest(
   const aliasLine = aliases.length ? `Also known as: ${aliases.join(", ")}.` : "";
   const hasReference = subject.referenceIndex != null;
   const saved = clipSavedAppearanceForPrompt(
-    normalizeSavedAppearanceForProvider(subject.savedAppearance ?? "")
+    normalizeSavedAppearanceForProvider(subject.savedAppearance ?? "", {
+      subjectName: name,
+    })
   );
   const useSaved = subject.appearanceMode === "image_plus_saved" && Boolean(saved);
   const reference = hasReference
@@ -598,7 +835,8 @@ export function renderChatImageStyleFidelityContract(opts: {
   }
   if (multiSubject) {
     lines.push(
-      "When multiple subject references differ stylistically, converge on one coherent finish derived from those references — never replace reference-derived style with a generic polished default."
+      "When multiple subject references differ stylistically, converge on one coherent finish derived from those references — never replace reference-derived style with a generic polished default.",
+      "When converging finish, preserve each subject's immutable identity traits from their SUBJECT identity block (iris, pupil, hair, face marks) — do not average or drop them."
     );
   } else if (subjectCount === 1) {
     lines.push(
@@ -646,6 +884,8 @@ export function renderChatImageVisualIdentity(opts: {
   const referencedSubjects = opts.subjects.filter(
     (subject) => subject.referenceIndex != null
   ).length;
+  const traitIsolation = renderCrossSubjectTraitIsolation(opts.subjects);
+  const relativeStature = renderCrossSubjectRelativeStature(opts.subjects);
   return [
     "SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.",
     ...opts.subjects.map((subject, index) =>
@@ -656,7 +896,11 @@ export function renderChatImageVisualIdentity(opts: {
       subjectCount: referencedSubjects,
     }),
     renderChatImageIdentityContract({ hasTemplate: opts.hasTemplate }),
-  ].join("\n\n");
+    traitIsolation,
+    relativeStature,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 export function describeReferenceOrder(

@@ -46,6 +46,9 @@ on:
       - "src/lib/chatLdIllustrationGeneration.test.ts"
       - "src/lib/chatImageVisualIdentity.ts"
       - "src/lib/chatImageVisualIdentity.test.ts"
+      - "src/lib/chatImageSubjectFidelityProof.test.ts"
+      - "src/lib/chatImageStrictNormRed.test.ts"
+      - "src/lib/chatImageRelativeStature.test.ts"
       - "src/lib/chatImageStyleFidelity.test.ts"
       - "src/lib/chatImageVisualIdentity.fixtures.ts"
       - "src/lib/chatImageEyeTraits.ts"
@@ -229,6 +232,9 @@ jobs:
       - run: node --import tsx --test src/lib/chatLdIllustrationGeneration.test.ts
       - run: node --import tsx --test src/lib/chatImageVisualIdentity.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageStyleFidelity.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatImageSubjectFidelityProof.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatImageStrictNormRed.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatImageRelativeStature.test.ts
       - run: node --import tsx --test src/lib/chatImageEyeTraits.test.ts
       - run: node --import tsx --test src/lib/chatImageSceneBrief.test.ts
       - run: node --import tsx --test src/lib/chatImageSceneBrief.dialogue.test.ts
