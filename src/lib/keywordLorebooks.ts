@@ -253,7 +253,7 @@ export function buildLorebookActivationText(input: {
   };
 }
 
-function entryKey(entry: KeywordLorebookEntry): string {
+export function lorebookEntryKey(entry: KeywordLorebookEntry): string {
   let hash = 2166136261;
   const raw = `${entry.keywords.join("|")}\n${entry.content}`;
   for (let i = 0; i < raw.length; i++) {
@@ -297,7 +297,7 @@ export function matchKeywordLorebookEntryDetails(
     if (!hitSource) continue;
     if (seen.has(entry.content)) continue;
     seen.add(entry.content);
-    matched.push({ entryKey: entryKey(entry), content: entry.content, keyword: hitKeyword, source: hitSource });
+    matched.push({ entryKey: lorebookEntryKey(entry), content: entry.content, keyword: hitKeyword, source: hitSource });
   }
   return matched;
 }
@@ -377,7 +377,7 @@ export function saveActiveLorebookMatches(
   }
 }
 
-function mergeMatches(direct: KeywordLorebookMatch[], carryover: KeywordLorebookMatch[]): KeywordLorebookMatch[] {
+export function mergeMatches(direct: KeywordLorebookMatch[], carryover: KeywordLorebookMatch[]): KeywordLorebookMatch[] {
   const merged: KeywordLorebookMatch[] = [];
   const seen = new Set<string>();
   for (const match of [...direct, ...carryover]) {

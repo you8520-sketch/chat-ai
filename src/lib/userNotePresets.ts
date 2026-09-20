@@ -5,7 +5,7 @@ import {
   type UserNotePresetItem,
 } from "@/lib/userNotePresetTypes";
 import {
-  extractFocusZoneNote,
+  readStoredFocus,
   validateUserNoteFocusPreset,
 } from "@/lib/userNoteStatusWindow";
 
@@ -24,7 +24,7 @@ export function listUserNotePresets(userId: number): UserNotePresetItem[] {
     .all(userId) as UserNotePresetItem[];
   return rows.map((row) => ({
     ...row,
-    content: extractFocusZoneNote(row.content),
+    content: readStoredFocus(row.content),
   }));
 }
 
@@ -58,31 +58,33 @@ export function ensureLegacyUserNotePreset(userId: number): void {
   db.prepare("INSERT INTO user_note_presets (user_id, title, content) VALUES (?,?,?)").run(
     userId,
     "기본",
-    extractFocusZoneNote(content)
+    readStoredFocus(content)
   );
 }
 
 export function validateNotePresetInput(
   title: string,
-  content: string
+  content: string,
+  focusMaxChars?: number
 ): { ok: true } | { ok: false; error: string } {
   const trimmedTitle = sanitizeNotePresetTitle(title);
   if (!trimmedTitle) {
     return { ok: false, error: "유저 노트 제목을 입력하세요." };
   }
-  return validateUserNoteFocusPreset(content);
+  return validateUserNoteFocusPreset(content, focusMaxChars);
 }
 
 function normalizePresetContent(content: string): string {
-  return extractFocusZoneNote(content).trim();
+  return readStoredFocus(content);
 }
 
 export function createUserNotePreset(
   userId: number,
   title: string,
-  content: string
+  content: string,
+  focusMaxChars?: number
 ): UserNotePresetItem | null {
-  const check = validateNotePresetInput(title, content);
+  const check = validateNotePresetInput(title, content, focusMaxChars);
   if (!check.ok) return null;
   const db = getDb();
   const info = db
@@ -94,13 +96,14 @@ export function createUserNotePreset(
 export function updateUserNotePreset(
   userId: number,
   presetId: number,
-  patch: { title?: string; content?: string }
+  patch: { title?: string; content?: string },
+  focusMaxChars?: number
 ): UserNotePresetItem | null {
   const prev = getUserNotePresetById(userId, presetId);
   if (!prev) return null;
   const nextTitle = patch.title != null ? sanitizeNotePresetTitle(patch.title) : prev.title;
   const nextContent = patch.content != null ? normalizePresetContent(patch.content) : prev.content;
-  const check = validateNotePresetInput(nextTitle, nextContent);
+  const check = validateNotePresetInput(nextTitle, nextContent, focusMaxChars);
   if (!check.ok) return null;
   getDb()
     .prepare("UPDATE user_note_presets SET title=?, content=? WHERE id=? AND user_id=?")

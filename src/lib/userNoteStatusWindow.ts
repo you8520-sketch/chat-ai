@@ -1,13 +1,9 @@
-import { USER_NOTE_MAX, USER_NOTE_FOCUS_MAX, validateUserNoteLength } from "@/lib/persona";
-import {
-  effectiveUserNoteBodyMax,
-  effectiveUserNoteFocusMax,
-  validateStatusWidgetContextBudget,
-} from "@/lib/statusWidget/contextBudget";
+import { USER_NOTE_FOCUS_MAX, validateUserNoteLength } from "@/lib/persona";
+import { validateStatusWidgetContextBudget } from "@/lib/statusWidget/contextBudget";
 
-export { USER_NOTE_MAX, USER_NOTE_FOCUS_MAX, USER_NOTE_REFERENCE_MAX } from "@/lib/persona";
+export { USER_NOTE_FOCUS_MAX } from "@/lib/persona";
 
-/** 고집중 ↔ 확장구간 경계 (DB 단일 필드 저장용 — UI 칸 구분) */
+/** Legacy separator — only for reading pre-cleanup stored notes (reference suffix strip). */
 export const USER_NOTE_ZONE_SEPARATOR = "\u001E";
 
 const LEGACY_STATUS_BLOCK_RE =
@@ -20,180 +16,161 @@ export function parseUserNoteCombined(raw: string): { body: string; statusTempla
 }
 
 export function composeUserNoteCombined(body: string, _statusTemplate?: string): string {
-  return body.trim();
+  return body;
 }
 
 export function userNoteCombinedCharCount(body: string, _statusTemplate?: string): number {
-  return body.trim().length;
+  return body.length;
+}
+
+export function resolveUserNoteBodyEditorLimits(
+  widgetReservedChars = 0,
+  focusMaxChars = USER_NOTE_FOCUS_MAX
+): {
+  statusChars: number;
+  maxBodyTotal: number;
+  focusBodyMax: number;
+} {
+  const reserved = Math.max(0, widgetReservedChars);
+  const focusBodyMax = Math.max(1, focusMaxChars);
+  return {
+    statusChars: reserved,
+    maxBodyTotal: focusBodyMax,
+    focusBodyMax,
+  };
+}
+
+function stripLegacyReferenceSuffix(body: string): string {
+  const sepIdx = body.indexOf(USER_NOTE_ZONE_SEPARATOR);
+  if (sepIdx >= 0) {
+    return body.slice(0, sepIdx);
+  }
+  return body;
+}
+
+/** Full stored Focus — no current-tier truncation. */
+export function readStoredFocus(raw: string): string {
+  const { body } = parseUserNoteCombined(raw);
+  return stripLegacyReferenceSuffix(body);
+}
+
+/** Current-tier prompt projection only. */
+export function resolveEffectiveFocusForPrompt(raw: string, focusMaxChars: number): string {
+  return readStoredFocus(raw).slice(0, focusMaxChars);
+}
+
+export function splitUserNoteBodyForEditor(
+  body: string,
+  widgetReservedChars = 0,
+  focusMaxChars = USER_NOTE_FOCUS_MAX
+): {
+  focusBody: string;
+  focusBodyMax: number;
+  statusChars: number;
+  storedFocusChars: number;
+  overCurrentPlanLimit: boolean;
+} {
+  const limits = resolveUserNoteBodyEditorLimits(widgetReservedChars, focusMaxChars);
+  const focusBody = readStoredFocus(body);
+  const storedFocusChars = focusBody.length;
+  return {
+    focusBody,
+    focusBodyMax: limits.focusBodyMax,
+    statusChars: limits.statusChars,
+    storedFocusChars,
+    overCurrentPlanLimit: storedFocusChars > limits.focusBodyMax,
+  };
 }
 
 export function userNoteZoneBreakdown(
   body: string,
-  widgetReservedChars = 0
+  _widgetReservedChars = 0,
+  _focusMaxChars = USER_NOTE_FOCUS_MAX
 ): {
   focusChars: number;
-  referenceChars: number;
 } {
-  const { focusBody, referenceBody } = splitUserNoteBodyForEditor(body, widgetReservedChars);
-  return { focusChars: focusBody.length, referenceChars: referenceBody.length };
+  const stored = readStoredFocus(body);
+  return { focusChars: stored.length };
 }
 
-export function capUserNoteBody(body: string, widgetReservedChars = 0): string {
-  const { focusBody, referenceBody } = splitUserNoteBodyForEditor(body, widgetReservedChars);
-  return mergeUserNoteBodyFromEditor(focusBody, referenceBody, widgetReservedChars);
+export function mergeUserNoteBodyFromEditor(focusBody: string): string {
+  return focusBody;
 }
 
-function splitUserNoteBodyRaw(
-  body: string,
-  focusBodyMax: number,
-  referenceBodyMax: number
-): { focusBody: string; referenceBody: string } {
-  const sepIdx = body.indexOf(USER_NOTE_ZONE_SEPARATOR);
-  if (sepIdx >= 0) {
-    return {
-      focusBody: body.slice(0, sepIdx).slice(0, focusBodyMax),
-      referenceBody: body.slice(sepIdx + USER_NOTE_ZONE_SEPARATOR.length).slice(0, referenceBodyMax),
-    };
-  }
-
-  // 레거시: 구분자 없이 이어붙인 저장본 — 총 길이 > 고집중 상한일 때만 위치 분할
-  if (body.length <= focusBodyMax) {
-    return { focusBody: body.slice(0, focusBodyMax), referenceBody: "" };
-  }
-  return {
-    focusBody: body.slice(0, focusBodyMax),
-    referenceBody: body.slice(focusBodyMax, focusBodyMax + referenceBodyMax),
-  };
+/** @deprecated Use readStoredFocus for stored reads. */
+export function extractFocusZoneNote(fullNote: string, _focusMaxChars?: number): string {
+  return readStoredFocus(fullNote);
 }
 
-export function resolveUserNoteBodyEditorLimits(widgetReservedChars = 0): {
-  statusChars: number;
-  maxBodyTotal: number;
-  focusBodyMax: number;
-  referenceBodyMax: number;
-} {
-  const reserved = Math.max(0, widgetReservedChars);
-  const focusBodyMax = effectiveUserNoteFocusMax();
-  const referenceBodyMax = USER_NOTE_MAX - USER_NOTE_FOCUS_MAX;
-  const maxBodyTotal = effectiveUserNoteBodyMax();
-  return { statusChars: reserved, maxBodyTotal, focusBodyMax, referenceBodyMax };
-}
-
-export function splitUserNoteBodyForEditor(body: string, widgetReservedChars = 0): {
-  focusBody: string;
-  referenceBody: string;
-  focusBodyMax: number;
-  referenceBodyMax: number;
-  statusChars: number;
-} {
-  const { focusBodyMax, referenceBodyMax, statusChars } =
-    resolveUserNoteBodyEditorLimits(widgetReservedChars);
-
-  const { focusBody, referenceBody } = splitUserNoteBodyRaw(body, focusBodyMax, referenceBodyMax);
-  return {
-    focusBody,
-    referenceBody,
-    focusBodyMax,
-    referenceBodyMax,
-    statusChars,
-  };
-}
-
-export function mergeUserNoteBodyFromEditor(
-  focusBody: string,
-  referenceBody: string,
-  widgetReservedChars = 0
-): string {
-  const { focusBodyMax, referenceBodyMax } = resolveUserNoteBodyEditorLimits(widgetReservedChars);
-  const focus = focusBody.slice(0, focusBodyMax);
-  const reference = referenceBody.slice(0, referenceBodyMax);
-  if (!reference.trim()) {
-    return focus;
-  }
-  return focus + USER_NOTE_ZONE_SEPARATOR + reference;
-}
-
-export function extractFocusZoneNote(fullNote: string): string {
-  const { body } = parseUserNoteCombined(fullNote);
-  return splitUserNoteBodyForEditor(body).focusBody;
-}
-
-export function getReferenceBodyFromNote(fullNote: string): string {
-  const { body } = parseUserNoteCombined(fullNote);
-  return splitUserNoteBodyForEditor(body).referenceBody;
+/** @deprecated Use resolveEffectiveFocusForPrompt. */
+export function extractFocusZoneForPrompt(fullNote: string, focusMaxChars: number): string {
+  return resolveEffectiveFocusForPrompt(fullNote, focusMaxChars);
 }
 
 export function isFocusZoneEmpty(fullNote: string): boolean {
-  const { body } = parseUserNoteCombined(extractFocusZoneNote(fullNote));
-  return !body.trim();
+  return !readStoredFocus(fullNote).trim();
 }
 
-export function mergePresetFocusIntoChatNote(presetFocusNote: string, chatFullNote: string): string {
-  const preset = parseUserNoteCombined(extractFocusZoneNote(presetFocusNote));
-  const chat = parseUserNoteCombined(chatFullNote);
-  const { focusBody } = splitUserNoteBodyForEditor(preset.body);
-  const { referenceBody } = splitUserNoteBodyForEditor(chat.body);
-  return mergeUserNoteBodyFromEditor(focusBody, referenceBody);
+export function mergePresetFocusIntoChatNote(presetFocusNote: string, _chatFullNote: string): string {
+  return readStoredFocus(presetFocusNote);
 }
 
-export function replaceFocusZoneInNote(fullNote: string, focusZoneNote: string): string {
-  const chat = parseUserNoteCombined(fullNote);
-  const preset = parseUserNoteCombined(extractFocusZoneNote(focusZoneNote));
-  const { focusBody } = splitUserNoteBodyForEditor(preset.body);
-  const { referenceBody } = splitUserNoteBodyForEditor(chat.body);
-  return mergeUserNoteBodyFromEditor(focusBody, referenceBody);
+export function replaceFocusZoneInNote(_fullNote: string, focusZoneNote: string): string {
+  return readStoredFocus(focusZoneNote);
 }
 
-export function validateUserNoteFocusPreset(raw: string): { ok: true } | { ok: false; error: string } {
-  const { body } = parseUserNoteCombined(extractFocusZoneNote(raw));
-  const len = userNoteCombinedCharCount(body);
-  if (len > USER_NOTE_FOCUS_MAX) {
+export function validateFocusInput(
+  raw: string,
+  focusMaxChars = USER_NOTE_FOCUS_MAX
+): { ok: true } | { ok: false; error: string } {
+  const storedLen = readStoredFocus(raw).length;
+  if (storedLen > focusMaxChars) {
     return {
       ok: false,
-      error: `보관함(고집중 구간)은 ${USER_NOTE_FOCUS_MAX.toLocaleString()}자 이하여야 합니다.`,
+      error: `고집중 구간은 ${focusMaxChars.toLocaleString()}자 이하여야 합니다. (현재 ${storedLen.toLocaleString()}자)`,
     };
   }
-  return validateUserNoteLength(len);
+  return validateUserNoteLength(storedLen);
+}
+
+export function validateUserNoteFocusPreset(
+  raw: string,
+  focusMaxChars = USER_NOTE_FOCUS_MAX
+): { ok: true } | { ok: false; error: string } {
+  const check = validateFocusInput(raw, focusMaxChars);
+  if (!check.ok) {
+    return {
+      ok: false,
+      error: check.error.replace("고집중 구간", "보관함(고집중 구간)"),
+    };
+  }
+  return check;
 }
 
 export function validateUserNoteCombined(
   raw: string,
-  widgetReservedChars = 0
+  widgetReservedChars = 0,
+  focusMaxChars = USER_NOTE_FOCUS_MAX
 ): { ok: true } | { ok: false; error: string } {
   const widgetCheck = validateStatusWidgetContextBudget(widgetReservedChars);
   if (!widgetCheck.ok) return widgetCheck;
-
-  const { body } = parseUserNoteCombined(raw);
-  const bodyChars = userNoteCombinedCharCount(body);
-  const { focusBody } = splitUserNoteBodyForEditor(body, widgetReservedChars);
-  if (focusBody.length > USER_NOTE_FOCUS_MAX) {
-    return {
-      ok: false,
-      error: `고집중 구간은 ${USER_NOTE_FOCUS_MAX.toLocaleString()}자 이하여야 합니다. (현재 ${focusBody.length.toLocaleString()}자)`,
-    };
-  }
-  if (bodyChars > effectiveUserNoteBodyMax()) {
-    return validateUserNoteLength(bodyChars);
-  }
-  return { ok: true };
+  return validateFocusInput(raw, focusMaxChars);
 }
 
-export function userNoteForPrompt(raw: string): string {
-  return parseUserNoteCombined(raw).body.trim();
+export function userNoteForPrompt(raw: string, focusMaxChars = USER_NOTE_FOCUS_MAX): string {
+  return resolveEffectiveFocusForPrompt(raw, focusMaxChars);
 }
 
 export function splitUserNotePromptZones(
   raw: string,
-  widgetReservedChars = 0
-): { mandatory: string; reference: string } {
-  const body = parseUserNoteCombined(raw).body;
-  const { focusBody, referenceBody } = splitUserNoteBodyForEditor(body, widgetReservedChars);
+  _widgetReservedChars = 0,
+  focusMaxChars = USER_NOTE_FOCUS_MAX
+): { mandatory: string } {
   return {
-    mandatory: focusBody.trim(),
-    reference: referenceBody.trim(),
+    mandatory: resolveEffectiveFocusForPrompt(raw, focusMaxChars),
   };
 }
 
-export function setUserNoteBody(raw: string, body: string): string {
-  return body.trim();
+export function setUserNoteBody(_raw: string, body: string): string {
+  return body;
 }

@@ -18,7 +18,9 @@ export async function GET() {
   const rows = db
     .prepare(
       `SELECT id, creator_id, name, summary, entries_json, created_at, updated_at
-       FROM keyword_lorebooks WHERE creator_id = ? ORDER BY updated_at DESC, id DESC`
+       FROM keyword_lorebooks
+       WHERE creator_id = ? AND COALESCE(scope, 'creator') = 'creator'
+       ORDER BY updated_at DESC, id DESC`
     )
     .all(user.id) as KeywordLorebookRow[];
 
@@ -44,8 +46,8 @@ export async function POST(req: Request) {
   const entriesJson = serializeLorebookEntries(normalized.entries);
   const info = db
     .prepare(
-      `INSERT INTO keyword_lorebooks (creator_id, name, summary, entries_json, updated_at)
-       VALUES (?, ?, ?, ?, datetime('now'))`
+      `INSERT INTO keyword_lorebooks (creator_id, name, summary, entries_json, scope, updated_at)
+       VALUES (?, ?, ?, ?, 'creator', datetime('now'))`
     )
     .run(user.id, name, summary, entriesJson);
 

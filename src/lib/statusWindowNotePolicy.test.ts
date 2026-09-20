@@ -84,15 +84,16 @@ NPC의 낙서 한 줄(카오모지, 이모지 사용)`;
     assert.match(r.policyBlock, /markdown pipe-table/);
   });
 
-  it("markdown request converts plain field list in reference zone to pipe-table", () => {
+  it("markdown request with focus-only note ignores removed reference zone fields", () => {
     const note = mergeUserNoteBodyFromEditor(
       "다음 상태창을 본문하단에 마크다운 표 형식으로 출력",
       "NPC의 속마음 한 줄\n현재 상황을 짧게 요약\nNPC의 낙서 한 줄"
     );
     const r = resolveUserNoteStatusWindowPolicy(note);
     assert.equal(r.outputFormat, "markdown");
-    assert.match(r.formatSpec ?? "", /^\|/m);
-    assert.equal(isPlainTextStatusFormatSpec(r.formatSpec!), false);
+    assert.equal(r.everyTurn, false);
+    assert.doesNotMatch(r.formatSpec ?? "", /NPC의 속마음/);
+    assert.doesNotMatch(r.formatSpec ?? "", /^\|/m);
   });
 
   it("enables every-turn plain-text emoji fields without HTML", () => {

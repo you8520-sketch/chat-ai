@@ -5,6 +5,7 @@ import {
   parseUserChatPrefs,
   serializeUserChatPrefs,
 } from "@/lib/userChatPrefs";
+import { resolveSubscriptionMemoryCapability } from "@/lib/subscriptionMemoryCapability";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import {
   resolveStatusWidgetReservedChars,
@@ -82,7 +83,11 @@ export async function PATCH(req: Request) {
         });
       }
     }
-    const noteCheck = validateUserNoteCombined(body.userNote, widgetReserved);
+    const noteCheck = validateUserNoteCombined(
+      body.userNote,
+      widgetReserved,
+      resolveSubscriptionMemoryCapability(user).focusMaxChars
+    );
     if (!noteCheck.ok) {
       return Response.json({ error: noteCheck.error }, { status: 400 });
     }

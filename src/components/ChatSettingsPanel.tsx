@@ -20,6 +20,7 @@ import { findResponseLengthTier } from "@/lib/responseLengthConstants";
 import { MEMORY_CAPACITY_DEFAULT } from "@/lib/memory/memory-capacity-shared";
 import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
 import UserNoteSplitEditor from "@/components/UserNoteSplitEditor";
+import UserLorebookEditor from "@/components/UserLorebookEditor";
 import UserNotePresetPicker from "@/components/UserNotePresetPicker";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
 import type { NarrativePov } from "@/lib/narrativePov";
@@ -30,12 +31,7 @@ import {
   userNoteZoneBreakdown,
   validateUserNoteCombined,
   validateUserNoteFocusPreset,
-  extractFocusZoneNote,
-  getReferenceBodyFromNote,
-  mergePresetFocusIntoChatNote,
-  replaceFocusZoneInNote,
-  USER_NOTE_FOCUS_MAX,
-  USER_NOTE_REFERENCE_MAX,
+  readStoredFocus,
 } from "@/lib/userNoteStatusWindow";
 import {
   ChatSettingsRailIcon,
@@ -206,6 +202,23 @@ export default function ChatSettingsPanel({
     setLiveDisplayMode(statusWidgetDisplayMode);
   }, [statusWidgetMode, statusWidgetDisplayMode, userWidgetJson, chatId]);
 
+  const [focusMaxChars, setFocusMaxChars] = useState(1_000);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data: { user?: { memoryCapability?: { focusMaxChars?: number } } }) => {
+        if (cancelled) return;
+        const next = data.user?.memoryCapability?.focusMaxChars;
+        if (typeof next === "number" && next > 0) setFocusMaxChars(next);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const widgetReservedChars = useMemo(
     () =>
       resolveStatusWidgetReservedChars({
@@ -332,6 +345,7 @@ export default function ChatSettingsPanel({
           defaultUserNote={defaultUserNote}
           settingsSaving={settingsSaving}
           widgetReservedChars={widgetReservedChars}
+          focusMaxChars={focusMaxChars}
         />
       );
     }
@@ -686,6 +700,7 @@ function NoteSection({
   defaultUserNote,
   settingsSaving,
   widgetReservedChars = 0,
+  focusMaxChars = 1_000,
 }: {
   chatId: number | null;
   userNote: string;
@@ -695,18 +710,16 @@ function NoteSection({
   defaultUserNote: string;
   settingsSaving?: boolean;
   widgetReservedChars?: number;
+  focusMaxChars?: number;
 }) {
   const [noteDraft, setNoteDraft] = useState(userNote);
   const [linkedPresetId, setLinkedPresetId] = useState<number | null>(null);
   const [noteActionMsg, setNoteActionMsg] = useState("");
   const prevChatIdRef = useRef(chatId);
 
-  const savedFocus = extractFocusZoneNote(userNote);
-  const savedReference = getReferenceBodyFromNote(userNote);
-  const draftFocus = extractFocusZoneNote(noteDraft);
-  const draftReference = getReferenceBodyFromNote(noteDraft);
+  const savedFocus = readStoredFocus(userNote);
+  const draftFocus = readStoredFocus(noteDraft);
   const focusDirty = draftFocus !== savedFocus;
-  const referenceDirty = draftReference !== savedReference;
 
   useEffect(() => {
     if (prevChatIdRef.current !== chatId) {
@@ -716,50 +729,29 @@ function NoteSection({
       setNoteActionMsg("");
       return;
     }
-    if (!focusDirty && !referenceDirty) {
+    if (!focusDirty) {
       setNoteDraft(userNote);
     }
-  }, [chatId, userNote, focusDirty, referenceDirty]);
-
-  function mergeReferenceIntoSavedNote(saved: string, draft: string): string {
-    const savedBody = parseUserNoteCombined(saved).body;
-    const draftBody = parseUserNoteCombined(draft).body;
-    const { focusBody } = splitUserNoteBodyForEditor(savedBody, widgetReservedChars);
-    const { referenceBody } = splitUserNoteBodyForEditor(draftBody, widgetReservedChars);
-    return mergeUserNoteBodyFromEditor(focusBody, referenceBody, widgetReservedChars);
-  }
-
-  async function saveReferenceEdit() {
-    setNoteActionMsg("");
-    const merged = mergeReferenceIntoSavedNote(userNote, noteDraft);
-    const ok = await commitChatSave(
-      merged,
-      chatId != null ? "참조 구간이 이 방에 저장되었습니다." : "참조 구간이 적용되었습니다."
-    );
-    if (ok) setNoteDraft(merged);
-  }
+  }, [chatId, userNote, focusDirty]);
 
   function loadPreset(preset: UserNotePresetItem, skipConfirm = false) {
-    const currentFocus = extractFocusZoneNote(noteDraft).trim();
-    const incomingFocus = extractFocusZoneNote(preset.content).trim();
+    const currentFocus = readStoredFocus(noteDraft).trim();
+    const incomingFocus = readStoredFocus(preset.content).trim();
     if (
       !skipConfirm &&
       currentFocus &&
       currentFocus !== incomingFocus &&
-      !window.confirm(
-        `「${preset.title}」 고집중 구간을 불러올까요? 참조 구간은 이 방 내용을 유지합니다.`
-      )
+      !window.confirm(`「${preset.title}」 고집중 구간을 불러올까요?`)
     ) {
       return;
     }
-    const merged = mergePresetFocusIntoChatNote(preset.content, noteDraft);
-    setNoteDraft(merged);
+    setNoteDraft(readStoredFocus(preset.content));
     setLinkedPresetId(preset.id);
     setNoteActionMsg(`「${preset.title}」을(를) 불러왔습니다. 「저장」으로 적용하세요.`);
   }
 
   async function commitChatSave(fullNote: string, message: string) {
-    const noteCheck = validateUserNoteCombined(fullNote, widgetReservedChars);
+    const noteCheck = validateUserNoteCombined(fullNote, widgetReservedChars, focusMaxChars);
     if (!noteCheck.ok) {
       setNoteActionMsg(noteCheck.error);
       return false;
@@ -774,8 +766,8 @@ function NoteSection({
   }
 
   async function saveFocusToRoom() {
-    const merged = replaceFocusZoneInNote(userNote, noteDraft);
-    const focusCheck = validateUserNoteFocusPreset(extractFocusZoneNote(merged));
+    const merged = readStoredFocus(noteDraft);
+    const focusCheck = validateUserNoteFocusPreset(merged, focusMaxChars);
     if (!focusCheck.ok) {
       setNoteActionMsg(focusCheck.error);
       return;
@@ -803,30 +795,13 @@ function NoteSection({
     </div>
   );
 
-  const referenceFooter = (
-    <div className="flex justify-end gap-1.5 pt-1">
-      <button
-        type="button"
-        onClick={() => void saveReferenceEdit()}
-        disabled={!referenceDirty || settingsSaving}
-        className="rounded border border-violet-400/50 bg-violet-500/15 px-2.5 py-1 text-[11px] font-semibold text-violet-100 hover:bg-violet-500/25 disabled:opacity-40"
-      >
-        {settingsSaving ? "저장 중…" : "저장"}
-      </button>
-    </div>
-  );
-
   return (
     <div className="space-y-3 text-xs">
       {chatId == null && (
         <p className="text-[10px] text-amber-400/90">첫 메시지 전송 시 이 방 설정이 함께 저장됩니다.</p>
       )}
-      {settingsSaving && (
-        <p className="text-[10px] text-zinc-500">저장 중…</p>
-      )}
-      {noteActionMsg && (
-        <p className="text-[10px] text-violet-300/90">{noteActionMsg}</p>
-      )}
+      {settingsSaving && <p className="text-[10px] text-zinc-500">저장 중…</p>}
+      {noteActionMsg && <p className="text-[10px] text-violet-300/90">{noteActionMsg}</p>}
 
       <div className="space-y-2 rounded-lg border border-white/10 bg-[#121218] p-2.5">
         <p className="text-[11px] font-semibold text-zinc-300">불러오기</p>
@@ -854,9 +829,9 @@ function NoteSection({
         </div>
       </div>
 
-      {(focusDirty || referenceDirty) && (
+      {focusDirty && (
         <p className="text-[10px] text-amber-400/80">
-          변경 내용이 있습니다. 각 구간 하단의 「저장」을 눌러 이 대화방에 적용하세요.
+          변경 내용이 있습니다. 고집중 구간 하단의 「저장」을 눌러 이 대화방에 적용하세요.
         </p>
       )}
       <UserNoteSplitEditor
@@ -864,11 +839,11 @@ function NoteSection({
         onUserNoteChange={setNoteDraft}
         defaultUserNote={defaultUserNote}
         focusRows={7}
-        referenceRows={9}
         editingFocus
         widgetReservedChars={widgetReservedChars}
+        focusMaxChars={focusMaxChars}
         focusFooter={focusFooter}
-        referenceFooter={referenceFooter}
+        userLorebookSlot={<UserLorebookEditor chatId={chatId} focusMaxChars={focusMaxChars} />}
       />
     </div>
   );

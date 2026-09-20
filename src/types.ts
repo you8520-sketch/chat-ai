@@ -141,6 +141,10 @@ export type ContextBuildInput = {
   regenAttemptId?: string | null;
   /** 키워드 로어북 — 유저 입력 매칭 시 원문 주입 (번역 없음) */
   keywordLorebookBlock?: string | null;
+  /** Chat-private User Lorebook prompt block (replaces legacy reference RAG). */
+  userLorebookBlock?: string | null;
+  /** Subscription-aware focus injection cap for mandatory user note rules. */
+  focusMaxChars?: number;
   /** Structured episodic memory — retrieved facts from earlier turns, internal only */
   episodicMemoryBlock?: string | null;
   /** Backend-fired scenario events queued from previous status widget values */

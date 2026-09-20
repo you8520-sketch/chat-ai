@@ -125,7 +125,10 @@ export function formatUserPersonaForPrompt(
 
 import { userNoteForPrompt as expandUserNoteForPrompt } from "@/lib/userNoteStatusWindow";
 
-export function formatUserNoteForPrompt(note: string): string | null {
-  const trimmed = expandUserNoteForPrompt(note).trim();
+export function formatUserNoteForPrompt(
+  note: string,
+  focusMaxChars?: number
+): string | null {
+  const trimmed = expandUserNoteForPrompt(note, focusMaxChars).trim();
   return trimmed || null;
 }

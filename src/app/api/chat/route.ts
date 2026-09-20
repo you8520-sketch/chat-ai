@@ -257,6 +257,8 @@ import {
   buildLorebookActivationText,
   loadKeywordLorebookPromptBlockFromActivation,
 } from "@/lib/keywordLorebooks";
+import { resolveSubscriptionMemoryCapability } from "@/lib/subscriptionMemoryCapability";
+import { loadUserLorebookPromptBlockFromActivation } from "@/lib/userLorebook";
 import { loadGlobalLorebookPromptBlock } from "@/lib/globalLorebook";
 import { resolveHtmlVisualCardPolicyFromSources, resolveHtmlFlashPlacement, htmlPolicyReplacesMarkdownStatus, applyChatOocExclusiveHtmlPolicy, oocFlashHtmlMustBeRejected, isOocCreativeHtmlRichEnough } from "@/lib/htmlVisualCardPolicy";
 import {
@@ -284,7 +286,12 @@ import {
 } from "@/lib/openRouterModelPricing";
 import { estimateUserContextChars } from "@/lib/userContextBilling";
 import { formatUserNoteForPrompt } from "@/lib/persona";
-import { validateUserNoteCombined, userNoteCombinedCharCount, parseUserNoteCombined, extractFocusZoneNote } from "@/lib/userNoteStatusWindow";
+import {
+  validateUserNoteCombined,
+  userNoteCombinedCharCount,
+  parseUserNoteCombined,
+  resolveEffectiveFocusForPrompt,
+} from "@/lib/userNoteStatusWindow";
 import { resolveStatusWidgetReservedChars, statusWidgetModeForDefinitions } from "@/lib/statusWidget";
 import { splitAndNormalizeRelationshipMemoryTail } from "@/lib/relationshipMemoryTail";
 import { parseUserChatPrefs } from "@/lib/userChatPrefs";
@@ -739,6 +746,37 @@ export async function POST(req: Request) {
     );
   }
 
+  const memoryCapability = resolveSubscriptionMemoryCapability(user);
+
+  if (userNoteInput !== undefined) {
+    const widgetPersona =
+      personas.find((p) => p.id === (chat?.selected_persona_id ?? initialPersonaId)) ??
+      personas[0];
+    const statusWidgetEngineModeForNote = statusWidgetModeForDefinitions({
+      characterWidgetJson: (ch as { status_widget_json?: string }).status_widget_json,
+      personaWidgetJson: widgetPersona?.active_status_widget_json ?? "",
+      characterAllowUserOverride:
+        (ch as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0,
+    });
+    const widgetReserved = resolveStatusWidgetReservedChars({
+      characterWidgetJson: (ch as { status_widget_json?: string }).status_widget_json,
+      chatMode: statusWidgetEngineModeForNote,
+      userWidgetJson: widgetPersona?.active_status_widget_json ?? "",
+      stackOrder: (chat as { status_widget_stack_order?: string } | undefined)?.status_widget_stack_order,
+      displayMode: (chat as { status_widget_display_mode?: string } | undefined)?.status_widget_display_mode,
+      characterAllowUserOverride:
+        (ch as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0,
+    });
+    const noteCheck = validateUserNoteCombined(
+      userNoteInput,
+      widgetReserved,
+      memoryCapability.focusMaxChars
+    );
+    if (!noteCheck.ok) {
+      return Response.json({ error: noteCheck.error }, { status: 400 });
+    }
+  }
+
   if (!chat) {
     if (isContinue) {
       return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
@@ -825,22 +863,6 @@ export async function POST(req: Request) {
     });
   }
 
-  if (userNoteInput !== undefined) {
-    const widgetReserved = resolveStatusWidgetReservedChars({
-      characterWidgetJson: (ch as { status_widget_json?: string }).status_widget_json,
-      chatMode: statusWidgetEngineMode,
-      userWidgetJson: personaWidgetJson,
-      stackOrder: (chat as { status_widget_stack_order?: string }).status_widget_stack_order,
-      displayMode: (chat as { status_widget_display_mode?: string }).status_widget_display_mode,
-      characterAllowUserOverride:
-        (ch as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0,
-    });
-    const noteCheck = validateUserNoteCombined(userNoteInput, widgetReserved);
-    if (!noteCheck.ok) {
-      return Response.json({ error: noteCheck.error }, { status: 400 });
-    }
-  }
-
   const targetResponseChars =
     targetResponseCharsInput != null
       ? normalizeTargetResponseChars(targetResponseCharsInput)
@@ -883,10 +905,13 @@ export async function POST(req: Request) {
     (chat.user_note?.trim() || userNoteRow.user_note?.trim()) ?? "";
   const personaDescription = toPublicPersonaDescription(selectedPersona?.description ?? "");
   const personaDisplayName = selectedPersona?.name?.trim() || user.nickname;
-  const userNotePrompt = formatUserNoteForPrompt(effectiveUserNote);
+  const userNotePrompt = formatUserNoteForPrompt(
+    effectiveUserNote,
+    memoryCapability.focusMaxChars
+  );
   const oocUserImpersonationAllowed = resolveUserImpersonationAllowance({
     personaDescription,
-    userNote: extractFocusZoneNote(effectiveUserNote),
+    userNote: resolveEffectiveFocusForPrompt(effectiveUserNote, memoryCapability.focusMaxChars),
   });
   // Auto progression uses limited_external agency — not full impersonation / possession.
   const userImpersonation = oocUserImpersonationAllowed;
@@ -1724,6 +1749,7 @@ export async function POST(req: Request) {
     source: string;
     carryoverTurnsRemaining?: number;
   }> = [];
+  const creatorContentsForDedupe = new Set<string>();
   const keywordLorebookBlock = loadKeywordLorebookPromptBlockFromActivation(
     db,
     (ch as { lorebook_id?: number | null }).lorebook_id,
@@ -1732,6 +1758,7 @@ export async function POST(req: Request) {
       chatId: chat.id,
       currentTurn: playableTurnCount + 1,
       onMatch: (match) => {
+        creatorContentsForDedupe.add(match.content.trim());
         activatedKeywordLorebookMatches.push({
           entryKey: match.entryKey,
           keyword: match.keyword,
@@ -1744,6 +1771,14 @@ export async function POST(req: Request) {
   if (process.env.NODE_ENV !== "production" && activatedKeywordLorebookMatches.length > 0) {
     console.warn("[Lorebook] activated entries:", activatedKeywordLorebookMatches);
   }
+  const userLorebookBlock = loadUserLorebookPromptBlockFromActivation(db, {
+    chatId: chat.id,
+    userId: user.id,
+    capability: memoryCapability,
+    activation: lorebookActivation,
+    currentTurn: playableTurnCount + 1,
+    excludeContents: creatorContentsForDedupe,
+  });
 
   const statusWindowPolicyForHtml = resolveStatusWindowPolicyFromSources({
     userNote: effectiveUserNote || undefined,
@@ -2216,6 +2251,8 @@ export async function POST(req: Request) {
       : sceneDirectiveBlock,
     scenePacingPromptOwner: scenePacingOwner,
     keywordLorebookBlock: keywordLorebookBlock || undefined,
+    userLorebookBlock: userLorebookBlock || undefined,
+    focusMaxChars: memoryCapability.focusMaxChars,
     globalLorebookBlock: globalLorebookBlock || undefined,
     canonInjectionPolicy: canonInjectionPolicy,
     canonPlan: canonLazyCompileResult?.plan ?? null,

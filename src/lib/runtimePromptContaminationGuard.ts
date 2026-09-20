@@ -45,9 +45,13 @@ export const FALSE_SHARED_MEMORY_PHRASES = [
   "냐고 했지",
 ];
 
+const ALLOWED_LOREBOOK_HEADER =
+  /^\[(?:USER|KEYWORD) LOREBOOK - [^\]]+\]/u;
+
 function lineLooksContaminated(line: string): boolean {
   const trimmed = line.trim();
   if (!trimmed) return false;
+  if (ALLOWED_LOREBOOK_HEADER.test(trimmed)) return false;
   return CONTAMINATION_LINE_PATTERNS.some((pattern) => pattern.test(trimmed));
 }
 

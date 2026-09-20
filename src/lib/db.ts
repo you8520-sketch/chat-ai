@@ -32,6 +32,8 @@ import { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-reti
 import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
 import { dropPinnedFactsColumnOnce } from "@/lib/memory/pinned-facts-column-retirement";
 import { migrateLegacyPinnedFactsIntoRecentSummary } from "@/lib/memory/pinned-facts-migration";
+import { ensureUserLorebookSchema } from "@/lib/userLorebook";
+import { migrateUserNoteReferenceZoneCleanup } from "@/lib/userNoteReferenceCleanup";
 import { ensureShadowBillingFxTables } from "@/lib/shadowBillingFxPersistence";
 import { ensureDerivedCacheJobsTable } from "@/lib/derivedCache/jobs";
 import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
@@ -1676,6 +1678,8 @@ function migrate(db: Database.Database) {
   dropLegacyMemoryBufferTableOnce(db);
   dropLegacyCharacterMemoriesTableOnce(db);
   migrateLegacyPinnedFactsIntoRecentSummary(db);
+  ensureUserLorebookSchema(db);
+  migrateUserNoteReferenceZoneCleanup(db);
   dropPinnedFactsColumnOnce(db);
   dropLastCompressedAtColumnOnce(db);
   dropChatsCurrentSummaryColumnOnce(db);

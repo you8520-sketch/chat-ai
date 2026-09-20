@@ -24,7 +24,8 @@ export async function GET(_req: Request, { params }: Params) {
   const row = db
     .prepare(
       `SELECT id, creator_id, name, summary, entries_json, created_at, updated_at
-       FROM keyword_lorebooks WHERE id = ? AND creator_id = ?`
+       FROM keyword_lorebooks
+       WHERE id = ? AND creator_id = ? AND COALESCE(scope, 'creator') = 'creator'`
     )
     .get(id, user.id) as KeywordLorebookRow | undefined;
 
@@ -51,7 +52,10 @@ export async function PUT(req: Request, { params }: Params) {
 
   const db = getDb();
   const existing = db
-    .prepare("SELECT id FROM keyword_lorebooks WHERE id = ? AND creator_id = ?")
+    .prepare(
+      `SELECT id FROM keyword_lorebooks
+       WHERE id = ? AND creator_id = ? AND COALESCE(scope, 'creator') = 'creator'`
+    )
     .get(id, user.id);
   if (!existing) return NextResponse.json({ error: "로어북을 찾을 수 없습니다." }, { status: 404 });
 
@@ -65,7 +69,7 @@ export async function PUT(req: Request, { params }: Params) {
 
   db.prepare(
     `UPDATE keyword_lorebooks SET name = ?, summary = ?, entries_json = ?, updated_at = datetime('now')
-     WHERE id = ? AND creator_id = ?`
+     WHERE id = ? AND creator_id = ? AND COALESCE(scope, 'creator') = 'creator'`
   ).run(name, summary, serializeLorebookEntries(normalized.entries), id, user.id);
 
   const row = db
@@ -85,7 +89,12 @@ export async function DELETE(_req: Request, { params }: Params) {
   if (!Number.isFinite(id)) return NextResponse.json({ error: "잘못된 ID입니다." }, { status: 400 });
 
   const db = getDb();
-  const info = db.prepare("DELETE FROM keyword_lorebooks WHERE id = ? AND creator_id = ?").run(id, user.id);
+  const info = db
+    .prepare(
+      `DELETE FROM keyword_lorebooks
+       WHERE id = ? AND creator_id = ? AND COALESCE(scope, 'creator') = 'creator'`
+    )
+    .run(id, user.id);
   if (info.changes === 0) {
     return NextResponse.json({ error: "로어북을 찾을 수 없습니다." }, { status: 404 });
   }
