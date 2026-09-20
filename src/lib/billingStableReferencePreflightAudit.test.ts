@@ -33,6 +33,9 @@ import {
   updateOfficialProviderPromotionDiscount,
 } from "@/lib/officialProviderPromotion";
 import { resolveActiveSitePromotion } from "@/lib/sitePromotion";
+import {
+  SYNTHETIC_PROCUREMENT_SWING_FIXTURE,
+} from "@/lib/billingPreflightModelPricingEvidence";
 import { installIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
 import { getDb } from "@/lib/db";
 
@@ -49,9 +52,9 @@ const FX_SNAPSHOT = {
   locked: true,
 };
 
-const REPRO_MODEL = CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL;
-const INPUT_TOKENS = 10_000;
-const OUTPUT_TOKENS = 2_000;
+const REPRO_MODEL = SYNTHETIC_PROCUREMENT_SWING_FIXTURE.modelId;
+const INPUT_TOKENS = SYNTHETIC_PROCUREMENT_SWING_FIXTURE.usage.promptTokens;
+const OUTPUT_TOKENS = SYNTHETIC_PROCUREMENT_SWING_FIXTURE.usage.outputTokens;
 
 function seedProcurementCatalog(
   modelId: string,
@@ -140,10 +143,16 @@ beforeEach(() => {
 });
 
 describe("BUG REPRO: live owner couples procurement swing to BASE_USER_CHARGE", () => {
-  it("current 100→70→40 changes live BASE (bug symptom)", () => {
+  it("SYNTHETIC_PROCUREMENT_SWING_FIXTURE: current 100→70→40 changes live BASE (bug symptom)", () => {
     const bases: number[] = [];
-    for (const current of [100, 70, 40]) {
-      seedProcurementCatalog(REPRO_MODEL, current, current, 100, 100);
+    for (const current of SYNTHETIC_PROCUREMENT_SWING_FIXTURE.currentLevels) {
+      seedProcurementCatalog(
+        REPRO_MODEL,
+        current,
+        current,
+        SYNTHETIC_PROCUREMENT_SWING_FIXTURE.referenceIn,
+        SYNTHETIC_PROCUREMENT_SWING_FIXTURE.referenceOut
+      );
       bases.push(liveBaseCharge(REPRO_MODEL));
     }
     assert.notEqual(bases[0], bases[1]);
@@ -163,8 +172,14 @@ describe("CANDIDATE INVARIANT: stable reference BASE + procurement margin swing"
     const procurementCosts: number[] = [];
     const margins: number[] = [];
 
-    for (const current of [100, 70, 40]) {
-      const catalog = seedProcurementCatalog(REPRO_MODEL, current, current, 100, 100);
+    for (const current of SYNTHETIC_PROCUREMENT_SWING_FIXTURE.currentLevels) {
+      const catalog = seedProcurementCatalog(
+        REPRO_MODEL,
+        current,
+        current,
+        SYNTHETIC_PROCUREMENT_SWING_FIXTURE.referenceIn,
+        SYNTHETIC_PROCUREMENT_SWING_FIXTURE.referenceOut
+      );
       const candidateBase = candidateBaseCharge(REPRO_MODEL, usage);
       assert.equal(candidateBase, referenceBase, `BASE must not move at current=${current}`);
 
