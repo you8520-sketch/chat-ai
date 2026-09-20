@@ -23,23 +23,41 @@ import {
 import { MEDIUM_TERM_BLOCK_COUNT } from "./memory-medium-term";
 import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
 import { ROLLING_SUMMARY_INTERVAL, ROLLING_SUMMARY_TARGET_CHARS } from "./memory-constants";
+import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { estimateTokens } from "@/lib/tokenEstimate";
 import {
+  AUDIT_CODE_HYGIENE,
   DEAD_DUPLICATE_OWNER_AUDIT,
+  GLOBAL_CHECKPOINT_INVALIDATION_PATHS,
   GLOBAL_COMPACTION_OWNER_MAP,
+  SUBSCRIPTION_EVIDENCE_CONFIGS,
+  auditAtomicCompactCommitOwner,
+  auditCheckpointGenerationNecessity,
   auditDurableGlobalMetadataSchema,
+  auditMemoryEpochSemantics,
+  auditMinimumCheckpointMetadata,
+  auditSubscriptionDowngradeSemantics,
   buildDeterministicRebuiltLorebook,
+  buildDeterministicSourceThroughSealedTurn,
   buildFingerprintForText,
   buildNaiveIncrementalInput,
+  buildPrefixFingerprintThroughTurn,
+  buildSubscriptionFullPromptMatrix,
   canSchemaProveAppendOnlyCheckpoint,
   classifyCheckpointOwnerCandidates,
+  classifyInvalidationOwnerCompleteness,
   classifyManualGlobalIncrementalSemantics,
   COMPRESSION_DEPTH_MARKERS,
   detectHistoricalEditInNaiveIncremental,
   inspectChatMemoryRow,
   isGlobalCompactFreshAfterSourceChange,
+  listCanonicalDeltaRecordsAfterTurn,
   measureFullHistoryGrowthAtTurn,
   simulateArchitectureCostMatrix,
+  simulateGlobalCapacityEvidenceMatrix,
+  simulateSealBySealCompactionCosts,
   summarizeSummarizedTurnCountSemantics,
+  verifyUserNoteCurrentMainConstants,
 } from "./memory-global-incremental-compaction-audit";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
@@ -107,6 +125,7 @@ function insertBlocksThrough(endTurn: number): void {
       assistantMessageId: 1000 + start,
       summary: padBody(`${marker}_T${start}`),
       summaryKind: "main_canon",
+      userEdited: false,
     });
   }
 }
@@ -298,14 +317,162 @@ describe("COMPRESSION DEPTH", () => {
   });
 });
 
-describe("A/B/C COST MATRIX", () => {
-  it("reports relative input at 100/300/1000/2000", () => {
-    const matrix = simulateArchitectureCostMatrix([100, 300, 1000, 2000]);
-    const a300 = matrix.find((r) => r.turn === 300 && r.architecture === "A_full_rebuild")!;
-    const b300 = matrix.find((r) => r.turn === 300 && r.architecture === "B_previous_compact_plus_delta")!;
-    const a2000 = matrix.find((r) => r.turn === 2000 && r.architecture === "A_full_rebuild")!;
-    assert.ok(a300.compactInputTokens > 0);
-    assert.ok(b300.cumulativeCompactInputTokens <= a2000.cumulativeCompactInputTokens || b300.compactInputTokens < a2000.compactInputTokens);
+describe("SEAL-BY-SEAL COST SIMULATION", () => {
+  it("COST_SIMULATION_SEAL_BY_SEAL = PROVEN — cumulative equals sum of per-seal inputs", () => {
+    const t300 = simulateSealBySealCompactionCosts(300);
+    assert.ok(t300.compactionCallCount > 0);
+    assert.ok(t300.cumulativeCompactInputTokensA > 0);
+    assert.ok(t300.cumulativeCompactInputTokensB < t300.cumulativeCompactInputTokensA);
+    assert.equal(t300.bCorrectness, "CORRECTNESS_UNPROVEN");
+
+    let manualSum = 0;
+    let sealedThrough = 0;
+    while (sealedThrough < 300) {
+      sealedThrough += ROLLING_SUMMARY_INTERVAL;
+      const source = buildDeterministicSourceThroughSealedTurn(sealedThrough);
+      if (source.length > MEMORY_CAPACITY_FIXED) {
+        manualSum += estimateTokens(source);
+      }
+    }
+    assert.equal(t300.cumulativeCompactInputTokensA, manualSum);
+  });
+
+  for (const turn of [100, 300, 1000, 2000] as const) {
+    it(`T${turn} — seal-by-seal A/B/C snapshot`, () => {
+      const snap = simulateSealBySealCompactionCosts(turn);
+      const matrix = simulateArchitectureCostMatrix([turn]);
+      const aRow = matrix.find((r) => r.architecture === "A_full_rebuild")!;
+      assert.equal(aRow.cumulativeCompactInputTokens, snap.cumulativeCompactInputTokensA);
+      assert.equal(aRow.savingsClassification, "ACTUAL_FULL_REBUILD");
+      const bRow = matrix.find((r) => r.architecture === "B_previous_compact_plus_delta")!;
+      assert.equal(bRow.savingsClassification, "THEORETICAL_INPUT_SAVINGS");
+    });
+  }
+});
+
+describe("GLOBAL CAPACITY 10K / 15K / 20K", () => {
+  it("reports overflow timing and compaction counts per capacity", () => {
+    const matrix = simulateGlobalCapacityEvidenceMatrix([300, 1000, 2000], [10_000, 15_000, 20_000]);
+    const g10t300 = matrix.find((r) => r.globalCapacity === 10_000 && r.targetTurn === 300)!;
+    const g15t300 = matrix.find((r) => r.globalCapacity === 15_000 && r.targetTurn === 300)!;
+    const g20t300 = matrix.find((r) => r.globalCapacity === 20_000 && r.targetTurn === 300)!;
+    assert.ok(g10t300.compactionCallCount >= g15t300.compactionCallCount);
+    assert.ok(g15t300.compactionCallCount >= g20t300.compactionCallCount);
+    assert.ok(g10t300.wholeHistoryCoverageMarkers.includes(COMPRESSION_DEPTH_MARKERS.oldIdentity));
+  });
+});
+
+describe("PREFIX FINGERPRINT CONTRACT", () => {
+  it("append-only T301~305 leaves T1~300 prefix fingerprint unchanged", () => {
+    insertBlocksThrough(300);
+    const fpBefore = buildPrefixFingerprintThroughTurn(CHAT, 300);
+    insertBlocksThrough(305);
+    const fpAfter = buildPrefixFingerprintThroughTurn(CHAT, 300);
+    assert.equal(fpBefore, fpAfter);
+    const delta = listCanonicalDeltaRecordsAfterTurn(CHAT, 300);
+    assert.equal(delta.length, 1);
+    assert.equal(delta[0]!.turnStart, 301);
+  });
+
+  it("historical edit T41~45 invalidates prefix fingerprint through T300", () => {
+    insertBlocksThrough(305);
+    const fpBefore = buildPrefixFingerprintThroughTurn(CHAT, 300);
+    const row = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 41)!;
+    updateMemoryRecordById(CHAT, row.id, padBody("EDITED_T41_45_PREFIX_FP"));
+    const fpAfter = buildPrefixFingerprintThroughTurn(CHAT, 300);
+    assert.notEqual(fpBefore, fpAfter);
+  });
+});
+
+describe("CHECKPOINT MINIMUM METADATA", () => {
+  it("requires kind + prefix fingerprint + coveredThrough; generation optional", () => {
+    const audit = auditMinimumCheckpointMetadata();
+    assert.deepEqual(audit.minimumNewFields, [
+      "global_projection_kind",
+      "global_source_fingerprint",
+      "global_covered_through_turn",
+    ]);
+    assert.equal(audit.globalCheckpointGenerationRequired, false);
+    assert.ok(audit.durablePersistedKinds.includes("manual_global"));
+    assert.ok(audit.runtimeOnlyKinds.includes("exact"));
+  });
+});
+
+describe("MEMORY EPOCH", () => {
+  it("MEMORY_EPOCH_AS_CHECKPOINT_GENERATION = INVALID", () => {
+    const audit = auditMemoryEpochSemantics();
+    assert.equal(audit.classification, "INVALID");
+    assert.equal(audit.bumpsOnEveryCanonicalMutation, false);
+  });
+});
+
+describe("GENERATION FIELD NECESSITY", () => {
+  it("GLOBAL_CHECKPOINT_GENERATION_REQUIRED = NO with existing guards", () => {
+    const audit = auditCheckpointGenerationNecessity();
+    assert.equal(audit.required, false);
+    assert.ok(audit.sufficientGuards.length >= 3);
+  });
+});
+
+describe("INVALIDATION OWNER MAP", () => {
+  it("GLOBAL_CHECKPOINT_INVALIDATION_OWNER = INCOMPLETE (no checkpoint metadata clear yet)", () => {
+    assert.equal(classifyInvalidationOwnerCompleteness(), "INCOMPLETE");
+    assert.ok(GLOBAL_CHECKPOINT_INVALIDATION_PATHS.length >= 5);
+  });
+
+  it("atomic commit owner is memory-rolling-summary transaction", () => {
+    const audit = auditAtomicCompactCommitOwner();
+    assert.match(audit.location, /memory-rolling-summary/);
+    assert.equal(audit.atomic, true);
+  });
+});
+
+describe("SUBSCRIPTION FULL-PROMPT MATRIX", () => {
+  it("covers all MAIN_RP_MODEL_IDS dynamically", () => {
+    const matrix = buildSubscriptionFullPromptMatrix(300);
+    assert.equal(matrix.filter((r) => r.configId === "CURRENT").length, MAIN_RP_MODEL_IDS.length);
+    assert.equal(matrix.filter((r) => r.configId === "PAID_A").length, MAIN_RP_MODEL_IDS.length);
+    assert.equal(matrix.filter((r) => r.configId === "PAID_B").length, MAIN_RP_MODEL_IDS.length);
+  });
+
+  it("PAID configs increase system tokens vs CURRENT", () => {
+    const matrix = buildSubscriptionFullPromptMatrix(300);
+    const modelId = MAIN_RP_MODEL_IDS[0]!;
+    const current = matrix.find((r) => r.configId === "CURRENT" && r.modelId === modelId)!;
+    const paidA = matrix.find((r) => r.configId === "PAID_A" && r.modelId === modelId)!;
+    const paidB = matrix.find((r) => r.configId === "PAID_B" && r.modelId === modelId)!;
+    assert.ok(paidA.estimatedSystemTokens > current.estimatedSystemTokens);
+    assert.ok(paidB.estimatedSystemTokens > paidA.estimatedSystemTokens);
+    assert.equal(paidA.criticalSectionOmitted, false);
+    assert.equal(paidB.criticalSectionOmitted, false);
+  });
+
+  it("USER_NOTE current main constants verified", () => {
+    const constants = verifyUserNoteCurrentMainConstants();
+    assert.equal(constants.focusMax, 1_000);
+    assert.equal(constants.referenceStorageMax, 9_000);
+    assert.equal(constants.referenceInjectMax, 2_500);
+  });
+
+  it("storage vs injection — reference storage not equal to inject cap", () => {
+    for (const config of SUBSCRIPTION_EVIDENCE_CONFIGS) {
+      assert.ok(config.referenceStorageMaxChars >= config.referenceInjectMaxChars);
+    }
+  });
+});
+
+describe("SUBSCRIPTION DOWNGRADE AUDIT", () => {
+  it("documents non-destructive preferred policies", () => {
+    const risks = auditSubscriptionDowngradeSemantics();
+    assert.ok(risks.some((r) => r.dimension.includes("Global")));
+    assert.ok(risks.some((r) => r.preferredPolicy.includes("do not delete")));
+  });
+});
+
+describe("AUDIT CODE HYGIENE", () => {
+  it("classifies durable vs one-off helpers", () => {
+    assert.ok(AUDIT_CODE_HYGIENE.some((e) => e.classification === "DURABLE_REGRESSION"));
+    assert.ok(AUDIT_CODE_HYGIENE.some((e) => e.classification === "ONE_OFF_FORENSIC"));
   });
 });
 

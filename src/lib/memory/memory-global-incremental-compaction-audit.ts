@@ -2,7 +2,6 @@
  * Global incremental compaction architecture audit — zero provider calls.
  * Read-only simulation; does not implement runtime incremental folding.
  */
-import { estimateTokens } from "@/lib/tokenEstimate";
 import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
 import {
   LOREBOOK_COMPACT_FILL_RATIO,
@@ -11,6 +10,23 @@ import {
 } from "./memory-constants";
 import type { ChatMemoryRow } from "./memory-types";
 import {
+  MAIN_RP_MODEL_IDS,
+  selectedAIProvider,
+  type SelectedAI,
+} from "@/lib/chatModels";
+import { USER_NOTE_FOCUS_MAX, USER_NOTE_REFERENCE_MAX } from "@/lib/persona";
+import { estimateTokens } from "@/lib/tokenEstimate";
+import {
+  assembleMovingGlobalCompactStub,
+  assembleMovingMediumRingText,
+} from "./memory-medium-term-audit";
+import { MEDIUM_TERM_BLOCK_COUNT } from "./memory-medium-term";
+import { USER_NOTE_REFERENCE_INJECT_MAX_CHARS } from "@/lib/userNoteReferenceInjector";
+import { USER_NOTE_ZONE_SEPARATOR } from "@/lib/userNoteStatusWindow";
+import { buildContext } from "@/services/contextBuilder";
+import type { ContextBuildInput } from "@/types";
+import {
+  buildGlobalSummarySourceFingerprint,
   buildGlobalSummarySourceFingerprintFromText,
   isGlobalSummarySourceFingerprintCurrent,
 } from "./memory-global-source-fingerprint";
@@ -22,6 +38,7 @@ import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
 import {
   formatMemoryBlock,
   listMemoryRecordsForChat,
+  listPromptInjectibleMemoryRecords,
   rebuildLorebookFromRecords,
   type MemoryRecordView,
 } from "./memory-turn-summary";
@@ -212,14 +229,15 @@ function padAuditBody(marker: string, chars = ROLLING_SUMMARY_TARGET_CHARS): str
   return body.slice(0, chars);
 }
 
-/** Deterministic lorebook rebuild size at turn — mirrors rebuildLorebookFromRecords shape. */
-export function buildDeterministicRebuiltLorebook(currentTurn: number): string {
-  const summarizedThrough =
-    Math.floor((currentTurn - 1) / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL;
+function sealedThroughForTurn(currentTurn: number): number {
+  return Math.floor(currentTurn / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL;
+}
+
+function buildDeterministicBlocksThroughSealedTurn(sealedThrough: number): string[] {
   const blocks: string[] = [];
   for (
     let start = 1;
-    start + ROLLING_SUMMARY_INTERVAL - 1 <= summarizedThrough;
+    start + ROLLING_SUMMARY_INTERVAL - 1 <= sealedThrough;
     start += ROLLING_SUMMARY_INTERVAL
   ) {
     const end = start + ROLLING_SUMMARY_INTERVAL - 1;
@@ -231,7 +249,17 @@ export function buildDeterministicRebuiltLorebook(currentTurn: number): string {
           : COMPRESSION_DEPTH_MARKERS.recentMajor;
     blocks.push(formatMemoryBlock(start, end, padAuditBody(`${marker}_T${start}`, ROLLING_SUMMARY_TARGET_CHARS)));
   }
-  return blocks.join("\n\n");
+  return blocks;
+}
+
+/** Canonical deterministic source through an exact sealed-through turn (seal simulation). */
+export function buildDeterministicSourceThroughSealedTurn(sealedThrough: number): string {
+  return buildDeterministicBlocksThroughSealedTurn(sealedThrough).join("\n\n");
+}
+
+/** Deterministic lorebook rebuild size at turn — mirrors rebuildLorebookFromRecords shape. */
+export function buildDeterministicRebuiltLorebook(currentTurn: number): string {
+  return buildDeterministicSourceThroughSealedTurn(sealedThroughForTurn(currentTurn));
 }
 
 export type FullHistoryGrowthReport = {
@@ -356,6 +384,102 @@ export function buildNaiveIncrementalInput(
   };
 }
 
+function blockMarkerForStart(start: number): string {
+  return start <= 20
+    ? COMPRESSION_DEPTH_MARKERS.oldIdentity
+    : start <= 100
+      ? COMPRESSION_DEPTH_MARKERS.midMajor
+      : COMPRESSION_DEPTH_MARKERS.recentMajor;
+}
+
+function buildLatestBlockAtSealedThrough(sealedThrough: number): string {
+  if (sealedThrough <= 0) return "";
+  const start = sealedThrough - ROLLING_SUMMARY_INTERVAL + 1;
+  const end = sealedThrough;
+  return formatMemoryBlock(
+    start,
+    end,
+    padAuditBody(`${blockMarkerForStart(start)}_T${start}`, ROLLING_SUMMARY_TARGET_CHARS)
+  );
+}
+
+function compactOutputStubChars(globalCapacity: number): number {
+  return Math.min(globalCapacity, Math.floor(LOREBOOK_COMPACT_FILL_RATIO * globalCapacity));
+}
+
+export type SealBySealCostSnapshot = {
+  targetTurn: number;
+  globalCapacity: number;
+  globalOutputTargetChars: number;
+  firstOverflowSealTurn: number | null;
+  compactionCallCount: number;
+  latestCallInputChars: number;
+  latestCallInputTokens: number;
+  cumulativeCompactInputTokensA: number;
+  cumulativeCompactInputTokensB: number;
+  cumulativeCompactInputTokensC: number;
+  /** Theoretical only — B/C correctness unproven without durable checkpoint schema. */
+  theoreticalInputSavingsBVsA: number | null;
+  bCorrectness: "CORRECTNESS_UNPROVEN";
+  cCorrectness: "CORRECTNESS_UNPROVEN";
+};
+
+/** Seal-by-seal simulation — sums actual per-overflow compact input tokens. */
+export function simulateSealBySealCompactionCosts(
+  targetTurn: number,
+  globalCapacity = MEMORY_CAPACITY_FIXED
+): SealBySealCostSnapshot {
+  let cumulativeA = 0;
+  let cumulativeB = 0;
+  let cumulativeC = 0;
+  let compactionCalls = 0;
+  let lastCompactStub = "";
+  let latestInputTokens = 0;
+  let latestInputChars = 0;
+  let firstOverflowSeal: number | null = null;
+  const outputStub = "x".repeat(compactOutputStubChars(globalCapacity));
+
+  for (
+    let sealedThrough = ROLLING_SUMMARY_INTERVAL;
+    sealedThrough <= sealedThroughForTurn(targetTurn);
+    sealedThrough += ROLLING_SUMMARY_INTERVAL
+  ) {
+    const source = buildDeterministicSourceThroughSealedTurn(sealedThrough);
+    if (source.length <= globalCapacity) continue;
+
+    compactionCalls += 1;
+    if (firstOverflowSeal == null) firstOverflowSeal = sealedThrough;
+
+    const inputTokens = estimateTokens(source);
+    latestInputTokens = inputTokens;
+    latestInputChars = source.length;
+    cumulativeA += inputTokens;
+
+    const deltaBlock = buildLatestBlockAtSealedThrough(sealedThrough);
+    const naiveB = buildNaiveIncrementalInput(lastCompactStub, [deltaBlock]);
+    cumulativeB += naiveB.combinedInputTokens;
+    cumulativeC += naiveB.combinedInputTokens;
+    lastCompactStub = outputStub;
+  }
+
+  return {
+    targetTurn,
+    globalCapacity,
+    globalOutputTargetChars: globalCapacity,
+    firstOverflowSealTurn: firstOverflowSeal,
+    compactionCallCount: compactionCalls,
+    latestCallInputChars: latestInputChars,
+    latestCallInputTokens: latestInputTokens,
+    cumulativeCompactInputTokensA: cumulativeA,
+    cumulativeCompactInputTokensB: cumulativeB,
+    cumulativeCompactInputTokensC: cumulativeC,
+    theoreticalInputSavingsBVsA:
+      cumulativeA > 0 ? Math.round((1 - cumulativeB / cumulativeA) * 100) : null,
+    bCorrectness: "CORRECTNESS_UNPROVEN",
+    cCorrectness: "CORRECTNESS_UNPROVEN",
+  };
+}
+
 export type ArchitectureCostRow = {
   turn: number;
   architecture: "A_full_rebuild" | "B_previous_compact_plus_delta" | "C_checkpoint_plus_delta";
@@ -363,80 +487,68 @@ export type ArchitectureCostRow = {
   compactInputTokens: number;
   compactionCalls: number;
   cumulativeCompactInputTokens: number;
+  savingsClassification: "ACTUAL_FULL_REBUILD" | "THEORETICAL_INPUT_SAVINGS";
 };
 
 export function simulateArchitectureCostMatrix(
-  turns: readonly number[]
+  turns: readonly number[],
+  globalCapacity = MEMORY_CAPACITY_FIXED
 ): ArchitectureCostRow[] {
   const rows: ArchitectureCostRow[] = [];
-  let cumulativeA = 0;
-  let cumulativeB = 0;
-  let cumulativeC = 0;
-  let lastCompactB = "";
-  let lastCompactC = "";
-  let checkpointValidC = true;
-
   for (const currentTurn of turns) {
-    const growth = measureFullHistoryGrowthAtTurn(currentTurn);
-    cumulativeA += growth.rebuiltInputTokens * growth.estimatedCompactionCalls;
-
-    const summarizedThrough =
-      Math.floor((currentTurn - 1) / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL;
-    const lastBlockStart =
-      summarizedThrough > 0 ? summarizedThrough - ROLLING_SUMMARY_INTERVAL + 1 : 0;
-    const deltaBlock =
-      lastBlockStart > 0
-        ? formatMemoryBlock(
-            lastBlockStart,
-            lastBlockStart + ROLLING_SUMMARY_INTERVAL - 1,
-            padAuditBody(`DELTA_T${lastBlockStart}`)
-          )
-        : "";
-
-    if (growth.overBudget && deltaBlock) {
-      const naiveB = buildNaiveIncrementalInput(lastCompactB, [deltaBlock]);
-      cumulativeB += naiveB.combinedInputTokens;
-      lastCompactB = "x".repeat(Math.min(MEMORY_CAPACITY_FIXED, LOREBOOK_COMPACT_FILL_RATIO * MEMORY_CAPACITY_FIXED));
-
-      if (checkpointValidC) {
-        const naiveC = buildNaiveIncrementalInput(lastCompactC, [deltaBlock]);
-        cumulativeC += naiveC.combinedInputTokens;
-        lastCompactC = lastCompactB;
-      } else {
-        cumulativeC += growth.rebuiltInputTokens;
-        lastCompactC = lastCompactB;
-        checkpointValidC = true;
-      }
-    }
-
+    const snapshot = simulateSealBySealCompactionCosts(currentTurn, globalCapacity);
     rows.push({
       turn: currentTurn,
       architecture: "A_full_rebuild",
-      compactInputChars: growth.rebuiltInputChars,
-      compactInputTokens: growth.rebuiltInputTokens,
-      compactionCalls: growth.estimatedCompactionCalls,
-      cumulativeCompactInputTokens: cumulativeA,
+      compactInputChars: snapshot.latestCallInputChars,
+      compactInputTokens: snapshot.latestCallInputTokens,
+      compactionCalls: snapshot.compactionCallCount,
+      cumulativeCompactInputTokens: snapshot.cumulativeCompactInputTokensA,
+      savingsClassification: "ACTUAL_FULL_REBUILD",
     });
     rows.push({
       turn: currentTurn,
       architecture: "B_previous_compact_plus_delta",
-      compactInputChars: growth.overBudget
-        ? buildNaiveIncrementalInput(lastCompactB, deltaBlock ? [deltaBlock] : []).combinedInputChars
-        : growth.rebuiltInputChars,
-      compactInputTokens: growth.overBudget
-        ? buildNaiveIncrementalInput(lastCompactB, deltaBlock ? [deltaBlock] : []).combinedInputTokens
-        : growth.rebuiltInputTokens,
-      compactionCalls: growth.estimatedCompactionCalls,
-      cumulativeCompactInputTokens: cumulativeB,
+      compactInputChars: snapshot.latestCallInputChars,
+      compactInputTokens: snapshot.latestCallInputTokens,
+      compactionCalls: snapshot.compactionCallCount,
+      cumulativeCompactInputTokens: snapshot.cumulativeCompactInputTokensB,
+      savingsClassification: "THEORETICAL_INPUT_SAVINGS",
     });
     rows.push({
       turn: currentTurn,
       architecture: "C_checkpoint_plus_delta",
-      compactInputChars: growth.rebuiltInputChars,
-      compactInputTokens: growth.rebuiltInputTokens,
-      compactionCalls: growth.estimatedCompactionCalls,
-      cumulativeCompactInputTokens: cumulativeC,
+      compactInputChars: snapshot.latestCallInputChars,
+      compactInputTokens: snapshot.latestCallInputTokens,
+      compactionCalls: snapshot.compactionCallCount,
+      cumulativeCompactInputTokens: snapshot.cumulativeCompactInputTokensC,
+      savingsClassification: "THEORETICAL_INPUT_SAVINGS",
     });
+  }
+  return rows;
+}
+
+export type GlobalCapacityEvidenceRow = SealBySealCostSnapshot & {
+  wholeHistoryCoverageMarkers: string[];
+};
+
+export function simulateGlobalCapacityEvidenceMatrix(
+  turns: readonly number[],
+  capacities: readonly number[]
+): GlobalCapacityEvidenceRow[] {
+  const rows: GlobalCapacityEvidenceRow[] = [];
+  for (const capacity of capacities) {
+    for (const turn of turns) {
+      const snapshot = simulateSealBySealCompactionCosts(turn, capacity);
+      rows.push({
+        ...snapshot,
+        wholeHistoryCoverageMarkers: [
+          COMPRESSION_DEPTH_MARKERS.oldIdentity,
+          COMPRESSION_DEPTH_MARKERS.midMajor,
+          COMPRESSION_DEPTH_MARKERS.recentMajor,
+        ],
+      });
+    }
   }
   return rows;
 }
@@ -543,4 +655,464 @@ export function isGlobalCompactFreshAfterSourceChange(
 
 export function buildFingerprintForText(text: string): string {
   return buildGlobalSummarySourceFingerprintFromText(text);
+}
+
+/** Prefix fingerprint — canonical owner: buildGlobalSummarySourceFingerprint + excludeTurnStartGte. */
+export function buildPrefixFingerprintThroughTurn(
+  chatId: number,
+  coveredThroughTurn: number
+): string {
+  return buildGlobalSummarySourceFingerprint(chatId, {
+    excludeTurnStartGte: coveredThroughTurn + 1,
+  });
+}
+
+export function listCanonicalDeltaRecordsAfterTurn(
+  chatId: number,
+  coveredThroughTurn: number
+): MemoryRecordView[] {
+  return listPromptInjectibleMemoryRecords(chatId).filter(
+    (record) => record.turnStart > coveredThroughTurn
+  );
+}
+
+export type MinimumCheckpointMetadataAudit = {
+  minimumNewFields: readonly string[];
+  globalProjectionKindRequired: boolean;
+  globalPrefixFingerprintRequired: boolean;
+  globalCoveredThroughRequired: boolean;
+  globalCheckpointGenerationRequired: boolean;
+  durablePersistedKinds: readonly string[];
+  runtimeOnlyKinds: readonly string[];
+  rationale: string;
+};
+
+export function auditMinimumCheckpointMetadata(): MinimumCheckpointMetadataAudit {
+  return {
+    minimumNewFields: [
+      "global_projection_kind",
+      "global_source_fingerprint",
+      "global_covered_through_turn",
+    ],
+    globalProjectionKindRequired: true,
+    globalPrefixFingerprintRequired: true,
+    globalCoveredThroughRequired: true,
+    globalCheckpointGenerationRequired: false,
+    durablePersistedKinds: ["global_compact", "manual_global"],
+    runtimeOnlyKinds: ["exact", "failure_fallback", "stored_fallback"],
+    rationale:
+      "Prefix fingerprint (canonical injectible source through coveredThrough) + coveredThrough + " +
+      "projection kind disambiguate durable recent_summary. Separate generation integer is not required " +
+      "when commit validates memory boundary + prefix fingerprint + frontier/coveredThrough alignment.",
+  };
+}
+
+export type MemoryEpochClassification = {
+  role: "stale derived-write / memory-boundary guard";
+  validAsCheckpointGeneration: boolean;
+  validAsCoveredThrough: boolean;
+  validAsPrefixFingerprint: boolean;
+  bumpsOnEveryCanonicalMutation: boolean;
+  classification: "VALID" | "INVALID" | "PARTIAL";
+};
+
+export function auditMemoryEpochSemantics(): MemoryEpochClassification {
+  return {
+    role: "stale derived-write / memory-boundary guard",
+    validAsCheckpointGeneration: false,
+    validAsCoveredThrough: false,
+    validAsPrefixFingerprint: false,
+    bumpsOnEveryCanonicalMutation: false,
+    classification: "INVALID",
+  };
+}
+
+export type CheckpointGenerationNecessity = {
+  required: boolean;
+  sufficientGuards: string[];
+  failureWithoutGeneration: string | null;
+};
+
+export function auditCheckpointGenerationNecessity(): CheckpointGenerationNecessity {
+  return {
+    required: false,
+    sufficientGuards: [
+      "memory_epoch + reset boundary CAS (#969)",
+      "prefix fingerprint at commit (buildGlobalSummarySourceFingerprint excludeTurnStartGte)",
+      "global_covered_through_turn vs contiguous frontier at commit",
+      "canCommitGlobalSummaryProjection full-source guard for non-incremental races",
+    ],
+    failureWithoutGeneration:
+      "Concurrent incremental commits for same coveredThrough need metadata CAS on fingerprint+coveredThrough; " +
+      "generation integer is optional if commit compares stored fingerprint+coveredThrough atomically.",
+  };
+}
+
+export type InvalidationPathEntry = {
+  mutation: string;
+  reachesRefreshMirror: boolean;
+  bumpsMemoryEpoch: boolean;
+  wouldClearCheckpointMetadata: boolean;
+  owner: string;
+};
+
+export const GLOBAL_CHECKPOINT_INVALIDATION_PATHS: InvalidationPathEntry[] = [
+  {
+    mutation: "record edit (updateMemoryRecordById)",
+    reachesRefreshMirror: true,
+    bumpsMemoryEpoch: false,
+    wouldClearCheckpointMetadata: false,
+    owner: "memory-turn-summary.ts → refreshGlobalMemoryMirrorFromRecords",
+  },
+  {
+    mutation: "record inactive/delete (markMemoryRecordInactive)",
+    reachesRefreshMirror: true,
+    bumpsMemoryEpoch: false,
+    wouldClearCheckpointMetadata: false,
+    owner: "memory-turn-summary.ts → refreshGlobalMemoryMirrorFromRecords",
+  },
+  {
+    mutation: "regen (assistant regen path)",
+    reachesRefreshMirror: false,
+    bumpsMemoryEpoch: true,
+    wouldClearCheckpointMetadata: false,
+    owner: "memory-manager.ts → invalidateDerivedMemoryGeneration",
+  },
+  {
+    mutation: "manual Global edit (updateLorebookForChat)",
+    reachesRefreshMirror: false,
+    bumpsMemoryEpoch: true,
+    wouldClearCheckpointMetadata: false,
+    owner: "memory-manager.ts → invalidateDerivedMemoryGeneration",
+  },
+  {
+    mutation: "branch reopen/close/adopt",
+    reachesRefreshMirror: true,
+    bumpsMemoryEpoch: false,
+    wouldClearCheckpointMetadata: false,
+    owner: "memory-turn-summary.ts / memory-summary-persist.ts",
+  },
+  {
+    mutation: "reset",
+    reachesRefreshMirror: false,
+    bumpsMemoryEpoch: true,
+    wouldClearCheckpointMetadata: false,
+    owner: "memory-source-boundary.ts → reset boundary + epoch",
+  },
+  {
+    mutation: "variant switch",
+    reachesRefreshMirror: false,
+    bumpsMemoryEpoch: true,
+    wouldClearCheckpointMetadata: false,
+    owner: "memory-variant-switch-reconcile.ts → invalidateDerivedMemoryGenerationCore",
+  },
+];
+
+export function classifyInvalidationOwnerCompleteness(): "SINGLE" | "DUPLICATED" | "INCOMPLETE" {
+  const hasMirror = GLOBAL_CHECKPOINT_INVALIDATION_PATHS.some((p) => p.reachesRefreshMirror);
+  const hasEpoch = GLOBAL_CHECKPOINT_INVALIDATION_PATHS.some((p) => p.bumpsMemoryEpoch);
+  const clearsCheckpoint = GLOBAL_CHECKPOINT_INVALIDATION_PATHS.some(
+    (p) => p.wouldClearCheckpointMetadata
+  );
+  if (!clearsCheckpoint) return "INCOMPLETE";
+  if (hasMirror && hasEpoch) return "DUPLICATED";
+  if (hasMirror || hasEpoch) return "SINGLE";
+  return "INCOMPLETE";
+}
+
+export type AtomicCommitOwnerAudit = {
+  location: string;
+  function: string;
+  currentFields: string[];
+  futureRequiredFields: string[];
+  atomic: boolean;
+};
+
+export function auditAtomicCompactCommitOwner(): AtomicCommitOwnerAudit {
+  return {
+    location: "memory-rolling-summary.ts",
+    function: "persistBatchAndMaybeCompactLorebook → db.transaction + updateChatMemory",
+    currentFields: ["recent_summary"],
+    futureRequiredFields: [
+      "recent_summary",
+      "global_projection_kind",
+      "global_source_fingerprint",
+      "global_covered_through_turn",
+    ],
+    atomic: true,
+  };
+}
+
+export type SubscriptionEvidenceConfigId = "CURRENT" | "PAID_A" | "PAID_B";
+
+export type SubscriptionEvidenceConfig = {
+  id: SubscriptionEvidenceConfigId;
+  globalCapacityChars: number;
+  focusMaxChars: number;
+  referenceStorageMaxChars: number;
+  referenceInjectMaxChars: number;
+  mediumBlockCount: number;
+};
+
+export const SUBSCRIPTION_EVIDENCE_CONFIGS: SubscriptionEvidenceConfig[] = [
+  {
+    id: "CURRENT",
+    globalCapacityChars: 10_000,
+    focusMaxChars: USER_NOTE_FOCUS_MAX,
+    referenceStorageMaxChars: 5_000,
+    referenceInjectMaxChars: USER_NOTE_REFERENCE_INJECT_MAX_CHARS,
+    mediumBlockCount: MEDIUM_TERM_BLOCK_COUNT,
+  },
+  {
+    id: "PAID_A",
+    globalCapacityChars: 15_000,
+    focusMaxChars: 2_000,
+    referenceStorageMaxChars: 15_000,
+    referenceInjectMaxChars: 3_500,
+    mediumBlockCount: MEDIUM_TERM_BLOCK_COUNT,
+  },
+  {
+    id: "PAID_B",
+    globalCapacityChars: 20_000,
+    focusMaxChars: 2_000,
+    referenceStorageMaxChars: 20_000,
+    referenceInjectMaxChars: 4_000,
+    mediumBlockCount: MEDIUM_TERM_BLOCK_COUNT,
+  },
+];
+
+function padToChars(text: string, chars: number): string {
+  let body = text;
+  while (body.length < chars) body += " → PAD";
+  return body.slice(0, chars);
+}
+
+function buildSubscriptionUserNote(config: SubscriptionEvidenceConfig): string {
+  const focus = padToChars("FOCUS_ZONE audit keyword 폭우 역", config.focusMaxChars);
+  const referenceStorage = padToChars(
+    "REFERENCE_STORAGE audit keyword 폭우 abandoned_station — not fully injected",
+    config.referenceStorageMaxChars
+  );
+  return focus + USER_NOTE_ZONE_SEPARATOR + referenceStorage;
+}
+
+export function buildSubscriptionPromptBudgetInput(opts: {
+  modelId: string;
+  config: SubscriptionEvidenceConfig;
+  currentTurn: number;
+}): ContextBuildInput {
+  const globalText = padToChars(
+    assembleMovingGlobalCompactStub(opts.currentTurn),
+    opts.config.globalCapacityChars
+  );
+  const mediumText = assembleMovingMediumRingText(
+    opts.currentTurn,
+    opts.config.mediumBlockCount as 15
+  );
+  return {
+    charName: "AuditChar",
+    userNickname: "AuditUser",
+    personaDisplayName: "AuditUser",
+    chunks: [
+      {
+        id: "audit-identity",
+        characterId: "audit-char",
+        category: "identity",
+        content: padToChars("[Identity] representative Main RP canon body.", 4_500),
+        importance: "CRITICAL",
+        tokenCount: estimateTokens("identity"),
+        keywords: [],
+      },
+    ],
+    userPersona: padToChars("User persona block.", 900),
+    userNote: buildSubscriptionUserNote(opts.config),
+    shortTermHistory: [
+      { role: "user", content: "폭우 역 audit keyword continue".padEnd(800, "가") },
+      { role: "assistant", content: "폭우 역 audit reply".padEnd(800, "가") },
+    ],
+    currentUserMessage: "폭우 abandoned_station audit keyword continue the scene",
+    nsfw: false,
+    provider: selectedAIProvider(opts.modelId as SelectedAI),
+    modelId: opts.modelId,
+    longTermMemory: globalText,
+    mediumTermMemoryBlock: mediumText,
+    memoryMeta: padToChars('{"promises":["약속"]}', 1_800),
+    episodicMemoryBlock: padToChars("[Episodic] audit fact", 980),
+    targetResponseChars: 2500,
+    completedTurns: opts.currentTurn,
+  };
+}
+
+export type SubscriptionPromptMatrixRow = {
+  configId: SubscriptionEvidenceConfigId;
+  modelId: string;
+  globalCapacityChars: number;
+  referenceStorageMaxChars: number;
+  referenceInjectMaxChars: number;
+  estimatedSystemTokens: number;
+  estimatedHistoryTokens: number;
+  estimatedInputTokens: number;
+  tokenBudget: number;
+  deltaSystemTokensVsCurrent: number;
+  deltaInputTokensVsCurrent: number;
+  telemetryTargetCrossing: boolean;
+  truncatedMemory: boolean;
+  criticalSectionOmitted: boolean;
+};
+
+export function buildSubscriptionFullPromptMatrix(
+  currentTurn = 300
+): SubscriptionPromptMatrixRow[] {
+  const rows: SubscriptionPromptMatrixRow[] = [];
+  const baselines = new Map<
+    string,
+    { systemTokens: number; inputTokens: number }
+  >();
+
+  for (const modelId of MAIN_RP_MODEL_IDS) {
+    const currentBuilt = buildContext(
+      buildSubscriptionPromptBudgetInput({
+        modelId,
+        config: SUBSCRIPTION_EVIDENCE_CONFIGS.find((c) => c.id === "CURRENT")!,
+        currentTurn,
+      })
+    );
+    baselines.set(modelId, {
+      systemTokens: currentBuilt.meta.estimatedSystemTokens,
+      inputTokens:
+        currentBuilt.meta.estimatedInputTokens ??
+        currentBuilt.meta.estimatedSystemTokens + currentBuilt.meta.estimatedHistoryTokens,
+    });
+  }
+
+  for (const config of SUBSCRIPTION_EVIDENCE_CONFIGS) {
+    for (const modelId of MAIN_RP_MODEL_IDS) {
+      const built = buildContext(
+        buildSubscriptionPromptBudgetInput({ modelId, config, currentTurn })
+      );
+      const systemTokens = built.meta.estimatedSystemTokens;
+      const historyTokens = built.meta.estimatedHistoryTokens;
+      const inputTokens =
+        built.meta.estimatedInputTokens ?? systemTokens + historyTokens;
+      const budget = built.meta.tokenBudget;
+      const tracked = new Set((built.meta.trackedSections ?? []).map((s) => s.id));
+      const baseline = baselines.get(modelId)!;
+      rows.push({
+        configId: config.id,
+        modelId,
+        globalCapacityChars: config.globalCapacityChars,
+        referenceStorageMaxChars: config.referenceStorageMaxChars,
+        referenceInjectMaxChars: config.referenceInjectMaxChars,
+        estimatedSystemTokens: systemTokens,
+        estimatedHistoryTokens: historyTokens,
+        estimatedInputTokens: inputTokens,
+        tokenBudget: budget,
+        deltaSystemTokensVsCurrent: systemTokens - baseline.systemTokens,
+        deltaInputTokensVsCurrent: inputTokens - baseline.inputTokens,
+        telemetryTargetCrossing: systemTokens > budget,
+        truncatedMemory: built.meta.truncatedMemory === true,
+        criticalSectionOmitted:
+          !tracked.has("current-memory") || !tracked.has("medium-term-memory"),
+      });
+    }
+  }
+  return rows;
+}
+
+export type SubscriptionDowngradeRisk = {
+  dimension: string;
+  requiresDestructiveTruncation: boolean;
+  requiresRecompression: boolean;
+  readOnlyOverflowPreservation: boolean;
+  editingLockRequired: boolean;
+  schemaChangeRequired: boolean;
+  preferredPolicy: string;
+};
+
+export function auditSubscriptionDowngradeSemantics(): SubscriptionDowngradeRisk[] {
+  return [
+    {
+      dimension: "Global 15K/20K → 10K stored compact",
+      requiresDestructiveTruncation: false,
+      requiresRecompression: true,
+      readOnlyOverflowPreservation: true,
+      editingLockRequired: false,
+      schemaChangeRequired: true,
+      preferredPolicy:
+        "Preserve user-authored text read-only; recompress on next overflow seal — do not delete canonical summaries.",
+    },
+    {
+      dimension: "Focus 2K → 1K",
+      requiresDestructiveTruncation: true,
+      requiresRecompression: false,
+      readOnlyOverflowPreservation: true,
+      editingLockRequired: false,
+      schemaChangeRequired: false,
+      preferredPolicy: "Truncate focus zone with user edit opportunity — do not silent delete.",
+    },
+    {
+      dimension: "User Lorebook storage 15K/20K → 5K",
+      requiresDestructiveTruncation: false,
+      requiresRecompression: false,
+      readOnlyOverflowPreservation: true,
+      editingLockRequired: true,
+      schemaChangeRequired: true,
+      preferredPolicy: "Storage overflow read-only; per-turn injection cap drops separately (2.5K free).",
+    },
+    {
+      dimension: "Per-turn reference injection 3.5K/4K → 2.5K",
+      requiresDestructiveTruncation: false,
+      requiresRecompression: false,
+      readOnlyOverflowPreservation: true,
+      editingLockRequired: false,
+      schemaChangeRequired: false,
+      preferredPolicy: "Injection cap only — storage unchanged.",
+    },
+  ];
+}
+
+export type AuditCodeHygieneEntry = {
+  symbol: string;
+  classification: "DURABLE_REGRESSION" | "ONE_OFF_FORENSIC" | "IMPLEMENTATION_FIXTURE";
+  longTermPlan: string;
+};
+
+export const AUDIT_CODE_HYGIENE: AuditCodeHygieneEntry[] = [
+  {
+    symbol: "buildPrefixFingerprintThroughTurn",
+    classification: "IMPLEMENTATION_FIXTURE",
+    longTermPlan: "Move to memory-global-source-fingerprint when schema lands.",
+  },
+  {
+    symbol: "simulateSealBySealCompactionCosts",
+    classification: "ONE_OFF_FORENSIC",
+    longTermPlan: "Remove after incremental implementation PR or keep as regression if promoted.",
+  },
+  {
+    symbol: "GLOBAL_COMPACTION_OWNER_MAP",
+    classification: "ONE_OFF_FORENSIC",
+    longTermPlan: "Documentation-only — extract to architecture doc or delete post-implementation.",
+  },
+  {
+    symbol: "prefix fingerprint append-only / historical mutation tests",
+    classification: "DURABLE_REGRESSION",
+    longTermPlan: "Keep minimal fixtures in memory-global-compact-race or new checkpoint test file.",
+  },
+  {
+    symbol: "buildSubscriptionFullPromptMatrix",
+    classification: "ONE_OFF_FORENSIC",
+    longTermPlan: "Remove after subscription policy decision; not runtime.",
+  },
+];
+
+export function verifyUserNoteCurrentMainConstants(): {
+  focusMax: number;
+  referenceStorageMax: number;
+  referenceInjectMax: number;
+} {
+  return {
+    focusMax: USER_NOTE_FOCUS_MAX,
+    referenceStorageMax: USER_NOTE_REFERENCE_MAX,
+    referenceInjectMax: USER_NOTE_REFERENCE_INJECT_MAX_CHARS,
+  };
 }
