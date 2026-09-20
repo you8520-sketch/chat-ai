@@ -24,12 +24,24 @@ export async function GET(req: Request) {
   }
 
   const provider = url.searchParams.get("provider")?.trim().toLowerCase() || "cheaperinference";
-  const event = lookupAdminProviderRequestForensic(providerRequestId, {
+  const lookup = lookupAdminProviderRequestForensic(providerRequestId, {
     provider,
     db: getDb(),
   });
 
-  const payload = event ? { found: true as const, event } : { found: false as const, event: null };
+  const payload = lookup
+    ? {
+        found: true as const,
+        event: lookup.event,
+        matchingRowCount: lookup.matchingRowCount,
+        duplicateDetected: lookup.duplicateDetected,
+      }
+    : {
+        found: false as const,
+        event: null,
+        matchingRowCount: 0,
+        duplicateDetected: false,
+      };
   assertAdminProviderRequestForensicSafePayload(payload);
   return NextResponse.json(payload);
 }

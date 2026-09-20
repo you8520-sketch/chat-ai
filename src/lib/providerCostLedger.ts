@@ -755,27 +755,39 @@ export function readProviderCostEventByKey(
 const DEFAULT_FORENSIC_PROVIDER = "cheaperinference";
 
 /**
+ * All ledger rows for one billing identity (provider, provider_request_id).
+ * Ordered by oldest id first — forensic callers pick rows[0] as canonical display.
+ * Never aggregates or sums duplicate costs.
+ */
+export function listProviderCostEventsByProviderRequestId(
+  providerRequestId: string,
+  provider: string = DEFAULT_FORENSIC_PROVIDER,
+  db: Database.Database = getDb()
+): ProviderCostLedgerRow[] {
+  ensureProviderCostLedgerSchema(db);
+  const trimmedId = providerRequestId.trim();
+  const trimmedProvider = provider.trim().toLowerCase();
+  if (!trimmedId || !trimmedProvider) return [];
+  return db
+    .prepare(
+      `SELECT * FROM api_cost_ledger
+       WHERE provider = ? AND provider_request_id = ?
+       ORDER BY id ASC`
+    )
+    .all(trimmedProvider, trimmedId) as ProviderCostLedgerRow[];
+}
+
+/**
  * Exact lookup by billing identity (provider, provider_request_id).
- * Returns one canonical row — never aggregates or sums duplicates.
+ * Returns the oldest matching row — never aggregates or sums duplicates.
  */
 export function readProviderCostEventByProviderRequestId(
   providerRequestId: string,
   provider: string = DEFAULT_FORENSIC_PROVIDER,
   db: Database.Database = getDb()
 ): ProviderCostLedgerRow | null {
-  ensureProviderCostLedgerSchema(db);
-  const trimmedId = providerRequestId.trim();
-  const trimmedProvider = provider.trim().toLowerCase();
-  if (!trimmedId || !trimmedProvider) return null;
-  const row = db
-    .prepare(
-      `SELECT * FROM api_cost_ledger
-       WHERE provider = ? AND provider_request_id = ?
-       ORDER BY id ASC
-       LIMIT 1`
-    )
-    .get(trimmedProvider, trimmedId) as ProviderCostLedgerRow | undefined;
-  return row ?? null;
+  const rows = listProviderCostEventsByProviderRequestId(providerRequestId, provider, db);
+  return rows[0] ?? null;
 }
 
 /** Canonical feature/cost-center vocabulary for AI spend attribution. */

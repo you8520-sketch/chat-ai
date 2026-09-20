@@ -5,7 +5,7 @@ import {
 } from "@/lib/adminBillingReceiptProvenance";
 import type { AuxProviderOwner } from "@/lib/auxProviderProvenance";
 import {
-  readProviderCostEventByProviderRequestId,
+  listProviderCostEventsByProviderRequestId,
   type ProviderCostLedgerRow,
 } from "@/lib/providerCostLedger";
 
@@ -37,6 +37,20 @@ export type AdminProviderRequestForensicRecord = {
   chatId: number | null;
 };
 
+export type AdminProviderRequestForensicLookupResult = {
+  /** Oldest matching row (lowest id) — diagnostic display only, never a cost sum. */
+  event: AdminProviderRequestForensicRecord;
+  matchingRowCount: number;
+  duplicateDetected: boolean;
+};
+
+/**
+ * READ SIDE EFFECT (established application behavior, not unique to this lookup):
+ * `listProviderCostEventsByProviderRequestId` calls `ensureProviderCostLedgerSchema()`,
+ * which may ALTER TABLE add missing columns and CREATE INDEX IF NOT EXISTS on first access.
+ * Legacy DBs with duplicate (provider, provider_request_id) pairs skip the unique index
+ * but rows are never deleted or merged by reads. Same pattern as all other ledger readers.
+ */
 export function projectAdminProviderRequestForensicRecord(
   row: ProviderCostLedgerRow
 ): AdminProviderRequestForensicRecord {
@@ -74,12 +88,20 @@ export function projectAdminProviderRequestForensicRecord(
 export function lookupAdminProviderRequestForensic(
   providerRequestId: string,
   opts?: { provider?: string; db?: import("better-sqlite3").Database }
-): AdminProviderRequestForensicRecord | null {
+): AdminProviderRequestForensicLookupResult | null {
   const trimmed = providerRequestId.trim();
   if (!trimmed) return null;
-  const row = readProviderCostEventByProviderRequestId(trimmed, opts?.provider, opts?.db);
-  if (!row) return null;
-  return projectAdminProviderRequestForensicRecord(row);
+  const rows = listProviderCostEventsByProviderRequestId(
+    trimmed,
+    opts?.provider,
+    opts?.db
+  );
+  if (rows.length === 0) return null;
+  return {
+    event: projectAdminProviderRequestForensicRecord(rows[0]!),
+    matchingRowCount: rows.length,
+    duplicateDetected: rows.length > 1,
+  };
 }
 
 /** Keys that must never appear in admin forensic lookup responses. */

@@ -104,9 +104,16 @@ describe("admin finance provider-request lookup route", () => {
       )
     );
     assert.equal(response.status, 200);
-    const body = (await response.json()) as { found: boolean; event: unknown };
+    const body = (await response.json()) as {
+      found: boolean;
+      event: unknown;
+      matchingRowCount: number;
+      duplicateDetected: boolean;
+    };
     assert.equal(body.found, false);
     assert.equal(body.event, null);
+    assert.equal(body.matchingRowCount, 0);
+    assert.equal(body.duplicateDetected, false);
   });
 
   it("returns one canonical event for an exact existing provider request id", async () => {
@@ -134,6 +141,8 @@ describe("admin finance provider-request lookup route", () => {
     assert.equal(response.status, 200);
     const body = (await response.json()) as {
       found: boolean;
+      matchingRowCount: number;
+      duplicateDetected: boolean;
       event: {
         providerRequestId: string;
         requestKind: string;
@@ -143,6 +152,8 @@ describe("admin finance provider-request lookup route", () => {
       };
     };
     assert.equal(body.found, true);
+    assert.equal(body.matchingRowCount, 1);
+    assert.equal(body.duplicateDetected, false);
     assert.equal(body.event.providerRequestId, requestId);
     assert.equal(body.event.requestKind, "background-prompt-translation");
     assert.equal(body.event.assistantMessageId, null);

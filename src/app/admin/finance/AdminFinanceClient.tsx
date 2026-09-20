@@ -78,6 +78,8 @@ export default function AdminFinanceClient({
   const [providerRequestLookupError, setProviderRequestLookupError] = useState("");
   const [providerRequestLookupResult, setProviderRequestLookupResult] =
     useState<AdminProviderRequestForensicRecord | null>(null);
+  const [providerRequestMatchingRowCount, setProviderRequestMatchingRowCount] = useState(0);
+  const [providerRequestDuplicateDetected, setProviderRequestDuplicateDetected] = useState(false);
   const [providerRequestLookupSearched, setProviderRequestLookupSearched] = useState(false);
 
   async function loadMonth(monthKey: string) {
@@ -93,12 +95,16 @@ export default function AdminFinanceClient({
     if (!trimmed) {
       setProviderRequestLookupError("Provider Request ID를 입력하세요.");
       setProviderRequestLookupResult(null);
+      setProviderRequestMatchingRowCount(0);
+      setProviderRequestDuplicateDetected(false);
       setProviderRequestLookupSearched(false);
       return;
     }
     setProviderRequestLookupLoading(true);
     setProviderRequestLookupError("");
     setProviderRequestLookupResult(null);
+    setProviderRequestMatchingRowCount(0);
+    setProviderRequestDuplicateDetected(false);
     setProviderRequestLookupSearched(false);
     try {
       const res = await fetch(
@@ -108,6 +114,8 @@ export default function AdminFinanceClient({
         error?: string;
         found?: boolean;
         event?: AdminProviderRequestForensicRecord | null;
+        matchingRowCount?: number;
+        duplicateDetected?: boolean;
       };
       if (!res.ok) {
         setProviderRequestLookupError(data.error || "조회하지 못했습니다.");
@@ -115,6 +123,8 @@ export default function AdminFinanceClient({
       }
       setProviderRequestLookupSearched(true);
       setProviderRequestLookupResult(data.found ? (data.event ?? null) : null);
+      setProviderRequestMatchingRowCount(data.matchingRowCount ?? 0);
+      setProviderRequestDuplicateDetected(Boolean(data.duplicateDetected));
       if (!data.found) {
         setProviderRequestLookupError("canonical ledger에 해당 Request ID가 없습니다.");
       }
@@ -301,12 +311,20 @@ export default function AdminFinanceClient({
               </dd>
             </div>
             <div className="sm:col-span-2 lg:col-span-3">
-              <dt className="text-zinc-500">Ledger</dt>
+              <dt className="text-zinc-500">Ledger identity</dt>
+              <dd className="mt-1 font-bold">
+                {providerRequestDuplicateDetected
+                  ? `Ledger identity anomaly: ${providerRequestMatchingRowCount} matching rows`
+                  : "Ledger identity: OK"}
+              </dd>
               <dd className="mt-1 font-mono text-xs text-zinc-400">
                 id={providerRequestLookupResult.id} · family={providerRequestLookupResult.family ?? "—"} ·
                 phase={providerRequestLookupResult.executionPhase ?? "—"} · status=
                 {providerRequestLookupResult.eventStatus ?? "—"} · attribution=
                 {providerRequestLookupResult.costAttribution}
+                {providerRequestDuplicateDetected
+                  ? " · display=oldest row (no cost sum)"
+                  : ""}
               </dd>
             </div>
           </dl>
