@@ -793,20 +793,7 @@ function migrateCharacterAttachmentsFromLegacyFk(
   }
 }
 
-export function migrateCreatorLorebookLegacyState(db: Database.Database): void {
-  if (schemaFlagApplied(db, CREATOR_LOREBOOK_MIGRATION_FLAG)) return;
-
-  const preflight = preflightCreatorLorebookMigration(db);
-
-  const tx = db.transaction(() => {
-    const flattenMap = flattenCreatorLibraryOnce(db, preflight.lorebooks);
-    migrateCharacterAttachmentsFromLegacyFk(db, preflight.attachedCharacters, flattenMap);
-    markSchemaFlag(db, CREATOR_LOREBOOK_MIGRATION_FLAG);
-  });
-  tx();
-}
-
-export function ensureCreatorLorebookSchema(db: Database.Database): void {
+function createCharacterLorebookAttachmentsSchema(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS character_lorebook_attachments (
       character_id INTEGER NOT NULL,
@@ -818,8 +805,27 @@ export function ensureCreatorLorebookSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_character_lorebook_attachments_lorebook
       ON character_lorebook_attachments(lorebook_id, character_id);
   `);
+}
 
-  migrateCreatorLorebookLegacyState(db);
+export function migrateCreatorLorebookLegacyState(db: Database.Database): void {
+  ensureCreatorLorebookSchema(db);
+}
+
+export function ensureCreatorLorebookSchema(db: Database.Database): void {
+  if (schemaFlagApplied(db, CREATOR_LOREBOOK_MIGRATION_FLAG)) {
+    createCharacterLorebookAttachmentsSchema(db);
+    return;
+  }
+
+  const preflight = preflightCreatorLorebookMigration(db);
+
+  const tx = db.transaction(() => {
+    createCharacterLorebookAttachmentsSchema(db);
+    const flattenMap = flattenCreatorLibraryOnce(db, preflight.lorebooks);
+    migrateCharacterAttachmentsFromLegacyFk(db, preflight.attachedCharacters, flattenMap);
+    markSchemaFlag(db, CREATOR_LOREBOOK_MIGRATION_FLAG);
+  });
+  tx();
 }
 
 export function creatorLorebookEntryCount(entriesJson: string): number {

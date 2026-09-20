@@ -19,7 +19,6 @@ import {
   ensureCreatorLorebookSchema,
   listCharacterCreatorLorebookAttachmentIds,
   loadAttachedCreatorLorebooksPromptBlockFromActivation,
-  migrateCreatorLorebookLegacyState,
   normalizeCreatorLorebookIds,
   normalizeCreatorLorebookUnit,
   parseCreatorLorebookUnitEntry,
@@ -45,21 +44,48 @@ const CHARACTER = 881002;
 const CHAT = 881003;
 const USER_CHAT_LOREBOOK = 881004;
 
-function ensureMigrationTables(db: Database.Database): void {
+function ensureSchemaFlagsTable(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS _schema_flags (
       key TEXT PRIMARY KEY,
       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-    CREATE TABLE IF NOT EXISTS character_lorebook_attachments (
-      character_id INTEGER NOT NULL,
-      lorebook_id INTEGER NOT NULL,
-      position INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      PRIMARY KEY (character_id, lorebook_id)
-    );
   `);
-  ensureLorebookActiveEntriesTable(db);
+}
+
+function tableExists(db: Database.Database, table: string): boolean {
+  return Boolean(
+    db.prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?`).get(table)
+  );
+}
+
+function indexExists(db: Database.Database, index: string): boolean {
+  return Boolean(
+    db.prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='index' AND name=?`).get(index)
+  );
+}
+
+function assertMigrationFailureState(
+  db: Database.Database,
+  input: { lorebookId: number; characterId: number; originalEntriesJson: string }
+): void {
+  assert.equal(schemaFlagApplied(db, CREATOR_LOREBOOK_MIGRATION_FLAG), false);
+  assert.equal(tableExists(db, "character_lorebook_attachments"), false);
+  assert.equal(indexExists(db, "idx_character_lorebook_attachments_lorebook"), false);
+  const lorebook = db
+    .prepare(`SELECT entries_json FROM keyword_lorebooks WHERE id=?`)
+    .get(input.lorebookId) as { entries_json: string };
+  assert.equal(lorebook.entries_json, input.originalEntriesJson);
+  const character = db
+    .prepare(`SELECT lorebook_id FROM characters WHERE id=?`)
+    .get(input.characterId) as { lorebook_id: number };
+  assert.equal(character.lorebook_id, input.lorebookId);
+  assert.equal(listCharacterCreatorLorebookAttachmentIds(db, input.characterId).length, 0);
+  assert.equal(
+    (db.prepare(`SELECT COUNT(*) AS c FROM keyword_lorebooks WHERE scope='creator'`).get() as { c: number })
+      .c,
+    1
+  );
 }
 
 function makeDb(): Database.Database {
@@ -87,7 +113,8 @@ function makeDb(): Database.Database {
       character_id INTEGER NOT NULL
     );
   `);
-  ensureMigrationTables(db);
+  ensureSchemaFlagsTable(db);
+  ensureLorebookActiveEntriesTable(db);
   ensureCreatorLorebookSchema(db);
   db.prepare(`INSERT INTO characters (id, name, creator_id) VALUES (?, 'Test Char', ?)`).run(
     CHARACTER,
@@ -97,7 +124,7 @@ function makeDb(): Database.Database {
   return db;
 }
 
-function makeMigrationDb(): Database.Database {
+function makeProductionMigrationDb(): Database.Database {
   const db = new Database(":memory:");
   db.exec(`
     CREATE TABLE keyword_lorebooks (
@@ -122,7 +149,7 @@ function makeMigrationDb(): Database.Database {
       character_id INTEGER NOT NULL
     );
   `);
-  ensureMigrationTables(db);
+  ensureSchemaFlagsTable(db);
   return db;
 }
 
@@ -540,30 +567,66 @@ describe("USER_LOREBOOK scope isolation", () => {
   });
 });
 
-describe("migration", () => {
-  it("MIGRATION_BLOCK_NO_FLAG when attached container exceeds 20 entries", () => {
-    const db = makeMigrationDb();
+describe("migration production entrypoint", () => {
+  it("FAIL_21_MUTATIONS when attached container exceeds 20 entries", () => {
+    const db = makeProductionMigrationDb();
     const entries = Array.from({ length: 21 }, (_, i) => ({
       keywords: [`K${i}`],
       content: `BODY_${i}`,
     }));
+    const originalEntriesJson = serializeLorebookEntries(entries);
     const lorebookId = insertCreatorLorebook(db, { name: "big", keywords: ["x"], content: "x", entries });
     db.prepare(`INSERT INTO characters (id, name, creator_id, lorebook_id) VALUES (10, 'C', ?, ?)`).run(
       CREATOR,
       lorebookId
     );
 
-    assert.throws(() => migrateCreatorLorebookLegacyState(db), CreatorLorebookMigrationError);
-    assert.equal(schemaFlagApplied(db, CREATOR_LOREBOOK_MIGRATION_FLAG), false);
-    const character = db.prepare(`SELECT lorebook_id FROM characters WHERE id=10`).get() as {
-      lorebook_id: number;
-    };
-    assert.equal(character.lorebook_id, lorebookId);
-    assert.equal(listCharacterCreatorLorebookAttachmentIds(db, 10).length, 0);
+    assert.throws(() => ensureCreatorLorebookSchema(db), CreatorLorebookMigrationError);
+    assertMigrationFailureState(db, {
+      lorebookId,
+      characterId: 10,
+      originalEntriesJson,
+    });
   });
 
-  it("MIGRATION_RETRY succeeds after fixing fixture to <=20", () => {
-    const db = makeMigrationDb();
+  it("FAIL_MISSING_FK leaves legacy state untouched", () => {
+    const db = makeProductionMigrationDb();
+    db.prepare(`INSERT INTO characters (id, name, creator_id, lorebook_id) VALUES (11, 'C', ?, 99999)`).run(
+      CREATOR
+    );
+
+    assert.throws(() => ensureCreatorLorebookSchema(db), CreatorLorebookMigrationError);
+    assert.equal(schemaFlagApplied(db, CREATOR_LOREBOOK_MIGRATION_FLAG), false);
+    assert.equal(tableExists(db, "character_lorebook_attachments"), false);
+    assert.equal(indexExists(db, "idx_character_lorebook_attachments_lorebook"), false);
+    const character = db.prepare(`SELECT lorebook_id FROM characters WHERE id=11`).get() as {
+      lorebook_id: number;
+    };
+    assert.equal(character.lorebook_id, 99999);
+  });
+
+  it("FAIL_CREATOR_MISMATCH leaves legacy state untouched", () => {
+    const db = makeProductionMigrationDb();
+    const lorebookId = insertCreatorLorebook(db, { content: "x", keywords: ["k"] });
+    const originalEntriesJson = (
+      db.prepare(`SELECT entries_json FROM keyword_lorebooks WHERE id=?`).get(lorebookId) as {
+        entries_json: string;
+      }
+    ).entries_json;
+    db.prepare(`INSERT INTO characters (id, name, creator_id, lorebook_id) VALUES (5, 'C', 999, ?)`).run(
+      lorebookId
+    );
+
+    assert.throws(() => ensureCreatorLorebookSchema(db), CreatorLorebookMigrationError);
+    assertMigrationFailureState(db, {
+      lorebookId,
+      characterId: 5,
+      originalEntriesJson,
+    });
+  });
+
+  it("RETRY succeeds after fixing fixture to <=20", () => {
+    const db = makeProductionMigrationDb();
     const entries = Array.from({ length: 21 }, (_, i) => ({
       keywords: [`K${i}`],
       content: `BODY_${i}`,
@@ -573,23 +636,26 @@ describe("migration", () => {
       CREATOR,
       lorebookId
     );
-    assert.throws(() => migrateCreatorLorebookLegacyState(db));
+    assert.throws(() => ensureCreatorLorebookSchema(db));
 
     db.prepare(`UPDATE keyword_lorebooks SET entries_json=? WHERE id=?`).run(
       serializeLorebookEntries(entries.slice(0, 20)),
       lorebookId
     );
-    migrateCreatorLorebookLegacyState(db);
+    ensureCreatorLorebookSchema(db);
     assert.equal(schemaFlagApplied(db, CREATOR_LOREBOOK_MIGRATION_FLAG), true);
+    assert.equal(tableExists(db, "character_lorebook_attachments"), true);
     const migratedCharacter = db
       .prepare(`SELECT lorebook_id FROM characters WHERE id=10`)
       .get() as { lorebook_id: number | null };
     assert.equal(migratedCharacter.lorebook_id, null);
     assert.equal(listCharacterCreatorLorebookAttachmentIds(db, 10).length, 20);
+    ensureCreatorLorebookSchema(db);
+    assert.equal(listCharacterCreatorLorebookAttachmentIds(db, 10).length, 20);
   });
 
-  it("UNATTACHED_MULTI_ENTRY_FLATTEN preserves all units", () => {
-    const db = makeMigrationDb();
+  it("SUCCESS_UNATTACHED preserves all units", () => {
+    const db = makeProductionMigrationDb();
     const lorebookId = insertCreatorLorebook(db, {
       name: "library",
       keywords: ["A"],
@@ -601,7 +667,7 @@ describe("migration", () => {
       ],
     });
 
-    migrateCreatorLorebookLegacyState(db);
+    ensureCreatorLorebookSchema(db);
 
     const rows = db
       .prepare(`SELECT id, entries_json FROM keyword_lorebooks WHERE scope='creator' ORDER BY id ASC`)
@@ -613,8 +679,8 @@ describe("migration", () => {
     assert.equal(classifyCreatorLorebookEntryCount(rows[0]!.entries_json), "single");
   });
 
-  it("SHARED_CONTAINER_FLATTEN_ONCE for two characters", () => {
-    const db = makeMigrationDb();
+  it("SUCCESS_SHARED flattens once for two characters", () => {
+    const db = makeProductionMigrationDb();
     const lorebookId = insertCreatorLorebook(db, {
       name: "shared",
       keywords: ["A"],
@@ -634,7 +700,7 @@ describe("migration", () => {
       lorebookId
     );
 
-    migrateCreatorLorebookLegacyState(db);
+    ensureCreatorLorebookSchema(db);
 
     const creatorRows = db
       .prepare(`SELECT COUNT(*) AS c FROM keyword_lorebooks WHERE scope='creator'`)
@@ -646,18 +712,8 @@ describe("migration", () => {
     assert.equal(attach1.length, 3);
   });
 
-  it("LEGACY_FOREIGN_REFERENCE_FAILS_CLOSED", () => {
-    const db = makeMigrationDb();
-    const lorebookId = insertCreatorLorebook(db, { content: "x", keywords: ["k"] });
-    db.prepare(`INSERT INTO characters (id, name, creator_id, lorebook_id) VALUES (5, 'C', 999, ?)`).run(
-      lorebookId
-    );
-    assert.throws(() => migrateCreatorLorebookLegacyState(db), CreatorLorebookMigrationError);
-    assert.equal(schemaFlagApplied(db, CREATOR_LOREBOOK_MIGRATION_FLAG), false);
-  });
-
   it("MIGRATION_IDEMPOTENT", () => {
-    const db = makeMigrationDb();
+    const db = makeProductionMigrationDb();
     const lorebookId = insertCreatorLorebook(db, {
       name: "once",
       keywords: ["A"],
@@ -671,12 +727,12 @@ describe("migration", () => {
       CREATOR,
       lorebookId
     );
-    migrateCreatorLorebookLegacyState(db);
+    ensureCreatorLorebookSchema(db);
     const afterFirst = db.prepare(`SELECT COUNT(*) AS c FROM keyword_lorebooks WHERE scope='creator'`).get() as {
       c: number;
     };
     const attachmentsFirst = listCharacterCreatorLorebookAttachmentIds(db, 7);
-    migrateCreatorLorebookLegacyState(db);
+    ensureCreatorLorebookSchema(db);
     const afterSecond = db.prepare(`SELECT COUNT(*) AS c FROM keyword_lorebooks WHERE scope='creator'`).get() as {
       c: number;
     };

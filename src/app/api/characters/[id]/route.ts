@@ -49,7 +49,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
   const db = getDb();
   const c = db
     .prepare(
-      `SELECT id, name, tagline, description, greeting, system_prompt, world, world_id, source_world_share_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json,
+      `SELECT id, name, tagline, description, greeting, system_prompt, world, world_id, source_world_share_id, example_dialog, status_window_prompt, status_widget_json,
               genres, tags, nsfw, emoji, hue, audience, gender, visibility, assets, recommended_writing_style, narration_style_instructions, comments_enabled, creator_comment, appearance_raw, appearance_compiled,
               content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed, participant_min_age,
               COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json, creator_id
@@ -65,7 +65,6 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     world: string;
     world_id: number | null;
     source_world_share_id: number | null;
-    lorebook_id: number | null;
     example_dialog: string;
     status_window_prompt: string;
     status_widget_json: string;
