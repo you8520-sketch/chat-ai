@@ -905,6 +905,8 @@ export type BackgroundProviderCostInput = {
   providerRequestId?: string | null;
   httpStatus?: number | null;
   outcome: "success" | "failed_without_usage" | "failed_with_usage";
+  /** Physical attempt ordinal within one logical app request (default 1). */
+  jobAttemptOrdinal?: number;
   /** Test seam — bypass NODE_TEST_CONTEXT skip. */
   persistInTests?: boolean;
 };
@@ -939,7 +941,7 @@ export function recordBackgroundProviderCost(
         family: "background",
         fundingClass: "platform_funded",
         executionPhase: "async_post_turn",
-        jobAttemptOrdinal: 1,
+        jobAttemptOrdinal: input.jobAttemptOrdinal ?? 1,
         requestedProvider: input.provider,
         requestedModel: input.model,
         requestKind: input.requestKind,
@@ -1004,7 +1006,7 @@ export function recordBackgroundProviderCost(
       family: "background",
       fundingClass: "platform_funded",
       executionPhase: "async_post_turn",
-      jobAttemptOrdinal: 1,
+      jobAttemptOrdinal: input.jobAttemptOrdinal ?? 1,
       requestedProvider: input.provider,
       requestedModel: input.model,
       requestKind: input.requestKind,
