@@ -7,6 +7,7 @@ export { calcUsedChars } from "./memory-used-chars";
 const CHAT_MEMORY_SELECT = `SELECT id, chat_id, user_id, character_id, recent_summary, archive_summary,
               membership_tier, used_chars, message_count, summarized_turn_count,
               memory_reset_after_message_id, memory_epoch,
+              global_projection_kind, global_source_fingerprint, global_covered_through_turn,
               created_at, updated_at
        FROM chat_memories WHERE chat_id=?`;
 

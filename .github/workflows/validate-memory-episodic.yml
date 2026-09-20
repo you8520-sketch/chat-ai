@@ -15,6 +15,9 @@ on:
       - "src/lib/memory/memory-architecture-audit.test.ts"
       - "src/lib/memory/memory-global-current-memory.test.ts"
       - "src/lib/memory/memory-global-compact-race.test.ts"
+      - "src/lib/memory/memory-global-checkpoint.ts"
+      - "src/lib/memory/memory-global-compaction-execution.ts"
+      - "src/lib/memory/memory-global-checkpoint-lifecycle.test.ts"
       - "src/lib/memory/memory-medium-term.ts"
       - "src/lib/memory/memory-medium-term.test.ts"
       - "src/lib/memory/memory-medium-term-audit.ts"
@@ -103,3 +106,6 @@ jobs:
 
       - name: Medium-term cascaded memory audit + reader
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-medium-term.test.ts src/lib/memory/memory-medium-term-audit.test.ts src/lib/memory/memory-medium-term-prompt-budget-audit.test.ts src/lib/memory/memory-prompt-injectible-parity.test.ts
+
+      - name: Global durable checkpoint lifecycle
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-global-checkpoint-lifecycle.test.ts

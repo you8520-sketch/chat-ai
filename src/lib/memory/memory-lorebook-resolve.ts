@@ -1,4 +1,5 @@
 import { getChatMemoryRow } from "./memory-db";
+import { buildPrefixFingerprintThroughTurn } from "./memory-global-checkpoint";
 import {
   emergencyFallbackTrimLorebookSync,
   isGlobalCompactProjectionFresh,
@@ -31,7 +32,8 @@ export function resolveGlobalCurrentMemory(
   opts?: { excludeTurnStartGte?: number; storedRecentSummary?: string }
 ): GlobalCurrentMemoryResolution {
   const rebuilt = rebuildLorebookFromRecords(chatId, opts).trim();
-  const stored = opts?.storedRecentSummary?.trim() ?? "";
+  const memoryRow = getChatMemoryRow(chatId);
+  const stored = opts?.storedRecentSummary?.trim() ?? memoryRow?.recent_summary?.trim() ?? "";
   const storedRecentSummaryChars = stored.length;
   const rebuiltChars = rebuilt.length;
 
@@ -47,6 +49,20 @@ export function resolveGlobalCurrentMemory(
       storedRecentSummaryChars,
       needsBackgroundCompact: false,
     };
+  }
+
+  if (memoryRow?.global_projection_kind === "manual_global" && stored) {
+    if (isManualGlobalProjectionFresh(chatId, rebuilt, stored, maxChars)) {
+      return {
+        text: stored,
+        overBudget: rebuilt.length > maxChars,
+        source: "chat_memories_recent_summary",
+        projectionKind: "manual_global",
+        rebuiltChars,
+        storedRecentSummaryChars,
+        needsBackgroundCompact: false,
+      };
+    }
   }
 
   if (rebuilt.length <= maxChars) {
@@ -66,6 +82,29 @@ export function resolveGlobalCurrentMemory(
       overBudget: false,
       source: "chat_turn_summaries",
       projectionKind: "exact",
+      rebuiltChars,
+      storedRecentSummaryChars,
+      needsBackgroundCompact: false,
+    };
+  }
+
+  const durableCompact =
+    memoryRow?.global_projection_kind === "global_compact" &&
+    memoryRow.global_source_fingerprint &&
+    memoryRow.global_covered_through_turn != null &&
+    memoryRow.global_covered_through_turn > 0 &&
+    buildPrefixFingerprintThroughTurn(chatId, memoryRow.global_covered_through_turn) ===
+      memoryRow.global_source_fingerprint.trim();
+
+  if (
+    durableCompact &&
+    isGlobalCompactProjectionFresh(chatId, rebuilt, stored, maxChars)
+  ) {
+    return {
+      text: stored,
+      overBudget: true,
+      source: "chat_memories_recent_summary",
+      projectionKind: "global_compact",
       rebuiltChars,
       storedRecentSummaryChars,
       needsBackgroundCompact: false,

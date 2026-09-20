@@ -2,6 +2,7 @@ import { getDb } from "@/lib/db";
 import { clampLorebookPreferRecentChars } from "./memory-lorebook-trim";
 import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
+import { clearGlobalCheckpointMetadataSql } from "./memory-global-checkpoint";
 import { rebuildLorebookFromRecords } from "./memory-turn-summary";
 import { calcUsedChars } from "./memory-used-chars";
 
@@ -93,7 +94,7 @@ export function refreshGlobalMemoryMirrorFromRecords(chatId: number): void {
       ? rebuilt
       : emergencyFallbackTrimLorebookSync(rebuilt, MEMORY_CAPACITY_FIXED);
   db.prepare(
-    `UPDATE chat_memories SET recent_summary=?, used_chars=?, updated_at=datetime('now') WHERE chat_id=?`
+    `UPDATE chat_memories SET recent_summary=?, used_chars=?, ${clearGlobalCheckpointMetadataSql()}, updated_at=datetime('now') WHERE chat_id=?`
   ).run(
     mirror,
     calcUsedChars({ recent_summary: mirror, archive_summary: archive }),
