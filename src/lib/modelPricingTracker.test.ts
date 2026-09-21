@@ -1055,7 +1055,43 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       previous,
       current: peakAligned,
     });
-    assert.equal(peakAlignedEvents.length, 0);
+    assert.equal(peakAlignedEvents.length, 1);
+    assert.equal(peakAlignedEvents[0]?.eventType, "CI_REFERENCE_CHANGED_UNVERIFIED");
+    assert.equal(peakAlignedEvents[0]?.action, "HOLD");
+
+    const cachePrevious = buildCiReferenceSnapshot({
+      policy,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 0.5,
+        outputUsdPerMillion: 1.5,
+        referenceInputUsdPerMillion: 0.66,
+        referenceOutputUsdPerMillion: 1.98,
+        referenceCacheReadUsdPerMillion: 0.02,
+        discountPercent: 25,
+      }),
+      observedAt,
+    })!;
+    const cacheNext = buildCiReferenceSnapshot({
+      policy,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 0.5,
+        outputUsdPerMillion: 1.5,
+        referenceInputUsdPerMillion: 0.66,
+        referenceOutputUsdPerMillion: 1.98,
+        referenceCacheReadUsdPerMillion: 0.025,
+        discountPercent: 25,
+      }),
+      observedAt,
+    })!;
+    const cacheOnlyEvents = classifyCiReferenceChange({
+      policy,
+      published,
+      previous: cachePrevious,
+      current: cacheNext,
+    });
+    assert.equal(cacheOnlyEvents.length, 1);
+    assert.equal(cacheOnlyEvents[0]?.eventType, "CI_REFERENCE_CHANGED_UNVERIFIED");
+    assert.equal(cacheOnlyEvents[0]?.action, "HOLD");
 
     // A large CI move away from published baseline stays CI-unverified/HOLD.
     const large = buildCiReferenceSnapshot({
