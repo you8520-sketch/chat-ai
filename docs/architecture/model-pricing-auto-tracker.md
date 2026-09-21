@@ -127,7 +127,7 @@ Disable: `DISABLE_MODEL_PRICING_TRACKER=1`
 |---------|-------------|---------|
 | **DAILY CLAIM** | `model_pricing_tracker_runs` | One KST date, one active executor; `INSERT OR IGNORE` claim; FAILED → conditional reclaim for same-day retry |
 | **RUN ATTEMPT** | `model_pricing_tracker_attempts` | Immutable identity per actual run; failed partial evidence stays on its attempt id; retry always gets a new attempt id |
-| **PRICE EVENT OCCURRENCE** | `model_price_change_events` | One real-world classified transition; globally unique `event_fingerprint` derived from source observation evidence (old/new snapshot fingerprints + `observedAt`); same observation replay dedupes, return transitions (A→B→A) are distinct occurrences |
+| **PRICE EVENT OCCURRENCE** | `model_price_change_events` | Transition events: `type + modelId + old/new fingerprints + previousObservedAt` (last COMPLETED previous snapshot anchor — fresh retry `fetchedAt` alone does not create a second transition). `SOURCE_CONFLICT`: one per KST day per published/CI pair. `PARSER_FAILURE`: one per model/source/reason/KST day. `result.events` lists only persisted rows. |
 
 CI `reference_*` snapshots record what CI published — they are **not** authoritative official provider baseline evidence. Provider baseline events remain reserved for Phase B official adapters.
 
@@ -207,8 +207,9 @@ Auto notices: idempotent via `event_fingerprint` + pricing version linkage; grou
 
 - Daily run: `run_date_key` UNIQUE (KST YYYY-MM-DD)
 - Events: `event_fingerprint` UNIQUE on `model_price_change_events` — occurrence identity from
-  `buildPriceChangeEventOccurrenceFingerprint()` (event type + modelId + old/new source
-  fingerprints + source `observedAt`; parser failures use a stable reason discriminator)
+  `buildPriceChangeEventOccurrenceFingerprint()` (transition: type + modelId + old/new fingerprints +
+  `previousObservedAt`; parser failures: model/source/reason/`runDateKey`; source conflict:
+  published/CI pair/`runDateKey`)
 - Same source observation replay (failed attempt retry) → same fingerprint → dedupe
 - New real-world occurrence (including return transitions) → different fingerprint → append
 - Duplicate cron → `skipped_duplicate` status, no second snapshot batch for same date

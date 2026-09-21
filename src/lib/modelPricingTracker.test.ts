@@ -225,6 +225,7 @@ describe("model pricing tracker regression fixtures", () => {
       modelId: GEMINI,
       ciReference,
       publishedBaseline,
+      runDateKey: "2026-09-20",
     });
     assert.ok(conflict);
     assert.equal(conflict.eventType, "SOURCE_CONFLICT");
@@ -276,6 +277,7 @@ describe("model pricing tracker regression fixtures", () => {
       modelId: GEMINI,
       sourceKind: "cheaper_inference_models",
       reason: "model_missing_from_ci_catalog",
+      runDateKey: "2026-09-20",
     });
     assert.equal(event.eventType, "PARSER_FAILURE");
     assert.equal(event.action, "ADMIN_ALERT");
@@ -1618,10 +1620,408 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
         .get(retry.attemptId, DEEPSEEK) as { c: number }
     ).c;
     assert.equal(replayedRateEventsOnRetry, 0);
+    assert.equal(retry.events.length, retry.eventCount);
     assert.equal(
       retry.eventCount,
       (db.prepare(`SELECT COUNT(*) c FROM model_price_change_events WHERE attempt_id = ?`).get(retry.attemptId) as { c: number }).c
     );
-    assert.ok(retry.events.some((e) => e.classification === "ci_current_rates_changed"));
+  });
+});
+
+describe("PR #992 transition-identity fixtures (R1–R5)", () => {
+  function seedAllTracked(fetchedAt?: number) {
+    seedCatalog(GEMINI, {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+      fetchedAt,
+    });
+    seedCatalog("gemini-3.7-flash", {
+      inputUsdPerMillion: 0.22,
+      outputUsdPerMillion: 1.1,
+      referenceInputUsdPerMillion: 0.375,
+      referenceOutputUsdPerMillion: 1.875,
+      discountPercent: 40,
+      fetchedAt,
+    });
+    seedCatalog("gpt-5.6-terra", {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+      fetchedAt,
+    });
+  }
+
+  function countRateChangeEvents(db: Database.Database, modelId: string): number {
+    return (
+      db
+        .prepare(
+          `SELECT COUNT(*) c FROM model_price_change_events
+           WHERE model_id = ? AND event_type = 'CI_MARKET_DISCOUNT_CHANGED'
+             AND classification = 'ci_current_rates_changed'`
+        )
+        .get(modelId) as { c: number }
+    ).c;
+  }
+
+  function countAtoBRateEvents(db: Database.Database, modelId: string, bInput: number): number {
+    return (
+      db
+        .prepare(
+          `SELECT COUNT(*) c FROM model_price_change_events
+           WHERE model_id = ? AND classification = 'ci_current_rates_changed'
+             AND json_extract(new_values_json, '$.inputUsdPerMillion') = ?`
+        )
+        .get(modelId, bInput) as { c: number }
+    ).c;
+  }
+
+  it("R1: fresh refetch retry with different fetchedAt keeps one business transition", async () => {
+    const db = makeDb();
+    const t0 = Date.parse("2026-09-18T03:00:00.000Z");
+    const t1 = Date.parse("2026-09-20T03:00:00.000Z");
+    const t2 = Date.parse("2026-09-20T06:00:00.000Z");
+
+    seedAllTracked(t0);
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.5,
+      outputUsdPerMillion: 1.5,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+      fetchedAt: t0,
+    });
+    await runModelPricingTracker({
+      db,
+      now: new Date("2026-09-18T03:00:00.000Z"),
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+
+    seedAllTracked(t1);
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.8,
+      outputUsdPerMillion: 2.4,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+      fetchedAt: t1,
+    });
+
+    const startedAt = FIXED_NOW.toISOString();
+    const failedAttempt = claimTrackerRun(db, {
+      runDateKey: "2026-09-20",
+      phase: "OBSERVE_ONLY",
+      startedAt,
+    });
+    assert.equal(failedAttempt.outcome, "CLAIMED");
+    const policy = getModelPricingPolicy(DEEPSEEK)!;
+    const prevCurrent = readLatestSnapshot(db, DEEPSEEK, "cheaper_inference_models_current");
+    const ciCurrentT1 = buildCiCurrentSnapshot({
+      policy,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 0.8,
+        outputUsdPerMillion: 2.4,
+        referenceInputUsdPerMillion: 0.66,
+        referenceOutputUsdPerMillion: 1.98,
+        discountPercent: 25,
+        fetchedAt: t1,
+      }),
+      observedAt: new Date(t1).toISOString(),
+    });
+    insertPriceSnapshot(db, failedAttempt.attemptId, ciCurrentT1);
+    for (const event of classifyCiCurrentChange({
+      modelId: DEEPSEEK,
+      previous: prevCurrent,
+      current: ciCurrentT1,
+    })) {
+      insertClassifiedEvent(db, failedAttempt.attemptId, DEEPSEEK, event, getPublishedPricingVersion(DEEPSEEK));
+    }
+    finishTrackerRun(db, {
+      attemptId: failedAttempt.attemptId,
+      status: "failed",
+      finishedAt: startedAt,
+      errorSummary: "failed-after-classify",
+    });
+    assert.equal(countRateChangeEvents(db, DEEPSEEK), 1);
+
+    seedAllTracked(t2);
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.8,
+      outputUsdPerMillion: 2.4,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+      fetchedAt: t2,
+    });
+    const retry = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+    assert.equal(retry.status, "completed");
+    assert.equal(countRateChangeEvents(db, DEEPSEEK), 1);
+    assert.equal(retry.events.length, retry.eventCount);
+  });
+
+  it("R2: real return transition preserves both A→B occurrences", async () => {
+    const db = makeDb();
+    seedAllTracked(Date.parse("2026-09-17T03:00:00.000Z"));
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.5,
+      outputUsdPerMillion: 1.5,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+      fetchedAt: Date.parse("2026-09-17T03:00:00.000Z"),
+    });
+    await runModelPricingTracker({
+      db,
+      now: new Date("2026-09-17T03:00:00.000Z"),
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+
+    seedAllTracked(Date.parse("2026-09-18T03:00:00.000Z"));
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.8,
+      outputUsdPerMillion: 2.4,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+      fetchedAt: Date.parse("2026-09-18T03:00:00.000Z"),
+    });
+    await runModelPricingTracker({
+      db,
+      now: new Date("2026-09-18T03:00:00.000Z"),
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+
+    seedAllTracked(Date.parse("2026-09-19T03:00:00.000Z"));
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.5,
+      outputUsdPerMillion: 1.5,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+      fetchedAt: Date.parse("2026-09-19T03:00:00.000Z"),
+    });
+    await runModelPricingTracker({
+      db,
+      now: new Date("2026-09-19T03:00:00.000Z"),
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+
+    seedAllTracked(Date.parse("2026-09-20T03:00:00.000Z"));
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.8,
+      outputUsdPerMillion: 2.4,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+      fetchedAt: Date.parse("2026-09-20T03:00:00.000Z"),
+    });
+    await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+
+    assert.equal(countAtoBRateEvents(db, DEEPSEEK, 0.8), 2);
+  });
+
+  it("R3: parser failure same-day retry dedupes to one price-event occurrence", async () => {
+    const db = makeDb();
+    ensureTrackerSchema(db);
+    const startedAt = FIXED_NOW.toISOString();
+    const parserEvent = classifyParserFailure({
+      modelId: DEEPSEEK,
+      sourceKind: "cheaper_inference_models",
+      reason: "model_missing_from_ci_catalog",
+      runDateKey: "2026-09-20",
+    });
+
+    const failedAttempt = claimTrackerRun(db, {
+      runDateKey: "2026-09-20",
+      phase: "OBSERVE_ONLY",
+      startedAt,
+    });
+    assert.equal(insertClassifiedEvent(db, failedAttempt.attemptId, DEEPSEEK, parserEvent, null), true);
+    finishTrackerRun(db, {
+      attemptId: failedAttempt.attemptId,
+      status: "failed",
+      finishedAt: startedAt,
+      errorSummary: "parser-then-failed",
+    });
+
+    clearCheaperInferenceCatalogPricingForTest();
+    seedCatalog(GEMINI, {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+    });
+    seedCatalog("gemini-3.7-flash", {
+      inputUsdPerMillion: 0.22,
+      outputUsdPerMillion: 1.1,
+      referenceInputUsdPerMillion: 0.375,
+      referenceOutputUsdPerMillion: 1.875,
+      discountPercent: 40,
+    });
+    seedCatalog("gpt-5.6-terra", {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+    });
+
+    const retry = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+    assert.equal(retry.status, "completed");
+    const deepseekParserEvents = (
+      db
+        .prepare(
+          `SELECT COUNT(*) c FROM model_price_change_events
+           WHERE event_type = 'PARSER_FAILURE' AND model_id = ?`
+        )
+        .get(DEEPSEEK) as { c: number }
+    ).c;
+    assert.equal(deepseekParserEvents, 1);
+    assert.equal(retry.events.length, retry.eventCount);
+  });
+
+  it("R4: parser failure next day records a new occurrence", async () => {
+    const db = makeDb();
+    clearCheaperInferenceCatalogPricingForTest();
+
+    const day1 = await runModelPricingTracker({
+      db,
+      now: new Date("2026-09-19T03:00:00.000Z"),
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+    assert.equal(day1.status, "completed");
+    const day1Count = (
+      db.prepare(`SELECT COUNT(*) c FROM model_price_change_events WHERE event_type = 'PARSER_FAILURE'`).get() as {
+        c: number;
+      }
+    ).c;
+    assert.ok(day1Count >= 1);
+
+    clearCheaperInferenceCatalogPricingForTest();
+    const day2 = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+    assert.equal(day2.status, "completed");
+    const day2Count = (
+      db.prepare(`SELECT COUNT(*) c FROM model_price_change_events WHERE event_type = 'PARSER_FAILURE'`).get() as {
+        c: number;
+      }
+    ).c;
+    assert.ok(day2Count > day1Count);
+  });
+
+  it("R5: result.events.length equals result.eventCount equals persisted attempt rows", async () => {
+    const db = makeDb();
+    seedAllTracked(Date.parse("2026-09-18T03:00:00.000Z"));
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.5,
+      outputUsdPerMillion: 1.5,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+      fetchedAt: Date.parse("2026-09-18T03:00:00.000Z"),
+    });
+    await runModelPricingTracker({
+      db,
+      now: new Date("2026-09-18T03:00:00.000Z"),
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+
+    seedAllTracked(Date.parse("2026-09-20T03:00:00.000Z"));
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.8,
+      outputUsdPerMillion: 2.4,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+      fetchedAt: Date.parse("2026-09-20T03:00:00.000Z"),
+    });
+
+    const t1 = Date.parse("2026-09-20T03:00:00.000Z");
+    const failedAttempt = claimTrackerRun(db, {
+      runDateKey: "2026-09-20",
+      phase: "OBSERVE_ONLY",
+      startedAt: FIXED_NOW.toISOString(),
+    });
+    const policy = getModelPricingPolicy(DEEPSEEK)!;
+    const prevCurrent = readLatestSnapshot(db, DEEPSEEK, "cheaper_inference_models_current");
+    const ciCurrent = buildCiCurrentSnapshot({
+      policy,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 0.8,
+        outputUsdPerMillion: 2.4,
+        referenceInputUsdPerMillion: 0.66,
+        referenceOutputUsdPerMillion: 1.98,
+        discountPercent: 25,
+        fetchedAt: t1,
+      }),
+      observedAt: new Date(t1).toISOString(),
+    });
+    insertPriceSnapshot(db, failedAttempt.attemptId, ciCurrent);
+    for (const event of classifyCiCurrentChange({
+      modelId: DEEPSEEK,
+      previous: prevCurrent,
+      current: ciCurrent,
+    })) {
+      insertClassifiedEvent(db, failedAttempt.attemptId, DEEPSEEK, event, getPublishedPricingVersion(DEEPSEEK));
+    }
+    finishTrackerRun(db, {
+      attemptId: failedAttempt.attemptId,
+      status: "failed",
+      finishedAt: FIXED_NOW.toISOString(),
+      errorSummary: "partial",
+    });
+
+    const t2 = Date.parse("2026-09-20T06:00:00.000Z");
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.8,
+      outputUsdPerMillion: 2.4,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+      fetchedAt: t2,
+    });
+    const retry = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+    const persisted = (
+      db
+        .prepare(`SELECT COUNT(*) c FROM model_price_change_events WHERE attempt_id = ?`)
+        .get(retry.attemptId) as { c: number }
+    ).c;
+    assert.equal(retry.events.length, retry.eventCount);
+    assert.equal(retry.eventCount, persisted);
   });
 });

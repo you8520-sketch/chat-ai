@@ -53,9 +53,16 @@ function ratesPayload(rates: PriceRateSnapshot): Record<string, unknown> {
 /**
  * Canonical PRICE EVENT OCCURRENCE fingerprint owner.
  *
- * Semantic:
- * - Same source observation replay (retry) → same fingerprint → dedupe.
- * - New real-world occurrence (including return transitions A→B→A) → different fingerprint.
+ * Transition events (rate/tier/routing/reference moves between COMPLETED snapshots):
+ * - Identity = type + modelId + old/new state fingerprints + **previousObservedAt**
+ *   (the last COMPLETED previous snapshot's observation time — the transition anchor).
+ * - Current source `fetchedAt` is event metadata (`effectiveAt`) only; a fresh retry
+ *   timestamp alone must not create a second business transition (A@t0→B@t1 vs B@t2).
+ * - Return oscillation A→B→A→B preserves distinct occurrences because the anchor
+ *   advances with each COMPLETED previous snapshot.
+ *
+ * Non-transition events use `occurrenceDiscriminator` (e.g. SOURCE_CONFLICT runDateKey,
+ * PARSER_FAILURE runDateKey) — see each classifier branch.
  *
  * Identity derives from deterministic evidence only — never random ids.
  */
@@ -64,8 +71,9 @@ export function buildPriceChangeEventOccurrenceFingerprint(params: {
   modelId: string;
   oldFingerprint: string | null;
   newFingerprint: string | null;
-  sourceObservedAt: string | null;
-  /** Stable discriminator when snapshot fingerprints are absent (e.g. parser failure). */
+  /** Last COMPLETED previous snapshot observation time — transition anchor. */
+  previousObservedAt?: string | null;
+  /** Stable discriminator for non-transition occurrence scoping. */
   occurrenceDiscriminator?: Record<string, unknown>;
 }): string {
   return JSON.stringify({
@@ -73,8 +81,25 @@ export function buildPriceChangeEventOccurrenceFingerprint(params: {
     modelId: params.modelId,
     old: params.oldFingerprint,
     new: params.newFingerprint,
-    observedAt: params.sourceObservedAt,
+    ...(params.previousObservedAt !== undefined
+      ? { previousObservedAt: params.previousObservedAt }
+      : {}),
     ...(params.occurrenceDiscriminator ?? {}),
+  });
+}
+
+function transitionEventFingerprint(params: {
+  eventType: PriceChangeEventType;
+  modelId: string;
+  previous: ModelPriceSnapshotRecord | null;
+  newFingerprint: string;
+}): string {
+  return buildPriceChangeEventOccurrenceFingerprint({
+    eventType: params.eventType,
+    modelId: params.modelId,
+    oldFingerprint: params.previous?.rawFingerprint ?? null,
+    newFingerprint: params.newFingerprint,
+    previousObservedAt: params.previous?.observedAt ?? null,
   });
 }
 
@@ -111,12 +136,11 @@ export function classifyCiCurrentChange(params: {
       oldValues: prev ? ratesPayload(prev) : {},
       newValues: ratesPayload(next),
       effectiveAt: params.current.observedAt,
-      eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
+      eventFingerprint: transitionEventFingerprint({
         eventType: "PROCUREMENT_TIER_CHANGED",
         modelId: params.modelId,
-        oldFingerprint: params.previous?.rawFingerprint ?? null,
+        previous: params.previous,
         newFingerprint: params.current.rawFingerprint,
-        sourceObservedAt: params.current.observedAt,
       }),
     });
   }
@@ -132,12 +156,11 @@ export function classifyCiCurrentChange(params: {
       oldValues: { discountPercent: prev?.discountPercent ?? null },
       newValues: { discountPercent: next.discountPercent },
       effectiveAt: params.current.observedAt,
-      eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
+      eventFingerprint: transitionEventFingerprint({
         eventType: "CI_MARKET_DISCOUNT_CHANGED",
         modelId: params.modelId,
-        oldFingerprint: params.previous?.rawFingerprint ?? null,
+        previous: params.previous,
         newFingerprint: params.current.rawFingerprint,
-        sourceObservedAt: params.current.observedAt,
       }),
     });
   } else if (procurementRatesChanged) {
@@ -151,12 +174,11 @@ export function classifyCiCurrentChange(params: {
       oldValues: prev ? ratesPayload(prev) : {},
       newValues: ratesPayload(next),
       effectiveAt: params.current.observedAt,
-      eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
+      eventFingerprint: transitionEventFingerprint({
         eventType: "CI_MARKET_DISCOUNT_CHANGED",
         modelId: params.modelId,
-        oldFingerprint: params.previous?.rawFingerprint ?? null,
+        previous: params.previous,
         newFingerprint: params.current.rawFingerprint,
-        sourceObservedAt: params.current.observedAt,
       }),
     });
   }
@@ -198,12 +220,11 @@ export function classifyCiReferenceChange(params: {
       oldValues: { providerModelId: params.previous?.providerModelId ?? params.policy.expectedProviderModelId },
       newValues: { providerModelId: params.current.providerModelId },
       effectiveAt: params.current.observedAt,
-      eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
+      eventFingerprint: transitionEventFingerprint({
         eventType: "MODEL_ROUTING_CHANGED",
         modelId: params.policy.modelId,
-        oldFingerprint: params.previous?.rawFingerprint ?? null,
+        previous: params.previous,
         newFingerprint: params.current.rawFingerprint,
-        sourceObservedAt: params.current.observedAt,
       }),
     });
     return events;
@@ -237,12 +258,11 @@ export function classifyCiReferenceChange(params: {
     oldValues: ratesPayload(prev),
     newValues: ratesPayload(next),
     effectiveAt: params.current.observedAt,
-    eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
+    eventFingerprint: transitionEventFingerprint({
       eventType: "CI_REFERENCE_CHANGED_UNVERIFIED",
       modelId: params.policy.modelId,
-      oldFingerprint: params.previous?.rawFingerprint ?? null,
+      previous: params.previous,
       newFingerprint: params.current.rawFingerprint,
-      sourceObservedAt: params.current.observedAt,
     }),
   });
 
@@ -253,6 +273,7 @@ export function classifyParserFailure(params: {
   modelId: string;
   sourceKind: string;
   reason: string;
+  runDateKey: string;
 }): ClassifiedPriceChange {
   return {
     eventType: "PARSER_FAILURE",
@@ -264,15 +285,18 @@ export function classifyParserFailure(params: {
     oldValues: {},
     newValues: { sourceKind: params.sourceKind },
     effectiveAt: null,
+    // One canonical PARSER_FAILURE occurrence per model/source/reason/KST day.
+    // Same-day retry dedupes; next-day recurrence is a new occurrence.
+    // Detailed per-attempt incidents remain in model_pricing_admin_events.
     eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
       eventType: "PARSER_FAILURE",
       modelId: params.modelId,
       oldFingerprint: null,
       newFingerprint: null,
-      sourceObservedAt: null,
       occurrenceDiscriminator: {
         sourceKind: params.sourceKind,
         reason: params.reason,
+        runDateKey: params.runDateKey,
       },
     }),
   };
@@ -282,6 +306,7 @@ export function classifySourceConflict(params: {
   modelId: string;
   ciReference: ModelPriceSnapshotRecord;
   publishedBaseline: ModelPriceSnapshotRecord;
+  runDateKey: string;
 }): ClassifiedPriceChange | null {
   if (snapshotBaselineRatesEqual(params.ciReference.rates, params.publishedBaseline.rates)) return null;
   return {
@@ -294,12 +319,14 @@ export function classifySourceConflict(params: {
     oldValues: ratesPayload(params.publishedBaseline.rates),
     newValues: ratesPayload(params.ciReference.rates),
     effectiveAt: params.ciReference.observedAt,
+    // Source-condition observation (published vs CI reference at run time), not a
+    // completed-to-completed transition. One occurrence per KST day per fingerprint pair.
     eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
       eventType: "SOURCE_CONFLICT",
       modelId: params.modelId,
       oldFingerprint: params.publishedBaseline.rawFingerprint,
       newFingerprint: params.ciReference.rawFingerprint,
-      sourceObservedAt: params.ciReference.observedAt,
+      occurrenceDiscriminator: { runDateKey: params.runDateKey },
     }),
   };
 }

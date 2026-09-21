@@ -70,6 +70,19 @@ function isoNow(): string {
   return new Date().toISOString();
 }
 
+/** Persist a classified event; append to `events` only when the row is inserted. */
+function persistClassifiedEvent(
+  db: Database.Database,
+  attemptId: number,
+  modelId: string,
+  event: ClassifiedPriceChange,
+  events: ClassifiedPriceChange[]
+): boolean {
+  const inserted = insertClassifiedEvent(db, attemptId, modelId, event, getPublishedPricingVersion(modelId));
+  if (inserted) events.push(event);
+  return inserted;
+}
+
 const REPRESENTATIVE_WORKLOAD = {
   promptTokens: 10_000,
   outputTokens: 2_000,
@@ -212,9 +225,9 @@ export async function runModelPricingTracker(params?: {
           modelId,
           sourceKind: "cheaper_inference_models",
           reason: "model_missing_from_ci_catalog",
+          runDateKey,
         });
-        events.push(parserEvent);
-        insertClassifiedEvent(db, attemptId, modelId, parserEvent, getPublishedPricingVersion(modelId));
+        persistClassifiedEvent(db, attemptId, modelId, parserEvent, events);
         insertAdminEvent(db, {
           attemptId,
           adminEventType: "PARSER_FAILED",
@@ -246,8 +259,7 @@ export async function runModelPricingTracker(params?: {
         previous: prevCurrent,
         current: ciCurrent,
       })) {
-        events.push(event);
-        insertClassifiedEvent(db, attemptId, modelId, event, getPublishedPricingVersion(modelId));
+        persistClassifiedEvent(db, attemptId, modelId, event, events);
         insertAdminEvent(db, {
           attemptId,
           adminEventType:
@@ -274,10 +286,10 @@ export async function runModelPricingTracker(params?: {
           modelId,
           ciReference,
           publishedBaseline: publishedSnapshot,
+          runDateKey,
         });
         if (conflict) {
-          events.push(conflict);
-          insertClassifiedEvent(db, attemptId, modelId, conflict, getPublishedPricingVersion(modelId));
+          persistClassifiedEvent(db, attemptId, modelId, conflict, events);
           insertAdminEvent(db, {
             attemptId,
             adminEventType: "SOURCE_CONFLICT_HELD",
@@ -297,8 +309,7 @@ export async function runModelPricingTracker(params?: {
           previous: prevReference,
           current: ciReference,
         })) {
-          events.push(event);
-          insertClassifiedEvent(db, attemptId, modelId, event, getPublishedPricingVersion(modelId));
+          persistClassifiedEvent(db, attemptId, modelId, event, events);
           // CI reference evidence is never a provider baseline event: it is
           // either a routing mismatch (held) or an UNVERIFIED CI quote change
           // awaiting official provider corroboration.
