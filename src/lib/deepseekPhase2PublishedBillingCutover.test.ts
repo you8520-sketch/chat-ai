@@ -11,6 +11,7 @@ import {
 } from "@/lib/billingLiveOwnerReadinessAudit";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
@@ -160,6 +161,47 @@ describe("deepseekPhase2PublishedBillingCutover — golden fixtures", () => {
     const decision = dispatchDeepSeek(stages);
     assert.equal(decision.contract, "published_phase2");
     assert.equal(decision.points, CACHE_HIT_POINTS);
+  });
+
+  it("V4.1 Flash direct selection → published_phase2 with stable peak BASE", () => {
+    const stage: StageUsage = {
+      ...completeDeepSeekStage({ stage: "primary" }),
+      model: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+    };
+    const decision = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      stages: [stage],
+      legacyFinalPoints: 999,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: FX_DETERMINISTIC,
+      phase1PublishedBillingEnabled: false,
+      phase2DeepSeekPublishedBillingEnabled: true,
+    });
+    assert.equal(decision.contract, "published_phase2");
+    assert.ok(decision.points > 0);
+    assert.equal(decision.telemetry.pricingVersion, 1);
+  });
+
+  it("V4.1 Phase2 OFF → legacy phase2_deepseek_billing_disabled (no procurement fallback)", () => {
+    const stage: StageUsage = {
+      ...completeDeepSeekStage({ stage: "primary" }),
+      model: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+    };
+    const decision = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      stages: [stage],
+      legacyFinalPoints: 42,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: FX_DETERMINISTIC,
+      phase2DeepSeekPublishedBillingEnabled: false,
+    });
+    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.reason, "phase2_deepseek_billing_disabled");
+    assert.equal(decision.points, 42);
   });
 
   it("absent cache_write field → complete usage via proven-zero owner", () => {
