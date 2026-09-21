@@ -15,12 +15,11 @@ import {
   markNoticesRead,
   markSingleNoticeRead,
 } from "./notices";
-import { shouldPanelOwnNotificationPolling } from "./notificationFeedClient";
+import { createAdminBoardPost } from "./boardPosts";
 import {
   getTotalUnreadCount,
   getUnreadUserNotificationCount,
   listRecentNoticesWithReadStatus,
-  notifyBroadcastInApp,
 } from "./userNotifications";
 
 function createNoticeDb() {
@@ -36,6 +35,7 @@ function createNoticeDb() {
       title TEXT NOT NULL,
       content TEXT NOT NULL,
       author_name TEXT NOT NULL DEFAULT '운영팀',
+      author_id INTEGER,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE TABLE notice_reads (
@@ -60,18 +60,8 @@ function createNoticeDb() {
   return db;
 }
 
-function createNoticeWithBroadcast(db: Database.Database, userId: number) {
-  const result = db
-    .prepare("INSERT INTO posts (board, title, content, author_name) VALUES ('notice', ?, ?, '운영팀')")
-    .run("테스트 공지", "본문");
-  const noticeId = Number(result.lastInsertRowid);
-  notifyBroadcastInApp(db, {
-    type: "notice",
-    refId: noticeId,
-    title: "새 공지: 테스트 공지",
-    body: "본문",
-  });
-  return noticeId;
+function createNoticeProductionEquivalent(db: Database.Database, adminId: number) {
+  return createAdminBoardPost(db, "notice", "테스트 공지", "본문", adminId);
 }
 
 /** Legacy prefix-only guest semantics that caused BLOCKER 2. */
@@ -83,12 +73,12 @@ describe("notification read-state correction", () => {
   it("CASE A — logged-in notice counts +1 then single read returns 0 without activity duplicate", () => {
     const db = createNoticeDb();
     const guestState = { watermarkId: 0, sparseReadIds: [] as number[] };
-    createNoticeWithBroadcast(db, 1);
+    createNoticeProductionEquivalent(db, 1);
 
     const mirroredNoticeRows = db
-      .prepare("SELECT COUNT(*) AS c FROM user_notifications WHERE user_id=1 AND type='notice' AND read_at IS NULL")
+      .prepare("SELECT COUNT(*) AS c FROM user_notifications WHERE user_id=1 AND type='notice'")
       .get() as { c: number };
-    assert.equal(mirroredNoticeRows.c, 1);
+    assert.equal(mirroredNoticeRows.c, 0);
     assert.equal(getUnreadUserNotificationCount(db, 1), 0);
     assert.equal(getTotalUnreadCount(db, 1, guestState), 1);
 
@@ -138,14 +128,13 @@ describe("notification read-state correction", () => {
     assert.equal(getTotalUnreadCount(db, 1, guestState), 0);
     assert.equal(getUnreadNoticeCount(db, null, guestState), 0);
 
-    createNoticeWithBroadcast(db, 1);
+    createNoticeProductionEquivalent(db, 1);
     assert.equal(getTotalUnreadCount(db, 1, guestState), 1);
     assert.equal(getUnreadNoticeCount(db, null, guestState), 1);
     db.close();
   });
 
   it("CASE D — single Bell polling owner; panel does not own interval fetch", () => {
-    assert.equal(shouldPanelOwnNotificationPolling(), false);
     const bell = fs.readFileSync("src/components/NotificationBell.tsx", "utf8");
     const panel = fs.readFileSync("src/components/NotificationCenterPanel.tsx", "utf8");
     assert.match(bell, /NOTIFICATION_FEED_REFRESH_MS/);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { NotificationFeedPayload } from "@/lib/notificationFeedClient";
+import { computeNotificationPanelPosition } from "@/lib/notificationPanelPosition";
 import {
   notificationHref,
   notificationIcon,
@@ -138,12 +139,13 @@ export default function NotificationCenterPanel({
     const anchor = anchorRef.current;
     if (!anchor) return;
     const rect = anchor.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const width = Math.min(400, Math.max(320, viewportWidth - 24));
-    const left = Math.min(Math.max(12, rect.right - width), viewportWidth - width - 12);
-    const top = Math.min(rect.bottom + 8, viewportHeight - 24);
-    setPanelStyle({ top, left, width });
+    setPanelStyle(
+      computeNotificationPanelPosition({
+        anchor: { right: rect.right, bottom: rect.bottom },
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+      })
+    );
   }, [anchorRef]);
 
   useEffect(() => {

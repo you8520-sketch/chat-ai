@@ -13,8 +13,3 @@ export async function fetchNotificationFeed(): Promise<NotificationFeedPayload |
   if (!res.ok) return null;
   return (await res.json()) as NotificationFeedPayload;
 }
-
-/** Single polling owner — Bell uses this; Panel must not start its own interval. */
-export function shouldPanelOwnNotificationPolling(): boolean {
-  return false;
-}
