@@ -15,10 +15,16 @@ import {
   DETECTOR_TELEMETRY_AUDIT,
   FINAL_REQUEST_PARITY_SUMMARY,
   LENGTH_EVALUATION_CORRECTIONS,
+  RESPONSE_MODEL_DATAFLOW,
+  RESPONSE_MODEL_NORMALIZATION_AUDIT,
+  V41_BILLING_LAUNCH_GATE,
+  V41_IMPLEMENTATION_HANDOFF,
   V41_WIRE_OWNER_PLAN,
 } from "@/lib/deepseekV41FlashPreflight";
+import { isPhase2DeepSeekPublishedBillingModel } from "@/lib/chatBillingContractDispatch";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
-import { getPublishedPricing } from "@/lib/publishedModelPricing";
+import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
+import { getPublishedPricing, resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
 
 describe("deepseek v4.1 flash preflight", () => {
   it("candidate peak baseline matches product decision", () => {
@@ -77,10 +83,74 @@ describe("deepseek v4.1 flash preflight", () => {
     assert.ok(AUTHORING_SCOPE_MATRIX.every((r) => r.promptOwner.length > 0));
   });
 
-  it("final request parity records only identity-level deltas", () => {
+  it("final request parity is pre-integration evidence, not production-quality comparison", () => {
+    assert.equal(FINAL_REQUEST_PARITY_SUMMARY.classification, "PRE_INTEGRATION_RP_EVIDENCE");
+    assert.equal(
+      FINAL_REQUEST_PARITY_SUMMARY.notClassification,
+      "FINAL_PRODUCTION_QUALITY_COMPARISON"
+    );
     assert.equal(FINAL_REQUEST_PARITY_SUMMARY.perFixtureDiffs.systemPromptCharDelta, 27);
     assert.equal(FINAL_REQUEST_PARITY_SUMMARY.identical.samplingTemperature, 0.92);
-    assert.match(FINAL_REQUEST_PARITY_SUMMARY.verdict, /not model substitution|SAME intended non-thinking/i);
+    assert.ok(FINAL_REQUEST_PARITY_SUMMARY.preIntegrationGaps.length >= 3);
+  });
+
+  it("exact normalization case A — namespace variant is NOT same canonical identity", () => {
+    const requested = "deepseek-v4-pro-0813";
+    const returned = "deepseek/deepseek-v4-pro-0813";
+    assert.equal(
+      canonicalizePublishedModelId(requested),
+      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    );
+    assert.equal(canonicalizePublishedModelId(returned), returned);
+    assert.notEqual(
+      canonicalizePublishedModelId(returned),
+      canonicalizePublishedModelId(requested)
+    );
+    assert.equal(RESPONSE_MODEL_NORMALIZATION_AUDIT.classification, "NAMESPACE_ALIAS_GAP_CONFIRMED");
+    assert.equal(RESPONSE_MODEL_NORMALIZATION_AUDIT.exactNormalizationCases.A.sameCanonicalIdentity, false);
+    assert.equal(isPhase2DeepSeekPublishedBillingModel(returned), false);
+    assert.equal(resolvePublishedPricingExact(returned), null);
+  });
+
+  it("exact normalization case B — different DeepSeek id mismatch persists", () => {
+    const different = "deepseek/deepseek-v4-flash-0731";
+    assert.notEqual(
+      canonicalizePublishedModelId(different),
+      canonicalizePublishedModelId(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL)
+    );
+    assert.equal(RESPONSE_MODEL_NORMALIZATION_AUDIT.exactNormalizationCases.B.mismatchPersists, true);
+  });
+
+  it("exact normalization case C — legacy deepseek/deepseek-v4-pro canonicalization preserved", () => {
+    assert.equal(
+      canonicalizePublishedModelId("deepseek/deepseek-v4-pro"),
+      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    );
+    assert.equal(RESPONSE_MODEL_NORMALIZATION_AUDIT.exactNormalizationCases.C.legacyPreserved, true);
+  });
+
+  it("response-model dataflow table covers billing dispatch and ledger write paths", () => {
+    assert.ok(RESPONSE_MODEL_DATAFLOW.length >= 5);
+    const stages = RESPONSE_MODEL_DATAFLOW.map((r) => r.stage);
+    assert.ok(stages.some((s) => s.includes("chatBillingContractDispatch")));
+    assert.ok(stages.some((s) => s.includes("providerCostLedger")));
+    assert.ok(stages.some((s) => s.includes("publishedUserCharge")));
+  });
+
+  it("billing launch gate preserves candidate peak baseline and blocks silent procurement fallback", () => {
+    assert.equal(V41_BILLING_LAUNCH_GATE.candidatePeakBaseline.inputUsdPerMillion, 0.3);
+    assert.equal(V41_BILLING_LAUNCH_GATE.candidatePeakBaseline.outputUsdPerMillion, 1.2);
+    assert.equal(V41_BILLING_LAUNCH_GATE.candidatePeakBaseline.targetMargin, 0.6);
+    assert.match(V41_BILLING_LAUNCH_GATE.ciCurrentRole, /procurement/i);
+  });
+
+  it("implementation handoff requires fresh main branch and proven alias cleanup", () => {
+    assert.match(V41_IMPLEMENTATION_HANDOFF.branchHygiene, /fresh branch|Fresh branch/i);
+    assert.ok(
+      V41_IMPLEMENTATION_HANDOFF.requiredBeforeBoundedAbSmoke.some((s) =>
+        s.includes("deepseek/deepseek-v4-pro-0813")
+      )
+    );
   });
 
   it("pre-wire owner plan does not repurpose the 0731 constant", () => {
@@ -91,9 +161,10 @@ describe("deepseek v4.1 flash preflight", () => {
     );
   });
 
-  it("cache semantics stay read-only READY (no write-price guess)", () => {
+  it("cache semantics stay read-only READY (no write-price guess, no proven_zero without contract)", () => {
     assert.equal(CACHE_SEMANTICS_AUDIT.cacheReadProven, true);
-    assert.equal(CACHE_SEMANTICS_AUDIT.cacheWriteVerdict, "NOT_ASSUMED — cache_write_tokens observed 0; no separate write price exists");
+    assert.match(CACHE_SEMANTICS_AUDIT.cacheWriteVerdict, /NOT_ASSUMED/);
+    assert.match(CACHE_SEMANTICS_AUDIT.cacheWriteAbsentSemantics, /Do NOT add.*proven_zero/);
     assert.equal(CACHE_SEMANTICS_AUDIT.readyScope, "cache_read_only");
   });
 

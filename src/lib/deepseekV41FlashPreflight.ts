@@ -427,6 +427,14 @@ export const FINAL_REQUEST_PARITY_SUMMARY = {
   harness: "scripts/deepseek-v41-flash-request-parity.ts (credential-free assemblePrimaryRpRequest)",
   artifact: "docs/audits/deepseek-v41-flash-preflight-2026-09-20/rp-ab/request-parity.json",
   fixtures: 10,
+  classification: "PRE_INTEGRATION_RP_EVIDENCE" as const,
+  notClassification: "FINAL_PRODUCTION_QUALITY_COMPARISON",
+  preIntegrationGaps: [
+    "deepseek-v4.1-flash is not registered on isDeepSeekModel family owner",
+    "Pro-only DeepSeek prompt wrapper / section positioning (<WORLD_LORE> +27 chars)",
+    "Pro explicit thinking:{type:'disabled'} typed body vs Flash generic fallback",
+    "Flash generic reasoning_effort-only path (no typed thinking body)",
+  ],
   perFixtureDiffs: {
     model: true,
     thinkingTypedBody: true,
@@ -441,7 +449,7 @@ export const FINAL_REQUEST_PARITY_SUMMARY = {
     reasoningEffort: "none (both)",
   },
   verdict:
-    "model identity 외 semantic 차이: (1) Pro-only <WORLD_LORE> XML wrapper (27 chars), (2) Pro sends thinking:{type:disabled} typed body vs Flash generic reasoning_effort-only; SAME intended non-thinking state, evidence reasoning_tokens=0 both",
+    "Pre-integration A/B proves bounded RP samples under current (non-parity) wire paths — NOT apples-to-apples final production request. Re-run bounded A/B only after V4.1 family integration + corrected final request on a fresh main branch.",
 } as const;
 
 /** §9 — V4.1 explicit wire / reasoning owner design (implementation, not patched here). */
@@ -462,18 +470,135 @@ export const V41_WIRE_OWNER_PLAN = {
   notPatchedThisPreflight: true,
 } as const;
 
-/** §11 — returned-model normalization audit. */
+/** §11 — returned-model normalization audit (factual correction pass). */
 export const RESPONSE_MODEL_NORMALIZATION_AUDIT = {
   observed: {
     requested: "deepseek-v4-pro-0813",
     returned: "deepseek/deepseek-v4-pro-0813",
-    evidence: "G_long_memory Sample A — ProviderProbe + rp-ab operational",
+    evidence: "G_long_memory Sample A — rp-ab operational.json",
   },
-  verdict: "provider namespace-only variation — NOT a model substitution",
-  existingOwner: "publishedModelAliases.canonicalizePublishedModelId ('deepseek/deepseek-v4-pro' → 'deepseek-v4-pro-0813')",
-  billing: "published pricing/billing paths already canonicalize (chatBillingContractDispatch / publishedUserCharge)",
-  followUp: "ledger actual_model still stores raw responseModelId — map via misma canonicalize at write time (alert on canonical mismatch)",
+  classification: "NAMESPACE_ALIAS_GAP_CONFIRMED" as const,
+  priorReportClaimRetracted:
+    "Prior correction pass claimed publishedModelAliases already canonicalizes the observed namespace variant exactly — RETRACTED.",
+  aliasTableAtExactHead: {
+    "deepseek/deepseek-v4-pro": "deepseek-v4-pro-0813",
+    "deepseek-v4-pro": "deepseek-v4-pro-0813",
+    "deepseek/deepseek-v4-pro-0813": "(no alias — passes through unchanged)",
+  },
+  exactNormalizationCases: {
+    A: {
+      requested: "deepseek-v4-pro-0813",
+      returned: "deepseek/deepseek-v4-pro-0813",
+      sameCanonicalIdentity: false,
+      requestedCanonical: "deepseek-v4-pro-0813",
+      returnedCanonical: "deepseek/deepseek-v4-pro-0813",
+    },
+    B: {
+      returned: "deepseek/deepseek-v4-flash-0731",
+      sameCanonicalIdentityAsPro0813: false,
+      mismatchPersists: true,
+    },
+    C: {
+      legacy: "deepseek/deepseek-v4-pro",
+      canonical: "deepseek-v4-pro-0813",
+      legacyPreserved: true,
+    },
+  },
+  billingMitigationToday:
+    "Main RP billing dispatch uses deliveredModelId (requested wire id), not responseModelId — Phase 2 eligibility survives G_long_memory today.",
+  gaps: [
+    "If responseModelId were passed as billing modelId, resolvePublishedPricingExact returns null and Phase 2 gate fails",
+    "providerCostLedger.actual_model persists raw responseModelId with no canonicalize at write",
+    "Admin receipt surfaces raw actual_model",
+  ],
+  implementationRequiredCleanup:
+    "V4.1 implementation PR must add exact alias for proven namespace variants (e.g. deepseek/deepseek-v4-pro-0813) — NOT patched in #993 audit",
   requiresNewNormalizationSystem: false,
+} as const;
+
+/** Response-model raw → canonical dataflow (main @ fa266510). */
+export const RESPONSE_MODEL_DATAFLOW = [
+  {
+    stage: "Provider stream/completion payload",
+    rawId: "deepseek/deepseek-v4-pro-0813",
+    canonicalId: "—",
+    persistedId: "—",
+    owner: "openRouterAdult.ts → TokenUsage.responseModelId",
+  },
+  {
+    stage: "StageUsage (in-memory + usage.stages[])",
+    rawId: "stage.model=deepseek-v4-pro-0813; responseModelId=deepseek/deepseek-v4-pro-0813",
+    canonicalId: "none at persist",
+    persistedId: "both fields in messages.usage.stages[] JSON",
+    owner: "openRouterAdult.ts stage builder",
+  },
+  {
+    stage: "deliveredModelId / usage.model (billing input)",
+    rawId: "deepseek-v4-pro-0813",
+    canonicalId: "not applied at assign",
+    persistedId: "usage.model (receiptFields), deliveredModelId variable",
+    owner: "route.ts — openRouterApiModelId (requested wire)",
+  },
+  {
+    stage: "chatBillingContractDispatch",
+    rawId: "deliveredModelId",
+    canonicalId: "canonicalizePublishedModelId → deepseek-v4-pro-0813",
+    persistedId: "telemetry.deliveredModelId (raw); published snapshot canonicalModelId",
+    owner: "chatBillingContractDispatch.ts",
+  },
+  {
+    stage: "publishedUserCharge",
+    rawId: "modelId argument",
+    canonicalId: "resolvePublishedPricingExact → snapshot.canonicalModelId",
+    persistedId: "publishedSnapshot on usage when Phase 1/2 live",
+    owner: "publishedUserCharge.ts",
+  },
+  {
+    stage: "providerCostLedger.actual_model",
+    rawId: "deepseek/deepseek-v4-pro-0813",
+    canonicalId: "none at write",
+    persistedId: "api_cost_ledger.actual_model (raw response)",
+    owner: "recordMainGenerationProviderCost — primaryStage.responseModelId ?? primaryStage.model",
+  },
+  {
+    stage: "Admin receipt / diagnostics",
+    rawId: "ledger actual_model preferred",
+    canonicalId: "none in receipt projection",
+    persistedId: "AdminBillingReceiptV3 events[].actualModel",
+    owner: "adminBillingReceiptV3Shared.ts",
+  },
+] as const;
+
+/** V4.1 implementation handoff checklist (fresh main branch only). */
+export const V41_IMPLEMENTATION_HANDOFF = {
+  branchHygiene:
+    "Fresh branch from current main — do NOT import #991 billing audit files, G37 matrices, unrelated audit scripts, or stacked PR history",
+  requiredBeforeBoundedAbSmoke: [
+    "V4.1 canonical constant (separate from deepseek-v4-flash-0731)",
+    "isDeepSeekModel family integration",
+    "explicit reasoning/thinking TRUE-OFF owner (typed thinking body parity)",
+    "exact response-model alias normalization where proven (incl. deepseek/deepseek-v4-pro-0813)",
+    "published pricing row (peak 0.30/1.20, cache read 0.006, target margin 60%)",
+    "cache policy row (cacheSemanticStatus verified; cacheWriteAbsentSemantics only if provider contract proves absent==zero)",
+    "canonical billing dispatcher integration (publishedUserCharge path unblocked)",
+  ],
+  abSmokeGate: "Re-run bounded A/B with corrected final request after above — not before",
+} as const;
+
+/** Billing launch gate — candidate pricing preserved; no silent procurement fallback at public launch. */
+export const V41_BILLING_LAUNCH_GATE = {
+  candidatePeakBaseline: {
+    inputUsdPerMillion: 0.3,
+    outputUsdPerMillion: 1.2,
+    cacheReadUsdPerMillion: 0.006,
+    targetMargin: 0.6,
+  },
+  ciCurrentRole: "procurement only — must NOT move user BASE at picker enable",
+  publicLaunchBlockedWhen: [
+    "published billing incomplete/blocked and legacy CI-current procurement pricing silently changes user BASE",
+    "canonical stable billing contract incomplete before picker enable",
+  ],
+  pickerEnableRequires: "complete publishedUserCharge path + policy row — not CI-current overlay alone",
 } as const;
 
 /** §12 — length/initiative corrections (no defect assigned to being long/active). */
@@ -493,9 +618,13 @@ export const CACHE_SEMANTICS_AUDIT = {
   evidence: "prompt_tokens_details.cached_tokens > 0 captured (PROVIDER_PROBE.json; e.g. F_speech_lock Flash 4736 cached read tokens)",
   parserOwner: "openRouterUsage.parseOpenRouterUsage",
   noDoubleCharge: "cache-read tokens are separate from standard input tokens in normalizeBillableUsage",
-  cacheWriteVerdict: "NOT_ASSUMED — cache_write_tokens observed 0; no separate write price exists",
+  cacheWriteVerdict:
+    "NOT_ASSUMED — cache_write_tokens observed 0 in captured evidence; unreported cache write ≠ proven zero",
+  cacheWriteAbsentSemantics:
+    "Do NOT add cacheWriteAbsentSemantics: proven_zero for V4.1 until provider contract proves absent==zero",
   writePriceExists: "unknown → excluded from READY scope",
-  requiredPolicyRow: "modelPublishedPricingPolicy row for deepseek-v4.1-flash with cacheSemanticStatus verified + cache read rate 0.006",
+  requiredPolicyRow:
+    "modelPublishedPricingPolicy row for deepseek-v4.1-flash with cacheSemanticStatus verified + cache read rate 0.006 (no proven_zero until contract proof)",
   readyScope: "cache_read_only",
 } as const;
 

@@ -182,7 +182,7 @@ Fixtures: A_daily … J_adult_fixture (see `scripts/deepseek-v41-flash-rp-ab.ts`
 **Cursor did not score RP quality.** Objective checks recorded: output length, format violations, user-impersonation markers, completion, latency, token usage.
 
 Notable runtime findings:
-- **`G_long_memory` Pro:** `responseModelId` = `deepseek/deepseek-v4-pro-0813` while requested `deepseek-v4-pro-0813` → **modelMismatch: true** (billing canonicalization likely OK via alias; ledger surfacing required).
+- **`G_long_memory` Pro:** `responseModelId` = `deepseek/deepseek-v4-pro-0813` while requested `deepseek-v4-pro-0813` → **modelMismatch: true** (`NAMESPACE_ALIAS_GAP_CONFIRMED`; billing survives via requested `deliveredModelId`; ledger stores raw response).
 - **`F_speech_lock` Pro:** short English output (478 chars) — no degeneration on retry with error handler.
 
 ---
@@ -328,7 +328,16 @@ Harness: `scripts/deepseek-v41-flash-request-parity.ts` → `rp-ab/request-parit
 | sampling | temperature 0.92 = 0.92; top_p equal; max_tokens omitted → provider default (both) |
 | USER_PERSONA / memory / lore / length target | identical text |
 
-→ **model identity 외 semantic 차이는 wrapper/positions 뿐** — 출력 차이를 모델 품질 차이라고 단정할 근거 없음.
+**Classification:** `PRE_INTEGRATION_RP_EVIDENCE` — **not** `FINAL_PRODUCTION_QUALITY_COMPARISON`.
+
+Pre-integration gaps (current main, not patched in #993):
+
+- V4.1 Flash not registered on `isDeepSeekModel` family owner
+- Pro-only DeepSeek prompt wrapper / section positioning
+- Pro explicit `thinking:{type:"disabled"}` vs Flash generic fallback
+- Flash generic `reasoning_effort:"none"` only (no typed thinking body)
+
+→ Bounded live A/B + parity harness prove **current** wire divergence. Re-run bounded A/B only after V4.1 implementation integrates family owners and corrected final request on a **fresh main branch**.
 
 ## 6. V4.1 WIRE OWNER (design only — not patched)
 
@@ -336,11 +345,31 @@ Harness: `scripts/deepseek-v41-flash-request-parity.ts` → `rp-ab/request-parit
 
 ## 7. CACHE SEMANTICS — read-only READY
 
-`cached_tokens`(read) proven live (probe: 4736 read tokens). Cached tokens는 standard input과 별도 과금 owner(`normalizeBillableUsage`). `cache_write_tokens` 전부 0 → **write price 추측 금지**, fixture상 별도 write price 없음 → READY scope = **cache read only**. `publishedUserCharge`에는 `modelPublishedPricingPolicy` v4.1 flash row (`cacheSemanticStatus: verified`, cache read 0.006) 필요.
+`cached_tokens`(read) proven live (probe: 4736 read tokens). Cached tokens는 standard input과 별도 과금 owner(`normalizeBillableUsage`). `cache_write_tokens` observed 0 in captured evidence → **write price 추측 금지**; **unreported ≠ proven zero** — do not add `cacheWriteAbsentSemantics: proven_zero` for V4.1 without provider contract proof. READY scope = **cache read only**. `publishedUserCharge`에는 `modelPublishedPricingPolicy` v4.1 flash row (`cacheSemanticStatus: verified`, cache read 0.006) 필요.
 
-## 8. RESPONSE MODEL NORMALIZATION — namespace-only
+## 8. RESPONSE MODEL NORMALIZATION — **RETRACTED prior claim**
 
-requested `deepseek-v4-pro-0813` / returned `deepseek/deepseek-v4-pro-0813` = **vendor namespace variation, model substitution 아님**. 기존 owner `publishedModelAliases.canonicalizePublishedModelId`가 정확히 이 mapping 보유 (`deepseek/deepseek-v4-pro` → `deepseek-v4-pro-0813`), billing 경로는 이미 canonicalize. Follow-up: ledger `actual_model` write-time canonicalize + canonical mismatch alert (신규 시스템 불필요).
+**Prior correction-pass claim (RETRACTED):** “existing owner canonicalizes observed namespace variant exactly.”
+
+**Exact-head alias table (`publishedModelAliases.ts`):**
+
+| Raw id | Canonical via owner |
+|---|---|
+| `deepseek/deepseek-v4-pro` | `deepseek-v4-pro-0813` ✓ |
+| `deepseek-v4-pro` | `deepseek-v4-pro-0813` ✓ |
+| `deepseek/deepseek-v4-pro-0813` | **(no alias — passes through unchanged)** |
+
+**Classification:** `NAMESPACE_ALIAS_GAP_CONFIRMED` — production alias patch deferred to V4.1 implementation PR (not #993).
+
+Deterministic owner execution (cases A/B/C in `deepseekV41FlashPreflight.test.ts`):
+
+| Case | Input | Canonical | Same identity as requested `deepseek-v4-pro-0813`? |
+|---|---|---|---|
+| A returned | `deepseek/deepseek-v4-pro-0813` | `deepseek/deepseek-v4-pro-0813` | **NO** |
+| B different | `deepseek/deepseek-v4-flash-0731` | `deepseek/deepseek-v4-flash-0731` | **NO** (mismatch persists) |
+| C legacy | `deepseek/deepseek-v4-pro` | `deepseek-v4-pro-0813` | **YES** (legacy preserved) |
+
+**Mitigation today:** billing dispatch uses `deliveredModelId` (requested wire id), not `responseModelId` — Phase 2 eligibility survives G_long_memory. Ledger `actual_model` still stores raw response id.
 
 ## 9. LENGTH / INITIATIVE
 
@@ -357,6 +386,102 @@ F_speech_lock target **3200**자: Flash 2,563 (≈target 내) → `VALID_ACTIVE_
 
 ## CORRECTION CLASSIFICATION
 
-**`READY_FOR_IMPLEMENTATION`** — (cache는 read-only READY; write price는 추측 제외. 0731 repurpose·billing cutover 아직 아님.)
+**`READY_FOR_IMPLEMENTATION`** — meaning **“fresh V4.1 implementation PR may start”** — **not** “public picker ready” or “billing cutover ready.”
+
+**MERGE = NO · PICKER_ENABLE = NO · PRICE_CUTOVER = NO · STOP for GPT review.**
+
+---
+
+# FINAL FACTUAL CORRECTION PASS (2026-09-21, pass 2)
+
+## EXACT HEAD
+
+| Field | Value |
+|---|---|
+| Prior correction pass | `fa266510863087865bfb74c59eb7e0b2a3528cf8` |
+| Audit branch | `cursor/deepseek-v41-flash-preflight-d09d` (#993 stacked on #991) |
+| `origin/main` (preflight baseline) | `3c5555a2fe97f9097cf7b65aff5912574d72b805` |
+| MERGE / PICKER / PRICE_CUTOVER / PRODUCTION_PROMPT_CHANGE | **NO / NO / NO / NO** |
+| Live provider calls this pass | **0** |
+
+## RESPONSE MODEL RAW → CANONICAL DATAFLOW
+
+Observed mismatch fixture: requested `deepseek-v4-pro-0813`, returned `deepseek/deepseek-v4-pro-0813` (G_long_memory Sample A).
+
+| Stage | Raw id | Canonical id | Persisted id | Owner |
+|---|---|---|---|---|
+| Provider payload | `deepseek/deepseek-v4-pro-0813` | — | — | `openRouterAdult.ts` → `TokenUsage.responseModelId` |
+| `StageUsage` | `model`=requested; `responseModelId`=returned | none | `usage.stages[]` JSON | `openRouterAdult.ts` stage builder |
+| `deliveredModelId` / `usage.model` | `deepseek-v4-pro-0813` | not at assign | usage record | `route.ts` (requested wire) |
+| `chatBillingContractDispatch` | `deliveredModelId` | `canonicalizePublishedModelId` → `deepseek-v4-pro-0813` | telemetry + published snapshot | `chatBillingContractDispatch.ts` |
+| `publishedUserCharge` | `modelId` arg | `snapshot.canonicalModelId` | published snapshot when Phase 2 live | `publishedUserCharge.ts` |
+| `providerCostLedger.actual_model` | `deepseek/deepseek-v4-pro-0813` | **none at write** | `api_cost_ledger.actual_model` | `recordMainGenerationProviderCost` (`responseModelId ?? model`) |
+| Admin receipt | ledger `actual_model` | none in projection | receipt events | `adminBillingReceiptV3Shared.ts` |
+
+## OBSERVED NAMESPACE ALIAS RESULT
+
+| Test | Result |
+|---|---|
+| A: `deepseek-v4-pro-0813` vs `deepseek/deepseek-v4-pro-0813` | **NOT** same canonical identity |
+| B: `deepseek/deepseek-v4-flash-0731` | Mismatch persists (different model) |
+| C: `deepseek/deepseek-v4-pro` | Canonicalizes to `deepseek-v4-pro-0813` (legacy preserved) |
+
+**Classification:** `NAMESPACE_ALIAS_GAP_CONFIRMED`. Exact alias for `deepseek/deepseek-v4-pro-0813` → **V4.1 implementation PR required cleanup** (not patched in #993).
+
+## REPORT CLAIM CORRECTION
+
+| Prior claim | Status |
+|---|---|
+| “`publishedModelAliases` canonicalizes observed `deepseek/deepseek-v4-pro-0813` exactly” | **RETRACTED** — alias exists for `deepseek/deepseek-v4-pro` only, not the `-0813` namespace variant |
+| “Billing already canonicalizes response namespace variant” | **PARTIAL** — billing uses requested `deliveredModelId`; response-only paths (`actual_model`, response-as-modelId) do not canonicalize |
+
+## REQUEST PARITY INTERPRETATION
+
+| Classification | Meaning |
+|---|---|
+| `PRE_INTEGRATION_RP_EVIDENCE` | Current A/B + `request-parity.json` under non-integrated V4.1 wire |
+| **Not** | `FINAL_PRODUCTION_QUALITY_COMPARISON` |
+
+Non-parity causes: `isDeepSeekModel` miss, Pro-only `<WORLD_LORE>` wrapper (+27c), Pro typed `thinking:{type:"disabled"}`, Flash generic fallback.
+
+## IMPLEMENTATION HANDOFF
+
+Fresh branch from **current main** only. Required before bounded A/B smoke rerun:
+
+1. V4.1 canonical constant (≠ 0731)
+2. `isDeepSeekModel` family integration
+3. Explicit reasoning/thinking TRUE-OFF owner
+4. Exact response-model alias normalization where proven (`deepseek/deepseek-v4-pro-0813`)
+5. Published pricing row (peak 0.30 / 1.20 / cache read 0.006, margin 60%)
+6. Cache policy row (`cacheSemanticStatus: verified`; no `proven_zero` without contract)
+7. Canonical billing dispatcher integration
+
+**Do not import:** #991 billing audit files, G37 matrices, unrelated audit scripts, stacked PR history.
+
+## BILLING LAUNCH GATE
+
+| Item | Value |
+|---|---|
+| V4.1 candidate peak BASE | in **$0.30/M**, out **$1.20/M**, cache read **$0.006/M** |
+| Target margin | **60%** |
+| CI current | procurement only — must not silently move user BASE when published billing blocked |
+| Picker enable | requires complete canonical stable billing contract — not CI-current legacy fallback |
+
+## CACHE WRITE BOUNDARY
+
+Captured evidence: `cache_write_tokens = 0` in probe/A/B samples.
+
+**Boundary:** unreported cache write ≠ proven zero. Do **not** add `cacheWriteAbsentSemantics: proven_zero` for V4.1 until provider contract proves absent==zero. READY scope remains **cache read only**.
+
+## BRANCH HYGIENE
+
+- **#993:** evidence-only audit on `#991` stack — **MERGE = NO**, draft preserved
+- **V4.1 implementation:** fresh `main` branch, V4.1-specific code only
+
+## FINAL CLASSIFICATION
+
+**`READY_FOR_IMPLEMENTATION`** = fresh implementation PR may start.
+
+**Does not mean:** public picker ready · billing cutover ready · merge #993.
 
 **MERGE = NO · PICKER_ENABLE = NO · PRICE_CUTOVER = NO · STOP for GPT review.**
