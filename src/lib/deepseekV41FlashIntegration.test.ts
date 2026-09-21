@@ -236,9 +236,10 @@ describe("deepseekV41FlashIntegration", () => {
     }
   });
 
-  it("R — public picker does NOT contain V4.1", () => {
+  it("R — public picker contains V4.1 as a distinct Main RP model", () => {
     const ids = MAIN_RP_USER_SELECTABLE_OPTIONS.map((o) => o.id);
-    assert.ok(!ids.includes(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL));
+    assert.ok(ids.includes(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL));
+    assert.notEqual(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL);
   });
 
   it("final request parity — Pro vs V4.1 same TRUE-OFF wire contract", () => {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -36,6 +37,7 @@ const OPENROUTER_DEEPSEEK_V4_PRO_MODEL =
 
 const ACTIVE = [
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
 ] as const;
@@ -59,15 +61,18 @@ function assistantUsage(
 }
 
 describe("modelPickerPreview V2", () => {
-  it("shows the canonical 4 in the default user picker preview", () => {
+  it("shows the canonical 5 in the default user picker preview", () => {
     const preview = buildModelPickerPreview({ messages: [] });
-    assert.equal(preview.models.length, 4);
+    assert.equal(preview.models.length, 5);
     assert.equal(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL),
       false
     );
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL)
+    );
+    assert.ok(
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL)
     );
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL)
@@ -82,7 +87,7 @@ describe("modelPickerPreview V2", () => {
 
   it("covers all active models", () => {
     const preview = buildModelPickerPreview({ messages: [], modelIds: [...ACTIVE] });
-    assert.equal(preview.models.length, 3);
+    assert.equal(preview.models.length, 4);
     for (const id of ACTIVE) {
       const row = preview.models.find((m) => m.modelId === id);
       assert.ok(row, id);

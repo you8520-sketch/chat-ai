@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   SELECTED_AI_OPTIONS,
   USER_SELECTABLE_AI_OPTIONS,
@@ -25,6 +26,26 @@ describe("DeepSeek V4 Flash retirement from Main RP", () => {
     );
     assert.equal(isValidSelectedAI(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL), false);
     assert.equal(isValidSelectedAI("deepseek-v4-flash"), false);
+  });
+
+  it("V4.1 Flash is selectable while retired V4 Flash 0731 remains hidden", () => {
+    assert.equal(
+      USER_SELECTABLE_AI_OPTIONS.some(
+        (o) => o.id === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
+      ),
+      true
+    );
+    assert.equal(isValidSelectedAI(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL), true);
+    assert.equal(
+      selectedAILabel(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL),
+      "DeepSeek V4.1 Flash"
+    );
+    assert.equal(
+      USER_SELECTABLE_AI_OPTIONS.some(
+        (o) => o.id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+      ),
+      false
+    );
   });
 
   it("stored Flash selections resolve to the default Main RP model", () => {
