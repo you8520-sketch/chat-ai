@@ -409,7 +409,10 @@ import {
   pushRemovalTraceStep,
   type RemovalTraceStep,
 } from "@/lib/removalTrace";
-import { buildEstimatedReceiptSectionBreakdown } from "@/lib/billingReceiptSectionBreakdown";
+import {
+  buildEstimatedReceiptSectionBreakdown,
+  sumCharacterReceiptContextChars,
+} from "@/lib/billingReceiptSectionBreakdown";
 import {
   attachProviderRequestLinkageForPersistence,
   BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL,
@@ -4611,11 +4614,13 @@ export async function POST(req: Request) {
           { key: "rel" as const, est: memoryMetaEst },
         ];
         const splitChars = openRouterSystemSplitRef;
+        const characterContextChars = sumCharacterReceiptContextChars(trackedSectionsRef, {
+          excludeKeywordLorebook: keywordLoreFromTracked && keywordLoreEst > 0,
+        });
         const breakdown = buildEstimatedReceiptSectionBreakdown({
           sectionEsts: sectionEsts as import("@/lib/billingReceiptSectionBreakdown").ReceiptSectionEstimate[],
           draftInput,
-          splitChars,
-          charPromptEst,
+          characterContextChars: characterContextChars > 0 ? characterContextChars : null,
           rawHistoryChars,
           rawCompleteExchanges,
         });

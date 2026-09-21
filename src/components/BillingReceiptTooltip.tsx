@@ -640,6 +640,11 @@ export default function BillingReceiptTooltip({
                     {b.label} ({b.pct}%)
                   </p>
                 ))}
+              {showFullReceipt && usage.breakdownAllocation === "estimated_section_allocation" && (
+                <p className="mt-1 border-t border-white/5 pt-1 text-[9px] text-zinc-600">
+                  estimated_section_allocation · section별 provider 실측 아님
+                </p>
+              )}
               {showFullReceipt && usage.rawHistoryHealth && (
                 <div className="mt-1 space-y-0.5 border-t border-white/5 pt-1">
                   <p>RAW exchanges: {usage.rawHistoryHealth.rawCompleteExchanges}</p>
