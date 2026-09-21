@@ -95,7 +95,8 @@ Disable: `DISABLE_MODEL_PRICING_TRACKER=1`
   status); a failed partial snapshot can no longer be consumed as a previous-day baseline.
 - **Freshness is fail-closed in the tracker only.** Without a confirmed fresh `/v1/models` refresh,
   the run writes no CI snapshots, no CI classifications, and evaluates no margin alert on stale
-  cache; it records a `catalog_refresh_failed` admin event instead. The independent live-billing
+  cache; it records a `catalog_refresh_failed` admin event and marks the attempt **FAILED** (not
+  completed) so the same-day retry owner remains reachable. The independent live-billing
   resilient-cache behavior is untouched. `skipCatalogRefresh` exists as a TEST-ONLY seam that
   asserts the seeded catalog is the fresh observation.
 - **`observed_at` semantics:** CI snapshots anchor to `catalog.fetchedAt` (the source's own
@@ -120,14 +121,27 @@ Disable: `DISABLE_MODEL_PRICING_TRACKER=1`
 
 ---
 
+## IDENTITY (three separate concepts)
+
+| Concept | Owner table | Meaning |
+|---------|-------------|---------|
+| **DAILY CLAIM** | `model_pricing_tracker_runs` | One KST date, one active executor; `INSERT OR IGNORE` claim; FAILED → conditional reclaim for same-day retry |
+| **RUN ATTEMPT** | `model_pricing_tracker_attempts` | Immutable identity per actual run; failed partial evidence stays on its attempt id; retry always gets a new attempt id |
+| **PRICE EVENT OCCURRENCE** | `model_price_change_events` | One real-world classified transition; globally unique `event_fingerprint` derived from source observation evidence (old/new snapshot fingerprints + `observedAt`); same observation replay dedupes, return transitions (A→B→A) are distinct occurrences |
+
+CI `reference_*` snapshots record what CI published — they are **not** authoritative official provider baseline evidence. Provider baseline events remain reserved for Phase B official adapters.
+
+---
+
 ## PRICE SNAPSHOT DESIGN
 
 Tables (append-only):
 
-- `model_pricing_tracker_runs` — daily run idempotency
-- `model_price_snapshots` — provider, modelId, pricingMode, rates, fingerprint, observedAt
-- `model_price_change_events` — classified diffs with unique `event_fingerprint`
-- `model_pricing_admin_events` — admin observability feed
+1. `model_pricing_tracker_runs` — daily claim / idempotency
+2. `model_pricing_tracker_attempts` — immutable run attempt identity + counters
+3. `model_price_snapshots` — provider, modelId, pricingMode, rates, fingerprint, observedAt
+4. `model_price_change_events` — classified diffs with unique `event_fingerprint` (occurrence identity)
+5. `model_pricing_admin_events` — admin observability feed
 
 Per model per run:
 
@@ -192,8 +206,14 @@ Auto notices: idempotent via `event_fingerprint` + pricing version linkage; grou
 ## IDEMPOTENCY
 
 - Daily run: `run_date_key` UNIQUE (KST YYYY-MM-DD)
-- Events: `event_fingerprint` UNIQUE on `model_price_change_events`
+- Events: `event_fingerprint` UNIQUE on `model_price_change_events` — occurrence identity from
+  `buildPriceChangeEventOccurrenceFingerprint()` (event type + modelId + old/new source
+  fingerprints + source `observedAt`; parser failures use a stable reason discriminator)
+- Same source observation replay (failed attempt retry) → same fingerprint → dedupe
+- New real-world occurrence (including return transitions) → different fingerprint → append
 - Duplicate cron → `skipped_duplicate` status, no second snapshot batch for same date
+- Returned `eventCount` and attempt metadata counters are owned by persisted row counts after
+  `finishTrackerRun`, not in-memory classifier arrays
 
 ---
 
@@ -210,7 +230,8 @@ Auto notices: idempotent via `event_fingerprint` + pricing version linkage; grou
 
 ## FAILURE / ROLLBACK
 
-- CI fetch failure → fail-closed, keep active price, `PARSER_FAILED` admin event
+- CI fetch failure → attempt **FAILED**, fail-closed, keep active price, `PARSER_FAILED` admin event,
+  same-day retry allowed via FAILED reclaim (no new scheduler/retry loop)
 - No 0/null rate writes
 - Phase A never mutates `publishedModelPricing.ts` — rollback = no-op
 
@@ -220,7 +241,9 @@ Auto notices: idempotent via `event_fingerprint` + pricing version linkage; grou
 
 Additive only:
 
-- 4 new tables via `ensureModelPricingTrackingSchema()` in `db.ts` boot migration
+- 5 new tables via `ensureModelPricingTrackingSchema()` in `db.ts` boot migration:
+  `model_pricing_tracker_runs`, `model_pricing_tracker_attempts`, `model_price_snapshots`,
+  `model_price_change_events`, `model_pricing_admin_events`
 - No destructive migration
 
 ---
@@ -240,7 +263,9 @@ Additive only:
 
 ## REGRESSION TESTS
 
-`src/lib/modelPricingTracker.test.ts` covers fixtures A, B, D, F, G, H, I (+ large-change hold, append-only snapshots).
+`src/lib/modelPricingTracker.test.ts` covers fixtures A–P (+ Q1–Q8 event-history integrity: recurring
+rate changes, oscillation, duplicate replay dedupe, reference/tier return, persisted eventCount owner,
+failed-attempt retry idempotency).
 
 Fixtures C, E deferred to Phase B (promotion activation + scheduled effectiveAt apply).
 

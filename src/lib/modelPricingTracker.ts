@@ -36,6 +36,7 @@ import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import {
   ensureTrackerSchema,
   claimTrackerRun,
+  countEventsForAttempt,
   finishTrackerRun,
   insertAdminEvent,
   insertClassifiedEvent,
@@ -174,7 +175,7 @@ export async function runModelPricingTracker(params?: {
     if (!freshCiCatalog) {
       finishTrackerRun(db, {
         attemptId,
-        status: "completed",
+        status: "failed",
         finishedAt: isoNow(),
         errorSummary: errors.join("; "),
       });
@@ -183,9 +184,9 @@ export async function runModelPricingTracker(params?: {
         attemptId,
         runDateKey,
         phase,
-        status: "completed",
+        status: "failed",
         snapshotCount: 0,
-        eventCount: 0,
+        eventCount: countEventsForAttempt(db, attemptId),
         events: [],
         marginFloorBreaches: [],
         errors,
@@ -355,6 +356,7 @@ export async function runModelPricingTracker(params?: {
       errorSummary: errors.join("; "),
     });
 
+    const persistedEventCount = countEventsForAttempt(db, attemptId);
     return {
       runId,
       attemptId,
@@ -362,7 +364,7 @@ export async function runModelPricingTracker(params?: {
       phase,
       status: "completed",
       snapshotCount,
-      eventCount: events.length,
+      eventCount: persistedEventCount,
       events,
       marginFloorBreaches,
       errors,
@@ -376,6 +378,7 @@ export async function runModelPricingTracker(params?: {
       finishedAt: isoNow(),
       errorSummary: message,
     });
+    const persistedEventCount = countEventsForAttempt(db, attemptId);
     return {
       runId,
       attemptId,
@@ -383,7 +386,7 @@ export async function runModelPricingTracker(params?: {
       phase,
       status: "failed",
       snapshotCount,
-      eventCount: events.length,
+      eventCount: persistedEventCount,
       events,
       marginFloorBreaches,
       errors,

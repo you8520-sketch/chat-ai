@@ -145,3 +145,9 @@ export async function refreshCheaperInferenceCatalogPricing(opts?: {
     });
   return inFlight;
 }
+
+/** TEST-ONLY: reset TTL gate so the next refresh performs a live fetch attempt. */
+export function resetCheaperInferenceCatalogRefreshForTest(): void {
+  lastRefreshAt = 0;
+  inFlight = null;
+}

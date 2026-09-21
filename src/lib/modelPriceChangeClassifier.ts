@@ -50,8 +50,32 @@ function ratesPayload(rates: PriceRateSnapshot): Record<string, unknown> {
   return { ...rates };
 }
 
-function eventFingerprintParts(parts: Record<string, unknown>): string {
-  return JSON.stringify(parts);
+/**
+ * Canonical PRICE EVENT OCCURRENCE fingerprint owner.
+ *
+ * Semantic:
+ * - Same source observation replay (retry) → same fingerprint → dedupe.
+ * - New real-world occurrence (including return transitions A→B→A) → different fingerprint.
+ *
+ * Identity derives from deterministic evidence only — never random ids.
+ */
+export function buildPriceChangeEventOccurrenceFingerprint(params: {
+  eventType: PriceChangeEventType;
+  modelId: string;
+  oldFingerprint: string | null;
+  newFingerprint: string | null;
+  sourceObservedAt: string | null;
+  /** Stable discriminator when snapshot fingerprints are absent (e.g. parser failure). */
+  occurrenceDiscriminator?: Record<string, unknown>;
+}): string {
+  return JSON.stringify({
+    type: params.eventType,
+    modelId: params.modelId,
+    old: params.oldFingerprint,
+    new: params.newFingerprint,
+    observedAt: params.sourceObservedAt,
+    ...(params.occurrenceDiscriminator ?? {}),
+  });
 }
 
 export function classifyCiCurrentChange(params: {
@@ -87,11 +111,12 @@ export function classifyCiCurrentChange(params: {
       oldValues: prev ? ratesPayload(prev) : {},
       newValues: ratesPayload(next),
       effectiveAt: params.current.observedAt,
-      eventFingerprint: eventFingerprintParts({
-        type: "PROCUREMENT_TIER_CHANGED",
+      eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
+        eventType: "PROCUREMENT_TIER_CHANGED",
         modelId: params.modelId,
-        old: prev?.tierThreshold,
-        new: next.tierThreshold,
+        oldFingerprint: params.previous?.rawFingerprint ?? null,
+        newFingerprint: params.current.rawFingerprint,
+        sourceObservedAt: params.current.observedAt,
       }),
     });
   }
@@ -107,11 +132,12 @@ export function classifyCiCurrentChange(params: {
       oldValues: { discountPercent: prev?.discountPercent ?? null },
       newValues: { discountPercent: next.discountPercent },
       effectiveAt: params.current.observedAt,
-      eventFingerprint: eventFingerprintParts({
-        type: "CI_MARKET_DISCOUNT_CHANGED",
+      eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
+        eventType: "CI_MARKET_DISCOUNT_CHANGED",
         modelId: params.modelId,
-        old: prev?.discountPercent,
-        new: next.discountPercent,
+        oldFingerprint: params.previous?.rawFingerprint ?? null,
+        newFingerprint: params.current.rawFingerprint,
+        sourceObservedAt: params.current.observedAt,
       }),
     });
   } else if (procurementRatesChanged) {
@@ -125,10 +151,12 @@ export function classifyCiCurrentChange(params: {
       oldValues: prev ? ratesPayload(prev) : {},
       newValues: ratesPayload(next),
       effectiveAt: params.current.observedAt,
-      eventFingerprint: eventFingerprintParts({
-        type: "CI_MARKET_DISCOUNT_CHANGED",
+      eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
+        eventType: "CI_MARKET_DISCOUNT_CHANGED",
         modelId: params.modelId,
-        kind: "current_rates",
+        oldFingerprint: params.previous?.rawFingerprint ?? null,
+        newFingerprint: params.current.rawFingerprint,
+        sourceObservedAt: params.current.observedAt,
       }),
     });
   }
@@ -170,11 +198,12 @@ export function classifyCiReferenceChange(params: {
       oldValues: { providerModelId: params.previous?.providerModelId ?? params.policy.expectedProviderModelId },
       newValues: { providerModelId: params.current.providerModelId },
       effectiveAt: params.current.observedAt,
-      eventFingerprint: eventFingerprintParts({
-        type: "MODEL_ROUTING_CHANGED",
+      eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
+        eventType: "MODEL_ROUTING_CHANGED",
         modelId: params.policy.modelId,
-        old: params.previous?.providerModelId,
-        new: params.current.providerModelId,
+        oldFingerprint: params.previous?.rawFingerprint ?? null,
+        newFingerprint: params.current.rawFingerprint,
+        sourceObservedAt: params.current.observedAt,
       }),
     });
     return events;
@@ -208,11 +237,12 @@ export function classifyCiReferenceChange(params: {
     oldValues: ratesPayload(prev),
     newValues: ratesPayload(next),
     effectiveAt: params.current.observedAt,
-    eventFingerprint: eventFingerprintParts({
-      type: "CI_REFERENCE_CHANGED_UNVERIFIED",
+    eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
+      eventType: "CI_REFERENCE_CHANGED_UNVERIFIED",
       modelId: params.policy.modelId,
-      largeChange: isLarge,
+      oldFingerprint: params.previous?.rawFingerprint ?? null,
       newFingerprint: params.current.rawFingerprint,
+      sourceObservedAt: params.current.observedAt,
     }),
   });
 
@@ -234,10 +264,16 @@ export function classifyParserFailure(params: {
     oldValues: {},
     newValues: { sourceKind: params.sourceKind },
     effectiveAt: null,
-    eventFingerprint: eventFingerprintParts({
-      type: "PARSER_FAILURE",
+    eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
+      eventType: "PARSER_FAILURE",
       modelId: params.modelId,
-      sourceKind: params.sourceKind,
+      oldFingerprint: null,
+      newFingerprint: null,
+      sourceObservedAt: null,
+      occurrenceDiscriminator: {
+        sourceKind: params.sourceKind,
+        reason: params.reason,
+      },
     }),
   };
 }
@@ -257,12 +293,13 @@ export function classifySourceConflict(params: {
     newFingerprint: params.ciReference.rawFingerprint,
     oldValues: ratesPayload(params.publishedBaseline.rates),
     newValues: ratesPayload(params.ciReference.rates),
-    effectiveAt: null,
-    eventFingerprint: eventFingerprintParts({
-      type: "SOURCE_CONFLICT",
+    effectiveAt: params.ciReference.observedAt,
+    eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
+      eventType: "SOURCE_CONFLICT",
       modelId: params.modelId,
-      published: params.publishedBaseline.rawFingerprint,
-      ci: params.ciReference.rawFingerprint,
+      oldFingerprint: params.publishedBaseline.rawFingerprint,
+      newFingerprint: params.ciReference.rawFingerprint,
+      sourceObservedAt: params.ciReference.observedAt,
     }),
   };
 }
