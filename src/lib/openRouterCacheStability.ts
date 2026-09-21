@@ -6,7 +6,8 @@ let lastCacheableFingerprint: string | null = null;
 let consecutiveStableCacheHits = 0;
 let lastLoggedSystemTokens: number | null = null;
 
-function fingerprintCacheablePrefix(split: OpenRouterSystemSplit): string {
+/** SHA256 (16 hex) of stable system rules + character settings — offline/cache diagnostics. */
+export function fingerprintOpenRouterCacheablePrefix(split: OpenRouterSystemSplit): string {
   const payload = `${split.systemRulesBlock}\n---\n${split.characterSettingsBlock}`;
   return createHash("sha256").update(payload).digest("hex").slice(0, 16);
 }
@@ -17,7 +18,7 @@ export function logOpenRouterCacheStabilityCheck(opts: {
   cacheReadTokens: number;
   systemPrompt: string;
 }): number {
-  const fingerprint = fingerprintCacheablePrefix(opts.split);
+  const fingerprint = fingerprintOpenRouterCacheablePrefix(opts.split);
   const systemTokens = estimateTokens(opts.systemPrompt);
 
   if (opts.cacheReadTokens > 0 && fingerprint === lastCacheableFingerprint) {

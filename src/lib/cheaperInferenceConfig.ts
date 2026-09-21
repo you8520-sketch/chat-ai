@@ -37,12 +37,34 @@ export function buildCheaperInferenceHeaders(apiKey?: string): Record<string, st
   };
 }
 
+/** Canonical base path only — query parameters are request-scoped cache policy. */
+export function cheaperInferenceChatCompletionsBaseUrl(url: string): string {
+  return url.split("?")[0] ?? url;
+}
+
 export function assertCheaperInferenceEndpoint(url: string): void {
-  if (url !== CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL) {
+  const base = cheaperInferenceChatCompletionsBaseUrl(url);
+  if (base !== CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL) {
     throw new Error(
       `[CheaperInference] invalid endpoint URL: ${JSON.stringify(url)}`
     );
   }
+}
+
+/** Documented CI query parameter — not an HTTP header (see cheaperinference.com/api-reference). */
+export const CHEAPER_INFERENCE_PROMPT_CACHE_QUERY_PARAM = "x-ci-prompt-cache";
+
+/**
+ * CI Main RP Opus only — pin gateway prompt-cache mode to passthrough via query
+ * parameter so app-owned cache_control breakpoints remain canonical.
+ */
+export function resolveCheaperInferenceMainRpOpusFetchUrl(modelId: string): string {
+  if (!isCheaperInferenceClaudeOpus5Model(modelId)) {
+    return CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL;
+  }
+  const url = new URL(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL);
+  url.searchParams.set(CHEAPER_INFERENCE_PROMPT_CACHE_QUERY_PARAM, "passthrough");
+  return url.href;
 }
 
 export type CheaperInferenceAdaptOpts = {

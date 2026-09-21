@@ -152,7 +152,7 @@ import {
   resolveResponseLengthTarget,
 } from "@/lib/responseLength";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
-import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
+import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix } from "@/lib/openRouterCache";
 import { isCheaperInferenceDeepSeekV4FlashModel, isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
 import { DEEPSEEK_APPEARANCE_VARIATION_RULE } from "@/lib/appearanceCompiler";
 import { buildCoNarrationKoreanRule } from "@/lib/openRouterAdult";
@@ -1242,7 +1242,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       dynamicLoreUserPrefixTokens: estimateTokens(openRouterDynamicLorePrefix),
       cacheableTotal: estimateOpenRouterCacheableTokens(openRouterSystemSplit),
       cacheBreakpoints: 2,
-      historyCacheTailExclude: HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES,
+      historyCacheBreakpoint: "none (bounded sliding RAW — not cached)",
     });
     if (sysTok > 12_000) {
       console.warn(`[contextBuilder] OpenRouter system prompt ${sysTok} tok — character lore 포함 시 정상 범위`);
