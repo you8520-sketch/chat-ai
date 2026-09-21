@@ -1,7 +1,7 @@
 # Model Pricing Auto-Tracker — Architecture & Investigation Report
 
-**Status:** Phase A (`OBSERVE_ONLY`) — Draft PR, not merge-ready for auto-apply  
-**Main HEAD:** `3c5555a2fe97f9097cf7b65aff5912574d72b805`  
+**Status:** Phase A (`OBSERVE_ONLY`) — Draft PR, not merge-ready for auto-apply
+**Main HEAD:** `3c5555a2fe97f9097cf7b65aff5912574d72b805`
 **Classification:** `FEATURE_READY_FOR_IMPLEMENTATION` (Phase A only)
 
 ---
@@ -80,6 +80,43 @@ Claude Opus 5, DeepSeek Flash, Luna, Gemini 3.6, Qwen, GLM, Kimi, OpenRouter slu
 **Multi-replica:** In-memory `running` boolean in financeScheduler is insufficient for distributed dedup. Phase A uses DB idempotency via `model_pricing_tracker_runs.run_date_key` UNIQUE (KST date).
 
 Disable: `DISABLE_MODEL_PRICING_TRACKER=1`
+
+### Correction pass 2 (exact head `0344dc25` review)
+
+- **Attempt identity separated from daily claim.** `model_pricing_tracker_runs` = DAILY CLAIM (one
+  KST date, one active executor; `INSERT OR IGNORE` claim; FAILED -> atomic reclaim via conditional
+  `UPDATE ... WHERE status='failed'`). `model_pricing_tracker_attempts` = RUN ATTEMPT (immutable id
+  per actual run). A failed partial attempt keeps its snapshots/events/admin events/error on its own
+  attempt id and is never reused; a same-day retry always gets a NEW attempt id. No compatibility
+  shim: the draft schema was never deployed, so it is replaced directly.
+- **Attempt counters are recomputed from persisted rows** in `finishTrackerRun`, so
+  `snapshot_count`/`event_count` always equal the exact `attempt_id` row counts.
+- **Previous source truth reads only COMPLETED attempts** (`readLatestSnapshot` joins the attempt
+  status); a failed partial snapshot can no longer be consumed as a previous-day baseline.
+- **Freshness is fail-closed in the tracker only.** Without a confirmed fresh `/v1/models` refresh,
+  the run writes no CI snapshots, no CI classifications, and evaluates no margin alert on stale
+  cache; it records a `catalog_refresh_failed` admin event instead. The independent live-billing
+  resilient-cache behavior is untouched. `skipCatalogRefresh` exists as a TEST-ONLY seam that
+  asserts the seeded catalog is the fresh observation.
+- **`observed_at` semantics:** CI snapshots anchor to `catalog.fetchedAt` (the source's own
+  observation time from the response); the published-code baseline anchors to the attempt start
+  (it is a code constant, not a source observation). Run start/persist times are never reused as
+  source observation times.
+- **CI reference never becomes a provider baseline event.** A CI `reference_*` change classifies as
+  `CI_REFERENCE_CHANGED_UNVERIFIED` / `HOLD` (large moves surface `UNEXPECTED_LARGE_CHANGE` in the
+  classification, but the event owner stays CI-unverified).
+  `PROVIDER_NORMAL_BASELINE_CHANGED` / `PROVIDER_SCHEDULED_BASELINE_CHANGED` are reserved for the
+  Phase B official provider source adapter (exact model identity + pricing mode + official
+  provenance + effectiveAt); no fake adapter exists in Phase A.
+- **Dormant auto-apply removed from Phase A.** `AUTO_APPLY_SAFE_EVENTS`, `AUTO_APPLY_BASE` and
+  `PRICE_CHANGED_AUTO_APPLIED` are deleted from the Phase A runtime paths; the phase type is
+  `OBSERVE_ONLY` only. Phase B reintroduces auto-apply together with official adapters and an
+  activation safety gate.
+- **Cache-rate provenance.** The shared CI parser synthesizes cache rates when the source omits
+  them (`cache_read = input * 0.1`, `cache_write = input`). Phase A cannot distinguish an explicit
+  provider quote from that parser-derived fallback, so derived cache prices are explicitly
+  `CACHE_RATE_PROVENANCE_UNVERIFIED` provenance and cache-price auto application is a Phase B
+  blocker. Live billing is unchanged.
 
 ---
 

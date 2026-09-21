@@ -45,6 +45,7 @@ import {
 
 export type ModelPricingTrackerResult = {
   runId: number | null;
+  attemptId: number | null;
   runDateKey: string;
   phase: ModelPricingTrackerPhase;
   status: "completed" | "failed" | "skipped_duplicate";
@@ -123,13 +124,14 @@ export async function runModelPricingTracker(params?: {
 
   ensureTrackerSchema(db);
 
-  // Atomic daily-run claim: no row -> claim; RUNNING/COMPLETED -> skip;
-  // FAILED -> atomic reclaim (same-day retry). Replaces the non-atomic
-  // find-then-insert pre-check that threw UNIQUE under concurrent replicas.
+  // Atomic daily-run claim + fresh immutable run ATTEMPT identity:
+  // claimTrackerRun returns distinct attempt ids for a failed attempt and its
+  // same-day retry, so append-only evidence never mixes two runs.
   const claim = claimTrackerRun(db, { runDateKey, phase, startedAt });
   if (claim.outcome === "SKIPPED_DUPLICATE") {
     return {
       runId: claim.runId,
+      attemptId: null,
       runDateKey,
       phase,
       status: "skipped_duplicate",
@@ -141,15 +143,22 @@ export async function runModelPricingTracker(params?: {
     };
   }
   const runId = claim.runId;
+  const attemptId = claim.attemptId;
   let snapshotCount = 0;
+  let freshCiCatalog: boolean;
 
   try {
-    if (!params?.skipCatalogRefresh) {
+    if (params?.skipCatalogRefresh === true) {
+      // TEST-ONLY seam: the fixture asserts the seeded in-memory catalog IS the
+      // fresh observation (its fetchedAt is the authoritative source time).
+      // Production callers never pass it.
+      freshCiCatalog = true;
+    } else {
       const refreshed = await refreshCheaperInferenceCatalogPricing();
       if (!refreshed) {
         errors.push("ci_catalog_refresh_failed");
         insertAdminEvent(db, {
-          runId,
+          attemptId,
           adminEventType: "PARSER_FAILED",
           modelId: null,
           source: "cheaper_inference_models",
@@ -157,10 +166,34 @@ export async function runModelPricingTracker(params?: {
           decision: "fail_closed_keep_active_price",
         });
       }
+      // A resilient stale in-memory cache must never be written as today's
+      // observation: without a confirmed fresh refresh the run fails closed
+      // and records failure evidence only.
+      freshCiCatalog = refreshed === true;
+    }
+    if (!freshCiCatalog) {
+      finishTrackerRun(db, {
+        attemptId,
+        status: "completed",
+        finishedAt: isoNow(),
+        errorSummary: errors.join("; "),
+      });
+      return {
+        runId,
+        attemptId,
+        runDateKey,
+        phase,
+        status: "completed",
+        snapshotCount: 0,
+        eventCount: 0,
+        events: [],
+        marginFloorBreaches: [],
+        errors,
+      };
     }
 
-    const observedAt = isoNow();
-    let effectiveKrwPerUsd = 1530;
+    const effectiveKrwPerUsdFallback = 1530;
+    let effectiveKrwPerUsd = effectiveKrwPerUsdFallback;
     try {
       effectiveKrwPerUsd = await getEffectiveKrwPerUsd();
     } catch {
@@ -180,9 +213,9 @@ export async function runModelPricingTracker(params?: {
           reason: "model_missing_from_ci_catalog",
         });
         events.push(parserEvent);
-        insertClassifiedEvent(db, runId, modelId, parserEvent, getPublishedPricingVersion(modelId));
+        insertClassifiedEvent(db, attemptId, modelId, parserEvent, getPublishedPricingVersion(modelId));
         insertAdminEvent(db, {
-          runId,
+          attemptId,
           adminEventType: "PARSER_FAILED",
           modelId,
           source: "cheaper_inference_models",
@@ -193,13 +226,18 @@ export async function runModelPricingTracker(params?: {
         continue;
       }
 
-      const publishedSnapshot = buildPublishedBaselineSnapshot({ policy, published, observedAt });
-      insertPriceSnapshot(db, runId, publishedSnapshot);
+      // `observed_at` on a CI snapshot is the SOURCE observation time — the
+      // catalog's own fetchedAt from the live /v1/models response — never the
+      // tracker start time or the persistence time. The published-code baseline
+      // is not a source observation, so it records the attempt start time.
+      const sourceObservedAt = new Date(catalog.fetchedAt).toISOString();
+      const publishedSnapshot = buildPublishedBaselineSnapshot({ policy, published, observedAt: startedAt });
+      insertPriceSnapshot(db, attemptId, publishedSnapshot);
       snapshotCount += 1;
 
-      const ciCurrent = buildCiCurrentSnapshot({ policy, catalog, observedAt });
+      const ciCurrent = buildCiCurrentSnapshot({ policy, catalog, observedAt: sourceObservedAt });
       const prevCurrent = readLatestSnapshot(db, modelId, "cheaper_inference_models_current");
-      insertPriceSnapshot(db, runId, ciCurrent);
+      insertPriceSnapshot(db, attemptId, ciCurrent);
       snapshotCount += 1;
 
       for (const event of classifyCiCurrentChange({
@@ -208,9 +246,9 @@ export async function runModelPricingTracker(params?: {
         current: ciCurrent,
       })) {
         events.push(event);
-        insertClassifiedEvent(db, runId, modelId, event, getPublishedPricingVersion(modelId));
+        insertClassifiedEvent(db, attemptId, modelId, event, getPublishedPricingVersion(modelId));
         insertAdminEvent(db, {
-          runId,
+          attemptId,
           adminEventType:
             event.eventType === "CI_MARKET_DISCOUNT_CHANGED"
               ? "PROCUREMENT_DISCOUNT_CHANGED_NO_USER_IMPACT"
@@ -225,10 +263,10 @@ export async function runModelPricingTracker(params?: {
         });
       }
 
-      const ciReference = buildCiReferenceSnapshot({ policy, catalog, observedAt });
+      const ciReference = buildCiReferenceSnapshot({ policy, catalog, observedAt: sourceObservedAt });
       if (ciReference) {
         const prevReference = readLatestSnapshot(db, modelId, "cheaper_inference_models_reference");
-        insertPriceSnapshot(db, runId, ciReference);
+        insertPriceSnapshot(db, attemptId, ciReference);
         snapshotCount += 1;
 
         const conflict = classifySourceConflict({
@@ -238,9 +276,9 @@ export async function runModelPricingTracker(params?: {
         });
         if (conflict) {
           events.push(conflict);
-          insertClassifiedEvent(db, runId, modelId, conflict, getPublishedPricingVersion(modelId));
+          insertClassifiedEvent(db, attemptId, modelId, conflict, getPublishedPricingVersion(modelId));
           insertAdminEvent(db, {
-            runId,
+            attemptId,
             adminEventType: "SOURCE_CONFLICT_HELD",
             modelId,
             source: "ci_reference_vs_published",
@@ -257,21 +295,18 @@ export async function runModelPricingTracker(params?: {
           published,
           previous: prevReference,
           current: ciReference,
-          phase,
         })) {
           events.push(event);
-          insertClassifiedEvent(db, runId, modelId, event, getPublishedPricingVersion(modelId));
+          insertClassifiedEvent(db, attemptId, modelId, event, getPublishedPricingVersion(modelId));
+          // CI reference evidence is never a provider baseline event: it is
+          // either a routing mismatch (held) or an UNVERIFIED CI quote change
+          // awaiting official provider corroboration.
           const adminType =
             event.eventType === "MODEL_ROUTING_CHANGED"
               ? "MODEL_ROUTING_CHANGE_HELD"
-              : event.action === "OBSERVE_ONLY_LOG"
-                ? "PRICE_CHANGED_OBSERVE_ONLY"
-                : event.eventType === "PROVIDER_NORMAL_BASELINE_CHANGED" ||
-                    event.eventType === "PROVIDER_SCHEDULED_BASELINE_CHANGED"
-                  ? "PRICE_CHANGED_AUTO_APPLIED"
-                  : "SOURCE_CONFLICT_HELD";
+              : "CI_REFERENCE_CHANGE_HELD";
           insertAdminEvent(db, {
-            runId,
+            attemptId,
             adminEventType: adminType,
             modelId,
             source: "cheaper_inference_models_reference",
@@ -297,7 +332,7 @@ export async function runModelPricingTracker(params?: {
       ) {
         marginFloorBreaches.push(modelId);
         insertAdminEvent(db, {
-          runId,
+          attemptId,
           adminEventType: "MARGIN_FLOOR_BREACH",
           modelId,
           source: "procurement_vs_published_baseline",
@@ -314,16 +349,15 @@ export async function runModelPricingTracker(params?: {
     }
 
     finishTrackerRun(db, {
-      runId,
+      attemptId,
       status: "completed",
       finishedAt: isoNow(),
-      snapshotCount,
-      eventCount: events.length,
       errorSummary: errors.join("; "),
     });
 
     return {
       runId,
+      attemptId,
       runDateKey,
       phase,
       status: "completed",
@@ -337,15 +371,14 @@ export async function runModelPricingTracker(params?: {
     const message = error instanceof Error ? error.message : String(error);
     errors.push(message);
     finishTrackerRun(db, {
-      runId,
+      attemptId,
       status: "failed",
       finishedAt: isoNow(),
-      snapshotCount,
-      eventCount: events.length,
       errorSummary: message,
     });
     return {
       runId,
+      attemptId,
       runDateKey,
       phase,
       status: "failed",

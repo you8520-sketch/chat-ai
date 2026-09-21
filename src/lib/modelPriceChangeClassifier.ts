@@ -3,11 +3,7 @@
  * Does not mutate pricing; decisions are applied by modelPricingTracker.
  */
 
-import {
-  MODEL_PRICING_LARGE_CHANGE_THRESHOLD,
-  MODEL_PRICING_TRACKER_PHASE,
-  type ModelPricingTrackerPhase,
-} from "@/lib/modelPricingTrackingConfig";
+import { MODEL_PRICING_LARGE_CHANGE_THRESHOLD } from "@/lib/modelPricingTrackingConfig";
 import type { ModelPricingPolicy } from "@/lib/modelPricingPolicy";
 import {
   maxRelativeRateDelta,
@@ -19,20 +15,17 @@ import {
 import type { PublishedModelPricing } from "@/lib/publishedModelPricing";
 
 export type PriceChangeEventType =
-  | "PROVIDER_NORMAL_BASELINE_CHANGED"
-  | "PROVIDER_SCHEDULED_BASELINE_CHANGED"
+  | "CI_REFERENCE_CHANGED_UNVERIFIED"
   | "OFFICIAL_TEMP_PROMOTION_STARTED"
   | "OFFICIAL_TEMP_PROMOTION_ENDED"
   | "PROCUREMENT_TIER_CHANGED"
   | "CI_MARKET_DISCOUNT_CHANGED"
-  | "CI_REFERENCE_CHANGED_UNVERIFIED"
   | "MODEL_ROUTING_CHANGED"
   | "MODEL_RETIRED"
   | "SOURCE_CONFLICT"
   | "PARSER_FAILURE";
 
 export type PriceChangeAction =
-  | "AUTO_APPLY_BASE"
   | "ACTIVATE_PROMOTION"
   | "END_PROMOTION"
   | "PROCUREMENT_ONLY"
@@ -143,14 +136,21 @@ export function classifyCiCurrentChange(params: {
   return events;
 }
 
+/**
+ * CI reference classification owner (Phase A).
+ *
+ * CI `reference_*` is a PROCUREMENT-side quote, not official provider evidence:
+ * `PROVIDER_NORMAL_BASELINE_CHANGED` / `PROVIDER_SCHEDULED_BASELINE_CHANGED`
+ * are reserved for the Phase B official provider source adapter (exact model
+ * identity + pricing mode + official provenance + effectiveAt). Until that
+ * owner exists, a CI reference change is always UNVERIFIED and held.
+ */
 export function classifyCiReferenceChange(params: {
   policy: ModelPricingPolicy;
   published: PublishedModelPricing;
   previous: ModelPriceSnapshotRecord | null;
   current: ModelPriceSnapshotRecord;
-  phase?: ModelPricingTrackerPhase;
 }): ClassifiedPriceChange[] {
-  const phase = params.phase ?? MODEL_PRICING_TRACKER_PHASE;
   const events: ClassifiedPriceChange[] = [];
   if (params.previous && snapshotRatesEqual(params.previous.rates, params.current.rates)) {
     return events;
@@ -186,81 +186,32 @@ export function classifyCiReferenceChange(params: {
 
   const relativeDelta = maxRelativeRateDelta(prev, next);
   const isLarge = relativeDelta >= MODEL_PRICING_LARGE_CHANGE_THRESHOLD;
-  const scheduled =
-    params.current.validFrom != null &&
-    params.current.validFrom !== params.current.observedAt;
 
   const publishedInput = params.published.billingReferenceInputUsdPerMillion;
   const publishedOutput = params.published.billingReferenceOutputUsdPerMillion;
   const matchesPublishedBaseline =
     next.inputUsdPerMillion === publishedInput && next.outputUsdPerMillion === publishedOutput;
 
-  if (!matchesPublishedBaseline && !scheduled) {
-    events.push({
-      eventType: "CI_REFERENCE_CHANGED_UNVERIFIED",
-      action: "HOLD",
-      decision: "await_official_provider_corroboration",
-      classification: "ci_reference_differs_from_active_published_baseline",
-      oldFingerprint: params.previous?.rawFingerprint ?? null,
-      newFingerprint: params.current.rawFingerprint,
-      oldValues: ratesPayload(prev),
-      newValues: ratesPayload(next),
-      effectiveAt: params.current.observedAt,
-      eventFingerprint: eventFingerprintParts({
-        type: "CI_REFERENCE_CHANGED_UNVERIFIED",
-        modelId: params.policy.modelId,
-        newFingerprint: params.current.rawFingerprint,
-      }),
-    });
-  }
-
-  if (isLarge && !scheduled) {
-    events.push({
-      eventType: "PROVIDER_NORMAL_BASELINE_CHANGED",
-      action: "HOLD",
-      decision: "unexpected_large_change_admin_review",
-      classification: "UNEXPECTED_LARGE_CHANGE",
-      oldFingerprint: params.previous?.rawFingerprint ?? null,
-      newFingerprint: params.current.rawFingerprint,
-      oldValues: ratesPayload(prev),
-      newValues: ratesPayload(next),
-      effectiveAt: params.current.observedAt,
-      eventFingerprint: eventFingerprintParts({
-        type: "PROVIDER_NORMAL_BASELINE_CHANGED",
-        modelId: params.policy.modelId,
-        hold: "large_change",
-      }),
-    });
+  if (matchesPublishedBaseline) {
     return events;
   }
 
-  const eventType: PriceChangeEventType = scheduled
-    ? "PROVIDER_SCHEDULED_BASELINE_CHANGED"
-    : "PROVIDER_NORMAL_BASELINE_CHANGED";
-
-  const canAutoApply =
-    phase === "AUTO_APPLY_SAFE_EVENTS" &&
-    params.policy.autoApply &&
-    matchesPublishedBaseline &&
-    params.policy.baselineMode !== "FIXED_VERIFIED_REFERENCE";
-
   events.push({
-    eventType,
-    action: canAutoApply ? "AUTO_APPLY_BASE" : phase === "OBSERVE_ONLY" ? "OBSERVE_ONLY_LOG" : "HOLD",
-    decision: canAutoApply
-      ? "auto_apply_candidate"
-      : phase === "OBSERVE_ONLY"
-        ? "deferred_observe_only"
-        : "auto_apply_disabled_by_policy",
-    classification: scheduled ? "KNOWN_SCHEDULED_LARGE_CHANGE" : "verified_baseline_change",
+    eventType: "CI_REFERENCE_CHANGED_UNVERIFIED",
+    action: "HOLD",
+    decision: "await_official_provider_corroboration",
+    // The event OWNER stays CI-unverified even for large moves; the large
+    // change is only surfaced in the classification detail.
+    classification: isLarge ? "UNEXPECTED_LARGE_CHANGE" : "ci_reference_differs_from_active_published_baseline",
     oldFingerprint: params.previous?.rawFingerprint ?? null,
     newFingerprint: params.current.rawFingerprint,
-    oldValues: prev ? ratesPayload(prev) : {},
+    oldValues: ratesPayload(prev),
     newValues: ratesPayload(next),
-    effectiveAt: params.current.validFrom ?? params.current.observedAt,
+    effectiveAt: params.current.observedAt,
     eventFingerprint: eventFingerprintParts({
-      type: eventType,
+      type: "CI_REFERENCE_CHANGED_UNVERIFIED",
       modelId: params.policy.modelId,
+      largeChange: isLarge,
       newFingerprint: params.current.rawFingerprint,
     }),
   });
@@ -314,14 +265,4 @@ export function classifySourceConflict(params: {
       ci: params.ciReference.rawFingerprint,
     }),
   };
-}
-
-export function resolveActionForPhase(
-  action: PriceChangeAction,
-  phase: ModelPricingTrackerPhase = MODEL_PRICING_TRACKER_PHASE
-): PriceChangeAction {
-  if (phase === "OBSERVE_ONLY" && action === "AUTO_APPLY_BASE") {
-    return "OBSERVE_ONLY_LOG";
-  }
-  return action;
 }

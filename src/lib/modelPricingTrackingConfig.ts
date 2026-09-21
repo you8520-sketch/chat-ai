@@ -5,13 +5,15 @@
 
 import { CHEAPER_INFERENCE_BASE_URL } from "@/lib/cheaperInferenceConfig";
 
-export type ModelPricingTrackerPhase = "OBSERVE_ONLY" | "AUTO_APPLY_SAFE_EVENTS";
+/**
+ * Phase A is OBSERVE_ONLY and has no activation owner. AUTO_APPLY semantics
+ * return in Phase B together with official provider adapters and an
+ * activation safety gate; no dormant auto-apply branch is kept here.
+ */
+export type ModelPricingTrackerPhase = "OBSERVE_ONLY";
 
-/** Current deployment phase — do not enable AUTO_APPLY without evidence review. */
-export const MODEL_PRICING_TRACKER_PHASE: ModelPricingTrackerPhase =
-  process.env.MODEL_PRICING_TRACKER_PHASE === "AUTO_APPLY_SAFE_EVENTS"
-    ? "AUTO_APPLY_SAFE_EVENTS"
-    : "OBSERVE_ONLY";
+/** Current deployment phase. */
+export const MODEL_PRICING_TRACKER_PHASE: ModelPricingTrackerPhase = "OBSERVE_ONLY";
 
 /** Relative rate change above this fraction triggers UNEXPECTED_LARGE_CHANGE hold (when unscheduled). */
 export const MODEL_PRICING_LARGE_CHANGE_THRESHOLD = 0.25;
@@ -42,3 +44,13 @@ export type PriceSnapshotPricingMode =
   | "provider_standard"
   | "provider_peak"
   | "unknown";
+
+/**
+ * The shared CI catalog parser synthesizes cache rates when the source omits
+ * them (`cache_read = input * 0.1`, `cache_write = input`). Phase A cannot
+ * distinguish an explicit provider quote from that parser-derived fallback, so
+ * prepared/derived cache prices are explicitly UNVERIFIED provenance and cache
+ * price auto-application is a Phase B blocker. Live billing keeps its
+ * existing resilient-cache fallback behavior unchanged.
+ */
+export const CACHE_RATE_PROVENANCE_UNVERIFIED = "CACHE_RATE_PROVENANCE_UNVERIFIED" as const;

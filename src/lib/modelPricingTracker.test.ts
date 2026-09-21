@@ -19,16 +19,22 @@ import {
 } from "@/lib/modelPriceSnapshot";
 import { getModelPricingPolicy } from "@/lib/modelPricingPolicy";
 import {
+  CACHE_RATE_PROVENANCE_UNVERIFIED,
   CHEAPER_INFERENCE_MODELS_SOURCE_URL,
 } from "@/lib/modelPricingTrackingConfig";
 import { CHEAPER_INFERENCE_BASE_URL } from "@/lib/cheaperInferenceConfig";
+import { readFileSync } from "node:fs";
 import { ensureModelPricingTrackingSchema } from "@/lib/modelPricingTrackingSchema";
 import { runModelPricingTracker } from "@/lib/modelPricingTracker";
 import {
   ensureTrackerSchema,
   claimTrackerRun,
+  findTrackerAttemptById,
   findTrackerRunByDateKey,
   finishTrackerRun,
+  insertAdminEvent,
+  insertClassifiedEvent,
+  insertPriceSnapshot,
   readLatestSnapshot,
 } from "@/lib/modelPricingTrackerPersistence";
 import {
@@ -152,9 +158,14 @@ describe("model pricing tracker regression fixtures", () => {
       published,
       previous: prev,
       current: next,
-      phase: "OBSERVE_ONLY",
     });
-    assert.ok(events.some((e) => e.eventType === "PROVIDER_NORMAL_BASELINE_CHANGED"));
+    // CI reference evidence is never a provider baseline event: it stays
+    // UNVERIFIED and held in Phase A. Invariants preserved: no auto-apply, and
+    // the published pricing catalog (and its pricingVersion) is untouched.
+    assert.ok(events.some((e) => e.eventType === "CI_REFERENCE_CHANGED_UNVERIFIED"));
+    assert.ok(events.every((e) => e.action === "HOLD"));
+    assert.ok(events.every((e) => e.eventType !== "PROVIDER_NORMAL_BASELINE_CHANGED"));
+    assert.ok(events.every((e) => e.eventType !== "PROVIDER_SCHEDULED_BASELINE_CHANGED"));
     assert.ok(events.every((e) => e.action !== "AUTO_APPLY_BASE"));
     assert.equal(getPublishedPricingVersion(GEMINI), versionBefore);
   });
@@ -309,7 +320,7 @@ describe("model pricing tracker regression fixtures", () => {
       skipCatalogRefresh: true,
     });
     assert.equal(first.status, "completed");
-    assert.ok(first.runId != null);
+    assert.ok(first.attemptId != null);
 
     const second = await runModelPricingTracker({
       db,
@@ -324,8 +335,8 @@ describe("model pricing tracker regression fixtures", () => {
     assert.equal(run?.status, "completed");
 
     const eventCountAfterFirst = db
-      .prepare(`SELECT COUNT(*) AS c FROM model_price_change_events WHERE run_id = ?`)
-      .get(first.runId) as { c: number };
+      .prepare(`SELECT COUNT(*) AS c FROM model_price_change_events WHERE attempt_id = ?`)
+      .get(first.attemptId) as { c: number };
     const eventCountAfterSecond = db
       .prepare(`SELECT COUNT(*) AS c FROM model_price_change_events`)
       .get() as { c: number };
@@ -538,11 +549,9 @@ describe("PR #992 correction fixtures (provenance + run-claim atomicity)", () =>
     const failed = claimTrackerRun(db, { runDateKey: "2026-09-20", phase: "OBSERVE_ONLY", startedAt });
     assert.equal(failed.outcome, "CLAIMED");
     finishTrackerRun(db, {
-      runId: failed.runId,
+      attemptId: failed.attemptId,
       status: "failed",
       finishedAt: startedAt,
-      snapshotCount: 0,
-      eventCount: 0,
       errorSummary: "boom",
     });
 
@@ -556,17 +565,15 @@ describe("PR #992 correction fixtures (provenance + run-claim atomicity)", () =>
       [reclaimA, reclaimB].find((c) => c.outcome === "SKIPPED_DUPLICATE")?.outcome,
       "SKIPPED_DUPLICATE"
     );
-
-    finishTrackerRun(db, {
-      runId: reclaimA.runId,
-      status: "completed",
-      finishedAt: startedAt,
-      snapshotCount: 1,
-      eventCount: 0,
-      errorSummary: "",
-    });
     const retried = claimTrackerRun(db, { runDateKey: "2026-09-20", phase: "OBSERVE_ONLY", startedAt });
     assert.equal(retried.outcome, "SKIPPED_DUPLICATE");
+
+    finishTrackerRun(db, {
+      attemptId: reclaimed[0].attemptId,
+      status: "completed",
+      finishedAt: startedAt,
+      errorSummary: "",
+    });
     const row = findTrackerRunByDateKey(db, "2026-09-20");
     assert.equal(row?.status, "completed");
   });
@@ -664,5 +671,405 @@ describe("PR #992 correction fixtures (provenance + run-claim atomicity)", () =>
       listPublishedModelIds().map((id) => getPublishedPricingVersion(id)),
       versionsBefore
     );
+  });
+});
+
+describe("PR #992 final correction fixtures (attempt identity + forensic freshness)", () => {
+  const SOURCE_URL = CHEAPER_INFERENCE_MODELS_SOURCE_URL;
+
+  function partialSnapshot(fingerprint: string, observedAt: string) {
+    return {
+      provider: "cheaperinference" as const,
+      modelId: DEEPSEEK,
+      providerModelId: DEEPSEEK,
+      pricingMode: "procurement_current" as const,
+      sourceKind: "cheaper_inference_models_current" as const,
+      sourceUrl: SOURCE_URL,
+      rates: {
+        inputUsdPerMillion: 0.11,
+        outputUsdPerMillion: 0.22,
+        cacheReadUsdPerMillion: 0.011,
+        cacheWriteUsdPerMillion: 0.11,
+        tierThreshold: null as number | null,
+        discountPercent: 25,
+      },
+      rawFingerprint: fingerprint,
+      observedAt,
+      validFrom: null,
+      validUntil: null,
+    };
+  }
+
+  it("J: a partial FAILED attempt keeps its own identity and evidence, and the retry is separated", () => {
+    const db = makeDb();
+    ensureTrackerSchema(db);
+    const startedAt = FIXED_NOW.toISOString();
+
+    // ATTEMPT 1 — partial snapshots/events then failure
+    const a1 = claimTrackerRun(db, { runDateKey: "2026-09-20", phase: "OBSERVE_ONLY", startedAt });
+    assert.equal(a1.outcome, "CLAIMED");
+    insertPriceSnapshot(db, a1.attemptId, partialSnapshot("failed-partial-1", startedAt));
+    insertClassifiedEvent(db, a1.attemptId, DEEPSEEK, {
+      eventType: "PARSER_FAILURE",
+      action: "ADMIN_ALERT",
+      decision: "d1",
+      classification: "c1",
+      oldFingerprint: null,
+      newFingerprint: null,
+      oldValues: {},
+      newValues: {},
+      effectiveAt: null,
+      eventFingerprint: "j-failed-attempt-event",
+    }, null);
+    insertAdminEvent(db, {
+      attemptId: a1.attemptId,
+      adminEventType: "PARSER_FAILED",
+      modelId: null,
+      source: "test",
+      classification: "catalog_refresh_failed",
+      decision: "fail_closed_keep_active_price",
+    });
+    finishTrackerRun(db, { attemptId: a1.attemptId, status: "failed", finishedAt: startedAt, errorSummary: "partial" });
+
+    // ATTEMPT 2 — same-day retry gets a NEW immutable attempt identity
+    const a2 = claimTrackerRun(db, { runDateKey: "2026-09-20", phase: "OBSERVE_ONLY", startedAt });
+    assert.equal(a2.outcome, "CLAIMED");
+    assert.ok(a2.reclaimed);
+    // Daily claim identity is shared; run attempt identity is distinct.
+    assert.equal(a2.runId, a1.runId);
+    assert.notEqual(a2.attemptId, a1.attemptId);
+    insertPriceSnapshot(db, a2.attemptId, partialSnapshot("retry-evidence", startedAt));
+    finishTrackerRun(db, { attemptId: a2.attemptId, status: "completed", finishedAt: startedAt, errorSummary: "" });
+
+    // Failed evidence preserved (append-only), retry evidence separated.
+    assert.equal(
+      (db.prepare(`SELECT COUNT(*) c FROM model_price_snapshots WHERE attempt_id = ?`).get(a1.attemptId) as { c: number }).c,
+      1
+    );
+    assert.equal(
+      (db.prepare(`SELECT COUNT(*) c FROM model_price_change_events WHERE attempt_id = ?`).get(a1.attemptId) as { c: number }).c,
+      1
+    );
+    assert.equal(
+      (db.prepare(`SELECT COUNT(*) c FROM model_pricing_admin_events WHERE attempt_id = ?`).get(a1.attemptId) as { c: number }).c,
+      1
+    );
+    assert.equal(
+      (db.prepare(`SELECT COUNT(*) c FROM model_price_snapshots WHERE attempt_id = ?`).get(a2.attemptId) as { c: number }).c,
+      1
+    );
+    const failedRow = db
+      .prepare(`SELECT snapshot_count, error_summary FROM model_pricing_tracker_attempts WHERE id = ?`)
+      .get(a1.attemptId) as { snapshot_count: number; error_summary: string };
+    assert.equal(failedRow.snapshot_count, 1);
+    assert.equal(failedRow.error_summary, "partial");
+  });
+
+  it("K: completed attempt counters match the exact persisted row count", async () => {
+    const db = makeDb();
+    seedCatalog(GEMINI, {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+    });
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.5,
+      outputUsdPerMillion: 1.5,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+    });
+    seedCatalog("gemini-3.7-flash", {
+      inputUsdPerMillion: 0.22,
+      outputUsdPerMillion: 1.1,
+      referenceInputUsdPerMillion: 0.375,
+      referenceOutputUsdPerMillion: 1.875,
+      discountPercent: 40,
+    });
+    seedCatalog("gpt-5.6-terra", {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+    });
+
+    const result = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+    assert.equal(result.status, "completed");
+    assert.ok(result.attemptId != null);
+    const attempt = findTrackerAttemptById(db, result.attemptId)!;
+    assert.equal(attempt.status, "completed");
+    assert.equal(
+      attempt.snapshot_count,
+      (db.prepare(`SELECT COUNT(*) c FROM model_price_snapshots WHERE attempt_id = ?`).get(result.attemptId) as { c: number }).c
+    );
+    assert.equal(
+      attempt.event_count,
+      (db.prepare(`SELECT COUNT(*) c FROM model_price_change_events WHERE attempt_id = ?`).get(result.attemptId) as { c: number }).c
+    );
+    assert.equal(attempt.snapshot_count, result.snapshotCount);
+  });
+
+  it("L: a failed partial snapshot is never consumed as previous-day source truth", async () => {
+    const db = makeDb();
+    seedCatalog(GEMINI, {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+    });
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.5,
+      outputUsdPerMillion: 1.5,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 55,
+    });
+    seedCatalog("gemini-3.7-flash", {
+      inputUsdPerMillion: 0.22,
+      outputUsdPerMillion: 1.1,
+      referenceInputUsdPerMillion: 0.375,
+      referenceOutputUsdPerMillion: 1.875,
+      discountPercent: 40,
+    });
+    seedCatalog("gpt-5.6-terra", {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+    });
+
+    const day1 = await runModelPricingTracker({
+      db,
+      now: new Date("2026-09-19T03:00:00.000Z"),
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+    assert.equal(day1.status, "completed");
+
+    // Simulate a failed partial attempt that recorded the NEW (tainted) value.
+    const failedAttempt = claimTrackerRun(db, { runDateKey: "2026-09-20", phase: "OBSERVE_ONLY", startedAt: FIXED_NOW.toISOString() });
+    assert.equal(failedAttempt.outcome, "CLAIMED");
+    const tainted = buildCiCurrentSnapshot({
+      policy: getModelPricingPolicy(DEEPSEEK)!,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 0.11,
+        outputUsdPerMillion: 0.22,
+        referenceInputUsdPerMillion: 0.66,
+        referenceOutputUsdPerMillion: 1.98,
+        discountPercent: 55,
+      }),
+      observedAt: FIXED_NOW.toISOString(),
+    });
+    insertPriceSnapshot(db, failedAttempt.attemptId, tainted);
+    finishTrackerRun(db, { attemptId: failedAttempt.attemptId, status: "failed", finishedAt: FIXED_NOW.toISOString(), errorSummary: "tainted" });
+
+    // Same-day retry: previous truth must come from the COMPLETED day-1
+    // attempt (discount 55), NOT from the failed attempt's tainted partial.
+    const retry = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+    assert.equal(retry.status, "completed");
+    // The tainted partial evidence is preserved append-only...
+    const storedTainted = db
+      .prepare(`SELECT COUNT(*) c FROM model_price_snapshots WHERE raw_fingerprint = ?`)
+      .get(tainted.rawFingerprint) as { c: number };
+    assert.ok(storedTainted.c >= 1);
+    // ...but it is NOT previous source truth: the retry must observe the
+    // A(0.5/1.5) -> tainted(0.11/0.22) procurement change from the completed
+    // day-1 attempt. If the failed partial were used as previous truth, the
+    // rates would compare equal and no change event would be recorded.
+    assert.ok(
+      retry.events.some(
+        (e) => e.eventType === "CI_MARKET_DISCOUNT_CHANGED" && e.classification === "ci_current_rates_changed"
+      )
+    );
+    const latest = readLatestSnapshot(db, DEEPSEEK, "cheaper_inference_models_current");
+    assert.equal(latest?.rawFingerprint, tainted.rawFingerprint);
+  });
+
+  it("M: a failed refresh never writes the stale cache as today's CI observation", async () => {
+    const db = makeDb();
+    // Stale, previously-cached in-memory catalog exists.
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.5,
+      outputUsdPerMillion: 1.5,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+    });
+
+    // No CI API key in the test env -> the live refresh fails (resilient cache
+    // stays warm). Production path: no skipCatalogRefresh.
+    const result = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+    });
+
+    assert.equal(result.status, "completed");
+    assert.ok(result.errors.includes("ci_catalog_refresh_failed"));
+    assert.ok(result.events.length === 0, "no CI price-change classification without a fresh source");
+    // No CI snapshot (current or reference) from the stale cache.
+    const ciSnapshots = db
+      .prepare(
+        `SELECT COUNT(*) c FROM model_price_snapshots s
+         JOIN model_pricing_tracker_attempts a ON a.id = s.attempt_id
+         WHERE s.source_kind IN ('cheaper_inference_models_current','cheaper_inference_models_reference')
+           AND a.run_date_key = '2026-09-20'`
+      )
+      .get() as { c: number };
+    assert.equal(ciSnapshots.c, 0);
+    // The failure evidence exists as an admin event.
+    const adminFailures = db
+      .prepare(
+        `SELECT COUNT(*) c FROM model_pricing_admin_events
+         WHERE classification = 'catalog_refresh_failed' AND created_at >= date('now','-1 day')`
+      )
+      .get() as { c: number };
+    assert.ok(adminFailures.c >= 1);
+  });
+
+  it("N: a CI reference change stays CI_REFERENCE_CHANGED_UNVERIFIED and holds", () => {
+    const policy = getModelPricingPolicy(DEEPSEEK)!;
+    const published = getPublishedPricing(DEEPSEEK);
+    const observedAt = FIXED_NOW.toISOString();
+    const previous = buildCiReferenceSnapshot({
+      policy,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 0.5,
+        outputUsdPerMillion: 1.5,
+        referenceInputUsdPerMillion: 0.66,
+        referenceOutputUsdPerMillion: 1.98,
+        discountPercent: 25,
+      }),
+      observedAt,
+    })!;
+    const next = buildCiReferenceSnapshot({
+      policy,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 0.5,
+        outputUsdPerMillion: 1.5,
+        referenceInputUsdPerMillion: 0.792,
+        referenceOutputUsdPerMillion: 2.376,
+        discountPercent: 25,
+      }),
+      observedAt,
+    })!;
+
+    const events = classifyCiReferenceChange({ policy, published, previous, current: next });
+    assert.equal(events.length, 1);
+    assert.equal(events[0]?.eventType, "CI_REFERENCE_CHANGED_UNVERIFIED");
+    assert.equal(events[0]?.action, "HOLD");
+    assert.ok(events.every((e) => e.eventType !== "PROVIDER_NORMAL_BASELINE_CHANGED"));
+    assert.ok(events.every((e) => e.eventType !== "PROVIDER_SCHEDULED_BASELINE_CHANGED"));
+
+    // A large CI move is still owned by the CI-unverified event; the large
+    // change is surfaced only in the classification detail.
+    const large = buildCiReferenceSnapshot({
+      policy,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 0.5,
+        outputUsdPerMillion: 1.5,
+        referenceInputUsdPerMillion: 1.32,
+        referenceOutputUsdPerMillion: 3.96,
+        discountPercent: 0,
+      }),
+      observedAt,
+    })!;
+    const largeEvents = classifyCiReferenceChange({ policy, published, previous, current: large });
+    assert.ok(largeEvents.every((e) => e.eventType === "CI_REFERENCE_CHANGED_UNVERIFIED"));
+    assert.ok(largeEvents.some((e) => e.classification === "UNEXPECTED_LARGE_CHANGE"));
+    assert.ok(largeEvents.every((e) => e.action === "HOLD"));
+  });
+
+  it("O: Phase A has no reachable auto-apply branch", () => {
+    const classifierSource = readFileSync("src/lib/modelPriceChangeClassifier.ts", "utf8");
+    const trackerSource = readFileSync("src/lib/modelPricingTracker.ts", "utf8");
+    const configSource = readFileSync("src/lib/modelPricingTrackingConfig.ts", "utf8");
+    const schemaSource = readFileSync("src/lib/modelPricingTrackingSchema.ts", "utf8");
+    for (const token of ["AUTO_APPLY_BASE", "AUTO_APPLY_SAFE_EVENTS", "PRICE_CHANGED_AUTO_APPLIED"]) {
+      assert.ok(!classifierSource.includes(token), `classifier contains ${token}`);
+      assert.ok(!trackerSource.includes(token), `tracker contains ${token}`);
+      assert.ok(!configSource.includes(token), `config contains ${token}`);
+      assert.ok(!schemaSource.includes(token), `schema contains ${token}`);
+    }
+    void CACHE_RATE_PROVENANCE_UNVERIFIED;
+  });
+
+  it("P: CI snapshot observed_at is the source fetch timestamp, not the run clock", async () => {
+    const db = makeDb();
+    const sourceMs = FIXED_NOW.getTime() - 90_000;
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.5,
+      outputUsdPerMillion: 1.5,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+      fetchedAt: sourceMs,
+    });
+    seedCatalog(GEMINI, {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+      fetchedAt: sourceMs,
+    });
+    seedCatalog("gemini-3.7-flash", {
+      inputUsdPerMillion: 0.22,
+      outputUsdPerMillion: 1.1,
+      referenceInputUsdPerMillion: 0.375,
+      referenceOutputUsdPerMillion: 1.875,
+      discountPercent: 40,
+      fetchedAt: sourceMs,
+    });
+    seedCatalog("gpt-5.6-terra", {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+      fetchedAt: sourceMs,
+    });
+
+    const startedAt = FIXED_NOW.toISOString();
+    const result = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+    assert.equal(result.status, "completed");
+
+    const attemptRow = db
+      .prepare(`SELECT started_at FROM model_pricing_tracker_attempts WHERE id = ?`)
+      .get(result.attemptId) as { started_at: string };
+
+    const ciCurrent = readLatestSnapshot(db, DEEPSEEK, "cheaper_inference_models_current");
+    assert.equal(ciCurrent?.observedAt, new Date(sourceMs).toISOString());
+
+    const published = db
+      .prepare(
+        `SELECT observed_at FROM model_price_snapshots
+         WHERE source_kind = 'published_billing_baseline' AND attempt_id = ?
+         ORDER BY id DESC LIMIT 1`
+      )
+      .get(result.attemptId) as { observed_at: string };
+    // The published-code baseline is a code constant, not a source observation:
+    // it anchors to the attempt start, while CI rows anchor to the source fetch.
+    assert.equal(published.observed_at, attemptRow.started_at);
   });
 });
