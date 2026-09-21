@@ -3,7 +3,6 @@ import { requireAdminRequest, requireAdminUser } from "@/lib/adminAuth";
 import { isAdminManagedBoard } from "@/lib/boardConfig";
 import { createAdminBoardPost, deleteAdminBoardPost, listPostsByBoard } from "@/lib/boardPosts";
 import { getDb } from "@/lib/db";
-import { notifyBroadcastInApp } from "@/lib/userNotifications";
 import { queueBroadcastWebPush } from "@/lib/webPush";
 
 export async function GET(req: Request) {
@@ -13,7 +12,7 @@ export async function GET(req: Request) {
 
   const board = new URL(req.url).searchParams.get("board") ?? "notice";
   if (!isAdminManagedBoard(board)) {
-    return NextResponse.json({ error: "board는 notice 또는 faq만 가능합니다." }, { status: 400 });
+    return NextResponse.json({ error: "board는 notice만 가능합니다." }, { status: 400 });
   }
 
   const posts = listPostsByBoard(getDb(), board);
@@ -32,7 +31,7 @@ export async function POST(req: Request) {
   const content = typeof body.content === "string" ? body.content.trim() : "";
 
   if (!isAdminManagedBoard(board)) {
-    return NextResponse.json({ error: "board는 notice 또는 faq만 가능합니다." }, { status: 400 });
+    return NextResponse.json({ error: "board는 notice만 가능합니다." }, { status: 400 });
   }
   if (!title || !content) {
     return NextResponse.json({ error: "제목과 내용을 입력하세요." }, { status: 400 });
@@ -49,16 +48,10 @@ export async function POST(req: Request) {
   if (board === "notice") {
     const preview = content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
     const pushTitle = `새 공지: ${title}`;
-    notifyBroadcastInApp(db, {
-      type: "notice",
-      refId: id,
-      title: pushTitle,
-      body: preview,
-    });
     queueBroadcastWebPush(db, `notice:${id}`, {
       title: pushTitle,
       body: preview,
-      url: "/board/notice",
+      url: `/notices/${id}`,
       tag: `notice:${id}`,
       kind: "notice",
     });

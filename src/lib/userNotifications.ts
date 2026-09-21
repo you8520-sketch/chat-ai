@@ -1,52 +1,23 @@
 import type Database from "better-sqlite3";
-import { getUnreadNoticeCount } from "./notices";
+import { getUnreadNoticeCount, isNoticeRead, type GuestNoticeReadState } from "./notices";
 import { queueUserWebPush, type WebPushPayload } from "./webPush";
 import { isAdminUser } from "./isAdminUser";
+import {
+  notificationHref,
+  notificationIcon,
+  type NoticeFeedRow,
+  type NoticeRow,
+  type UserNotificationRow,
+  type UserNotificationType,
+} from "./userNotificationPresentation";
 
-export type UserNotificationType =
-  | "creator_character"
-  | "gift_sent"
-  | "gift_received"
-  | "payment_success"
-  | "payment_cancel"
-  | "follow_received"
-  | "admin_point_grant"
-  | "inquiry_reply"
-  | "point_expiring"
-  | "character_review"
-  | "report_result"
-  | "character_like"
-  | "profile_comment"
-  | "post_comment"
-  | "notice"
-  | "event"
-  | "admin_comment_review"
-  | "comment_moderation";
-
-export type UserNotificationRow = {
-  id: number;
-  user_id: number;
-  type: UserNotificationType;
-  ref_id: number;
-  actor_id: number | null;
-  title: string;
-  body: string;
-  created_at: string;
-  read_at: string | null;
-  emoji: string | null;
-  hue: number | null;
-  character_name: string | null;
-  actor_nickname: string | null;
-  comment_target_type: "creator" | "character" | null;
-  comment_target_id: number | null;
-};
-
-export type NoticeRow = {
-  id: number;
-  title: string;
-  content: string;
-  author_name: string;
-  created_at: string;
+export {
+  notificationHref,
+  notificationIcon,
+  type NoticeFeedRow,
+  type NoticeRow,
+  type UserNotificationRow,
+  type UserNotificationType,
 };
 
 function insertNotification(
@@ -83,9 +54,12 @@ function insertNotification(
   return notificationId;
 }
 
+/** Live activity unread — excludes mirrored notice rows (canonical owner: notice_reads). */
+const LIVE_ACTIVITY_UNREAD_WHERE = "user_id=? AND read_at IS NULL AND type != 'notice'";
+
 export function getUnreadUserNotificationCount(db: Database.Database, userId: number): number {
   const row = db
-    .prepare("SELECT COUNT(*) AS c FROM user_notifications WHERE user_id=? AND read_at IS NULL")
+    .prepare(`SELECT COUNT(*) AS c FROM user_notifications WHERE ${LIVE_ACTIVITY_UNREAD_WHERE}`)
     .get(userId) as { c: number };
   return row.c;
 }
@@ -112,7 +86,7 @@ export function listUserNotifications(
   return db
     .prepare(
       `${USER_NOTIFICATION_SELECT}
-       WHERE n.user_id = ? AND n.read_at IS NULL
+       WHERE n.user_id = ? AND n.read_at IS NULL AND n.type != 'notice'
        ORDER BY n.created_at DESC
        LIMIT ?`
     )
@@ -128,7 +102,7 @@ export function listRecentUserNotifications(
   return db
     .prepare(
       `${USER_NOTIFICATION_SELECT}
-       WHERE n.user_id = ?
+       WHERE n.user_id = ? AND n.type != 'notice'
        ORDER BY n.created_at DESC
        LIMIT ?`
     )
@@ -146,33 +120,13 @@ export function listCreatorNotifications(
 
 export function listUnreadNotices(
   db: Database.Database,
-  readId: number,
+  guestState: GuestNoticeReadState,
   limit = 50,
   userId: number | null = null
 ): NoticeRow[] {
-  if (userId) {
-    return db
-      .prepare(
-        `SELECT p.id, p.title, p.content, p.author_name, p.created_at
-         FROM posts p
-         WHERE p.board='notice'
-           AND NOT EXISTS (
-             SELECT 1 FROM notice_reads r
-             WHERE r.user_id=? AND r.notice_id=p.id
-           )
-         ORDER BY p.id DESC
-         LIMIT ?`
-      )
-      .all(userId, limit) as NoticeRow[];
-  }
-  return db
-    .prepare(
-      `SELECT id, title, content, author_name, created_at
-       FROM posts WHERE board='notice' AND id > ?
-       ORDER BY id DESC
-       LIMIT ?`
-    )
-    .all(readId, limit) as NoticeRow[];
+  return listRecentNotices(db, limit).filter(
+    (notice) => !isNoticeRead(db, userId, notice.id, guestState)
+  );
 }
 
 /** 알림 페이지 — 읽음 포함 최근 공지 */
@@ -187,12 +141,24 @@ export function listRecentNotices(db: Database.Database, limit = 20): NoticeRow[
     .all(limit) as NoticeRow[];
 }
 
+export function listRecentNoticesWithReadStatus(
+  db: Database.Database,
+  userId: number | null,
+  guestState: GuestNoticeReadState,
+  limit = 20
+): NoticeFeedRow[] {
+  return listRecentNotices(db, limit).map((notice) => ({
+    ...notice,
+    unread: !isNoticeRead(db, userId, notice.id, guestState),
+  }));
+}
+
 export function getTotalUnreadCount(
   db: Database.Database,
   userId: number | null,
-  noticeReadId: number
+  guestState: GuestNoticeReadState
 ): number {
-  const noticeCount = getUnreadNoticeCount(db, userId, noticeReadId);
+  const noticeCount = getUnreadNoticeCount(db, userId, guestState);
   const activityCount = userId ? getUnreadUserNotificationCount(db, userId) : 0;
   return noticeCount + activityCount;
 }
@@ -203,98 +169,22 @@ export function markUserNotificationsRead(db: Database.Database, userId: number)
   ).run(userId);
 }
 
+export function markSingleUserNotificationRead(
+  db: Database.Database,
+  userId: number,
+  notificationId: number
+): boolean {
+  const result = db
+    .prepare(
+      "UPDATE user_notifications SET read_at=datetime('now') WHERE id=? AND user_id=? AND read_at IS NULL"
+    )
+    .run(notificationId, userId);
+  return result.changes > 0;
+}
+
 /** @deprecated use markUserNotificationsRead */
 export function markCreatorNotificationsRead(db: Database.Database, userId: number) {
   markUserNotificationsRead(db, userId);
-}
-
-export function notificationHref(n: UserNotificationRow): string {
-  switch (n.type) {
-    case "creator_character":
-    case "character_like":
-      return `/character/${n.ref_id}`;
-    case "profile_comment":
-      if (n.comment_target_type === "character" && n.comment_target_id) {
-        return `/character/${n.comment_target_id}`;
-      }
-      if (n.comment_target_type === "creator" && n.comment_target_id) {
-        return `/creator/${n.comment_target_id}`;
-      }
-      return "/notifications";
-    case "post_comment":
-      return `/board/info?post=${n.ref_id}#post-${n.ref_id}`;
-    case "admin_comment_review":
-      return "/admin/comment-reports";
-    case "comment_moderation":
-      return "/notifications";
-    case "follow_received":
-      return n.actor_id ? `/creator/${n.actor_id}` : "/tab/following";
-    case "gift_sent":
-    case "gift_received":
-    case "payment_success":
-    case "payment_cancel":
-    case "admin_point_grant":
-    case "point_expiring":
-      return "/points";
-    case "inquiry_reply":
-      return "/board/inquiry";
-    case "character_review":
-      return `/character/${n.ref_id}`;
-    case "report_result":
-      return "/notifications";
-    case "notice":
-      return "/board/notice";
-    case "event":
-      return "/";
-    default: {
-      const _exhaustive: never = n.type;
-      return _exhaustive;
-    }
-  }
-}
-
-export function notificationIcon(type: UserNotificationType): string {
-  switch (type) {
-    case "creator_character":
-      return "✨";
-    case "gift_sent":
-      return "🎁";
-    case "gift_received":
-      return "💝";
-    case "payment_success":
-      return "✅";
-    case "payment_cancel":
-      return "↩️";
-    case "admin_point_grant":
-      return "🎉";
-    case "inquiry_reply":
-      return "💬";
-    case "point_expiring":
-      return "⏳";
-    case "character_review":
-      return "✅";
-    case "report_result":
-      return "📋";
-    case "follow_received":
-      return "👤";
-    case "character_like":
-      return "❤️";
-    case "profile_comment":
-    case "post_comment":
-      return "💬";
-    case "admin_comment_review":
-      return "🚨";
-    case "comment_moderation":
-      return "🛡️";
-    case "notice":
-      return "📢";
-    case "event":
-      return "🎉";
-    default: {
-      const _exhaustive: never = type;
-      return _exhaustive;
-    }
-  }
 }
 
 function userFlagOn(
@@ -714,29 +604,6 @@ export function notifyAdminPointGrant(
       url: "/points",
       tag: `point-grant:${logId}`,
       kind: "points",
-    },
-  });
-}
-
-export function notifyInquiryReply(
-  db: Database.Database,
-  userId: number,
-  postId: number,
-  inquiryTitle: string,
-  replyPreview: string
-) {
-  const preview = replyPreview.replace(/\s+/g, " ").trim().slice(0, 120);
-  insertNotification(db, {
-    userId,
-    type: "inquiry_reply",
-    refId: postId,
-    actorId: null,
-    title: "문의 답변",
-    body: `「${inquiryTitle}」에 운영팀 답변이 등록되었습니다. ${preview}${replyPreview.length > 120 ? "…" : ""}`,
-    push: {
-      url: "/board/inquiry",
-      tag: `inquiry-reply:${postId}`,
-      kind: "support_result",
     },
   });
 }

@@ -24,32 +24,13 @@ type Props = {
     isAdmin?: boolean;
     isCreator?: boolean;
   };
-  unreadNotice?: boolean;
   pendingCommentReviews?: number;
 };
-
-const SUPPORT_LINKS = [
-  { href: "/board/notice", label: "공지사항", noticeBadge: true },
-  { href: "/board/inquiry", label: "문의게시판" },
-  { href: "/board/faq", label: "FAQ" },
-] as const;
 
 const SETTINGS_ACTION_LINK_CLASS =
   "inline-flex min-h-11 items-center justify-center rounded-xl border border-white/10 bg-[#11131a] px-4 py-2.5 text-center text-sm font-semibold text-zinc-100 transition hover:border-violet-400/30 hover:bg-[#181b24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70";
 
-function SupportChevron() {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden>
-      <path
-        fillRule="evenodd"
-        d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-export default function SettingsClient({ user, unreadNotice = false, pendingCommentReviews = 0 }: Props) {
+export default function SettingsClient({ user, pendingCommentReviews = 0 }: Props) {
   const router = useRouter();
   const [nickname, setNickname] = useState(user.nickname);
   const [pref, setPref] = useState(user.pref);
@@ -114,32 +95,6 @@ export default function SettingsClient({ user, unreadNotice = false, pendingComm
         </div>
       </section>
 
-      <section className="mt-4">
-        <h2 className={cn(studioType.caption, "mb-2 px-0.5 font-semibold uppercase tracking-wide")}>
-          고객지원
-        </h2>
-        <ul className="flex flex-col gap-2">
-          {SUPPORT_LINKS.map((l) => (
-            <li key={l.href}>
-              <Link
-                href={l.href}
-                className="flex h-14 items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#11131a] px-4 text-sm font-medium text-zinc-100 transition hover:bg-[#161922]"
-              >
-                <span className="flex items-center gap-2">
-                  {l.label}
-                  {"noticeBadge" in l && l.noticeBadge && unreadNotice && (
-                    <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-bold text-violet-200">
-                      NEW
-                    </span>
-                  )}
-                </span>
-                <SupportChevron />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
-
       <section className={cn(studioSurface.card, "mt-6 p-5")}>
         <h2 className={studioType.sectionTitle}>내 프로필 · 크리에이터</h2>
         <p className={cn(studioType.helper, "mt-1")}>
@@ -170,7 +125,7 @@ export default function SettingsClient({ user, unreadNotice = false, pendingComm
       {user.isAdmin && (
         <section className="mt-6 rounded-xl border border-violet-500/30 bg-violet-950/30 p-5">
           <h2 className="font-semibold tracking-tight text-violet-200">관리자</h2>
-          <p className={cn(studioType.helper, "mt-1")}>이벤트 승인·포인트 지급·공지/FAQ·문의 답변·정산 조회</p>
+          <p className={cn(studioType.helper, "mt-1")}>이벤트 승인·포인트 지급·공지 관리·정산 조회</p>
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Link
               href="/admin/point-grant"
@@ -230,13 +185,7 @@ export default function SettingsClient({ user, unreadNotice = false, pendingComm
               href="/admin/boards"
               className={SETTINGS_ACTION_LINK_CLASS}
             >
-              공지 · FAQ 관리
-            </Link>
-            <Link
-              href="/admin/inquiries"
-              className={SETTINGS_ACTION_LINK_CLASS}
-            >
-              문의 게시판 관리
+              공지사항 관리
             </Link>
             <Link
               href="/admin/home-popup-notice"

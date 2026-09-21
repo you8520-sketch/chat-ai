@@ -3,11 +3,6 @@ import { ADMIN_MANAGED_BOARDS, type AdminManagedBoard } from "./boardConfig";
 
 export const DEFAULT_BOARD_POSTS = [
   {
-    board: "faq" as const,
-    title: "캐릭터 제작은 누구나 가능한가요?",
-    content: "캐릭터 제작은 성인인증을 완료한 회원만 가능합니다.",
-  },
-  {
     board: "notice" as const,
     title: "클로즈베타 테스트중",
     content:
@@ -34,15 +29,15 @@ export function ensureDefaultBoardPost(
   );
 }
 
-/** Keep oldest row per board+title; drop duplicate FAQ/notice rows. */
+/** Keep oldest row per board+title; drop duplicate notice rows. */
 export function dedupeAdminBoardPostsByTitle(db: Database.Database): number {
   const result = db
     .prepare(
       `DELETE FROM posts
-       WHERE board IN ('notice', 'faq')
+       WHERE board = 'notice'
          AND id NOT IN (
            SELECT MIN(id) FROM posts
-           WHERE board IN ('notice', 'faq')
+           WHERE board = 'notice'
            GROUP BY board, title
          )`
     )
@@ -70,12 +65,6 @@ export type BoardCommentRow = {
   is_staff_reply: number;
 };
 
-export type InquiryAdminRow = BoardPostRow & {
-  user_nickname: string | null;
-  user_email: string | null;
-  reply_count: number;
-};
-
 const POST_SELECT =
   "SELECT id, board, title, content, author_name, author_id, created_at FROM posts";
 
@@ -83,21 +72,6 @@ export function listPostsByBoard(db: Database.Database, board: AdminManagedBoard
   return db
     .prepare(`${POST_SELECT} WHERE board=? ORDER BY id DESC LIMIT 100`)
     .all(board) as BoardPostRow[];
-}
-
-export function listInquiriesForAdmin(db: Database.Database): InquiryAdminRow[] {
-  return db
-    .prepare(
-      `SELECT p.id, p.board, p.title, p.content, p.author_name, p.author_id, p.created_at,
-              u.nickname AS user_nickname, u.email AS user_email,
-              (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS reply_count
-       FROM posts p
-       LEFT JOIN users u ON u.id = p.author_id
-       WHERE p.board = 'inquiry'
-       ORDER BY p.id DESC
-       LIMIT 200`
-    )
-    .all() as InquiryAdminRow[];
 }
 
 export function getPostById(db: Database.Database, id: number): BoardPostRow | undefined {
@@ -142,23 +116,4 @@ export function listCommentsForPost(db: Database.Database, postId: number): Boar
        FROM comments WHERE post_id=? ORDER BY id ASC`
     )
     .all(postId) as BoardCommentRow[];
-}
-
-export function addInquiryStaffReply(
-  db: Database.Database,
-  postId: number,
-  adminId: number,
-  content: string
-): number {
-  const post = getPostById(db, postId);
-  if (!post || post.board !== "inquiry") {
-    throw new Error("invalid inquiry");
-  }
-  const result = db
-    .prepare(
-      `INSERT INTO comments (post_id, author_id, author_name, content, is_staff_reply)
-       VALUES (?,?,?,?,1)`
-    )
-    .run(postId, adminId, "운영팀", content);
-  return Number(result.lastInsertRowid);
 }

@@ -1,11 +1,9 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { getPointBalance } from "@/lib/points";
 import { isAdminUser } from "@/lib/adminAuth";
 import { userHasCreatedCharacters } from "@/lib/creatorAccess";
 import { getDb } from "@/lib/db";
-import { getLatestNoticeId, getUnreadNoticeCount, hasUnreadNotices } from "@/lib/notices";
 import SettingsClient from "./SettingsClient";
 import { countPendingCommentReviews } from "@/lib/adminCommentReports";
 
@@ -24,13 +22,6 @@ export default async function SettingsPage() {
   const isCreator = userHasCreatedCharacters(user.id);
   const pendingCommentReviews = isAdmin ? countPendingCommentReviews(db) : 0;
 
-  const cookieStore = await cookies();
-  const cookieReadId = Number(cookieStore.get("notice_read_id")?.value ?? 0);
-  const readId = user.notice_last_read_id ?? cookieReadId;
-  const latestNoticeId = getLatestNoticeId(db);
-  const unreadNoticeCount = getUnreadNoticeCount(db, user.id, cookieReadId);
-  const unreadNotice = hasUnreadNotices(latestNoticeId, readId, unreadNoticeCount);
-
   return (
     <SettingsClient
       user={{
@@ -46,7 +37,6 @@ export default async function SettingsPage() {
         isAdmin,
         isCreator,
       }}
-      unreadNotice={unreadNotice}
       pendingCommentReviews={pendingCommentReviews}
     />
   );

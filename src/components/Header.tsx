@@ -3,14 +3,13 @@ import Image from "next/image";
 import { cookies } from "next/headers";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { getLatestNoticeId, getUnreadNoticeCount, hasUnreadNotices } from "@/lib/notices";
+import { readGuestNoticeReadState } from "@/lib/noticeGuestReadCookies";
 import { getTotalUnreadCount } from "@/lib/userNotifications";
 import AnimatedPointsBadge from "./AnimatedPointsBadge";
 import MobileBottomNav from "./MobileBottomNav";
 import NotificationBell from "./NotificationBell";
 import PointsShopLink from "./PointsShopLink";
 import HeaderMainNavRow from "./HeaderMainNavRow";
-import HeaderBoardLinks from "./HeaderBoardLinks";
 import HeaderProfileMenu from "./HeaderProfileMenu";
 import UserPreferenceControls from "./UserPreferenceControls";
 import ExpiringPointsPopup from "./ExpiringPointsPopup";
@@ -20,13 +19,12 @@ import { isPaymentsEnabled } from "@/lib/portoneConfig";
 export default async function Header() {
   const user = await getSessionUser();
   const db = getDb();
-  const latestNoticeId = getLatestNoticeId(db);
   const cookieStore = await cookies();
-  const cookieReadId = Number(cookieStore.get("notice_read_id")?.value ?? 0);
-  const readId = user?.notice_last_read_id ?? cookieReadId;
-  const unreadNoticeCount = getUnreadNoticeCount(db, user?.id ?? null, cookieReadId);
-  const unreadNotice = hasUnreadNotices(latestNoticeId, readId, unreadNoticeCount);
-  const unreadCount = getTotalUnreadCount(db, user?.id ?? null, readId);
+  const guestState = readGuestNoticeReadState({
+    watermarkRaw: cookieStore.get("notice_read_id")?.value,
+    sparseRaw: cookieStore.get("notice_read_ids")?.value,
+  });
+  const unreadCount = getTotalUnreadCount(db, user?.id ?? null, guestState);
   const pointBalance = user ? getPointBalance(user.id) : null;
   const paymentsEnabled = isPaymentsEnabled();
 
@@ -55,7 +53,6 @@ export default async function Header() {
               </span>
             </Link>
             <HeaderMainNavRow />
-            <HeaderBoardLinks unreadNotice={unreadNotice} />
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap sm:gap-2">

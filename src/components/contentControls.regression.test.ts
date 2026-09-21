@@ -29,8 +29,11 @@ describe("content controls and navigation regression", () => {
 
   it("keeps notifications in the desktop header but removes the mobile bottom item", () => {
     const header = read("src/components/Header.tsx");
+    const bell = read("src/components/NotificationBell.tsx");
     const mobileNav = read("src/components/MobileBottomNav.tsx");
     assert.match(header, /<NotificationBell count=\{unreadCount\} \/>/);
+    assert.match(bell, /NotificationCenterPanel/);
+    assert.doesNotMatch(bell, /href="\/notifications"/);
     assert.doesNotMatch(mobileNav, /\/notifications/);
     assert.doesNotMatch(mobileNav, /unreadCount/);
   });
