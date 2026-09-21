@@ -9,7 +9,11 @@ import {
   serializeUsageForPublicClient,
   stripAdultRoutingForClient,
 } from "@/lib/billingReceiptAccess";
+import { buildEstimatedReceiptSectionBreakdown } from "@/lib/billingReceiptSectionBreakdown";
 import type { Usage } from "@/lib/chatUsage";
+
+/** Public breakdown row contract — independent of production builder/sanitizer constants. */
+const PUBLIC_BREAKDOWN_ROW_ALLOWED_KEYS = ["label", "tokens", "pct"] as const;
 
 describe("canShowFullBillingReceipt", () => {
   it("does not expose operational pricing details to non-admin demo accounts", () => {
@@ -354,5 +358,77 @@ describe("billingReceiptAccess shadow privacy", () => {
     const admin = serializeUsageForPublicClient(usage, { keepInternal: true });
     assert.ok((admin as unknown as Record<string, unknown>).shadowPricing != null);
     assert.equal(admin.apiRawCostKrw, 12);
+  });
+});
+
+describe("public breakdown row serialization", () => {
+  it("repro: shallow public sanitize passes nested breakdown provenance through unchanged", () => {
+    const usage = {
+      input: 100,
+      output: 50,
+      model: "test",
+      route: "safe" as const,
+      cost: 10,
+      breakdown: [
+        {
+          label: "캐릭터 컨텍스트: ~100 입력 토큰 추정 배분 · 500 chars",
+          tokens: 100,
+          pct: 50,
+          key: "character",
+          allocationMethod: "estimated_section_allocation",
+          assembledChars: 500,
+          charScope: "characterSetting+worldLore+dialogueExamples",
+        },
+      ],
+      breakdownAllocation: "estimated_section_allocation",
+    } as unknown as Usage;
+
+    const publicUsage = serializeUsageForPublicClient(usage);
+    const row = publicUsage.breakdown[0] as Record<string, unknown>;
+    assert.equal(row.key, "character");
+    assert.equal(row.allocationMethod, "estimated_section_allocation");
+    assert.equal(row.assembledChars, 500);
+    assert.equal(row.charScope, "characterSetting+worldLore+dialogueExamples");
+    assert.equal(publicUsage.breakdownAllocation, undefined);
+
+    const json = JSON.stringify(publicUsage);
+    assert.match(json, /"assembledChars":500/);
+    assert.match(json, /"charScope":"characterSetting\+worldLore\+dialogueExamples"/);
+  });
+
+  it("production breakdown builder emits public-safe rows only", () => {
+    const breakdown = buildEstimatedReceiptSectionBreakdown({
+      sectionEsts: [
+        { key: "raw", est: 100 },
+        { key: "character", est: 200 },
+      ],
+      draftInput: 300,
+      characterContextChars: 42,
+      rawHistoryChars: 10,
+      rawCompleteExchanges: 1,
+    });
+
+    const usage = {
+      input: 300,
+      output: 50,
+      model: "test",
+      route: "safe" as const,
+      cost: 10,
+      breakdown,
+      breakdownAllocation: "estimated_section_allocation",
+    } satisfies Usage;
+
+    const publicUsage = serializeUsageForPublicClient(usage);
+    assert.equal(publicUsage.breakdownAllocation, undefined);
+
+    for (const row of publicUsage.breakdown) {
+      assert.deepEqual(Object.keys(row).sort(), [...PUBLIC_BREAKDOWN_ROW_ALLOWED_KEYS].sort());
+    }
+
+    const json = JSON.stringify(publicUsage);
+    assert.doesNotMatch(json, /"assembledChars"/);
+    assert.doesNotMatch(json, /"allocationMethod"/);
+    assert.doesNotMatch(json, /"charScope"/);
+    assert.doesNotMatch(json, /"breakdown"\s*:\s*\[[^\]]*"key"/);
   });
 });
