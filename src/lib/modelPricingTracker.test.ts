@@ -18,10 +18,17 @@ import {
   buildPublishedBaselineSnapshot,
 } from "@/lib/modelPriceSnapshot";
 import { getModelPricingPolicy } from "@/lib/modelPricingPolicy";
+import {
+  CHEAPER_INFERENCE_MODELS_SOURCE_URL,
+} from "@/lib/modelPricingTrackingConfig";
+import { CHEAPER_INFERENCE_BASE_URL } from "@/lib/cheaperInferenceConfig";
 import { ensureModelPricingTrackingSchema } from "@/lib/modelPricingTrackingSchema";
 import { runModelPricingTracker } from "@/lib/modelPricingTracker";
 import {
+  ensureTrackerSchema,
+  claimTrackerRun,
   findTrackerRunByDateKey,
+  finishTrackerRun,
   readLatestSnapshot,
 } from "@/lib/modelPricingTrackerPersistence";
 import {
@@ -418,5 +425,244 @@ describe("model pricing tracker regression fixtures", () => {
     });
     assert.ok(events.some((e) => e.classification === "UNEXPECTED_LARGE_CHANGE"));
     assert.equal(getPublishedPricing(GEMINI).billingReferenceInputUsdPerMillion, published.billingReferenceInputUsdPerMillion);
+  });
+});
+
+describe("PR #992 correction fixtures (provenance + run-claim atomicity)", () => {
+  it("A: DeepSeek policy baseline stays PROVIDER_PEAK while CI reference records source semantics", () => {
+    assert.equal(getModelPricingPolicy(DEEPSEEK)?.baselineMode, "PROVIDER_PEAK");
+    const policy = getModelPricingPolicy(DEEPSEEK)!;
+    const reference = buildCiReferenceSnapshot({
+      policy,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 0.5,
+        outputUsdPerMillion: 1.5,
+        referenceInputUsdPerMillion: 0.66,
+        referenceOutputUsdPerMillion: 1.98,
+        discountPercent: 25,
+      }),
+      observedAt: FIXED_NOW.toISOString(),
+    })!;
+    assert.equal(reference.rates.inputUsdPerMillion, 0.66);
+    assert.equal(reference.rates.outputUsdPerMillion, 1.98);
+    // Product policy (official PEAK target) must never be written onto an
+    // observed CI reference value as provenance.
+    assert.notEqual(reference.pricingMode, "provider_peak");
+    assert.equal(reference.pricingMode, "procurement_reference");
+  });
+
+  it("B: provider_peak / provider_standard are only reachable via official provider evidence", () => {
+    const policy = getModelPricingPolicy(DEEPSEEK)!;
+    const observedAt = FIXED_NOW.toISOString();
+    const current = buildCiCurrentSnapshot({
+      policy,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 1.32,
+        outputUsdPerMillion: 3.96,
+        referenceInputUsdPerMillion: 0.66,
+        referenceOutputUsdPerMillion: 1.98,
+        discountPercent: 0,
+      }),
+      observedAt,
+    });
+    const reference = buildCiReferenceSnapshot({
+      policy,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 1.32,
+        outputUsdPerMillion: 3.96,
+        referenceInputUsdPerMillion: 0.66,
+        referenceOutputUsdPerMillion: 1.98,
+        discountPercent: 0,
+      }),
+      observedAt,
+    })!;
+    assert.equal(current.pricingMode, "procurement_current");
+    assert.equal(reference.pricingMode, "procurement_reference");
+  });
+
+  it("C: published baseline provenance without source evidence is unknown, not provider_standard", () => {
+    const policy = getModelPricingPolicy(DEEPSEEK)!;
+    const snapshot = buildPublishedBaselineSnapshot({
+      policy,
+      published: getPublishedPricing(DEEPSEEK),
+      observedAt: FIXED_NOW.toISOString(),
+    });
+    assert.equal(snapshot.sourceKind, "published_billing_baseline");
+    assert.equal(snapshot.pricingMode, "unknown");
+  });
+
+  it("H: snapshot source URL is the actual runtime CI /v1/models endpoint", () => {
+    assert.equal(CHEAPER_INFERENCE_MODELS_SOURCE_URL, `${CHEAPER_INFERENCE_BASE_URL}/models`);
+    const policy = getModelPricingPolicy(DEEPSEEK)!;
+    const observedAt = FIXED_NOW.toISOString();
+    const catalog = seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.5,
+      outputUsdPerMillion: 1.5,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+    });
+    assert.equal(
+      buildCiCurrentSnapshot({ policy, catalog, observedAt }).sourceUrl,
+      CHEAPER_INFERENCE_MODELS_SOURCE_URL
+    );
+    assert.equal(
+      buildCiReferenceSnapshot({ policy, catalog, observedAt })?.sourceUrl,
+      CHEAPER_INFERENCE_MODELS_SOURCE_URL
+    );
+  });
+
+  it("D: two run claims for the same KST day — exactly one owner, no UNIQUE exception", () => {
+    const db = makeDb();
+    ensureTrackerSchema(db);
+    const startedAt = FIXED_NOW.toISOString();
+    // Both replicas observe no row first (the historical pre-check race shape).
+    assert.equal(findTrackerRunByDateKey(db, "2026-09-20"), null);
+    const first = claimTrackerRun(db, { runDateKey: "2026-09-20", phase: "OBSERVE_ONLY", startedAt });
+    const second = claimTrackerRun(db, { runDateKey: "2026-09-20", phase: "OBSERVE_ONLY", startedAt });
+    assert.equal(first.outcome, "CLAIMED");
+    assert.equal(first.reclaimed, false);
+    assert.equal(second.outcome, "SKIPPED_DUPLICATE");
+    if (second.outcome === "SKIPPED_DUPLICATE") {
+      assert.equal(second.existingStatus, "running");
+    }
+    const rows = db
+      .prepare(`SELECT COUNT(*) AS c FROM model_pricing_tracker_runs WHERE run_date_key = ?`)
+      .get("2026-09-20") as { c: number };
+    assert.equal(rows.c, 1);
+  });
+
+  it("E: a FAILED row is atomically reclaimed exactly once for a same-day retry", () => {
+    const db = makeDb();
+    ensureTrackerSchema(db);
+    const startedAt = FIXED_NOW.toISOString();
+    const failed = claimTrackerRun(db, { runDateKey: "2026-09-20", phase: "OBSERVE_ONLY", startedAt });
+    assert.equal(failed.outcome, "CLAIMED");
+    finishTrackerRun(db, {
+      runId: failed.runId,
+      status: "failed",
+      finishedAt: startedAt,
+      snapshotCount: 0,
+      eventCount: 0,
+      errorSummary: "boom",
+    });
+
+    // Two replicas race the reclaim; exactly one wins, the other skips.
+    const reclaimA = claimTrackerRun(db, { runDateKey: "2026-09-20", phase: "OBSERVE_ONLY", startedAt });
+    const reclaimB = claimTrackerRun(db, { runDateKey: "2026-09-20", phase: "OBSERVE_ONLY", startedAt });
+    const reclaimed = [reclaimA, reclaimB].filter((c) => c.outcome === "CLAIMED");
+    assert.equal(reclaimed.length, 1);
+    assert.ok(reclaimed[0].reclaimed);
+    assert.equal(
+      [reclaimA, reclaimB].find((c) => c.outcome === "SKIPPED_DUPLICATE")?.outcome,
+      "SKIPPED_DUPLICATE"
+    );
+
+    finishTrackerRun(db, {
+      runId: reclaimA.runId,
+      status: "completed",
+      finishedAt: startedAt,
+      snapshotCount: 1,
+      eventCount: 0,
+      errorSummary: "",
+    });
+    const retried = claimTrackerRun(db, { runDateKey: "2026-09-20", phase: "OBSERVE_ONLY", startedAt });
+    assert.equal(retried.outcome, "SKIPPED_DUPLICATE");
+    const row = findTrackerRunByDateKey(db, "2026-09-20");
+    assert.equal(row?.status, "completed");
+  });
+
+  it("G: a RUNNING row blocks duplicate same-day claims", async () => {
+    const db = makeDb();
+    seedCatalog(GEMINI, {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+    });
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.5,
+      outputUsdPerMillion: 1.5,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+    });
+    seedCatalog("gemini-3.7-flash", {
+      inputUsdPerMillion: 0.22,
+      outputUsdPerMillion: 1.1,
+      referenceInputUsdPerMillion: 0.375,
+      referenceOutputUsdPerMillion: 1.875,
+      discountPercent: 40,
+    });
+    seedCatalog("gpt-5.6-terra", {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+    });
+
+    const claim = claimTrackerRun(db, { runDateKey: "2026-09-20", phase: "OBSERVE_ONLY", startedAt: FIXED_NOW.toISOString() });
+    assert.equal(claim.outcome, "CLAIMED");
+
+    const result = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+    assert.equal(result.status, "skipped_duplicate");
+    assert.equal(result.runId, claim.runId);
+    const snapshots = db.prepare(`SELECT COUNT(*) AS c FROM model_price_snapshots`).get() as { c: number };
+    assert.equal(snapshots.c, 0);
+  });
+
+  it("I: OBSERVE_ONLY run leaves published pricing and version untouched", async () => {
+    const db = makeDb();
+    seedCatalog(GEMINI, {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+    });
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.5,
+      outputUsdPerMillion: 1.5,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+    });
+    seedCatalog("gemini-3.7-flash", {
+      inputUsdPerMillion: 0.22,
+      outputUsdPerMillion: 1.1,
+      referenceInputUsdPerMillion: 0.375,
+      referenceOutputUsdPerMillion: 1.875,
+      discountPercent: 40,
+    });
+    seedCatalog("gpt-5.6-terra", {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+    });
+
+    const deepseekBefore = getPublishedPricing(DEEPSEEK);
+    const versionsBefore = listPublishedModelIds().map((id) => getPublishedPricingVersion(id));
+
+    const result = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+    });
+    assert.equal(result.status, "completed");
+    assert.ok(result.events.every((e) => e.action !== "AUTO_APPLY_BASE"));
+    assert.deepEqual(getPublishedPricing(DEEPSEEK), deepseekBefore);
+    assert.deepEqual(
+      listPublishedModelIds().map((id) => getPublishedPricingVersion(id)),
+      versionsBefore
+    );
   });
 });

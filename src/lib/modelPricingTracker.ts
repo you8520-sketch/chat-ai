@@ -35,12 +35,11 @@ import { resolveProcurementCostFromCatalog } from "@/lib/procurementCost";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import {
   ensureTrackerSchema,
-  findTrackerRunByDateKey,
+  claimTrackerRun,
   finishTrackerRun,
   insertAdminEvent,
   insertClassifiedEvent,
   insertPriceSnapshot,
-  insertTrackerRun,
   readLatestSnapshot,
 } from "@/lib/modelPricingTrackerPersistence";
 
@@ -124,10 +123,13 @@ export async function runModelPricingTracker(params?: {
 
   ensureTrackerSchema(db);
 
-  const existing = findTrackerRunByDateKey(db, runDateKey);
-  if (existing?.status === "completed") {
+  // Atomic daily-run claim: no row -> claim; RUNNING/COMPLETED -> skip;
+  // FAILED -> atomic reclaim (same-day retry). Replaces the non-atomic
+  // find-then-insert pre-check that threw UNIQUE under concurrent replicas.
+  const claim = claimTrackerRun(db, { runDateKey, phase, startedAt });
+  if (claim.outcome === "SKIPPED_DUPLICATE") {
     return {
-      runId: existing.id,
+      runId: claim.runId,
       runDateKey,
       phase,
       status: "skipped_duplicate",
@@ -138,8 +140,7 @@ export async function runModelPricingTracker(params?: {
       errors: [],
     };
   }
-
-  const runId = insertTrackerRun(db, { runDateKey, phase, startedAt });
+  const runId = claim.runId;
   let snapshotCount = 0;
 
   try {

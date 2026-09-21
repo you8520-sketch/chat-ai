@@ -32,17 +32,64 @@ export function findTrackerRunByDateKey(
   return row ?? null;
 }
 
-export function insertTrackerRun(
+export type TrackerRunClaim =
+  | { outcome: "CLAIMED"; runId: number; reclaimed: boolean }
+  | { outcome: "SKIPPED_DUPLICATE"; runId: number; existingStatus: string };
+
+/**
+ * Canonical atomic daily-run claim owner.
+ *
+ * Single-statement SQLite ops only (no multi-statement transaction), so the
+ * same semantics hold on the local file DB and on remote libSQL/Turso:
+ * - no row            -> INSERT OR IGNORE claims atomically (exactly one replica wins)
+ * - existing RUNNING  -> SKIPPED_DUPLICATE
+ * - existing COMPLETED-> SKIPPED_DUPLICATE
+ * - existing FAILED   -> conditional UPDATE reclaims atomically; two racing
+ *                        replicas cannot both win (status guard is part of the
+ *                        WHERE clause, so exactly one UPDATE matches)
+ */
+export function claimTrackerRun(
   db: Database.Database,
   params: { runDateKey: string; phase: string; startedAt: string }
-): number {
-  const result = db
+): TrackerRunClaim {
+  const inserted = db
     .prepare(
-      `INSERT INTO model_pricing_tracker_runs (run_date_key, phase, status, started_at)
+      `INSERT OR IGNORE INTO model_pricing_tracker_runs (run_date_key, phase, status, started_at)
        VALUES (?, ?, 'running', ?)`
     )
     .run(params.runDateKey, params.phase, params.startedAt);
-  return Number(result.lastInsertRowid);
+  if (Number(inserted.changes) > 0) {
+    const claimed = findTrackerRunByDateKey(db, params.runDateKey);
+    return { outcome: "CLAIMED", runId: Number(claimed?.id), reclaimed: false };
+  }
+
+  const existing = findTrackerRunByDateKey(db, params.runDateKey);
+  if (!existing) {
+    // The winner finished and was removed (never happens today) — retry once.
+    return claimTrackerRun(db, params);
+  }
+  if (existing.status !== "failed") {
+    return { outcome: "SKIPPED_DUPLICATE", runId: existing.id, existingStatus: existing.status };
+  }
+
+  const reclaimed = db
+    .prepare(
+      `UPDATE model_pricing_tracker_runs
+       SET status = 'running', phase = ?, started_at = ?, finished_at = NULL
+       WHERE run_date_key = ? AND status = 'failed'`
+    )
+    .run(params.phase, params.startedAt, params.runDateKey);
+  if (Number(reclaimed.changes) > 0) {
+    return { outcome: "CLAIMED", runId: existing.id, reclaimed: true };
+  }
+  // Another replica reclaimed (and possibly finished) between our read and
+  // update — re-read to report the actual state without throwing.
+  const winner = findTrackerRunByDateKey(db, params.runDateKey);
+  return {
+    outcome: "SKIPPED_DUPLICATE",
+    runId: winner?.id ?? existing.id,
+    existingStatus: winner?.status ?? "running",
+  };
 }
 
 export function finishTrackerRun(

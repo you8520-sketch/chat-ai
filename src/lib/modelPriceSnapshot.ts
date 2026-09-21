@@ -103,8 +103,10 @@ export function buildCiReferenceSnapshot(params: {
     provider: policy.provider,
     modelId: policy.modelId,
     providerModelId: catalog.modelId,
-    pricingMode:
-      policy.baselineMode === "PROVIDER_PEAK" ? "provider_peak" : "provider_standard",
+    // Snapshot semantics = what CI actually published (its reference/list
+    // quote). The product policy's desired BASE source (e.g. official PEAK)
+    // is a separate decision and must never be inherited as provenance here.
+    pricingMode: "procurement_reference",
     sourceKind: "cheaper_inference_models_reference",
     sourceUrl: CHEAPER_INFERENCE_MODELS_SOURCE_URL,
     rates,
@@ -138,7 +140,11 @@ export function buildPublishedBaselineSnapshot(params: {
     provider: policy.provider,
     modelId: policy.modelId,
     providerModelId: policy.expectedProviderModelId,
-    pricingMode: "provider_standard",
+    // Published rows carry no per-row peak/standard/flex provenance evidence,
+    // so Phase A records the honest UNKNOWN state instead of inventing
+    // `provider_standard`. The published pricing policy (desired BASE) stays
+    // in publishedModelPricing.ts and is a separate concern.
+    pricingMode: "unknown",
     sourceKind: "published_billing_baseline",
     sourceUrl: "code:publishedModelPricing.ts",
     rates,
