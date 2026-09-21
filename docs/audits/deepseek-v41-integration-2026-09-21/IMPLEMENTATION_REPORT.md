@@ -163,6 +163,17 @@ Pro published row remains off-peak-shaped ($0.66 / $1.98). Flash ~55P vs Pro ~18
 
 ---
 
+## SMOKE FIXTURE TAXONOMY (evidence correction)
+
+See `smoke-fixture-taxonomy.json` and `EVIDENCE_CORRECTION_REPORT.md`.
+
+- `F_speech_lock` → **LENGTH_FREE_CONTINUATION** (not Speech Lock)
+- `G_long_memory` → **AMBIGUOUS_SHARED_MEMORY_HANDLING** (not Long Memory Recall)
+
+TRUE Speech Lock / Memory Recall / Production recovery evidence under `evidence-correction/`.
+
+---
+
 ## BOUNDED LIVE A/B ARTIFACTS
 
 **Script:** `scripts/deepseek-v41-integration-rp-ab.ts` (5 fixtures × Pro + V4.1 = **10 calls**)

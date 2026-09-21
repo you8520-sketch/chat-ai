@@ -125,10 +125,11 @@ async function runFixture(fixture: Fixture, modelId: string, blindLabel: "A" | "
     usage: {
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
-      cacheReadTokens: usage.cacheReadTokens ?? 0,
-      cacheWriteTokens: usage.cacheWriteTokens ?? 0,
-      reasoningTokens: usage.reasoningOutputTokens ?? 0,
+      cacheReadTokens: usage.cacheReadTokens ?? null,
+      cacheWriteTokens: usage.cacheWriteTokens ?? null,
+      reasoningTokens: usage.reasoningOutputTokens ?? null,
     },
+    usageReportingEvidence: usage.usageReportingEvidence ?? null,
     samplePath: `${fixture.id}_Sample_${blindLabel}.txt`,
     sampleText: visible,
   };
