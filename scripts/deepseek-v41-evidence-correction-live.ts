@@ -451,9 +451,13 @@ async function main() {
     },
     finalOutputChars: recovery.prose.length,
     targetChars: recoveryTarget,
-    assistantRowCount: 1,
-    settlementCount: 1,
-    duplicateVisibleProse: false,
+    routeLifecycleVerified: {
+      assistantRowCountVerified: false,
+      settlementCountVerified: false,
+      duplicateVisibleProseVerified: false,
+      classification: "NOT_VERIFIED_BY_LIVE_RECOVERY_HARNESS",
+      note: "Live harness measures merge chars/sentence only; persistence/settlement exactly-once requires deterministic route owners.",
+    },
   };
 
   writeFileSync(

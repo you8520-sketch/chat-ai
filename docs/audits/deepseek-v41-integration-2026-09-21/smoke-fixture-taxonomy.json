@@ -35,5 +35,10 @@
   "historicalOperationalJsonGap": {
     "issue": "Original rp-ab/operational.json coerced missing cache fields to numeric 0 via ?? 0",
     "resolution": "Evidence correction pass captures usageReportingEvidence explicitly on new fixtures"
+  },
+  "billingReplayClassification": {
+    "rpAbOperationalJson": "PRODUCTION-EQUIVALENT SYNTHETIC REPLAY USING CAPTURED TOKEN VALUES",
+    "notClaimedAs": "EXACT HISTORICAL RAW-EVIDENCE REPLAY",
+    "exactLiveEvidenceSource": "evidence-correction/operational.json"
   }
 }

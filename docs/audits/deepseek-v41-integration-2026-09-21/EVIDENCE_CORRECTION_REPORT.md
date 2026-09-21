@@ -115,9 +115,8 @@ No `usage_unresolved`, `usage_coverage_incomplete`, `invalid_fx_snapshot`, or si
 | 85% floor (2975) | **met** |
 | Recovery triggered | true |
 | Sentence complete | true |
-| assistantRowCount | 1 |
-| settlementCount | 1 |
-| duplicateVisibleProse | false |
+| Route lifecycle (assistant/settlement) | **NOT_VERIFIED_BY_LIVE_RECOVERY_HARNESS** |
+| Exactly-once proof | deterministic route owners — see `LAUNCH_PROOF_INTEGRITY_REPORT.md` |
 
 Note: `TURN_LENGTH_SUPPLEMENT_API_ENABLED=false` in prod — audit orchestrates owner components explicitly.
 
