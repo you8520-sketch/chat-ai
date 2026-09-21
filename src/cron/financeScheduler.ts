@@ -1,5 +1,7 @@
 import cron, { type ScheduledTask } from "node-cron";
 import { saveDailyFinanceSnapshot, currentKstMonthKey, monthRangeSql } from "@/lib/adminFinance";
+import { getDb } from "@/lib/db";
+import { runModelPricingTracker } from "@/lib/modelPricingTracker";
 import { reconcileCheaperInferenceUsage } from "@/lib/providerCostReconciliation";
 
 export const FINANCE_DAILY_CRON = "0 12 * * *";
@@ -38,6 +40,23 @@ export async function runFinanceSnapshotNow() {
       netProfitKrw: summary.netProfitKrw,
       aiActualKrw: summary.aiCost.totalActualKrw,
     });
+
+    if (process.env.DISABLE_MODEL_PRICING_TRACKER !== "1") {
+      try {
+        const pricingResult = await runModelPricingTracker({ db: getDb() });
+        console.log("[finance-scheduler] model pricing tracker", {
+          phase: pricingResult.phase,
+          status: pricingResult.status,
+          runDateKey: pricingResult.runDateKey,
+          snapshotCount: pricingResult.snapshotCount,
+          eventCount: pricingResult.eventCount,
+          marginFloorBreaches: pricingResult.marginFloorBreaches,
+        });
+      } catch (pricingError) {
+        console.error("[finance-scheduler] model pricing tracker failed:", pricingError);
+      }
+    }
+
     return summary;
   } catch (error) {
     console.error("[finance-scheduler] daily snapshot failed:", error);
