@@ -8,6 +8,7 @@ import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import { validateBillingFxSnapshotForLiveGrade } from "@/lib/billingFxSnapshot";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -32,10 +33,17 @@ export const PHASE1_PUBLISHED_MODELS = [
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
 ] as const;
 
-/** Direct user-selected DeepSeek V4 Pro 0813 — Phase 2 Published cutover (not Phase 1). */
+/** Phase 2 Published DeepSeek models — V4 Pro + V4.1 Flash (not Phase 1). */
+export const PHASE2_DEEPSEEK_PUBLISHED_MODELS = [
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+] as const;
+
+/** @deprecated use PHASE2_DEEPSEEK_PUBLISHED_MODELS — Pro-only alias retained for tests. */
 export const PHASE2_DEEPSEEK_PUBLISHED_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 
 const PHASE1_PUBLISHED_MODEL_SET = new Set<string>(PHASE1_PUBLISHED_MODELS);
+const PHASE2_DEEPSEEK_PUBLISHED_MODEL_SET = new Set<string>(PHASE2_DEEPSEEK_PUBLISHED_MODELS);
 
 export type PublishedBillingPhase = "phase1" | "phase2";
 
@@ -46,7 +54,7 @@ export function isPhase1PublishedBillingModel(modelId: string): boolean {
 }
 
 export function isPhase2DeepSeekPublishedBillingModel(modelId: string): boolean {
-  return canonicalizePublishedModelId(modelId) === PHASE2_DEEPSEEK_PUBLISHED_MODEL;
+  return PHASE2_DEEPSEEK_PUBLISHED_MODEL_SET.has(canonicalizePublishedModelId(modelId));
 }
 
 export function isPhase1PublishedBillingEnabled(): boolean {
