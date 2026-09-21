@@ -144,7 +144,7 @@ describe("deepseekPhase2PublishedBillingCutover — golden fixtures", () => {
     assert.equal(decision.contract, "published_phase2");
     assert.equal(decision.reason, "phase2_deepseek_live_grade");
     assert.equal(decision.points, GOLDEN_POINTS);
-    assert.equal(decision.telemetry.pricingVersion, 3);
+    assert.equal(decision.telemetry.pricingVersion, 4);
     assert.equal(decision.telemetry.billingContract, "published_phase2");
     assert.notEqual(decision.telemetry.billingContract, "published_phase1");
   });
