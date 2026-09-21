@@ -31,11 +31,12 @@ describe("notification center cleanup", () => {
     const panel = read("src/components/NotificationCenterPanel.tsx");
     assert.doesNotMatch(bell, /href="\/notifications"/);
     assert.match(bell, /NotificationCenterPanel/);
+    assert.match(bell, /fetchNotificationFeed/);
     assert.match(panel, /role="dialog"/);
     assert.match(panel, /공지사항/);
     assert.match(panel, /상세보기/);
-    assert.match(panel, /noticeId/);
-    assert.match(panel, /activityId/);
+    assert.doesNotMatch(panel, /setInterval/);
+    assert.doesNotMatch(panel, /fetch\("\/api\/notifications"/);
   });
 
   it("routes notice notifications to notice detail pages", () => {

@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { getUnreadNoticeCount, isNoticeRead } from "./notices";
+import { getUnreadNoticeCount, isNoticeRead, type GuestNoticeReadState } from "./notices";
 import { queueUserWebPush, type WebPushPayload } from "./webPush";
 import { isAdminUser } from "./isAdminUser";
 import {
@@ -54,9 +54,12 @@ function insertNotification(
   return notificationId;
 }
 
+/** Live activity unread — excludes mirrored notice rows (canonical owner: notice_reads). */
+const LIVE_ACTIVITY_UNREAD_WHERE = "user_id=? AND read_at IS NULL AND type != 'notice'";
+
 export function getUnreadUserNotificationCount(db: Database.Database, userId: number): number {
   const row = db
-    .prepare("SELECT COUNT(*) AS c FROM user_notifications WHERE user_id=? AND read_at IS NULL")
+    .prepare(`SELECT COUNT(*) AS c FROM user_notifications WHERE ${LIVE_ACTIVITY_UNREAD_WHERE}`)
     .get(userId) as { c: number };
   return row.c;
 }
@@ -83,7 +86,7 @@ export function listUserNotifications(
   return db
     .prepare(
       `${USER_NOTIFICATION_SELECT}
-       WHERE n.user_id = ? AND n.read_at IS NULL
+       WHERE n.user_id = ? AND n.read_at IS NULL AND n.type != 'notice'
        ORDER BY n.created_at DESC
        LIMIT ?`
     )
@@ -99,7 +102,7 @@ export function listRecentUserNotifications(
   return db
     .prepare(
       `${USER_NOTIFICATION_SELECT}
-       WHERE n.user_id = ?
+       WHERE n.user_id = ? AND n.type != 'notice'
        ORDER BY n.created_at DESC
        LIMIT ?`
     )
@@ -117,33 +120,13 @@ export function listCreatorNotifications(
 
 export function listUnreadNotices(
   db: Database.Database,
-  readId: number,
+  guestState: GuestNoticeReadState,
   limit = 50,
   userId: number | null = null
 ): NoticeRow[] {
-  if (userId) {
-    return db
-      .prepare(
-        `SELECT p.id, p.title, p.content, p.author_name, p.created_at
-         FROM posts p
-         WHERE p.board='notice'
-           AND NOT EXISTS (
-             SELECT 1 FROM notice_reads r
-             WHERE r.user_id=? AND r.notice_id=p.id
-           )
-         ORDER BY p.id DESC
-         LIMIT ?`
-      )
-      .all(userId, limit) as NoticeRow[];
-  }
-  return db
-    .prepare(
-      `SELECT id, title, content, author_name, created_at
-       FROM posts WHERE board='notice' AND id > ?
-       ORDER BY id DESC
-       LIMIT ?`
-    )
-    .all(readId, limit) as NoticeRow[];
+  return listRecentNotices(db, limit).filter(
+    (notice) => !isNoticeRead(db, userId, notice.id, guestState)
+  );
 }
 
 /** 알림 페이지 — 읽음 포함 최근 공지 */
@@ -161,21 +144,21 @@ export function listRecentNotices(db: Database.Database, limit = 20): NoticeRow[
 export function listRecentNoticesWithReadStatus(
   db: Database.Database,
   userId: number | null,
-  cookieReadId: number,
+  guestState: GuestNoticeReadState,
   limit = 20
 ): NoticeFeedRow[] {
   return listRecentNotices(db, limit).map((notice) => ({
     ...notice,
-    unread: !isNoticeRead(db, userId, notice.id, cookieReadId),
+    unread: !isNoticeRead(db, userId, notice.id, guestState),
   }));
 }
 
 export function getTotalUnreadCount(
   db: Database.Database,
   userId: number | null,
-  noticeReadId: number
+  guestState: GuestNoticeReadState
 ): number {
-  const noticeCount = getUnreadNoticeCount(db, userId, noticeReadId);
+  const noticeCount = getUnreadNoticeCount(db, userId, guestState);
   const activityCount = userId ? getUnreadUserNotificationCount(db, userId) : 0;
   return noticeCount + activityCount;
 }

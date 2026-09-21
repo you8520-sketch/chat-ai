@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { AppPageShell } from "@/components/AppPageShell";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { readGuestNoticeReadState } from "@/lib/noticeGuestReadCookies";
 import { isNoticeRead } from "@/lib/notices";
 import { cn, studioType } from "@/lib/studioDesign";
 import {
@@ -34,20 +35,18 @@ export default async function NotificationsPage() {
   const user = await getSessionUser();
   const db = getDb();
   const cookieStore = await cookies();
-  const cookieReadId = Number(cookieStore.get("notice_read_id")?.value ?? 0);
+  const guestState = readGuestNoticeReadState({
+    watermarkRaw: cookieStore.get("notice_read_id")?.value,
+    sparseRaw: cookieStore.get("notice_read_ids")?.value,
+  });
 
   const notices = listRecentNotices(db, 20);
   const activities = user ? listRecentUserNotifications(db, user.id, 50) : [];
-  const noticeIdsFromActivity = new Set(
-    activities.filter((item) => item.type === "notice").map((item) => item.ref_id)
-  );
   const feed: FeedItem[] = [
-    ...notices
-      .filter((notice) => !noticeIdsFromActivity.has(notice.id))
-      .map((notice) => ({
+    ...notices.map((notice) => ({
         key: `notice-${notice.id}`,
         createdAt: notice.created_at,
-        unread: !isNoticeRead(db, user?.id ?? null, notice.id, cookieReadId),
+        unread: !isNoticeRead(db, user?.id ?? null, notice.id, guestState),
         kind: "notice" as const,
         notice,
       })),

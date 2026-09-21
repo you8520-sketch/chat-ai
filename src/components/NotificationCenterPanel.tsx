@@ -2,20 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import type { NotificationFeedPayload } from "@/lib/notificationFeedClient";
 import {
   notificationHref,
   notificationIcon,
   type NoticeFeedRow,
-  type UserNotificationRow,
 } from "@/lib/userNotificationPresentation";
 
 type TabId = "activities" | "notices";
-
-type FeedPayload = {
-  recentNotices: NoticeFeedRow[];
-  activities: UserNotificationRow[];
-  unreadCount: number;
-};
 
 type Props = {
   open: boolean;
@@ -23,9 +17,11 @@ type Props = {
   onClose: () => void;
   initialCount: number;
   onCountChange: (count: number) => void;
+  feed: NotificationFeedPayload | null;
+  loading: boolean;
+  onFeedPatch: (patch: (prev: NotificationFeedPayload) => NotificationFeedPayload) => void;
+  onRefresh: (opts?: { silent?: boolean }) => Promise<void>;
 };
-
-const REFRESH_INTERVAL_MS = 30_000;
 
 function formatDate(iso: string) {
   return new Date(iso + "Z").toLocaleDateString("ko-KR", {
@@ -59,14 +55,16 @@ export default function NotificationCenterPanel({
   onClose,
   initialCount,
   onCountChange,
+  feed,
+  loading,
+  onFeedPatch,
+  onRefresh,
 }: Props) {
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollTopRef = useRef(0);
   const [tab, setTab] = useState<TabId>("activities");
-  const [feed, setFeed] = useState<FeedPayload | null>(null);
-  const [loading, setLoading] = useState(false);
   const [expandedNoticeId, setExpandedNoticeId] = useState<number | null>(null);
   const [panelStyle, setPanelStyle] = useState<{ top: number; left: number; width: number }>({
     top: 0,
@@ -78,35 +76,9 @@ export default function NotificationCenterPanel({
     if (scrollRef.current) scrollTopRef.current = scrollRef.current.scrollTop;
   }, []);
 
-  const restoreScrollTop = useCallback(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollTopRef.current;
-  }, []);
-
-  const refreshFeed = useCallback(
-    async (opts?: { silent?: boolean }) => {
-      if (!opts?.silent) setLoading(true);
-      try {
-        const res = await fetch("/api/notifications", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = (await res.json()) as FeedPayload;
-        setFeed(data);
-        if (Number.isFinite(data.unreadCount)) {
-          onCountChange(Math.max(0, Number(data.unreadCount)));
-        }
-      } catch {
-        // Keep the last known feed when a background refresh fails.
-      } finally {
-        if (!opts?.silent) setLoading(false);
-        requestAnimationFrame(restoreScrollTop);
-      }
-    },
-    [onCountChange, restoreScrollTop]
-  );
-
   const markNoticeRead = useCallback(
     async (noticeId: number) => {
-      setFeed((prev) => {
-        if (!prev) return prev;
+      onFeedPatch((prev) => {
         const recentNotices = prev.recentNotices.map((notice) =>
           notice.id === noticeId ? { ...notice, unread: false } : notice
         );
@@ -121,16 +93,15 @@ export default function NotificationCenterPanel({
           body: JSON.stringify({ noticeId }),
         });
       } catch {
-        void refreshFeed({ silent: true });
+        void onRefresh({ silent: true });
       }
     },
-    [onCountChange, refreshFeed]
+    [onCountChange, onFeedPatch, onRefresh]
   );
 
   const markActivityRead = useCallback(
     async (activityId: number) => {
-      setFeed((prev) => {
-        if (!prev) return prev;
+      onFeedPatch((prev) => {
         const unreadCount = Math.max(0, prev.unreadCount - 1);
         onCountChange(unreadCount);
         return {
@@ -146,10 +117,10 @@ export default function NotificationCenterPanel({
           body: JSON.stringify({ activityId }),
         });
       } catch {
-        void refreshFeed({ silent: true });
+        void onRefresh({ silent: true });
       }
     },
-    [onCountChange, refreshFeed]
+    [onCountChange, onFeedPatch, onRefresh]
   );
 
   const toggleNotice = useCallback(
@@ -178,7 +149,6 @@ export default function NotificationCenterPanel({
   useEffect(() => {
     if (!open) return;
     updatePosition();
-    void refreshFeed();
     const onResize = () => updatePosition();
     window.addEventListener("resize", onResize);
     window.addEventListener("scroll", onResize, true);
@@ -186,20 +156,7 @@ export default function NotificationCenterPanel({
       window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onResize, true);
     };
-  }, [open, refreshFeed, updatePosition]);
-
-  useEffect(() => {
-    if (!open) return;
-    const timer = window.setInterval(() => void refreshFeed({ silent: true }), REFRESH_INTERVAL_MS);
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") void refreshFeed({ silent: true });
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [open, refreshFeed]);
+  }, [open, updatePosition]);
 
   useEffect(() => {
     if (!open) return;
@@ -230,6 +187,12 @@ export default function NotificationCenterPanel({
       scrollTopRef.current = 0;
     }
   }, [open]);
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = scrollTopRef.current;
+    });
+  }, [feed]);
 
   if (!open) return null;
 

@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  fetchNotificationFeed,
+  NOTIFICATION_FEED_REFRESH_MS,
+  type NotificationFeedPayload,
+} from "@/lib/notificationFeedClient";
 import NotificationCenterPanel from "./NotificationCenterPanel";
 
 type Props = {
@@ -8,37 +13,47 @@ type Props = {
   className?: string;
 };
 
-const REFRESH_INTERVAL_MS = 30_000;
-
 export default function NotificationBell({ count = 0, className = "" }: Props) {
   const [open, setOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(count);
+  const [feed, setFeed] = useState<NotificationFeedPayload | null>(null);
+  const [feedLoading, setFeedLoading] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const openRef = useRef(open);
+  openRef.current = open;
 
   useEffect(() => {
     setVisibleCount(count);
   }, [count]);
 
+  const refreshNotifications = useCallback(async (opts?: { silent?: boolean }) => {
+    const panelOpen = openRef.current;
+    if (!opts?.silent && panelOpen) setFeedLoading(true);
+    try {
+      const data = await fetchNotificationFeed();
+      if (!data) return;
+      if (Number.isFinite(data.unreadCount)) {
+        setVisibleCount(Math.max(0, Number(data.unreadCount)));
+      }
+      if (panelOpen) setFeed(data);
+    } catch {
+      // Keep the last known count/feed when a background refresh fails.
+    } finally {
+      if (!opts?.silent && panelOpen) setFeedLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
 
-    async function refreshCount() {
-      try {
-        const res = await fetch("/api/notifications", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = (await res.json()) as { unreadCount?: number };
-        if (active && Number.isFinite(data.unreadCount)) {
-          setVisibleCount(Math.max(0, Number(data.unreadCount)));
-        }
-      } catch {
-        // Keep the last known count when a background refresh fails.
-      }
-    }
+    const run = (silent = true) => {
+      if (active) void refreshNotifications({ silent });
+    };
 
-    void refreshCount();
-    const timer = window.setInterval(refreshCount, REFRESH_INTERVAL_MS);
+    run(false);
+    const timer = window.setInterval(() => run(true), NOTIFICATION_FEED_REFRESH_MS);
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") void refreshCount();
+      if (document.visibilityState === "visible") run(true);
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
 
@@ -47,6 +62,18 @@ export default function NotificationBell({ count = 0, className = "" }: Props) {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
+  }, [refreshNotifications]);
+
+  useEffect(() => {
+    if (!open) {
+      setFeed(null);
+      return;
+    }
+    void refreshNotifications({ silent: false });
+  }, [open, refreshNotifications]);
+
+  const patchFeed = useCallback((patch: (prev: NotificationFeedPayload) => NotificationFeedPayload) => {
+    setFeed((prev) => (prev ? patch(prev) : prev));
   }, []);
 
   return (
@@ -87,6 +114,10 @@ export default function NotificationBell({ count = 0, className = "" }: Props) {
         onClose={() => setOpen(false)}
         initialCount={visibleCount}
         onCountChange={setVisibleCount}
+        feed={feed}
+        loading={feedLoading}
+        onFeedPatch={patchFeed}
+        onRefresh={refreshNotifications}
       />
     </>
   );

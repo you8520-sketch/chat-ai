@@ -50,17 +50,19 @@ describe("notices canonical read + detail", () => {
 
   it("marks a single notice read without marking others", () => {
     const db = createDb();
-    markSingleNoticeRead(db, 1, 1);
-    assert.equal(isNoticeRead(db, 1, 1, 0), true);
-    assert.equal(isNoticeRead(db, 1, 2, 0), false);
-    assert.equal(getUnreadNoticeCount(db, 1, 0), 1);
+    const guestState = { watermarkId: 0, sparseReadIds: [] as number[] };
+    markSingleNoticeRead(db, 1, 1, guestState);
+    assert.equal(isNoticeRead(db, 1, 1, guestState), true);
+    assert.equal(isNoticeRead(db, 1, 2, guestState), false);
+    assert.equal(getUnreadNoticeCount(db, 1, guestState), 1);
     db.close();
   });
 
   it("mark all still marks every notice for logged-in users", () => {
     const db = createDb();
+    const guestState = { watermarkId: 0, sparseReadIds: [] as number[] };
     markNoticesRead(db, 1, 2);
-    assert.equal(getUnreadNoticeCount(db, 1, 0), 0);
+    assert.equal(getUnreadNoticeCount(db, 1, guestState), 0);
     db.close();
   });
 });

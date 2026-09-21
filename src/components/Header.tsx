@@ -3,6 +3,7 @@ import Image from "next/image";
 import { cookies } from "next/headers";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { readGuestNoticeReadState } from "@/lib/noticeGuestReadCookies";
 import { getTotalUnreadCount } from "@/lib/userNotifications";
 import AnimatedPointsBadge from "./AnimatedPointsBadge";
 import MobileBottomNav from "./MobileBottomNav";
@@ -19,9 +20,11 @@ export default async function Header() {
   const user = await getSessionUser();
   const db = getDb();
   const cookieStore = await cookies();
-  const cookieReadId = Number(cookieStore.get("notice_read_id")?.value ?? 0);
-  const readId = user?.notice_last_read_id ?? cookieReadId;
-  const unreadCount = getTotalUnreadCount(db, user?.id ?? null, readId);
+  const guestState = readGuestNoticeReadState({
+    watermarkRaw: cookieStore.get("notice_read_id")?.value,
+    sparseRaw: cookieStore.get("notice_read_ids")?.value,
+  });
+  const unreadCount = getTotalUnreadCount(db, user?.id ?? null, guestState);
   const pointBalance = user ? getPointBalance(user.id) : null;
   const paymentsEnabled = isPaymentsEnabled();
 
