@@ -53,6 +53,16 @@ on:
       - "src/lib/modelPickerPreview.test.ts"
       - "src/lib/cheaperInferenceConfig.ts"
       - "src/lib/cheaperInferenceConfig.test.ts"
+      - "src/lib/publishedModelPricing.ts"
+      - "src/lib/publishedModelPricing.test.ts"
+      - "src/lib/publishedUserCharge.ts"
+      - "src/lib/chatBillingContractDispatch.ts"
+      - "src/lib/modelPriceChangeClassifier.ts"
+      - "src/lib/modelPricingTracker.ts"
+      - "src/lib/modelPricingTracker.test.ts"
+      - "src/lib/deepseekPhase2PublishedBillingCutover.test.ts"
+      - "src/lib/deepseekV4ProPublishedBilling.test.ts"
+      - "src/lib/deepseekV4ProCompetitivePricingV4.test.ts"
       - "src/lib/openRouterModelPricing.ts"
       - "src/lib/gemini37FlashPricing.ts"
       - "src/lib/gemini37FlashPricingTelemetry.ts"
@@ -103,6 +113,15 @@ jobs:
           src/lib/mainRpModelRegistry.test.ts
           src/lib/modelPickerPreview.test.ts
           src/lib/cheaperInferenceConfig.test.ts
+
+      - name: Published pricing + tracker regressions
+        run: >-
+          node --conditions=react-server --import tsx --test --test-concurrency=1
+          src/lib/publishedModelPricing.test.ts
+          src/lib/deepseekV4ProPublishedBilling.test.ts
+          src/lib/deepseekPhase2PublishedBillingCutover.test.ts
+          src/lib/deepseekV4ProCompetitivePricingV4.test.ts
+          src/lib/modelPricingTracker.test.ts
 
       - name: Provider cost ledger single owner
         run: node --conditions=react-server --import tsx --test src/lib/providerCostSingleOwner.test.ts

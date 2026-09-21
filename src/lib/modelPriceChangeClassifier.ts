@@ -238,22 +238,13 @@ export function classifyCiReferenceChange(params: {
   const relativeDelta = maxRelativeRateDelta(prev, next);
   const isLarge = relativeDelta >= MODEL_PRICING_LARGE_CHANGE_THRESHOLD;
 
-  const publishedInput = params.published.billingReferenceInputUsdPerMillion;
-  const publishedOutput = params.published.billingReferenceOutputUsdPerMillion;
-  const matchesPublishedBaseline =
-    next.inputUsdPerMillion === publishedInput && next.outputUsdPerMillion === publishedOutput;
-
-  if (matchesPublishedBaseline) {
-    return events;
-  }
-
   events.push({
     eventType: "CI_REFERENCE_CHANGED_UNVERIFIED",
     action: "HOLD",
     decision: "await_official_provider_corroboration",
     // The event OWNER stays CI-unverified even for large moves; the large
     // change is only surfaced in the classification detail.
-    classification: isLarge ? "UNEXPECTED_LARGE_CHANGE" : "ci_reference_differs_from_active_published_baseline",
+    classification: isLarge ? "UNEXPECTED_LARGE_CHANGE" : "ci_reference_changed_unverified",
     oldFingerprint: params.previous?.rawFingerprint ?? null,
     newFingerprint: params.current.rawFingerprint,
     oldValues: ratesPayload(prev),
