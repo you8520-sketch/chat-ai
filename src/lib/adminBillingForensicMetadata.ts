@@ -81,16 +81,18 @@ export function buildAdminBillingForensicMetadata(input: {
   const storedFinalUserChargePoints =
     dispatch == null
       ? null
-      : dispatch.billingContract === "published_phase1" ||
-          dispatch.billingContract === "published_phase2"
-        ? dispatch.publishedFinalPoints != null &&
-          Number.isFinite(dispatch.publishedFinalPoints)
-          ? dispatch.publishedFinalPoints
-          : null
-        : dispatch.legacyFinalPoints != null &&
-            Number.isFinite(dispatch.legacyFinalPoints)
-          ? dispatch.legacyFinalPoints
-          : null;
+      : dispatch.billingContract === "published_fail_closed"
+        ? 0
+        : dispatch.billingContract === "published_phase1" ||
+            dispatch.billingContract === "published_phase2"
+          ? dispatch.publishedFinalPoints != null &&
+            Number.isFinite(dispatch.publishedFinalPoints)
+            ? dispatch.publishedFinalPoints
+            : null
+          : dispatch.legacyFinalPoints != null &&
+              Number.isFinite(dispatch.legacyFinalPoints)
+            ? dispatch.legacyFinalPoints
+            : null;
 
   const billingEvidenceStatus: AdminBillingForensicMetadata["billingEvidenceStatus"] =
     dispatch?.billingContract != null
@@ -126,8 +128,10 @@ export function buildAdminBillingForensicMetadata(input: {
       dispatch?.deliveredModelId?.trim() || usage?.model?.trim() || null,
     billingContract: dispatch?.billingContract ?? null,
     billingContractReason: dispatch?.billingContractReason ?? null,
+    publishedBillingPhaseAttempted: dispatch?.publishedBillingPhaseAttempted ?? null,
     publishedCandidateStatus: dispatch?.publishedCandidateStatus ?? null,
     publishedBlockReason: dispatch?.publishedBlockReason ?? null,
+    appliedFailClosedPolicy: dispatch?.appliedFailClosedPolicy ?? null,
     pricingVersion: dispatch?.pricingVersion ?? null,
     publishedFinalPoints: dispatch?.publishedFinalPoints ?? null,
     legacyFinalPoints: dispatch?.legacyFinalPoints ?? null,

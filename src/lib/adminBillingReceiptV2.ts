@@ -21,8 +21,11 @@ export type AdminBillingReceiptV2UserCharge = {
   billingWaived: boolean;
   waiverReason?: string;
   /** Admin-only — settled charge contract metadata from dispatcher. */
-  billingContract?: "published_phase1" | "published_phase2" | "legacy";
+  billingContract?: "published_phase1" | "published_phase2" | "legacy" | "published_fail_closed";
   billingContractReason?: string;
+  publishedBillingPhaseAttempted?: "phase1" | "phase2" | null;
+  publishedBlockReason?: string | null;
+  appliedFailClosedPolicy?: string | null;
   pricingVersion?: number | null;
   publishedFinalPoints?: number | null;
   settledDeductedPoints?: number;
@@ -263,6 +266,10 @@ export function buildAdminBillingReceiptV2(usage: Usage): AdminBillingReceiptV2 
       ? {
           billingContract: usage.billingContractDispatch.billingContract,
           billingContractReason: usage.billingContractDispatch.billingContractReason,
+          publishedBillingPhaseAttempted:
+            usage.billingContractDispatch.publishedBillingPhaseAttempted,
+          publishedBlockReason: usage.billingContractDispatch.publishedBlockReason,
+          appliedFailClosedPolicy: usage.billingContractDispatch.appliedFailClosedPolicy,
           pricingVersion: usage.billingContractDispatch.pricingVersion,
           publishedFinalPoints: usage.billingContractDispatch.publishedFinalPoints,
           settledDeductedPoints: usage.billingContractDispatch.settledDeductedPoints,

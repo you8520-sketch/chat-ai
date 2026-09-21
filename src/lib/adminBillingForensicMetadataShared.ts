@@ -22,10 +22,12 @@ export type AdminBillingForensicMetadata = {
   requestId: string | null;
   selectedModelId: string | null;
   deliveredModelId: string | null;
-  billingContract: "published_phase1" | "published_phase2" | "legacy" | null;
+  billingContract: "published_phase1" | "published_phase2" | "legacy" | "published_fail_closed" | null;
   billingContractReason: string | null;
+  publishedBillingPhaseAttempted: "phase1" | "phase2" | null;
   publishedCandidateStatus: string | null;
   publishedBlockReason: string | null;
+  appliedFailClosedPolicy: string | null;
   pricingVersion: number | null;
   publishedFinalPoints: number | null;
   legacyFinalPoints: number | null;

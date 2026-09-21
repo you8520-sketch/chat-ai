@@ -279,8 +279,10 @@ describe("deepseekV41EvidenceCorrection — cache write boundary", () => {
       reasoning: "unreported",
     };
     const decision = dispatchV41([stage]);
-    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.contract, "published_fail_closed");
+    assert.equal(decision.points, 0);
     assert.equal(decision.telemetry.publishedBlockReason, "unsupported_cache_semantics");
+    assert.equal(decision.telemetry.appliedFailClosedPolicy, "zero_point_billing_anomaly_waiver");
   });
 });
 

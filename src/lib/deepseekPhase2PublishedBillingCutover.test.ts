@@ -280,15 +280,17 @@ describe("deepseekPhase2PublishedBillingCutover — direct routing matrix D1-D10
     assert.equal(decision.points, CACHE_HIT_POINTS);
   });
 
-  it("D6 cacheWriteTokens>0 → legacy published_blocked", () => {
+  it("D6 cacheWriteTokens>0 → published_fail_closed 0P", () => {
     const decision = dispatchDeepSeek([
       completeDeepSeekStage({ stage: "primary", cacheWriteTokens: 2000 }),
     ]);
-    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.contract, "published_fail_closed");
+    assert.equal(decision.points, 0);
     assert.equal(decision.reason, "unsupported_cache_semantics");
+    assert.equal(decision.telemetry.appliedFailClosedPolicy, "zero_point_billing_anomaly_waiver");
   });
 
-  it("D7 incomplete usage (cache_read unreported) → legacy usage_coverage_incomplete", () => {
+  it("D7 incomplete usage (cache_read unreported) → published_fail_closed 0P", () => {
     const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "A1-deepseek-normal")!;
     const legacyPoints = computeLiveChargeFromFixture(fixture).totalPoints;
     const decision = resolveChatBillingContract({
@@ -301,22 +303,25 @@ describe("deepseekPhase2PublishedBillingCutover — direct routing matrix D1-D10
       fxSnapshot: FX_DETERMINISTIC,
       phase2DeepSeekPublishedBillingEnabled: true,
     });
-    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.contract, "published_fail_closed");
+    assert.equal(decision.points, 0);
     assert.equal(decision.reason, "usage_coverage_incomplete");
   });
 
-  it("D8 unknown usage (no stages) → legacy usage_unresolved", () => {
+  it("D8 unknown usage (no stages) → published_fail_closed 0P", () => {
     const decision = dispatchDeepSeek([], { legacyFinalPoints: 50 });
-    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.contract, "published_fail_closed");
+    assert.equal(decision.points, 0);
     assert.equal(decision.reason, "usage_unresolved");
   });
 
-  it("D9 invalid FX snapshot → legacy invalid_fx_snapshot", () => {
+  it("D9 invalid FX snapshot → published_fail_closed 0P", () => {
     const invalidFx: BillingFxSnapshot = { ...FX_DETERMINISTIC, locked: false };
     const decision = dispatchDeepSeek([completeDeepSeekStage({ stage: "primary" })], {
       fxSnapshot: invalidFx,
     });
-    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.contract, "published_fail_closed");
+    assert.equal(decision.points, 0);
     assert.equal(decision.reason, "invalid_fx_snapshot");
   });
 
