@@ -61,12 +61,12 @@ describe("publishedModelPricing", () => {
     assert.equal(g.minimumMarginFloor, 0.5);
   });
 
-  it("deepseek v4 pro 0813 published v2 shadow calibration", () => {
+  it("deepseek v4 pro 0813 published v3 official PEAK shadow calibration", () => {
     const d = getPublishedPricing(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
-    assert.equal(d.pricingVersion, 2);
-    assert.equal(d.billingReferenceInputUsdPerMillion, 0.66);
-    assert.equal(d.billingReferenceOutputUsdPerMillion, 1.98);
-    assert.equal(d.billingReferenceCacheReadUsdPerMillion, 0.022);
+    assert.equal(d.pricingVersion, 3);
+    assert.equal(d.billingReferenceInputUsdPerMillion, 1.32);
+    assert.equal(d.billingReferenceOutputUsdPerMillion, 3.96);
+    assert.equal(d.billingReferenceCacheReadUsdPerMillion, 0.044);
     assert.equal(d.billingReferenceCacheWriteUsdPerMillion, undefined);
     assert.equal(d.targetMargin, 0.5);
     assert.equal(d.minimumMarginFloor, 0.4);
@@ -95,7 +95,7 @@ describe("publishedModelPricing", () => {
       adjustment: { kind: "none" },
     });
     assert.equal(charge.status, "complete");
-    if (charge.status === "complete") assert.equal(charge.snapshot.finalPoints, 90);
+    if (charge.status === "complete") assert.equal(charge.snapshot.finalPoints, 180);
   });
 
   it("PUBLISHED_CATALOG_IDENTITY_INVARIANT — catalog key equals pricing.modelId", () => {

@@ -205,7 +205,7 @@ describe("model pricing tracker regression fixtures", () => {
     assert.equal(getModelPricingPolicy(DEEPSEEK)?.baselineMode, "PROVIDER_PEAK");
   });
 
-  it("G: CI reference vs published mismatch → SOURCE_CONFLICT hold", () => {
+  it("G: CI procurement_reference vs published baseline mismatch → no SOURCE_CONFLICT (different semantic domains)", () => {
     const policy = getModelPricingPolicy(GEMINI)!;
     const published = getPublishedPricing(GEMINI);
     const observedAt = FIXED_NOW.toISOString();
@@ -227,9 +227,7 @@ describe("model pricing tracker regression fixtures", () => {
       publishedBaseline,
       runDateKey: "2026-09-20",
     });
-    assert.ok(conflict);
-    assert.equal(conflict.eventType, "SOURCE_CONFLICT");
-    assert.equal(conflict.action, "HOLD");
+    assert.equal(conflict, null);
   });
 
   it("H: provider model identity change → MODEL_ROUTING_CHANGED hold", () => {
@@ -1038,15 +1036,35 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
     assert.ok(events.every((e) => e.eventType !== "PROVIDER_NORMAL_BASELINE_CHANGED"));
     assert.ok(events.every((e) => e.eventType !== "PROVIDER_SCHEDULED_BASELINE_CHANGED"));
 
-    // A large CI move is still owned by the CI-unverified event; the large
-    // change is surfaced only in the classification detail.
-    const large = buildCiReferenceSnapshot({
+    // Numeric coincidence with published PEAK baseline must not suppress a prior
+    // CI reference transition when the reference actually moved.
+    const peakAligned = buildCiReferenceSnapshot({
       policy,
       catalog: seedCatalog(DEEPSEEK, {
         inputUsdPerMillion: 0.5,
         outputUsdPerMillion: 1.5,
         referenceInputUsdPerMillion: 1.32,
         referenceOutputUsdPerMillion: 3.96,
+        discountPercent: 0,
+      }),
+      observedAt,
+    })!;
+    const peakAlignedEvents = classifyCiReferenceChange({
+      policy,
+      published,
+      previous,
+      current: peakAligned,
+    });
+    assert.equal(peakAlignedEvents.length, 0);
+
+    // A large CI move away from published baseline stays CI-unverified/HOLD.
+    const large = buildCiReferenceSnapshot({
+      policy,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 0.5,
+        outputUsdPerMillion: 1.5,
+        referenceInputUsdPerMillion: 1.4,
+        referenceOutputUsdPerMillion: 4.2,
         discountPercent: 0,
       }),
       observedAt,
