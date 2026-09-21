@@ -1,0 +1,44 @@
+{
+  "reviewedHead": "8804c558d9add3b2fa9fb169b8980cd22fb01a54",
+  "note": "Reclassifies original blind smoke fixture labels without deleting outputs.",
+  "fixtures": {
+    "D_lore": {
+      "originalLabel": "D_lore",
+      "evidenceClass": "LORE_CANON_PRESERVATION",
+      "description": "Lore/canon-preserving improvisation under emotional user cue."
+    },
+    "F_speech_lock": {
+      "originalLabel": "F_speech_lock",
+      "evidenceClass": "LENGTH_FREE_CONTINUATION",
+      "description": "NOT Speech Lock. User asks for 3200 chars continuation; identity+lore only — no contradictory speech instruction or character speech canon fixture.",
+      "doNotUseAs": ["SPEECH_LOCK_PASS"]
+    },
+    "G_long_memory": {
+      "originalLabel": "G_long_memory",
+      "evidenceClass": "AMBIGUOUS_SHARED_MEMORY_HANDLING",
+      "description": "NOT Long Memory Recall. Vague prior reference without Current/Global/Medium durable fact injection.",
+      "doNotUseAs": ["LONG_MEMORY_RECALL_PASS"],
+      "qualitativeNote": "Useful GPT review evidence only — V4.1 asks clarifying question; Pro asserts memory without cited fact. Not a model-global hard rule."
+    },
+    "H_long_output": {
+      "originalLabel": "H_long_output",
+      "evidenceClass": "LENGTH_UNDER_TARGET_NO_RECOVERY",
+      "description": "3500 target with recovery disabled in smoke script; under-length outputs expected.",
+      "smokeRecoveryDisabled": true
+    },
+    "J_adult_fixture": {
+      "originalLabel": "J_adult_fixture",
+      "evidenceClass": "ADULT_MODE_SMOKE",
+      "description": "Adult-mode fixture with nsfw=true."
+    }
+  },
+  "historicalOperationalJsonGap": {
+    "issue": "Original rp-ab/operational.json coerced missing cache fields to numeric 0 via ?? 0",
+    "resolution": "Evidence correction pass captures usageReportingEvidence explicitly on new fixtures"
+  },
+  "billingReplayClassification": {
+    "rpAbOperationalJson": "PRODUCTION-EQUIVALENT SYNTHETIC REPLAY USING CAPTURED TOKEN VALUES",
+    "notClaimedAs": "EXACT HISTORICAL RAW-EVIDENCE REPLAY",
+    "exactLiveEvidenceSource": "evidence-correction/operational.json"
+  }
+}

@@ -7,7 +7,10 @@ import {
   GEMINI31_MODEL_ID,
   OPUS5_MODEL_ID,
 } from "@/lib/premiumModelIds";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+} from "@/lib/chatModels";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
 
 export type PricingApplicability = "base_tier_only" | "tier_aware";
@@ -68,6 +71,19 @@ const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPoli
      *   prompt_tokens=12871, cached_tokens=12800, cache_write absent
      * - data/d2-live/REPORT.md sequential turns: cached_tokens=3072 stable
      * DeepSeek never reports cache_write_tokens > 0 in captured production usage.
+     */
+    cacheSemanticStatus: "verified",
+    cacheWriteAbsentSemantics: "proven_zero",
+  },
+  [CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL]: {
+    modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+    pricingApplicability: "tier_aware",
+    /**
+     * V4.1 cache contract (billing-bucket sense only):
+     * - Official DeepSeek pricing: cache hit / cache miss / output — no separate cache-write price.
+     * - Context Caching is automatic (physical persistence may occur).
+     * - CI captured usage: cache_write_tokens reported as 0; absent unreported field treated as
+     *   no separately billed cache-write bucket (NOT "provider performs no caching").
      */
     cacheSemanticStatus: "verified",
     cacheWriteAbsentSemantics: "proven_zero",

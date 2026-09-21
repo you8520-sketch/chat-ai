@@ -25,6 +25,7 @@ import {
   OPENROUTER_DEEPSEEK_TRUE_OFF_REASONING,
   resolveDeepSeekBackupModelId,
   resolveDeepSeekFailoverRouteKind,
+  resolveDeepSeekPrimaryModelId,
   type DeepSeekAssembledRequest,
   type DeepSeekFailoverTelemetry,
   type DeepSeekRouteKind,
@@ -107,7 +108,7 @@ function requestFor(model: string): DeepSeekAssembledRequest {
 }
 
 async function runStream(opts: {
-  logical: "pro" | "flash";
+  logical: "pro" | "flash_0731";
   routeKind?: "native_pro" | "native_flash" | "adult_handoff";
   fetchFn: typeof fetch;
   deadlines?: { headersMs?: number; firstVisibleMs?: number; backupFirstVisibleMs?: number };
@@ -122,9 +123,7 @@ async function runStream(opts: {
   const models: string[] = [];
   const bodies: Record<string, unknown>[] = [];
   let telemetry: DeepSeekFailoverTelemetry | null = null;
-  const logicalModel = opts.logical === "pro"
-    ? CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
-    : CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+  const logicalModel = resolveDeepSeekPrimaryModelId(opts.logical);
   const backupModel = resolveDeepSeekBackupModelId(opts.logical);
   const previousOr = process.env.OPENROUTER_API_KEY;
   const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
@@ -134,7 +133,8 @@ async function runStream(opts: {
     const result = await executeDeepSeekWithProviderFailover({
       routeKind:
         opts.routeKind ??
-        (opts.logical === "pro" ? "native_pro" : "native_flash"),
+        resolveDeepSeekFailoverRouteKind({ modelId: logicalModel }) ??
+        "native_flash",
       logicalModel: opts.logical,
       primary: requestFor(logicalModel),
       backupBody: adaptOpenRouterDeepSeekBackupBody(primaryBody(logicalModel), backupModel),
@@ -169,7 +169,7 @@ async function runStream(opts: {
 }
 
 async function runStreamExpectFailoverError(opts: {
-  logical: "pro" | "flash";
+  logical: "pro" | "flash_0731";
   routeKind?: "native_pro" | "native_flash" | "adult_handoff";
   fetchFn: typeof fetch;
   deadlines?: { headersMs?: number; firstVisibleMs?: number; backupFirstVisibleMs?: number };
@@ -192,13 +192,13 @@ describe("DeepSeek cross-provider failover owner", () => {
       OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL
     );
     assert.equal(
-      resolveDeepSeekBackupModelId("flash"),
+      resolveDeepSeekBackupModelId("flash_0731"),
       OPENROUTER_GEMINI_31_FLASH_MODEL
     );
     assert.equal(resolveDeepSeekBackupModelId("pro").includes("deepseek-v4-pro-0813"), true);
-    assert.equal(resolveDeepSeekBackupModelId("flash").includes("gemini-3.1-flash-lite"), true);
+    assert.equal(resolveDeepSeekBackupModelId("flash_0731").includes("gemini-3.1-flash-lite"), true);
     assert.equal(resolveDeepSeekBackupModelId("pro").endsWith("/deepseek-v4-pro"), false);
-    assert.equal(resolveDeepSeekBackupModelId("flash").endsWith("/deepseek-v4-flash"), false);
+    assert.equal(resolveDeepSeekBackupModelId("flash_0731").endsWith("/deepseek-v4-flash"), false);
   });
 
   it("maps OpenRouter Gemini Flash-Lite backup with minimal reasoning", () => {
@@ -489,7 +489,7 @@ describe("DeepSeek cross-provider failover owner", () => {
 
   it("F1 native Flash0731 success → OR calls 0", async () => {
     const result = await runStream({
-      logical: "flash",
+      logical: "flash_0731",
       fetchFn: async () =>
         sseResponse([{ choices: [{ delta: { content: "플래시" } }] }]),
     });
@@ -500,7 +500,7 @@ describe("DeepSeek cross-provider failover owner", () => {
   it("F2 Flash UND_ERR_SOCKET pre-visible → strict single external attempt", async () => {
     let calls = 0;
     const result = await runStreamExpectFailoverError({
-      logical: "flash",
+      logical: "flash_0731",
       fetchFn: async () => {
         calls += 1;
         throw new Error("fetch failed");
@@ -514,7 +514,7 @@ describe("DeepSeek cross-provider failover owner", () => {
   it("F3 Flash 503 → strict single external attempt", async () => {
     let calls = 0;
     const result = await runStreamExpectFailoverError({
-      logical: "flash",
+      logical: "flash_0731",
       fetchFn: async () => {
         calls += 1;
         return new Response("busy", { status: 503 });
@@ -528,7 +528,7 @@ describe("DeepSeek cross-provider failover owner", () => {
   it("F4 Flash first-visible deadline → strict single external attempt", async () => {
     let calls = 0;
     const result = await runStreamExpectFailoverError({
-      logical: "flash",
+      logical: "flash_0731",
       deadlines: { headersMs: 80, firstVisibleMs: 25, backupFirstVisibleMs: 80 },
       fetchFn: async () => {
         calls += 1;
@@ -549,7 +549,7 @@ describe("DeepSeek cross-provider failover owner", () => {
 
   it("F5 Flash partial visible then failure → OR calls 0", async () => {
     const result = await runStream({
-      logical: "flash",
+      logical: "flash_0731",
       fetchFn: async () =>
         sseResponse([{ choices: [{ delta: { content: "부" } }] }]),
     });
@@ -770,13 +770,13 @@ describe("DeepSeek cross-provider failover owner", () => {
 
   it("does not persist provider stickiness between independent executes", async () => {
     await runStreamExpectFailoverError({
-      logical: "flash",
+      logical: "flash_0731",
       fetchFn: async () => {
         throw new Error("fetch failed");
       },
     });
     const second = await runStream({
-      logical: "flash",
+      logical: "flash_0731",
       fetchFn: async () =>
         sseResponse([{ choices: [{ delta: { content: "2" } }] }]),
     });
@@ -808,7 +808,7 @@ describe("F500 Cheaper Inference strict single external attempt", () => {
   it("F500-2 CI Flash 0731 HTTP 500 → canonical failure, exactly one external request", async () => {
     let calls = 0;
     const result = await runStreamExpectFailoverError({
-      logical: "flash",
+      logical: "flash_0731",
       fetchFn: async () => {
         calls += 1;
         return new Response("internal", { status: 500 });

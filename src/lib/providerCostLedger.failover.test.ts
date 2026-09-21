@@ -63,7 +63,7 @@ describe("providerCostLedger failover integration", () => {
 
     await executeDeepSeekWithProviderFailover({
       routeKind: "background_flash",
-      logicalModel: "flash",
+      logicalModel: "flash_0731",
       primary: {
         endpoint: "https://ci.example/v1/chat/completions",
         headers: { authorization: "Bearer test" },

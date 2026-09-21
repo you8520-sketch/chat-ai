@@ -109,6 +109,12 @@ export const CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL =
 /** Cheaper Inference OpenAI-compatible API — Gemini 3.7 Flash */
 export const CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL = "gemini-3.7-flash";
 
+/** Cheaper Inference — DeepSeek V4.1 Flash (Main RP fast/value; distinct from 0731). */
+export const CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL = "deepseek-v4.1-flash";
+
+/** Official DeepSeek API name for V4.1 Flash (direct API); CI uses dotted id above. */
+export const DEEPSEEK_V41_FLASH_OFFICIAL_API_NAME = "deepseek-flash";
+
 /** Cheaper Inference — canonical current DeepSeek V4 Flash outbound id. */
 export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL =
   "deepseek-v4-flash-0731";
@@ -344,12 +350,21 @@ export function isCheaperInferenceDeepSeekV4ProModel(
   );
 }
 
+export function isCheaperInferenceDeepSeekV41FlashModel(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+}
+
 export function isCheaperInferenceDeepSeekV4FlashModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL
   );
+}
+
+/** Main RP DeepSeek prompt-family parity: V4 Pro + V4.1 Flash (not legacy 0731 background). */
+export function isDeepSeekMainRpFamilyModel(modelId: string): boolean {
+  return isDeepSeekV4ProModel(modelId) || isCheaperInferenceDeepSeekV41FlashModel(modelId);
 }
 
 export function isCheaperInferenceQwen38MaxModel(modelId: string): boolean {
@@ -370,6 +385,7 @@ export function isCheaperInferenceModel(modelId: string): boolean {
     id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL ||
+    id === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_QWEN_38_MAX_MODEL
   );
 }
@@ -400,6 +416,7 @@ export function isDeepSeekModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
     isDeepSeekV4ProModel(id) ||
+    isCheaperInferenceDeepSeekV41FlashModel(id) ||
     isCheaperInferenceDeepSeekV4FlashModel(id) ||
     id === OPENROUTER_DEEPSEEK_V3_MODEL ||
     id.startsWith("deepseek/") ||

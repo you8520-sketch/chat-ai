@@ -1,0 +1,220 @@
+{
+  "reviewedHead": "8804c558d9add3b2fa9fb169b8980cd22fb01a54",
+  "providerCallBudget": {
+    "speechLock": 2,
+    "memoryRecall": 2,
+    "productionRecoveryPrimary": 1,
+    "productionRecoverySub": 1,
+    "maxPhysicalCalls": 6
+  },
+  "physicalCallsUsed": 6,
+  "operational": [
+    {
+      "fixtureId": "TRUE_speech_lock",
+      "blindLabel": "B",
+      "requestedModelId": "deepseek-v4-pro-0813",
+      "responseModelId": "deepseek-v4-pro-0813",
+      "canonicalResponseModelId": "deepseek-v4-pro-0813",
+      "modelMismatch": false,
+      "latencyMs": 9350,
+      "ttftMs": 1662,
+      "outputChars": 1028,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 5211,
+        "outputTokens": 755,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": null
+      },
+      "usageReportingEvidence": {
+        "cacheRead": "reported_valid",
+        "cacheWrite": "reported_valid",
+        "reasoning": "reported_valid"
+      },
+      "samplePath": "TRUE_speech_lock_Sample_B.txt",
+      "speechContractViolation": false
+    },
+    {
+      "fixtureId": "TRUE_speech_lock",
+      "blindLabel": "A",
+      "requestedModelId": "deepseek-v4.1-flash",
+      "responseModelId": "deepseek-v4.1-flash",
+      "canonicalResponseModelId": "deepseek-v4.1-flash",
+      "modelMismatch": false,
+      "latencyMs": 18005,
+      "ttftMs": 1658,
+      "outputChars": 2643,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 5211,
+        "outputTokens": 1974,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": null
+      },
+      "usageReportingEvidence": {
+        "cacheRead": "reported_valid",
+        "cacheWrite": "unreported",
+        "reasoning": "unreported"
+      },
+      "samplePath": "TRUE_speech_lock_Sample_A.txt",
+      "speechContractViolation": false
+    },
+    {
+      "fixtureId": "TRUE_memory_recall",
+      "blindLabel": "B",
+      "requestedModelId": "deepseek-v4-pro-0813",
+      "responseModelId": "deepseek-v4-pro-0813",
+      "canonicalResponseModelId": "deepseek-v4-pro-0813",
+      "modelMismatch": false,
+      "latencyMs": 9667,
+      "ttftMs": 1527,
+      "outputChars": 1425,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 5301,
+        "outputTokens": 1025,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": null
+      },
+      "usageReportingEvidence": {
+        "cacheRead": "reported_valid",
+        "cacheWrite": "reported_valid",
+        "reasoning": "reported_valid"
+      },
+      "samplePath": "TRUE_memory_recall_Sample_B.txt",
+      "memoryRecallPass": true,
+      "memoryCanonContradiction": false,
+      "memoryInventedReplacement": false
+    },
+    {
+      "fixtureId": "TRUE_memory_recall",
+      "blindLabel": "A",
+      "requestedModelId": "deepseek-v4.1-flash",
+      "responseModelId": "deepseek-v4.1-flash",
+      "canonicalResponseModelId": "deepseek-v4.1-flash",
+      "modelMismatch": false,
+      "latencyMs": 10692,
+      "ttftMs": 1533,
+      "outputChars": 1569,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 5301,
+        "outputTokens": 1164,
+        "cacheReadTokens": 1664,
+        "cacheWriteTokens": null,
+        "reasoningTokens": null
+      },
+      "usageReportingEvidence": {
+        "cacheRead": "reported_valid",
+        "cacheWrite": "unreported",
+        "reasoning": "unreported"
+      },
+      "samplePath": "TRUE_memory_recall_Sample_A.txt",
+      "memoryRecallPass": true,
+      "memoryCanonContradiction": false,
+      "memoryInventedReplacement": false
+    }
+  ],
+  "production3500Recovery": {
+    "fixtureId": "PRODUCTION_3500_recovery_v41",
+    "requestedModelId": "deepseek-v4.1-flash",
+    "primary": {
+      "outputChars": 1471,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 5216,
+        "outputTokens": 1075,
+        "cacheReadTokens": 4864,
+        "cacheWriteTokens": null
+      },
+      "usageReportingEvidence": {
+        "cacheRead": "reported_valid",
+        "cacheWrite": "unreported",
+        "reasoning": "unreported"
+      },
+      "ttftMs": 3320,
+      "latencyMs": 21564
+    },
+    "recovery": {
+      "triggered": true,
+      "charsBefore": 1471,
+      "charsAfter": 3047,
+      "sentenceComplete": true,
+      "physicalCalls": 1,
+      "stage": {
+        "stage": "server-under-length-recovery",
+        "model": "deepseek-v4.1-flash",
+        "input": 5810,
+        "output": 1165,
+        "apiOutputTokens": 1165,
+        "estimated": false,
+        "finishReason": "stop",
+        "usageReportingEvidence": {
+          "cacheRead": "reported_valid",
+          "cacheWrite": "unreported",
+          "reasoning": "unreported"
+        }
+      },
+      "usageReportingEvidence": {
+        "cacheRead": "reported_valid",
+        "cacheWrite": "unreported",
+        "reasoning": "unreported"
+      }
+    },
+    "finalOutputChars": 3047,
+    "targetChars": 3500,
+    "routeLifecycleVerified": {
+      "assistantRowCountVerified": false,
+      "settlementCountVerified": false,
+      "duplicateVisibleProseVerified": false,
+      "classification": "NOT_VERIFIED_BY_LIVE_RECOVERY_HARNESS",
+      "note": "Live harness measures merge chars/sentence only; persistence/settlement exactly-once requires deterministic route owners."
+    }
+  },
+  "billingCapture": {
+    "noCache": {
+      "fixtureId": "D_lore",
+      "blindLabel": "A",
+      "requestedModelId": "deepseek-v4.1-flash",
+      "responseModelId": "deepseek-v4.1-flash",
+      "canonicalResponseModelId": "deepseek-v4.1-flash",
+      "modelMismatch": false,
+      "latencyMs": 13951,
+      "ttftMs": 1547,
+      "outputChars": 2104,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 5212,
+        "outputTokens": 1538,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "reasoningTokens": 0
+      },
+      "samplePath": "D_lore_Sample_A.txt"
+    },
+    "cacheRead": {
+      "fixtureId": "G_long_memory",
+      "blindLabel": "A",
+      "requestedModelId": "deepseek-v4.1-flash",
+      "responseModelId": "deepseek-v4.1-flash",
+      "canonicalResponseModelId": "deepseek-v4.1-flash",
+      "modelMismatch": false,
+      "latencyMs": 19773,
+      "ttftMs": 3490,
+      "outputChars": 2948,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 5228,
+        "outputTokens": 2090,
+        "cacheReadTokens": 4352,
+        "cacheWriteTokens": 0,
+        "reasoningTokens": 0
+      },
+      "samplePath": "G_long_memory_Sample_A.txt"
+    },
+    "note": "Captured from bounded blind smoke; billing replay uses deterministic tests with production stage semantics."
+  }
+}

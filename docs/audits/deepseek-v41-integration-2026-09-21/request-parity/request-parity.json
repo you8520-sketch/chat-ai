@@ -1,0 +1,39 @@
+{
+  "generatedAt": "2026-09-21T01:57:41.826Z",
+  "exactMainHead": "see branch cursor/v41-flash-hidden-integration-a91d",
+  "classification": "POST_INTEGRATION_REQUEST_PARITY",
+  "proModel": "deepseek-v4-pro-0813",
+  "v41Model": "deepseek-v4.1-flash",
+  "changedKeys": [
+    "model"
+  ],
+  "pro": {
+    "model": "deepseek-v4-pro-0813",
+    "thinking": null,
+    "reasoning_effort": null,
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "max_tokens": null,
+    "messageCount": 2,
+    "systemChars": 6348
+  },
+  "v41": {
+    "model": "deepseek-v4.1-flash",
+    "thinking": null,
+    "reasoning_effort": null,
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "max_tokens": null,
+    "messageCount": 2,
+    "systemChars": 6348
+  },
+  "parityChecks": {
+    "thinkingEqual": true,
+    "reasoningEffortEqual": true,
+    "temperatureEqual": true,
+    "topPEqual": true,
+    "messageCountEqual": true,
+    "systemCharsDelta": 0
+  },
+  "stopCondition": null
+}

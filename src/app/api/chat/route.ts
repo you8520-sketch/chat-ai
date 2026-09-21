@@ -4518,7 +4518,8 @@ export async function POST(req: Request) {
           });
           if (
             billingContractDecision.contract === "published_phase1" ||
-            billingContractDecision.contract === "published_phase2"
+            billingContractDecision.contract === "published_phase2" ||
+            billingContractDecision.contract === "published_fail_closed"
           ) {
             cost = billingContractDecision.points;
           }

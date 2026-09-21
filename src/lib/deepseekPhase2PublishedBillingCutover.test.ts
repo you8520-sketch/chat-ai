@@ -11,6 +11,7 @@ import {
 } from "@/lib/billingLiveOwnerReadinessAudit";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
@@ -162,6 +163,47 @@ describe("deepseekPhase2PublishedBillingCutover — golden fixtures", () => {
     assert.equal(decision.points, CACHE_HIT_POINTS);
   });
 
+  it("V4.1 Flash direct selection → published_phase2 with stable peak BASE", () => {
+    const stage: StageUsage = {
+      ...completeDeepSeekStage({ stage: "primary" }),
+      model: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+    };
+    const decision = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      stages: [stage],
+      legacyFinalPoints: 999,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: FX_DETERMINISTIC,
+      phase1PublishedBillingEnabled: false,
+      phase2DeepSeekPublishedBillingEnabled: true,
+    });
+    assert.equal(decision.contract, "published_phase2");
+    assert.ok(decision.points > 0);
+    assert.equal(decision.telemetry.pricingVersion, 1);
+  });
+
+  it("V4.1 Phase2 OFF → legacy phase2_deepseek_billing_disabled (no procurement fallback)", () => {
+    const stage: StageUsage = {
+      ...completeDeepSeekStage({ stage: "primary" }),
+      model: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+    };
+    const decision = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      stages: [stage],
+      legacyFinalPoints: 42,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: FX_DETERMINISTIC,
+      phase2DeepSeekPublishedBillingEnabled: false,
+    });
+    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.reason, "phase2_deepseek_billing_disabled");
+    assert.equal(decision.points, 42);
+  });
+
   it("absent cache_write field → complete usage via proven-zero owner", () => {
     const stage = completeDeepSeekStage({ stage: "primary" });
     delete (stage as { cacheWriteTokens?: number }).cacheWriteTokens;
@@ -238,15 +280,17 @@ describe("deepseekPhase2PublishedBillingCutover — direct routing matrix D1-D10
     assert.equal(decision.points, CACHE_HIT_POINTS);
   });
 
-  it("D6 cacheWriteTokens>0 → legacy published_blocked", () => {
+  it("D6 cacheWriteTokens>0 → published_fail_closed 0P", () => {
     const decision = dispatchDeepSeek([
       completeDeepSeekStage({ stage: "primary", cacheWriteTokens: 2000 }),
     ]);
-    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.contract, "published_fail_closed");
+    assert.equal(decision.points, 0);
     assert.equal(decision.reason, "unsupported_cache_semantics");
+    assert.equal(decision.telemetry.appliedFailClosedPolicy, "zero_point_billing_anomaly_waiver");
   });
 
-  it("D7 incomplete usage (cache_read unreported) → legacy usage_coverage_incomplete", () => {
+  it("D7 incomplete usage (cache_read unreported) → published_fail_closed 0P", () => {
     const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "A1-deepseek-normal")!;
     const legacyPoints = computeLiveChargeFromFixture(fixture).totalPoints;
     const decision = resolveChatBillingContract({
@@ -259,22 +303,25 @@ describe("deepseekPhase2PublishedBillingCutover — direct routing matrix D1-D10
       fxSnapshot: FX_DETERMINISTIC,
       phase2DeepSeekPublishedBillingEnabled: true,
     });
-    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.contract, "published_fail_closed");
+    assert.equal(decision.points, 0);
     assert.equal(decision.reason, "usage_coverage_incomplete");
   });
 
-  it("D8 unknown usage (no stages) → legacy usage_unresolved", () => {
+  it("D8 unknown usage (no stages) → published_fail_closed 0P", () => {
     const decision = dispatchDeepSeek([], { legacyFinalPoints: 50 });
-    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.contract, "published_fail_closed");
+    assert.equal(decision.points, 0);
     assert.equal(decision.reason, "usage_unresolved");
   });
 
-  it("D9 invalid FX snapshot → legacy invalid_fx_snapshot", () => {
+  it("D9 invalid FX snapshot → published_fail_closed 0P", () => {
     const invalidFx: BillingFxSnapshot = { ...FX_DETERMINISTIC, locked: false };
     const decision = dispatchDeepSeek([completeDeepSeekStage({ stage: "primary" })], {
       fxSnapshot: invalidFx,
     });
-    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.contract, "published_fail_closed");
+    assert.equal(decision.points, 0);
     assert.equal(decision.reason, "invalid_fx_snapshot");
   });
 

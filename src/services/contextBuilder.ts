@@ -153,7 +153,13 @@ import {
 } from "@/lib/responseLength";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
-import { isCheaperInferenceDeepSeekV4FlashModel, isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
+import {
+  isCheaperInferenceDeepSeekV4FlashModel,
+  isDeepSeekMainRpFamilyModel,
+  isDeepSeekModel,
+  isDeepSeekV4ProModel,
+  isQwenModel,
+} from "@/lib/chatModels";
 import { DEEPSEEK_APPEARANCE_VARIATION_RULE } from "@/lib/appearanceCompiler";
 import { buildCoNarrationKoreanRule } from "@/lib/openRouterAdult";
 import { buildOpenRouterKoreanProseTopBlock } from "@/lib/openRouterProsePolicy";
@@ -256,9 +262,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   let usedTokens = 0;
   const deepSeekExtrasMode = resolveDeepSeekExtrasMode(input.rpDiagnosticCanary?.variant);
   const deepSeekXmlMode =
-    isDeepSeekV4ProModel(input.modelId ?? "") && deepSeekExtrasMode === "full";
+    isDeepSeekMainRpFamilyModel(input.modelId ?? "") && deepSeekExtrasMode === "full";
   const deepSeekLengthStackOnly =
-    isDeepSeekV4ProModel(input.modelId ?? "") && deepSeekExtrasMode === "length_stack_only";
+    isDeepSeekMainRpFamilyModel(input.modelId ?? "") && deepSeekExtrasMode === "length_stack_only";
   const deepSeekAppearanceRuleMode =
     isDeepSeekModel(input.modelId ?? "") &&
     !rpDiagnosticDisablesDeepSeekStyleExtras(input.rpDiagnosticCanary?.variant ?? "baseline");
@@ -516,7 +522,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "[TOP] Runtime prompt contamination guard",
       "systemRules",
       buildRuntimePromptContaminationGuardBlock(input.modelId),
-      isOpenRouter && (isQwenModel(input.modelId ?? "") || isDeepSeekV4ProModel(input.modelId ?? ""))
+      isOpenRouter &&
+        (isQwenModel(input.modelId ?? "") || isDeepSeekMainRpFamilyModel(input.modelId ?? ""))
         ? "cacheRules"
         : "dynamic"
     );

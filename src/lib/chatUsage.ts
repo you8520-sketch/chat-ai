@@ -2,11 +2,13 @@ import type { BillingWaiverReason } from "@/lib/points";
 
 /** Admin-only — canonical billing contract dispatch metadata (never public receipt). */
 export type UsageBillingContractAdmin = {
-  billingContract: "published_phase1" | "published_phase2" | "legacy";
+  billingContract: "published_phase1" | "published_phase2" | "legacy" | "published_fail_closed";
   billingContractReason: string;
   deliveredModelId: string;
+  publishedBillingPhaseAttempted: "phase1" | "phase2" | null;
   publishedCandidateStatus: string;
   publishedBlockReason: string | null;
+  appliedFailClosedPolicy: string | null;
   pricingVersion: number | null;
   publishedFinalPoints: number | null;
   legacyFinalPoints: number;

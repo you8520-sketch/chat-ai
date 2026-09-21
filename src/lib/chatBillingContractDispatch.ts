@@ -8,6 +8,7 @@ import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import { validateBillingFxSnapshotForLiveGrade } from "@/lib/billingFxSnapshot";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -32,21 +33,41 @@ export const PHASE1_PUBLISHED_MODELS = [
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
 ] as const;
 
-/** Direct user-selected DeepSeek V4 Pro 0813 — Phase 2 Published cutover (not Phase 1). */
+/** Phase 2 Published DeepSeek models — V4 Pro + V4.1 Flash (not Phase 1). */
+export const PHASE2_DEEPSEEK_PUBLISHED_MODELS = [
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+] as const;
+
+/** @deprecated use PHASE2_DEEPSEEK_PUBLISHED_MODELS — Pro-only alias retained for tests. */
 export const PHASE2_DEEPSEEK_PUBLISHED_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 
 const PHASE1_PUBLISHED_MODEL_SET = new Set<string>(PHASE1_PUBLISHED_MODELS);
+const PHASE2_DEEPSEEK_PUBLISHED_MODEL_SET = new Set<string>(PHASE2_DEEPSEEK_PUBLISHED_MODELS);
 
 export type PublishedBillingPhase = "phase1" | "phase2";
 
 export type PublishedBillingContract = "published_phase1" | "published_phase2";
+
+/** Admin telemetry — stable Phase2 published billing anomaly fail-closed waiver. */
+export const STABLE_PUBLISHED_BILLING_ANOMALY_FAIL_CLOSED_POLICY =
+  "zero_point_billing_anomaly_waiver" as const;
+
+export type AppliedFailClosedPolicy = typeof STABLE_PUBLISHED_BILLING_ANOMALY_FAIL_CLOSED_POLICY;
+
+export type StablePublishedBillingAnomalyReason =
+  | "usage_unresolved"
+  | "usage_coverage_incomplete"
+  | "usage_coverage_unknown"
+  | "invalid_fx_snapshot"
+  | PublishedChargeBlockedReason;
 
 export function isPhase1PublishedBillingModel(modelId: string): boolean {
   return PHASE1_PUBLISHED_MODEL_SET.has(modelId);
 }
 
 export function isPhase2DeepSeekPublishedBillingModel(modelId: string): boolean {
-  return canonicalizePublishedModelId(modelId) === PHASE2_DEEPSEEK_PUBLISHED_MODEL;
+  return PHASE2_DEEPSEEK_PUBLISHED_MODEL_SET.has(canonicalizePublishedModelId(modelId));
 }
 
 export function isPhase1PublishedBillingEnabled(): boolean {
@@ -106,12 +127,14 @@ export type LegacyFallbackReason =
   | PublishedChargeBlockedReason;
 
 export type ChatBillingContractTelemetry = {
-  billingContract: PublishedBillingContract | "legacy";
+  billingContract: PublishedBillingContract | "legacy" | "published_fail_closed";
   billingContractReason: string;
   deliveredModelId: string;
   selectedModelId?: string;
+  publishedBillingPhaseAttempted: PublishedBillingPhase | null;
   publishedCandidateStatus: "not_attempted" | "resolved" | "blocked" | "unavailable";
   publishedBlockReason: string | null;
+  appliedFailClosedPolicy: AppliedFailClosedPolicy | null;
   pricingVersion: number | null;
 };
 
@@ -134,6 +157,12 @@ export type ChatBillingContractDecision =
       contract: "legacy";
       points: number;
       reason: LegacyFallbackReason;
+      telemetry: ChatBillingContractTelemetry;
+    }
+  | {
+      contract: "published_fail_closed";
+      points: 0;
+      reason: StablePublishedBillingAnomalyReason;
       telemetry: ChatBillingContractTelemetry;
     };
 
@@ -163,8 +192,10 @@ function buildTelemetry(
   return {
     deliveredModelId: input.deliveredModelId,
     selectedModelId: input.selectedModelId,
+    publishedBillingPhaseAttempted: partial.publishedBillingPhaseAttempted ?? null,
     publishedCandidateStatus: partial.publishedCandidateStatus ?? "not_attempted",
     publishedBlockReason: partial.publishedBlockReason ?? null,
+    appliedFailClosedPolicy: partial.appliedFailClosedPolicy ?? null,
     pricingVersion: partial.pricingVersion ?? null,
     ...partial,
   };
@@ -182,14 +213,50 @@ function legacyDecision(
     telemetry: buildTelemetry(input, {
       billingContract: "legacy",
       billingContractReason: reason,
+      appliedFailClosedPolicy: null,
       ...telemetryPartial,
     }),
   };
 }
 
-function mapUsageCoverageToFallbackReason(
+/** Phase2 direct-selected stable published billing attempted but cannot safely resolve. */
+function phase2PublishedFailClosedDecision(
+  input: ResolveChatBillingContractInput,
+  reason: StablePublishedBillingAnomalyReason,
+  telemetryPartial: Partial<ChatBillingContractTelemetry> = {}
+): ChatBillingContractDecision {
+  return {
+    contract: "published_fail_closed",
+    points: 0,
+    reason,
+    telemetry: buildTelemetry(input, {
+      billingContract: "published_fail_closed",
+      billingContractReason: "stable_published_billing_anomaly",
+      publishedBillingPhaseAttempted: "phase2",
+      appliedFailClosedPolicy: STABLE_PUBLISHED_BILLING_ANOMALY_FAIL_CLOSED_POLICY,
+      ...telemetryPartial,
+    }),
+  };
+}
+
+function resolvePublishedPathFailure(
+  publishedPhase: PublishedBillingPhase,
+  input: ResolveChatBillingContractInput,
+  reason: StablePublishedBillingAnomalyReason,
+  telemetryPartial: Partial<ChatBillingContractTelemetry> = {}
+): ChatBillingContractDecision {
+  if (publishedPhase === "phase2") {
+    return phase2PublishedFailClosedDecision(input, reason, telemetryPartial);
+  }
+  return legacyDecision(input, reason, {
+    publishedBillingPhaseAttempted: "phase1",
+    ...telemetryPartial,
+  });
+}
+
+function mapUsageCoverageToAnomalyReason(
   coverage: UserBillableUsageCoverage
-): LegacyFallbackReason {
+): StablePublishedBillingAnomalyReason {
   switch (coverage) {
     case "partial":
       return "usage_coverage_incomplete";
@@ -245,8 +312,10 @@ function resolvePublishedContract(
       telemetry: buildTelemetry(input, {
         billingContract: "published_phase1",
         billingContractReason: "phase1_live_grade",
+        publishedBillingPhaseAttempted: "phase1",
         publishedCandidateStatus: "resolved",
         publishedBlockReason: null,
+        appliedFailClosedPolicy: null,
         pricingVersion: published.snapshot.pricingVersion,
       }),
     };
@@ -259,8 +328,10 @@ function resolvePublishedContract(
     telemetry: buildTelemetry(input, {
       billingContract: "published_phase2",
       billingContractReason: "phase2_deepseek_live_grade",
+      publishedBillingPhaseAttempted: "phase2",
       publishedCandidateStatus: "resolved",
       publishedBlockReason: null,
+      appliedFailClosedPolicy: null,
       pricingVersion: published.snapshot.pricingVersion,
     }),
   };
@@ -307,21 +378,26 @@ export function resolveChatBillingContract(
   });
 
   if (usageResolution.status !== "resolved" || !usageResolution.usage) {
-    return legacyDecision(input, "usage_unresolved", {
+    return resolvePublishedPathFailure(publishedPhase, input, "usage_unresolved", {
       publishedCandidateStatus: "unavailable",
       publishedBlockReason: usageResolution.reason,
     });
   }
 
   if (usageResolution.usageCoverage !== "complete") {
-    return legacyDecision(input, mapUsageCoverageToFallbackReason(usageResolution.usageCoverage), {
-      publishedCandidateStatus: "resolved",
-      publishedBlockReason: usageResolution.usageCoverage,
-    });
+    return resolvePublishedPathFailure(
+      publishedPhase,
+      input,
+      mapUsageCoverageToAnomalyReason(usageResolution.usageCoverage),
+      {
+        publishedCandidateStatus: "resolved",
+        publishedBlockReason: usageResolution.usageCoverage,
+      }
+    );
   }
 
   if (!input.fxSnapshot || !validateBillingFxSnapshotForLiveGrade(input.fxSnapshot)) {
-    return legacyDecision(input, "invalid_fx_snapshot", {
+    return resolvePublishedPathFailure(publishedPhase, input, "invalid_fx_snapshot", {
       publishedCandidateStatus: "resolved",
     });
   }
@@ -335,7 +411,7 @@ export function resolveChatBillingContract(
   });
 
   if (published.status === "blocked") {
-    return legacyDecision(input, published.reason, {
+    return resolvePublishedPathFailure(publishedPhase, input, published.reason, {
       publishedCandidateStatus: "blocked",
       publishedBlockReason: published.reason,
     });

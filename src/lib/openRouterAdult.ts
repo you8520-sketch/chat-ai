@@ -126,10 +126,9 @@ import {
 import {
   DeepSeekDeterministicProviderError,
   DeepSeekProviderFailoverError,
-  adaptOpenRouterDeepSeekBackupBody,
+  buildDeepSeekFailoverBackupBody,
   executeDeepSeekWithProviderFailover,
   isDeepSeekPrimaryCheaperInferenceModel,
-  resolveDeepSeekBackupModelId,
   resolveDeepSeekFailoverRouteKind,
   resolveDeepSeekLogicalModel,
 } from "@/lib/deepseekProviderFailover";
@@ -1368,9 +1367,9 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
             headers: transport.headers,
             body: requestBody as Record<string, unknown>,
           },
-          backupBody: adaptOpenRouterDeepSeekBackupBody(
+          backupBody: buildDeepSeekFailoverBackupBody(
             requestBodyBeforeAdapt,
-            resolveDeepSeekBackupModelId(deepSeekLogical)
+            deepSeekLogical
           ),
           stream: true,
           ourRequestId: messageOpts?.requestId,
@@ -2323,9 +2322,9 @@ export async function callOpenRouterAdult(
               headers: transport.headers,
               body: requestBody as Record<string, unknown>,
             },
-            backupBody: adaptOpenRouterDeepSeekBackupBody(
+            backupBody: buildDeepSeekFailoverBackupBody(
               requestBody as Record<string, unknown>,
-              resolveDeepSeekBackupModelId(generateLogical)
+              generateLogical
             ),
             stream: false,
             deadlines: { completionMs: 120_000, headersMs: 120_000 },
