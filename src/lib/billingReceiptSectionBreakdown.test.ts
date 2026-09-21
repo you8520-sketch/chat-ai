@@ -3,7 +3,6 @@ import { describe, it } from "node:test";
 import {
   buildEstimatedReceiptSectionBreakdown,
   CHARACTER_RECEIPT_CHAR_SCOPE,
-  RECEIPT_ESTIMATED_ALLOCATION_METHOD,
   sumCharacterReceiptContextChars,
 } from "@/lib/billingReceiptSectionBreakdown";
 
@@ -26,6 +25,13 @@ const REPORTED_FIXTURE = {
   },
 };
 
+function findBreakdownRowByLabelPrefix(
+  breakdown: { label: string; tokens: number; pct: number }[],
+  prefix: string
+) {
+  return breakdown.find((row) => row.label.startsWith(prefix));
+}
+
 describe("billing receipt section breakdown", () => {
   it("A. reported fixture — allocation sum equals draftInput", () => {
     const breakdown = buildEstimatedReceiptSectionBreakdown({
@@ -39,18 +45,33 @@ describe("billing receipt section breakdown", () => {
     const totalTokens = breakdown.reduce((sum, row) => sum + row.tokens, 0);
     assert.equal(totalTokens, REPORTED_FIXTURE.draftInput);
 
-    for (const [key, expected] of Object.entries(REPORTED_FIXTURE.expectedTokens)) {
-      const row = breakdown.find((entry) => entry.key === key);
-      assert.ok(row, `missing row for ${key}`);
-      assert.equal(row!.tokens, expected, `${key} allocated tokens`);
-    }
+    assert.equal(
+      findBreakdownRowByLabelPrefix(breakdown, "최근 RAW")?.tokens,
+      REPORTED_FIXTURE.expectedTokens.raw
+    );
+    assert.equal(
+      findBreakdownRowByLabelPrefix(breakdown, "캐릭터 컨텍스트")?.tokens,
+      REPORTED_FIXTURE.expectedTokens.character
+    );
+    assert.equal(
+      findBreakdownRowByLabelPrefix(breakdown, "시스템 프롬프트")?.tokens,
+      REPORTED_FIXTURE.expectedTokens.system
+    );
+    assert.equal(
+      findBreakdownRowByLabelPrefix(breakdown, "장기기억")?.tokens,
+      REPORTED_FIXTURE.expectedTokens.memory
+    );
+    assert.equal(
+      findBreakdownRowByLabelPrefix(breakdown, "페르소나")?.tokens,
+      REPORTED_FIXTURE.expectedTokens.persona
+    );
 
-    const raw = breakdown.find((row) => row.key === "raw");
+    const raw = findBreakdownRowByLabelPrefix(breakdown, "최근 RAW");
     assert.match(raw!.label, /18,347 chars/);
     assert.match(raw!.label, /4 exchanges/);
   });
 
-  it("B. splitChars present — character chars match allocation semantic scope", () => {
+  it("B. character chars match allocation semantic scope (not characterSettingsBlock)", () => {
     const proseOnlyBlock = "x".repeat(2676);
     const trackedSections = [
       {
@@ -85,13 +106,12 @@ describe("billing receipt section breakdown", () => {
       rawCompleteExchanges: 4,
     });
 
-    const character = breakdown.find((row) => row.key === "character");
+    const character = findBreakdownRowByLabelPrefix(breakdown, "캐릭터 컨텍스트");
     assert.ok(character);
     assert.match(character!.label, /12,500 chars/);
-    assert.equal(character!.assembledChars, 12_500);
-    assert.equal(character!.charScope, CHARACTER_RECEIPT_CHAR_SCOPE);
     assert.doesNotMatch(character!.label, /2,676 chars/);
     assert.match(character!.label, /입력 토큰 추정 배분/);
+    assert.deepEqual(Object.keys(character!).sort(), ["label", "pct", "tokens"]);
   });
 
   it("C. characterContextChars absent — token estimate never shown as chars", () => {
@@ -107,10 +127,9 @@ describe("billing receipt section breakdown", () => {
       rawCompleteExchanges: 4,
     });
 
-    const character = breakdown.find((row) => row.key === "character");
+    const character = findBreakdownRowByLabelPrefix(breakdown, "캐릭터 컨텍스트");
     assert.ok(character);
     assert.doesNotMatch(character!.label, /chars/);
-    assert.equal(character!.assembledChars, undefined);
   });
 
   it("D. keyword lore present — no double count in character chars", () => {
@@ -163,7 +182,7 @@ describe("billing receipt section breakdown", () => {
       rawHistoryChars: 0,
       rawCompleteExchanges: 0,
     });
-    const character = breakdown.find((row) => row.key === "character");
+    const character = findBreakdownRowByLabelPrefix(breakdown, "캐릭터 컨텍스트");
     assert.match(character!.label, /6,000 chars/);
   });
 
@@ -211,7 +230,7 @@ describe("billing receipt section breakdown", () => {
     assert.notEqual(characterSettingsBlockChars, characterContextChars);
   });
 
-  it("G. provenance fields on every breakdown row", () => {
+  it("G. persisted rows stay label,tokens,pct only — allocation provenance is top-level", () => {
     const breakdown = buildEstimatedReceiptSectionBreakdown({
       sectionEsts: [
         { key: "raw", est: 100 },
@@ -223,9 +242,8 @@ describe("billing receipt section breakdown", () => {
       rawCompleteExchanges: 1,
     });
     for (const row of breakdown) {
-      assert.equal(row.allocationMethod, RECEIPT_ESTIMATED_ALLOCATION_METHOD);
+      assert.deepEqual(Object.keys(row).sort(), ["label", "pct", "tokens"]);
     }
-    const character = breakdown.find((row) => row.key === "character");
-    assert.equal(character!.charScope, CHARACTER_RECEIPT_CHAR_SCOPE);
+    assert.equal(CHARACTER_RECEIPT_CHAR_SCOPE, "characterSetting+worldLore+dialogueExamples");
   });
 });

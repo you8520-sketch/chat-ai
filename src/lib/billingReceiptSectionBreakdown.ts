@@ -34,10 +34,6 @@ export type ReceiptBreakdownEntry = {
   label: string;
   tokens: number;
   pct: number;
-  key?: ReceiptSectionKey;
-  allocationMethod?: typeof RECEIPT_ESTIMATED_ALLOCATION_METHOD;
-  assembledChars?: number;
-  charScope?: typeof CHARACTER_RECEIPT_CHAR_SCOPE;
 };
 
 type TrackedSectionForChars = {
@@ -83,13 +79,6 @@ export function buildEstimatedReceiptSectionBreakdown(opts: {
     .map((s) => {
       const tokens = alloc(s.est);
       let label: string;
-      const base: ReceiptBreakdownEntry = {
-        label: "",
-        tokens,
-        pct: Math.round((s.est / totalEst) * 100),
-        key: s.key,
-        allocationMethod: RECEIPT_ESTIMATED_ALLOCATION_METHOD,
-      };
 
       switch (s.key) {
         case "raw":
@@ -102,10 +91,6 @@ export function buildEstimatedReceiptSectionBreakdown(opts: {
           label = showCharacterChars
             ? `캐릭터 컨텍스트: ${formatEstimatedAllocationTokens(tokens)} · ${characterChars.toLocaleString()} chars`
             : `캐릭터 컨텍스트: ${formatEstimatedAllocationTokens(tokens)}`;
-          if (showCharacterChars) {
-            base.assembledChars = characterChars;
-            base.charScope = CHARACTER_RECEIPT_CHAR_SCOPE;
-          }
           break;
         case "system":
           label = `시스템 프롬프트: ${formatEstimatedAllocationTokens(tokens)}`;
@@ -128,7 +113,11 @@ export function buildEstimatedReceiptSectionBreakdown(opts: {
         default:
           label = `관계 메모: ${formatEstimatedAllocationTokens(tokens)}`;
       }
-      return { ...base, label };
+      return {
+        label,
+        tokens,
+        pct: Math.round((s.est / totalEst) * 100),
+      };
     })
     .filter((s) => s.tokens > 0);
 }
