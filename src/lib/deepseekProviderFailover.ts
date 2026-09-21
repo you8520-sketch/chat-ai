@@ -1,9 +1,11 @@
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL,
   OPENROUTER_GEMINI_31_FLASH_MODEL,
+  isCheaperInferenceDeepSeekV41FlashModel,
   isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
   isGeminiFlashOpenRouterModel,
@@ -76,11 +78,12 @@ export const OPENROUTER_DEEPSEEK_TRUE_OFF_REASONING = {
   exclude: true,
 } as const;
 
-export type DeepSeekLogicalModel = "pro" | "flash";
+export type DeepSeekLogicalModel = "pro" | "flash_0731" | "flash_v41";
 export type DeepSeekRouteKind =
   | "adult_handoff"
   | "native_pro"
   | "native_flash"
+  | "native_flash_v41"
   | "background_flash";
 export type DeepSeekFailoverTrigger =
   | "error"
@@ -259,6 +262,7 @@ class DeepSeekBodyDeliveryError extends Error {
 export function isDeepSeekPrimaryCheaperInferenceModel(modelId: string): boolean {
   return (
     isCheaperInferenceDeepSeekV4ProModel(modelId) ||
+    isCheaperInferenceDeepSeekV41FlashModel(modelId) ||
     isCheaperInferenceDeepSeekV4FlashModel(modelId)
   );
 }
@@ -273,11 +277,14 @@ export function resolveDeepSeekLogicalModel(
   ) {
     return "pro";
   }
+  if (isCheaperInferenceDeepSeekV41FlashModel(id)) {
+    return "flash_v41";
+  }
   if (
     isCheaperInferenceDeepSeekV4FlashModel(id) ||
     id === OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL
   ) {
-    return "flash";
+    return "flash_0731";
   }
   return null;
 }
@@ -285,17 +292,56 @@ export function resolveDeepSeekLogicalModel(
 export function resolveDeepSeekPrimaryModelId(
   logical: DeepSeekLogicalModel
 ): string {
-  return logical === "pro"
-    ? CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
-    : CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+  switch (logical) {
+    case "pro":
+      return CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+    case "flash_v41":
+      return CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+    case "flash_0731":
+      return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+    default: {
+      const _exhaustive: never = logical;
+      return _exhaustive;
+    }
+  }
 }
 
 export function resolveDeepSeekBackupModelId(
   logical: DeepSeekLogicalModel
 ): string {
-  return logical === "pro"
-    ? OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL
-    : OPENROUTER_GEMINI_31_FLASH_MODEL;
+  switch (logical) {
+    case "pro":
+      return OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL;
+    case "flash_0731":
+      return OPENROUTER_GEMINI_31_FLASH_MODEL;
+    case "flash_v41":
+      throw new Error("V4.1 Flash has no OpenRouter backup model");
+    default: {
+      const _exhaustive: never = logical;
+      return _exhaustive;
+    }
+  }
+}
+
+/** Main RP V4.1 has no OpenRouter backup; background flash routes still require one. */
+export function hasDeepSeekOpenRouterBackupModel(
+  logical: DeepSeekLogicalModel
+): boolean {
+  return logical !== "flash_v41";
+}
+
+/**
+ * Assemble failover backup body. V4.1 uses a placeholder model id because Main RP
+ * routes never invoke backup (single external attempt); avoids throwing at call sites.
+ */
+export function buildDeepSeekFailoverBackupBody(
+  assembledBody: Record<string, unknown>,
+  logical: DeepSeekLogicalModel
+): Record<string, unknown> {
+  const backupModelId = hasDeepSeekOpenRouterBackupModel(logical)
+    ? resolveDeepSeekBackupModelId(logical)
+    : CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+  return adaptOpenRouterDeepSeekBackupBody(assembledBody, backupModelId);
 }
 
 export function resolveDeepSeekFailoverRouteKind(input: {
@@ -306,10 +352,21 @@ export function resolveDeepSeekFailoverRouteKind(input: {
   const logical = resolveDeepSeekLogicalModel(input.modelId);
   if (!logical) return null;
   if (input.background) {
-    return logical === "flash" ? "background_flash" : null;
+    return logical === "flash_0731" ? "background_flash" : null;
   }
   if (input.adultHandoff && logical === "pro") return "adult_handoff";
-  return logical === "pro" ? "native_pro" : "native_flash";
+  switch (logical) {
+    case "pro":
+      return "native_pro";
+    case "flash_v41":
+      return "native_flash_v41";
+    case "flash_0731":
+      return "native_flash";
+    default: {
+      const _exhaustive: never = logical;
+      return _exhaustive;
+    }
+  }
 }
 
 export function adaptOpenRouterDeepSeekBackupBody(
@@ -657,7 +714,9 @@ export async function executeDeepSeekWithProviderFailover(opts: {
   const backupModel =
     typeof opts.backupBody.model === "string"
       ? opts.backupBody.model
-      : resolveDeepSeekBackupModelId(opts.logicalModel);
+      : hasDeepSeekOpenRouterBackupModel(opts.logicalModel)
+        ? resolveDeepSeekBackupModelId(opts.logicalModel)
+        : CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
 
   const finishPrimaryAttempt = (success: boolean, httpStatus: number | null) => {
     opts.hooks?.onPhysicalAttemptFinish?.({
@@ -897,7 +956,7 @@ export async function executeDeepSeekBackgroundWithProviderFailover(opts: {
 }> {
   const model =
     typeof opts.primary.body.model === "string" ? opts.primary.body.model : "";
-  const logical = opts.logicalModel ?? resolveDeepSeekLogicalModel(model) ?? "flash";
+  const logical = opts.logicalModel ?? resolveDeepSeekLogicalModel(model) ?? "flash_0731";
   const backupModel = resolveDeepSeekBackupModelId(logical);
   const resolved = resolveBackgroundFlashProviderDeadlines({
     requestKind: opts.requestKind,

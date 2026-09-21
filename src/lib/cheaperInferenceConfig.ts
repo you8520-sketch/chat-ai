@@ -1,7 +1,9 @@
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   isCheaperInferenceClaudeOpus5Model,
+  isCheaperInferenceDeepSeekV41FlashModel,
   isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
   isCheaperInferenceGemini31ProModel,
@@ -102,6 +104,10 @@ export function applyCheaperInferenceModelReasoningPolicy(
 
   const model = normalizeDeepSeekV4FlashModelId(normalizeDeepSeekV4ProModelId(adapted.model));
   adapted.model = model;
+  if (isCheaperInferenceDeepSeekV41FlashModel(model)) {
+    adapted.model = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+    return applyCheaperInferenceDeepSeekTrueOffPolicy(adapted);
+  }
   if (
     isCheaperInferenceDeepSeekV4FlashModel(model) ||
     isCheaperInferenceDeepSeekV4ProModel(model)
