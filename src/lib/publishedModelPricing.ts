@@ -51,13 +51,13 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "deepseek-v4-pro-0813": {
     modelId: "deepseek-v4-pro-0813",
-    billingReferenceInputUsdPerMillion: 0.66,
-    billingReferenceOutputUsdPerMillion: 1.98,
-    billingReferenceCacheReadUsdPerMillion: 0.022,
+    billingReferenceInputUsdPerMillion: 1.32,
+    billingReferenceOutputUsdPerMillion: 3.96,
+    billingReferenceCacheReadUsdPerMillion: 0.044,
     targetMargin: 0.5,
     minimumMarginFloor: 0.4,
-    pricingVersion: 2,
-    publishedAt: "2026-09-02T09:00:00.000Z",
+    pricingVersion: 3,
+    publishedAt: "2026-09-21T09:00:00.000Z",
   },
   "deepseek-v4.1-flash": {
     modelId: "deepseek-v4.1-flash",
