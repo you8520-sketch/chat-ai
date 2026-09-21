@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ADMIN_MANAGED_BOARDS, type AdminManagedBoard } from "@/lib/boardConfig";
 
 type PostRow = {
   id: number;
@@ -13,13 +12,7 @@ type PostRow = {
   created_at: string;
 };
 
-const BOARD_LABELS: Record<AdminManagedBoard, string> = {
-  notice: "공지사항",
-  faq: "FAQ",
-};
-
 export default function AdminBoardsClient() {
-  const [board, setBoard] = useState<AdminManagedBoard>("notice");
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -31,7 +24,7 @@ export default function AdminBoardsClient() {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
-    const res = await fetch(`/api/admin/posts?board=${board}`);
+    const res = await fetch("/api/admin/posts?board=notice");
     const data = await res.json();
     setLoading(false);
     if (!res.ok) {
@@ -39,7 +32,7 @@ export default function AdminBoardsClient() {
       return;
     }
     setPosts(data.posts ?? []);
-  }, [board]);
+  }, []);
 
   useEffect(() => {
     load();
@@ -54,7 +47,7 @@ export default function AdminBoardsClient() {
     const res = await fetch("/api/admin/posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ board, title, content }),
+      body: JSON.stringify({ board: "notice", title, content }),
     });
     const data = await res.json();
     setBusy(false);
@@ -89,23 +82,8 @@ export default function AdminBoardsClient() {
       <Link href="/settings" className="text-sm text-violet-400 hover:underline">
         ← 설정
       </Link>
-      <h1 className="mt-4 text-2xl font-black text-white">공지사항 · FAQ 관리</h1>
-      <p className="mt-1 text-sm text-gray-400">공지와 FAQ를 작성·삭제합니다. 사용자 게시판에 바로 반영됩니다.</p>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {ADMIN_MANAGED_BOARDS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setBoard(id)}
-            className={`rounded-full px-3 py-1 text-sm font-semibold ${
-              board === id ? "bg-violet-600 text-white" : "border border-white/10 text-gray-300 hover:bg-white/5"
-            }`}
-          >
-            {BOARD_LABELS[id]}
-          </button>
-        ))}
-      </div>
+      <h1 className="mt-4 text-2xl font-black text-white">공지사항 관리</h1>
+      <p className="mt-1 text-sm text-gray-400">공지를 작성·삭제합니다. 알림 센터와 공지 상세 페이지에 반영됩니다.</p>
 
       {error && (
         <p className="mt-4 rounded-lg border border-rose-500/30 bg-rose-950/30 px-4 py-2 text-sm text-rose-200">
@@ -119,7 +97,7 @@ export default function AdminBoardsClient() {
       )}
 
       <form onSubmit={createPost} className="mt-6 rounded-2xl border border-white/5 bg-[#131626] p-5">
-        <h2 className="font-bold text-white">{BOARD_LABELS[board]} 새 글</h2>
+        <h2 className="font-bold text-white">공지사항 새 글</h2>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -145,7 +123,7 @@ export default function AdminBoardsClient() {
       </form>
 
       <section className="mt-8">
-        <h2 className="font-bold text-white">{BOARD_LABELS[board]} 목록</h2>
+        <h2 className="font-bold text-white">공지사항 목록</h2>
         {loading ? (
           <p className="mt-4 text-sm text-gray-500">불러오는 중…</p>
         ) : posts.length === 0 ? (

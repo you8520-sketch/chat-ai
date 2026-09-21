@@ -296,7 +296,10 @@ describe("character like / comment notifications", () => {
       types.map((row) => row.type),
       ["notice", "notice", "event", "event"]
     );
-    assert.equal(notificationHref({ type: "notice" } as UserNotificationRow), "/board/notice");
+    assert.equal(
+      notificationHref({ type: "notice", ref_id: 12 } as UserNotificationRow),
+      "/notices/12"
+    );
     assert.equal(notificationHref({ type: "event" } as UserNotificationRow), "/");
     db.close();
   });

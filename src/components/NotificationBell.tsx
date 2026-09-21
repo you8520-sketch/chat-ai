@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import NotificationCenterPanel from "./NotificationCenterPanel";
 
 type Props = {
   count?: number;
@@ -11,7 +11,9 @@ type Props = {
 const REFRESH_INTERVAL_MS = 30_000;
 
 export default function NotificationBell({ count = 0, className = "" }: Props) {
+  const [open, setOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(count);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setVisibleCount(count);
@@ -48,31 +50,44 @@ export default function NotificationBell({ count = 0, className = "" }: Props) {
   }, []);
 
   return (
-    <Link
-      href="/notifications"
-      className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:border-violet-400/30 hover:bg-white/[0.08] hover:text-white ${className}`}
-      title="알림"
-      aria-label={visibleCount > 0 ? `알림 ${visibleCount}건` : "알림"}
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="h-[18px] w-[18px]"
-        aria-hidden
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => setOpen((value) => !value)}
+        className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:border-violet-400/30 hover:bg-white/[0.08] hover:text-white ${className}`}
+        title="알림"
+        aria-label={visibleCount > 0 ? `알림 ${visibleCount}건` : "알림"}
       >
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-      </svg>
-      {visibleCount > 0 && (
-        <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-[#0b0d14] bg-violet-500 px-1 text-[9px] font-bold text-white shadow-sm">
-          {visibleCount > 99 ? "99+" : visibleCount}
-        </span>
-      )}
-    </Link>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-[18px] w-[18px]"
+          aria-hidden
+        >
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+        {visibleCount > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-[#0b0d14] bg-violet-500 px-1 text-[9px] font-bold text-white shadow-sm">
+            {visibleCount > 99 ? "99+" : visibleCount}
+          </span>
+        )}
+      </button>
+      <NotificationCenterPanel
+        open={open}
+        anchorRef={buttonRef}
+        onClose={() => setOpen(false)}
+        initialCount={visibleCount}
+        onCountChange={setVisibleCount}
+      />
+    </>
   );
 }

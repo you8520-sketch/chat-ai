@@ -4,8 +4,8 @@ import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import {
   getTotalUnreadCount,
+  listRecentNoticesWithReadStatus,
   listUserNotifications,
-  listUnreadNotices,
 } from "@/lib/userNotifications";
 
 export async function GET() {
@@ -15,9 +15,15 @@ export async function GET() {
   const cookieReadId = Number(cookieStore.get("notice_read_id")?.value ?? 0);
   const readId = user?.notice_last_read_id ?? cookieReadId;
 
-  const notices = listUnreadNotices(db, readId, 50, user?.id ?? null);
+  const recentNotices = listRecentNoticesWithReadStatus(db, user?.id ?? null, cookieReadId, 50);
   const activities = user ? listUserNotifications(db, user.id, 50) : [];
   const unreadCount = getTotalUnreadCount(db, user?.id ?? null, readId);
 
-  return NextResponse.json({ notices, activities, creatorAlerts: activities, unreadCount });
+  return NextResponse.json({
+    recentNotices,
+    notices: recentNotices.filter((notice) => notice.unread),
+    activities,
+    creatorAlerts: activities,
+    unreadCount,
+  });
 }

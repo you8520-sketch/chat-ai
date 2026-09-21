@@ -63,7 +63,7 @@ export default async function NotificationsPage() {
   return (
     <AppPageShell
       title="알림"
-      description="공지·이벤트, 포인트 지급·소멸, 제작 캐릭터 승인, 신고·문의 결과, 좋아요·댓글·팔로우를 확인하세요."
+      description="공지·이벤트, 포인트 지급·소멸, 제작 캐릭터 승인, 신고 결과, 좋아요·댓글·팔로우를 확인하세요."
       narrow
       className="mt-4"
     >
@@ -75,11 +75,8 @@ export default async function NotificationsPage() {
 
       {feed.length > 0 && (
         <section>
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3">
             <h2 className="text-sm font-semibold text-violet-400">전체 알림</h2>
-            <Link href="/board/notice" className={cn(studioType.caption, "transition hover:text-zinc-50")}>
-              공지 게시판 →
-            </Link>
           </div>
           <div className="space-y-2">
             {feed.map((item) => {
@@ -88,7 +85,7 @@ export default async function NotificationsPage() {
                 return (
                   <Link
                     key={item.key}
-                    href="/board/notice"
+                    href={`/notices/${notice.id}`}
                     className={`block rounded-xl border bg-[#131626] p-4 transition hover:border-violet-500/40 ${
                       item.unread ? "border-violet-500/30" : "border-white/10"
                     }`}
@@ -156,7 +153,7 @@ export default async function NotificationsPage() {
           <Link href="/login" className="text-violet-400 hover:underline">
             로그인
           </Link>
-          하면 공지·이벤트·포인트·승인·문의 결과 알림을 받을 수 있습니다.
+          하면 공지·이벤트·포인트·승인·신고 결과 알림을 받을 수 있습니다.
         </p>
       )}
     </AppPageShell>

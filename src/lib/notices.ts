@@ -53,3 +53,32 @@ export function markNoticesRead(db: Database.Database, userId: number | null, la
     db.prepare("UPDATE users SET notice_last_read_id=? WHERE id=?").run(latestId, userId);
   }
 }
+
+export function getNoticeById(db: Database.Database, id: number) {
+  return db
+    .prepare(
+      `SELECT id, title, content, author_name, created_at
+       FROM posts WHERE id=? AND board='notice'`
+    )
+    .get(id) as
+    | { id: number; title: string; content: string; author_name: string; created_at: string }
+    | undefined;
+}
+
+/** 단일 공지 읽음 처리 */
+export function markSingleNoticeRead(db: Database.Database, userId: number | null, noticeId: number) {
+  if (noticeId <= 0) return;
+  if (userId) {
+    db.prepare("INSERT OR IGNORE INTO notice_reads (user_id, notice_id) VALUES (?, ?)").run(
+      userId,
+      noticeId
+    );
+    const row = db
+      .prepare("SELECT notice_last_read_id FROM users WHERE id=?")
+      .get(userId) as { notice_last_read_id: number } | undefined;
+    if (noticeId > (row?.notice_last_read_id ?? 0)) {
+      db.prepare("UPDATE users SET notice_last_read_id=? WHERE id=?").run(noticeId, userId);
+    }
+    return;
+  }
+}
