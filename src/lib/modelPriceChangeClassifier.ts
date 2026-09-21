@@ -5,6 +5,7 @@
 
 import { MODEL_PRICING_LARGE_CHANGE_THRESHOLD } from "@/lib/modelPricingTrackingConfig";
 import type { ModelPricingPolicy } from "@/lib/modelPricingPolicy";
+import type { PriceSnapshotPricingMode } from "@/lib/modelPricingTrackingConfig";
 import {
   maxRelativeRateDelta,
   snapshotBaselineRatesEqual,
@@ -302,12 +303,51 @@ export function classifyParserFailure(params: {
   };
 }
 
+const PROCUREMENT_PRICING_MODES = new Set<PriceSnapshotPricingMode>([
+  "procurement_current",
+  "procurement_reference",
+]);
+
+const PROVIDER_PRICING_MODES = new Set<PriceSnapshotPricingMode>([
+  "provider_standard",
+  "provider_peak",
+]);
+
+/**
+ * SOURCE_CONFLICT applies only when two observations claim the same semantic
+ * pricing domain. CI procurement quotes and the product stable published
+ * baseline are intentionally different domains in Phase A.
+ */
+export function areComparableSourceConflictDomains(
+  left: ModelPriceSnapshotRecord,
+  right: ModelPriceSnapshotRecord
+): boolean {
+  const leftProcurement = PROCUREMENT_PRICING_MODES.has(left.pricingMode);
+  const rightProcurement = PROCUREMENT_PRICING_MODES.has(right.pricingMode);
+  const leftPublishedBaseline = left.sourceKind === "published_billing_baseline";
+  const rightPublishedBaseline = right.sourceKind === "published_billing_baseline";
+
+  if (leftProcurement && rightPublishedBaseline) return false;
+  if (rightProcurement && leftPublishedBaseline) return false;
+
+  if (PROVIDER_PRICING_MODES.has(left.pricingMode) && PROVIDER_PRICING_MODES.has(right.pricingMode)) {
+    return left.pricingMode === right.pricingMode;
+  }
+
+  if (left.sourceKind === right.sourceKind) return true;
+
+  return false;
+}
+
 export function classifySourceConflict(params: {
   modelId: string;
   ciReference: ModelPriceSnapshotRecord;
   publishedBaseline: ModelPriceSnapshotRecord;
   runDateKey: string;
 }): ClassifiedPriceChange | null {
+  if (!areComparableSourceConflictDomains(params.ciReference, params.publishedBaseline)) {
+    return null;
+  }
   if (snapshotBaselineRatesEqual(params.ciReference.rates, params.publishedBaseline.rates)) return null;
   return {
     eventType: "SOURCE_CONFLICT",
