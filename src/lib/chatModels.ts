@@ -173,6 +173,8 @@ export const OPENROUTER_GEMINI_31_FLASH_MODEL = "google/gemini-3.1-flash-lite";
 /** 유저-facing 표시명 (채팅 선택·영수증) */
 export const DEEPSEEK_DISPLAY_NAME = "DeepSeek V4 Pro";
 
+export const DEEPSEEK_V41_FLASH_DISPLAY_NAME = "DeepSeek V4.1 Flash";
+
 export const DEEPSEEK_V4_FLASH_DISPLAY_NAME = "DeepSeek V4 Flash";
 
 export const QWEN_DISPLAY_NAME = "Qwen 3.7 Max";
@@ -218,8 +220,9 @@ export type SelectedAIOptionMeta = {
 /**
  * CANONICAL Main RP picker — ONE source of truth.
  *
- * DeepSeek V4 Pro / Gemini 3.1 Pro Preview / Gemini 3.7 Flash / GPT-5.6 Terra.
- * Claude Opus 5 remains retired from user Main RP. Luna, DeepSeek Flash,
+ * DeepSeek V4 Pro / DeepSeek V4.1 Flash / Gemini 3.1 Pro Preview /
+ * Gemini 3.7 Flash / GPT-5.6 Terra.
+ * Claude Opus 5 remains retired from user Main RP. Luna, DeepSeek V4 Flash 0731,
  * Gemini 3.6 Flash, old Opus slugs, Muse, Qwen, GLM, Kimi, … are NOT Main RP.
  * Their constants remain only for auxiliary/background use or historical receipt/billing.
  */
@@ -231,6 +234,13 @@ export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
     tier: "pro",
     hint: "Reasoning",
     recommended: true,
+  },
+  {
+    id: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+    label: DEEPSEEK_V41_FLASH_DISPLAY_NAME,
+    provider: "cheaperinference",
+    tier: "pro",
+    hint: "",
   },
   {
     id: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
