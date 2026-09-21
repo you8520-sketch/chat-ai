@@ -27,7 +27,7 @@ const FX_DETERMINISTIC: BillingFxSnapshot = {
 const COMPETITOR_FIXTURE = {
   promptTokens: 33_247,
   outputTokens: 3_461,
-  expectedPoints: 180,
+  expectedPoints: 100,
 } as const;
 
 /**
@@ -39,7 +39,7 @@ const PRODUCTION_CACHE_READ_FIXTURE = {
   promptTokens: 12_871,
   cacheReadTokens: 12_800,
   outputTokens: 1_273,
-  expectedPoints: 18,
+  expectedPoints: 10,
 } as const;
 
 /** Immutable v1 pricing embedded in historical receipt snapshots — test-local only. */
@@ -66,19 +66,19 @@ function charge(modelId: string, usage: ReturnType<typeof normalizeBillableUsage
 }
 
 describe("deepseekV4ProPublishedBilling", () => {
-  it("v3 catalog is the sole published pricing owner (official PEAK baseline)", () => {
+  it("v4 catalog is the sole published pricing owner (official PEAK competitive baseline)", () => {
     const pricing = getPublishedPricing(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
     assert.equal(pricing.modelId, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
-    assert.equal(pricing.pricingVersion, 3);
+    assert.equal(pricing.pricingVersion, 4);
     assert.equal(pricing.billingReferenceInputUsdPerMillion, 1.32);
     assert.equal(pricing.billingReferenceOutputUsdPerMillion, 3.96);
     assert.equal(pricing.billingReferenceCacheReadUsdPerMillion, 0.044);
     assert.equal(pricing.billingReferenceCacheWriteUsdPerMillion, undefined);
-    assert.equal(pricing.targetMargin, 0.5);
-    assert.equal(pricing.minimumMarginFloor, 0.4);
+    assert.equal(pricing.targetMargin, 0.1);
+    assert.equal(pricing.minimumMarginFloor, 0);
   });
 
-  it("competitor fixture + deterministic FX → exactly 180P", () => {
+  it("competitor fixture + deterministic FX → exactly 100P", () => {
     const r = charge(
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       normalizeBillableUsage({
