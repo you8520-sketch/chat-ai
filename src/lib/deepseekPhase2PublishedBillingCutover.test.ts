@@ -44,12 +44,12 @@ const FX_DETERMINISTIC: BillingFxSnapshot = {
 
 const GOLDEN_INPUT = 33_247;
 const GOLDEN_OUTPUT = 3_461;
-const GOLDEN_POINTS = 180;
+const GOLDEN_POINTS = 100;
 
 const CACHE_HIT_INPUT = 12_871;
 const CACHE_HIT_READ = 12_800;
 const CACHE_HIT_OUTPUT = 1_273;
-const CACHE_HIT_POINTS = 18;
+const CACHE_HIT_POINTS = 10;
 
 function completeDeepSeekStage(
   partial: Partial<StageUsage> & Pick<StageUsage, "stage">
@@ -138,7 +138,7 @@ describe("deepseekPhase2PublishedBillingCutover — golden fixtures", () => {
   beforeEach(() => installAuditLegacyFxForTest());
   afterEach(() => clearAuditLegacyFxForTest());
 
-  it("competitor fixture → published_phase2 exactly 180P", () => {
+  it("competitor fixture → published_phase2 exactly 100P", () => {
     const stages = [completeDeepSeekStage({ stage: "primary" })];
     const decision = dispatchDeepSeek(stages);
     assert.equal(decision.contract, "published_phase2");
@@ -149,7 +149,7 @@ describe("deepseekPhase2PublishedBillingCutover — golden fixtures", () => {
     assert.notEqual(decision.telemetry.billingContract, "published_phase1");
   });
 
-  it("cache-hit fixture → published_phase2 exactly 18P with cache read rate", () => {
+  it("cache-hit fixture → published_phase2 exactly 10P with cache read rate", () => {
     const stages = [
       completeDeepSeekStage({
         stage: "primary",
