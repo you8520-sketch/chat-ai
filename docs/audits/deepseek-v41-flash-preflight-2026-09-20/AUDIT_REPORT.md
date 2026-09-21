@@ -264,3 +264,99 @@ RP blind samples + model map + pricing matrix + provider contract evidence are c
 - `chatModels` / adapter / failover registration → **`FOLLOW-UP`** before public picker
 
 **MERGE = NO · PRICE_CUTOVER = NO · STOP**
+
+---
+
+# CORRECTION PASS (2026-09-21)
+
+Product evaluation criteria only: CANON CONSISTENCY · EFFECTIVE USER AUTHORING SCOPE · CHARACTER/USER PERSONA CONSISTENCY · SCENE CONTROL QUALITY. 창작·공동서술 자체는 bug가 아니다. **UNKNOWN ≠ FORBIDDEN**.
+
+## 1. D_LORE RE-EVALUATION — `VALID_CREATIVE_GAP_FILL`
+
+기존 "원래 설정에 없다 → FAIL" 판정을 기각한다. fixture의 **actual production context**:
+
+| Source | Content |
+|---|---|
+| creator chunk `c-lore` | **왕실 수호대 견습 실패 사건** 이후 '약한 사람을 지키지 못했다' 죄책감 + 유저는 어릴 적 친구 |
+| creator chunk `c-identity` | 강이현 29세, 검은 장미단 부단장 |
+| raw history | 「…기억하고 싶지 않아。」 / 말해줘도 돼 |
+| lorebook / USER_PERSONA / memory / confirmed facts | 없음 (fresh fixture) |
+
+Sample B (Flash)의 왕실 수호대 견습 / 견습 자격 상실 / 검을 놓음 = **creator c-lore의 직접 표현** (설정에 이미 있음). 두 살 어린 견습생·시험장 사건·희생·이야기를 안 했다 = 지정되지 않은 **open gap** 창작 — creator/user canon·confirm memory·explicit negation 충돌 0건. 신규 분류: **`VALID_CREATIVE_GAP_FILL`** (`CANON_CONTRADICTION` 아님).
+
+## 2. AUTHORING OWNER MAP (current main, re-verified)
+
+| Concern | Owner (main) |
+|---|---|
+| Standard interactive | `COLLABORATIVE_INTERACTIVE_OWNER_BLOCK` (noGodmodding.ts) — 단일 standard owner |
+| Auto progression | `AUTO_PROGRESSION — AI-FOCAL CO-NARRATION` (autoProgressionRules.ts) |
+| OOC co-narration opt-in | `USER CONTROL MODE - LIMITED CO-NARRATION` (impersonation ON, chatRuntimeMode `ooc_user_impersonation_allowed`) |
+| Persistent coauthor DIALOGUE/ACTIONS/FULL | `chats.user_coauthor_mode` (OFF/DIALOGUE/ACTIONS/FULL) → `buildUserCoauthorOwnerBlock` |
+| Current-turn OOC delegation | `resolveCurrentTurnUserAuthoringDelegation` (leading OOC) · turn vs persistent |
+| Current user input priority | `applyUserCoauthorDirective` — grant/deny slot이 persistent를 in-turn override; explicit revoke 최우선 |
+| USER_PERSONA | `formatPublicPersonaForPrompt` + 정본 조항 (identity 본문 보호) |
+| Detector (log-only) | `detectInteractiveUserImpersonation` + `runOwnershipShadowGuardV2` |
+
+## 3. EFFECTIVE SCOPE PER MODE (§14 fixture keys)
+
+| Runtime mode | Delegation | Effective allowed dialogue | Effective allowed major action |
+|---|---|---|---|
+| interactive (standard) | none | [B] 신규 직접 대사 — **NO** | minor/local/reversible co-narration — **YES** (표정·시선·호흡·비자발적 반응·마무리·이동·국소 접촉·물건 수취·일상·즉각 가역 반응) |
+| auto_progression | (composer locked) | 짧/중간 [B] 대사 + persona-voice imitation — **YES** (USER_PERSONA+이전 발화 근거) | [B] 외부 행동·이동·물건 사용 — **YES**; 내면 독백/감정 결론/명시적 동의·거절/정체성 변경 — **NO** |
+| ooc_user_impersonation_allowed | none | persona 대사 최소 공동 서술 (사칭 허용, 입력 의도 내) | 중대 결정 대신 확정 — NO |
+| current_turn_ooc_delegated | **DIALOGUE** | [B] 직접 대사 — YES | 신규 중요 행동 — NO (새 [B] 대사 없음) |
+| current_turn_ooc_delegated | **ACTIONS** | 새 [B] 대사 — NO | 중요 행동+국소 동작·반응·선택 — YES |
+| current_turn_ooc_delegated | **FULL** | 대사+행동 위임 — YES (수락/거절/망설임 허용) | 정본 밖 정체성/장기 관계/영구 약속 — NO |
+
+**A/B 샘플 전부 standard interactive 어셈블** (하네스 특성; delegation/auto progression/OOC 미설정).
+
+## 4. DETECTOR VS EFFECTIVE SCOPE — detectors are NOT pass/fail owners
+
+Re-verified in `route.ts` post-stream: `detectInteractiveUserImpersonation` → `logUserImpersonationGuard` **log only** (auto-repair env default OFF, `repairAttempted:false`). `runOwnershipShadowGuardV2` → `ownershipTelemetry` + `logOwnershipShadowGuardV2` **shadow-only**. 둘 다 effective coauthor scope(DIALOGUE/ACTIONS/FULL, duration)를 **입력받지 않는다** (scope-blind) → `userImpersonationDetected`는 독립 FAIL 근거 아님. QA canonical dimension = **`AUTHORING_SCOPE_VIOLATION`** (manual effective-scope check). Production patch 없음 — detector에 scope 주입은 3단계 공동서술 follow-up 후보.
+
+**E_impersonation 재판정**: Sample A(Pro)·B(Flash) 모두 상대(모델)가 character로서 유저 명령을 거절/반문 → 유저 신규 발화·결정을어하지 않음 → **`AUTHORING_SCOPE_VIOLATION` 없음** (`userImpersonationDetected` flag는 regex shadow metric일 뿐).
+
+## 5. FINAL REQUEST PARITY (deterministic, credential-free)
+
+Harness: `scripts/deepseek-v41-flash-request-parity.ts` → `rp-ab/request-parity.json` (10 fixtures, no live calls).
+
+| Diff | Verdict |
+|---|---|
+| `model` | identity (by design) |
+| `thinking` | Pro sends `thinking:{type:"disabled"}` typed body; Flash(generic fallback) sends field omitted + `reasoning_effort:"none"` — SAME intended non-thinking state (`reasoning_tokens: 0` both, live evidence) |
+| messages | sections 51/51 identical semantics; Pro-only `<WORLD_LORE>` XML wrapper (+27 chars, DeepSeek XML extras); hygiene/UserControl block ordering differs slightly |
+| sampling | temperature 0.92 = 0.92; top_p equal; max_tokens omitted → provider default (both) |
+| USER_PERSONA / memory / lore / length target | identical text |
+
+→ **model identity 외 semantic 차이는 wrapper/positions 뿐** — 출력 차이를 모델 품질 차이라고 단정할 근거 없음.
+
+## 6. V4.1 WIRE OWNER (design only — not patched)
+
+`deepseek-v4.1-flash`는 `isCheaperInferenceDeepSeekV4FlashModel`(0731 matcher)과 `isDeepSeekModel` 패밀리 gate 모두 미매칭 → (a) reasoning policy generic fallback, (b) contextBuilder DeepSeek-family extras skip(`<WORLD_LORE>` wrapper 등), (c) failover route kind 미등록. **Implementation design**: 신규 상수 + reasoning policy 명시 branch (동일 TRUE-OFF body) + `isDeepSeekModel` family 확장 — **0731 constant/rows 침범 금지**.
+
+## 7. CACHE SEMANTICS — read-only READY
+
+`cached_tokens`(read) proven live (probe: 4736 read tokens). Cached tokens는 standard input과 별도 과금 owner(`normalizeBillableUsage`). `cache_write_tokens` 전부 0 → **write price 추측 금지**, fixture상 별도 write price 없음 → READY scope = **cache read only**. `publishedUserCharge`에는 `modelPublishedPricingPolicy` v4.1 flash row (`cacheSemanticStatus: verified`, cache read 0.006) 필요.
+
+## 8. RESPONSE MODEL NORMALIZATION — namespace-only
+
+requested `deepseek-v4-pro-0813` / returned `deepseek/deepseek-v4-pro-0813` = **vendor namespace variation, model substitution 아님**. 기존 owner `publishedModelAliases.canonicalizePublishedModelId`가 정확히 이 mapping 보유 (`deepseek/deepseek-v4-pro` → `deepseek-v4-pro-0813`), billing 경로는 이미 canonicalize. Follow-up: ledger `actual_model` write-time canonicalize + canonical mismatch alert (신규 시스템 불필요).
+
+## 9. LENGTH / INITIATIVE
+
+F_speech_lock target **3200**자: Flash 2,563 (≈target 내) → `VALID_ACTIVE_RP`; Pro 478 → `UNDER_TARGET_OUTLIER` (길이 리스크는 Pro 쪽). 장문·능동 성향 자체는 defect 아님 — A(과도 length)·B(scene-local 밖 진행 무시)·C(허용 범위의 풍부 전개) 구별.
+
+## 10. BLIND RP ARTIFACTS (updated)
+
+- `rp-ab/samples/*` blind A(raw)/B(flash) + `model-map.json` · `operational.json` · **new `request-parity.json`**
+- Cursor 품질 점수 없음; objective contract만: canon contradiction · **authoring scope violation** · format · length · returned model · cache · reasoning · finish reason · latency.
+
+## 11. BRANCH HYGIENE
+
+#993 audit PR은 #991 stacked로 유지(강제 rewrite 없음). 실제 V4.1 implementation은 **current main에서 fresh branch**, V4.1-specific 구현만 — #991 audit 파일 반입 금지.
+
+## CORRECTION CLASSIFICATION
+
+**`READY_FOR_IMPLEMENTATION`** — (cache는 read-only READY; write price는 추측 제외. 0731 repurpose·billing cutover 아직 아님.)
+
+**MERGE = NO · PICKER_ENABLE = NO · PRICE_CUTOVER = NO · STOP for GPT review.**

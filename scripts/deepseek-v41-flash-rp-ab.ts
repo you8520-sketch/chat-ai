@@ -22,13 +22,13 @@ Module._load = function (request: string, parent: unknown, isMain: boolean) {
   return originalLoad.call(this, request, parent, isMain);
 } as typeof Module._load;
 
-const OUT_DIR = join(process.cwd(), "docs/audits/deepseek-v41-flash-preflight-2026-09-20/rp-ab");
-const MODELS = {
+export const OUT_DIR = join(process.cwd(), "docs/audits/deepseek-v41-flash-preflight-2026-09-20/rp-ab");
+export const MODELS = {
   pro: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   flash: DEEPSEEK_V41_FLASH_CANDIDATE_MODEL_ID,
 } as const;
 
-type FixtureId =
+export type FixtureId =
   | "A_daily"
   | "B_emotion"
   | "C_action"
@@ -40,7 +40,7 @@ type FixtureId =
   | "I_regen"
   | "J_adult_fixture";
 
-type Fixture = {
+export type Fixture = {
   id: FixtureId;
   label: string;
   charName: string;
@@ -50,7 +50,7 @@ type Fixture = {
   nsfw: boolean;
 };
 
-const BASE_CHUNKS: CharacterChunk[] = [
+export const BASE_CHUNKS: CharacterChunk[] = [
   {
     id: "c-identity",
     characterId: "13",
@@ -73,7 +73,7 @@ const BASE_CHUNKS: CharacterChunk[] = [
   },
 ];
 
-function fixtures(): Fixture[] {
+export function fixtures(): Fixture[] {
   const loreChunk: CharacterChunk = {
     id: "c-lore",
     characterId: "13",
@@ -275,10 +275,6 @@ function assignBlindLabels(seed: string): Record<"pro" | "flash", "A" | "B"> {
 }
 
 async function main() {
-  if (process.env.RUN_DEEPSEEK_V41_RP_AB !== "1") {
-    console.error("Set RUN_DEEPSEEK_V41_RP_AB=1 to execute live calls");
-    process.exit(1);
-  }
   if (!process.env.CHEAPER_INFERENCE_API_KEY?.trim()) {
     console.error("CHEAPER_INFERENCE_API_KEY required");
     process.exit(1);
@@ -362,7 +358,9 @@ async function main() {
   console.log(`Wrote RP A/B artifacts to ${OUT_DIR}`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.env.RUN_DEEPSEEK_V41_RP_AB === "1") {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

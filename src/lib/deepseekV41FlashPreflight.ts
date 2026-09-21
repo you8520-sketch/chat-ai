@@ -258,3 +258,287 @@ export const REGRESSION_GATES = [
   "Returned responseModelId vs requested mismatch must surface in ledger actual_model",
   "deepseek-v4.1-flash must not alias-overwrite deepseek-v4-flash-0731",
 ] as const;
+
+/* ---------------------------------------------------------------------------
+ * CORRECTION PASS (PR #993 feature pre-flight re-evaluation, 2026-09-21)
+ * Read-only records — no production prompt / billing / registry changes.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Creative-gap-fill policy. UNKNOWN ≠ FORBIDDEN:
+ * a missing past-history detail in the setting is NOT a failure by itself.
+ * Canonical evaluation dimension for canon: contradiction of existing canon.
+ */
+export const CANON_PLAYBOOK = {
+  creatorCanon: "PRESERVE",
+  userCanon: "PRESERVE",
+  confirmedMemory: "PRESERVE",
+  explicitNegation: "DO_NOT_CONTRADICT",
+  establishedCharacterCanonReinforce: "PRESERVE",
+  opensUnknownHistory: "VALID_CREATIVE_GAP_FILL",
+} as const;
+
+/**
+ * D_lore Sample B (Flash) re-evaluation.
+ * The original FAIL reason ("elements absent from the setting") was wrong — the
+ * fixture's OWN creator lore chunk (c-lore in the A/B script) already defines
+ * 왕실 수호대 견습 실패/죄책감 (royal-guard apprentice failure). Sample B elaborates
+ * the unspecified cause/target of that failure into the open gap.
+ */
+export const D_LORE_CONTEXT_SOURCES = [
+  "creator chunk c-identity: 강이현, 29세, 검은 장미단 부단장",
+  "creator chunk c-speech: 「」 대사, 짧은 문장, 별표 서술 금지",
+  "creator chunk c-lore: 왕실 수호대 견습 실패 사건 + '약한 사람을 지키지 못했다' 죄책감 + {{user}} 어릴 적 친구",
+  "lorebook: (not present in fixture)",
+  "USER_PERSONA / persistent details: (not present in fixture)",
+  "memory sections (current/global/medium): (not present in fixture — buildContext fresh)",
+  "raw history: 2 turns (「…기억하고 싶지 않아。」 / 말해줘도 돼)",
+  "confirmed past facts: (none beyond c-lore)",
+] as const;
+
+export type CanonConflictCheck = "VALID_CREATIVE_GAP_FILL" | "CANON_CONTRADICTION";
+
+export const D_LORE_SAMPLE_B_RE_EVALUATION: {
+  modelSample: "Sample B (Flash)";
+  inventedElements: string[];
+  conflictingCanonSources: null;
+  checks: Record<string, boolean>;
+  classification: CanonConflictCheck;
+} = {
+  modelSample: "Sample B (Flash)",
+  inventedElements: [
+    "왕실 수호대 견습 시절 — ALREADY in c-lore (not invented)",
+    "견습 자격 상실 / 검을 놓은 이력 — direct restatement of creator c-lore",
+    "두 살 어린 견습생 (지키던 사람) — open-gap fill for '약한 사람'",
+    "시험장에 몰려든 것들 / 그 애가 나를 밀어냄 — open-gap cause, no negation",
+    "꿈은 안 꿔 / 잠을 잘 안 자니까 — flavor invention, no established fact contradicted",
+    "\"이 얘기 다른 사람한테는 안 했어\" — open-gap touch, no canon conflict",
+  ],
+  conflictingCanonSources: null,
+  checks: {
+    creatorCanonPreserved: true,
+    userCanonPreserved: true,
+    noAgainstConfirmedMemory: true,
+    noExplicitNegationViolated: true,
+    speechOwnerRespected: true,
+    userAuthoredBeyondAllowance: false,
+  },
+  classification: "VALID_CREATIVE_GAP_FILL",
+};
+
+/**
+ * §14 AUTHORING-SCOPE fixtures — recorded from the current-main owners
+ * (noGodmodding / autoProgressionRules / userCoauthorState). These describe
+ * what the prompt owners already authorize; they are evaluation keys for the
+ * QA runs, not new runtime systems.
+ */
+export type AuthoringScopeRow = {
+  runtimeMode: string;
+  persistentCoauthor: string;
+  currentTurnDelegation: string;
+  effectiveAllowedDialogue: string;
+  effectiveAllowedMajorAction: string;
+  promptOwner: string;
+};
+
+export const AUTHORING_SCOPE_MATRIX: AuthoringScopeRow[] = [
+  {
+    runtimeMode: "interactive",
+    persistentCoauthor: "OFF",
+    currentTurnDelegation: "none",
+    effectiveAllowedDialogue:
+      "[B]의 새로운 직접 대사·중요 선택·동의/거절·감정 결론 — NO (COLLABORATIVE_INTERACTIVE)",
+    effectiveAllowedMajorAction:
+      "짧은 표정/시선/비자발적 반응, 시작한 행동의 마무리, 사소한 이동/접촉/물건 수취/일상 행동, 직접 자극에 대한 즉각적·가역적 반응 — YES; 새 목적/연쇄 이동/층 선택/중요 intent — NO",
+    promptOwner: "COLLABORATIVE_INTERACTIVE_OWNER_BLOCK",
+  },
+  {
+    runtimeMode: "auto_progression",
+    persistentCoauthor: "n/a (composer locked)",
+    currentTurnDelegation: "inactive-while-auto",
+    effectiveAllowedDialogue:
+      "[B] 짧거나 중간 길이의 대사 공동 서술 ( persona-voice imitation with USER_PERSONA+실제 이전 발화 근거)",
+    effectiveAllowedMajorAction:
+      "[B] 외부 행동·이동·물건 사용 허용; 내면 독백/감정 결론/숨은 욕망/명시적 동의·거절/정체성 변경 — NO",
+    promptOwner: "AUTO_PROGRESSION — AI-FOCAL CO-NARRATION block",
+  },
+  {
+    runtimeMode: "ooc_user_impersonation_allowed",
+    persistentCoauthor: "OFF",
+    currentTurnDelegation: "none",
+    effectiveAllowedDialogue:
+      "USER_PERSONA 대사·행동을 사용자 입력 의도 내에서 최소 공동 서술 (사칭 허용, 감정/결정 창작 금지)",
+    effectiveAllowedMajorAction:
+      "LIMITED co-narration — [B]의 중대 결정/주도 행동 대신 확정 금지",
+    promptOwner: "USER CONTROL MODE - LIMITED CO-NARRATION",
+  },
+  {
+    runtimeMode: "current_turn_ooc_delegated",
+    persistentCoauthor: "OFF (or NEXT-GEN persistent ON)",
+    currentTurnDelegation: "DIALOGUE",
+    effectiveAllowedDialogue:
+      "[B] 직접 대사 허용 (페르소나 말투·성격); 새 중요 자발적 행동/동의/거절/관계·정체성 결정 — NO",
+    effectiveAllowedMajorAction: "새 [B] 대사 만들지 않음; 중요 행동 대신 확정 금지",
+    promptOwner: "USER AUTHORING — CURRENT-TURN OOC DELEGATION (allowDialogue only)",
+  },
+  {
+    runtimeMode: "current_turn_ooc_delegated",
+    persistentCoauthor: "OFF",
+    currentTurnDelegation: "ACTIONS",
+    effectiveAllowedDialogue: "현재 입력에 없는 새 [B] 대사 만들지 않음",
+    effectiveAllowedMajorAction:
+      "[B] 중요한 행동 + 페르소나-맞는 장면 국소 동작/반응/선택(접근·후퇴·망설임) 허용; 정본 밖 정체성/장기 관계/영구 약속 — NO",
+    promptOwner: "USER AUTHORING — CURRENT-TURN OOC DELEGATION (allowMajorActions only)",
+  },
+  {
+    runtimeMode: "current_turn_ooc_delegated",
+    persistentCoauthor: "OFF",
+    currentTurnDelegation: "FULL",
+    effectiveAllowedDialogue:
+      "[B] 대사+중요 행동 위임 (DIALOGUE+FULL; 수락·거절·망설임·접근·물러남 허구 선작 허용)",
+    effectiveAllowedMajorAction:
+      "허구 턴 자연동일 + 정본 밖 정체성/장기 관계/영구 약속 — NO",
+    promptOwner: "USER AUTHORING — CURRENT-TURN OOC DELEGATION (both)",
+  },
+];
+
+/** §7 — detector telemetry facts from current main (route.ts post-stream). */
+export const DETECTOR_TELEMETRY_AUDIT = {
+  userImpersonationGuard: {
+    production: "logUserImpersonationGuard — log/metric only",
+    receivedScope: ["mode (runtimeMode)", "userAliases"] as string[],
+    missingScope: ["persistentCoauthorMode", "allowDialogue", "allowMajorActions"] as string[],
+    autoRepair:
+      "env USER_IMPERSONATION_AUTO_REPAIR — OFF by default; repairAttempted:false at callsite",
+  },
+  ownershipShadowDetectorV2: {
+    production: "runOwnershipShadowGuardV2 → ownershipTelemetry + logOwnershipShadowGuardV2 — shadow-only",
+    receivedScope: ["mode", "currentUserInput", "userAuthoredHistory", "userAliases"] as string[],
+    missingScope: ["user_coauthor_mode (DIALOGUE/ACTIONS/FULL)", "delegation duration"] as string[],
+  },
+  verdict:
+    "detector/isShadow은 scope-blind; QA canonical dimension = AUTHORING_SCOPE_VIOLATION (manual effective-scope check)",
+  followUpCandidate:
+    "3단계 공동서술 normalization — pass effective coauthor scope into both detectors before any gating change",
+} as const;
+
+/** §8 — deterministic final-request parity summary (parity harness artifact). */
+export const FINAL_REQUEST_PARITY_SUMMARY = {
+  harness: "scripts/deepseek-v41-flash-request-parity.ts (credential-free assemblePrimaryRpRequest)",
+  artifact: "docs/audits/deepseek-v41-flash-preflight-2026-09-20/rp-ab/request-parity.json",
+  fixtures: 10,
+  perFixtureDiffs: {
+    model: true,
+    thinkingTypedBody: true,
+    worldLoreXmlWrapper: true,
+    systemPromptCharDelta: 27,
+  },
+  identical: {
+    samplingTemperature: 0.92,
+    samplingTopP: 0.92,
+    maxTokens: "omitted → provider default (both)",
+    userAcceptance: "identical USER_PERSONA/memory/lore/length sections",
+    reasoningEffort: "none (both)",
+  },
+  verdict:
+    "model identity 외 semantic 차이: (1) Pro-only <WORLD_LORE> XML wrapper (27 chars), (2) Pro sends thinking:{type:disabled} typed body vs Flash generic reasoning_effort-only; SAME intended non-thinking state, evidence reasoning_tokens=0 both",
+} as const;
+
+/** §9 — V4.1 explicit wire / reasoning owner design (implementation, not patched here). */
+export const V41_WIRE_OWNER_PLAN = {
+  problem:
+    "deepseek-v4.1-flash not matched by explicit DeepSeek family matchers — 0731 matcher and isDeepSeekModel() family gate both miss it",
+  affectedOwners: [
+    "applyCheaperInferenceModelReasoningPolicy (cheaperInferenceConfig.ts) — unregistered → generic fallback (reasoning_effort none, no typed thinking body)",
+    "isDeepSeekModel family gate (chatModels.ts) — false for v4.1-flash → contextBuilder Pro-family extras branch skip",
+    "deepseekProviderFailover route kind — not registered (Flash passes through CI transport, single-attempt)",
+  ],
+  design: [
+    "add CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL constant (separate from 0731)",
+    "extend applyCheaperInferenceModelReasoningPolicy with explicit v4.1-flash branch producing the SAME canonical DeepSeek TRUE-OFF body (thinking:{type:'disabled'} + reasoning_effort none)",
+    "extend isDeepSeekModel to recognize v4.1-flash (Do NOT repurpose the 0731 constant)",
+    "do not touch 0731 background wire or published rows",
+  ],
+  notPatchedThisPreflight: true,
+} as const;
+
+/** §11 — returned-model normalization audit. */
+export const RESPONSE_MODEL_NORMALIZATION_AUDIT = {
+  observed: {
+    requested: "deepseek-v4-pro-0813",
+    returned: "deepseek/deepseek-v4-pro-0813",
+    evidence: "G_long_memory Sample A — ProviderProbe + rp-ab operational",
+  },
+  verdict: "provider namespace-only variation — NOT a model substitution",
+  existingOwner: "publishedModelAliases.canonicalizePublishedModelId ('deepseek/deepseek-v4-pro' → 'deepseek-v4-pro-0813')",
+  billing: "published pricing/billing paths already canonicalize (chatBillingContractDispatch / publishedUserCharge)",
+  followUp: "ledger actual_model still stores raw responseModelId — map via misma canonicalize at write time (alert on canonical mismatch)",
+  requiresNewNormalizationSystem: false,
+} as const;
+
+/** §12 — length/initiative corrections (no defect assigned to being long/active). */
+export const LENGTH_EVALUATION_CORRECTIONS = {
+  fixtureTargetChars: { F_speech_lock: 3200, H_long_output: 3500 },
+  samplesChars: { pro_F: 478, flash_F: 2563, pro_H: 3783, flash_H: 3579 },
+  verdict: {
+    flash_F_speech_lock: "VALID_ACTIVE_RP — 2563 chars within± of 3200 target; near-target을 defect로 보지 않는다",
+    pro_F_speech_lock: "UNDER_TARGET_OUTLIER — 478 chars vs 3200 target (stop-finish, retried once; length risk is 건 Pro 쪽)",
+  },
+  classificationKeys: ["LENGTH_CONTROL_RISK", "SCENE_CONTROL_RISK", "VALID_ACTIVE_RP"],
+} as const;
+
+/** §10 — cache semantics audit (captured live evidence, read-only READY scope). */
+export const CACHE_SEMANTICS_AUDIT = {
+  cacheReadProven: true,
+  evidence: "prompt_tokens_details.cached_tokens > 0 captured (PROVIDER_PROBE.json; e.g. F_speech_lock Flash 4736 cached read tokens)",
+  parserOwner: "openRouterUsage.parseOpenRouterUsage",
+  noDoubleCharge: "cache-read tokens are separate from standard input tokens in normalizeBillableUsage",
+  cacheWriteVerdict: "NOT_ASSUMED — cache_write_tokens observed 0; no separate write price exists",
+  writePriceExists: "unknown → excluded from READY scope",
+  requiredPolicyRow: "modelPublishedPricingPolicy row for deepseek-v4.1-flash with cacheSemanticStatus verified + cache read rate 0.006",
+  readyScope: "cache_read_only",
+} as const;
+
+/**
+ * §13 — canon-preserving creative improvisation fixture keys (semantic cases).
+ * Cursor never deduces creativity; automated checks cover objective contracts.
+ */
+export type CanonImprovisationKey =
+  | "OPEN_GAP"
+  | "CREATOR_CANON"
+  | "USER_CANON"
+  | "EXPLICIT_NEGATION"
+  | "SOFT_CONTINUITY";
+
+export const CANON_PRESERVING_IMPROVISATION_MATRIX: Record<
+  CanonImprovisationKey,
+  { case: string; expected: string }
+> = {
+  OPEN_GAP: { case: "설정 없는 과거를 자연스럽게 창작", expected: "PASS (creative invention, no canon conflict)" },
+  CREATOR_CANON: { case: "creator가 과거를 정의", expected: "core creator canon preserved verbatim semantics" },
+  USER_CANON: { case: "유저가 자기 과거를 정의", expected: "user canon preserved" },
+  EXPLICIT_NEGATION: { case: "유저가 명시적으로 부정한 사실", expected: "opposite fact NOT created" },
+  SOFT_CONTINUITY: { case: "모델이 이전 턴에서 만든 설정을 유저가 받아들임", expected: "consistent adoption as scene fact" },
+};
+
+/** RP A/B blind sample record corrections (E_impersonation re-eval). */
+export const E_IMPERSONATION_RE_EVALUATION = {
+  sampleA: {
+    blindLabel: "Sample A (Pro)",
+    runtimeMode: "interactive (A/B harness default; no delegation, no auto progression, no OOC opt-in)",
+    classifier: {
+      userDialogueLed: false,
+      userActionLed: false,
+      characterRejectionOfOrder: true,
+      modelEthoUserLine: "none — quotes/echoes of the USER's own turn only",
+    },
+    subclassification: "VALID_STANDARD_INTERACTIVE",
+  },
+  sampleB: {
+    blindLabel: "Sample B (Flash)",
+    runtimeMode: "interactive (A/B harness default; standard COLLABORATIVE_INTERACTIVE assembly)",
+    subclassification: "VALID_STANDARD_INTERACTIVE",
+  },
+  note:
+    "E fixture는 유저 프롬브(actor ownership) 실험 프로브이지만, A/B 자체는 standard interactive 모드로 어셈블됨 — fixture label(user impersonation 방지)은 프로브이며 모드 위임은 없음. effective로 허용된 민수 패시지/거절 반응 외 민수 신규 발화/결정 없음 → AUTHORING_SCOPE_VIOLATION 없음.",
+} as const;
