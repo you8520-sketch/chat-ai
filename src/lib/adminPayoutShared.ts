@@ -16,6 +16,9 @@ export type AdminPayoutApplicationRow = {
   accountLabel: string;
   status: WithdrawalStatus;
   failureReason: string;
+  providerRequestId: string;
+  providerRef: string;
+  executionState: string;
   createdAt: string;
   processedAt: string | null;
 };

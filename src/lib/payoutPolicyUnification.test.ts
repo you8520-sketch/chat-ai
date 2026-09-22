@@ -110,6 +110,8 @@ function previewDb(): Database.Database {
       account_info TEXT NOT NULL,
       status TEXT NOT NULL,
       failure_reason TEXT NOT NULL DEFAULT '',
+      provider_request_id TEXT NOT NULL DEFAULT '',
+      provider_ref TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL,
       processed_at TEXT
     );
@@ -302,6 +304,9 @@ describe("payout policy unification — historical snapshot preservation", () =>
       account_info: accountJson,
       status: "APPROVED",
       failure_reason: "",
+      provider_request_id: "wd-9",
+      provider_ref: "SIM-done",
+      execution_state: "SUCCEEDED",
       created_at: "2026-08-02",
       processed_at: "2026-08-15",
       nickname: "작가A",
