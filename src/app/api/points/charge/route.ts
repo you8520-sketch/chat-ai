@@ -5,7 +5,7 @@ import {
   PAYMENTS_DISABLED_MESSAGE,
 } from "@/lib/portoneConfig";
 
-export const POINT_CHARGE_REQUIRES_VERIFIED_PAYMENT_MESSAGE =
+const POINT_CHARGE_REQUIRES_VERIFIED_PAYMENT_MESSAGE =
   "포인트 충전은 PortOne 결제 검증 완료 후에만 지급됩니다.";
 
 /**
