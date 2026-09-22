@@ -57,6 +57,21 @@ function source(relativePath: string): string {
   return fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 }
 
+function productionSources(root: string): string[] {
+  const out: string[] = [];
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const full = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      out.push(...productionSources(full));
+      continue;
+    }
+    if (!/\.(ts|tsx)$/.test(entry.name)) continue;
+    if (/\.test\.(ts|tsx)$/.test(entry.name)) continue;
+    out.push(full);
+  }
+  return out;
+}
+
 describe("verified point charge payment boundary", () => {
   it("same PortOne payment finalizes and credits exactly once", () => {
     const db = setupDb();
@@ -131,6 +146,29 @@ describe("verified point charge payment boundary", () => {
     assert.match(config, /isPortOneServerVerifyConfigured\(\)/);
     assert.match(prepare, /isPortOneServerVerifyConfigured\(\)/);
     assert.match(prepare, /status:\s*503/);
+  });
+
+  it("server completion requires a concrete verified amount match", () => {
+    const complete = source("src/app/api/payments/portone/complete/route.ts");
+    assert.match(complete, /remote\.totalAmount == null/);
+    assert.match(complete, /remote\.totalAmount !== checkout\.amount/);
+  });
+
+  it("point credit writer has one production caller", () => {
+    const files = productionSources(path.join(process.cwd(), "src"));
+    const callers: string[] = [];
+
+    for (const file of files) {
+      const text = fs.readFileSync(file, "utf8");
+      if (/creditPointChargePackage\s*\(/.test(text)) {
+        callers.push(path.relative(process.cwd(), file).replace(/\\/g, "/"));
+      }
+    }
+
+    assert.deepEqual(callers.sort(), [
+      "src/lib/pointCharge.ts",
+      "src/lib/portoneCheckout.ts",
+    ]);
   });
 
   it("verified checkout claims paid status before crediting points", () => {
