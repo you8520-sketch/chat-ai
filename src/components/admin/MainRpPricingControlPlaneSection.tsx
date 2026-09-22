@@ -5,10 +5,32 @@ import type {
   ProviderEvidenceStatus,
   RealizedMarginDiagnosticStatus,
 } from "@/lib/mainRpPricingObservability";
+import {
+  formatActualFreePointSpend,
+  type ActualProductionCostEvidence,
+} from "@/lib/mainRpPricingActualEconomics";
 
 function formatPct(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return "UNKNOWN";
   return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatKrw(value: number): string {
+  return `${Math.round(value).toLocaleString()} KRW`;
+}
+
+function formatCostEvidenceLabel(evidence: ActualProductionCostEvidence): string | null {
+  const actualKrw = evidence.actualKrw ?? 0;
+  const estimatedKrw = evidence.estimatedKrw ?? 0;
+  if (actualKrw + estimatedKrw > 0) {
+    return `${evidence.sourceState ?? "ledger"} · actual ${formatKrw(actualKrw)} · est ${formatKrw(estimatedKrw)}`;
+  }
+  if (evidence.sourceState) {
+    return evidence.calls != null
+      ? `${evidence.sourceState} · ${evidence.calls} calls`
+      : evidence.sourceState;
+  }
+  return null;
 }
 
 function formatUsdPair(input: number | null, output: number | null): string {
@@ -81,6 +103,11 @@ function providerStatusLabel(status: ProviderEvidenceStatus): string {
   }
 }
 
+function coverageLabel(coverage: string | null, exact: boolean): string {
+  if (!coverage) return "UNKNOWN";
+  return `${coverage.toUpperCase()} · ${exact ? "EXACT" : "NOT EXACT"}`;
+}
+
 function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
   const { row } = props;
   return (
@@ -146,15 +173,34 @@ function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
         </div>
 
         <div className="rounded border border-rose-500/20 bg-rose-950/10 p-2">
-          <h4 className="font-medium text-rose-200">MARGIN</h4>
+          <h4 className="font-medium text-rose-200">REPRESENTATIVE</h4>
           <dl className="mt-1 space-y-1">
-            <div><dt className="inline text-zinc-500">target / floor </dt><dd className="inline">{formatPct(row.margin.targetMargin)} / {formatPct(row.margin.minimumMarginFloor)}</dd></div>
-            <div><dt className="inline text-zinc-500">realized </dt><dd className="inline">{formatPct(row.margin.realizedMargin)} ({row.margin.realizedMarginProvenance}, {row.margin.realizedMarginRevenueUnit})</dd></div>
-            <div><dt className="inline text-zinc-500">tracker </dt><dd className="inline">{formatPct(row.margin.trackerAlignedRealizedMargin)}</dd></div>
-            <div><dt className="inline text-zinc-500">status </dt><dd className="inline">{marginStatusLabel(row.margin.status, row.margin.procurementCostFreshness, row.margin.underlyingFloorVerdict)}</dd></div>
-            {row.margin.procurementCostFreshness !== "FRESH" ? (
-              <div><dt className="inline text-zinc-500">procurement freshness </dt><dd className="inline">{row.margin.procurementCostFreshness}</dd></div>
-            ) : null}
+            <div><dt className="inline text-zinc-500">workload </dt><dd className="inline">{row.representative.representativeWorkloadLabel}</dd></div>
+            <div><dt className="inline text-zinc-500">target / floor </dt><dd className="inline">{formatPct(row.representative.targetMargin)} / {formatPct(row.representative.minimumMarginFloor)}</dd></div>
+            <div><dt className="inline text-zinc-500">estimate </dt><dd className="inline">{formatPct(row.representative.representativeMarginEstimate)} ({row.representative.representativeMarginProvenance}, {row.representative.representativeMarginRevenueUnit})</dd></div>
+            <div><dt className="inline text-zinc-500">tracker </dt><dd className="inline">{formatPct(row.representative.trackerAlignedMarginEstimate)}</dd></div>
+            <div><dt className="inline text-zinc-500">status </dt><dd className="inline">{marginStatusLabel(row.representative.status, row.representative.procurementCostFreshness, row.representative.underlyingFloorVerdict)}</dd></div>
+          </dl>
+        </div>
+
+        <div className="rounded border border-lime-500/20 bg-lime-950/10 p-2 md:col-span-2 xl:col-span-1">
+          <h4 className="font-medium text-lime-200">ACTUAL{row.actual.monthKey ? ` — ${row.actual.monthKey}` : ""}</h4>
+          <dl className="mt-1 space-y-1">
+            <div><dt className="inline text-zinc-500">usage </dt><dd className="inline">{row.actual.usageState}</dd></div>
+            {row.actual.usageState === "HAS_ACTIVITY" ? (
+              <>
+                <div><dt className="inline text-zinc-500">paid revenue </dt><dd className="inline">{formatKrw(row.actual.paidRevenueKrw)}</dd></div>
+                <div><dt className="inline text-zinc-500">free spend </dt><dd className="inline">{formatActualFreePointSpend(row.actual.freePointSpend)}</dd></div>
+                <div><dt className="inline text-zinc-500">provider cost </dt><dd className="inline">{formatKrw(row.actual.apiCostKrw)}</dd></div>
+                <div><dt className="inline text-zinc-500">margin </dt><dd className="inline">{row.actual.marginDisplay}</dd></div>
+                <div><dt className="inline text-zinc-500">coverage </dt><dd className="inline">{coverageLabel(row.actual.marginCoverage, row.actual.realizedMarginExact)}</dd></div>
+                {formatCostEvidenceLabel(row.actual.costEvidence) ? (
+                  <div><dt className="inline text-zinc-500">cost evidence </dt><dd className="inline">{formatCostEvidenceLabel(row.actual.costEvidence)}</dd></div>
+                ) : null}
+              </>
+            ) : (
+              <div><dt className="inline text-zinc-500">status </dt><dd className="inline">{row.actual.marginDisplay}</dd></div>
+            )}
           </dl>
         </div>
       </div>
@@ -181,8 +227,8 @@ export function MainRpPricingControlPlaneSection(props: {
     <section className="mt-6">
       <h2 className="font-semibold text-violet-100">Main RP Control Plane (read-only)</h2>
       <p className="mt-1 text-xs text-zinc-500">
-        Semantic domains separated — MARKET / PROVIDER / PROCUREMENT / PRODUCT / PROMOTION / MARGIN.
-        OBSERVE_ONLY tracker · generated {projection.generatedAt}
+        Semantic domains — MARKET / PROVIDER / PROCUREMENT / PRODUCT / PROMOTION / REPRESENTATIVE / ACTUAL.
+        OBSERVE_ONLY tracker · actual economics {projection.actualEconomicsMonthKey ?? "unavailable"} · generated {projection.generatedAt}
       </p>
       <div className="mt-4 space-y-4">
         {projection.models.map((row) => (

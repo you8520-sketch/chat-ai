@@ -12,7 +12,16 @@ import {
   isPhase2DeepSeekPublishedBillingEnabled,
   isPhase2DeepSeekPublishedBillingModel,
 } from "@/lib/chatBillingContractDispatch";
+import {
+  buildAdminFinanceSummary,
+  currentKstMonthKey,
+  type AdminFinanceSummary,
+} from "@/lib/adminFinance";
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import {
+  composeActualProductionEconomics,
+  type ActualProductionEconomicsObservation,
+} from "@/lib/mainRpPricingActualEconomics";
 import {
   resolveCheaperInferenceCatalogPricing,
   type CheaperInferenceCatalogPricing,
@@ -65,7 +74,14 @@ export type RealizedMarginRevenueUnit =
   | "legacy_points_proxy"
   | "unavailable";
 
-export type PricingSemanticDomain = "MARKET" | "PROVIDER" | "PROCUREMENT" | "PRODUCT" | "PROMOTION" | "MARGIN";
+export type PricingSemanticDomain =
+  | "MARKET"
+  | "PROVIDER"
+  | "PROCUREMENT"
+  | "PRODUCT"
+  | "PROMOTION"
+  | "REPRESENTATIVE"
+  | "ACTUAL_PRODUCTION";
 
 export type ProductionBillingContractLabel =
   | "published_phase1_when_enabled"
@@ -167,20 +183,23 @@ export type PromotionObservation = {
   officialPromotionSummary: string | null;
 };
 
-export type MarginObservation = {
-  domain: "MARGIN";
+export type RepresentativeEconomicsObservation = {
+  domain: "REPRESENTATIVE";
   targetMargin: number;
   minimumMarginFloor: number;
-  realizedMargin: number | null;
-  realizedMarginProvenance: ProcurementCostProvenance;
-  realizedMarginRevenueUnit: RealizedMarginRevenueUnit;
-  trackerAlignedRealizedMargin: number | null;
+  representativeMarginEstimate: number | null;
+  representativeMarginProvenance: ProcurementCostProvenance;
+  representativeMarginRevenueUnit: RealizedMarginRevenueUnit;
+  trackerAlignedMarginEstimate: number | null;
   status: RealizedMarginDiagnosticStatus;
   /** Tracker floor verdict before stale/absent procurement gating — diagnostic only. */
   underlyingFloorVerdict: "healthy" | "below_floor" | null;
   procurementCostFreshness: ProcurementFreshnessState;
   trackerMarginFloorBreached: boolean | null;
+  representativeWorkloadLabel: string;
 };
+
+export type { ActualProductionEconomicsObservation } from "@/lib/mainRpPricingActualEconomics";
 
 export type Gemini37MarginFloorRootCauseHypothesis =
   | "A_ci_procurement_rise_or_discount_shrink"
@@ -203,7 +222,8 @@ export type MainRpPricingObservabilityRow = {
   procurement: ProcurementObservation;
   product: ProductObservation;
   promotion: PromotionObservation;
-  margin: MarginObservation;
+  representative: RepresentativeEconomicsObservation;
+  actual: ActualProductionEconomicsObservation;
   gemini37RootCause?: Gemini37MarginFloorRootCauseReport;
 };
 
@@ -211,6 +231,8 @@ export type MainRpPricingObservabilityProjection = {
   generatedAt: string;
   fxSnapshot: BillingFxSnapshot;
   trackerPhase: "OBSERVE_ONLY";
+  actualEconomicsMonthKey: string | null;
+  financeGeneratedAt: string | null;
   models: MainRpPricingObservabilityRow[];
 };
 
@@ -221,6 +243,18 @@ function kstDateKey(date: Date): string {
     month: "2-digit",
     day: "2-digit",
   }).format(date);
+}
+
+/** Read finance summary when admin finance prerequisites exist; null only for tracker-only DBs. */
+export function readFinanceSummaryForControlPlane(
+  db: Database.Database,
+  now: Date
+): AdminFinanceSummary | null {
+  const messagesTable = db
+    .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='messages'")
+    .get();
+  if (!messagesTable) return null;
+  return buildAdminFinanceSummary(db, currentKstMonthKey(now.getTime()));
 }
 
 function benchmarkAgeLabel(observedAt: string | null): string {
@@ -647,7 +681,7 @@ function representativeCharges(params: {
   };
 }
 
-function marginObservation(params: {
+function representativeEconomicsObservation(params: {
   modelId: string;
   published: PublishedModelPricing;
   fxSnapshot: BillingFxSnapshot;
@@ -656,7 +690,7 @@ function marginObservation(params: {
   productionChargeKrw: number | null;
   usesPublishedPath: boolean;
   db: Database.Database | null | undefined;
-}): MarginObservation {
+}): RepresentativeEconomicsObservation {
   const persistedCi =
     params.db != null
       ? readLatestSnapshot(params.db, params.modelId, "cheaper_inference_models_current")
@@ -748,30 +782,31 @@ function marginObservation(params: {
   }
 
   return {
-    domain: "MARGIN",
+    domain: "REPRESENTATIVE",
     targetMargin: params.published.targetMargin,
     minimumMarginFloor: params.published.minimumMarginFloor,
-    realizedMargin,
-    realizedMarginProvenance: provenance,
-    realizedMarginRevenueUnit: revenueUnit,
-    trackerAlignedRealizedMargin: trackerEval?.realizedMargin ?? null,
+    representativeMarginEstimate: realizedMargin,
+    representativeMarginProvenance: provenance,
+    representativeMarginRevenueUnit: revenueUnit,
+    trackerAlignedMarginEstimate: trackerEval?.realizedMargin ?? null,
     status,
     underlyingFloorVerdict,
     procurementCostFreshness: procurementFreshness,
     trackerMarginFloorBreached: trackerEval?.breached ?? null,
+    representativeWorkloadLabel: `${REPRESENTATIVE_TRACKER_WORKLOAD.promptTokens} prompt / ${REPRESENTATIVE_TRACKER_WORKLOAD.outputTokens} output (uncached)`,
   };
 }
 
 function diagnoseGemini37MarginFloorRootCause(params: {
   published: PublishedModelPricing;
   procurement: ProcurementObservation;
-  margin: MarginObservation;
+  representative: RepresentativeEconomicsObservation;
   product: ProductObservation;
   db: Database.Database | null | undefined;
 }): Gemini37MarginFloorRootCauseReport {
   const plausible: Gemini37MarginFloorRootCauseHypothesis[] = [];
   const notes: string[] = [];
-  const breached = params.margin.trackerMarginFloorBreached === true;
+  const breached = params.representative.trackerMarginFloorBreached === true;
 
   const calibration = GEMINI37_CALIBRATION_RATE_EVIDENCE;
   const persistedCi =
@@ -892,7 +927,8 @@ function buildModelRow(
   fxSnapshot: BillingFxSnapshot,
   nowIso: string,
   now: Date,
-  db: Database.Database | null | undefined
+  db: Database.Database | null | undefined,
+  financeSummary: AdminFinanceSummary | null
 ): MainRpPricingObservabilityRow {
   const published = getPublishedPricing(modelId);
   const charges = representativeCharges({ modelId, fxSnapshot });
@@ -913,7 +949,7 @@ function buildModelRow(
     representativeProductionChargeKrw: charges.publishedChargeKrw,
     representativeWorkloadLabel: `${REPRESENTATIVE_TRACKER_WORKLOAD.promptTokens} prompt / ${REPRESENTATIVE_TRACKER_WORKLOAD.outputTokens} output (uncached)`,
   };
-  const margin = marginObservation({
+  const representative = representativeEconomicsObservation({
     modelId,
     published,
     fxSnapshot,
@@ -930,13 +966,14 @@ function buildModelRow(
     procurement,
     product,
     promotion: promotionObservation(modelId, nowIso),
-    margin,
+    representative,
+    actual: composeActualProductionEconomics(modelId, financeSummary),
   };
   if (modelId === GEMINI37_MODEL_ID) {
     row.gemini37RootCause = diagnoseGemini37MarginFloorRootCause({
       published,
       procurement,
-      margin,
+      representative,
       product,
       db,
     });
@@ -953,12 +990,16 @@ export function buildMainRpPricingObservabilityProjection(params?: {
   const fxSnapshot = params?.fxSnapshot ?? previewShadowBillingFxSnapshot();
   const now = params?.now ?? new Date();
   const nowIso = now.toISOString();
+  const db = params?.db ?? null;
+  const financeSummary = db != null ? readFinanceSummaryForControlPlane(db, now) : null;
   return {
     generatedAt: nowIso,
     fxSnapshot,
     trackerPhase: "OBSERVE_ONLY",
+    actualEconomicsMonthKey: financeSummary?.monthKey ?? null,
+    financeGeneratedAt: financeSummary?.generatedAt ?? null,
     models: MAIN_RP_MODEL_IDS.map((modelId) =>
-      buildModelRow(modelId, fxSnapshot, nowIso, now, params?.db ?? null)
+      buildModelRow(modelId, fxSnapshot, nowIso, now, db, financeSummary)
     ),
   };
 }
