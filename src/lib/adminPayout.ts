@@ -24,7 +24,14 @@ export type {
   AdminPayoutTaxPreview,
 } from "@/lib/adminPayoutShared";
 
-export const ADMIN_PAYOUT_STATUSES = ["PENDING", "APPROVED", "FAILED", "REJECTED"] as const;
+export const ADMIN_PAYOUT_STATUSES = [
+  "PENDING",
+  "PROCESSING",
+  "RECONCILIATION_REQUIRED",
+  "APPROVED",
+  "FAILED",
+  "REJECTED",
+] as const;
 export type AdminPayoutStatusFilter = "all" | WithdrawalStatus;
 
 type WithdrawalListRecord = {
@@ -37,6 +44,8 @@ type WithdrawalListRecord = {
   account_info: string;
   status: WithdrawalStatus;
   failure_reason: string;
+  provider_request_id: string;
+  provider_ref: string;
   created_at: string;
   processed_at: string | null;
   nickname: string;
@@ -87,6 +96,8 @@ export function countAdminPayoutApplications(db: Database.Database): AdminPayout
     counts.all += n;
     switch (row.status) {
       case "PENDING":
+      case "PROCESSING":
+      case "RECONCILIATION_REQUIRED":
         counts.pending += n;
         break;
       case "APPROVED":
@@ -130,6 +141,8 @@ export function toAdminPayoutApplicationRow(record: WithdrawalListRecord): Admin
     accountLabel: formatAccountInfoLabel(record.account_info),
     status: record.status,
     failureReason: record.failure_reason ?? "",
+    providerRequestId: record.provider_request_id ?? "",
+    providerRef: record.provider_ref ?? "",
     createdAt: record.created_at,
     processedAt: record.processed_at,
   };
@@ -146,7 +159,8 @@ export function listAdminPayoutApplications(
       ? (db
           .prepare(
             `SELECT w.id, w.user_id, w.requested_cp, w.tax_amount, w.platform_fee, w.payout_amount,
-                    w.account_info, w.status, w.failure_reason, w.created_at, w.processed_at,
+                    w.account_info, w.status, w.failure_reason, w.provider_request_id, w.provider_ref,
+                    w.created_at, w.processed_at,
                     u.nickname, u.email, u.real_name
              FROM withdrawal_requests w
              JOIN users u ON u.id = w.user_id
@@ -157,7 +171,8 @@ export function listAdminPayoutApplications(
       : (db
           .prepare(
             `SELECT w.id, w.user_id, w.requested_cp, w.tax_amount, w.platform_fee, w.payout_amount,
-                    w.account_info, w.status, w.failure_reason, w.created_at, w.processed_at,
+                    w.account_info, w.status, w.failure_reason, w.provider_request_id, w.provider_ref,
+                    w.created_at, w.processed_at,
                     u.nickname, u.email, u.real_name
              FROM withdrawal_requests w
              JOIN users u ON u.id = w.user_id
