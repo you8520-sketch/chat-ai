@@ -156,24 +156,6 @@ function findBonusLogNearCharge(
   );
 }
 
-function findPortoneCheckoutNearCharge(
-  db: Database.Database,
-  userId: number,
-  createdAt: string,
-  priceKrw: number
-): number | null {
-  const row = db
-    .prepare(
-      `SELECT id FROM portone_checkouts
-       WHERE user_id = ? AND status = 'paid' AND amount = ?
-         AND datetime(COALESCE(paid_at, created_at)) BETWEEN datetime(?, '-10 minutes') AND datetime(?, '+10 minutes')
-       ORDER BY id DESC
-       LIMIT 1`
-    )
-    .get(userId, priceKrw, createdAt, createdAt) as { id: number } | undefined;
-  return row?.id ?? null;
-}
-
 /** batch 누락(구 충전) — point_log·원장에서 복구 */
 export function backfillChargeBatchFromLog(
   userId: number,
@@ -205,11 +187,11 @@ export function backfillChargeBatchFromLog(
     freeAmount > 0
       ? findTransactionNearLog(db, userId, "FREE", bonusLog!.created_at, freeAmount)
       : null;
-  const portoneCheckoutId = findPortoneCheckoutNearCharge(db, userId, log.created_at, priceKrw);
-
   const batchId = recordPointChargeBatch(db, {
     userId,
-    portoneCheckoutId,
+    // Never infer external payment identity from timestamp/amount proximity.
+    // Historical charge logs without a canonical checkout link fail closed for automatic refund.
+    portoneCheckoutId: null,
     mainPointLogId: log.id,
     paidAmount,
     freeAmount,
