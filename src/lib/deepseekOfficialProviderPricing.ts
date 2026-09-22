@@ -60,7 +60,7 @@ export type OfficialProviderPricingEvidence = {
 
 export const DEEPSEEK_OFFICIAL_V4_PRO_API_NAME = "deepseek-v4-pro";
 
-/** Canonical mapping — only when official docs version label matches. */
+/** Single owner: DeepSeek official adapter supported canonical model identities. */
 export const DEEPSEEK_OFFICIAL_CANONICAL_IDENTITY: Record<
   string,
   { canonicalModelId: string; expectedVersionLabel: string }
@@ -74,6 +74,15 @@ export const DEEPSEEK_OFFICIAL_CANONICAL_IDENTITY: Record<
     expectedVersionLabel: "DeepSeek-V4.1-Flash",
   },
 };
+
+/** Canonical model ids this DeepSeek official observer owns — not global PROVIDER_PEAK policy. */
+export function listDeepSeekOfficialCanonicalModelIds(): string[] {
+  const ids = new Set<string>();
+  for (const mapping of Object.values(DEEPSEEK_OFFICIAL_CANONICAL_IDENTITY)) {
+    ids.add(mapping.canonicalModelId);
+  }
+  return [...ids].sort();
+}
 
 function stripHtml(value: string): string {
   return value
@@ -90,12 +99,46 @@ function parseUsd(value: string): number | null {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
+function sortKeysDeep(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortKeysDeep);
+  }
+  if (value != null && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(obj).sort()) {
+      sorted[key] = sortKeysDeep(obj[key]);
+    }
+    return sorted;
+  }
+  return value;
+}
+
 function stableJson(value: unknown): string {
-  return JSON.stringify(value, Object.keys(value as object).sort());
+  return JSON.stringify(sortKeysDeep(value));
 }
 
 export function fingerprintDeepSeekOfficialDocument(payload: Record<string, unknown>): string {
   return createHash("sha256").update(stableJson(payload)).digest("hex");
+}
+
+export function fingerprintOfficialProviderPeakState(params: {
+  canonicalModelId: string;
+  providerModelIdentity: string;
+  providerVersionLabel: string;
+  peak: DeepSeekOfficialModelRateSet;
+}): string {
+  return fingerprintDeepSeekOfficialDocument({
+    kind: "official_provider_peak",
+    modelId: params.canonicalModelId,
+    providerModelIdentity: params.providerModelIdentity,
+    providerVersionLabel: params.providerVersionLabel,
+    peak: {
+      cacheHitInputUsdPerMillion: params.peak.cacheHitInputUsdPerMillion,
+      cacheMissInputUsdPerMillion: params.peak.cacheMissInputUsdPerMillion,
+      outputUsdPerMillion: params.peak.outputUsdPerMillion,
+    },
+  });
 }
 
 function normalizeSchedule(value: string): DeepSeekOfficialPricingSchedule | null {
@@ -117,24 +160,52 @@ function normalizeOfficialModelId(value: string): string {
   return value.replace(/\(\d+\)/g, "").trim().toLowerCase();
 }
 
-/**
- * Parse the official DeepSeek pricing docs table.
- * PEAK and OFF-PEAK rows are distinguished by explicit schedule labels — never inferred.
- */
-export function parseDeepSeekOfficialPricingHtml(html: string): DeepSeekOfficialPricingParseResult {
-  const tableMatch = html.match(/<table[^>]*style="text-align:center"[^>]*>([\s\S]*?)<\/table>/i);
-  if (!tableMatch) {
-    return { ok: false, reason: "official_pricing_table_missing" };
-  }
+function extractTables(html: string): string[] {
+  return [...html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)].map((match) => match[0]!);
+}
 
-  const rows = [...tableMatch[1].matchAll(/<tr>([\s\S]*?)<\/tr>/gi)].map((match) => match[1]);
-  if (rows.length === 0) {
+function extractRowCells(rowHtml: string): string[] {
+  return [...rowHtml.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((cell) =>
+    stripHtml(cell[1]!)
+  );
+}
+
+function extractTableRows(tableHtml: string): string[][] {
+  const tbodyMatch = tableHtml.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i);
+  const scope = tbodyMatch?.[1] ?? tableHtml;
+  return [...scope.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)].map((row) => extractRowCells(row[1]!));
+}
+
+function scorePricingTable(rows: string[][]): number {
+  const flat = rows.flat().join(" ").toUpperCase();
+  let score = 0;
+  if (flat.includes("MODEL")) score += 1;
+  if (flat.includes("MODEL VERSION")) score += 2;
+  if (flat.includes("PRICING")) score += 2;
+  if (flat.includes("DEEPSEEK-V4-PRO") || flat.includes("DEEPSEEK-FLASH")) score += 2;
+  if (flat.includes("PEAK") && flat.includes("OFF-PEAK")) score += 2;
+  return score;
+}
+
+function selectPricingTableRows(html: string): string[][] | null {
+  let bestRows: string[][] | null = null;
+  let bestScore = 0;
+  for (const tableHtml of extractTables(html)) {
+    const rows = extractTableRows(tableHtml);
+    const score = scorePricingTable(rows);
+    if (score > bestScore) {
+      bestScore = score;
+      bestRows = rows;
+    }
+  }
+  if (!bestRows || bestScore < 6) return null;
+  return bestRows;
+}
+
+function parsePricingTableRows(parsedRows: string[][]): DeepSeekOfficialPricingParseResult {
+  if (parsedRows.length === 0) {
     return { ok: false, reason: "official_pricing_table_empty" };
   }
-
-  const parsedRows = rows.map((rowHtml) =>
-    [...rowHtml.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((cell) => stripHtml(cell[1]))
-  );
 
   const modelRow = parsedRows.find((cells) => cells.some((cell) => cell.toUpperCase() === "MODEL"));
   if (!modelRow) {
@@ -237,6 +308,18 @@ export function parseDeepSeekOfficialPricingHtml(html: string): DeepSeekOfficial
   return { ok: true, models: completeModels, rawFingerprint };
 }
 
+/**
+ * Parse the official DeepSeek pricing docs table.
+ * PEAK and OFF-PEAK rows are distinguished by explicit schedule labels — never inferred.
+ */
+export function parseDeepSeekOfficialPricingHtml(html: string): DeepSeekOfficialPricingParseResult {
+  const parsedRows = selectPricingTableRows(html);
+  if (!parsedRows) {
+    return { ok: false, reason: "official_pricing_table_missing" };
+  }
+  return parsePricingTableRows(parsedRows);
+}
+
 export function mapDeepSeekOfficialModelToCanonical(
   model: DeepSeekOfficialParsedModel
 ): { canonicalModelId: string } | { reason: string } {
@@ -256,7 +339,6 @@ export function buildOfficialProviderPeakEvidence(params: {
   model: DeepSeekOfficialParsedModel;
   canonicalModelId: string;
   observedAt: string;
-  documentFingerprint: string;
   sourceUrl?: string;
 }): OfficialProviderPricingEvidence | null {
   const peak = params.model.peak;
@@ -281,11 +363,10 @@ export function buildOfficialProviderPeakEvidence(params: {
     validFrom: null,
     validUntil: null,
     sourceUrl: params.sourceUrl ?? DEEPSEEK_OFFICIAL_PRICING_SOURCE_URL,
-    rawFingerprint: fingerprintDeepSeekOfficialDocument({
-      kind: "official_provider_peak",
-      modelId: params.canonicalModelId,
+    rawFingerprint: fingerprintOfficialProviderPeakState({
+      canonicalModelId: params.canonicalModelId,
       providerModelIdentity: params.model.providerModelIdentity,
-      documentFingerprint: params.documentFingerprint,
+      providerVersionLabel: params.model.providerVersionLabel,
       peak,
     }),
   };
@@ -358,7 +439,6 @@ export function normalizeDeepSeekOfficialPricingDocument(params: {
       model,
       canonicalModelId: mapped.canonicalModelId,
       observedAt: params.observedAt,
-      documentFingerprint: parsed.rawFingerprint,
       sourceUrl: params.sourceUrl,
     });
     if (!evidence) continue;
@@ -407,7 +487,8 @@ async function refreshOfficialPricing(opts?: {
 
 /**
  * Refresh official DeepSeek provider pricing evidence.
- * Failures return `{ ok: false }` — callers must not fail-closed the whole tracker.
+ * Failures return `{ ok: false }`; the tracker marks the attempt FAILED so the
+ * existing same-day reclaim owner can retry after transient outages.
  */
 export async function refreshDeepSeekOfficialProviderPricing(opts?: {
   force?: boolean;

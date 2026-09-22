@@ -32,4 +32,7 @@ Mapping requires exact version label match — no guessed aliases.
 
 - Source-explicit values only; missing cache-hit → `null` (no `input * 0.1` fallback).
 - Adapter owns FETCH + PARSE + NORMALIZE only (`deepseekOfficialProviderPricing.ts`).
-- Tracker failure isolation: official source failure does not fail-closed CI observation.
+- Document fingerprint uses recursive stable JSON (nested peak/offPeak rates included).
+- Provider PEAK snapshot fingerprint identifies canonical PEAK state only (no observedAt).
+- DeepSeek observer scope = `DEEPSEEK_OFFICIAL_CANONICAL_IDENTITY` only (not global PROVIDER_PEAK).
+- Official source failure marks attempt FAILED (same-day reclaim owner retries).

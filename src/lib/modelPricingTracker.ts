@@ -10,6 +10,7 @@ import {
 } from "@/lib/cheaperInferenceCatalogPricing";
 import { refreshCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing.server";
 import {
+  listDeepSeekOfficialCanonicalModelIds,
   refreshDeepSeekOfficialProviderPricing,
   type DeepSeekOfficialPricingRefreshResult,
 } from "@/lib/deepseekOfficialProviderPricing";
@@ -28,7 +29,6 @@ import {
   type ClassifiedPriceChange,
 } from "@/lib/modelPriceChangeClassifier";
 import {
-  getModelPricingPolicy,
   getModelPricingPolicyWithPublished,
   listTrackedModelIds,
 } from "@/lib/modelPricingPolicy";
@@ -129,12 +129,6 @@ function checkMarginFloorBreach(params: {
   return realizedMargin < params.minimumMarginFloor;
 }
 
-function listOfficialProviderPeakTrackedModelIds(): string[] {
-  return listTrackedModelIds().filter(
-    (modelId) => getModelPricingPolicy(modelId)?.baselineMode === "PROVIDER_PEAK"
-  );
-}
-
 function persistOfficialProviderEvidence(params: {
   db: Database.Database;
   attemptId: number;
@@ -143,7 +137,7 @@ function persistOfficialProviderEvidence(params: {
   publishedSnapshotsByModelId: Map<string, ReturnType<typeof buildPublishedBaselineSnapshot>>;
   events: ClassifiedPriceChange[];
   snapshotCountRef: { value: number };
-}): void {
+}): { shouldFailAttempt: boolean } {
   const { db, attemptId, runDateKey, officialResult, publishedSnapshotsByModelId, events } = params;
 
   if (!officialResult.ok) {
@@ -162,7 +156,7 @@ function persistOfficialProviderEvidence(params: {
       classification: officialResult.reason,
       decision: parserEvent.decision,
     });
-    return;
+    return { shouldFailAttempt: true };
   }
 
   for (const failure of officialResult.identityFailures) {
@@ -177,9 +171,11 @@ function persistOfficialProviderEvidence(params: {
     });
   }
 
-  for (const modelId of listOfficialProviderPeakTrackedModelIds()) {
+  let shouldFailAttempt = false;
+  for (const modelId of listDeepSeekOfficialCanonicalModelIds()) {
     const evidence = officialResult.peakEvidenceByCanonicalModelId.get(modelId);
     if (!evidence) {
+      shouldFailAttempt = true;
       const parserEvent = classifyParserFailure({
         modelId,
         sourceKind: "deepseek_official_pricing",
@@ -247,6 +243,8 @@ function persistOfficialProviderEvidence(params: {
       }
     }
   }
+
+  return { shouldFailAttempt };
 }
 
 export async function runModelPricingTracker(params?: {
@@ -511,9 +509,10 @@ export async function runModelPricingTracker(params?: {
       }
     }
 
+    let officialAttemptFailed = false;
     if (officialProviderResult) {
       const officialSnapshotCountRef = { value: 0 };
-      persistOfficialProviderEvidence({
+      const officialPersist = persistOfficialProviderEvidence({
         db,
         attemptId,
         runDateKey,
@@ -523,6 +522,29 @@ export async function runModelPricingTracker(params?: {
         snapshotCountRef: officialSnapshotCountRef,
       });
       snapshotCount += officialSnapshotCountRef.value;
+      officialAttemptFailed = officialPersist.shouldFailAttempt;
+    }
+
+    if (officialAttemptFailed) {
+      finishTrackerRun(db, {
+        attemptId,
+        status: "failed",
+        finishedAt: isoNow(),
+        errorSummary: errors.join("; "),
+      });
+      const persistedEventCount = countEventsForAttempt(db, attemptId);
+      return {
+        runId,
+        attemptId,
+        runDateKey,
+        phase,
+        status: "failed",
+        snapshotCount,
+        eventCount: persistedEventCount,
+        events,
+        marginFloorBreaches,
+        errors,
+      };
     }
 
     finishTrackerRun(db, {

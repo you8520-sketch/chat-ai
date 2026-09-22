@@ -66,6 +66,22 @@ export const DEEPSEEK_OFFICIAL_PRICING_FIXTURE_P5 = `<div style="font-size:14px"
 <tr><td>PEAK</td><td>$1.2</td><td>$3.96</td></tr>
 </table></b></div>`;
 
+/** Markup-tolerant variant — tbody, classes, th cells, no inline table style. */
+export const DEEPSEEK_OFFICIAL_PRICING_FIXTURE_MARKUP_VARIANT = `<div class="pricing-doc">
+<table class="model-pricing-table">
+<tbody>
+<tr><th colspan="3">MODEL</th><th>deepseek-flash<sup>(1)</sup></th><th>deepseek-v4-pro</th></tr>
+<tr><td colspan="3">MODEL VERSION</td><td>DeepSeek-V4.1-Flash</td><td>DeepSeek-V4-Pro-0813</td></tr>
+<tr class="pricing-row"><td rowspan="6">PRICING<sup>(2)</sup></td><td rowspan="2">1M INPUT TOKENS (CACHE HIT)</td><td>OFF-PEAK</td><td>$0.003</td><td>$0.022</td></tr>
+<tr><td>PEAK</td><td>$0.006</td><td>$0.044</td></tr>
+<tr><td rowspan="2">1M INPUT TOKENS (CACHE MISS)</td><td>OFF-PEAK</td><td>$0.15</td><td>$0.66</td></tr>
+<tr><td>PEAK</td><td>$0.3</td><td>$1.32</td></tr>
+<tr><td rowspan="2">1M OUTPUT TOKENS</td><td>OFF-PEAK</td><td>$0.6</td><td>$1.98</td></tr>
+<tr><td>PEAK</td><td>$1.2</td><td>$3.96</td></tr>
+</tbody>
+</table>
+</div>`;
+
 /** P6 — unknown official model identity (version label mismatch). */
 export const DEEPSEEK_OFFICIAL_PRICING_FIXTURE_P6 = pricingTableBody({
   flashPeak: { cacheHit: "$0.006", cacheMiss: "$0.3", output: "$1.2" },
