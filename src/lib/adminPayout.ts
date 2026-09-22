@@ -24,14 +24,7 @@ export type {
   AdminPayoutTaxPreview,
 } from "@/lib/adminPayoutShared";
 
-export const ADMIN_PAYOUT_STATUSES = [
-  "PENDING",
-  "PROCESSING",
-  "RECONCILIATION_REQUIRED",
-  "APPROVED",
-  "FAILED",
-  "REJECTED",
-] as const;
+export const ADMIN_PAYOUT_STATUSES = ["PENDING", "APPROVED", "FAILED", "REJECTED"] as const;
 export type AdminPayoutStatusFilter = "all" | WithdrawalStatus;
 
 type WithdrawalListRecord = {
@@ -46,6 +39,7 @@ type WithdrawalListRecord = {
   failure_reason: string;
   provider_request_id: string;
   provider_ref: string;
+  execution_state: string;
   created_at: string;
   processed_at: string | null;
   nickname: string;
@@ -96,8 +90,6 @@ export function countAdminPayoutApplications(db: Database.Database): AdminPayout
     counts.all += n;
     switch (row.status) {
       case "PENDING":
-      case "PROCESSING":
-      case "RECONCILIATION_REQUIRED":
         counts.pending += n;
         break;
       case "APPROVED":
@@ -143,6 +135,7 @@ export function toAdminPayoutApplicationRow(record: WithdrawalListRecord): Admin
     failureReason: record.failure_reason ?? "",
     providerRequestId: record.provider_request_id ?? "",
     providerRef: record.provider_ref ?? "",
+    executionState: record.execution_state ?? "",
     createdAt: record.created_at,
     processedAt: record.processed_at,
   };
@@ -159,11 +152,16 @@ export function listAdminPayoutApplications(
       ? (db
           .prepare(
             `SELECT w.id, w.user_id, w.requested_cp, w.tax_amount, w.platform_fee, w.payout_amount,
-                    w.account_info, w.status, w.failure_reason, w.provider_request_id, w.provider_ref,
+                    w.account_info, w.status,
+                    COALESCE(NULLIF(w.failure_reason, ''), t.failure_message, '') AS failure_reason,
+                    COALESCE(t.provider_request_id, '') AS provider_request_id,
+                    COALESCE(NULLIF(w.provider_ref, ''), t.provider_ref, '') AS provider_ref,
+                    COALESCE(t.state, '') AS execution_state,
                     w.created_at, w.processed_at,
                     u.nickname, u.email, u.real_name
              FROM withdrawal_requests w
              JOIN users u ON u.id = w.user_id
+             LEFT JOIN payout_transfer_attempts t ON t.withdrawal_id = w.id
              ORDER BY w.created_at DESC, w.id DESC
              LIMIT ?`
           )
@@ -171,11 +169,16 @@ export function listAdminPayoutApplications(
       : (db
           .prepare(
             `SELECT w.id, w.user_id, w.requested_cp, w.tax_amount, w.platform_fee, w.payout_amount,
-                    w.account_info, w.status, w.failure_reason, w.provider_request_id, w.provider_ref,
+                    w.account_info, w.status,
+                    COALESCE(NULLIF(w.failure_reason, ''), t.failure_message, '') AS failure_reason,
+                    COALESCE(t.provider_request_id, '') AS provider_request_id,
+                    COALESCE(NULLIF(w.provider_ref, ''), t.provider_ref, '') AS provider_ref,
+                    COALESCE(t.state, '') AS execution_state,
                     w.created_at, w.processed_at,
                     u.nickname, u.email, u.real_name
              FROM withdrawal_requests w
              JOIN users u ON u.id = w.user_id
+             LEFT JOIN payout_transfer_attempts t ON t.withdrawal_id = w.id
              WHERE w.status = ?
              ORDER BY w.created_at DESC, w.id DESC
              LIMIT ?`
