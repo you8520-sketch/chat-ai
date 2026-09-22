@@ -18,6 +18,7 @@ export type AdminPayoutApplicationRow = {
   failureReason: string;
   providerRequestId: string;
   providerRef: string;
+  executionState: string;
   createdAt: string;
   processedAt: string | null;
 };
