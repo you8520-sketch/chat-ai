@@ -17,6 +17,11 @@ on:
       - "src/app/admin/finance/AdminFinanceClient.tsx"
       - "src/lib/adminProviderRequestLookup.test.ts"
       - "src/app/api/admin/finance/provider-request/**"
+      - "src/lib/subscription.ts"
+      - "src/lib/subscriptionBillingSafety.test.ts"
+      - "src/app/api/points/subscribe/**"
+      - "src/app/api/cron/subscription-renew/**"
+      - "src/app/points/page.tsx"
 
 permissions:
   contents: read
@@ -24,12 +29,16 @@ permissions:
 jobs:
   billing-receipt-privacy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      SESSION_SECRET: "01234567890123456789012345678901"
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -38,11 +47,26 @@ jobs:
 
       - run: npm ci
 
+      - name: Diff hygiene
+        run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+
+      - name: Lint
+        run: npm run lint
+
       - name: Public usage economics boundary
         run: node --conditions=react-server --import tsx --test src/lib/publicUsageEconomicsBoundary.test.ts
 
       - name: Billing receipt runtime fetch boundary
         run: node --import tsx --test src/components/BillingReceiptTooltip.test.ts
+
+      - name: Subscription recurring-payment safety
+        run: node --conditions=react-server --import tsx --test src/lib/subscriptionBillingSafety.test.ts
+
+      - name: Typecheck app
+        run: npm run typecheck:app
+
+      - name: Production build
+        run: npm run build
 
       - name: Admin billing receipt route authorization
         run: node --conditions=react-server --import tsx --test src/app/api/chat/admin-billing-receipt/route.test.ts

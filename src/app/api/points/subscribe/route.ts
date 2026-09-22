@@ -1,24 +1,16 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { getDb } from "@/lib/db";
-import { PLANS, type PlanId } from "@/lib/plans";
-import { isPaymentsEnabled, PAYMENTS_DISABLED_MESSAGE } from "@/lib/portoneConfig";
 import {
-  activateSubscription,
-  canSubscribe,
-  processDueRenewals,
-} from "@/lib/subscription";
-import { notifyPaymentSuccess } from "@/lib/userNotifications";
+  isPaymentsEnabled,
+  PAYMENTS_DISABLED_MESSAGE,
+} from "@/lib/portoneConfig";
+import { SUBSCRIPTION_BILLING_UNAVAILABLE_MESSAGE } from "@/lib/subscription";
 
-function lastPointLogId(db: ReturnType<typeof getDb>, userId: number): number {
-  const row = db
-    .prepare("SELECT id FROM point_logs WHERE user_id=? ORDER BY id DESC LIMIT 1")
-    .get(userId) as { id: number } | undefined;
-  return row?.id ?? Date.now();
-}
-
-// 월 정기결제 구독 (모의 결제 — 실서비스에서는 빌링키·정기결제 연동)
-export async function POST(req: Request) {
+/**
+ * Membership subscription is fail-closed until a real recurring-payment owner exists.
+ * Do not grant subscription time or points from this route without verified provider payment.
+ */
+export async function POST() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
@@ -26,29 +18,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: PAYMENTS_DISABLED_MESSAGE }, { status: 403 });
   }
 
-  processDueRenewals();
-
-  const gate = canSubscribe(user);
-  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: 409 });
-
-  const { planId, autoRenew = true } = await req.json();
-  if (!(planId in PLANS)) return NextResponse.json({ error: "잘못된 플랜입니다." }, { status: 400 });
-
-  const plan = PLANS[planId as PlanId];
-  const until = activateSubscription(user.id, planId as PlanId, autoRenew !== false);
-
-  notifyPaymentSuccess(
-    getDb(),
-    user.id,
-    lastPointLogId(getDb(), user.id),
-    "결제 완료",
-    `${plan.label} 멤버십 구독 (₩${plan.price.toLocaleString()}) — ${plan.points.toLocaleString()}P 지급`
+  return NextResponse.json(
+    { error: SUBSCRIPTION_BILLING_UNAVAILABLE_MESSAGE },
+    { status: 503 }
   );
-
-  return NextResponse.json({
-    ok: true,
-    plan: planId,
-    sub_until: until.toISOString(),
-    auto_renew: autoRenew !== false,
-  });
 }
