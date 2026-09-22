@@ -36,6 +36,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -43,6 +46,12 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Diff hygiene
+        run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+
+      - name: Lint
+        run: npm run lint
 
       - name: Public usage economics boundary
         run: node --conditions=react-server --import tsx --test src/lib/publicUsageEconomicsBoundary.test.ts
