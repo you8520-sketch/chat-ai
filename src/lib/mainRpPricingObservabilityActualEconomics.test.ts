@@ -18,8 +18,15 @@ import {
 import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
 import { ensureModelPricingTrackingSchema } from "@/lib/modelPricingTrackingSchema";
 import { updateCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
-import { composeActualProductionEconomics } from "@/lib/mainRpPricingActualEconomics";
-import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
+import {
+  composeActualProductionEconomics,
+  formatActualFreePointSpend,
+  resolveSupplementalCostEvidence,
+} from "@/lib/mainRpPricingActualEconomics";
+import {
+  buildMainRpPricingObservabilityProjection,
+  readFinanceSummaryForControlPlane,
+} from "@/lib/mainRpPricingObservability";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import {
   ensureProviderCostLedgerSchema,
@@ -593,6 +600,78 @@ describe("mainRpPricingObservability B2B actual production economics", () => {
     for (const modelId of MAIN_RP_MODEL_IDS) {
       assert.equal(getPublishedPricing(modelId).pricingVersion, pricingBefore.get(modelId));
     }
+  });
+
+  it("freePointSpend renders as points (P), not KRW", () => {
+    assert.equal(formatActualFreePointSpend(80), "80P");
+    assert.doesNotMatch(formatActualFreePointSpend(80), /KRW/i);
+    const db = financeDb();
+    insertMessage(db, 13, {
+      createdAt: "2026-09-22 10:00:00",
+      requestId: "req-free-unit",
+      free: 80,
+    });
+    insertSettlement(db, {
+      requestId: "req-free-unit",
+      assistantMessageId: 13,
+      createdAt: "2026-09-22 10:00:00",
+      free: 80,
+    });
+    const actual = composeActualProductionEconomics(
+      DEEPSEEK_MODEL,
+      buildAdminFinanceSummary(db, MONTH)
+    );
+    assert.equal(actual.freePointSpend, 80);
+    assert.equal(formatActualFreePointSpend(actual.freePointSpend), "80P");
+  });
+
+  it("legacy usage-fallback cost omits contradictory zero ledger split", () => {
+    const db = financeDb();
+    insertMessage(db, 14, {
+      createdAt: "2026-09-22 11:00:00",
+      requestId: "req-legacy-fallback",
+      paid: 100,
+      usageExtra: {
+        mainApiRawCostKrw: 60,
+        apiRawCostKrw: 60,
+        shadowPricing: {
+          actualCostSource: "cheaper_inference_billed",
+          actualTurnCostCoverage: "complete",
+          actualProviderCostKrw: 60,
+          actualCostUsd: usd(60),
+          provider: "cheaperinference",
+          modelId: DEEPSEEK_MODEL,
+          fxSnapshot: { effectiveKrwPerUsd: FX },
+        },
+      } as Partial<Usage>,
+    });
+    const summary = buildAdminFinanceSummary(db, MONTH);
+    const actual = composeActualProductionEconomics(DEEPSEEK_MODEL, summary);
+    const ai = summary.aiModelCosts.find((row) => row.model === DEEPSEEK_LABEL)!;
+    assert.equal(actual.apiCostKrw, 60);
+    assert.equal(ai.actualKrw, 0);
+    assert.equal(ai.estimatedKrw, 0);
+    assert.equal(actual.costEvidence.sourceState, null);
+    assert.equal(actual.costEvidence.actualKrw, null);
+    assert.equal(actual.costEvidence.estimatedKrw, null);
+    assert.deepEqual(
+      resolveSupplementalCostEvidence(ai, actual.apiCostKrw),
+      actual.costEvidence
+    );
+  });
+
+  it("finance prerequisite absent → FINANCE_UNAVAILABLE without throwing", () => {
+    const db = new Database(":memory:");
+    ensureModelPricingTrackingSchema(db);
+    assert.equal(readFinanceSummaryForControlPlane(db, NOW), null);
+    const row = buildMainRpPricingObservabilityProjection({ db, now: NOW }).models[0];
+    assert.equal(row.actual.usageState, "FINANCE_UNAVAILABLE");
+  });
+
+  it("finance path present but broken schema → error is not swallowed", () => {
+    const db = new Database(":memory:");
+    db.exec("CREATE TABLE messages (id INTEGER PRIMARY KEY)");
+    assert.throws(() => readFinanceSummaryForControlPlane(db, NOW), /no such column/i);
   });
 
   it("does not double-count apiCostKrw with aiModelCosts actualKrw", () => {

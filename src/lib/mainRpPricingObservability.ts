@@ -245,7 +245,8 @@ function kstDateKey(date: Date): string {
   }).format(date);
 }
 
-function readFinanceSummaryForControlPlane(
+/** Read finance summary when admin finance prerequisites exist; null only for tracker-only DBs. */
+export function readFinanceSummaryForControlPlane(
   db: Database.Database,
   now: Date
 ): AdminFinanceSummary | null {
@@ -253,11 +254,7 @@ function readFinanceSummaryForControlPlane(
     .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='messages'")
     .get();
   if (!messagesTable) return null;
-  try {
-    return buildAdminFinanceSummary(db, currentKstMonthKey(now.getTime()));
-  } catch {
-    return null;
-  }
+  return buildAdminFinanceSummary(db, currentKstMonthKey(now.getTime()));
 }
 
 function benchmarkAgeLabel(observedAt: string | null): string {

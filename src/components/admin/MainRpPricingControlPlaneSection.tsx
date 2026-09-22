@@ -5,6 +5,10 @@ import type {
   ProviderEvidenceStatus,
   RealizedMarginDiagnosticStatus,
 } from "@/lib/mainRpPricingObservability";
+import {
+  formatActualFreePointSpend,
+  type ActualProductionCostEvidence,
+} from "@/lib/mainRpPricingActualEconomics";
 
 function formatPct(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return "UNKNOWN";
@@ -13,6 +17,20 @@ function formatPct(value: number | null): string {
 
 function formatKrw(value: number): string {
   return `${Math.round(value).toLocaleString()} KRW`;
+}
+
+function formatCostEvidenceLabel(evidence: ActualProductionCostEvidence): string | null {
+  const actualKrw = evidence.actualKrw ?? 0;
+  const estimatedKrw = evidence.estimatedKrw ?? 0;
+  if (actualKrw + estimatedKrw > 0) {
+    return `${evidence.sourceState ?? "ledger"} · actual ${formatKrw(actualKrw)} · est ${formatKrw(estimatedKrw)}`;
+  }
+  if (evidence.sourceState) {
+    return evidence.calls != null
+      ? `${evidence.sourceState} · ${evidence.calls} calls`
+      : evidence.sourceState;
+  }
+  return null;
 }
 
 function formatUsdPair(input: number | null, output: number | null): string {
@@ -172,12 +190,12 @@ function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
             {row.actual.usageState === "HAS_ACTIVITY" ? (
               <>
                 <div><dt className="inline text-zinc-500">paid revenue </dt><dd className="inline">{formatKrw(row.actual.paidRevenueKrw)}</dd></div>
-                <div><dt className="inline text-zinc-500">free spend </dt><dd className="inline">{formatKrw(row.actual.freePointSpend)}</dd></div>
+                <div><dt className="inline text-zinc-500">free spend </dt><dd className="inline">{formatActualFreePointSpend(row.actual.freePointSpend)}</dd></div>
                 <div><dt className="inline text-zinc-500">provider cost </dt><dd className="inline">{formatKrw(row.actual.apiCostKrw)}</dd></div>
                 <div><dt className="inline text-zinc-500">margin </dt><dd className="inline">{row.actual.marginDisplay}</dd></div>
                 <div><dt className="inline text-zinc-500">coverage </dt><dd className="inline">{coverageLabel(row.actual.marginCoverage, row.actual.realizedMarginExact)}</dd></div>
-                {row.actual.costEvidence.sourceState ? (
-                  <div><dt className="inline text-zinc-500">cost evidence </dt><dd className="inline">{row.actual.costEvidence.sourceState} · actual {formatKrw(row.actual.costEvidence.actualKrw ?? 0)} · est {formatKrw(row.actual.costEvidence.estimatedKrw ?? 0)}</dd></div>
+                {formatCostEvidenceLabel(row.actual.costEvidence) ? (
+                  <div><dt className="inline text-zinc-500">cost evidence </dt><dd className="inline">{formatCostEvidenceLabel(row.actual.costEvidence)}</dd></div>
                 ) : null}
               </>
             ) : (

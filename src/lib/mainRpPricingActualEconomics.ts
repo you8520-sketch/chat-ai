@@ -22,13 +22,67 @@ export type ActualProductionEconomicsObservation = {
   realizedMarginExact: boolean;
   marginDisplay: string;
   financeModelKey: string | null;
-  costEvidence: {
-    sourceState: string | null;
-    actualKrw: number | null;
-    estimatedKrw: number | null;
-    calls: number | null;
-  };
+  costEvidence: ActualProductionCostEvidence;
 };
+
+/** Supplemental ledger provenance — never a second cost owner. */
+export type ActualProductionCostEvidence = {
+  sourceState: string | null;
+  actualKrw: number | null;
+  estimatedKrw: number | null;
+  calls: number | null;
+};
+
+const EMPTY_COST_EVIDENCE: ActualProductionCostEvidence = {
+  sourceState: null,
+  actualKrw: null,
+  estimatedKrw: null,
+  calls: null,
+};
+
+/** Admin Finance free spend is points — never KRW. */
+export function formatActualFreePointSpend(points: number): string {
+  return `${Math.round(points).toLocaleString()}P`;
+}
+
+/**
+ * aiModelCosts supplements ledger provenance only when it carries meaningful
+ * split evidence. Zero ledger splits must not contradict modelBreakdown cost.
+ */
+export function resolveSupplementalCostEvidence(
+  aiCost: AdminFinanceSummary["aiModelCosts"][number] | null | undefined,
+  canonicalApiCostKrw: number
+): ActualProductionCostEvidence {
+  if (aiCost == null) return EMPTY_COST_EVIDENCE;
+
+  const actualKrw = aiCost.actualKrw ?? 0;
+  const estimatedKrw = aiCost.estimatedKrw ?? 0;
+  const splitTotal = actualKrw + estimatedKrw;
+
+  if (splitTotal > 0) {
+    return {
+      sourceState: aiCost.sourceState,
+      actualKrw: aiCost.actualKrw,
+      estimatedKrw: aiCost.estimatedKrw,
+      calls: aiCost.calls,
+    };
+  }
+
+  if (canonicalApiCostKrw > 0) {
+    return EMPTY_COST_EVIDENCE;
+  }
+
+  if (aiCost.sourceState && aiCost.sourceState !== "actual_auto") {
+    return {
+      sourceState: aiCost.sourceState,
+      actualKrw: null,
+      estimatedKrw: null,
+      calls: aiCost.calls,
+    };
+  }
+
+  return EMPTY_COST_EVIDENCE;
+}
 
 /** Finance identity keys for a Main RP model (id + display label). */
 export function financeModelIdentityKeys(modelId: string): readonly string[] {
@@ -125,12 +179,7 @@ export function composeActualProductionEconomics(
       realizedMarginExact: false,
       marginDisplay: "Finance unavailable",
       financeModelKey: null,
-      costEvidence: {
-        sourceState: null,
-        actualKrw: null,
-        estimatedKrw: null,
-        calls: null,
-      },
+      costEvidence: EMPTY_COST_EVIDENCE,
     };
   }
 
@@ -152,12 +201,7 @@ export function composeActualProductionEconomics(
       realizedMarginExact: false,
       marginDisplay: "NO_USAGE",
       financeModelKey: null,
-      costEvidence: {
-        sourceState: null,
-        actualKrw: null,
-        estimatedKrw: null,
-        calls: null,
-      },
+      costEvidence: EMPTY_COST_EVIDENCE,
     };
   }
 
@@ -193,11 +237,6 @@ export function composeActualProductionEconomics(
     realizedMarginExact: breakdown?.realizedMarginExact ?? false,
     marginDisplay,
     financeModelKey: breakdown?.model ?? aiCost?.model ?? null,
-    costEvidence: {
-      sourceState: aiCost?.sourceState ?? null,
-      actualKrw: aiCost?.actualKrw ?? null,
-      estimatedKrw: aiCost?.estimatedKrw ?? null,
-      calls: aiCost?.calls ?? null,
-    },
+    costEvidence: resolveSupplementalCostEvidence(aiCost, apiCostKrw),
   };
 }
