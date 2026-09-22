@@ -23,6 +23,7 @@ import {
   ensurePayoutTransferAttemptsSchema,
   getTransferAttemptByWithdrawalId,
   markAttemptDispatched,
+  recordTransferAttemptOutcome,
   stableProviderRequestId,
 } from "@/lib/payoutTransferAttempts";
 import { roundCreatorAmount } from "@/lib/creatorShared";
@@ -419,7 +420,36 @@ describe("payout exactly-once — regression fixtures", () => {
     db.close();
   });
 
-  it("9. legacy PENDING row executes without withdrawal schema rewrite", async () => {
+  it("9. terminal attempt state cannot be overwritten by stale reconciliation", () => {
+    const db = new Database(":memory:");
+    createPayoutTestSchema(db);
+    const id = insertPendingWithdrawal(db, { userId: 1, requestedCp: 10000, payoutAmount: 8000 });
+    const claim = atomicClaimWithdrawal(db, id);
+    assert.equal(claim.claimed, true);
+    assert.equal(markAttemptDispatched(db, id), true);
+
+    const success = recordTransferAttemptOutcome(db, {
+      withdrawalId: id,
+      state: "SUCCEEDED",
+      providerRef: "PROVIDER-OK",
+    });
+    assert.equal(success, true);
+
+    const stale = recordTransferAttemptOutcome(db, {
+      withdrawalId: id,
+      state: "RECONCILIATION_REQUIRED",
+      failureCode: "LOOKUP_NOT_FOUND",
+      failureMessage: "stale lookup",
+    });
+    assert.equal(stale, false);
+
+    const attempt = getTransferAttemptByWithdrawalId(db, id);
+    assert.equal(attempt?.state, "SUCCEEDED");
+    assert.equal(attempt?.provider_ref, "PROVIDER-OK");
+    db.close();
+  });
+
+  it("10. legacy PENDING row executes without withdrawal schema rewrite", async () => {
     const db = new Database(":memory:");
     createPayoutTestSchema(db);
     db.prepare("INSERT INTO users (id, creator_points) VALUES (1, 0)").run();
