@@ -1,8 +1,11 @@
 /**
- * Safe feasibility proof: scheduler/job idempotency semantics (local only).
+ * Safe feasibility proof: model pricing tracker claim/reclaim idempotency (local only).
+ *
+ * Scope: claimTrackerRun + finishTrackerRun only.
+ * Does NOT prove finance/payout/training scheduler idempotency.
  * Does NOT start server.js or touch production DATA_DIR.
  *
- * Usage: tsx scripts/audit/scheduler-idempotency-proof.ts
+ * Usage: npx tsx scripts/audit/model-pricing-tracker-claim-reclaim-idempotency-proof.ts
  */
 import Database from "better-sqlite3";
 import { claimTrackerRun, finishTrackerRun } from "@/lib/modelPricingTrackerPersistence";
@@ -59,7 +62,7 @@ function main() {
     JSON.stringify(
       {
         ok: true,
-        proof: "scheduler-idempotency",
+        proof: "model-pricing-tracker-claim-reclaim-idempotency",
         results: {
           completedDayDuplicate: second.outcome,
           failedDayReclaim: retry.outcome,

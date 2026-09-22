@@ -88,6 +88,8 @@ function main() {
         gaps,
         reticlePresentInRepo: false,
         jevRaPresentInRepo: false,
+        reticleAssessment:
+          "Not recommended currently; no proven incremental value over extending existing Playwright. Absence from repo is not an incompatibility proof.",
         recommendation:
           "Extend existing Playwright (do not add parallel browser framework). Add console+5xx listeners and one unmocked canary path.",
       },

@@ -1,10 +1,12 @@
 # Architecture / Tooling / Operations Investigation Report
 
 **Classification:** `ARCHITECTURE_RESEARCH_COMPLETE`  
-**EXACT HEAD:** `f13ea612fc942418a0271f05db209b76ecc077c2`  
+**Investigated main (baseline):** `f13ea612fc942418a0271f05db209b76ecc077c2`  
 **Branch:** `cursor/architecture-ops-investigation-4604`  
 **Date:** 2026-09-22 (UTC)  
 **Scope:** Investigation only — no production behavior changes, no Jev/Reticle installation.
+
+**Correction pass (2026-09-22):** Payout external-side-effect risk, subscription renewal demo-path finding, idempotency proof scope, follow-up priority, Reticle wording, LOCAL PROOF vs GitHub CI disclosure. **Production diff remains 0.**
 
 ---
 
@@ -14,12 +16,12 @@ This investigation treats **current main execution code** (`server.js` → `runB
 
 | Area | Finding | Classification |
 |------|---------|----------------|
-| **A. Runtime Verification Layer** | Playwright exists (4 UI specs) but mocks `/api/chat` SSE; no console/5xx/session canaries. Reticle/jev-ra **not in repo**. Extending Playwright has value; new browser framework does not. | `AUTOMATION_VALUE_CONFIRMED` (extend existing) |
+| **A. Runtime Verification Layer** | Playwright exists (4 UI specs) but mocks `/api/chat` SSE; no console/5xx/session canaries. Reticle/jev-ra **not in repo** — not recommended currently; no proven incremental value over extending Playwright (absence ≠ incompatibility). | `AUTOMATION_VALUE_CONFIRMED` (extend existing) |
 | **B. Provider-neutral Decision Plane** | Bounded LLM decisions exist (comment moderation, post-turn shared initial, vision, TRPG referee). Memory ranking/dedupe is **deterministic** today. Shadow-only decision model could add value for moderation/memory **comparison** — not enforcement. | `VALUE_UNCONFIRMED` (needs shadow harness + call-frequency data) |
-| **C. Operations Automation** | Single-process `node-cron` + `setInterval` schedulers run in production via `npm run start`. Strong idempotency on billing settlement and model-pricing tracker; **weak cross-replica dedup** on finance/payout/training (in-memory mutex only). No Ops Inbox surface. Admin must poll multiple admin pages + logs. | `AUTOMATION_VALUE_CONFIRMED` (Ops Inbox + job observability) |
+| **C. Operations Automation** | Single-process `node-cron` + `setInterval` schedulers run in production via `npm run start`. Strong idempotency on chat billing settlement and model-pricing tracker DB claim. **Payout has EXTERNAL SIDE EFFECT DUPLICATION RISK** under concurrent replicas (transfer before exclusive DB transition). Subscription renewal is a **demo/placeholder path** without payment-provider charge. No Ops Inbox surface. | `AUTOMATION_VALUE_CONFIRMED` (Ops Inbox + job observability — **after** financial exactly-once) |
 | **D. Bounded dev-agent workflow** | Cursor subagent patterns (investigator/worker/reviewer) align with repo's existing split (explore vs implement). Project-local rules in `.cursor/rules/` and `AGENTS.md` already encode key constraints. No global Codex config change needed. | `AUTOMATION_VALUE_CONFIRMED` (documentation-only refinement) |
 
-**Long-term target fit:** NORMAL → admin action 0; SAFE FAILURE → auto detect/recover; AMBIGUOUS → Ops Inbox; HIGH-RISK → human approval — **architecturally compatible** but **not yet implemented**. Largest gaps: unified exception surface, scheduler observability, runtime API/UI divergence detection.
+**Long-term target fit:** NORMAL → admin action 0; SAFE FAILURE → auto detect/recover; AMBIGUOUS → Ops Inbox; HIGH-RISK → human approval — **architecturally compatible** but **not yet implemented**. Largest gaps: **payout/subscription financial exactly-once**, unified exception surface, scheduler observability, runtime API/UI divergence detection.
 
 ---
 
@@ -36,7 +38,7 @@ This investigation treats **current main execution code** (`server.js` → `runB
 | Railway on-failure restart | `railway.toml` → `restartPolicyType = "on_failure"` | **Yes** (platform) | No app code |
 | Web push intervals | `src/lib/webPush.ts` → `startWebPushSchedulers()` | **Yes** (if VAPID configured) | `server.js:118-124` |
 | Derived-cache worker | `src/lib/derivedCache/wakeupScheduler.ts` | **Yes** (unless disabled) | `server.js:147-155`; DB lease in `jobs.ts` |
-| Subscription renewal | `POST /api/cron/subscription-renew` | **External trigger required** — no in-repo Railway cron | Also opportunistic on `/points` page load |
+| Subscription renewal | `POST /api/cron/subscription-renew` → `processDueRenewals()` | **Demo/placeholder** — extends `sub_until` + FREE points; **no billing-key / payment-provider charge in path** | Also called on `/points` and `/api/points/subscribe` — **DO NOT enable external cron until real recurring-payment owner confirmed** |
 | Separate worker / queue infra | — | **No** | All jobs in single Next custom server process |
 
 **Canonical scheduler:** `node-cron` in `server.js` boot path — **not assumed from dependency alone**; verified via `start*Scheduler()` calls post-listen.
@@ -90,7 +92,7 @@ Legend: **M**=Manual, **A**=Automatic, **S**=Semi-automatic
 
 | RESPONSIBILITY | CANONICAL OWNER | TRIGGER | MODE | OBSERVABILITY |
 |----------------|-----------------|---------|------|---------------|
-| Payout batch | `payoutQueue.ts` → `processPayoutQueue` | Cron 15th 03:00 KST | A | Console JSON only |
+| Payout batch | `payoutQueue.ts` → `processPayoutQueue` → `processSingleWithdrawal` | Cron 15th 03:00 KST | A | Console JSON only; **EXTERNAL SIDE EFFECT DUPLICATION RISK** (see §5.1) |
 | Daily training analysis | `training/dailyAnalysis.ts` | Cron 04:00 KST | A | `training_analysis_runs` table |
 | Weekly training export | `training/weeklyExport.ts` | Cron Sun 05:00 KST | A | Console + filesystem export |
 | Memory post-turn update | `memory-manager.ts` → `scheduleMemoryUpdate` | After chat turn | A | Health telemetry logs |
@@ -104,7 +106,7 @@ Legend: **M**=Manual, **A**=Automatic, **S**=Semi-automatic
 | DB migrate/seed | `db.ts` → `initializeDatabase` | First access | A | — |
 | Derived cache jobs | `derivedCache/jobs.ts` → `drainDerivedCacheJobs` | Wakeup scheduler | A | DB lease 15min stale recovery |
 | Chat owned data cleanup | `chatOwnedDataCleanup.ts` | Chat delete | A | — |
-| Subscription renewal | `subscription.ts` → `processDueRenewals` | External cron OR page visit | S | **Missed if no external cron and no /points traffic** |
+| Subscription renewal | `subscription.ts` → `processDueRenewals` | Page visit / manual POST to cron route | S | **Demo path** — no PortOne/billing-key charge; grants FREE points; **not production-ready for external cron** |
 
 ---
 
@@ -114,7 +116,7 @@ Legend: **M**=Manual, **A**=Automatic, **S**=Semi-automatic
 |------|----------------|-----------|
 | Daily finance snapshot | **DETERMINISTIC_AUTO** | Cron + idempotent DB upsert; admin need not trigger |
 | Model pricing tracker | **AUTO_WITH_GUARDRAILS** | DB claim lock; margin floor breaches need human review |
-| Payout batch | **AUTO_WITH_GUARDRAILS** | Money movement; row-level status; failures need admin |
+| Payout batch | **HUMAN_APPROVAL_REQUIRED** (until exactly-once fix) | External transfer precedes exclusive DB transition; concurrent replicas can double-send |
 | Promotion expiry enforcement | **DETERMINISTIC_AUTO** | Read-time `endsAt` check |
 | Promotion activation | **HUMAN_APPROVAL_REQUIRED** | Official provider verification |
 | Comment AI moderation | **SHADOW_DECISION** | LLM verdict active but conservative fallback; semantic ambiguity |
@@ -124,7 +126,7 @@ Legend: **M**=Manual, **A**=Automatic, **S**=Semi-automatic
 | Provider outage detection | **OBSERVABILITY_ONLY** today | Failover logs exist; no aggregated alert |
 | Provider cost anomaly | **OBSERVABILITY_ONLY** | Finance UI; no auto alert |
 | Web push failure | **DETERMINISTIC_AUTO** (partial) | Dead sub cleanup; no admin alert on spike |
-| Subscription renewal | **AUTO_WITH_GUARDRAILS** | Needs reliable external cron + idempotency proof |
+| Subscription renewal | **HUMAN_APPROVAL_REQUIRED** (until real payment owner) | Demo/placeholder — no provider charge; enabling external cron would grant free points without payment |
 | Session expiry cleanup | **NOT_WORTH_AUTOMATING** alone | Low urgency; follow-up if DB bloat |
 | Post-deploy critical flow | **AUTOMATION_CANDIDATE** | No canary; `/health` does not exercise chat |
 | Memory regression | **OBSERVABILITY_ONLY** | Test suite exists; no runtime monitor |
@@ -172,7 +174,7 @@ type OpsInboxItem = {
 |-----|---------------|----------------|
 | Finance snapshot | AUTO_SAFE | Already deterministic + idempotent |
 | Model pricing tracker | AUTO_SAFE (observe) + HUMAN (margin breaches) | Events are HOLD — no auto price change |
-| Payout | AUTO_WITH_GUARDRAILS | Failures rollback CP; admin reviews FAILED rows |
+| Payout | **BLOCKED for scale** until exactly-once | External `sendMoneyToUser` before `markApproved`; CP rollback not proven exactly-once on ambiguous provider outcomes |
 | Comment AI block | SHADOW candidate | Today: production BLOCK on ambiguity — consider shadow compare before enforcement change |
 | Memory episodic rank | DETERMINISTIC | Decision model → SHADOW only |
 | Point grant / refund approve | HUMAN_APPROVAL | Must stay |
@@ -188,24 +190,80 @@ type OpsInboxItem = {
 | Job | Cron / interval | TZ | Boot registration | In-process lock | DB idempotency |
 |-----|-----------------|----|--------------------|-----------------|----------------|
 | Finance | `0 12 * * *` | Asia/Seoul | `startFinanceScheduler` | `running` boolean | Snapshot date UPSERT; tracker `claimTrackerRun` |
-| Payout | `0 3 15 * *` | Asia/Seoul | `startPayoutScheduler` | `running` boolean | Row `WHERE status='PENDING'` |
+| Payout | `0 3 15 * *` | Asia/Seoul | `startPayoutScheduler` | `running` boolean | **Does NOT guarantee transfer exactly-once** — see §5.1 |
 | Training daily | `0 4 * * *` | Asia/Seoul | `startTrainingScheduler` | `dailyRunning` | Fingerprint skip in `training-db.ts` |
 | Training weekly | `0 5 * * 0` | Asia/Seoul | same | `weeklyRunning` | Append export files |
 | Web push flush | 60s | — | `startWebPushSchedulers` | `deliveryRunning` | Outbox row state |
 | Web push expiry scan | 6h | — | same | — | Dedup via notification ids |
 | Derived cache | setTimeout wakeup | — | `startDerivedCacheWakeup` | drain coalesce | `locked_at` lease |
-| Subscription renew | External HTTP | — | **Not in server.js** | None in route | **Needs verification** |
+| Subscription renew | HTTP route only | — | **Not in server.js** | None in route | **Demo path — no payment charge** |
 
-### Multi-replica / Railway risks
+### 5.1 Payout — EXTERNAL SIDE EFFECT DUPLICATION RISK
 
-- **Single Railway process assumption:** In-memory `running` flags prevent overlap **within one process only**.
-- **If Railway scales to N replicas:** Finance, payout, training cron **will duplicate** unless platform enforces single instance or DB distributed lock extended to all schedulers.
-- **Derived cache worker:** Has DB lease — **structurally safer** for multi-replica.
-- **Model pricing tracker:** Documented as multi-replica safe via `claimTrackerRun` (`docs/architecture/model-pricing-auto-tracker.md`).
-- **Deploy/restart:** Cron re-registers on boot; missed schedules **not backfilled** (node-cron standard behavior).
-- **Long-running overlap:** Skipped via in-process mutex (logged as "skip").
+**Verified execution path (`src/lib/payoutQueue.ts`):**
 
-**Recommendation (follow-up, not this PR):** Extend DB claim pattern from `modelPricingTrackerPersistence.ts` to payout/finance wrappers OR enforce Railway `numReplicas=1` explicitly in runbook.
+```
+listPendingWithdrawals()          // SELECT … WHERE status='PENDING' (no claim)
+  → processSingleWithdrawal(row)
+    → sendMoneyToUser(...)        // EXTERNAL side effect FIRST (payoutGateway.ts — simulation today)
+    → markApproved(… WHERE status='PENDING')   // exclusive DB transition AFTER transfer
+```
+
+**Critical finding:** The `WHERE status='PENDING'` update guards **DB row exclusivity**, not **external money transfer exactly-once**. If two processes/replicas read the same PENDING row concurrently, both can call `sendMoneyToUser()`; only one `markApproved()` succeeds — the other throws or leaves an orphan transfer.
+
+**Additional ordering risks (single process too):**
+
+- Provider success → crash before `markApproved` → row stays PENDING → retry may re-send.
+- Provider timeout but transfer actually completed → ambiguous outcome; CP rollback path may not be exactly-once.
+
+**Do not assume** a simple `PROCESSING` DB flag alone fixes this without provider-level idempotency/reconciliation.
+
+**Payout BUGFIX follow-up must investigate:**
+
+- Provider idempotency key support
+- Provider transaction lookup / reconciliation API
+- Send success → DB finalize crash recovery
+- Provider timeout but transfer actually completed
+- Stale `PROCESSING` recovery semantics
+- Manual retry safety
+- CP rollback exactly-once on ambiguous failures
+
+**Current gateway note:** `payoutGateway.ts` header states simulation ("가상 구현"); risk is structural and applies when real PortOne/Toss integration replaces simulation.
+
+### 5.2 Subscription renewal — demo/placeholder path
+
+**Verified path (`src/lib/subscription.ts` → `processDueRenewals()`):**
+
+- Queries users with `sub_auto_renew=1` and expired `sub_until`
+- Extends `sub_until` by one month
+- Calls `creditPoints(..., "FREE", …)` — **no PAID charge**
+- Sends `notifyPaymentSuccess` notification
+- **No billing-key token read, no PortOne/payment-provider charge call in this function**
+
+**Subscribe route context (`src/app/api/points/subscribe/route.ts`):** Comment explicitly states "모의 결제 — 실서비스에서는 빌링키·정기결제 연동". Calls `processDueRenewals()` then `activateSubscription()` without payment capture.
+
+> **DO NOT ENABLE EXTERNAL SUBSCRIPTION CRON** on `/api/cron/subscription-renew` until the real recurring-payment owner and exactly-once billing path are confirmed.
+
+**Required follow-up before any external cron:**
+
+- Actual recurring payment provider owner
+- Billing key / token storage owner
+- Charge-before-renew ordering
+- Charge idempotency key
+- Provider reconciliation on timeout/ambiguous success
+- Payment failure behavior (grace period, dunning)
+- Point grant exactly-once (dedupe by billing event id)
+- Notification timing relative to confirmed payment
+
+**Opportunistic callers today:** `src/app/points/page.tsx`, `src/app/api/points/subscribe/route.ts` — side effect is free renewal/grant, not missed-schedule compensation for real billing.
+
+### 5.3 Multi-replica / Railway risks (non-payout)
+
+- **In-process mutex:** Finance/training `running` flags prevent overlap **within one process only** — duplicate cron triggers if N replicas.
+- **Derived cache worker:** DB lease — structurally safer for multi-replica.
+- **Model pricing tracker:** DB claim via `claimTrackerRun` — multi-replica safe for daily claim.
+- **Deploy/restart:** Cron re-registers on boot; missed schedules **not backfilled**.
+- **Payout:** See §5.1 — **EXTERNAL SIDE EFFECT DUPLICATION RISK** (distinct from cron duplicate alone).
 
 ---
 
@@ -232,14 +290,10 @@ type OpsInboxItem = {
 ### Reticle / jev-ra
 
 - **Not present in repository.** No production bundle contamination risk from this investigation.
+- **Assessment:** Not recommended currently; no proven incremental value over extending existing Playwright. **Absence from repo is not an incompatibility proof** — current investigation did not demonstrate Reticle would add value beyond Playwright + existing unit/route canaries.
 - **Recommendation:** Extend existing Playwright — add global `console` + `response` listeners and one **unmocked** canary using `MOCK_MODE` + fixture user. Do **not** add parallel browser automation framework.
 
-### Safe proof executed
-
-```
-scripts/audit/runtime-verification-inventory.ts
-→ uiSpecCount: 4, mocksChatApi: true, consoleListener: false
-```
+### Safe proof executed (LOCAL PROOF only — see §20)
 
 ---
 
@@ -424,7 +478,7 @@ If external Decision provider added (shadow only):
 | Training daily | `training_analysis_runs` | DB | DB status | 04:00 KST | Partial |
 | Training weekly | Console + filesystem | Console | Console | Sun 05:00 KST | **No DB run table** |
 | Web push | None persisted | — | Console | 60s | **Gap** |
-| Subscription renew | None | — | — | External | **Gap** |
+| Subscription renew | None | — | — | N/A (demo path) | **No real billing run record**; external cron **must not** be enabled yet |
 
 **Principle:** Automation without durable success/failure record = **not complete**.
 
@@ -437,9 +491,9 @@ If external Decision provider added (shadow only):
 | `extractAndPersistEpisodicFactsForSealedBatch` | **KEEP** (test/legacy API) | No src caller; tests depend |
 | Duplicate scheduler scripts (`scripts/run-payout-once.ts` etc.) | **KEEP** | Intentional manual entry to same lib owner |
 | `/health` vs `/api/health` | **KEEP** | Railway uses minimal `/health`; rich probe separate |
-| Subscription renew on page load | **FOLLOW-UP** | Accidental scheduler duplicate of external cron |
+| Subscription renew on page load | **FOLLOW-UP** | Opportunistic demo renewal — not a substitute for real billing cron |
 | TRPG vs main failover stacks | **KEEP** | Document as split owners |
-| Reticle/jev-ra | **N/A** | Not in repo |
+| Reticle/jev-ra | **N/A** | Not in repo; not evaluated as production dependency |
 
 ---
 
@@ -450,10 +504,10 @@ If external Decision provider added (shadow only):
 | Normal run | Jobs fire on schedule | Low |
 | Server restart | Cron re-registers; no backfill | Missed window if down at cron time |
 | Redeploy | Same | Medium for payout/finance |
-| Process crash mid-payout | Row stays PENDING or partial APPROVED | Admin must reconcile |
+| Process crash mid-payout | `sendMoneyToUser` may succeed; row stays PENDING | **EXTERNAL SIDE EFFECT DUPLICATION RISK** on retry |
 | Provider timeout | Failover / user error | Low for UX |
 | DB failure | Jobs log error, continue where best-effort | Medium |
-| Double execution (2 replicas) | Payout/finance may duplicate | **High** if scaled |
+| Double execution (2 replicas) | Payout: duplicate **external transfer** possible; finance/training: duplicate cron work | **Critical (payout)** if scaled |
 | Concurrent execution (same process) | Skipped via mutex | Low |
 | Stale derived cache lock | 15min stale reclaim | Low |
 | Feature flag OFF | Schedulers respect DISABLE_* | Low |
@@ -461,17 +515,31 @@ If external Decision provider added (shadow only):
 
 ---
 
-## 20. SAFE FEASIBILITY PROOFS (Executed)
+## 20. SAFE FEASIBILITY PROOFS
 
-| Proof | Command | Result |
-|-------|---------|--------|
-| Scheduler idempotency | `npx tsx scripts/audit/scheduler-idempotency-proof.ts` | PASS — duplicate day SKIPPED; failed day reclaimed |
-| Model pricing tracker tests | `node --conditions=react-server --import tsx --test src/lib/modelPricingTracker.test.ts` | 70 tests PASS |
-| Billing settlement tests | `node ... src/lib/chatBillingSettlement.test.ts` | PASS |
-| Runtime verification inventory | `npx tsx scripts/audit/runtime-verification-inventory.ts` | 4 specs; gaps documented |
-| Typecheck | `npm run typecheck:app` | PASS |
+### LOCAL PROOF vs GitHub CI
 
-**Not executed (out of scope):** Full Playwright suite (requires prod build ~minutes); production shadow decision; Reticle.
+| Environment | Status |
+|-------------|--------|
+| **GitHub Actions CI on PR #1002 branch** | **No workflow runs reported** on `cursor/architecture-ops-investigation-4604` at correction-pass time (`gh pr checks` → "no checks reported"). **Do not describe CI as green.** |
+| **Local Cursor VM execution** | Proofs below executed locally during investigation/correction pass |
+
+### LOCAL PROOF (executed)
+
+| Proof | Scope | Command | Local result |
+|-------|-------|---------|--------------|
+| **Model pricing tracker claim/reclaim idempotency** | `claimTrackerRun` + `finishTrackerRun` only — **NOT** finance/payout/training schedulers | `npx tsx scripts/audit/model-pricing-tracker-claim-reclaim-idempotency-proof.ts` | LOCAL PASS — duplicate day `SKIPPED_DUPLICATE`; failed day reclaimed |
+| Model pricing tracker unit tests | Tracker persistence + classifier integration | `node --conditions=react-server --import tsx --test src/lib/modelPricingTracker.test.ts` | LOCAL PASS — 70 tests |
+| Chat billing settlement unit tests | Turn billing idempotency (separate from payout) | `node --conditions=react-server --import tsx --test src/lib/chatBillingSettlement.test.ts` | LOCAL PASS |
+| Runtime verification inventory | Read-only Playwright gap scan | `npx tsx scripts/audit/runtime-verification-inventory.ts` | LOCAL PASS — 4 specs; gaps listed |
+| App typecheck | Static validation | `npm run typecheck:app` | LOCAL PASS |
+
+### Not executed (do not report as PASS)
+
+- Full Playwright suite (`npm run test:ui`) — not run in correction pass
+- GitHub Actions workflows — no runs on this PR branch
+- Production shadow decision; Reticle evaluation
+- Payout/subscription exactly-once integration tests — **out of scope for audit PR**
 
 ---
 
@@ -480,8 +548,8 @@ If external Decision provider added (shadow only):
 | Category | Delivered |
 |----------|-----------|
 | MUST DO NOW | Owner map, ops inventory, scheduler audit, runtime gaps, decision candidates, automation map, regression analysis |
-| SAFE PROOF | Idempotency script + inventory script + existing unit tests |
-| SEPARATE FOLLOW-UP | Ops Inbox, Jev production, scheduler DB locks for all jobs, Playwright canaries, shadow moderation/memory |
+| SAFE PROOF | Model-pricing-tracker claim/reclaim proof script + inventory script + selected local unit tests |
+| SEPARATE FOLLOW-UP | Payout exactly-once BUGFIX, subscription real billing owner, Ops Inbox, Playwright canaries, shadow moderation/memory |
 
 ---
 
@@ -495,22 +563,22 @@ If external Decision provider added (shadow only):
 
 ### PROBLEM (structural, 1-person ops friction)
 
-1. **No Ops Inbox** — admin polls finance, payout, moderation, refunds, logs separately.
-2. **Shallow health check** — `/health` does not detect chat/API failures.
-3. **Scheduler observability split** — only pricing tracker + training have durable run records.
-4. **Multi-replica unsafe crons** — finance/payout/training rely on in-process mutex.
-5. **Subscription renewal** — depends on external cron or user page visits.
+1. **Payout EXTERNAL SIDE EFFECT DUPLICATION RISK** — transfer before exclusive DB finalize; not fixed by cron mutex alone.
+2. **Subscription renewal is demo/placeholder** — free points without payment-provider charge; external cron must not be enabled.
+3. **No Ops Inbox** — admin polls finance, payout, moderation, refunds, logs separately.
+4. **Shallow health check** — `/health` does not detect chat/API failures.
+5. **Scheduler observability split** — only pricing tracker + training have durable run records.
 6. **Runtime tests mock chat** — production SSE/500 divergence undetected in CI.
 
-### AFTER (this PR)
+### AFTER (this PR + correction pass)
 
-- Added investigation report (this document).
+- Added investigation report (this document) with corrected payout/subscription/idempotency/proof findings.
 - Added read-only proof scripts under `scripts/audit/`.
-- **No production behavior change.**
+- **No production behavior change. Production diff = 0** (docs + audit scripts only).
 
 ### REMOVED
 
-- Nothing.
+- Nothing from production. Renamed audit proof script for accurate scope.
 
 ### PRESERVED
 
@@ -518,21 +586,31 @@ If external Decision provider added (shadow only):
 
 ### PROOF
 
-- `git diff` shows docs + audit scripts only.
-- Typecheck pass.
-- Idempotency proof script output archived in §20.
+- `git diff main...HEAD` — docs and `scripts/audit/` only; no `src/` production changes.
+- Local proofs documented in §20; **GitHub CI not run on PR branch**.
 
 ---
 
-## FOLLOW-UP OPTIONS (Priority order for user/GPT evaluation)
+## FOLLOW-UP OPTIONS (Revised priority)
 
-1. **Ops Inbox MVP** — ingest existing DB tables + structured scheduler logs.
-2. **Playwright canary extension** — console/5xx listeners + one unmocked flow.
-3. **Scheduler run registry** — generalize `model_pricing_tracker_runs` pattern to payout/finance.
-4. **Railway replica policy** — document/enforce single instance OR DB claim for all crons.
-5. **External subscription cron** — configure Railway cron hitting `/api/cron/subscription-renew`.
-6. **Shadow moderation harness** — fixture-only compare Gemini vs future decision model.
-7. **Shadow episodic relevance** — same candidate set, no production DROP authority for model.
+### P0 — FINANCIAL SAFETY
+
+1. **Payout external-side-effect exactly-once investigation/fix** — provider idempotency, claim-before-send ordering, reconciliation, stale PROCESSING, CP rollback exactly-once. Do not assume PROCESSING flag alone suffices.
+2. **Subscription recurring-payment owner investigation** — billing key owner, charge-before-renew, idempotency, reconciliation, failure behavior, point-grant exactly-once. **Do not enable external cron until complete.**
+
+### P1 — RUNTIME / OPERATIONS SAFETY
+
+3. **Durable scheduler run registry / observability** — generalize `model_pricing_tracker_runs` pattern to payout/finance/training.
+4. **Playwright runtime canary** — console/5xx listeners + one unmocked flow.
+
+### P2 — ONE-PERSON OPERATIONS UX
+
+5. **Ops Inbox MVP** — high long-term value; implement **after** P0 financial exactly-once paths are understood/fixed.
+
+### P3 — EXPERIMENTAL DECISION PLANE
+
+6. **Shadow moderation harness** — fixture-only.
+7. **Shadow episodic relevance harness** — same candidate set; no production DROP authority.
 
 ---
 
@@ -540,10 +618,12 @@ If external Decision provider added (shadow only):
 
 **`ARCHITECTURE_RESEARCH_COMPLETE`**
 
+Correction pass confirms **production behavior unchanged**.
+
 Sub-area notes:
 
 - Runtime verification extension: `AUTOMATION_VALUE_CONFIRMED`
-- Ops Inbox + job observability: `AUTOMATION_VALUE_CONFIRMED`
+- Ops Inbox + job observability: `AUTOMATION_VALUE_CONFIRMED` (priority **after** P0 financial safety)
 - Decision plane (Jev/shadow): `VALUE_UNCONFIRMED` until shadow metrics
-- typed-decision-bert production: `NOT_COMPATIBLE` at current stage
-- Reticle: `NOT_COMPATIBLE` (not present; no proven delta over Playwright + unit tests)
+- typed-decision-bert production: `NOT_COMPATIBLE` at current stage (GPU/inference deployment required)
+- Reticle: **Not recommended currently** — no proven incremental value over extending existing Playwright; absence from repo is not an incompatibility proof (`VALUE_UNCONFIRMED` for incremental benefit)
