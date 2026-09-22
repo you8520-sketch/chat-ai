@@ -1,12 +1,7 @@
 import type Database from "better-sqlite3";
+import type { PointChargeRefundState } from "@/lib/pointChargeRefundShared";
 
-export type PointChargeRefundAttemptState =
-  | "CLAIMED"
-  | "DISPATCHED"
-  | "REQUESTED"
-  | "SUCCEEDED"
-  | "FAILED"
-  | "RECONCILIATION_REQUIRED";
+export type PointChargeRefundAttemptState = PointChargeRefundState;
 
 export type PointChargeRefundAttemptRow = {
   id: number;
