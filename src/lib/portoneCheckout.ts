@@ -79,9 +79,9 @@ export function getPortoneCheckoutByPaymentId(paymentId: string): PortoneCheckou
 
 export function markPortoneCheckoutPaid(
   paymentId: string,
-  portoneTxId: string
+  portoneTxId: string,
+  db: Database.Database = getDb()
 ): { ok: true; alreadyPaid: boolean } | { ok: false; error: string } {
-  const db = getDb();
   ensurePortoneCheckoutTable(db);
 
   try {
