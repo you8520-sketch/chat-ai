@@ -35,6 +35,7 @@ export type TrackerAttemptRow = {
   status: string;
   snapshot_count: number;
   event_count: number;
+  error_summary: string;
 };
 
 export function ensureTrackerSchema(db: Database.Database): void {
@@ -167,7 +168,7 @@ export function findTrackerAttemptById(
 ): TrackerAttemptRow | null {
   const row = db
     .prepare(
-      `SELECT id, run_date_key, phase, status, snapshot_count, event_count
+      `SELECT id, run_date_key, phase, status, snapshot_count, event_count, error_summary
        FROM model_pricing_tracker_attempts
        WHERE id = ?`
     )
