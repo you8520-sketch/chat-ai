@@ -123,6 +123,16 @@ describe("verified point charge payment boundary", () => {
     assert.match(client, /runPortOnePointCharge/);
   });
 
+  it("checkout enablement requires both browser and server verification configuration", () => {
+    const config = source("src/lib/portoneConfig.ts");
+    const prepare = source("src/app/api/payments/portone/prepare/route.ts");
+
+    assert.match(config, /isPortOneBrowserConfigured\(\)/);
+    assert.match(config, /isPortOneServerVerifyConfigured\(\)/);
+    assert.match(prepare, /isPortOneServerVerifyConfigured\(\)/);
+    assert.match(prepare, /status:\s*503/);
+  });
+
   it("verified checkout claims paid status before crediting points", () => {
     const checkout = source("src/lib/portoneCheckout.ts");
     const claimIndex = checkout.indexOf("WHERE id=? AND status='pending'");
