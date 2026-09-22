@@ -4,11 +4,13 @@ import { parseAccountInfo, roundCreatorAmount } from "@/lib/creatorShared";
 import { getPayoutProviderPort, resolveBankCode } from "@/lib/payoutGateway";
 import type { PayoutProviderLookupResult } from "@/lib/payoutProviderTypes";
 import {
+  claimTransferAttempt,
   ensurePayoutTransferAttemptsSchema,
   getTransferAttemptByWithdrawalId,
-  insertPendingTransferAttempt,
+  markAttemptDispatched,
   recordTransferAttemptOutcome,
   stableProviderRequestId,
+  type PayoutTransferAttemptRow,
 } from "@/lib/payoutTransferAttempts";
 
 export type WithdrawalExecutionRow = {
@@ -18,7 +20,6 @@ export type WithdrawalExecutionRow = {
   payout_amount: number;
   account_info: string;
   status: string;
-  provider_request_id: string;
   failure_reason: string;
 };
 
@@ -31,7 +32,6 @@ export type SingleWithdrawalOutcome =
 export type PayoutExecutionLog = {
   withdrawalId: number;
   attemptIdentity: string;
-  claimTime: string | null;
   providerRequestIdentity: string;
   providerResultClass: string;
   localFinalState: string;
@@ -42,7 +42,6 @@ function logPayoutExecution(entry: PayoutExecutionLog): void {
   console.log("[payout-execution]", {
     withdrawalId: entry.withdrawalId,
     attemptIdentity: entry.attemptIdentity,
-    claimTime: entry.claimTime,
     providerRequestIdentity: entry.providerRequestIdentity,
     providerResultClass: entry.providerResultClass,
     localFinalState: entry.localFinalState,
@@ -50,26 +49,13 @@ function logPayoutExecution(entry: PayoutExecutionLog): void {
   });
 }
 
-export function listWithdrawalsForExecution(db: Database.Database = getDb()): WithdrawalExecutionRow[] {
+export function listWithdrawalsForExecution(
+  db: Database.Database = getDb()
+): WithdrawalExecutionRow[] {
   ensurePayoutTransferAttemptsSchema(db);
   return db
     .prepare(
       `SELECT id, user_id, requested_cp, payout_amount, account_info, status,
-              COALESCE(provider_request_id, '') AS provider_request_id,
-              COALESCE(failure_reason, '') AS failure_reason
-       FROM withdrawal_requests
-       WHERE status IN ('PENDING', 'PROCESSING', 'RECONCILIATION_REQUIRED')
-       ORDER BY created_at ASC, id ASC`
-    )
-    .all() as WithdrawalExecutionRow[];
-}
-
-/** @deprecated Use listWithdrawalsForExecution — kept for tests importing listPendingWithdrawals. */
-export function listPendingWithdrawals(): WithdrawalExecutionRow[] {
-  return getDb()
-    .prepare(
-      `SELECT id, user_id, requested_cp, payout_amount, account_info, status,
-              COALESCE(provider_request_id, '') AS provider_request_id,
               COALESCE(failure_reason, '') AS failure_reason
        FROM withdrawal_requests
        WHERE status = 'PENDING'
@@ -78,35 +64,27 @@ export function listPendingWithdrawals(): WithdrawalExecutionRow[] {
     .all() as WithdrawalExecutionRow[];
 }
 
+/** @deprecated Use listWithdrawalsForExecution. */
+export function listPendingWithdrawals(): WithdrawalExecutionRow[] {
+  return listWithdrawalsForExecution();
+}
+
+/**
+ * Atomic payout execution claim.
+ * The canonical execution lock lives in payout_transfer_attempts, not withdrawal_requests.status.
+ */
 export function atomicClaimWithdrawal(
   db: Database.Database,
   withdrawalId: number
 ): { claimed: boolean; providerRequestId: string } {
+  ensurePayoutTransferAttemptsSchema(db);
   const providerRequestId = stableProviderRequestId(withdrawalId);
-  const updated = db
-    .prepare(
-      `UPDATE withdrawal_requests
-       SET status = 'PROCESSING',
-           provider_request_id = CASE
-             WHEN provider_request_id IS NULL OR provider_request_id = '' THEN ?
-             ELSE provider_request_id
-           END,
-           claimed_at = datetime('now')
-       WHERE id = ? AND status = 'PENDING'`
-    )
-    .run(providerRequestId, withdrawalId);
-  if (Number(updated.changes) === 0) {
-    const row = db
-      .prepare(
-        `SELECT provider_request_id FROM withdrawal_requests WHERE id = ?`
-      )
-      .get(withdrawalId) as { provider_request_id: string } | undefined;
-    return {
-      claimed: false,
-      providerRequestId: row?.provider_request_id || providerRequestId,
-    };
-  }
-  return { claimed: true, providerRequestId };
+  const result = claimTransferAttempt(db, { withdrawalId, providerRequestId });
+  const existing = getTransferAttemptByWithdrawalId(db, withdrawalId);
+  return {
+    claimed: result === "claimed",
+    providerRequestId: existing?.provider_request_id || providerRequestId,
+  };
 }
 
 function finalizeApproved(
@@ -117,12 +95,19 @@ function finalizeApproved(
   const updated = db
     .prepare(
       `UPDATE withdrawal_requests
-       SET status = 'APPROVED', processed_at = datetime('now'), provider_ref = ?
-       WHERE id = ? AND status IN ('PROCESSING', 'RECONCILIATION_REQUIRED')`
+       SET status = 'APPROVED',
+           processed_at = datetime('now'),
+           provider_ref = ?,
+           failure_reason = ''
+       WHERE id = ? AND status = 'PENDING'`
     )
     .run(providerRef, withdrawalId);
   if (updated.changes === 0) {
-    throw new Error(`출금 #${withdrawalId} 승인 확정 실패 (이미 처리됨)`);
+    const current = db
+      .prepare("SELECT status FROM withdrawal_requests WHERE id=?")
+      .get(withdrawalId) as { status: string } | undefined;
+    if (current?.status === "APPROVED") return;
+    throw new Error(`출금 #${withdrawalId} 승인 확정 실패 (현재 상태: ${current?.status ?? "missing"})`);
   }
 }
 
@@ -139,18 +124,24 @@ function finalizeFailedWithRollback(
       .prepare(
         `UPDATE withdrawal_requests
          SET status = 'FAILED', failure_reason = ?, processed_at = datetime('now')
-         WHERE id = ? AND status IN ('PROCESSING', 'RECONCILIATION_REQUIRED')`
+         WHERE id = ? AND status = 'PENDING'`
       )
       .run(reason.slice(0, 500), withdrawalId);
+
     if (updated.changes === 0) {
-      throw new Error(`출금 #${withdrawalId} 실패 처리 불가 (이미 처리됨)`);
+      const current = db
+        .prepare("SELECT status FROM withdrawal_requests WHERE id=?")
+        .get(withdrawalId) as { status: string } | undefined;
+      if (current?.status === "FAILED") return;
+      throw new Error(
+        `출금 #${withdrawalId} 실패 처리 불가 (현재 상태: ${current?.status ?? "missing"})`
+      );
     }
 
     db.prepare("UPDATE users SET creator_points = ROUND(creator_points + ?, 1) WHERE id=?").run(
       cp,
       userId
     );
-
     db.prepare("INSERT INTO creator_point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
       userId,
       cp,
@@ -162,67 +153,70 @@ function finalizeFailedWithRollback(
 function markReconciliationRequired(
   db: Database.Database,
   withdrawalId: number,
-  reason: string
+  reason: string,
+  code = "UNKNOWN_OUTCOME"
 ): void {
-  const updated = db
-    .prepare(
-      `UPDATE withdrawal_requests
-       SET status = 'RECONCILIATION_REQUIRED',
-           failure_reason = ?,
-           processed_at = NULL
-       WHERE id = ? AND status = 'PROCESSING'`
-    )
-    .run(reason.slice(0, 500), withdrawalId);
-  if (updated.changes === 0) {
-    throw new Error(`출금 #${withdrawalId} reconciliation 상태 전환 실패`);
-  }
+  recordTransferAttemptOutcome(db, {
+    withdrawalId,
+    state: "RECONCILIATION_REQUIRED",
+    failureCode: code,
+    failureMessage: reason,
+  });
 }
 
 async function reconcileFromProviderLookup(
   db: Database.Database,
   row: WithdrawalExecutionRow,
+  attempt: PayoutTransferAttemptRow,
   lookup: PayoutProviderLookupResult
 ): Promise<SingleWithdrawalOutcome> {
   switch (lookup.status) {
     case "success":
       recordTransferAttemptOutcome(db, {
         withdrawalId: row.id,
-        resultClass: "success",
+        state: "SUCCEEDED",
         providerRef: lookup.providerRef,
       });
       finalizeApproved(db, row.id, lookup.providerRef);
       logPayoutExecution({
         withdrawalId: row.id,
-        attemptIdentity: stableProviderRequestId(row.id),
-        claimTime: null,
-        providerRequestIdentity: row.provider_request_id || stableProviderRequestId(row.id),
+        attemptIdentity: attempt.provider_request_id,
+        providerRequestIdentity: attempt.provider_request_id,
         providerResultClass: "success",
         localFinalState: "APPROVED",
         retryReason: "reconciliation_lookup_success",
       });
       return "approved";
+
     case "failed":
       recordTransferAttemptOutcome(db, {
         withdrawalId: row.id,
-        resultClass: "failed",
+        state: "FAILED",
         failureCode: lookup.code,
         failureMessage: lookup.message,
       });
       finalizeFailedWithRollback(db, row.id, row.user_id, row.requested_cp, lookup.message);
       logPayoutExecution({
         withdrawalId: row.id,
-        attemptIdentity: stableProviderRequestId(row.id),
-        claimTime: null,
-        providerRequestIdentity: row.provider_request_id || stableProviderRequestId(row.id),
+        attemptIdentity: attempt.provider_request_id,
+        providerRequestIdentity: attempt.provider_request_id,
         providerResultClass: "failed",
         localFinalState: "FAILED",
         retryReason: "reconciliation_lookup_failed",
       });
       return "failed";
+
     case "unknown":
     case "pending":
     case "not_found":
+      markReconciliationRequired(
+        db,
+        row.id,
+        `provider lookup unresolved: ${lookup.status}`,
+        `LOOKUP_${lookup.status.toUpperCase()}`
+      );
       return "reconciliation_required";
+
     default: {
       const _exhaustive: never = lookup;
       return _exhaustive;
@@ -230,79 +224,75 @@ async function reconcileFromProviderLookup(
   }
 }
 
-async function executeProviderTransfer(
+async function executeClaimedAttempt(
   db: Database.Database,
   row: WithdrawalExecutionRow,
-  providerRequestId: string
+  attempt: PayoutTransferAttemptRow
 ): Promise<SingleWithdrawalOutcome> {
   const account = parseAccountInfo(row.account_info);
   if (!account) {
+    recordTransferAttemptOutcome(db, {
+      withdrawalId: row.id,
+      state: "FAILED",
+      failureCode: "INVALID_ACCOUNT_INFO",
+      failureMessage: "계좌 정보 파싱 실패",
+    });
     finalizeFailedWithRollback(db, row.id, row.user_id, row.requested_cp, "계좌 정보 파싱 실패");
     return "failed";
   }
 
   const bankCode = resolveBankCode(account.bankName);
   if (!bankCode) {
-    finalizeFailedWithRollback(
-      db,
-      row.id,
-      row.user_id,
-      row.requested_cp,
-      `미지원 은행: ${account.bankName}`
-    );
+    const reason = `미지원 은행: ${account.bankName}`;
+    recordTransferAttemptOutcome(db, {
+      withdrawalId: row.id,
+      state: "FAILED",
+      failureCode: "UNSUPPORTED_BANK",
+      failureMessage: reason,
+    });
+    finalizeFailedWithRollback(db, row.id, row.user_id, row.requested_cp, reason);
     return "failed";
   }
 
-  const attempt = getTransferAttemptByWithdrawalId(db, row.id);
-  if (attempt?.result_class === "success" && attempt.provider_ref) {
-    finalizeApproved(db, row.id, attempt.provider_ref);
-    return "approved";
+  if (!markAttemptDispatched(db, row.id)) {
+    return "skipped";
   }
-  if (attempt?.result_class === "failed") {
-    finalizeFailedWithRollback(
-      db,
-      row.id,
-      row.user_id,
-      row.requested_cp,
-      attempt.failure_message || "provider confirmed failure"
-    );
-    return "failed";
-  }
-  if (attempt?.result_class === "unknown") {
-    markReconciliationRequired(
-      db,
-      row.id,
-      attempt.failure_message || "provider outcome unknown"
-    );
-    return "reconciliation_required";
-  }
-
-  insertPendingTransferAttempt(db, {
-    withdrawalId: row.id,
-    providerRequestId,
-  });
 
   const provider = getPayoutProviderPort();
-  const result = await provider.transfer({
-    bankCode,
-    accountNo: account.accountNumber,
-    amount: row.payout_amount,
-    idempotencyKey: providerRequestId,
-    withdrawalId: row.id,
-  });
+  let result;
+  try {
+    result = await provider.transfer({
+      bankCode,
+      accountNo: account.accountNumber,
+      amount: row.payout_amount,
+      idempotencyKey: attempt.provider_request_id,
+      withdrawalId: row.id,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    markReconciliationRequired(db, row.id, message || "provider transfer threw", "PROVIDER_THROW");
+    logPayoutExecution({
+      withdrawalId: row.id,
+      attemptIdentity: attempt.provider_request_id,
+      providerRequestIdentity: attempt.provider_request_id,
+      providerResultClass: "unknown",
+      localFinalState: "RECONCILIATION_REQUIRED",
+      retryReason: "provider_throw_after_dispatch_no_resend",
+    });
+    return "reconciliation_required";
+  }
 
   if (result.resultClass === "success") {
     recordTransferAttemptOutcome(db, {
       withdrawalId: row.id,
-      resultClass: "success",
+      state: "SUCCEEDED",
       providerRef: result.providerRef,
     });
     finalizeApproved(db, row.id, result.providerRef);
     logPayoutExecution({
       withdrawalId: row.id,
-      attemptIdentity: providerRequestId,
-      claimTime: new Date().toISOString(),
-      providerRequestIdentity: providerRequestId,
+      attemptIdentity: attempt.provider_request_id,
+      providerRequestIdentity: attempt.provider_request_id,
       providerResultClass: "success",
       localFinalState: "APPROVED",
       retryReason: result.deduplicated ? "provider_deduplicated" : "provider_success",
@@ -313,16 +303,15 @@ async function executeProviderTransfer(
   if (result.resultClass === "failed") {
     recordTransferAttemptOutcome(db, {
       withdrawalId: row.id,
-      resultClass: "failed",
+      state: "FAILED",
       failureCode: result.code,
       failureMessage: result.message,
     });
     finalizeFailedWithRollback(db, row.id, row.user_id, row.requested_cp, result.message);
     logPayoutExecution({
       withdrawalId: row.id,
-      attemptIdentity: providerRequestId,
-      claimTime: new Date().toISOString(),
-      providerRequestIdentity: providerRequestId,
+      attemptIdentity: attempt.provider_request_id,
+      providerRequestIdentity: attempt.provider_request_id,
       providerResultClass: "failed",
       localFinalState: "FAILED",
       retryReason: result.deduplicated ? "provider_deduplicated_failure" : "provider_failed",
@@ -330,18 +319,11 @@ async function executeProviderTransfer(
     return "failed";
   }
 
-  recordTransferAttemptOutcome(db, {
-    withdrawalId: row.id,
-    resultClass: result.resultClass,
-    failureCode: result.code,
-    failureMessage: result.message,
-  });
-  markReconciliationRequired(db, row.id, result.message);
+  markReconciliationRequired(db, row.id, result.message, result.code);
   logPayoutExecution({
     withdrawalId: row.id,
-    attemptIdentity: providerRequestId,
-    claimTime: new Date().toISOString(),
-    providerRequestIdentity: providerRequestId,
+    attemptIdentity: attempt.provider_request_id,
+    providerRequestIdentity: attempt.provider_request_id,
     providerResultClass: result.resultClass,
     localFinalState: "RECONCILIATION_REQUIRED",
     retryReason: "unknown_outcome_no_auto_resend_no_rollback",
@@ -352,6 +334,11 @@ async function executeProviderTransfer(
 /**
  * Canonical single-withdrawal execution owner.
  * Scheduled cron, manual script, and future admin retry must call this.
+ *
+ * Safety invariant:
+ * - CLAIMED means provider dispatch has not started and may be resumed.
+ * - DISPATCHED/RECONCILIATION_REQUIRED never call transfer() again automatically.
+ * - Recovery after DISPATCHED is lookup/reconciliation only.
  */
 export async function executeWithdrawalPayout(
   row: WithdrawalExecutionRow,
@@ -359,29 +346,53 @@ export async function executeWithdrawalPayout(
 ): Promise<SingleWithdrawalOutcome> {
   ensurePayoutTransferAttemptsSchema(db);
 
-  if (row.status === "APPROVED" || row.status === "FAILED" || row.status === "REJECTED") {
-    throw new Error(`출금 #${row.id} 상태 갱신 실패 (이미 처리됨)`);
+  if (row.status !== "PENDING") {
+    throw new Error(`출금 #${row.id} 상태 갱신 실패 (현재 상태: ${row.status})`);
   }
 
-  if (row.status === "RECONCILIATION_REQUIRED") {
-    const providerRequestId = row.provider_request_id || stableProviderRequestId(row.id);
-    const lookup = await getPayoutProviderPort().lookup(providerRequestId);
-    return reconcileFromProviderLookup(db, row, lookup);
-  }
-
-  let providerRequestId = row.provider_request_id || stableProviderRequestId(row.id);
-
-  if (row.status === "PENDING") {
+  let attempt = getTransferAttemptByWithdrawalId(db, row.id);
+  if (!attempt) {
     const claim = atomicClaimWithdrawal(db, row.id);
-    if (!claim.claimed) {
+    attempt = getTransferAttemptByWithdrawalId(db, row.id);
+    if (!attempt) throw new Error(`출금 #${row.id} payout attempt claim missing`);
+    if (!claim.claimed && attempt.state === "CLAIMED") {
       return "skipped";
     }
-    providerRequestId = claim.providerRequestId;
-  } else if (row.status === "PROCESSING") {
-    providerRequestId = row.provider_request_id || stableProviderRequestId(row.id);
   }
 
-  return executeProviderTransfer(db, { ...row, status: "PROCESSING", provider_request_id: providerRequestId }, providerRequestId);
+  switch (attempt.state) {
+    case "SUCCEEDED":
+      if (!attempt.provider_ref) {
+        markReconciliationRequired(db, row.id, "success attempt missing provider ref", "MISSING_REF");
+        return "reconciliation_required";
+      }
+      finalizeApproved(db, row.id, attempt.provider_ref);
+      return "approved";
+
+    case "FAILED":
+      finalizeFailedWithRollback(
+        db,
+        row.id,
+        row.user_id,
+        row.requested_cp,
+        attempt.failure_message || "provider confirmed failure"
+      );
+      return "failed";
+
+    case "DISPATCHED":
+    case "RECONCILIATION_REQUIRED": {
+      const lookup = await getPayoutProviderPort().lookup(attempt.provider_request_id);
+      return reconcileFromProviderLookup(db, row, attempt, lookup);
+    }
+
+    case "CLAIMED":
+      return executeClaimedAttempt(db, row, attempt);
+
+    default: {
+      const _exhaustive: never = attempt.state;
+      return _exhaustive;
+    }
+  }
 }
 
 /** @deprecated Alias — use executeWithdrawalPayout. */
@@ -396,7 +407,7 @@ export async function processSingleWithdrawal(
     case "reconciliation_required":
       throw new Error(`출금 #${row.id} reconciliation required — no auto resend`);
     case "skipped":
-      throw new Error(`출금 #${row.id} skipped — lost claim or already processing`);
+      throw new Error(`출금 #${row.id} skipped — another worker owns the attempt`);
     default: {
       const _exhaustive: never = outcome;
       return _exhaustive;
