@@ -560,8 +560,8 @@ describe("mainRpPricingObservability", () => {
     assert.equal(absent.procurement.ciEvidenceSource, "none");
     assert.equal(absent.procurement.provenance, "UNKNOWN");
     assert.equal(absent.procurement.representativeProcurementCostKrw, null);
-    assert.equal(absent.margin.procurementCostFreshness, "ABSENT");
-    assert.equal(absent.margin.status, "unavailable");
+    assert.equal(absent.representative.procurementCostFreshness, "ABSENT");
+    assert.equal(absent.representative.status, "unavailable");
   });
 
   it("stale procurement prevents unqualified healthy/below-floor margin status", () => {
@@ -579,11 +579,14 @@ describe("mainRpPricingObservability", () => {
     }).models.find((r) => r.modelId === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)!;
     assert.equal(row.procurement.ciFreshnessState, "STALE");
     assert.equal(row.procurement.provenance, "CI_STALE_ESTIMATE");
-    assert.equal(row.margin.procurementCostFreshness, "STALE");
-    assert.notEqual(row.margin.status, "healthy");
-    assert.notEqual(row.margin.status, "below_floor");
-    assert.equal(row.margin.status, "unavailable");
-    assert.ok(row.margin.underlyingFloorVerdict != null || row.margin.trackerAlignedRealizedMargin != null);
+    assert.equal(row.representative.procurementCostFreshness, "STALE");
+    assert.notEqual(row.representative.status, "healthy");
+    assert.notEqual(row.representative.status, "below_floor");
+    assert.equal(row.representative.status, "unavailable");
+    assert.ok(
+      row.representative.underlyingFloorVerdict != null ||
+        row.representative.trackerAlignedMarginEstimate != null
+    );
   });
 
   it("Gemini models show historical_evidence provider status — not live observer", () => {
