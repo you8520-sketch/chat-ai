@@ -8,6 +8,7 @@ import {
   markPortoneCheckoutPaid,
 } from "@/lib/portoneCheckout";
 import { getPointBalanceOnDb } from "@/lib/points";
+import { creditPointChargePackage } from "@/lib/pointCharge";
 
 function setupDb(): Database.Database {
   const db = new Database(":memory:");
@@ -122,6 +123,22 @@ describe("verified point charge payment boundary", () => {
     db.close();
   });
 
+  it("point credit helper rejects calls outside the checkout transaction owner", () => {
+    const db = setupDb();
+    db.prepare("INSERT INTO users (id, points) VALUES (1, 0)").run();
+
+    assert.throws(
+      () => creditPointChargePackage(db, 1, "p5000", "포인트 충전 (PortOne)"),
+      /POINT_CHARGE_REQUIRES_CALLER_TRANSACTION/
+    );
+
+    const txCount = db
+      .prepare("SELECT COUNT(*) AS c FROM point_transactions WHERE user_id=1")
+      .get() as { c: number };
+    assert.equal(txCount.c, 0);
+    db.close();
+  });
+
   it("legacy mock charge API cannot mint points", () => {
     const route = source("src/app/api/points/charge/route.ts");
     assert.match(route, /POINT_CHARGE_REQUIRES_VERIFIED_PAYMENT_MESSAGE/);
@@ -173,8 +190,12 @@ describe("verified point charge payment boundary", () => {
 
   it("verified checkout claims paid status before crediting points", () => {
     const checkout = source("src/lib/portoneCheckout.ts");
-    const claimIndex = checkout.indexOf("WHERE id=? AND status='pending'");
-    const creditIndex = checkout.indexOf("creditPointChargePackage");
+    const start = checkout.indexOf("export function markPortoneCheckoutPaid");
+    assert.ok(start >= 0, "finalizer function must exist");
+
+    const body = checkout.slice(start);
+    const claimIndex = body.indexOf("WHERE id=? AND status='pending'");
+    const creditIndex = body.indexOf("creditPointChargePackage");
 
     assert.ok(claimIndex >= 0, "conditional paid claim must exist");
     assert.ok(creditIndex > claimIndex, "credit must happen after the conditional claim");
