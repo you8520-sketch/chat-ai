@@ -306,6 +306,7 @@ describe("payout policy unification — historical snapshot preservation", () =>
       failure_reason: "",
       provider_request_id: "wd-9",
       provider_ref: "SIM-done",
+      execution_state: "SUCCEEDED",
       created_at: "2026-08-02",
       processed_at: "2026-08-15",
       nickname: "작가A",
