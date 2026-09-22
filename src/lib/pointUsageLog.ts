@@ -1,3 +1,5 @@
+import type { PointChargeRefundState } from "@/lib/pointChargeRefundShared";
+
 /** 포인트 사용 내역 — 클라이언트·서버 공용 (DB import 금지) */
 
 export const USAGE_PAGE_SIZE = 10;
@@ -26,6 +28,8 @@ export type PointUsageLog = {
   can_cancel_charge?: boolean;
 
   charge_cancelled?: boolean;
+
+  charge_cancel_state?: PointChargeRefundState;
 
   charge_cancel_block_reason?: string;
 
