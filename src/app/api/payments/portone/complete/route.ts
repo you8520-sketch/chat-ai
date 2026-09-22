@@ -62,7 +62,13 @@ export async function POST(req: Request) {
         { status: 402 }
       );
     }
-    if (remote.totalAmount != null && remote.totalAmount !== checkout.amount) {
+    if (remote.totalAmount == null) {
+      return NextResponse.json(
+        { error: "PortOne 결제 금액을 확인할 수 없습니다." },
+        { status: 502 }
+      );
+    }
+    if (remote.totalAmount !== checkout.amount) {
       return NextResponse.json({ error: "결제 금액이 일치하지 않습니다." }, { status: 400 });
     }
     if (remote.txId) portoneTxId = remote.txId;

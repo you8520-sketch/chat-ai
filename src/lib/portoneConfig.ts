@@ -37,8 +37,9 @@ export const PAYMENTS_DISABLED_MESSAGE =
 /** Points page — PortOne 결제창 (isPaymentsEnabled && 키 설정 시) */
 export function isPortOneChargeEnabled(): boolean {
   if (!isPaymentsEnabled()) return false;
-  if (process.env.PORTONE_CHARGE_ENABLED === "1") return isPortOneBrowserConfigured();
-  return isPortOneBrowserConfigured();
+  if (!isPortOneBrowserConfigured()) return false;
+  if (!isPortOneServerVerifyConfigured()) return false;
+  return true;
 }
 
 export function resolvePortOneRedirectUrl(origin: string): string {

@@ -79,34 +79,55 @@ export function getPortoneCheckoutByPaymentId(paymentId: string): PortoneCheckou
 
 export function markPortoneCheckoutPaid(
   paymentId: string,
-  portoneTxId: string
+  portoneTxId: string,
+  db: Database.Database = getDb()
 ): { ok: true; alreadyPaid: boolean } | { ok: false; error: string } {
-  const db = getDb();
   ensurePortoneCheckoutTable(db);
 
-  const row = getPortoneCheckoutByPaymentId(paymentId);
-  if (!row) return { ok: false, error: "결제 요청을 찾을 수 없습니다." };
-  if (row.status === "paid") return { ok: true, alreadyPaid: true };
+  try {
+    return db.transaction(() => {
+      const row = db
+        .prepare(
+          `SELECT id, user_id, package_id, payment_id, amount, status, portone_tx_id, created_at, paid_at
+           FROM portone_checkouts WHERE payment_id = ?`
+        )
+        .get(paymentId) as PortoneCheckoutRow | undefined;
 
-  if (row.status !== "pending") {
-    return { ok: false, error: "처리할 수 없는 결제 상태입니다." };
+      if (!row) return { ok: false as const, error: "결제 요청을 찾을 수 없습니다." };
+      if (row.status === "paid") return { ok: true as const, alreadyPaid: true };
+      if (row.status !== "pending") {
+        return { ok: false as const, error: "처리할 수 없는 결제 상태입니다." };
+      }
+
+      const packageId = row.package_id as PointChargePackageId;
+      if (!POINT_CHARGE_PACKAGES_BY_ID[packageId]) {
+        return { ok: false as const, error: "상품 정보가 유효하지 않습니다." };
+      }
+
+      const claimed = db.prepare(
+        `UPDATE portone_checkouts
+         SET status='paid', portone_tx_id=?, paid_at=datetime('now')
+         WHERE id=? AND status='pending'`
+      ).run(portoneTxId, row.id);
+
+      if (Number(claimed.changes) === 0) {
+        const current = db
+          .prepare("SELECT status FROM portone_checkouts WHERE id=?")
+          .get(row.id) as { status: PortoneCheckoutStatus } | undefined;
+        if (current?.status === "paid") {
+          return { ok: true as const, alreadyPaid: true };
+        }
+        return { ok: false as const, error: "결제 상태 선점에 실패했습니다." };
+      }
+
+      creditPointChargePackage(db, row.user_id, packageId, "포인트 충전 (PortOne)", {
+        portoneCheckoutId: row.id,
+      });
+
+      return { ok: true as const, alreadyPaid: false };
+    })();
+  } catch (error) {
+    console.error("[portone-checkout] paid finalize failed", error);
+    return { ok: false, error: "결제 완료 처리에 실패했습니다." };
   }
-
-  const packageId = row.package_id as PointChargePackageId;
-  if (!POINT_CHARGE_PACKAGES_BY_ID[packageId]) {
-    return { ok: false, error: "상품 정보가 유효하지 않습니다." };
-  }
-
-  db.transaction(() => {
-    creditPointChargePackage(db, row.user_id, packageId, "포인트 충전 (PortOne)", {
-      portoneCheckoutId: row.id,
-    });
-    db.prepare(
-      `UPDATE portone_checkouts
-       SET status='paid', portone_tx_id=?, paid_at=datetime('now')
-       WHERE payment_id=? AND status='pending'`
-    ).run(portoneTxId, paymentId);
-  })();
-
-  return { ok: true, alreadyPaid: false };
 }

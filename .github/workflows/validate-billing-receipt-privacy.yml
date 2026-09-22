@@ -22,6 +22,13 @@ on:
       - "src/app/api/points/subscribe/**"
       - "src/app/api/cron/subscription-renew/**"
       - "src/app/points/page.tsx"
+      - "src/app/points/PointsClient.tsx"
+      - "src/app/api/points/charge/**"
+      - "src/app/api/payments/portone/**"
+      - "src/lib/portoneConfig.ts"
+      - "src/lib/portoneCheckout.ts"
+      - "src/lib/pointCharge.ts"
+      - "src/lib/pointChargePaymentBoundary.test.ts"
 
 permissions:
   contents: read
@@ -61,6 +68,9 @@ jobs:
 
       - name: Subscription recurring-payment safety
         run: node --conditions=react-server --import tsx --test src/lib/subscriptionBillingSafety.test.ts
+
+      - name: Verified point-charge payment boundary
+        run: node --conditions=react-server --import tsx --test src/lib/pointChargePaymentBoundary.test.ts
 
       - name: Typecheck app
         run: npm run typecheck:app
