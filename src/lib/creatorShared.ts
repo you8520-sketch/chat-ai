@@ -89,22 +89,12 @@ export const WITHDRAWAL_PAYOUT_RATE = 1 - WITHDRAWAL_TOTAL_DEDUCTION_RATE;
 export const CREATOR_NOTICE_TITLE_MAX = 80;
 export const CREATOR_NOTICE_CONTENT_MAX = 5_000;
 
-export type WithdrawalStatus =
-  | "PENDING"
-  | "PROCESSING"
-  | "RECONCILIATION_REQUIRED"
-  | "APPROVED"
-  | "REJECTED"
-  | "FAILED";
+export type WithdrawalStatus = "PENDING" | "APPROVED" | "REJECTED" | "FAILED";
 
 export function withdrawalStatusLabel(status: WithdrawalStatus | string): string {
   switch (status) {
     case "PENDING":
       return "지급 대기";
-    case "PROCESSING":
-      return "지급 처리 중";
-    case "RECONCILIATION_REQUIRED":
-      return "대사 필요";
     case "APPROVED":
       return "지급 완료";
     case "FAILED":
