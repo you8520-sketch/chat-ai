@@ -38,91 +38,90 @@ export function creditPointChargePackage(
 
 
 
-  db.transaction(() => {
 
-    paidCredit = creditPointsWithIds(
+  paidCredit = creditPointsWithIds(
+
+    db,
+
+    userId,
+
+    pkg.paidPoints,
+
+    "PAID",
+
+    `${reasonPrefix} (₩${pkg.price.toLocaleString()})`
+
+  );
+
+  if (pkg.bonusPoints > 0) {
+
+    freeCredit = creditPointsWithIds(
 
       db,
 
       userId,
 
-      pkg.paidPoints,
+      pkg.bonusPoints,
 
-      "PAID",
+      "FREE",
 
-      `${reasonPrefix} (₩${pkg.price.toLocaleString()})`
+      `충전 보너스 (+${pkg.bonusPoints.toLocaleString()}P)`
 
     );
 
-    if (pkg.bonusPoints > 0) {
-
-      freeCredit = creditPointsWithIds(
-
-        db,
-
-        userId,
-
-        pkg.bonusPoints,
-
-        "FREE",
-
-        `충전 보너스 (+${pkg.bonusPoints.toLocaleString()}P)`
-
-      );
-
-    }
+  }
 
 
 
-    if (paidCredit) {
+  if (paidCredit) {
 
-      recordPointChargeBatch(db, {
+    recordPointChargeBatch(db, {
 
-        userId,
+      userId,
 
-        portoneCheckoutId: options?.portoneCheckoutId ?? null,
+      portoneCheckoutId: options?.portoneCheckoutId ?? null,
 
-        mainPointLogId: paidCredit.logId,
+      mainPointLogId: paidCredit.logId,
 
-        paidAmount: pkg.paidPoints,
+      paidAmount: pkg.paidPoints,
 
-        freeAmount: pkg.bonusPoints,
+      freeAmount: pkg.bonusPoints,
 
-        paidTransactionId: paidCredit.transactionId,
+      paidTransactionId: paidCredit.transactionId,
 
-        freeTransactionId: freeCredit?.transactionId ?? null,
+      freeTransactionId: freeCredit?.transactionId ?? null,
 
-        priceKrw: pkg.price,
+      priceKrw: pkg.price,
 
-      });
+    });
 
-    }
+  }
 
 
 
-    if (paidCredit) {
+  if (paidCredit) {
 
-      notifyPaymentSuccess(
+    notifyPaymentSuccess(
 
-        db,
+      db,
 
-        userId,
+      userId,
 
-        paidCredit.logId,
+      paidCredit.logId,
 
-        "결제 완료",
+      "결제 완료",
 
-        `포인트 충전 ₩${pkg.price.toLocaleString()} — 유료 ${pkg.paidPoints.toLocaleString()}P${
+      `포인트 충전 ₩${pkg.price.toLocaleString()} — 유료 ${pkg.paidPoints.toLocaleString()}P${
 
-          pkg.bonusPoints > 0 ? ` + 보너스 ${pkg.bonusPoints.toLocaleString()}P` : ""
+        pkg.bonusPoints > 0 ? ` + 보너스 ${pkg.bonusPoints.toLocaleString()}P` : ""
 
-        } 지급`
+      } 지급`
 
-      );
+    );
 
-    }
+  }
 
-  })();
+
 
 
 
