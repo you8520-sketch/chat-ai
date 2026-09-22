@@ -29,6 +29,10 @@ on:
       - "src/lib/portoneCheckout.ts"
       - "src/lib/pointCharge.ts"
       - "src/lib/pointChargePaymentBoundary.test.ts"
+      - "src/lib/chargeCancellation.ts"
+      - "src/lib/pointChargeRefund*.ts"
+      - "src/lib/pointUsageLog.ts"
+      - "src/components/ChargeCancelButton.tsx"
 
 permissions:
   contents: read
@@ -71,6 +75,9 @@ jobs:
 
       - name: Verified point-charge payment boundary
         run: node --conditions=react-server --import tsx --test src/lib/pointChargePaymentBoundary.test.ts
+
+      - name: Point-charge refund exactly-once
+        run: node --conditions=react-server --import tsx --test src/lib/pointChargeRefundExactlyOnce.test.ts
 
       - name: Typecheck app
         run: npm run typecheck:app
