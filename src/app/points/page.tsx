@@ -8,7 +8,6 @@ import {
   fetchPaidCreditLogsPage,
   fetchUsageLogsPage,
 } from "@/lib/pointLogsQuery";
-import { processDueRenewals } from "@/lib/subscription";
 import { isPortOneChargeEnabled, isPaymentsEnabled } from "@/lib/portoneConfig";
 import PointsClient from "./PointsClient";
 
@@ -18,17 +17,12 @@ export default async function PointsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  processDueRenewals();
-
-  const refreshed = await getSessionUser();
-  if (!refreshed) redirect("/login");
-
-  const usagePage = fetchUsageLogsPage(refreshed.id, 1);
-  const paidPage = fetchPaidCreditLogsPage(refreshed.id, 1);
-  const freePage = fetchFreeCreditLogsPage(refreshed.id, 1);
-  const balance = getPointBalance(refreshed.id);
-  const giftable = getGiftableBalance(refreshed.id);
-  const attendance = getAttendanceStatus(refreshed.id);
+  const usagePage = fetchUsageLogsPage(user.id, 1);
+  const paidPage = fetchPaidCreditLogsPage(user.id, 1);
+  const freePage = fetchFreeCreditLogsPage(user.id, 1);
+  const balance = getPointBalance(user.id);
+  const giftable = getGiftableBalance(user.id);
+  const attendance = getAttendanceStatus(user.id);
 
   return (
     <PointsClient
@@ -53,8 +47,8 @@ export default async function PointsPage() {
       initialAttendanceStreak={attendance.currentStreak}
       portoneEnabled={isPortOneChargeEnabled()}
       paymentsEnabled={isPaymentsEnabled()}
-      userEmail={refreshed.email}
-      userNickname={refreshed.nickname}
+      userEmail={user.email}
+      userNickname={user.nickname}
     />
   );
 }
