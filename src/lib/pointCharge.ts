@@ -4,13 +4,13 @@ import { recordPointChargeBatch } from "@/lib/chargeCancellation";
 
 import { POINT_CHARGE_PACKAGES_BY_ID, type PointChargePackageId } from "@/lib/plans";
 
-import { creditPointsWithIds, getPointBalance } from "@/lib/points";
+import { creditPointsWithIds, getPointBalanceOnDb } from "@/lib/points";
 
 import { notifyPaymentSuccess } from "@/lib/userNotifications";
 
 
 
-/** 포인트 충전 패키지 지급 (모의 결제·PortOne 승인 공통) */
+/** PortOne 서버 검증 완료 후 포인트 충전 패키지 지급 */
 
 export function creditPointChargePackage(
 
@@ -126,7 +126,7 @@ export function creditPointChargePackage(
 
 
 
-  return { pkg, balance: getPointBalance(userId) };
+  return { pkg, balance: getPointBalanceOnDb(db, userId) };
 
 }
 
