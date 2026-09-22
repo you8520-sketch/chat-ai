@@ -10,6 +10,10 @@ import {
 } from "@/lib/cheaperInferenceCatalogPricing";
 import { refreshCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing.server";
 import {
+  refreshDeepSeekOfficialProviderPricing,
+  type DeepSeekOfficialPricingRefreshResult,
+} from "@/lib/deepseekOfficialProviderPricing";
+import {
   MODEL_PRICING_TRACKER_PHASE,
   MODEL_PRICING_TRACKER_TIMEZONE,
   type ModelPricingTrackerPhase,
@@ -17,17 +21,21 @@ import {
 import {
   classifyCiCurrentChange,
   classifyCiReferenceChange,
+  classifyOfficialProviderBaselineMismatch,
+  classifyOfficialProviderPeakChange,
   classifyParserFailure,
   classifySourceConflict,
   type ClassifiedPriceChange,
 } from "@/lib/modelPriceChangeClassifier";
 import {
+  getModelPricingPolicy,
   getModelPricingPolicyWithPublished,
   listTrackedModelIds,
 } from "@/lib/modelPricingPolicy";
 import {
   buildCiCurrentSnapshot,
   buildCiReferenceSnapshot,
+  buildOfficialProviderPeakSnapshot,
   buildPublishedBaselineSnapshot,
 } from "@/lib/modelPriceSnapshot";
 import { getPublishedPricingVersion } from "@/lib/publishedModelPricing";
@@ -121,11 +129,135 @@ function checkMarginFloorBreach(params: {
   return realizedMargin < params.minimumMarginFloor;
 }
 
+function listOfficialProviderPeakTrackedModelIds(): string[] {
+  return listTrackedModelIds().filter(
+    (modelId) => getModelPricingPolicy(modelId)?.baselineMode === "PROVIDER_PEAK"
+  );
+}
+
+function persistOfficialProviderEvidence(params: {
+  db: Database.Database;
+  attemptId: number;
+  runDateKey: string;
+  officialResult: DeepSeekOfficialPricingRefreshResult;
+  publishedSnapshotsByModelId: Map<string, ReturnType<typeof buildPublishedBaselineSnapshot>>;
+  events: ClassifiedPriceChange[];
+  snapshotCountRef: { value: number };
+}): void {
+  const { db, attemptId, runDateKey, officialResult, publishedSnapshotsByModelId, events } = params;
+
+  if (!officialResult.ok) {
+    const parserEvent = classifyParserFailure({
+      modelId: "*",
+      sourceKind: "deepseek_official_pricing",
+      reason: officialResult.reason,
+      runDateKey,
+    });
+    persistClassifiedEvent(db, attemptId, "*", parserEvent, events);
+    insertAdminEvent(db, {
+      attemptId,
+      adminEventType: "PARSER_FAILED",
+      modelId: null,
+      source: "deepseek_official_pricing",
+      classification: officialResult.reason,
+      decision: parserEvent.decision,
+    });
+    return;
+  }
+
+  for (const failure of officialResult.identityFailures) {
+    insertAdminEvent(db, {
+      attemptId,
+      adminEventType: "PARSER_FAILED",
+      modelId: null,
+      source: "deepseek_official_pricing",
+      classification: failure.reason,
+      decision: "fail_closed_keep_active_price",
+      newValues: { providerModelIdentity: failure.providerModelIdentity },
+    });
+  }
+
+  for (const modelId of listOfficialProviderPeakTrackedModelIds()) {
+    const evidence = officialResult.peakEvidenceByCanonicalModelId.get(modelId);
+    if (!evidence) {
+      const parserEvent = classifyParserFailure({
+        modelId,
+        sourceKind: "deepseek_official_pricing",
+        reason: "official_provider_peak_evidence_missing",
+        runDateKey,
+      });
+      persistClassifiedEvent(db, attemptId, modelId, parserEvent, events);
+      insertAdminEvent(db, {
+        attemptId,
+        adminEventType: "PARSER_FAILED",
+        modelId,
+        source: "deepseek_official_pricing",
+        classification: parserEvent.classification,
+        decision: parserEvent.decision,
+        pricingVersion: getPublishedPricingVersion(modelId),
+      });
+      continue;
+    }
+
+    const officialPeak = buildOfficialProviderPeakSnapshot({ evidence });
+    const prevOfficialPeak = readLatestSnapshot(db, modelId, "official_provider_pricing");
+    insertPriceSnapshot(db, attemptId, officialPeak);
+    params.snapshotCountRef.value += 1;
+
+    for (const event of classifyOfficialProviderPeakChange({
+      modelId,
+      previous: prevOfficialPeak,
+      current: officialPeak,
+    })) {
+      persistClassifiedEvent(db, attemptId, modelId, event, events);
+      insertAdminEvent(db, {
+        attemptId,
+        adminEventType: "OFFICIAL_PROVIDER_PRICE_CHANGED_HOLD",
+        modelId,
+        source: "official_provider_pricing",
+        classification: event.classification,
+        decision: event.decision,
+        oldValues: event.oldValues,
+        newValues: event.newValues,
+        pricingVersion: getPublishedPricingVersion(modelId),
+      });
+    }
+
+    const publishedBaseline = publishedSnapshotsByModelId.get(modelId);
+    if (publishedBaseline) {
+      const mismatch = classifyOfficialProviderBaselineMismatch({
+        modelId,
+        officialPeak,
+        publishedBaseline,
+        runDateKey,
+      });
+      if (mismatch) {
+        persistClassifiedEvent(db, attemptId, modelId, mismatch, events);
+        insertAdminEvent(db, {
+          attemptId,
+          adminEventType: "OFFICIAL_PROVIDER_BASELINE_MISMATCH_HOLD",
+          modelId,
+          source: "official_provider_peak_vs_published",
+          classification: mismatch.classification,
+          decision: mismatch.decision,
+          oldValues: mismatch.oldValues,
+          newValues: mismatch.newValues,
+          pricingVersion: getPublishedPricingVersion(modelId),
+        });
+      }
+    }
+  }
+}
+
 export async function runModelPricingTracker(params?: {
   db: Database.Database;
   now?: Date;
   phase?: ModelPricingTrackerPhase;
   skipCatalogRefresh?: boolean;
+  /** TEST-ONLY: inject official DeepSeek evidence without network fetch. */
+  skipOfficialProviderRefresh?: boolean;
+  /** TEST-ONLY: pre-normalized official provider refresh result. */
+  officialProviderRefreshResult?: DeepSeekOfficialPricingRefreshResult;
 }): Promise<ModelPricingTrackerResult> {
   const db = params!.db;
   const now = params?.now ?? new Date();
@@ -214,6 +346,24 @@ export async function runModelPricingTracker(params?: {
       errors.push("fx_lookup_failed_using_fallback");
     }
 
+    let officialProviderResult: DeepSeekOfficialPricingRefreshResult | null = null;
+    if (params?.officialProviderRefreshResult) {
+      officialProviderResult = params.officialProviderRefreshResult;
+      if (!officialProviderResult.ok) {
+        errors.push(`deepseek_official_pricing:${officialProviderResult.reason}`);
+      }
+    } else if (params?.skipOfficialProviderRefresh !== true) {
+      officialProviderResult = await refreshDeepSeekOfficialProviderPricing();
+      if (!officialProviderResult.ok) {
+        errors.push(`deepseek_official_pricing:${officialProviderResult.reason}`);
+      }
+    }
+
+    const publishedSnapshotsByModelId = new Map<
+      string,
+      ReturnType<typeof buildPublishedBaselineSnapshot>
+    >();
+
     for (const modelId of listTrackedModelIds()) {
       const bundle = getModelPricingPolicyWithPublished(modelId);
       if (!bundle) continue;
@@ -246,6 +396,7 @@ export async function runModelPricingTracker(params?: {
       // is not a source observation, so it records the attempt start time.
       const sourceObservedAt = new Date(catalog.fetchedAt).toISOString();
       const publishedSnapshot = buildPublishedBaselineSnapshot({ policy, published, observedAt: startedAt });
+      publishedSnapshotsByModelId.set(modelId, publishedSnapshot);
       insertPriceSnapshot(db, attemptId, publishedSnapshot);
       snapshotCount += 1;
 
@@ -358,6 +509,20 @@ export async function runModelPricingTracker(params?: {
           pricingVersion: getPublishedPricingVersion(modelId),
         });
       }
+    }
+
+    if (officialProviderResult) {
+      const officialSnapshotCountRef = { value: 0 };
+      persistOfficialProviderEvidence({
+        db,
+        attemptId,
+        runDateKey,
+        officialResult: officialProviderResult,
+        publishedSnapshotsByModelId,
+        events,
+        snapshotCountRef: officialSnapshotCountRef,
+      });
+      snapshotCount += officialSnapshotCountRef.value;
     }
 
     finishTrackerRun(db, {

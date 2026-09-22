@@ -6,9 +6,9 @@
 import { CHEAPER_INFERENCE_BASE_URL } from "@/lib/cheaperInferenceConfig";
 
 /**
- * Phase A is OBSERVE_ONLY and has no activation owner. AUTO_APPLY semantics
- * return in Phase B together with official provider adapters and an
- * activation safety gate; no dormant auto-apply branch is kept here.
+ * Phase A/B1 is OBSERVE_ONLY and has no activation owner. AUTO_APPLY semantics
+ * return in a later phase together with an activation safety gate; no dormant
+ * auto-apply branch is kept here.
  */
 export type ModelPricingTrackerPhase = "OBSERVE_ONLY";
 
@@ -30,12 +30,17 @@ export const CHEAPER_INFERENCE_MODELS_SOURCE_URL = `${CHEAPER_INFERENCE_BASE_URL
 export type PriceSnapshotSourceKind =
   | "cheaper_inference_models_current"
   | "cheaper_inference_models_reference"
-  | "published_billing_baseline";
+  | "published_billing_baseline"
+  | "official_provider_pricing";
+
+/** Official DeepSeek provider pricing docs — structured table, no JSON endpoint. */
+export const DEEPSEEK_OFFICIAL_PRICING_SOURCE_URL =
+  "https://api-docs.deepseek.com/quick_start/pricing/";
 
 /**
  * What the source actually provided — never a product-policy decision.
- * `provider_standard` / `provider_peak` are reserved for OFFICIAL provider
- * evidence (Phase B adapters). CI catalog values are procurement-side quotes;
+ * `provider_standard` / `provider_peak` are assigned only from OFFICIAL provider
+ * evidence adapters. CI catalog values are procurement-side quotes;
  * published rows carry no per-row provenance evidence in Phase A (`unknown`).
  */
 export type PriceSnapshotPricingMode =
