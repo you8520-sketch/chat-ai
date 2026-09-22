@@ -150,6 +150,27 @@ function finalizeFailedWithRollback(
   })();
 }
 
+function recordTerminalOutcomeOrThrow(
+  db: Database.Database,
+  params: {
+    withdrawalId: number;
+    state: "SUCCEEDED" | "FAILED";
+    providerRef?: string;
+    failureCode?: string;
+    failureMessage?: string;
+  }
+): void {
+  const updated = recordTransferAttemptOutcome(db, params);
+  if (updated) return;
+
+  const current = getTransferAttemptByWithdrawalId(db, params.withdrawalId);
+  if (current?.state === params.state) return;
+
+  throw new Error(
+    `출금 #${params.withdrawalId} payout attempt terminal conflict: ${current?.state ?? "missing"} → ${params.state}`
+  );
+}
+
 function markReconciliationRequired(
   db: Database.Database,
   withdrawalId: number,
@@ -172,7 +193,7 @@ async function reconcileFromProviderLookup(
 ): Promise<SingleWithdrawalOutcome> {
   switch (lookup.status) {
     case "success":
-      recordTransferAttemptOutcome(db, {
+      recordTerminalOutcomeOrThrow(db, {
         withdrawalId: row.id,
         state: "SUCCEEDED",
         providerRef: lookup.providerRef,
@@ -189,7 +210,7 @@ async function reconcileFromProviderLookup(
       return "approved";
 
     case "failed":
-      recordTransferAttemptOutcome(db, {
+      recordTerminalOutcomeOrThrow(db, {
         withdrawalId: row.id,
         state: "FAILED",
         failureCode: lookup.code,
@@ -231,7 +252,7 @@ async function executeClaimedAttempt(
 ): Promise<SingleWithdrawalOutcome> {
   const account = parseAccountInfo(row.account_info);
   if (!account) {
-    recordTransferAttemptOutcome(db, {
+    recordTerminalOutcomeOrThrow(db, {
       withdrawalId: row.id,
       state: "FAILED",
       failureCode: "INVALID_ACCOUNT_INFO",
@@ -244,7 +265,7 @@ async function executeClaimedAttempt(
   const bankCode = resolveBankCode(account.bankName);
   if (!bankCode) {
     const reason = `미지원 은행: ${account.bankName}`;
-    recordTransferAttemptOutcome(db, {
+    recordTerminalOutcomeOrThrow(db, {
       withdrawalId: row.id,
       state: "FAILED",
       failureCode: "UNSUPPORTED_BANK",
@@ -283,7 +304,7 @@ async function executeClaimedAttempt(
   }
 
   if (result.resultClass === "success") {
-    recordTransferAttemptOutcome(db, {
+    recordTerminalOutcomeOrThrow(db, {
       withdrawalId: row.id,
       state: "SUCCEEDED",
       providerRef: result.providerRef,
@@ -301,7 +322,7 @@ async function executeClaimedAttempt(
   }
 
   if (result.resultClass === "failed") {
-    recordTransferAttemptOutcome(db, {
+    recordTerminalOutcomeOrThrow(db, {
       withdrawalId: row.id,
       state: "FAILED",
       failureCode: result.code,
