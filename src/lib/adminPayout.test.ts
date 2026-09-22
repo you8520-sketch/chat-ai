@@ -112,6 +112,7 @@ describe("admin payout application list", () => {
       failure_reason: "",
       provider_request_id: "",
       provider_ref: "",
+      execution_state: "",
       created_at: "2026-08-24",
       processed_at: null,
       nickname: "닉",
