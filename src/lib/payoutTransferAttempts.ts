@@ -102,15 +102,16 @@ export function recordTransferAttemptOutcome(
     failureCode?: string;
     failureMessage?: string;
   }
-): void {
-  db.prepare(
+): boolean {
+  const updated = db.prepare(
     `UPDATE payout_transfer_attempts
      SET state = ?,
          provider_ref = COALESCE(?, provider_ref),
          failure_code = COALESCE(?, failure_code),
          failure_message = COALESCE(?, failure_message),
          resolved_at = CASE WHEN ? IN ('SUCCEEDED','FAILED') THEN datetime('now') ELSE NULL END
-     WHERE withdrawal_id = ?`
+     WHERE withdrawal_id = ?
+       AND state NOT IN ('SUCCEEDED','FAILED')`
   ).run(
     params.state,
     params.providerRef ?? null,
@@ -119,4 +120,5 @@ export function recordTransferAttemptOutcome(
     params.state,
     params.withdrawalId
   );
+  return Number(updated.changes) > 0;
 }
