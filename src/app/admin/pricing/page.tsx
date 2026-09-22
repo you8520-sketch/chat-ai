@@ -67,6 +67,8 @@ import {
   GOOGLE_STANDARD_INTRO_VALID_THROUGH,
   simulateGemini37PolicyRow,
 } from "@/lib/gemini37PricingPolicy";
+import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
+import { MainRpPricingControlPlaneSection } from "@/components/admin/MainRpPricingControlPlaneSection";
 
 function PremiumModelPolicyHeader(props: {
   title: string;
@@ -400,11 +402,13 @@ export default async function AdminPricingPage() {
   const opus5MarginMatrix = buildPremiumMarginMatrix({ modelId: OPUS5_MODEL_ID, published: OPUS5_V2_PROPOSED });
   const gemini31FxMatrix = buildPremiumFxSensitivity({ modelId: GEMINI31_MODEL_ID, published: GEMINI31_V2_PROPOSED });
   const opus5FxMatrix = buildPremiumFxSensitivity({ modelId: OPUS5_MODEL_ID, published: OPUS5_V2_PROPOSED });
+  const mainRpControlPlane = buildMainRpPricingObservabilityProjection();
 
   return (
     <div className="mx-auto max-w-6xl p-6 text-sm text-zinc-100">
       <h1 className="text-xl font-bold">Pricing Diagnostics — Shadow Only (Phase 2)</h1>
       <p className="mt-2 text-zinc-400">USER BILLING BEHAVIOR_CHANGED: false · Published pricing is shadow only. Live discount does NOT control standard price.</p>
+      <MainRpPricingControlPlaneSection projection={mainRpControlPlane} />
       <section className="mt-6">
         <h2 className="font-semibold">Published Catalog</h2>
         <table className="mt-2 w-full border-collapse text-xs">
