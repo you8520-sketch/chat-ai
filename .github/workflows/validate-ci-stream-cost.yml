@@ -66,6 +66,10 @@ on:
       - "src/lib/deepseekOfficialProviderPricing.fixtures.ts"
       - "src/lib/modelPricingTracker.ts"
       - "src/lib/modelPricingTracker.test.ts"
+      - "src/lib/mainRpPricingObservability.ts"
+      - "src/lib/mainRpPricingObservability.test.ts"
+      - "src/components/admin/MainRpPricingControlPlaneSection.tsx"
+      - "src/app/admin/pricing/page.tsx"
       - "src/lib/deepseekPhase2PublishedBillingCutover.test.ts"
       - "src/lib/deepseekV4ProPublishedBilling.test.ts"
       - "src/lib/deepseekV4ProCompetitivePricingV4.test.ts"
@@ -129,6 +133,7 @@ jobs:
           src/lib/deepseekPhase2PublishedBillingCutover.test.ts
           src/lib/deepseekV4ProCompetitivePricingV4.test.ts
           src/lib/modelPricingTracker.test.ts
+          src/lib/mainRpPricingObservability.test.ts
 
       - name: Provider cost ledger single owner
         run: node --conditions=react-server --import tsx --test src/lib/providerCostSingleOwner.test.ts

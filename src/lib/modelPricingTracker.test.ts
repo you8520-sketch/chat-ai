@@ -2250,6 +2250,38 @@ describe("Phase B1 — DeepSeek official provider PEAK observer", () => {
     assert.ok(result.events.some((event) => event.eventType === "PARSER_FAILURE"));
     const attempt = findTrackerAttemptById(db, result.attemptId!);
     assert.equal(attempt?.status, "failed");
+    assert.ok(attempt?.error_summary && attempt.error_summary.length > 0);
+    assert.ok(attempt.error_summary.includes("deepseek_official_pricing"));
+  });
+
+  it("failure isolation: missing official peak evidence persists human-readable error_summary", async () => {
+    const db = makeDb();
+    seedDeepSeekOfficialObserverCatalogs();
+    const official = normalizeDeepSeekOfficialPricingDocument({
+      html: DEEPSEEK_OFFICIAL_PRICING_FIXTURE_P1.replace(
+        "DeepSeek-V4-Pro-0813",
+        "DeepSeek-V4-Pro-WRONG"
+      ),
+      observedAt: FIXED_NOW.toISOString(),
+    });
+    assert.equal(official.ok, true);
+    const result = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+      officialProviderRefreshResult: official,
+    });
+    assert.equal(result.status, "failed");
+    assert.ok(result.errors.some((error) => error.includes("identity")));
+    assert.ok(
+      result.errors.some((error) =>
+        error.includes("official_provider_peak_evidence_missing")
+      )
+    );
+    const attempt = findTrackerAttemptById(db, result.attemptId!);
+    assert.ok(attempt?.error_summary && attempt.error_summary.length > 0);
+    assert.ok(attempt.error_summary.includes("identity"));
   });
 
   it("same-day retry: failed official attempt reclaims and completes without duplicate transition", async () => {

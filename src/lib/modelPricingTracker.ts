@@ -91,12 +91,63 @@ function persistClassifiedEvent(
   return inserted;
 }
 
-const REPRESENTATIVE_WORKLOAD = {
+/** Tracker margin-floor representative workload — canonical read-only owner. */
+export const REPRESENTATIVE_TRACKER_WORKLOAD = {
   promptTokens: 10_000,
   outputTokens: 2_000,
   cacheReadTokens: 0,
   cacheWriteTokens: 0,
+} as const;
+
+export type TrackerMarginFloorEvaluation = {
+  breached: boolean;
+  realizedMargin: number;
+  userChargeKrw: number;
+  procurementCostKrw: number;
+  billingReferenceUsd: number;
+  workload: typeof REPRESENTATIVE_TRACKER_WORKLOAD;
 };
+
+/** Canonical tracker margin-floor evaluation — published BASE revenue vs CI current procurement. */
+export function evaluateTrackerMarginFloor(params: {
+  modelId: string;
+  catalog: CheaperInferenceCatalogPricing;
+  minimumMarginFloor: number;
+  effectiveKrwPerUsd: number;
+  publishedInputUsdPerMillion: number;
+  publishedOutputUsdPerMillion: number;
+  targetMargin: number;
+}): TrackerMarginFloorEvaluation | null {
+  const procurement = resolveProcurementCostFromCatalog({
+    modelId: params.modelId,
+    promptTokens: REPRESENTATIVE_TRACKER_WORKLOAD.promptTokens,
+    outputTokens: REPRESENTATIVE_TRACKER_WORKLOAD.outputTokens,
+    cacheReadTokens: REPRESENTATIVE_TRACKER_WORKLOAD.cacheReadTokens,
+    cacheWriteTokens: REPRESENTATIVE_TRACKER_WORKLOAD.cacheWriteTokens,
+    effectiveKrwPerUsd: params.effectiveKrwPerUsd,
+    catalog: params.catalog,
+  });
+  if (!procurement) return null;
+
+  const billingReferenceUsd =
+    (REPRESENTATIVE_TRACKER_WORKLOAD.promptTokens / 1_000_000) *
+      params.publishedInputUsdPerMillion +
+    (REPRESENTATIVE_TRACKER_WORKLOAD.outputTokens / 1_000_000) *
+      params.publishedOutputUsdPerMillion;
+  const billingRefKrw = billingReferenceUsd * params.effectiveKrwPerUsd;
+  const userChargeKrw = billingRefKrw / (1 - params.targetMargin);
+  if (!Number.isFinite(userChargeKrw) || userChargeKrw <= 0) return null;
+
+  const realizedMargin = (userChargeKrw - procurement.procurementCostKrw) / userChargeKrw;
+  return {
+    breached: realizedMargin < params.minimumMarginFloor,
+    realizedMargin,
+    userChargeKrw,
+    procurementCostKrw: procurement.procurementCostKrw,
+    billingReferenceUsd,
+    workload: REPRESENTATIVE_TRACKER_WORKLOAD,
+  };
+}
 
 function checkMarginFloorBreach(params: {
   modelId: string;
@@ -107,26 +158,27 @@ function checkMarginFloorBreach(params: {
   publishedOutputUsdPerMillion: number;
   targetMargin: number;
 }): boolean {
-  const procurement = resolveProcurementCostFromCatalog({
-    modelId: params.modelId,
-    promptTokens: REPRESENTATIVE_WORKLOAD.promptTokens,
-    outputTokens: REPRESENTATIVE_WORKLOAD.outputTokens,
-    cacheReadTokens: REPRESENTATIVE_WORKLOAD.cacheReadTokens,
-    cacheWriteTokens: REPRESENTATIVE_WORKLOAD.cacheWriteTokens,
-    effectiveKrwPerUsd: params.effectiveKrwPerUsd,
-    catalog: params.catalog,
-  });
-  if (!procurement) return false;
+  return evaluateTrackerMarginFloor(params)?.breached ?? false;
+}
 
-  const billingRefUsd =
-    (REPRESENTATIVE_WORKLOAD.promptTokens / 1_000_000) * params.publishedInputUsdPerMillion +
-    (REPRESENTATIVE_WORKLOAD.outputTokens / 1_000_000) * params.publishedOutputUsdPerMillion;
-  const billingRefKrw = billingRefUsd * params.effectiveKrwPerUsd;
-  const userChargeKrw = billingRefKrw / (1 - params.targetMargin);
-  if (!Number.isFinite(userChargeKrw) || userChargeKrw <= 0) return false;
-
-  const realizedMargin = (userChargeKrw - procurement.procurementCostKrw) / userChargeKrw;
-  return realizedMargin < params.minimumMarginFloor;
+function collectOfficialProviderAttemptErrors(
+  officialResult: DeepSeekOfficialPricingRefreshResult
+): string[] {
+  if (!officialResult.ok) {
+    return [`deepseek_official_pricing:${officialResult.reason}`];
+  }
+  const messages: string[] = [];
+  for (const failure of officialResult.identityFailures) {
+    messages.push(
+      `deepseek_official_pricing:identity:${failure.providerModelIdentity}:${failure.reason}`
+    );
+  }
+  for (const modelId of listDeepSeekOfficialCanonicalModelIds()) {
+    if (!officialResult.peakEvidenceByCanonicalModelId.has(modelId)) {
+      messages.push(`deepseek_official_pricing:${modelId}:official_provider_peak_evidence_missing`);
+    }
+  }
+  return messages;
 }
 
 function persistOfficialProviderEvidence(params: {
@@ -137,7 +189,7 @@ function persistOfficialProviderEvidence(params: {
   publishedSnapshotsByModelId: Map<string, ReturnType<typeof buildPublishedBaselineSnapshot>>;
   events: ClassifiedPriceChange[];
   snapshotCountRef: { value: number };
-}): { shouldFailAttempt: boolean } {
+}): { shouldFailAttempt: boolean; errorMessages: string[] } {
   const { db, attemptId, runDateKey, officialResult, publishedSnapshotsByModelId, events } = params;
 
   if (!officialResult.ok) {
@@ -156,7 +208,10 @@ function persistOfficialProviderEvidence(params: {
       classification: officialResult.reason,
       decision: parserEvent.decision,
     });
-    return { shouldFailAttempt: true };
+    return {
+      shouldFailAttempt: true,
+      errorMessages: collectOfficialProviderAttemptErrors(officialResult),
+    };
   }
 
   for (const failure of officialResult.identityFailures) {
@@ -244,7 +299,8 @@ function persistOfficialProviderEvidence(params: {
     }
   }
 
-  return { shouldFailAttempt };
+  const errorMessages = collectOfficialProviderAttemptErrors(officialResult);
+  return { shouldFailAttempt, errorMessages };
 }
 
 export async function runModelPricingTracker(params?: {
@@ -347,14 +403,8 @@ export async function runModelPricingTracker(params?: {
     let officialProviderResult: DeepSeekOfficialPricingRefreshResult | null = null;
     if (params?.officialProviderRefreshResult) {
       officialProviderResult = params.officialProviderRefreshResult;
-      if (!officialProviderResult.ok) {
-        errors.push(`deepseek_official_pricing:${officialProviderResult.reason}`);
-      }
     } else if (params?.skipOfficialProviderRefresh !== true) {
       officialProviderResult = await refreshDeepSeekOfficialProviderPricing();
-      if (!officialProviderResult.ok) {
-        errors.push(`deepseek_official_pricing:${officialProviderResult.reason}`);
-      }
     }
 
     const publishedSnapshotsByModelId = new Map<
@@ -523,14 +573,19 @@ export async function runModelPricingTracker(params?: {
       });
       snapshotCount += officialSnapshotCountRef.value;
       officialAttemptFailed = officialPersist.shouldFailAttempt;
+      for (const message of officialPersist.errorMessages) {
+        if (!errors.includes(message)) errors.push(message);
+      }
     }
 
     if (officialAttemptFailed) {
+      const errorSummary =
+        errors.length > 0 ? errors.join("; ") : "deepseek_official_pricing:attempt_failed";
       finishTrackerRun(db, {
         attemptId,
         status: "failed",
         finishedAt: isoNow(),
-        errorSummary: errors.join("; "),
+        errorSummary,
       });
       const persistedEventCount = countEventsForAttempt(db, attemptId);
       return {
