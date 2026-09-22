@@ -654,12 +654,12 @@ describe("deepseekV4ProCompetitivePricingV4 — tracker semantic-domain matrix T
     assert.ok(events.some((e) => e.action === "PROCUREMENT_ONLY"));
   });
 
-  it("T4: mocked official PEAK vs published PEAK stays dormant until Phase B adapter wires comparable domains", () => {
+  it("T4: official PEAK vs published PEAK uses OFFICIAL_PROVIDER_BASELINE_MISMATCH, not SOURCE_CONFLICT", () => {
     const publishedBaseline = buildPublishedBaselineSnapshot({ policy, published, observedAt });
     const mockOfficialPeak: ModelPriceSnapshotRecord = {
       ...publishedBaseline,
       pricingMode: "provider_peak",
-      sourceKind: "cheaper_inference_models_reference",
+      sourceKind: "official_provider_pricing",
       rates: {
         inputUsdPerMillion: 1.4,
         outputUsdPerMillion: 4.2,

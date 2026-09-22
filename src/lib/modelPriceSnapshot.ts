@@ -10,6 +10,7 @@ import {
   type PriceSnapshotSourceKind,
 } from "@/lib/modelPricingTrackingConfig";
 import type { ModelPricingPolicy } from "@/lib/modelPricingPolicy";
+import type { OfficialProviderPricingEvidence } from "@/lib/deepseekOfficialProviderPricing";
 import type { PublishedModelPricing } from "@/lib/publishedModelPricing";
 
 export type PriceRateSnapshot = {
@@ -119,6 +120,33 @@ export function buildCiReferenceSnapshot(params: {
     observedAt,
     validFrom: null,
     validUntil: null,
+  };
+}
+
+export function buildOfficialProviderPeakSnapshot(params: {
+  evidence: OfficialProviderPricingEvidence;
+}): ModelPriceSnapshotRecord {
+  const { evidence } = params;
+  const rates: PriceRateSnapshot = {
+    inputUsdPerMillion: finiteOrNull(evidence.inputUsdPerMillion),
+    outputUsdPerMillion: finiteOrNull(evidence.outputUsdPerMillion),
+    cacheReadUsdPerMillion: finiteOrNull(evidence.cacheReadUsdPerMillion),
+    cacheWriteUsdPerMillion: finiteOrNull(evidence.cacheWriteUsdPerMillion),
+    tierThreshold: null,
+    discountPercent: null,
+  };
+  return {
+    provider: evidence.provider,
+    modelId: evidence.canonicalModelId,
+    providerModelId: evidence.providerModelIdentity,
+    pricingMode: evidence.pricingMode,
+    sourceKind: "official_provider_pricing",
+    sourceUrl: evidence.sourceUrl,
+    rates,
+    rawFingerprint: evidence.rawFingerprint,
+    observedAt: evidence.observedAt,
+    validFrom: evidence.validFrom,
+    validUntil: evidence.validUntil,
   };
 }
 

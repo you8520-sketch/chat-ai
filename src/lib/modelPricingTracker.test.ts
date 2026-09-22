@@ -10,18 +10,29 @@ import { resetCheaperInferenceCatalogRefreshForTest } from "@/lib/cheaperInferen
 import {
   classifyCiCurrentChange,
   classifyCiReferenceChange,
+  classifyOfficialProviderBaselineMismatch,
   classifyParserFailure,
   classifySourceConflict,
 } from "@/lib/modelPriceChangeClassifier";
 import {
+  DEEPSEEK_OFFICIAL_PRICING_FIXTURE_P1,
+  DEEPSEEK_OFFICIAL_PRICING_FIXTURE_P2,
+} from "@/lib/deepseekOfficialProviderPricing.fixtures";
+import {
+  normalizeDeepSeekOfficialPricingDocument,
+  resetDeepSeekOfficialProviderPricingForTest,
+} from "@/lib/deepseekOfficialProviderPricing";
+import {
   buildCiCurrentSnapshot,
   buildCiReferenceSnapshot,
+  buildOfficialProviderPeakSnapshot,
   buildPublishedBaselineSnapshot,
 } from "@/lib/modelPriceSnapshot";
 import { getModelPricingPolicy } from "@/lib/modelPricingPolicy";
 import {
   CACHE_RATE_PROVENANCE_UNVERIFIED,
   CHEAPER_INFERENCE_MODELS_SOURCE_URL,
+  type PriceSnapshotSourceKind,
 } from "@/lib/modelPricingTrackingConfig";
 import { CHEAPER_INFERENCE_BASE_URL } from "@/lib/cheaperInferenceConfig";
 import { readFileSync } from "node:fs";
@@ -35,6 +46,7 @@ import {
   finishTrackerRun,
   insertAdminEvent,
   insertClassifiedEvent,
+  countSnapshotsForAttempt,
   insertPriceSnapshot,
   readLatestSnapshot,
 } from "@/lib/modelPricingTrackerPersistence";
@@ -46,6 +58,7 @@ import {
 } from "@/lib/publishedModelPricing";
 import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
 } from "@/lib/chatModels";
 
@@ -87,6 +100,7 @@ function seedCatalog(
 
 before(() => {
   clearCheaperInferenceCatalogPricingForTest();
+  resetDeepSeekOfficialProviderPricingForTest();
 });
 
 describe("model pricing tracker regression fixtures", () => {
@@ -319,6 +333,7 @@ describe("model pricing tracker regression fixtures", () => {
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(first.status, "completed");
     assert.ok(first.attemptId != null);
@@ -328,6 +343,7 @@ describe("model pricing tracker regression fixtures", () => {
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(second.status, "skipped_duplicate");
 
@@ -378,6 +394,7 @@ describe("model pricing tracker regression fixtures", () => {
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     seedCatalog(GEMINI, {
@@ -393,6 +410,7 @@ describe("model pricing tracker regression fixtures", () => {
       now: new Date("2026-09-21T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     const count = db.prepare(`SELECT COUNT(*) AS c FROM model_price_snapshots`).get() as { c: number };
@@ -618,6 +636,7 @@ describe("PR #992 correction fixtures (provenance + run-claim atomicity)", () =>
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(result.status, "skipped_duplicate");
     assert.equal(result.runId, claim.runId);
@@ -664,6 +683,7 @@ describe("PR #992 correction fixtures (provenance + run-claim atomicity)", () =>
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(result.status, "completed");
     assert.ok(result.events.every((e) => e.action !== "AUTO_APPLY_BASE"));
@@ -802,6 +822,7 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(result.status, "completed");
     assert.ok(result.attemptId != null);
@@ -855,6 +876,7 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       now: new Date("2026-09-19T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(day1.status, "completed");
 
@@ -882,6 +904,7 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(retry.status, "completed");
     // The tainted partial evidence is preserved append-only...
@@ -924,6 +947,7 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
         db,
         now: FIXED_NOW,
         phase: "OBSERVE_ONLY",
+        skipOfficialProviderRefresh: true,
       });
     } finally {
       if (savedCiKey != null) process.env.CHEAPER_INFERENCE_API_KEY = savedCiKey;
@@ -970,6 +994,7 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(retry.status, "completed");
     assert.equal(findTrackerRunByDateKey(db, "2026-09-20")?.status, "completed");
@@ -1167,6 +1192,7 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(result.status, "completed");
 
@@ -1268,6 +1294,7 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       now: new Date("2026-09-18T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     seedCatalog(DEEPSEEK, {
@@ -1283,6 +1310,7 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       now: new Date("2026-09-19T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(day2.status, "completed");
     assert.equal(countRateChangeEvents(db, DEEPSEEK), 1);
@@ -1304,6 +1332,7 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       now: new Date("2026-09-18T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     seedCatalog(DEEPSEEK, {
@@ -1319,6 +1348,7 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       now: new Date("2026-09-19T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     seedCatalog(DEEPSEEK, {
@@ -1334,6 +1364,7 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(day3.status, "completed");
     assert.equal(countRateChangeEvents(db, DEEPSEEK), 2);
@@ -1355,6 +1386,7 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       now: new Date("2026-09-17T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     seedCatalog(DEEPSEEK, {
@@ -1370,6 +1402,7 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       now: new Date("2026-09-18T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     seedCatalog(DEEPSEEK, {
@@ -1385,6 +1418,7 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       now: new Date("2026-09-19T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     assert.equal(countRateChangeEvents(db, DEEPSEEK), 2);
@@ -1565,6 +1599,7 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       now: new Date("2026-09-18T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     seedCatalog(DEEPSEEK, {
@@ -1580,6 +1615,7 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.ok(result.attemptId != null);
     const persisted = (
@@ -1607,6 +1643,7 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       now: new Date("2026-09-18T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     const sourceFetchedAt = Date.parse("2026-09-20T03:00:00.000Z");
@@ -1662,6 +1699,7 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(retry.status, "completed");
     assert.equal(countRateChangeEvents(db, DEEPSEEK), 1);
@@ -1754,6 +1792,7 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       now: new Date("2026-09-18T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     seedAllTracked(t1);
@@ -1817,6 +1856,7 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(retry.status, "completed");
     assert.equal(countRateChangeEvents(db, DEEPSEEK), 1);
@@ -1839,6 +1879,7 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       now: new Date("2026-09-17T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     seedAllTracked(Date.parse("2026-09-18T03:00:00.000Z"));
@@ -1855,6 +1896,7 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       now: new Date("2026-09-18T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     seedAllTracked(Date.parse("2026-09-19T03:00:00.000Z"));
@@ -1871,6 +1913,7 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       now: new Date("2026-09-19T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     seedAllTracked(Date.parse("2026-09-20T03:00:00.000Z"));
@@ -1887,6 +1930,7 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     assert.equal(countAtoBRateEvents(db, DEEPSEEK, 0.8), 2);
@@ -1944,6 +1988,7 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(retry.status, "completed");
     const deepseekParserEvents = (
@@ -1967,6 +2012,7 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       now: new Date("2026-09-19T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(day1.status, "completed");
     const day1Count = (
@@ -1982,6 +2028,7 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     assert.equal(day2.status, "completed");
     const day2Count = (
@@ -2008,6 +2055,7 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       now: new Date("2026-09-18T03:00:00.000Z"),
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
 
     seedAllTracked(Date.parse("2026-09-20T03:00:00.000Z"));
@@ -2069,6 +2117,7 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       now: FIXED_NOW,
       phase: "OBSERVE_ONLY",
       skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
     });
     const persisted = (
       db
@@ -2078,4 +2127,205 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
     assert.equal(retry.events.length, retry.eventCount);
     assert.equal(retry.eventCount, persisted);
   });
+});
+
+function seedDeepSeekOfficialObserverCatalogs(): void {
+  seedCatalog(DEEPSEEK, {
+    inputUsdPerMillion: 0.66,
+    outputUsdPerMillion: 1.98,
+    referenceInputUsdPerMillion: 1.32,
+    referenceOutputUsdPerMillion: 3.96,
+    discountPercent: 50,
+  });
+  seedCatalog(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, {
+    inputUsdPerMillion: 0.15,
+    outputUsdPerMillion: 0.6,
+    referenceInputUsdPerMillion: 0.3,
+    referenceOutputUsdPerMillion: 1.2,
+    discountPercent: 50,
+  });
+}
+
+describe("Phase B1 — DeepSeek official provider PEAK observer", () => {
+  const TRACKER_SOURCE_KINDS: PriceSnapshotSourceKind[] = [
+    "cheaper_inference_models_current",
+    "cheaper_inference_models_reference",
+    "published_billing_baseline",
+    "official_provider_pricing",
+  ];
+
+  function officialRefreshFromFixture(html: string, observedAt = FIXED_NOW.toISOString()) {
+    const normalized = normalizeDeepSeekOfficialPricingDocument({ html, observedAt });
+    assert.equal(normalized.ok, true);
+    return normalized;
+  }
+
+  it("architecture: official_provider_pricing source kind exists for same-domain PEAK corroboration", () => {
+    assert.ok(TRACKER_SOURCE_KINDS.includes("official_provider_pricing"));
+    const withoutOfficial = TRACKER_SOURCE_KINDS.filter((kind) => kind !== "official_provider_pricing");
+    assert.deepEqual(withoutOfficial, [
+      "cheaper_inference_models_current",
+      "cheaper_inference_models_reference",
+      "published_billing_baseline",
+    ]);
+  });
+
+  it("P1 integration: official PEAK snapshot persisted alongside CI + published", async () => {
+    const db = makeDb();
+    seedDeepSeekOfficialObserverCatalogs();
+    const official = officialRefreshFromFixture(DEEPSEEK_OFFICIAL_PRICING_FIXTURE_P1);
+    const result = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+      officialProviderRefreshResult: official,
+    });
+    assert.equal(result.status, "completed");
+    const officialSnapshot = readLatestSnapshot(db, DEEPSEEK, "official_provider_pricing");
+    assert.ok(officialSnapshot);
+    assert.equal(officialSnapshot!.pricingMode, "provider_peak");
+    assert.equal(officialSnapshot!.rates.inputUsdPerMillion, 1.32);
+    assert.equal(officialSnapshot!.rates.outputUsdPerMillion, 3.96);
+    assert.equal(officialSnapshot!.rates.cacheReadUsdPerMillion, 0.044);
+    const v41Official = readLatestSnapshot(db, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, "official_provider_pricing");
+    assert.ok(v41Official);
+    assert.equal(v41Official!.pricingMode, "provider_peak");
+    assert.equal(v41Official!.rates.inputUsdPerMillion, 0.3);
+    assert.ok(
+      result.events.every(
+        (event) =>
+          event.eventType !== "OFFICIAL_PROVIDER_PRICE_CHANGED" &&
+          event.eventType !== "OFFICIAL_PROVIDER_BASELINE_MISMATCH"
+      )
+    );
+    assert.equal(getPublishedPricing(DEEPSEEK).pricingVersion, 4);
+    assert.equal(getPublishedPricing(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL).pricingVersion, 1);
+  });
+
+  it("P2 integration: official PEAK change emits HOLD without mutating published price", async () => {
+    const db = makeDb();
+    seedDeepSeekOfficialObserverCatalogs();
+    const day1 = officialRefreshFromFixture(
+      DEEPSEEK_OFFICIAL_PRICING_FIXTURE_P1,
+      "2026-09-19T03:00:00.000Z"
+    );
+    await runModelPricingTracker({
+      db,
+      now: new Date("2026-09-19T03:00:00.000Z"),
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+      officialProviderRefreshResult: day1,
+    });
+    const day2 = officialRefreshFromFixture(
+      DEEPSEEK_OFFICIAL_PRICING_FIXTURE_P2,
+      "2026-09-20T03:00:00.000Z"
+    );
+    const result = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+      officialProviderRefreshResult: day2,
+    });
+    assert.ok(result.events.some((event) => event.eventType === "OFFICIAL_PROVIDER_PRICE_CHANGED"));
+    assert.equal(getPublishedPricing(DEEPSEEK).billingReferenceInputUsdPerMillion, 1.32);
+  });
+
+  it("failure isolation: CI OK + official fetch failure marks attempt FAILED with CI snapshots", async () => {
+    const db = makeDb();
+    seedDeepSeekOfficialObserverCatalogs();
+    const result = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+      officialProviderRefreshResult: { ok: false, reason: "DeepSeek official pricing timeout" },
+    });
+    assert.equal(result.status, "failed");
+    assert.ok(result.errors.some((error) => error.includes("deepseek_official_pricing")));
+    assert.ok(countSnapshotsForAttempt(db, result.attemptId!) > 0);
+    assert.equal(readLatestSnapshot(db, DEEPSEEK, "cheaper_inference_models_current"), null);
+    assert.equal(readLatestSnapshot(db, DEEPSEEK, "official_provider_pricing"), null);
+    assert.ok(result.events.some((event) => event.eventType === "PARSER_FAILURE"));
+    const attempt = findTrackerAttemptById(db, result.attemptId!);
+    assert.equal(attempt?.status, "failed");
+  });
+
+  it("same-day retry: failed official attempt reclaims and completes without duplicate transition", async () => {
+    const db = makeDb();
+    seedDeepSeekOfficialObserverCatalogs();
+    const failed = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+      officialProviderRefreshResult: { ok: false, reason: "DeepSeek official pricing timeout" },
+    });
+    assert.equal(failed.status, "failed");
+    assert.notEqual(failed.attemptId, null);
+    assert.equal(readLatestSnapshot(db, DEEPSEEK, "official_provider_pricing"), null);
+
+    const retry = await runModelPricingTracker({
+      db,
+      now: FIXED_NOW,
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+      officialProviderRefreshResult: officialRefreshFromFixture(DEEPSEEK_OFFICIAL_PRICING_FIXTURE_P1),
+    });
+    assert.equal(retry.status, "completed");
+    assert.notEqual(retry.attemptId, failed.attemptId);
+    assert.ok(readLatestSnapshot(db, DEEPSEEK, "official_provider_pricing"));
+    assert.ok(readLatestSnapshot(db, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, "official_provider_pricing"));
+    assert.equal(
+      retry.events.filter((event) => event.eventType === "OFFICIAL_PROVIDER_PRICE_CHANGED").length,
+      0
+    );
+    assert.equal(
+      retry.events.filter((event) => event.eventType === "OFFICIAL_PROVIDER_BASELINE_MISMATCH").length,
+      0
+    );
+  });
+
+  it("same-domain: official PEAK vs published mismatch emits OFFICIAL_PROVIDER_BASELINE_MISMATCH", () => {
+    const policy = getModelPricingPolicy(DEEPSEEK)!;
+    const published = buildPublishedBaselineSnapshot({
+      policy,
+      published: getPublishedPricing(DEEPSEEK),
+      observedAt: FIXED_NOW.toISOString(),
+    });
+    const official = buildOfficialProviderPeakSnapshot({
+      evidence: {
+        provider: "deepseek",
+        canonicalModelId: DEEPSEEK,
+        providerModelIdentity: "deepseek-v4-pro",
+        providerVersionLabel: "DeepSeek-V4-Pro-0813",
+        pricingMode: "provider_peak",
+        inputUsdPerMillion: 1.5,
+        outputUsdPerMillion: 4.5,
+        cacheReadUsdPerMillion: 0.05,
+        cacheWriteUsdPerMillion: null,
+        observedAt: FIXED_NOW.toISOString(),
+        validFrom: null,
+        validUntil: null,
+        sourceUrl: "fixture",
+        rawFingerprint: "fixture-official-peak-mismatch",
+      },
+    });
+    const mismatch = classifyOfficialProviderBaselineMismatch({
+      modelId: DEEPSEEK,
+      officialPeak: official,
+      publishedBaseline: published,
+      runDateKey: "2026-09-20",
+    });
+    assert.ok(mismatch);
+    assert.equal(mismatch!.eventType, "OFFICIAL_PROVIDER_BASELINE_MISMATCH");
+    assert.equal(classifySourceConflict({
+      modelId: DEEPSEEK,
+      ciReference: official,
+      publishedBaseline: published,
+      runDateKey: "2026-09-20",
+    }), null);
+  });
+
 });

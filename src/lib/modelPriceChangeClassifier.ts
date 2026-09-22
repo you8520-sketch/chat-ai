@@ -19,6 +19,8 @@ export type PriceChangeEventType =
   | "CI_REFERENCE_CHANGED_UNVERIFIED"
   | "OFFICIAL_TEMP_PROMOTION_STARTED"
   | "OFFICIAL_TEMP_PROMOTION_ENDED"
+  | "OFFICIAL_PROVIDER_PRICE_CHANGED"
+  | "OFFICIAL_PROVIDER_BASELINE_MISMATCH"
   | "PROCUREMENT_TIER_CHANGED"
   | "CI_MARKET_DISCOUNT_CHANGED"
   | "MODEL_ROUTING_CHANGED"
@@ -190,11 +192,8 @@ export function classifyCiCurrentChange(params: {
 /**
  * CI reference classification owner (Phase A).
  *
- * CI `reference_*` is a PROCUREMENT-side quote, not official provider evidence:
- * `PROVIDER_NORMAL_BASELINE_CHANGED` / `PROVIDER_SCHEDULED_BASELINE_CHANGED`
- * are reserved for the Phase B official provider source adapter (exact model
- * identity + pricing mode + official provenance + effectiveAt). Until that
- * owner exists, a CI reference change is always UNVERIFIED and held.
+ * CI `reference_*` is a PROCUREMENT-side quote, not official provider evidence.
+ * Official provider PEAK transitions use `OFFICIAL_PROVIDER_PRICE_CHANGED`.
  */
 export function classifyCiReferenceChange(params: {
   policy: ModelPricingPolicy;
@@ -259,6 +258,78 @@ export function classifyCiReferenceChange(params: {
   });
 
   return events;
+}
+
+/** Official provider PEAK transition — same semantic domain as previous official PEAK. */
+export function classifyOfficialProviderPeakChange(params: {
+  modelId: string;
+  previous: ModelPriceSnapshotRecord | null;
+  current: ModelPriceSnapshotRecord;
+}): ClassifiedPriceChange[] {
+  const events: ClassifiedPriceChange[] = [];
+  if (params.current.pricingMode !== "provider_peak") return events;
+  if (params.previous && snapshotBaselineRatesEqual(params.previous.rates, params.current.rates)) {
+    return events;
+  }
+  if (params.previous == null) return events;
+
+  const prev = params.previous.rates;
+  const next = params.current.rates;
+  const relativeDelta = maxRelativeRateDelta(prev, next);
+  const isLarge = relativeDelta >= MODEL_PRICING_LARGE_CHANGE_THRESHOLD;
+
+  events.push({
+    eventType: "OFFICIAL_PROVIDER_PRICE_CHANGED",
+    action: "HOLD",
+    decision: "official_provider_peak_changed_hold",
+    classification: isLarge ? "UNEXPECTED_LARGE_CHANGE" : "official_provider_peak_changed",
+    oldFingerprint: params.previous.rawFingerprint,
+    newFingerprint: params.current.rawFingerprint,
+    oldValues: ratesPayload(prev),
+    newValues: ratesPayload(next),
+    effectiveAt: params.current.observedAt,
+    eventFingerprint: transitionEventFingerprint({
+      eventType: "OFFICIAL_PROVIDER_PRICE_CHANGED",
+      modelId: params.modelId,
+      previous: params.previous,
+      newFingerprint: params.current.rawFingerprint,
+    }),
+  });
+  return events;
+}
+
+/**
+ * Official provider PEAK vs published product baseline — same semantic domain
+ * when product policy baselineMode is PROVIDER_PEAK (published rates are PEAK).
+ */
+export function classifyOfficialProviderBaselineMismatch(params: {
+  modelId: string;
+  officialPeak: ModelPriceSnapshotRecord;
+  publishedBaseline: ModelPriceSnapshotRecord;
+  runDateKey: string;
+}): ClassifiedPriceChange | null {
+  if (params.officialPeak.pricingMode !== "provider_peak") return null;
+  if (snapshotBaselineRatesEqual(params.officialPeak.rates, params.publishedBaseline.rates)) {
+    return null;
+  }
+  return {
+    eventType: "OFFICIAL_PROVIDER_BASELINE_MISMATCH",
+    action: "HOLD",
+    decision: "official_provider_peak_vs_published_hold",
+    classification: "official_provider_peak_vs_published_baseline_mismatch",
+    oldFingerprint: params.publishedBaseline.rawFingerprint,
+    newFingerprint: params.officialPeak.rawFingerprint,
+    oldValues: ratesPayload(params.publishedBaseline.rates),
+    newValues: ratesPayload(params.officialPeak.rates),
+    effectiveAt: params.officialPeak.observedAt,
+    eventFingerprint: buildPriceChangeEventOccurrenceFingerprint({
+      eventType: "OFFICIAL_PROVIDER_BASELINE_MISMATCH",
+      modelId: params.modelId,
+      oldFingerprint: params.publishedBaseline.rawFingerprint,
+      newFingerprint: params.officialPeak.rawFingerprint,
+      occurrenceDiscriminator: { runDateKey: params.runDateKey },
+    }),
+  };
 }
 
 export function classifyParserFailure(params: {
