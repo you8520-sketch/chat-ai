@@ -786,12 +786,9 @@ function migrate(db: Database.Database) {
       platform_fee REAL NOT NULL,
       payout_amount INTEGER NOT NULL,
       account_info TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'PENDING'
-        CHECK(status IN ('PENDING','PROCESSING','RECONCILIATION_REQUIRED','APPROVED','REJECTED','FAILED')),
+      status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING','APPROVED','REJECTED','FAILED')),
       failure_reason TEXT NOT NULL DEFAULT '',
       provider_ref TEXT NOT NULL DEFAULT '',
-      provider_request_id TEXT NOT NULL DEFAULT '',
-      claimed_at TEXT,
       resident_number TEXT NOT NULL DEFAULT '',
       id_card_url TEXT NOT NULL DEFAULT '',
       bankbook_url TEXT NOT NULL DEFAULT '',
@@ -804,7 +801,7 @@ function migrate(db: Database.Database) {
       ON withdrawal_requests(status, created_at);
   `);
   migrateWithdrawalRequestsQueue(db);
-  migrateWithdrawalRequestsPayoutStateMachine(db);
+  ensurePayoutTransferAttemptsSchema(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS report_refunds (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2142,74 +2139,6 @@ function migrateWithdrawalRequestsQueue(db: Database.Database) {
     `);
   }
 
-  migrateWithdrawalRequestsPayoutStateMachine(db);
-}
-
-function migrateWithdrawalRequestsPayoutStateMachine(db: Database.Database) {
-  const table = db
-    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='withdrawal_requests'")
-    .get();
-  if (!table) return;
-
-  const cols = db.prepare("PRAGMA table_info(withdrawal_requests)").all() as { name: string }[];
-  const names = new Set(cols.map((c) => c.name));
-
-  if (!names.has("provider_request_id")) {
-    db.exec(
-      "ALTER TABLE withdrawal_requests ADD COLUMN provider_request_id TEXT NOT NULL DEFAULT ''"
-    );
-  }
-  if (!names.has("claimed_at")) {
-    db.exec("ALTER TABLE withdrawal_requests ADD COLUMN claimed_at TEXT");
-  }
-
-  const ddl = db
-    .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='withdrawal_requests'")
-    .get() as { sql: string } | undefined;
-  const sql = ddl?.sql ?? "";
-  if (sql.includes("'PROCESSING'") && sql.includes("'RECONCILIATION_REQUIRED'")) {
-    return;
-  }
-
-  db.exec(`
-    CREATE TABLE withdrawal_requests_payout_v3 (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      requested_cp REAL NOT NULL,
-      tax_amount REAL NOT NULL,
-      platform_fee REAL NOT NULL,
-      payout_amount INTEGER NOT NULL,
-      account_info TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'PENDING'
-        CHECK(status IN ('PENDING','PROCESSING','RECONCILIATION_REQUIRED','APPROVED','REJECTED','FAILED')),
-      failure_reason TEXT NOT NULL DEFAULT '',
-      provider_ref TEXT NOT NULL DEFAULT '',
-      provider_request_id TEXT NOT NULL DEFAULT '',
-      claimed_at TEXT,
-      resident_number TEXT NOT NULL DEFAULT '',
-      id_card_url TEXT NOT NULL DEFAULT '',
-      bankbook_url TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      processed_at TEXT
-    );
-    INSERT INTO withdrawal_requests_payout_v3
-      (id, user_id, requested_cp, tax_amount, platform_fee, payout_amount, account_info, status,
-       failure_reason, provider_ref, provider_request_id, claimed_at,
-       resident_number, id_card_url, bankbook_url, created_at, processed_at)
-    SELECT id, user_id, requested_cp, tax_amount, platform_fee, payout_amount, account_info, status,
-           COALESCE(failure_reason, ''), COALESCE(provider_ref, ''), COALESCE(provider_request_id, ''), claimed_at,
-           COALESCE(resident_number, ''), COALESCE(id_card_url, ''), COALESCE(bankbook_url, ''),
-           created_at, processed_at
-    FROM withdrawal_requests;
-    DROP TABLE withdrawal_requests;
-    ALTER TABLE withdrawal_requests_payout_v3 RENAME TO withdrawal_requests;
-    CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_user
-      ON withdrawal_requests(user_id, created_at);
-    CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_status
-      ON withdrawal_requests(status, created_at);
-  `);
-
-  ensurePayoutTransferAttemptsSchema(db);
 }
 
 function migratePointsLedger(db: Database.Database) {
