@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { ensurePayoutTransferAttemptsSchema } from "@/lib/payoutTransferAttempts";
 import {
   formatAccountInfoLabel,
   parseAccountInfo,
@@ -146,6 +147,7 @@ export function listAdminPayoutApplications(
   status: AdminPayoutStatusFilter = "all",
   limit = 200
 ): AdminPayoutApplicationRow[] {
+  ensurePayoutTransferAttemptsSchema(db);
   const capped = Math.min(Math.max(1, Math.floor(limit)), 500);
   const rows =
     status === "all"
