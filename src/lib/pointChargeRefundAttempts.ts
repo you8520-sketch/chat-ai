@@ -52,7 +52,6 @@ export function getPointChargeRefundAttempt(
   db: Database.Database,
   chargeBatchId: number
 ): PointChargeRefundAttemptRow | null {
-  ensurePointChargeRefundAttemptsSchema(db);
   const row = db
     .prepare(
       `SELECT id, charge_batch_id, portone_checkout_id, payment_id, refund_request_id,
@@ -73,7 +72,6 @@ export function insertRefundAttempt(
     paymentId: string;
   }
 ): boolean {
-  ensurePointChargeRefundAttemptsSchema(db);
   const result = db
     .prepare(
       `INSERT OR IGNORE INTO point_charge_refund_attempts
