@@ -42,7 +42,7 @@ const EMPTY_COST_EVIDENCE: ActualProductionCostEvidence = {
 
 /** Admin Finance free spend is points — never KRW. */
 export function formatActualFreePointSpend(points: number): string {
-  return `${Math.round(points).toLocaleString()}P`;
+  return `${points.toLocaleString()}P`;
 }
 
 /**

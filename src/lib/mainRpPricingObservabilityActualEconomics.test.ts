@@ -604,6 +604,7 @@ describe("mainRpPricingObservability B2B actual production economics", () => {
 
   it("freePointSpend renders as points (P), not KRW", () => {
     assert.equal(formatActualFreePointSpend(80), "80P");
+    assert.equal(formatActualFreePointSpend(83.5), "83.5P");
     assert.doesNotMatch(formatActualFreePointSpend(80), /KRW/i);
     const db = financeDb();
     insertMessage(db, 13, {
