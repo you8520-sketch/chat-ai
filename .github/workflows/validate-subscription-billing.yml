@@ -1,0 +1,35 @@
+name: Validate subscription billing safety
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/subscription.ts"
+      - "src/lib/subscriptionBillingSafety.test.ts"
+      - "src/app/api/points/subscribe/**"
+      - "src/app/api/cron/subscription-renew/**"
+      - "src/app/points/page.tsx"
+      - ".github/workflows/validate-subscription-billing.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SESSION_SECRET: "01234567890123456789012345678901"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+      - run: node --conditions=react-server --import tsx --test src/lib/subscriptionBillingSafety.test.ts
+      - run: npm run typecheck:app
+      - run: npm run build
