@@ -2138,7 +2138,6 @@ function migrateWithdrawalRequestsQueue(db: Database.Database) {
         ON withdrawal_requests(status, created_at);
     `);
   }
-
 }
 
 function migratePointsLedger(db: Database.Database) {
