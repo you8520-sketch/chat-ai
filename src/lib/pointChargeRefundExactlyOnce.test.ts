@@ -7,6 +7,7 @@ import Database from "better-sqlite3";
 import {
   ensurePointChargeBatchTable,
   recordPointChargeBatch,
+  resolveChargeBatchForUser,
 } from "@/lib/chargeCancellation";
 import {
   executePointChargeRefund,
@@ -496,7 +497,31 @@ describe("point charge refund exactly-once — regression", () => {
     db.close();
   });
 
-  it("9. cancellation request uses amount consistency guard", async () => {
+  it("9. legacy backfill never guesses PortOne payment identity from time/amount proximity", async () => {
+    const db = new Database(":memory:");
+    createSchema(db);
+    const charge = seedCharge(db);
+
+    db.prepare("DELETE FROM point_charge_batches WHERE id=?").run(charge.batchId);
+    const rebuilt = resolveChargeBatchForUser(charge.userId, charge.pointLogId, db);
+    assert.ok(rebuilt);
+    assert.equal(rebuilt.portone_checkout_id, null);
+
+    const provider = makeProvider({
+      resultClass: "success",
+      cancellationId: "must-not-refund-guessed-payment",
+      providerStatus: "SUCCEEDED",
+    });
+    setPointChargeRefundProviderForTests(provider);
+
+    const result = await executePointChargeRefund(charge.userId, charge.pointLogId, db);
+    assert.equal(result.ok, false);
+    assert.equal(provider.cancelCount, 0);
+    assert.equal(txAmount(db, charge.paidTxId), charge.paid);
+    db.close();
+  });
+
+  it("10. cancellation request uses amount consistency guard", async () => {
     const db = new Database(":memory:");
     createSchema(db);
     const charge = seedCharge(db);
@@ -516,7 +541,7 @@ describe("point charge refund exactly-once — regression", () => {
     db.close();
   });
 
-  it("10. terminal SUCCEEDED state cannot be overwritten by stale reconciliation", () => {
+  it("11. terminal SUCCEEDED state cannot be overwritten by stale reconciliation", () => {
     const db = new Database(":memory:");
     createSchema(db);
     const charge = seedCharge(db);
@@ -545,7 +570,7 @@ describe("point charge refund exactly-once — regression", () => {
     db.close();
   });
 
-  it("11. two workers cannot dispatch the provider cancel twice", async () => {
+  it("12. two workers cannot dispatch the provider cancel twice", async () => {
     const dbPath = path.join(os.tmpdir(), `refund-concurrency-${process.pid}.db`);
     fs.rmSync(dbPath, { force: true });
     const dbA = new Database(dbPath);
