@@ -25,6 +25,23 @@ function cp(value: number) {
   return `${Number(value).toLocaleString()}CP`;
 }
 
+function executionStateLabel(state: string) {
+  switch (state) {
+    case "CLAIMED":
+      return "송금 준비";
+    case "DISPATCHED":
+      return "송금 요청 전송됨";
+    case "RECONCILIATION_REQUIRED":
+      return "송금 결과 확인 필요";
+    case "SUCCEEDED":
+      return "송금 성공 확인";
+    case "FAILED":
+      return "송금 실패 확인";
+    default:
+      return state;
+  }
+}
+
 function statusClass(status: string) {
   switch (status) {
     case "APPROVED":
@@ -258,8 +275,29 @@ export default function AdminPayoutExportClient() {
                       신청 {row.createdAt}
                       {row.processedAt ? ` · 처리 ${row.processedAt}` : ""}
                     </p>
+                    {row.executionState ? (
+                      <p
+                        className={`mt-1 text-xs ${
+                          row.executionState === "RECONCILIATION_REQUIRED"
+                            ? "text-amber-300"
+                            : "text-zinc-500"
+                        }`}
+                      >
+                        실행 상태: {executionStateLabel(row.executionState)}
+                        {row.providerRequestId ? ` · 요청 ID ${row.providerRequestId}` : ""}
+                      </p>
+                    ) : null}
                     {row.failureReason ? (
-                      <p className="mt-1 text-xs text-rose-300">실패 사유: {row.failureReason}</p>
+                      <p
+                        className={`mt-1 text-xs ${
+                          row.executionState === "RECONCILIATION_REQUIRED"
+                            ? "text-amber-300"
+                            : "text-rose-300"
+                        }`}
+                      >
+                        {row.executionState === "RECONCILIATION_REQUIRED" ? "확인 사유" : "실패 사유"}:{" "}
+                        {row.failureReason}
+                      </p>
                     ) : null}
                   </div>
                   <div className="text-right text-xs text-zinc-300">
