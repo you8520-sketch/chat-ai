@@ -16,21 +16,35 @@ function formatUsdPair(input: number | null, output: number | null): string {
   return `$${input}/${output} per M`;
 }
 
-function marginStatusLabel(status: RealizedMarginDiagnosticStatus): string {
-  switch (status) {
-    case "healthy":
-      return "healthy";
-    case "below_floor":
-      return "below-floor";
-    case "blocked":
-      return "blocked";
-    case "unavailable":
-      return "unavailable";
-    default: {
-      const _exhaustive: never = status;
-      return _exhaustive;
+function marginStatusLabel(
+  status: RealizedMarginDiagnosticStatus,
+  freshness: ProcurementFreshnessState,
+  underlying: "healthy" | "below_floor" | null
+): string {
+  const base = (() => {
+    switch (status) {
+      case "healthy":
+        return "healthy";
+      case "below_floor":
+        return "below-floor";
+      case "blocked":
+        return "blocked";
+      case "unavailable":
+        return "unavailable";
+      default: {
+        const _exhaustive: never = status;
+        return _exhaustive;
+      }
     }
+  })();
+  if (freshness !== "FRESH" && underlying != null) {
+    const verdict = underlying === "below_floor" ? "below-floor" : "healthy";
+    return `${base} (${verdict} on ${freshness} evidence)`;
   }
+  if (freshness !== "FRESH" && status === "unavailable") {
+    return `${base} (${freshness} evidence)`;
+  }
+  return base;
 }
 
 function procurementRateLabel(freshness: ProcurementFreshnessState): string {
@@ -92,7 +106,11 @@ function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
           <dl className="mt-1 space-y-1">
             <div><dt className="inline text-zinc-500">benchmark </dt><dd className="inline">{row.market.competitorPoints ?? "UNKNOWN"}P · {row.market.comparabilityStatus}</dd></div>
             {row.market.ourBenchmarkWorkloadLabel ? (
-              <div><dt className="inline text-zinc-500">our @ benchmark </dt><dd className="inline">{row.market.ourChargeAtBenchmarkPoints ?? "UNKNOWN"}P @ {row.market.ourBenchmarkWorkloadLabel}</dd></div>
+              <div><dt className="inline text-zinc-500">our @ benchmark </dt><dd className="inline">{row.market.ourChargeAtBenchmarkPoints ?? "UNKNOWN"}P @ {row.market.ourBenchmarkWorkloadLabel} ({row.market.ourProductionBillingBasis} · {row.market.ourProductionBillingContract})</dd></div>
+            ) : null}
+            {row.market.publishedChargeAtBenchmarkPoints != null &&
+            row.market.ourProductionBillingBasis === "legacy" ? (
+              <div><dt className="inline text-zinc-500">published @ benchmark </dt><dd className="inline">{row.market.publishedChargeAtBenchmarkPoints}P (diagnostic only)</dd></div>
             ) : null}
             <div><dt className="inline text-zinc-500">Δ same-workload </dt><dd className="inline">{row.market.differenceVsBenchmarkPoints != null ? `${row.market.differenceVsBenchmarkPoints > 0 ? "+" : ""}${row.market.differenceVsBenchmarkPoints.toFixed(1)}P` : "n/a"}</dd></div>
             <div><dt className="inline text-zinc-500">age </dt><dd className="inline">{row.market.benchmarkAgeLabel}</dd></div>
@@ -133,7 +151,10 @@ function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
             <div><dt className="inline text-zinc-500">target / floor </dt><dd className="inline">{formatPct(row.margin.targetMargin)} / {formatPct(row.margin.minimumMarginFloor)}</dd></div>
             <div><dt className="inline text-zinc-500">realized </dt><dd className="inline">{formatPct(row.margin.realizedMargin)} ({row.margin.realizedMarginProvenance}, {row.margin.realizedMarginRevenueUnit})</dd></div>
             <div><dt className="inline text-zinc-500">tracker </dt><dd className="inline">{formatPct(row.margin.trackerAlignedRealizedMargin)}</dd></div>
-            <div><dt className="inline text-zinc-500">status </dt><dd className="inline">{marginStatusLabel(row.margin.status)}</dd></div>
+            <div><dt className="inline text-zinc-500">status </dt><dd className="inline">{marginStatusLabel(row.margin.status, row.margin.procurementCostFreshness, row.margin.underlyingFloorVerdict)}</dd></div>
+            {row.margin.procurementCostFreshness !== "FRESH" ? (
+              <div><dt className="inline text-zinc-500">procurement freshness </dt><dd className="inline">{row.margin.procurementCostFreshness}</dd></div>
+            ) : null}
           </dl>
         </div>
       </div>

@@ -50,6 +50,7 @@ import { previewShadowBillingFxSnapshot } from "@/lib/shadowBillingExchangeRate"
 export type ProcurementCostProvenance =
   | "ACTUAL_UPSTREAM_BILLED"
   | "CI_CURRENT_ESTIMATE"
+  | "CI_STALE_ESTIMATE"
   | "UNSUPPORTED"
   | "UNKNOWN";
 
@@ -65,6 +66,13 @@ export type RealizedMarginRevenueUnit =
   | "unavailable";
 
 export type PricingSemanticDomain = "MARKET" | "PROVIDER" | "PROCUREMENT" | "PRODUCT" | "PROMOTION" | "MARGIN";
+
+export type ProductionBillingContractLabel =
+  | "published_phase1_when_enabled"
+  | "published_phase1_capable_legacy_fallback"
+  | "published_phase2_when_direct_selected"
+  | "published_phase2_capable_legacy_fallback"
+  | "legacy_proportional_ci_catalog";
 
 export type MarketComparabilityStatus =
   | "hard_comparable"
@@ -83,8 +91,12 @@ export type MarketBenchmarkObservation = {
   observedAt: string | null;
   sourceLabel: string | null;
   comparabilityStatus: MarketComparabilityStatus;
-  /** OUR charge at the benchmark token workload (same-workload only). */
+  /** OUR representative production charge at the benchmark token workload (same-workload only). */
   ourChargeAtBenchmarkPoints: number | null;
+  /** Published BASE charge at benchmark workload — diagnostic only, not live contract when legacy. */
+  publishedChargeAtBenchmarkPoints: number | null;
+  ourProductionBillingBasis: "published" | "legacy";
+  ourProductionBillingContract: ProductionBillingContractLabel;
   ourBenchmarkWorkloadLabel: string | null;
   differenceVsBenchmarkPoints: number | null;
   benchmarkAgeLabel: string;
@@ -129,13 +141,6 @@ export type ProcurementObservation = {
   representativeProcurementCostKrw: number | null;
 };
 
-export type ProductionBillingContractLabel =
-  | "published_phase1_when_enabled"
-  | "published_phase1_capable_legacy_fallback"
-  | "published_phase2_when_direct_selected"
-  | "published_phase2_capable_legacy_fallback"
-  | "legacy_proportional_ci_catalog";
-
 export type ProductObservation = {
   domain: "PRODUCT";
   publishedInputUsdPerMillion: number;
@@ -171,6 +176,9 @@ export type MarginObservation = {
   realizedMarginRevenueUnit: RealizedMarginRevenueUnit;
   trackerAlignedRealizedMargin: number | null;
   status: RealizedMarginDiagnosticStatus;
+  /** Tracker floor verdict before stale/absent procurement gating — diagnostic only. */
+  underlyingFloorVerdict: "healthy" | "below_floor" | null;
+  procurementCostFreshness: ProcurementFreshnessState;
   trackerMarginFloorBreached: boolean | null;
 };
 
@@ -336,8 +344,9 @@ function marketObservation(params: {
       outputTokens: primary.displayedOutputTokens,
       fxSnapshot: params.fxSnapshot,
     });
-    // MARKET compares published BASE at the benchmark workload — not tracker 10k/2k.
-    const ourPoints = charge.publishedPoints ?? charge.legacyPoints;
+    const ourPoints = charge.usesPublishedPath
+      ? charge.publishedPoints
+      : charge.legacyPoints;
     const diff =
       ourPoints != null ? ourPoints - primary.competitorChargePoints : null;
     return {
@@ -352,6 +361,9 @@ function marketObservation(params: {
       sourceLabel: primary.sourceLabel,
       comparabilityStatus: "hard_comparable",
       ourChargeAtBenchmarkPoints: ourPoints,
+      publishedChargeAtBenchmarkPoints: charge.publishedPoints,
+      ourProductionBillingBasis: charge.usesPublishedPath ? "published" : "legacy",
+      ourProductionBillingContract: charge.contract,
       ourBenchmarkWorkloadLabel: `${primary.inputTokens.toLocaleString()} prompt / ${primary.displayedOutputTokens.toLocaleString()} output`,
       differenceVsBenchmarkPoints: diff,
       benchmarkAgeLabel: "UNKNOWN",
@@ -360,6 +372,7 @@ function marketObservation(params: {
 
   const anchor = params.published.marketBenchmark;
   if (anchor) {
+    const contractInfo = resolveProductionBillingContractSemantic(params.modelId);
     return {
       domain: "MARKET",
       benchmarkId: "published_market_anchor",
@@ -372,12 +385,16 @@ function marketObservation(params: {
       sourceLabel: "publishedModelPricing.marketBenchmark",
       comparabilityStatus: "published_anchor",
       ourChargeAtBenchmarkPoints: null,
+      publishedChargeAtBenchmarkPoints: null,
+      ourProductionBillingBasis: contractInfo.usesPublishedPath ? "published" : "legacy",
+      ourProductionBillingContract: contractInfo.contract,
       ourBenchmarkWorkloadLabel: null,
       differenceVsBenchmarkPoints: null,
       benchmarkAgeLabel: benchmarkAgeLabel(params.published.publishedAt),
     };
   }
 
+  const contractInfo = resolveProductionBillingContractSemantic(params.modelId);
   return {
     domain: "MARKET",
     benchmarkId: null,
@@ -390,6 +407,9 @@ function marketObservation(params: {
     sourceLabel: null,
     comparabilityStatus: "absent",
     ourChargeAtBenchmarkPoints: null,
+    publishedChargeAtBenchmarkPoints: null,
+    ourProductionBillingBasis: contractInfo.usesPublishedPath ? "published" : "legacy",
+    ourProductionBillingContract: contractInfo.contract,
     ourBenchmarkWorkloadLabel: null,
     differenceVsBenchmarkPoints: null,
     benchmarkAgeLabel: "UNKNOWN",
@@ -445,10 +465,6 @@ function providerObservation(
   }
 
   if (cached) {
-    const cachedMs = Date.parse(cached.observedAt);
-    const isSupplemental =
-      persisted == null &&
-      Number.isFinite(cachedMs);
     return {
       domain: "PROVIDER",
       officialInputUsdPerMillion: cached.inputUsdPerMillion,
@@ -457,7 +473,7 @@ function providerObservation(
       pricingMode: policy?.baselineMode ?? "PROVIDER_PEAK",
       observedAt: cached.observedAt,
       sourceLabel: cached.sourceUrl,
-      evidenceStatus: isSupplemental ? "live_cached_supplemental" : "live_cached_supplemental",
+      evidenceStatus: "live_cached_supplemental",
     };
   }
 
@@ -596,7 +612,7 @@ function procurementObservation(params: {
     ciFreshnessState,
     ciEvidenceSource,
     actualUpstreamBilledUsd: null,
-    provenance: "CI_CURRENT_ESTIMATE",
+    provenance: ciFreshnessState === "STALE" ? "CI_STALE_ESTIMATE" : "CI_CURRENT_ESTIMATE",
     representativeProcurementCostKrw: procurement?.procurementCostKrw ?? null,
   };
 }
@@ -667,12 +683,16 @@ function marginObservation(params: {
   let provenance: ProcurementCostProvenance = params.procurement.provenance;
   let revenueUnit: RealizedMarginRevenueUnit = "unavailable";
 
+  const ciEstimateProvenance =
+    params.procurement.provenance === "CI_CURRENT_ESTIMATE" ||
+    params.procurement.provenance === "CI_STALE_ESTIMATE";
+
   if (
     params.usesPublishedPath &&
     params.productionChargeKrw != null &&
     params.productionChargeKrw > 0 &&
     params.procurement.representativeProcurementCostKrw != null &&
-    params.procurement.provenance === "CI_CURRENT_ESTIMATE"
+    ciEstimateProvenance
   ) {
     realizedMargin =
       (params.productionChargeKrw - params.procurement.representativeProcurementCostKrw) /
@@ -693,21 +713,36 @@ function marginObservation(params: {
     params.productionChargePoints != null &&
     params.productionChargePoints > 0 &&
     params.procurement.representativeProcurementCostKrw != null &&
-    params.procurement.provenance === "CI_CURRENT_ESTIMATE"
+    ciEstimateProvenance
   ) {
     realizedMargin =
       (params.productionChargePoints - params.procurement.representativeProcurementCostKrw) /
       params.productionChargePoints;
-    provenance = "CI_CURRENT_ESTIMATE";
+    provenance = params.procurement.provenance;
     revenueUnit = "legacy_points_proxy";
-  } else {
+  } else if (params.procurement.provenance === "UNKNOWN" || params.procurement.provenance === "UNSUPPORTED") {
+    provenance = params.procurement.provenance;
+  } else if (realizedMargin == null) {
     provenance = "UNKNOWN";
   }
 
-  let status: RealizedMarginDiagnosticStatus = "unavailable";
+  const procurementFreshness = params.procurement.ciFreshnessState;
+  let underlyingFloorVerdict: "healthy" | "below_floor" | null = null;
   if (trackerEval != null) {
-    status = trackerEval.breached ? "below_floor" : "healthy";
+    underlyingFloorVerdict = trackerEval.breached ? "below_floor" : "healthy";
   } else if (realizedMargin != null) {
+    underlyingFloorVerdict =
+      realizedMargin < params.published.minimumMarginFloor ? "below_floor" : "healthy";
+  }
+
+  let status: RealizedMarginDiagnosticStatus = "unavailable";
+  if (procurementFreshness === "FRESH" && underlyingFloorVerdict != null) {
+    status = underlyingFloorVerdict;
+  } else if (
+    procurementFreshness === "FRESH" &&
+    params.procurement.provenance === "ACTUAL_UPSTREAM_BILLED" &&
+    realizedMargin != null
+  ) {
     status =
       realizedMargin < params.published.minimumMarginFloor ? "below_floor" : "healthy";
   }
@@ -721,6 +756,8 @@ function marginObservation(params: {
     realizedMarginRevenueUnit: revenueUnit,
     trackerAlignedRealizedMargin: trackerEval?.realizedMargin ?? null,
     status,
+    underlyingFloorVerdict,
+    procurementCostFreshness: procurementFreshness,
     trackerMarginFloorBreached: trackerEval?.breached ?? null,
   };
 }

@@ -50,6 +50,51 @@ const FX_FIXTURE: BillingFxSnapshot = {
 const NOW = new Date("2026-09-22T12:00:00.000Z");
 const MAIN_RP_SET = new Set<string>(MAIN_RP_MODEL_IDS);
 
+function withBillingEnv(
+  env: { phase1?: string; phase2?: string },
+  fn: () => void
+): void {
+  const savedPhase1 = process.env.PHASE1_PUBLISHED_BILLING_ENABLED;
+  const savedPhase2 = process.env.PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED;
+  try {
+    if (env.phase1 === undefined) delete process.env.PHASE1_PUBLISHED_BILLING_ENABLED;
+    else process.env.PHASE1_PUBLISHED_BILLING_ENABLED = env.phase1;
+    if (env.phase2 === undefined) delete process.env.PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED;
+    else process.env.PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED = env.phase2;
+    fn();
+  } finally {
+    if (savedPhase1 === undefined) delete process.env.PHASE1_PUBLISHED_BILLING_ENABLED;
+    else process.env.PHASE1_PUBLISHED_BILLING_ENABLED = savedPhase1;
+    if (savedPhase2 === undefined) delete process.env.PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED;
+    else process.env.PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED = savedPhase2;
+  }
+}
+
+function productionChargeAtBenchmark(
+  modelId: string,
+  promptTokens: number,
+  outputTokens: number
+): number {
+  const phase1On = process.env.PHASE1_PUBLISHED_BILLING_ENABLED === "1" ||
+    process.env.PHASE1_PUBLISHED_BILLING_ENABLED === "true";
+  const phase2On = process.env.PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED === "1" ||
+    process.env.PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED === "true";
+  const phase1Models = new Set([
+    CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  ]);
+  const phase2Models = new Set([
+    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+    CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  ]);
+  const usesPublished =
+    (phase1Models.has(modelId) && phase1On) ||
+    (phase2Models.has(modelId) && phase2On);
+  return usesPublished
+    ? (canonicalPublishedChargeAt(modelId, promptTokens, outputTokens) ?? 0)
+    : canonicalLegacyChargeAt(modelId, promptTokens, outputTokens);
+}
+
 function makeDb(): Database.Database {
   const db = new Database(":memory:");
   ensureModelPricingTrackingSchema(db);
@@ -279,42 +324,120 @@ describe("mainRpPricingObservability", () => {
     }
   });
 
-  it("same-workload market comparability for Gemini 3.7 and Gemini 3.1", () => {
+  it("same-workload market comparability uses production contract charge owner", () => {
     seedMainRpCatalogs(Date.parse("2026-09-22T03:00:00.000Z"));
-    const projection = buildMainRpPricingObservabilityProjection({
-      fxSnapshot: FX_FIXTURE,
-      now: NOW,
-    });
-    const g37Bench = getMarketBenchmarks(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)[0];
-    const g37 = projection.models.find((r) => r.modelId === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)!;
-    assert.equal(g37.market.comparabilityStatus, "hard_comparable");
-    assert.equal(g37.market.inputTokens, 24_952);
-    assert.equal(g37.market.outputTokens, 2_367);
-    const expectedG37 = canonicalPublishedChargeAt(
-      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-      g37Bench.inputTokens,
-      g37Bench.displayedOutputTokens
-    );
-    assert.equal(g37.market.ourChargeAtBenchmarkPoints, expectedG37);
-    assert.equal(
-      g37.market.differenceVsBenchmarkPoints,
-      (expectedG37 ?? 0) - g37Bench.competitorChargePoints
-    );
+    withBillingEnv({}, () => {
+      const projection = buildMainRpPricingObservabilityProjection({
+        fxSnapshot: FX_FIXTURE,
+        now: NOW,
+      });
+      const g37Bench = getMarketBenchmarks(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)[0];
+      const g37 = projection.models.find((r) => r.modelId === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)!;
+      assert.equal(g37.market.comparabilityStatus, "hard_comparable");
+      assert.equal(g37.market.inputTokens, 24_952);
+      assert.equal(g37.market.outputTokens, 2_367);
+      assert.equal(g37.market.ourProductionBillingBasis, "legacy");
+      const expectedG37 = productionChargeAtBenchmark(
+        CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+        g37Bench.inputTokens,
+        g37Bench.displayedOutputTokens
+      );
+      assert.equal(g37.market.ourChargeAtBenchmarkPoints, expectedG37);
+      assert.notEqual(g37.market.publishedChargeAtBenchmarkPoints, null);
+      assert.notEqual(
+        g37.market.publishedChargeAtBenchmarkPoints,
+        g37.market.ourChargeAtBenchmarkPoints
+      );
+      assert.equal(
+        g37.market.differenceVsBenchmarkPoints,
+        expectedG37 - g37Bench.competitorChargePoints
+      );
 
+      const g31Bench = getMarketBenchmarks(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL)[0];
+      const g31 = projection.models.find((r) => r.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL)!;
+      assert.equal(g31.market.inputTokens, 40_689);
+      assert.equal(g31.market.outputTokens, 4_307);
+      assert.equal(g31.market.ourProductionBillingBasis, "legacy");
+      const expectedG31 = productionChargeAtBenchmark(
+        CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+        g31Bench.inputTokens,
+        g31Bench.displayedOutputTokens
+      );
+      assert.equal(g31.market.ourChargeAtBenchmarkPoints, expectedG31);
+      assert.equal(
+        g31.market.differenceVsBenchmarkPoints,
+        expectedG31 - g31Bench.competitorChargePoints
+      );
+    });
+  });
+
+  it("Phase1 gate toggles MARKET our @ benchmark between published and legacy", () => {
+    seedMainRpCatalogs(Date.parse("2026-09-22T03:00:00.000Z"));
     const g31Bench = getMarketBenchmarks(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL)[0];
-    const g31 = projection.models.find((r) => r.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL)!;
-    assert.equal(g31.market.inputTokens, 40_689);
-    assert.equal(g31.market.outputTokens, 4_307);
-    const expectedG31 = canonicalPublishedChargeAt(
-      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-      g31Bench.inputTokens,
-      g31Bench.displayedOutputTokens
-    );
-    assert.equal(g31.market.ourChargeAtBenchmarkPoints, expectedG31);
-    assert.equal(
-      g31.market.differenceVsBenchmarkPoints,
-      (expectedG31 ?? 0) - g31Bench.competitorChargePoints
-    );
+
+    withBillingEnv({}, () => {
+      const off = buildMainRpPricingObservabilityProjection({
+        fxSnapshot: FX_FIXTURE,
+        now: NOW,
+      }).models.find((r) => r.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL)!;
+      assert.equal(off.market.ourProductionBillingBasis, "legacy");
+      assert.equal(
+        off.market.ourChargeAtBenchmarkPoints,
+        canonicalLegacyChargeAt(
+          CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+          g31Bench.inputTokens,
+          g31Bench.displayedOutputTokens
+        )
+      );
+      assert.equal(off.product.productionBillingContract, "published_phase1_capable_legacy_fallback");
+    });
+
+    withBillingEnv({ phase1: "1" }, () => {
+      const on = buildMainRpPricingObservabilityProjection({
+        fxSnapshot: FX_FIXTURE,
+        now: NOW,
+      }).models.find((r) => r.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL)!;
+      assert.equal(on.market.ourProductionBillingBasis, "published");
+      assert.equal(
+        on.market.ourChargeAtBenchmarkPoints,
+        canonicalPublishedChargeAt(
+          CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+          g31Bench.inputTokens,
+          g31Bench.displayedOutputTokens
+        )
+      );
+      assert.equal(on.product.productionBillingContract, "published_phase1_when_enabled");
+    });
+  });
+
+  it("Phase2 gate toggles DeepSeek production contract in MARKET metadata", () => {
+    seedMainRpCatalogs(Date.parse("2026-09-22T03:00:00.000Z"));
+
+    withBillingEnv({}, () => {
+      const off = buildMainRpPricingObservabilityProjection({
+        fxSnapshot: FX_FIXTURE,
+        now: NOW,
+      }).models.find((r) => r.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL)!;
+      assert.equal(off.market.ourProductionBillingBasis, "legacy");
+      assert.equal(off.product.productionBillingContract, "published_phase2_capable_legacy_fallback");
+      assert.equal(
+        off.product.representativeProductionChargePoints,
+        off.product.representativeLegacyChargePoints
+      );
+    });
+
+    withBillingEnv({ phase2: "1" }, () => {
+      const on = buildMainRpPricingObservabilityProjection({
+        fxSnapshot: FX_FIXTURE,
+        now: NOW,
+      }).models.find((r) => r.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL)!;
+      assert.equal(on.market.ourProductionBillingBasis, "published");
+      assert.equal(on.product.productionBillingContract, "published_phase2_when_direct_selected");
+      assert.equal(
+        on.product.representativeProductionChargePoints,
+        on.product.representativePublishedChargePoints
+      );
+    });
   });
 
   it("published anchor (Terra) has no arbitrary token delta", () => {
@@ -414,14 +537,53 @@ describe("mainRpPricingObservability", () => {
       outputUsdPerMillion: 8.4,
       fetchedAt: Date.parse("2026-09-22T03:00:00.000Z"),
     });
-    const absentDb = makeDb();
+    const cacheFallbackDb = makeDb();
+    const cacheFallback = buildMainRpPricingObservabilityProjection({
+      fxSnapshot: FX_FIXTURE,
+      now: NOW,
+      db: cacheFallbackDb,
+    }).models.find((r) => r.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL)!;
+    assert.equal(cacheFallback.procurement.ciFreshnessState, "STALE");
+    assert.equal(cacheFallback.procurement.ciEvidenceSource, "live_catalog_cache");
+    assert.equal(cacheFallback.procurement.provenance, "CI_STALE_ESTIMATE");
+  });
+
+  it("procurement ABSENT when no persisted snapshot and no live catalog", () => {
+    clearCheaperInferenceCatalogPricingForTest();
+    const db = makeDb();
     const absent = buildMainRpPricingObservabilityProjection({
       fxSnapshot: FX_FIXTURE,
       now: NOW,
-      db: absentDb,
+      db,
     }).models.find((r) => r.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL)!;
-    assert.equal(absent.procurement.ciFreshnessState, "STALE");
-    assert.equal(absent.procurement.ciEvidenceSource, "live_catalog_cache");
+    assert.equal(absent.procurement.ciFreshnessState, "ABSENT");
+    assert.equal(absent.procurement.ciEvidenceSource, "none");
+    assert.equal(absent.procurement.provenance, "UNKNOWN");
+    assert.equal(absent.procurement.representativeProcurementCostKrw, null);
+    assert.equal(absent.margin.procurementCostFreshness, "ABSENT");
+    assert.equal(absent.margin.status, "unavailable");
+  });
+
+  it("stale procurement prevents unqualified healthy/below-floor margin status", () => {
+    clearCheaperInferenceCatalogPricingForTest();
+    const db = makeDb();
+    insertCompletedCiSnapshot(db, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, "2026-09-20T03:00:00.000Z", {
+      input: 0.5,
+      output: 2.5,
+      discount: 10,
+    });
+    const row = buildMainRpPricingObservabilityProjection({
+      fxSnapshot: FX_FIXTURE,
+      now: NOW,
+      db,
+    }).models.find((r) => r.modelId === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)!;
+    assert.equal(row.procurement.ciFreshnessState, "STALE");
+    assert.equal(row.procurement.provenance, "CI_STALE_ESTIMATE");
+    assert.equal(row.margin.procurementCostFreshness, "STALE");
+    assert.notEqual(row.margin.status, "healthy");
+    assert.notEqual(row.margin.status, "below_floor");
+    assert.equal(row.margin.status, "unavailable");
+    assert.ok(row.margin.underlyingFloorVerdict != null || row.margin.trackerAlignedRealizedMargin != null);
   });
 
   it("Gemini models show historical_evidence provider status — not live observer", () => {
