@@ -145,11 +145,6 @@ export function isPointUsageHistoryLog(log: Pick<PointUsageLog, "delta" | "reaso
 
 
 export function canShowChargeCancelButton(log: PointUsageLog): boolean {
-  return (
-    isPointChargeLog(log) &&
-    !!log.id &&
-    !log.charge_cancelled &&
-    log.charge_batch_id != null
-  );
+  return isPointChargeLog(log) && !!log.id && log.charge_batch_id != null;
 }
 
