@@ -3,6 +3,7 @@
  * Composes canonical owners; never mutates published BASE, billing, or promotions.
  */
 
+import type Database from "better-sqlite3";
 import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import { normalizeBillableUsage } from "@/lib/billingUsage";
 import {
@@ -12,13 +13,17 @@ import {
   isPhase2DeepSeekPublishedBillingModel,
 } from "@/lib/chatBillingContractDispatch";
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
-import { resolveCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
+import {
+  resolveCheaperInferenceCatalogPricing,
+  type CheaperInferenceCatalogPricing,
+} from "@/lib/cheaperInferenceCatalogPricing";
 import { getCachedDeepSeekOfficialPeakEvidence } from "@/lib/deepseekOfficialProviderPricing";
 import {
   GEMINI37_CALIBRATION_RATE_EVIDENCE,
   evaluateLiveReferenceDrift,
 } from "@/lib/gemini37CalibrationEvidence";
 import { GEMINI37_MODEL_ID } from "@/lib/gemini37PricingPolicy.constants";
+import type { ModelPriceSnapshotRecord } from "@/lib/modelPriceSnapshot";
 import {
   GEMINI31_OFFICIAL_BASE_TIER_EVIDENCE,
   type PricingEvidence,
@@ -28,6 +33,8 @@ import {
   evaluateTrackerMarginFloor,
   REPRESENTATIVE_TRACKER_WORKLOAD,
 } from "@/lib/modelPricingTracker";
+import { readLatestSnapshot } from "@/lib/modelPricingTrackerPersistence";
+import { MODEL_PRICING_TRACKER_TIMEZONE } from "@/lib/modelPricingTrackingConfig";
 import {
   getMarketBenchmarks,
   type MarketUsageBenchmark,
@@ -52,7 +59,18 @@ export type RealizedMarginDiagnosticStatus =
   | "blocked"
   | "unavailable";
 
+export type RealizedMarginRevenueUnit =
+  | "published_krw"
+  | "legacy_points_proxy"
+  | "unavailable";
+
 export type PricingSemanticDomain = "MARKET" | "PROVIDER" | "PROCUREMENT" | "PRODUCT" | "PROMOTION" | "MARGIN";
+
+export type MarketComparabilityStatus =
+  | "hard_comparable"
+  | "published_anchor"
+  | "opaque"
+  | "absent";
 
 export type MarketBenchmarkObservation = {
   domain: "MARKET";
@@ -64,11 +82,20 @@ export type MarketBenchmarkObservation = {
   competitorPoints: number | null;
   observedAt: string | null;
   sourceLabel: string | null;
-  comparabilityStatus: "hard_comparable" | "published_anchor" | "absent" | "stale";
-  ourRepresentativeChargePoints: number | null;
+  comparabilityStatus: MarketComparabilityStatus;
+  /** OUR charge at the benchmark token workload (same-workload only). */
+  ourChargeAtBenchmarkPoints: number | null;
+  ourBenchmarkWorkloadLabel: string | null;
   differenceVsBenchmarkPoints: number | null;
   benchmarkAgeLabel: string;
 };
+
+export type ProviderEvidenceStatus =
+  | "persisted_live"
+  | "live_cached_supplemental"
+  | "historical_evidence"
+  | "unsupported"
+  | "absent";
 
 export type ProviderPriceObservation = {
   domain: "PROVIDER";
@@ -78,20 +105,36 @@ export type ProviderPriceObservation = {
   pricingMode: BaselineMode | "unknown";
   observedAt: string | null;
   sourceLabel: string | null;
-  observerStatus: "OBSERVE_ONLY" | "cached" | "absent" | "unsupported";
+  evidenceStatus: ProviderEvidenceStatus;
 };
+
+export type ProcurementFreshnessState = "FRESH" | "STALE" | "ABSENT";
+
+export type ProcurementEvidenceSource =
+  | "persisted_tracker_completed"
+  | "live_catalog_cache"
+  | "none";
 
 export type ProcurementObservation = {
   domain: "PROCUREMENT";
-  ciCurrentInputUsdPerMillion: number | null;
-  ciCurrentOutputUsdPerMillion: number | null;
-  ciCurrentCacheReadUsdPerMillion: number | null;
+  ciInputUsdPerMillion: number | null;
+  ciOutputUsdPerMillion: number | null;
+  ciCacheReadUsdPerMillion: number | null;
   ciDiscountPercent: number | null;
-  ciCatalogFetchedAt: string | null;
+  ciObservedAt: string | null;
+  ciFreshnessState: ProcurementFreshnessState;
+  ciEvidenceSource: ProcurementEvidenceSource;
   actualUpstreamBilledUsd: number | null;
   provenance: ProcurementCostProvenance;
   representativeProcurementCostKrw: number | null;
 };
+
+export type ProductionBillingContractLabel =
+  | "published_phase1_when_enabled"
+  | "published_phase1_capable_legacy_fallback"
+  | "published_phase2_when_direct_selected"
+  | "published_phase2_capable_legacy_fallback"
+  | "legacy_proportional_ci_catalog";
 
 export type ProductObservation = {
   domain: "PRODUCT";
@@ -101,14 +144,12 @@ export type ProductObservation = {
   publishedCacheWriteUsdPerMillion: number | null;
   pricingVersion: number;
   publishedAt: string;
-  productionBillingContract:
-    | "published_phase1"
-    | "published_phase2"
-    | "legacy_proportional_ci_catalog"
-    | "unknown";
+  productionBillingContract: ProductionBillingContractLabel;
+  productionBillingContractNotes: string | null;
   representativePublishedChargePoints: number | null;
   representativeLegacyChargePoints: number | null;
   representativeProductionChargePoints: number | null;
+  representativeProductionChargeKrw: number | null;
   representativeWorkloadLabel: string;
 };
 
@@ -127,6 +168,7 @@ export type MarginObservation = {
   minimumMarginFloor: number;
   realizedMargin: number | null;
   realizedMarginProvenance: ProcurementCostProvenance;
+  realizedMarginRevenueUnit: RealizedMarginRevenueUnit;
   trackerAlignedRealizedMargin: number | null;
   status: RealizedMarginDiagnosticStatus;
   trackerMarginFloorBreached: boolean | null;
@@ -158,29 +200,19 @@ export type MainRpPricingObservabilityRow = {
 };
 
 export type MainRpPricingObservabilityProjection = {
-  mainHead: string;
   generatedAt: string;
   fxSnapshot: BillingFxSnapshot;
   trackerPhase: "OBSERVE_ONLY";
   models: MainRpPricingObservabilityRow[];
 };
 
-const MAIN_HEAD = "f13ea612fc942418a0271f05db209b76ecc077c2";
-
-function resolveProductionBillingContract(modelId: string): ProductObservation["productionBillingContract"] {
-  if (isPhase1PublishedBillingModel(modelId) && isPhase1PublishedBillingEnabled()) {
-    return "published_phase1";
-  }
-  if (isPhase2DeepSeekPublishedBillingModel(modelId) && isPhase2DeepSeekPublishedBillingEnabled()) {
-    return "published_phase2";
-  }
-  if (
-    isPhase1PublishedBillingModel(modelId) ||
-    isPhase2DeepSeekPublishedBillingModel(modelId)
-  ) {
-    return "legacy_proportional_ci_catalog";
-  }
-  return "legacy_proportional_ci_catalog";
+function kstDateKey(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: MODEL_PRICING_TRACKER_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
 function benchmarkAgeLabel(observedAt: string | null): string {
@@ -194,18 +226,120 @@ function benchmarkAgeLabel(observedAt: string | null): string {
   return `${Math.floor(days / 365)}y (stale)`;
 }
 
+function resolveProductionBillingContractSemantic(modelId: string): {
+  contract: ProductionBillingContractLabel;
+  notes: string | null;
+  usesPublishedPath: boolean;
+} {
+  if (isPhase1PublishedBillingModel(modelId)) {
+    if (isPhase1PublishedBillingEnabled()) {
+      return {
+        contract: "published_phase1_when_enabled",
+        notes: null,
+        usesPublishedPath: true,
+      };
+    }
+    return {
+      contract: "published_phase1_capable_legacy_fallback",
+      notes: "PHASE1_PUBLISHED_BILLING_ENABLED off — live turns use legacy proportional CI-catalog billing.",
+      usesPublishedPath: false,
+    };
+  }
+  if (isPhase2DeepSeekPublishedBillingModel(modelId)) {
+    if (isPhase2DeepSeekPublishedBillingEnabled()) {
+      return {
+        contract: "published_phase2_when_direct_selected",
+        notes:
+          "Published Phase2 applies only on direct DeepSeek selection; refusal fallback and non-direct paths may use legacy.",
+        usesPublishedPath: true,
+      };
+    }
+    return {
+      contract: "published_phase2_capable_legacy_fallback",
+      notes:
+        "PHASE2_DEEPSEEK_PUBLISHED_BILLING_ENABLED off or not direct-selected — legacy proportional billing.",
+      usesPublishedPath: false,
+    };
+  }
+  return {
+    contract: "legacy_proportional_ci_catalog",
+    notes: null,
+    usesPublishedPath: false,
+  };
+}
+
+function computeCanonicalChargeAtWorkload(params: {
+  modelId: string;
+  promptTokens: number;
+  outputTokens: number;
+  fxSnapshot: BillingFxSnapshot;
+}): {
+  publishedPoints: number | null;
+  publishedChargeKrw: number | null;
+  legacyPoints: number;
+  contract: ProductionBillingContractLabel;
+  contractNotes: string | null;
+  usesPublishedPath: boolean;
+} {
+  const contractInfo = resolveProductionBillingContractSemantic(params.modelId);
+  const usage = normalizeBillableUsage({
+    modelId: params.modelId,
+    promptTokens: params.promptTokens,
+    outputTokens: params.outputTokens,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  });
+
+  const published = computePublishedUserChargeWithSnapshot({
+    modelId: params.modelId,
+    usage,
+    usageCoverage: "complete",
+    fxSnapshot: params.fxSnapshot,
+    adjustment: { kind: "none" },
+  });
+  const publishedPoints =
+    published.status === "complete" ? published.snapshot.finalPoints : null;
+  const publishedChargeKrw =
+    published.status === "complete" ? published.snapshot.finalUserChargeKrw : null;
+
+  const legacyPoints = computeOpenRouterTurnBilling({
+    modelId: params.modelId,
+    inputTokens: params.promptTokens,
+    outputTokens: params.outputTokens,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    apiPromptTokens: params.promptTokens,
+    apiCompletionTokens: params.outputTokens,
+  }).total;
+
+  return {
+    publishedPoints,
+    publishedChargeKrw,
+    legacyPoints,
+    contract: contractInfo.contract,
+    contractNotes: contractInfo.notes,
+    usesPublishedPath: contractInfo.usesPublishedPath,
+  };
+}
+
 function marketObservation(params: {
   modelId: string;
   published: PublishedModelPricing;
-  representativeChargePoints: number | null;
+  fxSnapshot: BillingFxSnapshot;
 }): MarketBenchmarkObservation {
   const benchmarks = getMarketBenchmarks(params.modelId);
   const primary: MarketUsageBenchmark | undefined = benchmarks[0];
   if (primary) {
+    const charge = computeCanonicalChargeAtWorkload({
+      modelId: params.modelId,
+      promptTokens: primary.inputTokens,
+      outputTokens: primary.displayedOutputTokens,
+      fxSnapshot: params.fxSnapshot,
+    });
+    // MARKET compares published BASE at the benchmark workload — not tracker 10k/2k.
+    const ourPoints = charge.publishedPoints ?? charge.legacyPoints;
     const diff =
-      params.representativeChargePoints != null
-        ? params.representativeChargePoints - primary.competitorChargePoints
-        : null;
+      ourPoints != null ? ourPoints - primary.competitorChargePoints : null;
     return {
       domain: "MARKET",
       benchmarkId: primary.id,
@@ -217,7 +351,8 @@ function marketObservation(params: {
       observedAt: null,
       sourceLabel: primary.sourceLabel,
       comparabilityStatus: "hard_comparable",
-      ourRepresentativeChargePoints: params.representativeChargePoints,
+      ourChargeAtBenchmarkPoints: ourPoints,
+      ourBenchmarkWorkloadLabel: `${primary.inputTokens.toLocaleString()} prompt / ${primary.displayedOutputTokens.toLocaleString()} output`,
       differenceVsBenchmarkPoints: diff,
       benchmarkAgeLabel: "UNKNOWN",
     };
@@ -225,10 +360,6 @@ function marketObservation(params: {
 
   const anchor = params.published.marketBenchmark;
   if (anchor) {
-    const diff =
-      params.representativeChargePoints != null
-        ? params.representativeChargePoints - anchor.points
-        : null;
     return {
       domain: "MARKET",
       benchmarkId: "published_market_anchor",
@@ -240,8 +371,9 @@ function marketObservation(params: {
       observedAt: params.published.publishedAt,
       sourceLabel: "publishedModelPricing.marketBenchmark",
       comparabilityStatus: "published_anchor",
-      ourRepresentativeChargePoints: params.representativeChargePoints,
-      differenceVsBenchmarkPoints: diff,
+      ourChargeAtBenchmarkPoints: null,
+      ourBenchmarkWorkloadLabel: null,
+      differenceVsBenchmarkPoints: null,
       benchmarkAgeLabel: benchmarkAgeLabel(params.published.publishedAt),
     };
   }
@@ -257,25 +389,75 @@ function marketObservation(params: {
     observedAt: null,
     sourceLabel: null,
     comparabilityStatus: "absent",
-    ourRepresentativeChargePoints: params.representativeChargePoints,
+    ourChargeAtBenchmarkPoints: null,
+    ourBenchmarkWorkloadLabel: null,
     differenceVsBenchmarkPoints: null,
     benchmarkAgeLabel: "UNKNOWN",
   };
 }
 
-function providerObservation(modelId: string): ProviderPriceObservation {
+function catalogFromCiCurrentSnapshot(snapshot: ModelPriceSnapshotRecord): CheaperInferenceCatalogPricing {
+  const inputUsdPerMillion = snapshot.rates.inputUsdPerMillion ?? 0;
+  const outputUsdPerMillion = snapshot.rates.outputUsdPerMillion ?? 0;
+  return {
+    modelId: snapshot.modelId,
+    inputUsdPerMillion,
+    outputUsdPerMillion,
+    cacheReadUsdPerMillion: snapshot.rates.cacheReadUsdPerMillion ?? inputUsdPerMillion * 0.1,
+    cacheWriteUsdPerMillion: snapshot.rates.cacheWriteUsdPerMillion ?? inputUsdPerMillion,
+    referenceInputUsdPerMillion: undefined,
+    referenceOutputUsdPerMillion: undefined,
+    discountPercent: snapshot.rates.discountPercent ?? undefined,
+    fetchedAt: Date.parse(snapshot.observedAt),
+  };
+}
+
+function resolveProcurementFreshness(
+  observedAt: string | null,
+  now: Date
+): ProcurementFreshnessState {
+  if (!observedAt) return "ABSENT";
+  const observedMs = Date.parse(observedAt);
+  if (!Number.isFinite(observedMs)) return "ABSENT";
+  return kstDateKey(new Date(observedMs)) === kstDateKey(now) ? "FRESH" : "STALE";
+}
+
+function providerObservation(
+  modelId: string,
+  db: Database.Database | null | undefined
+): ProviderPriceObservation {
   const policy = getModelPricingPolicy(modelId);
-  const officialPeak = getCachedDeepSeekOfficialPeakEvidence(modelId);
-  if (officialPeak) {
+  const persisted =
+    db != null ? readLatestSnapshot(db, modelId, "official_provider_pricing") : null;
+  const cached = getCachedDeepSeekOfficialPeakEvidence(modelId);
+
+  if (persisted) {
     return {
       domain: "PROVIDER",
-      officialInputUsdPerMillion: officialPeak.inputUsdPerMillion,
-      officialOutputUsdPerMillion: officialPeak.outputUsdPerMillion,
-      officialCacheReadUsdPerMillion: officialPeak.cacheReadUsdPerMillion,
+      officialInputUsdPerMillion: persisted.rates.inputUsdPerMillion,
+      officialOutputUsdPerMillion: persisted.rates.outputUsdPerMillion,
+      officialCacheReadUsdPerMillion: persisted.rates.cacheReadUsdPerMillion,
       pricingMode: policy?.baselineMode ?? "PROVIDER_PEAK",
-      observedAt: officialPeak.observedAt,
-      sourceLabel: officialPeak.sourceUrl,
-      observerStatus: "cached",
+      observedAt: persisted.observedAt,
+      sourceLabel: persisted.sourceUrl,
+      evidenceStatus: "persisted_live",
+    };
+  }
+
+  if (cached) {
+    const cachedMs = Date.parse(cached.observedAt);
+    const isSupplemental =
+      persisted == null &&
+      Number.isFinite(cachedMs);
+    return {
+      domain: "PROVIDER",
+      officialInputUsdPerMillion: cached.inputUsdPerMillion,
+      officialOutputUsdPerMillion: cached.outputUsdPerMillion,
+      officialCacheReadUsdPerMillion: cached.cacheReadUsdPerMillion,
+      pricingMode: policy?.baselineMode ?? "PROVIDER_PEAK",
+      observedAt: cached.observedAt,
+      sourceLabel: cached.sourceUrl,
+      evidenceStatus: isSupplemental ? "live_cached_supplemental" : "live_cached_supplemental",
     };
   }
 
@@ -302,7 +484,7 @@ function providerObservation(modelId: string): ProviderPriceObservation {
       pricingMode: policy?.baselineMode ?? "PROVIDER_STANDARD",
       observedAt: evidence.observedAt,
       sourceLabel: evidence.sourceLabel,
-      observerStatus: "absent",
+      evidenceStatus: "historical_evidence",
     };
   }
 
@@ -314,39 +496,80 @@ function providerObservation(modelId: string): ProviderPriceObservation {
     pricingMode: policy?.baselineMode ?? "unknown",
     observedAt: null,
     sourceLabel: null,
-    observerStatus: "unsupported",
+    evidenceStatus: "unsupported",
   };
 }
 
 function procurementObservation(params: {
   modelId: string;
   fxSnapshot: BillingFxSnapshot;
+  now: Date;
+  db: Database.Database | null | undefined;
   upstreamCostUsd?: number | null;
 }): ProcurementObservation {
-  const catalog = resolveCheaperInferenceCatalogPricing(params.modelId);
+  const persistedCi =
+    params.db != null
+      ? readLatestSnapshot(params.db, params.modelId, "cheaper_inference_models_current")
+      : null;
+  const liveCatalog = resolveCheaperInferenceCatalogPricing(params.modelId);
+
   if (params.upstreamCostUsd != null && params.upstreamCostUsd > 0) {
     const krw = params.upstreamCostUsd * params.fxSnapshot.effectiveKrwPerUsd;
+    const rates = persistedCi ?? liveCatalog;
     return {
       domain: "PROCUREMENT",
-      ciCurrentInputUsdPerMillion: catalog?.inputUsdPerMillion ?? null,
-      ciCurrentOutputUsdPerMillion: catalog?.outputUsdPerMillion ?? null,
-      ciCurrentCacheReadUsdPerMillion: catalog?.cacheReadUsdPerMillion ?? null,
-      ciDiscountPercent: catalog?.discountPercent ?? null,
-      ciCatalogFetchedAt: catalog ? new Date(catalog.fetchedAt).toISOString() : null,
+      ciInputUsdPerMillion: rates
+        ? persistedCi
+          ? persistedCi.rates.inputUsdPerMillion
+          : liveCatalog?.inputUsdPerMillion ?? null
+        : null,
+      ciOutputUsdPerMillion: rates
+        ? persistedCi
+          ? persistedCi.rates.outputUsdPerMillion
+          : liveCatalog?.outputUsdPerMillion ?? null
+        : null,
+      ciCacheReadUsdPerMillion: persistedCi?.rates.cacheReadUsdPerMillion ?? liveCatalog?.cacheReadUsdPerMillion ?? null,
+      ciDiscountPercent: persistedCi?.rates.discountPercent ?? liveCatalog?.discountPercent ?? null,
+      ciObservedAt: persistedCi?.observedAt ?? (liveCatalog ? new Date(liveCatalog.fetchedAt).toISOString() : null),
+      ciFreshnessState: persistedCi
+        ? resolveProcurementFreshness(persistedCi.observedAt, params.now)
+        : liveCatalog
+          ? "STALE"
+          : "ABSENT",
+      ciEvidenceSource: persistedCi ? "persisted_tracker_completed" : liveCatalog ? "live_catalog_cache" : "none",
       actualUpstreamBilledUsd: params.upstreamCostUsd,
       provenance: "ACTUAL_UPSTREAM_BILLED",
       representativeProcurementCostKrw: krw,
     };
   }
 
+  let catalog: CheaperInferenceCatalogPricing | null = null;
+  let ciObservedAt: string | null = null;
+  let ciEvidenceSource: ProcurementEvidenceSource = "none";
+  let ciFreshnessState: ProcurementFreshnessState = "ABSENT";
+
+  if (persistedCi) {
+    catalog = catalogFromCiCurrentSnapshot(persistedCi);
+    ciObservedAt = persistedCi.observedAt;
+    ciEvidenceSource = "persisted_tracker_completed";
+    ciFreshnessState = resolveProcurementFreshness(persistedCi.observedAt, params.now);
+  } else if (liveCatalog) {
+    catalog = liveCatalog;
+    ciObservedAt = new Date(liveCatalog.fetchedAt).toISOString();
+    ciEvidenceSource = "live_catalog_cache";
+    ciFreshnessState = "STALE";
+  }
+
   if (!catalog) {
     return {
       domain: "PROCUREMENT",
-      ciCurrentInputUsdPerMillion: null,
-      ciCurrentOutputUsdPerMillion: null,
-      ciCurrentCacheReadUsdPerMillion: null,
+      ciInputUsdPerMillion: null,
+      ciOutputUsdPerMillion: null,
+      ciCacheReadUsdPerMillion: null,
       ciDiscountPercent: null,
-      ciCatalogFetchedAt: null,
+      ciObservedAt: null,
+      ciFreshnessState: "ABSENT",
+      ciEvidenceSource: "none",
       actualUpstreamBilledUsd: null,
       provenance: "UNKNOWN",
       representativeProcurementCostKrw: null,
@@ -365,11 +588,13 @@ function procurementObservation(params: {
 
   return {
     domain: "PROCUREMENT",
-    ciCurrentInputUsdPerMillion: catalog.inputUsdPerMillion,
-    ciCurrentOutputUsdPerMillion: catalog.outputUsdPerMillion,
-    ciCurrentCacheReadUsdPerMillion: catalog.cacheReadUsdPerMillion ?? null,
+    ciInputUsdPerMillion: catalog.inputUsdPerMillion,
+    ciOutputUsdPerMillion: catalog.outputUsdPerMillion,
+    ciCacheReadUsdPerMillion: catalog.cacheReadUsdPerMillion ?? null,
     ciDiscountPercent: catalog.discountPercent ?? null,
-    ciCatalogFetchedAt: new Date(catalog.fetchedAt).toISOString(),
+    ciObservedAt,
+    ciFreshnessState,
+    ciEvidenceSource,
     actualUpstreamBilledUsd: null,
     provenance: "CI_CURRENT_ESTIMATE",
     representativeProcurementCostKrw: procurement?.procurementCostKrw ?? null,
@@ -381,45 +606,29 @@ function representativeCharges(params: {
   fxSnapshot: BillingFxSnapshot;
 }): {
   publishedPoints: number | null;
-  legacyPoints: number | null;
+  publishedChargeKrw: number | null;
+  legacyPoints: number;
   productionPoints: number | null;
-  contract: ProductObservation["productionBillingContract"];
+  contract: ProductionBillingContractLabel;
+  contractNotes: string | null;
+  usesPublishedPath: boolean;
 } {
-  const usage = normalizeBillableUsage({
+  const charge = computeCanonicalChargeAtWorkload({
     modelId: params.modelId,
     promptTokens: REPRESENTATIVE_TRACKER_WORKLOAD.promptTokens,
     outputTokens: REPRESENTATIVE_TRACKER_WORKLOAD.outputTokens,
-    cacheReadTokens: REPRESENTATIVE_TRACKER_WORKLOAD.cacheReadTokens,
-    cacheWriteTokens: REPRESENTATIVE_TRACKER_WORKLOAD.cacheWriteTokens,
-  });
-
-  const published = computePublishedUserChargeWithSnapshot({
-    modelId: params.modelId,
-    usage,
-    usageCoverage: "complete",
     fxSnapshot: params.fxSnapshot,
-    adjustment: { kind: "none" },
   });
-  const publishedPoints =
-    published.status === "complete" ? published.snapshot.finalPoints : null;
-
-  const legacyPoints = computeOpenRouterTurnBilling({
-    modelId: params.modelId,
-    inputTokens: REPRESENTATIVE_TRACKER_WORKLOAD.promptTokens,
-    outputTokens: REPRESENTATIVE_TRACKER_WORKLOAD.outputTokens,
-    cacheReadTokens: REPRESENTATIVE_TRACKER_WORKLOAD.cacheReadTokens,
-    cacheWriteTokens: REPRESENTATIVE_TRACKER_WORKLOAD.cacheWriteTokens,
-    apiPromptTokens: REPRESENTATIVE_TRACKER_WORKLOAD.promptTokens,
-    apiCompletionTokens: REPRESENTATIVE_TRACKER_WORKLOAD.outputTokens,
-  }).total;
-
-  const contract = resolveProductionBillingContract(params.modelId);
-  const productionPoints =
-    contract === "published_phase1" || contract === "published_phase2"
-      ? publishedPoints
-      : legacyPoints;
-
-  return { publishedPoints, legacyPoints, productionPoints, contract };
+  const productionPoints = charge.usesPublishedPath ? charge.publishedPoints : charge.legacyPoints;
+  return {
+    publishedPoints: charge.publishedPoints,
+    publishedChargeKrw: charge.publishedChargeKrw,
+    legacyPoints: charge.legacyPoints,
+    productionPoints,
+    contract: charge.contract,
+    contractNotes: charge.contractNotes,
+    usesPublishedPath: charge.usesPublishedPath,
+  };
 }
 
 function marginObservation(params: {
@@ -428,8 +637,19 @@ function marginObservation(params: {
   fxSnapshot: BillingFxSnapshot;
   procurement: ProcurementObservation;
   productionChargePoints: number | null;
+  productionChargeKrw: number | null;
+  usesPublishedPath: boolean;
+  db: Database.Database | null | undefined;
 }): MarginObservation {
-  const catalog = resolveCheaperInferenceCatalogPricing(params.modelId);
+  const persistedCi =
+    params.db != null
+      ? readLatestSnapshot(params.db, params.modelId, "cheaper_inference_models_current")
+      : null;
+  const catalog =
+    persistedCi != null
+      ? catalogFromCiCurrentSnapshot(persistedCi)
+      : resolveCheaperInferenceCatalogPricing(params.modelId);
+
   const trackerEval =
     catalog != null
       ? evaluateTrackerMarginFloor({
@@ -445,24 +665,41 @@ function marginObservation(params: {
 
   let realizedMargin: number | null = null;
   let provenance: ProcurementCostProvenance = params.procurement.provenance;
+  let revenueUnit: RealizedMarginRevenueUnit = "unavailable";
+
   if (
-    params.procurement.provenance === "ACTUAL_UPSTREAM_BILLED" &&
-    params.productionChargePoints != null &&
-    params.productionChargePoints > 0 &&
-    params.procurement.representativeProcurementCostKrw != null
+    params.usesPublishedPath &&
+    params.productionChargeKrw != null &&
+    params.productionChargeKrw > 0 &&
+    params.procurement.representativeProcurementCostKrw != null &&
+    params.procurement.provenance === "CI_CURRENT_ESTIMATE"
   ) {
     realizedMargin =
-      (params.productionChargePoints - params.procurement.representativeProcurementCostKrw) /
-      params.productionChargePoints;
+      (params.productionChargeKrw - params.procurement.representativeProcurementCostKrw) /
+      params.productionChargeKrw;
+    revenueUnit = "published_krw";
   } else if (
-    params.procurement.provenance === "CI_CURRENT_ESTIMATE" &&
+    params.procurement.provenance === "ACTUAL_UPSTREAM_BILLED" &&
+    params.productionChargeKrw != null &&
+    params.productionChargeKrw > 0 &&
+    params.procurement.representativeProcurementCostKrw != null
+  ) {
+    realizedMargin =
+      (params.productionChargeKrw - params.procurement.representativeProcurementCostKrw) /
+      params.productionChargeKrw;
+    revenueUnit = "published_krw";
+  } else if (
+    !params.usesPublishedPath &&
     params.productionChargePoints != null &&
     params.productionChargePoints > 0 &&
-    params.procurement.representativeProcurementCostKrw != null
+    params.procurement.representativeProcurementCostKrw != null &&
+    params.procurement.provenance === "CI_CURRENT_ESTIMATE"
   ) {
     realizedMargin =
       (params.productionChargePoints - params.procurement.representativeProcurementCostKrw) /
       params.productionChargePoints;
+    provenance = "CI_CURRENT_ESTIMATE";
+    revenueUnit = "legacy_points_proxy";
   } else {
     provenance = "UNKNOWN";
   }
@@ -481,6 +718,7 @@ function marginObservation(params: {
     minimumMarginFloor: params.published.minimumMarginFloor,
     realizedMargin,
     realizedMarginProvenance: provenance,
+    realizedMarginRevenueUnit: revenueUnit,
     trackerAlignedRealizedMargin: trackerEval?.realizedMargin ?? null,
     status,
     trackerMarginFloorBreached: trackerEval?.breached ?? null,
@@ -492,25 +730,30 @@ function diagnoseGemini37MarginFloorRootCause(params: {
   procurement: ProcurementObservation;
   margin: MarginObservation;
   product: ProductObservation;
+  db: Database.Database | null | undefined;
 }): Gemini37MarginFloorRootCauseReport {
   const plausible: Gemini37MarginFloorRootCauseHypothesis[] = [];
   const notes: string[] = [];
   const breached = params.margin.trackerMarginFloorBreached === true;
 
   const calibration = GEMINI37_CALIBRATION_RATE_EVIDENCE;
-  const catalog = resolveCheaperInferenceCatalogPricing(GEMINI37_MODEL_ID);
+  const persistedCi =
+    params.db != null
+      ? readLatestSnapshot(params.db, GEMINI37_MODEL_ID, "cheaper_inference_models_current")
+      : null;
+  const catalog =
+    persistedCi != null
+      ? catalogFromCiCurrentSnapshot(persistedCi)
+      : resolveCheaperInferenceCatalogPricing(GEMINI37_MODEL_ID);
   const liveDrift = evaluateLiveReferenceDrift(params.published);
 
   if (catalog) {
     const calibrationDiscount = calibration.observedDiscountPercent;
     const liveDiscount = catalog.discountPercent;
-    if (
-      liveDiscount != null &&
-      liveDiscount < calibrationDiscount - 1
-    ) {
+    if (liveDiscount != null && liveDiscount < calibrationDiscount - 1) {
       plausible.push("A_ci_procurement_rise_or_discount_shrink");
       notes.push(
-        `Live CI discount ${liveDiscount}% is below calibration snapshot ${calibrationDiscount}%.`
+        `CI discount ${liveDiscount}% is below calibration snapshot ${calibrationDiscount}%.`
       );
     }
     if (
@@ -519,7 +762,7 @@ function diagnoseGemini37MarginFloorRootCause(params: {
     ) {
       plausible.push("B_published_base_below_procurement");
       notes.push(
-        "CI current rates exceed published BASE reference — competitive BASE vs procurement gap."
+        "CI rates exceed published BASE reference — competitive BASE vs procurement gap."
       );
     }
   }
@@ -570,7 +813,7 @@ function diagnoseGemini37MarginFloorRootCause(params: {
   if (policy?.pricingMode === "tier_aware") {
     plausible.push("E_cache_or_tier_semantics");
     notes.push(
-      `Tier-aware policy; live reference drift=${liveDrift.status}; cache policy ${"unknown"}.`
+      `Tier-aware policy; live reference drift=${liveDrift.status}; cache policy unknown.`
     );
   }
 
@@ -607,10 +850,16 @@ function promotionObservation(modelId: string, nowIso: string): PromotionObserva
   };
 }
 
-function buildModelRow(modelId: string, fxSnapshot: BillingFxSnapshot, nowIso: string): MainRpPricingObservabilityRow {
+function buildModelRow(
+  modelId: string,
+  fxSnapshot: BillingFxSnapshot,
+  nowIso: string,
+  now: Date,
+  db: Database.Database | null | undefined
+): MainRpPricingObservabilityRow {
   const published = getPublishedPricing(modelId);
   const charges = representativeCharges({ modelId, fxSnapshot });
-  const procurement = procurementObservation({ modelId, fxSnapshot });
+  const procurement = procurementObservation({ modelId, fxSnapshot, now, db });
   const product: ProductObservation = {
     domain: "PRODUCT",
     publishedInputUsdPerMillion: published.billingReferenceInputUsdPerMillion,
@@ -620,9 +869,11 @@ function buildModelRow(modelId: string, fxSnapshot: BillingFxSnapshot, nowIso: s
     pricingVersion: published.pricingVersion,
     publishedAt: published.publishedAt,
     productionBillingContract: charges.contract,
+    productionBillingContractNotes: charges.contractNotes,
     representativePublishedChargePoints: charges.publishedPoints,
     representativeLegacyChargePoints: charges.legacyPoints,
     representativeProductionChargePoints: charges.productionPoints,
+    representativeProductionChargeKrw: charges.publishedChargeKrw,
     representativeWorkloadLabel: `${REPRESENTATIVE_TRACKER_WORKLOAD.promptTokens} prompt / ${REPRESENTATIVE_TRACKER_WORKLOAD.outputTokens} output (uncached)`,
   };
   const margin = marginObservation({
@@ -631,15 +882,14 @@ function buildModelRow(modelId: string, fxSnapshot: BillingFxSnapshot, nowIso: s
     fxSnapshot,
     procurement,
     productionChargePoints: charges.productionPoints,
+    productionChargeKrw: charges.usesPublishedPath ? charges.publishedChargeKrw : null,
+    usesPublishedPath: charges.usesPublishedPath,
+    db,
   });
   const row: MainRpPricingObservabilityRow = {
     modelId,
-    market: marketObservation({
-      modelId,
-      published,
-      representativeChargePoints: charges.productionPoints,
-    }),
-    provider: providerObservation(modelId),
+    market: marketObservation({ modelId, published, fxSnapshot }),
+    provider: providerObservation(modelId, db),
     procurement,
     product,
     promotion: promotionObservation(modelId, nowIso),
@@ -651,6 +901,7 @@ function buildModelRow(modelId: string, fxSnapshot: BillingFxSnapshot, nowIso: s
       procurement,
       margin,
       product,
+      db,
     });
   }
   return row;
@@ -660,15 +911,18 @@ function buildModelRow(modelId: string, fxSnapshot: BillingFxSnapshot, nowIso: s
 export function buildMainRpPricingObservabilityProjection(params?: {
   fxSnapshot?: BillingFxSnapshot;
   now?: Date;
+  db?: Database.Database | null;
 }): MainRpPricingObservabilityProjection {
   const fxSnapshot = params?.fxSnapshot ?? previewShadowBillingFxSnapshot();
-  const nowIso = (params?.now ?? new Date()).toISOString();
+  const now = params?.now ?? new Date();
+  const nowIso = now.toISOString();
   return {
-    mainHead: MAIN_HEAD,
     generatedAt: nowIso,
     fxSnapshot,
     trackerPhase: "OBSERVE_ONLY",
-    models: MAIN_RP_MODEL_IDS.map((modelId) => buildModelRow(modelId, fxSnapshot, nowIso)),
+    models: MAIN_RP_MODEL_IDS.map((modelId) =>
+      buildModelRow(modelId, fxSnapshot, nowIso, now, params?.db ?? null)
+    ),
   };
 }
 

@@ -1,6 +1,8 @@
 import type {
   MainRpPricingObservabilityProjection,
   MainRpPricingObservabilityRow,
+  ProcurementFreshnessState,
+  ProviderEvidenceStatus,
   RealizedMarginDiagnosticStatus,
 } from "@/lib/mainRpPricingObservability";
 
@@ -31,6 +33,40 @@ function marginStatusLabel(status: RealizedMarginDiagnosticStatus): string {
   }
 }
 
+function procurementRateLabel(freshness: ProcurementFreshnessState): string {
+  switch (freshness) {
+    case "FRESH":
+      return "CI (tracker-completed, fresh)";
+    case "STALE":
+      return "CI (stale evidence)";
+    case "ABSENT":
+      return "CI unavailable";
+    default: {
+      const _exhaustive: never = freshness;
+      return _exhaustive;
+    }
+  }
+}
+
+function providerStatusLabel(status: ProviderEvidenceStatus): string {
+  switch (status) {
+    case "persisted_live":
+      return "persisted_live";
+    case "live_cached_supplemental":
+      return "live_cached_supplemental";
+    case "historical_evidence":
+      return "historical_evidence";
+    case "unsupported":
+      return "unsupported";
+    case "absent":
+      return "absent";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
+
 function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
   const { row } = props;
   return (
@@ -44,7 +80,10 @@ function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
             <div><dt className="inline text-zinc-500">BASE </dt><dd className="inline">{formatUsdPair(row.product.publishedInputUsdPerMillion, row.product.publishedOutputUsdPerMillion)}</dd></div>
             <div><dt className="inline text-zinc-500">version </dt><dd className="inline">v{row.product.pricingVersion}</dd></div>
             <div><dt className="inline text-zinc-500">contract </dt><dd className="inline">{row.product.productionBillingContract}</dd></div>
-            <div><dt className="inline text-zinc-500">rep charge </dt><dd className="inline">{row.product.representativeProductionChargePoints ?? "UNKNOWN"}P @ {row.product.representativeWorkloadLabel}</dd></div>
+            {row.product.productionBillingContractNotes ? (
+              <div><dt className="inline text-zinc-500">notes </dt><dd className="inline text-zinc-400">{row.product.productionBillingContractNotes}</dd></div>
+            ) : null}
+            <div><dt className="inline text-zinc-500">tracker rep </dt><dd className="inline">{row.product.representativeProductionChargePoints ?? "UNKNOWN"}P @ {row.product.representativeWorkloadLabel}</dd></div>
           </dl>
         </div>
 
@@ -52,9 +91,11 @@ function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
           <h4 className="font-medium text-emerald-200">MARKET</h4>
           <dl className="mt-1 space-y-1">
             <div><dt className="inline text-zinc-500">benchmark </dt><dd className="inline">{row.market.competitorPoints ?? "UNKNOWN"}P · {row.market.comparabilityStatus}</dd></div>
-            <div><dt className="inline text-zinc-500">Δ vs us </dt><dd className="inline">{row.market.differenceVsBenchmarkPoints != null ? `${row.market.differenceVsBenchmarkPoints > 0 ? "+" : ""}${row.market.differenceVsBenchmarkPoints.toFixed(1)}P` : "UNKNOWN"}</dd></div>
+            {row.market.ourBenchmarkWorkloadLabel ? (
+              <div><dt className="inline text-zinc-500">our @ benchmark </dt><dd className="inline">{row.market.ourChargeAtBenchmarkPoints ?? "UNKNOWN"}P @ {row.market.ourBenchmarkWorkloadLabel}</dd></div>
+            ) : null}
+            <div><dt className="inline text-zinc-500">Δ same-workload </dt><dd className="inline">{row.market.differenceVsBenchmarkPoints != null ? `${row.market.differenceVsBenchmarkPoints > 0 ? "+" : ""}${row.market.differenceVsBenchmarkPoints.toFixed(1)}P` : "n/a"}</dd></div>
             <div><dt className="inline text-zinc-500">age </dt><dd className="inline">{row.market.benchmarkAgeLabel}</dd></div>
-            <div><dt className="inline text-zinc-500">source </dt><dd className="inline">{row.market.sourceLabel ?? "UNKNOWN"}</dd></div>
           </dl>
         </div>
 
@@ -63,7 +104,7 @@ function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
           <dl className="mt-1 space-y-1">
             <div><dt className="inline text-zinc-500">official </dt><dd className="inline">{formatUsdPair(row.provider.officialInputUsdPerMillion, row.provider.officialOutputUsdPerMillion)}</dd></div>
             <div><dt className="inline text-zinc-500">mode </dt><dd className="inline">{row.provider.pricingMode}</dd></div>
-            <div><dt className="inline text-zinc-500">observer </dt><dd className="inline">{row.provider.observerStatus}</dd></div>
+            <div><dt className="inline text-zinc-500">evidence </dt><dd className="inline">{providerStatusLabel(row.provider.evidenceStatus)}</dd></div>
             <div><dt className="inline text-zinc-500">observed </dt><dd className="inline">{row.provider.observedAt ?? "UNKNOWN"}</dd></div>
           </dl>
         </div>
@@ -71,10 +112,10 @@ function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
         <div className="rounded border border-orange-500/20 bg-orange-950/10 p-2">
           <h4 className="font-medium text-orange-200">PROCUREMENT</h4>
           <dl className="mt-1 space-y-1">
-            <div><dt className="inline text-zinc-500">CI current </dt><dd className="inline">{formatUsdPair(row.procurement.ciCurrentInputUsdPerMillion, row.procurement.ciCurrentOutputUsdPerMillion)}</dd></div>
-            <div><dt className="inline text-zinc-500">discount </dt><dd className="inline">{row.procurement.ciDiscountPercent != null ? `${row.procurement.ciDiscountPercent}%` : "UNKNOWN"}</dd></div>
+            <div><dt className="inline text-zinc-500">rates </dt><dd className="inline">{procurementRateLabel(row.procurement.ciFreshnessState)} · {formatUsdPair(row.procurement.ciInputUsdPerMillion, row.procurement.ciOutputUsdPerMillion)}</dd></div>
+            <div><dt className="inline text-zinc-500">freshness </dt><dd className="inline">{row.procurement.ciFreshnessState} ({row.procurement.ciEvidenceSource})</dd></div>
+            <div><dt className="inline text-zinc-500">observed </dt><dd className="inline">{row.procurement.ciObservedAt ?? "UNKNOWN"}</dd></div>
             <div><dt className="inline text-zinc-500">provenance </dt><dd className="inline">{row.procurement.provenance}</dd></div>
-            <div><dt className="inline text-zinc-500">rep cost </dt><dd className="inline">{row.procurement.representativeProcurementCostKrw != null ? `${row.procurement.representativeProcurementCostKrw.toFixed(1)} KRW` : "UNKNOWN"}</dd></div>
           </dl>
         </div>
 
@@ -90,7 +131,7 @@ function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
           <h4 className="font-medium text-rose-200">MARGIN</h4>
           <dl className="mt-1 space-y-1">
             <div><dt className="inline text-zinc-500">target / floor </dt><dd className="inline">{formatPct(row.margin.targetMargin)} / {formatPct(row.margin.minimumMarginFloor)}</dd></div>
-            <div><dt className="inline text-zinc-500">realized </dt><dd className="inline">{formatPct(row.margin.realizedMargin)} ({row.margin.realizedMarginProvenance})</dd></div>
+            <div><dt className="inline text-zinc-500">realized </dt><dd className="inline">{formatPct(row.margin.realizedMargin)} ({row.margin.realizedMarginProvenance}, {row.margin.realizedMarginRevenueUnit})</dd></div>
             <div><dt className="inline text-zinc-500">tracker </dt><dd className="inline">{formatPct(row.margin.trackerAlignedRealizedMargin)}</dd></div>
             <div><dt className="inline text-zinc-500">status </dt><dd className="inline">{marginStatusLabel(row.margin.status)}</dd></div>
           </dl>
@@ -120,7 +161,7 @@ export function MainRpPricingControlPlaneSection(props: {
       <h2 className="font-semibold text-violet-100">Main RP Control Plane (read-only)</h2>
       <p className="mt-1 text-xs text-zinc-500">
         Semantic domains separated — MARKET / PROVIDER / PROCUREMENT / PRODUCT / PROMOTION / MARGIN.
-        OBSERVE_ONLY · main {projection.mainHead.slice(0, 12)} · generated {projection.generatedAt}
+        OBSERVE_ONLY tracker · generated {projection.generatedAt}
       </p>
       <div className="mt-4 space-y-4">
         {projection.models.map((row) => (

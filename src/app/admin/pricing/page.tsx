@@ -402,12 +402,16 @@ export default async function AdminPricingPage() {
   const opus5MarginMatrix = buildPremiumMarginMatrix({ modelId: OPUS5_MODEL_ID, published: OPUS5_V2_PROPOSED });
   const gemini31FxMatrix = buildPremiumFxSensitivity({ modelId: GEMINI31_MODEL_ID, published: GEMINI31_V2_PROPOSED });
   const opus5FxMatrix = buildPremiumFxSensitivity({ modelId: OPUS5_MODEL_ID, published: OPUS5_V2_PROPOSED });
-  const mainRpControlPlane = buildMainRpPricingObservabilityProjection();
+  const mainRpControlPlane = buildMainRpPricingObservabilityProjection({ db });
 
   return (
     <div className="mx-auto max-w-6xl p-6 text-sm text-zinc-100">
-      <h1 className="text-xl font-bold">Pricing Diagnostics — Shadow Only (Phase 2)</h1>
-      <p className="mt-2 text-zinc-400">USER BILLING BEHAVIOR_CHANGED: false · Published pricing is shadow only. Live discount does NOT control standard price.</p>
+      <h1 className="text-xl font-bold">Pricing Diagnostics — Admin Control Plane</h1>
+      <p className="mt-2 text-zinc-400">
+        Read-only observability. Live billing may use published Phase1/Phase2 contracts when env gates are on;
+        sections below labeled shadow are calibration-only and do not override production charge.
+        CI catalog discount is procurement, not site promotion.
+      </p>
       <MainRpPricingControlPlaneSection projection={mainRpControlPlane} />
       <section className="mt-6">
         <h2 className="font-semibold">Published Catalog</h2>
