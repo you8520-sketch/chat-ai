@@ -19,7 +19,7 @@ export type PayoutBatchResult = {
 
 export { listPendingWithdrawals, processSingleWithdrawal };
 
-/** PENDING/PROCESSING/RECONCILIATION_REQUIRED 큐 일괄 지급 (스케줄러·수동 실행 공용) */
+/** PENDING 출금의 durable attempt state를 처리하는 공용 batch owner (스케줄러·수동 실행 공용) */
 export async function processPayoutQueue(): Promise<PayoutBatchResult> {
   const queue = listWithdrawalsForExecution();
   const summary: PayoutBatchResult = {
