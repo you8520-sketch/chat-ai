@@ -314,33 +314,6 @@ export default function PointsClient({
     });
   }, []);
 
-  async function chargeMock(packageId: string) {
-    const pkg = POINT_CHARGE_PACKAGES.find((p) => p.id === packageId)!;
-    const totalPoints = pkg.paidPoints + pkg.bonusPoints;
-    const breakdown =
-      pkg.bonusPoints > 0
-        ? `유료 ${pkg.paidPoints.toLocaleString()}P + 무료 보너스 ${pkg.bonusPoints.toLocaleString()}P`
-        : `유료 ${pkg.paidPoints.toLocaleString()}P`;
-    if (
-      !confirm(
-        `총 ${totalPoints.toLocaleString()}P (${breakdown})를 ₩${pkg.price.toLocaleString()}에 충전할까요?\n\n※ 모의 결제 — 즉시 충전됩니다.`
-      )
-    )
-      return;
-    setLoading(packageId);
-    setError("");
-    const res = await fetch("/api/points/charge", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ packageId }),
-    });
-    setLoading("");
-    if (res.ok) {
-      setMsg("충전이 완료되었습니다! (모의 결제)");
-      router.refresh();
-    }
-  }
-
   async function chargePortOne(packageId: string) {
     const pkg = POINT_CHARGE_PACKAGES.find((p) => p.id === packageId)!;
     const totalPoints = pkg.paidPoints + pkg.bonusPoints;
@@ -362,8 +335,11 @@ export default function PointsClient({
   }
 
   function charge(packageId: string) {
-    if (portoneEnabled) return void chargePortOne(packageId);
-    return void chargeMock(packageId);
+    if (!portoneEnabled) {
+      setError("PortOne 결제 설정이 완료되지 않아 포인트를 충전할 수 없습니다.");
+      return;
+    }
+    return void chargePortOne(packageId);
   }
 
   async function sendGift() {
@@ -465,7 +441,7 @@ export default function PointsClient({
         </div>
       )}
 
-      {paymentsEnabled && (
+      {paymentsEnabled && portoneEnabled && (
         <>
       <h2 className={`mt-8 ${studioType.sectionTitle}`}>포인트 충전</h2>
       <p className={`mt-1 ${studioType.caption}`}>
@@ -499,11 +475,18 @@ export default function PointsClient({
         })}
       </div>
       <p className={`mt-2 ${studioType.caption} text-zinc-600`}>
-        {portoneEnabled
-          ? "※ PortOne V2 결제창으로 충전합니다. (테스트 카드는 포트원 문서 참고)"
-          : "※ PortOne 미설정 — 모의 결제로 즉시 충전됩니다."}
+        ※ PortOne V2 결제창으로 충전하며, 서버 결제 검증 완료 후 포인트가 지급됩니다.
       </p>
         </>
+      )}
+
+      {paymentsEnabled && !portoneEnabled && (
+        <div className={`mt-8 p-5 ${studioSurface.card}`}>
+          <p className={studioType.sectionTitle}>포인트 충전 준비 중</p>
+          <p className={`mt-2 ${studioType.body}`}>
+            결제 설정이 완료되지 않아 현재 포인트 충전을 사용할 수 없습니다.
+          </p>
+        </div>
       )}
 
       <h2 className={`mt-8 ${studioType.sectionTitle}`}>포인트 선물</h2>
