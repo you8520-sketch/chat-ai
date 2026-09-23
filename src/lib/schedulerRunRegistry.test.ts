@@ -14,7 +14,15 @@ import {
   shouldAttemptBootRecovery,
   shouldAttemptRuntimeRecovery,
 } from "@/lib/schedulerRunRegistry";
-import { schedulerCronExpression } from "@/lib/schedulerDefinitions";
+import {
+  isSchedulerJobEnabled,
+  schedulerCronExpression,
+} from "@/lib/schedulerDefinitions";
+
+process.env.ENABLE_TRAINING_PIPELINE = "1";
+delete process.env.DISABLE_TRAINING_PIPELINE;
+delete process.env.DISABLE_PAYOUT_SCHEDULER;
+delete process.env.DISABLE_FINANCE_SCHEDULER;
 
 function db(): Database.Database {
   const value = new Database(":memory:");
@@ -288,6 +296,57 @@ describe("durable scheduler claims", () => {
     assert.equal(firstResult.status, "completed");
     assert.equal(executions, 1);
     database.close();
+  });
+});
+
+describe("scheduler enablement owner", () => {
+  it("disabled jobs never recover and render DISABLED instead of MISSING", () => {
+    const database = db();
+    database
+      .prepare("UPDATE scheduler_registry_meta SET activated_at='2026-09-01 00:00:00' WHERE id=1")
+      .run();
+    const now = new Date("2026-09-23T05:00:00.000Z");
+
+    const previousPayout = process.env.DISABLE_PAYOUT_SCHEDULER;
+    const previousTrainingEnabled = process.env.ENABLE_TRAINING_PIPELINE;
+    process.env.DISABLE_PAYOUT_SCHEDULER = "1";
+    delete process.env.ENABLE_TRAINING_PIPELINE;
+
+    try {
+      assert.equal(isSchedulerJobEnabled("payout_monthly"), false);
+      assert.equal(isSchedulerJobEnabled("training_daily"), false);
+      assert.equal(shouldAttemptBootRecovery(database, "payout_monthly", now), false);
+      assert.equal(shouldAttemptRuntimeRecovery(database, "payout_monthly", now), false);
+      assert.equal(shouldAttemptBootRecovery(database, "training_daily", now), false);
+
+      const overview = listSchedulerRunOverview(database, now);
+      assert.equal(
+        overview.find((row) => row.jobName === "payout_monthly")?.state,
+        "DISABLED"
+      );
+      assert.equal(
+        overview.find((row) => row.jobName === "training_daily")?.state,
+        "DISABLED"
+      );
+    } finally {
+      if (previousPayout == null) delete process.env.DISABLE_PAYOUT_SCHEDULER;
+      else process.env.DISABLE_PAYOUT_SCHEDULER = previousPayout;
+      if (previousTrainingEnabled == null) delete process.env.ENABLE_TRAINING_PIPELINE;
+      else process.env.ENABLE_TRAINING_PIPELINE = previousTrainingEnabled;
+    }
+
+    database.close();
+  });
+
+  it("custom server consumes the same canonical enablement owner", () => {
+    const source = fs.readFileSync(path.join(process.cwd(), "server.js"), "utf8");
+    assert.match(source, /isSchedulerJobEnabled\("payout_monthly"\)/);
+    assert.match(source, /isSchedulerJobEnabled\("training_daily"\)/);
+    assert.match(source, /isSchedulerJobEnabled\("finance_daily"\)/);
+    assert.doesNotMatch(
+      source,
+      /if \(process\.env\.DISABLE_FINANCE_SCHEDULER !== "1"\)/
+    );
   });
 });
 
