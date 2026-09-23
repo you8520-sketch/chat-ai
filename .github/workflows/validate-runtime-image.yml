@@ -8,6 +8,8 @@ on:
       - "railway.toml"
       - "nixpacks.toml"
       - "server.js"
+      - "src/lib/customServerBootImportBoundary.js"
+      - "src/lib/customServerBootImportBoundary.test.ts"
       - "scripts/runtime-image/**"
       - ".github/workflows/validate-runtime-image.yml"
 
