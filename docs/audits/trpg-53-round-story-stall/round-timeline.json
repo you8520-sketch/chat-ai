@@ -1,0 +1,9 @@
+{
+  "auditMeta": {
+    "currentMainSha": "330d0069d44f63538a45635e0586d121435c488d",
+    "productionHistoryAccessible": false,
+    "roundsAudited": 0,
+    "note": "No read-only production DB or frozen campaign export available in this environment. Round-by-round forensic timeline requires production trpg_rounds, trpg_gm_messages.structured_json, trpg_campaign_state, trpg_state_change_log, and trpg_campaign_context rows."
+  },
+  "rounds": []
+}
