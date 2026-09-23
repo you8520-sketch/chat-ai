@@ -1,6 +1,9 @@
 /** Pure GM provider-stream presentation helpers (client SceneTurn semantics). */
 
-import { stripTrpgAssetControlMarkers } from "./gmSceneAssets";
+import {
+  stripMalformedTrpgAssetControlMarkers,
+  stripTrpgAssetControlMarkers,
+} from "./gmSceneAssets";
 
 /**
  * GM_SOURCE_BUFFER — monotonic narration text available to the client.
@@ -23,14 +26,20 @@ export function resolveTrpgGmSourceBuffer(opts: {
 }
 
 /**
- * Pacing source strips asset-control markers so draft→canonical stays prefix-safe
- * for the visible cursor. Asset rendering remains the canonical owner after reveal completes.
+ * Pacing source for decorative reveal cursor.
+ * Live provider draft keeps valid closed markers for inline asset resolution.
+ * Canonical commit still strips markers for prefix-safe pacing handoff.
  */
 export function resolveTrpgGmPacingSource(opts: {
   gmStreamDraft?: string | null;
   canonicalNarration?: string | null;
 }): string {
   const raw = resolveTrpgGmSourceBuffer(opts);
+  const draft = opts.gmStreamDraft?.trim() ?? "";
+  const canonical = opts.canonicalNarration?.trim() ?? "";
+  if (draft && !canonical) {
+    return stripMalformedTrpgAssetControlMarkers(raw) || raw;
+  }
   return stripTrpgAssetControlMarkers(raw) || raw;
 }
 
@@ -85,11 +94,13 @@ export function resolveTrpgGmRevealComplete(opts: {
   return opts.decorativeShownLen >= fullLen;
 }
 
-/** Live provider draft: prose only until canonical commit + reveal complete. */
+/** Live provider draft may resolve validated markers before canonical commit. */
 export function resolveTrpgGmLiveAssetResolution(opts: {
   canonicalCommitted: boolean;
   revealComplete: boolean;
+  liveStreaming?: boolean;
 }): boolean {
+  if (opts.liveStreaming) return true;
   return opts.canonicalCommitted && opts.revealComplete;
 }
 
