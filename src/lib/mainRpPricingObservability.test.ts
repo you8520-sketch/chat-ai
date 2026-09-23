@@ -312,8 +312,8 @@ describe("mainRpPricingObservability", () => {
       fxSnapshot: FX_FIXTURE,
       now: NOW,
     });
-    assert.equal(listMainRpObservabilityModelIds().length, 5);
-    assert.equal(projection.models.length, 5);
+    assert.equal(listMainRpObservabilityModelIds().length, 6);
+    assert.equal(projection.models.length, 6);
     assert.equal("mainHead" in projection, false);
     for (const row of projection.models) {
       assert.ok(MAIN_RP_SET.has(row.modelId));

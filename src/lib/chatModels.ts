@@ -95,6 +95,9 @@ export const OPENAI_GPT_56_TERRA_MODEL = CHEAPER_INFERENCE_GPT_56_TERRA_MODEL;
 /** Cheaper Inference OpenAI-compatible API — Claude Opus 5 */
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL = "claude-opus-5";
 
+/** Cheaper Inference OpenAI-compatible API — Claude Opus 5.5 (Main RP prep; not user-selectable yet). */
+export const CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL = "claude-opus-5.5";
+
 /** Cheaper Inference OpenAI-compatible API — GPT-5.6 Luna */
 export const CHEAPER_INFERENCE_GPT_56_LUNA_MODEL = "gpt-5.6-luna";
 
@@ -195,6 +198,8 @@ export const GPT_56_TERRA_DISPLAY_NAME = "GPT-5.6 Terra";
 
 export const CLAUDE_OPUS_5_DISPLAY_NAME = "Claude Opus 5";
 
+export const CLAUDE_OPUS_55_DISPLAY_NAME = "Claude Opus 5.5";
+
 export const GPT_56_LUNA_DISPLAY_NAME = "GPT-5.6 Luna";
 
 export const GEMINI_31_PRO_PREVIEW_DISPLAY_NAME = "Gemini 3.1 Pro Preview";
@@ -221,7 +226,7 @@ export type SelectedAIOptionMeta = {
  * CANONICAL Main RP picker — ONE source of truth.
  *
  * DeepSeek V4 Pro / DeepSeek V4.1 Flash / Gemini 3.1 Pro Preview /
- * Gemini 3.7 Flash / GPT-5.6 Terra.
+ * Gemini 3.7 Flash / GPT-5.6 Terra / Claude Opus 5.5.
  * Claude Opus 5 remains retired from user Main RP. Luna, DeepSeek V4 Flash 0731,
  * Gemini 3.6 Flash, old Opus slugs, Muse, Qwen, GLM, Kimi, … are NOT Main RP.
  * Their constants remain only for auxiliary/background use or historical receipt/billing.
@@ -262,6 +267,13 @@ export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
     provider: "cheaperinference",
     tier: "pro",
     hint: "OpenAI · Thinking OFF",
+  },
+  {
+    id: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+    label: CLAUDE_OPUS_55_DISPLAY_NAME,
+    provider: "cheaperinference",
+    tier: "pro",
+    hint: "Anthropic",
   },
 ] as const satisfies readonly SelectedAIOptionMeta[];
 
@@ -307,7 +319,11 @@ export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
 /** Anthropic(Claude) 계열 모델 여부 — OpenRouter 경로 + prompt caching + prefill 적용 기준 */
 export function isAnthropicModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
-  return id.startsWith("anthropic/") || id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL;
+  return (
+    id.startsWith("anthropic/") ||
+    id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
+    id === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL
+  );
 }
 
 /** Anthropic(Claude) 전용 — prefill·캐시 breakpoint 적용 기준 */
@@ -317,6 +333,10 @@ export function isClaudeSelectedAI(selected: string): boolean {
 
 export function isCheaperInferenceClaudeOpus5Model(modelId: string): boolean {
   return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL;
+}
+
+export function isCheaperInferenceClaudeOpus55Model(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL;
 }
 
 export function isOpenAiTerraModel(modelId: string): boolean {
@@ -385,6 +405,7 @@ export function isCheaperInferenceModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
     id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
+    id === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_LEGACY_MODEL ||
     id === CHEAPER_INFERENCE_GLM_52_MODEL ||
@@ -627,6 +648,9 @@ export function resolveSelectedAI(value: unknown, fallback?: string): SelectedAI
 
 /** UI·영수증 표시용 — retired 모델도 historical receipt 라벨 유지 */
 export function selectedAILabel(id: string): string {
+  if (isCheaperInferenceClaudeOpus55Model(id)) {
+    return CLAUDE_OPUS_55_DISPLAY_NAME;
+  }
   if (isCheaperInferenceClaudeOpus5Model(id)) {
     return CLAUDE_OPUS_5_DISPLAY_NAME;
   }
