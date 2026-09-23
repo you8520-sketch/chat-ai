@@ -89,6 +89,8 @@ function schedulerStateLabel(state: SchedulerRunOverview["state"]): string {
       return "stale · 수동 확인 필요";
     case "MISSING":
       return "예정 실행 누락";
+    case "DISABLED":
+      return "비활성";
     case "PRE_ACTIVATION":
       return "registry 적용 전 슬롯";
     default: {
