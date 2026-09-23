@@ -6,6 +6,7 @@ import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CLAUDE_OPUS_55_DISPLAY_NAME,
   isCheaperInferenceClaudeOpus55Model,
+  MAIN_RP_USER_SELECTABLE_OPTIONS,
   selectedAILabel,
 } from "@/lib/chatModels";
 import { applyCheaperInferenceModelReasoningPolicy } from "@/lib/cheaperInferenceConfig";
@@ -37,6 +38,13 @@ const FX: BillingFxSnapshot = {
 };
 
 describe("Claude Opus 5.5 prep registry", () => {
+  it("is not exposed on Main RP picker yet", () => {
+    assert.equal(
+      MAIN_RP_USER_SELECTABLE_OPTIONS.some((option) => option.id === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL),
+      false
+    );
+  });
+
   it("uses CheaperInference wire id claude-opus-5.5", () => {
     assert.equal(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL, "claude-opus-5.5");
     assert.equal(isCheaperInferenceClaudeOpus55Model("claude-opus-5.5"), true);
