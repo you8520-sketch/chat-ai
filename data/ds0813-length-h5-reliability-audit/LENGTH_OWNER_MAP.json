@@ -1,0 +1,139 @@
+{
+  "BASE_MAIN_SHA": "98f8111a6e81ad9551c3c9c5777032e40f7b4b3d",
+  "CURRENT_DS_LENGTH_ARM": "A",
+  "SNPV2_DEEPSEEK_LENGTH_ARM_DEFAULT": "A",
+  "PRODUCTION_ADAPTER_SECTION": null,
+  "USER_TAIL_LENGTH_OWNER_SENTENCE": "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다.",
+  "assembled": {
+    "R_A": {
+      "USER_TAIL_LENGTH_OWNER_COUNT": 1,
+      "USER_TAIL_LENGTH_OWNER_IN_SYSTEM": 0,
+      "USER_TAIL_LENGTH_OWNER_TERMINAL": true,
+      "ADAPTER_SECTION_COUNT": 0,
+      "ADAPTER_IN_SYSTEM": false,
+      "SYSTEM_SHA": "8bd6cd21a793b03a818df2f88b4352a6c024c7585667bc0d8773d84d31d61212",
+      "HISTORY_SHA": "cb8894f0598712f6f508c189a21b85c01d9b10f0de3db4533ee6dca7656c37cc",
+      "CURRENT_USER_SHA": "1fcca4740997c4e2add03619c49886bd70026b8b2eabf1f4b5e68f603043577c",
+      "SYSTEM_TOKENS": 11919,
+      "HISTORY_TOKENS": 522,
+      "CURRENT_USER_TOKENS": 1042,
+      "TOTAL_ESTIMATED_INPUT": 13484,
+      "thinking": {
+        "type": "disabled"
+      },
+      "reasoning_effort": null,
+      "usedEnglish": false,
+      "chunkCount": 16
+    },
+    "R_B": {
+      "USER_TAIL_LENGTH_OWNER_COUNT": 1,
+      "USER_TAIL_LENGTH_OWNER_IN_SYSTEM": 0,
+      "USER_TAIL_LENGTH_OWNER_TERMINAL": true,
+      "ADAPTER_SECTION_COUNT": 1,
+      "ADAPTER_IN_SYSTEM": true,
+      "SYSTEM_SHA": "caa032938cbd7d552248a379c70e366b2d8b75fdd95266bbccd38f7f47f3d6b5",
+      "HISTORY_SHA": "cb8894f0598712f6f508c189a21b85c01d9b10f0de3db4533ee6dca7656c37cc",
+      "CURRENT_USER_SHA": "1fcca4740997c4e2add03619c49886bd70026b8b2eabf1f4b5e68f603043577c",
+      "SYSTEM_TOKENS": 12110,
+      "HISTORY_TOKENS": 522,
+      "CURRENT_USER_TOKENS": 1042,
+      "TOTAL_ESTIMATED_INPUT": 13675,
+      "thinking": {
+        "type": "disabled"
+      },
+      "reasoning_effort": null,
+      "usedEnglish": false,
+      "chunkCount": 16
+    },
+    "R_C": {
+      "USER_TAIL_LENGTH_OWNER_COUNT": 1,
+      "USER_TAIL_LENGTH_OWNER_IN_SYSTEM": 0,
+      "USER_TAIL_LENGTH_OWNER_TERMINAL": true,
+      "ADAPTER_SECTION_COUNT": 1,
+      "ADAPTER_IN_SYSTEM": true,
+      "SYSTEM_SHA": "8c89d67dc0512744117be80bc0acd7fbd9102b6b2fd202f70d5f662cfb68efae",
+      "HISTORY_SHA": "cb8894f0598712f6f508c189a21b85c01d9b10f0de3db4533ee6dca7656c37cc",
+      "CURRENT_USER_SHA": "1fcca4740997c4e2add03619c49886bd70026b8b2eabf1f4b5e68f603043577c",
+      "SYSTEM_TOKENS": 12051,
+      "HISTORY_TOKENS": 522,
+      "CURRENT_USER_TOKENS": 1042,
+      "TOTAL_ESTIMATED_INPUT": 13616,
+      "thinking": {
+        "type": "disabled"
+      },
+      "reasoning_effort": null,
+      "usedEnglish": false,
+      "chunkCount": 16
+    },
+    "A_A": {
+      "USER_TAIL_LENGTH_OWNER_COUNT": 1,
+      "USER_TAIL_LENGTH_OWNER_IN_SYSTEM": 0,
+      "USER_TAIL_LENGTH_OWNER_TERMINAL": true,
+      "ADAPTER_SECTION_COUNT": 0,
+      "ADAPTER_IN_SYSTEM": false,
+      "SYSTEM_SHA": "01cd8ec380ce4f5cd1759c73869536258c99cbd0d55e3dfe28e2f6c2ef787ee6",
+      "HISTORY_SHA": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+      "CURRENT_USER_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+      "SYSTEM_TOKENS": 22805,
+      "HISTORY_TOKENS": 1187,
+      "CURRENT_USER_TOKENS": 1033,
+      "TOTAL_ESTIMATED_INPUT": 25025,
+      "thinking": {
+        "type": "disabled"
+      },
+      "reasoning_effort": null,
+      "usedEnglish": true,
+      "chunkCount": 21
+    },
+    "A_B": {
+      "USER_TAIL_LENGTH_OWNER_COUNT": 1,
+      "USER_TAIL_LENGTH_OWNER_IN_SYSTEM": 0,
+      "USER_TAIL_LENGTH_OWNER_TERMINAL": true,
+      "ADAPTER_SECTION_COUNT": 1,
+      "ADAPTER_IN_SYSTEM": true,
+      "SYSTEM_SHA": "43b0af0a966720f21cd9dc0860515d5837e18507674e16fc8123581ef59e76de",
+      "HISTORY_SHA": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+      "CURRENT_USER_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+      "SYSTEM_TOKENS": 22995,
+      "HISTORY_TOKENS": 1187,
+      "CURRENT_USER_TOKENS": 1033,
+      "TOTAL_ESTIMATED_INPUT": 25216,
+      "thinking": {
+        "type": "disabled"
+      },
+      "reasoning_effort": null,
+      "usedEnglish": true,
+      "chunkCount": 21
+    },
+    "A_C": {
+      "USER_TAIL_LENGTH_OWNER_COUNT": 1,
+      "USER_TAIL_LENGTH_OWNER_IN_SYSTEM": 0,
+      "USER_TAIL_LENGTH_OWNER_TERMINAL": true,
+      "ADAPTER_SECTION_COUNT": 1,
+      "ADAPTER_IN_SYSTEM": true,
+      "SYSTEM_SHA": "ec951e40f0ff9df1e8ac7389df5f8574d17e9d182af3bc0dc7202e6c1c034a3f",
+      "HISTORY_SHA": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+      "CURRENT_USER_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+      "SYSTEM_TOKENS": 22936,
+      "HISTORY_TOKENS": 1187,
+      "CURRENT_USER_TOKENS": 1033,
+      "TOTAL_ESTIMATED_INPUT": 25156,
+      "thinking": {
+        "type": "disabled"
+      },
+      "reasoning_effort": null,
+      "usedEnglish": true,
+      "chunkCount": 21
+    }
+  },
+  "WITHIN_FIXTURE_SHA_CONTRACT": {
+    "R_HISTORY_IDENTICAL": true,
+    "A_HISTORY_IDENTICAL": true,
+    "R_USER_IDENTICAL": true,
+    "A_USER_IDENTICAL": true,
+    "R_SYSTEM_A_NE_B": true,
+    "R_SYSTEM_A_NE_C": true,
+    "A_SYSTEM_A_NE_B": true,
+    "A_SYSTEM_A_NE_C": true
+  }
+}
