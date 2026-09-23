@@ -1,0 +1,182 @@
+{
+  "blocks": [
+    {
+      "paragraph_index": 1,
+      "paragraph_preview": "\"너 진짜, 사람 미치게 하는 데 재주 있다.\"",
+      "quoted_text": "너 진짜, 사람 미치게 하는 데 재주 있다.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 6,
+      "paragraph_preview": "\"왜 쳐다봤냐고? 몰라서 물어? 네가 겁도 없이 내 집 한가운데서 무방비하게 널브러져 있는데, 어떤 미친 센티넬이 눈을 안 돌려.\"",
+      "quoted_text": "왜 쳐다봤냐고? 몰라서 물어? 네가 겁도 없이 내 집 한가운데서 무방비하게 널브러져 있는데, 어떤 미친 센티넬이 눈을 안 돌려.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 8,
+      "paragraph_preview": "\"거기다 대고 먼저 입술까지 부딪쳐 오면, 나더러 어쩌라는 건데. 배고프다며. 밥 먹기 전에 에피타이저부터 먹여주는 거야, 지금?\"",
+      "quoted_text": "거기다 대고 먼저 입술까지 부딪쳐 오면, 나더러 어쩌라는 건데. 배고프다며. 밥 먹기 전에 에피타이저부터 먹여주는 거야, 지금?",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 10,
+      "paragraph_preview": "\"이거, 신호로 받아들여도 돼? 밥이고 뭐고 다 때려치우고, 여기서 뒹굴고 싶다는 뜻으로.\"",
+      "quoted_text": "이거, 신호로 받아들여도 돼? 밥이고 뭐고 다 때려치우고, 여기서 뒹굴고 싶다는 뜻으로.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 13,
+      "paragraph_preview": "\"박아. 끝까지.\"",
+      "quoted_text": "박아. 끝까지.",
+      "attribution": "SOURCE_USER_QUOTED_DIALOGUE"
+    },
+    {
+      "paragraph_index": 15,
+      "paragraph_preview": "\"이제 와서 말려도 소용없어. 죽어도 내가 끝까지 박아줄 테니까.\"",
+      "quoted_text": "이제 와서 말려도 소용없어. 죽어도 내가 끝까지 박아줄 테니까.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 17,
+      "paragraph_preview": "\"봐. 네가 잡았잖아. 책임져야지.\"",
+      "quoted_text": "봐. 네가 잡았잖아. 책임져야지.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 19,
+      "paragraph_preview": "\"아... 진짜, 이게 말이 돼?\"",
+      "quoted_text": "아... 진짜, 이게 말이 돼?",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 21,
+      "paragraph_preview": "\"숨 쉬어. 처음부터 너무 조이면 나까지 못 참으니까.\"",
+      "quoted_text": "숨 쉬어. 처음부터 너무 조이면 나까지 못 참으니까.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 24,
+      "paragraph_preview": "\"하... 끝까지라고 했지? 그럼 끝까지 버텨.\"",
+      "quoted_text": "하... 끝까지라고 했지? 그럼 끝까지 버텨.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 26,
+      "paragraph_preview": "\"좋아? 여기야? 그치?\"",
+      "quoted_text": "좋아? 여기야? 그치?",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 28,
+      "paragraph_preview": "\"나도... 이제, 참을 수가 없어.\"",
+      "quoted_text": "나도... 이제, 참을 수가 없어.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 31,
+      "paragraph_preview": "\"미친... 너 진짜, 나랑 뭐 하는 거야.\"",
+      "quoted_text": "미친... 너 진짜, 나랑 뭐 하는 거야.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 33,
+      "paragraph_preview": "\"한 번으론 절대 안 끝날 것 같은데. 나 지금도 또 배고파.\"",
+      "quoted_text": "한 번으론 절대 안 끝날 것 같은데. 나 지금도 또 배고파.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    }
+  ],
+  "NEW_USER_PERSONA_DIALOGUE_CANDIDATE_COUNT": 0,
+  "NEW_USER_DIALOGUE_HUMAN_REVIEW_REQUIRED": false,
+  "by_attribution": {
+    "SOURCE_USER_QUOTED_DIALOGUE": [
+      {
+        "paragraph_index": 13,
+        "paragraph_preview": "\"박아. 끝까지.\"",
+        "quoted_text": "박아. 끝까지.",
+        "attribution": "SOURCE_USER_QUOTED_DIALOGUE"
+      }
+    ],
+    "AI_CHARACTER_DIALOGUE_CANDIDATE": [
+      {
+        "paragraph_index": 1,
+        "paragraph_preview": "\"너 진짜, 사람 미치게 하는 데 재주 있다.\"",
+        "quoted_text": "너 진짜, 사람 미치게 하는 데 재주 있다.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 6,
+        "paragraph_preview": "\"왜 쳐다봤냐고? 몰라서 물어? 네가 겁도 없이 내 집 한가운데서 무방비하게 널브러져 있는데, 어떤 미친 센티넬이 눈을 안 돌려.\"",
+        "quoted_text": "왜 쳐다봤냐고? 몰라서 물어? 네가 겁도 없이 내 집 한가운데서 무방비하게 널브러져 있는데, 어떤 미친 센티넬이 눈을 안 돌려.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 8,
+        "paragraph_preview": "\"거기다 대고 먼저 입술까지 부딪쳐 오면, 나더러 어쩌라는 건데. 배고프다며. 밥 먹기 전에 에피타이저부터 먹여주는 거야, 지금?\"",
+        "quoted_text": "거기다 대고 먼저 입술까지 부딪쳐 오면, 나더러 어쩌라는 건데. 배고프다며. 밥 먹기 전에 에피타이저부터 먹여주는 거야, 지금?",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 10,
+        "paragraph_preview": "\"이거, 신호로 받아들여도 돼? 밥이고 뭐고 다 때려치우고, 여기서 뒹굴고 싶다는 뜻으로.\"",
+        "quoted_text": "이거, 신호로 받아들여도 돼? 밥이고 뭐고 다 때려치우고, 여기서 뒹굴고 싶다는 뜻으로.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 15,
+        "paragraph_preview": "\"이제 와서 말려도 소용없어. 죽어도 내가 끝까지 박아줄 테니까.\"",
+        "quoted_text": "이제 와서 말려도 소용없어. 죽어도 내가 끝까지 박아줄 테니까.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 17,
+        "paragraph_preview": "\"봐. 네가 잡았잖아. 책임져야지.\"",
+        "quoted_text": "봐. 네가 잡았잖아. 책임져야지.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 19,
+        "paragraph_preview": "\"아... 진짜, 이게 말이 돼?\"",
+        "quoted_text": "아... 진짜, 이게 말이 돼?",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 21,
+        "paragraph_preview": "\"숨 쉬어. 처음부터 너무 조이면 나까지 못 참으니까.\"",
+        "quoted_text": "숨 쉬어. 처음부터 너무 조이면 나까지 못 참으니까.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 24,
+        "paragraph_preview": "\"하... 끝까지라고 했지? 그럼 끝까지 버텨.\"",
+        "quoted_text": "하... 끝까지라고 했지? 그럼 끝까지 버텨.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 26,
+        "paragraph_preview": "\"좋아? 여기야? 그치?\"",
+        "quoted_text": "좋아? 여기야? 그치?",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 28,
+        "paragraph_preview": "\"나도... 이제, 참을 수가 없어.\"",
+        "quoted_text": "나도... 이제, 참을 수가 없어.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 31,
+        "paragraph_preview": "\"미친... 너 진짜, 나랑 뭐 하는 거야.\"",
+        "quoted_text": "미친... 너 진짜, 나랑 뭐 하는 거야.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 33,
+        "paragraph_preview": "\"한 번으론 절대 안 끝날 것 같은데. 나 지금도 또 배고파.\"",
+        "quoted_text": "한 번으론 절대 안 끝날 것 같은데. 나 지금도 또 배고파.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      }
+    ],
+    "NEW_USER_PERSONA_DIALOGUE_CANDIDATE": [],
+    "UNATTRIBUTED_DIALOGUE": []
+  }
+}
