@@ -83,6 +83,8 @@ function schedulerStateLabel(state: SchedulerRunOverview["state"]): string {
       return "실행 중";
     case "FAILED":
       return "실패";
+    case "STALE":
+      return "stale · 재시작 시 recovery 판정";
     case "STALE_BLOCKED":
       return "stale · 수동 확인 필요";
     case "MISSING":
@@ -101,7 +103,12 @@ function schedulerStateLabel(state: SchedulerRunOverview["state"]): string {
 function schedulerStateClass(state: SchedulerRunOverview["state"]): string {
   if (state === "SUCCEEDED") return "text-emerald-300";
   if (state === "RUNNING") return "text-cyan-300";
-  if (state === "FAILED" || state === "STALE_BLOCKED" || state === "MISSING") {
+  if (
+    state === "FAILED" ||
+    state === "STALE" ||
+    state === "STALE_BLOCKED" ||
+    state === "MISSING"
+  ) {
     return "text-rose-300";
   }
   return "text-zinc-400";
