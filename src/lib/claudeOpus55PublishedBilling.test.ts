@@ -94,7 +94,7 @@ describe("Opus 5.5 published pricing derivation", () => {
 });
 
 describe("Opus 5.5 live golden fixtures (canonical published path)", () => {
-  it("Golden A: 73,763 / 5,334 → 677P @ ~35% realized procurement margin", () => {
+  it("Golden A: 73,763 / 5,334 → 676P @ ~35% realized procurement margin", () => {
     const charge = livePublishedCharge(73_763, 5_334);
     assert.equal(charge.status, "complete");
     assert.equal(charge.snapshot.finalPoints, 676);
@@ -108,7 +108,7 @@ describe("Opus 5.5 live golden fixtures (canonical published path)", () => {
     assert.ok(Math.abs(margin - 35) < 0.5);
   });
 
-  it("Golden B: 58,654 / 4,644 → 552P @ ~35% realized procurement margin", () => {
+  it("Golden B: 58,654 / 4,644 → 551P @ ~35% realized procurement margin", () => {
     const charge = livePublishedCharge(58_654, 4_644);
     assert.equal(charge.status, "complete");
     assert.equal(charge.snapshot.finalPoints, 551);
@@ -138,7 +138,7 @@ describe("Opus 5.5 billing dispatch + picker", () => {
     assert.equal(isPhase1PublishedBillingModel(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL), true);
   });
 
-  it("resolves published_phase1 when phase1 gate enabled (not legacy)", () => {
+  it("resolves published_phase1 when phase1 gate ON (676P, not legacy)", () => {
     const stages = [completePrimaryStage(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL, 73_763, 5_334)];
     const decision = resolveChatBillingContract({
       deliveredModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
@@ -154,6 +154,24 @@ describe("Opus 5.5 billing dispatch + picker", () => {
     assert.equal(decision.contract, "published_phase1");
     assert.equal(decision.points, 676);
     assert.notEqual(decision.points, 9999);
+  });
+
+  it("phase1 gate OFF still uses published_phase1 (legacy impossible)", () => {
+    const stages = [completePrimaryStage(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL, 73_763, 5_334)];
+    const decision = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+      stages,
+      legacyFinalPoints: 9999,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: FX,
+      phase1PublishedBillingEnabled: false,
+      phase2DeepSeekPublishedBillingEnabled: false,
+    });
+    assert.notEqual(decision.contract, "legacy");
+    assert.equal(decision.contract, "published_phase1");
+    assert.equal(decision.points, 676);
   });
 
   it("is on Main RP picker after rollout wiring", () => {
