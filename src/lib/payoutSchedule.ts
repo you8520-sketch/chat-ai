@@ -2,6 +2,7 @@
 import {
   SCHEDULER_DEFINITIONS,
   SCHEDULER_TIMEZONE,
+  isSchedulerJobEnabled,
   schedulerCronExpression,
 } from "@/lib/schedulerDefinitions";
 
@@ -17,7 +18,7 @@ export const PAYOUT_SCHEDULE_LABEL = `매월 ${PAYOUT_DEFINITION.dayOfMonth}일 
 export const LOCAL_TAX_RATE_OF_NATIONAL = 0.1;
 
 export function isPayoutSchedulerEnabled(): boolean {
-  return process.env.DISABLE_PAYOUT_SCHEDULER !== "1";
+  return isSchedulerJobEnabled("payout_monthly");
 }
 
 export function calcLocalTax(nationalTax: number): number {
