@@ -48,6 +48,7 @@ export type MainRpPricingCandidateRecord = {
   evidence: Record<string, unknown>;
   firstObservedAt: string;
   lastObservedAt: string;
+  lastObservationKey: string;
   observationCount: number;
   reviewedAt: string | null;
   reviewedByUserId: number | null;
@@ -78,6 +79,7 @@ type CandidateRecordDbRow = {
   evidence_json: string;
   first_observed_at: string;
   last_observed_at: string;
+  last_observation_key: string;
   observation_count: number;
   reviewed_at: string | null;
   reviewed_by_user_id: number | null;
@@ -193,6 +195,7 @@ function parseRecord(row: CandidateRecordDbRow): MainRpPricingCandidateRecord {
     evidence,
     firstObservedAt: row.first_observed_at,
     lastObservedAt: row.last_observed_at,
+    lastObservationKey: row.last_observation_key,
     observationCount: row.observation_count,
     reviewedAt: row.reviewed_at,
     reviewedByUserId: row.reviewed_by_user_id,
@@ -208,7 +211,7 @@ const SELECT_COLUMNS = `
   live_applicability, production_billing_contract, procurement_freshness,
   actual_signal, actual_month_key, actual_margin_rate, actual_exact,
   hard_benchmark_count, evidence_json, first_observed_at, last_observed_at,
-  observation_count, reviewed_at, reviewed_by_user_id, review_note,
+  last_observation_key, observation_count, reviewed_at, reviewed_by_user_id, review_note,
   superseded_reason
 `;
 
@@ -268,7 +271,8 @@ export type MainRpPricingCandidateSyncResult = {
 export function syncMainRpPricingCandidateRecords(
   db: Database.Database,
   rows: readonly MainRpPricingObservabilityRow[],
-  observedAt: string
+  observedAt: string,
+  observationKey: string
 ): MainRpPricingCandidateSyncResult {
   let inserted = 0;
   let refreshed = 0;
@@ -280,10 +284,12 @@ export function syncMainRpPricingCandidateRecords(
     const evidenceJson = JSON.stringify(evidenceForRow(row, observedAt));
 
     if (latest?.candidateFingerprint === fingerprint) {
+      const newObservation = latest.lastObservationKey !== observationKey;
       db.prepare(
         `UPDATE model_pricing_candidate_records
          SET last_observed_at = ?,
-             observation_count = observation_count + 1,
+             last_observation_key = ?,
+             observation_count = observation_count + ?,
              evidence_json = ?,
              actual_month_key = ?,
              actual_margin_rate = ?,
@@ -292,6 +298,8 @@ export function syncMainRpPricingCandidateRecords(
          WHERE id = ?`
       ).run(
         observedAt,
+        observationKey,
+        newObservation ? 1 : 0,
         evidenceJson,
         row.candidate.actual.monthKey,
         row.candidate.actual.marginRate,
@@ -323,8 +331,9 @@ export function syncMainRpPricingCandidateRecords(
         minimum_safe_target_margin, maximum_competitive_target_margin,
         live_applicability, production_billing_contract, procurement_freshness,
         actual_signal, actual_month_key, actual_margin_rate, actual_exact,
-        hard_benchmark_count, evidence_json, first_observed_at, last_observed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        hard_benchmark_count, evidence_json, first_observed_at, last_observed_at,
+        last_observation_key
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       row.modelId,
       fingerprint,
@@ -346,7 +355,8 @@ export function syncMainRpPricingCandidateRecords(
       row.candidate.market.hardBenchmarkCount,
       evidenceJson,
       observedAt,
-      observedAt
+      observedAt,
+      observationKey
     );
     inserted += 1;
   }

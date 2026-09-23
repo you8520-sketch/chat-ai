@@ -139,6 +139,7 @@ export const MODEL_PRICING_TRACKING_DDL = `
     evidence_json TEXT NOT NULL DEFAULT '{}',
     first_observed_at TEXT NOT NULL,
     last_observed_at TEXT NOT NULL,
+    last_observation_key TEXT NOT NULL,
     observation_count INTEGER NOT NULL DEFAULT 1,
     reviewed_at TEXT,
     reviewed_by_user_id INTEGER,
