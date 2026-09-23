@@ -9,6 +9,10 @@ import {
   parseSuggestedRepliesFromModelText,
   suggestedRepliesHaveContent,
 } from "@/lib/suggestedReplies/parse";
+import {
+  observeSuggestedRepliesDecisionQuality,
+  type SuggestedRepliesDecisionQualityObservation,
+} from "@/lib/suggestedReplies/decisionQualityObservatory";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
 import { parseSharedEpisodicSection } from "@/lib/memory/memory-episodic-shared";
 import { parseSharedRelationshipSection } from "./relationship";
@@ -49,16 +53,31 @@ function parseSingleWidgetSection(
   };
 }
 
-function extractSuggestedRepliesSection(root: Record<string, unknown>): SuggestedReplyItem[] {
+function extractSuggestedRepliesSection(root: Record<string, unknown>): {
+  replies: SuggestedReplyItem[];
+  observation: SuggestedRepliesDecisionQualityObservation;
+} {
   const section = root.suggestedReplies ?? root.suggested_replies;
-  if (!section) return [];
+  if (!section) {
+    return {
+      replies: [],
+      observation: observeSuggestedRepliesDecisionQuality(JSON.stringify({})),
+    };
+  }
+
+  let rawSectionText: string;
   if (typeof section === "object" && section !== null && !Array.isArray(section)) {
     const items = (section as { items?: unknown }).items;
-    if (items != null) {
-      return parseSuggestedRepliesFromModelText(JSON.stringify({ items }));
-    }
+    rawSectionText =
+      items != null ? JSON.stringify({ items }) : JSON.stringify(section);
+  } else {
+    rawSectionText = JSON.stringify(section);
   }
-  return parseSuggestedRepliesFromModelText(JSON.stringify(section));
+
+  return {
+    replies: parseSuggestedRepliesFromModelText(rawSectionText),
+    observation: observeSuggestedRepliesDecisionQuality(rawSectionText),
+  };
 }
 
 export function parsePostTurnSharedInitialResponse(
@@ -72,6 +91,9 @@ export function parsePostTurnSharedInitialResponse(
     user: null,
     suggestedReplies: [],
     suggestedRepliesOk: false,
+    suggestedRepliesDecisionQuality: input.includeSuggestions
+      ? observeSuggestedRepliesDecisionQuality(text)
+      : null,
     relationship: { present: false, valid: false, delta: {} },
     episodic: { present: false, valid: false, facts: [] },
   };
@@ -99,9 +121,10 @@ export function parsePostTurnSharedInitialResponse(
   }
 
   // Inactive sections are neither requested nor parsed.
-  const suggestedReplies = input.includeSuggestions
+  const suggestedRepliesSection = input.includeSuggestions
     ? extractSuggestedRepliesSection(root)
-    : [];
+    : null;
+  const suggestedReplies = suggestedRepliesSection?.replies ?? [];
   const relationship = input.includeRelationship
     ? parseSharedRelationshipSection(root.relationship ?? root.relationshipMemory)
     : { present: false, valid: false, delta: {} };
@@ -116,6 +139,7 @@ export function parsePostTurnSharedInitialResponse(
     user,
     suggestedReplies,
     suggestedRepliesOk: input.includeSuggestions && suggestedRepliesHaveContent(suggestedReplies),
+    suggestedRepliesDecisionQuality: suggestedRepliesSection?.observation ?? null,
     relationship,
     episodic,
   };

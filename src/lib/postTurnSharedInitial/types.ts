@@ -3,6 +3,7 @@ import type { EpisodicSectionParse } from "@/lib/memory/memory-episodic-shared";
 import type { CombinedDualWidgetExtractParseResult } from "@/lib/statusWidget/extractNormalize";
 import type { StatusWidget, StatusWidgetValues } from "@/lib/statusWidget/types";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
+import type { SuggestedRepliesDecisionQualityObservation } from "@/lib/suggestedReplies/decisionQualityObservatory";
 import type { RelationshipMetaDelta } from "@/lib/chatMemory";
 
 export const POST_TURN_SHARED_INITIAL_REQUEST_KIND = "background-post-turn-shared-initial";
@@ -77,6 +78,8 @@ export type PostTurnSharedInitialParseResult = {
   user: PostTurnSharedSingleWidgetParse | null;
   suggestedReplies: SuggestedReplyItem[];
   suggestedRepliesOk: boolean;
+  /** Read-only quality classification of the raw suggested-replies section. */
+  suggestedRepliesDecisionQuality: SuggestedRepliesDecisionQualityObservation | null;
   relationship: RelationshipSectionParse;
   /** Parsed independently — section failure must not discard other consumers. */
   episodic: EpisodicSectionParse;

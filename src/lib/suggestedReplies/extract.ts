@@ -1,6 +1,11 @@
 import { callBackgroundMemory } from "@/lib/ai";
 import { buildPlatformAsyncTurnLedgerContext } from "@/lib/providerCostLedger";
 import { parseSuggestedRepliesFromModelText } from "./parse";
+import { observeSuggestedRepliesDecisionQuality } from "./decisionQualityObservatory";
+import {
+  buildSuggestedRepliesDecisionQualityTelemetry,
+  logSuggestedRepliesDecisionQualityTelemetry,
+} from "./decisionQualityTelemetry";
 import {
   SUGGESTED_REPLIES_REQUEST_KIND,
   type SuggestedReplyItem,
@@ -60,6 +65,8 @@ function buildExtractUserBlock(opts: {
     .join("\n\n");
 }
 
+export type SuggestedRepliesExtractCaller = typeof callBackgroundMemory;
+
 export async function extractSuggestedRepliesFromTurn(opts: {
   charName: string;
   personaName: string;
@@ -73,7 +80,7 @@ export async function extractSuggestedRepliesFromTurn(opts: {
   generationSequence?: number;
   generationRequestId?: string | null;
   jobAttemptOrdinal?: number;
-}): Promise<SuggestedReplyItem[]> {
+}, caller: SuggestedRepliesExtractCaller = callBackgroundMemory): Promise<SuggestedReplyItem[]> {
   const userBlock = buildExtractUserBlock(opts);
   const ledgerContext =
     opts.chatId != null &&
@@ -91,12 +98,19 @@ export async function extractSuggestedRepliesFromTurn(opts: {
         })
       : undefined;
   try {
-    const { text } = await callBackgroundMemory(
+    const { text } = await caller(
       EXTRACT_SYSTEM,
       [{ role: "user", content: userBlock }],
       undefined,
       SUGGESTED_REPLIES_REQUEST_KIND,
       { temperature: 0.65, ledgerContext }
+    );
+    const observation = observeSuggestedRepliesDecisionQuality(text);
+    logSuggestedRepliesDecisionQualityTelemetry(
+      buildSuggestedRepliesDecisionQualityTelemetry({
+        source: "standalone-extract",
+        observation,
+      })
     );
     return parseSuggestedRepliesFromModelText(text);
   } catch (e) {
