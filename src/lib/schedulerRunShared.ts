@@ -31,6 +31,7 @@ export type SchedulerSlotResolution = {
 
 export type SchedulerRunOverviewState =
   | SchedulerRunStatus
+  | "STALE"
   | "MISSING"
   | "NOT_DUE"
   | "PRE_ACTIVATION";
