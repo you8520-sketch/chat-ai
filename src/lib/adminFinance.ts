@@ -1272,9 +1272,15 @@ export function buildAdminFinanceSummary(
   };
 }
 
-export function saveDailyFinanceSnapshot(db: Database.Database = getDb()) {
-  const summary = buildAdminFinanceSummary(db);
-  const snapshotDate = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+export function saveDailyFinanceSnapshot(
+  db: Database.Database = getDb(),
+  snapshotDateOverride?: string
+) {
+  const snapshotDate =
+    snapshotDateOverride ??
+    new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const monthKey = snapshotDate.slice(0, 7);
+  const summary = buildAdminFinanceSummary(db, monthKey);
   db.prepare(
     `INSERT INTO finance_daily_snapshots
        (snapshot_date, month_key, summary_json, created_at, updated_at)
