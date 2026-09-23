@@ -1,58 +1,96 @@
 import cron, { type ScheduledTask } from "node-cron";
 import { runDailyTrainingAnalysis } from "@/lib/training/dailyAnalysis";
 import { runWeeklyTrainingExport } from "@/lib/training/weeklyExport";
+import {
+  SCHEDULER_TIMEZONE,
+  schedulerCronExpression,
+} from "@/lib/schedulerDefinitions";
+import { getDb } from "@/lib/db";
+import {
+  resolveSchedulerSlot,
+  runDurableScheduledJob,
+  shouldAttemptBootRecovery,
+  type SchedulerTriggerKind,
+} from "@/lib/schedulerRunRegistry";
 
 let dailyTask: ScheduledTask | null = null;
 let weeklyTask: ScheduledTask | null = null;
-let dailyRunning = false;
-let weeklyRunning = false;
 
-/** 매일 04:00 (Asia/Seoul) RP 품질 태깅 배치 */
-export const TRAINING_DAILY_CRON = "0 4 * * *";
-/** 매주 일요일 05:00 (Asia/Seoul) 학습 데이터셋 export */
-export const TRAINING_WEEKLY_CRON = "0 5 * * 0";
-export const TRAINING_TIMEZONE = "Asia/Seoul";
+/** Canonical schedule owner lives in schedulerDefinitions.ts. */
+export const TRAINING_DAILY_CRON = schedulerCronExpression("training_daily");
+export const TRAINING_WEEKLY_CRON = schedulerCronExpression("training_weekly");
+export const TRAINING_TIMEZONE = SCHEDULER_TIMEZONE;
 
-async function runDailyJob() {
-  if (dailyRunning) {
-    console.warn("[training-scheduler] daily batch still running — skip");
-    return;
-  }
-  dailyRunning = true;
+async function runDailySlot(triggerKind: SchedulerTriggerKind) {
+  const db = getDb();
+  const slot = resolveSchedulerSlot("training_daily");
   const started = Date.now();
-  try {
-    console.log("[training-scheduler] daily tag analysis starting");
-    const result = await runDailyTrainingAnalysis();
+  const run = await runDurableScheduledJob(db, {
+    jobName: "training_daily",
+    slotKey: slot.slotKey,
+    triggerKind,
+    execute: async () => {
+      console.log("[training-scheduler] daily tag analysis starting");
+      return runDailyTrainingAnalysis();
+    },
+    summarize: (result) => result,
+  });
+
+  if (run.status === "completed") {
     console.log(
       `[training-scheduler] daily batch done (${Date.now() - started}ms)`,
-      JSON.stringify(result)
+      JSON.stringify(run.value)
     );
-  } catch (e) {
-    console.error("[training-scheduler] daily batch failed:", e);
-  } finally {
-    dailyRunning = false;
+    return run.value;
   }
+  if (run.status === "failed") {
+    console.error("[training-scheduler] daily batch failed:", run.error);
+    return null;
+  }
+
+  console.log("[training-scheduler] daily durable slot skipped", {
+    slotKey: slot.slotKey,
+    outcome: run.claim.outcome,
+    status: run.claim.row.status,
+    attemptCount: run.claim.row.attempt_count,
+  });
+  return null;
 }
 
-function runWeeklyJob() {
-  if (weeklyRunning) {
-    console.warn("[training-scheduler] weekly export still running — skip");
-    return;
-  }
-  weeklyRunning = true;
+async function runWeeklySlot(triggerKind: SchedulerTriggerKind) {
+  const db = getDb();
+  const slot = resolveSchedulerSlot("training_weekly");
   const started = Date.now();
-  try {
-    console.log("[training-scheduler] weekly dataset export starting");
-    const result = runWeeklyTrainingExport();
+  const run = await runDurableScheduledJob(db, {
+    jobName: "training_weekly",
+    slotKey: slot.slotKey,
+    triggerKind,
+    execute: () => {
+      console.log("[training-scheduler] weekly dataset export starting");
+      return runWeeklyTrainingExport();
+    },
+    summarize: (result) => result,
+  });
+
+  if (run.status === "completed") {
     console.log(
       `[training-scheduler] weekly export done (${Date.now() - started}ms)`,
-      JSON.stringify(result)
+      JSON.stringify(run.value)
     );
-  } catch (e) {
-    console.error("[training-scheduler] weekly export failed:", e);
-  } finally {
-    weeklyRunning = false;
+    return run.value;
   }
+  if (run.status === "failed") {
+    console.error("[training-scheduler] weekly export failed:", run.error);
+    return null;
+  }
+
+  console.log("[training-scheduler] weekly durable slot skipped", {
+    slotKey: slot.slotKey,
+    outcome: run.claim.outcome,
+    status: run.claim.row.status,
+    attemptCount: run.claim.row.attempt_count,
+  });
+  return null;
 }
 
 export function startTrainingScheduler() {
@@ -60,7 +98,7 @@ export function startTrainingScheduler() {
     dailyTask = cron.schedule(
       TRAINING_DAILY_CRON,
       () => {
-        void runDailyJob();
+        void runDailySlot("cron");
       },
       { timezone: TRAINING_TIMEZONE }
     );
@@ -73,7 +111,7 @@ export function startTrainingScheduler() {
     weeklyTask = cron.schedule(
       TRAINING_WEEKLY_CRON,
       () => {
-        runWeeklyJob();
+        void runWeeklySlot("cron");
       },
       { timezone: TRAINING_TIMEZONE }
     );
@@ -82,9 +120,19 @@ export function startTrainingScheduler() {
     );
   }
 
+  const db = getDb();
+  if (shouldAttemptBootRecovery(db, "training_daily")) {
+    console.log("[training-scheduler] missing daily slot detected → boot recovery");
+    void runDailySlot("boot_recovery");
+  }
+  if (shouldAttemptBootRecovery(db, "training_weekly")) {
+    console.log("[training-scheduler] missing weekly slot detected → boot recovery");
+    void runWeeklySlot("boot_recovery");
+  }
+
   if (process.env.TRAINING_RUN_ON_BOOT === "1") {
-    console.log("[training-scheduler] TRAINING_RUN_ON_BOOT=1 → daily analysis now");
-    void runDailyJob();
+    console.log("[training-scheduler] TRAINING_RUN_ON_BOOT=1 → current daily slot manual run");
+    void runDailySlot("manual");
   }
 
   return { dailyTask, weeklyTask };
@@ -98,9 +146,9 @@ export function stopTrainingScheduler() {
 }
 
 export async function triggerDailyAnalysisNow() {
-  return runDailyJob();
+  return runDailySlot("manual");
 }
 
-export function triggerWeeklyExportNow() {
-  return runWeeklyJob();
+export async function triggerWeeklyExportNow() {
+  return runWeeklySlot("manual");
 }
