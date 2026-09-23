@@ -3,6 +3,7 @@ name: Validate scheduler durability
 on:
   pull_request:
     paths:
+      - "server.js"
       - "src/cron/financeScheduler.ts"
       - "src/cron/payoutScheduler.ts"
       - "src/cron/trainingScheduler.ts"
