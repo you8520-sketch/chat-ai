@@ -6,12 +6,6 @@
 
 import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import { normalizeBillableUsage, type NormalizedBillableUsage } from "@/lib/billingUsage";
-import {
-  isPhase1PublishedBillingEnabled,
-  isPhase1PublishedBillingModel,
-  isPhase2DeepSeekPublishedBillingEnabled,
-  isPhase2DeepSeekPublishedBillingModel,
-} from "@/lib/chatBillingContractDispatch";
 import type { ActualProductionEconomicsObservation } from "@/lib/mainRpPricingActualEconomics";
 import type {
   ProcurementFreshnessState,
@@ -52,6 +46,16 @@ export type CandidateDirection =
   | "LOWER_TO_MARKET"
   | "KEEP_CURRENT"
   | "HOLD";
+
+export type CompetitiveTargetMarginSearchStatus =
+  | "FOUND"
+  | "NO_FEASIBLE_PRICE"
+  | "UNAVAILABLE";
+
+export type CompetitiveTargetMarginSearchResult = {
+  status: CompetitiveTargetMarginSearchStatus;
+  targetMargin: number | null;
+};
 
 export type CandidateLiveApplicability =
   | "LIVE_PUBLISHED"
@@ -107,6 +111,7 @@ export type SafeBandDecisionInput = {
   minimumMarginFloor: number;
   minimumSafeTargetMargin: number | null;
   maximumCompetitiveTargetMargin: number | null;
+  competitiveSearchStatus: CompetitiveTargetMarginSearchStatus | null;
   procurementFreshness: ProcurementFreshnessState;
   hardBenchmarkCount: number;
   representativeFloorPass: boolean | null;
@@ -248,12 +253,16 @@ export function searchMaximumCompetitiveTargetMargin(params: {
   minimumMarginFloor: number;
   fxSnapshot: BillingFxSnapshot;
   benchmarks: readonly MarketUsageBenchmark[];
-}): number | null {
-  if (params.benchmarks.length === 0) return null;
+}): CompetitiveTargetMarginSearchResult {
+  if (params.benchmarks.length === 0) {
+    return { status: "UNAVAILABLE", targetMargin: null };
+  }
 
   const { minBp, maxBp } = clampSearchBasisPoints(params.minimumMarginFloor);
 
-  const passes = (targetMargin: number): boolean => {
+  const evaluate = (
+    targetMargin: number
+  ): "PASS" | "FAIL" | "UNAVAILABLE" => {
     for (const benchmark of params.benchmarks) {
       const usage = benchmarkToUsage(params.resolved.requestedModelId, benchmark);
       const result = diagnosticChargeAtUsage({
@@ -263,26 +272,40 @@ export function searchMaximumCompetitiveTargetMargin(params: {
         fxSnapshot: params.fxSnapshot,
       });
       const points = chargePointsFromResult(result);
-      if (points == null || points > benchmark.competitorChargePoints) return false;
+      if (points == null) return "UNAVAILABLE";
+      if (points > benchmark.competitorChargePoints) return "FAIL";
     }
-    return true;
+    return "PASS";
   };
 
-  if (!passes(targetMarginFromBasisPoints(minBp))) return null;
+  const minimumValidResult = evaluate(targetMarginFromBasisPoints(minBp));
+  if (minimumValidResult === "UNAVAILABLE") {
+    return { status: "UNAVAILABLE", targetMargin: null };
+  }
+  if (minimumValidResult === "FAIL") {
+    return { status: "NO_FEASIBLE_PRICE", targetMargin: null };
+  }
 
   let lo = minBp;
   let hi = maxBp;
   let answerBp: number | null = null;
   while (lo <= hi) {
     const mid = Math.floor((lo + hi) / 2);
-    if (passes(targetMarginFromBasisPoints(mid))) {
+    const result = evaluate(targetMarginFromBasisPoints(mid));
+    if (result === "UNAVAILABLE") {
+      return { status: "UNAVAILABLE", targetMargin: null };
+    }
+    if (result === "PASS") {
       answerBp = mid;
       lo = mid + 1;
     } else {
       hi = mid - 1;
     }
   }
-  return answerBp == null ? null : targetMarginFromBasisPoints(answerBp);
+
+  return answerBp == null
+    ? { status: "UNAVAILABLE", targetMargin: null }
+    : { status: "FOUND", targetMargin: targetMarginFromBasisPoints(answerBp) };
 }
 
 export function resolveActualCandidateSignal(
@@ -297,26 +320,22 @@ export function resolveActualCandidateSignal(
 }
 
 export function resolveCandidateLiveApplicability(
-  modelId: string,
   contract: ProductionBillingContractLabel
 ): CandidateLiveApplicability {
-  if (contract === "published_phase1_when_enabled") return "LIVE_PUBLISHED";
-  if (contract === "published_phase2_when_direct_selected") return "DIRECT_SELECTION_ONLY";
-  if (
-    contract === "published_phase1_capable_legacy_fallback" ||
-    contract === "published_phase2_capable_legacy_fallback" ||
-    contract === "legacy_proportional_ci_catalog"
-  ) {
-    return "PUBLISHED_SHADOW_ONLY";
+  switch (contract) {
+    case "published_phase1_when_enabled":
+      return "LIVE_PUBLISHED";
+    case "published_phase2_when_direct_selected":
+      return "DIRECT_SELECTION_ONLY";
+    case "published_phase1_capable_legacy_fallback":
+    case "published_phase2_capable_legacy_fallback":
+    case "legacy_proportional_ci_catalog":
+      return "PUBLISHED_SHADOW_ONLY";
+    default: {
+      const _exhaustive: never = contract;
+      return _exhaustive;
+    }
   }
-
-  if (isPhase1PublishedBillingModel(modelId) && isPhase1PublishedBillingEnabled()) {
-    return "LIVE_PUBLISHED";
-  }
-  if (isPhase2DeepSeekPublishedBillingModel(modelId) && isPhase2DeepSeekPublishedBillingEnabled()) {
-    return "DIRECT_SELECTION_ONLY";
-  }
-  return "PUBLISHED_SHADOW_ONLY";
 }
 
 /** Pure band decision — used by production compose and deterministic regression fixtures. */
@@ -325,6 +344,7 @@ export function decideSafeBand(params: SafeBandDecisionInput): SafeBandDecision 
     currentTargetMargin,
     minimumSafeTargetMargin,
     maximumCompetitiveTargetMargin,
+    competitiveSearchStatus,
     procurementFreshness,
     hardBenchmarkCount,
     representativeFloorPass,
@@ -347,7 +367,19 @@ export function decideSafeBand(params: SafeBandDecisionInput): SafeBandDecision 
     };
   }
 
-  if (minimumSafeTargetMargin == null || maximumCompetitiveTargetMargin == null) {
+  if (competitiveSearchStatus === "NO_FEASIBLE_PRICE") {
+    return {
+      status: "NO_FEASIBLE_PRICE",
+      candidateTargetMargin: null,
+      candidateDirection: "HOLD",
+    };
+  }
+
+  if (
+    competitiveSearchStatus === "UNAVAILABLE" ||
+    minimumSafeTargetMargin == null ||
+    maximumCompetitiveTargetMargin == null
+  ) {
     return {
       status: "UNAVAILABLE",
       candidateTargetMargin: null,
@@ -462,7 +494,6 @@ export function composePricingCandidateObservation(params: {
   const benchmarks = getMarketBenchmarks(params.modelId);
   const actualSignal = resolveActualCandidateSignal(params.actual, published.minimumMarginFloor);
   const liveApplicability = resolveCandidateLiveApplicability(
-    params.modelId,
     params.productionBillingContract
   );
 
@@ -510,6 +541,7 @@ export function composePricingCandidateObservation(params: {
 
   let minimumSafeTargetMargin: number | null = null;
   let maximumCompetitiveTargetMargin: number | null = null;
+  let competitiveSearchStatus: CompetitiveTargetMarginSearchStatus | null = null;
 
   if (
     params.procurement.ciFreshnessState === "FRESH" &&
@@ -525,12 +557,14 @@ export function composePricingCandidateObservation(params: {
   }
 
   if (benchmarks.length > 0) {
-    maximumCompetitiveTargetMargin = searchMaximumCompetitiveTargetMargin({
+    const competitiveSearch = searchMaximumCompetitiveTargetMargin({
       resolved,
       minimumMarginFloor: published.minimumMarginFloor,
       fxSnapshot: params.fxSnapshot,
       benchmarks,
     });
+    competitiveSearchStatus = competitiveSearch.status;
+    maximumCompetitiveTargetMargin = competitiveSearch.targetMargin;
   }
 
   const currentProjectedMargin =
@@ -558,6 +592,7 @@ export function composePricingCandidateObservation(params: {
     minimumMarginFloor: published.minimumMarginFloor,
     minimumSafeTargetMargin,
     maximumCompetitiveTargetMargin,
+    competitiveSearchStatus,
     procurementFreshness: params.procurement.ciFreshnessState,
     hardBenchmarkCount: benchmarks.length,
     representativeFloorPass,

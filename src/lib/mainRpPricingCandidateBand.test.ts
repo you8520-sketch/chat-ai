@@ -62,6 +62,7 @@ function freshBandInput(
     minimumMarginFloor: 0.1,
     minimumSafeTargetMargin: 0.2,
     maximumCompetitiveTargetMargin: 0.4,
+    competitiveSearchStatus: "FOUND",
     procurementFreshness: "FRESH",
     hardBenchmarkCount: 1,
     representativeFloorPass: true,
@@ -355,13 +356,15 @@ describe("mainRpPricingCandidateBand — deterministic margin search", () => {
     const resolved = resolvePublishedPricingExact(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)!;
     const benchmarks = getMarketBenchmarks(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
     assert.equal(benchmarks.length, 2);
-    const maximum = searchMaximumCompetitiveTargetMargin({
+    const maximumSearch = searchMaximumCompetitiveTargetMargin({
       resolved,
       minimumMarginFloor: resolved.pricing.minimumMarginFloor,
       fxSnapshot: FX_FIXTURE,
       benchmarks,
     });
-    assert.ok(maximum != null);
+    assert.equal(maximumSearch.status, "FOUND");
+    assert.ok(maximumSearch.targetMargin != null);
+    const maximum = maximumSearch.targetMargin;
     for (const benchmark of benchmarks) {
       const usage = normalizeBillableUsage({
         modelId: resolved.requestedModelId,
@@ -406,6 +409,77 @@ describe("mainRpPricingCandidateBand — deterministic margin search", () => {
       );
     });
     assert.equal(failsSome, true);
+  });
+
+  it("D-real — compose reports NO_FEASIBLE_PRICE when minimum valid margin already loses hard market", () => {
+    const highFx: BillingFxSnapshot = {
+      mode: "daily_kst",
+      dateKey: "2026-09-22",
+      usdToKrw: 2500,
+      effectiveKrwPerUsd: 2550,
+      source: "api_daily",
+      overseasFeeRate: 0.02,
+      locked: true,
+    };
+    const resolved = resolvePublishedPricingExact(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)!;
+    const observation = composePricingCandidateObservation({
+      modelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      fxSnapshot: highFx,
+      procurement: {
+        domain: "PROCUREMENT",
+        ciInputUsdPerMillion: 0.2625,
+        ciOutputUsdPerMillion: 1.3125,
+        ciCacheReadUsdPerMillion: null,
+        ciDiscountPercent: 30,
+        ciObservedAt: NOW.toISOString(),
+        ciFreshnessState: "FRESH",
+        ciEvidenceSource: "persisted_tracker_completed",
+        actualUpstreamBilledUsd: null,
+        provenance: "CI_CURRENT_ESTIMATE",
+        representativeProcurementCostKrw: 20,
+      },
+      representative: {
+        domain: "REPRESENTATIVE",
+        targetMargin: resolved.pricing.targetMargin,
+        minimumMarginFloor: resolved.pricing.minimumMarginFloor,
+        representativeMarginEstimate: 0.7,
+        representativeMarginProvenance: "CI_CURRENT_ESTIMATE",
+        representativeMarginRevenueUnit: "published_krw",
+        trackerAlignedMarginEstimate: 0.7,
+        status: "healthy",
+        underlyingFloorVerdict: "healthy",
+        procurementCostFreshness: "FRESH",
+        trackerMarginFloorBreached: false,
+        representativeWorkloadLabel: "10k/2k",
+      },
+      actual: {
+        domain: "ACTUAL_PRODUCTION",
+        monthKey: "2026-09",
+        usageState: "NO_USAGE",
+        paidRevenueKrw: 0,
+        freePointSpend: 0,
+        apiCostKrw: 0,
+        netProfitKrw: null,
+        marginRate: null,
+        marginCoverage: null,
+        realizedMarginExact: false,
+        marginDisplay: "NO_USAGE",
+        financeModelKey: null,
+        costEvidence: {
+          sourceState: null,
+          actualKrw: null,
+          estimatedKrw: null,
+          calls: null,
+        },
+      },
+      productionBillingContract: "published_phase1_capable_legacy_fallback",
+    });
+
+    assert.ok(observation.minimumSafeTargetMargin != null);
+    assert.equal(observation.maximumCompetitiveTargetMargin, null);
+    assert.equal(observation.status, "NO_FEASIBLE_PRICE");
+    assert.equal(observation.candidateTargetMargin, null);
+    assert.equal(observation.candidateDirection, "HOLD");
   });
 
   it("N — base_tier_only workload above tier blocks candidate charge", () => {
@@ -559,12 +633,28 @@ describe("mainRpPricingCandidateBand — integration", () => {
       assert.equal(row.candidate.liveApplicability, "PUBLISHED_SHADOW_ONLY");
       assert.equal(
         resolveCandidateLiveApplicability(
-          CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
           row.product.productionBillingContract
         ),
         "PUBLISHED_SHADOW_ONLY"
       );
     });
+  });
+
+  it("live applicability is derived only from canonical production billing contract", () => {
+    assert.equal(resolveCandidateLiveApplicability("published_phase1_when_enabled"), "LIVE_PUBLISHED");
+    assert.equal(resolveCandidateLiveApplicability("published_phase2_when_direct_selected"), "DIRECT_SELECTION_ONLY");
+    assert.equal(
+      resolveCandidateLiveApplicability("published_phase1_capable_legacy_fallback"),
+      "PUBLISHED_SHADOW_ONLY"
+    );
+    assert.equal(
+      resolveCandidateLiveApplicability("published_phase2_capable_legacy_fallback"),
+      "PUBLISHED_SHADOW_ONLY"
+    );
+    assert.equal(
+      resolveCandidateLiveApplicability("legacy_proportional_ci_catalog"),
+      "PUBLISHED_SHADOW_ONLY"
+    );
   });
 
   it("DeepSeek without hard benchmark → HOLD_NO_HARD_MARKET_EVIDENCE with floor diagnostic optional", () => {
