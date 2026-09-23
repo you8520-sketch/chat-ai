@@ -556,7 +556,12 @@ export function listSchedulerRunOverview(
     let state: SchedulerRunOverview["state"];
     if (!activated) state = "PRE_ACTIVATION";
     else if (!slot.due) state = "NOT_DUE";
-    else if (current) state = current.status;
+    else if (
+      current?.status === "RUNNING" &&
+      isStale(db, current, definition.staleAfterMinutes)
+    ) {
+      state = "STALE";
+    } else if (current) state = current.status;
     else state = "MISSING";
 
     return {
@@ -587,5 +592,24 @@ export function shouldAttemptBootRecovery(
   const slot = resolveSchedulerSlot(jobName, now);
   if (!slot.due) return false;
   if (slot.scheduledAtUtcMs < registryActivatedAtMs(db)) return false;
-  return rowForSlot(db, jobName, slot.slotKey) == null;
+
+  const current = rowForSlot(db, jobName, slot.slotKey);
+  if (!current) return true;
+
+  const definition = SCHEDULER_DEFINITIONS[jobName];
+  switch (current.status) {
+    case "SUCCEEDED":
+    case "STALE_BLOCKED":
+      return false;
+    case "FAILED":
+      return definition.safeFailedRetry;
+    case "RUNNING":
+      // Safe jobs reclaim stale work. Unsafe jobs still enter the claim path
+      // once so the durable row is converted to STALE_BLOCKED for operators.
+      return isStale(db, current, definition.staleAfterMinutes);
+    default: {
+      const _exhaustive: never = current.status;
+      return _exhaustive;
+    }
+  }
 }
