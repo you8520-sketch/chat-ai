@@ -7,6 +7,7 @@ import {
 } from "@/lib/schedulerDefinitions";
 import { getDb } from "@/lib/db";
 import {
+  resolveLatestDueSchedulerSlot,
   resolveSchedulerSlot,
   runDurableScheduledJob,
   shouldAttemptBootRecovery,
@@ -21,13 +22,17 @@ export const TRAINING_DAILY_CRON = schedulerCronExpression("training_daily");
 export const TRAINING_WEEKLY_CRON = schedulerCronExpression("training_weekly");
 export const TRAINING_TIMEZONE = SCHEDULER_TIMEZONE;
 
-async function runDailySlot(triggerKind: SchedulerTriggerKind) {
+async function runDailySlot(
+  triggerKind: SchedulerTriggerKind,
+  slotKeyOverride?: string
+) {
   const db = getDb();
   const slot = resolveSchedulerSlot("training_daily");
+  const slotKey = slotKeyOverride ?? slot.slotKey;
   const started = Date.now();
   const run = await runDurableScheduledJob(db, {
     jobName: "training_daily",
-    slotKey: slot.slotKey,
+    slotKey,
     triggerKind,
     execute: async () => {
       console.log("[training-scheduler] daily tag analysis starting");
@@ -49,7 +54,7 @@ async function runDailySlot(triggerKind: SchedulerTriggerKind) {
   }
 
   console.log("[training-scheduler] daily durable slot skipped", {
-    slotKey: slot.slotKey,
+    slotKey,
     outcome: run.claim.outcome,
     status: run.claim.row.status,
     attemptCount: run.claim.row.attempt_count,
@@ -57,13 +62,17 @@ async function runDailySlot(triggerKind: SchedulerTriggerKind) {
   return null;
 }
 
-async function runWeeklySlot(triggerKind: SchedulerTriggerKind) {
+async function runWeeklySlot(
+  triggerKind: SchedulerTriggerKind,
+  slotKeyOverride?: string
+) {
   const db = getDb();
   const slot = resolveSchedulerSlot("training_weekly");
+  const slotKey = slotKeyOverride ?? slot.slotKey;
   const started = Date.now();
   const run = await runDurableScheduledJob(db, {
     jobName: "training_weekly",
-    slotKey: slot.slotKey,
+    slotKey,
     triggerKind,
     execute: () => {
       console.log("[training-scheduler] weekly dataset export starting");
@@ -85,7 +94,7 @@ async function runWeeklySlot(triggerKind: SchedulerTriggerKind) {
   }
 
   console.log("[training-scheduler] weekly durable slot skipped", {
-    slotKey: slot.slotKey,
+    slotKey,
     outcome: run.claim.outcome,
     status: run.claim.row.status,
     attemptCount: run.claim.row.attempt_count,
@@ -122,12 +131,18 @@ export function startTrainingScheduler() {
 
   const db = getDb();
   if (shouldAttemptBootRecovery(db, "training_daily")) {
-    console.log("[training-scheduler] missing daily slot detected → boot recovery");
-    void runDailySlot("boot_recovery");
+    const recoverySlot = resolveLatestDueSchedulerSlot("training_daily");
+    console.log("[training-scheduler] missing/recoverable daily slot detected → boot recovery", {
+      slotKey: recoverySlot.slotKey,
+    });
+    void runDailySlot("boot_recovery", recoverySlot.slotKey);
   }
   if (shouldAttemptBootRecovery(db, "training_weekly")) {
-    console.log("[training-scheduler] missing weekly slot detected → boot recovery");
-    void runWeeklySlot("boot_recovery");
+    const recoverySlot = resolveLatestDueSchedulerSlot("training_weekly");
+    console.log("[training-scheduler] missing/recoverable weekly slot detected → boot recovery", {
+      slotKey: recoverySlot.slotKey,
+    });
+    void runWeeklySlot("boot_recovery", recoverySlot.slotKey);
   }
 
   if (process.env.TRAINING_RUN_ON_BOOT === "1") {
