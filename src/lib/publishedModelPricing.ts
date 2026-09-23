@@ -4,6 +4,9 @@
  */
 
 import { canonicalizePublishedModelId, normalizePublishedModelId } from "@/lib/publishedModelAliases";
+import { deriveOpus55EffectivePublishedReferenceRates } from "@/lib/opus55PublishedPricingDerivation";
+
+const OPUS55_LIVE_PUBLISHED_RATES = deriveOpus55EffectivePublishedReferenceRates();
 
 export type PublishedModelPricing = {
   modelId: string;
@@ -172,6 +175,17 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
     pricingVersion: 2,
     publishedAt: "2026-09-19T00:00:00.000Z",
     marketBenchmark: { outputChars: 6025, points: 253 },
+  },
+  "claude-opus-5.5": {
+    modelId: "claude-opus-5.5",
+    billingReferenceInputUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceInputUsdPerMillion,
+    billingReferenceOutputUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceOutputUsdPerMillion,
+    billingReferenceCacheReadUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceInputUsdPerMillion,
+    billingReferenceCacheWriteUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceInputUsdPerMillion,
+    targetMargin: OPUS55_LIVE_PUBLISHED_RATES.targetMargin,
+    minimumMarginFloor: OPUS55_LIVE_PUBLISHED_RATES.minimumMarginFloor,
+    pricingVersion: 1,
+    publishedAt: "2026-09-23T12:00:00.000Z",
   },
 };
 

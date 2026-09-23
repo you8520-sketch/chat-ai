@@ -70,6 +70,13 @@ const DEFAULT_POLICIES: Record<string, Omit<ModelPricingPolicy, "modelId">> = {
     expectedProviderModelId: "claude-opus-5",
     pricingMode: "tier_aware",
   },
+  "claude-opus-5.5": {
+    provider: "cheaperinference",
+    baselineMode: "PROVIDER_STANDARD",
+    autoApply: false,
+    expectedProviderModelId: "claude-opus-5.5",
+    pricingMode: "tier_aware",
+  },
 };
 
 function inferProvider(modelId: string): ModelPricingPolicy["provider"] {

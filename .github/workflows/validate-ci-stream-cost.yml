@@ -71,6 +71,15 @@ on:
       - "src/lib/mainRpPricingObservability.test.ts"
       - "src/lib/mainRpPricingActualEconomics.ts"
       - "src/lib/mainRpPricingObservabilityActualEconomics.test.ts"
+      - "src/lib/claudeOpus55PricingPrep.ts"
+      - "src/lib/claudeOpus55PricingPrep.test.ts"
+      - "src/lib/opus55PricingEvidence.ts"
+      - "src/lib/opus55RealizedProcurementMargin.ts"
+      - "src/lib/opus55RealizedProcurementMargin.test.ts"
+      - "src/lib/opus55ProviderContractProbe.ts"
+      - "src/lib/opus55PublishedPricingDerivation.ts"
+      - "src/lib/claudeOpus55PublishedBilling.test.ts"
+      - "src/lib/mainRpUserPriceDeterminism.test.ts"
       - "src/lib/mainRpPricingCandidateBand.ts"
       - "src/lib/mainRpPricingCandidateBand.test.ts"
       - "src/components/admin/MainRpPricingControlPlaneSection.tsx"
@@ -140,6 +149,10 @@ jobs:
           src/lib/modelPricingTracker.test.ts
           src/lib/mainRpPricingObservability.test.ts
           src/lib/mainRpPricingObservabilityActualEconomics.test.ts
+          src/lib/claudeOpus55PricingPrep.test.ts
+          src/lib/opus55RealizedProcurementMargin.test.ts
+          src/lib/claudeOpus55PublishedBilling.test.ts
+          src/lib/mainRpUserPriceDeterminism.test.ts
           src/lib/mainRpPricingCandidateBand.test.ts
 
       - name: Provider cost ledger single owner

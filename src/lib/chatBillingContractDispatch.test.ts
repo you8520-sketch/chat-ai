@@ -14,6 +14,7 @@ import {
 } from "@/lib/billingLiveOwnerReadinessAudit";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -209,6 +210,38 @@ describe("chatBillingContractDispatch — contract selection", () => {
     }
   });
 
+  it("Opus 5.5 gate OFF → published_phase1 (mandatory published, not legacy)", () => {
+    const gatedOff = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+      stages: [completePrimaryStage(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL, 73_763, 5334)],
+      legacyFinalPoints: 9999,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: AUDIT_FX_SNAPSHOT,
+      phase1PublishedBillingEnabled: false,
+    });
+    assert.notEqual(gatedOff.contract, "legacy");
+    assert.equal(gatedOff.contract, "published_phase1");
+    assert.notEqual(gatedOff.points, 9999);
+    assert.ok(gatedOff.points > 0);
+  });
+
+  it("Gemini 3.7 gate OFF → legacy preserved (phase1_billing_disabled)", () => {
+    const decision = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      stages: [completePrimaryStage(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, 9000, 2500)],
+      legacyFinalPoints: 42,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: AUDIT_FX_SNAPSHOT,
+      phase1PublishedBillingEnabled: false,
+    });
+    assert.equal(decision.contract, "legacy");
+    assert.equal(decision.reason, "phase1_billing_disabled");
+  });
+
   it("A1 normals with unreported cache stay legacy fallback (fail-closed)", () => {
     for (const id of ["A1-g31-normal", "A1-g37-normal", "A1-opus5-normal"] as const) {
       const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === id)!;
@@ -351,6 +384,7 @@ describe("chatBillingContractDispatch — Phase 1 closure matrix", () => {
         CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
         CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
         CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+        CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
       ]);
     } finally {
       clearAuditLegacyFxForTest();

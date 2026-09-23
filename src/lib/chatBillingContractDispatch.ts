@@ -8,6 +8,7 @@ import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import { validateBillingFxSnapshotForLiveGrade } from "@/lib/billingFxSnapshot";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
@@ -31,6 +32,7 @@ export const PHASE1_PUBLISHED_MODELS = [
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
 ] as const;
 
 /** Phase 2 Published DeepSeek models — V4 Pro + V4.1 Flash (not Phase 1). */
@@ -44,6 +46,11 @@ export const PHASE2_DEEPSEEK_PUBLISHED_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO
 
 const PHASE1_PUBLISHED_MODEL_SET = new Set<string>(PHASE1_PUBLISHED_MODELS);
 const PHASE2_DEEPSEEK_PUBLISHED_MODEL_SET = new Set<string>(PHASE2_DEEPSEEK_PUBLISHED_MODELS);
+
+/** Main RP rollout: user-selectable Opus 5.5 must never fall through to legacy billing. */
+export function isOpus55MandatoryPublishedBillingModel(modelId: string): boolean {
+  return modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL;
+}
 
 export type PublishedBillingPhase = "phase1" | "phase2";
 
@@ -82,7 +89,11 @@ export function isPhase2DeepSeekPublishedBillingEnabled(): boolean {
 
 /** Route prepares daily-KST FX when any Published path may run this turn. */
 export function shouldPreparePublishedBillingFxSnapshot(): boolean {
-  return isPhase1PublishedBillingEnabled() || isPhase2DeepSeekPublishedBillingEnabled();
+  return (
+    isPhase1PublishedBillingEnabled() ||
+    isPhase2DeepSeekPublishedBillingEnabled() ||
+    isOpus55MandatoryPublishedBillingModel(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL)
+  );
 }
 
 export function isPhase2DeepSeekDirectSelection(input: {
@@ -103,6 +114,9 @@ export function resolvePublishedBillingPhase(
 ): PublishedBillingPhase | null {
   const phase1Enabled = opts?.phase1Enabled ?? isPhase1PublishedBillingEnabled();
   const phase2Enabled = opts?.phase2Enabled ?? isPhase2DeepSeekPublishedBillingEnabled();
+  if (isOpus55MandatoryPublishedBillingModel(input.deliveredModelId)) {
+    return "phase1";
+  }
   if (isPhase1PublishedBillingModel(input.deliveredModelId) && phase1Enabled) {
     return "phase1";
   }
@@ -245,7 +259,10 @@ function resolvePublishedPathFailure(
   reason: StablePublishedBillingAnomalyReason,
   telemetryPartial: Partial<ChatBillingContractTelemetry> = {}
 ): ChatBillingContractDecision {
-  if (publishedPhase === "phase2") {
+  if (
+    publishedPhase === "phase2" ||
+    isOpus55MandatoryPublishedBillingModel(input.deliveredModelId)
+  ) {
     return phase2PublishedFailClosedDecision(input, reason, telemetryPartial);
   }
   return legacyDecision(input, reason, {
@@ -282,7 +299,11 @@ function resolveLegacyEligibilityReason(
   phase1Enabled: boolean,
   phase2Enabled: boolean
 ): LegacyFallbackReason {
-  if (isPhase1PublishedBillingModel(input.deliveredModelId) && !phase1Enabled) {
+  if (
+    isPhase1PublishedBillingModel(input.deliveredModelId) &&
+    !phase1Enabled &&
+    !isOpus55MandatoryPublishedBillingModel(input.deliveredModelId)
+  ) {
     return "phase1_billing_disabled";
   }
   if (isPhase2DeepSeekPublishedBillingModel(input.deliveredModelId)) {
@@ -367,6 +388,13 @@ export function resolveChatBillingContract(
   }
 
   if (input.legacyWaiverMinimum > 0) {
+    if (isOpus55MandatoryPublishedBillingModel(input.deliveredModelId)) {
+      return phase2PublishedFailClosedDecision(input, "usage_unresolved", {
+        publishedBillingPhaseAttempted: "phase1",
+        publishedCandidateStatus: "blocked",
+        publishedBlockReason: "legacy_waiver_minimum_nonzero",
+      });
+    }
     return legacyDecision(input, "legacy_waiver_minimum_nonzero");
   }
 
