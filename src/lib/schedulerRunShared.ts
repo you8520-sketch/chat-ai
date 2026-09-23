@@ -23,6 +23,12 @@ export type SchedulerRunRow = {
   result_json: string;
 };
 
+export type SchedulerSlotResolution = {
+  slotKey: string;
+  due: boolean;
+  scheduledAtUtcMs: number;
+};
+
 export type SchedulerRunOverviewState =
   | SchedulerRunStatus
   | "MISSING"
