@@ -51,8 +51,9 @@ async function executeFinanceSnapshot(slotKey: string) {
   });
 
   if (process.env.DISABLE_MODEL_PRICING_TRACKER !== "1") {
+    let pricingResult: Awaited<ReturnType<typeof runModelPricingTracker>> | null = null;
     try {
-      const pricingResult = await runModelPricingTracker({ db: getDb() });
+      pricingResult = await runModelPricingTracker({ db: getDb() });
       console.log("[finance-scheduler] model pricing tracker", {
         phase: pricingResult.phase,
         status: pricingResult.status,
@@ -61,7 +62,12 @@ async function executeFinanceSnapshot(slotKey: string) {
         eventCount: pricingResult.eventCount,
         marginFloorBreaches: pricingResult.marginFloorBreaches,
       });
-      if (pricingResult.status !== "failed") {
+    } catch (pricingError) {
+      console.error("[finance-scheduler] model pricing tracker failed:", pricingError);
+    }
+
+    if (pricingResult && pricingResult.status !== "failed") {
+      try {
         const proposalDb = getDb();
         const projection = buildMainRpPricingObservabilityProjection({ db: proposalDb });
         const proposalSync = syncMainRpPricingCandidateRecords(
@@ -70,9 +76,9 @@ async function executeFinanceSnapshot(slotKey: string) {
           pricingResult.runDateKey
         );
         console.log("[finance-scheduler] pricing candidate history", proposalSync);
+      } catch (proposalError) {
+        console.error("[finance-scheduler] pricing candidate history failed:", proposalError);
       }
-    } catch (pricingError) {
-      console.error("[finance-scheduler] model pricing tracker failed:", pricingError);
     }
   }
 
