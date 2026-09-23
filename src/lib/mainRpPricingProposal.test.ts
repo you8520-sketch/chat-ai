@@ -244,7 +244,7 @@ describe("Phase B2D candidate history + review lifecycle", () => {
 
   it("non-reviewable HOLD state closes OPEN proposal and is retained as NOT_REVIEWABLE history", () => {
     const db = makeDb();
-    syncMainRpPricingCandidateRecords(db, [makeRow()], OBSERVED_1);
+    syncMainRpPricingCandidateRecords(db, [makeRow()], OBSERVED_1, "2026-09-23");
 
     const hold = makeRow({
       status: "HOLD_PROCUREMENT_NOT_FRESH",
