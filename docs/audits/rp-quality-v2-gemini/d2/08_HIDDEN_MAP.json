@@ -1,0 +1,26 @@
+{
+  "note": "Reveal only after human scoring seal",
+  "model": "google/gemini-3.1-pro-preview",
+  "blindMap": {
+    "G5": {
+      "P": "A",
+      "Q": "B"
+    },
+    "G6T1": {
+      "P": "A",
+      "Q": "B"
+    },
+    "G3": {
+      "P": "B",
+      "Q": "A"
+    },
+    "G2": {
+      "P": "A",
+      "Q": "B"
+    }
+  },
+  "arm_meanings": {
+    "A": "production prompt — continuity adapter absent",
+    "B": "production + GEMINI_SCENE_CONTINUITY"
+  }
+}

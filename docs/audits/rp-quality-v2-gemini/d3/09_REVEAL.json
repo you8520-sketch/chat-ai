@@ -1,0 +1,17 @@
+{
+  "revealed_after_seal": true,
+  "blindMap": {
+    "G6T1": {
+      "P": "C",
+      "Q": "A"
+    },
+    "G5": {
+      "P": "C",
+      "Q": "A"
+    },
+    "G3": {
+      "P": "A",
+      "Q": "C"
+    }
+  }
+}
