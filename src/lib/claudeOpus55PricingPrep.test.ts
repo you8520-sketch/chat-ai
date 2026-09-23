@@ -42,10 +42,10 @@ const FX: BillingFxSnapshot = {
 };
 
 describe("Claude Opus 5.5 prep registry", () => {
-  it("is not exposed on Main RP picker yet", () => {
+  it("is exposed on Main RP picker after live rollout wiring", () => {
     assert.equal(
       MAIN_RP_USER_SELECTABLE_OPTIONS.some((option) => option.id === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL),
-      false
+      true
     );
   });
 
@@ -55,9 +55,9 @@ describe("Claude Opus 5.5 prep registry", () => {
     assert.equal(selectedAILabel("claude-opus-5.5"), CLAUDE_OPUS_55_DISPLAY_NAME);
   });
 
-  it("published applicability uses unknown cache semantics (no Opus 5 inheritance)", () => {
+  it("published applicability uses not_applicable cache semantics for USER PRODUCT invariant", () => {
     const publishedPolicy = getModelPublishedPricingPolicy(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL);
-    assert.equal(publishedPolicy?.cacheSemanticStatus, "unknown");
+    assert.equal(publishedPolicy?.cacheSemanticStatus, "not_applicable");
     assert.equal(publishedPolicy?.opusCacheTtlMode, undefined);
   });
 

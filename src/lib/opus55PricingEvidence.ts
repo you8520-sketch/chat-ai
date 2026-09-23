@@ -226,12 +226,20 @@ export const OPUS55_RUNTIME_CONTRACT_PROBE: Opus55RuntimeContractProbeResult = {
   blockReason: null,
 };
 
-export const OPUS55_CACHE_RUNTIME_CLASSIFICATION = {
-  cacheTransportWorks: true,
-  cacheHitWorks: false,
-  cacheBillingSavingWorks: false as boolean | "UNVERIFIED",
-  summary: "UNVERIFIED for production-scale hits; minimal probe did not observe cache_read.",
-} as const;
+export type Opus55TriStateProof = "WORKS" | "DOES_NOT_WORK" | "UNVERIFIED";
+
+export const OPUS55_CACHE_RUNTIME_CLASSIFICATION: {
+  cacheTransport: Opus55TriStateProof;
+  cacheHit: Opus55TriStateProof;
+  cacheBillingSaving: Opus55TriStateProof;
+  summary: string;
+} = {
+  cacheTransport: "WORKS",
+  cacheHit: "DOES_NOT_WORK",
+  cacheBillingSaving: "UNVERIFIED",
+  summary:
+    "Minimal probe sent cache_control; no cache_read observed. Billing saving not proven (no billed USD on response; catalog read rate = input). Production-scale: UNVERIFIED.",
+};
 
 export const OPUS55_COMMERCIAL_WORKLOADS = {
   elin: { promptTokens: 73_763, outputTokens: 5_334, benchmarkId: "elin_opus55_a" },

@@ -226,7 +226,7 @@ export type SelectedAIOptionMeta = {
  * CANONICAL Main RP picker — ONE source of truth.
  *
  * DeepSeek V4 Pro / DeepSeek V4.1 Flash / Gemini 3.1 Pro Preview /
- * Gemini 3.7 Flash / GPT-5.6 Terra.
+ * Gemini 3.7 Flash / GPT-5.6 Terra / Claude Opus 5.5.
  * Claude Opus 5 remains retired from user Main RP. Luna, DeepSeek V4 Flash 0731,
  * Gemini 3.6 Flash, old Opus slugs, Muse, Qwen, GLM, Kimi, … are NOT Main RP.
  * Their constants remain only for auxiliary/background use or historical receipt/billing.
@@ -267,6 +267,13 @@ export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
     provider: "cheaperinference",
     tier: "pro",
     hint: "OpenAI · Thinking OFF",
+  },
+  {
+    id: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+    label: CLAUDE_OPUS_55_DISPLAY_NAME,
+    provider: "cheaperinference",
+    tier: "pro",
+    hint: "Anthropic",
   },
 ] as const satisfies readonly SelectedAIOptionMeta[];
 

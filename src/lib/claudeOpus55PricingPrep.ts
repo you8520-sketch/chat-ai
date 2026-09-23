@@ -1,5 +1,5 @@
 /**
- * Claude Opus 5.5 — pre-live diagnostic owner (NOT live published catalog).
+ * Claude Opus 5.5 — pre-live diagnostic matrices (live catalog: publishedModelPricing.ts).
  * PRODUCT: Anthropic list reference + explicit targetMargin parameter.
  * PROCUREMENT: CI /v1/models effective rates (discount metadata only).
  * Live rollout must converge on publishedModelPricing + publishedUserCharge — see module footer.

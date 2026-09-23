@@ -77,6 +77,8 @@ on:
       - "src/lib/opus55RealizedProcurementMargin.ts"
       - "src/lib/opus55RealizedProcurementMargin.test.ts"
       - "src/lib/opus55ProviderContractProbe.ts"
+      - "src/lib/opus55PublishedPricingDerivation.ts"
+      - "src/lib/claudeOpus55PublishedBilling.test.ts"
       - "src/lib/mainRpUserPriceDeterminism.test.ts"
       - "src/lib/mainRpPricingCandidateBand.ts"
       - "src/lib/mainRpPricingCandidateBand.test.ts"
@@ -149,6 +151,7 @@ jobs:
           src/lib/mainRpPricingObservabilityActualEconomics.test.ts
           src/lib/claudeOpus55PricingPrep.test.ts
           src/lib/opus55RealizedProcurementMargin.test.ts
+          src/lib/claudeOpus55PublishedBilling.test.ts
           src/lib/mainRpUserPriceDeterminism.test.ts
           src/lib/mainRpPricingCandidateBand.test.ts
 

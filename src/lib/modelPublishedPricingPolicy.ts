@@ -65,7 +65,8 @@ const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPoli
   [OPUS55_MODEL_ID]: {
     modelId: OPUS55_MODEL_ID,
     pricingApplicability: "tier_aware",
-    cacheSemanticStatus: "unknown",
+    /** USER PRODUCT: uniform input rate on all prompt buckets — not runtime cache verification. */
+    cacheSemanticStatus: "not_applicable",
   },
   [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]: {
     modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
