@@ -63,7 +63,7 @@ export function ensureSchedulerRunRegistrySchema(db: Database.Database): void {
       status TEXT NOT NULL
         CHECK(status IN ('RUNNING','SUCCEEDED','FAILED','STALE_BLOCKED')),
       trigger_kind TEXT NOT NULL
-        CHECK(trigger_kind IN ('cron','boot_recovery','manual')),
+        CHECK(trigger_kind IN ('cron','boot_recovery','runtime_recovery','manual')),
       execution_token TEXT NOT NULL,
       attempt_count INTEGER NOT NULL DEFAULT 1,
       started_at TEXT NOT NULL DEFAULT (datetime('now')),
