@@ -380,8 +380,9 @@ export function MainRpPricingControlPlaneSection(props: {
   const { projection, candidateRecords } = props;
   return (
     <section className="mt-6">
-      <h2 className="font-semibold text-violet-100">Main RP Control Plane (read-only)</h2>
+      <h2 className="font-semibold text-violet-100">Main RP Control Plane</h2>
       <p className="mt-1 text-xs text-zinc-500">
+        Pricing projection is read-only. Proposal controls record human review only and never apply a price.
         Semantic domains — MARKET / PROVIDER / PROCUREMENT / PRODUCT / PROMOTION / REPRESENTATIVE / ACTUAL / CANDIDATE.
         OBSERVE_ONLY tracker · actual economics {projection.actualEconomicsMonthKey ?? "unavailable"} · generated {projection.generatedAt}
       </p>

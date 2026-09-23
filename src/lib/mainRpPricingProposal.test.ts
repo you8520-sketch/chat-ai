@@ -200,19 +200,20 @@ describe("Phase B2D candidate history + review lifecycle", () => {
     const db = makeDb();
     const row = makeRow();
 
-    const first = syncMainRpPricingCandidateRecords(db, [row], OBSERVED_1, "2026-09-23");
+    const first = syncMainRpPricingCandidateRecords(db, projection(row), "2026-09-23");
     assert.deepEqual(first, { inserted: 1, refreshed: 0, superseded: 0, open: 1 });
 
+    const sameDayProjection = projection(row);
+    sameDayProjection.generatedAt = "2026-09-23T04:00:00.000Z";
     const sameDayRetry = syncMainRpPricingCandidateRecords(
       db,
-      [row],
-      "2026-09-23T04:00:00.000Z",
+      sameDayProjection,
       "2026-09-23"
     );
     assert.deepEqual(sameDayRetry, { inserted: 0, refreshed: 1, superseded: 0, open: 1 });
     assert.equal(listMainRpPricingCandidateRecords(db)[0]!.observationCount, 1);
 
-    const nextDay = syncMainRpPricingCandidateRecords(db, [row], OBSERVED_2, "2026-09-24");
+    const nextDay = syncMainRpPricingCandidateRecords(db, { ...projection(row), generatedAt: OBSERVED_2 }, "2026-09-24");
     assert.deepEqual(nextDay, { inserted: 0, refreshed: 1, superseded: 0, open: 1 });
 
     const records = listMainRpPricingCandidateRecords(db);
@@ -228,8 +229,8 @@ describe("Phase B2D candidate history + review lifecycle", () => {
     const firstRow = makeRow({ candidateTargetMargin: 0.5, maximumCompetitive: 0.5 });
     const secondRow = makeRow({ candidateTargetMargin: 0.48, maximumCompetitive: 0.48 });
 
-    syncMainRpPricingCandidateRecords(db, [firstRow], OBSERVED_1, "2026-09-23");
-    const result = syncMainRpPricingCandidateRecords(db, [secondRow], OBSERVED_2, "2026-09-24");
+    syncMainRpPricingCandidateRecords(db, projection(firstRow), "2026-09-23");
+    const result = syncMainRpPricingCandidateRecords(db, { ...projection(secondRow), generatedAt: OBSERVED_2 }, "2026-09-24");
     assert.equal(result.superseded, 1);
     assert.equal(result.inserted, 1);
     assert.equal(result.open, 1);
@@ -244,7 +245,7 @@ describe("Phase B2D candidate history + review lifecycle", () => {
 
   it("non-reviewable HOLD state closes OPEN proposal and is retained as NOT_REVIEWABLE history", () => {
     const db = makeDb();
-    syncMainRpPricingCandidateRecords(db, [makeRow()], OBSERVED_1, "2026-09-23");
+    syncMainRpPricingCandidateRecords(db, projection(makeRow()), "2026-09-23");
 
     const hold = makeRow({
       status: "HOLD_PROCUREMENT_NOT_FRESH",
@@ -252,7 +253,7 @@ describe("Phase B2D candidate history + review lifecycle", () => {
       candidateTargetMargin: null,
       minimumSafe: null,
     });
-    const result = syncMainRpPricingCandidateRecords(db, [hold], OBSERVED_2, "2026-09-24");
+    const result = syncMainRpPricingCandidateRecords(db, { ...projection(hold), generatedAt: OBSERVED_2 }, "2026-09-24");
     assert.equal(result.open, 0);
 
     const records = listMainRpPricingCandidateRecords(db);
@@ -261,11 +262,32 @@ describe("Phase B2D candidate history + review lifecycle", () => {
     assert.equal(records[1]!.reviewState, "SUPERSEDED");
   });
 
+  it("OPEN proposal is superseded when its model disappears from the current projection", () => {
+    const db = makeDb();
+    const row = makeRow();
+    syncMainRpPricingCandidateRecords(db, projection(row), "2026-09-23");
+
+    const emptyProjection = projection(row);
+    emptyProjection.generatedAt = OBSERVED_2;
+    emptyProjection.models = [];
+    const result = syncMainRpPricingCandidateRecords(
+      db,
+      emptyProjection,
+      "2026-09-24"
+    );
+
+    assert.equal(result.open, 0);
+    assert.equal(result.superseded, 1);
+    const record = listMainRpPricingCandidateRecords(db)[0]!;
+    assert.equal(record.reviewState, "SUPERSEDED");
+    assert.equal(record.supersededReason, "model_no_longer_observed");
+  });
+
   it("approval records review only and does not mutate published pricing", () => {
     const db = makeDb();
     const row = makeRow();
     const before = { ...getPublishedPricing(MODEL) };
-    syncMainRpPricingCandidateRecords(db, [row], OBSERVED_1, "2026-09-23");
+    syncMainRpPricingCandidateRecords(db, projection(row), "2026-09-23");
     const open = listMainRpPricingCandidateRecords(db)[0]!;
 
     const result = reviewMainRpPricingCandidateRecord({
@@ -283,13 +305,19 @@ describe("Phase B2D candidate history + review lifecycle", () => {
     assert.equal(result.appliesPrice, false);
     assert.equal(result.record.reviewedByUserId, 99);
     assert.equal(result.record.reviewNote, "reviewed");
+    assert.ok(result.record.reviewEvidence);
+    assert.equal(
+      (result.record.reviewEvidence?.fxSnapshot as { effectiveKrwPerUsd?: number } | undefined)
+        ?.effectiveKrwPerUsd,
+      1530
+    );
     assert.deepEqual(getPublishedPricing(MODEL), before);
   });
 
   it("stale candidate cannot be approved and is superseded", () => {
     const db = makeDb();
     const row = makeRow();
-    syncMainRpPricingCandidateRecords(db, [row], OBSERVED_1, "2026-09-23");
+    syncMainRpPricingCandidateRecords(db, projection(row), "2026-09-23");
     const open = listMainRpPricingCandidateRecords(db)[0]!;
 
     const changed = makeRow({ candidateTargetMargin: 0.48, maximumCompetitive: 0.48 });
@@ -315,7 +343,7 @@ describe("Phase B2D candidate history + review lifecycle", () => {
   it("rejected identical candidate stays terminal instead of reopening every daily sync", () => {
     const db = makeDb();
     const row = makeRow();
-    syncMainRpPricingCandidateRecords(db, [row], OBSERVED_1, "2026-09-23");
+    syncMainRpPricingCandidateRecords(db, projection(row), "2026-09-23");
     const open = listMainRpPricingCandidateRecords(db)[0]!;
 
     const reviewed = reviewMainRpPricingCandidateRecord({
@@ -328,7 +356,7 @@ describe("Phase B2D candidate history + review lifecycle", () => {
     });
     assert.equal(reviewed.ok, true);
 
-    const sync = syncMainRpPricingCandidateRecords(db, [row], OBSERVED_2, "2026-09-24");
+    const sync = syncMainRpPricingCandidateRecords(db, { ...projection(row), generatedAt: OBSERVED_2 }, "2026-09-24");
     assert.equal(sync.inserted, 0);
     assert.equal(sync.refreshed, 1);
     assert.equal(sync.open, 0);

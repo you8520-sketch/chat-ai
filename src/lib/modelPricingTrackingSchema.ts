@@ -144,6 +144,7 @@ export const MODEL_PRICING_TRACKING_DDL = `
     reviewed_at TEXT,
     reviewed_by_user_id INTEGER,
     review_note TEXT NOT NULL DEFAULT '',
+    review_evidence_json TEXT,
     superseded_reason TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))

@@ -53,6 +53,7 @@ export type MainRpPricingCandidateRecord = {
   reviewedAt: string | null;
   reviewedByUserId: number | null;
   reviewNote: string;
+  reviewEvidence: Record<string, unknown> | null;
   supersededReason: string | null;
 };
 
@@ -84,6 +85,7 @@ type CandidateRecordDbRow = {
   reviewed_at: string | null;
   reviewed_by_user_id: number | null;
   review_note: string;
+  review_evidence_json: string | null;
   superseded_reason: string | null;
 };
 
@@ -132,10 +134,11 @@ export function isReviewableMainRpPricingCandidate(
 
 function evidenceForRow(
   row: MainRpPricingObservabilityRow,
-  observedAt: string
+  projection: MainRpPricingObservabilityProjection
 ): Record<string, unknown> {
   return {
-    observedAt,
+    observedAt: projection.generatedAt,
+    fxSnapshot: projection.fxSnapshot,
     product: {
       pricingVersion: row.product.pricingVersion,
       publishedAt: row.product.publishedAt,
@@ -162,16 +165,20 @@ function evidenceForRow(
   };
 }
 
-function parseRecord(row: CandidateRecordDbRow): MainRpPricingCandidateRecord {
-  let evidence: Record<string, unknown> = {};
+function parseJsonObject(raw: string | null): Record<string, unknown> | null {
+  if (!raw) return null;
   try {
-    const parsed = JSON.parse(row.evidence_json);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      evidence = parsed as Record<string, unknown>;
-    }
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
   } catch {
-    evidence = {};
+    return null;
   }
+}
+
+function parseRecord(row: CandidateRecordDbRow): MainRpPricingCandidateRecord {
+  const evidence = parseJsonObject(row.evidence_json) ?? {};
   return {
     id: row.id,
     modelId: row.model_id,
@@ -200,6 +207,7 @@ function parseRecord(row: CandidateRecordDbRow): MainRpPricingCandidateRecord {
     reviewedAt: row.reviewed_at,
     reviewedByUserId: row.reviewed_by_user_id,
     reviewNote: row.review_note,
+    reviewEvidence: parseJsonObject(row.review_evidence_json),
     supersededReason: row.superseded_reason,
   };
 }
@@ -270,18 +278,20 @@ export type MainRpPricingCandidateSyncResult = {
 
 export function syncMainRpPricingCandidateRecords(
   db: Database.Database,
-  rows: readonly MainRpPricingObservabilityRow[],
-  observedAt: string,
+  projection: MainRpPricingObservabilityProjection,
   observationKey: string
 ): MainRpPricingCandidateSyncResult {
   let inserted = 0;
   let refreshed = 0;
   let superseded = 0;
 
-  for (const row of rows) {
+  const observedAt = projection.generatedAt;
+  const observedModelIds = new Set(projection.models.map((row) => row.modelId));
+
+  for (const row of projection.models) {
     const fingerprint = buildMainRpPricingCandidateFingerprint(row);
     const latest = readLatestForModel(db, row.modelId);
-    const evidenceJson = JSON.stringify(evidenceForRow(row, observedAt));
+    const evidenceJson = JSON.stringify(evidenceForRow(row, projection));
 
     if (latest?.candidateFingerprint === fingerprint) {
       const newObservation = latest.lastObservationKey !== observationKey;
@@ -361,6 +371,25 @@ export function syncMainRpPricingCandidateRecords(
     inserted += 1;
   }
 
+  const orphanOpenRows = db
+    .prepare(
+      `SELECT id, model_id
+       FROM model_pricing_candidate_records
+       WHERE review_state = 'OPEN'`
+    )
+    .all() as Array<{ id: number; model_id: string }>;
+  for (const orphanOpen of orphanOpenRows) {
+    if (observedModelIds.has(orphanOpen.model_id)) continue;
+    const update = db.prepare(
+      `UPDATE model_pricing_candidate_records
+       SET review_state = 'SUPERSEDED',
+           superseded_reason = 'model_no_longer_observed',
+           updated_at = datetime('now')
+       WHERE id = ? AND review_state = 'OPEN'`
+    ).run(orphanOpen.id);
+    superseded += Number(update.changes);
+  }
+
   const openRow = db
     .prepare(
       `SELECT COUNT(*) AS c
@@ -436,12 +465,16 @@ export function reviewMainRpPricingCandidateRecord(params: {
   const reviewedAt = params.reviewedAt ?? new Date().toISOString();
   const nextState: MainRpPricingCandidateReviewState =
     params.action === "approve" ? "APPROVED" : "REJECTED";
+  const reviewEvidenceJson = JSON.stringify(
+    evidenceForRow(currentRow, params.currentProjection)
+  );
   const update = params.db.prepare(
     `UPDATE model_pricing_candidate_records
      SET review_state = ?,
          reviewed_at = ?,
          reviewed_by_user_id = ?,
          review_note = ?,
+         review_evidence_json = ?,
          updated_at = datetime('now')
      WHERE id = ? AND review_state = 'OPEN'`
   ).run(
@@ -449,6 +482,7 @@ export function reviewMainRpPricingCandidateRecord(params: {
     reviewedAt,
     params.adminUserId,
     (params.note ?? "").trim().slice(0, 1000),
+    reviewEvidenceJson,
     record.id
   );
   if (Number(update.changes) !== 1) {

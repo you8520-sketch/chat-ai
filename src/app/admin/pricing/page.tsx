@@ -410,7 +410,8 @@ export default async function AdminPricingPage() {
     <div className="mx-auto max-w-6xl p-6 text-sm text-zinc-100">
       <h1 className="text-xl font-bold">Pricing Diagnostics — Admin Control Plane</h1>
       <p className="mt-2 text-zinc-400">
-        Read-only observability. Live billing may use published Phase1/Phase2 contracts when env gates are on;
+        Pricing observability is read-only; proposal review only records admin intent and does not apply prices.
+        Live billing may use published Phase1/Phase2 contracts when env gates are on;
         sections below labeled shadow are calibration-only and do not override production charge.
         CI catalog discount is procurement, not site promotion.
       </p>

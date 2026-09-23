@@ -66,8 +66,7 @@ async function executeFinanceSnapshot(slotKey: string) {
         const projection = buildMainRpPricingObservabilityProjection({ db: proposalDb });
         const proposalSync = syncMainRpPricingCandidateRecords(
           proposalDb,
-          projection.models,
-          projection.generatedAt,
+          projection,
           pricingResult.runDateKey
         );
         console.log("[finance-scheduler] pricing candidate history", proposalSync);
