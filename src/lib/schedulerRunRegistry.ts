@@ -692,6 +692,23 @@ export function listSchedulerRunOverview(
   });
 }
 
+export function shouldAttemptRuntimeRecovery(
+  db: Database.Database,
+  jobName: SchedulerJobName,
+  now: Date = new Date()
+): boolean {
+  ensureSchedulerRunRegistrySchema(db);
+  const slot = resolveLatestDueSchedulerSlot(jobName, now);
+  if (slot.scheduledAtUtcMs < registryActivatedAtMs(db)) return false;
+
+  const current = rowForSlot(db, jobName, slot.slotKey);
+  if (!current) return true;
+  if (current.status !== "RUNNING") return false;
+
+  const definition = SCHEDULER_DEFINITIONS[jobName];
+  return isStale(db, current, definition.staleAfterMinutes);
+}
+
 export function shouldAttemptBootRecovery(
   db: Database.Database,
   jobName: SchedulerJobName,
