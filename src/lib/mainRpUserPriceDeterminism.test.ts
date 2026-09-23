@@ -7,6 +7,10 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
 } from "@/lib/chatModels";
+import {
+  computeOpus55InvariantUserProductCharge,
+  OPUS55_COMMERCIAL_WORKLOADS,
+} from "@/lib/claudeOpus55PricingPrep";
 import { computeTurnBilling } from "@/lib/pointsReasoningMargins";
 import { resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
 import { computePublishedUserChargeFromResolvedPolicy } from "@/lib/publishedUserCharge";
@@ -81,6 +85,30 @@ describe("Main RP user price determinism — published PRODUCT engine", () => {
     );
     assert.ok(baseline != null);
     assert.equal(splitCache, null);
+  });
+});
+
+describe("Opus 5.5 prep — user PRODUCT invariant (73763/5334)", () => {
+  it("cache/upstream/provider attempt simulations do not change USER P", () => {
+    const { promptTokens, outputTokens } = OPUS55_COMMERCIAL_WORKLOADS.elin;
+    const base = computeOpus55InvariantUserProductCharge({
+      promptTokens,
+      billableOutputTokens: outputTokens,
+      targetMargin: 0.4,
+      fxSnapshot: FX,
+    });
+    const variant = computeOpus55InvariantUserProductCharge({
+      promptTokens,
+      billableOutputTokens: outputTokens,
+      targetMargin: 0.4,
+      fxSnapshot: FX,
+      cacheReadTokens: 50_000,
+      cacheWriteTokens: 2_000,
+      upstreamCostUsd: 1.25,
+      providerAttemptCount: 3,
+    });
+    assert.equal(base.status, "complete");
+    assert.equal(variant.snapshot.finalPoints, base.snapshot.finalPoints);
   });
 });
 

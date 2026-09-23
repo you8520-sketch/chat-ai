@@ -12,6 +12,7 @@ on:
       - "src/lib/providerCostReconciliation.ts"
       - "src/lib/providerCostReconciliation.targeted.test.ts"
       - "src/lib/providerCostLedger.ts"
+      - "src/lib/providerCostSingleOwner.test.ts"
       - "src/lib/auxProviderProvenance.ts"
       - "src/lib/trpg/replySuggestions.ts"
       - "src/lib/trpg/replySuggestionProviderCostLedger.test.ts"
@@ -72,7 +73,10 @@ on:
       - "src/lib/mainRpPricingObservabilityActualEconomics.test.ts"
       - "src/lib/claudeOpus55PricingPrep.ts"
       - "src/lib/claudeOpus55PricingPrep.test.ts"
+      - "src/lib/opus55PricingEvidence.ts"
       - "src/lib/mainRpUserPriceDeterminism.test.ts"
+      - "src/lib/mainRpPricingCandidateBand.ts"
+      - "src/lib/mainRpPricingCandidateBand.test.ts"
       - "src/components/admin/MainRpPricingControlPlaneSection.tsx"
       - "src/app/admin/pricing/page.tsx"
       - "src/lib/deepseekPhase2PublishedBillingCutover.test.ts"
@@ -142,6 +146,7 @@ jobs:
           src/lib/mainRpPricingObservabilityActualEconomics.test.ts
           src/lib/claudeOpus55PricingPrep.test.ts
           src/lib/mainRpUserPriceDeterminism.test.ts
+          src/lib/mainRpPricingCandidateBand.test.ts
 
       - name: Provider cost ledger single owner
         run: node --conditions=react-server --import tsx --test src/lib/providerCostSingleOwner.test.ts

@@ -23,6 +23,10 @@ import {
   type ActualProductionEconomicsObservation,
 } from "@/lib/mainRpPricingActualEconomics";
 import {
+  composePricingCandidateObservation,
+  type PricingCandidateObservation,
+} from "@/lib/mainRpPricingCandidateBand";
+import {
   resolveCheaperInferenceCatalogPricing,
   type CheaperInferenceCatalogPricing,
 } from "@/lib/cheaperInferenceCatalogPricing";
@@ -81,7 +85,8 @@ export type PricingSemanticDomain =
   | "PRODUCT"
   | "PROMOTION"
   | "REPRESENTATIVE"
-  | "ACTUAL_PRODUCTION";
+  | "ACTUAL_PRODUCTION"
+  | "CANDIDATE";
 
 export type ProductionBillingContractLabel =
   | "published_phase1_when_enabled"
@@ -200,6 +205,7 @@ export type RepresentativeEconomicsObservation = {
 };
 
 export type { ActualProductionEconomicsObservation } from "@/lib/mainRpPricingActualEconomics";
+export type { PricingCandidateObservation } from "@/lib/mainRpPricingCandidateBand";
 
 export type Gemini37MarginFloorRootCauseHypothesis =
   | "A_ci_procurement_rise_or_discount_shrink"
@@ -224,6 +230,7 @@ export type MainRpPricingObservabilityRow = {
   promotion: PromotionObservation;
   representative: RepresentativeEconomicsObservation;
   actual: ActualProductionEconomicsObservation;
+  candidate: PricingCandidateObservation;
   gemini37RootCause?: Gemini37MarginFloorRootCauseReport;
 };
 
@@ -959,6 +966,7 @@ function buildModelRow(
     usesPublishedPath: charges.usesPublishedPath,
     db,
   });
+  const actual = composeActualProductionEconomics(modelId, financeSummary);
   const row: MainRpPricingObservabilityRow = {
     modelId,
     market: marketObservation({ modelId, published, fxSnapshot }),
@@ -967,7 +975,16 @@ function buildModelRow(
     product,
     promotion: promotionObservation(modelId, nowIso),
     representative,
-    actual: composeActualProductionEconomics(modelId, financeSummary),
+    actual,
+    candidate: composePricingCandidateObservation({
+      modelId,
+      fxSnapshot,
+      procurement,
+      representative,
+      actual,
+      productionBillingContract: charges.contract,
+      published,
+    }),
   };
   if (modelId === GEMINI37_MODEL_ID) {
     row.gemini37RootCause = diagnoseGemini37MarginFloorRootCause({

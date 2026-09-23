@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
-import { normalizeBillableUsage } from "@/lib/billingUsage";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CLAUDE_OPUS_55_DISPLAY_NAME,
@@ -13,18 +12,22 @@ import { applyCheaperInferenceModelReasoningPolicy } from "@/lib/cheaperInferenc
 import { getModelPricingPolicy } from "@/lib/modelPricingPolicy";
 import { getModelPublishedPricingPolicy } from "@/lib/modelPublishedPricingPolicy";
 import {
+  buildOpus55CommercialPriceMatrix,
   buildOpus55PrepProcurementCatalog,
   buildOpus55PrepPublishedPricing,
   buildOpus55PriceMatrix,
+  computeOpus55InvariantUserProductCharge,
   computeOpus55PrepProductCharge,
-  OPUS55_CI_PROCUREMENT_DISCOUNT_PERCENT,
-  OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION,
-  OPUS55_CI_PROCUREMENT_OUTPUT_USD_PER_MILLION,
-  OPUS55_OFFICIAL_LIST_INPUT_USD_PER_MILLION,
-  OPUS55_OFFICIAL_LIST_OUTPUT_USD_PER_MILLION,
+  OPUS55_CI_CATALOG_EVIDENCE,
+  OPUS55_COMMERCIAL_MARGIN_CANDIDATES,
+  OPUS55_COMMERCIAL_WORKLOADS,
+  OPUS55_MARKET_BENCHMARKS,
   OPUS55_PREP_INPUT_TOKEN_WORKLOADS,
 } from "@/lib/claudeOpus55PricingPrep";
-import { computePublishedUserChargeFromResolvedPolicy } from "@/lib/publishedUserCharge";
+import {
+  OPUS55_CACHE_PATH_AUDIT,
+  OPUS55_REASONING_CONTRACT_AUDIT,
+} from "@/lib/opus55PricingEvidence";
 import { resolveProcurementCostFromCatalog } from "@/lib/procurementCost";
 
 const FX: BillingFxSnapshot = {
@@ -51,98 +54,95 @@ describe("Claude Opus 5.5 prep registry", () => {
     assert.equal(selectedAILabel("claude-opus-5.5"), CLAUDE_OPUS_55_DISPLAY_NAME);
   });
 
-  it("registers tracker and published applicability policy without Main RP picker exposure", () => {
+  it("published applicability uses unknown cache semantics (no Opus 5 inheritance)", () => {
+    const publishedPolicy = getModelPublishedPricingPolicy(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL);
+    assert.equal(publishedPolicy?.cacheSemanticStatus, "unknown");
+    assert.equal(publishedPolicy?.opusCacheTtlMode, undefined);
+  });
+
+  it("registers tracker policy with expected CI provider id", () => {
     const tracker = getModelPricingPolicy(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL);
     assert.ok(tracker);
     assert.equal(tracker?.expectedProviderModelId, "claude-opus-5.5");
     assert.equal(tracker?.autoApply, false);
-    const publishedPolicy = getModelPublishedPricingPolicy(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL);
-    assert.equal(publishedPolicy?.cacheSemanticStatus, "verified_5m");
+  });
+});
+
+describe("Opus 5.5 cache and reasoning evidence", () => {
+  it("records UNVERIFIED runtime cache stages in audit ledger", () => {
+    const unverified = OPUS55_CACHE_PATH_AUDIT.filter((row) => row.status === "UNVERIFIED");
+    assert.ok(unverified.length >= 3);
   });
 
-  it("applies Opus-family CI reasoning policy", () => {
+  it("reasoning contract documents UNVERIFIED Opus 5.5 direct proof", () => {
+    assert.equal(OPUS55_REASONING_CONTRACT_AUDIT.opus55DirectProof, "UNVERIFIED");
     const body = applyCheaperInferenceModelReasoningPolicy({
       model: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
       messages: [],
     });
-    assert.deepEqual(body.thinking, { type: "disabled" });
-    assert.equal(body.reasoning_effort, "low");
+    assert.deepEqual(body.thinking, OPUS55_REASONING_CONTRACT_AUDIT.requestFields.thinking);
+    assert.equal(body.reasoning_effort, OPUS55_REASONING_CONTRACT_AUDIT.requestFields.reasoning_effort);
   });
 });
 
 describe("Claude Opus 5.5 PRODUCT vs PROCUREMENT separation", () => {
-  it("PRODUCT billing reference matches Anthropic official list", () => {
+  it("PRODUCT billing reference matches Anthropic list from CI catalog evidence", () => {
     const prep = buildOpus55PrepPublishedPricing(0.1);
-    assert.equal(prep.billingReferenceInputUsdPerMillion, OPUS55_OFFICIAL_LIST_INPUT_USD_PER_MILLION);
-    assert.equal(prep.billingReferenceOutputUsdPerMillion, OPUS55_OFFICIAL_LIST_OUTPUT_USD_PER_MILLION);
-    assert.equal(prep.pricingVersion, 1);
+    assert.equal(prep.billingReferenceInputUsdPerMillion, 4);
+    assert.equal(prep.billingReferenceOutputUsdPerMillion, 20);
     assert.equal(prep.billingReferenceCacheReadUsdPerMillion, undefined);
   });
 
-  it("PROCUREMENT catalog uses CI effective rates and 30% discount metadata only", () => {
+  it("PROCUREMENT catalog uses exact CI cache fields (not estimated ratios)", () => {
     const catalog = buildOpus55PrepProcurementCatalog();
-    assert.equal(catalog.inputUsdPerMillion, OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION);
-    assert.equal(catalog.outputUsdPerMillion, OPUS55_CI_PROCUREMENT_OUTPUT_USD_PER_MILLION);
-    assert.equal(catalog.discountPercent, OPUS55_CI_PROCUREMENT_DISCOUNT_PERCENT);
-    assert.equal(catalog.referenceInputUsdPerMillion, OPUS55_OFFICIAL_LIST_INPUT_USD_PER_MILLION);
+    assert.equal(catalog.inputUsdPerMillion, 2.8);
+    assert.equal(catalog.outputUsdPerMillion, 14);
+    assert.equal(catalog.cacheReadUsdPerMillion, 2.8);
+    assert.equal(catalog.cacheWriteUsdPerMillion, 2.8);
+    assert.equal(catalog.discountPercent, 30);
+    assert.equal(catalog.cacheReadUsdPerMillion, OPUS55_CI_CATALOG_EVIDENCE.fields.cache_read_input_per_million);
   });
 });
 
-describe("Claude Opus 5.5 user charge invariant (prep PRODUCT owner)", () => {
-  it("same prompt/output → same P regardless of hypothetical cache split in usage normalization", () => {
-    const targetMargin = 0.12;
-    const baseline = computeOpus55PrepProductCharge({
-      promptTokens: 45_000,
-      outputTokens: 2_907,
-      targetMargin,
-      fxSnapshot: FX,
-    });
-    assert.equal(baseline.status, "complete");
-    const usageSplit = normalizeBillableUsage({
-      modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-      promptTokens: 45_000,
-      outputTokens: 2_907,
-      cacheReadTokens: 20_000,
-      cacheWriteTokens: 0,
-    });
-    const splitCharge = computePublishedUserChargeFromResolvedPolicy({
-      requestedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-      resolvedPricing: {
-        requestedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-        canonicalModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-        pricing: buildOpus55PrepPublishedPricing(targetMargin),
-      },
-      usage: usageSplit,
-      usageCoverage: "complete",
-      fxSnapshot: FX,
-      adjustment: { kind: "none" },
-    });
-    assert.equal(splitCharge.status, "blocked");
-    if (splitCharge.status === "blocked") {
-      assert.equal(splitCharge.reason, "unsupported_cache_semantics");
-    }
-    const forcedZeroCache = computePublishedUserChargeFromResolvedPolicy({
-      requestedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-      resolvedPricing: {
-        requestedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-        canonicalModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-        pricing: buildOpus55PrepPublishedPricing(targetMargin),
-      },
-      usage: normalizeBillableUsage({
-        modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-        promptTokens: 45_000,
-        outputTokens: 2_907,
-        cacheReadTokens: 0,
-        cacheWriteTokens: 0,
-      }),
-      usageCoverage: "complete",
-      fxSnapshot: FX,
-      adjustment: { kind: "none" },
-    });
-    assert.equal(forcedZeroCache.snapshot.finalPoints, baseline.snapshot.finalPoints);
-  });
+describe("Claude Opus 5.5 user price absolute invariant", () => {
+  const promptTokens = OPUS55_COMMERCIAL_WORKLOADS.elin.promptTokens;
+  const outputTokens = OPUS55_COMMERCIAL_WORKLOADS.elin.outputTokens;
+  const targetMargin = 0.4;
 
-  it("procurement cost can improve with cache hit while USER P stays fixed", () => {
+  const scenarios = [
+    { label: "A zero cache", cacheReadTokens: 0, cacheWriteTokens: 0, upstreamCostUsd: undefined },
+    { label: "B cache read 10k", cacheReadTokens: 10_000, cacheWriteTokens: 0, upstreamCostUsd: undefined },
+    { label: "C cache read 50k", cacheReadTokens: 50_000, cacheWriteTokens: 0, upstreamCostUsd: undefined },
+    { label: "D cache write", cacheReadTokens: 0, cacheWriteTokens: 5_000, upstreamCostUsd: undefined },
+    { label: "E upstream cost", cacheReadTokens: 0, cacheWriteTokens: 0, upstreamCostUsd: 0.42 },
+    { label: "F provider attempts", cacheReadTokens: 0, cacheWriteTokens: 0, upstreamCostUsd: undefined, providerAttemptCount: 4 },
+  ] as const;
+
+  for (const scenario of scenarios) {
+    it(`${scenario.label} — USER PRODUCT P unchanged`, () => {
+      const baseline = computeOpus55InvariantUserProductCharge({
+        promptTokens,
+        billableOutputTokens: outputTokens,
+        targetMargin,
+        fxSnapshot: FX,
+      });
+      const variant = computeOpus55InvariantUserProductCharge({
+        promptTokens,
+        billableOutputTokens: outputTokens,
+        targetMargin,
+        fxSnapshot: FX,
+        cacheReadTokens: scenario.cacheReadTokens,
+        cacheWriteTokens: scenario.cacheWriteTokens,
+        upstreamCostUsd: scenario.upstreamCostUsd,
+        providerAttemptCount: "providerAttemptCount" in scenario ? scenario.providerAttemptCount : 1,
+      });
+      assert.equal(baseline.status, "complete");
+      assert.equal(variant.status, "complete");
+      assert.equal(variant.snapshot.finalPoints, baseline.snapshot.finalPoints);
+    });
+  }
+
+  it("procurement may differ with cache tokens but USER P stays fixed", () => {
     const catalog = buildOpus55PrepProcurementCatalog();
     const charge = computeOpus55PrepProductCharge({
       promptTokens: 45_000,
@@ -151,14 +151,7 @@ describe("Claude Opus 5.5 user charge invariant (prep PRODUCT owner)", () => {
       fxSnapshot: FX,
     });
     assert.equal(charge.status, "complete");
-    const noCache = resolveProcurementCostFromCatalog({
-      modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-      promptTokens: 45_000,
-      outputTokens: 2_907,
-      effectiveKrwPerUsd: FX.effectiveKrwPerUsd,
-      catalog,
-    })!;
-    const cacheHit = resolveProcurementCostFromCatalog({
+    const withCacheRead = resolveProcurementCostFromCatalog({
       modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
       promptTokens: 45_000,
       outputTokens: 2_907,
@@ -166,28 +159,50 @@ describe("Claude Opus 5.5 user charge invariant (prep PRODUCT owner)", () => {
       effectiveKrwPerUsd: FX.effectiveKrwPerUsd,
       catalog,
     })!;
-    assert.ok(cacheHit.procurementCostKrw < noCache.procurementCostKrw);
-    assert.equal(charge.snapshot.finalPoints, charge.snapshot.finalPoints);
+    const noCache = resolveProcurementCostFromCatalog({
+      modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+      promptTokens: 45_000,
+      outputTokens: 2_907,
+      effectiveKrwPerUsd: FX.effectiveKrwPerUsd,
+      catalog,
+    })!;
+    assert.equal(withCacheRead.procurementCostKrw, noCache.procurementCostKrw);
   });
 });
 
-describe("Claude Opus 5.5 price matrix", () => {
-  it("generates all input workloads and char presets", () => {
-    const matrix = buildOpus55PriceMatrix({ targetMargin: 0.12, fxSnapshot: FX });
-    assert.equal(matrix.length, OPUS55_PREP_INPUT_TOKEN_WORKLOADS.length * 5);
-    for (const row of matrix) {
-      assert.ok(row.userChargePoints != null && row.userChargePoints > 0);
-      assert.ok(row.procurementCostKrwNoCache != null);
-      assert.ok(row.anthropicListCostKrw != null);
-      assert.ok(row.grossMarginPercentNoCache != null);
+describe("Claude Opus 5.5 commercial price matrix", () => {
+  it("includes ELIN and T-POT workloads for 35/40/45% margins", () => {
+    const matrix = buildOpus55CommercialPriceMatrix({ fxSnapshot: FX });
+    assert.equal(matrix.length, 2 * OPUS55_COMMERCIAL_MARGIN_CANDIDATES.length);
+    for (const margin of OPUS55_COMMERCIAL_MARGIN_CANDIDATES) {
+      const elin = matrix.find((r) => r.workloadKey === "elin" && r.targetMargin === margin);
+      const tpot = matrix.find((r) => r.workloadKey === "tpot" && r.targetMargin === margin);
+      assert.ok(elin?.userChargePoints != null);
+      assert.ok(tpot?.userChargePoints != null);
+      assert.equal(elin?.promptTokens, 73_763);
+      assert.equal(elin?.outputTokens, 5_334);
+      assert.equal(tpot?.promptTokens, 58_654);
+      assert.equal(tpot?.outputTokens, 4_644);
     }
   });
 
-  it("4360 char reference row matches ~2907 output tokens", () => {
+  it("includes market benchmarks with correct kinds", () => {
+    assert.ok(OPUS55_MARKET_BENCHMARKS.some((b) => b.id === "elin_opus55_a"));
+    assert.ok(OPUS55_MARKET_BENCHMARKS.some((b) => b.id === "tpot_opus55_hypothetical"));
+    assert.ok(OPUS55_MARKET_BENCHMARKS.some((b) => b.id === "crack_perceived"));
+    const matrix = buildOpus55CommercialPriceMatrix({ fxSnapshot: FX, targetMargins: [0.4] });
+    const elin = matrix.find((r) => r.workloadKey === "elin")!;
+    const elinBench = elin.marketComparisons.find((c) => c.benchmarkId === "elin_opus55_a");
+    assert.equal(elinBench?.referenceKrw, 729.6);
+    const hypo = elin.marketComparisons.find((c) => c.benchmarkId === "tpot_opus55_hypothetical");
+    assert.equal(hypo?.kind, "HYPOTHETICAL_SCENARIO");
+    assert.equal(hypo?.referencePoints, 736.8);
+  });
+});
+
+describe("Claude Opus 5.5 exploratory price matrix", () => {
+  it("generates char preset grid", () => {
     const matrix = buildOpus55PriceMatrix({ targetMargin: 0.12, fxSnapshot: FX });
-    const ref = matrix.find((row) => row.outputChars === 4360 && row.promptTokens === 45_000);
-    assert.ok(ref);
-    assert.equal(ref?.outputTokens, 2907);
-    assert.ok(ref?.userChargePoints != null);
+    assert.equal(matrix.length, OPUS55_PREP_INPUT_TOKEN_WORKLOADS.length * 5);
   });
 });

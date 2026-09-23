@@ -1,14 +1,21 @@
 /**
- * Claude Opus 5.5 — Main RP pricing prep (read-only / diagnostic).
- * PRODUCT billing reference follows Anthropic official list rates.
- * PROCUREMENT uses CheaperInference current effective rates (not user-facing discount).
- * Does not mutate live published catalog target margin — commercial decision is external.
+ * Claude Opus 5.5 — pre-live diagnostic owner (NOT live published catalog).
+ * PRODUCT: Anthropic list reference + explicit targetMargin parameter.
+ * PROCUREMENT: CI /v1/models effective rates (discount metadata only).
+ * Live rollout must converge on publishedModelPricing + publishedUserCharge — see module footer.
  */
 
 import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import { normalizeBillableUsage } from "@/lib/billingUsage";
 import { CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL } from "@/lib/chatModels";
 import type { CheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
+import {
+  OPUS55_CI_CATALOG_EVIDENCE,
+  OPUS55_COMMERCIAL_MARGIN_CANDIDATES,
+  OPUS55_COMMERCIAL_WORKLOADS,
+  OPUS55_MARKET_BENCHMARKS,
+  type Opus55MarketBenchmark,
+} from "@/lib/opus55PricingEvidence";
 import { resolveProcurementCostFromCatalog } from "@/lib/procurementCost";
 import type { PublishedModelPricing } from "@/lib/publishedModelPricing";
 import {
@@ -17,20 +24,29 @@ import {
 } from "@/lib/publishedUserCharge";
 import { KOREAN_CHARS_PER_OUTPUT_TOKEN } from "@/lib/responseLengthConstants";
 
-/** CheaperInference wire id — verified via GET /v1/models catalog. */
 export { CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL } from "@/lib/chatModels";
+export {
+  OPUS55_ANTHROPIC_OFFICIAL_REFERENCE,
+  OPUS55_CACHE_PATH_AUDIT,
+  OPUS55_CI_CATALOG_EVIDENCE,
+  OPUS55_COMMERCIAL_MARGIN_CANDIDATES,
+  OPUS55_COMMERCIAL_WORKLOADS,
+  OPUS55_MARKET_BENCHMARKS,
+} from "@/lib/opus55PricingEvidence";
 
-/** Anthropic official list (PRODUCT billing reference semantic). */
-export const OPUS55_OFFICIAL_LIST_INPUT_USD_PER_MILLION = 4;
-export const OPUS55_OFFICIAL_LIST_OUTPUT_USD_PER_MILLION = 20;
-
-/** CheaperInference effective procurement (30% off list — procurement only). */
-export const OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION = 2.8;
-export const OPUS55_CI_PROCUREMENT_OUTPUT_USD_PER_MILLION = 14;
-export const OPUS55_CI_PROCUREMENT_DISCOUNT_PERCENT = 30;
+/** @deprecated use OPUS55_CI_CATALOG_EVIDENCE.fields */
+export const OPUS55_OFFICIAL_LIST_INPUT_USD_PER_MILLION =
+  OPUS55_CI_CATALOG_EVIDENCE.fields.list_input_per_million;
+export const OPUS55_OFFICIAL_LIST_OUTPUT_USD_PER_MILLION =
+  OPUS55_CI_CATALOG_EVIDENCE.fields.list_output_per_million;
+export const OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION =
+  OPUS55_CI_CATALOG_EVIDENCE.fields.input_per_million;
+export const OPUS55_CI_PROCUREMENT_OUTPUT_USD_PER_MILLION =
+  OPUS55_CI_CATALOG_EVIDENCE.fields.output_per_million;
+export const OPUS55_CI_PROCUREMENT_DISCOUNT_PERCENT =
+  OPUS55_CI_CATALOG_EVIDENCE.fields.discount_percent;
 
 export const OPUS55_PREP_INPUT_TOKEN_WORKLOADS = [15_000, 25_000, 35_000, 45_000, 75_000] as const;
-
 export const OPUS55_PREP_OUTPUT_CHAR_PRESETS = [1500, 2500, 3500, 4360, 5000] as const;
 
 export type Opus55PrepOutputPreset = {
@@ -45,38 +61,54 @@ export function listOpus55PrepOutputPresets(): Opus55PrepOutputPreset[] {
   }));
 }
 
-/** Prep published policy — no cache reference rates (user P must not depend on cache split). */
+/** Prep published policy — no cache reference rates on PRODUCT (user P uses total prompt tokens only). */
 export function buildOpus55PrepPublishedPricing(targetMargin: number): PublishedModelPricing {
   return {
     modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-    billingReferenceInputUsdPerMillion: OPUS55_OFFICIAL_LIST_INPUT_USD_PER_MILLION,
-    billingReferenceOutputUsdPerMillion: OPUS55_OFFICIAL_LIST_OUTPUT_USD_PER_MILLION,
+    billingReferenceInputUsdPerMillion: OPUS55_CI_CATALOG_EVIDENCE.fields.list_input_per_million,
+    billingReferenceOutputUsdPerMillion: OPUS55_CI_CATALOG_EVIDENCE.fields.list_output_per_million,
     targetMargin,
     minimumMarginFloor: 0.05,
-    /** Prep-only snapshot — not live published catalog; commercial targetMargin supplied per matrix. */
     pricingVersion: 1,
     publishedAt: "2026-09-23T00:00:00.000Z",
   };
 }
 
+/** CI catalog-derived procurement — exact cache_read/cache_write fields from GET /v1/models (runtime hit UNVERIFIED). */
 export function buildOpus55PrepProcurementCatalog(
   overrides?: Partial<CheaperInferenceCatalogPricing>
 ): CheaperInferenceCatalogPricing {
+  const f = OPUS55_CI_CATALOG_EVIDENCE.fields;
   return {
     modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-    inputUsdPerMillion: OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION,
-    outputUsdPerMillion: OPUS55_CI_PROCUREMENT_OUTPUT_USD_PER_MILLION,
-    cacheReadUsdPerMillion: OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION * 0.1,
-    cacheWriteUsdPerMillion: OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION,
-    referenceInputUsdPerMillion: OPUS55_OFFICIAL_LIST_INPUT_USD_PER_MILLION,
-    referenceOutputUsdPerMillion: OPUS55_OFFICIAL_LIST_OUTPUT_USD_PER_MILLION,
-    discountPercent: OPUS55_CI_PROCUREMENT_DISCOUNT_PERCENT,
+    inputUsdPerMillion: f.input_per_million,
+    outputUsdPerMillion: f.output_per_million,
+    cacheReadUsdPerMillion: f.cache_read_input_per_million,
+    cacheWriteUsdPerMillion: f.cache_write_input_per_million,
+    referenceInputUsdPerMillion: f.list_input_per_million,
+    referenceOutputUsdPerMillion: f.list_output_per_million,
+    discountPercent: f.discount_percent,
     fetchedAt: Date.now(),
     ...overrides,
   };
 }
 
-/** PRODUCT charge — billable prompt/output only; cache buckets forced to zero for user P. */
+function resolvePrepPublishedPricing(targetMargin: number): {
+  requestedModelId: string;
+  canonicalModelId: string;
+  pricing: PublishedModelPricing;
+} {
+  return {
+    requestedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+    canonicalModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+    pricing: buildOpus55PrepPublishedPricing(targetMargin),
+  };
+}
+
+/**
+ * Canonical pre-live USER PRODUCT charge — billable totals only.
+ * Ignores cache buckets, upstreamCostUsd, provider attempts (not passed to published engine).
+ */
 export function computeOpus55PrepProductCharge(params: {
   promptTokens: number;
   outputTokens: number;
@@ -92,15 +124,34 @@ export function computeOpus55PrepProductCharge(params: {
   });
   return computePublishedUserChargeFromResolvedPolicy({
     requestedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-    resolvedPricing: {
-      requestedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-      canonicalModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-      pricing: buildOpus55PrepPublishedPricing(params.targetMargin),
-    },
+    resolvedPricing: resolvePrepPublishedPricing(params.targetMargin),
     usage,
     usageCoverage: "complete",
     fxSnapshot: params.fxSnapshot,
     adjustment: { kind: "none" },
+  });
+}
+
+/** Determinism regression helper — simulates noisy provider fields without affecting USER P. */
+export function computeOpus55InvariantUserProductCharge(params: {
+  promptTokens: number;
+  billableOutputTokens: number;
+  targetMargin: number;
+  fxSnapshot: BillingFxSnapshot;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  upstreamCostUsd?: number;
+  providerAttemptCount?: number;
+}): PublishedUserChargeResult {
+  void params.cacheReadTokens;
+  void params.cacheWriteTokens;
+  void params.upstreamCostUsd;
+  void params.providerAttemptCount;
+  return computeOpus55PrepProductCharge({
+    promptTokens: params.promptTokens,
+    outputTokens: params.billableOutputTokens,
+    targetMargin: params.targetMargin,
+    fxSnapshot: params.fxSnapshot,
   });
 }
 
@@ -112,7 +163,6 @@ export type Opus55PriceMatrixCell = {
   userChargeKrw: number | null;
   anthropicListCostKrw: number | null;
   procurementCostKrwNoCache: number | null;
-  procurementCostKrwRepresentativeCacheHit: number | null;
   grossMarginPercentNoCache: number | null;
   userChargeInvariantNote: string;
 };
@@ -153,10 +203,8 @@ export function buildOpus55PriceMatrix(params: {
         effectiveKrwPerUsd: params.fxSnapshot.effectiveKrwPerUsd,
         catalog: {
           ...catalog,
-          inputUsdPerMillion: OPUS55_OFFICIAL_LIST_INPUT_USD_PER_MILLION,
-          outputUsdPerMillion: OPUS55_OFFICIAL_LIST_OUTPUT_USD_PER_MILLION,
-          referenceInputUsdPerMillion: OPUS55_OFFICIAL_LIST_INPUT_USD_PER_MILLION,
-          referenceOutputUsdPerMillion: OPUS55_OFFICIAL_LIST_OUTPUT_USD_PER_MILLION,
+          inputUsdPerMillion: OPUS55_CI_CATALOG_EVIDENCE.fields.list_input_per_million,
+          outputUsdPerMillion: OPUS55_CI_CATALOG_EVIDENCE.fields.list_output_per_million,
         },
       });
 
@@ -170,20 +218,6 @@ export function buildOpus55PriceMatrix(params: {
         catalog,
       });
 
-      const representativeCacheRead = Math.min(
-        Math.floor(promptTokens * 0.5),
-        promptTokens
-      );
-      const procurementCacheHit = resolveProcurementCostFromCatalog({
-        modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-        promptTokens,
-        outputTokens: preset.equivalentOutputTokens,
-        cacheReadTokens: representativeCacheRead,
-        cacheWriteTokens: 0,
-        effectiveKrwPerUsd: params.fxSnapshot.effectiveKrwPerUsd,
-        catalog,
-      });
-
       cells.push({
         promptTokens,
         outputTokens: preset.equivalentOutputTokens,
@@ -192,16 +226,126 @@ export function buildOpus55PriceMatrix(params: {
         userChargeKrw,
         anthropicListCostKrw: listProcurement?.procurementCostKrw ?? null,
         procurementCostKrwNoCache: procurementNoCache?.procurementCostKrw ?? null,
-        procurementCostKrwRepresentativeCacheHit:
-          procurementCacheHit?.procurementCostKrw ?? null,
         grossMarginPercentNoCache:
           userChargeKrw != null && procurementNoCache != null
             ? grossMarginPercent(userChargeKrw, procurementNoCache.procurementCostKrw)
             : null,
         userChargeInvariantNote:
-          "USER P uses published PRODUCT engine with cache buckets=0 — identical for any provider cache state.",
+          "USER P = f(total prompt, billable output, targetMargin) — cache/provider state excluded.",
       });
     }
   }
   return cells;
 }
+
+export type Opus55CommercialPriceRow = {
+  workloadKey: "elin" | "tpot";
+  targetMargin: number;
+  promptTokens: number;
+  outputTokens: number;
+  userChargePoints: number | null;
+  userChargeKrw: number | null;
+  procurementCostKrwNoCache: number | null;
+  grossMarginPercentNoCache: number | null;
+  anthropicListCostKrw: number | null;
+  marketComparisons: Array<{
+    benchmarkId: string;
+    label: string;
+    kind: Opus55MarketBenchmark["kind"];
+    referencePoints: number | null;
+    referenceKrw: number | null;
+    deltaPoints: number | null;
+    deltaKrw: number | null;
+    notes: string;
+  }>;
+  cacheProcurementNote: string;
+};
+
+export function buildOpus55CommercialPriceMatrix(params: {
+  fxSnapshot: BillingFxSnapshot;
+  targetMargins?: readonly number[];
+}): Opus55CommercialPriceRow[] {
+  const margins = params.targetMargins ?? OPUS55_COMMERCIAL_MARGIN_CANDIDATES;
+  const catalog = buildOpus55PrepProcurementCatalog();
+  const rows: Opus55CommercialPriceRow[] = [];
+
+  for (const [workloadKey, workload] of Object.entries(OPUS55_COMMERCIAL_WORKLOADS) as Array<
+    ["elin" | "tpot", (typeof OPUS55_COMMERCIAL_WORKLOADS)["elin"]]
+  >) {
+    for (const targetMargin of margins) {
+      const charge = computeOpus55PrepProductCharge({
+        promptTokens: workload.promptTokens,
+        outputTokens: workload.outputTokens,
+        targetMargin,
+        fxSnapshot: params.fxSnapshot,
+      });
+      const userChargeKrw =
+        charge.status === "complete" ? charge.snapshot.finalUserChargeKrw : null;
+      const userChargePoints =
+        charge.status === "complete" ? charge.snapshot.finalPoints : null;
+
+      const procurementNoCache = resolveProcurementCostFromCatalog({
+        modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+        promptTokens: workload.promptTokens,
+        outputTokens: workload.outputTokens,
+        effectiveKrwPerUsd: params.fxSnapshot.effectiveKrwPerUsd,
+        catalog,
+      });
+
+      const listProcurement = resolveProcurementCostFromCatalog({
+        modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+        promptTokens: workload.promptTokens,
+        outputTokens: workload.outputTokens,
+        effectiveKrwPerUsd: params.fxSnapshot.effectiveKrwPerUsd,
+        catalog: {
+          ...catalog,
+          inputUsdPerMillion: OPUS55_CI_CATALOG_EVIDENCE.fields.list_input_per_million,
+          outputUsdPerMillion: OPUS55_CI_CATALOG_EVIDENCE.fields.list_output_per_million,
+        },
+      });
+
+      const marketComparisons = OPUS55_MARKET_BENCHMARKS.map((benchmark) => {
+        const refPoints = benchmark.observedUserPoints;
+        const refKrw = benchmark.observedUserCostKrw;
+        return {
+          benchmarkId: benchmark.id,
+          label: benchmark.label,
+          kind: benchmark.kind,
+          referencePoints: refPoints,
+          referenceKrw: refKrw,
+          deltaPoints:
+            userChargePoints != null && refPoints != null ? userChargePoints - refPoints : null,
+          deltaKrw: userChargeKrw != null && refKrw != null ? userChargeKrw - refKrw : null,
+          notes: benchmark.notes,
+        };
+      });
+
+      rows.push({
+        workloadKey,
+        targetMargin,
+        promptTokens: workload.promptTokens,
+        outputTokens: workload.outputTokens,
+        userChargePoints,
+        userChargeKrw,
+        procurementCostKrwNoCache: procurementNoCache?.procurementCostKrw ?? null,
+        grossMarginPercentNoCache:
+          userChargeKrw != null && procurementNoCache != null
+            ? grossMarginPercent(userChargeKrw, procurementNoCache.procurementCostKrw)
+            : null,
+        anthropicListCostKrw: listProcurement?.procurementCostKrw ?? null,
+        marketComparisons,
+        cacheProcurementNote:
+          "CI catalog lists cache_read/write at $2.80/M (same as input). Runtime cache-hit economics UNVERIFIED — no-cache procurement used as conservative baseline.",
+      });
+    }
+  }
+  return rows;
+}
+
+/**
+ * Lifecycle: SAFE TO DELETE after Opus 5.5 live enablement when:
+ * - publishedModelPricing.ts holds commercial policy
+ * - publishedUserCharge.ts is the sole USER charge owner
+ * - chatBillingContractDispatch routes Opus 5.5 only through published path
+ * Until then: KEEP as diagnostic/pre-live matrix owner.
+ */

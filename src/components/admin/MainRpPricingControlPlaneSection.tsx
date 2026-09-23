@@ -1,6 +1,7 @@
 import type {
   MainRpPricingObservabilityProjection,
   MainRpPricingObservabilityRow,
+  PricingCandidateObservation,
   ProcurementFreshnessState,
   ProviderEvidenceStatus,
   RealizedMarginDiagnosticStatus,
@@ -108,6 +109,50 @@ function coverageLabel(coverage: string | null, exact: boolean): string {
   return `${coverage.toUpperCase()} · ${exact ? "EXACT" : "NOT EXACT"}`;
 }
 
+function candidateStatusLabel(status: PricingCandidateObservation["status"]): string {
+  switch (status) {
+    case "READY":
+      return "READY";
+    case "KEEP_CURRENT":
+      return "KEEP CURRENT";
+    case "HOLD_NO_HARD_MARKET_EVIDENCE":
+      return "Hold — no hard-comparable market benchmark";
+    case "HOLD_PROCUREMENT_NOT_FRESH":
+      return "Hold — procurement not fresh";
+    case "HOLD_ACTUAL_REPRESENTATIVE_CONFLICT":
+      return "Hold — actual vs representative conflict";
+    case "NO_FEASIBLE_PRICE":
+      return "No feasible price band";
+    case "UNAVAILABLE":
+      return "Unavailable";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
+
+function formatSafeBand(
+  minimum: number | null,
+  maximum: number | null
+): string {
+  if (minimum == null && maximum == null) return "n/a";
+  if (minimum != null && maximum != null) {
+    return `${(minimum * 100).toFixed(1)}% — ${(maximum * 100).toFixed(1)}%`;
+  }
+  if (minimum != null) return `floor ${(minimum * 100).toFixed(1)}% (no market ceiling)`;
+  return `market ${(maximum! * 100).toFixed(1)}% max (no floor bound)`;
+}
+
+function candidatePointsLabel(candidate: PricingCandidateObservation): string {
+  if (candidate.candidateTargetMargin == null) return "";
+  const margin =
+    candidate.representative.candidateProjectedMargin != null
+      ? ` · projected margin ${formatPct(candidate.representative.candidateProjectedMargin)}`
+      : "";
+  return ` · candidate ${candidate.representative.candidatePoints ?? "UNKNOWN"}P${margin}`;
+}
+
 function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
   const { row } = props;
   return (
@@ -183,6 +228,31 @@ function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
           </dl>
         </div>
 
+        <div className="rounded border border-cyan-500/20 bg-cyan-950/10 p-2 md:col-span-2">
+          <h4 className="font-medium text-cyan-200">CANDIDATE</h4>
+          <dl className="mt-1 space-y-1">
+            <div><dt className="inline text-zinc-500">status </dt><dd className="inline">{candidateStatusLabel(row.candidate.status)}</dd></div>
+            <div><dt className="inline text-zinc-500">current target </dt><dd className="inline">{formatPct(row.candidate.currentTargetMargin)}</dd></div>
+            <div><dt className="inline text-zinc-500">safe band </dt><dd className="inline">{formatSafeBand(row.candidate.minimumSafeTargetMargin, row.candidate.maximumCompetitiveTargetMargin)}</dd></div>
+            <div><dt className="inline text-zinc-500">decision </dt><dd className="inline">{row.candidate.candidateDirection}{row.candidate.candidateTargetMargin != null ? ` → ${formatPct(row.candidate.candidateTargetMargin)}` : ""}</dd></div>
+            <div><dt className="inline text-zinc-500">live applicability </dt><dd className="inline">{row.candidate.liveApplicability} · {row.candidate.productionBillingContract}</dd></div>
+            <div><dt className="inline text-zinc-500">representative </dt><dd className="inline">{row.representative.representativeWorkloadLabel} · current {row.candidate.representative.currentPoints ?? "UNKNOWN"}P{candidatePointsLabel(row.candidate)}</dd></div>
+            {row.candidate.market.hardBenchmarkCount > 0 ? (
+              <div>
+                <dt className="inline text-zinc-500">market </dt>
+                <dd className="inline">
+                  {row.candidate.market.cases.map((marketCase) => (
+                    <span key={marketCase.benchmarkId} className="mr-2">
+                      {marketCase.benchmarkId}: {marketCase.currentPoints ?? "?"}P / competitor {marketCase.competitorPoints}P — {marketCase.pass == null ? "?" : marketCase.pass ? "PASS" : "FAIL"}
+                    </span>
+                  ))}
+                </dd>
+              </div>
+            ) : null}
+            <div><dt className="inline text-zinc-500">actual signal </dt><dd className="inline">{row.candidate.actual.signal}{row.candidate.actual.exact && row.candidate.actual.marginRate != null ? ` (${formatPct(row.candidate.actual.marginRate)})` : ""}</dd></div>
+          </dl>
+        </div>
+
         <div className="rounded border border-lime-500/20 bg-lime-950/10 p-2 md:col-span-2 xl:col-span-1">
           <h4 className="font-medium text-lime-200">ACTUAL{row.actual.monthKey ? ` — ${row.actual.monthKey}` : ""}</h4>
           <dl className="mt-1 space-y-1">
@@ -227,7 +297,7 @@ export function MainRpPricingControlPlaneSection(props: {
     <section className="mt-6">
       <h2 className="font-semibold text-violet-100">Main RP Control Plane (read-only)</h2>
       <p className="mt-1 text-xs text-zinc-500">
-        Semantic domains — MARKET / PROVIDER / PROCUREMENT / PRODUCT / PROMOTION / REPRESENTATIVE / ACTUAL.
+        Semantic domains — MARKET / PROVIDER / PROCUREMENT / PRODUCT / PROMOTION / REPRESENTATIVE / ACTUAL / CANDIDATE.
         OBSERVE_ONLY tracker · actual economics {projection.actualEconomicsMonthKey ?? "unavailable"} · generated {projection.generatedAt}
       </p>
       <div className="mt-4 space-y-4">

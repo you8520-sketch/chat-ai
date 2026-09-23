@@ -65,8 +65,7 @@ const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPoli
   [OPUS55_MODEL_ID]: {
     modelId: OPUS55_MODEL_ID,
     pricingApplicability: "tier_aware",
-    cacheSemanticStatus: "verified_5m",
-    opusCacheTtlMode: "5M_ONLY",
+    cacheSemanticStatus: "unknown",
   },
   [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]: {
     modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
