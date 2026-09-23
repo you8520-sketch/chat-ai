@@ -183,6 +183,9 @@ function mainRow(
             : undefined,
       usageEstimated: opts.usageEstimated ?? false,
       providerRequestId: opts.requestId ?? null,
+      // Deterministic request-time FX: billedKrw fixtures are converted to USD
+      // with this same snapshot and must not race the async live FX refresh.
+      exchangeRateKrwPerUsd: FX,
       outcome: "success",
       persistInTests: true,
     },
@@ -928,6 +931,7 @@ describe("merge blockers A-C — real daily schema, true estimate, pagination ca
           upstreamCostUsd: usdForKrw(90),
           usageEstimated: true,
           providerRequestId: "req-est-true",
+          exchangeRateKrwPerUsd: FX,
           outcome: "success",
           persistInTests: true,
         },
@@ -935,6 +939,7 @@ describe("merge blockers A-C — real daily schema, true estimate, pagination ca
       );
       const before = listProviderCostEventsForAssistantMessage(1, d);
       assert.equal(before[0]!.actual_cost_usd, null);
+      assert.equal(before[0]!.exchange_rate_krw_per_usd, FX);
       const turnBefore = resolveMessageTurnProviderCostKrw(usage({ actualKrw: null }), before);
       assert.equal(turnBefore.knownApiCostKrw, 90, "ledger-owned estimate preserved, not 0");
       assert.equal(turnBefore.realizedMarginExact, false);
