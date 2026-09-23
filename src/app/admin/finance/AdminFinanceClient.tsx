@@ -84,7 +84,7 @@ function schedulerStateLabel(state: SchedulerRunOverview["state"]): string {
     case "FAILED":
       return "실패";
     case "STALE":
-      return "stale · 재시작 시 recovery 판정";
+      return "stale · recovery 판정 대상";
     case "STALE_BLOCKED":
       return "stale · 수동 확인 필요";
     case "MISSING":
@@ -390,7 +390,7 @@ export default function AdminFinanceClient({
                       {schedulerStateLabel(run.state)}
                       {run.state === "MISSING" && (
                         <span className="mt-1 block text-[10px] font-normal text-zinc-500">
-                          다음 부팅 시 latest-due slot recovery 대상
+                          누락 감지됨 · 자동 recovery 여부는 작업별 정책에 따름
                         </span>
                       )}
                     </td>
