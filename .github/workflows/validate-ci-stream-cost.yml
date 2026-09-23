@@ -70,6 +70,9 @@ on:
       - "src/lib/mainRpPricingObservability.test.ts"
       - "src/lib/mainRpPricingActualEconomics.ts"
       - "src/lib/mainRpPricingObservabilityActualEconomics.test.ts"
+      - "src/lib/claudeOpus55PricingPrep.ts"
+      - "src/lib/claudeOpus55PricingPrep.test.ts"
+      - "src/lib/mainRpUserPriceDeterminism.test.ts"
       - "src/components/admin/MainRpPricingControlPlaneSection.tsx"
       - "src/app/admin/pricing/page.tsx"
       - "src/lib/deepseekPhase2PublishedBillingCutover.test.ts"
@@ -137,6 +140,8 @@ jobs:
           src/lib/modelPricingTracker.test.ts
           src/lib/mainRpPricingObservability.test.ts
           src/lib/mainRpPricingObservabilityActualEconomics.test.ts
+          src/lib/claudeOpus55PricingPrep.test.ts
+          src/lib/mainRpUserPriceDeterminism.test.ts
 
       - name: Provider cost ledger single owner
         run: node --conditions=react-server --import tsx --test src/lib/providerCostSingleOwner.test.ts

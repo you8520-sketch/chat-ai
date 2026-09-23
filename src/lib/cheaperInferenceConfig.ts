@@ -3,6 +3,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   isCheaperInferenceClaudeOpus5Model,
+  isCheaperInferenceClaudeOpus55Model,
   isCheaperInferenceDeepSeekV41FlashModel,
   isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
@@ -119,7 +120,7 @@ export function applyCheaperInferenceModelReasoningPolicy(
     }
     return applyCheaperInferenceDeepSeekTrueOffPolicy(adapted);
   }
-  if (isCheaperInferenceClaudeOpus5Model(model)) {
+  if (isCheaperInferenceClaudeOpus5Model(model) || isCheaperInferenceClaudeOpus55Model(model)) {
     adapted.thinking = { type: "disabled" };
     adapted.output_config = { effort: "low" };
     adapted.reasoning_effort = "low";

@@ -6,6 +6,7 @@ import {
   GEMINI31_BASE_TIER_PROMPT_THRESHOLD,
   GEMINI31_MODEL_ID,
   OPUS5_MODEL_ID,
+  OPUS55_MODEL_ID,
 } from "@/lib/premiumModelIds";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
@@ -57,6 +58,12 @@ const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPoli
   },
   [OPUS5_MODEL_ID]: {
     modelId: OPUS5_MODEL_ID,
+    pricingApplicability: "tier_aware",
+    cacheSemanticStatus: "verified_5m",
+    opusCacheTtlMode: "5M_ONLY",
+  },
+  [OPUS55_MODEL_ID]: {
+    modelId: OPUS55_MODEL_ID,
     pricingApplicability: "tier_aware",
     cacheSemanticStatus: "verified_5m",
     opusCacheTtlMode: "5M_ONLY",
