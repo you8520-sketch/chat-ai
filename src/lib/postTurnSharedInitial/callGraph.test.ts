@@ -153,6 +153,8 @@ describe("postTurnSharedInitial parse", () => {
     assert.equal(parsed.dual?.userOk, true);
     assert.equal(parsed.suggestedRepliesOk, true);
     assert.equal(parsed.suggestedReplies.length, 3);
+    assert.equal(parsed.suggestedRepliesDecisionQuality?.contractValid, true);
+    assert.deepEqual(parsed.suggestedRepliesDecisionQuality?.issues, []);
   });
 });
 
