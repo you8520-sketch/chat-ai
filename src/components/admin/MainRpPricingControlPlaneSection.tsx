@@ -311,6 +311,8 @@ function applicationPlanStatusLabel(
       return "READY — read-only change plan";
     case "HOLD_NOT_APPROVED":
       return "Hold — proposal not approved";
+    case "HOLD_NEWER_OCCURRENCE_EXISTS":
+      return "Hold — newer candidate occurrence exists";
     case "HOLD_MISSING_REVIEW_EVIDENCE":
       return "Hold — review evidence missing";
     case "HOLD_REVIEW_EVIDENCE_MISMATCH":
@@ -371,6 +373,14 @@ function CandidateProposalHistory(props: {
   records: readonly MainRpPricingCandidateRecord[];
   projection: MainRpPricingObservabilityProjection;
 }) {
+  const latestRecordIdByModel = new Map<string, number>();
+  for (const record of props.records) {
+    const latest = latestRecordIdByModel.get(record.modelId);
+    if (latest == null || record.id > latest) {
+      latestRecordIdByModel.set(record.modelId, record.id);
+    }
+  }
+
   if (props.records.length === 0) {
     return (
       <div className="mt-4 rounded border border-white/10 p-3 text-xs text-zinc-500">
@@ -405,7 +415,12 @@ function CandidateProposalHistory(props: {
               props.projection.models.find((row) => row.modelId === record.modelId) ?? null;
             const applicationPlan =
               record.reviewState === "APPROVED"
-                ? buildMainRpPricingApplicationPlan({ record, currentRow })
+                ? buildMainRpPricingApplicationPlan({
+                    record,
+                    currentRow,
+                    latestRecordIdForModel:
+                      latestRecordIdByModel.get(record.modelId) ?? null,
+                  })
                 : null;
             return (
             <tr key={record.id} className="border-b border-white/5 align-top">
