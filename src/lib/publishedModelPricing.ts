@@ -8,8 +8,17 @@ import { deriveOpus55EffectivePublishedReferenceRates } from "@/lib/opus55Publis
 
 const OPUS55_LIVE_PUBLISHED_RATES = deriveOpus55EffectivePublishedReferenceRates();
 
+export type PublishedCommercialPricingOwner =
+  | "target_margin"
+  | "derived_reference_rates";
+
 export type PublishedModelPricing = {
   modelId: string;
+  /**
+   * Canonical commercial adjustment owner.
+   * Omitted means the existing direct targetMargin owner.
+   */
+  commercialPricingOwner?: PublishedCommercialPricingOwner;
   billingReferenceInputUsdPerMillion: number;
   billingReferenceOutputUsdPerMillion: number;
   billingReferenceCacheReadUsdPerMillion?: number;
@@ -178,6 +187,7 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "claude-opus-5.5": {
     modelId: "claude-opus-5.5",
+    commercialPricingOwner: "derived_reference_rates",
     billingReferenceInputUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceInputUsdPerMillion,
     billingReferenceOutputUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceOutputUsdPerMillion,
     billingReferenceCacheReadUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceInputUsdPerMillion,
@@ -216,6 +226,12 @@ export function resolvePublishedPricingExact(modelId: string): ResolvedPublished
   if (!pricing) return null;
   if (pricing.modelId !== canonicalModelId) return null;
   return { requestedModelId, canonicalModelId, pricing };
+}
+
+export function resolvePublishedCommercialPricingOwner(
+  pricing: PublishedModelPricing
+): PublishedCommercialPricingOwner {
+  return pricing.commercialPricingOwner ?? "target_margin";
 }
 
 export function getPublishedPricing(modelId: string): PublishedModelPricing {

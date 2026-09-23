@@ -98,6 +98,7 @@ function stableCandidatePayload(row: MainRpPricingObservabilityRow): Record<stri
     publishedOutputUsdPerMillion: row.product.publishedOutputUsdPerMillion,
     publishedCacheReadUsdPerMillion: row.product.publishedCacheReadUsdPerMillion,
     publishedCacheWriteUsdPerMillion: row.product.publishedCacheWriteUsdPerMillion,
+    commercialPricingOwner: row.candidate.commercialPricingOwner,
     currentTargetMargin: row.candidate.currentTargetMargin,
     candidateStatus: row.candidate.status,
     candidateDirection: row.candidate.candidateDirection,
