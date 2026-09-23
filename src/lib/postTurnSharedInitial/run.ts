@@ -8,6 +8,10 @@ import {
 import { parsePostTurnSharedInitialResponse } from "./parse";
 import { buildPostTurnSharedInitialResponseFormat } from "./schema";
 import {
+  buildSuggestedRepliesDecisionQualityTelemetry,
+  logSuggestedRepliesDecisionQualityTelemetry,
+} from "@/lib/suggestedReplies/decisionQualityTelemetry";
+import {
   POST_TURN_SHARED_INITIAL_REQUEST_KIND,
   type PostTurnSharedInitialInput,
   type PostTurnSharedInitialRunResult,
@@ -64,6 +68,14 @@ export async function runPostTurnSharedInitial(
       }
     );
     const parsed = parsePostTurnSharedInitialResponse(text ?? "", input);
+    if (input.includeSuggestions && parsed.suggestedRepliesDecisionQuality) {
+      logSuggestedRepliesDecisionQualityTelemetry(
+        buildSuggestedRepliesDecisionQualityTelemetry({
+          source: "post-turn-shared",
+          observation: parsed.suggestedRepliesDecisionQuality,
+        })
+      );
+    }
     return {
       attempted: true,
       transportOk: true,
