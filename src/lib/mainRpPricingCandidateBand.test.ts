@@ -641,6 +641,7 @@ describe("mainRpPricingCandidateBand — integration", () => {
   });
 
   it("live applicability is derived only from canonical production billing contract", () => {
+    assert.equal(resolveCandidateLiveApplicability("published_phase1_mandatory"), "LIVE_PUBLISHED");
     assert.equal(resolveCandidateLiveApplicability("published_phase1_when_enabled"), "LIVE_PUBLISHED");
     assert.equal(resolveCandidateLiveApplicability("published_phase2_when_direct_selected"), "DIRECT_SELECTION_ONLY");
     assert.equal(

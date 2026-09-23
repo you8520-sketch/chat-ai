@@ -323,6 +323,7 @@ export function resolveCandidateLiveApplicability(
   contract: ProductionBillingContractLabel
 ): CandidateLiveApplicability {
   switch (contract) {
+    case "published_phase1_mandatory":
     case "published_phase1_when_enabled":
       return "LIVE_PUBLISHED";
     case "published_phase2_when_direct_selected":

@@ -7,10 +7,10 @@ import type Database from "better-sqlite3";
 import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import { normalizeBillableUsage } from "@/lib/billingUsage";
 import {
-  isPhase1PublishedBillingEnabled,
+  isOpus55MandatoryPublishedBillingModel,
   isPhase1PublishedBillingModel,
-  isPhase2DeepSeekPublishedBillingEnabled,
   isPhase2DeepSeekPublishedBillingModel,
+  resolvePublishedBillingPhase,
 } from "@/lib/chatBillingContractDispatch";
 import {
   buildAdminFinanceSummary,
@@ -89,6 +89,7 @@ export type PricingSemanticDomain =
   | "CANDIDATE";
 
 export type ProductionBillingContractLabel =
+  | "published_phase1_mandatory"
   | "published_phase1_when_enabled"
   | "published_phase1_capable_legacy_fallback"
   | "published_phase2_when_direct_selected"
@@ -280,29 +281,44 @@ function resolveProductionBillingContractSemantic(modelId: string): {
   notes: string | null;
   usesPublishedPath: boolean;
 } {
-  if (isPhase1PublishedBillingModel(modelId)) {
-    if (isPhase1PublishedBillingEnabled()) {
+  const publishedPhase = resolvePublishedBillingPhase({
+    deliveredModelId: modelId,
+    selectedModelId: modelId,
+  });
+
+  if (publishedPhase === "phase1") {
+    if (isOpus55MandatoryPublishedBillingModel(modelId)) {
       return {
-        contract: "published_phase1_when_enabled",
-        notes: null,
+        contract: "published_phase1_mandatory",
+        notes: "Mandatory Published Phase1 — live turns do not fall through to legacy billing when the Phase1 gate is off.",
         usesPublishedPath: true,
       };
     }
+    return {
+      contract: "published_phase1_when_enabled",
+      notes: null,
+      usesPublishedPath: true,
+    };
+  }
+
+  if (publishedPhase === "phase2") {
+    return {
+      contract: "published_phase2_when_direct_selected",
+      notes:
+        "Published Phase2 applies only on direct DeepSeek selection; refusal fallback and non-direct paths may use legacy.",
+      usesPublishedPath: true,
+    };
+  }
+
+  if (isPhase1PublishedBillingModel(modelId)) {
     return {
       contract: "published_phase1_capable_legacy_fallback",
       notes: "PHASE1_PUBLISHED_BILLING_ENABLED off — live turns use legacy proportional CI-catalog billing.",
       usesPublishedPath: false,
     };
   }
+
   if (isPhase2DeepSeekPublishedBillingModel(modelId)) {
-    if (isPhase2DeepSeekPublishedBillingEnabled()) {
-      return {
-        contract: "published_phase2_when_direct_selected",
-        notes:
-          "Published Phase2 applies only on direct DeepSeek selection; refusal fallback and non-direct paths may use legacy.",
-        usesPublishedPath: true,
-      };
-    }
     return {
       contract: "published_phase2_capable_legacy_fallback",
       notes:
@@ -310,6 +326,7 @@ function resolveProductionBillingContractSemantic(modelId: string): {
       usesPublishedPath: false,
     };
   }
+
   return {
     contract: "legacy_proportional_ci_catalog",
     notes: null,

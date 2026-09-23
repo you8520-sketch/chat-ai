@@ -14,6 +14,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   MAIN_RP_MODEL_IDS,
 } from "@/lib/chatModels";
 import {
@@ -306,7 +307,7 @@ function canonicalLegacyChargeAt(
 }
 
 describe("mainRpPricingObservability", () => {
-  it("covers all five Main RP models with separated semantic domains", () => {
+  it("covers all Main RP models with separated semantic domains", () => {
     seedMainRpCatalogs(Date.parse("2026-09-22T03:00:00.000Z"));
     const projection = buildMainRpPricingObservabilityProjection({
       fxSnapshot: FX_FIXTURE,
@@ -408,6 +409,28 @@ describe("mainRpPricingObservability", () => {
       );
       assert.equal(on.product.productionBillingContract, "published_phase1_when_enabled");
     });
+  });
+
+  it("Opus 5.5 uses mandatory published billing semantics even when Phase1 gate is off", () => {
+    seedMainRpCatalogs(Date.parse("2026-09-22T03:00:00.000Z"));
+
+    for (const env of [{}, { phase1: "1" }]) {
+      withBillingEnv(env, () => {
+        const row = buildMainRpPricingObservabilityProjection({
+          fxSnapshot: FX_FIXTURE,
+          now: NOW,
+        }).models.find((candidate) => candidate.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL)!;
+
+        assert.ok(row);
+        assert.equal(row.product.productionBillingContract, "published_phase1_mandatory");
+        assert.equal(row.market.ourProductionBillingBasis, "published");
+        assert.equal(
+          row.product.representativeProductionChargePoints,
+          row.product.representativePublishedChargePoints
+        );
+        assert.notEqual(row.product.representativePublishedChargePoints, null);
+      });
+    }
   });
 
   it("Phase2 gate toggles DeepSeek production contract in MARKET metadata", () => {
