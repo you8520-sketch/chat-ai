@@ -1,15 +1,24 @@
 /** Client-safe payout schedule and tax helpers (no DB / gateway). */
+import {
+  SCHEDULER_DEFINITIONS,
+  SCHEDULER_TIMEZONE,
+  isSchedulerJobEnabled,
+  schedulerCronExpression,
+} from "@/lib/schedulerDefinitions";
 
-/** 매월 15일 03:00 (Asia/Seoul) */
-export const PAYOUT_CRON_EXPRESSION = "0 3 15 * *";
-export const PAYOUT_TIMEZONE = "Asia/Seoul";
-export const PAYOUT_SCHEDULE_LABEL = "매월 15일 03:00 (Asia/Seoul)";
+/** Canonical schedule owner lives in schedulerDefinitions.ts. */
+const PAYOUT_DEFINITION = SCHEDULER_DEFINITIONS.payout_monthly;
+export const PAYOUT_CRON_EXPRESSION = schedulerCronExpression("payout_monthly");
+export const PAYOUT_TIMEZONE = SCHEDULER_TIMEZONE;
+export const PAYOUT_SCHEDULE_LABEL = `매월 ${PAYOUT_DEFINITION.dayOfMonth}일 ${String(
+  PAYOUT_DEFINITION.hour
+).padStart(2, "0")}:${String(PAYOUT_DEFINITION.minute).padStart(2, "0")} (${PAYOUT_TIMEZONE})`;
 
 /** 지방소득세 = 국세(원천징수)의 10% (소득세법 기준) */
 export const LOCAL_TAX_RATE_OF_NATIONAL = 0.1;
 
 export function isPayoutSchedulerEnabled(): boolean {
-  return process.env.DISABLE_PAYOUT_SCHEDULER !== "1";
+  return isSchedulerJobEnabled("payout_monthly");
 }
 
 export function calcLocalTax(nationalTax: number): number {

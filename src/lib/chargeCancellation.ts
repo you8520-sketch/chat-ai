@@ -1,7 +1,9 @@
 import type Database from "better-sqlite3";
 import { getDb } from "./db";
-import { getPointBalance } from "./points";
-import { cancelPortOnePayment } from "./portoneServer";
+import {
+  getPointChargeRefundAttempt,
+  type PointChargeRefundAttemptState,
+} from "@/lib/pointChargeRefundAttempts";
 
 export type PointChargeBatchRow = {
   id: number;
@@ -154,24 +156,6 @@ function findBonusLogNearCharge(
   );
 }
 
-function findPortoneCheckoutNearCharge(
-  db: Database.Database,
-  userId: number,
-  createdAt: string,
-  priceKrw: number
-): number | null {
-  const row = db
-    .prepare(
-      `SELECT id FROM portone_checkouts
-       WHERE user_id = ? AND status = 'paid' AND amount = ?
-         AND datetime(COALESCE(paid_at, created_at)) BETWEEN datetime(?, '-10 minutes') AND datetime(?, '+10 minutes')
-       ORDER BY id DESC
-       LIMIT 1`
-    )
-    .get(userId, priceKrw, createdAt, createdAt) as { id: number } | undefined;
-  return row?.id ?? null;
-}
-
 /** batch 누락(구 충전) — point_log·원장에서 복구 */
 export function backfillChargeBatchFromLog(
   userId: number,
@@ -180,19 +164,12 @@ export function backfillChargeBatchFromLog(
 ): PointChargeBatchRow | null {
   ensurePointChargeBatchTable(db);
 
-  const existing = db
-    .prepare(
-      `SELECT id, user_id, portone_checkout_id, main_point_log_id, paid_amount, free_amount,
-              paid_transaction_id, free_transaction_id, price_krw, created_at, cancelled_at
-       FROM point_charge_batches
-       WHERE user_id = ? AND main_point_log_id = ?`
-    )
-    .get(userId, pointLogId) as PointChargeBatchRow | undefined;
+  const existing = getChargeBatchByLogId(userId, pointLogId, db);
   if (existing) return existing;
 
   const log = db
     .prepare(
-      `SELECT id, user_id, delta, reason, created_at FROM point_logs WHERE id = ? AND user_id = ?`
+      "SELECT id, user_id, delta, reason, created_at FROM point_logs WHERE id = ? AND user_id = ?"
     )
     .get(pointLogId, userId) as
     | { id: number; user_id: number; delta: number; reason: string; created_at: string }
@@ -210,11 +187,11 @@ export function backfillChargeBatchFromLog(
     freeAmount > 0
       ? findTransactionNearLog(db, userId, "FREE", bonusLog!.created_at, freeAmount)
       : null;
-  const portoneCheckoutId = findPortoneCheckoutNearCharge(db, userId, log.created_at, priceKrw);
-
   const batchId = recordPointChargeBatch(db, {
     userId,
-    portoneCheckoutId,
+    // Never infer external payment identity from timestamp/amount proximity.
+    // Historical charge logs without a canonical checkout link fail closed for automatic refund.
+    portoneCheckoutId: null,
     mainPointLogId: log.id,
     paidAmount,
     freeAmount,
@@ -255,10 +232,6 @@ export function isChargeWithinCancelWindow(
   return !!row?.ok;
 }
 
-function resolveChargeBatch(userId: number, pointLogId: number): PointChargeBatchRow | null {
-  return getChargeBatchByLogId(userId, pointLogId) ?? backfillChargeBatchFromLog(userId, pointLogId);
-}
-
 function txUnused(
   db: Database.Database,
   transactionId: number,
@@ -273,9 +246,9 @@ function txUnused(
 
 export function getChargeBatchByLogId(
   userId: number,
-  pointLogId: number
+  pointLogId: number,
+  db: Database.Database = getDb()
 ): PointChargeBatchRow | null {
-  const db = getDb();
   ensurePointChargeBatchTable(db);
   return (
     (db
@@ -289,16 +262,26 @@ export function getChargeBatchByLogId(
   );
 }
 
-export function canCancelChargeBatch(batch: PointChargeBatchRow): {
-  ok: boolean;
-  reason?: string;
-} {
+export function resolveChargeBatchForUser(
+  userId: number,
+  pointLogId: number,
+  db: Database.Database = getDb()
+): PointChargeBatchRow | null {
+  return (
+    getChargeBatchByLogId(userId, pointLogId, db) ??
+    backfillChargeBatchFromLog(userId, pointLogId, db)
+  );
+}
+
+export function canCancelChargeBatch(
+  batch: PointChargeBatchRow,
+  db: Database.Database = getDb()
+): { ok: boolean; reason?: string } {
   if (batch.cancelled_at) {
     return { ok: false, reason: "이미 취소된 결제입니다." };
   }
 
-  const db = getDb();
-  if (!isChargeWithinCancelWindow(batch.created_at)) {
+  if (!isChargeWithinCancelWindow(batch.created_at, { db })) {
     return { ok: false, reason: `결제 후 ${CHARGE_CANCEL_DAYS}일이 지나 취소할 수 없습니다.` };
   }
 
@@ -319,6 +302,7 @@ export type ChargeCancelEnrichment = {
   charge_batch_id: number | null;
   can_cancel_charge: boolean;
   charge_cancelled: boolean;
+  charge_cancel_state?: PointChargeRefundAttemptState;
   charge_cancel_block_reason?: string;
 };
 
@@ -333,7 +317,8 @@ export function enrichChargeCancelForLog(
   };
   if (log.delta <= 0 || !log.id || !isChargeLogReason(log.reason)) return empty;
 
-  const batch = resolveChargeBatch(userId, log.id);
+  const db = getDb();
+  const batch = resolveChargeBatchForUser(userId, log.id, db);
   if (!batch) {
     return {
       ...empty,
@@ -346,88 +331,49 @@ export function enrichChargeCancelForLog(
       charge_batch_id: batch.id,
       can_cancel_charge: false,
       charge_cancelled: true,
+      charge_cancel_state: "SUCCEEDED",
     };
   }
 
-  const check = canCancelChargeBatch(batch);
+  const attempt = getPointChargeRefundAttempt(db, batch.id);
+  if (attempt) {
+    if (attempt.state === "FAILED") {
+      return {
+        charge_batch_id: batch.id,
+        can_cancel_charge: false,
+        charge_cancelled: false,
+        charge_cancel_state: attempt.state,
+        charge_cancel_block_reason:
+          attempt.failure_message || "PortOne 결제 취소가 실패했습니다. 관리자 확인이 필요합니다.",
+      };
+    }
+    return {
+      charge_batch_id: batch.id,
+      can_cancel_charge: true,
+      charge_cancelled: false,
+      charge_cancel_state: attempt.state,
+      charge_cancel_block_reason:
+        attempt.state === "SUCCEEDED"
+          ? "환불 성공이 확인되어 로컬 처리를 마무리할 수 있습니다."
+          : "환불 상태를 다시 확인할 수 있습니다.",
+    };
+  }
+
+  if (!batch.portone_checkout_id) {
+    return {
+      charge_batch_id: batch.id,
+      can_cancel_charge: false,
+      charge_cancelled: false,
+      charge_cancel_block_reason:
+        "PortOne 결제 정보가 연결되지 않은 충전은 자동 결제 취소를 지원하지 않습니다.",
+    };
+  }
+
+  const check = canCancelChargeBatch(batch, db);
   return {
     charge_batch_id: batch.id,
     can_cancel_charge: check.ok,
     charge_cancelled: false,
     charge_cancel_block_reason: check.reason,
   };
-}
-
-export function cancelPointChargeBatch(
-  userId: number,
-  pointLogId: number
-): { ok: true; balance: ReturnType<typeof getPointBalance> } | { ok: false; error: string } {
-  const db = getDb();
-  ensurePointChargeBatchTable(db);
-
-  const batch = resolveChargeBatch(userId, pointLogId);
-  if (!batch) return { ok: false, error: "취소할 결제 내역을 찾을 수 없습니다." };
-
-  const check = canCancelChargeBatch(batch);
-  if (!check.ok) return { ok: false, error: check.reason ?? "결제를 취소할 수 없습니다." };
-
-  let portonePaymentId: string | null = null;
-  if (batch.portone_checkout_id) {
-    const checkout = db
-      .prepare(
-        "SELECT payment_id, cancelled_at FROM portone_checkouts WHERE id = ? AND user_id = ?"
-      )
-      .get(batch.portone_checkout_id, userId) as
-      | { payment_id: string; cancelled_at: string | null }
-      | undefined;
-    if (checkout?.cancelled_at) {
-      return { ok: false, error: "이미 취소된 결제입니다." };
-    }
-    portonePaymentId = checkout?.payment_id ?? null;
-  }
-
-  const totalPoints = roundAmount(batch.paid_amount + batch.free_amount);
-
-  db.transaction(() => {
-    db.prepare("UPDATE point_transactions SET remaining_amount = 0 WHERE id = ?").run(
-      batch.paid_transaction_id
-    );
-    if (batch.free_transaction_id) {
-      db.prepare("UPDATE point_transactions SET remaining_amount = 0 WHERE id = ?").run(
-        batch.free_transaction_id
-      );
-    }
-
-    db.prepare(
-      "UPDATE point_charge_batches SET cancelled_at = datetime('now') WHERE id = ? AND cancelled_at IS NULL"
-    ).run(batch.id);
-
-    if (batch.portone_checkout_id) {
-      db.prepare(
-        "UPDATE portone_checkouts SET cancelled_at = datetime('now') WHERE id = ? AND cancelled_at IS NULL"
-      ).run(batch.portone_checkout_id);
-    }
-
-    const priceLabel =
-      batch.price_krw > 0
-        ? `₩${batch.price_krw.toLocaleString()}`
-        : batch.paid_amount.toLocaleString() + "P";
-    db.prepare("INSERT INTO point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
-      userId,
-      -totalPoints,
-      `결제 취소 (${priceLabel})`
-    );
-
-    db.prepare(
-      "UPDATE users SET points = (SELECT COALESCE(SUM(remaining_amount), 0) FROM point_transactions WHERE user_id = ? AND remaining_amount > 0 AND expires_at > datetime('now')) WHERE id = ?"
-    ).run(userId, userId);
-  })();
-
-  if (portonePaymentId) {
-    void cancelPortOnePayment(portonePaymentId, batch.price_krw).catch(() => {
-      /* 포인트는 이미 회수 — PG 취소 실패는 로그만 */
-    });
-  }
-
-  return { ok: true, balance: getPointBalance(userId) };
 }

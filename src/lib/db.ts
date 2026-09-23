@@ -28,6 +28,8 @@ import { ensureSitePromotionSchema } from "@/lib/sitePromotionSchema";
 import { ensureTrpgTables } from "@/lib/trpg/schema";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
 import { ensurePayoutTransferAttemptsSchema } from "@/lib/payoutTransferAttempts";
+import { ensurePointChargeRefundAttemptsSchema } from "@/lib/pointChargeRefundAttempts";
+import { ensureSchedulerRunRegistrySchema } from "@/lib/schedulerRunRegistry";
 import { dropLastCompressedAtColumnOnce } from "@/lib/memory/last-compressed-at-column-retirement";
 import { dropChatsCurrentSummaryColumnOnce } from "@/lib/memory/chats-current-summary-column-retirement";
 import { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-retirement";
@@ -802,6 +804,8 @@ function migrate(db: Database.Database) {
   `);
   migrateWithdrawalRequestsQueue(db);
   ensurePayoutTransferAttemptsSchema(db);
+  ensurePointChargeRefundAttemptsSchema(db);
+  ensureSchedulerRunRegistrySchema(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS report_refunds (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

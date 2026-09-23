@@ -47,7 +47,23 @@ const port = parseInt(process.env.PORT || "3000", 10);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
+async function loadSchedulerEnablementOwner() {
+  try {
+    const schedulerMod = await importBackgroundModule("./src/lib/schedulerDefinitions.ts");
+    return requireCustomServerBootFunction(
+      schedulerMod,
+      "isSchedulerJobEnabled",
+      "./src/lib/schedulerDefinitions.ts"
+    );
+  } catch (err) {
+    console.error("[server] scheduler enablement owner import failed; slot schedulers stay disabled:", err);
+    return () => false;
+  }
+}
+
 async function runBackgroundInitialization() {
+  const isSchedulerJobEnabled = await loadSchedulerEnablementOwner();
+
   try {
     const episodicMod = await importBackgroundModule("./src/lib/episodicMemoryFacts.ts");
     requireCustomServerBootFunction(
@@ -61,7 +77,7 @@ async function runBackgroundInitialization() {
       e && typeof e === "object" && "message" in e ? e.message : e
     );
   }
-  if (process.env.DISABLE_PAYOUT_SCHEDULER !== "1") {
+  if (isSchedulerJobEnabled("payout_monthly")) {
     try {
       const payoutMod = await importBackgroundModule("./src/cron/payoutScheduler.ts");
       requireCustomServerBootFunction(
@@ -85,7 +101,7 @@ async function runBackgroundInitialization() {
     );
   }
 
-  if (process.env.DISABLE_TRAINING_PIPELINE !== "1" && process.env.ENABLE_TRAINING_PIPELINE === "1") {
+  if (isSchedulerJobEnabled("training_daily")) {
     try {
       const trainingMod = await importBackgroundModule("./src/cron/trainingScheduler.ts");
       requireCustomServerBootFunction(
@@ -100,7 +116,7 @@ async function runBackgroundInitialization() {
     console.log("[server] training pipeline disabled (set ENABLE_TRAINING_PIPELINE=1 to enable)");
   }
 
-  if (process.env.DISABLE_FINANCE_SCHEDULER !== "1") {
+  if (isSchedulerJobEnabled("finance_daily")) {
     try {
       const financeMod = await importBackgroundModule("./src/cron/financeScheduler.ts");
       requireCustomServerBootFunction(

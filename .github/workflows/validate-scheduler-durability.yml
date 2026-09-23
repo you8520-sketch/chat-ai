@@ -1,0 +1,47 @@
+name: Validate scheduler durability
+
+on:
+  pull_request:
+    paths:
+      - "server.js"
+      - "src/cron/financeScheduler.ts"
+      - "src/cron/payoutScheduler.ts"
+      - "src/cron/trainingScheduler.ts"
+      - "src/lib/schedulerDefinitions.ts"
+      - "src/lib/schedulerRunRegistry.ts"
+      - "src/lib/schedulerRunRegistry.test.ts"
+      - "src/lib/schedulerRunShared.ts"
+      - "src/lib/payoutSchedule.ts"
+      - "src/lib/adminFinance.ts"
+      - "src/lib/db.ts"
+      - "src/app/admin/finance/page.tsx"
+      - "src/app/admin/finance/AdminFinanceClient.tsx"
+      - ".github/workflows/validate-scheduler-durability.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SESSION_SECRET: "01234567890123456789012345678901"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Diff hygiene
+        run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+      - name: App typecheck
+        run: npm run typecheck:app
+      - name: Durable scheduler regression
+        run: node --conditions=react-server --import tsx --test src/lib/schedulerRunRegistry.test.ts
+      - name: Production build
+        run: npm run build
