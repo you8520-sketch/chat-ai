@@ -30,6 +30,9 @@ import { ensureModelPricingTrackingSchema } from "@/lib/modelPricingTrackingSche
 import { buildOfficialProviderPeakSnapshot } from "@/lib/modelPriceSnapshot";
 import { REPRESENTATIVE_TRACKER_WORKLOAD } from "@/lib/modelPricingTracker";
 import {
+  CACHE_RATE_PROVENANCE_INPUT_FALLBACK,
+} from "@/lib/modelPricingTrackingConfig";
+import {
   claimTrackerRun,
   finishTrackerRun,
   insertPriceSnapshot,
@@ -170,7 +173,15 @@ function insertCompletedCiSnapshot(
   db: Database.Database,
   modelId: string,
   observedAt: string,
-  rates: { input: number; output: number; discount?: number }
+  rates: {
+    input: number;
+    output: number;
+    discount?: number;
+    cacheRead?: number;
+    cacheWrite?: number;
+    cacheReadProvenance?: "reported" | "input_rate_fallback" | "unknown_legacy";
+    cacheWriteProvenance?: "reported" | "input_rate_fallback" | "unknown_legacy";
+  }
 ): void {
   const claim = claimTrackerRun(db, {
     runDateKey: observedAt.slice(0, 10),
@@ -187,11 +198,13 @@ function insertCompletedCiSnapshot(
     rates: {
       inputUsdPerMillion: rates.input,
       outputUsdPerMillion: rates.output,
-      cacheReadUsdPerMillion: rates.input * 0.1,
-      cacheWriteUsdPerMillion: rates.input,
+      cacheReadUsdPerMillion: rates.cacheRead ?? rates.input * 0.1,
+      cacheWriteUsdPerMillion: rates.cacheWrite ?? rates.input,
       tierThreshold: null,
       discountPercent: rates.discount ?? null,
     },
+    cacheReadRateProvenance: rates.cacheReadProvenance ?? "unknown_legacy",
+    cacheWriteRateProvenance: rates.cacheWriteProvenance ?? "unknown_legacy",
     rawFingerprint: `ci-${modelId}-${observedAt}`,
     observedAt,
     validFrom: null,
@@ -569,6 +582,33 @@ describe("mainRpPricingObservability", () => {
     assert.equal(cacheFallback.procurement.ciFreshnessState, "STALE");
     assert.equal(cacheFallback.procurement.ciEvidenceSource, "live_catalog_cache");
     assert.equal(cacheFallback.procurement.provenance, "CI_STALE_ESTIMATE");
+  });
+
+  it("persisted fallback cache rate keeps effective number and exposes fallback provenance", () => {
+    clearCheaperInferenceCatalogPricingForTest();
+    const db = makeDb();
+    insertCompletedCiSnapshot(
+      db,
+      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      "2026-09-22T03:00:00.000Z",
+      {
+        input: 0.2625,
+        output: 1.3125,
+        discount: 30,
+        cacheRead: 0.02625,
+        cacheWrite: 0.2625,
+        cacheReadProvenance: CACHE_RATE_PROVENANCE_INPUT_FALLBACK,
+        cacheWriteProvenance: CACHE_RATE_PROVENANCE_INPUT_FALLBACK,
+      }
+    );
+    const row = buildMainRpPricingObservabilityProjection({
+      fxSnapshot: FX_FIXTURE,
+      now: NOW,
+      db,
+    }).models.find((r) => r.modelId === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)!;
+    assert.equal(row.procurement.ciCacheReadUsdPerMillion, 0.02625);
+    assert.equal(row.procurement.ciCacheReadRateProvenance, CACHE_RATE_PROVENANCE_INPUT_FALLBACK);
+    assert.equal(row.procurement.ciCacheWriteRateProvenance, CACHE_RATE_PROVENANCE_INPUT_FALLBACK);
   });
 
   it("procurement ABSENT when no persisted snapshot and no live catalog", () => {
