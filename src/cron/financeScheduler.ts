@@ -2,6 +2,8 @@ import cron, { type ScheduledTask } from "node-cron";
 import { saveDailyFinanceSnapshot, currentKstMonthKey, monthRangeSql } from "@/lib/adminFinance";
 import { getDb } from "@/lib/db";
 import { runModelPricingTracker } from "@/lib/modelPricingTracker";
+import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
+import { syncMainRpPricingCandidateRecords } from "@/lib/mainRpPricingProposal";
 import { reconcileCheaperInferenceUsage } from "@/lib/providerCostReconciliation";
 import {
   SCHEDULER_RECOVERY_POLL_MS,
@@ -49,8 +51,9 @@ async function executeFinanceSnapshot(slotKey: string) {
   });
 
   if (process.env.DISABLE_MODEL_PRICING_TRACKER !== "1") {
+    let pricingResult: Awaited<ReturnType<typeof runModelPricingTracker>> | null = null;
     try {
-      const pricingResult = await runModelPricingTracker({ db: getDb() });
+      pricingResult = await runModelPricingTracker({ db: getDb() });
       console.log("[finance-scheduler] model pricing tracker", {
         phase: pricingResult.phase,
         status: pricingResult.status,
@@ -61,6 +64,21 @@ async function executeFinanceSnapshot(slotKey: string) {
       });
     } catch (pricingError) {
       console.error("[finance-scheduler] model pricing tracker failed:", pricingError);
+    }
+
+    if (pricingResult && pricingResult.status !== "failed") {
+      try {
+        const proposalDb = getDb();
+        const projection = buildMainRpPricingObservabilityProjection({ db: proposalDb });
+        const proposalSync = syncMainRpPricingCandidateRecords(
+          proposalDb,
+          projection,
+          pricingResult.runDateKey
+        );
+        console.log("[finance-scheduler] pricing candidate history", proposalSync);
+      } catch (proposalError) {
+        console.error("[finance-scheduler] pricing candidate history failed:", proposalError);
+      }
     }
   }
 
