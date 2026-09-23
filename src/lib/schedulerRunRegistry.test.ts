@@ -399,6 +399,35 @@ describe("activation baseline and observability", () => {
     database.close();
   });
 
+  it("admin overview never exposes execution fencing tokens or result payloads", () => {
+    const database = db();
+    database
+      .prepare("UPDATE scheduler_registry_meta SET activated_at='2026-09-22 00:00:00' WHERE id=1")
+      .run();
+
+    const claim = claimSchedulerRun(database, {
+      jobName: "finance_daily",
+      slotKey: "2026-09-23",
+      triggerKind: "cron",
+    });
+    assert.equal(claim.outcome, "CLAIMED");
+    if (claim.outcome !== "CLAIMED") throw new Error("claim expected");
+    finishSchedulerRun(database, {
+      row: claim.row,
+      status: "SUCCEEDED",
+      result: { internal: "do-not-expose" },
+    });
+
+    const now = new Date("2026-09-23T05:00:00.000Z");
+    const overview = listSchedulerRunOverview(database, now).find(
+      (row) => row.jobName === "finance_daily"
+    );
+    const serialized = JSON.stringify(overview);
+    assert.doesNotMatch(serialized, /execution_token/);
+    assert.doesNotMatch(serialized, /do-not-expose/);
+    database.close();
+  });
+
   it("stale unsafe training enters recovery once only to become STALE_BLOCKED", () => {
     const database = db();
     database
