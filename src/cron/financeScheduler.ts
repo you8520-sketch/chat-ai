@@ -8,6 +8,7 @@ import {
   schedulerCronExpression,
 } from "@/lib/schedulerDefinitions";
 import {
+  resolveLatestDueSchedulerSlot,
   resolveSchedulerSlot,
   runDurableScheduledJob,
   shouldAttemptBootRecovery,
@@ -62,12 +63,16 @@ async function executeFinanceSnapshot() {
   return summary;
 }
 
-async function runFinanceSlot(triggerKind: SchedulerTriggerKind) {
+async function runFinanceSlot(
+  triggerKind: SchedulerTriggerKind,
+  slotKeyOverride?: string
+) {
   const db = getDb();
   const slot = resolveSchedulerSlot("finance_daily");
+  const slotKey = slotKeyOverride ?? slot.slotKey;
   const run = await runDurableScheduledJob(db, {
     jobName: "finance_daily",
-    slotKey: slot.slotKey,
+    slotKey,
     triggerKind,
     execute: executeFinanceSnapshot,
     summarize: (summary) => ({
@@ -84,7 +89,7 @@ async function runFinanceSlot(triggerKind: SchedulerTriggerKind) {
   }
 
   console.log("[finance-scheduler] durable slot skipped", {
-    slotKey: slot.slotKey,
+    slotKey,
     outcome: run.claim.outcome,
     status: run.claim.row.status,
     attemptCount: run.claim.row.attempt_count,
@@ -110,8 +115,11 @@ export function startFinanceScheduler() {
 
   const db = getDb();
   if (shouldAttemptBootRecovery(db, "finance_daily")) {
-    console.log("[finance-scheduler] missing current slot detected → boot recovery");
-    void runFinanceSlot("boot_recovery");
+    const recoverySlot = resolveLatestDueSchedulerSlot("finance_daily");
+    console.log("[finance-scheduler] missing/recoverable due slot detected → boot recovery", {
+      slotKey: recoverySlot.slotKey,
+    });
+    void runFinanceSlot("boot_recovery", recoverySlot.slotKey);
   } else if (process.env.FINANCE_RUN_ON_BOOT === "1") {
     void runFinanceSlot("manual");
   }
