@@ -3,6 +3,7 @@ import type Database from "better-sqlite3";
 import {
   SCHEDULER_DEFINITIONS,
   SCHEDULER_TIMEZONE,
+  isSchedulerJobEnabled,
   type SchedulerJobName,
 } from "@/lib/schedulerDefinitions";
 import type {
@@ -673,7 +674,8 @@ export function listSchedulerRunOverview(
     const activated = slot.scheduledAtUtcMs >= activatedAtMs;
 
     let state: SchedulerRunOverview["state"];
-    if (!activated) state = "PRE_ACTIVATION";
+    if (!isSchedulerJobEnabled(jobName)) state = "DISABLED";
+    else if (!activated) state = "PRE_ACTIVATION";
     else if (
       current?.status === "RUNNING" &&
       isStale(db, current, definition.staleAfterMinutes)
@@ -706,6 +708,7 @@ export function shouldAttemptRuntimeRecovery(
   now: Date = new Date()
 ): boolean {
   ensureSchedulerRunRegistrySchema(db);
+  if (!isSchedulerJobEnabled(jobName)) return false;
   const slot = resolveLatestDueSchedulerSlot(jobName, now);
   if (slot.scheduledAtUtcMs < registryActivatedAtMs(db)) return false;
 
@@ -723,6 +726,7 @@ export function shouldAttemptBootRecovery(
   now: Date = new Date()
 ): boolean {
   ensureSchedulerRunRegistrySchema(db);
+  if (!isSchedulerJobEnabled(jobName)) return false;
   const slot = resolveLatestDueSchedulerSlot(jobName, now);
   if (slot.scheduledAtUtcMs < registryActivatedAtMs(db)) return false;
 
