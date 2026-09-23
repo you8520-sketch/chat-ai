@@ -1,0 +1,56 @@
+{
+  "cell_id": "Gemini_T_M2",
+  "fixture": "T",
+  "arm": "M2",
+  "modelKey": "Gemini",
+  "modelId": "google/gemini-3.1-pro-preview",
+  "resolved_model": "google/gemini-3.1-pro-preview",
+  "character_id": 10,
+  "user_input": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+  "provenance": "C2-R Stage1 — same T fixture as C2 (terra_action T1 / d2-enoch card)",
+  "prose_arm_tokens": 1449,
+  "system_sha256": "4002d0413926f17e2bdccc6e34f50595fbc0ee34d2eae9ca04c8d27ae03a047a",
+  "last_user_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+  "protectedOk": {
+    "layout_A_present": true,
+    "arm_marker": true,
+    "arm_prose": true,
+    "production_absent_when_not_A": true,
+    "canon_top": true,
+    "no_godmodding": true
+  },
+  "finish_reason": "stop",
+  "saw_done": true,
+  "latency_s": 55.355,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "transport_reissue": 0,
+  "usage": {
+    "input_tokens": 3810,
+    "cached_input_tokens": null,
+    "visible_output_tokens": 4230
+  },
+  "PROVIDER_RAW": {
+    "visible_chars": 1615,
+    "total_paragraphs": 22,
+    "dialogue_paragraphs": 7,
+    "narration_paragraphs": 15,
+    "approx_sentences": 62
+  },
+  "FINAL_DISPLAY": {
+    "visible_chars": 1615,
+    "total_paragraphs": 22,
+    "dialogue_paragraphs": 7,
+    "narration_paragraphs": 15,
+    "approx_sentences": 62
+  },
+  "agency_severe": 0,
+  "incomplete": false,
+  "metadata_leak": false,
+  "input_echo_regression": false,
+  "language_regression": false,
+  "scene_density_collapse": false,
+  "raw_hash": "2a1225d5a5b84ead99a5022bb22acdca6e183bc1bc321b2bc10be9d6b2a1a941",
+  "final_hash": "c7810f34a6f173c43387d9a68bf4a2a5196ff23e53296a02bef38a591781e431"
+}

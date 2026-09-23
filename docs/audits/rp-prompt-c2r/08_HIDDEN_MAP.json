@@ -1,0 +1,29 @@
+{
+  "note": "Reveal only after scoring seal",
+  "fixture": "T",
+  "blindMap": {
+    "Gemini_T": {
+      "W": "M1",
+      "X": "AB",
+      "Y": "A",
+      "Z": "M2"
+    },
+    "DeepSeek_T": {
+      "W": "AB",
+      "X": "M2",
+      "Y": "A",
+      "Z": "M1"
+    }
+  },
+  "arm_meanings": {
+    "A": "production PROSE_STYLE_SECTION",
+    "M1": "short-sentence / translationese merge only",
+    "M2": "quiet-scene anti-summary relocation/merge only",
+    "AB": "M1+M2 (= C2-B candidate composition)"
+  },
+  "m2_change_kind": {
+    "wording_change": true,
+    "position_change": true,
+    "recency_order_change": "quiet-scene clause moves earlier into SCENE FLOW; OUTPUT-LAYOUT recency unchanged"
+  }
+}
