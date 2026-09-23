@@ -1,6 +1,11 @@
 import { callBackgroundMemory } from "@/lib/ai";
 import { buildPlatformAsyncTurnLedgerContext } from "@/lib/providerCostLedger";
 import { parseSuggestedRepliesFromModelText } from "./parse";
+import { observeSuggestedRepliesDecisionQuality } from "./decisionQualityObservatory";
+import {
+  buildSuggestedRepliesDecisionQualityTelemetry,
+  logSuggestedRepliesDecisionQualityTelemetry,
+} from "./decisionQualityTelemetry";
 import {
   SUGGESTED_REPLIES_REQUEST_KIND,
   type SuggestedReplyItem,
@@ -97,6 +102,13 @@ export async function extractSuggestedRepliesFromTurn(opts: {
       undefined,
       SUGGESTED_REPLIES_REQUEST_KIND,
       { temperature: 0.65, ledgerContext }
+    );
+    const observation = observeSuggestedRepliesDecisionQuality(text);
+    logSuggestedRepliesDecisionQualityTelemetry(
+      buildSuggestedRepliesDecisionQualityTelemetry({
+        source: "standalone-extract",
+        observation,
+      })
     );
     return parseSuggestedRepliesFromModelText(text);
   } catch (e) {
