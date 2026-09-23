@@ -1,0 +1,26 @@
+[
+  {
+    "file": "SOURCE_GEMINI37_TURN1_RAW.txt",
+    "source_branch_path": "docs/audits/deepseek-flood-local-preflight-f1/SOURCE_GEMINI37_TURN1_RAW.txt",
+    "source_branch": "cursor/deepseek-flood-local-preflight-f1-c691",
+    "sha256": "1797b8d5c9abb56899d71d3f7002c456446623f5f53022f88b0c30d3831a62ec",
+    "visible_chars": 2534,
+    "NOTE": "Not copied into this PR because frozen RAW has trailing spaces; byte source remains PR #493."
+  },
+  {
+    "file": "SOURCE_GEMINI37_TURN2_RAW.txt",
+    "source_branch_path": "docs/audits/deepseek-flood-local-preflight-f1/SOURCE_GEMINI37_TURN2_RAW.txt",
+    "source_branch": "cursor/deepseek-flood-local-preflight-f1-c691",
+    "sha256": "a3c6973c22469d4328de2988024c73ab83d4282561464b441714752726a4eebc",
+    "visible_chars": 2630,
+    "NOTE": "Not copied into this PR because frozen RAW has trailing spaces; byte source remains PR #493."
+  },
+  {
+    "file": "SOURCE_GEMINI37_RAW.txt",
+    "source_branch_path": "docs/audits/deepseek-flood-local-preflight-f1/SOURCE_GEMINI37_RAW.txt",
+    "source_branch": "cursor/deepseek-flood-local-preflight-f1-c691",
+    "sha256": "1895ef56e88ee16d8d67ec38e838ad8956bb967545e1c57aab8f372dbecb2c6c",
+    "visible_chars": 3517,
+    "NOTE": "Not copied into this PR because frozen RAW has trailing spaces; byte source remains PR #493."
+  }
+]

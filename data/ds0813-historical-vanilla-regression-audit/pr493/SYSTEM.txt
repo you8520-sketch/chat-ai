@@ -1,0 +1,3 @@
+SYSTEM.txt
+FULL_SYSTEM_SHA: 8ab7541582ca8a831f1de2792468bff9163d9c0fa0d2af0fd2b7d135da4ecc23
+Assembled system prompt is not committed.
