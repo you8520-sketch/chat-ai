@@ -311,6 +311,28 @@ describe("Phase B2D candidate history + review lifecycle", () => {
         ?.effectiveKrwPerUsd,
       1530
     );
+
+    const laterProjection = projection(row);
+    laterProjection.generatedAt = "2026-09-25T03:00:00.000Z";
+    laterProjection.fxSnapshot = {
+      ...laterProjection.fxSnapshot,
+      dateKey: "2026-09-25",
+      usdToKrw: 1568.63,
+      effectiveKrwPerUsd: 1600,
+    };
+    syncMainRpPricingCandidateRecords(db, laterProjection, "2026-09-25");
+    const afterRefresh = listMainRpPricingCandidateRecords(db)[0]!;
+    assert.equal(afterRefresh.reviewState, "APPROVED");
+    assert.equal(
+      (afterRefresh.evidence.fxSnapshot as { effectiveKrwPerUsd?: number } | undefined)
+        ?.effectiveKrwPerUsd,
+      1600
+    );
+    assert.equal(
+      (afterRefresh.reviewEvidence?.fxSnapshot as { effectiveKrwPerUsd?: number } | undefined)
+        ?.effectiveKrwPerUsd,
+      1530
+    );
     assert.deepEqual(getPublishedPricing(MODEL), before);
   });
 
