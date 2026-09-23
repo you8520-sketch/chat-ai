@@ -1,0 +1,71 @@
+{
+  "kind": "h4.1-production-transcript-freeze",
+  "deployed_sha": "247e444089c074a4aa2865947ad1005dbcdef2a3",
+  "chat_id": 736,
+  "character_id": 30,
+  "character_name": "H4Mina062138",
+  "persona_name": "도윤",
+  "persona_description": "만 29세 성인 남성. 허구 창작 페르소나. 낮고 짧은 말투. 서두르지 않고 상대 호흡을 살핀다.",
+  "character_greeting": "문을 닫고 나를 보는구나. 오늘 밤은… 조금 더 가까이 와도 괜찮아.",
+  "selected_ai": "gemini-3.1-pro-preview",
+  "adult_handoff_enabled": true,
+  "s2": "frozen",
+  "provider_calls_this_pr": { "gemini": 0, "deepseek": 0 },
+  "capture": {
+    "method": "H4 POST /api/chat SSE append concatenation at send time",
+    "local_source": "/tmp/h4_turns_private.json",
+    "note": "Texts were not re-fetched from production for this PR. Account email, user id, cookies, and keys are excluded."
+  },
+  "persisted_message_ids": {
+    "A": { "user": 3776, "assistant": 3777 },
+    "B": { "user": 3778, "assistant": 3779 },
+    "C": { "user": 3780, "assistant": 3781 },
+    "D": { "user": 3782, "assistant": 3783 }
+  },
+  "reconstructed_injection_from_source_at_deployed_sha": {
+    "method": "local resolveCurrentTurnUserAuthoringDelegation / resolveNoGodmoddingMode / shouldInjectGemini31UserAgencySupplement / resolveUserImpersonationAllowance / buildCurrentUserInputWrapper against the frozen user strings. Not a live prompt dump.",
+    "persona_impersonation_opt_in": false,
+    "ownership_lock_default": false,
+    "turns": {
+      "A": {
+        "delegation_active": false,
+        "allowDialogue": false,
+        "allowMajorActions": false,
+        "godmoddingMode": "standard",
+        "runtimeMode": "interactive",
+        "gemini31Supplement": true
+      },
+      "B": {
+        "delegation_active": true,
+        "allowDialogue": true,
+        "allowMajorActions": true,
+        "source": "explicit_ooc",
+        "godmoddingMode": "currentTurnDelegated",
+        "runtimeMode": "current_turn_ooc_delegated",
+        "gemini31Supplement": false
+      },
+      "C": {
+        "delegation_active": false,
+        "allowDialogue": false,
+        "allowMajorActions": false,
+        "godmoddingMode": "standard",
+        "runtimeMode": "interactive",
+        "gemini31Supplement": true
+      },
+      "D": {
+        "delegation_active": false,
+        "allowDialogue": false,
+        "allowMajorActions": false,
+        "godmoddingMode": "standard",
+        "runtimeMode": "interactive",
+        "gemini31Supplement": true
+      }
+    }
+  },
+  "billing_from_h4_capture": {
+    "points_start": 2000,
+    "points_end": 1546,
+    "deduction_events": 4,
+    "usage_reasons_all_gemini_31_pro_preview": true
+  }
+}
