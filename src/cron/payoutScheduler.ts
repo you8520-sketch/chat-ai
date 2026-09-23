@@ -5,17 +5,20 @@ import {
   PAYOUT_TIMEZONE,
 } from "@/lib/payoutSchedule";
 import { getDb } from "@/lib/db";
+import { SCHEDULER_RECOVERY_POLL_MS } from "@/lib/schedulerDefinitions";
 import {
   resolveLatestDueSchedulerSlot,
   resolveSchedulerSlot,
   runDurableScheduledJob,
   shouldAttemptBootRecovery,
+  shouldAttemptRuntimeRecovery,
 } from "@/lib/schedulerRunRegistry";
 import type { SchedulerTriggerKind } from "@/lib/schedulerRunShared";
 
 export { PAYOUT_CRON_EXPRESSION, PAYOUT_TIMEZONE };
 
 let scheduledTask: ScheduledTask | null = null;
+let recoveryInterval: ReturnType<typeof setInterval> | null = null;
 
 async function runPayoutSlot(
   triggerKind: SchedulerTriggerKind,
@@ -58,6 +61,16 @@ async function runPayoutSlot(
   return null;
 }
 
+function attemptPayoutRuntimeRecovery(): void {
+  const db = getDb();
+  if (!shouldAttemptRuntimeRecovery(db, "payout_monthly")) return;
+  const recoverySlot = resolveLatestDueSchedulerSlot("payout_monthly");
+  console.log("[payout-scheduler] runtime recovery due", {
+    slotKey: recoverySlot.slotKey,
+  });
+  void runPayoutSlot("runtime_recovery", recoverySlot.slotKey);
+}
+
 export function startPayoutScheduler() {
   if (scheduledTask) return scheduledTask;
 
@@ -85,12 +98,24 @@ export function startPayoutScheduler() {
     void runPayoutSlot("manual");
   }
 
+  if (!recoveryInterval) {
+    recoveryInterval = setInterval(
+      attemptPayoutRuntimeRecovery,
+      SCHEDULER_RECOVERY_POLL_MS
+    );
+    recoveryInterval.unref?.();
+  }
+
   return scheduledTask;
 }
 
 export function stopPayoutScheduler() {
   scheduledTask?.stop();
   scheduledTask = null;
+  if (recoveryInterval) {
+    clearInterval(recoveryInterval);
+    recoveryInterval = null;
+  }
 }
 
 /** 테스트·수동 실행용 — 현재 월 durable slot을 공유한다. */
