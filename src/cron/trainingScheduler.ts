@@ -10,8 +10,8 @@ import {
   resolveSchedulerSlot,
   runDurableScheduledJob,
   shouldAttemptBootRecovery,
-  type SchedulerTriggerKind,
 } from "@/lib/schedulerRunRegistry";
+import type { SchedulerTriggerKind } from "@/lib/schedulerRunShared";
 
 let dailyTask: ScheduledTask | null = null;
 let weeklyTask: ScheduledTask | null = null;
