@@ -80,7 +80,7 @@ jobs:
         run: node --conditions=react-server --import tsx --test src/lib/postTurnSharedInitial/promptRegression.test.ts
 
       - name: Suggested replies decision quality observatory
-        run: node --conditions=react-server --import tsx --test src/lib/suggestedReplies/decisionQualityObservatory.test.ts
+        run: node --conditions=react-server --import tsx --test src/lib/suggestedReplies/decisionQualityObservatory.test.ts src/lib/suggestedReplies/decisionQualityObservatory.corpus.test.ts
 
       - name: CheaperInference adapter (response_format preservation)
         run: node --conditions=react-server --import tsx --test src/lib/cheaperInferenceConfig.test.ts
