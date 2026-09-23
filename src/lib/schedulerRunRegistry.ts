@@ -27,21 +27,7 @@ export type SchedulerRunClaim =
       row: SchedulerRunRow;
     };
 
-export type SchedulerRunOverview = {
-  jobName: SchedulerJobName;
-  label: string;
-  cronExpression: string;
-  currentSlotKey: string;
-  due: boolean;
-  activated: boolean;
-  state:
-    | SchedulerRunStatus
-    | "MISSING"
-    | "NOT_DUE"
-    | "PRE_ACTIVATION";
-  latest: SchedulerRunRow | null;
-  current: SchedulerRunRow | null;
-};
+
 
 export function ensureSchedulerRunRegistrySchema(db: Database.Database): void {
   db.exec(`
