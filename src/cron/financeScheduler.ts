@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 import { runModelPricingTracker } from "@/lib/modelPricingTracker";
 import { reconcileCheaperInferenceUsage } from "@/lib/providerCostReconciliation";
 import {
+  SCHEDULER_RECOVERY_POLL_MS,
   SCHEDULER_TIMEZONE,
   schedulerCronExpression,
 } from "@/lib/schedulerDefinitions";
@@ -12,6 +13,7 @@ import {
   resolveSchedulerSlot,
   runDurableScheduledJob,
   shouldAttemptBootRecovery,
+  shouldAttemptRuntimeRecovery,
 } from "@/lib/schedulerRunRegistry";
 import type { SchedulerTriggerKind } from "@/lib/schedulerRunShared";
 
@@ -19,6 +21,7 @@ export const FINANCE_DAILY_CRON = schedulerCronExpression("finance_daily");
 export const FINANCE_TIMEZONE = SCHEDULER_TIMEZONE;
 
 let scheduledTask: ScheduledTask | null = null;
+let recoveryInterval: ReturnType<typeof setInterval> | null = null;
 
 async function executeFinanceSnapshot(slotKey: string) {
   const monthKey = slotKey.slice(0, 7) || currentKstMonthKey();
@@ -103,6 +106,16 @@ export async function runFinanceSnapshotNow() {
   return runFinanceSlot("manual");
 }
 
+function attemptFinanceRuntimeRecovery(): void {
+  const db = getDb();
+  if (!shouldAttemptRuntimeRecovery(db, "finance_daily")) return;
+  const recoverySlot = resolveLatestDueSchedulerSlot("finance_daily");
+  console.log("[finance-scheduler] runtime recovery due", {
+    slotKey: recoverySlot.slotKey,
+  });
+  void runFinanceSlot("runtime_recovery", recoverySlot.slotKey);
+}
+
 export function startFinanceScheduler() {
   if (scheduledTask) return scheduledTask;
   scheduledTask = cron.schedule(
@@ -125,10 +138,22 @@ export function startFinanceScheduler() {
     void runFinanceSlot("manual");
   }
 
+  if (!recoveryInterval) {
+    recoveryInterval = setInterval(
+      attemptFinanceRuntimeRecovery,
+      SCHEDULER_RECOVERY_POLL_MS
+    );
+    recoveryInterval.unref?.();
+  }
+
   return scheduledTask;
 }
 
 export function stopFinanceScheduler() {
   scheduledTask?.stop();
   scheduledTask = null;
+  if (recoveryInterval) {
+    clearInterval(recoveryInterval);
+    recoveryInterval = null;
+  }
 }
