@@ -1,0 +1,35 @@
+{
+  "id": "deepseek-v4-pro-0813",
+  "aliases": [],
+  "object": "model",
+  "owned_by": "DeepSeek",
+  "provider": "DeepSeek",
+  "type": "text",
+  "endpoint": "/v1/chat/completions",
+  "capabilities": {
+    "vision": false,
+    "video": false,
+    "reasoning": true,
+    "streaming": true,
+    "image_generation": false
+  },
+  "is_free": false,
+  "available_until": null,
+  "pricing": {
+    "currency": "USD",
+    "input_per_million": "0.308000",
+    "cache_read_input_per_million": "0.020680",
+    "cache_write_input_per_million": "0.308000",
+    "output_per_million": "0.609000",
+    "image_output_per_million": null,
+    "media_input_unit_price": null,
+    "media_unit_price": null,
+    "media_unit": null,
+    "resolution_prices": {},
+    "reference_resolution_prices": {},
+    "image_pricing_unit": "token",
+    "discount_percent": "30.00",
+    "input_token_price_threshold": null,
+    "above_threshold": null
+  }
+}

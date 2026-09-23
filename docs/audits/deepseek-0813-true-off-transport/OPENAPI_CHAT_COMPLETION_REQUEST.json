@@ -1,0 +1,52 @@
+{
+  "type": "object",
+  "required": [
+    "model",
+    "messages"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "model": {
+      "type": "string"
+    },
+    "messages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "stream": {
+      "type": "boolean",
+      "default": false
+    },
+    "temperature": {
+      "type": "number"
+    },
+    "top_p": {
+      "type": "number"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "max_completion_tokens": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "tool_choice": {},
+    "response_format": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "reasoning": {}
+  }
+}
