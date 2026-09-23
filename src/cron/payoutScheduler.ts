@@ -6,6 +6,7 @@ import {
 } from "@/lib/payoutSchedule";
 import { getDb } from "@/lib/db";
 import {
+  resolveLatestDueSchedulerSlot,
   resolveSchedulerSlot,
   runDurableScheduledJob,
   shouldAttemptBootRecovery,
@@ -16,13 +17,17 @@ export { PAYOUT_CRON_EXPRESSION, PAYOUT_TIMEZONE };
 
 let scheduledTask: ScheduledTask | null = null;
 
-async function runPayoutSlot(triggerKind: SchedulerTriggerKind) {
+async function runPayoutSlot(
+  triggerKind: SchedulerTriggerKind,
+  slotKeyOverride?: string
+) {
   const db = getDb();
   const slot = resolveSchedulerSlot("payout_monthly");
+  const slotKey = slotKeyOverride ?? slot.slotKey;
   const started = Date.now();
   const run = await runDurableScheduledJob(db, {
     jobName: "payout_monthly",
-    slotKey: slot.slotKey,
+    slotKey,
     triggerKind,
     execute: async () => {
       console.log("[payout-scheduler] 월간 일괄 지급 배치 시작");
@@ -45,7 +50,7 @@ async function runPayoutSlot(triggerKind: SchedulerTriggerKind) {
   }
 
   console.log("[payout-scheduler] durable slot skipped", {
-    slotKey: slot.slotKey,
+    slotKey,
     outcome: run.claim.outcome,
     status: run.claim.row.status,
     attemptCount: run.claim.row.attempt_count,
@@ -70,8 +75,11 @@ export function startPayoutScheduler() {
 
   const db = getDb();
   if (shouldAttemptBootRecovery(db, "payout_monthly")) {
-    console.log("[payout-scheduler] missing current slot detected → boot recovery");
-    void runPayoutSlot("boot_recovery");
+    const recoverySlot = resolveLatestDueSchedulerSlot("payout_monthly");
+    console.log("[payout-scheduler] missing/recoverable due slot detected → boot recovery", {
+      slotKey: recoverySlot.slotKey,
+    });
+    void runPayoutSlot("boot_recovery", recoverySlot.slotKey);
   } else if (process.env.PAYOUT_RUN_ON_BOOT === "1") {
     console.log("[payout-scheduler] PAYOUT_RUN_ON_BOOT=1 → 현재 월 슬롯 수동 실행");
     void runPayoutSlot("manual");
