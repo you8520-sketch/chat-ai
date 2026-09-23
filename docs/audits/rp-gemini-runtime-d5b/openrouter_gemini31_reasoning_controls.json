@@ -1,0 +1,18 @@
+{
+  "fetched_at": "2026-08-08",
+  "model": "google/gemini-3.1-pro-preview",
+  "reasoning": {
+    "mandatory": true,
+    "supported_efforts": [
+      "high",
+      "medium",
+      "low"
+    ],
+    "default_effort": "medium"
+  },
+  "production_effort": "low",
+  "lower_supported_than_production": null,
+  "supports_reasoning_max_tokens_field": false,
+  "note": "supports_max_tokens omitted on model.reasoning object; docs: omitted means no token-budget reasoning control. minimal/none NOT in supported_efforts; mandatory=true forbids none.",
+  "D5B2": "NOT_APPLICABLE"
+}

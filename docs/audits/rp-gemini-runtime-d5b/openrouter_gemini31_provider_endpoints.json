@@ -1,0 +1,318 @@
+{
+  "fetched_at": "2026-08-08",
+  "model": "google/gemini-3.1-pro-preview",
+  "exact_provider_slugs_for_pin": {
+    "P1_vertex": {
+      "slug": "google-vertex",
+      "display_name": "Google",
+      "source": "GET /api/v1/providers"
+    },
+    "P2_ai_studio": {
+      "slug": "google-ai-studio",
+      "display_name": "Google AI Studio",
+      "source": "GET /api/v1/providers"
+    }
+  },
+  "provider_pin_format": {
+    "only": [
+      "<EXACT_SLUG>"
+    ],
+    "allow_fallbacks": false,
+    "require_parameters": true
+  },
+  "providers_api_google_entries": [
+    {
+      "name": "Google AI Studio",
+      "slug": "google-ai-studio",
+      "privacy_policy_url": "https://cloud.google.com/terms/cloud-privacy-notice",
+      "terms_of_service_url": "https://cloud.google.com/terms/",
+      "status_page_url": null,
+      "headquarters": "US",
+      "datacenters": null
+    },
+    {
+      "name": "Google",
+      "slug": "google-vertex",
+      "privacy_policy_url": "https://cloud.google.com/terms/cloud-privacy-notice",
+      "terms_of_service_url": "https://cloud.google.com/terms/",
+      "status_page_url": "https://status.cloud.google.com/products/sdXM79fz1FS6ekNpu37K/history",
+      "headquarters": "US",
+      "datacenters": null
+    }
+  ],
+  "endpoints": [
+    {
+      "tag": "google-vertex/global",
+      "name": "Google | google/gemini-3.1-pro-preview-20260219",
+      "provider_name": "Google",
+      "status": 0,
+      "context_length": 1048576,
+      "max_completion_tokens": 65536,
+      "supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "seed",
+        "response_format",
+        "tools",
+        "tool_choice",
+        "stop",
+        "structured_outputs",
+        "reasoning_effort"
+      ],
+      "supports_implicit_caching": false,
+      "quantization": "unknown",
+      "pricing": {
+        "prompt": "0.000002",
+        "completion": "0.000012",
+        "image": "0.000002",
+        "audio": "0.000002",
+        "input_audio_cache": "0.0000002",
+        "web_search": "0.014",
+        "internal_reasoning": "0.000012",
+        "input_cache_read": "0.0000002",
+        "input_cache_write": "0.000000375",
+        "discount": 0,
+        "overrides": [
+          {
+            "min_prompt_tokens": 200000,
+            "prompt": "0.000004",
+            "completion": "0.000018",
+            "audio": "0.000004",
+            "input_audio_cache": "0.0000004",
+            "input_cache_read": "0.0000004"
+          }
+        ]
+      }
+    },
+    {
+      "tag": "google-vertex/global/flex",
+      "name": "Google | google/gemini-3.1-pro-preview-20260219",
+      "provider_name": "Google",
+      "status": 0,
+      "context_length": 1048576,
+      "max_completion_tokens": 65536,
+      "supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "seed",
+        "response_format",
+        "tools",
+        "tool_choice",
+        "stop",
+        "structured_outputs",
+        "reasoning_effort"
+      ],
+      "supports_implicit_caching": false,
+      "quantization": "unknown",
+      "pricing": {
+        "prompt": "0.000001",
+        "completion": "0.000006",
+        "image": "0.000001",
+        "audio": "0.000001",
+        "input_audio_cache": "0.0000001",
+        "web_search": "0.014",
+        "internal_reasoning": "0.000006",
+        "input_cache_read": "0.0000001",
+        "input_cache_write": "0.0000001875",
+        "discount": 0,
+        "overrides": [
+          {
+            "min_prompt_tokens": 200000,
+            "prompt": "0.000002",
+            "completion": "0.000009",
+            "audio": "0.000002",
+            "input_audio_cache": "0.0000002",
+            "input_cache_read": "0.0000002"
+          }
+        ]
+      }
+    },
+    {
+      "tag": "google-vertex/global/priority",
+      "name": "Google | google/gemini-3.1-pro-preview-20260219",
+      "provider_name": "Google",
+      "status": 0,
+      "context_length": 1048576,
+      "max_completion_tokens": 65536,
+      "supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "seed",
+        "response_format",
+        "tools",
+        "tool_choice",
+        "stop",
+        "structured_outputs",
+        "reasoning_effort"
+      ],
+      "supports_implicit_caching": false,
+      "quantization": "unknown",
+      "pricing": {
+        "prompt": "0.0000036",
+        "completion": "0.0000216",
+        "image": "0.0000036",
+        "audio": "0.0000036",
+        "input_audio_cache": "0.00000036",
+        "web_search": "0.014",
+        "internal_reasoning": "0.0000216",
+        "input_cache_read": "0.00000036",
+        "input_cache_write": "0.000000675",
+        "discount": 0,
+        "overrides": [
+          {
+            "min_prompt_tokens": 200000,
+            "prompt": "0.0000072",
+            "completion": "0.0000324",
+            "audio": "0.0000072",
+            "input_audio_cache": "0.00000072",
+            "input_cache_read": "0.00000072"
+          }
+        ]
+      }
+    },
+    {
+      "tag": "google-ai-studio",
+      "name": "Google AI Studio | google/gemini-3.1-pro-preview-20260219",
+      "provider_name": "Google AI Studio",
+      "status": 0,
+      "context_length": 1048576,
+      "max_completion_tokens": 65536,
+      "supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "seed",
+        "response_format",
+        "tools",
+        "tool_choice",
+        "structured_outputs",
+        "reasoning_effort"
+      ],
+      "supports_implicit_caching": false,
+      "quantization": "unknown",
+      "pricing": {
+        "prompt": "0.000002",
+        "completion": "0.000012",
+        "image": "0.000002",
+        "audio": "0.000002",
+        "input_audio_cache": "0.0000002",
+        "web_search": "0.014",
+        "internal_reasoning": "0.000012",
+        "input_cache_read": "0.0000002",
+        "input_cache_write": "0.000000375",
+        "discount": 0,
+        "overrides": [
+          {
+            "min_prompt_tokens": 200000,
+            "prompt": "0.000004",
+            "completion": "0.000018",
+            "audio": "0.000004",
+            "input_audio_cache": "0.0000004",
+            "input_cache_read": "0.0000004"
+          }
+        ]
+      }
+    },
+    {
+      "tag": "google-ai-studio/flex",
+      "name": "Google AI Studio | google/gemini-3.1-pro-preview-20260219",
+      "provider_name": "Google AI Studio",
+      "status": 0,
+      "context_length": 1048576,
+      "max_completion_tokens": 65536,
+      "supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "seed",
+        "response_format",
+        "tools",
+        "tool_choice",
+        "structured_outputs",
+        "reasoning_effort"
+      ],
+      "supports_implicit_caching": false,
+      "quantization": "unknown",
+      "pricing": {
+        "prompt": "0.000001",
+        "completion": "0.000006",
+        "image": "0.000001",
+        "audio": "0.000001",
+        "input_audio_cache": "0.0000001",
+        "web_search": "0.014",
+        "internal_reasoning": "0.000006",
+        "input_cache_read": "0.0000001",
+        "input_cache_write": "0.0000001875",
+        "discount": 0,
+        "overrides": [
+          {
+            "min_prompt_tokens": 200000,
+            "prompt": "0.000002",
+            "completion": "0.000009",
+            "audio": "0.000002",
+            "input_audio_cache": "0.0000002",
+            "input_cache_read": "0.0000002"
+          }
+        ]
+      }
+    },
+    {
+      "tag": "google-ai-studio/priority",
+      "name": "Google AI Studio | google/gemini-3.1-pro-preview-20260219",
+      "provider_name": "Google AI Studio",
+      "status": 0,
+      "context_length": 1048576,
+      "max_completion_tokens": 65536,
+      "supported_parameters": [
+        "reasoning",
+        "include_reasoning",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "seed",
+        "response_format",
+        "tools",
+        "tool_choice",
+        "structured_outputs",
+        "reasoning_effort"
+      ],
+      "supports_implicit_caching": false,
+      "quantization": "unknown",
+      "pricing": {
+        "prompt": "0.0000036",
+        "completion": "0.0000216",
+        "image": "0.0000036",
+        "audio": "0.0000036",
+        "input_audio_cache": "0.00000036",
+        "web_search": "0.014",
+        "internal_reasoning": "0.0000216",
+        "input_cache_read": "0.00000036",
+        "input_cache_write": "0.000000675",
+        "discount": 0,
+        "overrides": [
+          {
+            "min_prompt_tokens": 200000,
+            "prompt": "0.0000072",
+            "completion": "0.0000324",
+            "audio": "0.0000072",
+            "input_audio_cache": "0.00000072",
+            "input_cache_read": "0.00000072"
+          }
+        ]
+      }
+    }
+  ]
+}
