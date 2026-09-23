@@ -23,6 +23,7 @@ import {
 export type MainRpPricingApplicationPlanStatus =
   | "READY"
   | "HOLD_NOT_APPROVED"
+  | "HOLD_NEWER_OCCURRENCE_EXISTS"
   | "HOLD_MISSING_REVIEW_EVIDENCE"
   | "HOLD_REVIEW_EVIDENCE_MISMATCH"
   | "HOLD_PUBLISHED_BASE_CHANGED"
@@ -182,14 +183,33 @@ export function buildMainRpPricingApplicationSnapshot(
 export function buildMainRpPricingApplicationPlanFromSnapshot(params: {
   record: MainRpPricingCandidateRecord;
   snapshot: MainRpPricingApplicationSnapshot | null;
+  latestRecordIdForModel: number | null;
 }): MainRpPricingApplicationPlan {
-  const { record, snapshot } = params;
+  const { record, snapshot, latestRecordIdForModel } = params;
 
   if (record.reviewState !== "APPROVED") {
     return holdPlan({
       record,
       status: "HOLD_NOT_APPROVED",
       blocker: "Only APPROVED B2D proposals can produce an application plan.",
+      snapshot,
+    });
+  }
+
+  if (latestRecordIdForModel == null) {
+    return holdPlan({
+      record,
+      status: "UNAVAILABLE",
+      blocker: "Latest candidate occurrence for this model is unavailable.",
+      snapshot,
+    });
+  }
+
+  if (latestRecordIdForModel !== record.id) {
+    return holdPlan({
+      record,
+      status: "HOLD_NEWER_OCCURRENCE_EXISTS",
+      blocker: "A newer candidate occurrence exists; this older approval cannot be reused.",
       snapshot,
     });
   }
@@ -332,11 +352,13 @@ export function buildMainRpPricingApplicationPlanFromSnapshot(params: {
 export function buildMainRpPricingApplicationPlan(params: {
   record: MainRpPricingCandidateRecord;
   currentRow: MainRpPricingObservabilityRow | null;
+  latestRecordIdForModel: number | null;
 }): MainRpPricingApplicationPlan {
   return buildMainRpPricingApplicationPlanFromSnapshot({
     record: params.record,
     snapshot: params.currentRow
       ? buildMainRpPricingApplicationSnapshot(params.currentRow)
       : null,
+    latestRecordIdForModel: params.latestRecordIdForModel,
   });
 }

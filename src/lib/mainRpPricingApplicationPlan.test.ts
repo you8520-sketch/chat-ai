@@ -83,6 +83,7 @@ describe("Phase B2E read-only pricing application plan", () => {
     const plan = buildMainRpPricingApplicationPlanFromSnapshot({
       record: record(),
       snapshot: snapshot(),
+      latestRecordIdForModel: 10,
     });
     assert.equal(plan.status, "READY");
     assert.equal(plan.noMutation, true);
@@ -100,14 +101,35 @@ describe("Phase B2E read-only pricing application plan", () => {
     const plan = buildMainRpPricingApplicationPlanFromSnapshot({
       record: record({ reviewState: "OPEN" }),
       snapshot: snapshot(),
+      latestRecordIdForModel: 10,
     });
     assert.equal(plan.status, "HOLD_NOT_APPROVED");
+  });
+
+  it("older APPROVED occurrence cannot become READY again after a newer occurrence exists", () => {
+    const plan = buildMainRpPricingApplicationPlanFromSnapshot({
+      record: record({ id: 10 }),
+      snapshot: snapshot({ candidateFingerprint: "fp-current" }),
+      latestRecordIdForModel: 12,
+    });
+    assert.equal(plan.status, "HOLD_NEWER_OCCURRENCE_EXISTS");
+    assert.equal(plan.nextPricingVersion, null);
+  });
+
+  it("missing latest-occurrence context fails closed", () => {
+    const plan = buildMainRpPricingApplicationPlanFromSnapshot({
+      record: record(),
+      snapshot: snapshot(),
+      latestRecordIdForModel: null,
+    });
+    assert.equal(plan.status, "UNAVAILABLE");
   });
 
   it("missing immutable review evidence fails closed", () => {
     const plan = buildMainRpPricingApplicationPlanFromSnapshot({
       record: record({ reviewEvidence: null }),
       snapshot: snapshot(),
+      latestRecordIdForModel: 10,
     });
     assert.equal(plan.status, "HOLD_MISSING_REVIEW_EVIDENCE");
   });
@@ -123,6 +145,7 @@ describe("Phase B2E read-only pricing application plan", () => {
         },
       }),
       snapshot: snapshot(),
+      latestRecordIdForModel: 10,
     });
     assert.equal(plan.status, "HOLD_REVIEW_EVIDENCE_MISMATCH");
   });
@@ -132,6 +155,7 @@ describe("Phase B2E read-only pricing application plan", () => {
       buildMainRpPricingApplicationPlanFromSnapshot({
         record: record(),
         snapshot: snapshot({ pricingVersion: 3 }),
+        latestRecordIdForModel: 10,
       }).status,
       "HOLD_PUBLISHED_BASE_CHANGED"
     );
@@ -139,6 +163,7 @@ describe("Phase B2E read-only pricing application plan", () => {
       buildMainRpPricingApplicationPlanFromSnapshot({
         record: record(),
         snapshot: snapshot({ currentTargetMargin: 0.54 }),
+        latestRecordIdForModel: 10,
       }).status,
       "HOLD_PUBLISHED_BASE_CHANGED"
     );
@@ -148,6 +173,7 @@ describe("Phase B2E read-only pricing application plan", () => {
     const plan = buildMainRpPricingApplicationPlanFromSnapshot({
       record: record(),
       snapshot: snapshot({ candidateFingerprint: "fp-new" }),
+      latestRecordIdForModel: 10,
     });
     assert.equal(plan.status, "HOLD_CANDIDATE_CHANGED");
   });
@@ -156,6 +182,7 @@ describe("Phase B2E read-only pricing application plan", () => {
     const plan = buildMainRpPricingApplicationPlanFromSnapshot({
       record: record(),
       snapshot: snapshot({ commercialPricingOwner: "derived_reference_rates" }),
+      latestRecordIdForModel: 10,
     });
     assert.equal(plan.status, "HOLD_COMMERCIAL_OWNER_CHANGED");
   });
@@ -171,6 +198,7 @@ describe("Phase B2E read-only pricing application plan", () => {
         },
       }),
       snapshot: snapshot({ commercialPricingOwner: "derived_reference_rates" }),
+      latestRecordIdForModel: 10,
     });
     assert.equal(plan.status, "HOLD_UNSUPPORTED_COMMERCIAL_OWNER");
     assert.equal(plan.ownerModule, null);
@@ -181,6 +209,7 @@ describe("Phase B2E read-only pricing application plan", () => {
     const plan = buildMainRpPricingApplicationPlanFromSnapshot({
       record: record(),
       snapshot: snapshot({ sitePromotionActive: true }),
+      latestRecordIdForModel: 10,
     });
     assert.equal(plan.status, "HOLD_SITE_PROMOTION_ACTIVE");
   });
@@ -189,6 +218,7 @@ describe("Phase B2E read-only pricing application plan", () => {
     const plan = buildMainRpPricingApplicationPlanFromSnapshot({
       record: record(),
       snapshot: snapshot({ liveApplicability: "PUBLISHED_SHADOW_ONLY" }),
+      latestRecordIdForModel: 10,
     });
     assert.equal(plan.status, "HOLD_PUBLISHED_NOT_LIVE");
   });
@@ -197,6 +227,7 @@ describe("Phase B2E read-only pricing application plan", () => {
     const plan = buildMainRpPricingApplicationPlanFromSnapshot({
       record: record(),
       snapshot: snapshot({ liveApplicability: "DIRECT_SELECTION_ONLY" }),
+      latestRecordIdForModel: 10,
     });
     assert.equal(plan.status, "READY");
     assert.equal(plan.liveScope, "DIRECT_SELECTION_ONLY");
@@ -209,6 +240,7 @@ describe("Phase B2E read-only pricing application plan", () => {
         proposedTargetMargin: 0.5,
       }),
       snapshot: snapshot({ currentTargetMargin: 0.5 }),
+      latestRecordIdForModel: 10,
     });
     assert.equal(plan.status, "HOLD_NO_EFFECTIVE_CHANGE");
   });
