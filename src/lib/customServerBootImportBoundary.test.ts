@@ -63,7 +63,7 @@ function parseBootProbeOutput(output: string): {
   directDestructuringWorks?: boolean;
   error?: string;
 } {
-  for (const line of output.split(/\\r?\\n/)) {
+  for (const line of output.split(/\r?\n/)) {
     const idx = line.indexOf(BOOT_PROBE_PREFIX);
     if (idx < 0) continue;
     return JSON.parse(line.slice(idx + BOOT_PROBE_PREFIX.length));
