@@ -32,6 +32,7 @@ export type SchedulerRunOverviewState =
   | SchedulerRunStatus
   | "STALE"
   | "MISSING"
+  | "DISABLED"
   | "PRE_ACTIVATION";
 
 export type SchedulerRunOverview = {
