@@ -27,6 +27,9 @@ tmp-*
 scripts/tmp-*
 *.log
 
+# Private production snapshot RAW (Flood F1 / Turn Ownership T1)
+data/handoff-audit-exports/
+
 # Playwright UI test artifacts
 test-results/
 playwright-report/
