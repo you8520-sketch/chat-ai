@@ -30,6 +30,8 @@ import {
 } from "@/lib/modelPriceSnapshot";
 import { getModelPricingPolicy } from "@/lib/modelPricingPolicy";
 import {
+  CACHE_RATE_PROVENANCE_INPUT_FALLBACK,
+  CACHE_RATE_PROVENANCE_REPORTED,
   CACHE_RATE_PROVENANCE_UNVERIFIED,
   CHEAPER_INFERENCE_MODELS_SOURCE_URL,
   type PriceSnapshotSourceKind,
@@ -85,6 +87,8 @@ function seedCatalog(
     outputUsdPerMillion: input.outputUsdPerMillion,
     cacheReadUsdPerMillion: input.cacheReadUsdPerMillion ?? input.inputUsdPerMillion * 0.1,
     cacheWriteUsdPerMillion: input.cacheWriteUsdPerMillion ?? input.inputUsdPerMillion,
+    cacheReadRateProvenance: input.cacheReadRateProvenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED,
+    cacheWriteRateProvenance: input.cacheWriteRateProvenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED,
     referenceInputUsdPerMillion: input.referenceInputUsdPerMillion,
     referenceOutputUsdPerMillion: input.referenceOutputUsdPerMillion,
     referenceCacheReadUsdPerMillion: input.referenceCacheReadUsdPerMillion,
@@ -1147,7 +1151,112 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       assert.ok(!configSource.includes(token), `config contains ${token}`);
       assert.ok(!schemaSource.includes(token), `schema contains ${token}`);
     }
-    void CACHE_RATE_PROVENANCE_UNVERIFIED;
+    assert.equal(CACHE_RATE_PROVENANCE_UNVERIFIED, "unknown_legacy");
+  });
+
+  it("cache provenance persists without changing rate fingerprints or price events", () => {
+    const db = makeDb();
+    const policy = getModelPricingPolicy(DEEPSEEK)!;
+    const observedAt = FIXED_NOW.toISOString();
+
+    const reported = buildCiCurrentSnapshot({
+      policy,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 0.5,
+        outputUsdPerMillion: 1.5,
+        cacheReadUsdPerMillion: 0.05,
+        cacheWriteUsdPerMillion: 0.5,
+        cacheReadRateProvenance: CACHE_RATE_PROVENANCE_REPORTED,
+        cacheWriteRateProvenance: CACHE_RATE_PROVENANCE_REPORTED,
+      }),
+      observedAt,
+    });
+    const fallback = buildCiCurrentSnapshot({
+      policy,
+      catalog: seedCatalog(DEEPSEEK, {
+        inputUsdPerMillion: 0.5,
+        outputUsdPerMillion: 1.5,
+        cacheReadUsdPerMillion: 0.05,
+        cacheWriteUsdPerMillion: 0.5,
+        cacheReadRateProvenance: CACHE_RATE_PROVENANCE_INPUT_FALLBACK,
+        cacheWriteRateProvenance: CACHE_RATE_PROVENANCE_INPUT_FALLBACK,
+      }),
+      observedAt,
+    });
+
+    assert.equal(reported.rawFingerprint, fallback.rawFingerprint);
+    assert.deepEqual(reported.rates, fallback.rates);
+    assert.deepEqual(
+      classifyCiCurrentChange({ modelId: DEEPSEEK, previous: reported, current: fallback }),
+      []
+    );
+
+    const claim = claimTrackerRun(db, {
+      runDateKey: "2026-09-20",
+      phase: "OBSERVE_ONLY",
+      startedAt: observedAt,
+    });
+    assert.equal(claim.outcome, "CLAIMED");
+    insertPriceSnapshot(db, claim.attemptId, fallback);
+    finishTrackerRun(db, {
+      attemptId: claim.attemptId,
+      status: "completed",
+      finishedAt: observedAt,
+      errorSummary: "",
+    });
+
+    const roundTrip = readLatestSnapshot(db, DEEPSEEK, "cheaper_inference_models_current");
+    assert.equal(roundTrip?.cacheReadRateProvenance, CACHE_RATE_PROVENANCE_INPUT_FALLBACK);
+    assert.equal(roundTrip?.cacheWriteRateProvenance, CACHE_RATE_PROVENANCE_INPUT_FALLBACK);
+  });
+
+  it("legacy snapshot rows migrate provenance columns as unknown_legacy", () => {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE model_price_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        attempt_id INTEGER NOT NULL,
+        provider TEXT NOT NULL,
+        model_id TEXT NOT NULL,
+        provider_model_id TEXT NOT NULL,
+        pricing_mode TEXT NOT NULL,
+        source_kind TEXT NOT NULL,
+        source_url TEXT NOT NULL DEFAULT '',
+        input_usd_per_million REAL,
+        output_usd_per_million REAL,
+        cache_read_usd_per_million REAL,
+        cache_write_usd_per_million REAL,
+        tier_threshold INTEGER,
+        discount_percent REAL,
+        raw_fingerprint TEXT NOT NULL,
+        observed_at TEXT NOT NULL,
+        valid_from TEXT,
+        valid_until TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO model_price_snapshots (
+        attempt_id, provider, model_id, provider_model_id, pricing_mode, source_kind,
+        input_usd_per_million, output_usd_per_million, cache_read_usd_per_million,
+        cache_write_usd_per_million, raw_fingerprint, observed_at
+      ) VALUES (
+        1, 'cheaperinference', 'legacy-model', 'legacy-model', 'procurement_current',
+        'cheaper_inference_models_current', 1, 2, 0.1, 1, 'legacy-fingerprint',
+        '2026-09-20T00:00:00.000Z'
+      );
+    `);
+
+    ensureModelPricingTrackingSchema(db);
+    const row = db
+      .prepare(
+        `SELECT cache_read_rate_provenance, cache_write_rate_provenance
+         FROM model_price_snapshots WHERE model_id='legacy-model'`
+      )
+      .get() as {
+        cache_read_rate_provenance: string;
+        cache_write_rate_provenance: string;
+      };
+    assert.equal(row.cache_read_rate_provenance, CACHE_RATE_PROVENANCE_UNVERIFIED);
+    assert.equal(row.cache_write_rate_provenance, CACHE_RATE_PROVENANCE_UNVERIFIED);
   });
 
   it("P: CI snapshot observed_at is the source fetch timestamp, not the run clock", async () => {

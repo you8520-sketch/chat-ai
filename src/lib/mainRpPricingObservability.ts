@@ -47,7 +47,11 @@ import {
   REPRESENTATIVE_TRACKER_WORKLOAD,
 } from "@/lib/modelPricingTracker";
 import { readLatestSnapshot } from "@/lib/modelPricingTrackerPersistence";
-import { MODEL_PRICING_TRACKER_TIMEZONE } from "@/lib/modelPricingTrackingConfig";
+import {
+  CACHE_RATE_PROVENANCE_UNVERIFIED,
+  MODEL_PRICING_TRACKER_TIMEZONE,
+  type CacheRateProvenance,
+} from "@/lib/modelPricingTrackingConfig";
 import {
   getMarketBenchmarks,
   type MarketUsageBenchmark,
@@ -154,6 +158,8 @@ export type ProcurementObservation = {
   ciInputUsdPerMillion: number | null;
   ciOutputUsdPerMillion: number | null;
   ciCacheReadUsdPerMillion: number | null;
+  ciCacheReadRateProvenance: CacheRateProvenance | "absent";
+  ciCacheWriteRateProvenance: CacheRateProvenance | "absent";
   ciDiscountPercent: number | null;
   ciObservedAt: string | null;
   ciFreshnessState: ProcurementFreshnessState;
@@ -483,6 +489,10 @@ function catalogFromCiCurrentSnapshot(snapshot: ModelPriceSnapshotRecord): Cheap
     outputUsdPerMillion,
     cacheReadUsdPerMillion: snapshot.rates.cacheReadUsdPerMillion ?? inputUsdPerMillion * 0.1,
     cacheWriteUsdPerMillion: snapshot.rates.cacheWriteUsdPerMillion ?? inputUsdPerMillion,
+    cacheReadRateProvenance:
+      snapshot.cacheReadRateProvenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED,
+    cacheWriteRateProvenance:
+      snapshot.cacheWriteRateProvenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED,
     referenceInputUsdPerMillion: undefined,
     referenceOutputUsdPerMillion: undefined,
     discountPercent: snapshot.rates.discountPercent ?? undefined,
@@ -586,6 +596,16 @@ function procurementObservation(params: {
       ? readLatestSnapshot(params.db, params.modelId, "cheaper_inference_models_current")
       : null;
   const liveCatalog = resolveCheaperInferenceCatalogPricing(params.modelId);
+  const cacheReadRateProvenance: CacheRateProvenance | "absent" = persistedCi
+    ? persistedCi.cacheReadRateProvenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED
+    : liveCatalog
+      ? liveCatalog.cacheReadRateProvenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED
+      : "absent";
+  const cacheWriteRateProvenance: CacheRateProvenance | "absent" = persistedCi
+    ? persistedCi.cacheWriteRateProvenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED
+    : liveCatalog
+      ? liveCatalog.cacheWriteRateProvenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED
+      : "absent";
 
   if (params.upstreamCostUsd != null && params.upstreamCostUsd > 0) {
     const krw = params.upstreamCostUsd * params.fxSnapshot.effectiveKrwPerUsd;
@@ -603,6 +623,8 @@ function procurementObservation(params: {
           : liveCatalog?.outputUsdPerMillion ?? null
         : null,
       ciCacheReadUsdPerMillion: persistedCi?.rates.cacheReadUsdPerMillion ?? liveCatalog?.cacheReadUsdPerMillion ?? null,
+      ciCacheReadRateProvenance: cacheReadRateProvenance,
+      ciCacheWriteRateProvenance: cacheWriteRateProvenance,
       ciDiscountPercent: persistedCi?.rates.discountPercent ?? liveCatalog?.discountPercent ?? null,
       ciObservedAt: persistedCi?.observedAt ?? (liveCatalog ? new Date(liveCatalog.fetchedAt).toISOString() : null),
       ciFreshnessState: persistedCi
@@ -640,6 +662,8 @@ function procurementObservation(params: {
       ciInputUsdPerMillion: null,
       ciOutputUsdPerMillion: null,
       ciCacheReadUsdPerMillion: null,
+      ciCacheReadRateProvenance: "absent",
+      ciCacheWriteRateProvenance: "absent",
       ciDiscountPercent: null,
       ciObservedAt: null,
       ciFreshnessState: "ABSENT",
@@ -665,6 +689,8 @@ function procurementObservation(params: {
     ciInputUsdPerMillion: catalog.inputUsdPerMillion,
     ciOutputUsdPerMillion: catalog.outputUsdPerMillion,
     ciCacheReadUsdPerMillion: catalog.cacheReadUsdPerMillion ?? null,
+    ciCacheReadRateProvenance: cacheReadRateProvenance,
+    ciCacheWriteRateProvenance: cacheWriteRateProvenance,
     ciDiscountPercent: catalog.discountPercent ?? null,
     ciObservedAt,
     ciFreshnessState,

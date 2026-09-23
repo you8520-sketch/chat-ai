@@ -5,7 +5,9 @@
 import { createHash } from "node:crypto";
 import type { CheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
 import {
+  CACHE_RATE_PROVENANCE_UNVERIFIED,
   CHEAPER_INFERENCE_MODELS_SOURCE_URL,
+  type CacheRateProvenance,
   type PriceSnapshotPricingMode,
   type PriceSnapshotSourceKind,
 } from "@/lib/modelPricingTrackingConfig";
@@ -30,6 +32,8 @@ export type ModelPriceSnapshotRecord = {
   sourceKind: PriceSnapshotSourceKind;
   sourceUrl: string;
   rates: PriceRateSnapshot;
+  cacheReadRateProvenance?: CacheRateProvenance;
+  cacheWriteRateProvenance?: CacheRateProvenance;
   rawFingerprint: string;
   observedAt: string;
   validFrom: string | null;
@@ -70,6 +74,10 @@ export function buildCiCurrentSnapshot(params: {
     sourceKind: "cheaper_inference_models_current",
     sourceUrl: CHEAPER_INFERENCE_MODELS_SOURCE_URL,
     rates,
+    cacheReadRateProvenance:
+      catalog.cacheReadRateProvenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED,
+    cacheWriteRateProvenance:
+      catalog.cacheWriteRateProvenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED,
     rawFingerprint: fingerprintRates({
       kind: "ci_current",
       modelId: policy.modelId,

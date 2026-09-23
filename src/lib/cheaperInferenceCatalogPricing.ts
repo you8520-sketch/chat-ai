@@ -1,3 +1,4 @@
+import type { CacheRateProvenance } from "@/lib/modelPricingTrackingConfig";
 import type { CatalogPricingTierRates, CatalogPricingTierSelection } from "@/lib/catalogPricingTier";
 import { selectCatalogPricingTier } from "@/lib/catalogPricingTier";
 
@@ -54,6 +55,8 @@ export type CheaperInferenceCatalogPricing = {
   inputUsdPerMillion: number;
   cacheReadUsdPerMillion: number;
   cacheWriteUsdPerMillion: number;
+  cacheReadRateProvenance?: CacheRateProvenance;
+  cacheWriteRateProvenance?: CacheRateProvenance;
   outputUsdPerMillion: number;
   /** Undiscounted list/reference rate — canonical for providerListCost (base tier) */
   referenceInputUsdPerMillion?: number;
