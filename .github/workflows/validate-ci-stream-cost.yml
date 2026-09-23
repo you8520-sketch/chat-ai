@@ -84,6 +84,8 @@ on:
       - "src/lib/mainRpPricingCandidateBand.test.ts"
       - "src/lib/mainRpPricingProposal.ts"
       - "src/lib/mainRpPricingProposal.test.ts"
+      - "src/lib/mainRpPricingApplicationPlan.ts"
+      - "src/lib/mainRpPricingApplicationPlan.test.ts"
       - "src/lib/modelPricingTrackingSchema.ts"
       - "src/cron/financeScheduler.ts"
       - "src/components/admin/MainRpPricingProposalReviewButtons.tsx"
@@ -161,6 +163,7 @@ jobs:
           src/lib/mainRpUserPriceDeterminism.test.ts
           src/lib/mainRpPricingCandidateBand.test.ts
           src/lib/mainRpPricingProposal.test.ts
+          src/lib/mainRpPricingApplicationPlan.test.ts
 
       - name: Provider cost ledger single owner
         run: node --conditions=react-server --import tsx --test src/lib/providerCostSingleOwner.test.ts

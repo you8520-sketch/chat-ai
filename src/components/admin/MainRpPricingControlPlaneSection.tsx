@@ -11,6 +11,10 @@ import {
   type ActualProductionCostEvidence,
 } from "@/lib/mainRpPricingActualEconomics";
 import type { MainRpPricingCandidateRecord } from "@/lib/mainRpPricingProposal";
+import {
+  buildMainRpPricingApplicationPlan,
+  type MainRpPricingApplicationPlan,
+} from "@/lib/mainRpPricingApplicationPlan";
 import { MainRpPricingProposalReviewButtons } from "@/components/admin/MainRpPricingProposalReviewButtons";
 
 function formatPct(value: number | null): string {
@@ -299,8 +303,73 @@ function formatProposalMargin(value: number | null): string {
   return `${(value * 100).toFixed(2)}%`;
 }
 
+function applicationPlanStatusLabel(
+  plan: MainRpPricingApplicationPlan
+): string {
+  switch (plan.status) {
+    case "READY":
+      return "READY — read-only change plan";
+    case "HOLD_NOT_APPROVED":
+      return "Hold — proposal not approved";
+    case "HOLD_MISSING_REVIEW_EVIDENCE":
+      return "Hold — review evidence missing";
+    case "HOLD_REVIEW_EVIDENCE_MISMATCH":
+      return "Hold — review evidence mismatch";
+    case "HOLD_PUBLISHED_BASE_CHANGED":
+      return "Hold — Published base changed";
+    case "HOLD_CANDIDATE_CHANGED":
+      return "Hold — candidate changed";
+    case "HOLD_COMMERCIAL_OWNER_CHANGED":
+      return "Hold — pricing owner changed";
+    case "HOLD_UNSUPPORTED_COMMERCIAL_OWNER":
+      return "Hold — specialized pricing owner required";
+    case "HOLD_SITE_PROMOTION_ACTIVE":
+      return "Hold — site promotion active";
+    case "HOLD_PUBLISHED_NOT_LIVE":
+      return "Hold — Published path is not live";
+    case "HOLD_NO_EFFECTIVE_CHANGE":
+      return "Hold — no effective target change";
+    case "UNAVAILABLE":
+      return "Unavailable";
+    default: {
+      const _exhaustive: never = plan.status;
+      return _exhaustive;
+    }
+  }
+}
+
+function ApplicationPlanCell(props: { plan: MainRpPricingApplicationPlan }) {
+  const { plan } = props;
+  return (
+    <div className="min-w-72 text-zinc-400">
+      <div className={plan.status === "READY" ? "font-medium text-emerald-200" : "font-medium text-amber-200"}>
+        {applicationPlanStatusLabel(plan)}
+      </div>
+      {plan.status === "READY" ? (
+        <>
+          <div>
+            target {formatProposalMargin(plan.currentTargetMargin)} → {formatProposalMargin(plan.proposedTargetMargin)}
+          </div>
+          <div>
+            version v{plan.currentPricingVersion} → v{plan.nextPricingVersion} · {plan.liveScope}
+          </div>
+          <div>owner {plan.ownerModule}</div>
+          <div>publishedAt: set at application commit</div>
+          <div>
+            representative {plan.preview.representativeCurrentPoints ?? "?"}P → {plan.preview.representativeCandidatePoints ?? "?"}P
+          </div>
+          <div>NO MUTATION / NO APPLY BUTTON</div>
+        </>
+      ) : (
+        <div>{plan.blockers[0] ?? "Blocked"}</div>
+      )}
+    </div>
+  );
+}
+
 function CandidateProposalHistory(props: {
   records: readonly MainRpPricingCandidateRecord[];
+  projection: MainRpPricingObservabilityProjection;
 }) {
   if (props.records.length === 0) {
     return (
@@ -314,7 +383,7 @@ function CandidateProposalHistory(props: {
       <div className="border-b border-white/10 bg-cyan-950/10 p-3">
         <h3 className="font-medium text-cyan-100">Candidate history / review records</h3>
         <p className="mt-1 text-xs text-zinc-500">
-          APPROVED records review intent only. No action on this table changes Published pricing or live billing.
+          APPROVED records can show a read-only application plan. No action on this table changes Published pricing or live billing.
         </p>
       </div>
       <table className="w-full min-w-[1100px] border-collapse text-xs">
@@ -327,10 +396,18 @@ function CandidateProposalHistory(props: {
             <th className="p-2">evidence</th>
             <th className="p-2">observed</th>
             <th className="p-2">review</th>
+            <th className="p-2">application plan</th>
           </tr>
         </thead>
         <tbody>
-          {props.records.map((record) => (
+          {props.records.map((record) => {
+            const currentRow =
+              props.projection.models.find((row) => row.modelId === record.modelId) ?? null;
+            const applicationPlan =
+              record.reviewState === "APPROVED"
+                ? buildMainRpPricingApplicationPlan({ record, currentRow })
+                : null;
+            return (
             <tr key={record.id} className="border-b border-white/5 align-top">
               <td className="p-2">
                 <div className="font-medium text-zinc-200">{record.reviewState}</div>
@@ -368,8 +445,12 @@ function CandidateProposalHistory(props: {
                   </div>
                 )}
               </td>
+              <td className="p-2">
+                {applicationPlan ? <ApplicationPlanCell plan={applicationPlan} /> : <span className="text-zinc-600">—</span>}
+              </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -389,7 +470,7 @@ export function MainRpPricingControlPlaneSection(props: {
         Semantic domains — MARKET / PROVIDER / PROCUREMENT / PRODUCT / PROMOTION / REPRESENTATIVE / ACTUAL / CANDIDATE.
         OBSERVE_ONLY tracker · actual economics {projection.actualEconomicsMonthKey ?? "unavailable"} · generated {projection.generatedAt}
       </p>
-      <CandidateProposalHistory records={candidateRecords} />
+      <CandidateProposalHistory records={candidateRecords} projection={projection} />
       <div className="mt-4 space-y-4">
         {projection.models.map((row) => (
           <ModelControlPlaneCard key={row.modelId} row={row} />
