@@ -21,6 +21,7 @@ on:
       - "src/lib/postTurnSharedInitial/widgetShapeDiagnostics.ts"
       - "src/lib/deepseekRegenTurnObservability.test.ts"
       - "src/lib/statusWidget/**"
+      - "src/lib/suggestedReplies/**"
       - "src/lib/statusWidget/extractNormalize.ts"
       - "src/lib/openRouterCompletion.ts"
       - "src/lib/openRouterCompletion.cheaperInference.test.ts"
@@ -77,6 +78,9 @@ jobs:
 
       - name: Shared initial prompt regression (P1–P11)
         run: node --conditions=react-server --import tsx --test src/lib/postTurnSharedInitial/promptRegression.test.ts
+
+      - name: Suggested replies decision quality observatory
+        run: node --conditions=react-server --import tsx --test src/lib/suggestedReplies/decisionQualityObservatory.test.ts
 
       - name: CheaperInference adapter (response_format preservation)
         run: node --conditions=react-server --import tsx --test src/lib/cheaperInferenceConfig.test.ts
