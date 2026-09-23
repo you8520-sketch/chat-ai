@@ -610,7 +610,15 @@ export async function runDurableScheduledJob<T>(
     Math.min(60_000, Math.floor((definition.staleAfterMinutes * 60_000) / 3))
   );
   const heartbeat = setInterval(() => {
-    heartbeatSchedulerRun(db, claim.row);
+    try {
+      heartbeatSchedulerRun(db, claim.row);
+    } catch (error) {
+      console.warn("[scheduler-registry] heartbeat failed", {
+        jobName: params.jobName,
+        slotKey: params.slotKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }, heartbeatEveryMs);
   heartbeat.unref?.();
 
