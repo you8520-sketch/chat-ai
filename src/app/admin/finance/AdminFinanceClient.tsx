@@ -6,6 +6,7 @@ import type {
   AdminFinanceSummary,
   FinanceMonthlyAdjustments,
 } from "@/lib/adminFinance";
+import type { SchedulerRunOverview } from "@/lib/schedulerRunShared";
 import {
   formatFinanceMarginRate,
   formatFinanceNetProfit,
@@ -74,10 +75,44 @@ const numberFields: Array<{
   { key: "otherCostsKrw", label: "기타 유지비", hint: "도메인·스토리지·기타 비용" },
 ];
 
+function schedulerStateLabel(state: SchedulerRunOverview["state"]): string {
+  switch (state) {
+    case "SUCCEEDED":
+      return "정상 완료";
+    case "RUNNING":
+      return "실행 중";
+    case "FAILED":
+      return "실패";
+    case "STALE_BLOCKED":
+      return "stale · 수동 확인 필요";
+    case "MISSING":
+      return "예정 실행 누락";
+    case "NOT_DUE":
+      return "아직 실행 시각 전";
+    case "PRE_ACTIVATION":
+      return "registry 적용 전 슬롯";
+    default: {
+      const _exhaustive: never = state;
+      return _exhaustive;
+    }
+  }
+}
+
+function schedulerStateClass(state: SchedulerRunOverview["state"]): string {
+  if (state === "SUCCEEDED") return "text-emerald-300";
+  if (state === "RUNNING") return "text-cyan-300";
+  if (state === "FAILED" || state === "STALE_BLOCKED" || state === "MISSING") {
+    return "text-rose-300";
+  }
+  return "text-zinc-400";
+}
+
 export default function AdminFinanceClient({
   initialSummary,
+  initialSchedulerRuns,
 }: {
   initialSummary: AdminFinanceSummary;
+  initialSchedulerRuns: SchedulerRunOverview[];
 }) {
   const [summary, setSummary] = useState(initialSummary);
   const [form, setForm] = useState(initialSummary.adjustments);
@@ -308,6 +343,68 @@ export default function AdminFinanceClient({
         <Metric label="AI·이미지 API 원가" value={won(summary.totalApiCostKrw)} />
         <Metric label="Railway 총비용" value={won(summary.railwayCostKrw)} />
         <Metric label="선물 수수료 수익" value={won(summary.giftFeeRevenueKrw)} />
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-sky-500/20 bg-sky-950/10 p-5">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="font-bold">백그라운드 스케줄러 상태</h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              DB durable slot 기준입니다. 프로세스 재시작·다중 replica에서도 동일 슬롯은 한 owner만 실행합니다.
+            </p>
+          </div>
+          <p className="text-[11px] text-zinc-600">Asia/Seoul · read-only</p>
+        </div>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="border-y border-white/10 text-xs text-zinc-500">
+              <tr>
+                <th className="p-2">작업</th>
+                <th className="p-2">현재 슬롯</th>
+                <th className="p-2">상태</th>
+                <th className="p-2">최근 실행</th>
+                <th className="p-2">시도</th>
+                <th className="p-2">트리거</th>
+              </tr>
+            </thead>
+            <tbody>
+              {initialSchedulerRuns.map((run) => {
+                const observed = run.current ?? run.latest;
+                return (
+                  <tr key={run.jobName} className="border-b border-white/[0.06]">
+                    <td className="p-2">
+                      <p className="font-semibold">{run.label}</p>
+                      <p className="mt-0.5 font-mono text-[10px] text-zinc-600">
+                        {run.jobName} · {run.cronExpression}
+                      </p>
+                    </td>
+                    <td className="p-2 font-mono text-xs">{run.currentSlotKey}</td>
+                    <td className={`p-2 font-bold ${schedulerStateClass(run.state)}`}>
+                      {schedulerStateLabel(run.state)}
+                      {run.state === "MISSING" && (
+                        <span className="mt-1 block text-[10px] font-normal text-zinc-500">
+                          다음 부팅 시 안전한 current-slot recovery 대상
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-2 text-xs text-zinc-400">
+                      {observed?.finished_at ?? observed?.heartbeat_at ?? "기록 없음"}
+                      {observed?.last_error && (
+                        <span className="mt-1 block max-w-[22rem] text-rose-300/80">
+                          {observed.last_error}
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-2">{observed?.attempt_count ?? 0}</td>
+                    <td className="p-2 text-xs text-zinc-400">
+                      {observed?.trigger_kind ?? "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-2">
