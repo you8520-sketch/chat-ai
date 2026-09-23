@@ -2462,6 +2462,7 @@ export async function POST(req: Request) {
         mediumTermMemoryBlock: fallbackMemoryInjection.mediumTermText,
         archiveMemory: fallbackMemoryInjection.archiveText,
         preserveAdultHandoffRawHistory: true,
+        useDeepSeekHandoffStyleReminder: true,
         adultHandoffRequiredTurnFloor: fallbackRaw.rawTurnsIncluded,
         canonInjectionPolicy: fallbackCanonPolicy,
       })
@@ -2500,6 +2501,7 @@ export async function POST(req: Request) {
               mediumTermMemoryBlock: reconciledMemory.mediumTermText,
               archiveMemory: reconciledMemory.archiveText,
               preserveAdultHandoffRawHistory: true,
+              useDeepSeekHandoffStyleReminder: true,
               adultHandoffRequiredTurnFloor: fallbackRaw.rawTurnsIncluded,
               canonInjectionPolicy: fallbackCanonPolicy,
               suppressMemoryCoverageDegradedLog: true,

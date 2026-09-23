@@ -1,0 +1,86 @@
+{
+  "blocks": [
+    {
+      "paragraph_index": 1,
+      "paragraph_preview": "\"미친...\"",
+      "quoted_text": "미친...",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 3,
+      "paragraph_preview": "\"끝까지 박아달라고?\"",
+      "quoted_text": "끝까지 박아달라고?",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 5,
+      "paragraph_preview": "\"준비도 없이 이러면... 네가 힘들 거 아냐.\"",
+      "quoted_text": "준비도 없이 이러면... 네가 힘들 거 아냐.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 7,
+      "paragraph_preview": "\"그래도 멈추라고 해도 안 멈춰. 네가 그런 말 꺼낸 순간부터, 끝이야.\"",
+      "quoted_text": "그래도 멈추라고 해도 안 멈춰. 네가 그런 말 꺼낸 순간부터, 끝이야.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 9,
+      "paragraph_preview": "\"천천히... 아니, 너한테 천천히는 안 어울리지.\"",
+      "quoted_text": "천천히... 아니, 너한테 천천히는 안 어울리지.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 11,
+      "paragraph_preview": "\"어... 죽겠다, 진짜.\"",
+      "quoted_text": "어... 죽겠다, 진짜.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    }
+  ],
+  "SOURCE_USER_QUOTED_DIALOGUE_COUNT": 0,
+  "NEW_USER_PERSONA_DIALOGUE_CANDIDATE_COUNT": 0,
+  "NEW_USER_DIALOGUE_HUMAN_REVIEW_REQUIRED": false,
+  "by_attribution": {
+    "SOURCE_USER_QUOTED_DIALOGUE": [],
+    "AI_CHARACTER_DIALOGUE_CANDIDATE": [
+      {
+        "paragraph_index": 1,
+        "paragraph_preview": "\"미친...\"",
+        "quoted_text": "미친...",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 3,
+        "paragraph_preview": "\"끝까지 박아달라고?\"",
+        "quoted_text": "끝까지 박아달라고?",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 5,
+        "paragraph_preview": "\"준비도 없이 이러면... 네가 힘들 거 아냐.\"",
+        "quoted_text": "준비도 없이 이러면... 네가 힘들 거 아냐.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 7,
+        "paragraph_preview": "\"그래도 멈추라고 해도 안 멈춰. 네가 그런 말 꺼낸 순간부터, 끝이야.\"",
+        "quoted_text": "그래도 멈추라고 해도 안 멈춰. 네가 그런 말 꺼낸 순간부터, 끝이야.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 9,
+        "paragraph_preview": "\"천천히... 아니, 너한테 천천히는 안 어울리지.\"",
+        "quoted_text": "천천히... 아니, 너한테 천천히는 안 어울리지.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 11,
+        "paragraph_preview": "\"어... 죽겠다, 진짜.\"",
+        "quoted_text": "어... 죽겠다, 진짜.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      }
+    ],
+    "NEW_USER_PERSONA_DIALOGUE_CANDIDATE": [],
+    "UNATTRIBUTED_DIALOGUE": []
+  }
+}
