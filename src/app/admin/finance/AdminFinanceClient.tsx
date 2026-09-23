@@ -355,7 +355,7 @@ export default function AdminFinanceClient({
           <div>
             <h2 className="font-bold">백그라운드 스케줄러 상태</h2>
             <p className="mt-1 text-xs text-zinc-500">
-              DB durable slot 기준입니다. 프로세스 재시작·다중 replica에서도 동일 슬롯은 한 owner만 실행합니다.
+              DB durable slot 기준입니다. 재시작·크래시 복구와 동일 canonical DB를 공유하는 worker 간 중복 실행을 제어합니다.
             </p>
           </div>
           <p className="text-[11px] text-zinc-600">Asia/Seoul · read-only</p>
@@ -388,7 +388,7 @@ export default function AdminFinanceClient({
                       {schedulerStateLabel(run.state)}
                       {run.state === "MISSING" && (
                         <span className="mt-1 block text-[10px] font-normal text-zinc-500">
-                          다음 부팅 시 안전한 current-slot recovery 대상
+                          다음 부팅 시 latest-due slot recovery 대상
                         </span>
                       )}
                     </td>
