@@ -12,7 +12,6 @@ function record(
   return {
     id: 10,
     modelId: "gemini-3.7-flash",
-    canonicalCatalogKey: "gemini-3.7-flash",
     candidateFingerprint: "fp-current",
     candidateStatus: "READY",
     candidateDirection: "LOWER_TO_MARKET",
@@ -54,6 +53,7 @@ function snapshot(
 ): MainRpPricingApplicationSnapshot {
   return {
     modelId: "gemini-3.7-flash",
+    canonicalCatalogKey: "gemini-3.7-flash",
     candidateFingerprint: "fp-current",
     pricingVersion: 2,
     publishedAt: "2026-09-20T00:00:00.000Z",
