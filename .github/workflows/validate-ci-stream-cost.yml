@@ -12,6 +12,7 @@ on:
       - "src/lib/providerCostReconciliation.ts"
       - "src/lib/providerCostReconciliation.targeted.test.ts"
       - "src/lib/providerCostLedger.ts"
+      - "src/lib/providerCostSingleOwner.test.ts"
       - "src/lib/auxProviderProvenance.ts"
       - "src/lib/trpg/replySuggestions.ts"
       - "src/lib/trpg/replySuggestionProviderCostLedger.test.ts"
