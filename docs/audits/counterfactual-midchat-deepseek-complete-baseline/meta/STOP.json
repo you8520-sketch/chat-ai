@@ -1,0 +1,15 @@
+{
+  "reason": "BASELINE_STREAM_VALID=false",
+  "collection": {
+    "HTTP_STATUS": 200,
+    "SSE_DONE_OBSERVED": false,
+    "FINISH_REASON": null,
+    "USAGE_PRESENT": false,
+    "RAW_CHARS": 0,
+    "ENDS_AT_COMPLETE_SENTENCE": false,
+    "COLLECTOR_ERROR": null,
+    "leftover_flushed": false,
+    "BASELINE_STREAM_VALID": false,
+    "TOTAL_PROVIDER_CALLS_THIS_EXPERIMENT": 1
+  }
+}

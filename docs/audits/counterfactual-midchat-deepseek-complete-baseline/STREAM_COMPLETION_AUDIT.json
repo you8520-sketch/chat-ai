@@ -1,0 +1,59 @@
+{
+  "audit": "counterfactual-stream-completion-audit",
+  "source_pr": 621,
+  "source_frozen_raw_edited": false,
+  "production_code_changed": false,
+  "provider_call_this_step": false,
+  "PRODUCTION_DEEPSEEK_STREAM_COLLECTOR": {
+    "file": "src/lib/openRouterAdult.ts",
+    "function": "streamOpenRouterAdult",
+    "line_approx": "1254-1713",
+    "fetch_helper": "fetchOpenRouterChatWithCreditRetry (private, timeoutMs=240000)",
+    "delta_helper": "extractOpenRouterStreamDelta + streamContentToText (private)",
+    "notes": [
+      "Incremental res.body.getReader() + line-buffered SSE parse",
+      "Skips payload === '[DONE]' without recording sawDone",
+      "Captures choice.finish_reason and json.usage when present",
+      "Does not flush leftover buffer after reader.done",
+      "May empty-retry once for Anthropic prefill; DeepSeek CI path also may use executeDeepSeekWithProviderFailover (backup call)"
+    ]
+  },
+  "PRODUCTION_INCOMPLETE_STREAM_DETECTION": {
+    "file": "src/lib/openRouterAdult.ts + src/lib/responseLength.ts",
+    "behavior": [
+      "Missing finishReason is allowed through; finishReason stays undefined and is logged as '(none)'",
+      "Missing usage falls back to estimateTokens and usage.estimated=true",
+      "Post-stream truncated flag is needsResponseLengthFix(mergedText, finishReason, target) — not a collector-complete gate",
+      "Empty body may retry once (Anthropic prefill skip) then persist/error",
+      "Production does NOT refuse to persist a mid-sentence stream that arrived with HTTP 200 and some tokens"
+    ]
+  },
+  "HARNESS_DIVERGENCE_FROM_PRODUCTION": {
+    "pr_621_custom_streamProvider": {
+      "file": "docs/audits/counterfactual-real-midchat-deepseek-replay/scripts/run-counterfactual-replay.ts",
+      "divergences": [
+        "Second custom SSE parser — does not import streamOpenRouterAdult / extractOpenRouterStreamDelta",
+        "Final collector used await res.text() then split lines — not incremental getReader()",
+        "state.sawDone is set on [DONE] but never returned or frozen",
+        "Accepts non-empty text when finish_reason=null AND usage=null AND no terminal evidence",
+        "Timeout 10min AbortSignal vs production 240s fetch timeout",
+        "No leftover-buffer flush after incremental read (unused in final #621 path because res.text() was used)",
+        "Delta extract is string-only (delta.content | message.content) — misses array content / delta.text that production streamContentToText handles",
+        "No degeneration/loop/length-cap (good for this experiment) but also no completion validity gate"
+      ]
+    }
+  },
+  "PR621_FROZEN_COLLECTION": {
+    "HTTP_STATUS": 200,
+    "finishReason": null,
+    "usage": null,
+    "RAW_CHARS": 2084,
+    "COUNTERFACTUAL_STREAM_COMPLETE": false,
+    "SSE_DONE_OBSERVED": false,
+    "SSE_DONE_NOTE": "Harness computed sawDone internally but discarded it. Frozen provider meta has no [DONE] evidence. Inferred false: no terminal finishReason and no usage event.",
+    "TERMINAL_FINISH_REASON_OBSERVED": false,
+    "USAGE_EVENT_OBSERVED": false,
+    "RESPONSE_ENDS_COMPLETE_SENTENCE": false,
+    "tail": "다시 깊숙이 들어올 때면 배 안쪽 끝까지 짓눌리는 감각에"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "model": "deepseek-v4-pro-0813",
+  "finishReason": null,
+  "provider_raw_chars": 2084,
+  "persisted_equivalent_chars": 2084,
+  "request_sha": "85ae4e16ba3e002dc1dcd84911f3263c68679904e5d3316a0f365fd084003731",
+  "provider_raw_sha": "71f2774faf989b5f1ca7de12c951b04e13fd562d1938079a42fb52370ab940bf",
+  "persisted_visible_sha": "71f2774faf989b5f1ca7de12c951b04e13fd562d1938079a42fb52370ab940bf",
+  "usage": null,
+  "http_status": 200
+}

@@ -1,0 +1,9 @@
+{
+  "audit": "counterfactual-midchat-deepseek-complete-baseline",
+  "source_pr": 621,
+  "new_pr": 623,
+  "BASELINE_STREAM_VALID": false,
+  "DEEPSEEK_PROVIDER_CALLS": 1,
+  "compact": "COMPACT_REPORT.json",
+  "stop": "VALIDITY_STOP.md"
+}
