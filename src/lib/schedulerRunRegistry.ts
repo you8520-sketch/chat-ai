@@ -653,7 +653,6 @@ export function listSchedulerRunOverview(
             ? `${definition.minute} ${definition.hour} ${definition.dayOfMonth} * *`
             : `${definition.minute} ${definition.hour} * * ${definition.dayOfWeek}`,
       currentSlotKey: slot.slotKey,
-      due: slot.due,
       activated,
       state,
       latest,
