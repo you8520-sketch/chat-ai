@@ -1,0 +1,105 @@
+{
+  "phase": "D4-A",
+  "scorer": "agent_read_of_committed_raw",
+  "model": "google/gemini-3.1-pro-preview",
+  "note": "Scores are agent review of full RAW cells; not a second model call.",
+  "cells": {
+    "G5_A": {
+      "visible_chars": 3858,
+      "CURRENT_INPUT_REPLAY": 1,
+      "INTRO_REPLAY": 1,
+      "SETTING_RECITAL": 2,
+      "SCENE_ADVANCEMENT": 2,
+      "NEW_SCENE_VALUE": "HIGH",
+      "ACTIVE_CANON_USE": 4,
+      "CHARACTER_FIDELITY": 4,
+      "COMPLETION": "PASS",
+      "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "N/A_BASELINE",
+      "notes": "Dense forward scene after question; some world/lore exposition density mid-scene."
+    },
+    "G5_B": {
+      "visible_chars": 2037,
+      "CURRENT_INPUT_REPLAY": 1,
+      "INTRO_REPLAY": 1,
+      "SETTING_RECITAL": 1,
+      "SCENE_ADVANCEMENT": 2,
+      "NEW_SCENE_VALUE": "MEDIUM",
+      "ACTIVE_CANON_USE": 4,
+      "CHARACTER_FIDELITY": 4,
+      "COMPLETION": "PASS",
+      "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "NO",
+      "notes": "Cleaner forward start / less recital, but length HARD FAIL (<2400). Missing volume is not replaced by richer new scene — absolute new-scene chars drop with total."
+    },
+    "G6T1_A": {
+      "visible_chars": 1073,
+      "CURRENT_INPUT_REPLAY": 2,
+      "INTRO_REPLAY": 0,
+      "SETTING_RECITAL": 1,
+      "SCENE_ADVANCEMENT": 2,
+      "NEW_SCENE_VALUE": "MEDIUM",
+      "ACTIVE_CANON_USE": 4,
+      "CHARACTER_FIDELITY": 4,
+      "COMPLETION": "PASS",
+      "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "N/A_BASELINE",
+      "notes": "Baseline already density-collapsed; opens by restaging scream/metal/fog beats."
+    },
+    "G6T1_B": {
+      "visible_chars": 661,
+      "CURRENT_INPUT_REPLAY": 2,
+      "INTRO_REPLAY": 0,
+      "SETTING_RECITAL": 1,
+      "SCENE_ADVANCEMENT": 2,
+      "NEW_SCENE_VALUE": "LOW",
+      "ACTIVE_CANON_USE": 3,
+      "CHARACTER_FIDELITY": 4,
+      "COMPLETION": "PASS",
+      "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "NO",
+      "notes": "Worse length collapse than A; still restages scream/metal; short refusal scene."
+    },
+    "G3_A": {
+      "visible_chars": 2388,
+      "CURRENT_INPUT_REPLAY": 1,
+      "INTRO_REPLAY": 0,
+      "SETTING_RECITAL": 1,
+      "SCENE_ADVANCEMENT": 2,
+      "NEW_SCENE_VALUE": "HIGH",
+      "ACTIVE_CANON_USE": 5,
+      "CHARACTER_FIDELITY": 5,
+      "COMPLETION": "PASS",
+      "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "N/A_BASELINE",
+      "notes": "Canon gunshot=death drives wrist grab / disarm; strong fidelity."
+    },
+    "G3_B": {
+      "visible_chars": 4003,
+      "CURRENT_INPUT_REPLAY": 1,
+      "INTRO_REPLAY": 0,
+      "SETTING_RECITAL": 1,
+      "SCENE_ADVANCEMENT": 2,
+      "NEW_SCENE_VALUE": "HIGH",
+      "ACTIVE_CANON_USE": 5,
+      "CHARACTER_FIDELITY": 5,
+      "COMPLETION": "PASS",
+      "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "PARTIAL",
+      "notes": "Only cell where B clearly preserves/extends length with forward consequence chain. Not enough to pass cohort length gate."
+    }
+  },
+  "gates": {
+    "median_B_chars": 2037,
+    "median_B_ge_3000": false,
+    "hard_fail_B_lt_2400": ["G5_B", "G6T1_B"],
+    "relative_fail_B_lt_0_8A": ["G5_B", "G6T1_B"],
+    "owner_token_delta": 35,
+    "prompt_token_budget_le_0": false,
+    "new_section_count": 0,
+    "new_negative_directive_count": 0,
+    "LENGTH_MUST_SURVIVE": "FAIL"
+  },
+  "verdict": "POSITIVE_OWNER_ATTEMPT_FAIL",
+  "stop": {
+    "D4-A2": "NOT_RUN",
+    "D4-B": "NOT_RUN",
+    "D4-C": "NOT_RUN",
+    "FINAL_COMBINED": "NOT_RUN",
+    "reason": "D4-A length collapse on G5/G6; stop policy forbids stacking / further wording."
+  }
+}

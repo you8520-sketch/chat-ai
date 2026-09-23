@@ -1,0 +1,52 @@
+{
+  "fixtures": [
+    {
+      "id": "G5",
+      "characterId": 10,
+      "userInput": "누구세요? …방금 그 소리는 뭐였죠?",
+      "provenance": "D4-A G5 — short Turn-1 after greeting already established shutter/ruins event (Enoch)",
+      "measures": [
+        "INTRO_REPLAY",
+        "SETTING_RECITAL",
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE"
+      ]
+    },
+    {
+      "id": "G6T1",
+      "characterId": 10,
+      "userInput": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+      "provenance": "D4-A G6-T1 — user completes env/action/speech; measure CURRENT_INPUT restage",
+      "measures": [
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE",
+        "visible_chars"
+      ]
+    },
+    {
+      "id": "G3",
+      "characterId": 10,
+      "userInput": "*렌이 권총을 꺼내 방아쇠에 손가락을 건다.* 저쪽 소리 나는 데 한 발 쏘면 흩어지지 않을까요?",
+      "provenance": "D4-A G3 — canon-required: 총성=죽음 / 통제형 에녹 must refuse gunshot",
+      "measures": [
+        "ACTIVE_CANON_USE",
+        "CHARACTER_FIDELITY",
+        "SETTING_RECITAL",
+        "SCENE_ADVANCEMENT"
+      ]
+    }
+  ],
+  "modelId": "google/gemini-3.1-pro-preview",
+  "d2_d3_continuity_block": "NOT_USED",
+  "prompt_budget": {
+    "production_owner": "이번 응답은 한국어 3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다.",
+    "candidate_owner": "이번 응답은 한국어 3,200~4,200자 범위의 하나의 밀도 있는 장면으로 완성한다. 직전 장면과 현재 입력에서 이미 성립한 상황의 바로 다음 변화에서 시작해, 캐릭터의 새 판단·행동이 상대와 환경의 새 반응·결과를 만들고 그 결과가 다시 다음 변화를 낳도록 충분히 전개한다.",
+    "production_tokens": 105,
+    "candidate_tokens": 140,
+    "owner_token_delta": 35,
+    "candidate_new_negative_count": 0,
+    "new_section_count": 0
+  }
+}
