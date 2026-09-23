@@ -63,6 +63,7 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "deepseek-v4-pro-0813": {
     modelId: "deepseek-v4-pro-0813",
+    commercialPricingOwner: "target_margin",
     billingReferenceInputUsdPerMillion: 1.32,
     billingReferenceOutputUsdPerMillion: 3.96,
     billingReferenceCacheReadUsdPerMillion: 0.044,
@@ -73,6 +74,7 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "deepseek-v4.1-flash": {
     modelId: "deepseek-v4.1-flash",
+    commercialPricingOwner: "target_margin",
     billingReferenceInputUsdPerMillion: 0.3,
     billingReferenceOutputUsdPerMillion: 1.2,
     billingReferenceCacheReadUsdPerMillion: 0.006,
@@ -101,6 +103,7 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "gemini-3.1-pro-preview": {
     modelId: "gemini-3.1-pro-preview",
+    commercialPricingOwner: "target_margin",
     billingReferenceInputUsdPerMillion: 2,
     billingReferenceOutputUsdPerMillion: 12,
     targetMargin: 0.09,
@@ -112,6 +115,7 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "gemini-3.7-flash": {
     modelId: "gemini-3.7-flash",
+    commercialPricingOwner: "target_margin",
     billingReferenceInputUsdPerMillion: 0.375,
     billingReferenceOutputUsdPerMillion: 1.875,
     targetMargin: 0.55,
@@ -175,6 +179,7 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "gpt-5.6-terra": {
     modelId: "gpt-5.6-terra",
+    commercialPricingOwner: "target_margin",
     billingReferenceInputUsdPerMillion: 2,
     billingReferenceOutputUsdPerMillion: 12,
     billingReferenceCacheReadUsdPerMillion: 0.2,

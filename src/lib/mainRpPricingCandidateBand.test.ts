@@ -622,6 +622,11 @@ describe("mainRpPricingCandidateBand — integration", () => {
     for (const row of projection.models) {
       assert.equal(row.candidate.domain, "CANDIDATE");
       assert.equal(row.candidate.currentTargetMargin, getPublishedPricing(row.modelId).targetMargin);
+      const published = getPublishedPricing(row.modelId);
+      assert.ok(
+        published.commercialPricingOwner,
+        `Main RP model ${row.modelId} must explicitly declare commercialPricingOwner`
+      );
       assert.equal(
         row.candidate.commercialPricingOwner,
         row.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL
