@@ -20,9 +20,10 @@ export const FINANCE_TIMEZONE = SCHEDULER_TIMEZONE;
 
 let scheduledTask: ScheduledTask | null = null;
 
-async function executeFinanceSnapshot() {
+async function executeFinanceSnapshot(slotKey: string) {
+  const monthKey = slotKey.slice(0, 7) || currentKstMonthKey();
   try {
-    const range = monthRangeSql(currentKstMonthKey());
+    const range = monthRangeSql(monthKey);
     const recon = await reconcileCheaperInferenceUsage({
       windowStart: range.start,
       windowEnd: range.end,
@@ -37,7 +38,7 @@ async function executeFinanceSnapshot() {
     console.error("[finance-scheduler] provider reconciliation failed:", reconError);
   }
 
-  const summary = saveDailyFinanceSnapshot();
+  const summary = saveDailyFinanceSnapshot(getDb(), slotKey);
   console.log("[finance-scheduler] daily snapshot saved", {
     month: summary.monthKey,
     netProfitKrw: summary.netProfitKrw,
@@ -74,7 +75,7 @@ async function runFinanceSlot(
     jobName: "finance_daily",
     slotKey,
     triggerKind,
-    execute: executeFinanceSnapshot,
+    execute: () => executeFinanceSnapshot(slotKey),
     summarize: (summary) => ({
       monthKey: summary.monthKey,
       netProfitKrw: summary.netProfitKrw,
