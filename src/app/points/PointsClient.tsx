@@ -130,6 +130,7 @@ function PointLogList({
               <ChargeCancelButton
                 pointLogId={l.id ?? 0}
                 cancelled={!!l.charge_cancelled}
+                state={l.charge_cancel_state}
                 disabled={!l.can_cancel_charge}
                 blockReason={l.charge_cancel_block_reason}
                 onToast={onToast}
