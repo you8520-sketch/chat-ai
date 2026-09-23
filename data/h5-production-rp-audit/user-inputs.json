@@ -1,0 +1,23 @@
+{
+  "A_QUIET": {
+    "character_id": 17,
+    "is_adult_mode": false,
+    "adult_handoff_enabled": false,
+    "adult_consent_mode": null,
+    "text": "로비 창가에 나란히 서서 잠시 말이 없다. 잠깐 그의 옆얼굴을 보다가 작게 말한다. \"오늘… 좀 괜찮아?\""
+  },
+  "B_WORLD_ACTION": {
+    "character_id": 10,
+    "is_adult_mode": false,
+    "adult_handoff_enabled": false,
+    "adult_consent_mode": null,
+    "text": "골목 끝에서 회색 안개가 다시 움직이기 시작한다. 방독면을 고쳐 쓰며 에녹 쪽으로 고개를 돌린다. \"저쪽이다.\""
+  },
+  "C_ADULT": {
+    "character_id": 18,
+    "is_adult_mode": true,
+    "adult_handoff_enabled": true,
+    "adult_consent_mode": "standard",
+    "text": "문을 닫고 가까이 다가온다. 합의된 성인 장면을 이어간다. 옷을 천천히 벗기며 키스한다."
+  }
+}
