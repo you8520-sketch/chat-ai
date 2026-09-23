@@ -6,16 +6,20 @@ import {
   type SuggestedReplyKind,
 } from "./types";
 
+export const SUGGESTED_REPLIES_DECISION_QUALITY_ISSUES = [
+  "malformed_json",
+  "missing_items",
+  "wrong_item_count",
+  "missing_kind",
+  "unknown_kind",
+  "duplicate_kind",
+  "missing_text",
+  "text_out_of_bounds",
+  "duplicate_text",
+] as const;
+
 export type SuggestedRepliesDecisionQualityIssue =
-  | "malformed_json"
-  | "missing_items"
-  | "wrong_item_count"
-  | "missing_kind"
-  | "unknown_kind"
-  | "duplicate_kind"
-  | "missing_text"
-  | "text_out_of_bounds"
-  | "duplicate_text";
+  (typeof SUGGESTED_REPLIES_DECISION_QUALITY_ISSUES)[number];
 
 export type SuggestedRepliesDecisionQualityObservation = {
   contractValid: boolean;
