@@ -12,14 +12,15 @@ import { applyCheaperInferenceModelReasoningPolicy } from "@/lib/cheaperInferenc
 import { getModelPricingPolicy } from "@/lib/modelPricingPolicy";
 import { getModelPublishedPricingPolicy } from "@/lib/modelPublishedPricingPolicy";
 import {
-  buildOpus55CommercialPriceMatrix,
+  buildOpus55RealizedProcurementMarginCandidateMatrix,
+  buildOpus55ReferenceProductMarginMatrix,
   buildOpus55PrepProcurementCatalog,
   buildOpus55PrepPublishedPricing,
   buildOpus55PriceMatrix,
   computeOpus55InvariantUserProductCharge,
   computeOpus55PrepProductCharge,
   OPUS55_CI_CATALOG_EVIDENCE,
-  OPUS55_COMMERCIAL_MARGIN_CANDIDATES,
+  OPUS55_REFERENCE_PRODUCT_MARGIN_CANDIDATES,
   OPUS55_COMMERCIAL_WORKLOADS,
   OPUS55_MARKET_BENCHMARKS,
   OPUS55_PREP_INPUT_TOKEN_WORKLOADS,
@@ -170,11 +171,11 @@ describe("Claude Opus 5.5 user price absolute invariant", () => {
   });
 });
 
-describe("Claude Opus 5.5 commercial price matrix", () => {
-  it("includes ELIN and T-POT workloads for 35/40/45% margins", () => {
-    const matrix = buildOpus55CommercialPriceMatrix({ fxSnapshot: FX });
-    assert.equal(matrix.length, 2 * OPUS55_COMMERCIAL_MARGIN_CANDIDATES.length);
-    for (const margin of OPUS55_COMMERCIAL_MARGIN_CANDIDATES) {
+describe("Claude Opus 5.5 reference product margin matrix", () => {
+  it("includes ELIN and T-POT workloads for 35/40/45% PRODUCT targetMargins", () => {
+    const matrix = buildOpus55ReferenceProductMarginMatrix({ fxSnapshot: FX });
+    assert.equal(matrix.length, 2 * OPUS55_REFERENCE_PRODUCT_MARGIN_CANDIDATES.length);
+    for (const margin of OPUS55_REFERENCE_PRODUCT_MARGIN_CANDIDATES) {
       const elin = matrix.find((r) => r.workloadKey === "elin" && r.targetMargin === margin);
       const tpot = matrix.find((r) => r.workloadKey === "tpot" && r.targetMargin === margin);
       assert.ok(elin?.userChargePoints != null);
@@ -190,13 +191,27 @@ describe("Claude Opus 5.5 commercial price matrix", () => {
     assert.ok(OPUS55_MARKET_BENCHMARKS.some((b) => b.id === "elin_opus55_a"));
     assert.ok(OPUS55_MARKET_BENCHMARKS.some((b) => b.id === "tpot_opus55_hypothetical"));
     assert.ok(OPUS55_MARKET_BENCHMARKS.some((b) => b.id === "crack_perceived"));
-    const matrix = buildOpus55CommercialPriceMatrix({ fxSnapshot: FX, targetMargins: [0.4] });
+    const matrix = buildOpus55ReferenceProductMarginMatrix({ fxSnapshot: FX, targetMargins: [0.4] });
     const elin = matrix.find((r) => r.workloadKey === "elin")!;
     const elinBench = elin.marketComparisons.find((c) => c.benchmarkId === "elin_opus55_a");
     assert.equal(elinBench?.referenceKrw, 729.6);
     const hypo = elin.marketComparisons.find((c) => c.benchmarkId === "tpot_opus55_hypothetical");
     assert.equal(hypo?.kind, "HYPOTHETICAL_SCENARIO");
     assert.equal(hypo?.referencePoints, 736.8);
+  });
+});
+
+describe("Claude Opus 5.5 realized procurement margin candidates", () => {
+  it("30/35/40% candidates are below reference PRODUCT 35% on ELIN workload", () => {
+    const realized = buildOpus55RealizedProcurementMarginCandidateMatrix({ fxSnapshot: FX });
+    const elinBalanced = realized.find(
+      (r) => r.promptTokens === 73_763 && r.targetRealizedGrossMargin === 0.35
+    );
+    const product35 = buildOpus55ReferenceProductMarginMatrix({ fxSnapshot: FX, targetMargins: [0.35] }).find(
+      (r) => r.workloadKey === "elin"
+    );
+    assert.ok(elinBalanced && product35?.userChargePoints != null);
+    assert.ok(elinBalanced.finalPoints < product35.userChargePoints!);
   });
 });
 

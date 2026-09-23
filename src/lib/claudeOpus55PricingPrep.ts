@@ -11,9 +11,9 @@ import { CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL } from "@/lib/chatModels";
 import type { CheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
 import {
   OPUS55_CI_CATALOG_EVIDENCE,
-  OPUS55_COMMERCIAL_MARGIN_CANDIDATES,
   OPUS55_COMMERCIAL_WORKLOADS,
   OPUS55_MARKET_BENCHMARKS,
+  OPUS55_REFERENCE_PRODUCT_MARGIN_CANDIDATES,
   type Opus55MarketBenchmark,
 } from "@/lib/opus55PricingEvidence";
 import { resolveProcurementCostFromCatalog } from "@/lib/procurementCost";
@@ -29,10 +29,24 @@ export {
   OPUS55_ANTHROPIC_OFFICIAL_REFERENCE,
   OPUS55_CACHE_PATH_AUDIT,
   OPUS55_CI_CATALOG_EVIDENCE,
-  OPUS55_COMMERCIAL_MARGIN_CANDIDATES,
   OPUS55_COMMERCIAL_WORKLOADS,
   OPUS55_MARKET_BENCHMARKS,
+  OPUS55_PRODUCT_TARGET_MARGIN_SEMANTICS,
+  OPUS55_REALIZED_PROCUREMENT_MARGIN_SEMANTICS,
+  OPUS55_REFERENCE_PRODUCT_MARGIN_CANDIDATES,
+  OPUS55_RUNTIME_CONTRACT_PROBE,
 } from "@/lib/opus55PricingEvidence";
+export {
+  buildOpus55RealizedProcurementMarginMatrix,
+  computeOpus55RealizedProcurementMarginCandidate,
+  resolveOpus55CiNoCacheProcurementKrw,
+  type Opus55RealizedProcurementMarginCandidateRow,
+} from "@/lib/opus55RealizedProcurementMargin";
+import {
+  buildOpus55RealizedProcurementMarginMatrix,
+  computeOpus55RealizedProcurementMarginCandidate,
+  type Opus55RealizedProcurementMarginCandidateRow,
+} from "@/lib/opus55RealizedProcurementMargin";
 
 /** @deprecated use OPUS55_CI_CATALOG_EVIDENCE.fields */
 export const OPUS55_OFFICIAL_LIST_INPUT_USD_PER_MILLION =
@@ -238,7 +252,9 @@ export function buildOpus55PriceMatrix(params: {
   return cells;
 }
 
-export type Opus55CommercialPriceRow = {
+/** REFERENCE_PRODUCT_MARGIN_MATRIX — Anthropic list PRODUCT targetMargin (not CI procurement margin). */
+export type Opus55ReferenceProductMarginRow = {
+  matrixKind: "REFERENCE_PRODUCT_MARGIN_MATRIX";
   workloadKey: "elin" | "tpot";
   targetMargin: number;
   promptTokens: number;
@@ -261,13 +277,13 @@ export type Opus55CommercialPriceRow = {
   cacheProcurementNote: string;
 };
 
-export function buildOpus55CommercialPriceMatrix(params: {
+export function buildOpus55ReferenceProductMarginMatrix(params: {
   fxSnapshot: BillingFxSnapshot;
   targetMargins?: readonly number[];
-}): Opus55CommercialPriceRow[] {
-  const margins = params.targetMargins ?? OPUS55_COMMERCIAL_MARGIN_CANDIDATES;
+}): Opus55ReferenceProductMarginRow[] {
+  const margins = params.targetMargins ?? OPUS55_REFERENCE_PRODUCT_MARGIN_CANDIDATES;
   const catalog = buildOpus55PrepProcurementCatalog();
-  const rows: Opus55CommercialPriceRow[] = [];
+  const rows: Opus55ReferenceProductMarginRow[] = [];
 
   for (const [workloadKey, workload] of Object.entries(OPUS55_COMMERCIAL_WORKLOADS) as Array<
     ["elin" | "tpot", (typeof OPUS55_COMMERCIAL_WORKLOADS)["elin"]]
@@ -321,6 +337,7 @@ export function buildOpus55CommercialPriceMatrix(params: {
       });
 
       rows.push({
+        matrixKind: "REFERENCE_PRODUCT_MARGIN_MATRIX",
         workloadKey,
         targetMargin,
         promptTokens: workload.promptTokens,
@@ -340,6 +357,82 @@ export function buildOpus55CommercialPriceMatrix(params: {
     }
   }
   return rows;
+}
+
+/** @deprecated use buildOpus55ReferenceProductMarginMatrix */
+export const buildOpus55CommercialPriceMatrix = buildOpus55ReferenceProductMarginMatrix;
+
+/** @deprecated use Opus55ReferenceProductMarginRow */
+export type Opus55CommercialPriceRow = Opus55ReferenceProductMarginRow;
+
+/** REALIZED_PROCUREMENT_MARGIN_CANDIDATES — ELIN + T-POT exact workloads. */
+export function buildOpus55RealizedProcurementMarginCandidateMatrix(params: {
+  fxSnapshot: BillingFxSnapshot;
+}): Opus55RealizedProcurementMarginCandidateRow[] {
+  return buildOpus55RealizedProcurementMarginMatrix({
+    fxSnapshot: params.fxSnapshot,
+    workloads: [
+      {
+        key: "elin",
+        promptTokens: OPUS55_COMMERCIAL_WORKLOADS.elin.promptTokens,
+        outputTokens: OPUS55_COMMERCIAL_WORKLOADS.elin.outputTokens,
+      },
+      {
+        key: "tpot",
+        promptTokens: OPUS55_COMMERCIAL_WORKLOADS.tpot.promptTokens,
+        outputTokens: OPUS55_COMMERCIAL_WORKLOADS.tpot.outputTokens,
+      },
+    ],
+  });
+}
+
+export type Opus55CrackPerceivedReferenceRow = {
+  matrixKind: "MARKET_PERCEIVED_REFERENCE";
+  approxOutputChars: number;
+  equivalentOutputTokens: number;
+  representativePromptTokens: number;
+  crackObservedPoints: number;
+  realizedProcurementCandidates: Array<{
+    candidateLabel: string;
+    targetRealizedGrossMargin: number;
+    finalPoints: number;
+    deltaVsCrack523P: number;
+  }>;
+  notes: string;
+};
+
+/** ~4,360 char perceived reference — token workload unknown; uses representative 45k prompt. */
+export function buildOpus55CrackPerceivedReference(params: {
+  fxSnapshot: BillingFxSnapshot;
+  representativePromptTokens?: number;
+}): Opus55CrackPerceivedReferenceRow {
+  const chars = 4_360;
+  const equivalentOutputTokens = Math.round(chars / KOREAN_CHARS_PER_OUTPUT_TOKEN);
+  const promptTokens = params.representativePromptTokens ?? 45_000;
+  const crackObservedPoints = 523;
+  const realizedProcurementCandidates = [0.3, 0.35, 0.4].map((targetRealizedGrossMargin) => {
+    const row = computeOpus55RealizedProcurementMarginCandidate({
+      promptTokens,
+      outputTokens: equivalentOutputTokens,
+      targetRealizedGrossMargin,
+      fxSnapshot: params.fxSnapshot,
+    });
+    return {
+      candidateLabel: row?.candidateLabel ?? "UNKNOWN",
+      targetRealizedGrossMargin,
+      finalPoints: row?.finalPoints ?? 0,
+      deltaVsCrack523P: row != null ? row.finalPoints - crackObservedPoints : 0,
+    };
+  });
+  return {
+    matrixKind: "MARKET_PERCEIVED_REFERENCE",
+    approxOutputChars: chars,
+    equivalentOutputTokens,
+    representativePromptTokens: promptTokens,
+    crackObservedPoints,
+    realizedProcurementCandidates,
+    notes: "CRACK token split UNKNOWN — not comparable to ELIN/T-POT exact token rows.",
+  };
 }
 
 /**
