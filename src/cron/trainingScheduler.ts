@@ -2,6 +2,7 @@ import cron, { type ScheduledTask } from "node-cron";
 import { runDailyTrainingAnalysis } from "@/lib/training/dailyAnalysis";
 import { runWeeklyTrainingExport } from "@/lib/training/weeklyExport";
 import {
+  SCHEDULER_RECOVERY_POLL_MS,
   SCHEDULER_TIMEZONE,
   schedulerCronExpression,
 } from "@/lib/schedulerDefinitions";
@@ -11,11 +12,13 @@ import {
   resolveSchedulerSlot,
   runDurableScheduledJob,
   shouldAttemptBootRecovery,
+  shouldAttemptRuntimeRecovery,
 } from "@/lib/schedulerRunRegistry";
 import type { SchedulerTriggerKind } from "@/lib/schedulerRunShared";
 
 let dailyTask: ScheduledTask | null = null;
 let weeklyTask: ScheduledTask | null = null;
+let recoveryInterval: ReturnType<typeof setInterval> | null = null;
 
 /** Canonical schedule owner lives in schedulerDefinitions.ts. */
 export const TRAINING_DAILY_CRON = schedulerCronExpression("training_daily");
@@ -102,6 +105,24 @@ async function runWeeklySlot(
   return null;
 }
 
+function attemptTrainingRuntimeRecovery(): void {
+  const db = getDb();
+  if (shouldAttemptRuntimeRecovery(db, "training_daily")) {
+    const recoverySlot = resolveLatestDueSchedulerSlot("training_daily");
+    console.log("[training-scheduler] daily runtime recovery due", {
+      slotKey: recoverySlot.slotKey,
+    });
+    void runDailySlot("runtime_recovery", recoverySlot.slotKey);
+  }
+  if (shouldAttemptRuntimeRecovery(db, "training_weekly")) {
+    const recoverySlot = resolveLatestDueSchedulerSlot("training_weekly");
+    console.log("[training-scheduler] weekly runtime recovery due", {
+      slotKey: recoverySlot.slotKey,
+    });
+    void runWeeklySlot("runtime_recovery", recoverySlot.slotKey);
+  }
+}
+
 export function startTrainingScheduler() {
   if (!dailyTask) {
     dailyTask = cron.schedule(
@@ -150,6 +171,14 @@ export function startTrainingScheduler() {
     void runDailySlot("manual");
   }
 
+  if (!recoveryInterval) {
+    recoveryInterval = setInterval(
+      attemptTrainingRuntimeRecovery,
+      SCHEDULER_RECOVERY_POLL_MS
+    );
+    recoveryInterval.unref?.();
+  }
+
   return { dailyTask, weeklyTask };
 }
 
@@ -158,6 +187,10 @@ export function stopTrainingScheduler() {
   weeklyTask?.stop();
   dailyTask = null;
   weeklyTask = null;
+  if (recoveryInterval) {
+    clearInterval(recoveryInterval);
+    recoveryInterval = null;
+  }
 }
 
 export async function triggerDailyAnalysisNow() {
