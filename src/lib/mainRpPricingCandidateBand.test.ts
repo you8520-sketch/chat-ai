@@ -11,6 +11,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   MAIN_RP_MODEL_IDS,
 } from "@/lib/chatModels";
 import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
@@ -35,6 +36,7 @@ import {
 import {
   getPublishedPricing,
   listExactPublishedCatalogEntries,
+  resolvePublishedCommercialPricingOwner,
   resolvePublishedPricingExact,
   type PublishedModelPricing,
 } from "@/lib/publishedModelPricing";
@@ -620,6 +622,17 @@ describe("mainRpPricingCandidateBand — integration", () => {
     for (const row of projection.models) {
       assert.equal(row.candidate.domain, "CANDIDATE");
       assert.equal(row.candidate.currentTargetMargin, getPublishedPricing(row.modelId).targetMargin);
+      const published = getPublishedPricing(row.modelId);
+      assert.ok(
+        published.commercialPricingOwner,
+        `Main RP model ${row.modelId} must explicitly declare commercialPricingOwner`
+      );
+      assert.equal(
+        row.candidate.commercialPricingOwner,
+        row.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL
+          ? "derived_reference_rates"
+          : "target_margin"
+      );
     }
   });
 
@@ -656,6 +669,24 @@ describe("mainRpPricingCandidateBand — integration", () => {
       resolveCandidateLiveApplicability("legacy_proportional_ci_catalog"),
       "PUBLISHED_SHADOW_ONLY"
     );
+  });
+
+  it("Opus 5.5 derived-reference-rate owner cannot produce a targetMargin proposal", () => {
+    clearCheaperInferenceCatalogPricingForTest();
+    const published = getPublishedPricing(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL);
+    assert.equal(resolvePublishedCommercialPricingOwner(published), "derived_reference_rates");
+
+    const row = buildMainRpPricingObservabilityProjection({
+      fxSnapshot: FX_FIXTURE,
+      now: NOW,
+    }).models.find(
+      (candidate) => candidate.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL
+    )!;
+
+    assert.equal(row.candidate.commercialPricingOwner, "derived_reference_rates");
+    assert.equal(row.candidate.status, "HOLD_NON_TARGET_MARGIN_PRICING_OWNER");
+    assert.equal(row.candidate.candidateDirection, "HOLD");
+    assert.equal(row.candidate.candidateTargetMargin, null);
   });
 
   it("DeepSeek without hard benchmark → HOLD_NO_HARD_MARKET_EVIDENCE with floor diagnostic optional", () => {

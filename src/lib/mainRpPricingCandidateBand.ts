@@ -20,7 +20,9 @@ import {
 import { REPRESENTATIVE_TRACKER_WORKLOAD } from "@/lib/modelPricingTracker";
 import {
   getPublishedPricing,
+  resolvePublishedCommercialPricingOwner,
   resolvePublishedPricingExact,
+  type PublishedCommercialPricingOwner,
   type PublishedModelPricing,
   type ResolvedPublishedPricing,
 } from "@/lib/publishedModelPricing";
@@ -35,6 +37,7 @@ const MAX_TARGET_MARGIN_BP = TARGET_MARGIN_BP_SCALE - 1;
 export type PricingCandidateStatus =
   | "READY"
   | "KEEP_CURRENT"
+  | "HOLD_NON_TARGET_MARGIN_PRICING_OWNER"
   | "HOLD_NO_HARD_MARKET_EVIDENCE"
   | "HOLD_PROCUREMENT_NOT_FRESH"
   | "HOLD_ACTUAL_REPRESENTATIVE_CONFLICT"
@@ -79,6 +82,7 @@ export type PricingCandidateMarketCase = {
 export type PricingCandidateObservation = {
   domain: "CANDIDATE";
   status: PricingCandidateStatus;
+  commercialPricingOwner: PublishedCommercialPricingOwner;
   currentTargetMargin: number;
   minimumSafeTargetMargin: number | null;
   maximumCompetitiveTargetMargin: number | null;
@@ -491,6 +495,7 @@ export function composePricingCandidateObservation(params: {
   published?: PublishedModelPricing;
 }): PricingCandidateObservation {
   const published = params.published ?? getPublishedPricing(params.modelId);
+  const commercialPricingOwner = resolvePublishedCommercialPricingOwner(published);
   const resolved = resolvePublishedPricingExact(params.modelId);
   const benchmarks = getMarketBenchmarks(params.modelId);
   const actualSignal = resolveActualCandidateSignal(params.actual, published.minimumMarginFloor);
@@ -502,6 +507,7 @@ export function composePricingCandidateObservation(params: {
     return {
       domain: "CANDIDATE",
       status: "UNAVAILABLE",
+      commercialPricingOwner,
       currentTargetMargin: published.targetMargin,
       minimumSafeTargetMargin: null,
       maximumCompetitiveTargetMargin: null,
@@ -539,6 +545,39 @@ export function composePricingCandidateObservation(params: {
     fxSnapshot: params.fxSnapshot,
   });
   const currentPoints = chargePointsFromResult(currentRepResult);
+
+  if (commercialPricingOwner !== "target_margin") {
+    return {
+      domain: "CANDIDATE",
+      status: "HOLD_NON_TARGET_MARGIN_PRICING_OWNER",
+      commercialPricingOwner,
+      currentTargetMargin,
+      minimumSafeTargetMargin: null,
+      maximumCompetitiveTargetMargin: null,
+      candidateTargetMargin: null,
+      candidateDirection: "HOLD",
+      representative: {
+        currentPoints,
+        candidatePoints: null,
+        candidateProjectedMargin: null,
+        floorPass: null,
+      },
+      market: {
+        hardBenchmarkCount: benchmarks.length,
+        allPass: null,
+        cases: [],
+      },
+      actual: {
+        monthKey: params.actual.monthKey,
+        marginRate: params.actual.marginRate,
+        exact: params.actual.realizedMarginExact,
+        signal: actualSignal,
+      },
+      procurementFreshness: params.procurement.ciFreshnessState,
+      liveApplicability,
+      productionBillingContract: params.productionBillingContract,
+    };
+  }
 
   let minimumSafeTargetMargin: number | null = null;
   let maximumCompetitiveTargetMargin: number | null = null;
@@ -634,6 +673,7 @@ export function composePricingCandidateObservation(params: {
   return {
     domain: "CANDIDATE",
     status: bandDecision.status,
+    commercialPricingOwner,
     currentTargetMargin,
     minimumSafeTargetMargin,
     maximumCompetitiveTargetMargin,

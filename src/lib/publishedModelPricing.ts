@@ -8,8 +8,17 @@ import { deriveOpus55EffectivePublishedReferenceRates } from "@/lib/opus55Publis
 
 const OPUS55_LIVE_PUBLISHED_RATES = deriveOpus55EffectivePublishedReferenceRates();
 
+export type PublishedCommercialPricingOwner =
+  | "target_margin"
+  | "derived_reference_rates";
+
 export type PublishedModelPricing = {
   modelId: string;
+  /**
+   * Canonical commercial adjustment owner.
+   * Omitted means the existing direct targetMargin owner.
+   */
+  commercialPricingOwner?: PublishedCommercialPricingOwner;
   billingReferenceInputUsdPerMillion: number;
   billingReferenceOutputUsdPerMillion: number;
   billingReferenceCacheReadUsdPerMillion?: number;
@@ -54,6 +63,7 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "deepseek-v4-pro-0813": {
     modelId: "deepseek-v4-pro-0813",
+    commercialPricingOwner: "target_margin",
     billingReferenceInputUsdPerMillion: 1.32,
     billingReferenceOutputUsdPerMillion: 3.96,
     billingReferenceCacheReadUsdPerMillion: 0.044,
@@ -64,6 +74,7 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "deepseek-v4.1-flash": {
     modelId: "deepseek-v4.1-flash",
+    commercialPricingOwner: "target_margin",
     billingReferenceInputUsdPerMillion: 0.3,
     billingReferenceOutputUsdPerMillion: 1.2,
     billingReferenceCacheReadUsdPerMillion: 0.006,
@@ -92,6 +103,7 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "gemini-3.1-pro-preview": {
     modelId: "gemini-3.1-pro-preview",
+    commercialPricingOwner: "target_margin",
     billingReferenceInputUsdPerMillion: 2,
     billingReferenceOutputUsdPerMillion: 12,
     targetMargin: 0.09,
@@ -103,6 +115,7 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "gemini-3.7-flash": {
     modelId: "gemini-3.7-flash",
+    commercialPricingOwner: "target_margin",
     billingReferenceInputUsdPerMillion: 0.375,
     billingReferenceOutputUsdPerMillion: 1.875,
     targetMargin: 0.55,
@@ -166,6 +179,7 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "gpt-5.6-terra": {
     modelId: "gpt-5.6-terra",
+    commercialPricingOwner: "target_margin",
     billingReferenceInputUsdPerMillion: 2,
     billingReferenceOutputUsdPerMillion: 12,
     billingReferenceCacheReadUsdPerMillion: 0.2,
@@ -178,6 +192,7 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "claude-opus-5.5": {
     modelId: "claude-opus-5.5",
+    commercialPricingOwner: "derived_reference_rates",
     billingReferenceInputUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceInputUsdPerMillion,
     billingReferenceOutputUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceOutputUsdPerMillion,
     billingReferenceCacheReadUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceInputUsdPerMillion,
@@ -216,6 +231,12 @@ export function resolvePublishedPricingExact(modelId: string): ResolvedPublished
   if (!pricing) return null;
   if (pricing.modelId !== canonicalModelId) return null;
   return { requestedModelId, canonicalModelId, pricing };
+}
+
+export function resolvePublishedCommercialPricingOwner(
+  pricing: PublishedModelPricing
+): PublishedCommercialPricingOwner {
+  return pricing.commercialPricingOwner ?? "target_margin";
 }
 
 export function getPublishedPricing(modelId: string): PublishedModelPricing {

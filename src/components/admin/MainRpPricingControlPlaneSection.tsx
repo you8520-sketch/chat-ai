@@ -117,6 +117,8 @@ function candidateStatusLabel(status: PricingCandidateObservation["status"]): st
       return "READY";
     case "KEEP_CURRENT":
       return "KEEP CURRENT";
+    case "HOLD_NON_TARGET_MARGIN_PRICING_OWNER":
+      return "Hold — commercial pricing owner is not targetMargin";
     case "HOLD_NO_HARD_MARKET_EVIDENCE":
       return "Hold — no hard-comparable market benchmark";
     case "HOLD_PROCUREMENT_NOT_FRESH":
@@ -234,6 +236,7 @@ function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
           <h4 className="font-medium text-cyan-200">CANDIDATE</h4>
           <dl className="mt-1 space-y-1">
             <div><dt className="inline text-zinc-500">status </dt><dd className="inline">{candidateStatusLabel(row.candidate.status)}</dd></div>
+            <div><dt className="inline text-zinc-500">pricing owner </dt><dd className="inline">{row.candidate.commercialPricingOwner}</dd></div>
             <div><dt className="inline text-zinc-500">current target </dt><dd className="inline">{formatPct(row.candidate.currentTargetMargin)}</dd></div>
             <div><dt className="inline text-zinc-500">safe band </dt><dd className="inline">{formatSafeBand(row.candidate.minimumSafeTargetMargin, row.candidate.maximumCompetitiveTargetMargin)}</dd></div>
             <div><dt className="inline text-zinc-500">decision </dt><dd className="inline">{row.candidate.candidateDirection}{row.candidate.candidateTargetMargin != null ? ` → ${formatPct(row.candidate.candidateTargetMargin)}` : ""}</dd></div>
