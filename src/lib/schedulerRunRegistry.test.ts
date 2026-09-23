@@ -12,6 +12,7 @@ import {
   resolveSchedulerSlot,
   runDurableScheduledJob,
   shouldAttemptBootRecovery,
+  shouldAttemptRuntimeRecovery,
 } from "@/lib/schedulerRunRegistry";
 import { schedulerCronExpression } from "@/lib/schedulerDefinitions";
 
@@ -376,6 +377,42 @@ describe("activation baseline and observability", () => {
     database.close();
   });
 
+  it("runtime recovery catches a missed due slot without waiting for process restart", () => {
+    const database = db();
+    database
+      .prepare("UPDATE scheduler_registry_meta SET activated_at='2026-09-21 00:00:00' WHERE id=1")
+      .run();
+
+    const now = new Date("2026-09-22T23:00:00.000Z"); // Sep 23 08:00 KST
+    assert.equal(shouldAttemptRuntimeRecovery(database, "finance_daily", now), true);
+    database.close();
+  });
+
+  it("runtime recovery does not endlessly retry FAILED safe jobs", () => {
+    const database = db();
+    database
+      .prepare("UPDATE scheduler_registry_meta SET activated_at='2026-09-22 00:00:00' WHERE id=1")
+      .run();
+    const now = new Date("2026-09-23T05:00:00.000Z");
+
+    const claim = claimSchedulerRun(database, {
+      jobName: "finance_daily",
+      slotKey: "2026-09-23",
+      triggerKind: "cron",
+    });
+    assert.equal(claim.outcome, "CLAIMED");
+    if (claim.outcome !== "CLAIMED") throw new Error("claim expected");
+    finishSchedulerRun(database, {
+      row: claim.row,
+      status: "FAILED",
+      error: "simulated",
+    });
+
+    assert.equal(shouldAttemptBootRecovery(database, "finance_daily", now), true);
+    assert.equal(shouldAttemptRuntimeRecovery(database, "finance_daily", now), false);
+    database.close();
+  });
+
   it("stale safe slot is boot-recoverable and visible as STALE", () => {
     const database = db();
     database
@@ -444,6 +481,7 @@ describe("activation baseline and observability", () => {
     makeStale(database, "training_weekly", "2026-09-20");
 
     assert.equal(shouldAttemptBootRecovery(database, "training_weekly", now), true);
+    assert.equal(shouldAttemptRuntimeRecovery(database, "training_weekly", now), true);
     const transition = claimSchedulerRun(database, {
       jobName: "training_weekly",
       slotKey: "2026-09-20",
@@ -466,8 +504,26 @@ describe("scheduler owner structure", () => {
       assert.doesNotMatch(source, /let\s+\w*Running\s*=\s*false/);
       assert.match(source, /runDurableScheduledJob/);
       assert.match(source, /shouldAttemptBootRecovery/);
+      assert.match(source, /shouldAttemptRuntimeRecovery/);
       assert.match(source, /resolveLatestDueSchedulerSlot/);
+      assert.match(source, /SCHEDULER_RECOVERY_POLL_MS/);
     }
+  });
+
+  it("finance recovery writes the recovered slot date instead of execution date", () => {
+    const scheduler = fs.readFileSync(
+      path.join(process.cwd(), "src/cron/financeScheduler.ts"),
+      "utf8"
+    );
+    const finance = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/adminFinance.ts"),
+      "utf8"
+    );
+
+    assert.match(scheduler, /saveDailyFinanceSnapshot\(getDb\(\), slotKey\)/);
+    assert.match(finance, /snapshotDateOverride/);
+    assert.match(finance, /const monthKey = snapshotDate\.slice\(0, 7\)/);
+    assert.match(finance, /buildAdminFinanceSummary\(db, monthKey\)/);
   });
 
   it("derived-cache keeps its existing durable item lease owner outside this registry", () => {
