@@ -11,6 +11,7 @@ const require = createRequire(import.meta.url);
 
 const SERVER_ONLY_FAILURE =
   "This module cannot be imported from a Client Component module.";
+const BOOT_PROBE_PREFIX = "__CUSTOM_SERVER_BOOT_PROBE__";
 
 const boundary = require("../lib/customServerBootImportBoundary.js") as {
   withCustomServerBootImportBoundary: <T>(fn: () => T | Promise<T>) => Promise<T>;
@@ -55,6 +56,21 @@ function runCustomServerCjsProbe(
   }).trim();
 }
 
+function parseBootProbeOutput(output: string): {
+  directType?: string;
+  defaultType?: string;
+  resolvedType?: string;
+  directDestructuringWorks?: boolean;
+  error?: string;
+} {
+  for (const line of output.split(/\r?\n/)) {
+    const idx = line.indexOf(BOOT_PROBE_PREFIX);
+    if (idx < 0) continue;
+    return JSON.parse(line.slice(idx + BOOT_PROBE_PREFIX.length));
+  }
+  throw new Error("custom-server boot probe marker missing from child stdout");
+}
+
 function probeBootModule(specifier: string, exportName: string): BootModuleProbe {
   const output = runCustomServerCjsProbe(`
     const boundary = cjsRequire("./src/lib/customServerBootImportBoundary.js");
@@ -63,7 +79,7 @@ function probeBootModule(specifier: string, exportName: string): BootModuleProbe
       const direct = mod[${JSON.stringify(exportName)}];
       const fromDefault = mod.default?.[${JSON.stringify(exportName)}];
       const resolved = boundary.resolveCustomServerImportedExport(mod, ${JSON.stringify(exportName)});
-      console.log(JSON.stringify({
+      console.log(${JSON.stringify(BOOT_PROBE_PREFIX)} + JSON.stringify({
         directType: typeof direct,
         defaultType: typeof fromDefault,
         resolvedType: typeof resolved,
@@ -71,13 +87,7 @@ function probeBootModule(specifier: string, exportName: string): BootModuleProbe
       }));
     });
   `);
-  const parsed = JSON.parse(output) as {
-    directType?: string;
-    defaultType?: string;
-    resolvedType?: string;
-    directDestructuringWorks?: boolean;
-    error?: string;
-  };
+  const parsed = parseBootProbeOutput(output);
   if (parsed.error) {
     throw new Error(`probe failed for ${specifier}: ${parsed.error}`);
   }
@@ -141,6 +151,30 @@ const BOOT_MODULES = [
     exportName: "startDerivedCacheWakeup",
   },
 ] as const;
+
+describe("custom server boot probe parser", () => {
+  it("deterministically ignores unrelated stdout around the tagged JSON payload", () => {
+    const output = [
+      "import-time diagnostic before probe",
+      `${BOOT_PROBE_PREFIX}{"directType":"undefined","defaultType":"function","resolvedType":"function","directDestructuringWorks":false}`,
+      "scheduler diagnostic after probe",
+    ].join("\n");
+
+    assert.deepEqual(parseBootProbeOutput(output), {
+      directType: "undefined",
+      defaultType: "function",
+      resolvedType: "function",
+      directDestructuringWorks: false,
+    });
+  });
+
+  it("fails clearly when the tagged payload is absent", () => {
+    assert.throws(
+      () => parseBootProbeOutput('{"directType":"undefined"}\nunrelated diagnostic'),
+      /probe marker missing/
+    );
+  });
+});
 
 describe("custom server boot import boundary", () => {
   it("P1 FAIL_BEFORE: plain tsx import of wakeupScheduler fails on server-only without boundary", () => {
