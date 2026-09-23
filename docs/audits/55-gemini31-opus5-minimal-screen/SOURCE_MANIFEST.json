@@ -1,0 +1,7 @@
+{
+  "relationship_baseline_deepseek": "/opt/cursor/artifacts/default-collaborative/arm-COLLAB/run1 (Audit 44 COLLAB)",
+  "action_baseline_terra": "/opt/cursor/artifacts/luna-terra-value-bakeoff/action/terra/run1 (Audit 46)",
+  "live_challengers": "/opt/cursor/artifacts/gemini31-opus5-minimal-screen",
+  "character_id": 18,
+  "persona_id": 61
+}

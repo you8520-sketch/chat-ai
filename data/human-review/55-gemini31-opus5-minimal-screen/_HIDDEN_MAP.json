@@ -1,0 +1,27 @@
+{
+  "relationship": {
+    "REL-T1": {
+      "A": "gemini31",
+      "B": "deepseek",
+      "C": "opus5"
+    },
+    "REL-T2": {
+      "A": "deepseek",
+      "B": "opus5",
+      "C": "gemini31"
+    }
+  },
+  "action": {
+    "ACT-T1": {
+      "A": "opus5",
+      "B": "terra",
+      "C": "gemini31"
+    },
+    "ACT-T2": {
+      "A": "gemini31",
+      "B": "terra",
+      "C": "opus5"
+    }
+  },
+  "note": "Reveal only after human scoring. Relationship baselines: DeepSeek=Audit44 COLLAB. Action baselines: Terra=Audit46."
+}
