@@ -210,6 +210,18 @@ function timeReached(
   return currentHour > hour || (currentHour === hour && currentMinute >= minute);
 }
 
+function recoverySlotAllowed(
+  jobName: SchedulerJobName,
+  slot: SchedulerSlotResolution,
+  now: Date
+): boolean {
+  const definition = SCHEDULER_DEFINITIONS[jobName];
+  if (definition.missingCatchupPolicy === "latest_due") return true;
+
+  const local = kstParts(now);
+  return slot.slotKey === dateKey(local.year, local.month, local.day);
+}
+
 export function resolveSchedulerSlot(
   jobName: SchedulerJobName,
   now: Date = new Date()
@@ -711,6 +723,7 @@ export function shouldAttemptRuntimeRecovery(
   if (!isSchedulerJobEnabled(jobName)) return false;
   const slot = resolveLatestDueSchedulerSlot(jobName, now);
   if (slot.scheduledAtUtcMs < registryActivatedAtMs(db)) return false;
+  if (!recoverySlotAllowed(jobName, slot, now)) return false;
 
   const current = rowForSlot(db, jobName, slot.slotKey);
   if (!current) return true;
@@ -729,6 +742,7 @@ export function shouldAttemptBootRecovery(
   if (!isSchedulerJobEnabled(jobName)) return false;
   const slot = resolveLatestDueSchedulerSlot(jobName, now);
   if (slot.scheduledAtUtcMs < registryActivatedAtMs(db)) return false;
+  if (!recoverySlotAllowed(jobName, slot, now)) return false;
 
   const current = rowForSlot(db, jobName, slot.slotKey);
   if (!current) return true;
