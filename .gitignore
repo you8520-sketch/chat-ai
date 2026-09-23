@@ -8,6 +8,7 @@ data/app.db.*
 data/training-exports/
 data/secure-uploads/
 data/terra-prompt-canary-debug/
+data/handoff-audit-exports/
 public/uploads
 .env.local
 debug_payload.json

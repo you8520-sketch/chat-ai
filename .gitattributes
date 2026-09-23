@@ -18,6 +18,11 @@
 *.txt text eol=lf
 .env.example text eol=lf
 
+# Preserve first-pass model RAWs; do not strip provider trailing spaces.
+docs/audits/deepseek-flood-local-preflight-f1/*_RAW.txt text eol=lf -whitespace
+docs/audits/deepseek-flood-local-preflight-f1/*_LATE25.txt text eol=lf -whitespace
+docs/audits/deepseek-flood-local-preflight-f1/REVIEW_PACKET.md text eol=lf -whitespace
+
 *.png binary
 *.jpg binary
 *.jpeg binary
