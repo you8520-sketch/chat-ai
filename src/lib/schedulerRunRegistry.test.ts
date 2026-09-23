@@ -383,14 +383,15 @@ describe("activation baseline and observability", () => {
     database.close();
   });
 
-  it("recovers yesterday's missed daily slot when reboot happens before today's schedule", () => {
+  it("shows yesterday's missed finance slot but never auto-replays it with today's data", () => {
     const database = db();
     database
       .prepare("UPDATE scheduler_registry_meta SET activated_at='2026-09-21 00:00:00' WHERE id=1")
       .run();
 
     const now = new Date("2026-09-22T23:00:00.000Z"); // Sep 23 08:00 KST
-    assert.equal(shouldAttemptBootRecovery(database, "finance_daily", now), true);
+    assert.equal(shouldAttemptBootRecovery(database, "finance_daily", now), false);
+    assert.equal(shouldAttemptRuntimeRecovery(database, "finance_daily", now), false);
     const overview = listSchedulerRunOverview(database, now).find(
       (row) => row.jobName === "finance_daily"
     );
@@ -436,14 +437,26 @@ describe("activation baseline and observability", () => {
     database.close();
   });
 
-  it("runtime recovery catches a missed due slot without waiting for process restart", () => {
+  it("runtime recovery catches a same-day missed finance slot without waiting for restart", () => {
     const database = db();
     database
-      .prepare("UPDATE scheduler_registry_meta SET activated_at='2026-09-21 00:00:00' WHERE id=1")
+      .prepare("UPDATE scheduler_registry_meta SET activated_at='2026-09-22 00:00:00' WHERE id=1")
       .run();
 
-    const now = new Date("2026-09-22T23:00:00.000Z"); // Sep 23 08:00 KST
+    const now = new Date("2026-09-23T05:00:00.000Z"); // Sep 23 14:00 KST
     assert.equal(shouldAttemptRuntimeRecovery(database, "finance_daily", now), true);
+    database.close();
+  });
+
+  it("payout keeps latest-due catch-up across month boundaries", () => {
+    const database = db();
+    database
+      .prepare("UPDATE scheduler_registry_meta SET activated_at='2026-08-01 00:00:00' WHERE id=1")
+      .run();
+
+    const now = new Date("2026-09-10T00:00:00.000Z"); // Sep 10 09:00 KST, latest payout due Aug 15
+    assert.equal(shouldAttemptBootRecovery(database, "payout_monthly", now), true);
+    assert.equal(shouldAttemptRuntimeRecovery(database, "payout_monthly", now), true);
     database.close();
   });
 
