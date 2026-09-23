@@ -1,0 +1,11 @@
+{
+  "REFUSAL": false,
+  "META_LEAK": false,
+  "SYSTEM_LEAK": false,
+  "NEW_USER_DIALOGUE_BEYOND_CURRENT_INPUT": false,
+  "NEW_USER_INTENTIONAL_ACTION_BEYOND_CURRENT_INPUT": false,
+  "USER_MAJOR_CHOICE_AUTHORED": false,
+  "USER_CONSENT_OR_REFUSAL_AUTHORED": false,
+  "NOTE_INVOLUNTARY_USER_PHYSIOLOGY_NOT_AGENCY": "automatic involuntary physiological reactions are allowed",
+  "TRANSPORT_SAMPLE_CONTAMINATED": false
+}

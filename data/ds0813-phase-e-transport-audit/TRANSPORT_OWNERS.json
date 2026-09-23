@@ -1,0 +1,46 @@
+{
+  "NATIVE_DS_REASONING_EFFORT": "OMITTED",
+  "HANDOFF_DS_REASONING_EFFORT": "none",
+  "NATIVE_TRANSPORT": {
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "OMITTED",
+    "max_tokens": "OMITTED"
+  },
+  "HANDOFF_TRANSPORT": {
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none",
+    "max_tokens": "OMITTED"
+  },
+  "HISTORICAL_TRANSPORT": {
+    "temperature": 0.7,
+    "top_p": "OMITTED",
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none",
+    "max_tokens": "OMITTED"
+  },
+  "CODE_OWNERS": {
+    "file": "src/lib/cheaperInferenceConfig.ts",
+    "native": "adaptCheaperInferenceChatBody deletes reasoning_effort and sets thinking.disabled for DeepSeek V4 Pro",
+    "handoff": "applyDeepSeekAdultHandoffTrueOff / deepSeekAdultHandoffTrueOff keeps thinking.disabled and sets reasoning_effort=none"
+  },
+  "PRODUCTION_DEEPSEEK": {
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "max_tokens": "OMITTED",
+    "source": {
+      "temperature": "resolveDeepSeekTemperatureForTarget",
+      "top_p": "DEEPSEEK_V4_PRO_GENERATION_PARAMS.top_p",
+      "max_tokens": "resolveOpenRouterMaxTokens returns undefined"
+    }
+  }
+}
