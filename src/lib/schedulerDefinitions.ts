@@ -45,6 +45,25 @@ export const SCHEDULER_DEFINITIONS = {
 export type SchedulerJobName = keyof typeof SCHEDULER_DEFINITIONS;
 export type SchedulerDefinition = (typeof SCHEDULER_DEFINITIONS)[SchedulerJobName];
 
+export function isSchedulerJobEnabled(jobName: SchedulerJobName): boolean {
+  switch (jobName) {
+    case "finance_daily":
+      return process.env.DISABLE_FINANCE_SCHEDULER !== "1";
+    case "payout_monthly":
+      return process.env.DISABLE_PAYOUT_SCHEDULER !== "1";
+    case "training_daily":
+    case "training_weekly":
+      return (
+        process.env.DISABLE_TRAINING_PIPELINE !== "1" &&
+        process.env.ENABLE_TRAINING_PIPELINE === "1"
+      );
+    default: {
+      const _exhaustive: never = jobName;
+      return _exhaustive;
+    }
+  }
+}
+
 export function schedulerCronExpression(jobName: SchedulerJobName): string {
   const definition = SCHEDULER_DEFINITIONS[jobName];
   switch (definition.cadence) {
