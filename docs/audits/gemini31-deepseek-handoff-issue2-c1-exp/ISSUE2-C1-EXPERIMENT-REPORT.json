@@ -1,0 +1,41 @@
+{
+  "experiment": "issue2-c1-terminal-dialogue-line2-only",
+  "owner_changed": "terminal_dialogue_budget_line_2 (harness patch only)",
+  "production_code_changed": false,
+  "handoff_owner_changed": false,
+  "terminal_line_1_unchanged": true,
+  "shared_3200_owner_changed": false,
+  "frozen_base_request_sha": "e558990d8eeff541176046d568b163f2a146a34068ed72145ce5251acbd3b11d",
+  "experimental_request_sha": "413280a28b99496b352c7ecb6b91c8c00f7eac53c8fe7f6911a86c457672888e",
+  "raw_sha": "17a0fca46a7a334bbf5bf14b81b93dc118efa3d2727238287f9b9c6d439fc06a",
+  "model": "deepseek-v4-pro-0813",
+  "temperature": 0.92,
+  "top_p": 0.92,
+  "max_tokens": null,
+  "visible_chars": 1995,
+  "paragraph_count": 19,
+  "dialogue_blocks": 9,
+  "dialogue_ratio": 0.474,
+  "finish_reason": "stop",
+  "truncated": false,
+  "requested_progression_completed": false,
+  "redundant_confirmation_candidate": true,
+  "turn_ending_user_checkpoint_candidate": false,
+  "user_preemption_candidate": false,
+  "user_agency_consistency_candidate": true,
+  "repetition_candidate": false,
+  "canon_contradiction_candidate": false,
+  "http_status": 200,
+  "usage": {
+    "prompt_tokens": 11054,
+    "completion_tokens": 1581,
+    "total_tokens": 12635,
+    "cost": 0.004427,
+    "cost_details": {
+      "upstream_inference_cost": 0.004427
+    }
+  },
+  "ttft_ms": 2818,
+  "latency_ms": 37961,
+  "stop_for_human_review": true
+}
