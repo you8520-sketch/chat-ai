@@ -22,8 +22,7 @@
     "training:export": "tsx scripts/training-weekly-export.ts",
     "dump:system-prompt": "tsx scripts/dump-system-prompt.ts",
     "prod": "npm run build && npm run start",
-    "prod:fast": "powershell -ExecutionPolicy Bypass -File ./scripts/run-prod.ps1",
-    "suggested-replies:quality-report": "tsx scripts/suggested-replies-decision-quality-report.ts"
+    "prod:fast": "powershell -ExecutionPolicy Bypass -File ./scripts/run-prod.ps1"
   },
   "dependencies": {
     "@3d-dice/dice-box-threejs": "^0.0.12",
