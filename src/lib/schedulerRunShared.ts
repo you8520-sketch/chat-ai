@@ -6,7 +6,11 @@ export type SchedulerRunStatus =
   | "FAILED"
   | "STALE_BLOCKED";
 
-export type SchedulerTriggerKind = "cron" | "boot_recovery" | "manual";
+export type SchedulerTriggerKind =
+  | "cron"
+  | "boot_recovery"
+  | "runtime_recovery"
+  | "manual";
 
 export type SchedulerSlotResolution = {
   slotKey: string;
