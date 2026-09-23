@@ -65,6 +65,8 @@ function buildExtractUserBlock(opts: {
     .join("\n\n");
 }
 
+export type SuggestedRepliesExtractCaller = typeof callBackgroundMemory;
+
 export async function extractSuggestedRepliesFromTurn(opts: {
   charName: string;
   personaName: string;
@@ -78,7 +80,7 @@ export async function extractSuggestedRepliesFromTurn(opts: {
   generationSequence?: number;
   generationRequestId?: string | null;
   jobAttemptOrdinal?: number;
-}): Promise<SuggestedReplyItem[]> {
+}, caller: SuggestedRepliesExtractCaller = callBackgroundMemory): Promise<SuggestedReplyItem[]> {
   const userBlock = buildExtractUserBlock(opts);
   const ledgerContext =
     opts.chatId != null &&
@@ -96,7 +98,7 @@ export async function extractSuggestedRepliesFromTurn(opts: {
         })
       : undefined;
   try {
-    const { text } = await callBackgroundMemory(
+    const { text } = await caller(
       EXTRACT_SYSTEM,
       [{ role: "user", content: userBlock }],
       undefined,
