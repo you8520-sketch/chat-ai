@@ -21,8 +21,8 @@ That protects only one Node process.
 
 It does not protect against:
 
-- multiple Railway replicas
-- overlapping process replacements
+- overlapping/restarted workers that share the canonical DB
+- future shared-DB multi-worker topologies
 - two independently booted app processes
 - restart after a scheduled instant
 - crash while a batch is running
@@ -143,7 +143,7 @@ A schedule instant earlier than registry activation is `PRE_ACTIVATION`, not `MI
 
 This prevents the first deployment from replaying an old slot that may already have run under the previous scheduler implementation.
 
-After activation, if the server starts after a due current slot and no durable row exists, `boot_recovery` runs that slot once.
+After activation, boot recovery resolves the **latest actually due slot**, not merely the current calendar period. This covers cases such as restarting at 08:00 after missing yesterday's 12:00 finance run, or restarting before the 15th after missing the previous month's payout slot. Existing safe FAILED/stale rows are also recovery candidates.
 
 ## OWNER MAP
 
@@ -202,7 +202,7 @@ A time-slot registry would duplicate that owner.
 
 The web-push outbox is durable, but delivery selection currently uses a process-local `deliveryRunning` guard and reads unsent rows without a durable per-row claim.
 
-Current Railway has one replica, so this is not an immediate observed duplicate-send incident.
+Current Railway has one replica. Railway's current volume caveat explicitly states that replicas cannot be used with volumes, and this service mounts /data for SQLite. Therefore multi-replica safety is not claimed for the current volume topology.
 
 Before multi-replica scale, web-push should get its own item-level delivery claim/lease. It should not be forced into the time-slot scheduler registry.
 
@@ -260,6 +260,7 @@ No new parallel Ops system is created in this PR.
 - safe/unsafe stale policy
 - post-activation boot recovery
 - admin read-only observability
+- latest-due recovery across day/month/week boundaries
 - regression gate
 
 ### REQUIRED CLEANUP
@@ -286,3 +287,19 @@ Stop rather than widen this PR if:
 - provider billing or payout semantics must change
 - enabling currently-disabled payout/training would be required
 - web-push or derived-cache would need to be redesigned in the same PR
+
+
+## RAILWAY VOLUME / REPLICA LIMIT
+
+Current Railway documentation, Volumes → Caveats:
+
+> Replicas cannot be used with volumes.
+
+The production chat-ai service mounts the persistent /data volume for SQLite and currently has one replica.
+
+Therefore:
+
+- this PR does **not** claim current Railway multi-replica capability
+- the durable registry is authoritative for restart/crash/missed-slot recovery on the canonical SQLite DB
+- it also supports multiple workers only when they share the same canonical database
+- a future move to actual multi-replica Railway deployment requires a shared database/storage architecture review first
