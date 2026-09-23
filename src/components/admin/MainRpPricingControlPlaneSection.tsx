@@ -211,6 +211,8 @@ function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
           <h4 className="font-medium text-orange-200">PROCUREMENT</h4>
           <dl className="mt-1 space-y-1">
             <div><dt className="inline text-zinc-500">rates </dt><dd className="inline">{procurementRateLabel(row.procurement.ciFreshnessState)} · {formatUsdPair(row.procurement.ciInputUsdPerMillion, row.procurement.ciOutputUsdPerMillion)}</dd></div>
+            <div><dt className="inline text-zinc-500">cache read effective </dt><dd className="inline">{row.procurement.ciCacheReadUsdPerMillion != null ? `${row.procurement.ciCacheReadUsdPerMillion}/M` : "UNKNOWN"} · {row.procurement.ciCacheReadRateProvenance}</dd></div>
+            <div><dt className="inline text-zinc-500">cache write provenance </dt><dd className="inline">{row.procurement.ciCacheWriteRateProvenance}</dd></div>
             <div><dt className="inline text-zinc-500">freshness </dt><dd className="inline">{row.procurement.ciFreshnessState} ({row.procurement.ciEvidenceSource})</dd></div>
             <div><dt className="inline text-zinc-500">observed </dt><dd className="inline">{row.procurement.ciObservedAt ?? "UNKNOWN"}</dd></div>
             <div><dt className="inline text-zinc-500">provenance </dt><dd className="inline">{row.procurement.provenance}</dd></div>
