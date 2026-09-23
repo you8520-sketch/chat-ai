@@ -220,7 +220,7 @@ const SELECT_COLUMNS = `
   actual_signal, actual_month_key, actual_margin_rate, actual_exact,
   hard_benchmark_count, evidence_json, first_observed_at, last_observed_at,
   last_observation_key, observation_count, reviewed_at, reviewed_by_user_id, review_note,
-  superseded_reason
+  review_evidence_json, superseded_reason
 `;
 
 function readLatestForModel(
