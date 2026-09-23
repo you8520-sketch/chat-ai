@@ -1,0 +1,64 @@
+{
+  "cell": "S4-A",
+  "seed": "S4",
+  "arm": "A",
+  "armName": "QWEN_VANILLA_STYLE",
+  "user": "*물병을 꺼내 내민다* …목마르면 마셔. 나 괜찮으니까.",
+  "invalidTransport": false,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "latencyMs": 70699,
+  "ttftMs": 2440,
+  "resolvedModel": "qwen-3-8-max",
+  "charsInclSpaces": 477,
+  "charsExclSpaces": 355,
+  "paragraphCount": 8,
+  "dialogueParagraphCount": 4,
+  "dialogueRatio": 0.5,
+  "inputTokens": 2713,
+  "outputTokens": 2850,
+  "reasoningTokens": 0,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "standardInputTokens": 2713,
+  "usageCostUsd": 0.013349,
+  "upstreamInferenceCostUsd": 0.013349,
+  "catalogEstimatedUsd": 0.0157682,
+  "catalogVsSettledDiffered": true,
+  "costPer1000VisibleChars": 0.02798532,
+  "sampling": {
+    "temperature": 0.7,
+    "max_tokens": null,
+    "top_p": null,
+    "stream": true
+  },
+  "reasoning": {
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "thinking": null,
+    "include_reasoning": null
+  },
+  "assembledChars": {
+    "system": 3961,
+    "history": 1162,
+    "lastUser": 644,
+    "total": 5771,
+    "estimatedInputTokens": 5194
+  },
+  "reasoningTextChars": 7574,
+  "usageRaw": {
+    "prompt_tokens": 2713,
+    "completion_tokens": 2850,
+    "total_tokens": 5563,
+    "cost": 0.013349,
+    "cost_details": {
+      "upstream_inference_cost": 0.013349
+    }
+  },
+  "promptTokensDetails": null,
+  "completionTokensDetails": null,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "error": null
+}

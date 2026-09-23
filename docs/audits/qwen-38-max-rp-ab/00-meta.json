@@ -1,0 +1,25 @@
+{
+  "headSha": "11d15bb451a3c9cd8ed122fcb8fe1c67cb288c8c",
+  "model": "qwen-3-8-max",
+  "catalogHint": "qwen-3-8-max",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "phase": "rp",
+  "startedAt": "2026-08-17T03:50:54.518Z",
+  "constraints": [
+    "no picker",
+    "no pricing change",
+    "no production routing change",
+    "no common prompt change",
+    "no Qwen adapter",
+    "no GLM extra prompt experiment",
+    "no Gemini calls",
+    "no merge/deploy",
+    "no scores/gates in this extract"
+  ],
+  "glmFreeze": {
+    "vanilla": "비채택",
+    "commonProseOutput": "PROMISING_BUT_UNSTABLE",
+    "stabilityAdapter": "FAIL",
+    "compareRepresentativeIfLater": "first-experiment COMMON_PROSE_OUTPUT, not stability adapter"
+  }
+}

@@ -1,0 +1,73 @@
+We need answer in Korean RP. Need analyze. User input: (previous dialogue) then current user input: [유저 대사] 같이 갈래? [유저 지문/행동] 두리번. We need continue from changes. We are 조태형. Need third person POV for AI character, no first person outside dialogue. Need not godmode. Need respond to user's dialogue. Context: previous AI had 조태형 approaching 렌 in lobby, saying "어? 어디서 본 것 같은데... 신입이야? ... 이름이 뭐였더라?" User says "같이 갈래?" and action 두리번 (looking around). Need interpret: maybe 렌 asks 태형 to go somewhere together? Could be ambiguous. 태형 should react, observe. Need maintain canon: 조태형 is S급 특수계 음압 센티넬, high-risk runaway type, optimistic, sly, observant, tinnitus calms near 렌. He wears electronic choker. Maybe he notices 렌's unusual quietness. User says 같이 갈래? maybe after looking around, as if inviting him somewhere or asking if he wants to accompany? Need produce natural Korean novel style, third person for 조태형. No first person in narration. Dialogue can use first person. Need avoid mentioning register. Need maybe co-narrate minor user action only: 두리번 already given. Could describe his gaze? Need not decide major choices. We can have 조태형 ask where, tease, accept cautiously. Maybe because user says 같이 갈래? Could be invitation. Need not assume destination. 태형 can respond: "어디를?" Observes 렌 looking around. Maybe thinks they're looking for someone/something. He might lean in. Since canon says near 렌 tinnitus calms; perhaps he senses it. Need active. Maybe he decides to go along? But user hasn't specified destination. He can ask. But should not just wait; propose. Could say "좋아. 근데 어디 가게?" with playful. Maybe he notices if 렌 is looking for someone. Need maintain no meta. Need output only RP. Length moderate. Ensure no first-person narration. Let's draft in Korean. Use "조태형은", "그". Dialogue: “같이? 어딜?” etc. Need maybe include action: he follows gaze, hands in pockets, electronic choker glint. Avoid saying user emotion. Can describe observable: 렌이 두리번거리는 시선을 따라 로비를 훑는다. Could co-narrate small: maybe 렌's gaze passes. Don't state he is confused. Need maybe user is male, use 그 if pronoun. Use "렌" mostly.
+
+Need be careful: user input says 같이 갈래? maybe direct. 조태형 could be surprised but playful. He might have been asking name; user responds unrelated invitation. He can pivot. Maybe: “응? 같이?” He blinks, then grin. “어디로 튈 건데?” If user looking around, maybe he thinks someone watching. He can lower voice. “누구 찾는 중이면 내가 도와줄까?” But user asked 같이 갈래. He can accept: “콜. 대신 목적지는 말해줘야지.” Need active. Maybe he pushes off desk, stands beside. The tinnitus: faint ringing recedes near 렌; he notices. Could mention as sensory. But don't overdo. Maybe: “가까워지자 귓속을 긁던 이명이 조금 가라앉는 듯했다.” That's internal sensation. Third person. It's canon. Good.
+
+Need no first person outside dialogue. Check: "조태형은", "그의", "그가". Dialogue may have "내가". Fine. Need avoid "나" in narration. Also no foreign language except proper names? 에이지스 okay? It's Korean transliteration. Fine.
+
+Potential final:
+
+조태형의 눈썹이 살짝 들렸다. 뜻밖의 말에 로비를 훑던 시선이 다시 렌에게로 돌아왔다. 그는 대답 대신 두리번거리는 렌의 시선을 따라 주변을 한번 살폈다. 데스크 너머 직원들, 복도로 빠지는 센티넬들, 누군가를 기다리는 듯한 몇몇 얼굴. 특별히 자신을 부르는 기척은 없었다.
+
+“같이?”
+
+조태형은 되묻더니, 이내 입꼬리를 늘리며 데스크에서 몸을 떼었다. 검은 네일이 은반지 위를 톡 두드렸다. 가까워진 거리에서 묘하게 귓속을 긁던 이명이 잦아드는 느낌이 들었다. 그는 그 변화를 티 내지 않고, 그저 한 걸음 렌 쪽으로 붙었다.
+
+“어디로 가는지부터 말해줘야지. 나야 불러주면야 가지. 근데—”
+
+녹색 눈이 장난스럽게 가늘어졌다.
+
+“누구 찾는 중이야? 아님, 나랑 단둘이 어디 좀 가고 싶었거나.”
+
+말은 가볍게 흘리면서도, 조태형의 시선은 렌의 얼굴과 주변을 한 번씩 오갔다. 로비의 소란 속에서 그는 대답을 기다리는 듯하면서도, 이미 따라갈 준비를 마친 것처럼 한쪽 어깨를 살짝 으쓱였다.
+
+Need maybe user said 같이 갈래? Could he just accept? Maybe need ask destination. Good. Need ensure no godmode. It doesn't decide. It co-narrates only minor? It says "대답 대신" not user. Fine.
+
+Could include more active: "가자, 근데 어디?" Maybe final. Need maybe if user invitation, he should not assume "단둘이" could be teasing. Fine.
+
+Check forbidden: no speech register narration. No system. Good.
+
+Need final only RP. Ensure no first person outside dialogue: "나야" in dialogue. Narration: no 나. Let's scan: 조태형의 눈썹, 뜻밖의 말에, 로비를 훑던 시선, 그는, 렌에게로, 주변을, 데스크 너머, 복도로, 누군가를, 자신을? "자신을 부르는 기척" uses 자신 (himself) but is third-person reflexive, allowed? Rule says no 1인칭 자기지칭 나/내. 자신 is okay? It might be third person. Fine. But maybe avoid. "조태형을 부르는 기척" to be safe. Good.
+
+Need maybe maintain POV: third person. Fine.
+
+Let's refine:
+
+조태형의 눈썹이 살짝 들렸다. 뜻밖의 대답에 로비를 훑던 녹색 시선이 다시 렌에게 돌아왔다. 조태형은 되묻는 대신 두리번거리는 렌의 시선을 따라 주변을 살폈다. 데스크 너머 서류철, 복도로 빠르는 센티넬, 누군가를 기다리는 얼굴들. 딱히 조태형을 부르는 기척은 없었다.
+
+“같이?”
+
+짧게 되물은 입꼬리가 금세 장난스럽게 말려 올라갔다. 조태형은 데스크에 기댔던 등을 떼고 한 걸음 렌 쪽으로 붙었다. 검은 네일이 엄지 쪽 은반지를 톡 쳤다. 가까워진 거리만큼, 늘 귀 안쪽을 긁던 이명이 조금 가라앉는 듯했다. 조태형은 그 변화를 굳이 입 밖에 내지 않았다.
+
+“어디로 갈 건데? 목적지 없이 데려가면 나야 좋지만, 본부 안에서 길 잃은 신입 데리고 산책하는 취미는 없거든.”
+
+말은 그렇게 하면서도, 조태형은 이미 따라갈 것처럼 손을 주머니에 찔러 넣었다. 녹색 눈이 렌의 얼굴을 느긋하게 살폈다.
+
+“누구 찾아? 아님—”
+
+그가 살짝 고개를 기울였다.
+
+“나랑 가고 싶었거나.”
+
+로비의 소음이 둘 사이에서 낮게 흘렀다. 조태형은 대답을 재촉하지 않고, 대신 렌이 먼저 움직이면 바로 옆을 따라붙을 것처럼 느슨하게 서 있었다.
+
+Need check "나야 좋지만" dialogue okay. "신입 데리고" maybe assumes 렌 is 신입? Previous he guessed. Could be okay as tease, but maybe not assume? It's dialogue as guess. But user persona maybe not new. Could avoid "신입". Maybe "사람 데리고". Better.
+
+Also "길 잃은" maybe assume. Keep light. Could say "목적지 없이 데려가면 나야 좋지만, 본부 안에서 사람 데리고 산책하는 취미는 없거든." Good.
+
+Need maybe user asked "같이 갈래?" not destination. He asks where. Good.
+
+Could he accept more? Maybe "그래, 가자. 근데 어디?" Good.
+
+Need final. Ensure no first-person narration. "나야" only dialogue. "그" maybe. Good.
+
+One issue: [USER PERSONA] says 렌 male. We use 렌, no female. Good.
+
+Need not mention "user". Good.
+
+Final in Korean. Use quotes. No markdown? Fine.
+
+Double-check: "녹색 시선" maybe okay. "검은 네일이 엄지 쪽 은반지를 톡 쳤다." Nice. "이명" canon. Good.
+
+Need maybe too much internal? Fine.
+
+Let's produce final.
