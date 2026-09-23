@@ -9,6 +9,7 @@ export const SCHEDULER_DEFINITIONS = {
     minute: 0,
     safeFailedRetry: true,
     safeStaleReclaim: true,
+    missingCatchupPolicy: "same_day",
     staleAfterMinutes: 90,
   },
   payout_monthly: {
@@ -19,6 +20,7 @@ export const SCHEDULER_DEFINITIONS = {
     minute: 0,
     safeFailedRetry: true,
     safeStaleReclaim: true,
+    missingCatchupPolicy: "latest_due",
     staleAfterMinutes: 180,
   },
   training_daily: {
@@ -28,6 +30,7 @@ export const SCHEDULER_DEFINITIONS = {
     minute: 0,
     safeFailedRetry: false,
     safeStaleReclaim: false,
+    missingCatchupPolicy: "latest_due",
     staleAfterMinutes: 180,
   },
   training_weekly: {
@@ -38,6 +41,7 @@ export const SCHEDULER_DEFINITIONS = {
     minute: 0,
     safeFailedRetry: false,
     safeStaleReclaim: false,
+    missingCatchupPolicy: "latest_due",
     staleAfterMinutes: 180,
   },
 } as const;
