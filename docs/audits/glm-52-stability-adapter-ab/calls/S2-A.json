@@ -1,0 +1,42 @@
+{
+  "cell": "S2-A",
+  "seed": "S2",
+  "arm": "A",
+  "user": "같이 갈래? *두리번*",
+  "invalidTransport": false,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "latencyMs": 67782,
+  "ttftMs": 3982,
+  "resolvedModel": "glm-5.2",
+  "charsInclSpaces": 4980,
+  "charsExclSpaces": 3700,
+  "paragraphCount": 38,
+  "dialogueParagraphCount": 12,
+  "dialogueRatio": 0.316,
+  "inputTokens": 5574,
+  "outputTokens": 4050,
+  "reasoningTokens": 0,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "usageCostUsd": 0.009946,
+  "sampling": {
+    "temperature": 0.7,
+    "max_tokens": null,
+    "top_p": null,
+    "stream": true
+  },
+  "reasoning": {
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "thinking": null
+  },
+  "assembledChars": {
+    "system": 6399,
+    "history": 1162,
+    "lastUser": 830,
+    "total": 8395,
+    "estimatedInputTokens": 7556
+  },
+  "stabilityPresent": false
+}

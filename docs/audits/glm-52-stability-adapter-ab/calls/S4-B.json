@@ -1,0 +1,42 @@
+{
+  "cell": "S4-B",
+  "seed": "S4",
+  "arm": "B",
+  "user": "*물병을 꺼내 내민다* …목마르면 마셔. 나 괜찮으니까.",
+  "invalidTransport": false,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "latencyMs": 43767,
+  "ttftMs": 1509,
+  "resolvedModel": "glm-5.2",
+  "charsInclSpaces": 3381,
+  "charsExclSpaces": 2514,
+  "paragraphCount": 27,
+  "dialogueParagraphCount": 7,
+  "dialogueRatio": 0.259,
+  "inputTokens": 5759,
+  "outputTokens": 2892,
+  "reasoningTokens": 0,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "usageCostUsd": 0.008682,
+  "sampling": {
+    "temperature": 0.7,
+    "max_tokens": null,
+    "top_p": null,
+    "stream": true
+  },
+  "reasoning": {
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "thinking": null
+  },
+  "assembledChars": {
+    "system": 6619,
+    "history": 1162,
+    "lastUser": 848,
+    "total": 8633,
+    "estimatedInputTokens": 7770
+  },
+  "stabilityPresent": true
+}
