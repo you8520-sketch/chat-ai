@@ -8,6 +8,7 @@ import {
 import type {
   SchedulerRunOverview,
   SchedulerRunRow,
+  SchedulerSlotResolution,
   SchedulerTriggerKind,
 } from "@/lib/schedulerRunShared";
 
