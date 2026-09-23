@@ -6,11 +6,27 @@ import {
   type SchedulerJobName,
 } from "@/lib/schedulerDefinitions";
 import type {
+  SchedulerRunObservation,
   SchedulerRunOverview,
-  SchedulerRunRow,
+  SchedulerRunStatus,
   SchedulerSlotResolution,
   SchedulerTriggerKind,
 } from "@/lib/schedulerRunShared";
+
+type SchedulerRunRow = {
+  id: number;
+  job_name: SchedulerJobName;
+  slot_key: string;
+  status: SchedulerRunStatus;
+  trigger_kind: SchedulerTriggerKind;
+  execution_token: string;
+  attempt_count: number;
+  started_at: string;
+  heartbeat_at: string;
+  finished_at: string | null;
+  last_error: string;
+  result_json: string;
+};
 
 export type SchedulerRunClaim =
   | {
@@ -619,6 +635,21 @@ export async function runDurableScheduledJob<T>(
   }
 }
 
+function toSchedulerRunObservation(
+  row: SchedulerRunRow | null
+): SchedulerRunObservation | null {
+  if (!row) return null;
+  return {
+    status: row.status,
+    trigger_kind: row.trigger_kind,
+    attempt_count: row.attempt_count,
+    started_at: row.started_at,
+    heartbeat_at: row.heartbeat_at,
+    finished_at: row.finished_at,
+    last_error: row.last_error,
+  };
+}
+
 export function listSchedulerRunOverview(
   db: Database.Database,
   now: Date = new Date()
@@ -655,8 +686,8 @@ export function listSchedulerRunOverview(
       currentSlotKey: slot.slotKey,
       activated,
       state,
-      latest,
-      current,
+      latest: toSchedulerRunObservation(latest),
+      current: toSchedulerRunObservation(current),
     };
   });
 }
