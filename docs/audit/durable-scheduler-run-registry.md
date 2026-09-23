@@ -107,6 +107,22 @@ Heartbeat and finish updates require the matching token.
 
 If a stale safe job is reclaimed, the older worker cannot later overwrite the new attempt's durable result.
 
+### Recovery wake policy
+
+The cron expression remains the normal wake owner. Each enabled scheduler also registers a lightweight 5-minute recovery poll.
+
+The poll does not execute business logic directly. It only asks the durable registry whether the latest actually due slot is:
+- missing, or
+- RUNNING with a stale heartbeat.
+
+If so, it invokes the normal durable claim path with trigger_kind=`runtime_recovery`.
+
+FAILED rows are intentionally **not** retried by the 5-minute poll, preventing retry storms. A safe FAILED finance/payout row may be retried once through boot recovery or a manual trigger.
+
+This closes both:
+- process restarted before a RUNNING row becomes stale, and
+- healthy process missed a node-cron wake without restarting.
+
 ### Recovery policy
 
 #### finance_daily
@@ -232,6 +248,10 @@ No new parallel Ops system is created in this PR.
 
 ## REGRESSION MATRIX
 
+Canonical CI owner: `.github/workflows/validate-scheduler-durability.yml`.
+
+The existing Main RP startup workflow remains unchanged and does not own scheduler validation.
+
 `schedulerRunRegistry.test.ts` must prove:
 
 1. existing cron expressions are unchanged
@@ -246,8 +266,15 @@ No new parallel Ops system is created in this PR.
 10. two async callers execute job body once
 11. pre-activation due slot is not backfilled
 12. post-activation missing due slot is boot-recoverable
-13. cron schedulers no longer use process-local running flags as execution owners
-14. derived-cache keeps its existing item lease owner
+13. restart before today's schedule recovers the previous actually-due daily/monthly/weekly slot
+14. existing safe FAILED slot is boot-recoverable while training FAILED is not
+15. stale safe slot is boot-recoverable and visible as STALE
+16. stale unsafe training transitions to STALE_BLOCKED
+17. runtime recovery catches MISSING/stale RUNNING without retrying FAILED rows
+18. finance recovery writes the recovered slot date/month
+19. admin overview omits execution fencing tokens/result payloads
+20. cron schedulers no longer use process-local running flags as execution owners
+21. derived-cache keeps its existing item lease owner
 
 ## CHANGE BUDGET
 
@@ -258,7 +285,9 @@ No new parallel Ops system is created in this PR.
 - execution fencing
 - heartbeat
 - safe/unsafe stale policy
+- latest-actually-due slot resolution across day/month/week boundaries
 - post-activation boot recovery
+- 5-minute runtime recovery wake for MISSING/stale RUNNING slots
 - admin read-only observability
 - latest-due recovery across day/month/week boundaries
 - regression gate
