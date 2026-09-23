@@ -127,26 +127,30 @@ This closes both:
 
 #### finance_daily
 
-- failed retry: allowed
-- stale reclaim: allowed
-- reason: snapshot is an upsert; provider reconciliation is provider-request-id based; pricing tracker has its own daily claim
+- failed retry: allowed for the same KST date
+- stale reclaim: allowed for the same KST date
+- missing catch-up: same KST date only
+- reason: finance/pricing observations are time-sensitive; replaying yesterday with today's provider/catalog data would create false historical evidence
 
 #### payout_monthly
 
 - failed retry: allowed
 - stale reclaim: allowed
+- missing catch-up: latest actually due monthly slot
 - reason: individual payout execution already has durable exactly-once provider state
 
 #### training_daily
 
 - failed retry: blocked automatically
 - stale reclaim: blocked automatically
+- missing catch-up: latest actually due slot before any claim exists
 - reason: an interrupted analysis may already have consumed AI/provider cost
 
 #### training_weekly
 
 - failed retry: blocked automatically
 - stale reclaim: blocked automatically
+- missing catch-up: latest actually due slot before any claim exists
 - reason: export creates run-id-specific files; blind replay can duplicate exports
 
 Unsafe stale jobs become `STALE_BLOCKED` and remain visible for manual review.
@@ -159,13 +163,19 @@ A schedule instant earlier than registry activation is `PRE_ACTIVATION`, not `MI
 
 This prevents the first deployment from replaying an old slot that may already have run under the previous scheduler implementation.
 
-After activation, boot recovery resolves the **latest actually due slot**, not merely the current calendar period. This covers cases such as restarting at 08:00 after missing yesterday's 12:00 finance run, or restarting before the 15th after missing the previous month's payout slot. Existing safe FAILED/stale rows are also recovery candidates.
+After activation, recovery resolves the latest actually due slot and then applies the job's canonical catch-up policy.
+
+- finance: automatic recovery only when the due slot is the same KST date as execution
+- payout: latest actually due monthly slot may recover
+- training: an unclaimed latest-due slot may start, but FAILED work never auto-retries and stale work becomes STALE_BLOCKED
+
+This deliberately leaves an older missing finance slot visible as MISSING instead of manufacturing historical finance/pricing evidence from newer data.
 
 ## OWNER MAP
 
 | Responsibility | Canonical owner |
 |---|---|
-| schedule definitions | `schedulerDefinitions.ts` |
+| schedule definitions + enablement + catch-up policy | `schedulerDefinitions.ts` |
 | cron wake registration | each `src/cron/*Scheduler.ts` |
 | slot ownership | `scheduler_run_slots` |
 | stale / failed reclaim policy | `schedulerDefinitions.ts` + `schedulerRunRegistry.ts` |
@@ -239,9 +249,10 @@ States include:
 - normal completed
 - running
 - failed
+- stale
 - stale blocked
-- due but missing
-- not due
+- due slot missing
+- intentionally disabled
 - pre-activation
 
 No new parallel Ops system is created in this PR.
@@ -266,15 +277,18 @@ The existing Main RP startup workflow remains unchanged and does not own schedul
 10. two async callers execute job body once
 11. pre-activation due slot is not backfilled
 12. post-activation missing due slot is boot-recoverable
-13. restart before today's schedule recovers the previous actually-due daily/monthly/weekly slot
+13. finance previous-day missing slot remains visible but is not auto-replayed with newer data
 14. existing safe FAILED slot is boot-recoverable while training FAILED is not
 15. stale safe slot is boot-recoverable and visible as STALE
 16. stale unsafe training transitions to STALE_BLOCKED
 17. runtime recovery catches MISSING/stale RUNNING without retrying FAILED rows
-18. finance recovery writes the recovered slot date/month
-19. admin overview omits execution fencing tokens/result payloads
-20. cron schedulers no longer use process-local running flags as execution owners
-21. derived-cache keeps its existing item lease owner
+18. same-day finance recovery is allowed while cross-day finance recovery is blocked
+19. payout retains latest-due catch-up across month boundaries
+20. disabled jobs never recover and render DISABLED instead of MISSING
+21. custom server and admin observability use the same canonical enablement owner
+22. admin overview omits execution fencing tokens/result payloads
+23. cron schedulers no longer use process-local running flags as execution owners
+24. derived-cache keeps its existing item lease owner
 
 ## CHANGE BUDGET
 
@@ -286,10 +300,11 @@ The existing Main RP startup workflow remains unchanged and does not own schedul
 - heartbeat
 - safe/unsafe stale policy
 - latest-actually-due slot resolution across day/month/week boundaries
+- job-specific catch-up policy (finance same-day only)
 - post-activation boot recovery
-- 5-minute runtime recovery wake for MISSING/stale RUNNING slots
+- 5-minute runtime recovery wake for eligible MISSING/stale RUNNING slots
+- canonical scheduler enablement owner
 - admin read-only observability
-- latest-due recovery across day/month/week boundaries
 - regression gate
 
 ### REQUIRED CLEANUP
