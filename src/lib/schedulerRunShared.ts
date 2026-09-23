@@ -25,7 +25,6 @@ export type SchedulerRunRow = {
 
 export type SchedulerSlotResolution = {
   slotKey: string;
-  due: boolean;
   scheduledAtUtcMs: number;
 };
 
@@ -33,7 +32,6 @@ export type SchedulerRunOverviewState =
   | SchedulerRunStatus
   | "STALE"
   | "MISSING"
-  | "NOT_DUE"
   | "PRE_ACTIVATION";
 
 export type SchedulerRunOverview = {
