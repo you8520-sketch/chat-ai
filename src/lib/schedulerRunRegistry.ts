@@ -269,6 +269,86 @@ export function resolveSchedulerSlot(
   return _exhaustive;
 }
 
+export function resolveLatestDueSchedulerSlot(
+  jobName: SchedulerJobName,
+  now: Date = new Date()
+): SchedulerSlotResolution {
+  const definition = SCHEDULER_DEFINITIONS[jobName];
+  const local = kstParts(now);
+
+  if (definition.cadence === "daily") {
+    const target =
+      timeReached(local.hour, local.minute, definition.hour, definition.minute)
+        ? { year: local.year, month: local.month, day: local.day }
+        : shiftLocalDate(local.year, local.month, local.day, -1);
+    return {
+      slotKey: dateKey(target.year, target.month, target.day),
+      due: true,
+      scheduledAtUtcMs: kstScheduledUtcMs(
+        target.year,
+        target.month,
+        target.day,
+        definition.hour,
+        definition.minute
+      ),
+    };
+  }
+
+  if (definition.cadence === "monthly") {
+    let year = local.year;
+    let month = local.month;
+    const currentMonthDue =
+      local.day > definition.dayOfMonth ||
+      (local.day === definition.dayOfMonth &&
+        timeReached(local.hour, local.minute, definition.hour, definition.minute));
+
+    if (!currentMonthDue) {
+      month -= 1;
+      if (month === 0) {
+        month = 12;
+        year -= 1;
+      }
+    }
+
+    return {
+      slotKey: monthKey(year, month),
+      due: true,
+      scheduledAtUtcMs: kstScheduledUtcMs(
+        year,
+        month,
+        definition.dayOfMonth,
+        definition.hour,
+        definition.minute
+      ),
+    };
+  }
+
+  if (definition.cadence === "weekly") {
+    let delta = (local.weekday - definition.dayOfWeek + 7) % 7;
+    if (
+      delta === 0 &&
+      !timeReached(local.hour, local.minute, definition.hour, definition.minute)
+    ) {
+      delta = 7;
+    }
+    const target = shiftLocalDate(local.year, local.month, local.day, -delta);
+    return {
+      slotKey: dateKey(target.year, target.month, target.day),
+      due: true,
+      scheduledAtUtcMs: kstScheduledUtcMs(
+        target.year,
+        target.month,
+        target.day,
+        definition.hour,
+        definition.minute
+      ),
+    };
+  }
+
+  const _exhaustive: never = definition;
+  return _exhaustive;
+}
+
 function isStale(
   db: Database.Database,
   row: SchedulerRunRow,
@@ -548,14 +628,13 @@ export function listSchedulerRunOverview(
 
   return (Object.keys(SCHEDULER_DEFINITIONS) as SchedulerJobName[]).map((jobName) => {
     const definition = SCHEDULER_DEFINITIONS[jobName];
-    const slot = resolveSchedulerSlot(jobName, now);
+    const slot = resolveLatestDueSchedulerSlot(jobName, now);
     const current = rowForSlot(db, jobName, slot.slotKey);
     const latest = latestRowForJob(db, jobName);
     const activated = slot.scheduledAtUtcMs >= activatedAtMs;
 
     let state: SchedulerRunOverview["state"];
     if (!activated) state = "PRE_ACTIVATION";
-    else if (!slot.due) state = "NOT_DUE";
     else if (
       current?.status === "RUNNING" &&
       isStale(db, current, definition.staleAfterMinutes)
@@ -589,8 +668,7 @@ export function shouldAttemptBootRecovery(
   now: Date = new Date()
 ): boolean {
   ensureSchedulerRunRegistrySchema(db);
-  const slot = resolveSchedulerSlot(jobName, now);
-  if (!slot.due) return false;
+  const slot = resolveLatestDueSchedulerSlot(jobName, now);
   if (slot.scheduledAtUtcMs < registryActivatedAtMs(db)) return false;
 
   const current = rowForSlot(db, jobName, slot.slotKey);
