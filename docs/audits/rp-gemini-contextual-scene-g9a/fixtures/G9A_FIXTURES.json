@@ -1,0 +1,92 @@
+{
+  "characterFixture": "docs/audits/rp-quality-v2-gemini/fixtures/c10_fixture.json",
+  "fixtures": [
+    {
+      "id": "N1S",
+      "title": "SAFE / ESTABLISHED RELATIONSHIP (TRUE CALM)",
+      "role": "PRIMARY_QUALITY_QUIET",
+      "userInput": "*렌이 소파 등받이에 기대며 컵을 내려놓는다.* 오늘은 좀 조용하네. 잠깐 이대로 있어도 돼?",
+      "historyAfterGreeting": [
+        {
+          "role": "user",
+          "content": "*렌이 방독면을 턱 아래로 내리고, 확보된 은신처 안을 둘러본다.* …여기, 당분간 괜찮은 거지?"
+        },
+        {
+          "role": "assistant",
+          "content": "에녹은 문턱의 밀봉 상태를 다시 한 번 손으로 확인한 뒤에야 어깨의 총을 내려놓았다. 바깥 안개는 두꺼운 방호벽 너머로 멀어져 있었고, 필터 경고음은 꺼진 지 오래였다. 그는 낡은 소파 맞은편 의자에 앉아 물컵을 렌 쪽으로 밀어두며 짧게 대답했다.\n\n\"문은 잠겼다. 지금은 이동할 이유 없어. 소음만 내지 마.\""
+        },
+        {
+          "role": "user",
+          "content": "*렌이 물을 받아 마시고, 담요 끝을 끌어당긴다.* 고마워. …너도 잠깐은 숨 고를 수 있는 거야?"
+        },
+        {
+          "role": "assistant",
+          "content": "에녹의 푸른 눈동자가 짧게 렌을 훑었다. 감사 인사 따위는 그의 계산에 들어오지 않았다. 그래도 지금 당장 쫓아올 발소리는 없었고, 농도계 바늘은 안정 구간에 머물러 있었다. 그는 방독면 필터를 가방 옆에 가지런히 세워 둔 채, 창틈으로 새던 먼지 한 줄을 손가락으로 막아냈다.\n\n\"고르는 게 아니다. 낭비하지 않는 거지. 질문은 나중에.\""
+        }
+      ],
+      "measures": [
+        "QUIET_SCENE_FIDELITY",
+        "NO_AUTO_THREAT_ESCALATION",
+        "RELATIONSHIP_INTERIOR_ENV_VALUE",
+        "LENGTH",
+        "DIALOGUE_USABILITY",
+        "AGENCY_V2",
+        "USER_DIALOGUE_RESTAGE"
+      ]
+    },
+    {
+      "id": "N2",
+      "title": "LIVING WORLD / WORLD MOTION",
+      "role": "PRIMARY_QUALITY_MOTION",
+      "userInput": "*렌이 골목 입구의 안개 농도를 가늠하며 목소리를 낮춘다.* 이 쪽은… 좀 더 옅어 보이는데. 이쪽 괜찮아?",
+      "historyAfterGreeting": [
+        {
+          "role": "user",
+          "content": "*렌이 에녹의 뒤를 바짝 따른다.* 어디로 빠져나가?"
+        },
+        {
+          "role": "assistant",
+          "content": "에녹은 대답 대신 낡은 상가 외벽을 따라 걸음을 옮겼다. 철제 셔터 너머의 긁는 소리는 이미 멀어져 있었고, 대신 먼 교차로 쪽에서 무언가 금속을 끄는 둔탁한 진동이 간헐적으로 올라왔다. 그는 렌의 팔꿈치를 짧게 잡아 속도를 맞춘 뒤, 무너진 차량 뒤로 몸을 낮췄다.\n\n\"말은 나중에. 발소리만 따라와.\""
+        },
+        {
+          "role": "user",
+          "content": "*렌이 숨을 죽이고 고개를 끄덕인다.* …응."
+        },
+        {
+          "role": "assistant",
+          "content": "두 사람은 반쯤 무너진 횡단보도 그늘에 잠시 멈췄다. 에녹의 시선은 전방의 안개 층과 좌측 골목, 그리고 위층의 깨진 유리창을 교대로 훑었다. 어디선가 종이 조각이 바람에 쓸리듯 아스팔트를 스쳤고, 멀리 전광판 잔해가 꺼졌다 켜졌다를 반복했다. 그는 손목의 농도 측정기를 내려다본 뒤, 턱으로 우측 골목을 가리켰다.\n\n\"저쪽 바람결이 바뀌었다. 멈춰.\""
+        }
+      ],
+      "measures": [
+        "WORLD_MOTION",
+        "NPC_OR_ENV_AUTONOMY",
+        "SCENE_ADVANCEMENT",
+        "IMMERSIVE_NARRATION",
+        "LENGTH",
+        "AGENCY_V2",
+        "USER_DIALOGUE_RESTAGE"
+      ]
+    },
+    {
+      "id": "N3",
+      "title": "NATURAL USER ASSIST",
+      "role": "STAGE1_OPTIONAL_AFTER_PASS",
+      "userInput": "*렌이 손전등 배터리를 꺼내 끼우다 멈칫한다. 뚜껑이 반대로 걸린다.* …이거, 어떻게 넣는 거야?",
+      "historyAfterGreeting": [
+        {
+          "role": "user",
+          "content": "*렌이 주머니에서 손전등을 꺼낸다.* 어두워서… 이거 켜도 돼?"
+        },
+        {
+          "role": "assistant",
+          "content": "에녹은 손전등의 렌즈를 손가락으로 눌러 막았다. 빛은 생존을 돕기도 했지만, 안개 속에서는 표적이 되기도 했다. 그는 렌의 손목을 짧게 눌러 각도를 바닥 쪽으로 꺾게 한 뒤, 낮게 말했다.\n\n\"위로 비추지 마. 필요할 때만. 배터리 확인해.\""
+        }
+      ],
+      "measures": [
+        "MINOR_USER_CO_NARRATION",
+        "NO_SEVERE_DECISION_TAKEOVER",
+        "WORLD_MOTION_SIDE_EFFECT"
+      ]
+    }
+  ]
+}

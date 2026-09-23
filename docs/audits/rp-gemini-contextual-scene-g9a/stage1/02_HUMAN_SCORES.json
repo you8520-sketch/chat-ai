@@ -1,0 +1,152 @@
+{
+  "scores": {
+    "Gemini_N1S_A_D1": {
+      "total": 66,
+      "quiet": "FAIL",
+      "threat": true,
+      "scene_value": 3,
+      "agency": "ALLOWED_CONTINUITY",
+      "severe": false,
+      "restage": "PASS",
+      "dial_u": 7,
+      "anchors": 3
+    },
+    "Gemini_N1S_A_D2": {
+      "total": 53,
+      "quiet": "FAIL",
+      "threat": false,
+      "scene_value": 4,
+      "agency": "ALLOWED_CONTINUITY",
+      "severe": false,
+      "restage": "FAIL",
+      "dial_u": 5,
+      "anchors": 3
+    },
+    "Gemini_N1S_C_D1": {
+      "total": 71,
+      "quiet": "PASS",
+      "threat": false,
+      "scene_value": 7,
+      "agency": "ALLOWED_CONTINUITY",
+      "severe": false,
+      "restage": "PASS",
+      "dial_u": 8,
+      "anchors": 2
+    },
+    "Gemini_N1S_C_D2": {
+      "total": 66,
+      "quiet": "FAIL",
+      "threat": false,
+      "scene_value": 3,
+      "agency": "ALLOWED_CONTINUITY",
+      "severe": false,
+      "restage": "PASS",
+      "dial_u": 6,
+      "anchors": 2
+    },
+    "Gemini_N2_A_D1": {
+      "total": 79,
+      "world": 8,
+      "auton": 8,
+      "scene_value": 8,
+      "agency": "ALLOWED_CONTINUITY",
+      "severe": false,
+      "restage": "PASS",
+      "dial_u": 8,
+      "anchors": 3
+    },
+    "Gemini_N2_A_D2": {
+      "total": 62,
+      "world": 5,
+      "auton": 5,
+      "scene_value": 5,
+      "agency": "MODERATE",
+      "severe": false,
+      "restage": "PASS",
+      "dial_u": 7,
+      "anchors": 3
+    },
+    "Gemini_N2_C_D1": {
+      "total": 84,
+      "world": 10,
+      "auton": 10,
+      "scene_value": 9,
+      "agency": "ALLOWED_CONTINUITY",
+      "severe": false,
+      "restage": "PASS",
+      "dial_u": 6,
+      "anchors": 5
+    },
+    "Gemini_N2_C_D2": {
+      "total": 85,
+      "world": 9,
+      "auton": 9,
+      "scene_value": 9,
+      "agency": "ALLOWED_CONTINUITY",
+      "severe": false,
+      "restage": "PASS",
+      "dial_u": 8,
+      "anchors": 7
+    }
+  },
+  "summary": {
+    "G8_Agency_V2": {
+      "old_severe_B": 3,
+      "new_severe_B": 1,
+      "reclassified": [
+        "N2_B_D1 SEVERE→ALLOWED_CONTINUITY",
+        "N1_B_D1 SEVERE→MODERATE+REPLAY"
+      ]
+    },
+    "FIXTURE_DOMAIN_BIAS": "YES",
+    "GENRE_IS_NOT_SCENE_INTENSITY": "CONFIRMED",
+    "sole_variable": "CONTEXTUAL_SCENE_DYNAMICS_ONLY",
+    "N1S": {
+      "A_chars": [
+        3357,
+        2270
+      ],
+      "C_chars": [
+        1474,
+        3992
+      ],
+      "A_median": 2813.5,
+      "C_median": 2733.0,
+      "quiet_fidelity": "A 0/2 · C 1/2",
+      "auto_threat": "A 1/2 · C 0/2",
+      "scene_value_mean": "A 3.5 · C 5.0",
+      "human_mean": "A 59.5 · C 68.5",
+      "agency_severe_C": 0,
+      "user_replay_fail_C": 0,
+      "quiet_fidelity_pass": "FAIL"
+    },
+    "N2": {
+      "A_chars": [
+        1555,
+        540
+      ],
+      "C_chars": [
+        5112,
+        4718
+      ],
+      "world_motion": "A 6.5 · C 9.5 PASS",
+      "autonomy": "A 6.5 · C 9.5 PASS",
+      "scene_value": "A 6.5 · C 9.0 PASS",
+      "dialogue_usability": "A 7.5 · C 7.0 FAIL non-inferior",
+      "anchors_C": "5 / 7 OVERLOAD FAIL",
+      "human_mean": "A 70.5 · C 84.5",
+      "agency_severe_C": 0,
+      "world_motion_pass": "PASS"
+    },
+    "N3": "NOT_RUN",
+    "severe_decision_takeover_C": 0,
+    "classification": "CONTEXTUAL_SCENE_DYNAMICS_FAIL",
+    "failure_notes": [
+      "N1S quiet fidelity not sealed (only C_D1 PASS; C_D2 canon-lecture filler)",
+      "N2 world motion clearly improved but response-anchor OVERLOAD (5–7) and dialogue usability slightly inferior",
+      "N3 gated off"
+    ],
+    "production_wire": "NOT_RUN",
+    "merge": "NOT_RUN"
+  }
+}
