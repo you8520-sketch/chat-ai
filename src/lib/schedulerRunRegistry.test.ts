@@ -8,6 +8,7 @@ import {
   ensureSchedulerRunRegistrySchema,
   finishSchedulerRun,
   listSchedulerRunOverview,
+  resolveLatestDueSchedulerSlot,
   resolveSchedulerSlot,
   runDurableScheduledJob,
   shouldAttemptBootRecovery,
@@ -53,6 +54,29 @@ describe("scheduler definitions", () => {
       slotKey: "2026-09",
       due: true,
       scheduledAtUtcMs: Date.parse("2026-09-14T18:00:00.000Z"),
+    });
+  });
+
+  it("resolves the latest actually due slot across daily/monthly/weekly boundaries", () => {
+    const beforeDaily = new Date("2026-09-22T23:00:00.000Z"); // Sep 23 08:00 KST
+    assert.deepEqual(resolveLatestDueSchedulerSlot("finance_daily", beforeDaily), {
+      slotKey: "2026-09-22",
+      due: true,
+      scheduledAtUtcMs: Date.parse("2026-09-22T03:00:00.000Z"),
+    });
+
+    const beforeMonthly = new Date("2026-09-10T00:00:00.000Z"); // Sep 10 09:00 KST
+    assert.deepEqual(resolveLatestDueSchedulerSlot("payout_monthly", beforeMonthly), {
+      slotKey: "2026-08",
+      due: true,
+      scheduledAtUtcMs: Date.parse("2026-08-14T18:00:00.000Z"),
+    });
+
+    const sundayBeforeWeekly = new Date("2026-09-19T19:00:00.000Z"); // Sep 20 Sun 04:00 KST
+    assert.deepEqual(resolveLatestDueSchedulerSlot("training_weekly", sundayBeforeWeekly), {
+      slotKey: "2026-09-13",
+      due: true,
+      scheduledAtUtcMs: Date.parse("2026-09-12T20:00:00.000Z"),
     });
   });
 });
@@ -298,6 +322,108 @@ describe("activation baseline and observability", () => {
     assert.equal(overview?.state, "MISSING");
     database.close();
   });
+
+  it("recovers yesterday's missed daily slot when reboot happens before today's schedule", () => {
+    const database = db();
+    database
+      .prepare("UPDATE scheduler_registry_meta SET activated_at='2026-09-21 00:00:00' WHERE id=1")
+      .run();
+
+    const now = new Date("2026-09-22T23:00:00.000Z"); // Sep 23 08:00 KST
+    assert.equal(shouldAttemptBootRecovery(database, "finance_daily", now), true);
+    const overview = listSchedulerRunOverview(database, now).find(
+      (row) => row.jobName === "finance_daily"
+    );
+    assert.equal(overview?.currentSlotKey, "2026-09-22");
+    assert.equal(overview?.state, "MISSING");
+    database.close();
+  });
+
+  it("existing FAILED safe slot is boot-recoverable, but failed training is not", () => {
+    const database = db();
+    database
+      .prepare("UPDATE scheduler_registry_meta SET activated_at='2026-09-22 00:00:00' WHERE id=1")
+      .run();
+    const now = new Date("2026-09-23T05:00:00.000Z");
+
+    const finance = claimSchedulerRun(database, {
+      jobName: "finance_daily",
+      slotKey: "2026-09-23",
+      triggerKind: "cron",
+    });
+    assert.equal(finance.outcome, "CLAIMED");
+    if (finance.outcome !== "CLAIMED") throw new Error("finance claim expected");
+    finishSchedulerRun(database, {
+      row: finance.row,
+      status: "FAILED",
+      error: "simulated finance failure",
+    });
+    assert.equal(shouldAttemptBootRecovery(database, "finance_daily", now), true);
+
+    const training = claimSchedulerRun(database, {
+      jobName: "training_daily",
+      slotKey: "2026-09-23",
+      triggerKind: "cron",
+    });
+    assert.equal(training.outcome, "CLAIMED");
+    if (training.outcome !== "CLAIMED") throw new Error("training claim expected");
+    finishSchedulerRun(database, {
+      row: training.row,
+      status: "FAILED",
+      error: "provider cost may already have been spent",
+    });
+    assert.equal(shouldAttemptBootRecovery(database, "training_daily", now), false);
+    database.close();
+  });
+
+  it("stale safe slot is boot-recoverable and visible as STALE", () => {
+    const database = db();
+    database
+      .prepare("UPDATE scheduler_registry_meta SET activated_at='2026-09-22 00:00:00' WHERE id=1")
+      .run();
+    const now = new Date("2026-09-23T05:00:00.000Z");
+
+    const claim = claimSchedulerRun(database, {
+      jobName: "finance_daily",
+      slotKey: "2026-09-23",
+      triggerKind: "cron",
+    });
+    assert.equal(claim.outcome, "CLAIMED");
+    makeStale(database, "finance_daily", "2026-09-23");
+
+    assert.equal(shouldAttemptBootRecovery(database, "finance_daily", now), true);
+    const overview = listSchedulerRunOverview(database, now).find(
+      (row) => row.jobName === "finance_daily"
+    );
+    assert.equal(overview?.state, "STALE");
+    database.close();
+  });
+
+  it("stale unsafe training enters recovery once only to become STALE_BLOCKED", () => {
+    const database = db();
+    database
+      .prepare("UPDATE scheduler_registry_meta SET activated_at='2026-09-01 00:00:00' WHERE id=1")
+      .run();
+    const now = new Date("2026-09-23T05:00:00.000Z"); // latest weekly slot Sep 20
+
+    const claim = claimSchedulerRun(database, {
+      jobName: "training_weekly",
+      slotKey: "2026-09-20",
+      triggerKind: "cron",
+    });
+    assert.equal(claim.outcome, "CLAIMED");
+    makeStale(database, "training_weekly", "2026-09-20");
+
+    assert.equal(shouldAttemptBootRecovery(database, "training_weekly", now), true);
+    const transition = claimSchedulerRun(database, {
+      jobName: "training_weekly",
+      slotKey: "2026-09-20",
+      triggerKind: "boot_recovery",
+    });
+    assert.equal(transition.outcome, "SKIPPED_STALE_BLOCKED");
+    assert.equal(shouldAttemptBootRecovery(database, "training_weekly", now), false);
+    database.close();
+  });
 });
 
 describe("scheduler owner structure", () => {
@@ -311,6 +437,7 @@ describe("scheduler owner structure", () => {
       assert.doesNotMatch(source, /let\s+\w*Running\s*=\s*false/);
       assert.match(source, /runDurableScheduledJob/);
       assert.match(source, /shouldAttemptBootRecovery/);
+      assert.match(source, /resolveLatestDueSchedulerSlot/);
     }
   });
 
