@@ -11,8 +11,8 @@ import {
   resolveSchedulerSlot,
   runDurableScheduledJob,
   shouldAttemptBootRecovery,
-  type SchedulerTriggerKind,
 } from "@/lib/schedulerRunRegistry";
+import type { SchedulerTriggerKind } from "@/lib/schedulerRunShared";
 
 export const FINANCE_DAILY_CRON = schedulerCronExpression("finance_daily");
 export const FINANCE_TIMEZONE = SCHEDULER_TIMEZONE;
