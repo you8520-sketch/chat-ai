@@ -1,0 +1,24 @@
+{
+  "R": {
+    "fixture": "relationship_quiet",
+    "character_id": 17,
+    "character_name": "플러드",
+    "is_adult_mode": false,
+    "adult_handoff_enabled": false,
+    "adult_consent_mode": null,
+    "nsfw": false,
+    "text": "로비 창가에 나란히 서서 잠시 말이 없다. 잠깐 그의 옆얼굴을 보다가 작게 말한다. \"오늘… 좀 괜찮아?\"",
+    "NOTE": "H5 A user input reused. Contaminated H5 assistant response is NOT used as history."
+  },
+  "A": {
+    "fixture": "adult_standard",
+    "character_id": 18,
+    "character_name": "라이크",
+    "is_adult_mode": true,
+    "adult_handoff_enabled": true,
+    "adult_consent_mode": "standard",
+    "nsfw": true,
+    "text": "문을 닫고 가까이 다가온다. 합의된 성인 장면을 이어간다. 옷을 천천히 벗기며 키스한다.",
+    "NOTE": "H5 C user input reused. Contaminated/completed H5 assistant response is NOT used as history. Direct DeepSeek primary assembly, not Gemini handoff packet."
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "PR": 455,
+  "DO_NOT_RESTORE_DEEPSEEK_LENGTH_SINGLE_CALL_BLOCK": true,
+  "GEMINI_SOURCE_TRUE_NONTHINKING_BASELINE": {
+    "VISIBLE_CHARS": [1339, 2258, 2159],
+    "REASONING_STREAM_SEEN": [false, false, false],
+    "cells": [
+      "DS0813_GEMINI31_TRUE_NONTHINKING_1",
+      "DS0813_GEMINI31_TRUE_NONTHINKING_2",
+      "DS0813_GEMINI31_TRUE_NONTHINKING_3"
+    ],
+    "source": "PR #455 true-nonthinking/TRUE_NONTHINKING_RUNTIME.json"
+  },
+  "HISTORICAL_LENGTH_RESCUE": {
+    "VISIBLE_CHARS": [3893, 4939, 3821],
+    "REASONING_STREAM_SEEN": [true, true, true],
+    "REASONING_TEXT_CHARS": [8008, 9588, 819],
+    "source": "PR #455 length-rescue/LENGTH_RESCUE_RUNTIME.json"
+  },
+  "HISTORICAL_LENGTH_RESCUE_END_TO_END_EFFECT_OBSERVED": true,
+  "HISTORICAL_LENGTH_BLOCK_EFFECT_UNDER_TRUE_ZERO_REASONING_PROVEN": false,
+  "OPUS_SOURCE_TRUE_ZERO_REASONING_DEEPSEEK": {
+    "VISIBLE_CHARS_SAMPLE_ORDER": [4136, 3884, 3721],
+    "VISIBLE_CHARS_AS_STATED": [3721, 4136, 3884],
+    "REASONING_STREAM_SEEN": [false, false, false],
+    "cells": [
+      "DS0813_OPUS_TRUE_NONTHINKING_1",
+      "DS0813_OPUS_TRUE_NONTHINKING_2",
+      "DS0813_OPUS_TRUE_NONTHINKING_3"
+    ],
+    "NOTE": "Evidence that previous assistant/history shape can materially affect DeepSeek output length. No exact causality claimed."
+  }
+}

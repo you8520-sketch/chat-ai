@@ -1,0 +1,18 @@
+{
+  "R": {
+    "RECENT_ASSISTANT_COUNT": 1,
+    "RECENT_ASSISTANT_AVG_NO_WS": 425,
+    "SHORT_HISTORY_AVG_NO_WS_THRESHOLD": 2200,
+    "SHORT_HISTORY_TRIGGERED": true,
+    "PRODUCTION_RESOLVER_RETURNS_ENV_HEAVY_BLOCK": true,
+    "NOTE": "Trigger uses existing resolver. Candidate D wording is injected only by this harness."
+  },
+  "A": {
+    "RECENT_ASSISTANT_COUNT": 1,
+    "RECENT_ASSISTANT_AVG_NO_WS": 988,
+    "SHORT_HISTORY_AVG_NO_WS_THRESHOLD": 2200,
+    "SHORT_HISTORY_TRIGGERED": true,
+    "PRODUCTION_RESOLVER_RETURNS_ENV_HEAVY_BLOCK": true,
+    "NOTE": "Trigger uses existing resolver. Candidate D wording is injected only by this harness."
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "BASE_MAIN_SHA": "98f8111a6e81ad9551c3c9c5777032e40f7b4b3d",
+  "DENSE_INTERNAL_SOURCE_SHA": "91be35edc3adbe790452ec9420dc7b28e3e6c97a",
+  "DENSE_INTERNAL_TEXT_SHA": "905c197657f417036224e218c85c3d03533f880bb0322c2823fa0124decfe589",
+  "CANDIDATE": "D",
+  "ONLY_PROMPT_VARIABLE": "DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA_DENSE_INTERNAL",
+  "fixtures": {
+    "R": {
+      "USER_TAIL_COUNT": 1,
+      "USER_TAIL_IN_SYSTEM": 0,
+      "DENSE_SHORT_HISTORY_COUNT": 1,
+      "DENSE_IN_SYSTEM": 0,
+      "ENV_HEAVY_SHORT_HISTORY_COUNT": 0,
+      "SYSTEM_LENGTH_ADAPTER_COUNT": 0,
+      "HISTORICAL_SINGLE_CALL_COUNT": 0,
+      "USER_TAIL_TERMINAL": true,
+      "ORDER_OK": true,
+      "trigger": {
+        "RECENT_ASSISTANT_COUNT": 1,
+        "RECENT_ASSISTANT_AVG_NO_WS": 425,
+        "SHORT_HISTORY_AVG_NO_WS_THRESHOLD": 2200,
+        "SHORT_HISTORY_TRIGGERED": true,
+        "PRODUCTION_RESOLVER_RETURNS_ENV_HEAVY_BLOCK": true,
+        "NOTE": "Trigger uses existing resolver. Candidate D wording is injected only by this harness."
+      },
+      "SYSTEM_SHA": "8bd6cd21a793b03a818df2f88b4352a6c024c7585667bc0d8773d84d31d61212",
+      "HISTORY_SHA": "cb8894f0598712f6f508c189a21b85c01d9b10f0de3db4533ee6dca7656c37cc",
+      "CURRENT_USER_SHA": "66a4d82ec8cfd537472f78c0361173677896d94b95c449a8aa6570f5f79fd650",
+      "PRODUCTION_CURRENT_USER_SHA": "1fcca4740997c4e2add03619c49886bd70026b8b2eabf1f4b5e68f603043577c",
+      "PR555_ARM_A_SYSTEM_SHA_MATCH": true,
+      "PR555_ARM_A_HISTORY_SHA_MATCH": true,
+      "PR555_ARM_A_PRODUCTION_USER_SHA_MATCH": true,
+      "thinking": {
+        "type": "disabled"
+      },
+      "reasoning_effort": null
+    },
+    "A": {
+      "USER_TAIL_COUNT": 1,
+      "USER_TAIL_IN_SYSTEM": 0,
+      "DENSE_SHORT_HISTORY_COUNT": 1,
+      "DENSE_IN_SYSTEM": 0,
+      "ENV_HEAVY_SHORT_HISTORY_COUNT": 0,
+      "SYSTEM_LENGTH_ADAPTER_COUNT": 0,
+      "HISTORICAL_SINGLE_CALL_COUNT": 0,
+      "USER_TAIL_TERMINAL": true,
+      "ORDER_OK": true,
+      "trigger": {
+        "RECENT_ASSISTANT_COUNT": 1,
+        "RECENT_ASSISTANT_AVG_NO_WS": 988,
+        "SHORT_HISTORY_AVG_NO_WS_THRESHOLD": 2200,
+        "SHORT_HISTORY_TRIGGERED": true,
+        "PRODUCTION_RESOLVER_RETURNS_ENV_HEAVY_BLOCK": true,
+        "NOTE": "Trigger uses existing resolver. Candidate D wording is injected only by this harness."
+      },
+      "SYSTEM_SHA": "01cd8ec380ce4f5cd1759c73869536258c99cbd0d55e3dfe28e2f6c2ef787ee6",
+      "HISTORY_SHA": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+      "CURRENT_USER_SHA": "6202957c2f5058592cba33e289c09e875f5180d2accf5fdf6bf7a7fc4d1984c4",
+      "PRODUCTION_CURRENT_USER_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+      "PR555_ARM_A_SYSTEM_SHA_MATCH": true,
+      "PR555_ARM_A_HISTORY_SHA_MATCH": true,
+      "PR555_ARM_A_PRODUCTION_USER_SHA_MATCH": true,
+      "thinking": {
+        "type": "disabled"
+      },
+      "reasoning_effort": null
+    }
+  }
+}
