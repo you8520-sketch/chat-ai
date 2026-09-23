@@ -1,0 +1,45 @@
+name: Validate ops inbox
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/adminOpsInbox.ts"
+      - "src/lib/adminOpsInboxShared.ts"
+      - "src/lib/adminOpsInbox.test.ts"
+      - "src/lib/schedulerDefinitions.ts"
+      - "src/lib/schedulerRunRegistry.ts"
+      - "src/lib/schedulerRunShared.ts"
+      - "src/lib/payoutTransferAttempts.ts"
+      - "src/lib/pointChargeRefundAttempts.ts"
+      - "src/lib/pointChargeRefundShared.ts"
+      - "src/app/admin/ops/**"
+      - "src/app/settings/SettingsClient.tsx"
+      - ".github/workflows/validate-ops-inbox.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SESSION_SECRET: "01234567890123456789012345678901"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Diff hygiene
+        run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+      - name: App typecheck
+        run: npm run typecheck:app
+      - name: Ops inbox regression
+        run: node --conditions=react-server --import tsx --test src/lib/adminOpsInbox.test.ts
+      - name: Production build
+        run: npm run build

@@ -170,6 +170,12 @@ export default function SettingsClient({ user, pendingCommentReviews = 0 }: Prop
               신고 댓글 관리{pendingCommentReviews > 0 ? ` (${pendingCommentReviews})` : ""}
             </Link>
             <Link
+              href="/admin/ops"
+              className={SETTINGS_ACTION_LINK_CLASS}
+            >
+              운영 예외함
+            </Link>
+            <Link
               href="/admin/payout"
               className={SETTINGS_ACTION_LINK_CLASS}
             >
