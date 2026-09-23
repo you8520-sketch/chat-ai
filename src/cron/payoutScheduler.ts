@@ -9,8 +9,8 @@ import {
   resolveSchedulerSlot,
   runDurableScheduledJob,
   shouldAttemptBootRecovery,
-  type SchedulerTriggerKind,
 } from "@/lib/schedulerRunRegistry";
+import type { SchedulerTriggerKind } from "@/lib/schedulerRunShared";
 
 export { PAYOUT_CRON_EXPRESSION, PAYOUT_TIMEZONE };
 
