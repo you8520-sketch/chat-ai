@@ -17,6 +17,10 @@ import {
   buildCheaperInferenceHeaders,
   resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
+import {
+  CACHE_RATE_PROVENANCE_INPUT_FALLBACK,
+  CACHE_RATE_PROVENANCE_REPORTED,
+} from "@/lib/modelPricingTrackingConfig";
 
 const CATALOG_TTL_MS = 60_000;
 
@@ -64,10 +68,24 @@ export function parseCatalogPricing(model: CatalogModel, fetchedAt: number): Che
   const outputUsdPerMillion = positiveNumber(pricing.output_per_million);
   if (inputUsdPerMillion == null || outputUsdPerMillion == null) return null;
 
+  const reportedCacheReadUsdPerMillion = positiveNumber(
+    pricing.cache_read_input_per_million
+  );
+  const reportedCacheWriteUsdPerMillion = positiveNumber(
+    pricing.cache_write_input_per_million
+  );
   const cacheReadUsdPerMillion =
-    positiveNumber(pricing.cache_read_input_per_million) ?? inputUsdPerMillion * 0.1;
+    reportedCacheReadUsdPerMillion ?? inputUsdPerMillion * 0.1;
   const cacheWriteUsdPerMillion =
-    positiveNumber(pricing.cache_write_input_per_million) ?? inputUsdPerMillion;
+    reportedCacheWriteUsdPerMillion ?? inputUsdPerMillion;
+  const cacheReadRateProvenance =
+    reportedCacheReadUsdPerMillion != null
+      ? CACHE_RATE_PROVENANCE_REPORTED
+      : CACHE_RATE_PROVENANCE_INPUT_FALLBACK;
+  const cacheWriteRateProvenance =
+    reportedCacheWriteUsdPerMillion != null
+      ? CACHE_RATE_PROVENANCE_REPORTED
+      : CACHE_RATE_PROVENANCE_INPUT_FALLBACK;
   const discountPercent = positiveNumber(pricing.discount_percent);
   const referenceInputUsdPerMillion = positiveNumber(pricing.reference_input_per_million);
   const referenceCacheReadUsdPerMillion = positiveNumber(pricing.reference_cache_read_input_per_million);
@@ -81,6 +99,8 @@ export function parseCatalogPricing(model: CatalogModel, fetchedAt: number): Che
     inputUsdPerMillion,
     cacheReadUsdPerMillion,
     cacheWriteUsdPerMillion,
+    cacheReadRateProvenance,
+    cacheWriteRateProvenance,
     outputUsdPerMillion,
     ...(referenceInputUsdPerMillion != null ? { referenceInputUsdPerMillion } : {}),
     ...(referenceCacheReadUsdPerMillion != null ? { referenceCacheReadUsdPerMillion } : {}),

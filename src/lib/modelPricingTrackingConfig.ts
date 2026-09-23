@@ -51,11 +51,17 @@ export type PriceSnapshotPricingMode =
   | "unknown";
 
 /**
- * The shared CI catalog parser synthesizes cache rates when the source omits
- * them (`cache_read = input * 0.1`, `cache_write = input`). Phase A cannot
- * distinguish an explicit provider quote from that parser-derived fallback, so
- * prepared/derived cache prices are explicitly UNVERIFIED provenance and cache
- * price auto-application is a Phase B blocker. Live billing keeps its
- * existing resilient-cache fallback behavior unchanged.
+ * CI cache-rate provenance is independent from the effective numeric rate.
+ * Effective fallback arithmetic remains unchanged; this metadata answers only
+ * whether CI explicitly reported the cache price or the parser derived it.
+ *
+ * Historical snapshots written before provenance capture cannot be recovered
+ * reliably, so they stay UNVERIFIED instead of being guessed.
  */
-export const CACHE_RATE_PROVENANCE_UNVERIFIED = "CACHE_RATE_PROVENANCE_UNVERIFIED" as const;
+export const CACHE_RATE_PROVENANCE_REPORTED = "reported" as const;
+export const CACHE_RATE_PROVENANCE_INPUT_FALLBACK = "input_rate_fallback" as const;
+export const CACHE_RATE_PROVENANCE_UNVERIFIED = "unknown_legacy" as const;
+export type CacheRateProvenance =
+  | typeof CACHE_RATE_PROVENANCE_REPORTED
+  | typeof CACHE_RATE_PROVENANCE_INPUT_FALLBACK
+  | typeof CACHE_RATE_PROVENANCE_UNVERIFIED;

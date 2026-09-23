@@ -20,6 +20,10 @@ import type Database from "better-sqlite3";
 import { ensureModelPricingTrackingSchema } from "@/lib/modelPricingTrackingSchema";
 import type { ClassifiedPriceChange } from "@/lib/modelPriceChangeClassifier";
 import type { ModelPriceSnapshotRecord } from "@/lib/modelPriceSnapshot";
+import {
+  CACHE_RATE_PROVENANCE_UNVERIFIED,
+  type CacheRateProvenance,
+} from "@/lib/modelPricingTrackingConfig";
 
 export type TrackerRunRow = {
   id: number;
@@ -185,9 +189,9 @@ export function insertPriceSnapshot(
     `INSERT INTO model_price_snapshots (
       attempt_id, provider, model_id, provider_model_id, pricing_mode, source_kind, source_url,
       input_usd_per_million, output_usd_per_million, cache_read_usd_per_million,
-      cache_write_usd_per_million, tier_threshold, discount_percent,
-      raw_fingerprint, observed_at, valid_from, valid_until
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      cache_write_usd_per_million, cache_read_rate_provenance, cache_write_rate_provenance,
+      tier_threshold, discount_percent, raw_fingerprint, observed_at, valid_from, valid_until
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     attemptId,
     snapshot.provider,
@@ -200,6 +204,8 @@ export function insertPriceSnapshot(
     snapshot.rates.outputUsdPerMillion,
     snapshot.rates.cacheReadUsdPerMillion,
     snapshot.rates.cacheWriteUsdPerMillion,
+    snapshot.cacheReadRateProvenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED,
+    snapshot.cacheWriteRateProvenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED,
     snapshot.rates.tierThreshold,
     snapshot.rates.discountPercent,
     snapshot.rawFingerprint,
@@ -223,7 +229,8 @@ export function readLatestSnapshot(
     .prepare(
       `SELECT s.provider, s.model_id, s.provider_model_id, s.pricing_mode, s.source_kind, s.source_url,
               s.input_usd_per_million, s.output_usd_per_million, s.cache_read_usd_per_million,
-              s.cache_write_usd_per_million, s.tier_threshold, s.discount_percent,
+              s.cache_write_usd_per_million, s.cache_read_rate_provenance, s.cache_write_rate_provenance,
+              s.tier_threshold, s.discount_percent,
               s.raw_fingerprint, s.observed_at, s.valid_from, s.valid_until
        FROM model_price_snapshots s
        JOIN model_pricing_tracker_attempts a ON a.id = s.attempt_id
@@ -243,6 +250,8 @@ export function readLatestSnapshot(
         output_usd_per_million: number | null;
         cache_read_usd_per_million: number | null;
         cache_write_usd_per_million: number | null;
+        cache_read_rate_provenance: CacheRateProvenance | null;
+        cache_write_rate_provenance: CacheRateProvenance | null;
         tier_threshold: number | null;
         discount_percent: number | null;
         raw_fingerprint: string;
@@ -255,6 +264,10 @@ export function readLatestSnapshot(
   if (!row) return null;
   return {
     provider: row.provider,
+    cacheReadRateProvenance:
+      row.cache_read_rate_provenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED,
+    cacheWriteRateProvenance:
+      row.cache_write_rate_provenance ?? CACHE_RATE_PROVENANCE_UNVERIFIED,
     modelId: row.model_id,
     providerModelId: row.provider_model_id,
     pricingMode: row.pricing_mode,

@@ -11,7 +11,8 @@
  * their attempt — a failed attempt's partial evidence is never deleted,
  * overwritten, or reused as a later attempt's previous source truth.
  *
- * Additive schema changes use idempotent CREATE TABLE / CREATE INDEX only.
+ * Additive schema changes use idempotent CREATE TABLE / CREATE INDEX and,
+ * for existing tables, source-backed PRAGMA + ADD COLUMN upgrades.
  */
 
 import type Database from "better-sqlite3";
@@ -61,6 +62,8 @@ export const MODEL_PRICING_TRACKING_DDL = `
     output_usd_per_million REAL,
     cache_read_usd_per_million REAL,
     cache_write_usd_per_million REAL,
+    cache_read_rate_provenance TEXT NOT NULL DEFAULT 'unknown_legacy',
+    cache_write_rate_provenance TEXT NOT NULL DEFAULT 'unknown_legacy',
     tier_threshold INTEGER,
     discount_percent REAL,
     raw_fingerprint TEXT NOT NULL,
@@ -158,6 +161,26 @@ export const MODEL_PRICING_TRACKING_DDL = `
     WHERE review_state = 'OPEN';
 `;
 
-export function ensureModelPricingTrackingSchema(db: Pick<Database.Database, "exec">): void {
+export function ensureModelPricingTrackingSchema(
+  db: Pick<Database.Database, "exec" | "prepare">
+): void {
   db.exec(MODEL_PRICING_TRACKING_DDL);
+
+  const columns = new Set(
+    (
+      db.prepare(`PRAGMA table_info(${MODEL_PRICE_SNAPSHOTS_TABLE})`).all() as Array<{
+        name: string;
+      }>
+    ).map((column) => column.name)
+  );
+  if (!columns.has("cache_read_rate_provenance")) {
+    db.exec(
+      `ALTER TABLE ${MODEL_PRICE_SNAPSHOTS_TABLE} ADD COLUMN cache_read_rate_provenance TEXT NOT NULL DEFAULT 'unknown_legacy'`
+    );
+  }
+  if (!columns.has("cache_write_rate_provenance")) {
+    db.exec(
+      `ALTER TABLE ${MODEL_PRICE_SNAPSHOTS_TABLE} ADD COLUMN cache_write_rate_provenance TEXT NOT NULL DEFAULT 'unknown_legacy'`
+    );
+  }
 }
