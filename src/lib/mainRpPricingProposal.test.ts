@@ -141,6 +141,7 @@ function makeRow(params?: {
     candidate: {
       domain: "CANDIDATE",
       status,
+      commercialPricingOwner: "target_margin",
       currentTargetMargin: published.targetMargin,
       minimumSafeTargetMargin: params?.minimumSafe ?? published.minimumMarginFloor,
       maximumCompetitiveTargetMargin: params?.maximumCompetitive ?? 0.5,
