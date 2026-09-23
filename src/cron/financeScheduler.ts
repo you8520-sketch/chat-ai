@@ -2,6 +2,8 @@ import cron, { type ScheduledTask } from "node-cron";
 import { saveDailyFinanceSnapshot, currentKstMonthKey, monthRangeSql } from "@/lib/adminFinance";
 import { getDb } from "@/lib/db";
 import { runModelPricingTracker } from "@/lib/modelPricingTracker";
+import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
+import { syncMainRpPricingCandidateRecords } from "@/lib/mainRpPricingProposal";
 import { reconcileCheaperInferenceUsage } from "@/lib/providerCostReconciliation";
 import {
   SCHEDULER_RECOVERY_POLL_MS,
@@ -59,6 +61,16 @@ async function executeFinanceSnapshot(slotKey: string) {
         eventCount: pricingResult.eventCount,
         marginFloorBreaches: pricingResult.marginFloorBreaches,
       });
+      if (pricingResult.status !== "failed") {
+        const proposalDb = getDb();
+        const projection = buildMainRpPricingObservabilityProjection({ db: proposalDb });
+        const proposalSync = syncMainRpPricingCandidateRecords(
+          proposalDb,
+          projection.models,
+          projection.generatedAt
+        );
+        console.log("[finance-scheduler] pricing candidate history", proposalSync);
+      }
     } catch (pricingError) {
       console.error("[finance-scheduler] model pricing tracker failed:", pricingError);
     }

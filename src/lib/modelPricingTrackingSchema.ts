@@ -11,8 +11,7 @@
  * their attempt — a failed attempt's partial evidence is never deleted,
  * overwritten, or reused as a later attempt's previous source truth.
  *
- * This schema has never been deployed (draft PR), so it is replaced directly
- * instead of carrying compatibility shims.
+ * Additive schema changes use idempotent CREATE TABLE / CREATE INDEX only.
  */
 
 import type Database from "better-sqlite3";
@@ -22,6 +21,7 @@ export const MODEL_PRICING_TRACKER_RUNS_TABLE = "model_pricing_tracker_runs";
 export const MODEL_PRICING_TRACKER_ATTEMPTS_TABLE = "model_pricing_tracker_attempts";
 export const MODEL_PRICE_CHANGE_EVENTS_TABLE = "model_price_change_events";
 export const MODEL_PRICING_ADMIN_EVENTS_TABLE = "model_pricing_admin_events";
+export const MODEL_PRICING_CANDIDATE_RECORDS_TABLE = "model_pricing_candidate_records";
 
 export const MODEL_PRICING_TRACKING_DDL = `
   CREATE TABLE IF NOT EXISTS model_pricing_tracker_runs (
@@ -113,6 +113,47 @@ export const MODEL_PRICING_TRACKING_DDL = `
   );
   CREATE INDEX IF NOT EXISTS idx_model_pricing_admin_events_created
     ON model_pricing_admin_events(created_at DESC);
+
+
+  CREATE TABLE IF NOT EXISTS model_pricing_candidate_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    model_id TEXT NOT NULL,
+    candidate_fingerprint TEXT NOT NULL,
+    candidate_status TEXT NOT NULL,
+    candidate_direction TEXT NOT NULL,
+    review_state TEXT NOT NULL
+      CHECK(review_state IN ('NOT_REVIEWABLE','OPEN','APPROVED','REJECTED','SUPERSEDED')),
+    base_pricing_version INTEGER NOT NULL,
+    base_target_margin REAL NOT NULL,
+    proposed_target_margin REAL,
+    minimum_safe_target_margin REAL,
+    maximum_competitive_target_margin REAL,
+    live_applicability TEXT NOT NULL,
+    production_billing_contract TEXT NOT NULL,
+    procurement_freshness TEXT NOT NULL,
+    actual_signal TEXT NOT NULL,
+    actual_month_key TEXT,
+    actual_margin_rate REAL,
+    actual_exact INTEGER NOT NULL DEFAULT 0,
+    hard_benchmark_count INTEGER NOT NULL DEFAULT 0,
+    evidence_json TEXT NOT NULL DEFAULT '{}',
+    first_observed_at TEXT NOT NULL,
+    last_observed_at TEXT NOT NULL,
+    observation_count INTEGER NOT NULL DEFAULT 1,
+    reviewed_at TEXT,
+    reviewed_by_user_id INTEGER,
+    review_note TEXT NOT NULL DEFAULT '',
+    superseded_reason TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_model_pricing_candidate_records_model
+    ON model_pricing_candidate_records(model_id, id DESC);
+  CREATE INDEX IF NOT EXISTS idx_model_pricing_candidate_records_review
+    ON model_pricing_candidate_records(review_state, id DESC);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_model_pricing_candidate_records_one_open
+    ON model_pricing_candidate_records(model_id)
+    WHERE review_state = 'OPEN';
 `;
 
 export function ensureModelPricingTrackingSchema(db: Pick<Database.Database, "exec">): void {

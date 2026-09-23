@@ -69,6 +69,7 @@ import {
 } from "@/lib/gemini37PricingPolicy";
 import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
 import { MainRpPricingControlPlaneSection } from "@/components/admin/MainRpPricingControlPlaneSection";
+import { listMainRpPricingCandidateRecords } from "@/lib/mainRpPricingProposal";
 
 function PremiumModelPolicyHeader(props: {
   title: string;
@@ -403,6 +404,7 @@ export default async function AdminPricingPage() {
   const gemini31FxMatrix = buildPremiumFxSensitivity({ modelId: GEMINI31_MODEL_ID, published: GEMINI31_V2_PROPOSED });
   const opus5FxMatrix = buildPremiumFxSensitivity({ modelId: OPUS5_MODEL_ID, published: OPUS5_V2_PROPOSED });
   const mainRpControlPlane = buildMainRpPricingObservabilityProjection({ db });
+  const pricingCandidateRecords = listMainRpPricingCandidateRecords(db, 50);
 
   return (
     <div className="mx-auto max-w-6xl p-6 text-sm text-zinc-100">
@@ -412,7 +414,10 @@ export default async function AdminPricingPage() {
         sections below labeled shadow are calibration-only and do not override production charge.
         CI catalog discount is procurement, not site promotion.
       </p>
-      <MainRpPricingControlPlaneSection projection={mainRpControlPlane} />
+      <MainRpPricingControlPlaneSection
+        projection={mainRpControlPlane}
+        candidateRecords={pricingCandidateRecords}
+      />
       <section className="mt-6">
         <h2 className="font-semibold">Published Catalog</h2>
         <table className="mt-2 w-full border-collapse text-xs">

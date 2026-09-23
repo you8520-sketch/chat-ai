@@ -10,6 +10,8 @@ import {
   formatActualFreePointSpend,
   type ActualProductionCostEvidence,
 } from "@/lib/mainRpPricingActualEconomics";
+import type { MainRpPricingCandidateRecord } from "@/lib/mainRpPricingProposal";
+import { MainRpPricingProposalReviewButtons } from "@/components/admin/MainRpPricingProposalReviewButtons";
 
 function formatPct(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return "UNKNOWN";
@@ -289,10 +291,93 @@ function ModelControlPlaneCard(props: { row: MainRpPricingObservabilityRow }) {
   );
 }
 
+function formatProposalMargin(value: number | null): string {
+  if (value == null) return "—";
+  return `${(value * 100).toFixed(2)}%`;
+}
+
+function CandidateProposalHistory(props: {
+  records: readonly MainRpPricingCandidateRecord[];
+}) {
+  if (props.records.length === 0) {
+    return (
+      <div className="mt-4 rounded border border-white/10 p-3 text-xs text-zinc-500">
+        Candidate history is empty. Records are created by the daily finance/pricing scheduler after a completed pricing-tracker observation.
+      </div>
+    );
+  }
+  return (
+    <div className="mt-4 overflow-x-auto rounded border border-cyan-500/20">
+      <div className="border-b border-white/10 bg-cyan-950/10 p-3">
+        <h3 className="font-medium text-cyan-100">Candidate history / review records</h3>
+        <p className="mt-1 text-xs text-zinc-500">
+          APPROVED records review intent only. No action on this table changes Published pricing or live billing.
+        </p>
+      </div>
+      <table className="w-full min-w-[1100px] border-collapse text-xs">
+        <thead>
+          <tr className="border-b border-white/10 text-left text-zinc-400">
+            <th className="p-2">state</th>
+            <th className="p-2">model</th>
+            <th className="p-2">candidate</th>
+            <th className="p-2">band</th>
+            <th className="p-2">evidence</th>
+            <th className="p-2">observed</th>
+            <th className="p-2">review</th>
+          </tr>
+        </thead>
+        <tbody>
+          {props.records.map((record) => (
+            <tr key={record.id} className="border-b border-white/5 align-top">
+              <td className="p-2">
+                <div className="font-medium text-zinc-200">{record.reviewState}</div>
+                <div className="text-zinc-500">{record.candidateStatus}</div>
+              </td>
+              <td className="p-2">
+                <div>{record.modelId}</div>
+                <div className="text-zinc-500">base v{record.basePricingVersion}</div>
+              </td>
+              <td className="p-2">
+                <div>{record.candidateDirection}</div>
+                <div className="text-zinc-500">
+                  {formatProposalMargin(record.baseTargetMargin)} → {formatProposalMargin(record.proposedTargetMargin)}
+                </div>
+              </td>
+              <td className="p-2 text-zinc-400">
+                {formatProposalMargin(record.minimumSafeTargetMargin)} — {formatProposalMargin(record.maximumCompetitiveTargetMargin)}
+              </td>
+              <td className="p-2 text-zinc-400">
+                <div>{record.procurementFreshness} · {record.actualSignal}</div>
+                <div>{record.liveApplicability}</div>
+                <div>{record.hardBenchmarkCount} hard benchmark(s)</div>
+              </td>
+              <td className="p-2 text-zinc-400">
+                <div>{record.lastObservedAt}</div>
+                <div>count {record.observationCount}</div>
+              </td>
+              <td className="p-2">
+                {record.reviewState === "OPEN" ? (
+                  <MainRpPricingProposalReviewButtons proposalId={record.id} />
+                ) : (
+                  <div className="text-zinc-500">
+                    <div>{record.reviewedAt ?? record.supersededReason ?? "—"}</div>
+                    {record.reviewNote ? <div className="mt-1">{record.reviewNote}</div> : null}
+                  </div>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function MainRpPricingControlPlaneSection(props: {
   projection: MainRpPricingObservabilityProjection;
+  candidateRecords: readonly MainRpPricingCandidateRecord[];
 }) {
-  const { projection } = props;
+  const { projection, candidateRecords } = props;
   return (
     <section className="mt-6">
       <h2 className="font-semibold text-violet-100">Main RP Control Plane (read-only)</h2>
@@ -300,6 +385,7 @@ export function MainRpPricingControlPlaneSection(props: {
         Semantic domains — MARKET / PROVIDER / PROCUREMENT / PRODUCT / PROMOTION / REPRESENTATIVE / ACTUAL / CANDIDATE.
         OBSERVE_ONLY tracker · actual economics {projection.actualEconomicsMonthKey ?? "unavailable"} · generated {projection.generatedAt}
       </p>
+      <CandidateProposalHistory records={candidateRecords} />
       <div className="mt-4 space-y-4">
         {projection.models.map((row) => (
           <ModelControlPlaneCard key={row.modelId} row={row} />
