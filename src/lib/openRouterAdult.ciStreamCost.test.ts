@@ -40,6 +40,58 @@ function sseResponse(chunks: string[], headers: Record<string, string> = {}): Re
 }
 
 describe("CheaperInference exact cost — synthetic compatibility (not Main live contract)", () => {
+  it("CI 402 insufficient_balance is attributed to CheaperInference, never OpenRouter", async () => {
+    const previousFetch = globalThis.fetch;
+    const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          error: {
+            message: "Insufficient wallet balance for this request.",
+            type: "invalid_request_error",
+            code: "insufficient_balance",
+          },
+        }),
+        {
+          status: 402,
+          statusText: "Payment Required",
+          headers: { "Content-Type": "application/json" },
+        }
+      )) as typeof fetch;
+
+    try {
+      const gen = streamOpenRouterAdult(
+        "system",
+        [{ role: "user", content: "hello" }],
+        "claude-opus-5.5",
+        3200,
+        {
+          allowOpenRouterUnderLengthRecovery: false,
+          skipAssistantPrefill: true,
+          transportProvider: "cheaperinference",
+        }
+      );
+
+      await assert.rejects(
+        async () => {
+          await gen.next();
+        },
+        (error: unknown) => {
+          assert.ok(error instanceof Error);
+          assert.match(error.message, /CheaperInference API/);
+          assert.match(error.message, /insufficient_balance/);
+          assert.doesNotMatch(error.message, /OpenRouter API 크레딧/);
+          return true;
+        }
+      );
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+    }
+  });
+
   it("[SYNTHETIC] stream fixture with cheaper_inference.billing.billed_cost_usd envelope", async () => {
     const previousFetch = globalThis.fetch;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
