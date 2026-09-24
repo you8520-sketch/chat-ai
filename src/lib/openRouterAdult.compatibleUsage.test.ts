@@ -13,6 +13,7 @@ import {
   callOpenRouterAdult,
 } from "./openRouterAdult";
 import { SCENE_FLOW_BLOCK } from "./generationProcessBeatFlow";
+import { applyProductionServerControlsToMessages } from "./scenePacingController";
 import { parseCompatibleUsage } from "./openRouterUsage";
 import { tokenUsageFromOpenRouterBreakdown } from "./openRouterUsage";
 
@@ -207,6 +208,21 @@ test("[SYNTHETIC] CI Anthropic scene controls preserve static/dynamic cache boun
   assert.equal(
     blocks[2]!.text,
     "[DYNAMIC]\nMemory and current-turn state change here."
+  );
+
+  const semanticReference = applyProductionServerControlsToMessages({
+    messages: [
+      { role: "system", content: system },
+      ...history.map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
+    ],
+    ...messageOpts.sceneServerControls,
+  });
+  assert.equal(
+    blocks.map((block) => block.text).join("\n\n"),
+    semanticReference.messages[0]?.content
   );
 
   const cachedHistoryMessages = wireMessages
