@@ -5,7 +5,15 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { streamOpenRouterAdult, callOpenRouterAdult } from "./openRouterAdult";
+import {
+  applyCacheAndPrefillForTransport,
+  assemblePrimaryRpRequest,
+  buildOpenRouterMessages,
+  streamOpenRouterAdult,
+  callOpenRouterAdult,
+} from "./openRouterAdult";
+import { SCENE_FLOW_BLOCK } from "./generationProcessBeatFlow";
+import { applyProductionServerControlsToMessages } from "./scenePacingController";
 import { parseCompatibleUsage } from "./openRouterUsage";
 import { tokenUsageFromOpenRouterBreakdown } from "./openRouterUsage";
 
@@ -119,4 +127,110 @@ test("[SYNTHETIC] callOpenRouterAdult non-stream uses parseCompatibleUsage envel
     if (previousKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
     else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
   }
+});
+
+
+test("[SYNTHETIC] CI Anthropic scene controls preserve static/dynamic cache boundaries", () => {
+  const systemSplit = {
+    systemRulesBlock: `[RULES]\n${SCENE_FLOW_BLOCK}\n[RULES END]`,
+    characterSettingsBlock: "[CHARACTER STATIC]\nHero is consistent.",
+    dynamicBlock: "[DYNAMIC]\nMemory and current-turn state change here.",
+  };
+  const system = [
+    systemSplit.systemRulesBlock,
+    systemSplit.characterSettingsBlock,
+    systemSplit.dynamicBlock,
+  ].join("\n\n");
+  const history = [
+    { role: "user" as const, content: "u1" },
+    { role: "assistant" as const, content: "a1" },
+    { role: "user" as const, content: "u2" },
+    { role: "assistant" as const, content: "a2" },
+    { role: "user" as const, content: "current user turn" },
+  ];
+
+  const messageOpts = {
+    transportProvider: "cheaperinference" as const,
+    skipAssistantPrefill: true,
+    systemSplit,
+    sceneServerControls: {
+      mode: "interactive" as const,
+      contentKind: "character" as const,
+      primaryCharacterName: "Hero",
+      currentUserMessage: "current user turn",
+      recentMessages: history,
+      currentTurn: 5,
+    },
+  };
+  const baseMessages = buildOpenRouterMessages(system, history, messageOpts);
+  const preCachedMessages = applyCacheAndPrefillForTransport(
+    { provider: "cheaperinference" },
+    baseMessages,
+    "claude-opus-5.5",
+    "Hero",
+    { skipAssistantPrefill: true }
+  ).messages;
+
+  const assembled = assemblePrimaryRpRequest({
+    system,
+    history,
+    modelId: "claude-opus-5.5",
+    targetResponseChars: 800,
+    messageOpts,
+    messagesOverride: preCachedMessages,
+  });
+
+  const wireMessages = assembled.requestBody.messages as Array<{
+    role: string;
+    content:
+      | string
+      | Array<{
+          type: "text";
+          text: string;
+          cache_control?: { type: "ephemeral" };
+        }>;
+  }>;
+  const systemMessage = wireMessages[0];
+  assert.equal(systemMessage?.role, "system");
+  assert.ok(Array.isArray(systemMessage?.content));
+
+  const blocks = systemMessage!.content as Array<{
+    type: "text";
+    text: string;
+    cache_control?: { type: "ephemeral" };
+  }>;
+  assert.equal(blocks.length, 3);
+  assert.equal(blocks[0]?.cache_control?.type, "ephemeral");
+  assert.equal(blocks[1]?.cache_control?.type, "ephemeral");
+  assert.equal(blocks[2]?.cache_control, undefined);
+  assert.match(blocks[0]!.text, /\[SCENE PACING\]/);
+  assert.doesNotMatch(blocks[0]!.text, /\[SCENE FLOW\]/);
+  assert.equal(
+    blocks[2]!.text,
+    "[DYNAMIC]\nMemory and current-turn state change here."
+  );
+
+  const semanticReference = applyProductionServerControlsToMessages({
+    messages: [
+      { role: "system", content: system },
+      ...history.map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
+    ],
+    ...messageOpts.sceneServerControls,
+  });
+  assert.equal(
+    blocks.map((block) => block.text).join("\n\n"),
+    semanticReference.messages[0]?.content
+  );
+
+  const cachedHistoryMessages = wireMessages
+    .slice(1)
+    .filter(
+      (message) =>
+        Array.isArray(message.content) &&
+        message.content.some((block) => block.cache_control?.type === "ephemeral")
+    );
+  assert.equal(cachedHistoryMessages.length, 1);
 });

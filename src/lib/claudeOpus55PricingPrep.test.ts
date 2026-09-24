@@ -70,9 +70,21 @@ describe("Claude Opus 5.5 prep registry", () => {
 });
 
 describe("Opus 5.5 cache and reasoning evidence", () => {
-  it("records UNVERIFIED runtime cache stages in audit ledger", () => {
-    const unverified = OPUS55_CACHE_PATH_AUDIT.filter((row) => row.status === "UNVERIFIED");
-    assert.ok(unverified.length >= 3);
+  it("records production transport/read/write/hit proof while billed-USD saving stays UNVERIFIED", () => {
+    const byStage = new Map(OPUS55_CACHE_PATH_AUDIT.map((row) => [row.stage, row.status]));
+    assert.equal(
+      byStage.get("CheaperInference request body (cache_control passthrough)"),
+      "VERIFIED"
+    );
+    assert.equal(
+      byStage.get("CI response usage cache_read / cache_write fields"),
+      "VERIFIED"
+    );
+    assert.equal(byStage.get("Sequential cache hit evidence"), "VERIFIED");
+    assert.equal(
+      byStage.get("Cache hit → procurement cost decrease"),
+      "UNVERIFIED"
+    );
   });
 
   it("reasoning contract documents UNVERIFIED Opus 5.5 direct proof", () => {

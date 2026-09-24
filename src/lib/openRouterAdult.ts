@@ -886,8 +886,8 @@ export function buildOpenRouterMessages(
  * 캐싱 (OpenRouter 규격):
  * 1. system — string content → [{ type:"text", text, cache_control:{ type:"ephemeral" } }]
  *    systemSplit 경로는 buildOpenRouterCachedSystemContent에서 이미 블록별 cache_control 적용.
- * 2. history — 마지막 user 턴 직전 메시지(뒤에서 2번째)에 동일 cache_control 적용 →
- *    과거 대화 prefix 전체가 캐시 breakpoint로 묶여 cache_read 90% 할인.
+ * 2. history — 최근 tail을 제외한 안정된 과거 메시지 끝에 동일 cache_control 적용 →
+ *    과거 대화 prefix가 cache breakpoint로 묶여 재사용된다.
  *
  * 프리필: 마지막 user 메시지 뒤에 캐릭터 이름만 assistant content로 붙인다 (조사·공백 없음).
  *
@@ -1175,6 +1175,139 @@ function requestBodyKeyDiff(
   };
 }
 
+
+function commonPrefixLength(a: string, b: string): number {
+  const limit = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < limit && a.charCodeAt(i) === b.charCodeAt(i)) i += 1;
+  return i;
+}
+
+function commonSuffixLength(a: string, b: string, prefixLength: number): number {
+  const limit = Math.min(a.length, b.length) - prefixLength;
+  let i = 0;
+  while (
+    i < limit &&
+    a.charCodeAt(a.length - 1 - i) === b.charCodeAt(b.length - 1 - i)
+  ) {
+    i += 1;
+  }
+  return i;
+}
+
+/**
+ * Re-project a string-only server-control transform back onto the original
+ * structured content blocks when the mutation is contained in one block.
+ *
+ * This preserves cache_control ownership for unaffected blocks. If a future
+ * transform crosses a block boundary, fall back to the old flattened content
+ * rather than risk changing prompt semantics.
+ */
+function reprojectControlledTextOntoStructuredContent(
+  original: OpenRouterContentBlock[],
+  beforeFlat: string,
+  afterFlat: string
+): string | OpenRouterContentBlock[] {
+  if (beforeFlat === afterFlat) return original;
+
+  const prefixLength = commonPrefixLength(beforeFlat, afterFlat);
+  const suffixLength = commonSuffixLength(beforeFlat, afterFlat, prefixLength);
+  const beforeChangeEnd = beforeFlat.length - suffixLength;
+  const afterChangeEnd = afterFlat.length - suffixLength;
+  const replacement = afterFlat.slice(prefixLength, afterChangeEnd);
+
+  const separatorLength = 2; // flattenOpenRouterMessageContent joins blocks with "\n\n".
+  let cursor = 0;
+  let targetIndex = -1;
+  let targetStart = 0;
+  let targetEnd = 0;
+
+  for (let i = 0; i < original.length; i += 1) {
+    const block = original[i]!;
+    const start = cursor;
+    const end = start + block.text.length;
+    if (prefixLength >= start && beforeChangeEnd <= end) {
+      targetIndex = i;
+      targetStart = start;
+      targetEnd = end;
+      break;
+    }
+    cursor = end + (i < original.length - 1 ? separatorLength : 0);
+  }
+
+  if (targetIndex < 0) {
+    console.warn(
+      "[OPENROUTER CACHE] server-control transform crossed structured cache boundary; using semantic-safe flattened fallback"
+    );
+    return afterFlat;
+  }
+
+  const target = original[targetIndex]!;
+  const localStart = Math.max(0, Math.min(target.text.length, prefixLength - targetStart));
+  const localEnd = Math.max(
+    localStart,
+    Math.min(target.text.length, beforeChangeEnd - targetStart)
+  );
+
+  // Defensive span assertion: a mapped mutation must never consume a separator.
+  if (beforeChangeEnd > targetEnd) {
+    console.warn(
+      "[OPENROUTER CACHE] invalid structured transform span; using semantic-safe flattened fallback"
+    );
+    return afterFlat;
+  }
+
+  return original.map((block, i) =>
+    i === targetIndex
+      ? {
+          ...block,
+          text:
+            block.text.slice(0, localStart) +
+            replacement +
+            block.text.slice(localEnd),
+        }
+      : block
+  );
+}
+
+function applyProductionServerControlsPreservingCacheBoundaries(
+  messages: OpenRouterChatMessage[],
+  controls: NonNullable<OpenRouterMessageOpts["sceneServerControls"]>
+): OpenRouterChatMessage[] {
+  const flatBefore = messages.map((m) => ({
+    role: m.role,
+    content: flattenOpenRouterMessageContent(m.content),
+  }));
+  const applied = applyProductionServerControlsToMessages({
+    messages: flatBefore,
+    ...controls,
+  });
+
+  return applied.messages.map((message, index) => {
+    const original = messages[index];
+    const before = flatBefore[index];
+    if (!original || !before) {
+      return {
+        role: message.role as "system" | "user" | "assistant",
+        content: message.content,
+      };
+    }
+
+    const content = Array.isArray(original.content)
+      ? reprojectControlledTextOntoStructuredContent(
+          original.content,
+          before.content,
+          message.content
+        )
+      : message.content;
+
+    return {
+      role: message.role as "system" | "user" | "assistant",
+      content,
+    };
+  });
+}
+
 /**
  * Shared primary RP wire assembler (production stream + parity harness).
  * Builds messages via buildOpenRouterMessages, then OpenRouter request body,
@@ -1211,18 +1344,10 @@ export function assemblePrimaryRpRequest(opts: {
     buildOpenRouterMessages(opts.system, opts.history, opts.messageOpts);
   const controls = opts.messageOpts?.sceneServerControls;
   if (controls) {
-    const flat = messages.map((m) => ({
-      role: m.role,
-      content: flattenOpenRouterMessageContent(m.content),
-    }));
-    const applied = applyProductionServerControlsToMessages({
-      messages: flat,
-      ...controls,
-    });
-    messages = applied.messages.map((m) => ({
-      role: m.role as "system" | "user" | "assistant",
-      content: m.content,
-    }));
+    messages = applyProductionServerControlsPreservingCacheBoundaries(
+      messages,
+      controls
+    );
   }
   if (transport.provider === "cheaperinference") {
     messages = applyCacheAndPrefillForTransport(
@@ -1306,8 +1431,8 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   // no automatic second provider request (retry, repair, non-stream fallback).
   const skipAssistantPrefill = messageOpts?.skipAssistantPrefill === true;
 
-    // Claude(Anthropic): system 블록 캐싱 + assistant prefill (그 외 모델은 no-op)
-    // Cheaper Inference Anthropic은 history cache breakpoint만 적용한다.
+    // Claude(Anthropic): structured system cache blocks + history breakpoint.
+    // Cheaper Inference는 동일 cache boundary를 유지하되 assistant prefill은 사용하지 않는다.
     // assistant prefill은 OpenRouter Claude 전용이며 CI Opus thinking/output을 바꾸지 않는다.
     const { messages, prefill } = applyCacheAndPrefillForTransport(
       transport,

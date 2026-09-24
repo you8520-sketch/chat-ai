@@ -547,24 +547,24 @@ export function logOpenRouterSystemPromptBeforeFetch(body: Record<string, unknow
     });
   }
 
-  let lastUserIdx = -1;
-  for (let i = messages.length - 1; i >= 1; i--) {
-    if ((messages[i] as OpenRouterChatMessage).role === "user") {
-      lastUserIdx = i;
-      break;
-    }
-  }
-  if (lastUserIdx >= 2) {
-    const histMsg = messages[lastUserIdx - 1] as OpenRouterChatMessage | undefined;
-    const histContent = histMsg?.content;
-    const histCached =
-      Array.isArray(histContent) &&
-      histContent.some((b) => b.cache_control?.type === "ephemeral");
+  const historyCacheBreakpointIndex = messages.findIndex((message, index) => {
+    if (index <= 0) return false;
+    const typed = message as OpenRouterChatMessage;
+    return (
+      typed.role !== "system" &&
+      Array.isArray(typed.content) &&
+      typed.content.some((block) => block.cache_control?.type === "ephemeral")
+    );
+  });
+  if (historyCacheBreakpointIndex >= 0) {
+    const histMsg = messages[
+      historyCacheBreakpointIndex
+    ] as OpenRouterChatMessage | undefined;
     console.log("=== [DEBUG] HISTORY CACHE BREAKPOINT ===", {
-      index: lastUserIdx - 1,
+      index: historyCacheBreakpointIndex,
       role: histMsg?.role,
-      cached: histCached,
-      contentIsArray: Array.isArray(histContent),
+      cached: true,
+      contentIsArray: Array.isArray(histMsg?.content),
     });
   }
 }
