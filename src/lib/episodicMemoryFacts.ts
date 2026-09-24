@@ -1233,9 +1233,8 @@ function tokenizeForSimpleBoost(text: string): string[] {
   return [
     ...new Set(
       text
-        .toLowerCase()
         .split(/[^a-z0-9가-힣_]+/i)
-        .map((x) => x.trim())
+        .map(normalizeEvidenceToken)
         .filter((x) => x.length >= 2)
         .slice(0, 32)
     ),
