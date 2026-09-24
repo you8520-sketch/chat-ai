@@ -221,6 +221,15 @@ export type AdminReceiptAuxiliaryCall = {
   costAttribution?: string | null;
 };
 
+export type AdminReceiptMainRpCache = {
+  status: "hit" | "write_only" | "miss";
+  promptTokens: number | null;
+  readTokens: number;
+  writeTokens: number;
+  standardInputTokens: number | null;
+  hitPercent: number | null;
+};
+
 export type AdminReceiptMainRpCost = {
   /** Delivered model label when known. */
   model: string | null;
@@ -230,6 +239,8 @@ export type AdminReceiptMainRpCost = {
   provenance: string | null;
   /** Human-readable provenance label matching the stored evidence. */
   provenanceLabel: string | null;
+  /** Provider-reported prompt-cache telemetry for this Main RP call. */
+  cache: AdminReceiptMainRpCache | null;
 };
 
 export type AdminReceiptCompactViewModel = {
@@ -430,6 +441,64 @@ export function resolveMainRpDisplayEvidence(
   };
 }
 
+export function resolveAdminMainRpCache(
+  receipt: AdminBillingReceiptV3
+): AdminReceiptMainRpCache | null {
+  const charge = receipt.syncReceipt?.userCharge;
+  if (!charge) return null;
+
+  const hasCacheTelemetry =
+    charge.cacheReadTokens != null ||
+    charge.cacheWriteTokens != null ||
+    charge.standardInputTokens != null;
+  if (!hasCacheTelemetry) return null;
+
+  const promptTokens = charge.inputTokens >= 0 ? charge.inputTokens : null;
+  const readTokens = Math.max(0, charge.cacheReadTokens ?? 0);
+  const writeTokens = Math.max(0, charge.cacheWriteTokens ?? 0);
+  const standardInputTokens =
+    charge.standardInputTokens != null
+      ? Math.max(0, charge.standardInputTokens)
+      : promptTokens != null
+        ? Math.max(0, promptTokens - readTokens - writeTokens)
+        : null;
+  const hitPercent =
+    promptTokens != null && promptTokens > 0 && readTokens > 0
+      ? Math.round((readTokens / promptTokens) * 1000) / 10
+      : null;
+
+  return {
+    status: readTokens > 0 ? "hit" : writeTokens > 0 ? "write_only" : "miss",
+    promptTokens,
+    readTokens,
+    writeTokens,
+    standardInputTokens,
+    hitPercent,
+  };
+}
+
+export function formatAdminMainRpCacheSummary(
+  cache: AdminReceiptMainRpCache
+): string {
+  const parts: string[] = [];
+  if (cache.status === "hit") {
+    parts.push(
+      `적중 · read ${cache.readTokens.toLocaleString()} tok${cache.hitPercent != null ? ` (${cache.hitPercent}%)` : ""}`
+    );
+  } else if (cache.status === "write_only") {
+    parts.push("미적중 · 신규 캐시 생성");
+  } else {
+    parts.push("미적중");
+  }
+  if (cache.writeTokens > 0) {
+    parts.push(`write ${cache.writeTokens.toLocaleString()} tok`);
+  }
+  if (cache.standardInputTokens != null) {
+    parts.push(`일반 ${cache.standardInputTokens.toLocaleString()} tok`);
+  }
+  return parts.join(" · ");
+}
+
 /** Build the canonical compact view model from a receipt. */
 export function buildAdminReceiptCompactViewModel(
   receipt: AdminBillingReceiptV3
@@ -448,6 +517,7 @@ export function buildAdminReceiptCompactViewModel(
     costUsd: mainEvidence.costUsd,
     provenance: mainEvidence.provenance,
     provenanceLabel: mainEvidence.provenanceLabel,
+    cache: resolveAdminMainRpCache(receipt),
   };
 
   const auxiliaryCalls: AdminReceiptAuxiliaryCall[] = [];
@@ -590,6 +660,9 @@ export function formatAdminBillingReceiptV3Text(receipt: AdminBillingReceiptV3):
     lines.push(
       `${vm.mainRp.provenanceLabel}: ${formatAdminActualUsd(vm.mainRp.costUsd)}${fxSuffix(vm.mainRp.costUsd)}`
     );
+  }
+  if (vm.mainRp.cache) {
+    lines.push(`캐시: ${formatAdminMainRpCacheSummary(vm.mainRp.cache)}`);
   }
 
   if (receipt.syncReceipt != null) {
