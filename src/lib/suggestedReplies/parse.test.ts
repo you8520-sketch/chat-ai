@@ -11,7 +11,12 @@ import {
   storedRepliesHaveStaleLegacyKinds,
   suggestedReplyCharCount,
 } from "./parse";
-import { SUGGESTED_REPLY_MAX_CHARS, SUGGESTED_REPLY_MIN_CHARS, suggestedReplyKindMeta } from "./types";
+import {
+  SUGGESTED_REPLIES_CAPTION,
+  SUGGESTED_REPLY_MAX_CHARS,
+  SUGGESTED_REPLY_MIN_CHARS,
+  suggestedReplyKindMeta,
+} from "./types";
 
 function padReply(seed: string, length: number): string {
   const filler = "가".repeat(Math.max(0, length - seed.length));
@@ -19,6 +24,11 @@ function padReply(seed: string, length: number): string {
 }
 
 describe("suggested reply kinds", () => {
+  it("describes the actual full RP turn inserted into the composer", () => {
+    assert.match(SUGGESTED_REPLIES_CAPTION, /행동과 대사/);
+    assert.doesNotMatch(SUGGESTED_REPLIES_CAPTION, /대사만/);
+  });
+
   it("labels natural, twist, and banter with short Korean hints", () => {
     assert.equal(suggestedReplyKindMeta("natural").label, "정석");
     assert.equal(suggestedReplyKindMeta("twist").label, "한 수");
@@ -60,6 +70,22 @@ describe("normalizeSuggestedReplies", () => {
       { kind: "twist", text: replies[1] },
       { kind: "banter", text: replies[2] },
     ]);
+  });
+
+  it("fails closed instead of relabeling an explicit duplicate kind", () => {
+    const naturalA = padReply("*고개를 들며* \"그 얘기부터 해보자.\" ", 72);
+    const naturalB = padReply("*한 걸음 다가서며* \"나도 같은 쪽으로 갈게.\" ", 72);
+    const banter = padReply("*웃음을 삼키며* \"이번엔 네가 먼저 말해.\" ", 72);
+    assert.deepEqual(
+      normalizeSuggestedReplies({
+        items: [
+          { kind: "natural", text: naturalA },
+          { kind: "natural", text: naturalB },
+          { kind: "banter", text: banter },
+        ],
+      }),
+      []
+    );
   });
 
   it("returns empty when fewer than three survive", () => {
@@ -126,6 +152,24 @@ describe("resolveClientSuggestedReplies", () => {
     assert.equal(fields.suggestedRepliesFailed, false);
   });
 
+  it("treats a non-pending invalid stored record as terminal failure", () => {
+    const fields = resolveClientSuggestedReplies({
+      replies: [
+        { kind: "natural", text: padReply("*고개를 들며* \"계속 말해 봐.\" ", 72) },
+      ],
+      extractedAt: "2026-01-01T00:00:00.000Z",
+      source: "post-turn-shared",
+      pending: false,
+      failed: false,
+    });
+    assert.deepEqual(fields.suggestedReplies, []);
+    assert.equal(fields.suggestedRepliesPending, false);
+    assert.equal(fields.suggestedRepliesRequested, true);
+    assert.equal(fields.suggestedRepliesFailed, true);
+    assert.equal(clientNeedsSuggestedRepliesPoll(fields), false);
+    assert.equal(clientShouldShowSuggestedRepliesBar(fields), false);
+  });
+
   it("returns empty client fields for missing records", () => {
     assert.equal(parseSuggestedRepliesRecord(null), null);
     const fields = resolveClientSuggestedReplies(null);
@@ -142,9 +186,18 @@ describe("client suggested-replies poll / bar", () => {
     suggestedRepliesFailed: false,
   };
 
-  it("polls and shows the bar for missing records on existing chats", () => {
-    assert.equal(clientNeedsSuggestedRepliesPoll(empty), true);
-    assert.equal(clientShouldShowSuggestedRepliesBar(empty), true);
+  it("does not poll or show for a completely missing record", () => {
+    assert.equal(clientNeedsSuggestedRepliesPoll(empty), false);
+    assert.equal(clientShouldShowSuggestedRepliesBar(empty), false);
+  });
+
+  it("still polls and shows when the generation was explicitly requested", () => {
+    const requested = {
+      ...empty,
+      suggestedRepliesRequested: true,
+    };
+    assert.equal(clientNeedsSuggestedRepliesPoll(requested), true);
+    assert.equal(clientShouldShowSuggestedRepliesBar(requested), true);
   });
 
   it("polls while pending and hides after a hard failure", () => {

@@ -2730,7 +2730,11 @@ export async function POST(req: Request) {
         regenGenerationScope
       );
     }
-    markMessageSuggestedRepliesPending(regenerateMessageId, regenGenerationScope);
+    // Keep the previous generation's suggested replies durable until the
+    // regeneration succeeds. The active-generation read boundary hides that
+    // record while regen is in flight; the post-final owner reserves/replaces
+    // the new generation record. If regen fails, the restored previous variant
+    // can recover its matching suggestions without another writer.
   }
   if (oocSceneRenderTurn) {
     persistGenerationSemanticsOnMessages(db, {

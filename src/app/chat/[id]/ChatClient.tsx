@@ -98,7 +98,10 @@ import {
   normalizeSuggestedReplies,
   suggestedRepliesHaveContent,
 } from "@/lib/suggestedReplies/parse";
-import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
+import {
+  EMPTY_SUGGESTED_REPLIES_CLIENT,
+  type SuggestedReplyItem,
+} from "@/lib/suggestedReplies/types";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
 import { statusMetaDisplayMarkdown, statusMetaHasDisplayContent } from "@/lib/statusMeta/render";
 import { resolveUserNoteStatusWindowPolicy, markdownPipeTableStatusWindowActive } from "@/lib/statusWindowNotePolicy";
@@ -575,12 +578,13 @@ function applySuggestedRepliesPollResult(
 
 function startSuggestedRepliesPoll(
   messageId: number,
-  pollStartedRef: { current: Set<number> },
+  pollStartedRef: { current: Map<number, symbol> },
   setMessages: Dispatch<SetStateAction<Msg[]>>,
   onDone: () => void
 ) {
   if (pollStartedRef.current.has(messageId)) return;
-  pollStartedRef.current.add(messageId);
+  const pollToken = Symbol(`suggested-replies-poll:${messageId}`);
+  pollStartedRef.current.set(messageId, pollToken);
   setMessages((prev) =>
     prev.map((m) =>
       m.id === messageId && !suggestedRepliesHaveContent(m.suggestedReplies)
@@ -594,9 +598,16 @@ function startSuggestedRepliesPoll(
     )
   );
   void pollSuggestedRepliesForMessage(messageId).then((result) => {
+    // Regen / variant switch invalidates the token. A late response from the
+    // previous generation must never repopulate stale suggestions.
+    if (pollStartedRef.current.get(messageId) !== pollToken) return;
     applySuggestedRepliesPollResult(setMessages, messageId, result);
     if (result.failed || !suggestedRepliesHaveContent(result.replies)) {
-      window.setTimeout(() => pollStartedRef.current.delete(messageId), 45_000);
+      window.setTimeout(() => {
+        if (pollStartedRef.current.get(messageId) === pollToken) {
+          pollStartedRef.current.delete(messageId);
+        }
+      }, 45_000);
     }
     onDone();
   });
@@ -996,7 +1007,7 @@ export default function ChatClient({
   );
   const [adoptingMessageId, setAdoptingMessageId] = useState<number | null>(null);
   const statusMetaPollStartedRef = useRef<Set<number>>(new Set());
-  const suggestedRepliesPollStartedRef = useRef<Set<number>>(new Set());
+  const suggestedRepliesPollStartedRef = useRef<Map<number, symbol>>(new Map());
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [hasMoreOlder, setHasMoreOlder] = useState(initialHasMoreOlder);
   const [hiddenTurnCount, setHiddenTurnCount] = useState(initialHiddenTurnCount);
@@ -4423,6 +4434,13 @@ export default function ChatClient({
         setToastMsg(data.error || "버전 전환에 실패했습니다.");
         return;
       }
+      const suggestedRepliesGenerationChanged =
+        data.activeVariant !== switching?.activeVariant;
+      if (suggestedRepliesGenerationChanged) {
+        // Suggestions are generation-scoped. Never display the previous
+        // variant's next-turn suggestions under newly selected prose.
+        suggestedRepliesPollStartedRef.current.delete(messageId);
+      }
       setMessages((prev) =>
         prev.map((m, idx) =>
           idx === messageIndex
@@ -4433,6 +4451,9 @@ export default function ChatClient({
                 activeVariant: data.activeVariant,
                 variantCount: data.variantCount,
                 variants: data.variants,
+                ...(suggestedRepliesGenerationChanged
+                  ? EMPTY_SUGGESTED_REPLIES_CLIENT
+                  : {}),
                 ...(htmlVisualStatusActiveForChat(
                   userNote,
                   markdownStatusWindowActive,
@@ -4461,6 +4482,11 @@ export default function ChatClient({
         );
       } else {
         applyEmotionRef.current(data.content);
+      }
+      if (suggestedRepliesGenerationChanged) {
+        // Re-read the generation-scoped async record through the existing
+        // server-component refresh owner. No new provider work is started.
+        scheduleAssistantPostTurnRefresh();
       }
     } catch {
       setToastMsg("네트워크 오류가 발생했습니다.");

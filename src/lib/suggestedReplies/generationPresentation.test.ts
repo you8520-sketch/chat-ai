@@ -16,11 +16,14 @@ import {
   scheduleSuggestedRepliesExtraction,
 } from "@/lib/suggestedReplies/job";
 import {
+  clientNeedsSuggestedRepliesPoll,
+  clientShouldShowSuggestedRepliesBar,
   normalizeSuggestedReplies,
   parseSuggestedRepliesRecord,
   resolveClientSuggestedReplies,
   serializeSuggestedRepliesRecord,
 } from "@/lib/suggestedReplies/parse";
+import { resolveClientAsyncRecordsFromMessageRow } from "@/lib/clientAsyncRecordRead";
 import { SUGGESTED_REPLY_KINDS, type SuggestedReplyItem } from "@/lib/suggestedReplies/types";
 
 const CHAT_ID = 99001;
@@ -149,7 +152,7 @@ describe("suggested replies generation vs presentation", () => {
     assert.deepEqual(client.suggestedReplies, []);
   });
 
-  it("G — regen pending clears prior generation suggestions scope", () => {
+  it("D — explicit pending reservation clears current-generation suggestions", () => {
     seedAssistantMessage();
     const scope = resolveActiveAssistantGenerationScope(MSG_ID);
     assert.ok(scope);
@@ -171,6 +174,160 @@ describe("suggested replies generation vs presentation", () => {
     const pending = loadMessageSuggestedReplies(MSG_ID);
     assert.equal(pending?.pending, true);
     assert.deepEqual(pending?.replies, []);
+  });
+
+  it("G0 — in-flight regen hides prior suggestions without destroying the prior record", () => {
+    const replies = validReplies("RESTORE");
+    const previousRecord = serializeSuggestedRepliesRecord({
+      replies,
+      extractedAt: new Date().toISOString(),
+      source: "post-turn-shared",
+      pending: false,
+      failed: false,
+      generationSequence: 0,
+      generationRequestId: "req-v0",
+    });
+    const baseRow = {
+      id: MSG_ID,
+      alternates: JSON.stringify([
+        {
+          content: "복구할 이전 답변",
+          model: "gpt-5.6-luna",
+          usage: null,
+          created_at: "",
+          generationSequence: 0,
+          requestId: "req-v0",
+        },
+      ]),
+      active_variant: 0,
+      request_id: "req-v0",
+      generation_status: "completed",
+      content: "복구할 이전 답변",
+      model: "gpt-5.6-luna",
+      usage: null,
+      status_meta: null,
+      suggested_replies_json: previousRecord,
+    };
+
+    const before = resolveClientAsyncRecordsFromMessageRow(baseRow);
+    assert.ok(before.suggestedRepliesRecord);
+
+    const inFlight = resolveClientAsyncRecordsFromMessageRow({
+      ...baseRow,
+      request_id: "req-regen",
+      generation_status: "generating",
+      content: "",
+    });
+    assert.equal(inFlight.generationScope?.generationSequence, 1);
+    assert.equal(inFlight.suggestedRepliesRecord, null);
+
+    const restored = resolveClientAsyncRecordsFromMessageRow(baseRow);
+    assert.deepEqual(
+      resolveClientSuggestedReplies(restored.suggestedRepliesRecord).suggestedReplies,
+      replies
+    );
+  });
+
+  it("G1 — regen bootstrap preserves prior suggestions; post-final owner reserves the new generation", () => {
+    const route = readFileSync(join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
+    const earlyStart = route.indexOf("const regenGenerationScope = currentTurnGenerationScope;");
+    const earlyEnd = route.indexOf("if (oocSceneRenderTurn)", earlyStart);
+    assert.ok(earlyStart >= 0 && earlyEnd > earlyStart);
+    const earlyRegenBlock = route.slice(earlyStart, earlyEnd);
+    assert.doesNotMatch(earlyRegenBlock, /markMessageSuggestedRepliesPending/);
+
+    const postFinalStart = route.indexOf("const scheduleRepliesIfEligible");
+    const postFinalEnd = route.indexOf("if (rpDiagnosticCanary", postFinalStart);
+    assert.ok(postFinalStart >= 0 && postFinalEnd > postFinalStart);
+    const postFinalBlock = route.slice(postFinalStart, postFinalEnd);
+    assert.match(postFinalBlock, /markMessageSuggestedRepliesPending/);
+  });
+
+  it("G2 — variant switch hides a record from the previously active generation", () => {
+    const replies = validReplies("GEN1");
+    const row = {
+      id: MSG_ID,
+      alternates: JSON.stringify([
+        {
+          content: "첫 번째 답변",
+          model: "gpt-5.6-luna",
+          usage: null,
+          created_at: "",
+          generationSequence: 0,
+          requestId: "req-v0",
+        },
+        {
+          content: "두 번째 답변",
+          model: "gpt-5.6-luna",
+          usage: null,
+          created_at: "",
+          generationSequence: 1,
+          requestId: "req-v1",
+        },
+      ]),
+      active_variant: 1,
+      request_id: "req-v1",
+      generation_status: "ok",
+      content: "두 번째 답변",
+      model: "gpt-5.6-luna",
+      usage: null,
+      status_meta: null,
+      suggested_replies_json: serializeSuggestedRepliesRecord({
+        replies,
+        extractedAt: new Date().toISOString(),
+        source: "post-turn-shared",
+        pending: false,
+        failed: false,
+        generationSequence: 1,
+        generationRequestId: "req-v1",
+      }),
+    };
+
+    const latest = resolveClientAsyncRecordsFromMessageRow(row);
+    assert.ok(latest.suggestedRepliesRecord);
+    assert.deepEqual(
+      resolveClientSuggestedReplies(latest.suggestedRepliesRecord).suggestedReplies,
+      replies
+    );
+
+    const older = resolveClientAsyncRecordsFromMessageRow({
+      ...row,
+      active_variant: 0,
+      request_id: "req-v0",
+      content: "첫 번째 답변",
+    });
+    assert.equal(older.suggestedRepliesRecord, null);
+    const client = resolveClientSuggestedReplies(older.suggestedRepliesRecord);
+    assert.equal(client.suggestedRepliesRequested, false);
+    assert.equal(clientNeedsSuggestedRepliesPoll(client), false);
+    assert.equal(clientShouldShowSuggestedRepliesBar(client), false);
+  });
+
+  it("G3 — client variant switch clears stale suggestions and refreshes canonical async fields", () => {
+    const clientSource = readFileSync(
+      join(process.cwd(), "src/app/chat/[id]/ChatClient.tsx"),
+      "utf8"
+    );
+    const start = clientSource.indexOf("async function switchVariant");
+    const end = clientSource.indexOf("function startEdit", start);
+    assert.ok(start >= 0 && end > start);
+    const switchSource = clientSource.slice(start, end);
+    assert.match(switchSource, /EMPTY_SUGGESTED_REPLIES_CLIENT/);
+    assert.match(
+      switchSource,
+      /suggestedRepliesPollStartedRef\.current\.delete\(messageId\)/
+    );
+    assert.match(switchSource, /scheduleAssistantPostTurnRefresh\(\)/);
+
+    const pollStart = clientSource.indexOf("function startSuggestedRepliesPoll");
+    const pollEnd = clientSource.indexOf("async function runStatusMetaPollWithRetry", pollStart);
+    assert.ok(pollStart >= 0 && pollEnd > pollStart);
+    const pollSource = clientSource.slice(pollStart, pollEnd);
+    assert.match(pollSource, /Map<number, symbol>/);
+    assert.match(
+      pollSource,
+      /pollStartedRef\.current\.get\(messageId\) !== pollToken/
+    );
   });
 
   it("H — natural / twist / banter contract", () => {
