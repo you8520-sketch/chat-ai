@@ -16,7 +16,7 @@ export type SuggestedReplyItem = {
 
 /** Static header — never copied into the composer. */
 export const SUGGESTED_REPLIES_CAPTION =
-  "페르소나 말투로 세 갈래입니다. 설명을 뺀 대사만 입력창에 들어갑니다.";
+  "페르소나 말투로 세 갈래입니다. 선택한 행동과 대사가 입력창에 들어갑니다.";
 
 export type SuggestedReplyKindMeta = {
   label: string;

@@ -100,7 +100,10 @@ export function normalizeSuggestedReplies(raw: unknown): SuggestedReplyItem[] {
     const key = dedupeKey(text);
     if (seen.has(key)) continue;
     seen.add(key);
-    if (item.kind && !byKind.has(item.kind)) {
+    if (item.kind) {
+      // Explicit duplicate categories are semantically invalid. Never relabel a
+      // second natural/twist/banter item as another category just to fill 3 slots.
+      if (byKind.has(item.kind)) return [];
       byKind.set(item.kind, text);
     } else {
       leftovers.push(text);
@@ -233,7 +236,10 @@ export function resolveClientSuggestedReplies(
   const normalized = normalizeSuggestedReplies(record.replies);
   const has = suggestedRepliesHaveContent(normalized);
   const pending = record.pending === true && !has;
-  const failed = record.failed === true && !has && !pending;
+  // A stored record that is no longer pending has no writer left to wait for.
+  // If it does not contain a valid canonical trio, treat it as terminal failure
+  // even when a legacy row omitted/incorrectly stored the failed flag.
+  const failed = !has && !pending;
   return {
     suggestedReplies: has ? normalized : [],
     suggestedRepliesPending: pending,
@@ -250,10 +256,16 @@ export function clientNeedsSuggestedRepliesPoll(
   if (fields.suggestedRepliesFailed === true && fields.suggestedRepliesPending !== true) {
     return false;
   }
-  return true;
+  // GET /api/chat/suggested-replies is read-only. A completely missing record
+  // cannot create work, so only poll generations the server/client explicitly
+  // marked as requested or pending.
+  return (
+    fields.suggestedRepliesPending === true ||
+    fields.suggestedRepliesRequested === true
+  );
 }
 
-/** Show the bar for ready replies or in-flight server generation (pending poll). */
+/** Show the bar only for ready replies or a generation explicitly awaiting replies. */
 export function clientShouldShowSuggestedRepliesBar(
   fields: SuggestedRepliesClientFields
 ): boolean {
@@ -261,5 +273,8 @@ export function clientShouldShowSuggestedRepliesBar(
   if (fields.suggestedRepliesFailed === true && fields.suggestedRepliesPending !== true) {
     return false;
   }
-  return true;
+  return (
+    fields.suggestedRepliesPending === true ||
+    fields.suggestedRepliesRequested === true
+  );
 }

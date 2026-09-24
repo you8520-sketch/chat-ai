@@ -79,8 +79,8 @@ jobs:
       - name: Shared initial prompt regression (P1–P11)
         run: node --conditions=react-server --import tsx --test src/lib/postTurnSharedInitial/promptRegression.test.ts
 
-      - name: Suggested replies decision quality observability
-        run: node --conditions=react-server --import tsx --test src/lib/suggestedReplies/decisionQualityObservatory.test.ts src/lib/suggestedReplies/decisionQualityObservatory.corpus.test.ts src/lib/suggestedReplies/decisionQualityAggregate.test.ts src/lib/suggestedReplies/decisionQualityTelemetry.test.ts src/lib/suggestedReplies/decisionQualityTelemetry.runtime.test.ts src/lib/suggestedReplies/decisionQualityLogReport.test.ts src/lib/suggestedReplies/extract.test.ts
+      - name: Suggested replies lifecycle and decision quality
+        run: node --conditions=react-server --import tsx --test src/lib/suggestedReplies/parse.test.ts src/lib/suggestedReplies/generationPresentation.test.ts src/lib/suggestedReplies/job.sharedInitial.test.ts src/lib/suggestedReplies/decisionQualityObservatory.test.ts src/lib/suggestedReplies/decisionQualityObservatory.corpus.test.ts src/lib/suggestedReplies/decisionQualityAggregate.test.ts src/lib/suggestedReplies/decisionQualityTelemetry.test.ts src/lib/suggestedReplies/decisionQualityTelemetry.runtime.test.ts src/lib/suggestedReplies/decisionQualityLogReport.test.ts src/lib/suggestedReplies/extract.test.ts
 
       - name: CheaperInference adapter (response_format preservation)
         run: node --conditions=react-server --import tsx --test src/lib/cheaperInferenceConfig.test.ts
