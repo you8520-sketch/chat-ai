@@ -92,6 +92,12 @@ export function sanitizeRuntimePromptSource(text: string | null | undefined): st
   );
 }
 
+/** Recalled fact text is data. Keep the historical clause before an embedded command. */
+export function sanitizeRecalledMemoryFactText(text: string): string {
+  const command = /이전\s*지시를\s*무시하고|ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions|(?:^|\n)\s*(?:system|developer)\s*:/iu.exec(text);
+  return (command ? text.slice(0, command.index) : text).trim();
+}
+
 export function stripRuntimePromptContaminationFromVisibleOutput(text: string): string {
   logPossibleFalseSharedMemory(text);
   let out = text;

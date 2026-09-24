@@ -1188,7 +1188,7 @@ describe("regen summary-seal episodic batch replacement", () => {
 
     const ctx = await assembleFinalMainRpEpisodic({
       completedTurns: 10,
-      currentUserMessage: "이어서",
+      currentUserMessage: "과거 장면을 이어서",
     });
     assert.match(ctx.episodicBlock, new RegExp(NEW_BATCH_MARKER));
     assert.doesNotMatch(ctx.episodicBlock, new RegExp(OLD_BATCH_MARKER));
