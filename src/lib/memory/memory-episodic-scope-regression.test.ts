@@ -487,7 +487,7 @@ describe("SCOPE episodic memory eligibility", () => {
         characterId: CHAR,
         userId: USER,
         currentTurn: 6,
-        currentUserMessage: "다음 본편 턴",
+        currentUserMessage: "산책을 떠올리는 다음 본편 턴",
         recentChatText: "unrelated recent context",
       },
       {

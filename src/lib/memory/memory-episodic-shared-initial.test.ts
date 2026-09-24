@@ -365,7 +365,7 @@ describe("shared initial episodic consumer", () => {
         characterId: CHAR,
         userId: USER,
         currentTurn: 6,
-        currentUserMessage: "later",
+        currentUserMessage: "커피 기억을 떠올려",
         recentChatText: "unrelated recent",
       },
       { EPISODIC_MEMORY_RECALL_ENABLED: "1" }
