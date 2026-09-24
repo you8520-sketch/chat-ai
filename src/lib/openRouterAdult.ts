@@ -886,8 +886,8 @@ export function buildOpenRouterMessages(
  * 캐싱 (OpenRouter 규격):
  * 1. system — string content → [{ type:"text", text, cache_control:{ type:"ephemeral" } }]
  *    systemSplit 경로는 buildOpenRouterCachedSystemContent에서 이미 블록별 cache_control 적용.
- * 2. history — 마지막 user 턴 직전 메시지(뒤에서 2번째)에 동일 cache_control 적용 →
- *    과거 대화 prefix 전체가 캐시 breakpoint로 묶여 cache_read 90% 할인.
+ * 2. history — 최근 tail을 제외한 안정된 과거 메시지 끝에 동일 cache_control 적용 →
+ *    과거 대화 prefix가 cache breakpoint로 묶여 재사용된다.
  *
  * 프리필: 마지막 user 메시지 뒤에 캐릭터 이름만 assistant content로 붙인다 (조사·공백 없음).
  *
@@ -1431,8 +1431,8 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   // no automatic second provider request (retry, repair, non-stream fallback).
   const skipAssistantPrefill = messageOpts?.skipAssistantPrefill === true;
 
-    // Claude(Anthropic): system 블록 캐싱 + assistant prefill (그 외 모델은 no-op)
-    // Cheaper Inference Anthropic은 history cache breakpoint만 적용한다.
+    // Claude(Anthropic): structured system cache blocks + history breakpoint.
+    // Cheaper Inference는 동일 cache boundary를 유지하되 assistant prefill은 사용하지 않는다.
     // assistant prefill은 OpenRouter Claude 전용이며 CI Opus thinking/output을 바꾸지 않는다.
     const { messages, prefill } = applyCacheAndPrefillForTransport(
       transport,
