@@ -578,7 +578,7 @@ describe("CRITICAL vs IMPORTANT milestone priority", () => {
       {
         chatId: 1,
         currentTurn: 180,
-        currentUserMessage: "요즘 날씨 어때?",
+        currentUserMessage: "결정적인 전환점 사건을 떠올려줘",
       },
       recallEnv
     );
@@ -942,7 +942,7 @@ describe("MILESTONE SQL semantic owner conflict", () => {
       {
         chatId: 1,
         currentTurn: 180,
-        currentUserMessage: "요즘 날씨 어때?",
+        currentUserMessage: "작전 도중 임무를 중단한 일을 떠올려줘",
       },
       recallEnv
     );
@@ -957,7 +957,7 @@ describe("MILESTONE SQL semantic owner conflict", () => {
       {
         chatId: 1,
         currentTurn: 180,
-        currentUserMessage: "요즘 날씨 어때?",
+        currentUserMessage: "T21 결정적인 전환점 사건을 떠올려줘",
       },
       recallEnv
     );
@@ -985,7 +985,7 @@ describe("UNKNOWN-ATTRIBUTE historical recall", () => {
       {
         chatId: 1,
         currentTurn: 180,
-        currentUserMessage: "오늘 하루 어땠어?",
+        currentUserMessage: "작전 도중 임무를 중단한 일을 기억해?",
       },
       recallEnv
     );
