@@ -107,7 +107,7 @@ function writeReplies(
   );
 }
 
-/** 재생성 시작 — 이전 추천을 즉시 pending으로 교체 */
+/** Reserve the current generation while an actual suggested-replies writer is about to run. */
 export function markMessageSuggestedRepliesPending(
   messageId: number,
   generationScope?: AssistantGenerationScope
@@ -294,7 +294,11 @@ export function scheduleSuggestedRepliesExtraction(opts: {
 }
 
 /** Greeting bootstrap — standalone extract (no shared post-turn owner on chat create). */
-export function scheduleGreetingSuggestedRepliesExtraction(messageId: number, chatId: number): void {
+export function scheduleGreetingSuggestedRepliesExtraction(
+  messageId: number,
+  chatId: number,
+  test?: { __testExtract?: (attempt: number) => Promise<SuggestedReplyItem[]> }
+): void {
   const db = getDb();
   const row = db
     .prepare(
@@ -347,5 +351,6 @@ export function scheduleGreetingSuggestedRepliesExtraction(messageId: number, ch
     personaSpeechExamples,
     userMessage: "",
     assistantProse: row.content,
+    __testExtract: test?.__testExtract,
   });
 }
