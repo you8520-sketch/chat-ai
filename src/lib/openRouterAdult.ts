@@ -82,6 +82,7 @@ import {
   formatHttpApiError,
   formatMissingApiKeyError,
   formatClientApiError,
+  type ApiProviderLabel,
 } from "@/lib/apiErrors";
 import {
   assertLengthSupplementApiAllowed,
@@ -271,41 +272,51 @@ export class OpenRouterApiError extends Error {
   readonly status?: number;
   readonly statusText?: string;
   readonly body?: unknown;
+  readonly provider: ApiProviderLabel;
 
   constructor(opts: {
     status?: number;
     statusText?: string;
     body?: unknown;
     message?: string;
+    provider?: ApiProviderLabel;
   }) {
+    const provider = opts.provider ?? "OpenRouter";
     const message =
       opts.message ??
       (opts.status != null
         ? formatHttpApiError(
             opts.status,
             opts.statusText ?? "",
-            typeof opts.body === "string" ? opts.body : JSON.stringify(opts.body ?? "")
+            typeof opts.body === "string" ? opts.body : JSON.stringify(opts.body ?? ""),
+            provider
           )
-        : "OpenRouter request failed");
+        : `${provider} request failed`);
     super(message);
     this.name = "OpenRouterApiError";
     this.status = opts.status;
     this.statusText = opts.statusText;
     this.body = opts.body;
+    this.provider = provider;
   }
 }
 
 /** @deprecated OpenRouterApiError 사용 */
 export class OpenRouterAdultError extends OpenRouterApiError {}
 
-function throwOpenRouterHttpError(res: Response, bodyText: string): never {
+function throwOpenRouterHttpError(
+  res: Response,
+  bodyText: string,
+  provider: ApiProviderLabel
+): never {
   let parsed: unknown = bodyText;
   try {
     parsed = JSON.parse(bodyText);
   } catch {
     /* raw text */
   }
-  console.error("[OPENROUTER API ERROR]:", {
+  console.error(`[${provider.toUpperCase()} API ERROR]:`, {
+    provider,
     status: res.status,
     statusText: res.statusText,
     data: parsed,
@@ -314,6 +325,7 @@ function throwOpenRouterHttpError(res: Response, bodyText: string): never {
     status: res.status,
     statusText: res.statusText,
     body: parsed,
+    provider,
   });
 }
 
@@ -326,7 +338,8 @@ async function fetchOpenRouterChatCompletion(
   url: string,
   headers: Record<string, string>,
   requestBody: Record<string, unknown>,
-  timeoutMs: number
+  timeoutMs: number,
+  provider: ApiProviderLabel = "OpenRouter"
 ): Promise<Response> {
   let res: Response;
   try {
@@ -338,15 +351,19 @@ async function fetchOpenRouterChatCompletion(
     });
   } catch (e) {
     const msg = (e as Error).message ?? String(e);
-    console.error("[OPENROUTER API ERROR]: network", msg, e);
-    throw new OpenRouterApiError({ message: `503 Service Unavailable: ${msg}` });
+    console.error(`[${provider.toUpperCase()} API ERROR]: network`, msg, e);
+    throw new OpenRouterApiError({
+      message: `503 Service Unavailable: ${msg}`,
+      provider,
+    });
   }
 
   if (!res.ok) {
     const errText = await res.text();
     throwOpenRouterHttpError(
       new Response(errText, { status: res.status, statusText: res.statusText }),
-      errText
+      errText,
+      provider
     );
   }
 
@@ -1329,7 +1346,10 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     requestKind: debugMeta?.requestKind ?? "openrouter-stream",
     stage: debugMeta?.stage ?? apiModelId,
   });
-  console.log("[OPENROUTER REQUEST]", summarizeOpenRouterPayload(requestBody as Record<string, unknown>));
+  console.log(
+    `[${transport.label.toUpperCase()} REQUEST]`,
+    summarizeOpenRouterPayload(requestBody as Record<string, unknown>)
+  );
   logOpenRouterSystemPromptBeforeFetch(requestBody as Record<string, unknown>);
 
   const requestKind =
@@ -1396,7 +1416,8 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
         transport.endpoint,
         transport.headers,
         requestBody as Record<string, unknown>,
-        240_000
+        240_000,
+        transport.label
       );
       messageOpts?.phaseAudit?.mark("T11_PROVIDER_HEADERS");
     }
@@ -1635,20 +1656,21 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   }
 
   if (!aiGenerated.trim()) {
-    console.error("[OpenRouter] empty AI body (prefill-only or no stream)", {
+    console.error(`[${transport.label}] empty AI body (prefill-only or no stream)`, {
       finishReason,
       prefillLen: prefill.length,
       outputTokens,
     });
     throw new OpenRouterApiError({
       message:
-        "502 Bad Gateway: OpenRouter returned empty response — 모델이 빈 답변을 반환했습니다. 잠시 후 다시 시도해 주세요.",
+        `502 Bad Gateway: ${transport.label} returned empty response — 모델이 빈 답변을 반환했습니다. 잠시 후 다시 시도해 주세요.`,
+      provider: transport.label,
     });
   }
 
   fullText = trimLoopTail(sanitizeStreamArtifacts(combinedText()));
 
-  console.log("[OPENROUTER STREAM END]", {
+  console.log(`[${transport.label.toUpperCase()} STREAM END]`, {
     finishReason,
     outputChars: fullText.length,
     output_tokens: outputTokens,
@@ -1661,10 +1683,11 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   }
 
   if (!fullText.trim()) {
-    console.error("[OpenRouter] empty response", { finishReason, outputTokens });
+    console.error(`[${transport.label}] empty response`, { finishReason, outputTokens });
     throw new OpenRouterApiError({
       message:
-        "502 Bad Gateway: OpenRouter returned empty response — 모델이 빈 답변을 반환했습니다. 잠시 후 다시 시도해 주세요.",
+        `502 Bad Gateway: ${transport.label} returned empty response — 모델이 빈 답변을 반환했습니다. 잠시 후 다시 시도해 주세요.`,
+      provider: transport.label,
     });
   }
 
@@ -2350,7 +2373,8 @@ export async function callOpenRouterAdult(
           transport.endpoint,
           transport.headers,
           requestBody as Record<string, unknown>,
-          120_000
+          120_000,
+          transport.label
         );
       }
     }
@@ -2367,7 +2391,8 @@ export async function callOpenRouterAdult(
 
   if (!aiBody) {
     throw new OpenRouterApiError({
-      message: `502 Bad Gateway: OpenRouter returned empty completion (finishReason=${finishReason ?? "unknown"})`,
+      message: `502 Bad Gateway: ${transport.label} returned empty completion (finishReason=${finishReason ?? "unknown"})`,
+      provider: transport.label,
     });
   }
 
