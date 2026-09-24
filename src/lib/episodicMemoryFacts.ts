@@ -1285,14 +1285,15 @@ function textLooksDuplicated(fact: EpisodicMemoryFactRecord, sourceText?: string
   const normalizedSource = normalizeForMemoryDedupe(sourceText);
   if (normalizedSource.length < 8) return false;
 
-  const normalizedFact = normalizeForMemoryDedupe(fact.fact_text);
+  const safeFactText = sanitizeRecalledMemoryFactText(fact.fact_text);
+  const normalizedFact = normalizeForMemoryDedupe(safeFactText);
   if (normalizedFact.length >= 8 && normalizedSource.includes(normalizedFact)) return true;
   if (normalizedFact.length >= 16 && normalizedFact.includes(normalizedSource)) return true;
 
   const normalizedValue = normalizeForMemoryDedupe(fact.value);
   if (normalizedValue.length >= 4 && normalizedSource.includes(normalizedValue)) return true;
 
-  const tokens = tokenizeForMemoryDedupe(fact.fact_text).filter((token) => token.length >= 3);
+  const tokens = tokenizeForMemoryDedupe(safeFactText).filter((token) => token.length >= 3);
   if (tokens.length < 3) return false;
   const hits = tokens.filter((token) => normalizedSource.includes(normalizeForMemoryDedupe(token))).length;
   return hits >= 3 && hits / tokens.length >= 0.6;
