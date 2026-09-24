@@ -1243,7 +1243,8 @@ function tokenizeForSimpleBoost(text: string): string[] {
 }
 
 function factSearchText(fact: EpisodicExtractedFact): string {
-  return `${fact.subject} ${fact.attribute} ${fact.value} ${fact.fact_text}`.toLowerCase();
+  const safeFactText = sanitizeRecalledMemoryFactText(fact.fact_text);
+  return `${fact.subject} ${fact.attribute} ${fact.value} ${safeFactText}`.toLowerCase();
 }
 
 function lexicalRelevance(fact: EpisodicExtractedFact, currentUserMessage: string): number {
@@ -1916,13 +1917,22 @@ function scoreFactForPrompt(fact: EpisodicMemoryFactRecord, currentMessage: stri
   const importance = IMPORTANCE_RANK[fact.importance] - 1;
   const age = Math.max(0, (currentTurn ?? fact.source_turn) - fact.source_turn);
   const recency = 1 / (1 + age / 20);
-  const milestone = classifyEpisodicFactTemporalNature(fact) === "historical_event" &&
+  const milestone =
+    classifyEpisodicFactTemporalNature(fact) === "historical_event" &&
     fact.importance !== "normal";
-  // A historical milestone can survive a lexical miss. Ordinary facts require an actual match.
-  // Debug/admin callers may inspect recall without a scene query; preserve their
-  // historical ordering while gating actual scene queries on relevance.
-  const passes = !currentMessage.trim() || relevance > 0 || milestone;
-  return { relevance, importance, recency, composite: relevance * 4 + importance + recency + (milestone && currentMessage.trim() ? 2 : 0), passes };
+  // Candidate lanes keep important historical events discoverable, but an
+  // actual scene query still requires lexical relevance. Without semantic
+  // retrieval, bypassing that floor would refill spare budget with unrelated
+  // historical events. Empty debug/admin queries retain browse behavior.
+  const hasSceneQuery = currentMessage.trim().length > 0;
+  const passes = !hasSceneQuery || relevance > 0;
+  return {
+    relevance,
+    importance,
+    recency,
+    composite: relevance * 4 + importance + recency + (milestone ? 2 : 0),
+    passes,
+  };
 }
 
 function compareScoredFacts(
