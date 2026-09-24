@@ -48,19 +48,21 @@ export const OPUS55_CACHE_PATH_AUDIT: readonly Opus55CachePathAuditRow[] = [
   },
   {
     stage: "CheaperInference request body (cache_control passthrough)",
-    status: "UNVERIFIED",
+    status: "VERIFIED",
     notes:
-      "No Opus 5.5-specific captured request/response fixture in repo; Opus 5 passthrough not fully proven historically.",
+      "Production Opus 5.5 request diagnostics on 2026-09-24 showed cache_control-bearing system/history blocks reaching the CI chat-completions wire path.",
   },
   {
     stage: "CI response usage cache_read / cache_write fields",
-    status: "UNVERIFIED",
-    notes: "No production Opus 5.5 turn usage sample in repo.",
+    status: "VERIFIED",
+    notes:
+      "Production Opus 5.5 usage reported cache_write_tokens=41,221 on a cold turn and cached_tokens=26,462 + cache_write_tokens=14,212 on the next turn.",
   },
   {
     stage: "Sequential cache hit evidence",
-    status: "UNVERIFIED",
-    notes: "No A/B consecutive-turn Opus 5.5 cache hit proof in this pass.",
+    status: "VERIFIED",
+    notes:
+      "Consecutive production RP turns on 2026-09-24 produced a 58.1% provider-reported cache read on the second turn.",
   },
   {
     stage: "Cache hit → procurement cost decrease",
@@ -235,10 +237,10 @@ export const OPUS55_CACHE_RUNTIME_CLASSIFICATION: {
   summary: string;
 } = {
   cacheTransport: "WORKS",
-  cacheHit: "DOES_NOT_WORK",
+  cacheHit: "WORKS",
   cacheBillingSaving: "UNVERIFIED",
   summary:
-    "Minimal probe sent cache_control; no cache_read observed. Billing saving not proven (no billed USD on response; catalog read rate = input). Production-scale: UNVERIFIED.",
+    "The 2026-09-23 minimal probe had no hit, but production RP on 2026-09-24 later reported cached_tokens=26,462 (58.1%). Transport + hit are verified; actual provider billed-USD cache saving remains unverified.",
 };
 
 export const OPUS55_COMMERCIAL_WORKLOADS = {
