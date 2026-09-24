@@ -1,10 +1,16 @@
+export type ApiProviderLabel = "OpenRouter" | "CheaperInference";
+
 /** HTTP API 실패 — 상태 코드·본문을 그대로 노출 (디버깅용) */
 export function formatHttpApiError(
   status: number,
   statusText: string,
-  bodyText: string
+  bodyText: string,
+  provider: ApiProviderLabel = "OpenRouter"
 ): string {
   if (status === 402) {
+    if (provider === "CheaperInference") {
+      return formatCheaperInferenceInsufficientBalanceError();
+    }
     return formatOpenRouterInsufficientCreditsError(
       parseOpenRouterAffordableMaxTokens(bodyText)
     );
@@ -43,7 +49,12 @@ export function formatMissingApiKeyError(): string {
 export function formatClientApiError(e: unknown, fallback: string): string {
   const msg = (e as Error).message?.trim();
   if (!msg) return fallback;
-  if (msg.includes("OpenRouter API 크레딧")) return msg;
+  if (
+    msg.includes("OpenRouter API 크레딧") ||
+    msg.includes("CheaperInference API 요청이 사용 가능 잔액 부족")
+  ) {
+    return msg;
+  }
   if (/^\d{3}\s+\S/.test(msg)) {
     if (/402/.test(msg) && /can only afford/i.test(msg)) {
       return formatOpenRouterInsufficientCreditsError(
@@ -70,4 +81,10 @@ export function formatOpenRouterInsufficientCreditsError(affordable?: number | n
     return `OpenRouter API 크레딧이 부족합니다 (현재 최대 ${affordable.toLocaleString()} output 토큰만 예약 가능). openrouter.ai/settings/credits 에서 충전하거나, 잠시 후 다시 시도해 주세요.`;
   }
   return `OpenRouter API 크레딧이 부족합니다. openrouter.ai/settings/credits 에서 충전해 주세요.`;
+}
+
+
+/** CheaperInference 402 / insufficient_balance — workspace wallet available balance failure. */
+export function formatCheaperInferenceInsufficientBalanceError(): string {
+  return "CheaperInference API 요청이 사용 가능 잔액 부족(insufficient_balance)으로 거절되었습니다. CheaperInference Billing에서 available balance와 예약 금액을 확인해 주세요.";
 }
