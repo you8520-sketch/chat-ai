@@ -6,7 +6,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  applyCacheAndPrefillForTransport,
   assemblePrimaryRpRequest,
+  buildOpenRouterMessages,
   streamOpenRouterAdult,
   callOpenRouterAdult,
 } from "./openRouterAdult";
@@ -146,24 +148,35 @@ test("[SYNTHETIC] CI Anthropic scene controls preserve static/dynamic cache boun
     { role: "user" as const, content: "current user turn" },
   ];
 
+  const messageOpts = {
+    transportProvider: "cheaperinference" as const,
+    skipAssistantPrefill: true,
+    systemSplit,
+    sceneServerControls: {
+      mode: "interactive" as const,
+      contentKind: "character" as const,
+      primaryCharacterName: "Hero",
+      currentUserMessage: "current user turn",
+      recentMessages: history,
+      currentTurn: 5,
+    },
+  };
+  const baseMessages = buildOpenRouterMessages(system, history, messageOpts);
+  const preCachedMessages = applyCacheAndPrefillForTransport(
+    { provider: "cheaperinference" },
+    baseMessages,
+    "claude-opus-5.5",
+    "Hero",
+    { skipAssistantPrefill: true }
+  ).messages;
+
   const assembled = assemblePrimaryRpRequest({
     system,
     history,
     modelId: "claude-opus-5.5",
     targetResponseChars: 800,
-    messageOpts: {
-      transportProvider: "cheaperinference",
-      skipAssistantPrefill: true,
-      systemSplit,
-      sceneServerControls: {
-        mode: "interactive",
-        contentKind: "character",
-        primaryCharacterName: "Hero",
-        currentUserMessage: "current user turn",
-        recentMessages: history,
-        currentTurn: 5,
-      },
-    },
+    messageOpts,
+    messagesOverride: preCachedMessages,
   });
 
   const wireMessages = assembled.requestBody.messages as Array<{
