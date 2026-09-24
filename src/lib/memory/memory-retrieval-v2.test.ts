@@ -67,6 +67,22 @@ it("zero lexical relevance leaves episodic injection empty", () => {
   db.close();
 });
 
+it("normalizes common Korean particles for lexical relevance", () => {
+  const { db } = fixture();
+  db.prepare(`INSERT INTO episodic_memory_facts
+    (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+    VALUES (1, 10, 'relationship', 'pair', 'scene_event', 'first_intimacy', 'critical',
+      '처음으로 둘 사이에 친밀한 관계가 완료되었다.', '{"memory_evidence_type":"explicit_scene_event"}')`).run();
+  const result = getEpisodicMemoryForPrompt(db, {
+    chatId: 1,
+    currentTurn: 120,
+    currentUserMessage: "우리 관계의 시작점을 떠올려줘",
+  }, env);
+  assert.equal(result.facts[0]?.value, "first_intimacy");
+  assert.equal(result.debug[0]?.relevance_pass, true);
+  db.close();
+});
+
 it("semantic paraphrase remains an explicit lexical limit", () => {
   const { db, insert } = fixture();
   insert.run(10, "user", "fear", "thunder", "normal", "사용자는 천둥 소리를 무서워한다고 명시했다.");
