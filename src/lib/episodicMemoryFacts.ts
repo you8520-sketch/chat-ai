@@ -1229,12 +1229,19 @@ export function invalidateSummarySealBatchEpisodicFactsForSourceMutation(
   return deleted;
 }
 
+function normalizeRetrievalToken(token: string): string {
+  return normalizeEvidenceToken(token).replace(
+    /(?:이었지|이었어|이었다|였지|였어|였다|입니다|이다)$/u,
+    ""
+  );
+}
+
 function tokenizeForSimpleBoost(text: string): string[] {
   return [
     ...new Set(
       text
         .split(/[^a-z0-9가-힣_]+/i)
-        .map(normalizeEvidenceToken)
+        .map(normalizeRetrievalToken)
         .filter((x) => x.length >= 2)
         .slice(0, 32)
     ),
