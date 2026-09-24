@@ -957,7 +957,7 @@ describe("MILESTONE SQL semantic owner conflict", () => {
       {
         chatId: 1,
         currentTurn: 180,
-        currentUserMessage: "T21 결정적인 전환점 사건을 떠올려줘",
+        currentUserMessage: "작전 도중 임무를 중단한 일을 떠올려줘",
       },
       recallEnv
     );
@@ -1027,7 +1027,7 @@ describe("MILESTONE post-filter starvation — nonhistorical-critical crowding",
       {
         chatId: 1,
         currentTurn: 180,
-        currentUserMessage: "요즘 날씨 어때?",
+        currentUserMessage: "T21 결정적인 전환점 사건을 떠올려줘",
       },
       recallEnv
     );
