@@ -9,6 +9,7 @@ import {
   buildAdminReceiptCompactViewModel,
   formatAdminBillingReceiptV3MainRpModelLines,
   formatAdminBillingReceiptV3Text,
+  formatAdminMainRpCacheSummary,
   formatAdminReceiptAuxiliaryCallOutcome,
   resolveAdminBillingReceiptV3MainRpModelIdentity,
   wholeTurnCoverageLabel,
@@ -100,6 +101,12 @@ export function AdminBillingReceiptV3Panel({
         <ReceiptRow
           label={vm.mainRp.provenanceLabel}
           value={usdWithKrw(vm.mainRp.costUsd, fxRate)}
+        />
+      ) : null}
+      {vm.mainRp.cache ? (
+        <ReceiptRow
+          label="캐시"
+          value={formatAdminMainRpCacheSummary(vm.mainRp.cache)}
         />
       ) : null}
 

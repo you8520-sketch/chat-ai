@@ -15,6 +15,10 @@ export type AdminBillingReceiptV2UserCharge = {
   billingModelId?: string;
   inputTokens: number;
   outputTokens: number;
+  /** Provider-reported Main RP prompt cache buckets (admin-only diagnostics). */
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  standardInputTokens?: number;
   reasoningTokens?: number;
   savedOutputChars?: number;
   deductedPoints: number;
@@ -257,6 +261,11 @@ export function buildAdminBillingReceiptV2(usage: Usage): AdminBillingReceiptV2 
       deliveredModelId !== (usage.model ?? "") ? deliveredModelId : undefined,
     inputTokens: billingInput,
     outputTokens: billingOutput,
+    ...(usage.cacheReadTokens != null ? { cacheReadTokens: usage.cacheReadTokens } : {}),
+    ...(usage.cacheWriteTokens != null ? { cacheWriteTokens: usage.cacheWriteTokens } : {}),
+    ...(usage.standardInputTokens != null
+      ? { standardInputTokens: usage.standardInputTokens }
+      : {}),
     reasoningTokens: usage.apiReasoningOutputTokens,
     savedOutputChars: usage.savedOutputChars,
     deductedPoints,

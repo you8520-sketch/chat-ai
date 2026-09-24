@@ -6,6 +6,7 @@ import {
 } from "@/lib/adminBillingReceiptV3";
 import {
   buildAdminReceiptCompactViewModel,
+  formatAdminMainRpCacheSummary,
   resolveMainRpCostProvenanceLabel,
   resolveMainRpDisplayEvidence,
   formatAdminBillingReceiptV3Text,
@@ -160,6 +161,44 @@ describe("Admin Receipt compact view model — provenance & auxiliary summary", 
     assert.equal(vm.mainRp.provenanceLabel, "CI 실제 청구 원가");
     assert.equal(vm.mainRp.model, "DeepSeek V4 Pro");
     assert.deepEqual(vm.auxiliaryCalls, []);
+  });
+
+  it("Main RP cache hit is projected with read/write/standard buckets", () => {
+    const receipt = buildV3(
+      baseUsage({
+        input: 45521,
+        cacheReadTokens: 26462,
+        cacheWriteTokens: 14212,
+        standardInputTokens: 4847,
+      })
+    );
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    assert.ok(vm.mainRp.cache);
+    assert.equal(vm.mainRp.cache?.status, "hit");
+    assert.equal(vm.mainRp.cache?.readTokens, 26462);
+    assert.equal(vm.mainRp.cache?.writeTokens, 14212);
+    assert.equal(vm.mainRp.cache?.standardInputTokens, 4847);
+    assert.equal(vm.mainRp.cache?.hitPercent, 58.1);
+    assert.equal(
+      formatAdminMainRpCacheSummary(vm.mainRp.cache!),
+      "적중 · read 26,462 tok (58.1%) · write 14,212 tok · 일반 4,847 tok"
+    );
+  });
+
+  it("Main RP cache write-only turn is labeled as cache creation, not hit", () => {
+    const receipt = buildV3(
+      baseUsage({
+        input: 47616,
+        cacheWriteTokens: 41221,
+        standardInputTokens: 6395,
+      })
+    );
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    assert.equal(vm.mainRp.cache?.status, "write_only");
+    assert.equal(
+      formatAdminMainRpCacheSummary(vm.mainRp.cache!),
+      "미적중 · 신규 캐시 생성 · write 41,221 tok · 일반 6,395 tok"
+    );
   });
 
   it("H — provider actual cost known: provider_reported label", () => {
