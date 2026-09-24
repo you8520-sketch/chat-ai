@@ -9,6 +9,7 @@ import {
   buildAdminReceiptCompactViewModel,
   formatAdminBillingReceiptV3MainRpModelLines,
   formatAdminBillingReceiptV3Text,
+  formatAdminMainRpCacheSummary,
   formatAdminReceiptAuxiliaryCallOutcome,
   resolveAdminBillingReceiptV3MainRpModelIdentity,
   wholeTurnCoverageLabel,
