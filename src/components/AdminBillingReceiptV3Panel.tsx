@@ -102,6 +102,12 @@ export function AdminBillingReceiptV3Panel({
           value={usdWithKrw(vm.mainRp.costUsd, fxRate)}
         />
       ) : null}
+      {vm.mainRp.cache ? (
+        <ReceiptRow
+          label="캐시"
+          value={formatAdminMainRpCacheSummary(vm.mainRp.cache)}
+        />
+      ) : null}
 
       {sync ? (
         <>
