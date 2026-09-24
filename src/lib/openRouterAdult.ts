@@ -1175,6 +1175,139 @@ function requestBodyKeyDiff(
   };
 }
 
+
+function commonPrefixLength(a: string, b: string): number {
+  const limit = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < limit && a.charCodeAt(i) === b.charCodeAt(i)) i += 1;
+  return i;
+}
+
+function commonSuffixLength(a: string, b: string, prefixLength: number): number {
+  const limit = Math.min(a.length, b.length) - prefixLength;
+  let i = 0;
+  while (
+    i < limit &&
+    a.charCodeAt(a.length - 1 - i) === b.charCodeAt(b.length - 1 - i)
+  ) {
+    i += 1;
+  }
+  return i;
+}
+
+/**
+ * Re-project a string-only server-control transform back onto the original
+ * structured content blocks when the mutation is contained in one block.
+ *
+ * This preserves cache_control ownership for unaffected blocks. If a future
+ * transform crosses a block boundary, fall back to the old flattened content
+ * rather than risk changing prompt semantics.
+ */
+function reprojectControlledTextOntoStructuredContent(
+  original: OpenRouterContentBlock[],
+  beforeFlat: string,
+  afterFlat: string
+): string | OpenRouterContentBlock[] {
+  if (beforeFlat === afterFlat) return original;
+
+  const prefixLength = commonPrefixLength(beforeFlat, afterFlat);
+  const suffixLength = commonSuffixLength(beforeFlat, afterFlat, prefixLength);
+  const beforeChangeEnd = beforeFlat.length - suffixLength;
+  const afterChangeEnd = afterFlat.length - suffixLength;
+  const replacement = afterFlat.slice(prefixLength, afterChangeEnd);
+
+  const separatorLength = 2; // flattenOpenRouterMessageContent joins blocks with "\n\n".
+  let cursor = 0;
+  let targetIndex = -1;
+  let targetStart = 0;
+  let targetEnd = 0;
+
+  for (let i = 0; i < original.length; i += 1) {
+    const block = original[i]!;
+    const start = cursor;
+    const end = start + block.text.length;
+    if (prefixLength >= start && beforeChangeEnd <= end) {
+      targetIndex = i;
+      targetStart = start;
+      targetEnd = end;
+      break;
+    }
+    cursor = end + (i < original.length - 1 ? separatorLength : 0);
+  }
+
+  if (targetIndex < 0) {
+    console.warn(
+      "[OPENROUTER CACHE] server-control transform crossed structured cache boundary; using semantic-safe flattened fallback"
+    );
+    return afterFlat;
+  }
+
+  const target = original[targetIndex]!;
+  const localStart = Math.max(0, Math.min(target.text.length, prefixLength - targetStart));
+  const localEnd = Math.max(
+    localStart,
+    Math.min(target.text.length, beforeChangeEnd - targetStart)
+  );
+
+  // Defensive span assertion: a mapped mutation must never consume a separator.
+  if (beforeChangeEnd > targetEnd) {
+    console.warn(
+      "[OPENROUTER CACHE] invalid structured transform span; using semantic-safe flattened fallback"
+    );
+    return afterFlat;
+  }
+
+  return original.map((block, i) =>
+    i === targetIndex
+      ? {
+          ...block,
+          text:
+            block.text.slice(0, localStart) +
+            replacement +
+            block.text.slice(localEnd),
+        }
+      : block
+  );
+}
+
+function applyProductionServerControlsPreservingCacheBoundaries(
+  messages: OpenRouterChatMessage[],
+  controls: NonNullable<OpenRouterMessageOpts["sceneServerControls"]>
+): OpenRouterChatMessage[] {
+  const flatBefore = messages.map((m) => ({
+    role: m.role,
+    content: flattenOpenRouterMessageContent(m.content),
+  }));
+  const applied = applyProductionServerControlsToMessages({
+    messages: flatBefore,
+    ...controls,
+  });
+
+  return applied.messages.map((message, index) => {
+    const original = messages[index];
+    const before = flatBefore[index];
+    if (!original || !before) {
+      return {
+        role: message.role as "system" | "user" | "assistant",
+        content: message.content,
+      };
+    }
+
+    const content = Array.isArray(original.content)
+      ? reprojectControlledTextOntoStructuredContent(
+          original.content,
+          before.content,
+          message.content
+        )
+      : message.content;
+
+    return {
+      role: message.role as "system" | "user" | "assistant",
+      content,
+    };
+  });
+}
+
 /**
  * Shared primary RP wire assembler (production stream + parity harness).
  * Builds messages via buildOpenRouterMessages, then OpenRouter request body,
@@ -1211,18 +1344,10 @@ export function assemblePrimaryRpRequest(opts: {
     buildOpenRouterMessages(opts.system, opts.history, opts.messageOpts);
   const controls = opts.messageOpts?.sceneServerControls;
   if (controls) {
-    const flat = messages.map((m) => ({
-      role: m.role,
-      content: flattenOpenRouterMessageContent(m.content),
-    }));
-    const applied = applyProductionServerControlsToMessages({
-      messages: flat,
-      ...controls,
-    });
-    messages = applied.messages.map((m) => ({
-      role: m.role as "system" | "user" | "assistant",
-      content: m.content,
-    }));
+    messages = applyProductionServerControlsPreservingCacheBoundaries(
+      messages,
+      controls
+    );
   }
   if (transport.provider === "cheaperinference") {
     messages = applyCacheAndPrefillForTransport(
