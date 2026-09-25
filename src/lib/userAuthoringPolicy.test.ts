@@ -95,6 +95,16 @@ describe("three-level user authoring policy", () => {
     assert.equal(applied.delegation.allowIrreversibleFate, true);
   });
 
+  it("bare user-character 전권 is an explicit full-authority grant", () => {
+    const applied = resolveEffectiveUserAuthoring({
+      persistentMode: "OFF",
+      baseLevel: "LIMITED",
+      currentUserInput: "OOC: 내 캐릭터 전권.",
+    });
+    assert.equal(applied.currentMode, "ABSOLUTE");
+    assert.equal(applied.delegation.allowIrreversibleFate, true);
+  });
+
   it("NPC 전권 instruction does not accidentally grant user-character fate authority", () => {
     const applied = resolveEffectiveUserAuthoring({
       persistentMode: "OFF",
