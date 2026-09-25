@@ -1230,10 +1230,9 @@ export async function POST(req: Request) {
             personaName: personaDisplayName,
             charName: ch.name,
             usesBanmal: personaUsesBanmal,
-            coNarrationEnabled:
-              autoContinueContext ||
-              novelModeEnabled ||
-              currentTurnDelegationForTurn.active,
+            coNarrationEnabled: currentTurnDelegationForTurn.active,
+            userDialogueAllowed:
+              currentTurnDelegationForTurn.allowDialogue === true,
             rejectedAssistantDraft,
             regenAttemptId,
             targetResponseChars,
