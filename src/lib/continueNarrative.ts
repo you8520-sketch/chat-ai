@@ -385,9 +385,8 @@ export function buildContinueNarrativeCommand(input: ContinueNarrativeCommandInp
 - The user clicked Continue / auto-advance.
 - There is no new explicit user dialogue or action.
 ${sceneAnchor}
-- Advance through [AI_CAST], NPCs, environment, consequences, clues, schedules, or world events. Multiple AI-controlled characters may speak and act; focalization may shift between them at clear boundaries — never to [B] inner POV.
+- Advance through [AI_CAST], NPCs, environment, consequences, clues, schedules, or world events. Multiple AI-controlled characters may speak and act; focalization may shift between them at clear boundaries.
 - ${AUTO_PROGRESSION_SHORT_REF}
-- Do not narrate [B]'s inner thoughts, emotional conclusions, desires, memories, self-realizations, or major decisions.
 ${resumeAfterOoc ? `\n${resumeAfterOoc}\n` : ""}
 [STRICT ANTI-REPETITION RULE]
 - Do not repeat or paraphrase ${antiRepeatTarget}.
@@ -399,7 +398,7 @@ export type RegenerateUserPromptInput = {
   personaName: string;
   charName?: string;
   usesBanmal?: boolean;
-  /** 유저 사칭(co-narration) ON일 때만 유저 말투 규칙 주입 — OFF면 [NO GODMODDING]과 충돌 */
+  /** Effective [B] authoring scope allows persona-voice dialogue/actions. */
   coNarrationEnabled?: boolean;
   /** 리롤 대상 assistant 초안 — 전개 diverge 참고 (히스토리에서 제거됨) */
   rejectedAssistantDraft?: string | null;
@@ -449,10 +448,14 @@ export function buildRegenerateUserPrompt(input: RegenerateUserPromptInput): str
     ? `\n${userPersonaSpeechTail(input.personaName, !!input.usesBanmal)}`
     : "";
 
+  const userAuthoringLine = input.coNarrationEnabled
+    ? "- Keep the user anchor fixed. Any NEW [B] dialogue/action/inner narration must stay inside [USER AUTHORING — EFFECTIVE COAUTHOR POLICY]; this regenerate tail does not widen or narrow that scope."
+    : "- Do NOT write new quoted dialogue for [B] unless it already appears verbatim in the user message below.";
+
   return `[SYSTEM: REGENERATE — rewrite ONLY the last assistant message]
 - Obey [REGENERATE — MANDATORY DIVERGENCE] in system prompt — user wants visibly different development, not a paraphrase.
 - Do NOT change what the user said or meant in the anchor below.
-- Do NOT write new quoted dialogue for [B] unless it already appears verbatim in the user message below.
+${userAuthoringLine}
 ${buildRegenerateLengthRecencyLine(input.targetResponseChars)}${speechTail}
 
 [User message — fixed anchor, not dialogue to rewrite]
