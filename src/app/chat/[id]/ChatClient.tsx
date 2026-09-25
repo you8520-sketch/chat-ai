@@ -91,7 +91,10 @@ import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { stripInternalTagLeakage, stripRpMetaPreamble } from "@/lib/narrativeRules";
 import { stripRepeatedTrailingQuoteMarks } from "@/lib/trailingQuoteSanitizer";
 import type { NarrativePov } from "@/lib/narrativePov";
-import type { UserAuthoringLevel } from "@/lib/userAuthoringPolicy";
+import {
+  DEFAULT_USER_AUTHORING_LEVEL,
+  type UserAuthoringLevel,
+} from "@/lib/userAuthoringPolicy";
 import type { StatusMeta } from "@/lib/statusMeta/types";
 import {
   clientNeedsSuggestedRepliesPoll,
@@ -938,7 +941,7 @@ export default function ChatClient({
   isAdmin = false,
   contentKind = "character",
   initialNarrativePov = "third_person",
-  initialUserAuthoringLevel = "LIMITED",
+  initialUserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL,
   personaSecretSettings = { canEdit: false, discoveryActive: false },
 }: {
   character: { id: number; name: string; emoji: string; hue: number; nsfw: number; official?: number };
