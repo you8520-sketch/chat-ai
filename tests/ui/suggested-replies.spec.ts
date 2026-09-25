@@ -1,3 +1,5 @@
+import Database from "better-sqlite3";
+import path from "node:path";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
 
@@ -46,6 +48,60 @@ const REGEN_REPLIES = [
   },
 ] as const;
 
+
+function seedPersistedSuggestedRepliesForReload(
+  chatId: number,
+  state: "ready" | "pending" = "ready"
+): {
+  assistantMessageId: number;
+  content: string;
+} {
+  const dataDir = process.env.PLAYWRIGHT_DATA_DIR;
+  if (!dataDir) {
+    throw new Error("PLAYWRIGHT_DATA_DIR must be resolved by playwright.config.ts");
+  }
+
+  const db = new Database(path.resolve(dataDir, "app.db"));
+  const requestId = `suggested-replies-reload-${chatId}`;
+  const content =
+    state === "ready"
+      ? "새로고침 복원용 답변이다. 유나는 저장된 다음 선택지를 그대로 이어 갈 수 있도록 조용히 기다렸다."
+      : "새로고침 대기 복원용 답변이다. 유나는 추천 선택지가 완성되기를 조용히 기다렸다.";
+
+  try {
+    let assistantMessageId = 0;
+    db.transaction(() => {
+      db.prepare(
+        "INSERT INTO messages (chat_id, role, content, model, generation_status, request_id) VALUES (?, 'user', ?, 'playwright-fixture', 'completed', ?)"
+      ).run(chatId, "새로고침 뒤 추천 복원 테스트", `${requestId}:user`);
+
+      const result = db.prepare(
+        "INSERT INTO messages (chat_id, role, content, model, generation_status, request_id, suggested_replies_json) VALUES (?, 'assistant', ?, 'playwright-fixture', 'completed', ?, ?)"
+      ).run(
+        chatId,
+        content,
+        requestId,
+        JSON.stringify({
+          replies: state === "ready" ? REPLIES : [],
+          extractedAt: new Date().toISOString(),
+          source: "post-turn-shared",
+          pending: state === "pending",
+          failed: false,
+          generationSequence: 0,
+          generationRequestId: requestId,
+        })
+      );
+      assistantMessageId = Number(result.lastInsertRowid);
+    })();
+
+    if (!Number.isInteger(assistantMessageId) || assistantMessageId <= 0) {
+      throw new Error("failed to seed persisted Suggested Replies assistant row");
+    }
+    return { assistantMessageId, content };
+  } finally {
+    db.close();
+  }
+}
 
 async function demoLogin(page: Page) {
   const response = await page.request.post("/api/auth/demo-login");
@@ -734,6 +790,128 @@ test.describe("Suggested Replies — production browser lifecycle", () => {
     await expect.poll(mock.getTargetPollCalls, { timeout: 10_000 }).toBe(2);
     expect(mock.getChatPostCalls()).toBe(1);
     await expect(textarea).toHaveValue("");
+  });
+
+  test("reload restores persisted generation-scoped suggestions without polling again", async ({ page }) => {
+    await openFreshChat(page);
+
+    const chatId = Number(new URL(page.url()).searchParams.get("chat"));
+    expect(Number.isInteger(chatId) && chatId > 0).toBeTruthy();
+
+    const seeded = seedPersistedSuggestedRepliesForReload(chatId);
+    let seededMessagePollCalls = 0;
+
+    await page.route("**/api/chat/suggested-replies**", async (route: Route) => {
+      const url = new URL(route.request().url());
+      const messageId = Number(url.searchParams.get("messageId"));
+      if (messageId !== seeded.assistantMessageId) {
+        await route.continue();
+        return;
+      }
+
+      seededMessagePollCalls += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          messageId,
+          requested: true,
+          pending: false,
+          failed: false,
+          replies: REPLIES,
+        }),
+      });
+    });
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForChatInputReady(page);
+
+    await expect(page.getByText(seeded.content, { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    }
+
+    await page.waitForTimeout(1_000);
+    expect(seededMessagePollCalls).toBe(0);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForChatInputReady(page);
+
+    await expect(page.getByText(seeded.content, { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    }
+
+    await page.waitForTimeout(1_000);
+    expect(seededMessagePollCalls).toBe(0);
+  });
+
+  test("reload resumes a persisted pending generation and settles when the read-only poll becomes ready", async ({ page }) => {
+    await openFreshChat(page);
+
+    const chatId = Number(new URL(page.url()).searchParams.get("chat"));
+    expect(Number.isInteger(chatId) && chatId > 0).toBeTruthy();
+
+    const seeded = seedPersistedSuggestedRepliesForReload(chatId, "pending");
+    let seededMessagePollCalls = 0;
+    let releaseReadyPoll!: () => void;
+    const readyPollRelease = new Promise<void>((resolve) => {
+      releaseReadyPoll = resolve;
+    });
+
+    await page.route("**/api/chat/suggested-replies**", async (route: Route) => {
+      const url = new URL(route.request().url());
+      const messageId = Number(url.searchParams.get("messageId"));
+      if (messageId !== seeded.assistantMessageId) {
+        await route.continue();
+        return;
+      }
+
+      seededMessagePollCalls += 1;
+      await readyPollRelease;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          messageId,
+          requested: true,
+          pending: false,
+          failed: false,
+          replies: REPLIES,
+        }),
+      });
+    });
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForChatInputReady(page);
+
+    await expect(page.getByText(seeded.content, { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.getByText("추천 메시지 준비 중…", { exact: true })).toBeVisible({
+      timeout: 5_000,
+    });
+    await expect.poll(() => seededMessagePollCalls, { timeout: 5_000 }).toBe(1);
+
+    releaseReadyPoll();
+
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    }
+    await expect(page.getByText("추천 메시지 준비 중…", { exact: true })).toHaveCount(0);
+
+    await page.waitForTimeout(1_000);
+    expect(seededMessagePollCalls).toBe(1);
   });
 
   test("successful regeneration replaces previous-generation suggestions with the new trio", async ({ page }) => {
