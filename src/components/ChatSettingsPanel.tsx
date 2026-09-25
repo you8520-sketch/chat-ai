@@ -986,7 +986,8 @@ function UserAuthoringLevelSection({
       <div>
         <p className="font-bold text-violet-300">내 행동/대사 서술</p>
         <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">
-          AI가 내 캐릭터를 어디까지 함께 집필할지 정합니다. 다음 AI 답변부터 적용됩니다.
+          AI가 내 캐릭터를 어디까지 함께 집필할지 정하는 기본값입니다. 다음 AI 답변부터 적용됩니다.
+          명시적인 OOC 집필 지시는 이 기본값보다 우선하며, 이 설정을 직접 바꾸면 이전의 지속 OOC override는 종료됩니다.
         </p>
       </div>
       <div className="relative px-1 pt-1">
