@@ -4193,6 +4193,7 @@ export default function ChatClient({
           userNote,
           selectedPersonaId,
           targetResponseChars,
+          userAuthoringLevel,
         }),
       });
 
