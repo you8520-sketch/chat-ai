@@ -40,6 +40,13 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Suggested Replies browser lifecycle
+        run: >
+          npx playwright test
+          tests/ui/suggested-replies.spec.ts
+          --workers=1
+          --retries=0
+
       - name: Live-follow browser regression
         run: >
           npx playwright test
