@@ -104,16 +104,58 @@ describe("auto progression prompt content", () => {
     assert.match(block, new RegExp(AUTO_PROGRESSION_BLOCK_TITLE.replace(/[[\]]/g, "\\$&")));
   });
 
-  it("authorizes B external action and dialogue; forbids inner POV", () => {
+  it("default LIMITED auto progression advances the world without taking over B", () => {
     const block = buildAutoProgressionUserControlBlock();
-    assert.match(block, /외부에서 관찰 가능한 행동/);
-    assert.match(block, /대사를 공동 서술할 수 있다/);
-    assert.match(block, /1인칭·내면 시점으로 전환하지 않는다/);
-    assert.match(block, /내면 독백/);
-    assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.authorizesBExternalAction, true);
-    assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.authorizesBDialogue, true);
+    assert.match(block, /\[B\]는 제한 모드/);
+    assert.match(block, /새 직접 대사·중요한 자발적 행동·내면·불가역 결정을 대신하지 않는다/);
+    assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.authorizesBExternalAction, false);
+    assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.authorizesBDialogue, false);
     assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.authorizesBInnerPov, false);
     assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.aiFocalViewpointOwnerCount, 1);
+  });
+
+  it("NORMAL auto progression co-authors B external action/dialogue but not inner POV", () => {
+    const block = buildAutoProgressionUserControlBlock({
+      active: true,
+      allowDialogue: true,
+      allowMajorActions: true,
+      allowInnerPov: false,
+      allowIrreversibleFate: false,
+      source: "chat_setting",
+      duration: "persistent",
+    });
+    assert.match(block, /외부에서 관찰 가능한 행동/);
+    assert.match(block, /대사를 공동 서술할 수 있다/);
+    assert.match(block, /비공개 속마음·내면 독백/);
+  });
+
+  it("ALLOW auto progression may narrate B inner POV while preserving irreversible fate", () => {
+    const block = buildAutoProgressionUserControlBlock({
+      active: true,
+      allowDialogue: true,
+      allowMajorActions: true,
+      allowInnerPov: true,
+      allowIrreversibleFate: false,
+      source: "chat_setting",
+      duration: "persistent",
+    });
+    assert.match(block, /속마음·내면 독백/);
+    assert.match(block, /사망, 영구 장애·능력 상실/);
+    assert.match(block, /명시적 전권 OOC 없이는 확정하지 않는다/);
+  });
+
+  it("ABSOLUTE auto progression may decide B irreversible fate and forbids unexplained resurrection", () => {
+    const block = buildAutoProgressionUserControlBlock({
+      active: true,
+      allowDialogue: true,
+      allowMajorActions: true,
+      allowInnerPov: true,
+      allowIrreversibleFate: true,
+      source: "explicit_ooc",
+      duration: "persistent",
+    });
+    assert.match(block, /능력 상실·죽음 같은 불가역적 운명까지/);
+    assert.match(block, /자동 복구하거나 되살리지 않는다/);
   });
 
   it("supports ensemble cast focalization", () => {
@@ -131,7 +173,7 @@ describe("auto progression prompt content", () => {
     });
     assertNoNovelModeLeak(cmd);
     assert.match(cmd, /\[AI_CAST\]/);
-    assert.match(cmd, /AI-focal auto-progression owner/);
+    assert.match(cmd, /EFFECTIVE USER AUTHORING policy/);
     assert.doesNotMatch(cmd, /\[AUTO PROGRESSION — AI-FOCAL CO-NARRATION\]/);
   });
 
@@ -174,7 +216,7 @@ describe("auto progression prompt content", () => {
       recentMessages: [],
       currentUserMessage: "자동진행",
     });
-    assert.match(block, /외부 행동·대사/);
+    assert.match(block, /USER AUTHORING owner/);
     assert.match(block, /내면/);
     assert.match(block, new RegExp(AUTO_PROGRESSION_SCENE_USER_CONTROL.slice(0, 20)));
   });
@@ -219,7 +261,7 @@ describe("auto progression prompt content", () => {
     });
     assertNoNovelModeLeak(built.systemPrompt);
     assert.match(built.systemPrompt, /\[AI_CAST\]/);
-    assert.match(built.systemPrompt, /AI-FOCAL CO-NARRATION/);
+    assert.match(built.systemPrompt, /EFFECTIVE USER AUTHORING/);
     assert.doesNotMatch(built.systemPrompt, /CONTROLLED POSSESSION MODE — ACTIVE/);
   });
 
@@ -240,16 +282,16 @@ describe("auto progression prompt content", () => {
       completedTurns: 2,
     });
     assertNoNovelModeLeak(built.systemPrompt);
-    assert.match(built.systemPrompt, /AI-FOCAL CO-NARRATION/);
+    assert.match(built.systemPrompt, /EFFECTIVE USER AUTHORING/);
     assert.equal(
-      built.systemPrompt.split("[AUTO PROGRESSION — AI-FOCAL CO-NARRATION]").length - 1,
+      built.systemPrompt.split("[AUTO PROGRESSION — EFFECTIVE USER AUTHORING]").length - 1,
       1
     );
   });
 
   it("godmodding autoContinue block is used for continue", () => {
     const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "autoContinue");
-    assert.match(block, /AI-FOCAL CO-NARRATION/);
+    assert.match(block, /EFFECTIVE USER AUTHORING/);
     assert.notEqual(
       block,
       buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "standard")
