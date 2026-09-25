@@ -344,11 +344,8 @@ import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPu
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
-import { INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION } from "@/lib/currentTurnUserAuthoringDelegation";
 import {
   persistUserCoauthorAfterSuccessfulUserInsert,
-  readUserCoauthorMode,
-  resolveEffectiveUserAuthoring,
   resolveEffectiveUserAuthoringForRegeneration,
   resolveEffectiveUserAuthoringFromChatColumn,
 } from "@/lib/userCoauthorState";
