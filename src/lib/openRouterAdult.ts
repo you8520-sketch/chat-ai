@@ -247,7 +247,7 @@ export function buildCoNarrationKoreanRule(
   autoProgression = false
 ): string {
   if (autoProgression) {
-    return `7. 유저 대사: 자동진행 — [AUTO PROGRESSION — AI-CENTERED] 준수. [AI_CAST]가 장면을 주도. [B] 짧은 외부 행동·대사만 보조. [B] 내면·감정 결론·중대 결정 금지.`;
+    return `7. 유저 대사: 자동진행 — [AUTO PROGRESSION — EFFECTIVE USER AUTHORING] 준수. [AI_CAST]가 장면을 주도하고 [B] 집필 범위는 EFFECTIVE USER AUTHORING owner를 그대로 따른다.`;
   }
   if (novelMode) {
     return `7. 유저 대사: 소설 모드 ON — [NOVEL MODE — USER PERSONA NARRATION RULES] 적용. 유저 페르소나 대사·행동·속마음 AI 전면 서술. [USER_PERSONA] 말투·성격 유지.`;
