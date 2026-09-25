@@ -130,10 +130,11 @@ ${MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF}
 ${POSSESSION_MODE_HINT}`;
 }
 
-export const CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE =
-  "[USER AUTHORING — CURRENT-TURN OOC DELEGATION]";
+export const USER_COAUTHOR_OWNER_TITLE =
+  "[USER AUTHORING — EFFECTIVE COAUTHOR POLICY]";
 
-export const USER_COAUTHOR_OWNER_TITLE = CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE;
+/** @deprecated Legacy name retained for tests/importers; same canonical owner. */
+export const CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE = USER_COAUTHOR_OWNER_TITLE;
 
 export const CURRENT_INPUT_OVERRIDES_PRIOR_ASSISTANT_LINE =
   "현재 사용자 입력이 이전에 어시스턴트가 쓴 [B] 대사·행동보다 우선한다. 방금 입력과 모순되는 페르소나 진행은 쓰지 않는다.";
@@ -161,24 +162,46 @@ function delegatedScopeLines(
 ): string {
   const allowDialogue = delegation?.allowDialogue === true;
   const allowMajorActions = delegation?.allowMajorActions === true;
+  const allowInnerPov = delegation?.allowInnerPov === true;
+  const allowIrreversibleFate = delegation?.allowIrreversibleFate === true;
   const turnLimited = duration === "turn";
-  if (allowDialogue && allowMajorActions) {
-    return `[B]의 대사와 중요한 행동을 페르소나에 맞게 작성할 수 있다.
-위임된 허구 턴을 이어가는 데 필요한 페르소나 일관 선택(수락·거절·망설임·접근·물러남)과 장면 국소적 후속 동작·반응·접근/후퇴는 허용한다. 이는 허구 페르소나 서술이며 현실 동의가 아니다.${turnLimited ? " 이번 턴에만 적용된다." : ""}
-현재 OOC·[USER_PERSONA]·확정 관계·장면·기억/정본 범위 밖의 정체성·소속·장기 관계·영구적 약속 같은 정본 변경은 대신하지 않는다.`;
+
+  if (allowIrreversibleFate) {
+    return `[B]의 대사·행동·감정·생각·속마음·내면 시점과 장면 선택을 완전한 소설 공동 집필 대상으로 다룬다.
+[USER_PERSONA], 실제 대화, 확정 기억과 기존 정본에 모순되지 않는 범위에서 [B]의 수락·거절·배신·관계 변화·소속 이동·영구 부상·능력 상실·죽음 같은 불가역적 운명까지 서사적으로 확정할 수 있다.${turnLimited ? " 이번 턴에만 적용된다." : ""}
+[B]가 죽거나 다른 불가역 상태가 성립하면 그 branch의 후속 상태로 유지한다. 명시적 부활·회귀·OOC 변경·분기 근거 없이 다음 턴에 자동 복구하거나 되살리지 않는다.
+기존 [USER_PERSONA]/creator canon을 무시해서 설정을 바꾸는 권한은 아니다. 빈칸은 장면과 기존 성격에 일관되게 채울 수 있다.
+
+AI가 담당하는 캐릭터·NPC·세계는 명시 정본과 충돌하지 않는 빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있고, 결혼·영구 이별·배신·조직 탈퇴·사망·능력 상실 같은 불가역 변화도 서사적으로 일으킬 수 있다.`;
   }
+
+  if (allowInnerPov && allowDialogue && allowMajorActions) {
+    return `[B]의 대사·행동·감정·생각·속마음·내면 독백과 장면 단위 선택을 [USER_PERSONA]와 실제 대화 흐름에 맞춰 소설처럼 공동 서술할 수 있다.${turnLimited ? " 이번 턴에만 적용된다." : ""}
+[B]의 새 행동을 시작하고 대화 왕복을 이어가며, 망설임·접근·후퇴·수락·거절 같은 국소적 선택도 자연스럽게 쓸 수 있다.
+다만 [B]의 사망, 영구 장애·능력 상실, 정체성·종족 변경, 장기 소속의 영구 변경, 결혼·영구 이별 같은 장기 관계 확정, 정본에 없던 가족사·과거를 객관적 사실로 새로 고정하는 불가역 변경은 현재 사용자 입력이나 명시적 전권 OOC 없이는 대신 확정하지 않는다.
+
+AI가 담당하는 캐릭터·NPC·세계는 명시 정본과 충돌하지 않는 빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있고, 결혼·영구 이별·배신·조직 탈퇴·사망·능력 상실 같은 불가역 변화도 서사적으로 일으킬 수 있다.`;
+  }
+
+  if (allowDialogue && allowMajorActions) {
+    return `[B]의 직접 대사와 외부에서 관찰 가능한 중요한 행동을 페르소나에 맞게 공동 서술할 수 있다.
+장면에 필요한 일상적 선택, 대화 왕복, 접근·후퇴·망설임·수락·거절 같은 국소적 반응을 자연스럽게 이어갈 수 있다.${turnLimited ? " 이번 턴에만 적용된다." : ""}
+[B]의 비공개 속마음·내면 독백·숨은 욕망을 객관적 사실로 쓰지 않는다. [B]의 사망·영구 상실·정체성·장기 관계·소속 같은 불가역 정본 변경도 대신 확정하지 않는다.`;
+  }
+
   if (allowDialogue) {
     return `[B]의 직접 대사를 페르소나 말투·성격에 맞게 작성할 수 있다.
-새로운 중요한 자발적 행동·동의/거절·관계·정체성 결정은 현재 입력이 이미 확정한 범위 밖에서는 대신하지 않는다.`;
+새로운 중요한 자발적 행동·내면·불가역 관계/정체성 결정은 현재 입력이 이미 확정한 범위 밖에서는 대신하지 않는다.`;
   }
-  if (allowMajorActions) {
-    return `[B]의 중요한 행동과 페르소나에 맞는 장면 진행을 작성할 수 있다.
-요청된 장면을 자연스럽게 완성하기 위한 국소적 동작·반응·선택(접근·후퇴·망설임·수락·거절)은 허용한다. 현재 OOC·[USER_PERSONA]·확정 관계·장면·기억/정본 범위 밖의 정체성·소속·장기 관계·영구적 약속 같은 정본 변경은 대신하지 않는다.
-현재 입력에 없는 새 [B] 대사는 만들지 않는다.`;
-  }
-  return `이번 턴의 위임 범위가 없으면 [USER CONTROL — COLLABORATIVE INTERACTIVE]와 같이 새 대사·중요 행동을 대신하지 않는다.`;
-}
 
+  if (allowMajorActions) {
+    return `[B]의 중요한 외부 행동과 페르소나에 맞는 장면 진행을 작성할 수 있다.
+요청된 장면을 자연스럽게 완성하기 위한 국소적 동작·반응·선택(접근·후퇴·망설임·수락·거절)은 허용한다.
+현재 입력에 없는 새 [B] 대사·비공개 내면·불가역 정본 변경은 만들지 않는다.`;
+  }
+
+  return `현재 [B] 집필 권한은 제한 상태다. 새 직접 대사·중요 행동·내면·불가역 결정을 대신하지 않고, 짧은 표정·시선·비자발적 반응과 이미 시작된 행동의 자연스러운 마무리만 공동 서술한다.`;
+}
 /** Parameterized coauthor owner — turn-only or persistent. Not LIMITED CO-NARRATION. */
 export function buildUserCoauthorOwnerBlock(
   delegation?: CurrentTurnAuthoringDelegation
@@ -214,7 +237,7 @@ export function buildNoGodmoddingBlock(
 ): string {
   switch (mode) {
     case "autoContinue":
-      return buildAutoProgressionUserControlBlock();
+      return buildAutoProgressionUserControlBlock(options?.currentTurnDelegation);
     case "coNarration":
       return buildLimitedCoNarrationBlock();
     case "currentTurnDelegated":
