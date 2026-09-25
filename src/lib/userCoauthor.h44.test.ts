@@ -408,7 +408,7 @@ describe("H4.4 prompt owners stay mutually exclusive", () => {
     assert.match(built.systemPrompt, new RegExp(CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE.replace(/[[\]]/g, "\\$&")));
     assert.doesNotMatch(built.systemPrompt, /\[USER CONTROL — COLLABORATIVE INTERACTIVE\]/);
     const last = built.history[built.history.length - 1]?.content ?? "";
-    assert.match(last, /ongoing persona co-authoring until revoked/);
+    assert.match(last, /ongoing OOC authoring override until it is changed or revoked/);
     assert.doesNotMatch(last, /Earlier assistant-authored \[B\] content is scene history only/);
     assert.doesNotMatch(last, /POST-DELEGATION RESTORED/);
   });
