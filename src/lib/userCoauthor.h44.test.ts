@@ -381,6 +381,30 @@ describe("H4.4 prompt owners stay mutually exclusive", () => {
     assert.doesNotMatch(persistent, /INTERACTIVE USER OWNERSHIP — ABSOLUTE/);
   });
 
+  it("AI-cast-only ALLOW owner keeps B limited without disabling irreversible AI-cast progression", () => {
+    const owner = buildNoGodmoddingBlock("", "", "currentTurnDelegated", {
+      currentTurnDelegation: {
+        active: false,
+        allowDialogue: false,
+        allowMajorActions: false,
+        allowInnerPov: false,
+        allowIrreversibleFate: false,
+        allowAiCastIrreversibleExpansion: true,
+        source: "explicit_ooc",
+        duration: "persistent",
+      },
+    });
+    assert.match(owner, /현재 \[B\] 직접 공동서술은 제한되어 있다/);
+    assert.match(owner, /현재 \[B\] 집필 권한은 제한 상태다/);
+    assert.match(owner, /빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있고/);
+    assert.match(owner, /결혼·영구 이별·배신·조직 탈퇴·사망·능력 상실/);
+    assert.doesNotMatch(owner, /사용자가 유저 페르소나 공동 서술을 켜 두었다/);
+    assert.equal(
+      (owner.match(/빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있고/g) ?? []).length,
+      1
+    );
+  });
+
   it("buildContext persistent next turn uses one COAUTHOR owner and no STANDARD owner", () => {
     const built = buildContext({
       charName: "테스트_AI_캐릭터",
