@@ -98,8 +98,11 @@ export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL = "claude-opus-5";
 /** Cheaper Inference OpenAI-compatible API — Claude Opus 5.5 (Main RP prep; not user-selectable yet). */
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL = "claude-opus-5.5";
 
-/** Cheaper Inference OpenAI-compatible API — GPT-5.6 Luna */
+/** Cheaper Inference OpenAI-compatible API — GPT-5.6 Luna (historical background support). */
 export const CHEAPER_INFERENCE_GPT_56_LUNA_MODEL = "gpt-5.6-luna";
+
+/** Cheaper Inference OpenAI-compatible API — GPT-6 Luna (current background primary). */
+export const CHEAPER_INFERENCE_GPT_6_LUNA_MODEL = "gpt-6-luna";
 
 /** Cheaper Inference OpenAI-compatible API — Gemini 3.1 Pro Preview */
 export const CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL =
@@ -201,6 +204,7 @@ export const CLAUDE_OPUS_5_DISPLAY_NAME = "Claude Opus 5";
 export const CLAUDE_OPUS_55_DISPLAY_NAME = "Claude Opus 5.5";
 
 export const GPT_56_LUNA_DISPLAY_NAME = "GPT-5.6 Luna";
+export const GPT_6_LUNA_DISPLAY_NAME = "GPT-6 Luna";
 
 export const GEMINI_31_PRO_PREVIEW_DISPLAY_NAME = "Gemini 3.1 Pro Preview";
 
@@ -353,6 +357,14 @@ export function isGpt56LunaModel(modelId: string): boolean {
   return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
 }
 
+export function isGpt6LunaModel(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_GPT_6_LUNA_MODEL;
+}
+
+export function isGptLunaFamilyModel(modelId: string): boolean {
+  return isGpt56LunaModel(modelId) || isGpt6LunaModel(modelId);
+}
+
 export function isCheaperInferenceGemini31ProModel(modelId: string): boolean {
   return (
     modelId.trim().toLowerCase() ===
@@ -411,6 +423,7 @@ export function isCheaperInferenceModel(modelId: string): boolean {
     id === CHEAPER_INFERENCE_GLM_52_MODEL ||
     id === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL ||
     id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL ||
+    id === CHEAPER_INFERENCE_GPT_6_LUNA_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL ||
@@ -553,7 +566,7 @@ export function isOpenRouterSharedProseModel(modelId: string): boolean {
       isGlmModel(id) ||
       isKimiModel(id) ||
       isMuseModel(id) ||
-      isGpt56LunaModel(id) ||
+      isGptLunaFamilyModel(id) ||
       isDeepSeekV4ProModel(id) ||
       isGeminiChatOpenRouterModel(id) ||
       id.includes("/"))
@@ -596,6 +609,7 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "deepseek-v4-flash": DEFAULT_SELECTED_AI,
   "deepseek-v4-flash-0731": DEFAULT_SELECTED_AI,
   "gpt-5.6-luna": DEFAULT_SELECTED_AI,
+  "gpt-6-luna": DEFAULT_SELECTED_AI,
   /** Qwen 3.7 Max 제거 — 현재 기본 모델로 이전 */
   qwen: DEFAULT_SELECTED_AI,
   "qwen3.7-max": DEFAULT_SELECTED_AI,
@@ -661,6 +675,9 @@ export function selectedAILabel(id: string): string {
   if (opt) return opt.label;
   if (isGpt56LunaModel(id)) {
     return GPT_56_LUNA_DISPLAY_NAME;
+  }
+  if (isGpt6LunaModel(id)) {
+    return GPT_6_LUNA_DISPLAY_NAME;
   }
   if (isGpt56TerraModel(id)) {
     return GPT_56_TERRA_DISPLAY_NAME;
