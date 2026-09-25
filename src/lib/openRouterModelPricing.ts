@@ -47,7 +47,7 @@ const CHEAPER_INFERENCE_CLAUDE_OPUS_5_RATES: OpenRouterModelRates = {
   explicitCacheInjection: true,
 };
 
-/** Cheaper Inference GPT-5.6 Luna — public list fallback (2026-08). */
+/** Cheaper Inference GPT-5.6 Luna — historical public list fallback (2026-08). */
 const CHEAPER_INFERENCE_GPT_56_LUNA_RATES: OpenRouterModelRates = {
   family: "openai",
   label: "Cheaper Inference · OpenAI automatic cache",
@@ -56,6 +56,21 @@ const CHEAPER_INFERENCE_GPT_56_LUNA_RATES: OpenRouterModelRates = {
   cacheReadUsdPerM: 0.008,
   cacheWriteUsdPerM: 0.08,
   cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
+/**
+ * Cheaper Inference GPT-6 Luna — displayed 30%-off fallback (2026-09-25).
+ * Live /v1/models catalog remains authoritative; cache multipliers mirror the
+ * upstream GPT-6 Luna contract only when a live CI catalog snapshot is absent.
+ */
+const CHEAPER_INFERENCE_GPT_6_LUNA_RATES: OpenRouterModelRates = {
+  family: "openai",
+  label: "Cheaper Inference · OpenAI automatic cache",
+  inputUsdPerM: 0.07,
+  outputUsdPerM: 0.35,
+  cacheReadMultiplier: 0.1,
+  cacheWriteMultiplier: 1.25,
   explicitCacheInjection: false,
 };
 
@@ -322,6 +337,9 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   }
   if (id === "gpt-5.6-luna") {
     return withLiveCheaperInferenceRates(id, CHEAPER_INFERENCE_GPT_56_LUNA_RATES);
+  }
+  if (id === "gpt-6-luna") {
+    return withLiveCheaperInferenceRates(id, CHEAPER_INFERENCE_GPT_6_LUNA_RATES);
   }
   if (id === "gemini-3.1-pro-preview") {
     return withLiveCheaperInferenceRates(
