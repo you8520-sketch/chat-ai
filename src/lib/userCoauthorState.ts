@@ -56,7 +56,7 @@ export const DEFAULT_USER_COAUTHOR_MODE: UserCoauthorMode = "OFF";
 export const USER_COAUTHOR_MODE_COLUMN = "user_coauthor_mode";
 export const USER_COAUTHOR_SEMANTICS_VERSION_COLUMN = "user_coauthor_semantics_version";
 export const LEGACY_USER_COAUTHOR_SEMANTICS_VERSION = 0;
-export const CURRENT_USER_COAUTHOR_SEMANTICS_VERSION = 1;
+export const CURRENT_USER_COAUTHOR_SEMANTICS_VERSION = 2;
 
 export type UserCoauthorBooleans = {
   allowDialogue: boolean;
@@ -572,13 +572,36 @@ export function recomputeAndPersistUserCoauthorMode(
   return mode;
 }
 
+function hasCurrentUserCoauthorSemanticsEpoch(
+  db: CoauthorDb,
+  chatId: number
+): boolean {
+  ensureUserCoauthorSemanticsVersionColumn(db);
+  if (!tableExists(db, "messages")) return false;
+  const row = db
+    .prepare(
+      `SELECT 1 AS ok FROM messages
+       WHERE chat_id=? AND role='user'
+         AND ${USER_COAUTHOR_SEMANTICS_VERSION_COLUMN}>=?
+       LIMIT 1`
+    )
+    .get(chatId, CURRENT_USER_COAUTHOR_SEMANTICS_VERSION) as { ok?: number } | undefined;
+  return row != null;
+}
+
 export function resolveEffectiveUserAuthoringFromChatColumn(
   db: CoauthorDb,
   chatId: number,
   currentUserInput?: string | null
 ): AppliedUserCoauthorDirective {
+  // v1 marked every USER message and used the older two-scope parser. Never
+  // replay or inherit that hidden mode under the new three-level/absolute
+  // semantics. The first v2 USER turn establishes the new override epoch.
+  const persistentMode = hasCurrentUserCoauthorSemanticsEpoch(db, chatId)
+    ? readUserCoauthorMode(db, chatId)
+    : DEFAULT_USER_COAUTHOR_MODE;
   return resolveEffectiveUserAuthoring({
-    persistentMode: readUserCoauthorMode(db, chatId),
+    persistentMode,
     baseLevel: readUserAuthoringLevel(db, chatId),
     currentUserInput,
   });
