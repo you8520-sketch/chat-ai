@@ -13,8 +13,8 @@ export type UserCoauthorDirective = {
   duration: UserCoauthorDirectiveDuration;
   dialogue: UserCoauthorSlotOp;
   majorActions: UserCoauthorSlotOp;
-  innerPov: UserCoauthorSlotOp;
-  irreversibleFate: UserCoauthorSlotOp;
+  innerPov?: UserCoauthorSlotOp;
+  irreversibleFate?: UserCoauthorSlotOp;
 };
 
 export const EMPTY_USER_COAUTHOR_DIRECTIVE: UserCoauthorDirective = {
