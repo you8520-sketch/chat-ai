@@ -149,7 +149,19 @@ function resolveCoauthorDuration(
   return delegation?.duration === "persistent" ? "persistent" : "turn";
 }
 
-function coauthorDurationLine(duration: UserCoauthorDuration): string {
+function coauthorDurationLine(
+  delegation: CurrentTurnAuthoringDelegation | undefined,
+  duration: UserCoauthorDuration
+): string {
+  const aiCastOnly =
+    delegation?.active !== true &&
+    delegation?.allowAiCastIrreversibleExpansion === true;
+  if (aiCastOnly) {
+    if (duration === "persistent") {
+      return "현재 [B] 직접 공동서술은 제한되어 있다. 이 제한과 별개로 ALLOW가 부여한 AI 담당 캐릭터·NPC·세계의 확장 전개 권한은 유지된다.";
+    }
+    return "이번 턴 [B] 직접 공동서술은 제한되어 있다. AI 담당 캐릭터·NPC·세계의 확장 전개 권한은 이 제한과 별개로 유지된다.";
+  }
   if (duration === "persistent") {
     return "사용자가 유저 페르소나 공동 서술을 켜 두었다. 철회하기 전까지 이후 일반 입력 턴에도 같은 범위가 유지된다.";
   }
@@ -212,7 +224,7 @@ export function buildUserCoauthorOwnerBlock(
   const duration = resolveCoauthorDuration(delegation);
   return `${USER_COAUTHOR_OWNER_TITLE}
 
-${coauthorDurationLine(duration)}
+${coauthorDurationLine(delegation, duration)}
 
 [USER_PERSONA], 확정된 관계, 현재 장면, 실제 대화·기억을 정본으로 따른다. 새 성격을 만들지 않는다.
 
