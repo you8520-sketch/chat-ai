@@ -650,6 +650,7 @@ function migrate(db: Database.Database) {
   addColumn("chats", "adult_handoff_enabled", "INTEGER NOT NULL DEFAULT 0");
   /** Chat-scoped user co-authoring preference: OFF | DIALOGUE | ACTIONS | FULL. */
   addColumn("chats", "user_coauthor_mode", "TEXT NOT NULL DEFAULT 'OFF'");
+  addColumn("chats", "user_authoring_level", "TEXT NOT NULL DEFAULT 'LIMITED'");
   /**
    * Message semantics epoch for user co-authoring reconstruction.
    * 0 = legacy / pre-feature (never a persistent reconstruction source).
