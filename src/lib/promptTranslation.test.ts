@@ -3,6 +3,7 @@ import { afterEach, describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
   isCheaperInferenceModel,
 } from "@/lib/chatModels";
@@ -139,6 +140,13 @@ describe("translation model chain", () => {
       CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
     ]);
+  });
+
+  it("migrates historical GPT-5.6 Luna primary env to GPT-6 Luna", () => {
+    const models = resolveTranslationModels({
+      PROMPT_TRANSLATION_MODEL: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+    } as NodeJS.ProcessEnv);
+    assert.equal(models[0], CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
   });
 
   it("T7 explicit env override replaces default Gemini fallback", () => {
