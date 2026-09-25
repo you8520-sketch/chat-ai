@@ -1015,6 +1015,8 @@ export default function ChatClient({
   const [hiddenTurnCount, setHiddenTurnCount] = useState(initialHiddenTurnCount);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [chatId, setChatId] = useState(initialChatId);
+  const chatIdRef = useRef(chatId);
+  chatIdRef.current = chatId;
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(
     () => new Set(initialBookmarkedIds)
   );
@@ -1528,6 +1530,7 @@ export default function ChatClient({
       const previous = userAuthoringLevel;
       setUserAuthoringLevel(next);
       if (!chatId) return;
+      const requestChatId = chatId;
 
       const savePromise = (async (): Promise<boolean> => {
         setUserAuthoringSaving(true);
@@ -1542,8 +1545,10 @@ export default function ChatClient({
             userAuthoringLevel?: UserAuthoringLevel;
           } | null;
           if (!res.ok) {
-            setUserAuthoringLevel(previous);
-            setToastMsg(data?.error || "내 행동/대사 서술 설정 저장에 실패했습니다.");
+            if (chatIdRef.current === requestChatId) {
+              setUserAuthoringLevel(previous);
+              setToastMsg(data?.error || "내 행동/대사 서술 설정 저장에 실패했습니다.");
+            }
             return false;
           }
           if (
@@ -1551,12 +1556,16 @@ export default function ChatClient({
             data?.userAuthoringLevel === "NORMAL" ||
             data?.userAuthoringLevel === "ALLOW"
           ) {
-            setUserAuthoringLevel(data.userAuthoringLevel);
+            if (chatIdRef.current === requestChatId) {
+              setUserAuthoringLevel(data.userAuthoringLevel);
+            }
           }
           return true;
         } catch {
-          setUserAuthoringLevel(previous);
-          setToastMsg("내 행동/대사 서술 설정 저장 중 오류가 발생했습니다.");
+          if (chatIdRef.current === requestChatId) {
+            setUserAuthoringLevel(previous);
+            setToastMsg("내 행동/대사 서술 설정 저장 중 오류가 발생했습니다.");
+          }
           return false;
         } finally {
           setUserAuthoringSaving(false);
