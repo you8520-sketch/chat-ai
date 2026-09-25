@@ -189,7 +189,8 @@ function buildMockVariantChatSseBody(chatId: number): string {
 
 async function installSuggestedRepliesTurnMock(
   page: Page,
-  outcome: "ready" | "terminal-empty" = "ready"
+  outcome: "ready" | "terminal-empty" = "ready",
+  options?: { regenFailure?: boolean }
 ) {
   let targetPollCalls = 0;
   let chatPostCalls = 0;
@@ -275,11 +276,26 @@ async function installSuggestedRepliesTurnMock(
 
     chatPostCalls += 1;
     let chatId = 0;
+    let regenerate = false;
     try {
-      const body = route.request().postDataJSON() as { chatId?: number };
+      const body = route.request().postDataJSON() as {
+        chatId?: number;
+        regenerate?: boolean;
+      };
       if (body.chatId != null) chatId = body.chatId;
+      regenerate = body.regenerate === true;
     } catch {
       /* fixture fallback */
+    }
+
+    if (regenerate && options?.regenFailure === true) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "mock regeneration failure" }),
+      });
+      return;
     }
 
     await route.fulfill({
@@ -503,6 +519,72 @@ test.describe("Suggested Replies — production browser lifecycle", () => {
     expect(mock.getTargetPollCalls()).toBe(2);
     expect(mock.getChatPostCalls()).toBe(1);
     expect(mock.getVariantPatchCalls()).toBe(1);
+    await expect(textarea).toHaveValue("");
+  });
+
+  test("failed regeneration restores previous-generation suggestions without repolling", async ({ page }) => {
+    const mock = await installSuggestedRepliesTurnMock(page, "ready", {
+      regenFailure: true,
+    });
+    await openFreshChat(page);
+
+    const textarea = page.locator("textarea[placeholder*='메시지 입력']");
+    await setReactTextareaValue(page, "재생성 실패 복원 테스트");
+
+    const initialResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/chat" &&
+        response.request().method() === "POST",
+      { timeout: 45_000 }
+    );
+    await page.getByRole("button", { name: "전송", exact: true }).click();
+    expect((await initialResponse).ok()).toBeTruthy();
+
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    }
+    await expect.poll(mock.getTargetPollCalls, { timeout: 10_000 }).toBe(2);
+    expect(mock.getChatPostCalls()).toBe(1);
+
+    await page.getByRole("button", { name: "재생성", exact: true }).click();
+    const dialog = page.getByRole("alertdialog");
+    await expect(dialog).toBeVisible();
+
+    const regenResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/chat" &&
+        response.request().method() === "POST" &&
+        response.status() === 500,
+      { timeout: 10_000 }
+    );
+    await dialog.getByRole("button", { name: "재생성", exact: true }).click();
+
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toHaveCount(0, {
+        timeout: 1_000,
+      });
+    }
+
+    expect((await regenResponse).status()).toBe(500);
+
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 5_000,
+      });
+    }
+    await expect(
+      page.getByText(
+        "유나는 잠깐 생각하더니 고개를 끄덕였다. 이제 다음 말을 기다리는 듯 시선을 맞췄다.",
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(page.getByText("추천 메시지 준비 중…", { exact: true })).toHaveCount(0);
+
+    await page.waitForTimeout(1_000);
+    expect(mock.getTargetPollCalls()).toBe(2);
+    expect(mock.getChatPostCalls()).toBe(2);
     await expect(textarea).toHaveValue("");
   });
 
