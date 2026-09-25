@@ -18,6 +18,7 @@ import {
   executeAtomicManualEditCore,
   supersedeStatusTriggerEventsForSourceMessage,
   getAssistantSourceTurn,
+  invalidateSuggestedRepliesForSourceEditCore,
 } from "@/lib/rpDerivedStateLifecycle";
 import {
   parseStoredStatusWidgetValuesJson,
@@ -56,6 +57,7 @@ function makeMessagesDb(): Database.Database {
       adult_route_meta_json TEXT DEFAULT '',
       status_widget_values_json TEXT DEFAULT '',
       status_widget_turn_active INTEGER DEFAULT 0,
+      suggested_replies_json TEXT,
       generation_status TEXT DEFAULT 'completed',
       request_id TEXT,
       user_message_id INTEGER,
@@ -100,6 +102,16 @@ function storedWidgetJson(db: Database.Database, messageId: number): string {
     .prepare("SELECT status_widget_values_json AS v FROM messages WHERE id=?")
     .get(messageId) as { v: string | null } | undefined;
   return row?.v ?? "";
+}
+
+function storedSuggestedRepliesJson(
+  db: Database.Database,
+  messageId: number
+): string | null {
+  const row = db
+    .prepare("SELECT suggested_replies_json AS v FROM messages WHERE id=?")
+    .get(messageId) as { v: string | null } | undefined;
+  return row?.v ?? null;
 }
 
 function messageContent(db: Database.Database, messageId: number): string {
@@ -227,6 +239,10 @@ describe("Phase B0.1 — Fix A: material edit embedded facts independent of widg
       facts: [fact("둘은 동행하기로 합의했다.")],
       metadata: { assistant_message_id: 50, request_id: "r1" },
     });
+    db.prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
+      JSON.stringify({ replies: [{ kind: "natural", text: "stale" }] }),
+      50
+    );
     assert.equal(countFacts(db, 1, 5), 1);
 
     const newText = "완전히 다른 전개로 바뀌었다.";
@@ -252,6 +268,11 @@ describe("Phase B0.1 — Fix A: material edit embedded facts independent of widg
     assert.deepEqual(stored.user, { mood: "happy" }, "user preserved");
     assert.equal(stored.extracted_facts, undefined, "embedded extracted_facts cleared");
     assert.equal(countFacts(db, 1, 5), 0, "DB episodic facts deleted");
+    assert.equal(
+      storedSuggestedRepliesJson(db, 50),
+      null,
+      "material assistant edit clears stale suggested replies"
+    );
     assert.equal(messageContent(db, 50), newText);
   });
 
@@ -319,6 +340,13 @@ describe("Phase B0.1 — Fix A: material edit embedded facts independent of widg
       facts: [fact("둘은 동행하기로 합의했다.")],
       metadata: { assistant_message_id: 50, request_id: "r1" },
     });
+    const preservedSuggestedReplies = JSON.stringify({
+      replies: [{ kind: "natural", text: "preserve" }],
+    });
+    db.prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
+      preservedSuggestedReplies,
+      50
+    );
 
     assert.equal(isMaterialProseEdit(before, after), false, "whitespace-only = not material");
 
@@ -341,6 +369,35 @@ describe("Phase B0.1 — Fix A: material edit embedded facts independent of widg
     assert.deepEqual(stored.character, { affection: "40" }, "character preserved");
     assert.equal(stored.extracted_facts?.length, 1, "embedded facts preserved");
     assert.equal(countFacts(db, 1, 5), 1, "DB episodic facts preserved");
+    assert.equal(
+      storedSuggestedRepliesJson(db, 50),
+      preservedSuggestedReplies,
+      "format-only edit preserves suggested replies"
+    );
+  });
+
+  it("A3b material user edit clears only linked assistant suggestions", () => {
+    const db = makeMessagesDb();
+    db.prepare(
+      "INSERT INTO messages (id, chat_id, role, content, model) VALUES (?,?,?,?,?)"
+    ).run(40, 1, "user", "원본 유저 입력", "user");
+    db.prepare(
+      "INSERT INTO messages (id, chat_id, role, content, model, user_message_id, suggested_replies_json) VALUES (?,?,?,?,?,?,?)"
+    ).run(50, 1, "assistant", "연결된 답변", "test", 40, '{"replies":["linked"]}');
+    db.prepare(
+      "INSERT INTO messages (id, chat_id, role, content, model, user_message_id, suggested_replies_json) VALUES (?,?,?,?,?,?,?)"
+    ).run(51, 1, "assistant", "다른 답변", "test", 41, '{"replies":["other"]}');
+
+    const invalidated = invalidateSuggestedRepliesForSourceEditCore(db, {
+      chatId: 1,
+      sourceMessageId: 40,
+      sourceRole: "user",
+      materialProseChange: true,
+    });
+
+    assert.deepEqual(invalidated, [50]);
+    assert.equal(storedSuggestedRepliesJson(db, 50), null);
+    assert.equal(storedSuggestedRepliesJson(db, 51), '{"replies":["other"]}');
   });
 
   it("A4 status-only edit → facts preserved", () => {
@@ -720,6 +777,74 @@ describe("Phase B0.2 — manual status trigger atomicity (TX6-TX9)", () => {
     assert.equal(messageContent(db, 50), same, "prose unchanged");
     assert.equal(activeTriggerEvents(db, 1, 50), 1, "old trigger remains active");
     assert.equal(countSuperseded(db, 1, 50), 0, "no supersession committed");
+  });
+
+  it("TX6b material edit failure rolls back suggested-replies invalidation", () => {
+    const db = makeMessagesDb();
+    const originalSuggestedReplies = JSON.stringify({
+      replies: [{ kind: "natural", text: "original suggestion" }],
+    });
+    db.prepare(
+      "INSERT INTO messages (id, chat_id, role, content, model, status_widget_values_json, suggested_replies_json, generation_status) VALUES (?,?,?,?,?,?,?,?)"
+    ).run(
+      50,
+      1,
+      "assistant",
+      "원본 본문입니다.",
+      "test",
+      JSON.stringify({ character: { corruption: "80" }, user: null }),
+      originalSuggestedReplies,
+      "completed"
+    );
+    insertStatusWidgetTriggerForTest(db, triggerDef({ character_id: 7 }));
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 1,
+      characterId: 7,
+      sourceTurn: 1,
+      statusValues: { character: { corruption: "80" }, user: null },
+      sourceMessageId: 50,
+      requestId: "r1",
+      generationSequence: 0,
+    });
+
+    const newText = "완전히 다른 전개로 바뀌었다.";
+    const { statusWidgetValuesJson } = buildManualEditPayload({
+      existingJson: storedWidgetJson(db, 50),
+      hasWidgetPatch: true,
+      incomingWidgets: { character: { corruption: "20" }, user: null },
+      materialProseChange: true,
+    });
+
+    db.exec(`
+      CREATE TRIGGER fail_supersede_suggested BEFORE UPDATE ON status_trigger_events
+      WHEN NEW.is_superseded = 1
+      BEGIN
+        SELECT RAISE(ABORT, 'forced suggested rollback failure');
+      END;
+    `);
+
+    assert.throws(() => {
+      executeAtomicManualEditCore(db, {
+        chatId: 1,
+        messageId: 50,
+        content: newText,
+        alternatesJson: JSON.stringify([variantRow(newText)]),
+        statusWidgetValuesJson,
+        materialProseChange: true,
+        sourceTurn: getAssistantSourceTurn(db, 1, 50),
+        supersedeTriggers: true,
+        triggerSupersessionReason: "manual_status_edit",
+      });
+    }, /forced suggested rollback failure/);
+
+    assert.equal(messageContent(db, 50), "원본 본문입니다.");
+    assert.equal(
+      storedSuggestedRepliesJson(db, 50),
+      originalSuggestedReplies,
+      "suggested replies clear rolled back with the failed edit transaction"
+    );
+    assert.equal(activeTriggerEvents(db, 1, 50), 1);
+    assert.equal(countSuperseded(db, 1, 50), 0);
   });
 
   it("TX7 material prose + widget → episodic invalidate + trigger supersede atomically; re-eval uses new status", () => {

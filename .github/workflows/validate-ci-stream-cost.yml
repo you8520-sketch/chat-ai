@@ -40,6 +40,7 @@ on:
       - "src/lib/chatStreamEofReconcile.test.ts"
       - "src/lib/streamingPersistenceShared.ts"
       - "src/lib/rpDerivedStateLifecycle.ts"
+      - "src/lib/rpDerivedStateAtomicHardening.test.ts"
       - "src/lib/refund.ts"
       - "src/lib/creatorPoints.ts"
       - "src/lib/pointPolicyUnification.test.ts"
@@ -210,6 +211,9 @@ jobs:
 
       - name: Chat stream EOF reconcile
         run: node --conditions=react-server --import tsx --test src/lib/chatStreamEofReconcile.test.ts
+
+      - name: RP derived-state atomic hardening
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/rpDerivedStateAtomicHardening.test.ts
 
       - name: Refund integrity regression
         run: node --conditions=react-server --import tsx --test src/lib/pointPolicyUnification.test.ts
