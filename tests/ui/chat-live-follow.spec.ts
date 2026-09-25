@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route, type TestInfo } from "@playwright/test";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
+import type { SuggestedReplyItem } from "../../src/lib/suggestedReplies/types";
 import {
   seedCanonicalCompletedChatHistory,
 } from "./helpers/canonicalChatHistorySeed";
@@ -64,7 +65,8 @@ function buildMockChatSseBody(
   requestId: string,
   chatId: number,
   messageId: number,
-  userMessageId: number
+  userMessageId: number,
+  donePatch: Record<string, unknown> = {}
 ): string {
   const events: string[] = [
     `data: ${JSON.stringify({
@@ -91,6 +93,7 @@ function buildMockChatSseBody(
       paidPoints: 1500,
       freePoints: 0,
       totalPointsCost: 10,
+      ...donePatch,
       usage: {
         input: 100,
         output: 50,
@@ -161,9 +164,18 @@ async function waitForAssistantStreamSentinel(page: Page) {
   });
 }
 
-async function mockChatStreamRoute(page: Page, finalText: string) {
+async function mockChatStreamRoute(
+  page: Page,
+  finalText: string,
+  opts: { suggestedReplies?: SuggestedReplyItem[] } = {}
+) {
   const userMessageId = ++mockMessageSequence;
   const messageId = ++mockMessageSequence;
+  let suggestedRepliesPollCalls = 0;
+  let resolveSuggestedRepliesPoll!: () => void;
+  const suggestedRepliesPollSeen = new Promise<void>((resolve) => {
+    resolveSuggestedRepliesPoll = resolve;
+  });
   await page.route("**/api/chat/message", async (route: Route) => {
     let chatId = 0;
     try {
@@ -201,10 +213,25 @@ async function mockChatStreamRoute(page: Page, finalText: string) {
     await route.continue();
   });
   await page.route("**/api/chat/suggested-replies", async (route: Route) => {
+    const url = new URL(route.request().url());
+    const requestedMessageId = Number(url.searchParams.get("messageId"));
+    if (requestedMessageId !== messageId) {
+      await route.fallback();
+      return;
+    }
+    suggestedRepliesPollCalls += 1;
+    resolveSuggestedRepliesPoll();
+    const replies = opts.suggestedReplies ?? [];
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ suggestedReplies: [] }),
+      body: JSON.stringify({
+        messageId,
+        requested: opts.suggestedReplies != null,
+        pending: false,
+        failed: opts.suggestedReplies == null,
+        replies,
+      }),
     });
   });
   await page.route("**/api/chat", async (route: Route) => {
@@ -227,9 +254,22 @@ async function mockChatStreamRoute(page: Page, finalText: string) {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache",
       },
-      body: buildMockChatSseBody(finalText, requestId, chatId, messageId, userMessageId),
+      body: buildMockChatSseBody(
+        finalText,
+        requestId,
+        chatId,
+        messageId,
+        userMessageId,
+        opts.suggestedReplies ? { suggestedRepliesPending: true } : {}
+      ),
     });
   });
+
+  return {
+    messageId,
+    suggestedRepliesPollSeen,
+    suggestedRepliesPollCalls: () => suggestedRepliesPollCalls,
+  };
 }
 
 /**
@@ -800,6 +840,64 @@ test.describe("General chat live reading follow — production browser", () => {
 
     const endScrollY = await page.evaluate(() => window.scrollY);
     expect(endScrollY).toBeGreaterThan(preStreamScrollY);
+  });
+
+  test("SR1: suggestions finish while hidden, reappear on toggle, and fill the composer", async ({ page }) => {
+    await openFreshChat(page);
+
+    const toggle = page.getByRole("switch", { name: "추천 메시지" });
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+
+    const replies: SuggestedReplyItem[] = [
+      {
+        kind: "natural",
+        text: ('*고개를 들며* "무슨 일인지 먼저 차근차근 말해 줘." ' + "가".repeat(80)).slice(0, 80),
+      },
+      {
+        kind: "twist",
+        text: ('*문 쪽을 흘끗 보며* "잠깐, 여기 말고 밖에서 이야기할래?" ' + "나".repeat(80)).slice(0, 80),
+      },
+      {
+        kind: "banter",
+        text: ('*입꼬리를 올리며* "첫마디부터 그렇게 세게 나오기야?" ' + "다".repeat(80)).slice(0, 80),
+      },
+    ];
+    const mocked = await mockChatStreamRoute(page, "추천 메시지 UI 검증용 응답입니다.", {
+      suggestedReplies: replies,
+    });
+
+    await sendMockMessage(page, "추천 메시지 기능 확인");
+    await mocked.suggestedRepliesPollSeen;
+
+    await expect(page.getByRole("button", { name: /정석/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /한 수/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /드립/ })).toHaveCount(0);
+
+    const pollCallsAfterHiddenCompletion = mocked.suggestedRepliesPollCalls();
+    expect(pollCallsAfterHiddenCompletion).toBeGreaterThan(0);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
+
+    const natural = page.getByRole("button", { name: /정석/ });
+    const twist = page.getByRole("button", { name: /한 수/ });
+    const banter = page.getByRole("button", { name: /드립/ });
+    await expect(natural).toBeVisible();
+    await expect(twist).toBeVisible();
+    await expect(banter).toBeVisible();
+
+    await natural.click();
+    await expect(page.locator("textarea[placeholder*='메시지 입력']")).toHaveValue(replies[0]!.text);
+
+    await toggle.click();
+    await expect(natural).toHaveCount(0);
+    await toggle.click();
+    await expect(natural).toBeVisible();
+
+    await page.waitForTimeout(250);
+    expect(mocked.suggestedRepliesPollCalls()).toBe(pollCallsAfterHiddenCompletion);
   });
 
   test("C3: no native smooth scroll during visual reveal growth", async ({ page }) => {
