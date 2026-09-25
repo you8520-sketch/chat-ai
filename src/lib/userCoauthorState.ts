@@ -255,6 +255,9 @@ export function applyUserCoauthorDirective(
 
   if (directive.duration === "none") {
     const active = anyAuthoringCapability(currentBefore);
+    const allowAiCastIrreversibleExpansion =
+      normalizedBase === "ALLOW" || currentBefore.allowIrreversibleFate;
+    const requiresOwner = active || allowAiCastIrreversibleExpansion;
     return {
       persistentBefore,
       persistentAfter: persistentBefore,
@@ -263,12 +266,13 @@ export function applyUserCoauthorDirective(
         allowDialogue: currentBefore.allowDialogue,
         allowMajorActions: currentBefore.allowMajorActions,
       },
-      duration: active ? "persistent" : null,
+      duration: requiresOwner ? "persistent" : null,
       directive,
-      delegation: active
+      delegation: requiresOwner
         ? {
-            active: true,
+            active,
             ...currentBefore,
+            allowAiCastIrreversibleExpansion,
             source: persistentBefore === "OFF" ? "chat_setting" : "explicit_ooc",
             duration: "persistent",
           }
@@ -309,7 +313,10 @@ export function applyUserCoauthorDirective(
       ? userCoauthorModeFromCapabilities(nextCapabilities, normalizedBase)
       : persistentBefore;
   const active = anyAuthoringCapability(nextCapabilities);
-  const duration: UserCoauthorDuration | null = active
+  const allowAiCastIrreversibleExpansion =
+    normalizedBase === "ALLOW" || nextCapabilities.allowIrreversibleFate;
+  const requiresOwner = active || allowAiCastIrreversibleExpansion;
+  const duration: UserCoauthorDuration | null = requiresOwner
     ? directive.duration === "turn"
       ? "turn"
       : "persistent"
@@ -325,10 +332,11 @@ export function applyUserCoauthorDirective(
     },
     duration,
     directive,
-    delegation: active
+    delegation: requiresOwner
       ? {
-          active: true,
+          active,
           ...nextCapabilities,
+          allowAiCastIrreversibleExpansion,
           source: "explicit_ooc",
           duration,
         }
@@ -352,7 +360,7 @@ export function resolveEffectiveUserAuthoring(input: {
 
 /**
  * Pure text replay. Unit tests / audits only.
- * Production mutation reconstruction must use the version>=1 helper.
+ * Production mutation reconstruction must use the current-epoch helper.
  */
 export function recomputeUserCoauthorModeFromUserMessages(
   userContents: Array<string | null | undefined>,
