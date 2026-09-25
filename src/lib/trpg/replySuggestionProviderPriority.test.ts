@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { describe, it } from "node:test";
 import {
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
   OPENROUTER_GEMINI_31_FLASH_MODEL,
 } from "@/lib/chatModels";
 import { adaptCheaperInferenceChatBody } from "@/lib/cheaperInferenceConfig";
@@ -92,14 +92,14 @@ describe("TRPG reply suggestion provider priority A-H", () => {
         assert.equal(result.telemetry.provider_attempt_count, 1);
         assert.equal(result.telemetry.primary_provider, TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER);
         assert.equal(result.telemetry.fallback_attempted, false);
-        assert.equal(result.model, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+        assert.equal(result.model, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
       } finally {
         globalThis.fetch = previousFetch;
       }
     });
   });
 
-  it("B: Luna transport/body failure → OpenRouter DeepSeek attempted once → max attempts = 2", async () => {
+  it("B: GPT-6 Luna transport/body failure → OpenRouter Gemini attempted once → max attempts = 2", async () => {
     await withKeys(async () => {
       const urls: string[] = [];
       const previousFetch = globalThis.fetch;
@@ -129,7 +129,7 @@ describe("TRPG reply suggestion provider priority A-H", () => {
     });
   });
 
-  it("C: Luna semantic malformed_json → OpenRouter fallback once", async () => {
+  it("C: GPT-6 Luna semantic malformed_json → OpenRouter fallback once", async () => {
     await withKeys(async () => {
       const urls: string[] = [];
       const previousFetch = globalThis.fetch;
@@ -212,9 +212,9 @@ describe("TRPG reply suggestion provider priority A-H", () => {
     db.close();
   });
 
-  it("E: Luna response_format / reasoning-off / schema unchanged", () => {
+  it("E: GPT-6 Luna response_format / reasoning-off / schema unchanged", () => {
     const lunaBody = adaptCheaperInferenceChatBody({
-      model: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      model: CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
       messages: [{ role: "user", content: "x" }],
       stream: false,
       temperature: 0.7,
@@ -262,7 +262,7 @@ describe("TRPG reply suggestion provider priority A-H", () => {
     assert.doesNotMatch(scenarioDraft, /TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER/);
   });
 
-  it("policy: CI Luna primary 10s / OpenRouter DeepSeek fallback 30s / max attempts 2", () => {
+  it("policy: CI GPT-6 Luna primary 10s / OpenRouter Gemini fallback 30s / max attempts 2", () => {
     const deadlines = resolveTrpgReplySuggestionProviderDeadlines();
     assert.equal(deadlines.primaryCompletionMs, TRPG_REPLY_SUGGESTION_PRIMARY_COMPLETION_MS);
     assert.equal(deadlines.backupCompletionMs, TRPG_REPLY_SUGGESTION_BACKUP_COMPLETION_MS);
