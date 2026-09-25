@@ -443,6 +443,37 @@ export function persistUserCoauthorMode(
   );
 }
 
+/**
+ * Explicit UI base-level change starts a new authoring-authority epoch.
+ * Conversation text is preserved; only prior USER messages lose authority to
+ * reconstruct an old persistent OOC override on fork/edit/delete/regen.
+ * Caller owns the surrounding transaction when combined with other settings.
+ */
+export function persistUserAuthoringLevelAndResetOocAuthority(
+  db: CoauthorDb,
+  chatId: number,
+  level: UserAuthoringLevel
+): void {
+  ensureUserCoauthorSchema(db);
+  if (!tableExists(db, "chats")) return;
+  db.prepare(
+    `UPDATE chats
+     SET ${USER_AUTHORING_LEVEL_COLUMN}=?, ${USER_COAUTHOR_MODE_COLUMN}='OFF'
+     WHERE id=?`
+  ).run(parseUserAuthoringLevel(level), chatId);
+  if (!tableExists(db, "messages")) return;
+  db.prepare(
+    `UPDATE messages
+     SET ${USER_COAUTHOR_SEMANTICS_VERSION_COLUMN}=?
+     WHERE chat_id=? AND role='user'
+       AND ${USER_COAUTHOR_SEMANTICS_VERSION_COLUMN}>=?`
+  ).run(
+    LEGACY_USER_COAUTHOR_SEMANTICS_VERSION,
+    chatId,
+    CURRENT_USER_COAUTHOR_SEMANTICS_VERSION
+  );
+}
+
 export function parseUserCoauthorSemanticsVersion(raw: unknown): number {
   const value = Number(raw);
   if (!Number.isFinite(value) || value < CURRENT_USER_COAUTHOR_SEMANTICS_VERSION) {
