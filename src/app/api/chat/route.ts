@@ -956,10 +956,7 @@ export async function POST(req: Request) {
     selectedPersona?.gender ?? "other",
     personaDescription,
     {
-      coNarrationEnabled:
-        autoProgressionEnabled ||
-        novelModeEnabled ||
-        currentTurnDelegation.active,
+      coNarrationEnabled: currentTurnDelegation.allowDialogue === true,
     }
   );
   const backgroundPersonaIdentity = formatSelectedPersonaIdentityForBackground(
@@ -1210,9 +1207,7 @@ export async function POST(req: Request) {
     personaDescription,
     {
       coNarrationEnabled:
-        autoContinueContext ||
-        novelModeEnabled ||
-        currentTurnDelegationForTurn.active,
+        currentTurnDelegationForTurn.allowDialogue === true,
     }
   );
   const autoContinueHistory = autoContinueContext
