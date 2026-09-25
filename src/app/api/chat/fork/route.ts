@@ -21,6 +21,7 @@ import {
 } from "@/lib/memory/memory-source-boundary";
 import { filterCanonicalMessageRows } from "@/lib/oocSceneRender";
 import { recomputeAndPersistUserCoauthorMode } from "@/lib/userCoauthorState";
+import { parseUserAuthoringLevel } from "@/lib/userAuthoringPolicy";
 import { insertForkChatRow } from "@/lib/chatForkCreate";
 
 export async function POST(req: Request) {
@@ -123,6 +124,7 @@ export async function POST(req: Request) {
       memoryCapacity,
       narrativePov: String(source.narrative_pov ?? "third_person"),
       povCharacterName: String(source.pov_character_name ?? ""),
+      userAuthoringLevel: parseUserAuthoringLevel(source.user_authoring_level),
     });
     const messageIdMap = new Map<number, number>();
 
