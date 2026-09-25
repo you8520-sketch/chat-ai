@@ -62,7 +62,8 @@ export function buildAutoProgressionUserControlBlock(
   delegation?: CurrentTurnAuthoringDelegation
 ): string {
   const allowInnerPov = delegation?.allowInnerPov === true;
-  const allowAiCastIrreversibleExpansion = allowInnerPov;
+  const allowAiCastIrreversibleExpansion =
+    delegation?.allowAiCastIrreversibleExpansion === true;
 
   return `${AUTO_PROGRESSION_BLOCK_TITLE}
 
