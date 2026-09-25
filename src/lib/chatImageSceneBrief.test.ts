@@ -79,6 +79,13 @@ describe("chatImageSceneBrief model routing", () => {
     );
     assert.equal(
       resolveChatImageSceneBriefFallbackModel(
+        { CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL: "gpt-5.6-luna" } as NodeJS.ProcessEnv,
+        "gpt-6-luna"
+      ),
+      "google/gemini-3.1-flash-lite"
+    );
+    assert.equal(
+      resolveChatImageSceneBriefFallbackModel(
         {} as NodeJS.ProcessEnv,
         "deepseek/deepseek-v4-flash"
       ),
