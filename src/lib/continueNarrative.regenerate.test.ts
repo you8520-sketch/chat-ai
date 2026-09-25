@@ -93,6 +93,20 @@ describe("regenerate OOC priority", () => {
     assert.doesNotMatch(on, /Do NOT write new quoted dialogue for \[B\]/i);
   });
 
+  it("actions-only authoring does not inject B speech rules", () => {
+    const block = buildRegenerateUserPrompt({
+      userMessage: "문을 연다.",
+      personaName: "렌",
+      usesBanmal: true,
+      targetResponseChars: 3200,
+      coNarrationEnabled: true,
+      userDialogueAllowed: false,
+    });
+    assert.match(block, /USER AUTHORING — EFFECTIVE COAUTHOR POLICY/i);
+    assert.doesNotMatch(block, /USER PERSONA SPEECH/i);
+    assert.doesNotMatch(block, /반말 ONLY/i);
+  });
+
   it("system directive includes regen attempt nonce and diverge axis", () => {
     const block = buildRegenerateSystemDirective({
       charName: "에쉬",
