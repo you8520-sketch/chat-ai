@@ -105,6 +105,23 @@ describe("three-level user authoring policy", () => {
     assert.equal(applied.delegation.allowIrreversibleFate, true);
   });
 
+  it("negative full-authority wording never opens irreversible fate", () => {
+    for (const currentUserInput of [
+      "OOC: 내 캐릭터 전권은 주지 마.",
+      "OOC: 내 캐릭터 죽음까지 허용하지 마.",
+      "OOC: 내 캐릭터 생사 포함하지 마.",
+      "OOC: 내 캐릭터 완전히 자유롭게 하지 마.",
+    ]) {
+      const applied = resolveEffectiveUserAuthoring({
+        persistentMode: "OFF",
+        baseLevel: "ALLOW",
+        currentUserInput,
+      });
+      assert.equal(applied.delegation.allowIrreversibleFate, false, currentUserInput);
+      assert.notEqual(applied.currentMode, "ABSOLUTE", currentUserInput);
+    }
+  });
+
   it("NPC 전권 instruction does not accidentally grant user-character fate authority", () => {
     const applied = resolveEffectiveUserAuthoring({
       persistentMode: "OFF",
