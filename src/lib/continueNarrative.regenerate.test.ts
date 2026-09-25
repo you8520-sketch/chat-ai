@@ -84,10 +84,13 @@ describe("regenerate OOC priority", () => {
     };
     const off = buildRegenerateUserPrompt(base);
     assert.doesNotMatch(off, /USER PERSONA SPEECH/i);
+    assert.match(off, /Do NOT write new quoted dialogue for \[B\]/i);
 
     const on = buildRegenerateUserPrompt({ ...base, coNarrationEnabled: true });
     assert.match(on, /USER PERSONA SPEECH/i);
     assert.match(on, /반말 ONLY/i);
+    assert.match(on, /USER AUTHORING — EFFECTIVE COAUTHOR POLICY/i);
+    assert.doesNotMatch(on, /Do NOT write new quoted dialogue for \[B\]/i);
   });
 
   it("system directive includes regen attempt nonce and diverge axis", () => {
