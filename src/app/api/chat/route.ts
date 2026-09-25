@@ -1231,7 +1231,9 @@ export async function POST(req: Request) {
             charName: ch.name,
             usesBanmal: personaUsesBanmal,
             coNarrationEnabled:
-              autoContinueContext || novelModeEnabled || userImpersonation,
+              autoContinueContext ||
+              novelModeEnabled ||
+              currentTurnDelegationForTurn.active,
             rejectedAssistantDraft,
             regenAttemptId,
             targetResponseChars,
