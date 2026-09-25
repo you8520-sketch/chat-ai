@@ -189,7 +189,7 @@ export function resolveUserCoauthorDirective(input: {
     (hasAuthoringIntent &&
       (FULL_PERSONA_GRANT_RE.test(oocBody) || WHOLE_PERSONA_GRANT_RE.test(oocBody)));
   const dialogueGrant =
-    hasAuthoringIntent && (DIALOGUE_GRANT_RE.test(oocBody) || fullGrant);
+    (hasAuthoringIntent && DIALOGUE_GRANT_RE.test(oocBody)) || fullGrant;
   const actionGrant =
     (hasAuthoringIntent &&
       (ACTION_GRANT_RE.test(oocBody) ||
