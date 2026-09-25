@@ -32,6 +32,12 @@ describe("chatImageSceneBrief model routing", () => {
       } as NodeJS.ProcessEnv),
       "gpt-6-luna"
     );
+    assert.equal(
+      resolveChatImageSceneBriefModel({
+        CHAT_IMAGE_SCENE_BRIEF_MODEL: "gpt-5.6-luna",
+      } as NodeJS.ProcessEnv),
+      "gpt-6-luna"
+    );
   });
 
   it("falls back to OpenRouter Gemini 3.1 Flash-Lite when cheaper inference fails", () => {
