@@ -47,6 +47,7 @@ import {
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   adaptCheaperInferenceChatBody,
   assertCheaperInferenceEndpoint,
+  buildCheaperInferenceChatCompletionsUrl,
   buildCheaperInferenceHeaders,
   resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
@@ -1122,10 +1123,10 @@ function resolveCompatibleTransport(messageOpts?: OpenRouterMessageOpts): Compat
     return {
       provider: "cheaperinference",
       label: "CheaperInference",
-      endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
-      headers: buildCheaperInferenceHeaders(key, {
+      endpoint: buildCheaperInferenceChatCompletionsUrl({
         promptCacheSession: messageOpts?.sessionId ?? null,
       }),
+      headers: buildCheaperInferenceHeaders(key),
     };
   }
 
@@ -1577,11 +1578,21 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   let providerRequestId: string | undefined;
   if (!isMockApiMode() && res) {
     providerRequestId =
+      res.headers.get("x-ci-request-id") ||
       res.headers.get("x-cheaper-inference-request-id") ||
       res.headers.get("x-request-id") ||
       res.headers.get("x-openrouter-request-id") ||
       res.headers.get("cf-ray") ||
       undefined;
+  }
+
+  if (!isMockApiMode() && res && transport.provider === "cheaperinference") {
+    console.log("[CheaperInference] prompt cache affinity", {
+      providerRequestId: providerRequestId ?? null,
+      promptCacheSession: messageOpts?.sessionId ?? null,
+      affinity: res.headers.get("x-ci-prompt-cache-affinity"),
+      exactMatchCache: res.headers.get("x-ci-cache"),
+    });
   }
 
   // finalResponse = charName + aiGeneratedText — API는 prefill 이후만 생성, SSE에는 prefill 포함 전송

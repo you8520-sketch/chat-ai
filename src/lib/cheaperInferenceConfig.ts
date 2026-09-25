@@ -32,26 +32,31 @@ export function resolveCheaperInferenceApiKey(): string {
   return key;
 }
 
-export type CheaperInferenceHeaderOpts = {
-  /** Stable per-conversation id for prompt-cache sticky affinity. */
-  promptCacheSession?: string | null;
-};
-
 export function buildCheaperInferenceHeaders(
-  apiKey?: string,
-  opts?: CheaperInferenceHeaderOpts
+  apiKey?: string
 ): Record<string, string> {
   const key = apiKey?.trim() || resolveCheaperInferenceApiKey();
-  const headers: Record<string, string> = {
+  return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${key}`,
   };
+}
+
+export function buildCheaperInferenceChatCompletionsUrl(opts?: {
+  promptCacheSession?: string | null;
+}): string {
   const session = opts?.promptCacheSession?.trim();
-  if (session) {
-    headers["x-ci-prompt-cache-scope"] = "session";
-    headers["x-ci-prompt-cache-session"] = session.slice(0, 256);
-  }
-  return headers;
+  if (!session) return CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL;
+
+  const url = new URL(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL);
+  // CheaperInference's generated API contract defines sticky cache affinity
+  // as query parameters on /v1/chat/completions, not request headers.
+  url.searchParams.set("x-ci-prompt-cache-scope", "session");
+  url.searchParams.set(
+    "x-ci-prompt-cache-session",
+    session.slice(0, 256)
+  );
+  return url.toString();
 }
 
 export function assertCheaperInferenceEndpoint(url: string): void {

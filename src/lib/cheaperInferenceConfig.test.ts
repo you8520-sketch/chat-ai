@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   adaptCheaperInferenceChatBody,
+  buildCheaperInferenceChatCompletionsUrl,
   assertCheaperInferenceEndpoint,
 } from "./cheaperInferenceConfig";
 
@@ -12,6 +13,22 @@ test("Cheaper Inference endpoint is fixed to chat completions", () => {
   );
   assert.throws(() =>
     assertCheaperInferenceEndpoint("https://example.com/v1/chat/completions")
+  );
+});
+
+
+test("prompt-cache session affinity uses documented query parameters", () => {
+  const url = new URL(
+    buildCheaperInferenceChatCompletionsUrl({
+      promptCacheSession: "chat-707",
+    })
+  );
+  assert.equal(url.origin + url.pathname, CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL);
+  assert.equal(url.searchParams.get("x-ci-prompt-cache-scope"), "session");
+  assert.equal(url.searchParams.get("x-ci-prompt-cache-session"), "chat-707");
+  assert.equal(
+    buildCheaperInferenceChatCompletionsUrl(),
+    CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL
   );
 });
 
