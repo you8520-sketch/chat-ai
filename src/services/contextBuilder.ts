@@ -222,8 +222,9 @@ function userMessageUsesRpInputMarkers(text: string): boolean {
 function needsUserInputParsingGuide(input: ContextBuildInput): boolean {
   const coNarrationEnabled =
     input.novelModeEnabled === true ||
-    !!input.userImpersonation ||
-    input.currentTurnAuthoringDelegation?.active === true;
+    (input.currentTurnAuthoringDelegation !== undefined
+      ? input.currentTurnAuthoringDelegation.active === true
+      : !!input.userImpersonation);
   if (!coNarrationEnabled) return false;
   if (userMessageUsesRpInputMarkers(input.currentUserMessage)) return true;
   return input.shortTermHistory.some(
