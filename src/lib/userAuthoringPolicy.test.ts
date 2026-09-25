@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   capabilitiesFromUserAuthoringLevel,
-  delegationFromUserAuthoringLevel,
   parseUserAuthoringLevel,
 } from "@/lib/userAuthoringPolicy";
 import {
@@ -24,7 +23,6 @@ describe("three-level user authoring policy", () => {
       allowInnerPov: false,
       allowIrreversibleFate: false,
     });
-    assert.equal(delegationFromUserAuthoringLevel("LIMITED").active, false);
   });
 
   it("NORMAL allows dialogue/actions but not private inner POV or irreversible fate", () => {
