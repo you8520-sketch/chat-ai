@@ -15,9 +15,9 @@ test("Cheaper Inference endpoint is fixed to chat completions", () => {
   );
 });
 
-test("response_format json_schema is preserved for Luna", () => {
+test("response_format json_schema is preserved for GPT-6 Luna", () => {
   const body = {
-    model: "gpt-5.6-luna",
+    model: "gpt-6-luna",
     messages: [{ role: "user", content: "hello" }],
     stream: false,
     temperature: 0.4,
@@ -31,9 +31,9 @@ test("response_format json_schema is preserved for Luna", () => {
   assert.equal(adaptCheaperInferenceChatBody(body).response_format.json_schema.strict, true);
 });
 
-test("response_format json_object is preserved for Luna", () => {
+test("response_format json_object is preserved for GPT-6 Luna", () => {
   const body = {
-    model: "gpt-5.6-luna",
+    model: "gpt-6-luna",
     messages: [{ role: "user", content: "hello" }],
     stream: false,
     temperature: 0.4,
@@ -47,7 +47,7 @@ test("response_format json_object is preserved for Luna", () => {
 
 test("OpenRouter-only request extensions are removed", () => {
   const body = {
-    model: "gpt-5.6-luna",
+    model: "gpt-6-luna",
     messages: [{ role: "user", content: "hello" }],
     stream: true,
     stream_options: { include_usage: true },
@@ -61,7 +61,7 @@ test("OpenRouter-only request extensions are removed", () => {
   };
 
   assert.deepEqual(adaptCheaperInferenceChatBody(body), {
-    model: "gpt-5.6-luna",
+    model: "gpt-6-luna",
     messages: [{ role: "user", content: "hello" }],
     stream: true,
     stream_options: { include_usage: true },
@@ -130,7 +130,7 @@ test("Gemini 3.7 Flash uses probed reasoning_effort low, not none", () => {
   });
 });
 
-test("GPT-5.6 Luna disables reasoning with official effort none", () => {
+test("GPT-5.6 Luna historical support disables reasoning with effort none", () => {
   const body = {
     model: "gpt-5.6-luna",
     messages: [{ role: "user", content: "hello" }],
@@ -140,6 +140,22 @@ test("GPT-5.6 Luna disables reasoning with official effort none", () => {
 
   assert.deepEqual(adaptCheaperInferenceChatBody(body), {
     model: "gpt-5.6-luna",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "none" },
+    reasoning_effort: "none",
+  });
+});
+
+test("GPT-6 Luna disables reasoning with official effort none", () => {
+  const body = {
+    model: "gpt-6-luna",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "minimal", exclude: true },
+    include_reasoning: false,
+  };
+
+  assert.deepEqual(adaptCheaperInferenceChatBody(body), {
+    model: "gpt-6-luna",
     messages: [{ role: "user", content: "hello" }],
     reasoning: { effort: "none" },
     reasoning_effort: "none",
