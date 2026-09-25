@@ -376,23 +376,26 @@ async function installSuggestedRepliesVariantSwitchMock(page: Page) {
     }
 
     targetPollCalls += 1;
-    const newGenerationPoll = outcome === "success" && targetPollCalls >= 3;
-    const pending =
-      targetPollCalls === 1 || (newGenerationPoll && targetPollCalls === 3);
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        messageId,
-        requested: true,
-        pending,
-        failed: false,
-        replies: pending
-          ? []
-          : newGenerationPoll
-            ? REGEN_REPLIES
-            : REPLIES,
-      }),
+      body: JSON.stringify(
+        targetPollCalls === 1
+          ? {
+              messageId,
+              requested: true,
+              pending: true,
+              failed: false,
+              replies: [],
+            }
+          : {
+              messageId,
+              requested: true,
+              pending: false,
+              failed: false,
+              replies: REPLIES,
+            }
+      ),
     });
   });
 
@@ -573,26 +576,23 @@ async function installSuggestedRepliesRegenerationMock(
     }
 
     targetPollCalls += 1;
+    const newGenerationPoll = outcome === "success" && targetPollCalls >= 3;
+    const pending =
+      targetPollCalls === 1 || (newGenerationPoll && targetPollCalls === 3);
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(
-        targetPollCalls === 1
-          ? {
-              messageId,
-              requested: true,
-              pending: true,
-              failed: false,
-              replies: [],
-            }
-          : {
-              messageId,
-              requested: true,
-              pending: false,
-              failed: false,
-              replies: REPLIES,
-            }
-      ),
+      body: JSON.stringify({
+        messageId,
+        requested: true,
+        pending,
+        failed: false,
+        replies: pending
+          ? []
+          : newGenerationPoll
+            ? REGEN_REPLIES
+            : REPLIES,
+      }),
     });
   });
 
