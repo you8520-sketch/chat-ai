@@ -15,6 +15,7 @@ on:
       - "src/lib/currentTurnUserAuthoringDelegation*.ts"
       - "src/lib/currentUserInputLabel*.ts"
       - "src/lib/noGodmodding.ts"
+      - "src/lib/noGodmodding.test.ts"
       - "src/lib/autoProgressionRules.ts"
       - "src/lib/autoProgression.prompt.test.ts"
       - "src/lib/continueNarrative.ts"
@@ -50,6 +51,7 @@ jobs:
       - run: node --conditions=react-server --import tsx --test src/lib/userCoauthor.authority.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/currentTurnUserAuthoringDelegation.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/currentUserInputLabel.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/noGodmodding.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/autoProgression.prompt.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/continueNarrative.autoContinue.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/continueNarrative.regenerate.test.ts
