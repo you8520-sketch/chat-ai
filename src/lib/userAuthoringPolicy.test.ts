@@ -101,7 +101,7 @@ describe("three-level user authoring policy", () => {
       baseLevel: "ALLOW",
       currentUserInput: "OOC: 이제 내 대사나 행동은 쓰지 마.",
     });
-    assert.equal(applied.currentMode, "LIMITED");
+    assert.equal(applied.currentMode, "OFF");
     assert.equal(applied.persistentAfter, "LIMITED");
     assert.equal(applied.delegation.active, false);
   });
