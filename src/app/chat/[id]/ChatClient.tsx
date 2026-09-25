@@ -1337,6 +1337,7 @@ export default function ChatClient({
   const [userAuthoringLevel, setUserAuthoringLevel] =
     useState<UserAuthoringLevel>(initialUserAuthoringLevel);
   const [userAuthoringSaving, setUserAuthoringSaving] = useState(false);
+  const userAuthoringSavePromiseRef = useRef<Promise<boolean> | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsPersistRevision, setSettingsPersistRevision] = useState(0);
   const [displaySettingsSaving, setDisplaySettingsSaving] = useState(false);
@@ -1509,6 +1510,8 @@ export default function ChatClient({
   );
 
   const flushChatSettings = useCallback(async (): Promise<boolean> => {
+    const authoringSave = userAuthoringSavePromiseRef.current;
+    if (authoringSave && !(await authoringSave)) return false;
     if (settingsSaveTimerRef.current) {
       clearTimeout(settingsSaveTimerRef.current);
       settingsSaveTimerRef.current = null;
@@ -1525,34 +1528,48 @@ export default function ChatClient({
       const previous = userAuthoringLevel;
       setUserAuthoringLevel(next);
       if (!chatId) return;
-      setUserAuthoringSaving(true);
-      try {
-        const res = await fetch("/api/chat/settings", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chatId, userAuthoringLevel: next }),
-        });
-        const data = (await res.json().catch(() => null)) as {
-          error?: string;
-          userAuthoringLevel?: UserAuthoringLevel;
-        } | null;
-        if (!res.ok) {
+
+      const savePromise = (async (): Promise<boolean> => {
+        setUserAuthoringSaving(true);
+        try {
+          const res = await fetch("/api/chat/settings", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chatId, userAuthoringLevel: next }),
+          });
+          const data = (await res.json().catch(() => null)) as {
+            error?: string;
+            userAuthoringLevel?: UserAuthoringLevel;
+          } | null;
+          if (!res.ok) {
+            setUserAuthoringLevel(previous);
+            setToastMsg(data?.error || "내 행동/대사 서술 설정 저장에 실패했습니다.");
+            return false;
+          }
+          if (
+            data?.userAuthoringLevel === "LIMITED" ||
+            data?.userAuthoringLevel === "NORMAL" ||
+            data?.userAuthoringLevel === "ALLOW"
+          ) {
+            setUserAuthoringLevel(data.userAuthoringLevel);
+          }
+          return true;
+        } catch {
           setUserAuthoringLevel(previous);
-          setToastMsg(data?.error || "내 행동/대사 서술 설정 저장에 실패했습니다.");
-          return;
+          setToastMsg("내 행동/대사 서술 설정 저장 중 오류가 발생했습니다.");
+          return false;
+        } finally {
+          setUserAuthoringSaving(false);
         }
-        if (
-          data?.userAuthoringLevel === "LIMITED" ||
-          data?.userAuthoringLevel === "NORMAL" ||
-          data?.userAuthoringLevel === "ALLOW"
-        ) {
-          setUserAuthoringLevel(data.userAuthoringLevel);
-        }
-      } catch {
-        setUserAuthoringLevel(previous);
-        setToastMsg("내 행동/대사 서술 설정 저장 중 오류가 발생했습니다.");
+      })();
+
+      userAuthoringSavePromiseRef.current = savePromise;
+      try {
+        await savePromise;
       } finally {
-        setUserAuthoringSaving(false);
+        if (userAuthoringSavePromiseRef.current === savePromise) {
+          userAuthoringSavePromiseRef.current = null;
+        }
       }
     },
     [chatId, userAuthoringLevel]
