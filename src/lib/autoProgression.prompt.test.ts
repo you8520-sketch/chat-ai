@@ -90,6 +90,24 @@ describe("auto progression vs novel mode separation", () => {
     );
   });
 
+  it("resolveNoGodmoddingMode keeps the effective owner for AI-cast-only ALLOW scope", () => {
+    assert.equal(
+      resolveNoGodmoddingMode({
+        currentTurnDelegation: {
+          active: false,
+          allowDialogue: false,
+          allowMajorActions: false,
+          allowInnerPov: false,
+          allowIrreversibleFate: false,
+          allowAiCastIrreversibleExpansion: true,
+          source: "explicit_ooc",
+          duration: "persistent",
+        },
+      }),
+      "currentTurnDelegated"
+    );
+  });
+
   it("legacy novelModeEnabled maps to auto_progression runtime", () => {
     assert.equal(resolveChatRuntimeMode({ novelModeEnabled: true }), "auto_progression");
     assert.equal(resolveChatRuntimeMode({ isContinue: true }), "auto_progression");
