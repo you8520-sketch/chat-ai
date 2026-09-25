@@ -46,6 +46,16 @@ test("GPT-5.6 Luna uses the Cheaper Inference catalog rates", () => {
   assert.equal(rates.outputUsdPerM, 6);
 });
 
+test("GPT-6 Luna uses the displayed Cheaper Inference fallback rates when live catalog is absent", () => {
+  clearCheaperInferenceCatalogPricingForTest();
+  const rates = resolveOpenRouterModelRates("gpt-6-luna");
+  assert.equal(rates.inputUsdPerM, 0.07);
+  assert.equal(rates.outputUsdPerM, 0.35);
+  assert.equal(rates.cacheReadMultiplier, 0.1);
+  assert.equal(rates.cacheWriteMultiplier, 1.25);
+  clearCheaperInferenceCatalogPricingForTest();
+});
+
 test("GPT-5.6 Terra uses the Cheaper Inference catalog rates", () => {
   const rates = resolveOpenRouterModelRates("gpt-5.6-terra");
   assert.equal(rates.inputUsdPerM, 2);
@@ -99,7 +109,7 @@ test("Gemini 3.7 Flash uses the current Cheaper Inference fallback rates", () =>
 
 test("Luna / Opus / Flash accept live Cheaper Inference catalog overlays", () => {
   clearCheaperInferenceCatalogPricingForTest();
-  for (const modelId of ["gpt-5.6-luna", "claude-opus-5", "deepseek-v4-flash"] as const) {
+  for (const modelId of ["gpt-6-luna", "gpt-5.6-luna", "claude-opus-5", "deepseek-v4-flash"] as const) {
     updateCheaperInferenceCatalogPricing({
       modelId,
       inputUsdPerMillion: 9.99,
