@@ -12,6 +12,7 @@ import {
   markUserMessageCoauthorSemanticsVersion,
   persistUserCoauthorAfterSuccessfulUserInsert,
   persistUserCoauthorMode,
+  readUserAuthoringLevel,
   readUserCoauthorMode,
   readUserCoauthorSemanticsVersion,
   recomputeAndPersistUserCoauthorMode,
@@ -82,6 +83,7 @@ describe("user coauthor authority + semantics epoch", () => {
       INSERT INTO messages (id, chat_id, role, content) VALUES (3773, 735, 'user', '${PUBLIC_FULL_GRANT}');
     `);
     ensureUserCoauthorSchema(db);
+    assert.equal(readUserAuthoringLevel(db, 735), "LIMITED");
     assert.equal(readUserCoauthorMode(db, 735), "OFF");
     assert.equal(readUserCoauthorSemanticsVersion(db, 3773), LEGACY_USER_COAUTHOR_SEMANTICS_VERSION);
     assert.equal(recomputeAndPersistUserCoauthorMode(db, 735), "OFF");
