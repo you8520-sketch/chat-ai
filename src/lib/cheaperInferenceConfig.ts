@@ -32,12 +32,26 @@ export function resolveCheaperInferenceApiKey(): string {
   return key;
 }
 
-export function buildCheaperInferenceHeaders(apiKey?: string): Record<string, string> {
+export type CheaperInferenceHeaderOpts = {
+  /** Stable per-conversation id for prompt-cache sticky affinity. */
+  promptCacheSession?: string | null;
+};
+
+export function buildCheaperInferenceHeaders(
+  apiKey?: string,
+  opts?: CheaperInferenceHeaderOpts
+): Record<string, string> {
   const key = apiKey?.trim() || resolveCheaperInferenceApiKey();
-  return {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${key}`,
   };
+  const session = opts?.promptCacheSession?.trim();
+  if (session) {
+    headers["x-ci-prompt-cache-scope"] = "session";
+    headers["x-ci-prompt-cache-session"] = session.slice(0, 256);
+  }
+  return headers;
 }
 
 export function assertCheaperInferenceEndpoint(url: string): void {

@@ -1123,7 +1123,9 @@ function resolveCompatibleTransport(messageOpts?: OpenRouterMessageOpts): Compat
       provider: "cheaperinference",
       label: "CheaperInference",
       endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
-      headers: buildCheaperInferenceHeaders(key),
+      headers: buildCheaperInferenceHeaders(key, {
+        promptCacheSession: messageOpts?.sessionId ?? null,
+      }),
     };
   }
 
@@ -1402,6 +1404,10 @@ export async function* streamOpenRouterAdult(
     endpoint: transport.endpoint,
     historyMessages: history.length,
     novelMode: messageOpts?.novelMode === true,
+    promptCacheSession:
+      transport.provider === "cheaperinference"
+        ? messageOpts?.sessionId ?? null
+        : null,
   });
 
   const oocHtmlMode = messageOpts?.oocHtmlMode === true;
@@ -1785,6 +1791,14 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       finishReason,
       prefillLen: prefill.length,
       outputTokens,
+      providerRequestId:
+        transport.provider === "cheaperinference"
+          ? res.headers.get("x-ci-request-id")
+          : null,
+      promptCacheSession:
+        transport.provider === "cheaperinference"
+          ? messageOpts?.sessionId ?? null
+          : null,
     });
     throw new OpenRouterApiError({
       message:
