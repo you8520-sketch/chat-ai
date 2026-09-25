@@ -27,6 +27,8 @@ export type CurrentTurnAuthoringDelegation = {
   allowInnerPov?: boolean;
   /** Allow irreversible [B] fate/canon changes such as death or permanent loss. OOC full-authority only. */
   allowIrreversibleFate?: boolean;
+  /** Allow AI-controlled cast/world to create canon-consistent blank history and irreversible outcomes. */
+  allowAiCastIrreversibleExpansion?: boolean;
   source: CurrentTurnAuthoringDelegationSource;
   /** Effective owner duration when active. Omitted by the current-input parser. */
   duration?: UserCoauthorDuration | null;
@@ -39,6 +41,7 @@ export const INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION: CurrentTurnAuthoringDel
     allowMajorActions: false,
     allowInnerPov: false,
     allowIrreversibleFate: false,
+    allowAiCastIrreversibleExpansion: false,
     source: null,
     duration: null,
   };
@@ -62,6 +65,17 @@ export function resolveCurrentTurnUserAuthoringDelegation(input: {
     allowMajorActions,
     allowInnerPov,
     allowIrreversibleFate,
+    allowAiCastIrreversibleExpansion: allowIrreversibleFate,
     source: "explicit_ooc",
   };
+}
+
+/** Whether this turn needs the effective authoring policy owner even if [B] itself is fully user-owned. */
+export function currentTurnAuthoringPolicyRequiresOwner(
+  delegation?: CurrentTurnAuthoringDelegation | null
+): boolean {
+  return (
+    delegation?.active === true ||
+    delegation?.allowAiCastIrreversibleExpansion === true
+  );
 }
