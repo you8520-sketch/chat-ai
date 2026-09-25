@@ -1,11 +1,40 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  currentTurnAuthoringPolicyRequiresOwner,
   extractLeadingOocSegment,
   resolveCurrentTurnUserAuthoringDelegation,
 } from "@/lib/currentTurnUserAuthoringDelegation";
 
 const PERSONA_TRAIT = "상대에게 '네가 알아서 해'라고 자주 말한다.";
+
+describe("currentTurnAuthoringPolicyRequiresOwner", () => {
+  it("keeps a policy owner for AI-cast-only expansion", () => {
+    assert.equal(
+      currentTurnAuthoringPolicyRequiresOwner({
+        active: false,
+        allowDialogue: false,
+        allowMajorActions: false,
+        allowInnerPov: false,
+        allowIrreversibleFate: false,
+        allowAiCastIrreversibleExpansion: true,
+        source: "explicit_ooc",
+        duration: "persistent",
+      }),
+      true
+    );
+    assert.equal(
+      currentTurnAuthoringPolicyRequiresOwner({
+        active: false,
+        allowDialogue: false,
+        allowMajorActions: false,
+        allowAiCastIrreversibleExpansion: false,
+        source: null,
+      }),
+      false
+    );
+  });
+});
 
 describe("resolveCurrentTurnUserAuthoringDelegation", () => {
   it("TEST A — ordinary manual input is inactive", () => {
