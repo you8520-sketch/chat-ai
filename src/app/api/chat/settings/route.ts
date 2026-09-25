@@ -8,6 +8,7 @@ import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
 import { resolveNarrativePov } from "@/lib/narrativePov";
 import { parseUserAuthoringLevel, USER_AUTHORING_LEVELS } from "@/lib/userAuthoringPolicy";
+import { persistUserAuthoringLevelAndResetOocAuthority } from "@/lib/userCoauthorState";
 import {
   displayModeFromEngineMode,
   parseIncomingStatusWidgetDisplayMode,
@@ -206,24 +207,27 @@ export async function PATCH(req: Request) {
     sets.push("adult_handoff_enabled=?");
     vals.push(adultHandoffEnabled ? 1 : 0);
   }
-  if (userAuthoringLevel !== undefined) {
-    sets.push("user_authoring_level=?");
-    vals.push(userAuthoringLevel);
-    // Explicit UI choice becomes the new base owner. Clear any hidden persistent
-    // OOC override so the slider and actual runtime cannot disagree.
-    sets.push("user_coauthor_mode='OFF'");
-  }
-
-  if (sets.length === 0) {
+  if (sets.length === 0 && userAuthoringLevel === undefined) {
     return Response.json({ error: "변경할 설정이 없습니다." }, { status: 400 });
   }
 
   try {
-    db.prepare(`UPDATE chats SET ${sets.join(", ")} WHERE id=? AND user_id=?`).run(
-      ...vals,
-      chatId,
-      user.id
-    );
+    db.transaction(() => {
+      if (sets.length > 0) {
+        db.prepare(`UPDATE chats SET ${sets.join(", ")} WHERE id=? AND user_id=?`).run(
+          ...vals,
+          chatId,
+          user.id
+        );
+      }
+      if (userAuthoringLevel !== undefined) {
+        persistUserAuthoringLevelAndResetOocAuthority(
+          db,
+          Number(chatId),
+          userAuthoringLevel
+        );
+      }
+    })();
   } catch (e) {
     console.error("[StatusWidgetSettings] atomic persist failed:", (e as Error).message);
     return Response.json({ error: "상태창 설정 저장에 실패했습니다." }, { status: 500 });
