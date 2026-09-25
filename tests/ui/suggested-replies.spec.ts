@@ -6,6 +6,11 @@ const CHAT_DISPLAY_PREFS_KEY = "playai-chat-display-prefs";
 const MOCK_USER_MESSAGE_ID = 190_001;
 const MOCK_ASSISTANT_MESSAGE_ID = 190_002;
 
+const VARIANT_ONE_CONTENT =
+  "첫 번째 버전의 답변이다. 유나는 고개를 끄덕이며 다음 말을 기다렸다.";
+const VARIANT_TWO_CONTENT =
+  "두 번째 버전의 답변이다. 유나는 창가로 한 걸음 옮겨 다른 선택지를 내놓았다.";
+
 const REPLIES = [
   {
     kind: "natural",
@@ -103,6 +108,69 @@ function buildMockChatSseBody(chatId: number): string {
       finalContent,
       generationStatus: "completed",
       suggestedRepliesPending: true,
+      remainingPoints: 1500,
+      paidPoints: 1500,
+      freePoints: 0,
+      totalPointsCost: 10,
+      usage: {
+        input: 100,
+        output: 50,
+        model: "playwright-fixture",
+        route: "safe",
+        cost: 10,
+        breakdown: [],
+      },
+    })}\n\n`,
+  ].join("");
+}
+
+function buildMockVariantChatSseBody(chatId: number): string {
+  const requestId = "suggested-replies-variant-e2e";
+  const variants = [
+    {
+      content: VARIANT_ONE_CONTENT,
+      model: "playwright-fixture",
+      usage: null,
+      created_at: "",
+      generationSequence: 0,
+      requestId: "req-v0",
+      sourceMessageId: MOCK_ASSISTANT_MESSAGE_ID,
+    },
+    {
+      content: VARIANT_TWO_CONTENT,
+      model: "playwright-fixture",
+      usage: null,
+      created_at: "",
+      generationSequence: 1,
+      requestId: "req-v1",
+      sourceMessageId: MOCK_ASSISTANT_MESSAGE_ID,
+    },
+  ];
+
+  return [
+    `data: ${JSON.stringify({
+      type: "turn_persisted",
+      chatId,
+      messageId: MOCK_ASSISTANT_MESSAGE_ID,
+      userMessageId: MOCK_USER_MESSAGE_ID,
+      requestId,
+    })}\n\n`,
+    `data: ${JSON.stringify({
+      type: "append",
+      text: VARIANT_ONE_CONTENT,
+    })}\n\n`,
+    `data: ${JSON.stringify({
+      type: "done",
+      chatId,
+      messageId: MOCK_ASSISTANT_MESSAGE_ID,
+      userMessageId: MOCK_USER_MESSAGE_ID,
+      requestId,
+      finalContent: VARIANT_ONE_CONTENT,
+      generationStatus: "completed",
+      suggestedRepliesPending: true,
+      variants,
+      activeVariant: 0,
+      variantCount: 2,
       remainingPoints: 1500,
       paidPoints: 1500,
       freePoints: 0,
@@ -230,6 +298,140 @@ async function installSuggestedRepliesTurnMock(
   };
 }
 
+async function installSuggestedRepliesVariantSwitchMock(page: Page) {
+  let targetPollCalls = 0;
+  let chatPostCalls = 0;
+  let variantPatchCalls = 0;
+
+  const variants = [
+    {
+      content: VARIANT_ONE_CONTENT,
+      model: "playwright-fixture",
+      usage: null,
+      created_at: "",
+      generationSequence: 0,
+      requestId: "req-v0",
+      sourceMessageId: MOCK_ASSISTANT_MESSAGE_ID,
+    },
+    {
+      content: VARIANT_TWO_CONTENT,
+      model: "playwright-fixture",
+      usage: null,
+      created_at: "",
+      generationSequence: 1,
+      requestId: "req-v1",
+      sourceMessageId: MOCK_ASSISTANT_MESSAGE_ID,
+    },
+  ];
+
+  await page.route("**/api/chat/settings", async (route: Route) => {
+    if (route.request().method() === "POST" || route.request().method() === "PATCH") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ narrativePov: "third_person" }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.route("**/api/chat/suggested-replies**", async (route: Route) => {
+    const url = new URL(route.request().url());
+    const messageId = Number(url.searchParams.get("messageId"));
+    if (messageId !== MOCK_ASSISTANT_MESSAGE_ID) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          messageId,
+          requested: false,
+          pending: false,
+          failed: true,
+          replies: [],
+        }),
+      });
+      return;
+    }
+
+    targetPollCalls += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        targetPollCalls === 1
+          ? {
+              messageId,
+              requested: true,
+              pending: true,
+              failed: false,
+              replies: [],
+            }
+          : {
+              messageId,
+              requested: true,
+              pending: false,
+              failed: false,
+              replies: REPLIES,
+            }
+      ),
+    });
+  });
+
+  await page.route("**/api/chat/message/variant", async (route: Route) => {
+    variantPatchCalls += 1;
+    const body = route.request().postDataJSON() as {
+      messageId?: number;
+      variantIndex?: number;
+    };
+    expect(body.messageId).toBe(MOCK_ASSISTANT_MESSAGE_ID);
+    expect(body.variantIndex).toBe(1);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        messageId: MOCK_ASSISTANT_MESSAGE_ID,
+        content: VARIANT_TWO_CONTENT,
+        usage: null,
+        activeVariant: 1,
+        variantCount: 2,
+        variants,
+      }),
+    });
+  });
+
+  await page.route("**/api/chat", async (route: Route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+
+    chatPostCalls += 1;
+    let chatId = 0;
+    try {
+      const body = route.request().postDataJSON() as { chatId?: number };
+      if (body.chatId != null) chatId = body.chatId;
+    } catch {
+      /* fixture fallback */
+    }
+
+    await route.fulfill({
+      status: 200,
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache",
+      },
+      body: buildMockVariantChatSseBody(chatId),
+    });
+  });
+
+  return {
+    getTargetPollCalls: () => targetPollCalls,
+    getChatPostCalls: () => chatPostCalls,
+    getVariantPatchCalls: () => variantPatchCalls,
+  };
+}
+
 test.describe("Suggested Replies — production browser lifecycle", () => {
   test.describe.configure({ retries: 0, timeout: 90_000 });
 
@@ -254,6 +456,54 @@ test.describe("Suggested Replies — production browser lifecycle", () => {
 
   test.afterEach(async ({ page }) => {
     await resetDemoCharacterChats(page);
+  });
+
+  test("variant switch immediately clears previous-generation suggestions", async ({ page }) => {
+    const mock = await installSuggestedRepliesVariantSwitchMock(page);
+    await openFreshChat(page);
+
+    const textarea = page.locator("textarea[placeholder*='메시지 입력']");
+    await setReactTextareaValue(page, "버전 전환 테스트");
+
+    const responseWait = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/chat" &&
+        response.request().method() === "POST",
+      { timeout: 45_000 }
+    );
+    await page.getByRole("button", { name: "전송", exact: true }).click();
+    expect((await responseWait).ok()).toBeTruthy();
+
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    }
+    await expect.poll(mock.getTargetPollCalls, { timeout: 10_000 }).toBe(2);
+
+    const variantNav = page.getByRole("navigation", { name: "재생성 버전" });
+    await expect(variantNav).toContainText("1 / 2");
+    await expect(page.getByText(VARIANT_ONE_CONTENT, { exact: true })).toBeVisible();
+
+    await page.getByRole("button", { name: "다음 버전" }).click();
+    await expect.poll(mock.getVariantPatchCalls, { timeout: 5_000 }).toBe(1);
+
+    await expect(variantNav).toContainText("2 / 2");
+    await expect(page.getByText(VARIANT_TWO_CONTENT, { exact: true })).toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(page.getByText(VARIANT_ONE_CONTENT, { exact: true })).toHaveCount(0);
+
+    await expect(page.getByText("추천 메시지 준비 중…", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^정석 ·/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^한 수 ·/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^드립 ·/ })).toHaveCount(0);
+
+    await page.waitForTimeout(1_000);
+    expect(mock.getTargetPollCalls()).toBe(2);
+    expect(mock.getChatPostCalls()).toBe(1);
+    expect(mock.getVariantPatchCalls()).toBe(1);
+    await expect(textarea).toHaveValue("");
   });
 
   test("pending → non-pending empty snapshot terminates without a long retry loop", async ({ page }) => {
