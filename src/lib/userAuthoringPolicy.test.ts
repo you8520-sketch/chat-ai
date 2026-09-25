@@ -125,6 +125,18 @@ describe("three-level user authoring policy", () => {
     }
   });
 
+  it("user-retained 전권 does not grant coauthor authority", () => {
+    const applied = resolveEffectiveUserAuthoring({
+      persistentMode: "OFF",
+      baseLevel: "ALLOW",
+      currentUserInput: "OOC: 내 캐릭터 전권은 내가 가질게.",
+    });
+    assert.equal(applied.currentMode, "OFF");
+    assert.equal(applied.persistentAfter, "LIMITED");
+    assert.equal(applied.delegation.active, false);
+    assert.equal(applied.delegation.allowIrreversibleFate, false);
+  });
+
   it("NPC 전권 instruction does not accidentally grant user-character fate authority", () => {
     const applied = resolveEffectiveUserAuthoring({
       persistentMode: "OFF",
