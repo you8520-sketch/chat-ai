@@ -137,6 +137,17 @@ describe("three-level user authoring policy", () => {
     assert.equal(applied.delegation.allowIrreversibleFate, false);
   });
 
+  it("generic auto-progress OOC does not become a user-character FULL grant", () => {
+    const applied = resolveEffectiveUserAuthoring({
+      persistentMode: "OFF",
+      baseLevel: "LIMITED",
+      currentUserInput: "OOC: 다음 턴은 자동 서술하며 진행해.",
+    });
+    assert.equal(applied.currentMode, "OFF");
+    assert.equal(applied.persistentAfter, "OFF");
+    assert.equal(applied.delegation.active, false);
+  });
+
   it("NPC 전권 instruction does not accidentally grant user-character fate authority", () => {
     const applied = resolveEffectiveUserAuthoring({
       persistentMode: "OFF",
