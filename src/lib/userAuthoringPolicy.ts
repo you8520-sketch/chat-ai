@@ -1,5 +1,3 @@
-import type { CurrentTurnAuthoringDelegation } from "@/lib/currentTurnUserAuthoringDelegation";
-
 export const USER_AUTHORING_LEVELS = ["LIMITED", "NORMAL", "ALLOW"] as const;
 export type UserAuthoringLevel = (typeof USER_AUTHORING_LEVELS)[number];
 
@@ -47,25 +45,4 @@ export function capabilitiesFromUserAuthoringLevel(
         allowIrreversibleFate: false,
       };
   }
-}
-
-export function delegationFromUserAuthoringLevel(
-  level: UserAuthoringLevel
-): CurrentTurnAuthoringDelegation {
-  const normalized = parseUserAuthoringLevel(level);
-  const capabilities = capabilitiesFromUserAuthoringLevel(normalized);
-  if (normalized === "LIMITED") {
-    return {
-      active: false,
-      ...capabilities,
-      source: null,
-      duration: null,
-    };
-  }
-  return {
-    active: true,
-    ...capabilities,
-    source: "chat_setting",
-    duration: "persistent",
-  };
 }
