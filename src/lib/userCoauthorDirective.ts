@@ -59,8 +59,10 @@ const WHOLE_PERSONA_GRANT_RE =
   /(?:내|유저)\s*캐릭터\s*도|유저\s*페르소나까지|소설처럼/;
 const INNER_POV_GRANT_RE =
   /(?:속마음|내면(?:\s*독백)?|생각|감정|욕망|심리)(?:까지|도|을|를)?[^\n。]{0,80}(?:써|작성|서술|묘사|알아서|맡)|(?:내|유저)\s*(?:캐릭터|캐릭|페르소나)?[^\n。]{0,100}(?:속마음|내면|생각|감정)(?:까지|도)?/;
+const USER_PERSONA_AUTHORITY_TARGET_RE =
+  /(?:내|유저)\s*(?:캐릭터|캐릭|페르소나|대사|행동|서술|속마음|내면)|유저캐/;
 const ABSOLUTE_AUTHORITY_GRANT_RE =
-  /(?:(?:내|유저)\s*(?:캐릭터|캐릭|페르소나)?[^\n。]{0,140})?(?:전권|완전(?:히)?\s*자유|생사\s*포함|죽음(?:까지|도|을|를)?\s*(?:허용|맡|포함)|사망(?:까지|도|을|를)?\s*(?:허용|맡|포함)|불가역(?:적)?\s*(?:변화|전개|결정)?\s*(?:포함|허용|맡)|운명(?:까지|도|을|를)?\s*(?:맡|전부|알아서)|결말(?:까지|도|을|를)?\s*(?:맡|전부|알아서))/;
+  /(?:전권|완전(?:히)?\s*자유|생사\s*포함|죽음(?:까지|도|을|를)?\s*(?:허용|맡|포함)|사망(?:까지|도|을|를)?\s*(?:허용|맡|포함)|불가역(?:적)?\s*(?:변화|전개|결정)?\s*(?:포함|허용|맡)|운명(?:까지|도|을|를)?\s*(?:맡|전부|알아서)|결말(?:까지|도|을|를)?\s*(?:맡|전부|알아서))/;
 
 const DIALOGUE_RETAIN_OR_DENY_RE =
   /대사(?:는|은|를|을|만|도)?\s*(?:쓰지\s*마|쓰지마|작성하지\s*마|하지\s*마|내가\s*(?:할게|쓸게|쓸래|쓸|작성)|직접\s*(?:쓸|할게|작성))/;
@@ -178,11 +180,17 @@ export function resolveUserCoauthorDirective(input: {
     wholeRevoke || IRREVERSIBLE_FATE_DENY_RE.test(oocBody);
 
   const hasAuthoringIntent = AUTHORING_INTENT_RE.test(oocBody);
-  const absoluteGrant = ABSOLUTE_AUTHORITY_GRANT_RE.test(oocBody);
+  const userPersonaTarget = USER_PERSONA_AUTHORITY_TARGET_RE.test(oocBody);
+  const absoluteGrant =
+    userPersonaTarget &&
+    hasAuthoringIntent &&
+    ABSOLUTE_AUTHORITY_GRANT_RE.test(oocBody);
   const novelGrant =
     absoluteGrant ||
-    INNER_POV_GRANT_RE.test(oocBody) ||
-    (hasAuthoringIntent && /소설처럼/.test(oocBody));
+    (userPersonaTarget &&
+      hasAuthoringIntent &&
+      INNER_POV_GRANT_RE.test(oocBody)) ||
+    (userPersonaTarget && hasAuthoringIntent && /소설처럼/.test(oocBody));
   const fullGrant =
     absoluteGrant ||
     novelGrant ||
