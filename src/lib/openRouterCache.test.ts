@@ -4,6 +4,7 @@ import {
   HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES,
   buildOpenRouterCachedSystemContent,
   buildOpenRouterDynamicLoreUserPrefix,
+  hasMutableSystemSuffixAfterCachedPrefix,
   resolveHistoryCacheBreakpointIndex,
 } from "@/lib/openRouterCache";
 
@@ -27,6 +28,49 @@ describe("resolveHistoryCacheBreakpointIndex", () => {
     assert.equal(
       resolveHistoryCacheBreakpointIndex([{ role: "system" }, { role: "user" }]),
       null
+    );
+  });
+
+  it("skips history breakpoint when cached system prefix has a mutable uncached suffix", () => {
+    const messages = [
+      {
+        role: "system",
+        content: buildOpenRouterCachedSystemContent({
+          systemRulesBlock: "rules",
+          characterSettingsBlock: "character",
+          dynamicBlock: "volatile memory/state",
+        }),
+      },
+      { role: "user", content: "u1" },
+      { role: "assistant", content: "a1" },
+      { role: "user", content: "u2" },
+      { role: "assistant", content: "a2" },
+      { role: "user", content: "current" },
+    ];
+    assert.equal(hasMutableSystemSuffixAfterCachedPrefix(messages), true);
+    assert.equal(resolveHistoryCacheBreakpointIndex(messages), null);
+  });
+
+  it("keeps history breakpoint when the system prefix is fully cached", () => {
+    const messages = [
+      {
+        role: "system",
+        content: buildOpenRouterCachedSystemContent({
+          systemRulesBlock: "rules",
+          characterSettingsBlock: "character",
+          dynamicBlock: "",
+        }),
+      },
+      { role: "user", content: "u1" },
+      { role: "assistant", content: "a1" },
+      { role: "user", content: "u2" },
+      { role: "assistant", content: "a2" },
+      { role: "user", content: "current" },
+    ];
+    assert.equal(hasMutableSystemSuffixAfterCachedPrefix(messages), false);
+    assert.equal(
+      resolveHistoryCacheBreakpointIndex(messages),
+      5 - HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES
     );
   });
 });

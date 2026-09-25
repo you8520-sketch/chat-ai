@@ -232,7 +232,11 @@ test("[SYNTHETIC] CI Anthropic scene controls preserve static/dynamic cache boun
         Array.isArray(message.content) &&
         message.content.some((block) => block.cache_control?.type === "ephemeral")
     );
-  assert.equal(cachedHistoryMessages.length, 1);
+  assert.equal(
+    cachedHistoryMessages.length,
+    0,
+    "mutable dynamic system tail must not create a write-only history cache prefix"
+  );
 });
 
 

@@ -13,7 +13,7 @@ export type OpenRouterSystemSplit = {
 
 export const ANTHROPIC_EPHEMERAL_CACHE = { type: "ephemeral" as const };
 
-/** 히스토리 캐시 breakpoint — 마지막 user 직전 N개 메시지는 비캐시 tail (2~3턴 분량) */
+/** 히스토리 캐시 breakpoint — mutable system suffix가 없을 때만 사용. */
 export const HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES = 3;
 
 /** OpenRouter Anthropic — 단일 텍스트 → cache_control 블록 배열 */
@@ -34,8 +34,45 @@ export function wrapTextAsCachedContentBlock(text: string): OpenRouterContentBlo
  * Marks the last message of the *stable* past block; latest HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES
  * before the final user turn stay uncached so minor tail edits don't bust the long prefix.
  */
-export function resolveHistoryCacheBreakpointIndex(messages: { role: string }[]): number | null {
+export function hasMutableSystemSuffixAfterCachedPrefix(
+  messages: Array<{
+    role: string;
+    content?: string | OpenRouterContentBlock[];
+  }>
+): boolean {
+  const system = messages.find((message) => message.role === "system");
+  if (!system || !Array.isArray(system.content)) return false;
+
+  let sawCachedBlock = false;
+  for (const block of system.content) {
+    const cached = block.cache_control?.type === "ephemeral";
+    if (cached) {
+      sawCachedBlock = true;
+      continue;
+    }
+    if (sawCachedBlock && block.text.trim()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function resolveHistoryCacheBreakpointIndex(
+  messages: Array<{
+    role: string;
+    content?: string | OpenRouterContentBlock[];
+  }>
+): number | null {
   if (messages.length < 3) return null;
+
+  // Anthropic cache keys are prefix-based. If a mutable uncached system suffix
+  // sits after the stable cached system prefix, every history breakpoint would
+  // include that volatile suffix and become a cache-write-only prefix on the
+  // next turn. Keep the stable system cache, but do not create a doomed history
+  // checkpoint in that shape.
+  if (hasMutableSystemSuffixAfterCachedPrefix(messages)) {
+    return null;
+  }
 
   let lastUserIdx = -1;
   for (let i = messages.length - 1; i >= 1; i--) {
