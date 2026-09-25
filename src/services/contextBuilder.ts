@@ -44,6 +44,7 @@ import { isRegisterPatch } from "@/lib/registerPatchExperiment";
 import { buildOocCoNarrationHint } from "@/lib/userImpersonationPolicy";
 import {
   INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
+  currentTurnAuthoringPolicyRequiresOwner,
   resolveCurrentTurnUserAuthoringDelegation,
 } from "@/lib/currentTurnUserAuthoringDelegation";
 import {
@@ -356,7 +357,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     legacyNovelModeEnabled,
     oocUserImpersonationAllowed: oocLimitedCoNarration,
     currentTurnDelegationActive:
-      !oocLimitedCoNarration && currentTurnDelegation.active,
+      !oocLimitedCoNarration &&
+      currentTurnAuthoringPolicyRequiresOwner(currentTurnDelegation),
   });
   const currentTurnDelegated = runtimeMode === "current_turn_ooc_delegated";
   const coauthorDuration =
