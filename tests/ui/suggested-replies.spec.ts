@@ -658,23 +658,31 @@ async function installSuggestedRepliesRegenerationMock(
   };
 }
 
+const INITIAL_OFF_TEST_TITLE =
+  "initial OFF defers display polling but reveals already-generated suggestions when enabled";
+
 test.describe("Suggested Replies — production browser lifecycle", () => {
   test.describe.configure({ retries: 0, timeout: 90_000 });
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    const initiallyOff = testInfo.title === INITIAL_OFF_TEST_TITLE;
     await page.addInitScript(
-      ({ key, defaults }) => {
+      ({ key, defaults, showSuggestedReplies }) => {
         localStorage.setItem(
           key,
           JSON.stringify({
             ...defaults,
             streamIntervalMs: 0,
             streamCharsPerTick: 64,
-            showSuggestedReplies: true,
+            showSuggestedReplies,
           })
         );
       },
-      { key: CHAT_DISPLAY_PREFS_KEY, defaults: DEFAULT_CHAT_DISPLAY_PREFS }
+      {
+        key: CHAT_DISPLAY_PREFS_KEY,
+        defaults: DEFAULT_CHAT_DISPLAY_PREFS,
+        showSuggestedReplies: !initiallyOff,
+      }
     );
     await demoLogin(page);
     await page.setViewportSize({ width: 1280, height: 720 });
@@ -682,6 +690,50 @@ test.describe("Suggested Replies — production browser lifecycle", () => {
 
   test.afterEach(async ({ page }) => {
     await resetDemoCharacterChats(page);
+  });
+
+  test(INITIAL_OFF_TEST_TITLE, async ({ page }) => {
+    const mock = await installSuggestedRepliesTurnMock(page);
+    await openFreshChat(page);
+
+    const toggle = page.getByRole("switch", { name: "추천 메시지" });
+    const textarea = page.locator("textarea[placeholder*='메시지 입력']");
+
+    await expect(toggle).toHaveText("추천 꺼짐");
+    await setReactTextareaValue(page, "처음부터 OFF 생성 테스트");
+
+    const responseWait = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/chat" &&
+        response.request().method() === "POST",
+      { timeout: 45_000 }
+    );
+    await page.getByRole("button", { name: "전송", exact: true }).click();
+    expect((await responseWait).ok()).toBeTruthy();
+
+    await page.waitForTimeout(750);
+    expect(mock.getChatPostCalls()).toBe(1);
+    expect(mock.getTargetPollCalls()).toBe(0);
+    await expect(page.getByText("추천 메시지 준비 중…", { exact: true })).toHaveCount(0);
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toHaveCount(0);
+    }
+
+    await toggle.click();
+    await expect(toggle).toHaveText("추천 켜짐");
+    await expect(page.getByText("추천 메시지 준비 중…", { exact: true })).toBeVisible({
+      timeout: 5_000,
+    });
+
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    }
+
+    await expect.poll(mock.getTargetPollCalls, { timeout: 10_000 }).toBe(2);
+    expect(mock.getChatPostCalls()).toBe(1);
+    await expect(textarea).toHaveValue("");
   });
 
   test("successful regeneration replaces previous-generation suggestions with the new trio", async ({ page }) => {
