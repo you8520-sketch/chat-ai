@@ -55,6 +55,7 @@ describe("three-level user authoring policy", () => {
     assert.equal(normal.delegation.allowMajorActions, true);
     assert.equal(normal.delegation.allowInnerPov, false);
     assert.equal(normal.delegation.allowIrreversibleFate, false);
+    assert.equal(normal.delegation.allowAiCastIrreversibleExpansion, false);
 
     const allow = resolveEffectiveUserAuthoring({
       persistentMode: "OFF",
@@ -65,6 +66,7 @@ describe("three-level user authoring policy", () => {
     assert.equal(allow.delegation.source, "chat_setting");
     assert.equal(allow.delegation.allowInnerPov, true);
     assert.equal(allow.delegation.allowIrreversibleFate, false);
+    assert.equal(allow.delegation.allowAiCastIrreversibleExpansion, true);
   });
 
   it("ALLOW + explicit 완전히 자유 opens irreversible fate as an OOC override", () => {
@@ -80,6 +82,7 @@ describe("three-level user authoring policy", () => {
     assert.equal(applied.delegation.allowMajorActions, true);
     assert.equal(applied.delegation.allowInnerPov, true);
     assert.equal(applied.delegation.allowIrreversibleFate, true);
+    assert.equal(applied.delegation.allowAiCastIrreversibleExpansion, true);
   });
 
   it("완전히 자유 alone is enough to mean full narrative authority", () => {
@@ -144,7 +147,7 @@ describe("three-level user authoring policy", () => {
     assert.equal(applied.delegation.active, false);
   });
 
-  it("ALLOW + explicit revoke can narrow the room below the base level", () => {
+  it("ALLOW + explicit revoke can narrow B below the base level without disabling AI-cast freedom", () => {
     const applied = resolveEffectiveUserAuthoring({
       persistentMode: "OFF",
       baseLevel: "ALLOW",
@@ -153,6 +156,19 @@ describe("three-level user authoring policy", () => {
     assert.equal(applied.currentMode, "OFF");
     assert.equal(applied.persistentAfter, "LIMITED");
     assert.equal(applied.delegation.active, false);
+    assert.equal(applied.delegation.allowAiCastIrreversibleExpansion, true);
+  });
+
+  it("LIMITED + inner-POV OOC does not grant AI-cast irreversible expansion", () => {
+    const applied = resolveEffectiveUserAuthoring({
+      persistentMode: "OFF",
+      baseLevel: "LIMITED",
+      currentUserInput: "OOC: 내 캐릭터 속마음과 내면까지 소설처럼 써줘.",
+    });
+    assert.equal(applied.currentMode, "NOVEL");
+    assert.equal(applied.delegation.allowInnerPov, true);
+    assert.equal(applied.delegation.allowIrreversibleFate, false);
+    assert.equal(applied.delegation.allowAiCastIrreversibleExpansion, false);
   });
 
   it("turn-only absolute grant does not persist", () => {
