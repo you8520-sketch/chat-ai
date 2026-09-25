@@ -50,7 +50,6 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
       mode: "interactive",
       ownershipLockEnabled: true,
       personaName: "렌",
-      coauthorSource: "chat_setting",
     });
     assert.match(w, /\[B\] = 렌/);
     const wA = buildCurrentUserInputWrapper({
@@ -97,11 +96,14 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
       mode: "current_turn_ooc_delegated",
       ownershipLockEnabled: true,
       personaName: "렌",
+      coauthorSource: "chat_setting",
     });
     assert.ok(w.startsWith(CURRENT_USER_INPUT_HEADER));
     assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
     assert.ok(!w.includes("[B] ="));
     assert.match(w, /USER AUTHORING — EFFECTIVE COAUTHOR POLICY/);
+    assert.match(w, /current chat authoring setting is active/i);
+    assert.doesNotMatch(w, /explicit current-turn OOC/i);
     assert.doesNotMatch(w, /remain user-authored/);
     const wrapped = wrapCurrentUserInput("OOC: 내 대사도 써줘.", {
       mode: "current_turn_ooc_delegated",
