@@ -30,6 +30,7 @@ on:
       - "src/lib/ai.cheaperInferenceBackground.test.ts"
       - "src/lib/chatModels.ts"
       - "src/lib/chatModels.cheaperInference.test.ts"
+      - "src/lib/chatModels.lunaPublicRemoval.test.ts"
       - "src/lib/openRouterModelPricing.ts"
       - "src/lib/openRouterModelPricing.cheaperInference.test.ts"
       - "src/lib/promptTranslation.ts"
@@ -99,4 +100,4 @@ jobs:
         run: node --conditions=react-server --import tsx --test src/lib/cheaperInferenceConfig.test.ts
 
       - name: GPT-6 Luna background owner cutover
-        run: node --conditions=react-server --import tsx --test src/lib/ai.backgroundTextPrimary.test.ts src/lib/ai.cheaperInferenceBackground.test.ts src/lib/chatModels.cheaperInference.test.ts src/lib/openRouterModelPricing.cheaperInference.test.ts src/lib/promptTranslation.test.ts src/lib/chatImageSceneBrief.test.ts src/lib/trpg/replySuggestions.test.ts src/lib/auxProviderProvenance.test.ts
+        run: node --conditions=react-server --import tsx --test src/lib/ai.backgroundTextPrimary.test.ts src/lib/ai.cheaperInferenceBackground.test.ts src/lib/chatModels.cheaperInference.test.ts src/lib/chatModels.lunaPublicRemoval.test.ts src/lib/openRouterModelPricing.cheaperInference.test.ts src/lib/promptTranslation.test.ts src/lib/chatImageSceneBrief.test.ts src/lib/trpg/replySuggestions.test.ts src/lib/auxProviderProvenance.test.ts
