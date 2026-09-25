@@ -5,6 +5,8 @@ const CHAT_DISPLAY_PREFS_KEY = "playai-chat-display-prefs";
 
 const MOCK_USER_MESSAGE_ID = 190_001;
 const MOCK_ASSISTANT_MESSAGE_ID = 190_002;
+const MOCK_ASSISTANT_CONTENT =
+  "유나는 잠깐 생각하더니 고개를 끄덕였다. 이제 다음 말을 기다리는 듯 시선을 맞췄다.";
 
 const VARIANT_ONE_CONTENT =
   "첫 번째 버전의 답변이다. 유나는 고개를 끄덕이며 다음 말을 기다렸다.";
@@ -85,7 +87,7 @@ async function openFreshChat(page: Page, characterId = 2) {
 function buildMockChatSseBody(chatId: number): string {
   const requestId = "suggested-replies-ui-e2e";
   const finalContent =
-    "유나는 잠깐 생각하더니 고개를 끄덕였다. 이제 다음 말을 기다리는 듯 시선을 맞췄다.";
+    MOCK_ASSISTANT_CONTENT;
 
   return [
     `data: ${JSON.stringify({
@@ -201,7 +203,7 @@ async function installSuggestedRepliesTurnMock(
       body: JSON.stringify({
         messageId: MOCK_ASSISTANT_MESSAGE_ID,
         content:
-          "유나는 잠깐 생각하더니 고개를 끄덕였다. 이제 다음 말을 기다리는 듯 시선을 맞췄다.",
+          MOCK_ASSISTANT_CONTENT,
         generationStatus: "completed",
       }),
     });
@@ -432,6 +434,133 @@ async function installSuggestedRepliesVariantSwitchMock(page: Page) {
   };
 }
 
+async function installSuggestedRepliesRegenFailureMock(page: Page) {
+  let targetPollCalls = 0;
+  let chatPostCalls = 0;
+  let regenPostCalls = 0;
+  let releaseRegenResponse!: () => void;
+  let markRegenRequestSeen!: () => void;
+  const regenRelease = new Promise<void>((resolve) => {
+    releaseRegenResponse = resolve;
+  });
+  const regenRequestSeen = new Promise<void>((resolve) => {
+    markRegenRequestSeen = resolve;
+  });
+
+  await page.route("**/api/chat/message**", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        messageId: MOCK_ASSISTANT_MESSAGE_ID,
+        content: MOCK_ASSISTANT_CONTENT,
+        generationStatus: "completed",
+      }),
+    });
+  });
+
+  await page.route("**/api/chat/settings", async (route: Route) => {
+    if (route.request().method() === "POST" || route.request().method() === "PATCH") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ narrativePov: "third_person" }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.route("**/api/chat/suggested-replies**", async (route: Route) => {
+    const url = new URL(route.request().url());
+    const messageId = Number(url.searchParams.get("messageId"));
+    if (messageId !== MOCK_ASSISTANT_MESSAGE_ID) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          messageId,
+          requested: false,
+          pending: false,
+          failed: true,
+          replies: [],
+        }),
+      });
+      return;
+    }
+
+    targetPollCalls += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        targetPollCalls === 1
+          ? {
+              messageId,
+              requested: true,
+              pending: true,
+              failed: false,
+              replies: [],
+            }
+          : {
+              messageId,
+              requested: true,
+              pending: false,
+              failed: false,
+              replies: REPLIES,
+            }
+      ),
+    });
+  });
+
+  await page.route("**/api/chat", async (route: Route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+
+    chatPostCalls += 1;
+    let body: { chatId?: number; regenerate?: boolean } = {};
+    try {
+      body = route.request().postDataJSON() as {
+        chatId?: number;
+        regenerate?: boolean;
+      };
+    } catch {
+      /* fixture fallback */
+    }
+
+    if (body.regenerate === true) {
+      regenPostCalls += 1;
+      markRegenRequestSeen();
+      await regenRelease;
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "재생성 테스트 실패" }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache",
+      },
+      body: buildMockChatSseBody(body.chatId ?? 0),
+    });
+  });
+
+  return {
+    getTargetPollCalls: () => targetPollCalls,
+    getChatPostCalls: () => chatPostCalls,
+    getRegenPostCalls: () => regenPostCalls,
+    waitForRegenRequest: () => regenRequestSeen,
+    releaseRegenResponse,
+  };
+}
+
 test.describe("Suggested Replies — production browser lifecycle", () => {
   test.describe.configure({ retries: 0, timeout: 90_000 });
 
@@ -456,6 +585,62 @@ test.describe("Suggested Replies — production browser lifecycle", () => {
 
   test.afterEach(async ({ page }) => {
     await resetDemoCharacterChats(page);
+  });
+
+  test("failed regeneration hides then restores the previous generation suggestions", async ({ page }) => {
+    const mock = await installSuggestedRepliesRegenFailureMock(page);
+    await openFreshChat(page);
+
+    const textarea = page.locator("textarea[placeholder*='메시지 입력']");
+    await setReactTextareaValue(page, "재생성 실패 복구 테스트");
+
+    const responseWait = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/chat" &&
+        response.request().method() === "POST",
+      { timeout: 45_000 }
+    );
+    await page.getByRole("button", { name: "전송", exact: true }).click();
+    expect((await responseWait).ok()).toBeTruthy();
+
+    await expect(page.getByText(MOCK_ASSISTANT_CONTENT, { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    }
+    await expect.poll(mock.getTargetPollCalls, { timeout: 10_000 }).toBe(2);
+
+    await page.getByRole("button", { name: "재생성", exact: true }).click();
+    const dialog = page.getByRole("alertdialog");
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "재생성", exact: true }).click();
+    await mock.waitForRegenRequest();
+    await expect.poll(mock.getRegenPostCalls, { timeout: 5_000 }).toBe(1);
+
+    await expect(page.getByText(MOCK_ASSISTANT_CONTENT, { exact: true })).toHaveCount(0);
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toHaveCount(0);
+    }
+
+    mock.releaseRegenResponse();
+
+    await expect(page.getByText(MOCK_ASSISTANT_CONTENT, { exact: true })).toBeVisible({
+      timeout: 5_000,
+    });
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 5_000,
+      });
+    }
+
+    await page.waitForTimeout(750);
+    expect(mock.getTargetPollCalls()).toBe(2);
+    expect(mock.getChatPostCalls()).toBe(2);
+    expect(mock.getRegenPostCalls()).toBe(1);
+    await expect(textarea).toHaveValue("");
   });
 
   test("variant switch immediately clears previous-generation suggestions", async ({ page }) => {
