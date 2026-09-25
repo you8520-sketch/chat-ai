@@ -10,6 +10,7 @@ import {
   ensureUserCoauthorSchema,
   listEligibleUserCoauthorMessageContents,
   markUserMessageCoauthorSemanticsVersion,
+  persistUserAuthoringLevelAndResetOocAuthority,
   persistUserCoauthorAfterSuccessfulUserInsert,
   persistUserCoauthorMode,
   readUserAuthoringLevel,
@@ -177,6 +178,28 @@ describe("user coauthor authority + semantics epoch", () => {
     insertUser(db, "계속해.");
     db.prepare("DELETE FROM messages WHERE id=?").run(grantId);
     assert.equal(recomputeAndPersistUserCoauthorMode(db, 1), "OFF");
+  });
+
+  it("H2 — changing the visible base level invalidates older OOC reconstruction authority", () => {
+    const db = openAuthorityDb();
+    const grantId = insertUser(db, PUBLIC_FULL_GRANT);
+    persistUserCoauthorMode(db, 1, "FULL");
+    assert.equal(readUserCoauthorMode(db, 1), "FULL");
+    assert.equal(readUserCoauthorSemanticsVersion(db, grantId), 1);
+
+    persistUserAuthoringLevelAndResetOocAuthority(db, 1, "ALLOW");
+
+    assert.equal(readUserAuthoringLevel(db, 1), "ALLOW");
+    assert.equal(readUserCoauthorMode(db, 1), "OFF");
+    assert.equal(readUserCoauthorSemanticsVersion(db, grantId), 0);
+    assert.equal(recomputeAndPersistUserCoauthorMode(db, 1), "OFF");
+
+    const ordinary = resolveEffectiveUserAuthoringFromChatColumn(db, 1, "계속해.");
+    assert.equal(ordinary.currentMode, "NOVEL");
+    assert.equal(ordinary.persistentAfter, "OFF");
+    assert.equal(ordinary.delegation.source, "chat_setting");
+    assert.equal(ordinary.delegation.allowInnerPov, true);
+    assert.equal(ordinary.delegation.allowIrreversibleFate, false);
   });
 
   it("I / F1 — fork of legacy grant history stays OFF", () => {
