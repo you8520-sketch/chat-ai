@@ -122,6 +122,7 @@ A new 3-level setting added as another independent prompt rule would create conf
 Required before completion:
 - app typecheck
 - userAuthoringPolicy test
+- fork base/override reconstruction test
 - H4.4 test
 - userCoauthor authority/epoch test
 - current-turn delegation test
