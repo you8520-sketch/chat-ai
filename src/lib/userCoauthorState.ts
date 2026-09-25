@@ -8,7 +8,7 @@
  *
  * Ordinary POST reads the two chat columns directly; it never replays all
  * history. Reconstruction paths (fork/edit/delete/regeneration boundary) may
- * replay only USER messages whose user_coauthor_semantics_version >= 1.
+ * replay only USER messages from the current semantics epoch (version >= 2).
  * Assistant text, memory, lorebook, and model output are never authority.
  *
  * Persisted OFF means "inherit the visible base level". Persisted LIMITED is
@@ -56,6 +56,7 @@ export const DEFAULT_USER_COAUTHOR_MODE: UserCoauthorMode = "OFF";
 export const USER_COAUTHOR_MODE_COLUMN = "user_coauthor_mode";
 export const USER_COAUTHOR_SEMANTICS_VERSION_COLUMN = "user_coauthor_semantics_version";
 export const LEGACY_USER_COAUTHOR_SEMANTICS_VERSION = 0;
+export const PREVIOUS_USER_COAUTHOR_SEMANTICS_VERSION = 1;
 export const CURRENT_USER_COAUTHOR_SEMANTICS_VERSION = 2;
 
 export type UserCoauthorBooleans = {
