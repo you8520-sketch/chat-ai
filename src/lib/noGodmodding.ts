@@ -4,9 +4,10 @@ import {
   MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF,
   MANDATORY_RULES_BOUNDED_ROLE_DIRECTION_PRECEDENCE,
 } from "@/lib/userNoteMandatoryRulesPolicy";
-import type {
-  CurrentTurnAuthoringDelegation,
-  UserCoauthorDuration,
+import {
+  currentTurnAuthoringPolicyRequiresOwner,
+  type CurrentTurnAuthoringDelegation,
+  type UserCoauthorDuration,
 } from "@/lib/currentTurnUserAuthoringDelegation";
 
 /** Production modes only — legacy `novel` removed; normalize to autoContinue at request boundary. */
@@ -290,6 +291,8 @@ export function resolveNoGodmoddingMode(opts: {
   // Continue and legacy novel both → AI-focal auto progression (never novel POV)
   if (opts.isContinue || legacyNovel) return "autoContinue";
   if (opts.impersonationOn) return "coNarration";
-  if (opts.currentTurnDelegation?.active) return "currentTurnDelegated";
+  if (currentTurnAuthoringPolicyRequiresOwner(opts.currentTurnDelegation)) {
+    return "currentTurnDelegated";
+  }
   return "standard";
 }
