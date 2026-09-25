@@ -7,6 +7,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   SELECTED_AI_OPTIONS,
   USER_SELECTABLE_AI_OPTIONS,
@@ -63,6 +64,25 @@ test("GPT-5.6 Luna stays Cheaper Inference but is temporarily hidden from picker
   assert.equal(isCheaperInferenceModel(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL), true);
   assert.equal(
     resolveSelectedAI(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
+    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+  );
+});
+
+test("GPT-6 Luna is the current hidden Cheaper Inference background model", () => {
+  assert.equal(
+    USER_SELECTABLE_AI_OPTIONS.some(
+      (option) => option.id === CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
+    ),
+    false
+  );
+  assert.equal(
+    selectedAIProvider(CHEAPER_INFERENCE_GPT_6_LUNA_MODEL),
+    "cheaperinference"
+  );
+  assert.equal(selectedAILabel(CHEAPER_INFERENCE_GPT_6_LUNA_MODEL), "GPT-6 Luna");
+  assert.equal(isCheaperInferenceModel(CHEAPER_INFERENCE_GPT_6_LUNA_MODEL), true);
+  assert.equal(
+    resolveSelectedAI(CHEAPER_INFERENCE_GPT_6_LUNA_MODEL),
     CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
   );
 });
