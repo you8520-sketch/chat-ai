@@ -190,6 +190,7 @@ export function wrapCurrentUserInput(
     ownershipLockEnabled?: boolean;
     ownershipTerminalEchoEnabled?: boolean;
     coauthorDuration?: UserCoauthorDuration | null;
+    coauthorSource?: CurrentTurnAuthoringDelegationSource;
     adultHandoff?: boolean;
   }
 ): string {
