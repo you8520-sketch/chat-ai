@@ -47,58 +47,9 @@ const port = parseInt(process.env.PORT || "3000", 10);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
+const { installGracefulHttpDrain } = require("./src/lib/serverGracefulDrain.js");
+
 let httpServer = null;
-let shutdownStarted = false;
-
-function resolveGracefulShutdownForceMs() {
-  const drainingSecondsRaw = Number(process.env.RAILWAY_DEPLOYMENT_DRAINING_SECONDS || "120");
-  const drainingSeconds =
-    Number.isFinite(drainingSecondsRaw) && drainingSecondsRaw >= 10
-      ? Math.floor(drainingSecondsRaw)
-      : 120;
-  return Math.max(5_000, (drainingSeconds - 5) * 1_000);
-}
-
-function beginGracefulShutdown(signal) {
-  if (shutdownStarted) return;
-  shutdownStarted = true;
-
-  const forceExitMs = resolveGracefulShutdownForceMs();
-  console.log("[server] graceful shutdown started", {
-    signal,
-    forceExitMs,
-    hasHttpServer: Boolean(httpServer),
-  });
-
-  const forceTimer = setTimeout(() => {
-    console.error("[server] graceful shutdown timed out; forcing exit", {
-      signal,
-      forceExitMs,
-    });
-    process.exit(1);
-  }, forceExitMs);
-  forceTimer.unref();
-
-  if (!httpServer) {
-    clearTimeout(forceTimer);
-    process.exit(0);
-    return;
-  }
-
-  httpServer.close((err) => {
-    clearTimeout(forceTimer);
-    if (err) {
-      console.error("[server] graceful shutdown close failed", err);
-      process.exit(1);
-      return;
-    }
-    console.log("[server] graceful shutdown complete", { signal });
-    process.exit(0);
-  });
-}
-
-process.once("SIGTERM", () => beginGracefulShutdown("SIGTERM"));
-process.once("SIGINT", () => beginGracefulShutdown("SIGINT"));
 
 async function loadSchedulerEnablementOwner() {
   try {
@@ -240,6 +191,7 @@ app.prepare().then(() => {
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
   });
+  installGracefulHttpDrain(httpServer);
   httpServer.listen(port, hostname, (err) => {
     if (err) throw err;
     console.log(
