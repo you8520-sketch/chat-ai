@@ -7,6 +7,7 @@ import { resolveSubscriptionMemoryCapability } from "@/lib/subscriptionMemoryCap
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
 import { resolveNarrativePov } from "@/lib/narrativePov";
+import { parseUserAuthoringLevel, USER_AUTHORING_LEVELS } from "@/lib/userAuthoringPolicy";
 import {
   displayModeFromEngineMode,
   parseIncomingStatusWidgetDisplayMode,
@@ -59,9 +60,25 @@ export async function PATCH(req: Request) {
     statusWidgetDisplayMode,
     narrativePov,
     povCharacterName,
+    userAuthoringLevel: userAuthoringLevelInput,
     adultHandoffEnabled: adultHandoffEnabledInput,
   } = body;
   if (!chatId) return Response.json({ error: "채팅방 ID가 필요합니다." }, { status: 400 });
+  const userAuthoringLevel =
+    userAuthoringLevelInput === undefined
+      ? undefined
+      : parseUserAuthoringLevel(userAuthoringLevelInput);
+  if (
+    userAuthoringLevelInput !== undefined &&
+    !USER_AUTHORING_LEVELS.includes(
+      String(userAuthoringLevelInput).trim().toUpperCase() as (typeof USER_AUTHORING_LEVELS)[number]
+    )
+  ) {
+    return Response.json(
+      { error: "userAuthoringLevel must be LIMITED, NORMAL, or ALLOW." },
+      { status: 400 }
+    );
+  }
 
   const userAdultVerified = effectiveIsAdult(user.is_adult);
   const adultHandoffEnabled = parseAdultHandoffEnabled(
@@ -189,6 +206,13 @@ export async function PATCH(req: Request) {
     sets.push("adult_handoff_enabled=?");
     vals.push(adultHandoffEnabled ? 1 : 0);
   }
+  if (userAuthoringLevel !== undefined) {
+    sets.push("user_authoring_level=?");
+    vals.push(userAuthoringLevel);
+    // Explicit UI choice becomes the new base owner. Clear any hidden persistent
+    // OOC override so the slider and actual runtime cannot disagree.
+    sets.push("user_coauthor_mode='OFF'");
+  }
 
   if (sets.length === 0) {
     return Response.json({ error: "변경할 설정이 없습니다." }, { status: 400 });
@@ -210,6 +234,7 @@ export async function PATCH(req: Request) {
     statusWidgetDisplayMode: nextDisplay,
     narrativePov: resolvedNarrativePov.mode,
     povCharacterName: resolvedNarrativePov.povCharacterName,
+    ...(userAuthoringLevel !== undefined ? { userAuthoringLevel } : {}),
     ...(adultHandoffEnabled !== undefined ? { adultHandoffEnabled } : {}),
   });
 }
