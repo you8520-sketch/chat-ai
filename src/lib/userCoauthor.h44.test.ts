@@ -236,12 +236,12 @@ describe("H4.4 T1–T10 regressions", () => {
     assert.equal(afterToggle, "FULL");
   });
 
-  it("T7 — fork after toggle inherits FULL", () => {
+  it("T7 — fork after 소설처럼 grant inherits NOVEL", () => {
     const parent = [
       "OOC: 유저 페르소나까지 소설처럼 같이 진행해줘.",
       "계속해.",
     ];
-    assert.equal(recomputeUserCoauthorModeFromUserMessages(parent), "FULL");
+    assert.equal(recomputeUserCoauthorModeFromUserMessages(parent), "NOVEL");
   });
 
   it("T8 — edit/delete of mode-changing OOC does not leave stale state", () => {
