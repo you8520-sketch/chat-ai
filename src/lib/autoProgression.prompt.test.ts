@@ -138,12 +138,45 @@ describe("auto progression prompt content", () => {
       allowMajorActions: true,
       allowInnerPov: true,
       allowIrreversibleFate: false,
+      allowAiCastIrreversibleExpansion: true,
       source: "chat_setting",
       duration: "persistent",
     });
     assert.match(block, /속마음·내면 독백/);
     assert.match(block, /사망, 영구 장애·능력 상실/);
     assert.match(block, /명시적 전권 OOC 없이는 확정하지 않는다/);
+    assert.match(block, /빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있다/);
+    assert.match(block, /결혼·영구 이별·배신·조직 탈퇴·사망·능력 상실/);
+  });
+
+  it("inner-POV grant alone does not widen AI-cast irreversible history/outcomes", () => {
+    const block = buildAutoProgressionUserControlBlock({
+      active: true,
+      allowDialogue: true,
+      allowMajorActions: true,
+      allowInnerPov: true,
+      allowIrreversibleFate: false,
+      allowAiCastIrreversibleExpansion: false,
+      source: "explicit_ooc",
+      duration: "persistent",
+    });
+    assert.match(block, /속마음·내면 독백/);
+    assert.match(block, /정본에 없던 결정적 과거·비밀을 객관적 사실로 잠그거나/);
+    assert.doesNotMatch(block, /빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있다/);
+  });
+
+  it("ALLOW keeps AI-cast irreversible freedom even when B coauthor is fully revoked", () => {
+    const block = buildAutoProgressionUserControlBlock({
+      active: false,
+      allowDialogue: false,
+      allowMajorActions: false,
+      allowInnerPov: false,
+      allowIrreversibleFate: false,
+      allowAiCastIrreversibleExpansion: true,
+      source: "explicit_ooc",
+      duration: "persistent",
+    });
+    assert.match(block, /\[B\]는 제한 모드/);
     assert.match(block, /빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있다/);
     assert.match(block, /결혼·영구 이별·배신·조직 탈퇴·사망·능력 상실/);
   });
@@ -155,6 +188,7 @@ describe("auto progression prompt content", () => {
       allowMajorActions: true,
       allowInnerPov: true,
       allowIrreversibleFate: true,
+      allowAiCastIrreversibleExpansion: true,
       source: "explicit_ooc",
       duration: "persistent",
     });
