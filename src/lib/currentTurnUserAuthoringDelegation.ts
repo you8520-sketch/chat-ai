@@ -24,9 +24,9 @@ export type CurrentTurnAuthoringDelegation = {
   allowDialogue: boolean;
   allowMajorActions: boolean;
   /** Allow direct narration of [B]'s private thoughts, feelings, desires, and inner POV. */
-  allowInnerPov: boolean;
+  allowInnerPov?: boolean;
   /** Allow irreversible [B] fate/canon changes such as death or permanent loss. OOC full-authority only. */
-  allowIrreversibleFate: boolean;
+  allowIrreversibleFate?: boolean;
   source: CurrentTurnAuthoringDelegationSource;
   /** Effective owner duration when active. Omitted by the current-input parser. */
   duration?: UserCoauthorDuration | null;
