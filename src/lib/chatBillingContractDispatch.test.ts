@@ -210,6 +210,33 @@ describe("chatBillingContractDispatch — contract selection", () => {
     }
   });
 
+  it("Opus 5.5 exact prompt/output with omitted cache fields remains published and chargeable", () => {
+    const stages: StageUsage[] = [
+      {
+        stage: "primary",
+        model: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+        input: 49_460,
+        output: 4281,
+        apiReportedInputTokens: 49_460,
+        apiOutputTokens: 4281,
+        estimated: false,
+      },
+    ];
+    const decision = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+      stages,
+      legacyFinalPoints: 496,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: AUDIT_FX_SNAPSHOT,
+      phase1PublishedBillingEnabled: false,
+    });
+    assert.equal(decision.contract, "published_phase1");
+    assert.ok(decision.points > 0);
+    assert.notEqual(decision.points, 0);
+  });
+
   it("Opus 5.5 gate OFF → published_phase1 (mandatory published, not legacy)", () => {
     const gatedOff = resolveChatBillingContract({
       deliveredModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,

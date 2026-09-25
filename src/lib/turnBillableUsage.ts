@@ -26,7 +26,10 @@ import {
   mergeFieldReportingStatus,
   type UsageFieldReportingStatus,
 } from "@/lib/usageReportingEvidence";
-import { isPublishedCacheWriteAbsentProvenZero } from "@/lib/modelPublishedPricingPolicy";
+import {
+  isPublishedCacheBreakdownPriceNeutral,
+  isPublishedCacheWriteAbsentProvenZero,
+} from "@/lib/modelPublishedPricingPolicy";
 
 export type TurnUsageFieldSource =
   | "PROVIDER_REPORTED_EXACT"
@@ -34,6 +37,7 @@ export type TurnUsageFieldSource =
   | "ESTIMATED"
   | "FALLBACK_VALUE"
   | "MISSING_BUT_PROVEN_ZERO"
+  | "MISSING_BUT_PRICE_NEUTRAL"
   | "MISSING_AND_UNKNOWN"
   | "SANITIZED_MALFORMED";
 
@@ -296,15 +300,30 @@ export function resolveTurnBillableUsage(
 
   const rawCacheRead = primaryStage.cacheReadTokens ?? primaryStage.cachedContentTokens ?? 0;
   const rawCacheWrite = primaryStage.cacheWriteTokens ?? 0;
-  const cacheReadSource = classifyCacheField(rawCacheRead, cacheReadStatus, primaryStage.estimated);
-  const cacheWriteSource = classifyCacheWriteFieldSource(
+  const cacheBreakdownPriceNeutral =
+    !primaryStage.estimated && isPublishedCacheBreakdownPriceNeutral(input.modelId);
+  const cacheReadSource =
+    cacheReadStatus === "unreported" && cacheBreakdownPriceNeutral
+      ? "MISSING_BUT_PRICE_NEUTRAL"
+      : classifyCacheField(rawCacheRead, cacheReadStatus, primaryStage.estimated);
+  const classifiedCacheWriteSource = classifyCacheWriteFieldSource(
     input.modelId,
     rawCacheWrite,
     cacheWriteStatus,
     primaryStage.estimated
   );
-  if (!cacheReadReported) coverageReasons.push("cache_read_unreported");
-  if (!cacheWriteReported && cacheWriteSource !== "MISSING_BUT_PROVEN_ZERO") {
+  const cacheWriteSource =
+    cacheWriteStatus === "unreported" && cacheBreakdownPriceNeutral
+      ? "MISSING_BUT_PRICE_NEUTRAL"
+      : classifiedCacheWriteSource;
+  if (!cacheReadReported && cacheReadSource !== "MISSING_BUT_PRICE_NEUTRAL") {
+    coverageReasons.push("cache_read_unreported");
+  }
+  if (
+    !cacheWriteReported &&
+    cacheWriteSource !== "MISSING_BUT_PROVEN_ZERO" &&
+    cacheWriteSource !== "MISSING_BUT_PRICE_NEUTRAL"
+  ) {
     coverageReasons.push("cache_write_unreported");
   }
 

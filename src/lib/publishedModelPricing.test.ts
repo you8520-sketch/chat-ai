@@ -7,6 +7,7 @@ import { requirePrimaryBenchmark } from "./marketUsageBenchmarks";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "./chatModels";
 import { normalizeBillableUsage } from "./billingUsage";
 import { computePublishedUserChargeWithSnapshot } from "./publishedUserCharge";
+import { isPublishedCacheBreakdownPriceNeutral } from "./modelPublishedPricingPolicy";
 import type { BillingFxSnapshot } from "./billingFxSnapshot";
 
 describe("publishedModelPricing", () => {
@@ -96,6 +97,19 @@ describe("publishedModelPricing", () => {
     });
     assert.equal(charge.status, "complete");
     if (charge.status === "complete") assert.equal(charge.snapshot.finalPoints, 100);
+  });
+
+  it("Opus 5.5 published user charge is cache-partition price-neutral", () => {
+    const p = getPublishedPricing("claude-opus-5.5");
+    assert.equal(isPublishedCacheBreakdownPriceNeutral("claude-opus-5.5"), true);
+    assert.equal(
+      p.billingReferenceCacheReadUsdPerMillion,
+      p.billingReferenceInputUsdPerMillion
+    );
+    assert.equal(
+      p.billingReferenceCacheWriteUsdPerMillion,
+      p.billingReferenceInputUsdPerMillion
+    );
   });
 
   it("PUBLISHED_CATALOG_IDENTITY_INVARIANT — catalog key equals pricing.modelId", () => {
