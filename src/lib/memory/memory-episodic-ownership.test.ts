@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { after, before, describe, it } from "node:test";
 import { BACKGROUND_OPENROUTER_MODEL } from "@/lib/ai";
-import { CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_GPT_6_LUNA_MODEL } from "@/lib/chatModels";
 import { getDb } from "@/lib/db";
 import {
   installIsolatedTestDatabase,
@@ -284,7 +284,7 @@ describe("episodic ownership decoupled from status widget", () => {
     );
     assert.doesNotMatch(extractSrc, /process\.env\.OPENROUTER_API_KEY/);
     assert.doesNotMatch(extractSrc, /CHEAPER_INFERENCE_API_KEY/);
-    assert.equal(BACKGROUND_OPENROUTER_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(BACKGROUND_OPENROUTER_MODEL, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
     assert.equal(ROLLING_SUMMARY_INTERVAL, 5);
     assert.equal(RAW_HISTORY_COMPLETE_EXCHANGES, 4);
     assert.equal(resolveEpisodicMemoryMinAgeTurns({} as NodeJS.ProcessEnv), 5);
@@ -321,7 +321,7 @@ describe("episodic ownership decoupled from status widget", () => {
         endTurn: 5,
       });
       assert.ok(requests.length >= 1, "must reach Luna background caller");
-      assert.equal(requests[0]?.body.model, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+      assert.equal(requests[0]?.body.model, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
     } finally {
       globalThis.fetch = prevFetch;
       if (prevNodeTest == null) delete process.env.NODE_TEST_CONTEXT;
