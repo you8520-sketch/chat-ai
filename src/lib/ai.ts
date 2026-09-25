@@ -10,6 +10,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
@@ -68,7 +69,7 @@ export type TokenUsage = {
   syncExtractPhysicalCallCount?: number;
 };
 
-/** 백그라운드 기억·요약·상태창·번역 등 — Cheaper Inference GPT-5.6 Luna */
+/** 백그라운드 기억·요약·상태창·번역 등 — Cheaper Inference GPT-6 Luna */
 export const BACKGROUND_MAX_INPUT_TOKENS = 12_000;
 /** 5턴 요약 원문 + 기억 추출 system 전체 (12k는 ~13k 대화에서 system 지시 잘림) — env로 상향 가능 */
 export const BACKGROUND_MEMORY_EXTRACT_MAX_INPUT_TOKENS_DEFAULT = 48_000;
@@ -99,12 +100,16 @@ export function isHistoricalBackgroundPrimaryDeepSeekAlias(
 }
 
 /**
- * Explicit model id only. Does not migrate historical Flash primary aliases to Luna.
- * Empty → Luna. Legacy V3 slug → CI DeepSeek V4 Flash (existing explicit compatibility).
+ * Background-text model resolver.
+ * Empty and historical GPT-5.6 Luna → current GPT-6 Luna.
+ * Legacy V3 slug → CI DeepSeek V4 Flash (existing explicit compatibility).
  */
 export function resolveBackgroundTextModelId(modelId?: string | null): string {
   const trimmed = modelId?.trim();
-  if (!trimmed) return CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+  if (!trimmed) return CHEAPER_INFERENCE_GPT_6_LUNA_MODEL;
+  if (trimmed.toLowerCase() === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL.toLowerCase()) {
+    return CHEAPER_INFERENCE_GPT_6_LUNA_MODEL;
+  }
   if (trimmed.toLowerCase() === OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase()) {
     return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
   }
@@ -113,15 +118,15 @@ export function resolveBackgroundTextModelId(modelId?: string | null): string {
 
 /**
  * Background TEXT primary only. Migrates unset / legacy V3 / historical Flash
- * primary env values to GPT-5.6 Luna so Railway stale BACKGROUND_MEMORY_MODEL
- * cannot pin DeepSeek as primary after deploy.
+ * primary env values and historical GPT-5.6 Luna to GPT-6 Luna so Railway
+ * stale BACKGROUND_MEMORY_MODEL cannot pin an old background primary after deploy.
  */
 export function resolveBackgroundPrimaryModelId(
   modelId?: string | null
 ): string {
   const trimmed = modelId?.trim();
   if (!trimmed || isHistoricalBackgroundPrimaryDeepSeekAlias(trimmed)) {
-    return CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+    return CHEAPER_INFERENCE_GPT_6_LUNA_MODEL;
   }
   return resolveBackgroundTextModelId(trimmed);
 }
@@ -138,7 +143,7 @@ export function resolveBackgroundCreativeHtmlPrimaryModelId(
   env: NodeJS.ProcessEnv = process.env
 ): string {
   const raw = env.BACKGROUND_CREATIVE_HTML_MODEL?.trim();
-  if (!raw) return CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+  if (!raw) return CHEAPER_INFERENCE_GPT_6_LUNA_MODEL;
   return resolveBackgroundTextModelId(raw);
 }
 
@@ -487,7 +492,7 @@ export function* chunkText(text: string, size = 24): Generator<string> {
   }
 }
 
-/** 백그라운드 기억·요약·압축 — primary BACKGROUND_MEMORY_MODEL (default GPT-5.6 Luna) */
+/** 백그라운드 기억·요약·압축 — primary BACKGROUND_MEMORY_MODEL (default GPT-6 Luna) */
 export async function callBackgroundMemory(
   system: string,
   history: ChatMsg[],
