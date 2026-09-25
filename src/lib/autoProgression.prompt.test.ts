@@ -274,7 +274,7 @@ describe("auto progression prompt content", () => {
     });
     assert.match(block, /USER AUTHORING owner/);
     assert.match(block, /내면/);
-    assert.match(block, new RegExp(AUTO_PROGRESSION_SCENE_USER_CONTROL.slice(0, 20)));
+    assert.equal(block.includes(AUTO_PROGRESSION_SCENE_USER_CONTROL.slice(0, 20)), true);
   });
 
   it("interactive mode uses collaborative owner reference", () => {
