@@ -36,8 +36,24 @@ import {
   type UserCoauthorDirective,
   type UserCoauthorSlotOp,
 } from "@/lib/userCoauthorDirective";
+import {
+  DEFAULT_USER_AUTHORING_LEVEL,
+  USER_AUTHORING_LEVEL_COLUMN,
+  capabilitiesFromUserAuthoringLevel,
+  parseUserAuthoringLevel,
+  type UserAuthoringCapabilities,
+  type UserAuthoringLevel,
+} from "@/lib/userAuthoringPolicy";
 
-export const USER_COAUTHOR_MODES = ["OFF", "DIALOGUE", "ACTIONS", "FULL"] as const;
+export const USER_COAUTHOR_MODES = [
+  "OFF",
+  "LIMITED",
+  "DIALOGUE",
+  "ACTIONS",
+  "FULL",
+  "NOVEL",
+  "ABSOLUTE",
+] as const;
 export type UserCoauthorMode = (typeof USER_COAUTHOR_MODES)[number];
 
 export const DEFAULT_USER_COAUTHOR_MODE: UserCoauthorMode = "OFF";
@@ -51,6 +67,8 @@ export type UserCoauthorBooleans = {
   allowMajorActions: boolean;
 };
 
+export type UserCoauthorCapabilities = UserAuthoringCapabilities;
+
 export type AppliedUserCoauthorDirective = {
   persistentBefore: UserCoauthorMode;
   persistentAfter: UserCoauthorMode;
@@ -63,33 +81,135 @@ export type AppliedUserCoauthorDirective = {
 
 type CoauthorDb = Pick<Database.Database, "exec" | "prepare">;
 
-export function booleansFromUserCoauthorMode(mode: UserCoauthorMode): UserCoauthorBooleans {
-  switch (mode) {
+export function capabilitiesFromUserCoauthorMode(
+  mode: UserCoauthorMode,
+  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
+): UserCoauthorCapabilities {
+  const base = capabilitiesFromUserAuthoringLevel(baseLevel);
+  switch (parseUserCoauthorMode(mode)) {
     case "OFF":
-      return { allowDialogue: false, allowMajorActions: false };
+      return base;
+    case "LIMITED":
+      return {
+        allowDialogue: false,
+        allowMajorActions: false,
+        allowInnerPov: false,
+        allowIrreversibleFate: false,
+      };
     case "DIALOGUE":
-      return { allowDialogue: true, allowMajorActions: false };
+      return {
+        allowDialogue: true,
+        allowMajorActions: false,
+        allowInnerPov: false,
+        allowIrreversibleFate: false,
+      };
     case "ACTIONS":
-      return { allowDialogue: false, allowMajorActions: true };
+      return {
+        allowDialogue: false,
+        allowMajorActions: true,
+        allowInnerPov: false,
+        allowIrreversibleFate: false,
+      };
     case "FULL":
-      return { allowDialogue: true, allowMajorActions: true };
-    default: {
-      const _exhaustive: never = mode;
-      return _exhaustive;
-    }
+      return {
+        allowDialogue: true,
+        allowMajorActions: true,
+        allowInnerPov: false,
+        allowIrreversibleFate: false,
+      };
+    case "NOVEL":
+      return {
+        allowDialogue: true,
+        allowMajorActions: true,
+        allowInnerPov: true,
+        allowIrreversibleFate: false,
+      };
+    case "ABSOLUTE":
+      return {
+        allowDialogue: true,
+        allowMajorActions: true,
+        allowInnerPov: true,
+        allowIrreversibleFate: true,
+      };
   }
 }
 
-export function userCoauthorModeFromBooleans(flags: UserCoauthorBooleans): UserCoauthorMode {
+export function booleansFromUserCoauthorMode(
+  mode: UserCoauthorMode,
+  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
+): UserCoauthorBooleans {
+  const capabilities = capabilitiesFromUserCoauthorMode(mode, baseLevel);
+  return {
+    allowDialogue: capabilities.allowDialogue,
+    allowMajorActions: capabilities.allowMajorActions,
+  };
+}
+
+function sameCapabilities(
+  a: UserCoauthorCapabilities,
+  b: UserCoauthorCapabilities
+): boolean {
+  return (
+    a.allowDialogue === b.allowDialogue &&
+    a.allowMajorActions === b.allowMajorActions &&
+    a.allowInnerPov === b.allowInnerPov &&
+    a.allowIrreversibleFate === b.allowIrreversibleFate
+  );
+}
+
+export function effectiveUserCoauthorModeFromCapabilities(
+  flags: UserCoauthorCapabilities
+): UserCoauthorMode {
+  if (
+    flags.allowDialogue &&
+    flags.allowMajorActions &&
+    flags.allowInnerPov &&
+    flags.allowIrreversibleFate
+  ) {
+    return "ABSOLUTE";
+  }
+  if (
+    flags.allowDialogue &&
+    flags.allowMajorActions &&
+    flags.allowInnerPov
+  ) {
+    return "NOVEL";
+  }
   if (flags.allowDialogue && flags.allowMajorActions) return "FULL";
   if (flags.allowDialogue) return "DIALOGUE";
   if (flags.allowMajorActions) return "ACTIONS";
-  return "OFF";
+  return "LIMITED";
+}
+
+export function userCoauthorModeFromCapabilities(
+  flags: UserCoauthorCapabilities,
+  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
+): UserCoauthorMode {
+  const base = capabilitiesFromUserAuthoringLevel(baseLevel);
+  if (sameCapabilities(flags, base)) return "OFF";
+  return effectiveUserCoauthorModeFromCapabilities(flags);
+}
+
+export function userCoauthorModeFromBooleans(flags: UserCoauthorBooleans): UserCoauthorMode {
+  return effectiveUserCoauthorModeFromCapabilities({
+    ...flags,
+    allowInnerPov: false,
+    allowIrreversibleFate: false,
+  });
 }
 
 export function parseUserCoauthorMode(raw: unknown): UserCoauthorMode {
   const value = String(raw ?? "").trim().toUpperCase();
-  if (value === "DIALOGUE" || value === "ACTIONS" || value === "FULL") return value;
+  if (
+    value === "LIMITED" ||
+    value === "DIALOGUE" ||
+    value === "ACTIONS" ||
+    value === "FULL" ||
+    value === "NOVEL" ||
+    value === "ABSOLUTE"
+  ) {
+    return value;
+  }
   return "OFF";
 }
 
@@ -112,64 +232,100 @@ export function isUserCoauthorModeActive(mode: UserCoauthorMode): boolean {
   return mode !== "OFF";
 }
 
+function anyAuthoringCapability(flags: UserCoauthorCapabilities): boolean {
+  return (
+    flags.allowDialogue ||
+    flags.allowMajorActions ||
+    flags.allowInnerPov ||
+    flags.allowIrreversibleFate
+  );
+}
+
 export function applyUserCoauthorDirective(
   persistentMode: UserCoauthorMode,
-  directive: UserCoauthorDirective
+  directive: UserCoauthorDirective,
+  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
 ): AppliedUserCoauthorDirective {
+  const normalizedBase = parseUserAuthoringLevel(baseLevel);
   const persistentBefore = parseUserCoauthorMode(persistentMode);
+  const currentBefore = capabilitiesFromUserCoauthorMode(
+    persistentBefore,
+    normalizedBase
+  );
+
   if (directive.duration === "none") {
-    const current = booleansFromUserCoauthorMode(persistentBefore);
-    const active = isUserCoauthorModeActive(persistentBefore);
+    const active = anyAuthoringCapability(currentBefore);
     return {
       persistentBefore,
       persistentAfter: persistentBefore,
-      currentMode: persistentBefore,
-      current,
+      currentMode: effectiveUserCoauthorModeFromCapabilities(currentBefore),
+      current: {
+        allowDialogue: currentBefore.allowDialogue,
+        allowMajorActions: currentBefore.allowMajorActions,
+      },
       duration: active ? "persistent" : null,
       directive,
       delegation: active
         ? {
             active: true,
-            allowDialogue: current.allowDialogue,
-            allowMajorActions: current.allowMajorActions,
-            source: "explicit_ooc",
+            ...currentBefore,
+            source: persistentBefore === "OFF" ? "chat_setting" : "explicit_ooc",
             duration: "persistent",
           }
         : { ...INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION },
     };
   }
 
-  const nextFlags = {
-    allowDialogue: applySlot(
-      booleansFromUserCoauthorMode(persistentBefore).allowDialogue,
-      directive.dialogue
-    ),
+  const nextCapabilities: UserCoauthorCapabilities = {
+    allowDialogue: applySlot(currentBefore.allowDialogue, directive.dialogue),
     allowMajorActions: applySlot(
-      booleansFromUserCoauthorMode(persistentBefore).allowMajorActions,
+      currentBefore.allowMajorActions,
       directive.majorActions
     ),
+    allowInnerPov: applySlot(currentBefore.allowInnerPov, directive.innerPov),
+    allowIrreversibleFate: applySlot(
+      currentBefore.allowIrreversibleFate,
+      directive.irreversibleFate
+    ),
   };
-  const currentMode = userCoauthorModeFromBooleans(nextFlags);
+
+  // Higher-order permissions are meaningful only when the model can co-author
+  // both dialogue and deliberate actions. A partial persistent narrowing drops
+  // inner/fate authority instead of inventing an unrepresentable hidden state.
+  if (!nextCapabilities.allowDialogue || !nextCapabilities.allowMajorActions) {
+    nextCapabilities.allowInnerPov = false;
+    nextCapabilities.allowIrreversibleFate = false;
+  }
+  if (!nextCapabilities.allowInnerPov) {
+    nextCapabilities.allowIrreversibleFate = false;
+  }
+
+  const currentMode = effectiveUserCoauthorModeFromCapabilities(nextCapabilities);
   const persistentAfter =
-    directive.duration === "persistent" ? currentMode : persistentBefore;
-  const active = isUserCoauthorModeActive(currentMode);
+    directive.duration === "persistent"
+      ? userCoauthorModeFromCapabilities(nextCapabilities, normalizedBase)
+      : persistentBefore;
+  const active = anyAuthoringCapability(nextCapabilities);
   const duration: UserCoauthorDuration | null = active
     ? directive.duration === "turn"
       ? "turn"
       : "persistent"
     : null;
+
   return {
     persistentBefore,
     persistentAfter,
     currentMode,
-    current: nextFlags,
+    current: {
+      allowDialogue: nextCapabilities.allowDialogue,
+      allowMajorActions: nextCapabilities.allowMajorActions,
+    },
     duration,
     directive,
     delegation: active
       ? {
           active: true,
-          allowDialogue: nextFlags.allowDialogue,
-          allowMajorActions: nextFlags.allowMajorActions,
+          ...nextCapabilities,
           source: "explicit_ooc",
           duration,
         }
@@ -179,13 +335,15 @@ export function applyUserCoauthorDirective(
 
 export function resolveEffectiveUserAuthoring(input: {
   persistentMode?: UserCoauthorMode | null;
+  baseLevel?: UserAuthoringLevel | null;
   currentUserInput?: string | null;
   /** Ignored. Kept for call-site compatibility. No prompt injection. */
   previousUserInput?: string | null;
 }): AppliedUserCoauthorDirective {
   return applyUserCoauthorDirective(
     parseUserCoauthorMode(input.persistentMode),
-    resolveUserCoauthorDirective({ currentUserInput: input.currentUserInput })
+    resolveUserCoauthorDirective({ currentUserInput: input.currentUserInput }),
+    parseUserAuthoringLevel(input.baseLevel)
   );
 }
 
