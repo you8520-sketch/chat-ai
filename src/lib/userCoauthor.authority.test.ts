@@ -115,6 +115,7 @@ describe("user coauthor authority + semantics epoch", () => {
 
   it("D — partial revoke updates the column", () => {
     const db = openAuthorityDb();
+    insertUser(db, PUBLIC_FULL_GRANT);
     persistUserCoauthorMode(db, 1, "FULL");
     const applied = resolveEffectiveUserAuthoringFromChatColumn(db, 1, "OOC: 내 대사는 내가 쓸게.");
     assert.equal(applied.currentMode, "ACTIONS");
@@ -124,6 +125,7 @@ describe("user coauthor authority + semantics epoch", () => {
 
   it("E — full revoke sets OFF", () => {
     const db = openAuthorityDb();
+    insertUser(db, PUBLIC_FULL_GRANT);
     persistUserCoauthorMode(db, 1, "FULL");
     const applied = resolveEffectiveUserAuthoringFromChatColumn(db, 1, PUBLIC_REVOKE);
     assert.equal(applied.persistentAfter, "OFF");
