@@ -248,6 +248,37 @@ export function resolveClientSuggestedReplies(
   };
 }
 
+export type SuggestedRepliesPollSnapshot = {
+  pending?: boolean;
+  requested?: boolean;
+  failed?: boolean;
+  replies?: unknown;
+};
+
+export type SuggestedRepliesPollResolution =
+  | { state: "pending"; replies: [] }
+  | { state: "ready"; replies: SuggestedReplyItem[] }
+  | { state: "failed"; replies: [] };
+
+/**
+ * Canonical single-snapshot decision for the read-only poll endpoint.
+ * Once the endpoint says the active generation is not pending, there is no
+ * writer left for that snapshot: valid replies are ready; everything else is
+ * terminal failure.
+ */
+export function resolveSuggestedRepliesPollSnapshot(
+  snapshot: SuggestedRepliesPollSnapshot
+): SuggestedRepliesPollResolution {
+  if (snapshot.pending === true) {
+    return { state: "pending", replies: [] };
+  }
+  const replies = normalizeSuggestedReplies(snapshot);
+  if (suggestedRepliesHaveContent(replies)) {
+    return { state: "ready", replies };
+  }
+  return { state: "failed", replies: [] };
+}
+
 /** Poll GET while the server post-turn owner is still writing (read-only). */
 export function clientNeedsSuggestedRepliesPoll(
   fields: SuggestedRepliesClientFields
