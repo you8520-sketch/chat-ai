@@ -148,6 +148,17 @@ describe("three-level user authoring policy", () => {
     assert.equal(applied.delegation.active, false);
   });
 
+  it("mentioning user-character 전권 as a topic does not grant authority", () => {
+    const applied = resolveEffectiveUserAuthoring({
+      persistentMode: "OFF",
+      baseLevel: "LIMITED",
+      currentUserInput: "OOC: 내 캐릭터 전권 설정이 어떻게 돼?",
+    });
+    assert.equal(applied.currentMode, "OFF");
+    assert.equal(applied.persistentAfter, "OFF");
+    assert.equal(applied.delegation.allowIrreversibleFate, false);
+  });
+
   it("NPC 전권 instruction does not accidentally grant user-character fate authority", () => {
     const applied = resolveEffectiveUserAuthoring({
       persistentMode: "OFF",
