@@ -352,13 +352,14 @@ export function resolveEffectiveUserAuthoring(input: {
  * Production mutation reconstruction must use the version>=1 helper.
  */
 export function recomputeUserCoauthorModeFromUserMessages(
-  userContents: Array<string | null | undefined>
+  userContents: Array<string | null | undefined>,
+  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
 ): UserCoauthorMode {
   let mode: UserCoauthorMode = DEFAULT_USER_COAUTHOR_MODE;
   for (const content of userContents) {
     const directive = resolveUserCoauthorDirective({ currentUserInput: content });
     if (directive.duration === "none") continue;
-    mode = applyUserCoauthorDirective(mode, directive).persistentAfter;
+    mode = applyUserCoauthorDirective(mode, directive, baseLevel).persistentAfter;
   }
   return mode;
 }
@@ -374,6 +375,14 @@ function columnExists(db: CoauthorDb, table: string, column: string): boolean {
   if (!tableExists(db, table)) return false;
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   return cols.some((col) => col.name === column);
+}
+
+export function ensureUserAuthoringLevelColumn(db: CoauthorDb): void {
+  if (!tableExists(db, "chats")) return;
+  if (columnExists(db, "chats", USER_AUTHORING_LEVEL_COLUMN)) return;
+  db.exec(
+    `ALTER TABLE chats ADD COLUMN ${USER_AUTHORING_LEVEL_COLUMN} TEXT NOT NULL DEFAULT '${DEFAULT_USER_AUTHORING_LEVEL}'`
+  );
 }
 
 export function ensureUserCoauthorModeColumn(db: CoauthorDb): void {
@@ -393,8 +402,41 @@ export function ensureUserCoauthorSemanticsVersionColumn(db: CoauthorDb): void {
 }
 
 export function ensureUserCoauthorSchema(db: CoauthorDb): void {
+  ensureUserAuthoringLevelColumn(db);
   ensureUserCoauthorModeColumn(db);
   ensureUserCoauthorSemanticsVersionColumn(db);
+}
+
+export function readUserAuthoringLevel(
+  db: CoauthorDb,
+  chatId: number
+): UserAuthoringLevel {
+  ensureUserAuthoringLevelColumn(db);
+  if (!tableExists(db, "chats")) return DEFAULT_USER_AUTHORING_LEVEL;
+  const row = db
+    .prepare(`SELECT ${USER_AUTHORING_LEVEL_COLUMN} AS level FROM chats WHERE id=?`)
+    .get(chatId) as { level?: unknown } | undefined;
+  return parseUserAuthoringLevel(row?.level);
+}
+
+export function persistUserAuthoringLevel(
+  db: CoauthorDb,
+  chatId: number,
+  level: UserAuthoringLevel,
+  opts?: { clearOocOverride?: boolean }
+): void {
+  ensureUserCoauthorSchema(db);
+  if (!tableExists(db, "chats")) return;
+  const normalized = parseUserAuthoringLevel(level);
+  if (opts?.clearOocOverride === false) {
+    db.prepare(
+      `UPDATE chats SET ${USER_AUTHORING_LEVEL_COLUMN}=? WHERE id=?`
+    ).run(normalized, chatId);
+    return;
+  }
+  db.prepare(
+    `UPDATE chats SET ${USER_AUTHORING_LEVEL_COLUMN}=?, ${USER_COAUTHOR_MODE_COLUMN}='OFF' WHERE id=?`
+  ).run(normalized, chatId);
 }
 
 export function readUserCoauthorMode(db: CoauthorDb, chatId: number): UserCoauthorMode {
@@ -501,8 +543,10 @@ export function recomputeUserCoauthorModeFromEligibleMessages(
   chatId: number,
   query: EligibleUserCoauthorMessageQuery = {}
 ): UserCoauthorMode {
+  const baseLevel = readUserAuthoringLevel(db, chatId);
   return recomputeUserCoauthorModeFromUserMessages(
-    listEligibleUserCoauthorMessageContents(db, chatId, query)
+    listEligibleUserCoauthorMessageContents(db, chatId, query),
+    baseLevel
   );
 }
 
@@ -522,6 +566,7 @@ export function resolveEffectiveUserAuthoringFromChatColumn(
 ): AppliedUserCoauthorDirective {
   return resolveEffectiveUserAuthoring({
     persistentMode: readUserCoauthorMode(db, chatId),
+    baseLevel: readUserAuthoringLevel(db, chatId),
     currentUserInput,
   });
 }
@@ -531,18 +576,24 @@ export function resolveEffectiveUserAuthoringForRegeneration(
   chatId: number,
   parentUserMessageId: number
 ): AppliedUserCoauthorDirective {
+  const baseLevel = readUserAuthoringLevel(db, chatId);
   const persistentBefore = recomputeUserCoauthorModeFromEligibleMessages(db, chatId, {
     beforeMessageId: parentUserMessageId,
   });
   const parentVersion = readUserCoauthorSemanticsVersion(db, parentUserMessageId);
   if (parentVersion < CURRENT_USER_COAUTHOR_SEMANTICS_VERSION) {
-    return applyUserCoauthorDirective(persistentBefore, EMPTY_USER_COAUTHOR_DIRECTIVE);
+    return applyUserCoauthorDirective(
+      persistentBefore,
+      EMPTY_USER_COAUTHOR_DIRECTIVE,
+      baseLevel
+    );
   }
   const row = db
     .prepare(`SELECT content FROM messages WHERE id=? AND chat_id=? AND role='user'`)
     .get(parentUserMessageId, chatId) as { content?: string } | undefined;
   return resolveEffectiveUserAuthoring({
     persistentMode: persistentBefore,
+    baseLevel,
     currentUserInput: row?.content ?? "",
   });
 }
