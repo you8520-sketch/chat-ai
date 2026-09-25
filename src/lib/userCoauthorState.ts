@@ -422,26 +422,6 @@ export function readUserAuthoringLevel(
   return parseUserAuthoringLevel(row?.level);
 }
 
-export function persistUserAuthoringLevel(
-  db: CoauthorDb,
-  chatId: number,
-  level: UserAuthoringLevel,
-  opts?: { clearOocOverride?: boolean }
-): void {
-  ensureUserCoauthorSchema(db);
-  if (!tableExists(db, "chats")) return;
-  const normalized = parseUserAuthoringLevel(level);
-  if (opts?.clearOocOverride === false) {
-    db.prepare(
-      `UPDATE chats SET ${USER_AUTHORING_LEVEL_COLUMN}=? WHERE id=?`
-    ).run(normalized, chatId);
-    return;
-  }
-  db.prepare(
-    `UPDATE chats SET ${USER_AUTHORING_LEVEL_COLUMN}=?, ${USER_COAUTHOR_MODE_COLUMN}='OFF' WHERE id=?`
-  ).run(normalized, chatId);
-}
-
 export function readUserCoauthorMode(db: CoauthorDb, chatId: number): UserCoauthorMode {
   ensureUserCoauthorModeColumn(db);
   if (!tableExists(db, "chats")) return DEFAULT_USER_COAUTHOR_MODE;
