@@ -170,17 +170,13 @@ function delegatedScopeLines(
     return `[B]의 대사·행동·감정·생각·속마음·내면 시점과 장면 선택을 완전한 소설 공동 집필 대상으로 다룬다.
 [USER_PERSONA], 실제 대화, 확정 기억과 기존 정본에 모순되지 않는 범위에서 [B]의 수락·거절·배신·관계 변화·소속 이동·영구 부상·능력 상실·죽음 같은 불가역적 운명까지 서사적으로 확정할 수 있다.${turnLimited ? " 이번 턴에만 적용된다." : ""}
 [B]가 죽거나 다른 불가역 상태가 성립하면 그 branch의 후속 상태로 유지한다. 명시적 부활·회귀·OOC 변경·분기 근거 없이 다음 턴에 자동 복구하거나 되살리지 않는다.
-기존 [USER_PERSONA]/creator canon을 무시해서 설정을 바꾸는 권한은 아니다. 빈칸은 장면과 기존 성격에 일관되게 채울 수 있다.
-
-AI가 담당하는 캐릭터·NPC·세계는 명시 정본과 충돌하지 않는 빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있고, 결혼·영구 이별·배신·조직 탈퇴·사망·능력 상실 같은 불가역 변화도 서사적으로 일으킬 수 있다.`;
+기존 [USER_PERSONA]/creator canon을 무시해서 설정을 바꾸는 권한은 아니다. 빈칸은 장면과 기존 성격에 일관되게 채울 수 있다.`;
   }
 
   if (allowInnerPov && allowDialogue && allowMajorActions) {
     return `[B]의 대사·행동·감정·생각·속마음·내면 독백과 장면 단위 선택을 [USER_PERSONA]와 실제 대화 흐름에 맞춰 소설처럼 공동 서술할 수 있다.${turnLimited ? " 이번 턴에만 적용된다." : ""}
 [B]의 새 행동을 시작하고 대화 왕복을 이어가며, 망설임·접근·후퇴·수락·거절 같은 국소적 선택도 자연스럽게 쓸 수 있다.
-다만 [B]의 사망, 영구 장애·능력 상실, 정체성·종족 변경, 장기 소속의 영구 변경, 결혼·영구 이별 같은 장기 관계 확정, 정본에 없던 가족사·과거를 객관적 사실로 새로 고정하는 불가역 변경은 현재 사용자 입력이나 명시적 전권 OOC 없이는 대신 확정하지 않는다.
-
-AI가 담당하는 캐릭터·NPC·세계는 명시 정본과 충돌하지 않는 빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있고, 결혼·영구 이별·배신·조직 탈퇴·사망·능력 상실 같은 불가역 변화도 서사적으로 일으킬 수 있다.`;
+다만 [B]의 사망, 영구 장애·능력 상실, 정체성·종족 변경, 장기 소속의 영구 변경, 결혼·영구 이별 같은 장기 관계 확정, 정본에 없던 가족사·과거를 객관적 사실로 새로 고정하는 불가역 변경은 현재 사용자 입력이나 명시적 전권 OOC 없이는 대신 확정하지 않는다.`;
   }
 
   if (allowDialogue && allowMajorActions) {
@@ -202,6 +198,13 @@ AI가 담당하는 캐릭터·NPC·세계는 명시 정본과 충돌하지 않�
 
   return `현재 [B] 집필 권한은 제한 상태다. 새 직접 대사·중요 행동·내면·불가역 결정을 대신하지 않고, 짧은 표정·시선·비자발적 반응과 이미 시작된 행동의 자연스러운 마무리만 공동 서술한다.`;
 }
+function aiCastIrreversibleExpansionLine(
+  delegation?: CurrentTurnAuthoringDelegation
+): string {
+  if (delegation?.allowAiCastIrreversibleExpansion !== true) return "";
+  return `AI가 담당하는 캐릭터·NPC·세계는 명시 정본과 충돌하지 않는 빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있고, 결혼·영구 이별·배신·조직 탈퇴·사망·능력 상실 같은 불가역 변화도 서사적으로 일으킬 수 있다.`;
+}
+
 /** Parameterized coauthor owner — turn-only or persistent. Not LIMITED CO-NARRATION. */
 export function buildUserCoauthorOwnerBlock(
   delegation?: CurrentTurnAuthoringDelegation
@@ -214,6 +217,8 @@ ${coauthorDurationLine(duration)}
 [USER_PERSONA], 확정된 관계, 현재 장면, 실제 대화·기억을 정본으로 따른다. 새 성격을 만들지 않는다.
 
 ${delegatedScopeLines(delegation, duration)}
+
+${aiCastIrreversibleExpansionLine(delegation)}
 
 ${CURRENT_INPUT_OVERRIDES_PRIOR_ASSISTANT_LINE}
 
