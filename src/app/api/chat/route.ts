@@ -916,12 +916,11 @@ export async function POST(req: Request) {
   });
   // Auto progression uses limited_external agency — not full impersonation / possession.
   const userImpersonation = oocUserImpersonationAllowed;
-  const currentTurnDelegation = autoProgressionEnabled
-    ? INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION
-    : resolveEffectiveUserAuthoring({
-        persistentMode: readUserCoauthorMode(db, chat.id),
-        currentUserInput: typeof message === "string" ? message : "",
-      }).delegation;
+  const currentTurnDelegation = resolveEffectiveUserAuthoringFromChatColumn(
+    db,
+    chat.id,
+    autoProgressionEnabled ? "" : typeof message === "string" ? message : ""
+  ).delegation;
   let runtimeMode = resolveChatRuntimeMode({
     isContinue: isContinue === true,
     legacyNovelModeEnabled,
@@ -1166,14 +1165,15 @@ export async function POST(req: Request) {
   const autoContinueContext =
     autoProgressionEnabled ||
     (regenerate && isContinueUserMessage(storedUserMessage));
-  const effectiveUserAuthoring = autoContinueContext
-    ? null
-    : regenerate && userMessageId != null
+  const effectiveUserAuthoring =
+    regenerate && userMessageId != null
       ? resolveEffectiveUserAuthoringForRegeneration(db, chat.id, userMessageId)
-      : resolveEffectiveUserAuthoringFromChatColumn(db, chat.id, storedUserMessage);
-  const currentTurnDelegationForTurn = effectiveUserAuthoring
-    ? effectiveUserAuthoring.delegation
-    : INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION;
+      : resolveEffectiveUserAuthoringFromChatColumn(
+          db,
+          chat.id,
+          autoContinueContext ? "" : storedUserMessage
+        );
+  const currentTurnDelegationForTurn = effectiveUserAuthoring.delegation;
   runtimeMode = resolveChatRuntimeMode({
     isContinue: isContinue === true || (regenerate && isContinueUserMessage(storedUserMessage)),
     legacyNovelModeEnabled,
@@ -2677,7 +2677,7 @@ export async function POST(req: Request) {
         existingUserMessageId: userMessageId,
         regenerateAssistantId: regenerateMessageId,
         onUserInserted: (insertedUserMessageId) => {
-          if (effectiveUserAuthoring) {
+          if (!autoContinueContext) {
             persistUserCoauthorAfterSuccessfulUserInsert(db, {
               chatId: chat.id,
               userMessageId: insertedUserMessageId,
