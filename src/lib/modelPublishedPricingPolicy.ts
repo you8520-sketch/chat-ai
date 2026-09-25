@@ -27,6 +27,7 @@ export type OpusCacheTtlMode = "5M_ONLY" | "VARIABLE" | "UNKNOWN";
 
 /** Provider usage: absent cache_write field means proven zero vs unknown. Default unknown. */
 export type CacheWriteAbsentSemantics = "proven_zero" | "unknown";
+export type CacheBillingPartitionSemantics = "price_sensitive" | "price_neutral";
 
 export type ModelPublishedPricingPolicy = {
   modelId: string;
@@ -37,6 +38,11 @@ export type ModelPublishedPricingPolicy = {
   opusCacheTtlMode?: OpusCacheTtlMode;
   /** When unreported, cache_write_tokens is proven zero (DeepSeek 0813 production evidence only). */
   cacheWriteAbsentSemantics?: CacheWriteAbsentSemantics;
+  /**
+   * User published-charge semantics only. price_neutral means prompt bucket
+   * partition cannot change user P because standard/read/write use one rate.
+   */
+  cacheBillingPartitionSemantics?: CacheBillingPartitionSemantics;
 };
 
 /** Official Gemini 3.1 Pro Preview base-tier prompt threshold (tokens). */
@@ -67,6 +73,7 @@ const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPoli
     pricingApplicability: "tier_aware",
     /** USER PRODUCT: uniform input rate on all prompt buckets — not runtime cache verification. */
     cacheSemanticStatus: "not_applicable",
+    cacheBillingPartitionSemantics: "price_neutral",
   },
   [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]: {
     modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
@@ -123,6 +130,17 @@ export function isPublishedCacheWriteAbsentProvenZero(modelId: string): boolean 
   const canonical = canonicalizePublishedModelId(modelId);
   const policy = getModelPublishedPricingPolicy(canonical);
   return policy?.cacheWriteAbsentSemantics === "proven_zero";
+}
+
+
+/**
+ * True only when missing cache read/write partition cannot alter the published
+ * user charge. This does NOT claim provider cache usage was zero.
+ */
+export function isPublishedCacheBreakdownPriceNeutral(modelId: string): boolean {
+  const canonical = canonicalizePublishedModelId(modelId);
+  const policy = getModelPublishedPricingPolicy(canonical);
+  return policy?.cacheBillingPartitionSemantics === "price_neutral";
 }
 
 export const PUBLISHED_POLICY_SCHEMA_VERSION = 1 as const;

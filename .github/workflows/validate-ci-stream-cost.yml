@@ -61,6 +61,10 @@ on:
       - "src/lib/publishedModelPricing.test.ts"
       - "src/lib/publishedUserCharge.ts"
       - "src/lib/chatBillingContractDispatch.ts"
+      - "src/lib/chatBillingContractDispatch.test.ts"
+      - "src/lib/turnBillableUsage.ts"
+      - "src/lib/turnBillableUsage.test.ts"
+      - "src/lib/modelPublishedPricingPolicy.ts"
       - "src/lib/modelPriceChangeClassifier.ts"
       - "src/lib/modelPriceSnapshot.ts"
       - "src/lib/modelPricingTrackingConfig.ts"
@@ -153,6 +157,8 @@ jobs:
         run: >-
           node --conditions=react-server --import tsx --test --test-concurrency=1
           src/lib/publishedModelPricing.test.ts
+          src/lib/turnBillableUsage.test.ts
+          src/lib/chatBillingContractDispatch.test.ts
           src/lib/deepseekOfficialProviderPricing.test.ts
           src/lib/deepseekV4ProPublishedBilling.test.ts
           src/lib/deepseekPhase2PublishedBillingCutover.test.ts
