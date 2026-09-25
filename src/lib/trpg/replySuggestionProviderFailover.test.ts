@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import {
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
   OPENROUTER_GEMINI_31_FLASH_MODEL,
 } from "@/lib/chatModels";
 import {
@@ -127,7 +127,7 @@ describe("TRPG reply suggestion provider failover A-N", () => {
         assert.deepEqual(urls, [CI_URL]);
         assert.equal(result.telemetry.provider_attempt_count, 1);
         assert.equal(result.telemetry.fallback_attempted, false);
-        assert.equal(result.model, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+        assert.equal(result.model, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
       } finally {
         globalThis.fetch = previousFetch;
       }
@@ -377,7 +377,7 @@ describe("TRPG reply suggestion provider failover A-N", () => {
         const result = await callTrpgReplySuggestionModel({ system: "sys", user: "user" });
         assert.equal(result.model, OPENROUTER_GEMINI_31_FLASH_MODEL);
         assert.deepEqual(models, [
-          CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+          CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
           OPENROUTER_GEMINI_31_FLASH_MODEL,
         ]);
       } finally {
