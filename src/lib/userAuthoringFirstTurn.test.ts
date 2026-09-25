@@ -40,4 +40,24 @@ describe("first-turn user authoring transport", () => {
       /parseUserAuthoringLevel\(input\.userAuthoringLevel \?\? DEFAULT_USER_AUTHORING_LEVEL\)/
     );
   });
+
+  it("injects persona speech style only when the effective owner allows B dialogue", () => {
+    const route = source("src/app/api/chat/route.ts");
+    assert.match(
+      route,
+      /coNarrationEnabled:\s*currentTurnDelegation\.allowDialogue === true/
+    );
+    assert.match(
+      route,
+      /coNarrationEnabled:\s*currentTurnDelegationForTurn\.allowDialogue === true/
+    );
+    assert.doesNotMatch(
+      route,
+      /coNarrationEnabled:\s*autoProgressionEnabled\s*\|\|\s*novelModeEnabled\s*\|\|\s*currentTurnDelegation\.active/
+    );
+    assert.doesNotMatch(
+      route,
+      /coNarrationEnabled:\s*autoContinueContext\s*\|\|\s*novelModeEnabled\s*\|\|\s*currentTurnDelegationForTurn\.active/
+    );
+  });
 });
