@@ -59,8 +59,8 @@ export function createChatSession(input: CreateChatSessionInput): number {
 
   const info = db
     .prepare(
-      `INSERT INTO chats (user_id, character_id, mode, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, memory_capacity, adult_handoff_enabled, user_authoring_level)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+      `INSERT INTO chats (user_id, character_id, mode, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, memory_capacity, adult_handoff_enabled)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       input.userId,
@@ -72,8 +72,7 @@ export function createChatSession(input: CreateChatSessionInput): number {
       0,
       targetResponseChars,
       MEMORY_CAPACITY_DEFAULT,
-      input.adultHandoffEnabled === true ? 1 : 0,
-      "LIMITED"
+      input.adultHandoffEnabled === true ? 1 : 0
     );
 
   const chatId = Number(info.lastInsertRowid);
