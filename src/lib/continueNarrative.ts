@@ -398,8 +398,10 @@ export type RegenerateUserPromptInput = {
   personaName: string;
   charName?: string;
   usesBanmal?: boolean;
-  /** Effective [B] authoring scope allows persona-voice dialogue/actions. */
+  /** Any effective [B] co-authoring capability is active. */
   coNarrationEnabled?: boolean;
+  /** Effective owner specifically allows NEW [B] quoted dialogue. */
+  userDialogueAllowed?: boolean;
   /** 리롤 대상 assistant 초안 — 전개 diverge 참고 (히스토리에서 제거됨) */
   rejectedAssistantDraft?: string | null;
   /** 재생성마다 달라지는 nonce — 동일 프롬프트 캐시·결정론적 재출력 방지 */
@@ -444,7 +446,9 @@ export function buildRegenerateUserPrompt(input: RegenerateUserPromptInput): str
 
   // 유저 말투 규칙은 co-narration ON일 때만 — OFF에서 주입하면
   // "[B] 대사를 쓰라"는 신호가 되어 [NO GODMODDING]과 충돌한다.
-  const speechTail = input.coNarrationEnabled
+  const userDialogueAllowed =
+    input.userDialogueAllowed ?? input.coNarrationEnabled === true;
+  const speechTail = userDialogueAllowed
     ? `\n${userPersonaSpeechTail(input.personaName, !!input.usesBanmal)}`
     : "";
 
