@@ -447,6 +447,40 @@ export type AtomicManualEditInput = {
   triggerSupersessionReason?: TriggerSupersessionReason;
 };
 
+export function invalidateSuggestedRepliesForSourceEditCore(
+  db: Database.Database,
+  input: {
+    chatId: number;
+    sourceMessageId: number;
+    sourceRole: "assistant" | "user";
+    materialProseChange: boolean;
+  }
+): number[] {
+  if (!input.materialProseChange) return [];
+
+  if (input.sourceRole === "assistant") {
+    const row = db
+      .prepare(
+        "SELECT id FROM messages WHERE id=? AND chat_id=? AND role='assistant'"
+      )
+      .get(input.sourceMessageId, input.chatId) as { id: number } | undefined;
+    if (!row) return [];
+    db.prepare("UPDATE messages SET suggested_replies_json=NULL WHERE id=?").run(row.id);
+    return [row.id];
+  }
+
+  const rows = db
+    .prepare(
+      "SELECT id FROM messages WHERE chat_id=? AND role='assistant' AND user_message_id=? ORDER BY id ASC"
+    )
+    .all(input.chatId, input.sourceMessageId) as Array<{ id: number }>;
+  if (rows.length === 0) return [];
+  db.prepare(
+    "UPDATE messages SET suggested_replies_json=NULL WHERE chat_id=? AND role='assistant' AND user_message_id=?"
+  ).run(input.chatId, input.sourceMessageId);
+  return rows.map((row) => row.id);
+}
+
 /**
  * Transaction-free manual-edit mutation. Caller owns BEGIN/COMMIT.
  */
@@ -465,6 +499,12 @@ export function executeAtomicManualEditMutationCore(
   );
 
   if (input.materialProseChange) {
+    invalidateSuggestedRepliesForSourceEditCore(db, {
+      chatId: input.chatId,
+      sourceMessageId: input.messageId,
+      sourceRole: "assistant",
+      materialProseChange: true,
+    });
     deleteEpisodicMemoryFactsByAssistantMessageIds(db, input.chatId, [
       input.messageId,
     ]);
@@ -485,8 +525,9 @@ export function executeAtomicManualEditMutationCore(
  * Execute the atomic manual-edit core. In ONE transaction:
  *
  *   1. message content / alternates / active_variant / status_widget_values_json UPDATE
- *   2. (material edit only) episodic_memory_facts invalidation for this assistant message
- *   3. (supersedeTriggers) previous active trigger events supersession
+ *   2. (material edit only) stale suggested-replies invalidation
+ *   3. (material edit only) episodic_memory_facts invalidation for this assistant message
+ *   4. (supersedeTriggers) previous active trigger events supersession
  *
  * Throws on DB failure so no partial state survives:
  *   - "new prose + old memory"
