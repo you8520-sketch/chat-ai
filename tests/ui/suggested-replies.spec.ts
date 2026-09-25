@@ -28,6 +28,25 @@ const REPLIES = [
   },
 ] as const;
 
+const REGEN_SUCCESS_CONTENT =
+  "재생성된 두 번째 답변이다. 유나는 잠시 눈을 감았다가 전과 다른 방향의 이야기를 조심스럽게 꺼냈다.";
+
+const REGEN_REPLIES = [
+  {
+    kind: "natural",
+    text: '*천천히 고개를 끄덕이며* "이번 답변을 기준으로 계속 가자. 네가 가장 먼저 확인하고 싶은 부분부터 차례대로 맞춰 볼게."',
+  },
+  {
+    kind: "twist",
+    text: '*손끝으로 창가를 가리키며* "이번에는 방향을 조금 바꿔 볼까? 밖으로 나가서 전혀 다른 선택지부터 시험해 보는 거야."',
+  },
+  {
+    kind: "banter",
+    text: '*작게 웃으며 어깨를 으쓱한다* "새 답변까지 받았으니 이제 핑계는 없네. 이번엔 네가 먼저 재미있는 수를 하나 보여 줘."',
+  },
+] as const;
+
+
 async function demoLogin(page: Page) {
   const response = await page.request.post("/api/auth/demo-login");
   expect(response.ok()).toBeTruthy();
@@ -434,10 +453,77 @@ async function installSuggestedRepliesVariantSwitchMock(page: Page) {
   };
 }
 
-async function installSuggestedRepliesRegenFailureMock(page: Page) {
+function buildMockRegenSuccessSseBody(chatId: number): string {
+  const requestId = "suggested-replies-regen-success-e2e";
+  const variants = [
+    {
+      content: MOCK_ASSISTANT_CONTENT,
+      model: "playwright-fixture",
+      usage: null,
+      created_at: "",
+      generationSequence: 0,
+      requestId: "req-v0",
+      sourceMessageId: MOCK_ASSISTANT_MESSAGE_ID,
+    },
+    {
+      content: REGEN_SUCCESS_CONTENT,
+      model: "playwright-fixture",
+      usage: null,
+      created_at: "",
+      generationSequence: 1,
+      requestId: "req-v1",
+      sourceMessageId: MOCK_ASSISTANT_MESSAGE_ID,
+    },
+  ];
+
+  return [
+    `data: ${JSON.stringify({
+      type: "turn_persisted",
+      chatId,
+      messageId: MOCK_ASSISTANT_MESSAGE_ID,
+      userMessageId: MOCK_USER_MESSAGE_ID,
+      requestId,
+    })}\n\n`,
+    `data: ${JSON.stringify({
+      type: "append",
+      text: REGEN_SUCCESS_CONTENT,
+    })}\n\n`,
+    `data: ${JSON.stringify({
+      type: "done",
+      chatId,
+      messageId: MOCK_ASSISTANT_MESSAGE_ID,
+      userMessageId: MOCK_USER_MESSAGE_ID,
+      requestId,
+      finalContent: REGEN_SUCCESS_CONTENT,
+      generationStatus: "completed",
+      suggestedRepliesPending: true,
+      variants,
+      activeVariant: 1,
+      variantCount: 2,
+      remainingPoints: 1490,
+      paidPoints: 1490,
+      freePoints: 0,
+      totalPointsCost: 10,
+      usage: {
+        input: 100,
+        output: 50,
+        model: "playwright-fixture",
+        route: "safe",
+        cost: 10,
+        breakdown: [],
+      },
+    })}\n\n`,
+  ].join("");
+}
+
+async function installSuggestedRepliesRegenerationMock(
+  page: Page,
+  outcome: "failed" | "success"
+) {
   let targetPollCalls = 0;
   let chatPostCalls = 0;
   let regenPostCalls = 0;
+  let activeAssistantContent = MOCK_ASSISTANT_CONTENT;
   let releaseRegenResponse!: () => void;
   let markRegenRequestSeen!: () => void;
   const regenRelease = new Promise<void>((resolve) => {
@@ -453,7 +539,7 @@ async function installSuggestedRepliesRegenFailureMock(page: Page) {
       contentType: "application/json",
       body: JSON.stringify({
         messageId: MOCK_ASSISTANT_MESSAGE_ID,
-        content: MOCK_ASSISTANT_CONTENT,
+        content: activeAssistantContent,
         generationStatus: "completed",
       }),
     });
@@ -490,26 +576,23 @@ async function installSuggestedRepliesRegenFailureMock(page: Page) {
     }
 
     targetPollCalls += 1;
+    const newGenerationPoll = outcome === "success" && targetPollCalls >= 3;
+    const pending =
+      targetPollCalls === 1 || (newGenerationPoll && targetPollCalls === 3);
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(
-        targetPollCalls === 1
-          ? {
-              messageId,
-              requested: true,
-              pending: true,
-              failed: false,
-              replies: [],
-            }
-          : {
-              messageId,
-              requested: true,
-              pending: false,
-              failed: false,
-              replies: REPLIES,
-            }
-      ),
+      body: JSON.stringify({
+        messageId,
+        requested: true,
+        pending,
+        failed: false,
+        replies: pending
+          ? []
+          : newGenerationPoll
+            ? REGEN_REPLIES
+            : REPLIES,
+      }),
     });
   });
 
@@ -534,10 +617,24 @@ async function installSuggestedRepliesRegenFailureMock(page: Page) {
       regenPostCalls += 1;
       markRegenRequestSeen();
       await regenRelease;
+
+      if (outcome === "failed") {
+        await route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "재생성 테스트 실패" }),
+        });
+        return;
+      }
+
+      activeAssistantContent = REGEN_SUCCESS_CONTENT;
       await route.fulfill({
-        status: 500,
-        contentType: "application/json",
-        body: JSON.stringify({ error: "재생성 테스트 실패" }),
+        status: 200,
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache",
+        },
+        body: buildMockRegenSuccessSseBody(body.chatId ?? 0),
       });
       return;
     }
@@ -587,8 +684,68 @@ test.describe("Suggested Replies — production browser lifecycle", () => {
     await resetDemoCharacterChats(page);
   });
 
+  test("successful regeneration replaces previous-generation suggestions with the new trio", async ({ page }) => {
+    const mock = await installSuggestedRepliesRegenerationMock(page, "success");
+    await openFreshChat(page);
+
+    const textarea = page.locator("textarea[placeholder*='메시지 입력']");
+    await setReactTextareaValue(page, "재생성 성공 전환 테스트");
+
+    const responseWait = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/chat" &&
+        response.request().method() === "POST",
+      { timeout: 45_000 }
+    );
+    await page.getByRole("button", { name: "전송", exact: true }).click();
+    expect((await responseWait).ok()).toBeTruthy();
+
+    await expect(page.getByText(MOCK_ASSISTANT_CONTENT, { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    }
+    await expect.poll(mock.getTargetPollCalls, { timeout: 10_000 }).toBe(2);
+
+    await page.getByRole("button", { name: "재생성", exact: true }).click();
+    const dialog = page.getByRole("alertdialog");
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "재생성", exact: true }).click();
+    await mock.waitForRegenRequest();
+    await expect.poll(mock.getRegenPostCalls, { timeout: 5_000 }).toBe(1);
+
+    await expect(page.getByText(MOCK_ASSISTANT_CONTENT, { exact: true })).toHaveCount(0);
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toHaveCount(0);
+    }
+
+    mock.releaseRegenResponse();
+
+    await expect(page.getByText(REGEN_SUCCESS_CONTENT, { exact: true })).toBeVisible({
+      timeout: 5_000,
+    });
+    await expect.poll(mock.getTargetPollCalls, { timeout: 10_000 }).toBe(4);
+    for (const reply of REGEN_REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    }
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toHaveCount(0);
+    }
+
+    await page.waitForTimeout(750);
+    expect(mock.getTargetPollCalls()).toBe(4);
+    expect(mock.getChatPostCalls()).toBe(2);
+    expect(mock.getRegenPostCalls()).toBe(1);
+    await expect(textarea).toHaveValue("");
+  });
+
   test("failed regeneration hides then restores the previous generation suggestions", async ({ page }) => {
-    const mock = await installSuggestedRepliesRegenFailureMock(page);
+    const mock = await installSuggestedRepliesRegenerationMock(page, "failed");
     await openFreshChat(page);
 
     const textarea = page.locator("textarea[placeholder*='메시지 입력']");
