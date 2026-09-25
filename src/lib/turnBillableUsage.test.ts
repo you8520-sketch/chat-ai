@@ -6,6 +6,7 @@ import type { StageUsage } from "@/lib/ai";
 import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
@@ -432,6 +433,45 @@ describe("turnBillableUsage — cache evidence", () => {
     assert.equal(r.usageCoverage, "partial");
     assert.equal(r.diagnostics.cacheReadReported, false);
     assert.equal(r.diagnostics.fieldSources.cacheRead, "MISSING_AND_UNKNOWN");
+  });
+
+  it("Opus 5.5 absent cache partition stays complete because published input buckets are price-neutral", () => {
+    const r = resolveTurnBillableUsage({
+      stages: [
+        stage({
+          stage: "primary",
+          model: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+          input: 49_460,
+          output: 4281,
+          apiReportedInputTokens: 49_460,
+          apiOutputTokens: 4281,
+        }),
+      ],
+      modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+    });
+    assert.equal(r.status, "resolved");
+    assert.equal(r.usageCoverage, "complete", JSON.stringify(r.diagnostics));
+    assert.equal(r.usage?.promptTokens, 49_460);
+    assert.equal(r.usage?.cacheReadTokens, 0);
+    assert.equal(r.usage?.cacheWriteTokens, 0);
+    assert.equal(r.diagnostics.cacheReadReported, false);
+    assert.equal(r.diagnostics.cacheWriteReported, false);
+    assert.equal(
+      r.diagnostics.fieldSources.cacheRead,
+      "MISSING_BUT_PRICE_NEUTRAL"
+    );
+    assert.equal(
+      r.diagnostics.fieldSources.cacheWrite,
+      "MISSING_BUT_PRICE_NEUTRAL"
+    );
+    assert.equal(
+      r.diagnostics.coverageReasons.includes("cache_read_unreported"),
+      false
+    );
+    assert.equal(
+      r.diagnostics.coverageReasons.includes("cache_write_unreported"),
+      false
+    );
   });
 
   it("D — explicit cache → complete when all evidence present", () => {
