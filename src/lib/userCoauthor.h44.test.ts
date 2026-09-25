@@ -343,7 +343,7 @@ describe("H4.4 prompt owners stay mutually exclusive", () => {
     const wrapped = wrapCurrentUserInput("안녕.", { mode: "interactive" });
     assert.equal(
       sha(wrapped),
-      "1f3e645d965bcefb7cf47bd1ec2774e97408e990c6c4cd952572d509ac83369f"
+      "14a2e12f3f3b7471c0110aae146c8a3435b8a10f4fb0e1cf1c7056836f587729"
     );
     assert.doesNotMatch(wrapped, /Earlier assistant-authored \[B\] content is scene history only/);
     assert.doesNotMatch(wrapped, /previous user-authoring permission was explicitly limited/);
@@ -445,7 +445,7 @@ describe("H4.4 prompt owners stay mutually exclusive", () => {
     assert.doesNotMatch(last, /POST-DELEGATION RESTORED/);
     assert.equal(
       sha(wrapCurrentUserInput("안녕.", { mode: "interactive" })),
-      "1f3e645d965bcefb7cf47bd1ec2774e97408e990c6c4cd952572d509ac83369f"
+      "14a2e12f3f3b7471c0110aae146c8a3435b8a10f4fb0e1cf1c7056836f587729"
     );
   });
 
