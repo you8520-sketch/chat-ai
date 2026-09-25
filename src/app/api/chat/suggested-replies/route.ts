@@ -6,10 +6,7 @@ import {
   resolveActiveAssistantGenerationScope,
 } from "@/lib/assistantGenerationScope";
 import { loadMessageSuggestedReplies } from "@/lib/suggestedReplies/job";
-import {
-  normalizeSuggestedReplies,
-  suggestedRepliesHaveContent,
-} from "@/lib/suggestedReplies/parse";
+import { resolveClientSuggestedReplies } from "@/lib/suggestedReplies/parse";
 
 /** Pure read/poll — never starts provider inference. */
 export async function GET(req: Request) {
@@ -42,17 +39,15 @@ export async function GET(req: Request) {
   const record =
     activeScope && asyncRecordMatchesGenerationScope(rawRecord, activeScope) ? rawRecord : null;
 
-  const replies = normalizeSuggestedReplies(record);
-  const hasContent = suggestedRepliesHaveContent(replies);
-  const pending = record?.pending === true && !hasContent;
-  const failed = record?.failed === true && !hasContent && !pending;
+  const client = resolveClientSuggestedReplies(record);
 
   return NextResponse.json({
     messageId,
     chatId: row.chat_id,
-    pending,
-    failed,
-    replies: pending ? [] : replies,
+    requested: client.suggestedRepliesRequested,
+    pending: client.suggestedRepliesPending,
+    failed: client.suggestedRepliesFailed,
+    replies: client.suggestedRepliesPending ? [] : client.suggestedReplies,
     extractedAt: record?.extractedAt ?? null,
   });
 }

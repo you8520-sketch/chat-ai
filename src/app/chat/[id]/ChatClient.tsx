@@ -96,6 +96,7 @@ import {
   clientNeedsSuggestedRepliesPoll,
   clientShouldShowSuggestedRepliesBar,
   normalizeSuggestedReplies,
+  resolveSuggestedRepliesPollSnapshot,
   suggestedRepliesHaveContent,
 } from "@/lib/suggestedReplies/parse";
 import {
@@ -539,17 +540,12 @@ async function pollSuggestedRepliesForMessage(
         failed?: boolean;
         replies?: unknown;
       };
-      if (data.pending) continue;
-      const replies = normalizeSuggestedReplies(data);
-      if (suggestedRepliesHaveContent(replies)) {
-        return { replies, failed: false };
+      const resolution = resolveSuggestedRepliesPollSnapshot(data);
+      if (resolution.state === "pending") continue;
+      if (resolution.state === "ready") {
+        return { replies: resolution.replies, failed: false };
       }
-      if (data.failed) {
-        return { replies: [], failed: true };
-      }
-      if (attempt >= maxAttempts - 4) {
-        return { replies: [], failed: true };
-      }
+      return { replies: [], failed: true };
     } catch {
       // retry
     }

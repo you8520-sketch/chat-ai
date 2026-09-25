@@ -330,6 +330,26 @@ describe("suggested replies generation vs presentation", () => {
     );
   });
 
+  it("G4 — read-only poll route/client close non-pending empty snapshots immediately", () => {
+    const route = readFileSync(
+      join(process.cwd(), "src/app/api/chat/suggested-replies/route.ts"),
+      "utf8"
+    );
+    assert.match(route, /resolveClientSuggestedReplies\(record\)/);
+    assert.match(route, /requested:\s*client\.suggestedRepliesRequested/);
+
+    const clientSource = readFileSync(
+      join(process.cwd(), "src/app/chat/[id]/ChatClient.tsx"),
+      "utf8"
+    );
+    const pollStart = clientSource.indexOf("async function pollSuggestedRepliesForMessage");
+    const pollEnd = clientSource.indexOf("function applySuggestedRepliesPollResult", pollStart);
+    assert.ok(pollStart >= 0 && pollEnd > pollStart);
+    const pollSource = clientSource.slice(pollStart, pollEnd);
+    assert.match(pollSource, /resolveSuggestedRepliesPollSnapshot\(data\)/);
+    assert.doesNotMatch(pollSource, /maxAttempts\s*-\s*4/);
+  });
+
   it("H — natural / twist / banter contract", () => {
     assert.deepEqual(SUGGESTED_REPLY_KINDS, ["natural", "twist", "banter"]);
     const replies = validReplies("KINDS");

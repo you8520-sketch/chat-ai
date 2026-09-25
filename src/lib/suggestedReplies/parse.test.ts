@@ -8,6 +8,7 @@ import {
   parseSuggestedRepliesFromModelText,
   parseSuggestedRepliesRecord,
   resolveClientSuggestedReplies,
+  resolveSuggestedRepliesPollSnapshot,
   storedRepliesHaveStaleLegacyKinds,
   suggestedReplyCharCount,
 } from "./parse";
@@ -175,6 +176,62 @@ describe("resolveClientSuggestedReplies", () => {
     const fields = resolveClientSuggestedReplies(null);
     assert.equal(fields.suggestedRepliesRequested, false);
     assert.deepEqual(fields.suggestedReplies, []);
+  });
+});
+
+describe("read-only suggested-replies poll snapshot", () => {
+  const replies = [
+    { kind: "natural" as const, text: "a".repeat(60) },
+    { kind: "twist" as const, text: "b".repeat(60) },
+    { kind: "banter" as const, text: "c".repeat(60) },
+  ];
+
+  it("waits only for an explicitly pending snapshot", () => {
+    assert.deepEqual(
+      resolveSuggestedRepliesPollSnapshot({
+        pending: true,
+        requested: true,
+        failed: false,
+        replies: [],
+      }),
+      { state: "pending", replies: [] }
+    );
+  });
+
+  it("returns ready canonical replies immediately", () => {
+    assert.deepEqual(
+      resolveSuggestedRepliesPollSnapshot({
+        pending: false,
+        requested: true,
+        failed: false,
+        replies,
+      }),
+      { state: "ready", replies }
+    );
+  });
+
+  it("fails immediately for a missing non-pending record", () => {
+    assert.deepEqual(
+      resolveSuggestedRepliesPollSnapshot({
+        pending: false,
+        requested: false,
+        failed: false,
+        replies: [],
+      }),
+      { state: "failed", replies: [] }
+    );
+  });
+
+  it("fails immediately for a malformed non-pending snapshot even if failed=false", () => {
+    assert.deepEqual(
+      resolveSuggestedRepliesPollSnapshot({
+        pending: false,
+        requested: true,
+        failed: false,
+        replies: [{ kind: "natural", text: "a".repeat(60) }],
+      }),
+      { state: "failed", replies: [] }
+    );
   });
 });
 
