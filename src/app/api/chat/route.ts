@@ -344,6 +344,7 @@ import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPu
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
+import { currentTurnAuthoringPolicyRequiresOwner } from "@/lib/currentTurnUserAuthoringDelegation";
 import {
   persistUserCoauthorAfterSuccessfulUserInsert,
   resolveEffectiveUserAuthoringForRegeneration,
@@ -925,7 +926,8 @@ export async function POST(req: Request) {
     // Persona/user-note legacy "impersonation" text remains observable but
     // cannot override the visible three-level authoring setting.
     oocUserImpersonationAllowed: false,
-    currentTurnDelegationActive: currentTurnDelegation.active,
+    currentTurnDelegationActive:
+      currentTurnAuthoringPolicyRequiresOwner(currentTurnDelegation),
   });
   let userPersonaPrompt = formatPublicPersonaForPrompt(
     personaDisplayName,
@@ -1177,7 +1179,8 @@ export async function POST(req: Request) {
     legacyNovelModeEnabled,
     oocUserImpersonationAllowed: false,
     currentTurnDelegationActive:
-      !autoContinueContext && currentTurnDelegationForTurn.active,
+      !autoContinueContext &&
+      currentTurnAuthoringPolicyRequiresOwner(currentTurnDelegationForTurn),
   });
   userPersonaPrompt = formatPublicPersonaForPrompt(
     personaDisplayName,
