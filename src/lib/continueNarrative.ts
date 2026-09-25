@@ -35,7 +35,6 @@ function userPersonaSpeechTail(_persona: string, usesBanmal: boolean): string {
 }
 
 import { estimateTokens } from "@/lib/tokenEstimate";
-import { buildCompactTerminalLengthAbsoluteTail } from "@/lib/responseLength";
 
 /** 재생성 rejected draft — full-text mode only (REGENERATE_FULL_REJECTED_DRAFT=1) */
 export const REGENERATE_REJECTED_DRAFT_MIN_CHARS = 2000;
@@ -229,12 +228,6 @@ export function buildRegenerateDivergeAxisLine(regenAttemptId?: string | null): 
   return `\n[REGEN DIVERGE AXIS]\n- ${axis}`;
 }
 
-/** regen user 턴 — diverge가 길이 축소 변명이 되지 않도록 1줄 recency */
-export function buildRegenerateLengthRecencyLine(targetResponseChars?: number | null): string {
-  const tier = buildCompactTerminalLengthAbsoluteTail(targetResponseChars);
-  return `- Divergence is NOT an excuse for a shorter reply — same length tier as a normal turn (${tier}).`;
-}
-
 /** @deprecated use buildRegenerateDivergenceReferenceBlock */
 export function buildRegenerateRejectedDraftBlock(rejectedAssistantDraft?: string | null): string {
   return buildRegenerateDivergenceReferenceBlock(rejectedAssistantDraft);
@@ -406,6 +399,7 @@ export type RegenerateUserPromptInput = {
   rejectedAssistantDraft?: string | null;
   /** 재생성마다 달라지는 nonce — 동일 프롬프트 캐시·결정론적 재출력 방지 */
   regenAttemptId?: string | null;
+  /** @deprecated Ignored here. Response length is owned by the canonical user-tail length owner. */
   targetResponseChars?: number | null;
 };
 
@@ -459,8 +453,7 @@ export function buildRegenerateUserPrompt(input: RegenerateUserPromptInput): str
   return `[SYSTEM: REGENERATE — rewrite ONLY the last assistant message]
 - Obey [REGENERATE — MANDATORY DIVERGENCE] in system prompt — user wants visibly different development, not a paraphrase.
 - Do NOT change what the user said or meant in the anchor below.
-${userAuthoringLine}
-${buildRegenerateLengthRecencyLine(input.targetResponseChars)}${speechTail}
+${userAuthoringLine}${speechTail}
 
 [User message — fixed anchor, not dialogue to rewrite]
 ${msg}`;
