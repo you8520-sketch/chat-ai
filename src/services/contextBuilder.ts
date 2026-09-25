@@ -1283,6 +1283,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         ownershipLockEnabled,
         ownershipTerminalEchoEnabled,
         coauthorDuration,
+        coauthorSource: currentTurnDelegation.source,
         adultHandoff: input.preserveAdultHandoffRawHistory === true,
       });
   if (isOpenRouter && openRouterDynamicLorePrefix) {
