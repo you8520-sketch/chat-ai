@@ -15,7 +15,7 @@ import { resolveUserCoauthorDirective } from "@/lib/userCoauthorDirective";
 
 export { extractLeadingOocSegment } from "@/lib/userCoauthorDirective";
 
-export type CurrentTurnAuthoringDelegationSource = "explicit_ooc" | null;
+export type CurrentTurnAuthoringDelegationSource = "explicit_ooc" | "chat_setting" | null;
 
 export type UserCoauthorDuration = "turn" | "persistent";
 
@@ -23,6 +23,10 @@ export type CurrentTurnAuthoringDelegation = {
   active: boolean;
   allowDialogue: boolean;
   allowMajorActions: boolean;
+  /** Allow direct narration of [B]'s private thoughts, feelings, desires, and inner POV. */
+  allowInnerPov: boolean;
+  /** Allow irreversible [B] fate/canon changes such as death or permanent loss. OOC full-authority only. */
+  allowIrreversibleFate: boolean;
   source: CurrentTurnAuthoringDelegationSource;
   /** Effective owner duration when active. Omitted by the current-input parser. */
   duration?: UserCoauthorDuration | null;
@@ -33,6 +37,8 @@ export const INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION: CurrentTurnAuthoringDel
     active: false,
     allowDialogue: false,
     allowMajorActions: false,
+    allowInnerPov: false,
+    allowIrreversibleFate: false,
     source: null,
     duration: null,
   };
@@ -45,13 +51,17 @@ export function resolveCurrentTurnUserAuthoringDelegation(input: {
   });
   const allowDialogue = directive.dialogue === "grant";
   const allowMajorActions = directive.majorActions === "grant";
-  if (!allowDialogue && !allowMajorActions) {
+  const allowInnerPov = directive.innerPov === "grant";
+  const allowIrreversibleFate = directive.irreversibleFate === "grant";
+  if (!allowDialogue && !allowMajorActions && !allowInnerPov && !allowIrreversibleFate) {
     return INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION;
   }
   return {
     active: true,
     allowDialogue,
     allowMajorActions,
+    allowInnerPov,
+    allowIrreversibleFate,
     source: "explicit_ooc",
   };
 }
