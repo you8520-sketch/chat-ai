@@ -31,6 +31,7 @@ const STALE_SCENE_FALLBACK_ALIASES = new Set([
   OPENROUTER_DEEPSEEK_V4_FLASH_MODEL.toLowerCase(),
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL.toLowerCase(),
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL.toLowerCase(),
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL.toLowerCase(),
 ]);
 /** Soft guardrail only — full turns can exceed 5k chars; do not truncate hard. */
 export const CHAT_IMAGE_SCENE_BRIEF_MAX_SOURCE_CHARS = 24_000;
