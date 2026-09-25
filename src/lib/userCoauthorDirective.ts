@@ -75,7 +75,7 @@ const WHOLE_PERSONA_REVOKE_RE =
 const INNER_POV_DENY_RE =
   /(?:속마음|내면(?:\s*독백)?|생각|감정|욕망)(?:은|는|을|를)?\s*(?:쓰지\s*마|서술하지\s*마|묘사하지\s*마|내가\s*(?:쓸게|정할게|할게))/;
 const IRREVERSIBLE_FATE_DENY_RE =
-  /(?:죽이지\s*마|사망(?:은|을|를)?\s*(?:금지|시키지\s*마)|불가역(?:적)?\s*(?:변화|결정)?(?:는|은|을|를)?\s*(?:금지|하지\s*마)|영구(?:적)?\s*(?:변화|결정|상실)(?:은|을|를)?\s*(?:금지|하지\s*마))/;
+  /(?:죽이지\s*마|사망(?:은|을|를)?\s*(?:금지|시키지\s*마)|생사\s*(?:포함하지\s*마|맡기지\s*마)|죽음(?:까지|도|을|를)?\s*(?:허용하지\s*마|맡기지\s*마|포함하지\s*마)|불가역(?:적)?\s*(?:변화|전개|결정)?(?:는|은|을|를)?\s*(?:금지|하지\s*마|허용하지\s*마|맡기지\s*마)|영구(?:적)?\s*(?:변화|결정|상실)(?:은|을|를)?\s*(?:금지|하지\s*마|허용하지\s*마|맡기지\s*마)|전권(?:은|을|도|까지)?\s*(?:주지\s*마|주지마|맡기지\s*마|위임하지\s*마|허용하지\s*마)|완전(?:히)?\s*자유(?:롭게|하게)?\s*(?:하지\s*마|두지\s*마))/;
 
 const TURN_ONLY_RE =
   /(?:이번|이|지금)\s*턴만|(?:이번|이|지금)\s*턴은|이번\s*응답만|이번\s*응답은/;
@@ -182,7 +182,9 @@ export function resolveUserCoauthorDirective(input: {
   const hasAuthoringIntent = AUTHORING_INTENT_RE.test(oocBody);
   const userPersonaTarget = USER_PERSONA_AUTHORITY_TARGET_RE.test(oocBody);
   const absoluteGrant =
-    userPersonaTarget && ABSOLUTE_AUTHORITY_GRANT_RE.test(oocBody);
+    userPersonaTarget &&
+    !irreversibleFateDenied &&
+    ABSOLUTE_AUTHORITY_GRANT_RE.test(oocBody);
   const novelGrant =
     absoluteGrant ||
     (userPersonaTarget &&
