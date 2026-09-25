@@ -95,6 +95,28 @@ describe("three-level user authoring policy", () => {
     assert.equal(applied.delegation.allowIrreversibleFate, true);
   });
 
+  it("NPC 전권 instruction does not accidentally grant user-character fate authority", () => {
+    const applied = resolveEffectiveUserAuthoring({
+      persistentMode: "OFF",
+      baseLevel: "LIMITED",
+      currentUserInput: "OOC: NPC 전개는 전권 맡길게. 알아서 진행해.",
+    });
+    assert.equal(applied.currentMode, "OFF");
+    assert.equal(applied.persistentAfter, "OFF");
+    assert.equal(applied.delegation.active, false);
+  });
+
+  it("mentioning the user's thoughts without an authoring request does not open inner POV", () => {
+    const applied = resolveEffectiveUserAuthoring({
+      persistentMode: "OFF",
+      baseLevel: "LIMITED",
+      currentUserInput: "OOC: 내 생각은 아직 캐릭터가 모르는 설정이야.",
+    });
+    assert.equal(applied.currentMode, "OFF");
+    assert.equal(applied.persistentAfter, "OFF");
+    assert.equal(applied.delegation.active, false);
+  });
+
   it("ALLOW + explicit revoke can narrow the room below the base level", () => {
     const applied = resolveEffectiveUserAuthoring({
       persistentMode: "OFF",
