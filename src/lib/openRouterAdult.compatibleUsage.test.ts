@@ -234,3 +234,51 @@ test("[SYNTHETIC] CI Anthropic scene controls preserve static/dynamic cache boun
     );
   assert.equal(cachedHistoryMessages.length, 1);
 });
+
+
+test("[SYNTHETIC] CI Main RP sends stable prompt-cache session affinity header", async () => {
+  const previousFetch = globalThis.fetch;
+  const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
+  process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+  let seenSession: string | null = null;
+  let seenScope: string | null = null;
+
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    seenSession = headers.get("x-ci-prompt-cache-session");
+    seenScope = headers.get("x-ci-prompt-cache-scope");
+    return sseResponse([
+      `data: ${JSON.stringify({ choices: [{ delta: { content: "OK" } }] })}\n\n`,
+      `data: ${JSON.stringify({
+        choices: [{ finish_reason: "stop" }],
+        usage: { prompt_tokens: 100, completion_tokens: 10 },
+      })}\n\n`,
+      "data: [DONE]\n\n",
+    ]);
+  }) as typeof fetch;
+
+  try {
+    const gen = streamOpenRouterAdult(
+      "system prompt",
+      [{ role: "user", content: "hello" }],
+      "claude-opus-5.5",
+      800,
+      {
+        allowOpenRouterUnderLengthRecovery: false,
+        skipAssistantPrefill: true,
+        transportProvider: "cheaperinference",
+        sessionId: "chat-707",
+      }
+    );
+    while (true) {
+      const { done } = await gen.next();
+      if (done) break;
+    }
+    assert.equal(seenScope, "session");
+    assert.equal(seenSession, "chat-707");
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
+    else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+  }
+});
