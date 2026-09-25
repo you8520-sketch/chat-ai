@@ -50,6 +50,7 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
       mode: "interactive",
       ownershipLockEnabled: true,
       personaName: "렌",
+      coauthorSource: "chat_setting",
     });
     assert.match(w, /\[B\] = 렌/);
     const wA = buildCurrentUserInputWrapper({
@@ -87,11 +88,11 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
       assert.ok(w.startsWith(CURRENT_USER_INPUT_HEADER));
       assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
       assert.ok(!w.includes("[B] ="));
-      assert.match(w, /Current mode allows limited\/full user co-narration/);
+      assert.match(w, /exact \[B\] co-authoring scope is owned only by \[USER AUTHORING — EFFECTIVE COAUTHOR POLICY\]/);
     }
   });
 
-  it("E2. current_turn_ooc_delegated → lock NOT injected; OOC kept; not remain-user-authored", () => {
+  it("E2. chat-setting coauthor mode → lock NOT injected and does not pretend it came from OOC", () => {
     const w = buildCurrentUserInputWrapper({
       mode: "current_turn_ooc_delegated",
       ownershipLockEnabled: true,
@@ -100,7 +101,7 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
     assert.ok(w.startsWith(CURRENT_USER_INPUT_HEADER));
     assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
     assert.ok(!w.includes("[B] ="));
-    assert.match(w, /CURRENT-TURN OOC DELEGATION/);
+    assert.match(w, /USER AUTHORING — EFFECTIVE COAUTHOR POLICY/);
     assert.doesNotMatch(w, /remain user-authored/);
     const wrapped = wrapCurrentUserInput("OOC: 내 대사도 써줘.", {
       mode: "current_turn_ooc_delegated",
@@ -117,7 +118,7 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
     assert.ok(w.startsWith(CURRENT_USER_INPUT_HEADER));
     assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
     assert.ok(!w.includes("[B] ="));
-    assert.match(w, /Current mode allows limited\/full user co-narration/);
+    assert.match(w, /exact \[B\] co-authoring scope is owned only by \[USER AUTHORING — EFFECTIVE COAUTHOR POLICY\]/);
   });
 
   it("F. existing CURRENT USER INPUT wrapper idempotency preserved (gate on & off)", () => {
@@ -153,12 +154,12 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
     const realAuto = buildCurrentUserInputWrapper({ mode: "auto_progression" });
     assert.ok(
       realAuto.includes(
-        "Current mode allows limited/full user co-narration per [NO GODMODDING] / novel rules."
+        "The exact [B] co-authoring scope is owned only by [USER AUTHORING — EFFECTIVE COAUTHOR POLICY]."
       )
     );
     assert.ok(
       realAuto.includes(
-        "If the input contains parentheses or action text, treat it as completed user input — not permission to keep narrating the user."
+        "If the input contains parentheses or action text, treat it as completed user input; any NEW [B] narration must stay inside that effective policy."
       )
     );
     assert.ok(!realAuto.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
@@ -328,7 +329,7 @@ describe("R1 — COMPACT TERMINAL OWNERSHIP ECHO (Muse-targeted admin canary)", 
       );
       assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
       assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER));
-      assert.match(w, /Current mode allows limited\/full user co-narration/);
+      assert.match(w, /exact \[B\] co-authoring scope is owned only by \[USER AUTHORING — EFFECTIVE COAUTHOR POLICY\]/);
     }
   });
 
