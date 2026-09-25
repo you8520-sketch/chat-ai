@@ -1524,7 +1524,7 @@ export default function ChatClient({
 
   const handleUserAuthoringLevelChange = useCallback(
     async (next: UserAuthoringLevel) => {
-      if (next === userAuthoringLevel) return;
+      if (next === userAuthoringLevel || userAuthoringSavePromiseRef.current) return;
       const previous = userAuthoringLevel;
       setUserAuthoringLevel(next);
       if (!chatId) return;
