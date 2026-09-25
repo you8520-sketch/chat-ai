@@ -1,27 +1,23 @@
 /**
- * Chat-scoped user co-authoring state.
+ * Chat-scoped effective user-authoring state.
  *
- * Normal POST runtime authority is chats.user_coauthor_mode. Historical USER
- * text is never replayed on an ordinary request.
+ * Canonical inputs:
+ * - chats.user_authoring_level = visible base preference (LIMITED/NORMAL/ALLOW)
+ * - chats.user_coauthor_mode = explicit leading-OOC persistent override
+ * - current leading OOC = current-turn or persistent override mutation
  *
- * Reconstruction (fork / user-edit / last-turn-delete / regen boundary) may
- * replay only canonical USER messages whose user_coauthor_semantics_version
- * is >= 1. Version 0 is the legacy / pre-feature epoch and is never treated
- * as a persistent coauthor directive.
+ * Ordinary POST reads the two chat columns directly; it never replays all
+ * history. Reconstruction paths (fork/edit/delete/regeneration boundary) may
+ * replay only USER messages whose user_coauthor_semantics_version >= 1.
+ * Assistant text, memory, lorebook, and model output are never authority.
  *
- * Assistant / RAW / memory / lorebook are never authority.
+ * Persisted OFF means "inherit the visible base level". Persisted LIMITED is
+ * therefore reserved for an explicit OOC override that narrows NORMAL/ALLOW to
+ * zero co-author authority. Effective currentMode still reports OFF when no
+ * user-character authoring capability is active.
  *
- * Canonical product flow: STANDARD → explicit leading-OOC grant → persistent
- * coauthor (DIALOGUE / ACTIONS / FULL) → explicit leading-OOC revoke or scope
- * change. Exactly one primary owner per turn: STANDARD or COAUTHOR.
- *
- * TURN-ONLY classification is kept for deterministic state (a grant with
- * `이번 턴만` does not persist). There is no prompt machinery to enforce
- * next-turn expiry. After an explicit TURN-ONLY grant, server state correctly
- * returns OFF, but Gemini may stochastically continue consequential [B]
- * authorship from RAW history on the first following turn. Explicit revoke is
- * the canonical reliable reclaim mechanism. Do not advertise TURN-ONLY as a
- * guaranteed hard isolation feature.
+ * TURN-ONLY directives never mutate the persisted override. Prompt ownership is
+ * expressed once by the effective authoring owner after base + override resolve.
  */
 
 import type Database from "better-sqlite3";
