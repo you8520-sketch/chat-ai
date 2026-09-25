@@ -127,6 +127,8 @@ describe("auto progression prompt content", () => {
     assert.match(block, /외부에서 관찰 가능한 행동/);
     assert.match(block, /대사를 공동 서술할 수 있다/);
     assert.match(block, /비공개 속마음·내면 독백/);
+    assert.match(block, /정본에 없던 결정적 과거·비밀을 객관적 사실로 잠그거나/);
+    assert.doesNotMatch(block, /빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있다/);
   });
 
   it("ALLOW auto progression may narrate B inner POV while preserving irreversible fate", () => {
@@ -142,6 +144,8 @@ describe("auto progression prompt content", () => {
     assert.match(block, /속마음·내면 독백/);
     assert.match(block, /사망, 영구 장애·능력 상실/);
     assert.match(block, /명시적 전권 OOC 없이는 확정하지 않는다/);
+    assert.match(block, /빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있다/);
+    assert.match(block, /결혼·영구 이별·배신·조직 탈퇴·사망·능력 상실/);
   });
 
   it("ABSOLUTE auto progression may decide B irreversible fate and forbids unexplained resurrection", () => {
