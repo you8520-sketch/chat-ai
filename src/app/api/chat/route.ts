@@ -62,6 +62,11 @@ import { stripUsageReportingEvidenceFromStage } from "@/lib/usageReportingEviden
 import { computeShadowPricing, resolveActualTurnCostCoverage } from "@/lib/shadowPricing";
 import { warmShadowBillingFxPrefetch } from "@/lib/shadowBillingExchangeRate";
 import { createChatSession } from "@/lib/chatSessionCreate";
+import {
+  DEFAULT_USER_AUTHORING_LEVEL,
+  USER_AUTHORING_LEVELS,
+  parseUserAuthoringLevel,
+} from "@/lib/userAuthoringPolicy";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
 import {
   bootstrapStreamingTurn,
@@ -780,6 +785,22 @@ export async function POST(req: Request) {
     if (isContinue) {
       return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
     }
+    const requestedInitialAuthoringRaw = body.userAuthoringLevel;
+    if (
+      requestedInitialAuthoringRaw !== undefined &&
+      !USER_AUTHORING_LEVELS.includes(
+        String(requestedInitialAuthoringRaw).trim().toUpperCase() as
+          (typeof USER_AUTHORING_LEVELS)[number]
+      )
+    ) {
+      return Response.json(
+        { error: "userAuthoringLevel must be LIMITED, NORMAL, or ALLOW." },
+        { status: 400 }
+      );
+    }
+    const initialUserAuthoringLevel = parseUserAuthoringLevel(
+      requestedInitialAuthoringRaw ?? DEFAULT_USER_AUTHORING_LEVEL
+    );
     const initialTargetChars =
       targetResponseCharsInput != null
         ? normalizeTargetResponseChars(targetResponseCharsInput)
@@ -802,6 +823,7 @@ export async function POST(req: Request) {
       selectedPersonaId: initialPersonaId,
       targetResponseChars: initialTargetChars,
       adultHandoffEnabled: roomAdultModeEnabled,
+      userAuthoringLevel: initialUserAuthoringLevel,
     });
     chat = db.prepare("SELECT * FROM chats WHERE id=? AND user_id=?").get(newChatId, user.id) as typeof chat;
   } else {
