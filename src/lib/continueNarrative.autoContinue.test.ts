@@ -55,6 +55,18 @@ describe("resolveAutoContinueHistoryTurns", () => {
   });
 });
 
+describe("buildContinueNarrativeCommand authoring ownership", () => {
+  it("defers B scope to the effective owner instead of hard-banning inner POV", () => {
+    const cmd = buildContinueNarrativeCommand({
+      personaName: "유저",
+      charName: "캐릭",
+    });
+    assert.match(cmd, /EFFECTIVE USER AUTHORING policy/);
+    assert.doesNotMatch(cmd, /never to \[B\] inner POV/i);
+    assert.doesNotMatch(cmd, /Do not narrate \[B\]'s inner thoughts/i);
+  });
+});
+
 describe("buildContinueNarrativeCommand after OOC", () => {
   it("includes resume-in-character block for exclusive OOC", () => {
     const cmd = buildContinueNarrativeCommand({
