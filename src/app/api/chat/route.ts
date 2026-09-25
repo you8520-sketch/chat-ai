@@ -924,9 +924,11 @@ export async function POST(req: Request) {
   let runtimeMode = resolveChatRuntimeMode({
     isContinue: isContinue === true,
     legacyNovelModeEnabled,
-    oocUserImpersonationAllowed,
-    currentTurnDelegationActive:
-      !oocUserImpersonationAllowed && currentTurnDelegation.active,
+    // Canonical production owner is the resolved chat level + OOC override.
+    // Persona/user-note legacy "impersonation" text remains observable but
+    // cannot override the visible three-level authoring setting.
+    oocUserImpersonationAllowed: false,
+    currentTurnDelegationActive: currentTurnDelegation.active,
   });
   let userPersonaPrompt = formatPublicPersonaForPrompt(
     personaDisplayName,
@@ -936,7 +938,6 @@ export async function POST(req: Request) {
       coNarrationEnabled:
         autoProgressionEnabled ||
         novelModeEnabled ||
-        oocUserImpersonationAllowed ||
         currentTurnDelegation.active,
     }
   );
@@ -1177,11 +1178,9 @@ export async function POST(req: Request) {
   runtimeMode = resolveChatRuntimeMode({
     isContinue: isContinue === true || (regenerate && isContinueUserMessage(storedUserMessage)),
     legacyNovelModeEnabled,
-    oocUserImpersonationAllowed: !autoContinueContext && oocUserImpersonationAllowed,
+    oocUserImpersonationAllowed: false,
     currentTurnDelegationActive:
-      !autoContinueContext &&
-      !oocUserImpersonationAllowed &&
-      currentTurnDelegationForTurn.active,
+      !autoContinueContext && currentTurnDelegationForTurn.active,
   });
   userPersonaPrompt = formatPublicPersonaForPrompt(
     personaDisplayName,
@@ -1191,7 +1190,6 @@ export async function POST(req: Request) {
       coNarrationEnabled:
         autoContinueContext ||
         novelModeEnabled ||
-        oocUserImpersonationAllowed ||
         currentTurnDelegationForTurn.active,
     }
   );
