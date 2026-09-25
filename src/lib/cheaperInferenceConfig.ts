@@ -11,7 +11,7 @@ import {
   isCheaperInferenceGemini37FlashModel,
   isCheaperInferenceQwen38MaxModel,
   isDeepSeekV4ProModel,
-  isGpt56LunaModel,
+  isGptLunaFamilyModel,
   isGpt56TerraModel,
   normalizeDeepSeekV4FlashModelId,
   normalizeDeepSeekV4ProModelId,
@@ -145,7 +145,7 @@ export function applyCheaperInferenceModelReasoningPolicy(
     adapted.reasoning_effort = "low";
     return adapted;
   }
-  if (isGpt56LunaModel(model) || isGpt56TerraModel(model)) {
+  if (isGptLunaFamilyModel(model) || isGpt56TerraModel(model)) {
     adapted.reasoning = { effort: "none" };
     adapted.reasoning_effort = "none";
     delete adapted.thinking;

@@ -7,7 +7,7 @@ import {
 } from "@/lib/ai";
 import {
   CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
   isCheaperInferenceModel,
 } from "@/lib/chatModels";
 import { toOpenRouterModelId } from "@/lib/openRouterCompletion";
@@ -83,9 +83,9 @@ Output protocol:
 - The input contains numbered segments delimited by ⟦SEG n⟧ ... ⟦/SEG n⟧. Output EVERY segment in the same order with the SAME delimiters, containing only the English translation.
 - Output nothing outside the segment delimiters.`;
 
-/** Character-save translation primary — shared background text primary (CI GPT-5.6 Luna). */
+/** Character-save translation primary — shared background text primary (CI GPT-6 Luna). */
 export const DEFAULT_TRANSLATION_PRIMARY_MODEL =
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+  CHEAPER_INFERENCE_GPT_6_LUNA_MODEL;
 
 /** Distinct CI Gemini Flash-Lite fallback — same resolved model is not a fallback. */
 export const DEFAULT_TRANSLATION_FALLBACK_MODEL =

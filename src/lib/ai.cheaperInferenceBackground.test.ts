@@ -9,19 +9,19 @@ import {
 } from "./ai";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
   OPENROUTER_GEMINI_31_FLASH_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
 } from "./chatModels";
 
-test("background text PRIMARY defaults to Cheaper Inference GPT-5.6 Luna", () => {
+test("background text PRIMARY defaults to Cheaper Inference GPT-6 Luna", () => {
   assert.equal(
     resolveBackgroundPrimaryModelId(undefined),
-    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+    CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
   );
   assert.equal(
     resolveBackgroundTextModelId(undefined),
-    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+    CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
   );
   assert.equal(
     resolveBackgroundTextModelId(OPENROUTER_DEEPSEEK_V3_MODEL),
@@ -29,7 +29,7 @@ test("background text PRIMARY defaults to Cheaper Inference GPT-5.6 Luna", () =>
   );
   assert.equal(
     BACKGROUND_OPENROUTER_MODEL,
-    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+    CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
   );
 });
 

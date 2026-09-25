@@ -26,6 +26,23 @@ on:
       - "src/lib/openRouterCompletion.ts"
       - "src/lib/openRouterCompletion.cheaperInference.test.ts"
       - "src/lib/ai.ts"
+      - "src/lib/ai.backgroundTextPrimary.test.ts"
+      - "src/lib/ai.cheaperInferenceBackground.test.ts"
+      - "src/lib/chatModels.ts"
+      - "src/lib/chatModels.cheaperInference.test.ts"
+      - "src/lib/chatModels.lunaPublicRemoval.test.ts"
+      - "src/lib/openRouterModelPricing.ts"
+      - "src/lib/openRouterModelPricing.cheaperInference.test.ts"
+      - "src/lib/promptTranslation.ts"
+      - "src/lib/promptTranslation.test.ts"
+      - "src/lib/chatImageSceneBrief.ts"
+      - "src/lib/chatImageSceneBrief.test.ts"
+      - "src/lib/trpg/replySuggestions.ts"
+      - "src/lib/trpg/replySuggestions.test.ts"
+      - "src/lib/trpg/replySuggestionProviderPriority.test.ts"
+      - "src/lib/trpg/replySuggestionProviderFailover.test.ts"
+      - "src/lib/trpg/replySuggestionProviderCostLedger.test.ts"
+      - "src/lib/auxProviderProvenance.test.ts"
       - "src/lib/cheaperInferenceConfig.ts"
       - "src/lib/cheaperInferenceConfig.test.ts"
 
@@ -84,3 +101,6 @@ jobs:
 
       - name: CheaperInference adapter (response_format preservation)
         run: node --conditions=react-server --import tsx --test src/lib/cheaperInferenceConfig.test.ts
+
+      - name: GPT-6 Luna background owner cutover
+        run: node --conditions=react-server --import tsx --test src/lib/ai.backgroundTextPrimary.test.ts src/lib/ai.cheaperInferenceBackground.test.ts src/lib/chatModels.cheaperInference.test.ts src/lib/chatModels.lunaPublicRemoval.test.ts src/lib/openRouterModelPricing.cheaperInference.test.ts src/lib/promptTranslation.test.ts src/lib/chatImageSceneBrief.test.ts src/lib/trpg/replySuggestionProviderPriority.test.ts src/lib/trpg/replySuggestionProviderFailover.test.ts src/lib/trpg/replySuggestionProviderCostLedger.test.ts src/lib/auxProviderProvenance.test.ts

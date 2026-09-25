@@ -19,6 +19,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
   DEFAULT_SELECTED_AI,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
@@ -56,20 +57,20 @@ const NAMED_EXCEPTIONS = [
   "appearance-compile: OPENROUTER_GEMINI_31_FLASH_MODEL (Gemini, not DeepSeek text primary)",
 ] as const;
 
-test("unset BACKGROUND_MEMORY_MODEL resolves to Luna PRIMARY", () => {
+test("unset BACKGROUND_MEMORY_MODEL resolves to GPT-6 Luna PRIMARY", () => {
   assert.equal(
     resolveBackgroundPrimaryModelId(undefined),
-    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+    CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
   );
-  assert.equal(resolveBackgroundPrimaryModelId(""), CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
-  assert.equal(resolveBackgroundPrimaryModelId("   "), CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
-  assert.equal(BACKGROUND_OPENROUTER_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+  assert.equal(resolveBackgroundPrimaryModelId(""), CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
+  assert.equal(resolveBackgroundPrimaryModelId("   "), CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
+  assert.equal(BACKGROUND_OPENROUTER_MODEL, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
 });
 
-test("legacy V3 env migrates to Luna PRIMARY only", () => {
+test("legacy V3 env migrates to GPT-6 Luna PRIMARY only", () => {
   assert.equal(
     resolveBackgroundPrimaryModelId(OPENROUTER_DEEPSEEK_V3_MODEL),
-    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+    CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
   );
   assert.equal(
     resolveBackgroundTextModelId(OPENROUTER_DEEPSEEK_V3_MODEL),
@@ -77,7 +78,7 @@ test("legacy V3 env migrates to Luna PRIMARY only", () => {
   );
 });
 
-test("historical DeepSeek Flash primary env aliases migrate to Luna", () => {
+test("historical DeepSeek Flash primary env aliases migrate to GPT-6 Luna", () => {
   for (const alias of [
     CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
     CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL,
@@ -89,7 +90,7 @@ test("historical DeepSeek Flash primary env aliases migrate to Luna", () => {
     assert.equal(isHistoricalBackgroundPrimaryDeepSeekAlias(alias), true, alias);
     assert.equal(
       resolveBackgroundPrimaryModelId(alias),
-      CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
       alias
     );
   }
@@ -117,33 +118,41 @@ test("explicit OpenRouter DeepSeek fallback remains OpenRouter DeepSeek", () => 
   );
 });
 
-test("explicit Luna stays Luna", () => {
+test("historical GPT-5.6 Luna migrates to GPT-6 Luna and explicit GPT-6 stays current", () => {
   assert.equal(
     resolveBackgroundTextModelId(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
-    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+    CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
   );
   assert.equal(
     resolveBackgroundPrimaryModelId(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
-    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+    CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
+  );
+  assert.equal(
+    resolveBackgroundTextModelId(CHEAPER_INFERENCE_GPT_6_LUNA_MODEL),
+    CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
+  );
+  assert.equal(
+    resolveBackgroundPrimaryModelId(CHEAPER_INFERENCE_GPT_6_LUNA_MODEL),
+    CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
   );
 });
 
-test("PRIMARY=Luna FALLBACK=Luna is replaced by OpenRouter Gemini Flash-Lite", () => {
+test("PRIMARY=GPT-6 Luna FALLBACK=historical GPT-5.6 Luna is replaced by OpenRouter Gemini Flash-Lite", () => {
   assert.equal(
     resolveBackgroundMemoryFallbackModel(
       { BACKGROUND_MEMORY_FALLBACK_MODEL: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } as NodeJS.ProcessEnv,
-      CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+      CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
     ),
     OPENROUTER_GEMINI_31_FLASH_MODEL
   );
   assert.notEqual(
-    resolveBackgroundMemoryFallbackModel({} as NodeJS.ProcessEnv, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
-    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+    resolveBackgroundMemoryFallbackModel({} as NodeJS.ProcessEnv, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL),
+    CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
   );
 });
 
 test("background memory fallback env migration E1-E6", () => {
-  const primary = CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+  const primary = CHEAPER_INFERENCE_GPT_6_LUNA_MODEL;
   assert.equal(
     resolveBackgroundMemoryFallbackModel({} as NodeJS.ProcessEnv, primary),
     OPENROUTER_GEMINI_31_FLASH_MODEL,
@@ -220,7 +229,7 @@ test("COMMON_FALLBACK_PRIMARY_GEMINI guard: unset/blank/stale alias never equals
   );
 });
 
-test("callBackgroundMemory default outbound is Luna with reasoning none", async () => {
+test("callBackgroundMemory default outbound is GPT-6 Luna with reasoning none", async () => {
   const previousFetch = globalThis.fetch;
   const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
   process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
@@ -242,16 +251,16 @@ test("callBackgroundMemory default outbound is Luna with reasoning none", async 
       { role: "user", content: "상태" },
     ]);
     assert.equal(result.text, "ok");
-    assert.equal(requestBody?.model, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(requestBody?.model, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
     assert.deepEqual(requestBody?.reasoning, { effort: "none" });
     assert.equal(requestBody?.reasoning_effort, "none");
     assert.deepEqual(
       adaptCheaperInferenceChatBody({
-        model: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+        model: CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
         messages: [{ role: "user", content: "상태" }],
       }),
       {
-        model: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+        model: CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
         messages: [{ role: "user", content: "상태" }],
         reasoning: { effort: "none" },
         reasoning_effort: "none",
@@ -303,7 +312,7 @@ test("background vision PRIMARY is Qwen3.8 Flash for asset tagging", () => {
   assert.equal(BACKGROUND_VISION_OPENROUTER_MODEL, resolveAssetVisionPrimaryModel());
   const visionSrc = readFileSync(new URL("./vision.ts", import.meta.url), "utf8");
   assert.match(visionSrc, /resolveAssetVisionModels/);
-  assert.doesNotMatch(visionSrc, /CHEAPER_INFERENCE_GPT_56_LUNA_MODEL/);
+  assert.doesNotMatch(visionSrc, /CHEAPER_INFERENCE_GPT_(?:56|6)_LUNA_MODEL/);
 });
 
 test("main RP routing is unchanged", () => {
@@ -315,17 +324,17 @@ test("main RP routing is unchanged", () => {
   );
 });
 
-test("text background task inventory: Luna PRIMARY, zero remaining DeepSeek primaries", () => {
+test("text background task inventory: GPT-6 Luna PRIMARY, zero remaining DeepSeek primaries", () => {
   assert.equal(TEXT_BACKGROUND_TASKS.length, 13);
   assert.equal(LUNA_PRIMARY_TASKS.length, 12);
   assert.equal(CREATIVE_HTML_PRIMARY_TASKS.length, 1);
   assert.equal(NAMED_EXCEPTIONS.length, 1);
 
-  assert.equal(BACKGROUND_OPENROUTER_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
-  assert.equal(BACKGROUND_CREATIVE_HTML_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+  assert.equal(BACKGROUND_OPENROUTER_MODEL, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
+  assert.equal(BACKGROUND_CREATIVE_HTML_MODEL, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
   assert.equal(
     resolveBackgroundCreativeHtmlPrimaryModelId({} as NodeJS.ProcessEnv),
-    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+    CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
   );
   assert.equal(
     resolveBackgroundCreativeHtmlPrimaryModelId({
@@ -333,9 +342,9 @@ test("text background task inventory: Luna PRIMARY, zero remaining DeepSeek prim
     } as NodeJS.ProcessEnv),
     CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
   );
-  assert.equal(DEFAULT_TRANSLATION_PRIMARY_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
-  assert.equal(CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
-  assert.equal(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+  assert.equal(DEFAULT_TRANSLATION_PRIMARY_MODEL, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
+  assert.equal(CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
+  assert.equal(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
 
   const htmlRecoverySrc = readFileSync(
     new URL("./htmlVisualCardRecovery.ts", import.meta.url),
@@ -360,6 +369,6 @@ test("text background task inventory: Luna PRIMARY, zero remaining DeepSeek prim
 
   assert.equal(
     resolveBackgroundPrimaryModelId(process.env.BACKGROUND_MEMORY_MODEL),
-    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+    CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
   );
 });

@@ -122,7 +122,7 @@ describe("P0-3 — job id provenance and retry discrimination", () => {
 
   it("jobId — explicit durable queue job id is preserved (derived-cache translation)", () => {
     const input = buildAuxProviderCallLogInput({
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
       messages,
       requestKind: "background-prompt-translation",
       jobId: "42",
@@ -137,7 +137,7 @@ describe("P0-3 — job id provenance and retry discrimination", () => {
     const retries = [1, 2, 3, 4, 5];
     const logs = retries.map((attempt) =>
       buildAuxProviderCallLogInput({
-        model: "gpt-5.6-luna",
+        model: "gpt-6-luna",
         messages,
         requestKind: "background-prompt-translation",
         jobId: "42",
@@ -159,7 +159,7 @@ describe("P0-3 — job id provenance and retry discrimination", () => {
   it("jobId — N distinct jobs each called once have distinct jobIds", () => {
     const logs = [10, 11, 12].map((jobId) =>
       buildAuxProviderCallLogInput({
-        model: "gpt-5.6-luna",
+        model: "gpt-6-luna",
         messages,
         requestKind: "background-prompt-translation",
         jobId: String(jobId),
@@ -180,7 +180,7 @@ describe("P0-3 — job id provenance and retry discrimination", () => {
 
   it("jobId — ledger generationRequestId is the fallback stable job discriminator", () => {
     const input = buildAuxProviderCallLogInput({
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
       messages,
       requestKind: "background-status-meta-extract",
       ledgerContext: {
@@ -219,7 +219,7 @@ describe("P0-3 — job id provenance and retry discrimination", () => {
 
   it("jobId — absent everywhere stays null", () => {
     const input = buildAuxProviderCallLogInput({
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
       messages,
       requestKind: null,
       ledgerContext: null,
@@ -236,13 +236,13 @@ describe("P0-6 — provenance safety", () => {
       { role: "system", content: "SECRET_STATIC_SYSTEM_PROMPT" },
       { role: "user", content: "SECRET_USER_TURN" },
     ];
-    const fp1 = auxPromptFingerprint("gpt-5.6-luna", messages);
-    const fp2 = auxPromptFingerprint("gpt-5.6-luna", messages);
+    const fp1 = auxPromptFingerprint("gpt-6-luna", messages);
+    const fp2 = auxPromptFingerprint("gpt-6-luna", messages);
     assert.equal(fp1, fp2);
     assert.equal(fp1.length, 16);
     assert.notEqual(
       fp1,
-      auxPromptFingerprint("gpt-5.6-luna", [
+      auxPromptFingerprint("gpt-6-luna", [
         ...messages,
         { role: "user", content: "extra" },
       ])
@@ -252,7 +252,7 @@ describe("P0-6 — provenance safety", () => {
 
   it("log payload carries provenance fields only (no API key, no raw prompt)", () => {
     const input = buildAuxProviderCallLogInput({
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
       messages: [{ role: "user", content: "raw user prompt must not be logged" }],
       requestKind: "background-status-widget-extract-volatile-echo-fix",
       ledgerContext: {

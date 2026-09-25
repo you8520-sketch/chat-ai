@@ -14,23 +14,29 @@ import {
 } from "./chatImageSceneBrief";
 
 describe("chatImageSceneBrief model routing", () => {
-  it("defaults to GPT-5.6 Luna and migrates stale Flash primary env", () => {
-    assert.equal(CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL, "gpt-5.6-luna");
+  it("defaults to GPT-6 Luna and migrates stale Flash primary env", () => {
+    assert.equal(CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL, "gpt-6-luna");
     assert.equal(
       resolveChatImageSceneBriefModel({} as NodeJS.ProcessEnv),
-      "gpt-5.6-luna"
+      "gpt-6-luna"
     );
     assert.equal(
       resolveChatImageSceneBriefModel({
         CHAT_IMAGE_SCENE_BRIEF_MODEL: "deepseek-v4-flash",
       } as NodeJS.ProcessEnv),
-      "gpt-5.6-luna"
+      "gpt-6-luna"
     );
     assert.equal(
       resolveChatImageSceneBriefModel({
         CHAT_IMAGE_SCENE_BRIEF_MODEL: "deepseek/deepseek-v4-flash",
       } as NodeJS.ProcessEnv),
-      "gpt-5.6-luna"
+      "gpt-6-luna"
+    );
+    assert.equal(
+      resolveChatImageSceneBriefModel({
+        CHAT_IMAGE_SCENE_BRIEF_MODEL: "gpt-5.6-luna",
+      } as NodeJS.ProcessEnv),
+      "gpt-6-luna"
     );
   });
 
@@ -46,7 +52,7 @@ describe("chatImageSceneBrief model routing", () => {
     assert.equal(
       resolveChatImageSceneBriefFallbackModel(
         {} as NodeJS.ProcessEnv,
-        "gpt-5.6-luna"
+        "gpt-6-luna"
       ),
       "google/gemini-3.1-flash-lite"
     );
@@ -67,7 +73,14 @@ describe("chatImageSceneBrief model routing", () => {
     assert.equal(
       resolveChatImageSceneBriefFallbackModel(
         { CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL: "deepseek/deepseek-v4-flash-0731" } as NodeJS.ProcessEnv,
-        "gpt-5.6-luna"
+        "gpt-6-luna"
+      ),
+      "google/gemini-3.1-flash-lite"
+    );
+    assert.equal(
+      resolveChatImageSceneBriefFallbackModel(
+        { CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL: "gpt-5.6-luna" } as NodeJS.ProcessEnv,
+        "gpt-6-luna"
       ),
       "google/gemini-3.1-flash-lite"
     );

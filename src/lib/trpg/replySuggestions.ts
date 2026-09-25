@@ -18,7 +18,7 @@ import {
   type DeepSeekFailoverHooks,
 } from "@/lib/deepseekProviderFailover";
 import {
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
   OPENROUTER_GEMINI_31_FLASH_MODEL,
 } from "@/lib/chatModels";
 import { isMockApiMode } from "@/lib/mockApiMode";
@@ -67,7 +67,7 @@ export type {
   TrpgReplySuggestion,
 } from "./replySuggestionShared";
 
-export const TRPG_REPLY_SUGGESTION_MODEL = CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+export const TRPG_REPLY_SUGGESTION_MODEL = CHEAPER_INFERENCE_GPT_6_LUNA_MODEL;
 export const TRPG_REPLY_SUGGESTION_MAX_TOKENS = 1000;
 export const TRPG_REPLY_SUGGESTION_PRIMARY_COMPLETION_MS = 10_000;
 export const TRPG_REPLY_SUGGESTION_BACKUP_COMPLETION_MS = 30_000;
