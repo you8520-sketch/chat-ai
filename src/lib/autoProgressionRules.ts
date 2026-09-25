@@ -62,6 +62,7 @@ export function buildAutoProgressionUserControlBlock(
   delegation?: CurrentTurnAuthoringDelegation
 ): string {
   const allowInnerPov = delegation?.allowInnerPov === true;
+  const allowAiCastIrreversibleExpansion = allowInnerPov;
 
   return `${AUTO_PROGRESSION_BLOCK_TITLE}
 
@@ -75,7 +76,9 @@ ${buildAutoProgressionUserScope(delegation)}
 USER_PERSONA와 creator/scenario canon에 적힌 [B]의 등급·능력·직업·소속·과거는 정본으로 사용한다.
 ${allowInnerPov ? "[B]의 내면 시점을 사용할 수 있지만 실제 사용자 입력·USER_PERSONA·확정 기억과 모순되게 성격이나 과거를 바꾸지 않는다." : "[B]의 머릿속으로 들어가 서술하지 않는다. 필요한 심리는 외부 반응 또는 [AI_CAST]의 관찰·추측으로 표현한다."}
 
-AI가 담당하는 캐릭터·NPC·세계는 명시된 creator/scenario canon과 충돌하지 않는 빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있다. 그들은 결혼·영구 이별·배신·조직 탈퇴·사망·능력 상실 같은 불가역 변화도 서사적으로 겪을 수 있다.
+${allowAiCastIrreversibleExpansion
+  ? "AI가 담당하는 캐릭터·NPC·세계는 명시된 creator/scenario canon과 충돌하지 않는 빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있다. 그들은 결혼·영구 이별·배신·조직 탈퇴·사망·능력 상실 같은 불가역 변화도 서사적으로 겪을 수 있다."
+  : "AI가 담당하는 캐릭터·NPC·세계는 기존 정본과 현재 인과 안에서 능동적으로 진행한다. 자동진행 자체를 이유로 정본에 없던 결정적 과거·비밀을 객관적 사실로 잠그거나 결혼·영구 이별·조직 탈퇴·사망·능력 상실 같은 불가역 상태를 새로 확정하지 않는다."}
 
 이 권한은 자동진행 턴의 진행 방식이다. interactive 턴으로 돌아가면 그 턴의 유저 집필 범위는 현재 채팅의 user-authoring level과 명시적 OOC override가 다시 결정한다.
 
