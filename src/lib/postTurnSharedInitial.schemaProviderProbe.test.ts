@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { adaptCheaperInferenceChatBody } from "@/lib/cheaperInferenceConfig";
-import { CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_GPT_6_LUNA_MODEL } from "@/lib/chatModels";
 import { DEFAULT_STATUS_WIDGET } from "@/lib/statusWidget/defaultTemplate";
 import type { StatusWidget } from "@/lib/statusWidget/types";
 import {
@@ -29,7 +29,7 @@ function fullProductionProbeInput(): PostTurnSharedInitialInput {
     assistantProse: "레온은 창가에 기대어 하늘을 바라본다. \"괜찮아, 그냥 조용한 하루였어.\"",
     characterWidget: DEFAULT_STATUS_WIDGET,
     userWidget: USER_WIDGET,
-    primaryModelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+    primaryModelId: CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
     includeSuggestions: true,
     includeRelationship: true,
     includeEpisodic: false,
@@ -41,7 +41,7 @@ const REAL_PROVIDER_SCHEMA_PROBE = process.env.REAL_PROVIDER_SCHEMA_PROBE === "1
 const probeDescribe = REAL_PROVIDER_SCHEMA_PROBE ? describe : describe.skip;
 
 probeDescribe("postTurnSharedInitial exact production schema provider probe", () => {
-  it("accepts exact buildPostTurnSharedInitialResponseFormat on CheaperInference Luna (1 call)", async () => {
+  it("accepts exact buildPostTurnSharedInitialResponseFormat on CheaperInference GPT-6 Luna (1 call)", async () => {
     const key = process.env.CHEAPER_INFERENCE_API_KEY?.trim();
     assert.ok(key, "CHEAPER_INFERENCE_API_KEY required when REAL_PROVIDER_SCHEMA_PROBE=1");
 
@@ -50,7 +50,7 @@ probeDescribe("postTurnSharedInitial exact production schema provider probe", ()
     const system = buildPostTurnSharedInitialSystem(input);
     const user = buildPostTurnSharedInitialUserBlock(input);
     const body = adaptCheaperInferenceChatBody({
-      model: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      model: CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
