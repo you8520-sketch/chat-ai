@@ -219,7 +219,10 @@ function userMessageUsesRpInputMarkers(text: string): boolean {
 }
 
 function needsUserInputParsingGuide(input: ContextBuildInput): boolean {
-  const coNarrationEnabled = input.novelModeEnabled === true || !!input.userImpersonation;
+  const coNarrationEnabled =
+    input.novelModeEnabled === true ||
+    !!input.userImpersonation ||
+    input.currentTurnAuthoringDelegation?.active === true;
   if (!coNarrationEnabled) return false;
   if (userMessageUsesRpInputMarkers(input.currentUserMessage)) return true;
   return input.shortTermHistory.some(
@@ -327,9 +330,15 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const novelModeEnabled = false;
   const autoProgressionEnabled =
     input.isContinue === true || legacyNovelModeEnabled;
-  /** OOC limited co-narration only — auto progression uses its own agency block. */
+  /**
+   * Legacy persona/user-note impersonation is compatibility-only for direct
+   * callers that do not supply the canonical effective delegation. Production
+   * /api/chat always supplies currentTurnAuthoringDelegation.
+   */
   const oocLimitedCoNarration =
-    !!input.userImpersonation && !autoProgressionEnabled;
+    input.currentTurnAuthoringDelegation === undefined &&
+    !!input.userImpersonation &&
+    !autoProgressionEnabled;
   const coNarrationEnabled = oocLimitedCoNarration || autoProgressionEnabled;
   const currentTurnDelegation =
     input.currentTurnAuthoringDelegation !== undefined
