@@ -70,7 +70,8 @@ A new 3-level setting added as another independent prompt rule would create conf
 - Prompt wrappers and scene directives short-reference the effective owner instead of restating a competing scope.
 - Regeneration receives exact authoring-active and dialogue-allowed flags separately.
 - ALLOW can keep AI-cast irreversible expansion even when an OOC override narrows [B].
-- Existing chats/new chats default to LIMITED.
+- Existing chats default to LIMITED.
+- A level chosen before the first room exists is carried by the first normal chat POST and persisted in the initial chat INSERT, so the first AI reply uses that selected level.
 - Forks inherit the visible base level and reconstruct only current-epoch OOC authority.
 
 ## REMOVED / CONSOLIDATED
@@ -106,6 +107,7 @@ A new 3-level setting added as another independent prompt rule would create conf
 
 ## Regression risks
 
+- pre-chat slider change being lost on the first turn
 - slider save vs immediate send race
 - navigation during slider persistence
 - hidden OOC override disagreeing with visible UI
@@ -122,6 +124,7 @@ A new 3-level setting added as another independent prompt rule would create conf
 Required before completion:
 - app typecheck
 - userAuthoringPolicy test
+- first-turn pre-chat level transport test
 - fork base/override reconstruction test
 - H4.4 test
 - userCoauthor authority/epoch test
