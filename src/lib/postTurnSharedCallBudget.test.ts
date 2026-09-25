@@ -1,7 +1,7 @@
 /**
  * Whole-turn post-turn physical-call budget contract.
  *
- * Invariant: a normal turn has <= 1 post-turn auxiliary GPT-5.6 Luna physical
+ * Invariant: a normal turn has <= 1 post-turn auxiliary GPT-6 Luna physical
  * invocation. Status widget values, suggested replies, and the durable
  * Relationship Memory delta are produced by ONE shared inference and consumed by
  * their own persistence owners.
@@ -109,7 +109,7 @@ async function runExtract(
     coalesceSuggestedReplies: { enabled: true },
     shareRelationshipDelta: true,
     caller,
-    primaryModelId: "gpt-5.6-luna",
+    primaryModelId: "gpt-6-luna",
   });
 }
 
@@ -192,7 +192,7 @@ describe("whole-turn post-turn Luna call budget", () => {
       resolved: unsafe,
       coalesceSuggestedReplies: { enabled: true },
       shareRelationshipDelta: true,
-      primaryModelId: "gpt-5.6-luna",
+      primaryModelId: "gpt-6-luna",
       caller: async (system, _history, opts) => {
         systemSeen = system;
         calls.push(opts.requestKind);
@@ -224,7 +224,7 @@ describe("whole-turn post-turn Luna call budget", () => {
       resolved: unsafe,
       coalesceSuggestedReplies: { enabled: true },
       shareRelationshipDelta: false,
-      primaryModelId: "gpt-5.6-luna",
+      primaryModelId: "gpt-6-luna",
       caller: async (_system, _history, opts) => {
         calls.push(opts.requestKind);
         return {
@@ -403,7 +403,7 @@ const baseInput = (
   userMessage: "*검을 내려놓는다.*",
   assistantProse: "라이크는 검을 받아 들었다.",
   characterWidget: WIDGET,
-  primaryModelId: "gpt-5.6-luna",
+  primaryModelId: "gpt-6-luna",
   includeSuggestions: false,
   includeRelationship: false,
   includeEpisodic: false,
@@ -526,7 +526,7 @@ describe("relationship-only canonical shared owner", () => {
         personaName: "렌",
         userMessage: "*검을 내려놓는다.*",
         assistantProse: "라이크는 검을 받아 들었다.",
-        primaryModelId: "gpt-5.6-luna",
+        primaryModelId: "gpt-6-luna",
       },
       caller
     );
@@ -566,7 +566,7 @@ describe("relationship-only canonical shared owner", () => {
         personaName: "렌",
         userMessage: "*검을 내려놓는다.*",
         assistantProse: "라이크는 검을 받아 들었다.",
-        primaryModelId: "gpt-5.6-luna",
+        primaryModelId: "gpt-6-luna",
         includeSuggestions: true,
       },
       caller
@@ -583,7 +583,7 @@ describe("relationship-only canonical shared owner", () => {
         personaName: "렌",
         userMessage: "*검을 내려놓는다.*",
         assistantProse: "라이크는 검을 받아 들었다.",
-        primaryModelId: "gpt-5.6-luna",
+        primaryModelId: "gpt-6-luna",
         includeSuggestions: true,
         includeRelationship: true,
         relationshipRegenContext: null,
@@ -620,7 +620,7 @@ describe("consumer combination physical-call matrix", () => {
       assistantProse: "그는 대답하지 않았다.",
       resolved: inactive,
       caller,
-      primaryModelId: "gpt-5.6-luna",
+      primaryModelId: "gpt-6-luna",
       coalesceSuggestedReplies: { enabled: true },
       shareRelationshipDelta: true,
     });
@@ -676,7 +676,7 @@ describe("consumer combination physical-call matrix", () => {
         assistantProse: "라이크는 검을 받아 들었다.",
         resolved: characterResolved(),
         caller,
-        primaryModelId: "gpt-5.6-luna",
+        primaryModelId: "gpt-6-luna",
         coalesceSuggestedReplies: row.includeSuggestions ? { enabled: true } : undefined,
         shareRelationshipDelta: row.includeRelationship,
       });
@@ -763,7 +763,7 @@ describe("status-OFF suggestions-only context", () => {
         personaName: "렌",
         userMessage: "지금 무슨 생각해?",
         assistantProse: "그는 잠시 창밖을 보았다.",
-        primaryModelId: "gpt-5.6-luna",
+        primaryModelId: "gpt-6-luna",
         includeSuggestions: true,
         includeRelationship: false,
         userPersona: null,
@@ -871,7 +871,7 @@ describe("provider-cost accounting parity (status-OFF shared owner)", () => {
         provider: "cheaperinference",
         outcome: "success",
         persistInTests: true,
-        model: "gpt-5.6-luna",
+        model: "gpt-6-luna",
         cheaperInferenceBilledCostUsd: 0.003,
         requestKind: POST_TURN_SHARED_INITIAL_REQUEST_KIND,
         costCenter: "other",
