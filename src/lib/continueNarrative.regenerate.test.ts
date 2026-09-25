@@ -67,8 +67,9 @@ describe("regenerate OOC priority", () => {
     assert.match(block, /MANDATORY DIVERGENCE/i);
     // attempt nonce는 system directive 단일 출처 — user 턴 중복 주입 금지
     assert.doesNotMatch(block, /REGEN_ATTEMPT/i);
-    assert.match(block, /Divergence is NOT an excuse for a shorter reply/i);
-    assert.match(block, /MINIMUM_FLOOR 2,700/i);
+    assert.doesNotMatch(block, /Divergence is NOT an excuse for a shorter reply/i);
+    assert.doesNotMatch(block, /MINIMUM_FLOOR/i);
+    assert.doesNotMatch(block, /normal turn \(\)/i);
     assert.doesNotMatch(block, /\[REGENERATE INTENT/i);
     assert.doesNotMatch(block, /Rejected draft/i);
     assert.doesNotMatch(block, /forbidden beats/i);
