@@ -38,12 +38,14 @@ test("DeepSeek V4 Flash uses the Cheaper Inference catalog rates", () => {
   assert.equal(dated.outputUsdPerM, 0.196);
 });
 
-test("GPT-5.6 Luna uses the Cheaper Inference catalog rates", () => {
+test("GPT-5.6 Luna keeps the historical Cheaper Inference fallback rates", () => {
+  clearCheaperInferenceCatalogPricingForTest();
   const rates = resolveOpenRouterModelRates("gpt-5.6-luna");
-  assert.equal(rates.inputUsdPerM, 1);
-  assert.equal(rates.cacheReadUsdPerM, 0.1);
-  assert.equal(rates.cacheWriteUsdPerM, 1);
-  assert.equal(rates.outputUsdPerM, 6);
+  assert.equal(rates.inputUsdPerM, 0.08);
+  assert.equal(rates.cacheReadUsdPerM, 0.008);
+  assert.equal(rates.cacheWriteUsdPerM, 0.08);
+  assert.equal(rates.outputUsdPerM, 0.48);
+  clearCheaperInferenceCatalogPricingForTest();
 });
 
 test("GPT-6 Luna uses the displayed Cheaper Inference fallback rates when live catalog is absent", () => {
