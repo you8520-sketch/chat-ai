@@ -3,7 +3,7 @@ import { afterEach, describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
   isCheaperInferenceModel,
 } from "@/lib/chatModels";
 import type { CharacterChunk } from "@/types";
@@ -81,13 +81,13 @@ describe("translation model chain", () => {
     try {
       const models = resolveTranslationModels();
       assert.deepEqual(models, [
-        CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+        CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
         CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
       ]);
       assert.equal(models.length, 2);
       assert.equal(
         DEFAULT_TRANSLATION_PRIMARY_MODEL,
-        CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+        CHEAPER_INFERENCE_GPT_6_LUNA_MODEL
       );
       assert.equal(
         DEFAULT_TRANSLATION_FALLBACK_MODEL,
@@ -107,10 +107,10 @@ describe("translation model chain", () => {
     }
   });
 
-  it("T2 translationModelIdentity uses CheaperInference for Luna and Gemini Flash-Lite", () => {
+  it("T2 translationModelIdentity uses CheaperInference for GPT-6 Luna and Gemini Flash-Lite", () => {
     assert.equal(
-      translationModelIdentity(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
-      "cheaperinference:gpt-5.6-luna"
+      translationModelIdentity(CHEAPER_INFERENCE_GPT_6_LUNA_MODEL),
+      "cheaperinference:gpt-6-luna"
     );
     assert.equal(
       translationModelIdentity(CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL),
@@ -136,7 +136,7 @@ describe("translation model chain", () => {
       PROMPT_TRANSLATION_FALLBACK_MODELS: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
     } as NodeJS.ProcessEnv);
     assert.deepEqual(models, [
-      CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
     ]);
   });
@@ -146,17 +146,17 @@ describe("translation model chain", () => {
       PROMPT_TRANSLATION_FALLBACK_MODELS: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
     } as NodeJS.ProcessEnv);
     assert.deepEqual(models, [
-      CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
     ]);
   });
 
   it("T8 does not treat the same resolved Luna model as a fallback", () => {
     const models = resolveTranslationModels({
-      PROMPT_TRANSLATION_MODEL: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-      PROMPT_TRANSLATION_FALLBACK_MODELS: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      PROMPT_TRANSLATION_MODEL: CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
+      PROMPT_TRANSLATION_FALLBACK_MODELS: CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
     } as NodeJS.ProcessEnv);
-    assert.deepEqual(models, [CHEAPER_INFERENCE_GPT_56_LUNA_MODEL]);
+    assert.deepEqual(models, [CHEAPER_INFERENCE_GPT_6_LUNA_MODEL]);
   });
 
   it("requires a CI key for the default CI-only translation chain", () => {
@@ -310,19 +310,19 @@ describe("translation fallback semantics", () => {
     );
   }
 
-  it("T4 primary Luna succeeds without calling Gemini fallback", async () => {
+  it("T4 primary GPT-6 Luna succeeds without calling Gemini fallback", async () => {
     const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
     const previousOr = process.env.OPENROUTER_API_KEY;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-ci";
     delete process.env.OPENROUTER_API_KEY;
     const mock = installCiFetchMock((requestedModel) => {
-      assert.equal(requestedModel, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+      assert.equal(requestedModel, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
       return successResponse("⟦SEG 1⟧\nHello\n⟦/SEG 1⟧");
     });
     try {
       const result = await translateChunksToEnglish([chunk("c-1", "안녕")]);
       assert.equal(result?.[0]?.content, "Hello");
-      assert.deepEqual(mock.modelsCalled, [CHEAPER_INFERENCE_GPT_56_LUNA_MODEL]);
+      assert.deepEqual(mock.modelsCalled, [CHEAPER_INFERENCE_GPT_6_LUNA_MODEL]);
     } finally {
       mock.restore();
       if (previousCi === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
@@ -332,13 +332,13 @@ describe("translation fallback semantics", () => {
     }
   });
 
-  it("T5 Luna failure then Gemini fallback succeeds with exact CI model id", async () => {
+  it("T5 GPT-6 Luna failure then Gemini fallback succeeds with exact CI model id", async () => {
     const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
     const previousOr = process.env.OPENROUTER_API_KEY;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-ci";
     delete process.env.OPENROUTER_API_KEY;
     const mock = installCiFetchMock((requestedModel) => {
-      if (requestedModel === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL) {
+      if (requestedModel === CHEAPER_INFERENCE_GPT_6_LUNA_MODEL) {
         return successResponse("not segmented");
       }
       assert.equal(requestedModel, CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL);
@@ -348,7 +348,7 @@ describe("translation fallback semantics", () => {
       const result = await translateChunksToEnglish([chunk("c-1", "안녕")]);
       assert.equal(result?.[0]?.content, "Gemini hello");
       assert.deepEqual(mock.modelsCalled, [
-        CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+        CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
         CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
       ]);
     } finally {
@@ -360,13 +360,13 @@ describe("translation fallback semantics", () => {
     }
   });
 
-  it("T6 Luna and Gemini both fail returns null (Korean fallback remains authoritative)", async () => {
+  it("T6 GPT-6 Luna and Gemini both fail returns null (Korean fallback remains authoritative)", async () => {
     const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
     const previousOr = process.env.OPENROUTER_API_KEY;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-ci";
     delete process.env.OPENROUTER_API_KEY;
     const mock = installCiFetchMock((requestedModel) => {
-      if (requestedModel === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL) {
+      if (requestedModel === CHEAPER_INFERENCE_GPT_6_LUNA_MODEL) {
         return "throw";
       }
       assert.equal(requestedModel, CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL);
@@ -376,7 +376,7 @@ describe("translation fallback semantics", () => {
       const result = await translateChunksToEnglish([chunk("c-1", "안녕")]);
       assert.equal(result, null);
       assert.deepEqual(mock.modelsCalled, [
-        CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+        CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
         CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
       ]);
     } finally {
