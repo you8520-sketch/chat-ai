@@ -178,7 +178,7 @@ export function effectiveUserCoauthorModeFromCapabilities(
   if (flags.allowDialogue && flags.allowMajorActions) return "FULL";
   if (flags.allowDialogue) return "DIALOGUE";
   if (flags.allowMajorActions) return "ACTIONS";
-  return "LIMITED";
+  return "OFF";
 }
 
 export function userCoauthorModeFromCapabilities(
@@ -187,7 +187,10 @@ export function userCoauthorModeFromCapabilities(
 ): UserCoauthorMode {
   const base = capabilitiesFromUserAuthoringLevel(baseLevel);
   if (sameCapabilities(flags, base)) return "OFF";
-  return effectiveUserCoauthorModeFromCapabilities(flags);
+  const effective = effectiveUserCoauthorModeFromCapabilities(flags);
+  // OFF means "inherit the visible base setting" in persisted state, so an
+  // explicit zero-authority override above NORMAL/ALLOW needs its own marker.
+  return effective === "OFF" ? "LIMITED" : effective;
 }
 
 export function userCoauthorModeFromBooleans(flags: UserCoauthorBooleans): UserCoauthorMode {
@@ -229,7 +232,7 @@ function applySlot(previous: boolean, op: UserCoauthorSlotOp): boolean {
 }
 
 export function isUserCoauthorModeActive(mode: UserCoauthorMode): boolean {
-  return mode !== "OFF";
+  return mode !== "OFF" && mode !== "LIMITED";
 }
 
 function anyAuthoringCapability(flags: UserCoauthorCapabilities): boolean {
