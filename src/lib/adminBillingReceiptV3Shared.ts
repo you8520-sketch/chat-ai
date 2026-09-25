@@ -257,6 +257,9 @@ export type AdminReceiptCompactViewModel = {
   knownTurnCostKrw: number | null;
   turnCostCoverage: AdminBillingReceiptV3WholeTurnCoverage;
   marginPercent: number | null;
+  /** Best-effort whole-turn margin using Main RP displayed estimate + currently known auxiliary spend. */
+  estimatedMarginPercent: number | null;
+  estimatedMarginBasisLabel: string | null;
   marginUnavailableReason: string | null;
   contextSummaryAvailable: boolean;
 };
@@ -499,6 +502,50 @@ export function formatAdminMainRpCacheSummary(
   return parts.join(" · ");
 }
 
+export function resolveAdminEstimatedMargin(input: {
+  receipt: AdminBillingReceiptV3;
+  mainEvidence: AdminReceiptMainRpCostEvidence;
+  deductedPoints: number | null;
+}): { percent: number | null; basisLabel: string | null } {
+  const { receipt, mainEvidence, deductedPoints } = input;
+  if (receipt.wholeTurn.contributionMarginPercent != null) {
+    return { percent: null, basisLabel: null };
+  }
+  if (
+    deductedPoints == null ||
+    deductedPoints <= 0 ||
+    mainEvidence.costUsd == null ||
+    !(mainEvidence.costUsd > 0)
+  ) {
+    return { percent: null, basisLabel: null };
+  }
+  const fx = receipt.wholeTurn.fx?.effectiveKrwPerUsd ?? null;
+  if (fx == null || !(fx > 0)) {
+    return { percent: null, basisLabel: null };
+  }
+
+  const syncUsd =
+    receipt.wholeTurn.syncActualCostUsd != null && receipt.wholeTurn.syncActualCostUsd > 0
+      ? receipt.wholeTurn.syncActualCostUsd
+      : 0;
+  const asyncUsd =
+    receipt.wholeTurn.asyncKnownActualCostUsd > 0
+      ? receipt.wholeTurn.asyncKnownActualCostUsd
+      : 0;
+  const estimatedTurnCostKrw =
+    (mainEvidence.costUsd + syncUsd + asyncUsd) * fx;
+  const percent =
+    Math.round(
+      ((deductedPoints - estimatedTurnCostKrw) / deductedPoints) * 1000
+    ) / 10;
+
+  return {
+    percent,
+    basisLabel:
+      "Main RP 추정 원가 + 현재 확인된 보조비용 기준",
+  };
+}
+
 /** Build the canonical compact view model from a receipt. */
 export function buildAdminReceiptCompactViewModel(
   receipt: AdminBillingReceiptV3
@@ -602,13 +649,19 @@ export function buildAdminReceiptCompactViewModel(
   const turnSummary = buildAdminReceiptTurnSummary(receipt);
   const knownTurnCostUsd =
     receipt.wholeTurn.knownProviderSpendUsd > 0 ? receipt.wholeTurn.knownProviderSpendUsd : null;
+  const deductedPoints =
+    sync != null
+      ? (sync.userCharge.settledDeductedPoints ?? sync.userCharge.deductedPoints)
+      : receipt.forensic?.chargeEvidenceSettledPoints ?? null;
+  const estimatedMargin = resolveAdminEstimatedMargin({
+    receipt,
+    mainEvidence,
+    deductedPoints,
+  });
 
   return {
     mainRp,
-    deductedPoints:
-      sync != null
-        ? (sync.userCharge.settledDeductedPoints ?? sync.userCharge.deductedPoints)
-        : receipt.forensic?.chargeEvidenceSettledPoints ?? null,
+    deductedPoints,
     auxiliaryCalls,
     hasCompleteTotal,
     completeTotalUsd,
@@ -616,6 +669,8 @@ export function buildAdminReceiptCompactViewModel(
     knownTurnCostKrw: projectKnownTurnCostKrw(receipt),
     turnCostCoverage: receipt.wholeTurn.coverage,
     marginPercent: turnSummary.marginPercent,
+    estimatedMarginPercent: estimatedMargin.percent,
+    estimatedMarginBasisLabel: estimatedMargin.basisLabel,
     marginUnavailableReason: turnSummary.marginUnavailableReason,
     contextSummaryAvailable: false,
   };
@@ -675,17 +730,27 @@ export function formatAdminBillingReceiptV3Text(receipt: AdminBillingReceiptV3):
         `총 실제 청구원가: ${formatAdminActualUsd(vm.completeTotalUsd)}${fxSuffix(vm.completeTotalUsd)}`
       );
       if (vm.marginPercent != null) {
-        lines.push(`마진율: ${vm.marginPercent}%`);
+        lines.push(`확정 마진율: ${vm.marginPercent}%`);
       }
     } else if (vm.knownTurnCostUsd != null && vm.knownTurnCostKrw != null) {
       lines.push(
         `확정 원가 (부분): ${formatAdminActualUsd(vm.knownTurnCostUsd)}${fxSuffix(vm.knownTurnCostUsd)} · ${wholeTurnCoverageLabel(vm.turnCostCoverage)}`
       );
+      if (vm.estimatedMarginPercent != null) {
+        lines.push(
+          `추정 마진율: ${vm.estimatedMarginPercent}%${vm.estimatedMarginBasisLabel ? ` · ${vm.estimatedMarginBasisLabel}` : ""}`
+        );
+      }
       if (vm.marginUnavailableReason) {
-        lines.push(`마진율: 계산 불가 (${vm.marginUnavailableReason})`);
+        lines.push(`확정 마진율: 계산 불가 (${vm.marginUnavailableReason})`);
       }
     } else if (vm.marginUnavailableReason) {
-      lines.push(`마진율: 계산 불가 (${vm.marginUnavailableReason})`);
+      if (vm.estimatedMarginPercent != null) {
+        lines.push(
+          `추정 마진율: ${vm.estimatedMarginPercent}%${vm.estimatedMarginBasisLabel ? ` · ${vm.estimatedMarginBasisLabel}` : ""}`
+        );
+      }
+      lines.push(`확정 마진율: 계산 불가 (${vm.marginUnavailableReason})`);
     }
   }
 
