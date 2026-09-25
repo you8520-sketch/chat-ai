@@ -47,6 +47,10 @@ const port = parseInt(process.env.PORT || "3000", 10);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
+const { installGracefulHttpDrain } = require("./src/lib/serverGracefulDrain.js");
+
+let httpServer = null;
+
 async function loadSchedulerEnablementOwner() {
   try {
     const schedulerMod = await importBackgroundModule("./src/lib/schedulerDefinitions.ts");
@@ -183,10 +187,12 @@ async function runBackgroundInitialization() {
 const prepareStart = Date.now();
 app.prepare().then(() => {
   console.log(`[boot-timing] app.prepare() took ${Date.now() - prepareStart}ms`);
-  createServer((req, res) => {
+  httpServer = createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
-  }).listen(port, hostname, (err) => {
+  });
+  installGracefulHttpDrain(httpServer);
+  httpServer.listen(port, hostname, (err) => {
     if (err) throw err;
     console.log(
       `[boot-timing] listen at ${Date.now()} (+${Date.now() - bootStart}ms from process start)`

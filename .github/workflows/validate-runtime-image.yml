@@ -10,6 +10,8 @@ on:
       - "server.js"
       - "src/lib/customServerBootImportBoundary.js"
       - "src/lib/customServerBootImportBoundary.test.ts"
+      - "src/lib/serverGracefulDrain.js"
+      - "src/lib/serverGracefulDrain.test.ts"
       - "scripts/runtime-image/**"
       - ".github/workflows/validate-runtime-image.yml"
 
@@ -53,6 +55,9 @@ jobs:
         run: node --import tsx scripts/runtime-image/productionBootSmoke.ts
       - name: Custom-server boot import boundary
         run: node --import tsx --test --test-concurrency=1 src/lib/customServerBootImportBoundary.test.ts
+
+      - name: Railway graceful HTTP drain
+        run: node --import tsx --test --test-concurrency=1 src/lib/serverGracefulDrain.test.ts
       - name: Check production npm audit against baseline
         run: |
           npm audit --omit=dev --json > /tmp/production-audit.json || true
