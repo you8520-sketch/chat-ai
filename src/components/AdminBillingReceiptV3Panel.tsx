@@ -128,7 +128,7 @@ export function AdminBillingReceiptV3Panel({
                 value={usdWithKrw(vm.completeTotalUsd, fxRate)}
               />
               {vm.marginPercent != null ? (
-                <ReceiptRow label="마진율" value={`${vm.marginPercent}%`} />
+                <ReceiptRow label="확정 마진율" value={`${vm.marginPercent}%`} />
               ) : null}
             </>
           ) : vm.knownTurnCostUsd != null && vm.knownTurnCostKrw != null ? (
@@ -138,20 +138,44 @@ export function AdminBillingReceiptV3Panel({
                 value={usdWithKrw(vm.knownTurnCostUsd, fxRate)}
                 hint={`· ${wholeTurnCoverageLabel(vm.turnCostCoverage)}`}
               />
+              {vm.estimatedMarginPercent != null ? (
+                <ReceiptRow
+                  label="추정 마진율"
+                  value={`${vm.estimatedMarginPercent}%`}
+                  hint={
+                    vm.estimatedMarginBasisLabel
+                      ? `· ${vm.estimatedMarginBasisLabel}`
+                      : undefined
+                  }
+                />
+              ) : null}
               {vm.marginUnavailableReason ? (
                 <ReceiptRow
-                  label="마진율"
-                  value={`계산 불가`}
+                  label="확정 마진율"
+                  value="계산 불가"
                   hint={`· ${vm.marginUnavailableReason}`}
                 />
               ) : null}
             </>
           ) : vm.marginUnavailableReason ? (
-            <ReceiptRow
-              label="마진율"
-              value="계산 불가"
-              hint={`· ${vm.marginUnavailableReason}`}
-            />
+            <>
+              {vm.estimatedMarginPercent != null ? (
+                <ReceiptRow
+                  label="추정 마진율"
+                  value={`${vm.estimatedMarginPercent}%`}
+                  hint={
+                    vm.estimatedMarginBasisLabel
+                      ? `· ${vm.estimatedMarginBasisLabel}`
+                      : undefined
+                  }
+                />
+              ) : null}
+              <ReceiptRow
+                label="확정 마진율"
+                value="계산 불가"
+                hint={`· ${vm.marginUnavailableReason}`}
+              />
+            </>
           ) : null}
           <ReceiptRow
             label="입력/출력"

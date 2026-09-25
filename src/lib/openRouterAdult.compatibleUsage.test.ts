@@ -236,25 +236,39 @@ test("[SYNTHETIC] CI Anthropic scene controls preserve static/dynamic cache boun
 });
 
 
-test("[SYNTHETIC] CI Main RP sends stable prompt-cache session affinity header", async () => {
+test("[SYNTHETIC] CI Main RP sends stable prompt-cache session affinity as query params", async () => {
   const previousFetch = globalThis.fetch;
   const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
   process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
   let seenSession: string | null = null;
   let seenScope: string | null = null;
+  let legacyHeaderSession: string | null = null;
 
-  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
-    const headers = new Headers(init?.headers);
-    seenSession = headers.get("x-ci-prompt-cache-session");
-    seenScope = headers.get("x-ci-prompt-cache-scope");
-    return sseResponse([
-      `data: ${JSON.stringify({ choices: [{ delta: { content: "OK" } }] })}\n\n`,
-      `data: ${JSON.stringify({
-        choices: [{ finish_reason: "stop" }],
-        usage: { prompt_tokens: 100, completion_tokens: 10 },
-      })}\n\n`,
-      "data: [DONE]\n\n",
-    ]);
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    seenSession = url.searchParams.get("x-ci-prompt-cache-session");
+    seenScope = url.searchParams.get("x-ci-prompt-cache-scope");
+    legacyHeaderSession = new Headers(init?.headers).get(
+      "x-ci-prompt-cache-session"
+    );
+    return new Response(
+      sseResponse([
+        `data: ${JSON.stringify({ choices: [{ delta: { content: "OK" } }] })}\n\n`,
+        `data: ${JSON.stringify({
+          choices: [{ finish_reason: "stop" }],
+          usage: { prompt_tokens: 100, completion_tokens: 10 },
+        })}\n\n`,
+        "data: [DONE]\n\n",
+      ]).body,
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "x-ci-request-id": "ci-test-1",
+          "x-ci-prompt-cache-affinity": "hit",
+        },
+      }
+    );
   }) as typeof fetch;
 
   try {
@@ -276,6 +290,7 @@ test("[SYNTHETIC] CI Main RP sends stable prompt-cache session affinity header",
     }
     assert.equal(seenScope, "session");
     assert.equal(seenSession, "chat-707");
+    assert.equal(legacyHeaderSession, null);
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;

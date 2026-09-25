@@ -667,6 +667,20 @@ describe("Admin Receipt compact — main cost evidence consistency (P1–P5)", (
     assert.match(formatAdminBillingReceiptV3Text(receipt), /CI 실제 청구 원가/);
   });
 
+  it("estimated Main RP cost produces a clearly labeled estimated margin while exact margin stays unavailable", () => {
+    const receipt = buildV3(catalogEstimateUsage(), { ledgerRows: [] });
+    const vm = buildAdminReceiptCompactViewModel(receipt);
+    assert.equal(vm.marginPercent, null);
+    assert.equal(vm.estimatedMarginPercent, 60.6);
+    assert.equal(
+      vm.estimatedMarginBasisLabel,
+      "Main RP 추정 원가 + 현재 확인된 보조비용 기준"
+    );
+    const text = formatAdminBillingReceiptV3Text(receipt);
+    assert.match(text, /추정 마진율: 60\.6%/);
+    assert.match(text, /확정 마진율: 계산 불가/);
+  });
+
   it("P2 — sync catalog estimate only when no exact ledger row", () => {
     const receipt = buildV3(catalogEstimateUsage(), { ledgerRows: [] });
     const vm = buildAdminReceiptCompactViewModel(receipt);
