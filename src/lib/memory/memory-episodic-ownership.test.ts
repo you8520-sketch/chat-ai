@@ -321,7 +321,7 @@ describe("episodic ownership decoupled from status widget", () => {
         endTurn: 5,
       });
       assert.ok(requests.length >= 1, "must reach Luna background caller");
-      assert.equal(requests[0]?.body.model, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+      assert.equal(requests[0]?.body.model, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
     } finally {
       globalThis.fetch = prevFetch;
       if (prevNodeTest == null) delete process.env.NODE_TEST_CONTEXT;
