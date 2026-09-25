@@ -282,10 +282,13 @@ export function applyUserCoauthorDirective(
       currentBefore.allowMajorActions,
       directive.majorActions
     ),
-    allowInnerPov: applySlot(currentBefore.allowInnerPov, directive.innerPov),
+    allowInnerPov: applySlot(
+      currentBefore.allowInnerPov,
+      directive.innerPov ?? "unchanged"
+    ),
     allowIrreversibleFate: applySlot(
       currentBefore.allowIrreversibleFate,
-      directive.irreversibleFate
+      directive.irreversibleFate ?? "unchanged"
     ),
   };
 
