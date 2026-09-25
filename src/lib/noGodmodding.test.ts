@@ -100,7 +100,7 @@ describe("buildNoGodmoddingBlock", () => {
         },
       }
     );
-    assert.match(block, /CURRENT-TURN OOC DELEGATION/);
+    assert.match(block, /USER AUTHORING — EFFECTIVE COAUTHOR POLICY/);
     assert.match(block, /이번 턴에 한해/);
     assert.doesNotMatch(block, /LIMITED CO-NARRATION/);
     assert.doesNotMatch(block, /\[possession_mode\]/);
