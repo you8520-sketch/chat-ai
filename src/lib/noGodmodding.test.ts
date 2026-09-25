@@ -56,12 +56,21 @@ describe("buildNoGodmoddingBlock", () => {
     assert.doesNotMatch(block, /TARGET_LENGTH/);
   });
 
-  it("autoContinue uses AI-focal co-narration owner once", () => {
+  it("autoContinue defaults to LIMITED B authorship while AI_CAST still advances", () => {
+    const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "autoContinue");
+    assert.match(block, new RegExp(AUTO_PROGRESSION_BLOCK_TITLE.replace(/[[\]]/g, "\\  it("autoContinue uses AI-focal co-narration owner once", () => {
     const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "autoContinue");
     assert.match(block, new RegExp(AUTO_PROGRESSION_BLOCK_TITLE.replace(/[[\]]/g, "\\$&")));
     assert.match(block, /\[AI_CAST\]/);
     assert.match(block, /대사를 공동 서술할 수 있다/);
     assert.match(block, /1인칭·내면 시점으로 전환하지 않는다/);
+    assert.doesNotMatch(block, /\[USER CONTROL MODE - NOVEL \/ EXPLICIT FULL\]/);
+    assert.notEqual(block, buildCompactNoGodmoddingStandardBlock());
+  });")));
+    assert.match(block, /\[AI_CAST\]/);
+    assert.match(block, /새 직접 대사·중요한 자발적 행동·내면·불가역 결정을 대신하지 않는다/);
+    assert.match(block, /\[B\]의 머릿속으로 들어가 서술하지 않는다/);
+    assert.doesNotMatch(block, /대사를 공동 서술할 수 있다/);
     assert.doesNotMatch(block, /\[USER CONTROL MODE - NOVEL \/ EXPLICIT FULL\]/);
     assert.notEqual(block, buildCompactNoGodmoddingStandardBlock());
   });
