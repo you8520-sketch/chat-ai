@@ -49,9 +49,24 @@ const FORBIDDEN_SIGNAL_KEYS = [
 
 export const RESEARCH_HOOK_MAX_CHARS = 120;
 
-/** Collection may be automated only where the source explicitly allows it. */
-export function resolveCollectionMethod(policy: ResearchAutomationPolicy): ResearchCollectionMethod {
-  return policy === "allows_automation" ? "automated" : "manual_curated";
+/**
+ * Automation permission and the chosen collection method are separate: manual
+ * curation is always allowed; automation only where the source explicitly allows it.
+ */
+export function isCollectionMethodAllowed(
+  policy: ResearchAutomationPolicy,
+  method: ResearchCollectionMethod
+): boolean {
+  switch (method) {
+    case "manual_curated":
+      return true;
+    case "automated":
+      return policy === "allows_automation";
+    default: {
+      const exhaustive: never = method;
+      throw new Error(`Unknown collection method ${String(exhaustive)}`);
+    }
+  }
 }
 
 export function validateResearchSnapshot(snapshot: ResearchSnapshot): QaResult {
@@ -61,7 +76,7 @@ export function validateResearchSnapshot(snapshot: ResearchSnapshot): QaResult {
     errors.push({ code: "observed_at_invalid", message: "observedAt must be YYYY-MM-DD" });
   }
   for (const platform of snapshot.platforms) {
-    if (platform.collectionMethod !== resolveCollectionMethod(platform.automationPolicy)) {
+    if (!isCollectionMethodAllowed(platform.automationPolicy, platform.collectionMethod)) {
       errors.push({
         code: "collection_method_not_allowed",
         message: `${platform.name}: ${platform.collectionMethod} with automation policy ${platform.automationPolicy}`,

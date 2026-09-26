@@ -40,7 +40,7 @@ import {
 } from "@/lib/officialSupply/worldQa";
 import {
   evaluatePortfolioBalance,
-  resolveCollectionMethod,
+  isCollectionMethodAllowed,
   validateResearchSnapshot,
   type ResearchSnapshot,
 } from "@/lib/officialSupply/research";
@@ -99,9 +99,10 @@ describe("official image format profiles", () => {
     assert.equal(findAssetByTagStable(assets, "대표", "k", "inline"), null);
   });
 
-  it("dimension contract: exact, near-ratio normalize, wrong orientation rejected (never cropped)", () => {
+  it("dimension contract: only the exact native size passes; near-ratio / rescaled / rotated outputs are rejected (never resized or cropped)", () => {
     assert.equal(evaluateOfficialImageDimensions(OFFICIAL_RP_IMAGE_PROFILE, 1536, 1024), "exact");
-    assert.equal(evaluateOfficialImageDimensions(OFFICIAL_RP_IMAGE_PROFILE, 1530, 1024), "normalize");
+    assert.equal(evaluateOfficialImageDimensions(OFFICIAL_RP_IMAGE_PROFILE, 1530, 1024), "reject");
+    assert.equal(evaluateOfficialImageDimensions(OFFICIAL_RP_IMAGE_PROFILE, 768, 512), "reject");
     assert.equal(evaluateOfficialImageDimensions(OFFICIAL_RP_IMAGE_PROFILE, 1024, 1536), "reject");
     assert.equal(evaluateOfficialImageDimensions(OFFICIAL_RP_IMAGE_PROFILE, 1024, 1024), "reject");
     assert.equal(evaluateOfficialImageDimensions(OFFICIAL_REPRESENTATIVE_IMAGE_PROFILE, 1536, 1024), "reject");
@@ -394,9 +395,29 @@ describe("style candidates and research snapshot", () => {
     assert.equal(validateStyleSeedForApproval({ url: "/uploads/seed.webp", provenance: "platform_owned", note: "" }), null);
   });
 
+  it("automation permission matrix: permission allows automation, never mandates it", () => {
+    const matrix: Array<[Parameters<typeof isCollectionMethodAllowed>[0], Parameters<typeof isCollectionMethodAllowed>[1], boolean]> = [
+      ["allows_automation", "manual_curated", true],
+      ["allows_automation", "automated", true],
+      ["restricts_automation", "manual_curated", true],
+      ["restricts_automation", "automated", false],
+      ["unclear", "manual_curated", true],
+      ["unclear", "automated", false],
+      ["not_checked", "manual_curated", true],
+      ["not_checked", "automated", false],
+    ];
+    for (const [policy, method, allowed] of matrix) {
+      assert.equal(isCollectionMethodAllowed(policy, method), allowed, `${policy} + ${method}`);
+      const snapshot: ResearchSnapshot = {
+        observedAt: "2026-09-26",
+        platforms: [{ name: "p", region: "KR", url: "https://p", automationPolicy: policy, collectionMethod: method, notes: "" }],
+        signals: [],
+      };
+      assert.equal(validateResearchSnapshot(snapshot).ok, allowed, `snapshot ${policy} + ${method}`);
+    }
+  });
+
   it("research snapshot never stores prompts/greetings and automation needs an explicit allow", () => {
-    assert.equal(resolveCollectionMethod("unclear"), "manual_curated");
-    assert.equal(resolveCollectionMethod("restricts_automation"), "manual_curated");
     const snapshot: ResearchSnapshot = {
       observedAt: "2026-09-26",
       platforms: [{ name: "p", region: "KR", url: "https://p", automationPolicy: "unclear", collectionMethod: "automated", notes: "" }],
@@ -421,7 +442,11 @@ describe("style candidates and research snapshot", () => {
     assert.deepEqual(qa.errors, []);
     assert.deepEqual(qa.warnings, []);
     assert.ok(snapshot.platforms.every((p) => p.collectionMethod === "manual_curated"));
+    assert.equal(snapshot.platforms.length, 9);
+    assert.equal(snapshot.signals.length, 35);
     assert.ok(snapshot.signals.some((s) => s.adultDemand) && snapshot.signals.some((s) => !s.adultDemand));
+    assert.ok(snapshot.signals.some((s) => s.popularitySignal === "niche"));
+    assert.ok(snapshot.signals.some((s) => s.seasonal));
   });
 
   it("portfolio balance is policy-driven (no hardcoded adult ratio)", () => {
