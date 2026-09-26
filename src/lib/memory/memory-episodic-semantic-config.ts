@@ -11,6 +11,7 @@
  * refuses to activate any provisional config, so production retrieval stays on
  * the exact lexical Retrieval V2 path until a live benchmark approves a config.
  */
+import type { Route } from "@/lib/ai";
 export type EpisodicSemanticConfigStatus = "PROVISIONAL_LIVE_BENCHMARK_PENDING" | "APPROVED";
 
 export type EpisodicSemanticModelConfig = {
@@ -36,6 +37,16 @@ export type EpisodicSemanticModelConfig = {
 
 /** Ledger/provenance identity; the canonical cost-center classifier maps it to `memory`. */
 export const EPISODIC_SEMANTIC_EMBEDDING_REQUEST_KIND = "background-memory-episodic-embedding";
+
+/**
+ * Only facts stamped at write time with this canonical per-turn content route
+ * (`resolveEffectiveAdultRp` → Route) may be sent for indexing, and only a turn
+ * on this route may embed its query. Unstamped/legacy facts are excluded.
+ */
+export const EPISODIC_SEMANTIC_INDEXABLE_CONTENT_ROUTE: Route = "safe";
+
+/** Max canonical rows scanned per index job when looking for pending facts. */
+export const EPISODIC_SEMANTIC_INDEX_SCAN_ROWS = 500;
 
 /** Input bounds for anything sent to the embeddings provider. */
 export const EPISODIC_SEMANTIC_MAX_QUERY_CHARS = 500;
@@ -66,6 +77,19 @@ export const EPISODIC_SEMANTIC_MODEL_CANDIDATES = {
 } as const satisfies Record<string, EpisodicSemanticModelConfig>;
 
 export type EpisodicSemanticModelKey = keyof typeof EPISODIC_SEMANTIC_MODEL_CANDIDATES;
+
+/**
+ * Live-benchmark control arm only. Deliberately outside
+ * EPISODIC_SEMANTIC_MODEL_CANDIDATES, so the runtime gate can never select it.
+ */
+export const EPISODIC_SEMANTIC_BENCHMARK_CONTROL_MODELS = {
+  openai_text_embedding_3_small: {
+    ...EPISODIC_SEMANTIC_MODEL_CANDIDATES.bge_m3,
+    modelId: "openai/text-embedding-3-small",
+    dimensions: 1536,
+    configVersion: "text-embedding-3-small@1536/benchmark-control",
+  },
+} as const satisfies Record<string, EpisodicSemanticModelConfig>;
 
 export type EpisodicSemanticRuntime =
   | { enabled: true; model: EpisodicSemanticModelConfig }

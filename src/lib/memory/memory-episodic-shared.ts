@@ -4,6 +4,7 @@
  */
 import { resolveOocSceneRenderIntent } from "@/lib/oocSceneRender";
 import type Database from "better-sqlite3";
+import type { Route } from "@/lib/ai";
 import {
   reconcileEpisodicMemoryFactsForGeneration,
   type ReconcileEpisodicMemoryFactsInput,
@@ -176,6 +177,8 @@ export type ReconcileSharedEpisodicFactsInput = {
   isRegeneration: boolean;
   requestId?: string | null;
   generationSequence?: number;
+  /** Canonical per-turn content route of the source turn; stamped into fact metadata. */
+  contentRoute?: Route;
 };
 
 /**
@@ -285,6 +288,7 @@ export function reconcileSharedEpisodicFactsForTurn(
       ...(input.generationSequence != null
         ? { generation_sequence: input.generationSequence }
         : {}),
+      ...(input.contentRoute ? { content_route: input.contentRoute } : {}),
       memory_evidence_type: facts[0]?.evidence_type ?? undefined,
     },
   };

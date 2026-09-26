@@ -450,6 +450,7 @@ export async function scheduleMemoryUpdate(opts: {
         isRegeneration: isRegenerate,
         requestId: generationScope?.generationRequestId ?? opts.turnTrace?.turnRequestId ?? null,
         generationSequence: generationScope?.generationSequence,
+        contentRoute: opts.route,
       });
       if (process.env.NODE_ENV !== "production") {
         console.info("[memory] shared episodic reconcile", {

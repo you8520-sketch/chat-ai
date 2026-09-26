@@ -22,9 +22,16 @@ import {
   ensureEpisodicFactEmbeddingSchema,
   EPISODIC_FACT_EMBEDDINGS_TABLE,
   episodicFactContentHash,
+  episodicFactEmbeddingInput,
+  episodicFactEmbeddingSidecarExists,
   episodicFactSemanticText,
   type EpisodicSemanticQuery,
 } from "@/lib/memory/memory-episodic-semantic-index";
+import {
+  EPISODIC_SEMANTIC_INDEXABLE_CONTENT_ROUTE,
+  EPISODIC_SEMANTIC_INDEX_SCAN_ROWS,
+  type EpisodicSemanticModelConfig,
+} from "@/lib/memory/memory-episodic-semantic-config";
 import {
   classifyEpisodicFactTemporalNature,
   COMPLETED_SCENE_EVENT_ATTRIBUTES,
@@ -1373,7 +1380,16 @@ export type EpisodicSemanticLaneStats = {
   vectorsScanned: number;
   staleContentHashSkipped: number;
   decodeFailures: number;
+  /** In-scope, hash-valid vectors at or above the similarity threshold. */
   admitted: number;
+  /** Admitted IDs not already in the exact lexical V2 candidate set. */
+  novel: number;
+  /** Admitted IDs the lexical lanes already fetched (provenance only, no slot). */
+  overlap: number;
+  /** Novel IDs actually added into unused candidate capacity. */
+  added: number;
+  /** Novel IDs dropped because lexical lanes left no capacity or the share cap was hit. */
+  droppedNoCapacity: number;
 };
 
 export type EpisodicCandidateFetchStats = {
@@ -1404,7 +1420,6 @@ export type EpisodicLaneBudgets = {
   relevance: number;
   milestoneCritical: number;
   milestoneImportant: number;
-  semantic: number;
   milestoneCriticalFetch: number;
   milestoneImportantFetch: number;
 };
@@ -1448,56 +1463,87 @@ function episodicLogicalKey(
   return `${row.category}:${row.subject}:${row.attribute}`;
 }
 
-type EpisodicLexicalLane = "recent" | "relevance" | "milestoneCritical" | "milestoneImportant";
+/** Apportion lane SQL LIMIT budgets; every value >= 0 and sum <= candidateLimit. */
+export function resolveEpisodicLaneBudgets(candidateLimit: number): EpisodicLaneBudgets {
+  const limit = Math.max(0, Math.trunc(candidateLimit));
+  const totalWeight =
+    EPISODIC_MEMORY_LANE_RECENT_WEIGHT +
+    EPISODIC_MEMORY_LANE_RELEVANCE_WEIGHT +
+    EPISODIC_MEMORY_LANE_MILESTONE_CRITICAL_WEIGHT +
+    EPISODIC_MEMORY_LANE_MILESTONE_IMPORTANT_WEIGHT;
 
-/** Lexical lane weights, in remainder-priority order. */
-const EPISODIC_LEXICAL_LANE_WEIGHTS: Array<[EpisodicLexicalLane, number]> = [
-  ["recent", EPISODIC_MEMORY_LANE_RECENT_WEIGHT],
-  ["relevance", EPISODIC_MEMORY_LANE_RELEVANCE_WEIGHT],
-  ["milestoneCritical", EPISODIC_MEMORY_LANE_MILESTONE_CRITICAL_WEIGHT],
-  ["milestoneImportant", EPISODIC_MEMORY_LANE_MILESTONE_IMPORTANT_WEIGHT],
-];
+  let recent = Math.floor((EPISODIC_MEMORY_LANE_RECENT_WEIGHT * limit) / totalWeight);
+  let relevance = Math.floor((EPISODIC_MEMORY_LANE_RELEVANCE_WEIGHT * limit) / totalWeight);
+  let milestoneCritical = Math.floor(
+    (EPISODIC_MEMORY_LANE_MILESTONE_CRITICAL_WEIGHT * limit) / totalWeight
+  );
+  let milestoneImportant = Math.floor(
+    (EPISODIC_MEMORY_LANE_MILESTONE_IMPORTANT_WEIGHT * limit) / totalWeight
+  );
 
-/**
- * Apportion lane SQL LIMIT budgets; every value >= 0 and sum <= candidateLimit.
- * `semanticFilled` slots (rows the semantic lane actually admitted) are taken
- * out of candidateLimit first; the lexical lanes share the remainder with their
- * unchanged weights. With 0 semantic rows the result is exactly the lexical V2
- * apportionment, so an empty/missing/failed semantic index cannot shift it.
- */
-export function resolveEpisodicLaneBudgets(
-  candidateLimit: number,
-  semanticFilled = 0
-): EpisodicLaneBudgets {
-  const total = Math.max(0, Math.trunc(candidateLimit));
-  const semantic = Math.min(total, Math.max(0, Math.trunc(semanticFilled)));
-  const limit = total - semantic;
-  const totalWeight = EPISODIC_LEXICAL_LANE_WEIGHTS.reduce((sum, [, weight]) => sum + weight, 0);
-  const budget: Record<EpisodicLexicalLane, number> = {
-    recent: 0,
-    relevance: 0,
-    milestoneCritical: 0,
-    milestoneImportant: 0,
-  };
-  for (const [lane, weight] of EPISODIC_LEXICAL_LANE_WEIGHTS) {
-    budget[lane] = Math.floor((weight * limit) / totalWeight);
-  }
-  let remainder = limit - Object.values(budget).reduce((sum, n) => sum + n, 0);
-  while (remainder > 0) {
-    for (const [lane] of EPISODIC_LEXICAL_LANE_WEIGHTS) {
-      if (remainder <= 0) break;
-      budget[lane] += 1;
-      remainder -= 1;
+  const addRemainder = () => {
+    let allocated = recent + relevance + milestoneCritical + milestoneImportant;
+    let remainder = limit - allocated;
+    const priority: Array<keyof Pick<EpisodicLaneBudgets, "recent" | "relevance" | "milestoneCritical" | "milestoneImportant">> = [
+      "recent",
+      "relevance",
+      "milestoneCritical",
+      "milestoneImportant",
+    ];
+    while (remainder > 0) {
+      for (const lane of priority) {
+        if (remainder <= 0) break;
+        if (lane === "recent") recent += 1;
+        else if (lane === "relevance") relevance += 1;
+        else if (lane === "milestoneCritical") milestoneCritical += 1;
+        else milestoneImportant += 1;
+        remainder -= 1;
+      }
     }
-  }
+  };
 
-  const { recent, relevance, milestoneCritical, milestoneImportant } = budget;
+  const trimOverflow = () => {
+    const trimOrder: Array<keyof Pick<EpisodicLaneBudgets, "milestoneImportant" | "relevance" | "milestoneCritical" | "recent">> = [
+      "milestoneImportant",
+      "relevance",
+      "milestoneCritical",
+      "recent",
+    ];
+    while (recent + relevance + milestoneCritical + milestoneImportant > limit) {
+      let trimmed = false;
+      for (const lane of trimOrder) {
+        if (recent + relevance + milestoneCritical + milestoneImportant <= limit) break;
+        if (lane === "milestoneImportant" && milestoneImportant > 0) {
+          milestoneImportant -= 1;
+          trimmed = true;
+        } else if (lane === "relevance" && relevance > 0) {
+          relevance -= 1;
+          trimmed = true;
+        } else if (lane === "milestoneCritical" && milestoneCritical > 0) {
+          milestoneCritical -= 1;
+          trimmed = true;
+        } else if (lane === "recent" && recent > 0) {
+          recent -= 1;
+          trimmed = true;
+        }
+      }
+      if (!trimmed) break;
+    }
+  };
+
+  addRemainder();
+  trimOverflow();
+
+  recent = Math.max(0, recent);
+  relevance = Math.max(0, relevance);
+  milestoneCritical = Math.max(0, milestoneCritical);
+  milestoneImportant = Math.max(0, milestoneImportant);
+
   return {
     recent,
     relevance,
     milestoneCritical,
     milestoneImportant,
-    semantic,
     milestoneCriticalFetch:
       milestoneCritical > 0
         ? Math.max(milestoneCritical, milestoneCritical * EPISODIC_MEMORY_MILESTONE_FETCH_MULTIPLIER)
@@ -1760,6 +1806,10 @@ function emptySemanticLaneStats(
     staleContentHashSkipped: 0,
     decodeFailures: 0,
     admitted: 0,
+    novel: 0,
+    overlap: 0,
+    added: 0,
+    droppedNoCapacity: 0,
   };
 }
 
@@ -1773,8 +1823,7 @@ function emptySemanticLaneStats(
 function fetchSemanticLaneRows(
   db: Database.Database,
   scope: EpisodicCandidateScope,
-  query: EpisodicSemanticQuery,
-  budget: number
+  query: EpisodicSemanticQuery
 ): { rows: EpisodicMemoryFactRecord[]; similarityById: Map<number, number>; stats: EpisodicSemanticLaneStats } {
   ensureEpisodicFactEmbeddingSchema(db);
   const { model, vector } = query;
@@ -1817,7 +1866,7 @@ function fetchSemanticLaneRows(
     (a, b) =>
       b.similarity - a.similarity || b.row.source_turn - a.row.source_turn || b.row.id - a.row.id
   );
-  const rows = admitted.slice(0, budget).map(({ row }) => attachStoredEvidenceType(row));
+  const rows = admitted.map(({ row }) => attachStoredEvidenceType(row));
   stats.admitted = rows.length;
   return { rows, similarityById, stats };
 }
@@ -1830,35 +1879,7 @@ function fetchEpisodicMemoryCandidateRows(
   let queryCount = 0;
   let rowsFetched = 0;
 
-  // Semantic runs first: its admitted rows claim slots before the lexical lanes
-  // are apportioned, so 0 admitted rows (no query, empty/missing index, lane
-  // error) leaves the exact lexical V2 budgets.
-  let semanticRows: EpisodicMemoryFactRecord[] = [];
-  let semanticSimilarityById = new Map<number, number>();
-  let semanticStats: EpisodicSemanticLaneStats;
-  if (!input.semanticQuery) {
-    semanticStats = emptySemanticLaneStats("no_query");
-  } else {
-    const semanticMax = Math.floor(
-      Math.max(0, Math.trunc(input.candidateLimit)) * input.semanticQuery.model.semanticLaneMaxShare
-    );
-    if (semanticMax <= 0) {
-      semanticStats = emptySemanticLaneStats("zero_budget");
-    } else {
-      try {
-        const lane = fetchSemanticLaneRows(db, input.scope, input.semanticQuery, semanticMax);
-        semanticRows = lane.rows;
-        semanticSimilarityById = lane.similarityById;
-        semanticStats = lane.stats;
-        queryCount += 1;
-        rowsFetched += lane.stats.vectorsScanned;
-      } catch (e) {
-        console.warn("[EpisodicMemory] semantic lane failed; lexical V2 fallback:", (e as Error).message);
-        semanticStats = emptySemanticLaneStats("lane_error");
-      }
-    }
-  }
-  const budgets = resolveEpisodicLaneBudgets(input.candidateLimit, semanticRows.length);
+  const budgets = resolveEpisodicLaneBudgets(input.candidateLimit);
 
   let recentRows: EpisodicMemoryFactRecord[] = [];
   if (budgets.recent > 0) {
@@ -1958,11 +1979,55 @@ function fetchEpisodicMemoryCandidateRows(
     budgets.milestoneImportant
   );
 
-  const merged = mergeEpisodicCandidatesById([
+  const lexicalLanes: Array<{ lane: EpisodicCandidateLane; rows: EpisodicMemoryFactRecord[] }> = [
     { lane: "recent", rows: recentRows },
     { lane: "relevance", rows: relevanceRows },
     { lane: "milestone_critical", rows: milestoneCriticalRows },
     { lane: "milestone_important", rows: milestoneImportantRows },
+  ];
+  const lexical = mergeEpisodicCandidatesById(lexicalLanes);
+
+  // Semantic never reshapes the exact lexical V2 lanes: it only adds IDs the
+  // lexical merge does not already contain, into unused candidate capacity.
+  // Overlapping IDs gain semantic provenance without consuming a slot.
+  let semanticRows: EpisodicMemoryFactRecord[] = [];
+  let semanticSimilarityById = new Map<number, number>();
+  let semanticStats: EpisodicSemanticLaneStats;
+  if (!input.semanticQuery) {
+    semanticStats = emptySemanticLaneStats("no_query");
+  } else {
+    const limit = Math.max(0, Math.trunc(input.candidateLimit));
+    const shareCap = Math.floor(limit * input.semanticQuery.model.semanticLaneMaxShare);
+    if (shareCap <= 0) {
+      semanticStats = emptySemanticLaneStats("zero_budget");
+    } else {
+      try {
+        const lane = fetchSemanticLaneRows(db, input.scope, input.semanticQuery);
+        const lexicalIds = new Set(lexical.rows.map((row) => row.id));
+        const novel = lane.rows.filter((row) => !lexicalIds.has(row.id));
+        const overlap = lane.rows.filter((row) => lexicalIds.has(row.id));
+        const capacity = Math.min(shareCap, Math.max(0, limit - lexical.rows.length));
+        const added = novel.slice(0, capacity);
+        semanticRows = [...added, ...overlap];
+        semanticSimilarityById = lane.similarityById;
+        semanticStats = {
+          ...lane.stats,
+          novel: novel.length,
+          overlap: overlap.length,
+          added: added.length,
+          droppedNoCapacity: novel.length - added.length,
+        };
+        queryCount += 1;
+        rowsFetched += lane.stats.vectorsScanned;
+      } catch (e) {
+        console.warn("[EpisodicMemory] semantic lane failed; lexical V2 fallback:", (e as Error).message);
+        semanticStats = emptySemanticLaneStats("lane_error");
+      }
+    }
+  }
+
+  const merged = mergeEpisodicCandidatesById([
+    ...lexicalLanes,
     { lane: "semantic", rows: semanticRows },
   ]);
 
@@ -1979,11 +2044,99 @@ function fetchEpisodicMemoryCandidateRows(
         relevance: relevanceRows.length,
         milestone_critical: milestoneCriticalRows.length,
         milestone_important: milestoneImportantRows.length,
-        semantic: semanticRows.length,
+        semantic: semanticStats.added,
       },
       semantic: semanticStats,
     },
   };
+}
+
+export type EpisodicFactPendingEmbedding = {
+  factId: number;
+  /** Bounded provider input (never the hash source). */
+  embeddingInput: string;
+  /** sha256 of the FULL sanitized canonical fact_text. */
+  contentHash: string;
+};
+
+/**
+ * The only selection of fact text that may be sent to an embeddings provider.
+ * Reuses the canonical candidate scope (chat identity + reset/fork boundary),
+ * the canonical retrieval guard, and the write-time content-route stamp, so
+ * out-of-scope, unrecallable, adult, or unstamped facts never leave the server.
+ * Returns facts with no vector for this model or a stale full-text hash, newest first.
+ */
+export function listEpisodicFactsForSemanticIndexing(
+  db: Database.Database,
+  input: { chatId: number; model: EpisodicSemanticModelConfig; limit: number }
+): EpisodicFactPendingEmbedding[] {
+  const limit = Math.max(0, Math.trunc(input.limit));
+  const scope = buildEpisodicCandidateScope(db, { chatId: input.chatId });
+  if (!scope || limit === 0) return [];
+  ensureEpisodicFactEmbeddingSchema(db);
+  const where = [...scope.baseWhere, "json_extract(metadata, '$.content_route') = ?"];
+  const params = [...scope.baseParams, EPISODIC_SEMANTIC_INDEXABLE_CONTENT_ROUTE];
+  const select = (indexed: boolean) =>
+    db
+      .prepare(
+        `SELECT f.*, e.content_hash AS semantic_content_hash
+           FROM (SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+                   FROM episodic_memory_facts
+                   WHERE ${where.join(" AND ")}) f
+           LEFT JOIN ${EPISODIC_FACT_EMBEDDINGS_TABLE} e
+             ON e.fact_id = f.id AND e.chat_id = f.chat_id AND e.model_id = ? AND e.dimensions = ?
+           WHERE e.fact_id IS ${indexed ? "NOT NULL" : "NULL"}
+           ORDER BY f.id DESC
+           LIMIT ?`
+      )
+      .all(
+        ...params,
+        input.model.modelId,
+        input.model.dimensions,
+        EPISODIC_SEMANTIC_INDEX_SCAN_ROWS
+      ) as Array<EpisodicMemoryFactRecord & { semantic_content_hash: string | null }>;
+
+  const out: EpisodicFactPendingEmbedding[] = [];
+  const consider = ({ semantic_content_hash, ...row }: EpisodicMemoryFactRecord & { semantic_content_hash: string | null }) => {
+    if (out.length >= limit) return;
+    if (!evaluateEpisodicRetrievalGuard(attachStoredEvidenceType(row)).allowed) return;
+    const text = episodicFactSemanticText(row);
+    if (!text) return;
+    const contentHash = episodicFactContentHash(text);
+    if (semantic_content_hash === contentHash) return;
+    out.push({ factId: row.id, embeddingInput: episodicFactEmbeddingInput(text), contentHash });
+  };
+  select(false).forEach(consider);
+  if (out.length < limit) select(true).forEach(consider);
+  return out;
+}
+
+/**
+ * True when at least one hash-carrying vector for this model exists for a fact
+ * inside the recall scope. Lets callers skip the query embedding (0 HTTP) when
+ * the semantic lane could not return anything.
+ */
+export function hasEpisodicSemanticIndexInScope(
+  db: Database.Database,
+  input: GetEpisodicMemoryForPromptInput,
+  model: EpisodicSemanticModelConfig,
+  env = process.env
+): boolean {
+  if (!episodicMemoryRecallEnabled(env) || !episodicFactEmbeddingSidecarExists(db)) return false;
+  const scope = buildEpisodicCandidateScope(db, input, env);
+  if (!scope) return false;
+  return Boolean(
+    db
+      .prepare(
+        `SELECT 1 AS ok
+           FROM (SELECT id, chat_id FROM episodic_memory_facts WHERE ${scope.recallWhere.join(" AND ")}) f
+           JOIN ${EPISODIC_FACT_EMBEDDINGS_TABLE} e
+             ON e.fact_id = f.id AND e.chat_id = f.chat_id
+           WHERE e.model_id = ? AND e.dimensions = ?
+           LIMIT 1`
+      )
+      .get(...scope.recallParams, model.modelId, model.dimensions)
+  );
 }
 
 /** Test/diagnostic helper — bounded multi-lane candidate fetch without ranking/budget. */

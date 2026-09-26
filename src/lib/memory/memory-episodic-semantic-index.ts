@@ -22,9 +22,6 @@ import {
 
 export const EPISODIC_FACT_EMBEDDINGS_TABLE = "episodic_memory_fact_embeddings";
 
-/** Newest indexed rows re-checked per index job for content-hash drift. */
-const EPISODIC_SEMANTIC_INDEX_DRIFT_SCAN_ROWS = 500;
-
 export type EpisodicSemanticQuery = {
   model: EpisodicSemanticModelConfig;
   /** Unit-normalized query vector (length === model.dimensions). */
@@ -49,15 +46,30 @@ export function ensureEpisodicFactEmbeddingSchema(db: Database.Database): void {
   `);
 }
 
-/** The only text ever embedded for a fact: its sanitized canonical fact_text. */
+/**
+ * FULL sanitized canonical fact_text — the only content identity. Staleness is
+ * always judged on this full text, never on the bounded provider input.
+ */
 export function episodicFactSemanticText(fact: { fact_text: string }): string | null {
   const text = sanitizeRecalledMemoryFactText(fact.fact_text).trim();
-  if (!text) return null;
-  return text.slice(0, EPISODIC_SEMANTIC_MAX_FACT_CHARS);
+  return text || null;
 }
 
-export function episodicFactContentHash(semanticText: string): string {
-  return createHash("sha256").update(semanticText, "utf8").digest("hex");
+/** Bounded text actually sent to the embeddings provider for a fact. */
+export function episodicFactEmbeddingInput(fullSemanticText: string): string {
+  return fullSemanticText.slice(0, EPISODIC_SEMANTIC_MAX_FACT_CHARS);
+}
+
+export function episodicFactContentHash(fullSemanticText: string): string {
+  return createHash("sha256").update(fullSemanticText, "utf8").digest("hex");
+}
+
+export function episodicFactEmbeddingSidecarExists(db: Database.Database): boolean {
+  return Boolean(
+    db
+      .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?")
+      .get(EPISODIC_FACT_EMBEDDINGS_TABLE)
+  );
 }
 
 /** Validates and unit-normalizes a provider vector; null when unusable. */
@@ -160,59 +172,9 @@ export function upsertEpisodicFactEmbedding(
   return "written";
 }
 
-export type EpisodicFactNeedingEmbedding = {
-  factId: number;
-  semanticText: string;
-  contentHash: string;
-};
-
-/**
- * Bounded backfill selection: facts with no vector for this model, plus
- * content-hash drift among the newest indexed rows. Newest facts first.
- */
-export function listEpisodicFactsNeedingEmbedding(
-  db: Database.Database,
-  input: { chatId: number; model: EpisodicSemanticModelConfig; limit: number }
-): EpisodicFactNeedingEmbedding[] {
-  ensureEpisodicFactEmbeddingSchema(db);
-  const limit = Math.max(0, Math.trunc(input.limit));
-  if (limit === 0) return [];
-  const out: EpisodicFactNeedingEmbedding[] = [];
-  const seen = new Set<number>();
-  const consider = (row: { id: number; fact_text: string; content_hash: string | null }) => {
-    if (out.length >= limit || seen.has(row.id)) return;
-    seen.add(row.id);
-    const text = episodicFactSemanticText(row);
-    if (!text) return;
-    const contentHash = episodicFactContentHash(text);
-    if (row.content_hash === contentHash) return;
-    out.push({ factId: row.id, semanticText: text, contentHash });
-  };
-  const joined = `FROM episodic_memory_facts f
-    LEFT JOIN ${EPISODIC_FACT_EMBEDDINGS_TABLE} e
-      ON e.fact_id = f.id AND e.chat_id = f.chat_id AND e.model_id = ? AND e.dimensions = ?
-    WHERE f.chat_id = ?`;
-  const params = [input.model.modelId, input.model.dimensions, input.chatId];
-  const missing = db
-    .prepare(`SELECT f.id, f.fact_text, e.content_hash ${joined} AND e.fact_id IS NULL ORDER BY f.id DESC LIMIT ?`)
-    .all(...params, limit) as Array<{ id: number; fact_text: string; content_hash: string | null }>;
-  missing.forEach(consider);
-  if (out.length < limit) {
-    const recentIndexed = db
-      .prepare(`SELECT f.id, f.fact_text, e.content_hash ${joined} AND e.fact_id IS NOT NULL ORDER BY f.id DESC LIMIT ?`)
-      .all(...params, EPISODIC_SEMANTIC_INDEX_DRIFT_SCAN_ROWS) as Array<{
-      id: number;
-      fact_text: string;
-      content_hash: string | null;
-    }>;
-    recentIndexed.forEach(consider);
-  }
-  return out;
-}
-
 /** Canonical orphan cleanup: vectors whose canonical fact row no longer exists in the chat. */
 export function pruneOrphanEpisodicFactEmbeddings(db: Database.Database, chatId: number): number {
-  ensureEpisodicFactEmbeddingSchema(db);
+  if (!episodicFactEmbeddingSidecarExists(db)) return 0;
   const result = db
     .prepare(
       `DELETE FROM ${EPISODIC_FACT_EMBEDDINGS_TABLE}
@@ -223,18 +185,21 @@ export function pruneOrphanEpisodicFactEmbeddings(db: Database.Database, chatId:
   return Number(result.changes) || 0;
 }
 
-/** Whole-chat derived-data wipe; caller owns the surrounding transaction. */
+/**
+ * Whole-chat derived-data wipe; caller owns the surrounding transaction.
+ * Cleanup only — a missing sidecar (feature never enabled) is a no-op, never created.
+ */
 export function deleteEpisodicFactEmbeddingsForChat(db: Database.Database, chatId: number): void {
-  ensureEpisodicFactEmbeddingSchema(db);
+  if (!episodicFactEmbeddingSidecarExists(db)) return;
   db.prepare(`DELETE FROM ${EPISODIC_FACT_EMBEDDINGS_TABLE} WHERE chat_id=?`).run(chatId);
 }
 
-/** Character-deletion wipe across all of the character's chats; caller owns the transaction. */
+/** Character-deletion wipe across all of the character's chats; missing sidecar is a no-op. */
 export function deleteEpisodicFactEmbeddingsForCharacterChats(
   db: Database.Database,
   characterId: number
 ): void {
-  ensureEpisodicFactEmbeddingSchema(db);
+  if (!episodicFactEmbeddingSidecarExists(db)) return;
   db.prepare(
     `DELETE FROM ${EPISODIC_FACT_EMBEDDINGS_TABLE}
      WHERE chat_id IN (SELECT id FROM chats WHERE character_id=?)`

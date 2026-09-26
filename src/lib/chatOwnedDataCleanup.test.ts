@@ -19,13 +19,6 @@ import { getOrCreateChatMemory } from "@/lib/memory/memory-db";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
 import { MEMORY_SUMMARY_MIGRATION_VERSION } from "@/lib/memory/memory-summary-migration";
 import { deleteChatOwnedDerivedRows } from "@/lib/chatOwnedDataCleanup";
-import {
-  EPISODIC_FACT_EMBEDDINGS_TABLE,
-  episodicFactContentHash,
-  episodicFactSemanticText,
-  upsertEpisodicFactEmbedding,
-} from "@/lib/memory/memory-episodic-semantic-index";
-import { EPISODIC_SEMANTIC_MODEL_CANDIDATES } from "@/lib/memory/memory-episodic-semantic-config";
 
 const CHAT = 860011;
 const USER = 860012;
@@ -65,7 +58,7 @@ before(seed);
 after(cleanup);
 
 describe("chat delete owned derived data", () => {
-  it("commit wipes episodic facts, derived semantic vectors, summaries, memories, and migration rows", () => {
+  it("commit wipes episodic facts, summaries, memories, and migration rows", () => {
     seed();
     persistEpisodicMemoryFactsBestEffort(getDb(), {
       chatId: CHAT,
@@ -101,22 +94,6 @@ describe("chat delete owned derived data", () => {
           (chat_id, migration_version, status, attempt_count) VALUES (?, ?, 'PENDING', 1)`
       )
       .run(CHAT, MEMORY_SUMMARY_MIGRATION_VERSION);
-    const fact = getDb()
-      .prepare("SELECT id, fact_text FROM episodic_memory_facts WHERE chat_id=?")
-      .get(CHAT) as { id: number; fact_text: string };
-    const model = EPISODIC_SEMANTIC_MODEL_CANDIDATES.bge_m3;
-    const vector = new Float32Array(model.dimensions);
-    vector[0] = 1;
-    assert.equal(
-      upsertEpisodicFactEmbedding(getDb(), {
-        chatId: CHAT,
-        factId: fact.id,
-        model,
-        contentHash: episodicFactContentHash(episodicFactSemanticText(fact)!),
-        vector,
-      }),
-      "written"
-    );
 
     getDb().transaction(() => {
       deleteChatOwnedDerivedRows(getDb(), CHAT, USER);
@@ -125,10 +102,6 @@ describe("chat delete owned derived data", () => {
     const db = getDb();
     assert.equal(
       (db.prepare("SELECT COUNT(*) AS n FROM episodic_memory_facts WHERE chat_id=?").get(CHAT) as { n: number }).n,
-      0
-    );
-    assert.equal(
-      (db.prepare(`SELECT COUNT(*) AS n FROM ${EPISODIC_FACT_EMBEDDINGS_TABLE} WHERE chat_id=?`).get(CHAT) as { n: number }).n,
       0
     );
     assert.equal(

@@ -10,9 +10,12 @@
  *   after the canonical episodic write transaction has committed.
  */
 import type Database from "better-sqlite3";
+import type { Route } from "@/lib/ai";
+import { listEpisodicFactsForSemanticIndexing } from "@/lib/episodicMemoryFacts";
 import { callOpenRouterEmbeddings } from "@/lib/openRouterEmbeddings";
 import {
   EPISODIC_SEMANTIC_EMBEDDING_REQUEST_KIND,
+  EPISODIC_SEMANTIC_INDEXABLE_CONTENT_ROUTE,
   EPISODIC_SEMANTIC_INDEX_BATCH_SIZE,
   EPISODIC_SEMANTIC_INDEX_TIMEOUT_MS,
   EPISODIC_SEMANTIC_MAX_QUERY_CHARS,
@@ -22,7 +25,6 @@ import {
   type EpisodicSemanticRuntime,
 } from "./memory-episodic-semantic-config";
 import {
-  listEpisodicFactsNeedingEmbedding,
   normalizeEmbeddingVector,
   pruneOrphanEpisodicFactEmbeddings,
   upsertEpisodicFactEmbedding,
@@ -59,16 +61,44 @@ type SemanticJobOptions = {
 
 export type EpisodicSemanticQueryResolution = {
   query: EpisodicSemanticQuery | null;
-  reason: "ok" | "disabled" | "empty_query" | "provider_error" | "invalid_vector";
+  reason:
+    | "ok"
+    | "disabled"
+    | "adult_scope_excluded"
+    | "empty_query"
+    | "no_usable_index"
+    | "provider_error"
+    | "invalid_vector";
 };
 
+/**
+ * Resolves the query vector for one turn. The canonical content route gates
+ * the provider call itself: an adult (non-indexable-route) turn sends nothing.
+ * `usableIndex` lets the caller skip the call (0 HTTP, 0 RTT) when no in-scope
+ * vector exists for the active model.
+ */
 export async function resolveEpisodicSemanticQuery(
-  opts: SemanticJobOptions & { query: string | null | undefined }
+  opts: SemanticJobOptions & {
+    query: string | null | undefined;
+    contentRoute: Route;
+    usableIndex?: (model: EpisodicSemanticModelConfig) => boolean;
+  }
 ): Promise<EpisodicSemanticQueryResolution> {
   const runtime = opts.runtime ?? resolveEpisodicSemanticRuntime(opts.env);
   if (!runtime.enabled) return { query: null, reason: "disabled" };
+  if (opts.contentRoute !== EPISODIC_SEMANTIC_INDEXABLE_CONTENT_ROUTE) {
+    return { query: null, reason: "adult_scope_excluded" };
+  }
   const text = (opts.query ?? "").trim().slice(0, EPISODIC_SEMANTIC_MAX_QUERY_CHARS);
   if (!text) return { query: null, reason: "empty_query" };
+  try {
+    if (opts.usableIndex && !opts.usableIndex(runtime.model)) {
+      return { query: null, reason: "no_usable_index" };
+    }
+  } catch (e) {
+    console.warn("[EpisodicSemantic] index readiness probe failed; lexical V2 only:", (e as Error).message);
+    return { query: null, reason: "no_usable_index" };
+  }
   const embed = opts.embed ?? openRouterEpisodicEmbedder;
   let vectors: number[][];
   try {
@@ -92,8 +122,8 @@ export type EpisodicSemanticIndexJobResult = {
 
 /**
  * Bounded, idempotent lazy backfill for one chat: prunes orphan vectors, then
- * embeds at most one batch of facts lacking a current vector for the active
- * model. Each write re-checks the canonical row, so a result that raced a
+ * embeds at most one batch of canonically selected facts (scope, guard, safe
+ * content route) lacking a current full-text-hash vector for the active model. Each write re-checks the canonical row, so a result that raced a
  * canonical mutation is dropped instead of stored.
  */
 export async function runEpisodicSemanticIndexJob(
@@ -111,10 +141,10 @@ export async function runEpisodicSemanticIndexJob(
   const { model } = runtime;
   const embed = opts.embed ?? openRouterEpisodicEmbedder;
 
-  let pending: ReturnType<typeof listEpisodicFactsNeedingEmbedding>;
+  let pending: ReturnType<typeof listEpisodicFactsForSemanticIndexing>;
   try {
     result.prunedOrphans = pruneOrphanEpisodicFactEmbeddings(opts.db, opts.chatId);
-    pending = listEpisodicFactsNeedingEmbedding(opts.db, {
+    pending = listEpisodicFactsForSemanticIndexing(opts.db, {
       chatId: opts.chatId,
       model,
       limit: opts.batchSize ?? EPISODIC_SEMANTIC_INDEX_BATCH_SIZE,
@@ -128,7 +158,7 @@ export async function runEpisodicSemanticIndexJob(
 
   let vectors: number[][];
   try {
-    vectors = await embed(pending.map((p) => p.semanticText), model, "index");
+    vectors = await embed(pending.map((p) => p.embeddingInput), model, "index");
   } catch (e) {
     console.warn("[EpisodicSemantic] index embedding failed:", (e as Error).message);
     return { ...result, status: "provider_error" };
