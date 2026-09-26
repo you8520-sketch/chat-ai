@@ -1,10 +1,10 @@
 {
-  "calls": 12,
-  "inputTokens": 10196,
-  "outputTokens": 39436,
-  "costUsd": 0.034033,
-  "failures": 2,
-  "retries": 6,
+  "calls": 33,
+  "inputTokens": 42868,
+  "outputTokens": 94544,
+  "costUsd": 0.055944999999999995,
+  "failures": 7,
+  "retries": 21,
   "lines": [
     {
       "task": "world_bible",
@@ -124,6 +124,216 @@
       "outputTokens": 1868,
       "costUsd": 0.000924,
       "attempts": 3,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-01",
+      "model": "gpt-6-luna",
+      "inputTokens": 2271,
+      "outputTokens": 4293,
+      "costUsd": 0.001701,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-01",
+      "model": "gpt-6-luna",
+      "inputTokens": 1164,
+      "outputTokens": 3214,
+      "costUsd": 0.001226,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-01",
+      "model": "gpt-6-luna",
+      "inputTokens": 1227,
+      "outputTokens": 1870,
+      "costUsd": 0.000761,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-04",
+      "model": "gpt-6-luna",
+      "inputTokens": 2303,
+      "outputTokens": 3456,
+      "costUsd": 0.001411,
+      "attempts": 2,
+      "failedAttempts": 1
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-04",
+      "model": "gpt-6-luna",
+      "inputTokens": 1170,
+      "outputTokens": 2725,
+      "costUsd": 0.001056,
+      "attempts": 2,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-04",
+      "model": "gpt-6-luna",
+      "inputTokens": 1232,
+      "outputTokens": 1256,
+      "costUsd": 0.000547,
+      "attempts": 2,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-07",
+      "model": "gpt-6-luna",
+      "inputTokens": 2279,
+      "outputTokens": 3591,
+      "costUsd": 0.001456,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-07",
+      "model": "gpt-6-luna",
+      "inputTokens": 1166,
+      "outputTokens": 2141,
+      "costUsd": 0.000851,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-07",
+      "model": "gpt-6-luna",
+      "inputTokens": 1226,
+      "outputTokens": 1868,
+      "costUsd": 0.000761,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-08",
+      "model": "gpt-6-luna",
+      "inputTokens": 2274,
+      "outputTokens": 3786,
+      "costUsd": 0.001524,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-08",
+      "model": "gpt-6-luna",
+      "inputTokens": 1136,
+      "outputTokens": 1944,
+      "costUsd": 0.000779,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-08",
+      "model": "gpt-6-luna",
+      "inputTokens": 1194,
+      "outputTokens": 1288,
+      "costUsd": 0.000555,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-09",
+      "model": "gpt-6-luna",
+      "inputTokens": 2276,
+      "outputTokens": 3742,
+      "costUsd": 0.001508,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-09",
+      "model": "gpt-6-luna",
+      "inputTokens": 1166,
+      "outputTokens": 2088,
+      "costUsd": 0.000832,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-09",
+      "model": "gpt-6-luna",
+      "inputTokens": 1222,
+      "outputTokens": 1338,
+      "costUsd": 0.000575,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-10",
+      "model": "gpt-6-luna",
+      "inputTokens": 2293,
+      "outputTokens": 4209,
+      "costUsd": 0.001633,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-10",
+      "model": "gpt-6-luna",
+      "inputTokens": 1151,
+      "outputTokens": 1911,
+      "costUsd": 0.000769,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-10",
+      "model": "gpt-6-luna",
+      "inputTokens": 1206,
+      "outputTokens": 1317,
+      "costUsd": 0.000566,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-06",
+      "model": "gpt-6-luna",
+      "inputTokens": 2303,
+      "outputTokens": 4035,
+      "costUsd": 0.001428,
+      "attempts": 5,
+      "failedAttempts": 4
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-06",
+      "model": "gpt-6-luna",
+      "inputTokens": 1175,
+      "outputTokens": 3255,
+      "costUsd": 0.001242,
+      "attempts": 5,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-06",
+      "model": "gpt-6-luna",
+      "inputTokens": 1238,
+      "outputTokens": 1781,
+      "costUsd": 0.000731,
+      "attempts": 5,
       "failedAttempts": 0
     }
   ],
