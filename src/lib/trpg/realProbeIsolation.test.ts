@@ -5,11 +5,20 @@ import path from "node:path";
 import { resolveOptInTestCheaperInferenceApiKey } from "../../../scripts/lib/benchmarkCheaperInferenceCredential";
 
 /**
- * PR #1069 follow-up audit: no regular test may spend a real provider call
- * on a production credential alone. Deterministic only — injected env,
- * fake keys, static execution-path probes. Zero live provider calls.
+ * PR #1069 follow-up audit — MANUAL live-provider probe isolation only.
+ *
+ * These gates prove that known INTENTIONAL live probes run exclusively
+ * through the canonical benchmark triple opt-in owner, never on a
+ * production credential alone. They do NOT prove a global regular-test
+ * no-egress invariant: a separate full-suite blocker audit found ~31
+ * accidental background egress attempts (derived-cache /
+ * relationship-meta / rolling-summary / lorebook / postTurn / statusMeta /
+ * translation) that need their own architecture audit + fix as follow-up.
+ *
+ * Deterministic only — injected env, fake keys, static execution-path
+ * probes. Zero live provider calls.
  */
-describe("real-provider test isolation gates", () => {
+describe("manual live-provider probe isolation gates", () => {
   const withEnv = (patch: Record<string, string | undefined>, run: () => void) => {
     const saved: Record<string, string | undefined> = {};
     for (const key of Object.keys(patch)) saved[key] = process.env[key];
@@ -27,7 +36,7 @@ describe("real-provider test isolation gates", () => {
     }
   };
 
-  it("production key only => not eligible", () => {
+  it("production key only => manual probe not eligible", () => {
     withEnv(
       {
         CHEAPER_INFERENCE_API_KEY: "prod-key-fixture",
@@ -43,7 +52,7 @@ describe("real-provider test isolation gates", () => {
     );
   });
 
-  it("global opt-in OFF => not eligible", () => {
+  it("global opt-in OFF => manual probe not eligible", () => {
     withEnv(
       {
         CHEAPER_INFERENCE_API_KEY: "prod-key-fixture",
@@ -57,7 +66,7 @@ describe("real-provider test isolation gates", () => {
     );
   });
 
-  it("probe-specific opt-in OFF => not eligible", () => {
+  it("probe-specific opt-in OFF => manual probe not eligible", () => {
     withEnv(
       {
         REGULAR_TEST_REAL_PROVIDER_CALLS: "1",
@@ -70,7 +79,7 @@ describe("real-provider test isolation gates", () => {
     );
   });
 
-  it("benchmark key absent => not eligible", () => {
+  it("benchmark key absent => manual probe not eligible", () => {
     withEnv(
       {
         REGULAR_TEST_REAL_PROVIDER_CALLS: "1",
@@ -83,7 +92,7 @@ describe("real-provider test isolation gates", () => {
     );
   });
 
-  it("explicit triple opt-in resolves the benchmark key, never the production key", () => {
+  it("explicit triple opt-in resolves the benchmark key for the manual probe, never the production key", () => {
     withEnv(
       {
         CHEAPER_INFERENCE_API_KEY: "prod-key-fixture",
@@ -118,7 +127,7 @@ describe("real-provider test isolation gates", () => {
     assert.match(src, /cheaperInferenceApiKeyOverride: benchmarkKey/);
   });
 
-  it("only the known manual probes exist (no parallel production-key consumers)", () => {
+  it("only known manual probe flags exist (single benchmark opt-in owner, no parallel manual activation owner)", () => {
     const hits: string[] = [];
     const walk = (dir: string) => {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -137,10 +146,10 @@ describe("real-provider test isolation gates", () => {
       assert.match(
         file,
         /gmResolutionRealProbe|gmCompletionIntegrity|realProbeIsolation|schemaProviderProbe/,
-        `unexpected probe consumer: ${file}`
+        `unexpected manual probe flag owner: ${file}`
       );
     }
-    assert.ok(hits.length >= 3, "expected the known probe files to be found");
+    assert.ok(hits.length >= 3, "expected the known manual probe flag files to be found");
   });
 
   it("playwright regression server cannot inherit provider credentials (Luna-safe greeting)", () => {
