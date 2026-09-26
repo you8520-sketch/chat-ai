@@ -54,9 +54,11 @@ describe("modelPickerInputSnapshot cache bound", () => {
           [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]: 1000 + chatId,
         },
         messageCount: 1,
+        chatMode: "safe",
         personaId: null,
         userNote: "",
         targetResponseChars: 2000,
+        authoringFingerprint: "LIMITED",
       });
     }
 
