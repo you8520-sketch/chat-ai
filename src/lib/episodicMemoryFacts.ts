@@ -2125,18 +2125,36 @@ export function hasEpisodicSemanticIndexInScope(
   if (!episodicMemoryRecallEnabled(env) || !episodicFactEmbeddingSidecarExists(db)) return false;
   const scope = buildEpisodicCandidateScope(db, input, env);
   if (!scope) return false;
-  return Boolean(
-    db
-      .prepare(
-        `SELECT 1 AS ok
-           FROM (SELECT id, chat_id FROM episodic_memory_facts WHERE ${scope.recallWhere.join(" AND ")}) f
-           JOIN ${EPISODIC_FACT_EMBEDDINGS_TABLE} e
-             ON e.fact_id = f.id AND e.chat_id = f.chat_id
-           WHERE e.model_id = ? AND e.dimensions = ?
-           LIMIT 1`
-      )
-      .get(...scope.recallParams, model.modelId, model.dimensions)
-  );
+
+  const rows = db
+    .prepare(
+      `SELECT f.*, e.content_hash AS semantic_content_hash, e.embedding AS semantic_embedding
+         FROM (SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+                 FROM episodic_memory_facts
+                 WHERE ${scope.recallWhere.join(" AND ")}
+                   AND json_extract(metadata, '$.content_route') = ?) f
+         JOIN ${EPISODIC_FACT_EMBEDDINGS_TABLE} e
+           ON e.fact_id = f.id AND e.chat_id = f.chat_id
+         WHERE e.model_id = ? AND e.dimensions = ?`
+    )
+    .all(
+      ...scope.recallParams,
+      EPISODIC_SEMANTIC_INDEXABLE_CONTENT_ROUTE,
+      model.modelId,
+      model.dimensions
+    ) as Array<
+    EpisodicMemoryFactRecord & {
+      semantic_content_hash: string;
+      semantic_embedding: unknown;
+    }
+  >;
+
+  return rows.some(({ semantic_content_hash, semantic_embedding, ...row }) => {
+    if (!evaluateEpisodicRetrievalGuard(attachStoredEvidenceType(row)).allowed) return false;
+    const text = episodicFactSemanticText(row);
+    if (!text || episodicFactContentHash(text) !== semantic_content_hash) return false;
+    return decodeEmbeddingBlob(semantic_embedding, model.dimensions) !== null;
+  });
 }
 
 /** Test/diagnostic helper — bounded multi-lane candidate fetch without ranking/budget. */
