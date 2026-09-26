@@ -25,6 +25,8 @@ const MOCK_ASSISTANT_CONTENT =
   "유나는 잠깐 생각하더니 고개를 끄덕였다. 이제 다음 말을 기다리는 듯 시선을 맞췄다.";
 const EDITED_ASSISTANT_CONTENT =
   "수정된 답변이다. 유나는 앞선 흐름을 고쳐 잡고 전과 다른 표현으로 다음 선택지를 다시 정리했다.";
+const EDITED_USER_CONTENT =
+  "수정된 유저 입력이다. 앞선 요청의 핵심 조건을 바꿔서 이후 답변의 추천 선택지도 더 이상 유효하지 않아야 한다.";
 
 const VARIANT_ONE_CONTENT =
   "첫 번째 버전의 답변이다. 유나는 고개를 끄덕이며 다음 말을 기다렸다.";
@@ -529,7 +531,10 @@ async function installSuggestedRepliesTurnMock(
   };
 }
 
-async function installSuggestedRepliesEditInvalidationMock(page: Page) {
+async function installSuggestedRepliesEditInvalidationMock(
+  page: Page,
+  invalidationSource: "assistant" | "user" = "assistant"
+) {
   const base = await installSuggestedRepliesTurnMock(page);
   let userPatchCalls = 0;
   let assistantPatchCalls = 0;
@@ -547,13 +552,17 @@ async function installSuggestedRepliesEditInvalidationMock(page: Page) {
 
     if (body.messageId === MOCK_USER_MESSAGE_ID) {
       userPatchCalls += 1;
+      if (invalidationSource === "user") {
+        expect(body.content).toBe(EDITED_USER_CONTENT);
+      }
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
           ok: true,
           content: body.content ?? "",
-          suggestedRepliesInvalidatedAssistantMessageIds: [],
+          suggestedRepliesInvalidatedAssistantMessageIds:
+            invalidationSource === "user" ? [MOCK_ASSISTANT_MESSAGE_ID] : [],
         }),
       });
       return;
@@ -581,7 +590,8 @@ async function installSuggestedRepliesEditInvalidationMock(page: Page) {
         activeVariant: 0,
         variantCount: 1,
         statusWidgetValues: null,
-        suggestedRepliesInvalidatedAssistantMessageIds: [MOCK_ASSISTANT_MESSAGE_ID],
+        suggestedRepliesInvalidatedAssistantMessageIds:
+          invalidationSource === "assistant" ? [MOCK_ASSISTANT_MESSAGE_ID] : [],
       }),
     });
   });
@@ -1278,6 +1288,60 @@ test.describe("Suggested Replies — production browser lifecycle", () => {
 
     await page.waitForTimeout(1_000);
     expect(seededMessagePollCalls).toBe(1);
+  });
+
+  test("material paired user edit invalidates downstream suggestions without a new poll", async ({ page }) => {
+    const mock = await installSuggestedRepliesEditInvalidationMock(page, "user");
+    await openFreshChat(page);
+
+    const composer = page.locator("textarea[placeholder*='메시지 입력']");
+    await setReactTextareaValue(page, "유저 수정 무효화 테스트");
+
+    const responseWait = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/chat" &&
+        response.request().method() === "POST",
+      { timeout: 45_000 }
+    );
+    await page.getByRole("button", { name: "전송", exact: true }).click();
+    expect((await responseWait).ok()).toBeTruthy();
+
+    await expect(page.getByText(MOCK_ASSISTANT_CONTENT, { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    }
+    await expect.poll(mock.getTargetPollCalls, { timeout: 10_000 }).toBe(2);
+
+    const assistantArticle = page.locator(`#msg-${MOCK_ASSISTANT_MESSAGE_ID}`);
+    const userArticle = page.locator(`#msg-${MOCK_USER_MESSAGE_ID}`);
+    await assistantArticle.hover();
+    await assistantArticle.getByRole("button", { name: "수정", exact: true }).click();
+
+    const userEditTextarea = userArticle.locator("textarea").first();
+    const assistantEditTextarea = assistantArticle.locator("textarea").first();
+    await expect(userEditTextarea).toBeVisible();
+    await expect(assistantEditTextarea).toBeVisible();
+    await userEditTextarea.fill(EDITED_USER_CONTENT);
+
+    await assistantArticle.getByRole("button", { name: "저장", exact: true }).click();
+
+    await expect.poll(mock.getUserPatchCalls, { timeout: 5_000 }).toBe(1);
+    await expect.poll(mock.getAssistantPatchCalls, { timeout: 5_000 }).toBe(1);
+    await expect(page.getByText(MOCK_ASSISTANT_CONTENT, { exact: true })).toBeVisible();
+
+    await expect(page.getByText("추천 메시지 준비 중…", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^정석 ·/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^한 수 ·/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^드립 ·/ })).toHaveCount(0);
+
+    await page.waitForTimeout(1_000);
+    expect(mock.getTargetPollCalls()).toBe(2);
+    expect(mock.getChatPostCalls()).toBe(1);
+    await expect(composer).toHaveValue("");
   });
 
   test("material assistant edit immediately invalidates stale suggestions without a new poll", async ({ page }) => {
