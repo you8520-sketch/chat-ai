@@ -503,9 +503,11 @@ import { resolveRegenerateGenerationOverrides } from "@/lib/openRouterClient";
 import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFirewall";
 import {
   getEpisodicMemoryForPrompt,
+  hasEpisodicSemanticIndexInScope,
   logStatusMemoryPipelineDev,
   summarizeEpisodicFactPersistCandidates,
 } from "@/lib/episodicMemoryFacts";
+import { resolveEpisodicSemanticQuery } from "@/lib/memory/memory-episodic-semantic-jobs";
 import { stripExtractedFactsForClient } from "@/lib/statusWidget/parseValues";
 import {
   buildTriggeredScenarioEventsPromptBlock,
@@ -1871,12 +1873,21 @@ export async function POST(req: Request) {
   ]
     .filter(Boolean)
     .join("\n");
-  const episodicMemory = getEpisodicMemoryForPrompt(db, {
+  const episodicRetrievalScope = {
     chatId: chat.id,
     characterId: ch.id,
     userId: user.id,
     currentTurn: memorySourceEligibleCompletedTurns + 1,
+  };
+  const episodicSemantic = await resolveEpisodicSemanticQuery({
+    query: policyUserMessage,
+    contentRoute: effectiveAdultRp ? "nsfw" : "safe",
+    usableIndex: (model) => hasEpisodicSemanticIndexInScope(db, episodicRetrievalScope, model),
+  });
+  const episodicMemory = getEpisodicMemoryForPrompt(db, {
+    ...episodicRetrievalScope,
     currentUserMessage: policyUserMessage,
+    semanticQuery: episodicSemantic.query,
     recentChatText: recentChatTextForEpisodicMemory,
     longTermMemoryText: memoryFeatureOn
       ? [memoryInjection.text, memoryInjection.archiveText].filter(Boolean).join("\n")

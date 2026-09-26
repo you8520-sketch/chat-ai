@@ -36,6 +36,7 @@ import { countMemoryEligibleCompletedTurnsCore } from "./memory-turn-loader";
 import { resolveOocSceneRenderIntent } from "@/lib/oocSceneRender";
 import { syncMemoryEligibleTurnCount } from "./memory-reconcile";
 import { reconcileSharedEpisodicFactsForTurn } from "./memory-episodic-shared";
+import { runEpisodicSemanticIndexJob } from "./memory-episodic-semantic-jobs";
 import { buildMemoryContext } from "./memory-injector";
 import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
 import { commitManualGlobalCheckpointCore } from "./memory-global-checkpoint";
@@ -449,6 +450,7 @@ export async function scheduleMemoryUpdate(opts: {
         isRegeneration: isRegenerate,
         requestId: generationScope?.generationRequestId ?? opts.turnTrace?.turnRequestId ?? null,
         generationSequence: generationScope?.generationSequence,
+        contentRoute: opts.route,
       });
       if (process.env.NODE_ENV !== "production") {
         console.info("[memory] shared episodic reconcile", {
@@ -462,6 +464,9 @@ export async function scheduleMemoryUpdate(opts: {
     } catch (e) {
       console.warn("[memory] shared episodic reconcile failed:", (e as Error).message);
     }
+    // Derived semantic sidecar only — runs after the canonical write committed;
+    // gated by the semantic runtime and never throws.
+    await runEpisodicSemanticIndexJob({ db: getDb(), chatId: opts.chatId });
   }
 
   if (isRegenerate && opts.assistantMessageId) {

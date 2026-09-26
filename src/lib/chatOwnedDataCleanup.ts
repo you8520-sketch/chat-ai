@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { deleteEpisodicFactEmbeddingsForChat } from "@/lib/memory/memory-episodic-semantic-index";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
 import { deletePersonaSecretRowsForChat } from "@/lib/personaSecretLifecycleCleanup";
 import { deleteUserLorebookForChat } from "@/lib/userLorebook";
@@ -16,6 +17,7 @@ export function deleteChatOwnedDerivedRows(
   ).run(chatId);
   db.prepare("DELETE FROM chat_turn_summaries WHERE chat_id=?").run(chatId);
   db.prepare("DELETE FROM chat_memories WHERE chat_id=?").run(chatId);
+  deleteEpisodicFactEmbeddingsForChat(db, chatId);
   db.prepare("DELETE FROM episodic_memory_facts WHERE chat_id=?").run(chatId);
   db.prepare("DELETE FROM memory_summary_migrations WHERE chat_id=?").run(chatId);
   db.prepare("DELETE FROM status_widget_triggers WHERE chat_id=?").run(chatId);

@@ -1,5 +1,6 @@
 import { deleteCharacterCreatorLorebookAttachments } from "@/lib/creatorLorebook";
 import { getDb } from "@/lib/db";
+import { deleteEpisodicFactEmbeddingsForCharacterChats } from "@/lib/memory/memory-episodic-semantic-index";
 
 export type DeleteCharacterResult =
   | { ok: true }
@@ -53,6 +54,7 @@ export function deleteUserCharacter(
     db.prepare(`DELETE FROM report_refunds WHERE chat_id IN (${chatSub})`).run(characterId);
     db.prepare(`DELETE FROM chat_turn_summaries WHERE chat_id IN (${chatSub})`).run(characterId);
     db.prepare(`DELETE FROM memory_summary_migrations WHERE chat_id IN (${chatSub})`).run(characterId);
+    deleteEpisodicFactEmbeddingsForCharacterChats(db, characterId);
     db.prepare(`DELETE FROM episodic_memory_facts WHERE chat_id IN (${chatSub})`).run(characterId);
     db.prepare("DELETE FROM chat_memories WHERE character_id=?").run(characterId);
     db.prepare(`DELETE FROM messages WHERE chat_id IN (${chatSub})`).run(characterId);

@@ -17,6 +17,22 @@ import {
 import { EPISODIC_RETRIEVED_EVENT_INTERPRETATION_LINES } from "@/lib/historicalTruthPolicy";
 import { sanitizeRecalledMemoryFactText } from "@/lib/runtimePromptContaminationGuard";
 import {
+  decodeEmbeddingBlob,
+  dotProduct,
+  ensureEpisodicFactEmbeddingSchema,
+  EPISODIC_FACT_EMBEDDINGS_TABLE,
+  episodicFactContentHash,
+  episodicFactEmbeddingInput,
+  episodicFactEmbeddingSidecarExists,
+  episodicFactSemanticText,
+  type EpisodicSemanticQuery,
+} from "@/lib/memory/memory-episodic-semantic-index";
+import {
+  EPISODIC_SEMANTIC_INDEXABLE_CONTENT_ROUTE,
+  EPISODIC_SEMANTIC_INDEX_SCAN_ROWS,
+  type EpisodicSemanticModelConfig,
+} from "@/lib/memory/memory-episodic-semantic-config";
+import {
   classifyEpisodicFactTemporalNature,
   COMPLETED_SCENE_EVENT_ATTRIBUTES,
   isClearlyTemporaryEpisodicFact,
@@ -91,6 +107,11 @@ export type GetEpisodicMemoryForPromptInput = {
   maxChars?: number;
   minAgeTurns?: number;
   dynamicMemoryTotalMaxChars?: number;
+  /**
+   * Optional semantic query from the canonical semantic runtime. Absent/null
+   * keeps exact lexical Retrieval V2 (no semantic lane, no semantic evidence).
+   */
+  semanticQuery?: EpisodicSemanticQuery | null;
 };
 
 export type EpisodicMemoryDebugFact = EpisodicMemoryFactRecord & {
@@ -161,6 +182,7 @@ export type EpisodicMemorySelectionDebug = {
   relevance_score?: number;
   importance_score?: number;
   recency_score?: number;
+  semantic_similarity?: number;
   composite_score?: number;
   relevance_pass?: boolean;
 };
@@ -1349,13 +1371,33 @@ export type EpisodicCandidateLane =
   | "recent"
   | "relevance"
   | "milestone_critical"
-  | "milestone_important";
+  | "milestone_important"
+  | "semantic";
+
+export type EpisodicSemanticLaneStats = {
+  /** Why the lane did not contribute (absent when it ran). */
+  skippedReason?: "no_query" | "zero_budget" | "lane_error";
+  vectorsScanned: number;
+  staleContentHashSkipped: number;
+  decodeFailures: number;
+  /** In-scope, hash-valid vectors at or above the similarity threshold. */
+  admitted: number;
+  /** Admitted IDs not already in the exact lexical V2 candidate set. */
+  novel: number;
+  /** Admitted IDs the lexical lanes already fetched (provenance only, no slot). */
+  overlap: number;
+  /** Novel IDs actually added into unused candidate capacity. */
+  added: number;
+  /** Novel IDs dropped because lexical lanes left no capacity or the share cap was hit. */
+  droppedNoCapacity: number;
+};
 
 export type EpisodicCandidateFetchStats = {
   queryCount: number;
   rowsFetched: number;
   mergedCandidateCount: number;
   laneCounts: Record<EpisodicCandidateLane, number>;
+  semantic?: EpisodicSemanticLaneStats;
   stateReconcileQueryCount?: number;
   stateReconcileKeysDiscovered?: number;
   stateReconcileKeysReconciled?: number;
@@ -1381,6 +1423,8 @@ export type EpisodicLaneBudgets = {
   milestoneCriticalFetch: number;
   milestoneImportantFetch: number;
 };
+
+
 
 const EPISODIC_CANDIDATE_SELECT_COLUMNS = `id, chat_id, character_id, user_id, source_turn, source_user_message_id,
                 category, subject, attribute, value, importance, fact_text, metadata, created_at`;
@@ -1410,6 +1454,7 @@ type EpisodicCandidateFetchInput = {
   scope: EpisodicCandidateScope;
   candidateLimit: number;
   currentUserMessage?: string | null;
+  semanticQuery?: EpisodicSemanticQuery | null;
 };
 
 function episodicLogicalKey(
@@ -1744,14 +1789,97 @@ function mergeEpisodicCandidatesById(
   return { rows: [...byId.values()], laneById };
 }
 
+type EpisodicCandidateFetchResult = {
+  rows: EpisodicMemoryFactRecord[];
+  stats: EpisodicCandidateFetchStats;
+  laneById: Map<number, EpisodicCandidateLane[]>;
+  /** Cosine similarity for every in-scope, hash-valid, same-model vector scanned. */
+  semanticSimilarityById: Map<number, number>;
+};
+
+function emptySemanticLaneStats(
+  skippedReason?: EpisodicSemanticLaneStats["skippedReason"]
+): EpisodicSemanticLaneStats {
+  return {
+    ...(skippedReason ? { skippedReason } : {}),
+    vectorsScanned: 0,
+    staleContentHashSkipped: 0,
+    decodeFailures: 0,
+    admitted: 0,
+    novel: 0,
+    overlap: 0,
+    added: 0,
+    droppedNoCapacity: 0,
+  };
+}
+
+/**
+ * Semantic lane — sidecar vectors are only an index into canonical rows. The
+ * canonical row is re-selected under the same recall scope as every other lane
+ * (chat/character/user identity, reset boundary, RAW min-age), then its
+ * content hash is recomputed; deleted, out-of-scope, edited, or other-model
+ * vectors therefore cannot produce a candidate.
+ */
+function fetchSemanticLaneRows(
+  db: Database.Database,
+  scope: EpisodicCandidateScope,
+  query: EpisodicSemanticQuery
+): { rows: EpisodicMemoryFactRecord[]; similarityById: Map<number, number>; stats: EpisodicSemanticLaneStats } {
+  ensureEpisodicFactEmbeddingSchema(db);
+  const { model, vector } = query;
+  const stats = emptySemanticLaneStats();
+  const similarityById = new Map<number, number>();
+  if (vector.length !== model.dimensions) return { rows: [], similarityById, stats };
+
+  const scanned = db
+    .prepare(
+      `SELECT f.*, e.content_hash AS semantic_content_hash, e.embedding AS semantic_embedding
+         FROM (SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+                 FROM episodic_memory_facts
+                 WHERE ${scope.recallWhere.join(" AND ")}) f
+         JOIN ${EPISODIC_FACT_EMBEDDINGS_TABLE} e
+           ON e.fact_id = f.id AND e.chat_id = f.chat_id
+         WHERE e.model_id = ? AND e.dimensions = ?`
+    )
+    .all(...scope.recallParams, model.modelId, model.dimensions) as Array<
+    EpisodicMemoryFactRecord & { semantic_content_hash: string; semantic_embedding: unknown }
+  >;
+
+  const admitted: Array<{ row: EpisodicMemoryFactRecord; similarity: number }> = [];
+  for (const { semantic_content_hash, semantic_embedding, ...row } of scanned) {
+    stats.vectorsScanned += 1;
+    const text = episodicFactSemanticText(row);
+    if (!text || episodicFactContentHash(text) !== semantic_content_hash) {
+      stats.staleContentHashSkipped += 1;
+      continue;
+    }
+    const stored = decodeEmbeddingBlob(semantic_embedding, model.dimensions);
+    if (!stored) {
+      stats.decodeFailures += 1;
+      continue;
+    }
+    const similarity = dotProduct(vector, stored);
+    similarityById.set(row.id, similarity);
+    if (similarity >= model.similarityPassThreshold) admitted.push({ row, similarity });
+  }
+  admitted.sort(
+    (a, b) =>
+      b.similarity - a.similarity || b.row.source_turn - a.row.source_turn || b.row.id - a.row.id
+  );
+  const rows = admitted.map(({ row }) => attachStoredEvidenceType(row));
+  stats.admitted = rows.length;
+  return { rows, similarityById, stats };
+}
+
 function fetchEpisodicMemoryCandidateRows(
   db: Database.Database,
   input: EpisodicCandidateFetchInput
-): { rows: EpisodicMemoryFactRecord[]; stats: EpisodicCandidateFetchStats; laneById: Map<number, EpisodicCandidateLane[]> } {
+): EpisodicCandidateFetchResult {
   const recallWhereClause = input.scope.recallWhere.join(" AND ");
-  const budgets = resolveEpisodicLaneBudgets(input.candidateLimit);
   let queryCount = 0;
   let rowsFetched = 0;
+
+  const budgets = resolveEpisodicLaneBudgets(input.candidateLimit);
 
   let recentRows: EpisodicMemoryFactRecord[] = [];
   if (budgets.recent > 0) {
@@ -1851,16 +1979,62 @@ function fetchEpisodicMemoryCandidateRows(
     budgets.milestoneImportant
   );
 
-  const merged = mergeEpisodicCandidatesById([
+  const lexicalLanes: Array<{ lane: EpisodicCandidateLane; rows: EpisodicMemoryFactRecord[] }> = [
     { lane: "recent", rows: recentRows },
     { lane: "relevance", rows: relevanceRows },
     { lane: "milestone_critical", rows: milestoneCriticalRows },
     { lane: "milestone_important", rows: milestoneImportantRows },
+  ];
+  const lexical = mergeEpisodicCandidatesById(lexicalLanes);
+
+  // Semantic never reshapes the exact lexical V2 lanes: it only adds IDs the
+  // lexical merge does not already contain, into unused candidate capacity.
+  // Overlapping IDs gain semantic provenance without consuming a slot.
+  let semanticRows: EpisodicMemoryFactRecord[] = [];
+  let semanticSimilarityById = new Map<number, number>();
+  let semanticStats: EpisodicSemanticLaneStats;
+  if (!input.semanticQuery) {
+    semanticStats = emptySemanticLaneStats("no_query");
+  } else {
+    const limit = Math.max(0, Math.trunc(input.candidateLimit));
+    const shareCap = Math.floor(limit * input.semanticQuery.model.semanticLaneMaxShare);
+    if (shareCap <= 0) {
+      semanticStats = emptySemanticLaneStats("zero_budget");
+    } else {
+      try {
+        const lane = fetchSemanticLaneRows(db, input.scope, input.semanticQuery);
+        const lexicalIds = new Set(lexical.rows.map((row) => row.id));
+        const novel = lane.rows.filter((row) => !lexicalIds.has(row.id));
+        const overlap = lane.rows.filter((row) => lexicalIds.has(row.id));
+        const capacity = Math.min(shareCap, Math.max(0, limit - lexical.rows.length));
+        const added = novel.slice(0, capacity);
+        semanticRows = [...added, ...overlap];
+        semanticSimilarityById = lane.similarityById;
+        semanticStats = {
+          ...lane.stats,
+          novel: novel.length,
+          overlap: overlap.length,
+          added: added.length,
+          droppedNoCapacity: novel.length - added.length,
+        };
+        queryCount += 1;
+        rowsFetched += lane.stats.vectorsScanned;
+      } catch (e) {
+        console.warn("[EpisodicMemory] semantic lane failed; lexical V2 fallback:", (e as Error).message);
+        semanticStats = emptySemanticLaneStats("lane_error");
+      }
+    }
+  }
+
+  const merged = mergeEpisodicCandidatesById([
+    ...lexicalLanes,
+    { lane: "semantic", rows: semanticRows },
   ]);
 
   return {
     rows: merged.rows,
     laneById: merged.laneById,
+    semanticSimilarityById,
     stats: {
       queryCount,
       rowsFetched,
@@ -1870,9 +2044,117 @@ function fetchEpisodicMemoryCandidateRows(
         relevance: relevanceRows.length,
         milestone_critical: milestoneCriticalRows.length,
         milestone_important: milestoneImportantRows.length,
+        semantic: semanticStats.added,
       },
+      semantic: semanticStats,
     },
   };
+}
+
+export type EpisodicFactPendingEmbedding = {
+  factId: number;
+  /** Bounded provider input (never the hash source). */
+  embeddingInput: string;
+  /** sha256 of the FULL sanitized canonical fact_text. */
+  contentHash: string;
+};
+
+/**
+ * The only selection of fact text that may be sent to an embeddings provider.
+ * Reuses the canonical candidate scope (chat identity + reset/fork boundary),
+ * the canonical retrieval guard, and the write-time content-route stamp, so
+ * out-of-scope, unrecallable, adult, or unstamped facts never leave the server.
+ * Returns facts with no vector for this model or a stale full-text hash, newest first.
+ */
+export function listEpisodicFactsForSemanticIndexing(
+  db: Database.Database,
+  input: { chatId: number; model: EpisodicSemanticModelConfig; limit: number }
+): EpisodicFactPendingEmbedding[] {
+  const limit = Math.max(0, Math.trunc(input.limit));
+  const scope = buildEpisodicCandidateScope(db, { chatId: input.chatId });
+  if (!scope || limit === 0) return [];
+  ensureEpisodicFactEmbeddingSchema(db);
+  const where = [...scope.baseWhere, "json_extract(metadata, '$.content_route') = ?"];
+  const params = [...scope.baseParams, EPISODIC_SEMANTIC_INDEXABLE_CONTENT_ROUTE];
+  const select = (indexed: boolean) =>
+    db
+      .prepare(
+        `SELECT f.*, e.content_hash AS semantic_content_hash
+           FROM (SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+                   FROM episodic_memory_facts
+                   WHERE ${where.join(" AND ")}) f
+           LEFT JOIN ${EPISODIC_FACT_EMBEDDINGS_TABLE} e
+             ON e.fact_id = f.id AND e.chat_id = f.chat_id AND e.model_id = ? AND e.dimensions = ?
+           WHERE e.fact_id IS ${indexed ? "NOT NULL" : "NULL"}
+           ORDER BY f.id DESC
+           LIMIT ?`
+      )
+      .all(
+        ...params,
+        input.model.modelId,
+        input.model.dimensions,
+        EPISODIC_SEMANTIC_INDEX_SCAN_ROWS
+      ) as Array<EpisodicMemoryFactRecord & { semantic_content_hash: string | null }>;
+
+  const out: EpisodicFactPendingEmbedding[] = [];
+  const consider = ({ semantic_content_hash, ...row }: EpisodicMemoryFactRecord & { semantic_content_hash: string | null }) => {
+    if (out.length >= limit) return;
+    if (!evaluateEpisodicRetrievalGuard(attachStoredEvidenceType(row)).allowed) return;
+    const text = episodicFactSemanticText(row);
+    if (!text) return;
+    const contentHash = episodicFactContentHash(text);
+    if (semantic_content_hash === contentHash) return;
+    out.push({ factId: row.id, embeddingInput: episodicFactEmbeddingInput(text), contentHash });
+  };
+  select(false).forEach(consider);
+  if (out.length < limit) select(true).forEach(consider);
+  return out;
+}
+
+/**
+ * True when at least one hash-carrying vector for this model exists for a fact
+ * inside the recall scope. Lets callers skip the query embedding (0 HTTP) when
+ * the semantic lane could not return anything.
+ */
+export function hasEpisodicSemanticIndexInScope(
+  db: Database.Database,
+  input: GetEpisodicMemoryForPromptInput,
+  model: EpisodicSemanticModelConfig,
+  env = process.env
+): boolean {
+  if (!episodicMemoryRecallEnabled(env) || !episodicFactEmbeddingSidecarExists(db)) return false;
+  const scope = buildEpisodicCandidateScope(db, input, env);
+  if (!scope) return false;
+
+  const rows = db
+    .prepare(
+      `SELECT f.*, e.content_hash AS semantic_content_hash, e.embedding AS semantic_embedding
+         FROM (SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+                 FROM episodic_memory_facts
+                 WHERE ${scope.recallWhere.join(" AND ")}
+                   AND json_extract(metadata, '$.content_route') = ?) f
+         JOIN ${EPISODIC_FACT_EMBEDDINGS_TABLE} e
+           ON e.fact_id = f.id AND e.chat_id = f.chat_id
+         WHERE e.model_id = ? AND e.dimensions = ?`
+    )
+    .all(
+      ...scope.recallParams,
+      EPISODIC_SEMANTIC_INDEXABLE_CONTENT_ROUTE,
+      model.modelId,
+      model.dimensions
+    ) as Array<
+    EpisodicMemoryFactRecord & {
+      semantic_content_hash: string;
+      semantic_embedding: unknown;
+    }
+  >;
+
+  return rows.some(({ semantic_content_hash, semantic_embedding, ...row }) => {
+    if (!evaluateEpisodicRetrievalGuard(attachStoredEvidenceType(row)).allowed) return false;
+    const text = episodicFactSemanticText(row);
+    if (!text || episodicFactContentHash(text) !== semantic_content_hash) return false;
+    return decodeEmbeddingBlob(semantic_embedding, model.dimensions) !== null;
+  });
 }
 
 /** Test/diagnostic helper — bounded multi-lane candidate fetch without ranking/budget. */
@@ -1880,31 +2162,29 @@ export function fetchEpisodicMemoryCandidatesForDebug(
   db: Database.Database,
   input: GetEpisodicMemoryForPromptInput,
   env = process.env
-): {
-  rows: EpisodicMemoryFactRecord[];
-  stats: EpisodicCandidateFetchStats;
-  laneById: Map<number, EpisodicCandidateLane[]>;
-} {
-  const emptyStats: EpisodicCandidateFetchStats = {
-    queryCount: 0,
-    rowsFetched: 0,
-    mergedCandidateCount: 0,
-    laneCounts: {
-      recent: 0,
-      relevance: 0,
-      milestone_critical: 0,
-      milestone_important: 0,
+): EpisodicCandidateFetchResult {
+  const empty = (): EpisodicCandidateFetchResult => ({
+    rows: [],
+    laneById: new Map(),
+    semanticSimilarityById: new Map(),
+    stats: {
+      queryCount: 0,
+      rowsFetched: 0,
+      mergedCandidateCount: 0,
+      laneCounts: {
+        recent: 0,
+        relevance: 0,
+        milestone_critical: 0,
+        milestone_important: 0,
+        semantic: 0,
+      },
     },
-  };
+  });
 
-  if (!episodicMemoryRecallEnabled(env)) {
-    return { rows: [], stats: emptyStats, laneById: new Map() };
-  }
+  if (!episodicMemoryRecallEnabled(env)) return empty();
 
   const scope = buildEpisodicCandidateScope(db, input, env);
-  if (!scope) {
-    return { rows: [], stats: emptyStats, laneById: new Map() };
-  }
+  if (!scope) return empty();
 
   const candidateLimit = Math.max(
     1,
@@ -1915,11 +2195,24 @@ export function fetchEpisodicMemoryCandidatesForDebug(
     scope,
     candidateLimit,
     currentUserMessage: input.currentUserMessage,
+    semanticQuery: input.semanticQuery,
   });
 }
 
+/** Semantic relevance evidence for one fact, parameterized by the active model config. */
+type EpisodicSemanticEvidence = {
+  similarity: number | undefined;
+  passThreshold: number;
+  weight: number;
+};
+
 /** The only final ranking and relevance policy for episodic recall. */
-function scoreFactForPrompt(fact: EpisodicMemoryFactRecord, currentMessage: string, currentTurn: number | null) {
+function scoreFactForPrompt(
+  fact: EpisodicMemoryFactRecord,
+  currentMessage: string,
+  currentTurn: number | null,
+  semantic?: EpisodicSemanticEvidence
+) {
   const relevance = lexicalRelevance(fact, currentMessage);
   const importance = IMPORTANCE_RANK[fact.importance] - 1;
   const age = Math.max(0, (currentTurn ?? fact.source_turn) - fact.source_turn);
@@ -1927,17 +2220,28 @@ function scoreFactForPrompt(fact: EpisodicMemoryFactRecord, currentMessage: stri
   const milestone =
     classifyEpisodicFactTemporalNature(fact) === "historical_event" &&
     fact.importance !== "normal";
+  const semanticSimilarity = semantic?.similarity;
+  const semanticPass =
+    semantic != null &&
+    semanticSimilarity != null &&
+    semanticSimilarity >= semantic.passThreshold;
   // Candidate lanes keep important historical events discoverable, but an
-  // actual scene query still requires lexical relevance. Without semantic
-  // retrieval, bypassing that floor would refill spare budget with unrelated
-  // historical events. Empty debug/admin queries retain browse behavior.
+  // actual scene query still requires relevance evidence — lexical overlap,
+  // or model similarity at or above the active config's threshold. Milestone
+  // status alone never passes. Empty debug/admin queries retain browse behavior.
   const hasSceneQuery = currentMessage.trim().length > 0;
-  const passes = !hasSceneQuery || relevance > 0;
+  const passes = !hasSceneQuery || relevance > 0 || semanticPass;
   return {
     relevance,
     importance,
     recency,
-    composite: relevance * 4 + importance + recency + (milestone ? 2 : 0),
+    semanticSimilarity,
+    composite:
+      relevance * 4 +
+      importance +
+      recency +
+      (milestone ? 2 : 0) +
+      (semanticPass ? semantic.weight * semanticSimilarity : 0),
     passes,
   };
 }
@@ -2085,11 +2389,21 @@ export function getEpisodicMemoryForPrompt(
     const scope = buildEpisodicCandidateScope(db, input, env);
     if (!scope) return { facts: [], promptBlock: "", debug: [] };
 
-    const { rows, laneById } = fetchEpisodicMemoryCandidateRows(db, {
+    const { rows, laneById, semanticSimilarityById } = fetchEpisodicMemoryCandidateRows(db, {
       scope,
       candidateLimit,
       currentUserMessage: input.currentUserMessage,
+      semanticQuery: input.semanticQuery,
     });
+    const semanticModel = input.semanticQuery?.model ?? null;
+    const semanticEvidenceFor = (fact: EpisodicMemoryFactRecord): EpisodicSemanticEvidence | undefined =>
+      semanticModel
+        ? {
+            similarity: semanticSimilarityById.get(fact.id),
+            passThreshold: semanticModel.similarityPassThreshold,
+            weight: semanticModel.semanticScoreWeight,
+          }
+        : undefined;
 
     const uncontaminatedRows: EpisodicMemoryFactRecord[] = [];
     let blockedContaminatedCount = 0;
@@ -2218,7 +2532,12 @@ export function getEpisodicMemoryForPrompt(
       deduped.push(fact);
     }
 
-    const scores = new Map(deduped.map((fact) => [fact.id, scoreFactForPrompt(fact, currentMessage, currentTurn)]));
+    const scores = new Map(
+      deduped.map((fact) => [
+        fact.id,
+        scoreFactForPrompt(fact, currentMessage, currentTurn, semanticEvidenceFor(fact)),
+      ])
+    );
     for (const fact of deduped) {
       const score = scores.get(fact.id)!;
       const diagnostic = debugById.get(fact.id)!;
@@ -2227,6 +2546,7 @@ export function getEpisodicMemoryForPrompt(
       diagnostic.recency_score = score.recency;
       diagnostic.composite_score = score.composite;
       diagnostic.relevance_pass = score.passes;
+      if (score.semanticSimilarity != null) diagnostic.semantic_similarity = score.semanticSimilarity;
     }
     const rankedAll = deduped.filter((fact) => scores.get(fact.id)!.passes)
       .sort((a, b) => compareScoredFacts(a, b, scores));
@@ -2293,8 +2613,8 @@ export function getEpisodicMemoryForPrompt(
         blocked_abstract_psychological_facts_count: blockedPsychologicalCount,
         temporary_skipped_count: temporarySkippedCount,
         omitted_due_to_budget_count: omittedDueToBudgetCount,
-        score_diagnostics: debug.map(({ id, candidate_lanes, relevance_score, importance_score, recency_score, composite_score, relevance_pass, duplicate_reason, budget_reason, final_rank }) => ({
-          id, candidate_lanes, relevance_score, importance_score, recency_score,
+        score_diagnostics: debug.map(({ id, candidate_lanes, relevance_score, importance_score, recency_score, semantic_similarity, composite_score, relevance_pass, duplicate_reason, budget_reason, final_rank }) => ({
+          id, candidate_lanes, relevance_score, importance_score, recency_score, semantic_similarity,
           composite_score, relevance_pass, duplicate_reason, budget_reason, final_rank,
         })),
       });
