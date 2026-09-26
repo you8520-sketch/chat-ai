@@ -1,4 +1,4 @@
-# Jev Shadow-Memory Audit — CORRECTION PASS (on current main + #1071 transport)
+# Jev Shadow-Memory Audit — FINAL CORRECTION PASS (on current main + #1071 transport)
 
 This PR is a FEATURE/AUDIT CORRECTION, not a semantic-retrieval feature.
 It preserves the proven root cause (candidate-discovery gap) while fixing
@@ -59,13 +59,17 @@ Same cause for defects 1–6 and 10: the harness reported intentions
   type-compatible and that approved callers must pass only bounded
   candidate excerpts + bounded scene query).
 - `src/lib/memory/memory-rp-benchmark.ts`: raw-metric aggregation where
-  every metric is `{ value, status, reason? }`. Unmeasured stays null.
+  every metric is `{ value, status, eligibleCases?, totalCases?, reason? }`;
+  outcomes carry raw per-stage evidence ids (candidate / final with
+  `allowedFactIds` / stale / observer isolation) and each metric's
+  denominator is only the cases holding that evidence. Unmeasured stays null.
 - `src/lib/memory/memory-jev-shadow-audit.test.ts`: 11 deterministic
   fixtures (03 split into 03A/03B, each with a single asserted outcome).
-- `src/lib/memory/memory-rp-benchmark.test.ts`: 22 executed cases — one per
-  requested category, each running a real canonical owner on in-memory
-  SQLite with zero provider HTTP (fetch spy) — plus a real-retrieval
-  zero-relevant control.
+- `src/lib/memory/memory-rp-benchmark.test.ts`: 23 executed cases — one per
+  requested category plus a real-retrieval `zero_relevant_control`, each
+  running a real canonical owner on in-memory SQLite with zero provider HTTP
+  (fetch spy) — plus a false-injection negative proof and a NOT_MEASURED
+  eligibility test.
 - Transport existence alone triggered no integration: the #1071 transport
   (`callJevDecisions`) has no ZDR/retention request field on its official
   wire body (`{model, state, questions}`), reuses the production
@@ -114,41 +118,94 @@ additionally shows the adjacent ranking-stage shape (milestone lane rescues
 candidacy, relevance gate fails on zero overlap) as evidence only — it does
 not authorize integration.
 
-## MEASURED METRICS (22 executed cases, fetch spy, real owners)
+## FINAL CORRECTION PASS — metric semantics (exact-head review of d3dcbad)
+
+Two remaining blockers, both fixed:
+
+1. **False injection was decided by fixture naming.** `evaluate()` flagged a
+   false injection only when an injected fact's subject started with
+   `"filler"`, and non-retrieval cases were pushed with `falseInjected: false`,
+   inflating the denominator. Now every final-retrieval case declares explicit
+   `allowedFactIds`; `detectFalseInjection` flags any injected fact outside
+   that set; and `falseInjectionRate` counts only cases that actually ran the
+   final retrieval owner (`final` evidence present).
+2. **Knowledge-store isolation was reported as prompt non-leakage.** The
+   Persona Secret case only ran `upsertObserverSecretKnowledge` +
+   `getObserverSecretKnowledge` for right/wrong observers. That is
+   **knowledge-store observer isolation ≠ end-to-end prompt non-leakage.**
+   It is now reported as `wrongObserverKnowledgeLeakCount` (MEASURED, computed
+   from the actual wrong-observer lookups), and `secretLeakCount` is
+   `null / NOT_MEASURED` — "final wrong-observer prompt/context assembly not
+   executed". No Persona Secret prompt subsystem was added.
+
+### Per-metric eligibility
+
+Each case carries evidence objects only for stages a canonical owner actually
+ran; a metric's denominator is the cases holding its evidence type:
+
+| Metric | Eligible cases = cases that… |
+|---|---|
+| `candidateRecall@K` | ran candidate discovery with ≥1 expected answer id |
+| `finalRecall@8` | ran final retrieval with ≥1 expected answer id |
+| `falseInjectionRate` | ran final retrieval with an explicit `allowedFactIds` set (incl. `allowed = []` controls) |
+| `staleStateRecallRate` | ran a real stale-vs-latest competition in one DB |
+| `wrongObserverKnowledgeLeakCount` | ran the knowledge-store observer isolation owner |
+| `secretLeakCount` (prompt-level) | ran the final prompt/context assembly path — none in this harness |
+
+Allowed sets used: single-answer → `[answerId]`; same-turn multi-event →
+`[id1, id2]`; historical repeat → `[id1, id2]` (expected final = the cued
+event); character injury→recovery → `[injury, recovery]` (expected =
+injury); latest-state / location → `[latestId]` with the old row as stale;
+regeneration-rejected / delete / fork / zero-relevant → `[]`. Canon-guard-only
+and secret-isolation-only cases carry no `final` evidence and never enter the
+false-injection denominator.
+
+## MEASURED METRICS (23 executed cases, fetch spy, real owners)
 
 ```text
-cases=22 candidateRecall@K=0.941[MEASURED] finalRecall@8=0.941[MEASURED]
-falseInjectionRate=0.000[MEASURED] staleStateRecallRate=0.000[MEASURED]
-secretLeakCount=0[MEASURED] baselineVsShadowDelta=null[NOT_APPLICABLE]
-providerCallsPerTurn=0.000[MEASURED] jevInvocationRate=0.000[MEASURED]
+cases=23
+candidateRecall@K=0.941[MEASURED, eligibleCases=17/23]
+finalRecall@8=0.941[MEASURED, eligibleCases=17/23]
+falseInjectionRate=0[MEASURED, eligibleCases=21/23]
+staleStateRecallRate=0[MEASURED, eligibleCases=2/23]
+wrongObserverKnowledgeLeakCount=0[MEASURED, eligibleCases=1/23]
+secretLeakCount=null[NOT_MEASURED, eligibleCases=0/23]
+baselineVsShadowDelta=null[NOT_APPLICABLE]
+providerCallsPerTurn=0[MEASURED] jevInvocationRate=0[MEASURED]
 jevP50=null[NOT_APPLICABLE] jevP95=null[NOT_APPLICABLE]
 jevCostPer1k=null[NOT_APPLICABLE] promptTokenDelta=null[NOT_APPLICABLE]
 fallbackParity=null[NOT_APPLICABLE]
 ```
 
-Coverage: all 22 requested categories executed ≥1 real-owner case —
-boundary_5turn, callback_75turn, t300, t1000, semantic_paraphrase, promise,
-betrayal, first_never, role_event_direction, same_turn_multi_event,
-latest_state_replacement, historical_repeat_events,
-irrelevant_critical_vs_relevant_normal,
-user_canonical_vs_assistant_hallucination (real `detectUnverifiedCanonicalization`
-guard: undisclosed risky state blocked, user-stated allowed),
-regeneration_rejected_event (real reconcile owner deletes the rejected
-variant), message_edit (real canonical-mutation replace swaps v1→v2),
-delete_rewind (real assistant-id delete), fork_variant (real recall-side
-reset boundary excludes pre-fork sources), persona_secret_wrong_observer
-(real `upsert` + `getObserverSecretKnowledge`: observer 10 sees, observer 99
-gets null), trpg_quest, character_state_transition, location_ownership_transition.
-Zero-relevant control runs the real `getEpisodicMemoryForPrompt` on an
-irrelevant-only DB and injects 0 facts / empty block.
+Eligible counts are computed from evidence present at runtime (the test
+asserts them against `outcomes.filter(...)`, not against fixed numbers).
 
-The single recall miss (16/17) is the tagged
-`semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01` case — a documented
-baseline repro, NOT a permanent invariant: the approved
-semantic-candidate-discovery fix PR must flip it to hit (Phase 10).
+Coverage: all 22 requested categories plus `zero_relevant_control` executed
+≥1 real-owner case. Owners per case type: retrieval (`fetchEpisodicMemoryCandidatesForDebug`
++ `getEpisodicMemoryForPrompt`), canon guard (`detectUnverifiedCanonicalization`),
+regeneration reconcile, canonical-mutation replace, assistant-id delete,
+recall-side fork reset boundary, knowledge-store observer isolation.
+Regeneration/delete/fork cases now also run the real final retrieval after
+the mutation (allowed = `[]`), so their false-injection eligibility is real.
+
+**Negative proof:** with real fixture ids (relevant normal answer + unrelated
+critical fact) and a deliberately wrong final result fed to the pure
+evaluator, `detectFalseInjection` returns `true` for `[answer, unrelated]`,
+`[unrelated]`, and `allowed=[]` with any injection, and `false` for
+`[answer]`. Aggregating one wrong + one clean + one guard-only case yields
+`falseInjectionRate=0.500[MEASURED, eligibleCases=2/3]` — the metric catches
+wrong injections and excludes non-retrieval cases. A separate test proves a
+guard-only run reports every retrieval/secret metric as
+`null / NOT_MEASURED / eligibleCases=0`.
+
+**KNOWN_GAP:** the single candidate/final recall miss (16/17) is still
+`semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01`: fact exists in DB
+(asserted) → candidate miss → final miss on current main. A candidate-only
+Jev reranker is not the fix; the semantic-candidate-discovery PR must flip it.
 
 ## UNMEASURED METRICS (explicit nulls, not proof)
 
+- `secretLeakCount`: NOT_MEASURED — final wrong-observer prompt/context assembly not executed.
 - `baselineVsShadowDelta`, `jevP50/p95`, `jevCostPer1k`, `promptTokenDelta`,
   `fallbackParity`: NOT_APPLICABLE — no shadow/live path executed, no
   benchmark-only Jev credential owner, production key must not be reused.
@@ -158,60 +215,57 @@ semantic-candidate-discovery fix PR must flip it to hit (Phase 10).
 
 ## REMOVED
 
-- Stale "no Jev transport on main" premise and every STOP/owner/privacy
-  sentence resting on it.
-- Hard-coded `baselineVsShadowDelta: 0`, `fallbackParity: true`,
-  hand-written zero/false-injection outcomes, bare-null latency/cost fields.
-- `CAPTURE_FAILURE` / `MODEL_COMPLIANCE_FAILURE` from the classifier union
-  (separate evidence owners required; not inferable here).
-- The "candidate recall is always < 1" general invariant — replaced by the
-  tagged KNOWN_GAP_BASELINE_REPRO case the fix PR must flip.
-- Over-claim "builder cannot receive secrets" — replaced by the explicit
-  audit-only caller policy (`SHADOW_INPUT_CALLER_POLICY`).
+- Stale "no Jev transport on main" premise and every sentence resting on it.
+- Hard-coded `baselineVsShadowDelta: 0`, `fallbackParity: true`, bare-null
+  latency/cost fields.
+- Fixture-name false-injection check (`subject.startsWith("filler")`) and all
+  hand-written `falseInjected` / `staleInjected` / `secretLeaked` outcome
+  booleans — outcomes now carry raw evidence ids only.
+- `secretLeakCount` as a MEASURED value (knowledge-store isolation now lives
+  in `wrongObserverKnowledgeLeakCount`).
+- `CAPTURE_FAILURE` / `MODEL_COMPLIANCE_FAILURE` from the classifier union.
+- The "candidate recall is always < 1" invariant (replaced by the tagged
+  KNOWN_GAP case).
+- Over-claim "builder cannot receive secrets" (replaced by the audit-only
+  caller policy `SHADOW_INPUT_CALLER_POLICY`).
 
-## DEAD-HELPER AUDIT (Phase 9)
+## DEAD-HELPER AUDIT
 
 | File | Writer/caller | Runtime reader | Test reader | Future reader | Verdict |
 |---|---|---|---|---|---|
-| `memory-jev-shadow-audit.ts` | harness tests | none (by design) | audit + benchmark tests | semantic-discovery follow-up (stage vocabulary) | SAFE TO KEEP (audit/test utility, header documents readers) |
-| `memory-rp-benchmark.ts` | benchmark test | none (by design) | benchmark test | fix PR re-run (BEFORE→AFTER proof) | SAFE TO KEEP (durable baseline-harness owner) |
-
-No production-only dead helper exists (both have test readers and a named
-follow-up reader). Nothing to move or delete. No duplicate
-relevance/importance helper was introduced — classification reuses existing
-`candidate_lanes` / `relevance_pass` / `final_rank` diagnostics.
+| `memory-jev-shadow-audit.ts` | harness tests | none (by design) | audit + benchmark tests | semantic-discovery follow-up (stage vocabulary) | SAFE TO KEEP |
+| `memory-rp-benchmark.ts` | benchmark test | none (by design) | benchmark test | fix PR re-run (BEFORE→AFTER proof) | SAFE TO KEEP |
 
 ## PRESERVED (untouched)
 
-Episodic discovery lanes, `scoreFactForPrompt`, final budget, temporal
-reconciliation, Relationship Memory, Persona Secret runtime, Scene
-Directive, user authoring, Global / Medium / RAW, Main RP, the #1071 Jev
-transport, billing/ledger, provider routing. Provider HTTP = 0 (measured
-via fetch spy). Semantic/vector index = 0. DB migration = 0.
+Episodic discovery lanes and budgets, `scoreFactForPrompt`, final budget,
+temporal owner, Relationship Memory, Persona Secret runtime permissions,
+Scene Directive, authoring owner, Global / Medium / RAW, Main RP, the #1071
+Jev transport, billing/ledger, provider routing. Provider HTTP = 0 (fetch
+spy, `httpCallsObserved` asserted 0). Semantic/vector index = 0. DB
+migration = 0. Live Jev = 0.
 
 ## REGRESSION RISKS
 
 None from this PR: additive harness/test/doc files only, no production
-import. The 4 pre-existing failures in `memory-retrieval-v2` /
-`episodicMemoryFacts` suites are reproduced on the exact current main
-(see PROOF) and are untouched by this change.
+import. Pre-existing failures are reproduced on the exact current main (see
+PROOF) and are untouched by this change.
 
 ## PROOF
 
-- New harness: 13/13 pass (11 audit fixtures + full-category benchmark + real zero-relevant control).
-- Gates run: audit/benchmark tests, Retrieval V2 tests, episodic-facts tests, #1071 `jevDecisions` tests, role-event-direction tests, memory scope/regen/delete/fork tests, `git diff --check`, `npm run lint`, `npm run typecheck:app`, `npm run build`.
-- Pre-existing failures reproduced on EXACT MAIN (not cited from memory).
-- EXACT MAIN: `da10e55f2c7594fbb7e47bbbdf471101eb9c9cd8` (Merge PR #1071).
-- EXACT PR HEAD: branch tip of #1072 at review time (see PR head commit).
-- BEHIND_MAIN: 0 (`git rev-list --count HEAD..origin/main` = 0 after sync merge).
-- PROVIDER HTTP = 0 (fetch spy over the benchmark run).
+- New harness: 14/14 pass (11 audit fixtures + full-category benchmark +
+  false-injection negative proof + NOT_MEASURED eligibility test).
+- Main sync: PR #1073 (authoring `user_impersonation` mirror retirement)
+  touches no memory / episodic / Persona Secret / Jev / benchmark file.
+- EXACT MAIN / EXACT HEAD / BEHIND_MAIN and the full test matrix + build
+  parity are recorded in the PR body for the reviewed head.
 
 ## FINAL CLASSIFICATION
 
 **MEMORY_BENCHMARK_FOUNDATION_READY**
 
-The candidate-discovery gap stays proven, every claimed category now has an
-executed real-owner baseline, and every unmeasured metric says so
-explicitly. The follow-up semantic-candidate-discovery PR can reuse this
-harness as its BEFORE→AFTER proof (flip KNOWN_GAP_BASELINE_REPRO to hit).
-Draft PR, do not merge. STOP for GPT exact-head review.
+The candidate-discovery gap stays proven; false injection is measured by
+explicit allowed ids with a real-eligibility denominator and a negative
+proof; knowledge-store isolation is separated from prompt-level secret
+leakage, which is honestly NOT_MEASURED. Draft PR, do not merge. STOP for
+GPT exact-head review.
