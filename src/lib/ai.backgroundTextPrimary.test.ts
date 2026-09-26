@@ -273,6 +273,43 @@ test("callBackgroundMemory default outbound is GPT-6 Luna with reasoning none", 
   }
 });
 
+test("GPT-6 Luna background transport failure makes exactly one physical fetch", async () => {
+  const previousFetch = globalThis.fetch;
+  const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
+  process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+  let fetchCalls = 0;
+  const bodies: Record<string, unknown>[] = [];
+
+  globalThis.fetch = (async (_input, init) => {
+    fetchCalls += 1;
+    bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+    return new Response(
+      JSON.stringify({ error: { message: "upstream unavailable" } }),
+      { status: 502, headers: { "Content-Type": "application/json" } }
+    );
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      () =>
+        callBackgroundMemory(
+          "system",
+          [{ role: "user", content: "상태" }],
+          undefined,
+          "background-post-turn-shared-initial"
+        ),
+      /CheaperInference 502/
+    );
+    assert.equal(fetchCalls, 1, "background Luna failure must not fan out or retry");
+    assert.equal(bodies.length, 1);
+    assert.equal(bodies[0]?.model, CHEAPER_INFERENCE_GPT_6_LUNA_MODEL);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
+    else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+  }
+});
+
 test("explicit DeepSeek modelId on callBackgroundMemory stays DeepSeek", async () => {
   const previousFetch = globalThis.fetch;
   const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
