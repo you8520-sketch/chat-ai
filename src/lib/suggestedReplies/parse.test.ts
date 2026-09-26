@@ -225,7 +225,6 @@ describe("resolveClientSuggestedReplies", () => {
       extractedAt: "2026-01-01T00:00:00.000Z",
       source: "post-turn-shared",
       pending: false,
-      failed: false,
     });
     assert.deepEqual(fields.suggestedReplies, []);
     assert.equal(fields.suggestedRepliesPending, false);
@@ -387,11 +386,11 @@ describe("legacy explicit kinds fail closed", () => {
       extractedAt: new Date().toISOString(),
       source: "post-turn-shared",
       pending: false,
-      failed: false,
+      failed: true,
       noRetry: true,
     });
     const record = parseSuggestedRepliesRecord(raw);
-    assert.equal(record?.failed, true);
+    assert.equal("failed" in (record ?? {}), false);
     assert.equal("noRetry" in (record ?? {}), false);
     assert.deepEqual(record?.replies, []);
 
