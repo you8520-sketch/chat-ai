@@ -7,6 +7,8 @@ const CHAT_DISPLAY_PREFS_KEY = "playai-chat-display-prefs";
 
 const MOCK_USER_MESSAGE_ID = 190_001;
 const MOCK_ASSISTANT_MESSAGE_ID = 190_002;
+const SECOND_USER_MESSAGE_ID = 190_101;
+const SECOND_ASSISTANT_MESSAGE_ID = 190_102;
 const MOCK_ASSISTANT_CONTENT =
   "유나는 잠깐 생각하더니 고개를 끄덕였다. 이제 다음 말을 기다리는 듯 시선을 맞췄다.";
 const EDITED_ASSISTANT_CONTENT =
@@ -314,6 +316,48 @@ function buildMockChatSseBody(chatId: number): string {
   ].join("");
 }
 
+function buildMockSecondChatSseBody(chatId: number): string {
+  const requestId = "suggested-replies-send-e2e-second-turn";
+  const finalContent =
+    "유나는 선택한 말을 듣고 바로 다음 이야기로 넘어갔다. 이전 추천이 남지 않은 새 턴이다.";
+
+  return [
+    `data: ${JSON.stringify({
+      type: "turn_persisted",
+      chatId,
+      messageId: SECOND_ASSISTANT_MESSAGE_ID,
+      userMessageId: SECOND_USER_MESSAGE_ID,
+      requestId,
+    })}\n\n`,
+    `data: ${JSON.stringify({
+      type: "append",
+      text: finalContent,
+    })}\n\n`,
+    `data: ${JSON.stringify({
+      type: "done",
+      chatId,
+      messageId: SECOND_ASSISTANT_MESSAGE_ID,
+      userMessageId: SECOND_USER_MESSAGE_ID,
+      requestId,
+      finalContent,
+      generationStatus: "completed",
+      suggestedRepliesPending: false,
+      remainingPoints: 1490,
+      paidPoints: 1490,
+      freePoints: 0,
+      totalPointsCost: 10,
+      usage: {
+        input: 100,
+        output: 50,
+        model: "playwright-fixture",
+        route: "safe",
+        cost: 10,
+        breakdown: [],
+      },
+    })}\n\n`,
+  ].join("");
+}
+
 function buildMockVariantChatSseBody(chatId: number): string {
   const requestId = "suggested-replies-variant-e2e";
   const variants = [
@@ -549,6 +593,121 @@ async function installSuggestedRepliesEditInvalidationMock(page: Page) {
     ...base,
     getUserPatchCalls: () => userPatchCalls,
     getAssistantPatchCalls: () => assistantPatchCalls,
+  };
+}
+
+async function installSuggestedReplySendMock(page: Page) {
+  let targetPollCalls = 0;
+  let chatPostCalls = 0;
+  const sentMessages: string[] = [];
+
+  await page.route("**/api/chat/message**", async (route: Route) => {
+    const url = new URL(route.request().url());
+    const messageId = Number(url.searchParams.get("messageId"));
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        messageId,
+        content:
+          messageId === SECOND_ASSISTANT_MESSAGE_ID
+            ? "유나는 선택한 말을 듣고 바로 다음 이야기로 넘어갔다. 이전 추천이 남지 않은 새 턴이다."
+            : MOCK_ASSISTANT_CONTENT,
+        generationStatus: "completed",
+      }),
+    });
+  });
+
+  await page.route("**/api/chat/settings", async (route: Route) => {
+    if (route.request().method() === "POST" || route.request().method() === "PATCH") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ narrativePov: "third_person" }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.route("**/api/chat/suggested-replies**", async (route: Route) => {
+    const url = new URL(route.request().url());
+    const messageId = Number(url.searchParams.get("messageId"));
+    if (messageId !== MOCK_ASSISTANT_MESSAGE_ID) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          messageId,
+          requested: false,
+          pending: false,
+          failed: true,
+          replies: [],
+        }),
+      });
+      return;
+    }
+
+    targetPollCalls += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        targetPollCalls === 1
+          ? {
+              messageId,
+              requested: true,
+              pending: true,
+              failed: false,
+              replies: [],
+            }
+          : {
+              messageId,
+              requested: true,
+              pending: false,
+              failed: false,
+              replies: REPLIES,
+            }
+      ),
+    });
+  });
+
+  await page.route("**/api/chat", async (route: Route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+
+    chatPostCalls += 1;
+    let body: { chatId?: number; message?: string } = {};
+    try {
+      body = route.request().postDataJSON() as {
+        chatId?: number;
+        message?: string;
+      };
+    } catch {
+      /* fixture fallback */
+    }
+
+    if (typeof body.message === "string") sentMessages.push(body.message);
+
+    await route.fulfill({
+      status: 200,
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache",
+      },
+      body:
+        chatPostCalls === 1
+          ? buildMockChatSseBody(body.chatId ?? 0)
+          : buildMockSecondChatSseBody(body.chatId ?? 0),
+    });
+  });
+
+  return {
+    getTargetPollCalls: () => targetPollCalls,
+    getChatPostCalls: () => chatPostCalls,
+    getSentMessages: () => [...sentMessages],
   };
 }
 
@@ -1290,6 +1449,57 @@ test.describe("Suggested Replies — production browser lifecycle", () => {
     expect(mock.getChatPostCalls()).toBe(2);
     expect(mock.getRegenPostCalls()).toBe(1);
     await expect(textarea).toHaveValue("");
+  });
+
+  test("selected suggestion is sent byte-identically as the next user turn and old buttons clear", async ({ page }) => {
+    const mock = await installSuggestedReplySendMock(page);
+    await openFreshChat(page);
+
+    const textarea = page.locator("textarea[placeholder*='메시지 입력']");
+    await setReactTextareaValue(page, "추천 전송 준비");
+
+    const firstResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/chat" &&
+        response.request().method() === "POST",
+      { timeout: 45_000 }
+    );
+    await page.getByRole("button", { name: "전송", exact: true }).click();
+    expect((await firstResponse).ok()).toBeTruthy();
+
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    }
+    await expect.poll(mock.getTargetPollCalls, { timeout: 10_000 }).toBe(2);
+
+    await page.getByText(REPLIES[0].text, { exact: true }).click();
+    await expect(textarea).toHaveValue(REPLIES[0].text);
+
+    const secondResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/chat" &&
+        response.request().method() === "POST",
+      { timeout: 45_000 }
+    );
+    await page.getByRole("button", { name: "전송", exact: true }).click();
+    expect((await secondResponse).ok()).toBeTruthy();
+
+    await expect.poll(mock.getChatPostCalls, { timeout: 5_000 }).toBe(2);
+    expect(mock.getSentMessages()).toEqual([
+      "추천 전송 준비",
+      REPLIES[0].text,
+    ]);
+
+    await expect(page.getByRole("button", { name: /^정석 ·/ })).toHaveCount(0, {
+      timeout: 5_000,
+    });
+    await expect(page.getByRole("button", { name: /^한 수 ·/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^드립 ·/ })).toHaveCount(0);
+    await expect(page.getByText("추천 메시지 준비 중…", { exact: true })).toHaveCount(0);
+    await expect(textarea).toHaveValue("");
+    expect(mock.getTargetPollCalls()).toBe(2);
   });
 
   test("variant switch immediately clears previous-generation suggestions", async ({ page }) => {
