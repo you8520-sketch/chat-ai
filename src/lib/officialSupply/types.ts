@@ -178,7 +178,7 @@ export type OfficialCharacterDraft = {
   speech: OfficialCharacterSpeech;
   supportingNpcs: OfficialSupportingNpc[];
   hook: OfficialCharacterHook;
-  /** Hidden canon (true identity, secret lineage, future events). Never shared across characters. */
+  /** Hidden canon as short key phrases (true identity, secret lineage, future events). Never shared across characters. */
   secrets: string[];
   adult: OfficialAdultProfile;
 };

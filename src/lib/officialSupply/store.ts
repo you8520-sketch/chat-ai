@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { parseCharacterFormBody, type SessionUser } from "@/lib/characterFormSave";
+import { primaryCharacterGenre } from "@/lib/characterGenres";
 import { getDb } from "@/lib/db";
 import type { OpenAiImageQuality } from "@/lib/openAiImageEdit";
 import {
@@ -18,7 +19,7 @@ import {
   mergeQa,
 } from "@/lib/officialSupply/characterText";
 import { officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
-import type { OfficialPortfolioPolicy } from "@/lib/officialSupply/research";
+import { evaluatePortfolioBalance, type OfficialPortfolioPolicy } from "@/lib/officialSupply/research";
 import {
   DEFAULT_STYLE_PROOF_ASSET_LIMIT,
   validateStyleProposal,
@@ -467,6 +468,24 @@ export class OfficialSupplyStore {
     return this.getCharacter(draft.draftKey);
   }
 
+  /** Portfolio QA (SFW / 19+ share, genre concentration) against the batch's configured policy. */
+  evaluateBatchPortfolio(batchKey: string): QaResult {
+    const batch = this.getBatch(batchKey);
+    const drafts = (
+      this.db
+        .prepare("SELECT draft_json FROM official_supply_characters WHERE batch_key=?")
+        .all(batchKey) as Array<{ draft_json: string }>
+    ).map((row) => JSON.parse(row.draft_json) as OfficialCharacterDraft);
+    return evaluatePortfolioBalance(
+      drafts.map((draft) => ({
+        draftKey: draft.draftKey,
+        primaryGenre: primaryCharacterGenre(draft.genres),
+        nsfw: draft.adult.nsfw,
+      })),
+      batch.config.portfolio
+    );
+  }
+
   getCharacter(draftKey: string): OfficialCharacterRecord {
     const row = this.db
       .prepare("SELECT * FROM official_supply_characters WHERE draft_key=?")
@@ -646,11 +665,11 @@ export class OfficialSupplyStore {
   } {
     const character = this.getCharacter(draftKey);
     const style = this.getStyle(character.styleKey);
-    const asset = this.getAsset(draftKey, slotKey);
     if (!isStageAtLeast(character.stage, "asset_plan_locked") || character.stage === "staged_private") {
       throw new OfficialSupplyGateError("character_stage", `draft ${draftKey} is ${character.stage}; TEXT/APPEARANCE lock + asset plan required`);
     }
     this.assertTextLockCurrent(character);
+    const asset = this.getAsset(draftKey, slotKey);
     if (!character.appearanceLockHash || asset.appearanceLockHash !== character.appearanceLockHash) {
       throw new OfficialSupplyGateError("appearance_lock_stale", `${draftKey}/${slotKey} was planned for another appearance lock`);
     }
