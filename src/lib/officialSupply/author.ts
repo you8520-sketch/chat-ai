@@ -17,8 +17,10 @@ import {
   buildAssetPlanUser,
   buildCharacterBible1System,
   buildCharacterBible1User,
-  buildCharacterBible2System,
-  buildCharacterBible2User,
+  buildCharacterBondsSystem,
+  buildCharacterBondsUser,
+  buildCharacterVoiceSystem,
+  buildCharacterVoiceUser,
   buildStyleBoardSystem,
   buildStyleBoardUser,
   buildWorldAtlasUser,
@@ -32,7 +34,8 @@ import {
   type AppearanceInput,
   type AssetPlanInput,
   type CharacterBible1Input,
-  type CharacterBible2Input,
+  type CharacterBondsInput,
+  type CharacterVoiceInput,
   type OfficialAuthorTask,
   type PortfolioBriefInput,
   type StyleBoardInput,
@@ -42,7 +45,8 @@ import {
 } from "@/lib/officialSupply/authorPrompts";
 import {
   CHARACTER_BIBLE_1_SCHEMA,
-  CHARACTER_BIBLE_2_SCHEMA,
+  CHARACTER_BONDS_SCHEMA,
+  CHARACTER_VOICE_SCHEMA,
   compileOfficialDraftFromBible,
   validateCharacterBible,
   validateWorldBible,
@@ -607,7 +611,7 @@ export async function generateOfficialWorldBible(input: {
 // ── Character bible halves → assembled bible ─────────────────────────────────
 
 function coerceNpc(raw: unknown, index: number): OfficialCharacterBible["npcs"][number] {
-  const task = "character_bible_2";
+  const task = "character_bible_voice";
   if (!isRecord(raw)) throw new OfficialSupplyGateError("author_shape_invalid", `npc[${index}] invalid`);
   return {
     name: requiredString(raw, "name", task),
@@ -625,11 +629,12 @@ function coerceNpc(raw: unknown, index: number): OfficialCharacterBible["npcs"][
 export async function generateOfficialCharacterBible(input: {
   transport: OfficialAuthorTransport;
   part1: CharacterBible1Input;
-  part2: Omit<CharacterBible2Input, "part1Recap"> & { part1Recap?: string };
+  voice: Omit<CharacterVoiceInput, "part1Recap"> & { part1Recap?: string };
+  bonds: Omit<CharacterBondsInput, "part1Recap"> & { part1Recap?: string };
   modelId?: string;
 }): Promise<{
   bible: OfficialCharacterBible;
-  completions: [OfficialAuthorRawCompletion, OfficialAuthorRawCompletion];
+  completions: [OfficialAuthorRawCompletion, OfficialAuthorRawCompletion, OfficialAuthorRawCompletion];
 }> {
   const first = await input.transport.completeJson({
     task: "character_bible_1",
@@ -642,37 +647,60 @@ export async function generateOfficialCharacterBible(input: {
   const half1 = parseAuthorJson(first.text, "character_bible_1");
   if (!isRecord(half1)) throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_1: object required");
 
-  const recapParts = [
-    typeof half1 === "object" && isRecord(half1.identity) ? String(half1.identity.name ?? "") : "",
-    isRecord(half1.personality) ? String(half1.personality.behavioral ?? "").slice(0, 400) : "",
-  ];
+  const recap = buildPart1Recap(half1);
   const second = await input.transport.completeJson({
-    task: "character_bible_2",
-    system: buildCharacterBible2System(),
-    user: buildCharacterBible2User({
-      ...input.part2,
-      part1Recap: input.part2.part1Recap ?? recapParts.filter(Boolean).join("\n").slice(0, 800),
-    }),
-    schemaName: "official_character_bible_2",
-    schema: CHARACTER_BIBLE_2_SCHEMA,
+    task: "character_bible_voice",
+    system: buildCharacterVoiceSystem(),
+    user: buildCharacterVoiceUser({ ...input.voice, part1Recap: input.voice.part1Recap ?? recap }),
+    schemaName: "official_character_bible_voice",
+    schema: CHARACTER_VOICE_SCHEMA,
     modelId: input.modelId,
   });
-  const half2 = parseAuthorJson(second.text, "character_bible_2");
-  if (!isRecord(half2)) throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_2: object required");
+  const voiceHalf = parseAuthorJson(second.text, "character_bible_voice");
+  if (!isRecord(voiceHalf)) {
+    throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_voice: object required");
+  }
+  const third = await input.transport.completeJson({
+    task: "character_bible_bonds",
+    system: buildCharacterBondsSystem(),
+    user: buildCharacterBondsUser({ ...input.bonds, part1Recap: input.bonds.part1Recap ?? recap }),
+    schemaName: "official_character_bible_bonds",
+    schema: CHARACTER_BONDS_SCHEMA,
+    modelId: input.modelId,
+  });
+  const bondsHalf = parseAuthorJson(third.text, "character_bible_bonds");
+  if (!isRecord(bondsHalf)) {
+    throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_bonds: object required");
+  }
 
-  return { bible: assembleOfficialCharacterBible(half1, half2), completions: [first, second] };
+  return { bible: assembleOfficialCharacterBible(half1, voiceHalf, bondsHalf), completions: [first, second, third] };
+}
+
+function buildPart1Recap(half1: Record<string, unknown>): string {
+  const identity = isRecord(half1.identity) ? half1.identity : {};
+  const personality = isRecord(half1.personality) ? half1.personality : {};
+  return [
+    typeof identity === "object" ? String(identity.name ?? "") : "",
+    isRecord(personality) ? String(personality.behavioral ?? "").slice(0, 400) : "",
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 800);
 }
 
 function strArray(value: unknown): string[] {
   return optionalStringArray(value);
 }
 
-/** Merge the two structured halves into one validated-shape bible. */
+/** Merge the three structured thirds into one validated-shape bible. */
 export function assembleOfficialCharacterBible(
   half1: Record<string, unknown>,
-  half2: Record<string, unknown>
+  voiceHalf: Record<string, unknown>,
+  bondsHalf: Record<string, unknown>
 ): OfficialCharacterBible {
   const task = "character_bible_1";
+  const voiceTask = "character_bible_voice";
+  const bondsTask = "character_bible_bonds";
   const identity = isRecord(half1.identity) ? half1.identity : {};
   const appearance = isRecord(half1.appearance) ? half1.appearance : {};
   const personality = isRecord(half1.personality) ? half1.personality : {};
@@ -680,11 +708,12 @@ export function assembleOfficialCharacterBible(
   const backstory = isRecord(half1.backstory) ? half1.backstory : {};
   const habits = isRecord(half1.habits) ? half1.habits : {};
   const situation = isRecord(half1.situation) ? half1.situation : {};
-  const speech = isRecord(half2.speech) ? half2.speech : {};
-  const userRelationship = isRecord(half2.userRelationship) ? half2.userRelationship : {};
-  const rpEngine = isRecord(half2.rpEngine) ? half2.rpEngine : {};
-  const publicProfile = isRecord(half2.publicProfile) ? half2.publicProfile : {};
-  const adultSection = isRecord(half2.adultSection) ? half2.adultSection : null;
+  const speech = isRecord(voiceHalf.speech) ? voiceHalf.speech : {};
+  const userRelationship = isRecord(bondsHalf.userRelationship) ? bondsHalf.userRelationship : {};
+  const rpEngine = isRecord(bondsHalf.rpEngine) ? bondsHalf.rpEngine : {};
+  const publicProfile = isRecord(voiceHalf.publicProfile) ? voiceHalf.publicProfile : {};
+  const adultSection = isRecord(bondsHalf.adultSection) ? bondsHalf.adultSection : null;
+  const nsfw = voiceHalf.nsfw === true || bondsHalf.nsfw === true;
   const gender = identity.gender === "female" || identity.gender === "other" ? identity.gender : "male";
   return {
     identity: {
@@ -771,14 +800,14 @@ export function assembleOfficialCharacterBible(
       examples: String(speech.examples ?? ""),
       forbidden: String(speech.forbidden ?? ""),
     },
-    behaviorRules: strArray(half2.behaviorRules),
+    behaviorRules: strArray(voiceHalf.behaviorRules),
     userRelationship: {
       initialView: String(userRelationship.initialView ?? ""),
       userRole: String(userRelationship.userRole ?? ""),
       startingPoint: String(userRelationship.startingPoint ?? ""),
       progression: strArray(userRelationship.progression),
     },
-    otherRelationships: (Array.isArray(half2.otherRelationships) ? half2.otherRelationships : [])
+    otherRelationships: (Array.isArray(bondsHalf.otherRelationships) ? bondsHalf.otherRelationships : [])
       .filter(isRecord)
       .map((rel) => ({
         target: String(rel.target ?? ""),
@@ -786,21 +815,21 @@ export function assembleOfficialCharacterBible(
         privateOpinion: String(rel.privateOpinion ?? ""),
         hidden: String(rel.hidden ?? ""),
       })),
-    secrets: strArray(half2.secrets),
+    secrets: strArray(bondsHalf.secrets),
     rpEngine: {
       immediateHook: String(rpEngine.immediateHook ?? ""),
       repeatable: strArray(rpEngine.repeatable),
       mediumConflict: String(rpEngine.mediumConflict ?? ""),
       longTermChange: String(rpEngine.longTermChange ?? ""),
     },
-    greeting: typeof half2.greeting === "string" ? half2.greeting : "",
+    greeting: typeof voiceHalf.greeting === "string" ? voiceHalf.greeting : "",
     publicProfile: {
       tagline: String(publicProfile.tagline ?? ""),
       description: String(publicProfile.description ?? ""),
       tags: strArray(publicProfile.tags),
     },
-    npcs: (Array.isArray(half2.npcs) ? half2.npcs : []).map((npc, index) => coerceNpc(npc, index)),
-    nsfw: half2.nsfw === true,
+    npcs: (Array.isArray(voiceHalf.npcs) ? voiceHalf.npcs : []).map((npc, index) => coerceNpc(npc, index)),
+    nsfw,
     adultSection: adultSection
       ? {
           orientation: String(adultSection.orientation ?? ""),

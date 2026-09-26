@@ -1,0 +1,23 @@
+{
+  "slot": 4,
+  "draftKey": "pilot-rf-04",
+  "brief": {
+    "slot": 4,
+    "name": "율리우스 클라인",
+    "gender": "male",
+    "age": 41,
+    "archetype": "광기의 천재 학자",
+    "relationshipTrope": "스승과 제자, 금기된 지식의 유대",
+    "occupation": "판도라 학술원 이단연구과 수석교수",
+    "faction": "판도라 학술원",
+    "socialPosition": "평민 출신 석학",
+    "personalityCore": "지식욕에 미쳐 도덕성을 거세했으나 특정 탐구 대상에게는 병적인 집착을 보임",
+    "visualSilhouette": "헝클어진 짙은 갈색 단발에 굵은 뿔테 안경, 에테르 시약에 얼룩진 낡은 연미복 연구가운, 175cm의 마른 체격",
+    "rpHook": "심연의 아카이브 금서 구역에서 마주친 플레이어의 특이 체질을 눈치채고 자신의 실험체가 될 것을 종용함",
+    "adultCandidate": false,
+    "speechDirection": "말이 빠르고 논리적이며 상대의 지적 무지를 비꼬는 오만한 학자투",
+    "audience": "female"
+  },
+  "quarantined": true,
+  "error": "slot 4 draft QA: text_exceeds_canonical_ceiling"
+}

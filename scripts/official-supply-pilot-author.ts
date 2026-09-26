@@ -146,7 +146,7 @@ function saveCost(report: CostReport): void {
 
 function recordRun(
   draftKey: string,
-  task: "world_bible" | "character_bible_1" | "character_bible_2" | "appearance" | "asset_plan" | "style_board",
+  task: "world_bible" | "character_bible_1" | "character_bible_voice" | "character_bible_bonds" | "appearance" | "asset_plan" | "style_board",
   provenance: OfficialAuthorProvenance
 ): void {
   try {
@@ -295,14 +295,20 @@ async function generateOneCharacter(
           siblingSketches: siblingSketches(siblings, brief.slot),
           feedback,
         },
-        part2: {
+        voice: {
+          name: brief.name,
+          age: brief.age,
+          adultCandidate: brief.adultCandidate,
+          speechDirection: brief.speechDirection,
+          npcDemand: "브리프 지정 없음. 필요한 경우만 1~2명.",
+          feedback,
+        },
+        bonds: {
           name: brief.name,
           age: brief.age,
           rpHook: brief.rpHook,
           adultCandidate: brief.adultCandidate,
-          speechDirection: brief.speechDirection,
           castList: castList(siblings),
-          npcDemand: "브리프 지정 없음. 필요한 경우만 1~2명.",
           feedback,
         },
         modelId,
@@ -342,9 +348,11 @@ async function generateOneCharacter(
         provenanceFor(completion, attempt * 10 + i)
       );
       track(report, completions[0]!, "character_bible_1", draftKey, attempt, failed);
-      track(report, completions[1]!, "character_bible_2", draftKey, attempt, 0);
+      track(report, completions[1]!, "character_bible_voice", draftKey, attempt, 0);
+      track(report, completions[2]!, "character_bible_bonds", draftKey, attempt, 0);
       recordRun(draftKey, "character_bible_1", provenances[0]!);
-      recordRun(draftKey, "character_bible_2", provenances[1]!);
+      recordRun(draftKey, "character_bible_voice", provenances[1]!);
+      recordRun(draftKey, "character_bible_bonds", provenances[2]!);
       const file: CharFile = {
         slot: brief.slot,
         draftKey,

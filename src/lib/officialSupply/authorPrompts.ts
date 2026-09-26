@@ -18,15 +18,17 @@ export const OFFICIAL_AUTHOR_SNAPSHOT_VERSION = "market-research-snapshot-2026-0
 export type OfficialAuthorTask =
   | "world_bible"
   | "character_bible_1"
-  | "character_bible_2"
+  | "character_bible_voice"
+  | "character_bible_bonds"
   | "appearance"
   | "asset_plan"
   | "style_board";
 
 export const OFFICIAL_AUTHOR_MAX_TOKENS: Record<OfficialAuthorTask, number> = {
   world_bible: 14000,
-  character_bible_1: 12000,
-  character_bible_2: 12000,
+  character_bible_1: 10000,
+  character_bible_voice: 8000,
+  character_bible_bonds: 8000,
   appearance: 3000,
   asset_plan: 5000,
   style_board: 9000,
@@ -35,7 +37,8 @@ export const OFFICIAL_AUTHOR_MAX_TOKENS: Record<OfficialAuthorTask, number> = {
 export const OFFICIAL_AUTHOR_TEMPERATURE: Record<OfficialAuthorTask, number> = {
   world_bible: 0.75,
   character_bible_1: 0.75,
-  character_bible_2: 0.8,
+  character_bible_voice: 0.8,
+  character_bible_bonds: 0.75,
   appearance: 0.6,
   asset_plan: 0.6,
   style_board: 0.7,
@@ -234,25 +237,22 @@ export function buildCharacterBible1User(input: CharacterBible1Input): string {
   ].join("\n");
 }
 
-export type CharacterBible2Input = {
+export type CharacterVoiceInput = {
   name: string;
   age: number;
-  rpHook: string;
   adultCandidate: boolean;
   speechDirection: string;
   /** Part1 recap (identity + personality + backstory essence, ~600자). */
   part1Recap: string;
-  /** Other playable characters for relationship design (name — public role). */
-  castList: string[];
   /** 0~3; brief may demand specific NPCs. */
   npcDemand: string;
   /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
   feedback?: string;
 };
 
-export function buildCharacterBible2System(): string {
+export function buildCharacterVoiceSystem(): string {
   return [
-    "너는 롤플레잉 말투·관계·오프닝의 장인이다. 캐릭터 바이블 후반부(말투·규칙·관계·비밀·RP 엔진·그리팅·공개 프로필·NPC·성인)를 쓴다.",
+    "너는 롤플레잉 말투·오프닝의 장인이다. 캐릭터 바이블의 목소리 부분(말투·규칙·그리팅·공개 프로필·NPC)만 쓴다.",
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
     "",
     "speech 규칙:",
@@ -261,25 +261,63 @@ export function buildCharacterBible2System(): string {
     "- examples는 서로 다른 상황의 대사 4~6개를 각각 별도 줄로(줄바꿈 구분), 전체 합 500자 이내.",
     "  이름을 가려도 구별되는 목소리. 클론 말투 금지.",
     "- forbidden 500자 이내: 절대 하지 않을 말투.",
-    "",
-    "관계·비밀·엔진 규칙:",
     "- behaviorRules 3~7개. 부정문 나열보다 행동 논리.",
-    "- userRelationship: 첫인식·유저 역할(최소 관계만, 강제 금지)·초기 신뢰/호감/경계/이해관계·반드시 3단계 이상 progression.",
-    "  자동 사랑 빠짐 금지. 유저 행동에 따라 변해야 한다.",
-    "- otherRelationships: 대상별 public(공유 가능) / privateOpinion / hidden(숨김).",
-    "- secrets 1~4개. RP progression·갈등·관계 변화에 영향을 주는 것만. 억지 반전·trivial 금지.",
-    "- rpEngine: immediateHook + repeatable 3개 이상(비사건성 일상 포함) + mediumConflict + longTermChange. 엔딩 고정 금지.",
     "",
-    "greeting 규칙(실제 RP 첫 장면, 700~1400자):",
+    "greeting 규칙(실제 RP 첫 장면, 반드시 700자 이상 1400자 이하):",
     "- 장소·상황·분위기·캐릭터 행동·목소리·유저가 그 자리에 있는 최소 단서·반응 여지.",
     "- 소개문·자기소개·세계관 설명 덤프 금지. 이후 RP 문체의 스타일 앵커가 되는 웹소설형 출력.",
     "",
-    "공개 프로필: tagline 50자 이내 훅 한 줄. description 200~500자 pitch(캐릭터·관계·경험·갈등 중 2개 이상, 비밀 노출 금지).",
+    "공개 프로필: tagline은 반드시 50자 이내 훅 한 줄. description은 반드시 200자 이상 500자 이하",
+    "pitch(캐릭터·관계·경험·갈등 중 2개 이상, 비밀 노출 금지). tags 3~6개.",
     "SFW 시트의 공개 텍스트(tagline·description·greeting·tags)에는 다음 음절을 어떤 단어의 일부로도 쓰지 않는다:",
     "섹스, 성교, 성행위, 자위, 사정, 삽입, 오르가즘, 포르노, 야설, 야동.",
     "'사정' 대신 사연/형편/경위를 쓴다.",
     "",
     "NPC: 필요한 경우만 0~3명. 한 줄 200자 이내. 성인 시트의 NPC는 전원 나이 명시 + 19세 이상.",
+  ].join("\n");
+}
+
+export function buildCharacterVoiceUser(input: CharacterVoiceInput): string {
+  return [
+    `캐릭터: ${input.name} (${input.age}세)`,
+    `말투 방향: ${input.speechDirection}`,
+    `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,
+    `NPC 요구: ${input.npcDemand}`,
+    "",
+    "전반부 요약:",
+    input.part1Recap,
+    "",
+    "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
+    VOICE_SKELETON,
+    input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
+  ].join("\n");
+}
+
+export type CharacterBondsInput = {
+  name: string;
+  age: number;
+  rpHook: string;
+  adultCandidate: boolean;
+  /** Other playable characters for relationship design (name — public role). */
+  castList: string[];
+  /** Part1 recap (identity + personality + backstory essence, ~600자). */
+  part1Recap: string;
+  /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
+  feedback?: string;
+};
+
+export function buildCharacterBondsSystem(): string {
+  return [
+    "너는 롤플레잉 관계·갈등 설계자다. 캐릭터 바이블의 유대 부분(관계·비밀·RP 엔진·성인)만 쓴다.",
+    "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
+    "",
+    "관계·비밀·엔진 규칙:",
+    "- userRelationship: 첫인식·유저 역할(최소 관계만, 강제 금지)·초기 신뢰/호감/경계/이해관계·반드시 3단계 이상 progression.",
+    "  자동 사랑 빠짐 금지. 유저 행동에 따라 변해야 한다.",
+    "- otherRelationships: 대상별 public(공유 가능) / privateOpinion / hidden(숨김).",
+    "- secrets 1~4개. RP progression·갈등·관계 변화에 영향을 주는 것만. 억지 반전·trivial 금지.",
+    "- rpEngine: immediateHook + repeatable 반드시 3개 이상(비사건성 일상 포함) + mediumConflict + longTermChange.",
+    "  엔딩 고정 금지.",
     "",
     "성인 섹션은 adultCandidate가 true일 때만 작성(허용값 그대로 사용):",
     "- dialogueProfile은 auto·none·suggestive·explicit_rare·explicit_frequent 중 하나.",
@@ -291,27 +329,27 @@ export function buildCharacterBible2System(): string {
   ].join("\n");
 }
 
-export function buildCharacterBible2User(input: CharacterBible2Input): string {
+export function buildCharacterBondsUser(input: CharacterBondsInput): string {
   return [
     `캐릭터: ${input.name} (${input.age}세)`,
     `RP 훅: ${input.rpHook}`,
-    `말투 방향: ${input.speechDirection}`,
     `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,
-    `NPC 요구: ${input.npcDemand}`,
     `출연진(관계 설계 대상): ${input.castList.join(" / ")}`,
     "",
     "전반부 요약:",
     input.part1Recap,
     "",
     "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다(성인 후보가 아니면 adultSection은 null).",
-    BIBLE_2_SKELETON,
+    BONDS_SKELETON,
     input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
 }
 
 const BIBLE_1_SKELETON = `{"identity": {"name": "", "gender": "male", "age": 27, "apparentAge": "", "heightCm": 184, "species": "인간", "occupation": "", "socialPosition": "", "affiliation": "", "worldRole": ""}, "appearance": {"faceShape": "", "eyes": "", "eyeColor": "", "hairColor": "", "hairstyle": "", "hairLength": "", "skin": "", "build": "", "musculature": "", "distinguishingFeatures": "", "usualExpression": "", "defaultOutfit": "", "accessories": "", "impression": ""}, "personality": {"keywords": ["", "", "", "", ""], "behavioral": ""}, "contradiction": "", "values": {"desires": ["", ""], "fears": ["", ""], "coreValues": ["", ""], "nonNegotiable": [""]}, "backstory": {"events": [{"event": "", "choice": "", "residue": ""}, {"event": "", "choice": "", "residue": ""}]}, "abilities": [{"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}, {"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}], "habits": {"hobbies": ["", ""], "habits": ["", ""], "likes": ["", "", ""], "dislikes": ["", "", ""]}, "dailyLife": "", "situation": {"worldContext": "", "personalSituation": "", "userEntry": ""}}`;
 
-const BIBLE_2_SKELETON = `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": ["", ""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": ["", "", "", ""], "description": "", "examples": "대사1\\n대사2\\n대사3\\n대사4", "forbidden": ""}, "behaviorRules": ["", "", ""], "userRelationship": {"initialView": "", "userRole": "", "startingPoint": "", "progression": ["", "", ""]}, "otherRelationships": [{"target": "", "public": "", "privateOpinion": "", "hidden": ""}], "secrets": ["", ""], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": ""}, "greeting": "", "publicProfile": {"tagline": "", "description": "", "tags": ["", "", ""]}, "npcs": [], "nsfw": false, "adultSection": null}`;
+const VOICE_SKELETON = `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": ["", ""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": ["", "", "", ""], "description": "", "examples": "대사1\\n대사2\\n대사3\\n대사4", "forbidden": ""}, "behaviorRules": ["", "", ""], "greeting": "", "publicProfile": {"tagline": "", "description": "", "tags": ["", "", ""]}, "npcs": [], "nsfw": false}`;
+
+const BONDS_SKELETON = `{"userRelationship": {"initialView": "", "userRole": "", "startingPoint": "", "progression": ["", "", ""]}, "otherRelationships": [{"target": "", "public": "", "privateOpinion": "", "hidden": ""}], "secrets": ["", ""], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": ""}, "nsfw": false, "adultSection": null}`;
 
 export type AppearanceInput = {
   name: string;

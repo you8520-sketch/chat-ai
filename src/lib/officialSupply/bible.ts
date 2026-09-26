@@ -419,7 +419,7 @@ export const CHARACTER_BIBLE_1_SCHEMA: Record<string, unknown> = {
   },
 };
 
-export const CHARACTER_BIBLE_2_SCHEMA: Record<string, unknown> = {
+export const CHARACTER_VOICE_SCHEMA: Record<string, unknown> = {
   type: "object",
   properties: {
     speech: {
@@ -444,6 +444,39 @@ export const CHARACTER_BIBLE_2_SCHEMA: Record<string, unknown> = {
       },
     },
     behaviorRules: { type: "array", items: { type: "string" } },
+    greeting: { type: "string" },
+    publicProfile: {
+      type: "object",
+      properties: {
+        tagline: { type: "string" },
+        description: { type: "string" },
+        tags: { type: "array", items: { type: "string" } },
+      },
+    },
+    npcs: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          age: { type: ["number", "null"] },
+          heightCm: { type: ["number", "null"] },
+          appearance: { type: "string" },
+          personalityKeywords: { type: "array", items: { type: "string" } },
+          role: { type: "string" },
+          relationToChar: { type: "string" },
+          speech: { type: "string" },
+          adultEligible: { type: "boolean" },
+        },
+      },
+    },
+    nsfw: { type: "boolean" },
+  },
+};
+
+export const CHARACTER_BONDS_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
     userRelationship: {
       type: "object",
       properties: {
@@ -473,32 +506,6 @@ export const CHARACTER_BIBLE_2_SCHEMA: Record<string, unknown> = {
         repeatable: { type: "array", items: { type: "string" } },
         mediumConflict: { type: "string" },
         longTermChange: { type: "string" },
-      },
-    },
-    greeting: { type: "string" },
-    publicProfile: {
-      type: "object",
-      properties: {
-        tagline: { type: "string" },
-        description: { type: "string" },
-        tags: { type: "array", items: { type: "string" } },
-      },
-    },
-    npcs: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          name: { type: "string" },
-          age: { type: ["number", "null"] },
-          heightCm: { type: ["number", "null"] },
-          appearance: { type: "string" },
-          personalityKeywords: { type: "array", items: { type: "string" } },
-          role: { type: "string" },
-          relationToChar: { type: "string" },
-          speech: { type: "string" },
-          adultEligible: { type: "boolean" },
-        },
       },
     },
     nsfw: { type: "boolean" },

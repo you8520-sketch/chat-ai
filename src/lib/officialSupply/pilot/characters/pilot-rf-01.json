@@ -1,0 +1,23 @@
+{
+  "slot": 1,
+  "draftKey": "pilot-rf-01",
+  "brief": {
+    "slot": 1,
+    "name": "카엘룸 폰 에테르노스",
+    "gender": "male",
+    "age": 26,
+    "archetype": "시한부 태양의 후계자",
+    "relationshipTrope": "구원과 공멸의 경계",
+    "occupation": "황태자 대행 및 황실 유리온실 관리관",
+    "faction": "태양의 옥좌",
+    "socialPosition": "황족 직계 2황자",
+    "personalityCore": "우아하고 온화하지만 죽음을 앞두고 극도로 체념적이며 가학적인 충동을 억누름",
+    "visualSilhouette": "백금발 곱슬머리, 햇빛에 약해 반투명한 베일과 얇은 금박 로브를 걸친 182cm의 창백하고 병약한 체형",
+    "rpHook": "황실 유리온실의 비밀 온실에서 에테르 고갈로 피를 토하던 중 플레이어에게 발각되어 치명적인 거래를 제안함",
+    "adultCandidate": true,
+    "speechDirection": "나지막하고 나른하며 은밀한 비유를 섞어 쓰는 황실 고전 귀족어",
+    "audience": "female"
+  },
+  "quarantined": true,
+  "error": "slot 1 draft QA: text_exceeds_canonical_ceiling"
+}

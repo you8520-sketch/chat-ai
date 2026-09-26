@@ -7,6 +7,7 @@ import { BACKGROUND_OPENROUTER_MODEL } from "@/lib/ai";
 import {
   assembleOfficialCharacterBible,
   generateOfficialAssetPlan,
+  generateOfficialCharacterBible,
   generateOfficialStyleBoard,
   parseAuthorJson,
   resolveOfficialAuthorModelId,
@@ -203,7 +204,16 @@ function fakeHalf2(opts: { nsfw?: boolean; npcCount?: 0 | 1 | 3 | 4; age?: numbe
 }
 
 function fakeBible(nsfw: boolean, age = 27, name = "카엘") {
-  return assembleOfficialCharacterBible(fakeHalf1({ age, name }), fakeHalf2({ nsfw, age }));
+  const [voice, bonds] = splitHalf2(fakeHalf2({ nsfw }));
+  return assembleOfficialCharacterBible(fakeHalf1({ age, name }), voice, bonds);
+}
+
+function splitHalf2(combined: Record<string, unknown>): [Record<string, unknown>, Record<string, unknown>] {
+  const { userRelationship, otherRelationships, secrets, rpEngine, adultSection, nsfw, ...voice } = combined;
+  return [
+    voice as Record<string, unknown>,
+    { userRelationship, otherRelationships, secrets, rpEngine, nsfw, adultSection } as Record<string, unknown>,
+  ];
 }
 
 const STAGING_KEYS = {
@@ -289,10 +299,12 @@ describe("official author adapter", () => {
 
   it("NPC count 0/1/3 pass, 4 fails", () => {
     for (const npcCount of [0, 1, 3] as const) {
-      const bible = assembleOfficialCharacterBible(fakeHalf1(), fakeHalf2({ npcCount }));
+      const [voice, bonds] = splitHalf2(fakeHalf2({ npcCount }));
+      const bible = assembleOfficialCharacterBible(fakeHalf1(), voice, bonds);
       assert.equal(validatePilotBible(bible, { adultExpected: false }).ok, true, `npc=${npcCount}`);
     }
-    const over = assembleOfficialCharacterBible(fakeHalf1(), fakeHalf2({ npcCount: 4 }));
+    const [voice4, bonds4] = splitHalf2(fakeHalf2({ npcCount: 4 }));
+    const over = assembleOfficialCharacterBible(fakeHalf1(), voice4, bonds4);
     const qa = validatePilotBible(over, { adultExpected: false });
     assert.ok(qa.errors.some((e) => e.code === "bible_npc_count"));
   });
@@ -370,6 +382,43 @@ describe("official author adapter", () => {
       () => compileOfficialDraftFromBible({ ...bible, greeting: "가".repeat(2001) }, STAGING_KEYS),
       /greeting/
     );
+  });
+
+  it("three-call bible generation assembles through the canonical path (fake transport)", async () => {
+    const [voice, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+    const transport = fakeTransport({
+      character_bible_1: fakeHalf1(),
+      character_bible_voice: voice,
+      character_bible_bonds: bonds,
+    });
+    const { bible } = await generateOfficialCharacterBible({
+      transport,
+      part1: {
+        brief: {
+          slot: 1,
+          name: "카엘",
+          gender: "male",
+          age: 27,
+          archetype: "기사",
+          relationshipTrope: "경계",
+          occupation: "기사단장",
+          faction: "기사단",
+          socialPosition: "고위",
+          personalityCore: "냉정",
+          visualSilhouette: "장신",
+          rpHook: "순찰",
+          adultCandidate: false,
+          speechDirection: "단호",
+          audience: "female",
+        },
+        worldName: "테스트",
+        worldContext: "맥락",
+        siblingSketches: [],
+      },
+      voice: { name: "카엘", age: 27, adultCandidate: false, speechDirection: "단호", npcDemand: "없음" },
+      bonds: { name: "카엘", age: 27, rpHook: "순찰", adultCandidate: false, castList: [] },
+    });
+    assert.equal(validatePilotBible(bible, { adultExpected: false }).ok, true);
   });
 
   it("duplicate greetings and hooks are detected across siblings", () => {

@@ -318,7 +318,8 @@ describe("official pilot content (romance fantasy 01)", () => {
     const byTask = (task: string): number => cost.lines.filter((l) => l.task === task).length;
     assert.ok(byTask("world_bible") >= 3, "world core/atlas/portfolio lines");
     assert.ok(byTask("character_bible_1") >= 10);
-    assert.ok(byTask("character_bible_2") >= 10);
+    assert.ok(byTask("character_bible_voice") >= 10);
+    assert.ok(byTask("character_bible_bonds") >= 10);
     assert.ok(byTask("appearance") >= 10);
     assert.ok(byTask("asset_plan") >= 10);
     assert.ok(byTask("style_board") >= 1);

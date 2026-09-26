@@ -19,5 +19,5 @@
     "audience": "female"
   },
   "quarantined": true,
-  "error": "slot 3 draft QA: sfw_public_text_has_adult_terms"
+  "error": "slot 3 draft QA: text_exceeds_canonical_ceiling,sfw_public_text_has_adult_terms"
 }
