@@ -5,9 +5,12 @@ import test from "node:test";
 
 const require = createRequire(import.meta.url);
 const {
+  getTrackedGracefulTaskCount,
   installGracefulHttpDrain,
   resolveGracefulShutdownForceMs,
+  trackGracefulTask,
 } = require("./serverGracefulDrain.js") as {
+  getTrackedGracefulTaskCount: () => number;
   installGracefulHttpDrain: (
     server: { close: (cb: (err?: Error) => void) => void },
     opts: {
@@ -21,6 +24,7 @@ const {
     }
   ) => { begin: (signal: string) => void };
   resolveGracefulShutdownForceMs: (env?: Record<string, string | undefined>) => number;
+  trackGracefulTask: <T>(task: Promise<T>) => Promise<T>;
 };
 
 class FakeProcess extends EventEmitter {
@@ -54,7 +58,7 @@ test("uses Railway drain window with a 5-second kill safety margin", () => {
   );
 });
 
-test("SIGTERM stops accepting new HTTP work and waits for active requests before exit", () => {
+test("SIGTERM stops accepting new HTTP work and waits for active requests before exit", async () => {
   const processRef = new FakeProcess({
     RAILWAY_DEPLOYMENT_DRAINING_SECONDS: "120",
   });
@@ -93,12 +97,62 @@ test("SIGTERM stops accepting new HTTP work and waits for active requests before
   assert.ok(forceCallback);
 
   closeCallback?.();
+  await new Promise<void>((resolve) => setImmediate(resolve));
 
   assert.equal(cleared, true);
   assert.deepEqual(processRef.exits, [0]);
 
   processRef.emit("SIGTERM");
   assert.equal(closeCalls, 1, "duplicate shutdown signal must not start a second drain");
+});
+
+test("HTTP close waits for tracked detached work before clean exit", async () => {
+  const processRef = new FakeProcess({
+    RAILWAY_DEPLOYMENT_DRAINING_SECONDS: "120",
+  });
+  let closeCallback: ((err?: Error) => void) | null = null;
+  let cleared = false;
+  let resolveTask: (() => void) | null = null;
+
+  const task = new Promise<void>((resolve) => {
+    resolveTask = resolve;
+  });
+  trackGracefulTask(task);
+  assert.equal(getTrackedGracefulTaskCount(), 1);
+
+  installGracefulHttpDrain(
+    {
+      close(cb) {
+        closeCallback = cb;
+      },
+    },
+    {
+      processRef,
+      logger: silentLogger,
+      setTimeoutFn() {
+        return { unref() {} };
+      },
+      clearTimeoutFn() {
+        cleared = true;
+      },
+    }
+  );
+
+  processRef.emit("SIGTERM");
+  closeCallback?.();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.equal(cleared, false, "force timer must stay armed while detached work is pending");
+  assert.deepEqual(processRef.exits, [], "process must not exit while detached work is pending");
+  assert.equal(getTrackedGracefulTaskCount(), 1);
+
+  resolveTask?.();
+  await task;
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.equal(getTrackedGracefulTaskCount(), 0);
+  assert.equal(cleared, true);
+  assert.deepEqual(processRef.exits, [0]);
 });
 
 test("forces exit before Railway SIGKILL when active requests exceed the drain window", () => {
