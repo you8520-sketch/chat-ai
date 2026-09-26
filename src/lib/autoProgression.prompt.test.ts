@@ -355,7 +355,7 @@ describe("auto progression prompt content", () => {
       1
     );
     assert.match(built.systemPrompt, /속마음·내면 독백/);
-    assert.match(built.systemPrompt, /불안했다\/무서웠다\/걱정됐다/);
+    assert.match(built.systemPrompt, /감정은 이름으로 단정·요약하는 서술보다/);
     assert.match(
       built.systemPrompt,
       /행동·감각·신체 반응·시선·호흡·거리·침묵·생각의 흐름과 선택/
