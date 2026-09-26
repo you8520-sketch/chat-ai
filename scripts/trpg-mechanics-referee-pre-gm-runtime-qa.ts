@@ -4,6 +4,9 @@
  * `previousScene` contains only state known before the current action. It never
  * asserts the current action's resolved injury/condition. This is intentionally
  * separate from RESOLVED_OUTCOME_SYNTHETIC_QA.
+ *
+ * Labeled DeepSeek↔JEV shadow corpus (expected semantics + sheets/effects):
+ * `src/lib/trpg/mechanicsRefereeBenchmarkCorpus.ts`.
  */
 import type { TrpgActionType } from "../src/lib/trpg/actionTypes";
 import type { TrpgSuccessTier } from "../src/lib/trpg/types";
