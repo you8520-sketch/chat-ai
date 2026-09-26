@@ -3,12 +3,9 @@ import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import {
   creatorLorebookEntryCount,
-  normalizeCreatorLorebookUnit,
-  serializeCreatorLorebookUnit,
+  insertCreatorLorebookForOwner,
 } from "@/lib/creatorLorebook";
 import {
-  LOREBOOK_NAME_LIMIT,
-  LOREBOOK_SUMMARY_LIMIT,
   rowToLorebookListItem,
   type KeywordLorebookRow,
 } from "@/lib/keywordLorebooks";
@@ -43,31 +40,21 @@ export async function POST(req: Request) {
   }
 
   const b = await req.json();
-  const name = String(b.name ?? "").trim().slice(0, LOREBOOK_NAME_LIMIT);
-  const summary = String(b.summary ?? "").trim().slice(0, LOREBOOK_SUMMARY_LIMIT);
-  const normalized = normalizeCreatorLorebookUnit({
+  const db = getDb();
+  const created = insertCreatorLorebookForOwner(db, {
+    creatorId: user.id,
+    name: b.name,
+    summary: b.summary,
     keywords: b.keywords,
     content: b.content,
   });
+  if (!created.ok) return NextResponse.json({ error: created.error }, { status: 400 });
 
-  if (!name) return NextResponse.json({ error: "로어북 이름을 입력해 주세요." }, { status: 400 });
-  if (!normalized.ok) return NextResponse.json({ error: normalized.error }, { status: 400 });
-
-  const db = getDb();
-  const entriesJson = serializeCreatorLorebookUnit(normalized.entry);
-  const info = db
-    .prepare(
-      `INSERT INTO keyword_lorebooks (creator_id, name, summary, entries_json, scope, updated_at)
-       VALUES (?, ?, ?, ?, 'creator', datetime('now'))`
-    )
-    .run(user.id, name, summary, entriesJson);
-
-  const id = Number(info.lastInsertRowid);
   const row = db
     .prepare(
       `SELECT id, creator_id, name, summary, entries_json, created_at, updated_at FROM keyword_lorebooks WHERE id = ?`
     )
-    .get(id) as KeywordLorebookRow;
+    .get(created.id) as KeywordLorebookRow;
 
   return NextResponse.json({
     ok: true,
@@ -75,7 +62,7 @@ export async function POST(req: Request) {
       ...rowToLorebookListItem(row),
       entryCount: 1,
     },
-    keywords: normalized.entry.keywords.join("│"),
-    content: normalized.entry.content,
+    keywords: created.entry.keywords.join("│"),
+    content: created.entry.content,
   });
 }
