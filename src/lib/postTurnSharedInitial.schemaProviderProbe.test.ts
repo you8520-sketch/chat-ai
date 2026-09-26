@@ -10,6 +10,7 @@ import {
 } from "@/lib/postTurnSharedInitial/prompt";
 import { buildPostTurnSharedInitialResponseFormat } from "@/lib/postTurnSharedInitial/schema";
 import type { PostTurnSharedInitialInput } from "@/lib/postTurnSharedInitial/types";
+import { resolveOptInTestCheaperInferenceApiKey } from "../../scripts/lib/benchmarkCheaperInferenceCredential";
 
 const USER_WIDGET: StatusWidget = {
   ...DEFAULT_STATUS_WIDGET,
@@ -37,13 +38,17 @@ function fullProductionProbeInput(): PostTurnSharedInitialInput {
   };
 }
 
-const REAL_PROVIDER_SCHEMA_PROBE = process.env.REAL_PROVIDER_SCHEMA_PROBE === "1";
-const probeDescribe = REAL_PROVIDER_SCHEMA_PROBE ? describe : describe.skip;
+const REAL_PROVIDER_SCHEMA_PROBE = "REAL_PROVIDER_SCHEMA_PROBE";
+const probeDescribe =
+  resolveOptInTestCheaperInferenceApiKey(REAL_PROVIDER_SCHEMA_PROBE) ? describe : describe.skip;
 
 probeDescribe("postTurnSharedInitial exact production schema provider probe", () => {
   it("accepts exact buildPostTurnSharedInitialResponseFormat on CheaperInference GPT-6 Luna (1 call)", async () => {
-    const key = process.env.CHEAPER_INFERENCE_API_KEY?.trim();
-    assert.ok(key, "CHEAPER_INFERENCE_API_KEY required when REAL_PROVIDER_SCHEMA_PROBE=1");
+    const key = resolveOptInTestCheaperInferenceApiKey(REAL_PROVIDER_SCHEMA_PROBE);
+    assert.ok(
+      key,
+      "requires REGULAR_TEST_REAL_PROVIDER_CALLS=1 + REAL_PROVIDER_SCHEMA_PROBE=1 + CHEAPER_INFERENCE_BENCHMARK_API_KEY"
+    );
 
     const input = fullProductionProbeInput();
     const responseFormat = buildPostTurnSharedInitialResponseFormat(input);

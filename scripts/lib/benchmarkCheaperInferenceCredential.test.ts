@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   BENCHMARK_CHEAPER_INFERENCE_ENV,
   resolveBenchmarkCheaperInferenceApiKey,
+  resolveOptInTestCheaperInferenceApiKey,
   sanitizeBenchmarkCredentialText,
 } from "./benchmarkCheaperInferenceCredential";
 
@@ -44,4 +45,28 @@ test("sanitizer redacts benchmark and production env assignment text", () => {
   assert.match(sanitized, /CHEAPER_INFERENCE_API_KEY=\[REDACTED\]/);
   assert.doesNotMatch(sanitized, /secret-bench/);
   assert.doesNotMatch(sanitized, /secret-prod/);
+});
+
+
+test("live provider probe requires global opt-in, probe opt-in, and benchmark key", () => {
+  const probeFlag = "REAL_PROVIDER_TEST_FIXTURE";
+  const env = {
+    REGULAR_TEST_REAL_PROVIDER_CALLS: "0",
+    [probeFlag]: "1",
+    [BENCHMARK_CHEAPER_INFERENCE_ENV]: "bench-key",
+    CHEAPER_INFERENCE_API_KEY: "prod-key-must-never-be-used",
+  } as NodeJS.ProcessEnv;
+
+  assert.equal(resolveOptInTestCheaperInferenceApiKey(probeFlag, env), null);
+
+  env.REGULAR_TEST_REAL_PROVIDER_CALLS = "1";
+  env[probeFlag] = "0";
+  assert.equal(resolveOptInTestCheaperInferenceApiKey(probeFlag, env), null);
+
+  env[probeFlag] = "1";
+  delete env[BENCHMARK_CHEAPER_INFERENCE_ENV];
+  assert.equal(resolveOptInTestCheaperInferenceApiKey(probeFlag, env), null);
+
+  env[BENCHMARK_CHEAPER_INFERENCE_ENV] = "bench-key";
+  assert.equal(resolveOptInTestCheaperInferenceApiKey(probeFlag, env), "bench-key");
 });
