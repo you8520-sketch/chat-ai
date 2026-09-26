@@ -21,6 +21,12 @@ export type EpisodicSemanticModelConfig = {
   dimensions: number;
   /** Sent as the official `dimensions` request field only when set. */
   requestDimensions?: number;
+  /**
+   * Explicit response-model aliases observed/approved for this OpenRouter model.
+   * Transport matching is case-insensitive but never strips arbitrary vendor or
+   * provider prefixes; only these configured aliases may differ from modelId.
+   */
+  responseModelAliases?: readonly string[];
   /** Bumps whenever any number below changes; recorded in diagnostics. */
   configVersion: string;
   status: EpisodicSemanticConfigStatus;
@@ -59,6 +65,7 @@ export const EPISODIC_SEMANTIC_MODEL_CANDIDATES = {
   bge_m3: {
     modelId: "baai/bge-m3",
     dimensions: 1024,
+    responseModelAliases: ["parasail-bge-m3"],
     configVersion: "bge-m3@1024/provisional-1",
     status: "PROVISIONAL_LIVE_BENCHMARK_PENDING",
     similarityPassThreshold: 0.5,
@@ -87,6 +94,7 @@ export const EPISODIC_SEMANTIC_BENCHMARK_CONTROL_MODELS = {
     ...EPISODIC_SEMANTIC_MODEL_CANDIDATES.bge_m3,
     modelId: "openai/text-embedding-3-small",
     dimensions: 1536,
+    responseModelAliases: ["text-embedding-3-small"],
     configVersion: "text-embedding-3-small@1536/benchmark-control",
   },
 } as const satisfies Record<string, EpisodicSemanticModelConfig>;
