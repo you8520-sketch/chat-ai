@@ -321,6 +321,50 @@ describe("auto progression prompt content", () => {
     assert.doesNotMatch(built.systemPrompt, /CONTROLLED POSSESSION MODE — ACTIVE/);
   });
 
+  it("contextBuilder ALLOW auto progression assembles inner POV with show-dont-label prose and no stale inner ban", () => {
+    const built = buildContext({
+      charName: aiCharacterName,
+      chunks: [],
+      userNickname: userCharacterName,
+      userPersona: `이름/호칭: ${userCharacterName}`,
+      shortTermHistory: [],
+      currentUserMessage: buildContinueNarrativeCommand({
+        personaName: userCharacterName,
+        charName: aiCharacterName,
+      }),
+      nsfw: false,
+      provider: "openrouter",
+      isContinue: true,
+      novelModeEnabled: false,
+      userImpersonation: false,
+      personaDisplayName: userCharacterName,
+      completedTurns: 2,
+      currentTurnAuthoringDelegation: {
+        active: true,
+        allowDialogue: true,
+        allowMajorActions: true,
+        allowInnerPov: true,
+        allowIrreversibleFate: false,
+        allowAiCastIrreversibleExpansion: true,
+        source: "chat_setting",
+        duration: "persistent",
+      },
+    });
+    assert.equal(
+      built.systemPrompt.split("[AUTO PROGRESSION — EFFECTIVE USER AUTHORING]").length - 1,
+      1
+    );
+    assert.match(built.systemPrompt, /속마음·내면 독백/);
+    assert.match(built.systemPrompt, /불안했다\/무서웠다\/걱정됐다/);
+    assert.match(
+      built.systemPrompt,
+      /행동·감각·신체 반응·시선·호흡·거리·침묵·생각의 흐름과 선택/
+    );
+    assert.doesNotMatch(built.systemPrompt, /never to \[B\] inner POV/i);
+    assert.doesNotMatch(built.systemPrompt, /Do not narrate \[B\]'s inner thoughts/i);
+    assert.doesNotMatch(built.systemPrompt, /\[B\]의 머릿속으로 들어가 서술하지 않는다/);
+  });
+
   it("contextBuilder legacy novelModeEnabled injects auto owner only", () => {
     const built = buildContext({
       charName: aiCharacterName,
