@@ -100,6 +100,35 @@ describe("suggested replies greeting functional lifecycle", () => {
     assert.equal(clientShouldShowSuggestedRepliesBar(client), true);
   });
 
+  it("settles a thrown extractor failure as terminal failure with no endless poll", async () => {
+    seedGreeting();
+    let calls = 0;
+
+    scheduleGreetingSuggestedRepliesExtraction(MESSAGE_ID, CHAT_ID, {
+      __testExtract: async () => {
+        calls += 1;
+        throw new Error("simulated provider timeout");
+      },
+    });
+
+    const pending = loadMessageSuggestedReplies(MESSAGE_ID);
+    assert.equal(pending?.pending, true);
+
+    const settled = await waitForSettledRecord();
+    assert.equal(calls, 1);
+    assert.equal(settled?.pending, false);
+    assert.equal(settled?.failed, true);
+    assert.deepEqual(settled?.replies, []);
+
+    const client = resolveClientSuggestedReplies(settled);
+    assert.equal(client.suggestedRepliesRequested, true);
+    assert.equal(client.suggestedRepliesPending, false);
+    assert.equal(client.suggestedRepliesFailed, true);
+    assert.deepEqual(client.suggestedReplies, []);
+    assert.equal(clientNeedsSuggestedRepliesPoll(client), false);
+    assert.equal(clientShouldShowSuggestedRepliesBar(client), false);
+  });
+
   it("settles an empty extraction as terminal failure with no endless poll", async () => {
     seedGreeting();
     let calls = 0;
