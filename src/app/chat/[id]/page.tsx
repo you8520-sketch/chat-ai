@@ -73,7 +73,6 @@ type ChatRow = {
   gemini_model: string;
   user_note: string;
   selected_persona_id: number | null;
-  user_impersonation?: number;
   user_authoring_level?: string;
   target_response_chars?: number;
   title?: string;
@@ -209,7 +208,7 @@ export default async function ChatPage({
       if (requestedId) {
         chat = db
           .prepare(
-            "SELECT id, mode, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, user_authoring_level, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name, adult_handoff_enabled FROM chats WHERE id=? AND user_id=? AND character_id=?"
+            "SELECT id, mode, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_authoring_level, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name, adult_handoff_enabled FROM chats WHERE id=? AND user_id=? AND character_id=?"
           )
           .get(requestedId, user.id, c.id) as ChatRow | undefined;
       }
@@ -218,7 +217,7 @@ export default async function ChatPage({
     if (!chat) {
       chat = db
         .prepare(
-          "SELECT id, mode, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, user_authoring_level, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name, adult_handoff_enabled FROM chats WHERE user_id=? AND character_id=? ORDER BY id DESC LIMIT 1"
+          "SELECT id, mode, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_authoring_level, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name, adult_handoff_enabled FROM chats WHERE user_id=? AND character_id=? ORDER BY id DESC LIMIT 1"
         )
         .get(user.id, c.id) as ChatRow | undefined;
     }

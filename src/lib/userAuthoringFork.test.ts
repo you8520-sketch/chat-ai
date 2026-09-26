@@ -58,7 +58,6 @@ describe("user authoring fork ownership", () => {
       geminiModel: "",
       userNote: "",
       selectedPersonaId: null,
-      userImpersonation: 0,
       targetResponseChars: 2500,
       title: "branch",
       writingStyleOverride: "",
@@ -77,6 +76,11 @@ describe("user authoring fork ownership", () => {
       CURRENT_USER_COAUTHOR_SEMANTICS_VERSION
     );
 
+    const legacyMirror = db
+      .prepare("SELECT user_impersonation FROM chats WHERE id=?")
+      .get(childId) as { user_impersonation: number };
+    assert.equal(legacyMirror.user_impersonation, 0, "retired mirror stays at physical default");
+
     assert.equal(readUserAuthoringLevel(db, childId), "ALLOW");
     assert.equal(recomputeAndPersistUserCoauthorMode(db, childId), "ABSOLUTE");
     assert.equal(readUserCoauthorMode(db, childId), "ABSOLUTE");
@@ -94,7 +98,6 @@ describe("user authoring fork ownership", () => {
       geminiModel: "",
       userNote: "",
       selectedPersonaId: null,
-      userImpersonation: 0,
       targetResponseChars: 2500,
       title: "branch",
       writingStyleOverride: "",
