@@ -145,7 +145,7 @@ describe("manual live-provider probe isolation gates", () => {
     for (const file of hits) {
       assert.match(
         file,
-        /gmResolutionRealProbe|gmCompletionIntegrity|realProbeIsolation|schemaProviderProbe/,
+        /gmResolutionRealProbe|gmCompletionIntegrity|realProbeIsolation|schemaProviderProbe|regularTestEgressPolicy/,
         `unexpected manual probe flag owner: ${file}`
       );
     }

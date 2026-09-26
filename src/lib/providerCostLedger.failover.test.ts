@@ -25,7 +25,12 @@ function createLedgerTestDb(): Database.Database {
 
 describe("providerCostLedger failover integration", () => {
   it("R5 — CI primary fail + OpenRouter backup success creates two ledger events", async () => {
-    const db = createLedgerTestDb();
+    // Explicit fixture credential: this test must not depend on ambient keys
+    // (the regular-test egress policy strips them; keyless CI never has them).
+    const prevOr = process.env.OPENROUTER_API_KEY;
+    process.env.OPENROUTER_API_KEY = "openrouter-key-fixture";
+    try {
+      const db = createLedgerTestDb();
     const ledgerBase = {
       ...buildPlatformAsyncTurnLedgerContext({
         chatId: 5,
@@ -126,7 +131,11 @@ describe("providerCostLedger failover integration", () => {
     assert.equal(rows.length, 2);
     assert.equal(rows[0]?.actual_provider, "cheaperinference");
     assert.equal(rows[1]?.actual_provider, "openrouter");
-    assert.notEqual(rows[0]?.event_key, rows[1]?.event_key);
-    assert.equal(fetchCount, 2);
+      assert.notEqual(rows[0]?.event_key, rows[1]?.event_key);
+      assert.equal(fetchCount, 2);
+    } finally {
+      if (prevOr === undefined) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = prevOr;
+    }
   });
 });
