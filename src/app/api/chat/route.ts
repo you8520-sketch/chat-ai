@@ -245,6 +245,7 @@ import {
   materializeSceneDirectivePromptBlock,
   resolveScenePacingPromptOwner,
 } from "@/lib/sceneDirectiveV2Policy";
+import { scheduleSceneBoundaryJevQa } from "@/lib/sceneBoundaryJevQa";
 import {
   commitReconvergenceTransition,
   loadReconvergenceState,
@@ -5993,6 +5994,19 @@ export async function POST(req: Request) {
             });
           } else {
             markMessageStatusMetaExtractionDisabled(aiMessageId, postTurnGenerationScope);
+          }
+
+          // Read-only scene-boundary JEV QA triage (default OFF). Fire-and-forget
+          // after finalize; never blocks Main RP. Uses request-local V2
+          // boundaryExecution when V2 compute (shadow|on) produced one.
+          if (assistantFinalizedThisRequest) {
+            scheduleSceneBoundaryJevQa({
+              chatId: chatRef.id,
+              generationScope: postTurnGenerationScope,
+              boundaryExecution: eventRestraintV2?.boundaryExecution ?? null,
+              assistantProse: savedText,
+              v2Mode: sceneDirectiveV2Mode,
+            });
           }
         }
 

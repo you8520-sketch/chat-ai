@@ -1,0 +1,50 @@
+name: Validate scene-boundary JEV runtime
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/validate-scene-boundary-jev-runtime.yml"
+      - "src/app/api/chat/route.ts"
+      - "src/lib/sceneBoundaryJevQa.ts"
+      - "src/lib/sceneBoundaryJevQa.test.ts"
+      - "src/lib/scenePolicyBoundarySuspicionScan.ts"
+      - "src/lib/scenePolicyBoundarySuspicionScan.test.ts"
+      - "src/lib/sceneDirectiveV2.ts"
+      - "src/lib/sceneDirectiveV2Policy.ts"
+      - "src/lib/reconvergenceState.ts"
+      - "src/lib/reconvergenceSchema.ts"
+      - "src/lib/jevDecisions.ts"
+      - "src/lib/jevDecisions.test.ts"
+      - "src/lib/auxProviderProvenance.ts"
+      - "src/lib/providerCostLedger.ts"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      SCENE_BOUNDARY_JEV_QA_ENABLED: "0"
+      SCENE_DIRECTIVE_V2_MODE: "off"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: git diff --check
+      - run: npm run lint
+      - run: npm run typecheck:app
+      - name: Scene-boundary runtime QA gates
+        run: >
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1
+          src/lib/sceneBoundaryJevQa.test.ts
+          src/lib/scenePolicyBoundarySuspicionScan.test.ts
+          src/lib/jevDecisions.test.ts
