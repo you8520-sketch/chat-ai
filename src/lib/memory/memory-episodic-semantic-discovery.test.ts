@@ -748,14 +748,22 @@ describe("cleanup owners and production wiring", () => {
 });
 
 describe("runtime gate and encoding", () => {
-  it("provisional configs cannot activate, even with the flag on", () => {
+  it("runtime gate enables only the approved BGE config", () => {
     assert.deepEqual(resolveEpisodicSemanticRuntime({} as NodeJS.ProcessEnv), { enabled: false, reason: "flag_off" });
-    for (const key of Object.keys(EPISODIC_SEMANTIC_MODEL_CANDIDATES)) {
-      assert.deepEqual(
-        resolveEpisodicSemanticRuntime({ EPISODIC_SEMANTIC_DISCOVERY_ENABLED: "1", EPISODIC_SEMANTIC_MODEL: key } as NodeJS.ProcessEnv),
-        { enabled: false, reason: "config_provisional_live_benchmark_pending" }
-      );
-    }
+    assert.deepEqual(
+      resolveEpisodicSemanticRuntime({
+        EPISODIC_SEMANTIC_DISCOVERY_ENABLED: "1",
+        EPISODIC_SEMANTIC_MODEL: "bge_m3",
+      } as NodeJS.ProcessEnv),
+      { enabled: true, model: EPISODIC_SEMANTIC_MODEL_CANDIDATES.bge_m3 }
+    );
+    assert.deepEqual(
+      resolveEpisodicSemanticRuntime({
+        EPISODIC_SEMANTIC_DISCOVERY_ENABLED: "1",
+        EPISODIC_SEMANTIC_MODEL: "qwen3_embedding_8b",
+      } as NodeJS.ProcessEnv),
+      { enabled: false, reason: "config_provisional_live_benchmark_pending" }
+    );
     assert.deepEqual(
       resolveEpisodicSemanticRuntime({ EPISODIC_SEMANTIC_DISCOVERY_ENABLED: "1", EPISODIC_SEMANTIC_MODEL: "constructor" } as NodeJS.ProcessEnv),
       { enabled: false, reason: "unknown_model" }
