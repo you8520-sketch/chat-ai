@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:app": "tsc -p tsconfig.app.json --noEmit --pretty false",
     "lint": "npm run typecheck:app",
+    "test:regular": "node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test \"src/**/*.test.ts\"",
     "test:ui": "playwright test",
     "build": "next build",
     "start": "tsx server.js",
