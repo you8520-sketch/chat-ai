@@ -19,6 +19,7 @@ import { parseTrpgGmOutput } from "./gmPrompt";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { TRPG_BOT_MODEL, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 import { adaptTrpgGmChatBody } from "./gmClient";
+import { resolveOptInTestCheaperInferenceApiKey } from "../../../scripts/lib/benchmarkCheaperInferenceCredential";
 
 const VALID_DELTA = {
   players: [],
@@ -269,10 +270,13 @@ describe("gmCompletionIntegrity transport + config", () => {
   });
 });
 
+/** Manual opt-in flag for the bounded finish_reason live probe (never production key). */
+const REAL_GM_COMPLETION_PROBE = "REAL_GM_COMPLETION_PROBE";
+
 describe("gmCompletionIntegrity real provider probe", () => {
-  it("bounded finish_reason probe (skipped without API key)", async () => {
-    const key = process.env.CHEAPER_INFERENCE_API_KEY?.trim();
-    if (!key || key.startsWith("your_")) {
+  it("bounded finish_reason probe (manual triple opt-in only)", async () => {
+    const benchmarkKey = resolveOptInTestCheaperInferenceApiKey(REAL_GM_COMPLETION_PROBE);
+    if (!benchmarkKey) {
       console.info("FINISH_REASON_PROBE_SKIPPED=true");
       return;
     }
@@ -281,6 +285,7 @@ describe("gmCompletionIntegrity real provider probe", () => {
       system: "You are a TRPG GM. Korean only. Return JSON with narration and delta.",
       user: gmJson("한 문장."),
       timeoutMs: 60_000,
+      cheaperInferenceApiKeyOverride: benchmarkKey,
     });
     console.info("FINISH_REASON_PROBE", {
       finishReason: result.finishReason,
