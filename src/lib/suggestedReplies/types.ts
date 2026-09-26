@@ -54,7 +54,6 @@ export type SuggestedRepliesRecord = {
   extractedAt: string;
   source: SuggestedRepliesRecordSource;
   pending?: boolean;
-  failed?: boolean;
   /** Terminal logical outcome; this task was never eligible for the generation. */
   terminalReason?: "original_turn_ineligible";
   generationSequence?: number;
