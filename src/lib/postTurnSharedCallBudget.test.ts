@@ -849,6 +849,19 @@ describe("status-OFF lifecycle guardrail", () => {
     );
   });
 
+  it("registers the post-SSE detached block with graceful drain", () => {
+    const route = readFileSync(join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
+    const doneClose = route.indexOf("safe.close(controller);");
+    assert.ok(doneClose > 0, "SSE close marker must exist");
+    const trackedStart = route.indexOf("trackGracefulTask((async () => {", doneClose);
+    assert.ok(
+      trackedStart > doneClose,
+      "post-SSE detached work must be registered with graceful drain"
+    );
+    const trackedEnd = route.indexOf("})());", trackedStart);
+    assert.ok(trackedEnd > trackedStart, "tracked post-turn block must close through tracker");
+  });
+
   it("reserves suggested-replies pending before SSE done when deferring shared owner", () => {
     const route = readFileSync(join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
     assert.match(
