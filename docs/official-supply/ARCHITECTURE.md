@@ -57,6 +57,7 @@ stretched or cropped, to protect identity). Chat LD (800×1200), comic and TRPG 
 | Lorebook | `insertCreatorLorebookForOwner` (extracted from `/api/lorebooks`), attach via canonical save + `CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT` |
 | Image model | `resolveChatImageGenerationModel()` via `resolveOfficialAssetImageModel()` (no constant, no own env) |
 | Provider transport + safety fallback | `callOpenAiImageEditWithSafetyFallback` |
+| Text author (world/character bible → draft) | `generateOfficialWorldBible` / `generateOfficialCharacterBible` + `compileOfficialDraftFromBible` (`officialSupply/author.ts`, `bible.ts`, `authorPrompts.ts`) — canonical background-text transport (`callBackgroundMemory`), background-primary model resolver, `json_object` structured output, platform-funded ledger. No user billing/points, no creator rewards, no chat semantics, no image calls |
 | Gender lock / safety text | `buildImageGenderLockPrompt`, `buildIllustrationSafeDepiction`, `STRICT_SAFE_DEPICTION` |
 | Upload storage | `storeUpload` |
 | Asset moderation | `analyzeAssetImage` (+ `recordVisionCostAttempts`) via `visionOfficialAssetModerator`; one decision owner `officialModerationVerdict` for representative and RP |
@@ -127,8 +128,8 @@ this after save. Publishing / site-managed account is a follow-up.
 
 ## Follow-ups (not in this PR)
 
-- Site-managed official account + creator CP/earnings exclusion, publish step (`PUBLISH_CANDIDATE → PUBLISHED`).
-- LLM text-author adapter producing `OfficialCharacterDraft` (drafts can be authored by operators today).
+- Site-managed official account + creator CP/earnings exclusion, publish step — DONE in #1082.
+- Pilot content (romance-fantasy world ×1 + 10 characters + style board) — DONE in `pilot/` + `docs/official-supply/pilot-romance-fantasy-01.md`; awaiting human style selection.
 - Operator CLI / admin review UI, AI quality scoring, bulk review.
 - Zero-reference first anchor: the canonical transport is `/v1/images/edits` (≥1 reference), so the first
   anchor uses the approved owned/licensed style seed. Adding a generation endpoint is a provider-owner decision.

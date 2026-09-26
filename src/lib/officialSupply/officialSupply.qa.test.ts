@@ -122,6 +122,7 @@ describe("official image model resolver reuse", () => {
     const dir = path.join(process.cwd(), "src/lib/officialSupply");
     for (const file of fs.readdirSync(dir)) {
       if (file.endsWith(".test.ts")) continue;
+      if (!fs.statSync(path.join(dir, file)).isFile()) continue;
       const source = fs.readFileSync(path.join(dir, file), "utf8");
       assert.doesNotMatch(source, /gpt-image|dall-e|CHAT_IMAGE_GENERATION_DEFAULT_MODEL|process\.env\.[A-Z_]*IMAGE_MODEL/, file);
     }
