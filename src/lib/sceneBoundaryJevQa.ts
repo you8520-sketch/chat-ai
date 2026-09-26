@@ -240,6 +240,19 @@ export function scheduleSceneBoundaryJevQa(
         timeoutMs: 45_000,
         ledger: {
           requestKind: SCENE_BOUNDARY_JEV_QA_REQUEST_KIND,
+          provenanceContext: {
+            chatId: input.chatId,
+            assistantMessageId: input.generationScope.assistantMessageId,
+            generationSequence: input.generationScope.generationSequence,
+            generationRequestId: input.generationScope.generationRequestId,
+            family: "background",
+            fundingClass: "platform_funded",
+            executionPhase: "async_post_turn",
+            jobAttemptOrdinal: 1,
+            requestedProvider: "openrouter",
+            requestedModel: JEV_DECISIONS_MODEL,
+            requestKind: SCENE_BOUNDARY_JEV_QA_REQUEST_KIND,
+          },
         },
       });
       inputTokens = result.usage.inputTokens;
