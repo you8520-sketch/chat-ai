@@ -302,7 +302,6 @@ export function parseSuggestedRepliesRecord(
         replies: [],
         ...baseFields,
         pending: false,
-        failed: true,
       };
     }
 
@@ -311,7 +310,6 @@ export function parseSuggestedRepliesRecord(
       replies,
       ...baseFields,
       pending: parsed.pending === true,
-      failed: parsed.failed === true,
       ...(parsed.terminalReason === "original_turn_ineligible"
         ? { terminalReason: parsed.terminalReason }
         : {}),
