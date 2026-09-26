@@ -550,6 +550,7 @@ export async function generateOfficialWorldBible(input: {
     locationNames,
     slots: input.world.slots,
     adultCandidates: input.world.adultCandidates,
+    genderMix: input.world.genderMix,
   };
   const portfolioCompletion = await complete(buildWorldPortfolioUser(portfolioInput));
   const portfolioData = parseAuthorJson(portfolioCompletion.text, "world_bible");

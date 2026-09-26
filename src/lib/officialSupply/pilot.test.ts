@@ -233,6 +233,8 @@ describe("official pilot content (romance fantasy 01)", () => {
     assert.equal(qa.errors.length, 0, JSON.stringify(qa.errors));
     const genders = new Set(drafts.map((d) => d.gender));
     assert.ok(genders.size >= 2, "single-gender pilot");
+    assert.ok(drafts.filter((d) => d.gender === "male").length >= 4, "male under-represented");
+    assert.ok(drafts.filter((d) => d.gender === "female").length >= 3, "female under-represented");
   });
 
   it("originality: no distinctive competitor copy in any sheet", () => {

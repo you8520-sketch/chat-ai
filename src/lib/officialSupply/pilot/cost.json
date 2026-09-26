@@ -1,0 +1,41 @@
+{
+  "calls": 3,
+  "inputTokens": 1854,
+  "outputTokens": 11239,
+  "costUsd": 0.004062,
+  "failures": 0,
+  "retries": 0,
+  "lines": [
+    {
+      "task": "world_bible",
+      "draftKey": "world",
+      "model": "gpt-6-luna",
+      "inputTokens": 662,
+      "outputTokens": 4265,
+      "costUsd": 0.001539,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "world_bible",
+      "draftKey": "world",
+      "model": "gpt-6-luna",
+      "inputTokens": 548,
+      "outputTokens": 3980,
+      "costUsd": 0.001431,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "world_bible",
+      "draftKey": "world",
+      "model": "gpt-6-luna",
+      "inputTokens": 644,
+      "outputTokens": 2994,
+      "costUsd": 0.001092,
+      "attempts": 1,
+      "failedAttempts": 0
+    }
+  ],
+  "imageCalls": 0
+}
