@@ -1,0 +1,55 @@
+name: Validate TRPG mechanics JEV benchmark
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/validate-trpg-mechanics-jev.yml"
+      - "src/lib/trpg/mechanicsReferee.ts"
+      - "src/lib/trpg/mechanicsReferee.test.ts"
+      - "src/lib/trpg/mechanicsRefereeBenchmarkCorpus.ts"
+      - "src/lib/trpg/mechanicsRefereeJevPolicy.ts"
+      - "src/lib/trpg/mechanicsResolve.ts"
+      - "src/lib/trpg/mechanicsValidate.ts"
+      - "src/lib/trpg/mechanicsTypes.ts"
+      - "src/lib/trpg/mechanicsRound.ts"
+      - "src/lib/trpg/engineAdvance.ts"
+      - "src/lib/jevDecisions.ts"
+      - "src/lib/jevDecisions.test.ts"
+      - "src/lib/test/regularTestEgressPolicy.ts"
+      - "scripts/benchmark-trpg-mechanics-jev-live.ts"
+      - "scripts/lib/benchmarkOpenRouterJevCredential.ts"
+      - "scripts/lib/benchmarkCheaperInferenceCredential.ts"
+      - "scripts/lib/trpgMechanicsJevBenchmark.ts"
+      - "scripts/lib/trpgMechanicsJevBenchmark.test.ts"
+      - "scripts/trpg-mechanics-referee-pre-gm-runtime-qa.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      REAL_JEV_TRPG_MECHANICS_PROBE: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: git diff --check
+      - run: npm run lint
+      - run: npm run typecheck:app
+      - name: TRPG mechanics referee + JEV benchmark deterministic gates
+        run: >
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1
+          src/lib/trpg/mechanicsReferee.test.ts
+          scripts/lib/trpgMechanicsJevBenchmark.test.ts
+          src/lib/jevDecisions.test.ts
