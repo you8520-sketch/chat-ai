@@ -3,6 +3,8 @@ import type Database from "better-sqlite3";
 import {
   LOREBOOK_CONTENT_MAX,
   LOREBOOK_KEYWORDS_PER_ENTRY,
+  LOREBOOK_NAME_LIMIT,
+  LOREBOOK_SUMMARY_LIMIT,
   LOREBOOK_ACTIVE_ENTRY_TTL_TURNS,
   buildKeywordLorebookPromptBlock,
   ensureLorebookActiveEntriesTable,
@@ -176,6 +178,31 @@ export function normalizeCreatorLorebookUnit(
 
 export function serializeCreatorLorebookUnit(entry: KeywordLorebookEntry): string {
   return serializeLorebookEntries([entry]);
+}
+
+/** Canonical creator-scope lorebook writer (API route and official supply staging). */
+export function insertCreatorLorebookForOwner(
+  db: Database.Database,
+  input: { creatorId: number; name: unknown; summary: unknown; keywords: unknown; content: unknown }
+):
+  | { ok: true; id: number; entry: KeywordLorebookEntry }
+  | { ok: false; error: string } {
+  const name = String(input.name ?? "").trim().slice(0, LOREBOOK_NAME_LIMIT);
+  const summary = String(input.summary ?? "").trim().slice(0, LOREBOOK_SUMMARY_LIMIT);
+  const normalized = normalizeCreatorLorebookUnit({
+    keywords: input.keywords,
+    content: input.content,
+  });
+  if (!name) return { ok: false, error: "로어북 이름을 입력해 주세요." };
+  if (!normalized.ok) return { ok: false, error: normalized.error };
+
+  const info = db
+    .prepare(
+      `INSERT INTO keyword_lorebooks (creator_id, name, summary, entries_json, scope, updated_at)
+       VALUES (?, ?, ?, ?, 'creator', datetime('now'))`
+    )
+    .run(input.creatorId, name, summary, serializeCreatorLorebookUnit(normalized.entry));
+  return { ok: true, id: Number(info.lastInsertRowid), entry: normalized.entry };
 }
 
 export function normalizeCreatorLorebookIds(raw: unknown): number[] {
