@@ -22,7 +22,7 @@ export function buildGenerationContextJson(input: GenerationContextInput): strin
     writingStyle: input.writingStyle,
     completedTurns: input.completedTurns,
     targetResponseChars: input.targetResponseChars,
-    userImpersonation: input.userImpersonation,
+    userAuthoring: input.userAuthoring,
     model: input.model,
     provider: input.provider,
     route: input.route,

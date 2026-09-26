@@ -348,7 +348,6 @@ import { runKnowledgeTransfersForTurn } from "@/lib/knowledgeTransfer";
 import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPublicInput";
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
-import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
 import { currentTurnAuthoringPolicyRequiresOwner } from "@/lib/currentTurnUserAuthoringDelegation";
 import {
   persistUserCoauthorAfterSuccessfulUserInsert,
@@ -929,12 +928,6 @@ export async function POST(req: Request) {
     effectiveUserNote,
     memoryCapability.focusMaxChars
   );
-  const oocUserImpersonationAllowed = resolveUserImpersonationAllowance({
-    personaDescription,
-    userNote: resolveEffectiveFocusForPrompt(effectiveUserNote, memoryCapability.focusMaxChars),
-  });
-  // Auto progression uses limited_external agency — not full impersonation / possession.
-  const userImpersonation = oocUserImpersonationAllowed;
   const currentTurnDelegation = resolveEffectiveUserAuthoringFromChatColumn(
     db,
     chat.id,
@@ -2235,7 +2228,6 @@ export async function POST(req: Request) {
     assetTags: assetTags.length > 0 ? assetTags : undefined,
     memoryMeta: relationshipMemoryForPrompt,
     modelId: openRouterApiModelId,
-    userImpersonation,
     novelModeEnabled,
     runtimeMode,
     personaDisplayName,
@@ -6149,7 +6141,7 @@ export async function POST(req: Request) {
               writingStyle: "unified",
               completedTurns: playableTurnCount,
               targetResponseChars: targetResponseCharsRef,
-              userImpersonation: !!userImpersonation,
+              userAuthoring: currentTurnDelegationForTurn,
               truncatedMemory: built.meta.truncatedMemory,
               model: usageRecord.model,
               provider: usageRecord.provider ?? billingProvider,
