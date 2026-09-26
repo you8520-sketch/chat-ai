@@ -713,7 +713,6 @@ export async function POST(req: Request) {
             selected_persona_id: number | null;
             gemini_model: string;
             memory_archived_turns: number;
-            user_impersonation?: number;
             target_response_chars?: number;
             status_window_enabled?: number;
             narrative_pov?: string;
@@ -5786,18 +5785,15 @@ export async function POST(req: Request) {
         }
 
         const nextMode: Route = effectiveAdultRp ? "nsfw" : "safe";
-        const nextImpersonation = userImpersonation ? 1 : 0;
         const nextTargetChars = targetResponseCharsRef;
         if (
           nextMode !== chatRef.mode ||
-          nextImpersonation !== (chatRef.user_impersonation ?? 0) ||
           nextTargetChars !== normalizeTargetResponseChars(chatRef.target_response_chars)
         ) {
           db.prepare(
-            "UPDATE chats SET mode=?, user_impersonation=?, target_response_chars=? WHERE id=?"
+            "UPDATE chats SET mode=?, target_response_chars=? WHERE id=?"
           ).run(
             nextMode,
-            nextImpersonation,
             nextTargetChars,
             chatRef.id
           );
