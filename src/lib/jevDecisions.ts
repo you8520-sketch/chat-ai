@@ -44,9 +44,9 @@ const JEV_DECISION_TYPES: ReadonlySet<string> = new Set(["choice", "noul", "scor
 
 /**
  * Official question spec, keyed by question ID on the wire.
- * - choice criteria: Record<optionName, optionDescription> (required).
+ * - choice criteria: Record<optionName, optionDescription> (required, max 255).
  * - noul criteria: optional { true, false } descriptions.
- * - score criteria: ordered label list (required).
+ * - score criteria: ordered label list (required, 2..10 levels).
  */
 export type JevDecisionQuestionSpec = {
   type: JevDecisionQuestionType;
@@ -201,10 +201,11 @@ function validateQuestions(questions: JevDecisionQuestions): Map<string, JevDeci
       if (
         !isRecord(criteria) ||
         Object.keys(criteria).length === 0 ||
+        Object.keys(criteria).length > 255 ||
         Object.entries(criteria).some(([k, v]) => !k.trim() || typeof v !== "string")
       ) {
         throw new JevDecisionsError({
-          message: `[jev-decisions] choice question ${JSON.stringify(id)} needs criteria Record<optionName, optionDescription>`,
+          message: `[jev-decisions] choice question ${JSON.stringify(id)} needs 1..255 criteria options as Record<optionName, optionDescription>`,
           code: "invalid_request",
         });
       }
@@ -228,11 +229,12 @@ function validateQuestions(questions: JevDecisionQuestions): Map<string, JevDeci
     } else {
       if (
         !Array.isArray(criteria) ||
-        criteria.length === 0 ||
+        criteria.length < 2 ||
+        criteria.length > 10 ||
         criteria.some((label) => typeof label !== "string" || !label.trim())
       ) {
         throw new JevDecisionsError({
-          message: `[jev-decisions] score question ${JSON.stringify(id)} needs an ordered criteria string list`,
+          message: `[jev-decisions] score question ${JSON.stringify(id)} needs an ordered criteria string list with 2..10 levels`,
           code: "invalid_request",
         });
       }
@@ -339,8 +341,8 @@ function failLedger(
 }
 
 export async function callJevDecisions(opts: {
-  /** Official state: string or JSON-compatible object/array. */
-  state: string | Record<string, unknown> | unknown[];
+  /** Official state: string, JSON object, or array of strings. */
+  state: string | Record<string, unknown> | string[];
   /** Official questions object keyed by question ID. */
   questions: JevDecisionQuestions;
   /** Pinned-model override for tests only — production always uses the pin. */
@@ -361,7 +363,13 @@ export async function callJevDecisions(opts: {
     !Array.isArray(opts.state)
   ) {
     throw new JevDecisionsError({
-      message: "[jev-decisions] state must be a string or JSON-compatible object/array",
+      message: "[jev-decisions] state must be a string, JSON object, or array of strings",
+      code: "invalid_request",
+    });
+  }
+  if (Array.isArray(opts.state) && opts.state.some((item) => typeof item !== "string")) {
+    throw new JevDecisionsError({
+      message: "[jev-decisions] state arrays must contain strings only",
       code: "invalid_request",
     });
   }
