@@ -226,6 +226,7 @@ describe("resolveClientSuggestedReplies", () => {
       source: "post-turn-shared",
       pending: false,
       failed: false,
+      noRetry: true,
     });
     assert.deepEqual(fields.suggestedReplies, []);
     assert.equal(fields.suggestedRepliesPending, false);
@@ -391,7 +392,7 @@ describe("legacy explicit kinds fail closed", () => {
     });
     const record = parseSuggestedRepliesRecord(raw);
     assert.equal(record?.failed, true);
-    assert.equal(record?.noRetry, true);
+    assert.equal("noRetry" in (record ?? {}), false);
     assert.deepEqual(record?.replies, []);
 
     const client = resolveClientSuggestedReplies(record);
