@@ -4,10 +4,10 @@ import {
   officialImageProfileForSlot,
   OFFICIAL_ASSET_OUTPUT_COMPRESSION,
   resolveOfficialAssetImageModel,
-  type OfficialImageProfile,
 } from "@/lib/officialSupply/imageProfile";
 import { buildOfficialAssetPrompts, OFFICIAL_ASSET_TEMPLATE_ID } from "@/lib/officialSupply/imagePrompt";
 import { OfficialSupplyGateError, type OfficialSupplyStore } from "@/lib/officialSupply/store";
+import type { OfficialAssetModeration } from "@/lib/officialSupply/types";
 
 /** Platform-funded provider port. Production wraps the canonical OpenAI edit + safety fallback owner. */
 export type OfficialImageTransport = {
@@ -43,7 +43,11 @@ export class OfficialImageTransportError extends Error {
 
 export type OfficialImageOps = {
   inspect(buffer: Buffer): Promise<{ width: number; height: number } | null>;
-  normalize(buffer: Buffer, profile: OfficialImageProfile): Promise<Buffer>;
+};
+
+/** Canonical asset-vision moderation port (production: `analyzeAssetImage`). */
+export type OfficialAssetModerator = {
+  moderate(url: string): Promise<OfficialAssetModeration>;
 };
 
 export type OfficialAssetStorage = {
@@ -247,13 +251,29 @@ export async function runOfficialAssetSlot(
   });
 
   const dims = await deps.imageOps.inspect(generated.buffer);
-  const verdict = dims ? evaluateOfficialImageDimensions(profile, dims.width, dims.height) : "reject";
-  if (verdict === "reject") {
+  if (!dims || evaluateOfficialImageDimensions(profile, dims.width, dims.height) !== "exact") {
     const error = `malformed output ${dims ? `${dims.width}x${dims.height}` : "unreadable"} for ${profile.size}`;
     deps.store.failSlot(draftKey, slotKey, deps.workerId, error);
     return { status: "failed", error };
   }
-  const buffer = verdict === "normalize" ? await deps.imageOps.normalize(generated.buffer, profile) : generated.buffer;
-  await deps.spool.save(spoolKey(draftKey, slotKey), buffer);
-  return finishUpload(deps, draftKey, slotKey, buffer, attempt, profile.width, profile.height);
+  await deps.spool.save(spoolKey(draftKey, slotKey), generated.buffer);
+  return finishUpload(deps, draftKey, slotKey, generated.buffer, attempt, profile.width, profile.height);
+}
+
+/**
+ * Runs canonical moderation on the slot's current image (representative and
+ * RP alike, SFW and 19+ alike) and records it. Review cannot proceed without it.
+ */
+export async function moderateOfficialAssetSlot(
+  deps: { store: OfficialSupplyStore; moderator: OfficialAssetModerator },
+  draftKey: string,
+  slotKey: string
+): Promise<OfficialAssetModeration> {
+  const asset = deps.store.getAsset(draftKey, slotKey);
+  if (asset.status !== "generated" || !asset.resultUrl) {
+    throw new OfficialSupplyGateError("asset_not_generated", `${draftKey}/${slotKey} is ${asset.status}`);
+  }
+  const moderation = await deps.moderator.moderate(asset.resultUrl);
+  deps.store.recordModeration(draftKey, slotKey, moderation);
+  return moderation;
 }

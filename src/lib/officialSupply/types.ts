@@ -276,9 +276,16 @@ export type OfficialVariationQaReport = {
   expressionMatchesPlan: QaCheck;
   characterPresent: QaCheck;
   artStyle: QaCheck;
-  /** Canonical asset moderation result (asset vision owner). */
-  moderation: { adultFlagged: boolean | null; moderationReject: boolean; reason: string };
 };
+
+/**
+ * Canonical asset-vision moderation result for one generated asset. Recorded
+ * by the pipeline (never supplied inside a reviewer's QA report).
+ * `unavailable` is explicit — it is never treated as a clean pass.
+ */
+export type OfficialAssetModeration =
+  | { status: "checked"; adultFlagged: boolean; moderationReject: boolean; reason: string }
+  | { status: "unavailable"; reason: string };
 
 export type QaIssue = { code: string; message: string };
 

@@ -6,10 +6,8 @@ import {
   type OfficialCanonicalFormAsset,
 } from "@/lib/officialSupply/characterText";
 import { OfficialSupplyGateError, type OfficialSupplyStore } from "@/lib/officialSupply/store";
-import type {
-  OfficialVariationQaReport,
-  OfficialWorldLorebookEntry,
-} from "@/lib/officialSupply/types";
+import { canonicalAssetModerationFields } from "@/lib/officialSupply/moderation";
+import type { OfficialWorldLorebookEntry } from "@/lib/officialSupply/types";
 import { evaluateSharedLorebook } from "@/lib/officialSupply/worldQa";
 
 type CanonicalSave = typeof createCharacterFromForm;
@@ -36,15 +34,13 @@ export function buildStagingAssets(store: OfficialSupplyStore, draftKey: string)
     if (!asset?.resultUrl || asset.width == null || asset.height == null) {
       throw new OfficialSupplyGateError("asset_missing", `${draftKey}/${slot.slotKey} has no result`);
     }
-    const moderation = slot.kind === "representative" ? null : (asset.qa as OfficialVariationQaReport | null)?.moderation;
     return {
       url: asset.resultUrl,
       tag: slot.tag,
       width: asset.width,
       height: asset.height,
       viewerBlur: slot.kind !== "representative" && slot.depiction === "adult_grounded_non_explicit",
-      ...(moderation?.adultFlagged != null ? { adultFlagged: moderation.adultFlagged } : {}),
-      ...(moderation?.moderationReject ? { moderationReject: true, moderationReason: moderation.reason } : {}),
+      ...canonicalAssetModerationFields(asset.moderation),
     };
   });
 }

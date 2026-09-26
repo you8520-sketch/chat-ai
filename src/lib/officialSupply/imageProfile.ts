@@ -56,30 +56,19 @@ export function officialImageProfileForSlot(kind: OfficialAssetSlotKind): Offici
 export const OFFICIAL_ASSET_DEFAULT_QUALITY: OpenAiImageQuality = "medium";
 export const OFFICIAL_ASSET_OUTPUT_COMPRESSION = 88;
 
-/** Max relative ratio deviation still accepted as a lossless-equivalent resize. */
-const RATIO_TOLERANCE = 0.02;
-
-export type OfficialImageDimensionVerdict = "exact" | "normalize" | "reject";
+export type OfficialImageDimensionVerdict = "exact" | "reject";
 
 /**
- * Deterministic output contract. A provider result in the right orientation and
- * (within 2%) the right ratio is resized to the profile; anything else is a
- * malformed result for that slot only (it is never cropped into shape).
+ * Deterministic output contract. The provider is asked for the exact native
+ * profile size; anything else (wrong orientation, ratio or resolution) fails
+ * that slot only and is regenerated — it is never resized, stretched or cropped.
  */
 export function evaluateOfficialImageDimensions(
   profile: OfficialImageProfile,
   width: number,
   height: number
 ): OfficialImageDimensionVerdict {
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    return "reject";
-  }
-  if (width === profile.width && height === profile.height) return "exact";
-  const orientation = width > height ? "landscape" : height > width ? "portrait" : "square";
-  if (orientation !== profile.orientation) return "reject";
-  const target = profile.width / profile.height;
-  const actual = width / height;
-  return Math.abs(actual - target) / target <= RATIO_TOLERANCE ? "normalize" : "reject";
+  return width === profile.width && height === profile.height ? "exact" : "reject";
 }
 
 /**

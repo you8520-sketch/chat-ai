@@ -14,10 +14,9 @@ import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
 import { filenameFromUploadUrl, resolveExistingUploadPath, storeUpload } from "@/lib/uploadStorage";
 import { analyzeAssetImage } from "@/lib/vision";
 import { recordVisionCostAttempts } from "@/lib/visionCost";
-import type { OfficialImageProfile } from "@/lib/officialSupply/imageProfile";
-import type { OfficialVariationQaReport } from "@/lib/officialSupply/types";
 import {
   OfficialImageTransportError,
+  type OfficialAssetModerator,
   type OfficialAssetSpool,
   type OfficialAssetStorage,
   type OfficialImageOps,
@@ -120,13 +119,6 @@ export const sharpOfficialImageOps: OfficialImageOps = {
       return null;
     }
   },
-  async normalize(buffer: Buffer, profile: OfficialImageProfile) {
-    return sharp(buffer, { failOn: "none" })
-      .rotate()
-      .resize({ width: profile.width, height: profile.height, fit: "fill" })
-      .webp({ quality: 90, effort: 4 })
-      .toBuffer();
-  },
 };
 
 export const uploadOfficialAssetStorage: OfficialAssetStorage = {
@@ -137,20 +129,23 @@ export const uploadOfficialAssetStorage: OfficialAssetStorage = {
 };
 
 /**
- * Canonical asset moderation (same vision owner as creator uploads). The
- * vision auto-tag is ignored — the planned semantic tag stays authoritative.
- * `adultFlagged: null` means moderation could not run (listing treats it as unknown).
+ * Canonical asset moderation — the same vision owner as creator uploads. The
+ * vision auto-tag is ignored (the planned semantic tag stays authoritative).
+ * When vision could not run, the result is explicitly `unavailable`.
  */
-export async function moderateOfficialAsset(url: string): Promise<OfficialVariationQaReport["moderation"]> {
-  const result = await analyzeAssetImage(url);
-  recordVisionCostAttempts(result.costAttempts);
-  if (result.estimated) return { adultFlagged: null, moderationReject: false, reason: "moderation unavailable" };
-  return {
-    adultFlagged: result.adultFlagged,
-    moderationReject: result.moderationReject,
-    reason: result.moderationReason,
-  };
-}
+export const visionOfficialAssetModerator: OfficialAssetModerator = {
+  async moderate(url) {
+    const result = await analyzeAssetImage(url);
+    recordVisionCostAttempts(result.costAttempts);
+    if (result.estimated) return { status: "unavailable", reason: "asset vision moderation unavailable" };
+    return {
+      status: "checked",
+      adultFlagged: result.adultFlagged,
+      moderationReject: result.moderationReject,
+      reason: result.moderationReason,
+    };
+  },
+};
 
 export function fileOfficialAssetSpool(dir = path.join(getDataDir(), "official-supply-spool")): OfficialAssetSpool {
   const file = (key: string) => path.join(dir, `${key}.webp`);

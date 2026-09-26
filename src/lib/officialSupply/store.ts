@@ -9,6 +9,7 @@ import {
   renderAppearanceBlock,
 } from "@/lib/officialSupply/appearance";
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
+import { officialModerationVerdict } from "@/lib/officialSupply/moderation";
 import {
   buildOfficialCharacterFormBody,
   computeTextLockHash,
@@ -30,6 +31,7 @@ import {
   qaResult,
   type OfficialAnchorQaReport,
   type OfficialAppearanceLock,
+  type OfficialAssetModeration,
   type OfficialAssetPlan,
   type OfficialAssetSlotKind,
   type OfficialAssetStatus,
@@ -101,6 +103,7 @@ export type OfficialAssetRecord = {
   appearanceLockHash: string | null;
   error: string | null;
   qa: OfficialVariationQaReport | OfficialAnchorQaReport | null;
+  moderation: OfficialAssetModeration | null;
 };
 
 export class OfficialSupplyGateError extends Error {
@@ -176,6 +179,7 @@ export function ensureOfficialSupplySchema(db: Database.Database): void {
       appearance_lock_hash TEXT,
       error TEXT,
       qa_json TEXT,
+      moderation_json TEXT,
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(draft_key, slot_key)
     );
@@ -187,6 +191,12 @@ export function ensureOfficialSupplySchema(db: Database.Database): void {
       PRIMARY KEY (world_key, entry_key, creator_id)
     );
   `);
+  const assetColumns = new Set(
+    (db.prepare("PRAGMA table_info(official_supply_assets)").all() as Array<{ name: string }>).map((c) => c.name)
+  );
+  if (!assetColumns.has("moderation_json")) {
+    db.exec("ALTER TABLE official_supply_assets ADD COLUMN moderation_json TEXT");
+  }
 }
 
 type CharacterRow = {
@@ -222,6 +232,7 @@ type AssetRow = {
   appearance_lock_hash: string | null;
   error: string | null;
   qa_json: string | null;
+  moderation_json: string | null;
 };
 
 function parseJson<T>(raw: string | null): T | null {
@@ -265,6 +276,7 @@ function toAsset(row: AssetRow): OfficialAssetRecord {
     appearanceLockHash: row.appearance_lock_hash,
     error: row.error,
     qa: parseJson(row.qa_json),
+    moderation: parseJson<OfficialAssetModeration>(row.moderation_json),
   };
 }
 
@@ -273,13 +285,7 @@ function anchorQaPasses(qa: OfficialAnchorQaReport): boolean {
 }
 
 function variationQaPasses(qa: OfficialVariationQaReport): boolean {
-  return (
-    qa.identityMatchesAnchor.ok &&
-    qa.expressionMatchesPlan.ok &&
-    qa.characterPresent.ok &&
-    qa.artStyle.ok &&
-    !qa.moderation.moderationReject
-  );
+  return Object.values(qa).every((check) => check.ok);
 }
 
 /** Placeholder asset used only for the canonical dry-run parse at TEXT_LOCK — never persisted. */
@@ -744,7 +750,7 @@ export class OfficialSupplyStore {
   completeSlot(draftKey: string, slotKey: string, workerId: string, input: { url: string; width: number; height: number }): boolean {
     const info = this.db
       .prepare(
-        `UPDATE official_supply_assets SET status='generated', lease_owner=NULL, lease_expires_at=NULL, result_url=?, width=?, height=?, error=NULL, qa_json=NULL, updated_at=datetime('now')
+        `UPDATE official_supply_assets SET status='generated', lease_owner=NULL, lease_expires_at=NULL, result_url=?, width=?, height=?, error=NULL, qa_json=NULL, moderation_json=NULL, updated_at=datetime('now')
          WHERE draft_key=? AND slot_key=? AND status IN ('generating','upload_pending') AND lease_owner=?`
       )
       .run(input.url, input.width, input.height, draftKey, slotKey, workerId);
@@ -793,7 +799,44 @@ export class OfficialSupplyStore {
     };
   }
 
-  /** REQUIRED GATE — ANCHOR_APPROVAL. A failed anchor is rejected (retry anchor only). */
+  /** Stores the canonical asset-vision moderation result for the current image of a slot. */
+  recordModeration(draftKey: string, slotKey: string, moderation: OfficialAssetModeration): void {
+    const info = this.db
+      .prepare(
+        `UPDATE official_supply_assets SET moderation_json=?, updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=? AND status='generated' AND result_url IS NOT NULL`
+      )
+      .run(JSON.stringify(moderation), draftKey, slotKey);
+    if (info.changes !== 1) {
+      throw new OfficialSupplyGateError("asset_not_generated", `${draftKey}/${slotKey} has no generated image to moderate`);
+    }
+  }
+
+  /**
+   * Moderation precedes visual review for every slot. Missing/unavailable
+   * moderation blocks the review (asset stays `generated` until moderation is
+   * re-run); a hard reject rejects the slot regardless of visual QA.
+   */
+  private moderationGate(asset: OfficialAssetRecord): "rejected" | "pass" {
+    const verdict = officialModerationVerdict(asset.moderation);
+    switch (verdict) {
+      case "missing":
+        throw new OfficialSupplyGateError("moderation_missing", `${asset.draftKey}/${asset.slotKey} has not been moderated`);
+      case "unavailable":
+        throw new OfficialSupplyGateError("moderation_unavailable", `${asset.draftKey}/${asset.slotKey} moderation unavailable; re-run moderation`);
+      case "rejected":
+        return "rejected";
+      case "adult_flagged":
+      case "clean":
+        return "pass";
+      default: {
+        const exhaustive: never = verdict;
+        throw new OfficialSupplyGateError("moderation_unknown", String(exhaustive));
+      }
+    }
+  }
+
+  /** REQUIRED GATE — ANCHOR_APPROVAL. Canonical moderation + visual QA must both pass; a failed anchor is rejected (retry anchor only). */
   reviewAnchor(draftKey: string, qa: OfficialAnchorQaReport, reviewer: string): { approved: boolean } {
     const character = this.getCharacter(draftKey);
     if (character.stage !== "asset_plan_locked") {
@@ -804,7 +847,7 @@ export class OfficialSupplyStore {
     if (rep.status !== "generated") {
       throw new OfficialSupplyGateError("anchor_not_generated", `representative is ${rep.status}`);
     }
-    const approved = anchorQaPasses(qa);
+    const approved = this.moderationGate(rep) === "pass" && anchorQaPasses(qa);
     const tx = this.db.transaction(() => {
       this.db
         .prepare(
@@ -838,7 +881,7 @@ export class OfficialSupplyStore {
     if (asset.status !== "generated") {
       throw new OfficialSupplyGateError("asset_not_generated", `${draftKey}/${slotKey} is ${asset.status}`);
     }
-    const approved = variationQaPasses(qa);
+    const approved = this.moderationGate(asset) === "pass" && variationQaPasses(qa);
     this.db
       .prepare("UPDATE official_supply_assets SET status=?, qa_json=?, updated_at=datetime('now') WHERE draft_key=? AND slot_key=?")
       .run(approved ? "approved" : "rejected", JSON.stringify(qa), draftKey, slotKey);
@@ -853,7 +896,7 @@ export class OfficialSupplyStore {
     return { approved };
   }
 
-  /** Final pre-staging QA: every asset approved, current against both locks, no hard moderation reject. */
+  /** Final pre-staging QA: every asset approved, current against both locks, moderated and not hard-rejected. */
   markQaPassed(draftKey: string): QaResult {
     const character = this.getCharacter(draftKey);
     if (character.stage !== "assets_complete") {
@@ -867,6 +910,10 @@ export class OfficialSupplyStore {
       }
       if (asset.appearanceLockHash !== character.appearanceLockHash) {
         errors.push({ code: "asset_appearance_stale", message: `${asset.slotKey} predates the appearance lock` });
+      }
+      const verdict = officialModerationVerdict(asset.moderation);
+      if (verdict !== "clean" && verdict !== "adult_flagged") {
+        errors.push({ code: "asset_moderation", message: `${asset.slotKey} moderation is ${verdict}` });
       }
       const profile = officialImageProfileForSlot(asset.kind);
       if (asset.width !== profile.width || asset.height !== profile.height) {
