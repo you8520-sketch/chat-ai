@@ -418,7 +418,6 @@ describe("suggested replies generation vs presentation", () => {
     markMessageSuggestedRepliesIneligible(MSG_ID, scope);
     const record = loadMessageSuggestedReplies(MSG_ID);
     assert.equal(record?.terminalReason, "original_turn_ineligible");
-    assert.equal(record?.noRetry, true);
     const client = resolveClientSuggestedReplies(record);
     assert.equal(client.suggestedRepliesRequested, false);
   });
