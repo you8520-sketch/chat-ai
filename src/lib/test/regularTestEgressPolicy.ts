@@ -10,7 +10,10 @@
  *   `REGULAR_TEST_REAL_PROVIDER_CALLS=1`. That flag only gates manual live-probe
  *   eligibility (together with a probe-specific flag and
  *   `CHEAPER_INFERENCE_BENCHMARK_API_KEY`); it never unlocks production keys.
- * - The benchmark-only credential is left untouched.
+ * - The benchmark-only credentials
+ *   (`CHEAPER_INFERENCE_BENCHMARK_API_KEY`,
+ *   `OPENROUTER_EMBEDDINGS_BENCHMARK_API_KEY`,
+ *   `OPENROUTER_JEV_BENCHMARK_API_KEY`) are left untouched.
  *
  * Production blast radius is zero: production never loads this module, and
  * no resolver/transport/scheduler/billing code is touched. Tests that need

@@ -224,6 +224,17 @@ export async function callOpenRouterCompletion(opts: {
   responseFormat?: OpenRouterCompletionResponseFormat;
   /** Explicit CheaperInference credential; production resolver used when omitted. */
   cheaperInferenceApiKeyOverride?: string;
+  /**
+   * Explicit OpenRouter credential for OpenRouter-routed models only.
+   * Production callers omit this and continue using resolveOpenRouterApiKey().
+   * Never falls back from a missing override to a benchmark env key.
+   */
+  openRouterApiKeyOverride?: string;
+  /**
+   * When false, skip background cost-ledger writes (benchmark spend is not
+   * production spend). Default true. Turn-scoped ledgerContext is unaffected.
+   */
+  persistBackgroundLedger?: boolean;
 }): Promise<{ text: string; usage: OpenRouterCompletionUsage }> {
   const rawModel = opts.model.trim();
   const useCheaperInference = isCheaperInferenceModel(rawModel);
@@ -265,7 +276,7 @@ export async function callOpenRouterCompletion(opts: {
 
   const key = useCheaperInference
     ? opts.cheaperInferenceApiKeyOverride?.trim() || resolveCheaperInferenceApiKey()
-    : resolveOpenRouterApiKey();
+    : opts.openRouterApiKeyOverride?.trim() || resolveOpenRouterApiKey();
   const endpoint = useCheaperInference
     ? CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL
     : OPENROUTER_CHAT_COMPLETIONS_URL;
@@ -484,7 +495,7 @@ export async function callOpenRouterCompletion(opts: {
       generationSequence: ledgerBase?.generationSequence,
       requestKind: opts.requestKind ?? ledgerBase?.requestKind,
     });
-  } else {
+  } else if (opts.persistBackgroundLedger !== false) {
     // No turn-scoped ledger context (message-independent background call):
     // persist to the SAME canonical ledger with provider settled metadata.
     // Actual billed cost wins at read time; estimate is fallback only.

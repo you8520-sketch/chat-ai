@@ -350,6 +350,12 @@ export async function callJevDecisions(opts: {
   timeoutMs?: number;
   /** Null skips ledger recording (wire-contract tests); omitted records canonically. */
   ledger?: JevDecisionsLedgerOptions | null;
+  /**
+   * Explicit OpenRouter credential override. Production callers omit this and
+   * continue using resolveOpenRouterApiKey(). Benchmark callers may supply a
+   * dedicated key; there is no env fallback from benchmark → production.
+   */
+  apiKey?: string;
 }): Promise<{
   answers: Record<string, JevDecisionAnswer>;
   usage: JevDecisionUsage;
@@ -373,8 +379,8 @@ export async function callJevDecisions(opts: {
       code: "invalid_request",
     });
   }
-  // Canonical auth owner throws NO_OPENROUTER_KEY before any HTTP.
-  const key = resolveOpenRouterApiKey();
+  // Canonical auth owner throws NO_OPENROUTER_KEY before any HTTP when omit.
+  const key = opts.apiKey?.trim() || resolveOpenRouterApiKey();
   const model = (opts.model ?? JEV_DECISIONS_MODEL).trim() || JEV_DECISIONS_MODEL;
   const requestKind = opts.ledger?.requestKind ?? JEV_DECISIONS_REQUEST_KIND;
 
