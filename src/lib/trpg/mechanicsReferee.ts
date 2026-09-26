@@ -85,14 +85,36 @@ export function buildMechanicsRefereeUserBlock(opts: {
     .join("\n\n");
 }
 
+export type TrpgMechanicsRefereeUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  upstreamCostUsd: number | null;
+};
+
+/**
+ * Explicit credential seam for benchmark/smoke only.
+ * Production callers omit `cheaperInferenceApiKeyOverride` and keep using
+ * `resolveCheaperInferenceApiKey()`. There is no benchmark-env fallback here.
+ */
 export async function callTrpgMechanicsReferee(opts: {
   system: string;
   user: string;
-}): Promise<{ text: string; model: string; latencyMs: number }> {
+  cheaperInferenceApiKeyOverride?: string;
+}): Promise<{
+  text: string;
+  model: string;
+  latencyMs: number;
+  usage: TrpgMechanicsRefereeUsage;
+}> {
   const model = TRPG_MECHANICS_REFEREE_MODEL;
   const started = Date.now();
   if (isMockApiMode()) {
-    return { text: `{"effects":[]}`, model, latencyMs: Date.now() - started };
+    return {
+      text: `{"effects":[]}`,
+      model,
+      latencyMs: Date.now() - started,
+      usage: { inputTokens: 0, outputTokens: 0, upstreamCostUsd: null },
+    };
   }
   const body = adaptTrpgReplySuggestionChatBody({
     model,
@@ -105,10 +127,11 @@ export async function callTrpgMechanicsReferee(opts: {
     max_tokens: TRPG_MECHANICS_REFEREE_MAX_TOKENS,
     response_format: { type: "json_object" },
   });
+  const apiKey = opts.cheaperInferenceApiKeyOverride?.trim() || resolveCheaperInferenceApiKey();
   const failover = await executeDeepSeekBackgroundWithProviderFailover({
     primary: {
       endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
-      headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
+      headers: buildCheaperInferenceHeaders(apiKey),
       body,
     },
     timeoutMs: TRPG_MECHANICS_REFEREE_TIMEOUT_MS,
@@ -120,8 +143,33 @@ export async function callTrpgMechanicsReferee(opts: {
   }
   const data = (await res.json()) as {
     choices?: { message?: { content?: unknown } }[];
+    usage?: {
+      prompt_tokens?: unknown;
+      completion_tokens?: unknown;
+      input_tokens?: unknown;
+      output_tokens?: unknown;
+      cost?: unknown;
+    };
   };
   const text = typeof data.choices?.[0]?.message?.content === "string" ? data.choices[0].message.content : "";
   if (!text.trim()) throw new Error("[TRPG mechanics] empty completion");
-  return { text, model, latencyMs: Date.now() - started };
+  const inputTokens =
+    typeof data.usage?.prompt_tokens === "number"
+      ? data.usage.prompt_tokens
+      : typeof data.usage?.input_tokens === "number"
+        ? data.usage.input_tokens
+        : 0;
+  const outputTokens =
+    typeof data.usage?.completion_tokens === "number"
+      ? data.usage.completion_tokens
+      : typeof data.usage?.output_tokens === "number"
+        ? data.usage.output_tokens
+        : 0;
+  const upstreamCostUsd = typeof data.usage?.cost === "number" ? data.usage.cost : null;
+  return {
+    text,
+    model,
+    latencyMs: Date.now() - started,
+    usage: { inputTokens, outputTokens, upstreamCostUsd },
+  };
 }

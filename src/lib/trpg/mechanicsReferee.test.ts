@@ -11,6 +11,8 @@ describe("TRPG mechanics referee contract", () => {
     assert.equal(TRPG_MECHANICS_REFEREE_MODEL, TRPG_SCENARIO_DRAFT_MODEL);
     const src = readFileSync("src/lib/trpg/mechanicsReferee.ts", "utf8");
     assert.match(src, /adaptTrpgReplySuggestionChatBody/);
+    assert.match(src, /cheaperInferenceApiKeyOverride/);
+    assert.match(src, /opts\.cheaperInferenceApiKeyOverride\?\.trim\(\) \|\| resolveCheaperInferenceApiKey\(\)/);
     const adapted = adaptTrpgReplySuggestionChatBody({ model: TRPG_MECHANICS_REFEREE_MODEL });
     assert.deepEqual(adapted.thinking, { type: "disabled" });
     assert.equal(adapted.reasoning_effort, "none");
