@@ -55,6 +55,17 @@ export default defineConfig({
           TRPG_SCROLL_FOLLOW_LAB_ENABLED: "1",
           PORT: PROD_TEST_PORT,
           NODE_ENV: "production",
+          // Browser regression servers must never inherit developer/Cursor
+          // provider credentials. Fresh-chat creation schedules greeting
+          // Suggested Replies in the background, so a real key here would make
+          // a supposedly provider-free UI test spend real GPT-6 Luna calls.
+          REGULAR_TEST_REAL_PROVIDER_CALLS: "0",
+          REAL_PROVIDER_SCHEMA_PROBE: "0",
+          REAL_TRPG_GM_PROVIDER_PROBE: "0",
+          CHEAPER_INFERENCE_API_KEY: "",
+          CHEAPER_INFERENCE_BENCHMARK_API_KEY: "",
+          OPENROUTER_API_KEY: "",
+          OPENAI_API_KEY: "",
         },
         url: PROD_TEST_BASE_URL,
         reuseExistingServer: false,

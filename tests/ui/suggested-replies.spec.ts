@@ -5,6 +5,18 @@ import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
 
 const CHAT_DISPLAY_PREFS_KEY = "playai-chat-display-prefs";
 
+function openPlaywrightFixtureDb() {
+  const dataDir = process.env.PLAYWRIGHT_DATA_DIR;
+  if (!dataDir) {
+    throw new Error("PLAYWRIGHT_DATA_DIR must be resolved by playwright.config.ts");
+  }
+  const db = new Database(path.resolve(dataDir, "app.db"));
+  // Fresh-chat creation schedules a background greeting writer. Direct fixture
+  // access waits for that canonical writer instead of racing it.
+  db.pragma("busy_timeout = 5000");
+  return db;
+}
+
 const MOCK_USER_MESSAGE_ID = 190_001;
 const MOCK_ASSISTANT_MESSAGE_ID = 190_002;
 const SECOND_USER_MESSAGE_ID = 190_101;
@@ -60,12 +72,7 @@ function seedPersistedSuggestedRepliesForReload(
   assistantMessageId: number;
   content: string;
 } {
-  const dataDir = process.env.PLAYWRIGHT_DATA_DIR;
-  if (!dataDir) {
-    throw new Error("PLAYWRIGHT_DATA_DIR must be resolved by playwright.config.ts");
-  }
-
-  const db = new Database(path.resolve(dataDir, "app.db"));
+  const db = openPlaywrightFixtureDb();
   const requestId = `suggested-replies-reload-${chatId}`;
   const content =
     state === "ready"
@@ -111,13 +118,8 @@ async function waitForGreetingSuggestedRepliesJobSettled(
   page: Page,
   chatId: number
 ): Promise<{ messageId: number; content: string }> {
-  const dataDir = process.env.PLAYWRIGHT_DATA_DIR;
-  if (!dataDir) {
-    throw new Error("PLAYWRIGHT_DATA_DIR must be resolved by playwright.config.ts");
-  }
-
   for (let attempt = 0; attempt < 60; attempt += 1) {
-    const db = new Database(path.resolve(dataDir, "app.db"));
+    const db = openPlaywrightFixtureDb();
     try {
       const row = db
         .prepare(
@@ -146,12 +148,7 @@ async function waitForGreetingSuggestedRepliesJobSettled(
 }
 
 function seedGreetingSuggestedRepliesPending(messageId: number): void {
-  const dataDir = process.env.PLAYWRIGHT_DATA_DIR;
-  if (!dataDir) {
-    throw new Error("PLAYWRIGHT_DATA_DIR must be resolved by playwright.config.ts");
-  }
-
-  const db = new Database(path.resolve(dataDir, "app.db"));
+  const db = openPlaywrightFixtureDb();
   try {
     db.prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
       JSON.stringify({
