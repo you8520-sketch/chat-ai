@@ -46,6 +46,19 @@ on:
       - "src/lib/memory/memory-episodic-shared.ts"
       - "src/lib/memory/memory-episodic-shared-initial.test.ts"
       - "src/lib/memory/memory-episodic-types.ts"
+      - "src/lib/memory/memory-episodic-semantic-config.ts"
+      - "src/lib/memory/memory-episodic-semantic-index.ts"
+      - "src/lib/memory/memory-episodic-semantic-jobs.ts"
+      - "src/lib/memory/memory-episodic-semantic-discovery.test.ts"
+      - "src/lib/memory/memory-episodic-semantic-cleanup.test.ts"
+      - "src/lib/memory/memory-episodic-semantic-synthetic.test.ts"
+      - "src/lib/memory/memory-rp-benchmark-suite.ts"
+      - "src/lib/memory/memory-rp-benchmark.test.ts"
+      - "src/lib/openRouterEmbeddings.ts"
+      - "src/lib/openRouterEmbeddings.test.ts"
+      - "scripts/lib/benchmarkOpenRouterEmbeddingsCredential.ts"
+      - "scripts/lib/episodicEmbeddingLiveBenchmark.ts"
+      - "scripts/lib/episodicEmbeddingLiveBenchmark.test.ts"
       - "src/lib/memory/memory-manager.ts"
       - "src/lib/runtimePromptContaminationGuard.ts"
       - "src/app/api/chat/route.ts"
@@ -110,6 +123,18 @@ jobs:
 
       - name: Shared initial episodic consumer regression
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-shared-initial.test.ts
+
+      - name: Semantic candidate discovery regressions
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory-episodic-semantic-discovery.test.ts src/lib/memory/memory-episodic-semantic-cleanup.test.ts src/lib/memory/memory-episodic-semantic-synthetic.test.ts
+
+      - name: OpenRouter embeddings transport regression
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/openRouterEmbeddings.test.ts
+
+      - name: Memory benchmark semantic regression
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory-rp-benchmark.test.ts
+
+      - name: Live embedding runner isolation regression
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 scripts/lib/episodicEmbeddingLiveBenchmark.test.ts
 
       - name: Medium-term cascaded memory audit + reader
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-medium-term.test.ts src/lib/memory/memory-medium-term-audit.test.ts src/lib/memory/memory-medium-term-prompt-budget-audit.test.ts src/lib/memory/memory-prompt-injectible-parity.test.ts
