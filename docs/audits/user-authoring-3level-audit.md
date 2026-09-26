@@ -36,6 +36,7 @@ Date: 2026-09-26
 | Continue / regeneration user-tail | `continueNarrative.ts` short-ref to effective owner |
 | Current-user wrapper | `currentUserInputLabel.ts` short-ref to effective owner |
 | Scene directive | `sceneDirective.ts` short-ref only |
+| Prose / emotional expression style | `IMMERSIVE_PROSE_BLOCK` in `advancedProseNsfwGuidelines.ts` |
 | UI persistence | `PATCH /api/chat/settings` |
 | Fork inheritance | `chatForkCreate.ts` + fork route |
 
@@ -70,6 +71,7 @@ A new 3-level setting added as another independent prompt rule would create conf
 - Prompt wrappers and scene directives short-reference the effective owner instead of restating a competing scope.
 - Regeneration receives exact authoring-active and dialogue-allowed flags separately.
 - ALLOW can keep AI-cast irreversible expansion even when an OOC override narrows [B].
+- ALLOW/ABSOLUTE widens what may be authored, not how emotion is written. The common prose owner prefers scene evidence (action, sensation, body response, gaze, breath, distance, silence, thought flow, choice) over narrator emotion labels such as “불안했다/무서웠다/걱정됐다”; natural in-character dialogue/internal wording such as “무서워” remains allowed.
 - Existing chats default to LIMITED.
 - A level chosen before the first room exists is carried by the first normal chat POST and persisted in the initial chat INSERT, so the first AI reply uses that selected level.
 - Forks inherit the visible base level and reconstruct only current-epoch OOC authority.
@@ -118,6 +120,7 @@ A new 3-level setting added as another independent prompt rule would create conf
 - NPC `전권` instruction accidentally granting [B] fate authority
 - ALLOW user-fate protection accidentally disabling irreversible AI-cast progression
 - unexplained resurrection after ABSOLUTE-authored death
+- ALLOW inner POV degrading into repetitive direct emotion-label narration
 
 ## Validation gate
 
@@ -134,6 +137,7 @@ Required before completion:
 - auto-progression prompt test
 - continue prompt test
 - regeneration prompt test
+- common immersive-prose emotion-expression regression
 - adjacent repository CI workflows
 - no provider HTTP required
 
