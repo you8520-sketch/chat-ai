@@ -626,7 +626,7 @@ describe("correction invariants", () => {
 
     const safeId = insertFact(db, {
       turn: 14,
-      subject: "safe-ready",
+      subject: "safe_ready",
       text: "현재 scope에서 사용할 수 있는 안전한 기억이다.",
     });
     write(safeId, "현재 scope에서 사용할 수 있는 안전한 기억이다.");
