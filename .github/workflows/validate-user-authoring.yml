@@ -25,6 +25,8 @@ on:
       - "src/lib/continueNarrative.autoContinue.test.ts"
       - "src/lib/continueNarrative.regenerate.test.ts"
       - "src/lib/sceneDirective.ts"
+      - "src/lib/advancedProseNsfwGuidelines.ts"
+      - "src/lib/advancedProseNsfwGuidelines.test.ts"
       - "src/services/contextBuilder.ts"
       - "src/app/api/chat/route.ts"
       - "src/app/api/chat/settings/route.ts"
@@ -65,3 +67,4 @@ jobs:
       - run: node --conditions=react-server --import tsx --test src/lib/autoProgression.prompt.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/continueNarrative.autoContinue.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/continueNarrative.regenerate.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/advancedProseNsfwGuidelines.test.ts
