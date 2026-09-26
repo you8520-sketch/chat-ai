@@ -33,9 +33,9 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.match(block, /\[IMMERSIVE PROSE\]/);
     assert.match(block, /생각·연상·기억·오해·감정·판단/);
     assert.match(block, /뜻이었다/);
-    assert.match(block, /불안했다\/무서웠다\/걱정됐다/);
+    assert.match(block, /감정은 이름으로 단정·요약하는 서술보다/);
     assert.match(block, /행동·감각·신체 반응·시선·호흡·거리·침묵·생각의 흐름과 선택/);
-    assert.match(block, /“무서워”, “걱정돼”/);
+    assert.match(block, /실제 대사나 내적 언어에서 직접 자각하거나 말하는 순간/);
     assert.match(block, /브리핑으로 만들지 않는다/);
     assert.match(block, /\[WEBNOVEL BREATH\]/);
     assert.doesNotMatch(block, /\[EMOTION & INNER EXPERIENCE\]/);
