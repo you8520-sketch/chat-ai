@@ -7,6 +7,9 @@ on:
       - "src/lib/userAuthoringPolicy.test.ts"
       - "src/lib/userAuthoringFork.test.ts"
       - "src/lib/userAuthoringFirstTurn.test.ts"
+      - "src/lib/userAuthoringGenerationSnapshot.test.ts"
+      - "src/lib/feedback/snapshot.ts"
+      - "src/lib/feedback/types.ts"
       - "src/lib/userImpersonationLegacyDbMirror.test.ts"
       - "src/lib/userCoauthor*.ts"
       - "src/lib/chatRuntimeMode.ts"
@@ -60,6 +63,7 @@ jobs:
       - run: node --conditions=react-server --import tsx --test src/lib/userAuthoringPolicy.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/userAuthoringFork.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/userAuthoringFirstTurn.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/userAuthoringGenerationSnapshot.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/userImpersonationLegacyDbMirror.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/userCoauthor.h44.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/userCoauthor.authority.test.ts
