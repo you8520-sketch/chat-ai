@@ -1,0 +1,5187 @@
+{
+  "generatedAt": "2026-09-19T08:36:17.270Z",
+  "audit": "g37-pricing-candidate-simulation",
+  "providerGenerationCalls": 0,
+  "sourceMainSha": "ab5c2c141e33beec54b9b6d80bdc2236cc9c044b",
+  "pricingOwner": "src/lib/gemini37FlashPricing.ts",
+  "currentProductionConfig": {
+    "basePoints": 35,
+    "includedInputTokens": 25000,
+    "inputStepTokens": 10000,
+    "inputStepPoints": 1,
+    "outputTier2500": 0,
+    "outputTier4000": 25,
+    "outputTier5500": 30,
+    "outputTier7000": 40,
+    "outputTier9000": 50,
+    "outputOver9000StepTokens": 1500,
+    "outputOver9000StepPoints": 10,
+    "longContextThresholdTokens": 75000,
+    "longContextStepTokens": 10000,
+    "longContextStepPoints": 15
+  },
+  "railwayOverridesDetected": {
+    "GEMINI37_BASE_POINTS": null,
+    "GEMINI37_INCLUDED_INPUT_TOKENS": null,
+    "GEMINI37_INPUT_STEP_TOKENS": null,
+    "GEMINI37_INPUT_STEP_POINTS": null,
+    "GEMINI37_OUTPUT_TIER_2500": null,
+    "GEMINI37_OUTPUT_TIER_4000": null,
+    "GEMINI37_OUTPUT_TIER_5500": null,
+    "GEMINI37_OUTPUT_TIER_7000": null,
+    "GEMINI37_OUTPUT_TIER_9000": null,
+    "GEMINI37_LONG_CONTEXT_THRESHOLD_TOKENS": null
+  },
+  "fx": {
+    "effectiveKrwPerUsd": 1530,
+    "mode": "daily_kst",
+    "source": "fallback",
+    "label": "procurement_cost = billed_cost_usd × effectiveKrwPerUsd (#963 billing owner)"
+  },
+  "sitePromotionApplied": false,
+  "baselineVerification": {
+    "merged966Expected": {
+      "window30d": {
+        "sampleCount": 376,
+        "minimum": 20.9,
+        "p5": 48,
+        "median": 77.7,
+        "weightedAggregateMarginPct": 76.8,
+        "below50Pct": {
+          "count": 21,
+          "pct": 5.6
+        },
+        "below55Pct": {
+          "count": 34,
+          "pct": 9
+        }
+      },
+      "window7d": {
+        "sampleCount": 46,
+        "minimum": 52.6,
+        "below50Pct": {
+          "count": 0,
+          "pct": 0
+        },
+        "below55Pct": {
+          "count": 4,
+          "pct": 8.7
+        }
+      }
+    },
+    "reproducedFromFreshFetch": {
+      "noCache30d": {
+        "sampleCount": 376,
+        "minimum": 20.9,
+        "p5": 48,
+        "p10": 55.4,
+        "median": 77.7,
+        "weightedAggregateMarginPct": 76.8,
+        "below0Pct": {
+          "count": 0,
+          "pct": 0
+        },
+        "below50Pct": {
+          "count": 21,
+          "pct": 5.6
+        },
+        "below55Pct": {
+          "count": 34,
+          "pct": 9
+        },
+        "below60Pct": {
+          "count": 45,
+          "pct": 12
+        }
+      },
+      "noCache7d": {
+        "sampleCount": 46,
+        "minimum": 52.6,
+        "p5": 53.1,
+        "p10": 57.7,
+        "median": 68.6,
+        "weightedAggregateMarginPct": 68.4,
+        "below0Pct": {
+          "count": 0,
+          "pct": 0
+        },
+        "below50Pct": {
+          "count": 0,
+          "pct": 0
+        },
+        "below55Pct": {
+          "count": 4,
+          "pct": 8.7
+        },
+        "below60Pct": {
+          "count": 8,
+          "pct": 17.4
+        }
+      },
+      "allTrafficCount": 399,
+      "fetchPaginationComplete": true
+    },
+    "note": "Fresh CI usage fetch; compare distributions not exact row hashes"
+  },
+  "currentMarginProblem": {
+    "lowMarginBelow50Count": 21,
+    "lowMarginBelow50Pct": 5.6,
+    "shapeDecomposition": {
+      "long_input_within_included_low_output": 2,
+      "near_25k_included_boundary": 9,
+      "over_included_input": 7,
+      "long_input_within_included_high_output": 2,
+      "other": 1
+    },
+    "worstFive": [
+      {
+        "requestHash": "3236cb0e73d79544",
+        "input": 23915,
+        "output": 2103,
+        "userPoints": 35,
+        "marginPct": 20.9,
+        "shape": "long_input_within_included_low_output",
+        "pricingFailure": [
+          "included_input_band_no_surcharge",
+          "output_tier_2500_only",
+          "base_dominates"
+        ],
+        "breakdown": {
+          "base": 35,
+          "inputSurcharge": 0,
+          "outputSurcharge": 0,
+          "longContext": 0
+        },
+        "billedCostUsd": 0.018076,
+        "providerAttemptCount": 2
+      },
+      {
+        "requestHash": "2d893afc8bc3d1e1",
+        "input": 26395,
+        "output": 1678,
+        "userPoints": 36,
+        "marginPct": 22.5,
+        "shape": "over_included_input",
+        "pricingFailure": [
+          "output_tier_2500_only"
+        ],
+        "breakdown": {
+          "base": 35,
+          "inputSurcharge": 1,
+          "outputSurcharge": 0,
+          "longContext": 0
+        },
+        "billedCostUsd": 0.018263,
+        "providerAttemptCount": 1
+      },
+      {
+        "requestHash": "f908563c84260043",
+        "input": 24990,
+        "output": 1735,
+        "userPoints": 35,
+        "marginPct": 22.9,
+        "shape": "near_25k_included_boundary",
+        "pricingFailure": [
+          "included_input_band_no_surcharge",
+          "output_tier_2500_only",
+          "base_dominates"
+        ],
+        "breakdown": {
+          "base": 35,
+          "inputSurcharge": 0,
+          "outputSurcharge": 0,
+          "longContext": 0
+        },
+        "billedCostUsd": 0.017675,
+        "providerAttemptCount": 1
+      },
+      {
+        "requestHash": "834b130177996285",
+        "input": 25324,
+        "output": 1489,
+        "userPoints": 36,
+        "marginPct": 26.9,
+        "shape": "near_25k_included_boundary",
+        "pricingFailure": [
+          "output_tier_2500_only"
+        ],
+        "breakdown": {
+          "base": 35,
+          "inputSurcharge": 1,
+          "outputSurcharge": 0,
+          "longContext": 0
+        },
+        "billedCostUsd": 0.017204,
+        "providerAttemptCount": 2
+      },
+      {
+        "requestHash": "3dca9d4b4f1af3db",
+        "input": 18043,
+        "output": 1753,
+        "userPoints": 35,
+        "marginPct": 38.6,
+        "shape": "long_input_within_included_low_output",
+        "pricingFailure": [
+          "included_input_band_no_surcharge",
+          "output_tier_2500_only",
+          "base_dominates"
+        ],
+        "breakdown": {
+          "base": 35,
+          "inputSurcharge": 0,
+          "outputSurcharge": 0,
+          "longContext": 0
+        },
+        "billedCostUsd": 0.014075,
+        "providerAttemptCount": 1
+      }
+    ]
+  },
+  "candidates": [
+    {
+      "id": "CURRENT",
+      "label": "Current production defaults",
+      "family": "baseline",
+      "configDelta": {},
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 20.9,
+          "p5": 48,
+          "p10": 55.4,
+          "median": 77.7,
+          "weightedAggregateMarginPct": 76.8,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 21,
+            "pct": 5.6
+          },
+          "below55Pct": {
+            "count": 34,
+            "pct": 9
+          },
+          "below60Pct": {
+            "count": 45,
+            "pct": 12
+          }
+        },
+        "priceImpactVsCurrent": null,
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 13980
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 52.6,
+          "p5": 53.1,
+          "p10": 57.7,
+          "median": 68.6,
+          "weightedAggregateMarginPct": 68.4,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 4,
+            "pct": 8.7
+          },
+          "below60Pct": {
+            "count": 8,
+            "pct": 17.4
+          }
+        },
+        "priceImpactVsCurrent": null,
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 1910
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 20.9,
+          "p5": 49.3,
+          "p10": 55.7,
+          "median": 77.7,
+          "weightedAggregateMarginPct": 77,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 21,
+            "pct": 5.3
+          },
+          "below55Pct": {
+            "count": 34,
+            "pct": 8.5
+          },
+          "below60Pct": {
+            "count": 48,
+            "pct": 12
+          }
+        },
+        "priceImpactVsCurrent": null,
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 14862
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 35,
+            "marginPct": 71.7
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 35,
+            "marginPct": 62.3
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 60,
+            "marginPct": 70.5
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 60,
+            "marginPct": 66
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 60,
+            "marginPct": 69.8
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 35,
+            "marginPct": 32.9
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 60,
+            "marginPct": 70.2
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 60,
+            "marginPct": 43.8
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 61,
+            "marginPct": 55.2
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 66,
+            "marginPct": 54.5
+          }
+        ],
+        "rollingMarginPct": 60.2
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 35
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 35
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 60
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 60
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 60
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 65
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 24999,
+            "output": 2000,
+            "points": 35
+          },
+          {
+            "label": "in_included",
+            "input": 25000,
+            "output": 2000,
+            "points": 35
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 25001,
+            "output": 2000,
+            "points": 36
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 35000,
+            "output": 2000,
+            "points": 36
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 35001,
+            "output": 2000,
+            "points": 37
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 40
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 40
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 56
+          }
+        ],
+        "unexpectedCliffsOver20P": [
+          {
+            "from": "out_2500",
+            "to": "out_2501",
+            "deltaP": 25
+          },
+          {
+            "from": "out_4001",
+            "to": "in_included_minus1",
+            "deltaP": -30
+          }
+        ]
+      }
+    },
+    {
+      "id": "A1",
+      "label": "basePoints=40",
+      "family": "A_base",
+      "configDelta": {
+        "basePoints": 40
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 30.8,
+          "p5": 52,
+          "p10": 61,
+          "median": 80.5,
+          "weightedAggregateMarginPct": 79.6,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 14,
+            "pct": 3.7
+          },
+          "below55Pct": {
+            "count": 21,
+            "pct": 5.6
+          },
+          "below60Pct": {
+            "count": 34,
+            "pct": 9
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 5,
+          "medianDelta": 5,
+          "p5Delta": 5,
+          "p95Delta": 5,
+          "maxIncrease": 5,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 376,
+            "pct": 100
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 15860
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 58.5,
+          "p5": 59,
+          "p10": 63,
+          "median": 71.7,
+          "weightedAggregateMarginPct": 72,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below60Pct": {
+            "count": 4,
+            "pct": 8.7
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 5,
+          "medianDelta": 5,
+          "p5Delta": 5,
+          "p95Delta": 5,
+          "maxIncrease": 5,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 46,
+            "pct": 100
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 2140
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 30.8,
+          "p5": 53.2,
+          "p10": 61.3,
+          "median": 80.5,
+          "weightedAggregateMarginPct": 79.7,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 14,
+            "pct": 3.5
+          },
+          "below55Pct": {
+            "count": 21,
+            "pct": 5.3
+          },
+          "below60Pct": {
+            "count": 34,
+            "pct": 8.5
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 5,
+          "medianDelta": 5,
+          "p5Delta": 5,
+          "p95Delta": 5,
+          "maxIncrease": 5,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 399,
+            "pct": 100
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 16857
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 40,
+            "marginPct": 75.3
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 40,
+            "marginPct": 67
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 65,
+            "marginPct": 72.8
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 65,
+            "marginPct": 68.6
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 65,
+            "marginPct": 72.2
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 40,
+            "marginPct": 41.3
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 65,
+            "marginPct": 72.5
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 65,
+            "marginPct": 48.2
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 66,
+            "marginPct": 58.6
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 71,
+            "marginPct": 57.7
+          }
+        ],
+        "rollingMarginPct": 63.6
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 40
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 40
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 65
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 65
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 65
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 70
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 24999,
+            "output": 2000,
+            "points": 40
+          },
+          {
+            "label": "in_included",
+            "input": 25000,
+            "output": 2000,
+            "points": 40
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 25001,
+            "output": 2000,
+            "points": 41
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 35000,
+            "output": 2000,
+            "points": 41
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 35001,
+            "output": 2000,
+            "points": 42
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 45
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 45
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 61
+          }
+        ],
+        "unexpectedCliffsOver20P": [
+          {
+            "from": "out_2500",
+            "to": "out_2501",
+            "deltaP": 25
+          },
+          {
+            "from": "out_4001",
+            "to": "in_included_minus1",
+            "deltaP": -30
+          }
+        ]
+      }
+    },
+    {
+      "id": "A2",
+      "label": "basePoints=45",
+      "family": "A_base",
+      "configDelta": {
+        "basePoints": 45
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 38.4,
+          "p5": 55.4,
+          "p10": 65.3,
+          "median": 82.7,
+          "weightedAggregateMarginPct": 81.7,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 4,
+            "pct": 1.1
+          },
+          "below55Pct": {
+            "count": 17,
+            "pct": 4.5
+          },
+          "below60Pct": {
+            "count": 21,
+            "pct": 5.6
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 10,
+          "medianDelta": 10,
+          "p5Delta": 10,
+          "p95Delta": 10,
+          "maxIncrease": 10,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 376,
+            "pct": 100
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 17740
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 63.1,
+          "p5": 63.6,
+          "p10": 67.1,
+          "median": 74.4,
+          "weightedAggregateMarginPct": 74.8,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below60Pct": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 10,
+          "medianDelta": 10,
+          "p5Delta": 10,
+          "p95Delta": 10,
+          "maxIncrease": 10,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 46,
+            "pct": 100
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 2370
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 38.4,
+          "p5": 56.6,
+          "p10": 65.6,
+          "median": 82.7,
+          "weightedAggregateMarginPct": 81.8,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 4,
+            "pct": 1
+          },
+          "below55Pct": {
+            "count": 17,
+            "pct": 4.3
+          },
+          "below60Pct": {
+            "count": 21,
+            "pct": 5.3
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 10,
+          "medianDelta": 10,
+          "p5Delta": 10,
+          "p95Delta": 10,
+          "maxIncrease": 10,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 399,
+            "pct": 100
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 18852
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 45,
+            "marginPct": 78
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 45,
+            "marginPct": 70.7
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 70,
+            "marginPct": 74.7
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 70,
+            "marginPct": 70.9
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 70,
+            "marginPct": 74.1
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 45,
+            "marginPct": 47.8
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 70,
+            "marginPct": 74.4
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 70,
+            "marginPct": 51.9
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 71,
+            "marginPct": 61.5
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 76,
+            "marginPct": 60.5
+          }
+        ],
+        "rollingMarginPct": 66.5
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 45
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 45
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 70
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 70
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 70
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 75
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 24999,
+            "output": 2000,
+            "points": 45
+          },
+          {
+            "label": "in_included",
+            "input": 25000,
+            "output": 2000,
+            "points": 45
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 25001,
+            "output": 2000,
+            "points": 46
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 35000,
+            "output": 2000,
+            "points": 46
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 35001,
+            "output": 2000,
+            "points": 47
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 50
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 50
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 66
+          }
+        ],
+        "unexpectedCliffsOver20P": [
+          {
+            "from": "out_2500",
+            "to": "out_2501",
+            "deltaP": 25
+          },
+          {
+            "from": "out_4001",
+            "to": "in_included_minus1",
+            "deltaP": -30
+          }
+        ]
+      }
+    },
+    {
+      "id": "B1",
+      "label": "includedInputTokens=20000",
+      "family": "B_included",
+      "configDelta": {
+        "includedInputTokens": 20000
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 22.5,
+          "p5": 48.2,
+          "p10": 55.4,
+          "median": 77.7,
+          "weightedAggregateMarginPct": 76.8,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 19,
+            "pct": 5.1
+          },
+          "below55Pct": {
+            "count": 34,
+            "pct": 9
+          },
+          "below60Pct": {
+            "count": 45,
+            "pct": 12
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 0,
+          "maxIncrease": 1,
+          "unchanged": {
+            "count": 364,
+            "pct": 96.8
+          },
+          "plus1to5P": {
+            "count": 12,
+            "pct": 3.2
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 13992
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 52.6,
+          "p5": 53.1,
+          "p10": 57.7,
+          "median": 68.6,
+          "weightedAggregateMarginPct": 68.4,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 4,
+            "pct": 8.7
+          },
+          "below60Pct": {
+            "count": 8,
+            "pct": 17.4
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 0,
+          "maxIncrease": 0,
+          "unchanged": {
+            "count": 46,
+            "pct": 100
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 1910
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 22.5,
+          "p5": 50.2,
+          "p10": 55.7,
+          "median": 77.7,
+          "weightedAggregateMarginPct": 77,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 19,
+            "pct": 4.8
+          },
+          "below55Pct": {
+            "count": 34,
+            "pct": 8.5
+          },
+          "below60Pct": {
+            "count": 48,
+            "pct": 12
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 0,
+          "maxIncrease": 1,
+          "unchanged": {
+            "count": 386,
+            "pct": 96.7
+          },
+          "plus1to5P": {
+            "count": 13,
+            "pct": 3.3
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 14875
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 35,
+            "marginPct": 71.7
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 35,
+            "marginPct": 62.3
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 60,
+            "marginPct": 70.5
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 60,
+            "marginPct": 66
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 60,
+            "marginPct": 69.8
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 35,
+            "marginPct": 32.9
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 60,
+            "marginPct": 70.2
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 61,
+            "marginPct": 44.8
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 61,
+            "marginPct": 55.2
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 67,
+            "marginPct": 55.2
+          }
+        ],
+        "rollingMarginPct": 60.4
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 35
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 35
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 60
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 60
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 60
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 65
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 19999,
+            "output": 2000,
+            "points": 35
+          },
+          {
+            "label": "in_included",
+            "input": 20000,
+            "output": 2000,
+            "points": 35
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 20001,
+            "output": 2000,
+            "points": 36
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 30000,
+            "output": 2000,
+            "points": 36
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 30001,
+            "output": 2000,
+            "points": 37
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 41
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 41
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 56
+          }
+        ],
+        "unexpectedCliffsOver20P": [
+          {
+            "from": "out_2500",
+            "to": "out_2501",
+            "deltaP": 25
+          },
+          {
+            "from": "out_4001",
+            "to": "in_included_minus1",
+            "deltaP": -30
+          }
+        ]
+      }
+    },
+    {
+      "id": "B2",
+      "label": "includedInputTokens=15000",
+      "family": "B_included",
+      "configDelta": {
+        "includedInputTokens": 15000
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 23.1,
+          "p5": 48.9,
+          "p10": 55.4,
+          "median": 77.7,
+          "weightedAggregateMarginPct": 76.9,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 19,
+            "pct": 5.1
+          },
+          "below55Pct": {
+            "count": 31,
+            "pct": 8.2
+          },
+          "below60Pct": {
+            "count": 45,
+            "pct": 12
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0.1,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 1,
+          "maxIncrease": 1,
+          "unchanged": {
+            "count": 334,
+            "pct": 88.8
+          },
+          "plus1to5P": {
+            "count": 42,
+            "pct": 11.2
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 14022
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 52.6,
+          "p5": 53.1,
+          "p10": 57.7,
+          "median": 68.6,
+          "weightedAggregateMarginPct": 68.4,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 4,
+            "pct": 8.7
+          },
+          "below60Pct": {
+            "count": 8,
+            "pct": 17.4
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 0,
+          "maxIncrease": 0,
+          "unchanged": {
+            "count": 46,
+            "pct": 100
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 1910
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 23.1,
+          "p5": 50.2,
+          "p10": 56.9,
+          "median": 77.7,
+          "weightedAggregateMarginPct": 77.1,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 19,
+            "pct": 4.8
+          },
+          "below55Pct": {
+            "count": 31,
+            "pct": 7.8
+          },
+          "below60Pct": {
+            "count": 48,
+            "pct": 12
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0.1,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 1,
+          "maxIncrease": 1,
+          "unchanged": {
+            "count": 348,
+            "pct": 87.2
+          },
+          "plus1to5P": {
+            "count": 51,
+            "pct": 12.8
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 14913
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 35,
+            "marginPct": 71.7
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 35,
+            "marginPct": 62.3
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 60,
+            "marginPct": 70.5
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 60,
+            "marginPct": 66
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 60,
+            "marginPct": 69.8
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 36,
+            "marginPct": 34.7
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 61,
+            "marginPct": 70.7
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 61,
+            "marginPct": 44.8
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 62,
+            "marginPct": 56
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 67,
+            "marginPct": 55.2
+          }
+        ],
+        "rollingMarginPct": 60.6
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 35
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 35
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 60
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 60
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 60
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 65
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 14999,
+            "output": 2000,
+            "points": 35
+          },
+          {
+            "label": "in_included",
+            "input": 15000,
+            "output": 2000,
+            "points": 35
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 15001,
+            "output": 2000,
+            "points": 36
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 25000,
+            "output": 2000,
+            "points": 36
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 25001,
+            "output": 2000,
+            "points": 37
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 41
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 41
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 57
+          }
+        ],
+        "unexpectedCliffsOver20P": [
+          {
+            "from": "out_2500",
+            "to": "out_2501",
+            "deltaP": 25
+          },
+          {
+            "from": "out_4001",
+            "to": "in_included_minus1",
+            "deltaP": -30
+          }
+        ]
+      }
+    },
+    {
+      "id": "C1",
+      "label": "inputStepPoints=2",
+      "family": "C_input_step",
+      "configDelta": {
+        "inputStepPoints": 2
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 20.9,
+          "p5": 48.9,
+          "p10": 55.4,
+          "median": 77.7,
+          "weightedAggregateMarginPct": 76.8,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 21,
+            "pct": 5.6
+          },
+          "below55Pct": {
+            "count": 34,
+            "pct": 9
+          },
+          "below60Pct": {
+            "count": 45,
+            "pct": 12
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 0,
+          "maxIncrease": 1,
+          "unchanged": {
+            "count": 366,
+            "pct": 97.3
+          },
+          "plus1to5P": {
+            "count": 10,
+            "pct": 2.7
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 13990
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 52.6,
+          "p5": 53.1,
+          "p10": 57.7,
+          "median": 68.6,
+          "weightedAggregateMarginPct": 68.4,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 4,
+            "pct": 8.7
+          },
+          "below60Pct": {
+            "count": 8,
+            "pct": 17.4
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 0,
+          "maxIncrease": 0,
+          "unchanged": {
+            "count": 46,
+            "pct": 100
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 1910
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 20.9,
+          "p5": 49.3,
+          "p10": 55.7,
+          "median": 77.7,
+          "weightedAggregateMarginPct": 77,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 21,
+            "pct": 5.3
+          },
+          "below55Pct": {
+            "count": 34,
+            "pct": 8.5
+          },
+          "below60Pct": {
+            "count": 48,
+            "pct": 12
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 0,
+          "maxIncrease": 1,
+          "unchanged": {
+            "count": 387,
+            "pct": 97
+          },
+          "plus1to5P": {
+            "count": 12,
+            "pct": 3
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 14874
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 35,
+            "marginPct": 71.7
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 35,
+            "marginPct": 62.3
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 60,
+            "marginPct": 70.5
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 60,
+            "marginPct": 66
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 60,
+            "marginPct": 69.8
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 35,
+            "marginPct": 32.9
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 60,
+            "marginPct": 70.2
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 60,
+            "marginPct": 43.8
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 62,
+            "marginPct": 56
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 67,
+            "marginPct": 55.2
+          }
+        ],
+        "rollingMarginPct": 60.4
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 35
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 35
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 60
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 60
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 60
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 65
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 24999,
+            "output": 2000,
+            "points": 35
+          },
+          {
+            "label": "in_included",
+            "input": 25000,
+            "output": 2000,
+            "points": 35
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 25001,
+            "output": 2000,
+            "points": 37
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 35000,
+            "output": 2000,
+            "points": 37
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 35001,
+            "output": 2000,
+            "points": 39
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 45
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 45
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 62
+          }
+        ],
+        "unexpectedCliffsOver20P": [
+          {
+            "from": "out_2500",
+            "to": "out_2501",
+            "deltaP": 25
+          },
+          {
+            "from": "out_4001",
+            "to": "in_included_minus1",
+            "deltaP": -30
+          }
+        ]
+      }
+    },
+    {
+      "id": "C2",
+      "label": "inputStepPoints=5",
+      "family": "C_input_step",
+      "configDelta": {
+        "inputStepPoints": 5
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 20.9,
+          "p5": 50,
+          "p10": 55.4,
+          "median": 77.7,
+          "weightedAggregateMarginPct": 76.9,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 18,
+            "pct": 4.8
+          },
+          "below55Pct": {
+            "count": 34,
+            "pct": 9
+          },
+          "below60Pct": {
+            "count": 45,
+            "pct": 12
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0.1,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 0,
+          "maxIncrease": 4,
+          "unchanged": {
+            "count": 366,
+            "pct": 97.3
+          },
+          "plus1to5P": {
+            "count": 10,
+            "pct": 2.7
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 14020
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 52.6,
+          "p5": 53.1,
+          "p10": 57.7,
+          "median": 68.6,
+          "weightedAggregateMarginPct": 68.4,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 4,
+            "pct": 8.7
+          },
+          "below60Pct": {
+            "count": 8,
+            "pct": 17.4
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 0,
+          "maxIncrease": 0,
+          "unchanged": {
+            "count": 46,
+            "pct": 100
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 1910
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 20.9,
+          "p5": 50.8,
+          "p10": 55.7,
+          "median": 78,
+          "weightedAggregateMarginPct": 77.1,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 18,
+            "pct": 4.5
+          },
+          "below55Pct": {
+            "count": 34,
+            "pct": 8.5
+          },
+          "below60Pct": {
+            "count": 48,
+            "pct": 12
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0.1,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 0,
+          "maxIncrease": 4,
+          "unchanged": {
+            "count": 387,
+            "pct": 97
+          },
+          "plus1to5P": {
+            "count": 12,
+            "pct": 3
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 14910
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 35,
+            "marginPct": 71.7
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 35,
+            "marginPct": 62.3
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 60,
+            "marginPct": 70.5
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 60,
+            "marginPct": 66
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 60,
+            "marginPct": 69.8
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 35,
+            "marginPct": 32.9
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 60,
+            "marginPct": 70.2
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 60,
+            "marginPct": 43.8
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 65,
+            "marginPct": 58
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 70,
+            "marginPct": 57.1
+          }
+        ],
+        "rollingMarginPct": 60.8
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 35
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 35
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 60
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 60
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 60
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 65
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 24999,
+            "output": 2000,
+            "points": 35
+          },
+          {
+            "label": "in_included",
+            "input": 25000,
+            "output": 2000,
+            "points": 35
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 25001,
+            "output": 2000,
+            "points": 40
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 35000,
+            "output": 2000,
+            "points": 40
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 35001,
+            "output": 2000,
+            "points": 45
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 60
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 60
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 80
+          }
+        ],
+        "unexpectedCliffsOver20P": [
+          {
+            "from": "out_2500",
+            "to": "out_2501",
+            "deltaP": 25
+          },
+          {
+            "from": "out_4001",
+            "to": "in_included_minus1",
+            "deltaP": -30
+          }
+        ]
+      }
+    },
+    {
+      "id": "D1",
+      "label": "outputTier2500=15",
+      "family": "D_output_tier2500",
+      "configDelta": {
+        "outputTier2500": 15
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 42,
+          "p5": 49.5,
+          "p10": 67.6,
+          "median": 84.4,
+          "weightedAggregateMarginPct": 82.8,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 19,
+            "pct": 5.1
+          },
+          "below55Pct": {
+            "count": 19,
+            "pct": 5.1
+          },
+          "below60Pct": {
+            "count": 22,
+            "pct": 5.9
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 13.7,
+          "medianDelta": 15,
+          "p5Delta": 0,
+          "p95Delta": 15,
+          "maxIncrease": 15,
+          "unchanged": {
+            "count": 32,
+            "pct": 8.5
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 344,
+            "pct": 91.5
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 19140
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 62.3,
+          "p5": 66.7,
+          "p10": 67,
+          "median": 75,
+          "weightedAggregateMarginPct": 75.6,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below60Pct": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 11.1,
+          "medianDelta": 15,
+          "p5Delta": 0,
+          "p95Delta": 15,
+          "maxIncrease": 15,
+          "unchanged": {
+            "count": 12,
+            "pct": 26.1
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 34,
+            "pct": 73.9
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 2420
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 42,
+          "p5": 57,
+          "p10": 68.8,
+          "median": 84.4,
+          "weightedAggregateMarginPct": 82.9,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 19,
+            "pct": 4.8
+          },
+          "below55Pct": {
+            "count": 19,
+            "pct": 4.8
+          },
+          "below60Pct": {
+            "count": 22,
+            "pct": 5.5
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 13.7,
+          "medianDelta": 15,
+          "p5Delta": 0,
+          "p95Delta": 15,
+          "maxIncrease": 15,
+          "unchanged": {
+            "count": 35,
+            "pct": 8.8
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 364,
+            "pct": 91.2
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 20322
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 50,
+            "marginPct": 80.2
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 50,
+            "marginPct": 73.6
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 60,
+            "marginPct": 70.5
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 60,
+            "marginPct": 66
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 60,
+            "marginPct": 69.8
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 50,
+            "marginPct": 53
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 60,
+            "marginPct": 70.2
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 60,
+            "marginPct": 43.8
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 61,
+            "marginPct": 55.2
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 66,
+            "marginPct": 54.5
+          }
+        ],
+        "rollingMarginPct": 63.3
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 50
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 50
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 60
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 60
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 60
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 65
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 24999,
+            "output": 2000,
+            "points": 50
+          },
+          {
+            "label": "in_included",
+            "input": 25000,
+            "output": 2000,
+            "points": 50
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 25001,
+            "output": 2000,
+            "points": 51
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 35000,
+            "output": 2000,
+            "points": 51
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 35001,
+            "output": 2000,
+            "points": 52
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 55
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 55
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 71
+          }
+        ],
+        "unexpectedCliffsOver20P": []
+      }
+    },
+    {
+      "id": "D2",
+      "label": "outputTier2500=25",
+      "family": "D_output_tier2500",
+      "configDelta": {
+        "outputTier2500": 25
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 42,
+          "p5": 56.9,
+          "p10": 72.8,
+          "median": 87,
+          "weightedAggregateMarginPct": 85.1,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 15,
+            "pct": 4
+          },
+          "below55Pct": {
+            "count": 17,
+            "pct": 4.5
+          },
+          "below60Pct": {
+            "count": 20,
+            "pct": 5.3
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 22.9,
+          "medianDelta": 25,
+          "p5Delta": 0,
+          "p95Delta": 25,
+          "maxIncrease": 25,
+          "unchanged": {
+            "count": 32,
+            "pct": 8.5
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 344,
+            "pct": 91.5
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 22580
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 62.3,
+          "p5": 66.7,
+          "p10": 69.3,
+          "median": 77.8,
+          "weightedAggregateMarginPct": 78.4,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below60Pct": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 18.5,
+          "medianDelta": 25,
+          "p5Delta": 0,
+          "p95Delta": 25,
+          "maxIncrease": 25,
+          "unchanged": {
+            "count": 12,
+            "pct": 26.1
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 34,
+            "pct": 73.9
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 2760
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 42,
+          "p5": 57.7,
+          "p10": 72.8,
+          "median": 87,
+          "weightedAggregateMarginPct": 85.2,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 15,
+            "pct": 3.8
+          },
+          "below55Pct": {
+            "count": 17,
+            "pct": 4.3
+          },
+          "below60Pct": {
+            "count": 20,
+            "pct": 5
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 22.8,
+          "medianDelta": 25,
+          "p5Delta": 0,
+          "p95Delta": 25,
+          "maxIncrease": 25,
+          "unchanged": {
+            "count": 35,
+            "pct": 8.8
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 364,
+            "pct": 91.2
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 23962
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 60,
+            "marginPct": 83.5
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 60,
+            "marginPct": 78
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 60,
+            "marginPct": 70.5
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 60,
+            "marginPct": 66
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 60,
+            "marginPct": 69.8
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 60,
+            "marginPct": 60.8
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 60,
+            "marginPct": 70.2
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 60,
+            "marginPct": 43.8
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 61,
+            "marginPct": 55.2
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 66,
+            "marginPct": 54.5
+          }
+        ],
+        "rollingMarginPct": 65.1
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 60
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 60
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 60
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 60
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 60
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 65
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 24999,
+            "output": 2000,
+            "points": 60
+          },
+          {
+            "label": "in_included",
+            "input": 25000,
+            "output": 2000,
+            "points": 60
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 25001,
+            "output": 2000,
+            "points": 61
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 35000,
+            "output": 2000,
+            "points": 61
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 35001,
+            "output": 2000,
+            "points": 62
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 65
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 65
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 81
+          }
+        ],
+        "unexpectedCliffsOver20P": []
+      }
+    },
+    {
+      "id": "E1",
+      "label": "included20000 + inputStepPoints=3",
+      "family": "E_combo",
+      "configDelta": {
+        "includedInputTokens": 20000,
+        "inputStepPoints": 3
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 26.6,
+          "p5": 49.7,
+          "p10": 55.4,
+          "median": 77.7,
+          "weightedAggregateMarginPct": 77,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 19,
+            "pct": 5.1
+          },
+          "below55Pct": {
+            "count": 34,
+            "pct": 9
+          },
+          "below60Pct": {
+            "count": 45,
+            "pct": 12
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0.1,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 2,
+          "maxIncrease": 3,
+          "unchanged": {
+            "count": 354,
+            "pct": 94.1
+          },
+          "plus1to5P": {
+            "count": 22,
+            "pct": 5.9
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 14036
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 52.6,
+          "p5": 53.1,
+          "p10": 57.7,
+          "median": 68.6,
+          "weightedAggregateMarginPct": 68.4,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 4,
+            "pct": 8.7
+          },
+          "below60Pct": {
+            "count": 8,
+            "pct": 17.4
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 0,
+          "maxIncrease": 0,
+          "unchanged": {
+            "count": 46,
+            "pct": 100
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 1910
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 26.6,
+          "p5": 51.7,
+          "p10": 55.7,
+          "median": 77.7,
+          "weightedAggregateMarginPct": 77.2,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 19,
+            "pct": 4.8
+          },
+          "below55Pct": {
+            "count": 34,
+            "pct": 8.5
+          },
+          "below60Pct": {
+            "count": 48,
+            "pct": 12
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 0.2,
+          "medianDelta": 0,
+          "p5Delta": 0,
+          "p95Delta": 2,
+          "maxIncrease": 3,
+          "unchanged": {
+            "count": 374,
+            "pct": 93.7
+          },
+          "plus1to5P": {
+            "count": 25,
+            "pct": 6.3
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 14925
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 35,
+            "marginPct": 71.7
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 35,
+            "marginPct": 62.3
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 60,
+            "marginPct": 70.5
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 60,
+            "marginPct": 66
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 60,
+            "marginPct": 69.8
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 35,
+            "marginPct": 32.9
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 60,
+            "marginPct": 70.2
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 63,
+            "marginPct": 46.5
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 63,
+            "marginPct": 56.7
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 71,
+            "marginPct": 57.7
+          }
+        ],
+        "rollingMarginPct": 60.9
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 35
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 35
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 60
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 60
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 60
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 65
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 19999,
+            "output": 2000,
+            "points": 35
+          },
+          {
+            "label": "in_included",
+            "input": 20000,
+            "output": 2000,
+            "points": 35
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 20001,
+            "output": 2000,
+            "points": 38
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 30000,
+            "output": 2000,
+            "points": 38
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 30001,
+            "output": 2000,
+            "points": 41
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 53
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 53
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 68
+          }
+        ],
+        "unexpectedCliffsOver20P": [
+          {
+            "from": "out_2500",
+            "to": "out_2501",
+            "deltaP": 25
+          },
+          {
+            "from": "out_4001",
+            "to": "in_included_minus1",
+            "deltaP": -30
+          }
+        ]
+      }
+    },
+    {
+      "id": "E2",
+      "label": "included20000 + outputTier2500=15",
+      "family": "E_combo",
+      "configDelta": {
+        "includedInputTokens": 20000,
+        "outputTier2500": 15
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 42.8,
+          "p5": 50.3,
+          "p10": 67.6,
+          "median": 84.4,
+          "weightedAggregateMarginPct": 82.8,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 17,
+            "pct": 4.5
+          },
+          "below55Pct": {
+            "count": 19,
+            "pct": 5.1
+          },
+          "below60Pct": {
+            "count": 22,
+            "pct": 5.9
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 13.8,
+          "medianDelta": 15,
+          "p5Delta": 0,
+          "p95Delta": 15,
+          "maxIncrease": 16,
+          "unchanged": {
+            "count": 24,
+            "pct": 6.4
+          },
+          "plus1to5P": {
+            "count": 8,
+            "pct": 2.1
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 344,
+            "pct": 91.5
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 19152
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 62.3,
+          "p5": 66.7,
+          "p10": 67,
+          "median": 75,
+          "weightedAggregateMarginPct": 75.6,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below60Pct": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 11.1,
+          "medianDelta": 15,
+          "p5Delta": 0,
+          "p95Delta": 15,
+          "maxIncrease": 15,
+          "unchanged": {
+            "count": 12,
+            "pct": 26.1
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 34,
+            "pct": 73.9
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 2420
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 42.8,
+          "p5": 57,
+          "p10": 68.8,
+          "median": 84.4,
+          "weightedAggregateMarginPct": 82.9,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 17,
+            "pct": 4.3
+          },
+          "below55Pct": {
+            "count": 19,
+            "pct": 4.8
+          },
+          "below60Pct": {
+            "count": 22,
+            "pct": 5.5
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 13.7,
+          "medianDelta": 15,
+          "p5Delta": 0,
+          "p95Delta": 15,
+          "maxIncrease": 16,
+          "unchanged": {
+            "count": 27,
+            "pct": 6.8
+          },
+          "plus1to5P": {
+            "count": 8,
+            "pct": 2
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 364,
+            "pct": 91.2
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 20335
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 50,
+            "marginPct": 80.2
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 50,
+            "marginPct": 73.6
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 60,
+            "marginPct": 70.5
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 60,
+            "marginPct": 66
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 60,
+            "marginPct": 69.8
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 50,
+            "marginPct": 53
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 60,
+            "marginPct": 70.2
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 61,
+            "marginPct": 44.8
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 61,
+            "marginPct": 55.2
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 67,
+            "marginPct": 55.2
+          }
+        ],
+        "rollingMarginPct": 63.4
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 50
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 50
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 60
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 60
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 60
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 65
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 19999,
+            "output": 2000,
+            "points": 50
+          },
+          {
+            "label": "in_included",
+            "input": 20000,
+            "output": 2000,
+            "points": 50
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 20001,
+            "output": 2000,
+            "points": 51
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 30000,
+            "output": 2000,
+            "points": 51
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 30001,
+            "output": 2000,
+            "points": 52
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 56
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 56
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 71
+          }
+        ],
+        "unexpectedCliffsOver20P": []
+      }
+    },
+    {
+      "id": "E3",
+      "label": "base40 + outputTier2500=15",
+      "family": "E_combo",
+      "configDelta": {
+        "basePoints": 40,
+        "outputTier2500": 15
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 46.5,
+          "p5": 53.4,
+          "p10": 70.5,
+          "median": 85.8,
+          "weightedAggregateMarginPct": 84.3,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 9,
+            "pct": 2.4
+          },
+          "below55Pct": {
+            "count": 19,
+            "pct": 5.1
+          },
+          "below60Pct": {
+            "count": 19,
+            "pct": 5.1
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 18.7,
+          "medianDelta": 20,
+          "p5Delta": 5,
+          "p95Delta": 20,
+          "maxIncrease": 20,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 32,
+            "pct": 8.5
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 344,
+            "pct": 91.5
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 21020
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 65.2,
+          "p5": 69.2,
+          "p10": 70,
+          "median": 77.2,
+          "weightedAggregateMarginPct": 77.7,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below60Pct": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 16.1,
+          "medianDelta": 20,
+          "p5Delta": 5,
+          "p95Delta": 20,
+          "maxIncrease": 20,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 12,
+            "pct": 26.1
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 34,
+            "pct": 73.9
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 2650
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 46.5,
+          "p5": 60.9,
+          "p10": 71.6,
+          "median": 85.8,
+          "weightedAggregateMarginPct": 84.4,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 9,
+            "pct": 2.3
+          },
+          "below55Pct": {
+            "count": 19,
+            "pct": 4.8
+          },
+          "below60Pct": {
+            "count": 19,
+            "pct": 4.8
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 18.7,
+          "medianDelta": 20,
+          "p5Delta": 5,
+          "p95Delta": 20,
+          "maxIncrease": 20,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 35,
+            "pct": 8.8
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 364,
+            "pct": 91.2
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 22317
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 55,
+            "marginPct": 82
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 55,
+            "marginPct": 76
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 65,
+            "marginPct": 72.8
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 65,
+            "marginPct": 68.6
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 65,
+            "marginPct": 72.2
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 55,
+            "marginPct": 57.3
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 65,
+            "marginPct": 72.5
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 65,
+            "marginPct": 48.2
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 66,
+            "marginPct": 58.6
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 71,
+            "marginPct": 57.7
+          }
+        ],
+        "rollingMarginPct": 66.2
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 55
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 55
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 65
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 65
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 65
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 70
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 24999,
+            "output": 2000,
+            "points": 55
+          },
+          {
+            "label": "in_included",
+            "input": 25000,
+            "output": 2000,
+            "points": 55
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 25001,
+            "output": 2000,
+            "points": 56
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 35000,
+            "output": 2000,
+            "points": 56
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 35001,
+            "output": 2000,
+            "points": 57
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 60
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 60
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 76
+          }
+        ],
+        "unexpectedCliffsOver20P": []
+      }
+    },
+    {
+      "id": "E4",
+      "label": "base45 + included20000",
+      "family": "E_combo",
+      "configDelta": {
+        "basePoints": 45,
+        "includedInputTokens": 20000
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 39.3,
+          "p5": 55.4,
+          "p10": 65.3,
+          "median": 82.7,
+          "weightedAggregateMarginPct": 81.7,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 4,
+            "pct": 1.1
+          },
+          "below55Pct": {
+            "count": 16,
+            "pct": 4.3
+          },
+          "below60Pct": {
+            "count": 21,
+            "pct": 5.6
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 10,
+          "medianDelta": 10,
+          "p5Delta": 10,
+          "p95Delta": 10,
+          "maxIncrease": 11,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 364,
+            "pct": 96.8
+          },
+          "plusGt10P": {
+            "count": 12,
+            "pct": 3.2
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 17752
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 63.1,
+          "p5": 63.6,
+          "p10": 67.1,
+          "median": 74.4,
+          "weightedAggregateMarginPct": 74.8,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below60Pct": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 10,
+          "medianDelta": 10,
+          "p5Delta": 10,
+          "p95Delta": 10,
+          "maxIncrease": 10,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 46,
+            "pct": 100
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 2370
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 39.3,
+          "p5": 57.2,
+          "p10": 65.6,
+          "median": 82.7,
+          "weightedAggregateMarginPct": 81.9,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 4,
+            "pct": 1
+          },
+          "below55Pct": {
+            "count": 16,
+            "pct": 4
+          },
+          "below60Pct": {
+            "count": 21,
+            "pct": 5.3
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 10,
+          "medianDelta": 10,
+          "p5Delta": 10,
+          "p95Delta": 10,
+          "maxIncrease": 11,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 386,
+            "pct": 96.7
+          },
+          "plusGt10P": {
+            "count": 13,
+            "pct": 3.3
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 18865
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 45,
+            "marginPct": 78
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 45,
+            "marginPct": 70.7
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 70,
+            "marginPct": 74.7
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 70,
+            "marginPct": 70.9
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 70,
+            "marginPct": 74.1
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 45,
+            "marginPct": 47.8
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 70,
+            "marginPct": 74.4
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 71,
+            "marginPct": 52.5
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 71,
+            "marginPct": 61.5
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 77,
+            "marginPct": 61
+          }
+        ],
+        "rollingMarginPct": 66.6
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 45
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 45
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 70
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 70
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 70
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 75
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 19999,
+            "output": 2000,
+            "points": 45
+          },
+          {
+            "label": "in_included",
+            "input": 20000,
+            "output": 2000,
+            "points": 45
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 20001,
+            "output": 2000,
+            "points": 46
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 30000,
+            "output": 2000,
+            "points": 46
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 30001,
+            "output": 2000,
+            "points": 47
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 51
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 51
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 66
+          }
+        ],
+        "unexpectedCliffsOver20P": [
+          {
+            "from": "out_2500",
+            "to": "out_2501",
+            "deltaP": 25
+          },
+          {
+            "from": "out_4001",
+            "to": "in_included_minus1",
+            "deltaP": -30
+          }
+        ]
+      }
+    },
+    {
+      "id": "E5",
+      "label": "included20000 + inputStep5 + outTier2500=10",
+      "family": "E_combo",
+      "configDelta": {
+        "includedInputTokens": 20000,
+        "inputStepPoints": 5,
+        "outputTier2500": 10
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 44.2,
+          "p5": 53.2,
+          "p10": 65.3,
+          "median": 82.7,
+          "weightedAggregateMarginPct": 81.4,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 12,
+            "pct": 3.2
+          },
+          "below55Pct": {
+            "count": 20,
+            "pct": 5.3
+          },
+          "below60Pct": {
+            "count": 22,
+            "pct": 5.9
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 9.4,
+          "medianDelta": 10,
+          "p5Delta": 4,
+          "p95Delta": 10,
+          "maxIncrease": 15,
+          "unchanged": {
+            "count": 16,
+            "pct": 4.3
+          },
+          "plus1to5P": {
+            "count": 16,
+            "pct": 4.3
+          },
+          "plus6to10P": {
+            "count": 338,
+            "pct": 89.9
+          },
+          "plusGt10P": {
+            "count": 6,
+            "pct": 1.6
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 17520
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 62.3,
+          "p5": 63.3,
+          "p10": 63.8,
+          "median": 73.8,
+          "weightedAggregateMarginPct": 73.7,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below60Pct": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 7.4,
+          "medianDelta": 10,
+          "p5Delta": 0,
+          "p95Delta": 10,
+          "maxIncrease": 10,
+          "unchanged": {
+            "count": 12,
+            "pct": 26.1
+          },
+          "plus1to5P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus6to10P": {
+            "count": 34,
+            "pct": 73.9
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 2250
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 44.2,
+          "p5": 53.4,
+          "p10": 65.3,
+          "median": 82.7,
+          "weightedAggregateMarginPct": 81.6,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 12,
+            "pct": 3
+          },
+          "below55Pct": {
+            "count": 20,
+            "pct": 5
+          },
+          "below60Pct": {
+            "count": 22,
+            "pct": 5.5
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 9.4,
+          "medianDelta": 10,
+          "p5Delta": 4,
+          "p95Delta": 10,
+          "maxIncrease": 15,
+          "unchanged": {
+            "count": 17,
+            "pct": 4.3
+          },
+          "plus1to5P": {
+            "count": 18,
+            "pct": 4.5
+          },
+          "plus6to10P": {
+            "count": 357,
+            "pct": 89.5
+          },
+          "plusGt10P": {
+            "count": 7,
+            "pct": 1.8
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 18615
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 45,
+            "marginPct": 78
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 45,
+            "marginPct": 70.7
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 60,
+            "marginPct": 70.5
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 60,
+            "marginPct": 66
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 60,
+            "marginPct": 69.8
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 45,
+            "marginPct": 47.8
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 60,
+            "marginPct": 70.2
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 65,
+            "marginPct": 48.2
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 65,
+            "marginPct": 58
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 75,
+            "marginPct": 60
+          }
+        ],
+        "rollingMarginPct": 63.5
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 45
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 45
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 60
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 60
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 60
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 65
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 19999,
+            "output": 2000,
+            "points": 45
+          },
+          {
+            "label": "in_included",
+            "input": 20000,
+            "output": 2000,
+            "points": 45
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 20001,
+            "output": 2000,
+            "points": 50
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 30000,
+            "output": 2000,
+            "points": 50
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 30001,
+            "output": 2000,
+            "points": 55
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 75
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 75
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 90
+          }
+        ],
+        "unexpectedCliffsOver20P": []
+      }
+    },
+    {
+      "id": "E6",
+      "label": "base40 + included20000 + inputStep3",
+      "family": "E_combo",
+      "configDelta": {
+        "basePoints": 40,
+        "includedInputTokens": 20000,
+        "inputStepPoints": 3
+      },
+      "noCache30d": {
+        "marginDistribution": {
+          "sampleCount": 376,
+          "minimum": 35.1,
+          "p5": 53.4,
+          "p10": 61,
+          "median": 80.5,
+          "weightedAggregateMarginPct": 79.7,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 10,
+            "pct": 2.7
+          },
+          "below55Pct": {
+            "count": 19,
+            "pct": 5.1
+          },
+          "below60Pct": {
+            "count": 34,
+            "pct": 9
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 5.1,
+          "medianDelta": 5,
+          "p5Delta": 5,
+          "p95Delta": 7,
+          "maxIncrease": 8,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 354,
+            "pct": 94.1
+          },
+          "plus6to10P": {
+            "count": 22,
+            "pct": 5.9
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 13980,
+        "totalRevenueCandidate": 15916
+      },
+      "noCache7d": {
+        "marginDistribution": {
+          "sampleCount": 46,
+          "minimum": 58.5,
+          "p5": 59,
+          "p10": 63,
+          "median": 71.7,
+          "weightedAggregateMarginPct": 72,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below55Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below60Pct": {
+            "count": 4,
+            "pct": 8.7
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 5,
+          "medianDelta": 5,
+          "p5Delta": 5,
+          "p95Delta": 5,
+          "maxIncrease": 5,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 46,
+            "pct": 100
+          },
+          "plus6to10P": {
+            "count": 0,
+            "pct": 0
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 1910,
+        "totalRevenueCandidate": 2140
+      },
+      "allTraffic30d": {
+        "marginDistribution": {
+          "sampleCount": 399,
+          "minimum": 35.1,
+          "p5": 55.3,
+          "p10": 61.3,
+          "median": 80.5,
+          "weightedAggregateMarginPct": 79.9,
+          "below0Pct": {
+            "count": 0,
+            "pct": 0
+          },
+          "below50Pct": {
+            "count": 10,
+            "pct": 2.5
+          },
+          "below55Pct": {
+            "count": 19,
+            "pct": 4.8
+          },
+          "below60Pct": {
+            "count": 34,
+            "pct": 8.5
+          }
+        },
+        "priceImpactVsCurrent": {
+          "meanDelta": 5.2,
+          "medianDelta": 5,
+          "p5Delta": 5,
+          "p95Delta": 7,
+          "maxIncrease": 8,
+          "unchanged": {
+            "count": 0,
+            "pct": 0
+          },
+          "plus1to5P": {
+            "count": 374,
+            "pct": 93.7
+          },
+          "plus6to10P": {
+            "count": 25,
+            "pct": 6.3
+          },
+          "plusGt10P": {
+            "count": 0,
+            "pct": 0
+          }
+        },
+        "totalRevenueCurrent": 14862,
+        "totalRevenueCandidate": 16920
+      },
+      "historicalColdFixture": {
+        "turns": [
+          {
+            "turn": "T1",
+            "inputTokens": 4312,
+            "outputTokens": 1613,
+            "userPoints": 40,
+            "marginPct": 75.3
+          },
+          {
+            "turn": "T2",
+            "inputTokens": 5956,
+            "outputTokens": 2086,
+            "userPoints": 40,
+            "marginPct": 67
+          },
+          {
+            "turn": "T3",
+            "inputTokens": 8051,
+            "outputTokens": 2790,
+            "userPoints": 65,
+            "marginPct": 72.8
+          },
+          {
+            "turn": "T4",
+            "inputTokens": 10873,
+            "outputTokens": 3515,
+            "userPoints": 65,
+            "marginPct": 68.6
+          },
+          {
+            "turn": "T5",
+            "inputTokens": 14397,
+            "outputTokens": 2844,
+            "userPoints": 65,
+            "marginPct": 72.2
+          },
+          {
+            "turn": "T6",
+            "inputTokens": 17256,
+            "outputTokens": 2400,
+            "userPoints": 40,
+            "marginPct": 41.3
+          },
+          {
+            "turn": "T7",
+            "inputTokens": 19667,
+            "outputTokens": 2972,
+            "userPoints": 65,
+            "marginPct": 72.5
+          },
+          {
+            "turn": "T8",
+            "inputTokens": 22647,
+            "outputTokens": 3853,
+            "userPoints": 68,
+            "marginPct": 50.4
+          },
+          {
+            "turn": "T9",
+            "inputTokens": 26517,
+            "outputTokens": 3945,
+            "userPoints": 68,
+            "marginPct": 59.9
+          },
+          {
+            "turn": "T10",
+            "inputTokens": 30477,
+            "outputTokens": 4434,
+            "userPoints": 76,
+            "marginPct": 60.5
+          }
+        ],
+        "rollingMarginPct": 64.2
+      },
+      "priceCliffs": {
+        "probes": [
+          {
+            "label": "out_2499",
+            "input": 10000,
+            "output": 2499,
+            "points": 40
+          },
+          {
+            "label": "out_2500",
+            "input": 10000,
+            "output": 2500,
+            "points": 40
+          },
+          {
+            "label": "out_2501",
+            "input": 10000,
+            "output": 2501,
+            "points": 65
+          },
+          {
+            "label": "out_3999",
+            "input": 10000,
+            "output": 3999,
+            "points": 65
+          },
+          {
+            "label": "out_4000",
+            "input": 10000,
+            "output": 4000,
+            "points": 65
+          },
+          {
+            "label": "out_4001",
+            "input": 10000,
+            "output": 4001,
+            "points": 70
+          },
+          {
+            "label": "in_included_minus1",
+            "input": 19999,
+            "output": 2000,
+            "points": 40
+          },
+          {
+            "label": "in_included",
+            "input": 20000,
+            "output": 2000,
+            "points": 40
+          },
+          {
+            "label": "in_included_plus1",
+            "input": 20001,
+            "output": 2000,
+            "points": 43
+          },
+          {
+            "label": "in_step_boundary",
+            "input": 30000,
+            "output": 2000,
+            "points": 43
+          },
+          {
+            "label": "in_step_boundary_plus1",
+            "input": 30001,
+            "output": 2000,
+            "points": 46
+          },
+          {
+            "label": "long_ctx_minus1",
+            "input": 74999,
+            "output": 2000,
+            "points": 58
+          },
+          {
+            "label": "long_ctx",
+            "input": 75000,
+            "output": 2000,
+            "points": 58
+          },
+          {
+            "label": "long_ctx_plus1",
+            "input": 75001,
+            "output": 2000,
+            "points": 73
+          }
+        ],
+        "unexpectedCliffsOver20P": [
+          {
+            "from": "out_2500",
+            "to": "out_2501",
+            "deltaP": 25
+          },
+          {
+            "from": "out_4001",
+            "to": "in_included_minus1",
+            "deltaP": -30
+          }
+        ]
+      }
+    }
+  ],
+  "stalePricingReferences": [
+    {
+      "path": "docs/audits/gemini-37-flash-pricing/REPORT.md",
+      "claim": "base 45P",
+      "classification": "HISTORICAL_REFERENCE"
+    },
+    {
+      "path": ".env.example commented defaults",
+      "claim": "GEMINI37_BASE_POINTS=45, INPUT_STEP_POINTS=5",
+      "classification": "STALE_FOLLOW_UP"
+    }
+  ],
+  "finalOutput": {
+    "winnerSelected": false,
+    "note": "Factual candidate table only — GPT/user chooses",
+    "PROVIDER_GENERATION_CALLS": 0,
+    "RUNTIME_CHANGE": 0,
+    "PRICE_CHANGE": 0,
+    "MERGE": "NO"
+  }
+}
