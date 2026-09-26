@@ -86,8 +86,12 @@ import {
  *   background-text resolver (default `BACKGROUND_OPENROUTER_MODEL`)
  * - provider transport . `callBackgroundMemory` (CheaperInference/OpenRouter
  *   routing, auth, error normalization, usage parsing)
- * - structured output .. `response_format: json_schema` forwarded by the
- *   canonical completion owner
+ * - structured output .. `response_format: "json_object"` forwarded by the
+ *   canonical completion owner. NOTE (provider constraint, probed 2026-09-26):
+ *   large `json_schema` payloads fail CheaperInference routing with
+ *   `503 No compatible route`, while `json_object` serves the same request.
+ *   Shape discipline therefore lives in code (schema constants + coercion +
+ *   canonical QA), never in regex patching.
  * - cost .............. `recordBackgroundProviderCost` inside the canonical
  *   owner (`platform_funded`, background family)
  *
@@ -142,12 +146,16 @@ export const liveOfficialAuthorTransport: OfficialAuthorTransport = {
         maxTokens: input.maxTokens ?? OFFICIAL_AUTHOR_MAX_TOKENS[input.task],
         temperature: input.temperature ?? OFFICIAL_AUTHOR_TEMPERATURE[input.task],
         modelId: model,
-        responseFormat: {
-          type: "json_schema",
-          json_schema: { name: input.schemaName, strict: false, schema: input.schema },
-        },
+        // json_object (not json_schema): see provider-constraint note above.
+        responseFormat: "json_object",
       }
     );
+    if (usage.finishReason === "length") {
+      throw new OfficialSupplyGateError(
+        "author_truncated",
+        `${input.task}: output hit maxTokens; split the task instead of patching`
+      );
+    }
     return {
       text,
       model,

@@ -95,7 +95,7 @@ export function buildWorldBibleUser(input: WorldBibleInput): string {
     "트로프 영감(표현이 아니라 방향만 참고):",
     ...input.inspirationTropes.map((t) => `- ${t}`),
     "",
-    "위 스키마대로 JSON 한 개만 출력한다.",
+    "지정된 필드 구조의 JSON 한 개만 출력한다.",
   ].join("\n");
 }
 
@@ -168,7 +168,7 @@ export function buildCharacterBible1User(input: CharacterBible1Input): string {
     input.siblingSketches.length
       ? `형제 캐릭터(이들과 이름·트로프·직업·말투·외형이 겹치지 않게):\n${input.siblingSketches.map((s) => `- ${s}`).join("\n")}\n`
       : "",
-    "위 스키마대로 JSON 한 개만 출력한다.",
+    "지정된 필드 구조의 JSON 한 개만 출력한다.",
   ].join("\n");
 }
 
@@ -233,7 +233,7 @@ export function buildCharacterBible2User(input: CharacterBible2Input): string {
     "전반부 요약:",
     input.part1Recap,
     "",
-    "위 스키마대로 JSON 한 개만 출력한다.",
+    "지정된 필드 구조의 JSON 한 개만 출력한다.",
   ].join("\n");
 }
 
@@ -268,7 +268,7 @@ export function buildAppearanceUser(input: AppearanceInput): string {
     input.siblingLooks.length
       ? `형제 외형(이들과 헤어·눈·체형·팔레트가 겹치지 않게):\n${input.siblingLooks.map((s) => `- ${s}`).join("\n")}`
       : "",
-    "위 스키마대로 JSON 한 개만 출력한다.",
+    "지정된 필드 구조의 JSON 한 개만 출력한다.",
   ].join("\n");
 }
 
@@ -302,7 +302,7 @@ export function buildAssetPlanUser(input: AssetPlanInput): string {
     `캐릭터: ${input.name} (성인 시트: ${input.adult ? "예" : "아니오"})`,
     `기본 의상: ${input.defaultOutfit}`,
     `의미 있는 장소 후보:\n${input.meaningfulPlaces.map((p) => `- ${p}`).join("\n")}`,
-    "위 스키마대로 JSON 한 개만 출력한다.",
+    "지정된 필드 구조의 JSON 한 개만 출력한다.",
   ].join("\n");
 }
 
@@ -332,6 +332,6 @@ export function buildStyleBoardUser(input: StyleBoardInput): string {
     `후보 수: ${input.candidateCount} (정확히)`,
     "허용된 reference URL(이 목록에서만 선택):",
     ...input.allowedReferenceUrls.map((u) => `- ${u}`),
-    "위 스키마대로 JSON 한 개만 출력한다.",
+    "지정된 필드 구조의 JSON 한 개만 출력한다.",
   ].join("\n");
 }
