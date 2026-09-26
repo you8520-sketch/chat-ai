@@ -72,7 +72,11 @@ function ensureWorldLorebooks(
  * created `visibility=private`, `official=0`, owned by a real adult-verified
  * staging account — so neither `listableWhere` nor `canAccessCharacter` (both
  * short-circuit on `official=1`) nor the boot-time `creator_id IS NULL`
- * publisher can expose it. Publishing is a separate follow-up decision.
+ * publisher can expose it.
+ *
+ * Prefer a site-managed official studio account as `stagingUser` so publish
+ * does not need an ownership handoff (Strategy A). Publishing is
+ * `publishOfficialSupplyCharacter`.
  */
 export async function stageOfficialCharacterPrivately(input: {
   store: OfficialSupplyStore;

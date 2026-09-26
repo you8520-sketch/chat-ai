@@ -4,6 +4,7 @@ import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
 import CommentsEnabledToggle from "@/components/CommentsEnabledToggle";
 import CreatorGiftPanel from "@/components/CreatorGiftPanel";
 import OfficialCreatorBadge from "@/components/OfficialCreatorBadge";
+import OfficialStudioBadge from "@/components/OfficialStudioBadge";
 import ProfileCommentSection from "@/components/ProfileCommentSection";
 import { getSessionUser } from "@/lib/auth";
 import { listableWhere } from "@/lib/characterVisibility";
@@ -11,6 +12,7 @@ import { getDb } from "@/lib/db";
 import { getPointBalance } from "@/lib/points";
 import { getGiftableBalance } from "@/lib/pointGifts";
 import { isActivePartnerCreator } from "@/lib/partnerTier";
+import { isSiteManagedUser } from "@/lib/siteManagedAccounts";
 import {
   getCreatorCommentsEnabled,
   listProfileCommentsForViewer,
@@ -47,7 +49,8 @@ export default async function CreatorProfilePage({
       }
     | undefined;
   if (!creator) notFound();
-  const creatorIsPartner = isActivePartnerCreator(db, creator.id);
+  const siteManaged = isSiteManagedUser(creator.id);
+  const creatorIsPartner = !siteManaged && isActivePartnerCreator(db, creator.id);
   const creatorNotices = listCreatorNotices(creatorId);
 
   const user = await getSessionUser();
@@ -65,16 +68,25 @@ export default async function CreatorProfilePage({
     db,
     db
       .prepare(
-        `SELECT * FROM characters
-         WHERE creator_id=? AND official=0 AND ${listableWhere()}
-         ORDER BY likes DESC, created_at DESC
-         LIMIT 24`
+        siteManaged
+          ? `SELECT * FROM characters
+             WHERE creator_id=? AND ${listableWhere()}
+             ORDER BY likes DESC, created_at DESC
+             LIMIT 24`
+          : `SELECT * FROM characters
+             WHERE creator_id=? AND official=0 AND ${listableWhere()}
+             ORDER BY likes DESC, created_at DESC
+             LIMIT 24`
       )
       .all(creatorId) as CharacterRow[]
   );
 
   const charCount = db
-    .prepare("SELECT COUNT(*) AS c FROM characters WHERE creator_id=? AND official=0")
+    .prepare(
+      siteManaged
+        ? "SELECT COUNT(*) AS c FROM characters WHERE creator_id=?"
+        : "SELECT COUNT(*) AS c FROM characters WHERE creator_id=? AND official=0"
+    )
     .get(creatorId) as { c: number };
 
   const comments = showComments
@@ -99,15 +111,18 @@ export default async function CreatorProfilePage({
       <div className={cn(studioSurface.card, "p-6")}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">크리에이터</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              {siteManaged ? "공식 스튜디오" : "크리에이터"}
+            </p>
             <h1 className="mt-1 flex flex-wrap items-center gap-2 text-2xl font-semibold text-zinc-50">
               @{creator.nickname}
-              {creatorIsPartner && <OfficialCreatorBadge size="md" />}
+              {siteManaged ? <OfficialStudioBadge size="md" /> : null}
+              {!siteManaged && creatorIsPartner ? <OfficialCreatorBadge size="md" /> : null}
             </h1>
             <p className={cn(studioType.body, "mt-2")}>
               캐릭터 {Number(charCount.c).toLocaleString()}개
             </p>
-            {isOwner && (
+            {isOwner && !siteManaged && (
               <Link
                 href="/creator"
                 className="mt-3 inline-block text-xs text-violet-400 hover:underline"
@@ -116,7 +131,7 @@ export default async function CreatorProfilePage({
               </Link>
             )}
           </div>
-          {!isOwner && (
+          {!isOwner && !siteManaged && (
             <CreatorGiftPanel
               recipientId={creatorId}
               recipientNickname={creator.nickname}

@@ -43,6 +43,7 @@ import {
 import { userHasReportedComment } from "@/lib/commentReports";
 import { ensureDefaultPersona } from "@/lib/userPersonas";
 import { isActivePartnerCreator } from "@/lib/partnerTier";
+import { isSiteManagedUser } from "@/lib/siteManagedAccounts";
 import { recordCharacterClick } from "@/lib/characterClicks";
 import { canAccessTrpg } from "@/lib/trpg/access";
 
@@ -142,7 +143,8 @@ export default async function CharacterPage({
     : false;
 
   const creatorId = c.creator_id ?? 0;
-  const creatorIsPartner = isActivePartnerCreator(db, creatorId);
+  const creatorIsOfficialStudio = creatorId > 0 && isSiteManagedUser(creatorId);
+  const creatorIsPartner = !creatorIsOfficialStudio && isActivePartnerCreator(db, creatorId);
 
   const followed = user
 
@@ -191,6 +193,7 @@ export default async function CharacterPage({
           hue={c.hue}
           creatorName={c.creator_name}
           creatorIsPartner={creatorIsPartner}
+          creatorIsOfficialStudio={creatorIsOfficialStudio}
           creatorComment={c.creator_comment}
           likes={c.likes}
           totalTurns={c.total_turns ?? 0}
@@ -301,6 +304,7 @@ export default async function CharacterPage({
         hue={c.hue}
         creatorName={c.creator_name}
         creatorIsPartner={creatorIsPartner}
+        creatorIsOfficialStudio={creatorIsOfficialStudio}
         creatorComment={c.creator_comment}
         likes={c.likes}
         totalTurns={c.total_turns ?? 0}
@@ -340,7 +344,7 @@ export default async function CharacterPage({
 
         <LikeFollowButtons characterId={c.id} liked={liked} followed={followed} loggedIn={!!user} />
 
-        {creatorId > 0 && !isOwner && (
+        {creatorId > 0 && !isOwner && !creatorIsOfficialStudio && (
           <CreatorGiftPanel
             recipientId={creatorId}
             recipientNickname={c.creator_name}

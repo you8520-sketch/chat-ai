@@ -18,6 +18,8 @@ export type CharacterRow = {
   creator_name: string;
   creator_id?: number | null;
   creator_tier_level?: CreatorTierLevel | null;
+  /** Account-level site-managed studio (not characters.official). */
+  creator_site_managed?: boolean;
   likes: number;
   /** 누적 대화 턴 (전체 유저 합) */
   total_turns: number;
@@ -114,7 +116,14 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
     c.creator_id != null && Number(c.creator_id) > 0
       ? `/creator/${c.creator_id}`
       : null;
-  const creatorStyle = creatorNameBadgeStyle(c.creator_tier_level);
+  const creatorStyle = c.creator_site_managed
+    ? {
+        byClassName: "text-violet-500/80",
+        nameClassName: "font-semibold text-violet-200",
+        label: "공식 스튜디오",
+      }
+    : creatorNameBadgeStyle(c.creator_tier_level);
+  const studioSuffix = c.creator_site_managed ? " · 공식 스튜디오" : "";
 
   return (
     <article
@@ -191,6 +200,7 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
                 </span>
               )}
               <span className={creatorStyle.byClassName}>by</span> {creatorName}
+              {studioSuffix}
             </Link>
           ) : (
             <p className={cn("line-clamp-1 text-[10px]", creatorStyle.nameClassName)}>
@@ -200,6 +210,7 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
                 </span>
               )}
               <span className={creatorStyle.byClassName}>by</span> {creatorName}
+              {studioSuffix}
             </p>
           )
         ) : null}

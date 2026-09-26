@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { roundCreatorAmount } from "@/lib/creatorShared";
+import { isCreatorMonetizationEligible } from "@/lib/creatorMonetization";
 import { TRPG_CHARACTER_ROYALTY_RATE, TRPG_CREATOR_REWARD_CAP_RATE } from "./types";
 
 export type TrpgCharacterRoyaltyInput = {
@@ -34,6 +35,7 @@ function uniqueCharacterCreators(
   for (const row of inputs) {
     if (!row.creatorId) continue;
     if (row.official === 1) continue;
+    if (!isCreatorMonetizationEligible(row.creatorId)) continue;
     if (row.creatorId === opts.consumerUserId) continue;
     if (opts.authorUserId != null && row.creatorId === opts.authorUserId) continue;
     if (seen.has(row.creatorId)) continue;
@@ -59,7 +61,10 @@ export function splitTrpgCreatorRewards(opts: {
   if (paid <= 0) return [];
 
   const authorEligible =
-    opts.authorUserId != null && opts.authorUserId > 0 && opts.authorUserId !== opts.consumerUserId;
+    opts.authorUserId != null &&
+    opts.authorUserId > 0 &&
+    opts.authorUserId !== opts.consumerUserId &&
+    isCreatorMonetizationEligible(opts.authorUserId);
   const authorRate = authorEligible
     ? Math.min(TRPG_CREATOR_REWARD_CAP_RATE, Math.max(0, opts.authorRate))
     : 0;
@@ -137,7 +142,9 @@ export function creditTrpgRoundCreatorRewards(
     shares?: TrpgCreatorRewardShare[];
   }
 ): TrpgCreatorRewardShare[] {
-  const shares = opts.shares ?? splitTrpgCreatorRewards(opts);
+  const shares = (opts.shares ?? splitTrpgCreatorRewards(opts)).filter((share) =>
+    isCreatorMonetizationEligible(share.creatorId)
+  );
   if (shares.length === 0) return [];
   const paid = roundCreatorAmount(opts.paidSpend);
   const hasUsers = tableExists(db, "users");

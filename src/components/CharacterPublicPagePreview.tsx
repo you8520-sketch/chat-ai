@@ -8,6 +8,7 @@ import CharacterAssetGalleryLightbox from "@/components/CharacterAssetGalleryLig
 import CharacterImageViewer from "@/components/CharacterImageViewer";
 import CopyPageLinkButton from "@/components/CopyPageLinkButton";
 import OfficialCreatorBadge from "@/components/OfficialCreatorBadge";
+import OfficialStudioBadge from "@/components/OfficialStudioBadge";
 import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { applyProfilePlaceholders } from "@/lib/userPlaceholder";
@@ -93,6 +94,7 @@ export default function CharacterPublicPagePreview({
   hue = 260,
   creatorName = "제작자",
   creatorIsPartner = false,
+  creatorIsOfficialStudio = false,
   creatorComment = "",
   likes = 0,
   totalTurns = 0,
@@ -121,6 +123,8 @@ export default function CharacterPublicPagePreview({
   creatorName?: string;
   /** 파트너(전속 포함) 등급 이상 — 이름 강조 + 공식 크리에이터 뱃지 표시 */
   creatorIsPartner?: boolean;
+  /** Site-managed official studio — distinct from partner badge. */
+  creatorIsOfficialStudio?: boolean;
   creatorComment?: string;
   likes?: number;
   /** 누적 대화 턴 */
@@ -260,17 +264,26 @@ export default function CharacterPublicPagePreview({
                   <Link
                     href={creatorHref}
                     className={`hover:underline ${
-                      creatorIsPartner ? "text-zinc-50" : "text-violet-400"
+                      creatorIsOfficialStudio || creatorIsPartner
+                        ? "text-zinc-50"
+                        : "text-violet-400"
                     }`}
                   >
                     @{creatorName}
                   </Link>
                 ) : (
-                  <span className={creatorIsPartner ? "text-zinc-50" : "text-violet-400/90"}>
+                  <span
+                    className={
+                      creatorIsOfficialStudio || creatorIsPartner
+                        ? "text-zinc-50"
+                        : "text-violet-400/90"
+                    }
+                  >
                     @{creatorName}
                   </span>
                 )}
-                {creatorIsPartner ? <OfficialCreatorBadge /> : null}
+                {creatorIsOfficialStudio ? <OfficialStudioBadge /> : null}
+                {!creatorIsOfficialStudio && creatorIsPartner ? <OfficialCreatorBadge /> : null}
               </span>
             ) : null}
             {pagePath ? <CopyPageLinkButton path={pagePath} /> : null}

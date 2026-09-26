@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 
 import { resolveCreatorRewardRate } from "@/lib/creatorPoints";
+import { isCreatorMonetizationEligible } from "@/lib/creatorMonetization";
 
 /** Fixed creator reward for an eligible image generation. */
 export const CHAT_ROOM_IMAGE_CREATOR_REWARD_CP = 15;
@@ -15,6 +16,7 @@ export function creditChatRoomImageCreatorReward(
   }
 ): number {
   if (!opts.creatorId || opts.creatorId === opts.consumerUserId) return 0;
+  if (!isCreatorMonetizationEligible(opts.creatorId)) return 0;
   if (resolveCreatorRewardRate(opts.creatorId) <= 0) return 0;
 
   const inserted = db
