@@ -100,6 +100,55 @@ describe("OpenRouter embeddings transport — official wire contract", () => {
     stub(() => Response.json(okBody({ model: `${MODEL}-20251117` })));
     assert.equal((await request()).responseModel, `${MODEL}-20251117`);
   });
+
+  it("accepts case-only canonical response-model differences", async () => {
+    stub(() => Response.json(okBody({ model: "BAAI/bge-m3" })));
+    assert.equal((await request()).responseModel, "BAAI/bge-m3");
+
+    stub(() => Response.json(okBody({ model: "Qwen/Qwen3-Embedding-8B" })));
+    assert.equal(
+      (
+        await request({
+          model: "qwen/qwen3-embedding-8b",
+          dimensions: DIMS,
+        })
+      ).responseModel,
+      "Qwen/Qwen3-Embedding-8B"
+    );
+  });
+
+  it("accepts only explicitly configured response-model aliases", async () => {
+    stub(() => Response.json(okBody({ model: "parasail-bge-m3" })));
+    await assert.rejects(
+      request(),
+      (e: unknown) => e instanceof OpenRouterEmbeddingsError && e.code === "invalid_response"
+    );
+
+    stub(() => Response.json(okBody({ model: "parasail-bge-m3" })));
+    assert.equal(
+      (await request({ responseModelAliases: ["parasail-bge-m3"] })).responseModel,
+      "parasail-bge-m3"
+    );
+
+    stub(() => Response.json(okBody({ model: "text-embedding-3-small" })));
+    assert.equal(
+      (
+        await request({
+          model: "openai/text-embedding-3-small",
+          responseModelAliases: ["text-embedding-3-small"],
+        })
+      ).responseModel,
+      "text-embedding-3-small"
+    );
+  });
+
+  it("rejects unlisted provider-looking aliases even when another alias is allowed", async () => {
+    stub(() => Response.json(okBody({ model: "deepinfra-bge-m3" })));
+    await assert.rejects(
+      request({ responseModelAliases: ["parasail-bge-m3"] }),
+      (e: unknown) => e instanceof OpenRouterEmbeddingsError && e.code === "invalid_response"
+    );
+  });
 });
 
 describe("fail-closed validation", () => {
