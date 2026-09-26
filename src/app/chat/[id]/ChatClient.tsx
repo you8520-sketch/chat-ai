@@ -219,8 +219,9 @@ import {
   clearChatMessageDraft,
   loadChatMessageDraft,
   migrateChatMessageDraft,
+  resolveSendCustodyBackup,
   saveChatMessageDraft,
-} from "@/lib/chatMessageDraft";
+} from "@/lib/userInputDraft";
 import {
   clearChatStreamDraft,
   createClientRequestId,
@@ -1034,6 +1035,19 @@ export default function ChatClient({
   const [mode, setMode] = useState(initialMode);
   const [input, setInput] = useState(() => loadChatMessageDraft(character.id, initialChatId));
   const draftScopeRef = useRef(`${character.id}:${initialChatId ?? "pending"}`);
+  /**
+   * USER INPUT DRAFT custody: send() clears the visible input immediately for UX,
+   * but the last user-written copy must survive until the server confirms durable
+   * bootstrap (turn_persisted). While set, the empty-input save effect must not
+   * delete the message draft, and failures must restore from this backup.
+   * Cleared only by the durable-accept ACK owner (turn_persisted) or terminal settle.
+   */
+  const inFlightInputRef = useRef<{
+    requestId: string;
+    text: string;
+    characterId: number;
+    chatId: number | null;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [streamPhase, setStreamPhase] = useState<string | null>(null);
   const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null);
@@ -2061,6 +2075,26 @@ export default function ChatClient({
   }, [character.id, chatId]);
 
   useEffect(() => {
+    // In-flight custody guard: after send() clears the visible input, the empty
+    // value must not delete the last user-written draft before durable ACK.
+    // Keep the in-flight backup as the canonical owner until turn_persisted.
+    // Scoped: a room change during flight must not leak text across rooms.
+    const inFlight = inFlightInputRef.current;
+    const inFlightInScope =
+      inFlight != null && inFlight.characterId === character.id && inFlight.chatId === chatId;
+    if (!input.trim() && inFlightInScope && inFlight.text.trim()) {
+      const custody = resolveSendCustodyBackup({
+        reactInput: input,
+        messageDraft: loadChatMessageDraft(character.id, chatId),
+        streamDraftUserText: "",
+        dbUserRow: null,
+        inFlightBackupText: inFlight.text,
+      });
+      if (custody.owner === "in-flight-backup" || custody.owner === "message-draft") {
+        saveChatMessageDraft(character.id, chatId, inFlight.text);
+        return;
+      }
+    }
     saveChatMessageDraft(character.id, chatId, input);
   }, [character.id, chatId, input]);
 
@@ -2074,6 +2108,28 @@ export default function ChatClient({
     const draft = readChatStreamDraft(character.id, chatId ?? initialChatId);
     if (!draft?.requestId) return;
 
+    // ORPHAN STREAM DRAFT ≠ synthetic turn (invariant preserved: no fake
+    // generating rows are created here). But the orphan may still carry the
+    // last user-written copy when durable bootstrap never happened. Restore it
+    // to the composer — user-input custody is separate from stream recovery —
+    // only when the DB has no matching request and the composer is empty.
+    // (Outside setMessages: updater functions must stay side-effect free.)
+    // `messages` here is the room-scope initial state; this effect runs once
+    // per room scope while idle, so it matches the recovery input.
+    const orphanText =
+      draft.userText?.trim() ? draft.userText.slice(0, CHAT_MESSAGE_MAX) : "";
+    if (orphanText) {
+      const scopeChatId = chatId ?? initialChatId;
+      const dbHasMatchingRequest = messages.some((m) => m.requestId === draft.requestId);
+      if (
+        !dbHasMatchingRequest &&
+        !loadChatMessageDraft(character.id, scopeChatId).trim() &&
+        !inFlightInputRef.current
+      ) {
+        saveChatMessageDraft(character.id, scopeChatId, orphanText);
+        setInput(orphanText);
+      }
+    }
     setMessages((prev) => {
       const recovery = applyChatStreamDraftRecoveryOnLoad(prev, draft);
       if (recovery.clearedDraft) {
@@ -3673,6 +3729,14 @@ export default function ChatClient({
               migrateChatMessageDraft(character.id, data.chatId);
               syncChatUrl(data.chatId);
             }
+            // Durable-bootstrap ACK: the server persisted the user message +
+            // assistant placeholder before any provider call, so browser-side
+            // user-text custody transfers to the DB here. Only this owner may
+            // clear the message draft for the matching in-flight request.
+            if (rid && inFlightInputRef.current?.requestId === rid) {
+              inFlightInputRef.current = null;
+              clearChatMessageDraft(character.id, data.chatId ?? chatId);
+            }
             setMessages((m) => {
               const copy = [...m];
               const userIdx = aiIndex - 1;
@@ -4101,6 +4165,10 @@ export default function ChatClient({
     }
     inFlightRef.current = true;
     loadingRef.current = true;
+    // Custody transfer starts here: the visible input clears for UX, but the
+    // message draft (guarded above) + stream draft keep the user text until
+    // the server confirms durable bootstrap via turn_persisted.
+    inFlightInputRef.current = { requestId: "", text, characterId: character.id, chatId };
     setInput("");
     setError("");
     setStreamPhase(null);
@@ -4108,6 +4176,7 @@ export default function ChatClient({
     setGenerationStartedAt(Date.now());
     let aiIndex = 0;
     const clientRequestId = createClientRequestId();
+    inFlightInputRef.current = { requestId: clientRequestId, text, characterId: character.id, chatId };
     const userPersonaText = selectedPersona?.description ?? null;
     const statusSeed = resolveAssistantTurnStatusMetaSeed(
       userNote,
@@ -4153,13 +4222,17 @@ export default function ChatClient({
           : m.filter((message) => message.requestId !== clientRequestId);
       });
       setInput(text);
+      inFlightInputRef.current = null;
+      saveChatMessageDraft(character.id, chatId, text);
       inFlightRef.current = false;
       loadingRef.current = false;
       setLoading(false);
       setGenerationPrepUi(null);
       return;
     }
-    clearChatMessageDraft(character.id, chatId);
+    // No clear of the message draft here: durable custody is not confirmed yet.
+    // The guarded save effect + stream draft below keep the user text until the
+    // turn_persisted ACK clears them. HTTP/bootstrap failures preserve drafts.
     writeChatStreamDraft(character.id, chatId, {
       requestId: clientRequestId,
       chatId: chatId ?? 0,
@@ -4201,7 +4274,17 @@ export default function ChatClient({
         setMessages((m) => softRollbackTurn(m, aiIndex));
       }, text);
       if (earlyExit) {
-        clearChatStreamDraft(character.id, chatId);
+        // Pre-bootstrap failure: durable custody never confirmed. Preserve both
+        // browser owners (message draft + stream userText) instead of clearing.
+        inFlightInputRef.current = null;
+        saveChatMessageDraft(character.id, chatId, text);
+        writeChatStreamDraft(character.id, chatId, {
+          requestId: clientRequestId,
+          chatId: chatId ?? 0,
+          userText: text,
+          assistantPartial: "",
+          updatedAt: Date.now(),
+        });
         return;
       }
 
@@ -4222,13 +4305,28 @@ export default function ChatClient({
       setMessages((m) => {
         const assistant = m[aiIndex];
         const persisted = assistant?.id != null || m[aiIndex - 1]?.id != null;
-        if (!persisted) setInput(text);
+        if (!persisted) {
+          setInput(text);
+          // Ambiguous transport failure before durable ACK: preservation wins.
+          // Keep the stream userText backup and re-anchor the message draft.
+          inFlightInputRef.current = null;
+          saveChatMessageDraft(character.id, chatId, text);
+        }
         return softRollbackTurn(m, aiIndex);
       });
       if (streamResult === undefined) {
-        clearChatStreamDraft(character.id, chatId);
+        // Clear the stream draft only when the turn already persisted (its
+        // lifecycle is owned by consumeChatStream). Otherwise the user text
+        // backup must survive for reload recovery.
+        setMessages((m) => {
+          const assistant = m[aiIndex];
+          const persisted = assistant?.id != null || m[aiIndex - 1]?.id != null;
+          if (persisted) clearChatStreamDraft(character.id, chatId);
+          return m;
+        });
       }
     } finally {
+      inFlightInputRef.current = null;
       inFlightRef.current = false;
       loadingRef.current = false;
       setLoading(false);
