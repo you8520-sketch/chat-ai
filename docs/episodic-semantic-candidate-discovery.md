@@ -1,217 +1,288 @@
-# Episodic semantic candidate discovery — SYSTEM DELTA REPORT
+# Episodic semantic candidate discovery — system delta report
 
 Classification: **SEMANTIC_DISCOVERY_CODE_READY_LIVE_BENCHMARK_PENDING**
 
-The candidate-discovery gap is closed **in the code path** and proven with a
-deterministic synthetic embedder. It is **not** closed in production: every
-embedding config is `PROVISIONAL_LIVE_BENCHMARK_PENDING`, and the single
-runtime gate refuses to activate a provisional config even when the flag is
-on. So production retrieval is still exact lexical Retrieval V2. This is not
-ROOT_CAUSE_FIXED: thresholds, weights, and the model choice need a live
-benchmark (STOP condition 14).
+This PR closes the proven semantic-paraphrase gap in a deterministic synthetic path while keeping production on exact lexical Retrieval V2. Every runtime embedding configuration remains `PROVISIONAL_LIVE_BENCHMARK_PENDING`; the canonical runtime gate refuses to activate provisional configs.
 
-## BEFORE
+No live provider call is part of this implementation pass.
 
-`semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01` reproduces on exact main
-`96bb9b03`. The canonical fact exists in the DB; it is old, normal, and
-non-historical, so it drops out of the saturated recent lane, has no token
-match in the lexical `LIKE` lane, and is ineligible for the milestone lanes.
-Result: pre-candidate miss and final miss. Benchmark baseline:
-candidateRecall 16/17, finalRecall 16/17.
+## Before
 
-## PROBLEM / ROOT CAUSE
+The benchmark case `semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01` proves:
 
-Candidate discovery is lexical only (`fetchEpisodicMemoryCandidateRows`), and
-the one final scorer (`scoreFactForPrompt`) requires lexical overlap for any
-non-empty query. Adding semantic candidates alone would fix only half: they
-would be dropped again at the lexical relevance gate. Both owners had to
-learn semantic evidence. A candidate-only Jev reranker cannot fix this,
-because the answer never reaches the candidate set.
+- the canonical episodic fact exists in `episodic_memory_facts`;
+- it is old, normal, and non-historical;
+- the recent lane misses it;
+- token-LIKE relevance misses the paraphrase;
+- milestone lanes are inapplicable;
+- candidate discovery misses it;
+- final retrieval misses it.
 
-## OWNER MAP (current main; ONE RESPONSIBILITY = ONE OWNER)
+Baseline: candidate recall 16/17, final recall 16/17.
 
-| # | Responsibility | Canonical owner | Change |
-|---|---|---|---|
-| 1 | Episodic canonical fact storage | `episodic_memory_facts` (`episodicMemoryFacts.ts`, `db.ts`) | none |
-| 2 | Candidate eligibility / RAW min-age / reset boundary | `buildEpisodicCandidateScope` | none; the semantic lane reuses `recallWhere` |
-| 3 | Lane budgets | `resolveEpisodicLaneBudgets` | + `semanticFilled` slots, taken first; lexical weights unchanged (equal to main for limits 0..500 when 0) |
-| 4 | Candidate fetch/merge | `fetchEpisodicMemoryCandidateRows` | + semantic lane inside the same owner |
-| 5 | Retrieval safety guard | `evaluateEpisodicRetrievalGuard` | none; semantic rows pass through it |
-| 6 | Canon / evidence guard | `detectUnverifiedCanonicalization` / `detectUnsupportedEvidenceFact` | none |
-| 7 | Latest-state / historical reconciliation | `reconcileGlobalStateLikeFacts` + `resolveLatestFactsByLogicalKey` | none |
-| 8 | RAW / Global / Relationship / Lorebook dedupe | `findDuplicateReason` | none; semantic rows pass through it |
-| 9 | Final relevance / ranking | `scoreFactForPrompt` (still the only one) | + optional semantic evidence; absent evidence gives identical scoring |
-| 10 | Final max-facts / max-chars budget | `getEpisodicMemoryForPrompt` | none |
-| 11 | Regeneration replacement | `reconcileEpisodicMemoryFactsForGeneration` | none |
-| 12 | Message-edit replacement | `replaceEpisodicMemoryFactsForCanonicalMutation` | none |
-| 13 | Delete / rewind invalidation | `deleteEpisodicMemoryFactsByAssistantMessageIds`, seal-batch invalidation | none |
-| 14 | Fork / reset boundary | `memory-source-boundary.ts`, `memory-fork-snapshot.ts` | none |
-| 15 | Post-turn background lifecycle | `scheduleMemoryUpdate` (`memory-manager.ts`) | + gated index job after the committed reconcile |
-| 16 | Provider auth / headers | `openRouterConfig` | reused |
-| 17 | Provider usage / cost ledger | `parseOpenRouterUsage`, `recordBackgroundProviderCost` | reused (cost center `memory`) |
-| 18 | #1072 benchmark | `memory-rp-benchmark.ts` + test | extended in place (modes) |
-| 19 | #1071 Jev Decisions | `jevDecisions.ts` | untouched, not reused for embeddings |
-| new | Semantic config (models, thresholds, weights, lane share, bounds, gate) | `memory-episodic-semantic-config.ts` | new, the only place these numbers live |
-| new | Derived semantic sidecar | `memory-episodic-semantic-index.ts` (`episodic_memory_fact_embeddings`) | new |
-| new | Embeddings transport | `openRouterEmbeddings.ts` | new, the only embeddings HTTP owner |
-| new | Text→vector orchestration | `memory-episodic-semantic-jobs.ts` | new |
+The final scorer also required lexical overlap for non-empty scene queries, so candidate discovery and final relevance both needed semantic evidence.
 
-## AFTER
+## Root cause
 
-- **Sidecar** `episodic_memory_fact_embeddings` stores `fact_id, chat_id, model_id, dimensions, content_hash, embedding BLOB, created_at, updated_at`.
-  - Primary key is `(fact_id, model_id, dimensions)`.
-  - It holds no fact text; canonical text is always re-read from `episodic_memory_facts`.
-  - It is created lazily via `ensureEpisodicFactEmbeddingSchema`, the repo's side-table convention. No remote schema version bump; nothing is created while disabled.
-- **Lane**: the semantic lane re-selects canonical rows under the same `recallWhere` scope and joins the sidecar on `(fact_id, chat_id)` for the same model and dimensions. It then:
-  - recomputes the sha256 of the sanitized `fact_text` and skips any mismatch;
-  - decodes the vector, failing closed on bad bytes;
-  - computes a dot product (vectors are unit-normalized);
-  - admits only similarities at or above the config threshold;
-  - fills at most `semanticLaneMaxShare × candidateLimit` slots.
-  
-  The lexical lanes share the rest with unchanged weights. The candidate limit stays 100.
-- **Scorer**: a fact passes the relevance gate on lexical overlap **or** on semantic similarity at or above the active config threshold. A semantic pass adds `semanticScoreWeight × similarity` to the score. Milestone status alone never passes.
-- **Jev** is not involved (Phase 14). A Jev rerank is a separate follow-up, justified only if a benchmark shows ranking is the remaining bottleneck.
+The missing fact is outside the lexical candidate set. A candidate-only Jev reranker cannot fix a fact it never sees.
 
-## INDEX LIFECYCLE
+The fix therefore extends the existing candidate-discovery owner and the existing single final scorer. It does not create a parallel memory truth, temporal owner, prompt owner, or final ranking owner.
 
-1. The canonical write (`reconcileSharedEpisodicFactsForTurn`) commits its own transaction.
-2. Only then, `scheduleMemoryUpdate` awaits `runEpisodicSemanticIndexJob`. This reuses the existing post-turn owner; there is no new fire-and-forget subsystem.
-3. The job prunes orphan vectors (the single cleanup owner), then selects at most 16 facts that have no vector for this model, or whose content hash drifted (newest indexed rows re-checked).
-4. It embeds them in one call.
-5. It writes each vector through `upsertEpisodicFactEmbedding`, which re-reads the canonical row and **drops** a result whose fact was deleted or changed during the call.
+## Owner map
 
-Other properties:
-- Idempotent: the same fact, hash, model, and dimensions trigger 0 further embeddings (test L).
-- Backfill is lazy and bounded (one batch per turn); there is no one-shot migration.
-- Chat and character deletion wipe vectors in their existing cleanup owners.
-- No embedding HTTP ever runs inside `persistEpisodicMemoryFactsCore`'s transaction.
-
-## MUTATION SAFETY
-
-Stale vectors are excluded **structurally**, through canonical re-resolution
-+ scope + content hash, not through delete hooks in every mutation owner:
-
-| Mutation | Why an old vector cannot resurrect a fact | Test |
+| Responsibility | Canonical owner | Semantic delta |
 |---|---|---|
-| Regeneration | Rejected rows are deleted, so the JOIN finds nothing; the job prunes the orphan | E |
-| Message edit | Replacement inserts new ids; the old id is orphaned, and an in-place change fails the hash | F, K |
-| Delete / rewind | The canonical row is gone, so the JOIN finds nothing | G |
-| Fork / reset | `recallWhere` enforces `source_user_message_id > resetAfterMessageId` | H |
-| RAW window | `recallWhere` min-age excludes RAW-owned turns | H2 |
-| Latest-state | The temporal owner still replaces stale state after the lane | D |
-| Raced index write | The upsert re-checks the canonical row; the result is dropped | M |
-| Other model / dims | Filtered in SQL; never compared | J |
+| Canonical episodic facts | `episodic_memory_facts` | none |
+| Candidate scope / reset-fork boundary / RAW age | `buildEpisodicCandidateScope` | reused |
+| Retrieval safety | `evaluateEpisodicRetrievalGuard` | reused |
+| Lane budgets | `resolveEpisodicLaneBudgets` | unchanged |
+| Candidate fetch / merge | `fetchEpisodicMemoryCandidateRows` | semantic lane added after lexical lanes |
+| Temporal reconciliation | existing latest-state / historical owners | unchanged |
+| Dedupe | existing episodic dedupe owner | unchanged |
+| Final relevance / ranking | `scoreFactForPrompt` | optional semantic evidence |
+| Final fact / char budget | `getEpisodicMemoryForPrompt` | unchanged |
+| Regeneration / edit / delete / rewind | existing mutation owners | unchanged |
+| Fork / reset boundary | memory source-boundary owners | unchanged |
+| Post-turn lifecycle | `scheduleMemoryUpdate` | bounded index job after canonical commit |
+| OpenRouter auth / headers | `openRouterConfig` | reused |
+| Usage / cost ledger | existing provider ledger | reused |
+| Benchmark cases | `memory-rp-benchmark-suite.ts` | single reusable case owner |
+| Jev Decisions | `jevDecisions.ts` | untouched |
+| Semantic config | `memory-episodic-semantic-config.ts` | new single config owner |
+| Derived vector sidecar | `memory-episodic-semantic-index.ts` | new disposable index owner |
+| Embeddings HTTP | `openRouterEmbeddings.ts` | new endpoint-specific transport |
+| Text-to-vector orchestration | `memory-episodic-semantic-jobs.ts` | new bounded job owner |
 
-## FALLBACK
+## Semantic sidecar
 
-These all return **exact lexical V2** output (deep-equal comparison against a
-no-semantic call), and none can fail Main RP:
-- missing key (0 HTTP);
-- timeout / network failure;
-- HTTP 429 / 4xx / 5xx;
+The derived table stores:
+
+- canonical fact id;
+- chat id;
+- embedding model id;
+- dimensions;
+- full canonical-content hash;
+- normalized Float32 vector bytes;
+- timestamps.
+
+It stores no fact text. `episodic_memory_facts` remains the only truth.
+
+Dropping the sidecar leaves lexical Retrieval V2 behavior intact.
+
+### Full canonical hash
+
+Staleness is determined from the **full sanitized canonical `fact_text`**.
+
+Only provider input is bounded to 400 characters.
+
+Therefore two facts with identical first 400 characters but different suffixes have different canonical hashes, and a late embedding write for the old text is rejected.
+
+## Privacy boundary
+
+Provider-send eligibility reuses canonical owners instead of copying boundary logic.
+
+Only facts that are all of the following may be selected for indexing:
+
+- inside the current candidate scope, including reset/fork boundary;
+- allowed by the existing retrieval guard;
+- stamped `content_route = "safe"`;
+- canonical and current.
+
+Pre-boundary, adult/NSFW, unstamped legacy, and unrecallable facts are not sent to the embeddings provider.
+
+Invariant:
+
+**OUT_OF_SCOPE_MEMORY_IS_NOT_SENT_TO_EMBEDDING_PROVIDER**
+
+For initial rollout, adult/NSFW content is excluded from both sides:
+
+- adult turns do not create query embeddings;
+- adult-stamped facts are not indexed;
+- a later safe turn cannot backfill adult facts.
+
+Facts without a route stamp are fail-closed and not indexed. This includes pre-change rows and mutation replacements whose source route is not yet reliably carried through the mutation path.
+
+## Query readiness
+
+A safe query is embedded only when the current recall scope contains at least one **usable** semantic vector for the active model.
+
+Readiness requires:
+
+- current recall scope;
+- `content_route = "safe"`;
+- retrieval guard allowed;
+- full canonical content hash still matches;
+- stored vector decodes successfully for the configured dimensions.
+
+Adult, unstamped, stale-hash, corrupt, or otherwise unusable sidecar rows do not trigger a query embedding call.
+
+If no usable vector exists, the system returns lexical V2 with 0 embedding HTTP and 0 embedding RTT.
+
+## Candidate budget
+
+The lexical V2 lane-budget function is unchanged.
+
+Semantic discovery runs after lexical lanes.
+
+- overlap IDs add semantic provenance but consume no candidate slot;
+- only novel semantic IDs may be added;
+- novel IDs use only unused capacity;
+- total candidate limit remains 100;
+- if the lexical unique set already fills 100, semantic novel IDs are dropped rather than replacing lexical candidates.
+
+This removes the earlier milestone regression caused by pre-claiming lexical slots.
+
+## Synthetic benchmark
+
+| Mode | Candidate / final recall | False injection | Stale state | Known gap | Known-gap semantic admitted / novel / overlap / added | Milestone retention |
+|---|---:|---:|---:|---|---|---:|
+| Lexical baseline | 16/17 | 0 | 0 | miss / miss | — | 10/25 |
+| Semantic share 0.05 | 17/17 | 0 | 0 | hit / hit | 1 / 1 / 0 / 1 | 10/25 |
+| Semantic share 0.10 | 17/17 | 0 | 0 | hit / hit | 1 / 1 / 0 / 1 | 10/25 |
+| Semantic share 0.20 | 17/17 | 0 | 0 | hit / hit | 1 / 1 / 0 / 1 | 10/25 |
+
+In the known-gap fixture, 45 of 100 candidate slots remain unused, so no donor/replacement policy is needed.
+
+At full lexical capacity, the baseline lexical set is preserved and semantic novel rows are dropped.
+
+## Index lifecycle
+
+1. Canonical episodic reconcile commits first.
+2. The existing post-turn lifecycle runs the derived index job after commit and after the SSE response is completed.
+3. The job prunes orphan vectors.
+4. It selects at most 16 canonically eligible facts for one batch.
+5. It embeds bounded provider inputs.
+6. Each write re-reads the canonical row and rejects a deleted or changed fact.
+
+No embedding HTTP runs inside a canonical write transaction.
+
+The job is idempotent for the same fact/hash/model/dimensions.
+
+### Sealed-batch writer audit
+
+`extractAndPersistEpisodicFactsForSealedBatch` is currently test-only.
+
+- no non-test runtime importer uses it;
+- the live writer is the Shared Initial per-turn consumer;
+- an existing regression pins that rolling-summary production does not call the legacy sealed-batch writer.
+
+Verdict: **KEEP for now; deletion is a separate follow-up.**
+
+Legacy rows without a route stamp remain excluded from semantic indexing.
+
+## Disabled-feature schema behavior
+
+Cleanup is cleanup-only.
+
+If the semantic sidecar table does not exist, chat deletion and character deletion no-op for semantic data and do not create the table.
+
+When the table exists, both cleanup paths remove their derived rows.
+
+## OpenRouter embeddings transport
+
+`openRouterEmbeddings.ts` is the sole embeddings HTTP owner.
+
+It reuses:
+
+- OpenRouter auth/header primitives;
+- usage parsing;
+- provider cost ledger;
+- auxiliary provider provenance.
+
+Every request includes:
+
+`provider: { zdr: true, data_collection: "deny" }`
+
+ZDR prevents provider retention but does not mean the provider never receives the text.
+
+Malformed responses, wrong vector count, non-finite values, wrong dimensions, served-model mismatch, transport failure, and HTTP errors fail closed.
+
+There is one attempt and no retry/fallback fan-out.
+
+## Benchmark-only credential isolation
+
+The live runner requires all three:
+
+- `REGULAR_TEST_REAL_PROVIDER_CALLS=1`
+- `REAL_EPISODIC_EMBEDDING_PROBE=1`
+- `OPENROUTER_EMBEDDINGS_BENCHMARK_API_KEY`
+
+The production `OPENROUTER_API_KEY` is never used by the live benchmark runner.
+
+The benchmark key is passed explicitly to the transport, ledger persistence is disabled, and without triple opt-in the runner returns `NOT_RUN` with 0 HTTP.
+
+Prepared arms:
+
+- `baai/bge-m3`
+- `qwen/qwen3-embedding-8b` at 4096 dimensions
+- `openai/text-embedding-3-small` as a non-selectable control
+
+No reduced-dimension Qwen arm is assumed until live/provider support is verified.
+
+## Performance
+
+In-process semantic scan remains synchronous on the chat retrieval path.
+
+Measured synthetic retrieval p50, semantic off → on:
+
+| Model | ~3,000 facts | 10,000 facts |
+|---|---:|---:|
+| bge-m3 / 1024 dims | 8.1 → 39.5 ms | 22.0 → 139.5 ms |
+| qwen3-embedding-8b / 4096 dims | 8.1 → 85.6 ms | 22.1 → 290.5 ms |
+
+The larger unknown remains live query-embedding RTT, which is not measured yet.
+
+No ANN/vector DB or `vector_distance_cos` migration is part of this PR.
+
+## Fallback
+
+All semantic failures must preserve lexical V2 behavior:
+
+- feature disabled;
+- adult turn;
+- no usable index;
+- missing key;
+- timeout / network error;
+- 429 / 4xx / 5xx;
 - malformed JSON;
 - wrong vector count;
-- NaN or Infinity values;
+- non-finite vector;
 - wrong dimensions;
 - model mismatch;
-- empty or missing index;
-- stale content hash;
-- corrupt stored bytes;
-- malformed sidecar table (lane error);
-- a partial batch failure (writes nothing).
+- stale hash;
+- corrupt bytes;
+- malformed sidecar;
+- partial batch failure.
 
-The only retry is none: one attempt per call, no fallback fan-out.
+None may fail Main RP.
 
-## PRIVACY DELTA
+## Preserved invariants
 
-- **Sent (only once activated):** the bounded current user message, used as the query (≤500 characters); and sanitized canonical episodic `fact_text` (≤400 characters per fact, ≤16 facts per batch).
-- **Never sent:** transcripts, Global Memory, Persona Secret text, system prompts, credentials, DB ids, or metadata.
-- **Routing:** every request carries `provider: { zdr: true, data_collection: "deny" }`. This was verified in the official `openapi.json`: `/embeddings.provider` is `ProviderPreferences`, which includes `zdr` and `data_collection`, and routing errors when no compliant endpoint exists. Both candidates currently have ZDR endpoints: bge-m3 on Parasail and DeepInfra; qwen3-embedding-8b on Nebius, SiliconFlow, and DeepInfra.
-- **ZDR still means the provider receives and processes the text.**
-- **Open decision for GPT/user before activation:** episodic facts and user messages from adult chats would be in scope. Should adult or NSFW chats be excluded from semantic indexing?
+Unchanged:
 
-## COST DELTA
+- lexical lane weights and budgets;
+- temporal truth;
+- canon/evidence guards;
+- Relationship Memory;
+- Persona Secret;
+- Scene Directive;
+- user authoring;
+- Global / Medium / RAW memory;
+- Main RP model routing;
+- Jev Decisions;
+- user billing / point charging.
 
-- **Live cost:** NOT_MEASURED.
-- **List price:** $0.01 per million input tokens for both candidates (OpenRouter `/api/v1/embeddings/models`).
-- **Estimated upper bound per turn (assumes ~1 token per Korean character):** ≤500 query tokens + ≤1,200 index tokens → ≤~1,700 tokens per turn → about $0.000017 per turn, about $0.017 per 1,000 turns. This is ESTIMATED, not measured.
-- **Ledger:** rows go to the existing `api_cost_ledger` (request kind `background-memory-episodic-embedding`, cost center `memory`). No billing or point policy changes.
+## Remaining limitations
 
-## LATENCY DELTA
+- Route-unstamped legacy rows do not receive semantic recall.
+- Edited or variant-switched replacement facts without a reliable source-route stamp do not receive semantic recall.
+- Live model quality, thresholds, provider RTT, and actual cost remain unmeasured.
+- Semantic activation remains disabled until those are benchmarked and an approved config is explicitly selected.
 
-- **Query embedding:** 1 call per turn, awaited before retrieval (2.5 s timeout). Live round-trip is NOT_MEASURED.
-- **Index job:** ≤1 call per turn, off the critical path.
-- **In-process scan:** measured on synthetic unit vectors with the real owners and 15 iterations. It runs synchronously in retrieval, so this is added latency on the chat path:
+For the initial rollout, fail-closed exclusion of route-unstamped facts is intentional and preferred over guessing privacy scope.
 
-| model / dims | facts | B/fact | retrieval OFF p50/p95 ms | retrieval ON p50/p95 ms |
-|---|---|---|---|---|
-| bge-m3 / 1024 | 150 | 4096 | 2.61 / 2.93 | 4.68 / 5.43 |
-| bge-m3 / 1024 | 900 | 4096 | 3.89 / 4.13 | 14.62 / 16.17 |
-| bge-m3 / 1024 | 3000 | 4096 | 8.06 / 9.19 | 43.86 / 50.05 |
-| bge-m3 / 1024 | 10000 | 4096 | 21.43 / 25.75 | 152.7 / 170.67 |
-| qwen3-8b / 4096 | 150 | 16384 | 2.24 / 3.00 | 6.30 / 7.58 |
-| qwen3-8b / 4096 | 900 | 16384 | 3.84 / 4.84 | 25.17 / 28.07 |
-| qwen3-8b / 4096 | 3000 | 16384 | 7.83 / 9.06 | 87.9 / 93.18 |
-| qwen3-8b / 4096 | 10000 | 16384 | 21.07 / 25.88 | 304.53 / 341.86 |
+## Next gate
 
-Full breakdown (load, decode, similarity, heap) is in the script output. Real
-per-chat P50 volume is NOT_MEASURED: the dev DB has 0 facts. The only
-production writer caps at 3 facts per turn, so T1000 ≈ 3,000 facts. No
-ANN/vector DB is proposed until a live benchmark shows this matters.
+After exact-head review and current-main sync, the next allowed step is the benchmark-only live embedding probe.
 
-libsql's built-in `vector32()` and `vector_distance_cos()` are available
-locally and are a follow-up option for pushing the scan into SQL.
-
-## BENCHMARK (#1072 harness, synthetic embedder, same metric semantics)
-
-| mode | candidateRecall | finalRecall | falseInjection (21/23 eligible) | staleState (2/23) | known gap cand/final | milestone retention | semantic admitted |
-|---|---|---|---|---|---|---|---|
-| lexical-v2-baseline | 16/17 | 16/17 | 0 | 0 | miss/miss | 10/25 | 0 |
-| semantic share 0.05 | 17/17 | 17/17 | 0 | 0 | hit/hit | 9/25 | 5 |
-| semantic share 0.10 | 17/17 | 17/17 | 0 | 0 | hit/hit | 9/25 | 10 |
-| semantic share 0.20 | 17/17 | 17/17 | 0 | 0 | hit/hit | 8/25 | 20 |
-
-These are raw numbers; no winner is chosen. The synthetic embedder says
-nothing about how bge-m3 or qwen3-embedding-8b would perform. Per-model
-quality, threshold, and weight are NOT_MEASURED.
-
-## LIVE BENCHMARK PROPOSAL (not run; needs explicit approval)
-
-- **Credential:** a benchmark-only credential following the repo's triple opt-in convention (`scripts/lib/benchmarkCheaperInferenceCredential.ts`, `realProbeIsolation.test.ts`):
-  - `REGULAR_TEST_REAL_PROVIDER_CALLS=1`
-  - `REAL_EPISODIC_EMBEDDING_PROBE=1`
-  - `OPENROUTER_EMBEDDINGS_BENCHMARK_API_KEY`
-  
-  This would need an explicit-key parameter on the transport. It is not added here, and the production `OPENROUTER_API_KEY` must not be reused.
-- **Scope:** both candidates (plus `openai/text-embedding-3-small` as a control), run over the #1072 cases.
-- **Estimated size:** roughly 40 facts plus 23 queries per model, which is ~63 inputs and ≤~25k tokens per model. That is far below $0.01 per model at list price.
-
-## REMOVED / PRESERVED / REGRESSION RISKS
-
-- **Removed:** nothing. No dead helpers were introduced: every export has a runtime or test reader.
-- **Preserved:**
-  - lexical lanes and weights, and the final budget;
-  - temporal, canon, and dedupe owners;
-  - Relationship Memory and Persona Secret;
-  - Scene Directive and authoring;
-  - Global, Medium, and RAW memory;
-  - Main RP routing;
-  - the Jev transport;
-  - billing and provider routing.
-- **Risks, only after a future activation:**
-  - synchronous scan latency (see the latency table);
-  - query-embedding round-trip on the chat path;
-  - adult-content privacy scope;
-  - uncalibrated thresholds.
-  
-  The runtime gate currently makes all of these unreachable in production.
-
-## PROOF
-
-- **Semantic discovery:** 36/36. **Embeddings transport:** 20/20. **Synthetic fixture:** 1/1. **#1072 benchmark:** 5/5, including the semantic shadow run.
-- **39-file regression matrix:** identical pass/fail counts and identical failing test names on branch and exact main `96bb9b03`. The failures (`episodicMemoryFacts` 4, `rpDerivedStateEpisodic` 4, `memory-source-edit-invalidation` 3, `memory-branch-reopen` 6) are pre-existing.
-- **After the main sync:** `realProbeIsolation` 10/10 and `gmCompletionIntegrity` 20/20.
-- **Static checks:** `git diff --check`, `npm run lint`, and `npm run typecheck:app` are clean. Full `tsc` shows the same 2 errors on both branch and main, in `postGmOngoingTrust.test.ts`.
-- **Build:** the default `npm run build` fails identically on branch and main because `SESSION_SECRET` is missing. With a ≥32-character dummy value, both build with exit 0 (110/110 pages).
-- **Real provider HTTP in tests:** 0 (fetch spy asserted).
+Production activation, threshold approval, model selection, adult/NSFW inclusion, ANN/vector DB work, and Jev reranking remain separate follow-ups.
