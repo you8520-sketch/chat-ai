@@ -708,6 +708,8 @@ function migrate(db: Database.Database) {
   addColumn("users", "resident_id", "TEXT NOT NULL DEFAULT ''");
   addColumn("users", "is_admin", "INTEGER NOT NULL DEFAULT 0");
   addColumn("users", "creator_exclusive", "INTEGER NOT NULL DEFAULT 0");
+  /** Site-operated official studio account (independent of is_admin / characters.official). */
+  addColumn("users", "site_managed", "INTEGER NOT NULL DEFAULT 0");
   addColumn("users", "partner_tier_granted_at", "TEXT");
   addColumn("users", "partner_tier_valid_until", "TEXT");
   addColumn("users", "pro_tier_granted_at", "TEXT");

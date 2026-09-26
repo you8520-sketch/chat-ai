@@ -1,4 +1,5 @@
 import { roundCreatorAmount } from "@/lib/creatorShared";
+import { isCreatorMonetizationEligible } from "@/lib/creatorMonetization";
 import type { TrpgCharacterRoyaltyInput, TrpgCreatorRewardShare } from "./creatorRewards";
 import { splitTrpgRoundCost, type TrpgShare } from "./billing";
 import type { TrpgRoundEconomicsObservation } from "./roundEconomics";
@@ -48,6 +49,7 @@ export function eligibleCharacterSeats(
   for (const row of seats) {
     if (!row.creatorId || !row.characterId) continue;
     if (row.official === 1) continue;
+    if (!isCreatorMonetizationEligible(row.creatorId)) continue;
     if (row.creatorId === opts.consumerUserId) continue;
     if (seen.has(row.characterId)) continue;
     seen.add(row.characterId);
@@ -67,7 +69,10 @@ export function splitTrpgValueCreatorRewards(opts: {
   const base = roundCreatorAmount(Math.max(0, opts.serviceBase));
   if (base <= 0) return [];
   const authorEligible =
-    opts.authorUserId != null && opts.authorUserId > 0 && opts.authorUserId !== opts.consumerUserId;
+    opts.authorUserId != null &&
+    opts.authorUserId > 0 &&
+    opts.authorUserId !== opts.consumerUserId &&
+    isCreatorMonetizationEligible(opts.authorUserId);
   const authorRate = authorEligible ? Math.min(TRPG_VALUE_CREATOR_CAP_RATE, Math.max(0, opts.authorRate)) : 0;
   const seats = eligibleCharacterSeats(opts.characterSeats, { consumerUserId: opts.consumerUserId });
   const capAmount = roundCreatorAmount(base * TRPG_VALUE_CREATOR_CAP_RATE);

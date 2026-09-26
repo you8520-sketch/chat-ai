@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import type { WithdrawalEligibility } from "./creatorShared";
+import { isCreatorMonetizationEligible } from "./creatorMonetization";
 
 export type { WithdrawalEligibility };
 
@@ -15,6 +16,14 @@ export function personNamesMatch(a: string, b: string): boolean {
 }
 
 export function getWithdrawalEligibility(userId: number): WithdrawalEligibility {
+  if (!isCreatorMonetizationEligible(userId)) {
+    return {
+      canWithdraw: false,
+      verifiedRealName: "",
+      blockReason: "공식 스튜디오 계정은 출금 대상이 아닙니다.",
+    };
+  }
+
   const row = getDb()
     .prepare("SELECT is_adult, real_name FROM users WHERE id = ?")
     .get(userId) as { is_adult: number; real_name: string } | undefined;

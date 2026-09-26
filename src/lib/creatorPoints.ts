@@ -27,6 +27,7 @@ import {
 import { getWithdrawalEligibility, personNamesMatch } from "./withdrawalEligibility";
 import { listCreatorNotices } from "./creatorNotices";
 import { syncProTierStatus } from "./creatorProTier";
+import { isCreatorMonetizationEligible } from "./creatorMonetization";
 
 export {
   CREATOR_PRO_MIN_CHARACTERS,
@@ -120,6 +121,18 @@ function getCreatorCharacterEarningShares(
 
 /** 프로 12% · 일반 8% · 새싹 4% (상위 등급 우선 적용) */
 export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
+  if (!isCreatorMonetizationEligible(creatorId)) {
+    return {
+      characterCount: 0,
+      publicCharacterCount: 0,
+      monthlySpentOnChars: 0,
+      totalChats: 0,
+      rewardRate: 0,
+      tierLevel: "sprout",
+      isPro: false,
+    };
+  }
+
   const db = getDb();
 
   const charRow = db
@@ -430,6 +443,8 @@ export function maybeCreditCreatorReward(opts: {
   const spent = roundAmount(opts.pointsSpent);
   if (spent <= 0) return 0;
   if (!opts.creatorId) return 0;
+  if (!isCreatorMonetizationEligible(opts.creatorId)) return 0;
+  // Character-level official listing flag — independent of account eligibility.
   if (opts.official === 1) return 0;
   if (opts.creatorId === opts.consumerUserId) return 0;
 
@@ -505,6 +520,9 @@ export function reverseCreatorRewardForMessage(messageId: number): void {
 export function exchangeCreatorPoints(userId: number, amount: number) {
   const need = roundAmount(amount);
   if (need <= 0) throw new Error("교환할 포인트를 입력하세요.");
+  if (!isCreatorMonetizationEligible(userId)) {
+    throw new Error("공식 스튜디오 계정은 크리에이터 포인트를 교환할 수 없습니다.");
+  }
 
   const db = getDb();
   const balance = getCreatorPointsBalance(userId);

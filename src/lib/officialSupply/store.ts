@@ -515,7 +515,7 @@ export class OfficialSupplyStore {
    */
   updateDraft(draftKey: string, draft: OfficialCharacterDraft): OfficialCharacterRecord {
     const current = this.getCharacter(draftKey);
-    if (current.stage === "staged_private") {
+    if (current.stage === "staged_private" || current.stage === "published") {
       throw new OfficialSupplyGateError("already_staged", "staged characters are edited through the canonical update owner");
     }
     if (draft.draftKey !== draftKey || draft.worldKey !== current.worldKey || draft.styleKey !== current.styleKey) {
@@ -952,6 +952,33 @@ export class OfficialSupplyStore {
          WHERE draft_key=? AND staging_claim=?`
       )
       .run(characterId, draftKey, token);
+  }
+
+  /**
+   * Idempotent publish marker. Only transitions `staged_private` → `published`
+   * (or no-ops when already published for the same character id).
+   */
+  markPublished(draftKey: string, characterId: number): void {
+    const row = this.db
+      .prepare("SELECT stage, staged_character_id FROM official_supply_characters WHERE draft_key=?")
+      .get(draftKey) as { stage: string; staged_character_id: number | null } | undefined;
+    if (!row) throw new OfficialSupplyGateError("draft_missing", `draft ${draftKey} not found`);
+    if (row.staged_character_id !== characterId) {
+      throw new OfficialSupplyGateError(
+        "publish_character_mismatch",
+        `draft ${draftKey} is staged as ${row.staged_character_id}, not ${characterId}`
+      );
+    }
+    if (row.stage === "published") return;
+    if (row.stage !== "staged_private") {
+      throw new OfficialSupplyGateError("character_stage", `draft ${draftKey} is ${row.stage}; staged_private required`);
+    }
+    this.db
+      .prepare(
+        `UPDATE official_supply_characters SET stage='published', updated_at=datetime('now')
+         WHERE draft_key=? AND stage='staged_private' AND staged_character_id=?`
+      )
+      .run(draftKey, characterId);
   }
 
   findWorldLorebookId(worldKey: string, entryKey: string, creatorId: number): number | null {

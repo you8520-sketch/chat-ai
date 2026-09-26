@@ -21,6 +21,7 @@ export const OFFICIAL_CHARACTER_STAGES = [
   "assets_complete",
   "qa_passed",
   "staged_private",
+  "published",
 ] as const;
 export type OfficialCharacterStage = (typeof OFFICIAL_CHARACTER_STAGES)[number];
 
