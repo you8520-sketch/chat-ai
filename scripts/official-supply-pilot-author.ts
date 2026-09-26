@@ -523,10 +523,27 @@ async function stepAppearance(modelId: string, maxAttempts: number): Promise<voi
   saveCost(report);
 }
 
-async function stepAssetPlans(modelId: string, maxAttempts: number, concurrency: number): Promise<void> {
+async function stepAssetPlans(
+  modelId: string,
+  maxAttempts: number,
+  concurrency: number,
+  onlySlot?: number
+): Promise<void> {
   const report = loadCost();
   const world = readWorld();
-  const results = await pool(world.portfolio, concurrency, async (brief) => {
+  const portfolio = onlySlot ? world.portfolio.filter((b) => b.slot === onlySlot) : world.portfolio;
+  const results = await pool(portfolio, concurrency, async (brief) => {
+    if (!onlySlot) {
+      try {
+        const existing = readChar(brief.slot);
+        if (existing && !existing.quarantined && existing.assetPlan) {
+          console.log(`[pilot] assetplan slot ${brief.slot} already complete — skipping`);
+          return { slot: brief.slot, ok: true as const };
+        }
+      } catch {
+        // missing file → generate
+      }
+    }
     try {
       await generateOneAssetPlan(brief, world, modelId, maxAttempts, report);
       return { slot: brief.slot, ok: true as const };
@@ -647,7 +664,9 @@ async function main(): Promise<void> {
   }
   if (step === "portfolio-qa" || step === "all") stepPortfolioQa();
   if (step === "appearance" || step === "all") await stepAppearance(modelId, maxAttempts);
-  if (step === "assetplan" || step === "all") await stepAssetPlans(modelId, maxAttempts, concurrency);
+  if (step === "assetplan" || step === "all") {
+    await stepAssetPlans(modelId, maxAttempts, concurrency, step === "assetplan" ? slot : undefined);
+  }
   if (step === "styles" || step === "all") await stepStyles(modelId, maxAttempts);
   console.log("[pilot] done.");
 }

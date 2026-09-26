@@ -3,14 +3,15 @@
  * (`author.ts`). Text-only builders: no network, no billing, no points.
  *
  * Generation order: WORLD BIBLE → PORTFOLIO MAP → CHARACTER BIBLE ×10
- * (part1 + part2) → deterministic compile to `OfficialCharacterDraft`.
+ * (part1 + voice + bonds) → deterministic compile to `OfficialCharacterDraft`.
  * World + character are never generated together in one call.
  *
  * Canonical hard limits respected here (not redefined):
- * - name ≤20, tagline ≤50, greeting ≤2000 (target 700~1400)
+ * - name ≤20, tagline ≤50, greeting ≤2000 (target 900~1400)
  * - speech.examples ≤500 total, speech.forbidden ≤500
  * - lorebook content ≤800, name ≤40, keywords ≤10
  */
+import { ASSET_PERSON_TAGS } from "@/lib/assetPersonTags";
 
 export const OFFICIAL_AUTHOR_TEMPLATE_VERSION = "pilot-rf-01/v1";
 export const OFFICIAL_AUTHOR_SNAPSHOT_VERSION = "market-research-snapshot-2026-09.json";
@@ -413,7 +414,7 @@ export function buildAssetPlanSystem(): string {
     "  단순 침실/거리/정원 금지 — 설정과 관계에 의미 있는 장소를 고른다.",
     "- 모든 슬롯 characterPresence=required. 배경만(background-only) 금지.",
     "- representative는 depiction=standard 고정. 성인 시트가 아니면 전 슬롯 standard.",
-    "- personTag는 감정 태그와 일치할 때만, 아니면 null.",
+    `- personTag는 다음 목록 중 감정과 정확히 일치할 때만 쓰고, 아니면 null(목록 외 표현 절대 금지): ${ASSET_PERSON_TAGS.join(", ")}.`,
     "- slotKey는 rep/sig1..4/emo1..6/scene1..3 고정.",
   ].join("\n");
 }

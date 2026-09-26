@@ -1,10 +1,10 @@
 {
-  "calls": 43,
-  "inputTokens": 52377,
-  "outputTokens": 99775,
-  "costUsd": 0.058492999999999996,
-  "failures": 7,
-  "retries": 21,
+  "calls": 51,
+  "inputTokens": 59715,
+  "outputTokens": 114218,
+  "costUsd": 0.064058,
+  "failures": 20,
+  "retries": 34,
   "lines": [
     {
       "task": "world_bible",
@@ -435,6 +435,86 @@
       "costUsd": 0.000269,
       "attempts": 1,
       "failedAttempts": 0
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-03",
+      "model": "gpt-6-luna",
+      "inputTokens": 924,
+      "outputTokens": 1682,
+      "costUsd": 0.000653,
+      "attempts": 3,
+      "failedAttempts": 2
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-04",
+      "model": "gpt-6-luna",
+      "inputTokens": 909,
+      "outputTokens": 1468,
+      "costUsd": 0.000577,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-02",
+      "model": "gpt-6-luna",
+      "inputTokens": 924,
+      "outputTokens": 1842,
+      "costUsd": 0.000709,
+      "attempts": 4,
+      "failedAttempts": 3
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-05",
+      "model": "gpt-6-luna",
+      "inputTokens": 937,
+      "outputTokens": 1839,
+      "costUsd": 0.000709,
+      "attempts": 4,
+      "failedAttempts": 3
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-07",
+      "model": "gpt-6-luna",
+      "inputTokens": 916,
+      "outputTokens": 1898,
+      "costUsd": 0.000728,
+      "attempts": 4,
+      "failedAttempts": 3
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-08",
+      "model": "gpt-6-luna",
+      "inputTokens": 918,
+      "outputTokens": 1718,
+      "costUsd": 0.000665,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-10",
+      "model": "gpt-6-luna",
+      "inputTokens": 911,
+      "outputTokens": 2248,
+      "costUsd": 0.00085,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-09",
+      "model": "gpt-6-luna",
+      "inputTokens": 899,
+      "outputTokens": 1748,
+      "costUsd": 0.000674,
+      "attempts": 3,
+      "failedAttempts": 2
     }
   ],
   "imageCalls": 0
