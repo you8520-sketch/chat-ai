@@ -8,12 +8,16 @@ import { buildAuxProviderCallLogInput, logAuxProviderCall } from "@/lib/auxProvi
  * Independent canonical owner for the OpenRouter Decisions API
  * (TypeSafe Jev) — NOT a chat completion model.
  *
+ * ONE CONTRACT = OFFICIAL DECISIONS CONTRACT. No array/object dual parsing,
+ * no primitive/type aliases, no migration — there are no production call
+ * sites, no persisted Jev request schema, and no legacy Jev consumers.
+ *
  * Owner map:
  * - JEV_DECIDER_TRANSPORT_OWNER → callJevDecisions below (endpoint, payload,
  *   answers/usage parsing, deterministic failure policy).
  * - OPENROUTER_AUTH_OWNER → openRouterConfig (key + headers, reused primitive).
- * - DECISIONS_USAGE_OWNER → openRouterUsage.parseOpenRouterUsage (token buckets
- *   + upstream cost provenance, reused generic parser).
+ * - DECISIONS_USAGE_OWNER → openRouterUsage.parseOpenRouterUsage (generic
+ *   parser; already supports input_tokens/output_tokens/cost — no new parser).
  * - PROVIDER_COST_LEDGER_OWNER → providerCostLedger.recordBackgroundProviderCost
  *   (same canonical ledger, requestKind-scoped, costCenter "other").
  * - BACKGROUND_PROVENANCE_OWNER → auxProviderProvenance (console-only call log;
@@ -34,27 +38,48 @@ export const JEV_DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions";
 /** Distinct observability identity — collides with no existing owner. */
 export const JEV_DECISIONS_REQUEST_KIND = "background-jev-decision";
 
-export type JevDecisionPrimitive = "choice" | "noul" | "score";
+export type JevDecisionQuestionType = "choice" | "noul" | "score";
 
-const JEV_DECISION_PRIMITIVES: ReadonlySet<string> = new Set(["choice", "noul", "score"]);
+const JEV_DECISION_TYPES: ReadonlySet<string> = new Set(["choice", "noul", "score"]);
 
-export type JevDecisionQuestion = {
-  id: string;
-  primitive: JevDecisionPrimitive;
-  question: string;
-  options?: string[];
+/**
+ * Official question spec, keyed by question ID on the wire.
+ * - choice criteria: Record<optionName, optionDescription> (required).
+ * - noul criteria: optional { true, false } descriptions.
+ * - score criteria: ordered label list (required).
+ */
+export type JevDecisionQuestionSpec = {
+  type: JevDecisionQuestionType;
+  instructions: string;
+  criteria?: Record<string, string> | { true?: string; false?: string } | string[] | null;
 };
 
-export type JevDecisionAnswer = {
-  questionId: string;
-  primitive: JevDecisionPrimitive;
-  /** choice/noul label (noul may be null when the decider abstains). */
-  choice: string | null;
-  /** score primitive value. */
-  score: number | null;
-  /** Unrecognized answer fields, preserved for debugging (never trusted). */
-  raw: Record<string, unknown>;
+export type JevDecisionQuestions = Record<string, JevDecisionQuestionSpec>;
+
+export type JevDecisionChoiceAnswer = {
+  type: "choice";
+  choice: string;
+  probabilities: Record<string, number>;
+  confidence: number;
 };
+
+export type JevDecisionNoulAnswer = {
+  type: "noul";
+  noul: number;
+};
+
+export type JevDecisionScoreAnswer = {
+  type: "score";
+  score: number;
+  legend: Record<string, string>;
+  probabilities: Record<string, number>;
+  confidence: number;
+};
+
+export type JevDecisionAnswer =
+  | JevDecisionChoiceAnswer
+  | JevDecisionNoulAnswer
+  | JevDecisionScoreAnswer;
 
 export type JevDecisionUsage = {
   inputTokens: number;
@@ -90,104 +115,186 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function validateQuestions(questions: JevDecisionQuestion[]): Map<string, JevDecisionPrimitive> {
-  if (!Array.isArray(questions) || questions.length === 0) {
+function isUnitProbability(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function parseProbabilityMap(value: unknown, what: string): Record<string, number> {
+  if (!isRecord(value) || Object.keys(value).length === 0) {
     throw new JevDecisionsError({
-      message: "[jev-decisions] at least one question is required",
+      message: `[jev-decisions] ${what} must be a non-empty probability map`,
+      code: "invalid_response",
+    });
+  }
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (!isUnitProbability(v)) {
+      throw new JevDecisionsError({
+        message: `[jev-decisions] ${what}[${JSON.stringify(k)}] must be a number in [0,1]`,
+        code: "invalid_response",
+      });
+    }
+    out[k] = v;
+  }
+  return out;
+}
+
+function parseConfidence(value: unknown, what: string): number {
+  if (!isUnitProbability(value)) {
+    throw new JevDecisionsError({
+      message: `[jev-decisions] ${what} must be a number in [0,1]`,
+      code: "invalid_response",
+    });
+  }
+  return value;
+}
+
+function parseLegend(value: unknown, what: string): Record<string, string> {
+  if (!isRecord(value) || Object.keys(value).length === 0) {
+    throw new JevDecisionsError({
+      message: `[jev-decisions] ${what} must be a non-empty legend map`,
+      code: "invalid_response",
+    });
+  }
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (typeof v !== "string") {
+      throw new JevDecisionsError({
+        message: `[jev-decisions] ${what}[${JSON.stringify(k)}] must be a string`,
+        code: "invalid_response",
+      });
+    }
+    out[k] = v;
+  }
+  return out;
+}
+
+function validateQuestions(questions: JevDecisionQuestions): Map<string, JevDecisionQuestionType> {
+  if (!isRecord(questions) || Object.keys(questions).length === 0) {
+    throw new JevDecisionsError({
+      message: "[jev-decisions] questions must be a non-empty object keyed by question ID",
       code: "invalid_request",
     });
   }
-  const byId = new Map<string, JevDecisionPrimitive>();
-  for (const q of questions) {
-    if (!isRecord(q) || typeof q.id !== "string" || !q.id.trim()) {
+  const byId = new Map<string, JevDecisionQuestionType>();
+  for (const [id, spec] of Object.entries(questions)) {
+    if (!id.trim()) {
       throw new JevDecisionsError({
-        message: "[jev-decisions] every question needs a non-empty string id",
+        message: "[jev-decisions] question IDs must be non-empty strings",
         code: "invalid_request",
       });
     }
-    if (!JEV_DECISION_PRIMITIVES.has(q.primitive)) {
+    if (!isRecord(spec) || !JEV_DECISION_TYPES.has(spec.type)) {
       throw new JevDecisionsError({
-        message: `[jev-decisions] question ${JSON.stringify(q.id)} has unsupported primitive ${JSON.stringify((q as { primitive?: unknown }).primitive)}`,
+        message: `[jev-decisions] question ${JSON.stringify(id)} needs type choice|noul|score`,
         code: "invalid_request",
       });
     }
-    if (typeof q.question !== "string" || !q.question.trim()) {
+    if (typeof spec.instructions !== "string" || !spec.instructions.trim()) {
       throw new JevDecisionsError({
-        message: `[jev-decisions] question ${JSON.stringify(q.id)} needs non-empty question text`,
+        message: `[jev-decisions] question ${JSON.stringify(id)} needs non-empty instructions`,
         code: "invalid_request",
       });
     }
-    if (byId.has(q.id)) {
-      throw new JevDecisionsError({
-        message: `[jev-decisions] duplicate question id ${JSON.stringify(q.id)}`,
-        code: "invalid_request",
-      });
+    const criteria = spec.criteria ?? null;
+    if (spec.type === "choice") {
+      if (
+        !isRecord(criteria) ||
+        Object.keys(criteria).length === 0 ||
+        Object.entries(criteria).some(([k, v]) => !k.trim() || typeof v !== "string")
+      ) {
+        throw new JevDecisionsError({
+          message: `[jev-decisions] choice question ${JSON.stringify(id)} needs criteria Record<optionName, optionDescription>`,
+          code: "invalid_request",
+        });
+      }
+    } else if (spec.type === "noul") {
+      if (criteria != null) {
+        if (!isRecord(criteria)) {
+          throw new JevDecisionsError({
+            message: `[jev-decisions] noul question ${JSON.stringify(id)} criteria must be an object`,
+            code: "invalid_request",
+          });
+        }
+        for (const [k, v] of Object.entries(criteria)) {
+          if ((k !== "true" && k !== "false") || typeof v !== "string") {
+            throw new JevDecisionsError({
+              message: `[jev-decisions] noul question ${JSON.stringify(id)} criteria only allows string true/false descriptions`,
+              code: "invalid_request",
+            });
+          }
+        }
+      }
+    } else {
+      if (
+        !Array.isArray(criteria) ||
+        criteria.length === 0 ||
+        criteria.some((label) => typeof label !== "string" || !label.trim())
+      ) {
+        throw new JevDecisionsError({
+          message: `[jev-decisions] score question ${JSON.stringify(id)} needs an ordered criteria string list`,
+          code: "invalid_request",
+        });
+      }
     }
-    byId.set(q.id, q.primitive);
+    byId.set(id, spec.type as JevDecisionQuestionType);
   }
   return byId;
 }
 
 function parseAnswer(
+  questionId: string,
   raw: unknown,
-  asked: Map<string, JevDecisionPrimitive>
+  expected: JevDecisionQuestionType
 ): JevDecisionAnswer {
   if (!isRecord(raw)) {
     throw new JevDecisionsError({
-      message: "[jev-decisions] answer must be an object",
+      message: `[jev-decisions] answer for ${JSON.stringify(questionId)} must be an object`,
       code: "invalid_response",
     });
   }
-  const questionId = raw.question_id ?? raw.questionId ?? raw.id;
-  if (typeof questionId !== "string" || !asked.has(questionId)) {
+  if (raw.type !== expected) {
     throw new JevDecisionsError({
-      message: "[jev-decisions] answer references unknown question",
+      message: `[jev-decisions] answer type ${JSON.stringify(raw.type)} does not match asked ${JSON.stringify(expected)} for ${JSON.stringify(questionId)}`,
       code: "invalid_response",
     });
   }
-  const primitive = raw.primitive;
-  if (typeof primitive !== "string" || !JEV_DECISION_PRIMITIVES.has(primitive)) {
-    throw new JevDecisionsError({
-      message: `[jev-decisions] answer for ${JSON.stringify(questionId)} has unsupported primitive`,
-      code: "invalid_response",
-    });
-  }
-  const expected = asked.get(questionId);
-  if (primitive !== expected) {
-    throw new JevDecisionsError({
-      message: `[jev-decisions] answer primitive ${JSON.stringify(primitive)} does not match asked ${JSON.stringify(expected)} for ${JSON.stringify(questionId)}`,
-      code: "invalid_response",
-    });
-  }
-  let choice: string | null = null;
-  let score: number | null = null;
-  if (primitive === "score") {
-    const n = Number(raw.score);
-    if (!Number.isFinite(n)) {
+  if (expected === "choice") {
+    if (typeof raw.choice !== "string" || !raw.choice) {
       throw new JevDecisionsError({
-        message: `[jev-decisions] score answer for ${JSON.stringify(questionId)} needs a finite number`,
+        message: `[jev-decisions] choice answer for ${JSON.stringify(questionId)} needs a non-empty choice`,
         code: "invalid_response",
       });
     }
-    score = n;
-  } else if (raw.choice == null) {
-    if (primitive === "choice") {
-      throw new JevDecisionsError({
-        message: `[jev-decisions] choice answer for ${JSON.stringify(questionId)} needs a string choice`,
-        code: "invalid_response",
-      });
-    }
-    choice = null;
-  } else {
-    if (typeof raw.choice !== "string") {
-      throw new JevDecisionsError({
-        message: `[jev-decisions] answer choice for ${JSON.stringify(questionId)} must be a string`,
-        code: "invalid_response",
-      });
-    }
-    choice = raw.choice;
+    return {
+      type: "choice",
+      choice: raw.choice,
+      probabilities: parseProbabilityMap(raw.probabilities, `choice probabilities for ${JSON.stringify(questionId)}`),
+      confidence: parseConfidence(raw.confidence, `choice confidence for ${JSON.stringify(questionId)}`),
+    };
   }
-  return { questionId, primitive: primitive as JevDecisionPrimitive, choice, score, raw };
+  if (expected === "noul") {
+    if (!isUnitProbability(raw.noul)) {
+      throw new JevDecisionsError({
+        message: `[jev-decisions] noul answer for ${JSON.stringify(questionId)} must be a number in [0,1]`,
+        code: "invalid_response",
+      });
+    }
+    return { type: "noul", noul: raw.noul };
+  }
+  if (typeof raw.score !== "number" || !Number.isFinite(raw.score)) {
+    throw new JevDecisionsError({
+      message: `[jev-decisions] score answer for ${JSON.stringify(questionId)} needs a finite number`,
+      code: "invalid_response",
+    });
+  }
+  return {
+    type: "score",
+    score: raw.score,
+    legend: parseLegend(raw.legend, `score legend for ${JSON.stringify(questionId)}`),
+    probabilities: parseProbabilityMap(raw.probabilities, `score probabilities for ${JSON.stringify(questionId)}`),
+    confidence: parseConfidence(raw.confidence, `score confidence for ${JSON.stringify(questionId)}`),
+  };
 }
 
 function recordJevLedgerOutcome(
@@ -220,19 +327,41 @@ function recordJevLedgerOutcome(
   }
 }
 
+function failLedger(
+  ledger: JevDecisionsLedgerOptions | null | undefined,
+  providerRequestId: string | null
+): void {
+  recordJevLedgerOutcome(ledger, {
+    usage: { inputTokens: 0, outputTokens: 0, estimated: true },
+    providerRequestId,
+    outcome: "failed_without_usage",
+  });
+}
+
 export async function callJevDecisions(opts: {
-  state: Record<string, unknown>;
-  questions: JevDecisionQuestion[];
+  /** Official state: string or JSON-compatible object/array. */
+  state: string | Record<string, unknown> | unknown[];
+  /** Official questions object keyed by question ID. */
+  questions: JevDecisionQuestions;
   /** Pinned-model override for tests only — production always uses the pin. */
   model?: string;
   timeoutMs?: number;
   /** Null skips ledger recording (wire-contract tests); omitted records canonically. */
   ledger?: JevDecisionsLedgerOptions | null;
-}): Promise<{ answers: JevDecisionAnswer[]; usage: JevDecisionUsage }> {
+}): Promise<{
+  answers: Record<string, JevDecisionAnswer>;
+  usage: JevDecisionUsage;
+  /** Served model snapshot (dated pins like typesafe/jev-1.13-YYYYMMDD accepted). */
+  responseModel: string;
+}> {
   const asked = validateQuestions(opts.questions);
-  if (!isRecord(opts.state)) {
+  if (
+    typeof opts.state !== "string" &&
+    !isRecord(opts.state) &&
+    !Array.isArray(opts.state)
+  ) {
     throw new JevDecisionsError({
-      message: "[jev-decisions] state must be a JSON object",
+      message: "[jev-decisions] state must be a string or JSON-compatible object/array",
       code: "invalid_request",
     });
   }
@@ -259,11 +388,7 @@ export async function callJevDecisions(opts: {
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
-    recordJevLedgerOutcome(opts.ledger, {
-      usage: { inputTokens: 0, outputTokens: 0, estimated: true },
-      providerRequestId: null,
-      outcome: "failed_without_usage",
-    });
+    failLedger(opts.ledger, null);
     throw new JevDecisionsError({
       message: `[jev-decisions] transport error: ${(error as Error).message}`,
       code: "transport_error",
@@ -274,11 +399,7 @@ export async function callJevDecisions(opts: {
     res.headers.get("x-request-id") ?? res.headers.get("x-openrouter-request-id");
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    recordJevLedgerOutcome(opts.ledger, {
-      usage: { inputTokens: 0, outputTokens: 0, estimated: true },
-      providerRequestId,
-      outcome: "failed_without_usage",
-    });
+    failLedger(opts.ledger, providerRequestId);
     throw new JevDecisionsError({
       message: `[jev-decisions] HTTP ${res.status}: ${body.slice(0, 240)}`,
       code: "http_error",
@@ -290,33 +411,63 @@ export async function callJevDecisions(opts: {
   try {
     data = await res.json();
   } catch {
-    recordJevLedgerOutcome(opts.ledger, {
-      usage: { inputTokens: 0, outputTokens: 0, estimated: true },
-      providerRequestId,
-      outcome: "failed_without_usage",
-    });
+    failLedger(opts.ledger, providerRequestId);
     throw new JevDecisionsError({
       message: "[jev-decisions] response is not valid JSON",
       code: "invalid_response",
       httpStatus: res.status,
     });
   }
-  if (!isRecord(data) || !Array.isArray(data.answers) || data.answers.length === 0) {
-    recordJevLedgerOutcome(opts.ledger, {
-      usage: { inputTokens: 0, outputTokens: 0, estimated: true },
-      providerRequestId,
-      outcome: "failed_without_usage",
-    });
+  if (!isRecord(data) || !isRecord(data.answers)) {
+    failLedger(opts.ledger, providerRequestId);
     throw new JevDecisionsError({
-      message: "[jev-decisions] response needs a non-empty answers array",
+      message: "[jev-decisions] response needs an answers object keyed by question ID",
+      code: "invalid_response",
+      httpStatus: res.status,
+    });
+  }
+  if (typeof data.model !== "string" || !data.model) {
+    failLedger(opts.ledger, providerRequestId);
+    throw new JevDecisionsError({
+      message: "[jev-decisions] response needs a model snapshot string",
       code: "invalid_response",
       httpStatus: res.status,
     });
   }
 
-  // answers validation throws deterministically before any ledger success write.
-  const answers = (data.answers as unknown[]).map((a) => parseAnswer(a, asked));
-  const breakdown = parseOpenRouterUsage(isRecord(data) ? data.usage : undefined, res.headers);
+  // Fail-closed completeness: unknown IDs rejected, missing requested answers
+  // rejected (the official contract does not permit silent omission).
+  // Per-answer throws happen before any ledger success write.
+  const answers: Record<string, JevDecisionAnswer> = {};
+  for (const id of Object.keys(data.answers)) {
+    const expected = asked.get(id);
+    if (!expected) {
+      failLedger(opts.ledger, providerRequestId);
+      throw new JevDecisionsError({
+        message: `[jev-decisions] answer for unknown question ${JSON.stringify(id)}`,
+        code: "invalid_response",
+        httpStatus: res.status,
+      });
+    }
+    try {
+      answers[id] = parseAnswer(id, (data.answers as Record<string, unknown>)[id], expected);
+    } catch (error) {
+      failLedger(opts.ledger, providerRequestId);
+      throw error;
+    }
+  }
+  for (const id of asked.keys()) {
+    if (!(id in answers)) {
+      failLedger(opts.ledger, providerRequestId);
+      throw new JevDecisionsError({
+        message: `[jev-decisions] missing answer for requested question ${JSON.stringify(id)} — fail-closed`,
+        code: "invalid_response",
+        httpStatus: res.status,
+      });
+    }
+  }
+
+  const breakdown = parseOpenRouterUsage(data.usage, res.headers);
   const usage: JevDecisionUsage = {
     inputTokens: breakdown.promptTokens,
     outputTokens: breakdown.completionTokens,
@@ -324,5 +475,5 @@ export async function callJevDecisions(opts: {
     ...(breakdown.upstreamCostUsd != null ? { upstreamCostUsd: breakdown.upstreamCostUsd } : {}),
   };
   recordJevLedgerOutcome(opts.ledger, { usage, providerRequestId, outcome: "success" });
-  return { answers, usage };
+  return { answers, usage, responseModel: data.model };
 }

@@ -4,20 +4,13 @@ import fs from "node:fs";
 import Database from "better-sqlite3";
 
 /**
- * BEFORE-fix reproduction: the Jev Decisions canonical transport does not
- * exist on main. This suite MUST fail before the fix and pass after it.
- * Zero live provider calls — fetch is stubbed in every test.
+ * Official Decisions wire-contract correction pass.
+ * Fixtures are structurally shaped like OpenRouter's published raw HTTP
+ * examples: questions/answers are OBJECTS keyed by question ID, answer
+ * discriminator is `type`, noul carries a numeric `noul`, usage carries
+ * input_tokens/output_tokens/cost. Zero live provider calls — fetch stubbed.
  */
-describe("jev decisions contract reproduction (must fail before fix)", () => {
-  it("exposes the pinned decisions contract owner", async () => {
-    const mod = await import("./jevDecisions");
-    assert.equal(mod.JEV_DECISIONS_MODEL, "typesafe/jev-1.13");
-    assert.equal(mod.JEV_DECISIONS_URL, "https://openrouter.ai/api/alpha/decisions");
-    assert.equal(typeof mod.callJevDecisions, "function");
-  });
-});
-
-describe("jev decisions wire contract", () => {
+describe("jev decisions official wire contract", () => {
   type FetchCall = { url: string; init: RequestInit };
   let calls: FetchCall[];
   let savedFetch: typeof fetch | undefined;
@@ -36,57 +29,66 @@ describe("jev decisions wire contract", () => {
       status,
       headers: { "Content-Type": "application/json", "x-request-id": "or-test-1" },
     });
+  const restoreEnv = () => {
+    globalThis.fetch = savedFetch!;
+    if (savedKey !== undefined) process.env.OPENROUTER_API_KEY = savedKey;
+    else delete process.env.OPENROUTER_API_KEY;
+  };
+  const withKey = () => {
+    savedFetch = globalThis.fetch;
+    savedKey = process.env.OPENROUTER_API_KEY;
+    process.env.OPENROUTER_API_KEY = "test-key";
+  };
 
+  /** Official-shaped request questions object. */
+  const questions = () => ({
+    attack_plan: {
+      type: "choice" as const,
+      instructions: "Choose the party action for this round.",
+      criteria: { attack: "Strike the gate guard now.", flee: "Retreat to the alley." },
+    },
+    moral_stance: {
+      type: "noul" as const,
+      instructions: "Is the act lawful?",
+      criteria: { true: "Follows the city code.", false: "Breaks the city code." },
+    },
+    risk: {
+      type: "score" as const,
+      instructions: "Rate the risk of the chosen plan.",
+      criteria: ["low", "medium", "high"],
+    },
+  });
+
+  /** Official-shaped raw response (dated served snapshot, object answers). */
   const decisionBody = () => ({
-    answers: [
-      { question_id: "q1", primitive: "choice", choice: "attack" },
-      { question_id: "q2", primitive: "noul", choice: "lawful" },
-      { question_id: "q3", primitive: "score", score: 0.82 },
-    ],
-    usage: { prompt_tokens: 120, completion_tokens: 8, cost: 0.00042 },
+    model: "typesafe/jev-1.13-20260920",
+    answers: {
+      attack_plan: {
+        type: "choice",
+        choice: "attack",
+        probabilities: { attack: 0.7, flee: 0.3 },
+        confidence: 0.82,
+      },
+      moral_stance: { type: "noul", noul: 0.99 },
+      risk: {
+        type: "score",
+        score: 0.6,
+        legend: { low: "Minor setback.", medium: "Serious cost.", high: "Party wipe risk." },
+        probabilities: { low: 0.2, medium: 0.5, high: 0.3 },
+        confidence: 0.77,
+      },
+    },
+    usage: { input_tokens: 120, output_tokens: 8, cost: 0.00042 },
+    id: "gen-abc123",
+    provider: "typesafe",
   });
 
-  const questions = () => [
-    { id: "q1", primitive: "choice" as const, question: "What to do?", options: ["attack", "flee"] },
-    { id: "q2", primitive: "noul" as const, question: "Alignment?" },
-    { id: "q3", primitive: "score" as const, question: "Confidence?" },
-  ];
-
-  it("missing OPENROUTER_API_KEY fails before any HTTP call", async () => {
+  it("C1 choice request wire: questions object with type/instructions/criteria", async () => {
     const { callJevDecisions } = await import("./jevDecisions");
-    savedFetch = globalThis.fetch;
-    savedKey = process.env.OPENROUTER_API_KEY;
+    withKey();
     try {
-      delete process.env.OPENROUTER_API_KEY;
       stubFetch(() => jsonResponse(decisionBody()));
-      await assert.rejects(
-        () =>
-          callJevDecisions({
-            state: { round: 3 },
-            questions: questions(),
-            ledger: null,
-          }),
-        /NO_OPENROUTER_KEY/
-      );
-      assert.equal(calls.length, 0, "no HTTP without a key");
-    } finally {
-      globalThis.fetch = savedFetch!;
-      if (savedKey !== undefined) process.env.OPENROUTER_API_KEY = savedKey;
-    }
-  });
-
-  it("posts model+state+questions to the decisions endpoint with bearer auth", async () => {
-    const { callJevDecisions } = await import("./jevDecisions");
-    savedFetch = globalThis.fetch;
-    savedKey = process.env.OPENROUTER_API_KEY;
-    try {
-      process.env.OPENROUTER_API_KEY = "test-key";
-      stubFetch(() => jsonResponse(decisionBody()));
-      const result = await callJevDecisions({
-        state: { round: 3 },
-        questions: questions(),
-        ledger: null,
-      });
+      await callJevDecisions({ state: { round: 3 }, questions: questions(), ledger: null });
       assert.equal(calls.length, 1);
       assert.equal(calls[0]!.url, "https://openrouter.ai/api/alpha/decisions");
       const headers = calls[0]!.init.headers as Record<string, string>;
@@ -95,24 +97,231 @@ describe("jev decisions wire contract", () => {
       const body = JSON.parse(String(calls[0]!.init.body)) as Record<string, unknown>;
       assert.equal(body.model, "typesafe/jev-1.13");
       assert.deepEqual(body.state, { round: 3 });
-      assert.equal((body.questions as unknown[]).length, 3);
-      assert.equal(result.answers.length, 3);
-      assert.equal(result.answers[0]!.choice, "attack");
-      assert.equal(result.answers[1]!.choice, "lawful");
-      assert.equal(result.answers[2]!.score, 0.82);
+      const wireQuestions = body.questions as Record<string, Record<string, unknown>>;
+      assert.equal(Array.isArray(wireQuestions), false, "questions must be an object, not an array");
+      assert.deepEqual(wireQuestions.attack_plan, {
+        type: "choice",
+        instructions: "Choose the party action for this round.",
+        criteria: { attack: "Strike the gate guard now.", flee: "Retreat to the alley." },
+      });
     } finally {
-      globalThis.fetch = savedFetch!;
-      if (savedKey !== undefined) process.env.OPENROUTER_API_KEY = savedKey;
-      else delete process.env.OPENROUTER_API_KEY;
+      restoreEnv();
     }
   });
 
-  it("preserves usage provenance without the completion contract", async () => {
+  it("C2 choice response preserves choice/probabilities/confidence", async () => {
     const { callJevDecisions } = await import("./jevDecisions");
-    savedFetch = globalThis.fetch;
-    savedKey = process.env.OPENROUTER_API_KEY;
+    withKey();
     try {
-      process.env.OPENROUTER_API_KEY = "test-key";
+      stubFetch(() => jsonResponse(decisionBody()));
+      const result = await callJevDecisions({
+        state: { round: 3 },
+        questions: questions(),
+        ledger: null,
+      });
+      const answer = result.answers.attack_plan!;
+      assert.equal(answer.type, "choice");
+      if (answer.type !== "choice") throw new Error("narrow");
+      assert.equal(answer.choice, "attack");
+      assert.deepEqual(answer.probabilities, { attack: 0.7, flee: 0.3 });
+      assert.equal(answer.confidence, 0.82);
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("C3 noul parses numeric noul with no fake choice field", async () => {
+    const { callJevDecisions } = await import("./jevDecisions");
+    withKey();
+    try {
+      stubFetch(() => jsonResponse(decisionBody()));
+      const result = await callJevDecisions({
+        state: {},
+        questions: questions(),
+        ledger: null,
+      });
+      const answer = result.answers.moral_stance!;
+      assert.equal(answer.type, "noul");
+      if (answer.type !== "noul") throw new Error("narrow");
+      assert.equal(answer.noul, 0.99);
+      assert.ok(!("choice" in answer), "noul answers must not synthesize a choice field");
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("C4 noul boundaries: 0 and 1 valid, outside [0,1] rejected", async () => {
+    const { callJevDecisions, JevDecisionsError } = await import("./jevDecisions");
+    withKey();
+    try {
+      const single = () => ({
+        moral_stance: {
+          type: "noul" as const,
+          instructions: "Is the act lawful?",
+        },
+      });
+      for (const valid of [0, 1]) {
+        stubFetch(() =>
+          jsonResponse({
+            model: "typesafe/jev-1.13",
+            answers: { moral_stance: { type: "noul", noul: valid } },
+            usage: { input_tokens: 1, output_tokens: 1, cost: 0.00001 },
+          })
+        );
+        const result = await callJevDecisions({ state: {}, questions: single(), ledger: null });
+        const answer = result.answers.moral_stance!;
+        assert.equal(answer.type, "noul");
+      }
+      for (const invalid of [-0.1, 1.1, Number.NaN, "0.5"]) {
+        stubFetch(() =>
+          jsonResponse({
+            model: "typesafe/jev-1.13",
+            answers: { moral_stance: { type: "noul", noul: invalid } },
+            usage: { input_tokens: 1, output_tokens: 1, cost: 0.00001 },
+          })
+        );
+        await assert.rejects(
+          () => callJevDecisions({ state: {}, questions: single(), ledger: null }),
+          JevDecisionsError
+        );
+      }
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("C5 score preserves score/legend/probabilities/confidence", async () => {
+    const { callJevDecisions } = await import("./jevDecisions");
+    withKey();
+    try {
+      stubFetch(() => jsonResponse(decisionBody()));
+      const result = await callJevDecisions({
+        state: {},
+        questions: questions(),
+        ledger: null,
+      });
+      const answer = result.answers.risk!;
+      assert.equal(answer.type, "score");
+      if (answer.type !== "score") throw new Error("narrow");
+      assert.equal(answer.score, 0.6);
+      assert.deepEqual(answer.legend, {
+        low: "Minor setback.",
+        medium: "Serious cost.",
+        high: "Party wipe risk.",
+      });
+      assert.deepEqual(answer.probabilities, { low: 0.2, medium: 0.5, high: 0.3 });
+      assert.equal(answer.confidence, 0.77);
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("C6 combined choice+noul+score in one request, C7 answers keyed by same IDs", async () => {
+    const { callJevDecisions } = await import("./jevDecisions");
+    withKey();
+    try {
+      stubFetch(() => jsonResponse(decisionBody()));
+      const result = await callJevDecisions({
+        state: "round three",
+        questions: questions(),
+        ledger: null,
+      });
+      assert.deepEqual(Object.keys(result.answers).sort(), ["attack_plan", "moral_stance", "risk"]);
+      assert.equal(result.answers.attack_plan!.type, "choice");
+      assert.equal(result.answers.moral_stance!.type, "noul");
+      assert.equal(result.answers.risk!.type, "score");
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("C8 unknown returned question id rejected", async () => {
+    const { callJevDecisions, JevDecisionsError } = await import("./jevDecisions");
+    withKey();
+    try {
+      const body = decisionBody() as unknown as {
+        answers: Record<string, unknown>;
+      };
+      body.answers.ghost = { type: "noul", noul: 0.5 };
+      stubFetch(() => jsonResponse(body));
+      await assert.rejects(
+        () => callJevDecisions({ state: {}, questions: questions(), ledger: null }),
+        JevDecisionsError
+      );
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("C9 missing requested answer is fail-closed invalid_response", async () => {
+    const { callJevDecisions, JevDecisionsError } = await import("./jevDecisions");
+    withKey();
+    try {
+      const body = decisionBody() as unknown as {
+        answers: Record<string, unknown>;
+      };
+      delete body.answers.risk;
+      stubFetch(() => jsonResponse(body));
+      await assert.rejects(
+        () => callJevDecisions({ state: {}, questions: questions(), ledger: null }),
+        (e: unknown) =>
+          e instanceof JevDecisionsError &&
+          e.code === "invalid_response" &&
+          /fail-closed/.test(e.message)
+      );
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("C10 answer type mismatch rejected", async () => {
+    const { callJevDecisions, JevDecisionsError } = await import("./jevDecisions");
+    withKey();
+    try {
+      const body = decisionBody() as unknown as {
+        answers: Record<string, unknown>;
+      };
+      body.answers.risk = { type: "noul", noul: 0.5 };
+      stubFetch(() => jsonResponse(body));
+      await assert.rejects(
+        () => callJevDecisions({ state: {}, questions: questions(), ledger: null }),
+        JevDecisionsError
+      );
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("C11 malformed confidence/probabilities fail deterministically", async () => {
+    const { callJevDecisions, JevDecisionsError } = await import("./jevDecisions");
+    withKey();
+    try {
+      const variants: unknown[] = [
+        { type: "choice", choice: "attack", probabilities: { attack: 0.7 }, confidence: 1.5 },
+        { type: "choice", choice: "attack", probabilities: {}, confidence: 0.5 },
+        { type: "choice", choice: "attack", probabilities: { attack: "high" }, confidence: 0.5 },
+        { type: "choice", probabilities: { attack: 1 }, confidence: 0.5 },
+      ];
+      for (const bad of variants) {
+        const body = decisionBody() as unknown as {
+          answers: Record<string, unknown>;
+        };
+        body.answers.attack_plan = bad;
+        stubFetch(() => jsonResponse(body));
+        await assert.rejects(
+          () => callJevDecisions({ state: {}, questions: questions(), ledger: null }),
+          JevDecisionsError
+        );
+      }
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("C12 actual usage shape proves inputTokens/outputTokens/upstreamCostUsd, estimated=false", async () => {
+    const { callJevDecisions } = await import("./jevDecisions");
+    withKey();
+    try {
       stubFetch(() => jsonResponse(decisionBody()));
       const result = await callJevDecisions({
         state: {},
@@ -124,42 +333,11 @@ describe("jev decisions wire contract", () => {
       assert.equal(result.usage.upstreamCostUsd, 0.00042);
       assert.equal(result.usage.estimated, false);
     } finally {
-      globalThis.fetch = savedFetch!;
-      if (savedKey !== undefined) process.env.OPENROUTER_API_KEY = savedKey;
-      else delete process.env.OPENROUTER_API_KEY;
+      restoreEnv();
     }
   });
 
-  it("malformed responses fail deterministically", async () => {
-    const { callJevDecisions, JevDecisionsError } = await import("./jevDecisions");
-    savedFetch = globalThis.fetch;
-    savedKey = process.env.OPENROUTER_API_KEY;
-    try {
-      process.env.OPENROUTER_API_KEY = "test-key";
-      stubFetch(() => jsonResponse({ usage: {} }));
-      await assert.rejects(
-        () => callJevDecisions({ state: {}, questions: questions(), ledger: null }),
-        JevDecisionsError
-      );
-      stubFetch(() => jsonResponse({ error: "bad" }, 400));
-      const err = await callJevDecisions({
-        state: {},
-        questions: questions(),
-        ledger: null,
-      }).then(
-        () => null,
-        (e: unknown) => e
-      );
-      assert.ok(err instanceof JevDecisionsError);
-      assert.equal((err as { httpStatus: number }).httpStatus, 400);
-    } finally {
-      globalThis.fetch = savedFetch!;
-      if (savedKey !== undefined) process.env.OPENROUTER_API_KEY = savedKey;
-      else delete process.env.OPENROUTER_API_KEY;
-    }
-  });
-
-  it("records exactly one canonical ledger row per successful call", async () => {
+  it("C13 one success records one canonical ledger row with provider-reported exact cost", async () => {
     const { callJevDecisions } = await import("./jevDecisions");
     savedFetch = globalThis.fetch;
     savedKey = process.env.OPENROUTER_API_KEY;
@@ -173,17 +351,117 @@ describe("jev decisions wire contract", () => {
         ledger: { db, persistInTests: true },
       });
       const rows = db
-        .prepare("SELECT provider, model, request_kind FROM api_cost_ledger")
-        .all() as { provider: string; model: string; request_kind: string }[];
+        .prepare(
+          "SELECT provider, model, request_kind, actual_cost_usd, actual_cost_source FROM api_cost_ledger"
+        )
+        .all() as {
+        provider: string;
+        model: string;
+        request_kind: string;
+        actual_cost_usd: number | null;
+        actual_cost_source: string | null;
+      }[];
       assert.equal(rows.length, 1);
       assert.equal(rows[0]!.provider, "openrouter");
       assert.equal(rows[0]!.model, "typesafe/jev-1.13");
       assert.match(rows[0]!.request_kind, /jev/i);
+      assert.equal(rows[0]!.actual_cost_usd, 0.00042);
+      assert.equal(rows[0]!.actual_cost_source, "provider_reported");
     } finally {
       db.close();
-      globalThis.fetch = savedFetch!;
-      if (savedKey !== undefined) process.env.OPENROUTER_API_KEY = savedKey;
-      else delete process.env.OPENROUTER_API_KEY;
+      restoreEnv();
+    }
+  });
+
+  it("C14 auth missing performs HTTP 0", async () => {
+    const { callJevDecisions } = await import("./jevDecisions");
+    savedFetch = globalThis.fetch;
+    savedKey = process.env.OPENROUTER_API_KEY;
+    try {
+      delete process.env.OPENROUTER_API_KEY;
+      stubFetch(() => jsonResponse(decisionBody()));
+      await assert.rejects(
+        () => callJevDecisions({ state: {}, questions: questions(), ledger: null }),
+        /NO_OPENROUTER_KEY/
+      );
+      assert.equal(calls.length, 0, "no HTTP without a key");
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("C15 HTTP error is a deterministic JevDecisionsError", async () => {
+    const { callJevDecisions, JevDecisionsError } = await import("./jevDecisions");
+    withKey();
+    try {
+      stubFetch(() => jsonResponse({ error: "bad" }, 400));
+      const err = await callJevDecisions({
+        state: {},
+        questions: questions(),
+        ledger: null,
+      }).then(
+        () => null,
+        (e: unknown) => e
+      );
+      assert.ok(err instanceof JevDecisionsError);
+      assert.equal((err as JevDecisionsError).code, "http_error");
+      assert.equal((err as JevDecisionsError).httpStatus, 400);
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("C16 non-JSON is a deterministic error", async () => {
+    const { callJevDecisions, JevDecisionsError } = await import("./jevDecisions");
+    withKey();
+    try {
+      stubFetch(
+        () =>
+          new Response("not json", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+          })
+      );
+      await assert.rejects(
+        () => callJevDecisions({ state: {}, questions: questions(), ledger: null }),
+        JevDecisionsError
+      );
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("C17 dated served model snapshot is accepted, array answers rejected", async () => {
+    const { callJevDecisions, JevDecisionsError } = await import("./jevDecisions");
+    withKey();
+    try {
+      stubFetch(() => jsonResponse(decisionBody()));
+      const result = await callJevDecisions({
+        state: {},
+        questions: questions(),
+        ledger: null,
+      });
+      assert.equal(result.responseModel, "typesafe/jev-1.13-20260920");
+      stubFetch(() =>
+        jsonResponse({
+          model: "typesafe/jev-1.13",
+          answers: [{ type: "noul", noul: 0.5 }],
+          usage: { input_tokens: 1, output_tokens: 1, cost: 0.00001 },
+        })
+      );
+      await assert.rejects(
+        () =>
+          callJevDecisions({
+            state: {},
+            questions: {
+              moral_stance: { type: "noul", instructions: "Lawful?" },
+            },
+            ledger: null,
+          }),
+        JevDecisionsError
+      );
+    } finally {
+      restoreEnv();
     }
   });
 });
@@ -213,15 +491,24 @@ describe("jev decisions regression gates", () => {
     assert.doesNotMatch(ledger, /jev/i);
     const provenance = fs.readFileSync("src/lib/auxProviderProvenance.ts", "utf8");
     assert.doesNotMatch(provenance, /jev/i);
+    const usage = fs.readFileSync("src/lib/openRouterUsage.ts", "utf8");
+    assert.doesNotMatch(usage, /jev/i);
   });
 
   it("decisions transport only reuses allow-listed owners", () => {
     const src = fs.readFileSync("src/lib/jevDecisions.ts", "utf8");
     assert.match(src, /from "@\/lib\/openRouterConfig"/);
+    assert.match(src, /from "@\/lib\/openRouterUsage"/);
+    assert.match(src, /from "@\/lib\/providerCostLedger"/);
+    assert.match(src, /from "@\/lib\/auxProviderProvenance"/);
     assert.doesNotMatch(src, /openRouterCompletion/);
-    assert.doesNotMatch(src, /chatModels/);
     assert.doesNotMatch(src, /cheaperInferenceConfig/);
     assert.doesNotMatch(src, /choices\[\]\.message\.content|message\.content/);
     assert.doesNotMatch(src, /assertOpenRouterEndpoint/);
+    // Old invented schema used `primitive` as a field/discriminator — the
+    // official contract uses `type`. (Plain-English comment uses excluded.)
+    assert.doesNotMatch(src, /\.primitive\b/);
+    assert.doesNotMatch(src, /JevDecisionPrimitive/);
+    assert.doesNotMatch(src, /["']primitive["']/);
   });
 });
