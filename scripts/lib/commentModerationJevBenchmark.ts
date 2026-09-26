@@ -42,6 +42,10 @@ export type FixtureArmOutcome = {
   outputTokens: number;
   actualCostUsd: number | null;
   failure: string | null;
+  /** True only for fixtures representing the real production semantic-moderation entry condition. */
+  productionTriggered: boolean;
+  /** Whether this outcome corresponds to an attempted provider request. */
+  providerCallAttempted: boolean;
   /** JEV-only diagnostics */
   confidence?: number | null;
   probabilities?: Record<string, number> | null;
@@ -50,6 +54,18 @@ export type FixtureArmOutcome = {
 export type ArmMetrics = {
   arm: "gemini" | "jev";
   totalFixtures: number;
+  /** Primary scope: current production semantic-moderation path (synthetic matchedWords non-empty). */
+  primaryFixtures: number;
+  /** Exploratory policy probes that current production would not send to the semantic model. */
+  policyProbeFixtures: number;
+  /** Actual model responses in the primary scope (fallback BLOCK is not a model response). */
+  modelResponseCount: number;
+  modelResponseCoverage: number | null;
+  /** Effective runtime outcome including Gemini fail-closed BLOCK fallbacks. */
+  effectiveOutcomeAccuracy: number | null;
+  /** Model-only accuracy on exploratory policy probes; never used as the primary comparison. */
+  policyProbeAccuracy: number | null;
+  /** Strict primary semantic accuracy: actual model-correct / all primary fixtures. Failures count as misses. */
   overallAccuracy: number | null;
   blockRecall: number | null;
   allowRecall: number | null;
@@ -113,27 +129,66 @@ function rate(numerator: number, denominator: number): number | null {
   return numerator / denominator;
 }
 
-function buildArmMetrics(arm: "gemini" | "jev", outcomes: FixtureArmOutcome[]): ArmMetrics {
-  const scored = outcomes.filter((o) => o.verdict != null);
-  const expectedBlock = outcomes.filter((o) => o.expected === "BLOCK");
-  const expectedAllow = outcomes.filter((o) => o.expected === "ALLOW");
-  const trueBlock = outcomes.filter((o) => o.expected === "BLOCK" && o.verdict === "BLOCK").length;
-  const trueAllow = outcomes.filter((o) => o.expected === "ALLOW" && o.verdict === "ALLOW").length;
-  const falseBlock = outcomes.filter((o) => o.expected === "ALLOW" && o.verdict === "BLOCK").length;
-  const falseAllow = outcomes.filter((o) => o.expected === "BLOCK" && o.verdict === "ALLOW").length;
-  const clear = outcomes.filter((o) => o.clarity === "clear");
-  const boundary = outcomes.filter((o) => o.clarity === "boundary");
-  const clearCorrect = clear.filter((o) => o.verdict === o.expected).length;
-  const boundaryCorrect = boundary.filter((o) => o.verdict === o.expected).length;
-  const latencies = outcomes.map((o) => o.latencyMs);
+export function buildCommentModerationArmMetrics(
+  arm: "gemini" | "jev",
+  outcomes: FixtureArmOutcome[]
+): ArmMetrics {
+  // Primary comparison must reflect the real current owner: submitProfileComment
+  // calls semantic moderation only after a banned-word match with AI-check enabled.
+  // In this synthetic corpus, non-empty matchedWords marks that entry condition;
+  // empty-match cases remain useful policy probes but cannot drive the winner.
+  const primary = outcomes.filter((o) => o.productionTriggered);
+  const policyProbe = outcomes.filter((o) => !o.productionTriggered);
+  const modelPrimary = primary.filter((o) => o.responseSource === "model");
+
+  const expectedBlock = primary.filter((o) => o.expected === "BLOCK");
+  const expectedAllow = primary.filter((o) => o.expected === "ALLOW");
+  const trueBlock = primary.filter(
+    (o) => o.responseSource === "model" && o.expected === "BLOCK" && o.verdict === "BLOCK"
+  ).length;
+  const trueAllow = primary.filter(
+    (o) => o.responseSource === "model" && o.expected === "ALLOW" && o.verdict === "ALLOW"
+  ).length;
+  // False-action rates remain end-to-end: a Gemini fail-closed BLOCK is a real
+  // user-visible false block on an ALLOW case, even though it is never credited
+  // as semantic model accuracy.
+  const falseBlock = primary.filter((o) => o.expected === "ALLOW" && o.verdict === "BLOCK").length;
+  const falseAllow = primary.filter((o) => o.expected === "BLOCK" && o.verdict === "ALLOW").length;
+  const clear = primary.filter((o) => o.clarity === "clear");
+  const boundary = primary.filter((o) => o.clarity === "boundary");
+  const clearCorrect = clear.filter(
+    (o) => o.responseSource === "model" && o.verdict === o.expected
+  ).length;
+  const boundaryCorrect = boundary.filter(
+    (o) => o.responseSource === "model" && o.verdict === o.expected
+  ).length;
+  const latencies = outcomes.filter((o) => o.providerCallAttempted).map((o) => o.latencyMs);
   const costs = outcomes.map((o) => o.actualCostUsd).filter((c): c is number => c != null);
-  const malformed = outcomes.filter((o) => o.responseSource === "parse_fail_block" || o.responseSource === "jev_malformed").length;
+  const malformed = outcomes.filter(
+    (o) => o.responseSource === "parse_fail_block" || o.responseSource === "jev_malformed"
+  ).length;
   const timeouts = outcomes.filter((o) => /timeout|aborted/i.test(o.failure ?? "")).length;
   const failures = outcomes.filter((o) => o.failure != null || o.verdict == null).length;
+
   return {
     arm,
     totalFixtures: outcomes.length,
-    overallAccuracy: rate(scored.filter((o) => o.verdict === o.expected).length, scored.length),
+    primaryFixtures: primary.length,
+    policyProbeFixtures: policyProbe.length,
+    modelResponseCount: modelPrimary.length,
+    modelResponseCoverage: rate(modelPrimary.length, primary.length),
+    effectiveOutcomeAccuracy: rate(
+      primary.filter((o) => o.verdict === o.expected).length,
+      primary.length
+    ),
+    policyProbeAccuracy: rate(
+      policyProbe.filter((o) => o.responseSource === "model" && o.verdict === o.expected).length,
+      policyProbe.length
+    ),
+    overallAccuracy: rate(
+      modelPrimary.filter((o) => o.verdict === o.expected).length,
+      primary.length
+    ),
     blockRecall: rate(trueBlock, expectedBlock.length),
     allowRecall: rate(trueAllow, expectedAllow.length),
     falseBlockCount: falseBlock,
@@ -149,11 +204,10 @@ function buildArmMetrics(arm: "gemini" | "jev", outcomes: FixtureArmOutcome[]): 
     inputTokens: outcomes.reduce((s, o) => s + o.inputTokens, 0),
     outputTokens: outcomes.reduce((s, o) => s + o.outputTokens, 0),
     actualProviderCostUsd: costs.length ? costs.reduce((a, b) => a + b, 0) : null,
-    providerCalls: outcomes.filter((o) => o.responseSource !== "opt_in_skip").length,
+    providerCalls: outcomes.filter((o) => o.providerCallAttempted).length,
     outcomes,
   };
 }
-
 function fixtureInput(fixture: CommentModerationBenchmarkFixture) {
   return {
     content: fixture.content,
@@ -181,6 +235,8 @@ async function runGeminiArm(
         expected: fixture.expected,
         category: fixture.category,
         clarity: fixture.clarity,
+        productionTriggered: fixture.matchedWords.length > 0,
+        providerCallAttempted: result.responseSource !== "dev_skip",
         verdict: result.verdict,
         responseSource: result.responseSource,
         latencyMs: performance.now() - started,
@@ -198,6 +254,8 @@ async function runGeminiArm(
         expected: fixture.expected,
         category: fixture.category,
         clarity: fixture.clarity,
+        productionTriggered: fixture.matchedWords.length > 0,
+        providerCallAttempted: true,
         verdict: null,
         responseSource: "transport_fail_block",
         latencyMs: performance.now() - started,
@@ -235,6 +293,8 @@ async function runJevArm(
           expected: fixture.expected,
           category: fixture.category,
           clarity: fixture.clarity,
+          productionTriggered: fixture.matchedWords.length > 0,
+          providerCallAttempted: true,
           verdict: null,
           responseSource: "jev_malformed",
           latencyMs: performance.now() - started,
@@ -257,6 +317,8 @@ async function runJevArm(
         expected: fixture.expected,
         category: fixture.category,
         clarity: fixture.clarity,
+        productionTriggered: fixture.matchedWords.length > 0,
+        providerCallAttempted: true,
         verdict,
         responseSource: verdict ? "model" : "jev_malformed",
         latencyMs: performance.now() - started,
@@ -273,6 +335,8 @@ async function runJevArm(
         expected: fixture.expected,
         category: fixture.category,
         clarity: fixture.clarity,
+        productionTriggered: fixture.matchedWords.length > 0,
+        providerCallAttempted: true,
         verdict: null,
         responseSource: "transport_fail_block",
         latencyMs: performance.now() - started,
@@ -306,8 +370,8 @@ export async function runCommentModerationJevBenchmark(opts: {
   const fixtures = opts.fixtures ?? COMMENT_MODERATION_BENCHMARK_CORPUS;
   const geminiOutcomes = await runGeminiArm(apiKey, fixtures);
   const jevOutcomes = await runJevArm(apiKey, fixtures);
-  const gemini = buildArmMetrics("gemini", geminiOutcomes);
-  const jev = buildArmMetrics("jev", jevOutcomes);
+  const gemini = buildCommentModerationArmMetrics("gemini", geminiOutcomes);
+  const jev = buildCommentModerationArmMetrics("jev", jevOutcomes);
 
   const disagreements: DisagreementRow[] = [];
   let agreementCount = 0;

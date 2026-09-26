@@ -49,3 +49,26 @@ OPENROUTER_JEV_BENCHMARK_API_KEY=... \
 node --conditions=react-server --import tsx \
   scripts/benchmark-comment-moderation-jev-live.ts
 ```
+
+
+## Metric integrity
+
+The corpus intentionally contains two scopes:
+
+- **Primary production-triggered scope:** synthetic fixtures with non-empty
+  `matchedWords`, representing the current `submitProfileComment` condition
+  that actually reaches semantic moderation after deterministic filtering.
+- **Policy-probe scope:** empty-match fixtures used only to probe broader policy
+  behavior. They do not decide whether JEV should replace/assist the current
+  production owner.
+
+Primary `overallAccuracy`, ALLOW/BLOCK recall, and clear/boundary accuracy are
+strict semantic-model metrics: only an actual `responseSource="model"`
+response can earn credit, while provider/parse failures count as misses.
+Gemini's fail-closed BLOCK remains visible separately in
+`effectiveOutcomeAccuracy` and false-BLOCK metrics, so an outage can never
+inflate semantic model accuracy.
+
+`modelResponseCoverage` reports how often the primary scope received an actual
+model verdict. `providerCalls` is based on attempted provider calls, not merely
+the number of fixture rows.

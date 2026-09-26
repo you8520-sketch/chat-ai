@@ -1,0 +1,59 @@
+name: Validate comment moderation decisions
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/validate-comment-moderation.yml"
+      - "src/lib/commentModeration.ts"
+      - "src/lib/commentSemanticModerationPolicy.ts"
+      - "src/lib/commentSemanticModerationPolicy.test.ts"
+      - "src/lib/commentModerationBenchmarkCorpus.ts"
+      - "src/lib/commentModerationJevShadow.regression.test.ts"
+      - "src/lib/commentSubmit.ts"
+      - "src/lib/commentReports.ts"
+      - "src/lib/commentReports.test.ts"
+      - "src/lib/commentBannedWords.ts"
+      - "src/lib/commentBannedWords.test.ts"
+      - "src/lib/commentTextNormalize.ts"
+      - "src/lib/commentTextNormalize.test.ts"
+      - "src/lib/jevDecisions.ts"
+      - "src/lib/jevDecisions.test.ts"
+      - "src/lib/openRouterCompletion.ts"
+      - "src/lib/test/regularTestEgressPolicy.ts"
+      - "scripts/benchmark-comment-moderation-jev-live.ts"
+      - "scripts/lib/benchmarkOpenRouterJevCredential.ts"
+      - "scripts/lib/commentModerationJevBenchmark.ts"
+      - "scripts/lib/commentModerationJevBenchmark.test.ts"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: git diff --check
+      - run: npm run lint
+      - run: npm run typecheck:app
+      - name: Comment moderation + JEV benchmark deterministic gates
+        run: >
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1
+          src/lib/commentSemanticModerationPolicy.test.ts
+          src/lib/commentModerationJevShadow.regression.test.ts
+          scripts/lib/commentModerationJevBenchmark.test.ts
+          src/lib/jevDecisions.test.ts
+          src/lib/commentBannedWords.test.ts
+          src/lib/commentReports.test.ts
+          src/lib/commentTextNormalize.test.ts

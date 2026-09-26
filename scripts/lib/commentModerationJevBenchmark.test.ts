@@ -5,7 +5,11 @@ import {
   REAL_JEV_MODERATION_PROBE_ENV,
   resolveOptInJevModerationBenchmarkApiKey,
 } from "./benchmarkOpenRouterJevCredential";
-import { runCommentModerationJevBenchmark } from "./commentModerationJevBenchmark";
+import {
+  buildCommentModerationArmMetrics,
+  runCommentModerationJevBenchmark,
+  type FixtureArmOutcome,
+} from "./commentModerationJevBenchmark";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -118,5 +122,94 @@ describe("JEV comment moderation benchmark request shape", () => {
     } finally {
       fetchMock.mock.restore();
     }
+  });
+});
+
+
+describe("JEV comment moderation benchmark metric integrity", () => {
+  it("never credits Gemini fail-closed BLOCK as semantic model accuracy", () => {
+    const outcomes: FixtureArmOutcome[] = [
+      {
+        fixtureId: "blocked-by-transport-fallback",
+        expected: "BLOCK",
+        category: "clear_block",
+        clarity: "clear",
+        productionTriggered: true,
+        providerCallAttempted: true,
+        verdict: "BLOCK",
+        responseSource: "transport_fail_block",
+        latencyMs: 100,
+        inputTokens: 0,
+        outputTokens: 0,
+        actualCostUsd: null,
+        failure: "timeout",
+      },
+      {
+        fixtureId: "real-model-allow",
+        expected: "ALLOW",
+        category: "false_positive",
+        clarity: "clear",
+        productionTriggered: true,
+        providerCallAttempted: true,
+        verdict: "ALLOW",
+        responseSource: "model",
+        latencyMs: 50,
+        inputTokens: 10,
+        outputTokens: 1,
+        actualCostUsd: 0.0001,
+        failure: null,
+      },
+      {
+        fixtureId: "policy-probe-only",
+        expected: "ALLOW",
+        category: "exploratory",
+        clarity: "boundary",
+        productionTriggered: false,
+        providerCallAttempted: true,
+        verdict: "ALLOW",
+        responseSource: "model",
+        latencyMs: 25,
+        inputTokens: 10,
+        outputTokens: 1,
+        actualCostUsd: 0.0001,
+        failure: null,
+      },
+    ];
+
+    const m = buildCommentModerationArmMetrics("gemini", outcomes);
+    assert.equal(m.primaryFixtures, 2);
+    assert.equal(m.policyProbeFixtures, 1);
+    assert.equal(m.modelResponseCount, 1);
+    assert.equal(m.modelResponseCoverage, 0.5);
+    assert.equal(m.overallAccuracy, 0.5, "fallback BLOCK must count as a semantic miss");
+    assert.equal(m.effectiveOutcomeAccuracy, 1, "runtime fallback effect is reported separately");
+    assert.equal(m.policyProbeAccuracy, 1);
+    assert.equal(m.blockRecall, 0, "fallback BLOCK is not model BLOCK recall");
+    assert.equal(m.allowRecall, 1);
+    assert.equal(m.failureCount, 1);
+    assert.equal(m.providerCalls, 3);
+  });
+
+  it("counts fail-closed BLOCK as a real false block on an ALLOW case", () => {
+    const outcomes: FixtureArmOutcome[] = [{
+      fixtureId: "allow-but-provider-failed",
+      expected: "ALLOW",
+      category: "false_positive",
+      clarity: "clear",
+      productionTriggered: true,
+      providerCallAttempted: true,
+      verdict: "BLOCK",
+      responseSource: "transport_fail_block",
+      latencyMs: 100,
+      inputTokens: 0,
+      outputTokens: 0,
+      actualCostUsd: null,
+      failure: "timeout",
+    }];
+    const m = buildCommentModerationArmMetrics("gemini", outcomes);
+    assert.equal(m.overallAccuracy, 0);
+    assert.equal(m.effectiveOutcomeAccuracy, 0);
+    assert.equal(m.falseBlockCount, 1);
+    assert.equal(m.falseBlockRate, 1);
   });
 });
