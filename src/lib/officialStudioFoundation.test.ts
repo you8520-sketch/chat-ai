@@ -112,7 +112,8 @@ describe("site-managed official studio foundation", () => {
               tag: "대표",
               width: 1024,
               height: 1536,
-              moderationStatus: "checked",
+              adultFlagged: false,
+              moderationReject: false,
             },
           ]),
         opts.participantMinAge ?? null
@@ -408,7 +409,13 @@ describe("site-managed official studio foundation", () => {
       visibility: "private",
       moderation: "pending",
       assets: JSON.stringify([
-        { url: "/uploads/bad.webp", tag: "대표", moderationStatus: "hard_reject" },
+        {
+          url: "/uploads/bad.webp",
+          tag: "대표",
+          adultFlagged: true,
+          moderationReject: true,
+          moderationReason: "하드 반려 fixture",
+        },
       ]),
     });
     const store2 = seedStagedDraft({
