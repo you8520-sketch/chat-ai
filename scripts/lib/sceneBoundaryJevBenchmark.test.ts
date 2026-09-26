@@ -164,6 +164,38 @@ describe("lexical scanner remains candidate owner", () => {
     }
   });
 
+  it("candidate-positive semantic pool is non-degenerate across verdict classes", () => {
+    const candidateRows = SCENE_BOUNDARY_SEMANTIC_CORPUS.flatMap((fixture) => {
+      const flags = scanR5BoundarySuspicionSignals(fixture.assistantOutput);
+      const signals = (Object.keys(flags) as (keyof typeof flags)[]).filter((k) => flags[k]);
+      return signals.length > 0 ? [{ fixture, signals }] : [];
+    });
+
+    const byVerdict = {
+      VIOLATION: candidateRows.filter((row) => row.fixture.expectedVerdict === "VIOLATION").length,
+      COMPLIANT: candidateRows.filter((row) => row.fixture.expectedVerdict === "COMPLIANT").length,
+      INSUFFICIENT_CONTEXT: candidateRows.filter(
+        (row) => row.fixture.expectedVerdict === "INSUFFICIENT_CONTEXT"
+      ).length,
+    };
+
+    assert.ok(byVerdict.VIOLATION >= 6, JSON.stringify(byVerdict));
+    assert.ok(byVerdict.COMPLIANT >= 4, JSON.stringify(byVerdict));
+    assert.ok(byVerdict.INSUFFICIENT_CONTEXT >= 2, JSON.stringify(byVerdict));
+
+    const covered = new Set(candidateRows.flatMap((row) => row.signals));
+    for (const signal of [
+      "physical_revisit",
+      "remote_contact",
+      "gift_drop_off",
+      "future_meeting_request",
+      "boundary_clarification",
+      "relationship_closure_demand",
+    ] as const) {
+      assert.equal(covered.has(signal), true, `missing candidate-positive signal ${signal}`);
+    }
+  });
+
   it("EVAL1–EVAL9 scanner regressions remain green (imported suite path present)", () => {
     const src = fs.readFileSync("src/lib/scenePolicyBoundarySuspicionScan.test.ts", "utf8");
     assert.match(src, /EVAL1/);
