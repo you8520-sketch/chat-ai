@@ -44,6 +44,29 @@ function isSuggestedReplyKind(value: unknown): value is SuggestedReplyKind {
   return value === "natural" || value === "twist" || value === "banter";
 }
 
+export const SUGGESTED_REPLIES_MODEL_CONTRACT_ISSUES = [
+  "malformed_json",
+  "missing_items",
+  "wrong_item_count",
+  "missing_kind",
+  "unknown_kind",
+  "duplicate_kind",
+  "missing_text",
+  "text_out_of_bounds",
+  "duplicate_text",
+] as const;
+
+export type SuggestedRepliesModelContractIssue =
+  (typeof SUGGESTED_REPLIES_MODEL_CONTRACT_ISSUES)[number];
+
+export type SuggestedRepliesModelContractInspection = {
+  contractValid: boolean;
+  issues: SuggestedRepliesModelContractIssue[];
+  observedKinds: SuggestedReplyKind[];
+  itemCount: number;
+  parsed: Record<string, unknown> | null;
+};
+
 /** Explicit non-canonical kinds (e.g. escalate/soften/pivot) must not be relabeled. */
 export function storedRepliesHaveStaleLegacyKinds(raw: unknown): boolean {
   if (!Array.isArray(raw)) return false;
@@ -133,10 +156,91 @@ export function extractJsonObject(text: string): Record<string, unknown> | null 
   }
 }
 
-export function parseSuggestedRepliesFromModelText(text: string): SuggestedReplyItem[] {
+export function inspectSuggestedRepliesModelTextContract(
+  text: string
+): SuggestedRepliesModelContractInspection {
   const parsed = extractJsonObject(text);
-  if (!parsed) return [];
-  return normalizeSuggestedReplies(parsed);
+  if (!parsed) {
+    return {
+      contractValid: false,
+      issues: ["malformed_json"],
+      observedKinds: [],
+      itemCount: 0,
+      parsed: null,
+    };
+  }
+
+  if (!Array.isArray(parsed.items)) {
+    return {
+      contractValid: false,
+      issues: ["missing_items"],
+      observedKinds: [],
+      itemCount: 0,
+      parsed,
+    };
+  }
+
+  const issues = new Set<SuggestedRepliesModelContractIssue>();
+  const seenKinds = new Set<SuggestedReplyKind>();
+  const observedKinds: SuggestedReplyKind[] = [];
+  const seenTexts = new Set<string>();
+
+  if (parsed.items.length !== SUGGESTED_REPLY_COUNT) {
+    issues.add("wrong_item_count");
+  }
+
+  for (const rawItem of parsed.items) {
+    if (!rawItem || typeof rawItem !== "object" || Array.isArray(rawItem)) {
+      issues.add("missing_kind");
+      issues.add("missing_text");
+      continue;
+    }
+
+    const item = rawItem as { kind?: unknown; text?: unknown };
+    if (typeof item.kind !== "string") {
+      issues.add("missing_kind");
+    } else if (!isSuggestedReplyKind(item.kind)) {
+      issues.add("unknown_kind");
+    } else if (seenKinds.has(item.kind)) {
+      issues.add("duplicate_kind");
+    } else {
+      seenKinds.add(item.kind);
+      observedKinds.push(item.kind);
+    }
+
+    if (typeof item.text !== "string" || !item.text.trim()) {
+      issues.add("missing_text");
+      continue;
+    }
+
+    const normalizedText = item.text.replace(/\s+/g, " ").trim();
+    const charCount = suggestedReplyCharCount(normalizedText);
+    if (charCount < SUGGESTED_REPLY_MIN_CHARS || charCount > SUGGESTED_REPLY_MAX_CHARS) {
+      issues.add("text_out_of_bounds");
+    }
+
+    const textKey = dedupeKey(normalizedText);
+    if (seenTexts.has(textKey)) issues.add("duplicate_text");
+    else seenTexts.add(textKey);
+  }
+
+  for (const kind of SUGGESTED_REPLY_KINDS) {
+    if (!seenKinds.has(kind)) issues.add("missing_kind");
+  }
+
+  return {
+    contractValid: issues.size === 0,
+    issues: [...issues],
+    observedKinds,
+    itemCount: parsed.items.length,
+    parsed,
+  };
+}
+
+export function parseSuggestedRepliesFromModelText(text: string): SuggestedReplyItem[] {
+  const inspection = inspectSuggestedRepliesModelTextContract(text);
+  if (!inspection.contractValid || !inspection.parsed) return [];
+  return normalizeSuggestedReplies({ items: inspection.parsed.items });
 }
 
 function coerceStoredReplies(raw: unknown): SuggestedReplyItem[] {

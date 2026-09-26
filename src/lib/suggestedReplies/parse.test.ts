@@ -120,6 +120,70 @@ describe("normalizeSuggestedReplies", () => {
 });
 
 describe("parseSuggestedRepliesFromModelText", () => {
+  it("fails closed when raw model items omit canonical kinds", () => {
+    const replies = [
+      padReply("*한 걸음 다가서며* \"첫 번째 응답이다.\" ", 72),
+      padReply("*고개를 기울이며* \"두 번째 응답이다.\" ", 72),
+      padReply("*작게 웃으며* \"세 번째 응답이다.\" ", 72),
+    ];
+    assert.deepEqual(
+      parseSuggestedRepliesFromModelText(
+        JSON.stringify({
+          items: replies.map((text) => ({ text })),
+        })
+      ),
+      []
+    );
+  });
+
+  it("fails closed instead of clipping overlong raw model text", () => {
+    const natural = padReply("*고개를 들며* \"계속 말해 봐.\" ", 201);
+    const twist = padReply("*창가를 보며* \"방향을 바꿔 보자.\" ", 72);
+    const banter = padReply("*웃으며* \"그럼 이번엔 네 차례야.\" ", 72);
+    assert.deepEqual(
+      parseSuggestedRepliesFromModelText(
+        JSON.stringify({
+          items: [
+            { kind: "natural", text: natural },
+            { kind: "twist", text: twist },
+            { kind: "banter", text: banter },
+          ],
+        })
+      ),
+      []
+    );
+  });
+
+  it("fails closed on wrong raw item count and duplicate raw text", () => {
+    const natural = padReply("*고개를 들며* \"계속 말해 봐.\" ", 72);
+    const duplicate = padReply("*창가를 보며* \"방향을 바꿔 보자.\" ", 72);
+
+    assert.deepEqual(
+      parseSuggestedRepliesFromModelText(
+        JSON.stringify({
+          items: [
+            { kind: "natural", text: natural },
+            { kind: "twist", text: duplicate },
+          ],
+        })
+      ),
+      []
+    );
+
+    assert.deepEqual(
+      parseSuggestedRepliesFromModelText(
+        JSON.stringify({
+          items: [
+            { kind: "natural", text: natural },
+            { kind: "twist", text: duplicate },
+            { kind: "banter", text: duplicate },
+          ],
+        })
+      ),
+      []
+    );
+  });
+
   it("reads fenced JSON items", () => {
     const natural = padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72);
     const twist = padReply("(한숨을 삼키고) \"좋아, 일단 앉아.\" ", 72);
