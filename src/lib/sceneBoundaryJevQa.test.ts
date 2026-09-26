@@ -337,6 +337,66 @@ describe("privacy payload + billing provenance", () => {
     assert.equal(Object.keys(buildSceneBoundaryJevQaQuestions()).length, 1);
   });
 
+  it("provider provenance is generation-correlated without changing billing owner", async () => {
+    let capturedLedger: unknown = null;
+    const callDecisions = (async (opts: unknown) => {
+      capturedLedger = (opts as { ledger?: unknown }).ledger ?? null;
+      return {
+        answers: {
+          [SCENE_BOUNDARY_JEV_QA_QUESTION_ID]: {
+            type: "choice" as const,
+            choice: "VIOLATION",
+            probabilities: { VIOLATION: 1, COMPLIANT: 0, INSUFFICIENT_CONTEXT: 0 },
+            confidence: 0.9,
+          },
+        },
+        usage: { inputTokens: 10, outputTokens: 5, estimated: false, upstreamCostUsd: 0.0001 },
+        responseModel: "typesafe/jev-1.13-test",
+      };
+    }) as typeof import("@/lib/jevDecisions").callJevDecisions;
+
+    const generationScope = scope(4);
+    const scheduled = scheduleSceneBoundaryJevQa({
+      chatId: 77,
+      generationScope,
+      boundaryExecution: CONTRACT,
+      assistantProse: VIOLATION_PROSE,
+      v2Mode: "shadow",
+      env: {
+        [SCENE_BOUNDARY_JEV_QA_ENV]: "1",
+        SCENE_DIRECTIVE_V2_MODE: "shadow",
+      },
+      callDecisions,
+      skipStaleGenerationGuard: true,
+    });
+    assert.equal(scheduled.scheduled, true);
+    await new Promise((r) => setTimeout(r, 20));
+
+    const ledger = capturedLedger as {
+      requestKind?: string;
+      provenanceContext?: {
+        chatId?: number | null;
+        assistantMessageId?: number | null;
+        generationSequence?: number;
+        generationRequestId?: string | null;
+        family?: string;
+        fundingClass?: string;
+        executionPhase?: string;
+      };
+    };
+    assert.equal(ledger.requestKind, SCENE_BOUNDARY_JEV_QA_REQUEST_KIND);
+    assert.equal(ledger.provenanceContext?.chatId, 77);
+    assert.equal(ledger.provenanceContext?.assistantMessageId, generationScope.assistantMessageId);
+    assert.equal(ledger.provenanceContext?.generationSequence, generationScope.generationSequence);
+    assert.equal(
+      ledger.provenanceContext?.generationRequestId,
+      generationScope.generationRequestId
+    );
+    assert.equal(ledger.provenanceContext?.family, "background");
+    assert.equal(ledger.provenanceContext?.fundingClass, "platform_funded");
+    assert.equal(ledger.provenanceContext?.executionPhase, "async_post_turn");
+  });
+
   it("23–25 QA request kind is OTHER_ASYNC background, not Main RP", () => {
     assert.equal(
       resolveAuxProviderOwner({ requestKind: SCENE_BOUNDARY_JEV_QA_REQUEST_KIND }),
