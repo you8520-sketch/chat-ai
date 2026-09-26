@@ -195,6 +195,7 @@ export function buildCharacterBible1System(): string {
     "고정 골격 + 가변 밀도: 종족·소속이 무의미하면 짧게. 모든 필드를 억지로 채우지 않는다.",
     "",
     "분량(한국어 글자 수, filler 금지·밀도 우선):",
+    "- part1 전체 분량은 반드시 5500자 이내로 쓴다(초과하면 반려되므로 각 필드를 간결하게).",
     "- identity: gender는 male·female·other 중 브리프 지정값 그대로, age는 브리프 나이 정수 그대로, heightCm은 140~220 정수.",
     "- appearance: 얼굴형·눈매·눈동자·머리색·헤어·길이·피부·키·체형·근육량·특징·평소 표정·기본 복장·액세서리·인상. 250~500자.",
     "- personality.keywords: 5~8개. personality.behavioral 400~800자:",
@@ -254,6 +255,7 @@ export function buildCharacterVoiceSystem(): string {
   return [
     "너는 롤플레잉 말투·오프닝의 장인이다. 캐릭터 바이블의 목소리 부분(말투·규칙·그리팅·공개 프로필·NPC)만 쓴다.",
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
+    "전체 분량은 반드시 2800자 이내로 쓴다(초과하면 반려되므로 각 필드를 간결하게).",
     "",
     "speech 규칙:",
     "- 존댓말/반말·문장 길이·속도감·어휘·자주/거의 안 쓰는 표현·욕설·농담·호칭·감정 은폐/분노/친밀 시 말투를 모두 설계.",
@@ -310,6 +312,7 @@ export function buildCharacterBondsSystem(): string {
   return [
     "너는 롤플레잉 관계·갈등 설계자다. 캐릭터 바이블의 유대 부분(관계·비밀·RP 엔진·성인)만 쓴다.",
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
+    "전체 분량은 반드시 2200자 이내로 쓴다(초과하면 반려되므로 각 필드를 간결하게).",
     "",
     "관계·비밀·엔진 규칙:",
     "- userRelationship: 첫인식·유저 역할(최소 관계만, 강제 금지)·초기 신뢰/호감/경계/이해관계·반드시 3단계 이상 progression.",
