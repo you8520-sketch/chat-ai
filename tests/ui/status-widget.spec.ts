@@ -48,7 +48,7 @@ function replaceCharacterStatusWidget(
     if (!row) throw new Error(`Character ${characterId} not found in Playwright DB`);
 
     db.prepare(
-      "UPDATE characters SET status_widget_json=?, status_widget_allow_user_override=1 WHERE id=?"
+      "UPDATE characters SET status_widget_json=?, status_widget_allow_user_override=0 WHERE id=?"
     ).run(widgetJson, characterId);
 
     return {
