@@ -401,9 +401,12 @@ describe("server.js boot contract", () => {
   });
 
   it("does not add global --conditions=react-server to production start", () => {
-    const pkg = readFileSync(path.join(repoRoot, "package.json"), "utf8");
-    assert.match(pkg, /"start": "tsx server\.js"/);
-    assert.doesNotMatch(pkg, /--conditions=react-server/);
+    const pkg = JSON.parse(
+      readFileSync(path.join(repoRoot, "package.json"), "utf8")
+    ) as { scripts?: Record<string, string> };
+    const productionStart = pkg.scripts?.start ?? "";
+    assert.equal(productionStart, "tsx server.js");
+    assert.doesNotMatch(productionStart, /--conditions=react-server/);
   });
 });
 
