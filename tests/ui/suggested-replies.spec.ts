@@ -9,6 +9,8 @@ const MOCK_USER_MESSAGE_ID = 190_001;
 const MOCK_ASSISTANT_MESSAGE_ID = 190_002;
 const MOCK_ASSISTANT_CONTENT =
   "유나는 잠깐 생각하더니 고개를 끄덕였다. 이제 다음 말을 기다리는 듯 시선을 맞췄다.";
+const EDITED_ASSISTANT_CONTENT =
+  "수정된 답변이다. 유나는 앞선 흐름을 고쳐 잡고 전과 다른 표현으로 다음 선택지를 다시 정리했다.";
 
 const VARIANT_ONE_CONTENT =
   "첫 번째 버전의 답변이다. 유나는 고개를 끄덕이며 다음 말을 기다렸다.";
@@ -101,6 +103,117 @@ function seedPersistedSuggestedRepliesForReload(
   } finally {
     db.close();
   }
+}
+
+async function waitForGreetingSuggestedRepliesJobSettled(
+  page: Page,
+  chatId: number
+): Promise<{ messageId: number; content: string }> {
+  const dataDir = process.env.PLAYWRIGHT_DATA_DIR;
+  if (!dataDir) {
+    throw new Error("PLAYWRIGHT_DATA_DIR must be resolved by playwright.config.ts");
+  }
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const db = new Database(path.resolve(dataDir, "app.db"));
+    try {
+      const row = db
+        .prepare(
+          "SELECT id, content, suggested_replies_json FROM messages WHERE chat_id=? AND role='assistant' AND model='greeting' ORDER BY id LIMIT 1"
+        )
+        .get(chatId) as
+        | { id: number; content: string; suggested_replies_json: string | null }
+        | undefined;
+      if (row?.id && row.suggested_replies_json) {
+        try {
+          const record = JSON.parse(row.suggested_replies_json) as { pending?: boolean };
+          if (record.pending !== true) {
+            return { messageId: row.id, content: row.content };
+          }
+        } catch {
+          /* wait for the canonical greeting job to settle */
+        }
+      }
+    } finally {
+      db.close();
+    }
+    await page.waitForTimeout(100);
+  }
+
+  throw new Error("greeting Suggested Replies background job did not settle");
+}
+
+function seedGreetingSuggestedRepliesPending(messageId: number): void {
+  const dataDir = process.env.PLAYWRIGHT_DATA_DIR;
+  if (!dataDir) {
+    throw new Error("PLAYWRIGHT_DATA_DIR must be resolved by playwright.config.ts");
+  }
+
+  const db = new Database(path.resolve(dataDir, "app.db"));
+  try {
+    db.prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
+      JSON.stringify({
+        replies: [],
+        extractedAt: new Date().toISOString(),
+        source: "standalone-extract",
+        pending: true,
+        failed: false,
+        generationSequence: 0,
+        generationRequestId: null,
+      }),
+      messageId
+    );
+  } finally {
+    db.close();
+  }
+}
+
+async function installGreetingSuggestedRepliesPollMock(page: Page, messageId: number) {
+  let pollCalls = 0;
+
+  await page.route("**/api/chat/suggested-replies**", async (route: Route) => {
+    const url = new URL(route.request().url());
+    const targetId = Number(url.searchParams.get("messageId"));
+    if (targetId !== messageId) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          messageId: targetId,
+          requested: false,
+          pending: false,
+          failed: true,
+          replies: [],
+        }),
+      });
+      return;
+    }
+
+    pollCalls += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        pollCalls === 1
+          ? {
+              messageId,
+              requested: true,
+              pending: true,
+              failed: false,
+              replies: [],
+            }
+          : {
+              messageId,
+              requested: true,
+              pending: false,
+              failed: false,
+              replies: REPLIES,
+            }
+      ),
+    });
+  });
+
+  return { getPollCalls: () => pollCalls };
 }
 
 async function demoLogin(page: Page) {
@@ -372,6 +485,70 @@ async function installSuggestedRepliesTurnMock(
   return {
     getTargetPollCalls: () => targetPollCalls,
     getChatPostCalls: () => chatPostCalls,
+  };
+}
+
+async function installSuggestedRepliesEditInvalidationMock(page: Page) {
+  const base = await installSuggestedRepliesTurnMock(page);
+  let userPatchCalls = 0;
+  let assistantPatchCalls = 0;
+
+  await page.route("**/api/chat/message", async (route: Route) => {
+    if (route.request().method() !== "PATCH") {
+      await route.fallback();
+      return;
+    }
+
+    const body = route.request().postDataJSON() as {
+      messageId?: number;
+      content?: string;
+    };
+
+    if (body.messageId === MOCK_USER_MESSAGE_ID) {
+      userPatchCalls += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          content: body.content ?? "",
+          suggestedRepliesInvalidatedAssistantMessageIds: [],
+        }),
+      });
+      return;
+    }
+
+    expect(body.messageId).toBe(MOCK_ASSISTANT_MESSAGE_ID);
+    assistantPatchCalls += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        content: body.content ?? EDITED_ASSISTANT_CONTENT,
+        variants: [
+          {
+            content: body.content ?? EDITED_ASSISTANT_CONTENT,
+            model: "playwright-fixture",
+            usage: null,
+            created_at: "",
+            generationSequence: 0,
+            requestId: "suggested-replies-ui-e2e",
+            sourceMessageId: MOCK_ASSISTANT_MESSAGE_ID,
+          },
+        ],
+        activeVariant: 0,
+        variantCount: 1,
+        statusWidgetValues: null,
+        suggestedRepliesInvalidatedAssistantMessageIds: [MOCK_ASSISTANT_MESSAGE_ID],
+      }),
+    });
+  });
+
+  return {
+    ...base,
+    getUserPatchCalls: () => userPatchCalls,
+    getAssistantPatchCalls: () => assistantPatchCalls,
   };
 }
 
@@ -792,6 +969,39 @@ test.describe("Suggested Replies — production browser lifecycle", () => {
     await expect(textarea).toHaveValue("");
   });
 
+  test("greeting pending record resumes after reload and settles to the canonical trio", async ({ page }) => {
+    await openFreshChat(page);
+
+    const currentUrl = new URL(page.url());
+    const chatId = Number(currentUrl.searchParams.get("chat"));
+    expect(Number.isInteger(chatId) && chatId > 0).toBeTruthy();
+
+    const greeting = await waitForGreetingSuggestedRepliesJobSettled(page, chatId);
+    seedGreetingSuggestedRepliesPending(greeting.messageId);
+    const mock = await installGreetingSuggestedRepliesPollMock(page, greeting.messageId);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector("textarea[placeholder*='메시지 입력']", { timeout: 45_000 });
+
+    await expect(page.getByText(greeting.content, { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.getByText("추천 메시지 준비 중…", { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect.poll(mock.getPollCalls, { timeout: 10_000 }).toBe(2);
+
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    }
+    await expect(page.getByText("추천 메시지 준비 중…", { exact: true })).toHaveCount(0);
+
+    await page.waitForTimeout(1_000);
+    expect(mock.getPollCalls()).toBe(2);
+  });
+
   test("reload restores persisted generation-scoped suggestions without polling again", async ({ page }) => {
     await openFreshChat(page);
 
@@ -912,6 +1122,58 @@ test.describe("Suggested Replies — production browser lifecycle", () => {
 
     await page.waitForTimeout(1_000);
     expect(seededMessagePollCalls).toBe(1);
+  });
+
+  test("material assistant edit immediately invalidates stale suggestions without a new poll", async ({ page }) => {
+    const mock = await installSuggestedRepliesEditInvalidationMock(page);
+    await openFreshChat(page);
+
+    const textarea = page.locator("textarea[placeholder*='메시지 입력']");
+    await setReactTextareaValue(page, "수정 무효화 테스트");
+
+    const responseWait = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/chat" &&
+        response.request().method() === "POST",
+      { timeout: 45_000 }
+    );
+    await page.getByRole("button", { name: "전송", exact: true }).click();
+    expect((await responseWait).ok()).toBeTruthy();
+
+    await expect(page.getByText(MOCK_ASSISTANT_CONTENT, { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    for (const reply of REPLIES) {
+      await expect(page.getByText(reply.text, { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    }
+    await expect.poll(mock.getTargetPollCalls, { timeout: 10_000 }).toBe(2);
+
+    const assistantArticle = page.locator(`#msg-${MOCK_ASSISTANT_MESSAGE_ID}`);
+    await assistantArticle.hover();
+    await assistantArticle.getByRole("button", { name: "수정", exact: true }).click();
+
+    const editTextarea = assistantArticle.locator("textarea").first();
+    await expect(editTextarea).toBeVisible();
+    await editTextarea.fill(EDITED_ASSISTANT_CONTENT);
+    await assistantArticle.getByRole("button", { name: "저장", exact: true }).click();
+
+    await expect.poll(mock.getUserPatchCalls, { timeout: 5_000 }).toBe(1);
+    await expect.poll(mock.getAssistantPatchCalls, { timeout: 5_000 }).toBe(1);
+    await expect(page.getByText(EDITED_ASSISTANT_CONTENT, { exact: true })).toBeVisible({
+      timeout: 5_000,
+    });
+
+    await expect(page.getByText("추천 메시지 준비 중…", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^정석 ·/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^한 수 ·/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^드립 ·/ })).toHaveCount(0);
+
+    await page.waitForTimeout(1_000);
+    expect(mock.getTargetPollCalls()).toBe(2);
+    expect(mock.getChatPostCalls()).toBe(1);
+    await expect(textarea).toHaveValue("");
   });
 
   test("successful regeneration replaces previous-generation suggestions with the new trio", async ({ page }) => {

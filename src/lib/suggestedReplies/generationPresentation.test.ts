@@ -350,6 +350,45 @@ describe("suggested replies generation vs presentation", () => {
     assert.doesNotMatch(pollSource, /maxAttempts\s*-\s*4/);
   });
 
+  it("G5 — material source edits invalidate persisted and client suggested replies", () => {
+    const lifecycleSource = readFileSync(
+      join(process.cwd(), "src/lib/rpDerivedStateLifecycle.ts"),
+      "utf8"
+    );
+    assert.match(lifecycleSource, /invalidateSuggestedRepliesForSourceEditCore/);
+    assert.match(lifecycleSource, /suggested_replies_json=NULL/);
+    assert.match(lifecycleSource, /user_message_id=\?/);
+
+    const routeSource = readFileSync(
+      join(process.cwd(), "src/app/api/chat/message/route.ts"),
+      "utf8"
+    );
+    assert.match(
+      routeSource,
+      /suggestedRepliesInvalidatedAssistantMessageIds/
+    );
+    assert.match(routeSource, /sourceRole: "assistant"/);
+    assert.match(routeSource, /sourceRole: "user"/);
+
+    const clientSource = readFileSync(
+      join(process.cwd(), "src/app/chat/[id]/ChatClient.tsx"),
+      "utf8"
+    );
+    const saveEditStart = clientSource.indexOf("async function saveEdit");
+    const saveEditEnd = clientSource.indexOf("function handleTurnDeleted", saveEditStart);
+    assert.ok(saveEditStart >= 0 && saveEditEnd > saveEditStart);
+    const saveEditSource = clientSource.slice(saveEditStart, saveEditEnd);
+    assert.match(
+      saveEditSource,
+      /suggestedRepliesInvalidatedAssistantMessageIds/
+    );
+    assert.match(saveEditSource, /EMPTY_SUGGESTED_REPLIES_CLIENT/);
+    assert.match(
+      saveEditSource,
+      /suggestedRepliesPollStartedRef\.current\.delete/
+    );
+  });
+
   it("H — natural / twist / banter contract", () => {
     assert.deepEqual(SUGGESTED_REPLY_KINDS, ["natural", "twist", "banter"]);
     const replies = validReplies("KINDS");

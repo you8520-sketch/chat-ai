@@ -36,6 +36,7 @@ import {
   executeAtomicManualEditCore,
   executeAtomicManualEditMutationCore,
   getAssistantSourceTurn,
+  invalidateSuggestedRepliesForSourceEditCore,
   isLatestCanonicalAssistantMessage,
 } from "@/lib/rpDerivedStateLifecycle";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
@@ -214,15 +215,26 @@ export async function PATCH(req: Request) {
   const keepInternalAdultRouting = keepInternalAdultRoutingForUser(user);
   if (isGreetingMessage(msg)) {
     const variant = editedMessageVariant({ content: text, model: "greeting", usage: null });
-    db.prepare("UPDATE messages SET content=?, alternates=NULL, active_variant=0 WHERE id=?").run(
-      text,
-      id
-    );
+    const materialProseChange = isMaterialProseEdit(msg.content, text);
+    const invalidatedSuggestedReplyAssistantMessageIds = db.transaction(() => {
+      db.prepare("UPDATE messages SET content=?, alternates=NULL, active_variant=0 WHERE id=?").run(
+        text,
+        id
+      );
+      return invalidateSuggestedRepliesForSourceEditCore(db, {
+        chatId: msg.chat_id,
+        sourceMessageId: id,
+        sourceRole: "assistant",
+        materialProseChange,
+      });
+    }).immediate();
     return NextResponse.json({
       ok: true,
       content: text,
       ...serializeVariantsForClient([variant], 0, { keepInternalAdultRouting }),
       statusWidgetValues: null,
+      suggestedRepliesInvalidatedAssistantMessageIds:
+        invalidatedSuggestedReplyAssistantMessageIds,
     });
   }
 
@@ -401,6 +413,7 @@ export async function PATCH(req: Request) {
       content: text,
       ...serializeVariantsForClient([variant], 0, { keepInternalAdultRouting }),
       statusWidgetValues: clientWidgetValues,
+      suggestedRepliesInvalidatedAssistantMessageIds: materialProseChange ? [id] : [],
     });
   }
 
@@ -409,6 +422,7 @@ export async function PATCH(req: Request) {
   const userMemorySyncOutcome: {
     result: VariantSwitchMemoryReconcileResult | null;
   } = { result: null };
+  let invalidatedSuggestedReplyAssistantMessageIds: number[] = [];
   try {
     db.transaction(() => {
       if (materialUserProseChange && isMemoryFeatureEnabled()) {
@@ -432,11 +446,25 @@ export async function PATCH(req: Request) {
             sourceAssistantMessageId: preIdentity.sourceAssistantMessageId,
           });
         }
+        invalidatedSuggestedReplyAssistantMessageIds =
+          invalidateSuggestedRepliesForSourceEditCore(db, {
+            chatId: msg.chat_id,
+            sourceMessageId: id,
+            sourceRole: "user",
+            materialProseChange: materialUserProseChange,
+          });
         return;
       }
       db.prepare("UPDATE messages SET content=? WHERE id=?").run(text, id);
       markUserMessageCoauthorSemanticsVersion(db, id);
       recomputeAndPersistUserCoauthorMode(db, msg.chat_id);
+      invalidatedSuggestedReplyAssistantMessageIds =
+        invalidateSuggestedRepliesForSourceEditCore(db, {
+          chatId: msg.chat_id,
+          sourceMessageId: id,
+          sourceRole: "user",
+          materialProseChange: materialUserProseChange,
+        });
     }).immediate();
   } catch (e) {
     if (e instanceof MemoryCanonicalityEditNotSupportedError) {
@@ -470,5 +498,10 @@ export async function PATCH(req: Request) {
       summarizedTurnCount: userMemorySyncOutcome.result.summarizedTurnCount,
     });
   }
-  return NextResponse.json({ ok: true, content: text });
+  return NextResponse.json({
+    ok: true,
+    content: text,
+    suggestedRepliesInvalidatedAssistantMessageIds:
+      invalidatedSuggestedReplyAssistantMessageIds,
+  });
 }

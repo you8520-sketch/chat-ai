@@ -4,6 +4,7 @@ import {
   observeSuggestedRepliesDecisionQuality,
   type SuggestedRepliesDecisionQualityIssue,
 } from "./decisionQualityObservatory";
+import { parseSuggestedRepliesFromModelText } from "./parse";
 import { SUGGESTED_REPLIES_DECISION_QUALITY_CORPUS } from "./decisionQualityObservatory.fixtures";
 
 function sorted(issues: SuggestedRepliesDecisionQualityIssue[]): SuggestedRepliesDecisionQualityIssue[] {
@@ -14,8 +15,14 @@ describe("P3-A suggested replies offline decision-quality corpus", () => {
   for (const fixture of SUGGESTED_REPLIES_DECISION_QUALITY_CORPUS) {
     it(`${fixture.id}: ${fixture.label}`, () => {
       const observation = observeSuggestedRepliesDecisionQuality(fixture.rawModelText);
+      const parsed = parseSuggestedRepliesFromModelText(fixture.rawModelText);
       assert.equal(observation.contractValid, fixture.expectedValid);
       assert.deepEqual(sorted(observation.issues), sorted(fixture.expectedIssues));
+      assert.equal(
+        parsed.length === 3,
+        fixture.expectedValid,
+        "production parser and observatory must agree on the raw contract"
+      );
     });
   }
 
