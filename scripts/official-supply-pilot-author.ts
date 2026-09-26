@@ -282,6 +282,8 @@ async function generateOneCharacter(
   let failed = 0;
   let lastError: unknown = null;
   let feedback: string | undefined;
+  let lastBible: OfficialCharacterBible | null = null;
+  let lastDraft: OfficialCharacterDraft | null = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const { bible, completions } = await generateOfficialCharacterBible({
@@ -305,6 +307,7 @@ async function generateOneCharacter(
         },
         modelId,
       });
+      lastBible = bible;
       const bibleQa = validatePilotBible(bible, { adultExpected: brief.adultCandidate });
       if (!bibleQa.ok) {
         throw new OfficialSupplyGateError(
@@ -326,6 +329,7 @@ async function generateOneCharacter(
           rpHook: brief.rpHook,
         },
       });
+      lastDraft = draft;
       const draftQa = validatePilotDraftForTextLock(draft, []);
       if (!draftQa.ok) {
         throw new OfficialSupplyGateError(
@@ -369,6 +373,8 @@ async function generateOneCharacter(
     brief,
     quarantined: true,
     error: String((lastError as Error)?.message ?? lastError).slice(0, 500),
+    lastBible,
+    lastDraft,
   });
   throw lastError;
 }
