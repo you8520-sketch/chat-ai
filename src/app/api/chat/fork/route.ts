@@ -115,7 +115,6 @@ export async function POST(req: Request) {
       userNote: String(source.user_note ?? ""),
       selectedPersonaId:
         source.selected_persona_id == null ? null : Number(source.selected_persona_id),
-      userImpersonation: Number(source.user_impersonation ?? 0),
       targetResponseChars: normalizeTargetResponseChars(
         source.target_response_chars ?? DEFAULT_TARGET_RESPONSE_CHARS
       ),

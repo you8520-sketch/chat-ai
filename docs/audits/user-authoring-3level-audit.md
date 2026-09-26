@@ -99,13 +99,15 @@ A new 3-level setting added as another independent prompt rule would create conf
 ### KEEP
 - `user_coauthor_mode`: active OOC override state.
 - `user_coauthor_semantics_version`: reconstruction authority epoch.
-- legacy `user_impersonation`: compatibility/metadata reader audit still incomplete outside the canonical production authoring path.
+- legacy `user_impersonation` physical column: retained only for rollback/data audit. Phase 2A removes production runtime readers/writers and fork mirroring; the column remains at its physical default for new/forked chats.
 
 ### SAFE TO CONSOLIDATE — done
 - duplicate auto/continue/regen/current-input user-scope prompt wording.
 
 ### FOLLOW-UP
-- Full reader/writer audit and eventual retirement decision for legacy `user_impersonation` / old impersonation helper modules. Do not delete without existing-data/readers/rollback proof.
+- Phase 2B: inspect existing Railway DB row distribution for legacy `user_impersonation`, confirm no external/export/admin reader, and assess rollback before any physical column drop.
+- Audit old impersonation helper modules/direct callers separately. Do not remove helper compatibility until direct-call coverage is proven.
+- Physical column deletion is intentionally blocked until existing-data and destructive-migration proof exists.
 
 ## Regression risks
 
