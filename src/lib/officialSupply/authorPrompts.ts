@@ -190,6 +190,7 @@ export function buildCharacterBible1System(): string {
     "고정 골격 + 가변 밀도: 종족·소속이 무의미하면 짧게. 모든 필드를 억지로 채우지 않는다.",
     "",
     "분량(한국어 글자 수, filler 금지·밀도 우선):",
+    "- identity: gender는 male·female·other 중 브리프 지정값 그대로, age는 브리프 나이 정수 그대로, heightCm은 140~220 정수.",
     "- appearance: 얼굴형·눈매·눈동자·머리색·헤어·길이·피부·키·체형·근육량·특징·평소 표정·기본 복장·액세서리·인상. 250~500자.",
     "- personality.keywords: 5~8개. personality.behavioral 400~800자:",
     "  평상시·낯선 사람·가까운 사람·화났을 때·불안할 때·당황할 때·애정 느낄 때·갈등 속 선택을 모두 다룬다.",
@@ -251,14 +252,14 @@ export function buildCharacterBible2System(): string {
     "",
     "speech 규칙:",
     "- 존댓말/반말·문장 길이·속도감·어휘·자주/거의 안 쓰는 표현·욕설·농담·호칭·감정 은폐/분노/친밀 시 말투를 모두 설계.",
-    "- keywords 4~8개. description 250~500자.",
-    "- examples 4~6개, 전체 합 500자 이내, 서로 다른 상황(평상시·첫만남·분노·걱정·농담·친밀).",
+    "- keywords 4~8개. description은 반드시 250자 이상 500자 이하.",
+    "- examples는 서로 다른 상황의 대사 4~6개를 각각 별도 줄로(줄바꿈 구분), 전체 합 500자 이내.",
     "  이름을 가려도 구별되는 목소리. 클론 말투 금지.",
     "- forbidden 500자 이내: 절대 하지 않을 말투.",
     "",
     "관계·비밀·엔진 규칙:",
     "- behaviorRules 3~7개. 부정문 나열보다 행동 논리.",
-    "- userRelationship: 첫인식·유저 역할(최소 관계만, 강제 금지)·초기 신뢰/호감/경계/이해관계·3단계 이상 progression.",
+    "- userRelationship: 첫인식·유저 역할(최소 관계만, 강제 금지)·초기 신뢰/호감/경계/이해관계·반드시 3단계 이상 progression.",
     "  자동 사랑 빠짐 금지. 유저 행동에 따라 변해야 한다.",
     "- otherRelationships: 대상별 public(공유 가능) / privateOpinion / hidden(숨김).",
     "- secrets 1~4개. RP progression·갈등·관계 변화에 영향을 주는 것만. 억지 반전·trivial 금지.",
@@ -272,9 +273,12 @@ export function buildCharacterBible2System(): string {
     "",
     "NPC: 필요한 경우만 0~3명. 한 줄 200자 이내. 성인 시트의 NPC는 전원 나이 명시 + 19세 이상.",
     "",
-    "성인 섹션은 adultCandidate가 true일 때만 작성:",
+    "성인 섹션은 adultCandidate가 true일 때만 작성(허용값 그대로 사용):",
+    "- dialogueProfile은 auto·none·suggestive·explicit_rare·explicit_frequent 중 하나.",
+    "- consentModes는 standard·power_play·cnc_opt_in 중 1개 이상.",
     "- orientation·hookSummary(성인 관계 캐논 일부, 전체의 25% 이내).",
-    "- tone 150~300자·preferenceKeywords 4~8개·boundaries 3~6개·consentBehavior 150~300자·scenarioExamples 2~3개(짧고 행동 중심).",
+    "- tone은 반드시 150자 이상 300자 이하·preferenceKeywords 4~8개·boundaries 3~6개·",
+    "  consentBehavior는 반드시 150자 이상 300자 이하·scenarioExamples 2~3개(짧고 행동 중심).",
     "- NSFW를 빼도 직업·성격·목표·과거·갈등·취미·관계가 살아 있어야 한다.",
   ].join("\n");
 }
@@ -296,9 +300,9 @@ export function buildCharacterBible2User(input: CharacterBible2Input): string {
   ].join("\n");
 }
 
-const BIBLE_1_SKELETON = `{"identity": {"name": "", "gender": "", "age": 0, "apparentAge": "", "heightCm": 0, "species": "", "occupation": "", "socialPosition": "", "affiliation": "", "worldRole": ""}, "appearance": {"faceShape": "", "eyes": "", "eyeColor": "", "hairColor": "", "hairstyle": "", "hairLength": "", "skin": "", "build": "", "musculature": "", "distinguishingFeatures": "", "usualExpression": "", "defaultOutfit": "", "accessories": "", "impression": ""}, "personality": {"keywords": [""], "behavioral": ""}, "contradiction": "", "values": {"desires": [""], "fears": [""], "coreValues": [""], "nonNegotiable": [""]}, "backstory": {"events": [{"event": "", "choice": "", "residue": ""}]}, "abilities": [{"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}], "habits": {"hobbies": [""], "habits": [""], "likes": [""], "dislikes": [""]}, "dailyLife": "", "situation": {"worldContext": "", "personalSituation": "", "userEntry": ""}}`;
+const BIBLE_1_SKELETON = `{"identity": {"name": "", "gender": "male", "age": 27, "apparentAge": "", "heightCm": 184, "species": "인간", "occupation": "", "socialPosition": "", "affiliation": "", "worldRole": ""}, "appearance": {"faceShape": "", "eyes": "", "eyeColor": "", "hairColor": "", "hairstyle": "", "hairLength": "", "skin": "", "build": "", "musculature": "", "distinguishingFeatures": "", "usualExpression": "", "defaultOutfit": "", "accessories": "", "impression": ""}, "personality": {"keywords": ["", "", "", "", ""], "behavioral": ""}, "contradiction": "", "values": {"desires": ["", ""], "fears": ["", ""], "coreValues": ["", ""], "nonNegotiable": [""]}, "backstory": {"events": [{"event": "", "choice": "", "residue": ""}, {"event": "", "choice": "", "residue": ""}]}, "abilities": [{"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}, {"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}], "habits": {"hobbies": ["", ""], "habits": ["", ""], "likes": ["", "", ""], "dislikes": ["", "", ""]}, "dailyLife": "", "situation": {"worldContext": "", "personalSituation": "", "userEntry": ""}}`;
 
-const BIBLE_2_SKELETON = `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": [""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": [""], "description": "", "examples": "", "forbidden": ""}, "behaviorRules": [""], "userRelationship": {"initialView": "", "userRole": "", "startingPoint": "", "progression": ["", "", ""]}, "otherRelationships": [{"target": "", "public": "", "privateOpinion": "", "hidden": ""}], "secrets": [""], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": ""}, "greeting": "", "publicProfile": {"tagline": "", "description": "", "tags": [""]}, "npcs": [], "nsfw": false, "adultSection": null}`;
+const BIBLE_2_SKELETON = `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": ["", ""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": ["", "", "", ""], "description": "", "examples": "대사1\\n대사2\\n대사3\\n대사4", "forbidden": ""}, "behaviorRules": ["", "", ""], "userRelationship": {"initialView": "", "userRole": "", "startingPoint": "", "progression": ["", "", ""]}, "otherRelationships": [{"target": "", "public": "", "privateOpinion": "", "hidden": ""}], "secrets": ["", ""], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": ""}, "greeting": "", "publicProfile": {"tagline": "", "description": "", "tags": ["", "", ""]}, "npcs": [], "nsfw": false, "adultSection": null}`;
 
 export type AppearanceInput = {
   name: string;
