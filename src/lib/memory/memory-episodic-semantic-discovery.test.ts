@@ -562,6 +562,78 @@ describe("correction invariants", () => {
     db.close();
   });
 
+  it("query readiness ignores adult, unstamped, stale-hash, and corrupt sidecar rows", () => {
+    const db = openDb();
+    const adultId = insertFact(db, {
+      turn: 10,
+      subject: "adult-ready",
+      text: "성인 범위의 기억은 provider query readiness를 열면 안 된다.",
+      metadata: '{"memory_evidence_type":"explicit_scene_event","content_route":"nsfw"}',
+    });
+    const legacyId = insertFact(db, {
+      turn: 11,
+      subject: "legacy-ready",
+      text: "route stamp가 없는 레거시 기억도 readiness를 열면 안 된다.",
+      metadata: '{"memory_evidence_type":"explicit_scene_event"}',
+    });
+    const staleId = insertFact(db, {
+      turn: 12,
+      subject: "stale-ready",
+      text: "처음 저장된 안전한 기억이다.",
+    });
+    const corruptId = insertFact(db, {
+      turn: 13,
+      subject: "corrupt-ready",
+      text: "벡터 바이트가 손상된 안전한 기억이다.",
+    });
+    const model = SYNTHETIC_SEMANTIC_MODEL;
+    const write = (factId: number, text: string) => {
+      const full = episodicFactSemanticText({ fact_text: text })!;
+      const vector = normalizeEmbeddingVector(syntheticEmbed(text), model.dimensions)!;
+      assert.equal(
+        upsertEpisodicFactEmbedding(db, {
+          chatId: 1,
+          factId,
+          model,
+          contentHash: episodicFactContentHash(full),
+          vector,
+        }),
+        "written"
+      );
+    };
+    write(adultId, "성인 범위의 기억은 provider query readiness를 열면 안 된다.");
+    write(legacyId, "route stamp가 없는 레거시 기억도 readiness를 열면 안 된다.");
+    write(staleId, "처음 저장된 안전한 기억이다.");
+    db.prepare("UPDATE episodic_memory_facts SET fact_text=? WHERE id=?").run(
+      "수정되어 기존 벡터가 stale이 된 안전한 기억이다.",
+      staleId
+    );
+
+    ensureEpisodicFactEmbeddingSchema(db);
+    const corruptText = episodicFactSemanticText({ fact_text: "벡터 바이트가 손상된 안전한 기억이다." })!;
+    db.prepare(
+      `INSERT INTO ${EPISODIC_FACT_EMBEDDINGS_TABLE}
+         (fact_id, chat_id, model_id, dimensions, content_hash, embedding)
+       VALUES (?, 1, ?, ?, ?, unhex('00'))`
+    ).run(corruptId, model.modelId, model.dimensions, episodicFactContentHash(corruptText));
+
+    const scope = { chatId: 1, currentTurn: 200 };
+    assert.equal(
+      hasEpisodicSemanticIndexInScope(db, scope, model, env),
+      false,
+      "no unusable sidecar row may trigger a query embedding call"
+    );
+
+    const safeId = insertFact(db, {
+      turn: 14,
+      subject: "safe-ready",
+      text: "현재 scope에서 사용할 수 있는 안전한 기억이다.",
+    });
+    write(safeId, "현재 scope에서 사용할 수 있는 안전한 기억이다.");
+    assert.equal(hasEpisodicSemanticIndexInScope(db, scope, model, env), true);
+    db.close();
+  });
+
   it("full canonical content hash: a suffix-only change beyond the provider bound invalidates the vector", () => {
     const db = openDb();
     const prefix = "폭풍우 밤의 긴 기록이 이어졌다 ".repeat(40).slice(0, EPISODIC_SEMANTIC_MAX_FACT_CHARS);
