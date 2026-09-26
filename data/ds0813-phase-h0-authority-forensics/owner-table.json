@@ -1,0 +1,190 @@
+{
+  "DUPLICATE_OWNER_COUNT": 11,
+  "COMPETING_OWNER_COUNT": 6,
+  "TOP_COMPETING_OWNERS": [
+    "CURRENT_USER newest-state wrapper vs DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION previous-assistant next-moment",
+    "USER CONTROL / wrapper 사소한 이동·접촉 vs intended STANDARD no-new-deliberate-[B]-action",
+    "NARRATIVE POV switch-unrelated-to-prior-output vs HANDOFF 직전 출력의 시점 최대한 유지",
+    "CANON priority outranks prior-output errors vs HANDOFF 감정 표현 방식 최대한 유지 (can copy Gemini choker/tinnitus)",
+    "SCENE FLOW / LENGTH / IMMERSIVE PROSE expand-the-scene vs CURRENT_USER continue the established intimate beat",
+    "packet unfinishedAction/speechState vs CURRENT_USER final state"
+  ],
+  "OWNERS": [
+    {
+      "CONCEPT": "current-user priority",
+      "OWNER": "buildCollaborativeInteractiveWrapper / wrapCurrentUserInput",
+      "FILE": "src/lib/currentUserInputLabel.ts",
+      "FUNCTION": "buildCollaborativeInteractiveWrapper",
+      "MESSAGE_ROLE": "user (last)",
+      "EXACT_TEXT": "The following is the user's completed input and the newest state of the scene.\nContinue from what it changes now rather than restating or explaining the input.",
+      "PRIORITY": "last-message recency; no exclusive-outrank clause against handoff continuation",
+      "DUPLICATES": ["USER_CONTROL continue-from-current-input"],
+      "CONFLICTS": ["DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION"]
+    },
+    {
+      "CONCEPT": "scene continuity",
+      "OWNER": "DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION",
+      "FILE": "src/lib/adultSceneRouting.ts",
+      "FUNCTION": "appendAdultHandoffPrompt / appendAdultHandoffToSystemSplit",
+      "MESSAGE_ROLE": "system (tail)",
+      "EXACT_TEXT": "직전 assistant 출력의 바로 다음 순간부터 이어 쓴다.\n직전 출력의 시점, 문장 호흡, 문단 구성, 대사 비율, 캐릭터별 말투·호칭과 감정 표현 방식을 최대한 유지한다.\n직전 출력에서 완료되지 않은 행동이나 대화가 있다면 그 지점부터 자연스럽게 진행한다.",
+      "PRIORITY": "system tail; assembled after packet",
+      "DUPLICATES": ["IMMERSIVE_PROSE 최근 서술의 좋은 문체와 리듬은 이어받되"],
+      "CONFLICTS": ["CURRENT_USER newest-state wrapper", "NARRATIVE POV ABSOLUTE switch"]
+    },
+    {
+      "CONCEPT": "scene continuity",
+      "OWNER": "extractHandoffContinuityFromAssistantText + renderSceneContinuityPacket",
+      "FILE": "src/lib/adultSceneRouting.ts",
+      "FUNCTION": "extractHandoffContinuityFromAssistantText",
+      "MESSAGE_ROLE": "system",
+      "EXACT_TEXT": "location=벽면의 안내판을 훑고 지나갔다; unfinishedAction=이 기묘한 침묵과 편안함을…; currentSpeechState=같이 갈래?",
+      "PRIORITY": "injected as [SceneContinuityPacket — 비공개 라우팅 문맥] immediately before handoff continuation",
+      "DUPLICATES": ["HANDOFF unfinished-action line"],
+      "CONFLICTS": ["CURRENT_USER final state"]
+    },
+    {
+      "CONCEPT": "user agency",
+      "OWNER": "COLLABORATIVE_INTERACTIVE_OWNER_BLOCK",
+      "FILE": "src/lib/noGodmodding.ts",
+      "FUNCTION": "buildCompactNoGodmoddingStandardBlock",
+      "MESSAGE_ROLE": "system",
+      "EXACT_TEXT": "[B]의 새로운 직접 대사, 중요한 선택·동의·거절, 관계·목표·소속·정체성을 바꾸는 결정은 대신 확정하지 않는다.\n현재 입력과 정본에 모순되지 않는 짧은 표정·시선·비자발적 반응, 이미 시작한 행동의 자연스러운 마무리, 사소한 이동·접촉·물건 수취·일상 행동은 공동 서술할 수 있다.\n[A]는 수동적으로 기다리기만 하지 않고 자신의 성격과 현재 상황에 맞는 대사·행동·접촉·제안을 능동적으로 수행한다.",
+      "PRIORITY": "single standard user-control owner",
+      "DUPLICATES": ["CURRENT_USER_WRAPPER minor-movement sentence"],
+      "CONFLICTS": ["intended STANDARD contract: no NEW deliberate [B] actions"]
+    },
+    {
+      "CONCEPT": "user agency",
+      "OWNER": "buildIdentityPreamble standard path",
+      "FILE": "src/lib/corePrompt.ts",
+      "FUNCTION": "buildIdentityPreamble",
+      "MESSAGE_ROLE": "system",
+      "EXACT_TEXT": "[USER_PERSONA] describes [B] — involuntary physiological cues OK; voluntary dialogue/action/emotion forbidden per [NO GODMODDING].",
+      "PRIORITY": "identity block",
+      "DUPLICATES": ["USER_CONTROL"],
+      "CONFLICTS": ["USER_CONTROL / wrapper allow 사소한 이동·접촉; ROLE cites [NO GODMODDING] but injected title is USER CONTROL"]
+    },
+    {
+      "CONCEPT": "user agency",
+      "OWNER": "CURRENT USER collaborative wrapper",
+      "FILE": "src/lib/currentUserInputLabel.ts",
+      "FUNCTION": "buildCollaborativeInteractiveWrapper",
+      "MESSAGE_ROLE": "user (last)",
+      "EXACT_TEXT": "[B]'s new dialogue, consequential choices, consent/refusal, and decisions that change relationship, goal, affiliation, or identity remain user-authored.\nMinor reversible expression, gaze, involuntary reaction, natural completion of an already-started action, and small movement/contact/object-handling/daily continuity may be co-narrated when consistent with [USER CONTROL — COLLABORATIVE INTERACTIVE].",
+      "PRIORITY": "last user message",
+      "DUPLICATES": ["COLLABORATIVE_INTERACTIVE_OWNER_BLOCK"],
+      "CONFLICTS": ["IDENTITY preamble voluntary action forbidden"]
+    },
+    {
+      "CONCEPT": "co-narration",
+      "OWNER": "USER_COAUTHOR_MODE OFF (no coauthor owner injected)",
+      "FILE": "src/lib/noGodmodding.ts",
+      "FUNCTION": "resolveNoGodmoddingMode → standard",
+      "MESSAGE_ROLE": "absent",
+      "EXACT_TEXT": "CURRENT_INPUT_OVERRIDES_PRIOR_ASSISTANT_LINE is only inside buildUserCoauthorOwnerBlock — not on this STANDARD/OFF path.",
+      "PRIORITY": "not present",
+      "DUPLICATES": [],
+      "CONFLICTS": ["handoff previous-assistant continuity has no current-input override sibling on this path"]
+    },
+    {
+      "CONCEPT": "POV",
+      "OWNER": "NARRATIVE POV OWNER: THIRD PERSON",
+      "FILE": "src/lib (narrative POV owner block in assembled system)",
+      "FUNCTION": "narrative POV injection in context build",
+      "MESSAGE_ROLE": "system",
+      "EXACT_TEXT": "이 응답부터 직전 AI 본문의 시점과 무관하게 지문·감각·내면을 자연스러운 3인칭 소설형으로 전환한다.",
+      "PRIORITY": "marked ABSOLUTE",
+      "DUPLICATES": [],
+      "CONFLICTS": ["HANDOFF 직전 출력의 시점 … 최대한 유지"]
+    },
+    {
+      "CONCEPT": "paragraph layout",
+      "OWNER": "buildWebnovelOutputLayoutRecencyBlock + buildCompactTerminalLayoutRecencyLine",
+      "FILE": "src/lib/webnovelOutputFormat.ts",
+      "FUNCTION": "buildWebnovelOutputLayoutRecencyBlock / buildCompactTerminalLayoutRecencyLine",
+      "MESSAGE_ROLE": "system + user tail",
+      "EXACT_TEXT": "[OUTPUT LAYOUT] … / 레이아웃: 지문과 \"…\" 대사 사이 빈 줄(\\n\\n) 필수",
+      "PRIORITY": "system recency + user-tail echo",
+      "DUPLICATES": ["DEEPSEEK_BOTTOM_REMINDER paragraph guidance"],
+      "CONFLICTS": []
+    },
+    {
+      "CONCEPT": "speech/register",
+      "OWNER": "SPEECH METADATA + NARRATION REGISTER",
+      "FILE": "src/lib/runtimePromptContaminationGuard.ts / narration register owner",
+      "FUNCTION": "buildRuntimePromptContaminationGuardBlock",
+      "MESSAGE_ROLE": "system",
+      "EXACT_TEXT": "말투·존댓말·register·tone·어조는 대사 \"…\" 생성에만 적용한다. / 지문·서술은 해체(-다/-했다)만.",
+      "PRIORITY": "system",
+      "DUPLICATES": ["DEEPSEEK_BOTTOM_REMINDER 지문은 -다/-했다체"],
+      "CONFLICTS": []
+    },
+    {
+      "CONCEPT": "style/prose",
+      "OWNER": "IMMERSIVE_PROSE_BLOCK",
+      "FILE": "src/lib/advancedProseNsfwGuidelines.ts",
+      "FUNCTION": "IMMERSIVE_PROSE_BLOCK",
+      "MESSAGE_ROLE": "system",
+      "EXACT_TEXT": "최근 서술의 좋은 문체와 리듬은 이어받되, 이전 답변의 길이는 모방하지 않는다. 현재 길이 지시가 항상 우선한다.",
+      "PRIORITY": "system prose cluster",
+      "DUPLICATES": ["HANDOFF style copy", "RHYTHM", "SENSATION"],
+      "CONFLICTS": ["HANDOFF 최대한 유지 can include Gemini factual errors"]
+    },
+    {
+      "CONCEPT": "scene flow",
+      "OWNER": "SCENE_FLOW_BLOCK",
+      "FILE": "src/lib/generationProcessBeatFlow.ts",
+      "FUNCTION": "SCENE_FLOW_BLOCK",
+      "MESSAGE_ROLE": "system",
+      "EXACT_TEXT": "평온한 장면도 짧게 요약하지 않고 인물·관계·대화·내면·분위기·주변 상황의 변화로 전개한다.",
+      "PRIORITY": "system",
+      "DUPLICATES": ["LENGTH_OWNER 충분히 전개", "IMMERSIVE_PROSE"],
+      "CONFLICTS": ["CURRENT_USER continue the already-changed intimate beat; can license new world motion (patrol/CCTV)"]
+    },
+    {
+      "CONCEPT": "length",
+      "OWNER": "USER_TAIL_LENGTH_OWNER_SENTENCE",
+      "FILE": "src/lib/responseLength.ts",
+      "FUNCTION": "USER_TAIL_LENGTH_OWNER_SENTENCE",
+      "MESSAGE_ROLE": "user (tail)",
+      "EXACT_TEXT": "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다.",
+      "PRIORITY": "user-tail single length owner",
+      "DUPLICATES": ["SCENE_FLOW", "IMMERSIVE_PROSE"],
+      "CONFLICTS": []
+    },
+    {
+      "CONCEPT": "canon priority",
+      "OWNER": "buildCanonScopeKnowledgeBlock",
+      "FILE": "src/lib/staticSystemRulesCanon.ts",
+      "FUNCTION": "buildCanonScopeKnowledgeBlock",
+      "MESSAGE_ROLE": "system (head)",
+      "EXACT_TEXT": "1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDARY] (절대 유지 …)\n우선순위: CHARACTER CANON > 관찰된 대화 > WORLD CANON > SCENARIO META.",
+      "PRIORITY": "system head; handoff also says 공통 시스템 프롬프트, 캐릭터 설정 … 을 직전 출력의 우연한 오류보다 우선한다",
+      "DUPLICATES": ["HANDOFF canon-outranks-prior-error line"],
+      "CONFLICTS": ["HANDOFF 감정 표현 방식 최대한 유지", "inactive outfit variants all visible"]
+    },
+    {
+      "CONCEPT": "output hygiene",
+      "OWNER": "buildRuntimePromptContaminationGuardBlock",
+      "FILE": "src/lib/runtimePromptContaminationGuard.ts",
+      "FUNCTION": "buildRuntimePromptContaminationGuardBlock",
+      "MESSAGE_ROLE": "system",
+      "EXACT_TEXT": "[PRIVATE OUTPUT HYGIENE] … Qwen/DeepSeek 보강: 내부 규칙, snake_case, 상태/기억/트리거 형식은 절대 본문이 아니다.",
+      "PRIORITY": "system",
+      "DUPLICATES": ["NO_STAGE_DIRECTIONS", "HANDOFF 내부 모델 전환 … 언급하지 않는다"],
+      "CONFLICTS": []
+    },
+    {
+      "CONCEPT": "current-user parse labels",
+      "OWNER": "formatUserMessageForPrompt / parseUserMessageParts",
+      "FILE": "src/lib/userActionThoughtRules.ts + src/lib/userMessageParse.ts",
+      "FUNCTION": "formatUserMessageForPrompt",
+      "MESSAGE_ROLE": "user (last)",
+      "EXACT_TEXT": "[유저 대사]\\n문을 닫고 가까이 다가온다.합의된 성인 장면을 이어간다.\\n[유저 지문/행동 — 캐릭터가 관찰 가능]\\n옷을 천천히 벗기며 키스한다.",
+      "PRIORITY": "inside last user message",
+      "DUPLICATES": [],
+      "CONFLICTS": ["first two sentences are actions, labeled 대사 — does not drop them, but mis-labels authority type"]
+    }
+  ]
+}

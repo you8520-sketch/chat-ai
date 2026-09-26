@@ -1,0 +1,58 @@
+{
+  "report": {
+    "MIN_CHARS": 0,
+    "AVG_CHARS": 2104,
+    "MAX_CHARS": 3222,
+    "COUNT_GE_2700": 2,
+    "COUNT_GE_3200": 1,
+    "HANDOFF_LENGTH_FLOOR_STABLE": false,
+    "PRIMARY_REFUSAL_VISIBLE": false,
+    "DEEPSEEK_CALLS_PER_LOGICAL_TURN": 1,
+    "VISIBLE_ASSISTANT_RESPONSES_PER_TURN": "H1/H2=1; H3=0 (stream terminated)",
+    "BILLING_DEDUCTIONS_PER_TURN": 0,
+    "BILLING_ISOLATION": true,
+    "NEXT_TURN_MODEL": "gemini-3.7-flash",
+    "DEEPSEEK_STICKY": false,
+    "TOTAL_REAL_DEEPSEEK_CALLS": 3,
+    "RETRIES": 0,
+    "CONTINUATIONS": 0,
+    "QUALITY_SCORE_ASSIGNED": false,
+    "HUMAN_RAW_REVIEW_REQUIRED": true,
+    "SOURCE_PRODUCTION_BEHAVIOR_CHANGED": false,
+    "H3_STREAM_TERMINATED": true
+  },
+  "results": [
+    {
+      "KEY": "H1",
+      "VISIBLE_CHARS_WITH_SPACES": 3222,
+      "GE_2700": true,
+      "GE_3200": true,
+      "OUTPUT_TOKENS": 2569,
+      "REASONING_STREAM_EVENTS": 0,
+      "TOTAL_LATENCY_MS": 67841,
+      "FINISH_REASON": "stop"
+    },
+    {
+      "KEY": "H2",
+      "VISIBLE_CHARS_WITH_SPACES": 3090,
+      "GE_2700": true,
+      "GE_3200": false,
+      "OUTPUT_TOKENS": 2473,
+      "REASONING_STREAM_EVENTS": 0,
+      "TOTAL_LATENCY_MS": 61214,
+      "FINISH_REASON": "stop"
+    },
+    {
+      "KEY": "H3",
+      "VISIBLE_CHARS_WITH_SPACES": 0,
+      "GE_2700": false,
+      "GE_3200": false,
+      "OUTPUT_TOKENS": null,
+      "REASONING_STREAM_EVENTS": 0,
+      "TOTAL_LATENCY_MS": 50788,
+      "FINISH_REASON": null,
+      "STREAM_TERMINATED": true,
+      "ERROR": "UND_ERR_SOCKET other side closed"
+    }
+  ]
+}
