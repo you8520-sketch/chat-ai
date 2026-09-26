@@ -55,7 +55,10 @@ function assertPublishableAssets(assets: unknown[]): void {
     if (typeof row.url !== "string" || !row.url.trim()) {
       throw new OfficialSupplyGateError("publish_asset_invalid", "asset url missing");
     }
-    if (row.moderationStatus === "hard_reject" || row.moderation_status === "hard_reject") {
+    // Canonical CharacterAsset hard-reject field. Staging persists this exact
+    // boolean via canonicalAssetModerationFields(); do not invent a second
+    // moderation-status vocabulary at publish time.
+    if (row.moderationReject === true) {
       throw new OfficialSupplyGateError("publish_moderation_reject", "hard-rejected asset blocks publish");
     }
   }
