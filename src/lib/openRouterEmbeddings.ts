@@ -119,6 +119,12 @@ export async function callOpenRouterEmbeddings(opts: {
   timeoutMs: number;
   /** Null skips ledger recording (wire-contract tests); omitted records canonically. */
   ledger?: OpenRouterEmbeddingsLedgerOptions | null;
+  /**
+   * Explicit credential supplied by a benchmark-only credential owner. This
+   * transport never reads benchmark env vars; without it the canonical
+   * production resolver is used. Production callers never pass it.
+   */
+  apiKey?: string;
 }): Promise<{ vectors: number[][]; usage: OpenRouterEmbeddingsUsage; responseModel: string }> {
   const { model, inputs, dimensions, requestKind } = opts;
   if (
@@ -137,7 +143,7 @@ export async function callOpenRouterEmbeddings(opts: {
 
   let key: string;
   try {
-    key = resolveOpenRouterApiKey();
+    key = opts.apiKey?.trim() || resolveOpenRouterApiKey();
   } catch {
     throw new OpenRouterEmbeddingsError({
       message: "[openrouter-embeddings] OPENROUTER_API_KEY is not configured",
