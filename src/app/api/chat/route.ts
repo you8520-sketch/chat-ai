@@ -506,6 +506,7 @@ import {
   logStatusMemoryPipelineDev,
   summarizeEpisodicFactPersistCandidates,
 } from "@/lib/episodicMemoryFacts";
+import { resolveEpisodicSemanticQuery } from "@/lib/memory/memory-episodic-semantic-jobs";
 import { stripExtractedFactsForClient } from "@/lib/statusWidget/parseValues";
 import {
   buildTriggeredScenarioEventsPromptBlock,
@@ -1871,12 +1872,14 @@ export async function POST(req: Request) {
   ]
     .filter(Boolean)
     .join("\n");
+  const episodicSemantic = await resolveEpisodicSemanticQuery({ query: policyUserMessage });
   const episodicMemory = getEpisodicMemoryForPrompt(db, {
     chatId: chat.id,
     characterId: ch.id,
     userId: user.id,
     currentTurn: memorySourceEligibleCompletedTurns + 1,
     currentUserMessage: policyUserMessage,
+    semanticQuery: episodicSemantic.query,
     recentChatText: recentChatTextForEpisodicMemory,
     longTermMemoryText: memoryFeatureOn
       ? [memoryInjection.text, memoryInjection.archiveText].filter(Boolean).join("\n")
