@@ -814,6 +814,15 @@ export function validateCharacterBible(
   }
   const npcs = bible.npcs ?? [];
   if (npcs.length > 3) errors.push(err("bible_npc_count", `at most 3 supporting NPCs, got ${npcs.length}`));
+  const PLACEHOLDERS = new Set(["이름", "역할", "외모", "말투", "성격", "관계", "대사1", "예시"]);
+  for (const npc of npcs) {
+    if (PLACEHOLDERS.has(npc.name.trim()) || PLACEHOLDERS.has(npc.role.trim())) {
+      errors.push(err("bible_npc_placeholder", `NPC ${npc.name || "?"} keeps skeleton placeholder text`));
+    }
+  }
+  if ((bible.speech.examples ?? "").includes("대사1")) {
+    errors.push(err("bible_speech_placeholder", "speech.examples keeps skeleton placeholder text"));
+  }
 
   if (opts.adultExpected !== bible.nsfw) {
     errors.push(err("bible_nsfw_mismatch", `nsfw=${bible.nsfw}, manifest expects ${opts.adultExpected}`));

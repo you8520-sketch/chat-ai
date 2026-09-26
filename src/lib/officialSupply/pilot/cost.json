@@ -1,10 +1,10 @@
 {
-  "calls": 9,
-  "inputTokens": 5654,
-  "outputTokens": 31913,
-  "costUsd": 0.030355,
-  "failures": 0,
-  "retries": 0,
+  "calls": 12,
+  "inputTokens": 10196,
+  "outputTokens": 39436,
+  "costUsd": 0.034033,
+  "failures": 2,
+  "retries": 6,
   "lines": [
     {
       "task": "world_bible",
@@ -94,6 +94,36 @@
       "outputTokens": 2531,
       "costUsd": 0.007062,
       "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-03",
+      "model": "gpt-6-luna",
+      "inputTokens": 2280,
+      "outputTokens": 3672,
+      "costUsd": 0.001802,
+      "attempts": 3,
+      "failedAttempts": 2
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-03",
+      "model": "gpt-6-luna",
+      "inputTokens": 1036,
+      "outputTokens": 1983,
+      "costUsd": 0.000952,
+      "attempts": 3,
+      "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-03",
+      "model": "gpt-6-luna",
+      "inputTokens": 1226,
+      "outputTokens": 1868,
+      "costUsd": 0.000924,
+      "attempts": 3,
       "failedAttempts": 0
     }
   ],
