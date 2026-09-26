@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { trackGracefulTask } from "@/lib/serverGracefulDrain.js";
 import {
   GeminiTrafficOverloadError,
   isTrafficOverloadSystemMessage,
@@ -6130,7 +6131,7 @@ export async function POST(req: Request) {
         emitPhaseLatencyAudit();
         safe.close(controller);
 
-        void (async () => {
+        void trackGracefulTask((async () => {
           try {
             if (!regenerateMessageId && userMessageId) {
               db.prepare("UPDATE messages SET user_message_id=? WHERE id=?").run(
@@ -6276,7 +6277,7 @@ export async function POST(req: Request) {
           } catch (e) {
             console.error("[/api/chat] 후처리 실패:", (e as Error).message);
           }
-        })();
+        })());
       } catch (e) {
         clearPartialTimer();
         stopPostprocessHeartbeat();
