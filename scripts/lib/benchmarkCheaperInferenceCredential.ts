@@ -7,6 +7,19 @@ export function resolveBenchmarkCheaperInferenceApiKey(): string | null {
   return key || null;
 }
 
+/** Resolve a live-test credential only after both global and probe-specific opt-in.
+ * Production CHEAPER_INFERENCE_API_KEY is intentionally never consulted.
+ */
+export function resolveOptInTestCheaperInferenceApiKey(
+  probeFlagEnv: string,
+  env: NodeJS.ProcessEnv = process.env
+): string | null {
+  if (env.REGULAR_TEST_REAL_PROVIDER_CALLS !== "1") return null;
+  if (env[probeFlagEnv] !== "1") return null;
+  const key = env[BENCHMARK_CHEAPER_INFERENCE_ENV]?.trim();
+  return key || null;
+}
+
 /** Exit 0 with NOT_RUN when benchmark key is absent; never reads production key. */
 export function exitIfBenchmarkCheaperInferenceApiKeyMissing(
   statusLabel = "NOT_RUN"

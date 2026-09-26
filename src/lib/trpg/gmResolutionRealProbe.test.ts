@@ -18,6 +18,7 @@ import {
 } from "./gmResolutionProbe";
 import { DEFAULT_TRPG_STAT_DEFS } from "./stats";
 import { TRPG_GM_MODEL } from "./types";
+import { resolveOptInTestCheaperInferenceApiKey } from "../../../scripts/lib/benchmarkCheaperInferenceCredential";
 
 type RealFixture = {
   id: string;
@@ -198,14 +199,15 @@ const REAL_FIXTURES: RealFixture[] = [
   },
 ];
 
-function hasRealProviderKey(): boolean {
-  return Boolean(process.env.CHEAPER_INFERENCE_API_KEY?.trim());
-}
+const REAL_TRPG_GM_PROVIDER_PROBE = "REAL_TRPG_GM_PROVIDER_PROBE";
 
 describe("TRPG GM resolution quality — real Gemini 3.7 frozen probe", { timeout: 900_000 }, () => {
   it("REAL_PROVIDER: frozen fixtures via production callTrpgGm path", async (t) => {
-    if (!hasRealProviderKey()) {
-      t.skip("CHEAPER_INFERENCE_API_KEY not configured");
+    const benchmarkKey = resolveOptInTestCheaperInferenceApiKey(REAL_TRPG_GM_PROVIDER_PROBE);
+    if (!benchmarkKey) {
+      t.skip(
+        "requires REGULAR_TEST_REAL_PROVIDER_CALLS=1 + REAL_TRPG_GM_PROVIDER_PROBE=1 + CHEAPER_INFERENCE_BENCHMARK_API_KEY"
+      );
       return;
     }
     delete process.env.MOCK_MODE;
@@ -247,6 +249,7 @@ describe("TRPG GM resolution quality — real Gemini 3.7 frozen probe", { timeou
         system: TRPG_GM_SYSTEM,
         user,
         timeoutMs: 90_000,
+        cheaperInferenceApiKeyOverride: benchmarkKey,
       });
 
       const probeInput = {
