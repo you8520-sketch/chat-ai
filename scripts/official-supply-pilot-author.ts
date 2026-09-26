@@ -209,6 +209,10 @@ async function pool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>
   return out;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function stepWorld(modelId: string, maxAttempts: number): Promise<void> {
   const report = loadCost();
   let failed = 0;
@@ -238,7 +242,14 @@ async function stepWorld(modelId: string, maxAttempts: number): Promise<void> {
     } catch (error) {
       failed += 1;
       console.warn(`[pilot] world attempt ${attempt} failed:`, (error as Error).message);
-      if (attempt === maxAttempts) throw error;
+      if (attempt === maxAttempts) {
+        writeJson(path.join(PILOT_DIR, "quarantine-world.json"), {
+          error: String((error as Error)?.message ?? error).slice(0, 1000),
+          at: new Date().toISOString(),
+        });
+        throw error;
+      }
+      await sleep(15000 * attempt);
     }
   }
 }
@@ -339,6 +350,7 @@ async function generateOneCharacter(
       failed += 1;
       lastError = error;
       console.warn(`[pilot] slot ${brief.slot} attempt ${attempt} failed:`, (error as Error).message);
+      if (attempt < maxAttempts) await sleep(10000 * attempt);
     }
   }
   writeJson(charPath(brief.slot), {

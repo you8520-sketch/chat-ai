@@ -77,6 +77,8 @@ export function buildWorldCoreUser(input: WorldBibleInput): string {
     "- powerSystem: capabilities·users·acquisition·ranks·limits·costs·socialImpact·taboos (\"마법이 있다\" 수준 금지)",
     "- society: RP에 영향을 주는 영역 3개 이상(계급·법·결혼/가족·교육·직업·군사·차별/예절 중)",
     "- culture 3~6개: 이름·상세",
+    "최상위 키는 정확히 name·genre·subgenre·tone·era·techLevel·regions·societyForm·premise·centralPremise·",
+    "situation·factions·powerSystem·society·culture 이며 하나도 빠뜨리지 않는다.",
     "지정된 필드 구조의 JSON 한 개만 출력한다.",
   ].join("\n");
 }
@@ -98,6 +100,7 @@ export function buildWorldAtlasUser(input: WorldAtlasInput): string {
     "- knowledge: common(대중 상식만, 비밀·정체·흑막·미래 표현 금지) / faction / characterLocal / authorOnly",
     "- userEntry: allowedRoles 2개 이상(귀족·고용인·방문자·계약 상대·신입 등, 단일 강제 금지) + note",
     "- lorebook: COMMON 기반 8~12개. entryKey·name(40자 이내)·keywords(2~10개)·content(800자 이내)",
+    "최상위 키는 정확히 locations·history·knowledge·userEntry·lorebook이며 하나도 빠뜨리지 않는다.",
     "지정된 필드 구조의 JSON 한 개만 출력한다.",
   ].join("\n");
 }
@@ -126,6 +129,7 @@ export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
     "냉미남·집착남·황태자·계약관계·검은머리·190cm 클론 금지. 같은 트로프 반복 금지.",
     "인기형 5 + 니치/팬덤형 3 + 실험형 2 방향. 성별·연령·신분 분산.",
     "경쟁작의 고유 명칭·문장·설정을 복제하지 않는다.",
+    "최상위 키는 정확히 portfolio 하나이며, 브리프 키도 빠뜨리지 않는다.",
     "지정된 필드 구조의 JSON 한 개만 출력한다.",
   ].join("\n");
 }
