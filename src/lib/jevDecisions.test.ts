@@ -431,7 +431,63 @@ describe("jev decisions official wire contract", () => {
     }
   });
 
-  it("C17 dated served model snapshot is accepted, array answers rejected", async () => {
+  it("C17 official request bounds reject >255 choice options, score outside 2..10 levels, and non-string state arrays", async () => {
+    const { callJevDecisions, JevDecisionsError } = await import("./jevDecisions");
+
+    const tooManyChoiceOptions = Object.fromEntries(
+      Array.from({ length: 256 }, (_, i) => [`option_${i}`, `Description ${i}`])
+    );
+    await assert.rejects(
+      () =>
+        callJevDecisions({
+          state: {},
+          questions: {
+            route: {
+              type: "choice",
+              instructions: "Choose one route.",
+              criteria: tooManyChoiceOptions,
+            },
+          },
+          ledger: null,
+        }),
+      JevDecisionsError
+    );
+
+    for (const levels of [
+      ["only-one"],
+      Array.from({ length: 11 }, (_, i) => `level-${i}`),
+    ]) {
+      await assert.rejects(
+        () =>
+          callJevDecisions({
+            state: {},
+            questions: {
+              severity: {
+                type: "score",
+                instructions: "Rate severity.",
+                criteria: levels,
+              },
+            },
+            ledger: null,
+          }),
+        JevDecisionsError
+      );
+    }
+
+    await assert.rejects(
+      () =>
+        callJevDecisions({
+          state: ["valid", { invalid: true }] as unknown as string[],
+          questions: {
+            check: { type: "noul", instructions: "Is this valid?" },
+          },
+          ledger: null,
+        }),
+      JevDecisionsError
+    );
+  });
+
+  it("C18 dated served model snapshot is accepted, array answers rejected", async () => {
     const { callJevDecisions, JevDecisionsError } = await import("./jevDecisions");
     withKey();
     try {
