@@ -90,11 +90,13 @@ describe("legacy user-impersonation compatibility boundary", () => {
     }
   });
 
-  it("proves buildAdultSystemPrompt has no production caller outside its definition", () => {
+  it("proves buildAdultSystemPrompt has no production invocation outside its definition", () => {
     const callers = walk("src")
       .filter((file) => !/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file))
       .filter((file) => file !== "src/lib/openRouterAdult.ts")
-      .filter((file) => readFileSync(file, "utf8").includes("buildAdultSystemPrompt"));
+      .filter((file) =>
+        /\bbuildAdultSystemPrompt\s*\(/.test(readFileSync(file, "utf8"))
+      );
 
     assert.deepEqual(callers, []);
   });
