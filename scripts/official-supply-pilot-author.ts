@@ -520,7 +520,12 @@ async function stepStyles(modelId: string, maxAttempts: number): Promise<void> {
     try {
       const { candidates, completion } = await generateOfficialStyleBoard({
         transport: liveOfficialAuthorTransport,
-        board: { genre: MANIFEST.genre, allowedReferenceUrls: REFERENCE_URLS, candidateCount: 4 },
+        board: {
+          genre: MANIFEST.genre,
+          styleKey: MANIFEST.styleKey,
+          allowedReferenceUrls: REFERENCE_URLS,
+          candidateCount: 4,
+        },
         modelId,
       });
       track(report, completion, "style_board", null, attempt, failed);

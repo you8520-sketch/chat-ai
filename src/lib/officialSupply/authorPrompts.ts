@@ -347,6 +347,8 @@ export function buildAssetPlanUser(input: AssetPlanInput): string {
 
 export type StyleBoardInput = {
   genre: string;
+  /** Canonical style key (e.g. romance_fantasy_v1) — from manifest/config, never hardcoded. */
+  styleKey: string;
   /** Only these URLs may appear as references (public trend observations). */
   allowedReferenceUrls: string[];
   candidateCount: number;

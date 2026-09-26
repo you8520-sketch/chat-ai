@@ -7,6 +7,7 @@ import {
 } from "@/lib/ai";
 import type Database from "better-sqlite3";
 import { isAssetPersonTag } from "@/lib/assetPersonTags";
+import { isCharacterGenre } from "@/lib/characterGenres";
 import { evaluateAppearanceLock } from "@/lib/officialSupply/appearance";
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
 import {
@@ -954,9 +955,12 @@ export async function generateOfficialStyleBoard(input: {
     throw new OfficialSupplyGateError("author_shape_invalid", "style_board: candidates array required");
   }
   const candidates = data.candidates as VisualStyleCandidate[];
+  if (!isCharacterGenre(input.board.genre)) {
+    throw new OfficialSupplyGateError("author_shape_invalid", `style_board: genre ${input.board.genre} is not canonical`);
+  }
   const qa = validateStyleProposal({
-    styleKey: "romance_fantasy_v1",
-    genre: "로맨스 판타지",
+    styleKey: input.board.styleKey,
+    genre: input.board.genre,
     candidates,
   });
   if (!qa.ok) throw new OfficialSupplyGateError("author_style_rejected", "style board failed QA", qa);

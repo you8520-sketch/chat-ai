@@ -417,12 +417,12 @@ describe("official author adapter", () => {
     });
     const ok = await generateOfficialStyleBoard({
       transport,
-      board: { genre: "로맨스 판타지", allowedReferenceUrls: [], candidateCount: 3 },
+      board: { genre: "로맨스 판타지", styleKey: "romance_fantasy_v1", allowedReferenceUrls: [], candidateCount: 3 },
     });
     assert.equal(ok.candidates.length, 3);
     const bad = fakeTransport({ style_board: { candidates: ["only"].map(testStyleCandidate) } });
     await assert.rejects(
-      generateOfficialStyleBoard({ transport: bad, board: { genre: "로맨스 판타지", allowedReferenceUrls: [], candidateCount: 1 } }),
+      generateOfficialStyleBoard({ transport: bad, board: { genre: "로맨스 판타지", styleKey: "romance_fantasy_v1", allowedReferenceUrls: [], candidateCount: 1 } }),
       (e: unknown) => e instanceof OfficialSupplyGateError
     );
   });
