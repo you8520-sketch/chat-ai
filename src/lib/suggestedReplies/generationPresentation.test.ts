@@ -117,7 +117,6 @@ describe("suggested replies generation vs presentation", () => {
           extractedAt: new Date().toISOString(),
           source: "post-turn-shared",
           pending: false,
-          failed: false,
           generationSequence: scope.generationSequence,
           generationRequestId: scope.generationRequestId,
         }),
@@ -164,7 +163,6 @@ describe("suggested replies generation vs presentation", () => {
           extractedAt: new Date().toISOString(),
           source: "post-turn-shared",
           pending: false,
-          failed: false,
           generationSequence: scope.generationSequence,
           generationRequestId: scope.generationRequestId,
         }),
@@ -183,7 +181,6 @@ describe("suggested replies generation vs presentation", () => {
       extractedAt: new Date().toISOString(),
       source: "post-turn-shared",
       pending: false,
-      failed: false,
       generationSequence: 0,
       generationRequestId: "req-v0",
     });
@@ -277,8 +274,7 @@ describe("suggested replies generation vs presentation", () => {
         extractedAt: new Date().toISOString(),
         source: "post-turn-shared",
         pending: false,
-        failed: false,
-        generationSequence: 1,
+          generationSequence: 1,
         generationRequestId: "req-v1",
       }),
     };
