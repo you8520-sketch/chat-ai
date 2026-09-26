@@ -1,8 +1,8 @@
 {
-  "calls": 51,
-  "inputTokens": 59715,
-  "outputTokens": 114218,
-  "costUsd": 0.064058,
+  "calls": 53,
+  "inputTokens": 61852,
+  "outputTokens": 118380,
+  "costUsd": 0.0657,
   "failures": 20,
   "retries": 34,
   "lines": [
@@ -515,6 +515,26 @@
       "costUsd": 0.000674,
       "attempts": 3,
       "failedAttempts": 2
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "model": "gpt-6-luna",
+      "inputTokens": 1070,
+      "outputTokens": 1981,
+      "costUsd": 0.000786,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-01",
+      "model": "gpt-6-luna",
+      "inputTokens": 1067,
+      "outputTokens": 2181,
+      "costUsd": 0.000856,
+      "attempts": 1,
+      "failedAttempts": 0
     }
   ],
   "imageCalls": 0
