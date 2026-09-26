@@ -4668,6 +4668,21 @@ export default function ChatClient({
         : editDraft.trim();
     const userText = editUserDraft.trim();
     const turnEdit = editingRole === "assistant" && editingUserId != null;
+    const resolveSuggestedReplyInvalidationIds = (payload: unknown): Set<number> => {
+      if (!payload || typeof payload !== "object") return new Set<number>();
+      const raw = (payload as { suggestedRepliesInvalidatedAssistantMessageIds?: unknown })
+        .suggestedRepliesInvalidatedAssistantMessageIds;
+      if (!Array.isArray(raw)) return new Set<number>();
+      return new Set(
+        raw.filter(
+          (value): value is number =>
+            typeof value === "number" && Number.isInteger(value) && value > 0
+        )
+      );
+    };
+    const clearInvalidatedSuggestedReplyPolls = (ids: Set<number>) => {
+      for (const id of ids) suggestedRepliesPollStartedRef.current.delete(id);
+    };
 
     if (turnEdit) {
       if (!userText) {
@@ -4706,8 +4721,17 @@ export default function ChatClient({
           setToastMsg(userData.error || "유저 입력 수정에 실패했습니다.");
           return;
         }
+        const userInvalidatedSuggestedReplyIds =
+          resolveSuggestedReplyInvalidationIds(userData);
+        clearInvalidatedSuggestedReplyPolls(userInvalidatedSuggestedReplyIds);
         setMessages((prev) =>
-          prev.map((m) => (m.id === editingUserId ? { ...m, content: userData.content } : m))
+          prev.map((m) => {
+            const edited =
+              m.id === editingUserId ? { ...m, content: userData.content } : m;
+            return m.id != null && userInvalidatedSuggestedReplyIds.has(m.id)
+              ? { ...edited, ...EMPTY_SUGGESTED_REPLIES_CLIENT }
+              : edited;
+          })
         );
       }
 
@@ -4732,23 +4756,30 @@ export default function ChatClient({
         setToastMsg(data.error || "수정에 실패했습니다.");
         return;
       }
+      const invalidatedSuggestedReplyIds =
+        resolveSuggestedReplyInvalidationIds(data);
+      clearInvalidatedSuggestedReplyPolls(invalidatedSuggestedReplyIds);
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? {
-                ...m,
-                content: data.content,
-                variants: Array.isArray(data.variants) ? data.variants : undefined,
-                activeVariant:
-                  typeof data.activeVariant === "number" ? data.activeVariant : undefined,
-                variantCount:
-                  typeof data.variantCount === "number" ? data.variantCount : undefined,
-                ...(data.statusWidgetValues != null
-                  ? { statusWidgetValues: data.statusWidgetValues }
-                  : {}),
-              }
-            : m
-        )
+        prev.map((m) => {
+          const edited =
+            m.id === messageId
+              ? {
+                  ...m,
+                  content: data.content,
+                  variants: Array.isArray(data.variants) ? data.variants : undefined,
+                  activeVariant:
+                    typeof data.activeVariant === "number" ? data.activeVariant : undefined,
+                  variantCount:
+                    typeof data.variantCount === "number" ? data.variantCount : undefined,
+                  ...(data.statusWidgetValues != null
+                    ? { statusWidgetValues: data.statusWidgetValues }
+                    : {}),
+                }
+              : m;
+          return m.id != null && invalidatedSuggestedReplyIds.has(m.id)
+            ? { ...edited, ...EMPTY_SUGGESTED_REPLIES_CLIENT }
+            : edited;
+        })
       );
       cancelEdit();
     } catch {
