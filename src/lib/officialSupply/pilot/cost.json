@@ -1,8 +1,8 @@
 {
-  "calls": 33,
-  "inputTokens": 42868,
-  "outputTokens": 94544,
-  "costUsd": 0.055944999999999995,
+  "calls": 43,
+  "inputTokens": 52377,
+  "outputTokens": 99775,
+  "costUsd": 0.058492999999999996,
   "failures": 7,
   "retries": 21,
   "lines": [
@@ -334,6 +334,106 @@
       "outputTokens": 1781,
       "costUsd": 0.000731,
       "attempts": 5,
+      "failedAttempts": 0
+    },
+    {
+      "task": "appearance",
+      "draftKey": "pilot-rf-01",
+      "model": "gpt-6-luna",
+      "inputTokens": 675,
+      "outputTokens": 495,
+      "costUsd": 0.00022,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "appearance",
+      "draftKey": "pilot-rf-02",
+      "model": "gpt-6-luna",
+      "inputTokens": 833,
+      "outputTokens": 524,
+      "costUsd": 0.000241,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "appearance",
+      "draftKey": "pilot-rf-03",
+      "model": "gpt-6-luna",
+      "inputTokens": 830,
+      "outputTokens": 579,
+      "costUsd": 0.00026,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "appearance",
+      "draftKey": "pilot-rf-04",
+      "model": "gpt-6-luna",
+      "inputTokens": 803,
+      "outputTokens": 453,
+      "costUsd": 0.000214,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "appearance",
+      "draftKey": "pilot-rf-05",
+      "model": "gpt-6-luna",
+      "inputTokens": 1015,
+      "outputTokens": 598,
+      "costUsd": 0.00028,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "appearance",
+      "draftKey": "pilot-rf-06",
+      "model": "gpt-6-luna",
+      "inputTokens": 1018,
+      "outputTokens": 564,
+      "costUsd": 0.000268,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "appearance",
+      "draftKey": "pilot-rf-07",
+      "model": "gpt-6-luna",
+      "inputTokens": 1017,
+      "outputTokens": 562,
+      "costUsd": 0.000267,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "appearance",
+      "draftKey": "pilot-rf-08",
+      "model": "gpt-6-luna",
+      "inputTokens": 1108,
+      "outputTokens": 573,
+      "costUsd": 0.000297,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "appearance",
+      "draftKey": "pilot-rf-09",
+      "model": "gpt-6-luna",
+      "inputTokens": 1032,
+      "outputTokens": 406,
+      "costUsd": 0.000232,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "appearance",
+      "draftKey": "pilot-rf-10",
+      "model": "gpt-6-luna",
+      "inputTokens": 1178,
+      "outputTokens": 477,
+      "costUsd": 0.000269,
+      "attempts": 1,
       "failedAttempts": 0
     }
   ],
