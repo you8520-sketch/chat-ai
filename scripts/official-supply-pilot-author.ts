@@ -300,7 +300,7 @@ async function generateOneCharacter(
           age: brief.age,
           adultCandidate: brief.adultCandidate,
           speechDirection: brief.speechDirection,
-          npcDemand: "브리프 지정 없음. 필요한 경우만 1~2명.",
+          npcDemand: "특별한 이유가 없으면 1~2명을 만든다. 0명은 기존 관계망만으로 충분할 때만 허용.",
           feedback,
         },
         bonds: {
