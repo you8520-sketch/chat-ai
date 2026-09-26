@@ -35,7 +35,6 @@ function userPersonaSpeechTail(_persona: string, usesBanmal: boolean): string {
 }
 
 import { estimateTokens } from "@/lib/tokenEstimate";
-import { buildCompactTerminalLengthAbsoluteTail } from "@/lib/responseLength";
 
 /** 재생성 rejected draft — full-text mode only (REGENERATE_FULL_REJECTED_DRAFT=1) */
 export const REGENERATE_REJECTED_DRAFT_MIN_CHARS = 2000;
@@ -229,12 +228,6 @@ export function buildRegenerateDivergeAxisLine(regenAttemptId?: string | null): 
   return `\n[REGEN DIVERGE AXIS]\n- ${axis}`;
 }
 
-/** regen user 턴 — diverge가 길이 축소 변명이 되지 않도록 1줄 recency */
-export function buildRegenerateLengthRecencyLine(targetResponseChars?: number | null): string {
-  const tier = buildCompactTerminalLengthAbsoluteTail(targetResponseChars);
-  return `- Divergence is NOT an excuse for a shorter reply — same length tier as a normal turn (${tier}).`;
-}
-
 /** @deprecated use buildRegenerateDivergenceReferenceBlock */
 export function buildRegenerateRejectedDraftBlock(rejectedAssistantDraft?: string | null): string {
   return buildRegenerateDivergenceReferenceBlock(rejectedAssistantDraft);
@@ -385,9 +378,8 @@ export function buildContinueNarrativeCommand(input: ContinueNarrativeCommandInp
 - The user clicked Continue / auto-advance.
 - There is no new explicit user dialogue or action.
 ${sceneAnchor}
-- Advance through [AI_CAST], NPCs, environment, consequences, clues, schedules, or world events. Multiple AI-controlled characters may speak and act; focalization may shift between them at clear boundaries — never to [B] inner POV.
+- Advance through [AI_CAST], NPCs, environment, consequences, clues, schedules, or world events. Multiple AI-controlled characters may speak and act; focalization may shift between them at clear boundaries.
 - ${AUTO_PROGRESSION_SHORT_REF}
-- Do not narrate [B]'s inner thoughts, emotional conclusions, desires, memories, self-realizations, or major decisions.
 ${resumeAfterOoc ? `\n${resumeAfterOoc}\n` : ""}
 [STRICT ANTI-REPETITION RULE]
 - Do not repeat or paraphrase ${antiRepeatTarget}.
@@ -399,12 +391,15 @@ export type RegenerateUserPromptInput = {
   personaName: string;
   charName?: string;
   usesBanmal?: boolean;
-  /** 유저 사칭(co-narration) ON일 때만 유저 말투 규칙 주입 — OFF면 [NO GODMODDING]과 충돌 */
+  /** Any effective [B] co-authoring capability is active. */
   coNarrationEnabled?: boolean;
+  /** Effective owner specifically allows NEW [B] quoted dialogue. */
+  userDialogueAllowed?: boolean;
   /** 리롤 대상 assistant 초안 — 전개 diverge 참고 (히스토리에서 제거됨) */
   rejectedAssistantDraft?: string | null;
   /** 재생성마다 달라지는 nonce — 동일 프롬프트 캐시·결정론적 재출력 방지 */
   regenAttemptId?: string | null;
+  /** @deprecated Ignored here. Response length is owned by the canonical user-tail length owner. */
   targetResponseChars?: number | null;
 };
 
@@ -445,15 +440,20 @@ export function buildRegenerateUserPrompt(input: RegenerateUserPromptInput): str
 
   // 유저 말투 규칙은 co-narration ON일 때만 — OFF에서 주입하면
   // "[B] 대사를 쓰라"는 신호가 되어 [NO GODMODDING]과 충돌한다.
-  const speechTail = input.coNarrationEnabled
+  const userDialogueAllowed =
+    input.userDialogueAllowed ?? input.coNarrationEnabled === true;
+  const speechTail = userDialogueAllowed
     ? `\n${userPersonaSpeechTail(input.personaName, !!input.usesBanmal)}`
     : "";
+
+  const userAuthoringLine = input.coNarrationEnabled
+    ? "- Keep the user anchor fixed. Any NEW [B] dialogue/action/inner narration must stay inside [USER AUTHORING — EFFECTIVE COAUTHOR POLICY]; this regenerate tail does not widen or narrow that scope."
+    : "- Do NOT write new quoted dialogue for [B] unless it already appears verbatim in the user message below.";
 
   return `[SYSTEM: REGENERATE — rewrite ONLY the last assistant message]
 - Obey [REGENERATE — MANDATORY DIVERGENCE] in system prompt — user wants visibly different development, not a paraphrase.
 - Do NOT change what the user said or meant in the anchor below.
-- Do NOT write new quoted dialogue for [B] unless it already appears verbatim in the user message below.
-${buildRegenerateLengthRecencyLine(input.targetResponseChars)}${speechTail}
+${userAuthoringLine}${speechTail}
 
 [User message — fixed anchor, not dialogue to rewrite]
 ${msg}`;

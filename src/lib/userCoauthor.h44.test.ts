@@ -236,12 +236,12 @@ describe("H4.4 T1–T10 regressions", () => {
     assert.equal(afterToggle, "FULL");
   });
 
-  it("T7 — fork after toggle inherits FULL", () => {
+  it("T7 — fork after 소설처럼 grant inherits NOVEL", () => {
     const parent = [
       "OOC: 유저 페르소나까지 소설처럼 같이 진행해줘.",
       "계속해.",
     ];
-    assert.equal(recomputeUserCoauthorModeFromUserMessages(parent), "FULL");
+    assert.equal(recomputeUserCoauthorModeFromUserMessages(parent), "NOVEL");
   });
 
   it("T8 — edit/delete of mode-changing OOC does not leave stale state", () => {
@@ -343,7 +343,7 @@ describe("H4.4 prompt owners stay mutually exclusive", () => {
     const wrapped = wrapCurrentUserInput("안녕.", { mode: "interactive" });
     assert.equal(
       sha(wrapped),
-      "1f3e645d965bcefb7cf47bd1ec2774e97408e990c6c4cd952572d509ac83369f"
+      "14a2e12f3f3b7471c0110aae146c8a3435b8a10f4fb0e1cf1c7056836f587729"
     );
     assert.doesNotMatch(wrapped, /Earlier assistant-authored \[B\] content is scene history only/);
     assert.doesNotMatch(wrapped, /previous user-authoring permission was explicitly limited/);
@@ -381,6 +381,30 @@ describe("H4.4 prompt owners stay mutually exclusive", () => {
     assert.doesNotMatch(persistent, /INTERACTIVE USER OWNERSHIP — ABSOLUTE/);
   });
 
+  it("AI-cast-only ALLOW owner keeps B limited without disabling irreversible AI-cast progression", () => {
+    const owner = buildNoGodmoddingBlock("", "", "currentTurnDelegated", {
+      currentTurnDelegation: {
+        active: false,
+        allowDialogue: false,
+        allowMajorActions: false,
+        allowInnerPov: false,
+        allowIrreversibleFate: false,
+        allowAiCastIrreversibleExpansion: true,
+        source: "explicit_ooc",
+        duration: "persistent",
+      },
+    });
+    assert.match(owner, /현재 \[B\] 직접 공동서술은 제한되어 있다/);
+    assert.match(owner, /현재 \[B\] 집필 권한은 제한 상태다/);
+    assert.match(owner, /빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있고/);
+    assert.match(owner, /결혼·영구 이별·배신·조직 탈퇴·사망·능력 상실/);
+    assert.doesNotMatch(owner, /사용자가 유저 페르소나 공동 서술을 켜 두었다/);
+    assert.equal(
+      (owner.match(/빈 과거·비밀을 창작해 해당 branch의 사실로 발전시킬 수 있고/g) ?? []).length,
+      1
+    );
+  });
+
   it("buildContext persistent next turn uses one COAUTHOR owner and no STANDARD owner", () => {
     const built = buildContext({
       charName: "테스트_AI_캐릭터",
@@ -408,7 +432,7 @@ describe("H4.4 prompt owners stay mutually exclusive", () => {
     assert.match(built.systemPrompt, new RegExp(CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE.replace(/[[\]]/g, "\\$&")));
     assert.doesNotMatch(built.systemPrompt, /\[USER CONTROL — COLLABORATIVE INTERACTIVE\]/);
     const last = built.history[built.history.length - 1]?.content ?? "";
-    assert.match(last, /ongoing persona co-authoring until revoked/);
+    assert.match(last, /ongoing OOC authoring override until it is changed or revoked/);
     assert.doesNotMatch(last, /Earlier assistant-authored \[B\] content is scene history only/);
     assert.doesNotMatch(last, /POST-DELEGATION RESTORED/);
   });
@@ -445,7 +469,7 @@ describe("H4.4 prompt owners stay mutually exclusive", () => {
     assert.doesNotMatch(last, /POST-DELEGATION RESTORED/);
     assert.equal(
       sha(wrapCurrentUserInput("안녕.", { mode: "interactive" })),
-      "1f3e645d965bcefb7cf47bd1ec2774e97408e990c6c4cd952572d509ac83369f"
+      "14a2e12f3f3b7471c0110aae146c8a3435b8a10f4fb0e1cf1c7056836f587729"
     );
   });
 

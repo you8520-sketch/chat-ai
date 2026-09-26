@@ -1,27 +1,23 @@
 /**
- * Chat-scoped user co-authoring state.
+ * Chat-scoped effective user-authoring state.
  *
- * Normal POST runtime authority is chats.user_coauthor_mode. Historical USER
- * text is never replayed on an ordinary request.
+ * Canonical inputs:
+ * - chats.user_authoring_level = visible base preference (LIMITED/NORMAL/ALLOW)
+ * - chats.user_coauthor_mode = explicit leading-OOC persistent override
+ * - current leading OOC = current-turn or persistent override mutation
  *
- * Reconstruction (fork / user-edit / last-turn-delete / regen boundary) may
- * replay only canonical USER messages whose user_coauthor_semantics_version
- * is >= 1. Version 0 is the legacy / pre-feature epoch and is never treated
- * as a persistent coauthor directive.
+ * Ordinary POST reads the two chat columns directly; it never replays all
+ * history. Reconstruction paths (fork/edit/delete/regeneration boundary) may
+ * replay only USER messages from the current semantics epoch (version >= 2).
+ * Assistant text, memory, lorebook, and model output are never authority.
  *
- * Assistant / RAW / memory / lorebook are never authority.
+ * Persisted OFF means "inherit the visible base level". Persisted LIMITED is
+ * therefore reserved for an explicit OOC override that narrows NORMAL/ALLOW to
+ * zero co-author authority. Effective currentMode still reports OFF when no
+ * user-character authoring capability is active.
  *
- * Canonical product flow: STANDARD → explicit leading-OOC grant → persistent
- * coauthor (DIALOGUE / ACTIONS / FULL) → explicit leading-OOC revoke or scope
- * change. Exactly one primary owner per turn: STANDARD or COAUTHOR.
- *
- * TURN-ONLY classification is kept for deterministic state (a grant with
- * `이번 턴만` does not persist). There is no prompt machinery to enforce
- * next-turn expiry. After an explicit TURN-ONLY grant, server state correctly
- * returns OFF, but Gemini may stochastically continue consequential [B]
- * authorship from RAW history on the first following turn. Explicit revoke is
- * the canonical reliable reclaim mechanism. Do not advertise TURN-ONLY as a
- * guaranteed hard isolation feature.
+ * TURN-ONLY directives never mutate the persisted override. Prompt ownership is
+ * expressed once by the effective authoring owner after base + override resolve.
  */
 
 import type Database from "better-sqlite3";
@@ -36,20 +32,39 @@ import {
   type UserCoauthorDirective,
   type UserCoauthorSlotOp,
 } from "@/lib/userCoauthorDirective";
+import {
+  DEFAULT_USER_AUTHORING_LEVEL,
+  USER_AUTHORING_LEVEL_COLUMN,
+  capabilitiesFromUserAuthoringLevel,
+  parseUserAuthoringLevel,
+  type UserAuthoringCapabilities,
+  type UserAuthoringLevel,
+} from "@/lib/userAuthoringPolicy";
 
-export const USER_COAUTHOR_MODES = ["OFF", "DIALOGUE", "ACTIONS", "FULL"] as const;
+export const USER_COAUTHOR_MODES = [
+  "OFF",
+  "LIMITED",
+  "DIALOGUE",
+  "ACTIONS",
+  "FULL",
+  "NOVEL",
+  "ABSOLUTE",
+] as const;
 export type UserCoauthorMode = (typeof USER_COAUTHOR_MODES)[number];
 
 export const DEFAULT_USER_COAUTHOR_MODE: UserCoauthorMode = "OFF";
 export const USER_COAUTHOR_MODE_COLUMN = "user_coauthor_mode";
 export const USER_COAUTHOR_SEMANTICS_VERSION_COLUMN = "user_coauthor_semantics_version";
 export const LEGACY_USER_COAUTHOR_SEMANTICS_VERSION = 0;
-export const CURRENT_USER_COAUTHOR_SEMANTICS_VERSION = 1;
+export const PREVIOUS_USER_COAUTHOR_SEMANTICS_VERSION = 1;
+export const CURRENT_USER_COAUTHOR_SEMANTICS_VERSION = 2;
 
 export type UserCoauthorBooleans = {
   allowDialogue: boolean;
   allowMajorActions: boolean;
 };
+
+export type UserCoauthorCapabilities = UserAuthoringCapabilities;
 
 export type AppliedUserCoauthorDirective = {
   persistentBefore: UserCoauthorMode;
@@ -63,33 +78,138 @@ export type AppliedUserCoauthorDirective = {
 
 type CoauthorDb = Pick<Database.Database, "exec" | "prepare">;
 
-export function booleansFromUserCoauthorMode(mode: UserCoauthorMode): UserCoauthorBooleans {
-  switch (mode) {
+export function capabilitiesFromUserCoauthorMode(
+  mode: UserCoauthorMode,
+  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
+): UserCoauthorCapabilities {
+  const base = capabilitiesFromUserAuthoringLevel(baseLevel);
+  switch (parseUserCoauthorMode(mode)) {
     case "OFF":
-      return { allowDialogue: false, allowMajorActions: false };
+      return base;
+    case "LIMITED":
+      return {
+        allowDialogue: false,
+        allowMajorActions: false,
+        allowInnerPov: false,
+        allowIrreversibleFate: false,
+      };
     case "DIALOGUE":
-      return { allowDialogue: true, allowMajorActions: false };
+      return {
+        allowDialogue: true,
+        allowMajorActions: false,
+        allowInnerPov: false,
+        allowIrreversibleFate: false,
+      };
     case "ACTIONS":
-      return { allowDialogue: false, allowMajorActions: true };
+      return {
+        allowDialogue: false,
+        allowMajorActions: true,
+        allowInnerPov: false,
+        allowIrreversibleFate: false,
+      };
     case "FULL":
-      return { allowDialogue: true, allowMajorActions: true };
-    default: {
-      const _exhaustive: never = mode;
-      return _exhaustive;
-    }
+      return {
+        allowDialogue: true,
+        allowMajorActions: true,
+        allowInnerPov: false,
+        allowIrreversibleFate: false,
+      };
+    case "NOVEL":
+      return {
+        allowDialogue: true,
+        allowMajorActions: true,
+        allowInnerPov: true,
+        allowIrreversibleFate: false,
+      };
+    case "ABSOLUTE":
+      return {
+        allowDialogue: true,
+        allowMajorActions: true,
+        allowInnerPov: true,
+        allowIrreversibleFate: true,
+      };
   }
 }
 
-export function userCoauthorModeFromBooleans(flags: UserCoauthorBooleans): UserCoauthorMode {
+export function booleansFromUserCoauthorMode(
+  mode: UserCoauthorMode,
+  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
+): UserCoauthorBooleans {
+  const capabilities = capabilitiesFromUserCoauthorMode(mode, baseLevel);
+  return {
+    allowDialogue: capabilities.allowDialogue,
+    allowMajorActions: capabilities.allowMajorActions,
+  };
+}
+
+function sameCapabilities(
+  a: UserCoauthorCapabilities,
+  b: UserCoauthorCapabilities
+): boolean {
+  return (
+    a.allowDialogue === b.allowDialogue &&
+    a.allowMajorActions === b.allowMajorActions &&
+    a.allowInnerPov === b.allowInnerPov &&
+    a.allowIrreversibleFate === b.allowIrreversibleFate
+  );
+}
+
+export function effectiveUserCoauthorModeFromCapabilities(
+  flags: UserCoauthorCapabilities
+): UserCoauthorMode {
+  if (
+    flags.allowDialogue &&
+    flags.allowMajorActions &&
+    flags.allowInnerPov &&
+    flags.allowIrreversibleFate
+  ) {
+    return "ABSOLUTE";
+  }
+  if (
+    flags.allowDialogue &&
+    flags.allowMajorActions &&
+    flags.allowInnerPov
+  ) {
+    return "NOVEL";
+  }
   if (flags.allowDialogue && flags.allowMajorActions) return "FULL";
   if (flags.allowDialogue) return "DIALOGUE";
   if (flags.allowMajorActions) return "ACTIONS";
   return "OFF";
 }
 
+export function userCoauthorModeFromCapabilities(
+  flags: UserCoauthorCapabilities,
+  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
+): UserCoauthorMode {
+  const base = capabilitiesFromUserAuthoringLevel(baseLevel);
+  if (sameCapabilities(flags, base)) return "OFF";
+  const effective = effectiveUserCoauthorModeFromCapabilities(flags);
+  // OFF means "inherit the visible base setting" in persisted state, so an
+  // explicit zero-authority override above NORMAL/ALLOW needs its own marker.
+  return effective === "OFF" ? "LIMITED" : effective;
+}
+
+export function userCoauthorModeFromBooleans(flags: UserCoauthorBooleans): UserCoauthorMode {
+  return effectiveUserCoauthorModeFromCapabilities({
+    ...flags,
+    allowInnerPov: false,
+    allowIrreversibleFate: false,
+  });
+}
+
 export function parseUserCoauthorMode(raw: unknown): UserCoauthorMode {
   const value = String(raw ?? "").trim().toUpperCase();
-  if (value === "DIALOGUE" || value === "ACTIONS" || value === "FULL") return value;
+  if (
+    value === "LIMITED" ||
+    value === "DIALOGUE" ||
+    value === "ACTIONS" ||
+    value === "FULL" ||
+    value === "NOVEL" ||
+    value === "ABSOLUTE"
+  ) {
+    return value;
+  }
   return "OFF";
 }
 
@@ -109,67 +229,114 @@ function applySlot(previous: boolean, op: UserCoauthorSlotOp): boolean {
 }
 
 export function isUserCoauthorModeActive(mode: UserCoauthorMode): boolean {
-  return mode !== "OFF";
+  return mode !== "OFF" && mode !== "LIMITED";
+}
+
+function anyAuthoringCapability(flags: UserCoauthorCapabilities): boolean {
+  return (
+    flags.allowDialogue ||
+    flags.allowMajorActions ||
+    flags.allowInnerPov ||
+    flags.allowIrreversibleFate
+  );
 }
 
 export function applyUserCoauthorDirective(
   persistentMode: UserCoauthorMode,
-  directive: UserCoauthorDirective
+  directive: UserCoauthorDirective,
+  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
 ): AppliedUserCoauthorDirective {
+  const normalizedBase = parseUserAuthoringLevel(baseLevel);
   const persistentBefore = parseUserCoauthorMode(persistentMode);
+  const currentBefore = capabilitiesFromUserCoauthorMode(
+    persistentBefore,
+    normalizedBase
+  );
+
   if (directive.duration === "none") {
-    const current = booleansFromUserCoauthorMode(persistentBefore);
-    const active = isUserCoauthorModeActive(persistentBefore);
+    const active = anyAuthoringCapability(currentBefore);
+    const allowAiCastIrreversibleExpansion =
+      normalizedBase === "ALLOW" || currentBefore.allowIrreversibleFate;
+    const requiresOwner = active || allowAiCastIrreversibleExpansion;
     return {
       persistentBefore,
       persistentAfter: persistentBefore,
-      currentMode: persistentBefore,
-      current,
-      duration: active ? "persistent" : null,
+      currentMode: effectiveUserCoauthorModeFromCapabilities(currentBefore),
+      current: {
+        allowDialogue: currentBefore.allowDialogue,
+        allowMajorActions: currentBefore.allowMajorActions,
+      },
+      duration: requiresOwner ? "persistent" : null,
       directive,
-      delegation: active
+      delegation: requiresOwner
         ? {
-            active: true,
-            allowDialogue: current.allowDialogue,
-            allowMajorActions: current.allowMajorActions,
-            source: "explicit_ooc",
+            active,
+            ...currentBefore,
+            allowAiCastIrreversibleExpansion,
+            source: persistentBefore === "OFF" ? "chat_setting" : "explicit_ooc",
             duration: "persistent",
           }
         : { ...INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION },
     };
   }
 
-  const nextFlags = {
-    allowDialogue: applySlot(
-      booleansFromUserCoauthorMode(persistentBefore).allowDialogue,
-      directive.dialogue
-    ),
+  const nextCapabilities: UserCoauthorCapabilities = {
+    allowDialogue: applySlot(currentBefore.allowDialogue, directive.dialogue),
     allowMajorActions: applySlot(
-      booleansFromUserCoauthorMode(persistentBefore).allowMajorActions,
+      currentBefore.allowMajorActions,
       directive.majorActions
     ),
+    allowInnerPov: applySlot(
+      currentBefore.allowInnerPov,
+      directive.innerPov ?? "unchanged"
+    ),
+    allowIrreversibleFate: applySlot(
+      currentBefore.allowIrreversibleFate,
+      directive.irreversibleFate ?? "unchanged"
+    ),
   };
-  const currentMode = userCoauthorModeFromBooleans(nextFlags);
+
+  // Higher-order permissions are meaningful only when the model can co-author
+  // both dialogue and deliberate actions. A partial persistent narrowing drops
+  // inner/fate authority instead of inventing an unrepresentable hidden state.
+  if (!nextCapabilities.allowDialogue || !nextCapabilities.allowMajorActions) {
+    nextCapabilities.allowInnerPov = false;
+    nextCapabilities.allowIrreversibleFate = false;
+  }
+  if (!nextCapabilities.allowInnerPov) {
+    nextCapabilities.allowIrreversibleFate = false;
+  }
+
+  const currentMode = effectiveUserCoauthorModeFromCapabilities(nextCapabilities);
   const persistentAfter =
-    directive.duration === "persistent" ? currentMode : persistentBefore;
-  const active = isUserCoauthorModeActive(currentMode);
-  const duration: UserCoauthorDuration | null = active
+    directive.duration === "persistent"
+      ? userCoauthorModeFromCapabilities(nextCapabilities, normalizedBase)
+      : persistentBefore;
+  const active = anyAuthoringCapability(nextCapabilities);
+  const allowAiCastIrreversibleExpansion =
+    normalizedBase === "ALLOW" || nextCapabilities.allowIrreversibleFate;
+  const requiresOwner = active || allowAiCastIrreversibleExpansion;
+  const duration: UserCoauthorDuration | null = requiresOwner
     ? directive.duration === "turn"
       ? "turn"
       : "persistent"
     : null;
+
   return {
     persistentBefore,
     persistentAfter,
     currentMode,
-    current: nextFlags,
+    current: {
+      allowDialogue: nextCapabilities.allowDialogue,
+      allowMajorActions: nextCapabilities.allowMajorActions,
+    },
     duration,
     directive,
-    delegation: active
+    delegation: requiresOwner
       ? {
-          active: true,
-          allowDialogue: nextFlags.allowDialogue,
-          allowMajorActions: nextFlags.allowMajorActions,
+          active,
+          ...nextCapabilities,
+          allowAiCastIrreversibleExpansion,
           source: "explicit_ooc",
           duration,
         }
@@ -179,28 +346,31 @@ export function applyUserCoauthorDirective(
 
 export function resolveEffectiveUserAuthoring(input: {
   persistentMode?: UserCoauthorMode | null;
+  baseLevel?: UserAuthoringLevel | null;
   currentUserInput?: string | null;
   /** Ignored. Kept for call-site compatibility. No prompt injection. */
   previousUserInput?: string | null;
 }): AppliedUserCoauthorDirective {
   return applyUserCoauthorDirective(
     parseUserCoauthorMode(input.persistentMode),
-    resolveUserCoauthorDirective({ currentUserInput: input.currentUserInput })
+    resolveUserCoauthorDirective({ currentUserInput: input.currentUserInput }),
+    parseUserAuthoringLevel(input.baseLevel)
   );
 }
 
 /**
  * Pure text replay. Unit tests / audits only.
- * Production mutation reconstruction must use the version>=1 helper.
+ * Production mutation reconstruction must use the current-epoch helper.
  */
 export function recomputeUserCoauthorModeFromUserMessages(
-  userContents: Array<string | null | undefined>
+  userContents: Array<string | null | undefined>,
+  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
 ): UserCoauthorMode {
   let mode: UserCoauthorMode = DEFAULT_USER_COAUTHOR_MODE;
   for (const content of userContents) {
     const directive = resolveUserCoauthorDirective({ currentUserInput: content });
     if (directive.duration === "none") continue;
-    mode = applyUserCoauthorDirective(mode, directive).persistentAfter;
+    mode = applyUserCoauthorDirective(mode, directive, baseLevel).persistentAfter;
   }
   return mode;
 }
@@ -216,6 +386,14 @@ function columnExists(db: CoauthorDb, table: string, column: string): boolean {
   if (!tableExists(db, table)) return false;
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   return cols.some((col) => col.name === column);
+}
+
+export function ensureUserAuthoringLevelColumn(db: CoauthorDb): void {
+  if (!tableExists(db, "chats")) return;
+  if (columnExists(db, "chats", USER_AUTHORING_LEVEL_COLUMN)) return;
+  db.exec(
+    `ALTER TABLE chats ADD COLUMN ${USER_AUTHORING_LEVEL_COLUMN} TEXT NOT NULL DEFAULT '${DEFAULT_USER_AUTHORING_LEVEL}'`
+  );
 }
 
 export function ensureUserCoauthorModeColumn(db: CoauthorDb): void {
@@ -235,8 +413,21 @@ export function ensureUserCoauthorSemanticsVersionColumn(db: CoauthorDb): void {
 }
 
 export function ensureUserCoauthorSchema(db: CoauthorDb): void {
+  ensureUserAuthoringLevelColumn(db);
   ensureUserCoauthorModeColumn(db);
   ensureUserCoauthorSemanticsVersionColumn(db);
+}
+
+export function readUserAuthoringLevel(
+  db: CoauthorDb,
+  chatId: number
+): UserAuthoringLevel {
+  ensureUserAuthoringLevelColumn(db);
+  if (!tableExists(db, "chats")) return DEFAULT_USER_AUTHORING_LEVEL;
+  const row = db
+    .prepare(`SELECT ${USER_AUTHORING_LEVEL_COLUMN} AS level FROM chats WHERE id=?`)
+    .get(chatId) as { level?: unknown } | undefined;
+  return parseUserAuthoringLevel(row?.level);
 }
 
 export function readUserCoauthorMode(db: CoauthorDb, chatId: number): UserCoauthorMode {
@@ -258,6 +449,37 @@ export function persistUserCoauthorMode(
   db.prepare(`UPDATE chats SET ${USER_COAUTHOR_MODE_COLUMN}=? WHERE id=?`).run(
     parseUserCoauthorMode(mode),
     chatId
+  );
+}
+
+/**
+ * Explicit UI base-level change starts a new authoring-authority epoch.
+ * Conversation text is preserved; only prior USER messages lose authority to
+ * reconstruct an old persistent OOC override on fork/edit/delete/regen.
+ * Caller owns the surrounding transaction when combined with other settings.
+ */
+export function persistUserAuthoringLevelAndResetOocAuthority(
+  db: CoauthorDb,
+  chatId: number,
+  level: UserAuthoringLevel
+): void {
+  ensureUserCoauthorSchema(db);
+  if (!tableExists(db, "chats")) return;
+  db.prepare(
+    `UPDATE chats
+     SET ${USER_AUTHORING_LEVEL_COLUMN}=?, ${USER_COAUTHOR_MODE_COLUMN}='OFF'
+     WHERE id=?`
+  ).run(parseUserAuthoringLevel(level), chatId);
+  if (!tableExists(db, "messages")) return;
+  db.prepare(
+    `UPDATE messages
+     SET ${USER_COAUTHOR_SEMANTICS_VERSION_COLUMN}=?
+     WHERE chat_id=? AND role='user'
+       AND ${USER_COAUTHOR_SEMANTICS_VERSION_COLUMN}>=?`
+  ).run(
+    LEGACY_USER_COAUTHOR_SEMANTICS_VERSION,
+    chatId,
+    CURRENT_USER_COAUTHOR_SEMANTICS_VERSION
   );
 }
 
@@ -343,8 +565,10 @@ export function recomputeUserCoauthorModeFromEligibleMessages(
   chatId: number,
   query: EligibleUserCoauthorMessageQuery = {}
 ): UserCoauthorMode {
+  const baseLevel = readUserAuthoringLevel(db, chatId);
   return recomputeUserCoauthorModeFromUserMessages(
-    listEligibleUserCoauthorMessageContents(db, chatId, query)
+    listEligibleUserCoauthorMessageContents(db, chatId, query),
+    baseLevel
   );
 }
 
@@ -357,13 +581,37 @@ export function recomputeAndPersistUserCoauthorMode(
   return mode;
 }
 
+function hasCurrentUserCoauthorSemanticsEpoch(
+  db: CoauthorDb,
+  chatId: number
+): boolean {
+  ensureUserCoauthorSemanticsVersionColumn(db);
+  if (!tableExists(db, "messages")) return false;
+  const row = db
+    .prepare(
+      `SELECT 1 AS ok FROM messages
+       WHERE chat_id=? AND role='user'
+         AND ${USER_COAUTHOR_SEMANTICS_VERSION_COLUMN}>=?
+       LIMIT 1`
+    )
+    .get(chatId, CURRENT_USER_COAUTHOR_SEMANTICS_VERSION) as { ok?: number } | undefined;
+  return row != null;
+}
+
 export function resolveEffectiveUserAuthoringFromChatColumn(
   db: CoauthorDb,
   chatId: number,
   currentUserInput?: string | null
 ): AppliedUserCoauthorDirective {
+  // v1 marked every USER message and used the older two-scope parser. Never
+  // replay or inherit that hidden mode under the new three-level/absolute
+  // semantics. The first v2 USER turn establishes the new override epoch.
+  const persistentMode = hasCurrentUserCoauthorSemanticsEpoch(db, chatId)
+    ? readUserCoauthorMode(db, chatId)
+    : DEFAULT_USER_COAUTHOR_MODE;
   return resolveEffectiveUserAuthoring({
-    persistentMode: readUserCoauthorMode(db, chatId),
+    persistentMode,
+    baseLevel: readUserAuthoringLevel(db, chatId),
     currentUserInput,
   });
 }
@@ -373,18 +621,24 @@ export function resolveEffectiveUserAuthoringForRegeneration(
   chatId: number,
   parentUserMessageId: number
 ): AppliedUserCoauthorDirective {
+  const baseLevel = readUserAuthoringLevel(db, chatId);
   const persistentBefore = recomputeUserCoauthorModeFromEligibleMessages(db, chatId, {
     beforeMessageId: parentUserMessageId,
   });
   const parentVersion = readUserCoauthorSemanticsVersion(db, parentUserMessageId);
   if (parentVersion < CURRENT_USER_COAUTHOR_SEMANTICS_VERSION) {
-    return applyUserCoauthorDirective(persistentBefore, EMPTY_USER_COAUTHOR_DIRECTIVE);
+    return applyUserCoauthorDirective(
+      persistentBefore,
+      EMPTY_USER_COAUTHOR_DIRECTIVE,
+      baseLevel
+    );
   }
   const row = db
     .prepare(`SELECT content FROM messages WHERE id=? AND chat_id=? AND role='user'`)
     .get(parentUserMessageId, chatId) as { content?: string } | undefined;
   return resolveEffectiveUserAuthoring({
     persistentMode: persistentBefore,
+    baseLevel,
     currentUserInput: row?.content ?? "",
   });
 }

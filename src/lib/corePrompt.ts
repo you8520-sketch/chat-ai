@@ -32,7 +32,7 @@ export type CoreMasterPromptInput = {
   impersonationOn: boolean;
   /** Legacy novel / explicit_full — dormant; never from isContinue */
   novelModeEnabled?: boolean;
-  /** Auto-continue button — limited external [B] only */
+  /** Auto-continue button — [B] scope comes from the effective authoring owner. */
   autoProgressionEnabled?: boolean;
   completedTurns: number;
   hasMindReading: boolean;
@@ -58,7 +58,7 @@ function roleBoundaryLine(i: CoreMasterPromptInput): string {
     return `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [USER CONTROL MODE - LIMITED CO-NARRATION]를 따른다.`;
   }
   if (i.currentTurnDelegated) {
-    return `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [USER AUTHORING — CURRENT-TURN OOC DELEGATION]를 따른다.`;
+    return `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [USER AUTHORING — EFFECTIVE COAUTHOR POLICY]를 따른다.`;
   }
   return `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [USER CONTROL — COLLABORATIVE INTERACTIVE]를 따른다.`;
 }
@@ -151,7 +151,7 @@ function buildIdentityPreamble(opts: {
   }
   if (opts.impersonationOn) return IDENTITY_PREAMBLE;
   if (opts.currentTurnDelegated) {
-    return `The following defines the USER's roleplay persona (the human player character — NOT the AI character you play). Obey [USER_PERSONA] for how the user character speaks and behaves. OOC user co-authoring may author the granted [B] scope per [USER AUTHORING — CURRENT-TURN OOC DELEGATION].`;
+    return `The following defines the USER's roleplay persona (the human player character — NOT the AI character you play). Obey [USER_PERSONA] for how the user character speaks and behaves. The effective chat authoring policy may author only the granted [B] scope per [USER AUTHORING — EFFECTIVE COAUTHOR POLICY].`;
   }
   return `The following defines the USER's roleplay persona (NOT the AI character). [USER_PERSONA] describes [B] — involuntary physiological cues OK; voluntary dialogue/action/emotion forbidden per [NO GODMODDING].`;
 }

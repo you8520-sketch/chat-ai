@@ -44,6 +44,7 @@ import { isRegisterPatch } from "@/lib/registerPatchExperiment";
 import { buildOocCoNarrationHint } from "@/lib/userImpersonationPolicy";
 import {
   INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
+  currentTurnAuthoringPolicyRequiresOwner,
   resolveCurrentTurnUserAuthoringDelegation,
 } from "@/lib/currentTurnUserAuthoringDelegation";
 import {
@@ -219,7 +220,11 @@ function userMessageUsesRpInputMarkers(text: string): boolean {
 }
 
 function needsUserInputParsingGuide(input: ContextBuildInput): boolean {
-  const coNarrationEnabled = input.novelModeEnabled === true || !!input.userImpersonation;
+  const coNarrationEnabled =
+    input.novelModeEnabled === true ||
+    (input.currentTurnAuthoringDelegation !== undefined
+      ? input.currentTurnAuthoringDelegation.active === true
+      : !!input.userImpersonation);
   if (!coNarrationEnabled) return false;
   if (userMessageUsesRpInputMarkers(input.currentUserMessage)) return true;
   return input.shortTermHistory.some(
@@ -327,17 +332,24 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const novelModeEnabled = false;
   const autoProgressionEnabled =
     input.isContinue === true || legacyNovelModeEnabled;
-  /** OOC limited co-narration only — auto progression uses its own agency block. */
+  /**
+   * Legacy persona/user-note impersonation is compatibility-only for direct
+   * callers that do not supply the canonical effective delegation. Production
+   * /api/chat always supplies currentTurnAuthoringDelegation.
+   */
   const oocLimitedCoNarration =
-    !!input.userImpersonation && !autoProgressionEnabled;
+    input.currentTurnAuthoringDelegation === undefined &&
+    !!input.userImpersonation &&
+    !autoProgressionEnabled;
   const coNarrationEnabled = oocLimitedCoNarration || autoProgressionEnabled;
-  const currentTurnDelegation = autoProgressionEnabled
-    ? INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION
-    : input.currentTurnAuthoringDelegation !== undefined
+  const currentTurnDelegation =
+    input.currentTurnAuthoringDelegation !== undefined
       ? input.currentTurnAuthoringDelegation
-      : resolveCurrentTurnUserAuthoringDelegation({
-          currentUserInput: input.currentUserMessage,
-        });
+      : autoProgressionEnabled
+        ? INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION
+        : resolveCurrentTurnUserAuthoringDelegation({
+            currentUserInput: input.currentUserMessage,
+          });
   // Resolve from turn flags — do not require ContextBuildInput.runtimeMode for typecheck.
   // (Railway/Next build has repeatedly failed when that optional field was missing from the
   // type snapshot even after it was added on main.)
@@ -346,7 +358,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     legacyNovelModeEnabled,
     oocUserImpersonationAllowed: oocLimitedCoNarration,
     currentTurnDelegationActive:
-      !oocLimitedCoNarration && currentTurnDelegation.active,
+      !oocLimitedCoNarration &&
+      currentTurnAuthoringPolicyRequiresOwner(currentTurnDelegation),
   });
   const currentTurnDelegated = runtimeMode === "current_turn_ooc_delegated";
   const coauthorDuration =
@@ -1282,6 +1295,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         ownershipLockEnabled,
         ownershipTerminalEchoEnabled,
         coauthorDuration,
+        coauthorSource: currentTurnDelegation.source,
         adultHandoff: input.preserveAdultHandoffRawHistory === true,
       });
   if (isOpenRouter && openRouterDynamicLorePrefix) {

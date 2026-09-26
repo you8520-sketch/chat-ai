@@ -216,7 +216,7 @@ export function renderSceneEngineRule(motionDecision: SceneMotionDecision): stri
 }
 
 const AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE =
-  "다인물: 전개는 현재 중심 인물 하나에 고정되지 않는다. 여러 AI 캐릭터·NPC의 대화·판단·갈등·협력·적대·세계 사건을 함께 진행할 수 있다. [B] 내면 시점으로 전환하지 않는다.";
+  "다인물: 전개는 현재 중심 인물 하나에 고정되지 않는다. 여러 AI 캐릭터·NPC의 대화·판단·갈등·협력·적대·세계 사건을 함께 진행할 수 있다. [B]의 대사·행동·내면·불가역 운명 범위는 USER AUTHORING owner를 그대로 따른다.";
 
 const OPERATION_TERMS = ["작전", "임무", "침투", "추적", "협상", "함정", "구출", "제한시간", "전투"];
 const INVESTIGATION_TERMS = ["조사", "단서", "기록", "소문", "흔적", "보고서", "메시지"];
@@ -954,8 +954,7 @@ function buildAvoidList(mode: SceneDirectiveMode, intensity: number): string[] {
   else avoid.unshift("즉시 정체 확정", "강제 고백");
   if (mode === "interactive") avoid.push("유저 의도 작성");
   if (mode === "auto_progression") {
-    avoid.push("[B] 내면·감정 결론으로 분량 채우기");
-    avoid.push("[B] 시점 전환으로 장면 이어가기");
+    avoid.push("USER AUTHORING owner 범위를 넘어 [B]를 작성하기");
   }
   return avoid.slice(0, 5);
 }

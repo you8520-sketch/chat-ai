@@ -4,7 +4,7 @@
  * - interactive: normal user-input turn; collaborative interactive owner
  * - auto_progression: continue button OR legacy novelModeEnabled normalized
  * - ooc_user_impersonation_allowed: explicit OOC co-narration opt-in on an interactive turn
- * - current_turn_ooc_delegated: manual turn with explicit leading OOC authoring delegation
+ * - current_turn_ooc_delegated: manual turn with effective [B] coauthor scope from chat setting or explicit OOC override
  *
  * Legacy novelModeEnabled maps to auto_progression (compatibility) — never novel POV.
  */
@@ -26,7 +26,7 @@ export type ResolveChatRuntimeModeInput = {
    */
   novelModeEnabled?: boolean;
   legacyNovelModeEnabled?: boolean;
-  /** Manual current-turn OOC delegation. Composer is locked during auto progression. */
+  /** Manual-turn effective coauthor scope is active. Composer is locked during auto progression. */
   currentTurnDelegationActive?: boolean;
 };
 

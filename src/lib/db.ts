@@ -648,12 +648,14 @@ function migrate(db: Database.Database) {
   addColumn("chats", "status_widget_display_mode", "TEXT NOT NULL DEFAULT ''");
   /** Chat-room 「성인모드」 — RP content level (legacy column: adult_handoff_enabled). */
   addColumn("chats", "adult_handoff_enabled", "INTEGER NOT NULL DEFAULT 0");
-  /** Chat-scoped user co-authoring preference: OFF | DIALOGUE | ACTIONS | FULL. */
+  /** Explicit OOC authoring override: OFF(inherit base) | LIMITED | DIALOGUE | ACTIONS | FULL | NOVEL | ABSOLUTE. */
   addColumn("chats", "user_coauthor_mode", "TEXT NOT NULL DEFAULT 'OFF'");
+  /** Visible persistent base preference: LIMITED | NORMAL | ALLOW. */
+  addColumn("chats", "user_authoring_level", "TEXT NOT NULL DEFAULT 'LIMITED'");
   /**
    * Message semantics epoch for user co-authoring reconstruction.
-   * 0 = legacy / pre-feature (never a persistent reconstruction source).
-   * 1 = authored/edited under the persistent-coauthor product semantics.
+   * 0/1 = legacy semantics (never replayed by the three-level authoring owner).
+   * 2 = authored/edited under the current three-level/OOC override semantics.
    */
   addColumn("messages", "user_coauthor_semantics_version", "INTEGER NOT NULL DEFAULT 0");
   db.exec(`

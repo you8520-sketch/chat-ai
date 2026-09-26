@@ -67,8 +67,9 @@ describe("regenerate OOC priority", () => {
     assert.match(block, /MANDATORY DIVERGENCE/i);
     // attempt nonce는 system directive 단일 출처 — user 턴 중복 주입 금지
     assert.doesNotMatch(block, /REGEN_ATTEMPT/i);
-    assert.match(block, /Divergence is NOT an excuse for a shorter reply/i);
-    assert.match(block, /MINIMUM_FLOOR 2,700/i);
+    assert.doesNotMatch(block, /Divergence is NOT an excuse for a shorter reply/i);
+    assert.doesNotMatch(block, /MINIMUM_FLOOR/i);
+    assert.doesNotMatch(block, /normal turn \(\)/i);
     assert.doesNotMatch(block, /\[REGENERATE INTENT/i);
     assert.doesNotMatch(block, /Rejected draft/i);
     assert.doesNotMatch(block, /forbidden beats/i);
@@ -84,10 +85,27 @@ describe("regenerate OOC priority", () => {
     };
     const off = buildRegenerateUserPrompt(base);
     assert.doesNotMatch(off, /USER PERSONA SPEECH/i);
+    assert.match(off, /Do NOT write new quoted dialogue for \[B\]/i);
 
     const on = buildRegenerateUserPrompt({ ...base, coNarrationEnabled: true });
     assert.match(on, /USER PERSONA SPEECH/i);
     assert.match(on, /반말 ONLY/i);
+    assert.match(on, /USER AUTHORING — EFFECTIVE COAUTHOR POLICY/i);
+    assert.doesNotMatch(on, /Do NOT write new quoted dialogue for \[B\]/i);
+  });
+
+  it("actions-only authoring does not inject B speech rules", () => {
+    const block = buildRegenerateUserPrompt({
+      userMessage: "문을 연다.",
+      personaName: "렌",
+      usesBanmal: true,
+      targetResponseChars: 3200,
+      coNarrationEnabled: true,
+      userDialogueAllowed: false,
+    });
+    assert.match(block, /USER AUTHORING — EFFECTIVE COAUTHOR POLICY/i);
+    assert.doesNotMatch(block, /USER PERSONA SPEECH/i);
+    assert.doesNotMatch(block, /반말 ONLY/i);
   });
 
   it("system directive includes regen attempt nonce and diverge axis", () => {

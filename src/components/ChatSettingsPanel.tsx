@@ -24,6 +24,7 @@ import UserLorebookEditor from "@/components/UserLorebookEditor";
 import UserNotePresetPicker from "@/components/UserNotePresetPicker";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
 import type { NarrativePov } from "@/lib/narrativePov";
+import type { UserAuthoringLevel } from "@/lib/userAuthoringPolicy";
 import {
   parseUserNoteCombined,
   splitUserNoteBodyForEditor,
@@ -125,6 +126,9 @@ type Props = {
   contentKind: "character" | "simulation";
   narrativePov: NarrativePov;
   onNarrativePovChange: (value: NarrativePov) => void;
+  userAuthoringLevel: UserAuthoringLevel;
+  onUserAuthoringLevelChange: (value: UserAuthoringLevel) => void;
+  userAuthoringSaving?: boolean;
   displayPrefs: ChatDisplayPrefs;
   onDisplayPrefsChange: (prefs: ChatDisplayPrefs) => void;
   onSaveDisplaySettings?: () => Promise<boolean | void>;
@@ -171,6 +175,9 @@ export default function ChatSettingsPanel({
   contentKind,
   narrativePov,
   onNarrativePovChange,
+  userAuthoringLevel,
+  onUserAuthoringLevelChange,
+  userAuthoringSaving = false,
   displayPrefs,
   onDisplayPrefsChange,
   onSaveDisplaySettings,
@@ -367,6 +374,9 @@ export default function ChatSettingsPanel({
         contentKind={contentKind}
         narrativePov={narrativePov}
         onNarrativePovChange={onNarrativePovChange}
+        userAuthoringLevel={userAuthoringLevel}
+        onUserAuthoringLevelChange={onUserAuthoringLevelChange}
+        userAuthoringSaving={userAuthoringSaving}
         characterWidgetJson={characterWidgetJson}
         statusWidgetMode={statusWidgetMode}
         statusWidgetDisplayMode={statusWidgetDisplayMode}
@@ -854,6 +864,9 @@ function DisplaySection({
   contentKind,
   narrativePov,
   onNarrativePovChange,
+  userAuthoringLevel,
+  onUserAuthoringLevelChange,
+  userAuthoringSaving = false,
   characterWidgetJson,
   statusWidgetMode,
   statusWidgetDisplayMode = null,
@@ -869,6 +882,9 @@ function DisplaySection({
   contentKind: "character" | "simulation";
   narrativePov: NarrativePov;
   onNarrativePovChange: (value: NarrativePov) => void;
+  userAuthoringLevel: UserAuthoringLevel;
+  onUserAuthoringLevelChange: (value: UserAuthoringLevel) => void;
+  userAuthoringSaving?: boolean;
   characterWidgetJson: string;
   statusWidgetMode: StatusWidgetSourceMode;
   statusWidgetDisplayMode?: StatusWidgetDisplayMode | null;
@@ -889,6 +905,11 @@ function DisplaySection({
             onNarrativePovChange={onNarrativePovChange}
           />
         )}
+        <UserAuthoringLevelSection
+          level={userAuthoringLevel}
+          onChange={onUserAuthoringLevelChange}
+          saving={userAuthoringSaving}
+        />
         <StatusWidgetChatSettings
           chatId={chatId}
           characterWidgetJson={characterWidgetJson}
@@ -919,6 +940,95 @@ function DisplaySection({
         </button>
       </div>
     </div>
+  );
+}
+
+const USER_AUTHORING_LEVEL_OPTIONS: Array<{
+  value: UserAuthoringLevel;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "LIMITED",
+    label: "제한",
+    description:
+      "중요한 행동과 대사는 직접 정합니다. AI는 표정·반응·이미 시작한 행동의 자연스러운 마무리 정도만 서술합니다.",
+  },
+  {
+    value: "NORMAL",
+    label: "보통",
+    description:
+      "대화 흐름에 필요한 내 행동과 대사를 AI가 함께 씁니다. 속마음·내면 POV와 장기적인 불가역 결정은 대신 확정하지 않습니다.",
+  },
+  {
+    value: "ALLOW",
+    label: "허용",
+    description:
+      "내 캐릭터도 소설 등장인물처럼 함께 집필합니다. 행동·대사·감정·생각·속마음까지 자유롭게 서술하되, 내 캐릭터의 죽음·영구 상실 같은 불가역 운명은 기본적으로 보호합니다.",
+  },
+];
+
+function UserAuthoringLevelSection({
+  level,
+  onChange,
+  saving,
+}: {
+  level: UserAuthoringLevel;
+  onChange: (value: UserAuthoringLevel) => void;
+  saving: boolean;
+}) {
+  const selected =
+    USER_AUTHORING_LEVEL_OPTIONS.find((option) => option.value === level) ??
+    USER_AUTHORING_LEVEL_OPTIONS[0]!;
+
+  return (
+    <section className="space-y-3 border-b border-white/10 pb-5 text-xs">
+      <div>
+        <p className="font-bold text-violet-300">내 행동/대사 서술</p>
+        <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">
+          AI가 내 캐릭터를 어디까지 함께 집필할지 정하는 기본값입니다. 다음 AI 답변부터 적용됩니다.
+          명시적인 OOC 집필 지시는 이 기본값보다 우선하며, 이 설정을 직접 바꾸면 이전의 지속 OOC override는 종료됩니다.
+        </p>
+      </div>
+      <div className="relative px-1 pt-1">
+        <div className="absolute left-[16.7%] right-[16.7%] top-[11px] h-0.5 bg-zinc-700" />
+        <div className="grid grid-cols-3">
+          {USER_AUTHORING_LEVEL_OPTIONS.map((option) => {
+            const active = option.value === level;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                disabled={saving}
+                aria-pressed={active}
+                onClick={() => onChange(option.value)}
+                className="relative flex flex-col items-center gap-2 disabled:cursor-wait disabled:opacity-60"
+              >
+                <span
+                  className={`relative z-10 h-4 w-4 rounded-full border-2 transition ${
+                    active
+                      ? "border-violet-300 bg-violet-500 shadow-[0_0_12px_rgba(139,92,246,.45)]"
+                      : "border-zinc-500 bg-[#161616] hover:border-zinc-300"
+                  }`}
+                />
+                <span className={active ? "font-bold text-violet-200" : "text-zinc-500"}>
+                  {option.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="rounded-lg border border-white/5 bg-[#121218] px-3 py-2.5">
+        <p className="leading-relaxed text-zinc-400">{selected.description}</p>
+        {level === "ALLOW" && (
+          <p className="mt-1.5 text-[10px] leading-relaxed text-zinc-600">
+            OOC에서 전권·완전히 자유·생사 포함·불가역 변화 허용을 명시하면 그 범위에서는
+            내 캐릭터의 죽음이나 영구 변화까지 AI에 맡길 수 있습니다.
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 

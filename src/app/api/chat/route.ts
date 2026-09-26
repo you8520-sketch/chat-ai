@@ -62,6 +62,11 @@ import { stripUsageReportingEvidenceFromStage } from "@/lib/usageReportingEviden
 import { computeShadowPricing, resolveActualTurnCostCoverage } from "@/lib/shadowPricing";
 import { warmShadowBillingFxPrefetch } from "@/lib/shadowBillingExchangeRate";
 import { createChatSession } from "@/lib/chatSessionCreate";
+import {
+  DEFAULT_USER_AUTHORING_LEVEL,
+  USER_AUTHORING_LEVELS,
+  parseUserAuthoringLevel,
+} from "@/lib/userAuthoringPolicy";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
 import {
   bootstrapStreamingTurn,
@@ -344,11 +349,9 @@ import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPu
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
-import { INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION } from "@/lib/currentTurnUserAuthoringDelegation";
+import { currentTurnAuthoringPolicyRequiresOwner } from "@/lib/currentTurnUserAuthoringDelegation";
 import {
   persistUserCoauthorAfterSuccessfulUserInsert,
-  readUserCoauthorMode,
-  resolveEffectiveUserAuthoring,
   resolveEffectiveUserAuthoringForRegeneration,
   resolveEffectiveUserAuthoringFromChatColumn,
 } from "@/lib/userCoauthorState";
@@ -782,6 +785,22 @@ export async function POST(req: Request) {
     if (isContinue) {
       return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
     }
+    const requestedInitialAuthoringRaw = body.userAuthoringLevel;
+    if (
+      requestedInitialAuthoringRaw !== undefined &&
+      !USER_AUTHORING_LEVELS.includes(
+        String(requestedInitialAuthoringRaw).trim().toUpperCase() as
+          (typeof USER_AUTHORING_LEVELS)[number]
+      )
+    ) {
+      return Response.json(
+        { error: "userAuthoringLevel must be LIMITED, NORMAL, or ALLOW." },
+        { status: 400 }
+      );
+    }
+    const initialUserAuthoringLevel = parseUserAuthoringLevel(
+      requestedInitialAuthoringRaw ?? DEFAULT_USER_AUTHORING_LEVEL
+    );
     const initialTargetChars =
       targetResponseCharsInput != null
         ? normalizeTargetResponseChars(targetResponseCharsInput)
@@ -804,6 +823,7 @@ export async function POST(req: Request) {
       selectedPersonaId: initialPersonaId,
       targetResponseChars: initialTargetChars,
       adultHandoffEnabled: roomAdultModeEnabled,
+      userAuthoringLevel: initialUserAuthoringLevel,
     });
     chat = db.prepare("SELECT * FROM chats WHERE id=? AND user_id=?").get(newChatId, user.id) as typeof chat;
   } else {
@@ -916,29 +936,27 @@ export async function POST(req: Request) {
   });
   // Auto progression uses limited_external agency — not full impersonation / possession.
   const userImpersonation = oocUserImpersonationAllowed;
-  const currentTurnDelegation = autoProgressionEnabled
-    ? INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION
-    : resolveEffectiveUserAuthoring({
-        persistentMode: readUserCoauthorMode(db, chat.id),
-        currentUserInput: typeof message === "string" ? message : "",
-      }).delegation;
+  const currentTurnDelegation = resolveEffectiveUserAuthoringFromChatColumn(
+    db,
+    chat.id,
+    autoProgressionEnabled ? "" : typeof message === "string" ? message : ""
+  ).delegation;
   let runtimeMode = resolveChatRuntimeMode({
     isContinue: isContinue === true,
     legacyNovelModeEnabled,
-    oocUserImpersonationAllowed,
+    // Canonical production owner is the resolved chat level + OOC override.
+    // Persona/user-note legacy "impersonation" text remains observable but
+    // cannot override the visible three-level authoring setting.
+    oocUserImpersonationAllowed: false,
     currentTurnDelegationActive:
-      !oocUserImpersonationAllowed && currentTurnDelegation.active,
+      currentTurnAuthoringPolicyRequiresOwner(currentTurnDelegation),
   });
   let userPersonaPrompt = formatPublicPersonaForPrompt(
     personaDisplayName,
     selectedPersona?.gender ?? "other",
     personaDescription,
     {
-      coNarrationEnabled:
-        autoProgressionEnabled ||
-        novelModeEnabled ||
-        oocUserImpersonationAllowed ||
-        currentTurnDelegation.active,
+      coNarrationEnabled: currentTurnDelegation.allowDialogue === true,
     }
   );
   const backgroundPersonaIdentity = formatSelectedPersonaIdentityForBackground(
@@ -1166,22 +1184,22 @@ export async function POST(req: Request) {
   const autoContinueContext =
     autoProgressionEnabled ||
     (regenerate && isContinueUserMessage(storedUserMessage));
-  const effectiveUserAuthoring = autoContinueContext
-    ? null
-    : regenerate && userMessageId != null
+  const effectiveUserAuthoring =
+    regenerate && userMessageId != null
       ? resolveEffectiveUserAuthoringForRegeneration(db, chat.id, userMessageId)
-      : resolveEffectiveUserAuthoringFromChatColumn(db, chat.id, storedUserMessage);
-  const currentTurnDelegationForTurn = effectiveUserAuthoring
-    ? effectiveUserAuthoring.delegation
-    : INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION;
+      : resolveEffectiveUserAuthoringFromChatColumn(
+          db,
+          chat.id,
+          autoContinueContext ? "" : storedUserMessage
+        );
+  const currentTurnDelegationForTurn = effectiveUserAuthoring.delegation;
   runtimeMode = resolveChatRuntimeMode({
     isContinue: isContinue === true || (regenerate && isContinueUserMessage(storedUserMessage)),
     legacyNovelModeEnabled,
-    oocUserImpersonationAllowed: !autoContinueContext && oocUserImpersonationAllowed,
+    oocUserImpersonationAllowed: false,
     currentTurnDelegationActive:
       !autoContinueContext &&
-      !oocUserImpersonationAllowed &&
-      currentTurnDelegationForTurn.active,
+      currentTurnAuthoringPolicyRequiresOwner(currentTurnDelegationForTurn),
   });
   userPersonaPrompt = formatPublicPersonaForPrompt(
     personaDisplayName,
@@ -1189,10 +1207,7 @@ export async function POST(req: Request) {
     personaDescription,
     {
       coNarrationEnabled:
-        autoContinueContext ||
-        novelModeEnabled ||
-        oocUserImpersonationAllowed ||
-        currentTurnDelegationForTurn.active,
+        currentTurnDelegationForTurn.allowDialogue === true,
     }
   );
   const autoContinueHistory = autoContinueContext
@@ -1235,8 +1250,9 @@ export async function POST(req: Request) {
             personaName: personaDisplayName,
             charName: ch.name,
             usesBanmal: personaUsesBanmal,
-            coNarrationEnabled:
-              autoContinueContext || novelModeEnabled || userImpersonation,
+            coNarrationEnabled: currentTurnDelegationForTurn.active,
+            userDialogueAllowed:
+              currentTurnDelegationForTurn.allowDialogue === true,
             rejectedAssistantDraft,
             regenAttemptId,
             targetResponseChars,
@@ -2677,7 +2693,7 @@ export async function POST(req: Request) {
         existingUserMessageId: userMessageId,
         regenerateAssistantId: regenerateMessageId,
         onUserInserted: (insertedUserMessageId) => {
-          if (effectiveUserAuthoring) {
+          if (!autoContinueContext) {
             persistUserCoauthorAfterSuccessfulUserInsert(db, {
               chatId: chat.id,
               userMessageId: insertedUserMessageId,

@@ -2,7 +2,10 @@ import {
   chatRuntimeModeAllowsUserNarration,
   type ChatRuntimeMode,
 } from "@/lib/chatRuntimeMode";
-import type { UserCoauthorDuration } from "@/lib/currentTurnUserAuthoringDelegation";
+import type {
+  CurrentTurnAuthoringDelegationSource,
+  UserCoauthorDuration,
+} from "@/lib/currentTurnUserAuthoringDelegation";
 
 export const CURRENT_USER_INPUT_HEADER = "[CURRENT USER INPUT]";
 
@@ -83,15 +86,17 @@ ${ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY}`;
  *    display name is used as the [B] actor, with a generic fallback.
  *  - interactive + !ownershipLockEnabled: collaborative wrapper
  *    aligned with COLLABORATIVE_INTERACTIVE_OWNER_BLOCK. Default gate is OFF.
- *  - auto_progression / ooc_user_impersonation_allowed: existing limited /
- *    full co-narration semantics preserved unchanged.
- *  - current_turn_ooc_delegated: one coauthor wrapper (turn-only or persistent).
+ *  - auto_progression / ooc_user_impersonation_allowed: authoring scope is
+ *    delegated to the canonical EFFECTIVE USER AUTHORING owner.
+ *  - current_turn_ooc_delegated: one generic coauthor wrapper for either the
+ *    chat setting or an explicit OOC override.
  */
 export function buildCurrentUserInputWrapper(opts?: {
   mode?: ChatRuntimeMode;
   personaName?: string;
   ownershipLockEnabled?: boolean;
   coauthorDuration?: UserCoauthorDuration | null;
+  coauthorSource?: CurrentTurnAuthoringDelegationSource;
   adultHandoff?: boolean;
 }): string {
   const mode = opts?.mode;
@@ -100,26 +105,31 @@ export function buildCurrentUserInputWrapper(opts?: {
     return buildAdultHandoffCurrentUserWrapper();
   }
   if (allows) {
-    // auto_progression / ooc_user_impersonation_allowed — DO NOT change semantics.
     return `${CURRENT_USER_INPUT_HEADER}
 The following is the user's latest input.
 It is what the user already said/did.
-Current mode allows limited/full user co-narration per [NO GODMODDING] / novel rules.
-If the input contains parentheses or action text, treat it as completed user input — not permission to keep narrating the user.`;
+The exact [B] co-authoring scope is owned only by [USER AUTHORING — EFFECTIVE COAUTHOR POLICY]. This wrapper does not widen or narrow it.
+If the input contains parentheses or action text, treat it as completed user input; any NEW [B] narration must stay inside that effective policy.`;
   }
 
   if (mode === "current_turn_ooc_delegated") {
+    if (opts?.coauthorSource === "chat_setting") {
+      return `${CURRENT_USER_INPUT_HEADER}
+The following is the user's completed input.
+The current chat authoring setting is active. Follow [USER AUTHORING — EFFECTIVE COAUTHOR POLICY] for the exact [B] scope.
+Current user input overrides prior assistant-authored [B] dialogue, actions, thoughts, or decisions.`;
+    }
     if (opts?.coauthorDuration === "persistent") {
       return `${CURRENT_USER_INPUT_HEADER}
 The following is the user's completed input.
-The user has enabled ongoing persona co-authoring until revoked.
-Keep any OOC text as written. Follow [USER AUTHORING — CURRENT-TURN OOC DELEGATION] for the granted scope.
-Current user input overrides prior assistant-authored [B] dialogue or actions.`;
+The user has enabled an ongoing OOC authoring override until it is changed or revoked.
+Keep any OOC text as written. Follow [USER AUTHORING — EFFECTIVE COAUTHOR POLICY] for the exact effective [B] scope.
+Current user input overrides prior assistant-authored [B] dialogue, actions, thoughts, or decisions.`;
     }
     return `${CURRENT_USER_INPUT_HEADER}
 The following is the user's completed input, including an explicit current-turn OOC authoring instruction.
-Keep the OOC text as written (style, tone, and qualifiers). Follow [USER AUTHORING — CURRENT-TURN OOC DELEGATION] for the delegated scope only.
-This delegation applies to THIS TURN only.`;
+Keep the OOC text as written (style, tone, and qualifiers). Follow [USER AUTHORING — EFFECTIVE COAUTHOR POLICY] for the exact effective [B] scope.
+This OOC override applies to THIS TURN only.`;
   }
 
   // interactive
@@ -180,6 +190,7 @@ export function wrapCurrentUserInput(
     ownershipLockEnabled?: boolean;
     ownershipTerminalEchoEnabled?: boolean;
     coauthorDuration?: UserCoauthorDuration | null;
+    coauthorSource?: CurrentTurnAuthoringDelegationSource;
     adultHandoff?: boolean;
   }
 ): string {

@@ -91,6 +91,10 @@ import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { stripInternalTagLeakage, stripRpMetaPreamble } from "@/lib/narrativeRules";
 import { stripRepeatedTrailingQuoteMarks } from "@/lib/trailingQuoteSanitizer";
 import type { NarrativePov } from "@/lib/narrativePov";
+import {
+  DEFAULT_USER_AUTHORING_LEVEL,
+  type UserAuthoringLevel,
+} from "@/lib/userAuthoringPolicy";
 import type { StatusMeta } from "@/lib/statusMeta/types";
 import {
   clientNeedsSuggestedRepliesPoll,
@@ -937,6 +941,7 @@ export default function ChatClient({
   isAdmin = false,
   contentKind = "character",
   initialNarrativePov = "third_person",
+  initialUserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL,
   personaSecretSettings = { canEdit: false, discoveryActive: false },
 }: {
   character: { id: number; name: string; emoji: string; hue: number; nsfw: number; official?: number };
@@ -977,6 +982,7 @@ export default function ChatClient({
   isAdmin?: boolean;
   contentKind?: "character" | "simulation";
   initialNarrativePov?: NarrativePov;
+  initialUserAuthoringLevel?: UserAuthoringLevel;
   personaSecretSettings?: PersonaSecretSettingsCapability;
   showSecretDiscoveryInspector?: boolean;
 }) {
@@ -1009,6 +1015,8 @@ export default function ChatClient({
   const [hiddenTurnCount, setHiddenTurnCount] = useState(initialHiddenTurnCount);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [chatId, setChatId] = useState(initialChatId);
+  const chatIdRef = useRef(chatId);
+  chatIdRef.current = chatId;
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(
     () => new Set(initialBookmarkedIds)
   );
@@ -1328,6 +1336,10 @@ export default function ChatClient({
   const [targetResponseChars, setTargetResponseChars] = useState(initialTargetResponseChars);
   const [chatTitle, setChatTitle] = useState(initialChatTitle);
   const [narrativePov, setNarrativePov] = useState<NarrativePov>(initialNarrativePov);
+  const [userAuthoringLevel, setUserAuthoringLevel] =
+    useState<UserAuthoringLevel>(initialUserAuthoringLevel);
+  const [userAuthoringSaving, setUserAuthoringSaving] = useState(false);
+  const userAuthoringSavePromiseRef = useRef<Promise<boolean> | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsPersistRevision, setSettingsPersistRevision] = useState(0);
   const [displaySettingsSaving, setDisplaySettingsSaving] = useState(false);
@@ -1500,6 +1512,8 @@ export default function ChatClient({
   );
 
   const flushChatSettings = useCallback(async (): Promise<boolean> => {
+    const authoringSave = userAuthoringSavePromiseRef.current;
+    if (authoringSave && !(await authoringSave)) return false;
     if (settingsSaveTimerRef.current) {
       clearTimeout(settingsSaveTimerRef.current);
       settingsSaveTimerRef.current = null;
@@ -1509,6 +1523,66 @@ export default function ChatClient({
       narrativePov: narrativePovRef.current,
     });
   }, [persistChatSettings]);
+
+  const handleUserAuthoringLevelChange = useCallback(
+    async (next: UserAuthoringLevel) => {
+      if (next === userAuthoringLevel || userAuthoringSavePromiseRef.current) return;
+      const previous = userAuthoringLevel;
+      setUserAuthoringLevel(next);
+      if (!chatId) return;
+      const requestChatId = chatId;
+
+      const savePromise = (async (): Promise<boolean> => {
+        setUserAuthoringSaving(true);
+        try {
+          const res = await fetch("/api/chat/settings", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chatId, userAuthoringLevel: next }),
+          });
+          const data = (await res.json().catch(() => null)) as {
+            error?: string;
+            userAuthoringLevel?: UserAuthoringLevel;
+          } | null;
+          if (!res.ok) {
+            if (chatIdRef.current === requestChatId) {
+              setUserAuthoringLevel(previous);
+              setToastMsg(data?.error || "내 행동/대사 서술 설정 저장에 실패했습니다.");
+            }
+            return false;
+          }
+          if (
+            data?.userAuthoringLevel === "LIMITED" ||
+            data?.userAuthoringLevel === "NORMAL" ||
+            data?.userAuthoringLevel === "ALLOW"
+          ) {
+            if (chatIdRef.current === requestChatId) {
+              setUserAuthoringLevel(data.userAuthoringLevel);
+            }
+          }
+          return true;
+        } catch {
+          if (chatIdRef.current === requestChatId) {
+            setUserAuthoringLevel(previous);
+            setToastMsg("내 행동/대사 서술 설정 저장 중 오류가 발생했습니다.");
+          }
+          return false;
+        } finally {
+          setUserAuthoringSaving(false);
+        }
+      })();
+
+      userAuthoringSavePromiseRef.current = savePromise;
+      try {
+        await savePromise;
+      } finally {
+        if (userAuthoringSavePromiseRef.current === savePromise) {
+          userAuthoringSavePromiseRef.current = null;
+        }
+      }
+    },
+    [chatId, userAuthoringLevel]
+  );
 
   const saveUserNote = useCallback(
     async (note: string): Promise<boolean> => {
@@ -1665,6 +1739,7 @@ export default function ChatClient({
     setTargetResponseChars(initialTargetResponseChars);
     setChatTitle(initialChatTitle);
     setNarrativePov(initialNarrativePov);
+    setUserAuthoringLevel(initialUserAuthoringLevel);
     // Prefer device localStorage so 에셋 ON/OFF survives leaving the room.
     setDisplayPrefs(resolveClientDisplayPrefs(initialDisplayPrefs ?? DEFAULT_CHAT_DISPLAY_PREFS));
     setSelectedPersonaId(initialSelectedPersonaId);
@@ -1678,6 +1753,7 @@ export default function ChatClient({
     initialTargetResponseChars,
     initialChatTitle,
     initialNarrativePov,
+    initialUserAuthoringLevel,
     initialDisplayPrefs,
     initialSelectedPersonaId,
   ]);
@@ -4117,6 +4193,7 @@ export default function ChatClient({
           userNote,
           selectedPersonaId,
           targetResponseChars,
+          userAuthoringLevel,
         }),
       });
 
@@ -4990,6 +5067,9 @@ export default function ChatClient({
         contentKind={contentKind}
         narrativePov={narrativePov}
         onNarrativePovChange={setNarrativePov}
+        userAuthoringLevel={userAuthoringLevel}
+        onUserAuthoringLevelChange={handleUserAuthoringLevelChange}
+        userAuthoringSaving={userAuthoringSaving}
         displayPrefs={displayPrefs}
         onDisplayPrefsChange={handleDisplayPrefsChange}
         onSaveDisplaySettings={persistUserChatPrefs}

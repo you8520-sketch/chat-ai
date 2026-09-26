@@ -7,6 +7,8 @@ import { resolveSubscriptionMemoryCapability } from "@/lib/subscriptionMemoryCap
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
 import { resolveNarrativePov } from "@/lib/narrativePov";
+import { parseUserAuthoringLevel, USER_AUTHORING_LEVELS } from "@/lib/userAuthoringPolicy";
+import { persistUserAuthoringLevelAndResetOocAuthority } from "@/lib/userCoauthorState";
 import {
   displayModeFromEngineMode,
   parseIncomingStatusWidgetDisplayMode,
@@ -59,9 +61,25 @@ export async function PATCH(req: Request) {
     statusWidgetDisplayMode,
     narrativePov,
     povCharacterName,
+    userAuthoringLevel: userAuthoringLevelInput,
     adultHandoffEnabled: adultHandoffEnabledInput,
   } = body;
   if (!chatId) return Response.json({ error: "채팅방 ID가 필요합니다." }, { status: 400 });
+  const userAuthoringLevel =
+    userAuthoringLevelInput === undefined
+      ? undefined
+      : parseUserAuthoringLevel(userAuthoringLevelInput);
+  if (
+    userAuthoringLevelInput !== undefined &&
+    !USER_AUTHORING_LEVELS.includes(
+      String(userAuthoringLevelInput).trim().toUpperCase() as (typeof USER_AUTHORING_LEVELS)[number]
+    )
+  ) {
+    return Response.json(
+      { error: "userAuthoringLevel must be LIMITED, NORMAL, or ALLOW." },
+      { status: 400 }
+    );
+  }
 
   const userAdultVerified = effectiveIsAdult(user.is_adult);
   const adultHandoffEnabled = parseAdultHandoffEnabled(
@@ -76,7 +94,7 @@ export async function PATCH(req: Request) {
 
   const db = getDb();
   const chat = db.prepare(
-    `SELECT ch.id, ch.narrative_pov, ch.pov_character_name,
+    `SELECT ch.id, ch.narrative_pov, ch.pov_character_name, ch.user_authoring_level,
             c.name, COALESCE(c.content_kind, 'character') AS content_kind
      FROM chats ch JOIN characters c ON c.id = ch.character_id
      WHERE ch.id=? AND ch.user_id=?`
@@ -84,6 +102,7 @@ export async function PATCH(req: Request) {
     id: number;
     narrative_pov: string | null;
     pov_character_name: string | null;
+    user_authoring_level: string | null;
     name: string;
     content_kind: string;
   } | undefined;
@@ -156,6 +175,9 @@ export async function PATCH(req: Request) {
     (chat.content_kind === "simulation" &&
       (chat.narrative_pov !== resolvedNarrativePov.mode ||
         (chat.pov_character_name ?? "") !== resolvedNarrativePov.povCharacterName));
+  const shouldPersistUserAuthoringLevel =
+    userAuthoringLevel !== undefined &&
+    parseUserAuthoringLevel(chat.user_authoring_level) !== userAuthoringLevel;
 
   const sets: string[] = [];
   const vals: unknown[] = [];
@@ -189,17 +211,27 @@ export async function PATCH(req: Request) {
     sets.push("adult_handoff_enabled=?");
     vals.push(adultHandoffEnabled ? 1 : 0);
   }
-
-  if (sets.length === 0) {
+  if (sets.length === 0 && userAuthoringLevel === undefined) {
     return Response.json({ error: "변경할 설정이 없습니다." }, { status: 400 });
   }
 
   try {
-    db.prepare(`UPDATE chats SET ${sets.join(", ")} WHERE id=? AND user_id=?`).run(
-      ...vals,
-      chatId,
-      user.id
-    );
+    db.transaction(() => {
+      if (sets.length > 0) {
+        db.prepare(`UPDATE chats SET ${sets.join(", ")} WHERE id=? AND user_id=?`).run(
+          ...vals,
+          chatId,
+          user.id
+        );
+      }
+      if (shouldPersistUserAuthoringLevel && userAuthoringLevel !== undefined) {
+        persistUserAuthoringLevelAndResetOocAuthority(
+          db,
+          Number(chatId),
+          userAuthoringLevel
+        );
+      }
+    })();
   } catch (e) {
     console.error("[StatusWidgetSettings] atomic persist failed:", (e as Error).message);
     return Response.json({ error: "상태창 설정 저장에 실패했습니다." }, { status: 500 });
@@ -210,6 +242,7 @@ export async function PATCH(req: Request) {
     statusWidgetDisplayMode: nextDisplay,
     narrativePov: resolvedNarrativePov.mode,
     povCharacterName: resolvedNarrativePov.povCharacterName,
+    ...(userAuthoringLevel !== undefined ? { userAuthoringLevel } : {}),
     ...(adultHandoffEnabled !== undefined ? { adultHandoffEnabled } : {}),
   });
 }

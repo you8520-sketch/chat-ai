@@ -7,11 +7,14 @@ import {
   CURRENT_USER_COAUTHOR_SEMANTICS_VERSION,
   DEFAULT_USER_COAUTHOR_MODE,
   LEGACY_USER_COAUTHOR_SEMANTICS_VERSION,
+  PREVIOUS_USER_COAUTHOR_SEMANTICS_VERSION,
   ensureUserCoauthorSchema,
   listEligibleUserCoauthorMessageContents,
   markUserMessageCoauthorSemanticsVersion,
+  persistUserAuthoringLevelAndResetOocAuthority,
   persistUserCoauthorAfterSuccessfulUserInsert,
   persistUserCoauthorMode,
+  readUserAuthoringLevel,
   readUserCoauthorMode,
   readUserCoauthorSemanticsVersion,
   recomputeAndPersistUserCoauthorMode,
@@ -82,18 +85,19 @@ describe("user coauthor authority + semantics epoch", () => {
       INSERT INTO messages (id, chat_id, role, content) VALUES (3773, 735, 'user', '${PUBLIC_FULL_GRANT}');
     `);
     ensureUserCoauthorSchema(db);
+    assert.equal(readUserAuthoringLevel(db, 735), "LIMITED");
     assert.equal(readUserCoauthorMode(db, 735), "OFF");
     assert.equal(readUserCoauthorSemanticsVersion(db, 3773), LEGACY_USER_COAUTHOR_SEMANTICS_VERSION);
     assert.equal(recomputeAndPersistUserCoauthorMode(db, 735), "OFF");
   });
 
-  it("B — new persistent grant marks version 1 and chat FULL", () => {
+  it("B — new persistent grant marks current v2 and chat FULL", () => {
     const db = openAuthorityDb();
     const applied = resolveEffectiveUserAuthoringFromChatColumn(db, 1, PUBLIC_FULL_GRANT);
     assert.equal(applied.persistentAfter, "FULL");
     const userId = insertUser(db, PUBLIC_FULL_GRANT, CURRENT_USER_COAUTHOR_SEMANTICS_VERSION);
     persistUserCoauthorMode(db, 1, applied.persistentAfter);
-    assert.equal(readUserCoauthorSemanticsVersion(db, userId), 1);
+    assert.equal(readUserCoauthorSemanticsVersion(db, userId), CURRENT_USER_COAUTHOR_SEMANTICS_VERSION);
     assert.equal(readUserCoauthorMode(db, 1), "FULL");
   });
 
@@ -111,6 +115,7 @@ describe("user coauthor authority + semantics epoch", () => {
 
   it("D — partial revoke updates the column", () => {
     const db = openAuthorityDb();
+    insertUser(db, PUBLIC_FULL_GRANT);
     persistUserCoauthorMode(db, 1, "FULL");
     const applied = resolveEffectiveUserAuthoringFromChatColumn(db, 1, "OOC: 내 대사는 내가 쓸게.");
     assert.equal(applied.currentMode, "ACTIONS");
@@ -120,6 +125,7 @@ describe("user coauthor authority + semantics epoch", () => {
 
   it("E — full revoke sets OFF", () => {
     const db = openAuthorityDb();
+    insertUser(db, PUBLIC_FULL_GRANT);
     persistUserCoauthorMode(db, 1, "FULL");
     const applied = resolveEffectiveUserAuthoringFromChatColumn(db, 1, PUBLIC_REVOKE);
     assert.equal(applied.persistentAfter, "OFF");
@@ -137,6 +143,32 @@ describe("user coauthor authority + semantics epoch", () => {
     assert.equal(next.persistentAfter, "OFF");
   });
 
+  it("F2 — historical raw v1 rows cannot resurrect old hidden authority under v2", () => {
+    const db = openAuthorityDb();
+    const info = db
+      .prepare(
+        "INSERT INTO messages (chat_id, role, content, user_coauthor_semantics_version) VALUES (1, 'user', ?, ?)"
+      )
+      .run(PUBLIC_FULL_GRANT, PREVIOUS_USER_COAUTHOR_SEMANTICS_VERSION);
+    const id = Number(info.lastInsertRowid);
+    persistUserCoauthorMode(db, 1, "FULL");
+
+    assert.equal(
+      (
+        db.prepare("SELECT user_coauthor_semantics_version AS version FROM messages WHERE id=?")
+          .get(id) as { version: number }
+      ).version,
+      PREVIOUS_USER_COAUTHOR_SEMANTICS_VERSION
+    );
+    assert.equal(readUserCoauthorSemanticsVersion(db, id), LEGACY_USER_COAUTHOR_SEMANTICS_VERSION);
+    assert.deepEqual(listEligibleUserCoauthorMessageContents(db, 1), []);
+
+    const next = resolveEffectiveUserAuthoringFromChatColumn(db, 1, "안녕.");
+    assert.equal(next.persistentBefore, "OFF");
+    assert.equal(next.currentMode, "OFF");
+    assert.equal(next.persistentAfter, "OFF");
+  });
+
   it("required sequence — legacy ignored, then new grant FULL, ordinary stays, revoke OFF", () => {
     const db = openAuthorityDb();
     insertUser(db, PUBLIC_FULL_GRANT, LEGACY_USER_COAUTHOR_SEMANTICS_VERSION);
@@ -145,7 +177,7 @@ describe("user coauthor authority + semantics epoch", () => {
     const grant = resolveEffectiveUserAuthoringFromChatColumn(db, 1, PUBLIC_FULL_GRANT);
     const grantId = insertUser(db, PUBLIC_FULL_GRANT);
     persistUserCoauthorMode(db, 1, grant.persistentAfter);
-    assert.equal(readUserCoauthorSemanticsVersion(db, grantId), 1);
+    assert.equal(readUserCoauthorSemanticsVersion(db, grantId), CURRENT_USER_COAUTHOR_SEMANTICS_VERSION);
     assert.equal(readUserCoauthorMode(db, 1), "FULL");
 
     const ordinary = resolveEffectiveUserAuthoringFromChatColumn(db, 1, "문을 연다.");
@@ -165,7 +197,7 @@ describe("user coauthor authority + semantics epoch", () => {
     db.prepare("UPDATE messages SET content=? WHERE id=?").run(PUBLIC_FULL_GRANT, id);
     markUserMessageCoauthorSemanticsVersion(db, id);
     assert.equal(recomputeAndPersistUserCoauthorMode(db, 1), "FULL");
-    assert.equal(readUserCoauthorSemanticsVersion(db, id), 1);
+    assert.equal(readUserCoauthorSemanticsVersion(db, id), CURRENT_USER_COAUTHOR_SEMANTICS_VERSION);
   });
 
   it("H — delete new grant recomputes OFF", () => {
@@ -175,6 +207,28 @@ describe("user coauthor authority + semantics epoch", () => {
     insertUser(db, "계속해.");
     db.prepare("DELETE FROM messages WHERE id=?").run(grantId);
     assert.equal(recomputeAndPersistUserCoauthorMode(db, 1), "OFF");
+  });
+
+  it("H2 — changing the visible base level invalidates older OOC reconstruction authority", () => {
+    const db = openAuthorityDb();
+    const grantId = insertUser(db, PUBLIC_FULL_GRANT);
+    persistUserCoauthorMode(db, 1, "FULL");
+    assert.equal(readUserCoauthorMode(db, 1), "FULL");
+    assert.equal(readUserCoauthorSemanticsVersion(db, grantId), CURRENT_USER_COAUTHOR_SEMANTICS_VERSION);
+
+    persistUserAuthoringLevelAndResetOocAuthority(db, 1, "ALLOW");
+
+    assert.equal(readUserAuthoringLevel(db, 1), "ALLOW");
+    assert.equal(readUserCoauthorMode(db, 1), "OFF");
+    assert.equal(readUserCoauthorSemanticsVersion(db, grantId), 0);
+    assert.equal(recomputeAndPersistUserCoauthorMode(db, 1), "OFF");
+
+    const ordinary = resolveEffectiveUserAuthoringFromChatColumn(db, 1, "계속해.");
+    assert.equal(ordinary.currentMode, "NOVEL");
+    assert.equal(ordinary.persistentAfter, "OFF");
+    assert.equal(ordinary.delegation.source, "chat_setting");
+    assert.equal(ordinary.delegation.allowInnerPov, true);
+    assert.equal(ordinary.delegation.allowIrreversibleFate, false);
   });
 
   it("I / F1 — fork of legacy grant history stays OFF", () => {
@@ -237,7 +291,7 @@ describe("user coauthor authority + semantics epoch", () => {
     assert.equal(regen.persistentAfter, "OFF");
   });
 
-  it("K — regeneration uses version=1 history up to the parent, not a later column", () => {
+  it("K — regeneration uses current-epoch history up to the parent, not a later column", () => {
     const db = openAuthorityDb();
     const grantId = insertUser(db, PUBLIC_FULL_GRANT);
     const ordinaryId = insertUser(db, "문을 연다.");
@@ -337,11 +391,11 @@ describe("user coauthor authority + semantics epoch", () => {
     });
     assert.equal(boot.userMessageSaved, true);
     assert.ok(boot.userMessageId != null);
-    assert.equal(readUserCoauthorSemanticsVersion(db, boot.userMessageId!), 1);
+    assert.equal(readUserCoauthorSemanticsVersion(db, boot.userMessageId!), CURRENT_USER_COAUTHOR_SEMANTICS_VERSION);
     assert.equal(readUserCoauthorMode(db, 1), "FULL");
   });
 
-  it("bootstrap marks every new USER message version 1, including unrelated OOC", () => {
+  it("bootstrap marks every new USER message with the current v2 epoch, including unrelated OOC", () => {
     const db = openAuthorityDb();
     const boot = bootstrapStreamingTurn(db, {
       chatId: 1,
@@ -349,7 +403,7 @@ describe("user coauthor authority + semantics epoch", () => {
       userContent: "OOC: 지금 장면은 밤이야.",
       skipUserInsert: false,
     });
-    assert.equal(readUserCoauthorSemanticsVersion(db, boot.userMessageId!), 1);
+    assert.equal(readUserCoauthorSemanticsVersion(db, boot.userMessageId!), CURRENT_USER_COAUTHOR_SEMANTICS_VERSION);
     assert.equal(readUserCoauthorMode(db, 1), "OFF");
   });
 });

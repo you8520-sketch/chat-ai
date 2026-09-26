@@ -13,12 +13,16 @@ export type UserCoauthorDirective = {
   duration: UserCoauthorDirectiveDuration;
   dialogue: UserCoauthorSlotOp;
   majorActions: UserCoauthorSlotOp;
+  innerPov?: UserCoauthorSlotOp;
+  irreversibleFate?: UserCoauthorSlotOp;
 };
 
 export const EMPTY_USER_COAUTHOR_DIRECTIVE: UserCoauthorDirective = {
   duration: "none",
   dialogue: "unchanged",
   majorActions: "unchanged",
+  innerPov: "unchanged",
+  irreversibleFate: "unchanged",
 };
 
 /**
@@ -53,6 +57,14 @@ const FULL_PERSONA_GRANT_RE =
   /(?:유저\s*)?페르소나\s*도|페르소나까지|턴을\s*진행|자동\s*서술|대사\s*(?:랑|와|과)\s*행동/;
 const WHOLE_PERSONA_GRANT_RE =
   /(?:내|유저)\s*캐릭터\s*도|유저\s*페르소나까지|소설처럼/;
+const INNER_POV_GRANT_RE =
+  /(?:속마음|내면(?:\s*독백)?|생각|감정|욕망|심리)(?:까지|도|을|를)?[^\n。]{0,80}(?:써|작성|서술|묘사|알아서|맡)|(?:내|유저)\s*(?:캐릭터|캐릭|페르소나)?[^\n。]{0,100}(?:속마음|내면|생각|감정)(?:까지|도)?/;
+const USER_PERSONA_AUTHORITY_TARGET_RE =
+  /(?:내|유저)\s*(?:캐릭터|캐릭|페르소나|대사|행동|서술|속마음|내면)|유저캐/;
+const BARE_USER_PERSONA_ABSOLUTE_RE =
+  /^(?:(?:내|유저)\s*(?:캐릭터|캐릭|페르소나)|유저캐)[^\n。]{0,24}전권\s*[.!?。！？]?$/;
+const ABSOLUTE_AUTHORITY_GRANT_RE =
+  /(?:완전(?:히)?\s*자유|전권(?:을|은|까지|도)?\s*(?:맡|위임|허용|줄|줘|준다)|생사\s*포함|죽음(?:까지|도|을|를)?\s*(?:허용|맡|포함)|사망(?:까지|도|을|를)?\s*(?:허용|맡|포함)|불가역(?:적)?\s*(?:변화|전개|결정)?\s*(?:포함|허용|맡)|운명(?:까지|도|을|를)?\s*(?:맡|전부|알아서)|결말(?:까지|도|을|를)?\s*(?:맡|전부|알아서))/;
 
 const DIALOGUE_RETAIN_OR_DENY_RE =
   /대사(?:는|은|를|을|만|도)?\s*(?:쓰지\s*마|쓰지마|작성하지\s*마|하지\s*마|내가\s*(?:할게|쓸게|쓸래|쓸|작성)|직접\s*(?:쓸|할게|작성))/;
@@ -61,7 +73,11 @@ const ACTION_RETAIN_OR_DENY_RE =
 const BOTH_DENY_RE =
   /(?:대사(?:나|와|과)\s*행동|행동(?:이나|나|와|과)\s*대사)(?:은|는|을|를)?\s*(?:쓰지\s*마|쓰지마|작성하지\s*마|하지\s*마)/;
 const WHOLE_PERSONA_REVOKE_RE =
-  /(?:내|유저)\s*캐릭터(?:는|을|를)?\s*(?:이제\s*)?내가\s*직접|유저캐(?:를|은|는)?\s*건드리지\s*마|유저\s*캐(?:릭터)?(?:를|은|는)?\s*건드리지\s*마/;
+  /(?:내|유저)\s*캐릭터(?:는|을|를)?\s*(?:이제\s*)?내가\s*직접|(?:내|유저)\s*캐릭터[^\n。]{0,80}전권(?:은|을|도)?[^\n。]{0,40}내가\s*(?:가질|갖|행사|쥘|정할|결정)|유저캐(?:를|은|는)?\s*건드리지\s*마|유저\s*캐(?:릭터)?(?:를|은|는)?\s*건드리지\s*마/;
+const INNER_POV_DENY_RE =
+  /(?:속마음|내면(?:\s*독백)?|생각|감정|욕망)(?:은|는|을|를)?\s*(?:쓰지\s*마|서술하지\s*마|묘사하지\s*마|내가\s*(?:쓸게|정할게|할게))/;
+const IRREVERSIBLE_FATE_DENY_RE =
+  /(?:죽이지\s*마|사망(?:은|을|를)?\s*(?:금지|시키지\s*마)|생사\s*(?:포함하지\s*마|맡기지\s*마)|죽음(?:까지|도|을|를)?\s*(?:허용하지\s*마|맡기지\s*마|포함하지\s*마)|불가역(?:적)?\s*(?:변화|전개|결정)?(?:는|은|을|를)?\s*(?:금지|하지\s*마|허용하지\s*마|맡기지\s*마)|영구(?:적)?\s*(?:변화|결정|상실)(?:은|을|를)?\s*(?:금지|하지\s*마|허용하지\s*마|맡기지\s*마)|전권(?:은|을|도|까지)?\s*(?:주지\s*마|주지마|맡기지\s*마|위임하지\s*마|허용하지\s*마)|완전(?:히)?\s*자유(?:롭게|하게)?\s*(?:하지\s*마|두지\s*마))/;
 
 const TURN_ONLY_RE =
   /(?:이번|이|지금)\s*턴만|(?:이번|이|지금)\s*턴은|이번\s*응답만|이번\s*응답은/;
@@ -161,22 +177,52 @@ export function resolveUserCoauthorDirective(input: {
     wholeRevoke || bothDeny || DIALOGUE_RETAIN_OR_DENY_RE.test(oocBody);
   const actionDenied =
     wholeRevoke || bothDeny || ACTION_RETAIN_OR_DENY_RE.test(oocBody);
+  const innerPovDenied = wholeRevoke || INNER_POV_DENY_RE.test(oocBody);
+  const irreversibleFateDenied =
+    wholeRevoke || IRREVERSIBLE_FATE_DENY_RE.test(oocBody);
 
   const hasAuthoringIntent = AUTHORING_INTENT_RE.test(oocBody);
+  const userPersonaTarget = USER_PERSONA_AUTHORITY_TARGET_RE.test(oocBody);
+  const absoluteGrant =
+    userPersonaTarget &&
+    !irreversibleFateDenied &&
+    (ABSOLUTE_AUTHORITY_GRANT_RE.test(oocBody) ||
+      BARE_USER_PERSONA_ABSOLUTE_RE.test(oocBody.trim()));
+  const novelGrant =
+    absoluteGrant ||
+    (userPersonaTarget &&
+      hasAuthoringIntent &&
+      INNER_POV_GRANT_RE.test(oocBody)) ||
+    (userPersonaTarget && hasAuthoringIntent && /소설처럼/.test(oocBody));
   const fullGrant =
-    hasAuthoringIntent &&
-    (FULL_PERSONA_GRANT_RE.test(oocBody) || WHOLE_PERSONA_GRANT_RE.test(oocBody));
+    absoluteGrant ||
+    novelGrant ||
+    (userPersonaTarget &&
+      hasAuthoringIntent &&
+      (FULL_PERSONA_GRANT_RE.test(oocBody) || WHOLE_PERSONA_GRANT_RE.test(oocBody)));
   const dialogueGrant =
-    hasAuthoringIntent && (DIALOGUE_GRANT_RE.test(oocBody) || fullGrant);
+    (hasAuthoringIntent && DIALOGUE_GRANT_RE.test(oocBody)) || fullGrant;
   const actionGrant =
-    hasAuthoringIntent &&
-    (ACTION_GRANT_RE.test(oocBody) ||
-      SCENE_COAUTHOR_ACTION_GRANT_RE.test(oocBody) ||
-      fullGrant);
+    (hasAuthoringIntent &&
+      (ACTION_GRANT_RE.test(oocBody) ||
+        SCENE_COAUTHOR_ACTION_GRANT_RE.test(oocBody))) ||
+    fullGrant;
+  const innerPovGrant = novelGrant;
+  const irreversibleFateGrant = absoluteGrant;
 
   const dialogue = slotOp(dialogueGrant, dialogueDenied);
   const majorActions = slotOp(actionGrant, actionDenied);
-  if (dialogue === "unchanged" && majorActions === "unchanged") {
+  const innerPov = slotOp(innerPovGrant, innerPovDenied);
+  const irreversibleFate = slotOp(
+    irreversibleFateGrant,
+    irreversibleFateDenied
+  );
+  if (
+    dialogue === "unchanged" &&
+    majorActions === "unchanged" &&
+    innerPov === "unchanged" &&
+    irreversibleFate === "unchanged"
+  ) {
     return EMPTY_USER_COAUTHOR_DIRECTIVE;
   }
 
@@ -184,5 +230,7 @@ export function resolveUserCoauthorDirective(input: {
     duration: TURN_ONLY_RE.test(oocBody) ? "turn" : "persistent",
     dialogue,
     majorActions,
+    innerPov,
+    irreversibleFate,
   };
 }
