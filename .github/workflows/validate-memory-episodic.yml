@@ -40,6 +40,7 @@ on:
       - "src/lib/memory/memory-lorebook-fit.ts"
       - "src/lib/memory/memory-episodic-long-horizon.test.ts"
       - "src/lib/memory/memory-retrieval-v2.test.ts"
+      - "scripts/memory-rp-replay.ts"
       - "src/lib/memory/memory-episodic-normalize.ts"
       - "src/lib/memory/memory-episodic-ownership.test.ts"
       - "src/lib/memory/memory-episodic-prompt.ts"
@@ -92,6 +93,19 @@ jobs:
 
       - name: Episodic Retrieval V2 regression
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-retrieval-v2.test.ts
+
+      - name: Provider-free RP replay benchmark
+        env:
+          MEMORY_RP_REPLAY_OUTPUT: artifacts/memory-rp-replay.json
+        run: node --conditions=react-server --import tsx scripts/memory-rp-replay.ts
+
+      - name: Upload RP replay evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: memory-rp-replay
+          path: artifacts/memory-rp-replay.json
+          if-no-files-found: error
 
       - name: Episodic hardening regression (E1–E14 / R1)
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-hardening.test.ts
