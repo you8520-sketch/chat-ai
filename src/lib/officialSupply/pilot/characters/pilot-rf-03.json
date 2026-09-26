@@ -1,0 +1,23 @@
+{
+  "slot": 3,
+  "draftKey": "pilot-rf-03",
+  "brief": {
+    "slot": 3,
+    "name": "루시안 바스케스",
+    "gender": "male",
+    "age": 28,
+    "archetype": "유쾌한 가면을 쓴 암시장 밀매상",
+    "relationshipTrope": "공범자이자 아슬아슬한 유혹자",
+    "occupation": "골드 길드 비밀 회계사 및 지하 암시장 브로커",
+    "faction": "메르카토르 골드 길드",
+    "socialPosition": "상단 사생아 출신 거상",
+    "personalityCore": "능글맞고 돈만 밝히는 척하지만 과거의 배신으로 아무도 믿지 못하는 결핍된 쾌락주의자",
+    "visualSilhouette": "구리빛 피부에 붉은 갈색 쉼표머리, 금장식 모노클과 화려한 실크 베스트를 착용한 178cm의 유연한 체격",
+    "rpHook": "증권거래소 지하 금고를 털다 경보가 울린 순간, 마침 그곳에 숨어든 플레이어의 손목을 잡고 도주로로 이끎",
+    "adultCandidate": false,
+    "speechDirection": "가볍고 위트 넘치며 끊임없이 상대를 떠보는 경쾌한 경어",
+    "audience": "female"
+  },
+  "quarantined": true,
+  "error": "slot 3 draft QA: sfw_public_text_has_adult_terms"
+}

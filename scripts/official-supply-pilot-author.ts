@@ -391,10 +391,33 @@ async function stepCharacters(
   const world = readWorld();
   const slots = onlySlot ? [onlySlot] : world.portfolio.map((b) => b.slot);
   const briefs = world.portfolio.filter((b) => slots.includes(b.slot));
-  await pool(briefs, concurrency, (brief) =>
-    generateOneCharacter(brief, world, world.portfolio, modelId, maxAttempts, report)
-  );
+  const pending = briefs.filter((brief) => {
+    if (onlySlot) return true;
+    try {
+      const existing = readChar(brief.slot);
+      if (existing && !existing.quarantined && existing.draft && existing.bible) {
+        console.log(`[pilot] slot ${brief.slot} already complete — skipping`);
+        return false;
+      }
+    } catch {
+      // missing file → generate
+    }
+    return true;
+  });
+  // Per-slot isolation: one quarantine must not abort sibling slots.
+  const results = await pool(pending, concurrency, async (brief) => {
+    try {
+      await generateOneCharacter(brief, world, world.portfolio, modelId, maxAttempts, report);
+      return { slot: brief.slot, ok: true as const };
+    } catch (error) {
+      return { slot: brief.slot, ok: false as const, error: String((error as Error)?.message ?? error) };
+    }
+  });
   saveCost(report);
+  const failedSlots = results.filter((r) => !r.ok);
+  if (failedSlots.length > 0) {
+    throw new Error(`quarantined slots: ${failedSlots.map((r) => r.slot).join(",")}`);
+  }
 }
 
 function stepPortfolioQa(): void {
@@ -489,7 +512,28 @@ async function stepAppearance(modelId: string, maxAttempts: number): Promise<voi
 async function stepAssetPlans(modelId: string, maxAttempts: number, concurrency: number): Promise<void> {
   const report = loadCost();
   const world = readWorld();
-  await pool(world.portfolio, concurrency, async (brief) => {
+  const results = await pool(world.portfolio, concurrency, async (brief) => {
+    try {
+      await generateOneAssetPlan(brief, world, modelId, maxAttempts, report);
+      return { slot: brief.slot, ok: true as const };
+    } catch (error) {
+      return { slot: brief.slot, ok: false as const, error: String((error as Error)?.message ?? error) };
+    }
+  });
+  saveCost(report);
+  const failedSlots = results.filter((r) => !r.ok);
+  if (failedSlots.length > 0) {
+    throw new Error(`assetplan quarantined slots: ${failedSlots.map((r) => r.slot).join(",")}`);
+  }
+}
+
+async function generateOneAssetPlan(
+  brief: PortfolioBriefInput,
+  world: OfficialWorldBible,
+  modelId: string,
+  maxAttempts: number,
+  report: CostReport
+): Promise<void> {
     const file = readChar(brief.slot);
     if (!file.bible || !file.draft) throw new Error(`slot ${brief.slot} has no bible/draft`);
     const meaningfulPlaces = world.locations.slice(0, 6).map((l) => `${l.name}: ${l.rpEvents}`);
@@ -519,8 +563,6 @@ async function stepAssetPlans(modelId: string, maxAttempts: number, concurrency:
         if (attempt === maxAttempts) throw error;
       }
     }
-  });
-  saveCost(report);
 }
 
 async function stepStyles(modelId: string, maxAttempts: number): Promise<void> {
