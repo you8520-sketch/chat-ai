@@ -392,7 +392,10 @@ function isRecordArray(value: unknown): Record<string, unknown>[] {
   return value.filter(isRecord);
 }
 
-function coerceWorldBible(data: unknown): OfficialWorldBible {
+function coerceWorldBible(
+  data: unknown,
+  opts: { slotGenders?: ("male" | "female" | "other")[] } = {}
+): OfficialWorldBible {
   const task = "world_bible";
   if (!isRecord(data)) throw new OfficialSupplyGateError("author_shape_invalid", `${task}: top-level object required`);
   const str = (key: string): string => requiredString(data, key, task);
@@ -406,8 +409,10 @@ function coerceWorldBible(data: unknown): OfficialWorldBible {
     if (typeof value === "string" && value.trim()) societyOut[key] = value;
   }
   const portfolio: PortfolioBriefInput[] = isRecordArray(data.portfolio).map((brief, i) => {
+    const slot = typeof brief.slot === "number" ? Math.round(brief.slot) : i + 1;
+    const fixed = opts.slotGenders?.[slot - 1];
     const gender: PortfolioBriefInput["gender"] =
-      brief.gender === "female" || brief.gender === "other" ? brief.gender : "male";
+      fixed ?? (brief.gender === "female" || brief.gender === "other" ? brief.gender : "male");
     const audience: PortfolioBriefInput["audience"] =
       brief.audience === "male" || brief.audience === "all" ? brief.audience : "female";
     return {
@@ -551,6 +556,7 @@ export async function generateOfficialWorldBible(input: {
     slots: input.world.slots,
     adultCandidates: input.world.adultCandidates,
     genderMix: input.world.genderMix,
+    slotGenders: input.world.slotGenders,
   };
   const portfolioCompletion = await complete(buildWorldPortfolioUser(portfolioInput));
   const portfolioData = parseAuthorJson(portfolioCompletion.text, "world_bible");
@@ -560,7 +566,10 @@ export async function generateOfficialWorldBible(input: {
 
   const bible = (() => {
     try {
-      return coerceWorldBible({ ...coreData, ...atlasData, portfolio: portfolioData.portfolio });
+      return coerceWorldBible(
+        { ...coreData, ...atlasData, portfolio: portfolioData.portfolio },
+        { slotGenders: input.world.slotGenders }
+      );
     } catch (error) {
       const keys = [
         ...Object.keys(isRecord(coreData) ? coreData : {}),

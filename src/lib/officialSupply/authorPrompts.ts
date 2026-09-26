@@ -53,6 +53,8 @@ export type WorldBibleInput = {
   adultCandidates: number;
   /** Manifest-scoped gender plan (not a global rule), e.g. "남성 5명, 여성 4명, 기타 1명". */
   genderMix: string;
+  /** Fixed gender per slot (index slot-1). */
+  slotGenders: ("male" | "female" | "other")[];
 };
 
 const WORLD_CORE_SKELETON = `{"name": "", "genre": "", "subgenre": "", "tone": "", "era": "", "techLevel": "", "regions": "", "societyForm": "", "premise": "", "centralPremise": "", "situation": {"biggestEvent": "", "beneficiaries": "", "threatened": "", "upcomingChange": ""}, "factions": [{"name": "", "purpose": "", "leadership": "", "means": "", "relations": "", "publicView": ""}], "powerSystem": {"capabilities": "", "users": "", "acquisition": "", "ranks": "", "limits": "", "costs": "", "socialImpact": "", "taboos": ""}, "society": {}, "culture": [{"name": "", "detail": ""}]}`;
@@ -123,6 +125,8 @@ export type WorldPortfolioInput = {
   slots: number;
   adultCandidates: number;
   genderMix: string;
+  /** Fixed gender per slot (index slot-1). The model must not change these. */
+  slotGenders: ("male" | "female" | "other")[];
 };
 
 export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
@@ -133,6 +137,7 @@ export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
     `캐릭터 슬롯 수: ${input.slots} (정확히 이 수만큼 portfolio 브리프 생성)`,
     `성인 후보 수: ${input.adultCandidates}명 (이 수만큼 adultCandidate=true)`,
     `성별 구성: ${input.genderMix} (반드시 준수. 전원 단일 성별 금지)`,
+    `슬롯별 성별 고정표(절대 변경 금지, 이름도 성별에 맞게): ${input.slotGenders.map((g, i) => `${i + 1}번 ${g}`).join(", ")}`,
     "",
     "이번 호출(portfolio) 출력 필드: portfolio 배열. 각 브리프는",
     "slot·name(20자 이내, 서로 겹치지 않게)·gender·age(19세 이상)·archetype·relationshipTrope·occupation·",
