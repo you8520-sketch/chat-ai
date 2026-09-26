@@ -18,6 +18,7 @@ import {
   resolvePublishedCommercialPricingOwner,
   resolvePublishedPricingExact,
   type PublishedCommercialPricingOwner,
+  type PublishedModelPricing,
 } from "@/lib/publishedModelPricing";
 
 export type MainRpPricingApplicationPlanStatus =
@@ -37,11 +38,13 @@ export type MainRpPricingApplicationPlanStatus =
 
 export type MainRpPricingApplicationSnapshot = {
   modelId: string;
+  canonicalCatalogKey: string;
   candidateFingerprint: string;
   pricingVersion: number;
   publishedAt: string;
   currentTargetMargin: number;
   commercialPricingOwner: PublishedCommercialPricingOwner;
+  publishedPricingGuard: MainRpPricingApplicationManifest["expectedBefore"];
   liveApplicability: CandidateLiveApplicability;
   sitePromotionActive: boolean;
   officialPromotionCount: number;
@@ -50,6 +53,45 @@ export type MainRpPricingApplicationSnapshot = {
   representativeCandidateProjectedMargin: number | null;
   marketCases: PricingCandidateMarketCase[];
   actualSignal: MainRpPricingObservabilityRow["candidate"]["actual"]["signal"];
+};
+
+export type MainRpPricingApplicationManifest = {
+  ownerModule: "src/lib/publishedModelPricing.ts";
+  catalogKey: string;
+  expectedBefore: {
+    modelId: string;
+    commercialPricingOwner: PublishedCommercialPricingOwner;
+    billingReferenceInputUsdPerMillion: number;
+    billingReferenceOutputUsdPerMillion: number;
+    billingReferenceCacheReadUsdPerMillion: number | null;
+    billingReferenceCacheWriteUsdPerMillion: number | null;
+    targetMargin: number;
+    minimumMarginFloor: number;
+    pricingVersion: number;
+    publishedAt: string;
+    pricingApplicability: PublishedModelPricing["pricingApplicability"] | null;
+    publishedBaseTierMaxPromptTokens: number | null;
+    promo: PublishedModelPricing["promo"] | null;
+    marketBenchmark: PublishedModelPricing["marketBenchmark"] | null;
+  };
+  allowedChanges: {
+    targetMargin: number;
+    pricingVersion: number;
+    publishedAt: "SET_AT_APPLICATION_COMMIT";
+  };
+  preserveFields: readonly [
+    "modelId",
+    "commercialPricingOwner",
+    "billingReferenceInputUsdPerMillion",
+    "billingReferenceOutputUsdPerMillion",
+    "billingReferenceCacheReadUsdPerMillion",
+    "billingReferenceCacheWriteUsdPerMillion",
+    "minimumMarginFloor",
+    "pricingApplicability",
+    "publishedBaseTierMaxPromptTokens",
+    "promo",
+    "marketBenchmark"
+  ];
 };
 
 export type MainRpPricingApplicationPlan = {
@@ -66,6 +108,7 @@ export type MainRpPricingApplicationPlan = {
   proposedTargetMargin: number | null;
   currentPublishedAt: string | null;
   publishedAtInstruction: "SET_AT_APPLICATION_COMMIT" | null;
+  manifest: MainRpPricingApplicationManifest | null;
   blockers: string[];
   preview: {
     representativeCurrentPoints: number | null;
@@ -141,6 +184,7 @@ function holdPlan(params: {
     proposedTargetMargin: params.record.proposedTargetMargin,
     currentPublishedAt: snapshot?.publishedAt ?? null,
     publishedAtInstruction: null,
+    manifest: null,
     blockers: [params.blocker],
     preview: snapshot
       ? {
@@ -161,13 +205,35 @@ export function buildMainRpPricingApplicationSnapshot(
 ): MainRpPricingApplicationSnapshot | null {
   const resolved = resolvePublishedPricingExact(row.modelId);
   if (!resolved) return null;
+  const pricing = resolved.pricing;
+  const commercialPricingOwner = resolvePublishedCommercialPricingOwner(pricing);
   return {
     modelId: row.modelId,
+    canonicalCatalogKey: resolved.canonicalModelId,
     candidateFingerprint: buildMainRpPricingCandidateFingerprint(row),
-    pricingVersion: resolved.pricing.pricingVersion,
-    publishedAt: resolved.pricing.publishedAt,
-    currentTargetMargin: resolved.pricing.targetMargin,
-    commercialPricingOwner: resolvePublishedCommercialPricingOwner(resolved.pricing),
+    pricingVersion: pricing.pricingVersion,
+    publishedAt: pricing.publishedAt,
+    currentTargetMargin: pricing.targetMargin,
+    commercialPricingOwner,
+    publishedPricingGuard: {
+      modelId: pricing.modelId,
+      commercialPricingOwner,
+      billingReferenceInputUsdPerMillion: pricing.billingReferenceInputUsdPerMillion,
+      billingReferenceOutputUsdPerMillion: pricing.billingReferenceOutputUsdPerMillion,
+      billingReferenceCacheReadUsdPerMillion:
+        pricing.billingReferenceCacheReadUsdPerMillion ?? null,
+      billingReferenceCacheWriteUsdPerMillion:
+        pricing.billingReferenceCacheWriteUsdPerMillion ?? null,
+      targetMargin: pricing.targetMargin,
+      minimumMarginFloor: pricing.minimumMarginFloor,
+      pricingVersion: pricing.pricingVersion,
+      publishedAt: pricing.publishedAt,
+      pricingApplicability: pricing.pricingApplicability ?? null,
+      publishedBaseTierMaxPromptTokens:
+        pricing.publishedBaseTierMaxPromptTokens ?? null,
+      promo: pricing.promo ? { ...pricing.promo } : null,
+      marketBenchmark: pricing.marketBenchmark ? { ...pricing.marketBenchmark } : null,
+    },
     liveApplicability: row.candidate.liveApplicability,
     sitePromotionActive: row.promotion.sitePromotionActive,
     officialPromotionCount: row.promotion.officialPromotionCount,
@@ -336,6 +402,29 @@ export function buildMainRpPricingApplicationPlanFromSnapshot(params: {
     proposedTargetMargin: record.proposedTargetMargin,
     currentPublishedAt: snapshot.publishedAt,
     publishedAtInstruction: "SET_AT_APPLICATION_COMMIT",
+    manifest: {
+      ownerModule: "src/lib/publishedModelPricing.ts",
+      catalogKey: snapshot.canonicalCatalogKey,
+      expectedBefore: snapshot.publishedPricingGuard,
+      allowedChanges: {
+        targetMargin: record.proposedTargetMargin,
+        pricingVersion: snapshot.pricingVersion + 1,
+        publishedAt: "SET_AT_APPLICATION_COMMIT",
+      },
+      preserveFields: [
+        "modelId",
+        "commercialPricingOwner",
+        "billingReferenceInputUsdPerMillion",
+        "billingReferenceOutputUsdPerMillion",
+        "billingReferenceCacheReadUsdPerMillion",
+        "billingReferenceCacheWriteUsdPerMillion",
+        "minimumMarginFloor",
+        "pricingApplicability",
+        "publishedBaseTierMaxPromptTokens",
+        "promo",
+        "marketBenchmark",
+      ],
+    },
     blockers: [],
     preview: {
       representativeCurrentPoints: snapshot.representativeCurrentPoints,
