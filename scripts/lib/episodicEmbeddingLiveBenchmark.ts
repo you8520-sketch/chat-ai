@@ -107,6 +107,7 @@ export async function runEpisodicEmbeddingLiveBenchmark(opts: {
           inputs,
           dimensions: armModel.dimensions,
           requestDimensions: armModel.requestDimensions,
+          responseModelAliases: armModel.responseModelAliases,
           requestKind: EPISODIC_SEMANTIC_EMBEDDING_REQUEST_KIND,
           timeoutMs: purpose === "query" ? EPISODIC_SEMANTIC_QUERY_TIMEOUT_MS : EPISODIC_SEMANTIC_INDEX_TIMEOUT_MS,
           apiKey,
