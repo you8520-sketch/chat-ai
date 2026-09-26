@@ -9,6 +9,7 @@ import TrpgCampaignRoom from "../TrpgCampaignRoom";
 import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import { AppSectionCard } from "@/components/AppPageShell";
 import type { TrpgActionType } from "@/lib/trpg/actionTypes";
+import { isTrpgActionType } from "@/lib/trpg/actionTypes";
 import { trpgActionComposerForRound } from "@/lib/trpg/actionComposer";
 import {
   applyReplySuggestionClick,
@@ -41,7 +42,17 @@ import {
   snapshotCompareState,
   TRPG_SNAPSHOT_POLL_MS,
 } from "@/lib/trpg/snapshotObserver";
-import { DEFAULT_TRPG_BILLING_MODE, TRPG_GM_GROSS_MARGIN, TRPG_RELATIONSHIP_MAX_CHARS, type TrpgBillingMode } from "@/lib/trpg/types";
+import { DEFAULT_TRPG_BILLING_MODE, TRPG_GM_GROSS_MARGIN, TRPG_RELATIONSHIP_MAX_CHARS, TRPG_ACTION_MAX_CHARS, TRPG_PARTY_CHAT_MAX_CHARS, type TrpgBillingMode } from "@/lib/trpg/types";
+import {
+  clearUserInputDraft,
+  loadTrpgActionDraft,
+  loadUserInputDraft,
+  resolveTrpgActionInitialBody,
+  saveTrpgActionDraft,
+  saveUserInputDraft,
+  trpgActionDraftKey,
+  trpgPartyDraftKey,
+} from "@/lib/userInputDraft";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 
 /** Serialized snapshot observer cadence — ONE GET in flight. */
@@ -71,17 +82,46 @@ export default function TrpgRoomClient({
     }
     return next;
   });
-  const [actionType, setActionType] = useState<TrpgActionType>("free");
-  const [actionBody, setActionBody] = useState(snap.myDraft?.body ?? "");
+  const [actionType, setActionType] = useState<TrpgActionType>(() => {
+    if (snap.myDraft?.body?.trim() && snap.myDraft.actionType) return snap.myDraft.actionType;
+    const local = loadTrpgActionDraft(
+      trpgActionDraftKey(snap.id, snap.round.number),
+      TRPG_ACTION_MAX_CHARS
+    );
+    return local && isTrpgActionType(local.actionType) ? local.actionType : "free";
+  });
+  // TRPG ACTION draft custody: SERVER LOCKED DRAFT > LOCAL UNSENT DRAFT.
+  // Unsent text lives in sessionStorage (campaign+round scope) so reload/back
+  // never loses it; the server snapshot owns submitted/locked bodies.
+  const [actionBody, setActionBody] = useState(() =>
+    resolveTrpgActionInitialBody(
+      snap.myDraft?.body,
+      loadTrpgActionDraft(
+        trpgActionDraftKey(snap.id, snap.round.number),
+        TRPG_ACTION_MAX_CHARS
+      )?.body
+    )
+  );
   const [suggestions, setSuggestions] = useState<TrpgReplySuggestion[]>([]);
   const [suggestionsBusy, setSuggestionsBusy] = useState(false);
   const [suggestionsError, setSuggestionsError] = useState("");
   const [suggestionsEnabled, setSuggestionsEnabled] = useState(false);
-  const [inputOrigin, setInputOrigin] = useState<TrpgInputOrigin>("manual");
+  const [inputOrigin, setInputOrigin] = useState<TrpgInputOrigin>(() => {
+    const local = loadTrpgActionDraft(
+      trpgActionDraftKey(snap.id, snap.round.number),
+      TRPG_ACTION_MAX_CHARS
+    );
+    if (!snap.myDraft?.body?.trim() && local?.body?.trim()) {
+      if (local.inputOrigin === "reply_suggestion") return "reply_suggestion";
+    }
+    return "manual";
+  });
   const [suggestionRound, setSuggestionRound] = useState<number | null>(null);
   const suggestionsBusyRef = useRef(false);
   const autoRequestedRoundRef = useRef<number | null>(null);
-  const [partyBody, setPartyBody] = useState("");
+  const [partyBody, setPartyBody] = useState(() =>
+    loadUserInputDraft(trpgPartyDraftKey(snap.id), TRPG_PARTY_CHAT_MAX_CHARS)
+  );
   const [relationshipBrief, setRelationshipBrief] = useState(initial.relationshipBrief ?? "");
   const [starting, setStarting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(
@@ -112,8 +152,28 @@ export default function TrpgRoomClient({
     appliedRoundRef.current = next.round.number;
     setSnap(next);
     if (reset) {
-      setActionBody(reset.body);
-      setActionType(reset.actionType);
+      // Round rollover: server draft for the new round wins; otherwise restore
+      // the local unsent draft scoped to the NEW round (never the old round).
+      const local = loadTrpgActionDraft(
+        trpgActionDraftKey(next.id, next.round.number),
+        TRPG_ACTION_MAX_CHARS
+      );
+      const body = resolveTrpgActionInitialBody(reset.body, local?.body);
+      setActionBody(body);
+      if (reset.body.trim()) {
+        setActionType(reset.actionType);
+        // Server snapshot is authoritative. Snapshot does not currently expose
+        // inputOrigin, so never carry a previous-round local origin forward.
+        setInputOrigin("manual");
+      } else if (local?.body?.trim()) {
+        if (isTrpgActionType(local.actionType)) setActionType(local.actionType);
+        if (local.inputOrigin === "reply_suggestion" || local.inputOrigin === "manual") {
+          setInputOrigin(local.inputOrigin);
+        }
+      } else {
+        setActionType(reset.actionType);
+        setInputOrigin("manual");
+      }
     } else if (next.myDraft?.body) {
       setActionBody(next.myDraft.body);
     }
@@ -151,19 +211,40 @@ export default function TrpgRoomClient({
       return;
     }
     if (suggestionRound !== snap.round.number) {
-      const reset = trpgActionComposerForRound(suggestionRound, snap.round.number, snap.myDraft);
-      if (reset) {
-        setActionBody(reset.body);
-        setActionType(reset.actionType);
-      }
+      // Round composer state is owned by apply(). Do not re-run the composer
+      // reset here: doing so would overwrite a same-round local draft that
+      // apply() just restored. This effect owns suggestion lifecycle only.
       const cached = loadTrpgActionSuggestionsCache(snap.id, snap.round.number);
       setSuggestions(cached ?? []);
       autoRequestedRoundRef.current = cached?.length ? snap.round.number : null;
       setSuggestionsError("");
-      setInputOrigin("manual");
       setSuggestionRound(snap.round.number);
     }
   }, [snap.id, snap.myDraft, snap.round.number, suggestionRound]);
+
+  // TRPG ACTION draft persistence: typing saves synchronously to sessionStorage
+  // (campaign+round scope). Server-owned bodies are never duplicated locally.
+  useEffect(() => {
+    const key = trpgActionDraftKey(snap.id, snap.round.number);
+    const serverBody = snap.myDraft?.body ?? "";
+    if (serverBody.trim() && actionBody === serverBody) {
+      clearUserInputDraft(key);
+      return;
+    }
+    saveTrpgActionDraft(key, { body: actionBody, actionType, inputOrigin }, TRPG_ACTION_MAX_CHARS);
+  }, [
+    snap.id,
+    snap.round.number,
+    snap.myDraft?.body,
+    actionBody,
+    actionType,
+    inputOrigin,
+  ]);
+
+  // TRPG PARTY draft persistence: campaign scope, cleared only on success.
+  useEffect(() => {
+    saveUserInputDraft(trpgPartyDraftKey(snap.id), partyBody, TRPG_PARTY_CHAT_MAX_CHARS);
+  }, [snap.id, partyBody]);
 
   const refresh = useCallback(async () => {
     const seq = nextRequestSeq();
@@ -241,7 +322,7 @@ export default function TrpgRoomClient({
     };
   }, [applyObservedSnapshot, nextRequestSeq, snap.id]);
 
-  async function run(path: string, body?: unknown) {
+  async function run(path: string, body?: unknown): Promise<boolean> {
     setBusy(true);
     setError("");
     const seq = nextRequestSeq();
@@ -254,11 +335,29 @@ export default function TrpgRoomClient({
       const data = (await res.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
       if (!res.ok || !data.campaign) throw new Error(data.error || "실패했습니다.");
       applyObservedSnapshot(data.campaign, seq, false);
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "실패했습니다.");
+      return false;
     } finally {
       setBusy(false);
     }
+  }
+
+  /**
+   * TRPG ACTION submit: server acceptance is durable (locked row), so the local
+   * unsent draft for this campaign+round is cleared only on success.
+   * Transport failure preserves the local draft; never auto-resends.
+   */
+  async function sendAction() {
+    const campaignId = snap.id;
+    const roundNumber = snap.round.number;
+    const ok = await run(`/api/trpg/campaigns/${campaignId}/action`, {
+      body: actionBody,
+      actionType,
+      inputOrigin,
+    });
+    if (ok) clearUserInputDraft(trpgActionDraftKey(campaignId, roundNumber));
   }
 
   const requestSuggestions = useCallback(async () => {
@@ -454,6 +553,7 @@ export default function TrpgRoomClient({
       const data = (await res.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
       if (!res.ok || !data.campaign) throw new Error(data.error || "보내지 못했습니다.");
       setPartyBody("");
+      clearUserInputDraft(trpgPartyDraftKey(snap.id));
       applyObservedSnapshot(data.campaign, seq, false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "실패했습니다.");
@@ -571,13 +671,7 @@ export default function TrpgRoomClient({
             setActionBody(filled.actionBody);
             setInputOrigin(filled.inputOrigin);
           }}
-          onSendAction={() =>
-            void run(`/api/trpg/campaigns/${snap.id}/action`, {
-              body: actionBody,
-              actionType,
-              inputOrigin,
-            })
-          }
+          onSendAction={() => void sendAction()}
           onSendParty={() => void sendParty()}
           onRetryBots={() => void run(`/api/trpg/campaigns/${snap.id}/retry-bots`)}
           onRetryGm={() => void run(`/api/trpg/campaigns/${snap.id}/advance`)}

@@ -14,6 +14,8 @@ on:
       - "src/lib/emotionTag.ts"
       - "src/lib/inlineTaggedAssets.ts"
       - "src/lib/chatRichContent.ts"
+      - "src/lib/userInputDraft*.ts"
+      - "src/lib/chatStreamDraftRecovery*.ts"
       - "src/app/trpg/**"
       - "src/lib/trpg/**"
 
@@ -36,6 +38,12 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: User input draft custody
+        run: >-
+          node --conditions=react-server --import tsx --test
+          src/lib/userInputDraftCustody.test.ts
+          src/lib/chatStreamDraftRecovery.test.ts
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
