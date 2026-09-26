@@ -1,8 +1,8 @@
 {
-  "calls": 53,
-  "inputTokens": 61852,
-  "outputTokens": 118380,
-  "costUsd": 0.0657,
+  "calls": 54,
+  "inputTokens": 62444,
+  "outputTokens": 120958,
+  "costUsd": 0.066643,
   "failures": 20,
   "retries": 34,
   "lines": [
@@ -533,6 +533,16 @@
       "inputTokens": 1067,
       "outputTokens": 2181,
       "costUsd": 0.000856,
+      "attempts": 1,
+      "failedAttempts": 0
+    },
+    {
+      "task": "style_board",
+      "draftKey": null,
+      "model": "gpt-6-luna",
+      "inputTokens": 592,
+      "outputTokens": 2578,
+      "costUsd": 0.000943,
       "attempts": 1,
       "failedAttempts": 0
     }

@@ -1,0 +1,202 @@
+{
+  "styleKey": "romance_fantasy_v1",
+  "genre": "로맨스 판타지",
+  "stage": "candidates_proposed",
+  "candidates": [
+    {
+      "candidateId": "rf-01",
+      "label": "유리궁전의 서정",
+      "dna": {
+        "faceProportion": "작고 정돈된 턱과 매끈한 타원형 얼굴, 이마와 중안부는 균형 있게 배치",
+        "eyeShape": "가로로 길고 눈꼬리가 부드럽게 올라가며 홍채와 속눈썹은 섬세하게 강조",
+        "noseMouthDetail": "코는 가는 음영으로 절제하고 입술은 작고 윤곽이 또렷한 편",
+        "lineDensity": "얼굴선은 가늘고 깨끗하며 머리카락과 장식에만 촘촘한 선을 추가",
+        "rendering": "매끈한 디지털 채색에 얇은 그라데이션과 은은한 광택을 더한 세미 리얼 스타일",
+        "skinRendering": "밝고 균일한 피부에 볼과 관자놀이의 옅은 홍조, 부드러운 반사광",
+        "hairRendering": "큰 머리카락 덩어리를 정돈해 나누고 가닥 끝에 가는 하이라이트를 배치",
+        "bodyProportion": "머리가 약간 작고 팔다리가 길어 우아한 실루엣을 형성",
+        "costumeComplexity": "레이스와 보석 장식은 정밀하되 큰 형태와 색면이 먼저 읽히도록 구성",
+        "palette": "아이보리, 로즈, 연한 청록과 금색을 중심으로 한 맑은 보석색 팔레트",
+        "lightSoftness": "확산된 창빛과 부드러운 림라이트",
+        "contrast": "중저 대비, 눈과 장신구에 제한적으로 선명한 대비",
+        "backgroundDensity": "궁전 실내의 기둥과 커튼을 간결한 형태로 배치하고 세부는 흐리게 처리",
+        "framing": "가슴 위 인물 구도와 두 인물의 가까운 시선 교환에 적합",
+        "atmosphere": "우아하고 낭만적이며 감정 표현은 절제된 분위기"
+      },
+      "suitability": {
+        "card": 5,
+        "rpLandscape": 4,
+        "maleCharacters": 4,
+        "femaleCharacters": 5,
+        "backgroundScene": 3,
+        "romanticScene": 5,
+        "tenseRelationshipScene": 3,
+        "indoorBedroomScene": 4,
+        "outfitVariation": 4,
+        "emotionRange": 4,
+        "identityConsistencyDifficulty": "중간"
+      },
+      "strengths": [
+        "주요 인물의 얼굴과 장신구가 작은 화면에서도 선명하다",
+        "부드러운 광원과 제한된 색 대비가 로맨틱한 분위기를 안정적으로 만든다"
+      ],
+      "references": [
+        {
+          "url": "https://rofan.ai/",
+          "provenance": "external_public_observation",
+          "note": "로맨스 판타지 장르 맥락을 참고하기 위한 공개 페이지이며 시각 스타일의 직접 모사 대상이 아니다"
+        }
+      ]
+    },
+    {
+      "candidateId": "rf-02",
+      "label": "황혼의 궁정 드라마",
+      "dna": {
+        "faceProportion": "턱선이 조금 더 뚜렷하고 광대와 눈썹 구조가 분명한 균형형 얼굴",
+        "eyeShape": "눈매가 길고 눈꺼풀 선이 선명하며 시선 방향으로 긴장감을 전달",
+        "noseMouthDetail": "콧대와 입술 아래에 명확한 음영을 넣고 입꼬리 변화로 감정을 구분",
+        "lineDensity": "얼굴에는 중간 밀도의 선을 쓰고 의상 주름과 장식에는 선택적으로 세부선을 집중",
+        "rendering": "부드러운 페인팅 기반에 단단한 가장자리와 깊은 그림자를 섞은 드라마틱 렌더링",
+        "skinRendering": "따뜻한 중간톤 피부와 턱선·목의 구조적 음영, 제한된 윤광",
+        "hairRendering": "큰 실루엣은 단단하게 정리하고 앞머리와 장발 끝에 방향성 있는 가닥선을 추가",
+        "bodyProportion": "어깨와 허리의 차이가 뚜렷하고 남성 인물은 넓은 상체, 여성 인물은 길고 날렵한 선으로 구분",
+        "costumeComplexity": "제복과 궁정복의 절개선, 금속 단추, 자수 문양을 서사적으로 강조",
+        "palette": "버건디, 먹색, 앤틱 골드, 딥 네이비의 저채도 팔레트",
+        "lightSoftness": "측면에서 들어오는 따뜻한 빛과 얼굴 일부에 맺히는 부드러운 하이라이트",
+        "contrast": "중고 대비로 인물과 배경의 위계를 뚜렷하게 분리",
+        "backgroundDensity": "회랑과 접견실은 건축선을 분명히 하되 장식은 초점면 밖에서 단순화",
+        "framing": "허리 위 대치 구도와 비스듬한 시선 축을 활용",
+        "atmosphere": "권력 관계와 숨겨진 감정이 공존하는 긴장감 있는 분위기"
+      },
+      "suitability": {
+        "card": 4,
+        "rpLandscape": 5,
+        "maleCharacters": 5,
+        "femaleCharacters": 4,
+        "backgroundScene": 4,
+        "romanticScene": 4,
+        "tenseRelationshipScene": 5,
+        "indoorBedroomScene": 3,
+        "outfitVariation": 5,
+        "emotionRange": 5,
+        "identityConsistencyDifficulty": "중상"
+      },
+      "strengths": [
+        "남성 인물의 체격과 표정을 또렷하게 차별화하기 좋다",
+        "의상과 조명만으로 궁정 내 권력 관계를 빠르게 전달한다",
+        "긴장과 호감이 섞인 장면에서 시선 연출이 강하다"
+      ],
+      "references": [
+        {
+          "url": "https://navercorp.com/media/pressReleasesDetail?seq=34351",
+          "provenance": "external_public_observation",
+          "note": "공개 보도 자료의 장르·서비스 맥락만 참고하며 특정 이미지 스타일을 지시하지 않는다"
+        }
+      ]
+    },
+    {
+      "candidateId": "rf-03",
+      "label": "달빛 아래의 몽환 서사",
+      "dna": {
+        "faceProportion": "부드러운 타원형 얼굴과 둥근 볼, 이마가 약간 넓어 순수하고 몽환적인 인상",
+        "eyeShape": "큰 눈에 둥근 홍채와 낮은 눈꼬리를 적용해 감정의 여운을 강조",
+        "noseMouthDetail": "코 표현은 최소화하고 입술 경계는 흐리게 두어 표정의 미세한 변화를 살림",
+        "lineDensity": "외곽선은 가볍고 내부선은 적으며 빛과 색면으로 형태를 설명",
+        "rendering": "수채화 같은 번짐과 디지털 글레이즈를 겹친 부드러운 페인터리 렌더링",
+        "skinRendering": "반투명한 피부톤 위에 분홍과 라일락 기운을 얇게 겹치고 강한 질감은 피함",
+        "hairRendering": "머리카락을 넓은 흐름의 덩어리로 나누고 끝부분을 빛에 녹이듯 처리",
+        "bodyProportion": "가늘고 길게 뻗는 실루엣, 손과 목선을 섬세하게 강조",
+        "costumeComplexity": "얇은 천과 리본, 작은 꽃 장식 위주로 복잡도를 낮추고 움직임을 강조",
+        "palette": "라일락, 펄 블루, 흐린 핑크, 은색이 중심인 저채도 팔레트",
+        "lightSoftness": "달빛과 촛불을 섞은 매우 부드러운 광원, 가장자리에 안개 같은 번짐",
+        "contrast": "낮은 대비와 넓은 중간톤으로 꿈결 같은 깊이를 형성",
+        "backgroundDensity": "정원과 침실은 커튼·꽃·창문의 실루엣만 남겨 인물에 초점을 둠",
+        "framing": "얼굴 클로즈업과 손끝, 시선이 닿는 부분을 강조하는 친밀한 구도",
+        "atmosphere": "비밀스러운 애정과 그리움이 감도는 서정적 분위기"
+      },
+      "suitability": {
+        "card": 4,
+        "rpLandscape": 3,
+        "maleCharacters": 3,
+        "femaleCharacters": 5,
+        "backgroundScene": 3,
+        "romanticScene": 5,
+        "tenseRelationshipScene": 3,
+        "indoorBedroomScene": 5,
+        "outfitVariation": 3,
+        "emotionRange": 4,
+        "identityConsistencyDifficulty": "중상"
+      },
+      "strengths": [
+        "가까운 거리의 감정과 부드러운 애정 표현에 강하다",
+        "실내 장면을 빛과 실루엣 중심으로 간결하게 구성할 수 있다"
+      ],
+      "references": [
+        {
+          "url": "https://zeta-ai.io/ko/plots/f3ca37b2-0334-4d7d-8e71-26764ba2d671/profile",
+          "provenance": "external_public_observation",
+          "note": "공개 프로필 페이지를 장르 맥락 참고용으로만 사용하며 이미지 생성용 스타일 전달은 아니다"
+        }
+      ]
+    },
+    {
+      "candidateId": "rf-04",
+      "label": "선명한 왕도 판타지",
+      "dna": {
+        "faceProportion": "얼굴형은 단정한 타원형이며 턱과 코의 비례를 명확히 잡아 다양한 인물에 적용",
+        "eyeShape": "중간 크기의 또렷한 눈, 눈썹과 눈꼬리 각도를 달리해 성격을 구분",
+        "noseMouthDetail": "콧대와 입술 형태를 간결한 선과 음영으로 분명히 표현",
+        "lineDensity": "균일한 외곽선과 선택적인 내부선을 사용해 작은 화면에서도 형태가 읽힘",
+        "rendering": "선명한 셀 셰이딩에 부드러운 보조 그라데이션을 더한 정돈된 디지털 렌더링",
+        "skinRendering": "자연스러운 중간 밝기 피부와 제한된 볼 홍조, 구조를 읽히게 하는 깔끔한 음영",
+        "hairRendering": "헤어 실루엣을 명료하게 나누고 색 덩어리와 하이라이트로 빠르게 구분",
+        "bodyProportion": "표준화된 인체 비례에 약간 긴 팔다리를 적용해 다양한 연령과 체형을 수용",
+        "costumeComplexity": "기본 의상은 간결하게 유지하고 계급별 문장, 망토, 장신구로 변주",
+        "palette": "청색, 크림, 적갈색, 금색을 중심으로 한 선명하고 균형 잡힌 팔레트",
+        "lightSoftness": "방향성이 분명한 중간 강도의 빛과 읽기 쉬운 그림자",
+        "contrast": "중간 대비로 인물과 의상의 형태를 명료하게 분리",
+        "backgroundDensity": "성벽, 홀, 숲을 읽기 쉬운 큰 형태로 구성하고 장면별 세부량을 조절",
+        "framing": "전신과 반신 모두 안정적으로 담는 정면 또는 삼분할 구도",
+        "atmosphere": "모험성과 로맨스를 함께 담는 명료하고 활기찬 분위기"
+      },
+      "suitability": {
+        "card": 5,
+        "rpLandscape": 5,
+        "maleCharacters": 4,
+        "femaleCharacters": 4,
+        "backgroundScene": 5,
+        "romanticScene": 3,
+        "tenseRelationshipScene": 4,
+        "indoorBedroomScene": 3,
+        "outfitVariation": 5,
+        "emotionRange": 5,
+        "identityConsistencyDifficulty": "낮음"
+      },
+      "strengths": [
+        "배경과 전신 의상을 포함한 장면 구성에 유연하다",
+        "선과 명암 규칙이 안정적이어서 다수 인물의 일관성을 유지하기 쉽다",
+        "감정 폭과 의상 변주를 폭넓게 수용한다"
+      ],
+      "references": [
+        {
+          "url": "https://www.aitimes.com/news/articleView.html?idxno=167810",
+          "provenance": "external_public_observation",
+          "note": "공개 기사 페이지를 일반적인 장르·미디어 맥락 참고용으로만 사용하며 특정 작가나 작품의 스타일 타깃이 아니다"
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "model": "gpt-6-luna",
+    "requestKind": "official-character-author",
+    "templateVersion": "pilot-rf-01/v1",
+    "snapshotVersion": "market-research-snapshot-2026-09.json",
+    "attempt": 1,
+    "createdAt": "2026-09-26T13:48:00.712Z",
+    "inputTokens": 592,
+    "outputTokens": 2578,
+    "costUsd": 0.000943,
+    "providerRequestId": null
+  },
+  "note": "사용자 선택 전. candidate_approved/style_locked로 자동 진행하지 않는다."
+}
