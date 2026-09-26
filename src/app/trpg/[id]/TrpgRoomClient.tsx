@@ -162,6 +162,9 @@ export default function TrpgRoomClient({
       setActionBody(body);
       if (reset.body.trim()) {
         setActionType(reset.actionType);
+        // Server snapshot is authoritative. Snapshot does not currently expose
+        // inputOrigin, so never carry a previous-round local origin forward.
+        setInputOrigin("manual");
       } else if (local?.body?.trim()) {
         if (isTrpgActionType(local.actionType)) setActionType(local.actionType);
         if (local.inputOrigin === "reply_suggestion" || local.inputOrigin === "manual") {
@@ -169,6 +172,7 @@ export default function TrpgRoomClient({
         }
       } else {
         setActionType(reset.actionType);
+        setInputOrigin("manual");
       }
     } else if (next.myDraft?.body) {
       setActionBody(next.myDraft.body);
@@ -207,16 +211,13 @@ export default function TrpgRoomClient({
       return;
     }
     if (suggestionRound !== snap.round.number) {
-      const reset = trpgActionComposerForRound(suggestionRound, snap.round.number, snap.myDraft);
-      if (reset) {
-        setActionBody(reset.body);
-        setActionType(reset.actionType);
-      }
+      // Round composer state is owned by apply(). Do not re-run the composer
+      // reset here: doing so would overwrite a same-round local draft that
+      // apply() just restored. This effect owns suggestion lifecycle only.
       const cached = loadTrpgActionSuggestionsCache(snap.id, snap.round.number);
       setSuggestions(cached ?? []);
       autoRequestedRoundRef.current = cached?.length ? snap.round.number : null;
       setSuggestionsError("");
-      setInputOrigin("manual");
       setSuggestionRound(snap.round.number);
     }
   }, [snap.id, snap.myDraft, snap.round.number, suggestionRound]);
