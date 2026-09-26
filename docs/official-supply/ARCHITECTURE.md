@@ -14,8 +14,8 @@ research snapshot ─► style candidates (3-5 / genre, DNA only, no paid calls)
 draft ─► TEXT_LOCK (store.lockText) ─► APPEARANCE_LOCK (store.lockAppearance) ─► asset plan (store.lockAssetPlan)
    └─ proof characters only, ≤ proofAssetLimit paid slots, anchor first
    └─ STYLE_PROOF_APPROVAL      (store.decideStyleProof → style_locked | rejected)
-representative 2:3 anchor ─► ANCHOR_APPROVAL (store.reviewAnchor: 10-point QA, reviewer)
-   ─► 13 RP 3:2 slots (per-slot generate + reviewVariation) ─► assets_complete ─► markQaPassed
+representative 2:3 anchor ─► canonical moderation (moderateOfficialAssetSlot) ─► ANCHOR_APPROVAL (store.reviewAnchor: moderation verdict + 10-point QA, reviewer)
+   ─► 13 RP 3:2 slots (per-slot generate + moderate + reviewVariation) ─► assets_complete ─► markQaPassed
    ─► stageOfficialCharacterPrivately (canonical createCharacterFromForm, visibility=private, official=0)
 ```
 
@@ -29,7 +29,7 @@ style stage, proof quota, seed) — the provider is never reached when a gate fa
 | STYLE_PROOF_APPROVAL | `decideStyleProof` + `assertGenerationAllowed` (`style_not_locked`, `style_proof_quota`, `style_rejected`) |
 | TEXT_LOCK | `lockText` (pipeline QA + canonical `parseCharacterFormBody` dry run) + text-lock hash check |
 | APPEARANCE_LOCK | `lockAppearance` + per-asset `appearance_lock_hash` check |
-| ANCHOR_APPROVAL | `reviewAnchor` + `assertGenerationAllowed` (`anchor_not_approved`) |
+| ANCHOR_APPROVAL | `reviewAnchor` (moderation verdict first, then visual QA) + `assertGenerationAllowed` (`anchor_not_approved`) |
 
 ## Image formats
 
@@ -39,9 +39,9 @@ style stage, proof quota, seed) — the provider is never reached when a gate fa
 | Signature ×4, Emotion ×6 | `official_character_rp` | 1536×1024 (3:2) | inline RP (`isWideInlineAsset`) |
 | Special scene ×3 | `official_character_rp` | 1536×1024 (3:2) | inline RP, character mandatory |
 
-Both are native provider sizes with the exact product ratio. Outputs in the right orientation within
-2% ratio are resized; anything else fails that slot (never cropped). Chat LD (800×1200), comic and TRPG
-size owners are untouched.
+Both are native provider sizes with the exact product ratio and are requested exactly. Only an exact
+native-size result is accepted; any other size fails that slot and it is regenerated (never resized,
+stretched or cropped, to protect identity). Chat LD (800×1200), comic and TRPG size owners are untouched.
 
 ## Owner map (reused, not duplicated)
 
@@ -59,7 +59,7 @@ size owners are untouched.
 | Provider transport + safety fallback | `callOpenAiImageEditWithSafetyFallback` |
 | Gender lock / safety text | `buildImageGenderLockPrompt`, `buildIllustrationSafeDepiction`, `STRICT_SAFE_DEPICTION` |
 | Upload storage | `storeUpload` |
-| Asset moderation | `analyzeAssetImage` (+ `recordVisionCostAttempts`) |
+| Asset moderation | `analyzeAssetImage` (+ `recordVisionCostAttempts`) via `visionOfficialAssetModerator`; one decision owner `officialModerationVerdict` for representative and RP |
 | Platform cost | `recordBackgroundProviderCost` (`platform_funded`, cost center `image`) |
 
 ## Adult owner map
@@ -73,6 +73,20 @@ size owners are untouched.
 | Adult listing text | `characterAdultTextBlob` + `findAdultTermsInText` (`allAgesListingBlockReason`) |
 | Viewer adult verification | `character/[id]/page.tsx` and `/api/chat` (`nsfw && !user.is_adult`) — no `official` input |
 | Image depiction / safety | canonical safety text; `adult_grounded_non_explicit` is a per-slot opt-in allowed only for confirmed-adult sheets, independent of `nsfw` |
+
+## Moderation
+
+Every generated asset (representative included, SFW and 19+ alike) is moderated through the canonical
+asset-vision owner and the result is stored on the asset row. `officialModerationVerdict` decides:
+`rejected` → slot rejected (for the representative: no `anchor_approved`, so no RP generation and no
+staging); `unavailable` / not yet run → review refused (`moderation_unavailable` / `moderation_missing`),
+never treated as clean; `adult_flagged` → approvable, recorded as `adultFlagged` so the canonical listing
+owner routes it to admin review. The creator upload path is unchanged.
+
+## Research collection
+
+`isCollectionMethodAllowed(policy, method)`: `manual_curated` is always allowed; `automated` only when the
+source is `allows_automation`. Permission never forces automation.
 
 ## Why the user-paid image job owner is not reused
 

@@ -10,17 +10,21 @@ import { canAccessCharacter, listableWhere, type CharacterAccessRow } from "@/li
 import { getCharacterRepresentativeImageUrl, isWideInlineAsset, parseAssets } from "@/lib/characterAssets";
 import { OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
 import {
+  moderateOfficialAssetSlot,
   OfficialImageTransportError,
   OfficialSupplyBudgetError,
   runOfficialAssetSlot,
+  type OfficialAssetModerator,
   type OfficialAssetRunnerDeps,
   type OfficialImageTransport,
 } from "@/lib/officialSupply/runner";
+import { officialModerationVerdict } from "@/lib/officialSupply/moderation";
 import { stageOfficialCharacterPrivately } from "@/lib/officialSupply/staging";
 import { buildOfficialCharacterFormBody } from "@/lib/officialSupply/characterText";
 import { insertCreatorLorebookForOwner } from "@/lib/creatorLorebook";
 import type {
   OfficialAnchorQaReport,
+  OfficialAssetModeration,
   OfficialCharacterDraft,
   OfficialVariationQaReport,
   OfficialWorldLorebookEntry,
@@ -56,6 +60,15 @@ class FakeWorld {
   nextDims: Array<[number, number]> = [];
   failNextProvider: Array<{ message: string; costUsd: number | null }> = [];
   failNextUploads = 0;
+  nextModeration: OfficialAssetModeration[] = [];
+  moderatedUrls: string[] = [];
+
+  moderator: OfficialAssetModerator = {
+    moderate: async (url) => {
+      this.moderatedUrls.push(url);
+      return this.nextModeration.shift() ?? { status: "checked", adultFlagged: false, moderationReject: false, reason: "" };
+    },
+  };
   costPerImage = 0.1;
   now = 1_000_000;
 
@@ -85,7 +98,6 @@ class FakeWorld {
           const match = /^(\d+)x(\d+)$/.exec(buffer.toString());
           return match ? { width: Number(match[1]), height: Number(match[2]) } : null;
         },
-        normalize: async (_buffer, profile) => encodeImage(profile.width, profile.height),
       },
       storage: {
         store: async (filename, buffer) => {
@@ -115,9 +127,19 @@ const anchorQa = (overrides: Partial<OfficialAnchorQaReport> = {}): OfficialAnch
   identifyingFeatures: PASS, artStyle: PASS, outfit: PASS, cardCrop: PASS, ...overrides,
 });
 const variationQa = (overrides: Partial<OfficialVariationQaReport> = {}): OfficialVariationQaReport => ({
-  identityMatchesAnchor: PASS, expressionMatchesPlan: PASS, characterPresent: PASS, artStyle: PASS,
-  moderation: { adultFlagged: false, moderationReject: false, reason: "" }, ...overrides,
+  identityMatchesAnchor: PASS, expressionMatchesPlan: PASS, characterPresent: PASS, artStyle: PASS, ...overrides,
 });
+
+/** Canonical order: moderation first (via the moderator port), then the visual review. */
+async function reviewAnchorModerated(world: FakeWorld, draftKey: string, qa = anchorQa()) {
+  await moderateOfficialAssetSlot({ store, moderator: world.moderator }, draftKey, "rep");
+  return store.reviewAnchor(draftKey, qa, "owner");
+}
+
+async function reviewVariationModerated(world: FakeWorld, draftKey: string, slotKey: string, qa = variationQa()) {
+  await moderateOfficialAssetSlot({ store, moderator: world.moderator }, draftKey, slotKey);
+  return store.reviewVariation(draftKey, slotKey, qa);
+}
 
 let batchSeq = 0;
 /** Returns a batch whose genre style is at the requested gate. "locked" goes through a real proof + approval. */
@@ -157,11 +179,11 @@ function lockThroughPlan(
 async function generateAndApproveAll(store: OfficialSupplyStore, world: FakeWorld, draftKey: string) {
   const deps = world.deps(store);
   assert.equal((await runOfficialAssetSlot(deps, draftKey, "rep")).status, "generated");
-  assert.equal(store.reviewAnchor(draftKey, anchorQa(), "owner").approved, true);
+  assert.equal((await reviewAnchorModerated(world, draftKey)).approved, true);
   for (const asset of store.listAssets(draftKey)) {
     if (asset.kind === "representative") continue;
     assert.equal((await runOfficialAssetSlot(deps, draftKey, asset.slotKey)).status, "generated");
-    store.reviewVariation(draftKey, asset.slotKey, variationQa());
+    await reviewVariationModerated(world, draftKey, asset.slotKey);
   }
   assert.equal(store.getCharacter(draftKey).stage, "assets_complete");
   assert.equal(store.markQaPassed(draftKey).ok, true);
@@ -172,13 +194,14 @@ function uniqueDraft(key: string, vocab: readonly string[], name: string, extra:
 }
 
 let store: OfficialSupplyStore;
+const originalFetch = globalThis.fetch;
+const egressAttempts: string[] = [];
 
 before(() => {
-  // Canonical save wakes the derived-cache worker; keep this suite provider-free even when the host has keys.
-  process.env.DISABLE_DERIVED_CACHE_WORKER = "1";
-  delete process.env.OPENAI_API_KEY;
-  delete process.env.OPENROUTER_API_KEY;
-  delete process.env.CHEAPER_INFERENCE_API_KEY;
+  globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+    egressAttempts.push(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+    throw new Error("network egress is not allowed in official supply tests");
+  }) as typeof fetch;
   installIsolatedTestDatabase();
   const db = getDb();
   for (const user of [STAGING_USER, { id: OTHER_VIEWER, nickname: "viewer", is_adult: 1 }]) {
@@ -188,7 +211,11 @@ before(() => {
   store = new OfficialSupplyStore(db);
 });
 
-after(() => uninstallIsolatedTestDatabase());
+after(() => {
+  globalThis.fetch = originalFetch;
+  uninstallIsolatedTestDatabase();
+  assert.deepEqual(egressAttempts, [], "official supply pipeline made network calls");
+});
 
 describe("user approval gates block paid calls", () => {
   let world: FakeWorld;
@@ -243,7 +270,7 @@ describe("user approval gates block paid calls", () => {
 
     assert.equal((await runOfficialAssetSlot(deps, "proof-1", "rep")).status, "generated");
     assert.throws(() => store.decideStyleProof(batch.styleKey, "approve", ""), (e: OfficialSupplyGateError) => e.code === "reviewer_required");
-    store.reviewAnchor("proof-1", anchorQa(), "owner");
+    await reviewAnchorModerated(world, "proof-1", anchorQa());
     assert.equal((await runOfficialAssetSlot(deps, "proof-1", "emo5")).status, "generated");
     assert.equal((await runOfficialAssetSlot(deps, "proof-1", "scene2")).status, "generated");
     await assert.rejects(runOfficialAssetSlot(deps, "proof-1", "sig1"), (e: OfficialSupplyGateError) => e.code === "style_proof_quota");
@@ -272,12 +299,12 @@ describe("anchor-first generation, retries and idempotency", () => {
     lockThroughPlan(store, batch, uniqueDraft("anchor-1", HWANG_VOCAB, "레온하르트"));
     const deps = world.deps(store);
     await runOfficialAssetSlot(deps, "anchor-1", "rep");
-    assert.equal(store.reviewAnchor("anchor-1", anchorQa({ gender: { ok: false, note: "reads female" } }), "owner").approved, false);
+    assert.equal((await reviewAnchorModerated(world, "anchor-1", anchorQa({ gender: { ok: false, note: "reads female" } }))).approved, false);
     await assert.rejects(runOfficialAssetSlot(deps, "anchor-1", "sig1"), (e: OfficialSupplyGateError) => e.code === "anchor_not_approved");
     assert.equal((await runOfficialAssetSlot(deps, "anchor-1", "rep")).status, "generated");
     assert.equal(world.calls.length, 2);
     assert.ok(world.calls.every((c) => c.size === "1024x1536" && c.references[0] === SEED.url));
-    store.reviewAnchor("anchor-1", anchorQa(), "owner");
+    await reviewAnchorModerated(world, "anchor-1", anchorQa());
     await runOfficialAssetSlot(deps, "anchor-1", "scene1");
     const last = world.calls.at(-1)!;
     assert.equal(last.size, "1536x1024");
@@ -319,7 +346,7 @@ describe("anchor-first generation, retries and idempotency", () => {
 
   it("provider timeout / malformed output fail that slot only and are retried alone", async () => {
     const world = new FakeWorld();
-    const batch = await freshBatch(store);
+    const batch = await freshBatch(store, { maxAttemptsPerSlot: 6 });
     lockThroughPlan(store, batch, uniqueDraft("fail-1", HWANG_VOCAB, "레온하르트"));
     const deps = world.deps(store);
     world.failNextProvider.push({ message: "이미지 생성 시간이 초과되었습니다.", costUsd: null });
@@ -328,14 +355,18 @@ describe("anchor-first generation, retries and idempotency", () => {
     assert.equal((await runOfficialAssetSlot(deps, "fail-1", "rep")).status, "failed");
     assert.match(store.representativeAsset("fail-1").error ?? "", /malformed output 1536x1024/);
     world.nextDims.push([1020, 1536]);
+    assert.equal((await runOfficialAssetSlot(deps, "fail-1", "rep")).status, "failed");
+    assert.match(store.representativeAsset("fail-1").error ?? "", /malformed output 1020x1536/);
+    world.nextDims.push([512, 768]);
+    assert.equal((await runOfficialAssetSlot(deps, "fail-1", "rep")).status, "failed");
     assert.equal((await runOfficialAssetSlot(deps, "fail-1", "rep")).status, "generated");
     const rep = store.representativeAsset("fail-1");
     assert.equal(rep.width, 1024);
     assert.equal(rep.height, 1536);
-    assert.equal(rep.attempts, 3);
+    assert.equal(rep.attempts, 5);
     assert.equal(rep.hasUnknownCost, true);
     assert.equal((await runOfficialAssetSlot(deps, "fail-1", "rep")).status, "already_generated");
-    store.reviewAnchor("fail-1", anchorQa(), "owner");
+    await reviewAnchorModerated(world, "fail-1", anchorQa());
     world.failNextProvider.push({ message: "bad", costUsd: 0.05 });
     await runOfficialAssetSlot(deps, "fail-1", "emo1");
     assert.equal(store.getAsset("fail-1", "emo1").status, "failed");
@@ -373,7 +404,7 @@ describe("anchor-first generation, retries and idempotency", () => {
     lockThroughPlan(store, batch, uniqueDraft("budget-1", HWANG_VOCAB, "레온하르트"));
     const deps = world.deps(store);
     await runOfficialAssetSlot(deps, "budget-1", "rep");
-    store.reviewAnchor("budget-1", anchorQa(), "owner");
+    await reviewAnchorModerated(world, "budget-1", anchorQa());
     await runOfficialAssetSlot(deps, "budget-1", "sig1");
     await assert.rejects(runOfficialAssetSlot(deps, "budget-1", "sig2"), (e: unknown) => e instanceof OfficialSupplyBudgetError);
     assert.equal(store.getBatch(batch.batchKey).status, "paused");
@@ -514,21 +545,92 @@ describe("private staging through the canonical character save owner", () => {
     assert.equal(store.getCharacter("stage-leak").stage, "qa_passed");
   });
 
-  it("moderation hard-reject blocks the variation; it is regenerated alone", async () => {
+  it("variation moderation hard-reject rejects that slot only; it is regenerated alone", async () => {
     const world = new FakeWorld();
     const batch = await freshBatch(store);
     lockThroughPlan(store, batch, uniqueDraft("mod-1", HWANG_VOCAB, "레온하르트"));
     const deps = world.deps(store);
     await runOfficialAssetSlot(deps, "mod-1", "rep");
-    store.reviewAnchor("mod-1", anchorQa(), "owner");
+    await reviewAnchorModerated(world, "mod-1");
     await runOfficialAssetSlot(deps, "mod-1", "scene2");
-    const qa = variationQa({ moderation: { adultFlagged: true, moderationReject: true, reason: "노출" } });
-    assert.equal(store.reviewVariation("mod-1", "scene2", qa).approved, false);
+    await assert.rejects(async () => store.reviewVariation("mod-1", "scene2", variationQa()), (e: OfficialSupplyGateError) => e.code === "moderation_missing");
+    world.nextModeration.push({ status: "checked", adultFlagged: true, moderationReject: true, reason: "노출" });
+    assert.equal((await reviewVariationModerated(world, "mod-1", "scene2")).approved, false);
     assert.equal(store.getAsset("mod-1", "scene2").status, "rejected");
     assert.equal((await runOfficialAssetSlot(deps, "mod-1", "scene2")).status, "generated");
-    assert.equal(store.reviewVariation("mod-1", "scene2", variationQa()).approved, true);
+    assert.equal(store.getAsset("mod-1", "scene2").moderation, null);
+    assert.equal((await reviewVariationModerated(world, "mod-1", "scene2")).approved, true);
     assert.equal(world.calls.length, 3);
     assert.equal(store.getAsset("mod-1", "sig1").status, "planned");
+  });
+});
+
+describe("representative anchor goes through the canonical moderation owner", () => {
+  const HARD_REJECT: OfficialAssetModeration = { status: "checked", adultFlagged: true, moderationReject: true, reason: "유두 노출" };
+
+  async function generatedAnchor(key: string, draft: OfficialCharacterDraft) {
+    const world = new FakeWorld();
+    const batch = await freshBatch(store);
+    lockThroughPlan(store, batch, draft);
+    await runOfficialAssetSlot(world.deps(store), key, "rep");
+    return world;
+  }
+
+  it("SFW: hard reject fails anchor approval even when all 10 visual checks pass; RP generation and staging stay blocked", async () => {
+    const world = await generatedAnchor("rep-sfw", uniqueDraft("rep-sfw", HWANG_VOCAB, "레온하르트"));
+    world.nextModeration.push(HARD_REJECT);
+    assert.equal((await reviewAnchorModerated(world, "rep-sfw")).approved, false);
+    assert.equal(store.representativeAsset("rep-sfw").status, "rejected");
+    assert.equal(store.getCharacter("rep-sfw").stage, "asset_plan_locked");
+    await assert.rejects(runOfficialAssetSlot(world.deps(store), "rep-sfw", "sig1"), (e: OfficialSupplyGateError) => e.code === "anchor_not_approved");
+    await assert.rejects(stageOfficialCharacterPrivately({ store, draftKey: "rep-sfw", stagingUser: STAGING_USER }), (e: OfficialSupplyGateError) => e.code === "character_stage");
+    assert.equal(world.calls.length, 1);
+    assert.deepEqual(world.moderatedUrls, [store.representativeAsset("rep-sfw").resultUrl]);
+  });
+
+  it("19+: nsfw=true does not bypass a representative hard reject", async () => {
+    const draft = uniqueDraft("rep-adult", MAGE_VOCAB, "이안", { nsfw: true, hook: { archetype: "괴짜 천재", occupation: "궁정 마법사", relationshipTrope: "사제" } });
+    const world = await generatedAnchor("rep-adult", draft);
+    world.nextModeration.push(HARD_REJECT);
+    assert.equal((await reviewAnchorModerated(world, "rep-adult")).approved, false);
+    assert.equal(store.getCharacter("rep-adult").stage, "asset_plan_locked");
+    await assert.rejects(runOfficialAssetSlot(world.deps(store), "rep-adult", "scene2"), (e: OfficialSupplyGateError) => e.code === "anchor_not_approved");
+  });
+
+  it("moderation unavailable is explicit: approval is refused (not a clean pass) until moderation is re-run", async () => {
+    const world = await generatedAnchor("rep-unavail", uniqueDraft("rep-unavail", HWANG_VOCAB, "레온하르트"));
+    await assert.rejects(async () => store.reviewAnchor("rep-unavail", anchorQa(), "owner"), (e: OfficialSupplyGateError) => e.code === "moderation_missing");
+    world.nextModeration.push({ status: "unavailable", reason: "asset vision moderation unavailable" });
+    await assert.rejects(reviewAnchorModerated(world, "rep-unavail"), (e: OfficialSupplyGateError) => e.code === "moderation_unavailable");
+    assert.equal(store.representativeAsset("rep-unavail").status, "generated");
+    assert.equal(store.getCharacter("rep-unavail").stage, "asset_plan_locked");
+    assert.equal((await reviewAnchorModerated(world, "rep-unavail")).approved, true);
+    assert.equal(store.getCharacter("rep-unavail").stage, "anchor_approved");
+  });
+
+  it("clean moderation + visual QA approves; adult-flagged (not rejected) stays approvable and is recorded for the listing owner", async () => {
+    const world = await generatedAnchor("rep-clean", uniqueDraft("rep-clean", HWANG_VOCAB, "레온하르트"));
+    assert.equal((await reviewAnchorModerated(world, "rep-clean")).approved, true);
+    assert.deepEqual(store.representativeAsset("rep-clean").moderation, { status: "checked", adultFlagged: false, moderationReject: false, reason: "" });
+
+    const flagged = await generatedAnchor("rep-flag", uniqueDraft("rep-flag", KNIGHT_VOCAB, "세라핀", { gender: "female" }));
+    flagged.nextModeration.push({ status: "checked", adultFlagged: true, moderationReject: false, reason: "경계" });
+    assert.equal((await reviewAnchorModerated(flagged, "rep-flag")).approved, true);
+    assert.equal(officialModerationVerdict(store.representativeAsset("rep-flag").moderation), "adult_flagged");
+  });
+
+  it("staged representative carries the canonical moderation fields at assets[0]", async () => {
+    const world = new FakeWorld();
+    const batch = await freshBatch(store);
+    lockThroughPlan(store, batch, uniqueDraft("rep-stage", HWANG_VOCAB, "레온하르트"));
+    world.nextModeration.push({ status: "checked", adultFlagged: true, moderationReject: false, reason: "경계" });
+    await generateAndApproveAll(store, world, "rep-stage");
+    const staged = await stageOfficialCharacterPrivately({ store, draftKey: "rep-stage", stagingUser: STAGING_USER });
+    const row = getDb().prepare("SELECT assets, moderation_status FROM characters WHERE id=?").get(staged.characterId) as { assets: string; moderation_status: string };
+    const assets = parseAssets(row.assets);
+    assert.equal(assets[0]!.adultFlagged, true);
+    assert.equal(assets[0]!.viewerBlur, false);
+    assert.ok(assets.slice(1).every((a) => a.adultFlagged === false && a.moderationReject !== true));
   });
 });
 
@@ -594,6 +696,13 @@ describe("adult validation stays canonical (no official bypass)", () => {
     const route = fs.readFileSync(path.join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
     assert.match(page, /if \(c\.nsfw === 1 && !user\.is_adult\) \{/);
     assert.match(route, /if \(ch\.nsfw && !user\.is_adult\) \{/);
+  });
+
+  it("tests never load the network-capable production adapters (OpenAI transport, reference fetch, vision)", () => {
+    const dir = path.join(process.cwd(), "src/lib/officialSupply");
+    for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".test.ts") || f.endsWith(".fixtures.ts"))) {
+      assert.doesNotMatch(fs.readFileSync(path.join(dir, file), "utf8"), /from "@\/lib\/officialSupply\/productionAdapters"/, file);
+    }
   });
 
   it("official supply never imports user-paid billing, point or creator-reward owners", () => {
