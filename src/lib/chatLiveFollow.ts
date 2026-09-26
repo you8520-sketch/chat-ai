@@ -2,6 +2,7 @@
  * General chat live-follow owner map (production path):
  * - CHAT_STREAM_TEXT_OWNER: createStreamReveal onAppend → messages[aiIndex].content
  * - CHAT_STREAM_END_SENTINEL_OWNER: data-chat-assistant-stream-end on active assistant row
+ * - CHAT_READING_PROGRESS_OWNER: resolveChatReadingProgressDocumentY (Range end-of-text)
  * - CHAT_AUTO_FOLLOW_OWNER: followStreamRef + userScrollLockRef + createLiveReadingFollowController
  * - CHAT_MANUAL_DETACH_OWNER: userScrollLockRef (classified root window scroll movement)
  * - CHAT_JUMP_TO_LATEST_OWNER: scrollToBottom / discrete reattach on explicit user action
@@ -18,18 +19,15 @@ export type ChatLiveFollowMotionPrefs = {
 };
 
 /**
- * Canonical general-chat motion profile. This reuses the shared controller’s
- * stepwise target-chase semantics, without reveal-paced continuous cruise.
- * The unchanged stream values preserve the production reveal preference for
- * diagnostics; only rendered target changes may start a chase episode.
+ * Canonical general-chat camera profile. Geometry-damped follow tracks Range-based
+ * render-progress virtual reading Y (sentinel fallback) — stream reveal cadence
+ * (prefs) does not drive camera smoothing, cruise, or line-wrap estimates.
  */
 export function resolveChatLiveFollowMotionProfile(
-  prefs: ChatLiveFollowMotionPrefs
+  _prefs: ChatLiveFollowMotionPrefs
 ): LiveReadingMotionProfile {
   return {
-    mode: "continuous-flow",
-    streamIntervalMs: prefs.streamIntervalMs,
-    streamCharsPerTick: prefs.streamCharsPerTick,
+    mode: "geometry-damped",
     downwardOnly: true,
   };
 }
