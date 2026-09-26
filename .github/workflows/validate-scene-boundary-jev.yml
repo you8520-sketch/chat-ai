@@ -1,0 +1,55 @@
+name: Validate scene-boundary JEV benchmark
+
+# Deterministic CI for lexical→JEV scene-boundary shadow benchmark.
+# Live provider calls remain opt-in only (REGULAR_TEST_REAL_PROVIDER_CALLS=0 here).
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/validate-scene-boundary-jev.yml"
+      - "src/lib/scenePolicyBoundarySuspicionScan.ts"
+      - "src/lib/scenePolicyBoundarySuspicionScan.test.ts"
+      - "src/lib/sceneBoundarySemanticCorpus.ts"
+      - "src/lib/sceneBoundaryJevJudge.ts"
+      - "src/lib/jevDecisions.ts"
+      - "src/lib/jevDecisions.test.ts"
+      - "scripts/lib/benchmarkOpenRouterJevCredential.ts"
+      - "scripts/lib/sceneBoundaryJevBenchmark.ts"
+      - "scripts/lib/sceneBoundaryJevBenchmark.test.ts"
+      - "scripts/benchmark-scene-boundary-jev-live.ts"
+      - "docs/scene-boundary-jev-shadow-benchmark.md"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - run: git diff --check
+
+      - run: npm run lint
+
+      - run: npm run typecheck:app
+
+      - name: Boundary suspicion scanner EVAL1–EVAL9
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/scenePolicyBoundarySuspicionScan.test.ts
+
+      - name: JEV decisions transport regression
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/jevDecisions.test.ts
+
+      - name: Scene-boundary JEV benchmark isolation
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 scripts/lib/sceneBoundaryJevBenchmark.test.ts
