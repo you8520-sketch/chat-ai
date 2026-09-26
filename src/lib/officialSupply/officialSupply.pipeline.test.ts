@@ -174,6 +174,11 @@ function uniqueDraft(key: string, vocab: readonly string[], name: string, extra:
 let store: OfficialSupplyStore;
 
 before(() => {
+  // Canonical save wakes the derived-cache worker; keep this suite provider-free even when the host has keys.
+  process.env.DISABLE_DERIVED_CACHE_WORKER = "1";
+  delete process.env.OPENAI_API_KEY;
+  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.CHEAPER_INFERENCE_API_KEY;
   installIsolatedTestDatabase();
   const db = getDb();
   for (const user of [STAGING_USER, { id: OTHER_VIEWER, nickname: "viewer", is_adult: 1 }]) {
