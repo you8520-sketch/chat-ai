@@ -8,6 +8,7 @@ import { parseCharacterSetting } from "@/utils/characterParser";
 import { formatSelectedPersonaForPrompt } from "@/lib/userPersonas";
 import { formatMemoryMetaForPrompt, parseMemoryMeta } from "@/lib/chatMemory";
 import type { ContextBuildInput } from "@/types";
+import { INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION } from "@/lib/currentTurnUserAuthoringDelegation";
 import {
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
@@ -149,7 +150,7 @@ export function buildBenchmarkContextBase(): Pick<
   | "nsfw"
   | "gender"
   | "userPersonaGender"
-  | "userImpersonation"
+  | "currentTurnAuthoringDelegation"
   | "novelModeEnabled"
   | "targetResponseChars"
   | "completedTurns"
@@ -188,7 +189,7 @@ export function buildBenchmarkContextBase(): Pick<
     nsfw: false,
     gender: "female",
     userPersonaGender: "other",
-    userImpersonation: false,
+    currentTurnAuthoringDelegation: INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
     novelModeEnabled: false,
     targetResponseChars: BENCHMARK_DEFAULT_TARGET_CHARS,
     completedTurns: 8,
