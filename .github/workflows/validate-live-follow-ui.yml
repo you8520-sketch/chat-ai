@@ -47,6 +47,13 @@ jobs:
           --workers=1
           --retries=0
 
+      - name: Status Widget browser lifecycle
+        run: >
+          npx playwright test
+          tests/ui/status-widget.spec.ts
+          --workers=1
+          --retries=0
+
       - name: Live-follow browser regression
         run: >
           npx playwright test
