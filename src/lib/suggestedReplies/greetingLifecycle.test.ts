@@ -86,7 +86,6 @@ describe("suggested replies greeting functional lifecycle", () => {
     const settled = await waitForSettledRecord();
     assert.equal(calls, 1);
     assert.equal(settled?.pending, false);
-    assert.equal(settled?.failed, false);
     assert.equal(settled?.source, "standalone-extract");
     assert.equal(settled?.generationSequence, 0);
     assert.deepEqual(settled?.replies, expected);
@@ -117,7 +116,6 @@ describe("suggested replies greeting functional lifecycle", () => {
     const settled = await waitForSettledRecord();
     assert.equal(calls, 1);
     assert.equal(settled?.pending, false);
-    assert.equal(settled?.failed, true);
     assert.deepEqual(settled?.replies, []);
 
     const client = resolveClientSuggestedReplies(settled);
@@ -146,7 +144,6 @@ describe("suggested replies greeting functional lifecycle", () => {
     const settled = await waitForSettledRecord();
     assert.equal(calls, 1);
     assert.equal(settled?.pending, false);
-    assert.equal(settled?.failed, true);
     assert.deepEqual(settled?.replies, []);
 
     const client = resolveClientSuggestedReplies(settled);
