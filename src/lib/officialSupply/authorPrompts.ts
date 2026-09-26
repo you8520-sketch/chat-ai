@@ -181,6 +181,8 @@ export type CharacterBible1Input = {
   worldContext: string;
   /** Names/hooks of already-planned siblings to stay distinct from. */
   siblingSketches: string[];
+  /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
+  feedback?: string;
 };
 
 export function buildCharacterBible1System(): string {
@@ -228,6 +230,7 @@ export function buildCharacterBible1User(input: CharacterBible1Input): string {
       : "",
     "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
     BIBLE_1_SKELETON,
+    input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
 }
 
@@ -243,6 +246,8 @@ export type CharacterBible2Input = {
   castList: string[];
   /** 0~3; brief may demand specific NPCs. */
   npcDemand: string;
+  /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
+  feedback?: string;
 };
 
 export function buildCharacterBible2System(): string {
@@ -297,6 +302,7 @@ export function buildCharacterBible2User(input: CharacterBible2Input): string {
     "",
     "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다(성인 후보가 아니면 adultSection은 null).",
     BIBLE_2_SKELETON,
+    input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
 }
 

@@ -281,6 +281,7 @@ async function generateOneCharacter(
   const draftKey = draftKeyFor(brief.slot);
   let failed = 0;
   let lastError: unknown = null;
+  let feedback: string | undefined;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const { bible, completions } = await generateOfficialCharacterBible({
@@ -290,6 +291,7 @@ async function generateOneCharacter(
           worldName: world.name,
           worldContext: worldContextForBrief(world, brief),
           siblingSketches: siblingSketches(siblings, brief.slot),
+          feedback,
         },
         part2: {
           name: brief.name,
@@ -299,6 +301,7 @@ async function generateOneCharacter(
           speechDirection: brief.speechDirection,
           castList: castList(siblings),
           npcDemand: "브리프 지정 없음. 필요한 경우만 1~2명.",
+          feedback,
         },
         modelId,
       });
@@ -353,7 +356,10 @@ async function generateOneCharacter(
     } catch (error) {
       failed += 1;
       lastError = error;
-      console.warn(`[pilot] slot ${brief.slot} attempt ${attempt} failed:`, (error as Error).message);
+      const message = String((error as Error)?.message ?? error);
+      // 503s carry no signal; QA rejections become next-attempt feedback.
+      if (!/503/.test(message)) feedback = message.slice(0, 800);
+      console.warn(`[pilot] slot ${brief.slot} attempt ${attempt} failed:`, message.slice(0, 300));
       if (attempt < maxAttempts) await sleep(10000 * attempt);
     }
   }
