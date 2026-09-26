@@ -53,6 +53,12 @@ export type WorldBibleInput = {
   adultCandidates: number;
 };
 
+const WORLD_CORE_SKELETON = `{"name": "", "genre": "", "subgenre": "", "tone": "", "era": "", "techLevel": "", "regions": "", "societyForm": "", "premise": "", "centralPremise": "", "situation": {"biggestEvent": "", "beneficiaries": "", "threatened": "", "upcomingChange": ""}, "factions": [{"name": "", "purpose": "", "leadership": "", "means": "", "relations": "", "publicView": ""}], "powerSystem": {"capabilities": "", "users": "", "acquisition": "", "ranks": "", "limits": "", "costs": "", "socialImpact": "", "taboos": ""}, "society": {}, "culture": [{"name": "", "detail": ""}]}`;
+
+const WORLD_ATLAS_SKELETON = `{"locations": [{"name": "", "purpose": "", "mood": "", "users": "", "rpEvents": ""}], "history": [{"event": "", "impact": ""}], "knowledge": {"common": [""], "faction": [""], "characterLocal": [""], "authorOnly": [""]}, "userEntry": {"allowedRoles": ["", ""], "note": ""}, "lorebook": [{"entryKey": "", "name": "", "keywords": [""], "content": ""}]}`;
+
+const WORLD_PORTFOLIO_SKELETON = `{"portfolio": [{"slot": 1, "name": "", "gender": "", "age": 0, "archetype": "", "relationshipTrope": "", "occupation": "", "faction": "", "socialPosition": "", "personalityCore": "", "visualSilhouette": "", "rpHook": "", "adultCandidate": false, "speechDirection": "", "audience": ""}]}`;
+
 export function buildWorldBibleSystem(): string {
   return [
     "너는 로맨스 판타지 세계관 아키텍트다.",
@@ -79,7 +85,8 @@ export function buildWorldCoreUser(input: WorldBibleInput): string {
     "- culture 3~6개: 이름·상세",
     "최상위 키는 정확히 name·genre·subgenre·tone·era·techLevel·regions·societyForm·premise·centralPremise·",
     "situation·factions·powerSystem·society·culture 이며 하나도 빠뜨리지 않는다.",
-    "지정된 필드 구조의 JSON 한 개만 출력한다.",
+    "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
+    WORLD_CORE_SKELETON,
   ].join("\n");
 }
 
@@ -101,7 +108,8 @@ export function buildWorldAtlasUser(input: WorldAtlasInput): string {
     "- userEntry: allowedRoles 2개 이상(귀족·고용인·방문자·계약 상대·신입 등, 단일 강제 금지) + note",
     "- lorebook: COMMON 기반 8~12개. entryKey·name(40자 이내)·keywords(2~10개)·content(800자 이내)",
     "최상위 키는 정확히 locations·history·knowledge·userEntry·lorebook이며 하나도 빠뜨리지 않는다.",
-    "지정된 필드 구조의 JSON 한 개만 출력한다.",
+    "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
+    WORLD_ATLAS_SKELETON,
   ].join("\n");
 }
 
@@ -130,7 +138,8 @@ export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
     "인기형 5 + 니치/팬덤형 3 + 실험형 2 방향. 성별·연령·신분 분산.",
     "경쟁작의 고유 명칭·문장·설정을 복제하지 않는다.",
     "최상위 키는 정확히 portfolio 하나이며, 브리프 키도 빠뜨리지 않는다.",
-    "지정된 필드 구조의 JSON 한 개만 출력한다.",
+    "아래 빈 틀을 복제·확장해 JSON 한 개만 출력한다.",
+    WORLD_PORTFOLIO_SKELETON,
   ].join("\n");
 }
 
@@ -207,7 +216,8 @@ export function buildCharacterBible1User(input: CharacterBible1Input): string {
     input.siblingSketches.length
       ? `형제 캐릭터(이들과 이름·트로프·직업·말투·외형이 겹치지 않게):\n${input.siblingSketches.map((s) => `- ${s}`).join("\n")}\n`
       : "",
-    "지정된 필드 구조의 JSON 한 개만 출력한다.",
+    "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
+    BIBLE_1_SKELETON,
   ].join("\n");
 }
 
@@ -272,9 +282,14 @@ export function buildCharacterBible2User(input: CharacterBible2Input): string {
     "전반부 요약:",
     input.part1Recap,
     "",
-    "지정된 필드 구조의 JSON 한 개만 출력한다.",
+    "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다(성인 후보가 아니면 adultSection은 null).",
+    BIBLE_2_SKELETON,
   ].join("\n");
 }
+
+const BIBLE_1_SKELETON = `{"identity": {"name": "", "gender": "", "age": 0, "apparentAge": "", "heightCm": 0, "species": "", "occupation": "", "socialPosition": "", "affiliation": "", "worldRole": ""}, "appearance": {"faceShape": "", "eyes": "", "eyeColor": "", "hairColor": "", "hairstyle": "", "hairLength": "", "skin": "", "build": "", "musculature": "", "distinguishingFeatures": "", "usualExpression": "", "defaultOutfit": "", "accessories": "", "impression": ""}, "personality": {"keywords": [""], "behavioral": ""}, "contradiction": "", "values": {"desires": [""], "fears": [""], "coreValues": [""], "nonNegotiable": [""]}, "backstory": {"events": [{"event": "", "choice": "", "residue": ""}]}, "abilities": [{"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}], "habits": {"hobbies": [""], "habits": [""], "likes": [""], "dislikes": [""]}, "dailyLife": "", "situation": {"worldContext": "", "personalSituation": "", "userEntry": ""}}`;
+
+const BIBLE_2_SKELETON = `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": [""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": [""], "description": "", "examples": "", "forbidden": ""}, "behaviorRules": [""], "userRelationship": {"initialView": "", "userRole": "", "startingPoint": "", "progression": ["", "", ""]}, "otherRelationships": [{"target": "", "public": "", "privateOpinion": "", "hidden": ""}], "secrets": [""], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": ""}, "greeting": "", "publicProfile": {"tagline": "", "description": "", "tags": [""]}, "npcs": [], "nsfw": false, "adultSection": null}`;
 
 export type AppearanceInput = {
   name: string;

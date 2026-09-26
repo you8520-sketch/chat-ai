@@ -557,7 +557,20 @@ export async function generateOfficialWorldBible(input: {
     throw new OfficialSupplyGateError("author_shape_invalid", "world_bible portfolio: portfolio array required");
   }
 
-  const bible = coerceWorldBible({ ...coreData, ...atlasData, portfolio: portfolioData.portfolio });
+  const bible = (() => {
+    try {
+      return coerceWorldBible({ ...coreData, ...atlasData, portfolio: portfolioData.portfolio });
+    } catch (error) {
+      const keys = [
+        ...Object.keys(isRecord(coreData) ? coreData : {}),
+        ...Object.keys(isRecord(atlasData) ? atlasData : {}),
+      ].join(",");
+      throw new OfficialSupplyGateError(
+        "author_shape_invalid",
+        `${(error as Error).message} (top keys: ${keys})`
+      );
+    }
+  })();
   if (bible.portfolio.length !== input.world.slots) {
     throw new OfficialSupplyGateError(
       "author_shape_invalid",
