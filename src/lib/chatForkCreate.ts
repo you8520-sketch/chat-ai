@@ -1,12 +1,12 @@
 import type Database from "better-sqlite3";
 
-/** Fork child chat INSERT — omits legacy chats.memory; mirror column uses physical DEFAULT ''. */
+/** Fork child chat INSERT — omits retired legacy mirrors and relies on their physical defaults. */
 export const FORK_CHAT_INSERT_SQL = `INSERT INTO chats (
   user_id, character_id, mode, memory_pending, memory_meta,
   memory_archived_turns, gemini_model, user_note, selected_persona_id,
-  user_impersonation, target_response_chars, title, writing_style_override, memory_capacity,
+  target_response_chars, title, writing_style_override, memory_capacity,
   narrative_pov, pov_character_name, user_authoring_level
-) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
 export type ForkChatInsertParams = {
   userId: number;
@@ -18,7 +18,6 @@ export type ForkChatInsertParams = {
   geminiModel: string;
   userNote: string;
   selectedPersonaId: number | null;
-  userImpersonation: number;
   targetResponseChars: number;
   title: string;
   writingStyleOverride: string;
@@ -39,7 +38,6 @@ export function insertForkChatRow(db: Database.Database, params: ForkChatInsertP
     params.geminiModel,
     params.userNote,
     params.selectedPersonaId,
-    params.userImpersonation,
     params.targetResponseChars,
     params.title,
     params.writingStyleOverride,

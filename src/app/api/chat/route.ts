@@ -348,7 +348,6 @@ import { runKnowledgeTransfersForTurn } from "@/lib/knowledgeTransfer";
 import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPublicInput";
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
-import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
 import { currentTurnAuthoringPolicyRequiresOwner } from "@/lib/currentTurnUserAuthoringDelegation";
 import {
   persistUserCoauthorAfterSuccessfulUserInsert,
@@ -713,7 +712,6 @@ export async function POST(req: Request) {
             selected_persona_id: number | null;
             gemini_model: string;
             memory_archived_turns: number;
-            user_impersonation?: number;
             target_response_chars?: number;
             status_window_enabled?: number;
             narrative_pov?: string;
@@ -930,12 +928,6 @@ export async function POST(req: Request) {
     effectiveUserNote,
     memoryCapability.focusMaxChars
   );
-  const oocUserImpersonationAllowed = resolveUserImpersonationAllowance({
-    personaDescription,
-    userNote: resolveEffectiveFocusForPrompt(effectiveUserNote, memoryCapability.focusMaxChars),
-  });
-  // Auto progression uses limited_external agency — not full impersonation / possession.
-  const userImpersonation = oocUserImpersonationAllowed;
   const currentTurnDelegation = resolveEffectiveUserAuthoringFromChatColumn(
     db,
     chat.id,
@@ -2236,7 +2228,6 @@ export async function POST(req: Request) {
     assetTags: assetTags.length > 0 ? assetTags : undefined,
     memoryMeta: relationshipMemoryForPrompt,
     modelId: openRouterApiModelId,
-    userImpersonation,
     novelModeEnabled,
     runtimeMode,
     personaDisplayName,
@@ -5786,18 +5777,15 @@ export async function POST(req: Request) {
         }
 
         const nextMode: Route = effectiveAdultRp ? "nsfw" : "safe";
-        const nextImpersonation = userImpersonation ? 1 : 0;
         const nextTargetChars = targetResponseCharsRef;
         if (
           nextMode !== chatRef.mode ||
-          nextImpersonation !== (chatRef.user_impersonation ?? 0) ||
           nextTargetChars !== normalizeTargetResponseChars(chatRef.target_response_chars)
         ) {
           db.prepare(
-            "UPDATE chats SET mode=?, user_impersonation=?, target_response_chars=? WHERE id=?"
+            "UPDATE chats SET mode=?, target_response_chars=? WHERE id=?"
           ).run(
             nextMode,
-            nextImpersonation,
             nextTargetChars,
             chatRef.id
           );
@@ -6153,7 +6141,7 @@ export async function POST(req: Request) {
               writingStyle: "unified",
               completedTurns: playableTurnCount,
               targetResponseChars: targetResponseCharsRef,
-              userImpersonation: !!userImpersonation,
+              userAuthoring: currentTurnDelegationForTurn,
               truncatedMemory: built.meta.truncatedMemory,
               model: usageRecord.model,
               provider: usageRecord.provider ?? billingProvider,

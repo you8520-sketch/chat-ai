@@ -1,3 +1,5 @@
+import type { CurrentTurnAuthoringDelegation } from "@/lib/currentTurnUserAuthoringDelegation";
+
 export type FeedbackVote = 1 | -1;
 
 export type MessageFeedback = {
@@ -79,7 +81,7 @@ export type GenerationContextInput = {
   writingStyle: string;
   completedTurns: number;
   targetResponseChars: number;
-  userImpersonation: boolean;
+  userAuthoring: CurrentTurnAuthoringDelegation;
   truncatedMemory?: boolean;
   model: string;
   provider: string;
