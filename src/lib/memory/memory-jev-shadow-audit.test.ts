@@ -145,10 +145,8 @@ it("02 relevant normal outranks irrelevant critical when lexical overlap exists"
   db.close();
 });
 
-it("03 long-horizon milestone with paraphrased cue misses candidates without lexical bridge", () => {
+it("03A long-horizon critical milestone stays candidate via the milestone lane", () => {
   const db = openDb();
-  // Critical + historical (scene_event, completed morphology) but paraphrased cue
-  // shares no token; saturate recent lane so discovery must rely on relevance lane.
   const answerId = insertFact(db, {
     turn: 10,
     category: "relationship",
@@ -164,9 +162,32 @@ it("03 long-horizon milestone with paraphrased cue misses candidates without lex
     query: "까마득한 옛 인연의 시작을 더듬는다",
     answerId,
   });
-  // Milestone lane keeps historical rows discoverable only up to its 10-row budget;
-  // 60 newer critical? No — fillers are normal, so the milestone lane still finds it.
-  // Record the actual stage split instead of assuming a miss.
+  // Milestone lane keeps old critical historical rows discoverable even when
+  // the 55-row recent lane is saturated by newer normal rows.
+  assert.equal(stages.preCandidateHasAnswer, true);
+  db.close();
+});
+
+it("03B paraphrased cue without lexical bridge fails the relevance gate", () => {
+  const db = openDb();
+  const answerId = insertFact(db, {
+    turn: 10,
+    category: "relationship",
+    subject: "pair",
+    attribute: "scene_event",
+    value: "first_meeting",
+    importance: "critical",
+    text: "두 사람의 첫 만남이 오래전에 끝났다.",
+  });
+  saturateRecentLane(db, 60, 20);
+  const stages = runStages(db, {
+    currentTurn: 900,
+    query: "까마득한 옛 인연의 시작을 더듬는다",
+    answerId,
+  });
+  // Candidate (via 03A lane) but zero lexical overlap → relevance gate fails.
+  assert.equal(stages.postRankPass, false);
+  assert.equal(stages.finalHasAnswer, false);
   const c = classifyShadowStage({
     answerInPreCandidateSet: stages.preCandidateHasAnswer,
     answerPassedRelevanceGate: stages.postRankPass === true,
@@ -174,13 +195,10 @@ it("03 long-horizon milestone with paraphrased cue misses candidates without lex
     zeroRelevantControl: false,
     staleStateControl: false,
   });
-  // Either a candidate-recall gap (paraphrase) or a ranking miss — never silently pass.
-  assert.ok(
-    c.applicability === "JEV_RERANK_NOT_APPLICABLE" ||
-      c.applicability === "JEV_RERANK_CANDIDATE_RANKING_ONLY" ||
-      c.applicability === "JEV_SHADOW_NO_OP_ALREADY_CORRECT"
-  );
-  // Shadow input stays bounded even when applicable.
+  assert.equal(c.stage, "RANKING_FAILURE");
+  assert.equal(c.applicability, "JEV_RERANK_CANDIDATE_RANKING_ONLY");
+  // Shadow input stays bounded even when applicable — and applicability alone
+  // does not authorize integration (no live run, no ZDR path, no approval).
   const shadow = buildShadowJevInput({
     sceneQuery: "까마득한 옛 인연의 시작을 더듬는다",
     candidateTexts: ["두 사람의 첫 만남이 오래전에 끝났다."],

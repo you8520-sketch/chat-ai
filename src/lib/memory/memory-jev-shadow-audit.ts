@@ -1,6 +1,16 @@
 /**
  * Jev shadow-memory audit helpers — pure, provider-free, DB-free.
  *
+ * READER AUDIT (Phase 9):
+ * - writer/caller: `src/lib/memory/memory-jev-shadow-audit.test.ts`,
+ *   `src/lib/memory/memory-rp-benchmark.test.ts` (audit/benchmark harness only).
+ * - runtime reader: NONE by design — no production path imports this module,
+ *   so it cannot change user-visible behavior. (SAFE TO KEEP as audit/test
+ *   utility; not a production runtime helper.)
+ * - test reader: the two harness tests above.
+ * - future approved reader: the semantic-candidate-discovery follow-up PR,
+ *   which may reuse `classifyShadowStage` and the fixture stage vocabulary.
+ *
  * CODE OWNS STATE. JEV ADVISES SEMANTICS (shadow only).
  * This module never calls OpenRouter/TypeSafe, never writes canonical memory,
  * and never renders Persona Secret text. It only classifies deterministic
@@ -8,12 +18,18 @@
  * (`fetchEpisodicMemoryCandidatesForDebug` / `getEpisodicMemoryForPrompt`).
  */
 
-export type MemoryFailureStage =
-  | "CAPTURE_FAILURE"
+/**
+ * Retrieval-stage failures ONLY (Phase 7 correction).
+ * CAPTURE_FAILURE (extraction/persistence miss) and MODEL_COMPLIANCE_FAILURE
+ * (Main RP ignoring a correct prompt) need their own separate evidence
+ * owners and MUST NOT be inferred from the pre-candidate/post-rank/final
+ * triple this classifier consumes — so they are deliberately absent from
+ * this union instead of being listed as if supported.
+ */
+export type ShadowRetrievalStage =
   | "CANDIDATE_RECALL_FAILURE"
   | "RANKING_FAILURE"
-  | "TEMPORAL_FAILURE"
-  | "MODEL_COMPLIANCE_FAILURE";
+  | "TEMPORAL_FAILURE";
 
 export type JevShadowApplicability =
   | "JEV_RERANK_NOT_APPLICABLE"
@@ -34,18 +50,14 @@ export type ShadowStageSnapshot = {
   staleStateControl: boolean;
 };
 
-export function describeMemoryFailureStage(stage: MemoryFailureStage): string {
+export function describeShadowRetrievalStage(stage: ShadowRetrievalStage): string {
   switch (stage) {
-    case "CAPTURE_FAILURE":
-      return "answer fact was never persisted as an episodic candidate";
     case "CANDIDATE_RECALL_FAILURE":
       return "answer fact is in DB but missed the pre-rank candidate set";
     case "RANKING_FAILURE":
       return "answer fact is a candidate but lost ranking or the relevance gate";
     case "TEMPORAL_FAILURE":
       return "old/current/historical reconciliation chose the wrong row";
-    case "MODEL_COMPLIANCE_FAILURE":
-      return "correct memory reached the prompt but Main RP could ignore it";
     default: {
       const _exhaustive: never = stage;
       return _exhaustive;
@@ -54,13 +66,13 @@ export function describeMemoryFailureStage(stage: MemoryFailureStage): string {
 }
 
 /**
- * Canonical stage classifier. Jev rerank is applicable ONLY when the answer
- * is already inside the existing bounded candidate set but fails ranking.
- * Paraphrase misses at candidate discovery are explicitly NOT rerank cases:
- * they belong to a separate semantic-discovery follow-up.
+ * Canonical retrieval-stage classifier. Jev rerank is applicable ONLY when
+ * the answer is already inside the existing bounded candidate set but fails
+ * ranking. Paraphrase misses at candidate discovery are explicitly NOT
+ * rerank cases: they belong to a separate semantic-discovery follow-up.
  */
 export function classifyShadowStage(snapshot: ShadowStageSnapshot): {
-  stage: MemoryFailureStage | null;
+  stage: ShadowRetrievalStage | null;
   applicability: JevShadowApplicability;
 } {
   if (snapshot.zeroRelevantControl) {
@@ -74,9 +86,6 @@ export function classifyShadowStage(snapshot: ShadowStageSnapshot): {
       stage: snapshot.staleStateControl ? "TEMPORAL_FAILURE" : "CANDIDATE_RECALL_FAILURE",
       applicability: "JEV_RERANK_NOT_APPLICABLE",
     };
-  }
-  if (!snapshot.answerPassedRelevanceGate) {
-    return { stage: "RANKING_FAILURE", applicability: "JEV_RERANK_CANDIDATE_RANKING_ONLY" };
   }
   return { stage: "RANKING_FAILURE", applicability: "JEV_RERANK_CANDIDATE_RANKING_ONLY" };
 }
@@ -94,10 +103,25 @@ export type ShadowJevInput = {
 };
 
 /**
- * Build the minimal shadow input. Whole transcripts, Global Memory,
- * Persona Secret canonical text, unrelated user data, raw DB ids,
- * credentials, and arbitrary system prompts are never included.
+ * Audit-only caller policy (Phase 8, option A — no new privacy subsystem).
+ *
+ * This builder CANNOT structurally prevent a caller from passing arbitrary
+ * strings (transcript excerpts, Global Memory, Persona Secret canonical
+ * text): `candidateTexts` is `readonly string[]`, so any text is
+ * type-compatible. The restriction is a CALLER POLICY, not a type guarantee:
+ * approved callers MUST pass only bounded episodic-candidate fact excerpts
+ * already selected by the existing candidate-discovery owner, plus a bounded
+ * scene/query representation. Whole transcripts, Global Memory, Persona
+ * Secret canonical text, unrelated user data, raw DB ids, credentials, and
+ * arbitrary system prompts MUST NOT be passed. A future production
+ * integration must replace this policy with a sanitizer owner that
+ * structurally enforces it; until then there is no production caller.
  */
+export const SHADOW_INPUT_CALLER_POLICY =
+  "audit-only: bounded candidate excerpts + bounded scene query; " +
+  "never transcript / Global Memory / Persona Secret canonical text / " +
+  "unrelated user data / raw DB ids / credentials / system prompts";
+
 export function buildShadowJevInput(opts: {
   sceneQuery: string;
   candidateTexts: readonly string[];
