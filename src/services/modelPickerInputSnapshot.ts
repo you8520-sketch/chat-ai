@@ -20,9 +20,7 @@ import {
 } from "@/lib/memory/memory-manager";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import { formatUserNoteForPrompt } from "@/lib/persona";
-import { parseUserNoteCombined } from "@/lib/userNoteStatusWindow";
-import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
-import { resolveChatRuntimeMode } from "@/lib/chatRuntimeMode";
+import { resolveEffectiveUserAuthoringFromChatColumn } from "@/lib/userCoauthorState";
 import {
   formatSelectedPersonaForPrompt,
   getPersonaSecretPayload,
@@ -51,12 +49,14 @@ import {
 } from "@/lib/personaKnowledgePromptPolicy";
 import type { ChatMsg } from "@/lib/ai";
 
-type SnapshotCacheEntry = {
+export type SnapshotCacheEntry = {
   tokensByModel: Partial<Record<ModelPickerActiveModelId, number>>;
   messageCount: number;
+  chatMode: string;
   personaId: number | null;
   userNote: string;
   targetResponseChars: number;
+  authoringFingerprint: string;
 };
 
 const assembledSnapshotCache = new Map<number, SnapshotCacheEntry>();
@@ -89,6 +89,19 @@ export function invalidateModelPickerInputSnapshot(chatId: number): void {
 
 function snapshotCacheKey(chatId: number): SnapshotCacheEntry | undefined {
   return touchSnapshotCache(chatId);
+}
+
+export function matchesModelPickerSnapshotCache(
+  cached: SnapshotCacheEntry | undefined,
+  current: Omit<SnapshotCacheEntry, "tokensByModel">
+): boolean {
+  return !!cached &&
+    cached.messageCount === current.messageCount &&
+    cached.chatMode === current.chatMode &&
+    cached.personaId === current.personaId &&
+    cached.userNote === current.userNote &&
+    cached.targetResponseChars === current.targetResponseChars &&
+    cached.authoringFingerprint === current.authoringFingerprint;
 }
 
 export function rememberModelPickerInputSnapshot(
@@ -133,16 +146,26 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
   const messageCount = msgRows.length;
   const userNote = chat.user_note?.trim() ?? "";
   const targetResponseChars = normalizeTargetResponseChars(chat.target_response_chars);
+  // Same persisted base, current-epoch OOC override, and empty next-turn input
+  // as the ordinary Main RP request. Resolving before the cache check also
+  // catches setting changes that do not add a message.
+  const effectiveUserAuthoring = resolveEffectiveUserAuthoringFromChatColumn(
+    db,
+    chat.id,
+    ""
+  );
+  const authoringFingerprint = JSON.stringify(effectiveUserAuthoring.delegation);
   const cached = snapshotCacheKey(opts.chatId);
-  if (
-    !opts.refresh &&
-    cached &&
-    cached.messageCount === messageCount &&
-    cached.personaId === chat.selected_persona_id &&
-    cached.userNote === userNote &&
-    cached.targetResponseChars === targetResponseChars
-  ) {
-    return cached.tokensByModel;
+  const cacheMatches = matchesModelPickerSnapshotCache(cached, {
+    messageCount,
+    chatMode: chat.mode,
+    personaId: chat.selected_persona_id,
+    userNote,
+    targetResponseChars,
+    authoringFingerprint,
+  });
+  if (!opts.refresh && cacheMatches) {
+    return cached!.tokensByModel;
   }
 
   const ch = db
@@ -155,7 +178,7 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
     )
     .get(chat.character_id) as Record<string, unknown> | undefined;
 
-  if (!ch) return cached?.tokensByModel ?? null;
+  if (!ch) return cacheMatches ? cached!.tokensByModel : null;
 
   const personas = listPublicUserPersonas(opts.user.id);
   const { persona: selectedPersona } = resolveChatSelectedPersona(
@@ -168,18 +191,9 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
     personaDisplayName,
     selectedPersona?.gender ?? "other",
     selectedPersona?.description ?? "",
-    { coNarrationEnabled: false }
+    { coNarrationEnabled: effectiveUserAuthoring.delegation.allowDialogue === true }
   );
   const userNotePrompt = formatUserNoteForPrompt(userNote);
-  const { body: noteBody } = parseUserNoteCombined(userNote);
-  const oocUserImpersonationAllowed = resolveUserImpersonationAllowance({
-    personaDescription: selectedPersona?.description ?? "",
-    userNote: noteBody,
-  });
-  const runtimeMode = resolveChatRuntimeMode({
-    isContinue: false,
-    oocUserImpersonationAllowed,
-  });
 
   const { chunks: characterChunks, usedEnglish: usedEnglishCharacterPrompt } =
     loadCharacterChunksForPromptReadOnly(
@@ -306,9 +320,8 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
       gender: resolveCharacterGender(String(ch.gender ?? "")),
       assetTags: assetTags.length > 0 ? assetTags : undefined,
       modelId,
-      userImpersonation: oocUserImpersonationAllowed,
+      currentTurnAuthoringDelegation: effectiveUserAuthoring.delegation,
       novelModeEnabled: false,
-      runtimeMode,
       personaDisplayName,
       targetResponseChars,
       completedTurns: playableTurnCount,
@@ -334,14 +347,16 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
     rememberModelPickerInputSnapshot(opts.chatId, {
       tokensByModel,
       messageCount,
+      chatMode: chat.mode,
       personaId: chat.selected_persona_id,
       userNote,
       targetResponseChars,
+      authoringFingerprint,
     });
     return tokensByModel;
   }
 
-  return cached?.tokensByModel ?? null;
+  return cacheMatches ? cached!.tokensByModel : null;
 }
 
 /** @deprecated Use the per-model snapshot map for pricing previews. */
