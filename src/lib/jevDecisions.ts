@@ -350,6 +350,12 @@ export async function callJevDecisions(opts: {
   timeoutMs?: number;
   /** Null skips ledger recording (wire-contract tests); omitted records canonically. */
   ledger?: JevDecisionsLedgerOptions | null;
+  /**
+   * Explicit credential supplied by a benchmark-only credential owner.
+   * This transport never reads benchmark env vars; without it the canonical
+   * production resolver is used. Production callers never pass it.
+   */
+  apiKey?: string;
 }): Promise<{
   answers: Record<string, JevDecisionAnswer>;
   usage: JevDecisionUsage;
@@ -373,8 +379,9 @@ export async function callJevDecisions(opts: {
       code: "invalid_request",
     });
   }
-  // Canonical auth owner throws NO_OPENROUTER_KEY before any HTTP.
-  const key = resolveOpenRouterApiKey();
+  // Explicit benchmark override first; otherwise canonical auth owner throws
+  // NO_OPENROUTER_KEY before any HTTP. Production callers never pass apiKey.
+  const key = opts.apiKey?.trim() || resolveOpenRouterApiKey();
   const model = (opts.model ?? JEV_DECISIONS_MODEL).trim() || JEV_DECISIONS_MODEL;
   const requestKind = opts.ledger?.requestKind ?? JEV_DECISIONS_REQUEST_KIND;
 
