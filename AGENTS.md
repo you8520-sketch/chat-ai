@@ -45,6 +45,9 @@ Single Next.js 15 (App Router) app — an AI character chat platform (Korean UI,
 - `npm run lint` currently runs the app-only TypeScript validation because this repo has no ESLint configuration or ESLint dependency installed. If a real ESLint setup is added later, prefer `"lint": "eslint ."` (or `next lint` only for a Next.js version/config that still supports it).
 - `npm run typecheck:app` uses `tsconfig.app.json` to validate application/runtime source while excluding tests/specs and known test-only typing gaps.
 - `npm run typecheck` (`tsc --noEmit`) is a known issue on `main`: it reports errors confined to test files (untyped `Module._load`, missing `vitest` typings, `.ts` extension test imports, and a few pre-existing test fixture type mismatches). When reporting validation, explicitly separate these pre-existing full-typecheck errors from any new errors introduced by the current change.
-- Tests use the Node built-in runner and MUST be run with the `react-server` condition, otherwise `server-only` throws:
-  `node --conditions=react-server --import tsx --test "src/**/*.test.ts"`
+- Tests use the Node built-in runner and MUST be run with the `react-server` condition, otherwise `server-only` throws.
+  Always include the regular-test egress policy import so ambient paid-provider
+  credentials are stripped (keyless-CI posture) unless `REGULAR_TEST_REAL_PROVIDER_CALLS=1`
+  explicitly opts into live probes:
+  `node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test "src/**/*.test.ts"`
   The suite is not fully green on `main`: 6 files import `vitest` (not a dependency) and a handful of billing/length tests have pre-existing assertion mismatches. The large majority pass.
