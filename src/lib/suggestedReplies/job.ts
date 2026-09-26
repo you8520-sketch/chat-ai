@@ -49,7 +49,6 @@ function writePending(
     extractedAt: new Date().toISOString(),
     source,
     pending: true,
-    failed: false,
     generationSequence: scope.generationSequence,
     generationRequestId: scope.generationRequestId,
   };
@@ -72,7 +71,6 @@ function writeReplies(
   messageId: number,
   scope: AssistantGenerationScope,
   replies: SuggestedReplyItem[],
-  failed = false,
   terminalReason?: SuggestedRepliesRecord["terminalReason"],
   source: SuggestedRepliesRecordSource = "post-turn-shared"
 ): void {
@@ -91,7 +89,6 @@ function writeReplies(
     extractedAt: new Date().toISOString(),
     source,
     pending: false,
-    failed,
     ...(terminalReason ? { terminalReason } : {}),
     generationSequence: scope.generationSequence,
     generationRequestId: scope.generationRequestId,
@@ -123,7 +120,7 @@ export function markMessageSuggestedRepliesIneligible(
   messageId: number,
   generationScope: AssistantGenerationScope
 ): void {
-  writeReplies(messageId, generationScope, [], true, "original_turn_ineligible");
+  writeReplies(messageId, generationScope, [], "original_turn_ineligible");
 }
 
 export function isSuggestedRepliesJobRunning(scope: AssistantGenerationScope): boolean {
@@ -217,7 +214,6 @@ export function scheduleSuggestedRepliesExtraction(opts: {
         opts.messageId,
         opts.generationScope,
         replies,
-        replies.length === 0,
         undefined,
         recordSource
       );
@@ -247,7 +243,6 @@ export function scheduleSuggestedRepliesExtraction(opts: {
         opts.messageId,
         opts.generationScope,
         replies,
-        !ok,
         undefined,
         recordSource
       );
@@ -264,7 +259,6 @@ export function scheduleSuggestedRepliesExtraction(opts: {
           opts.messageId,
           opts.generationScope,
           [],
-          true,
           undefined,
           recordSource
         );
