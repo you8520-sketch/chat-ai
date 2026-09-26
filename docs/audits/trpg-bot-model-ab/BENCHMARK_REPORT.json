@@ -1,0 +1,231 @@
+{
+  "generatedAt": "2026-08-28T08:50:13.997Z",
+  "CURSOR_SUBJECTIVE_SCORING": false,
+  "FINAL_MODEL_WINNER": "HUMAN_REVIEW_PENDING",
+  "GEMINI_REQUEST_CONTRACT": {
+    "benchmarkOutbound": {
+      "model": "gemini-3.7-flash",
+      "stream": false,
+      "temperature": 0.85,
+      "max_tokens": 2048,
+      "reasoning_effort": "none"
+    },
+    "productionAdapter": {
+      "model": "gemini-3.7-flash",
+      "reasoning_effort": "low"
+    },
+    "GEMINI_TRUE_OFF_SUPPORTED": "INTERMITTENT — reasoning_effort=none accepted in probe + 19/20 bench calls; 1× HTTP 400 'Reasoning is mandatory'",
+    "GEMINI_REASONING_MODE": "none (benchmark) / low (production adapter)",
+    "probeVariants": [
+      {
+        "variant": "gemini_reasoning_effort_none",
+        "contract": {
+          "model": "gemini-3.7-flash",
+          "stream": false,
+          "temperature": 0.85,
+          "max_tokens": 2048,
+          "reasoning_effort": "none"
+        },
+        "result": {
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6802,
+          "reasoningTokens": "unavailable",
+          "outputTokens": 309,
+          "inputTokens": 8055,
+          "finishReason": "stop",
+          "textLen": 470
+        }
+      },
+      {
+        "variant": "gemini_reasoning_effort_low",
+        "contract": {
+          "model": "gemini-3.7-flash",
+          "stream": false,
+          "temperature": 0.85,
+          "max_tokens": 2048,
+          "reasoning_effort": "low"
+        },
+        "result": {
+          "ok": true,
+          "status": 200,
+          "latencyMs": 10122,
+          "reasoningTokens": 0,
+          "outputTokens": 293,
+          "inputTokens": 8053,
+          "costUsd": 0.014277,
+          "finishReason": "stop",
+          "textLen": 456
+        }
+      },
+      {
+        "variant": "gemini_thinking_disabled",
+        "contract": {
+          "model": "gemini-3.7-flash",
+          "stream": false,
+          "temperature": 0.85,
+          "max_tokens": 2048,
+          "reasoning_effort": "none",
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "result": {
+          "ok": true,
+          "status": 200,
+          "latencyMs": 9666,
+          "reasoningTokens": "unavailable",
+          "outputTokens": 334,
+          "inputTokens": 8055,
+          "finishReason": "stop",
+          "textLen": 525
+        }
+      },
+      {
+        "variant": "gemini_production_adapter",
+        "contract": {
+          "model": "gemini-3.7-flash",
+          "stream": false,
+          "temperature": 0.85,
+          "max_tokens": 2048,
+          "reasoning_effort": "low"
+        },
+        "result": {
+          "ok": true,
+          "status": 200,
+          "latencyMs": 28588,
+          "reasoningTokens": "unavailable",
+          "outputTokens": 352,
+          "inputTokens": 8055,
+          "finishReason": "stop",
+          "textLen": 527
+        }
+      }
+    ]
+  },
+  "LUNA_REQUEST_CONTRACT": {
+    "contract": {
+      "model": "gpt-5.6-luna",
+      "stream": false,
+      "temperature": 0.85,
+      "max_tokens": 2048,
+      "reasoning_effort": "none",
+      "reasoning": {
+        "effort": "none"
+      }
+    },
+    "LUNA_TRUE_OFF_SUPPORTED": true,
+    "LUNA_REASONING_MODE": "none",
+    "probe": {
+      "ok": true,
+      "status": 200,
+      "latencyMs": 12470,
+      "reasoningTokens": 0,
+      "outputTokens": 396,
+      "inputTokens": 8369,
+      "finishReason": "stop",
+      "textLen": 606
+    }
+  },
+  "contractsAreModelSpecific": {
+    "geminiHasLunaReasoningObject": false,
+    "lunaHasGeminiOnlyFields": false
+  },
+  "exchangeRate": {
+    "mode": "daily_kst",
+    "dateKey": "2026-08-28",
+    "usdToKrw": 1500,
+    "effectiveKrwPerUsd": 1530,
+    "source": "fallback"
+  },
+  "comparison": {
+    "gemini-3.7-flash": {
+      "CALLS": 20,
+      "SUCCESS_RATE": 0.95,
+      "AVG_INPUT_TOKENS": 8245.105263157895,
+      "AVG_OUTPUT_TOKENS": 297.5263157894737,
+      "AVG_CACHE_READ_TOKENS": 1287.4736842105262,
+      "CACHE_HIT_RATE": 0.3157894736842105,
+      "AVG_REASONING_TOKENS": 0,
+      "LATENCY_MEAN": 11831.315789473685,
+      "LATENCY_P50": 12164,
+      "LATENCY_P75": 13894,
+      "LATENCY_P90": 18686,
+      "LATENCY_P95": 23612,
+      "LATENCY_MAX": 23612,
+      "CALLS_OVER_30S": 0,
+      "AVG_ACTUAL_COST_USD": 0.004503835131578948,
+      "P50_COST_USD": 0.004939970000000001,
+      "MAX_COST_USD": 0.00649963,
+      "PARSE_SUCCESS_RATE": 1,
+      "ACTION_TYPE_VALID_RATE": 1,
+      "INTENT_VALID_RATE": 1,
+      "FALLBACK_RATE": 0,
+      "USER_AGENCY_VIOLATION_RATE": 0,
+      "CONSEQUENCE_VIOLATION_RATE": 0
+    },
+    "gpt-5.6-luna": {
+      "CALLS": 20,
+      "SUCCESS_RATE": 1,
+      "AVG_INPUT_TOKENS": 8526.4,
+      "AVG_OUTPUT_TOKENS": 388.65,
+      "AVG_CACHE_READ_TOKENS": 4680,
+      "CACHE_HIT_RATE": 0.55,
+      "AVG_REASONING_TOKENS": 0,
+      "LATENCY_MEAN": 8084.75,
+      "LATENCY_P50": 7954,
+      "LATENCY_P75": 8313,
+      "LATENCY_P90": 10318,
+      "LATENCY_P95": 11339,
+      "LATENCY_MAX": 11810,
+      "CALLS_OVER_30S": 0,
+      "AVG_ACTUAL_COST_USD": 0.0005317039999999999,
+      "P50_COST_USD": 0.000267544,
+      "MAX_COST_USD": 0.0010479999999999999,
+      "PARSE_SUCCESS_RATE": 1,
+      "ACTION_TYPE_VALID_RATE": 1,
+      "INTENT_VALID_RATE": 1,
+      "FALLBACK_RATE": 0,
+      "USER_AGENCY_VIOLATION_RATE": 0,
+      "CONSEQUENCE_VIOLATION_RATE": 0
+    }
+  },
+  "cost": {
+    "BOT1_LIKE_AVG_USD": {
+      "gemini": 0.004456002794117648,
+      "luna": 0.0005277191111111112
+    },
+    "BOT2_LIKE_AVG_USD": {
+      "gemini": 0.0049104100000000005,
+      "luna": 0.000567568
+    },
+    "CURRENT_EFFECTIVE_2BOT_COST_KRW": {
+      "gemini": 14.3,
+      "luna": 1.7
+    },
+    "COST_SOURCE": "token_estimate_via_openRouterModelPricing (provider usage.cost not exposed on most calls)",
+    "PRODUCT_GATE_KRW_20": {
+      "gemini": "PASS",
+      "luna": "PASS"
+    }
+  },
+  "failures": [
+    {
+      "fixture_id": "F08",
+      "model": "gemini-3.7-flash",
+      "pass": 2,
+      "http_status": 400,
+      "error": "{\"error\":{\"message\":\"Reasoning is mandatory for this endpoint and cannot be disabled.\",\"code\":400,\"metadata\":{\"provider_name\":null}}}"
+    }
+  ],
+  "latencyGates": {
+    "gemini": "CONCERN",
+    "luna": "GOOD"
+  },
+  "BEST_KOREAN_CHARACTER_MODEL": "HUMAN_REVIEW_PENDING",
+  "FASTEST_MODEL": "gpt-5.6-luna",
+  "BEST_P95_LATENCY": "gpt-5.6-luna",
+  "BEST_VALUE": "DEFER_TO_COST_AND_HUMAN_REVIEW",
+  "BEST_PRODUCTION_BOT_MODEL": "HUMAN_REVIEW_PENDING",
+  "PRODUCTION_RECOMMENDATION_REASON": "Objective benchmark complete. Subjective quality scoring deferred to human review in HUMAN_REVIEW.md."
+}

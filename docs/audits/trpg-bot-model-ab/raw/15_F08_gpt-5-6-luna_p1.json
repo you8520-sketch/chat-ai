@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F08",
+  "model": "gpt-5.6-luna",
+  "pass": 1,
+  "call_index": 15,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 8313,
+  "output_token_count": 436,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": 0,
+  "latency_ms": 7629,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "세라는 유저의 질문에 곧장 대답하지 않고, 젖은 돌벽에 비스듬히 스미는 마력 잔광을 따라 시선을 옮겼다. 반쯤 지워진 은빛 고리 셋은 끊어진 선 사이에도 일정한 간격을 유지하고 있었지만, 붉게 오염된 네 번째 고리는 안쪽으로 뒤틀려 있었다. 손등의 룬 각인이 미세하게 서늘해졌다. 기록에서 본 아르카니아 왕실 결계의 흔적과 일치하되, 단순한 붕괴라면 나타나지 않을 역류 자국이었다. 철문 너머의 냉기가 고리의 열린 틈을 향해 빨려 들어가는 것도 보였다.\n\n세라는 무릎을 굽혀 문턱의 마법진 잔해 가까이에 스케치북을 펼쳤다. 붉은 얼룩을 직접 건드리지는 않고, 연필 끝으로 각 선의 방향과 끊긴 지점을 차례로 표시했다. 오래전 결계 붕괴와 실버크로우의 스카우트 목격이 겹친다면, 이곳은 지나간 흔적이 아니라 누군가 다시 건드린 봉인일 가능성도 있었다.\n\n\"맞습니다. 다만 정상적인 잔해는 아닙니다. 3왕조 결계의 은빛 고리 중 하나가 역류하며 변형됐습니다. 기록과 대조해 보겠습니다.\"\n\n세라는 붉은 고리와 바닥의 마법진 잔해를 연결해, 남아 있는 룬 배열에서 원래의 일곱 고리 중 빠진 순서를 찾아보려 했다.\n\n<<<ACTION_TYPE>>> investigate  \n<<<INTENT>>> 세라는 붉게 오염된 네 번째 은빛 고리와 바닥의 마법진 잔해를 대조해 결계 변형의 원인과 빠진 룬 순서를 알아내려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 678,
+    "outputTokenEstimate": 377,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "세라는 유저의 질문에 곧장 대답하지 않고, 젖은 돌벽에 비스듬히 스미는 마력 잔광을 따라 시선을 옮겼다. 반쯤 지워진 은빛 고리 셋은 끊어진 선 사이에도 일정한 간격을 유지하고 있었지만, 붉게 오염된 네 번째 고리는 안쪽으로 뒤틀려 있었다. 손등의 룬 각인이 미세하게 서늘해졌다. 기록에서 본 아르카니아 왕실 결계의 흔적과 일치하되, 단순한 붕괴라면 나타나지 않을 역류 자국이었다. 철문 너머의 냉기가 고리의 열린 틈을 향해 빨려 들어가는 것도 보였다.\n\n세라는 무릎을 굽혀 문턱의 마법진 잔해 가까이에 스케치북을 펼쳤다. 붉은 얼룩을 직접 건드리지는 않고, 연필 끝으로 각 선의 방향과 끊긴 지점을 차례로 표시했다. 오래전 결계 붕괴와 실버크로우의 스카우트 목격이 겹친다면, 이곳은 지나간 흔적이 아니라 누군가 다시 건드린 봉인일 가능성도 있었다.\n\n\"맞습니다. 다만 정상적인 잔해는 아닙니다. 3왕조 결계의 은빛 고리 중 하나가 역류하며 변형됐습니다. 기록과 대조해 보겠습니다.\"\n\n세라는 붉은 고리와 바닥의 마법진 잔해를 연결해, 남아 있는 룬 배열에서 원래의 일곱 고리 중 빠진 순서를 찾아보려 했다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "세라는 붉게 오염된 네 번째 은빛 고리와 바닥의 마법진 잔해를 대조해 결계 변형의 원인과 빠진 룬 순서를 알아내려 했다."
+  }
+}
