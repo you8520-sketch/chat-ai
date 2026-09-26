@@ -371,11 +371,13 @@ export function buildAppearanceSystem(): string {
     "너는 캐릭터 비주얼 아이덴티티 디자이너다. 바이블 외형을 OfficialAppearanceLock으로 옮긴다(창작이 아니라 락).",
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
     "",
-    "- apparentAgeBand는 구조화된 나이와 모순되지 않게(19세 미만 금지).",
+    "- apparentAgeBand는 early_20s·mid_20s·late_20s·30s·40s·50_plus·ageless_adult 중 구조화된 나이와 모순되지 않는 값.",
     "- heightCm 120~230 정수. identifyingFeatures 1~3개.",
     "- defaultOutfit은 구체적으로, alternateOutfitPolicy는 장면별 변주 규칙.",
     "- forbiddenDrift는 절대 변하면 안 되는 요소 2개 이상.",
     "- 미성년 연상 표현(교복·학생 등) 금지. 특정 작가·작품 화풍 언급 금지.",
+    "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
+    `{"identity": {"apparentAgeBand": "late_20s", "faceShape": "", "eyes": "", "eyeColor": "", "hair": "", "hairColor": "", "hairLength": "", "heightCm": 0, "build": "", "skinTone": "", "identifyingFeatures": [""]}, "outfit": {"defaultOutfit": "", "alternateOutfitPolicy": ""}, "forbiddenDrift": ["", ""]}`,
   ].join("\n");
 }
 
@@ -421,7 +423,13 @@ export function buildAssetPlanUser(input: AssetPlanInput): string {
     `캐릭터: ${input.name} (성인 시트: ${input.adult ? "예" : "아니오"})`,
     `기본 의상: ${input.defaultOutfit}`,
     `의미 있는 장소 후보:\n${input.meaningfulPlaces.map((p) => `- ${p}`).join("\n")}`,
-    "지정된 필드 구조의 JSON 한 개만 출력한다.",
+    "슬롯 고정표(정확히 이 14슬롯, 키·종류 그대로):",
+    "rep/representative, sig1/signature, sig2/signature, sig3/signature, sig4/signature,",
+    "emo1/emotion, emo2/emotion, emo3/emotion, emo4/emotion, emo5/emotion, emo6/emotion,",
+    "scene1/scene, scene2/scene, scene3/scene.",
+    "슬롯 예시(모든 키를 채운다):",
+    `{"slotKey": "sig1", "kind": "signature", "tag": "태그", "expression": "표정", "pose": "자세", "outfit": "default", "location": null, "situation": null, "characterPresence": "required", "depiction": "standard", "personTag": null}`,
+    "위 구조의 slots 배열 JSON 한 개만 출력한다.",
   ].join("\n");
 }
 
@@ -444,6 +452,8 @@ export function buildStyleBoardSystem(): string {
     "- references는 허용된 공개 URL만, provenance는 external_public_observation 고정(이미지 생성용 전달 금지).",
     "- suitability 10개 항목은 1~5 정수. strengths 2~4개.",
     "- 남성·여성·로맨스·긴장·실내·의상 변주·감정폭을 서로 다르게 평가한다(전 항목 5점 금지).",
+    "후보 스켈레톤(모든 키를 채운다):",
+    `{"candidateId": "", "label": "", "dna": {"faceProportion": "", "eyeShape": "", "noseMouthDetail": "", "lineDensity": "", "rendering": "", "skinRendering": "", "hairRendering": "", "bodyProportion": "", "costumeComplexity": "", "palette": "", "lightSoftness": "", "contrast": "", "backgroundDensity": "", "framing": "", "atmosphere": ""}, "suitability": {"card": 0, "rpLandscape": 0, "maleCharacters": 0, "femaleCharacters": 0, "backgroundScene": 0, "romanticScene": 0, "tenseRelationshipScene": 0, "indoorBedroomScene": 0, "outfitVariation": 0, "emotionRange": 0, "identityConsistencyDifficulty": ""}, "strengths": ["", ""], "references": [{"url": "", "provenance": "external_public_observation", "note": ""}]}`,
   ].join("\n");
 }
 
