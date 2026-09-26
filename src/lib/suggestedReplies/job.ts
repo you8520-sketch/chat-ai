@@ -17,7 +17,6 @@ import type {
   SuggestedReplyItem,
 } from "./types";
 const running = new Set<string>();
-const EXTRACT_MAX_ATTEMPTS = 1;
 
 function isJobRunning(scope: AssistantGenerationScope): boolean {
   return running.has(generationJobKey(scope));
@@ -27,10 +26,8 @@ export function resolveSuggestedRepliesExtractMaxAttempts(
   postTurnPhysicalAttemptConsumed?: boolean
 ): number {
   // The shared attempt consumes this generation's complete post-turn provider
-  // budget, even when its suggestions section or transport failed. The next
-  // assistant generation gets its own initial attempt; this generation never
-  // repairs or retries.
-  return postTurnPhysicalAttemptConsumed ? 0 : EXTRACT_MAX_ATTEMPTS;
+  // budget. Otherwise there is exactly one standalone physical attempt.
+  return postTurnPhysicalAttemptConsumed ? 0 : 1;
 }
 
 export function loadMessageSuggestedReplies(messageId: number): SuggestedRepliesRecord | null {
@@ -154,56 +151,43 @@ async function runSuggestedRepliesExtraction(opts: {
     return opts.prefetchedReplies!;
   }
 
-  const maxAttempts = resolveSuggestedRepliesExtractMaxAttempts(opts.sharedInitialAttemptConsumed);
-  if (maxAttempts <= 0) {
+  if (resolveSuggestedRepliesExtractMaxAttempts(opts.sharedInitialAttemptConsumed) <= 0) {
     return opts.prefetchedReplies ?? [];
   }
 
-  let last: SuggestedReplyItem[] = opts.prefetchedReplies ?? [];
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const replies = opts.__testExtract
-        ? await opts.__testExtract(attempt)
-        : await extractSuggestedRepliesFromTurn({
-            charName: opts.charName,
-            personaName: opts.personaName,
-            personaDescription: opts.personaDescription,
-            personaSpeechExamples: opts.personaSpeechExamples,
-            userPersona: opts.userPersona,
-            userMessage: opts.userMessage,
-            assistantProse: opts.assistantProse,
-            chatId: opts.chatId,
-            messageId: opts.messageId,
-            generationSequence: opts.generationScope.generationSequence,
-            generationRequestId: opts.generationScope.generationRequestId,
-            jobAttemptOrdinal: attempt,
-          });
-      last = replies;
-      if (suggestedRepliesHaveContent(replies)) {
-        if (attempt > 1) {
-          console.info("[SUGGESTED-REPLIES] extraction succeeded on retry", {
-            messageId: opts.messageId,
-            attempt,
-          });
-        }
-        return replies;
-      }
+  const attempt = 1;
+  try {
+    const replies = opts.__testExtract
+      ? await opts.__testExtract(attempt)
+      : await extractSuggestedRepliesFromTurn({
+          charName: opts.charName,
+          personaName: opts.personaName,
+          personaDescription: opts.personaDescription,
+          personaSpeechExamples: opts.personaSpeechExamples,
+          userPersona: opts.userPersona,
+          userMessage: opts.userMessage,
+          assistantProse: opts.assistantProse,
+          chatId: opts.chatId,
+          messageId: opts.messageId,
+          generationSequence: opts.generationScope.generationSequence,
+          generationRequestId: opts.generationScope.generationRequestId,
+          jobAttemptOrdinal: attempt,
+        });
+    if (!suggestedRepliesHaveContent(replies)) {
       console.warn("[SUGGESTED-REPLIES] empty extraction result", {
         messageId: opts.messageId,
         attempt,
       });
-    } catch (e) {
-      console.error("[SUGGESTED-REPLIES-ERROR] extraction attempt failed", {
-        messageId: opts.messageId,
-        attempt,
-        error: (e as Error).message,
-      });
     }
-    if (attempt < maxAttempts) {
-      await new Promise((r) => setTimeout(r, 1200 * attempt));
-    }
+    return replies;
+  } catch (e) {
+    console.error("[SUGGESTED-REPLIES-ERROR] extraction attempt failed", {
+      messageId: opts.messageId,
+      attempt,
+      error: (e as Error).message,
+    });
+    return opts.prefetchedReplies ?? [];
   }
-  return last;
 }
 
 /** Fire-and-forget — Flash sub-model, never blocks main RP generation */
