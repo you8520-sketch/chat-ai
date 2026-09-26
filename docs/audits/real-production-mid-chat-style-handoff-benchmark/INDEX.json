@@ -1,0 +1,14 @@
+{
+  "audit": "real-production-mid-chat-style-handoff-benchmark",
+  "production_code_changed": false,
+  "chat_id": 4,
+  "character_id": 10,
+  "persona_id": 1,
+  "result": "T3_QUALIFYING_REFUSAL=false — Gemini primary delivered explicit T3 prose; no DeepSeek 0813 handoff",
+  "provider_calls_primary": {
+    "T1": { "gemini_31": 1, "deepseek_0813": 0 },
+    "T2": { "gemini_31": 1, "deepseek_0813": 0 },
+    "T3": { "gemini_31": 1, "deepseek_0813": 0 }
+  },
+  "compact": "see COMPACT_REPORT.json"
+}
