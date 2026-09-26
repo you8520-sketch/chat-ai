@@ -58,45 +58,80 @@ export function buildWorldBibleSystem(): string {
     "너는 로맨스 판타지 세계관 아키텍트다.",
     "10명의 플레이어블 캐릭터가 서로 다른 관점에서 살아갈 수 있는, 구조적 갈등을 가진 하나의 세계 바이블을 쓴다.",
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
-    "",
-    "세계 바이블 규칙:",
-    "- premise 300~600자 + centralPremise 한 문장. 지금 세계가 어떤 상태인지 압축한다.",
-    "- situation 500~1000자: 현재 가장 큰 사건·누가 이익/위협을 받는지·앞으로 바뀔 가능성.",
-    "- factions 3~6개: 이름·목적·지도층·수단·타 세력과의 관계·일반인의 시선.",
-    "- powerSystem: 마법/능력의 획득·등급·한계·대가·사회적 영향·금기. \"마법이 있다\" 수준 금지.",
-    "- society: RP에 영향을 주는 범위에서 계급·법·결혼/가족·교육·직업·군사·차별/예절 중 필요한 것만.",
-    "- culture: 세계관 개성을 만드는 요소 3~6개(복식·음식·축제·종교·인사·연애 관습 등에서 선택).",
-    "- locations 5~10개: 이름·용도·분위기·이용자·RP에서 벌어질 사건. 이후 스페셜 신 에셋의 재료가 된다.",
-    "- history 3~6개: 현재에 영향을 주는 사건만. 연대표 나열 금지.",
-    "- knowledge: COMMON(대중 상식) / FACTION(조직·계층 한정) / CHARACTER_LOCAL(특정 인물 한정) / AUTHOR_ONLY(숨은 진실).",
-    "  공유 로어북에는 COMMON만 컴파일되므로, 비밀·정체·흑막·미래 전개 표현은 COMMON에 절대 넣지 않는다.",
-    "- lorebook: COMMON 기반 8~12개. 이름 40자 이내·키워드 2~10개·본문 800자 이내.",
-    "- userEntry: 유저가 들어갈 수 있는 역할 여러 개(귀족·고용인·방문자·계약 상대·신입 등). 단일 역할 강제 금지.",
-    "",
-    "10명 포트폴리오 맵 규칙(생성 전 클론 검사 재료):",
-    "- 10명 모두 역할·세력·신분·성격핵·관계 트로프·외형 실루엣·RP 훅이 달라야 한다.",
-    "- 냉미남·집착남·황태자·계약관계·검은머리·190cm 클론 금지. 같은 트로프 반복 금지.",
-    "- 인기형 5 + 니치/팬덤형 3 + 실험형 2 방향으로 섞는다(방향일 뿐 강제 비율 아님).",
-    "- 성별·연령·신분 분산. 전원 20대 초반 미남 금지. 이름은 20자 이내로 서로 겹치지 않게.",
-    "- adultCandidate는 지정된 수만큼만 true(19세 이상만).",
-    "- 각 브리프에 faction·socialPosition·personalityCore·visualSilhouette·speechDirection을 준다.",
-    "- 경쟁작의 고유 명칭·문장·설정을 복제하지 않는다. 트로프 수준의 영감만 사용한다.",
+    "세계 바이블은 3회 호출로 나눠 작성한다(core → atlas → portfolio). 각 호출은 지정된 필드만 출력한다.",
   ].join("\n");
 }
 
-export function buildWorldBibleUser(input: WorldBibleInput): string {
+export function buildWorldCoreUser(input: WorldBibleInput): string {
   return [
     `장르: ${input.genre}`,
-    `worldKey: ${input.worldKey}`,
-    `styleKey: ${input.styleKey}`,
-    `캐릭터 슬롯 수: ${input.slots} (정확히 이 수만큼 portfolio 브리프 생성)`,
-    `성인 후보 수: ${input.adultCandidates}명 (이 수만큼 adultCandidate=true)`,
     "",
     "트로프 영감(표현이 아니라 방향만 참고):",
     ...input.inspirationTropes.map((t) => `- ${t}`),
     "",
+    "이번 호출(core) 출력 필드:",
+    "- name(세계관 이름), genre, subgenre, tone, era, techLevel, regions, societyForm",
+    "- premise 300~600자 + centralPremise 한 문장",
+    "- situation: biggestEvent·beneficiaries·threatened·upcomingChange (합 500~1000자)",
+    "- factions 3~6개: 이름·목적·지도층·수단·타 세력과의 관계·일반인의 시선",
+    "- powerSystem: capabilities·users·acquisition·ranks·limits·costs·socialImpact·taboos (\"마법이 있다\" 수준 금지)",
+    "- society: RP에 영향을 주는 영역 3개 이상(계급·법·결혼/가족·교육·직업·군사·차별/예절 중)",
+    "- culture 3~6개: 이름·상세",
     "지정된 필드 구조의 JSON 한 개만 출력한다.",
   ].join("\n");
+}
+
+export type WorldAtlasInput = {
+  worldName: string;
+  centralPremise: string;
+  factionNames: string[];
+};
+
+export function buildWorldAtlasUser(input: WorldAtlasInput): string {
+  return [
+    `세계관: ${input.worldName} — ${input.centralPremise}`,
+    `세력: ${input.factionNames.join(" / ")}`,
+    "",
+    "이번 호출(atlas) 출력 필드:",
+    "- locations 5~10개: 이름·용도·분위기·이용자·RP에서 벌어질 사건(이후 스페셜 신 에셋의 재료)",
+    "- history 3~6개: 현재에 영향을 주는 사건만(event·impact). 연대표 나열 금지",
+    "- knowledge: common(대중 상식만, 비밀·정체·흑막·미래 표현 금지) / faction / characterLocal / authorOnly",
+    "- userEntry: allowedRoles 2개 이상(귀족·고용인·방문자·계약 상대·신입 등, 단일 강제 금지) + note",
+    "- lorebook: COMMON 기반 8~12개. entryKey·name(40자 이내)·keywords(2~10개)·content(800자 이내)",
+    "지정된 필드 구조의 JSON 한 개만 출력한다.",
+  ].join("\n");
+}
+
+export type WorldPortfolioInput = {
+  worldName: string;
+  centralPremise: string;
+  factionNames: string[];
+  locationNames: string[];
+  slots: number;
+  adultCandidates: number;
+};
+
+export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
+  return [
+    `세계관: ${input.worldName} — ${input.centralPremise}`,
+    `세력: ${input.factionNames.join(" / ")}`,
+    `장소: ${input.locationNames.join(" / ")}`,
+    `캐릭터 슬롯 수: ${input.slots} (정확히 이 수만큼 portfolio 브리프 생성)`,
+    `성인 후보 수: ${input.adultCandidates}명 (이 수만큼 adultCandidate=true)`,
+    "",
+    "이번 호출(portfolio) 출력 필드: portfolio 배열. 각 브리프는",
+    "slot·name(20자 이내, 서로 겹치지 않게)·gender·age(19세 이상)·archetype·relationshipTrope·occupation·",
+    "faction(위 목록에서)·socialPosition·personalityCore·visualSilhouette·rpHook·adultCandidate·speechDirection·audience.",
+    "10명 모두 역할·세력·신분·성격핵·관계 트로프·외형 실루엣·RP 훅이 달라야 한다.",
+    "냉미남·집착남·황태자·계약관계·검은머리·190cm 클론 금지. 같은 트로프 반복 금지.",
+    "인기형 5 + 니치/팬덤형 3 + 실험형 2 방향. 성별·연령·신분 분산.",
+    "경쟁작의 고유 명칭·문장·설정을 복제하지 않는다.",
+    "지정된 필드 구조의 JSON 한 개만 출력한다.",
+  ].join("\n");
+}
+
+export function buildWorldBibleUser(input: WorldBibleInput): string {
+  return buildWorldCoreUser(input);
 }
 
 export type PortfolioBriefInput = {

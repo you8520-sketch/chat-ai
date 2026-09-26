@@ -214,7 +214,7 @@ async function stepWorld(modelId: string, maxAttempts: number): Promise<void> {
   let failed = 0;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const { bible, provenance, completion } = await generateOfficialWorldBible({
+      const { bible, provenances, completions } = await generateOfficialWorldBible({
         transport: liveOfficialAuthorTransport,
         world: {
           genre: MANIFEST.genre,
@@ -227,9 +227,11 @@ async function stepWorld(modelId: string, maxAttempts: number): Promise<void> {
         modelId,
         attempt,
       });
-      track(report, completion, "world_bible", "world", attempt, failed);
-      recordRun("world", "world_bible", provenance);
-      writeJson(path.join(PILOT_DIR, "world-bible.json"), { bible, provenance });
+      completions.forEach((completion, i) => {
+        track(report, completion, "world_bible", "world", attempt, i === 0 ? failed : 0);
+        recordRun("world", "world_bible", provenances[i]!);
+      });
+      writeJson(path.join(PILOT_DIR, "world-bible.json"), { bible, provenances });
       saveCost(report);
       console.log(`[pilot] world bible ok: ${bible.name} (attempt ${attempt})`);
       return;

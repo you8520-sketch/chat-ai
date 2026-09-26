@@ -20,8 +20,10 @@ import {
   buildCharacterBible2User,
   buildStyleBoardSystem,
   buildStyleBoardUser,
+  buildWorldAtlasUser,
   buildWorldBibleSystem,
-  buildWorldBibleUser,
+  buildWorldCoreUser,
+  buildWorldPortfolioUser,
   OFFICIAL_AUTHOR_MAX_TOKENS,
   OFFICIAL_AUTHOR_SNAPSHOT_VERSION,
   OFFICIAL_AUTHOR_TEMPERATURE,
@@ -33,7 +35,9 @@ import {
   type OfficialAuthorTask,
   type PortfolioBriefInput,
   type StyleBoardInput,
+  type WorldAtlasInput,
   type WorldBibleInput,
+  type WorldPortfolioInput,
 } from "@/lib/officialSupply/authorPrompts";
 import {
   CHARACTER_BIBLE_1_SCHEMA,
@@ -502,18 +506,57 @@ export async function generateOfficialWorldBible(input: {
   attempt?: number;
 }): Promise<{
   bible: OfficialWorldBible;
-  provenance: OfficialAuthorProvenance;
-  completion: OfficialAuthorRawCompletion;
+  provenances: [OfficialAuthorProvenance, OfficialAuthorProvenance, OfficialAuthorProvenance];
+  completions: [OfficialAuthorRawCompletion, OfficialAuthorRawCompletion, OfficialAuthorRawCompletion];
 }> {
-  const completion = await input.transport.completeJson({
-    task: "world_bible",
-    system: buildWorldBibleSystem(),
-    user: buildWorldBibleUser(input.world),
-    schemaName: "official_world_bible",
-    schema: WORLD_BIBLE_SCHEMA,
-    modelId: input.modelId,
-  });
-  const bible = coerceWorldBible(parseAuthorJson(completion.text, "world_bible"));
+  // Provider constraint: one giant world call never completes on the
+  // background route (503). Three sequential structured calls (core → atlas
+  // → portfolio) stay inside the proven output budget; the merged bible gets
+  // the same deterministic QA as a single call would.
+  const system = buildWorldBibleSystem();
+  const complete = (user: string): Promise<OfficialAuthorRawCompletion> =>
+    input.transport.completeJson({
+      task: "world_bible",
+      system,
+      user,
+      schemaName: "official_world_bible",
+      schema: WORLD_BIBLE_SCHEMA,
+      modelId: input.modelId,
+    });
+  const coreCompletion = await complete(buildWorldCoreUser(input.world));
+  const coreData = parseAuthorJson(coreCompletion.text, "world_bible");
+  if (!isRecord(coreData)) throw new OfficialSupplyGateError("author_shape_invalid", "world_bible core: object required");
+  const worldName = requiredString(coreData, "name", "world_bible");
+  const centralPremise = requiredString(coreData, "centralPremise", "world_bible");
+  const factionNames = (Array.isArray(coreData.factions) ? coreData.factions : [])
+    .filter(isRecord)
+    .map((f) => String(f.name ?? "").trim())
+    .filter(Boolean);
+
+  const atlasInput: WorldAtlasInput = { worldName, centralPremise, factionNames };
+  const atlas = await complete(buildWorldAtlasUser(atlasInput));
+  const atlasData = parseAuthorJson(atlas.text, "world_bible");
+  if (!isRecord(atlasData)) throw new OfficialSupplyGateError("author_shape_invalid", "world_bible atlas: object required");
+  const locationNames = (Array.isArray(atlasData.locations) ? atlasData.locations : [])
+    .filter(isRecord)
+    .map((location) => String(location.name ?? "").trim())
+    .filter(Boolean);
+
+  const portfolioInput: WorldPortfolioInput = {
+    worldName,
+    centralPremise,
+    factionNames,
+    locationNames,
+    slots: input.world.slots,
+    adultCandidates: input.world.adultCandidates,
+  };
+  const portfolioCompletion = await complete(buildWorldPortfolioUser(portfolioInput));
+  const portfolioData = parseAuthorJson(portfolioCompletion.text, "world_bible");
+  if (!isRecord(portfolioData) || !Array.isArray(portfolioData.portfolio)) {
+    throw new OfficialSupplyGateError("author_shape_invalid", "world_bible portfolio: portfolio array required");
+  }
+
+  const bible = coerceWorldBible({ ...coreData, ...atlasData, portfolio: portfolioData.portfolio });
   if (bible.portfolio.length !== input.world.slots) {
     throw new OfficialSupplyGateError(
       "author_shape_invalid",
@@ -525,7 +568,16 @@ export async function generateOfficialWorldBible(input: {
     adultCandidates: input.world.adultCandidates,
   });
   if (!qa.ok) throw new OfficialSupplyGateError("author_world_rejected", "world bible failed QA", qa);
-  return { bible, provenance: provenanceFor(completion, input.attempt ?? 1), completion };
+  const attempt = input.attempt ?? 1;
+  return {
+    bible,
+    provenances: [
+      provenanceFor(coreCompletion, attempt * 10 + 1),
+      provenanceFor(atlas, attempt * 10 + 2),
+      provenanceFor(portfolioCompletion, attempt * 10 + 3),
+    ],
+    completions: [coreCompletion, atlas, portfolioCompletion],
+  };
 }
 
 // ── Character bible halves → assembled bible ─────────────────────────────────
