@@ -73,7 +73,6 @@ function writeReplies(
   scope: AssistantGenerationScope,
   replies: SuggestedReplyItem[],
   failed = false,
-  noRetry = false,
   terminalReason?: SuggestedRepliesRecord["terminalReason"],
   source: SuggestedRepliesRecordSource = "post-turn-shared"
 ): void {
@@ -93,7 +92,6 @@ function writeReplies(
     source,
     pending: false,
     failed,
-    ...(noRetry ? { noRetry: true } : {}),
     ...(terminalReason ? { terminalReason } : {}),
     generationSequence: scope.generationSequence,
     generationRequestId: scope.generationRequestId,
@@ -125,7 +123,7 @@ export function markMessageSuggestedRepliesIneligible(
   messageId: number,
   generationScope: AssistantGenerationScope
 ): void {
-  writeReplies(messageId, generationScope, [], true, true, "original_turn_ineligible");
+  writeReplies(messageId, generationScope, [], true, "original_turn_ineligible");
 }
 
 export function isSuggestedRepliesJobRunning(scope: AssistantGenerationScope): boolean {
@@ -215,7 +213,14 @@ export function scheduleSuggestedRepliesExtraction(opts: {
       ? opts.prefetchedReplies!
       : [];
     try {
-      writeReplies(opts.messageId, opts.generationScope, replies, replies.length === 0, true, undefined, recordSource);
+      writeReplies(
+        opts.messageId,
+        opts.generationScope,
+        replies,
+        replies.length === 0,
+        undefined,
+        recordSource
+      );
     } catch (error) {
       console.error(
         "[SUGGESTED-REPLIES-ERROR] terminal shared write failed",
@@ -243,7 +248,6 @@ export function scheduleSuggestedRepliesExtraction(opts: {
         opts.generationScope,
         replies,
         !ok,
-        opts.sharedInitialAttemptConsumed === true,
         undefined,
         recordSource
       );
@@ -261,7 +265,6 @@ export function scheduleSuggestedRepliesExtraction(opts: {
           opts.generationScope,
           [],
           true,
-          opts.sharedInitialAttemptConsumed === true,
           undefined,
           recordSource
         );
