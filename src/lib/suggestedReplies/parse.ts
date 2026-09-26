@@ -303,7 +303,6 @@ export function parseSuggestedRepliesRecord(
         ...baseFields,
         pending: false,
         failed: true,
-        noRetry: true,
       };
     }
 
@@ -313,7 +312,6 @@ export function parseSuggestedRepliesRecord(
       ...baseFields,
       pending: parsed.pending === true,
       failed: parsed.failed === true,
-      ...(parsed.noRetry === true ? { noRetry: true } : {}),
       ...(parsed.terminalReason === "original_turn_ineligible"
         ? { terminalReason: parsed.terminalReason }
         : {}),

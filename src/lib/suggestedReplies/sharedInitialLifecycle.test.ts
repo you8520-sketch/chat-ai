@@ -111,7 +111,6 @@ describe("suggested replies shared initial terminal lifecycle", () => {
     assert.ok(record);
     assert.equal(record.pending, false);
     assert.equal(record.failed, true);
-    assert.equal(record.noRetry, true);
     assert.equal(record.source, "post-turn-shared");
     assert.equal(record.generationSequence, 0);
     assert.equal(record.generationRequestId, REQUEST_ID);
@@ -144,7 +143,6 @@ describe("suggested replies shared initial terminal lifecycle", () => {
     assert.ok(record);
     assert.equal(record.pending, false);
     assert.equal(record.failed, false);
-    assert.equal(record.noRetry, true);
     assert.equal(record.source, "post-turn-shared");
     assert.equal(record.generationSequence, 0);
     assert.equal(record.generationRequestId, REQUEST_ID);

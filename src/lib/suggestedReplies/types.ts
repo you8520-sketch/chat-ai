@@ -55,8 +55,6 @@ export type SuggestedRepliesRecord = {
   source: SuggestedRepliesRecordSource;
   pending?: boolean;
   failed?: boolean;
-  /** This generation already spent its shared physical-call budget. */
-  noRetry?: boolean;
   /** Terminal logical outcome; this task was never eligible for the generation. */
   terminalReason?: "original_turn_ineligible";
   generationSequence?: number;
