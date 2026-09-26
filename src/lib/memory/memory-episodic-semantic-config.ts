@@ -5,11 +5,10 @@
  * and input bound used by the semantic index, the embeddings transport caller,
  * the semantic candidate lane, and the final scorer is defined here once.
  *
- * STATUS: every candidate below is PROVISIONAL. Thresholds and weights were not
- * calibrated against a live embedding model; they only make the deterministic
- * synthetic fixtures meaningful. `resolveEpisodicSemanticRuntime` therefore
- * refuses to activate any provisional config, so production retrieval stays on
- * the exact lexical Retrieval V2 path until a live benchmark approves a config.
+ * STATUS: BGE-M3 is the approved initial production semantic model after the
+ * live benchmark on PR #1079. Other candidates remain provisional / benchmark
+ * only. Runtime activation still requires the separate feature flag plus an
+ * APPROVED config, so approval alone does not enable production retrieval.
  */
 import type { Route } from "@/lib/ai";
 export type EpisodicSemanticConfigStatus = "PROVISIONAL_LIVE_BENCHMARK_PENDING" | "APPROVED";
@@ -66,8 +65,8 @@ export const EPISODIC_SEMANTIC_MODEL_CANDIDATES = {
     modelId: "baai/bge-m3",
     dimensions: 1024,
     responseModelAliases: ["parasail-bge-m3"],
-    configVersion: "bge-m3@1024/provisional-1",
-    status: "PROVISIONAL_LIVE_BENCHMARK_PENDING",
+    configVersion: "bge-m3@1024/approved-1",
+    status: "APPROVED",
     similarityPassThreshold: 0.5,
     semanticScoreWeight: 4,
     semanticLaneMaxShare: 0.1,
