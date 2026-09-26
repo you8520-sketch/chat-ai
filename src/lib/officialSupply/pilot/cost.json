@@ -1,8 +1,8 @@
 {
-  "calls": 54,
-  "inputTokens": 62444,
-  "outputTokens": 120958,
-  "costUsd": 0.066643,
+  "calls": 58,
+  "inputTokens": 70508,
+  "outputTokens": 139812,
+  "costUsd": 0.073945,
   "failures": 20,
   "retries": 34,
   "lines": [
@@ -545,7 +545,52 @@
       "costUsd": 0.000943,
       "attempts": 1,
       "failedAttempts": 0
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-02",
+      "model": "gpt-6-luna",
+      "inputTokens": 2253,
+      "outputTokens": 4021,
+      "costUsd": 0.001604,
+      "attempts": 2,
+      "failedAttempts": 1,
+      "legacy": "two-call bible structure (voice+bonds combined)"
+    },
+    {
+      "task": "character_bible_2",
+      "draftKey": "pilot-rf-02",
+      "model": "gpt-6-luna",
+      "inputTokens": 1705,
+      "outputTokens": 4947,
+      "costUsd": 0.00188,
+      "attempts": 1,
+      "failedAttempts": 0,
+      "legacy": "two-call bible structure (voice+bonds combined)"
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-05",
+      "model": "gpt-6-luna",
+      "inputTokens": 2285,
+      "outputTokens": 4948,
+      "costUsd": 0.001931,
+      "attempts": 3,
+      "failedAttempts": 2,
+      "legacy": "two-call bible structure (voice+bonds combined)"
+    },
+    {
+      "task": "character_bible_2",
+      "draftKey": "pilot-rf-05",
+      "model": "gpt-6-luna",
+      "inputTokens": 1821,
+      "outputTokens": 4938,
+      "costUsd": 0.001887,
+      "attempts": 1,
+      "failedAttempts": 0,
+      "legacy": "two-call bible structure (voice+bonds combined)"
     }
   ],
-  "imageCalls": 0
+  "imageCalls": 0,
+  "notes": "character_bible_2 lines are the legacy combined voice+bonds call (slots 02/05). Failed attempts are counted in failures/retries; their provider spend lives in the canonical cost ledger."
 }

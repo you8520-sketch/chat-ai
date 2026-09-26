@@ -2,9 +2,8 @@
  * Manual production pilot author for official romance-fantasy supply.
  *
  * MANUAL ONLY: requires OFFICIAL_PILOT_LIVE=1. Never imported by tests.
- * Text calls only — this script never touches the image owner
- * (no runOfficialAssetSlot/productionAdapters import anywhere below),
- * user billing/points, creator rewards, staging, or publishing.
+ * Text calls only — image generation, user billing/points, creator rewards,
+ * staging, and publishing are all out of scope here and never imported below.
  *
  * Usage:
  *   OFFICIAL_PILOT_LIVE=1 node --conditions=react-server --import tsx \
@@ -422,8 +421,10 @@ async function stepCharacters(
   const results = await pool(pending, concurrency, async (brief) => {
     try {
       await generateOneCharacter(brief, world, world.portfolio, modelId, maxAttempts, report);
+      saveCost(report);
       return { slot: brief.slot, ok: true as const };
     } catch (error) {
+      saveCost(report);
       return { slot: brief.slot, ok: false as const, error: String((error as Error)?.message ?? error) };
     }
   });
