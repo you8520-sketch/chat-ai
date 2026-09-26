@@ -232,4 +232,17 @@ describe("TRPG client custody wiring", () => {
     assert.match(src, /resolveTrpgActionInitialBody/);
     assert.match(src, /SERVER LOCKED DRAFT > LOCAL UNSENT DRAFT/);
   });
+
+  it("suggestion-round lifecycle cannot overwrite a draft restored by the round owner", () => {
+    const src = room();
+    const effectStart = src.indexOf("if (suggestionRound !== snap.round.number)");
+    assert.ok(effectStart >= 0, "suggestion-round effect must exist");
+    const effectEnd = src.indexOf("}, [snap.id, snap.myDraft, snap.round.number, suggestionRound]);", effectStart);
+    assert.ok(effectEnd > effectStart, "suggestion-round effect boundary must exist");
+    const effect = src.slice(effectStart, effectEnd);
+    assert.doesNotMatch(effect, /setActionBody\(/);
+    assert.doesNotMatch(effect, /setActionType\(/);
+    assert.doesNotMatch(effect, /setInputOrigin\(/);
+    assert.match(src, /Round composer state is owned by apply\(\)/);
+  });
 });
