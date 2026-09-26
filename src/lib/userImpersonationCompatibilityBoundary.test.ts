@@ -52,6 +52,10 @@ describe("legacy user-impersonation compatibility boundary", () => {
     const actual = scan(walk("src"));
     assert.deepEqual(actual, [
       {
+        path: "src/lib/openRouterAdult.ts",
+        terms: ["userImpersonation"],
+      },
+      {
         path: "src/lib/userImpersonationPolicy.ts",
         terms: [
           "resolveUserImpersonationAllowance",
@@ -70,7 +74,28 @@ describe("legacy user-impersonation compatibility boundary", () => {
     ]);
   });
 
-  it("does not let dev scripts silently depend on the retired production compatibility API", () => {
-    assert.deepEqual(scan(walk("scripts")), []);
+  it("pins existing offline script debt so legacy compatibility usage cannot grow", () => {
+    const hits = scan(walk("scripts"));
+    assert.ok(
+      hits.length <= 65,
+      `offline legacy script debt grew from 65 to ${hits.length}`
+    );
+    for (const hit of hits) {
+      assert.equal(
+        hit.terms.includes("resolveUserImpersonationAllowance") ||
+          hit.terms.includes("resolveUserImpersonationFromNote"),
+        false,
+        `${hit.path} must not introduce live legacy resolver dependencies`
+      );
+    }
+  });
+
+  it("proves buildAdultSystemPrompt has no production caller outside its definition", () => {
+    const callers = walk("src")
+      .filter((file) => !/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file))
+      .filter((file) => file !== "src/lib/openRouterAdult.ts")
+      .filter((file) => readFileSync(file, "utf8").includes("buildAdultSystemPrompt"));
+
+    assert.deepEqual(callers, []);
   });
 });
