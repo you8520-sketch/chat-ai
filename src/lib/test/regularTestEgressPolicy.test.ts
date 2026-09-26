@@ -10,8 +10,7 @@ import { execFileSync } from "node:child_process";
  * Children only print env / resolver results after the policy `--import`.
  */
 const POLICY_IMPORT = "./src/lib/test/regularTestEgressPolicy.ts";
-const RESOLVER_IMPORT =
-  "./scripts/lib/benchmarkCheaperInferenceCredential.ts";
+const MATRIX_CHILD = "./src/lib/test/regularTestEgressPolicy.matrixChild.ts";
 
 function runEnvChild(env: NodeJS.ProcessEnv): {
   ci: string | null;
@@ -45,10 +44,13 @@ function runEnvChild(env: NodeJS.ProcessEnv): {
   };
 }
 
-function runResolverChild(
-  env: NodeJS.ProcessEnv,
-  probeFlag: string
-): string | null {
+function runResolverChild(env: NodeJS.ProcessEnv): {
+  ci: string | null;
+  or: string | null;
+  oai: string | null;
+  bench: string | null;
+  resolved: string | null;
+} {
   const out = execFileSync(
     process.execPath,
     [
@@ -57,17 +59,25 @@ function runResolverChild(
       "tsx",
       "--import",
       POLICY_IMPORT,
-      "-e",
-      `import { resolveOptInTestCheaperInferenceApiKey } from ${JSON.stringify(
-        RESOLVER_IMPORT
-      )};
-       console.log(JSON.stringify(
-         resolveOptInTestCheaperInferenceApiKey(${JSON.stringify(probeFlag)})
-       ));`,
+      MATRIX_CHILD,
     ],
-    { cwd: process.cwd(), env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
+    {
+      cwd: process.cwd(),
+      env: {
+        ...env,
+        __MATRIX_PROBE_FLAG: env.__MATRIX_PROBE_FLAG ?? "REAL_TRPG_GM_PROVIDER_PROBE",
+      },
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }
   );
-  return JSON.parse(out.trim()) as string | null;
+  return JSON.parse(out.trim()) as {
+    ci: string | null;
+    or: string | null;
+    oai: string | null;
+    bench: string | null;
+    resolved: string | null;
+  };
 }
 
 describe("regular-test egress policy matrix", () => {
@@ -107,34 +117,32 @@ describe("regular-test egress policy matrix", () => {
   });
 
   it("D: global=1 + probe=1 + benchmark key => resolver returns benchmark key", () => {
-    const resolved = runResolverChild(
-      {
-        ...process.env,
-        REGULAR_TEST_REAL_PROVIDER_CALLS: "1",
-        REAL_TRPG_GM_PROVIDER_PROBE: "1",
-        CHEAPER_INFERENCE_BENCHMARK_API_KEY: "bench-eligible",
-        CHEAPER_INFERENCE_API_KEY: "prod-must-not-resurface",
-      },
-      "REAL_TRPG_GM_PROVIDER_PROBE"
-    );
-    assert.equal(resolved, "bench-eligible");
+    const seen = runResolverChild({
+      ...process.env,
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "1",
+      REAL_TRPG_GM_PROVIDER_PROBE: "1",
+      CHEAPER_INFERENCE_BENCHMARK_API_KEY: "bench-eligible",
+      CHEAPER_INFERENCE_API_KEY: "prod-must-not-resurface",
+    });
+    assert.equal(seen.ci, null);
+    assert.equal(seen.resolved, "bench-eligible");
   });
 
   it("E: production key only => manual probe resolver returns null", () => {
-    const resolved = runResolverChild(
-      {
-        ...process.env,
-        REGULAR_TEST_REAL_PROVIDER_CALLS: "1",
-        REAL_TRPG_GM_PROVIDER_PROBE: "1",
-        CHEAPER_INFERENCE_API_KEY: "prod-only-fixture",
-      },
-      "REAL_TRPG_GM_PROVIDER_PROBE"
-    );
-    assert.equal(resolved, null);
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "1",
+      REAL_TRPG_GM_PROVIDER_PROBE: "1",
+      CHEAPER_INFERENCE_API_KEY: "prod-only-fixture",
+    };
+    delete env.CHEAPER_INFERENCE_BENCHMARK_API_KEY;
+    const seen = runResolverChild(env);
+    assert.equal(seen.ci, null);
+    assert.equal(seen.resolved, null);
   });
 
   it("F: prod + benchmark together => resolver uses benchmark only", () => {
-    const env: NodeJS.ProcessEnv = {
+    const seen = runResolverChild({
       ...process.env,
       REGULAR_TEST_REAL_PROVIDER_CALLS: "1",
       REAL_TRPG_GM_PROVIDER_PROBE: "1",
@@ -142,13 +150,11 @@ describe("regular-test egress policy matrix", () => {
       CHEAPER_INFERENCE_BENCHMARK_API_KEY: "bench-only-winner",
       OPENROUTER_API_KEY: "or-must-be-stripped",
       OPENAI_API_KEY: "oai-must-be-stripped",
-    };
-    const seen = runEnvChild(env);
+    });
     assert.equal(seen.ci, null);
     assert.equal(seen.or, null);
     assert.equal(seen.oai, null);
     assert.equal(seen.bench, "bench-only-winner");
-    const resolved = runResolverChild(env, "REAL_TRPG_GM_PROVIDER_PROBE");
-    assert.equal(resolved, "bench-only-winner");
+    assert.equal(seen.resolved, "bench-only-winner");
   });
 });
