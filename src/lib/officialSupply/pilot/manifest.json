@@ -6,6 +6,18 @@
   "slots": 10,
   "adultCandidates": 4,
   "genderMix": "남성 5명, 여성 4명, 기타 1명",
+  "slotGenders": [
+    "male",
+    "male",
+    "male",
+    "male",
+    "male",
+    "female",
+    "female",
+    "female",
+    "female",
+    "other"
+  ],
   "templateVersion": "pilot-rf-01/v1",
   "snapshotVersion": "market-research-snapshot-2026-09.json",
   "portfolioPolicy": {
