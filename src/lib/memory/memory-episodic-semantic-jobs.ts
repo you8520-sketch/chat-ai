@@ -46,6 +46,7 @@ export const openRouterEpisodicEmbedder: EpisodicEmbedder = async (inputs, model
     inputs,
     dimensions: model.dimensions,
     requestDimensions: model.requestDimensions,
+    responseModelAliases: model.responseModelAliases,
     requestKind: EPISODIC_SEMANTIC_EMBEDDING_REQUEST_KIND,
     timeoutMs: purpose === "query" ? EPISODIC_SEMANTIC_QUERY_TIMEOUT_MS : EPISODIC_SEMANTIC_INDEX_TIMEOUT_MS,
   });
