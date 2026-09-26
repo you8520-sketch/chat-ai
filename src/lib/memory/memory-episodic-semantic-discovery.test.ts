@@ -8,6 +8,8 @@ import {
   ensureEpisodicMemoryFactsTable,
   fetchEpisodicMemoryCandidatesForDebug,
   getEpisodicMemoryForPrompt,
+  hasEpisodicSemanticIndexInScope,
+  listEpisodicFactsForSemanticIndexing,
   persistEpisodicMemoryFactsCore,
   reconcileEpisodicMemoryFactsForGeneration,
   replaceEpisodicMemoryFactsForCanonicalMutation,
@@ -19,7 +21,11 @@ import {
   EPISODIC_FACT_EMBEDDINGS_TABLE,
   encodeEmbeddingHex,
   ensureEpisodicFactEmbeddingSchema,
+  episodicFactContentHash,
+  episodicFactEmbeddingInput,
+  episodicFactSemanticText,
   normalizeEmbeddingVector,
+  upsertEpisodicFactEmbedding,
 } from "@/lib/memory/memory-episodic-semantic-index";
 import {
   openRouterEpisodicEmbedder,
@@ -27,6 +33,7 @@ import {
   runEpisodicSemanticIndexJob,
 } from "@/lib/memory/memory-episodic-semantic-jobs";
 import {
+  EPISODIC_SEMANTIC_MAX_FACT_CHARS,
   EPISODIC_SEMANTIC_MODEL_CANDIDATES,
   resolveEpisodicSemanticRuntime,
 } from "@/lib/memory/memory-episodic-semantic-config";
@@ -74,7 +81,7 @@ function insertFact(
         f.value ?? "v",
         f.importance ?? "normal",
         f.text,
-        f.metadata ?? '{"memory_evidence_type":"explicit_scene_event"}'
+        f.metadata ?? '{"memory_evidence_type":"explicit_scene_event","content_route":"safe"}'
       ).lastInsertRowid
   );
 }
@@ -198,7 +205,7 @@ describe("E–H. mutation and boundary safety — stale vectors never resurrect"
       turn: 10,
       subject: "storm",
       text: stormText,
-      metadata: '{"memory_evidence_type":"explicit_scene_event","assistant_message_id":501,"request_id":"r1"}',
+      metadata: '{"memory_evidence_type":"explicit_scene_event","content_route":"safe","assistant_message_id":501,"request_id":"r1"}',
     });
     await indexChatSynthetically(db, 1);
     assert.equal(vectorCount(db), 1);
@@ -216,9 +223,9 @@ describe("E–H. mutation and boundary safety — stale vectors never resurrect"
     const db = openDb();
     const v1 = { category: "setting", subject: "storm", attribute: "shelter", value: "cave", importance: "normal", fact_text: stormText, evidence_type: "explicit_scene_event" } as const;
     const v2 = { ...v1, value: "hut", fact_text: "폭풍우 밤에 둘은 오두막으로 피신했다." } as const;
-    assert.equal(persistEpisodicMemoryFactsCore(db, { chatId: 1, sourceTurn: 10, sourceUserMessageId: 7, facts: [{ ...v1 }] }), 1);
+    assert.equal(persistEpisodicMemoryFactsCore(db, { chatId: 1, sourceTurn: 10, sourceUserMessageId: 7, facts: [{ ...v1 }], metadata: { content_route: "safe" } }), 1);
     await indexChatSynthetically(db, 1);
-    assert.equal(replaceEpisodicMemoryFactsForCanonicalMutation(db, { chatId: 1, sourceTurn: 10, sourceUserMessageId: 7, facts: [{ ...v2 }] }), 1);
+    assert.equal(replaceEpisodicMemoryFactsForCanonicalMutation(db, { chatId: 1, sourceTurn: 10, sourceUserMessageId: 7, facts: [{ ...v2 }], metadata: { content_route: "safe" } }), 1);
     const q = await syntheticQuery(stormQuery);
     const beforeReindex = getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn: 40, currentUserMessage: stormQuery, semanticQuery: q }, env);
     assert.equal(beforeReindex.facts.some((f) => f.value === "cave"), false, "old variant never resurrected");
@@ -234,7 +241,7 @@ describe("E–H. mutation and boundary safety — stale vectors never resurrect"
       turn: 10,
       subject: "storm",
       text: stormText,
-      metadata: '{"memory_evidence_type":"explicit_scene_event","assistant_message_id":601,"request_id":"r1"}',
+      metadata: '{"memory_evidence_type":"explicit_scene_event","content_route":"safe","assistant_message_id":601,"request_id":"r1"}',
     });
     await indexChatSynthetically(db, 1);
     assert.equal(deleteEpisodicMemoryFactsByAssistantMessageIds(db, 1, [601]), 1);
@@ -326,7 +333,8 @@ describe("L–M. index lifecycle", () => {
     const first = await indexChatSynthetically(db, 1, SYNTHETIC_SEMANTIC_MODEL, counter.embed);
     const callsAfterFirst = counter.calls();
     const second = await runEpisodicSemanticIndexJob({ db, chatId: 1, runtime: syntheticRuntime(), embed: counter.embed });
-    assert.equal(first, 61);
+    assert.equal(first, 1, "only the guard-valid fact is indexed; 60 non-sentence fillers are never sent");
+    assert.equal(counter.inputs(), 1);
     assert.equal(second.status, "idle");
     assert.equal(counter.calls(), callsAfterFirst, "no extra embedding call");
     db.close();
@@ -338,7 +346,7 @@ describe("L–M. index lifecycle", () => {
       turn: 10,
       subject: "thunderfear",
       text: KNOWN_GAP_FACT,
-      metadata: '{"memory_evidence_type":"explicit_scene_event","assistant_message_id":701,"request_id":"r1"}',
+      metadata: '{"memory_evidence_type":"explicit_scene_event","content_route":"safe","assistant_message_id":701,"request_id":"r1"}',
     });
     const job = await runEpisodicSemanticIndexJob({
       db,
@@ -380,6 +388,7 @@ describe("N. fallback — any semantic failure is exact lexical Retrieval V2", (
       globalThis.fetch = (async () => respond()) as unknown as typeof fetch;
       try {
         const resolved = await resolveEpisodicSemanticQuery({
+      contentRoute: "safe",
           query: KNOWN_GAP_QUERY,
           runtime: syntheticRuntime(),
           embed: (inputs, model, purpose) => openRouterEpisodicEmbedder(inputs, model, purpose),
@@ -401,6 +410,7 @@ describe("N. fallback — any semantic failure is exact lexical Retrieval V2", (
     const saved = process.env.OPENROUTER_API_KEY;
     delete process.env.OPENROUTER_API_KEY;
     const resolved = await resolveEpisodicSemanticQuery({
+      contentRoute: "safe",
       query: KNOWN_GAP_QUERY,
       runtime: syntheticRuntime(),
       embed: openRouterEpisodicEmbedder,
@@ -435,7 +445,9 @@ describe("N. fallback — any semantic failure is exact lexical Retrieval V2", (
 
   it("partial batch failure: one invalid vector in an index batch writes nothing", async () => {
     const db = openDb();
-    seedKnownGap(db);
+    for (let i = 0; i < 5; i++) {
+      insertFact(db, { turn: 10 + i, subject: `storm${i}`, text: `${i}번째 폭풍우 밤에 둘은 동굴로 피신했다.` });
+    }
     const job = await runEpisodicSemanticIndexJob({
       db,
       chatId: 1,
@@ -460,6 +472,176 @@ describe("N. fallback — any semantic failure is exact lexical Retrieval V2", (
   });
 });
 
+describe("correction invariants", () => {
+  const OLD_TEXT = "리셋 이전에 둘은 비밀 창고에서 폭풍우를 피했다.";
+  const NEW_TEXT = "리셋 이후에 둘은 폭풍우 밤 동굴로 피신했다.";
+
+  function seedAcrossBoundary(db: Database.Database): { oldId: number; newId: number } {
+    const oldId = insertFact(db, { turn: 5, subject: "oldstorm", text: OLD_TEXT, sourceUserMessageId: 5 });
+    const newId = insertFact(db, { turn: 12, subject: "newstorm", text: NEW_TEXT, sourceUserMessageId: 9 });
+    db.prepare("UPDATE chat_memories SET memory_reset_after_message_id=5 WHERE chat_id=1").run();
+    return { oldId, newId };
+  }
+
+  it("OUT_OF_SCOPE_MEMORY_IS_NOT_SENT_TO_EMBEDDING_PROVIDER: pre-boundary fact never reaches the embedder", async () => {
+    const db = openDb();
+    const { oldId, newId } = seedAcrossBoundary(db);
+    const sent: string[] = [];
+    const job = await runEpisodicSemanticIndexJob({
+      db,
+      chatId: 1,
+      runtime: syntheticRuntime(),
+      embed: async (texts) => {
+        sent.push(...texts);
+        return texts.map(syntheticEmbed);
+      },
+    });
+    assert.equal(job.written, 1);
+    assert.deepEqual(sent, [NEW_TEXT]);
+    const indexed = (db.prepare(`SELECT fact_id FROM ${EPISODIC_FACT_EMBEDDINGS_TABLE}`).all() as Array<{ fact_id: number }>).map((r) => r.fact_id);
+    assert.deepEqual(indexed, [newId]);
+    assert.equal(indexed.includes(oldId), false);
+    db.close();
+  });
+
+  it("pre-boundary fact is absent from every provider fetch body (real transport, stubbed fetch)", async () => {
+    const db = openDb();
+    seedAcrossBoundary(db);
+    const bodies: string[] = [];
+    process.env.OPENROUTER_API_KEY = "test-dummy-key-not-real";
+    globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      const body = String(init?.body ?? "");
+      bodies.push(body);
+      const parsed = JSON.parse(body) as { model: string; input: string[] };
+      return Response.json({
+        object: "list",
+        model: parsed.model,
+        data: parsed.input.map((t, index) => ({ object: "embedding", index, embedding: syntheticEmbed(t) })),
+        usage: { prompt_tokens: 1, total_tokens: 1 },
+      });
+    }) as typeof fetch;
+    try {
+      const job = await runEpisodicSemanticIndexJob({ db, chatId: 1, runtime: syntheticRuntime(), embed: openRouterEpisodicEmbedder });
+      assert.equal(job.written, 1);
+      assert.equal(bodies.length, 1);
+      assert.equal(bodies.filter((b) => b.includes(OLD_TEXT)).length, 0, "old fact transmissions = 0");
+      assert.equal(bodies.filter((b) => b.includes(NEW_TEXT)).length, 1);
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+      db.close();
+    }
+  });
+
+  it("adult/unstamped/unrecallable facts are never sent; only stamped safe, guard-valid facts are", async () => {
+    const db = openDb();
+    const safeId = insertFact(db, { turn: 10, subject: "safe", text: "폭풍우 밤에 둘은 동굴로 피신했다." });
+    insertFact(db, { turn: 11, subject: "adult", text: "성인 장면에서 둘은 밤을 함께 보냈다.", metadata: '{"memory_evidence_type":"explicit_scene_event","content_route":"nsfw"}' });
+    insertFact(db, { turn: 12, subject: "legacy", text: "레거시 기록에서 둘은 폭풍우를 피했다.", metadata: '{"memory_evidence_type":"explicit_scene_event"}' });
+    insertFact(db, { turn: 13, subject: "notsentence", text: "채우기 기록 1번 항해 일지 바다 파도" });
+    const pending = listEpisodicFactsForSemanticIndexing(db, { chatId: 1, model: SYNTHETIC_SEMANTIC_MODEL, limit: 16 });
+    assert.deepEqual(pending.map((p) => p.factId), [safeId]);
+    db.close();
+  });
+
+  it("adult turn never embeds its query; empty in-scope index skips the query call (0 embed calls)", async () => {
+    const db = openDb();
+    seedKnownGap(db);
+    const counter = countingSyntheticEmbedder();
+    const scope = { chatId: 1, currentTurn: 200 };
+    const probe = (model: typeof SYNTHETIC_SEMANTIC_MODEL) => hasEpisodicSemanticIndexInScope(db, scope, model, env);
+    const adult = await resolveEpisodicSemanticQuery({ query: KNOWN_GAP_QUERY, contentRoute: "nsfw", usableIndex: probe, runtime: syntheticRuntime(), embed: counter.embed });
+    assert.deepEqual(adult, { query: null, reason: "adult_scope_excluded" });
+    const noIndex = await resolveEpisodicSemanticQuery({ query: KNOWN_GAP_QUERY, contentRoute: "safe", usableIndex: probe, runtime: syntheticRuntime(), embed: counter.embed });
+    assert.deepEqual(noIndex, { query: null, reason: "no_usable_index" });
+    assert.equal(counter.calls(), 0, "0 provider calls before any usable index exists");
+    await indexChatSynthetically(db, 1);
+    const callsAfterIndex = counter.calls();
+    const ready = await resolveEpisodicSemanticQuery({ query: KNOWN_GAP_QUERY, contentRoute: "safe", usableIndex: probe, runtime: syntheticRuntime(), embed: counter.embed });
+    assert.equal(ready.reason, "ok");
+    assert.equal(counter.calls(), callsAfterIndex + 1);
+    db.close();
+  });
+
+  it("full canonical content hash: a suffix-only change beyond the provider bound invalidates the vector", () => {
+    const db = openDb();
+    const prefix = "폭풍우 밤의 긴 기록이 이어졌다 ".repeat(40).slice(0, EPISODIC_SEMANTIC_MAX_FACT_CHARS);
+    const textA = `${prefix} 결말은 하나였다.`;
+    const textB = `${prefix} 결말은 둘이었다.`;
+    const fullA = episodicFactSemanticText({ fact_text: textA })!;
+    const fullB = episodicFactSemanticText({ fact_text: textB })!;
+    assert.equal(episodicFactEmbeddingInput(fullA), episodicFactEmbeddingInput(fullB), "provider inputs are byte-identical");
+    assert.equal(
+      episodicFactContentHash(episodicFactEmbeddingInput(fullA)),
+      episodicFactContentHash(episodicFactEmbeddingInput(fullB)),
+      "a truncated-input hash (reviewed head) would have treated B's old vector as valid"
+    );
+    assert.notEqual(episodicFactContentHash(fullA), episodicFactContentHash(fullB));
+
+    const factId = insertFact(db, { turn: 10, subject: "longstorm", text: textA });
+    const vector = normalizeEmbeddingVector(syntheticEmbed(textA), SYNTHETIC_SEMANTIC_MODEL.dimensions)!;
+    assert.equal(
+      upsertEpisodicFactEmbedding(db, { chatId: 1, factId, model: SYNTHETIC_SEMANTIC_MODEL, contentHash: episodicFactContentHash(fullA), vector }),
+      "written"
+    );
+    db.prepare("UPDATE episodic_memory_facts SET fact_text=? WHERE id=?").run(textB, factId);
+    const query = { model: SYNTHETIC_SEMANTIC_MODEL, vector };
+    const pre = fetchEpisodicMemoryCandidatesForDebug(db, { chatId: 1, currentTurn: 60, currentUserMessage: "폭풍우 밤", semanticQuery: query }, env);
+    assert.equal(pre.stats.semantic?.staleContentHashSkipped, 1, "old vector judged stale on full-text hash");
+    assert.equal(pre.semanticSimilarityById.has(factId), false);
+    assert.equal(
+      upsertEpisodicFactEmbedding(db, { chatId: 1, factId, model: SYNTHETIC_SEMANTIC_MODEL, contentHash: episodicFactContentHash(fullA), vector }),
+      "content_changed",
+      "a late write for A is rejected against canonical B"
+    );
+    db.close();
+  });
+
+  it("semantic accounting: overlap IDs cost no slot, novel IDs fill unused capacity, lexical V2 lanes unchanged", async () => {
+    const db = openDb();
+    const overlapId = insertFact(db, { turn: 190, subject: "stormnight", text: "천둥 치던 밤 사용자는 무서워했다고 명시했다." });
+    const novelId = seedKnownGap(db);
+    await indexChatSynthetically(db, 1);
+    const base: GetEpisodicMemoryForPromptInput = { chatId: 1, currentTurn: 200, currentUserMessage: KNOWN_GAP_QUERY };
+    const lexical = fetchEpisodicMemoryCandidatesForDebug(db, base, env);
+    const semantic = fetchEpisodicMemoryCandidatesForDebug(db, { ...base, semanticQuery: await syntheticQuery(KNOWN_GAP_QUERY) }, env);
+    assert.deepEqual(semantic.stats.laneCounts.recent, lexical.stats.laneCounts.recent);
+    assert.deepEqual(semantic.stats.laneCounts.relevance, lexical.stats.laneCounts.relevance);
+    assert.deepEqual(semantic.stats.laneCounts.milestone_critical, lexical.stats.laneCounts.milestone_critical);
+    assert.deepEqual(semantic.stats.laneCounts.milestone_important, lexical.stats.laneCounts.milestone_important);
+    const lexicalIds = lexical.rows.map((r) => r.id);
+    assert.deepEqual(semantic.rows.map((r) => r.id).filter((id) => lexicalIds.includes(id)), lexicalIds, "every lexical candidate kept, same order");
+    assert.equal(lexicalIds.includes(overlapId), true);
+    assert.equal(lexicalIds.includes(novelId), false);
+    const s = semantic.stats.semantic!;
+    assert.deepEqual({ admitted: s.admitted, novel: s.novel, overlap: s.overlap, added: s.added, droppedNoCapacity: s.droppedNoCapacity }, { admitted: 2, novel: 1, overlap: 1, added: 1, droppedNoCapacity: 0 });
+    assert.deepEqual(semantic.laneById.get(overlapId), ["recent", "semantic"]);
+    assert.deepEqual(semantic.laneById.get(novelId), ["semantic"]);
+    assert.equal(semantic.rows.length, lexical.rows.length + 1);
+    db.close();
+  });
+
+  it("full lexical capacity (100 unique): novel semantic IDs are dropped, not swapped in (no replacement policy)", async () => {
+    const db = openDb();
+    const novelId = insertFact(db, { turn: 10, subject: "thunderfear", value: "quietdread", text: KNOWN_GAP_FACT });
+    for (let i = 0; i < 20; i++) insertFact(db, { turn: 30 + i, category: "relationship", subject: `crit${i}`, attribute: "scene_event", importance: "critical", text: `북쪽 탑 ${i}층에서의 맹세가 완료되었다.` });
+    for (let i = 0; i < 20; i++) insertFact(db, { turn: 60 + i, category: "relationship", subject: `imp${i}`, attribute: "scene_event", importance: "important", text: `남쪽 탑 ${i}층에서의 약조가 완료되었다.` });
+    for (let i = 0; i < 30; i++) insertFact(db, { turn: 100 + i, subject: `lamp${i}`, text: `등잔 기록 ${i}번이 남겨졌다고 명시했다.` });
+    saturate(db, 60, 300);
+    await indexChatSynthetically(db, 1);
+    const query = `등잔 ${KNOWN_GAP_QUERY}`;
+    const base: GetEpisodicMemoryForPromptInput = { chatId: 1, currentTurn: 400, currentUserMessage: query };
+    const lexical = fetchEpisodicMemoryCandidatesForDebug(db, base, env);
+    assert.equal(lexical.rows.length, 100, "baseline lexical unique candidate set is full");
+    const semantic = fetchEpisodicMemoryCandidatesForDebug(db, { ...base, semanticQuery: await syntheticQuery(query) }, env);
+    assert.deepEqual(semantic.rows.map((r) => r.id), lexical.rows.map((r) => r.id), "exact lexical V2 candidate set preserved");
+    assert.equal(semantic.rows.some((r) => r.id === novelId), false);
+    assert.ok(semantic.stats.semantic!.novel >= 1);
+    assert.equal(semantic.stats.semantic!.added, 0);
+    assert.equal(semantic.stats.semantic!.droppedNoCapacity, semantic.stats.semantic!.novel);
+    db.close();
+  });
+});
+
 describe("cleanup owners and production wiring", () => {
   it("character deletion helper wipes vectors of every chat of that character only", () => {
     const db = openDb();
@@ -479,8 +661,9 @@ describe("cleanup owners and production wiring", () => {
   it("route, post-turn owner, and cleanup owners call the canonical semantic owners", () => {
     const read = (p: string) => readFileSync(path.join(process.cwd(), p), "utf8");
     const route = read("src/app/api/chat/route.ts");
-    assert.match(route, /const episodicSemantic = await resolveEpisodicSemanticQuery\(\{ query: policyUserMessage \}\);/);
+    assert.match(route, /const episodicSemantic = await resolveEpisodicSemanticQuery\(\{\s*query: policyUserMessage,\s*contentRoute: effectiveAdultRp \? "nsfw" : "safe",\s*usableIndex: \(model\) => hasEpisodicSemanticIndexInScope\(db, episodicRetrievalScope, model\),\s*\}\);/);
     assert.match(route, /semanticQuery: episodicSemantic\.query,/);
+    assert.match(read("src/lib/memory/memory-manager.ts"), /contentRoute: opts\.route,/);
     const manager = read("src/lib/memory/memory-manager.ts");
     const reconcileAt = manager.indexOf("reconcileSharedEpisodicFactsForTurn(getDb()");
     const indexAt = manager.indexOf("await runEpisodicSemanticIndexJob({ db: getDb(), chatId: opts.chatId });");
@@ -511,7 +694,7 @@ describe("runtime gate and encoding", () => {
     const counter = countingSyntheticEmbedder();
     const db = openDb();
     seedKnownGap(db);
-    const q = await resolveEpisodicSemanticQuery({ query: KNOWN_GAP_QUERY, env: {} as NodeJS.ProcessEnv, embed: counter.embed });
+    const q = await resolveEpisodicSemanticQuery({ query: KNOWN_GAP_QUERY, contentRoute: "safe", env: {} as NodeJS.ProcessEnv, embed: counter.embed });
     const job = await runEpisodicSemanticIndexJob({ db, chatId: 1, env: {} as NodeJS.ProcessEnv, embed: counter.embed });
     assert.deepEqual(q, { query: null, reason: "disabled" });
     assert.equal(job.status, "disabled");

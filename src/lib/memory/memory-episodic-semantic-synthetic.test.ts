@@ -106,6 +106,7 @@ export async function syntheticQuery(
   model: EpisodicSemanticModelConfig = SYNTHETIC_SEMANTIC_MODEL
 ): Promise<EpisodicSemanticQuery> {
   const resolved = await resolveEpisodicSemanticQuery({
+      contentRoute: "safe",
     query: text,
     runtime: syntheticRuntime(model),
     embed: countingSyntheticEmbedder().embed,
