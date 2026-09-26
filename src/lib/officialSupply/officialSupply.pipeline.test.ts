@@ -18,6 +18,7 @@ import {
 } from "@/lib/officialSupply/runner";
 import { stageOfficialCharacterPrivately } from "@/lib/officialSupply/staging";
 import { buildOfficialCharacterFormBody } from "@/lib/officialSupply/characterText";
+import { insertCreatorLorebookForOwner } from "@/lib/creatorLorebook";
 import type {
   OfficialAnchorQaReport,
   OfficialCharacterDraft,
@@ -523,6 +524,25 @@ describe("private staging through the canonical character save owner", () => {
     assert.equal(store.reviewVariation("mod-1", "scene2", variationQa()).approved, true);
     assert.equal(world.calls.length, 3);
     assert.equal(store.getAsset("mod-1", "sig1").status, "planned");
+  });
+});
+
+describe("canonical creator lorebook writer (shared by /api/lorebooks)", () => {
+  it("keeps route validation order and creator scope", () => {
+    const db = getDb();
+    assert.deepEqual(insertCreatorLorebookForOwner(db, { creatorId: STAGING_USER.id, name: " ", summary: "", keywords: ["a"], content: "x" }), {
+      ok: false,
+      error: "로어북 이름을 입력해 주세요.",
+    });
+    const noKeywords = insertCreatorLorebookForOwner(db, { creatorId: STAGING_USER.id, name: "n", summary: "", keywords: [], content: "x" });
+    assert.equal(noKeywords.ok, false);
+    const tooLong = insertCreatorLorebookForOwner(db, { creatorId: STAGING_USER.id, name: "n", summary: "", keywords: ["a"], content: "가".repeat(801) });
+    assert.equal(tooLong.ok, false);
+    const created = insertCreatorLorebookForOwner(db, { creatorId: STAGING_USER.id, name: "n".repeat(60), summary: "s", keywords: ["황태자"], content: "공개 정보" });
+    assert.equal(created.ok, true);
+    if (!created.ok) return;
+    const row = db.prepare("SELECT creator_id, name, scope FROM keyword_lorebooks WHERE id=?").get(created.id) as { creator_id: number; name: string; scope: string };
+    assert.deepEqual(row, { creator_id: STAGING_USER.id, name: "n".repeat(40), scope: "creator" });
   });
 });
 
