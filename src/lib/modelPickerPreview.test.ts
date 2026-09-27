@@ -130,6 +130,34 @@ describe("modelPickerPreview V2", () => {
     );
   });
 
+  it("V4.1 picker uses the stable published owner, not legacy market fallback", () => {
+    const inputTokens = 10_000;
+    const outputTokens = 500;
+    assert.equal(
+      computeCheaperInferenceMarketPreviewCost(
+        inputTokens,
+        outputTokens,
+        CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+        0.15
+      ),
+      null
+    );
+    const published = computeStablePublishedPreviewPoints({
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      inputTokens,
+      outputTokens,
+    });
+    assert.ok(published != null && published > 0);
+    assert.equal(
+      computePreviewTurnPoints({
+        modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+        inputTokens,
+        outputTokens,
+      }),
+      published
+    );
+  });
+
   it("uses p30+recent blend under sanity cap — stays below aim", () => {
     const { tokens } = resolveModelPickerOutputTokens({
       modelId: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
