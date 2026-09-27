@@ -20,6 +20,7 @@ import {
   capOutputSanityUpper,
   collectModelOutputSamples,
   computePreviewTurnPoints,
+  computeStablePublishedPreviewPoints,
   formatModelPickerCostLabelFromPreview,
   formatModelPickerCostLabelRange,
   MODEL_PICKER_MEASURED_COLD_BASELINES,
@@ -101,6 +102,32 @@ describe("modelPickerPreview V2", () => {
       assert.ok(row!.estimatedPointsHigh != null);
       assert.ok(row!.estimatedPointsHigh! > row!.estimatedPointsLow!, id);
     }
+  });
+
+  it("V4.1 preview uses the stable published owner, not legacy DeepSeek fallback", () => {
+    const inputTokens = 22_000;
+    const outputTokens = 1_500;
+    const published = computeStablePublishedPreviewPoints({
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      inputTokens,
+      outputTokens,
+    });
+    const preview = computePreviewTurnPoints({
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      inputTokens,
+      outputTokens,
+    });
+    assert.ok(published != null && published > 0);
+    assert.equal(preview, published);
+    assert.equal(
+      computeCheaperInferenceMarketPreviewCost(
+        inputTokens,
+        outputTokens,
+        CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+        0.15
+      ),
+      null
+    );
   });
 
   it("uses p30+recent blend under sanity cap — stays below aim", () => {
@@ -199,6 +226,7 @@ describe("modelPickerPreview V2", () => {
     for (const modelId of ACTIVE) {
       const preview = computePreviewTurnPoints({ modelId, inputTokens: input, outputTokens: output });
       const billed =
+        computeStablePublishedPreviewPoints({ modelId, inputTokens: input, outputTokens: output }) ??
         computeCheaperInferenceMarketPreviewCost(input, output, modelId, 0.15) ??
         computeOpenRouterTurnCost(input, output, modelId);
       assert.equal(preview, billed, modelId);
