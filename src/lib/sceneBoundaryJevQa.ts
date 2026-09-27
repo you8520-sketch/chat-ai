@@ -16,13 +16,17 @@ import {
   type JevDecisionQuestions,
 } from "@/lib/jevDecisions";
 import {
-  generationJobKey,
   isCurrentAssistantGeneration,
   type AssistantGenerationScope,
 } from "@/lib/assistantGenerationScope";
 import {
   assertNoDuplicateAuxProviderSuccess,
 } from "@/lib/auxProviderProvenance";
+import {
+  completeGenerationAuxQaJob,
+  resetGenerationAuxQaClaimsForTests,
+  tryClaimGenerationAuxQaJob,
+} from "@/lib/generationScopedAuxQaClaim";
 import type { BoundaryExecutionContract } from "@/lib/sceneDirectiveV2";
 import {
   getSceneDirectiveV2Mode,
@@ -37,6 +41,7 @@ import {
 export const SCENE_BOUNDARY_JEV_QA_ENV = "SCENE_BOUNDARY_JEV_QA_ENABLED";
 export const SCENE_BOUNDARY_JEV_QA_REQUEST_KIND = "scene-boundary-jev-qa";
 export const SCENE_BOUNDARY_JEV_QA_QUESTION_ID = "boundary_verdict";
+export const SCENE_BOUNDARY_JEV_QA_CLAIM_DOMAIN = "scene-boundary-jev-qa";
 
 export type SceneBoundaryReviewPriority =
   | "high_priority_review"
@@ -48,9 +53,6 @@ export type SceneBoundaryJevVerdict =
   | "COMPLIANT"
   | "INSUFFICIENT_CONTEXT";
 
-const running = new Set<string>();
-const completed = new Set<string>();
-
 export function isSceneBoundaryJevQaEnabled(
   env: NodeJS.ProcessEnv = process.env
 ): boolean {
@@ -58,8 +60,7 @@ export function isSceneBoundaryJevQaEnabled(
 }
 
 export function resetSceneBoundaryJevQaSentinelForTests(): void {
-  running.clear();
-  completed.clear();
+  resetGenerationAuxQaClaimsForTests(SCENE_BOUNDARY_JEV_QA_CLAIM_DOMAIN);
 }
 
 export function mapVerdictToReviewPriority(
@@ -200,11 +201,9 @@ export function scheduleSceneBoundaryJevQa(
     return { scheduled: false, reason: eligibility.reason, providerCallsExpected: 0 };
   }
 
-  const key = generationJobKey(input.generationScope);
-  if (running.has(key) || completed.has(key)) {
+  if (!tryClaimGenerationAuxQaJob(SCENE_BOUNDARY_JEV_QA_CLAIM_DOMAIN, input.generationScope)) {
     return { scheduled: false, reason: "generation_already_claimed", providerCallsExpected: 0 };
   }
-  running.add(key);
 
   const contract = input.boundaryExecution!;
   const signals = eligibility.suspicionSignals;
@@ -279,8 +278,7 @@ export function scheduleSceneBoundaryJevQa(
       failure = ((e as Error).message || "jev_transport_error").slice(0, 240);
       malformed = true;
     } finally {
-      running.delete(key);
-      completed.add(key);
+      completeGenerationAuxQaJob(SCENE_BOUNDARY_JEV_QA_CLAIM_DOMAIN, input.generationScope);
       const latencyMs = Math.round((performance.now() - started) * 10) / 10;
       const reviewPriority = mapVerdictToReviewPriority(verdict);
       logSceneBoundaryJevQaResult({
