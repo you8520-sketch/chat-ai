@@ -692,7 +692,39 @@ describe("Phase B1-D1 — last-turn numeric delete", () => {
     );
   });
 
-  it("D10c relationship rollback failure aborts the whole last-turn delete transaction", () => {
+  it("D10c normalized relationship item from deleted natural-language turn does not survive", () => {
+    const db = makeDb();
+    db.prepare("INSERT INTO chats (id, memory_meta) VALUES (1, ?)").run(
+      JSON.stringify({
+        honorifics: [],
+        items: ["민수: 은색 반지"],
+        thoughts: [],
+        promises: [],
+      })
+    );
+    insertMsg(db, 1, 1, "user", "민수는 은색 반지를 주머니에 넣었다.");
+    insertMsg(db, 2, 1, "assistant", "반지는 민수의 손에 남았다.");
+
+    executeLastTurnDeleteTransaction(db, {
+      chatId: 1,
+      characterId: 7,
+      userMessageId: 1,
+      assistantMessageId: 2,
+      revertNumeric: false,
+      relationshipMetaNames: { charName: "레온", userName: "민수" },
+    });
+
+    const meta = JSON.parse(
+      (
+        db.prepare("SELECT memory_meta FROM chats WHERE id=1").get() as {
+          memory_meta: string;
+        }
+      ).memory_meta
+    ) as { items: string[] };
+    assert.deepEqual(meta.items, []);
+  });
+
+  it("D10d relationship rollback failure aborts the whole last-turn delete transaction", () => {
     const db = makeDb();
     db.prepare("INSERT INTO chats (id, memory_meta) VALUES (1, ?)").run(
       JSON.stringify({
