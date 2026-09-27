@@ -120,9 +120,9 @@ jobs:
       WITHDRAWAL_ENCRYPTION_KEY: "ci-build-withdrawal-key-not-for-production-0123456789"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
