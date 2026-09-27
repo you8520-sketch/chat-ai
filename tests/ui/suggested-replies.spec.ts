@@ -1680,9 +1680,9 @@ test.describe("Suggested Replies — production browser lifecycle", () => {
     await expect(textarea).toHaveValue(REPLIES[0].text);
     await expect(textarea).toBeFocused();
 
-    const naturalButton = page.getByRole("button", { name: /^정석 ·/ });
-    const twistButton = page.getByRole("button", { name: /^한 수 ·/ });
-    const banterButton = page.getByRole("button", { name: /^드립 ·/ });
+    const naturalButton = page.getByRole("button", { name: REPLIES[0].text });
+    const twistButton = page.getByRole("button", { name: REPLIES[1].text });
+    const banterButton = page.getByRole("button", { name: REPLIES[2].text });
 
     await page.getByRole("switch", { name: "추천 메시지" }).click();
     await expect(page.getByRole("switch", { name: "추천 메시지" })).toHaveText("추천 꺼짐");
@@ -1696,6 +1696,9 @@ test.describe("Suggested Replies — production browser lifecycle", () => {
     await expect(naturalButton).toBeVisible();
     await expect(twistButton).toBeVisible();
     await expect(banterButton).toBeVisible();
+    await expect(page.getByRole("button", { name: /^정석 ·/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^한 수 ·/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^드립 ·/ })).toHaveCount(0);
 
     await page.waitForTimeout(500);
     expect(mock.getTargetPollCalls()).toBe(2);
