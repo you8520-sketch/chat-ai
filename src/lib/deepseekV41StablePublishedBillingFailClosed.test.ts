@@ -228,14 +228,26 @@ describe("stable published billing fail-closed — regression matrix", () => {
     assertFailClosed(decision, "unsupported_cache_semantics");
   });
 
-  it("I — Phase2 disabled → legacy unchanged", () => {
+  it("I — V4.1 direct selection stays published when Phase2 flag is disabled", () => {
     const decision = dispatchV41([NORMAL_STAGE], {
       phase2DeepSeekPublishedBillingEnabled: false,
       legacyFinalPoints: 42,
     });
-    assert.equal(decision.contract, "legacy");
-    assert.equal(decision.reason, "phase2_deepseek_billing_disabled");
-    assert.equal(decision.points, 42);
+    assert.equal(decision.contract, "published_phase2");
+    assert.equal(decision.reason, "phase2_deepseek_live_grade");
+    assert.ok(decision.points > 0);
+    assert.notEqual(decision.points, 42);
+    assert.equal(decision.telemetry.pricingVersion, 1);
+  });
+
+  it("I2 — V4.1 legacy waiver minimum cannot force procurement legacy fallback", () => {
+    const decision = dispatchV41([NORMAL_STAGE], {
+      phase2DeepSeekPublishedBillingEnabled: false,
+      legacyFinalPoints: 77,
+      legacyWaiverMinimum: 40,
+    });
+    assertFailClosed(decision, "usage_unresolved");
+    assert.equal(decision.telemetry.publishedBlockReason, "legacy_waiver_minimum_nonzero");
   });
 
   it("J — Phase2 not direct-selected → legacy unchanged", () => {
