@@ -21,7 +21,11 @@ function slug(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
 }
 
-export function validateImplementationCandidate(candidate: ResearchCandidate, recipe: ImplementationRecipe): void {
+export function validateImplementationCandidate(
+  candidate: ResearchCandidate,
+  recipe: ImplementationRecipe,
+  currentArchitectureFingerprint: string
+): void {
   if (candidate.candidateKey !== recipe.candidateKey) throw new Error("candidate/recipe key mismatch");
   if (candidate.state !== "WATCH" || candidate.lastDecision !== "WATCH_IMPLEMENTATION_PR_PENDING") {
     throw new Error(`candidate ${candidate.candidateKey} is not implementation-pending`);
@@ -39,6 +43,17 @@ export function validateImplementationCandidate(candidate: ResearchCandidate, re
   }
   if (live.gateDecision !== "ACCEPTED_QUALITY_GAIN") {
     throw new Error(`live evidence was not accepted: ${live.gateDecision}`);
+  }
+  const evidence = [...candidate.evaluations]
+    .reverse()
+    .find((evaluation) => evaluation.decision === "WATCH_IMPLEMENTATION_PR_PENDING");
+  if (!evidence) {
+    throw new Error(`candidate ${candidate.candidateKey} lacks implementation-pending benchmark provenance`);
+  }
+  if (evidence.architectureFingerprint !== currentArchitectureFingerprint) {
+    throw new Error(
+      `implementation evidence architecture is stale: live=${evidence.architectureFingerprint} current=${currentArchitectureFingerprint}; STOP`
+    );
   }
 }
 
@@ -120,9 +135,18 @@ export function openImplementationDraftPrs(
   readFile: FileReader,
   writeFile: FileWriter,
   validateWorkingTree: WorkingTreeValidator,
-  opts: { mainSha: string; generationId: string; tempDir: string; baseBranch?: string }
+  opts: {
+    mainSha: string;
+    architectureFingerprint: string;
+    generationId: string;
+    tempDir: string;
+    baseBranch?: string;
+  }
 ): ImplementationPrResult[] {
   if (!/^[0-9a-f]{40}$/.test(opts.mainSha)) throw new Error("implementation PR generator requires exact main SHA");
+  if (!opts.architectureFingerprint.trim()) {
+    throw new Error("implementation PR generator requires current architecture fingerprint");
+  }
   if (!opts.generationId.trim()) throw new Error("implementation PR generator requires generationId");
   const baseBranch = opts.baseBranch ?? "main";
   const exec = (command: string, args: readonly string[]) => {
@@ -135,7 +159,7 @@ export function openImplementationDraftPrs(
     try {
       const recipe = findImplementationRecipe(candidate.candidateKey);
       if (!recipe) throw new Error(`no implementation recipe for ${candidate.candidateKey}`);
-      validateImplementationCandidate(candidate, recipe);
+      validateImplementationCandidate(candidate, recipe, opts.architectureFingerprint);
       const branchPrefix = implementationBranchPrefix(candidate, recipe);
       const existing = exec("gh", [
         "pr",
