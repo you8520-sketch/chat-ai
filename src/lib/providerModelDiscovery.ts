@@ -105,7 +105,7 @@ export function observeProviderModelCatalog(params: {
        cache_read_usd_per_million, cache_write_usd_per_million,
        reference_input_usd_per_million, reference_output_usd_per_million,
        discount_percent, latest_catalog_fingerprint
-     ) VALUES (?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?)`
+     ) VALUES (?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?)`
   );
   const update = params.db.prepare(
     `UPDATE provider_model_discoveries
