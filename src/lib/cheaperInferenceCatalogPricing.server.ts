@@ -9,6 +9,7 @@ import {
   type CatalogPricingTierRates,
 } from "@/lib/catalogPricingTier";
 import {
+  type CheaperInferenceCatalogMeta,
   type CheaperInferenceCatalogPricing,
   replaceCheaperInferenceCatalogSnapshot,
 } from "@/lib/cheaperInferenceCatalogPricing";
@@ -43,8 +44,47 @@ export type CatalogModelPricingBlock = {
 
 export type CatalogModel = {
   id?: unknown;
+  type?: unknown;
+  endpoint?: unknown;
+  provider?: unknown;
+  aliases?: unknown;
+  capabilities?: unknown;
+  streaming?: unknown;
+  reasoning?: unknown;
+  vision?: unknown;
+  video?: unknown;
   pricing?: CatalogModelPricingBlock;
 };
+
+function optionalTrimmedString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function optionalBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function stringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items = [...new Set(value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean))];
+  return items.length > 0 ? items : undefined;
+}
+
+function parseCatalogCapabilities(model: CatalogModel): CheaperInferenceCatalogPricing["catalogCapabilities"] {
+  const raw =
+    model.capabilities && typeof model.capabilities === "object" && !Array.isArray(model.capabilities)
+      ? (model.capabilities as Record<string, unknown>)
+      : {};
+  const capabilities = {
+    streaming: optionalBoolean(raw.streaming) ?? optionalBoolean(model.streaming),
+    reasoning: optionalBoolean(raw.reasoning) ?? optionalBoolean(model.reasoning),
+    vision: optionalBoolean(raw.vision) ?? optionalBoolean(model.vision),
+    video: optionalBoolean(raw.video) ?? optionalBoolean(model.video),
+  };
+  return Object.values(capabilities).some((value) => value !== undefined)
+    ? capabilities
+    : undefined;
+}
 
 function positiveNumber(value: unknown): number | null {
   const parsed = Number(value);
@@ -59,10 +99,19 @@ function parseAboveThresholdBlock(
 }
 
 /** Exported for fixture tests — mirrors GET /v1/models item parsing. */
-export function parseCatalogPricing(model: CatalogModel, fetchedAt: number): CheaperInferenceCatalogPricing | null {
+export function parseCatalogPricing(
+  model: CatalogModel,
+  fetchedAt: number,
+  catalogMeta: CheaperInferenceCatalogMeta = {}
+): CheaperInferenceCatalogPricing | null {
   const modelId = typeof model.id === "string" ? model.id.trim().toLowerCase() : "";
   const pricing = model.pricing;
   if (!modelId || !pricing) return null;
+  const catalogType = optionalTrimmedString(model.type)?.toLowerCase();
+  const catalogEndpoint = optionalTrimmedString(model.endpoint);
+  const catalogProvider = optionalTrimmedString(model.provider);
+  const catalogAliases = stringArray(model.aliases);
+  const catalogCapabilities = parseCatalogCapabilities(model);
 
   const inputUsdPerMillion = positiveNumber(pricing.input_per_million);
   const outputUsdPerMillion = positiveNumber(pricing.output_per_million);
@@ -96,6 +145,14 @@ export function parseCatalogPricing(model: CatalogModel, fetchedAt: number): Che
 
   return {
     modelId,
+    ...(catalogType ? { catalogType } : {}),
+    ...(catalogEndpoint ? { catalogEndpoint } : {}),
+    ...(catalogProvider ? { catalogProvider } : {}),
+    ...(catalogAliases ? { catalogAliases } : {}),
+    ...(catalogCapabilities ? { catalogCapabilities } : {}),
+    ...(catalogMeta.pricingVersion ? { catalogPricingVersion: catalogMeta.pricingVersion } : {}),
+    ...(catalogMeta.pricingCheckedAt ? { catalogPricingCheckedAt: catalogMeta.pricingCheckedAt } : {}),
+    ...(catalogMeta.pricingUpdatedAt ? { catalogPricingUpdatedAt: catalogMeta.pricingUpdatedAt } : {}),
     inputUsdPerMillion,
     cacheReadUsdPerMillion,
     cacheWriteUsdPerMillion,
@@ -130,11 +187,27 @@ async function refreshCatalog(): Promise<boolean> {
     throw new Error(`CheaperInference catalog ${response.status}`);
   }
 
-  const data = (await response.json()) as { data?: CatalogModel[] };
+  const data = (await response.json()) as {
+    data?: CatalogModel[];
+    pricing_version?: unknown;
+    pricing_checked_at?: unknown;
+    pricing_updated_at?: unknown;
+  };
+  const catalogMeta: CheaperInferenceCatalogMeta = {
+    ...(optionalTrimmedString(data.pricing_version)
+      ? { pricingVersion: optionalTrimmedString(data.pricing_version) }
+      : {}),
+    ...(optionalTrimmedString(data.pricing_checked_at)
+      ? { pricingCheckedAt: optionalTrimmedString(data.pricing_checked_at) }
+      : {}),
+    ...(optionalTrimmedString(data.pricing_updated_at)
+      ? { pricingUpdatedAt: optionalTrimmedString(data.pricing_updated_at) }
+      : {}),
+  };
   const fetchedAt = Date.now();
   const parsedCatalog: CheaperInferenceCatalogPricing[] = [];
   for (const model of data.data ?? []) {
-    const parsed = parseCatalogPricing(model, fetchedAt);
+    const parsed = parseCatalogPricing(model, fetchedAt, catalogMeta);
     if (!parsed) continue;
     parsedCatalog.push(parsed);
   }

@@ -49,8 +49,30 @@ export function resolveCatalogRatesForPrompt(
   };
 }
 
+export type CheaperInferenceCatalogCapabilities = {
+  streaming?: boolean;
+  reasoning?: boolean;
+  vision?: boolean;
+  video?: boolean;
+};
+
+export type CheaperInferenceCatalogMeta = {
+  pricingVersion?: string;
+  pricingCheckedAt?: string;
+  pricingUpdatedAt?: string;
+};
+
 export type CheaperInferenceCatalogPricing = {
   modelId: string;
+  /** Provider catalog identity/capability evidence — never a product routing decision. */
+  catalogType?: string;
+  catalogEndpoint?: string;
+  catalogProvider?: string;
+  catalogAliases?: string[];
+  catalogCapabilities?: CheaperInferenceCatalogCapabilities;
+  catalogPricingVersion?: string;
+  catalogPricingCheckedAt?: string;
+  catalogPricingUpdatedAt?: string;
   /** Current customer-facing discounted rate — base tier */
   inputUsdPerMillion: number;
   cacheReadUsdPerMillion: number;
