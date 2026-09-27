@@ -126,6 +126,8 @@ describe("user-owned rofan STYLE-ONLY references", () => {
 
     const source = testDraft({
       draftKey: "pilot-rf-01",
+      name: "카엘룸",
+      vocabulary: ["황궁", "계약", "마력", "서재", "왕좌", "약혼", "명령", "침묵"],
       styleKey: PILOT_STYLE_PROOF_SOURCE_STYLE_KEY,
     });
     const v3 = buildUserOwnedRofanProofDraft(source);
