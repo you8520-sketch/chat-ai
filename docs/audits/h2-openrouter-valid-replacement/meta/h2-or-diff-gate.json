@@ -1,0 +1,10 @@
+{
+  "H2_OR_ONLY_DELTA_IS_PARAGRAPH_CLAUSE_REMOVAL": true,
+  "H2_OPENROUTER_REQUEST_SHA": "78d8bf065a808224e4e41aae53e69d8c508db5813f10716addf9401bc180a642",
+  "A_OPENROUTER_REQUEST_SHA": "0eb5ad147fadc36defda7b58e846b5b765e01fecda7ba402bbb2ee428b3b75a4",
+  "H2_FROZEN_FILE_SHA256": "6a5bb460ee99405d22ba4be05e809fe03fdcfbfb45efd9d54f307b2c09977fac",
+  "REMOVED_CHARS": 92,
+  "body_keys_equal": true,
+  "message_count": 6,
+  "model": "deepseek/deepseek-v4-pro-0813"
+}
