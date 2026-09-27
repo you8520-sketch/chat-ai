@@ -1071,10 +1071,10 @@ export function compileOfficialDraftFromBible(
   ].join(" ");
   const appearanceSummary = [
     `얼굴: ${cleanSentence(bible.appearance.faceShape)}.`,
-    `눈: ${cleanSentence(bible.appearance.eyes)} 눈동자: ${cleanSentence(bible.appearance.eyeColor)}.`,
-    `머리색: ${cleanSentence(bible.appearance.hairColor)} 헤어스타일: ${cleanSentence(
+    `눈: ${cleanSentence(bible.appearance.eyes)}. 눈동자: ${cleanSentence(bible.appearance.eyeColor)}.`,
+    `머리색: ${cleanSentence(bible.appearance.hairColor)}. 헤어스타일: ${cleanSentence(
       bible.appearance.hairstyle
-    )} 길이: ${cleanSentence(bible.appearance.hairLength)}.`,
+    )}. 길이: ${cleanSentence(bible.appearance.hairLength)}.`,
     `키: ${id.heightCm}cm. 체격: ${cleanSentence(
       stripOwnedHeightPrefix(bible.appearance.build)
     )}. 피부: ${cleanSentence(bible.appearance.skin)}.`,
