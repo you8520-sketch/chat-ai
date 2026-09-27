@@ -98,11 +98,9 @@ function classifyHairField(
 
 export function parseFacialHairFromText(
   text: string,
-  gender: CharacterGender
+  _gender: CharacterGender
 ): { presence: HairPresence; evidence: HairEvidenceKind } {
-  if (gender === "female") {
-    return { presence: "absent", evidence: "default_absent" };
-  }
+  // Explicit canon outranks demographic defaults for every gender.
   return classifyHairField(text, BEARD_TERM, FACIAL_HAIR_ABSENT, FACIAL_HAIR_PRESENT, "absent");
 }
 
@@ -150,7 +148,7 @@ export function resolveUserPersonaSubjectHairPolicy(
 }
 
 export function subjectAllowsFacialHair(policy: SubjectHairPolicy): boolean {
-  return policy.gender !== "female" && policy.facialHair === "present";
+  return policy.facialHair === "present";
 }
 
 export function subjectAllowsBodyHair(policy: SubjectHairPolicy): boolean {
@@ -184,7 +182,7 @@ export function resolveHairDescriptionPolicy(
 export function buildHairSanitizeContext(input: {
   characterName: string;
   characterGender: CharacterGender;
-  settingText: string;
+  characterAppearanceText: string;
   personaName: string;
   personaText: string;
   userGender: CharacterGender;
@@ -200,7 +198,10 @@ export function buildHairSanitizeContext(input: {
     ...(input.extraPersonaNames ?? []),
   ]);
   return {
-    character: resolveCharacterSubjectHairPolicy(input.characterGender, input.settingText),
+    character: resolveCharacterSubjectHairPolicy(
+      input.characterGender,
+      input.characterAppearanceText
+    ),
     userPersona: resolveUserPersonaSubjectHairPolicy(input.userGender, input.personaText),
     characterNames,
     userPersonaNames,
@@ -218,9 +219,6 @@ function dedupeNames(names: string[]): string[] {
 }
 
 function facialHairFactValue(policy: SubjectHairPolicy): string | null {
-  if (policy.gender === "female") {
-    return policy.bodyHair === "present" ? null : "facial_hair=none; body_hair=none";
-  }
   if (subjectAllowsFacialHair(policy)) {
     return null;
   }
@@ -255,11 +253,11 @@ export function buildCharacterHairCanonFact(
 }
 
 /** Prefer SubjectHairPolicy from resolveCharacterSubjectHairPolicy for accurate facts. */
-export function buildCharacterHairCanonFactFromSetting(
+export function buildCharacterHairCanonFactFromAppearanceText(
   charGender: CharacterGender,
-  settingText: string
+  appearanceText: string
 ): string | null {
-  return facialHairFactValue(resolveCharacterSubjectHairPolicy(charGender, settingText));
+  return facialHairFactValue(resolveCharacterSubjectHairPolicy(charGender, appearanceText));
 }
 
 const APPEARANCE_HEADER_RE = /\[(?:외형|외모|Appearance)[^\]]*\]/i;
@@ -276,9 +274,18 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const KOREAN_NAME_PARTICLES =
+  "(?:은|는|이|가|을|를|의|도|만|에게|한테|께|과|와|랑|이랑|으로|로)?";
+
 function nameInSentence(sentence: string, names: string[]): boolean {
   for (const name of names) {
-    const re = new RegExp(escapeRegExp(name), "i");
+    const escaped = escapeRegExp(name);
+    const re = /[가-힣]/.test(name)
+      ? new RegExp(
+          `(?:^|[^가-힣A-Za-z0-9_])${escaped}${KOREAN_NAME_PARTICLES}(?=$|[^가-힣A-Za-z0-9_])`,
+          "i"
+        )
+      : new RegExp(`(?:^|[^A-Za-z0-9_])${escaped}(?=$|[^A-Za-z0-9_])`, "i");
     if (re.test(sentence)) return true;
   }
   return false;
@@ -393,32 +400,14 @@ function findHairViolation(
     if (shouldEnforceFacialHairOnSubject(subject, ctx)) {
       return trimmed.match(BEARD_IN_OUTPUT)?.[0] ?? "beard";
     }
-    if (
-      ctx.userPersona.gender === "female" &&
-      (subject === "user_persona" || subject === "ambiguous")
-    ) {
-      return trimmed.match(BEARD_IN_OUTPUT)?.[0] ?? "beard-female-user";
-    }
   }
 
   if (BODY_HAIR_IN_OUTPUT.test(trimmed)) {
     if (shouldEnforceBodyHairOnSubject(subject, ctx)) {
       return trimmed.match(BODY_HAIR_IN_OUTPUT)?.[0] ?? "body-hair";
     }
-    if (
-      ctx.userPersona.gender === "female" &&
-      subject !== "npc_likely" &&
-      (subject === "user_persona" || subject === "ambiguous")
-    ) {
-      return trimmed.match(BODY_HAIR_IN_OUTPUT)?.[0] ?? "body-hair-female-user";
-    }
   }
 
-  if (ctx.character.gender === "female" && BEARD_IN_OUTPUT.test(trimmed)) {
-    if (subject === "character" || subject === "ambiguous") {
-      return trimmed.match(BEARD_IN_OUTPUT)?.[0] ?? "beard-female-char";
-    }
-  }
 
   return null;
 }
