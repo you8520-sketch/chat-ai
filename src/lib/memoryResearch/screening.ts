@@ -1,4 +1,5 @@
 import type { ExperimentAdapter } from "@/lib/memoryResearch/experiments";
+import type { LiveExperimentRecipe } from "@/lib/memoryResearch/liveExperimentRecipes";
 import {
   BENCHMARK_HOOKED_OWNERS,
   CATEGORY_OWNERS,
@@ -37,9 +38,14 @@ export type ScreeningResult =
 export function screenCandidate(
   observation: ResearchObservation,
   adapter: ExperimentAdapter | undefined,
-  now: Date
+  now: Date,
+  liveRecipe?: LiveExperimentRecipe
 ): ScreeningResult {
-  const applicableOwners = adapter ? [adapter.targetOwner] : CATEGORY_OWNERS[observation.category];
+  const applicableOwners = adapter
+    ? [adapter.targetOwner]
+    : liveRecipe
+      ? [liveRecipe.targetOwner]
+      : CATEGORY_OWNERS[observation.category];
   const stop = (decision: CandidateDecisionCode, reason: string): ScreeningResult => ({
     outcome: "STOP",
     decision,
@@ -75,7 +81,7 @@ export function screenCandidate(
     }
   }
   const heavy = observation.infraRequirements.filter((i) => HEAVY_INFRA.includes(i));
-  if (heavy.length > 0 && !adapter) {
+  if (heavy.length > 0 && !adapter && !liveRecipe) {
     return stop(
       "REJECTED_INFRA_COMPLEXITY",
       `wholesale adoption needs ${heavy.join(", ")}; only a TypeScript-native port of the technique is evaluable`
@@ -94,6 +100,12 @@ export function screenCandidate(
     return stop(
       "WATCH_NO_BENCHMARK_HOOK",
       `the deterministic benchmark has no A/B hook for ${applicableOwners.join(", ")} yet`
+    );
+  }
+  if (!adapter && liveRecipe) {
+    return stop(
+      "WATCH_LIVE_EXPERIMENT_PENDING",
+      `safe live recipe ${liveRecipe.id}@${liveRecipe.recipeVersion} is registered; await the isolated monthly live benchmark`
     );
   }
   if (!adapter) {
