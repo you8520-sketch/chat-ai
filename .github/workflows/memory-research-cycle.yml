@@ -216,7 +216,7 @@ jobs:
           else
             git worktree add --detach ledger-wt
             git -C ledger-wt checkout --orphan memory-research-ledger
-            git -C ledger-wt rm -rf --quiet . || true
+            git -C ledger-wt rm -rf --quiet . 2>/dev/null || true
           fi
           mkdir -p ledger-wt/cycles
           cp memory-research-out/ledger.json ledger-wt/ledger.json
