@@ -247,6 +247,7 @@ import {
 } from "@/lib/sceneDirectiveV2Policy";
 import { scheduleSceneBoundaryJevQa } from "@/lib/sceneBoundaryJevQa";
 import { scheduleCompletionIntegrityJevQa } from "@/lib/completionIntegrityJevQa";
+import { scheduleAuthorialHabitJevQa } from "@/lib/authorialHabitJevQa";
 import {
   commitReconvergenceTransition,
   loadReconvergenceState,
@@ -6025,6 +6026,14 @@ export async function POST(req: Request) {
               finishReason: primaryStage?.finishReason ?? mainFinishReason,
               localRecoveryApplied: localSentenceRecoveryApplied,
               localRecoveryActions: localSentenceRecoveryActions,
+            });
+            // Read-only authorial-habit JEV runtime shadow (default OFF).
+            // Reuses the same final delivered prose and never mutates output,
+            // prompt, billing, retry, or generation state.
+            scheduleAuthorialHabitJevQa({
+              chatId: chatRef.id,
+              generationScope: postTurnGenerationScope,
+              assistantProse: completionIntegrityProse,
             });
           }
         }
