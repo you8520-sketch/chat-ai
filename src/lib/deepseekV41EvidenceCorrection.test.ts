@@ -191,7 +191,7 @@ describe("deepseekV41EvidenceCorrection — exact live-evidence billing replay",
     const decision = dispatchV41([stage]);
     assert.equal(decision.contract, "published_phase2");
     assert.equal(decision.reason, "phase2_deepseek_live_grade");
-    assert.equal(decision.telemetry.pricingVersion, 1);
+    assert.equal(decision.telemetry.pricingVersion, 2);
     assert.equal(decision.telemetry.publishedBlockReason, null);
   });
 
@@ -207,7 +207,7 @@ describe("deepseekV41EvidenceCorrection — exact live-evidence billing replay",
     const decision = dispatchV41([stage]);
     assert.equal(decision.contract, "published_phase2");
     assert.equal(decision.reason, "phase2_deepseek_live_grade");
-    assert.equal(decision.telemetry.pricingVersion, 1);
+    assert.equal(decision.telemetry.pricingVersion, 2);
     assert.equal(decision.telemetry.publishedBlockReason, null);
   });
 
