@@ -6,6 +6,8 @@ on:
   pull_request:
     paths:
       - ".github/workflows/validate-authorial-habit-jev.yml"
+      - ".github/workflows/run-authorial-habit-jev-live.yml"
+      - ".github/authorial-habit-jev-live.trigger"
       - "src/lib/authorialHabitAudit.ts"
       - "src/lib/authorialHabitAudit.test.ts"
       - "src/lib/authorialHabitJevCorpus.ts"
