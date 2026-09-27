@@ -18,12 +18,12 @@ import { formatBenchmarkMetricsLine } from "@/lib/memory/memory-rp-benchmark";
 import { DEFAULT_HTTP_BUDGET, runResearchCycle, type CycleMode } from "@/lib/memoryResearch/cycle";
 import { openDraftPrs } from "@/lib/memoryResearch/draftPr";
 import { EXPERIMENT_ADAPTERS } from "@/lib/memoryResearch/experiments";
-import { applyDraftPrResults, parseLedger, serializeLedger, type DraftPrResult } from "@/lib/memoryResearch/ledger";
+import {\n  applyDraftPrResults,\n  applyImplementationPrResults,\n  parseLedger,\n  serializeLedger,\n  type DraftPrResult,\n  type ImplementationPrResultRecord,\n} from "@/lib/memoryResearch/ledger";
 import { computeArchitectureFingerprint } from "@/lib/memoryResearch/ownerMap";
 import type { DraftPrPacket } from "@/lib/memoryResearch/prPacket";
 import { renderCycleReportMarkdown } from "@/lib/memoryResearch/report";
 import { defaultSources, type SourceFetch } from "@/lib/memoryResearch/sources";
-import { runPendingLiveExperiments } from "@/lib/memoryResearch/liveExperimentRunner";
+import { runPendingLiveExperiments } from "@/lib/memoryResearch/liveExperimentRunner";\nimport { openImplementationDraftPrs } from "@/lib/memoryResearch/implementationPr";
 import { runEpisodicEmbeddingLiveBenchmark } from "./lib/episodicEmbeddingLiveBenchmark";
 
 function arg(name: string): string | null {
@@ -83,6 +83,17 @@ async function run(): Promise<void> {
   writeOutput("cycle_key", report.cycleKey);
   writeOutput("cycle_status", report.status);
   writeOutput("accepted_count", String(report.draftPrPackets.length));
+  writeOutput(
+    "implementation_pending_count",
+    String(
+      Object.values(next.candidates).filter(
+        (candidate) =>
+          candidate.state === "WATCH" &&
+          candidate.lastDecision === "WATCH_IMPLEMENTATION_PR_PENDING" &&
+          !candidate.implementationPrUrl
+      ).length
+    )
+  );
 }
 
 async function liveExperiments(): Promise<void> {
@@ -127,6 +138,55 @@ async function liveExperiments(): Promise<void> {
   writeOutput("actual_cost_usd", report.actualCostUsd.toFixed(6));
 }
 
+function implementationPrs(): void {
+  const ledger = parseLedger(readFileSync(required("ledger"), "utf8"));
+  const mainSha = required("main-sha");
+  const generationId = required("generation-id");
+  const pending = Object.values(ledger.candidates).filter(
+    (candidate) =>
+      candidate.state === "WATCH" &&
+      candidate.lastDecision === "WATCH_IMPLEMENTATION_PR_PENDING" &&
+      !candidate.implementationPrUrl
+  );
+  const results = openImplementationDraftPrs(
+    pending,
+    (command, args) => execFileSync(command, [...args], { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }),
+    (path) => readFileSync(path, "utf8"),
+    writeFileEnsuringDir,
+    () => {
+      execFileSync("npm", ["run", "lint"], { stdio: "inherit" });
+      execFileSync("npm", ["run", "typecheck:app"], { stdio: "inherit" });
+      execFileSync(
+        "node",
+        [
+          "--conditions=react-server",
+          "--import",
+          "tsx",
+          "--test",
+          "--test-concurrency=1",
+          "src/lib/memory/memory-episodic-semantic-discovery.test.ts",
+        ],
+        { stdio: "inherit" }
+      );
+    },
+    { mainSha, generationId, tempDir: tmpdir() }
+  );
+  writeFileSync(required("results"), `${JSON.stringify(results, null, 2)}\n`);
+  for (const result of results) {
+    console.log(`${result.candidateKey}: ${result.url ?? `FAILED ${result.error}`}`);
+  }
+}
+
+function applyImplementationResults(): void {
+  const ledgerPath = required("ledger");
+  const resultsPath = required("results");
+  const results = existsSync(resultsPath)
+    ? (JSON.parse(readFileSync(resultsPath, "utf8")) as ImplementationPrResultRecord[])
+    : [];
+  const ledger = applyImplementationPrResults(parseLedger(readFileSync(ledgerPath, "utf8")), results);
+  writeFileSync(ledgerPath, serializeLedger(ledger));
+}
+
 function draftPrs(): void {
   const packets = JSON.parse(readFileSync(required("packets"), "utf8")) as DraftPrPacket[];
   const results = openDraftPrs(
@@ -163,6 +223,6 @@ if (command === "run") {
 } else if (command === "apply-draft-results") {
   applyResults();
 } else {
-  console.error("usage: memory-research-cycle.ts run|live-experiments|draft-prs|apply-draft-results ...");
+  console.error("usage: memory-research-cycle.ts run|live-experiments|implementation-prs|draft-prs|apply-draft-results|apply-implementation-results ...");
   process.exit(2);
 }
