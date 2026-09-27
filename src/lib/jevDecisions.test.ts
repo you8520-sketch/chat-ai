@@ -551,6 +551,7 @@ describe("jev decisions regression gates", () => {
     // OTHER_ASYNC for attribution without creating a new canonical owner.
     assert.doesNotMatch(provenance, /JEV_DECISIONS_REQUEST_KIND|background-jev-decision/);
     assert.match(provenance, /scene-boundary-jev-qa/);
+    assert.match(provenance, /completion-integrity-jev-qa/);
     const usage = fs.readFileSync("src/lib/openRouterUsage.ts", "utf8");
     assert.doesNotMatch(usage, /jev/i);
   });

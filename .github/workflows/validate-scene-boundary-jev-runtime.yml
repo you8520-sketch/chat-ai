@@ -13,6 +13,7 @@ on:
       - "src/lib/sceneDirectiveV2Policy.ts"
       - "src/lib/reconvergenceState.ts"
       - "src/lib/reconvergenceSchema.ts"
+      - "src/lib/generationScopedAuxQaClaim.ts"
       - "src/lib/jevDecisions.ts"
       - "src/lib/jevDecisions.test.ts"
       - "src/lib/auxProviderProvenance.ts"

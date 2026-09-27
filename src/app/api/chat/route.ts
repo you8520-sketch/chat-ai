@@ -246,6 +246,7 @@ import {
   resolveScenePacingPromptOwner,
 } from "@/lib/sceneDirectiveV2Policy";
 import { scheduleSceneBoundaryJevQa } from "@/lib/sceneBoundaryJevQa";
+import { scheduleCompletionIntegrityJevQa } from "@/lib/completionIntegrityJevQa";
 import {
   commitReconvergenceTransition,
   loadReconvergenceState,
@@ -3764,9 +3765,15 @@ export async function POST(req: Request) {
 
         let lengthContinuationPasses = 0;
         let proseOnly = extractProseWithoutHtml(savedText) || savedText.trim();
+        // Canonical local sentence-recovery metadata for post-finalize read-only QA.
+        // There is a single pre-HTML recovery pass; do not invent a second owner.
+        let localSentenceRecoveryApplied = false;
+        let localSentenceRecoveryActions: string[] = [];
 
         const sentenceRecoveryBeforeHtml = recoverSentenceCompletionInFullResponse(savedText);
         if (sentenceRecoveryBeforeHtml.recovered) {
+          localSentenceRecoveryApplied = true;
+          localSentenceRecoveryActions = [...sentenceRecoveryBeforeHtml.actions];
           console.info("[sentence-completion-recovery] pre-html", {
             actions: sentenceRecoveryBeforeHtml.actions,
             beforeChars: savedText.length,
@@ -6006,6 +6013,18 @@ export async function POST(req: Request) {
               boundaryExecution: eventRestraintV2?.boundaryExecution ?? null,
               assistantProse: savedText,
               v2Mode: sceneDirectiveV2Mode,
+            });
+            // Read-only completion-integrity JEV QA triage (default OFF).
+            // Uses final delivered RP prose (post local sentence recovery + HTML
+            // cleanup), never raw/pre-repair stream text. Observation only.
+            const completionIntegrityProse = extractProseWithoutHtml(savedText);
+            scheduleCompletionIntegrityJevQa({
+              chatId: chatRef.id,
+              generationScope: postTurnGenerationScope,
+              finalProse: completionIntegrityProse,
+              finishReason: primaryStage?.finishReason ?? mainFinishReason,
+              localRecoveryApplied: localSentenceRecoveryApplied,
+              localRecoveryActions: localSentenceRecoveryActions,
             });
           }
         }
