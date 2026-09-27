@@ -1,8 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { resolveHairDescriptionPolicy, sanitizeHairDescriptions } from "@/lib/bodyHairRules";
+import { buildHairSanitizeContext, sanitizeHairDescriptions } from "@/lib/bodyHairRules";
 
-const defaultPolicy = resolveHairDescriptionPolicy("male", "", "female");
+const defaultPolicy = buildHairSanitizeContext({
+  characterName: "에쉬",
+  characterGender: "male",
+  characterAppearanceText: "",
+  personaName: "렌",
+  personaText: "",
+  userGender: "female",
+});
 
 describe("sanitizeHairDescriptions", () => {
   it("keeps philtrum (인중) lip contact — not beard policy", () => {
