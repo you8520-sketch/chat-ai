@@ -68,37 +68,47 @@ function runOfficialStyleProofV2BootOnce() {
     process.env.NODE_ENV !== "production" ||
     process.env.RAILWAY_SERVICE_ID !== targetRailwayService
   ) {
-    return;
+    return Promise.resolve();
   }
   officialStyleProofBootStarted = true;
 
   const { spawn } = require("child_process");
   console.log("[official-style-proof-boot] starting bounded romance_fantasy_v2 proof worker");
-  const child = spawn(
-    process.execPath,
-    [
-      "--conditions=react-server",
-      "--import",
-      "tsx",
-      "scripts/official-supply-style-proof.ts",
-    ],
-    {
-      cwd: process.cwd(),
-      env: {
-        ...process.env,
-        OFFICIAL_STYLE_PROOF_LIVE: "1",
-        OFFICIAL_STYLE_PROOF_CANDIDATE: "rf-02",
-      },
-      stdio: "inherit",
-    }
-  );
-  child.on("error", (error) => {
-    console.error("[official-style-proof-boot] worker launch failed:", error);
-  });
-  child.on("exit", (code, signal) => {
-    console.log(
-      `[official-style-proof-boot] worker exited code=${String(code)} signal=${String(signal)}`
+  return new Promise((resolve) => {
+    const child = spawn(
+      process.execPath,
+      [
+        "--conditions=react-server",
+        "--import",
+        "tsx",
+        "scripts/official-supply-style-proof.ts",
+      ],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          OFFICIAL_STYLE_PROOF_LIVE: "1",
+          OFFICIAL_STYLE_PROOF_CANDIDATE: "rf-02",
+        },
+        stdio: "inherit",
+      }
     );
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    child.on("error", (error) => {
+      console.error("[official-style-proof-boot] worker launch failed:", error);
+      done();
+    });
+    child.on("exit", (code, signal) => {
+      console.log(
+        `[official-style-proof-boot] worker exited code=${String(code)} signal=${String(signal)}`
+      );
+      done();
+    });
   });
 }
 
@@ -249,7 +259,8 @@ app.prepare().then(() => {
       `[boot-timing] listen at ${Date.now()} (+${Date.now() - bootStart}ms from process start)`
     );
     console.log(`> Ready on http://${hostname === "0.0.0.0" ? "localhost" : hostname}:${port}${dev ? " (dev)" : ""}`);
-    runOfficialStyleProofV2BootOnce();
-    void runBackgroundInitialization();
+    // Serialize the one-shot proof ahead of scheduler DB initialization so
+    // both processes never race through getDb() / migrate() on the same SQLite file.
+    void runOfficialStyleProofV2BootOnce().finally(() => runBackgroundInitialization());
   });
 });
