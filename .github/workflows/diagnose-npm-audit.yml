@@ -21,6 +21,23 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - name: Dependency tree
+        shell: bash
+        run: |
+          npm ls esbuild nanoid postcss next --all || true
+          echo "--- next@15.5.24 dependencies ---"
+          npm view next@15.5.24 dependencies --json
+          echo "--- package versions ---"
+          node - <<'NODE'
+          for (const name of ["next","postcss","nanoid","esbuild"]) {
+            try {
+              console.log(name, require(name + "/package.json").version)
+            } catch (error) {
+              console.log(name, "not-resolvable-from-root")
+            }
+          }
+          NODE
+
       - name: npm audit JSON
         shell: bash
         run: |
