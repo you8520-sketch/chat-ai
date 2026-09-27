@@ -29,7 +29,13 @@ import {
 } from "@/lib/officialSupply/characterText";
 import { validateStyleProposal } from "@/lib/officialSupply/style";
 import type { OfficialAppearanceLock, OfficialAssetPlan, OfficialCharacterDraft } from "@/lib/officialSupply/types";
-import { evaluateOriginality, evaluateWorldDiversity } from "@/lib/officialSupply/worldQa";
+import {
+  evaluateInternalRegionConsistency,
+  evaluateOriginality,
+  evaluateWorldDiversity,
+  internalWorldRegions,
+} from "@/lib/officialSupply/worldQa";
+import { evaluateCastRelationshipGraph } from "@/lib/officialSupply/castRelationships";
 import {
   castGenderCounts,
   evaluateCastIntent,
@@ -421,6 +427,8 @@ describe("official pilot content (romance fantasy 01)", () => {
       assetplan: ["assetPlan"],
       "public-fix": ["tagline", "tags"],
       "cast-cleanup": ["otherRelationships"],
+      "relationship-repair": ["otherRelationships"],
+      "consistency-fix": ["brief", "identity", "backstory", "situation", "publicProfile", "wording"],
     };
     for (const file of chars()) {
       for (const revision of (file as unknown as { revisions?: { step: string; fields: string[] }[] }).revisions ?? []) {
@@ -440,6 +448,7 @@ describe("official pilot content (romance fantasy 01)", () => {
       "src/lib/officialSupply/pilotArtifacts.ts",
       "src/lib/officialSupply/marketFit.ts",
       "src/lib/officialSupply/research.ts",
+      "src/lib/officialSupply/castRelationships.ts",
       "scripts/official-supply-pilot-author.ts",
     ];
     for (const file of files) {
@@ -561,18 +570,55 @@ describe("pilot cast correction: 06-08 replaced by male romance targets", () => 
     for (const key of kept) assert.equal(files.find((f) => f.draftKey === key)!.bible.publicProfile.tagline, taglines[key]);
   });
 
-  it("no sheet keeps a relationship to a character outside the current cast", () => {
+  it("relationship graph: canonical full-name targets, no self/unknown/removed/duplicate, no one-way public replacement tie", () => {
     const { bible: world } = worldBible();
-    const cast = new Set(world.portfolio.flatMap((b) => [b.name, b.name.split(/\s+/)[0]!]));
-    for (const file of chars()) {
-      for (const rel of file.bible.otherRelationships) {
-        assert.ok(cast.has(rel.target.trim()), `${file.draftKey}: relationship to ${rel.target}`);
-      }
-      const text = JSON.stringify({ bible: file.bible, draft: file.draft, plan: file.assetPlan });
+    const files = chars();
+    const qa = evaluateCastRelationshipGraph(
+      files.map((f) => ({ draftKey: f.draftKey, name: f.bible.identity.name, relationships: f.bible.otherRelationships })),
+      { removedNames: m().replacement.replacedNames, replacedDraftKeys: m().replacement.slots.map((s) => `pilot-rf-${String(s.slot).padStart(2, "0")}`) }
+    );
+    assert.deepEqual(qa.errors, []);
+    assert.deepEqual(qa.stats.oneWayPublicFromReplaced, []);
+    const canonical = new Set(world.portfolio.map((b) => b.name));
+    for (const f of files) {
+      for (const rel of f.bible.otherRelationships) assert.ok(canonical.has(rel.target), `${f.draftKey}: ${rel.target}`);
+      const text = JSON.stringify({ bible: f.bible, draft: f.draft, plan: f.assetPlan });
       for (const removed of m().replacement.replacedNames) {
-        assert.ok(!text.includes(removed.split(/\s+/)[0]!), `${file.draftKey} mentions ${removed}`);
+        assert.ok(!text.includes(removed.split(/\s+/)[0]!), `${f.draftKey} mentions ${removed}`);
       }
     }
+    // Reconciled awareness is public-only: nothing private or hidden was invented.
+    const replacedNames = new Set(m().replacement.slots.map((s) => world.portfolio.find((b) => b.slot === s.slot)!.name));
+    for (const f of files.filter((x) => !replacedNames.has(x.bible.identity.name))) {
+      for (const rel of f.bible.otherRelationships.filter((r) => replacedNames.has(r.target))) {
+        assert.ok(rel.public.includes("공개된 접점"), `${f.draftKey} → ${rel.target}`);
+        assert.equal(rel.privateOpinion, "");
+        assert.equal(rel.hidden, "");
+      }
+    }
+  });
+
+  it("world consistency: no sheet turns an internal region (벨로체) into a foreign/enemy/defeated state", () => {
+    const { bible: world } = worldBible();
+    const regions = internalWorldRegions(world.regions);
+    assert.ok(regions.includes("벨로체"));
+    for (const f of chars()) {
+      const qa = evaluateInternalRegionConsistency(JSON.stringify({ brief: f.brief, bible: f.bible, plan: f.assetPlan }), regions);
+      assert.deepEqual(qa.errors, [], f.draftKey);
+    }
+    const noel = chars().find((f) => f.draftKey === "pilot-rf-08")!;
+    assert.match(noel.bible.identity.affiliation, /제국 서부 해상 무역권/);
+    assert.ok(noel.bible.publicProfile.tagline.startsWith("당신이") && noel.bible.publicProfile.tagline.length <= 50);
+    assert.deepEqual(world.portfolio.find((b) => b.slot === 8), noel.brief, "world brief and sheet brief stay in sync");
+  });
+
+  it("every sheet's discovery tags are grounded (04 included)", () => {
+    const files = chars();
+    for (const f of files) {
+      const qa = evaluateDiscoveryTags({ tags: f.bible.publicProfile.tags, bible: f.bible, hook: f.brief }, m().marketPolicy);
+      assert.deepEqual(qa.errors, [], f.draftKey);
+    }
+    assert.ok(files.find((f) => f.draftKey === "pilot-rf-04")!.bible.publicProfile.tags.includes("연구 협력"));
   });
 
   it("style: rf-02 is only the human-selected proof direction; canonical stage stays candidates_proposed", () => {

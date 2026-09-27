@@ -120,6 +120,8 @@ snapshot ─► selectMarketSignals(snapshot, batch.marketPolicy, genre)   local
 | Cast gender intent | manifest `castIntent` (`OfficialCastIntent`: targetAudience, romanceTargetProfile, desiredGenderMix, rationale) checked by `evaluateCastIntent` (`research.ts`); `evaluateWorldDiversity(..., { intendedSingleGender })` never pushes toward 50:50 |
 | Cast role diversity | `evaluateCastRoleDiversity` — occupation / hook / silhouette / speech clones, ≤2 royal/ducal leads |
 | Visual trends | snapshot `visualTrends` (`ResearchVisualTrend`, attribute-only, validated) → style-board `humanReview` notes; never an image-provider input |
+| Cast relationships | `castRelationships.ts`: `resolveOfficialCastRelationshipTarget` (one canonical member or reject: ambiguous / self / removed / unknown), `normalizeOfficialCastRelationships` (canonical full-name persistence, duplicate reject), `reconcileReplacementPublicRelationships` (public-only awareness), `evaluateCastRelationshipGraph` (portfolio QA) |
+| World region consistency | `internalWorldRegions` + `evaluateInternalRegionConsistency` (`worldQa.ts`): a sheet tied to an internal region must not use foreign/enemy/defeated-state identity |
 | Slot replacement | `generateOfficialPortfolioReplacement` (same portfolio rules via `marketFitRuleLines`) → only the named slots; world fields and kept briefs untouched, recorded in `world-bible.json` `portfolioRevisions` |
 
 Primary-trope repetition is the only trope failure; sharing generic secondary tropes is not an

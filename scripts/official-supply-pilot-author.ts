@@ -15,7 +15,8 @@
  *   --step=market-fit-review      offline facts-only Domestic Market Fit review (no rewrites)
  *   --step=replace-slots          re-plan the manifest's replaced slots inside the existing world (briefs only)
  *   --step=public-fix             offline: apply human-approved tagline/tag decisions (public surface only)
- *   --step=cast-cleanup           offline: drop relationship entries that point at removed cast members
+ *   --step=relationship-repair    offline: canonical relationship targets + replacement public awareness
+ *   --step=consistency-fix        offline: manifest-declared world-consistency repairs
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -89,6 +90,12 @@ import {
   type OfficialCharacterBible,
   type OfficialWorldBible,
 } from "@/lib/officialSupply/bible";
+import {
+  evaluateCastRelationshipGraph,
+  normalizeOfficialCastRelationships,
+  reconcileReplacementPublicRelationships,
+  type CastIdentity,
+} from "@/lib/officialSupply/castRelationships";
 import { clearQuarantine, writeQuarantine } from "@/lib/officialSupply/pilotArtifacts";
 import {
   evaluateCastIntent,
@@ -110,7 +117,12 @@ import {
 } from "@/lib/officialSupply/scenePortfolio";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import { officialSubstantiveCharCount } from "@/lib/officialSupply/characterText";
-import { evaluateOriginality, evaluateWorldDiversity } from "@/lib/officialSupply/worldQa";
+import {
+  evaluateInternalRegionConsistency,
+  evaluateOriginality,
+  evaluateWorldDiversity,
+  internalWorldRegions,
+} from "@/lib/officialSupply/worldQa";
 import type { OfficialAppearanceLock, OfficialAssetPlan, OfficialCharacterDraft } from "@/lib/officialSupply/types";
 
 const PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
@@ -193,7 +205,7 @@ const SLOT_REPLACEMENT = {
       gender: "male" as const,
       adultCandidate: true,
       direction:
-        "남성. 역할 공간: 서부 해상 무역권 벨로체의 몰락한 해상 귀족 후계자, 황실에 볼모로 잡혀 수도에 머무는 외교 인질(왕자 아님). " +
+        "남성. 역할 공간: 제국 서부 해상 무역권 벨로체에서 황실과 항로 분쟁을 벌인 반황실 해상 귀족 가문의 후계자, 휴전 보증을 위해 수도에 머무는 정치적 인질(외국인·적국 귀족·왕자·황족 아님). " +
         "핵심 경험: 정치적 적대, 강제된 근접, 외교 협상, 불신에서 협력, 서로 이용하지만 쉽게 버릴 수 없는 관계. " +
         `황자·북부대공·청부업자·브로커와 같은 경험 금지. 이름은 ${AVOID_NAME_SYLLABLES}.`,
     },
@@ -207,7 +219,61 @@ const PUBLIC_SURFACE_DECISIONS: Record<string, { tagline?: string; replaceTags?:
   "pilot-rf-03": { tagline: "금고털이 경보 속, 당신의 손목을 잡고 달아난 브로커." },
   "pilot-rf-09": { replaceTags: [["감정의 균열", "금단"]] },
   "pilot-rf-10": { tagline: "폐기 직전, 당신의 심장 소리에 깨어난 기계 인형.", replaceTags: [["잔잔한 관계", "순애"]] },
+  // Its only support was a relationship to a removed character; 연구 협력 is what the bible actually shows.
+  "pilot-rf-04": { replaceTags: [["느린 긴장", "연구 협력"]] },
 };
+
+/**
+ * Deterministic world-consistency repairs (no provider call). Each rewrite is
+ * [path, from, to] and must match the current text (or already read `to`);
+ * `terms` are then replaced in every string of the brief, bible and asset plan.
+ */
+type ConsistencyPatch = {
+  draftKey: string;
+  reason: string;
+  rewrites: [string, string, string][];
+  terms: [string, string][];
+};
+const CONSISTENCY_PATCHES: ConsistencyPatch[] = [
+  {
+    draftKey: "pilot-rf-08",
+    reason: "World Bible: 벨로체 = 에테르노스 제국 서부 해상 무역권(내부 지역). 노엘은 외국·적국·패전국 귀족이 아니라 황실과 맞섰던 서부 해상 귀족 가문의 후계자이자 휴전 보증 인질.",
+    rewrites: [
+      ["brief.socialPosition", "몰락한 벨로체 가문의 후계자로, 휴전 협상이 끝날 때까지", "황실과 항로 분쟁을 벌인 제국 서부 해상 무역권 벨로체 가문의 후계자로, 휴전을 보증하기 위해 협상이 끝날 때까지"],
+      ["brief.archetype", "몰락한 해상 귀족의 후계자이자 황실이 붙잡아 둔 외교 협상 카드", "황실과 맞선 서부 해상 귀족의 후계자이자 황실이 붙잡아 둔 휴전 협상 카드"],
+      ["brief.marketFit.archetype", "몰락한 해상 귀족 가문의 후계자이자 수도에 붙잡힌 외교 인질", "황실과 맞선 제국 서부 해상 귀족 가문의 후계자이자 휴전 보증을 위해 수도에 붙잡힌 인질"],
+      ["brief.marketFit.differentiationTwist", "궁정의 권력자가 아니라 패전과 몰락을 겪은 외국 귀족 후계자다.", "궁정의 권력자가 아니라, 황실과 맞섰다가 몰락한 제국 서부 해상 귀족 가문의 후계자다."],
+      ["brief.marketFit.userRelationship", "휴전 조건을 두고 맞서는 외국 귀족 인질이자", "휴전 조건을 두고 맞서는 서부 반황실 해상 귀족 인질이자"],
+      ["brief.marketFit.oneLineConflict", "제국의 협상관인 당신은 적국 귀족 인질과", "황실 협상관인 당신은 황실과 맞섰던 서부 해상 귀족 인질과"],
+      ["bible.identity.socialPosition", "몰락한 해상 귀족 가문의 후계자이자 외교 인질", "황실과 맞섰던 서부 해상 귀족 가문의 후계자이자 휴전 보증 인질"],
+      ["bible.identity.affiliation", "벨로체 가문; 태양의 옥좌 감시하에 체류", "벨로체 해상 귀족 가문(제국 서부 해상 무역권); 태양의 옥좌 감시하에 수도 체류"],
+      ["bible.backstory.events.1.event", "휴전 전투가 길어지며", "가문이 항구와 항로의 자치를 내세워 황실과 맞선 해상 분쟁이 길어지며"],
+      ["bible.backstory.events.1.event", "제국의 통행 제한", "황실의 통행 제한"],
+      [
+        "bible.situation.worldContext",
+        "태양의 옥좌는 그를 황실의 감시 아래 수도에 두고 휴전 조건을 조율한다.",
+        "제국 서부 해상 무역권 벨로체의 해상 귀족 가문은 공허의 밤 이후 항구와 항로의 자치를 내세워 황실과 맞섰고, 지금은 휴전 중이다. 태양의 옥좌는 휴전의 보증으로 그를 황실의 감시 아래 수도에 두고 조건을 조율한다.",
+      ],
+      [
+        "bible.situation.personalSituation",
+        "벨로체 가문의 후계자이자 휴전 협상이 끝날 때까지 수도를 떠날 수 없는 외교 인질이다.",
+        "제국 서부 해상 무역권 벨로체의 해상 귀족 가문 후계자이자, 가문이 황실과 맺은 휴전을 보증하기 위해 협상이 끝날 때까지 수도를 떠날 수 없는 인질이다.",
+      ],
+      ["bible.situation.userEntry", "당신은 제국의 휴전 협상관으로", "당신은 황실의 휴전 협상관으로"],
+      ["bible.publicProfile.tagline", "휴전을 협상해야 하는 적국 귀족 인질, 노엘", "당신이 귀환 조건을 쥔 서부 반란 귀족 인질, 노엘."],
+      [
+        "bible.publicProfile.description",
+        "노엘은 패전국에서 온 귀족 후계자이자 외교 인질입니다.",
+        "노엘은 황실과 맞섰던 서부 해상 귀족 가문의 후계자이자, 휴전을 보증하려 수도에 머무는 인질입니다.",
+      ],
+    ],
+    terms: [
+      ["귀국", "귀환"],
+      ["외국 사절단", "벨로체 사절단"],
+      ["외교 인질", "정치적 인질"],
+    ],
+  },
+];
 
 const MANIFEST = {
   batchKey: "pilot-romance-fantasy-01",
@@ -225,6 +291,7 @@ const MANIFEST = {
   portfolioPolicy: { adultShareMin: 0.3, adultShareMax: 0.5, maxGenreShare: 1, minDistinctGenres: 1 },
   adultPlan: ADULT_PLAN,
   publicSurfaceDecisions: PUBLIC_SURFACE_DECISIONS,
+  consistencyPatches: CONSISTENCY_PATCHES,
   /** Batch product policy: this pilot targets the Korean launch market (not a global constant). */
   marketPolicy: {
     targetLocale: "ko-KR",
@@ -544,7 +611,7 @@ async function stepWorld(modelId: string, maxAttempts: number): Promise<void> {
 }
 
 type CharRevision = {
-  step: "voice-fix" | "adult-fix" | "assetplan" | "public-fix" | "cast-cleanup";
+  step: "voice-fix" | "adult-fix" | "assetplan" | "public-fix" | "cast-cleanup" | "relationship-repair" | "consistency-fix";
   fields: string[];
   reasons: string[];
   at: string;
@@ -591,6 +658,10 @@ function assertBibleAndDraft(
 ): OfficialCharacterDraft {
   if (bible.identity.name !== brief.name) {
     throw new OfficialSupplyGateError("author_bible_rejected", `slot ${brief.slot}: bible name "${bible.identity.name}" ≠ brief "${brief.name}"`);
+  }
+  const region = evaluateInternalRegionConsistency(JSON.stringify({ brief, bible }), internalWorldRegions(readWorld().regions));
+  if (!region.ok) {
+    throw new OfficialSupplyGateError("author_world_conflict", `slot ${brief.slot}: ${region.errors.map((e) => e.message).join("; ")}`, region);
   }
   const bibleQa = validatePilotBible(bible, { adultExpected: brief.adultCandidate });
   if (!bibleQa.ok) {
@@ -786,6 +857,16 @@ function stepPortfolioQa(): void {
     })
   );
   console.log("[pilot] cast roles ok:", roles.ok, roles.errors.map((e) => e.message), "royal/ducal:", roles.royalOrDuke);
+  const graph = evaluateCastRelationshipGraph(
+    files.map((f) => ({ draftKey: f.draftKey, name: f.bible.identity.name, relationships: f.bible.otherRelationships })),
+    { removedNames: MANIFEST.replacement.replacedNames, replacedDraftKeys: MANIFEST.replacement.slots.map((s) => draftKeyFor(s.slot)) }
+  );
+  console.log("[pilot] relationships ok:", graph.ok, graph.errors.map((e) => e.message), `edges ${graph.stats.edges}, one-way ${graph.stats.oneWay.length}`);
+  const regions = internalWorldRegions(world.regions);
+  for (const f of files) {
+    const region = evaluateInternalRegionConsistency(JSON.stringify({ brief: f.brief, bible: f.bible, plan: f.assetPlan }), regions);
+    if (!region.ok) console.log(`[pilot] world conflict ${f.draftKey}:`, region.errors.map((e) => e.message));
+  }
   const snapshot = readJson<{ signals: { source: string; scenarioHook?: string; worldMechanic?: string }[] }>(
     SNAPSHOT_PATH
   );
@@ -1188,6 +1269,8 @@ function evaluateReplacementBriefs(
     const qa = validateMarketFitBrief(b.marketFit, { snapshot, policy, adultCandidate: b.adultCandidate, expectedNamingProfile: expected });
     errors.push(...qa.errors.map((e) => `${b.slot}: ${e.code}: ${e.message}`));
     if (!hasUserRelationshipCue(b.rpHook)) errors.push(`${b.slot}: rpHook does not state the user relationship`);
+    const region = evaluateInternalRegionConsistency(JSON.stringify(b), internalWorldRegions(readWorld().regions));
+    errors.push(...region.errors.map((e) => `${b.slot}: ${e.code}: ${e.message}`));
   }
   const cast = [...kept, ...briefs].sort((a, z) => a.slot - z.slot);
   const newNames = new Set(briefs.map((b) => b.name));
@@ -1319,40 +1402,126 @@ function stepPublicFix(): void {
   }
 }
 
-/** Offline: kept sheets drop relationship entries that point at characters no longer in the cast. */
-function stepCastCleanup(): void {
+function castIdentities(world: OfficialWorldBible): CastIdentity[] {
+  return world.portfolio.map((b) => ({ draftKey: draftKeyFor(b.slot), name: b.name }));
+}
+
+/**
+ * Offline: canonical relationship repair through the cast-relationship owner.
+ * Aliases → canonical full names, self/removed links dropped, unknown /
+ * ambiguous / duplicate targets refused, and kept characters gain minimal
+ * public awareness of replaced characters that declared a public tie.
+ */
+function stepRelationshipRepair(): void {
   const world = readWorld();
-  const castNames = new Set(world.portfolio.map((b) => b.name));
-  // Sheets refer to siblings by full or given name ("발레리아").
-  const removed = new Set(MANIFEST.replacement.replacedNames.flatMap((n) => [n, n.split(/\s+/)[0]!]));
-  for (const brief of world.portfolio) {
-    const file = readChar(brief.slot);
-    const dangling = file.bible.otherRelationships.filter((r) => removed.has(r.target.trim()) && !castNames.has(r.target.trim()));
-    if (dangling.length === 0) continue;
-    const bible: OfficialCharacterBible = {
-      ...file.bible,
-      otherRelationships: file.bible.otherRelationships.filter((r) => !dangling.includes(r)),
-    };
+  const cast = castIdentities(world);
+  const removedNames = MANIFEST.replacement.replacedNames;
+  const files = world.portfolio.map((b) => readChar(b.slot));
+  const normalized = files.map((file) => {
+    const n = normalizeOfficialCastRelationships(file.bible.otherRelationships, { cast, selfDraftKey: file.draftKey, removedNames });
+    if (n.issues.length) throw new Error(`relationship repair refused: ${n.issues.map((i) => i.message).join("; ")}`);
+    return { file, n };
+  });
+  const replacedKeys = MANIFEST.replacement.slots.map((s) => draftKeyFor(s.slot));
+  const additions = reconcileReplacementPublicRelationships(
+    normalized.map(({ file, n }) => ({
+      draftKey: file.draftKey,
+      name: file.bible.identity.name,
+      relationships: n.relationships,
+      publicRole: file.bible.identity.occupation,
+    })),
+    replacedKeys
+  );
+  for (const { file, n } of normalized) {
+    const added = additions.get(file.draftKey) ?? [];
+    const next = [...n.relationships, ...added];
+    if (JSON.stringify(next) === JSON.stringify(file.bible.otherRelationships)) continue;
+    const bible: OfficialCharacterBible = { ...file.bible, otherRelationships: next };
     const draft = assertBibleAndDraft(bible, file.brief, { checkTags: false });
-    const tagQa = evaluateDiscoveryTags({ tags: bible.publicProfile.tags, bible, hook: file.brief }, MANIFEST.marketPolicy);
-    for (const e of tagQa.errors) console.warn(`[pilot] cast-cleanup ${file.draftKey}: review finding — ${e.message}`);
-    writeJson(charPath(brief.slot), {
+    const reasons = [
+      n.renamed.length ? `canonical targets: ${n.renamed.map((r) => `${r.from}→${r.to}`).join(", ")}` : "",
+      n.dropped.length ? `dropped: ${n.dropped.map((d) => `${d.target} (${d.code})`).join(", ")}` : "",
+      added.length ? `public awareness added: ${added.map((a) => a.target).join(", ")}` : "",
+    ].filter(Boolean);
+    writeJson(charPath(file.slot), {
       ...file,
       bible,
       draft,
       charCount: officialSubstantiveCharCount(draft),
       revisions: [
         ...(file.revisions ?? []),
+        { step: "relationship-repair", fields: ["otherRelationships"], reasons, at: new Date().toISOString(), provenance: null },
+      ],
+    });
+    console.log(`[pilot] relationship-repair ${file.draftKey}: ${reasons.join(" | ")}`);
+  }
+}
+
+function patchString(root: Record<string, unknown>, dotted: string, from: string, to: string): "applied" | "already" {
+  const keys = dotted.split(".");
+  let node: unknown = root;
+  for (const key of keys.slice(0, -1)) node = (node as Record<string, unknown>)[key];
+  const leaf = keys[keys.length - 1]!;
+  const holder = node as Record<string, unknown>;
+  const value = holder?.[leaf];
+  if (typeof value !== "string") throw new Error(`consistency patch: ${dotted} is not a string`);
+  if (value.includes(from)) {
+    holder[leaf] = value.replace(from, to);
+    return "applied";
+  }
+  if (value.includes(to)) return "already";
+  throw new Error(`consistency patch: ${dotted} no longer contains the expected text`);
+}
+
+function replaceTermsDeep<T>(value: T, terms: readonly [string, string][]): T {
+  if (typeof value === "string") return terms.reduce((s, [a, b]) => s.split(a).join(b), value as string) as T;
+  if (Array.isArray(value)) return value.map((v) => replaceTermsDeep(v, terms)) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, replaceTermsDeep(v, terms)])) as T;
+  }
+  return value;
+}
+
+/** Offline: manifest-declared world-consistency repairs for one sheet (brief, bible, asset-plan wording). */
+function stepConsistencyFix(): void {
+  const worldFile = readJson<WorldFile>(WORLD_PATH);
+  for (const patch of MANIFEST.consistencyPatches) {
+    const slot = Number(patch.draftKey.slice(-2));
+    const file = readChar(slot);
+    const root = JSON.parse(JSON.stringify({ brief: file.brief, bible: file.bible })) as Record<string, unknown>;
+    const applied = patch.rewrites.map(([dotted, from, to]) => patchString(root, dotted, from, to));
+    const fixed = replaceTermsDeep(root, patch.terms) as { brief: PortfolioBriefInput; bible: OfficialCharacterBible };
+    const assetPlan = file.assetPlan ? replaceTermsDeep(file.assetPlan, patch.terms) : file.assetPlan;
+    if (JSON.stringify(fixed) === JSON.stringify({ brief: file.brief, bible: file.bible }) && JSON.stringify(assetPlan) === JSON.stringify(file.assetPlan)) {
+      console.log(`[pilot] consistency-fix ${patch.draftKey}: already applied`);
+      continue;
+    }
+    const draft = assertBibleAndDraft(fixed.bible, fixed.brief);
+    if (assetPlan) {
+      const planQa = validatePilotAssetPlan(draft, assetPlan);
+      if (!planQa.ok) throw new Error(`consistency-fix ${patch.draftKey}: asset plan ${planQa.errors.map((e) => e.code).join(",")}`);
+    }
+    worldFile.bible.portfolio = worldFile.bible.portfolio.map((b) => (b.slot === slot ? fixed.brief : b));
+    writeJson(WORLD_PATH, worldFile);
+    writeJson(charPath(slot), {
+      ...file,
+      brief: fixed.brief,
+      bible: fixed.bible,
+      draft,
+      assetPlan,
+      charCount: officialSubstantiveCharCount(draft),
+      revisions: [
+        ...(file.revisions ?? []),
         {
-          step: "cast-cleanup",
-          fields: ["otherRelationships"],
-          reasons: [`removed cast members: ${dangling.map((r) => r.target).join(", ")}`],
+          step: "consistency-fix",
+          fields: ["brief", "identity", "backstory", "situation", "publicProfile", "wording"],
+          reasons: [patch.reason, `rewrites ${applied.filter((a) => a === "applied").length}/${applied.length}; terms ${patch.terms.map(([a, b]) => `${a}→${b}`).join(", ")}`],
           at: new Date().toISOString(),
           provenance: null,
         },
       ],
     });
-    console.log(`[pilot] cast-cleanup ${file.draftKey}: dropped ${dangling.map((r) => r.target).join(", ")}`);
+    console.log(`[pilot] consistency-fix ${patch.draftKey}: ${applied.filter((a) => a === "applied").length} rewrites + terms`);
   }
 }
 
@@ -1373,7 +1542,7 @@ function parseArgs(): { step: string; slot?: number; from?: number; concurrency:
 
 async function main(): Promise<void> {
   const { step, slot, from, concurrency, maxAttempts } = parseArgs();
-  const offline = ["portfolio-qa", "cost-reconcile", "market-fit-review", "public-fix", "cast-cleanup"].includes(step);
+  const offline = ["portfolio-qa", "cost-reconcile", "market-fit-review", "public-fix", "relationship-repair", "consistency-fix"].includes(step);
   if (!offline && process.env.OFFICIAL_PILOT_LIVE !== "1") {
     console.error("[pilot] refusing: set OFFICIAL_PILOT_LIVE=1 to run live provider generation.");
     process.exit(2);
@@ -1398,8 +1567,10 @@ async function main(): Promise<void> {
       return stepReplaceSlots(modelId, maxAttempts);
     case "public-fix":
       return stepPublicFix();
-    case "cast-cleanup":
-      return stepCastCleanup();
+    case "relationship-repair":
+      return stepRelationshipRepair();
+    case "consistency-fix":
+      return stepConsistencyFix();
     case "assetplan":
       return stepAssetPlans(modelId, maxAttempts, slot, from);
     case "voice-fix":

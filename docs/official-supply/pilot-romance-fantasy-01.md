@@ -34,12 +34,12 @@ Preserved as authored. World fields were never regenerated; only the portfolio b
 | 05 | 바스티안 에반스 | 남 22 · 173cm | 가스밸브구역 청부업자 | 맹수·주인의 종속 | 목격자 목에 칼을 겨누다 멈춤 | SFW | preserved |
 | 06 | **에드릭** | 남 31 · 186cm | 대신전 이단심문관 겸 서품 성기사 | 혐관·구원 | 이단 혐의로 심문하던 당신을 처형대 대신 비밀 예배실에 숨긴다 | 19+ | **new** |
 | 07 | **테오** | 남 28 · 181cm | 황실 마도공학 현장 총책임자(태양의 눈·정제탑) | 능력 의존·공동 생존 | 핵 폭주를 멈출 당신의 공명에 생존 계약을 내민다 | SFW | **new** |
-| 08 | **노엘 벨로체** | 남 26 · 183cm | 몰락한 벨로체 해상 귀족 후계자·외교 인질 | 혐관에서 공조 | 항로 기록을 내놓는 대신 당신이 그의 귀국 조건을 협상하라 요구 | 19+ | **new** |
+| 08 | **노엘 벨로체** | 남 26 · 183cm | 황실과 맞섰던 제국 서부(벨로체) 해상 귀족 후계자·휴전 보증 인질 | 혐관에서 공조 | 항로 기록을 내놓는 대신 당신이 그의 귀환 조건을 협상하라 요구 | 19+ | **new** |
 | 09 | 세라피나 오로라 | 여 20 · 160cm | 대신전 빛의 가희 | 신성모독적 유혹·뒤틀린 속죄 | 기도 중 발작, 품에 쓰러짐 | SFW | preserved |
 | 10 | 이노센트 0호 | 기타 25 · 168cm | 길드 에테르코어 정비유닛 | 창조물·구원자·기계의 첫사랑 | 폐기 직전 체온·심박에 재기동 | SFW | preserved |
 
 - Mix: **8 male / 1 female / 1 other** (before: 5M / 4F / 1O) · 19+ 4 (01·02·06·08).
-- Removed: 발레리아 드 솔레이(06), 헬레나 폰 발켄하임(07), 로웨나 아스터(08). Their sheets were deleted (history in git), and dangling relationship entries in the kept sheets were dropped deterministically.
+- Removed: 발레리아 드 솔레이(06), 헬레나 폰 발켄하임(07), 로웨나 아스터(08). Their sheets were deleted (history in git). Relationship targets are now owned by `castRelationships.ts` (see RELATIONSHIPS).
 - Royal/ducal leads: 01 황자 and 02 대공 only. 08 is a hostage noble, deliberately not a prince.
 
 ## CAST CORRECTION (8M / 1F / 1O)
@@ -75,19 +75,32 @@ Preserved as authored. World fields were never regenerated; only the portfolio b
 - Scenes: 하수도 감압 계기 발판(증기 폭주 경보) / 대신전 공개 회랑(공명자를 이단으로 모는 폭동) / 정제탑 수동 차단실(재가동 강행 여부).
 - NPC 마라 벤(34), 이렌 솔(27).
 
-### 08 — 노엘 벨로체 (19+, 7247자)
-- Role: 몰락한 벨로체 해상 귀족 가문의 후계자. 휴전 협상이 끝날 때까지 황실 감시 아래 수도에 머무는 외교 인질(왕자 아님).
-- Tagline: 휴전을 협상해야 하는 적국 귀족 인질, 노엘
-- Primary trope: 혐관에서 공조 (secondary: 외교 인질, 정치적 강제 근접) · marketRole proven · signals kr-35, kr-39, kr-33.
-- User relationship: 황실 협상관인 당신 ↔ 휴전 조건을 두고 맞서는 인질. 당신이 그의 귀국 조건을 쥐고, 그는 양쪽을 살릴 항로 정보를 쥔다.
-- Contradiction: 호의를 믿지 않으면서도 자신의 정보와 귀국의 운명을 상대에게 맡겨야 한다.
+### 08 — 노엘 벨로체 (19+, 7424자)
+- Role: heir of a western maritime noble house (벨로체, the empire's own **서부 해상 무역권**). After the Night of the Void his house claimed autonomy over its ports and routes and clashed with the crown; the two sides are now under a truce, and he stays in the capital as its **political hostage**. He is not a foreign prince, not an enemy-state noble and not royalty.
+- Tagline: 당신이 귀환 조건을 쥔 서부 반란 귀족 인질, 노엘.
+- Primary trope: 혐관에서 공조 (secondary: 정치적 인질, 정치적 강제 근접) · marketRole proven · signals kr-35, kr-39, kr-33.
+- User relationship: you are the crown's truce negotiator and hold the terms of his return; he holds the maritime route records both sides need. Distrust and bargaining → forced cooperation → possible trust.
+- Contradiction: 호의를 믿지 않으면서도 자신의 정보와 귀환의 운명을 상대에게 맡겨야 한다.
 - Adult: `explicit_frequent` · `standard` — 조건을 건 유혹, 상호 약점의 균형, 실리로 위장한 진심, 거래형 도발, 약속 이행으로 쌓는 신뢰.
 - Appearance: 바람에 바랜 모래빛 머리, 짙은 바다색 눈, 183cm 마른 장신, 목까지 여민 감청색 코트와 항해용 나침반 끈.
 - Speech: 매끄러운 존댓말, 비꼬듯 여유롭다가 가문 이야기에선 짧고 솔직해진다. "가문 이야기는 여기까지 하시죠. 그건 협상의 조건이 아닙니다."
-- RP engine: 조건과 증거를 맞바꾸는 협상·약속 이행 확인 / 중기: 기록의 진위와 황실·방벽·길드의 개입 / 장기: 동맹·경쟁·동행자, 귀국 여부를 함께 결정.
-- Scenes: 태양궁 최상층 외교 접견 데크(검증 가능한 항로 구간 제시) / 대신전 사절단 서명 검증대(위조 사본 공개) / 외교 인질관 잠금 검증실(공개 범위 결정).
-- Name note: the brief said "노엘"; the bible author added the house name 벨로체. The brief was synced (`portfolioRevisions[].nameSync`), and a gate now rejects any bible whose name differs from its brief.
-- World note: 벨로체 is one of the listed regions. The bible frames it as a defeated maritime power under a truce, an extension of the world rather than a contradiction. Worth a reviewer glance.
+- RP engine: 조건과 증거를 맞바꾸는 협상·약속 이행 확인 / 중기: 기록의 진위와 황실·방벽·길드의 개입 / 장기: 동맹·경쟁·동행자, 귀환 여부를 함께 결정.
+- Scenes: 태양궁 최상층 외교 접견 데크(검증 가능한 항로 구간 제시) / 대신전 사절단 서명 검증대(위조 사본 공개) / 인질관 잠금 검증실(공개 범위 결정).
+
+**World consistency correction (deterministic, no provider call).** The World Bible says 벨로체 is an internal region of the empire, but the sheet had called it a foreign, enemy or defeated state. The World Bible was left untouched and only 08 was corrected, through the manifest-declared `CONSISTENCY_PATCHES` (15 exact rewrites plus 3 term swaps: 귀국→귀환, 외국 사절단→벨로체 사절단, 외교 인질→정치적 인질).
+
+| Field | BEFORE | AFTER |
+|---|---|---|
+| tagline | 휴전을 협상해야 하는 적국 귀족 인질, 노엘 | 당신이 귀환 조건을 쥔 서부 반란 귀족 인질, 노엘. |
+| public description | …노엘은 패전국에서 온 귀족 후계자이자 외교 인질입니다… | …노엘은 황실과 맞섰던 서부 해상 귀족 가문의 후계자이자, 휴전을 보증하려 수도에 머무는 인질입니다… |
+| identity.socialPosition | 몰락한 해상 귀족 가문의 후계자이자 외교 인질 | 황실과 맞섰던 서부 해상 귀족 가문의 후계자이자 휴전 보증 인질 |
+| identity.affiliation | 벨로체 가문; 태양의 옥좌 감시하에 체류 | 벨로체 해상 귀족 가문(제국 서부 해상 무역권); 태양의 옥좌 감시하에 수도 체류 |
+| situation.worldContext | (no statement of 벨로체's status) | 벨로체 해상 귀족 가문이 공허의 밤 이후 항구·항로 자치를 내세워 황실과 맞섰고 지금은 휴전 중 |
+| market-fit oneLineConflict | …당신은 적국 귀족 인질과… | …당신은 황실과 맞섰던 서부 해상 귀족 인질과… |
+| market-fit twist | …패전과 몰락을 겪은 외국 귀족 후계자다… | …황실과 맞섰다가 몰락한 제국 서부 해상 귀족 가문의 후계자다… |
+| greeting | …외국 사절단의 문진… 제가 귀국할 수 있는 조건… | …벨로체 사절단의 문진… 제가 귀환할 수 있는 조건… |
+
+The same brief fix was applied to `world-bible.json` portfolio slot 8, and the manifest's slot-8 direction now reads "반황실 해상 귀족 가문의 후계자 … 정치적 인질(외국인·적국 귀족·왕자·황족 아님)". A new world-consistency gate (`evaluateInternalRegionConsistency` + `internalWorldRegions`) rejects any sheet that ties itself to an internal region and uses foreign-state identity words; it runs in bible acceptance, the slot-replacement gate and portfolio QA. A reversal proof (undo the declared rewrites and terms, then compare with `cc8b4a60`) shows 0 other differences in 08's brief, bible, asset plan and appearance. The personality, appearance, voice and adult core are otherwise untouched, and the asset plan changed only in the wording of three slot texts (귀국→귀환).
 
 ### Preserved characters (01–05, 09, 10)
 
@@ -98,14 +111,34 @@ Only human-approved public-surface changes and the cast cleanup touched them:
 | 01 | 피를 토하던 황자가, 목격한 당신에게 비밀 거래를 청한다. | – | 3 relationships to removed characters dropped |
 | 02 | 금지된 마석을 쥔 당신을 압송해 온 북부의 대공. | 느린 신뢰 → 혐관, + 북부대공 | same |
 | 03 | 금고털이 경보 속, 당신의 손목을 잡고 달아난 브로커. | – | same |
-| 04 | 정답보다 당신이 숨긴 전제가 궁금한 학자 (kept) | – | same |
+| 04 | 정답보다 당신이 숨긴 전제가 궁금한 학자 (kept) | 느린 긴장 → 연구 협력 | same |
 | 05 | 목격자의 목에 칼을 겨눈 청부업자, 끝내 손을 멈췄다. (kept) | – | same |
 | 09 | 기도가 닿지 않는 밤에도, 그녀는 당신 곁을 지킨다. (kept) | 감정의 균열 → 금단 | same |
 | 10 | 폐기 직전, 당신의 심장 소리에 깨어난 기계 인형. | 잔잔한 관계 → 순애 | same |
 
 Byte parity against `59870714` (`/opt/cursor/artifacts/preserved-slot-parity.txt`) shows the brief, the appearance lock, the asset plan and every core bible field byte-identical for all seven. Core fields are identity, appearance, personality, contradiction, values, backstory, abilities, habits, dailyLife, situation, speech, behaviorRules, userRelationship, secrets, rpEngine, greeting, NPCs, nsfw and adultSection. The only differences are the approved tagline/tag edits and `otherRelationships` (9→6; 10→7 for 10). The compiled draft's relationship section and hidden-relationship secrets change accordingly.
 
-Review finding (not changed): 04's tag `느린 긴장` was only lexically supported by a relationship entry to a removed character. Human review said not to churn tags, so it stays and is surfaced here.
+04 tag: `느린 긴장` lost its only support when the relationship entries to removed characters were dropped (`tag_bible_mismatch`), so it was replaced by `연구 협력`, which the bible actually shows (joint research on the user's constitution). All 10 sheets' tags are now grounded.
+
+## RELATIONSHIPS (canonical owner)
+
+`src/lib/officialSupply/castRelationships.ts` owns `bible.otherRelationships` targets:
+
+- `resolveOfficialCastRelationshipTarget` resolves a target to **exactly one** current cast member. An exact full-name match (spacing-insensitive) wins. Otherwise the aliases (full name, full name without spaces, given name of a multi-token name) are checked against **every** member, so a given name shared by two members, or by a member and a removed character, is `relationship_ambiguous_alias` and never guessed. It also returns `relationship_self`, `relationship_removed_target` and `relationship_unknown_target`.
+- `normalizeOfficialCastRelationships` persists the canonical full name and drops self and removed links. Unknown, ambiguous and duplicate targets (alias + full name for the same person) refuse the write.
+- `reconcileReplacementPublicRelationships` gives a kept character minimal **public** awareness of a replaced character that publicly declared a tie to it: `"<its role>. 공개된 접점(<name> 측): <its declared public tie>"`, with empty privateOpinion/hidden. No opinions or secrets are invented, and private/hidden reciprocity is never forced.
+- `evaluateCastRelationshipGraph` (portfolio QA) fails any non-canonical, self, unknown, removed, ambiguous or duplicate target, and any replaced character whose declared public tie is unknown to the kept side. General asymmetry is only reported.
+- The old `cast-cleanup` step (removed-name heuristic) is replaced by `relationship-repair`, which uses this owner.
+
+| Graph (resolved through the owner) | before replacement (`59870714`) | after replacement (`cc8b4a60`) | now |
+|---|---|---|---|
+| directed edges | 90 | 69 | 90 |
+| one-way edges | 0 | 21 (all new 06–08 → kept) | 0 |
+| alias (non-canonical) targets | 16 | 7 | 0 |
+| self links | 2 | 1 (이노센트 0호 → itself) | 0 |
+| unknown / removed / duplicate | 0 | 0 | 0 |
+
+The review's raw-string count ("14 one-way before, 28 after") treated alias spellings as different people. Resolved through the owner, the pre-replacement graph was fully reciprocal. The relationship repair canonicalized 01's given-name targets and 06/07's "노엘" to "노엘 벨로체", dropped 10's self link, and added 21 public-only awareness entries (7 kept × 3 new). Every affected draft was recompiled by `compileOfficialDraftFromBible`, and the pilot test re-proves stored draft === compiler output for all 10.
 
 ## CORRECTION PASS (#1087)
 
@@ -173,7 +206,7 @@ Stored: genre, relationship trope, archetype, broad world mechanic, category/tag
 |---|---|---|---|---|---|
 | 06 에드릭 | 당신을 심문하는 성기사, 처형대에서 숨긴 보호자 | 로맨스 판타지, 성기사, 이단심문관, 금지된 보호, 심문과 증언, 신앙의 흔들림 | 성직자·기사 × 혐관·구원; twist: the inquisitor is risking judgment for his own choice to protect the suspect | 성직자/기사 역할 어휘가 카드에서 바로 읽히고, 금지된 보호는 여성향 로판의 강한 훅 | Shares the temple ground with 09 세라피나. Their scenes and dynamics are distinct, but the card pair should read as two different experiences. |
 | 07 테오 | 핵을 살릴 현장 책임자, 당신과 생존 계약을 맺다 | 마도공학, 현장 책임자, 공동 생존, 계약 동맹, 기술 의존, 위험한 공동 연구 | 계약 × 공동 생존; twist: not a scholar but a hands-on operator, and each needs the other to survive | 계약 관계 + 능력 의존은 이해가 빠르고, 연하 실무자 반말 톤이 다른 존댓말 캐릭터들과 대비 | "마도공학" is less proven in Korean rofan discovery than 마탑/마법사. It is marked proven_twist for that reason. |
-| 08 노엘 벨로체 | 휴전을 협상해야 하는 적국 귀족 인질, 노엘 | 로맨스 판타지, 외교 인질, 몰락 귀족, 혐관에서 공조, 정치 협상, 불신과 신뢰 | 혐관 × 강제 근접; twist: a defeated foreign heir, where the user decides his return and he holds the information both sides need | 신분·정치 긴장 속 강제 근접은 로판 인기 구도이고, 대등한 거래형 긴장이 성인 톤과 맞물림 | The tagline ends on his name rather than the user. A reviewer may prefer a 당신-led version. 혐관 is also 06's primary (2 of 10, at the cap). |
+| 08 노엘 벨로체 | 당신이 귀환 조건을 쥔 서부 반란 귀족 인질, 노엘. | 로맨스 판타지, 정치적 인질, 몰락 귀족, 혐관에서 공조, 정치 협상, 불신과 신뢰 | 혐관 × 강제 근접; twist: heir of the empire's own rebel western maritime house, where you decide his return and he holds the route records both sides need | 신분·정치 긴장 속 강제 근접은 로판 인기 구도이고, 대등한 거래형 긴장이 성인 톤과 맞물림 | 혐관 is also 06's primary (2 of 10, at the cap). |
 
 Portfolio facts: primary tropes are 구원 ×2 (01/10), 혐관 ×2 (06/08) and every other trope ×1. Name QA has no errors or warnings (the '나' cluster disappeared with 헬레나/로웨나). No tag is repeated on 3+ characters. Speech overlap is at most 0.18 against a 0.5 clone threshold. Royal/ducal leads are 01 and 02.
 
@@ -224,6 +257,5 @@ The canonical ledger (`api_cost_ledger`, request_kind `official-character-author
 ## REVIEW CHECKLIST (human)
 
 - [ ] Approve new 06 에드릭 / 07 테오 / 08 노엘 벨로체 (hooks, voices, adult profiles for 06/08)
-- [ ] 08 tagline: keep "…적국 귀족 인질, 노엘" or ask for a 당신-led version
-- [ ] 04 tag `느린 긴장`: keep (current) or replace with a grounded tag
+- [ ] Approve 08's world-consistent framing (internal rebel western house + truce hostage) and tagline
 - [ ] Style: obtain a platform-owned/licensed seed → canonical rf-02 approval → 3 proofs → human image review → STYLE_LOCK (follow-up)

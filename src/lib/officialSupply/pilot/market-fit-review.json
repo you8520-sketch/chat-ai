@@ -200,19 +200,16 @@
         "학자",
         "연구실",
         "논리전",
-        "느린 긴장",
+        "연구 협력",
         "관찰과 기록"
       ],
-      "ungroundedTags": [
-        "tag \"느린 긴장\" is not supported by the Character Bible"
-      ],
+      "ungroundedTags": [],
       "taglineWorldTerms": [],
       "taglineHasUserRelationship": true,
       "userRole": "금서 구역의 방문자이자 잠재적 연구 협력자. 실험 참여 여부와 범위는 유저가 정한다.",
       "adult": false,
       "marketFitBrief": null,
       "findings": [
-        "tag_bible_mismatch: tag \"느린 긴장\" is not supported by the Character Bible",
         "market_fit_brief_absent: authored before the market-fit owner existed"
       ]
     },
@@ -411,18 +408,18 @@
         "givenSyllables": 2
       },
       "audience": "female",
-      "portfolioHook": "휴전 협상에서 당신과 대립하던 노엘은 자신이 가진 비밀 항로 기록을 내놓는 대신, 당신이 그의 귀국 조건을 직접 협상하라고 요구한다. 서로를 믿을 수 없는데도 상대가 사라지면 협상과 각자의 목적이 함께 무너진다.",
-      "publicTagline": "휴전을 협상해야 하는 적국 귀족 인질, 노엘",
-      "publicDescriptionOpening": "당신은 제국 황실의 협상관, 노엘은 패전국에서 온 귀족 후계자이자 외교 인질입니다.",
+      "portfolioHook": "휴전 협상에서 당신과 대립하던 노엘은 자신이 가진 비밀 항로 기록을 내놓는 대신, 당신이 그의 귀환 조건을 직접 협상하라고 요구한다. 서로를 믿을 수 없는데도 상대가 사라지면 협상과 각자의 목적이 함께 무너진다.",
+      "publicTagline": "당신이 귀환 조건을 쥔 서부 반란 귀족 인질, 노엘.",
+      "publicDescriptionOpening": "당신은 제국 황실의 협상관, 노엘은 황실과 맞섰던 서부 해상 귀족 가문의 후계자이자, 휴전을 보증하려 수도에 머무는 인질입니다.",
       "primaryTrope": "혐관",
       "secondaryTropes": [
-        "외교 인질",
+        "정치적 인질",
         "정치적 강제 근접"
       ],
-      "archetype": "몰락한 해상 귀족의 후계자이자 황실이 붙잡아 둔 외교 협상 카드",
+      "archetype": "황실과 맞선 서부 해상 귀족의 후계자이자 황실이 붙잡아 둔 휴전 협상 카드",
       "tags": [
         "로맨스 판타지",
-        "외교 인질",
+        "정치적 인질",
         "몰락 귀족",
         "혐관에서 공조",
         "정치 협상",
@@ -431,7 +428,7 @@
       "ungroundedTags": [],
       "taglineWorldTerms": [],
       "taglineHasUserRelationship": true,
-      "userRole": "귀국 조건을 협상할 당사자. 역할과 권한은 유저가 정한다.",
+      "userRole": "귀환 조건을 협상할 당사자. 역할과 권한은 유저가 정한다.",
       "adult": true,
       "marketFitBrief": {
         "targetLocale": "ko-KR",
@@ -440,23 +437,23 @@
         "relationshipTrope": {
           "primary": "혐관에서 공조",
           "secondary": [
-            "외교 인질",
+            "정치적 인질",
             "정치적 강제 근접"
           ]
         },
-        "archetype": "몰락한 해상 귀족 가문의 후계자이자 수도에 붙잡힌 외교 인질",
+        "archetype": "황실과 맞선 제국 서부 해상 귀족 가문의 후계자이자 휴전 보증을 위해 수도에 붙잡힌 인질",
         "provenMarketSignal": [
           "kr-35",
           "kr-39",
           "kr-33"
         ],
         "marketRole": "proven",
-        "differentiationTwist": "궁정의 권력자가 아니라 패전과 몰락을 겪은 외국 귀족 후계자다. 그는 협상에 필요한 항로 정보를 쥐고 있고, 당신은 그가 귀국할 조건을 결정할 권한을 가진다.",
-        "userRelationship": "황실 협상관인 당신과 휴전 조건을 두고 맞서는 외국 귀족 인질이자, 서로의 이해를 위해 손을 잡아야 하는 협상 상대",
-        "oneLineConflict": "제국의 협상관인 당신은 적국 귀족 인질과 휴전 조건을 맞춰야 하지만, 그가 가진 항로 비밀 없이는 양쪽 모두를 구할 수 없어 서로를 이용하는 동맹을 맺는다.",
+        "differentiationTwist": "궁정의 권력자가 아니라, 황실과 맞섰다가 몰락한 제국 서부 해상 귀족 가문의 후계자다. 그는 협상에 필요한 항로 정보를 쥐고 있고, 당신은 그가 귀환할 조건을 결정할 권한을 가진다.",
+        "userRelationship": "황실 협상관인 당신과 휴전 조건을 두고 맞서는 서부 반황실 해상 귀족 인질이자, 서로의 이해를 위해 손을 잡아야 하는 협상 상대",
+        "oneLineConflict": "황실 협상관인 당신은 황실과 맞섰던 서부 해상 귀족 인질과 휴전 조건을 맞춰야 하지만, 그가 가진 항로 비밀 없이는 양쪽 모두를 구할 수 없어 서로를 이용하는 동맹을 맺는다.",
         "namingProfile": "western_rofan",
         "discoveryTags": [
-          "외교 인질",
+          "정치적 인질",
           "몰락 귀족",
           "혐관",
           "정치 협상",
