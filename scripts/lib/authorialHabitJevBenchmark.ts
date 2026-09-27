@@ -49,6 +49,8 @@ export type AuthorialHabitJevRow = {
   actualCostUsd: number | null;
   model: string;
   providerCallAttempted: boolean;
+  choiceConfidence?: number | null;
+  choiceProbabilities?: Partial<Record<AuthorialHabitSemanticVerdict, number>> | null;
 };
 
 export type AuthorialHabitLexicalMetrics = {
@@ -222,6 +224,18 @@ async function judgeFixture(opts: {
     const verdict = parseAuthorialHabitJevVerdict(
       result.answers as Record<string, { type?: string; choice?: string }>
     );
+    const answer = result.answers.authorial_habit_verdict;
+    const choiceConfidence =
+      answer?.type === "choice" ? answer.confidence : null;
+    const choiceProbabilities =
+      answer?.type === "choice"
+        ? {
+            HABIT_PRESENT: answer.probabilities.HABIT_PRESENT,
+            CONTEXTUALLY_JUSTIFIED:
+              answer.probabilities.CONTEXTUALLY_JUSTIFIED,
+            UNCERTAIN: answer.probabilities.UNCERTAIN,
+          }
+        : null;
     return {
       fixtureId: opts.fixture.id,
       expectedVerdict: opts.fixture.expectedVerdict,
@@ -234,6 +248,8 @@ async function judgeFixture(opts: {
       actualCostUsd: result.usage.upstreamCostUsd ?? null,
       model: result.responseModel || JEV_DECISIONS_MODEL,
       providerCallAttempted,
+      choiceConfidence,
+      choiceProbabilities,
     };
   } catch (error) {
     const malformed =
