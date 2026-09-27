@@ -1,0 +1,33 @@
+{
+  "EXACT_MAIN_CONFIRMED_BY_GPT": "45d79ca86fc7083fb4f590671a88d666ba6cc2c5",
+  "LOCAL_HEAD": "45d79ca86fc7083fb4f590671a88d666ba6cc2c5",
+  "numeric_visible_target": {
+    "owner": "USER_TAIL_LENGTH_OWNER_SENTENCE (한국어 3,200자 이상)",
+    "constants": "UNIFIED_TIER_AIM_CHARS=3200 in responseLengthConstants.ts"
+  },
+  "USER_TAIL_LENGTH_OWNER": {
+    "file": "src/lib/responseLength.ts",
+    "current": "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, [AI_CAST]/NPC/환경의 관찰·심리·판단·행동·대화·감각 변화를 먼저 깊게 전개한다. [B]의 새 직접 대사·중요 선택·중대 행동을 분량 채우기용으로 만들지 않는다.",
+    "old_pre_sep17": "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다.",
+    "injection": "user-turn absolute tail via appendCompactTerminalLengthToUserTurn"
+  },
+  "NARRATIVE_DENSITY": {
+    "file": "src/lib/sceneExpansionPolicy.ts",
+    "current": "[NARRATIVE DENSITY]\nTARGET/FLOOR는 [AI_CAST]의 현재 심리·관찰·감각·판단·욕구·두려움·내부 갈등, AI 행동·대화·환경·NPC 변화를 먼저 깊게 전개한다. 정본·기억·페르소나 callback 방식은 [COMMON PROSE]를 따른다.\n모든 중간 동작을 기록하지 않는다 — 생략은 짧게 쓰라는 뜻이 아니다.\n[B]의 새 직접 대사·중요 선택·중대 행동은 length filler가 아니다.",
+    "old_pre_sep17": "[NARRATIVE DENSITY]\nTARGET/FLOOR는 대화·내면·기억·연상·판단·관계·분위기·결과로 채운다.\n모든 중간 동작을 기록하지 않는다 — 생략은 짧게 쓰라는 뜻이 아니다.\n미세 행동·반복 해설로 분량을 채우지 않는다.",
+    "injection": "NOT live-injected on Main RP — buildLengthInstruction() returns empty"
+  },
+  "COMMON_PROSE": {
+    "file": "src/lib/advancedProseNsfwGuidelines.ts",
+    "note": "style owner; unchanged across arms"
+  },
+  "current_turn_user_agency": {
+    "file": "src/lib/noGodmodding.ts COLLABORATIVE_INTERACTIVE_OWNER_BLOCK",
+    "overlapping_b_clause": "[B]의 새로운 직접 대사, 중요한 선택·동의·거절, 관계·목표·소속·정체성을 바꾸는 결정은 대신 확정하지 않는다.",
+    "length_duplicate": "USER_TAIL '[B]의 새 직접 대사·중요 선택·중대 행동을 분량 채우기용으로 만들지 않는다' = DUPLICATE OWNERSHIP inside LENGTH"
+  },
+  "NO_GODMODDING": "buildNoGodmoddingBlock → collaborative interactive on standard",
+  "gemini31_agency_supplement": "src/lib/gemini31UserAgencyAdapter.ts (body/intent boundary)",
+  "scene_pacing": "Arm V SCENE PACING via assemblePrimaryRpRequest sceneServerControls",
+  "dialogue_owner": "COMMON PROSE + OUTPUT LAYOUT + optional [이번 응답 대화] budget"
+}

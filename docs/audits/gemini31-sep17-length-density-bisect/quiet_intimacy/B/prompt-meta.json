@@ -1,0 +1,19 @@
+{
+  "arm": "B",
+  "fixtureId": "quiet_intimacy",
+  "label": "OLD LENGTH ONLY — pre-Sep17 USER_TAIL + current NARRATIVE_DENSITY",
+  "promptHash": "40decc71f91c0ab853ac6e963e31c0b2c00fbd7a4432dcf31cdfdd08d133ee86",
+  "userTailVariant": "old",
+  "densityVariant": "absent",
+  "densityLiveInjected": false,
+  "densityPresentBefore": false,
+  "userTailSwapCount": 1,
+  "densitySwapCount": 0,
+  "userTailOwnerCount": 1,
+  "agencyOwnerPresent": true,
+  "commonProsePresent": true,
+  "temperature": 0.95,
+  "reasoning_effort": "low",
+  "max_tokens": null,
+  "model": "gemini-3.1-pro-preview"
+}
