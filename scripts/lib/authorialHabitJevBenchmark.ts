@@ -59,8 +59,10 @@ export type AuthorialHabitLexicalMetrics = {
 };
 
 export type AuthorialHabitJevMetrics = {
+  evaluatedFixtures: number;
   calledFixtures: number;
   providerCalls: number;
+  preflightFailureCount: number;
   habitPresentCount: number;
   contextuallyJustifiedCount: number;
   uncertainCount: number;
@@ -72,6 +74,9 @@ export type AuthorialHabitJevMetrics = {
   inputTokens: number;
   outputTokens: number;
   actualProviderCostUsd: number | null;
+  reportedProviderCostUsd: number | null;
+  actualProviderCostReportedCalls: number;
+  actualProviderCostCoverage: "complete" | "partial" | "none";
   latencyMs: { p50: number | null; p95: number | null; max: number | null; count: number };
   model: string;
   provider: "openrouter-decisions";
@@ -193,10 +198,12 @@ async function judgeFixture(opts: {
     state as unknown as Record<string, unknown>
   );
   const started = performance.now();
+  let providerCallAttempted = false;
   try {
     if (privacyHits.length > 0) {
       throw new Error(`jev_state_invariant_violation:${privacyHits.join(",")}`);
     }
+    providerCallAttempted = true;
     const result = await withIsolatedAuthorialHabitBenchmarkOpenRouterKey(
       opts.benchmarkApiKey,
       () =>
@@ -221,14 +228,14 @@ async function judgeFixture(opts: {
       outputTokens: result.usage.outputTokens,
       actualCostUsd: result.usage.upstreamCostUsd ?? null,
       model: result.responseModel || JEV_DECISIONS_MODEL,
-      providerCallAttempted: true,
+      providerCallAttempted,
     };
   } catch (error) {
     return {
       fixtureId: opts.fixture.id,
       expectedVerdict: opts.fixture.expectedVerdict,
       verdict: null,
-      malformed: true,
+      malformed: providerCallAttempted,
       failure: sanitizeAuthorialHabitBenchmarkCredentialText(
         (error as Error).message || "jev_transport_error"
       ).slice(0, 240),
@@ -237,7 +244,7 @@ async function judgeFixture(opts: {
       outputTokens: 0,
       actualCostUsd: null,
       model: JEV_DECISIONS_MODEL,
-      providerCallAttempted: true,
+      providerCallAttempted,
     };
   }
 }
@@ -251,7 +258,7 @@ function aggregateJev(rows: AuthorialHabitJevRow[]): AuthorialHabitJevMetrics {
   let clearHabitMissCount = 0;
   let justifiedFalseHighPriorityCount = 0;
 
-  for (const row of called) {
+  for (const row of rows) {
     if (row.verdict === row.expectedVerdict) agreement += 1;
     if (
       row.expectedVerdict === "HABIT_PRESENT" &&
@@ -267,23 +274,41 @@ function aggregateJev(rows: AuthorialHabitJevRow[]): AuthorialHabitJevMetrics {
     }
   }
 
+  const actualProviderCostCoverage: AuthorialHabitJevMetrics["actualProviderCostCoverage"] =
+    called.length === 0
+      ? "none"
+      : costs.length === called.length
+        ? "complete"
+        : costs.length > 0
+          ? "partial"
+          : "none";
+  const reportedProviderCostUsd =
+    costs.length > 0 ? costs.reduce((sum, value) => sum + value, 0) : null;
+
   return {
+    evaluatedFixtures: rows.length,
     calledFixtures: called.length,
     providerCalls: called.length,
-    habitPresentCount: called.filter((row) => row.verdict === "HABIT_PRESENT").length,
-    contextuallyJustifiedCount: called.filter(
+    preflightFailureCount: rows.filter(
+      (row) => !row.providerCallAttempted && row.failure != null
+    ).length,
+    habitPresentCount: rows.filter((row) => row.verdict === "HABIT_PRESENT").length,
+    contextuallyJustifiedCount: rows.filter(
       (row) => row.verdict === "CONTEXTUALLY_JUSTIFIED"
     ).length,
-    uncertainCount: called.filter((row) => row.verdict === "UNCERTAIN").length,
+    uncertainCount: rows.filter((row) => row.verdict === "UNCERTAIN").length,
     malformedCount: called.filter((row) => row.malformed).length,
-    failureCount: called.filter((row) => row.failure != null).length,
+    failureCount: rows.filter((row) => row.failure != null).length,
     humanLabelAgreementCount: agreement,
     clearHabitMissCount,
     justifiedFalseHighPriorityCount,
     inputTokens: called.reduce((sum, row) => sum + row.inputTokens, 0),
     outputTokens: called.reduce((sum, row) => sum + row.outputTokens, 0),
     actualProviderCostUsd:
-      costs.length > 0 ? costs.reduce((sum, value) => sum + value, 0) : null,
+      actualProviderCostCoverage === "complete" ? reportedProviderCostUsd : null,
+    reportedProviderCostUsd,
+    actualProviderCostReportedCalls: costs.length,
+    actualProviderCostCoverage,
     latencyMs: summarizeLatency(called.map((row) => row.latencyMs)),
     model: JEV_DECISIONS_MODEL,
     provider: "openrouter-decisions",
