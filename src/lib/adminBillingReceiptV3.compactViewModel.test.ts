@@ -1021,6 +1021,12 @@ describe("Admin Receipt compact view model — shared post-turn physical project
     assert.ok(Math.abs((shared!.exactActualCostUsd ?? 0) - 0.003) < 1e-9);
     assert.equal(receipt.async.coverage, "complete");
     assert.ok(Math.abs((receipt.async.exactActualCostUsd ?? 0) - 0.003) < 1e-9);
+    const summary = buildAdminReceiptTurnSummary(receipt);
+    assert.doesNotMatch(
+      summary.marginUnavailableReason ?? "",
+      /Suggested Replies/,
+      "terminal suggestion quality must not remain a provider-cost margin blocker"
+    );
   });
 
   it("CASE D — failed shared event reuses existing call-result rules", () => {
