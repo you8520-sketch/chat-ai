@@ -60,6 +60,8 @@ export function decisionState(code: CandidateDecisionCode): "ACCEPTED" | "REJECT
     case "WATCH_NO_EXPERIMENT_ADAPTER":
     case "WATCH_NO_BENCHMARK_HOOK":
     case "WATCH_BENCHMARK_FAILED":
+    case "WATCH_LIVE_EXPERIMENT_PENDING":
+    case "WATCH_IMPLEMENTATION_PR_PENDING":
       return "WATCH";
     default: {
       const _exhaustive: never = code;
@@ -79,6 +81,12 @@ export function reevaluationConditionFor(code: CandidateDecisionCode): string {
         ? "new release, or a TypeScript-native experiment adapter that removes the infra requirement"
         : "new release/version, new experiment adapter evidence, or a change to the benchmarked memory owners";
     case "WATCH":
+      if (code === "WATCH_LIVE_EXPERIMENT_PENDING") {
+        return "monthly live experiment, manual live experiment, new release/version, or live recipe change";
+      }
+      if (code === "WATCH_IMPLEMENTATION_PR_PENDING") {
+        return "implementation Draft PR generation/review, new release/version, or live recipe change";
+      }
       return `new release/version, new experiment adapter, or ${WATCH_COOLDOWN_DAYS}-day cooldown`;
     default: {
       const _exhaustive: never = state;
@@ -100,7 +108,8 @@ export type SkipReason =
   | "duplicate_same_version"
   | "rejected_same_version"
   | "watch_cooldown"
-  | "accepted_pending_review";
+  | "accepted_pending_review"
+  | "implementation_pending";
 
 export type ReevaluationDecision =
   | { evaluate: true; trigger: ReevaluationTrigger }
@@ -138,6 +147,9 @@ export function decideReevaluation(
     return { evaluate: true, trigger: "architecture_changed" };
   }
   if (existing.state === "WATCH") {
+    if (existing.lastDecision === "WATCH_IMPLEMENTATION_PR_PENDING") {
+      return { evaluate: false, skip: "implementation_pending" };
+    }
     if (benchmarkDecided && ctx.deepReview) return { evaluate: true, trigger: "deep_review" };
     if (existing.cooldownUntil && Date.parse(existing.cooldownUntil) <= ctx.now.getTime()) {
       return { evaluate: true, trigger: "cooldown_elapsed" };
@@ -155,5 +167,6 @@ export function decideReevaluation(
 
 export function cooldownUntilFor(code: CandidateDecisionCode, now: Date): string | null {
   if (decisionState(code) !== "WATCH") return null;
+  if (code === "WATCH_LIVE_EXPERIMENT_PENDING" || code === "WATCH_IMPLEMENTATION_PR_PENDING") return null;
   return new Date(now.getTime() + WATCH_COOLDOWN_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }
