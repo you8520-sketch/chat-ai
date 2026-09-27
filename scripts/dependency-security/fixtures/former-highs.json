@@ -1,0 +1,59 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "nanoid": {
+      "name": "nanoid",
+      "severity": "high",
+      "via": [
+        {
+          "source": 1138811,
+          "name": "nanoid",
+          "url": "https://github.com/advisories/GHSA-28wg-ghj8-5hjv",
+          "severity": "high",
+          "range": "<3.3.16"
+        },
+        {
+          "source": 1139427,
+          "name": "nanoid",
+          "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8",
+          "severity": "high",
+          "range": "<3.3.18"
+        }
+      ]
+    },
+    "postcss": {
+      "name": "postcss",
+      "severity": "high",
+      "via": [
+        {
+          "source": 1124252,
+          "name": "postcss",
+          "url": "https://github.com/advisories/GHSA-6g55-p6wh-862q",
+          "severity": "high",
+          "range": "<=8.5.11"
+        },
+        {
+          "source": 1139510,
+          "name": "postcss",
+          "url": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+          "severity": "high",
+          "range": "<=8.5.17"
+        }
+      ]
+    },
+    "next": {
+      "name": "next",
+      "severity": "moderate",
+      "via": ["postcss"]
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "critical": 0,
+      "high": 2,
+      "moderate": 1,
+      "low": 0,
+      "total": 3
+    }
+  }
+}
