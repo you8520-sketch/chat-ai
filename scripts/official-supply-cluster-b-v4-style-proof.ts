@@ -13,7 +13,6 @@ import {
 import {
   PILOT_CLUSTER_B_PROOF_ASSET_LIMIT,
   PILOT_CLUSTER_B_PROOF_BATCH_CONFIG,
-  PILOT_CLUSTER_B_PROOF_BATCH_KEY,
   PILOT_CLUSTER_B_PROOF_DRAFT_KEYS,
   PILOT_CLUSTER_B_PROOF_SLOT_KEY,
   PILOT_CLUSTER_B_PROOF_SOURCE_DRAFT_KEYS,
@@ -46,6 +45,7 @@ import type {
 } from "@/lib/officialSupply/types";
 import {
   buildClusterBRofanStyleSeed,
+  PILOT_STYLE_PROOF_V4_BATCH_KEY,
   PILOT_STYLE_PROOF_V4_STYLE_KEY,
 } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 
@@ -122,14 +122,14 @@ function loadCharacters(): PilotCharacterFile[] {
 
 function ensureBatch(store: OfficialSupplyStore): void {
   try {
-    const existing = store.getBatch(PILOT_CLUSTER_B_PROOF_BATCH_KEY);
+    const existing = store.getBatch(PILOT_STYLE_PROOF_V4_BATCH_KEY);
     assertSame("cluster B batch config", existing.config, PILOT_CLUSTER_B_PROOF_BATCH_CONFIG);
     if (existing.status !== "active") {
       throw new Error(`batch is ${existing.status}: ${existing.pauseReason ?? ""}`);
     }
   } catch (error) {
     if (!missing(error, "batch_not_found")) throw error;
-    store.createBatch(PILOT_CLUSTER_B_PROOF_BATCH_KEY, PILOT_CLUSTER_B_PROOF_BATCH_CONFIG);
+    store.createBatch(PILOT_STYLE_PROOF_V4_BATCH_KEY, PILOT_CLUSTER_B_PROOF_BATCH_CONFIG);
   }
 }
 
@@ -201,7 +201,7 @@ function ensureCharacter(
     }
   } catch (error) {
     if (!missing(error, "character_not_found")) throw error;
-    record = store.addCharacterDraft(PILOT_CLUSTER_B_PROOF_BATCH_KEY, file.draft, {
+    record = store.addCharacterDraft(PILOT_STYLE_PROOF_V4_BATCH_KEY, file.draft, {
       isStyleProof,
     });
   }
@@ -269,7 +269,7 @@ async function main(): Promise<void> {
     ensureCharacter(store, file, proofSet.has(file.draftKey));
   }
 
-  if (store.evaluateBatchPortfolio(PILOT_CLUSTER_B_PROOF_BATCH_KEY).ok !== true) {
+  if (store.evaluateBatchPortfolio(PILOT_STYLE_PROOF_V4_BATCH_KEY).ok !== true) {
     throw new Error("cluster B portfolio QA failed after canonical hydration");
   }
 
