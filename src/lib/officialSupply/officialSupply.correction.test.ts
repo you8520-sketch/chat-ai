@@ -33,6 +33,7 @@ import {
   evaluateSceneCandidateAgainstPortfolio,
   evaluateScenePortfolioDiversity,
   extractSceneMotifs,
+  mapSceneLocation,
   resolveOfficialCharacterSceneContext,
   type OfficialCharacterSceneContext,
   type ScenePortfolioEntry,
