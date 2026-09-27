@@ -10,7 +10,7 @@ import {
 } from "@/lib/catalogPricingTier";
 import {
   type CheaperInferenceCatalogPricing,
-  updateCheaperInferenceCatalogPricing,
+  replaceCheaperInferenceCatalogSnapshot,
 } from "@/lib/cheaperInferenceCatalogPricing";
 import {
   CHEAPER_INFERENCE_BASE_URL,
@@ -132,14 +132,14 @@ async function refreshCatalog(): Promise<boolean> {
 
   const data = (await response.json()) as { data?: CatalogModel[] };
   const fetchedAt = Date.now();
-  let updated = 0;
+  const parsedCatalog: CheaperInferenceCatalogPricing[] = [];
   for (const model of data.data ?? []) {
     const parsed = parseCatalogPricing(model, fetchedAt);
     if (!parsed) continue;
-    updateCheaperInferenceCatalogPricing(parsed);
-    updated += 1;
+    parsedCatalog.push(parsed);
   }
-  if (updated <= 0) throw new Error("CheaperInference catalog is empty");
+  if (parsedCatalog.length <= 0) throw new Error("CheaperInference catalog is empty");
+  replaceCheaperInferenceCatalogSnapshot(parsedCatalog);
   lastRefreshAt = fetchedAt;
   return true;
 }
