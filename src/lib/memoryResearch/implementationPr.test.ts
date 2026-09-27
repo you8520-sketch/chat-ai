@@ -175,6 +175,19 @@ it("candidate gate and evidence must be accepted before any implementation comma
       ),
     /not accepted/
   );
+  assert.throws(
+    () =>
+      validateImplementationCandidate(
+        candidate({
+          liveExperiment: {
+            ...candidate().liveExperiment!,
+            recipeVersion: "0",
+          },
+        }),
+        recipe
+      ),
+    /recipe version mismatch/
+  );
   const h = harness();
   const [result] = openImplementationDraftPrs(
     [candidate({ liveExperiment: { ...candidate().liveExperiment!, gateDecision: "REJECTED_FALSE_MEMORY_REGRESSION" } })],
