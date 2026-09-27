@@ -20,8 +20,8 @@ describe("P3-A suggested replies offline decision-quality corpus", () => {
       assert.deepEqual(sorted(observation.issues), sorted(fixture.expectedIssues));
       assert.equal(
         parsed.length === 3,
-        fixture.expectedValid,
-        "production parser and observatory must agree on the raw contract"
+        fixture.expectedAccepted ?? fixture.expectedValid,
+        "production parser may recover only explicitly canonicalizable raw defects"
       );
     });
   }

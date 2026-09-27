@@ -987,6 +987,48 @@ describe("Admin Receipt compact view model — shared post-turn physical project
     assert.equal(vm.auxiliaryCalls.some((c) => c.label === "Suggested Replies"), true);
   });
 
+  it("CASE C2 — shared suggestion quality failure with no repair call keeps async cost complete", () => {
+    const receipt = buildV3(noStatus(), {
+      suggestedRepliesRecord: {
+        replies: [],
+        extractedAt: new Date().toISOString(),
+        source: "post-turn-shared",
+        pending: false,
+        failed: true,
+        generationSequence: 0,
+        generationRequestId: "req-shared-quality-failure",
+      } as never,
+      statusMetaRecord: displayStatusMetaRecord() as never,
+      memoryRelationshipTask: memoryTask("skipped", "shared_initial_satisfied"),
+      ledgerRows: [sharedRow(0.003)],
+    });
+
+    const suggested = receipt.async.byFamily.find(
+      (family) => family.family === "suggested_replies_repair"
+    );
+    assert.ok(suggested);
+    assert.equal(suggested!.expectationState, "not_expected");
+    assert.equal(suggested!.coverage, "complete");
+    assert.equal(suggested!.physicalCallCount, 0);
+    assert.equal(suggested!.exactActualCostUsd, 0);
+    assert.equal(suggested!.taskFailed, true);
+
+    const shared = receipt.async.byFamily.find(
+      (family) => family.family === "post_turn_shared_initial"
+    );
+    assert.ok(shared);
+    assert.equal(shared!.physicalCallCount, 1);
+    assert.ok(Math.abs((shared!.exactActualCostUsd ?? 0) - 0.003) < 1e-9);
+    assert.equal(receipt.async.coverage, "complete");
+    assert.ok(Math.abs((receipt.async.exactActualCostUsd ?? 0) - 0.003) < 1e-9);
+    const summary = buildAdminReceiptTurnSummary(receipt);
+    assert.doesNotMatch(
+      summary.marginUnavailableReason ?? "",
+      /Suggested Replies/,
+      "terminal suggestion quality must not remain a provider-cost margin blocker"
+    );
+  });
+
   it("CASE D — failed shared event reuses existing call-result rules", () => {
     const receipt = buildV3(noStatus(), {
       suggestedRepliesRecord: validSuggestedRecord() as never,

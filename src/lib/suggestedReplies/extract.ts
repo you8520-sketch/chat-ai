@@ -8,6 +8,8 @@ import {
 } from "./decisionQualityTelemetry";
 import {
   SUGGESTED_REPLIES_REQUEST_KIND,
+  SUGGESTED_REPLY_MAX_CHARS,
+  SUGGESTED_REPLY_MIN_CHARS,
   type SuggestedReplyItem,
 } from "./types";
 
@@ -25,7 +27,7 @@ Return exactly:
 Rules:
 - Exactly 3 objects in "items", one for each kind. Do not repeat a kind.
 - Korean only in "text".
-- Each "text" MUST be 50–200 characters including spaces and punctuation.
+- Each "text" MUST be ${SUGGESTED_REPLY_MIN_CHARS}–${SUGGESTED_REPLY_MAX_CHARS} characters including spaces and punctuation.
 - Mix spoken dialogue AND stage direction in every text. Stage direction uses *...* or (...). Dialogue is the user's spoken lines without a name prefix.
 - Write as the USER persona. Match their personality, gender, and speech style (반말 vs 존댓말, quirks, rhythm). If speech examples are given, imitate them.
 - Kinds — three DIFFERENT intents/actions, not three phrasings of the same move:

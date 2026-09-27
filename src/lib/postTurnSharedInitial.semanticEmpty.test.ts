@@ -218,6 +218,21 @@ describe("postTurnSharedInitial semantic-empty root cause", () => {
     assert.equal(postTurnSharedInitialSuggestedRepliesOk(parsed), true);
   });
 
+  it("R8B: under-target suggestion stays available while raw quality remains out-of-bounds", () => {
+    const input = dualInput({ includeSuggestions: true });
+    const root = JSON.parse(validJson(input)) as {
+      suggestedReplies: { items: Array<{ kind: string; text: string }> };
+    };
+    root.suggestedReplies.items[1]!.text = "짧지만 유효한 다음 행동";
+    const parsed = parsePostTurnSharedInitialResponse(JSON.stringify(root), input);
+
+    assert.equal(parsed.suggestedRepliesDecisionQuality?.contractValid, false);
+    assert.deepEqual(parsed.suggestedRepliesDecisionQuality?.issues, ["text_out_of_bounds"]);
+    assert.equal(parsed.suggestedReplies.length, 3);
+    assert.equal(parsed.suggestedReplies[1]?.text, "짧지만 유효한 다음 행동");
+    assert.equal(postTurnSharedInitialSuggestedRepliesOk(parsed), true);
+  });
+
   it("R9: relationship coalesced", () => {
     const input = dualInput({ includeSuggestions: false, includeRelationship: true });
     const parsed = parsePostTurnSharedInitialResponse(validJson(input), input);

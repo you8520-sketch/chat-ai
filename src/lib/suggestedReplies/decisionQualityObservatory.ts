@@ -21,9 +21,10 @@ export type SuggestedRepliesDecisionQualityObservation = {
 /**
  * P3-A read-only observatory for the existing suggested-replies AI decision.
  *
- * Production parsing owns the raw model contract. This wrapper exposes the
- * same classification for telemetry/offline evidence without creating a
- * second validator, repair path, retry, or provider call.
+ * The raw model contract remains the quality-observation owner. Production
+ * acceptance may safely normalize recoverable length defects, while this
+ * wrapper preserves the strict classification for telemetry/offline evidence
+ * without creating a second validator, retry, or provider call.
  */
 export function observeSuggestedRepliesDecisionQuality(
   rawModelText: string
