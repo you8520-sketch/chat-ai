@@ -73,7 +73,7 @@ export function buildDeepSeekStyleOnlyReminderBlock(extraTail?: string | null): 
 /**
  * DeepSeek-only thin-history length nudge (no numeric compensation target).
  * Desired visible band ~2,500–4,000 with spaces; TARGET/FLOOR live in common LENGTH.
- * Style/fill materials stay in common [IMMERSIVE PROSE].
+ * Style/fill materials stay in common [COMMON PROSE].
  */
 export const DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA =
   "[SHORT HISTORY]\n" +
