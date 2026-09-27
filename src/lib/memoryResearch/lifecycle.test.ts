@@ -75,7 +75,11 @@ it("decision codes map to exactly one terminal state", () => {
   assert.equal(decisionState("ACCEPTED_QUALITY_GAIN"), "ACCEPTED");
   assert.equal(decisionState("REJECTED_FALSE_MEMORY_REGRESSION"), "REJECTED");
   assert.equal(decisionState("WATCH_INSUFFICIENT_EVIDENCE"), "WATCH");
+  assert.equal(decisionState("WATCH_LIVE_EXPERIMENT_PENDING"), "WATCH");
+  assert.equal(decisionState("WATCH_IMPLEMENTATION_PR_PENDING"), "WATCH");
   assert.equal(cooldownUntilFor("REJECTED_NO_QUALITY_GAIN", now), null);
+  assert.equal(cooldownUntilFor("WATCH_LIVE_EXPERIMENT_PENDING", now), null);
+  assert.equal(cooldownUntilFor("WATCH_IMPLEMENTATION_PR_PENDING", now), null);
   assert.equal(
     cooldownUntilFor("WATCH_NO_EXPERIMENT_ADAPTER", now),
     new Date(now.getTime() + WATCH_COOLDOWN_DAYS * 86_400_000).toISOString()
@@ -139,6 +143,22 @@ it("reevaluation triggers: new release, new adapter evidence, benchmark-owner ch
     { evaluate: false, skip: "watch_cooldown" },
     "deep review never re-screens metadata-only WATCH candidates"
   );
+  const implementationPending = candidate("WATCH", {
+    lastDecision: "WATCH_IMPLEMENTATION_PR_PENDING",
+    evaluations: [
+      {
+        ...watch.evaluations[0]!,
+        decision: "WATCH_IMPLEMENTATION_PR_PENDING",
+        stateTrail: ["RESEARCHED", "SCREENED", "EXPERIMENT_ELIGIBLE", "BENCHMARKED", "WATCH"],
+      },
+    ],
+  });
+  assert.deepEqual(
+    decideReevaluation(implementationPending, observation({ candidateKey: "github:x/y" }), { ...ctx, deepReview: true }),
+    { evaluate: false, skip: "implementation_pending" },
+    "an accepted live experiment is not paid-benchmarked again while implementation is pending"
+  );
+
   const accepted = candidate("ACCEPTED");
   assert.deepEqual(decideReevaluation(accepted, observation({ candidateKey: "github:x/y" }), ctx), { evaluate: true, trigger: "draft_pr_retry" });
   assert.deepEqual(
