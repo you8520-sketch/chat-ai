@@ -117,6 +117,11 @@ snapshot ─► selectMarketSignals(snapshot, batch.marketPolicy, genre)   local
 | Discovery tags | band in `OFFICIAL_AUTHOR_QUALITY_CONTRACT.discoveryTags` (prompt == validator); grounding in `evaluateDiscoveryTags` |
 | Review | `buildDomesticMarketFitReview` — facts only, no scores or ranking |
 
+| Cast gender intent | manifest `castIntent` (`OfficialCastIntent`: targetAudience, romanceTargetProfile, desiredGenderMix, rationale) checked by `evaluateCastIntent` (`research.ts`); `evaluateWorldDiversity(..., { intendedSingleGender })` never pushes toward 50:50 |
+| Cast role diversity | `evaluateCastRoleDiversity` — occupation / hook / silhouette / speech clones, ≤2 royal/ducal leads |
+| Visual trends | snapshot `visualTrends` (`ResearchVisualTrend`, attribute-only, validated) → style-board `humanReview` notes; never an image-provider input |
+| Slot replacement | `generateOfficialPortfolioReplacement` (same portfolio rules via `marketFitRuleLines`) → only the named slots; world fields and kept briefs untouched, recorded in `world-bible.json` `portfolioRevisions` |
+
 Primary-trope repetition is the only trope failure; sharing generic secondary tropes is not an
 originality failure. Real-user behavior data (impression → chat start, 10/50-turn retention, favorite,
 revisit, paid continuation) is the follow-up owner that replaces these external heuristics.

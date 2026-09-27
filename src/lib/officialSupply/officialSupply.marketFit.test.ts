@@ -271,7 +271,7 @@ describe("Korean naming policy", () => {
     const cluster = evaluateNamePortfolio(names(["김재현", "이재혁", "박재하", "최재윤"], "korean_modern"));
     assert.ok(codes(cluster).errors.includes("name_prefix_cluster"));
     assert.ok(codes(cluster).errors.includes("name_syllable_repetition"));
-    const endings = evaluateNamePortfolio(names(["헬레나", "로웨나", "세라피나", "카일"], "western_rofan"));
+    const endings = evaluateNamePortfolio(names(["엘레나", "리나", "세레나", "카일"], "western_rofan"));
     assert.ok(codes(endings).warnings.includes("name_suffix_cluster"));
     assert.ok(codes(evaluateNamePortfolio(names(["서도윤", "서도은"], "korean_modern"))).warnings.includes("name_sibling_close"));
   });
@@ -280,8 +280,8 @@ describe("Korean naming policy", () => {
     const strangers = evaluateNamePortfolio(names(["김도윤", "김세아", "김태오"], "korean_modern"));
     assert.ok(codes(strangers).errors.includes("name_surname_repeat"));
     const family = evaluateNamePortfolio([
-      { draftKey: "a", name: "볼프강 폰 발켄하임", namingProfile: "western_rofan", kinNames: ["헬레나 폰 발켄하임"] },
-      { draftKey: "b", name: "헬레나 폰 발켄하임", namingProfile: "western_rofan" },
+      { draftKey: "a", name: "아델 폰 로젠", namingProfile: "western_rofan", kinNames: ["카릴 폰 로젠"] },
+      { draftKey: "b", name: "카릴 폰 로젠", namingProfile: "western_rofan" },
     ]);
     assert.ok(!codes(family).warnings.includes("name_surname_repeat"));
   });
