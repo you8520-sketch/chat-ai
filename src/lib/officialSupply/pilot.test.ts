@@ -16,6 +16,8 @@ import {
 import { renderAppearanceBlock } from "@/lib/officialSupply/appearance";
 import {
   compileOfficialDraftFromBible,
+  evaluateAdultPortfolioDiversity,
+  evaluateAuthorQualityContract,
   validateCharacterBible,
   type OfficialCharacterBible,
   type OfficialWorldBible,
@@ -28,6 +30,8 @@ import { validateStyleProposal } from "@/lib/officialSupply/style";
 import type { OfficialAppearanceLock, OfficialAssetPlan, OfficialCharacterDraft } from "@/lib/officialSupply/types";
 import { evaluateOriginality, evaluateWorldDiversity } from "@/lib/officialSupply/worldQa";
 import { evaluatePortfolioBalance } from "@/lib/officialSupply/research";
+import { listActiveQuarantines } from "@/lib/officialSupply/pilotArtifacts";
+import { evaluateScenePortfolioDiversity, resolveOfficialCharacterSceneContext } from "@/lib/officialSupply/scenePortfolio";
 
 /**
  * Pilot content regression — validates the committed romance-fantasy pilot
@@ -306,31 +310,92 @@ describe("official pilot content (romance fantasy 01)", () => {
     }
   });
 
-  it("cost report proves zero image calls and records every text call", () => {
+  it("cost report: physical-attempt semantics, legacy ledger baseline, zero image calls", () => {
     const cost = readJson<{
-      calls: number;
-      inputTokens: number;
-      outputTokens: number;
-      costUsd: number;
-      failures: number;
-      retries: number;
+      version: number;
+      successfulCompletions: number;
+      failedProviderAttempts: number;
+      physicalAttempts: number;
+      workflowRetries: number;
+      billedCostUsd: number;
+      failedAttemptCostUsd: number;
       imageCalls: number;
-      lines: { task: string; model: string; inputTokens: number; outputTokens: number }[];
+      lines: { task: string; outcome: string; workflowAttempt: number; model: string; costUsd: number | null }[];
+      legacy: { successfulCompletions: number; billedCostUsd: number; ledgerCutoff: string; failedProviderAttempts: { tracked: boolean } };
     }>(path.join(PILOT_DIR, "cost.json"));
+    assert.equal(cost.version, 2);
     assert.equal(cost.imageCalls, 0);
-    const byTask = (...tasks: string[]): number => cost.lines.filter((l) => tasks.includes(l.task)).length;
-    assert.ok(byTask("world_bible") >= 3, "world core/atlas/portfolio lines");
-    assert.ok(byTask("character_bible_1") >= 10);
-    // Slots 02/05 were built under the legacy two-call bible structure, where
-    // one combined call did the voice+bonds job (see cost note + git history).
-    assert.ok(byTask("character_bible_voice", "character_bible_2") >= 10);
-    assert.ok(byTask("character_bible_bonds", "character_bible_2") >= 10);
-    assert.ok(byTask("appearance") >= 10);
-    assert.ok(byTask("asset_plan") >= 10);
-    assert.ok(byTask("style_board") >= 1);
-    for (const line of cost.lines) {
-      assert.ok(line.model.trim().length > 0);
-      assert.ok(line.inputTokens >= 0 && line.outputTokens > 0);
+    assert.equal(cost.physicalAttempts, cost.successfulCompletions + cost.failedProviderAttempts);
+    assert.equal(cost.lines.length, cost.physicalAttempts);
+    assert.equal(cost.lines.filter((l) => l.outcome === "success").length, cost.successfulCompletions);
+    assert.equal(cost.lines.filter((l) => l.outcome !== "success").length, cost.failedProviderAttempts);
+    const summed = cost.lines.reduce((s, l) => s + (l.costUsd ?? 0), 0);
+    assert.ok(Math.abs(summed - cost.billedCostUsd) < 1e-6, `${summed} vs ${cost.billedCostUsd}`);
+    assert.ok(cost.failedAttemptCostUsd <= cost.billedCostUsd);
+    for (const line of cost.lines) assert.ok(line.workflowAttempt >= 1 && line.model.trim().length > 0);
+    // Pre-v2 spend is summarized from the canonical ledger, not from the incomplete v1 lines.
+    assert.ok(cost.legacy.successfulCompletions >= 58);
+    assert.ok(cost.legacy.billedCostUsd > 0);
+    assert.equal(cost.legacy.failedProviderAttempts.tracked, false);
+    assert.match(cost.legacy.ledgerCutoff, /^\d{4}-\d{2}-\d{2} /);
+  });
+
+  it("no stale active quarantine remains once the pilot is complete", () => {
+    assert.deepEqual(listActiveQuarantines(PILOT_DIR), []);
+  });
+
+  it("every stored draft passes the unified author quality contract", () => {
+    for (const file of chars()) {
+      const qa = evaluateAuthorQualityContract(file.bible);
+      assert.equal(qa.ok, true, `slot ${file.slot}: ${JSON.stringify(qa.errors)}`);
+    }
+  });
+
+  it("adult portfolio is diverse and every sheet keeps the canonical adult contract", () => {
+    const files = chars();
+    const qa = evaluateAdultPortfolioDiversity(files.map((f) => f.bible));
+    assert.equal(qa.ok, true, JSON.stringify(qa.errors));
+    const m = manifest() as unknown as { adultPlan: Record<string, { dialogueProfile: string; consentModes: string[] }> };
+    for (const file of files.filter((f) => f.draft.adult.nsfw)) {
+      const plan = m.adultPlan[file.draftKey];
+      assert.ok(plan, `${file.draftKey} missing from manifest adultPlan`);
+      const adult = file.draft.adult;
+      if (adult.nsfw) {
+        assert.equal(adult.adultDialogueProfile, plan.dialogueProfile);
+        assert.deepEqual(adult.adultConsentModesAllowed, plan.consentModes);
+        assert.ok(!adult.adultConsentModesAllowed.includes("cnc_opt_in"));
+        assert.ok(adult.participantMinAge >= 19);
+      }
+    }
+  });
+
+  it("scene portfolio: character-specific, no world-wide clone", () => {
+    const { bible: world } = worldBible();
+    const files = chars();
+    const entries = files.map((f) => ({
+      draftKey: f.draftKey,
+      name: f.bible.identity.name,
+      plan: f.assetPlan!,
+      context: resolveOfficialCharacterSceneContext({ world, bible: f.bible, brief: f.brief as never }),
+    }));
+    const qa = evaluateScenePortfolioDiversity(entries, world.locations);
+    assert.equal(qa.ok, true, JSON.stringify(qa.errors));
+    assert.ok(qa.stats.cloneRate <= 0.25);
+    for (const share of Object.values(qa.stats.locationShare)) assert.ok(share < 0.8);
+  });
+
+  it("corrections touched only the allowed sections (voice fields / adultSection / assetPlan)", () => {
+    const allowed: Record<string, string[]> = {
+      "voice-fix": ["greeting", "publicDescription", "speech"],
+      "adult-fix": ["adultSection"],
+      assetplan: ["assetPlan"],
+    };
+    for (const file of chars()) {
+      for (const revision of (file as unknown as { revisions?: { step: string; fields: string[] }[] }).revisions ?? []) {
+        for (const field of revision.fields) {
+          assert.ok(allowed[revision.step]?.includes(field), `${file.draftKey}: ${revision.step} touched ${field}`);
+        }
+      }
     }
   });
 
@@ -339,6 +404,8 @@ describe("official pilot content (romance fantasy 01)", () => {
       "src/lib/officialSupply/author.ts",
       "src/lib/officialSupply/authorPrompts.ts",
       "src/lib/officialSupply/bible.ts",
+      "src/lib/officialSupply/scenePortfolio.ts",
+      "src/lib/officialSupply/pilotArtifacts.ts",
       "scripts/official-supply-pilot-author.ts",
     ];
     for (const file of files) {

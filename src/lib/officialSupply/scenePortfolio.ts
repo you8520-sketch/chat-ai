@@ -261,6 +261,11 @@ export const SCENE_PORTFOLIO_THRESHOLDS = {
   motifShareError: 0.7,
   /** Same location + motif Jaccard ≥ this → clone pair. */
   clonePairMotifJaccard: 0.5,
+  /**
+   * Inside one character a profession motif (e.g. 거래 for a broker) runs
+   * through every scene, so only near-identical incident sets count as clones.
+   */
+  intraCloneMotifJaccard: 0.67,
   /** Share of all scenes that are part of a cross-character clone pair. */
   cloneRateError: 0.25,
   /** Scenes per character allowed without any character anchor. */
@@ -474,7 +479,7 @@ export function evaluateSceneCandidateAgainstPortfolio(
     for (let j = i + 1; j < mine.length; j++) {
       const a = specificMotifs(mine[i]!.motifs);
       const b = specificMotifs(mine[j]!.motifs);
-      if (a.length && jaccard(a, b) >= t.clonePairMotifJaccard) {
+      if (a.length && jaccard(a, b) >= t.intraCloneMotifJaccard) {
         errors.push({ code: "scene_intra_clone", message: `${mine[i]!.slotKey} ~ ${mine[j]!.slotKey}: same incident type` });
       }
     }

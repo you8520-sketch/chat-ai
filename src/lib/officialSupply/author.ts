@@ -1195,13 +1195,10 @@ export async function generateOfficialAssetPlan(input: {
       const depiction =
         typeof slot.depiction === "string" && ASSET_DEPICTIONS.has(slot.depiction) ? slot.depiction : "standard";
       const rawTag = typeof slot.personTag === "string" && slot.personTag ? slot.personTag : null;
-      let personTag: OfficialAssetPlan["slots"][number]["personTag"] = null;
-      if (rawTag) {
-        if (!isAssetPersonTag(rawTag)) {
-          throw new OfficialSupplyGateError("author_shape_invalid", `slot[${index}]: unknown personTag ${rawTag}`);
-        }
-        personTag = rawTag;
-      }
+      // personTag is an optional taxonomy hint: an off-taxonomy value is dropped,
+      // never invented into the canonical person-tag list.
+      const personTag: OfficialAssetPlan["slots"][number]["personTag"] =
+        rawTag && isAssetPersonTag(rawTag) ? rawTag : null;
       return {
         slotKey: typeof slot.slotKey === "string" ? slot.slotKey : `slot-${index}`,
         kind: kind as OfficialAssetPlan["slots"][number]["kind"],

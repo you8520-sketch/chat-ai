@@ -12,6 +12,7 @@
  * - lorebook content ≤800, name ≤40, keywords ≤10
  */
 import { ASSET_PERSON_TAGS } from "@/lib/assetPersonTags";
+import { CREATOR_ASSET_TAG_MAX } from "@/lib/characterAssets";
 import type { OfficialCharacterSceneContext } from "@/lib/officialSupply/scenePortfolio";
 
 /**
@@ -448,6 +449,7 @@ export function buildAssetPlanSystem(): string {
     "- representative는 depiction=standard 고정. 성인 시트가 아니면 전 슬롯 standard.",
     `- personTag는 다음 목록 중 감정과 정확히 일치할 때만 쓰고, 아니면 null(목록 외 표현 절대 금지): ${ASSET_PERSON_TAGS.join(", ")}.`,
     "- slotKey는 rep/sig1..4/emo1..6/scene1..3 고정.",
+    `- tag는 ${CREATOR_ASSET_TAG_MAX}자 이내의 짧은 의미 태그(대괄호·줄바꿈 금지). 긴 설명은 expression/situation에 쓴다.`,
   ].join("\n");
 }
 

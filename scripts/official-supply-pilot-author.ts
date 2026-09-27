@@ -720,7 +720,9 @@ async function planOneCharacterScenes(input: {
         modelId: input.modelId,
       });
       const qa = validatePilotAssetPlan(file.draft, plan);
-      if (!qa.ok) throw new OfficialSupplyGateError("author_plan_rejected", qa.errors.map((e) => e.code).join(","), qa);
+      if (!qa.ok) {
+        throw new OfficialSupplyGateError("author_plan_rejected", qa.errors.map((e) => `${e.code}: ${e.message}`).join("; "), qa);
+      }
       const candidate: ScenePortfolioEntry = { draftKey: file.draftKey, name: file.bible.identity.name, plan, context };
       const portfolioQa = evaluateSceneCandidateAgainstPortfolio(candidate, planned, world.locations);
       if (!portfolioQa.ok) {
@@ -748,11 +750,17 @@ async function planOneCharacterScenes(input: {
   });
 }
 
-async function stepAssetPlans(modelId: string, maxAttempts: number, onlySlot?: number): Promise<void> {
+async function stepAssetPlans(
+  modelId: string,
+  maxAttempts: number,
+  onlySlot?: number,
+  fromSlot?: number
+): Promise<void> {
   const report = loadCost();
   const world = readWorld();
   const slots = world.portfolio.map((b) => b.slot);
-  const targets = onlySlot ? [onlySlot] : slots;
+  // --from=N resumes the sequential pass: slots before N keep their already re-planned scenes.
+  const targets = onlySlot ? [onlySlot] : slots.filter((s) => s >= (fromSlot ?? 1));
   // Sequential: each character is planned against the scenes already chosen by its siblings.
   let files = slots.map((slot) => readChar(slot));
   for (const slot of targets) {
@@ -920,7 +928,7 @@ async function stepStyles(modelId: string, maxAttempts: number): Promise<void> {
   });
 }
 
-function parseArgs(): { step: string; slot?: number; concurrency: number; maxAttempts: number } {
+function parseArgs(): { step: string; slot?: number; from?: number; concurrency: number; maxAttempts: number } {
   const args = process.argv.slice(2);
   const get = (key: string): string | undefined => {
     const hit = args.find((a) => a.startsWith(`--${key}=`));
@@ -929,13 +937,14 @@ function parseArgs(): { step: string; slot?: number; concurrency: number; maxAtt
   return {
     step: get("step") ?? "portfolio-qa",
     slot: get("slot") ? Number(get("slot")) : undefined,
+    from: get("from") ? Number(get("from")) : undefined,
     concurrency: Number(get("concurrency") ?? 2),
     maxAttempts: Number(get("attempts") ?? 3),
   };
 }
 
 async function main(): Promise<void> {
-  const { step, slot, concurrency, maxAttempts } = parseArgs();
+  const { step, slot, from, concurrency, maxAttempts } = parseArgs();
   const offline = step === "portfolio-qa" || step === "cost-reconcile";
   if (!offline && process.env.OFFICIAL_PILOT_LIVE !== "1") {
     console.error("[pilot] refusing: set OFFICIAL_PILOT_LIVE=1 to run live provider generation.");
@@ -958,7 +967,7 @@ async function main(): Promise<void> {
     case "appearance":
       return stepAppearance(modelId, maxAttempts);
     case "assetplan":
-      return stepAssetPlans(modelId, maxAttempts, slot);
+      return stepAssetPlans(modelId, maxAttempts, slot, from);
     case "voice-fix":
       return stepVoiceFix(modelId, maxAttempts);
     case "adult-fix":

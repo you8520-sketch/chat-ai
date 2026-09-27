@@ -463,35 +463,9 @@
       {
         "slotKey": "rep",
         "kind": "representative",
-        "tag": "2:3 카드 초상, 반투명 햇빛 베일과 금박 로브",
-        "expression": "차분하고 위엄 있는 표정",
-        "pose": "정면을 향해 선 상반신 초상, 한 손으로 베일 끝을 가볍게 쥠",
-        "outfit": "default",
-        "location": null,
-        "situation": null,
-        "characterPresence": "required",
-        "depiction": "standard",
-        "personTag": "진지함"
-      },
-      {
-        "slotKey": "sig1",
-        "kind": "signature",
-        "tag": "햇빛을 경계하는 베일 너머의 시선",
-        "expression": "빛을 살피듯 절제된 표정",
-        "pose": "목과 손목을 감싼 옷깃을 여민 채 고개를 약간 돌림",
-        "outfit": "default",
-        "location": null,
-        "situation": null,
-        "characterPresence": "required",
-        "depiction": "standard",
-        "personTag": null
-      },
-      {
-        "slotKey": "sig2",
-        "kind": "signature",
-        "tag": "금박 로브에 드리운 귀족적 기품",
-        "expression": "부드러운 미소 아래 감정을 감춤",
-        "pose": "등을 곧게 세우고 장갑 낀 손을 겹쳐 모음",
+        "tag": "태양궁의 황자",
+        "expression": "차분한 미소 아래 피로와 경계가 스친다",
+        "pose": "앉아 기록장을 펼친 채 정면을 바라본다",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -500,50 +474,24 @@
         "personTag": "미소"
       },
       {
-        "slotKey": "sig3",
+        "slotKey": "sig1",
         "kind": "signature",
-        "tag": "에테르의 흐름을 읽는 섬세한 손끝",
-        "expression": "집중한 눈빛과 굳게 다문 입술",
-        "pose": "손목을 가린 소매 끝에서 희미한 마력의 궤적을 짚음",
+        "tag": "금박의 절제",
+        "expression": "온화하지만 속내를 감춘 진지한 표정",
+        "pose": "서서 베일 끝을 정돈한다",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
-        "slotKey": "sig4",
+        "slotKey": "sig2",
         "kind": "signature",
-        "tag": "비밀을 품은 고요한 귀족의 실루엣",
-        "expression": "속내를 드러내지 않는 무표정",
-        "pose": "베일을 쓴 채 몸을 반쯤 돌려 상대를 응시함",
-        "outfit": "default",
-        "location": null,
-        "situation": null,
-        "characterPresence": "required",
-        "depiction": "standard",
-        "personTag": "무표정"
-      },
-      {
-        "slotKey": "emo1",
-        "kind": "emotion",
-        "tag": "차폐막 붕괴를 앞둔 억눌린 긴장",
-        "expression": "위기를 숨기려 애쓰며 시선이 흔들림",
-        "pose": "한 손으로 가슴께를 짚고 다른 손으로 마력 흐름을 붙듦",
-        "outfit": "default",
-        "location": null,
-        "situation": null,
-        "characterPresence": "required",
-        "depiction": "standard",
-        "personTag": "긴장"
-      },
-      {
-        "slotKey": "emo2",
-        "kind": "emotion",
-        "tag": "정략결혼 제안의 진의를 꿰뚫는 의심",
-        "expression": "눈을 가늘게 뜨고 상대의 말을 재단함",
-        "pose": "팔을 느슨하게 교차하고 턱을 살짝 듦",
+        "tag": "황실의 관측자",
+        "expression": "관측 기록을 읽으며 의심을 누른다",
+        "pose": "앉아 에테르 흔적을 기록한다",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -552,11 +500,76 @@
         "personTag": "의심"
       },
       {
+        "slotKey": "sig3",
+        "kind": "signature",
+        "tag": "위험한 거래",
+        "expression": "상대의 대답을 기다리는 냉정한 눈빛",
+        "pose": "한 손으로 봉인된 문서를 내민다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함"
+      },
+      {
+        "slotKey": "sig4",
+        "kind": "signature",
+        "tag": "숨긴 고갈",
+        "expression": "기침을 삼키며 창백한 얼굴을 감춘다",
+        "pose": "기둥에 기대어 한 손으로 입가를 가린다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "긴장"
+      },
+      {
+        "slotKey": "emo1",
+        "kind": "emotion",
+        "tag": "피로한 다정함",
+        "expression": "상대의 안부를 묻는 희미한 미소",
+        "pose": "차잔을 건네며 앉아 있다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "미소"
+      },
+      {
+        "slotKey": "emo2",
+        "kind": "emotion",
+        "tag": "고통의 은폐",
+        "expression": "통증을 참느라 굳게 다문 입술",
+        "pose": "몸을 웅크리고 손목을 움켜쥔다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "긴장"
+      },
+      {
         "slotKey": "emo3",
         "kind": "emotion",
-        "tag": "배신의 폭로에 드러난 차가운 분노",
-        "expression": "분노를 억누르지 못한 날 선 표정",
-        "pose": "주먹을 쥔 채 상대에게 한 걸음 다가섬",
+        "tag": "죄책의 침묵",
+        "expression": "말하지 못한 선택을 떠올리며 시선을 내린다",
+        "pose": "앉아 두 손을 맞잡는다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "슬픔"
+      },
+      {
+        "slotKey": "emo4",
+        "kind": "emotion",
+        "tag": "통제의 분노",
+        "expression": "억눌렀던 분노가 차갑게 드러난다",
+        "pose": "서서 손에 든 보고서를 구긴다",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -565,37 +578,11 @@
         "personTag": "분노"
       },
       {
-        "slotKey": "emo4",
-        "kind": "emotion",
-        "tag": "가면 아래 잠시 새어 나온 애정",
-        "expression": "경계가 풀린 다정한 눈빛",
-        "pose": "상대의 손을 조심스레 감싸 쥠",
-        "outfit": "default",
-        "location": null,
-        "situation": null,
-        "characterPresence": "required",
-        "depiction": "standard",
-        "personTag": "애정"
-      },
-      {
         "slotKey": "emo5",
         "kind": "emotion",
-        "tag": "마력 고갈 뒤의 창백한 탈진",
-        "expression": "초점이 흐려지고 눈꺼풀이 무거움",
-        "pose": "벽에 기대어 고개를 숙이고 숨을 고름",
-        "outfit": "default",
-        "location": null,
-        "situation": null,
-        "characterPresence": "required",
-        "depiction": "standard",
-        "personTag": "피곤함"
-      },
-      {
-        "slotKey": "emo6",
-        "kind": "emotion",
-        "tag": "예상 밖의 폭로에 흔들린 침착함",
-        "expression": "순간적으로 굳어지는 당황한 표정",
-        "pose": "손에 들었던 봉인을 놓칠 듯 움찔함",
+        "tag": "의존의 망설임",
+        "expression": "도움을 청하고 싶지만 망설이는 눈빛",
+        "pose": "손을 내밀다 멈춘다",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -604,14 +591,27 @@
         "personTag": "당황"
       },
       {
+        "slotKey": "emo6",
+        "kind": "emotion",
+        "tag": "결단의 온기",
+        "expression": "두려움을 넘어 함께하겠다는 단단한 표정",
+        "pose": "상대와 나란히 서서 기록장을 펼친다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함"
+      },
+      {
         "slotKey": "scene1",
         "kind": "scene",
-        "tag": "솔라리스 유리온실의 붕괴 직전 밀담",
-        "expression": "위기 속에서도 침착함을 유지하려는 표정",
-        "pose": "차폐막의 균열 아래 상대와 마주 서서 마력의 흐름을 함께 붙듦",
+        "tag": "온실의 첫 거래",
+        "expression": "피를 토한 뒤에도 침착하게 거래를 제안한다",
+        "pose": "유리온실 바닥에 한쪽 무릎을 짚고 기록장을 내민다",
         "outfit": "default",
-        "location": "솔라리스 유리온실, 태양궁 최상층",
-        "situation": "에너지 고갈로 유리온실의 차폐막이 무너지기 직전이다. 카엘룸은 상대에게 치명적인 정략결혼 제안을 꺼내려다, 그 제안에 얽힌 배신의 증거를 먼저 내놓는다.",
+        "location": "솔라리스 유리온실의 비밀 관측 구역",
+        "situation": "목격자에게 비밀 유지와 에테르 원인 규명을 부탁하며 황실 권한과 치료 자원을 대가로 건다",
         "characterPresence": "required",
         "depiction": "standard",
         "personTag": "긴장"
@@ -619,12 +619,12 @@
       {
         "slotKey": "scene2",
         "kind": "scene",
-        "tag": "발켄하임 검은 방벽의 보급 단절과 체온",
-        "expression": "경계와 안도 사이에서 흔들리는 표정",
-        "pose": "혹한의 방벽 안쪽에서 상대와 어깨를 맞댄 채 무기를 겨눔",
+        "tag": "봉인의 선택",
+        "expression": "조사 결과를 앞에 두고 결정을 재촉한다",
+        "pose": "아카이브의 봉인 장치 앞에서 해독 기록을 펼친다",
         "outfit": "default",
-        "location": "발켄하임 혹한의 검은 방벽, 흑철 요새",
-        "situation": "마수 대침공으로 보급이 끊긴 요새에서 두 사람은 체온을 나누며 밤을 버틴다. 바깥의 포성이 잠시 멎은 틈, 카엘룸은 군사 반역 음모의 증거를 발견하고 상대에게 공모 여부를 묻는다.",
+        "location": "판도라 대도서관 심연의 아카이브",
+        "situation": "금서 해독 중 마력 역류가 발생하고 황실 감찰과 학술원 수사가 들이닥친다. 봉인을 유지해 치료 정보를 감출지, 풀어 원인을 드러낼지 함께 선택해야 한다",
         "characterPresence": "required",
         "depiction": "standard",
         "personTag": "긴장"
@@ -632,15 +632,15 @@
       {
         "slotKey": "scene3",
         "kind": "scene",
-        "tag": "판도라 심연의 아카이브에서 번진 금지된 역류",
-        "expression": "마력 역류를 견디며 진실을 추궁하는 표정",
-        "pose": "흩어진 금서 페이지를 붙잡고 한 손으로 상대를 위험에서 밀어냄",
+        "tag": "방벽의 반역 문서",
+        "expression": "동맹을 잃을 위험을 감수하며 진실을 추궁한다",
+        "pose": "보급 장부와 군사 명령서를 대조하며 현장을 가리킨다",
         "outfit": "default",
-        "location": "판도라 대도서관 심연의 아카이브",
-        "situation": "금서 해독 도중 금지된 마력이 폭주하고, 수사청 특무관이 아카이브를 불시에 검문한다. 카엘룸은 역류의 원인이 된 문장을 감추는 대신 상대에게 해독의 마지막 열쇠를 맡길지 결정해야 한다.",
+        "location": "발켄하임 혹한의 검은 방벽, 지휘부 기록실",
+        "situation": "보급 단절의 책임을 둘러싼 군사 반역 음모를 적발한다. 볼프강과의 동맹을 지킬지 공개적으로 증거를 내놓을지 카엘룸이 선택한다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "의심"
       }
     ]
   },
@@ -688,6 +688,165 @@
         "costUsd": 0.000277,
         "providerRequestId": null
       }
+    },
+    {
+      "step": "assetplan",
+      "fields": [
+        "assetPlan"
+      ],
+      "reasons": [
+        "scene planner collapse (portfolio)"
+      ],
+      "at": "2026-09-27T02:01:36.389Z",
+      "provenance": {
+        "model": "gpt-6-luna",
+        "requestKind": "official-character-author",
+        "templateVersion": "pilot-rf-01/v2",
+        "snapshotVersion": "market-research-snapshot-2026-09.json",
+        "attempt": 3,
+        "createdAt": "2026-09-27T02:01:36.389Z",
+        "inputTokens": 2279,
+        "outputTokens": 1324,
+        "costUsd": 0.000662,
+        "providerRequestId": null
+      }
     }
-  ]
+  ],
+  "sceneContext": {
+    "name": "카엘룸 폰 에테르노스",
+    "occupation": "황태자 대행·황실 유리온실 관리관",
+    "faction": "태양의 옥좌",
+    "socialPosition": "황족 직계 2황자",
+    "ranked": [
+      {
+        "name": "솔라리스 유리온실 (태양궁 최상층)",
+        "tier": "primary",
+        "score": 52,
+        "why": [
+          "황실",
+          "유리온실",
+          "황족",
+          "에테르노스",
+          "태양",
+          "온실"
+        ],
+        "rpEvents": "가면을 쓴 밀담, 에너지 고갈로 인한 온실 차폐막 붕괴 위기 속 독대, 치명적인 정략결혼 제안과 배신의 폭로"
+      },
+      {
+        "name": "성스러운 빛의 회랑 (제국 대신전)",
+        "tier": "secondary",
+        "score": 23,
+        "why": [
+          "황실",
+          "태양",
+          "제국",
+          "치료",
+          "대신",
+          "수사"
+        ],
+        "rpEvents": "축복 의식 도중 일어난 기적의 조작 탄로, 고해성사실을 사이에 둔 은밀한 밀회, 광신도들의 이단 처단 폭동"
+      },
+      {
+        "name": "판도라 대도서관 심연의 아카이브",
+        "tier": "secondary",
+        "score": 22,
+        "why": [
+          "에테르노스",
+          "에테르",
+          "고갈",
+          "마력",
+          "권한",
+          "원인"
+        ],
+        "rpEvents": "금서 해독 중 발생한 금지된 마력 역류 현상, 서가 구석 밀실에서의 금지된 애정 행각 및 증거 인멸, 수사청 특무관의 불시 검문"
+      },
+      {
+        "name": "메르카토르 황금 증권거래소 및 지하 암시장",
+        "tier": "exceptional",
+        "score": 14,
+        "why": [
+          "에테르노스",
+          "비밀",
+          "에테르",
+          "정보",
+          "귀족",
+          "에테르망"
+        ],
+        "rpEvents": "가짜 채권 유통을 둘러싼 협박과 추격전, 비밀 경매에서 매물로 나온 금지된 유물 탈취, 빚더미에 앉은 귀족의 비밀 계약"
+      },
+      {
+        "name": "에테르노스 제국 하수도 가스 밸브 구역 (슬럼가)",
+        "tier": "exceptional",
+        "score": 12,
+        "why": [
+          "에테르노스",
+          "제국",
+          "에테르",
+          "구역마다",
+          "에테르망",
+          "위험한"
+        ],
+        "rpEvents": "마도 증기 폭발 직전의 탈출, 부상당한 요인을 숨겨주는 위험한 동거, 빈민가 폭동과 암살자의 기습"
+      },
+      {
+        "name": "발켄하임 혹한의 검은 방벽 (흑철 요새)",
+        "tier": "exceptional",
+        "score": 4,
+        "why": [
+          "방벽",
+          "끊긴다",
+          "귀족",
+          "체온"
+        ],
+        "rpEvents": "혹한기 마수 대침공 속의 사투, 보급 끊긴 요새 안에서의 체온을 나눈 밀착, 군사 반역 음모의 현장 적발"
+      }
+    ],
+    "hooks": {
+      "immediateHook": "피를 토한 카엘룸은 목격자인 유저에게 비밀을 지키고 에테르 원인을 찾는 대신, 황실 권한과 치료 자원을 내놓겠다는 치명적 거래를 제안한다.",
+      "repeatable": [
+        "온실에서 식물을 돌보고 차를 마시며 서로의 경계와 일상을 익힌다.",
+        "증상과 에테르 흔적을 기록하고 치료법·자원·정보를 교환한다.",
+        "궁정 면담, 길드 심부름, 방벽 보고를 함께 처리하며 소문과 의심에 대응한다."
+      ],
+      "mediumConflict": "황실 감찰, 학술원 수사, 길드의 코어 거래가 겹치며 누가 치료 정보를 쥘지 다툰다. 봉인을 지킬지 풀지 선택해야 한다.",
+      "longTermChange": "카엘룸은 빚으로 관계를 묶는 습관을 바꾸거나 더 굳힐 수 있다. 유저의 선택에 따라 권력·치료·동맹의 형태가 달라지며 결말은 고정되지 않는다.",
+      "personalSituation": "형의 죽음 뒤 황태자 대행이 된 카엘룸은 황실 유리온실 관리관이라는 명목으로 관측 자료와 사람을 동시에 다룬다. 비밀 온실에는 정제탑 폭파 뒤 에테르 흐름이 달라진 흔적과, 그 변화를 숨기려는 황실 기록이 쌓여 있다. 그는 흐름을 되짚으려 자기 혈류를 매개로 삼았고, 그 대가로 마력 고갈 증후군이 깊어져 얼마 남지 않은 시간을 예상한다. 치료와 감시를 피하려고 증상을 감췄지만 더는 혼자 관측을 지속할 수 없다. 누군가 온실에 들어온다면 그는 도움을 청하는 대신 치명적인 거래부터 내놓을 것이다. 자신의 기록과 권한을 제공하는 대가로 관측을 함께하고, 자신이 죽거나 침식 마법을 택하기 전에 멈춰 달라는 제안이다. 그 거래에는 진실을 나누려는 의도와 상대를 자기 운명에 묶으려는 충동이 섞여 있다. 상대가 거절할 ",
+      "backstoryResidue": [
+        "권력에서 물러나 있으면 누구도 다치지 않는다고 믿는다. 동시에 권력의 작동법을 누구보다 잘 알아, 필요할 때에는 무섭도록 정확하게 쓴다.",
+        "위기를 통제한다는 명분으로 침묵을 택한 일이 그를 괴롭힌다. 온화한 말투 아래에는 다음 재난을 막지 못할지 모른다는 죄책감이 있다.",
+        "스스로를 소모품처럼 다루는 습관과 타인에게 의존하고 싶은 욕망이 함께 남았다. 위급할수록 누군가에게 위험한 거래를 제안해 곁에 묶어 두려 한다."
+      ],
+      "userInitialView": "비밀 온실에서 피를 토하는 자신을 발견한 목격자. 위협인지 구원자인지 판단을 미룬다.",
+      "relationshipCues": [
+        "볼프강: 북부 방벽의 수호사령관, 황실의 핵심 동맹.",
+        "루시안: 황실 거래를 중개하는 회계사.",
+        "율리우스: 에테르 고갈을 연구하는 학자."
+      ]
+    },
+    "anchors": [
+      "황태자",
+      "대행",
+      "황실",
+      "유리온실",
+      "관리관",
+      "황족",
+      "직계",
+      "2황자",
+      "에테르노스",
+      "태양",
+      "옥좌",
+      "카엘룸",
+      "26세",
+      "꺼져",
+      "가는",
+      "제국",
+      "후계자이자",
+      "구원",
+      "공멸",
+      "경계",
+      "홀로",
+      "시험",
+      "시한부"
+    ]
+  }
 }
