@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
+import { DEFAULT_HTTP_BUDGET } from "@/lib/memoryResearch/cycle";
 import {
+  ARXIV_QUERIES,
   arxivSource,
   classifyText,
   githubDiscoverySource,
   githubWatchlistSource,
   GITHUB_DISCOVERY_QUERIES,
+  GITHUB_DISCOVERY_RESULTS_PER_QUERY,
   GITHUB_WATCHLIST,
   parseArxivAtom,
   type SourceContext,
@@ -204,4 +207,26 @@ it("HTTP budget caps source calls; arXiv queries are spaced ≥3s apart", async 
   assert.ok(c.sleeps.every((ms) => ms >= 3000));
   assert.match(out.errors.join(" "), /budget 2 exhausted/);
   assert.equal(out.observations.length, 2, "same papers across queries are deduped by key");
+});
+
+
+it("curated watchlist covers current memory systems/benchmarks without starving default sources", () => {
+  const repos = GITHUB_WATCHLIST.map((entry) => entry.repo.toLowerCase());
+  assert.equal(new Set(repos).size, repos.length, "curated watchlist must not duplicate repositories");
+  for (const required of [
+    "agentscope-ai/reme",
+    "vectorize-io/hindsight",
+    "xiaowu0162/longmemeval-v2",
+  ]) {
+    assert.ok(repos.includes(required), `missing current curated source ${required}`);
+  }
+
+  const worstCaseHttpCalls =
+    GITHUB_WATCHLIST.length * 2 +
+    GITHUB_DISCOVERY_QUERIES.length * (1 + GITHUB_DISCOVERY_RESULTS_PER_QUERY) +
+    ARXIV_QUERIES.length;
+  assert.ok(
+    DEFAULT_HTTP_BUDGET >= worstCaseHttpCalls,
+    `default source budget ${DEFAULT_HTTP_BUDGET} is below worst-case bounded source demand ${worstCaseHttpCalls}`
+  );
 });
