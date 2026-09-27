@@ -136,6 +136,14 @@ export const MODEL_PRICING_TRACKING_DDL = `
     reference_input_usd_per_million REAL,
     reference_output_usd_per_million REAL,
     discount_percent REAL,
+    model_type TEXT,
+    endpoint TEXT,
+    catalog_provider TEXT,
+    aliases_json TEXT NOT NULL DEFAULT '[]',
+    capabilities_json TEXT NOT NULL DEFAULT '{}',
+    catalog_pricing_version TEXT,
+    catalog_pricing_checked_at TEXT,
+    catalog_pricing_updated_at TEXT,
     latest_catalog_fingerprint TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -211,5 +219,30 @@ export function ensureModelPricingTrackingSchema(
     db.exec(
       `ALTER TABLE ${MODEL_PRICE_SNAPSHOTS_TABLE} ADD COLUMN cache_write_rate_provenance TEXT NOT NULL DEFAULT 'unknown_legacy'`
     );
+  }
+
+  const discoveryColumns = new Set(
+    (
+      db.prepare(`PRAGMA table_info(${PROVIDER_MODEL_DISCOVERIES_TABLE})`).all() as Array<{
+        name: string;
+      }>
+    ).map((column) => column.name)
+  );
+  const discoveryAdditions: Array<[string, string]> = [
+    ["model_type", "TEXT"],
+    ["endpoint", "TEXT"],
+    ["catalog_provider", "TEXT"],
+    ["aliases_json", "TEXT NOT NULL DEFAULT '[]'"],
+    ["capabilities_json", "TEXT NOT NULL DEFAULT '{}'"],
+    ["catalog_pricing_version", "TEXT"],
+    ["catalog_pricing_checked_at", "TEXT"],
+    ["catalog_pricing_updated_at", "TEXT"],
+  ];
+  for (const [name, ddl] of discoveryAdditions) {
+    if (!discoveryColumns.has(name)) {
+      db.exec(
+        `ALTER TABLE ${PROVIDER_MODEL_DISCOVERIES_TABLE} ADD COLUMN ${name} ${ddl}`
+      );
+    }
   }
 }
