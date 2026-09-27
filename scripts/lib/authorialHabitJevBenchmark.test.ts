@@ -211,6 +211,13 @@ describe("authorial habit JEV benchmark execution isolation", () => {
     assert.equal(result.status, "RAN");
     if (result.status !== "RAN") return;
     assert.equal(result.totalProviderCalls, 1);
+    assert.equal(result.jev.rows[0]?.choiceConfidence, 0.9);
+    assert.equal(result.jev.rows[0]?.choiceProbabilities?.HABIT_PRESENT, 0.9);
+    assert.equal(
+      result.jev.rows[0]?.choiceProbabilities?.CONTEXTUALLY_JUSTIFIED,
+      0.05
+    );
+    assert.equal(result.jev.rows[0]?.choiceProbabilities?.UNCERTAIN, 0.05);
     assert.equal(result.productionMutationEnabled, false);
     assert.equal(result.runtimeHookEnabled, false);
     assert.equal(seen.length, 1);
