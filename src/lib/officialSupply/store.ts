@@ -776,6 +776,27 @@ export class OfficialSupplyStore {
       .run(error.slice(0, 500), draftKey, slotKey, workerId);
   }
 
+  /**
+   * Releases only the current claim when preparation failed before a provider
+   * request began. The provider-attempt budget/quota must not be consumed.
+   */
+  failSlotBeforeProvider(draftKey: string, slotKey: string, workerId: string, error: string): void {
+    const info = this.db
+      .prepare(
+        `UPDATE official_supply_assets
+         SET status='failed', attempts=CASE WHEN attempts > 0 THEN attempts - 1 ELSE 0 END,
+             lease_owner=NULL, lease_expires_at=NULL, error=?, updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=? AND status='generating' AND lease_owner=?`
+      )
+      .run(error.slice(0, 500), draftKey, slotKey, workerId);
+    if (info.changes !== 1) {
+      throw new OfficialSupplyGateError(
+        "pre_provider_release_failed",
+        `${draftKey}/${slotKey}: current provider-free claim could not be released`
+      );
+    }
+  }
+
   /** Spend at every budget level for the character's batch/genre style/world/character. */
   spendSnapshot(draftKey: string, reservePerImageUsd: number): { batch: number; genre: number; world: number; character: number } {
     const character = this.getCharacter(draftKey);
