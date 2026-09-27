@@ -9,22 +9,42 @@ describe("P3-A suggested replies decision-quality aggregate", () => {
       SUGGESTED_REPLIES_DECISION_QUALITY_CORPUS.map((fixture) => fixture.rawModelText)
     );
 
-    assert.equal(aggregate.sampleCount, 10);
-    assert.equal(aggregate.validCount, 1);
-    assert.equal(aggregate.invalidCount, 9);
-    assert.equal(aggregate.multiIssueSampleCount, 4);
+    const expectedIssueCounts = new Map<string, number>();
+    for (const fixture of SUGGESTED_REPLIES_DECISION_QUALITY_CORPUS) {
+      for (const issue of fixture.expectedIssues) {
+        expectedIssueCounts.set(issue, (expectedIssueCounts.get(issue) ?? 0) + 1);
+      }
+    }
 
-    assert.deepEqual(aggregate.issueCounts, [
-      { issue: "duplicate_kind", count: 2 },
-      { issue: "duplicate_text", count: 2 },
-      { issue: "malformed_json", count: 1 },
-      { issue: "missing_items", count: 1 },
-      { issue: "missing_kind", count: 4 },
-      { issue: "missing_text", count: 1 },
-      { issue: "text_out_of_bounds", count: 2 },
-      { issue: "unknown_kind", count: 2 },
-      { issue: "wrong_item_count", count: 2 },
-    ]);
+    assert.equal(
+      aggregate.sampleCount,
+      SUGGESTED_REPLIES_DECISION_QUALITY_CORPUS.length
+    );
+    assert.equal(
+      aggregate.validCount,
+      SUGGESTED_REPLIES_DECISION_QUALITY_CORPUS.filter(
+        (fixture) => fixture.expectedValid
+      ).length
+    );
+    assert.equal(
+      aggregate.invalidCount,
+      SUGGESTED_REPLIES_DECISION_QUALITY_CORPUS.filter(
+        (fixture) => !fixture.expectedValid
+      ).length
+    );
+    assert.equal(
+      aggregate.multiIssueSampleCount,
+      SUGGESTED_REPLIES_DECISION_QUALITY_CORPUS.filter(
+        (fixture) => fixture.expectedIssues.length > 1
+      ).length
+    );
+
+    assert.deepEqual(
+      aggregate.issueCounts,
+      [...expectedIssueCounts.entries()]
+        .map(([issue, count]) => ({ issue, count }))
+        .sort((a, b) => a.issue.localeCompare(b.issue))
+    );
 
     assert.equal(JSON.stringify(aggregate).includes("rawModelText"), false);
     assert.equal(JSON.stringify(aggregate).includes("같은 반응"), false);

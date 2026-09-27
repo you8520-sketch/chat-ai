@@ -239,8 +239,20 @@ export function inspectSuggestedRepliesModelTextContract(
 
 export function parseSuggestedRepliesFromModelText(text: string): SuggestedReplyItem[] {
   const inspection = inspectSuggestedRepliesModelTextContract(text);
-  if (!inspection.contractValid || !inspection.parsed) return [];
-  return normalizeSuggestedReplies({ items: inspection.parsed.items });
+  if (!inspection.parsed) return [];
+
+  const blockingIssues = inspection.issues.filter(
+    (issue) => issue !== "text_out_of_bounds"
+  );
+  if (blockingIssues.length > 0) return [];
+
+  // Length overflow is recoverable by the canonical normalizer, which clips
+  // overlong text to SUGGESTED_REPLY_MAX_CHARS. Under-min text still fails
+  // because normalizeSuggestedReplies() cannot produce a canonical trio.
+  // Raw decision-quality telemetry remains strict and still reports
+  // text_out_of_bounds for both under/over provider output.
+  const normalized = normalizeSuggestedReplies({ items: inspection.parsed.items });
+  return suggestedRepliesHaveContent(normalized) ? normalized : [];
 }
 
 function coerceStoredReplies(raw: unknown): SuggestedReplyItem[] {
