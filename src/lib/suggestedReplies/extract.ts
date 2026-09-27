@@ -6,10 +6,9 @@ import {
   buildSuggestedRepliesDecisionQualityTelemetry,
   logSuggestedRepliesDecisionQualityTelemetry,
 } from "./decisionQualityTelemetry";
+import { buildSuggestedReplyCoreGenerationRules } from "./promptStyle";
 import {
   SUGGESTED_REPLIES_REQUEST_KIND,
-  SUGGESTED_REPLY_MAX_CHARS,
-  SUGGESTED_REPLY_MIN_CHARS,
   type SuggestedReplyItem,
 } from "./types";
 
@@ -27,17 +26,9 @@ Return exactly:
 Rules:
 - Exactly 3 objects in "items", one for each kind. Do not repeat a kind.
 - Korean only in "text".
-- Each "text" MUST be ${SUGGESTED_REPLY_MIN_CHARS}–${SUGGESTED_REPLY_MAX_CHARS} characters including spaces and punctuation.
-- Mix spoken dialogue AND stage direction in every text. Stage direction uses *...* or (...). Dialogue is the user's spoken lines without a name prefix.
-- Write as the USER persona. Match their personality, gender, and speech style (반말 vs 존댓말, quirks, rhythm). If speech examples are given, imitate them.
-- Kinds — three DIFFERENT intents/actions, not three phrasings of the same move:
-  - natural: the most natural next user turn for this scene, relationship, and persona voice.
-  - twist: plausible but non-obvious — witty angle, unexpected question, action shift, counter-offer, or negotiation.
-  - banter: playful, teasing, dry, or sarcastic while staying in persona voice and the current scene.
-- Do not write as the character/NPC. Do not continue the assistant's last line in the NPC's voice.
-- If there is no prior user message, the assistant text is the opening greeting. Write the USER's first roleplay turn into that scene.
-- No OOC, no meta commentary, no numbering, no titles inside "text".
-- Do not invent lore that contradicts the provided scene.`;
+- Match the USER persona personality, gender, and speech style (반말 vs 존댓말, quirks, rhythm). If speech examples are given, imitate them.
+${buildSuggestedReplyCoreGenerationRules()}
+- If there is no prior user message, the assistant text is the opening greeting. Write the USER's first roleplay turn into that scene.`;
 
 function buildExtractUserBlock(opts: {
   charName: string;

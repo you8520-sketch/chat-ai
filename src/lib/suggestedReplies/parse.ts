@@ -240,7 +240,7 @@ export function parseSuggestedRepliesFromModelText(text: string): SuggestedReply
   );
   if (blockingIssues.length > 0) return [];
 
-  // 50–200 chars is the model-quality target, not a user-visible availability
+  // 50–150 chars is the model-quality target, not a user-visible availability
   // gate. The canonical normalizer accepts non-empty short text and clips
   // overlong text to SUGGESTED_REPLY_MAX_CHARS. Raw decision-quality telemetry
   // remains strict and still reports text_out_of_bounds for both under/over
