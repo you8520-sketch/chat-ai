@@ -1,0 +1,29 @@
+{
+  "finding": "route.ts always passes sceneServerControls into assemblePrimaryRpRequest. Applying that owner flips TERMINAL_DIALOGUE_OWNER_ACTIVE to true and rewrites [SCENE FLOW] -> [SCENE PACING]. This baseline holds the already-validated #621 message corpus and required owner freeze (TERMINAL_DIALOGUE_OWNER_ACTIVE=false). The intended Phase A delta is production TRUE-OFF only (reasoning_effort=none). The scene-controls delta is frozen here as a secondary production-path observation and is NOT used for Phase C.",
+  "message_diffs": [
+    {
+      "index": 0,
+      "role": "system",
+      "len_621": 18272,
+      "len_with_controls": 18162,
+      "len_delta": -110,
+      "first_diff_at": 14132,
+      "note": "system SCENE FLOW -> SCENE PACING"
+    },
+    {
+      "index": 5,
+      "role": "user",
+      "len_621": 2426,
+      "len_with_controls": 2543,
+      "len_delta": 117,
+      "first_diff_at": 2426,
+      "note": "last user appended [이번 응답 대화]"
+    }
+  ],
+  "used_for_phase_c": false,
+  "reason_excluded": [
+    "User required messages identical to validated transport corpus",
+    "User required TERMINAL_DIALOGUE_OWNER_ACTIVE=false",
+    "User required unexpected message diffs to STOP"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "prompt_tokens": 19510,
+  "completion_tokens": 3398,
+  "total_tokens": 22908,
+  "cost": 0.027447,
+  "cost_details": {
+    "upstream_inference_cost": 0.027447
+  }
+}
