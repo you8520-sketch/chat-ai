@@ -1,0 +1,146 @@
+{
+  "model": "gemini-3.7-flash",
+  "snapshot": "SNAPSHOT_A_T1",
+  "rep": 2,
+  "capsuleHash": "251ae04247be8ac62c66e8af3b58c0797c94e4938cb3a7a5dec92893da7ab03e",
+  "promptHash": "6b285eacb4e7f9be19c0fd1e45972eae28b30e99bbe38dff780b8889dd3544c1",
+  "snapshotFingerprint": "2bc5216a67936a8c200c064ea829b51811049bd4640da832054316950bab31a8",
+  "providerCallCount": 1,
+  "visibleChars": 3420,
+  "prompt_tokens": 11334,
+  "completion_tokens": 2269,
+  "reasoning_tokens": null,
+  "finish_reason": "stop",
+  "latencyMs": 25944,
+  "httpStatus": 200,
+  "error": null,
+  "occurrences": {
+    "DIRECT_EMOTION_LABEL": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SHOW_THROUGH_BEHAVIOR": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 180,
+          "text": "지퍼를 찌익 소리가 나게 내렸다. 어깨를 한 바퀴 크게 돌리며 재킷을 벗어 던지듯 신발장 위 선반에 걸쳐 두고는, 곰 귀가 달린 흰 후드티 모자를 양손으로 툭툭 털어냈다. 귀찮은"
+        }
+      ]
+    },
+    "INNER_MONOLOGUE_OVERUSE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 1764,
+          "text": "나를 꺼냈다. 조리법 따위는 읽어볼 생각도 없는지, 봉지를 거칠게 뜯어내 얼어붙은 만두를 팬 위에 우르르 쏟아부었다. 불을 켜는 손길에는 망설임이 없었지만, 그 모양새는 요리라기보"
+        }
+      ]
+    },
+    "SENSORY_GROUNDING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 19,
+          "text": "임무 구역에서 풍기던 매캐한 화약 냄새와 차가운 비 냄새는 숙소 문이 닫히는 순간 완벽하게 차단되었다. 본부 숙소 특유의 일정한 공조기 돌아가는 소리가 낮게 깔리고, 현관 센서등이"
+        }
+      ]
+    },
+    "ENVIRONMENT_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 33,
+          "text": "캐한 화약 냄새와 차가운 비 냄새는 숙소 문이 닫히는 순간 완벽하게 차단되었다. 본부 숙소 특유의 일정한 공조기 돌아가는 소리가 낮게 깔리고, 현관 센서등이 둘의 머리 위로 노르스"
+        }
+      ]
+    },
+    "APPEARANCE_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 104,
+          "text": "낮게 깔리고, 현관 센서등이 둘의 머리 위로 노르스름한 빛을 떨어뜨렸다. 태형은 현관에 들어서자마자 답답하게 목을 조이던 유광 재킷의 지퍼를 찌익 소리가 나게 내렸다. 어깨를"
+        }
+      ]
+    },
+    "SPATIAL_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 306,
+          "text": "떠넘기고 도망치듯 빠져나온 터였다. 뒤통수가 따가울 만큼 잔소리가 쏟아질 게 뻔했지만 그런 건 나중 일이었다. 지금 당장은 뱃속에서 요동치는 허기를 달래는 게 조태형이라는 인간에게"
+        }
+      ]
+    },
+    "BODY_POSITION_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 6,
+          "text": "임무 구역에서 풍기던 매캐한 화약 냄새와 차가운 비 냄새는 숙소 문이 닫히는 순간 완벽하게 차단되었다. 본부 숙소 특유의 일정한 공조기 돌아가는 소리가 낮게 깔리고, 현관 센서등이"
+        }
+      ]
+    },
+    "CHARACTER_VOICE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 127,
+          "text": "위로 노르스름한 빛을 떨어뜨렸다. 태형은 현관에 들어서자마자 답답하게 목을 조이던 유광 재킷의 지퍼를 찌익 소리가 나게 내렸다. 어깨를 한 바퀴 크게 돌리며 재킷을 벗어 던지듯"
+        }
+      ]
+    },
+    "DIALOGUE_NATURALNESS": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 877,
+          "text": ". 뾰족한 덧니가 언뜻 드러났다. “아니, 사람이 배고프면 배고프다고 말을 해야지! 너는 진짜 피도 눈물도 없냐? 아까 그 거대한 놈 대가리 깨부수느라 내가 기압을 얼마나 쥐어짰"
+        }
+      ]
+    },
+    "RELATIONSHIP_ATMOSPHERE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 482,
+          "text": "때마다 헐렁한 전술바지 밑단이 사각거리는 소리를 냈다. 그는 렌이 제 재킷을 소파 팔걸이에 툭 걸쳐놓고 먼저 자리를 잡는 양을 곁눈질로 훔쳐보았다. 다리를 길게 뻗고 소파 등받이"
+        }
+      ]
+    },
+    "SEMANTIC_REPETITION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "MICRO_ACTION_LOOP": {
+      "hit": false,
+      "excerpts": []
+    },
+    "EXPLANATION_AFTER_SHOWING": {
+      "hit": false,
+      "excerpts": []
+    },
+    "PSEUDO_CLINICAL_EXPLANATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "AGENCY_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "REGISTER_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "LAYOUT_VIOLATION": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 873,
+          "text": "올렸다. 뾰족한 덧니가 언뜻 드러났다. “아니, 사람이 배고프면 배고프다고 말을 해야지! 너는 진짜 피도 눈물도 없냐? 아까 그 거대한 놈 대가리 깨부수느라 내가 기압을 얼마나"
+        }
+      ]
+    }
+  }
+}

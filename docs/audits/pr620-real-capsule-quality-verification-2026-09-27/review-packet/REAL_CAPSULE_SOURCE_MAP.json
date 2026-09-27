@@ -1,0 +1,88 @@
+{
+  "provenance": {
+    "pr": 620,
+    "pr620Head": "b92100326e56d726eb9040f9cf1b01c7bc11db4e",
+    "capsuleRoot": "/workspace/docs/audits/real-production-mid-chat-style-handoff-benchmark",
+    "capsuleHash": "251ae04247be8ac62c66e8af3b58c0797c94e4938cb3a7a5dec92893da7ab03e",
+    "historicalNote": "PR #255 char18×persona61 live capture cited as existence proof only; identity here is PR620 라이크/렌 content hashes"
+  },
+  "entries": [
+    {
+      "field": "characterName",
+      "sourceFile": "fixtures/user-turns-t1-t2-t3.json",
+      "sourceSection": "characterName",
+      "hash": "a4c13e3b287fc1a7c4fe3935278cf82113b712e61e0e79375745b549f0c764e8",
+      "chars": 3
+    },
+    {
+      "field": "personaName",
+      "sourceFile": "fixtures/user-turns-t1-t2-t3.json",
+      "sourceSection": "personaName",
+      "hash": "ca065a2cf7c001fa8355637a7e8abaa16492b3c60982592c9ec780e4865da291",
+      "chars": 1
+    },
+    {
+      "field": "characterCanon",
+      "sourceFile": "requests/T1-prompt_dump.txt",
+      "sourceSection": "character-core-identity",
+      "hash": "170579cf07d8dc4e94df1367618d5e9ddeaee00e5c8bf1e42de65a35217ec696",
+      "chars": 10210
+    },
+    {
+      "field": "personaDescription",
+      "sourceFile": "requests/T1-prompt_dump.txt",
+      "sourceSection": "identity-and-rules/[USER_PERSONA]",
+      "hash": "145266bb70ce53dc09d0e8bd270d05fad8b790ba4fffb619b76fceb7ca2d3733",
+      "chars": 115
+    },
+    {
+      "field": "privateSpeechControl",
+      "sourceFile": "requests/T1-prompt_dump.txt",
+      "sourceSection": "private-speech-control",
+      "hash": "fc234649d7ef53edd0622bc06afe5d26d407ee7aebafb49e3443affe99b713ce",
+      "chars": 462
+    },
+    {
+      "field": "openingAssistant",
+      "sourceFile": "raw/OPENING_ASSISTANT_VISIBLE.txt",
+      "sourceSection": "full",
+      "hash": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+      "chars": 1318
+    },
+    {
+      "field": "T1_USER_RAW",
+      "sourceFile": "raw/T1-USER_RAW.txt",
+      "sourceSection": "full",
+      "hash": "dfb5250c4c902011935d221faa8a28455fc63869b5062b2ab970e6fbd90da3dd",
+      "chars": 264
+    },
+    {
+      "field": "T1_ASSISTANT_PERSISTED",
+      "sourceFile": "raw/T1-ASSISTANT_PERSISTED_VISIBLE.txt",
+      "sourceSection": "full",
+      "hash": "5c1c48a6551b4bfa0bb3bb24fe14e35a8c7aa34cc5a87f60ba9b74310a05c5a0",
+      "chars": 3473
+    },
+    {
+      "field": "T2_USER_RAW",
+      "sourceFile": "raw/T2-USER_RAW.txt",
+      "sourceSection": "full",
+      "hash": "9e24ae15ec34146a4f777b644b5f92c63df64314a2f56ff841321b1f9ed153de",
+      "chars": 246
+    },
+    {
+      "field": "longTermMemory",
+      "sourceFile": "requests/T1-token_breakdown.json",
+      "sourceSection": "no LTM row in archived T1 chat (new disposable chat)",
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "chars": 0
+    },
+    {
+      "field": "nsfwMode",
+      "sourceFile": "meta/T1.json",
+      "sourceSection": "route=nsfw (archived live capture)",
+      "hash": "c6603565c5159fbe846a53e991829d452a1546d41150c0d3c73ddbd7f476ee0d",
+      "chars": 4
+    }
+  ]
+}

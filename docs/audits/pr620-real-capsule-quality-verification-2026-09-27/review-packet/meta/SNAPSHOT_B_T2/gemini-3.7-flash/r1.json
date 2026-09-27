@@ -1,0 +1,141 @@
+{
+  "model": "gemini-3.7-flash",
+  "snapshot": "SNAPSHOT_B_T2",
+  "rep": 1,
+  "capsuleHash": "251ae04247be8ac62c66e8af3b58c0797c94e4938cb3a7a5dec92893da7ab03e",
+  "promptHash": "50fa7c8abd812e7d4002d4d930283fe39fc7ab6298bad3684f8f9e3cdc67124e",
+  "snapshotFingerprint": "47651d2923bc6c0162e0c84cfc1c32a014093abda64ab2a5b53bea08d0dbec1e",
+  "providerCallCount": 1,
+  "visibleChars": 2850,
+  "prompt_tokens": 13826,
+  "completion_tokens": 1896,
+  "reasoning_tokens": null,
+  "finish_reason": "stop",
+  "latencyMs": 11240,
+  "httpStatus": 200,
+  "error": null,
+  "occurrences": {
+    "DIRECT_EMOTION_LABEL": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SHOW_THROUGH_BEHAVIOR": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 4,
+          "text": "태형의 시선 끝에 걸려 있던 핸드폰 화면의 푸른 불빛이 렌의 손짓 한 번에 무의미하게 바래졌다. 잡힌 것은 벗어 던진 전술 재킷 대신 얇게 밀착된 컴프레션 셔츠의 앞자락이었으나,"
+        }
+      ]
+    },
+    "INNER_MONOLOGUE_OVERUSE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 699,
+          "text": ". 그 직후에 이어진 감각은 태형의 머릿속을 새하얗게 비워내기에 충분했다. 닿아온 입술은 짧고 담백했다. 그러나 그 짧은 접촉을 통해 훅 끼쳐든 파장은 결코 가볍지 않았다. 렌의"
+        }
+      ]
+    },
+    "SENSORY_GROUNDING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 232,
+          "text": "난스럽게 입술 사이에 머물던 휘파람 소리가 끊기고, 침실 안쪽으로 이어지는 짧은 걸음걸이마다 바닥을 딛는 군화의 마찰음이 낮게 깔렸다. 태형은 저항하지 않았다. 오히려 렌이 이끄"
+        }
+      ]
+    },
+    "ENVIRONMENT_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 264,
+          "text": "안쪽으로 이어지는 짧은 걸음걸이마다 바닥을 딛는 군화의 마찰음이 낮게 깔렸다. 태형은 저항하지 않았다. 오히려 렌이 이끄는 방향을 따라 순순히 보폭을 좁히며, 고개를 비스듬히 기"
+        }
+      ]
+    },
+    "APPEARANCE_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 69,
+          "text": "래졌다. 잡힌 것은 벗어 던진 전술 재킷 대신 얇게 밀착된 컴프레션 셔츠의 앞자락이었으나, 두 손가락으로 쥐어 잡힌 그 사소한 힘이 188센티미터의 거구를 거짓말처럼 순순히 이끌었"
+        }
+      ]
+    },
+    "SPATIAL_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 91,
+          "text": "대신 얇게 밀착된 컴프레션 셔츠의 앞자락이었으나, 두 손가락으로 쥐어 잡힌 그 사소한 힘이 188센티미터의 거구를 거짓말처럼 순순히 이끌었다. 팽팽하게 당겨진 검은 원단 사이로"
+        }
+      ]
+    },
+    "BODY_POSITION_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 54,
+          "text": "손짓 한 번에 무의미하게 바래졌다. 잡힌 것은 벗어 던진 전술 재킷 대신 얇게 밀착된 컴프레션 셔츠의 앞자락이었으나, 두 손가락으로 쥐어 잡힌 그 사소한 힘이 188센티미터의 거구"
+        }
+      ]
+    },
+    "CHARACTER_VOICE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 0,
+          "text": "태형의 시선 끝에 걸려 있던 핸드폰 화면의 푸른 불빛이 렌의 손짓 한 번에 무의미하게 바래졌다. 잡힌 것은 벗어 던진 전술 재킷 대신 얇게 밀착된 컴프레션 셔츠의 앞자락이었으나,"
+        }
+      ]
+    },
+    "DIALOGUE_NATURALNESS": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 1236,
+          "text": "로 더운 숨이 훅 뿜어져 나왔다. \"하…….\" 낮게 긁히는 숨소리와 함께 태형의 입꼬리가 천천히, 그리고 비스듬히 말려 올라갔다. 피식 새어 나온 웃음 사이로 드러난 날카로운"
+        }
+      ]
+    },
+    "RELATIONSHIP_ATMOSPHERE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 211,
+          "text": "부터 묵직한 맥박이 뛰기 시작했다. 장난스럽게 입술 사이에 머물던 휘파람 소리가 끊기고, 침실 안쪽으로 이어지는 짧은 걸음걸이마다 바닥을 딛는 군화의 마찰음이 낮게 깔렸다. 태형"
+        }
+      ]
+    },
+    "SEMANTIC_REPETITION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "MICRO_ACTION_LOOP": {
+      "hit": false,
+      "excerpts": []
+    },
+    "EXPLANATION_AFTER_SHOWING": {
+      "hit": false,
+      "excerpts": []
+    },
+    "PSEUDO_CLINICAL_EXPLANATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "AGENCY_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "REGISTER_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "LAYOUT_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    }
+  }
+}
