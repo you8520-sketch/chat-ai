@@ -1,0 +1,77 @@
+{
+  "note": "Maps blind Side A/B/C → prompt arm A/B/C per scenario turn. Reveal only after scoring.",
+  "map": {
+    "rel_start": {
+      "T1": {
+        "A": "C",
+        "B": "A",
+        "C": "B"
+      },
+      "T2": {
+        "A": "C",
+        "B": "A",
+        "C": "B"
+      }
+    },
+    "rel_conflict": {
+      "T1": {
+        "A": "C",
+        "B": "A",
+        "C": "B"
+      },
+      "T2": {
+        "A": "B",
+        "B": "A",
+        "C": "C"
+      }
+    },
+    "quiet_daily": {
+      "T1": {
+        "A": "B",
+        "B": "A",
+        "C": "C"
+      },
+      "T2": {
+        "A": "B",
+        "B": "A",
+        "C": "C"
+      }
+    },
+    "action_combat_1": {
+      "T1": {
+        "A": "B",
+        "B": "C",
+        "C": "A"
+      },
+      "T2": {
+        "A": "C",
+        "B": "A",
+        "C": "B"
+      }
+    },
+    "action_combat_2": {
+      "T1": {
+        "A": "C",
+        "B": "B",
+        "C": "A"
+      },
+      "T2": {
+        "A": "A",
+        "B": "B",
+        "C": "C"
+      }
+    },
+    "memory_continuity": {
+      "T1": {
+        "A": "C",
+        "B": "A",
+        "C": "B"
+      },
+      "T2": {
+        "A": "B",
+        "B": "C",
+        "C": "A"
+      }
+    }
+  }
+}

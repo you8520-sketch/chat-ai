@@ -1,0 +1,71 @@
+{
+  "live_root": "/opt/cursor/artifacts/opus-quality-anchor",
+  "model": "claude-opus-5",
+  "provider": "cheaperinference",
+  "base_branch": "cursor/standard-collaborative-lineup-6a91",
+  "audit55_untouched": true,
+  "past_outputs_reused": false,
+  "persona_id": 61,
+  "scenarios": [
+    {
+      "id": "rel_start",
+      "kind": "relationship",
+      "label": "관계 시작",
+      "characterId": 18,
+      "turns": [
+        "난 본기억없는데.... 나는 렌이라고 부르면 돼. *고개끄덕임* 신입 맞아.",
+        "너는 이름이뭐야? 뭐하는 중이었어?"
+      ]
+    },
+    {
+      "id": "rel_conflict",
+      "kind": "relationship",
+      "label": "관계 갈등",
+      "characterId": 5,
+      "turns": [
+        "*렌은 조심스레 다가가 무릎을 꿇고 눈높이를 맞춘다.* …괜찮아요? 제가 좀 도와드릴게요.",
+        "저 그냥 가라는 거예요? …싫으면 말해요. 억지로 붙잡진 않을게요."
+      ]
+    },
+    {
+      "id": "quiet_daily",
+      "kind": "quiet",
+      "label": "조용한 일상",
+      "characterId": 2,
+      "turns": [
+        "*편의점 앞에 서서 잠깐 망설이다가 문을 밀고 들어간다.* 저기요, 따뜻한 거 하나 추천해 주실래요?",
+        "…여기 알바 오래 했어요? 밤에 이렇게 조용한 편이예요?"
+      ]
+    },
+    {
+      "id": "action_combat_1",
+      "kind": "action",
+      "label": "행동·전투 1",
+      "characterId": 10,
+      "turns": [
+        "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+        "*렌은 에녹의 소매를 짧게 잡아끈다.* 왼쪽 골목으로 우회할까요?"
+      ]
+    },
+    {
+      "id": "action_combat_2",
+      "kind": "action",
+      "label": "행동·전투 2",
+      "characterId": 9,
+      "turns": [
+        "*경보가 울리고 격리문 쪽 불빛이 붉게 번쩍인다.* 저거… 탈출이에요, 아니면 유입이에요?",
+        "*렌은 태세를 낮추고 옆에 붙는다.* 제가 뒤를 볼게요. 지시만 해요."
+      ]
+    },
+    {
+      "id": "memory_continuity",
+      "kind": "memory",
+      "label": "기억·연속성",
+      "characterId": 18,
+      "turns": [
+        "아까 로비에서 봤던 그 문… 내가 열어본 적 있어? 아니면 처음이지?",
+        "내가 방금 한 말 기억해? 내 이름."
+      ]
+    }
+  ]
+}
