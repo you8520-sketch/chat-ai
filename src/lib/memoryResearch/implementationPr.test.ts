@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { it } from "node:test";
 import {
   implementationBranch,
+  implementationBranchPrefix,
   openImplementationDraftPrs,
   validateImplementationCandidate,
 } from "@/lib/memoryResearch/implementationPr";
@@ -84,13 +85,13 @@ function sourceFiles() {
   } as Record<string, string>;
 }
 
-function harness(files = sourceFiles()) {
+function harness(files = sourceFiles(), existingOpenUrl = "") {
   const calls: Array<[string, string[]]> = [];
   const written: Record<string, string> = {};
   let validated = 0;
   const run = (command: string, args: readonly string[]) => {
     calls.push([command, [...args]]);
-    if (command === "gh" && args[0] === "pr" && args[1] === "list") return "";
+    if (command === "gh" && args[0] === "pr" && args[1] === "list") return existingOpenUrl;
     if (command === "git" && args[0] === "diff" && args[1] === "--name-only") return `${CONFIG}\n${TEST}\n`;
     if (command === "git" && args[0] === "rev-parse") return `${HEAD_SHA}\n`;
     if (command === "gh" && args[0] === "pr" && args[1] === "create") return "https://github.com/o/r/pull/42\n";
@@ -185,6 +186,27 @@ it("candidate gate and evidence must be accepted before any implementation comma
   );
   assert.equal(result.url, null);
   assert.equal(h.calls.length, 0);
+});
+
+it("an existing open implementation PR is reused across generation retries even if ledger persistence was lost", () => {
+  const existingUrl = "https://github.com/o/r/pull/77";
+  const h = harness(sourceFiles(), existingUrl);
+  const c = candidate();
+  const recipe = findImplementationRecipe(KEY)!;
+  const [result] = openImplementationDraftPrs([c], h.run, h.read, h.write, h.validate, {
+    mainSha: MAIN_SHA,
+    generationId: "run-10-attempt-2",
+    tempDir: "/tmp",
+  });
+
+  assert.deepEqual(result, { candidateKey: KEY, url: existingUrl, error: null });
+  assert.equal(h.validated(), 0);
+  assert.equal(h.calls.length, 1);
+  const [command, args] = h.calls[0]!;
+  assert.equal(command, "gh");
+  assert.deepEqual(args.slice(0, 3), ["pr", "list", "--state"]);
+  assert.ok(args.join(" ").includes(implementationBranchPrefix(c, recipe)));
+  assert.equal(h.calls.some(([cmd, a]) => cmd === "git" || (cmd === "gh" && a[1] === "create")), false);
 });
 
 it("generation identity changes the branch, avoiding non-fast-forward retry collisions", () => {
