@@ -156,6 +156,10 @@ const CLUSTER_B_DIR = path.join(
   process.cwd(),
   "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1"
 );
+const CLUSTER_B_V4_PROOF_SCRIPT = path.join(
+  process.cwd(),
+  "scripts/official-supply-cluster-b-v4-style-proof.ts"
+);
 
 describe("Cluster B graphic rofan STYLE-ONLY references (v4)", () => {
   const repSlot: OfficialAssetSlotPlan = {
@@ -171,6 +175,12 @@ describe("Cluster B graphic rofan STYLE-ONLY references (v4)", () => {
     depiction: "standard",
     personTag: null,
   };
+
+  it("wires the v4 runtime script to the canonical v4 batch key", () => {
+    const source = fs.readFileSync(CLUSTER_B_V4_PROOF_SCRIPT, "utf8");
+    assert.match(source, /PILOT_STYLE_PROOF_V4_BATCH_KEY/);
+    assert.doesNotMatch(source, /PILOT_CLUSTER_B_PROOF_BATCH_KEY/);
+  });
 
   it("bundles PRIMARY 5 audit paths with deterministic generation order 7→13→5", () => {
     assert.equal(CLUSTER_B_PRIMARY_GENERATION_PATHS.length, 3);
