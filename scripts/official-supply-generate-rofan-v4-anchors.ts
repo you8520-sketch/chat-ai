@@ -52,7 +52,10 @@ function sameStringSet(actual: string[], expected: readonly string[]): boolean {
   );
 }
 
-function preflight(store: OfficialSupplyStore): void {
+function preflight(
+  store: OfficialSupplyStore,
+  targetDraftKey: string
+): { previouslyApproved: number; stageSnapshot: Map<string, string> } {
   const style = store.getStyle(PILOT_STYLE_PROOF_V4_STYLE_KEY);
   if (style.stage !== "style_locked") {
     stop(`style stage=${style.stage}; expected style_locked`);
@@ -84,13 +87,15 @@ function preflight(store: OfficialSupplyStore): void {
     );
   }
 
+  let previouslyApproved = 0;
+  const stageSnapshot = new Map<string, string>();
+
   for (const draftKey of EXPECTED_DRAFT_KEYS) {
     const character = store.getCharacter(draftKey);
+    stageSnapshot.set(draftKey, character.stage);
+
     if (character.batchKey !== PILOT_STYLE_PROOF_V4_BATCH_KEY) {
       stop(`${draftKey} batch=${character.batchKey}`);
-    }
-    if (character.stage !== "asset_plan_locked") {
-      stop(`${draftKey} stage=${character.stage}; expected asset_plan_locked`);
     }
 
     const assets = store.listAssets(draftKey);
@@ -103,41 +108,79 @@ function preflight(store: OfficialSupplyStore): void {
       stop(`${draftKey}/rep kind=${rep.kind}`);
     }
 
-    const started = assets.filter((asset) => asset.attempts > 0);
-    if (EXISTING_PROOF_KEYS.has(draftKey)) {
-      if (
-        started.length !== 1 ||
-        started[0]?.slotKey !== PILOT_CLUSTER_B_PROOF_SLOT_KEY ||
-        rep.attempts !== 1 ||
-        rep.status !== "generated" ||
-        !rep.resultUrl
-      ) {
-        stop(`${draftKey} existing proof state is not the expected single generated rep`);
-      }
-      const verdict = officialModerationVerdict(rep.moderation);
-      if (verdict !== "clean" && verdict !== "adult_flagged") {
-        stop(`${draftKey} existing proof moderation=${verdict}`);
-      }
-    } else {
-      if (started.length !== 0) {
-        stop(`${draftKey} already has started assets: ${started.map((a) => a.slotKey).join(",")}`);
-      }
-      if (rep.status !== "planned" || rep.attempts !== 0 || rep.resultUrl) {
-        stop(`${draftKey}/rep is not pristine planned state`);
-      }
-    }
-
     const nonRepStarted = assets.filter(
       (asset) => asset.kind !== "representative" && asset.attempts > 0
     );
     if (nonRepStarted.length > 0) {
       stop(
-        `${draftKey} has RP attempts before anchor approval: ${nonRepStarted
+        `${draftKey} has RP attempts before the 10-anchor review gate: ${nonRepStarted
           .map((asset) => asset.slotKey)
           .join(",")}`
       );
     }
+
+    if (EXISTING_PROOF_KEYS.has(draftKey)) {
+      if (
+        character.stage !== "asset_plan_locked" &&
+        character.stage !== "anchor_approved"
+      ) {
+        stop(`${draftKey} proof character stage=${character.stage}`);
+      }
+      if (
+        rep.attempts !== 1 ||
+        (rep.status !== "generated" && rep.status !== "approved") ||
+        !rep.resultUrl
+      ) {
+        stop(`${draftKey} existing proof representative state drifted`);
+      }
+      const verdict = officialModerationVerdict(rep.moderation);
+      if (verdict !== "clean" && verdict !== "adult_flagged") {
+        stop(`${draftKey} existing proof moderation=${verdict}`);
+      }
+      continue;
+    }
+
+    if (draftKey === targetDraftKey) {
+      if (
+        character.stage !== "asset_plan_locked" ||
+        rep.status !== "planned" ||
+        rep.attempts !== 0 ||
+        rep.resultUrl
+      ) {
+        stop(`${draftKey} target is not pristine asset_plan_locked/planned`);
+      }
+      continue;
+    }
+
+    if (character.stage === "anchor_approved") {
+      if (
+        rep.status !== "approved" ||
+        rep.attempts !== 1 ||
+        !rep.resultUrl
+      ) {
+        stop(`${draftKey} approved anchor state drifted`);
+      }
+      const verdict = officialModerationVerdict(rep.moderation);
+      if (verdict !== "clean" && verdict !== "adult_flagged") {
+        stop(`${draftKey} approved anchor moderation=${verdict}`);
+      }
+      previouslyApproved += 1;
+      continue;
+    }
+
+    if (
+      character.stage !== "asset_plan_locked" ||
+      rep.status !== "planned" ||
+      rep.attempts !== 0 ||
+      rep.resultUrl
+    ) {
+      stop(
+        `${draftKey} pending anchor is neither pristine nor already approved: stage=${character.stage}, status=${rep.status}, attempts=${rep.attempts}`
+      );
+    }
   }
+
+  return { previouslyApproved, stageSnapshot };
 }
 
 async function main(): Promise<void> {
@@ -155,7 +198,7 @@ async function main(): Promise<void> {
   }
 
   const store = new OfficialSupplyStore();
-  preflight(store);
+  const { previouslyApproved, stageSnapshot } = preflight(store, targetDraftKey);
 
   const deps = {
     store,
@@ -229,7 +272,7 @@ async function main(): Promise<void> {
       attempts: number;
     }>;
 
-  const expectedStarted = EXISTING_PROOF_KEYS.size + 1;
+  const expectedStarted = EXISTING_PROOF_KEYS.size + previouslyApproved + 1;
   if (startedRows.length !== expectedStarted) {
     stop(
       `started asset count=${startedRows.length}; expected ${expectedStarted} (3 existing proofs + 1 approved single target)`
@@ -237,10 +280,17 @@ async function main(): Promise<void> {
   }
   for (const row of startedRows) {
     if (
-      !(EXISTING_PROOF_KEYS.has(row.draft_key) || row.draft_key === targetDraftKey) ||
+      !(
+        EXISTING_PROOF_KEYS.has(row.draft_key) ||
+        row.draft_key === targetDraftKey ||
+        stageSnapshot.get(row.draft_key) === "anchor_approved"
+      ) ||
       row.slot_key !== PILOT_CLUSTER_B_PROOF_SLOT_KEY ||
       row.kind !== "representative" ||
-      row.status !== "generated" ||
+      !(
+        row.status === "generated" ||
+        row.status === "approved"
+      ) ||
       row.attempts !== 1
     ) {
       stop(
@@ -251,8 +301,11 @@ async function main(): Promise<void> {
 
   for (const draftKey of EXPECTED_DRAFT_KEYS) {
     const character = store.getCharacter(draftKey);
-    if (character.stage !== "asset_plan_locked") {
-      stop(`${draftKey} advanced to ${character.stage} before human anchor review`);
+    const beforeStage = stageSnapshot.get(draftKey);
+    if (character.stage !== beforeStage) {
+      stop(
+        `${draftKey} stage changed during image generation: ${beforeStage} -> ${character.stage}`
+      );
     }
   }
 
@@ -264,6 +317,7 @@ async function main(): Promise<void> {
     batchKey: PILOT_STYLE_PROOF_V4_BATCH_KEY,
     targetDraftKey,
     existingProofAnchorsReused: EXISTING_PROOF_KEYS.size,
+    previouslyApprovedSingleAnchors: previouslyApproved,
     newAnchorsGenerated: 1,
     anchor,
     rpSlotsStarted: 0,
