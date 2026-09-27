@@ -23,12 +23,12 @@ jobs:
       DISABLE_WEB_PUSH: "1"
       DISABLE_PAYOUT_SCHEDULER: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm

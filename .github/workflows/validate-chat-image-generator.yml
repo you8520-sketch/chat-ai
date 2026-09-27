@@ -201,12 +201,12 @@ jobs:
     env:
       SESSION_SECRET: "01234567890123456789012345678901"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
       - run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
