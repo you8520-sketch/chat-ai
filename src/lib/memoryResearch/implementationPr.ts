@@ -37,18 +37,24 @@ export function validateImplementationCandidate(candidate: ResearchCandidate, re
   }
 }
 
-export function implementationBranch(
+export function implementationBranchPrefix(
   candidate: ResearchCandidate,
-  recipe: ImplementationRecipe,
-  generationId: string
+  recipe: ImplementationRecipe
 ): string {
   return [
     "memory-research/implement",
     slugForCandidate(candidate.candidateKey),
     slug(candidate.version ?? "unversioned"),
     slug(recipe.recipeVersion),
-    slug(generationId),
   ].join("-");
+}
+
+export function implementationBranch(
+  candidate: ResearchCandidate,
+  recipe: ImplementationRecipe,
+  generationId: string
+): string {
+  return `${implementationBranchPrefix(candidate, recipe)}-${slug(generationId)}`;
 }
 
 function implementationBody(
@@ -125,23 +131,22 @@ export function openImplementationDraftPrs(
       const recipe = findImplementationRecipe(candidate.candidateKey);
       if (!recipe) throw new Error(`no implementation recipe for ${candidate.candidateKey}`);
       validateImplementationCandidate(candidate, recipe);
-      const branch = implementationBranch(candidate, recipe, opts.generationId);
+      const branchPrefix = implementationBranchPrefix(candidate, recipe);
       const existing = exec("gh", [
         "pr",
         "list",
-        "--head",
-        branch,
         "--state",
         "open",
         "--json",
-        "url",
+        "url,headRefName",
         "--jq",
-        ".[0].url // \"\"",
+        `[.[] | select(.headRefName | startswith("${branchPrefix}"))][0].url // ""`,
       ]);
       if (existing) {
         results.push({ candidateKey: candidate.candidateKey, url: existing, error: null });
         continue;
       }
+      const branch = implementationBranch(candidate, recipe, opts.generationId);
 
       exec("git", ["checkout", "--detach", opts.mainSha]);
       exec("git", ["checkout", "-B", branch]);
