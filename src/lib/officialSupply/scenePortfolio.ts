@@ -64,8 +64,8 @@ export const SCENE_MOTIFS = {
   interrogation: { label: "심문·연행·검문", re: /(심문|취조|연행|체포|검문|포위|압송)/ },
   deal: { label: "거래·경매·흥정", re: /(경매|밀거래|흥정|거래|채권|장부)/ },
   heist_escape: { label: "탈취·도주·추격", re: /(탈취|도주|탈출|추격|잠입|금고)/ },
-  // 의식 also means "consciousness" (의식을 잃다); only the ceremony sense counts.
-  ritual: { label: "의례·기도", re: /(의식(?!\s*(을|이|은)?\s*(잃|흐려|흐릿|불명|되찾|없|돌아|차리))|의례|기도|예배|축복|성가|제단)/ },
+  // 의식 also means "consciousness" (의식을 잃다); 예배실/예배당 name a place, not an incident.
+  ritual: { label: "의례·기도", re: /(의식(?!\s*(을|이|은)?\s*(잃|흐려|흐릿|불명|되찾|없|돌아|차리))|의례|기도|예배(?!실|당)|축복|성가|제단)/ },
   repair: { label: "정비·수리", re: /(정비|수리|분해|조립|코어|부품)/ },
   duel_training: { label: "결투·훈련", re: /(결투|대련|훈련|연무|사격|검술)/ },
   healing: { label: "치료·간호", re: /(치료|치유|간호|응급|약초|상처)/ },
@@ -224,13 +224,33 @@ export function resolveOfficialCharacterSceneContext(input: {
   };
 }
 
-/** Map a scene's free-text location onto a world location (or null = character-specific place). */
+/**
+ * Map a scene's free-text location onto a world location (or null = character-specific place).
+ * The parenthetical part of a world location name is its parent building
+ * ("유리온실 (태양궁 최상층)"): another room of that building is a different
+ * place, so a scene maps only when it names the location itself; parent hits
+ * just break ties.
+ */
 export function mapSceneLocation(sceneLocation: string, worldLocations: readonly WorldLocation[]): string | null {
   const sceneWords = sceneTokens(sceneLocation);
-  let best: { name: string; hits: number } | null = null;
+  // Names need a near-exact word: generic 에테르 must not land on proper 에테르노스.
+  const hits = (names: Set<string>) =>
+    [...names].filter((x) =>
+      [...sceneWords].some((y) => {
+        const [short, long] = x.length <= y.length ? [x, y] : [y, x];
+        return short === long || (short.length >= 2 && long.startsWith(short) && long.length - short.length <= 1);
+      })
+    ).length;
+  let best: { name: string; head: number; parent: number } | null = null;
   for (const location of worldLocations) {
-    const hits = tokensOverlap(sceneTokens(location.name), sceneWords).length;
-    if (hits > 0 && (!best || hits > best.hits)) best = { name: location.name, hits };
+    const head = location.name.replace(/\([^)]*\)/g, " ");
+    const parent = (location.name.match(/\(([^)]*)\)/g) ?? []).join(" ");
+    const headHits = hits(sceneTokens(head));
+    if (headHits === 0) continue;
+    const parentHits = hits(sceneTokens(parent));
+    if (!best || headHits > best.head || (headHits === best.head && parentHits > best.parent)) {
+      best = { name: location.name, head: headHits, parent: parentHits };
+    }
   }
   return best?.name ?? null;
 }

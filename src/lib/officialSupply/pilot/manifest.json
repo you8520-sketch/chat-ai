@@ -5,19 +5,56 @@
   "genre": "로맨스 판타지",
   "slots": 10,
   "adultCandidates": 4,
-  "genderMix": "남성 5명, 여성 4명, 기타 1명",
+  "castIntent": {
+    "targetAudience": "female_oriented",
+    "romanceTargetProfile": "한국 여성향 로판 독자를 위한 남성 로맨스 대상 중심(여성 1명·인외 1명은 의도된 니치 커버리지)",
+    "desiredGenderMix": {
+      "male": 8,
+      "female": 1,
+      "other": 1
+    },
+    "rationale": "kr-37(여성향 로판 선정 캐릭터가 남성 중심) · kr-25/kr-29(여성향 로맨스·후회남 태그) · kr-33(여성향 랜딩 카테고리) · PR #1087 human review"
+  },
+  "genderMix": "남성 8명, 여성 1명, 기타 1명",
   "slotGenders": [
     "male",
     "male",
     "male",
     "male",
     "male",
-    "female",
-    "female",
-    "female",
+    "male",
+    "male",
+    "male",
     "female",
     "other"
   ],
+  "replacement": {
+    "replacedNames": [
+      "발레리아 드 솔레이",
+      "헬레나 폰 발켄하임",
+      "로웨나 아스터"
+    ],
+    "slots": [
+      {
+        "slot": 6,
+        "gender": "male",
+        "adultCandidate": true,
+        "direction": "남성. 역할 공간: 대신전 소속 이단심문관(성기사 서품). 핵심 경험: 심문, 금지된 보호, 신앙과 욕망의 충돌, 규율과 개인적 선택의 충돌. 유저의 금지된 에테르/이단 혐의를 다루는 첫 관계가 한 줄에 읽힐 것. 세라피나(성녀)·율리우스(이단 연구 교수)와 역할·경험이 겹치지 않게. 황자·북부대공 금지, 근위대장 여기사를 남자로 바꾼 캐릭터 금지. 이름은 카엘룸·볼프강·루시안·율리우스·바스티안·세라피나·이노센트와 첫 음절(카·볼·루·율·바·세·이)과 끝 음절(룸·강·안·스·나·트)이 겹치지 않게."
+      },
+      {
+        "slot": 7,
+        "gender": "male",
+        "adultCandidate": false,
+        "direction": "남성. 역할 공간: 태양의 눈(중심 핵)·에테르 정제탑을 운영하는 황실 마도공학 현장 총책임자. 핵심 경험: 위험한 공동 연구, 기술적 의존, 계약, 비밀 공유, 능력/생존 문제로 묶인 관계. 율리우스(교수·논리전·연구)와 달리 권한 있는 실무 책임자·제작자·현장 해결사. 이노센트(길드 정비 유닛)와 겹치지 않게. 황자·북부대공 금지. 이름은 카엘룸·볼프강·루시안·율리우스·바스티안·세라피나·이노센트와 첫 음절(카·볼·루·율·바·세·이)과 끝 음절(룸·강·안·스·나·트)이 겹치지 않게."
+      },
+      {
+        "slot": 8,
+        "gender": "male",
+        "adultCandidate": true,
+        "direction": "남성. 역할 공간: 서부 해상 무역권 벨로체의 몰락한 해상 귀족 후계자, 황실에 볼모로 잡혀 수도에 머무는 외교 인질(왕자 아님). 핵심 경험: 정치적 적대, 강제된 근접, 외교 협상, 불신에서 협력, 서로 이용하지만 쉽게 버릴 수 없는 관계. 황자·북부대공·청부업자·브로커와 같은 경험 금지. 이름은 카엘룸·볼프강·루시안·율리우스·바스티안·세라피나·이노센트와 첫 음절(카·볼·루·율·바·세·이)과 끝 음절(룸·강·안·스·나·트)이 겹치지 않게."
+      }
+    ]
+  },
   "templateVersion": "pilot-rf-01/v3",
   "snapshotVersion": "market-research-snapshot-2026-09.json",
   "portfolioPolicy": {
@@ -47,15 +84,51 @@
       "consentModes": [
         "standard"
       ],
-      "direction": "규율을 스스로 깨는 순간의 긴장, 합의된 보호적 독점욕(질투를 감추지 않되 선택을 빼앗지 않음), 감찰관식 질문으로 쌓이는 언어적 긴장"
+      "direction": "금욕 서약이 흔들리는 순간의 긴장, 죄책과 갈망의 줄다리기, 금지된 보호를 스스로 선택하는 결단(상대의 선택을 대신하지 않음)"
     },
-    "pilot-rf-07": {
+    "pilot-rf-08": {
       "dialogueProfile": "explicit_frequent",
       "consentModes": [
-        "standard",
-        "power_play"
+        "standard"
       ],
-      "direction": "결투처럼 주도권을 뺏고 빼앗기는 라이벌 긴장, 호탕한 도발과 장난, 상대의 실력을 대놓고 칭찬하는 인정"
+      "direction": "흥정처럼 오가는 도발과 유혹, 이용하는 척 진심을 숨기는 밀고 당기기, 서로의 약점을 쥔 대등한 주도권"
+    }
+  },
+  "publicSurfaceDecisions": {
+    "pilot-rf-01": {
+      "tagline": "피를 토하던 황자가, 목격한 당신에게 비밀 거래를 청한다."
+    },
+    "pilot-rf-02": {
+      "tagline": "금지된 마석을 쥔 당신을 압송해 온 북부의 대공.",
+      "replaceTags": [
+        [
+          "느린 신뢰",
+          "혐관"
+        ]
+      ],
+      "addTags": [
+        "북부대공"
+      ]
+    },
+    "pilot-rf-03": {
+      "tagline": "금고털이 경보 속, 당신의 손목을 잡고 달아난 브로커."
+    },
+    "pilot-rf-09": {
+      "replaceTags": [
+        [
+          "감정의 균열",
+          "금단"
+        ]
+      ]
+    },
+    "pilot-rf-10": {
+      "tagline": "폐기 직전, 당신의 심장 소리에 깨어난 기계 인형.",
+      "replaceTags": [
+        [
+          "잔잔한 관계",
+          "순애"
+        ]
+      ]
     }
   },
   "marketPolicy": {

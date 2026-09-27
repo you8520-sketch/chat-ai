@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "successfulCompletions": 65,
-  "failedProviderAttempts": 0,
-  "physicalAttempts": 65,
-  "workflowRetries": 40,
-  "billedCostUsd": 0.051567999999999996,
+  "successfulCompletions": 115,
+  "failedProviderAttempts": 5,
+  "physicalAttempts": 120,
+  "workflowRetries": 60,
+  "billedCostUsd": 0.105096,
   "failedAttemptCostUsd": 0,
-  "inputTokens": 213440,
-  "outputTokens": 103892,
+  "inputTokens": 345041,
+  "outputTokens": 229535,
   "imageCalls": 0,
   "lines": [
     {
@@ -659,6 +659,561 @@
       "inputTokens": 5045,
       "outputTokens": 1570,
       "costUsd": 0.00099
+    },
+    {
+      "task": "world_bible",
+      "draftKey": "world",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 6130,
+      "outputTokens": 3622,
+      "costUsd": 0.001696
+    },
+    {
+      "task": "world_bible",
+      "draftKey": "world",
+      "workflowAttempt": 2,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 6162,
+      "outputTokens": 4933,
+      "costUsd": 0.002157
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2713,
+      "outputTokens": 3586,
+      "costUsd": 0.001445
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1722,
+      "outputTokens": 2681,
+      "costUsd": 0.001088
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1230,
+      "outputTokens": 1663,
+      "costUsd": 0.000689
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 2,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2768,
+      "outputTokens": 4013,
+      "costUsd": 0.001646
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 2,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1766,
+      "outputTokens": 1917,
+      "costUsd": 0.000825
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 2,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1274,
+      "outputTokens": 1855,
+      "costUsd": 0.00076
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 3,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2744,
+      "outputTokens": 3760,
+      "costUsd": 0.001508
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 3,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1745,
+      "outputTokens": 1653,
+      "costUsd": 0.000731
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 3,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1253,
+      "outputTokens": 1811,
+      "costUsd": 0.000743
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 4,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2750,
+      "outputTokens": 4263,
+      "costUsd": 0.001732
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 4,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1756,
+      "outputTokens": 1955,
+      "costUsd": 0.000837
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 4,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1264,
+      "outputTokens": 1830,
+      "costUsd": 0.000751
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-07",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2756,
+      "outputTokens": 3836,
+      "costUsd": 0.001583
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-07",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1726,
+      "outputTokens": 1954,
+      "costUsd": 0.000834
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-07",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1222,
+      "outputTokens": 1409,
+      "costUsd": 0.000578
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2783,
+      "outputTokens": 3888,
+      "costUsd": 0.001555
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1770,
+      "outputTokens": 2745,
+      "costUsd": 0.001084
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1233,
+      "outputTokens": 1824,
+      "costUsd": 0.000746
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 2,
+      "outcome": "provider_failed",
+      "model": "gpt-6-luna",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": null,
+      "error": "CheaperInference 503: {\"error\":{\"type\":\"api_error\",\"message\":\"No compatible route completed this request.\"}}"
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 3,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2837,
+      "outputTokens": 3367,
+      "costUsd": 0.001426
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 3,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1822,
+      "outputTokens": 1877,
+      "costUsd": 0.000816
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 3,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1285,
+      "outputTokens": 1793,
+      "costUsd": 0.000739
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 4,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2820,
+      "outputTokens": 3386,
+      "costUsd": 0.001431
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 4,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1810,
+      "outputTokens": 2107,
+      "costUsd": 0.000895
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 4,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1273,
+      "outputTokens": 1705,
+      "costUsd": 0.000708
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2713,
+      "outputTokens": 3999,
+      "costUsd": 0.001637
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1713,
+      "outputTokens": 3182,
+      "costUsd": 0.001263
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1221,
+      "outputTokens": 2064,
+      "costUsd": 0.000807
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1789,
+      "outputTokens": 2477,
+      "costUsd": 0.000992
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 1,
+      "outcome": "provider_failed",
+      "model": "gpt-6-luna",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": null,
+      "error": "CheaperInference 503: {\"error\":{\"type\":\"api_error\",\"message\":\"No compatible route completed this request.\"}}"
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 2,
+      "outcome": "provider_failed",
+      "model": "gpt-6-luna",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": null,
+      "error": "CheaperInference 503: {\"error\":{\"type\":\"api_error\",\"message\":\"No compatible route completed this request.\"}}"
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 3,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2783,
+      "outputTokens": 3536,
+      "costUsd": 0.001257
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 3,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1769,
+      "outputTokens": 2282,
+      "costUsd": 0.000922
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 3,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1232,
+      "outputTokens": 1883,
+      "costUsd": 0.000766
+    },
+    {
+      "task": "adult_profile",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 868,
+      "outputTokens": 790,
+      "costUsd": 0.000337
+    },
+    {
+      "task": "adult_profile",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 854,
+      "outputTokens": 1002,
+      "costUsd": 0.00041
+    },
+    {
+      "task": "appearance",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1060,
+      "outputTokens": 632,
+      "costUsd": 0.000295
+    },
+    {
+      "task": "appearance",
+      "draftKey": "pilot-rf-07",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1122,
+      "outputTokens": 735,
+      "costUsd": 0.000355
+    },
+    {
+      "task": "appearance",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1096,
+      "outputTokens": 728,
+      "costUsd": 0.000331
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4424,
+      "outputTokens": 2887,
+      "costUsd": 0.00132
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 2,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4513,
+      "outputTokens": 2559,
+      "costUsd": 0.00129
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 3,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4513,
+      "outputTokens": 3034,
+      "costUsd": 0.001093
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 4,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4513,
+      "outputTokens": 1480,
+      "costUsd": 0.000912
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 5,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4513,
+      "outputTokens": 1530,
+      "costUsd": 0.000567
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 6,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4590,
+      "outputTokens": 3013,
+      "costUsd": 0.001456
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-07",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 5103,
+      "outputTokens": 3089,
+      "costUsd": 0.001527
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-07",
+      "workflowAttempt": 2,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 5201,
+      "outputTokens": 3513,
+      "costUsd": 0.001684
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 1,
+      "outcome": "provider_failed",
+      "model": "gpt-6-luna",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": null,
+      "error": "CheaperInference 503: {\"error\":{\"type\":\"api_error\",\"message\":\"No compatible route completed this request.\"}}"
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 2,
+      "outcome": "provider_failed",
+      "model": "gpt-6-luna",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": null,
+      "error": "CheaperInference 503: {\"error\":{\"type\":\"api_error\",\"message\":\"No compatible route completed this request.\"}}"
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 3,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4272,
+      "outputTokens": 3872,
+      "costUsd": 0.001385
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 4,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4313,
+      "outputTokens": 3044,
+      "costUsd": 0.001442
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 5,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4499,
+      "outputTokens": 3481,
+      "costUsd": 0.001611
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 6,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4313,
+      "outputTokens": 1398,
+      "costUsd": 0.000866
     }
   ],
   "legacy": {

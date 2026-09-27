@@ -859,13 +859,13 @@ function strArray(value: unknown): string[] {
   return optionalStringArray(value);
 }
 
-export type OfficialVoiceRevisionField = "greeting" | "publicDescription" | "speech";
+export type OfficialVoiceRevisionField = "greeting" | "publicDescription" | "speech" | "tags";
 
 /**
  * Minimal voice correction: re-runs ONLY the voice third and copies back only
  * the fields named in `fields`. Part1 (identity, appearance source,
- * personality, backstory, abilities, habits), bonds, NPCs, tagline and tags
- * are never touched.
+ * personality, backstory, abilities, habits), bonds, NPCs and tagline are
+ * never touched; tags only when named.
  */
 export async function reviseOfficialCharacterVoice(input: {
   transport: OfficialAuthorTransport;
@@ -883,6 +883,9 @@ export async function reviseOfficialCharacterVoice(input: {
       : "",
     input.fields.includes("greeting")
       ? `기존 greeting(같은 장면·훅·목소리를 유지하고 반려 사유만 고친다, 분량 채우기 반복 금지):\n${current.greeting}`
+      : "",
+    input.fields.includes("tags")
+      ? `기존 tags(바이블 본문에 실제로 있는 경험·관계·직업으로만 교체한다): ${current.publicProfile.tags.join(", ")}`
       : "",
   ].filter(Boolean);
   const completion = await input.transport.completeJson({
@@ -904,9 +907,11 @@ export async function reviseOfficialCharacterVoice(input: {
   const next: OfficialCharacterBible = {
     ...current,
     greeting: input.fields.includes("greeting") ? fresh.greeting : current.greeting,
-    publicProfile: input.fields.includes("publicDescription")
-      ? { ...current.publicProfile, description: fresh.publicProfile.description }
-      : current.publicProfile,
+    publicProfile: {
+      ...current.publicProfile,
+      description: input.fields.includes("publicDescription") ? fresh.publicProfile.description : current.publicProfile.description,
+      tags: input.fields.includes("tags") ? fresh.publicProfile.tags : current.publicProfile.tags,
+    },
     speech: input.fields.includes("speech") ? { ...fresh.speech } : current.speech,
   };
   return { bible: next, completion };

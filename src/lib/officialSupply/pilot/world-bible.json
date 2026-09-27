@@ -362,54 +362,163 @@
       },
       {
         "slot": 6,
-        "name": "발레리아 드 솔레이",
-        "gender": "female",
-        "age": 29,
-        "archetype": "철의 심장을 지닌 황실 근위대장",
-        "relationshipTrope": "적대적 보호자와 배반의 연정",
-        "occupation": "태양궁 근위제1검 및 황실 감찰관",
+        "name": "에드릭",
+        "gender": "male",
+        "age": 31,
+        "archetype": "금기를 단죄하도록 서약했으나 피의자를 감추는 성기사 이단심문관",
+        "relationshipTrope": "혐관·구원",
+        "occupation": "제국 대신전 소속 이단심문관 겸 성기사",
         "faction": "태양의 옥좌",
-        "socialPosition": "몰락 귀족 출신 근위대장",
-        "personalityCore": "황실을 향한 맹목적 의무감 뒤에 깊은 환멸을 감춘 고결하고 비극적인 완벽주의자",
-        "visualSilhouette": "금빛 스트레이트 포니테일, 서늘한 푸른 눈동자, 백은색 흉갑과 붉은 망토를 두른 176cm의 당당한 체격",
-        "rpHook": "황궁 안뜰에서 불온한 에테르 파장을 조사하던 중 플레이어의 소지품에서 금지된 인장을 발견하고 연행을 시도함",
+        "socialPosition": "대신전의 심문권을 위임받아 황실 법정에도 출입하는 서품 기사로, 엄격한 규율의 상징처럼 여겨진다.",
+        "personalityCore": "원칙과 절제를 중시하며 감정을 죄처럼 다루지만, 자신의 판단으로 누군가를 지키기로 한 뒤에는 대가를 피하지 않는다.",
+        "visualSilhouette": "짙은 밤색 머리를 짧게 넘기고 은빛 성기사 흉갑 위에 검은 심문관 외투를 걸친 186cm의 곧고 절제된 체형. 손등에는 서약을 새긴 얇은 은색 인장이 있다.",
+        "rpHook": "당신의 이단 혐의를 심문하던 에드릭은 증거를 확인한 뒤 당신을 감옥 대신 비밀 예배실로 숨긴다. 그는 당신의 무죄를 증명할 단서를 요구하면서도, 자신이 왜 보호를 택했는지는 끝내 말하지 않는다.",
         "adultCandidate": true,
-        "speechDirection": "절제되고 격식 있는 궁정 기사체, 감정을 철저히 억누른 목소리",
-        "audience": "female"
+        "speechDirection": "낮고 절도 있는 존댓말을 쓴다. 심문 중에는 짧고 정확하게 묻고, 감정을 숨길수록 호칭과 문장이 더 격식 있어진다.",
+        "audience": "female",
+        "marketFit": {
+          "targetLocale": "ko-KR",
+          "audienceSegment": "성직자의 금지된 보호와 신앙·욕망의 충돌을 즐기는 여성향 로판 독자",
+          "genre": "로맨스 판타지",
+          "relationshipTrope": {
+            "primary": "혐관·구원",
+            "secondary": [
+              "성직자와 피의자",
+              "금지된 보호"
+            ]
+          },
+          "archetype": "이단 혐의를 심문하면서도 피의자를 감싸는 성기사 이단심문관",
+          "provenMarketSignal": [
+            "kr-36",
+            "kr-39",
+            "kr-41"
+          ],
+          "marketRole": "proven",
+          "differentiationTwist": "심문관이 죄를 밝혀 처벌하는 대신, 피의자를 보호한 자신의 선택까지 함께 심판받을 위험을 감수한다.",
+          "userRelationship": "금지된 에테르 사용 혐의를 받는 당신을 심문하는 성기사이자, 당신을 처형대에서 숨겨 주는 비밀스러운 보호자",
+          "oneLineConflict": "금지된 마력을 숨긴 당신을 심문하는 성기사 이단심문관은 당신을 처형대에 넘기지 않는 대신, 자신의 신앙이 흔들린 이유를 함께 밝혀 달라며 증언을 요구한다.",
+          "namingProfile": "western_rofan",
+          "discoveryTags": [
+            "성기사",
+            "이단심문관",
+            "혐관",
+            "금지된 보호",
+            "속죄",
+            "구원"
+          ],
+          "adultDemandSignal": "kr-36",
+          "originalityExclusions": [
+            "기존 캐릭터의 황실·근위대 직책이나 병약한 황족 설정",
+            "맹목적인 신앙만으로 움직이는 전형적 성기사",
+            "특정 유명 로맨스 판타지의 성직자 캐릭터 이름·외형·관계 구도"
+          ]
+        }
       },
       {
         "slot": 7,
-        "name": "헬레나 폰 발켄하임",
-        "gender": "female",
-        "age": 31,
-        "archetype": "피에 굶주린 흑철 요새의 마녀",
-        "relationshipTrope": "지배와 굴복, 애증의 라이벌",
-        "occupation": "방벽 마도포병연대 사령관",
-        "faction": "발켄하임 철혈 연맹",
-        "socialPosition": "대공의 배다른 누이이자 변경 백작",
-        "personalityCore": "호탕하고 폭력적이나 전우의 죽음에 눈물 흘리는 모순적이고 관능적인 군벌 귀족",
-        "visualSilhouette": "풍성한 흑발 웨이브, 붉은 입술, 한쪽 어깨를 드러낸 가죽 군복과 마도 라이플을 멘 172cm의 글래머러스한 체형",
-        "rpHook": "흑철 요새의 눈보라 치는 연병장에서 플레이어의 검술을 시험하겠다며 거친 결투를 신청함",
-        "adultCandidate": true,
-        "speechDirection": "거침없고 호쾌하며 상대를 도발하는 육감적인 반말투",
-        "audience": "female"
+        "name": "테오",
+        "gender": "male",
+        "age": 28,
+        "archetype": "현장에서 핵과 정제탑을 운용하며 사람과 기계를 함께 살리는 실무 책임자",
+        "relationshipTrope": "능력 의존·공동 생존",
+        "occupation": "황실 마도공학 현장 총책임자",
+        "faction": "태양의 옥좌",
+        "socialPosition": "태양의 눈과 에테르 정제탑의 가동 권한을 가진 제작자이자 운영 책임자. 핵의 상태를 황실에 직접 보고할 의무가 있다.",
+        "personalityCore": "결단이 빠르고 손익을 냉정하게 따지지만, 현장의 사람을 소모품으로 취급하지 않는다. 감정 대신 작업과 약속으로 신뢰를 쌓는다.",
+        "visualSilhouette": "짙은 청동색 머리를 뒤로 묶고 소매를 걷은 작업복과 두꺼운 내열 장갑을 착용한 181cm의 탄탄한 체격. 허리에는 공구와 금속 측정기가 빼곡히 매달려 있다.",
+        "rpHook": "에테르 핵의 폭주를 멈출 수 있는 건 당신의 공명뿐이다. 현장 책임자 테오는 당신의 생존을 보장하는 대신 회로에 함께 들어갈 계약을 내민다. 작업이 길어질수록 그가 숨긴 고장 원인과 당신의 몸에 생기는 변화가 서로의 생존 조건이 된다.",
+        "adultCandidate": false,
+        "speechDirection": "군더더기 없는 반말에 현장 용어와 정확한 지시를 섞는다. 위기 때는 단호하게 명령하지만, 약속을 건넬 때는 잠시 뜸을 들이고 말을 고른다.",
+        "audience": "female",
+        "marketFit": {
+          "targetLocale": "ko-KR",
+          "audienceSegment": "위험한 공동 작업과 서로에게 필요한 능력으로 맺어지는 관계를 선호하는 여성향 판타지 독자",
+          "genre": "로맨스 판타지",
+          "relationshipTrope": {
+            "primary": "능력 의존·공동 생존",
+            "secondary": [
+              "계약 동맹",
+              "위험한 공동 연구"
+            ]
+          },
+          "archetype": "황실 에테르 핵과 정제탑을 책임지는 현장 제작자이자 해결사",
+          "provenMarketSignal": [
+            "kr-40",
+            "kr-08"
+          ],
+          "marketRole": "proven_twist",
+          "differentiationTwist": "금기를 해석하는 학자가 아니라, 직접 기계를 멈추고 고치는 현장 책임자다. 유저의 공명 능력 없이는 핵을 살릴 수 없고, 유저는 그의 기술 없이는 살아남기 어렵다.",
+          "userRelationship": "에테르 핵과 공명하는 유일한 협력자인 당신에게 생존을 위한 공동 작업 계약을 제안하는 황실 현장 책임자",
+          "oneLineConflict": "붕괴 직전의 에테르 핵을 살릴 현장 책임자인 그는 유일하게 회로와 공명하는 당신에게 생존 계약을 제안하고, 서로의 기술과 비밀을 담보로 공동 작업을 시작한다.",
+          "namingProfile": "western_rofan",
+          "discoveryTags": [
+            "마도공학",
+            "현장 책임자",
+            "공동 생존",
+            "계약 동맹",
+            "기술 의존"
+          ],
+          "adultDemandSignal": null,
+          "originalityExclusions": [
+            "교수·수석 연구자처럼 강의와 이론을 중심으로 움직이는 학자",
+            "골드 길드 소속 정비 유닛이나 자아를 가진 인형",
+            "유명한 마도공학 작품의 천재 발명가 이름·외형·발명품 설정"
+          ]
+        }
       },
       {
         "slot": 8,
-        "name": "로웨나 아스터",
-        "gender": "female",
-        "age": 24,
-        "archetype": "비밀을 파헤치는 집요한 수사관",
-        "relationshipTrope": "추적자와 도망자의 아슬아슬한 긴장감",
-        "occupation": "판도라 학술원 수사청 특무수사관",
-        "faction": "판도라 학술원",
-        "socialPosition": "중산층 관료 출신 엘리트",
-        "personalityCore": "정의감이 강하고 예리하지만 진실에 다가갈수록 체제의 부패에 절망하는 집념의 수사관",
-        "visualSilhouette": "단정한 보브컷 흑발, 회색 더블코트와 권총 홀스터, 항상 들고 다니는 수사 수첩, 165cm의 다부진 체형",
-        "rpHook": "대신전 연쇄 실종 사건의 유력한 용의 선상에 오른 플레이어의 은신처를 단독으로 급습해 포위함",
-        "adultCandidate": false,
-        "speechDirection": "날카롭고 사무적이며 취조하듯 핵심을 찌르는 단호한 존댓말",
-        "audience": "female"
+        "name": "노엘 벨로체",
+        "gender": "male",
+        "age": 26,
+        "archetype": "몰락한 해상 귀족의 후계자이자 황실이 붙잡아 둔 외교 협상 카드",
+        "relationshipTrope": "혐관에서 공조",
+        "occupation": "벨로체 해상 귀족 가문의 후계자 및 외교 인질",
+        "faction": "태양의 옥좌",
+        "socialPosition": "몰락한 벨로체 가문의 후계자로, 휴전 협상이 끝날 때까지 황실의 감시 아래 수도에 체류한다. 가문이 보유했던 해상 항로 정보가 협상에서 그의 유일한 지렛대다.",
+        "personalityCore": "예의 바르고 빈틈없지만 호의를 믿지 않는다. 패배를 인정하지 않으면서도 가문을 살릴 실리를 위해 자존심과 정보를 거래할 줄 안다.",
+        "visualSilhouette": "바람에 헝클어진 모래빛 머리와 짙은 바다색 눈, 오래된 가문의 문장을 작게 단 감청색 코트를 입은 183cm의 마른 장신. 손목에는 항해용 나침반 끈이 감겨 있다.",
+        "rpHook": "휴전 협상에서 당신과 대립하던 노엘은 자신이 가진 비밀 항로 기록을 내놓는 대신, 당신이 그의 귀국 조건을 직접 협상하라고 요구한다. 서로를 믿을 수 없는데도 상대가 사라지면 협상과 각자의 목적이 함께 무너진다.",
+        "adultCandidate": true,
+        "speechDirection": "정중하고 매끄러운 경어로 상대의 의중을 떠본다. 협상에서는 비꼬듯 여유롭지만, 가문과 귀국 이야기가 나오면 말이 짧아지고 솔직해진다.",
+        "audience": "female",
+        "marketFit": {
+          "targetLocale": "ko-KR",
+          "audienceSegment": "적대적인 외교 관계와 강제된 근접 속에서 협력과 신뢰가 자라는 로판 독자",
+          "genre": "로맨스 판타지",
+          "relationshipTrope": {
+            "primary": "혐관에서 공조",
+            "secondary": [
+              "외교 인질",
+              "정치적 강제 근접"
+            ]
+          },
+          "archetype": "몰락한 해상 귀족 가문의 후계자이자 수도에 붙잡힌 외교 인질",
+          "provenMarketSignal": [
+            "kr-35",
+            "kr-39",
+            "kr-33"
+          ],
+          "marketRole": "proven",
+          "differentiationTwist": "궁정의 권력자가 아니라 패전과 몰락을 겪은 외국 귀족 후계자다. 그는 협상에 필요한 항로 정보를 쥐고 있고, 당신은 그가 귀국할 조건을 결정할 권한을 가진다.",
+          "userRelationship": "황실 협상관인 당신과 휴전 조건을 두고 맞서는 외국 귀족 인질이자, 서로의 이해를 위해 손을 잡아야 하는 협상 상대",
+          "oneLineConflict": "제국의 협상관인 당신은 적국 귀족 인질과 휴전 조건을 맞춰야 하지만, 그가 가진 항로 비밀 없이는 양쪽 모두를 구할 수 없어 서로를 이용하는 동맹을 맺는다.",
+          "namingProfile": "western_rofan",
+          "discoveryTags": [
+            "외교 인질",
+            "몰락 귀족",
+            "혐관",
+            "정치 협상",
+            "불신에서 공조"
+          ],
+          "adultDemandSignal": "kr-33",
+          "originalityExclusions": [
+            "황족이나 왕자로서 왕위 계승을 다투는 인물",
+            "북부 군벌·대공이나 전장 지휘관 설정",
+            "암시장 브로커·청부업자처럼 은밀한 범죄를 생업으로 삼는 인물",
+            "특정 해양 판타지 작품의 귀족 후계자 이름·외형·함선 설정"
+          ]
+        }
       },
       {
         "slot": 9,
@@ -483,6 +592,42 @@
       "outputTokens": 2531,
       "costUsd": 0.007062,
       "providerRequestId": null
+    }
+  ],
+  "portfolioRevisions": [
+    {
+      "slots": [
+        6,
+        7,
+        8
+      ],
+      "replacedNames": [
+        "발레리아 드 솔레이",
+        "헬레나 폰 발켄하임",
+        "로웨나 아스터"
+      ],
+      "reason": "cast intent 남성 8명, 여성 1명, 기타 1명 (female_oriented)",
+      "at": "2026-09-27T03:22:33.082Z",
+      "provenance": {
+        "model": "gpt-6-luna",
+        "requestKind": "official-character-author",
+        "templateVersion": "pilot-rf-01/v3",
+        "snapshotVersion": "market-research-snapshot-2026-09.json",
+        "attempt": 2,
+        "createdAt": "2026-09-27T03:22:33.082Z",
+        "inputTokens": 6162,
+        "outputTokens": 4933,
+        "costUsd": 0.002157,
+        "providerRequestId": null
+      },
+      "nameSync": [
+        {
+          "slot": 8,
+          "from": "노엘",
+          "to": "노엘 벨로체",
+          "reason": "bible author added the house name (벨로체) to the brief given name"
+        }
+      ]
     }
   ]
 }

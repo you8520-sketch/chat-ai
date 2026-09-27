@@ -584,6 +584,9 @@ function compileForBrief(bible: OfficialCharacterBible, brief: PortfolioBriefInp
 }
 
 function assertBibleAndDraft(bible: OfficialCharacterBible, brief: PortfolioBriefInput): OfficialCharacterDraft {
+  if (bible.identity.name !== brief.name) {
+    throw new OfficialSupplyGateError("author_bible_rejected", `slot ${brief.slot}: bible name "${bible.identity.name}" ≠ brief "${brief.name}"`);
+  }
   const bibleQa = validatePilotBible(bible, { adultExpected: brief.adultCandidate });
   if (!bibleQa.ok) {
     throw new OfficialSupplyGateError(
@@ -652,15 +655,47 @@ async function generateOneCharacter(
         },
         modelId,
       });
-      const draft = assertBibleAndDraft(bible, brief);
-      const provenances = completions.map((completion, i) => provenanceFor(completion, attempt * 10 + i));
+      // A near-miss on voice fields or tags is repaired on the same bible
+      // (canonical voice revision) instead of discarding part1 + bonds.
+      let accepted = bible;
+      const repairs: OfficialAuthorRawCompletion[] = [];
+      for (let repair = 0; repair < 2; repair += 1) {
+        const issues = [
+          ...validatePilotBible(accepted, { adultExpected: brief.adultCandidate }).errors,
+          ...evaluateDiscoveryTags({ tags: accepted.publicProfile.tags, bible: accepted }, MANIFEST.marketPolicy).errors,
+        ];
+        if (issues.length === 0) break;
+        const fields = voiceFieldsFor(issues.map((e) => e.code));
+        const repairable = issues.every((e) => voiceFieldsFor([e.code]).length > 0);
+        if (!repairable || fields.length === 0) break;
+        console.log(`[pilot] slot ${brief.slot} voice repair ${repair + 1}: ${fields.join(",")}`);
+        const revised = await reviseOfficialCharacterVoice({
+          transport,
+          bible: accepted,
+          voice: {
+            name: brief.name,
+            age: brief.age,
+            adultCandidate: brief.adultCandidate,
+            speechDirection: brief.speechDirection,
+            npcDemand: "기존 NPC를 유지한다(새로 만들지 않는다).",
+            marketFit: brief.marketFit,
+          },
+          fields,
+          reasons: issues.map((e) => `${e.code}: ${e.message}`),
+          modelId,
+        });
+        repairs.push(revised.completion);
+        accepted = revised.bible;
+      }
+      const draft = assertBibleAndDraft(accepted, brief);
       const tasks: OfficialAuthorTask[] = ["character_bible_1", "character_bible_voice", "character_bible_bonds"];
-      provenances.forEach((p, i) => recordRun(draftKey, tasks[i]!, p));
+      const provenances = [...completions, ...repairs].map((completion, i) => provenanceFor(completion, attempt * 10 + i));
+      provenances.forEach((p, i) => recordRun(draftKey, tasks[i] ?? "character_bible_voice", p));
       const file: CharFile = {
         slot: brief.slot,
         draftKey,
         brief,
-        bible,
+        bible: accepted,
         draft,
         provenances,
         charCount: officialSubstantiveCharCount(draft),
@@ -933,6 +968,7 @@ function voiceFieldsFor(codes: string[]): OfficialVoiceRevisionField[] {
     if (code.startsWith("bible_greeting")) fields.add("greeting");
     if (code.startsWith("bible_pitch")) fields.add("publicDescription");
     if (code.startsWith("bible_speech")) fields.add("speech");
+    if (code === "tag_bible_mismatch" || code === "bible_tags" || code === "tags_keyword_stuffing") fields.add("tags");
   }
   return [...fields];
 }

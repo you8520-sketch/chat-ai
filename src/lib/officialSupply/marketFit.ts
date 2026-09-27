@@ -385,7 +385,9 @@ export function parseCharacterName(raw: string): ParsedCharacterName {
     const t = tokens[0]!;
     const two = KOREAN_SURNAMES_2.find((s) => t.startsWith(s) && t.length > 2);
     // Two-syllable tokens (노아, 리암) are usually foreign given names; only the most common surnames count.
-    const oneSurname = t.length === 2 ? KOREAN_COMMON_SURNAMES.has(t[0]!) : KOREAN_SURNAMES_1.has(t[0]!);
+    // Korean given names are 1–2 syllables, so a 4-syllable token (가브리엘) needs a two-syllable surname.
+    const oneSurname =
+      t.length === 2 ? KOREAN_COMMON_SURNAMES.has(t[0]!) : t.length === 3 && KOREAN_SURNAMES_1.has(t[0]!);
     const surname = two ?? (oneSurname ? t[0]! : null);
     if (surname) {
       const given = t.slice(surname.length);

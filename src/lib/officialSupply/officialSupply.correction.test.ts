@@ -201,6 +201,17 @@ describe("scene portfolio diversity (canonical owner)", () => {
     assert.ok(tie.errors.some((e) => e.code === "scene_clone_of_sibling"));
   });
 
+  it("scene locations map by the place itself, not its parent building or generic words", () => {
+    const world: WorldLocation[] = [
+      { name: "솔라리스 유리온실 (태양궁 최상층)", purpose: "", mood: "", users: "", rpEvents: "" },
+      { name: "에테르노스 제국 하수도 가스 밸브 구역 (슬럼가)", purpose: "", mood: "", users: "", rpEvents: "" },
+    ];
+    assert.equal(mapSceneLocation("솔라리스 유리온실의 비밀 관측 구역", world), world[0]!.name);
+    assert.equal(mapSceneLocation("태양궁 외교 접견실", world), null);
+    assert.equal(mapSceneLocation("태양의 눈 정제탑, 에테르 핵의 수동 차단실", world), null);
+    assert.equal(mapSceneLocation("에테르노스 제국 하수도, 침수 중인 밸브실", world), world[1]!.name);
+  });
+
   it("copied prompt tier labels are stripped from planned locations", () => {
     assert.equal(stripPromptTierLabel("PRIMARY: 흑철 요새 연병장"), "흑철 요새 연병장");
     assert.equal(stripPromptTierLabel("SECONDARY 장소: 아카이브"), "아카이브");
@@ -212,6 +223,8 @@ describe("scene portfolio diversity (canonical owner)", () => {
     assert.deepEqual(extractSceneMotifs("경매장에서 채권을 흥정한다"), ["deal"]);
     assert.deepEqual(extractSceneMotifs("복도에서 의식을 잃고 쓰러진다"), []);
     assert.deepEqual(extractSceneMotifs("제단 앞 축복 의식"), ["ritual"]);
+    assert.deepEqual(extractSceneMotifs("비밀 예배실에서 심문 기록을 건넨다"), ["interrogation"]);
+    assert.deepEqual(extractSceneMotifs("새벽 예배를 올린다"), ["ritual"]);
   });
 
   it("a diverse 10×3 portfolio stays under the clone-rate ceiling", () => {
