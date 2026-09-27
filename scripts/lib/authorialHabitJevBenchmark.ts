@@ -67,6 +67,7 @@ export type AuthorialHabitJevMetrics = {
   habitPresentCount: number;
   contextuallyJustifiedCount: number;
   uncertainCount: number;
+  unresolvedCount: number;
   malformedCount: number;
   failureCount: number;
   humanLabelAgreementCount: number;
@@ -87,7 +88,10 @@ export type AuthorialHabitJevMetrics = {
 export type AuthorialHabitCombinedMetrics = {
   scannerOnlyReviewVolume: number;
   jevHighPriorityReviewVolume: number;
-  reviewVolumeReductionVsScannerOnly: number | null;
+  jevNeedsReviewVolume: number;
+  jevTotalReviewVolume: number;
+  highPriorityReviewVolumeReductionVsScannerOnly: number | null;
+  totalReviewVolumeReductionVsScannerOnly: number | null;
   trueHabitHighPriority: number;
   justifiedFalseHighPriority: number;
   clearHabitMissedByScanner: number;
@@ -300,6 +304,7 @@ function aggregateJev(rows: AuthorialHabitJevRow[]): AuthorialHabitJevMetrics {
       (row) => row.verdict === "CONTEXTUALLY_JUSTIFIED"
     ).length,
     uncertainCount: rows.filter((row) => row.verdict === "UNCERTAIN").length,
+    unresolvedCount: rows.filter((row) => row.verdict == null).length,
     malformedCount: called.filter((row) => row.malformed).length,
     failureCount: rows.filter((row) => row.failure != null).length,
     humanLabelAgreementCount: agreement,
@@ -364,16 +369,27 @@ function combineMetrics(
 
   const scannerOnlyReviewVolume = lexical.candidateCount;
   const jevHighPriorityReviewVolume = jev.habitPresentCount;
-  const reviewVolumeReductionVsScannerOnly =
+  const jevNeedsReviewVolume = jev.uncertainCount + jev.unresolvedCount;
+  const jevTotalReviewVolume =
+    jevHighPriorityReviewVolume + jevNeedsReviewVolume;
+  const highPriorityReviewVolumeReductionVsScannerOnly =
     scannerOnlyReviewVolume > 0
       ? (scannerOnlyReviewVolume - jevHighPriorityReviewVolume) /
+        scannerOnlyReviewVolume
+      : null;
+  const totalReviewVolumeReductionVsScannerOnly =
+    scannerOnlyReviewVolume > 0
+      ? (scannerOnlyReviewVolume - jevTotalReviewVolume) /
         scannerOnlyReviewVolume
       : null;
 
   return {
     scannerOnlyReviewVolume,
     jevHighPriorityReviewVolume,
-    reviewVolumeReductionVsScannerOnly,
+    jevNeedsReviewVolume,
+    jevTotalReviewVolume,
+    highPriorityReviewVolumeReductionVsScannerOnly,
+    totalReviewVolumeReductionVsScannerOnly,
     trueHabitHighPriority,
     justifiedFalseHighPriority,
     clearHabitMissedByScanner,
