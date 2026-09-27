@@ -24,6 +24,7 @@ import {
   buildCharacterBondsUser,
   buildCharacterVoiceSystem,
   buildCharacterVoiceUser,
+  buildPortfolioReplacementUser,
   buildStyleBoardSystem,
   buildStyleBoardUser,
   buildWorldAtlasUser,
@@ -42,6 +43,7 @@ import {
   type CharacterVoiceInput,
   type OfficialAuthorTask,
   type PortfolioBriefInput,
+  type PortfolioReplacementInput,
   type StyleBoardInput,
   type WorldAtlasInput,
   type WorldBibleInput,
@@ -513,31 +515,21 @@ function isRecordArray(value: unknown): Record<string, unknown>[] {
   return value.filter(isRecord);
 }
 
-function coerceWorldBible(
-  data: unknown,
-  opts: { slotGenders?: ("male" | "female" | "other")[] } = {}
-): OfficialWorldBible {
-  const task = "world_bible";
-  if (!isRecord(data)) throw new OfficialSupplyGateError("author_shape_invalid", `${task}: top-level object required`);
-  const str = (key: string): string => requiredString(data, key, task);
-  const situation = isRecord(data.situation) ? data.situation : {};
-  const powerSystem = isRecord(data.powerSystem) ? data.powerSystem : {};
-  const knowledge = isRecord(data.knowledge) ? data.knowledge : {};
-  const userEntry = isRecord(data.userEntry) ? data.userEntry : {};
-  const society = isRecord(data.society) ? data.society : {};
-  const societyOut: Record<string, string> = {};
-  for (const [key, value] of Object.entries(society)) {
-    if (typeof value === "string" && value.trim()) societyOut[key] = value;
-  }
-  const portfolio: PortfolioBriefInput[] = isRecordArray(data.portfolio).map((brief, i) => {
+/** Portfolio briefs from model JSON; manifest slot genders always win. */
+function coercePortfolioBriefs(
+  raw: unknown,
+  task: OfficialAuthorTask,
+  slotGenders?: readonly ("male" | "female" | "other")[]
+): PortfolioBriefInput[] {
+  return isRecordArray(raw).map((brief, i) => {
     const slot = typeof brief.slot === "number" ? Math.round(brief.slot) : i + 1;
-    const fixed = opts.slotGenders?.[slot - 1];
+    const fixed = slotGenders?.[slot - 1];
     const gender: PortfolioBriefInput["gender"] =
       fixed ?? (brief.gender === "female" || brief.gender === "other" ? brief.gender : "male");
     const audience: PortfolioBriefInput["audience"] =
       brief.audience === "male" || brief.audience === "all" ? brief.audience : "female";
     return {
-      slot: typeof brief.slot === "number" ? Math.round(brief.slot) : i + 1,
+      slot,
       name: requiredString(brief, "name", task),
       gender,
       age: typeof brief.age === "number" ? Math.round(brief.age) : 0,
@@ -555,6 +547,61 @@ function coerceWorldBible(
       marketFit: coerceMarketFitBrief(brief.marketFit),
     };
   });
+}
+
+/**
+ * Re-plan specific portfolio slots inside an existing world (world fields and
+ * every other brief untouched). Gender and adult candidacy come from the
+ * manifest plan, not the model.
+ */
+export async function generateOfficialPortfolioReplacement(input: {
+  transport: OfficialAuthorTransport;
+  replacement: PortfolioReplacementInput;
+  modelId?: string;
+}): Promise<{ briefs: PortfolioBriefInput[]; completion: OfficialAuthorRawCompletion }> {
+  const completion = await input.transport.completeJson({
+    task: "world_bible",
+    system: buildWorldBibleSystem(),
+    user: buildPortfolioReplacementUser(input.replacement),
+    schemaName: "official_world_bible",
+    schema: WORLD_BIBLE_SCHEMA,
+    modelId: input.modelId,
+  });
+  const data = parseAuthorJson(completion.text, "world_bible");
+  if (!isRecord(data) || !Array.isArray(data.portfolio)) {
+    throw new OfficialSupplyGateError("author_shape_invalid", "portfolio replacement: portfolio array required");
+  }
+  const plan = new Map(input.replacement.slots.map((s) => [s.slot, s] as const));
+  const genders: ("male" | "female" | "other")[] = [];
+  for (const s of input.replacement.slots) genders[s.slot - 1] = s.gender;
+  const briefs = coercePortfolioBriefs(data.portfolio, "world_bible", genders)
+    .filter((b) => plan.has(b.slot))
+    .map((b) => ({ ...b, adultCandidate: plan.get(b.slot)!.adultCandidate }));
+  const got = new Set(briefs.map((b) => b.slot));
+  const missing = input.replacement.slots.filter((s) => !got.has(s.slot)).map((s) => s.slot);
+  if (missing.length || briefs.length !== plan.size) {
+    throw new OfficialSupplyGateError("author_shape_invalid", `portfolio replacement: slots ${missing.join(",") || "duplicated"} missing`);
+  }
+  return { briefs, completion };
+}
+
+function coerceWorldBible(
+  data: unknown,
+  opts: { slotGenders?: ("male" | "female" | "other")[] } = {}
+): OfficialWorldBible {
+  const task = "world_bible";
+  if (!isRecord(data)) throw new OfficialSupplyGateError("author_shape_invalid", `${task}: top-level object required`);
+  const str = (key: string): string => requiredString(data, key, task);
+  const situation = isRecord(data.situation) ? data.situation : {};
+  const powerSystem = isRecord(data.powerSystem) ? data.powerSystem : {};
+  const knowledge = isRecord(data.knowledge) ? data.knowledge : {};
+  const userEntry = isRecord(data.userEntry) ? data.userEntry : {};
+  const society = isRecord(data.society) ? data.society : {};
+  const societyOut: Record<string, string> = {};
+  for (const [key, value] of Object.entries(society)) {
+    if (typeof value === "string" && value.trim()) societyOut[key] = value;
+  }
+  const portfolio = coercePortfolioBriefs(data.portfolio, task, opts.slotGenders);
   return {
     name: str("name"),
     genre: str("genre"),
@@ -680,6 +727,7 @@ export async function generateOfficialWorldBible(input: {
     genderMix: input.world.genderMix,
     slotGenders: input.world.slotGenders,
     market: input.world.market,
+    castIntent: input.world.castIntent,
   };
   const portfolioCompletion = await complete(buildWorldPortfolioUser(portfolioInput));
   const portfolioData = parseAuthorJson(portfolioCompletion.text, "world_bible");

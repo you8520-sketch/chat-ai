@@ -787,6 +787,65 @@ export function evaluateMarketFitPortfolio(
   return qaResult(errors, warnings);
 }
 
+export type CastRoleEntry = {
+  draftKey: string;
+  name: string;
+  occupation: string;
+  archetype: string;
+  socialPosition: string;
+  visualSilhouette: string;
+  rpHook: string;
+  speechDirection: string;
+};
+
+export const CAST_ROLE_THRESHOLDS = {
+  occupationJaccard: 0.5,
+  hookJaccard: 0.4,
+  silhouetteJaccard: 0.5,
+  speechJaccard: 0.5,
+  /** Royal/ducal archetypes (황자·황녀·왕자·대공…) allowed per batch before the cast reads as one court. */
+  maxRoyalOrDuke: 2,
+} as const;
+
+function stemJaccard(a: string, b: string): number {
+  return jaccard(tagStems(a), tagStems(b));
+}
+
+/**
+ * Cast-level role diversity: occupation / hook / silhouette / speech-direction
+ * clones and royal-title density. Deterministic token overlap, no LLM judge.
+ */
+export function evaluateCastRoleDiversity(entries: readonly CastRoleEntry[]): QaResult & { royalOrDuke: string[] } {
+  const errors: QaIssue[] = [];
+  const t = CAST_ROLE_THRESHOLDS;
+  const checks: [keyof CastRoleEntry, number, string][] = [
+    ["occupation", t.occupationJaccard, "cast_occupation_clone"],
+    ["rpHook", t.hookJaccard, "cast_hook_clone"],
+    ["visualSilhouette", t.silhouetteJaccard, "cast_silhouette_clone"],
+    ["speechDirection", t.speechJaccard, "cast_speech_clone"],
+  ];
+  for (let i = 0; i < entries.length; i++) {
+    for (let j = i + 1; j < entries.length; j++) {
+      const a = entries[i]!;
+      const b = entries[j]!;
+      for (const [field, limit, code] of checks) {
+        const value = stemJaccard(a[field], b[field]);
+        if (value >= limit) errors.push({ code, message: `${a.name} / ${b.name}: ${field} overlap ${value.toFixed(2)}` });
+      }
+    }
+  }
+  const royalOrDuke = entries
+    .filter((e) => {
+      const text = `${e.archetype} ${e.occupation} ${e.socialPosition}`;
+      return DOMESTIC_TROPES.royalty.re.test(text) || DOMESTIC_TROPES.northern_duke.re.test(text);
+    })
+    .map((e) => e.name);
+  if (royalOrDuke.length > t.maxRoyalOrDuke) {
+    errors.push({ code: "cast_royal_density", message: `${royalOrDuke.length} royal/ducal leads: ${royalOrDuke.join(", ")}` });
+  }
+  return { ...qaResult(errors), royalOrDuke };
+}
+
 /** Prompt lines carrying one character's market fit into the bible calls. */
 export function formatMarketFitForPrompt(brief: OfficialMarketFitBrief): string[] {
   return [

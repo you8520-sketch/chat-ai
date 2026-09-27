@@ -84,7 +84,15 @@ function countBy(values: string[]): Map<string, number> {
  * Same-world diversity QA: no near-duplicate names/greetings, no clones that
  * differ only by hair colour (same archetype + trope + occupation or near-identical core).
  */
-export function evaluateWorldDiversity(drafts: readonly OfficialCharacterDraft[]): QaResult {
+/**
+ * Gender is judged against the batch's own cast intent (`evaluateCastIntent`),
+ * never against a balanced default: `intendedSingleGender` silences the
+ * single-gender hint for BL/GL-style batches.
+ */
+export function evaluateWorldDiversity(
+  drafts: readonly OfficialCharacterDraft[],
+  opts: { intendedSingleGender?: boolean } = {}
+): QaResult {
   const errors: QaIssue[] = [];
   const warnings: QaIssue[] = [];
   for (let i = 0; i < drafts.length; i++) {
@@ -123,7 +131,7 @@ export function evaluateWorldDiversity(drafts: readonly OfficialCharacterDraft[]
       if (count >= limit) warnings.push({ code, message: `${value} ×${count}` });
     }
   }
-  if (drafts.length >= 4 && new Set(drafts.map((d) => d.gender)).size === 1) {
+  if (!opts.intendedSingleGender && drafts.length >= 4 && new Set(drafts.map((d) => d.gender)).size === 1) {
     warnings.push({ code: "single_gender_world", message: "every playable character shares one gender" });
   }
   return qaResult(errors, warnings);

@@ -13,6 +13,9 @@
  *   --step=styles
  *   --step=cost-reconcile         summarize the canonical ledger into cost.json
  *   --step=market-fit-review      offline facts-only Domestic Market Fit review (no rewrites)
+ *   --step=replace-slots          re-plan the manifest's replaced slots inside the existing world (briefs only)
+ *   --step=public-fix             offline: apply human-approved tagline/tag decisions (public surface only)
+ *   --step=cast-cleanup           offline: drop relationship entries that point at removed cast members
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -29,6 +32,7 @@ import {
   generateOfficialAppearanceLock,
   generateOfficialAssetPlan,
   generateOfficialCharacterBible,
+  generateOfficialPortfolioReplacement,
   generateOfficialStyleBoard,
   generateOfficialWorldBible,
   liveOfficialAuthorTransport,
@@ -62,11 +66,18 @@ import {
 } from "@/lib/officialSupply/authorPrompts";
 import {
   buildDomesticMarketFitReview,
+  evaluateCastRoleDiversity,
   evaluateDiscoveryTags,
   evaluateMarketFitPortfolio,
+  evaluateMarketTropePortfolio,
+  evaluateNamePortfolio,
   formatMarketSignalLines,
+  hasUserRelationshipCue,
+  observedMarketNames,
   resolveNamingProfile,
   selectMarketSignals,
+  validateMarketFitBrief,
+  type CastRoleEntry,
   type OfficialBatchMarketPolicy,
 } from "@/lib/officialSupply/marketFit";
 import {
@@ -79,7 +90,16 @@ import {
   type OfficialWorldBible,
 } from "@/lib/officialSupply/bible";
 import { clearQuarantine, writeQuarantine } from "@/lib/officialSupply/pilotArtifacts";
-import { evaluatePortfolioBalance, validateResearchSnapshot, type ResearchSnapshot } from "@/lib/officialSupply/research";
+import {
+  evaluateCastIntent,
+  evaluatePortfolioBalance,
+  formatCastGenderMix,
+  isSingleGenderIntent,
+  validateResearchSnapshot,
+  type CastGender,
+  type OfficialCastIntent,
+  type ResearchSnapshot,
+} from "@/lib/officialSupply/research";
 import {
   buildSceneAvoidList,
   evaluateSceneCandidateAgainstPortfolio,
@@ -117,18 +137,76 @@ const ADULT_PLAN: Record<string, AdultProfilePlan> = {
     consentModes: ["standard", "power_play"],
     direction: "사전에 협상된 권력 교환(명령·보고 역할극), 규칙을 지킨 상대에 대한 짧고 무거운 인정, 끝난 뒤 체온·물·상처를 확인하는 사후 돌봄",
   },
-  // Controlled inspector: tension comes from her own rules bending, not from dominance.
+  // Temple inquisitor: vows vs. desire; tension is guilt and self-chosen transgression, not command.
   "pilot-rf-06": {
     dialogueProfile: "suggestive",
     consentModes: ["standard"],
-    direction: "규율을 스스로 깨는 순간의 긴장, 합의된 보호적 독점욕(질투를 감추지 않되 선택을 빼앗지 않음), 감찰관식 질문으로 쌓이는 언어적 긴장",
+    direction: "금욕 서약이 흔들리는 순간의 긴장, 죄책과 갈망의 줄다리기, 금지된 보호를 스스로 선택하는 결단(상대의 선택을 대신하지 않음)",
   },
-  // Loud, sensual, competitive commander.
-  "pilot-rf-07": {
+  // Political hostage: seduction as negotiation between equals holding each other's weak points.
+  "pilot-rf-08": {
     dialogueProfile: "explicit_frequent",
-    consentModes: ["standard", "power_play"],
-    direction: "결투처럼 주도권을 뺏고 빼앗기는 라이벌 긴장, 호탕한 도발과 장난, 상대의 실력을 대놓고 칭찬하는 인정",
+    consentModes: ["standard"],
+    direction: "흥정처럼 오가는 도발과 유혹, 이용하는 척 진심을 숨기는 밀고 당기기, 서로의 약점을 쥔 대등한 주도권",
   },
+};
+
+/**
+ * Batch-scoped cast intent (manifest config, not a genre rule): the first
+ * Korea-first female-oriented rofan launch batch leads with male romance targets.
+ */
+const CAST_INTENT: OfficialCastIntent = {
+  targetAudience: "female_oriented",
+  romanceTargetProfile: "한국 여성향 로판 독자를 위한 남성 로맨스 대상 중심(여성 1명·인외 1명은 의도된 니치 커버리지)",
+  desiredGenderMix: { male: 8, female: 1, other: 1 },
+  rationale: "kr-37(여성향 로판 선정 캐릭터가 남성 중심) · kr-25/kr-29(여성향 로맨스·후회남 태그) · kr-33(여성향 랜딩 카테고리) · PR #1087 human review",
+};
+
+/**
+ * Pilot correction: slots 06-08 are re-planned inside the existing world;
+ * every other brief, bible and artifact stays as authored.
+ */
+const AVOID_NAME_SYLLABLES = "카엘룸·볼프강·루시안·율리우스·바스티안·세라피나·이노센트와 첫 음절(카·볼·루·율·바·세·이)과 끝 음절(룸·강·안·스·나·트)이 겹치지 않게";
+const SLOT_REPLACEMENT = {
+  replacedNames: ["발레리아 드 솔레이", "헬레나 폰 발켄하임", "로웨나 아스터"],
+  slots: [
+    {
+      slot: 6,
+      gender: "male" as const,
+      adultCandidate: true,
+      direction:
+        "남성. 역할 공간: 대신전 소속 이단심문관(성기사 서품). 핵심 경험: 심문, 금지된 보호, 신앙과 욕망의 충돌, 규율과 개인적 선택의 충돌. " +
+        "유저의 금지된 에테르/이단 혐의를 다루는 첫 관계가 한 줄에 읽힐 것. 세라피나(성녀)·율리우스(이단 연구 교수)와 역할·경험이 겹치지 않게. " +
+        `황자·북부대공 금지, 근위대장 여기사를 남자로 바꾼 캐릭터 금지. 이름은 ${AVOID_NAME_SYLLABLES}.`,
+    },
+    {
+      slot: 7,
+      gender: "male" as const,
+      adultCandidate: false,
+      direction:
+        "남성. 역할 공간: 태양의 눈(중심 핵)·에테르 정제탑을 운영하는 황실 마도공학 현장 총책임자. 핵심 경험: 위험한 공동 연구, 기술적 의존, 계약, 비밀 공유, 능력/생존 문제로 묶인 관계. " +
+        "율리우스(교수·논리전·연구)와 달리 권한 있는 실무 책임자·제작자·현장 해결사. 이노센트(길드 정비 유닛)와 겹치지 않게. " +
+        `황자·북부대공 금지. 이름은 ${AVOID_NAME_SYLLABLES}.`,
+    },
+    {
+      slot: 8,
+      gender: "male" as const,
+      adultCandidate: true,
+      direction:
+        "남성. 역할 공간: 서부 해상 무역권 벨로체의 몰락한 해상 귀족 후계자, 황실에 볼모로 잡혀 수도에 머무는 외교 인질(왕자 아님). " +
+        "핵심 경험: 정치적 적대, 강제된 근접, 외교 협상, 불신에서 협력, 서로 이용하지만 쉽게 버릴 수 없는 관계. " +
+        `황자·북부대공·청부업자·브로커와 같은 경험 금지. 이름은 ${AVOID_NAME_SYLLABLES}.`,
+    },
+  ],
+};
+
+/** Human review decisions on the public surface (PR #1087 review). Part1/bonds/scenes untouched. */
+const PUBLIC_SURFACE_DECISIONS: Record<string, { tagline?: string; replaceTags?: [string, string][]; addTags?: string[] }> = {
+  "pilot-rf-01": { tagline: "피를 토하던 황자가, 목격한 당신에게 비밀 거래를 청한다." },
+  "pilot-rf-02": { tagline: "금지된 마석을 쥔 당신을 압송해 온 북부의 대공.", replaceTags: [["느린 신뢰", "혐관"]], addTags: ["북부대공"] },
+  "pilot-rf-03": { tagline: "금고털이 경보 속, 당신의 손목을 잡고 달아난 브로커." },
+  "pilot-rf-09": { replaceTags: [["감정의 균열", "금단"]] },
+  "pilot-rf-10": { tagline: "폐기 직전, 당신의 심장 소리에 깨어난 기계 인형.", replaceTags: [["잔잔한 관계", "순애"]] },
 };
 
 const MANIFEST = {
@@ -138,16 +216,15 @@ const MANIFEST = {
   genre: "로맨스 판타지",
   slots: 10,
   adultCandidates: 4,
-  genderMix: "남성 5명, 여성 4명, 기타 1명",
-  slotGenders: ["male", "male", "male", "male", "male", "female", "female", "female", "female", "other"] as (
-    | "male"
-    | "female"
-    | "other"
-  )[],
+  castIntent: CAST_INTENT,
+  genderMix: formatCastGenderMix(CAST_INTENT.desiredGenderMix),
+  slotGenders: ["male", "male", "male", "male", "male", "male", "male", "male", "female", "other"] as CastGender[],
+  replacement: SLOT_REPLACEMENT,
   templateVersion: OFFICIAL_AUTHOR_TEMPLATE_VERSION,
   snapshotVersion: OFFICIAL_AUTHOR_SNAPSHOT_VERSION,
   portfolioPolicy: { adultShareMin: 0.3, adultShareMax: 0.5, maxGenreShare: 1, minDistinctGenres: 1 },
   adultPlan: ADULT_PLAN,
+  publicSurfaceDecisions: PUBLIC_SURFACE_DECISIONS,
   /** Batch product policy: this pilot targets the Korean launch market (not a global constant). */
   marketPolicy: {
     targetLocale: "ko-KR",
@@ -442,6 +519,7 @@ async function stepWorld(modelId: string, maxAttempts: number): Promise<void> {
           worldKey: MANIFEST.worldKey,
           styleKey: MANIFEST.styleKey,
           market: worldMarketInput(snapshot),
+          castIntent: castIntentLine(),
           slots: MANIFEST.slots,
           adultCandidates: MANIFEST.adultCandidates,
           genderMix: MANIFEST.genderMix,
@@ -466,11 +544,12 @@ async function stepWorld(modelId: string, maxAttempts: number): Promise<void> {
 }
 
 type CharRevision = {
-  step: "voice-fix" | "adult-fix" | "assetplan";
+  step: "voice-fix" | "adult-fix" | "assetplan" | "public-fix" | "cast-cleanup";
   fields: string[];
   reasons: string[];
   at: string;
-  provenance: OfficialAuthorProvenance;
+  /** Null for offline deterministic edits (no provider call). */
+  provenance: OfficialAuthorProvenance | null;
 };
 
 type CharFile = {
@@ -654,9 +733,13 @@ function stepPortfolioQa(): void {
     if (!f.draft) throw new Error(`slot ${f.slot} has no draft (quarantined?)`);
     return f.draft;
   });
-  const diversity = evaluateWorldDiversity(drafts);
+  const diversity = evaluateWorldDiversity(drafts, { intendedSingleGender: isSingleGenderIntent(MANIFEST.castIntent) });
   console.log("[pilot] world-diversity errors:", diversity.errors.length);
   for (const e of diversity.errors) console.log(`  - ${e.code}: ${e.message}`);
+  const intent = evaluateCastIntent(drafts.map((d) => d.gender as CastGender), MANIFEST.castIntent);
+  console.log("[pilot] cast intent ok:", intent.ok, intent.errors.map((e) => e.message));
+  const roles = evaluateCastRoleDiversity(castRoleEntries(world.portfolio));
+  console.log("[pilot] cast roles ok:", roles.ok, roles.errors.map((e) => e.message), "royal/ducal:", roles.royalOrDuke);
   const snapshot = readJson<{ signals: { source: string; scenarioHook?: string; worldMechanic?: string }[] }>(
     SNAPSHOT_PATH
   );
@@ -689,11 +772,18 @@ function stepPortfolioQa(): void {
   console.log("[pilot] lengths:", drafts.map((d) => `${d.draftKey}=${officialSubstantiveCharCount(d)}`).join(" "));
 }
 
-async function stepAppearance(modelId: string, maxAttempts: number): Promise<void> {
+async function stepAppearance(modelId: string, maxAttempts: number, onlySlot?: number): Promise<void> {
   const report = loadCost();
   const world = readWorld();
-  const looks: string[] = [];
-  for (const brief of world.portfolio) {
+  // With --slot, every other character's committed lock is the sibling set.
+  const looks: string[] = onlySlot
+    ? world.portfolio
+        .filter((b) => b.slot !== onlySlot)
+        .map((b) => readChar(b.slot))
+        .filter((f) => f.appearance)
+        .map((f) => `${f.bible.identity.name}: ${f.appearance!.identity.hairColor} ${f.appearance!.identity.hairLength}, ${f.appearance!.identity.eyeColor}, ${f.appearance!.identity.heightCm}cm`)
+    : [];
+  for (const brief of world.portfolio.filter((b) => !onlySlot || b.slot === onlySlot)) {
     const file = readChar(brief.slot);
     if (!file.bible) throw new Error(`slot ${brief.slot} has no bible`);
     const appearanceSource = [
@@ -896,10 +986,10 @@ async function stepVoiceFix(modelId: string, maxAttempts: number): Promise<void>
   }
 }
 
-async function stepAdultFix(modelId: string, maxAttempts: number): Promise<void> {
+async function stepAdultFix(modelId: string, maxAttempts: number, onlySlot?: number): Promise<void> {
   const report = loadCost();
   const world = readWorld();
-  for (const brief of world.portfolio) {
+  for (const brief of world.portfolio.filter((b) => !onlySlot || b.slot === onlySlot)) {
     const draftKey = draftKeyFor(brief.slot);
     const plan = ADULT_PLAN[draftKey];
     if (!plan) continue;
@@ -940,7 +1030,7 @@ async function stepAdultFix(modelId: string, maxAttempts: number): Promise<void>
           charCount: officialSubstantiveCharCount(draft),
           revisions: [
             ...(file.revisions ?? []),
-            { step: "adult-fix", fields: ["adultSection"], reasons: ["adult portfolio convergence (느린 신뢰·절제, all suggestive)"], at: provenance.createdAt, provenance },
+            { step: "adult-fix", fields: ["adultSection"], reasons: [onlySlot ? "manifest adult plan for a replaced slot" : "adult portfolio convergence (느린 신뢰·절제, all suggestive)"], at: provenance.createdAt, provenance },
           ],
         });
         console.log(`[pilot] adult-fix slot ${brief.slot} ok (attempt ${attempt})`);
@@ -1005,6 +1095,217 @@ async function stepStyles(modelId: string, maxAttempts: number): Promise<void> {
   });
 }
 
+// ── Slot replacement (briefs only; world fields and kept briefs untouched) ───
+
+type WorldFile = {
+  bible: OfficialWorldBible;
+  provenances: OfficialAuthorProvenance[];
+  portfolioRevisions?: { slots: number[]; replacedNames: string[]; reason: string; at: string; provenance: OfficialAuthorProvenance }[];
+};
+
+const WORLD_PATH = path.join(PILOT_DIR, "world-bible.json");
+
+function castIntentLine(): string {
+  const intent = MANIFEST.castIntent;
+  return `${intent.targetAudience} · ${intent.romanceTargetProfile} · ${formatCastGenderMix(intent.desiredGenderMix)}`;
+}
+
+function castRoleEntries(briefs: readonly PortfolioBriefInput[]): CastRoleEntry[] {
+  return briefs.map((b) => ({
+    draftKey: draftKeyFor(b.slot),
+    name: b.name,
+    occupation: b.occupation,
+    archetype: b.archetype,
+    socialPosition: b.socialPosition,
+    visualSilhouette: b.visualSilhouette,
+    rpHook: b.rpHook,
+    speechDirection: b.speechDirection,
+  }));
+}
+
+/** Gate for re-planned briefs against the kept cast (market fit, names, tropes, roles, gender intent). */
+function evaluateReplacementBriefs(
+  briefs: readonly PortfolioBriefInput[],
+  kept: readonly PortfolioBriefInput[],
+  snapshot: ResearchSnapshot
+): { errors: string[] } {
+  const errors: string[] = [];
+  const policy = MANIFEST.marketPolicy;
+  const expected = resolveNamingProfile(MANIFEST.genre);
+  for (const b of briefs) {
+    if (b.age < 19) errors.push(`${b.slot}: age ${b.age} < 19`);
+    if (!b.marketFit) {
+      errors.push(`${b.slot}: marketFit missing`);
+      continue;
+    }
+    const qa = validateMarketFitBrief(b.marketFit, { snapshot, policy, adultCandidate: b.adultCandidate, expectedNamingProfile: expected });
+    errors.push(...qa.errors.map((e) => `${b.slot}: ${e.code}: ${e.message}`));
+    if (!hasUserRelationshipCue(b.rpHook)) errors.push(`${b.slot}: rpHook does not state the user relationship`);
+  }
+  const cast = [...kept, ...briefs].sort((a, z) => a.slot - z.slot);
+  const newNames = new Set(briefs.map((b) => b.name));
+  const names = evaluateNamePortfolio(
+    cast.map((b) => ({
+      draftKey: draftKeyFor(b.slot),
+      name: b.name,
+      namingProfile: b.marketFit?.namingProfile ?? (b.gender === "other" ? "nonhuman_designation" : expected),
+      kinNames: [],
+    })),
+    { observed: observedMarketNames(snapshot), hooks: Object.fromEntries(cast.map((b) => [draftKeyFor(b.slot), b.rpHook])) }
+  );
+  for (const issue of [...names.errors, ...names.warnings]) {
+    // Kept names are not re-litigated; new names must come out clean.
+    if ([...newNames].some((n) => issue.message.includes(n))) errors.push(`name ${issue.code}: ${issue.message}`);
+  }
+  const tropes = evaluateMarketTropePortfolio(
+    cast.map((b) => ({
+      draftKey: draftKeyFor(b.slot),
+      primaryTrope: b.marketFit?.relationshipTrope.primary ?? b.relationshipTrope,
+      secondaryTropes: b.marketFit?.relationshipTrope.secondary ?? [],
+    })),
+    policy
+  );
+  errors.push(...tropes.errors.map((e) => `${e.code}: ${e.message}`));
+  const roles = evaluateCastRoleDiversity(castRoleEntries(cast));
+  errors.push(...roles.errors.map((e) => `${e.code}: ${e.message}`));
+  const intent = evaluateCastIntent(cast.map((b) => b.gender), MANIFEST.castIntent);
+  errors.push(...intent.errors.map((e) => `${e.code}: ${e.message}`));
+  return { errors };
+}
+
+async function stepReplaceSlots(modelId: string, maxAttempts: number): Promise<void> {
+  const report = loadCost();
+  const snapshot = readSnapshot();
+  const worldFile = readJson<WorldFile>(WORLD_PATH);
+  const world = worldFile.bible;
+  const plan = MANIFEST.replacement;
+  const replaced = new Set(plan.slots.map((s) => s.slot));
+  const kept = world.portfolio.filter((b) => !replaced.has(b.slot));
+  const current = world.portfolio.filter((b) => replaced.has(b.slot)).map((b) => b.name);
+  if (current.some((name) => !plan.replacedNames.includes(name))) {
+    console.log(`[pilot] replace-slots: slots already re-planned (${current.join(", ")}) — nothing to do`);
+    return;
+  }
+  const keptSiblings = kept.map(
+    (b) => `${b.name} — ${b.gender}, ${b.occupation}, ${b.archetype}, 트로프 ${b.relationshipTrope}, 훅 ${b.rpHook}, 외형 ${b.visualSilhouette}, 말투 ${b.speechDirection}`
+  );
+  await runWorkflowStep({
+    report,
+    draftKey: "world",
+    label: "replace-slots",
+    maxAttempts,
+    quarantineKey: "portfolio-replacement",
+    run: async (transport, attempt, feedback) => {
+      const { briefs, completion } = await generateOfficialPortfolioReplacement({
+        transport,
+        replacement: {
+          worldName: world.name,
+          centralPremise: world.centralPremise,
+          factionNames: world.factions.map((f) => f.name),
+          locationNames: world.locations.map((l) => l.name),
+          market: worldMarketInput(snapshot),
+          castIntent: castIntentLine(),
+          keptSiblings,
+          slots: plan.slots,
+          feedback,
+        },
+        modelId,
+      });
+      const gate = evaluateReplacementBriefs(briefs, kept, snapshot);
+      if (gate.errors.length) {
+        throw new OfficialSupplyGateError("author_replacement_rejected", gate.errors.join("; "));
+      }
+      const provenance = provenanceFor(completion, attempt);
+      recordRun("world", "world_bible", provenance);
+      const portfolio = [...kept, ...briefs].sort((a, z) => a.slot - z.slot);
+      writeJson(WORLD_PATH, {
+        ...worldFile,
+        bible: { ...world, portfolio },
+        portfolioRevisions: [
+          ...(worldFile.portfolioRevisions ?? []),
+          {
+            slots: [...replaced],
+            replacedNames: plan.replacedNames,
+            reason: `cast intent ${formatCastGenderMix(MANIFEST.castIntent.desiredGenderMix)} (${MANIFEST.castIntent.targetAudience})`,
+            at: provenance.createdAt,
+            provenance,
+          },
+        ],
+      });
+      // The replaced characters' old sheets are obsolete; history stays in git.
+      for (const slot of replaced) fs.rmSync(charPath(slot), { force: true });
+      console.log(`[pilot] replace-slots ok (attempt ${attempt}): ${briefs.map((b) => `${b.slot} ${b.name}`).join(", ")}`);
+    },
+  });
+}
+
+/** Offline: human-approved public-surface decisions (tagline / tags only). */
+function stepPublicFix(): void {
+  const world = readWorld();
+  for (const [draftKey, decision] of Object.entries(MANIFEST.publicSurfaceDecisions)) {
+    const brief = world.portfolio.find((b) => draftKeyFor(b.slot) === draftKey);
+    if (!brief) throw new Error(`${draftKey}: no brief`);
+    const file = readChar(brief.slot);
+    const profile = file.bible.publicProfile;
+    let tags = [...profile.tags];
+    for (const [from, to] of decision.replaceTags ?? []) tags = tags.map((t) => (t === from ? to : t));
+    for (const add of decision.addTags ?? []) if (!tags.includes(add)) tags.push(add);
+    const tagline = decision.tagline ?? profile.tagline;
+    if (tagline === profile.tagline && JSON.stringify(tags) === JSON.stringify(profile.tags)) {
+      console.log(`[pilot] public-fix ${draftKey}: already applied`);
+      continue;
+    }
+    const bible: OfficialCharacterBible = { ...file.bible, publicProfile: { ...profile, tagline, tags } };
+    const draft = assertBibleAndDraft(bible, file.brief);
+    const fields = [tagline !== profile.tagline ? "tagline" : "", JSON.stringify(tags) !== JSON.stringify(profile.tags) ? "tags" : ""].filter(Boolean);
+    writeJson(charPath(brief.slot), {
+      ...file,
+      bible,
+      draft,
+      charCount: officialSubstantiveCharCount(draft),
+      revisions: [
+        ...(file.revisions ?? []),
+        { step: "public-fix", fields, reasons: ["PR #1087 human review: relationship-first tagline / grounded tags"], at: new Date().toISOString(), provenance: null },
+      ],
+    });
+    console.log(`[pilot] public-fix ${draftKey}: ${fields.join("+")}`);
+  }
+}
+
+/** Offline: kept sheets drop relationship entries that point at characters no longer in the cast. */
+function stepCastCleanup(): void {
+  const world = readWorld();
+  const castNames = new Set(world.portfolio.map((b) => b.name));
+  const removed = new Set(MANIFEST.replacement.replacedNames);
+  for (const brief of world.portfolio) {
+    const file = readChar(brief.slot);
+    const dangling = file.bible.otherRelationships.filter((r) => removed.has(r.target) && !castNames.has(r.target));
+    if (dangling.length === 0) continue;
+    const bible: OfficialCharacterBible = {
+      ...file.bible,
+      otherRelationships: file.bible.otherRelationships.filter((r) => !dangling.includes(r)),
+    };
+    const draft = assertBibleAndDraft(bible, file.brief);
+    writeJson(charPath(brief.slot), {
+      ...file,
+      bible,
+      draft,
+      charCount: officialSubstantiveCharCount(draft),
+      revisions: [
+        ...(file.revisions ?? []),
+        {
+          step: "cast-cleanup",
+          fields: ["otherRelationships"],
+          reasons: [`removed cast members: ${dangling.map((r) => r.target).join(", ")}`],
+          at: new Date().toISOString(),
+          provenance: null,
+        },
+      ],
+    });
+    console.log(`[pilot] cast-cleanup ${file.draftKey}: dropped ${dangling.map((r) => r.target).join(", ")}`);
+  }
+}
+
 function parseArgs(): { step: string; slot?: number; from?: number; concurrency: number; maxAttempts: number } {
   const args = process.argv.slice(2);
   const get = (key: string): string | undefined => {
@@ -1022,7 +1323,7 @@ function parseArgs(): { step: string; slot?: number; from?: number; concurrency:
 
 async function main(): Promise<void> {
   const { step, slot, from, concurrency, maxAttempts } = parseArgs();
-  const offline = step === "portfolio-qa" || step === "cost-reconcile" || step === "market-fit-review";
+  const offline = ["portfolio-qa", "cost-reconcile", "market-fit-review", "public-fix", "cast-cleanup"].includes(step);
   if (!offline && process.env.OFFICIAL_PILOT_LIVE !== "1") {
     console.error("[pilot] refusing: set OFFICIAL_PILOT_LIVE=1 to run live provider generation.");
     process.exit(2);
@@ -1042,13 +1343,19 @@ async function main(): Promise<void> {
     case "portfolio-qa":
       return stepPortfolioQa();
     case "appearance":
-      return stepAppearance(modelId, maxAttempts);
+      return stepAppearance(modelId, maxAttempts, slot);
+    case "replace-slots":
+      return stepReplaceSlots(modelId, maxAttempts);
+    case "public-fix":
+      return stepPublicFix();
+    case "cast-cleanup":
+      return stepCastCleanup();
     case "assetplan":
       return stepAssetPlans(modelId, maxAttempts, slot, from);
     case "voice-fix":
       return stepVoiceFix(modelId, maxAttempts);
     case "adult-fix":
-      return stepAdultFix(modelId, maxAttempts);
+      return stepAdultFix(modelId, maxAttempts, slot);
     case "styles":
       return stepStyles(modelId, maxAttempts);
     case "cost-reconcile":

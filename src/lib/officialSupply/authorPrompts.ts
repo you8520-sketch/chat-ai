@@ -86,10 +86,12 @@ export type WorldBibleInput = {
   slots: number;
   /** Desired adult-candidate count for this manifest (not a global rule). */
   adultCandidates: number;
-  /** Manifest-scoped gender plan (not a global rule), e.g. "남성 5명, 여성 4명, 기타 1명". */
+  /** Manifest-scoped gender plan (not a global rule), e.g. "남성 8명, 여성 1명, 기타 1명". */
   genderMix: string;
   /** Fixed gender per slot (index slot-1). */
   slotGenders: ("male" | "female" | "other")[];
+  /** Batch cast intent in plain words (audience + romance-target profile). */
+  castIntent?: string;
 };
 
 /** Market input for world/portfolio calls — trope-level signal lines only (`selectMarketSignals`). */
@@ -178,22 +180,16 @@ export type WorldPortfolioInput = {
   /** Fixed gender per slot (index slot-1). The model must not change these. */
   slotGenders: ("male" | "female" | "other")[];
   market: WorldMarketInput;
+  /** Batch cast intent in plain words (audience + romance-target profile). */
+  castIntent?: string;
 };
 
-export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
-  const m = input.market;
+/** Market-fit authoring rules shared by the full portfolio call and slot replacement. */
+function marketFitRuleLines(m: WorldMarketInput): string[] {
   const mix = (Object.entries(m.marketRoleMix) as [MarketRole, { min: number; max: number }][])
     .map(([role, band]) => `${role} ${band.min}~${band.max}`)
     .join(", ");
   return [
-    `세계관: ${input.worldName} — ${input.centralPremise}`,
-    `세력: ${input.factionNames.join(" / ")}`,
-    `장소: ${input.locationNames.join(" / ")}`,
-    `캐릭터 슬롯 수: ${input.slots} (정확히 이 수만큼 portfolio 브리프 생성)`,
-    `성인 후보 수: ${input.adultCandidates}명 (이 수만큼 adultCandidate=true)`,
-    `성별 구성: ${input.genderMix} (반드시 준수. 전원 단일 성별 금지)`,
-    `슬롯별 성별 고정표(절대 변경 금지, 이름도 성별에 맞게): ${input.slotGenders.map((g, i) => `${i + 1}번 ${g}`).join(", ")}`,
-    "",
     `대상 시장: ${m.targetLocale} (${m.marketPriority})`,
     "시장 신호(PRIMARY 우선, 트로프·훅 구조만 참고):",
     ...m.signalLines,
@@ -212,6 +208,22 @@ export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
     `- discoveryTags ${m.coreTags.min}~${m.coreTags.max}개: 장르·관계·성격·소재·방향성을 섞되 캐릭터 핵심 경험만. 인기 키워드 억지 삽입 금지.`,
     "- adultDemandSignal: 성인 후보면 성인 수요가 있는 [signalId], 아니면 null. 성인 후보도 관계 훅·캐릭터성·직업·갈등·말투가 먼저다.",
     "- originalityExclusions: 닮지 말아야 할 경쟁작·원작 요소(이름·외형·설정) 목록.",
+  ];
+}
+
+export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
+  const m = input.market;
+  return [
+    `세계관: ${input.worldName} — ${input.centralPremise}`,
+    `세력: ${input.factionNames.join(" / ")}`,
+    `장소: ${input.locationNames.join(" / ")}`,
+    `캐릭터 슬롯 수: ${input.slots} (정확히 이 수만큼 portfolio 브리프 생성)`,
+    `성인 후보 수: ${input.adultCandidates}명 (이 수만큼 adultCandidate=true)`,
+    `성별 구성: ${input.genderMix} (이 배치의 의도된 구성 — 반드시 준수)`,
+    input.castIntent ? `캐스트 의도: ${input.castIntent}` : "",
+    `슬롯별 성별 고정표(절대 변경 금지, 이름도 성별에 맞게): ${input.slotGenders.map((g, i) => `${i + 1}번 ${g}`).join(", ")}`,
+    "",
+    ...marketFitRuleLines(m),
     "",
     "이번 호출(portfolio) 출력 필드: portfolio 배열. 각 브리프는",
     "slot·marketFit·name(20자 이내, 서로 겹치지 않게)·gender·age(19세 이상)·archetype·relationshipTrope(=marketFit primary)·occupation·",
@@ -220,10 +232,55 @@ export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
     "같은 첫 음절·끝 음절이 3명 이상 반복되거나 한 음절만 다른 이름 쌍, 가족이 아닌데 같은 성/가문명을 쓰는 것 금지.",
     "10명 모두 역할·세력·신분·성격핵·관계 트로프·외형 실루엣·RP 훅이 달라야 한다.",
     "냉미남·집착남·황태자·계약관계·검은머리·190cm 클론 금지.",
-    "성별·연령·신분 분산. 경쟁작의 고유 명칭·문장·설정·캐릭터 이름을 복제하지 않는다.",
+    "연령·신분 분산. 경쟁작의 고유 명칭·문장·설정·캐릭터 이름을 복제하지 않는다.",
     "최상위 키는 정확히 portfolio 하나이며, 브리프 키도 빠뜨리지 않는다.",
     "아래 빈 틀을 복제·확장해 JSON 한 개만 출력한다.",
     WORLD_PORTFOLIO_SKELETON,
+  ].join("\n");
+}
+
+/** Re-plan specific slots inside an existing world; every other brief stays fixed. */
+export type PortfolioReplacementInput = {
+  worldName: string;
+  centralPremise: string;
+  factionNames: string[];
+  locationNames: string[];
+  market: WorldMarketInput;
+  castIntent: string;
+  /** Kept siblings (name — gender, occupation, trope, hook) the new briefs must not overlap. */
+  keptSiblings: string[];
+  /** Manifest direction per replaced slot (role space + relationship experience + exclusions). */
+  slots: { slot: number; gender: "male" | "female" | "other"; adultCandidate: boolean; direction: string }[];
+  feedback?: string;
+};
+
+export function buildPortfolioReplacementUser(input: PortfolioReplacementInput): string {
+  const m = input.market;
+  return [
+    `세계관: ${input.worldName} — ${input.centralPremise}`,
+    `세력: ${input.factionNames.join(" / ")}`,
+    `장소: ${input.locationNames.join(" / ")}`,
+    `캐스트 의도: ${input.castIntent}`,
+    "",
+    "유지되는 캐릭터(절대 겹치지 않게 — 직업·신분·관계 훅·말투·외형 실루엣·트로프·이름 음절):",
+    ...input.keptSiblings.map((s) => `- ${s}`),
+    "",
+    "이번에 새로 기획할 슬롯(이 슬롯만 출력):",
+    ...input.slots.map(
+      (s) => `- ${s.slot}번: gender=${s.gender}, adultCandidate=${s.adultCandidate} — ${s.direction}`
+    ),
+    "",
+    ...marketFitRuleLines(m),
+    "",
+    "출력 필드: portfolio 배열(위 슬롯 수만큼, slot 번호 그대로). 각 브리프는",
+    "slot·marketFit·name(20자 이내)·gender·age(19세 이상)·archetype·relationshipTrope(=marketFit primary)·occupation·",
+    "faction(위 목록에서)·socialPosition·personalityCore·visualSilhouette·rpHook·adultCandidate·speechDirection·audience.",
+    `이름은 namingProfile을 따른다: ${NAMING_PROFILES[m.namingProfile].guidance}`,
+    "유지 캐릭터와 첫 음절·끝 음절이 겹치거나 한 음절만 다른 이름, 가족이 아닌데 같은 가문명 금지. 경쟁작 캐릭터 이름 금지.",
+    "rpHook은 유저와의 첫 관계가 한 줄에 바로 읽히게 쓴다(세계관 설명으로 시작하지 않는다).",
+    "최상위 키는 정확히 portfolio 하나이며, 브리프 키도 빠뜨리지 않는다. JSON 한 개만 출력한다.",
+    WORLD_PORTFOLIO_SKELETON,
+    input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
 }
 
