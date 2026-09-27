@@ -8,6 +8,12 @@ import fs from "node:fs";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { resolveAuxProviderOwner } from "@/lib/auxProviderProvenance";
+import {
+  MAX_COMPLETED_AUX_QA_CLAIMS_PER_DOMAIN,
+  completeGenerationAuxQaJob,
+  resetGenerationAuxQaClaimsForTests,
+  tryClaimGenerationAuxQaJob,
+} from "@/lib/generationScopedAuxQaClaim";
 import { evaluateCompletionIntegrityCandidate } from "@/lib/completionIntegrityCandidate";
 import {
   COMPLETION_INTEGRITY_JEV_QA_ENV,
@@ -363,6 +369,36 @@ describe("generation-scoped exactly-once + lifecycle", () => {
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(boundaryCalls, 1);
     assert.equal(completionCalls, 1);
+  });
+});
+
+describe("generation-scoped aux QA claim retention", () => {
+  it("keeps completed duplicate-suppression history bounded per domain", () => {
+    const domain = "bounded-history-test";
+    resetGenerationAuxQaClaimsForTests(domain);
+    for (let i = 0; i <= MAX_COMPLETED_AUX_QA_CLAIMS_PER_DOMAIN; i += 1) {
+      const s = {
+        assistantMessageId: 100000 + i,
+        generationSequence: 0,
+      };
+      assert.equal(tryClaimGenerationAuxQaJob(domain, s), true);
+      completeGenerationAuxQaJob(domain, s);
+    }
+
+    // The oldest completed key is evicted from the bounded process-local window.
+    assert.equal(
+      tryClaimGenerationAuxQaJob(domain, { assistantMessageId: 100000, generationSequence: 0 }),
+      true
+    );
+    // A recent completed key remains suppressed.
+    assert.equal(
+      tryClaimGenerationAuxQaJob(domain, {
+        assistantMessageId: 100000 + MAX_COMPLETED_AUX_QA_CLAIMS_PER_DOMAIN,
+        generationSequence: 0,
+      }),
+      false
+    );
+    resetGenerationAuxQaClaimsForTests(domain);
   });
 });
 
