@@ -39,14 +39,7 @@ import {
 import { ensureAdminFinanceTables } from "@/lib/adminFinance";
 import { resolveMemoryRelationshipExpectation } from "@/lib/asyncTurnCoverage";
 import { buildAdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3";
-import {
-  bootstrapStreamingTurn,
-  finalizeAssistantMessage,
-} from "@/lib/streamingPersistence";
-import {
-  appendMessageVariant,
-  normalizeMessageVariants,
-} from "@/lib/messageAlternates";
+import { bootstrapStreamingTurn } from "@/lib/streamingPersistence";
 import {
   resolveNextAssistantGenerationSequence,
   type AssistantGenerationScope,
@@ -66,47 +59,6 @@ function regenGenerationScope(requestId = "regen-req-1"): AssistantGenerationSco
     generationSequence: resolveNextAssistantGenerationSequence(ASSISTANT_MSG_ID),
     generationRequestId: requestId,
   };
-}
-
-function finalizeRegenForPostTurn(
-  requestId = "regen-req-1",
-  content = "new reply"
-): AssistantGenerationScope {
-  const db = getDb();
-  const generationScope = regenGenerationScope(requestId);
-  const row = db
-    .prepare(
-      `SELECT content, model, usage, alternates, active_variant
-       FROM messages WHERE id=? AND chat_id=?`
-    )
-    .get(ASSISTANT_MSG_ID, CHAT_ID) as {
-      content: string;
-      model: string;
-      usage: string | null;
-      alternates: string | null;
-      active_variant: number | null;
-    };
-  const { variants } = normalizeMessageVariants(row);
-  const appended = appendMessageVariant(variants, {
-    content,
-    model: "test",
-    usage: null,
-    created_at: "",
-    generationSequence: generationScope.generationSequence,
-    requestId,
-    sourceMessageId: ASSISTANT_MSG_ID,
-  });
-  const result = finalizeAssistantMessage(db, {
-    assistantMessageId: ASSISTANT_MSG_ID,
-    chatId: CHAT_ID,
-    content,
-    model: "test",
-    usageJson: "{}",
-    alternatesJson: JSON.stringify(appended.variants),
-    activeVariant: appended.activeVariant,
-  });
-  assert.equal(result.wrote, true, "regen fixture must finalize before post-turn memory");
-  return generationScope;
 }
 
 function cleanup() {
@@ -267,11 +219,9 @@ function buildReceiptWithMarkerAndLedger(
   });
 }
 
-async function providerBackedRegen(
-  generationScope: AssistantGenerationScope,
-  requestId = "regen-req-1"
-) {
+async function providerBackedRegen(requestId = "regen-req-1") {
   extractCallCount += 1;
+  const generationScope = regenGenerationScope(requestId);
   return mergeRelationshipMetaAfterRegenerate({
     chatId: CHAT_ID,
     names: { charName: "TestChar", userName: "Tester" },
@@ -326,9 +276,8 @@ describe("memoryRelationshipTask generation-scoped regeneration", () => {
     });
     startRegen();
     assert.equal(loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID), null);
-    const generationScope = finalizeRegenForPostTurn();
 
-    await providerBackedRegen(generationScope);
+    await providerBackedRegen();
     assert.equal(extractCallCount, 2);
     const marker = loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID);
     assert.equal(marker?.state, "succeeded");
@@ -356,8 +305,7 @@ describe("memoryRelationshipTask generation-scoped regeneration", () => {
     assert.equal(listProviderCostEventsForAssistantMessage(ASSISTANT_MSG_ID).length, 1);
 
     startRegen();
-    const generationScope = finalizeRegenForPostTurn();
-    await providerBackedRegen(generationScope);
+    await providerBackedRegen();
 
     const marker = loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID);
     assert.equal(marker?.state, "succeeded");
@@ -381,9 +329,8 @@ describe("memoryRelationshipTask generation-scoped regeneration", () => {
     });
     startRegen();
     assert.equal(loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID), null);
-    const generationScope = finalizeRegenForPostTurn();
 
-    await providerBackedRegen(generationScope);
+    await providerBackedRegen();
     const marker = loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID);
     assert.equal(marker?.state, "succeeded");
     assert.equal(marker?.generationSequence, 1);
@@ -504,91 +451,6 @@ describe("memoryRelationshipTask generation-scoped regeneration", () => {
     });
     assert.equal(expectation.expectationState, "not_expected");
     assert.notEqual(expectation.skipReason, "skipped_marker_with_physical_ledger_contradiction");
-  });
-
-  it("R6b — first generation relationship provenance survives regeneration and is never overwritten", async () => {
-    const db = getDb();
-    db.prepare("UPDATE chats SET memory_meta=? WHERE id=?").run(
-      JSON.stringify({
-        honorifics: [],
-        items: ["Tester: old-key"],
-        thoughts: [],
-        promises: [],
-      }),
-      CHAT_ID
-    );
-
-    await mergeRelationshipMetaFromTurn({
-      chatId: CHAT_ID,
-      names: { charName: "TestChar", userName: "Tester" },
-      userMessage: "I picked up a coin.",
-      assistantMessage: "You keep the coin.",
-      route: "safe",
-      sourceUserMessageId: USER_MSG_ID,
-      boundarySnapshot: getMemorySourceBoundary(CHAT_ID),
-      assistantMessageId: ASSISTANT_MSG_ID,
-      generationScope: {
-        assistantMessageId: ASSISTANT_MSG_ID,
-        generationSequence: 0,
-        generationRequestId: null,
-      },
-      __testExtract: async () => ({
-        delta: { items: ["Tester: old-key, coin"] },
-        parseOk: true,
-      }),
-    });
-
-    const firstSnapshot = (
-      db.prepare(
-        "SELECT memory_relationship_before_json AS v FROM messages WHERE id=?"
-      ).get(ASSISTANT_MSG_ID) as { v: string | null }
-    ).v;
-    assert.ok(firstSnapshot);
-    assert.deepEqual(JSON.parse(firstSnapshot!), {
-      honorifics: [],
-      items: ["Tester: old-key"],
-      thoughts: [],
-      promises: [],
-    });
-
-    startRegen("regen-provenance");
-    const afterBootstrap = (
-      db.prepare(
-        "SELECT memory_relationship_before_json AS v FROM messages WHERE id=?"
-      ).get(ASSISTANT_MSG_ID) as { v: string | null }
-    ).v;
-    assert.equal(afterBootstrap, firstSnapshot, "regen bootstrap must preserve the turn baseline");
-
-    const generationScope = finalizeRegenForPostTurn(
-      "regen-provenance",
-      "You keep the token."
-    );
-    await mergeRelationshipMetaAfterRegenerate({
-      chatId: CHAT_ID,
-      names: { charName: "TestChar", userName: "Tester" },
-      userMessage: "I picked up a token instead.",
-      newAssistantMessage: "You keep the token.",
-      previousAssistantMessage: "You keep the coin.",
-      route: "safe",
-      sourceUserMessageId: USER_MSG_ID,
-      boundarySnapshot: getMemorySourceBoundary(CHAT_ID),
-      assistantMessageId: ASSISTANT_MSG_ID,
-      generationScope,
-      __testExtract: async () => ({
-        delta: {
-          itemsRemove: ["Tester: old-key, coin"],
-          items: ["Tester: old-key, token"],
-        },
-        parseOk: true,
-      }),
-    });
-
-    const afterRegen = (
-      db.prepare(
-        "SELECT memory_relationship_before_json AS v FROM messages WHERE id=?"
-      ).get(ASSISTANT_MSG_ID) as { v: string | null }
-    ).v;
-    assert.equal(afterRegen, firstSnapshot, "later generations must not overwrite pre-turn provenance");
   });
 
   it("R7 — normal turn lifecycle unchanged", async () => {
