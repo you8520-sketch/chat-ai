@@ -6,6 +6,7 @@
  */
 import {
   callJevDecisions,
+  JevDecisionsError,
   JEV_DECISIONS_MODEL,
 } from "@/lib/jevDecisions";
 import {
@@ -231,11 +232,13 @@ async function judgeFixture(opts: {
       providerCallAttempted,
     };
   } catch (error) {
+    const malformed =
+      error instanceof JevDecisionsError && error.code === "invalid_response";
     return {
       fixtureId: opts.fixture.id,
       expectedVerdict: opts.fixture.expectedVerdict,
       verdict: null,
-      malformed: providerCallAttempted,
+      malformed,
       failure: sanitizeAuthorialHabitBenchmarkCredentialText(
         (error as Error).message || "jev_transport_error"
       ).slice(0, 240),
