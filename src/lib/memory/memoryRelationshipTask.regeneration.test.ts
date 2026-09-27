@@ -453,6 +453,88 @@ describe("memoryRelationshipTask generation-scoped regeneration", () => {
     assert.notEqual(expectation.skipReason, "skipped_marker_with_physical_ledger_contradiction");
   });
 
+  it("R6b — first generation relationship provenance survives regeneration and is never overwritten", async () => {
+    const db = getDb();
+    db.prepare("UPDATE chats SET memory_meta=? WHERE id=?").run(
+      JSON.stringify({
+        honorifics: [],
+        items: ["Tester: old-key"],
+        thoughts: [],
+        promises: [],
+      }),
+      CHAT_ID
+    );
+
+    await mergeRelationshipMetaFromTurn({
+      chatId: CHAT_ID,
+      names: { charName: "TestChar", userName: "Tester" },
+      userMessage: "I picked up a coin.",
+      assistantMessage: "You keep the coin.",
+      route: "safe",
+      sourceUserMessageId: USER_MSG_ID,
+      boundarySnapshot: getMemorySourceBoundary(CHAT_ID),
+      assistantMessageId: ASSISTANT_MSG_ID,
+      generationScope: {
+        assistantMessageId: ASSISTANT_MSG_ID,
+        generationSequence: 0,
+        generationRequestId: null,
+      },
+      __testExtract: async () => ({
+        delta: { items: ["Tester: old-key, coin"] },
+        parseOk: true,
+      }),
+    });
+
+    const firstSnapshot = (
+      db.prepare(
+        "SELECT memory_relationship_before_json AS v FROM messages WHERE id=?"
+      ).get(ASSISTANT_MSG_ID) as { v: string | null }
+    ).v;
+    assert.ok(firstSnapshot);
+    assert.deepEqual(JSON.parse(firstSnapshot!), {
+      honorifics: [],
+      items: ["Tester: old-key"],
+      thoughts: [],
+      promises: [],
+    });
+
+    startRegen("regen-provenance");
+    const afterBootstrap = (
+      db.prepare(
+        "SELECT memory_relationship_before_json AS v FROM messages WHERE id=?"
+      ).get(ASSISTANT_MSG_ID) as { v: string | null }
+    ).v;
+    assert.equal(afterBootstrap, firstSnapshot, "regen bootstrap must preserve the turn baseline");
+
+    const generationScope = regenGenerationScope("regen-provenance");
+    await mergeRelationshipMetaAfterRegenerate({
+      chatId: CHAT_ID,
+      names: { charName: "TestChar", userName: "Tester" },
+      userMessage: "I picked up a token instead.",
+      newAssistantMessage: "You keep the token.",
+      previousAssistantMessage: "You keep the coin.",
+      route: "safe",
+      sourceUserMessageId: USER_MSG_ID,
+      boundarySnapshot: getMemorySourceBoundary(CHAT_ID),
+      assistantMessageId: ASSISTANT_MSG_ID,
+      generationScope,
+      __testExtract: async () => ({
+        delta: {
+          itemsRemove: ["Tester: old-key, coin"],
+          items: ["Tester: old-key, token"],
+        },
+        parseOk: true,
+      }),
+    });
+
+    const afterRegen = (
+      db.prepare(
+        "SELECT memory_relationship_before_json AS v FROM messages WHERE id=?"
+      ).get(ASSISTANT_MSG_ID) as { v: string | null }
+    ).v;
+    assert.equal(afterRegen, firstSnapshot, "later generations must not overwrite pre-turn provenance");
+  });
+
   it("R7 — normal turn lifecycle unchanged", async () => {
     await mergeRelationshipMetaFromTurn({
       chatId: CHAT_ID,
