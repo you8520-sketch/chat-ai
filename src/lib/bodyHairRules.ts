@@ -219,14 +219,10 @@ function dedupeNames(names: string[]): string[] {
 }
 
 function facialHairFactValue(policy: SubjectHairPolicy): string | null {
-  if (subjectAllowsFacialHair(policy)) {
-    return null;
-  }
+  const facial = subjectAllowsFacialHair(policy) ? "canon" : "none";
   const body = subjectAllowsBodyHair(policy) ? "canon" : "none";
-  if (body === "canon") {
-    return "facial_hair=none; body_hair=canon";
-  }
-  return "facial_hair=none; body_hair=none";
+  if (facial === "canon" && body === "canon") return null;
+  return `facial_hair=${facial}; body_hair=${body}`;
 }
 
 /**
