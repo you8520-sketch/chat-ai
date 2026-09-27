@@ -34,9 +34,12 @@ const EXPECTED_DRAFT_KEYS = PILOT_CLUSTER_B_PROOF_SOURCE_DRAFT_KEYS.map(
   pilotClusterBStyleProofDraftKey
 );
 const EXISTING_PROOF_KEYS = new Set<string>(PILOT_CLUSTER_B_PROOF_DRAFT_KEYS);
-const EXPECTED_NEW_CALLS = EXPECTED_DRAFT_KEYS.length - EXISTING_PROOF_KEYS.size;
+const SINGLE_TARGET_ENV = "OFFICIAL_ANCHOR_DRAFT_KEY";
+const ALLOWED_SINGLE_TARGETS = EXPECTED_DRAFT_KEYS.filter(
+  (draftKey) => !EXISTING_PROOF_KEYS.has(draftKey)
+);
 const PACKET_DIR = path.join(getDataDir(), "official-supply");
-const PACKET_PATH = path.join(PACKET_DIR, "romance-fantasy-v4-anchor-review.json");
+const PACKET_PATH = path.join(PACKET_DIR, "romance-fantasy-v4-single-anchor-review.json");
 
 function stop(message: string): never {
   throw new Error(`ANCHOR_BATCH STOP: ${message}`);
@@ -49,7 +52,10 @@ function sameStringSet(actual: string[], expected: readonly string[]): boolean {
   );
 }
 
-function preflight(store: OfficialSupplyStore): void {
+function preflight(
+  store: OfficialSupplyStore,
+  targetDraftKey: string
+): { previouslyApproved: number; stageSnapshot: Map<string, string> } {
   const style = store.getStyle(PILOT_STYLE_PROOF_V4_STYLE_KEY);
   if (style.stage !== "style_locked") {
     stop(`style stage=${style.stage}; expected style_locked`);
@@ -81,13 +87,15 @@ function preflight(store: OfficialSupplyStore): void {
     );
   }
 
+  let previouslyApproved = 0;
+  const stageSnapshot = new Map<string, string>();
+
   for (const draftKey of EXPECTED_DRAFT_KEYS) {
     const character = store.getCharacter(draftKey);
+    stageSnapshot.set(draftKey, character.stage);
+
     if (character.batchKey !== PILOT_STYLE_PROOF_V4_BATCH_KEY) {
       stop(`${draftKey} batch=${character.batchKey}`);
-    }
-    if (character.stage !== "asset_plan_locked") {
-      stop(`${draftKey} stage=${character.stage}; expected asset_plan_locked`);
     }
 
     const assets = store.listAssets(draftKey);
@@ -100,53 +108,97 @@ function preflight(store: OfficialSupplyStore): void {
       stop(`${draftKey}/rep kind=${rep.kind}`);
     }
 
-    const started = assets.filter((asset) => asset.attempts > 0);
-    if (EXISTING_PROOF_KEYS.has(draftKey)) {
-      if (
-        started.length !== 1 ||
-        started[0]?.slotKey !== PILOT_CLUSTER_B_PROOF_SLOT_KEY ||
-        rep.attempts !== 1 ||
-        rep.status !== "generated" ||
-        !rep.resultUrl
-      ) {
-        stop(`${draftKey} existing proof state is not the expected single generated rep`);
-      }
-      const verdict = officialModerationVerdict(rep.moderation);
-      if (verdict !== "clean" && verdict !== "adult_flagged") {
-        stop(`${draftKey} existing proof moderation=${verdict}`);
-      }
-    } else {
-      if (started.length !== 0) {
-        stop(`${draftKey} already has started assets: ${started.map((a) => a.slotKey).join(",")}`);
-      }
-      if (rep.status !== "planned" || rep.attempts !== 0 || rep.resultUrl) {
-        stop(`${draftKey}/rep is not pristine planned state`);
-      }
-    }
-
     const nonRepStarted = assets.filter(
       (asset) => asset.kind !== "representative" && asset.attempts > 0
     );
     if (nonRepStarted.length > 0) {
       stop(
-        `${draftKey} has RP attempts before anchor approval: ${nonRepStarted
+        `${draftKey} has RP attempts before the 10-anchor review gate: ${nonRepStarted
           .map((asset) => asset.slotKey)
           .join(",")}`
       );
     }
+
+    if (EXISTING_PROOF_KEYS.has(draftKey)) {
+      if (
+        character.stage !== "asset_plan_locked" &&
+        character.stage !== "anchor_approved"
+      ) {
+        stop(`${draftKey} proof character stage=${character.stage}`);
+      }
+      if (
+        rep.attempts !== 1 ||
+        (rep.status !== "generated" && rep.status !== "approved") ||
+        !rep.resultUrl
+      ) {
+        stop(`${draftKey} existing proof representative state drifted`);
+      }
+      const verdict = officialModerationVerdict(rep.moderation);
+      if (verdict !== "clean" && verdict !== "adult_flagged") {
+        stop(`${draftKey} existing proof moderation=${verdict}`);
+      }
+      continue;
+    }
+
+    if (draftKey === targetDraftKey) {
+      if (
+        character.stage !== "asset_plan_locked" ||
+        rep.status !== "planned" ||
+        rep.attempts !== 0 ||
+        rep.resultUrl
+      ) {
+        stop(`${draftKey} target is not pristine asset_plan_locked/planned`);
+      }
+      continue;
+    }
+
+    if (character.stage === "anchor_approved") {
+      if (
+        rep.status !== "approved" ||
+        rep.attempts !== 1 ||
+        !rep.resultUrl
+      ) {
+        stop(`${draftKey} approved anchor state drifted`);
+      }
+      const verdict = officialModerationVerdict(rep.moderation);
+      if (verdict !== "clean" && verdict !== "adult_flagged") {
+        stop(`${draftKey} approved anchor moderation=${verdict}`);
+      }
+      previouslyApproved += 1;
+      continue;
+    }
+
+    if (
+      character.stage !== "asset_plan_locked" ||
+      rep.status !== "planned" ||
+      rep.attempts !== 0 ||
+      rep.resultUrl
+    ) {
+      stop(
+        `${draftKey} pending anchor is neither pristine nor already approved: stage=${character.stage}, status=${rep.status}, attempts=${rep.attempts}`
+      );
+    }
   }
+
+  return { previouslyApproved, stageSnapshot };
 }
 
 async function main(): Promise<void> {
-  if (!pilotClusterBStyleProofOptedIn()) {
+  const targetDraftKey = process.env[SINGLE_TARGET_ENV]?.trim() ?? "";
+  if (!pilotClusterBStyleProofOptedIn() || !targetDraftKey) {
     console.log(
-      `[rofan-v4-anchor-batch] NOT_RUN: set OFFICIAL_STYLE_PROOF_LIVE=1 and OFFICIAL_STYLE_PROOF_CANDIDATE=${PILOT_STYLE_PROOF_CANDIDATE_ID}`
+      `[rofan-v4-anchor-single] NOT_RUN: set OFFICIAL_STYLE_PROOF_LIVE=1, OFFICIAL_STYLE_PROOF_CANDIDATE=${PILOT_STYLE_PROOF_CANDIDATE_ID}, and ${SINGLE_TARGET_ENV}=pilot-rf-v4-XX`
     );
     return;
   }
+  if (!ALLOWED_SINGLE_TARGETS.includes(targetDraftKey)) {
+    stop(
+      `target ${targetDraftKey} is not one of the remaining single-anchor drafts: ${ALLOWED_SINGLE_TARGETS.join(",")}`
+    );
+  }
 
   const store = new OfficialSupplyStore();
-  preflight(store);
+  const { previouslyApproved, stageSnapshot } = preflight(store, targetDraftKey);
 
   const deps = {
     store,
@@ -158,62 +210,51 @@ async function main(): Promise<void> {
     env: process.env,
   };
 
-  let providerCallsStarted = 0;
-  const anchors: Array<Record<string, unknown>> = [];
-
-  for (const draftKey of EXPECTED_DRAFT_KEYS) {
-    const before = store.getAsset(draftKey, PILOT_CLUSTER_B_PROOF_SLOT_KEY);
-    if (before.attempts === 0) providerCallsStarted += 1;
-
-    const outcome = await runOfficialAssetSlot(
-      deps,
-      draftKey,
-      PILOT_CLUSTER_B_PROOF_SLOT_KEY
-    );
-    if (outcome.status !== "generated" && outcome.status !== "already_generated") {
-      stop(
-        `${draftKey} generation outcome=${outcome.status}${
-          "error" in outcome ? `: ${outcome.error}` : ""
-        }`
-      );
-    }
-
-    let asset = store.getAsset(draftKey, PILOT_CLUSTER_B_PROOF_SLOT_KEY);
-    if (!asset.resultUrl) stop(`${draftKey} has no representative result URL`);
-
-    if (!asset.moderation) {
-      await moderateOfficialAssetSlot(
-        { store, moderator: visionOfficialAssetModerator },
-        draftKey,
-        PILOT_CLUSTER_B_PROOF_SLOT_KEY
-      );
-      asset = store.getAsset(draftKey, PILOT_CLUSTER_B_PROOF_SLOT_KEY);
-    }
-
-    const verdict = officialModerationVerdict(asset.moderation);
-    if (verdict !== "clean" && verdict !== "adult_flagged") {
-      stop(`${draftKey} moderation=${verdict}`);
-    }
-
-    anchors.push({
-      draftKey,
-      name: store.getCharacter(draftKey).draft.name,
-      url: asset.resultUrl,
-      width: asset.width,
-      height: asset.height,
-      model: asset.model,
-      attempts: asset.attempts,
-      spentUsd: asset.spentUsd,
-      hasUnknownCost: asset.hasUnknownCost,
-      moderation: asset.moderation,
-    });
+  const before = store.getAsset(targetDraftKey, PILOT_CLUSTER_B_PROOF_SLOT_KEY);
+  if (before.attempts !== 0 || before.status !== "planned" || before.resultUrl) {
+    stop(`${targetDraftKey}/rep is not pristine planned state`);
   }
 
-  if (providerCallsStarted !== EXPECTED_NEW_CALLS) {
+  const outcome = await runOfficialAssetSlot(
+    deps,
+    targetDraftKey,
+    PILOT_CLUSTER_B_PROOF_SLOT_KEY
+  );
+  if (outcome.status !== "generated") {
     stop(
-      `new provider-call targets=${providerCallsStarted}; expected ${EXPECTED_NEW_CALLS}`
+      `${targetDraftKey} generation outcome=${outcome.status}${
+        "error" in outcome ? `: ${outcome.error}` : ""
+      }`
     );
   }
+
+  let asset = store.getAsset(targetDraftKey, PILOT_CLUSTER_B_PROOF_SLOT_KEY);
+  if (!asset.resultUrl) stop(`${targetDraftKey} has no representative result URL`);
+
+  await moderateOfficialAssetSlot(
+    { store, moderator: visionOfficialAssetModerator },
+    targetDraftKey,
+    PILOT_CLUSTER_B_PROOF_SLOT_KEY
+  );
+  asset = store.getAsset(targetDraftKey, PILOT_CLUSTER_B_PROOF_SLOT_KEY);
+
+  const verdict = officialModerationVerdict(asset.moderation);
+  if (verdict !== "clean" && verdict !== "adult_flagged") {
+    stop(`${targetDraftKey} moderation=${verdict}`);
+  }
+
+  const anchor = {
+    draftKey: targetDraftKey,
+    name: store.getCharacter(targetDraftKey).draft.name,
+    url: asset.resultUrl,
+    width: asset.width,
+    height: asset.height,
+    model: asset.model,
+    attempts: asset.attempts,
+    spentUsd: asset.spentUsd,
+    hasUnknownCost: asset.hasUnknownCost,
+    moderation: asset.moderation,
+  };
 
   const startedRows = store.database
     .prepare(
@@ -231,15 +272,25 @@ async function main(): Promise<void> {
       attempts: number;
     }>;
 
-  if (startedRows.length !== EXPECTED_DRAFT_KEYS.length) {
-    stop(`started asset count=${startedRows.length}; expected 10 representative anchors only`);
+  const expectedStarted = EXISTING_PROOF_KEYS.size + previouslyApproved + 1;
+  if (startedRows.length !== expectedStarted) {
+    stop(
+      `started asset count=${startedRows.length}; expected ${expectedStarted} (3 existing proofs + 1 approved single target)`
+    );
   }
   for (const row of startedRows) {
     if (
-      !EXPECTED_DRAFT_KEYS.includes(row.draft_key) ||
+      !(
+        EXISTING_PROOF_KEYS.has(row.draft_key) ||
+        row.draft_key === targetDraftKey ||
+        stageSnapshot.get(row.draft_key) === "anchor_approved"
+      ) ||
       row.slot_key !== PILOT_CLUSTER_B_PROOF_SLOT_KEY ||
       row.kind !== "representative" ||
-      row.status !== "generated" ||
+      !(
+        row.status === "generated" ||
+        row.status === "approved"
+      ) ||
       row.attempts !== 1
     ) {
       stop(
@@ -250,38 +301,38 @@ async function main(): Promise<void> {
 
   for (const draftKey of EXPECTED_DRAFT_KEYS) {
     const character = store.getCharacter(draftKey);
-    if (character.stage !== "asset_plan_locked") {
-      stop(`${draftKey} advanced to ${character.stage} before human anchor review`);
+    const beforeStage = stageSnapshot.get(draftKey);
+    if (character.stage !== beforeStage) {
+      stop(
+        `${draftKey} stage changed during image generation: ${beforeStage} -> ${character.stage}`
+      );
     }
   }
 
   fs.mkdirSync(PACKET_DIR, { recursive: true });
   const packet = {
-    status: "ANCHORS_GENERATED_AWAITING_HUMAN_REVIEW",
+    status: "SINGLE_ANCHOR_GENERATED_AWAITING_HUMAN_REVIEW",
     styleKey: PILOT_STYLE_PROOF_V4_STYLE_KEY,
     styleStage: store.getStyle(PILOT_STYLE_PROOF_V4_STYLE_KEY).stage,
     batchKey: PILOT_STYLE_PROOF_V4_BATCH_KEY,
-    totalCharacters: EXPECTED_DRAFT_KEYS.length,
+    targetDraftKey,
     existingProofAnchorsReused: EXISTING_PROOF_KEYS.size,
-    newAnchorsGenerated: EXPECTED_NEW_CALLS,
-    anchors,
-    totalSpentUsd: anchors.reduce(
-      (sum, anchor) => sum + Number(anchor.spentUsd ?? 0),
-      0
-    ),
+    previouslyApprovedSingleAnchors: previouslyApproved,
+    newAnchorsGenerated: 1,
+    anchor,
     rpSlotsStarted: 0,
     humanAnchorReviewRequired: true,
     generatedAt: new Date().toISOString(),
   };
   fs.writeFileSync(PACKET_PATH, `${JSON.stringify(packet, null, 2)}\n`, "utf8");
 
-  console.log(`[rofan-v4-anchor-batch] packet=${PACKET_PATH}`);
+  console.log(`[rofan-v4-anchor-single] packet=${PACKET_PATH}`);
   console.log(JSON.stringify(packet));
 }
 
 main().catch((error) => {
   console.error(
-    "[rofan-v4-anchor-batch] STOP:",
+    "[rofan-v4-anchor-single] STOP:",
     error instanceof Error ? error.stack ?? error.message : String(error)
   );
   process.exit(1);
