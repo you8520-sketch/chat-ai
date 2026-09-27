@@ -1,6 +1,8 @@
 import { estimateTokens } from "@/lib/ai";
 import { resolveCharacterGender } from "@/lib/characterGender";
 import {
+  applyCharacterHairCanonFact,
+  buildCharacterHairCanonFactFromSetting,
   collectCharacterSettingText,
   resolveHairDescriptionPolicy,
 } from "@/lib/bodyHairRules";
@@ -742,10 +744,17 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       ? renderCoreCanonBlock(canonPlan!, { charName: input.charName })
       : buildCharacterCanonBlock(effectiveCharacterSettingText, input.charName);
     if (!coreBlock) return;
+    const coreBlockWithHairFact = applyCharacterHairCanonFact(
+      coreBlock,
+      buildCharacterHairCanonFactFromSetting(charGender, effectiveCharacterSettingText)
+    );
     const coreBlockForModel =
-      deepSeekAppearanceRuleMode && /\[(?:외형|외모|Appearance)[^\]]*\]/i.test(coreBlock)
-        ? coreBlock.replace(/(\[(?:외형|외모|Appearance)[^\]]*\])/i, `${DEEPSEEK_APPEARANCE_VARIATION_RULE}\n$1`)
-        : coreBlock;
+      deepSeekAppearanceRuleMode && /\[(?:외형|외모|Appearance)[^\]]*\]/i.test(coreBlockWithHairFact)
+        ? coreBlockWithHairFact.replace(
+            /(\[(?:외형|외모|Appearance)[^\]]*\])/i,
+            `${DEEPSEEK_APPEARANCE_VARIATION_RULE}\n$1`
+          )
+        : coreBlockWithHairFact;
     pushSection(
       "character-core-identity",
       "[2] Structured character canon (every turn)",

@@ -1,36 +1,50 @@
 import type { CharacterGender } from "./characterGender";
 import type { CharacterChunk } from "@/types";
 
-/** 설정에 수염·턱수염 등이 명시됐는지 */
-const BEARD_IN_SETTING =
-  /수염|턱수염|콧수염|인중(?:수염)?|full\s*beard|beard|goatee|mustache|stubble|whiskers/i;
+const BEARD_TERM =
+  /수염|턱수염|콧수염|인중수염|full\s*beard|beard|goatee|mustache|stubble|whiskers/i;
 
-/** 설정에 음모·체모 등이 명시됐는지 (거의 항상 false → 기본 금지) */
-const BODY_HAIR_IN_SETTING =
+const BODY_HAIR_TERM =
   /음모|체모|겨드랑이\s*털|다리\s*털|pubic|body\s*hair|陰毛|体毛|성기\s*(?:주변|周).*털|휘파람\s*털/i;
 
-/** 출력에서 제거할 수염 묘사 (문장 단위) — bare "인중"(입술/비인중)은 제외 */
-const BEARD_IN_OUTPUT =
-  /수염|턱수염|콧수염|인중수염|수염자국|면도(?:하지|안)\s*(?:않|한)|(?:거친|깔?끔(?:히)?)\s*(?:면도|턱)|(?:자라(?:난|는))\s*수염|수염이\s*(?:난|자라|덮)/;
+/** Explicit absence — evaluated before presence. */
+const FACIAL_HAIR_ABSENT =
+  /(?:수염|턱수염|콧수염|인중(?:수염)?)\s*(?:이|은|가|를|도)?\s*(?:없(?:음|다|는|을|이)?|없이|무)|(?:없(?:음|다|는|이)?\s*(?:수염|턱수염|콧수염))|(?:no|without)\s+(?:facial\s*)?(?:hair|beard|stubble)/i;
 
-/** 출력에서 제거할 음모·체모 묘사 (문장 단위) — "털이 서리친 몸" 등 전율 표현은 제외 */
+const BODY_HAIR_ABSENT =
+  /(?:음모|체모|겨드랑이(?:\s*털)?|다리\s*털)\s*(?:이|은|가|를|도)?\s*(?:없(?:음|다|는|을|이)?|없이|무)|(?:없(?:음|다|는|이)?\s*(?:음모|체모))/i;
+
+const FACIAL_HAIR_PRESENT =
+  /(?:짙(?:은|게)|거친|깔?(?:끔(?:히)?\s*다듬(?:은|어)?|자(?:라|란)|난|복)|(?:기(?:른|어)?)\s*)(?:\s*)?(?:수염|턱수염|콧수염)|(?:수염|턱수염|콧수염)\s*(?:이\s*(?:있(?:다|음|는)?|자라|난|나|복)|(?:과|와))|(?:has|with)\s+(?:a\s+)?(?:beard|stubble)/i;
+
+const BODY_HAIR_PRESENT =
+  /(?:짙(?:은|게)|거친|(?:복(?:슬|잡)|(?:난|자라(?:난|는)))\s*)(?:\s*)?(?:음모|체모)|(?:음모|체모)\s*(?:이\s*(?:있(?:다|음|는)?|난|복)|(?:과|와))/i;
+
+/** Output beard/stubble cues (sentence-level). Bare "인중"(philtrum) excluded. */
+const BEARD_IN_OUTPUT =
+  /수염|턱수염|콧수염|인중수염|수염자국|면도(?:하지|안)\s*(?:않|한)|(?:거친|깔?끔(?:히)?)\s*(?:면도|턱)|(?:자라(?:난|는))\s*수염|수염이\s*(?:난|자라|덮)|(?:까칠|까슬)(?:한|해진|하게)?\s*턱(?:선)?|턱(?:선)?(?:이|을|은|은)?\s*(?:까칠|까슬)(?:한|해진|하게)?|면도\s*흔적/;
+
 const BODY_HAIR_IN_OUTPUT =
   /음모|체모|겨드랑이(?:의|에)?\s*(?:털|잔털)|(?:사타구니|성기|음부|휘파람|인퀴덤)(?:.{0,12})?(?:털|잔털|체모)|(?:잔|거친|검은|부드러운)\s*털(?:이|이\s*(?:난|복|솟|돋|보)|(?:의|을))/;
 
-export function collectCharacterSettingText(chunks: CharacterChunk[]): string {
-  return chunks.map((c) => c.content).join("\n");
-}
+export type HairPresence = "present" | "absent" | "unknown";
 
-/** @deprecated import from @/lib/characterKnowledgeBoundary */
-export { buildCharacterCanonBlock, buildStructuredCharacterCanonBlock } from "@/lib/characterKnowledgeBoundary";
+export type HairEvidenceKind =
+  | "explicit_present"
+  | "explicit_absent"
+  | "default_absent"
+  | "unknown";
 
-export function settingAllowsBeardDescription(settingText: string): boolean {
-  return BEARD_IN_SETTING.test(settingText);
-}
-
-export function settingAllowsBodyHairDescription(settingText: string): boolean {
-  return BODY_HAIR_IN_SETTING.test(settingText);
-}
+export type SubjectHairPolicy = {
+  subject: "character" | "user_persona";
+  gender: CharacterGender;
+  facialHair: HairPresence;
+  bodyHair: HairPresence;
+  evidence: {
+    facialHair: HairEvidenceKind;
+    bodyHair: HairEvidenceKind;
+  };
+};
 
 export type HairDescriptionPolicy = {
   charGender: CharacterGender;
@@ -39,87 +53,399 @@ export type HairDescriptionPolicy = {
   allowsBodyHair: boolean;
 };
 
+export type HairSanitizeContext = {
+  character: SubjectHairPolicy;
+  userPersona: SubjectHairPolicy;
+  characterNames: string[];
+  userPersonaNames: string[];
+};
+
+export function collectCharacterSettingText(chunks: CharacterChunk[]): string {
+  return chunks.map((c) => c.content).join("\n");
+}
+
+/** @deprecated import from @/lib/characterKnowledgeBoundary */
+export { buildCharacterCanonBlock, buildStructuredCharacterCanonBlock } from "@/lib/characterKnowledgeBoundary";
+
+function classifyHairField(
+  text: string,
+  termRe: RegExp,
+  absentRe: RegExp,
+  presentRe: RegExp,
+  defaultWhenUnmentioned: HairPresence
+): { presence: HairPresence; evidence: HairEvidenceKind } {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return {
+      presence: defaultWhenUnmentioned,
+      evidence: defaultWhenUnmentioned === "absent" ? "default_absent" : "unknown",
+    };
+  }
+  if (absentRe.test(trimmed)) {
+    return { presence: "absent", evidence: "explicit_absent" };
+  }
+  if (presentRe.test(trimmed)) {
+    return { presence: "present", evidence: "explicit_present" };
+  }
+  if (termRe.test(trimmed)) {
+    return { presence: "present", evidence: "explicit_present" };
+  }
+  return {
+    presence: defaultWhenUnmentioned,
+    evidence: defaultWhenUnmentioned === "absent" ? "default_absent" : "unknown",
+  };
+}
+
+export function parseFacialHairFromText(
+  text: string,
+  gender: CharacterGender
+): { presence: HairPresence; evidence: HairEvidenceKind } {
+  if (gender === "female") {
+    return { presence: "absent", evidence: "default_absent" };
+  }
+  return classifyHairField(text, BEARD_TERM, FACIAL_HAIR_ABSENT, FACIAL_HAIR_PRESENT, "absent");
+}
+
+export function parseBodyHairFromText(text: string): {
+  presence: HairPresence;
+  evidence: HairEvidenceKind;
+} {
+  return classifyHairField(text, BODY_HAIR_TERM, BODY_HAIR_ABSENT, BODY_HAIR_PRESENT, "absent");
+}
+
+export function resolveCharacterSubjectHairPolicy(
+  charGender: CharacterGender,
+  settingText: string
+): SubjectHairPolicy {
+  const facial = parseFacialHairFromText(settingText, charGender);
+  const body = parseBodyHairFromText(settingText);
+  return {
+    subject: "character",
+    gender: charGender,
+    facialHair: facial.presence,
+    bodyHair: body.presence,
+    evidence: {
+      facialHair: facial.evidence,
+      bodyHair: body.evidence,
+    },
+  };
+}
+
+export function resolveUserPersonaSubjectHairPolicy(
+  userGender: CharacterGender,
+  personaText: string
+): SubjectHairPolicy {
+  const facial = parseFacialHairFromText(personaText, userGender);
+  const body = parseBodyHairFromText(personaText);
+  return {
+    subject: "user_persona",
+    gender: userGender,
+    facialHair: facial.presence,
+    bodyHair: body.presence,
+    evidence: {
+      facialHair: facial.evidence,
+      bodyHair: body.evidence,
+    },
+  };
+}
+
+export function subjectAllowsFacialHair(policy: SubjectHairPolicy): boolean {
+  return policy.gender !== "female" && policy.facialHair === "present";
+}
+
+export function subjectAllowsBodyHair(policy: SubjectHairPolicy): boolean {
+  return policy.bodyHair === "present";
+}
+
+/** @deprecated Use parseFacialHairFromText — keyword-only helper kept for tests. */
+export function settingAllowsBeardDescription(settingText: string): boolean {
+  return parseFacialHairFromText(settingText, "male").presence === "present";
+}
+
+/** @deprecated Use parseBodyHairFromText */
+export function settingAllowsBodyHairDescription(settingText: string): boolean {
+  return parseBodyHairFromText(settingText).presence === "present";
+}
+
 export function resolveHairDescriptionPolicy(
   charGender: CharacterGender,
   settingText: string,
   userGender?: CharacterGender
 ): HairDescriptionPolicy {
+  const character = resolveCharacterSubjectHairPolicy(charGender, settingText);
   return {
     charGender,
     userGender,
-    allowsBeard: charGender === "female" ? false : settingAllowsBeardDescription(settingText),
-    allowsBodyHair: settingAllowsBodyHairDescription(settingText),
+    allowsBeard: subjectAllowsFacialHair(character),
+    allowsBodyHair: subjectAllowsBodyHair(character),
   };
 }
 
-export function buildBodyHairDescriptionRule(policy: HairDescriptionPolicy): string {
-  const lines = [
-    `[수염·음모(체모) 묘사 — 필수]
-롤플레잉에서 **설정에 없는 신체 털**을 임의로 추가하지 마라. 많은 이용자(특히 여성)가 수염·음모 묘사를 매우 싫어한다.`,
-  ];
-
-  if (policy.charGender === "female") {
-    lines.push(
-      "캐릭터는 **여성**이다. 캐릭터에게 수염·턱수염·콧수염·인중·수염자국·면도 흔적 묘사 **절대 금지**."
-    );
-  } else if (!policy.allowsBeard) {
-    lines.push(
-      "캐릭터 외형 설정에 **수염·턱수염·콧수염·인중이 없다**. 캐릭터의 수염·수염자국·면도 흔적 묘사 **금지**. 깔끔한 턱·입 주변만 서술하라."
-    );
-  }
-
-  if (!policy.allowsBodyHair) {
-    lines.push(
-      `캐릭터·유저 페르소나 모두 **음모·체모·겨드랑이·인퀴덤·다리·복부·성기 주변 털** 등 신체 털 묘사 **전면 금지**.
-설정·User Note·CRITICAL에 명시되지 않은 털은 **존재하지 않는 것**으로 간주하고, 지문·대사·NSFW 장면에서도 쓰지 마라.`
-    );
-  }
-
-  if (policy.userGender === "female") {
-    lines.push("유저 페르소나는 **여성**이다. 유저에게 수염·음모·체모 묘사 **절대 금지**.");
-  }
-
-  if (policy.allowsBeard) {
-    lines.push("캐릭터 설정에 수염이 있으므로, **설정에 맞는 범위에서만** 수염을 묘사할 수 있다.");
-  }
-  if (policy.allowsBodyHair) {
-    lines.push("설정에 체모/음모가 명시된 경우에만, **설정 범위 내에서만** 묘사하라.");
-  }
-
-  return lines.join("\n");
+export function buildHairSanitizeContext(input: {
+  characterName: string;
+  characterGender: CharacterGender;
+  settingText: string;
+  personaName: string;
+  personaText: string;
+  userGender: CharacterGender;
+  extraCharacterNames?: string[];
+  extraPersonaNames?: string[];
+}): HairSanitizeContext {
+  const characterNames = dedupeNames([
+    input.characterName,
+    ...(input.extraCharacterNames ?? []),
+  ]);
+  const userPersonaNames = dedupeNames([
+    input.personaName,
+    ...(input.extraPersonaNames ?? []),
+  ]);
+  return {
+    character: resolveCharacterSubjectHairPolicy(input.characterGender, input.settingText),
+    userPersona: resolveUserPersonaSubjectHairPolicy(input.userGender, input.personaText),
+    characterNames,
+    userPersonaNames,
+  };
 }
 
-function findHairViolation(trimmed: string, policy: HairDescriptionPolicy): string | null {
-  if (!policy.allowsBeard && BEARD_IN_OUTPUT.test(trimmed)) {
-    return trimmed.match(BEARD_IN_OUTPUT)?.[0] ?? "beard";
+function dedupeNames(names: string[]): string[] {
+  const out: string[] = [];
+  for (const raw of names) {
+    const n = raw.trim();
+    if (!n) continue;
+    if (!out.some((x) => x.toLowerCase() === n.toLowerCase())) out.push(n);
   }
-  if (!policy.allowsBodyHair && BODY_HAIR_IN_OUTPUT.test(trimmed)) {
-    return trimmed.match(BODY_HAIR_IN_OUTPUT)?.[0] ?? "body-hair";
+  return out;
+}
+
+function facialHairFactValue(policy: SubjectHairPolicy): string | null {
+  if (policy.gender === "female") {
+    return policy.bodyHair === "present" ? null : "facial_hair=none; body_hair=none";
   }
-  if (policy.charGender === "female" && BEARD_IN_OUTPUT.test(trimmed)) {
-    return trimmed.match(BEARD_IN_OUTPUT)?.[0] ?? "beard-female-char";
+  if (subjectAllowsFacialHair(policy)) {
+    return null;
   }
-  if (policy.userGender === "female" && BEARD_IN_OUTPUT.test(trimmed)) {
-    return trimmed.match(BEARD_IN_OUTPUT)?.[0] ?? "beard-female-user";
+  const body = subjectAllowsBodyHair(policy) ? "canon" : "none";
+  if (body === "canon") {
+    return "facial_hair=none; body_hair=canon";
   }
-  if (
-    policy.userGender === "female" &&
-    !policy.allowsBodyHair &&
-    BODY_HAIR_IN_OUTPUT.test(trimmed)
-  ) {
-    return trimmed.match(BODY_HAIR_IN_OUTPUT)?.[0] ?? "body-hair-female-user";
+  return "facial_hair=none; body_hair=none";
+}
+
+/**
+ * Compact structured hair fact for character appearance canon (AI subject only).
+ */
+export function buildCharacterHairCanonFact(
+  policy: SubjectHairPolicy | HairDescriptionPolicy
+): string | null {
+  if ("subject" in policy) {
+    if (policy.subject !== "character") return null;
+    return facialHairFactValue(policy);
   }
+  const synthetic: SubjectHairPolicy = {
+    subject: "character",
+    gender: policy.charGender,
+    facialHair: policy.allowsBeard ? "present" : "absent",
+    bodyHair: policy.allowsBodyHair ? "present" : "absent",
+    evidence: {
+      facialHair: policy.allowsBeard ? "explicit_present" : "default_absent",
+      bodyHair: policy.allowsBodyHair ? "explicit_present" : "default_absent",
+    },
+  };
+  return facialHairFactValue(synthetic);
+}
+
+/** Prefer SubjectHairPolicy from resolveCharacterSubjectHairPolicy for accurate facts. */
+export function buildCharacterHairCanonFactFromSetting(
+  charGender: CharacterGender,
+  settingText: string
+): string | null {
+  return facialHairFactValue(resolveCharacterSubjectHairPolicy(charGender, settingText));
+}
+
+const APPEARANCE_HEADER_RE = /\[(?:외형|외모|Appearance)[^\]]*\]/i;
+
+export function applyCharacterHairCanonFact(canonBlock: string, fact: string | null): string {
+  if (!fact) return canonBlock;
+  const match = APPEARANCE_HEADER_RE.exec(canonBlock);
+  if (!match) return `${canonBlock.trimEnd()}\n\n[외형]\n${fact}`;
+  const insertAt = match.index + match[0].length;
+  return `${canonBlock.slice(0, insertAt)}\n${fact}${canonBlock.slice(insertAt)}`;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function nameInSentence(sentence: string, names: string[]): boolean {
+  for (const name of names) {
+    const re = new RegExp(escapeRegExp(name), "i");
+    if (re.test(sentence)) return true;
+  }
+  return false;
+}
+
+type SentenceSubject = "character" | "user_persona" | "ambiguous" | "npc_likely";
+
+function classifySentenceSubject(sentence: string, ctx: HairSanitizeContext): SentenceSubject {
+  const charHit = nameInSentence(sentence, ctx.characterNames);
+  const userHit = nameInSentence(sentence, ctx.userPersonaNames);
+  if (charHit && !userHit) return "character";
+  if (userHit && !charHit) return "user_persona";
+  if (looksLikeThirdPartyNpc(sentence, ctx)) return "npc_likely";
+  return "ambiguous";
+}
+
+function looksLikeThirdPartyNpc(sentence: string, ctx: HairSanitizeContext): boolean {
+  if (nameInSentence(sentence, ctx.characterNames)) return false;
+  if (nameInSentence(sentence, ctx.userPersonaNames)) return false;
+  if (/(?:옆|다른|낯선|모르는|테이블|길(?:가|에)|카운터|제3)/.test(sentence)) return true;
+  if (/[가-힣]{1,4}\s*(?:형사|경찰|웨이터|손님|의사|간호사|점원|기사)/.test(sentence)) {
+    return true;
+  }
+  return false;
+}
+
+function isHairSanitizeContext(value: HairDescriptionPolicy | HairSanitizeContext): value is HairSanitizeContext {
+  return "character" in value && "userPersona" in value;
+}
+
+function legacyPolicyToSanitizeContext(policy: HairDescriptionPolicy): HairSanitizeContext {
+  return {
+    character: {
+      subject: "character",
+      gender: policy.charGender,
+      facialHair: policy.allowsBeard ? "present" : "absent",
+      bodyHair: policy.allowsBodyHair ? "present" : "absent",
+      evidence: {
+        facialHair: policy.allowsBeard ? "explicit_present" : "default_absent",
+        bodyHair: policy.allowsBodyHair ? "explicit_present" : "default_absent",
+      },
+    },
+    userPersona: {
+      subject: "user_persona",
+      gender: policy.userGender ?? "other",
+      facialHair:
+        policy.userGender === "female"
+          ? "absent"
+          : policy.allowsBeard
+            ? "unknown"
+            : "unknown",
+      bodyHair: policy.userGender === "female" ? "absent" : "unknown",
+      evidence: {
+        facialHair: policy.userGender === "female" ? "default_absent" : "unknown",
+        bodyHair: policy.userGender === "female" ? "default_absent" : "unknown",
+      },
+    },
+    characterNames: [],
+    userPersonaNames: [],
+  };
+}
+
+function shouldEnforceFacialHairOnSubject(
+  subject: SentenceSubject,
+  ctx: HairSanitizeContext
+): boolean {
+  switch (subject) {
+    case "character":
+      return !subjectAllowsFacialHair(ctx.character);
+    case "user_persona":
+      return !subjectAllowsFacialHair(ctx.userPersona);
+    case "npc_likely":
+      return false;
+    case "ambiguous":
+      return (
+        !subjectAllowsFacialHair(ctx.character) && !subjectAllowsFacialHair(ctx.userPersona)
+      );
+    default: {
+      const _exhaustive: never = subject;
+      return _exhaustive;
+    }
+  }
+}
+
+function shouldEnforceBodyHairOnSubject(
+  subject: SentenceSubject,
+  ctx: HairSanitizeContext
+): boolean {
+  switch (subject) {
+    case "character":
+      return !subjectAllowsBodyHair(ctx.character);
+    case "user_persona":
+      return !subjectAllowsBodyHair(ctx.userPersona);
+    case "npc_likely":
+      return false;
+    case "ambiguous":
+      return !subjectAllowsBodyHair(ctx.character) && !subjectAllowsBodyHair(ctx.userPersona);
+    default: {
+      const _exhaustive: never = subject;
+      return _exhaustive;
+    }
+  }
+}
+
+function findHairViolation(
+  trimmed: string,
+  ctx: HairSanitizeContext
+): string | null {
+  const subject = classifySentenceSubject(trimmed, ctx);
+
+  if (BEARD_IN_OUTPUT.test(trimmed)) {
+    if (shouldEnforceFacialHairOnSubject(subject, ctx)) {
+      return trimmed.match(BEARD_IN_OUTPUT)?.[0] ?? "beard";
+    }
+    if (
+      ctx.userPersona.gender === "female" &&
+      (subject === "user_persona" || subject === "ambiguous")
+    ) {
+      return trimmed.match(BEARD_IN_OUTPUT)?.[0] ?? "beard-female-user";
+    }
+  }
+
+  if (BODY_HAIR_IN_OUTPUT.test(trimmed)) {
+    if (shouldEnforceBodyHairOnSubject(subject, ctx)) {
+      return trimmed.match(BODY_HAIR_IN_OUTPUT)?.[0] ?? "body-hair";
+    }
+    if (
+      ctx.userPersona.gender === "female" &&
+      subject !== "npc_likely" &&
+      (subject === "user_persona" || subject === "ambiguous")
+    ) {
+      return trimmed.match(BODY_HAIR_IN_OUTPUT)?.[0] ?? "body-hair-female-user";
+    }
+  }
+
+  if (ctx.character.gender === "female" && BEARD_IN_OUTPUT.test(trimmed)) {
+    if (subject === "character" || subject === "ambiguous") {
+      return trimmed.match(BEARD_IN_OUTPUT)?.[0] ?? "beard-female-char";
+    }
+  }
+
   return null;
 }
 
-/** AI 출력 후 안전망 — 해당 문장 제거 (문단·공백 구조 보존) */
-export function sanitizeHairDescriptions(text: string, policy: HairDescriptionPolicy): string {
-  if (policy.allowsBeard && policy.allowsBodyHair) return text;
+function policyFullyPermissive(ctx: HairSanitizeContext): boolean {
+  return (
+    subjectAllowsFacialHair(ctx.character) &&
+    subjectAllowsBodyHair(ctx.character) &&
+    subjectAllowsFacialHair(ctx.userPersona) &&
+    subjectAllowsBodyHair(ctx.userPersona)
+  );
+}
 
-  // Fast path: no violation pattern anywhere → byte-identical output.
-  if (!text || !hasAnyHairViolation(text, policy)) return text;
+/** AI 출력 후 안전망 — subject-aware 문장 제거 (문단·공백 구조 보존) */
+export function sanitizeHairDescriptions(
+  text: string,
+  policyOrContext: HairDescriptionPolicy | HairSanitizeContext
+): string {
+  const ctx = isHairSanitizeContext(policyOrContext)
+    ? policyOrContext
+    : legacyPolicyToSanitizeContext(policyOrContext);
 
-  const { result, violations, droppedChars } = removeHairViolationsPreservingParagraphs(text, policy);
+  if (policyFullyPermissive(ctx)) return text;
+
+  if (!text || !hasAnyHairViolation(text, ctx)) return text;
+
+  const { result, violations, droppedChars } = removeHairViolationsPreservingParagraphs(text, ctx);
 
   const totalChars = text.length;
   const changedChars = droppedChars;
@@ -140,29 +466,19 @@ export function sanitizeHairDescriptions(text: string, policy: HairDescriptionPo
   return result.length === 0 ? text : result;
 }
 
-/** Whole-text quick check: does any violation pattern match anywhere? */
-function hasAnyHairViolation(text: string, policy: HairDescriptionPolicy): boolean {
-  if (!policy.allowsBeard && BEARD_IN_OUTPUT.test(text)) return true;
-  if (!policy.allowsBodyHair && BODY_HAIR_IN_OUTPUT.test(text)) return true;
-  if (policy.charGender === "female" && BEARD_IN_OUTPUT.test(text)) return true;
-  if (policy.userGender === "female" && BEARD_IN_OUTPUT.test(text)) return true;
-  if (
-    policy.userGender === "female" &&
-    !policy.allowsBodyHair &&
-    BODY_HAIR_IN_OUTPUT.test(text)
-  ) {
-    return true;
+function hasAnyHairViolation(text: string, ctx: HairSanitizeContext): boolean {
+  if (!BEARD_IN_OUTPUT.test(text) && !BODY_HAIR_IN_OUTPUT.test(text)) return false;
+  const parts = text.split(/(?<=[.!?…])\s+|\n+/);
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    if (findHairViolation(trimmed, ctx)) return true;
   }
   return false;
 }
 
 type Span = { start: number; end: number };
 
-/**
- * Quote-aware sentence span finder. A sentence ends at [.!?…] followed by
- * whitespace or end-of-string, but ONLY when not inside a quote region.
- * Quoted dialogue ("…" / "…") is treated atomically — never split inside.
- */
 function findSentenceSpans(text: string): Span[] {
   const spans: Span[] = [];
   const n = text.length;
@@ -175,7 +491,6 @@ function findSentenceSpans(text: string): Span[] {
       continue;
     }
     if (ch === '"' || ch === "\u201C" || ch === "\u201D") {
-      // Treat both curly quote chars as quote openers; close on any curly/straight close.
       inQuote = ch === '"' ? '"' : "\u201D";
       continue;
     }
@@ -193,27 +508,14 @@ function findSentenceSpans(text: string): Span[] {
   return spans;
 }
 
-/**
- * Paragraph-preserving, range-based violation removal.
- *
- * Splits on blank-line paragraph boundaries (capturing the original separators),
- * finds violation sentence spans within each paragraph using a quote-aware
- * sentence splitter, and splices only those spans out of the original text.
- * Never inserts new newlines or blank lines; never reflows sentences into
- * separate paragraphs.
- */
 function removeHairViolationsPreservingParagraphs(
   text: string,
-  policy: HairDescriptionPolicy
+  ctx: HairSanitizeContext
 ): { result: string; violations: string[]; droppedChars: number } {
-  // Split into [paragraph, separator, paragraph, separator, ..., paragraph] keeping
-  // original blank-line separators. Even indices are paragraphs, odd are separators.
   const parts = text.split(/(\r?\n\r?\n+)/);
   const violations: string[] = [];
   let droppedChars = 0;
 
-  // Build a list of { sep, para } items, where sep is the separator that PRECEDES para.
-  // The first paragraph has sep = "" (no preceding separator).
   type Item = { sep: string; para: string };
   const items: Item[] = [];
   let curSep = "";
@@ -227,8 +529,6 @@ function removeHairViolationsPreservingParagraphs(
     curSep = "";
   }
 
-  // For each paragraph, compute the (possibly modified) kept text and whether the
-  // whole paragraph is dropped (all sentences are violations).
   type Resolved = { sep: string; para: string; dropped: boolean };
   const resolved: Resolved[] = items.map((it) => {
     const part = it.para;
@@ -240,7 +540,7 @@ function removeHairViolationsPreservingParagraphs(
       const sentence = part.slice(s.start, s.end);
       const trimmed = sentence.trim();
       if (!trimmed) return true;
-      const v = findHairViolation(trimmed, policy);
+      const v = findHairViolation(trimmed, ctx);
       if (v) {
         violations.push(v);
         droppedChars += trimmed.length;
@@ -250,28 +550,19 @@ function removeHairViolationsPreservingParagraphs(
     });
 
     if (keepMask.every((k) => k)) {
-      // No violation in this paragraph — keep byte-identical.
       return { sep: it.sep, para: part, dropped: false };
     }
     if (keepMask.every((k) => !k)) {
-      // Entire paragraph is violations — drop the paragraph; its surrounding
-      // separators are cleaned up locally below.
       return { sep: it.sep, para: "", dropped: true };
     }
 
-    // Mixed: keep non-violation sentences joined by the ORIGINAL inter-sentence
-    // whitespace, preserving the paragraph as a single block.
     const keptPieces: string[] = [];
     for (let i = 0; i < spans.length; i++) {
       if (!keepMask[i]) continue;
       const sentence = part.slice(spans[i]!.start, spans[i]!.end);
       if (keptPieces.length === 0) {
-        // First kept sentence: drop leading whitespace that was the separator
-        // from a removed preceding violation within this paragraph.
         keptPieces.push(sentence.replace(/^\s+/, ""));
       } else {
-        // Reproduce original whitespace between the previous kept sentence
-        // end and this sentence start.
         const prevEnd = spans[i - 1]!.end;
         const gapStart = spans[i]!.start;
         const gap = part.slice(prevEnd, gapStart);
@@ -282,17 +573,9 @@ function removeHairViolationsPreservingParagraphs(
     return { sep: it.sep, para: keptPieces.join(""), dropped: false };
   });
 
-  // Rebuild with localized separator cleanup. When a paragraph is dropped, the
-  // separator before it and the separator before the next kept paragraph become
-  // adjacent — merge them into ONE normal paragraph separator. Other separators
-  // (including unrelated 3+ newlines, scene gaps, trailing newlines, CRLF)
-  // are preserved byte-identical.
   const out: string[] = [];
   let pendingSep = "";
   let pendingIsMerge = false;
-  // Track whether any kept paragraph content has been emitted yet, so that a
-  // dropped leading paragraph does NOT produce a leading blank line: the first
-  // kept paragraph starts the result with no preceding separator.
   let emittedKeptParagraph = false;
   for (let i = 0; i < resolved.length; i++) {
     const r = resolved[i]!;
@@ -300,46 +583,28 @@ function removeHairViolationsPreservingParagraphs(
     const isEmptyCarrier = r.para === "" && isLast;
 
     if (r.dropped) {
-      // This paragraph is removed. The separator that preceded it (r.sep) and
-      // the separator that will precede the next kept paragraph must merge into
-      // one normal separator. Mark pending merge.
       if (!emittedKeptParagraph) {
-        // No kept content emitted yet — a leading dropped paragraph must not
-        // produce any leading separator. Keep pending empty.
         pendingSep = "";
         pendingIsMerge = true;
       } else if (pendingIsMerge) {
-        // Already merging (previous paragraph was also dropped) — keep merging.
         pendingIsMerge = true;
       } else {
-        // Begin a merge: the separator before this dropped paragraph is the
-        // start of the merged separator.
         pendingSep = r.sep;
         pendingIsMerge = true;
       }
       continue;
     }
 
-    // Trailing empty carrier item (input ended with a blank-line separator).
     if (isEmptyCarrier) {
       if (pendingIsMerge) {
-        // Preceded by a dropped trailing paragraph — absorb the trailing
-        // separator so no trailing blank line is (re)introduced.
         pendingIsMerge = true;
         continue;
       }
-      // Preceded by a kept paragraph — preserve the original trailing
-      // separator byte-identical (unrelated trailing newline).
       out.push(r.sep);
       continue;
     }
 
-    // Kept paragraph with content.
     if (pendingIsMerge) {
-      // A previous paragraph was dropped: merge pendingSep + this paragraph's
-      // own preceding separator (r.sep) into one normal paragraph separator —
-      // but ONLY if some kept content was already emitted. If this is the first
-      // kept paragraph, do not emit a leading separator.
       if (emittedKeptParagraph) {
         const nl = /\r/.test(pendingSep) || /\r/.test(r.sep) ? "\r\n\r\n" : "\n\n";
         out.push(nl);
@@ -347,22 +612,12 @@ function removeHairViolationsPreservingParagraphs(
       pendingIsMerge = false;
       pendingSep = "";
     } else {
-      // No drop occurred before this paragraph — emit its original preceding
-      // separator byte-identical (but never a leading separator before the
-      // first kept content).
       if (emittedKeptParagraph) {
         out.push(r.sep);
       }
     }
     out.push(r.para);
     emittedKeptParagraph = true;
-  }
-  // If the LAST paragraph(s) were dropped, pendingIsMerge is true with nothing
-  // after them — omit any trailing separator (no trailing blanks introduced
-  // by removal). Nothing to push.
-  if (pendingIsMerge) {
-    // Trailing dropped paragraph(s): omit the trailing separator entirely.
-    // (Do NOT add a trailing blank line.)
   }
 
   return { result: out.join(""), violations, droppedChars };
