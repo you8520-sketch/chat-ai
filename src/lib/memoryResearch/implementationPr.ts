@@ -32,6 +32,11 @@ export function validateImplementationCandidate(candidate: ResearchCandidate, re
   if (live.recipeId !== recipe.requiredLiveRecipeId) {
     throw new Error(`live recipe mismatch: expected ${recipe.requiredLiveRecipeId}, got ${live.recipeId}`);
   }
+  if (live.recipeVersion !== recipe.requiredLiveRecipeVersion) {
+    throw new Error(
+      `live recipe version mismatch: expected ${recipe.requiredLiveRecipeVersion}, got ${live.recipeVersion}`
+    );
+  }
   if (live.gateDecision !== "ACCEPTED_QUALITY_GAIN") {
     throw new Error(`live evidence was not accepted: ${live.gateDecision}`);
   }
