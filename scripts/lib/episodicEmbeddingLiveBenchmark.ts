@@ -19,6 +19,7 @@ import {
   type EpisodicSemanticModelConfig,
 } from "@/lib/memory/memory-episodic-semantic-config";
 import type { EpisodicEmbedder } from "@/lib/memory/memory-episodic-semantic-jobs";
+import type { BenchmarkRawMetrics } from "@/lib/memory/memory-rp-benchmark";
 import {
   BASELINE_MODE,
   measureMilestoneRetention,
@@ -37,6 +38,15 @@ export const LIVE_EMBEDDING_BENCHMARK_ARMS: Array<{ arm: string; model: Episodic
 ];
 
 type RttSummary = { p50: number | null; p95: number | null; max: number | null; count: number };
+
+export type LiveRunSummary = {
+  metrics: BenchmarkRawMetrics;
+  evaluatedTurns: number;
+  promptTokensInjected: number;
+  finalHitByCase: Record<string, boolean>;
+  wallClockMs: number;
+  embeddingCalls: { query: number; index: number };
+};
 
 export type LiveArmResult = {
   arm: string;
@@ -59,11 +69,17 @@ export type LiveArmResult = {
   failureCount: number;
   failureSamples: string[];
   invariantViolations: string[];
+  summary: LiveRunSummary;
 };
 
 export type LiveBenchmarkResult =
   | { status: "NOT_RUN"; reason: string; providerCalls: 0 }
-  | { status: "RAN"; baseline: { candidateRecall: number | null; finalRecall: number | null }; arms: LiveArmResult[] };
+  | {
+      status: "RAN";
+      baseline: { candidateRecall: number | null; finalRecall: number | null };
+      baselineSummary: LiveRunSummary;
+      arms: LiveArmResult[];
+    };
 
 function summarize(values: number[]): RttSummary {
   if (values.length === 0) return { p50: null, p95: null, max: null, count: 0 };
@@ -75,6 +91,8 @@ function summarize(values: number[]): RttSummary {
 export async function runEpisodicEmbeddingLiveBenchmark(opts: {
   env?: NodeJS.ProcessEnv;
   log?: (line: string) => void;
+  /** Optional subset for bounded automated research runs. */
+  modelIds?: readonly string[];
 } = {}): Promise<LiveBenchmarkResult> {
   const log = opts.log ?? ((line: string) => console.log(line));
   const apiKey = resolveOptInEpisodicEmbeddingBenchmarkApiKey(opts.env ?? process.env);
@@ -87,19 +105,42 @@ export async function runEpisodicEmbeddingLiveBenchmark(opts: {
   }
 
   const noHttp = { snapshot: () => ({ httpCallsObserved: 0, jevCallsObserved: 0 }) };
+  const baselineStarted = performance.now();
   const baseline = await runBenchmarkCases(BASELINE_MODE, noHttp);
+  const baselineSummary: LiveRunSummary = {
+    metrics: baseline.metrics,
+    evaluatedTurns: baseline.evaluatedTurns,
+    promptTokensInjected: baseline.promptTokensInjected,
+    finalHitByCase: Object.fromEntries(
+      baseline.outcomes
+        .filter((outcome) => outcome.final && outcome.final.expectedAnswerIds.length > 0)
+        .map((outcome) => [
+          outcome.caseId,
+          outcome.final!.expectedAnswerIds.every((id) => outcome.final!.injectedFactIds.includes(id)),
+        ])
+    ),
+    wallClockMs: performance.now() - baselineStarted,
+    embeddingCalls: { query: 0, index: 0 },
+  };
+  const selected = opts.modelIds?.length
+    ? LIVE_EMBEDDING_BENCHMARK_ARMS.filter(({ model }) => opts.modelIds!.includes(model.modelId))
+    : LIVE_EMBEDDING_BENCHMARK_ARMS;
   const arms: LiveArmResult[] = [];
-  for (const { arm, model } of LIVE_EMBEDDING_BENCHMARK_ARMS) {
+  for (const { arm, model } of selected) {
     const queryRtt: number[] = [];
     const batchRtt: number[] = [];
     const failureSamples: string[] = [];
     let calls = 0;
+    let queryCalls = 0;
+    let indexCalls = 0;
     let failures = 0;
     let inputTokens = 0;
     let costUsd = 0;
     let costReported = false;
     const embed: EpisodicEmbedder = async (inputs, armModel, purpose) => {
       calls += 1;
+      if (purpose === "query") queryCalls += 1;
+      else indexCalls += 1;
       const started = performance.now();
       try {
         const out = await callOpenRouterEmbeddings({
@@ -131,7 +172,9 @@ export async function runEpisodicEmbeddingLiveBenchmark(opts: {
     };
     const mode: BenchmarkMode = { label: `live-${arm}-${model.modelId}`, semantic: { model, embed }, strict: false };
     const probe = { snapshot: () => ({ httpCallsObserved: calls, jevCallsObserved: 0 }) };
+    const runStarted = performance.now();
     const run = await runBenchmarkCases(mode, probe);
+    const wallClockMs = performance.now() - runStarted;
     const retention = await measureMilestoneRetention(mode);
     const result: LiveArmResult = {
       arm,
@@ -160,6 +203,21 @@ export async function runEpisodicEmbeddingLiveBenchmark(opts: {
       failureCount: failures,
       failureSamples,
       invariantViolations: run.invariantViolations,
+      summary: {
+        metrics: run.metrics,
+        evaluatedTurns: run.evaluatedTurns,
+        promptTokensInjected: run.promptTokensInjected,
+        finalHitByCase: Object.fromEntries(
+          run.outcomes
+            .filter((outcome) => outcome.final && outcome.final.expectedAnswerIds.length > 0)
+            .map((outcome) => [
+              outcome.caseId,
+              outcome.final!.expectedAnswerIds.every((id) => outcome.final!.injectedFactIds.includes(id)),
+            ])
+        ),
+        wallClockMs,
+        embeddingCalls: { query: queryCalls, index: indexCalls },
+      },
     };
     arms.push(result);
     log(JSON.stringify(result));
@@ -167,6 +225,7 @@ export async function runEpisodicEmbeddingLiveBenchmark(opts: {
   return {
     status: "RAN",
     baseline: { candidateRecall: baseline.metrics.candidateRecallAtK.value, finalRecall: baseline.metrics.finalRecallAt8.value },
+    baselineSummary,
     arms,
   };
 }

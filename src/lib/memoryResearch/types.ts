@@ -52,7 +52,9 @@ export type CandidateDecisionCode =
   | "WATCH_INSUFFICIENT_EVIDENCE"
   | "WATCH_NO_EXPERIMENT_ADAPTER"
   | "WATCH_NO_BENCHMARK_HOOK"
-  | "WATCH_BENCHMARK_FAILED";
+  | "WATCH_BENCHMARK_FAILED"
+  | "WATCH_LIVE_EXPERIMENT_PENDING"
+  | "WATCH_IMPLEMENTATION_PR_PENDING";
 
 /** Infra/risk flags declared by curated watchlist metadata or inferred from source text. */
 export type InfraRequirement =
@@ -144,4 +146,19 @@ export type ResearchCandidate = {
   evaluations: readonly CandidateEvaluation[];
   /** Draft PR opened for the latest ACCEPTED evaluation; null until creation succeeds. */
   draftPrUrl: string | null;
+  /** Latest paid/live lab evidence. Research/runtime code never consumes this. */
+  liveExperiment?: {
+    recipeId: string;
+    recipeVersion: string;
+    evaluatedAt: string;
+    referenceModel: string;
+    candidateModel: string;
+    gateDecision: CandidateDecisionCode;
+    gateReason: string;
+    referenceMetrics: string;
+    candidateMetrics: string;
+    candidateCostUsdPer1kTurns: number | null;
+    referenceCostUsdPer1kTurns: number | null;
+    queryP95DeltaMs: number | null;
+  } | null;
 };

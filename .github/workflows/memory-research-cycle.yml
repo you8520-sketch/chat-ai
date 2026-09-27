@@ -4,7 +4,7 @@ name: Memory research cycle
 # DISCOVER → SCREEN → EXPERIMENT → BENCHMARK → ACCEPT/REJECT → DRAFT PR → REVIEW.
 # Runs outside the production runtime (not in schedulerDefinitions.ts): it needs
 # outbound research HTTP, CPU for the benchmark lab, and a repo-scoped token for
-# Draft PRs — none of which belong in the Railway server. Paid provider calls: 0.
+# Draft PRs — none of which belong in the Railway server. The research job makes 0 paid provider calls; the monthly live-experiment job is separately opt-in by a dedicated benchmark secret.
 # Never merges and never enables auto-merge.
 # Prerequisite for the Draft PR job: repository Settings → Actions → General →
 # "Allow GitHub Actions to create and approve pull requests". Without it the
@@ -33,6 +33,10 @@ on:
         description: "Do not persist the ledger or open Draft PRs"
         type: boolean
         default: true
+      run_live_experiments:
+        description: "Run bounded live embedding experiments with the dedicated benchmark secret"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -164,8 +168,68 @@ jobs:
           path: draft-results
           retention-days: 90
 
+  live_experiments:
+    needs: research
+    if: >-
+      needs.research.result == 'success' &&
+      needs.research.outputs.cycle_status == 'COMPLETED' &&
+      (
+        github.event.schedule == '43 2 1 * *' ||
+        (github.event_name == 'workflow_dispatch' && inputs.run_live_experiments == true)
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      live_status: ${{ steps.live.outputs.live_status }}
+      ready_for_implementation: ${{ steps.live.outputs.ready_for_implementation }}
+      actual_cost_usd: ${{ steps.live.outputs.actual_cost_usd }}
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "1"
+      REAL_EPISODIC_EMBEDDING_PROBE: "1"
+      OPENROUTER_EMBEDDINGS_BENCHMARK_API_KEY: ${{ secrets.OPENROUTER_EMBEDDINGS_BENCHMARK_API_KEY }}
+      OPENROUTER_API_KEY: ""
+      OPENAI_API_KEY: ""
+      CHEAPER_INFERENCE_API_KEY: ""
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.research.outputs.main_sha }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: memory-research-out
+          path: memory-research-out
+
+      - name: Run bounded live experiments
+        id: live
+        run: >-
+          node --conditions=react-server --import tsx
+          scripts/memory-research-cycle.ts live-experiments
+          --ledger memory-research-out/ledger.json
+          --out memory-live-out
+
+      - name: Live experiment summary
+        if: always()
+        run: cat memory-live-out/report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: memory-live-out
+          path: memory-live-out
+          retention-days: 90
+
   persist:
-    needs: [research, draft_prs]
+    needs: [research, draft_prs, live_experiments]
     if: >-
       always() &&
       needs.research.result == 'success' &&
@@ -197,6 +261,19 @@ jobs:
         with:
           name: memory-research-draft-results
           path: draft-results
+
+      - uses: actions/download-artifact@v4
+        if: needs.live_experiments.result == 'success'
+        with:
+          name: memory-live-out
+          path: memory-live-out
+
+      - name: Prefer live-experiment ledger when that phase ran
+        shell: bash
+        run: |
+          if [[ -f memory-live-out/ledger.json ]]; then
+            cp memory-live-out/ledger.json memory-research-out/ledger.json
+          fi
 
       - name: Record Draft PR outcomes in ledger
         run: >-
