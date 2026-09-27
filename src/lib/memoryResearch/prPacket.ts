@@ -171,7 +171,7 @@ ${list([...d.removed, `lab adapter \`${adapter.candidateKey}\` in src/lib/memory
     cycleKey,
     mainSha,
     decision: "ACCEPTED_QUALITY_GAIN",
-    branch: `memory-research/accepted-${slugForCandidate(candidate.candidateKey)}`,
+    branch: `memory-research/accepted-${slugForCandidate(candidate.candidateKey)}-${slugForCandidate(candidate.version ?? "unversioned").slice(0, 24)}-${slugForCandidate(cycleKey).slice(0, 32)}`,
     title: `[memory-research] ACCEPTED evidence: ${candidate.title} ${candidate.version ?? ""}`.trim(),
     body,
   };
