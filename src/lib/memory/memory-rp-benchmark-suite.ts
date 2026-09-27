@@ -40,6 +40,7 @@ import {
   runEpisodicSemanticIndexJob,
   type EpisodicEmbedder,
 } from "@/lib/memory/memory-episodic-semantic-jobs";
+import { estimateTokens } from "@/lib/tokenEstimate";
 import type { EpisodicSemanticQuery } from "@/lib/memory/memory-episodic-semantic-index";
 
 /** Fixed retrieval env for every case — independent of the host process env. */
@@ -70,6 +71,9 @@ export const BASELINE_MODE: BenchmarkMode = {
 
 let activeMode: BenchmarkMode = BASELINE_MODE;
 let evaluatedTurns = 0;
+let promptTokensInjected = 0;
+/** Query resolved by the latest `runRetrieval`, reused by diagnostics so they add no embedding call. */
+let lastSemanticQuery: EpisodicSemanticQuery | null = null;
 let violations: string[] = [];
 
 function check(ok: boolean, label: string): void {
@@ -141,10 +145,12 @@ async function runRetrieval(
 ): Promise<{ candidateIds: number[]; injectedFactIds: number[]; promptBlock: string }> {
   await indexIfSemantic(db);
   const semanticQuery = await semanticQueryFor(query);
+  lastSemanticQuery = semanticQuery;
   const input = { chatId: 1, currentTurn, currentUserMessage: query, semanticQuery };
   const pre = fetchEpisodicMemoryCandidatesForDebug(db, input, env);
   const ranked = getEpisodicMemoryForPrompt(db, input, env);
   evaluatedTurns += 1;
+  if (ranked.promptBlock) promptTokensInjected += estimateTokens(ranked.promptBlock);
   return {
     candidateIds: pre.rows.map((r) => r.id),
     injectedFactIds: ranked.facts.map((f) => f.id),
@@ -182,11 +188,53 @@ export type BenchmarkRun = {
   metrics: ReturnType<typeof computeBenchmarkMetrics>;
   knownGap: { candidateHit: boolean; finalHit: boolean; semantic?: SemanticAccounting };
   invariantViolations: string[];
+  /** Retrieval turns evaluated by this run (denominator for per-turn deltas). */
+  evaluatedTurns: number;
+  /** `estimateTokens` over every non-empty episodic prompt block this run produced. */
+  promptTokensInjected: number;
 };
+
+/**
+ * Baseline-expansion cases (horizons 6/20/100/2000 + behavior categories) used
+ * by the memory research lab as its A/B evaluation surface. They are measured,
+ * never `check()`-ed: a candidate arm must be able to regress them so the gates
+ * can see it. Cases in EXPANDED_BASELINE_KNOWN_GAPS miss on current main
+ * lexical V2 (documented baseline, not permanent invariants).
+ */
+export const EXPANDED_BASELINE_CASE_IDS: readonly string[] = [
+  "horizon-t6-01",
+  "horizon-t20-01",
+  "horizon-t100-01",
+  "horizon-t2000-01",
+  "relationship-role-consistency-01",
+  "item-ownership-01",
+  "npc-durable-state-01",
+  "distinctive-utterance-01",
+  "correction-supersession-01",
+  "false-memory-negative-01",
+  "continuity-reset-01",
+  "high-noise-distractors-01",
+];
+
+/** caseId → stage at which current main lexical V2 misses the expected answer. */
+export const EXPANDED_BASELINE_KNOWN_GAPS: Readonly<Record<string, "candidate" | "final">> = {
+  "item-ownership-01": "final",
+  "distinctive-utterance-01": "candidate",
+  "high-noise-distractors-01": "final",
+};
+
+/** Horizon cases beyond boundary_5turn / t300 / t1000: [caseId, category, sourceTurn, currentTurn]. */
+const HORIZON_CASES: ReadonlyArray<readonly [string, BenchmarkCategory, number, number]> = [
+  ["horizon-t6-01", "t6", 10, 16],
+  ["horizon-t20-01", "t20", 10, 30],
+  ["horizon-t100-01", "t100", 10, 110],
+  ["horizon-t2000-01", "t2000", 10, 2010],
+];
 
 export async function runBenchmarkCases(mode: BenchmarkMode, transport: BenchmarkTransportProbe): Promise<BenchmarkRun> {
   activeMode = mode;
   evaluatedTurns = 0;
+  promptTokensInjected = 0;
   violations = [];
   const transportBefore = transport.snapshot();
   const outcomes: BenchmarkCaseOutcome[] = [];
@@ -252,7 +300,7 @@ export async function runBenchmarkCases(mode: BenchmarkMode, transport: Benchmar
           chatId: 1,
           currentTurn: 200,
           currentUserMessage: "폭풍우 속 옛 공포가 되살아나는 밤",
-          semanticQuery: await semanticQueryFor("폭풍우 속 옛 공포가 되살아나는 밤"),
+          semanticQuery: lastSemanticQuery,
         },
         env
       ).stats
@@ -528,6 +576,131 @@ export async function runBenchmarkCases(mode: BenchmarkMode, transport: Benchmar
     db.close();
   }
 
+  for (const [caseId, category, sourceTurn, currentTurn] of HORIZON_CASES) {
+    const db = openDb();
+    const [answerId] = seed(db, [[sourceTurn, "character", "mira", "habit", "violin_dawn", "important", "미라는 새벽마다 바이올린을 연습한다."]]);
+    saturate(db, 30, sourceTurn + 1);
+    const o = await singleAnswerCase(caseId, category, db, currentTurn, "미라의 새벽 바이올린 연습을 묻는다", answerId!);
+    outcomes.push(o);
+    db.close();
+  }
+
+  { // relationship_role_consistency — role superseded (servant → knight); allowed = [latest].
+    const db = openDb();
+    const [staleId, latestId] = seed(db, [
+      [10, "relationship", "jun", "role_to_mina", "servant", "important", "준은 미나의 하인이었다."],
+      [40, "relationship", "jun", "role_to_mina", "guard_knight", "important", "준은 미나의 호위기사가 되었다."],
+    ]);
+    const r = await runRetrieval(db, 80, "준과 미나의 관계를 묻는다");
+    outcomes.push({
+      caseId: "relationship-role-consistency-01",
+      category: "relationship_role_consistency",
+      candidate: { expectedAnswerIds: [latestId!], candidateIds: r.candidateIds },
+      final: { expectedAnswerIds: [latestId!], allowedFactIds: [latestId!], injectedFactIds: r.injectedFactIds },
+      stale: { staleFactIds: [staleId!], injectedFactIds: r.injectedFactIds },
+    });
+    db.close();
+  }
+
+  { // item_ownership — owner transfer rin → jun; allowed = [latest].
+    const db = openDb();
+    const [staleId, latestId] = seed(db, [
+      [10, "setting", "silverkey", "owner", "rin", "normal", "린이 은열쇠를 가지고 있다."],
+      [30, "setting", "silverkey", "owner", "jun", "normal", "은열쇠가 린에게서 준에게 넘어갔다."],
+    ]);
+    const r = await runRetrieval(db, 70, "은열쇠를 누가 가지고 있는지 묻는다");
+    outcomes.push({
+      caseId: "item-ownership-01",
+      category: "item_ownership",
+      candidate: { expectedAnswerIds: [latestId!], candidateIds: r.candidateIds },
+      final: { expectedAnswerIds: [latestId!], allowedFactIds: [latestId!], injectedFactIds: r.injectedFactIds },
+      stale: { staleFactIds: [staleId!], injectedFactIds: r.injectedFactIds },
+    });
+    db.close();
+  }
+
+  { // npc_durable_state — old durable NPC state under a saturated recent lane.
+    const db = openDb();
+    const [answerId] = seed(db, [[15, "character", "organ_smith", "body_state", "lost_left_arm", "important", "대장장이 오르간은 왼팔을 잃었다."]]);
+    saturate(db, 60, 100);
+    const o = await singleAnswerCase("npc-durable-state-01", "npc_durable_state", db, 400, "대장장이 오르간의 몸 상태를 묻는다", answerId!);
+    outcomes.push(o);
+    db.close();
+  }
+
+  { // distinctive_utterance — an exact quoted line recalled far later.
+    const db = openDb();
+    const [answerId] = seed(db, [[20, "character", "rin", "utterance", "two_moons_return", "normal", "린이 말했다: \"달이 두 번 뜨는 밤에 돌아올게.\""]]);
+    saturate(db, 60, 60);
+    const o = await singleAnswerCase("distinctive-utterance-01", "distinctive_utterance", db, 250, "달이 두 번 뜨는 밤에 돌아온다던 린의 말을 묻는다", answerId!);
+    outcomes.push(o);
+    db.close();
+  }
+
+  { // correction_supersession — user correction replaces the earlier value; allowed = [corrected].
+    const db = openDb();
+    const [supersededId, correctedId] = seed(db, [
+      [10, "setting", "user_hometown", "place", "north_port", "normal", "사용자의 고향은 북부 항구 도시다."],
+      [12, "setting", "user_hometown", "place", "south_village", "normal", "정정: 사용자의 고향은 남부 산골 마을이다."],
+    ]);
+    const r = await runRetrieval(db, 60, "사용자의 고향을 묻는다");
+    outcomes.push({
+      caseId: "correction-supersession-01",
+      category: "correction_supersession",
+      candidate: { expectedAnswerIds: [correctedId!], candidateIds: r.candidateIds },
+      final: { expectedAnswerIds: [correctedId!], allowedFactIds: [correctedId!], injectedFactIds: r.injectedFactIds },
+      stale: { staleFactIds: [supersededId!], injectedFactIds: r.injectedFactIds },
+      correction: { supersededIds: [supersededId!], correctedIds: [correctedId!], injectedFactIds: r.injectedFactIds },
+    });
+    db.close();
+  }
+
+  { // false_memory_negative — asks about an event that never happened; allowed = [].
+    const db = openDb();
+    seed(db, [
+      [10, "setting", "harbor", "moored_ship", "bluegull", "normal", "항구에 갈매기호가 정박했다."],
+      [20, "relationship", "pair", "meeting_plan", "bringbook", "normal", "다음 만남에 책을 가져오기로 했다."],
+    ]);
+    const r = await runRetrieval(db, 60, "우리가 결혼식을 올렸던 날을 묻는다");
+    outcomes.push({
+      caseId: "false-memory-negative-01",
+      category: "false_memory_negative",
+      final: { expectedAnswerIds: [], allowedFactIds: [], injectedFactIds: r.injectedFactIds },
+    });
+    db.close();
+  }
+
+  { // continuity_reset — pre-reset fact excluded, post-reset fact recalled; allowed = [post].
+    const db = openDb();
+    const insert = db.prepare(`INSERT INTO episodic_memory_facts (chat_id, source_turn, source_user_message_id, category, subject, attribute, value, importance, fact_text, metadata) VALUES (1, ?, ?, 'setting', ?, 'kept', ?, 'normal', ?, '{"memory_evidence_type":"explicit_scene_event","content_route":"safe"}')`);
+    insert.run(10, 5, "lantern_old", "shed", "등잔을 창고에 보관했다.");
+    const postId = Number(insert.run(30, 9, "lantern_new", "attic", "등잔을 다락에 보관했다.").lastInsertRowid);
+    await indexIfSemantic(db);
+    db.prepare("UPDATE chat_memories SET memory_reset_after_message_id=5 WHERE chat_id=1").run();
+    const o = await singleAnswerCase("continuity-reset-01", "continuity_reset", db, 60, "등잔을 보관한 곳을 묻는다", postId);
+    outcomes.push(o);
+    db.close();
+  }
+
+  { // high_noise_distractors — one answer among many lexically adjacent distractors.
+    const db = openDb();
+    const [answerId] = seed(db, [[30, "character", "rin", "hid_item", "red_scarf_lighthouse", "normal", "린은 붉은 스카프를 등대 지하실에 숨겼다."]]);
+    const distractorRows: Row[] = [];
+    for (let i = 0; i < 120; i++) {
+      distractorRows.push([40 + i, "setting", `crate${i}`, "hidden_at", `cellar${i}`, "normal", `${i}번째 상자를 지하실 구석에 숨겼다.`]);
+    }
+    const distractorIds = seed(db, distractorRows);
+    const r = await runRetrieval(db, 200, "린이 붉은 스카프를 숨긴 곳을 묻는다");
+    outcomes.push({
+      caseId: "high-noise-distractors-01",
+      category: "high_noise_distractors",
+      candidate: { expectedAnswerIds: [answerId!], candidateIds: r.candidateIds },
+      final: { expectedAnswerIds: [answerId!], allowedFactIds: [answerId!], injectedFactIds: r.injectedFactIds },
+      distractor: { distractorIds, injectedFactIds: r.injectedFactIds },
+    });
+    db.close();
+  }
+
   const categories: BenchmarkCategory[] = [
     "boundary_5turn", "callback_75turn", "t300", "t1000", "semantic_paraphrase",
     "promise", "betrayal", "first_never", "role_event_direction", "same_turn_multi_event",
@@ -535,6 +708,9 @@ export async function runBenchmarkCases(mode: BenchmarkMode, transport: Benchmar
     "user_canonical_vs_assistant_hallucination", "regeneration_rejected_event", "message_edit",
     "delete_rewind", "fork_variant", "persona_secret_wrong_observer", "trpg_quest",
     "character_state_transition", "location_ownership_transition", "zero_relevant_control",
+    "t6", "t20", "t100", "t2000", "relationship_role_consistency", "item_ownership",
+    "npc_durable_state", "distinctive_utterance", "correction_supersession",
+    "false_memory_negative", "continuity_reset", "high_noise_distractors",
   ];
   const coverage: BenchmarkCoverageEntry[] = categories.map((category) => {
     const executedCases = outcomes.filter((o) => o.category === category).length;
@@ -551,7 +727,7 @@ export async function runBenchmarkCases(mode: BenchmarkMode, transport: Benchmar
   console.info(`[RpMemoryBenchmark] mode=${mode.label} ${formatBenchmarkMetricsLine(metrics)}`);
   console.info(`[RpMemoryBenchmark] mode=${mode.label} coverage=${coverage.map((c) => `${c.category}:${c.executedCases}`).join(",")}`);
   activeMode = BASELINE_MODE;
-  return { outcomes, coverage, metrics, knownGap, invariantViolations: [...violations] };
+  return { outcomes, coverage, metrics, knownGap, invariantViolations: [...violations], evaluatedTurns, promptTokensInjected };
 }
 
 export function semanticAccounting(stats: ReturnType<typeof fetchEpisodicMemoryCandidatesForDebug>["stats"]): SemanticAccounting {

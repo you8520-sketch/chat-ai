@@ -53,6 +53,7 @@ on:
       - "src/lib/memory/memory-episodic-semantic-cleanup.test.ts"
       - "src/lib/memory/memory-episodic-semantic-synthetic.test.ts"
       - "src/lib/memory/memory-rp-benchmark-suite.ts"
+      - "src/lib/memory/memory-rp-benchmark.ts"
       - "src/lib/memory/memory-rp-benchmark.test.ts"
       - "src/lib/openRouterEmbeddings.ts"
       - "src/lib/openRouterEmbeddings.test.ts"
@@ -67,6 +68,9 @@ on:
       - "src/lib/memory/memory-rolling-summary.ts"
       - "src/lib/memory/memory-source-boundary.test.ts"
       - "src/lib/memory/memory-source-boundary.ts"
+      - "src/lib/memoryResearch/**"
+      - "scripts/memory-research-cycle.ts"
+      - ".github/workflows/memory-research-cycle.yml"
 
 permissions:
   contents: read
@@ -132,6 +136,9 @@ jobs:
 
       - name: Memory benchmark semantic regression
         run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory-rp-benchmark.test.ts
+
+      - name: Memory research lab (lifecycle, gates, sources, Draft PR, isolation)
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memoryResearch/*.test.ts
 
       - name: Live embedding runner isolation regression
         run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 scripts/lib/episodicEmbeddingLiveBenchmark.test.ts
