@@ -136,9 +136,32 @@ describe("parseSuggestedRepliesFromModelText", () => {
     );
   });
 
-  it("fails closed instead of clipping overlong raw model text", () => {
+  it("recovers overlong raw model text through the canonical max-length normalizer", () => {
     const natural = padReply("*고개를 들며* \"계속 말해 봐.\" ", 201);
     const twist = padReply("*창가를 보며* \"방향을 바꿔 보자.\" ", 72);
+    const banter = padReply("*웃으며* \"그럼 이번엔 네 차례야.\" ", 72);
+    const replies = parseSuggestedRepliesFromModelText(
+      JSON.stringify({
+        items: [
+          { kind: "natural", text: natural },
+          { kind: "twist", text: twist },
+          { kind: "banter", text: banter },
+        ],
+      })
+    );
+    assert.equal(replies.length, 3);
+    assert.equal(replies[0]?.kind, "natural");
+    assert.equal(
+      suggestedReplyCharCount(replies[0]?.text ?? ""),
+      SUGGESTED_REPLY_MAX_CHARS
+    );
+    assert.equal(replies[1]?.text, twist);
+    assert.equal(replies[2]?.text, banter);
+  });
+
+  it("still fails closed when raw model text is below the canonical minimum", () => {
+    const natural = padReply("*고개를 들며* \"계속 말해 봐.\" ", 72);
+    const twist = "너무 짧다";
     const banter = padReply("*웃으며* \"그럼 이번엔 네 차례야.\" ", 72);
     assert.deepEqual(
       parseSuggestedRepliesFromModelText(
