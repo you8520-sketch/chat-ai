@@ -1,7 +1,7 @@
 import { buildImageGenderLockPrompt } from "@/lib/chatImageGeneration";
 import { buildIllustrationSafeDepiction } from "@/lib/chatImageIllustrationSanitizer";
 import { STRICT_SAFE_DEPICTION } from "@/lib/chatImageStrictSafetyFallbackPrompt";
-import { renderAppearanceBlock } from "@/lib/officialSupply/appearance";
+import { buildMatureMaleVisualAgePrompt, renderAppearanceBlock } from "@/lib/officialSupply/appearance";
 import { adultDepictionAllowed } from "@/lib/officialSupply/assetPlan";
 import { officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
 import type {
@@ -103,6 +103,7 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     referenceRule,
     `Character: ${draft.name}, age ${draft.age}.`,
     renderIdentityLock(appearance),
+    buildMatureMaleVisualAgePrompt(draft) ?? "",
     genderLock,
     renderStyleDna(style),
     buildIllustrationSafeDepiction({ adultGrounded }),
@@ -116,6 +117,7 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     "STRICT PROVIDER-SAFE FALLBACK — modest, fully clothed, non-explicit.",
     `Character: ${draft.name}, age ${draft.age}.`,
     renderIdentityLock(appearance),
+    buildMatureMaleVisualAgePrompt(draft) ?? "",
     genderLock,
     `Expression: ${slot.expression}.`,
     slot.kind === "scene" ? `Setting: ${slot.location}. The character must be visible.` : "",

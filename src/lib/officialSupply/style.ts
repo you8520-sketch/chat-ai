@@ -13,6 +13,19 @@ export const STYLE_CANDIDATES_MIN = 3;
 export const STYLE_CANDIDATES_MAX = 5;
 export const DEFAULT_STYLE_PROOF_ASSET_LIMIT = 3;
 
+/**
+ * Product-level visual direction for the domestic-first romance-fantasy line.
+ * This is an abstract style brief, not a reference to any artist, work, or competitor asset.
+ * Character-specific age/identity remains owned by Appearance Lock.
+ */
+export const DOMESTIC_ROFAN_STYLE_DIRECTION = [
+  "국내 여성향 로맨스 판타지 카드에서 얼굴 매력이 첫눈에 읽히는 세련된 미형을 우선한다.",
+  "한국 여성향 웹툰·애니메이션 계열의 선명한 선과 polished digital rendering을 기반으로, 피부는 매끈하고 깨끗하게, 눈매와 헤어 디테일은 또렷하게 표현한다.",
+  "남성 캐릭터의 성숙함과 남성성은 체격·목선·어깨·자세·시선·지휘감에서 전달하고, 얼굴은 romance-target으로서 정돈된 매력과 카드 가독성을 유지한다.",
+  "의상·갑옷·보석·배경은 판타지 세계관을 풍부하게 보이게 하되 얼굴과 표정을 압도하지 않으며, 모바일 2:3 카드에서도 인물의 인상이 즉시 읽히게 한다.",
+  "냉미·다정·유혹·권력 긴장처럼 캐릭터별 정서를 표정과 색 포인트로 분화하고, 동일한 얼굴형·헤어·팔레트로 포트폴리오가 수렴하지 않게 한다.",
+].join("\n");
+
 /** Style names that point at a specific artist/work are not visual attributes. */
 const COPY_TARGET_RE = /(?:화풍\s*복제|그림체\s*복제|style of\s+\S+|in the style of|작가\s*풍|artist:|by\s+@)/i;
 
