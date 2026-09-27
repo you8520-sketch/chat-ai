@@ -254,7 +254,7 @@ describe("relationship projection provenance", () => {
     assert.deepEqual(afterRegen.variants[1]?.relationshipMetaAfter?.items, [
       "Tester: old-key, token",
     ]);
-
+  });
 
   it("persists relationshipMetaAfter for a valid zero-delta generation", async () => {
     await mergeRelationshipMetaFromTurn({
@@ -295,6 +295,5 @@ describe("relationship projection provenance", () => {
     assert.deepEqual(loadChatRelationshipMeta(CHAT_ID, NAMES).items, [
       "Tester: old-key",
     ]);
-  });
   });
 });
