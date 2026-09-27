@@ -1,0 +1,19 @@
+{
+  "source": "PR #621 actual final provider wire (source-621/COUNTERFACTUAL_DEEPSEEK-input.json) — not trackedSections-only",
+  "scan_method": "full concatenated message contents + role-aware last user",
+  "DEEPSEEK_STYLE_REMINDER_ACTIVE": true,
+  "DEEPSEEK_STYLE_REMINDER_OWNER": "src/lib/deepseekPromptStructure.ts — DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY / buildDeepSeekStyleOnlyReminderBlock",
+  "HANDOFF_CONTINUATION_OWNER_ACTIVE": true,
+  "HANDOFF_CONTINUATION_OWNER": "src/lib/adultSceneRouting.ts — DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION via appendAdultHandoffPrompt",
+  "INTIMACY_OWNER_ACTIVE": true,
+  "INTIMACY_OWNER": "src/lib/advancedProseNsfwGuidelines.ts — [19+ INTIMACY]",
+  "USER_TAIL_3200_ACTIVE": true,
+  "USER_TAIL_3200_OWNER": "src/lib/responseLength.ts — USER_TAIL_LENGTH_OWNER_SENTENCE via appendCompactTerminalLengthToUserTurn",
+  "TERMINAL_DIALOGUE_OWNER_ACTIVE": false,
+  "TERMINAL_DIALOGUE_OWNER_MARKER": "[이번 응답 대화]",
+  "TERMINAL_DIALOGUE_OWNER_NOTE": "Absent on actual #621 DeepSeek wire. Do not assume active.",
+  "CREATOR_OPENING_AS_ASSISTANT_STYLE_EXEMPLAR": false,
+  "CREATOR_OPENING_REMAP_PRESENT": true,
+  "CREATOR_OPENING_REMAP_HEADER": "[OPENING SCENE CONTEXT — ALREADY OCCURRED]",
+  "CREATOR_OPENING_REMAP_OWNER": "src/lib/deepseekOpeningSceneContext.ts — peelCreatorOpeningGreetingFromHistory + buildDeepSeekOpeningSceneContextBlock"
+}
