@@ -17,6 +17,7 @@ import { resolveMemoryTier } from "@/lib/memory/memory-manager";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { countChatTurns } from "@/lib/memory/memory-turn-loader";
 import { isCanonAdoptedScene, OOC_CANON_ADOPTION_COPY } from "@/lib/oocSceneRender";
+import { resolveRelationshipMetaNamesForCharacter } from "@/lib/relationshipMetaCharacterName";
 
 export async function DELETE(req: Request) {
   const user = await getSessionUser();
@@ -99,6 +100,10 @@ export async function DELETE(req: Request) {
   const deletedPlayableTurn = countChatTurns(cId);
   const deletedUserMessageId = lastTurn.userId;
   const deletedAssistantMessageId = lastTurn.assistantId;
+  const memoryEnabled = isMemoryFeatureEnabled();
+  const relationshipMetaNames = memoryEnabled
+    ? resolveRelationshipMetaNamesForCharacter(chat.character_id, user.nickname)
+    : undefined;
 
   let deletedIds: number[];
   try {
@@ -108,6 +113,7 @@ export async function DELETE(req: Request) {
       userMessageId: lastTurn.userId,
       assistantMessageId: lastTurn.assistantId,
       revertNumeric: numericEligible,
+      relationshipMetaNames,
     });
     deletedIds = result.deletedIds;
   } catch (e) {
@@ -123,7 +129,7 @@ export async function DELETE(req: Request) {
     throw e;
   }
 
-  if (isMemoryFeatureEnabled()) {
+  if (memoryEnabled) {
     try {
       reconcileMemoryAfterTurnDelete({
         chatId: cId,
@@ -140,35 +146,6 @@ export async function DELETE(req: Request) {
       console.warn("[memory] reconcile after turn delete failed:", (e as Error).message);
     }
 
-    // Roll back relationship-meta entries that only existed in the deleted turn.
-    try {
-      const deletedUserRow = db
-        .prepare("SELECT content FROM messages WHERE id=?")
-        .get(deletedUserMessageId) as { content: string } | undefined;
-      const deletedAssistantRow = deletedAssistantMessageId
-        ? (db
-            .prepare("SELECT content FROM messages WHERE id=?")
-            .get(deletedAssistantMessageId) as { content: string } | undefined)
-        : undefined;
-      const { rollbackRelationshipMetaForDeletedTurn } = await import(
-        "@/lib/memory/memory-relationship-meta"
-      );
-      const { resolveRelationshipMetaNamesForCharacter } = await import(
-        "@/lib/relationshipMetaCharacterName"
-      );
-      const names = resolveRelationshipMetaNamesForCharacter(
-        chat.character_id,
-        user.nickname
-      );
-      rollbackRelationshipMetaForDeletedTurn({
-        chatId: cId,
-        names,
-        deletedUserText: deletedUserRow?.content ?? "",
-        deletedAssistantText: deletedAssistantRow?.content ?? "",
-      });
-    } catch (e) {
-      console.warn("[memory] relationship meta rollback failed:", (e as Error).message);
-    }
   }
 
   return NextResponse.json({ ok: true, deletedIds });
