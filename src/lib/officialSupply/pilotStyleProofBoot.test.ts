@@ -17,13 +17,13 @@ describe("temporary romance_fantasy_v2 proof boot launcher", () => {
     assert.match(source, /OFFICIAL_STYLE_PROOF_LIVE: "1"/);
     assert.match(source, /OFFICIAL_STYLE_PROOF_CANDIDATE: "rf-02"/);
     assert.match(source, /officialStyleProofBootStarted/);
+    assert.match(source, /return new Promise\(\(resolve\) =>/);
   });
 
   it("starts proof only after HTTP readiness and does not replace the normal server owner", () => {
     const ready = source.indexOf("Ready on http://");
-    const proof = source.indexOf("runOfficialStyleProofV2BootOnce();", ready);
-    const background = source.indexOf("void runBackgroundInitialization();", ready);
-    assert.ok(ready >= 0 && proof > ready && background > proof);
+    const serialized = source.indexOf("runOfficialStyleProofV2BootOnce().finally(() => runBackgroundInitialization())", ready);
+    assert.ok(ready >= 0 && serialized > ready);
     assert.match(source, /const app = next\(/);
     assert.match(source, /httpServer\.listen\(/);
   });
