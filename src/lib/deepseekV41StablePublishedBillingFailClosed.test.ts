@@ -237,7 +237,7 @@ describe("stable published billing fail-closed — regression matrix", () => {
     assert.equal(decision.reason, "phase2_deepseek_live_grade");
     assert.ok(decision.points > 0);
     assert.notEqual(decision.points, 42);
-    assert.equal(decision.telemetry.pricingVersion, 1);
+    assert.equal(decision.telemetry.pricingVersion, 2);
   });
 
   it("I2 — V4.1 legacy waiver minimum cannot force procurement legacy fallback", () => {
