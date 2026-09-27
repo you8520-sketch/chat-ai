@@ -3,6 +3,7 @@
  * Uses computeOpenRouterTurnCost from points.ts (env-aware rates).
  */
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -23,6 +24,8 @@ import {
   computeCheaperInferenceMarketPreviewCost,
   computeOpenRouterTurnCost,
 } from "@/lib/points";
+import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
+import { computePublishedStandardPreviewPoints } from "@/lib/publishedUserCharge";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import type {
@@ -367,6 +370,22 @@ export function resolvePreviewInputTokens(opts: {
   return Math.max(1, Math.round(opts.baseInputTokens) + draft);
 }
 
+export function computeStablePublishedPreviewPoints(opts: {
+  modelId: string;
+  inputTokens: number;
+  outputTokens: number;
+}): number | null {
+  if (opts.modelId !== CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL) {
+    return null;
+  }
+  return computePublishedStandardPreviewPoints({
+    modelId: opts.modelId,
+    promptTokens: opts.inputTokens,
+    outputTokens: opts.outputTokens,
+    effectiveKrwPerUsd: getEffectiveKrwPerUsd(),
+  });
+}
+
 export function computePreviewTurnPoints(opts: {
   modelId: string;
   inputTokens: number;
@@ -375,8 +394,10 @@ export function computePreviewTurnPoints(opts: {
   if (!isActivePickerModel(opts.modelId)) {
     return null;
   }
-  // outputTokens are total completion tokens (content + thinking) from previewCostOutputTokens.
+  // V4.1 is stable-published and must preview from the same canonical published owner.
+  // Other legacy/market-priced models keep their existing preview owners.
   return (
+    computeStablePublishedPreviewPoints(opts) ??
     computeCheaperInferenceMarketPreviewCost(
       opts.inputTokens,
       opts.outputTokens,
@@ -404,6 +425,11 @@ export function computePreviewPointBand(opts: {
     opts.targetResponseChars
   );
   const low =
+    computeStablePublishedPreviewPoints({
+      modelId: opts.modelId,
+      inputTokens: opts.inputTokens,
+      outputTokens: loOut,
+    }) ??
     computeCheaperInferenceMarketPreviewCost(
       opts.inputTokens,
       loOut,
@@ -416,6 +442,11 @@ export function computePreviewPointBand(opts: {
       outputTokens: loOut,
     });
   const high =
+    computeStablePublishedPreviewPoints({
+      modelId: opts.modelId,
+      inputTokens: opts.inputTokens,
+      outputTokens: hiOut,
+    }) ??
     computeCheaperInferenceMarketPreviewCost(
       opts.inputTokens,
       hiOut,

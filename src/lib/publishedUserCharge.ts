@@ -9,6 +9,7 @@ import {
   validateBillingFxSnapshotForLiveGrade,
 } from "@/lib/billingFxSnapshot";
 import {
+  normalizeBillableUsage,
   type NormalizedBillableUsage,
   type UserBillableUsageCoverage,
   validateNormalizedBillableUsage,
@@ -346,6 +347,31 @@ function computeBillingReferenceCostUsd(
   );
 }
 
+function computePublishedStandardCharge(
+  usage: NormalizedBillableUsage,
+  pricing: PublishedModelPricing,
+  effectiveKrwPerUsd: number
+): {
+  billingReferenceCostUsd: number;
+  billingReferenceCostKrw: number;
+  standardUserChargeKrw: number;
+  standardPoints: number;
+} {
+  const billingReferenceCostUsd = computeBillingReferenceCostUsd(usage, pricing);
+  const billingReferenceCostKrw = roundKrwTenths(
+    convertUsdToKrwPure(billingReferenceCostUsd, effectiveKrwPerUsd)
+  );
+  const standardUserChargeKrw = roundKrwTenths(
+    billingReferenceCostKrw / (1 - pricing.targetMargin)
+  );
+  return {
+    billingReferenceCostUsd,
+    billingReferenceCostKrw,
+    standardUserChargeKrw,
+    standardPoints: ceilPublishedChargePoints(standardUserChargeKrw),
+  };
+}
+
 function buildSnapshot(
   requestedModelId: string,
   resolved: ResolvedPublishedPricing,
@@ -357,12 +383,14 @@ function buildSnapshot(
 ): PublishedUserChargeSnapshot {
   const pricing = resolved.pricing;
   const applicability = buildPublishedApplicabilitySnapshot(resolved.canonicalModelId, pricing);
-  const billingReferenceCostUsd = computeBillingReferenceCostUsd(usage, pricing);
-  const billingReferenceCostKrw = roundKrwTenths(
-    convertUsdToKrwPure(billingReferenceCostUsd, fxSnapshot.effectiveKrwPerUsd)
-  );
-  const standardUserChargeKrw = roundKrwTenths(
-    billingReferenceCostKrw / (1 - pricing.targetMargin)
+  const {
+    billingReferenceCostUsd,
+    billingReferenceCostKrw,
+    standardUserChargeKrw,
+  } = computePublishedStandardCharge(
+    usage,
+    pricing,
+    fxSnapshot.effectiveKrwPerUsd
   );
 
   let finalUserChargeKrw = standardUserChargeKrw;
@@ -547,6 +575,41 @@ export function computePublishedUserChargeWithSnapshot(
     input.adjustment,
     { liveGradeFx: true, chargeSnapshotOrigin: "exact_published_catalog" }
   );
+}
+
+export function computePublishedStandardPreviewPoints(input: {
+  modelId: string;
+  promptTokens: number;
+  outputTokens: number;
+  effectiveKrwPerUsd: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+}): number | null {
+  if (!Number.isFinite(input.effectiveKrwPerUsd) || input.effectiveKrwPerUsd <= 0) {
+    return null;
+  }
+  const resolved = resolvePublishedPricingExact(input.modelId);
+  if (!resolved || !validatePublishedModelPricingForLiveGrade(resolved.pricing)) {
+    return null;
+  }
+  const usage = normalizeBillableUsage({
+    modelId: input.modelId,
+    promptTokens: input.promptTokens,
+    outputTokens: input.outputTokens,
+    cacheReadTokens: input.cacheReadTokens,
+    cacheWriteTokens: input.cacheWriteTokens,
+  });
+  if (!validateNormalizedBillableUsage(usage)) return null;
+
+  const policy = resolvePolicyForModel(resolved.canonicalModelId, resolved.pricing);
+  if (evaluateTierGate(usage, policy, resolved.pricing)) return null;
+  if (evaluateCacheGate(usage, policy, resolved.pricing)) return null;
+
+  return computePublishedStandardCharge(
+    usage,
+    resolved.pricing,
+    input.effectiveKrwPerUsd
+  ).standardPoints;
 }
 
 /**

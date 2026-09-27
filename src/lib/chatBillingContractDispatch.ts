@@ -47,9 +47,21 @@ export const PHASE2_DEEPSEEK_PUBLISHED_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO
 const PHASE1_PUBLISHED_MODEL_SET = new Set<string>(PHASE1_PUBLISHED_MODELS);
 const PHASE2_DEEPSEEK_PUBLISHED_MODEL_SET = new Set<string>(PHASE2_DEEPSEEK_PUBLISHED_MODELS);
 
-/** Main RP rollout: user-selectable Opus 5.5 must never fall through to legacy billing. */
+/** User-selectable stable-published models that must never fall through to procurement-coupled legacy billing. */
 export function isOpus55MandatoryPublishedBillingModel(modelId: string): boolean {
   return modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL;
+}
+
+export function isV41MandatoryPublishedDirectSelection(input: {
+  selectedModelId?: string;
+  deliveredModelId: string;
+}): boolean {
+  return (
+    canonicalizePublishedModelId(input.deliveredModelId) ===
+      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL &&
+    canonicalizePublishedModelId(input.selectedModelId?.trim() ?? "") ===
+      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
+  );
 }
 
 export type PublishedBillingPhase = "phase1" | "phase2";
@@ -116,6 +128,9 @@ export function resolvePublishedBillingPhase(
   const phase2Enabled = opts?.phase2Enabled ?? isPhase2DeepSeekPublishedBillingEnabled();
   if (isOpus55MandatoryPublishedBillingModel(input.deliveredModelId)) {
     return "phase1";
+  }
+  if (isV41MandatoryPublishedDirectSelection(input)) {
+    return "phase2";
   }
   if (isPhase1PublishedBillingModel(input.deliveredModelId) && phase1Enabled) {
     return "phase1";
@@ -307,11 +322,11 @@ function resolveLegacyEligibilityReason(
     return "phase1_billing_disabled";
   }
   if (isPhase2DeepSeekPublishedBillingModel(input.deliveredModelId)) {
-    if (!phase2Enabled) {
-      return "phase2_deepseek_billing_disabled";
-    }
     if (!isPhase2DeepSeekDirectSelection(input)) {
       return "phase2_deepseek_not_direct_selected";
+    }
+    if (!phase2Enabled) {
+      return "phase2_deepseek_billing_disabled";
     }
   }
   return "non_published_model";
@@ -388,9 +403,16 @@ export function resolveChatBillingContract(
   }
 
   if (input.legacyWaiverMinimum > 0) {
-    if (isOpus55MandatoryPublishedBillingModel(input.deliveredModelId)) {
+    if (
+      isOpus55MandatoryPublishedBillingModel(input.deliveredModelId) ||
+      isV41MandatoryPublishedDirectSelection(input)
+    ) {
       return phase2PublishedFailClosedDecision(input, "usage_unresolved", {
-        publishedBillingPhaseAttempted: "phase1",
+        publishedBillingPhaseAttempted: isOpus55MandatoryPublishedBillingModel(
+          input.deliveredModelId
+        )
+          ? "phase1"
+          : "phase2",
         publishedCandidateStatus: "blocked",
         publishedBlockReason: "legacy_waiver_minimum_nonzero",
       });
