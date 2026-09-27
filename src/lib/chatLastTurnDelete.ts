@@ -91,6 +91,18 @@ export function executeLastTurnDeleteTransaction(
               .get(input.assistantMessageId, input.chatId) as { content: string } | undefined
           )?.content ?? ""
         : "";
+    const relationshipMetaBeforeJson =
+      input.relationshipMetaNames && input.assistantMessageId != null
+        ? (
+            db
+              .prepare(
+                "SELECT memory_relationship_before_json FROM messages WHERE id=? AND chat_id=?"
+              )
+              .get(input.assistantMessageId, input.chatId) as
+              | { memory_relationship_before_json: string | null }
+              | undefined
+          )?.memory_relationship_before_json ?? null
+        : null;
 
     let numericAffectedStateCount = 0;
     if (input.revertNumeric && input.assistantMessageId != null) {
@@ -146,6 +158,7 @@ export function executeLastTurnDeleteTransaction(
         names: input.relationshipMetaNames,
         deletedUserText,
         deletedAssistantText,
+        relationshipMetaBeforeJson,
       });
     }
 
