@@ -214,6 +214,7 @@ export async function runOfficialAssetSlot(
     appearance: character.appearance,
     style: candidate.dna,
     slot: plan,
+    styleSeed: style.styleSeed,
   });
   const model = resolveOfficialAssetImageModel(deps.env);
 

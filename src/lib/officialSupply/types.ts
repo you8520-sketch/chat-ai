@@ -90,10 +90,18 @@ export type StyleReferenceProvenance =
   | "platform_owned"
   | "licensed";
 
+/** Visual-style cluster for STYLE-ONLY seeds (not character identity). */
+export type RofanStyleVisualCluster = "cluster_b_graphic" | "cluster_a_painterly";
+
 export type StyleReference = {
   url: string;
   provenance: StyleReferenceProvenance;
   note: string;
+  /**
+   * When set on the approved style seed root, official generation uses cluster-calibrated
+   * style DNA + reference semantics. Omitted seeds keep candidate DNA only.
+   */
+  styleCluster?: RofanStyleVisualCluster;
   /**
    * Optional companion style-only images (platform_owned / licensed).
    * Used only on the approved style seed root. Never character-identity anchors.

@@ -7,7 +7,11 @@ import { buildOfficialAssetPrompts } from "@/lib/officialSupply/imagePrompt";
 import { testAppearance, testDraft, testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
 import {
   OFFICIAL_STYLE_GENERATION_REF_MAX,
+  ROFAN_CLUSTER_B_VISUAL_STYLE_DNA,
+  clusterBStyleReferenceUrlsContainLegacyClusterA,
+  resolveOfficialAssetStyleDna,
   resolveOfficialStyleGenerationReferences,
+  validateClusterBStyleSeedForApproval,
   validateStyleSeedForApproval,
 } from "@/lib/officialSupply/style";
 import {
@@ -15,11 +19,16 @@ import {
   PILOT_STYLE_PROOF_SOURCE_STYLE_KEY,
 } from "@/lib/officialSupply/pilotStyleProof";
 import {
-  buildUserOwnedRofanProofDraft,
+  buildClusterBRofanStyleSeed,
   buildUserOwnedRofanStyleSeed,
+  CLUSTER_B_HOLDOUT_PATHS,
+  CLUSTER_B_PRIMARY_CATALOG_PATHS,
+  CLUSTER_B_PRIMARY_GENERATION_PATHS,
+  CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT,
   PILOT_STYLE_PROOF_V3_BATCH_KEY,
-  PILOT_STYLE_PROOF_V3_DRAFT_KEYS,
   PILOT_STYLE_PROOF_V3_STYLE_KEY,
+  PILOT_STYLE_PROOF_V4_BATCH_KEY,
+  PILOT_STYLE_PROOF_V4_STYLE_KEY,
   USER_OWNED_ROFAN_HOLDOUT_PATHS,
   USER_OWNED_ROFAN_PRIMARY_GENERATION_PATHS,
   USER_OWNED_ROFAN_STYLE_PUBLIC_ROOT,
@@ -30,7 +39,6 @@ const SEED_DIR = path.join(
   process.cwd(),
   "public/official-supply/style-seeds/romance-fantasy-user-owned-v1"
 );
-const PROOF_SCRIPT = path.join(process.cwd(), "scripts/official-supply-style-proof.ts");
 
 describe("user-owned rofan STYLE-ONLY references", () => {
   it("keeps primary generation set at 3 and holdouts off the generation path", () => {
@@ -123,31 +131,6 @@ describe("user-owned rofan STYLE-ONLY references", () => {
     assert.equal(PILOT_STYLE_PROOF_V3_BATCH_KEY, "pilot-romance-fantasy-03-style-refs");
     assert.notEqual(PILOT_STYLE_PROOF_V3_STYLE_KEY, PILOT_STYLE_PROOF_STYLE_KEY);
     assert.notEqual(PILOT_STYLE_PROOF_V3_STYLE_KEY, PILOT_STYLE_PROOF_SOURCE_STYLE_KEY);
-
-    const source = testDraft({
-      draftKey: "pilot-rf-01",
-      name: "카엘룸",
-      vocabulary: ["황궁", "계약", "마력", "서재", "왕좌", "약혼", "명령", "침묵"],
-      styleKey: PILOT_STYLE_PROOF_SOURCE_STYLE_KEY,
-    });
-    const v3 = buildUserOwnedRofanProofDraft(source);
-    assert.equal(v3.draftKey, "pilot-rf-v3-01");
-    assert.equal(v3.styleKey, PILOT_STYLE_PROOF_V3_STYLE_KEY);
-    assert.deepEqual(PILOT_STYLE_PROOF_V3_DRAFT_KEYS, [
-      "pilot-rf-v3-01",
-      "pilot-rf-v3-02",
-      "pilot-rf-v3-09",
-    ]);
-  });
-
-  it("wires the live proof operator to v3 refs rather than the frozen v2 seed", () => {
-    const source = fs.readFileSync(PROOF_SCRIPT, "utf8");
-    assert.match(source, /buildUserOwnedRofanStyleSeed/);
-    assert.match(source, /PILOT_STYLE_PROOF_V3_STYLE_KEY/);
-    assert.match(source, /PILOT_STYLE_PROOF_V3_DRAFT_KEYS/);
-    assert.match(source, /PILOT_STYLE_PROOF_V3_BATCH_KEY/);
-    assert.doesNotMatch(source, /\bbuildPilotStyleSeed\b/);
-    assert.doesNotMatch(source, /\bPILOT_STYLE_PROOF_STYLE_KEY\b/);
   });
 
   it("caps resolved generation refs at OFFICIAL_STYLE_GENERATION_REF_MAX even if companions overflow", () => {
@@ -166,5 +149,109 @@ describe("user-owned rofan STYLE-ONLY references", () => {
       styleOnlyVisualReferences: seed.styleOnlyVisualReferences.slice(0, 2),
     });
     assert.equal(truncated.length, OFFICIAL_STYLE_GENERATION_REF_MAX);
+  });
+});
+
+const CLUSTER_B_DIR = path.join(
+  process.cwd(),
+  "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1"
+);
+
+describe("Cluster B graphic rofan STYLE-ONLY references (v4)", () => {
+  const repSlot: OfficialAssetSlotPlan = {
+    slotKey: "rep",
+    kind: "representative",
+    tag: "대표",
+    expression: "냉정",
+    pose: "",
+    outfit: "default",
+    location: null,
+    situation: null,
+    characterPresence: "required",
+    depiction: "standard",
+    personTag: null,
+  };
+
+  it("bundles PRIMARY 5 audit paths with deterministic generation order 7→13→5", () => {
+    assert.equal(CLUSTER_B_PRIMARY_GENERATION_PATHS.length, 3);
+    assert.equal(CLUSTER_B_PRIMARY_CATALOG_PATHS.length, 2);
+    assert.equal(CLUSTER_B_HOLDOUT_PATHS.length, 4);
+    for (const rel of [
+      "primary/b7-black-gold-uniform.webp",
+      "primary/b13-black-red-fur.webp",
+      "primary/b5-red-dress-female.webp",
+      "primary/b3-blue-window-full.webp",
+      "primary/b17-sword-flowers.webp",
+      "holdout/b6-black-gold-smirk.webp",
+      "manifest.json",
+    ]) {
+      assert.equal(fs.existsSync(path.join(CLUSTER_B_DIR, rel)), true, rel);
+    }
+    const seed = buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://example.test" });
+    const urls = resolveOfficialStyleGenerationReferences(seed);
+    assert.ok(urls[0]!.includes("/b7-black-gold-uniform"));
+    assert.ok(urls[1]!.includes("/b13-black-red-fur"));
+    assert.ok(urls[2]!.includes("/b5-red-dress-female"));
+    assert.equal(validateClusterBStyleSeedForApproval(seed), null);
+    assert.equal(PILOT_STYLE_PROOF_V4_STYLE_KEY, "romance_fantasy_v4");
+    assert.equal(PILOT_STYLE_PROOF_V4_BATCH_KEY, "pilot-romance-fantasy-04-cluster-b");
+  });
+
+  it("rejects legacy v3 Cluster A paths from Cluster B generation", () => {
+    const legacy = clusterBStyleReferenceUrlsContainLegacyClusterA([
+      "https://example.test/official-supply/style-seeds/romance-fantasy-user-owned-v1/primary/p1-face-rendering.webp",
+    ]);
+    assert.match(legacy ?? "", /Cluster A|legacy/i);
+    const seed = buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://example.test" });
+    seed.url = "https://example.test/official-supply/style-seeds/romance-fantasy-user-owned-v1/primary/p1-face-rendering.webp";
+    assert.match(validateClusterBStyleSeedForApproval(seed) ?? "", /cluster B|legacy|cluster-b-v1/i);
+  });
+
+  it("requires the structured styleCluster flag; bundle path alone cannot activate Cluster B", () => {
+    const rf02 = testStyleCandidate("rf-02").dna;
+    const seed = buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://example.test" });
+    seed.styleCluster = undefined;
+
+    assert.match(
+      validateClusterBStyleSeedForApproval(seed) ?? "",
+      /styleCluster cluster_b_graphic/i
+    );
+    assert.deepEqual(resolveOfficialAssetStyleDna(rf02, seed), rf02);
+  });
+
+  it("uses stronger graphic DNA and anti-painterly semantics when styleSeed is Cluster B", () => {
+    const rf02 = testStyleCandidate("rf-02").dna;
+    const clusterSeed = buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://example.test" });
+    const effective = resolveOfficialAssetStyleDna(rf02, clusterSeed);
+    assert.equal(effective.rendering, "cel");
+    assert.equal(effective.contrast, "high");
+    assert.equal(effective.lightSoftness, "hard");
+    assert.notEqual(effective.rendering, rf02.rendering);
+
+    const draft = testDraft({
+      draftKey: "v4-style",
+      name: "테스트",
+      vocabulary: ["방벽", "지휘", "명령", "충성", "심문", "증거", "책임", "귀환"],
+      age: 34,
+    });
+    const withoutCluster = buildOfficialAssetPrompts({
+      draft,
+      appearance: testAppearance(),
+      style: rf02,
+      slot: repSlot,
+    }).primaryPrompt;
+    const withCluster = buildOfficialAssetPrompts({
+      draft,
+      appearance: testAppearance(),
+      style: rf02,
+      slot: repSlot,
+      styleSeed: clusterSeed,
+    }).primaryPrompt;
+    assert.match(withCluster, /graphic webtoon|painterly|beige-gold/i);
+    assert.doesNotMatch(withoutCluster, /painterly softness/i);
+    assert.ok(withCluster.includes(ROFAN_CLUSTER_B_VISUAL_STYLE_DNA.palette));
+    assert.ok(withCluster.includes("Appearance Lock의 캐릭터 고유 색상"));
+    assert.match(withCluster, /reference colors are examples of color handling/i);
+    assert.ok(withCluster.includes("rendering: cel"));
   });
 });
