@@ -68,6 +68,10 @@ on:
       - "src/lib/memory/memory-rolling-summary.ts"
       - "src/lib/memory/memory-source-boundary.test.ts"
       - "src/lib/memory/memory-source-boundary.ts"
+      - "src/lib/memory/memory-relationship-meta.ts"
+      - "src/lib/chatLastTurnDelete.ts"
+      - "src/app/api/chat/turn/route.ts"
+      - "src/lib/rpNumericStateTurnDelete.test.ts"
       - "src/lib/memoryResearch/**"
       - "scripts/memory-research-cycle.ts"
       - ".github/workflows/memory-research-cycle.yml"
@@ -124,6 +128,9 @@ jobs:
 
       - name: Memory source boundary stale guard
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-source-boundary.test.ts
+
+      - name: Last-turn relationship + numeric delete atomicity
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/rpNumericStateTurnDelete.test.ts
 
       - name: Shared initial episodic consumer regression
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-shared-initial.test.ts
