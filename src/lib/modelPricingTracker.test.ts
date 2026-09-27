@@ -3,6 +3,7 @@ import { before, describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
   clearCheaperInferenceCatalogPricingForTest,
+  replaceCheaperInferenceCatalogSnapshot,
   updateCheaperInferenceCatalogPricing,
   type CheaperInferenceCatalogPricing,
 } from "@/lib/cheaperInferenceCatalogPricing";
@@ -63,6 +64,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
 } from "@/lib/chatModels";
+import { listProviderModelDiscoveries } from "@/lib/providerModelDiscovery";
 
 const GEMINI = CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL;
 const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
@@ -2469,4 +2471,90 @@ describe("Phase B1 — DeepSeek official provider PEAK observer", () => {
     }), null);
   });
 
+});
+
+
+describe("provider model discovery production-path integration", () => {
+  it("fresh daily pricing run records a new unregistered model once without changing routing or published pricing", async () => {
+    const db = makeDb();
+    const firstObservedAt = Date.parse("2026-09-27T03:00:00.000Z");
+    seedAllTracked(firstObservedAt);
+    replaceCheaperInferenceCatalogSnapshot([
+      seedCatalog("brand-new-rp-model-2026", {
+        inputUsdPerMillion: 0.4,
+        outputUsdPerMillion: 1.6,
+        referenceInputUsdPerMillion: 0.8,
+        referenceOutputUsdPerMillion: 3.2,
+        discountPercent: 50,
+        fetchedAt: firstObservedAt,
+      }),
+    ]);
+
+    const publishedBefore = [...listPublishedModelIds()];
+    const first = await runModelPricingTracker({
+      db,
+      now: new Date("2026-09-27T03:00:00.000Z"),
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
+    });
+    assert.equal(first.status, "completed");
+
+    let discoveries = listProviderModelDiscoveries(db);
+    assert.equal(discoveries.length, 1);
+    assert.equal(discoveries[0]!.modelId, "brand-new-rp-model-2026");
+    assert.equal(discoveries[0]!.observationCount, 1);
+    assert.deepEqual(listPublishedModelIds(), publishedBefore);
+
+    const adminEventsAfterFirst = (
+      db
+        .prepare(
+          `SELECT COUNT(*) AS c
+             FROM model_pricing_admin_events
+            WHERE admin_event_type = 'NEW_PROVIDER_MODEL_DISCOVERED'
+              AND model_id = 'brand-new-rp-model-2026'`
+        )
+        .get() as { c: number }
+    ).c;
+    assert.equal(adminEventsAfterFirst, 1);
+
+    const secondObservedAt = Date.parse("2026-09-28T03:00:00.000Z");
+    seedAllTracked(secondObservedAt);
+    replaceCheaperInferenceCatalogSnapshot([
+      seedCatalog("brand-new-rp-model-2026", {
+        inputUsdPerMillion: 0.45,
+        outputUsdPerMillion: 1.8,
+        referenceInputUsdPerMillion: 0.8,
+        referenceOutputUsdPerMillion: 3.2,
+        discountPercent: 45,
+        fetchedAt: secondObservedAt,
+      }),
+    ]);
+
+    const second = await runModelPricingTracker({
+      db,
+      now: new Date("2026-09-28T03:00:00.000Z"),
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
+    });
+    assert.equal(second.status, "completed");
+    discoveries = listProviderModelDiscoveries(db);
+    assert.equal(discoveries[0]!.observationCount, 2);
+    assert.equal(discoveries[0]!.outputUsdPerMillion, 1.8);
+
+    const adminEventsAfterSecond = (
+      db
+        .prepare(
+          `SELECT COUNT(*) AS c
+             FROM model_pricing_admin_events
+            WHERE admin_event_type = 'NEW_PROVIDER_MODEL_DISCOVERED'
+              AND model_id = 'brand-new-rp-model-2026'`
+        )
+        .get() as { c: number }
+    ).c;
+    assert.equal(adminEventsAfterSecond, 1, "repeat observation must not spam new-model audit events");
+
+    clearCheaperInferenceCatalogPricingForTest();
+  });
 });
