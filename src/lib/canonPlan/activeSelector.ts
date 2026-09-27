@@ -17,6 +17,7 @@ export type ActiveSelectionInput = {
 export type ActiveSelectionGateReason =
   | "CURRENT_CANON_MATCH"
   | "ACTION_MARKER"
+  | "RECENT_USER"
   | "OPEN_QUESTION"
   | "NONE";
 
@@ -32,7 +33,6 @@ export type ActiveSelectionResult = {
   activeChars: number;
   budgetChars: number;
   keywords: string[];
-  /** AR-A3 observability — bounded metadata only, no raw restricted text. */
   currentUserKeywordCount: number;
   recentContextUsed: boolean;
   recentContextGateReason: ActiveSelectionGateReason;
@@ -44,60 +44,209 @@ export type ActiveSelectionResult = {
   reasons: ActiveSelectionReason[];
 };
 
-// B1 — knowledge-restricted buckets excluded from ACTIVE runtime selection.
-// Chunks remain in the CanonPlan/DB unchanged; only excluded from ACTIVE selection.
 const ACTIVE_RESTRICTED_BUCKETS: ReadonlySet<CanonKnowledgeBucket> = new Set([
   "player",
   "scenario_meta",
 ]);
 
-// B2 — minimal generic-token / stopword guard. Only the AR0-confirmed true false
-// positives. Applied to ACTIVE keyword sets only; the shared production
-// extractKeywords is NOT modified, so Archive retrieval is untouched.
 const ACTIVE_STOPWORDS = new Set(["이름", "하고"]);
 
+const ACTIVE_INELIGIBLE_SECTION = /(?:예시\s*대(?:사|화)|example\s*dialog)/i;
+
+const UBIQUITOUS_DF_RATIO = 0.2;
+const UBIQUITOUS_DF_MIN = 3;
+
 function filterActiveKeywords(kw: string[]): string[] {
-  return kw.filter((k) => !ACTIVE_STOPWORDS.has(k));
+  return kw.filter((k) => !ACTIVE_STOPWORDS.has(k) && k.length >= 2);
 }
 
-function scoreChunkRelevance(chunk: CanonPlanChunk, keywords: string[]): number {
-  if (keywords.length === 0) return 0;
-  const lower = chunk.text.toLowerCase();
-  const titleLower = chunk.sectionTitle.toLowerCase();
-  let score = 0;
-  for (const keyword of keywords) {
-    if (lower.includes(keyword)) score += 2;
-    else if (titleLower.includes(keyword)) score += 1;
-  }
-  return score;
+function tokenStem(token: string): string {
+  const stripped = token.replace(
+    /(?:한테|에게|께|으로|로서|에서|부터|까지|처럼|같이|[은는이가을를의에와과도만])$/,
+    ""
+  );
+  return stripped.length >= 2 ? stripped : "";
 }
 
-// Korean-aware loose token hit — byte-identical to archiveSelective.koreanLooseTokenHit
-// (local copy; the production helper is not exported). Trims trailing 1–2 chars so
-// particle-laden tokens (e.g. "실종이라") still match a stem ("실종").
 function koreanLooseTokenHit(haystack: string, token: string): boolean {
-  if (token.length < 2) return false;
-  if (haystack.includes(token)) return true;
-  if (token.length >= 3 && haystack.includes(token.slice(0, token.length - 1))) return true;
-  if (token.length >= 4 && haystack.includes(token.slice(0, token.length - 2))) return true;
-  return false;
+  const stem = tokenStem(token);
+  if (stem.length < 2) return false;
+  return haystack.includes(stem) || haystack.includes(token);
+}
+
+function chunkSearchText(chunk: CanonPlanChunk): string {
+  return `${chunk.sectionTitle}\n${chunk.text}`.toLowerCase();
+}
+
+/** Entity anchors from profile-style titles such as `[Name(alias)]`. */
+export function sectionEntityAnchors(sectionTitle: string): string[] {
+  const bracket = sectionTitle.match(/^\[([^\]]+)\]/);
+  if (!bracket?.[1]) return [];
+  const inner = bracket[1].trim();
+  const anchors: string[] = [];
+  const beforeParen = inner.split("(")[0]?.trim() ?? "";
+  if (beforeParen.length >= 2) anchors.push(beforeParen.toLowerCase());
+  const paren = inner.match(/\(([^)]+)\)/);
+  if (paren?.[1]) {
+    for (const part of paren[1].split(/[/／,·]/)) {
+      const p = part.trim().toLowerCase();
+      if (p.length >= 2 && !/^(?:코드네임|codename|code)$/i.test(p)) anchors.push(p);
+    }
+  }
+  return [...new Set(anchors)];
+}
+
+function userCueMentionsAny(haystack: string, needles: string[]): boolean {
+  const lower = haystack.toLowerCase();
+  return needles.some((n) => n.length >= 2 && koreanLooseTokenHit(lower, n));
+}
+
+const CATEGORY_SECTION_PREFIX =
+  /^(?:세계관|정체성|이름|성명|외형|외모|체형|의상|성격|말투|능력|배경|과거|관계|가족|직업|시스템|불변|예시|identity|name|world|personality|speech|abilities|background|history|family)/i;
+
+function isProfileEntitySection(sectionTitle: string): boolean {
+  const bracket = sectionTitle.match(/^\[([^\]]+)\]/);
+  if (!bracket?.[1]) return false;
+  const inner = bracket[1].trim();
+  if (CATEGORY_SECTION_PREFIX.test(inner)) return false;
+  if (/\([^)]+\)/.test(inner)) return sectionEntityAnchors(sectionTitle).length > 0;
+  const head = inner.split(/[—–\-]/)[0]?.trim() ?? inner;
+  return head.length >= 2 && head.length <= 16 && !/\s/.test(head);
+}
+
+function publicPlanChunks(plan: CanonPlanV1): CanonPlanChunk[] {
+  return plan.chunks.filter(
+    (c) => !ACTIVE_RESTRICTED_BUCKETS.has(c.bucket) && isPublicVisibleChunk(c.visibility)
+  );
 }
 
 function eligibleActiveChunks(plan: CanonPlanV1): CanonPlanChunk[] {
   const coreSet = new Set(plan.coreIds);
-  return plan.chunks.filter(
+  return publicPlanChunks(plan).filter(
     (c) =>
       !coreSet.has(c.id) &&
       c.salience !== "core" &&
-      !ACTIVE_RESTRICTED_BUCKETS.has(c.bucket) &&
-      isPublicVisibleChunk(c.visibility)
+      !ACTIVE_INELIGIBLE_SECTION.test(c.sectionTitle)
   );
 }
 
-// AR-A3 gate markers — exact AR0 replay-harness definitions (do not invent heuristics).
-const ACTION_MARKERS = [
-  "쏘", "숨어", "숨자", "함정", "판단", "조심", "위험", "도려", "엄폐", "철수", "공격", "저격", "사격",
-];
+function documentFrequency(chunks: CanonPlanChunk[]): Map<string, number> {
+  const df = new Map<string, number>();
+  for (const chunk of chunks) {
+    const seen = new Set(filterActiveKeywords(extractKeywords(chunkSearchText(chunk))));
+    for (const token of seen) {
+      df.set(token, (df.get(token) ?? 0) + 1);
+    }
+  }
+  return df;
+}
+
+function tokenDocumentCount(
+  token: string,
+  chunks: CanonPlanChunk[],
+  df: Map<string, number>
+): number {
+  const exact = df.get(token);
+  if (exact != null) return exact;
+  let count = 0;
+  for (const chunk of chunks) {
+    if (koreanLooseTokenHit(chunkSearchText(chunk), token)) count += 1;
+  }
+  return count;
+}
+
+function titleDocumentCount(token: string, chunks: CanonPlanChunk[]): number {
+  const titles = new Set<string>();
+  for (const chunk of chunks) {
+    const title = chunk.sectionTitle.toLowerCase();
+    if (koreanLooseTokenHit(title, token)) titles.add(title);
+  }
+  return titles.size;
+}
+
+function tokenInformativeness(
+  token: string,
+  chunks: CanonPlanChunk[],
+  df: Map<string, number>
+): number {
+  const stem = tokenStem(token);
+  if (stem.length < 2) return 0;
+  const n = Math.max(1, chunks.length);
+  const d = tokenDocumentCount(token, chunks, df);
+  if (d <= 0) return 0;
+  const ratio = d / n;
+  if (ratio >= UBIQUITOUS_DF_RATIO && d >= UBIQUITOUS_DF_MIN) return 0;
+  if (d === 1) return stem.length >= 3 ? 3 : 2;
+  if (d === 2 || ratio <= 0.12) return 2;
+  return 1;
+}
+
+type TokenScore = { score: number; distinctiveHits: number; titleOrAnchorHit: boolean };
+
+function scoreChunkTokens(
+  chunk: CanonPlanChunk,
+  tokens: string[],
+  eligible: CanonPlanChunk[],
+  df: Map<string, number>
+): TokenScore {
+  const hay = chunkSearchText(chunk);
+  const titleLower = chunk.sectionTitle.toLowerCase();
+  const anchors = sectionEntityAnchors(chunk.sectionTitle);
+  let score = 0;
+  let distinctiveHits = 0;
+  let titleOrAnchorHit = false;
+  for (const token of tokens) {
+    const stem = tokenStem(token);
+    const titleHit = koreanLooseTokenHit(titleLower, token);
+    const bodyHit = koreanLooseTokenHit(hay, token);
+    if (!bodyHit && !titleHit) continue;
+    const dfWeight = tokenInformativeness(token, eligible, df);
+    const uniqueTitle = titleHit && titleDocumentCount(token, eligible) <= 1;
+    const weight = uniqueTitle && stem.length >= 2 ? Math.max(dfWeight, 2) : dfWeight;
+    if (weight <= 0) continue;
+    score += weight * (titleHit ? 3 : 2);
+    const concentrated = tokenDocumentCount(token, eligible, df) === 1 && stem.length >= 2;
+    if (weight >= 2 && (titleHit || stem.length >= 3 || concentrated)) distinctiveHits += 1;
+    const anchorHit = anchors.some((a) => koreanLooseTokenHit(token, a) || koreanLooseTokenHit(a, token));
+    if (anchorHit || uniqueTitle) titleOrAnchorHit = true;
+  }
+  if (userCueMentionsAny(tokens.join(" "), anchors)) titleOrAnchorHit = true;
+  return { score, distinctiveHits, titleOrAnchorHit };
+}
+
+function activationScore(
+  chunk: CanonPlanChunk,
+  tokens: string[],
+  userMessage: string,
+  eligible: CanonPlanChunk[],
+  df: Map<string, number>
+): number {
+  if (isProfileEntitySection(chunk.sectionTitle)) {
+    const anchors = sectionEntityAnchors(chunk.sectionTitle);
+    if (!userCueMentionsAny(userMessage, anchors)) return 0;
+  }
+  const { score, distinctiveHits, titleOrAnchorHit } = scoreChunkTokens(
+    chunk,
+    tokens,
+    eligible,
+    df
+  );
+  if (distinctiveHits === 0) return 0;
+  if (titleOrAnchorHit) return score;
+  if (distinctiveHits >= 2) return score;
+  const strongRare = tokens.some((t) => {
+    if (tokenStem(t).length < 3) return false;
+    const d = tokenDocumentCount(t, eligible, df);
+    return (
+      d > 0 &&
+      d <= 2 &&
+      tokenInformativeness(t, eligible, df) >= 2 &&
+      koreanLooseTokenHit(chunkSearchText(chunk), t)
+    );
+  });
+  return strongRare ? score : 0;
+}
+
 const QUESTION_MARKERS = ["?", "？", "뭐", "왜", "어떻", "누구", "언제", "니$", "나$", "어$", "까$"];
 
 function cueHasQuestionMarker(cue: string): boolean {
@@ -106,37 +255,34 @@ function cueHasQuestionMarker(cue: string): boolean {
   );
 }
 
-function hasOpenQuestion(
-  userMessage: string,
-  recentTurns?: { role: string; content: string }[]
-): boolean {
-  if (cueHasQuestionMarker(userMessage)) return true;
-  if (recentTurns && recentTurns.length) {
-    const lastUser = [...recentTurns].reverse().find((m) => m.role === "user");
-    if (lastUser && QUESTION_MARKERS.some((m) => lastUser.content.includes(m))) return true;
+/** Immediately preceding user turn only — older user turns are not activation evidence. */
+function recentUserAuthoredText(recentTurns?: { role: string; content: string }[]): string {
+  if (!recentTurns?.length) return "";
+  for (let i = recentTurns.length - 1; i >= 0; i -= 1) {
+    const turn = recentTurns[i];
+    if (turn.role === "user" && turn.content.trim()) return turn.content.trim();
   }
-  return false;
+  return "";
+}
+
+function isAnaphoricUserCue(userMessage: string): boolean {
+  const compact = userMessage.replace(/\s+/g, "");
+  if (compact.length === 0 || compact.length > 36) return false;
+  if (/(?:그(?:런|거|건|사람|이|게|냥)?|왜|어떻|누구|언제|뭐)/.test(compact)) return true;
+  return cueHasQuestionMarker(userMessage) && compact.length <= 24;
 }
 
 /**
- * ACTIVE canon selector (AR-A3 patch).
+ * ACTIVE selector — plan-local token rarity + user-authored evidence only.
  *
- * Evidence model:
- * - Current user message is the PRIMARY scoring source (body +2 / title +1 substring).
- * - Bounded recent scene context is a BRIDGE only, gated by
- *   `currentCanonMatch || actionMarker || hasOpenQuestion`. When the gate is NONE,
- *   recent context contributes nothing and behavior is identical to the legacy
- *   current-user-only selector (plus B1/B2 safety).
- * - B1 excludes `player` + `scenario_meta` buckets at eligibility (before scoring).
- * - B2 drops the AR0-confirmed generic tokens ("이름", "하고") from ACTIVE keywords.
- *
- * ACTIVE=0 is valid and must not imply FULL canon fallback. `activeMaxChars` is a
- * ceiling, not a quota; `selected=0` is a legal, expected result for quiet scenes.
+ * Assistant history never independently activates dormant canon.
+ * OPEN_QUESTION is not a global dormant gate.
  */
 export function selectActiveCanonChunks(input: ActiveSelectionInput): ActiveSelectionResult {
   const budgetChars = input.budgetChars ?? input.plan.retrieval.activeBudgetChars;
+  const eligible = eligibleActiveChunks(input.plan);
+  const df = documentFrequency(publicPlanChunks(input.plan));
 
-  // Primary evidence — current-user keywords (B2 stopword guard applied).
   const currentUserKw = filterActiveKeywords([
     ...new Set([
       ...extractKeywords(input.userMessage),
@@ -144,49 +290,50 @@ export function selectActiveCanonChunks(input: ActiveSelectionInput): ActiveSele
     ]),
   ]);
 
-  // Bridge evidence — bounded recent scene context (B2 applied, deduped vs current).
-  const recentKwAll = input.recentContext ? filterActiveKeywords(extractKeywords(input.recentContext)) : [];
-  const currentSet = new Set(currentUserKw);
-  const recentKw = recentKwAll.filter((k) => !currentSet.has(k));
+  const recentUserText = recentUserAuthoredText(input.recentTurns);
+  const recentUserKw = filterActiveKeywords(extractKeywords(recentUserText)).filter(
+    (k) => !currentUserKw.includes(k)
+  );
 
-  const eligible = eligibleActiveChunks(input.plan);
+  const currentScores = new Map<string, number>();
+  for (const chunk of eligible) {
+    currentScores.set(
+      chunk.id,
+      activationScore(chunk, currentUserKw, input.userMessage, eligible, df)
+    );
+  }
 
-  // AR-A3 gate: the recent bridge fires only when the current cue signals an
-  // active scene. Old-history canon keywords alone MUST NOT reactivate dormant lore.
-  const canonMatch = eligible.some((c) => scoreChunkRelevance(c, currentUserKw) > 0);
-  const action = ACTION_MARKERS.some((m) => input.userMessage.includes(m));
-  const question = hasOpenQuestion(input.userMessage, input.recentTurns);
-  const gateOn = canonMatch || action || question;
-  const recentContextGateReason: ActiveSelectionGateReason = canonMatch
-    ? "CURRENT_CANON_MATCH"
-    : action
-      ? "ACTION_MARKER"
-      : question
-        ? "OPEN_QUESTION"
-        : "NONE";
+  const currentMatch = [...currentScores.values()].some((s) => s > 0);
+  const thinCue = isAnaphoricUserCue(input.userMessage);
+
+  const recentUserScores = new Map<string, number>();
+  if (!currentMatch && thinCue && recentUserKw.length > 0) {
+    for (const chunk of eligible) {
+      recentUserScores.set(
+        chunk.id,
+        activationScore(chunk, recentUserKw, recentUserText, eligible, df)
+      );
+    }
+  }
+
+  const recentUserMatch = [...recentUserScores.values()].some((s) => s > 0);
+
+  let recentContextGateReason: ActiveSelectionGateReason = "NONE";
+  if (currentMatch) recentContextGateReason = "CURRENT_CANON_MATCH";
+  else if (recentUserMatch) recentContextGateReason = "RECENT_USER";
 
   const reasons: ActiveSelectionReason[] = [];
   const ranked = eligible
     .map((chunk) => {
-      const currentScore = scoreChunkRelevance(chunk, currentUserKw);
-      const lower = chunk.text.toLowerCase();
-      let recentScore = 0;
-      if (gateOn) {
-        for (const k of recentKw) if (koreanLooseTokenHit(lower, k)) recentScore += 1;
-      }
-      let score = currentScore > 0 ? currentScore : 0;
-      let gate = currentScore > 0;
-      if (gateOn) {
-        score += recentScore;
-        gate = gate || recentScore >= 2;
-      }
-      const finalScore = gate ? score : 0;
+      const currentScore = currentScores.get(chunk.id) ?? 0;
+      const recentScore = recentUserScores.get(chunk.id) ?? 0;
+      const finalScore = currentScore > 0 ? currentScore : recentScore;
       if (finalScore > 0) {
         reasons.push({
           chunkId: chunk.id,
           currentScore,
           recentScore,
-          recentBridgeOnly: gateOn && currentScore <= 0 && recentScore >= 2,
+          recentBridgeOnly: currentScore <= 0 && recentScore > 0,
         });
       }
       return { chunk, score: finalScore };
@@ -217,7 +364,7 @@ export function selectActiveCanonChunks(input: ActiveSelectionInput): ActiveSele
     budgetChars,
     keywords: currentUserKw,
     currentUserKeywordCount: currentUserKw.length,
-    recentContextUsed: gateOn && recentKw.length > 0 && reasons.some((r) => r.recentScore > 0),
+    recentContextUsed: recentUserMatch,
     recentContextGateReason,
     candidateCount: input.plan.chunks.length,
     eligibleAfterBoundaryCount: eligible.length,

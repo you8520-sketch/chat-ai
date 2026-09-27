@@ -151,24 +151,24 @@ describe("Canon compiler version migration — PR-C v2→v3", () => {
       now: NOW,
     });
     assert.equal(saved.reusedExisting, false);
-    assert.equal(saved.plan?.compilerVersion, 3);
+    assert.equal(saved.plan?.compilerVersion, 4);
     assert.ok(saved.plan?.chunks.every((c) => c.visibility === "PUBLIC" || c.visibility === "CONDITIONAL"));
   });
 
-  it("B: hashCanonSource changes when compiler version changes (v2 vs v3)", () => {
-    const hashV2 = hashCanonSource(FUNDAMENTAL_LAW_RAW, 2);
+  it("B: hashCanonSource changes when compiler version changes (v3 vs v4)", () => {
     const hashV3 = hashCanonSource(FUNDAMENTAL_LAW_RAW, 3);
-    assert.notEqual(hashV2, hashV3);
+    const hashV4 = hashCanonSource(FUNDAMENTAL_LAW_RAW, 4);
+    assert.notEqual(hashV3, hashV4);
   });
 
-  it("schema version bumped — CANON_PLAN_VERSION=2, CANON_COMPILER_VERSION=3", () => {
+  it("schema version bumped — CANON_PLAN_VERSION=2, CANON_COMPILER_VERSION=4", () => {
     assert.equal(CANON_PLAN_VERSION, 2);
-    assert.equal(CANON_COMPILER_VERSION, 3);
+    assert.equal(CANON_COMPILER_VERSION, 4);
     const compiled = compileCanonPlanV1({ creatorRawDescription: FUNDAMENTAL_LAW_RAW, now: NOW });
     assert.equal(compiled.ok, true);
     if (!compiled.ok) return;
     assert.equal(compiled.plan.version, 2);
-    assert.equal(compiled.plan.compilerVersion, 3);
+    assert.equal(compiled.plan.compilerVersion, 4);
     assert.ok(compiled.plan.chunks.every((c) => c.visibility === "PUBLIC" || c.visibility === "CONDITIONAL"));
   });
 
@@ -180,12 +180,12 @@ describe("Canon compiler version migration — PR-C v2→v3", () => {
       now: NOW,
     });
     assert.equal(saved.reusedExisting, false);
-    assert.equal(saved.plan?.compilerVersion, 3);
+    assert.equal(saved.plan?.compilerVersion, 4);
     assert.equal(saved.plan?.version, 2);
     assert.equal(hazardChunkVisibility(saved.plan!), "PUBLIC");
   });
 
-  it("lazy first access migrates v2 to v3; second access reuses", () => {
+  it("lazy first access migrates v2 to v4; second access reuses", () => {
     const db = createTestDb();
     const { json: v2Json } = buildStoredCompilerV2Plan(FUNDAMENTAL_LAW_RAW);
     insertCharacter(db, { raw: FUNDAMENTAL_LAW_RAW, planJson: v2Json });
@@ -196,7 +196,7 @@ describe("Canon compiler version migration — PR-C v2→v3", () => {
       creator_canon_plan_json: v2Json,
     });
     assert.equal(first.compileSource, "lazy");
-    assert.equal(first.plan?.compilerVersion, 3);
+    assert.equal(first.plan?.compilerVersion, 4);
     assert.equal(first.persisted, true);
 
     const storedJson = readPlanJson(db);

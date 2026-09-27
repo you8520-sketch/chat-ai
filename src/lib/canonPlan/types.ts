@@ -2,7 +2,7 @@ import type { CanonKnowledgeBucket } from "@/lib/characterKnowledgeBoundary";
 import type { KnowledgeVisibility } from "@/lib/canonPlan/canonVisibility";
 
 export const CANON_PLAN_VERSION = 2 as const;
-export const CANON_COMPILER_VERSION = 3 as const;
+export const CANON_COMPILER_VERSION = 4 as const;
 
 export type CanonChunkSalience = "core" | "active" | "dormant";
 
