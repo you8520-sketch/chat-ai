@@ -1,0 +1,46 @@
+name: Validate official supply
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/officialSupply/**"
+      - "scripts/official-supply-*.ts"
+      - "public/official-supply/**"
+      - "package.json"
+      - ".github/workflows/validate-official-supply.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SESSION_SECRET: "01234567890123456789012345678901"
+      WITHDRAWAL_ENCRYPTION_KEY: "01234567890123456789012345678901"
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      DISABLE_WEB_PUSH: "1"
+      DISABLE_PAYOUT_SCHEDULER: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+      - run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+      - run: npm run lint
+      - run: npm run typecheck:app
+
+      - name: Official supply regressions
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1
+          src/lib/officialSupply/*.test.ts
