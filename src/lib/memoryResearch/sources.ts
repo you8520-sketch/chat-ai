@@ -1,8 +1,9 @@
 /**
  * Research source adapters. Minimal, free, no-credential-expansion sources:
- * - GitHub REST (repo metadata + latest release) for a curated watchlist
- *   (agent-memory frameworks, temporal/graph memory, benchmark releases,
- *   embedding/reranker models). Uses the workflow's read-only GITHUB_TOKEN.
+ * - GitHub REST for both a curated watchlist and a bounded repository-search
+ *   discovery lane, so newly emerging memory projects can enter the same
+ *   screening/benchmark lifecycle without becoming trusted automatically.
+ *   Uses the workflow's read-only GITHUB_TOKEN.
  * - arXiv export API (Atom) for a few fixed memory queries, 3 s apart per
  *   arXiv API etiquette.
  * Both are rate-bounded by a shared per-cycle HTTP budget. No LLM/provider
@@ -189,10 +190,20 @@ export const GITHUB_WATCHLIST: readonly WatchlistEntry[] = [
 ];
 
 type GithubRepo = {
+  full_name?: string;
   html_url?: string;
   description?: string | null;
   archived?: boolean;
+  fork?: boolean;
   pushed_at?: string | null;
+  stargazers_count?: number;
+  topics?: string[];
+  language?: string | null;
+};
+
+type GithubSearchResponse = {
+  incomplete_results?: boolean;
+  items?: GithubRepo[];
 };
 
 type GithubRelease = { tag_name?: string; published_at?: string | null; html_url?: string };
@@ -257,6 +268,127 @@ export function githubWatchlistSource(watchlist: readonly WatchlistEntry[] = GIT
         }
       }
       return { sourceId: "github_watchlist", observations, errors };
+    },
+  };
+}
+
+
+export const GITHUB_DISCOVERY_QUERIES: readonly string[] = [
+  '"agent memory" in:name,description,readme stars:>=50 archived:false fork:false',
+  '"long-term memory" retrieval in:name,description,readme stars:>=50 archived:false fork:false',
+];
+
+export const GITHUB_DISCOVERY_RESULTS_PER_QUERY = 4;
+export const GITHUB_DISCOVERY_ACTIVITY_DAYS = 365;
+
+function isoDay(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function daysAgo(now: Date, days: number): Date {
+  return new Date(now.getTime() - days * 86_400_000);
+}
+
+function discoveredGithubObservation(
+  repo: GithubRepo,
+  release: GithubRelease | null
+): ResearchObservation | null {
+  const fullName = repo.full_name?.trim();
+  if (!fullName || repo.archived === true || repo.fork === true) return null;
+  const stars = repo.stargazers_count ?? 0;
+  if (stars < 50) return null;
+  const summary = (repo.description ?? "").trim().slice(0, 400);
+  const text = [fullName, summary, ...(repo.topics ?? []), repo.language ?? ""].join(" ");
+  const category = classifyText(fullName, summary);
+  return {
+    candidateKey: `github:${fullName.toLowerCase()}`,
+    sourceKind: "github_repository",
+    sourceUrl: repo.html_url ?? `https://github.com/${fullName}`,
+    title: fullName,
+    version: release?.tag_name ?? null,
+    publishedAt: release?.published_at ?? null,
+    summary,
+    claimedAdvantage: summary,
+    category,
+    evidence: {
+      hasReproducibleCode: true,
+      hasPublishedBenchmark: /benchmark|locomo|longmemeval|mteb/i.test(text),
+      archived: false,
+      lastActivityAt: repo.pushed_at ?? null,
+    },
+    infraRequirements: inferInfra(text),
+    privacyImplications: ["none"],
+    migrationRequirement: "none",
+    riskFlags: [],
+  };
+}
+
+/**
+ * Bounded discovery lane for repositories not already in the curated watchlist.
+ * Search results are merely research observations; they do not bypass any
+ * screening, benchmark, live-evidence, implementation allowlist, or merge gate.
+ */
+export function githubDiscoverySource(
+  queries: readonly string[] = GITHUB_DISCOVERY_QUERIES,
+  maxPerQuery = GITHUB_DISCOVERY_RESULTS_PER_QUERY
+): SourceAdapter {
+  return {
+    id: "github_discovery",
+    kind: "github_repository",
+    async collect(ctx) {
+      const observations = new Map<string, ResearchObservation>();
+      const errors: string[] = [];
+      const curated = new Set(GITHUB_WATCHLIST.map((entry) => `github:${entry.repo.toLowerCase()}`));
+      const pushedSince = isoDay(daysAgo(ctx.now, GITHUB_DISCOVERY_ACTIVITY_DAYS));
+
+      for (let i = 0; i < queries.length; i++) {
+        const q = `${queries[i]} pushed:>=${pushedSince}`;
+        const url =
+          `https://api.github.com/search/repositories?q=${encodeURIComponent(q)}` +
+          `&sort=updated&order=desc&per_page=${maxPerQuery}`;
+        try {
+          const res = await budgetedFetch(ctx, url, githubHeaders(ctx));
+          if (!res.ok) {
+            errors.push(`github discovery query ${i}: HTTP ${res.status}`);
+            continue;
+          }
+          const payload = (await res.json()) as GithubSearchResponse;
+          if (payload.incomplete_results) {
+            errors.push(`github discovery query ${i}: incomplete_results=true`);
+          }
+          for (const repo of (payload.items ?? []).slice(0, maxPerQuery)) {
+            const fullName = repo.full_name?.trim();
+            if (!fullName) continue;
+            const key = `github:${fullName.toLowerCase()}`;
+            if (curated.has(key) || observations.has(key)) continue;
+
+            let release: GithubRelease | null = null;
+            try {
+              const rel = await budgetedFetch(
+                ctx,
+                `https://api.github.com/repos/${fullName}/releases/latest`,
+                githubHeaders(ctx)
+              );
+              if (rel.ok) release = (await rel.json()) as GithubRelease;
+              else if (rel.status !== 404) errors.push(`${fullName}: discovery release HTTP ${rel.status}`);
+            } catch (error) {
+              if (error instanceof HttpBudgetExhaustedError) throw error;
+              errors.push(
+                `${fullName}: discovery release ${error instanceof Error ? error.message : String(error)}`.slice(0, 300)
+              );
+            }
+
+            const observation = discoveredGithubObservation(repo, release);
+            if (observation) observations.set(observation.candidateKey, observation);
+          }
+        } catch (error) {
+          errors.push(
+            `github discovery query ${i}: ${error instanceof Error ? error.message : String(error)}`.slice(0, 300)
+          );
+          if (error instanceof HttpBudgetExhaustedError) break;
+        }
+      }
+      return { sourceId: "github_discovery", observations: [...observations.values()], errors };
     },
   };
 }
@@ -392,5 +524,5 @@ export function arxivSource(queries: readonly string[] = ARXIV_QUERIES, maxResul
 }
 
 export function defaultSources(): SourceAdapter[] {
-  return [githubWatchlistSource(), arxivSource()];
+  return [githubWatchlistSource(), githubDiscoverySource(), arxivSource()];
 }
