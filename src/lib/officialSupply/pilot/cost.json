@@ -1,15 +1,66 @@
 {
   "version": 2,
-  "successfulCompletions": 0,
+  "successfulCompletions": 5,
   "failedProviderAttempts": 0,
-  "physicalAttempts": 0,
-  "workflowRetries": 0,
-  "billedCostUsd": 0,
+  "physicalAttempts": 5,
+  "workflowRetries": 1,
+  "billedCostUsd": 0.004077,
   "failedAttemptCostUsd": 0,
-  "inputTokens": 0,
-  "outputTokens": 0,
+  "inputTokens": 7680,
+  "outputTokens": 9814,
   "imageCalls": 0,
-  "lines": [],
+  "lines": [
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-01",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1489,
+      "outputTokens": 1773,
+      "costUsd": 0.00075
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-05",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1720,
+      "outputTokens": 1431,
+      "costUsd": 0.000651
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-07",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1486,
+      "outputTokens": 2462,
+      "costUsd": 0.000991
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-07",
+      "workflowAttempt": 2,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1505,
+      "outputTokens": 2415,
+      "costUsd": 0.00095
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-09",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1480,
+      "outputTokens": 1733,
+      "costUsd": 0.000735
+    }
+  ],
   "legacy": {
     "source": "api_cost_ledger request_kind=official-character-author (successful provider completions only)",
     "ledgerCutoff": "2026-09-26 13:48:00",

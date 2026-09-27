@@ -21,7 +21,14 @@ import {
 } from "@/lib/officialSupply/author";
 import { compileOfficialDraftFromBible, validateCharacterBible, validateWorldBible } from "@/lib/officialSupply/bible";
 import type { OfficialWorldBible } from "@/lib/officialSupply/bible";
-import { testAppearance, testAssetPlan, testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
+import {
+  CONTRACT_GREETING,
+  CONTRACT_PITCH,
+  CONTRACT_SPEECH,
+  testAppearance,
+  testAssetPlan,
+  testStyleCandidate,
+} from "@/lib/officialSupply/officialSupply.fixtures";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import { officialSubstantiveCharCount } from "@/lib/officialSupply/characterText";
 import type { OfficialCharacterDraft } from "@/lib/officialSupply/types";
@@ -160,7 +167,7 @@ function fakeHalf2(opts: { nsfw?: boolean; npcCount?: 0 | 1 | 3 | 4; age?: numbe
       angryStyle: "낮고 느려짐",
       intimateStyle: "어색하게 부드러워짐",
       keywords: ["단호함", "격식", "절제", "신중", "충성"],
-      description: prose(8, 320),
+      description: CONTRACT_SPEECH,
       examples: ["명령이십니까.\n확인했습니다.\n물러서십시오.\n제가 막겠습니다."],
       forbidden: "반말과 가벼운 농담",
     },
@@ -179,10 +186,10 @@ function fakeHalf2(opts: { nsfw?: boolean; npcCount?: 0 | 1 | 3 | 4; age?: numbe
       mediumConflict: "원로원의 기사단 해체 압력",
       longTermChange: "주군과의 신뢰가 깊어지며 충성의 의미가 바뀐다",
     },
-    greeting: prose(9, 800),
+    greeting: CONTRACT_GREETING,
     publicProfile: {
       tagline: "황궁의 방패, 경계 너머의 충성",
-      description: prose(10, 300),
+      description: CONTRACT_PITCH,
       tags: ["기사", "궁정", "호위", "충성"],
     },
     npcs,
