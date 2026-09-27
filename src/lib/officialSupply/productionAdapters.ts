@@ -25,14 +25,54 @@ import {
 
 const OFFICIAL_ASSET_REQUEST_KIND = "official-character-asset-image";
 const MAX_REFERENCE_BYTES = 20 * 1024 * 1024;
+const PLATFORM_STYLE_SEED_PREFIX = "/official-supply/style-seeds/";
 
-async function readReference(source: string): Promise<Buffer> {
+function configuredPlatformOrigins(env: NodeJS.ProcessEnv): Set<string> {
+  const origins = new Set<string>();
+  for (const raw of [env.NEXTAUTH_URL, env.RAILWAY_STATIC_URL, env.RAILWAY_PUBLIC_DOMAIN]) {
+    const value = raw?.trim();
+    if (!value) continue;
+    try {
+      const normalized = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+      origins.add(new URL(normalized).origin);
+    } catch {
+      // Ignore unrelated malformed deployment metadata; normal https fetch stays available.
+    }
+  }
+  return origins;
+}
+
+function platformPublicReferencePath(source: string, env: NodeJS.ProcessEnv): string | null {
+  if (!/^https:\/\//i.test(source)) return null;
+  let url: URL;
+  try {
+    url = new URL(source);
+  } catch {
+    return null;
+  }
+  if (!configuredPlatformOrigins(env).has(url.origin)) return null;
+  if (!url.pathname.startsWith(PLATFORM_STYLE_SEED_PREFIX)) return null;
+
+  const publicRoot = path.resolve(process.cwd(), "public");
+  const relative = decodeURIComponent(url.pathname).replace(/^\/+/, "");
+  const local = path.resolve(publicRoot, relative);
+  if (local !== publicRoot && !local.startsWith(`${publicRoot}${path.sep}`)) {
+    throw new Error("platform reference escaped public root");
+  }
+  return local;
+}
+
+async function readReference(source: string, env: NodeJS.ProcessEnv): Promise<Buffer> {
   const uploadName = filenameFromUploadUrl(source);
   if (uploadName) {
     const local = resolveExistingUploadPath(uploadName);
     if (!local) throw new Error(`reference not found: ${source}`);
     return fs.promises.readFile(local);
   }
+
+  const localPublic = platformPublicReferencePath(source, env);
+  if (localPublic) return fs.promises.readFile(localPublic);
+
   if (/^https:\/\//i.test(source)) {
     const response = await fetch(source, { headers: { Accept: "image/*" } });
     if (!response.ok) throw new Error(`reference fetch failed: ${response.status}`);
@@ -43,13 +83,34 @@ async function readReference(source: string): Promise<Buffer> {
   throw new Error(`unsupported reference source: ${source}`);
 }
 
-async function referenceToDataUrl(source: string): Promise<string> {
-  const optimized = await sharp(await readReference(source), { failOn: "none", animated: false })
+async function referenceToDataUrl(source: string, env: NodeJS.ProcessEnv): Promise<string> {
+  const optimized = await sharp(await readReference(source, env), { failOn: "none", animated: false })
     .rotate()
     .resize({ width: 1536, height: 1536, fit: "inside", withoutEnlargement: true })
     .webp({ quality: 90, effort: 4 })
     .toBuffer();
   return `data:image/webp;base64,${optimized.toString("base64")}`;
+}
+
+/**
+ * Prepares references before a provider request exists. Failures here are
+ * definitively zero-cost and must not consume an image attempt or budget.
+ */
+export async function prepareOfficialImageReferences(
+  sources: string[],
+  env: NodeJS.ProcessEnv = process.env
+): Promise<string[]> {
+  try {
+    return await Promise.all(sources.map((source) => referenceToDataUrl(source, env)));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new OfficialImageTransportError(
+      `reference preparation failed: ${message}`,
+      0,
+      false,
+      false
+    );
+  }
 }
 
 function recordLedger(model: string, costUsd: number | null, providerRequestId: string | null, outcome: "success" | "failed_with_usage" | "failed_without_usage") {
@@ -74,7 +135,7 @@ function recordLedger(model: string, costUsd: number | null, providerRequestId: 
  */
 export const openAiOfficialImageTransport: OfficialImageTransport = {
   async generate(input) {
-    const references = await Promise.all(input.references.map(referenceToDataUrl));
+    const references = await prepareOfficialImageReferences(input.references);
     try {
       const result = await callOpenAiImageEditWithSafetyFallback({
         model: input.model,
