@@ -1,0 +1,59 @@
+name: Validate authorial-habit JEV runtime shadow
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/authorialHabitJevQa.ts"
+      - "src/lib/authorialHabitJevQa.test.ts"
+      - "src/lib/authorialHabitJevRuntimeBudget.ts"
+      - "src/lib/authorialHabitJevRuntimeBudget.test.ts"
+      - "src/lib/authorialHabitJevJudge.ts"
+      - "src/lib/auxProviderProvenance.ts"
+      - "src/lib/auxProviderProvenance.test.ts"
+      - "src/app/api/chat/route.ts"
+      - "scripts/lib/authorialHabitJevBenchmark.test.ts"
+      - ".github/workflows/validate-authorial-habit-jev-runtime.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      AUTHORIAL_HABIT_JEV_QA_ENABLED: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+      - run: git diff --check
+      - run: npm run lint
+      - run: npm run typecheck:app
+
+      - name: Authorial runtime budget regressions
+        run: >-
+          node --conditions=react-server --import tsx --test
+          src/lib/authorialHabitJevRuntimeBudget.test.ts
+
+      - name: Authorial runtime shadow regressions
+        run: >-
+          node --conditions=react-server --import tsx --test
+          src/lib/authorialHabitJevQa.test.ts
+
+      - name: Authorial benchmark semantic-shape regression
+        run: >-
+          node --conditions=react-server --import tsx --test
+          scripts/lib/authorialHabitJevBenchmark.test.ts
+
+      - name: Aux provenance regression
+        run: >-
+          node --conditions=react-server --import tsx --test
+          src/lib/auxProviderProvenance.test.ts
