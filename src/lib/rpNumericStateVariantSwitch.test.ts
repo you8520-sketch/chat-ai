@@ -93,7 +93,9 @@ function makeDb(): Database.Database {
     );
     CREATE TABLE chats (
       id INTEGER PRIMARY KEY,
-      memory_meta TEXT NOT NULL DEFAULT '{}'
+      memory_meta TEXT NOT NULL DEFAULT '{}',
+      current_summary TEXT NOT NULL DEFAULT '',
+      memory TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
