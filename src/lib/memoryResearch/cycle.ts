@@ -6,6 +6,7 @@
  */
 import { runLabArm, type LabArmResult } from "@/lib/memoryResearch/benchmarkLab";
 import { adapterFingerprint, findAdapter, type ExperimentAdapter } from "@/lib/memoryResearch/experiments";
+import { findLiveExperimentRecipe, liveExperimentRecipeFingerprint, type LiveExperimentRecipe } from "@/lib/memoryResearch/liveExperimentRecipes";
 import { evaluateGates, type GateResult, type LabRunSummary } from "@/lib/memoryResearch/gates";
 import type { ResearchLedger } from "@/lib/memoryResearch/ledger";
 import {
@@ -217,7 +218,8 @@ export async function runResearchCycle(
     seenThisCycle.add(obs.candidateKey);
     const existing = candidates[obs.candidateKey];
     const adapter = findAdapter(deps.adapters, obs.candidateKey);
-    const fingerprint = adapterFingerprint(adapter);
+    const liveRecipe = findLiveExperimentRecipe(obs.candidateKey);
+    const fingerprint = adapterFingerprint(adapter) ?? liveExperimentRecipeFingerprint(liveRecipe);
     const re = decideReevaluation(existing, obs, {
       now: deps.now,
       adapterFingerprint: fingerprint,
@@ -234,7 +236,7 @@ export async function runResearchCycle(
     if (!existing) report.counts.newCandidates += 1;
     report.counts.evaluated += 1;
 
-    const evaluated = await evaluateObservation(obs, adapter, baseline, report, deps.now, runArm);
+    const evaluated = await evaluateObservation(obs, adapter, liveRecipe, baseline, report, deps.now, runArm);
     assertValidTrail(evaluated.trail);
     const state = decisionState(evaluated.decision);
     const decisionRecord: CycleDecisionRecord = {
@@ -335,12 +337,13 @@ export async function runResearchCycle(
 async function evaluateObservation(
   obs: ResearchObservation,
   adapter: ExperimentAdapter | undefined,
+  liveRecipe: LiveExperimentRecipe | undefined,
   baseline: LabRunSummary | null,
   report: CycleReport,
   now: Date,
   runArm: (mode: BenchmarkMode) => Promise<LabArmResult>
 ): Promise<Evaluated> {
-  const screening = screenCandidate(obs, adapter, now);
+  const screening = screenCandidate(obs, adapter, now, liveRecipe);
   if (screening.outcome === "STOP") {
     return {
       decision: screening.decision,
