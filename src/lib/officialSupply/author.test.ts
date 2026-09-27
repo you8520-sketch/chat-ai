@@ -375,6 +375,38 @@ describe("official author adapter", () => {
     assert.match(draft.sections.characterCore, /27세/);
   });
 
+  it("compiler treats Korean appearance fields as complete text and keeps height single-owned", () => {
+    const base = fakeBible(false);
+    const bible = {
+      ...base,
+      identity: { ...base.identity, heightCm: 184 },
+      appearance: {
+        ...base.appearance,
+        faceShape: "매끈한 턱선이 이어진다.",
+        eyes: "눈꼬리가 가늘게 올라간다.",
+        eyeColor: "짙은 호박색.",
+        hairColor: "붉은 기가 도는 짙은 갈색.",
+        hairstyle: "이마를 비스듬히 가로지르는 쉼표머리.",
+        hairLength: "옆과 뒤는 짧다.",
+        skin: "햇볕에 그을린 구리빛 피부.",
+        build: "184cm의 유연하고 길쭉한 체격.",
+        usualExpression: "느긋한 미소.",
+        defaultOutfit: "짙은 녹색 실크 베스트를 입는다.",
+        accessories: "금장식 모노클.",
+      },
+    };
+    const draft = compileOfficialDraftFromBible(bible, STAGING_KEYS);
+    const core = draft.sections.characterCore;
+
+    assert.match(core, /키: 184cm\. 체격: 유연하고 길쭉한 체격\./);
+    assert.match(core, /피부: 햇볕에 그을린 구리빛 피부\./);
+    assert.match(core, /기본 복장: 짙은 녹색 실크 베스트를 입는다\./);
+    assert.doesNotMatch(core, /184cm\s+184cm/);
+    assert.doesNotMatch(core, /피부\.?\s*피부/);
+    assert.doesNotMatch(core, /이어진다\.에/);
+    assert.doesNotMatch(core, /\.\./);
+  });
+
   it("compiler enforces canonical caps instead of silently truncating", () => {
     const bible = fakeBible(false);
     assert.throws(
