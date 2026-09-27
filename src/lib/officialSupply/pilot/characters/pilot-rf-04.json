@@ -434,10 +434,10 @@
       {
         "slotKey": "rep",
         "kind": "representative",
-        "tag": "2:3 카드 초상",
-        "expression": "피곤한 미소",
-        "pose": "한 손으로 어긋난 연미복 단추를 고쳐 잠그며 정면을 바라본다",
-        "outfit": "default",
+        "tag": "율리우스 클라인 초상",
+        "expression": "차분하고 경계심 어린 시선, 설명을 시작하기 직전의 절제된 표정",
+        "pose": "상반신을 비스듬히 돌리고 한 손에 낡은 문헌을 든 카드 초상 구도",
+        "outfit": "낡은 검은 연미복 위에 얼룩진 연구가운, 어긋난 단추",
         "location": null,
         "situation": null,
         "characterPresence": "required",
@@ -447,48 +447,48 @@
       {
         "slotKey": "sig1",
         "kind": "signature",
-        "tag": "얼룩진 연구가운",
-        "expression": "무심한 집중",
-        "pose": "가운 소매를 걷고 작은 유리병을 빛에 비춰 본다",
+        "tag": "석학의 관찰",
+        "expression": "측정값을 검토하는 진지하고 예리한 표정",
+        "pose": "문헌과 측정 도구를 나란히 살피며 서 있음",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "sig2",
         "kind": "signature",
-        "tag": "어긋난 연미복 단추",
-        "expression": "능청스러운 냉소",
-        "pose": "기울어진 자세로 손에 든 서류를 내민다",
-        "outfit": "default",
+        "tag": "어긋난 연미복",
+        "expression": "자신의 흐트러진 차림을 의식하지 못한 무심한 표정",
+        "pose": "연구가운 소매를 걷고 기록을 정리함",
+        "outfit": "낡은 검은 연미복과 얼룩진 연구가운, 어긋난 단추",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "일상"
       },
       {
         "slotKey": "sig3",
         "kind": "signature",
-        "tag": "금 간 단안경",
-        "expression": "계산적인 눈빛",
-        "pose": "단안경을 고쳐 쓰며 손가락으로 허공에 수식을 그린다",
+        "tag": "자료를 지키는 손",
+        "expression": "자료를 내놓으라는 요구를 경계하는 단호한 표정",
+        "pose": "한 손으로 기록철을 감싸고 다른 손을 들어 제지함",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "의심"
       },
       {
         "slotKey": "sig4",
         "kind": "signature",
-        "tag": "위험한 발명품",
-        "expression": "들뜬 경계심",
-        "pose": "불안정하게 빛나는 장치를 몸 가까이 감싸 쥔다",
+        "tag": "평민 출신 석학",
+        "expression": "편견을 실력으로 넘어서려는 담담한 자신감",
+        "pose": "낡은 연구가운 차림으로 강의 자료를 펼쳐 보임",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -499,74 +499,74 @@
       {
         "slotKey": "emo1",
         "kind": "emotion",
-        "tag": "실험 성공의 희열",
-        "expression": "참지 못한 환희",
-        "pose": "두 팔을 벌리고 결과물을 자랑스럽게 들어 보인다",
+        "tag": "조심스러운 제안",
+        "expression": "상대가 정할 조건을 먼저 묻는 신중한 미소",
+        "pose": "검사 도구를 내려놓고 상대의 답을 기다림",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "미소"
       },
       {
         "slotKey": "emo2",
         "kind": "emotion",
-        "tag": "예상 밖의 실패",
-        "expression": "당황한 멍함",
-        "pose": "연기가 피어오르는 플라스크를 든 채 굳어 있다",
+        "tag": "해석의 즐거움",
+        "expression": "서로 다른 해석을 맞춰 보며 드러나는 작은 기쁨",
+        "pose": "주석이 빼곡한 문헌을 가리키며 몸을 기울임",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "기쁨"
       },
       {
         "slotKey": "emo3",
         "kind": "emotion",
-        "tag": "정체를 간파당한 순간",
-        "expression": "숨을 삼킨 경악",
-        "pose": "손에 쥔 서류를 등 뒤로 감추려 한다",
+        "tag": "통제의 불안",
+        "expression": "상대가 떠날까 봐 초조함을 감추지 못하는 표정",
+        "pose": "말을 잇다 멈추고 손끝을 움켜쥠",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       },
       {
         "slotKey": "emo4",
         "kind": "emotion",
-        "tag": "계산이 어긋난 분노",
-        "expression": "차갑게 일그러진 분노",
-        "pose": "구겨진 장갑을 꽉 움켜쥔다",
+        "tag": "강요를 삼키다",
+        "expression": "붙잡고 싶은 충동을 억누르며 굳어진 표정",
+        "pose": "출입구에서 한 걸음 물러나 길을 비켜 줌",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "emo5",
         "kind": "emotion",
-        "tag": "뜻밖의 다정함",
-        "expression": "어색하게 누그러진 눈매",
-        "pose": "상대의 망가진 옷깃을 조심스럽게 바로잡는다",
+        "tag": "자료 공개의 갈등",
+        "expression": "연구의 이익과 상대의 안전 사이에서 흔들리는 표정",
+        "pose": "공개용 보고서와 봉인된 기록을 양손에 들고 멈춤",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "의심"
       },
       {
         "slotKey": "emo6",
         "kind": "emotion",
-        "tag": "돌이킬 수 없는 선택",
-        "expression": "체념을 삼킨 결의",
-        "pose": "고개를 들고 마지막 남은 약병을 내민다",
+        "tag": "보호와 소유 사이",
+        "expression": "걱정과 집착을 구분하려 애쓰는 복잡한 표정",
+        "pose": "따뜻한 음료를 건네면서도 상대의 반응을 살핌",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -577,42 +577,185 @@
       {
         "slotKey": "scene1",
         "kind": "scene",
-        "tag": "유리온실의 차폐막 붕괴",
-        "expression": "위태로운 침착함",
-        "pose": "가면을 벗어 손에 쥔 채 상대와 마주 선다",
+        "tag": "봉인 문양의 반응",
+        "expression": "특이 체질의 반응을 확인하고도 상대의 선택을 우선하려는 신중함",
+        "pose": "심연의 아카이브 금서 구역에서 봉인 문양과 상대를 번갈아 살피며 검사 조건을 묻는다",
         "outfit": "default",
-        "location": "솔라리스 유리온실, 태양궁 최상층",
-        "situation": "에너지 고갈로 차폐막이 무너지는 가운데, 율리우스가 치명적인 정략결혼 제안과 배신의 증거를 동시에 내놓는다.",
+        "location": "판도라 대도서관 심연의 아카이브, 봉인 문양이 있는 금서 구역",
+        "situation": "첫 대면에서 상대의 체질이 봉인 문양에 반응한다. 율리우스는 안전 검사를 제안하되, 허용할 절차와 조건을 상대가 정하도록 묻는다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       },
       {
         "slotKey": "scene2",
         "kind": "scene",
-        "tag": "혹한의 방벽에서 나눈 체온",
-        "expression": "고통을 감춘 절박함",
-        "pose": "부상당한 동료를 끌어안고 무기를 겨눈다",
+        "tag": "정보 공개의 선택",
+        "expression": "수사청의 압박 속에서 상대의 안전을 먼저 고려하려는 결연함",
+        "pose": "봉인된 관찰 기록을 품에 안고 수사청 특무관과 대치하며 상대에게 선택을 맡김",
         "outfit": "default",
-        "location": "발켄하임 혹한의 검은 방벽, 흑철 요새",
-        "situation": "마수 대침공과 보급 단절 속에서 둘은 체온을 나누며 버티고, 율리우스는 요새 내부의 군사 반역 음모를 밝혀내야 한다.",
+        "location": "성스러운 빛의 회랑, 제국 대신전의 기록 보관 회랑",
+        "situation": "중기 갈등으로 기관들이 상대의 체질 정보를 요구하고 수사청의 감시가 좁혀 온다. 율리우스는 자료를 숨겨 보호할지 제한 공개로 더 큰 피해를 막을지 결정하며, 상대의 동의 없이 정보를 넘기지 않겠다고 밝힌다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "scene3",
         "kind": "scene",
-        "tag": "심연의 아카이브 역류",
-        "expression": "마력에 잠식된 공포",
-        "pose": "폭주하는 금서의 페이지를 붙잡으며 상대에게 도망치라고 외친다",
+        "tag": "관찰에서 협력으로",
+        "expression": "상대의 선택을 받아들이며 통제 대신 신뢰를 택하는 조심스러운 안도",
+        "pose": "관측 기록을 함께 펼쳐 놓고 상대가 직접 다음 연구 단계를 고르도록 기다림",
         "outfit": "default",
-        "location": "판도라 대도서관 심연의 아카이브",
-        "situation": "금서 해독 중 금지된 마력이 역류하고 수사청 특무관이 들이닥친다. 율리우스는 상대를 구하면서도 밀실에 남은 증거를 없애야 한다.",
+        "location": "판도라 학술원 이단연구과, 율리우스의 개인 기록실",
+        "situation": "장기 변화의 갈림길에서 율리우스는 기록을 독점하지 않고 관찰 자료와 해석을 상대에게 공개한다. 상대가 협력 범위와 휴식 시점을 정하고, 율리우스는 연구에서 물러날 가능성까지 받아들인다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "미소"
       }
     ]
-  }
+  },
+  "sceneContext": {
+    "name": "율리우스 클라인",
+    "occupation": "판도라 학술원 이단연구과 수석교수",
+    "faction": "판도라 학술원",
+    "socialPosition": "평민 출신 석학. 율리우스 클라인은 41세다.",
+    "ranked": [
+      {
+        "name": "판도라 대도서관 심연의 아카이브",
+        "tier": "primary",
+        "score": 57,
+        "why": [
+          "판도라",
+          "학술원",
+          "이단연구",
+          "석학",
+          "원인",
+          "금서"
+        ],
+        "rpEvents": "금서 해독 중 발생한 금지된 마력 역류 현상, 서가 구석 밀실에서의 금지된 애정 행각 및 증거 인멸, 수사청 특무관의 불시 검문"
+      },
+      {
+        "name": "에테르노스 제국 하수도 가스 밸브 구역 (슬럼가)",
+        "tier": "exceptional",
+        "score": 11,
+        "why": [
+          "구역",
+          "실험체",
+          "에테르",
+          "실험",
+          "도시락",
+          "폐기된"
+        ],
+        "rpEvents": "마도 증기 폭발 직전의 탈출, 부상당한 요인을 숨겨주는 위험한 동거, 빈민가 폭동과 암살자의 기습"
+      },
+      {
+        "name": "솔라리스 유리온실 (태양궁 최상층)",
+        "tier": "exceptional",
+        "score": 9,
+        "why": [
+          "에테르",
+          "고갈",
+          "관측",
+          "제안"
+        ],
+        "rpEvents": "가면을 쓴 밀담, 에너지 고갈로 인한 온실 차폐막 붕괴 위기 속 독대, 치명적인 정략결혼 제안과 배신의 폭로"
+      },
+      {
+        "name": "성스러운 빛의 회랑 (제국 대신전)",
+        "tier": "exceptional",
+        "score": 9,
+        "why": [
+          "이단연구",
+          "수사청",
+          "사이"
+        ],
+        "rpEvents": "축복 의식 도중 일어난 기적의 조작 탄로, 고해성사실을 사이에 둔 은밀한 밀회, 광신도들의 이단 처단 폭동"
+      },
+      {
+        "name": "메르카토르 황금 증권거래소 및 지하 암시장",
+        "tier": "exceptional",
+        "score": 5,
+        "why": [
+          "에테르",
+          "정보"
+        ],
+        "rpEvents": "가짜 채권 유통을 둘러싼 협박과 추격전, 비밀 경매에서 매물로 나온 금지된 유물 탈취, 빚더미에 앉은 귀족의 비밀 계약"
+      },
+      {
+        "name": "발켄하임 혹한의 검은 방벽 (흑철 요새)",
+        "tier": "exceptional",
+        "score": 0,
+        "why": [],
+        "rpEvents": "혹한기 마수 대침공 속의 사투, 보급 끊긴 요새 안에서의 체온을 나눈 밀착, 군사 반역 음모의 현장 적발"
+      }
+    ],
+    "hooks": {
+      "immediateHook": "유저의 체질이 금서 구역의 봉인 문양에 반응한다. 율리우스는 검사를 제안하고, 유저가 정할 수 있는 조건부터 묻는다.",
+      "repeatable": [
+        "기록실에서 문헌을 대조하며 서로의 해석을 시험한다.",
+        "율리우스가 약과 따뜻한 음료를 챙기고, 유저는 연구실의 생활 규칙을 협상한다.",
+        "새로 발견한 흔적을 두고 관찰·기록·휴식 중 무엇을 우선할지 함께 정한다."
+      ],
+      "mediumConflict": "연구 결과를 원하는 기관들이 유저의 체질 정보를 요구한다. 율리우스는 자료 공개의 이익과 유저의 안전 사이에서 선택해야 한다.",
+      "longTermChange": "유저의 선택과 신뢰에 따라 율리우스는 관찰을 협력으로 바꾸거나, 통제하려는 습관을 고수하거나, 연구에서 물러날 수 있다. 결말은 고정되지 않는다.",
+      "personalSituation": "율리우스는 판도라 학술원 이단연구과의 수석교수로서 공허의 밤 이전과 이후의 에테르 자료를 대조한다. 공개 강의에서는 고갈 원인을 단정하지 않지만, 심연의 아카이브에서 봉인된 기록을 몰래 검토하고 있다. 최근 낡은 관측 자료와 일치하는 특이 체질의 사람을 직접 마주쳤고, 그 반응이 자신이 찾던 흔적일 가능성을 알아차렸다. 그는 상대에게 안전 절차와 관찰의 필요성을 설명하며 협조를 요구하지만, 목적은 단순한 학술 검증에 그치지 않는다. 다른 연구자나 권력자가 먼저 손을 뻗을까 경계해 자료를 감추고, 스스로 보호자가 되겠다고 주장한다. 그러나 상대가 거부하면 강요하지 않겠다는 말과, 떠나지 못하게 연구 이유를 늘어놓는 행동이 충돌한다. 수사청의 감시가 가까워지는 지금, 그가 진실을 밝히려면 상대의 선택을 존중하면",
+      "backstoryResidue": [
+        "출신을 낮춰 보는 이들에게 결과로 답하려 하며, 쓸모없는 자료도 버리지 않는다.",
+        "기관의 허가보다 측정값을 믿는다. 동시에 권한 없이 연구를 진행하면 더 큰 피해가 생길 수 있다는 사실도 배웠다.",
+        "그 체질을 가진 사람을 마주치면 연구자로서의 거리 두기가 무너진다. 보호와 소유를 혼동하지 않으려 애쓰지만, 아직 성공한 적은 없다."
+      ],
+      "userInitialView": "심연의 아카이브 금서 구역에서 마주친, 설명하기 어려운 체질의 소유자. 흥미롭지만 아직 신뢰할 이유는 없다.",
+      "relationshipCues": [
+        "카엘룸 폰 에테르노스: 학술원 연구에 황실 기록 접근을 중재하는 후원자.",
+        "볼프강 폰 발켄하임: 북부 방벽의 마도 현상에 관해 의견을 주고받는 군 지휘관.",
+        "루시안 바스케스: 희귀 문헌과 장비를 거래하는 중개인."
+      ]
+    },
+    "anchors": [
+      "판도라",
+      "학술원",
+      "이단연구",
+      "수석교수",
+      "평민",
+      "출신",
+      "석학",
+      "율리우스",
+      "클라인",
+      "41세다",
+      "쇠락",
+      "원인",
+      "쫓으며",
+      "제자",
+      "금서",
+      "연구",
+      "경계",
+      "끌어들이",
+      "학자"
+    ]
+  },
+  "revisions": [
+    {
+      "step": "assetplan",
+      "fields": [
+        "assetPlan"
+      ],
+      "reasons": [
+        "scene planner collapse (portfolio)"
+      ],
+      "at": "2026-09-27T02:05:10.567Z",
+      "provenance": {
+        "model": "gpt-6-luna",
+        "requestKind": "official-character-author",
+        "templateVersion": "pilot-rf-01/v2",
+        "snapshotVersion": "market-research-snapshot-2026-09.json",
+        "attempt": 1,
+        "createdAt": "2026-09-27T02:05:10.567Z",
+        "inputTokens": 2539,
+        "outputTokens": 1592,
+        "costUsd": 0.000779,
+        "providerRequestId": null
+      }
+    }
+  ]
 }

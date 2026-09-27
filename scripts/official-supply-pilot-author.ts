@@ -706,7 +706,7 @@ async function planOneCharacterScenes(input: {
     maxAttempts: input.maxAttempts,
     quarantineKey: `assetplan-${file.draftKey}`,
     run: async (transport, attempt, feedback) => {
-      const avoid = buildSceneAvoidList(planned, world.locations);
+      const avoid = buildSceneAvoidList(planned, world.locations, context);
       const { plan, completion } = await generateOfficialAssetPlan({
         transport,
         plan: {

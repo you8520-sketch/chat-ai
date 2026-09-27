@@ -425,7 +425,7 @@ export type AssetPlanInput = {
   /** Character-specific ranked locations + hooks (`resolveOfficialCharacterSceneContext`). */
   scene: OfficialCharacterSceneContext;
   /** Portfolio-aware avoid list from previously planned siblings (`buildSceneAvoidList`). */
-  avoid: { combos: string[]; overusedMotifs: string[] };
+  avoid: { combos: string[]; overusedMotifs: string[]; siblingScenesHere?: string[] };
   /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
   feedback?: string;
 };
@@ -443,7 +443,8 @@ export function buildAssetPlanSystem(): string {
     "  scene1: PRIMARY 장소(또는 그 안의 캐릭터 고유 공간) + 첫 대화 훅이나 반복 일상에서 나온 사건.",
     "  scene2: PRIMARY 또는 SECONDARY 장소 + 중기 갈등에서 나온 사건(scene1과 다른 사건 유형).",
     "  scene3: 캐릭터 고유 장소(일상·과거에서 나온 구체적 공간) 또는 장기 변화와 직결될 때만 EXCEPTIONAL 장소.",
-    "  세 장면은 사건·관계 설정·걸린 것·행동 선택이 서로 달라야 한다.",
+    "  세 장면은 사건·관계 설정·걸린 것·행동 선택이 서로 달라야 한다. 직업상 늘 하는 일(예: 기도, 거래)은 배경일 뿐,",
+    "  세 장면이 모두 같은 종류의 사건(예: 셋 다 의식 중 발작)이 되어서는 안 된다.",
     "  '피해야 할 조합'에 있는 장소×사건 조합과 과다 사용 사건은 쓰지 않는다. 다른 캐릭터와 같은 장면을 만들지 않는다.",
     "- 모든 슬롯 characterPresence=required. 배경만(background-only) 금지.",
     "- representative는 depiction=standard 고정. 성인 시트가 아니면 전 슬롯 standard.",
@@ -483,6 +484,9 @@ export function buildAssetPlanUser(input: AssetPlanInput): string {
       ? `피해야 할 조합(이미 다른 캐릭터가 사용):\n${input.avoid.combos.map((c) => `- ${c}`).join("\n")}`
       : "",
     input.avoid.overusedMotifs.length ? `과다 사용 사건(쓰지 않는다): ${input.avoid.overusedMotifs.join(", ")}` : "",
+    input.avoid.siblingScenesHere?.length
+      ? `같은 장소에 이미 있는 다른 캐릭터 장면(같은 장소를 쓰려면 사건·목적·관계를 완전히 다르게, 아니면 캐릭터 고유 공간을 쓴다):\n${input.avoid.siblingScenesHere.map((s) => `- ${s}`).join("\n")}`
+      : "",
     "",
     "슬롯 고정표(정확히 이 14슬롯, 키·종류 그대로):",
     "rep/representative, sig1/signature, sig2/signature, sig3/signature, sig4/signature,",

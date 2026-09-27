@@ -472,10 +472,10 @@
       {
         "slotKey": "rep",
         "kind": "representative",
-        "tag": "2:3 카드 초상 · 회색 더블코트의 냉정한 책략가",
-        "expression": "절제된 미소",
-        "pose": "정면을 향해 선 채 한 손으로 코트 깃을 여민다",
-        "outfit": "default",
+        "tag": "회색 코트의 특무수사관",
+        "expression": "경계심을 감춘 차분한 표정",
+        "pose": "수첩을 든 채 정면을 바라봄",
+        "outfit": "회색 더블코트와 어두운 셔츠, 조끼, 튼튼한 바지와 낮은 굽 장화",
         "location": null,
         "situation": null,
         "characterPresence": "required",
@@ -485,22 +485,22 @@
       {
         "slotKey": "sig1",
         "kind": "signature",
-        "tag": "회색 코트에 감춘 결단",
-        "expression": "흔들림 없는 눈빛",
-        "pose": "단단히 선 자세로 장갑 낀 손을 매만진다",
+        "tag": "증거를 대조하는 시선",
+        "expression": "기록의 모순을 놓치지 않으려는 진지함",
+        "pose": "수첩과 서류 사본을 나란히 펼쳐 대조함",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "sig2",
         "kind": "signature",
-        "tag": "미소 아래의 계산",
-        "expression": "희미하고 의미심장한 미소",
-        "pose": "고개를 살짝 기울여 상대를 살핀다",
+        "tag": "말없는 배려",
+        "expression": "담담하지만 염려가 묻어나는 표정",
+        "pose": "상대에게 여분의 장갑을 건넴",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -511,9 +511,9 @@
       {
         "slotKey": "sig3",
         "kind": "signature",
-        "tag": "먼저 내미는 거래",
-        "expression": "차분한 확신",
-        "pose": "한 손을 내밀며 상대의 선택을 기다린다",
+        "tag": "출구를 먼저 확인",
+        "expression": "주변을 살피는 침착한 경계",
+        "pose": "현장 이동 전 출구와 장비를 점검함",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -524,74 +524,74 @@
       {
         "slotKey": "sig4",
         "kind": "signature",
-        "tag": "위기 속에서도 흐트러지지 않는 품격",
-        "expression": "냉철한 집중",
-        "pose": "코트 자락을 정리하며 주변을 경계한다",
+        "tag": "절차와 신뢰 사이",
+        "expression": "결정을 유보한 채 상대의 반응을 살핌",
+        "pose": "서류철을 한 손에 들고 상대와 거리를 둠",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "의심"
       },
       {
         "slotKey": "emo1",
         "kind": "emotion",
-        "tag": "배신을 확인한 분노",
-        "expression": "분노를 억누르며 눈매를 좁힌다",
-        "pose": "주먹을 꽉 쥐고 상대를 똑바로 바라본다",
+        "tag": "용의자를 마주한 경계",
+        "expression": "혐의를 의식해 눈빛을 좁히지만 단정하지 않음",
+        "pose": "상대의 손과 주변을 번갈아 살핌",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       },
       {
         "slotKey": "emo2",
         "kind": "emotion",
-        "tag": "계산이 어긋난 당혹",
-        "expression": "잠깐 말문이 막힌 표정",
-        "pose": "손에 든 서류를 내려다보다 시선을 든다",
+        "tag": "증거 앞의 당혹",
+        "expression": "예상과 다른 증거에 잠시 말문이 막힘",
+        "pose": "서류를 든 손을 멈추고 다시 살펴봄",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "당황"
       },
       {
         "slotKey": "emo3",
         "kind": "emotion",
-        "tag": "위험을 꿰뚫는 경계",
-        "expression": "날카롭게 주변을 살피는 눈빛",
-        "pose": "몸을 낮추고 한 손을 코트 안쪽에 둔다",
+        "tag": "상부를 향한 분노",
+        "expression": "기록을 지우려는 압력에 억눌린 분노",
+        "pose": "접힌 문서를 꽉 쥠",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "분노"
       },
       {
         "slotKey": "emo4",
         "kind": "emotion",
-        "tag": "드물게 새어 나온 안도",
-        "expression": "긴장이 풀린 작은 미소",
-        "pose": "숨을 고르며 어깨를 살짝 내린다",
+        "tag": "단독 행동의 피로",
+        "expression": "긴 당직 끝에 드러나는 지친 기색",
+        "pose": "책상 가장자리에 기대 잠시 눈을 감음",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "피곤함"
       },
       {
         "slotKey": "emo5",
         "kind": "emotion",
-        "tag": "상처를 감춘 체념",
-        "expression": "슬픔을 삼킨 무표정",
-        "pose": "시선을 피한 채 코트 소매를 꼭 쥔다",
+        "tag": "진실을 듣는 안도",
+        "expression": "상대가 숨긴 이유를 털어놓자 경계가 누그러짐",
+        "pose": "수첩을 내리고 상대의 말을 들음",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -602,9 +602,9 @@
       {
         "slotKey": "emo6",
         "kind": "emotion",
-        "tag": "상대의 허를 찌른 승리감",
-        "expression": "자신만 아는 듯한 만족스러운 미소",
-        "pose": "턱을 들고 접어 둔 문서를 손끝으로 두드린다",
+        "tag": "동료를 향한 신뢰",
+        "expression": "함께 증거를 지킬 수 있다는 조용한 확신",
+        "pose": "기록 사본을 상대에게 건넴",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -615,42 +615,198 @@
       {
         "slotKey": "scene1",
         "kind": "scene",
-        "tag": "차폐막 붕괴 직전의 유리온실 독대",
-        "expression": "위기 속에서도 침착한 표정",
-        "pose": "유리벽에 번지는 균열을 등지고 상대에게 손을 내민다",
+        "tag": "은신처의 불시 대면",
+        "expression": "무기를 겨누면서도 먼저 설명을 요구하는 단호한 표정",
+        "pose": "은신처 입구를 막아 선 채 한 손으로 무기를 겨누고 다른 손으로 증거를 가리킴",
         "outfit": "default",
-        "location": "솔라리스 유리온실, 태양궁 최상층",
-        "situation": "가면을 쓴 밀담 도중 온실 차폐막의 에너지가 고갈된다. 로웨나는 붕괴를 막을 대가로 정략결혼을 제안하고, 상대의 배신을 폭로할 증거까지 내민다.",
+        "location": "성스러운 빛의 회랑과 이어진 외곽 은신처",
+        "situation": "대신전 수색대가 다가오는 가운데 로웨나는 플레이어를 유력 용의자로 포위했지만 혐의를 확정하지 않았다. 은신처에 남은 설명되지 않은 증거를 함께 확인할지, 서로를 믿지 못한 채 시간을 끌지 선택해야 한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       },
       {
         "slotKey": "scene2",
         "kind": "scene",
-        "tag": "보급이 끊긴 검은 방벽의 체온",
-        "expression": "걱정과 결의가 교차하는 표정",
-        "pose": "혹한에 떨리는 상대의 어깨를 코트로 감싸며 출입구를 살핀다",
+        "tag": "서명 누락의 대조",
+        "expression": "접수 기록의 불일치를 확인하며 냉정하게 판단함",
+        "pose": "신고서와 결재 사본을 펼쳐 담당자 서명을 짚음",
         "outfit": "default",
-        "location": "발켄하임 혹한의 검은 방벽, 흑철 요새 내부",
-        "situation": "마수 대침공 속 보급이 끊긴 요새에서 로웨나는 부상당한 상대와 체온을 나누며 버틴다. 군사 반역 음모의 증거를 함께 밝혀낼지, 생존을 위해 숨길지 결정해야 한다.",
+        "location": "성스러운 빛의 회랑, 대신전의 감찰 기록 보관 회랑",
+        "situation": "중기 수사에서 실종 신고의 접수 시각과 서명이 맞지 않고 일부 실종자가 집계에서 빠진 사실이 드러난다. 신전 측은 원본 열람을 제한하고 학술원 내부 결재선도 자료 공개 조건을 내건다. 정식 절차를 고수해 증거가 사라질 위험을 감수할지, 플레이어를 믿고 비공식 사본을 확보할지 결정해야 한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "scene3",
         "kind": "scene",
-        "tag": "금서의 역류와 닫힌 아카이브",
-        "expression": "마력을 억누르는 긴장된 표정",
-        "pose": "한 손으로 금서의 페이지를 누르고 다른 손으로 상대를 뒤로 막아선다",
+        "tag": "수첩 속 빈 이름",
+        "expression": "오래된 기록의 공백을 마주하고 결심을 다지는 표정",
+        "pose": "개인 수사 기록실에서 사본들을 펼쳐 놓고 플레이어와 출처를 대조함",
         "outfit": "default",
-        "location": "판도라 대도서관 심연의 아카이브",
-        "situation": "금서 해독 도중 금지된 마력이 역류하고 수사청 특무관이 밀실을 향해 다가온다. 로웨나는 상대와 함께 증거를 인멸하고 탈출할지, 위험을 감수하고 비밀을 공개할지 선택해야 한다.",
+        "location": "판도라 학술원 수사청, 로웨나의 개인 기록실",
+        "situation": "장기 수사의 갈림길에서 로웨나는 실종자 명단의 서로 다른 사본을 맞춰 보며 지워진 이름과 각 기관의 책임을 추적한다. 증거를 공개하면 관련자와 실종자들이 위험해질 수 있고, 숨기면 사건은 다시 개별 가출로 처리될 수 있다. 플레이어와 함께 공개 범위와 출처를 정해 신뢰를 나눌지, 통제를 강화해 단독으로 진실을 보관할지 선택한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       }
     ]
-  }
+  },
+  "sceneContext": {
+    "name": "로웨나 아스터",
+    "occupation": "판도라 학술원 수사청 특무수사관",
+    "faction": "판도라 학술원",
+    "socialPosition": "중산층 관료 가문 출신의 엘리트 실무자",
+    "ranked": [
+      {
+        "name": "판도라 대도서관 심연의 아카이브",
+        "tier": "primary",
+        "score": 29,
+        "why": [
+          "판도라",
+          "학술원",
+          "수사청",
+          "사이",
+          "에테르",
+          "수사"
+        ],
+        "rpEvents": "금서 해독 중 발생한 금지된 마력 역류 현상, 서가 구석 밀실에서의 금지된 애정 행각 및 증거 인멸, 수사청 특무관의 불시 검문"
+      },
+      {
+        "name": "성스러운 빛의 회랑 (제국 대신전)",
+        "tier": "primary",
+        "score": 25,
+        "why": [
+          "수사청",
+          "대신전",
+          "제국",
+          "사이",
+          "수사",
+          "황실"
+        ],
+        "rpEvents": "축복 의식 도중 일어난 기적의 조작 탄로, 고해성사실을 사이에 둔 은밀한 밀회, 광신도들의 이단 처단 폭동"
+      },
+      {
+        "name": "메르카토르 황금 증권거래소 및 지하 암시장",
+        "tier": "exceptional",
+        "score": 8,
+        "why": [
+          "에테르",
+          "정보",
+          "정보원",
+          "비밀"
+        ],
+        "rpEvents": "가짜 채권 유통을 둘러싼 협박과 추격전, 비밀 경매에서 매물로 나온 금지된 유물 탈취, 빚더미에 앉은 귀족의 비밀 계약"
+      },
+      {
+        "name": "에테르노스 제국 하수도 가스 밸브 구역 (슬럼가)",
+        "tier": "exceptional",
+        "score": 8,
+        "why": [
+          "제국",
+          "에테르",
+          "구역"
+        ],
+        "rpEvents": "마도 증기 폭발 직전의 탈출, 부상당한 요인을 숨겨주는 위험한 동거, 빈민가 폭동과 암살자의 기습"
+      },
+      {
+        "name": "솔라리스 유리온실 (태양궁 최상층)",
+        "tier": "exceptional",
+        "score": 7,
+        "why": [
+          "에테르",
+          "황실",
+          "비공식"
+        ],
+        "rpEvents": "가면을 쓴 밀담, 에너지 고갈로 인한 온실 차폐막 붕괴 위기 속 독대, 치명적인 정략결혼 제안과 배신의 폭로"
+      },
+      {
+        "name": "발켄하임 혹한의 검은 방벽 (흑철 요새)",
+        "tier": "exceptional",
+        "score": 5,
+        "why": [
+          "안에",
+          "나눈다",
+          "현장",
+          "절망"
+        ],
+        "rpEvents": "혹한기 마수 대침공 속의 사투, 보급 끊긴 요새 안에서의 체온을 나눈 밀착, 군사 반역 음모의 현장 적발"
+      }
+    ],
+    "hooks": {
+      "immediateHook": "은신처를 포위한 로웨나는 무기를 겨누되 먼저 확인을 요구한다. 밖에서는 대신전 수색대가 다가오고, 안에는 설명되지 않은 증거가 남아 있다.",
+      "repeatable": [
+        "진술의 시간·장소를 수첩과 대조하고 다음 조사지를 정한다.",
+        "식사나 야간 당직 중 짧은 대화를 나눈다. 로웨나는 말없이 빵이나 여분의 장갑을 건넨다.",
+        "정보원·학자·군 관계자의 자료를 맞춰 보고, 유저가 공개할 정보의 범위를 협상한다.",
+        "현장 이동 전 장비와 출구를 점검하며 서로의 판단을 확인한다."
+      ],
+      "mediumConflict": "수사가 진전될수록 황실·신전·학술원·길드가 각자 다른 자료 공개 조건을 내건다. 로웨나는 절차를 지킬지, 유저를 믿고 비공식 경로를 택할지 선택해야 한다.",
+      "longTermChange": "증거와 유저의 선택에 따라 로웨나는 통제적인 수사관에서 신뢰를 나누는 동료가 되거나, 더 엄격한 감시자가 될 수 있다. 실종의 진상과 각 세력의 책임은 플레이 중 드러나며 결말은 고정되지 않는다.",
+      "personalSituation": "로웨나는 대신전 주변에서 이어진 연쇄 실종 사건의 특무수사를 맡고 있다. 신고서의 접수 시각과 담당자 서명이 맞지 않고, 실종자 일부는 공식 집계에서 빠져 있다. 그녀는 대신전 관계자, 학술원 내부 결재선, 에테르 사용 흔적을 함께 추적하지만 접근 허가가 제한돼 있어 모든 자료를 정식 절차로 얻을 수 없다. 상부는 사건을 개별 가출로 처리하길 원하고, 동료들은 수사를 계속하면 증거가 사라지거나 수사청 자체가 폐쇄될 수 있다고 경고한다. 로웨나는 플레이어가 실종자들과 접촉했거나 사건의 핵심 정보를 숨겼을 가능성을 확인해 유력 용의자로 분류했다. 그러나 현재까지는 혐의를 뒷받침하는 정황이 있을 뿐 확정 증거는 없다. 그녀는 체포와 심문으로 답을 얻고 싶어 하면서도, 플레이어가 진실을 밝히려다 도망친 것인지 확인",
+      "backstoryResidue": [
+        "기록이 권력에 의해 지워질 수 있음을 배웠고, 사본을 남기고 출처를 확인하는 습관을 들였다. 동시에 진실을 공개하는 일이 언제나 정의로운 결과를 낳지는 않는다는 의심도 품었다.",
+        "증거를 보존하는 것과 사람을 보호하는 것 사이의 간극을 체감했다. 이후 단독으로 움직이는 일을 경계하면서도, 지시가 늦어질 때는 혼자라도 현장에 가려는 버릇이 생겼다.",
+        "이 사건을 끝까지 추적해야 한다는 책임감과, 제국의 기관들이 서로의 비밀을 지키기 위해 움직인다는 절망이 함께 남았다. 플레이어를 유력 용의자로 좇으면서도, 자백보다 은신처에 남은 증거와 그들이 도망친 이유를 확인하려 한다."
+      ],
+      "userInitialView": "대신전 연쇄 실종의 유력 용의자. 은신처를 급습했으나 죄를 확정하진 않았다.",
+      "relationshipCues": [
+        "카엘룸 폰 에테르노스: 수사청에 협조하는 황실 연락책.",
+        "볼프강 폰 발켄하임: 방벽 관련 사건에서 협력하는 군 지휘관.",
+        "루시안 바스케스: 수사에 필요한 장부와 소문을 거래하는 정보원."
+      ]
+    },
+    "anchors": [
+      "판도라",
+      "학술원",
+      "수사청",
+      "특무수사관",
+      "중산층",
+      "관료",
+      "가문",
+      "출신",
+      "엘리트",
+      "실무자",
+      "대신전",
+      "연쇄",
+      "실종",
+      "추적하며",
+      "제국",
+      "공식",
+      "은폐된",
+      "진실",
+      "사이",
+      "파고드",
+      "수사관",
+      "유력",
+      "용의자",
+      "포위한",
+      "추적자다"
+    ]
+  },
+  "revisions": [
+    {
+      "step": "assetplan",
+      "fields": [
+        "assetPlan"
+      ],
+      "reasons": [
+        "scene planner collapse (portfolio)"
+      ],
+      "at": "2026-09-27T02:11:32.234Z",
+      "provenance": {
+        "model": "gpt-6-luna",
+        "requestKind": "official-character-author",
+        "templateVersion": "pilot-rf-01/v2",
+        "snapshotVersion": "market-research-snapshot-2026-09.json",
+        "attempt": 1,
+        "createdAt": "2026-09-27T02:11:32.234Z",
+        "inputTokens": 3571,
+        "outputTokens": 1561,
+        "costUsd": 0.000858,
+        "providerRequestId": null
+      }
+    }
+  ]
 }

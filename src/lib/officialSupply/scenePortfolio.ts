@@ -443,18 +443,26 @@ export function evaluateSceneCandidateAgainstPortfolio(
   worldLocations: readonly WorldLocation[]
 ): QaResult {
   const errors: QaIssue[] = [];
+  const warnings: QaIssue[] = [];
   const mine = collectPortfolioScenes([candidate], worldLocations);
   const theirs = collectPortfolioScenes(planned, worldLocations);
   const t = SCENE_PORTFOLIO_THRESHOLDS;
+  const tierIn = (context: OfficialCharacterSceneContext | undefined, location: string) =>
+    context?.ranked.find((r) => r.name === location)?.tier;
+  const contextOf = new Map(planned.map((p) => [p.draftKey, p.context] as const));
+  const labels = (motifs: readonly SceneMotif[]) => specificMotifs(motifs).map((m) => SCENE_MOTIFS[m].label).join("·") || "-";
   for (const scene of mine) {
     const specific = specificMotifs(scene.motifs);
     for (const other of theirs) {
       if (!scene.worldLocation || scene.worldLocation !== other.worldLocation) continue;
       if (jaccard(specific, specificMotifs(other.motifs)) >= t.clonePairMotifJaccard) {
-        errors.push({
-          code: "scene_clone_of_sibling",
-          message: `${scene.slotKey} clones ${other.name}/${other.slotKey} (${scene.worldLocation})`,
-        });
+        const message = `${scene.slotKey} clones ${other.name}/${other.slotKey} at ${scene.worldLocation} [${labels(other.motifs)}]`;
+        // Home-ground rule: at the candidate's own PRIMARY location a sibling
+        // visitor is the intruder — the final portfolio QA arbitrates, not this gate.
+        const home = tierIn(candidate.context, scene.worldLocation) === "primary";
+        const siblingHome = tierIn(contextOf.get(other.draftKey), scene.worldLocation) === "primary";
+        if (home && !siblingHome) warnings.push({ code: "scene_clone_of_sibling", message });
+        else errors.push({ code: "scene_clone_of_sibling", message });
       }
     }
     if (scene.worldLocation) {
@@ -475,12 +483,22 @@ export function evaluateSceneCandidateAgainstPortfolio(
       }
     }
   }
+  // A profession motif present in every one of the candidate's scenes (거래 for
+  // a broker, 의례 for a priestess) is backdrop, not the incident.
+  const perScene = mine.map((s) => specificMotifs(s.motifs));
+  const backdrop = new Set(
+    perScene.length >= 2 ? perScene[0]!.filter((m) => perScene.every((set) => set.includes(m))) : []
+  );
   for (let i = 0; i < mine.length; i++) {
     for (let j = i + 1; j < mine.length; j++) {
-      const a = specificMotifs(mine[i]!.motifs);
-      const b = specificMotifs(mine[j]!.motifs);
-      if (a.length && jaccard(a, b) >= t.intraCloneMotifJaccard) {
-        errors.push({ code: "scene_intra_clone", message: `${mine[i]!.slotKey} ~ ${mine[j]!.slotKey}: same incident type` });
+      const a = perScene[i]!.filter((m) => !backdrop.has(m));
+      const b = perScene[j]!.filter((m) => !backdrop.has(m));
+      const monotone = a.length === 0 && b.length === 0 && perScene[i]!.length > 0;
+      if (monotone || (a.length && jaccard(a, b) >= t.intraCloneMotifJaccard)) {
+        errors.push({
+          code: "scene_intra_clone",
+          message: `${mine[i]!.slotKey} ~ ${mine[j]!.slotKey}: same incident type [${labels(mine[i]!.motifs)}]`,
+        });
       }
     }
   }
@@ -488,7 +506,7 @@ export function evaluateSceneCandidateAgainstPortfolio(
   if (unanchored.length > t.maxUnanchoredScenes) {
     errors.push({ code: "scene_off_character", message: `${unanchored.map((s) => s.slotKey).join(",")} unrelated to occupation/faction/own places` });
   }
-  return qaResult(errors);
+  return qaResult(errors, warnings);
 }
 
 /**
@@ -497,9 +515,21 @@ export function evaluateSceneCandidateAgainstPortfolio(
  */
 export function buildSceneAvoidList(
   planned: readonly ScenePortfolioEntry[],
-  worldLocations: readonly WorldLocation[]
-): { combos: string[]; overusedMotifs: string[] } {
+  worldLocations: readonly WorldLocation[],
+  forContext?: OfficialCharacterSceneContext
+): { combos: string[]; overusedMotifs: string[]; siblingScenesHere: string[] } {
   const scenes = collectPortfolioScenes(planned, worldLocations);
+  // Concrete sibling incidents at the locations this character is most likely to use.
+  const relevant = new Set(
+    (forContext?.ranked ?? []).filter((r) => r.tier !== "exceptional").map((r) => r.name)
+  );
+  const siblingScenesHere = scenes
+    .filter((s) => s.worldLocation && relevant.has(s.worldLocation))
+    .map((s) => {
+      const labels = specificMotifs(s.motifs).map((m) => SCENE_MOTIFS[m].label);
+      const situation = s.text.replace(/\s+/g, " ").slice(0, 90);
+      return `${s.worldLocation} — ${s.name}: ${situation}${labels.length ? ` [${labels.join("·")}]` : ""}`;
+    });
   const combos = new Set<string>();
   const motifCount = new Map<SceneMotif, Set<string>>();
   for (const scene of scenes) {
@@ -512,5 +542,5 @@ export function buildSceneAvoidList(
   const overusedMotifs = [...motifCount]
     .filter(([, who]) => who.size >= 3)
     .map(([motif]) => SCENE_MOTIFS[motif].label);
-  return { combos: [...combos], overusedMotifs };
+  return { combos: [...combos], overusedMotifs, siblingScenesHere };
 }

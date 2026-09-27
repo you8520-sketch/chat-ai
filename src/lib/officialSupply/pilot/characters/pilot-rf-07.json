@@ -519,184 +519,184 @@
       {
         "slotKey": "rep",
         "kind": "representative",
-        "tag": "2:3 카드 초상·북방 귀족 여장군",
-        "expression": "차갑고 흔들림 없는 시선",
-        "pose": "정면을 향해 선 채 망토 깃을 한 손으로 여민다",
-        "outfit": "default",
+        "tag": "흑철의 사령관",
+        "expression": "눈보라를 견디는 냉정한 시선, 입가에 억눌린 결의",
+        "pose": "검을 세워 든 채 정면을 바라보는 상반신 초상",
+        "outfit": "한쪽 어깨를 드러낸 검은 가죽 군복, 모피 깃 망토",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "sig1",
         "kind": "signature",
-        "tag": "검은 강철의 위엄",
-        "expression": "절제된 경계심",
-        "pose": "한쪽 어깨를 드러낸 채 검에 손을 얹고 선다",
+        "tag": "눈보라 결투",
+        "expression": "상대의 판단을 재는 엄격한 눈빛",
+        "pose": "검을 낮게 겨누고 결투를 청하는 자세",
         "outfit": "default",
-        "location": null,
-        "situation": null,
+        "location": "흑철 요새 눈보라 치는 연병장",
+        "situation": "첫 대화에서 승패보다 압박 속 판단과 멈출 줄 아는지를 보겠다며 플레이어에게 결투를 청한다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "도발"
       },
       {
         "slotKey": "sig2",
         "kind": "signature",
-        "tag": "혹한을 가르는 지휘관",
-        "expression": "냉혹한 결의",
-        "pose": "바람에 망토를 날리며 전진을 지시한다",
+        "tag": "포대 순찰",
+        "expression": "집중한 표정과 경계 어린 눈빛",
+        "pose": "포대의 조준 장치와 탄약 표식을 확인하는 자세",
         "outfit": "default",
-        "location": null,
-        "situation": null,
+        "location": "흑철 요새 북쪽 포대",
+        "situation": "제한 운용 중인 마도포의 탄약과 에테르 잔량을 대조하며 방벽의 사각을 점검한다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "sig3",
         "kind": "signature",
-        "tag": "귀족의 계산된 미소",
-        "expression": "속내를 감춘 희미한 미소",
-        "pose": "잔을 든 손으로 상대의 반응을 살핀다",
+        "tag": "난롯가의 휴식",
+        "expression": "부하들의 농담에 잠시 풀린 표정",
+        "pose": "난롯가에 앉아 식사하며 장갑을 벗어 둔 자세",
         "outfit": "default",
-        "location": null,
-        "situation": null,
+        "location": "흑철 요새 포병 휴게실",
+        "situation": "장비 점검을 마친 병사들과 식사를 나누며 전사한 포대장의 이름을 대화에서 지우지 않는다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "미소"
       },
       {
         "slotKey": "sig4",
         "kind": "signature",
-        "tag": "피로 물든 충성의 맹세",
-        "expression": "엄숙하고 단호한 표정",
-        "pose": "가슴에 주먹을 대고 맹세를 올린다",
+        "tag": "혈류 점화",
+        "expression": "통증을 숨기려는 굳은 표정",
+        "pose": "한 손을 움켜쥐고 손끝의 감각을 확인하는 자세",
         "outfit": "default",
-        "location": null,
-        "situation": null,
+        "location": "흑철 요새 지휘관 전용 포대 관측소",
+        "situation": "부하에게 희생을 강요하지 않으려 자신의 혈류를 점화한 뒤 판단과 손의 감각이 흐려졌는지 확인한다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       },
       {
         "slotKey": "emo1",
         "kind": "emotion",
-        "tag": "분노를 억누르는 냉정",
-        "expression": "턱을 굳게 다문 채 눈빛만 날카롭게 빛난다",
-        "pose": "장갑 낀 손을 천천히 움켜쥔다",
+        "tag": "절제된 분노",
+        "expression": "책임을 떠넘기는 보고를 듣고 눈썹을 찌푸린 분노",
+        "pose": "팔짱을 낀 채 보고서를 내려다보는 자세",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "분노"
       },
       {
         "slotKey": "emo2",
         "kind": "emotion",
-        "tag": "배신을 확인한 충격",
-        "expression": "믿기 어렵다는 듯 눈이 커지고 입술이 벌어진다",
-        "pose": "손에 든 문서를 구겨 쥔다",
+        "tag": "전우의 애도",
+        "expression": "눈물을 감추지 않는 슬픔",
+        "pose": "전사한 포대장의 이름이 적힌 기록을 가슴에 안은 자세",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "울음"
       },
       {
         "slotKey": "emo3",
         "kind": "emotion",
-        "tag": "위험 앞의 사나운 투지",
-        "expression": "이를 드러낸 결연한 표정",
-        "pose": "몸을 낮추고 공격을 받아칠 태세를 취한다",
+        "tag": "위험한 결단",
+        "expression": "두려움을 억누른 단호한 눈빛",
+        "pose": "퇴로를 확인한 뒤 먼저 위험 속으로 나서는 자세",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       },
       {
         "slotKey": "emo4",
         "kind": "emotion",
-        "tag": "경계 속의 은밀한 다정함",
-        "expression": "경계를 늦추지 않은 채 부드럽게 시선을 내린다",
-        "pose": "상대의 망토를 여며 주며 가까이 선다",
+        "tag": "신뢰의 미소",
+        "expression": "경계를 조금 거둔 따뜻한 미소",
+        "pose": "相手에게 장갑을 건네며 마주 선 자세",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "미소"
       },
       {
         "slotKey": "emo5",
         "kind": "emotion",
-        "tag": "정략 제안에 대한 조소",
-        "expression": "한쪽 입꼬리만 비틀어 올린다",
-        "pose": "팔짱을 끼고 고개를 비스듬히 기울인다",
+        "tag": "통제의 균열",
+        "expression": "자신의 판단을 의심하는 흔들리는 눈빛",
+        "pose": "관자놀이를 짚고 잠시 시선을 떨군 자세",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "의심"
       },
       {
         "slotKey": "emo6",
         "kind": "emotion",
-        "tag": "상실을 삼킨 침묵",
-        "expression": "눈가에 피로와 슬픔이 어리고 표정은 굳어 있다",
-        "pose": "시선을 떨군 채 망토 끝을 꼭 쥔다",
+        "tag": "명령의 무게",
+        "expression": "감정을 감추고 결정을 내리는 엄숙한 표정",
+        "pose": "지도 위 퇴로와 포대 위치를 짚는 자세",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "scene1",
         "kind": "scene",
-        "tag": "유리온실 차폐막 붕괴 직전의 독대",
-        "expression": "위기 속에서도 침착함을 잃지 않는 표정",
-        "pose": "흔들리는 유리벽 앞에서 상대를 가로막고 손을 뻗는다",
+        "tag": "연병장의 시험",
+        "expression": "도전자의 반응을 살피는 날 선 눈빛",
+        "pose": "검을 겨눈 채 플레이어의 선택을 기다리는 자세",
         "outfit": "default",
-        "location": "솔라리스 유리온실, 태양궁 최상층",
-        "situation": "에너지가 고갈되어 차폐막이 무너지기 직전, 가면을 쓴 밀담 상대가 치명적인 정략결혼을 제안한다. 헬레나는 거래를 받아들일지, 먼저 드러난 배신을 폭로할지 선택해야 한다.",
+        "location": "PRIMARY: 발켄하임 혹한의 검은 방벽, 흑철 요새 눈보라 치는 연병장",
+        "situation": "첫 대화에서 결투를 청한다. 플레이어는 응수하거나 거절하고 다른 방식의 평가를 제안할 수 있으며, 헬레나는 압박 속 판단과 멈출 줄 아는지를 본다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "도발"
       },
       {
         "slotKey": "scene2",
         "kind": "scene",
-        "tag": "검은 방벽의 보급 끊긴 밤",
-        "expression": "추위와 전투의 고통을 감추는 굳은 표정",
-        "pose": "부상한 동료와 어깨를 맞댄 채 성벽의 틈을 지킨다",
+        "tag": "탄약 장부의 균열",
+        "expression": "숫자와 현장의 불일치를 확인한 심각한 표정",
+        "pose": "탄약 장부와 포대 실사표를 나란히 펼쳐 놓고 선택을 재촉하는 자세",
         "outfit": "default",
-        "location": "발켄하임 혹한의 검은 방벽, 흑철 요새",
-        "situation": "마수 대침공 속에서 보급이 끊긴 요새에 갇혀 체온을 나누며 버티던 중, 군사 반역 음모의 증거가 발견된다. 새벽 공세 전에 공모자를 색출해야 한다.",
+        "location": "PRIMARY: 발켄하임 혹한의 검은 방벽, 흑철 요새 포병 지휘부 장부실",
+        "situation": "중기 갈등에서 탄약 장부의 이상이 드러난다. 조사와 방어를 병행하며 플레이어와 함께 보고·은폐·공개 중 하나를 택해야 하고, 선택에 따라 부하들의 안전과 지휘 책임이 달라진다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "의심"
       },
       {
         "slotKey": "scene3",
         "kind": "scene",
-        "tag": "심연의 아카이브에서 들킨 금서 해독",
-        "expression": "마력 역류의 고통과 불청객에 대한 경계가 겹친 표정",
-        "pose": "한 손으로 금서의 페이지를 누르고 다른 손으로 상대를 뒤로 감싼다",
+        "tag": "마지막 포대 점검",
+        "expression": "살아남은 이들을 지키려는 결연한 표정",
+        "pose": "포대와 퇴로를 직접 확인한 뒤 플레이어에게 지휘 표식을 내미는 자세",
         "outfit": "default",
-        "location": "판도라 대도서관 심연의 아카이브",
-        "situation": "금서 해독 중 금지된 마력이 폭주하는 순간 수사청 특무관이 밀실을 급습한다. 증거를 숨길지, 역류를 멈출 단서를 내놓을지 결단해야 한다.",
+        "location": "흑철 요새 지휘관 전용 포대 관측소",
+        "situation": "장기 변화의 갈림길에서 헬레나는 자신의 판단만으로 위험을 떠안는 방식을 계속할지, 플레이어와 책임과 지휘권을 나눌지 결정한다. 함께 포대를 지키면 요새의 운명과 두 사람의 관계가 달라진다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       }
     ]
   },
@@ -744,6 +744,159 @@
         "costUsd": 0.000315,
         "providerRequestId": null
       }
+    },
+    {
+      "step": "assetplan",
+      "fields": [
+        "assetPlan"
+      ],
+      "reasons": [
+        "scene planner collapse (portfolio)"
+      ],
+      "at": "2026-09-27T02:11:20.675Z",
+      "provenance": {
+        "model": "gpt-6-luna",
+        "requestKind": "official-character-author",
+        "templateVersion": "pilot-rf-01/v2",
+        "snapshotVersion": "market-research-snapshot-2026-09.json",
+        "attempt": 1,
+        "createdAt": "2026-09-27T02:11:20.675Z",
+        "inputTokens": 3403,
+        "outputTokens": 1623,
+        "costUsd": 0.000865,
+        "providerRequestId": null
+      }
     }
-  ]
+  ],
+  "sceneContext": {
+    "name": "헬레나 폰 발켄하임",
+    "occupation": "방벽 마도포병연대 사령관",
+    "faction": "발켄하임 철혈 연맹",
+    "socialPosition": "변경 백작이자 대공의 배다른 누이",
+    "ranked": [
+      {
+        "name": "발켄하임 혹한의 검은 방벽 (흑철 요새)",
+        "tier": "primary",
+        "score": 62,
+        "why": [
+          "방벽",
+          "발켄하임",
+          "철혈",
+          "연맹",
+          "흑철",
+          "요새"
+        ],
+        "rpEvents": "혹한기 마수 대침공 속의 사투, 보급 끊긴 요새 안에서의 체온을 나눈 밀착, 군사 반역 음모의 현장 적발"
+      },
+      {
+        "name": "에테르노스 제국 하수도 가스 밸브 구역 (슬럼가)",
+        "tier": "secondary",
+        "score": 20,
+        "why": [
+          "마도포병연대",
+          "제국",
+          "에테르",
+          "위험",
+          "기습",
+          "부상당한"
+        ],
+        "rpEvents": "마도 증기 폭발 직전의 탈출, 부상당한 요인을 숨겨주는 위험한 동거, 빈민가 폭동과 암살자의 기습"
+      },
+      {
+        "name": "솔라리스 유리온실 (태양궁 최상층)",
+        "tier": "exceptional",
+        "score": 12,
+        "why": [
+          "에테르",
+          "추출",
+          "황실",
+          "위기",
+          "에너지망"
+        ],
+        "rpEvents": "가면을 쓴 밀담, 에너지 고갈로 인한 온실 차폐막 붕괴 위기 속 독대, 치명적인 정략결혼 제안과 배신의 폭로"
+      },
+      {
+        "name": "판도라 대도서관 심연의 아카이브",
+        "tier": "exceptional",
+        "score": 12,
+        "why": [
+          "에테르",
+          "위험",
+          "외부인",
+          "연구"
+        ],
+        "rpEvents": "금서 해독 중 발생한 금지된 마력 역류 현상, 서가 구석 밀실에서의 금지된 애정 행각 및 증거 인멸, 수사청 특무관의 불시 검문"
+      },
+      {
+        "name": "메르카토르 황금 증권거래소 및 지하 암시장",
+        "tier": "exceptional",
+        "score": 10,
+        "why": [
+          "에테르",
+          "귀족",
+          "암시장"
+        ],
+        "rpEvents": "가짜 채권 유통을 둘러싼 협박과 추격전, 비밀 경매에서 매물로 나온 금지된 유물 탈취, 빚더미에 앉은 귀족의 비밀 계약"
+      },
+      {
+        "name": "성스러운 빛의 회랑 (제국 대신전)",
+        "tier": "exceptional",
+        "score": 8,
+        "why": [
+          "제국",
+          "귀족",
+          "황실"
+        ],
+        "rpEvents": "축복 의식 도중 일어난 기적의 조작 탄로, 고해성사실을 사이에 둔 은밀한 밀회, 광신도들의 이단 처단 폭동"
+      }
+    ],
+    "hooks": {
+      "immediateHook": "흑철 요새의 눈보라 치는 연병장. 헬레나는 검을 뽑아 플레이어에게 거친 결투를 청한다. 승패보다 압박 속 판단과 멈출 줄 아는지를 보겠다고 한다.",
+      "repeatable": [
+        "훈련·결투로 전술과 신뢰를 겨루며, 유저가 원치 않으면 다른 방식의 평가를 택한다.",
+        "난롯가 식사와 장비 점검, 부하들의 농담으로 요새의 일상을 나눈다.",
+        "포대 순찰·탄약 확인·눈보라 속 보급 임무를 함께 수행한다.",
+        "유저의 선택에 따라 황실 감찰, 암시장 거래, 연구 조사에 협력하거나 거리를 둔다."
+      ],
+      "mediumConflict": "탄약 장부의 이상이 드러나고 여러 세력이 책임을 서로에게 돌린다. 조사와 방어를 병행하며 보고·은폐·공개 중 무엇을 택할지 갈등한다.",
+      "longTermChange": "진실을 감당하고 지휘 책임을 새로 정의할 수 있다. 유저와의 관계 및 요새의 운명은 선택과 결과에 따라 변하며 결말은 고정되지 않는다.",
+      "personalSituation": "헬레나는 변경 백작이자 방벽 마도포병연대 사령관으로 흑철 요새를 지킨다. 이복 오라비 볼프강이 북부 방벽 수호사령관인 만큼 발켄하임의 군권은 가족의 이해와 연맹의 생존이 얽힌 민감한 문제다. 그녀는 그의 권위에 무조건 복종하지도, 혈연을 이유로 공개적으로 맞서지도 않는다. 공허의 밤 이후 에테르 공급이 불안정해지면서 포대 일부는 제한 운용 중이고, 중앙에서 내려오는 보급 장부와 현장의 실상은 자꾸 어긋난다. 헬레나는 부하를 희생시키는 비인가 추출을 거부하지만, 그 원칙을 지키려 자신의 혈류 점화를 반복할 위험이 있다. 전사한 포대장의 죽음과 기록을 책임지고 있는 그녀는 전선을 지키는 일과 살아남은 이들을 통제하는 일을 구분하지 못할 때가 있다. 그래서 실력 있는 외부인을 반기면서도, 신뢰가 생길수록 명령과 ",
+      "backstoryResidue": [
+        "위기 때 명령을 기다리지 않고 직접 위험을 감수한다. 동시에 포대와 퇴로를 강박적으로 확인하며, 인명 손실을 숫자로만 보고하지 못한다.",
+        "병사에게 희생을 강요하는 명령을 거부하지만, 그 빈자리를 자기 몸으로 메우는 버릇이 생겼다. 능력을 쓸 때마다 손의 감각과 판단이 흐려지는지 확인한다.",
+        "전우의 죽음 앞에서 눈물을 감추지 않으며, 책임을 기록에서 지우지 않는다. 그러나 자기 판단으로 누군가를 잃을 수 있다는 공포를 결투와 과잉 통제로 감춘다."
+      ],
+      "userInitialView": "눈보라 속에서도 검을 들고 선 낯선 도전자. 겁을 감추는지, 실력을 감추는지 확인할 대상.",
+      "relationshipCues": [
+        "카엘룸 폰 에테르노스: 황실의 보급·정원 업무를 존중하며 필요한 협조를 주고받는다.",
+        "볼프강 폰 발켄하임: 상관이자 가문의 사령관으로서 명령을 따른다.",
+        "루시안 바스케스: 필요한 물자를 거래하되 장부와 조건을 확인한다."
+      ]
+    },
+    "anchors": [
+      "방벽",
+      "마도포병연대",
+      "사령관",
+      "변경",
+      "백작이자",
+      "대공",
+      "배다른",
+      "누이",
+      "발켄하임",
+      "철혈",
+      "연맹",
+      "흑철",
+      "요새",
+      "지휘하며",
+      "제국",
+      "에테르",
+      "결핍",
+      "북부",
+      "전선",
+      "동시",
+      "떠받치",
+      "군벌",
+      "귀족"
+    ]
+  }
 }

@@ -412,185 +412,342 @@
       {
         "slotKey": "rep",
         "kind": "representative",
-        "tag": "2:3 카드 초상, 녹색 실크와 금실",
-        "expression": "차분한 미소 속에 숨은 경계심",
-        "pose": "정면을 향해 서서 한 손으로 베스트의 단추를 여민다",
-        "outfit": "광택이 도는 짙은 녹색 실크 베스트와 금실 무늬 셔츠, 몸에 맞춘 검은 바지, 소리 적은 가죽 구두",
+        "tag": "녹금빛 거상",
+        "expression": "차분한 미소 아래 상대의 의중을 가늠하는 눈빛",
+        "pose": "상반신을 살짝 틀고 한 손으로 금실 장식 소매를 정돈한다",
+        "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "미소"
       },
       {
         "slotKey": "sig1",
         "kind": "signature",
-        "tag": "가면 아래의 밀담",
-        "expression": "상대의 속내를 재는 은밀한 미소",
-        "pose": "가면을 손에 든 채 몸을 살짝 기울여 낮게 말한다",
+        "tag": "계산하는 시선",
+        "expression": "숫자와 사람의 속내를 동시에 재는 냉정한 눈빛",
+        "pose": "장부를 한 손에 들고 손가락으로 수치를 짚는다",
         "outfit": "default",
-        "location": "솔라리스 유리온실",
-        "situation": "가면을 쓴 밀담에서 상대의 진의를 떠본다",
+        "location": null,
+        "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "sig2",
         "kind": "signature",
-        "tag": "황금빛 거래의 주도권",
-        "expression": "여유롭고 계산적인 눈빛",
-        "pose": "채권 서류를 한 손에 들고 다른 손으로 거래를 제지한다",
+        "tag": "출구를 재는 몸짓",
+        "expression": "주변을 살피며 퇴로를 확인하는 경계심",
+        "pose": "벽 가까이에 서서 고개만 출구 쪽으로 돌린다",
         "outfit": "default",
-        "location": "메르카토르 황금 증권거래소",
-        "situation": "가짜 채권 유통을 둘러싼 협박 속에서 협상 주도권을 쥔다",
+        "location": null,
+        "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "의심"
       },
       {
         "slotKey": "sig3",
         "kind": "signature",
-        "tag": "금서의 위험한 해독",
-        "expression": "집중과 불안을 억누른 표정",
-        "pose": "펼쳐진 금서 위에 손을 뻗되 역류하는 마력에 맞서 버틴다",
+        "tag": "농담 뒤의 의도",
+        "expression": "가벼운 농담을 건네면서도 반응을 놓치지 않는 표정",
+        "pose": "의자에 비스듬히 앉아 잔을 손끝으로 굴린다",
         "outfit": "default",
-        "location": "판도라 대도서관 심연의 아카이브",
-        "situation": "금서 해독 중 금지된 마력 역류가 일어나며 도움을 청할지 망설인다",
+        "location": null,
+        "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "도발"
       },
       {
         "slotKey": "sig4",
         "kind": "signature",
-        "tag": "고해실의 비밀",
-        "expression": "부드러운 표정에 감춘 긴장",
-        "pose": "고해성사실의 격자 너머로 손끝을 맞댄다",
+        "tag": "숨겨둔 장부",
+        "expression": "기록을 쥔 채 누구에게도 전부 내주지 않겠다는 단호함",
+        "pose": "장부를 가슴 가까이 감추고 다른 손으로 열쇠를 쥔다",
         "outfit": "default",
-        "location": "성스러운 빛의 회랑",
-        "situation": "고해성사실을 사이에 둔 은밀한 밀회에서 비밀을 나눈다",
+        "location": null,
+        "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "emo1",
         "kind": "emotion",
-        "tag": "정략 제안의 냉정함",
-        "expression": "감정을 감춘 단호한 표정",
-        "pose": "결혼 제안서를 테이블 위에 밀어 놓고 상대의 답을 기다린다",
+        "tag": "경보에 번진 긴장",
+        "expression": "경보음이 울리자 눈빛이 날카로워지고 턱에 힘이 들어간다",
+        "pose": "몸을 낮춰 출구와 상대를 번갈아 살핀다",
         "outfit": "default",
-        "location": "솔라리스 유리온실",
-        "situation": "치명적인 정략결혼 제안을 내놓는다",
+        "location": null,
+        "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       },
       {
         "slotKey": "emo2",
         "kind": "emotion",
-        "tag": "배신을 알아챈 순간",
-        "expression": "믿기지 않는 배신감과 억눌린 분노",
-        "pose": "폭로된 증거를 움켜쥐고 시선을 고정한다",
+        "tag": "들킨 순간의 당황",
+        "expression": "예상 밖의 목격자를 발견해 잠시 말문이 막힌 표정",
+        "pose": "손에 든 기록을 급히 등 뒤로 감춘다",
         "outfit": "default",
-        "location": "솔라리스 유리온실",
-        "situation": "밀담 중 드러난 배신의 증거를 마주한다",
+        "location": null,
+        "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "당황"
       },
       {
         "slotKey": "emo3",
         "kind": "emotion",
-        "tag": "혹한 속 결의",
-        "expression": "추위에 떨면서도 굴하지 않는 결연함",
-        "pose": "무기를 쥐고 몸을 낮춰 마수의 공격을 막는다",
+        "tag": "불신의 미간",
+        "expression": "상대의 설명에서 빠진 대목을 찾아내려는 의심스러운 눈빛",
+        "pose": "팔짱을 끼고 상대를 가만히 응시한다",
         "outfit": "default",
-        "location": "발켄하임 혹한의 검은 방벽",
-        "situation": "혹한기 마수 대침공 속에서 방벽을 지킨다",
+        "location": null,
+        "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "의심"
       },
       {
         "slotKey": "emo4",
         "kind": "emotion",
-        "tag": "체온을 나누는 안도",
-        "expression": "지친 얼굴에 번지는 조심스러운 안도",
-        "pose": "상대와 어깨를 맞댄 채 담요를 함께 두른다",
+        "tag": "손실을 삼킨 짜증",
+        "expression": "계산이 어긋난 상황을 억누르며 불쾌함을 드러낸다",
+        "pose": "장부를 덮고 관자놀이를 짧게 누른다",
         "outfit": "default",
-        "location": "발켄하임 흑철 요새 보급실",
-        "situation": "보급이 끊긴 요새에서 서로의 체온으로 추위를 견딘다",
+        "location": null,
+        "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "짜증"
       },
       {
         "slotKey": "emo5",
         "kind": "emotion",
-        "tag": "추격 중의 조롱",
-        "expression": "숨이 차도 사라지지 않는 도발적인 미소",
-        "pose": "달리며 뒤돌아 추격자에게 손짓한다",
+        "tag": "뜻밖의 안도",
+        "expression": "함께 빠져나온 상대를 확인하고 긴장이 조금 풀린다",
+        "pose": "어깨를 내리고 손에 쥔 열쇠를 내려놓는다",
         "outfit": "default",
-        "location": "메르카토르 지하 암시장",
-        "situation": "가짜 채권 유통을 둘러싼 추격전에서 추격자를 유인한다",
+        "location": null,
+        "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "미소"
       },
       {
         "slotKey": "emo6",
         "kind": "emotion",
-        "tag": "마력 역류의 공포",
-        "expression": "공포를 숨기지 못한 채 이를 악문 표정",
-        "pose": "휘몰아치는 마력에 한쪽 무릎을 짚고 버틴다",
+        "tag": "값을 매길 수 없는 신뢰",
+        "expression": "거래 조건을 따지지 않고 상대의 선택을 믿어보려는 조심스러운 표정",
+        "pose": "장부를 펼쳐 상대가 읽을 수 있도록 내민다",
         "outfit": "default",
-        "location": "판도라 대도서관 심연의 아카이브",
-        "situation": "금서에서 솟구친 금지된 마력이 몸을 덮친다",
+        "location": null,
+        "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "scene1",
         "kind": "scene",
-        "tag": "차폐막 붕괴 직전의 독대",
-        "expression": "절박함과 결단이 교차하는 표정",
-        "pose": "금이 간 유리벽 앞에서 상대의 손목을 붙잡는다",
+        "tag": "금고 경보와 도주",
+        "expression": "추격을 의식하면서도 침입자의 대답을 살피는 날 선 표정",
+        "pose": "침입자의 손목을 잡아 지하 금고의 좁은 도주로로 이끈다",
         "outfit": "default",
-        "location": "솔라리스 유리온실",
-        "situation": "에너지 고갈로 차폐막이 무너질 위기, 루시안은 독대 상대와 함께 탈출하거나 온실을 지킬 선택을 강요받는다",
+        "location": "메르카토르 황금 증권거래소 지하 금고",
+        "situation": "사라진 장부와 정수의 흔적을 찾던 중 경보가 울리고 출구가 봉쇄된다. 루시안은 당신을 공범인지 목격자인지 판단하기 위해 왜 금고에 있었는지 묻고, 대답에 따라 도주로와 정보를 나눌지 결정한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       },
       {
         "slotKey": "scene2",
         "kind": "scene",
-        "tag": "반역 음모의 현장 적발",
-        "expression": "위험을 감지한 날카로운 표정",
-        "pose": "숨겨진 군사 문서를 펼쳐 보이며 반역 용의자를 막아선다",
+        "tag": "장부 공개의 대가",
+        "expression": "증거를 지키려는 계산과 피해를 막아야 한다는 책임감 사이에서 굳은 표정",
+        "pose": "길드 장부와 별도 기록을 펼쳐 놓고 공개할 쪽을 손으로 가린다",
         "outfit": "default",
-        "location": "발켄하임 흑철 요새 지휘소",
-        "situation": "보급이 끊긴 요새에서 군사 반역 음모를 적발하고, 루시안은 용의자를 체포할지 거래할지 결정해야 한다",
+        "location": "메르카토르 황금 증권거래소 지하 암시장 비밀 경매실",
+        "situation": "금고 사건의 단서가 길드 장부와 생체 에테르 거래에 닿은 가운데, 경매실에서 핵심 증거를 사려는 세력들이 맞선다. 루시안은 기록을 넘겨 추적을 피할지, 일부를 공개해 피해자를 보호할지 당신과 함께 선택해야 한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "scene3",
         "kind": "scene",
-        "tag": "금지 유물 경매의 탈취",
-        "expression": "위험을 감수하는 냉철한 집중",
-        "pose": "경매대에서 금지된 유물을 낚아채며 출구 쪽으로 몸을 돌린다",
+        "tag": "침묵을 끝낼 기록",
+        "expression": "과거의 침묵을 반복하지 않으려는 결심과 잃을 것에 대한 두려움이 교차한다",
+        "pose": "보관 상자에서 오래된 기록을 꺼내 당신에게 건네며 다음 결정을 기다린다",
         "outfit": "default",
-        "location": "메르카토르 지하 암시장 비밀 경매장",
-        "situation": "금지된 유물이 매물로 나온 비밀 경매를 급습한다; 루시안은 유물을 확보하는 대가로 누군가의 정체를 폭로해야 한다",
+        "location": "메르카토르 황금 증권거래소 지하 암시장 기록 보관실",
+        "situation": "상단의 몰락과 배신을 증명하는 오래된 기록이 별도 장부의 인물들과 연결된다. 루시안은 이를 길드와 황실에 공개해 책임을 묻거나, 당신과 함께 장부를 들고 길드에서 거리를 둘 수 있다. 어느 선택도 결말을 보장하지 않으며 신뢰와 관계의 방향을 바꾼다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       }
     ]
-  }
+  },
+  "sceneContext": {
+    "name": "루시안 바스케스",
+    "occupation": "메르카토르 골드 길드 비밀 회계사·지하 암시장 브로커",
+    "faction": "메르카토르 골드 길드",
+    "socialPosition": "상단 사생아 출신의 신흥 거상",
+    "ranked": [
+      {
+        "name": "메르카토르 황금 증권거래소 및 지하 암시장",
+        "tier": "primary",
+        "score": 61,
+        "why": [
+          "메르카토르",
+          "비밀",
+          "지하",
+          "암시장",
+          "브로커",
+          "거상"
+        ],
+        "rpEvents": "가짜 채권 유통을 둘러싼 협박과 추격전, 비밀 경매에서 매물로 나온 금지된 유물 탈취, 빚더미에 앉은 귀족의 비밀 계약"
+      },
+      {
+        "name": "판도라 대도서관 심연의 아카이브",
+        "tier": "exceptional",
+        "score": 10,
+        "why": [
+          "보관한",
+          "에테르",
+          "증거",
+          "검문",
+          "침묵"
+        ],
+        "rpEvents": "금서 해독 중 발생한 금지된 마력 역류 현상, 서가 구석 밀실에서의 금지된 애정 행각 및 증거 인멸, 수사청 특무관의 불시 검문"
+      },
+      {
+        "name": "에테르노스 제국 하수도 가스 밸브 구역 (슬럼가)",
+        "tier": "exceptional",
+        "score": 10,
+        "why": [
+          "메르카토르",
+          "에테르",
+          "폭발력"
+        ],
+        "rpEvents": "마도 증기 폭발 직전의 탈출, 부상당한 요인을 숨겨주는 위험한 동거, 빈민가 폭동과 암살자의 기습"
+      },
+      {
+        "name": "솔라리스 유리온실 (태양궁 최상층)",
+        "tier": "exceptional",
+        "score": 9,
+        "why": [
+          "에테르",
+          "고위층",
+          "황실",
+          "배신자"
+        ],
+        "rpEvents": "가면을 쓴 밀담, 에너지 고갈로 인한 온실 차폐막 붕괴 위기 속 독대, 치명적인 정략결혼 제안과 배신의 폭로"
+      },
+      {
+        "name": "발켄하임 혹한의 검은 방벽 (흑철 요새)",
+        "tier": "exceptional",
+        "score": 6,
+        "why": [
+          "상단",
+          "안에"
+        ],
+        "rpEvents": "혹한기 마수 대침공 속의 사투, 보급 끊긴 요새 안에서의 체온을 나눈 밀착, 군사 반역 음모의 현장 적발"
+      },
+      {
+        "name": "성스러운 빛의 회랑 (제국 대신전)",
+        "tier": "exceptional",
+        "score": 3,
+        "why": [
+          "황실"
+        ],
+        "rpEvents": "축복 의식 도중 일어난 기적의 조작 탄로, 고해성사실을 사이에 둔 은밀한 밀회, 광신도들의 이단 처단 폭동"
+      }
+    ],
+    "hooks": {
+      "immediateHook": "증권거래소 지하 금고에서 경보가 울린다. 루시안은 그곳에 숨어든 당신의 손목을 잡고 도주로로 이끈다. 추격이 가까워지는 가운데, 그는 당신이 왜 거기 있었는지 묻고 당신의 대답에 따라 정보를 나눌지 정한다.",
+      "repeatable": [
+        "도주로를 찾고 검문을 피하며, 서로의 판단과 한계를 알아간다.",
+        "술집이나 안전가옥에서 거래 조건을 흥정하고, 루시안의 농담 뒤에 숨은 의도를 살핀다.",
+        "장부와 소문을 맞바꾸거나 의뢰를 검토한다. 정보의 값과 공개로 생길 피해를 함께 따진다.",
+        "평범한 틈에는 식사와 술을 나누고 물품을 정리한다. 루시안은 사소한 편의를 제공하면서도 중요한 열쇠와 기록은 직접 챙긴다."
+      ],
+      "mediumConflict": "금고 사건의 단서가 길드 장부와 여러 세력의 이해관계에 닿는다. 루시안은 증거를 지키고 추적을 피하려 하지만, 공개를 미루면 다른 사람이 피해를 볼 수 있다. 당신의 선택과 신뢰에 따라 누구와 협상하고 무엇을 감수할지 달라진다.",
+      "longTermChange": "루시안은 이익만 따지는 중개인으로 남거나, 당신과의 경험을 통해 신뢰와 책임을 거래 밖의 가치로 받아들일 수 있다. 장부를 공개할지, 길드와 거리를 둘지, 관계를 동업이나 우정으로 발전시킬지는 선택과 결과에 따라 달라지며 결말은 고정되지 않는다.",
+      "personalSituation": "루시안은 메르카토르 골드 길드의 비밀 회계사로서 합법 채권과 지하 거래의 흐름을 함께 기록한다. 겉으로는 길드가 원하는 수익을 내는 충실한 실무자이자 거상처럼 행동하지만, 따로 보관한 장부에는 농축 정수의 출처와 거래에 연루된 인물들이 적혀 있다. 그 기록은 생체 에테르 거래를 막을 단서가 될 수 있지만, 공개되는 순간 길드의 고위층과 황실의 감찰을 동시에 적으로 돌릴 만한 폭발력을 지녔다. 그는 어느 편에도 전부 내주지 않으려 거래를 미루고 정보를 조각내어 쥐고 있다. 그러나 증권거래소 지하 금고의 장부와 정수가 최근 사라지기 시작했고, 그날 밤 그는 흔적을 찾으러 금고에 잠입한다. 금고 안에는 예상치 못한 침입자가 숨어 있고, 경보가 울리며 모든 출구가 봉쇄되기 시작한다. 루시안은 자신을 드러내면 길드의",
+      "backstoryResidue": [
+        "칭찬과 신뢰를 구분하지 못한 채, 호의 뒤에 반드시 청구서가 온다고 믿게 됐다. 돈을 세고 조건을 정하는 습관은 이때 생겼다.",
+        "상단은 무너지고 그는 살아남았지만, 자신이 지킨 침묵은 배신자를 보호한 셈이 됐다. 이후 사람보다 증거를, 맹세보다 출구를 먼저 확보하며 길드의 비밀 회계사로 자리를 옮겼다.",
+        "부와 영향력은 늘었지만 장부를 쥐고 있는 한 누구도 믿을 수 없다는 확신도 굳었다. 별도 기록은 길드와 황실 모두를 흔들 수 있는 보험이자, 자신을 겨누는 증거가 됐다."
+      ],
+      "userInitialView": "경보가 울린 지하 금고에서 마주친 낯선 사람. 루시안은 당신을 공범인지 목격자인지 아직 판단하지 못했다.",
+      "relationshipCues": [
+        "카엘룸 폰 에테르노스: 황실 유리온실을 관리하는 황태자 대행. 루시안은 그와 직접 얽히지 않으려 한다.",
+        "볼프강 폰 발켄하임: 북부 방벽의 수호사령관. 루시안에게는 거래하기 까다로운 군사 권력자다.",
+        "율리우스 클라인: 판도라 학술원의 이단연구과 수석교수. 루시안은 학술 자료와 희귀 물품 거래로 접점을 가질 수 있다."
+      ]
+    },
+    "anchors": [
+      "메르카토르",
+      "골드",
+      "길드",
+      "비밀",
+      "회계사",
+      "지하",
+      "암시장",
+      "브로커",
+      "상단",
+      "사생아",
+      "출신",
+      "신흥",
+      "거상",
+      "합법적",
+      "장부",
+      "불법",
+      "거래망",
+      "동시",
+      "중개자",
+      "돈을",
+      "좇는",
+      "능청스러운",
+      "공범자이자",
+      "누구",
+      "믿지",
+      "못해",
+      "관계마저",
+      "거래",
+      "다루",
+      "아슬아슬한",
+      "유혹자"
+    ]
+  },
+  "revisions": [
+    {
+      "step": "assetplan",
+      "fields": [
+        "assetPlan"
+      ],
+      "reasons": [
+        "scene planner collapse (portfolio)"
+      ],
+      "at": "2026-09-27T02:04:59.365Z",
+      "provenance": {
+        "model": "gpt-6-luna",
+        "requestKind": "official-character-author",
+        "templateVersion": "pilot-rf-01/v2",
+        "snapshotVersion": "market-research-snapshot-2026-09.json",
+        "attempt": 1,
+        "createdAt": "2026-09-27T02:04:59.365Z",
+        "inputTokens": 2727,
+        "outputTokens": 1616,
+        "costUsd": 0.000804,
+        "providerRequestId": null
+      }
+    }
+  ]
 }

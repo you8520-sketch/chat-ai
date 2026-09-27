@@ -473,10 +473,10 @@
       {
         "slotKey": "rep",
         "kind": "representative",
-        "tag": "2:3 카드 초상, 붉은 망토를 두른 태양궁의 검은 백조",
-        "expression": "절제된 자신감",
-        "pose": "상반신 정면, 한 손은 검의 손잡이에 얹고 시선은 정면을 향함",
-        "outfit": "백은색 흉갑과 어두운 제복, 어깨에 걸친 붉은 망토",
+        "tag": "백은의 근위검",
+        "expression": "절제된 경계심과 흔들림 없는 시선",
+        "pose": "상반신을 정면으로 향하고 한 손을 검자루에 둔 카드 초상",
+        "outfit": "백은색 흉갑과 어두운 제복, 붉은 망토",
         "location": null,
         "situation": null,
         "characterPresence": "required",
@@ -486,35 +486,9 @@
       {
         "slotKey": "sig1",
         "kind": "signature",
-        "tag": "흑철 같은 지휘관의 침착함",
-        "expression": "흔들림 없는 무표정",
-        "pose": "전장을 살피듯 꼿꼿이 서서 망토 끝을 움켜쥠",
-        "outfit": "default",
-        "location": null,
-        "situation": null,
-        "characterPresence": "required",
-        "depiction": "standard",
-        "personTag": "무표정"
-      },
-      {
-        "slotKey": "sig2",
-        "kind": "signature",
-        "tag": "왕실의 미소 뒤에 감춘 계산",
-        "expression": "예의를 갖춘 미소",
-        "pose": "잔을 든 채 상대의 반응을 재듯 고개를 살짝 기울임",
-        "outfit": "default",
-        "location": null,
-        "situation": null,
-        "characterPresence": "required",
-        "depiction": "standard",
-        "personTag": "미소"
-      },
-      {
-        "slotKey": "sig3",
-        "kind": "signature",
-        "tag": "붉은 망토의 결연한 선봉",
-        "expression": "결의를 다진 진지함",
-        "pose": "검을 비스듬히 들어 방어선을 지키는 자세",
+        "tag": "감찰관의 눈",
+        "expression": "증언의 미세한 모순을 읽는 진지함",
+        "pose": "보고서와 물증을 나란히 놓고 대조함",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -523,11 +497,50 @@
         "personTag": "진지함"
       },
       {
+        "slotKey": "sig2",
+        "kind": "signature",
+        "tag": "붉은 망토의 맹세",
+        "expression": "민간인을 먼저 지키려는 단호함",
+        "pose": "검을 낮춰 위협을 막고 몸으로 누군가를 가림",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함"
+      },
+      {
+        "slotKey": "sig3",
+        "kind": "signature",
+        "tag": "몰락가의 절제",
+        "expression": "특혜를 경계하는 담담한 표정",
+        "pose": "가문의 문장이 새겨진 낡은 인장을 손에 쥠",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": null
+      },
+      {
         "slotKey": "sig4",
         "kind": "signature",
-        "tag": "가까이 다가온 위험을 읽는 눈",
-        "expression": "경계 어린 의심",
-        "pose": "몸을 반쯤 돌려 등 뒤의 기척을 살핌",
+        "tag": "교대의 짧은 숨",
+        "expression": "긴장을 잠시 내려놓은 옅은 미소",
+        "pose": "장비 점검을 마치고 식사를 권하듯 잔을 내밂",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "미소"
+      },
+      {
+        "slotKey": "emo1",
+        "kind": "emotion",
+        "tag": "보류된 연행",
+        "expression": "상대의 소지품에서 금지 인장을 확인한 뒤 판단을 유보하는 의심",
+        "pose": "한 손은 수갑에 닿고 다른 손은 증거를 가리킴",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -536,11 +549,37 @@
         "personTag": "의심"
       },
       {
-        "slotKey": "emo1",
+        "slotKey": "emo2",
         "kind": "emotion",
-        "tag": "배신을 확인한 냉랭한 분노",
-        "expression": "억눌렀지만 선명한 분노",
-        "pose": "턱을 굳게 다물고 주먹을 쥠",
+        "tag": "명령의 균열",
+        "expression": "황실의 지시와 확인된 증거가 어긋나 혼란스러움",
+        "pose": "명령서를 쥔 손에 힘이 들어가고 시선은 기록에 고정됨",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "당황"
+      },
+      {
+        "slotKey": "emo3",
+        "kind": "emotion",
+        "tag": "가혹한 자책",
+        "expression": "과거의 판단을 되짚으며 자신을 탓하는 슬픔",
+        "pose": "쇄골 아래 파편 흉터를 무의식적으로 감쌈",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "슬픔"
+      },
+      {
+        "slotKey": "emo4",
+        "kind": "emotion",
+        "tag": "감찰의 분노",
+        "expression": "진실을 가리려는 권력에 억눌린 분노",
+        "pose": "감찰 기록을 움켜쥐고 상대를 똑바로 마주함",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -549,37 +588,24 @@
         "personTag": "분노"
       },
       {
-        "slotKey": "emo2",
+        "slotKey": "emo5",
         "kind": "emotion",
-        "tag": "예상 밖의 폭로에 흔들린 순간",
-        "expression": "짧게 숨을 삼킨 놀람",
-        "pose": "눈을 크게 뜨고 손을 가슴께로 가져감",
+        "tag": "보호의 경계",
+        "expression": "상대의 안전을 걱정하면서도 통제할까 경계하는 긴장",
+        "pose": "출구 쪽을 살피며 상대 앞에 반걸음 섬",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "놀람"
+        "personTag": "긴장"
       },
       {
-        "slotKey": "emo3",
+        "slotKey": "emo6",
         "kind": "emotion",
-        "tag": "끝까지 버티는 지친 경계",
-        "expression": "피로를 감춘 굳은 얼굴",
-        "pose": "한쪽 무릎을 세워 잠시 기대면서도 검은 놓지 않음",
-        "outfit": "default",
-        "location": null,
-        "situation": null,
-        "characterPresence": "required",
-        "depiction": "standard",
-        "personTag": "피곤함"
-      },
-      {
-        "slotKey": "emo4",
-        "kind": "emotion",
-        "tag": "감춰 둔 애정이 비치는 찰나",
-        "expression": "부드럽게 풀린 애정 어린 눈빛",
-        "pose": "상대의 손끝에 조심스레 손을 포갬",
+        "tag": "신뢰의 허락",
+        "expression": "증거와 선택을 함께 맡기려는 조심스러운 애정",
+        "pose": "검을 내려놓고 손바닥을 열어 보임",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -588,69 +614,43 @@
         "personTag": "애정"
       },
       {
-        "slotKey": "emo5",
-        "kind": "emotion",
-        "tag": "위험한 제안에 맞서는 도발",
-        "expression": "상대를 시험하는 도발적인 미소",
-        "pose": "검집을 짚고 한 걸음 다가섬",
-        "outfit": "default",
-        "location": null,
-        "situation": null,
-        "characterPresence": "required",
-        "depiction": "standard",
-        "personTag": "도발"
-      },
-      {
-        "slotKey": "emo6",
-        "kind": "emotion",
-        "tag": "지켜야 할 이를 앞둔 두려움",
-        "expression": "불안을 숨기지 못한 공포",
-        "pose": "상대를 감싸듯 앞으로 나서며 주위를 살핌",
-        "outfit": "default",
-        "location": null,
-        "situation": null,
-        "characterPresence": "required",
-        "depiction": "standard",
-        "personTag": "공포"
-      },
-      {
         "slotKey": "scene1",
         "kind": "scene",
-        "tag": "차폐막이 무너지는 유리온실의 밀담",
-        "expression": "위기 속에서도 침착함을 유지하는 표정",
-        "pose": "가면을 벗어 손에 쥔 채 상대와 마주 서서 붕괴하는 유리 천장을 올려다봄",
+        "tag": "안뜰의 금지 인장",
+        "expression": "파장 흔적과 플레이어의 소지품을 번갈아 살피는 경계",
+        "pose": "봉쇄선을 지키며 인장을 증거 봉투에 넣으라고 요구함",
         "outfit": "default",
-        "location": "솔라리스 유리온실, 태양궁 최상층",
-        "situation": "에너지 고갈로 차폐막이 무너지기 직전, 밀담 상대가 치명적인 정략결혼을 제안하고 발레리아는 그 안에 숨은 배신의 증거를 알아챈다.",
+        "location": "태양궁 안뜰의 봉쇄된 파장 감지 지점",
+        "situation": "불온한 에테르 파장을 추적하던 발레리아가 플레이어의 소지품에서 금지 인장을 발견한다. 연행을 시도하지만 현장 흔적이 인장과 맞지 않아, 플레이어를 구금할지 함께 증거를 대조할지 선택해야 한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "의심"
       },
       {
         "slotKey": "scene2",
         "kind": "scene",
-        "tag": "보급이 끊긴 혹한의 방벽",
-        "expression": "결사적인 집중",
-        "pose": "눈보라 속에서 부상한 동료를 부축하며 마수를 향해 검을 겨눔",
+        "tag": "감찰 기록의 선택",
+        "expression": "황실 명령을 거슬러 증거를 보존할지 고뇌하는 진지함",
+        "pose": "봉인된 사본을 한 손에 들고 공개 여부를 플레이어에게 묻음",
         "outfit": "default",
-        "location": "발켄하임 혹한의 검은 방벽, 흑철 요새",
-        "situation": "마수 대침공에 요새의 보급이 끊겼다. 살아남기 위해 체온을 나눠 버틴 동료가 군사 반역 음모의 단서를 털어놓는다.",
+        "location": "성스러운 빛의 회랑, 대신전의 감찰 기록 보관 회랑",
+        "situation": "중기 갈등에서 황실은 공허의 밤과 최근 에테르 밀거래 장부의 연결을 덮으려 하고, 대신전 기록에는 조작된 축복 의식의 증언이 남아 있다. 발레리아는 사본을 공개해 비리를 드러낼지, 에너지망의 추가 불안정을 막기 위해 증거를 잠시 숨길지 플레이어와 결정한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "전투자세"
+        "personTag": "진지함"
       },
       {
         "slotKey": "scene3",
         "kind": "scene",
-        "tag": "금서의 역류와 불시 검문",
-        "expression": "마력 폭주를 억누르는 긴장된 표정",
-        "pose": "片手로 빛나는 금서를 누르고 다른 손으로 특무관의 길을 막음",
+        "tag": "솔레이가의 봉인함",
+        "expression": "가문의 복권보다 진실을 택하려는 결연함",
+        "pose": "가문 문서와 감찰 기록을 나란히 펼쳐 플레이어에게 열람을 허락함",
         "outfit": "default",
-        "location": "판도라 대도서관 심연의 아카이브",
-        "situation": "금서 해독 중 금지된 마력이 역류해 서가가 무너지는 가운데, 수사청 특무관이 불시 검문을 시작한다. 발레리아는 위험한 증거와 동행인을 함께 숨겨야 한다.",
+        "location": "솔레이 저택의 폐쇄된 가문 기록실",
+        "situation": "장기 변화의 갈림길에서 발레리아는 솔레이 가문의 재건을 위한 문서와 정제탑 파괴 책임을 가릴 독립 증거 사본을 함께 발견한다. 가문의 명예를 위해 문서를 감출지, 황실과 가문 모두를 조사받게 할지 선택하며 플레이어에게 자신의 기록을 맡긴다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       }
     ]
   },
@@ -676,6 +676,170 @@
         "costUsd": 0.0003,
         "providerRequestId": null
       }
+    },
+    {
+      "step": "assetplan",
+      "fields": [
+        "assetPlan"
+      ],
+      "reasons": [
+        "scene planner collapse (portfolio)"
+      ],
+      "at": "2026-09-27T02:11:08.327Z",
+      "provenance": {
+        "model": "gpt-6-luna",
+        "requestKind": "official-character-author",
+        "templateVersion": "pilot-rf-01/v2",
+        "snapshotVersion": "market-research-snapshot-2026-09.json",
+        "attempt": 2,
+        "createdAt": "2026-09-27T02:11:08.327Z",
+        "inputTokens": 4058,
+        "outputTokens": 1561,
+        "costUsd": 0.000901,
+        "providerRequestId": null
+      }
     }
-  ]
+  ],
+  "sceneContext": {
+    "name": "발레리아 드 솔레이",
+    "occupation": "태양궁 근위제1검 및 황실 감찰관",
+    "faction": "태양의 옥좌",
+    "socialPosition": "몰락한 솔레이 귀족가 출신의 근위대장",
+    "ranked": [
+      {
+        "name": "솔라리스 유리온실 (태양궁 최상층)",
+        "tier": "primary",
+        "score": 31,
+        "why": [
+          "태양궁",
+          "황실",
+          "근위대장",
+          "에테르노스",
+          "태양",
+          "에테르"
+        ],
+        "rpEvents": "가면을 쓴 밀담, 에너지 고갈로 인한 온실 차폐막 붕괴 위기 속 독대, 치명적인 정략결혼 제안과 배신의 폭로"
+      },
+      {
+        "name": "성스러운 빛의 회랑 (제국 대신전)",
+        "tier": "primary",
+        "score": 27,
+        "why": [
+          "황실",
+          "귀족",
+          "제국",
+          "태양",
+          "사이",
+          "조작된"
+        ],
+        "rpEvents": "축복 의식 도중 일어난 기적의 조작 탄로, 고해성사실을 사이에 둔 은밀한 밀회, 광신도들의 이단 처단 폭동"
+      },
+      {
+        "name": "판도라 대도서관 심연의 아카이브",
+        "tier": "primary",
+        "score": 24,
+        "why": [
+          "에테르노스",
+          "사이",
+          "에테르",
+          "금지된",
+          "증거",
+          "금지"
+        ],
+        "rpEvents": "금서 해독 중 발생한 금지된 마력 역류 현상, 서가 구석 밀실에서의 금지된 애정 행각 및 증거 인멸, 수사청 특무관의 불시 검문"
+      },
+      {
+        "name": "메르카토르 황금 증권거래소 및 지하 암시장",
+        "tier": "secondary",
+        "score": 18,
+        "why": [
+          "귀족",
+          "에테르노스",
+          "에테르",
+          "금지된",
+          "밀거래",
+          "금지"
+        ],
+        "rpEvents": "가짜 채권 유통을 둘러싼 협박과 추격전, 비밀 경매에서 매물로 나온 금지된 유물 탈취, 빚더미에 앉은 귀족의 비밀 계약"
+      },
+      {
+        "name": "에테르노스 제국 하수도 가스 밸브 구역 (슬럼가)",
+        "tier": "secondary",
+        "score": 15,
+        "why": [
+          "에테르노스",
+          "제국",
+          "에테르",
+          "위험",
+          "범죄"
+        ],
+        "rpEvents": "마도 증기 폭발 직전의 탈출, 부상당한 요인을 숨겨주는 위험한 동거, 빈민가 폭동과 암살자의 기습"
+      },
+      {
+        "name": "발켄하임 혹한의 검은 방벽 (흑철 요새)",
+        "tier": "exceptional",
+        "score": 7,
+        "why": [
+          "귀족",
+          "현장"
+        ],
+        "rpEvents": "혹한기 마수 대침공 속의 사투, 보급 끊긴 요새 안에서의 체온을 나눈 밀착, 군사 반역 음모의 현장 적발"
+      }
+    ],
+    "hooks": {
+      "immediateHook": "황궁 안뜰의 불온한 파장을 추적하던 발레리아가 플레이어 소지품에서 금지 인장을 발견한다. 연행을 시도하지만 현장 증거가 엇갈린다.",
+      "repeatable": [
+        "증언·보고서·물증을 대조하는 조사와 심문.",
+        "경비 교대와 궁정 일정 속에서 단서를 수집한다.",
+        "식사, 장비 점검, 귀가 동행 같은 짧은 일상으로 긴장을 푼다."
+      ],
+      "mediumConflict": "황실은 사건을 덮으려 하고 각 세력은 인장을 차지하려 한다. 발레리아는 법과 진실, 플레이어의 안전 사이에서 보호를 통제로 만들 위험이 있다.",
+      "longTermChange": "증거와 선택에 따라 발레리아는 황실에 맞서거나 제도를 지키며, 플레이어와의 관계도 적대·공조·신뢰·연애로 달라진다. 결말은 고정되지 않는다.",
+      "personalSituation": "발레리아는 태양궁 근위제1검이자 황실 감찰관으로, 황실의 안전과 황실 내부의 비리를 동시에 맡고 있다. 공허의 밤 당시 명령을 어기고 민간 기술자들을 구한 기록은 공식 문서에 남아 있지만, 정제탑 파괴의 책임 소재는 아직 확정되지 않았다. 그녀는 그 사건의 증거 사본과 최근의 에테르 밀거래 장부가 연결될 수 있다고 의심하면서도, 성급한 공개가 남은 에너지망을 더 불안정하게 할까 우려한다. 솔레이 가문은 몰락한 뒤 재건을 바라지만, 발레리아는 가문의 복권을 위해 감찰권을 팔지 않겠다고 선을 그었다. 최근 태양궁 안뜰에서 익숙하지 않은 에테르 파장이 감지되었다. 그녀는 현장을 봉쇄하고 흔적을 조사하는 중이며, 황실의 명령이 진실을 가리려는 것인지 제국을 지키려는 것인지 확신하지 못한다. 누군가를 지키겠다고 결심",
+      "backstoryResidue": [
+        "출신을 숨기지는 않지만 특혜를 경계한다. 기록과 증거를 집요하게 확인하고, 가문의 명예를 지키려는 마음 때문에 자기 실수를 남보다 가혹하게 처벌한다.",
+        "민간인 생명을 우선하는 원칙이 굳었지만, 명령 불복종이 더 큰 피해를 불렀을지 모른다는 죄책감도 남았다. 쇄골 아래의 파편 흉터와 불완전한 보고서에 대한 불신은 그날의 흔적이다.",
+        "황실을 섬기면서 황실을 의심하는 이중의 직무가 시작됐다. 그녀는 충성의 맹세를 지키려는 동시에, 그 맹세가 범죄의 방패가 되지 않도록 감찰 기록을 따로 보관한다."
+      ],
+      "userInitialView": "금지 인장을 지닌 미확인 인물. 연행 대상이지만 파장의 원인인지는 판단을 보류한다.",
+      "relationshipCues": [
+        "카엘룸: 황실 지시를 받는 상관.",
+        "볼프강: 방벽 군사 협력자.",
+        "루시안: 정보 제공원."
+      ]
+    },
+    "anchors": [
+      "태양궁",
+      "근위제1검",
+      "황실",
+      "감찰관",
+      "몰락한",
+      "솔레",
+      "귀족",
+      "출신",
+      "근위대장",
+      "에테르노스",
+      "제국",
+      "태양",
+      "옥좌",
+      "명령",
+      "집행하면서",
+      "부패",
+      "감시",
+      "검과",
+      "characterCore",
+      "발레리아",
+      "솔레이",
+      "29세",
+      "향한",
+      "의무",
+      "환멸",
+      "사이",
+      "누구",
+      "지킬지",
+      "순간",
+      "다시",
+      "선택한다"
+    ]
+  }
 }

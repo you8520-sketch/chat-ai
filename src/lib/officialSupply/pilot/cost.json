@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "successfulCompletions": 24,
+  "successfulCompletions": 42,
   "failedProviderAttempts": 0,
-  "physicalAttempts": 24,
-  "workflowRetries": 12,
-  "billedCostUsd": 0.016660999999999995,
+  "physicalAttempts": 42,
+  "workflowRetries": 22,
+  "billedCostUsd": 0.031314999999999996,
   "failedAttemptCostUsd": 0,
-  "inputTokens": 46988,
-  "outputTokens": 37817,
+  "inputTokens": 107944,
+  "outputTokens": 66068,
   "imageCalls": 0,
   "lines": [
     {
@@ -249,6 +249,186 @@
       "inputTokens": 2754,
       "outputTokens": 2789,
       "costUsd": 0.000995
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-03",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2727,
+      "outputTokens": 1616,
+      "costUsd": 0.000804
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-04",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2539,
+      "outputTokens": 1592,
+      "costUsd": 0.000779
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-05",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2954,
+      "outputTokens": 1543,
+      "costUsd": 0.000798
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-05",
+      "workflowAttempt": 2,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 3043,
+      "outputTokens": 1632,
+      "costUsd": 0.000837
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2674,
+      "outputTokens": 1510,
+      "costUsd": 0.000762
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 2,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2725,
+      "outputTokens": 1429,
+      "costUsd": 0.000738
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 3,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2725,
+      "outputTokens": 1500,
+      "costUsd": 0.000763
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 4,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2763,
+      "outputTokens": 1584,
+      "costUsd": 0.000796
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 5,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2725,
+      "outputTokens": 1409,
+      "costUsd": 0.000512
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4007,
+      "outputTokens": 1593,
+      "costUsd": 0.000908
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 2,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4058,
+      "outputTokens": 1561,
+      "costUsd": 0.000901
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-07",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 3403,
+      "outputTokens": 1623,
+      "costUsd": 0.000865
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 3571,
+      "outputTokens": 1561,
+      "costUsd": 0.000858
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-09",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4128,
+      "outputTokens": 1635,
+      "costUsd": 0.000933
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-09",
+      "workflowAttempt": 2,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4251,
+      "outputTokens": 1565,
+      "costUsd": 0.000919
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-09",
+      "workflowAttempt": 3,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4221,
+      "outputTokens": 1674,
+      "costUsd": 0.000955
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-09",
+      "workflowAttempt": 4,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4221,
+      "outputTokens": 1578,
+      "costUsd": 0.000921
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-09",
+      "workflowAttempt": 5,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4221,
+      "outputTokens": 1646,
+      "costUsd": 0.000605
     }
   ],
   "legacy": {
