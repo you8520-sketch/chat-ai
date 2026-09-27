@@ -11,6 +11,7 @@ import {
 } from "@/lib/cheaperInferenceCatalogPricing";
 import { ensureModelPricingTrackingSchema } from "@/lib/modelPricingTrackingSchema";
 import {
+  evaluateProviderModelMainRpTriage,
   isProductKnownProviderModel,
   listProviderModelDiscoveries,
   observeProviderModelCatalog,
@@ -26,6 +27,14 @@ function catalog(modelId: string, fetchedAt: number, output = 2): CheaperInferen
     referenceInputUsdPerMillion: 1,
     referenceOutputUsdPerMillion: 4,
     discountPercent: 50,
+    catalogType: "text",
+    catalogEndpoint: "/v1/chat/completions",
+    catalogProvider: "TestProvider",
+    catalogAliases: [`vendor/${modelId}`],
+    catalogCapabilities: { streaming: true, reasoning: true, vision: false },
+    catalogPricingVersion: "sha256:test",
+    catalogPricingCheckedAt: "2026-09-28T03:00:00Z",
+    catalogPricingUpdatedAt: "2026-09-28T02:59:00Z",
     fetchedAt,
   };
 }
@@ -134,4 +143,67 @@ it("latest catalog inventory is exact while resilient per-model cache keeps olde
   assert.equal(resolveCheaperInferenceCatalogPricing("old-but-cached-model")?.modelId, "old-but-cached-model");
   assert.equal(resolveCheaperInferenceCatalogPricing("fresh-model")?.modelId, "fresh-model");
   clearCheaperInferenceCatalogPricingForTest();
+});
+
+
+it("Main RP static triage is fail-closed on missing or incompatible capability evidence", () => {
+  assert.deepEqual(
+    evaluateProviderModelMainRpTriage({
+      modelType: "text",
+      endpoint: "/v1/chat/completions",
+      streaming: true,
+    }),
+    { status: "BENCHMARK_REVIEWABLE", reasons: [] }
+  );
+  assert.equal(
+    evaluateProviderModelMainRpTriage({
+      modelType: "image",
+      endpoint: "/v1/images/generations",
+      streaming: false,
+    }).status,
+    "HOLD_NON_TEXT"
+  );
+  assert.equal(
+    evaluateProviderModelMainRpTriage({
+      modelType: "text",
+      endpoint: "/v1/responses",
+      streaming: true,
+    }).status,
+    "HOLD_NON_CHAT_ENDPOINT"
+  );
+  assert.equal(
+    evaluateProviderModelMainRpTriage({
+      modelType: "text",
+      endpoint: "/v1/chat/completions",
+      streaming: false,
+    }).status,
+    "HOLD_NON_STREAMING"
+  );
+  assert.equal(
+    evaluateProviderModelMainRpTriage({
+      modelType: "text",
+      endpoint: "/v1/chat/completions",
+    }).status,
+    "HOLD_CAPABILITY_UNVERIFIED"
+  );
+});
+
+it("discovery persists raw capability evidence and derives triage instead of storing a second truth", () => {
+  const { db, attemptId } = dbWithAttempt("2026-09-30");
+  observeProviderModelCatalog({
+    db,
+    attemptId,
+    runDateKey: "2026-09-30",
+    catalog: [catalog("brand-new-rp-model-2026", Date.parse("2026-09-30T03:00:00Z"))],
+  });
+
+  const [saved] = listProviderModelDiscoveries(db, { unregisteredOnly: false });
+  assert.equal(saved!.modelType, "text");
+  assert.equal(saved!.endpoint, "/v1/chat/completions");
+  assert.equal(saved!.catalogProvider, "TestProvider");
+  assert.deepEqual(saved!.aliases, ["vendor/brand-new-rp-model-2026"]);
+  assert.equal(saved!.capabilities.streaming, true);
+  assert.equal(saved!.capabilities.reasoning, true);
+  assert.equal(saved!.catalogPricingVersion, "sha256:test");
+  assert.equal(saved!.mainRpTriage.status, "BENCHMARK_REVIEWABLE");
 });
