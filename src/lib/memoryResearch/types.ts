@@ -146,6 +146,8 @@ export type ResearchCandidate = {
   evaluations: readonly CandidateEvaluation[];
   /** Draft PR opened for the latest ACCEPTED evaluation; null until creation succeeds. */
   draftPrUrl: string | null;
+  /** Implementation Draft PR created from accepted live evidence. */
+  implementationPrUrl?: string | null;
   /** Latest paid/live lab evidence. Research/runtime code never consumes this. */
   liveExperiment?: {
     recipeId: string;
