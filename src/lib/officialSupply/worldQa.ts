@@ -84,7 +84,15 @@ function countBy(values: string[]): Map<string, number> {
  * Same-world diversity QA: no near-duplicate names/greetings, no clones that
  * differ only by hair colour (same archetype + trope + occupation or near-identical core).
  */
-export function evaluateWorldDiversity(drafts: readonly OfficialCharacterDraft[]): QaResult {
+/**
+ * Gender is judged against the batch's own cast intent (`evaluateCastIntent`),
+ * never against a balanced default: `intendedSingleGender` silences the
+ * single-gender hint for BL/GL-style batches.
+ */
+export function evaluateWorldDiversity(
+  drafts: readonly OfficialCharacterDraft[],
+  opts: { intendedSingleGender?: boolean } = {}
+): QaResult {
   const errors: QaIssue[] = [];
   const warnings: QaIssue[] = [];
   for (let i = 0; i < drafts.length; i++) {
@@ -123,7 +131,7 @@ export function evaluateWorldDiversity(drafts: readonly OfficialCharacterDraft[]
       if (count >= limit) warnings.push({ code, message: `${value} ×${count}` });
     }
   }
-  if (drafts.length >= 4 && new Set(drafts.map((d) => d.gender)).size === 1) {
+  if (!opts.intendedSingleGender && drafts.length >= 4 && new Set(drafts.map((d) => d.gender)).size === 1) {
     warnings.push({ code: "single_gender_world", message: "every playable character shares one gender" });
   }
   return qaResult(errors, warnings);
@@ -238,6 +246,40 @@ export function evaluateSharedLorebook(
         errors.push({ code: "lorebook_secret_leak", message: `${entry.entryKey} leaks a secret of ${draft.draftKey}` });
       }
     }
+  }
+  return qaResult(errors);
+}
+
+/**
+ * Named regions of the world itself (quoted names in `world.regions`, e.g.
+ * "서부 해상 무역권 '벨로체'"). These are internal to the world's realm.
+ */
+export function internalWorldRegions(regions: string): string[] {
+  return [...regions.matchAll(/['‘’"“”]([^'‘’"“”]+)['‘’"“”]/g)].map((m) => m[1]!.trim()).filter(Boolean);
+}
+
+/** Words that make a place a foreign/enemy state (귀국 = return to one's own country). */
+const FOREIGN_STATE_RE = /(외국|타국|이국|적국|패전국|본국|고국|조국|귀국)/g;
+
+/**
+ * A sheet that ties itself to an internal region must not describe that region
+ * or its people as a foreign / enemy / defeated state. Internal conflict
+ * (자치·반황실·휴전) is fine; foreign-state identity contradicts the world bible.
+ */
+export function evaluateInternalRegionConsistency(sheetText: string, regions: readonly string[]): QaResult {
+  const errors: QaIssue[] = [];
+  const named = regions.filter((r) => sheetText.includes(r));
+  if (named.length === 0) return qaResult([]);
+  const hits = new Map<string, string>();
+  for (const m of sheetText.matchAll(FOREIGN_STATE_RE)) {
+    const at = m.index ?? 0;
+    if (!hits.has(m[0])) hits.set(m[0], sheetText.slice(Math.max(0, at - 18), at + 18).replace(/\s+/g, " "));
+  }
+  for (const [word, context] of hits) {
+    errors.push({
+      code: "region_foreign_state_conflict",
+      message: `${named.join("/")} is an internal region, but the sheet uses "${word}" (…${context}…)`,
+    });
   }
   return qaResult(errors);
 }

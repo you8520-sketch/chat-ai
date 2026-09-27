@@ -62,7 +62,7 @@ export function isPortraitDisplayAsset(
   return !isWideInlineAsset(asset);
 }
 
-const CREATOR_ASSET_TAG_MAX = 32;
+export const CREATOR_ASSET_TAG_MAX = 32;
 
 /**
  * Canonical normalization for the creator-editable asset tag (custom asset

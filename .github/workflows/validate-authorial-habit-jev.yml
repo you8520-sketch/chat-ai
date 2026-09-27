@@ -1,0 +1,68 @@
+name: Validate authorial-habit JEV benchmark
+
+# Benchmark-only semantic refinement for existing authorialHabitAudit regex candidates.
+# CI never performs live provider calls.
+# Confidence diagnostics remain benchmark-only.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/validate-authorial-habit-jev.yml"
+      - ".github/workflows/run-authorial-habit-jev-live.yml"
+      - ".github/authorial-habit-jev-live.trigger"
+      - "src/lib/authorialHabitAudit.ts"
+      - "src/lib/authorialHabitAudit.test.ts"
+      - "src/lib/authorialHabitJevCorpus.ts"
+      - "src/lib/authorialHabitJevJudge.ts"
+      - "src/lib/jevDecisions.ts"
+      - "src/lib/jevDecisions.test.ts"
+      - "scripts/lib/authorialHabitJevBenchmarkCredential.ts"
+      - "scripts/lib/authorialHabitJevBenchmark.ts"
+      - "scripts/lib/authorialHabitJevBenchmark.test.ts"
+      - "scripts/benchmark-authorial-habit-jev-live.ts"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - run: git diff --check
+
+      - run: npm run lint
+
+      - run: npm run typecheck:app
+
+      - name: Existing authorial habit audit regressions
+        run: >
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1
+          src/lib/authorialHabitAudit.test.ts
+
+      - name: JEV decisions transport regression
+        run: >
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1
+          src/lib/jevDecisions.test.ts
+
+      - name: Authorial habit JEV benchmark isolation
+        run: >
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1
+          scripts/lib/authorialHabitJevBenchmark.test.ts

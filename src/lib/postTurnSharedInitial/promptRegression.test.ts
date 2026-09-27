@@ -16,6 +16,10 @@ import {
 import type { PostTurnSharedInitialInput } from "./types";
 import { POST_TURN_SHARED_INITIAL_REQUEST_KIND } from "./types";
 import { runPostTurnRelationshipOnlyInitial } from "./run";
+import {
+  SUGGESTED_REPLY_MAX_CHARS,
+  SUGGESTED_REPLY_MIN_CHARS,
+} from "@/lib/suggestedReplies/types";
 
 const USER_WIDGET: StatusWidget = {
   ...DEFAULT_STATUS_WIDGET,
@@ -229,6 +233,23 @@ describe("Shared Initial prompt regression P1–P8", () => {
       canonicalAssistant: input.assistantProse,
       rejectedDraft: "rejected user draft",
     });
+  });
+});
+
+describe("Shared Suggested Replies length owner", () => {
+  it("sources the 50–150 quality target from canonical constants", () => {
+    const system = buildPostTurnSharedInitialSystem(
+      dualInput({ includeSuggestions: true })
+    );
+    assert.equal(SUGGESTED_REPLY_MIN_CHARS, 50);
+    assert.equal(SUGGESTED_REPLY_MAX_CHARS, 150);
+    assert.match(
+      system,
+      new RegExp(
+        `each text ${SUGGESTED_REPLY_MIN_CHARS}–${SUGGESTED_REPLY_MAX_CHARS} characters`
+      )
+    );
+    assert.doesNotMatch(system, /50–200 characters/);
   });
 });
 

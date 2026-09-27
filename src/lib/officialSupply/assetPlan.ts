@@ -1,4 +1,4 @@
-import { normalizeCreatorAssetTag } from "@/lib/characterAssets";
+import { CREATOR_ASSET_TAG_MAX, normalizeCreatorAssetTag } from "@/lib/characterAssets";
 import { isAssetPersonTag } from "@/lib/assetPersonTags";
 import { ADULT_SCENE_MIN_AGE } from "@/lib/participantMinAge";
 import {
@@ -46,7 +46,7 @@ export function evaluateAssetPlan(draft: OfficialCharacterDraft, plan: OfficialA
     slotKeys.add(slot.slotKey);
     const tag = normalizeCreatorAssetTag(slot.tag);
     if (!tag || tag !== slot.tag) {
-      errors.push({ code: "slot_tag_not_canonical", message: `${slot.slotKey}: tag must survive normalizeCreatorAssetTag` });
+      errors.push({ code: "slot_tag_not_canonical", message: `${slot.slotKey}: tag "${slot.tag}" must survive normalizeCreatorAssetTag (≤${CREATOR_ASSET_TAG_MAX} chars, no brackets/newlines)` });
     }
     if (!slot.expression.trim()) errors.push({ code: "slot_expression_missing", message: `${slot.slotKey}: expression` });
     if (slot.characterPresence !== "required") {

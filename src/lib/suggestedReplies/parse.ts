@@ -25,15 +25,9 @@ export function normalizeSuggestedReply(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const trimmed = raw.replace(/\s+/g, " ").trim();
   if (!trimmed) return null;
-  const clipped =
-    suggestedReplyCharCount(trimmed) > SUGGESTED_REPLY_MAX_CHARS
-      ? sliceByChars(trimmed, SUGGESTED_REPLY_MAX_CHARS)
-      : trimmed;
-  const count = suggestedReplyCharCount(clipped);
-  if (count < SUGGESTED_REPLY_MIN_CHARS || count > SUGGESTED_REPLY_MAX_CHARS) {
-    return null;
-  }
-  return clipped;
+  return suggestedReplyCharCount(trimmed) > SUGGESTED_REPLY_MAX_CHARS
+    ? sliceByChars(trimmed, SUGGESTED_REPLY_MAX_CHARS)
+    : trimmed;
 }
 
 function dedupeKey(text: string): string {
@@ -239,8 +233,20 @@ export function inspectSuggestedRepliesModelTextContract(
 
 export function parseSuggestedRepliesFromModelText(text: string): SuggestedReplyItem[] {
   const inspection = inspectSuggestedRepliesModelTextContract(text);
-  if (!inspection.contractValid || !inspection.parsed) return [];
-  return normalizeSuggestedReplies({ items: inspection.parsed.items });
+  if (!inspection.parsed) return [];
+
+  const blockingIssues = inspection.issues.filter(
+    (issue) => issue !== "text_out_of_bounds"
+  );
+  if (blockingIssues.length > 0) return [];
+
+  // 50–200 chars is the model-quality target, not a user-visible availability
+  // gate. The canonical normalizer accepts non-empty short text and clips
+  // overlong text to SUGGESTED_REPLY_MAX_CHARS. Raw decision-quality telemetry
+  // remains strict and still reports text_out_of_bounds for both under/over
+  // provider output.
+  const normalized = normalizeSuggestedReplies({ items: inspection.parsed.items });
+  return suggestedRepliesHaveContent(normalized) ? normalized : [];
 }
 
 function coerceStoredReplies(raw: unknown): SuggestedReplyItem[] {
