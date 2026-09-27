@@ -13,6 +13,7 @@ import type { ResearchCandidate } from "@/lib/memoryResearch/types";
 
 const MAIN_SHA = "0123456789abcdef0123456789abcdef01234567";
 const HEAD_SHA = "fedcba9876543210fedcba9876543210fedcba98";
+const ARCH = "arch-accepted-live-1";
 const KEY = "github:qwenlm/qwen3-embedding";
 const CONFIG = "src/lib/memory/memory-episodic-semantic-config.ts";
 const TEST = "src/lib/memory/memory-episodic-semantic-discovery.test.ts";
@@ -41,7 +42,19 @@ function candidate(overrides: Partial<ResearchCandidate> = {}): ResearchCandidat
     priorRejectionReason: null,
     reevaluationCondition: "implementation Draft PR generation/review",
     cooldownUntil: null,
-    evaluations: [],
+    evaluations: [
+      {
+        cycleKey: "live-2026-10-01-qwen3-embedding-vs-bge-m3",
+        evaluatedAt: "2026-10-01T02:43:00Z",
+        version: "v1.2.3",
+        adapterFingerprint: "live-recipe-fingerprint",
+        architectureFingerprint: ARCH,
+        state: "WATCH",
+        decision: "WATCH_IMPLEMENTATION_PR_PENDING",
+        reason: "live gate accepted",
+        stateTrail: ["RESEARCHED", "SCREENED", "EXPERIMENT_ELIGIBLE", "BENCHMARKED", "WATCH"],
+      },
+    ],
     draftPrUrl: null,
     implementationPrUrl: null,
     liveExperiment: {
@@ -121,6 +134,7 @@ it("accepted live evidence produces only the allowlisted canonical patch and a D
   const c = candidate();
   const [result] = openImplementationDraftPrs([c], h.run, h.read, h.write, h.validate, {
     mainSha: MAIN_SHA,
+    architectureFingerprint: ARCH,
     generationId: "run-7-attempt-1",
     tempDir: "/tmp",
   });
@@ -147,6 +161,7 @@ it("source drift fails closed instead of broadening the patch", () => {
   const h = harness(files);
   const [result] = openImplementationDraftPrs([candidate()], h.run, h.read, h.write, h.validate, {
     mainSha: MAIN_SHA,
+    architectureFingerprint: ARCH,
     generationId: "run-8-attempt-1",
     tempDir: "/tmp",
   });
@@ -159,7 +174,7 @@ it("source drift fails closed instead of broadening the patch", () => {
 it("candidate gate and evidence must be accepted before any implementation commands run", () => {
   const recipe = findImplementationRecipe(KEY)!;
   assert.throws(
-    () => validateImplementationCandidate(candidate({ lastDecision: "WATCH_LIVE_EXPERIMENT_PENDING" }), recipe),
+    () => validateImplementationCandidate(candidate({ lastDecision: "WATCH_LIVE_EXPERIMENT_PENDING" }), recipe, ARCH),
     /not implementation-pending/
   );
   assert.throws(
@@ -171,7 +186,8 @@ it("candidate gate and evidence must be accepted before any implementation comma
             gateDecision: "REJECTED_FALSE_MEMORY_REGRESSION",
           },
         }),
-        recipe
+        recipe,
+        ARCH
       ),
     /not accepted/
   );
@@ -184,9 +200,14 @@ it("candidate gate and evidence must be accepted before any implementation comma
             recipeVersion: "0",
           },
         }),
-        recipe
+        recipe,
+        ARCH
       ),
     /recipe version mismatch/
+  );
+  assert.throws(
+    () => validateImplementationCandidate(candidate(), recipe, "arch-changed-after-live-proof"),
+    /architecture is stale/
   );
   const h = harness();
   const [result] = openImplementationDraftPrs(
@@ -195,7 +216,7 @@ it("candidate gate and evidence must be accepted before any implementation comma
     h.read,
     h.write,
     h.validate,
-    { mainSha: MAIN_SHA, generationId: "run-9-attempt-1", tempDir: "/tmp" }
+    { mainSha: MAIN_SHA, architectureFingerprint: ARCH, generationId: "run-9-attempt-1", tempDir: "/tmp" }
   );
   assert.equal(result.url, null);
   assert.equal(h.calls.length, 0);
@@ -208,6 +229,7 @@ it("an existing open implementation PR is reused across generation retries even 
   const recipe = findImplementationRecipe(KEY)!;
   const [result] = openImplementationDraftPrs([c], h.run, h.read, h.write, h.validate, {
     mainSha: MAIN_SHA,
+    architectureFingerprint: ARCH,
     generationId: "run-10-attempt-2",
     tempDir: "/tmp",
   });
