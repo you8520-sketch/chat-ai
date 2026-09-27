@@ -51,6 +51,57 @@ const { installGracefulHttpDrain } = require("./src/lib/serverGracefulDrain.js")
 
 let httpServer = null;
 
+/**
+ * TEMPORARY bounded proof launcher for romance_fantasy_v2.
+ *
+ * The Railway Settings start-command change is staged but cannot be safely
+ * committed because the environment already contains an unrelated historical
+ * staged patch. Run the already-gated proof operator from the mounted
+ * application container instead, after HTTP readiness. Remove this launcher
+ * immediately after the proof packet is collected.
+ */
+let officialStyleProofBootStarted = false;
+function runOfficialStyleProofV2BootOnce() {
+  const targetRailwayService = "5e36bd2b-5557-4765-949f-5569a8a79628";
+  if (
+    officialStyleProofBootStarted ||
+    process.env.NODE_ENV !== "production" ||
+    process.env.RAILWAY_SERVICE_ID !== targetRailwayService
+  ) {
+    return;
+  }
+  officialStyleProofBootStarted = true;
+
+  const { spawn } = require("child_process");
+  console.log("[official-style-proof-boot] starting bounded romance_fantasy_v2 proof worker");
+  const child = spawn(
+    process.execPath,
+    [
+      "--conditions=react-server",
+      "--import",
+      "tsx",
+      "scripts/official-supply-style-proof.ts",
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        OFFICIAL_STYLE_PROOF_LIVE: "1",
+        OFFICIAL_STYLE_PROOF_CANDIDATE: "rf-02",
+      },
+      stdio: "inherit",
+    }
+  );
+  child.on("error", (error) => {
+    console.error("[official-style-proof-boot] worker launch failed:", error);
+  });
+  child.on("exit", (code, signal) => {
+    console.log(
+      `[official-style-proof-boot] worker exited code=${String(code)} signal=${String(signal)}`
+    );
+  });
+}
+
 async function loadSchedulerEnablementOwner() {
   try {
     const schedulerMod = await importBackgroundModule("./src/lib/schedulerDefinitions.ts");
@@ -198,6 +249,7 @@ app.prepare().then(() => {
       `[boot-timing] listen at ${Date.now()} (+${Date.now() - bootStart}ms from process start)`
     );
     console.log(`> Ready on http://${hostname === "0.0.0.0" ? "localhost" : hostname}:${port}${dev ? " (dev)" : ""}`);
+    runOfficialStyleProofV2BootOnce();
     void runBackgroundInitialization();
   });
 });
