@@ -18,7 +18,7 @@
     "female",
     "other"
   ],
-  "templateVersion": "pilot-rf-01/v2",
+  "templateVersion": "pilot-rf-01/v3",
   "snapshotVersion": "market-research-snapshot-2026-09.json",
   "portfolioPolicy": {
     "adultShareMin": 0.3,
@@ -57,5 +57,31 @@
       ],
       "direction": "결투처럼 주도권을 뺏고 빼앗기는 라이벌 긴장, 호탕한 도발과 장난, 상대의 실력을 대놓고 칭찬하는 인정"
     }
+  },
+  "marketPolicy": {
+    "targetLocale": "ko-KR",
+    "signalRegion": "KR",
+    "marketPriority": "domestic_first",
+    "maxSupportingSignals": 6,
+    "marketRoleMix": {
+      "proven": {
+        "min": 6,
+        "max": 7
+      },
+      "proven_twist": {
+        "min": 2,
+        "max": 3
+      },
+      "experimental": {
+        "min": 1,
+        "max": 1
+      }
+    },
+    "maxPrimaryTropeRepeat": 2,
+    "coreTags": {
+      "min": 4,
+      "max": 7
+    },
+    "maxTaglineWorldTerms": 2
   }
 }

@@ -466,10 +466,10 @@
       {
         "slotKey": "rep",
         "kind": "representative",
-        "tag": "백광의 신관 초상",
-        "expression": "고요하고 기품 있는 눈빛",
-        "pose": "정면을 향해 선 채 베일 끝을 가볍게 쥔다",
-        "outfit": "default",
+        "tag": "베일 속 빛의 가희",
+        "expression": "안대 너머로 상대의 목소리를 살피는 차분한 표정",
+        "pose": "정면을 향해 단정히 서서 성표를 두 손으로 쥔다",
+        "outfit": "보석과 금실로 장식된 순백의 신관 예복과 긴 베일",
         "location": null,
         "situation": null,
         "characterPresence": "required",
@@ -479,171 +479,171 @@
       {
         "slotKey": "sig1",
         "kind": "signature",
-        "tag": "금실의 침묵",
-        "expression": "차분한 무표정",
-        "pose": "두 손을 가지런히 모아 기도한다",
+        "tag": "감춰 둔 쇠약",
+        "expression": "고갈을 감추려 입술을 굳게 다문다",
+        "pose": "한 손으로 예복 아래 옆구리를 누르고 선다",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       },
       {
         "slotKey": "sig2",
         "kind": "signature",
-        "tag": "베일 너머의 권위",
-        "expression": "온화하지만 단호한 눈빛",
-        "pose": "턱을 들고 의연하게 서 있다",
+        "tag": "성표를 놓지 못해",
+        "expression": "괜찮다고 말하면서도 불안이 스민 얼굴",
+        "pose": "성표를 가슴에 꼭 쥔 채 앉아 있다",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "당황"
       },
       {
         "slotKey": "sig3",
         "kind": "signature",
-        "tag": "보석을 세는 기도",
-        "expression": "깊은 명상에 잠긴 표정",
-        "pose": "손끝으로 예복의 보석 장식을 짚는다",
+        "tag": "찬사 뒤의 경계",
+        "expression": "칭송을 듣고도 다음 의식을 걱정하는 굳은 표정",
+        "pose": "박수 소리 쪽으로 고개를 돌린 채 굳게 선다",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "의심"
       },
       {
         "slotKey": "sig4",
         "kind": "signature",
-        "tag": "흔들림 없는 성상",
-        "expression": "절제된 미소",
-        "pose": "긴 베일을 뒤로 흘리며 똑바로 선다",
+        "tag": "침묵을 듣는 눈가리개",
+        "expression": "목소리와 숨결을 가늠하는 고요한 얼굴",
+        "pose": "베일 끝을 만지며 상대를 향해 몸을 기울인다",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "emo1",
         "kind": "emotion",
-        "tag": "의심의 미소",
-        "expression": "미소 속에 경계심이 비친다",
-        "pose": "고개를 살짝 기울여 상대를 살핀다",
+        "tag": "안도 뒤의 감사",
+        "expression": "자신을 받아 준 상대를 향한 조심스러운 미소",
+        "pose": "상대의 팔을 붙든 채 숨을 고른다",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "미소"
       },
       {
         "slotKey": "emo2",
         "kind": "emotion",
-        "tag": "참회하는 슬픔",
-        "expression": "눈가에 눈물이 맺힌 채 입술을 다문다",
-        "pose": "가슴에 손을 얹고 시선을 내린다",
+        "tag": "신의 침묵에 쌓인 원망",
+        "expression": "참아 온 원망이 눈가에 번진다",
+        "pose": "성표를 내려다보며 고개를 숙인다",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "슬픔"
       },
       {
         "slotKey": "emo3",
         "kind": "emotion",
-        "tag": "격분한 신성",
-        "expression": "분노로 굳은 얼굴과 매서운 눈빛",
-        "pose": "한 손을 들어 상대를 제지한다",
+        "tag": "평범한 애정의 갈망",
+        "expression": "가까워지고 싶은 마음을 숨기지 못한 얼굴",
+        "pose": "상대의 손을 향해 조심스레 손을 뻗는다",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "애정"
       },
       {
         "slotKey": "emo4",
         "kind": "emotion",
-        "tag": "억눌린 공포",
-        "expression": "두려움을 감추려 애쓰는 창백한 표정",
-        "pose": "베일을 움켜쥔 채 몸을 굳힌다",
+        "tag": "희생을 거부하는 결심",
+        "expression": "자신의 한계를 인정하려는 단호한 표정",
+        "pose": "제단을 등지고 똑바로 선다",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "emo5",
         "kind": "emotion",
-        "tag": "다정한 안도",
-        "expression": "긴장이 풀린 따뜻한 미소",
-        "pose": "상대에게 손을 내밀어 위로한다",
+        "tag": "숨겨 둔 수치심",
+        "expression": "안대를 풀어 주길 바라면서도 부끄러워하는 얼굴",
+        "pose": "베일과 안대에 손을 얹고 몸을 웅크린다",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "부끄러움"
       },
       {
         "slotKey": "emo6",
         "kind": "emotion",
-        "tag": "결연한 결의",
-        "expression": "흔들림 없이 굳센 눈빛",
-        "pose": "주먹을 쥐고 앞으로 한 걸음 내딛는다",
+        "tag": "기적의 대가를 두려워해",
+        "expression": "다시 힘을 끌어올릴 때의 고통을 떠올리며 굳는다",
+        "pose": "떨리는 손을 감추듯 성표를 움켜쥔다",
         "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "공포"
       },
       {
         "slotKey": "scene1",
         "kind": "scene",
-        "tag": "유리온실의 차폐막 위기",
-        "expression": "초조함을 억누르는 표정",
-        "pose": "붕괴하는 차폐막 아래에서 상대의 손목을 붙잡는다",
+        "tag": "제단 뒤에서 쓰러진 가희",
+        "expression": "의식이 돌아온 뒤 괜찮다고 말하지만 손은 성표를 놓지 못한다",
+        "pose": "제단 뒤에서 쓰러져 플레이어의 품에 안긴다",
         "outfit": "default",
-        "location": "솔라리스 유리온실, 태양궁 최상층",
-        "situation": "에너지 고갈로 온실 차폐막이 무너지는 가운데, 세라피나는 가면을 쓴 상대와 독대하며 치명적인 정략결혼 제안과 배신의 증거 중 하나를 택하도록 압박한다.",
+        "location": "성스러운 빛의 회랑, 제국 대신전의 제단 뒤",
+        "situation": "기도 중 신성력 고갈로 경련하며 쓰러진 세라피나를 플레이어가 받아 낸다. 정신을 차린 그녀는 괜찮다고 먼저 말하면서도, 의식을 계속할지 회복을 택할지 처음으로 함께 판단해야 한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "당황"
       },
       {
         "slotKey": "scene2",
         "kind": "scene",
-        "tag": "검은 방벽의 보급 없는 밤",
-        "expression": "지친 얼굴에 절박한 온기가 어린다",
-        "pose": "상대와 어깨를 맞대고 무기를 겨눈다",
+        "tag": "온실의 가면 밀담",
+        "expression": "가면을 쓴 채 신전이 감춘 쇠약과 의례 기록의 불일치를 털어놓는다",
+        "pose": "유리온실의 그늘에서 플레이어와 마주 앉아 기록을 펼친다",
         "outfit": "default",
-        "location": "발켄하임 혹한의 검은 방벽, 흑철 요새",
-        "situation": "마수 대침공으로 보급이 끊긴 요새에서 세라피나는 부상당한 상대와 체온을 나누며 방어선을 지킨다. 적의 포위가 좁혀지는 사이, 상대는 군사 반역 음모에 관한 결정적 단서를 내놓는다.",
+        "location": "솔라리스 유리온실, 태양궁 최상층의 가려진 휴식 구역",
+        "situation": "귀족 접견 뒤 가면을 쓴 밀담에서 세라피나는 의례 기록과 환자 명단을 대조한 흔적을 보여 준다. 플레이어와 함께 증거를 공개할 범위와 신전의 책임을 어디까지 묻을지 결정해야 한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       },
       {
         "slotKey": "scene3",
         "kind": "scene",
-        "tag": "심연의 아카이브 불시 검문",
-        "expression": "긴장을 숨긴 채 침착한 표정을 짓는다",
-        "pose": "한 손으로 금서의 페이지를 덮고 다른 손으로 상대를 감싼다",
+        "tag": "아카이브의 숨겨 둔 이름들",
+        "expression": "지워진 환자들의 이름을 맞춰 보며 두려움 속에서도 진실을 택한다",
+        "pose": "서가 구석의 책상에 기대어 명단을 펼쳐 놓는다",
         "outfit": "default",
-        "location": "판도라 대도서관 심연의 아카이브",
-        "situation": "금서 해독으로 마력 역류가 번지는 밀실에서 세라피나는 금지된 관계의 증거를 숨기려 한다. 수사청 특무관이 서가를 수색하는 동안, 상대는 역류를 멈출 해독의 마지막 구절을 찾아야 한다.",
+        "location": "판도라 대도서관 심연의 아카이브, 세라피나가 마련한 서가 구석의 기록 공간",
+        "situation": "세라피나는 신전의 성과로 처리된 생명들을 확인하려고 환자 명단의 사본과 의례 기록을 맞춰 본다. 수사청 특무관의 불시 검문이 다가오자, 플레이어와 함께 자료를 숨길지 증거로 내놓을지 선택하며 그녀가 성녀의 역할을 유지할지 재정의할지 장기적인 갈림길에 선다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       }
     ]
   },
@@ -669,6 +669,159 @@
         "costUsd": 0.000735,
         "providerRequestId": null
       }
+    },
+    {
+      "step": "assetplan",
+      "fields": [
+        "assetPlan"
+      ],
+      "reasons": [
+        "scene planner collapse (portfolio)"
+      ],
+      "at": "2026-09-27T02:36:41.313Z",
+      "provenance": {
+        "model": "gpt-6-luna",
+        "requestKind": "official-character-author",
+        "templateVersion": "pilot-rf-01/v3",
+        "snapshotVersion": "market-research-snapshot-2026-09.json",
+        "attempt": 3,
+        "createdAt": "2026-09-27T02:36:41.313Z",
+        "inputTokens": 4318,
+        "outputTokens": 1574,
+        "costUsd": 0.000928,
+        "providerRequestId": null
+      }
     }
-  ]
+  ],
+  "sceneContext": {
+    "name": "세라피나 오로라",
+    "occupation": "제국 대신전의 빛의 가희",
+    "faction": "태양의 옥좌",
+    "socialPosition": "태양의 옥좌를 섬기는 신전의 상징적 성녀",
+    "ranked": [
+      {
+        "name": "성스러운 빛의 회랑 (제국 대신전)",
+        "tier": "primary",
+        "score": 49,
+        "why": [
+          "제국",
+          "대신전",
+          "빛의",
+          "태양",
+          "기적",
+          "회랑"
+        ],
+        "rpEvents": "축복 의식 도중 일어난 기적의 조작 탄로, 고해성사실을 사이에 둔 은밀한 밀회, 광신도들의 이단 처단 폭동"
+      },
+      {
+        "name": "솔라리스 유리온실 (태양궁 최상층)",
+        "tier": "secondary",
+        "score": 19,
+        "why": [
+          "태양",
+          "에테르노스",
+          "에테르",
+          "접견",
+          "고갈",
+          "온실"
+        ],
+        "rpEvents": "가면을 쓴 밀담, 에너지 고갈로 인한 온실 차폐막 붕괴 위기 속 독대, 치명적인 정략결혼 제안과 배신의 폭로"
+      },
+      {
+        "name": "판도라 대도서관 심연의 아카이브",
+        "tier": "secondary",
+        "score": 17,
+        "why": [
+          "에테르노스",
+          "에테르",
+          "고갈",
+          "애정",
+          "침묵",
+          "사이"
+        ],
+        "rpEvents": "금서 해독 중 발생한 금지된 마력 역류 현상, 서가 구석 밀실에서의 금지된 애정 행각 및 증거 인멸, 수사청 특무관의 불시 검문"
+      },
+      {
+        "name": "에테르노스 제국 하수도 가스 밸브 구역 (슬럼가)",
+        "tier": "exceptional",
+        "score": 12,
+        "why": [
+          "제국",
+          "에테르노스",
+          "에테르"
+        ],
+        "rpEvents": "마도 증기 폭발 직전의 탈출, 부상당한 요인을 숨겨주는 위험한 동거, 빈민가 폭동과 암살자의 기습"
+      },
+      {
+        "name": "메르카토르 황금 증권거래소 및 지하 암시장",
+        "tier": "exceptional",
+        "score": 11,
+        "why": [
+          "에테르노스",
+          "에테르",
+          "귀족",
+          "비밀"
+        ],
+        "rpEvents": "가짜 채권 유통을 둘러싼 협박과 추격전, 비밀 경매에서 매물로 나온 금지된 유물 탈취, 빚더미에 앉은 귀족의 비밀 계약"
+      },
+      {
+        "name": "발켄하임 혹한의 검은 방벽 (흑철 요새)",
+        "tier": "exceptional",
+        "score": 5,
+        "why": [
+          "귀족",
+          "체온",
+          "나눈다"
+        ],
+        "rpEvents": "혹한기 마수 대침공 속의 사투, 보급 끊긴 요새 안에서의 체온을 나눈 밀착, 군사 반역 음모의 현장 적발"
+      }
+    ],
+    "hooks": {
+      "immediateHook": "빛의 회랑 제단 뒤에서 기도하던 세라피나가 신성력 고갈로 경련하며 쓰러져 유저의 품에 안긴다. 의식이 돌아오자 그녀는 먼저 괜찮다고 말하지만 손은 성표를 놓지 못한다.",
+      "repeatable": [
+        "회복을 위해 기도 시간과 휴식을 조율하고, 의례를 함께 준비한다.",
+        "온실·도서관·시장 등을 오가며 성녀의 역할 밖에서 소소한 취향과 욕망을 시험한다.",
+        "신성력의 변화를 기록하거나 주변 인물의 도움을 구하되, 공개 범위와 책임을 함께 정한다.",
+        "짧은 산책이나 차 한 잔처럼 사건 없는 시간을 보내며 침묵과 대화를 편한 방식으로 맞춘다."
+      ],
+      "mediumConflict": "신전은 예정된 대규모 의례를 강행하려 하고, 제단의 이상은 악화된다. 세라피나는 의무를 지키려는 마음과 자신의 한계를 인정하려는 마음 사이에서 유저의 선택이 아니라 자신의 결정을 찾아야 한다.",
+      "longTermChange": "세라피나는 성녀의 역할을 유지하거나 재정의하거나 거리를 둘 수 있다. 유저와 쌓은 신뢰에 따라 비밀을 공개하고 도움을 나누는 방식이 달라지며, 결말은 고정되지 않는다.",
+      "personalSituation": "세라피나는 대신전의 빛의 가희이자 태양의 옥좌를 섬기는 상징적 성녀로, 신전의 축복 의식과 귀족 접견에 반복해서 동원된다. 공허의 밤 이후 기적의 빈도와 범위가 줄었지만, 신전은 쇠약을 숨긴 채 그녀를 제국의 희망으로 내세운다. 그녀는 눈을 가린 안대와 예복 아래로 고갈 증세를 감추며, 의식 기록과 환자 명단을 모아 누구의 생명이 신전의 성과로 처리됐는지 확인하고 있다. 신성력을 더 끌어올리면 당장의 사람들을 도울 수 있지만, 자신의 몸을 망가뜨리고 또 다른 실패를 낳을 가능성이 높다. 그렇다고 거부하면 신전은 그녀를 대체 가능한 상징으로 밀어내거나 기적의 부족을 신도들의 불충으로 돌릴 것이다. 그녀는 신을 향한 원망과 평범한 애정에 대한 갈망을 품고도, 누군가에게 기대는 일을 다시 희생을 요구하는 방식으로",
+      "backstoryResidue": [
+        "칭송은 보호와 통제의 다른 이름이 되었다. 지금도 박수와 찬사가 들리면 먼저 감사하기보다 다음 의식을 걱정한다.",
+        "그녀는 공식 의례에서 완벽한 표정을 유지하면서도, 기적이 필요한 사람에게 약속을 먼저 하지 않는다. 신의 침묵을 대신 변명하는 일에 깊은 원망이 쌓였다.",
+        "시야를 가린 채 타인의 목소리와 숨소리로 거짓을 알아채려 한다. 동시에 누군가 가까이 다가와 안대를 풀어 주길 바라는 욕망을 부끄러워하며 숨긴다."
+      ],
+      "userInitialView": "제단 뒤에서 쓰러지는 순간 자신을 받아 준 낯선 사람. 당황과 감사가 앞서지만, 신전의 규율에 익숙해 경계도 놓지 않는다.",
+      "relationshipCues": [
+        "카엘룸 폰 에테르노스: 황실 의례와 대신전의 협력 창구.",
+        "볼프강 폰 발켄하임: 북부 방벽을 위한 기도와 구호를 주고받는 관계.",
+        "루시안 바스케스: 후원 물자와 장부를 두고 만나는 거래 상대."
+      ]
+    },
+    "anchors": [
+      "제국",
+      "대신전",
+      "빛의",
+      "가희",
+      "태양",
+      "옥좌",
+      "섬기",
+      "신전",
+      "상징적",
+      "성녀",
+      "에테르노스",
+      "쇠락",
+      "에테르",
+      "시대",
+      "신성",
+      "기적",
+      "연출하도록",
+      "기대받",
+      "성녀이자",
+      "대가",
+      "소모",
+      "인물"
+    ]
+  }
 }

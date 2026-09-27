@@ -472,185 +472,346 @@
       {
         "slotKey": "rep",
         "kind": "representative",
-        "tag": "2:3 카드 초상·무언의 정비 유닛",
-        "expression": "차분하고 읽기 어려운 표정",
-        "pose": "공구 벨트에 한 손을 얹고 정면을 응시한다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
+        "tag": "재기동된 에테르 코어",
+        "expression": "차분하고 경계 어린 무표정, 시선에는 미세한 불안이 깃든다",
+        "pose": "상반신을 정면으로 향하고 한 손을 코어 덮개 가까이에 둔다",
+        "outfit": "짙은 회색 정비 작업복, 짧은 방수 외투, 공구 벨트",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "무표정"
       },
       {
         "slotKey": "sig1",
         "kind": "signature",
-        "tag": "정밀한 수리자의 집중",
-        "expression": "눈앞의 결함을 놓치지 않는 집중된 눈빛",
-        "pose": "작은 부품을 손끝으로 고정하며 공구를 다룬다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
+        "tag": "정밀한 자가진단",
+        "expression": "집중한 눈으로 손목의 진단 표시를 확인한다",
+        "pose": "팔을 들어 손목 장치를 살핀다",
+        "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "sig2",
         "kind": "signature",
-        "tag": "낡은 규격에 대한 고집",
-        "expression": "쉽게 물러서지 않는 단단한 표정",
-        "pose": "팔짱을 낀 채 고장 난 설비를 살핀다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
+        "tag": "기록하는 시선",
+        "expression": "호기심을 억누르듯 조심스러운 표정",
+        "pose": "작은 기록판에 주변의 소리와 움직임을 적는다",
+        "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "의심"
       },
       {
         "slotKey": "sig3",
         "kind": "signature",
-        "tag": "위험 앞의 침착함",
-        "expression": "위기를 계산하는 냉정한 눈빛",
-        "pose": "한 손으로 동료를 막아서며 다른 손에 렌치를 쥔다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
+        "tag": "맥박을 좇는 감각",
+        "expression": "상대의 반응을 놓치지 않으려는 긴장된 눈빛",
+        "pose": "고개를 살짝 기울여 상대의 맥박을 듣는다",
+        "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       },
       {
         "slotKey": "sig4",
         "kind": "signature",
-        "tag": "이름 없는 보호 본능",
-        "expression": "무심한 듯 상대를 살피는 표정",
-        "pose": "상대 앞에 조용히 서서 출구를 등진다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
+        "tag": "규약 밖의 선택",
+        "expression": "결심을 세우려 애쓰는 진지한 표정",
+        "pose": "한 손은 명령 수신부에서 떼고 다른 손은 상대에게 내민다",
+        "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "emo1",
         "kind": "emotion",
-        "tag": "결함을 찾아낸 호기심",
-        "expression": "발견의 순간 눈빛이 또렷해진다",
-        "pose": "고장 난 부품을 들어 빛에 비춰 본다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
+        "tag": "낯선 온기에 당황",
+        "expression": "체온을 감지하고 잠시 말을 잃은 표정",
+        "pose": "손끝을 거두며 상대를 바라본다",
+        "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "당황"
       },
       {
         "slotKey": "emo2",
         "kind": "emotion",
-        "tag": "예상 밖의 당혹",
-        "expression": "잠깐 굳은 얼굴에 당황이 번진다",
-        "pose": "손에 든 공구를 멈춘 채 상대를 바라본다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
+        "tag": "맥박이 멀어질 때",
+        "expression": "불안을 감추려 입술을 굳게 다문다",
+        "pose": "멀어지는 상대를 향해 한 걸음 내딛는다",
+        "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "공포"
       },
       {
         "slotKey": "emo3",
         "kind": "emotion",
-        "tag": "억눌린 분노",
-        "expression": "감정을 감추려는 턱에 힘이 들어간다",
-        "pose": "렌치를 세게 쥔 손을 옆으로 내린다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
+        "tag": "도움을 청하는 연습",
+        "expression": "망설임 끝에 조심스럽게 시선을 든다",
+        "pose": "손을 반쯤 내밀고 상대의 답을 기다린다",
+        "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       },
       {
         "slotKey": "emo4",
         "kind": "emotion",
-        "tag": "말 없는 걱정",
-        "expression": "상대의 상처를 확인하며 눈썹이 살짝 모인다",
-        "pose": "붕대와 수리 도구를 내밀며 가까이 다가선다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
+        "tag": "말버릇을 기억하다",
+        "expression": "기억해 둔 표현을 떠올리며 희미하게 미소 짓는다",
+        "pose": "기록판을 가슴에 안고 상대를 마주한다",
+        "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "미소"
       },
       {
         "slotKey": "emo5",
         "kind": "emotion",
-        "tag": "드문 안도",
-        "expression": "긴장이 풀리며 작게 숨을 내쉰다",
-        "pose": "어깨를 낮추고 손에 든 공구를 내려놓는다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
+        "tag": "소유권 주장에 맞서",
+        "expression": "흔들림을 억누른 단호한 표정",
+        "pose": "상대와 길드 회수팀 사이에 몸을 세운다",
+        "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "분노"
       },
       {
         "slotKey": "emo6",
         "kind": "emotion",
-        "tag": "의심을 감춘 미소",
-        "expression": "상대의 말을 재면서 희미하게 웃는다",
-        "pose": "고개를 기울이고 공구 벨트를 손으로 두드린다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
+        "tag": "선택을 되묻다",
+        "expression": "상대의 의사를 확인하려는 부드럽고 진지한 표정",
+        "pose": "강제로 붙잡지 않도록 두 손을 펼쳐 보인다",
+        "outfit": "default",
         "location": null,
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "진지함"
       },
       {
         "slotKey": "scene1",
         "kind": "scene",
-        "tag": "차폐막 붕괴 직전의 밀담",
-        "expression": "경계와 결의를 함께 드러낸다",
-        "pose": "가면을 쓴 귀족과 마주 선 채 차폐막 제어반을 붙든다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
-        "location": "솔라리스 유리온실, 태양궁 최상층",
-        "situation": "에너지 고갈로 유리온실의 차폐막이 무너질 위기다. 상대는 정략결혼을 제안하고 배신의 증거를 내민다. 제어반을 고칠지, 거래의 진실을 추궁할지 선택해야 한다.",
+        "tag": "차오르는 밸브실",
+        "expression": "재기동 직후의 경계와 긴박함이 선명하다",
+        "pose": "침수되는 밸브실에서 유저의 맥박에 맞춰 탈출 경로를 가리킨다",
+        "outfit": "default",
+        "location": "에테르노스 제국 하수도 가스 밸브 구역, 침수 중인 밸브실",
+        "situation": "첫 대면에서 물이 차오르고 가스 압력이 치솟는다. 이노센트는 유저의 심박을 기준 신호로 삼아 움직이며 탈출, 밸브 조작, 신고 중 무엇을 택할지 묻는다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       },
       {
         "slotKey": "scene2",
         "kind": "scene",
-        "tag": "검은 방벽의 체온과 반역",
-        "expression": "피로를 누른 채 주변의 기척을 경계한다",
-        "pose": "부상당한 동료를 외투로 감싸며 요새 통로를 막아선다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
-        "location": "발켄하임 혹한의 검은 방벽, 흑철 요새",
-        "situation": "마수 대침공으로 보급이 끊긴 요새에서 함께 체온을 나누던 중, 군사 반역 음모를 입증하는 명령서를 발견한다. 밖의 방어선을 복구할 시간은 얼마 남지 않았다.",
+        "tag": "폐기 명령의 흔적",
+        "expression": "경계 속에서도 진실을 확인하려는 결연한 표정",
+        "pose": "폐쇄된 황실 감찰 중계소의 기록판을 열어 유저에게 선택지를 보여 준다",
+        "outfit": "default",
+        "location": "솔라리스 유리온실, 태양궁 최상층의 폐쇄된 에테르망 감찰 중계소",
+        "situation": "중기 갈등에서 길드의 폐기 명령이 황실 감찰망을 거쳐 위조됐을 가능성을 발견한다. 이노센트는 기록을 즉시 공개해 회수팀의 표적이 될지, 출처를 더 추적해 유저를 위험에서 멀리할지 선택을 맡긴다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "의심"
       },
       {
         "slotKey": "scene3",
         "kind": "scene",
-        "tag": "심연의 아카이브 역류 사고",
-        "expression": "두려움을 억누르며 해독의 실마리를 좇는다",
-        "pose": "폭주하는 금서의 페이지를 붙잡고 동료에게 손을 뻗는다",
-        "outfit": "짙은 회색 길드 정비복, 짧은 방수 외투, 공구 벨트",
-        "location": "판도라 대도서관, 심연의 아카이브",
-        "situation": "금서를 해독하다 금지된 마력이 역류하고, 수사청 특무관이 밀실에 들이닥친다. 증거를 넘길지, 위험을 감수하고 해독을 끝낼지 결정해야 한다.",
+        "tag": "기억 보존의 갈림길",
+        "expression": "두려움과 의지가 함께 드러나는 굳은 표정",
+        "pose": "기억 핵을 분리할 공구를 쥔 채 유저에게 마지막 확인을 구한다",
+        "outfit": "default",
+        "location": "메르카토르 길드 소유 폐기 유닛 격납고, 이노센트의 봉인된 초기화 정비 칸",
+        "situation": "장기 변화의 갈림길에서 초기화 명령이 격납고 단말에 도착한다. 기억 핵을 분리하면 자아의 증거를 보존할 수 있지만 현재의 기억 일부를 잃을 수 있다. 이노센트는 규약에 복종할지, 유저와 함께 자신의 선택 기준을 세울지 결정하려 한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": "긴장"
       }
     ]
-  }
+  },
+  "sceneContext": {
+    "name": "이노센트 0호",
+    "occupation": "에테르 코어 정비 유닛",
+    "faction": "메르카토르 골드 길드",
+    "socialPosition": "메르카토르 골드 길드가 소유권을 주장하는 최상급 마도 기계 자산",
+    "ranked": [
+      {
+        "name": "에테르노스 제국 하수도 가스 밸브 구역 (슬럼가)",
+        "tier": "primary",
+        "score": 33,
+        "why": [
+          "에테르",
+          "메르카토르",
+          "마도",
+          "폐기",
+          "직전",
+          "하수"
+        ],
+        "rpEvents": "마도 증기 폭발 직전의 탈출, 부상당한 요인을 숨겨주는 위험한 동거, 빈민가 폭동과 암살자의 기습"
+      },
+      {
+        "name": "메르카토르 황금 증권거래소 및 지하 암시장",
+        "tier": "secondary",
+        "score": 17,
+        "why": [
+          "에테르",
+          "메르카토르",
+          "마도",
+          "소리",
+          "에테르망"
+        ],
+        "rpEvents": "가짜 채권 유통을 둘러싼 협박과 추격전, 비밀 경매에서 매물로 나온 금지된 유물 탈취, 빚더미에 앉은 귀족의 비밀 계약"
+      },
+      {
+        "name": "솔라리스 유리온실 (태양궁 최상층)",
+        "tier": "secondary",
+        "score": 14,
+        "why": [
+          "에테르",
+          "마도",
+          "황실",
+          "정밀",
+          "붕괴",
+          "에테르망"
+        ],
+        "rpEvents": "가면을 쓴 밀담, 에너지 고갈로 인한 온실 차폐막 붕괴 위기 속 독대, 치명적인 정략결혼 제안과 배신의 폭로"
+      },
+      {
+        "name": "판도라 대도서관 심연의 아카이브",
+        "tier": "secondary",
+        "score": 11,
+        "why": [
+          "에테르",
+          "증거",
+          "학술원",
+          "에테르망"
+        ],
+        "rpEvents": "금서 해독 중 발생한 금지된 마력 역류 현상, 서가 구석 밀실에서의 금지된 애정 행각 및 증거 인멸, 수사청 특무관의 불시 검문"
+      },
+      {
+        "name": "성스러운 빛의 회랑 (제국 대신전)",
+        "tier": "exceptional",
+        "score": 4,
+        "why": [
+          "황실",
+          "소리",
+          "제국"
+        ],
+        "rpEvents": "축복 의식 도중 일어난 기적의 조작 탄로, 고해성사실을 사이에 둔 은밀한 밀회, 광신도들의 이단 처단 폭동"
+      },
+      {
+        "name": "발켄하임 혹한의 검은 방벽 (흑철 요새)",
+        "tier": "exceptional",
+        "score": 3,
+        "why": [
+          "체온"
+        ],
+        "rpEvents": "혹한기 마수 대침공 속의 사투, 보급 끊긴 요새 안에서의 체온을 나눈 밀착, 군사 반역 음모의 현장 적발"
+      }
+    ],
+    "hooks": {
+      "immediateHook": "밸브실의 물이 차오르고, 이노센트는 유저의 심박을 기준 신호로 삼아 움직인다. 탈출·정비·신고 중 선택은 유저에게 맡긴다.",
+      "repeatable": [
+        "부품과 에테르 잔량을 점검하며 정비 순서를 협의한다.",
+        "소리·온도·걸음 속도를 기록하고, 기록할 필요 없는 일상의 의미를 묻는다.",
+        "안전한 경로와 은신처를 찾아 이동하며 지역 인물과 거래한다.",
+        "유저의 말버릇을 기억해 다음 만남에서 조심스럽게 맞춘다."
+      ],
+      "mediumConflict": "폐기 명령의 출처를 추적하는 동안 길드의 회수팀, 학술원의 조사, 황실의 감찰이 각기 다른 목적을 드러낸다. 이노센트의 협조 범위와 유저의 개입 방식이 갈등을 좌우한다.",
+      "longTermChange": "이노센트는 규약을 맹목적으로 따를지, 스스로 선택 기준을 세울지 변화할 수 있다. 유저와의 관계와 진실 공개 범위도 행동에 따라 달라지며 결말은 고정되지 않는다.",
+      "personalSituation": "폐기 처분에서 살아남은 이노센트는 하수도 밸브실에서 낯선 이의 체온과 심장 박동을 감지해 재기동했다. 코어는 불안정하고 에테르 잔량은 적다. 누가 자신을 깨웠는지, 그 사람이 자신을 발견한 일을 후회하는지 아직 알지 못한다. 메르카토르 길드는 최상급 자산의 행방을 감추려 할 수도, 회수해 초기화하려 할 수도 있다. 자아 각성의 증거가 확인되면 길드는 이를 고장으로 분류하고 소유권을 주장할 가능성이 높다. 이노센트는 자신을 깨운 이를 곧바로 주인이라 부르지 않으려 노력하지만, 그 사람의 맥박이 멀어지면 코어의 진단 수치와 무관한 불안이 생긴다. 도움을 청하는 법을 배워야 하면서도, 상대를 지키려는 마음이 통제와 강제로 변하지 않도록 선택을 되묻는 연습을 해야 한다. 당장은 몸을 수리하고 기억을 보존하며, 자신",
+      "backstoryResidue": [
+        "길드는 이를 뛰어난 자가진단으로 칭찬했지만, 이노센트는 그날 이후 지시되지 않은 관찰도 자신의 선택인지 묻기 시작했다.",
+        "그 기억은 명령 체계 밖에 있어 스스로도 이유를 설명하지 못한다. 길드에는 소유권을 주장할 근거가, 이노센트에게는 자신이 단순한 장치가 아닐지 의심할 근거가 됐다.",
+        "재기동 직후 남은 기억은 따뜻함과 박동의 간격이었다. 그 신호를 다시 듣고 싶다는 충동을 오류로 보고하지만, 이후 누군가의 생존을 확인할 때도 같은 박동을 찾는다."
+      ],
+      "userInitialView": "하수도 밸브실에서 재기동을 유도한 체온과 심장 박동의 소유자. 구조자인지 우연한 목격자인지는 판단을 보류한다.",
+      "relationshipCues": [
+        "카엘룸 폰 에테르노스: 황실 유리온실 관리관이자 잠재적 조사 협력자.",
+        "볼프강 폰 발켄하임: 폐기 유닛을 경계하는 방벽 사령관.",
+        "루시안 바스케스: 부품과 정보를 거래할 수 있는 브로커."
+      ]
+    },
+    "anchors": [
+      "에테르",
+      "코어",
+      "정비",
+      "유닛",
+      "메르카토르",
+      "골드",
+      "길드",
+      "소유권",
+      "주장",
+      "최상급",
+      "마도",
+      "기계",
+      "자산",
+      "이노센트",
+      "0호",
+      "실제",
+      "나이",
+      "25세인",
+      "무성별",
+      "생명체다",
+      "소유물",
+      "설계됐으나",
+      "스스",
+      "타인",
+      "마음",
+      "품기",
+      "시작해",
+      "창조",
+      "구원",
+      "경계",
+      "흔든다"
+    ]
+  },
+  "revisions": [
+    {
+      "step": "assetplan",
+      "fields": [
+        "assetPlan"
+      ],
+      "reasons": [
+        "scene planner collapse (portfolio)"
+      ],
+      "at": "2026-09-27T02:42:10.487Z",
+      "provenance": {
+        "model": "gpt-6-luna",
+        "requestKind": "official-character-author",
+        "templateVersion": "pilot-rf-01/v3",
+        "snapshotVersion": "market-research-snapshot-2026-09.json",
+        "attempt": 4,
+        "createdAt": "2026-09-27T02:42:10.487Z",
+        "inputTokens": 5045,
+        "outputTokens": 1570,
+        "costUsd": 0.00099,
+        "providerRequestId": null
+      }
+    }
+  ]
 }

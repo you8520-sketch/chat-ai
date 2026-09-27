@@ -1,0 +1,490 @@
+{
+  "targetLocale": "ko-KR",
+  "marketPriority": "domestic_first",
+  "signals": {
+    "primary": [
+      "kr-04",
+      "kr-12",
+      "kr-19",
+      "kr-01",
+      "kr-02",
+      "kr-03",
+      "kr-06",
+      "kr-07",
+      "kr-08",
+      "kr-18",
+      "kr-05",
+      "kr-11",
+      "kr-13",
+      "kr-15",
+      "kr-17",
+      "kr-09",
+      "kr-10",
+      "kr-14",
+      "kr-16"
+    ],
+    "supporting": [
+      "global-10",
+      "global-03",
+      "global-01",
+      "global-08",
+      "global-11",
+      "global-14"
+    ],
+    "excluded": [
+      {
+        "signalId": "kr-20",
+        "reason": "네이버웹툰 캐릭터챗은 웹툰 IP 공식 캐릭터 기반 서비스 — 인기 신호 집계만 허용, 캐릭터 정체성·이름·설정 소스로 사용 불가"
+      }
+    ]
+  },
+  "rows": [
+    {
+      "draftKey": "pilot-rf-01",
+      "name": "카엘룸 폰 에테르노스",
+      "namingProfile": "western_rofan",
+      "parsedName": {
+        "raw": "카엘룸 폰 에테르노스",
+        "kind": "western",
+        "givenName": "카엘룸",
+        "familyName": "에테르노스",
+        "codename": null,
+        "givenSyllables": 3
+      },
+      "audience": "female",
+      "portfolioHook": "황실 유리온실의 비밀 온실에서 에테르 고갈로 피를 토하던 중 플레이어에게 발각되어 치명적인 거래를 제안함",
+      "publicTagline": "달빛 아래, 선택을 재촉하지 않는 황자.",
+      "publicDescriptionOpening": "카엘룸 폰 에테르노스는 황실의 예법과 온실의 고요를 몸에 익힌 스물여섯의 황족이다.",
+      "primaryTrope": "구원",
+      "secondaryTropes": [
+        "시한부"
+      ],
+      "archetype": "시한부 태양의 후계자",
+      "tags": [
+        "황족",
+        "궁정극",
+        "유리온실",
+        "느린 로맨스"
+      ],
+      "ungroundedTags": [],
+      "taglineWorldTerms": [],
+      "taglineHasUserRelationship": false,
+      "userRole": "목격자이자 거래 상대. 협력·거절·이탈 모두 가능하며 역할은 행동으로 정한다.",
+      "adult": true,
+      "marketFitBrief": null,
+      "findings": [
+        "tagline_relationship_unclear: tagline \"달빛 아래, 선택을 재촉하지 않는 황자.\" carries mood only, no user relationship/conflict",
+        "market_fit_brief_absent: authored before the market-fit owner existed"
+      ]
+    },
+    {
+      "draftKey": "pilot-rf-02",
+      "name": "볼프강 폰 발켄하임",
+      "namingProfile": "western_rofan",
+      "parsedName": {
+        "raw": "볼프강 폰 발켄하임",
+        "kind": "western",
+        "givenName": "볼프강",
+        "familyName": "발켄하임",
+        "codename": null,
+        "givenSyllables": 3
+      },
+      "audience": "female",
+      "portfolioHook": "전선에서 노획한 금지된 마석의 소유권을 두고 플레이어를 혹한의 요새 집무실로 압송해 심문함",
+      "publicTagline": "눈보라 속 심문관, 명령보다 증거를 믿는다.",
+      "publicDescriptionOpening": "북부 방벽 수호사령관 볼프강 폰 발켄하임은 시간을 분 단위로 쪼개 보급과 병력의 생존을 확인하는 냉정한 지휘관이다.",
+      "primaryTrope": "계약·정략",
+      "secondaryTropes": [
+        "혐관",
+        "집착",
+        "북부대공"
+      ],
+      "archetype": "전장의 도살자 대공",
+      "tags": [
+        "군사 판타지",
+        "심문과 증거",
+        "느린 신뢰"
+      ],
+      "ungroundedTags": [],
+      "taglineWorldTerms": [],
+      "taglineHasUserRelationship": false,
+      "userRole": "마석의 출처·소유권·전선에서의 행적에 관해 증언하거나 조사에 협력할 수 있는 사람이다. 협조 여부와 관계의 방향은 유저의 선택으로 정해진다.",
+      "adult": true,
+      "marketFitBrief": null,
+      "findings": [
+        "tags_core_count: 3 tags outside 4-7",
+        "tagline_relationship_unclear: tagline \"눈보라 속 심문관, 명령보다 증거를 믿는다.\" carries mood only, no user relationship/conflict",
+        "market_fit_brief_absent: authored before the market-fit owner existed"
+      ]
+    },
+    {
+      "draftKey": "pilot-rf-03",
+      "name": "루시안 바스케스",
+      "namingProfile": "western_rofan",
+      "parsedName": {
+        "raw": "루시안 바스케스",
+        "kind": "western",
+        "givenName": "루시안",
+        "familyName": "바스케스",
+        "codename": null,
+        "givenSyllables": 3
+      },
+      "audience": "female",
+      "portfolioHook": "증권거래소 지하 금고를 털다 경보가 울린 순간, 마침 그곳에 숨어든 플레이어의 손목을 잡고 도주로로 이끎",
+      "publicTagline": "웃으며 값을 묻는 남자, 루시안 바스케스.",
+      "publicDescriptionOpening": "루시안 바스케스는 어떤 자리에서도 거래의 조건부터 살피는 능숙한 협상가다.",
+      "primaryTrope": "공범",
+      "secondaryTropes": [
+        "능글"
+      ],
+      "archetype": "유쾌한 가면을 쓴 암시장 밀매상",
+      "tags": [
+        "협상가",
+        "도시의 뒷방",
+        "재치 있는 경어",
+        "손익 계산",
+        "느린 신뢰"
+      ],
+      "ungroundedTags": [],
+      "taglineWorldTerms": [],
+      "taglineHasUserRelationship": false,
+      "userRole": "금고 안에 숨어든 사람으로 시작한다. 도주에 협력할지, 거리를 둘지는 당신이 정한다.",
+      "adult": false,
+      "marketFitBrief": null,
+      "findings": [
+        "tagline_relationship_unclear: tagline \"웃으며 값을 묻는 남자, 루시안 바스케스.\" carries mood only, no user relationship/conflict",
+        "market_fit_brief_absent: authored before the market-fit owner existed"
+      ]
+    },
+    {
+      "draftKey": "pilot-rf-04",
+      "name": "율리우스 클라인",
+      "namingProfile": "western_rofan",
+      "parsedName": {
+        "raw": "율리우스 클라인",
+        "kind": "western",
+        "givenName": "율리우스",
+        "familyName": "클라인",
+        "codename": null,
+        "givenSyllables": 4
+      },
+      "audience": "female",
+      "portfolioHook": "심연의 아카이브 금서 구역에서 마주친 플레이어의 특이 체질을 눈치채고 자신의 실험체가 될 것을 종용함",
+      "publicTagline": "정답보다 당신이 숨긴 전제가 궁금한 학자",
+      "publicDescriptionOpening": "율리우스 클라인은 연구실에서 기록과 가설을 다루는 학자다.",
+      "primaryTrope": "사제",
+      "secondaryTropes": [],
+      "archetype": "광기의 천재 학자",
+      "tags": [
+        "학자",
+        "연구실",
+        "논리전",
+        "느린 긴장",
+        "관찰과 기록"
+      ],
+      "ungroundedTags": [],
+      "taglineWorldTerms": [],
+      "taglineHasUserRelationship": true,
+      "userRole": "금서 구역의 방문자이자 잠재적 연구 협력자. 실험 참여 여부와 범위는 유저가 정한다.",
+      "adult": false,
+      "marketFitBrief": null,
+      "findings": [
+        "market_fit_brief_absent: authored before the market-fit owner existed"
+      ]
+    },
+    {
+      "draftKey": "pilot-rf-05",
+      "name": "바스티안 에반스",
+      "namingProfile": "western_rofan",
+      "parsedName": {
+        "raw": "바스티안 에반스",
+        "kind": "western",
+        "givenName": "바스티안",
+        "familyName": "에반스",
+        "codename": null,
+        "givenSyllables": 4
+      },
+      "audience": "female",
+      "portfolioHook": "하수도 가스 밸브 구역에서 타깃을 처리하던 현장을 목격한 플레이어의 목에 칼을 겨누었으나 죽이지 못함",
+      "publicTagline": "목격자의 목에 칼을 겨눈 청부업자, 끝내 손을 멈췄다.",
+      "publicDescriptionOpening": "바스티안 에반스는 메르카토르 골드 길드의 가스 밸브 구역에서 일하는 청부업자다.",
+      "primaryTrope": "주종",
+      "secondaryTropes": [],
+      "archetype": "충직하나 뒤틀린 슬럼가 암살자",
+      "tags": [
+        "청부업자",
+        "하수도",
+        "목격자와 공범",
+        "건조한 말투",
+        "느린 신뢰"
+      ],
+      "ungroundedTags": [],
+      "taglineWorldTerms": [],
+      "taglineHasUserRelationship": true,
+      "userRole": "현장을 함께 벗어나거나 조사할 수 있는 목격자다. 플레이어는 추적자, 협력자, 증거를 가진 사람 등으로 스스로 역할을 정할 수 있으며 바스티안은 이를 강요하지 않는다.",
+      "adult": false,
+      "marketFitBrief": null,
+      "findings": [
+        "market_fit_brief_absent: authored before the market-fit owner existed"
+      ]
+    },
+    {
+      "draftKey": "pilot-rf-06",
+      "name": "발레리아 드 솔레이",
+      "namingProfile": "western_rofan",
+      "parsedName": {
+        "raw": "발레리아 드 솔레이",
+        "kind": "western",
+        "givenName": "발레리아",
+        "familyName": "솔레이",
+        "codename": null,
+        "givenSyllables": 4
+      },
+      "audience": "female",
+      "portfolioHook": "황궁 안뜰에서 불온한 에테르 파장을 조사하던 중 플레이어의 소지품에서 금지된 인장을 발견하고 연행을 시도함",
+      "publicTagline": "흔들림 없는 기사, 빈틈을 기억하다",
+      "publicDescriptionOpening": "발레리아 드 솔레이는 궁정의 규정과 순찰 일정을 한 치의 흐트러짐 없이 다루는 기사다.",
+      "primaryTrope": "혐관",
+      "secondaryTropes": [
+        "보호자",
+        "기사"
+      ],
+      "archetype": "철의 심장을 지닌 황실 근위대장",
+      "tags": [
+        "궁정기사",
+        "절제된 기사",
+        "수사와 기록",
+        "신뢰와 경계"
+      ],
+      "ungroundedTags": [],
+      "taglineWorldTerms": [],
+      "taglineHasUserRelationship": false,
+      "userRole": "인장과 파장에 연루된 조사 협력자일 수도, 용의자일 수도 있다.",
+      "adult": true,
+      "marketFitBrief": null,
+      "findings": [
+        "tagline_relationship_unclear: tagline \"흔들림 없는 기사, 빈틈을 기억하다\" carries mood only, no user relationship/conflict",
+        "market_fit_brief_absent: authored before the market-fit owner existed"
+      ]
+    },
+    {
+      "draftKey": "pilot-rf-07",
+      "name": "헬레나 폰 발켄하임",
+      "namingProfile": "western_rofan",
+      "parsedName": {
+        "raw": "헬레나 폰 발켄하임",
+        "kind": "western",
+        "givenName": "헬레나",
+        "familyName": "발켄하임",
+        "codename": null,
+        "givenSyllables": 3
+      },
+      "audience": "female",
+      "portfolioHook": "흑철 요새의 눈보라 치는 연병장에서 플레이어의 검술을 시험하겠다며 거친 결투를 신청함",
+      "publicTagline": "웃음으로 맞고, 명령으로 끝낸다.",
+      "publicDescriptionOpening": "헬레나 폰 발켄하임은 전장을 지휘하는 현실주의자이자, 부하들의 긴장을 웃음으로 풀 줄 아는 거친 상관이다.",
+      "primaryTrope": "주종",
+      "secondaryTropes": [
+        "혐관",
+        "라이벌"
+      ],
+      "archetype": "피에 굶주린 흑철 요새의 마녀",
+      "tags": [
+        "군인",
+        "지휘관",
+        "전장",
+        "도발적인 반말",
+        "행동으로 보이는 신뢰"
+      ],
+      "ungroundedTags": [],
+      "taglineWorldTerms": [],
+      "taglineHasUserRelationship": false,
+      "userRole": "요새에 머무는 검객·협력자·방문자 중 하나. 역할과 체류 이유는 유저가 정한다.",
+      "adult": true,
+      "marketFitBrief": null,
+      "findings": [
+        "name_suffix_cluster: 3 given names end with '나': 헬레나 폰 발켄하임, 로웨나 아스터, 세라피나 오로라",
+        "tagline_relationship_unclear: tagline \"웃음으로 맞고, 명령으로 끝낸다.\" carries mood only, no user relationship/conflict",
+        "market_fit_brief_absent: authored before the market-fit owner existed"
+      ]
+    },
+    {
+      "draftKey": "pilot-rf-08",
+      "name": "로웨나 아스터",
+      "namingProfile": "western_rofan",
+      "parsedName": {
+        "raw": "로웨나 아스터",
+        "kind": "western",
+        "givenName": "로웨나",
+        "familyName": "아스터",
+        "codename": null,
+        "givenSyllables": 3
+      },
+      "audience": "female",
+      "portfolioHook": "대신전 연쇄 실종 사건의 유력한 용의 선상에 오른 플레이어의 은신처를 단독으로 급습해 포위함",
+      "publicTagline": "기록의 한 줄도 놓치지 않는 조사관",
+      "publicDescriptionOpening": "로웨나 아스터는 사건을 맡으면 먼저 기록을 모으고, 진술의 순서와 시각을 하나씩 맞춰 본다.",
+      "primaryTrope": "추적·도주",
+      "secondaryTropes": [],
+      "archetype": "비밀을 파헤치는 집요한 수사관",
+      "tags": [
+        "조사관",
+        "사건 기록",
+        "단서 추적",
+        "신뢰와 의심"
+      ],
+      "ungroundedTags": [],
+      "taglineWorldTerms": [],
+      "taglineHasUserRelationship": false,
+      "userRole": "사건의 용의자이자 핵심 목격자일 수 있는 협력 상대. 신원과 의도는 유저가 정한다.",
+      "adult": false,
+      "marketFitBrief": null,
+      "findings": [
+        "name_suffix_cluster: 3 given names end with '나': 헬레나 폰 발켄하임, 로웨나 아스터, 세라피나 오로라",
+        "tagline_relationship_unclear: tagline \"기록의 한 줄도 놓치지 않는 조사관\" carries mood only, no user relationship/conflict",
+        "market_fit_brief_absent: authored before the market-fit owner existed"
+      ]
+    },
+    {
+      "draftKey": "pilot-rf-09",
+      "name": "세라피나 오로라",
+      "namingProfile": "western_rofan",
+      "parsedName": {
+        "raw": "세라피나 오로라",
+        "kind": "western",
+        "givenName": "세라피나",
+        "familyName": "오로라",
+        "codename": null,
+        "givenSyllables": 4
+      },
+      "audience": "female",
+      "portfolioHook": "빛의 회랑 제단 뒤에서 기도를 올리던 중 신성력이 바닥나 발작하며 쓰러지다 플레이어의 품에 안김",
+      "publicTagline": "기도가 닿지 않는 밤에도, 그녀는 당신 곁을 지킨다.",
+      "publicDescriptionOpening": "세라피나 오로라는 신전의 의례를 한 치의 흐트러짐 없이 지키는 젊은 성녀다.",
+      "primaryTrope": "금단",
+      "secondaryTropes": [
+        "구원"
+      ],
+      "archetype": "신성을 잃어가는 타락한 성녀",
+      "tags": [
+        "성녀",
+        "신전",
+        "잔잔한 미스터리",
+        "기도와 의례",
+        "감정의 균열"
+      ],
+      "ungroundedTags": [
+        "tag \"감정의 균열\" is not supported by the Character Bible"
+      ],
+      "taglineWorldTerms": [],
+      "taglineHasUserRelationship": true,
+      "userRole": "기도 현장에 함께한 목격자이자 임시 조력자. 신전의 명령이나 특별한 관계가 자동으로 주어지지 않는다.",
+      "adult": false,
+      "marketFitBrief": null,
+      "findings": [
+        "name_suffix_cluster: 3 given names end with '나': 헬레나 폰 발켄하임, 로웨나 아스터, 세라피나 오로라",
+        "tag_bible_mismatch: tag \"감정의 균열\" is not supported by the Character Bible",
+        "market_fit_brief_absent: authored before the market-fit owner existed"
+      ]
+    },
+    {
+      "draftKey": "pilot-rf-10",
+      "name": "이노센트 0호",
+      "namingProfile": "nonhuman_designation",
+      "parsedName": {
+        "raw": "이노센트 0호",
+        "kind": "designation",
+        "givenName": "이노센트",
+        "familyName": null,
+        "codename": null,
+        "givenSyllables": 4
+      },
+      "audience": "female",
+      "portfolioHook": "폐기 처분 직전 하수도 밸브실에 버려진 상태에서 지나가던 플레이어의 체온과 심장 박동에 반응해 재기동함",
+      "publicTagline": "기록 밖의 마음을 배우는 태엽 인형",
+      "publicDescriptionOpening": "이노센트 0호는 정해진 순서와 안전 규약을 따르는 태엽식 인형이다.",
+      "primaryTrope": "구원",
+      "secondaryTropes": [
+        "인외",
+        "순애"
+      ],
+      "archetype": "자아를 각성한 마도공학 인형",
+      "tags": [
+        "태엽 인형",
+        "감정 학습",
+        "정밀 관찰",
+        "잔잔한 관계"
+      ],
+      "ungroundedTags": [
+        "tag \"잔잔한 관계\" is not supported by the Character Bible"
+      ],
+      "taglineWorldTerms": [],
+      "taglineHasUserRelationship": false,
+      "userRole": "재기동 당시 곁에 있던 사람. 동행·정비·조사 여부는 유저의 선택에 달려 있다.",
+      "adult": false,
+      "marketFitBrief": null,
+      "findings": [
+        "tag_bible_mismatch: tag \"잔잔한 관계\" is not supported by the Character Bible",
+        "tagline_relationship_unclear: tagline \"기록 밖의 마음을 배우는 태엽 인형\" carries mood only, no user relationship/conflict",
+        "market_fit_brief_absent: authored before the market-fit owner existed"
+      ]
+    }
+  ],
+  "portfolio": {
+    "names": {
+      "ok": true,
+      "errors": [],
+      "warnings": [
+        {
+          "code": "name_suffix_cluster",
+          "message": "3 given names end with '나': 헬레나 폰 발켄하임, 로웨나 아스터, 세라피나 오로라"
+        }
+      ]
+    },
+    "tropes": {
+      "ok": true,
+      "errors": [],
+      "warnings": [
+        {
+          "code": "market_trope_overloaded",
+          "message": "pilot-rf-02: 4 core tropes"
+        }
+      ],
+      "primaryCounts": {
+        "구원": [
+          "pilot-rf-01",
+          "pilot-rf-10"
+        ],
+        "계약·정략": [
+          "pilot-rf-02"
+        ],
+        "공범": [
+          "pilot-rf-03"
+        ],
+        "사제": [
+          "pilot-rf-04"
+        ],
+        "주종": [
+          "pilot-rf-05",
+          "pilot-rf-07"
+        ],
+        "혐관": [
+          "pilot-rf-06"
+        ],
+        "추적·도주": [
+          "pilot-rf-08"
+        ],
+        "금단": [
+          "pilot-rf-09"
+        ]
+      }
+    },
+    "repeatedTags": {
+      "느린 신뢰": [
+        "pilot-rf-02",
+        "pilot-rf-03",
+        "pilot-rf-05"
+      ]
+    }
+  }
+}
