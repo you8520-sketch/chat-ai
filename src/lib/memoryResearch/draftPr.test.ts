@@ -11,7 +11,7 @@ import type { ResearchCandidate } from "@/lib/memoryResearch/types";
 const MAIN_SHA = "0123456789abcdef0123456789abcdef01234567";
 const HEAD_SHA = "fedcba9876543210fedcba9876543210fedcba98";
 
-async function acceptedPacket(): Promise<DraftPrPacket> {
+async function acceptedPacket(cycleKey = "weekly-2026-W40", version = "v1.0.0"): Promise<DraftPrPacket> {
   const adapter = wideSyntheticAdapter("github:fixture/wide");
   const b = await runLabBaseline();
   const c = await runLabArm({ ...adapter.buildMode(), strict: false });
@@ -25,7 +25,7 @@ async function acceptedPacket(): Promise<DraftPrPacket> {
     sourceKind: "github_repository",
     sourceUrl: "https://github.com/fixture/wide",
     title: "fixture/wide",
-    version: "v1.0.0",
+    version,
     discoveredAt: "2026-09-28T01:17:00Z",
     lastSeenAt: "2026-09-28T01:17:00Z",
     summary: "",
@@ -45,7 +45,7 @@ async function acceptedPacket(): Promise<DraftPrPacket> {
     evaluations: [],
     draftPrUrl: null,
   };
-  return buildDraftPrPacket({ candidate, adapter, gate, baseline, experiment, cycleKey: "weekly-2026-W40", mainSha: MAIN_SHA });
+  return buildDraftPrPacket({ candidate, adapter, gate, baseline, experiment, cycleKey, mainSha: MAIN_SHA });
 }
 
 function recorder(responses: Record<string, string> = {}) {
@@ -84,6 +84,14 @@ it("ACCEPTED packet → branch off exact main, commit packet, gh pr create --dra
   assert.match(prBody, new RegExp(`main: \`${MAIN_SHA}\``));
   assert.match(prBody, new RegExp(`head: \`${HEAD_SHA}\``));
   assert.ok(!prBody.includes(HEAD_PLACEHOLDER));
+});
+
+it("accepted Draft branch is evaluation-scoped so a prior pushed branch cannot block next-cycle retry", async () => {
+  const first = await acceptedPacket("weekly-2026-W40");
+  const retry = await acceptedPacket("weekly-2026-W41");
+  assert.notEqual(first.branch, retry.branch);
+  assert.match(first.branch, /v1-0-0-weekly-2026-w40$/);
+  assert.match(retry.branch, /v1-0-0-weekly-2026-w41$/);
 });
 
 it("existing open Draft PR for the branch is reused; non-ACCEPTED or incomplete packets are refused", async () => {
