@@ -84,7 +84,6 @@ describe("character hair canon fact", () => {
       "facial_hair=canon; body_hair=none"
     );
     assert.match(appearanceSection(system), /facial_hair=canon; body_hair=none/);
-    assert.match(appearanceSection(system), /facial_hair=canon; body_hair=none/);
     assert.doesNotMatch(appearanceSection(system), /facial_hair=none/);
   });
 
@@ -119,6 +118,7 @@ describe("character hair canon fact", () => {
       gender: "female",
       appearance: "키 175cm, 짧게 다듬은 턱수염.",
     });
+    assert.match(appearanceSection(system), /facial_hair=canon; body_hair=none/);
     assert.doesNotMatch(appearanceSection(system), /facial_hair=none/);
   });
 });
