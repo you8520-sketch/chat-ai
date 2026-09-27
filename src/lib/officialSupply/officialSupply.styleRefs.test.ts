@@ -15,8 +15,10 @@ import {
   PILOT_STYLE_PROOF_SOURCE_STYLE_KEY,
 } from "@/lib/officialSupply/pilotStyleProof";
 import {
+  buildUserOwnedRofanProofDraft,
   buildUserOwnedRofanStyleSeed,
   PILOT_STYLE_PROOF_V3_BATCH_KEY,
+  PILOT_STYLE_PROOF_V3_DRAFT_KEYS,
   PILOT_STYLE_PROOF_V3_STYLE_KEY,
   USER_OWNED_ROFAN_HOLDOUT_PATHS,
   USER_OWNED_ROFAN_PRIMARY_GENERATION_PATHS,
@@ -28,6 +30,7 @@ const SEED_DIR = path.join(
   process.cwd(),
   "public/official-supply/style-seeds/romance-fantasy-user-owned-v1"
 );
+const PROOF_SCRIPT = path.join(process.cwd(), "scripts/official-supply-style-proof.ts");
 
 describe("user-owned rofan STYLE-ONLY references", () => {
   it("keeps primary generation set at 3 and holdouts off the generation path", () => {
@@ -120,6 +123,29 @@ describe("user-owned rofan STYLE-ONLY references", () => {
     assert.equal(PILOT_STYLE_PROOF_V3_BATCH_KEY, "pilot-romance-fantasy-03-style-refs");
     assert.notEqual(PILOT_STYLE_PROOF_V3_STYLE_KEY, PILOT_STYLE_PROOF_STYLE_KEY);
     assert.notEqual(PILOT_STYLE_PROOF_V3_STYLE_KEY, PILOT_STYLE_PROOF_SOURCE_STYLE_KEY);
+
+    const source = testDraft({
+      draftKey: "pilot-rf-01",
+      styleKey: PILOT_STYLE_PROOF_SOURCE_STYLE_KEY,
+    });
+    const v3 = buildUserOwnedRofanProofDraft(source);
+    assert.equal(v3.draftKey, "pilot-rf-v3-01");
+    assert.equal(v3.styleKey, PILOT_STYLE_PROOF_V3_STYLE_KEY);
+    assert.deepEqual(PILOT_STYLE_PROOF_V3_DRAFT_KEYS, [
+      "pilot-rf-v3-01",
+      "pilot-rf-v3-02",
+      "pilot-rf-v3-09",
+    ]);
+  });
+
+  it("wires the live proof operator to v3 refs rather than the frozen v2 seed", () => {
+    const source = fs.readFileSync(PROOF_SCRIPT, "utf8");
+    assert.match(source, /buildUserOwnedRofanStyleSeed/);
+    assert.match(source, /PILOT_STYLE_PROOF_V3_STYLE_KEY/);
+    assert.match(source, /PILOT_STYLE_PROOF_V3_DRAFT_KEYS/);
+    assert.match(source, /PILOT_STYLE_PROOF_V3_BATCH_KEY/);
+    assert.doesNotMatch(source, /\bbuildPilotStyleSeed\b/);
+    assert.doesNotMatch(source, /\bPILOT_STYLE_PROOF_STYLE_KEY\b/);
   });
 
   it("caps resolved generation refs at OFFICIAL_STYLE_GENERATION_REF_MAX even if companions overflow", () => {
