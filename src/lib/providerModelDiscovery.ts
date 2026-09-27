@@ -7,6 +7,49 @@ import { listPublishedModelIds } from "@/lib/publishedModelPricing";
 
 export const PROVIDER_MODEL_DISCOVERY_PROVIDER = "cheaperinference" as const;
 
+export type MainRpStaticTriageStatus =
+  | "BENCHMARK_REVIEWABLE"
+  | "HOLD_NON_TEXT"
+  | "HOLD_NON_CHAT_ENDPOINT"
+  | "HOLD_NON_STREAMING"
+  | "HOLD_CAPABILITY_UNVERIFIED";
+
+export type MainRpStaticTriage = {
+  status: MainRpStaticTriageStatus;
+  reasons: string[];
+};
+
+export function evaluateProviderModelMainRpTriage(input: {
+  modelType?: string | null;
+  endpoint?: string | null;
+  streaming?: boolean;
+}): MainRpStaticTriage {
+  const modelType = input.modelType?.trim().toLowerCase() ?? "";
+  const endpoint = input.endpoint?.trim().toLowerCase() ?? "";
+
+  if (modelType && modelType !== "text") {
+    return { status: "HOLD_NON_TEXT", reasons: [`type=${modelType}`] };
+  }
+  if (endpoint && endpoint !== "/v1/chat/completions") {
+    return { status: "HOLD_NON_CHAT_ENDPOINT", reasons: [`endpoint=${endpoint}`] };
+  }
+  if (input.streaming === false) {
+    return { status: "HOLD_NON_STREAMING", reasons: ["streaming=false"] };
+  }
+
+  const missing: string[] = [];
+  if (!modelType) missing.push("type");
+  if (!endpoint) missing.push("endpoint");
+  if (input.streaming !== true) missing.push("streaming");
+  if (missing.length > 0) {
+    return {
+      status: "HOLD_CAPABILITY_UNVERIFIED",
+      reasons: [`missing:${missing.join(",")}`],
+    };
+  }
+  return { status: "BENCHMARK_REVIEWABLE", reasons: [] };
+}
+
 export type ProviderModelDiscovery = {
   id: number;
   provider: string;
@@ -23,8 +66,22 @@ export type ProviderModelDiscovery = {
   referenceInputUsdPerMillion: number | null;
   referenceOutputUsdPerMillion: number | null;
   discountPercent: number | null;
+  modelType: string | null;
+  endpoint: string | null;
+  catalogProvider: string | null;
+  aliases: string[];
+  capabilities: {
+    streaming?: boolean;
+    reasoning?: boolean;
+    vision?: boolean;
+    video?: boolean;
+  };
+  catalogPricingVersion: string | null;
+  catalogPricingCheckedAt: string | null;
+  catalogPricingUpdatedAt: string | null;
   catalogFingerprint: string;
   productRegisteredNow: boolean;
+  mainRpTriage: MainRpStaticTriage;
 };
 
 type DiscoveryRow = {
@@ -43,6 +100,14 @@ type DiscoveryRow = {
   reference_input_usd_per_million: number | null;
   reference_output_usd_per_million: number | null;
   discount_percent: number | null;
+  model_type: string | null;
+  endpoint: string | null;
+  catalog_provider: string | null;
+  aliases_json: string;
+  capabilities_json: string;
+  catalog_pricing_version: string | null;
+  catalog_pricing_checked_at: string | null;
+  catalog_pricing_updated_at: string | null;
   latest_catalog_fingerprint: string;
 };
 
@@ -75,6 +140,14 @@ export function providerCatalogFingerprint(row: CheaperInferenceCatalogPricing):
         referenceInput: row.referenceInputUsdPerMillion ?? null,
         referenceOutput: row.referenceOutputUsdPerMillion ?? null,
         discountPercent: row.discountPercent ?? null,
+        catalogType: row.catalogType ?? null,
+        catalogEndpoint: row.catalogEndpoint ?? null,
+        catalogProvider: row.catalogProvider ?? null,
+        catalogAliases: row.catalogAliases ?? [],
+        catalogCapabilities: row.catalogCapabilities ?? {},
+        catalogPricingVersion: row.catalogPricingVersion ?? null,
+        catalogPricingCheckedAt: row.catalogPricingCheckedAt ?? null,
+        catalogPricingUpdatedAt: row.catalogPricingUpdatedAt ?? null,
         threshold: row.inputTokenPriceThreshold ?? null,
         aboveThreshold: row.aboveThreshold ?? null,
       })
@@ -104,8 +177,10 @@ export function observeProviderModelCatalog(params: {
        observation_count, input_usd_per_million, output_usd_per_million,
        cache_read_usd_per_million, cache_write_usd_per_million,
        reference_input_usd_per_million, reference_output_usd_per_million,
-       discount_percent, latest_catalog_fingerprint
-     ) VALUES (?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?)`
+       discount_percent, model_type, endpoint, catalog_provider, aliases_json,
+       capabilities_json, catalog_pricing_version, catalog_pricing_checked_at,
+       catalog_pricing_updated_at, latest_catalog_fingerprint
+     ) VALUES (?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
   );
   const update = params.db.prepare(
     `UPDATE provider_model_discoveries
@@ -123,6 +198,14 @@ export function observeProviderModelCatalog(params: {
             reference_input_usd_per_million = ?,
             reference_output_usd_per_million = ?,
             discount_percent = ?,
+            model_type = ?,
+            endpoint = ?,
+            catalog_provider = ?,
+            aliases_json = ?,
+            capabilities_json = ?,
+            catalog_pricing_version = ?,
+            catalog_pricing_checked_at = ?,
+            catalog_pricing_updated_at = ?,
             latest_catalog_fingerprint = ?,
             updated_at = datetime('now')
       WHERE provider = ? AND model_id = ?`
@@ -150,6 +233,14 @@ export function observeProviderModelCatalog(params: {
       row.referenceInputUsdPerMillion ?? null,
       row.referenceOutputUsdPerMillion ?? null,
       row.discountPercent ?? null,
+      row.catalogType ?? null,
+      row.catalogEndpoint ?? null,
+      row.catalogProvider ?? null,
+      JSON.stringify(row.catalogAliases ?? []),
+      JSON.stringify(row.catalogCapabilities ?? {}),
+      row.catalogPricingVersion ?? null,
+      row.catalogPricingCheckedAt ?? null,
+      row.catalogPricingUpdatedAt ?? null,
       fingerprint
     );
     if (Number(inserted.changes) > 0) {
@@ -168,6 +259,14 @@ export function observeProviderModelCatalog(params: {
       row.referenceInputUsdPerMillion ?? null,
       row.referenceOutputUsdPerMillion ?? null,
       row.discountPercent ?? null,
+      row.catalogType ?? null,
+      row.catalogEndpoint ?? null,
+      row.catalogProvider ?? null,
+      JSON.stringify(row.catalogAliases ?? []),
+      JSON.stringify(row.catalogCapabilities ?? {}),
+      row.catalogPricingVersion ?? null,
+      row.catalogPricingCheckedAt ?? null,
+      row.catalogPricingUpdatedAt ?? null,
       fingerprint,
       PROVIDER_MODEL_DISCOVERY_PROVIDER,
       modelId
@@ -177,7 +276,39 @@ export function observeProviderModelCatalog(params: {
   return { observedUnknown, newlyDiscoveredModelIds };
 }
 
+function parseStringArrayJson(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((value): value is string => typeof value === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseCapabilitiesJson(raw: string): ProviderModelDiscovery["capabilities"] {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const obj = parsed as Record<string, unknown>;
+    const result: ProviderModelDiscovery["capabilities"] = {};
+    for (const key of ["streaming", "reasoning", "vision", "video"] as const) {
+      if (typeof obj[key] === "boolean") result[key] = obj[key] as boolean;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
 function parseDiscovery(row: DiscoveryRow): ProviderModelDiscovery {
+  const capabilities = parseCapabilitiesJson(row.capabilities_json);
+  const mainRpTriage = evaluateProviderModelMainRpTriage({
+    modelType: row.model_type,
+    endpoint: row.endpoint,
+    streaming: capabilities.streaming,
+  });
   return {
     id: row.id,
     provider: row.provider,
@@ -194,8 +325,17 @@ function parseDiscovery(row: DiscoveryRow): ProviderModelDiscovery {
     referenceInputUsdPerMillion: row.reference_input_usd_per_million,
     referenceOutputUsdPerMillion: row.reference_output_usd_per_million,
     discountPercent: row.discount_percent,
+    modelType: row.model_type,
+    endpoint: row.endpoint,
+    catalogProvider: row.catalog_provider,
+    aliases: parseStringArrayJson(row.aliases_json),
+    capabilities,
+    catalogPricingVersion: row.catalog_pricing_version,
+    catalogPricingCheckedAt: row.catalog_pricing_checked_at,
+    catalogPricingUpdatedAt: row.catalog_pricing_updated_at,
     catalogFingerprint: row.latest_catalog_fingerprint,
     productRegisteredNow: isProductKnownProviderModel(row.model_id),
+    mainRpTriage,
   };
 }
 
@@ -212,7 +352,9 @@ export function listProviderModelDiscoveries(
               input_usd_per_million, output_usd_per_million,
               cache_read_usd_per_million, cache_write_usd_per_million,
               reference_input_usd_per_million, reference_output_usd_per_million,
-              discount_percent, latest_catalog_fingerprint
+              discount_percent, model_type, endpoint, catalog_provider, aliases_json,
+              capabilities_json, catalog_pricing_version, catalog_pricing_checked_at,
+              catalog_pricing_updated_at, latest_catalog_fingerprint
          FROM provider_model_discoveries
         ORDER BY last_seen_at DESC, id DESC
         LIMIT ?`
