@@ -1,0 +1,34 @@
+{
+  "status": "GEMINI31_OPUS5_MINIMAL_SCREEN_LIVE_CAPTURED",
+  "perModel": {
+    "gemini31": {
+      "attempts": 4,
+      "valid": 4,
+      "replacements_used": 0
+    },
+    "opus5": {
+      "attempts": 4,
+      "valid": 4,
+      "replacements_used": 0
+    }
+  },
+  "attempts": 8,
+  "valid": 8,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "character_id": 18,
+  "persona_id": 61,
+  "prompt_owners": {
+    "SceneDirective": 0,
+    "collaborative_owner": 1,
+    "legacy_novel_owner": 0,
+    "terminal_length_owner": 1
+  },
+  "human_review": "NOT_RUN — waiting for ChatGPT",
+  "production_db_apply": false,
+  "public_picker_exposure": false,
+  "pricing_change": false,
+  "auto_merge": false,
+  "auto_deploy": false
+}
