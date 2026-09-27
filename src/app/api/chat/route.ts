@@ -122,6 +122,7 @@ import {
   sanitizeHairDescriptions,
 } from "@/lib/bodyHairRules";
 import {
+  extractMainCharacterAppearanceBody,
   extractVisualAppearancePolicyFromChunks,
   buildFlashCanonicalAppearanceBlock,
   sanitizeVisualAppearance,
@@ -2584,11 +2585,20 @@ export async function POST(req: Request) {
   if (shouldAuditPrompt && promptAudit) {
     console.log(formatPromptAuditLog(promptAudit, { route: "OpenRouter pre-request" }));
   }
-  const settingTextForPolicy = settingText;
+  const characterHairAppearanceText =
+    extractMainCharacterAppearanceBody(characterChunks, ch.name, {
+      personaName: personaDisplayName,
+    }) ??
+    (usedEnglishCharacterPrompt
+      ? extractMainCharacterAppearanceBody(loadCharacterChunks(ch), ch.name, {
+          personaName: personaDisplayName,
+        })
+      : null) ??
+    "";
   const hairSanitizeContext = buildHairSanitizeContext({
     characterName: ch.name,
     characterGender: resolveCharacterGender(ch.gender),
-    settingText: settingTextForPolicy,
+    characterAppearanceText: characterHairAppearanceText,
     personaName: personaDisplayName,
     personaText: userPersonaPrompt ?? personaDescription,
     userGender: resolveCharacterGender(selectedPersona?.gender ?? "other"),
