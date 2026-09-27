@@ -86,6 +86,20 @@ export function evaluateAppearanceLock(
   if (draft.adult.nsfw && MINOR_VISUAL_RE.test(visualText)) {
     errors.push({ code: "appearance_minor_coded", message: "adult character appearance uses minor-coded descriptors" });
   }
+  if (isMatureMaleRofanRomanceTarget(draft)) {
+    if (id.apparentAgeBand === "40s" || id.apparentAgeBand === "50_plus") {
+      errors.push({
+        code: "appearance_mature_male_age_band",
+        message: `30s romance-target male cannot default to apparentAgeBand ${id.apparentAgeBand}`,
+      });
+    }
+    if (MATURE_MALE_AGING_DRIFT_RE.test(visualText)) {
+      errors.push({
+        code: "appearance_mature_male_aging_drift",
+        message: "30s romance-target male appearance adds older-age facial treatment not required by canon",
+      });
+    }
+  }
   if (lock.forbiddenDrift.length === 0) {
     warnings.push({ code: "appearance_no_forbidden_drift", message: "no forbidden-drift rules recorded" });
   }
