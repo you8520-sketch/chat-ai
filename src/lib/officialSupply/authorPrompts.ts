@@ -22,6 +22,8 @@ import {
   type OfficialMarketFitBrief,
 } from "@/lib/officialSupply/marketFit";
 import type { OfficialCharacterSceneContext } from "@/lib/officialSupply/scenePortfolio";
+import { DOMESTIC_ROFAN_STYLE_DIRECTION } from "@/lib/officialSupply/style";
+import { buildRofanMatureMaleVisualAgeDirection } from "@/lib/officialSupply/appearance";
 
 /**
  * Canonical official-supply author quality contract — the ONE source for both
@@ -527,6 +529,7 @@ export function buildAppearanceUser(input: AppearanceInput): string {
     `캐릭터: ${input.name} (${input.age}세, ${input.gender})`,
     "바이블 외형(source, 이 범위를 벗어나지 않는다):",
     input.appearanceSource,
+    buildRofanMatureMaleVisualAgeDirection(input.age, input.gender) ?? "",
     input.siblingLooks.length
       ? `형제 외형(이들과 헤어·눈·체형·팔레트가 겹치지 않게):\n${input.siblingLooks.map((s) => `- ${s}`).join("\n")}`
       : "",
@@ -693,6 +696,9 @@ export function buildStyleBoardSystem(): string {
     "",
     "- 후보마다 추상 Visual Style DNA(얼굴 비례·눈매·선 밀도·렌더링·팔레트·광원·분위기 등)만 기술.",
     "- 특정 작가 이름·작품명을 스타일 타깃으로 쓰지 않는다.",
+    "",
+    "[DOMESTIC ROFAN PRODUCT DIRECTION]",
+    DOMESTIC_ROFAN_STYLE_DIRECTION,
     "- references는 허용된 공개 URL만, provenance는 external_public_observation 고정(이미지 생성용 전달 금지).",
     "- suitability 10개 항목은 1~5 정수. strengths 2~4개.",
     "- 남성·여성·로맨스·긴장·실내·의상 변주·감정폭을 서로 다르게 평가한다(전 항목 5점 금지).",
