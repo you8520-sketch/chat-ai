@@ -181,6 +181,20 @@ describe("official pilot content (romance fantasy 01)", () => {
     assert.doesNotMatch(JSON.stringify(lucian), /178cm/);
   });
 
+  it("Lucian public description and greeting use the canonical vault-alarm relationship hook", () => {
+    const lucian = chars().find((file) => file.draftKey === "pilot-rf-03");
+    assert.ok(lucian);
+
+    assert.match(lucian!.draft.description, /증권거래소 지하 금고/);
+    assert.match(lucian!.draft.description, /공범|목격자/);
+    assert.match(lucian!.draft.greeting, /증권거래소 지하 금고/);
+    assert.match(lucian!.draft.greeting, /경보/);
+    assert.match(lucian!.draft.greeting, /공범/);
+    assert.match(lucian!.bible.situation.userEntry, /증권거래소 지하 금고/);
+    assert.match(lucian!.bible.rpEngine.immediateHook, /증권거래소 지하 금고/);
+    assert.doesNotMatch(lucian!.draft.greeting, /비가 그친 뒤의 골목/);
+  });
+
   it("compiled character cores contain no legacy Korean suffix-assembly artifacts", () => {
     for (const file of chars()) {
       const core = file.draft.sections.characterCore;
