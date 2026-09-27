@@ -4536,7 +4536,10 @@ export async function POST(req: Request) {
         let billingContractDecision: ChatBillingContractDecision | null = null;
 
         if (!htmlFlashOnlyTurn) {
-          const shadowFx = shouldPreparePublishedBillingFxSnapshot()
+          const shadowFx = shouldPreparePublishedBillingFxSnapshot({
+            deliveredModelId: deliveredModelId ?? "",
+            selectedModelId: selectedAIRef,
+          })
             ? resolveShadowBillingExchangeRateSnapshot()
             : null;
           const billingFxSnapshot: BillingFxSnapshot | undefined = shadowFx
