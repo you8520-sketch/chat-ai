@@ -138,11 +138,10 @@ function estimateCostUsd(
   usage: ReturnType<typeof usageNumbers>,
   rawUsage: Record<string, unknown> | null,
   openRouterUsdCostFromRates: (opts: {
-    rates: unknown;
     promptTokens: number;
-    completionTokens: number;
-  }) => number,
-  resolveOpenRouterModelRates: (id: string) => unknown,
+    outputTokens: number;
+    modelId?: string | null;
+  }) => { usdCost: number | null },
 ): number | null {
   const upstream =
     rawUsage &&
@@ -151,10 +150,10 @@ function estimateCostUsd(
   if (Number.isFinite(upstream) && upstream! > 0) return upstream!;
   if (usage.prompt_tokens != null && usage.completion_tokens != null) {
     return openRouterUsdCostFromRates({
-      rates: resolveOpenRouterModelRates(modelId),
       promptTokens: usage.prompt_tokens,
-      completionTokens: usage.completion_tokens,
-    });
+      outputTokens: usage.completion_tokens,
+      modelId,
+    }).usdCost;
   }
   return null;
 }
@@ -288,7 +287,7 @@ async function main() {
   const { INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION } = await import(
     "../src/lib/currentTurnUserAuthoringDelegation"
   );
-  const { openRouterUsdCostFromRates, resolveOpenRouterModelRates } = await import(
+  const { openRouterUsdCostFromRates } = await import(
     "../src/lib/openRouterModelPricing"
   );
 
@@ -462,8 +461,7 @@ async function main() {
         MODEL,
         primaryUsage,
         primary.usage,
-        openRouterUsdCostFromRates as never,
-        resolveOpenRouterModelRates as never,
+        openRouterUsdCostFromRates,
       );
       const tierCheck = meetsTierLengthRequirements(primary.text, TARGET_CHARS);
       const underFloor = needsVisibleLengthContinuation(primary.text, TARGET_CHARS);
@@ -528,8 +526,7 @@ async function main() {
           MODEL,
           contUsage,
           cont.usage,
-          openRouterUsdCostFromRates as never,
-          resolveOpenRouterModelRates as never,
+          openRouterUsdCostFromRates,
         );
         contLatency = cont.latencyMs;
         contError = cont.error;
