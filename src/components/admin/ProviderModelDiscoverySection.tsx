@@ -13,6 +13,7 @@ export function ProviderModelDiscoverySection(props: {
       <p className="mt-1 text-xs text-zinc-400">
         CheaperInference catalog models not currently owned by the product registry.
         Discovery does not add a model to Main RP, change routing, publish pricing, run a paid benchmark, or activate anything.
+        BENCHMARK_REVIEWABLE only means the provider catalog has enough static evidence for the current streaming chat path.
       </p>
       {props.discoveries.length === 0 ? (
         <p className="mt-3 text-xs text-zinc-500">No unregistered provider models observed.</p>
@@ -24,6 +25,9 @@ export function ProviderModelDiscoverySection(props: {
                 <th className="py-1 pr-3">model</th>
                 <th className="py-1 pr-3">first seen</th>
                 <th className="py-1 pr-3">last seen</th>
+                <th className="py-1 pr-3">triage</th>
+                <th className="py-1 pr-3">type / endpoint</th>
+                <th className="py-1 pr-3">capabilities</th>
                 <th className="py-1 pr-3">observations</th>
                 <th className="py-1 pr-3">current in/out</th>
                 <th className="py-1 pr-3">reference in/out</th>
@@ -36,6 +40,21 @@ export function ProviderModelDiscoverySection(props: {
                   <td className="py-1 pr-3 font-medium text-zinc-200">{row.modelId}</td>
                   <td className="py-1 pr-3">{row.firstSeenAt}</td>
                   <td className="py-1 pr-3">{row.lastSeenAt}</td>
+                  <td className="py-1 pr-3">
+                    <div>{row.mainRpTriage.status}</div>
+                    {row.mainRpTriage.reasons.length > 0 ? (
+                      <div className="text-zinc-500">{row.mainRpTriage.reasons.join(", ")}</div>
+                    ) : null}
+                  </td>
+                  <td className="py-1 pr-3">
+                    <div>{row.modelType ?? "unknown"}</div>
+                    <div className="text-zinc-500">{row.endpoint ?? "endpoint unknown"}</div>
+                  </td>
+                  <td className="py-1 pr-3">
+                    stream {row.capabilities.streaming == null ? "?" : row.capabilities.streaming ? "yes" : "no"}
+                    {" · "}reasoning {row.capabilities.reasoning == null ? "?" : row.capabilities.reasoning ? "yes" : "no"}
+                    {" · "}vision {row.capabilities.vision == null ? "?" : row.capabilities.vision ? "yes" : "no"}
+                  </td>
                   <td className="py-1 pr-3">{row.observationCount}</td>
                   <td className="py-1 pr-3">
                     {usd(row.inputUsdPerMillion)} / {usd(row.outputUsdPerMillion)}
