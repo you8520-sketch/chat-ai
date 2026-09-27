@@ -4,10 +4,16 @@ import { STRICT_SAFE_DEPICTION } from "@/lib/chatImageStrictSafetyFallbackPrompt
 import { buildMatureMaleVisualAgePrompt, renderAppearanceBlock } from "@/lib/officialSupply/appearance";
 import { adultDepictionAllowed } from "@/lib/officialSupply/assetPlan";
 import { officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
+import {
+  isClusterBGraphicStyleSeed,
+  resolveOfficialAssetStyleDna,
+  ROFAN_CLUSTER_B_GRAPHIC_STYLE_DIRECTION,
+} from "@/lib/officialSupply/style";
 import type {
   OfficialAppearanceLock,
   OfficialAssetSlotPlan,
   OfficialCharacterDraft,
+  StyleReference,
   VisualStyleDna,
 } from "@/lib/officialSupply/types";
 
@@ -67,7 +73,33 @@ export type OfficialAssetPromptInput = {
   appearance: OfficialAppearanceLock;
   style: VisualStyleDna;
   slot: OfficialAssetSlotPlan;
+  /** Approved style seed — when Cluster B, calibrates DNA + reference semantics. */
+  styleSeed?: StyleReference | null;
 };
+
+function representativeStyleReferenceRule(styleSeed: StyleReference | null | undefined): string {
+  const clusterB = isClusterBGraphicStyleSeed(styleSeed);
+  const lines = [
+    "REFERENCE IMAGE(S): STYLE ONLY.",
+    "Use the supplied image(s) solely for drawing/rendering language, facial illustration treatment, coloring, lighting, hair rendering density, material detail, detail density, and overall polish.",
+    "Create a brand-new original person.",
+    "Do not copy any reference person's face identity, hairstyle, hair color, eye color, outfit design, jewelry, marks/tattoos/scars, pose, or background.",
+    "The IDENTITY LOCK / Appearance Lock below is the sole character-identity owner and overrides any resemblance to the style references.",
+  ];
+  if (clusterB) {
+    lines.push(ROFAN_CLUSTER_B_GRAPHIC_STYLE_DIRECTION);
+    lines.push(
+      "Render with crisp graphic webtoon linework, decisive cel-style shading, clear hue separation, and vivid accent contrast consistent with the references."
+    );
+    lines.push(
+      "Translate the target character's canonical Appearance Lock colors into that saturation/contrast/highlight treatment; reference colors are examples of color handling, not colors to copy."
+    );
+    lines.push(
+      "Never merge reference characters into one face; never import reference costumes, insignia, props, or seasonal/event setups."
+    );
+  }
+  return lines.join(" ");
+}
 
 /**
  * Official asset prompt. Gender lock and safety come from the canonical image
@@ -78,21 +110,16 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
   primaryPrompt: string;
   strictFallbackPrompt: string;
 } {
-  const { draft, appearance, style, slot } = input;
+  const { draft, appearance, style, slot, styleSeed } = input;
   const adultGrounded =
     slot.depiction === "adult_grounded_non_explicit" && adultDepictionAllowed(draft);
   const genderLock = buildImageGenderLockPrompt([
     { label: "Character", name: draft.name, gender: draft.gender },
   ]);
+  const effectiveStyle = resolveOfficialAssetStyleDna(style, styleSeed);
   const referenceRule =
     slot.kind === "representative"
-      ? [
-          "REFERENCE IMAGE(S): STYLE ONLY.",
-          "Use the supplied image(s) solely for drawing/rendering language, facial illustration treatment, coloring, lighting, hair rendering density, material detail, detail density, and overall polish.",
-          "Create a brand-new original person.",
-          "Do not copy any reference person's face identity, hairstyle, hair color, eye color, outfit design, jewelry, marks/tattoos/scars, pose, or background.",
-          "The IDENTITY LOCK / Appearance Lock below is the sole character-identity owner and overrides any resemblance to the style references.",
-        ].join(" ")
+      ? representativeStyleReferenceRule(styleSeed)
       : "REFERENCE IMAGE: the approved identity anchor of this same character. Keep the exact same person; only expression, pose, outfit variant and setting change.";
   const moment = [
     `Expression: ${slot.expression}.`,
@@ -111,7 +138,7 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     renderIdentityLock(appearance),
     buildMatureMaleVisualAgePrompt(draft) ?? "",
     genderLock,
-    renderStyleDna(style),
+    renderStyleDna(effectiveStyle),
     buildIllustrationSafeDepiction({ adultGrounded }),
     moment,
     "Exactly one person unless the situation explicitly needs unnamed background extras. No text, speech bubbles, captions, logos, signatures or watermarks.",

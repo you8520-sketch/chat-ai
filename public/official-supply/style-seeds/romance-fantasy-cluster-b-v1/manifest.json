@@ -1,0 +1,41 @@
+{
+  "bundleId": "romance-fantasy-cluster-b-v1",
+  "styleCluster": "cluster_b_graphic",
+  "provenance": "platform_owned",
+  "ownershipNote": "User-authored STYLE-ONLY references for graphic domestic rofan (Cluster B). Never character-identity anchors.",
+  "clusterAudit": {
+    "clusterA": "Painterly softness, muted beige-gold wash, low saturation, heavier noble realism — closer to prior v3 drift.",
+    "clusterB": "Crisp lines, high contrast, saturated black/gold/red/blue accents, webtoon-oriented face-first readability — user target."
+  },
+  "excludedFromGeneration": {
+    "comparisonOnly": ["user-ref-1", "user-ref-2"],
+    "exposureBias": ["user-ref-4", "user-ref-12", "user-ref-15"],
+    "seasonalNovelty": ["user-ref-18"],
+    "otherFamilyReview": ["user-ref-8", "user-ref-9"]
+  },
+  "generationPolicy": {
+    "maxStyleReferencesPerRepresentativeCall": 3,
+    "deterministicGenerationOrder": [
+      "primary/b7-black-gold-uniform.webp",
+      "primary/b13-black-red-fur.webp",
+      "primary/b5-red-dress-female.webp"
+    ],
+    "primaryCatalogFive": [
+      { "userRef": 7, "path": "primary/b7-black-gold-uniform.webp", "role": "male_black_gold_sharp" },
+      { "userRef": 13, "path": "primary/b13-black-red-fur.webp", "role": "male_black_red_accent" },
+      { "userRef": 5, "path": "primary/b5-red-dress-female.webp", "role": "female_gold_embroidery" },
+      { "userRef": 3, "path": "primary/b3-blue-window-full.webp", "role": "cool_light_full_body", "generationDefault": false },
+      { "userRef": 17, "path": "primary/b17-sword-flowers.webp", "role": "graphic_red_mood", "generationDefault": false }
+    ]
+  },
+  "holdout": [
+    { "userRef": 6, "path": "holdout/b6-black-gold-smirk.webp" },
+    { "userRef": 10, "path": "holdout/b10-moon-scene.webp" },
+    { "userRef": 11, "path": "holdout/b11-purple-armor.webp" },
+    { "userRef": 14, "path": "holdout/b14-red-eyes-profile.webp" }
+  ],
+  "proofIdentity": {
+    "styleKey": "romance_fantasy_v4",
+    "batchKey": "pilot-romance-fantasy-04-cluster-b"
+  }
+}
