@@ -31,6 +31,7 @@ import {
 import {
   OfficialSupplyGateError,
   OfficialSupplyStore,
+  type OfficialCharacterRecord,
 } from "@/lib/officialSupply/store";
 import type {
   OfficialAppearanceLock,
@@ -78,7 +79,7 @@ function stable(value: unknown): string {
       .map(([key, nested]) => `${JSON.stringify(key)}:${stable(nested)}`)
       .join(",")}}`;
   }
-  return JSON.stringify(value);
+  return JSON.stringify(value) ?? "undefined";
 }
 
 function assertSame(label: string, actual: unknown, expected: unknown): void {
@@ -166,7 +167,7 @@ function ensureCharacter(
   file: PilotCharacterFile,
   isStyleProof: boolean
 ): void {
-  let record;
+  let record: OfficialCharacterRecord;
   try {
     record = store.getCharacter(file.draftKey);
     assertSame(`${file.draftKey} draft`, record.draft, file.draft);
