@@ -603,7 +603,10 @@ describe("pilot cast correction: 06-08 replaced by male romance targets", () => 
     const regions = internalWorldRegions(world.regions);
     assert.ok(regions.includes("벨로체"));
     for (const f of chars()) {
-      const qa = evaluateInternalRegionConsistency(JSON.stringify({ brief: f.brief, bible: f.bible, plan: f.assetPlan }), regions);
+      const qa = evaluateInternalRegionConsistency(
+        JSON.stringify({ brief: f.brief, bible: f.bible, plan: f.assetPlan, sceneContext: f.sceneContext }),
+        regions
+      );
       assert.deepEqual(qa.errors, [], f.draftKey);
     }
     const noel = chars().find((f) => f.draftKey === "pilot-rf-08")!;
