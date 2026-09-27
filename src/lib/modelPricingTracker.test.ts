@@ -2475,10 +2475,45 @@ describe("Phase B1 — DeepSeek official provider PEAK observer", () => {
 
 
 describe("provider model discovery production-path integration", () => {
+  function seedTrackedCatalogForDiscovery(fetchedAt: number) {
+    seedCatalog(GEMINI, {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+      fetchedAt,
+    });
+    seedCatalog(DEEPSEEK, {
+      inputUsdPerMillion: 0.5,
+      outputUsdPerMillion: 1.5,
+      referenceInputUsdPerMillion: 0.66,
+      referenceOutputUsdPerMillion: 1.98,
+      discountPercent: 25,
+      fetchedAt,
+    });
+    seedCatalog("gemini-3.7-flash", {
+      inputUsdPerMillion: 0.22,
+      outputUsdPerMillion: 1.1,
+      referenceInputUsdPerMillion: 0.375,
+      referenceOutputUsdPerMillion: 1.875,
+      discountPercent: 40,
+      fetchedAt,
+    });
+    seedCatalog("gpt-5.6-terra", {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+      fetchedAt,
+    });
+  }
+
   it("fresh daily pricing run records a new unregistered model once without changing routing or published pricing", async () => {
     const db = makeDb();
     const firstObservedAt = Date.parse("2026-09-27T03:00:00.000Z");
-    seedAllTracked(firstObservedAt);
+    seedTrackedCatalogForDiscovery(firstObservedAt);
     replaceCheaperInferenceCatalogSnapshot([
       seedCatalog("brand-new-rp-model-2026", {
         inputUsdPerMillion: 0.4,
@@ -2519,7 +2554,7 @@ describe("provider model discovery production-path integration", () => {
     assert.equal(adminEventsAfterFirst, 1);
 
     const secondObservedAt = Date.parse("2026-09-28T03:00:00.000Z");
-    seedAllTracked(secondObservedAt);
+    seedTrackedCatalogForDiscovery(secondObservedAt);
     replaceCheaperInferenceCatalogSnapshot([
       seedCatalog("brand-new-rp-model-2026", {
         inputUsdPerMillion: 0.45,
