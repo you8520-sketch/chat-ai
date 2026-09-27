@@ -142,6 +142,46 @@ describe("publishedModelPricing", () => {
     }
   });
 
+  it("DeepSeek V4.1 preview and live charge share the same published pricing owner", () => {
+    const effectiveKrwPerUsd = 1560.6;
+    const previewPoints = computePublishedStandardPreviewPoints({
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      promptTokens: 10_000,
+      outputTokens: 500,
+      effectiveKrwPerUsd,
+    });
+    assert.equal(previewPoints, 14);
+
+    const fx: BillingFxSnapshot = {
+      mode: "daily_kst",
+      dateKey: "2026-08-28",
+      usdToKrw: 1530,
+      effectiveKrwPerUsd,
+      source: "api_daily",
+      overseasFeeRate: 0.02,
+      locked: true,
+    };
+    const live = computePublishedUserChargeWithSnapshot({
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      usage: normalizeBillableUsage({
+        modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+        promptTokens: 10_000,
+        outputTokens: 500,
+      }),
+      usageCoverage: "complete",
+      fxSnapshot: fx,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(live.status, "complete");
+    if (live.status === "complete") {
+      assert.equal(live.snapshot.finalPoints, previewPoints);
+      assert.equal(live.snapshot.pricingVersion, 1);
+      assert.equal(live.snapshot.billingReferenceInputUsdPerMillion, 0.3);
+      assert.equal(live.snapshot.billingReferenceOutputUsdPerMillion, 1.2);
+      assert.equal(live.snapshot.targetMargin, 0.6);
+    }
+  });
+
   it("Opus 5.5 published user charge is cache-partition price-neutral", () => {
     const p = getPublishedPricing("claude-opus-5.5");
     assert.equal(isPublishedCacheBreakdownPriceNeutral("claude-opus-5.5"), true);
