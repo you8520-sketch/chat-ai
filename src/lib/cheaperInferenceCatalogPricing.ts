@@ -72,6 +72,7 @@ export type CheaperInferenceCatalogPricing = {
 };
 
 const pricingByModel = new Map<string, CheaperInferenceCatalogPricing>();
+let latestSuccessfulCatalogSnapshot: CheaperInferenceCatalogPricing[] = [];
 
 function normalizeModelId(modelId: string): string {
   return modelId.trim().toLowerCase();
@@ -92,6 +93,28 @@ export function updateCheaperInferenceCatalogPricing(
   });
 }
 
+/**
+ * Exact model inventory from the latest successful /v1/models response.
+ * This is intentionally separate from the resilient per-model cache: a model
+ * absent from the newest provider catalog must not remain a discovery signal
+ * merely because its last known price is still useful as a fallback.
+ */
+export function replaceCheaperInferenceCatalogSnapshot(
+  pricing: readonly CheaperInferenceCatalogPricing[]
+): void {
+  latestSuccessfulCatalogSnapshot = pricing
+    .map((row) => ({ ...row, modelId: normalizeModelId(row.modelId) }))
+    .sort((a, b) => a.modelId.localeCompare(b.modelId));
+  for (const row of latestSuccessfulCatalogSnapshot) {
+    updateCheaperInferenceCatalogPricing(row);
+  }
+}
+
+export function listLatestCheaperInferenceCatalogSnapshot(): CheaperInferenceCatalogPricing[] {
+  return latestSuccessfulCatalogSnapshot.map((row) => ({ ...row }));
+}
+
 export function clearCheaperInferenceCatalogPricingForTest(): void {
   pricingByModel.clear();
+  latestSuccessfulCatalogSnapshot = [];
 }

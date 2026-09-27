@@ -23,6 +23,7 @@ export const MODEL_PRICING_TRACKER_ATTEMPTS_TABLE = "model_pricing_tracker_attem
 export const MODEL_PRICE_CHANGE_EVENTS_TABLE = "model_price_change_events";
 export const MODEL_PRICING_ADMIN_EVENTS_TABLE = "model_pricing_admin_events";
 export const MODEL_PRICING_CANDIDATE_RECORDS_TABLE = "model_pricing_candidate_records";
+export const PROVIDER_MODEL_DISCOVERIES_TABLE = "provider_model_discoveries";
 
 export const MODEL_PRICING_TRACKING_DDL = `
   CREATE TABLE IF NOT EXISTS model_pricing_tracker_runs (
@@ -116,6 +117,34 @@ export const MODEL_PRICING_TRACKING_DDL = `
   );
   CREATE INDEX IF NOT EXISTS idx_model_pricing_admin_events_created
     ON model_pricing_admin_events(created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS provider_model_discoveries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL,
+    model_id TEXT NOT NULL,
+    first_seen_attempt_id INTEGER NOT NULL,
+    last_seen_attempt_id INTEGER NOT NULL,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    first_seen_run_date_key TEXT NOT NULL,
+    last_seen_run_date_key TEXT NOT NULL,
+    observation_count INTEGER NOT NULL DEFAULT 1,
+    input_usd_per_million REAL NOT NULL,
+    output_usd_per_million REAL NOT NULL,
+    cache_read_usd_per_million REAL,
+    cache_write_usd_per_million REAL,
+    reference_input_usd_per_million REAL,
+    reference_output_usd_per_million REAL,
+    discount_percent REAL,
+    latest_catalog_fingerprint TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(provider, model_id),
+    FOREIGN KEY (first_seen_attempt_id) REFERENCES model_pricing_tracker_attempts(id),
+    FOREIGN KEY (last_seen_attempt_id) REFERENCES model_pricing_tracker_attempts(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_provider_model_discoveries_last_seen
+    ON provider_model_discoveries(last_seen_at DESC);
 
 
   CREATE TABLE IF NOT EXISTS model_pricing_candidate_records (

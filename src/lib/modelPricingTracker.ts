@@ -5,6 +5,7 @@
 
 import type Database from "better-sqlite3";
 import {
+  listLatestCheaperInferenceCatalogSnapshot,
   resolveCheaperInferenceCatalogPricing,
   type CheaperInferenceCatalogPricing,
 } from "@/lib/cheaperInferenceCatalogPricing";
@@ -40,6 +41,7 @@ import {
 } from "@/lib/modelPriceSnapshot";
 import { getPublishedPricingVersion } from "@/lib/publishedModelPricing";
 import { resolveProcurementCostFromCatalog } from "@/lib/procurementCost";
+import { observeProviderModelCatalog } from "@/lib/providerModelDiscovery";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import {
   ensureTrackerSchema,
@@ -390,6 +392,59 @@ export async function runModelPricingTracker(params?: {
         marginFloorBreaches: [],
         errors,
       };
+    }
+
+    try {
+      const catalogSnapshot = listLatestCheaperInferenceCatalogSnapshot();
+      const discovery = observeProviderModelCatalog({
+        db,
+        attemptId,
+        runDateKey,
+        catalog: catalogSnapshot,
+      });
+      if (discovery.newlyDiscoveredModelIds.length > 0) {
+        console.info("[model-pricing-tracker] new provider models discovered", {
+          provider: "cheaperinference",
+          modelIds: discovery.newlyDiscoveredModelIds,
+        });
+        for (const modelId of discovery.newlyDiscoveredModelIds) {
+          const row = catalogSnapshot.find((candidate) => candidate.modelId === modelId);
+          insertAdminEvent(db, {
+            attemptId,
+            adminEventType: "NEW_PROVIDER_MODEL_DISCOVERED",
+            modelId,
+            source: "cheaper_inference_models",
+            classification: "provider_available_product_unregistered",
+            decision: "observe_only_benchmark_before_registration",
+            newValues: row
+              ? {
+                  inputUsdPerMillion: row.inputUsdPerMillion,
+                  outputUsdPerMillion: row.outputUsdPerMillion,
+                  referenceInputUsdPerMillion: row.referenceInputUsdPerMillion ?? null,
+                  referenceOutputUsdPerMillion: row.referenceOutputUsdPerMillion ?? null,
+                  discountPercent: row.discountPercent ?? null,
+                }
+              : {},
+          });
+        }
+      }
+    } catch (discoveryError) {
+      const message =
+        discoveryError instanceof Error ? discoveryError.message : String(discoveryError);
+      console.error("[model-pricing-tracker] provider model discovery failed:", message);
+      errors.push("provider_model_discovery_failed");
+      try {
+        insertAdminEvent(db, {
+          attemptId,
+          adminEventType: "PROVIDER_MODEL_DISCOVERY_FAILED",
+          modelId: null,
+          source: "cheaper_inference_models",
+          classification: message.slice(0, 300),
+          decision: "pricing_tracker_continues_discovery_fail_open",
+        });
+      } catch {
+        // Discovery observability must never become a second failure owner.
+      }
     }
 
     const effectiveKrwPerUsdFallback = 1530;

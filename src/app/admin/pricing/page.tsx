@@ -70,6 +70,8 @@ import {
 import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
 import { MainRpPricingControlPlaneSection } from "@/components/admin/MainRpPricingControlPlaneSection";
 import { listMainRpPricingCandidateRecords } from "@/lib/mainRpPricingProposal";
+import { listProviderModelDiscoveries } from "@/lib/providerModelDiscovery";
+import { ProviderModelDiscoverySection } from "@/components/admin/ProviderModelDiscoverySection";
 
 function PremiumModelPolicyHeader(props: {
   title: string;
@@ -405,6 +407,10 @@ export default async function AdminPricingPage() {
   const opus5FxMatrix = buildPremiumFxSensitivity({ modelId: OPUS5_MODEL_ID, published: OPUS5_V2_PROPOSED });
   const mainRpControlPlane = buildMainRpPricingObservabilityProjection({ db });
   const pricingCandidateRecords = listMainRpPricingCandidateRecords(db, 50);
+  const providerModelDiscoveries = listProviderModelDiscoveries(db, {
+    limit: 50,
+    unregisteredOnly: true,
+  });
 
   return (
     <div className="mx-auto max-w-6xl p-6 text-sm text-zinc-100">
@@ -419,6 +425,7 @@ export default async function AdminPricingPage() {
         projection={mainRpControlPlane}
         candidateRecords={pricingCandidateRecords}
       />
+      <ProviderModelDiscoverySection discoveries={providerModelDiscoveries} />
       <section className="mt-6">
         <h2 className="font-semibold">Published Catalog</h2>
         <table className="mt-2 w-full border-collapse text-xs">

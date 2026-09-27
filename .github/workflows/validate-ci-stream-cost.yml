@@ -75,6 +75,9 @@ on:
       - "src/lib/deepseekOfficialProviderPricing.fixtures.ts"
       - "src/lib/modelPricingTracker.ts"
       - "src/lib/modelPricingTracker.test.ts"
+      - "src/lib/providerModelDiscovery.ts"
+      - "src/lib/providerModelDiscovery.test.ts"
+      - "src/components/admin/ProviderModelDiscoverySection.tsx"
       - "src/lib/mainRpPricingObservability.ts"
       - "src/lib/mainRpPricingObservability.test.ts"
       - "src/lib/mainRpPricingActualEconomics.ts"
@@ -165,6 +168,7 @@ jobs:
           src/lib/deepseekPhase2PublishedBillingCutover.test.ts
           src/lib/deepseekV4ProCompetitivePricingV4.test.ts
           src/lib/modelPricingTracker.test.ts
+          src/lib/providerModelDiscovery.test.ts
           src/lib/cheaperInferenceCatalogPricing.server.test.ts
           src/lib/mainRpPricingObservability.test.ts
           src/lib/mainRpPricingObservabilityActualEconomics.test.ts
