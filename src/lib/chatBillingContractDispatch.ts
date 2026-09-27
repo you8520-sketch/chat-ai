@@ -100,11 +100,20 @@ export function isPhase2DeepSeekPublishedBillingEnabled(): boolean {
 }
 
 /** Route prepares daily-KST FX when any Published path may run this turn. */
-export function shouldPreparePublishedBillingFxSnapshot(): boolean {
+export function shouldPreparePublishedBillingFxSnapshot(input?: {
+  selectedModelId?: string;
+  deliveredModelId?: string;
+}): boolean {
+  const deliveredModelId = input?.deliveredModelId ?? "";
   return (
     isPhase1PublishedBillingEnabled() ||
     isPhase2DeepSeekPublishedBillingEnabled() ||
-    isOpus55MandatoryPublishedBillingModel(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL)
+    isOpus55MandatoryPublishedBillingModel(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL) ||
+    (deliveredModelId.length > 0 &&
+      isV41MandatoryPublishedDirectSelection({
+        deliveredModelId,
+        selectedModelId: input?.selectedModelId,
+      }))
   );
 }
 
