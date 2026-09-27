@@ -220,6 +220,81 @@ describe("authorial habit JEV benchmark execution isolation", () => {
     assert.equal(process.env.OPENROUTER_API_KEY, "prod-process-key-must-be-restored");
   });
 
+  it("does not count a local preflight failure as a provider call", async () => {
+    const fixture = AUTHORIAL_HABIT_JEV_CORPUS[0]!;
+    const result = await runAuthorialHabitJevBenchmark({
+      env: {
+        REGULAR_TEST_REAL_PROVIDER_CALLS: "1",
+        [REAL_JEV_AUTHORIAL_HABIT_PROBE_ENV]: "1",
+        [OPENROUTER_JEV_BENCHMARK_ENV]: "benchmark-only-key",
+      } as NodeJS.ProcessEnv,
+      fixtures: [fixture],
+      log: () => {},
+      judgeFixture: async () => ({
+        fixtureId: fixture.id,
+        expectedVerdict: fixture.expectedVerdict,
+        verdict: null,
+        malformed: false,
+        failure: "jev_state_invariant_violation:state.forbidden",
+        latencyMs: 0.1,
+        inputTokens: 0,
+        outputTokens: 0,
+        actualCostUsd: null,
+        model: "typesafe/jev-1.13",
+        providerCallAttempted: false,
+      }),
+    });
+
+    assert.equal(result.status, "RAN");
+    if (result.status !== "RAN") return;
+    assert.equal(result.jev.evaluatedFixtures, 1);
+    assert.equal(result.totalProviderCalls, 0);
+    assert.equal(result.jev.preflightFailureCount, 1);
+    assert.equal(result.jev.failureCount, 1);
+    assert.equal(result.jev.malformedCount, 0);
+    assert.equal(result.jev.actualProviderCostCoverage, "none");
+    assert.equal(result.jev.actualProviderCostUsd, null);
+    assert.equal(result.jev.reportedProviderCostUsd, null);
+  });
+
+  it("marks partial provider-cost evidence instead of presenting it as complete actual cost", async () => {
+    const fixtures = AUTHORIAL_HABIT_JEV_CORPUS.slice(0, 2);
+    let callIndex = 0;
+    const result = await runAuthorialHabitJevBenchmark({
+      env: {
+        REGULAR_TEST_REAL_PROVIDER_CALLS: "1",
+        [REAL_JEV_AUTHORIAL_HABIT_PROBE_ENV]: "1",
+        [OPENROUTER_JEV_BENCHMARK_ENV]: "benchmark-only-key",
+      } as NodeJS.ProcessEnv,
+      fixtures,
+      log: () => {},
+      judgeFixture: async ({ fixture }) => {
+        const actualCostUsd = callIndex++ === 0 ? 0.0001 : null;
+        return {
+          fixtureId: fixture.id,
+          expectedVerdict: fixture.expectedVerdict,
+          verdict: fixture.expectedVerdict,
+          malformed: false,
+          failure: null,
+          latencyMs: 10,
+          inputTokens: 20,
+          outputTokens: 4,
+          actualCostUsd,
+          model: "typesafe/jev-1.13",
+          providerCallAttempted: true,
+        };
+      },
+    });
+
+    assert.equal(result.status, "RAN");
+    if (result.status !== "RAN") return;
+    assert.equal(result.totalProviderCalls, 2);
+    assert.equal(result.jev.actualProviderCostReportedCalls, 1);
+    assert.equal(result.jev.actualProviderCostCoverage, "partial");
+    assert.equal(result.jev.actualProviderCostUsd, null);
+    assert.equal(result.jev.reportedProviderCostUsd, 0.0001);
+  });
+
   it("does not wire authorial benchmark into production /api/chat route", () => {
     const routeSource = readFileSync(
       new URL("../../src/app/api/chat/route.ts", import.meta.url),
