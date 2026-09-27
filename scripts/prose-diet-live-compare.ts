@@ -24,7 +24,10 @@ import {
   PROSE_DIET_CHAR_NAME,
   PROSE_DIET_CHARACTER_SYSTEM_PROMPT,
   PROSE_DIET_EXAMPLE_DIALOG,
+  PROSE_DIET_EXTRA_FIXTURES,
   PROSE_DIET_FIXTURES,
+  resolveBeardVariant,
+  type BeardVariant,
   PROSE_DIET_PERSONA_NAME,
   PROSE_DIET_WORLD,
   type ProseDietFixture,
@@ -38,6 +41,14 @@ if (!process.env.NODE_ENV) {
 const LABEL = process.env.LABEL?.trim() || "run";
 const OUT_ROOT = path.join("/opt/cursor/artifacts/prose-diet", LABEL);
 const STRIP_DS_REMINDER = process.env.DEEPSEEK_STYLE_REMINDER === "off";
+/** Diagnostic only: swap the [COMMON PROSE] block text on the wire for an A/B candidate. */
+const COMMON_PROSE_OVERRIDE = process.env.COMMON_PROSE_OVERRIDE_FILE
+  ? fs.readFileSync(process.env.COMMON_PROSE_OVERRIDE_FILE, "utf8").trimEnd()
+  : null;
+/** Diagnostic only: swap the [19+ INTIMACY] block text on the wire for an A/B candidate. */
+const INTIMACY_OVERRIDE = process.env.INTIMACY_OVERRIDE_FILE
+  ? fs.readFileSync(process.env.INTIMACY_OVERRIDE_FILE, "utf8").trimEnd()
+  : null;
 const REPEAT = Math.max(1, Number(process.env.REPEAT ?? 1) || 1);
 
 function listFilter(raw: string | undefined): string[] {
@@ -158,6 +169,32 @@ async function main() {
     await import("../src/lib/chatDisplayLength");
   const { DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY } =
     await import("../src/lib/deepseekPromptStructure");
+  const { COMMON_PROSE_BLOCK, NSFW_EXPLICIT_SENSORY_WRITING_BLOCK } = await import(
+    "../src/lib/advancedProseNsfwGuidelines"
+  );
+  const swapSystemBlock = (
+    messages: Array<{ role: string; content: unknown }>,
+    from: string,
+    to: string,
+    label: string,
+  ) => {
+    let swapped = false;
+    for (const m of messages) {
+      if (m.role !== "system") continue;
+      if (typeof m.content === "string" && m.content.includes(from)) {
+        m.content = m.content.replace(from, to);
+        swapped = true;
+      } else if (Array.isArray(m.content)) {
+        for (const part of m.content as Array<Record<string, unknown>>) {
+          if (typeof part.text === "string" && part.text.includes(from)) {
+            part.text = part.text.replace(from, to);
+            swapped = true;
+          }
+        }
+      }
+    }
+    if (!swapped) throw new Error(`${label} override set but block not found`);
+  };
   const { INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION } = await import(
     "../src/lib/currentTurnUserAuthoringDelegation"
   );
@@ -167,8 +204,16 @@ async function main() {
   const models = MAIN_RP_USER_SELECTABLE_OPTIONS.filter(
     (m) => !modelFilter.length || modelFilter.includes(m.id),
   );
-  const fixtures = PROSE_DIET_FIXTURES.filter(
+  const fixtures = [...PROSE_DIET_FIXTURES, ...PROSE_DIET_EXTRA_FIXTURES].filter(
     (f) => !fixtureFilter.length || fixtureFilter.includes(f.id),
+  );
+
+  const beardVariant = process.env.BEARD_VARIANT as BeardVariant | undefined;
+  const variant = resolveBeardVariant(beardVariant ?? "A");
+  const adult = process.env.NSFW === "1";
+  const characterSystemPrompt = PROSE_DIET_CHARACTER_SYSTEM_PROMPT.replace(
+    /# 외형\n.*/,
+    `# 외형\n${variant.appearance}`,
   );
 
   const longTermMemory =
@@ -201,16 +246,16 @@ async function main() {
       chunks: parseCharacterSetting({
         characterId: "prose-diet-1",
         characterName: PROSE_DIET_CHAR_NAME,
-        gender: "male",
-        systemPrompt: PROSE_DIET_CHARACTER_SYSTEM_PROMPT,
+        gender: variant.gender,
+        systemPrompt: characterSystemPrompt,
         world: PROSE_DIET_WORLD,
         exampleDialog: PROSE_DIET_EXAMPLE_DIALOG,
         statusWindowPrompt: "",
       }),
       userPersona: formatSelectedPersonaForPrompt(
         PROSE_DIET_PERSONA_NAME,
-        "other",
-        "20대 대학원생. 호기심 많고 직설적이지만 상대를 존중한다.",
+        variant.personaGender,
+        variant.personaDescription,
       ),
       userNote: formatUserNoteForPrompt(
         "렌과 오래 알고 지낸 친구. 3년 전 실종 사건 이후 더 자주 연락한다.",
@@ -221,15 +266,15 @@ async function main() {
           JSON.stringify({
             affection: 65,
             trust: 58,
-            relationshipLabel: "오래된 지인",
+            relationshipLabel: adult ? "연인" : "오래된 지인",
           }),
         ),
       ),
       shortTermHistory: fx.shortTermHistory,
       currentUserMessage: fx.currentUserMessage,
-      nsfw: false,
-      gender: "male",
-      userPersonaGender: "other",
+      nsfw: adult,
+      gender: variant.gender,
+      userPersonaGender: variant.personaGender,
       currentTurnAuthoringDelegation: INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
       novelModeEnabled: false,
       targetResponseChars: 3200,
@@ -259,7 +304,7 @@ async function main() {
           currentUserMessage: fx.currentUserMessage,
           recentMessages: fx.shortTermHistory,
           memoryText: longTermMemory,
-          adultModeEnabled: false,
+          adultModeEnabled: adult,
           chatId: 1,
           currentTurn: 3,
           progressionHistory: [],
@@ -313,6 +358,12 @@ async function main() {
         }
       }
     }
+    if (COMMON_PROSE_OVERRIDE) {
+      swapSystemBlock(messages, COMMON_PROSE_BLOCK, COMMON_PROSE_OVERRIDE, "COMMON_PROSE");
+    }
+    if (INTIMACY_OVERRIDE) {
+      swapSystemBlock(messages, NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, INTIMACY_OVERRIDE, "INTIMACY");
+    }
     const system = flat(messages.find((m) => m.role === "system")?.content);
     const lastUser = flat(
       [...messages].reverse().find((m) => m.role === "user")?.content,
@@ -361,6 +412,12 @@ async function main() {
             typeof cap.usage?.completion_tokens === "number"
               ? cap.usage.completion_tokens
               : null,
+          reasoningTokens: (() => {
+            const d = cap.usage?.completion_tokens_details as
+              | { reasoning_tokens?: unknown }
+              | undefined;
+            return typeof d?.reasoning_tokens === "number" ? d.reasoning_tokens : null;
+          })(),
           wireSystemTokensEst: estimateTokens(a.system),
           wireLastUserTokensEst: estimateTokens(a.lastUser),
           deepSeekReminderStripped: a.strippedReminder,
@@ -369,7 +426,7 @@ async function main() {
         write(`${dir}/meta.json`, { ...row, usage: cap.usage });
         index.push(row);
         console.log(
-          `  visible=${row.visibleChars} finish=${row.finish} prompt=${row.providerPromptTokens} err=${row.error ? "YES" : "no"}`,
+          `  visible=${row.visibleChars} finish=${row.finish} prompt=${row.providerPromptTokens} completion=${row.completionTokens} reasoning=${row.reasoningTokens} err=${row.error ? "YES" : "no"}`,
         );
       }
     }

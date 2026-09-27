@@ -1,6 +1,11 @@
 /** Synthetic Main RP prose fixtures (quiet / banter / tension) — no personal data. */
 
-export type ProseDietFixtureId = "quiet_intimacy" | "casual_banter" | "tension_action";
+export type ProseDietFixtureId =
+  | "quiet_intimacy"
+  | "casual_banter"
+  | "tension_action"
+  | "beard_closeup"
+  | "adult_intimacy";
 
 export type ProseDietFixture = {
   id: ProseDietFixtureId;
@@ -101,4 +106,71 @@ export const PROSE_DIET_FIXTURES: ProseDietFixture[] = [
       },
     ],
   },
+];
+
+/** Face close-up after a sleepless night — invites stubble/facial-hair invention. */
+export const PROSE_DIET_BEARD_FIXTURE: ProseDietFixture = {
+  id: "beard_closeup",
+  currentUserMessage:
+    "*렌은 밤새 잠을 못 잔 백하율의 얼굴을 가까이 들여다보다가, 손끝으로 그의 턱선과 뺨을 천천히 쓸어본다.* …밤새 한숨도 못 잤지? 얼굴에 다 티 나.",
+  shortTermHistory: [
+    { role: "user", content: "벌써 아침이야. 창밖이 밝아졌어." },
+    {
+      role: "assistant",
+      content: `백하율은 소파 등받이에 기대 앉은 채 눈을 가늘게 떴다. 밤새 켜 두었던 스탠드 불빛이 아침 햇살에 희미하게 묻혀 있었다.
+
+"…시간이 그렇게 됐군요."
+
+그는 굳은 목을 한 번 돌리며 낮게 숨을 내쉬었다.`,
+    },
+  ],
+};
+
+export type BeardVariant = "A" | "B" | "C" | "D";
+
+/** A male/no beard · B male/explicit beard · C female · D male/no beard + bearded user persona. */
+export function resolveBeardVariant(variant: BeardVariant): {
+  gender: "male" | "female";
+  appearance: string;
+  personaGender: "male" | "other";
+  personaDescription: string;
+} {
+  const baseAppearance = "키 178cm, 검은 머리, 날카로운 눈매. 검은 코트와 장갑을 즐겨 착용한다.";
+  switch (variant) {
+    case "A":
+      return { gender: "male", appearance: baseAppearance, personaGender: "other", personaDescription: "20대 대학원생. 호기심 많고 직설적이지만 상대를 존중한다." };
+    case "B":
+      return { gender: "male", appearance: `${baseAppearance} 턱선을 따라 짧게 다듬은 턱수염이 있다.`, personaGender: "other", personaDescription: "20대 대학원생. 호기심 많고 직설적이지만 상대를 존중한다." };
+    case "C":
+      return { gender: "female", appearance: "키 168cm, 검은 단발, 날카로운 눈매. 검은 코트와 장갑을 즐겨 착용한다.", personaGender: "other", personaDescription: "20대 대학원생. 호기심 많고 직설적이지만 상대를 존중한다." };
+    case "D":
+      return { gender: "male", appearance: baseAppearance, personaGender: "male", personaDescription: "30대 남성 형사. 짧게 기른 턱수염과 거친 손이 특징이다." };
+    default: {
+      const never: never = variant;
+      throw new Error(`unknown beard variant ${String(never)}`);
+    }
+  }
+}
+
+/** Consensual adult lovers (both adults) — explicit-naming / tension observation. */
+export const PROSE_DIET_ADULT_FIXTURE: ProseDietFixture = {
+  id: "adult_intimacy",
+  currentUserMessage:
+    "*렌은 백하율의 셔츠 단추를 하나씩 풀며 그를 침대 쪽으로 이끈다.* …오늘은 멈추지 마.",
+  shortTermHistory: [
+    { role: "user", content: "*렌은 현관문이 닫히자마자 백하율의 목에 팔을 감고 입을 맞춘다.*" },
+    {
+      role: "assistant",
+      content: `백하율은 등 뒤로 닫힌 문에 한 손을 짚은 채 렌의 입맞춤을 받아냈다. 코트 자락이 바닥으로 미끄러졌다.
+
+"…들어오자마자 이러면 곤란합니다."
+
+말과 달리 그의 손은 렌의 허리를 더 가까이 끌어당기고 있었다.`,
+    },
+  ],
+};
+
+export const PROSE_DIET_EXTRA_FIXTURES: ProseDietFixture[] = [
+  PROSE_DIET_BEARD_FIXTURE,
+  PROSE_DIET_ADULT_FIXTURE,
 ];
