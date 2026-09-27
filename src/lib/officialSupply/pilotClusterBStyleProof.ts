@@ -1,6 +1,6 @@
 import type { OfficialSupplyBatchConfig } from "@/lib/officialSupply/store";
 import type { OfficialCharacterDraft } from "@/lib/officialSupply/types";
-import { PILOT_STYLE_PROOF_CANDIDATE_ID, PILOT_STYLE_PROOF_SOURCE_STYLE_KEY } from "@/lib/officialSupply/pilotStyleProof";
+import { PILOT_STYLE_PROOF_CANDIDATE_ID, PILOT_STYLE_PROOF_SOURCE_DRAFT_KEYS, PILOT_STYLE_PROOF_SOURCE_STYLE_KEY } from "@/lib/officialSupply/pilotStyleProof";
 import {
   buildClusterBRofanStyleSeed,
   PILOT_STYLE_PROOF_V4_BATCH_KEY,
@@ -13,11 +13,13 @@ export {
   PILOT_STYLE_PROOF_V4_STYLE_KEY,
 };
 
-export const PILOT_CLUSTER_B_PROOF_SOURCE_DRAFT_KEYS = [
-  "pilot-rf-01",
-  "pilot-rf-02",
-  "pilot-rf-09",
-] as const;
+/**
+ * Hydrate the full canonical 10-character pilot batch so portfolio QA keeps the
+ * same meaning as v2/v3. Paid style proof generation remains bounded separately
+ * by PILOT_CLUSTER_B_PROOF_DRAFT_KEYS (01/02/09 only).
+ */
+export const PILOT_CLUSTER_B_PROOF_SOURCE_DRAFT_KEYS =
+  PILOT_STYLE_PROOF_SOURCE_DRAFT_KEYS;
 
 export function pilotClusterBStyleProofDraftKey(sourceDraftKey: string): string {
   const match = /^pilot-rf-(\d{2})$/.exec(sourceDraftKey);

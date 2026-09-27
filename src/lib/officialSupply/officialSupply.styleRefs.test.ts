@@ -19,6 +19,10 @@ import {
   PILOT_STYLE_PROOF_SOURCE_STYLE_KEY,
 } from "@/lib/officialSupply/pilotStyleProof";
 import {
+  PILOT_CLUSTER_B_PROOF_DRAFT_KEYS,
+  PILOT_CLUSTER_B_PROOF_SOURCE_DRAFT_KEYS,
+} from "@/lib/officialSupply/pilotClusterBStyleProof";
+import {
   buildClusterBRofanStyleSeed,
   buildUserOwnedRofanStyleSeed,
   CLUSTER_B_HOLDOUT_PATHS,
@@ -175,6 +179,27 @@ describe("Cluster B graphic rofan STYLE-ONLY references (v4)", () => {
     depiction: "standard",
     personTag: null,
   };
+
+  it("hydrates the full 10-character portfolio but keeps paid v4 proof bounded to 3 reps", () => {
+    assert.equal(PILOT_CLUSTER_B_PROOF_SOURCE_DRAFT_KEYS.length, 10);
+    assert.deepEqual(PILOT_CLUSTER_B_PROOF_SOURCE_DRAFT_KEYS, [
+      "pilot-rf-01",
+      "pilot-rf-02",
+      "pilot-rf-03",
+      "pilot-rf-04",
+      "pilot-rf-05",
+      "pilot-rf-06",
+      "pilot-rf-07",
+      "pilot-rf-08",
+      "pilot-rf-09",
+      "pilot-rf-10",
+    ]);
+    assert.deepEqual(PILOT_CLUSTER_B_PROOF_DRAFT_KEYS, [
+      "pilot-rf-v4-01",
+      "pilot-rf-v4-02",
+      "pilot-rf-v4-09",
+    ]);
+  });
 
   it("wires the v4 runtime script to the canonical v4 batch key", () => {
     const source = fs.readFileSync(CLUSTER_B_V4_PROOF_SCRIPT, "utf8");
