@@ -4,23 +4,32 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { sanitizeHairDescriptions, type HairDescriptionPolicy } from "@/lib/bodyHairRules";
+import { buildHairSanitizeContext, sanitizeHairDescriptions } from "@/lib/bodyHairRules";
 
-const restrictive: HairDescriptionPolicy = {
-  charGender: "male",
-  allowsBeard: false,
-  allowsBodyHair: false,
-};
-const permissive: HairDescriptionPolicy = {
-  charGender: "male",
-  allowsBeard: true,
-  allowsBodyHair: true,
-};
-const femaleChar: HairDescriptionPolicy = {
-  charGender: "female",
-  allowsBeard: false,
-  allowsBodyHair: false,
-};
+const restrictive = buildHairSanitizeContext({
+  characterName: "조태형",
+  characterGender: "male",
+  characterAppearanceText: "",
+  personaName: "렌",
+  personaText: "",
+  userGender: "male",
+});
+const permissive = buildHairSanitizeContext({
+  characterName: "조태형",
+  characterGender: "male",
+  characterAppearanceText: "턱수염이 있다. 체모가 있다.",
+  personaName: "렌",
+  personaText: "턱수염이 있다. 체모가 있다.",
+  userGender: "male",
+});
+const femaleChar = buildHairSanitizeContext({
+  characterName: "그녀",
+  characterGender: "female",
+  characterAppearanceText: "",
+  personaName: "렌",
+  personaText: "",
+  userGender: "male",
+});
 
 function paragraphCount(text: string): number {
   return text.split(/\n\s*\n/).filter((p) => p.trim()).length;

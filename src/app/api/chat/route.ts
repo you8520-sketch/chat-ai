@@ -118,10 +118,11 @@ import { formatCharacterIdentityForBackground, resolveCharacterGender } from "@/
 import {
   collectCharacterSettingText,
   buildCharacterCanonBlock,
-  resolveHairDescriptionPolicy,
+  buildHairSanitizeContext,
   sanitizeHairDescriptions,
 } from "@/lib/bodyHairRules";
 import {
+  extractMainCharacterAppearanceBody,
   extractVisualAppearancePolicyFromChunks,
   buildFlashCanonicalAppearanceBlock,
   sanitizeVisualAppearance,
@@ -2584,12 +2585,25 @@ export async function POST(req: Request) {
   if (shouldAuditPrompt && promptAudit) {
     console.log(formatPromptAuditLog(promptAudit, { route: "OpenRouter pre-request" }));
   }
-  const settingTextForPolicy = settingText;
-  const hairPolicy = resolveHairDescriptionPolicy(
-    resolveCharacterGender(ch.gender),
-    settingTextForPolicy,
-    resolveCharacterGender(selectedPersona?.gender ?? "other")
-  );
+  const characterHairAppearanceText =
+    extractMainCharacterAppearanceBody(characterChunks, ch.name, {
+      personaName: personaDisplayName,
+    }) ??
+    (usedEnglishCharacterPrompt
+      ? extractMainCharacterAppearanceBody(loadCharacterChunks(ch), ch.name, {
+          personaName: personaDisplayName,
+        })
+      : null) ??
+    "";
+  const hairSanitizeContext = buildHairSanitizeContext({
+    characterName: ch.name,
+    characterGender: resolveCharacterGender(ch.gender),
+    characterAppearanceText: characterHairAppearanceText,
+    personaName: personaDisplayName,
+    personaText: userPersonaPrompt ?? personaDescription,
+    userGender: resolveCharacterGender(selectedPersona?.gender ?? "other"),
+    extraPersonaNames: user.nickname !== personaDisplayName ? [user.nickname] : [],
+  });
   const visualPolicy = (() => {
     const fromPrompt = extractVisualAppearancePolicyFromChunks(characterChunks, ch.name, {
       personaName: personaDisplayName,
@@ -3495,7 +3509,7 @@ export async function POST(req: Request) {
         traced = traceStep(
           "sanitizeHairDescriptions",
           traced,
-          sanitizeHairDescriptions(traced, hairPolicy),
+          sanitizeHairDescriptions(traced, hairSanitizeContext),
           "sanitizeHairDescriptions — hair policy violations"
         );
         traced = traceStep(
@@ -4121,7 +4135,7 @@ export async function POST(req: Request) {
             "sanitizeVisualAppearanceHtmlFlash",
             savedText,
             sanitizeVisualAppearance(
-              sanitizeHairDescriptions(savedText, hairPolicy),
+              sanitizeHairDescriptions(savedText, hairSanitizeContext),
               visualPolicy
             ),
             "HTML flash — visual/hair lock (correct 금발/은발 drift in OOC HTML)"
@@ -5110,7 +5124,7 @@ export async function POST(req: Request) {
             "sanitizeVisualAppearanceFinal",
             savedText,
             sanitizeVisualAppearance(
-              sanitizeHairDescriptions(savedText, hairPolicy),
+              sanitizeHairDescriptions(savedText, hairSanitizeContext),
               visualPolicy
             ),
             "final pass — appearance lock after stream-first / length continuation"

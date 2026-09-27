@@ -36,8 +36,6 @@ export type CoreMasterPromptInput = {
   autoProgressionEnabled?: boolean;
   completedTurns: number;
   hasMindReading: boolean;
-  allowsBeard: boolean;
-  allowsBodyHair: boolean;
   party?: boolean;
   /** dialogue-format-directive tail 사용 시 core §8 축약 */
   tailFormatActive?: boolean;
