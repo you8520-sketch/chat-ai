@@ -46,6 +46,17 @@ Wire params verified: `temperature=0.95`, `reasoning_effort=low`, `max_tokens` o
 
 **Implication:** On current production topology, arms C and D cannot isolate Sep-17 density text — density is not in the provider-bound prompt. Live 2×2 still runs all four arms for protocol completeness; density dimension is a no-op.
 
+## Live verdict (`quiet_intimacy`, n=5×4, provider_calls=1)
+
+| Arm | median | mean | max |
+|---|---|---|---|
+| A | 1346 | 1294 | 1452 |
+| B | 1596 | 2173 | 4098 |
+| C | 1309 | 1318 | 2267 |
+| D | 801 | 860 | 1207 |
+
+**ROOT_CAUSE_UNCONFIRMED.** B mean > A but same-prompt D collapses; reasoning share ≈0.70 all arms. No production fix. See `REPORT.md`.
+
 ## Harness
 
 ```bash
