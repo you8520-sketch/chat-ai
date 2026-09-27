@@ -18,7 +18,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 import { buildContext } from "@/services/contextBuilder";
 import { parseCharacterSetting } from "@/utils/characterParser";
 import { formatSelectedPersonaForPrompt } from "@/lib/userPersonas";
-import { buildCharacterHairCanonFactFromSetting } from "@/lib/bodyHairRules";
+import { buildCharacterHairCanonFactFromAppearanceText } from "@/lib/bodyHairRules";
 import type { CharacterGender } from "@/lib/characterGender";
 
 const HAIR_FACT = "facial_hair=none; body_hair=none";
@@ -27,13 +27,14 @@ function assemble(opts: {
   gender: CharacterGender;
   appearance: string;
   persona?: { gender: CharacterGender; description: string };
+  world?: string;
 }) {
   const chunks = parseCharacterSetting({
     characterId: "hair-canon",
     characterName: "하율",
     gender: opts.gender,
     systemPrompt: `# 성격\n차분하다.\n\n# 외형\n${opts.appearance}`,
-    world: "",
+    world: opts.world ?? "",
     exampleDialog: "",
     statusWindowPrompt: "",
   });
@@ -78,13 +79,13 @@ describe("character hair canon fact", () => {
 
   it("male with canonical beard: no absence fact", () => {
     const system = assemble({ gender: "male", appearance: "키 178cm, 짧게 다듬은 턱수염." });
-    assert.equal(buildCharacterHairCanonFactFromSetting("male", "짧게 다듬은 턱수염."), null);
+    assert.equal(buildCharacterHairCanonFactFromAppearanceText("male", "짧게 다듬은 턱수염."), null);
     assert.doesNotMatch(appearanceSection(system), /facial_hair=none/);
   });
 
   it("수염 없음 setting yields absence fact, not allow-beard", () => {
     assert.equal(
-      buildCharacterHairCanonFactFromSetting("male", "수염 없음. 깔끔한 턱."),
+      buildCharacterHairCanonFactFromAppearanceText("male", "수염 없음. 깔끔한 턱."),
       HAIR_FACT
     );
   });
@@ -97,5 +98,22 @@ describe("character hair canon fact", () => {
     });
     assert.match(system, /턱수염/);
     assert.equal(system.split("facial_hair=").length - 1, 1);
+  });
+
+  it("NPC beard in world lore does not contaminate main character hair policy", () => {
+    const system = assemble({
+      gender: "male",
+      appearance: "키 178cm, 검은 머리.",
+      world: "[NPC]\n김 형사는 짙은 턱수염을 기르고 있다.",
+    });
+    assert.match(appearanceSection(system), /facial_hair=none/);
+  });
+
+  it("explicit facial hair canon is preserved regardless of gender default", () => {
+    const system = assemble({
+      gender: "female",
+      appearance: "키 175cm, 짧게 다듬은 턱수염.",
+    });
+    assert.doesNotMatch(appearanceSection(system), /facial_hair=none/);
   });
 });
