@@ -109,6 +109,25 @@ describe("jev decisions official wire contract", () => {
     }
   });
 
+  it("benchmark apiKey override is used instead of production OPENROUTER_API_KEY", async () => {
+    const { callJevDecisions } = await import("./jevDecisions");
+    withKey();
+    try {
+      stubFetch(() => jsonResponse(decisionBody()));
+      await callJevDecisions({
+        state: { round: 3 },
+        questions: questions(),
+        ledger: null,
+        apiKey: "bench-only-key",
+      });
+      assert.equal(calls.length, 1);
+      const headers = calls[0]!.init.headers as Record<string, string>;
+      assert.equal(headers.Authorization, "Bearer bench-only-key");
+    } finally {
+      restoreEnv();
+    }
+  });
+
   it("C2 choice response preserves choice/probabilities/confidence", async () => {
     const { callJevDecisions } = await import("./jevDecisions");
     withKey();
