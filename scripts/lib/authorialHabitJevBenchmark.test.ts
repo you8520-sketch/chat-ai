@@ -347,12 +347,18 @@ describe("authorial habit JEV benchmark execution isolation", () => {
     assert.equal(malformed.jev.malformedCount, 1);
   });
 
-  it("does not wire authorial benchmark into production /api/chat route", () => {
+  it("keeps benchmark credentials isolated after default-OFF runtime shadow wiring", () => {
     const routeSource = readFileSync(
       new URL("../../src/app/api/chat/route.ts", import.meta.url),
       "utf8"
     );
-    assert.doesNotMatch(routeSource, /authorialHabitJev/i);
-    assert.doesNotMatch(routeSource, /authorial-habit-jev/i);
+    const runtimeSource = readFileSync(
+      new URL("../../src/lib/authorialHabitJevQa.ts", import.meta.url),
+      "utf8"
+    );
+    assert.match(routeSource, /scheduleAuthorialHabitJevQa/);
+    assert.match(runtimeSource, /AUTHORIAL_HABIT_JEV_QA_ENABLED/);
+    assert.doesNotMatch(runtimeSource, /OPENROUTER_JEV_BENCHMARK_API_KEY/);
+    assert.doesNotMatch(runtimeSource, /REAL_JEV_AUTHORIAL_HABIT_PROBE/);
   });
 });
